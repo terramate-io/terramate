@@ -1,0 +1,14 @@
+name: terrastack-ci
+on: [push]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v2
+      - name: make lint
+        run: make lint
+      - name: make test
+        run: make test
+      - name: make build
+        run: make build
