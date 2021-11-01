@@ -1,4 +1,4 @@
-terrstack {
+terrastack {
   required_version = "~> 0.1"
 
   description = "Deploy stack terrastack-null-persons as local template."

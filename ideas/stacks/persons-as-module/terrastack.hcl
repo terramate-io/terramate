@@ -1,4 +1,4 @@
-terrstack {
+terrastack {
   required_version = "~> 0.1"
 
   # with label -> create a module entry locally (recommended way)
