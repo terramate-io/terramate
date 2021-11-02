@@ -1,4 +1,4 @@
-terrstack {
+terrastack {
   required_version = "~> 0.1"
 
   description = "Stack to create a list of persons based on terraform-null-person."
