@@ -1,7 +1,7 @@
 name: terrastack-ci
 on: [push]
 jobs:
-  lint:
+  check:
     runs-on: ubuntu-latest
     steps:
       - name: checkout repo
@@ -15,4 +15,4 @@ jobs:
       - name: make test
         run: make test
       - name: make build
-        run: make build
+        run: go version && make build

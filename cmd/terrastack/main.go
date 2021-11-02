@@ -22,6 +22,7 @@ var cliSpec struct {
 
 	List struct {
 		Changed bool   `short:"c" help:"Shows only changed stacks"`
+		Why     bool   `help:"Shows reason"`
 		BaseDir string `arg:"" optional:"true" name:"path" type:"path" help:"base stack directory"`
 	} `cmd:"" help:"List stacks."`
 
@@ -49,11 +50,11 @@ func main() {
 
 	switch ctx.Command() {
 	case "version":
-		fmt.Println(terrastack.Version())
+		fmt.Println(terrastack.NewManager(wd).Version())
 	case "init":
-		initStack([]string{wd})
+		initStack(wd, []string{wd})
 	case "init <paths>":
-		initStack(cliSpec.Init.StackDirs)
+		initStack(wd, cliSpec.Init.StackDirs)
 	case "list":
 		listStacks(wd, wd)
 	case "list <path>":
@@ -71,10 +72,11 @@ func main() {
 	}
 }
 
-func initStack(dirs []string) {
+func initStack(root string, dirs []string) {
 	var nErrors int
+	mgr := terrastack.NewManager(root)
 	for _, d := range dirs {
-		err := terrastack.Init(d, cliSpec.Init.Force)
+		err := mgr.Init(d, cliSpec.Init.Force)
 		if err != nil {
 			log.Printf("warn: failed to initialize stack: %v", err)
 			nErrors++
@@ -88,14 +90,15 @@ func initStack(dirs []string) {
 
 func listStacks(basedir string, cwd string) {
 	var (
-		stacks []string
+		stacks []terrastack.Entry
 		err    error
 	)
 
+	mgr := terrastack.NewManager(basedir)
 	if cliSpec.List.Changed {
-		stacks, err = terrastack.ListChanged(basedir)
+		stacks, err = mgr.ListChanged()
 	} else {
-		stacks, err = terrastack.List(basedir)
+		stacks, err = mgr.List()
 	}
 
 	if err != nil {
@@ -105,25 +108,33 @@ func listStacks(basedir string, cwd string) {
 	cwd = cwd + string(os.PathSeparator)
 
 	for _, stack := range stacks {
-		stack = strings.TrimPrefix(stack, cwd)
+		stackdir := strings.TrimPrefix(stack.Dir, cwd)
 
-		fmt.Println(stack)
+		fmt.Print(stackdir)
+
+		if cliSpec.List.Why {
+			fmt.Printf(" - %s", stack.Reason)
+		}
+
+		fmt.Printf("\n")
 	}
 }
 
 func run(dir string) {
 	var (
-		stacks  []string
+		stacks  []terrastack.Entry
 		err     error
 		nErrors int
 	)
 
+	mgr := terrastack.NewManager(dir)
+
 	if !cliSpec.Run.Changed {
 		printf("Running on all stacks:\n")
-		stacks, err = terrastack.List(dir)
+		stacks, err = mgr.List()
 	} else {
 		printf("Running on changed stacks:\n")
-		stacks, err = terrastack.ListChanged(dir)
+		stacks, err = mgr.ListChanged()
 	}
 
 	if err != nil {
@@ -143,16 +154,16 @@ func run(dir string) {
 	}
 
 	for _, stack := range stacks {
-		if !strings.HasPrefix(stack, basedir) {
+		if !strings.HasPrefix(stack.Dir, basedir) {
 			continue
 		}
 
-		stack = strings.TrimPrefix(stack, basedir)
+		stackdir := strings.TrimPrefix(stack.Dir, basedir)
 
-		printf("[%s] running %s %s\n", stack, cmdName, strings.Join(args, " "))
+		printf("[%s] running %s %s\n", stackdir, cmdName, strings.Join(args, " "))
 
 		cmd := exec.Command(cmdName, args...)
-		cmd.Dir = stack
+		cmd.Dir = stackdir
 
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr

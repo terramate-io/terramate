@@ -44,7 +44,8 @@ lint: build-tools
 ## test code
 .PHONY: test
 test: build-tools
-	$(call docker-run,$(DOCKER_TOOLS_FLAGS) go test -v ./...)
+	$(call docker-run,$(DOCKER_TOOLS_FLAGS) go test -coverprofile=coverage.txt \
+											-covermode=atomic ./...)
 
 ## Build terrastack into bin directory
 .PHONY: build
