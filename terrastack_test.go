@@ -147,7 +147,6 @@ func TestListChangedStacks(t *testing.T) {
 				changed[i], "changed stack mismatch")
 		}
 	}
-
 }
 
 func assertStacks(t *testing.T, basedir string, want, got []string) {

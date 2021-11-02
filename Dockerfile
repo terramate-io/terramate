@@ -4,5 +4,5 @@ WORKDIR /src
 COPY . .
 RUN go build -o /out/terrastack ./cmd/terrastack
 
-FROM scratch AS bin
-COPY --from=build /out/terrastack /
+FROM alpine:latest AS bin
+COPY --from=build /out/terrastack /bin/terrastack

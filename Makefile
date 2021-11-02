@@ -49,7 +49,11 @@ test: build-tools
 ## Build terrastack into bin directory
 .PHONY: build
 build:
-	docker build --target bin --output bin/ .
+	go build -o bin/terrastack ./cmd/terrastack
+
+.PHONY: build-image
+build-image:
+	docker build -t $(DOCKER_IMAGE) .
 
 ## remove bin/*
 .PHONY: clean

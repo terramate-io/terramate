@@ -7,4 +7,6 @@ RUN go install github.com/mgechev/revive@latest && \
 
 RUN apk update && apk add git
 
+ENV CGO_ENABLED 0
+
 WORKDIR /src
