@@ -3,8 +3,6 @@ terrastack {
 
   description = "Stack to create a list of persons based on terraform-null-person."
 
-  type = module
-
   variable "persons" {
     type    = list(object)
     default = []
