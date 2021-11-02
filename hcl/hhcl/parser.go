@@ -24,8 +24,7 @@ func NewParser() *Parser {
 	}
 }
 
-// ParseModules parses blocks of type "module" containing a single label and
-// extract its source attribute value.
+// ParseModules parses blocks of type "module" containing a single label.
 func (p *Parser) ParseModules(path string) ([]hcl.Module, error) {
 	_, err := os.Stat(path)
 	if err != nil {
