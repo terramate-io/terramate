@@ -8,6 +8,9 @@ import (
 	"strings"
 )
 
+// ConfigFilename is the name of the terrastack configuration file.
+const ConfigFilename = "terrastack"
+
 // Init initialize a stack. It's an error to initialize an already initialized
 // stack unless they are of same versions. In case the stack is initialized with
 // other terrastack version, the force flag can be used to explicitly initialize
@@ -26,7 +29,7 @@ func Init(dir string, force bool) error {
 		return fmt.Errorf("path is not a directory")
 	}
 
-	stackfile := filepath.Join(dir, "terrastack")
+	stackfile := filepath.Join(dir, ConfigFilename)
 	isInitialized := false
 
 	st, err = os.Stat(stackfile)
