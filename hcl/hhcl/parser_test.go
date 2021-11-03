@@ -85,7 +85,7 @@ func TestHHCLParserModules(t *testing.T) {
 		{
 			input: "module \"test\" {\nsource = -1\n}\n",
 			want: want{
-				err: fmt.Errorf("\"test\".source is not a string"),
+				err: fmt.Errorf("\"test\".source type is [number], expected [string]"),
 			},
 		},
 		{

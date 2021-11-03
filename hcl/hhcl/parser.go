@@ -36,37 +36,34 @@ func (p *Parser) ParseModules(path string) ([]hcl.Module, error) {
 		return nil, fmt.Errorf("parsing modules: %w", diags)
 	}
 
-	body, ok := f.Body.(*hclsyntax.Body)
-	if !ok {
-		panic("internal error: *hcl.File.Body is not a *hclsyntax.Body")
-	}
+	body, _ := f.Body.(*hclsyntax.Body)
 
 	var modules []hcl.Module
-
-outer:
 	for _, block := range body.Blocks {
-		if block.Type == "module" {
-			if len(block.Labels) != 1 {
-				// a module block must have 1 label.
+		if block.Type != "module" || len(block.Labels) != 1 {
+			continue
+		}
+
+		moduleName := block.Labels[0]
+		for name, value := range block.Body.Attributes {
+			if name != "source" {
 				continue
 			}
 
-			module := block.Labels[0]
-			for name, value := range block.Body.Attributes {
-				if name == "source" {
-					sourceVal, diags := value.Expr.Value(nil)
-					if diags.HasErrors() {
-						return nil, fmt.Errorf("failed to evaluate %q.source attribute: %w",
-							module, diags)
-					}
-					if sourceVal.Type() != cty.String {
-						return nil, fmt.Errorf("%q.source is not a string", module)
-					}
-					modules = append(modules, hcl.Module{Source: sourceVal.AsString()})
-					continue outer
-				}
+			sourceVal, diags := value.Expr.Value(nil)
+			if diags.HasErrors() {
+				return nil, fmt.Errorf("failed to evaluate %q.source attribute: %w",
+					moduleName, diags)
 			}
+			if sourceVal.Type() != cty.String {
+				return nil, fmt.Errorf("%q.source type is [%s], expected [%s]",
+					moduleName, sourceVal.Type().FriendlyName(),
+					cty.String.FriendlyName())
+			}
+			modules = append(modules, hcl.Module{Source: sourceVal.AsString()})
+			break
 		}
+
 	}
 
 	return modules, nil
