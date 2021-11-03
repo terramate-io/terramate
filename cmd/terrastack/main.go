@@ -68,7 +68,7 @@ func main() {
 	case "run <cmd>":
 		basedir := wd
 		if cliSpec.Run.Basedir != "" {
-			basedir = cliSpec.Run.Basedir
+			basedir = strings.TrimSuffix(cliSpec.Run.Basedir, "/")
 		}
 
 		run(basedir)
@@ -139,10 +139,6 @@ func run(basedir string) {
 		log.Fatalf("error computing absolute path: %v", err)
 	}
 
-	if basedir[len(basedir)-1] != os.PathSeparator {
-		basedir = basedir + string(os.PathSeparator)
-	}
-
 	mgr := terrastack.NewManager(basedir)
 	stacks, err := listStacks(mgr)
 	if err != nil {
@@ -158,10 +154,10 @@ func run(basedir string) {
 	cmdName := cliSpec.Run.Command[0]
 	args := cliSpec.Run.Command[1:]
 
+	basedir = basedir + string(os.PathSeparator)
+
 	for _, stack := range stacks {
 		stackdir := strings.TrimPrefix(stack.Dir, basedir)
-
-		printf("[%s] running %s %s\n", stackdir, cmdName, strings.Join(args, " "))
 
 		cmd := exec.Command(cmdName, args...)
 		cmd.Dir = stackdir
@@ -171,6 +167,8 @@ func run(basedir string) {
 		cmd.Stdin = os.Stdin
 
 		cmd.Env = os.Environ()
+
+		printf("[%s] running %s\n", stackdir, cmd)
 
 		err = cmd.Run()
 		if err != nil {
