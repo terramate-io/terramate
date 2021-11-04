@@ -71,8 +71,10 @@ func (m *Manager) List() ([]Entry, error) {
 	return entries, nil
 }
 
-// ListChanged lists the stacks that have changed since last merge in the main
-// branch. It's an error to invoke this function in a directory that's not
+// ListChanged lists the stacks that have changed on the current branch,
+// compared to the main branch. This method assumes a version control
+// system in place and that you are working on a branch that is not main.
+// It's an error to call this method in a directory that's not
 // inside a repository or a repository with no commits in it.
 func (m *Manager) ListChanged() ([]Entry, error) {
 	stackSet := map[string]Entry{}
