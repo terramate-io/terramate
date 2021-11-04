@@ -39,7 +39,7 @@ func NewManager(basedir string) *Manager {
 }
 
 // List walks the basedir directory looking for terraform stacks.
-// It returns a sorted list of stack directories.
+// It returns a lexicographic sorted list of stack directories.
 func (m *Manager) List() ([]Entry, error) {
 	entries := []Entry{}
 
