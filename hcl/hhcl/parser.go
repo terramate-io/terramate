@@ -10,8 +10,6 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-var SyntaxError error = fmt.Errorf("syntax error")
-
 // Parser is a High-Level parser.
 type Parser struct {
 	p *hclparse.Parser
