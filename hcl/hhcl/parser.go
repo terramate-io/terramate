@@ -43,7 +43,7 @@ func (p *Parser) ParseModules(path string) ([]hcl.Module, error) {
 		}
 
 		moduleName := block.Labels[0]
-		source, err, ok := findSourceAttribute(block)
+		source, ok, err := findSourceAttribute(block)
 		if err != nil {
 			return nil, fmt.Errorf("looking for %q.source attribute: %w",
 				moduleName, err)
@@ -58,7 +58,7 @@ func (p *Parser) ParseModules(path string) ([]hcl.Module, error) {
 	return modules, nil
 }
 
-func findSourceAttribute(block *hclsyntax.Block) (string, error, bool) {
+func findSourceAttribute(block *hclsyntax.Block) (string, bool, error) {
 	for name, value := range block.Body.Attributes {
 		if name != "source" {
 			continue
@@ -66,16 +66,16 @@ func findSourceAttribute(block *hclsyntax.Block) (string, error, bool) {
 
 		sourceVal, diags := value.Expr.Value(nil)
 		if diags.HasErrors() {
-			return "", fmt.Errorf("failed to evaluate source attribute: %w",
-				diags), false
+			return "", false, fmt.Errorf("failed to evaluate source attribute: %w",
+				diags)
 		}
 
 		if sourceVal.Type() != cty.String {
 			continue
 		}
 
-		return sourceVal.AsString(), nil, true
+		return sourceVal.AsString(), true, nil
 	}
 
-	return "", nil, false
+	return "", false, nil
 }
