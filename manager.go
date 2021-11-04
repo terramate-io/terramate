@@ -68,7 +68,6 @@ func (m *Manager) List() ([]Entry, error) {
 		return nil, fmt.Errorf("while walking dir: %w", err)
 	}
 
-	sort.Sort(EntrySlice(entries))
 	return entries, nil
 }
 
@@ -140,6 +139,8 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 	for _, stack := range stackSet {
 		changedStacks = append(changedStacks, stack)
 	}
+
+	sort.Sort(EntrySlice(changedStacks))
 
 	return changedStacks, nil
 }
