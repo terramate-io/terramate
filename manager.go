@@ -91,8 +91,8 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 		return nil, err
 	}
 
-	for _, f := range files {
-		dirname := filepath.Dir(filepath.Join(m.Root, f))
+	for _, path := range files {
+		dirname := filepath.Dir(filepath.Join(m.Root, path))
 		if _, ok := stackSet[dirname]; !ok && isStack(dirname) {
 			stackSet[dirname] = Entry{
 				Dir:    dirname,
