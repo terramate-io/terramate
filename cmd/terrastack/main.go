@@ -50,7 +50,7 @@ func main() {
 
 	switch ctx.Command() {
 	case "version":
-		fmt.Println(terrastack.NewManager(wd).Version())
+		fmt.Println(terrastack.Version())
 	case "init":
 		initStack(wd, []string{wd})
 	case "init <paths>":

@@ -80,7 +80,7 @@ func TestInit(t *testing.T) {
 
 			data, err := io.ReadAll(initFile)
 			assert.NoError(t, err, "init file read")
-			assert.EqualStrings(t, mgr.Version(), string(data))
+			assert.EqualStrings(t, terrastack.Version(), string(data))
 		}
 
 		removeStack(t, stackdir)
@@ -100,7 +100,7 @@ func sameVersionStack(t *testing.T) string {
 	stack := test.TempDir(t, "")
 	stackfile := filepath.Join(stack, terrastack.ConfigFilename)
 
-	err := ioutil.WriteFile(stackfile, []byte(terrastack.NewManager(stack).Version()), 0644)
+	err := ioutil.WriteFile(stackfile, []byte(terrastack.Version()), 0644)
 	assert.NoError(t, err, "write same version stackfile")
 
 	return stack

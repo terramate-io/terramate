@@ -1,7 +1,6 @@
 package terrastack
 
 import (
-	_ "embed"
 	"fmt"
 	"io/fs"
 	"os"
@@ -16,36 +15,28 @@ import (
 )
 
 type (
-	// Manager is the terrastack stack manager.
+	// Manager is the terrastack stacks manager.
 	Manager struct {
-		Root string // Root is the stacks root directory.
+		basedir string // Basedir is the stacks base directory.
 
 		parser hcl.ModuleParser
 	}
 
-	// Entry is a generic API entry.
+	// Entry is a generic directory entry result.
 	Entry struct {
 		Dir    string
-		Reason string
+		Reason string // Reason why this entry was returned.
 	}
 )
 
-var (
-	//go:embed VERSION
-	version string
-)
-
-// NewManager creates a new stack manager. The root is the base directory where
-// all stacks reside inside.
-func NewManager(root string) *Manager {
+// NewManager creates a new stack manager. The basedir is the base directory
+// where all stacks reside inside.
+func NewManager(basedir string) *Manager {
 	return &Manager{
-		Root:   root,
-		parser: hhcl.NewParser(),
+		basedir: basedir,
+		parser:  hhcl.NewParser(),
 	}
 }
-
-// Version of terrastack.
-func (m *Manager) Version() string { return strings.TrimSpace(version) }
 
 // List walks the basedir directory looking for terraform stacks.
 // It returns a sorted list of stack directories.
@@ -53,7 +44,7 @@ func (m *Manager) List() ([]Entry, error) {
 	entries := []Entry{}
 
 	err := filepath.Walk(
-		m.Root,
+		m.basedir,
 		func(path string, info fs.FileInfo, err error) error {
 			if err != nil {
 				return err
@@ -86,13 +77,13 @@ func (m *Manager) List() ([]Entry, error) {
 // inside a repository or a repository with no commits in it.
 func (m *Manager) ListChanged() ([]Entry, error) {
 	stackSet := map[string]Entry{}
-	files, err := m.listChangedFiles(m.Root)
+	files, err := listChangedFiles(m.basedir)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, f := range files {
-		dirname := filepath.Dir(filepath.Join(m.Root, f))
+	for _, path := range files {
+		dirname := filepath.Dir(filepath.Join(m.basedir, path))
 		if _, ok := stackSet[dirname]; !ok && isStack(dirname) {
 			stackSet[dirname] = Entry{
 				Dir:    dirname,
@@ -174,7 +165,7 @@ func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) err
 }
 
 // listChangedFiles lists all changed files in the dir directory.
-func (m *Manager) listChangedFiles(dir string) ([]string, error) {
+func listChangedFiles(dir string) ([]string, error) {
 	st, err := os.Stat(dir)
 	if err != nil {
 		return nil, fmt.Errorf("stat failed on %q: %w", dir, err)
@@ -263,7 +254,7 @@ func (m *Manager) moduleChanged(
 		return false, "", nil
 	}
 
-	changedFiles, err := m.listChangedFiles(modPath)
+	changedFiles, err := listChangedFiles(modPath)
 	if err != nil {
 		return false, "", fmt.Errorf("listing changes in the module %q: %w",
 			mod.Source, err)

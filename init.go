@@ -2,7 +2,6 @@ package terrastack
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -52,9 +51,9 @@ func (m *Manager) Init(dir string, force bool) error {
 				"version: %w", err)
 		}
 
-		if version != m.Version() {
+		if version != Version() {
 			return fmt.Errorf("stack already initialized with version %q "+
-				"but terrastack version is %q", version, m.Version())
+				"but terrastack version is %q", version, Version())
 		}
 
 		err = os.Remove(string(stackfile))
@@ -63,7 +62,7 @@ func (m *Manager) Init(dir string, force bool) error {
 		}
 	}
 
-	err = ioutil.WriteFile(stackfile, []byte(m.Version()), 0644)
+	err = os.WriteFile(stackfile, []byte(Version()), 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write %q: %w", stackfile, err)
 	}
@@ -72,7 +71,7 @@ func (m *Manager) Init(dir string, force bool) error {
 }
 
 func parseVersion(stackfile string) (string, error) {
-	data, err := ioutil.ReadFile(stackfile)
+	data, err := os.ReadFile(stackfile)
 	if err != nil {
 		return "", fmt.Errorf("reading stack file: %w", err)
 	}

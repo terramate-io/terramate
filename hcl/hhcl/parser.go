@@ -45,26 +45,39 @@ func (p *Parser) ParseModules(path string) ([]hcl.Module, error) {
 		}
 
 		moduleName := block.Labels[0]
-		for name, value := range block.Body.Attributes {
-			if name != "source" {
-				continue
-			}
-
-			sourceVal, diags := value.Expr.Value(nil)
-			if diags.HasErrors() {
-				return nil, fmt.Errorf("failed to evaluate %q.source attribute: %w",
-					moduleName, diags)
-			}
-			if sourceVal.Type() != cty.String {
-				return nil, fmt.Errorf("%q.source type is [%s], expected [%s]",
-					moduleName, sourceVal.Type().FriendlyName(),
-					cty.String.FriendlyName())
-			}
-			modules = append(modules, hcl.Module{Source: sourceVal.AsString()})
-			break
+		source, err, ok := findSourceAttribute(block)
+		if err != nil {
+			return nil, fmt.Errorf("looking for %q.source attribute: %w",
+				moduleName, err)
+		}
+		if !ok {
+			continue
 		}
 
+		modules = append(modules, hcl.Module{Source: source})
 	}
 
 	return modules, nil
+}
+
+func findSourceAttribute(block *hclsyntax.Block) (string, error, bool) {
+	for name, value := range block.Body.Attributes {
+		if name != "source" {
+			continue
+		}
+
+		sourceVal, diags := value.Expr.Value(nil)
+		if diags.HasErrors() {
+			return "", fmt.Errorf("failed to evaluate source attribute: %w",
+				diags), false
+		}
+
+		if sourceVal.Type() != cty.String {
+			continue
+		}
+
+		return sourceVal.AsString(), nil, true
+	}
+
+	return "", nil, false
 }
