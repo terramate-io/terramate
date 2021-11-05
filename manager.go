@@ -215,8 +215,22 @@ func listChangedFiles(dir string) ([]string, error) {
 			mainRef, mergeBase)
 	}
 
-	if g.IsDirty() {
-		return nil, fmt.Errorf("repository has uncommited changes")
+	files, err := g.ListUntracked()
+	if err != nil {
+		return nil, fmt.Errorf("failed to check repository status: %v", err)
+	}
+
+	if len(files) > 0 {
+		return nil, fmt.Errorf("repository has untracked files: %v", files)
+	}
+
+	files, err = g.ListUncommitted()
+	if err != nil {
+		return nil, fmt.Errorf("failed to check repository status: %v", err)
+	}
+
+	if len(files) > 0 {
+		return nil, fmt.Errorf("repository has uncommitted files: %v", files)
 	}
 
 	diff, err := g.DiffTree(changeBase, headRef, true, true)
