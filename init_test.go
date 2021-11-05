@@ -100,7 +100,7 @@ func sameVersionStack(t *testing.T) string {
 	stack := test.TempDir(t, "")
 	stackfile := filepath.Join(stack, terrastack.ConfigFilename)
 
-	err := ioutil.WriteFile(stackfile, []byte(terrastack.Version()), 0644)
+	err := ioutil.WriteFile(stackfile, []byte(terrastack.Version()), 0700)
 	assert.NoError(t, err, "write same version stackfile")
 
 	return stack
@@ -110,7 +110,7 @@ func otherVersionStack(t *testing.T) string {
 	stack := test.TempDir(t, "")
 	stackfile := filepath.Join(stack, terrastack.ConfigFilename)
 
-	err := ioutil.WriteFile(stackfile, []byte("9999.9999.9999"), 0644)
+	err := ioutil.WriteFile(stackfile, []byte("9999.9999.9999"), 0700)
 	assert.NoError(t, err, "write other version stackfile")
 
 	return stack
