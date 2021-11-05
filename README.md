@@ -40,8 +40,8 @@ To install **terrastack** using Go just run:
 go install github.com/mineiros-io/terrastack/cmd/terrastack@<version>
 ```
 
-Where **<version>** is any tagged version of the tool, or if you are feeling
-adventurous you can just install **latest**:
+Where **<version>** is any terrastack [version tag](https://github.com/mineiros-io/terrastack/tags),
+or if you are feeling adventurous you can just install **latest**:
 
 ```
 go install github.com/mineiros-io/terrastack/cmd/terrastack@latest
@@ -49,21 +49,22 @@ go install github.com/mineiros-io/terrastack/cmd/terrastack@latest
 
 We put great effort into keeping the main branch stable, so it should be safe
 to use **latest** to play around, but not recommended for long term automation
-since you won't get the same build result each time you install the tool.
+since you won't get the same build result each time you run the install command.
 
 
-### Go/Git configuration for private Repositories
+### Go/Git configuration for private repositories
 
 While this repository is private, there is some extra work in order to
-download and install it using **go install/get**. There is two main steps,
-first you need to configure git to use ssh instead of https:
+download and install it using **go install**. There is two main steps.
+First you need to configure git to use ssh instead of https:
 
 ```
 git config --global url.git@github.com:.insteadOf https://github.com/
 ```
 
-This only need to be done once and will change the **.gitconfig** on your
-host. Then you should always export **GOPRIVATE** for our mineiros-io repos:
+This only needs to be done once and will change the **.gitconfig** on your
+host. Then you should always export **GOPRIVATE** for our mineiros-io repos
+before running go install:
 
 ```
 export GOPRIVATE=github.com/mineiros-io
