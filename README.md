@@ -50,12 +50,14 @@ first you need to configure git to use ssh instead of https:
 git config --global url.git@github.com:.insteadOf https://github.com/
 ```
 
-This only need to be done once and will change the **.gitconfig** from your
+This only need to be done once and will change the **.gitconfig** on your
 host. Then you should always export **GOPRIVATE** for our mineiros-io repos:
 
 ```
 export GOPRIVATE=github.com/mineiros-io
 ```
+
+More info [here](https://golang.org/ref/mod#private-module-proxy-direct).
 
 
 ## Why using stacks?
