@@ -310,13 +310,6 @@ func (git *Git) Status() (string, error) {
 	return git.exec("status")
 }
 
-// IsDirty tells if the repository has any uncommited changes.
-func (git *Git) IsDirty() bool {
-	// The -- in the final is to avoid conflict in case the repo has a HEAD file.
-	_, err := git.exec("diff-index", "HEAD", "--")
-	return err != nil
-}
-
 // DiffTree compares the from and to commit ids and returns the differences. If
 // nameOnly is set then only the file names of changed files are show. If
 // recurse is set, then it walks into child trees as well.
@@ -396,6 +389,45 @@ func (git *Git) FFMerge(branch string) error {
 
 	_, err := git.exec("merge", "--ff", branch)
 	return err
+}
+
+// ListUntracked lists untracked files in the directories provided in dirs.
+func (git *Git) ListUntracked(dirs ...string) ([]string, error) {
+	args := []string{
+		"--others", "--exclude-standard",
+	}
+
+	if len(dirs) > 0 {
+		args = append(args, "--")
+		args = append(args, dirs...)
+	}
+
+	out, err := git.exec("ls-files", args...)
+	if err != nil {
+		return nil, fmt.Errorf("ls-files: %w", err)
+	}
+
+	return removeEmptyLines(strings.Split(out, "\n")), nil
+
+}
+
+// ListUncommitted lists uncommitted files in the directories provided in dirs.
+func (git *Git) ListUncommitted(dirs ...string) ([]string, error) {
+	args := []string{
+		"--modified", "--exclude-standard",
+	}
+
+	if len(dirs) > 0 {
+		args = append(args, "--")
+		args = append(args, dirs...)
+	}
+
+	out, err := git.exec("ls-files", args...)
+	if err != nil {
+		return nil, fmt.Errorf("ls-files: %w", err)
+	}
+
+	return removeEmptyLines(strings.Split(out, "\n")), nil
 }
 
 // IsRepository tell if the git wrapper setup is operating in a valid git
@@ -481,3 +513,14 @@ func (e *CmdError) Stdout() []byte { return e.stdout }
 
 // Stderr of the failed command.
 func (e *CmdError) Stderr() []byte { return e.stderr }
+
+func removeEmptyLines(lines []string) []string {
+	outlines := make([]string, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			outlines = append(outlines, line)
+		}
+	}
+	return outlines
+}

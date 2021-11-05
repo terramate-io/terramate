@@ -13,24 +13,25 @@ import (
 )
 
 var cliSpec struct {
-	Version struct{} `cmd:"" help:"Terrastack version"`
+	Version struct{} `cmd:"" help:"Terrastack version."`
 
 	Init struct {
-		StackDirs []string `arg:"" name:"paths" optional:"true" help:"the stack directory (current directory if not set)"`
-		Force     bool     `help:"force initialization"`
-	} `cmd:"" help:"Initialize a stack"`
+		StackDirs []string `arg:"" name:"paths" optional:"true" help:"the stack directory (current directory if not set)."`
+		Force     bool     `help:"force initialization."`
+	} `cmd:"" help:"Initialize a stack."`
 
 	List struct {
-		Changed bool   `short:"c" help:"Shows only changed stacks"`
-		BaseDir string `arg:"" optional:"true" name:"path" type:"path" help:"base stack directory"`
+		Changed bool   `short:"c" help:"Shows only changed stacks."`
+		Why     bool   `help:"Shows reason on why the stack has changed."`
+		BaseDir string `arg:"" optional:"true" name:"path" type:"path" help:"base stack directory."`
 	} `cmd:"" help:"List stacks."`
 
 	Run struct {
 		Quiet   bool     `short:"q" help:"Don't print any information other than the command output."`
-		Changed bool     `short:"c" help:"Run on all changed stacks"`
-		Basedir string   `short:"b" optional:"true" help:"Run on stacks inside basedir"`
-		Command []string `arg:"" name:"cmd" passthrough:"" help:"command to execute"`
-	} `cmd:"" help:"Run command in the stacks"`
+		Changed bool     `short:"c" help:"Run on all changed stacks."`
+		Basedir string   `short:"b" optional:"true" help:"Run on stacks inside basedir."`
+		Command []string `arg:"" name:"cmd" passthrough:"" help:"command to execute."`
+	} `cmd:"" help:"Run command in the stacks."`
 }
 
 func main() {
@@ -51,13 +52,13 @@ func main() {
 	case "version":
 		fmt.Println(terrastack.Version())
 	case "init":
-		initStack([]string{wd})
+		initStack(wd, []string{wd})
 	case "init <paths>":
-		initStack(cliSpec.Init.StackDirs)
+		initStack(wd, cliSpec.Init.StackDirs)
 	case "list":
-		listStacks(wd, wd)
+		printStacks(wd, wd)
 	case "list <path>":
-		listStacks(cliSpec.List.BaseDir, wd)
+		printStacks(cliSpec.List.BaseDir, wd)
 	case "run":
 		if len(cliSpec.Run.Command) == 0 {
 			log.Fatalf("no command specified")
@@ -65,16 +66,23 @@ func main() {
 
 		fallthrough
 	case "run <cmd>":
-		run(wd)
+		basedir := wd
+		if cliSpec.Run.Basedir != "" {
+			basedir = strings.TrimSuffix(cliSpec.Run.Basedir, "/")
+		}
+
+		run(basedir)
+
 	default:
 		log.Fatalf("unexpected command sequence: %s", ctx.Command())
 	}
 }
 
-func initStack(dirs []string) {
+func initStack(root string, dirs []string) {
 	var nErrors int
+	mgr := terrastack.NewManager(root)
 	for _, d := range dirs {
-		err := terrastack.Init(d, cliSpec.Init.Force)
+		err := mgr.Init(d, cliSpec.Init.Force)
 		if err != nil {
 			log.Printf("warn: failed to initialize stack: %v", err)
 			nErrors++
@@ -86,18 +94,24 @@ func initStack(dirs []string) {
 	}
 }
 
-func listStacks(basedir string, cwd string) {
+func listStacks(mgr *terrastack.Manager) ([]terrastack.Entry, error) {
 	var (
-		stacks []string
 		err    error
+		stacks []terrastack.Entry
 	)
 
 	if cliSpec.List.Changed {
-		stacks, err = terrastack.ListChanged(basedir)
+		stacks, err = mgr.ListChanged()
 	} else {
-		stacks, err = terrastack.List(basedir)
+		stacks, err = mgr.List()
 	}
 
+	return stacks, err
+}
+
+func printStacks(basedir string, cwd string) {
+	mgr := terrastack.NewManager(basedir)
+	stacks, err := listStacks(mgr)
 	if err != nil {
 		log.Fatalf("error: %v", err)
 	}
@@ -105,60 +119,56 @@ func listStacks(basedir string, cwd string) {
 	cwd = cwd + string(os.PathSeparator)
 
 	for _, stack := range stacks {
-		stack = strings.TrimPrefix(stack, cwd)
+		stackdir := strings.TrimPrefix(stack.Dir, cwd)
 
-		fmt.Println(stack)
+		fmt.Print(stackdir)
+
+		if cliSpec.List.Why {
+			fmt.Printf(" - %s", stack.Reason)
+		}
+
+		fmt.Printf("\n")
 	}
 }
 
-func run(dir string) {
-	var (
-		stacks  []string
-		err     error
-		nErrors int
-	)
+func run(basedir string) {
+	var nErrors int
 
-	if !cliSpec.Run.Changed {
-		printf("Running on all stacks:\n")
-		stacks, err = terrastack.List(dir)
-	} else {
-		printf("Running on changed stacks:\n")
-		stacks, err = terrastack.ListChanged(dir)
+	basedir, err := filepath.Abs(basedir)
+	if err != nil {
+		log.Fatalf("error computing absolute path: %v", err)
 	}
 
+	mgr := terrastack.NewManager(basedir)
+	stacks, err := listStacks(mgr)
 	if err != nil {
 		log.Fatalf("error: failed to list stacks: %v", err)
+	}
+
+	if cliSpec.Run.Changed {
+		printf("Running on changed stacks:\n")
+	} else {
+		printf("Running on all stacks:\n")
 	}
 
 	cmdName := cliSpec.Run.Command[0]
 	args := cliSpec.Run.Command[1:]
 
-	basedir := cliSpec.Run.Basedir
-
-	if basedir != "" {
-		basedir, err = filepath.Abs(basedir)
-		if err != nil {
-			log.Fatalf("error computing absolute path: %v", err)
-		}
-	}
+	basedir = basedir + string(os.PathSeparator)
 
 	for _, stack := range stacks {
-		if !strings.HasPrefix(stack, basedir) {
-			continue
-		}
-
-		stack = strings.TrimPrefix(stack, basedir)
-
-		printf("[%s] running %s %s\n", stack, cmdName, strings.Join(args, " "))
+		stackdir := strings.TrimPrefix(stack.Dir, basedir)
 
 		cmd := exec.Command(cmdName, args...)
-		cmd.Dir = stack
+		cmd.Dir = stackdir
 
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
 
 		cmd.Env = os.Environ()
+
+		printf("[%s] running %s\n", stackdir, cmd)
 
 		err = cmd.Run()
 		if err != nil {

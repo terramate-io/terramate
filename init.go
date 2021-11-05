@@ -2,7 +2,6 @@ package terrastack
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,7 +14,7 @@ const ConfigFilename = "terrastack"
 // stack unless they are of same versions. In case the stack is initialized with
 // other terrastack version, the force flag can be used to explicitly initialize
 // it anyway.
-func Init(dir string, force bool) error {
+func (m *Manager) Init(dir string, force bool) error {
 	st, err := os.Stat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -63,7 +62,7 @@ func Init(dir string, force bool) error {
 		}
 	}
 
-	err = ioutil.WriteFile(stackfile, []byte(Version()), 0644)
+	err = os.WriteFile(stackfile, []byte(Version()), 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write %q: %w", stackfile, err)
 	}
@@ -72,7 +71,7 @@ func Init(dir string, force bool) error {
 }
 
 func parseVersion(stackfile string) (string, error) {
-	data, err := ioutil.ReadFile(stackfile)
+	data, err := os.ReadFile(stackfile)
 	if err != nil {
 		return "", fmt.Errorf("reading stack file: %w", err)
 	}
