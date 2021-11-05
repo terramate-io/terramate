@@ -19,6 +19,45 @@ don't have the `provider` explicitly set, is not runnable hence it's
 So, if your runnable terraform module creates your whole infrastructure, *it's
 also not a stack*.
 
+
+## Installing
+
+To install **terrastack** using Go just run:
+
+```
+go install github.com/mineiros-io/terrastack/cmd/terrastack@<version>
+```
+
+Where **<version>** is any tagged version of the tool, or if you are feeling
+adventurous you can just install **latest**:
+
+```
+go install github.com/mineiros-io/terrastack/cmd/terrastack@latest
+```
+
+We put great effort into keeping the main branch stable, so it should be safe
+to use **latest** to play around, but not recommended for long term automation
+since you won't get the same build result each time you install the tool.
+
+
+### Go/Git configuration for private Repositories
+
+While this repository is private, there is some extra work in order to
+download and install it using **go install/get**. There is two main steps,
+first you need to configure git to use ssh instead of https:
+
+```
+git config --global url.git@github.com:.insteadOf https://github.com/
+```
+
+This only need to be done once and will change the **.gitconfig** from your
+host. Then you should always export **GOPRIVATE** for our mineiros-io repos:
+
+```
+export GOPRIVATE=github.com/mineiros-io
+```
+
+
 ## Why using stacks?
 
 The stack concept is advised for several reasons:
