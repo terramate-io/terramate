@@ -88,6 +88,7 @@ func TestListMultipleSubStacks(t *testing.T) {
 
 func TestListChangedStacks(t *testing.T) {
 	type testcase struct {
+		name        string
 		repobuilder func(t *testing.T) (string, []string)
 		want        []string
 		err         error
@@ -103,26 +104,32 @@ func TestListChangedStacks(t *testing.T) {
 
 	for _, tc := range []testcase{
 		{
+			name:        "single stack: not changed",
 			repobuilder: singleNotChangedStack,
 			want:        []string{},
 		},
 		{
+			name:        "single stack: not changed on a new branch",
 			repobuilder: singleNotChangedStackNewBranch,
 			want:        []string{},
 		},
 		{
-			repobuilder: singleNotMergeCommitBranch,
+			name:        "single stack: not merged commit branch",
+			repobuilder: singleNotMergedCommitBranch,
 			want:        []string{"/"},
 		},
 		{
+			name:        "single stack: changed",
 			repobuilder: singleChangedStacksRepo,
 			want:        []string{"/"},
 		},
 		{
+			name:        "multiple stacks: one changed",
 			repobuilder: multipleStacksOneChangedRepo,
 			want:        []string{"/changed-stack"},
 		},
 		{
+			name:        "multiple stacks: multiple changed",
 			repobuilder: multipleChangedStacksRepo,
 			want: []string{
 				"/changed-stack",
@@ -132,45 +139,49 @@ func TestListChangedStacks(t *testing.T) {
 			},
 		},
 		{
+			name:        "single stack: single module changed",
 			repobuilder: singleStackSingleModuleChangedRepo,
 			want:        []string{"/"},
 		},
 		{
+			name:        "single stack: dependent module changed",
 			repobuilder: singleStackDependentModuleChangedRepo,
 			want:        []string{"/"},
 		},
 	} {
-		repodir, modules := tc.repobuilder(t)
+		t.Run(tc.name, func(t *testing.T) {
+			repodir, modules := tc.repobuilder(t)
 
-		allrepos = append(allrepos, repodir)
-		allrepos = append(allrepos, modules...)
+			allrepos = append(allrepos, repodir)
+			allrepos = append(allrepos, modules...)
 
-		m := terrastack.NewManager(repodir)
+			m := terrastack.NewManager(repodir)
 
-		changed, err := m.ListChanged()
-		assert.EqualErrs(t, tc.err, err, "ListChanged() error")
+			changed, err := m.ListChanged()
+			assert.EqualErrs(t, tc.err, err, "ListChanged() error")
 
-		assert.EqualInts(t, len(tc.want), len(changed),
-			"number of changed stacks mismatch")
+			assert.EqualInts(t, len(tc.want), len(changed),
+				"number of changed stacks mismatch")
 
-		sort.Sort(terrastack.EntrySlice(changed))
-		sort.Strings(tc.want)
+			sort.Sort(terrastack.EntrySlice(changed))
+			sort.Strings(tc.want)
 
-		for i := 0; i < len(tc.want); i++ {
-			assert.EqualStrings(t, filepath.Join(repodir, tc.want[i]),
-				changed[i].Dir, "changed stack mismatch")
+			for i := 0; i < len(tc.want); i++ {
+				assert.EqualStrings(t, filepath.Join(repodir, tc.want[i]),
+					changed[i].Dir, "changed stack mismatch")
 
-			if changed[i].Reason == "" {
-				t.Fatal("entry has no reason")
+				if changed[i].Reason == "" {
+					t.Fatal("entry has no reason")
+				}
 			}
-		}
+		})
 	}
 }
 
 func TestListChangedStackReason(t *testing.T) {
 	var removedirs []string
 
-	repodir, modules := singleNotMergeCommitBranch(t)
+	repodir, modules := singleNotMergedCommitBranch(t)
 
 	removedirs = append(removedirs, repodir)
 	removedirs = append(removedirs, modules...)
@@ -345,7 +356,7 @@ func addMergeCommit(t *testing.T, repodir, branch string) {
 	assert.NoError(t, g.Merge(branch), "git merge failed")
 }
 
-func singleNotMergeCommitBranch(t *testing.T) (repo string, modules []string) {
+func singleNotMergedCommitBranch(t *testing.T) (repo string, modules []string) {
 	repo, modules = singleNotChangedStack(t)
 
 	g := test.NewGitWrapper(t, repo, false)
