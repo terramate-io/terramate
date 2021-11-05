@@ -1,3 +1,15 @@
+<!-- mdtocstart -->
+
+# Table of Contents
+
+- [terrastack](#terrastack)
+    - [Installing](#installing)
+        - [Go/Git configuration for private Repositories](#gogit-configuration-for-private-repositories)
+    - [Why using stacks?](#why-using-stacks)
+    - [Detecting IaC changes](#detecting-iac-changes)
+
+<!-- mdtocend -->
+
 # terrastack
 
 Terrastack is a tool for managing multiple terraform stacks.
