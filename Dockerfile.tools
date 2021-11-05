@@ -5,8 +5,6 @@ RUN go install github.com/mgechev/revive@latest && \
     go install golang.org/x/tools/cmd/cover@latest && \
     go install golang.org/x/tools/cmd/goimports@latest
 
-RUN apk update && apk add git
-
-ENV CGO_ENABLED 0
+RUN apk update && apk add git gcc
 
 WORKDIR /src
