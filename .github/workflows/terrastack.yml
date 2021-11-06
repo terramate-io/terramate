@@ -13,6 +13,6 @@ jobs:
       - name: make lint
         run: make lint
       - name: make test
-        run: make test
+        run: make test && go test -v ./...
       - name: make build
         run: go version && make build
