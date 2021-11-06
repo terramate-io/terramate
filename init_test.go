@@ -3,7 +3,6 @@ package terrastack_test
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -98,21 +97,13 @@ func nonExistentDir(t *testing.T) string {
 
 func sameVersionStack(t *testing.T) string {
 	stack := test.TempDir(t, "")
-	stackfile := filepath.Join(stack, terrastack.ConfigFilename)
-
-	err := ioutil.WriteFile(stackfile, []byte(terrastack.Version()), 0700)
-	assert.NoError(t, err, "write same version stackfile")
-
+	_ = test.WriteFile(t, stack, terrastack.ConfigFilename, terrastack.Version())
 	return stack
 }
 
 func otherVersionStack(t *testing.T) string {
 	stack := test.TempDir(t, "")
-	stackfile := filepath.Join(stack, terrastack.ConfigFilename)
-
-	err := ioutil.WriteFile(stackfile, []byte("9999.9999.9999"), 0700)
-	assert.NoError(t, err, "write other version stackfile")
-
+	_ = test.WriteFile(t, stack, terrastack.ConfigFilename, "9999.9999.9999")
 	return stack
 }
 
