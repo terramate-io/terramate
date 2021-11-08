@@ -157,10 +157,9 @@ func run(basedir string) {
 	basedir = basedir + string(os.PathSeparator)
 
 	for _, stack := range stacks {
-		stackdir := strings.TrimPrefix(stack.Dir, basedir)
 
 		cmd := exec.Command(cmdName, args...)
-		cmd.Dir = stackdir
+		cmd.Dir = stack.Dir
 
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
@@ -168,7 +167,7 @@ func run(basedir string) {
 
 		cmd.Env = os.Environ()
 
-		printf("[%s] running %s\n", stackdir, cmd)
+		printf("[%s] running %s\n", stack.Dir, cmd)
 
 		err = cmd.Run()
 		if err != nil {
