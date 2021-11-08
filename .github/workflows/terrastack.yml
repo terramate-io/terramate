@@ -2,19 +2,21 @@ name: terrastack-ci
 on: [push]
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20-04
     steps:
       - name: checkout repo
         uses: actions/checkout@v2
+
       - name: setup go
         uses: actions/setup-go@v2
         with:
           go-version: '1.17'
+
       - name: make lint
         run: make lint
+
       - name: make test
         run: time make test
-      - name: go test ./...
-        run: time go test ./...
+
       - name: make build
-        run: go version && make build
+        run: make build
