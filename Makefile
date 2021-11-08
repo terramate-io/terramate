@@ -7,7 +7,7 @@ default: help
 ## Format go code
 .PHONY: fmt
 fmt:
-	goimports -w /src
+	goimports -w .
 
 ## lint code
 .PHONY: lint
