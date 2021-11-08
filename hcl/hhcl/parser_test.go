@@ -112,7 +112,7 @@ module "test" {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			path := test.CreateFile(t, "", "main.tf", tc.input)
+			path := test.WriteFile(t, "", "main.tf", tc.input)
 			defer os.RemoveAll(path)
 
 			parser := hhcl.NewParser()

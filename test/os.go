@@ -2,6 +2,7 @@ package test
 
 import (
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -17,9 +18,9 @@ func TempDir(t *testing.T, base string) string {
 	return dir
 }
 
-// CreateFile creates a file inside dir directory with provided content.
-// If dir is empty string then it also creates a temporary directory for it.
-func CreateFile(t *testing.T, dir string, filename string, content string) string {
+// WriteFile writes content to a filename inside dir directory.
+// If dir is empty string then the file is created inside a temporary directory.
+func WriteFile(t *testing.T, dir string, filename string, content string) string {
 	t.Helper()
 
 	if dir == "" {
@@ -27,8 +28,13 @@ func CreateFile(t *testing.T, dir string, filename string, content string) strin
 	}
 
 	path := filepath.Join(dir, filename)
-	err := ioutil.WriteFile(path, []byte(content), 0644)
+	err := ioutil.WriteFile(path, []byte(content), 0700)
 	assert.NoError(t, err, "writing test file %s", path)
 
 	return path
+}
+
+// MkdirAll creates a temporary directory with default test permission bits.
+func MkdirAll(t *testing.T, path string) {
+	assert.NoError(t, os.MkdirAll(path, 0700), "failed to create temp directory")
 }

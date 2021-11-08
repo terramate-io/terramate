@@ -10,7 +10,7 @@ import (
 	"github.com/mineiros-io/terrastack/test"
 )
 
-const CookedCommitID = "877f9b30fe7ff224bdd38b7d04b87d50a2e0fcd8"
+const CookedCommitID = "a022c39b57b1e711fb9298a05aacc699773e6d36"
 
 func TestGit(t *testing.T) {
 	git, err := git.NewWrapper(test.Username, test.Email)
@@ -140,8 +140,10 @@ func mkOneCommitRepo(t *testing.T) string {
 	repodir := test.EmptyRepo(t)
 
 	// Fixing all the information used to create the SHA-1 below:
-	// CommitID: 877f9b30fe7ff224bdd38b7d04b87d50a2e0fcd8
+	// CommitID: a022c39b57b1e711fb9298a05aacc699773e6d36
 
+	// Other than the environment variables below, the file's permission bits
+	// are also used as entropy for the commitid.
 	os.Setenv("GIT_COMMITTER_DATE", "1597490918 +0530")
 	os.Setenv("GIT_AUTHOR_DATE", "1597490918 +0530")
 	os.Setenv("GIT_COMMITTER_NAME", test.Username)
@@ -160,7 +162,7 @@ func mkOneCommitRepo(t *testing.T) string {
 
 	gw := test.NewGitWrapper(t, repodir, true)
 
-	filename := test.CreateFile(t, repodir, "README.md", "# Test")
+	filename := test.WriteFile(t, repodir, "README.md", "# Test")
 
 	assert.NoError(t, gw.Add(filename), "git add %s", filename)
 
