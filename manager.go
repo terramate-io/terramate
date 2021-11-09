@@ -231,7 +231,7 @@ func listChangedFiles(dir string) ([]string, error) {
 			baseRef, mergeBaseRef)
 	}
 
-	diff, err := g.DiffTree(baseRef, headRef, true, true)
+	diff, err := g.DiffTree(baseRef, headRef, true, true, true)
 	if err != nil {
 		return nil, fmt.Errorf("running git diff %s: %w", baseRef, err)
 	}

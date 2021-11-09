@@ -312,9 +312,14 @@ func (git *Git) Status() (string, error) {
 
 // DiffTree compares the from and to commit ids and returns the differences. If
 // nameOnly is set then only the file names of changed files are show. If
-// recurse is set, then it walks into child trees as well.
-func (git *Git) DiffTree(from, to string, nameOnly, recurse bool) (string, error) {
+// recurse is set, then it walks into child trees as well. If
+// relative is set, then only show local changes of current dir.
+func (git *Git) DiffTree(from, to string, relative, nameOnly, recurse bool) (string, error) {
 	args := []string{from, to}
+
+	if relative {
+		args = append(args, "--relative")
+	}
 
 	if nameOnly {
 		args = append(args, "--name-only")
