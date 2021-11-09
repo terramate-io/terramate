@@ -236,6 +236,10 @@ func listChangedFiles(dir string) ([]string, error) {
 		return nil, fmt.Errorf("running git diff %s: %w", baseRef, err)
 	}
 
+	if diff == "" {
+		return nil, nil
+	}
+
 	return strings.Split(diff, "\n"), nil
 }
 
