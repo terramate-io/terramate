@@ -189,7 +189,25 @@ func listChangedFiles(dir string) ([]string, error) {
 		return nil, fmt.Errorf("the path \"%s\" is not a git repository", dir)
 	}
 
-	mainRef, err := g.RevParse("main")
+	untracked, err := g.ListUntracked()
+	if err != nil {
+		return nil, fmt.Errorf("listing untracked files: %v", err)
+	}
+
+	if len(untracked) > 0 {
+		return nil, fmt.Errorf("repository has untracked files: %v", untracked)
+	}
+
+	uncommitted, err := g.ListUncommitted()
+	if err != nil {
+		return nil, fmt.Errorf("listing uncommitted files: %v", err)
+	}
+
+	if len(uncommitted) > 0 {
+		return nil, fmt.Errorf("repository has uncommitted files: %v", uncommitted)
+	}
+
+	baseRef, err := g.RevParse("main")
 	if err != nil {
 		return nil, fmt.Errorf("getting main revision: %w", err)
 	}
@@ -199,43 +217,23 @@ func listChangedFiles(dir string) ([]string, error) {
 		return nil, fmt.Errorf("getting HEAD revision: %w", err)
 	}
 
-	mergeBase, err := g.MergeBase("HEAD", "main")
+	if baseRef == headRef {
+		return []string{}, nil
+	}
+
+	mergeBaseRef, err := g.MergeBase("HEAD", "main")
 	if err != nil {
 		return nil, fmt.Errorf("getting merge-base HEAD main: %w", err)
 	}
 
-	changeBase := mainRef
-
-	if mainRef == headRef {
-		return []string{}, nil
+	if baseRef != mergeBaseRef {
+		return nil, fmt.Errorf("main branch is not reachable: main ref %q can't reach %q",
+			baseRef, mergeBaseRef)
 	}
 
-	if mainRef != mergeBase {
-		return nil, fmt.Errorf("main branch is not reachable: main %s != merge %s",
-			mainRef, mergeBase)
-	}
-
-	files, err := g.ListUntracked()
+	diff, err := g.DiffTree(baseRef, headRef, true, true)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check repository status: %v", err)
-	}
-
-	if len(files) > 0 {
-		return nil, fmt.Errorf("repository has untracked files: %v", files)
-	}
-
-	files, err = g.ListUncommitted()
-	if err != nil {
-		return nil, fmt.Errorf("failed to check repository status: %v", err)
-	}
-
-	if len(files) > 0 {
-		return nil, fmt.Errorf("repository has uncommitted files: %v", files)
-	}
-
-	diff, err := g.DiffTree(changeBase, headRef, true, true)
-	if err != nil {
-		return nil, fmt.Errorf("running git diff %s: %w", changeBase, err)
+		return nil, fmt.Errorf("running git diff %s: %w", baseRef, err)
 	}
 
 	return strings.Split(diff, "\n"), nil
