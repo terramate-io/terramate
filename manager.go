@@ -207,7 +207,7 @@ func listChangedFiles(dir string) ([]string, error) {
 		return nil, fmt.Errorf("repository has uncommitted files: %v", uncommitted)
 	}
 
-	mainRef, err := g.RevParse("main")
+	baseRef, err := g.RevParse("main")
 	if err != nil {
 		return nil, fmt.Errorf("getting main revision: %w", err)
 	}
@@ -217,7 +217,7 @@ func listChangedFiles(dir string) ([]string, error) {
 		return nil, fmt.Errorf("getting HEAD revision: %w", err)
 	}
 
-	if mainRef == headRef {
+	if baseRef == headRef {
 		return []string{}, nil
 	}
 
@@ -226,16 +226,14 @@ func listChangedFiles(dir string) ([]string, error) {
 		return nil, fmt.Errorf("getting merge-base HEAD main: %w", err)
 	}
 
-	if mainRef != mergeBaseRef {
+	if baseRef != mergeBaseRef {
 		return nil, fmt.Errorf("main branch is not reachable: main ref %q can't reach %q",
-			mainRef, mergeBaseRef)
+			baseRef, mergeBaseRef)
 	}
 
-	changeBase := mainRef
-
-	diff, err := g.DiffTree(changeBase, headRef, true, true)
+	diff, err := g.DiffTree(baseRef, headRef, true, true)
 	if err != nil {
-		return nil, fmt.Errorf("running git diff %s: %w", changeBase, err)
+		return nil, fmt.Errorf("running git diff %s: %w", baseRef, err)
 	}
 
 	return strings.Split(diff, "\n"), nil
