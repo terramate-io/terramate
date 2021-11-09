@@ -7,7 +7,7 @@ default: help
 ## Format go code
 .PHONY: fmt
 fmt:
-	goimports -w .
+	go run golang.org/x/tools/cmd/goimports@v0.1.7 -w .
 
 ## lint code
 .PHONY: lint
