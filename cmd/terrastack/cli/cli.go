@@ -195,8 +195,6 @@ func (c *cli) runOnStacks(basedir string) error {
 	cmdName := c.parsedArgs.Run.Command[0]
 	args := c.parsedArgs.Run.Command[1:]
 
-	basedir = basedir + string(os.PathSeparator)
-
 	for _, stack := range stacks {
 
 		cmd := exec.Command(cmdName, args...)
@@ -229,11 +227,15 @@ func (c *cli) runOnStacks(basedir string) error {
 }
 
 func (c *cli) log(format string, args ...interface{}) {
-	c.output.Write(serializeLogEntry(format, args...))
+	// WHY: linter wants err to be handled
+	// ignoring here, like: https://cs.opensource.google/go/go/+/refs/tags/go1.17.3:src/fmt/print.go;drc=076a45acd5b8d2ce08a2dbe898dc9228554db92d;l=265
+	_, _ = c.output.Write(serializeLogEntry(format, args...))
 }
 
 func (c *cli) logerr(format string, args ...interface{}) {
-	c.errout.Write(serializeLogEntry(format, args...))
+	// WHY: linter wants err to be handled
+	// ignoring here, like: https://cs.opensource.google/go/go/+/refs/tags/go1.17.3:src/fmt/print.go;drc=076a45acd5b8d2ce08a2dbe898dc9228554db92d;l=265
+	_, _ = c.errout.Write(serializeLogEntry(format, args...))
 }
 
 func serializeLogEntry(format string, args ...interface{}) []byte {
