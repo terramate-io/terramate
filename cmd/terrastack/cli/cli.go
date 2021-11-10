@@ -68,7 +68,8 @@ func newCLI(args []string, workingdir string, output io.Writer, errout io.Writer
 		kong.UsageOnError(),
 		kong.ConfigureHelp(kong.HelpOptions{
 			Compact: true,
-		}))
+		}),
+		kong.Writers(output, errout))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cli parser: %v", err)
 	}
