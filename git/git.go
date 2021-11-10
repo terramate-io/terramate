@@ -461,7 +461,10 @@ func (git *Git) exec(command string, args ...string) (string, error) {
 	}
 
 	if git.config.Isolated {
-		cmd.Env = append(cmd.Env, "GIT_CONFIG_NOSYSTEM=1")
+		cmd.Env = append(cmd.Env, "GIT_CONFIG_SYSTEM=/dev/null")
+		cmd.Env = append(cmd.Env, "GIT_CONFIG_GLOBAL=/dev/null")
+		cmd.Env = append(cmd.Env, "GIT_CONFIG_NOGLOBAL=1") // back-compat
+		cmd.Env = append(cmd.Env, "GIT_CONFIG_NOSYSTEM=1") // back-compat
 		cmd.Env = append(cmd.Env, "GIT_ATTR_NOSYSTEM=1")
 	}
 
