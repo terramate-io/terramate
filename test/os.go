@@ -38,3 +38,14 @@ func WriteFile(t *testing.T, dir string, filename string, content string) string
 func MkdirAll(t *testing.T, path string) {
 	assert.NoError(t, os.MkdirAll(path, 0700), "failed to create temp directory")
 }
+
+// NonExistingDir returns a non-existing directory.
+func NonExistingDir(t *testing.T) string {
+
+	tmp := TempDir(t, "")
+	tmp2 := TempDir(t, tmp)
+
+	assert.NoError(t, os.RemoveAll(tmp), "remove directory")
+
+	return tmp2
+}

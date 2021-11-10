@@ -33,7 +33,7 @@ func TestInit(t *testing.T) {
 
 	for _, tc := range []initTestcase{
 		{
-			stack:   nonExistentDir,
+			stack:   test.NonExistingDir,
 			force:   false,
 			wantErr: errorf("init requires an existing directory"),
 		},
@@ -84,15 +84,6 @@ func TestInit(t *testing.T) {
 
 		removeStack(t, stackdir)
 	}
-}
-
-func nonExistentDir(t *testing.T) string {
-	tmp := test.TempDir(t, "")
-	tmp2 := test.TempDir(t, tmp)
-
-	assert.NoError(t, os.RemoveAll(tmp2), "remove directory")
-
-	return tmp2
 }
 
 func sameVersionStack(t *testing.T) string {

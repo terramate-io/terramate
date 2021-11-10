@@ -14,59 +14,76 @@ import (
 	"github.com/mineiros-io/terrastack/test"
 )
 
+type listWant struct {
+	list    []string
+	changed []string
+	err     error
+}
+
+type listTestcase struct {
+	name        string
+	repobuilder func(t *testing.T) (string, []string)
+	want        listWant
+}
+
 func TestListStacks(t *testing.T) {
-	type testcase struct {
-		basedir func(t *testing.T) string
-		want    []string
-		wantErr error
-	}
-
-	allstacks := []string{}
-
-	defer func() {
-		for _, d := range allstacks {
-			removeStack(t, d)
-		}
-	}()
-
-	for _, tc := range []testcase{
+	for _, tc := range []listTestcase{
 		{
-			basedir: nonExistentDir,
-			wantErr: os.ErrNotExist,
+			name:        "directory does not exists",
+			repobuilder: nonExistentDir,
+			want: listWant{
+				err: os.ErrNotExist,
+			},
 		},
 		{
-			basedir: singleStack,
-			want:    []string{"/"},
-			wantErr: nil,
+			name:        "single stack",
+			repobuilder: singleStack,
+			want: listWant{
+				list: []string{"/"},
+			},
 		},
 		{
-			basedir: subStack,
-			want:    []string{"/", "/substack"},
-			wantErr: nil,
+			name:        "stack and substack",
+			repobuilder: subStack,
+			want: listWant{
+				list: []string{"/", "/substack"},
+			},
 		},
 		{
-			basedir: nestedStacks,
-			want:    []string{"/", "/substack", "/substack/deepstack"},
-			wantErr: nil,
+			name:        "nested stacks",
+			repobuilder: nestedStacks,
+			want: listWant{
+				list: []string{"/", "/substack", "/substack/deepstack"},
+			},
 		},
 	} {
-		basedir := tc.basedir(t)
-		allstacks = append(allstacks, basedir)
+		t.Run(tc.name, func(t *testing.T) {
+			repo, modules := tc.repobuilder(t)
 
-		m := terrastack.NewManager(basedir)
-		stacks, err := m.List()
+			defer func() {
+				assert.NoError(t, os.RemoveAll(repo), "failed to remove repo")
 
-		if tc.wantErr != nil {
-			if err == nil {
-				t.Errorf("expected error: %v", tc.wantErr)
+				for _, mod := range modules {
+					assert.NoError(t, os.RemoveAll(mod), "failed to remove module dir")
+				}
+			}()
+
+			m := terrastack.NewManager(repo)
+			stacks, err := m.List()
+
+			if tc.want.err != nil {
+				if err == nil {
+					t.Errorf("expected error: %v", tc.want.err)
+				}
+
+				if !errors.Is(err, tc.want.err) {
+					t.Errorf("error[%v] is not expected[%v]", err, tc.want.err)
+				}
 			}
 
-			if !errors.Is(err, tc.wantErr) {
-				t.Errorf("error[%v] is not expected[%v]", err, tc.wantErr)
-			}
-		}
-
-		assertStacks(t, basedir, tc.want, stacks)
+			sort.Strings(tc.want.list)
+			assertStacks(t, repo, tc.want.list, stacks, false)
+		})
 	}
 }
 
@@ -86,93 +103,106 @@ func TestListMultipleSubStacks(t *testing.T) {
 }
 
 func TestListChangedStacks(t *testing.T) {
-	type testcase struct {
-		name        string
-		repobuilder func(t *testing.T) (string, []string)
-		want        []string
-		err         error
-	}
-
-	allrepos := []string{}
-
-	defer func() {
-		for _, repodir := range allrepos {
-			os.RemoveAll(repodir)
-		}
-	}()
-
-	for _, tc := range []testcase{
+	for _, tc := range []listTestcase{
 		{
 			name:        "single stack: not changed",
 			repobuilder: singleNotChangedStack,
-			want:        []string{},
 		},
 		{
 			name:        "single stack: not changed on a new branch",
 			repobuilder: singleNotChangedStackNewBranch,
-			want:        []string{},
 		},
 		{
 			name:        "single stack: not merged commit branch",
 			repobuilder: singleNotMergedCommitBranch,
-			want:        []string{"/"},
+			want: listWant{
+				list:    []string{"/"},
+				changed: []string{"/"},
+			},
 		},
 		{
 			name:        "single stack: changed",
 			repobuilder: singleChangedStacksRepo,
-			want:        []string{"/"},
+			want: listWant{
+				list:    []string{"/"},
+				changed: []string{"/"},
+			},
 		},
 		{
 			name:        "multiple stacks: one changed",
 			repobuilder: multipleStacksOneChangedRepo,
-			want:        []string{"/changed-stack"},
+			want: listWant{
+				list:    []string{"/"},
+				changed: []string{"/changed-stack"},
+			},
 		},
 		{
 			name:        "multiple stacks: multiple changed",
 			repobuilder: multipleChangedStacksRepo,
-			want: []string{
-				"/changed-stack",
-				"/changed-stack-0",
-				"/changed-stack-1",
-				"/changed-stack-2",
+			want: listWant{
+				list: []string{"/"},
+				changed: []string{
+					"/changed-stack",
+					"/changed-stack-0",
+					"/changed-stack-1",
+					"/changed-stack-2",
+				},
 			},
 		},
 		{
 			name:        "single stack: single module changed",
 			repobuilder: singleStackSingleModuleChangedRepo,
-			want:        []string{"/"},
+			want: listWant{
+				list:    []string{"/"},
+				changed: []string{"/"},
+			},
 		},
 		{
 			name:        "single stack: dependent module changed",
 			repobuilder: singleStackDependentModuleChangedRepo,
-			want:        []string{"/"},
+			want: listWant{
+				list:    []string{"/"},
+				changed: []string{"/"},
+			},
+		},
+		{
+			name:        "multiple stack: single module changed",
+			repobuilder: multipleStackOneChangedModule,
+			want: listWant{
+				list:    []string{"/stack1", "/stack2"},
+				changed: []string{"/stack2"},
+			},
+		},
+		{
+			name:        "multiple stack: single module changed in same repo",
+			repobuilder: multipleStackOneChangedModuleInSameRepo,
+			want: listWant{
+				list:    []string{"/stack1", "/stack2"},
+				changed: []string{"/stack2"},
+			},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			repodir, modules := tc.repobuilder(t)
+			repo, modules := tc.repobuilder(t)
 
-			allrepos = append(allrepos, repodir)
-			allrepos = append(allrepos, modules...)
+			defer func() {
+				assert.NoError(t, os.RemoveAll(repo), "failed to remove repo")
 
-			m := terrastack.NewManager(repodir)
+				for _, mod := range modules {
+					assert.NoError(t, os.RemoveAll(mod), "failed to remove module dir")
+				}
+			}()
+
+			m := terrastack.NewManager(repo)
 
 			changed, err := m.ListChanged()
-			assert.EqualErrs(t, tc.err, err, "ListChanged() error")
+			assert.EqualErrs(t, tc.want.err, err, "ListChanged() error")
 
-			assert.EqualInts(t, len(tc.want), len(changed),
+			assert.EqualInts(t, len(tc.want.changed), len(changed),
 				"number of changed stacks mismatch")
 
-			sort.Sort(terrastack.EntrySlice(changed))
-			sort.Strings(tc.want)
-
-			for i := 0; i < len(tc.want); i++ {
-				assert.EqualStrings(t, filepath.Join(repodir, tc.want[i]),
-					changed[i].Dir, "changed stack mismatch")
-
-				if changed[i].Reason == "" {
-					t.Fatal("entry has no reason")
-				}
-			}
+			sort.Strings(tc.want.changed)
+			assertStacks(t, repo, tc.want.changed, changed, true)
 		})
 	}
 }
@@ -215,7 +245,13 @@ func TestListChangedStackReason(t *testing.T) {
 	}
 }
 
-func assertStacks(t *testing.T, basedir string, want []string, got []terrastack.Entry) {
+func nonExistentDir(t *testing.T) (string, []string) {
+	return test.NonExistingDir(t), nil
+}
+
+func assertStacks(
+	t *testing.T, basedir string, want []string, got []terrastack.Entry, hasReason bool,
+) {
 	assert.EqualInts(t, len(want), len(got), "wrong number of stacks: %+v", got)
 
 	for i := 0; i < len(want); i++ {
@@ -227,20 +263,24 @@ func assertStacks(t *testing.T, basedir string, want []string, got []terrastack.
 			shifted = "/"
 		}
 		assert.EqualStrings(t, want[i], shifted, "path mismatch")
+
+		if hasReason && got[i].Reason == "" {
+			t.Errorf("stack [%s] has no reason", got[i].Dir)
+		}
 	}
 }
 
-func singleStack(t *testing.T) string {
+func singleStack(t *testing.T) (string, []string) {
 	stackdir := test.TempDir(t, "")
 
 	mgr := terrastack.NewManager(stackdir)
 	err := mgr.Init(stackdir, false)
 	assert.NoError(t, err, "mgr.Init(%s)", stackdir)
 
-	return stackdir
+	return stackdir, nil
 }
 
-func subStack(t *testing.T) string {
+func subStack(t *testing.T) (string, []string) {
 	stackdir := test.TempDir(t, "")
 
 	mgr := terrastack.NewManager(stackdir)
@@ -253,11 +293,11 @@ func subStack(t *testing.T) string {
 	err = mgr.Init(substack, false)
 	assert.NoError(t, err, "mgr.Init(%s)", substack)
 
-	return stackdir
+	return stackdir, nil
 }
 
-func nestedStacks(t *testing.T) string {
-	stackdir := subStack(t)
+func nestedStacks(t *testing.T) (string, []string) {
+	stackdir, _ := subStack(t)
 
 	nestedStack := filepath.Join(stackdir, "substack", "deepstack")
 	test.MkdirAll(t, nestedStack)
@@ -266,7 +306,7 @@ func nestedStacks(t *testing.T) string {
 	err := mgr.Init(nestedStack, false)
 	assert.NoError(t, err, "mgr.Init(%s)", nestedStack)
 
-	return stackdir
+	return stackdir, nil
 }
 
 func nSubStacks(t *testing.T, n int) string {
@@ -459,6 +499,112 @@ module "something" {
 
 	assert.NoError(t, g.Add(mainFile), "add main.tf")
 	assert.NoError(t, g.Commit("add main.tf"), "commit main.tf")
+
+	return repo, modules
+}
+
+func multipleStackOneChangedModule(t *testing.T) (repo string, modules []string) {
+	repo, modules = singleMergeCommitRepo(t)
+
+	g := test.NewGitWrapper(t, repo, false)
+
+	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
+
+	otherStack := filepath.Join(repo, "stack1")
+	test.MkdirAll(t, otherStack)
+
+	mgr := terrastack.NewManager(repo)
+	assert.NoError(t, mgr.Init(otherStack, false), "terrastack init failed")
+
+	assert.NoError(t, g.Add(filepath.Join(otherStack, terrastack.ConfigFilename)),
+		"git add otherstack failed")
+	assert.NoError(t, g.Commit("other stack message"), "commit failed")
+
+	otherStack = filepath.Join(repo, "stack2")
+	test.MkdirAll(t, otherStack)
+
+	assert.NoError(t, mgr.Init(otherStack, false), "terrastack init failed")
+
+	assert.NoError(t, g.Add(filepath.Join(otherStack, terrastack.ConfigFilename)),
+		"git add otherstack failed")
+	assert.NoError(t, g.Commit("other stack message"), "commit failed")
+
+	module := test.EmptyRepo(t)
+
+	mainFile := test.WriteFile(t, otherStack, "main.tf", fmt.Sprintf(`
+module "something" {
+	source = "../../../../../../..%s"
+}
+`, module))
+
+	assert.NoError(t, g.Add(mainFile), "add main.tf")
+	assert.NoError(t, g.Commit("add main.tf"), "commit main.tf")
+
+	addMergeCommit(t, repo, "testbranch")
+	assert.NoError(t, g.DeleteBranch("testbranch"), "delete temp branch")
+
+	t.Logf("module: %s", module)
+	g = test.NewGitWrapper(t, module, false)
+	mainFile = test.WriteFile(t, module, "main.tf", "")
+	assert.NoError(t, g.Add(mainFile))
+	assert.NoError(t, g.Commit("test"))
+
+	assert.NoError(t, g.Checkout("testbranch", true))
+	mainFile = test.WriteFile(t, module, "main.tf", "# comment")
+	assert.NoError(t, g.Add(mainFile))
+	assert.NoError(t, g.Commit("test"))
+
+	return repo, modules
+}
+
+func multipleStackOneChangedModuleInSameRepo(t *testing.T) (repo string, modules []string) {
+	repo, modules = singleMergeCommitRepo(t)
+
+	g := test.NewGitWrapper(t, repo, false)
+
+	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
+
+	module := filepath.Join(repo, "modules/mymodule")
+	test.MkdirAll(t, module)
+
+	mainFile := test.WriteFile(t, module, "main.tf", "")
+	assert.NoError(t, g.Add(mainFile))
+
+	otherStack := filepath.Join(repo, "stack1")
+	test.MkdirAll(t, otherStack)
+
+	mgr := terrastack.NewManager(repo)
+	assert.NoError(t, mgr.Init(otherStack, false), "terrastack init failed")
+
+	assert.NoError(t, g.Add(filepath.Join(otherStack, terrastack.ConfigFilename)),
+		"git add otherstack failed")
+	assert.NoError(t, g.Commit("other stack message"), "commit failed")
+
+	otherStack = filepath.Join(repo, "stack2")
+	test.MkdirAll(t, otherStack)
+
+	assert.NoError(t, mgr.Init(otherStack, false), "terrastack init failed")
+
+	assert.NoError(t, g.Add(filepath.Join(otherStack, terrastack.ConfigFilename)),
+		"git add otherstack failed")
+	assert.NoError(t, g.Commit("other stack message"), "commit failed")
+
+	mainFile = test.WriteFile(t, otherStack, "main.tf", fmt.Sprintf(`
+module "something" {
+	source = "../../../../../../..%s"
+}
+`, module))
+
+	assert.NoError(t, g.Add(mainFile), "add main.tf")
+	assert.NoError(t, g.Commit("add main.tf"), "commit main.tf")
+
+	addMergeCommit(t, repo, "testbranch")
+	assert.NoError(t, g.DeleteBranch("testbranch"), "delete temp branch")
+
+	assert.NoError(t, g.Checkout("testbranch-module", true))
+	mainFile = test.WriteFile(t, module, "main.tf", "# comment")
+	assert.NoError(t, g.Add(mainFile))
+	assert.NoError(t, g.Commit("test"))
 
 	return repo, modules
 }
