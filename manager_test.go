@@ -107,10 +107,16 @@ func TestListChangedStacks(t *testing.T) {
 		{
 			name:        "single stack: not changed",
 			repobuilder: singleNotChangedStack,
+			want: listWant{
+				list: []string{"/"},
+			},
 		},
 		{
 			name:        "single stack: not changed on a new branch",
 			repobuilder: singleNotChangedStackNewBranch,
+			want: listWant{
+				list: []string{"/"},
+			},
 		},
 		{
 			name:        "single stack: not merged commit branch",
@@ -132,7 +138,7 @@ func TestListChangedStacks(t *testing.T) {
 			name:        "multiple stacks: one changed",
 			repobuilder: multipleStacksOneChangedRepo,
 			want: listWant{
-				list:    []string{"/"},
+				list:    []string{"/", "/changed-stack", "/not-changed-stack"},
 				changed: []string{"/changed-stack"},
 			},
 		},
@@ -140,7 +146,14 @@ func TestListChangedStacks(t *testing.T) {
 			name:        "multiple stacks: multiple changed",
 			repobuilder: multipleChangedStacksRepo,
 			want: listWant{
-				list: []string{"/"},
+				list: []string{
+					"/",
+					"/not-changed-stack",
+					"/changed-stack",
+					"/changed-stack-0",
+					"/changed-stack-1",
+					"/changed-stack-2",
+				},
 				changed: []string{
 					"/changed-stack",
 					"/changed-stack-0",
@@ -169,7 +182,7 @@ func TestListChangedStacks(t *testing.T) {
 			name:        "multiple stack: single module changed",
 			repobuilder: multipleStackOneChangedModule,
 			want: listWant{
-				list:    []string{"/stack1", "/stack2"},
+				list:    []string{"/", "/stack1", "/stack2"},
 				changed: []string{"/stack2"},
 			},
 		},
@@ -177,7 +190,7 @@ func TestListChangedStacks(t *testing.T) {
 			name:        "multiple stack: single module changed in same repo",
 			repobuilder: multipleStackOneChangedModuleInSameRepo,
 			want: listWant{
-				list:    []string{"/stack1", "/stack2"},
+				list:    []string{"/", "/stack1", "/stack2"},
 				changed: []string{"/stack2"},
 			},
 		},
@@ -198,11 +211,13 @@ func TestListChangedStacks(t *testing.T) {
 			changed, err := m.ListChanged()
 			assert.EqualErrs(t, tc.want.err, err, "ListChanged() error")
 
-			assert.EqualInts(t, len(tc.want.changed), len(changed),
-				"number of changed stacks mismatch")
-
 			sort.Strings(tc.want.changed)
 			assertStacks(t, repo, tc.want.changed, changed, true)
+
+			list, err := m.List()
+			assert.EqualErrs(t, tc.want.err, err, "List() error")
+			sort.Strings(tc.want.list)
+			assertStacks(t, repo, tc.want.list, list, false)
 		})
 	}
 }
@@ -543,7 +558,6 @@ module "something" {
 	addMergeCommit(t, repo, "testbranch")
 	assert.NoError(t, g.DeleteBranch("testbranch"), "delete temp branch")
 
-	t.Logf("module: %s", module)
 	g = test.NewGitWrapper(t, module, false)
 	mainFile = test.WriteFile(t, module, "main.tf", "")
 	assert.NoError(t, g.Add(mainFile))
