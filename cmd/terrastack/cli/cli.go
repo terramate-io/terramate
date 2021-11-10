@@ -54,15 +54,15 @@ func Run(args []string, workingdir string, output io.Writer, errout io.Writer) e
 
 type cli struct {
 	ctx        *kong.Context
-	spec       *cliSpec // TODO: rename spec to args, since it contains parsed args
+	parsedArgs *cliSpec // TODO: rename spec to args, since it contains parsed args
 	workingdir string
 	output     io.Writer
 	errout     io.Writer
 }
 
 func newCLI(args []string, workingdir string, output io.Writer, errout io.Writer) (*cli, error) {
-	spec := cliSpec{}
-	parser, err := kong.New(&spec,
+	parsedArgs := cliSpec{}
+	parser, err := kong.New(&parsedArgs,
 		kong.Name("terrastack"),
 		kong.Description("A tool for managing terraform stacks"),
 		kong.UsageOnError(),
@@ -82,7 +82,7 @@ func newCLI(args []string, workingdir string, output io.Writer, errout io.Writer
 		workingdir: workingdir,
 		output:     output,
 		errout:     errout,
-		spec:       &spec,
+		parsedArgs: &parsedArgs,
 		ctx:        ctx,
 	}, nil
 }
@@ -94,20 +94,20 @@ func (c *cli) run() error {
 	case "init":
 		return c.initStack(c.workingdir, []string{c.workingdir})
 	case "init <paths>":
-		return c.initStack(c.workingdir, c.spec.Init.StackDirs)
+		return c.initStack(c.workingdir, c.parsedArgs.Init.StackDirs)
 	case "list":
 		return c.printStacks(c.workingdir, c.workingdir)
 	case "list <path>":
-		return c.printStacks(c.spec.List.BaseDir, c.workingdir)
+		return c.printStacks(c.parsedArgs.List.BaseDir, c.workingdir)
 	case "run":
-		if len(c.spec.Run.Command) == 0 {
+		if len(c.parsedArgs.Run.Command) == 0 {
 			return errors.New("no command specified")
 		}
 		fallthrough
 	case "run <cmd>":
 		basedir := c.workingdir
-		if c.spec.Run.Basedir != "" {
-			basedir = strings.TrimSuffix(c.spec.Run.Basedir, "/")
+		if c.parsedArgs.Run.Basedir != "" {
+			basedir = strings.TrimSuffix(c.parsedArgs.Run.Basedir, "/")
 		}
 		return c.runOnStacks(basedir)
 
@@ -122,7 +122,7 @@ func (c *cli) initStack(basedir string, dirs []string) error {
 	var nErrors int
 	mgr := terrastack.NewManager(basedir)
 	for _, d := range dirs {
-		err := mgr.Init(d, c.spec.Init.Force)
+		err := mgr.Init(d, c.parsedArgs.Init.Force)
 		if err != nil {
 			c.logerr("warn: failed to initialize stack: %v", err)
 			nErrors++
@@ -141,7 +141,7 @@ func (c *cli) listStacks(mgr *terrastack.Manager) ([]terrastack.Entry, error) {
 		stacks []terrastack.Entry
 	)
 
-	if c.spec.List.Changed {
+	if c.parsedArgs.List.Changed {
 		stacks, err = mgr.ListChanged()
 	} else {
 		stacks, err = mgr.List()
@@ -162,7 +162,7 @@ func (c *cli) printStacks(basedir string, cwd string) error {
 	for _, stack := range stacks {
 		stackdir := strings.TrimPrefix(stack.Dir, cwd)
 
-		if c.spec.List.Why {
+		if c.parsedArgs.List.Why {
 			c.log("%s - %s", stackdir, stack.Reason)
 		} else {
 			c.log(stackdir)
@@ -185,14 +185,14 @@ func (c *cli) runOnStacks(basedir string) error {
 		return fmt.Errorf("can't list stacks: %v", err)
 	}
 
-	if c.spec.Run.Changed {
+	if c.parsedArgs.Run.Changed {
 		c.log("Running on changed stacks:")
 	} else {
 		c.log("Running on all stacks:")
 	}
 
-	cmdName := c.spec.Run.Command[0]
-	args := c.spec.Run.Command[1:]
+	cmdName := c.parsedArgs.Run.Command[0]
+	args := c.parsedArgs.Run.Command[1:]
 
 	basedir = basedir + string(os.PathSeparator)
 
