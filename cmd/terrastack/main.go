@@ -1,7 +1,18 @@
 package main
 
-import "github.com/mineiros-io/terrastack/cmd/terrastack/cli"
+import (
+	"log"
+	"os"
+
+	"github.com/mineiros-io/terrastack/cmd/terrastack/cli"
+)
 
 func main() {
-	cli.Run()
+	basedir, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("error: failed to get current directory: %v", err)
+	}
+	if err := cli.Run(os.Args, basedir, os.Stdout, os.Stderr); err != nil {
+		log.Fatal(err)
+	}
 }

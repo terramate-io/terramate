@@ -1,8 +1,9 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
-	"log"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,7 +13,7 @@ import (
 	"github.com/mineiros-io/terrastack"
 )
 
-var cliSpec struct {
+type cliSpec struct {
 	Version struct{} `cmd:"" help:"Terrastack version."`
 
 	Init struct {
@@ -34,73 +35,113 @@ var cliSpec struct {
 	} `cmd:"" help:"Run command in the stacks."`
 }
 
-func Run() {
-	wd, err := os.Getwd()
+// Run will run the command + flags defined on args.
+// Results will be written on output, according to the
+// command flags. Any partial/non-critical errors will be
+// written on errout.
+//
+// Each Run call is completely isolated from each other (no shared state)
+// as far as the parameters are not shared between the Run calls.
+//
+// If a critical error is found an non-nil error is returned.
+func Run(args []string, workingdir string, output io.Writer, errout io.Writer) error {
+	c, err := newCLI(args, workingdir, output, errout)
 	if err != nil {
-		log.Fatalf("error: failed to get current directory: %v", err)
+		return err
 	}
+	return c.run()
+}
 
-	ctx := kong.Parse(&cliSpec,
+type cli struct {
+	ctx        *kong.Context
+	spec       *cliSpec // TODO: rename spec to args, since it contains parsed args
+	workingdir string
+	output     io.Writer
+	errout     io.Writer
+}
+
+func newCLI(args []string, workingdir string, output io.Writer, errout io.Writer) (*cli, error) {
+	spec := cliSpec{}
+	parser, err := kong.New(&spec,
 		kong.Name("terrastack"),
 		kong.Description("A tool for managing terraform stacks"),
 		kong.UsageOnError(),
 		kong.ConfigureHelp(kong.HelpOptions{
 			Compact: true,
 		}))
-
-	switch ctx.Command() {
-	case "version":
-		fmt.Println(terrastack.Version())
-	case "init":
-		initStack(wd, []string{wd})
-	case "init <paths>":
-		initStack(wd, cliSpec.Init.StackDirs)
-	case "list":
-		printStacks(wd, wd)
-	case "list <path>":
-		printStacks(cliSpec.List.BaseDir, wd)
-	case "run":
-		if len(cliSpec.Run.Command) == 0 {
-			log.Fatalf("no command specified")
-		}
-
-		fallthrough
-	case "run <cmd>":
-		basedir := wd
-		if cliSpec.Run.Basedir != "" {
-			basedir = strings.TrimSuffix(cliSpec.Run.Basedir, "/")
-		}
-
-		run(basedir)
-
-	default:
-		log.Fatalf("unexpected command sequence: %s", ctx.Command())
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cli parser: %v", err)
 	}
+
+	ctx, err := parser.Parse(args[1:])
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse cli args %v: %v", args, err)
+	}
+
+	return &cli{
+		workingdir: workingdir,
+		output:     output,
+		errout:     errout,
+		spec:       &spec,
+		ctx:        ctx,
+	}, nil
 }
 
-func initStack(root string, dirs []string) {
+func (c *cli) run() error {
+	switch c.ctx.Command() {
+	case "version":
+		c.log(terrastack.Version())
+	case "init":
+		return c.initStack(c.workingdir, []string{c.workingdir})
+	case "init <paths>":
+		return c.initStack(c.workingdir, c.spec.Init.StackDirs)
+	case "list":
+		return c.printStacks(c.workingdir, c.workingdir)
+	case "list <path>":
+		return c.printStacks(c.spec.List.BaseDir, c.workingdir)
+	case "run":
+		if len(c.spec.Run.Command) == 0 {
+			return errors.New("no command specified")
+		}
+		fallthrough
+	case "run <cmd>":
+		basedir := c.workingdir
+		if c.spec.Run.Basedir != "" {
+			basedir = strings.TrimSuffix(c.spec.Run.Basedir, "/")
+		}
+		return c.runOnStacks(basedir)
+
+	default:
+		return fmt.Errorf("unexpected command sequence: %s", c.ctx.Command())
+	}
+
+	return nil
+}
+
+func (c *cli) initStack(basedir string, dirs []string) error {
 	var nErrors int
-	mgr := terrastack.NewManager(root)
+	mgr := terrastack.NewManager(basedir)
 	for _, d := range dirs {
-		err := mgr.Init(d, cliSpec.Init.Force)
+		err := mgr.Init(d, c.spec.Init.Force)
 		if err != nil {
-			log.Printf("warn: failed to initialize stack: %v", err)
+			c.logerr("warn: failed to initialize stack: %v", err)
 			nErrors++
 		}
 	}
 
 	if nErrors > 0 {
-		log.Fatalf("failed to initialize %d stack(s)", nErrors)
+		return fmt.Errorf("failed to initialize %d stack(s)", nErrors)
 	}
+	return nil
 }
 
-func listStacks(mgr *terrastack.Manager) ([]terrastack.Entry, error) {
+func (c *cli) listStacks(mgr *terrastack.Manager) ([]terrastack.Entry, error) {
 	var (
 		err    error
 		stacks []terrastack.Entry
 	)
 
-	if cliSpec.List.Changed {
+	if c.spec.List.Changed {
 		stacks, err = mgr.ListChanged()
 	} else {
 		stacks, err = mgr.List()
@@ -109,11 +150,11 @@ func listStacks(mgr *terrastack.Manager) ([]terrastack.Entry, error) {
 	return stacks, err
 }
 
-func printStacks(basedir string, cwd string) {
+func (c *cli) printStacks(basedir string, cwd string) error {
 	mgr := terrastack.NewManager(basedir)
-	stacks, err := listStacks(mgr)
+	stacks, err := c.listStacks(mgr)
 	if err != nil {
-		log.Fatalf("error: %v", err)
+		return err
 	}
 
 	cwd = cwd + string(os.PathSeparator)
@@ -121,38 +162,37 @@ func printStacks(basedir string, cwd string) {
 	for _, stack := range stacks {
 		stackdir := strings.TrimPrefix(stack.Dir, cwd)
 
-		fmt.Print(stackdir)
-
-		if cliSpec.List.Why {
-			fmt.Printf(" - %s", stack.Reason)
+		if c.spec.List.Why {
+			c.log("%s - %s", stackdir, stack.Reason)
+		} else {
+			c.log(stackdir)
 		}
-
-		fmt.Printf("\n")
 	}
+	return nil
 }
 
-func run(basedir string) {
+func (c *cli) runOnStacks(basedir string) error {
 	var nErrors int
 
 	basedir, err := filepath.Abs(basedir)
 	if err != nil {
-		log.Fatalf("error computing absolute path: %v", err)
+		return fmt.Errorf("can't find absolute path for %q: %v", basedir, err)
 	}
 
 	mgr := terrastack.NewManager(basedir)
-	stacks, err := listStacks(mgr)
+	stacks, err := c.listStacks(mgr)
 	if err != nil {
-		log.Fatalf("error: failed to list stacks: %v", err)
+		return fmt.Errorf("can't list stacks: %v", err)
 	}
 
-	if cliSpec.Run.Changed {
-		printf("Running on changed stacks:\n")
+	if c.spec.Run.Changed {
+		c.log("Running on changed stacks:")
 	} else {
-		printf("Running on all stacks:\n")
+		c.log("Running on all stacks:")
 	}
 
-	cmdName := cliSpec.Run.Command[0]
-	args := cliSpec.Run.Command[1:]
+	cmdName := c.spec.Run.Command[0]
+	args := c.spec.Run.Command[1:]
 
 	basedir = basedir + string(os.PathSeparator)
 
@@ -161,30 +201,40 @@ func run(basedir string) {
 		cmd := exec.Command(cmdName, args...)
 		cmd.Dir = stack.Dir
 
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Stdin = os.Stdin
+		cmd.Stdout = c.output
+		cmd.Stderr = c.errout
 
-		cmd.Env = os.Environ()
+		// TODO(katcipis): maybe already add an stdin for this use case ?
+		// cmd.Stdin = os.Stdin
 
-		printf("[%s] running %s\n", stack.Dir, cmd)
+		// TODO(katcipis): cmd already inherits env from parent process
+		// Do we need this ?
+		// cmd.Env = os.Environ()
+
+		c.log("[%s] running %s", stack.Dir, cmd)
 
 		err = cmd.Run()
 		if err != nil {
-			log.Printf("warn: failed to execute command: %v", err)
+			c.logerr("warn: failed to execute command: %v", err)
 			nErrors++
 		}
-
-		printf("\n")
 	}
 
 	if nErrors != 0 {
-		log.Fatalf("warn: some (%d) commands failed", nErrors)
+		return fmt.Errorf("some (%d) commands failed", nErrors)
 	}
+
+	return nil
 }
 
-func printf(format string, args ...interface{}) {
-	if !cliSpec.Run.Quiet {
-		fmt.Printf(format, args...)
-	}
+func (c *cli) log(format string, args ...interface{}) {
+	c.output.Write(serializeLogEntry(format, args...))
+}
+
+func (c *cli) logerr(format string, args ...interface{}) {
+	c.errout.Write(serializeLogEntry(format, args...))
+}
+
+func serializeLogEntry(format string, args ...interface{}) []byte {
+	return []byte(fmt.Sprintf(format, args...) + "\n")
 }
