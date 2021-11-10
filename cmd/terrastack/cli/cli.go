@@ -54,7 +54,7 @@ func Run(args []string, workingdir string, output io.Writer, errout io.Writer) e
 
 type cli struct {
 	ctx        *kong.Context
-	parsedArgs *cliSpec // TODO: rename spec to args, since it contains parsed args
+	parsedArgs *cliSpec
 	workingdir string
 	output     io.Writer
 	errout     io.Writer
