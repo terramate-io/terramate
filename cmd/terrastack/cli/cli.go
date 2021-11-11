@@ -36,16 +36,20 @@ type cliSpec struct {
 }
 
 // Run will run the command + flags defined on args.
-// Results will be written on output, according to the
+// Results will be written on stdout, according to the
 // command flags. Any partial/non-critical errors will be
-// written on errout.
+// written on stderr.
+//
+// Sometimes sub commands may be executed, the provided stdin
+// will be passed to then as the sub process stdin.
 //
 // Each Run call is completely isolated from each other (no shared state)
 // as far as the parameters are not shared between the Run calls.
 //
 // If a critical error is found an non-nil error is returned.
-func Run(args []string, workingdir string, output io.Writer, errout io.Writer) error {
-	c, err := newCLI(args, workingdir, output, errout)
+func Run(args []string, workingdir string, stdout io.Writer, stderr io.Writer) error {
+	// TODO(katcipis): add stdin parameter
+	c, err := newCLI(args, workingdir, stdout, stderr)
 	if err != nil {
 		return err
 	}
@@ -56,11 +60,11 @@ type cli struct {
 	ctx        *kong.Context
 	parsedArgs *cliSpec
 	workingdir string
-	output     io.Writer
-	errout     io.Writer
+	stdout     io.Writer
+	stderr     io.Writer
 }
 
-func newCLI(args []string, workingdir string, output io.Writer, errout io.Writer) (*cli, error) {
+func newCLI(args []string, workingdir string, stdout io.Writer, stderr io.Writer) (*cli, error) {
 	parsedArgs := cliSpec{}
 	parser, err := kong.New(&parsedArgs,
 		kong.Name("terrastack"),
@@ -69,7 +73,7 @@ func newCLI(args []string, workingdir string, output io.Writer, errout io.Writer
 		kong.ConfigureHelp(kong.HelpOptions{
 			Compact: true,
 		}),
-		kong.Writers(output, errout))
+		kong.Writers(stdout, stderr))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cli parser: %v", err)
 	}
@@ -81,8 +85,8 @@ func newCLI(args []string, workingdir string, output io.Writer, errout io.Writer
 
 	return &cli{
 		workingdir: workingdir,
-		output:     output,
-		errout:     errout,
+		stdout:     stdout,
+		stderr:     stderr,
 		parsedArgs: &parsedArgs,
 		ctx:        ctx,
 	}, nil
@@ -200,8 +204,8 @@ func (c *cli) runOnStacks(basedir string) error {
 		cmd := exec.Command(cmdName, args...)
 		cmd.Dir = stack.Dir
 
-		cmd.Stdout = c.output
-		cmd.Stderr = c.errout
+		cmd.Stdout = c.stdout
+		cmd.Stderr = c.stderr
 
 		// TODO(katcipis): maybe already add an stdin for this use case ?
 		// cmd.Stdin = os.Stdin
@@ -227,9 +231,9 @@ func (c *cli) runOnStacks(basedir string) error {
 }
 
 func (c *cli) log(format string, args ...interface{}) {
-	fmt.Fprintln(c.output, fmt.Sprintf(format, args...))
+	fmt.Fprintln(c.stdout, fmt.Sprintf(format, args...))
 }
 
 func (c *cli) logerr(format string, args ...interface{}) {
-	fmt.Fprintln(c.errout, fmt.Sprintf(format, args...))
+	fmt.Fprintln(c.stderr, fmt.Sprintf(format, args...))
 }
