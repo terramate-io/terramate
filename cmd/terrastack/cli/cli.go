@@ -47,9 +47,8 @@ type cliSpec struct {
 // as far as the parameters are not shared between the Run calls.
 //
 // If a critical error is found an non-nil error is returned.
-func Run(args []string, workingdir string, stdout io.Writer, stderr io.Writer) error {
-	// TODO(katcipis): add stdin parameter
-	c, err := newCLI(args, workingdir, stdout, stderr)
+func Run(args []string, workingdir string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
+	c, err := newCLI(args, workingdir, stdin, stdout, stderr)
 	if err != nil {
 		return err
 	}
@@ -60,11 +59,12 @@ type cli struct {
 	ctx        *kong.Context
 	parsedArgs *cliSpec
 	workingdir string
+	stdin      io.Reader
 	stdout     io.Writer
 	stderr     io.Writer
 }
 
-func newCLI(args []string, workingdir string, stdout io.Writer, stderr io.Writer) (*cli, error) {
+func newCLI(args []string, workingdir string, stdin io.Reader, stdout io.Writer, stderr io.Writer) (*cli, error) {
 	parsedArgs := cliSpec{}
 	parser, err := kong.New(&parsedArgs,
 		kong.Name("terrastack"),
@@ -85,6 +85,7 @@ func newCLI(args []string, workingdir string, stdout io.Writer, stderr io.Writer
 
 	return &cli{
 		workingdir: workingdir,
+		stdin:      stdin,
 		stdout:     stdout,
 		stderr:     stderr,
 		parsedArgs: &parsedArgs,
@@ -203,12 +204,9 @@ func (c *cli) runOnStacks(basedir string) error {
 
 		cmd := exec.Command(cmdName, args...)
 		cmd.Dir = stack.Dir
-
+		cmd.Stdin = c.stdin
 		cmd.Stdout = c.stdout
 		cmd.Stderr = c.stderr
-
-		// TODO(katcipis): maybe already add an stdin for this use case ?
-		// cmd.Stdin = os.Stdin
 
 		c.log("[%s] running %s", stack.Dir, cmd)
 
