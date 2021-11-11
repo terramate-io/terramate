@@ -159,7 +159,7 @@ func (c *cli) printStacks(basedir string, cwd string) error {
 	mgr := terrastack.NewManager(basedir)
 	stacks, err := c.listStacks(mgr)
 	if err != nil {
-		return err
+		return fmt.Errorf("can't list stacks: %v", err)
 	}
 
 	cwd = cwd + string(os.PathSeparator)
