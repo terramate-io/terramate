@@ -39,6 +39,11 @@ func MkdirAll(t *testing.T, path string) {
 	assert.NoError(t, os.MkdirAll(path, 0700), "failed to create temp directory")
 }
 
+// RemoveAll removes the directory and any of its children files and directories.
+func RemoveAll(t *testing.T, path string) {
+	assert.NoError(t, os.RemoveAll(path), "failed to remove directory %q", path)
+}
+
 // NonExistingDir returns a non-existing directory.
 func NonExistingDir(t *testing.T) string {
 

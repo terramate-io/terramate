@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
 
@@ -14,7 +13,7 @@ import (
 	"github.com/mineiros-io/terrastack/test"
 )
 
-type listWant struct {
+type listTestResult struct {
 	list    []string
 	changed []string
 	err     error
@@ -23,7 +22,7 @@ type listWant struct {
 type listTestcase struct {
 	name        string
 	repobuilder func(t *testing.T) (string, []string)
-	want        listWant
+	want        listTestResult
 }
 
 func TestListStacks(t *testing.T) {
@@ -31,28 +30,28 @@ func TestListStacks(t *testing.T) {
 		{
 			name:        "directory does not exists",
 			repobuilder: nonExistentDir,
-			want: listWant{
+			want: listTestResult{
 				err: os.ErrNotExist,
 			},
 		},
 		{
 			name:        "single stack",
 			repobuilder: singleStack,
-			want: listWant{
+			want: listTestResult{
 				list: []string{"/"},
 			},
 		},
 		{
 			name:        "stack and substack",
 			repobuilder: subStack,
-			want: listWant{
+			want: listTestResult{
 				list: []string{"/", "/substack"},
 			},
 		},
 		{
 			name:        "nested stacks",
 			repobuilder: nestedStacks,
-			want: listWant{
+			want: listTestResult{
 				list: []string{"/", "/substack", "/substack/deepstack"},
 			},
 		},
@@ -61,27 +60,20 @@ func TestListStacks(t *testing.T) {
 			repo, modules := tc.repobuilder(t)
 
 			defer func() {
-				assert.NoError(t, os.RemoveAll(repo), "failed to remove repo")
+				test.RemoveAll(t, repo)
 
 				for _, mod := range modules {
-					assert.NoError(t, os.RemoveAll(mod), "failed to remove module dir")
+					test.RemoveAll(t, mod)
 				}
 			}()
 
 			m := terrastack.NewManager(repo)
 			stacks, err := m.List()
 
-			if tc.want.err != nil {
-				if err == nil {
-					t.Errorf("expected error: %v", tc.want.err)
-				}
-
-				if !errors.Is(err, tc.want.err) {
-					t.Errorf("error[%v] is not expected[%v]", err, tc.want.err)
-				}
+			if !errors.Is(err, tc.want.err) {
+				t.Fatalf("error[%v] is not expected[%v]", err, tc.want.err)
 			}
 
-			sort.Strings(tc.want.list)
 			assertStacks(t, repo, tc.want.list, stacks, false)
 		})
 	}
@@ -107,21 +99,21 @@ func TestListChangedStacks(t *testing.T) {
 		{
 			name:        "single stack: not changed",
 			repobuilder: singleNotChangedStack,
-			want: listWant{
+			want: listTestResult{
 				list: []string{"/"},
 			},
 		},
 		{
 			name:        "single stack: not changed on a new branch",
 			repobuilder: singleNotChangedStackNewBranch,
-			want: listWant{
+			want: listTestResult{
 				list: []string{"/"},
 			},
 		},
 		{
 			name:        "single stack: not merged commit branch",
 			repobuilder: singleNotMergedCommitBranch,
-			want: listWant{
+			want: listTestResult{
 				list:    []string{"/"},
 				changed: []string{"/"},
 			},
@@ -129,7 +121,7 @@ func TestListChangedStacks(t *testing.T) {
 		{
 			name:        "single stack: changed",
 			repobuilder: singleChangedStacksRepo,
-			want: listWant{
+			want: listTestResult{
 				list:    []string{"/"},
 				changed: []string{"/"},
 			},
@@ -137,7 +129,7 @@ func TestListChangedStacks(t *testing.T) {
 		{
 			name:        "multiple stacks: one changed",
 			repobuilder: multipleStacksOneChangedRepo,
-			want: listWant{
+			want: listTestResult{
 				list:    []string{"/", "/changed-stack", "/not-changed-stack"},
 				changed: []string{"/changed-stack"},
 			},
@@ -145,14 +137,14 @@ func TestListChangedStacks(t *testing.T) {
 		{
 			name:        "multiple stacks: multiple changed",
 			repobuilder: multipleChangedStacksRepo,
-			want: listWant{
+			want: listTestResult{
 				list: []string{
 					"/",
-					"/not-changed-stack",
 					"/changed-stack",
 					"/changed-stack-0",
 					"/changed-stack-1",
 					"/changed-stack-2",
+					"/not-changed-stack",
 				},
 				changed: []string{
 					"/changed-stack",
@@ -165,7 +157,7 @@ func TestListChangedStacks(t *testing.T) {
 		{
 			name:        "single stack: single module changed",
 			repobuilder: singleStackSingleModuleChangedRepo,
-			want: listWant{
+			want: listTestResult{
 				list:    []string{"/"},
 				changed: []string{"/"},
 			},
@@ -173,7 +165,7 @@ func TestListChangedStacks(t *testing.T) {
 		{
 			name:        "single stack: dependent module changed",
 			repobuilder: singleStackDependentModuleChangedRepo,
-			want: listWant{
+			want: listTestResult{
 				list:    []string{"/"},
 				changed: []string{"/"},
 			},
@@ -181,7 +173,7 @@ func TestListChangedStacks(t *testing.T) {
 		{
 			name:        "multiple stack: single module changed",
 			repobuilder: multipleStackOneChangedModule,
-			want: listWant{
+			want: listTestResult{
 				list:    []string{"/", "/stack1", "/stack2"},
 				changed: []string{"/stack2"},
 			},
@@ -189,7 +181,7 @@ func TestListChangedStacks(t *testing.T) {
 		{
 			name:        "multiple stack: single module changed in same repo",
 			repobuilder: multipleStackOneChangedModuleInSameRepo,
-			want: listWant{
+			want: listTestResult{
 				list:    []string{"/", "/stack1", "/stack2"},
 				changed: []string{"/stack2"},
 			},
@@ -199,10 +191,10 @@ func TestListChangedStacks(t *testing.T) {
 			repo, modules := tc.repobuilder(t)
 
 			defer func() {
-				assert.NoError(t, os.RemoveAll(repo), "failed to remove repo")
+				test.RemoveAll(t, repo)
 
 				for _, mod := range modules {
-					assert.NoError(t, os.RemoveAll(mod), "failed to remove module dir")
+					test.RemoveAll(t, mod)
 				}
 			}()
 
@@ -211,12 +203,10 @@ func TestListChangedStacks(t *testing.T) {
 			changed, err := m.ListChanged()
 			assert.EqualErrs(t, tc.want.err, err, "ListChanged() error")
 
-			sort.Strings(tc.want.changed)
 			assertStacks(t, repo, tc.want.changed, changed, true)
 
 			list, err := m.List()
 			assert.EqualErrs(t, tc.want.err, err, "List() error")
-			sort.Strings(tc.want.list)
 			assertStacks(t, repo, tc.want.list, list, false)
 		})
 	}
@@ -232,7 +222,7 @@ func TestListChangedStackReason(t *testing.T) {
 
 	defer func() {
 		for _, dir := range removedirs {
-			os.RemoveAll(dir)
+			test.RemoveAll(t, dir)
 		}
 	}()
 
@@ -265,7 +255,7 @@ func nonExistentDir(t *testing.T) (string, []string) {
 }
 
 func assertStacks(
-	t *testing.T, basedir string, want []string, got []terrastack.Entry, hasReason bool,
+	t *testing.T, basedir string, want []string, got []terrastack.Entry, wantReason bool,
 ) {
 	assert.EqualInts(t, len(want), len(got), "wrong number of stacks: %+v", got)
 
@@ -279,7 +269,7 @@ func assertStacks(
 		}
 		assert.EqualStrings(t, want[i], shifted, "path mismatch")
 
-		if hasReason && got[i].Reason == "" {
+		if wantReason && got[i].Reason == "" {
 			t.Errorf("stack [%s] has no reason", got[i].Dir)
 		}
 	}
