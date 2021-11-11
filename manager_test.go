@@ -574,6 +574,12 @@ func multipleStackOneChangedModuleInSameRepo(t *testing.T) (repo string, modules
 	mainFile := test.WriteFile(t, module, "main.tf", "")
 	assert.NoError(t, g.Add(mainFile))
 
+	module2 := filepath.Join(repo, "modules/mymodule2")
+	test.MkdirAll(t, module2)
+
+	mainFile = test.WriteFile(t, module2, "main.tf", "")
+	assert.NoError(t, g.Add(mainFile))
+
 	otherStack := filepath.Join(repo, "stack1")
 	test.MkdirAll(t, otherStack)
 
@@ -582,6 +588,14 @@ func multipleStackOneChangedModuleInSameRepo(t *testing.T) (repo string, modules
 
 	assert.NoError(t, g.Add(filepath.Join(otherStack, terrastack.ConfigFilename)),
 		"git add otherstack failed")
+
+	mainFile = test.WriteFile(t, otherStack, "main.tf", fmt.Sprintf(`
+		module "something" {
+			source = "../../../../../../..%s"
+		}
+		`, module2))
+
+	assert.NoError(t, g.Add(mainFile), "add main.tf")
 	assert.NoError(t, g.Commit("other stack message"), "commit failed")
 
 	otherStack = filepath.Join(repo, "stack2")
