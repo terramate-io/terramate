@@ -227,19 +227,9 @@ func (c *cli) runOnStacks(basedir string) error {
 }
 
 func (c *cli) log(format string, args ...interface{}) {
-	// WHY: linter wants err to be handled, how to handle ?
-	// Can't assume os.Stdout on core logic + returning
-	// an error seems excessive on this case..or not ?
-	_, _ = c.output.Write(serializeLogEntry(format, args...))
+	fmt.Fprintln(c.output, fmt.Sprintf(format, args...))
 }
 
 func (c *cli) logerr(format string, args ...interface{}) {
-	// WHY: linter wants err to be handled, how to handle ?
-	// Can't assume os.Stdout on core logic + returning
-	// an error seems excessive on this case..or not ?
-	_, _ = c.errout.Write(serializeLogEntry(format, args...))
-}
-
-func serializeLogEntry(format string, args ...interface{}) []byte {
-	return []byte(fmt.Sprintf(format, args...) + "\n")
+	fmt.Fprintln(c.errout, fmt.Sprintf(format, args...))
 }
