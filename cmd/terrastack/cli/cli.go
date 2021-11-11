@@ -35,7 +35,9 @@ type cliSpec struct {
 	} `cmd:"" help:"Run command in the stacks."`
 }
 
-// Run will run the command + flags defined on args.
+// Run will run terrastack with the provided flags defined on args.
+// Only flags should be on the args slice.
+
 // Results will be written on stdout, according to the
 // command flags. Any partial/non-critical errors will be
 // written on stderr.
@@ -78,7 +80,7 @@ func newCLI(args []string, workingdir string, stdin io.Reader, stdout io.Writer,
 		return nil, fmt.Errorf("failed to create cli parser: %v", err)
 	}
 
-	ctx, err := parser.Parse(args[1:])
+	ctx, err := parser.Parse(args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse cli args %v: %v", args, err)
 	}

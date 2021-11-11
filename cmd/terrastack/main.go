@@ -12,7 +12,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("error: failed to get current directory: %v", err)
 	}
-	if err := cli.Run(os.Args, basedir, os.Stdin, os.Stdout, os.Stderr); err != nil {
+	if err := cli.Run(os.Args[1:], basedir, os.Stdin, os.Stdout, os.Stderr); err != nil {
 		log.Fatal(err)
 	}
 }
