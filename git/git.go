@@ -332,6 +332,18 @@ func (git *Git) DiffTree(from, to string, relative, nameOnly, recurse bool) (str
 	return git.exec("diff-tree", args...)
 }
 
+// DiffNames recursively walks the git tree objects computing the from and to
+// commit ids differences and return all the file names containing differences
+// relative to configuration WorkingDir.
+func (git *Git) DiffNames(from, to string) ([]string, error) {
+	diff, err := git.DiffTree(from, to, true, true, true)
+	if err != nil {
+		return nil, fmt.Errorf("diff-tree: %w", err)
+	}
+
+	return removeEmptyLines(strings.Split(diff, "\n")), nil
+}
+
 // NewBranch creates a new branch reference pointing to current HEAD.
 func (git *Git) NewBranch(name string) error {
 	_, err := git.RevParse(name)
