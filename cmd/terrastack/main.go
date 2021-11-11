@@ -154,8 +154,6 @@ func run(basedir string) {
 	cmdName := cliSpec.Run.Command[0]
 	args := cliSpec.Run.Command[1:]
 
-	basedir = basedir + string(os.PathSeparator)
-
 	for _, stack := range stacks {
 
 		cmd := exec.Command(cmdName, args...)
