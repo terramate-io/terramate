@@ -210,10 +210,6 @@ func (c *cli) runOnStacks(basedir string) error {
 		// TODO(katcipis): maybe already add an stdin for this use case ?
 		// cmd.Stdin = os.Stdin
 
-		// TODO(katcipis): cmd already inherits env from parent process
-		// Do we need this ?
-		// cmd.Env = os.Environ()
-
 		c.log("[%s] running %s", stack.Dir, cmd)
 
 		err = cmd.Run()
