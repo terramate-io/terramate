@@ -36,16 +36,21 @@ func WriteFile(t *testing.T, dir string, filename string, content string) string
 
 // MkdirAll creates a temporary directory with default test permission bits.
 func MkdirAll(t *testing.T, path string) {
+	t.Helper()
+
 	assert.NoError(t, os.MkdirAll(path, 0700), "failed to create temp directory")
 }
 
 // RemoveAll removes the directory and any of its children files and directories.
 func RemoveAll(t *testing.T, path string) {
+	t.Helper()
+
 	assert.NoError(t, os.RemoveAll(path), "failed to remove directory %q", path)
 }
 
 // NonExistingDir returns a non-existing directory.
 func NonExistingDir(t *testing.T) string {
+	t.Helper()
 
 	tmp := TempDir(t, "")
 	tmp2 := TempDir(t, tmp)
