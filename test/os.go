@@ -50,7 +50,7 @@ func NonExistingDir(t *testing.T) string {
 	tmp := TempDir(t, "")
 	tmp2 := TempDir(t, tmp)
 
-	assert.NoError(t, os.RemoveAll(tmp), "remove directory")
+	RemoveAll(t, tmp)
 
 	return tmp2
 }
