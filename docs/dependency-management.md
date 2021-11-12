@@ -64,10 +64,22 @@ but as far as defining dependencies goes, it is this easy.
 
 ## Order of Execution
 
-## Parallel Execution
+### Parallel Execution
+
+### Change Detection
+
 
 ## Inspecting the Dependency Graph
 
+TODO: ideas on generating graphviz fun
+
+
 ## What About Version Selection ?
 
+TODO: what if different stacks asks for different terrastack versions ?
++ when actually running (terraform run), how would different terraform
+version requirements be handled? Enforce same terraform version ? Fail ?
+
 ## What About Cycles ?
+
+TODO: very prone to failing, cycles are bad =P
