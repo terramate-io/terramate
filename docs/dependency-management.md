@@ -17,8 +17,57 @@ an explicit way to communicate that changes on **stack A** can affect
 To help with that terrastack provides a way to explicit declare
 dependencies between stacks.
 
-## Defining Dependency
+## Declaring Dependencies
+
+Dependencies are declared inside the **stack** block using the
+parameter **dependencies** which is a set of strings (set(string)),
+where each string is a reference to a another stack.
+
+For example, lets say we have a project organized like this:
+
+```
+.
+├── stack-a
+│   ├── main.tsk
+│   └── version.tsk
+└── stack-b
+    ├── main.tsk
+    └── version.tsk
+```
+
+And **stack-a/main.tsk** looks like:
+
+```
+stack {
+    // variables defintions
+}
+```
+
+Which doesn't depend on anything,
+and then we have **stack-b/main.tsk**:
+
+```
+stack {
+    dependencies = [
+        "../stack-a"
+    ]
+    // variables definitions
+}
+```
+
+This means that **stack-b** depends on **stack-a**.
+The expression of this dependency impacts order of
+execution of the stacks and also how change detection
+works across stacks, which is defined along this doc,
+but as far as defining dependencies goes, it is this easy.
+
 
 ## Order of Execution
+
+## Parallel Execution
+
+## Inspecting the Dependency Graph
+
+## What About Version Selection ?
 
 ## What About Cycles ?
