@@ -61,9 +61,7 @@ execution of the stacks and also how change detection
 works across stacks, which is defined along this doc,
 but as far as defining dependencies goes, it is this easy.
 
-
 ## Order of Execution
-
 
 For order of execution, lets discuss a more complex scenario.
 Lets say you have 4 stacks: stack-a,stack-b,stack-c,stack-d.
@@ -133,8 +131,11 @@ and what happens when a dependency fails ?
 
 ## Inspecting the Dependency Graph
 
-TODO: ideas on generating graphviz fun
+TODO: THIS IS STILL UNDEFINED
 
+ideas on generating graphviz fun. We could output
+a dot file so anyone can use graphviz to see a graphical
+representation of the dependencies.
 
 ## What About Version Selection ?
 
