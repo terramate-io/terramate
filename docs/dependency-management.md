@@ -126,8 +126,34 @@ executed after both stack-b and stack-c have finished successfully.
 
 ## Failure Modes
 
-TODO: what happens when unrelated stacks fail
-and what happens when a dependency fails ?
+When managing multiple stacks it can happen that a specific
+stack fails to be applied. If no other stack depends on a failed stack,
+meaning no other stack depends on any infrastructure that was
+supposed to be built by the failed stack, execution of other stacks
+continues normally.
+
+But if a stack has an explicit dependency and its dependency
+fails to be applied, execution of the stack that depended on it
+will be aborted, since it needs infrastructure that may not exist.
+
+Lets work with a concrete example, lets say you have 4 stacks:
+
+* stack-a
+* stack-b -(depends)-> stack-a
+* stack-c -(depends)-> stack-a
+* stack-d -(depends)-> (stack-b, stack-c)
+
+Which produces the following dependency graph:
+
+![failure-mode-example](./graphs/failure-mode-example.png)
+
+Now assume none of the stacks have been applied yet
+(all of them have changes, they are all new).
+
+Given that, lets say **stack-a** execution fails, on
+that scenario all other stacks get aborted:
+
+![failure-mode-stack-a-fails](./graphs/failure-mode-stack-a-fails.png)
 
 ## Inspecting the Dependency Graph
 
