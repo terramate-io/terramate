@@ -1,5 +1,5 @@
 digraph { 
-    label="Failure Mode: stack-a fails"
+    label="Failure Mode: stack-a fails (red=failed, yellow=aborted)"
 
     node [penwidth = 2.0]
 
