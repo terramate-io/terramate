@@ -1,0 +1,8 @@
+digraph { 
+    label="Stacks Dependency Graph"
+
+    "stack-b" -> "stack-a"
+    "stack-c" -> "stack-a"
+    "stack-d" -> "stack-b"
+    "stack-d" -> "stack-c"
+}
