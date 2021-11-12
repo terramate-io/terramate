@@ -64,10 +64,71 @@ but as far as defining dependencies goes, it is this easy.
 
 ## Order of Execution
 
-### Parallel Execution
+
+For order of execution, lets discuss a more complex scenario.
+Lets say you have 4 stacks: stack-a,stack-b,stack-c,stack-d.
+
+Each stack is defined as follows:
+
+stack-a:
+```
+stack {
+    // variables definitions
+}
+```
+
+stack-b:
+```
+stack {
+    dependencies = [
+        "../stack-a"
+    ]
+    // variables definitions
+}
+```
+
+stack-c:
+```
+stack {
+    dependencies = [
+        "../stack-a"
+    ]
+    // variables definitions
+}
+```
+
+stack-d:
+```
+stack {
+    dependencies = [
+        "../stack-b",
+        "../stack-c",
+    ]
+    // variables definitions
+}
+```
+
+This will produce the following dependency graph:
+
+![depgraph](./graphs/depgraph.png)
+
+From the dependency graph, the total order of execution will be:
+
+* 1 - stack-a
+* 2 - (stack-b,stack-c)
+* 3 - stack-d
+
+In this case, since stack-b and stack-c are independent from
+each other they can be run in parallel/undefined order, but
+stack-d can only be executed after both stack-b and stack-c
+have finished successfully.
 
 ### Change Detection
 
+## Failure Modes
+
+TODO: what happens when unrelated stacks fail
+and what happens when a dependency fails ?
 
 ## Inspecting the Dependency Graph
 
