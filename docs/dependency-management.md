@@ -39,7 +39,7 @@ And **stack-a/main.tsk** looks like:
 
 ```
 stack {
-    // variables defintions
+    // variables definitions
 }
 ```
 
