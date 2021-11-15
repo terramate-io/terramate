@@ -177,8 +177,8 @@ on **stack-a** (some directly, some transitively):
 
 ![failure-mode-stack-a-fails](./graphs/failure-mode-stack-a-fails.svg)
 
-Given the same set of stacks/dependencies, lets assume that
-**stack-b** failed, on this case the final result is:
+Given the same set of stacks/dependencies, let's assume that
+**stack-b** failed, in this case the final result is:
 
 ![failure-mode-stack-b-fails](./graphs/failure-mode-stack-b-fails.svg)
 
