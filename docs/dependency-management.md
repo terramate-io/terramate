@@ -192,7 +192,7 @@ TODO: Handle terrastack version selection like modules define Terraform versions
 When actually running apply (terraform apply), how would different terraform
 version requirements be handled? Enforce the same Terraform version? Fail?
 
-Usually stacks have a fixed/pinned terraform version, since they apply changes,
+Usually, stacks have a fixed/pinned Terraform version, since they apply changes,
 but then running multiple stacks with **terraform run** using
 terrastack would require all stacks to pin the exact same terraform version,
 or it will fail for stacks with different versions.
