@@ -171,7 +171,7 @@ Which produces the following dependency graph:
 Now assume none of the stacks have been applied yet
 (all of them have changed, they are all new).
 
-Given that, lets say **stack-a** execution fails, on
+Given that, let's say **stack-a** execution fails, on
 this case all other stacks get aborted since they depend
 on **stack-a** (some directly, some transitively):
 
