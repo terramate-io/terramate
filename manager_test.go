@@ -14,6 +14,8 @@ import (
 	"github.com/mineiros-io/terrastack/test"
 )
 
+const defBranch = "main"
+
 func TestListStacks(t *testing.T) {
 	type testcase struct {
 		basedir func(t *testing.T) string
@@ -53,7 +55,7 @@ func TestListStacks(t *testing.T) {
 		basedir := tc.basedir(t)
 		allstacks = append(allstacks, basedir)
 
-		m := terrastack.NewManager(basedir)
+		m := terrastack.NewManager(basedir, defBranch)
 		stacks, err := m.List()
 
 		if tc.wantErr != nil {
@@ -76,7 +78,7 @@ func TestListMultipleSubStacks(t *testing.T) {
 
 	defer removeStack(t, stackdir)
 
-	m := terrastack.NewManager(stackdir)
+	m := terrastack.NewManager(stackdir, defBranch)
 
 	stacks, err := m.List()
 	assert.NoError(t, err, "terrastack.List")
@@ -89,6 +91,7 @@ func TestListChangedStacks(t *testing.T) {
 	type testcase struct {
 		name        string
 		repobuilder func(t *testing.T) (string, []string)
+		baseRef     string
 		want        []string
 		err         error
 	}
@@ -105,31 +108,43 @@ func TestListChangedStacks(t *testing.T) {
 		{
 			name:        "single stack: not changed",
 			repobuilder: singleNotChangedStack,
+			baseRef:     defBranch,
 			want:        []string{},
+		},
+		{
+			name:        "single stack: not changed",
+			repobuilder: singleNotChangedStack,
+			baseRef:     "HEAD^",
+			want:        []string{"/"},
 		},
 		{
 			name:        "single stack: not changed on a new branch",
 			repobuilder: singleNotChangedStackNewBranch,
+			baseRef:     defBranch,
 			want:        []string{},
 		},
 		{
 			name:        "single stack: not merged commit branch",
 			repobuilder: singleNotMergedCommitBranch,
+			baseRef:     defBranch,
 			want:        []string{"/"},
 		},
 		{
 			name:        "single stack: changed",
 			repobuilder: singleChangedStacksRepo,
+			baseRef:     defBranch,
 			want:        []string{"/"},
 		},
 		{
 			name:        "multiple stacks: one changed",
 			repobuilder: multipleStacksOneChangedRepo,
+			baseRef:     defBranch,
 			want:        []string{"/changed-stack"},
 		},
 		{
 			name:        "multiple stacks: multiple changed",
 			repobuilder: multipleChangedStacksRepo,
+			baseRef:     defBranch,
 			want: []string{
 				"/changed-stack",
 				"/changed-stack-0",
@@ -140,11 +155,13 @@ func TestListChangedStacks(t *testing.T) {
 		{
 			name:        "single stack: single module changed",
 			repobuilder: singleStackSingleModuleChangedRepo,
+			baseRef:     defBranch,
 			want:        []string{"/"},
 		},
 		{
 			name:        "single stack: dependent module changed",
 			repobuilder: singleStackDependentModuleChangedRepo,
+			baseRef:     defBranch,
 			want:        []string{"/"},
 		},
 	} {
@@ -154,7 +171,7 @@ func TestListChangedStacks(t *testing.T) {
 			allrepos = append(allrepos, repodir)
 			allrepos = append(allrepos, modules...)
 
-			m := terrastack.NewManager(repodir)
+			m := terrastack.NewManager(repodir, tc.baseRef)
 
 			changed, err := m.ListChanged()
 			assert.EqualErrs(t, tc.err, err, "ListChanged() error")
@@ -191,7 +208,7 @@ func TestListChangedStackReason(t *testing.T) {
 		}
 	}()
 
-	m := terrastack.NewManager(repodir)
+	m := terrastack.NewManager(repodir, defBranch)
 	changed, err := m.ListChanged()
 	assert.NoError(t, err, "unexpected error")
 	assert.EqualInts(t, 1, len(changed), "unexpected number of entries")
@@ -202,7 +219,7 @@ func TestListChangedStackReason(t *testing.T) {
 	removedirs = append(removedirs, repodir)
 	removedirs = append(removedirs, modules...)
 
-	m = terrastack.NewManager(repodir)
+	m = terrastack.NewManager(repodir, defBranch)
 	changed, err = m.ListChanged()
 	assert.NoError(t, err, "unexpected error")
 	assert.EqualInts(t, 1, len(changed), "unexpected number of entries")
@@ -233,7 +250,7 @@ func assertStacks(t *testing.T, basedir string, want []string, got []terrastack.
 func singleStack(t *testing.T) string {
 	stackdir := test.TempDir(t, "")
 
-	mgr := terrastack.NewManager(stackdir)
+	mgr := terrastack.NewManager(stackdir, defBranch)
 	err := mgr.Init(stackdir, false)
 	assert.NoError(t, err, "mgr.Init(%s)", stackdir)
 
@@ -243,7 +260,7 @@ func singleStack(t *testing.T) string {
 func subStack(t *testing.T) string {
 	stackdir := test.TempDir(t, "")
 
-	mgr := terrastack.NewManager(stackdir)
+	mgr := terrastack.NewManager(stackdir, defBranch)
 	err := mgr.Init(stackdir, false)
 	assert.NoError(t, err, "mgr.Init(%s)", stackdir)
 
@@ -262,7 +279,7 @@ func nestedStacks(t *testing.T) string {
 	nestedStack := filepath.Join(stackdir, "substack", "deepstack")
 	test.MkdirAll(t, nestedStack)
 
-	mgr := terrastack.NewManager(stackdir)
+	mgr := terrastack.NewManager(stackdir, defBranch)
 	err := mgr.Init(nestedStack, false)
 	assert.NoError(t, err, "mgr.Init(%s)", nestedStack)
 
@@ -272,7 +289,7 @@ func nestedStacks(t *testing.T) string {
 func nSubStacks(t *testing.T, n int) string {
 	stackdir := test.TempDir(t, "")
 
-	mgr := terrastack.NewManager(stackdir)
+	mgr := terrastack.NewManager(stackdir, defBranch)
 	err := mgr.Init(stackdir, false)
 	assert.NoError(t, err, "mgr.Init(%s)", stackdir)
 
@@ -325,11 +342,15 @@ func singleNotChangedStack(t *testing.T) (repo string, modules []string) {
 	g := test.NewGitWrapper(t, repo, false)
 
 	// make it a stack
-	mgr := terrastack.NewManager(repo)
+	mgr := terrastack.NewManager(repo, defBranch)
 	assert.NoError(t, mgr.Init(repo, false), "terrastack init failed")
 	assert.NoError(t, g.Add(terrastack.ConfigFilename), "add terrastack file failed")
 	assert.NoError(t, g.Commit("terrastack message"), "terrastack commit failed")
 
+	// add a second commit to be able to test gitBaseRef=HEAD^
+	readmePath := test.WriteFile(t, repo, "README.md", "test")
+	assert.NoError(t, g.Add(readmePath), "add terrastack file failed")
+	assert.NoError(t, g.Commit("add readme message"), "commit failed")
 	return repo, nil
 }
 
@@ -340,7 +361,6 @@ func singleNotChangedStackNewBranch(t *testing.T) (repo string, modules []string
 	repo, modules = singleNotChangedStack(t)
 
 	g := test.NewGitWrapper(t, repo, false)
-
 	assert.NoError(t, g.Checkout("testbranch2", true), "git checkout failed")
 
 	return repo, modules
@@ -397,7 +417,7 @@ func multipleStacksOneChangedRepo(t *testing.T) (repo string, modules []string) 
 	otherStack := filepath.Join(repo, "not-changed-stack")
 	test.MkdirAll(t, otherStack)
 
-	mgr := terrastack.NewManager(repo)
+	mgr := terrastack.NewManager(repo, defBranch)
 	assert.NoError(t, mgr.Init(otherStack, false), "terrastack init failed")
 
 	assert.NoError(t, g.Add(filepath.Join(otherStack, terrastack.ConfigFilename)),
@@ -426,7 +446,7 @@ func multipleChangedStacksRepo(t *testing.T) (repo string, modules []string) {
 	repo, modules = multipleStacksOneChangedRepo(t)
 
 	g := test.NewGitWrapper(t, repo, false)
-	mgr := terrastack.NewManager(repo)
+	mgr := terrastack.NewManager(repo, defBranch)
 
 	for i := 0; i < 3; i++ {
 		otherStack := filepath.Join(repo, "changed-stack-"+fmt.Sprint(i))
