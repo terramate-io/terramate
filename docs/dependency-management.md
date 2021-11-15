@@ -169,7 +169,7 @@ Which produces the following dependency graph:
 ![failure-mode-example](./graphs/failure-mode-example.svg)
 
 Now assume none of the stacks have been applied yet
-(all of them have changes, they are all new).
+(all of them have changed, they are all new).
 
 Given that, lets say **stack-a** execution fails, on
 this case all other stacks get aborted since they depend
