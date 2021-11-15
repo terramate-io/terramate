@@ -135,6 +135,16 @@ executed after both stack-b and stack-c have finished successfully.
 
 ### Change Detection
 
+Change detection across stacks happens in the same way that change
+detection works for imported modules. When a stack depend on a module,
+if that module is detected as changed, the stack importing it is also
+marked as changed.
+
+For stack dependencies, the same behavior is expected. Lets say you
+have **stack-b** depending on **stack-a**, if a change is detected
+on **stack-a** then **stack-b** will also be marked as changed since
+it depends on **stack-a**.
+
 ## Failure Modes
 
 When managing multiple stacks it can happen that a specific
