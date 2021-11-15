@@ -1,0 +1,15 @@
+digraph { 
+    label="Failure Mode: stack-b fails (green=success, red=failed, yellow=aborted)"
+
+    node [penwidth = 2.0]
+
+    "stack-a" [color = green]
+    "stack-b" [color = red]
+    "stack-c" [color = green]
+    "stack-d" [color = darkgoldenrod]
+
+    "stack-b" -> "stack-a"
+    "stack-c" -> "stack-a"
+    "stack-d" -> "stack-b"
+    "stack-d" -> "stack-c"
+}

@@ -108,7 +108,7 @@ stack {
 
 This will produce the following dependency graph:
 
-![depgraph](./graphs/depgraph.png)
+![depgraph](./graphs/depgraph.svg)
 
 From the dependency graph, the total order of execution will be:
 
@@ -145,33 +145,43 @@ Lets work with a concrete example, lets say you have 4 stacks:
 
 Which produces the following dependency graph:
 
-![failure-mode-example](./graphs/failure-mode-example.png)
+![failure-mode-example](./graphs/failure-mode-example.svg)
 
 Now assume none of the stacks have been applied yet
 (all of them have changes, they are all new).
 
 Given that, lets say **stack-a** execution fails, on
-that scenario all other stacks get aborted:
+this case all other stacks get aborted since they depend
+on **stack-a** (some directly, some transitively):
 
-![failure-mode-stack-a-fails](./graphs/failure-mode-stack-a-fails.png)
+![failure-mode-stack-a-fails](./graphs/failure-mode-stack-a-fails.svg)
 
-## Inspecting the Dependency Graph
+Given the same set of stacks/dependencies, lets assume that
+**stack-b** failed, on this case the final result is:
 
-TODO: THIS IS STILL UNDEFINED
+![failure-mode-stack-b-fails](./graphs/failure-mode-stack-b-fails.svg)
 
-ideas on generating graphviz fun. We could output
-a dot file so anyone can use graphviz to see a graphical
-representation of the dependencies.
+Overall if any of the stacks a stack depend on fails, execution of the
+stack will be aborted.
+
 
 ## What About Version Selection ?
 
-TODO: what if different stacks asks for different terrastack versions ?
-+ when actually running (terraform run), how would different terraform
+TODO: Handle terrastack version selection like module define terraform versions ?
+When actually running (terraform run), how would different terraform
 version requirements be handled? Enforce same terraform version ? Fail ?
+
+Usually stacks have a fixed/pinned terraform version, since they apply changes,
+but then running multiple stacks in a single **terraform run** using
+terrastack would require all stacks to pin the exact same terraform version.
+
+This is not related only to dependencies, but dependencies also introduce the
+idea of applying multiple stacks on one go.
+
 
 ## What About Cycles ?
 
-TODO: THIS IS STILL UNDEFINED
+TODO: THIS IS STILL UNDEFINED, I MEAN, MORE UNDEFINED THAN THE REST FOR NOW =P
 
 Make decided to drop cycles, for example, given:
 
@@ -203,6 +213,15 @@ building stack-a
 building stack-b
 ```
 
-It respects the first detected dependency, dropping cycles are they
+It respects the first detected dependency, dropping cycles as they
 are detected. Other than that the only alternative is to fail
 and enforce the cycle to be removed (more clear/safer IMHO).
+
+
+## Inspecting the Dependency Graph
+
+TODO: THIS IS STILL UNDEFINED
+
+ideas on generating graphviz fun. We could output
+a dot file so anyone can use graphviz to see a graphical
+representation of the dependencies.
