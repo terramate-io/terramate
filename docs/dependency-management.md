@@ -189,7 +189,7 @@ stack will be aborted.
 ## What About Version Selection ?
 
 TODO: Handle terrastack version selection like module define terraform versions ?
-When actually running (terraform run), how would different terraform
+When actually running apply (terraform apply), how would different terraform
 version requirements be handled? Enforce same terraform version ? Fail ?
 
 Usually stacks have a fixed/pinned terraform version, since they apply changes,
