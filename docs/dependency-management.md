@@ -23,7 +23,7 @@ Dependencies are declared inside the **stack** block using the
 parameter **dependencies** which is a set of strings (**set(string)**),
 where each string is a reference to another stack.
 
-For example, lets say we have a project organized like this:
+For example, let's assume we have a project organized like this:
 
 ```
 .
