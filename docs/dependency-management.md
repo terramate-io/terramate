@@ -1,6 +1,6 @@
 # Dependency Management
 
-Sometimes stacks are completely independent from each other, but on
+Sometimes stacks are completely independent of each other, but on
 certain occasions it may happen that infrastructure that is created
 by **stack A** is required by **stack B**, like using the outputs
 of **stack A** as inputs for **stack B**.
