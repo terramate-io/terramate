@@ -20,8 +20,8 @@ dependencies between stacks.
 ## Declaring Dependencies
 
 Dependencies are declared inside the **stack** block using the
-parameter **dependencies** which is a set of strings (set(string)),
-where each string is a reference to a another stack.
+parameter **dependencies** which is a set of strings (**set(string)**),
+where each string is a reference to another stack.
 
 For example, lets say we have a project organized like this:
 
@@ -64,7 +64,7 @@ but as far as defining dependencies goes, it is this easy.
 ## Order of Execution
 
 For order of execution, lets discuss a more complex scenario.
-Lets say you have 4 stacks: stack-a,stack-b,stack-c,stack-d.
+Lets say you have 4 stacks: **stack-a,stack-b,stack-c,stack-d**.
 
 Each stack is defined as follows:
 
