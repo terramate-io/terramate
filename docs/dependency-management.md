@@ -193,11 +193,13 @@ When actually running apply (terraform apply), how would different terraform
 version requirements be handled? Enforce same terraform version ? Fail ?
 
 Usually stacks have a fixed/pinned terraform version, since they apply changes,
-but then running multiple stacks in a single **terraform run** using
-terrastack would require all stacks to pin the exact same terraform version.
+but then running multiple stacks with **terraform run** using
+terrastack would require all stacks to pin the exact same terraform version,
+or it will fail for stacks with different versions.
 
 This is not related only to dependencies, but dependencies also introduce the
-idea of applying multiple stacks on one go.
+idea of applying multiple stacks on one go (terrastack list + terraform run
+has the same problem).
 
 
 ## What About Cycles ?
