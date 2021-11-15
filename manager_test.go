@@ -112,7 +112,7 @@ func TestListChangedStacks(t *testing.T) {
 			want:        []string{},
 		},
 		{
-			name:        "single stack: not changed",
+			name:        "single stack: different base",
 			repobuilder: singleNotChangedStack,
 			baseRef:     "HEAD^",
 			want:        []string{"/"},
