@@ -1,14 +1,14 @@
 terrastack {
-  required_version = "~> 0.1"
+  required_version = "~> 0.1.0"
 
+  name        = "example: persons-as-local"
   description = "Deploy stack terrastack-null-persons as local template."
 
-  # no label -> clone stack locally
   # needed for current flink set up and terragrunt stuff
   # will rewrite the module sources while importing:
   # - variales will become locals
   # - sources will be adjusted to match new location if relative source path is used
-  stack {
+  clone {
     source = "../../modules/terrastack-null-persons"
 
     persons = [

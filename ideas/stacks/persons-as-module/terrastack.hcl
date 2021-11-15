@@ -1,9 +1,10 @@
 terrastack {
-  required_version = "~> 0.1"
+  required_version = "~> 0.1.0"
 
-  # with label -> create a module entry locally (recommended way)
-  # needed for current flink set up and terragrunt stuff
-  stack "persons" {
+  name        = "example: persons-as-module"
+  description = "Deploy stack terrastack-null-persons as terraform module."
+
+  module "persons" {
     source = "../../modules/terrastack-null-persons"
 
     persons = [
