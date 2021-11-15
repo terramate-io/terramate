@@ -66,6 +66,17 @@ but as far as defining dependencies goes, it is this easy.
 For order of execution, lets discuss a more complex scenario.
 Lets say you have 4 stacks: **stack-a,stack-b,stack-c,stack-d**.
 
+Organized like this on the local file system (omitted file names
+for brevity):
+
+```
+.
+├── stack-a
+├── stack-b
+├── stack-c
+└── stack-d
+```
+
 Each stack is defined as follows:
 
 stack-a:
