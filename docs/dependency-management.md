@@ -2,8 +2,8 @@
 
 Sometimes stacks are completely independent from each other, but on
 certain occasions it may happen that infrastructure that is created
-by stack **A** is required by stack **B**, like using the outputs
-of stack **A** as inputs for stack **B**.
+by **stack A** is required by **stack B**, like using the outputs
+of **stack A** as inputs for **stack B**.
 
 This can be done through data sources (preferable, when available) or
 by [loading the state](https://www.terraform.io/docs/language/state/remote-state-data.html)
