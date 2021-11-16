@@ -57,8 +57,8 @@ stack {
 
 This means that **stack-b** depends on **stack-a**.
 The expression of this dependency impacts order of
-execution of the stacks and also how change detection
-works across stacks, which is defined along this doc,
+execution of the stacks and also how to detect changes
+across them, which is defined along with this doc,
 but as far as defining dependencies goes, it is this easy.
 
 ## Order of Execution
