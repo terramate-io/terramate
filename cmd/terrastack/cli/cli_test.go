@@ -6,6 +6,8 @@ func TestBug25(t *testing.T) {
 	// bug: https://github.com/mineiros-io/terrastack/issues/25
 
 	te := newTestEnv(t)
+	defer te.Cleanup()
+
 	// run will run arbitrary commands ignoring output, checks only success (status=0)
 	// it is a little less verbose to just parse a single string, or maybe
 	// we go with te.Run("git", "option"), for long list of options that may
