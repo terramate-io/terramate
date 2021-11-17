@@ -312,9 +312,14 @@ func (git *Git) Status() (string, error) {
 
 // DiffTree compares the from and to commit ids and returns the differences. If
 // nameOnly is set then only the file names of changed files are show. If
-// recurse is set, then it walks into child trees as well.
-func (git *Git) DiffTree(from, to string, nameOnly, recurse bool) (string, error) {
+// recurse is set, then it walks into child trees as well. If
+// relative is set, then only show local changes of current dir.
+func (git *Git) DiffTree(from, to string, relative, nameOnly, recurse bool) (string, error) {
 	args := []string{from, to}
+
+	if relative {
+		args = append(args, "--relative")
+	}
 
 	if nameOnly {
 		args = append(args, "--name-only")
@@ -325,6 +330,18 @@ func (git *Git) DiffTree(from, to string, nameOnly, recurse bool) (string, error
 	}
 
 	return git.exec("diff-tree", args...)
+}
+
+// DiffNames recursively walks the git tree objects computing the from and to
+// commit ids differences and return all the file names containing differences
+// relative to configuration WorkingDir.
+func (git *Git) DiffNames(from, to string) ([]string, error) {
+	diff, err := git.DiffTree(from, to, true, true, true)
+	if err != nil {
+		return nil, fmt.Errorf("diff-tree: %w", err)
+	}
+
+	return removeEmptyLines(strings.Split(diff, "\n")), nil
 }
 
 // NewBranch creates a new branch reference pointing to current HEAD.

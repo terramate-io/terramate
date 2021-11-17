@@ -7,7 +7,6 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
-	"strings"
 
 	"github.com/mineiros-io/terrastack/git"
 	"github.com/mineiros-io/terrastack/hcl"
@@ -231,12 +230,7 @@ func listChangedFiles(dir string) ([]string, error) {
 			baseRef, mergeBaseRef)
 	}
 
-	diff, err := g.DiffTree(baseRef, headRef, true, true)
-	if err != nil {
-		return nil, fmt.Errorf("running git diff %s: %w", baseRef, err)
-	}
-
-	return strings.Split(diff, "\n"), nil
+	return g.DiffNames(baseRef, headRef)
 }
 
 // moduleChanged recursively check if the module mod or any of the modules it
