@@ -204,41 +204,9 @@ has the same problem).
 
 ## What About Cycles ?
 
-TODO: THIS IS STILL UNDEFINED, I MEAN, MORE UNDEFINED THAN THE REST FOR NOW =P
-
-Make decided to drop cycles, for example, given:
-
-```
-.PHONY: stack-a
-stack-a: stack-b
-        @echo building stack-a
-
-.PHONY: stack-b
-stack-b: stack-a
-        @echo building stack-b
-```
-
-For stack-a you get:
-
-```sh
-make stack-a
-make: Circular stack-b <- stack-a dependency dropped.
-building stack-b
-building stack-a
-```
-
-For stack-b you get:
-
-```
-make stack-b
-make: Circular stack-a <- stack-b dependency dropped.
-building stack-a
-building stack-b
-```
-
-It respects the first detected dependency, dropping cycles as they
-are detected. Other than that the only alternative is to fail
-and enforce the cycle to be removed (more clear/safer IMHO).
+If any cycles are detected on the dependency graph this will be
+considered a failure and **terrastack** will abort with an
+error message pointing out the detected cycle.
 
 
 ## Inspecting the Dependency Graph
