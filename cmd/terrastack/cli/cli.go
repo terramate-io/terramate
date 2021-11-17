@@ -16,7 +16,7 @@ import (
 type cliSpec struct {
 	Version struct{} `cmd:"" help:"Terrastack version."`
 
-	GitBaseRef string `short:"B" optional:"true" default:"main" help:"git base ref for computing changes."`
+	GitChangeBase string `short:"B" optional:"true" default:"origin/main" help:"git base ref for computing changes."`
 
 	Init struct {
 		StackDirs []string `arg:"" name:"paths" optional:"true" help:"the stack directory (current directory if not set)."`
@@ -130,7 +130,7 @@ func (c *cli) run() error {
 
 func (c *cli) initStack(basedir string, dirs []string) error {
 	var nErrors int
-	mgr := terrastack.NewManager(basedir, c.parsedArgs.GitBaseRef)
+	mgr := terrastack.NewManager(basedir, c.parsedArgs.GitChangeBase)
 	for _, d := range dirs {
 		err := mgr.Init(d, c.parsedArgs.Init.Force)
 		if err != nil {
@@ -161,7 +161,7 @@ func (c *cli) listStacks(mgr *terrastack.Manager) ([]terrastack.Entry, error) {
 }
 
 func (c *cli) printStacks(basedir string, cwd string) error {
-	mgr := terrastack.NewManager(basedir, c.parsedArgs.GitBaseRef)
+	mgr := terrastack.NewManager(basedir, c.parsedArgs.GitChangeBase)
 	stacks, err := c.listStacks(mgr)
 	if err != nil {
 		return fmt.Errorf("can't list stacks: %v", err)
@@ -189,7 +189,7 @@ func (c *cli) runOnStacks(basedir string) error {
 		return fmt.Errorf("can't find absolute path for %q: %v", basedir, err)
 	}
 
-	mgr := terrastack.NewManager(basedir, c.parsedArgs.GitBaseRef)
+	mgr := terrastack.NewManager(basedir, c.parsedArgs.GitChangeBase)
 	stacks, err := c.listStacks(mgr)
 	if err != nil {
 		return fmt.Errorf("can't list stacks: %v", err)
