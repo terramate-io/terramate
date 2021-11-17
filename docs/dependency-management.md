@@ -129,7 +129,7 @@ From the dependency graph, the total order of execution will be:
 
 In this case, since stack-b and stack-c are independent from
 each other they don't have a defined order of execution between
-then, meaning that you should not rely on an specific order and that it
+them, meaning that you should not rely on an specific order and that it
 will most likely be run concurrently. stack-d can only be
 executed after both stack-b and stack-c have finished successfully.
 
