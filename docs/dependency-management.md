@@ -186,22 +186,6 @@ Overall if any of the stacks a stack depend on fails, execution of the
 stack will be aborted.
 
 
-## What About Version Selection ?
-
-TODO: Handle terrastack version selection like modules define Terraform versions?
-When actually running apply (terraform apply), how would different terraform
-version requirements be handled? Enforce the same Terraform version? Fail?
-
-Usually, stacks have a fixed/pinned Terraform version, since they apply changes,
-but then running multiple stacks with **terraform run** using
-terrastack would require all stacks to pin the exact same terraform version,
-or it will fail for stacks with different versions.
-
-This is not related only to dependencies, but dependencies also introduce the
-idea of applying multiple stacks on one go (terrastack list + terraform run
-has the same problem).
-
-
 ## What About Cycles ?
 
 If any cycles are detected on the dependency graph this will be
