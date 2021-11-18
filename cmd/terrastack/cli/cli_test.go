@@ -31,23 +31,18 @@ func TestBug25(t *testing.T) {
 
 	stack1Handler.CreateFile("main.tf", `
 module "mod1" {
-    source = "../../modules/1"
-}`)
+    source = "%s"
+}`, stack1Handler.ModImportPath(mod1))
+
 	stack2Handler.CreateFile("main.tf", `
-module "mod1" {
-    source = "../../modules/2"
-}`)
+module "mod2" {
+    source = "%s"
+}`, stack2Handler.ModImportPath(mod2))
+
 	stack3Handler.CreateFile("main.tf", "# no module")
 
-	// terrastack CLI uses testing.T to fail automatically
-	// And also uses the basedir of the test env.
 	ts := newTerrastackCLI(t, te.BaseDir())
 
-	// This runs terrastack through the cli.Run main entrypoint
-	// no new process is created, automatically validates it succeeded.
-	// parameter also parsed so it reads better....but not sure.
-	// It should read like in a bash script, just omitting
-	// the terrastack command itself since it would be redundant
 	for _, s := range []stackHandler{stack1Handler, stack2Handler, stack3Handler} {
 		ts.Run("init", s.RelPath())
 	}
