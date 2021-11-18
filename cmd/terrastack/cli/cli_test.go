@@ -53,7 +53,7 @@ source = "%s"
 
 	res := tscli.Run("list", "--changed")
 
-	const noChangesOutput = "d"
+	const noChangesOutput = ""
 	if res.Stdout != noChangesOutput {
 		t.Errorf("%q stdout=%q, wanted=%q", res.Cmd, res.Stdout, noChangesOutput)
 		t.Fatalf("%q stderr=%q", res.Cmd, res.Stderr)
