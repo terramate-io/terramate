@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/mineiros-io/terrastack/cmd/terrastack/cli"
@@ -10,15 +11,6 @@ import (
 func TestBug25(t *testing.T) {
 	// bug: https://github.com/mineiros-io/terrastack/issues/25
 
-	te := NewTestEnv(t)
-	defer te.Cleanup()
-
-	// run will run arbitrary commands ignoring output, checks only success (status=0)
-	// it is a little less verbose to just parse a single string, or maybe
-	// we go with te.Run("git", "option"), for long list of options that may
-	// get annoying and the idea is to approximate a script
-	te.Run("git", "init")
-
 	const (
 		mod1   = "1"
 		mod2   = "2"
@@ -26,6 +18,9 @@ func TestBug25(t *testing.T) {
 		stack2 = "stack-2"
 		stack3 = "stack-3"
 	)
+
+	te := NewTestEnv(t)
+	defer te.Cleanup()
 
 	te.CreateModule(mod1).CreateFile("main.tf", "# module 1")
 	te.CreateModule(mod2).CreateFile("main.tf", "# module 2")
@@ -52,18 +47,17 @@ source = "%s"
 		tscli.Run("init", s.Path())
 	}
 
-	te.Run("git", "add", ".")
-	te.Run("git", "commit", "-m", "all")
-	te.Run("git", "rev-parse", "main")
+	git := te.Git()
+	git.Add(".")
+	git.Commit("all")
 
-	//tscli.Run("list", "--changed")
-	//t.Fatal(res)
+	res := tscli.Run("list", "--changed")
 
-	//const noChangesOutput = "exact match with expected output"
-	//if res.Stdout != noChangesOutput {
-	//t.Errorf("%q got %q, wanted %q", res.Cmd, res.Stdout, noChangesOutput)
-	//t.Fatalf("%q stderr: %q", res.Cmd, res.Stderr)
-	//}
+	const noChangesOutput = "d"
+	if res.Stdout != noChangesOutput {
+		t.Errorf("%q stdout=%q, wanted=%q", res.Cmd, res.Stdout, noChangesOutput)
+		t.Fatalf("%q stderr=%q", res.Cmd, res.Stderr)
+	}
 
 	//te.Run("git", "checkout", "-b", "change-the-module-1")
 
@@ -87,6 +81,7 @@ type TestCLI struct {
 }
 
 type CLIRunResult struct {
+	Cmd    string
 	Stdout string
 	Stderr string
 }
@@ -107,6 +102,7 @@ func (tc *TestCLI) Run(args ...string) CLIRunResult {
 	}
 
 	return CLIRunResult{
+		Cmd:    strings.Join(args, " "),
 		Stdout: stdout.String(),
 		Stderr: stdout.String(),
 	}

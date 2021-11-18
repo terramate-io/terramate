@@ -7,11 +7,19 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/mineiros-io/terrastack/git"
 	"github.com/mineiros-io/terrastack/test"
 )
 
 type TestEnv struct {
 	t       *testing.T
+	git     *Git
+	basedir string
+}
+
+type Git struct {
+	t       *testing.T
+	g       *git.Git
 	basedir string
 }
 
@@ -51,10 +59,16 @@ type FileEntry struct {
 // a new test env for it.
 func NewTestEnv(t *testing.T) *TestEnv {
 	t.Helper()
-	return &TestEnv{
+
+	basedir := test.TempDir(t, "")
+	git := &Git{
 		t:       t,
-		basedir: test.TempDir(t, ""),
+		g:       test.NewGitWrapper(t, basedir, false),
+		basedir: basedir,
 	}
+
+	git.Init()
+	return &TestEnv{t: t, git: git, basedir: basedir}
 }
 
 // Cleanup will release any resources, like files, created
@@ -64,6 +78,12 @@ func (te *TestEnv) Cleanup() {
 	te.t.Helper()
 
 	test.RemoveAll(te.t, te.basedir)
+}
+
+// Git returns a git wrapper that is useful to run git commands
+// safely inside the test env dir.
+func (te *TestEnv) Git() *Git {
+	return te.git
 }
 
 // BaseDir returns the base dir of the test env.
@@ -175,4 +195,28 @@ func (se *StackEntry) ModImportPath(name string) string {
 // that created this stack.
 func (se *StackEntry) Path() string {
 	return se.DirEntry.path
+}
+
+func (git *Git) Init() {
+	git.t.Helper()
+
+	if err := git.g.Init(git.basedir); err != nil {
+		git.t.Errorf("Git.Init(%v) = %v", git.basedir, err)
+	}
+}
+
+func (git *Git) Add(files ...string) {
+	git.t.Helper()
+
+	if err := git.g.Add(files...); err != nil {
+		git.t.Errorf("Git.Add(%v) = %v", files, err)
+	}
+}
+
+func (git *Git) Commit(msg string, args ...string) {
+	git.t.Helper()
+
+	if err := git.g.Commit(msg, args...); err != nil {
+		git.t.Errorf("Git.Commit(%s, %v) = %v", msg, args, err)
+	}
 }
