@@ -14,34 +14,43 @@ func TestBug25(t *testing.T) {
 	// get annoying and the idea is to approximate a script
 	te.Run("git", "init")
 
-	// Multiline handling is always messy, still prefer this than
-	// bash, but maybe it is just me =P.
-	te.CreateFiles([]File{
-		{Path: "modules/1/main.tf", Body: "# module 1"},
-		{Path: "modules/2/main.tf", Body: "# module 2"},
-		{Path: "stacks/stack-1/main.tf", Body: `
+	const (
+		mod1   = "1"
+		mod2   = "2"
+		stack1 = "stack-1"
+		stack2 = "stack-2"
+		stack3 = "stack-3"
+	)
+
+	mod1MainTf := te.CreateModule(mod1).CreateFile("main.tf", "# module 1")
+	te.CreateModule(mod2).CreateFile("main.tf", "# module 2")
+
+	stack1Handler := te.CreateStack(stack1)
+	stack2Handler := te.CreateStack(stack2)
+	stack3Handler := te.CreateStack(stack2)
+
+	stack1Handler.CreateFile("main.tf", `
 module "mod1" {
     source = "../../modules/1"
-}`},
-		{Path: "stacks/stack-2/main.tf", Body: `
+}`)
+	stack2Handler.CreateFile("main.tf", `
 module "mod1" {
     source = "../../modules/2"
-}`},
-		{Path: "stacks/stack-3/main.tf", Body: "# no module"},
-	})
+}`)
+	stack3Handler.CreateFile("main.tf", "# no module")
 
 	// terrastack CLI uses testing.T to fail automatically
 	// And also uses the basedir of the test env.
-	ts := newTerrastackCLI(t, te.BaseDir)
+	ts := newTerrastackCLI(t, te.BaseDir())
 
 	// This runs terrastack through the cli.Run main entrypoint
 	// no new process is created, automatically validates it succeeded.
 	// parameter also parsed so it reads better....but not sure.
 	// It should read like in a bash script, just omitting
 	// the terrastack command itself since it would be redundant
-	ts.Run("init", "stacks/stack-1")
-	ts.Run("init", "stacks/stack-2")
-	ts.Run("init", "stacks/stack-3")
+	for _, s := range []stackHandler{stack1Handler, stack2Handler, stack3Handler} {
+		ts.Run("init", s.RelPath())
+	}
 
 	te.Run("git", "add", ".")
 	te.Run(`git", "commit", "-m", "all"`)
@@ -55,15 +64,17 @@ module "mod1" {
 	}
 
 	te.Run("git", "checkout", "-b", "change-the-module-1")
-	te.CreateFile("modules/1/main.tf", "# changed")
-	te.Run("git", "add", "modules/1/main.tf")
+
+	mod1MainTf.Replace("# changed")
+
+	te.Run("git", "add", mod1MainTf.RelPath())
 	te.Run("git", "commit", "-m", "module 1 changed")
 
 	res := ts.Run("list", "--changed")
 
-	const outputWithChanges = "exact match with expected output"
-	if res.Stdout != outputWithChanges {
-		t.Errorf("%q got %q, wanted %q", res.Cmd, res.Stdout, outputWithChanges)
+	changedStacks := stack1Handler.RelPath()
+	if res.Stdout != changedStacks {
+		t.Errorf("%q got %q, wanted %q", res.Cmd, res.Stdout, changedStacks)
 		t.Fatalf("%q stderr: %q", res.Cmd, res.Stderr)
 	}
 }
