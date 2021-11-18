@@ -12,7 +12,7 @@ func TestBug25(t *testing.T) {
 	// it is a little less verbose to just parse a single string, or maybe
 	// we go with te.Run("git", "option"), for long list of options that may
 	// get annoying and the idea is to approximate a script
-	te.Run("git init")
+	te.Run("git", "init")
 
 	// Multiline handling is always messy, still prefer this than
 	// bash, but maybe it is just me =P.
@@ -39,14 +39,14 @@ module "mod1" {
 	// parameter also parsed so it reads better....but not sure.
 	// It should read like in a bash script, just omitting
 	// the terrastack command itself since it would be redundant
-	ts.Run("init stacks/stack-1")
-	ts.Run("init stacks/stack-2")
-	ts.Run("init stacks/stack-3")
+	ts.Run("init", "stacks/stack-1")
+	ts.Run("init", "stacks/stack-2")
+	ts.Run("init", "stacks/stack-3")
 
-	te.Run("git add .")
-	te.Run(`git commit -m "all"`)
+	te.Run("git", "add", ".")
+	te.Run(`git", "commit", "-m", "all"`)
 
-	res := ts.Run("list --changed")
+	res := ts.Run("list", "--changed")
 
 	const noChangesOutput = "exact match with expected output"
 	if res.Stdout != noChangesOutput {
@@ -54,12 +54,12 @@ module "mod1" {
 		t.Fatalf("%q stderr: %q", res.Cmd, res.Stderr)
 	}
 
-	te.Run("git checkout -b change-the-module-1")
+	te.Run("git", "checkout", "-b", "change-the-module-1")
 	te.CreateFile("modules/1/main.tf", "# changed")
-	te.Run("git add modules/1/main.tf")
-	te.Run(`git commit -m "module 1 changed"`)
+	te.Run("git", "add", "modules/1/main.tf")
+	te.Run("git", "commit", "-m", "module 1 changed")
 
-	res := ts.Run("list --changed")
+	res := ts.Run("list", "--changed")
 
 	const outputWithChanges = "exact match with expected output"
 	if res.Stdout != outputWithChanges {
