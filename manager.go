@@ -210,7 +210,7 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 
 	baseRef, err := g.RevParse(gitBaseRef)
 	if err != nil {
-		return nil, fmt.Errorf("getting %s revision: %w", gitBaseRef, err)
+		return nil, fmt.Errorf("getting revision %q: %w", gitBaseRef, err)
 	}
 
 	headRef, err := g.RevParse("HEAD")
