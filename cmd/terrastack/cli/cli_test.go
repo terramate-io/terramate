@@ -15,31 +15,31 @@ func TestBug25(t *testing.T) {
 	te.Run("git", "init")
 
 	const (
-		mod1 = "1"
-		mod2 = "2"
-	//stack1 = "stack-1"
-	//stack2 = "stack-2"
-	//stack3 = "stack-3"
+		mod1   = "1"
+		mod2   = "2"
+		stack1 = "stack-1"
+		stack2 = "stack-2"
+		stack3 = "stack-3"
 	)
 
 	te.CreateModule(mod1).CreateFile("main.tf", "# module 1")
 	te.CreateModule(mod2).CreateFile("main.tf", "# module 2")
 
-	//stack1Handler := te.CreateStack(stack1)
-	//stack2Handler := te.CreateStack(stack2)
-	//stack3Handler := te.CreateStack(stack2)
+	stack1Handler := te.CreateStack(stack1)
+	stack2Handler := te.CreateStack(stack2)
+	stack3Handler := te.CreateStack(stack2)
 
-	//stack1Handler.CreateFile("main.tf", `
-	//module "mod1" {
-	//source = "%s"
-	//}`, stack1Handler.ModImportPath(mod1))
+	stack1Handler.CreateFile("main.tf", `
+module "mod1" {
+source = "%s"
+}`, stack1Handler.ModImportPath(mod1))
 
-	//stack2Handler.CreateFile("main.tf", `
-	//module "mod2" {
-	//source = "%s"
-	//}`, stack2Handler.ModImportPath(mod2))
+	stack2Handler.CreateFile("main.tf", `
+module "mod2" {
+source = "%s"
+}`, stack2Handler.ModImportPath(mod2))
 
-	//stack3Handler.CreateFile("main.tf", "# no module")
+	stack3Handler.CreateFile("main.tf", "# no module")
 
 	//ts := newTerrastackCLI(t, te.BaseDir())
 

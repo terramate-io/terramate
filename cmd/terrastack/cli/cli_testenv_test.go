@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,6 +20,14 @@ type TestEnv struct {
 type DirEntry struct {
 	t    *testing.T
 	path string
+}
+
+// StackEntry represents a directory that has a stack
+// inside, it extends a DirEntry with stack specific
+// functionality.
+type StackEntry struct {
+	DirEntry
+	modulesRelPath string
 }
 
 // FileEntry represents a file and can be used
@@ -77,7 +86,7 @@ func (te *TestEnv) Run(name string, args ...string) {
 // create files inside the module dir.
 //
 // It is a programming error to call this method with a module
-// name that was already created before.
+// name that already exists.
 func (te *TestEnv) CreateModule(name string) *DirEntry {
 	te.t.Helper()
 
@@ -87,8 +96,33 @@ func (te *TestEnv) CreateModule(name string) *DirEntry {
 	return &DirEntry{t: te.t, path: moddir}
 }
 
+// CreateStack will create a stack dir with the given name
+// returning a stack entry that can be used to
+// create files inside the stack dir.
+//
+// It is a programming error to call this method with a stack
+// name that already exists.
+func (te *TestEnv) CreateStack(name string) *StackEntry {
+	te.t.Helper()
+
+	stackdir := filepath.Join(te.basedir, "stacks", name)
+	test.MkdirAll(te.t, stackdir)
+
+	// Given the current design assuming ../../modules is safe
+	// But we could change this in the future and maintain the
+	// current API working.
+	return &StackEntry{
+		DirEntry: DirEntry{
+			t:    te.t,
+			path: stackdir,
+		},
+		modulesRelPath: "../../modules",
+	}
+}
+
 // CreateFile will create a file inside the dir with the
-// given name and the given contents.
+// given name and the given body. The body can be plain text
+// or a format string identical to what is defined on Go fmt package.
 //
 // It returns a file entry that can be used to further
 // manipulate the created file, like replacing its contents.
@@ -97,24 +131,36 @@ func (te *TestEnv) CreateModule(name string) *DirEntry {
 //
 // If the file already exists its contents will be truncated,
 // like os.Create behavior: https://pkg.go.dev/os#Create
-func (de *DirEntry) CreateFile(name, body string) *FileEntry {
+func (de *DirEntry) CreateFile(name, body string, args ...interface{}) *FileEntry {
 	de.t.Helper()
 
 	fe := &FileEntry{
 		t:    de.t,
 		path: filepath.Join(de.path, name),
 	}
-	fe.Write(body)
+	fe.Write(body, args...)
 
 	return fe
 }
 
 // Write writes the given text body on the file, replacing its contents.
+// The body can be plain text or a format string identical to what
+// is defined on Go fmt package.
+//
 // It behaves like os.WriteFile: https://pkg.go.dev/os#WriteFile
-func (fe *FileEntry) Write(body string) {
+func (fe *FileEntry) Write(body string, args ...interface{}) {
 	fe.t.Helper()
+
+	body = fmt.Sprintf(body, args...)
 
 	if err := os.WriteFile(fe.path, []byte(body), 0700); err != nil {
 		fe.t.Errorf("os.WriteFile(%q) = %v", fe.path, err)
 	}
+}
+
+// ModImportPath returns the relative import path for the
+// module with the given name. The path is relative to
+// stack dir.
+func (se *StackEntry) ModImportPath(name string) string {
+	return filepath.Join(se.modulesRelPath, name)
 }
