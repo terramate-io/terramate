@@ -39,7 +39,6 @@ And **stack-a/main.tsk** looks like:
 
 ```
 stack {
-    // variables definitions
 }
 ```
 
@@ -51,7 +50,6 @@ stack {
     dependencies = [
         "../stack-a"
     ]
-    // variables definitions
 }
 ```
 
@@ -82,7 +80,6 @@ Each stack is defined as follows:
 stack-a:
 ```
 stack {
-    // variables definitions
 }
 ```
 
@@ -92,7 +89,6 @@ stack {
     dependencies = [
         "../stack-a"
     ]
-    // variables definitions
 }
 ```
 
@@ -102,7 +98,6 @@ stack {
     dependencies = [
         "../stack-a"
     ]
-    // variables definitions
 }
 ```
 
@@ -113,7 +108,6 @@ stack {
         "../stack-b",
         "../stack-c",
     ]
-    // variables definitions
 }
 ```
 
