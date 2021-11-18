@@ -14,16 +14,16 @@ func TestBug25(t *testing.T) {
 	// get annoying and the idea is to approximate a script
 	te.Run("git", "init")
 
-	//const (
-	//mod1   = "1"
-	//mod2   = "2"
+	const (
+		mod1 = "1"
+		mod2 = "2"
 	//stack1 = "stack-1"
 	//stack2 = "stack-2"
 	//stack3 = "stack-3"
-	//)
+	)
 
-	//mod1MainTf := te.CreateModule(mod1).CreateFile("main.tf", "# module 1")
-	//te.CreateModule(mod2).CreateFile("main.tf", "# module 2")
+	te.CreateModule(mod1).CreateFile("main.tf", "# module 1")
+	te.CreateModule(mod2).CreateFile("main.tf", "# module 2")
 
 	//stack1Handler := te.CreateStack(stack1)
 	//stack2Handler := te.CreateStack(stack2)
