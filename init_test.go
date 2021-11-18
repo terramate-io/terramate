@@ -68,7 +68,7 @@ func TestInit(t *testing.T) {
 
 		allstacks = append(allstacks, stackdir)
 
-		mgr := terrastack.NewManager(stackdir, defBranch)
+		mgr := terrastack.NewManager(stackdir, defaultBranch)
 		err := mgr.Init(stackdir, tc.force)
 		assert.EqualErrs(t, tc.wantErr, err)
 
