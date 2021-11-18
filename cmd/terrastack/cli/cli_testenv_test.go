@@ -66,6 +66,11 @@ func (te *TestEnv) Cleanup() {
 	test.RemoveAll(te.t, te.basedir)
 }
 
+// BaseDir returns the base dir of the test env.
+func (te *TestEnv) BaseDir() string {
+	return te.basedir
+}
+
 // Run will run the given cmd with the provided args using
 // the test env base dir as the command working dir.
 // This method fails the test if the command fails, where
@@ -163,4 +168,11 @@ func (fe *FileEntry) Write(body string, args ...interface{}) {
 // stack dir.
 func (se *StackEntry) ModImportPath(name string) string {
 	return filepath.Join(se.modulesRelPath, name)
+}
+
+// Path returns the relative path of the stack.
+// It is relative to the base dir of the test environment
+// that created this stack.
+func (se *StackEntry) Path() string {
+	return se.DirEntry.path
 }
