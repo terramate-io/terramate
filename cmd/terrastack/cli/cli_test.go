@@ -54,8 +54,9 @@ source = "%s"
 
 	te.Run("git", "add", ".")
 	te.Run("git", "commit", "-m", "all")
+	te.Run("git", "rev-parse", "main")
 
-	tscli.Run("list", "--changed")
+	//tscli.Run("list", "--changed")
 	//t.Fatal(res)
 
 	//const noChangesOutput = "exact match with expected output"
