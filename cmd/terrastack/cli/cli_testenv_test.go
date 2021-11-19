@@ -96,21 +96,6 @@ func (te TestEnv) BaseDir() string {
 	return te.basedir
 }
 
-// Run will run the given cmd with the provided args using
-// the test env base dir as the command working dir.
-// This method fails the test if the command fails, where
-// a command failed is defined by its status code (!= 0).
-func (te TestEnv) Run(name string, args ...string) {
-	te.t.Helper()
-
-	cmd := exec.Command(name, args...)
-	cmd.Dir = te.basedir
-
-	if out, err := cmd.CombinedOutput(); err != nil {
-		te.t.Errorf("failed to run: '%v' err: '%v' output: '%s'", cmd, err, string(out))
-	}
-}
-
 // Debug will creative an interactive shell inside the test environment
 // basedir so you can inspect it. It will interrupt your test execution.
 func (te TestEnv) Debug() {
