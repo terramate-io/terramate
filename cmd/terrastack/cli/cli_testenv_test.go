@@ -3,7 +3,6 @@ package cli_test
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -92,22 +91,6 @@ func (te TestEnv) Git() Git {
 // be automatically removed when the test finishes.
 func (te TestEnv) BaseDir() string {
 	return te.basedir
-}
-
-// Debug will creative an interactive shell inside the test environment
-// basedir so you can inspect it. It will interrupt your test execution.
-func (te TestEnv) Debug() {
-	te.t.Helper()
-
-	cmd := exec.Command("bash")
-	cmd.Dir = te.basedir
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		te.t.Errorf("TestEnv.Debug(); error=%q", err)
-	}
 }
 
 // CreateModule will create a module dir with the given name
