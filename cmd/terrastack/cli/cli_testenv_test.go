@@ -30,8 +30,8 @@ type Git struct {
 // used to create files inside the directory
 type DirEntry struct {
 	t       *testing.T
-	pathabs string
-	pathrel string
+	abspath string
+	relpath string
 }
 
 // StackEntry represents a directory that has a stack
@@ -139,7 +139,7 @@ func (de DirEntry) CreateFile(name, body string, args ...interface{}) *FileEntry
 
 	fe := &FileEntry{
 		t:    de.t,
-		path: filepath.Join(de.pathabs, name),
+		path: filepath.Join(de.abspath, name),
 	}
 	fe.Write(body, args...)
 
@@ -175,14 +175,14 @@ func (se StackEntry) ModSource(name string) string {
 
 // Path returns the absolute path of the stack.
 func (se StackEntry) Path() string {
-	return se.DirEntry.pathabs
+	return se.DirEntry.abspath
 }
 
 // PathRel returns the relative path of the stack.
 // It is relative to the base dir of the test environment
 // that created this stack.
 func (se StackEntry) PathRel() string {
-	return se.DirEntry.pathrel
+	return se.DirEntry.relpath
 }
 
 // Init will initialize the git repo
@@ -221,15 +221,15 @@ func (git Git) Checkout(rev string, create bool) {
 	}
 }
 
-func newDirEntry(t *testing.T, basedir string, pathrel string) DirEntry {
+func newDirEntry(t *testing.T, basedir string, relpath string) DirEntry {
 	t.Helper()
 
-	pathabs := filepath.Join(basedir, pathrel)
-	test.MkdirAll(t, pathabs)
+	abspath := filepath.Join(basedir, relpath)
+	test.MkdirAll(t, abspath)
 
 	return DirEntry{
 		t:       t,
-		pathabs: pathabs,
-		pathrel: pathrel,
+		abspath: abspath,
+		relpath: relpath,
 	}
 }
