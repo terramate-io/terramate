@@ -552,11 +552,11 @@ func multipleStackOneChangedModule(t *testing.T) repository {
 	modules := test.Mkdir(t, repo.Dir, "modules")
 	module := test.Mkdir(t, modules, "module1")
 
-	mainFile := test.WriteFile(t, otherStack, "main.tf", fmt.Sprintf(`
+	mainFile := test.WriteFile(t, otherStack, "main.tf", `
 module "something" {
 	source = "../modules/module1"
 }
-`))
+`)
 
 	assert.NoError(t, g.Add(mainFile), "add main.tf")
 	assert.NoError(t, g.Commit("add main.tf"), "commit main.tf")
