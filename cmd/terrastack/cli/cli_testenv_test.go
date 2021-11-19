@@ -54,9 +54,7 @@ type FileEntry struct {
 	path string
 }
 
-// NewTestEnv creates a new test env, including a initialized
-// git repository. All commands run using the test
-// env will use the test env dir as their working dir.
+// NewTestEnv creates a new test env, including a initialized git repository.
 //
 // It is a programming error to use a test env created
 // with a *testing.T other than the one of the test
