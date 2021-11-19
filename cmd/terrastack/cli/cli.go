@@ -16,7 +16,7 @@ import (
 type cliSpec struct {
 	Version struct{} `cmd:"" help:"Terrastack version."`
 
-	GitChangeBase string `short:"B" optional:"true" default:"main" help:"git base ref for computing changes."`
+	GitChangeBase string `short:"B" optional:"true" default:"origin/main" help:"git base ref for computing changes."`
 
 	Init struct {
 		StackDirs []string `arg:"" name:"paths" optional:"true" help:"the stack directory (current directory if not set)."`

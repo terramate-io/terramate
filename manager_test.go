@@ -13,6 +13,12 @@ import (
 	"github.com/mineiros-io/terrastack/test"
 )
 
+type repository struct {
+	Dir        string
+	OriginRepo string
+	modules    []string
+}
+
 type listTestResult struct {
 	list    []string
 	changed []string
@@ -22,11 +28,11 @@ type listTestResult struct {
 type listTestcase struct {
 	name        string
 	baseRef     string
-	repobuilder func(t *testing.T) (string, []string)
+	repobuilder func(t *testing.T) repository
 	want        listTestResult
 }
 
-const defaultBranch = "main"
+const defaultBranch = "origin/main"
 
 func TestListStacks(t *testing.T) {
 	for _, tc := range []listTestcase{
@@ -64,24 +70,17 @@ func TestListStacks(t *testing.T) {
 				tc.baseRef = defaultBranch
 			}
 
-			repo, modules := tc.repobuilder(t)
+			repo := tc.repobuilder(t)
+			defer cleanupRepo(t, repo)
 
-			defer func() {
-				test.RemoveAll(t, repo)
-
-				for _, mod := range modules {
-					test.RemoveAll(t, mod)
-				}
-			}()
-
-			m := terrastack.NewManager(repo, tc.baseRef)
+			m := terrastack.NewManager(repo.Dir, tc.baseRef)
 			stacks, err := m.List()
 
 			if !errors.Is(err, tc.want.err) {
 				t.Fatalf("error[%v] is not expected[%v]", err, tc.want.err)
 			}
 
-			assertStacks(t, repo, tc.want.list, stacks, false)
+			assertStacks(t, repo.Dir, tc.want.list, stacks, false)
 		})
 	}
 }
@@ -92,8 +91,7 @@ func TestListMultipleSubStacks(t *testing.T) {
 
 	defer removeStack(t, stackdir)
 
-	m := terrastack.NewManager(stackdir, defaultBranch)
-
+	m := newManager(stackdir)
 	stacks, err := m.List()
 	assert.NoError(t, err, "terrastack.List")
 
@@ -194,84 +192,71 @@ func TestListChangedStacks(t *testing.T) {
 				changed: []string{"/stack2"},
 			},
 		},
-		{
-			name:        "multiple stack: single module changed in same repo",
-			repobuilder: multipleStackOneChangedModuleInSameRepo,
-			want: listTestResult{
-				list:    []string{"/", "/stack1", "/stack2"},
-				changed: []string{"/stack2"},
-			},
-		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.baseRef == "" {
 				tc.baseRef = defaultBranch
 			}
 
-			repo, modules := tc.repobuilder(t)
+			repo := tc.repobuilder(t)
+			defer cleanupRepo(t, repo)
 
-			defer func() {
-				test.RemoveAll(t, repo)
-
-				for _, mod := range modules {
-					test.RemoveAll(t, mod)
-				}
-			}()
-
-			m := terrastack.NewManager(repo, tc.baseRef)
+			m := terrastack.NewManager(repo.Dir, tc.baseRef)
 
 			changed, err := m.ListChanged()
 			assert.EqualErrs(t, tc.want.err, err, "ListChanged() error")
 
-			assertStacks(t, repo, tc.want.changed, changed, true)
+			assertStacks(t, repo.Dir, tc.want.changed, changed, true)
 
 			list, err := m.List()
 			assert.EqualErrs(t, tc.want.err, err, "List() error")
-			assertStacks(t, repo, tc.want.list, list, false)
+			assertStacks(t, repo.Dir, tc.want.list, list, false)
 		})
 	}
 }
 
-func TestListChangedStackReason(t *testing.T) {
-	var removedirs []string
+func cleanupRepo(t *testing.T, repo repository) {
+	test.RemoveAll(t, repo.Dir)
 
-	repodir, modules := singleNotMergedCommitBranch(t)
+	if repo.OriginRepo != "" {
+		test.RemoveAll(t, repo.OriginRepo)
+	}
 
-	removedirs = append(removedirs, repodir)
-	removedirs = append(removedirs, modules...)
-
-	defer func() {
-		for _, dir := range removedirs {
-			test.RemoveAll(t, dir)
-		}
-	}()
-
-	m := terrastack.NewManager(repodir, defaultBranch)
-	changed, err := m.ListChanged()
-	assert.NoError(t, err, "unexpected error")
-	assert.EqualInts(t, 1, len(changed), "unexpected number of entries")
-	assert.EqualStrings(t, repodir, changed[0].Dir, "stack dir mismatch")
-	assert.EqualStrings(t, "stack has unmerged changes", changed[0].Reason)
-
-	repodir, modules = singleStackDependentModuleChangedRepo(t)
-	removedirs = append(removedirs, repodir)
-	removedirs = append(removedirs, modules...)
-
-	m = terrastack.NewManager(repodir, defaultBranch)
-	changed, err = m.ListChanged()
-	assert.NoError(t, err, "unexpected error")
-	assert.EqualInts(t, 1, len(changed), "unexpected number of entries")
-	assert.EqualStrings(t, repodir, changed[0].Dir, "stack dir mismatch")
-
-	if !strings.Contains(changed[0].Reason, modules[0]) ||
-		!strings.Contains(changed[0].Reason, modules[1]) {
-		t.Fatalf("unexpected reason %q", changed[0].Reason)
-
+	for _, mod := range repo.modules {
+		test.RemoveAll(t, mod)
 	}
 }
 
-func nonExistentDir(t *testing.T) (string, []string) {
-	return test.NonExistingDir(t), nil
+func TestListChangedStackReason(t *testing.T) {
+	repo := singleNotMergedCommitBranch(t)
+	defer cleanupRepo(t, repo)
+
+	m := newManager(repo.Dir)
+	changed, err := m.ListChanged()
+	assert.NoError(t, err, "unexpected error")
+	assert.EqualInts(t, 1, len(changed), "unexpected number of entries")
+	assert.EqualStrings(t, repo.Dir, changed[0].Dir, "stack dir mismatch")
+	assert.EqualStrings(t, "stack has unmerged changes", changed[0].Reason)
+
+	repo = singleStackDependentModuleChangedRepo(t)
+	defer cleanupRepo(t, repo)
+
+	m = newManager(repo.Dir)
+	changed, err = m.ListChanged()
+	assert.NoError(t, err, "unexpected error")
+	assert.EqualInts(t, 1, len(changed), "unexpected number of entries")
+	assert.EqualStrings(t, repo.Dir, changed[0].Dir, "stack dir mismatch")
+
+	if !strings.Contains(changed[0].Reason, "modules/module1") ||
+		!strings.Contains(changed[0].Reason, "../module2") {
+		t.Fatalf("unexpected reason %q (modules: %+v)", changed[0].Reason, repo.modules)
+	}
+}
+
+func nonExistentDir(t *testing.T) repository {
+	return repository{
+		Dir: test.NonExistingDir(t),
+	}
 }
 
 func assertStacks(
@@ -295,20 +280,20 @@ func assertStacks(
 	}
 }
 
-func singleStack(t *testing.T) (string, []string) {
+func singleStack(t *testing.T) repository {
 	stackdir := test.TempDir(t, "")
 
-	mgr := terrastack.NewManager(stackdir, defaultBranch)
+	mgr := newManager(stackdir)
 	err := mgr.Init(stackdir, false)
 	assert.NoError(t, err, "mgr.Init(%s)", stackdir)
 
-	return stackdir, nil
+	return repository{Dir: stackdir}
 }
 
-func subStack(t *testing.T) (string, []string) {
+func subStack(t *testing.T) repository {
 	stackdir := test.TempDir(t, "")
 
-	mgr := terrastack.NewManager(stackdir, defaultBranch)
+	mgr := newManager(stackdir)
 	err := mgr.Init(stackdir, false)
 	assert.NoError(t, err, "mgr.Init(%s)", stackdir)
 
@@ -318,26 +303,26 @@ func subStack(t *testing.T) (string, []string) {
 	err = mgr.Init(substack, false)
 	assert.NoError(t, err, "mgr.Init(%s)", substack)
 
-	return stackdir, nil
+	return repository{Dir: stackdir}
 }
 
-func nestedStacks(t *testing.T) (string, []string) {
-	stackdir, _ := subStack(t)
+func nestedStacks(t *testing.T) repository {
+	stackrepo := subStack(t)
 
-	nestedStack := filepath.Join(stackdir, "substack", "deepstack")
+	nestedStack := filepath.Join(stackrepo.Dir, "substack", "deepstack")
 	test.MkdirAll(t, nestedStack)
 
-	mgr := terrastack.NewManager(stackdir, defaultBranch)
+	mgr := newManager(stackrepo.Dir)
 	err := mgr.Init(nestedStack, false)
 	assert.NoError(t, err, "mgr.Init(%s)", nestedStack)
 
-	return stackdir, nil
+	return stackrepo
 }
 
 func nSubStacks(t *testing.T, n int) string {
 	stackdir := test.TempDir(t, "")
 
-	mgr := terrastack.NewManager(stackdir, defaultBranch)
+	mgr := newManager(stackdir)
 	err := mgr.Init(stackdir, false)
 	assert.NoError(t, err, "mgr.Init(%s)", stackdir)
 
@@ -368,50 +353,55 @@ func nSubStacks(t *testing.T, n int) string {
 // echo bar > bar
 // git add bar
 // git commit -m "bar message"
-func singleChangedStacksRepo(t *testing.T) (repo string, modules []string) {
-	repo, modules = singleMergeCommitRepo(t)
+func singleChangedStacksRepo(t *testing.T) repository {
+	repo := singleMergeCommitRepo(t)
 
-	g := test.NewGitWrapper(t, repo, false)
+	g := test.NewGitWrapper(t, repo.Dir, false)
 
 	assert.NoError(t, g.Checkout("testbranch2", true), "git checkout failed")
 
-	_ = test.WriteFile(t, repo, "bar", "bar")
+	_ = test.WriteFile(t, repo.Dir, "bar", "bar")
 
 	assert.NoError(t, g.Add("bar"), "add bar failed")
 	assert.NoError(t, g.Commit("bar message"), "bar commit failed")
 
-	return repo, modules
+	return repo
 }
 
 // singleNotChangedStack returns a commited stack in main.
-func singleNotChangedStack(t *testing.T) (repo string, modules []string) {
-	repo = test.EmptyRepo(t)
+func singleNotChangedStack(t *testing.T) repository {
+	repo, bare := test.TestRepo(t)
 
 	g := test.NewGitWrapper(t, repo, false)
 
 	// make it a stack
-	mgr := terrastack.NewManager(repo, defaultBranch)
+	mgr := newManager(repo)
 	assert.NoError(t, mgr.Init(repo, false), "terrastack init failed")
 	assert.NoError(t, g.Add(terrastack.ConfigFilename), "add terrastack file failed")
 	assert.NoError(t, g.Commit("terrastack message"), "terrastack commit failed")
 
 	// add a second commit to be able to test gitBaseRef=HEAD^
-	readmePath := test.WriteFile(t, repo, "README.md", "test")
+	readmePath := test.WriteFile(t, repo, "Something", "test")
 	assert.NoError(t, g.Add(readmePath), "add terrastack file failed")
-	assert.NoError(t, g.Commit("add readme message"), "commit failed")
-	return repo, nil
+	assert.NoError(t, g.Commit("add Something message"), "commit failed")
+
+	assert.NoError(t, g.Push("origin", "main"), "push to origin")
+	return repository{
+		Dir:        repo,
+		OriginRepo: bare,
+	}
 }
 
 // singleNotChangedStackNewBranch implements the behavior of returning "no
 // changes" when the new branch revision matches the latest merge commit in
 // main.
-func singleNotChangedStackNewBranch(t *testing.T) (repo string, modules []string) {
-	repo, modules = singleNotChangedStack(t)
+func singleNotChangedStackNewBranch(t *testing.T) repository {
+	repo := singleNotChangedStack(t)
 
-	g := test.NewGitWrapper(t, repo, false)
+	g := test.NewGitWrapper(t, repo.Dir, false)
 	assert.NoError(t, g.Checkout("testbranch2", true), "git checkout failed")
 
-	return repo, modules
+	return repo
 }
 
 func addMergeCommit(t *testing.T, repodir, branch string) {
@@ -419,66 +409,67 @@ func addMergeCommit(t *testing.T, repodir, branch string) {
 
 	assert.NoError(t, g.Checkout("main", false), "checkout main failed")
 	assert.NoError(t, g.Merge(branch), "git merge failed")
+	assert.NoError(t, g.Push("origin", "main"), "git push origin main")
 }
 
-func singleNotMergedCommitBranch(t *testing.T) (repo string, modules []string) {
-	repo, modules = singleNotChangedStack(t)
+func singleNotMergedCommitBranch(t *testing.T) repository {
+	repo := singleNotChangedStack(t)
 
-	g := test.NewGitWrapper(t, repo, false)
+	g := test.NewGitWrapper(t, repo.Dir, false)
 
 	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
 
-	_ = test.WriteFile(t, repo, "foo", "foo")
+	_ = test.WriteFile(t, repo.Dir, "foo", "foo")
 
 	assert.NoError(t, g.Add("foo"), "add foo failed")
 	assert.NoError(t, g.Commit("foo message"), "commit foo failed")
 
-	return repo, modules
+	return repo
 }
 
-func singleMergeCommitRepo(t *testing.T) (repo string, modules []string) {
-	repo, modules = singleNotChangedStack(t)
+func singleMergeCommitRepo(t *testing.T) repository {
+	repo := singleNotChangedStack(t)
 
-	g := test.NewGitWrapper(t, repo, false)
+	g := test.NewGitWrapper(t, repo.Dir, false)
 
 	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
 
-	_ = test.WriteFile(t, repo, "foo", "foo")
+	_ = test.WriteFile(t, repo.Dir, "foo", "foo")
 
 	assert.NoError(t, g.Add("foo"), "add foo failed")
 	assert.NoError(t, g.Commit("foo message"), "commit foo failed")
 
-	addMergeCommit(t, repo, "testbranch")
+	addMergeCommit(t, repo.Dir, "testbranch")
 
 	assert.NoError(t, g.DeleteBranch("testbranch"), "delete testbranch")
 
-	return repo, modules
+	return repo
 }
 
-func multipleStacksOneChangedRepo(t *testing.T) (repo string, modules []string) {
-	repo, modules = singleMergeCommitRepo(t)
+func multipleStacksOneChangedRepo(t *testing.T) repository {
+	repo := singleMergeCommitRepo(t)
 
-	g := test.NewGitWrapper(t, repo, false)
+	g := test.NewGitWrapper(t, repo.Dir, false)
 
 	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
 
-	otherStack := filepath.Join(repo, "not-changed-stack")
+	otherStack := filepath.Join(repo.Dir, "not-changed-stack")
 	test.MkdirAll(t, otherStack)
 
-	mgr := terrastack.NewManager(repo, defaultBranch)
+	mgr := newManager(repo.Dir)
 	assert.NoError(t, mgr.Init(otherStack, false), "terrastack init failed")
 
 	assert.NoError(t, g.Add(filepath.Join(otherStack, terrastack.ConfigFilename)),
 		"git add otherstack failed")
 	assert.NoError(t, g.Commit("other stack message"), "commit failed")
 
-	addMergeCommit(t, repo, "testbranch")
+	addMergeCommit(t, repo.Dir, "testbranch")
 	assert.NoError(t, g.DeleteBranch("testbranch"), "delete temp branch")
 
 	// not merged changes
 	assert.NoError(t, g.Checkout("testbranch2", true), "create branch testbranch2 failed")
 
-	otherStack = filepath.Join(repo, "changed-stack")
+	otherStack = filepath.Join(repo.Dir, "changed-stack")
 	test.MkdirAll(t, otherStack)
 
 	assert.NoError(t, mgr.Init(otherStack, false), "terrastack init failed")
@@ -487,17 +478,17 @@ func multipleStacksOneChangedRepo(t *testing.T) (repo string, modules []string) 
 		"git add otherstack failed")
 	assert.NoError(t, g.Commit("other stack message"), "commit failed")
 
-	return repo, modules
+	return repo
 }
 
-func multipleChangedStacksRepo(t *testing.T) (repo string, modules []string) {
-	repo, modules = multipleStacksOneChangedRepo(t)
+func multipleChangedStacksRepo(t *testing.T) repository {
+	repo := multipleStacksOneChangedRepo(t)
 
-	g := test.NewGitWrapper(t, repo, false)
-	mgr := terrastack.NewManager(repo, defaultBranch)
+	g := test.NewGitWrapper(t, repo.Dir, false)
+	mgr := newManager(repo.Dir)
 
 	for i := 0; i < 3; i++ {
-		otherStack := filepath.Join(repo, "changed-stack-"+fmt.Sprint(i))
+		otherStack := filepath.Join(repo.Dir, "changed-stack-"+fmt.Sprint(i))
 		test.MkdirAll(t, otherStack)
 
 		assert.NoError(t, mgr.Init(otherStack, false), "terrastack init failed")
@@ -507,48 +498,49 @@ func multipleChangedStacksRepo(t *testing.T) (repo string, modules []string) {
 		assert.NoError(t, g.Commit("other stack message"), "commit failed")
 	}
 
-	return repo, modules
+	return repo
 }
 
-func singleStackSingleModuleChangedRepo(t *testing.T) (repo string, modules []string) {
-	repo, modules = singleNotChangedStack(t)
-	module, modules2 := singleChangedStacksRepo(t)
+func singleStackSingleModuleChangedRepo(t *testing.T) repository {
+	repo := singleNotChangedStack(t)
+	modules := test.Mkdir(t, repo.Dir, "modules")
+	module1 := test.Mkdir(t, modules, "module1")
+	module2 := test.Mkdir(t, modules, "module2")
 
-	modules = append(modules, module)
-	modules = append(modules, modules2...)
+	repo.modules = append(repo.modules, module1, module2)
 
-	g := test.NewGitWrapper(t, repo, false)
+	g := test.NewGitWrapper(t, repo.Dir, false)
 
-	mainFile := test.WriteFile(t, repo, "main.tf", fmt.Sprintf(`
+	mainFile := test.WriteFile(t, repo.Dir, "main.tf", fmt.Sprintf(`
 module "something" {
 	source = "../../../../../..%s"
 }
-`, module))
+`, module1))
 
 	assert.NoError(t, g.Add(mainFile), "add main.tf")
 	assert.NoError(t, g.Commit("add main.tf"), "commit main.tf")
 
-	return repo, modules
+	return repo
 }
 
-func multipleStackOneChangedModule(t *testing.T) (repo string, modules []string) {
-	repo, modules = singleMergeCommitRepo(t)
+func multipleStackOneChangedModule(t *testing.T) repository {
+	repo := singleMergeCommitRepo(t)
 
-	g := test.NewGitWrapper(t, repo, false)
+	g := test.NewGitWrapper(t, repo.Dir, false)
 
 	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
 
-	otherStack := filepath.Join(repo, "stack1")
+	otherStack := filepath.Join(repo.Dir, "stack1")
 	test.MkdirAll(t, otherStack)
 
-	mgr := terrastack.NewManager(repo, defaultBranch)
+	mgr := newManager(repo.Dir)
 	assert.NoError(t, mgr.Init(otherStack, false), "terrastack init failed")
 
 	assert.NoError(t, g.Add(filepath.Join(otherStack, terrastack.ConfigFilename)),
 		"git add otherstack failed")
 	assert.NoError(t, g.Commit("other stack message"), "commit failed")
 
-	otherStack = filepath.Join(repo, "stack2")
+	otherStack = filepath.Join(repo.Dir, "stack2")
 	test.MkdirAll(t, otherStack)
 
 	assert.NoError(t, mgr.Init(otherStack, false), "terrastack init failed")
@@ -557,140 +549,82 @@ func multipleStackOneChangedModule(t *testing.T) (repo string, modules []string)
 		"git add otherstack failed")
 	assert.NoError(t, g.Commit("other stack message"), "commit failed")
 
-	module := test.EmptyRepo(t)
+	modules := test.Mkdir(t, repo.Dir, "modules")
+	module := test.Mkdir(t, modules, "module1")
 
 	mainFile := test.WriteFile(t, otherStack, "main.tf", fmt.Sprintf(`
 module "something" {
-	source = "../../../../../../..%s"
+	source = "../modules/module1"
 }
-`, module))
+`))
 
 	assert.NoError(t, g.Add(mainFile), "add main.tf")
 	assert.NoError(t, g.Commit("add main.tf"), "commit main.tf")
 
-	addMergeCommit(t, repo, "testbranch")
+	addMergeCommit(t, repo.Dir, "testbranch")
 	assert.NoError(t, g.DeleteBranch("testbranch"), "delete temp branch")
 
-	g = test.NewGitWrapper(t, module, false)
 	mainFile = test.WriteFile(t, module, "main.tf", "")
 	assert.NoError(t, g.Add(mainFile))
 	assert.NoError(t, g.Commit("test"))
+	assert.NoError(t, g.Push("origin", "main"), "push origin main")
 
 	assert.NoError(t, g.Checkout("testbranch", true))
 	mainFile = test.WriteFile(t, module, "main.tf", "# comment")
 	assert.NoError(t, g.Add(mainFile))
 	assert.NoError(t, g.Commit("test"))
 
-	return repo, modules
+	return repo
 }
 
-func multipleStackOneChangedModuleInSameRepo(t *testing.T) (repo string, modules []string) {
-	repo, modules = singleMergeCommitRepo(t)
+func singleStackDependentModuleChangedRepo(t *testing.T) repository {
+	repo := singleNotChangedStack(t)
 
-	g := test.NewGitWrapper(t, repo, false)
+	modules := test.Mkdir(t, repo.Dir, "modules")
+	module1 := test.Mkdir(t, modules, "module1")
+	module2 := test.Mkdir(t, modules, "module2")
 
-	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
+	repo.modules = append(repo.modules, module1, module2)
 
-	module := filepath.Join(repo, "modules/mymodule")
-	test.MkdirAll(t, module)
+	g := test.NewGitWrapper(t, repo.Dir, false)
 
-	mainFile := test.WriteFile(t, module, "main.tf", "")
-	assert.NoError(t, g.Add(mainFile))
-
-	module2 := filepath.Join(repo, "modules/mymodule2")
-	test.MkdirAll(t, module2)
-
-	mainFile = test.WriteFile(t, module2, "main.tf", "")
-	assert.NoError(t, g.Add(mainFile))
-
-	otherStack := filepath.Join(repo, "stack1")
-	test.MkdirAll(t, otherStack)
-
-	mgr := terrastack.NewManager(repo, defaultBranch)
-	assert.NoError(t, mgr.Init(otherStack, false), "terrastack init failed")
-
-	assert.NoError(t, g.Add(filepath.Join(otherStack, terrastack.ConfigFilename)),
-		"git add otherstack failed")
-
-	mainFile = test.WriteFile(t, otherStack, "main.tf", fmt.Sprintf(`
-		module "something" {
-			source = "../../../../../../..%s"
-		}
-		`, module2))
-
-	assert.NoError(t, g.Add(mainFile), "add main.tf")
-	assert.NoError(t, g.Commit("other stack message"), "commit failed")
-
-	otherStack = filepath.Join(repo, "stack2")
-	test.MkdirAll(t, otherStack)
-
-	assert.NoError(t, mgr.Init(otherStack, false), "terrastack init failed")
-
-	assert.NoError(t, g.Add(filepath.Join(otherStack, terrastack.ConfigFilename)),
-		"git add otherstack failed")
-	assert.NoError(t, g.Commit("other stack message"), "commit failed")
-
-	mainFile = test.WriteFile(t, otherStack, "main.tf", fmt.Sprintf(`
-module "something" {
-	source = "../../../../../../..%s"
-}
-`, module))
-
-	assert.NoError(t, g.Add(mainFile), "add main.tf")
-	assert.NoError(t, g.Commit("add main.tf"), "commit main.tf")
-
-	addMergeCommit(t, repo, "testbranch")
-	assert.NoError(t, g.DeleteBranch("testbranch"), "delete temp branch")
-
-	assert.NoError(t, g.Checkout("testbranch-module", true))
-	mainFile = test.WriteFile(t, module, "main.tf", "# comment")
-	assert.NoError(t, g.Add(mainFile))
-	assert.NoError(t, g.Commit("test"))
-
-	return repo, modules
-}
-
-func singleStackDependentModuleChangedRepo(t *testing.T) (repo string, modules []string) {
-	repo, modules = singleNotChangedStack(t)
-	module1, modules2 := singleNotChangedStack(t)
-
-	modules = append(modules, module1)
-	modules = append(modules, modules2...)
-
-	g := test.NewGitWrapper(t, repo, false)
-
-	mainFile := test.WriteFile(t, repo, "main.tf", fmt.Sprintf(`
+	mainFile := test.WriteFile(t, repo.Dir, "main.tf", `
 module "module1" {
-	source = "../../../../../..%s"
+	source = "./modules/module1"
 }
-`, module1))
-
+`)
 	assert.NoError(t, g.Add(mainFile), "add main.tf")
 	assert.NoError(t, g.Commit("commit main.tf"), "commit main.tf")
-
-	module2 := test.EmptyRepo(t)
-	modules = append(modules, module2)
-
-	g = test.NewGitWrapper(t, module2, false)
 
 	readmeFile := test.WriteFile(t, module2, "README.md", "GENERATED BY TERRASTACK TESTS!")
 	assert.NoError(t, g.Add(readmeFile), "add readme file")
 	assert.NoError(t, g.Commit("commit"), "commit readme")
-	assert.NoError(t, g.Checkout("add-module", true), "failed to create branch")
 
 	mainFile = test.WriteFile(t, module2, "main.tf", "")
 	assert.NoError(t, g.Add(mainFile), "add main.tf")
 	assert.NoError(t, g.Commit("commit main.tf"), "commit main.tf")
 
-	mainFile = test.WriteFile(t, module1, "main.tf", fmt.Sprintf(`
+	mainFile = test.WriteFile(t, module1, "main.tf", `
 module "module2" {
-	source = "../../../../../..%s"
+	source = "../module2"
 }
-`, module2))
+`)
 
-	g = test.NewGitWrapper(t, module1, false)
+	assert.NoError(t, g.Add(mainFile), "add main.tf")
+	assert.NoError(t, g.Commit("commit main.tf"), "commit main.tf")
+	assert.NoError(t, g.Push("origin", "main"))
+
+	assert.NoError(t, g.Checkout("change-module", true), "failed to create branch")
+	mainFile = test.WriteFile(t, module2, "main.tf", `
+# file changed
+`)
+
 	assert.NoError(t, g.Add(mainFile), "add main.tf")
 	assert.NoError(t, g.Commit("commit main.tf"), "commit main.tf")
 
-	return repo, modules
+	return repo
+}
+
+func newManager(basedir string) *terrastack.Manager {
+	return terrastack.NewManager(basedir, defaultBranch)
 }

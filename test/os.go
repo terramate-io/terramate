@@ -34,6 +34,13 @@ func WriteFile(t *testing.T, dir string, filename string, content string) string
 	return path
 }
 
+// Mkdir creates a directory inside base.
+func Mkdir(t *testing.T, base string, name string) string {
+	path := filepath.Join(base, name)
+	assert.NoError(t, os.Mkdir(path, 0700), "creating dir")
+	return path
+}
+
 // MkdirAll creates a temporary directory with default test permission bits.
 func MkdirAll(t *testing.T, path string) {
 	t.Helper()

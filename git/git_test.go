@@ -137,7 +137,7 @@ func TestRevParse(t *testing.T) {
 }
 
 func mkOneCommitRepo(t *testing.T) string {
-	repodir := test.EmptyRepo(t)
+	repodir := test.EmptyRepo(t, false)
 
 	// Fixing all the information used to create the SHA-1 below:
 	// CommitID: a022c39b57b1e711fb9298a05aacc699773e6d36
