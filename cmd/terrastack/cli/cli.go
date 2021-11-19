@@ -127,6 +127,9 @@ func (c *cli) run() error {
 }
 
 func (c *cli) initStack(basedir string, dirs []string) error {
+	fmt.Println("basedir", basedir)
+	fmt.Println("dirs", dirs)
+
 	var nErrors int
 	mgr := terrastack.NewManager(basedir)
 	for _, d := range dirs {

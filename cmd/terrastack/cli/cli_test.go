@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"bytes"
+	"os"
 	"strings"
 	"testing"
 
@@ -22,12 +23,12 @@ func TestBug25(t *testing.T) {
 	te := NewTestEnv(t)
 	defer te.Cleanup()
 
-	te.CreateModule(mod1).CreateFile("main.tf", "# module 1")
+	mod1MainTf := te.CreateModule(mod1).CreateFile("main.tf", "# module 1")
 	te.CreateModule(mod2).CreateFile("main.tf", "# module 2")
 
 	stack1Entry := te.CreateStack(stack1)
 	stack2Entry := te.CreateStack(stack2)
-	stack3Entry := te.CreateStack(stack2)
+	stack3Entry := te.CreateStack(stack3)
 
 	stack1Entry.CreateFile("main.tf", `
 module "mod1" {
@@ -43,9 +44,7 @@ source = "%s"
 
 	tscli := NewCLI(t, te.BaseDir())
 
-	for _, s := range []*StackEntry{stack1Entry, stack2Entry, stack3Entry} {
-		tscli.Run("init", s.Path())
-	}
+	tscli.Run("init", stack1Entry.Path(), stack2Entry.Path(), stack3Entry.Path())
 
 	git := te.Git()
 	git.Add(".")
@@ -59,20 +58,22 @@ source = "%s"
 		t.Fatalf("%q stderr=%q", res.Cmd, res.Stderr)
 	}
 
-	//te.Run("git", "checkout", "-b", "change-the-module-1")
+	git.Checkout("change-the-module-1", true)
 
-	//mod1MainTf.Replace("# changed")
+	mod1MainTf.Write("# changed")
 
-	//te.Run("git", "add", mod1MainTf.RelPath())
-	//te.Run("git", "commit", "-m", "module 1 changed")
+	git.Add(mod1MainTf.Path())
+	git.Commit("module 1 changed")
 
-	//res := ts.Run("list", "--changed")
+	t.Log(os.Getwd())
+	res = tscli.Run("list", "--changed")
 
-	//changedStacks := stack1Entry.RelPath()
-	//if res.Stdout != changedStacks {
-	//t.Errorf("%q got %q, wanted %q", res.Cmd, res.Stdout, changedStacks)
-	//t.Fatalf("%q stderr: %q", res.Cmd, res.Stderr)
-	//}
+	changedStacks := stack1Entry.Path() + "\n"
+
+	if res.Stdout != changedStacks {
+		t.Errorf("%q stdout=%q, wanted=%q", res.Cmd, res.Stdout, changedStacks)
+		t.Fatalf("%q stderr=%q", res.Cmd, res.Stderr)
+	}
 }
 
 type TestCLI struct {
@@ -98,12 +99,19 @@ func (tc *TestCLI) Run(args ...string) CLIRunResult {
 	stderr := &bytes.Buffer{}
 
 	if err := cli.Run(args, tc.basedir, stdin, stdout, stderr); err != nil {
-		tc.t.Errorf("cli.Run(%v, %s) = %v", args, tc.basedir, err)
+		tc.t.Errorf(
+			"cli.Run(args=%v, basedir=%s) error=%q stdout=%q stderr=%q",
+			args,
+			tc.basedir,
+			err,
+			stdout.String(),
+			stderr.String(),
+		)
 	}
 
 	return CLIRunResult{
 		Cmd:    strings.Join(args, " "),
 		Stdout: stdout.String(),
-		Stderr: stdout.String(),
+		Stderr: stderr.String(),
 	}
 }

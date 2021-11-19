@@ -11,12 +11,16 @@ import (
 	"github.com/mineiros-io/terrastack/test"
 )
 
+// TestEnv is a full test env with its own base dir that is an initialized
+// git repo for test purposes.
 type TestEnv struct {
 	t       *testing.T
 	git     *Git
 	basedir string
 }
 
+// Git is a git wrapper that makes testing easy by handling
+// errors automatically, failing the caller test.
 type Git struct {
 	t       *testing.T
 	g       *git.Git
@@ -26,8 +30,9 @@ type Git struct {
 // DirEntry represents a directory and can be
 // used to create files inside the directory
 type DirEntry struct {
-	t    *testing.T
-	path string
+	t       *testing.T
+	pathabs string
+	pathrel string
 }
 
 // StackEntry represents a directory that has a stack
@@ -81,7 +86,7 @@ func (te *TestEnv) Cleanup() {
 }
 
 // Git returns a git wrapper that is useful to run git commands
-// safely inside the test env dir.
+// safely inside the test env repo.
 func (te *TestEnv) Git() *Git {
 	return te.git
 }
@@ -106,19 +111,32 @@ func (te *TestEnv) Run(name string, args ...string) {
 	}
 }
 
+// Debug will creative an interactive shell inside the test environment
+// basedir so you can inspect it. It will interrupt your test execution.
+func (te *TestEnv) Debug() {
+	te.t.Helper()
+
+	cmd := exec.Command("bash")
+	cmd.Dir = te.basedir
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		te.t.Errorf("TestEnv.Debug(); error=%q", err)
+	}
+}
+
 // CreateModule will create a module dir with the given name
 // returning a directory entry that can be used to
 // create files inside the module dir.
 //
 // It is a programming error to call this method with a module
 // name that already exists.
-func (te *TestEnv) CreateModule(name string) *DirEntry {
+func (te *TestEnv) CreateModule(name string) DirEntry {
 	te.t.Helper()
 
-	moddir := filepath.Join(te.basedir, "modules", name)
-	test.MkdirAll(te.t, moddir)
-
-	return &DirEntry{t: te.t, path: moddir}
+	return newDirEntry(te.t, te.basedir, filepath.Join("modules", name))
 }
 
 // CreateStack will create a stack dir with the given name
@@ -130,17 +148,11 @@ func (te *TestEnv) CreateModule(name string) *DirEntry {
 func (te *TestEnv) CreateStack(name string) *StackEntry {
 	te.t.Helper()
 
-	stackdir := filepath.Join(te.basedir, "stacks", name)
-	test.MkdirAll(te.t, stackdir)
-
 	// Given the current design assuming ../../modules is safe
 	// But we could change this in the future and maintain the
 	// current API working.
 	return &StackEntry{
-		DirEntry: DirEntry{
-			t:    te.t,
-			path: stackdir,
-		},
+		DirEntry:       newDirEntry(te.t, te.basedir, filepath.Join("stacks", name)),
 		modulesRelPath: "../../modules",
 	}
 }
@@ -156,12 +168,12 @@ func (te *TestEnv) CreateStack(name string) *StackEntry {
 //
 // If the file already exists its contents will be truncated,
 // like os.Create behavior: https://pkg.go.dev/os#Create
-func (de *DirEntry) CreateFile(name, body string, args ...interface{}) *FileEntry {
+func (de DirEntry) CreateFile(name, body string, args ...interface{}) *FileEntry {
 	de.t.Helper()
 
 	fe := &FileEntry{
 		t:    de.t,
-		path: filepath.Join(de.path, name),
+		path: filepath.Join(de.pathabs, name),
 	}
 	fe.Write(body, args...)
 
@@ -183,6 +195,11 @@ func (fe *FileEntry) Write(body string, args ...interface{}) {
 	}
 }
 
+// Path returns the absolute path of the file.
+func (fe *FileEntry) Path() string {
+	return fe.path
+}
+
 // ModImportPath returns the relative import path for the
 // module with the given name. The path is relative to
 // stack dir.
@@ -190,13 +207,19 @@ func (se *StackEntry) ModImportPath(name string) string {
 	return filepath.Join(se.modulesRelPath, name)
 }
 
-// Path returns the relative path of the stack.
-// It is relative to the base dir of the test environment
-// that created this stack.
+// Path returns the absolute path of the stack.
 func (se *StackEntry) Path() string {
-	return se.DirEntry.path
+	return se.DirEntry.pathabs
 }
 
+// PathRel returns the relative path of the stack.
+// It is relative to the base dir of the test environment
+// that created this stack.
+func (se *StackEntry) PathRel() string {
+	return se.DirEntry.pathrel
+}
+
+// Init will initialize the git repo
 func (git *Git) Init() {
 	git.t.Helper()
 
@@ -205,6 +228,7 @@ func (git *Git) Init() {
 	}
 }
 
+// Add will add files to the commit list
 func (git *Git) Add(files ...string) {
 	git.t.Helper()
 
@@ -213,10 +237,33 @@ func (git *Git) Add(files ...string) {
 	}
 }
 
+// Commit will commit previously added files
 func (git *Git) Commit(msg string, args ...string) {
 	git.t.Helper()
 
 	if err := git.g.Commit(msg, args...); err != nil {
 		git.t.Errorf("Git.Commit(%s, %v) = %v", msg, args, err)
+	}
+}
+
+// Checkout will checkout a branch
+func (git *Git) Checkout(rev string, create bool) {
+	git.t.Helper()
+
+	if err := git.g.Checkout(rev, create); err != nil {
+		git.t.Errorf("Git.Checkout(%s, %v) = %v", rev, create, err)
+	}
+}
+
+func newDirEntry(t *testing.T, basedir string, pathrel string) DirEntry {
+	t.Helper()
+
+	pathabs := filepath.Join(basedir, pathrel)
+	test.MkdirAll(t, pathabs)
+
+	return DirEntry{
+		t:       t,
+		pathabs: pathabs,
+		pathrel: pathrel,
 	}
 }
