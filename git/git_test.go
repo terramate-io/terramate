@@ -30,14 +30,6 @@ func TestGitLog(t *testing.T) {
 		wantErr error
 	}
 
-	var removeRepos []string
-
-	defer func() {
-		for _, d := range removeRepos {
-			os.RemoveAll(d)
-		}
-	}()
-
 	for _, tc := range []testcase{
 		{
 			repo: mkOneCommitRepo,
@@ -90,8 +82,6 @@ func TestGitLog(t *testing.T) {
 	} {
 		repodir := tc.repo(t)
 
-		removeRepos = append(removeRepos, repodir)
-
 		gw, err := git.WithConfig(git.Config{
 			WorkingDir: repodir,
 		})
@@ -127,10 +117,8 @@ func TestGitLog(t *testing.T) {
 
 func TestRevParse(t *testing.T) {
 	repodir := mkOneCommitRepo(t)
-	defer os.RemoveAll(repodir)
 
 	git := test.NewGitWrapper(t, repodir, false)
-
 	out, err := git.RevParse("main")
 	assert.NoError(t, err, "rev-parse failed")
 	assert.EqualStrings(t, CookedCommitID, out, "commit mismatch")
@@ -161,9 +149,7 @@ func mkOneCommitRepo(t *testing.T) string {
 	}()
 
 	gw := test.NewGitWrapper(t, repodir, true)
-
 	filename := test.WriteFile(t, repodir, "README.md", "# Test")
-
 	assert.NoError(t, gw.Add(filename), "git add %s", filename)
 
 	err := gw.Commit("some message")

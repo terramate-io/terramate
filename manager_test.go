@@ -14,9 +14,8 @@ import (
 )
 
 type repository struct {
-	Dir        string
-	OriginRepo string
-	modules    []string
+	Dir     string
+	modules []string
 }
 
 type listTestResult struct {
@@ -71,7 +70,6 @@ func TestListStacks(t *testing.T) {
 			}
 
 			repo := tc.repobuilder(t)
-			defer cleanupRepo(t, repo)
 
 			m := terrastack.NewManager(repo.Dir, tc.baseRef)
 			stacks, err := m.List()
@@ -88,8 +86,6 @@ func TestListStacks(t *testing.T) {
 func TestListMultipleSubStacks(t *testing.T) {
 	n := 20
 	stackdir := nSubStacks(t, n)
-
-	defer removeStack(t, stackdir)
 
 	m := newManager(stackdir)
 	stacks, err := m.List()
@@ -199,8 +195,6 @@ func TestListChangedStacks(t *testing.T) {
 			}
 
 			repo := tc.repobuilder(t)
-			defer cleanupRepo(t, repo)
-
 			m := terrastack.NewManager(repo.Dir, tc.baseRef)
 
 			changed, err := m.ListChanged()
@@ -215,21 +209,8 @@ func TestListChangedStacks(t *testing.T) {
 	}
 }
 
-func cleanupRepo(t *testing.T, repo repository) {
-	test.RemoveAll(t, repo.Dir)
-
-	if repo.OriginRepo != "" {
-		test.RemoveAll(t, repo.OriginRepo)
-	}
-
-	for _, mod := range repo.modules {
-		test.RemoveAll(t, mod)
-	}
-}
-
 func TestListChangedStackReason(t *testing.T) {
 	repo := singleNotMergedCommitBranch(t)
-	defer cleanupRepo(t, repo)
 
 	m := newManager(repo.Dir)
 	changed, err := m.ListChanged()
@@ -239,7 +220,6 @@ func TestListChangedStackReason(t *testing.T) {
 	assert.EqualStrings(t, "stack has unmerged changes", changed[0].Reason)
 
 	repo = singleStackDependentModuleChangedRepo(t)
-	defer cleanupRepo(t, repo)
 
 	m = newManager(repo.Dir)
 	changed, err = m.ListChanged()
@@ -281,8 +261,7 @@ func assertStacks(
 }
 
 func singleStack(t *testing.T) repository {
-	stackdir := test.TempDir(t, "")
-
+	stackdir := t.TempDir()
 	mgr := newManager(stackdir)
 	err := mgr.Init(stackdir, false)
 	assert.NoError(t, err, "mgr.Init(%s)", stackdir)
@@ -291,8 +270,7 @@ func singleStack(t *testing.T) repository {
 }
 
 func subStack(t *testing.T) repository {
-	stackdir := test.TempDir(t, "")
-
+	stackdir := t.TempDir()
 	mgr := newManager(stackdir)
 	err := mgr.Init(stackdir, false)
 	assert.NoError(t, err, "mgr.Init(%s)", stackdir)
@@ -320,8 +298,7 @@ func nestedStacks(t *testing.T) repository {
 }
 
 func nSubStacks(t *testing.T, n int) string {
-	stackdir := test.TempDir(t, "")
-
+	stackdir := t.TempDir()
 	mgr := newManager(stackdir)
 	err := mgr.Init(stackdir, false)
 	assert.NoError(t, err, "mgr.Init(%s)", stackdir)
@@ -370,7 +347,7 @@ func singleChangedStacksRepo(t *testing.T) repository {
 
 // singleNotChangedStack returns a commited stack in main.
 func singleNotChangedStack(t *testing.T) repository {
-	repo, bare := test.TestRepo(t)
+	repo := test.TestRepo(t)
 
 	g := test.NewGitWrapper(t, repo, false)
 
@@ -387,8 +364,7 @@ func singleNotChangedStack(t *testing.T) repository {
 
 	assert.NoError(t, g.Push("origin", "main"), "push to origin")
 	return repository{
-		Dir:        repo,
-		OriginRepo: bare,
+		Dir: repo,
 	}
 }
 

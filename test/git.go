@@ -39,24 +39,24 @@ func EmptyRepo(t *testing.T, bare bool) string {
 
 	gw := NewGitWrapper(t, "", false)
 
-	repodir := TempDir(t, "")
+	repodir := t.TempDir()
 	err := gw.Init(repodir, bare)
 	assert.NoError(t, err, "git init")
 
 	return repodir
 }
 
-// TestRepo creates and initializes a repository ready for high-level tests. It
-// initializes two repositories, repoDir for working and remoteDir for the
+// TestRepo creates and initializes a repository for terrastack use cases. It
+// initializes two repositories, one for working and other bare for the
 // "remote". It sets up the working repository with a "origin" remote pointing
 // to the local "bare" repository and push a initial main commit onto
-// origin/main. The repoDir is intended to be used by other git commands. The
-// remoteDir is returned to be deleted after tests finishes.
-func TestRepo(t *testing.T) (repoDir string, remoteDir string) {
+// origin/main. The working git repository is returned and the other is
+// automatically cleaned up when the test function finishes.
+func TestRepo(t *testing.T) string {
 	t.Helper()
 
-	repoDir = EmptyRepo(t, false)
-	remoteDir = EmptyRepo(t, true)
+	repoDir := EmptyRepo(t, false)
+	remoteDir := EmptyRepo(t, true)
 
 	gw := NewGitWrapper(t, repoDir, false)
 
@@ -73,5 +73,5 @@ func TestRepo(t *testing.T) (repoDir string, remoteDir string) {
 	_, err = gw.RevParse("origin/main")
 	assert.NoError(t, err, "git rev-parse origin/main")
 
-	return repoDir, remoteDir
+	return repoDir
 }
