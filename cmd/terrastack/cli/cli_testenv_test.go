@@ -98,7 +98,7 @@ func (te TestEnv) BaseDir() string {
 // create files inside the module dir.
 //
 // It is a programming error to call this method with a module
-// name that already exists.
+// name that already exists on this test env.
 func (te TestEnv) CreateModule(name string) DirEntry {
 	te.t.Helper()
 
@@ -110,7 +110,7 @@ func (te TestEnv) CreateModule(name string) DirEntry {
 // create files inside the stack dir.
 //
 // It is a programming error to call this method with a stack
-// name that already exists.
+// name that already exists on this test env.
 func (te TestEnv) CreateStack(name string) *StackEntry {
 	te.t.Helper()
 
@@ -123,7 +123,7 @@ func (te TestEnv) CreateStack(name string) *StackEntry {
 	}
 }
 
-// CreateFile will create a file inside the dir with the
+// CreateFile will create a file inside this dir entry with the
 // given name and the given body. The body can be plain text
 // or a format string identical to what is defined on Go fmt package.
 //
