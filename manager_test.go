@@ -217,12 +217,7 @@ func TestListChangedStacks(t *testing.T) {
 }
 
 func TestListChangedStackReason(t *testing.T) {
-	var removedirs []string
-
-	repodir, modules := singleNotMergedCommitBranch(t)
-
-	removedirs = append(removedirs, repodir)
-	removedirs = append(removedirs, modules...)
+	repodir, _ := singleNotMergedCommitBranch(t)
 
 	m := terrastack.NewManager(repodir, defaultBranch)
 	changed, err := m.ListChanged()
@@ -231,9 +226,7 @@ func TestListChangedStackReason(t *testing.T) {
 	assert.EqualStrings(t, repodir, changed[0].Dir, "stack dir mismatch")
 	assert.EqualStrings(t, "stack has unmerged changes", changed[0].Reason)
 
-	repodir, modules = singleStackDependentModuleChangedRepo(t)
-	removedirs = append(removedirs, repodir)
-	removedirs = append(removedirs, modules...)
+	repodir, modules := singleStackDependentModuleChangedRepo(t)
 
 	m = terrastack.NewManager(repodir, defaultBranch)
 	changed, err = m.ListChanged()
