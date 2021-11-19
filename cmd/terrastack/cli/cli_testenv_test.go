@@ -54,18 +54,14 @@ type FileEntry struct {
 	path string
 }
 
-// NewTestEnv creates a new test env, including a new
-// temporary repository. All commands run using the test
-// env will use this tmp dir as the working dir.
+// NewTestEnv creates a new test env, including a initialized
+// git repository. All commands run using the test
+// env will use the test env dir as their working dir.
 //
 // It is a programming error to use a test env created
 // with a *testing.T other than the one of the test
 // using the test env, for a new test/sub-test always create
 // a new test env for it.
-//
-// It is also a programming error to use TestEnv on Parallel
-// tests since the test env will change global things like
-// env vars and the PWD.
 func NewTestEnv(t *testing.T) TestEnv {
 	t.Helper()
 
