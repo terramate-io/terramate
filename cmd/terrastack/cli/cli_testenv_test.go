@@ -15,7 +15,7 @@ import (
 // git repo for test purposes.
 type TestEnv struct {
 	t       *testing.T
-	git     *Git
+	git     Git
 	basedir string
 }
 
@@ -66,19 +66,18 @@ type FileEntry struct {
 // It is also a programming error to use TestEnv on Parallel
 // tests since the test env will change global things like
 // env vars and the PWD.
-func NewTestEnv(t *testing.T) *TestEnv {
+func NewTestEnv(t *testing.T) TestEnv {
 	t.Helper()
 
 	basedir := t.TempDir()
 
-	git := &Git{
+	git := Git{
 		t:       t,
 		g:       test.NewGitWrapper(t, basedir, false),
 		basedir: basedir,
 	}
-
 	git.Init()
-	return &TestEnv{
+	return TestEnv{
 		t:       t,
 		git:     git,
 		basedir: basedir,
@@ -87,12 +86,12 @@ func NewTestEnv(t *testing.T) *TestEnv {
 
 // Git returns a git wrapper that is useful to run git commands
 // safely inside the test env repo.
-func (te *TestEnv) Git() *Git {
+func (te TestEnv) Git() Git {
 	return te.git
 }
 
 // BaseDir returns the base dir of the test env.
-func (te *TestEnv) BaseDir() string {
+func (te TestEnv) BaseDir() string {
 	return te.basedir
 }
 
@@ -100,7 +99,7 @@ func (te *TestEnv) BaseDir() string {
 // the test env base dir as the command working dir.
 // This method fails the test if the command fails, where
 // a command failed is defined by its status code (!= 0).
-func (te *TestEnv) Run(name string, args ...string) {
+func (te TestEnv) Run(name string, args ...string) {
 	te.t.Helper()
 
 	cmd := exec.Command(name, args...)
@@ -113,7 +112,7 @@ func (te *TestEnv) Run(name string, args ...string) {
 
 // Debug will creative an interactive shell inside the test environment
 // basedir so you can inspect it. It will interrupt your test execution.
-func (te *TestEnv) Debug() {
+func (te TestEnv) Debug() {
 	te.t.Helper()
 
 	cmd := exec.Command("bash")
@@ -133,7 +132,7 @@ func (te *TestEnv) Debug() {
 //
 // It is a programming error to call this method with a module
 // name that already exists.
-func (te *TestEnv) CreateModule(name string) DirEntry {
+func (te TestEnv) CreateModule(name string) DirEntry {
 	te.t.Helper()
 
 	return newDirEntry(te.t, te.basedir, filepath.Join("modules", name))
@@ -145,7 +144,7 @@ func (te *TestEnv) CreateModule(name string) DirEntry {
 //
 // It is a programming error to call this method with a stack
 // name that already exists.
-func (te *TestEnv) CreateStack(name string) *StackEntry {
+func (te TestEnv) CreateStack(name string) *StackEntry {
 	te.t.Helper()
 
 	// Given the current design assuming ../../modules is safe
@@ -185,7 +184,7 @@ func (de DirEntry) CreateFile(name, body string, args ...interface{}) *FileEntry
 // is defined on Go fmt package.
 //
 // It behaves like os.WriteFile: https://pkg.go.dev/os#WriteFile
-func (fe *FileEntry) Write(body string, args ...interface{}) {
+func (fe FileEntry) Write(body string, args ...interface{}) {
 	fe.t.Helper()
 
 	body = fmt.Sprintf(body, args...)
@@ -196,31 +195,31 @@ func (fe *FileEntry) Write(body string, args ...interface{}) {
 }
 
 // Path returns the absolute path of the file.
-func (fe *FileEntry) Path() string {
+func (fe FileEntry) Path() string {
 	return fe.path
 }
 
 // ModImportPath returns the relative import path for the
 // module with the given name. The path is relative to
 // stack dir.
-func (se *StackEntry) ModImportPath(name string) string {
+func (se StackEntry) ModImportPath(name string) string {
 	return filepath.Join(se.modulesRelPath, name)
 }
 
 // Path returns the absolute path of the stack.
-func (se *StackEntry) Path() string {
+func (se StackEntry) Path() string {
 	return se.DirEntry.pathabs
 }
 
 // PathRel returns the relative path of the stack.
 // It is relative to the base dir of the test environment
 // that created this stack.
-func (se *StackEntry) PathRel() string {
+func (se StackEntry) PathRel() string {
 	return se.DirEntry.pathrel
 }
 
 // Init will initialize the git repo
-func (git *Git) Init() {
+func (git Git) Init() {
 	git.t.Helper()
 
 	if err := git.g.Init(git.basedir); err != nil {
@@ -229,7 +228,7 @@ func (git *Git) Init() {
 }
 
 // Add will add files to the commit list
-func (git *Git) Add(files ...string) {
+func (git Git) Add(files ...string) {
 	git.t.Helper()
 
 	if err := git.g.Add(files...); err != nil {
@@ -238,7 +237,7 @@ func (git *Git) Add(files ...string) {
 }
 
 // Commit will commit previously added files
-func (git *Git) Commit(msg string, args ...string) {
+func (git Git) Commit(msg string, args ...string) {
 	git.t.Helper()
 
 	if err := git.g.Commit(msg, args...); err != nil {
@@ -247,7 +246,7 @@ func (git *Git) Commit(msg string, args ...string) {
 }
 
 // Checkout will checkout a branch
-func (git *Git) Checkout(rev string, create bool) {
+func (git Git) Checkout(rev string, create bool) {
 	git.t.Helper()
 
 	if err := git.g.Checkout(rev, create); err != nil {
