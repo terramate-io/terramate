@@ -12,11 +12,8 @@ func TestBug25(t *testing.T) {
 	// bug: https://github.com/mineiros-io/terrastack/issues/25
 
 	const (
-		mod1   = "1"
-		mod2   = "2"
-		stack1 = "stack-1"
-		stack2 = "stack-2"
-		stack3 = "stack-3"
+		mod1 = "1"
+		mod2 = "2"
 	)
 
 	te := NewTestEnv(t)
@@ -24,23 +21,23 @@ func TestBug25(t *testing.T) {
 	mod1MainTf := te.CreateModule(mod1).CreateFile("main.tf", "# module 1")
 	te.CreateModule(mod2).CreateFile("main.tf", "# module 2")
 
-	stack1Entry := te.CreateStack(stack1)
-	stack2Entry := te.CreateStack(stack2)
-	stack3Entry := te.CreateStack(stack3)
+	stack1 := te.CreateStack("stack-1")
+	stack2 := te.CreateStack("stack-2")
+	stack3 := te.CreateStack("stack-3")
 
-	stack1Entry.CreateFile("main.tf", `
+	stack1.CreateFile("main.tf", `
 module "mod1" {
 source = "%s"
-}`, stack1Entry.ModImportPath(mod1))
+}`, stack1.ModImportPath(mod1))
 
-	stack2Entry.CreateFile("main.tf", `
+	stack2.CreateFile("main.tf", `
 module "mod2" {
 source = "%s"
-}`, stack2Entry.ModImportPath(mod2))
+}`, stack2.ModImportPath(mod2))
 
-	stack3Entry.CreateFile("main.tf", "# no module")
+	stack3.CreateFile("main.tf", "# no module")
 
-	tsrun(t, "init", stack1Entry.Path(), stack2Entry.Path(), stack3Entry.Path())
+	tsrun(t, "init", stack1.Path(), stack2.Path(), stack3.Path())
 
 	git := te.Git()
 	git.Add(".")
@@ -63,7 +60,7 @@ source = "%s"
 
 	res = tsrun(t, "list", te.BaseDir(), "--changed")
 
-	changedStacks := stack1Entry.Path() + "\n"
+	changedStacks := stack1.Path() + "\n"
 
 	if res.Stdout != changedStacks {
 		t.Errorf("%q stdout=%q, wanted=%q", res.Cmd, res.Stdout, changedStacks)
