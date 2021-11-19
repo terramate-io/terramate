@@ -62,10 +62,15 @@ type FileEntry struct {
 // with a *testing.T other than the one of the test
 // using the test env, for a new test/sub-test always create
 // a new test env for it.
+//
+// It is also a programming error to use TestEnv on Parallel
+// tests since the test env will change global things like
+// env vars and the PWD.
 func NewTestEnv(t *testing.T) *TestEnv {
 	t.Helper()
 
-	basedir := test.TempDir(t, "")
+	basedir := t.TempDir()
+
 	git := &Git{
 		t:       t,
 		g:       test.NewGitWrapper(t, basedir, false),
@@ -73,16 +78,11 @@ func NewTestEnv(t *testing.T) *TestEnv {
 	}
 
 	git.Init()
-	return &TestEnv{t: t, git: git, basedir: basedir}
-}
-
-// Cleanup will release any resources, like files, created
-// by the test env, it is a programming error to use the test
-// env (or any object created from it) after calling this method.
-func (te *TestEnv) Cleanup() {
-	te.t.Helper()
-
-	test.RemoveAll(te.t, te.basedir)
+	return &TestEnv{
+		t:       t,
+		git:     git,
+		basedir: basedir,
+	}
 }
 
 // Git returns a git wrapper that is useful to run git commands

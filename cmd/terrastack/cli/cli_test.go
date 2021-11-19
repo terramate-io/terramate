@@ -2,7 +2,6 @@ package cli_test
 
 import (
 	"bytes"
-	"os"
 	"strings"
 	"testing"
 
@@ -21,7 +20,6 @@ func TestBug25(t *testing.T) {
 	)
 
 	te := NewTestEnv(t)
-	defer te.Cleanup()
 
 	mod1MainTf := te.CreateModule(mod1).CreateFile("main.tf", "# module 1")
 	te.CreateModule(mod2).CreateFile("main.tf", "# module 2")
@@ -50,7 +48,7 @@ source = "%s"
 	git.Add(".")
 	git.Commit("all")
 
-	res := tscli.Run("list", "--changed")
+	res := tscli.Run("list", te.BaseDir(), "--changed")
 
 	const noChangesOutput = ""
 	if res.Stdout != noChangesOutput {
@@ -65,8 +63,7 @@ source = "%s"
 	git.Add(mod1MainTf.Path())
 	git.Commit("module 1 changed")
 
-	t.Log(os.Getwd())
-	res = tscli.Run("list", "--changed")
+	res = tscli.Run("list", te.BaseDir(), "--changed")
 
 	changedStacks := stack1Entry.Path() + "\n"
 
@@ -98,11 +95,10 @@ func (tc *TestCLI) Run(args ...string) CLIRunResult {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 
-	if err := cli.Run(args, tc.basedir, stdin, stdout, stderr); err != nil {
+	if err := cli.Run(args, stdin, stdout, stderr); err != nil {
 		tc.t.Errorf(
-			"cli.Run(args=%v, basedir=%s) error=%q stdout=%q stderr=%q",
+			"cli.Run(args=%v) error=%q stdout=%q stderr=%q",
 			args,
-			tc.basedir,
 			err,
 			stdout.String(),
 			stderr.String(),

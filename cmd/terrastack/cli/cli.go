@@ -49,8 +49,8 @@ type cliSpec struct {
 // as far as the parameters are not shared between the Run calls.
 //
 // If a critical error is found an non-nil error is returned.
-func Run(args []string, workingdir string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
-	c, err := newCLI(args, workingdir, stdin, stdout, stderr)
+func Run(args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
+	c, err := newCLI(args, stdin, stdout, stderr)
 	if err != nil {
 		return err
 	}
@@ -60,13 +60,12 @@ func Run(args []string, workingdir string, stdin io.Reader, stdout io.Writer, st
 type cli struct {
 	ctx        *kong.Context
 	parsedArgs *cliSpec
-	workingdir string
 	stdin      io.Reader
 	stdout     io.Writer
 	stderr     io.Writer
 }
 
-func newCLI(args []string, workingdir string, stdin io.Reader, stdout io.Writer, stderr io.Writer) (*cli, error) {
+func newCLI(args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) (*cli, error) {
 	parsedArgs := cliSpec{}
 	parser, err := kong.New(&parsedArgs,
 		kong.Name("terrastack"),
@@ -86,7 +85,6 @@ func newCLI(args []string, workingdir string, stdin io.Reader, stdout io.Writer,
 	}
 
 	return &cli{
-		workingdir: workingdir,
 		stdin:      stdin,
 		stdout:     stdout,
 		stderr:     stderr,
@@ -96,24 +94,28 @@ func newCLI(args []string, workingdir string, stdin io.Reader, stdout io.Writer,
 }
 
 func (c *cli) run() error {
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("cli.run(): failed to get process working dir: %v", err)
+	}
 	switch c.ctx.Command() {
 	case "version":
 		c.log(terrastack.Version())
 	case "init":
-		return c.initStack(c.workingdir, []string{c.workingdir})
+		return c.initStack(wd, []string{wd})
 	case "init <paths>":
-		return c.initStack(c.workingdir, c.parsedArgs.Init.StackDirs)
+		return c.initStack(wd, c.parsedArgs.Init.StackDirs)
 	case "list":
-		return c.printStacks(c.workingdir, c.workingdir)
+		return c.printStacks(wd, wd)
 	case "list <path>":
-		return c.printStacks(c.parsedArgs.List.BaseDir, c.workingdir)
+		return c.printStacks(c.parsedArgs.List.BaseDir, wd)
 	case "run":
 		if len(c.parsedArgs.Run.Command) == 0 {
 			return errors.New("no command specified")
 		}
 		fallthrough
 	case "run <cmd>":
-		basedir := c.workingdir
+		basedir := wd
 		if c.parsedArgs.Run.Basedir != "" {
 			basedir = strings.TrimSuffix(c.parsedArgs.Run.Basedir, "/")
 		}
@@ -127,9 +129,6 @@ func (c *cli) run() error {
 }
 
 func (c *cli) initStack(basedir string, dirs []string) error {
-	fmt.Println("basedir", basedir)
-	fmt.Println("dirs", dirs)
-
 	var nErrors int
 	mgr := terrastack.NewManager(basedir)
 	for _, d := range dirs {
