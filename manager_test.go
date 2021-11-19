@@ -64,15 +64,7 @@ func TestListStacks(t *testing.T) {
 				tc.baseRef = defaultBranch
 			}
 
-			repo, modules := tc.repobuilder(t)
-
-			defer func() {
-				test.RemoveAll(t, repo)
-
-				for _, mod := range modules {
-					test.RemoveAll(t, mod)
-				}
-			}()
+			repo, _ := tc.repobuilder(t)
 
 			m := terrastack.NewManager(repo, tc.baseRef)
 			stacks, err := m.List()
@@ -208,15 +200,7 @@ func TestListChangedStacks(t *testing.T) {
 				tc.baseRef = defaultBranch
 			}
 
-			repo, modules := tc.repobuilder(t)
-
-			defer func() {
-				test.RemoveAll(t, repo)
-
-				for _, mod := range modules {
-					test.RemoveAll(t, mod)
-				}
-			}()
+			repo, _ := tc.repobuilder(t)
 
 			m := terrastack.NewManager(repo, tc.baseRef)
 
@@ -239,12 +223,6 @@ func TestListChangedStackReason(t *testing.T) {
 
 	removedirs = append(removedirs, repodir)
 	removedirs = append(removedirs, modules...)
-
-	defer func() {
-		for _, dir := range removedirs {
-			test.RemoveAll(t, dir)
-		}
-	}()
 
 	m := terrastack.NewManager(repodir, defaultBranch)
 	changed, err := m.ListChanged()
@@ -296,7 +274,7 @@ func assertStacks(
 }
 
 func singleStack(t *testing.T) (string, []string) {
-	stackdir := test.TempDir(t, "")
+	stackdir := t.TempDir()
 
 	mgr := terrastack.NewManager(stackdir, defaultBranch)
 	err := mgr.Init(stackdir, false)
@@ -306,7 +284,7 @@ func singleStack(t *testing.T) (string, []string) {
 }
 
 func subStack(t *testing.T) (string, []string) {
-	stackdir := test.TempDir(t, "")
+	stackdir := t.TempDir()
 
 	mgr := terrastack.NewManager(stackdir, defaultBranch)
 	err := mgr.Init(stackdir, false)
@@ -335,14 +313,15 @@ func nestedStacks(t *testing.T) (string, []string) {
 }
 
 func nSubStacks(t *testing.T, n int) string {
-	stackdir := test.TempDir(t, "")
+	stackdir := t.TempDir()
 
 	mgr := terrastack.NewManager(stackdir, defaultBranch)
 	err := mgr.Init(stackdir, false)
 	assert.NoError(t, err, "mgr.Init(%s)", stackdir)
 
 	for i := 0; i < n; i++ {
-		substack := test.TempDir(t, stackdir)
+		substack := filepath.Join(stackdir, fmt.Sprintf("stack-%d", i))
+		test.MkdirAll(t, substack)
 
 		err = mgr.Init(substack, false)
 		assert.NoError(t, err, "mgr.Init(%s)", substack)

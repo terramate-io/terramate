@@ -87,19 +87,19 @@ func TestInit(t *testing.T) {
 }
 
 func sameVersionStack(t *testing.T) string {
-	stack := test.TempDir(t, "")
+	stack := t.TempDir()
 	_ = test.WriteFile(t, stack, terrastack.ConfigFilename, terrastack.Version())
 	return stack
 }
 
 func otherVersionStack(t *testing.T) string {
-	stack := test.TempDir(t, "")
+	stack := t.TempDir()
 	_ = test.WriteFile(t, stack, terrastack.ConfigFilename, "9999.9999.9999")
 	return stack
 }
 
 func newStack(t *testing.T) string {
-	return test.TempDir(t, "")
+	return t.TempDir()
 }
 
 func removeStack(t *testing.T, stackdir string) {

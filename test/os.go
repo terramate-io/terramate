@@ -9,22 +9,13 @@ import (
 	"github.com/madlambda/spells/assert"
 )
 
-// TempDir creates a temporary directory.
-func TempDir(t *testing.T, base string) string {
-	t.Helper()
-
-	dir, err := ioutil.TempDir(base, "terrastack-test")
-	assert.NoError(t, err, "creating temp directory")
-	return dir
-}
-
 // WriteFile writes content to a filename inside dir directory.
 // If dir is empty string then the file is created inside a temporary directory.
 func WriteFile(t *testing.T, dir string, filename string, content string) string {
 	t.Helper()
 
 	if dir == "" {
-		dir = TempDir(t, "")
+		dir = t.TempDir()
 	}
 
 	path := filepath.Join(dir, filename)
@@ -41,21 +32,28 @@ func MkdirAll(t *testing.T, path string) {
 	assert.NoError(t, os.MkdirAll(path, 0700), "failed to create temp directory")
 }
 
-// RemoveAll removes the directory and any of its children files and directories.
-func RemoveAll(t *testing.T, path string) {
-	t.Helper()
-
-	assert.NoError(t, os.RemoveAll(path), "failed to remove directory %q", path)
-}
-
 // NonExistingDir returns a non-existing directory.
 func NonExistingDir(t *testing.T) string {
 	t.Helper()
 
-	tmp := TempDir(t, "")
-	tmp2 := TempDir(t, tmp)
+	tmp := tempDir(t, "")
+	tmp2 := tempDir(t, tmp)
 
-	RemoveAll(t, tmp)
+	removeAll(t, tmp)
 
 	return tmp2
+}
+
+func tempDir(t *testing.T, base string) string {
+	t.Helper()
+
+	dir, err := ioutil.TempDir(base, "terrastack-test")
+	assert.NoError(t, err, "creating temp directory")
+	return dir
+}
+
+func removeAll(t *testing.T, path string) {
+	t.Helper()
+
+	assert.NoError(t, os.RemoveAll(path), "failed to remove directory %q", path)
 }
