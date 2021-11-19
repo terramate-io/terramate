@@ -40,15 +40,13 @@ source = "%s"
 
 	stack3Entry.CreateFile("main.tf", "# no module")
 
-	tscli := NewCLI(t, te.BaseDir())
-
-	tscli.Run("init", stack1Entry.Path(), stack2Entry.Path(), stack3Entry.Path())
+	tsrun(t, "init", stack1Entry.Path(), stack2Entry.Path(), stack3Entry.Path())
 
 	git := te.Git()
 	git.Add(".")
 	git.Commit("all")
 
-	res := tscli.Run("list", te.BaseDir(), "--changed")
+	res := tsrun(t, "list", te.BaseDir(), "--changed")
 
 	const noChangesOutput = ""
 	if res.Stdout != noChangesOutput {
@@ -63,7 +61,7 @@ source = "%s"
 	git.Add(mod1MainTf.Path())
 	git.Commit("module 1 changed")
 
-	res = tscli.Run("list", te.BaseDir(), "--changed")
+	res = tsrun(t, "list", te.BaseDir(), "--changed")
 
 	changedStacks := stack1Entry.Path() + "\n"
 
@@ -73,30 +71,21 @@ source = "%s"
 	}
 }
 
-type TestCLI struct {
-	t       *testing.T
-	basedir string
-}
-
-type CLIRunResult struct {
+type runResult struct {
 	Cmd    string
 	Stdout string
 	Stderr string
 }
 
-func NewCLI(t *testing.T, basedir string) *TestCLI {
-	return &TestCLI{t: t, basedir: basedir}
-}
-
-func (tc *TestCLI) Run(args ...string) CLIRunResult {
-	tc.t.Helper()
+func tsrun(t *testing.T, args ...string) runResult {
+	t.Helper()
 
 	stdin := &bytes.Buffer{}
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 
 	if err := cli.Run(args, stdin, stdout, stderr); err != nil {
-		tc.t.Errorf(
+		t.Errorf(
 			"cli.Run(args=%v) error=%q stdout=%q stderr=%q",
 			args,
 			err,
@@ -105,7 +94,7 @@ func (tc *TestCLI) Run(args ...string) CLIRunResult {
 		)
 	}
 
-	return CLIRunResult{
+	return runResult{
 		Cmd:    strings.Join(args, " "),
 		Stdout: stdout.String(),
 		Stderr: stderr.String(),
