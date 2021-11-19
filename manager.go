@@ -16,7 +16,8 @@ import (
 type (
 	// Manager is the terrastack stacks manager.
 	Manager struct {
-		basedir string // Basedir is the stacks base directory.
+		basedir    string // basedir is the stacks base directory.
+		gitBaseRef string // gitBaseRef is the git ref where we compare changes.
 
 		parser hcl.ModuleParser
 	}
@@ -30,10 +31,11 @@ type (
 
 // NewManager creates a new stack manager. The basedir is the base directory
 // where all stacks reside inside.
-func NewManager(basedir string) *Manager {
+func NewManager(basedir string, gitBaseRef string) *Manager {
 	return &Manager{
-		basedir: basedir,
-		parser:  hhcl.NewParser(),
+		basedir:    basedir,
+		gitBaseRef: gitBaseRef,
+		parser:     hhcl.NewParser(),
 	}
 }
 
@@ -77,7 +79,7 @@ func (m *Manager) List() ([]Entry, error) {
 // inside a repository or a repository with no commits in it.
 func (m *Manager) ListChanged() ([]Entry, error) {
 	stackSet := map[string]Entry{}
-	files, err := listChangedFiles(m.basedir)
+	files, err := listChangedFiles(m.basedir, m.gitBaseRef)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +169,7 @@ func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) err
 }
 
 // listChangedFiles lists all changed files in the dir directory.
-func listChangedFiles(dir string) ([]string, error) {
+func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 	st, err := os.Stat(dir)
 	if err != nil {
 		return nil, fmt.Errorf("stat failed on %q: %w", dir, err)
@@ -206,9 +208,9 @@ func listChangedFiles(dir string) ([]string, error) {
 		return nil, fmt.Errorf("repository has uncommitted files: %v", uncommitted)
 	}
 
-	baseRef, err := g.RevParse("main")
+	baseRef, err := g.RevParse(gitBaseRef)
 	if err != nil {
-		return nil, fmt.Errorf("getting main revision: %w", err)
+		return nil, fmt.Errorf("getting revision %q: %w", gitBaseRef, err)
 	}
 
 	headRef, err := g.RevParse("HEAD")
@@ -220,7 +222,7 @@ func listChangedFiles(dir string) ([]string, error) {
 		return []string{}, nil
 	}
 
-	mergeBaseRef, err := g.MergeBase("HEAD", "main")
+	mergeBaseRef, err := g.MergeBase("HEAD", baseRef)
 	if err != nil {
 		return nil, fmt.Errorf("getting merge-base HEAD main: %w", err)
 	}
@@ -263,7 +265,7 @@ func (m *Manager) moduleChanged(
 		return false, "", nil
 	}
 
-	changedFiles, err := listChangedFiles(modPath)
+	changedFiles, err := listChangedFiles(modPath, m.gitBaseRef)
 	if err != nil {
 		return false, "", fmt.Errorf("listing changes in the module %q: %w",
 			mod.Source, err)
