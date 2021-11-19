@@ -166,10 +166,10 @@ func (fe FileEntry) Path() string {
 	return fe.path
 }
 
-// ModImportPath returns the relative import path for the
+// ModSource returns the relative import path for the
 // module with the given name. The path is relative to
-// stack dir.
-func (se StackEntry) ModImportPath(name string) string {
+// stack dir itself (hence suitable to be an source path).
+func (se StackEntry) ModSource(name string) string {
 	return filepath.Join(se.modulesRelPath, name)
 }
 

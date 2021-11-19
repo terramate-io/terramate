@@ -28,12 +28,12 @@ func TestBug25(t *testing.T) {
 	stack1.CreateFile("main.tf", `
 module "mod1" {
 source = "%s"
-}`, stack1.ModImportPath(mod1))
+}`, stack1.ModSource(mod1))
 
 	stack2.CreateFile("main.tf", `
 module "mod2" {
 source = "%s"
-}`, stack2.ModImportPath(mod2))
+}`, stack2.ModSource(mod2))
 
 	stack3.CreateFile("main.tf", "# no module")
 
