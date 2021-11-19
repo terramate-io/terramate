@@ -87,6 +87,11 @@ func (te TestEnv) Git() Git {
 }
 
 // BaseDir returns the base dir of the test env.
+// All dirs/files created through the test env will
+// be included inside this dir.
+//
+// It is a programming error to delete this dir, it will
+// be automatically removed when the test finishes.
 func (te TestEnv) BaseDir() string {
 	return te.basedir
 }
