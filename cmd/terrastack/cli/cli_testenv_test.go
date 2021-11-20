@@ -157,7 +157,7 @@ func (fe FileEntry) Write(body string, args ...interface{}) {
 	body = fmt.Sprintf(body, args...)
 
 	if err := os.WriteFile(fe.path, []byte(body), 0700); err != nil {
-		fe.t.Errorf("os.WriteFile(%q) = %v", fe.path, err)
+		fe.t.Fatalf("os.WriteFile(%q) = %v", fe.path, err)
 	}
 }
 
@@ -190,7 +190,7 @@ func (git Git) Init() {
 	git.t.Helper()
 
 	if err := git.g.Init(git.basedir); err != nil {
-		git.t.Errorf("Git.Init(%v) = %v", git.basedir, err)
+		git.t.Fatalf("Git.Init(%v) = %v", git.basedir, err)
 	}
 }
 
@@ -199,7 +199,7 @@ func (git Git) Add(files ...string) {
 	git.t.Helper()
 
 	if err := git.g.Add(files...); err != nil {
-		git.t.Errorf("Git.Add(%v) = %v", files, err)
+		git.t.Fatalf("Git.Add(%v) = %v", files, err)
 	}
 }
 
@@ -208,7 +208,7 @@ func (git Git) Commit(msg string, args ...string) {
 	git.t.Helper()
 
 	if err := git.g.Commit(msg, args...); err != nil {
-		git.t.Errorf("Git.Commit(%s, %v) = %v", msg, args, err)
+		git.t.Fatalf("Git.Commit(%s, %v) = %v", msg, args, err)
 	}
 }
 
@@ -217,7 +217,7 @@ func (git Git) Checkout(rev string, create bool) {
 	git.t.Helper()
 
 	if err := git.g.Checkout(rev, create); err != nil {
-		git.t.Errorf("Git.Checkout(%s, %v) = %v", rev, create, err)
+		git.t.Fatalf("Git.Checkout(%s, %v) = %v", rev, create, err)
 	}
 }
 

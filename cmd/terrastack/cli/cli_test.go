@@ -82,7 +82,7 @@ func tsrun(t *testing.T, args ...string) runResult {
 	stderr := &bytes.Buffer{}
 
 	if err := cli.Run(args, stdin, stdout, stderr); err != nil {
-		t.Errorf(
+		t.Fatalf(
 			"cli.Run(args=%v) error=%q stdout=%q stderr=%q",
 			args,
 			err,
