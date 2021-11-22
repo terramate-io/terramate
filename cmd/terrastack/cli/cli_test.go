@@ -114,15 +114,15 @@ func newCLI(t *testing.T) tscli {
 	return tscli{t: t}
 }
 
-func (c tscli) run(args ...string) runResult {
-	c.t.Helper()
+func (ts tscli) run(args ...string) runResult {
+	ts.t.Helper()
 
 	stdin := &bytes.Buffer{}
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 
 	if err := cli.Run(args, stdin, stdout, stderr); err != nil {
-		c.t.Fatalf(
+		ts.t.Fatalf(
 			"cli.Run(args=%v) error=%q stdout=%q stderr=%q",
 			args,
 			err,
@@ -132,7 +132,7 @@ func (c tscli) run(args ...string) runResult {
 	}
 
 	return runResult{
-		t:      c.t,
+		t:      ts.t,
 		Cmd:    strings.Join(args, " "),
 		Stdout: stdout.String(),
 		Stderr: stderr.String(),
