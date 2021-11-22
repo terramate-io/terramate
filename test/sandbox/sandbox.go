@@ -1,4 +1,13 @@
-package cli_test
+// Package sandbox provides an easy way to setup
+// isolated terrastack projects that can be used
+// on testing.
+//
+// It helps with:
+//
+// - git initialization/operations
+// - Terraform module creation
+// - Terrastack stack creation
+package sandbox
 
 import (
 	"fmt"

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/mineiros-io/terrastack/cmd/terrastack/cli"
+	"github.com/mineiros-io/terrastack/test/sandbox"
 )
 
 func TestBug25(t *testing.T) {
@@ -16,7 +17,7 @@ func TestBug25(t *testing.T) {
 		mod2 = "2"
 	)
 
-	te := NewTestEnv(t)
+	te := sandbox.NewTestEnv(t)
 
 	mod1MainTf := te.CreateModule(mod1).CreateFile("main.tf", "# module 1")
 	te.CreateModule(mod2).CreateFile("main.tf", "# module 2")
