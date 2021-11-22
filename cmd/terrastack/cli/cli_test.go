@@ -41,8 +41,7 @@ source = "%s"
 	tsrun(t, "init", stack1.Path(), stack2.Path(), stack3.Path())
 
 	git := te.Git()
-	git.Add(".")
-	git.Commit("all")
+	git.CommitAll("first commit")
 
 	tsrun(t, "list", te.BaseDir(), "--changed").HasStdout("")
 
@@ -50,8 +49,7 @@ source = "%s"
 
 	mod1MainTf.Write("# changed")
 
-	git.Add(mod1MainTf.Path())
-	git.Commit("module 1 changed")
+	git.CommitAll("module 1 changed")
 
 	want := stack1.Path() + "\n"
 	tsrun(t, "list", te.BaseDir(), "--changed").HasStdout(want)
@@ -66,8 +64,7 @@ func TestListChangedStack(t *testing.T) {
 	tsrun(t, "init", stack.Path())
 
 	git := te.Git()
-	git.Add(".")
-	git.Commit("all")
+	git.CommitAll("first commit")
 
 	tsrun(t, "list", te.BaseDir(), "--changed").HasStdout("")
 
@@ -75,8 +72,7 @@ func TestListChangedStack(t *testing.T) {
 
 	stackMainTf.Write("# change is the eternal truth of the universe")
 
-	git.Add(stackMainTf.Path())
-	git.Commit("stack changed")
+	git.CommitAll("stack changed")
 
 	want := stack.Path() + "\n"
 

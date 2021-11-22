@@ -221,6 +221,14 @@ func (git Git) Commit(msg string, args ...string) {
 	}
 }
 
+// CommitAll will add all changed files and commit all of them
+func (git Git) CommitAll(msg string) {
+	git.t.Helper()
+
+	git.Add(".")
+	git.Commit(msg)
+}
+
 // Checkout will checkout a branch
 func (git Git) Checkout(rev string, create bool) {
 	git.t.Helper()
