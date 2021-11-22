@@ -88,8 +88,8 @@ func New(t *testing.T) S {
 
 // Git returns a git wrapper that is useful to run git commands
 // safely inside the test env repo.
-func (te S) Git() Git {
-	return te.git
+func (s S) Git() Git {
+	return s.git
 }
 
 // BaseDir returns the base dir of the test env.
@@ -98,8 +98,8 @@ func (te S) Git() Git {
 //
 // It is a programming error to delete this dir, it will
 // be automatically removed when the test finishes.
-func (te S) BaseDir() string {
-	return te.basedir
+func (s S) BaseDir() string {
+	return s.basedir
 }
 
 // CreateModule will create a module dir with the given name
@@ -108,10 +108,10 @@ func (te S) BaseDir() string {
 //
 // It is a programming error to call this method with a module
 // name that already exists on this test env.
-func (te S) CreateModule(name string) DirEntry {
-	te.t.Helper()
+func (s S) CreateModule(name string) DirEntry {
+	s.t.Helper()
 
-	return newDirEntry(te.t, te.basedir, filepath.Join("modules", name))
+	return newDirEntry(s.t, s.basedir, filepath.Join("modules", name))
 }
 
 // CreateStack will create a stack dir with the given name
@@ -120,14 +120,14 @@ func (te S) CreateModule(name string) DirEntry {
 //
 // It is a programming error to call this method with a stack
 // name that already exists on this test env.
-func (te S) CreateStack(name string) *StackEntry {
-	te.t.Helper()
+func (s S) CreateStack(name string) *StackEntry {
+	s.t.Helper()
 
 	// Given the current design assuming ../../modules is safe
 	// But we could change this in the future and maintain the
 	// current API working.
 	return &StackEntry{
-		DirEntry:       newDirEntry(te.t, te.basedir, filepath.Join("stacks", name)),
+		DirEntry:       newDirEntry(s.t, s.basedir, filepath.Join("stacks", name)),
 		modulesRelPath: "../../modules",
 	}
 }
