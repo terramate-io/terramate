@@ -45,7 +45,7 @@ source = "%s"
 
 	tsrun(t, "list", te.BaseDir(), "--changed").HasStdout("")
 
-	git.Checkout("change-the-module-1", true)
+	git.CheckoutNew("change-the-module-1")
 
 	mod1MainTf.Write("# changed")
 
@@ -68,7 +68,7 @@ func TestListChangedStack(t *testing.T) {
 
 	tsrun(t, "list", te.BaseDir(), "--changed").HasStdout("")
 
-	git.Checkout("change-stack", true)
+	git.CheckoutNew("change-stack")
 
 	stackMainTf.Write("# change is the eternal truth of the universe")
 
