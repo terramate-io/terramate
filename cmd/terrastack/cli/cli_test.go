@@ -44,13 +44,7 @@ source = "%s"
 	git.Add(".")
 	git.Commit("all")
 
-	res := tsrun(t, "list", te.BaseDir(), "--changed")
-
-	const noChangesOutput = ""
-	if res.Stdout != noChangesOutput {
-		t.Errorf("%q stdout=%q, wanted=%q", res.Cmd, res.Stdout, noChangesOutput)
-		t.Fatalf("%q stderr=%q", res.Cmd, res.Stderr)
-	}
+	tsrun(t, "list", te.BaseDir(), "--changed").HasStdout("")
 
 	git.Checkout("change-the-module-1", true)
 
@@ -59,14 +53,8 @@ source = "%s"
 	git.Add(mod1MainTf.Path())
 	git.Commit("module 1 changed")
 
-	res = tsrun(t, "list", te.BaseDir(), "--changed")
-
-	changedStacks := stack1.Path() + "\n"
-
-	if res.Stdout != changedStacks {
-		t.Errorf("%q stdout=%q, wanted=%q", res.Cmd, res.Stdout, changedStacks)
-		t.Fatalf("%q stderr=%q", res.Cmd, res.Stderr)
-	}
+	want := stack1.Path() + "\n"
+	tsrun(t, "list", te.BaseDir(), "--changed").HasStdout(want)
 }
 
 func TestListChangedStack(t *testing.T) {
