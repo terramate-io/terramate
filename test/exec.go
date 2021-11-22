@@ -12,7 +12,7 @@ func LookPath(t *testing.T, file string) string {
 
 	path, err := exec.LookPath(file)
 	if err != nil {
-		t.Fatalf("LookPath(%q) = %v", file, err)
+		t.Fatalf("exec.LookPath(%q) = %v", file, err)
 	}
 	return path
 }
