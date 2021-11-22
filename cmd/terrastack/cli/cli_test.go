@@ -81,7 +81,7 @@ func TestListChangedStack(t *testing.T) {
 	git.Add(".")
 	git.Commit("all")
 
-	tsrun(t, "list", te.BaseDir(), "--changed").AssertEqualStdout("")
+	tsrun(t, "list", te.BaseDir(), "--changed").HasStdout("")
 
 	git.Checkout("change-stack", true)
 
@@ -92,7 +92,7 @@ func TestListChangedStack(t *testing.T) {
 
 	want := stack.Path() + "\n"
 
-	tsrun(t, "list", te.BaseDir(), "--changed").AssertEqualStdout(want)
+	tsrun(t, "list", te.BaseDir(), "--changed").HasStdout(want)
 }
 
 type runResult struct {
@@ -127,7 +127,7 @@ func tsrun(t *testing.T, args ...string) runResult {
 	}
 }
 
-func (res runResult) AssertEqualStdout(want string) {
+func (res runResult) HasStdout(want string) {
 	res.t.Helper()
 
 	if res.Stdout != want {
