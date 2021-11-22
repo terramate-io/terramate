@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/mineiros-io/terrastack/cmd/terrastack/cli"
+	"github.com/mineiros-io/terrastack/test"
 	"github.com/mineiros-io/terrastack/test/sandbox"
 )
 
@@ -82,7 +83,7 @@ func TestListAndRunChangedStack(t *testing.T) {
 	wantList := stack.Path() + "\n"
 	tsrun(t, "list", te.BaseDir(), "--changed").HasStdout(wantList)
 
-	catbin := "/bin/cat"
+	catbin := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(`Running on changed stacks:
 [%s] running %s %s
 # change is the eternal truth of the universe`, stack.Path(), catbin, mainTfFileName)
@@ -92,7 +93,7 @@ func TestListAndRunChangedStack(t *testing.T) {
 		"--basedir",
 		te.BaseDir(),
 		"--changed",
-		"cat",
+		catbin,
 		mainTfFileName,
 	).HasStdout(wantRun)
 }
