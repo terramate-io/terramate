@@ -69,6 +69,43 @@ source = "%s"
 	}
 }
 
+func TestListChangedStack(t *testing.T) {
+	te := sandbox.New(t)
+
+	stack := te.CreateStack("stack")
+	stackMainTf := stack.CreateFile("main.tf", "# some code")
+
+	tsrun(t, "init", stack.Path())
+
+	git := te.Git()
+	git.Add(".")
+	git.Commit("all")
+
+	res := tsrun(t, "list", te.BaseDir(), "--changed")
+
+	const noChangesOutput = ""
+	if res.Stdout != noChangesOutput {
+		t.Errorf("%q stdout=%q, wanted=%q", res.Cmd, res.Stdout, noChangesOutput)
+		t.Fatalf("%q stderr=%q", res.Cmd, res.Stderr)
+	}
+
+	git.Checkout("change-stack", true)
+
+	stackMainTf.Write("# change is the eternal truth of the universe")
+
+	git.Add(stackMainTf.Path())
+	git.Commit("stack changed")
+
+	res = tsrun(t, "list", te.BaseDir(), "--changed")
+
+	changedStacks := stack.Path() + "\n"
+
+	if res.Stdout != changedStacks {
+		t.Errorf("%q stdout=%q, wanted=%q", res.Cmd, res.Stdout, changedStacks)
+		t.Fatalf("%q stderr=%q", res.Cmd, res.Stderr)
+	}
+}
+
 type runResult struct {
 	Cmd    string
 	Stdout string
