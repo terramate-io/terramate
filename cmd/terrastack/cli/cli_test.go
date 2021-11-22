@@ -101,6 +101,7 @@ func TestListAndRunChangedStack(t *testing.T) {
 
 func TestNoArgsProvidesBasicHelp(t *testing.T) {
 	cli := newCLI(t)
+	cli.run("--help")
 	help := cli.run("--help")
 	cli.run().HasStdout(help.Stdout)
 }
