@@ -1,4 +1,13 @@
-package cli_test
+// Package sandbox provides an easy way to setup
+// isolated terrastack projects that can be used
+// on testing, acting like sandboxes.
+//
+// It helps with:
+//
+// - git initialization/operations
+// - Terraform module creation
+// - Terrastack stack creation
+package sandbox
 
 import (
 	"fmt"
@@ -10,9 +19,9 @@ import (
 	"github.com/mineiros-io/terrastack/test"
 )
 
-// TestEnv is a full test env with its own base dir that is an initialized
+// S is a full sandbox with its own base dir that is an initialized
 // git repo for test purposes.
-type TestEnv struct {
+type S struct {
 	t       *testing.T
 	git     Git
 	basedir string
@@ -53,13 +62,13 @@ type FileEntry struct {
 	path string
 }
 
-// NewTestEnv creates a new test env, including a initialized git repository.
+// New creates a new test sandbox.
 //
 // It is a programming error to use a test env created
 // with a *testing.T other than the one of the test
 // using the test env, for a new test/sub-test always create
 // a new test env for it.
-func NewTestEnv(t *testing.T) TestEnv {
+func New(t *testing.T) S {
 	t.Helper()
 
 	basedir := t.TempDir()
@@ -70,7 +79,7 @@ func NewTestEnv(t *testing.T) TestEnv {
 		basedir: basedir,
 	}
 	git.Init()
-	return TestEnv{
+	return S{
 		t:       t,
 		git:     git,
 		basedir: basedir,
@@ -79,8 +88,8 @@ func NewTestEnv(t *testing.T) TestEnv {
 
 // Git returns a git wrapper that is useful to run git commands
 // safely inside the test env repo.
-func (te TestEnv) Git() Git {
-	return te.git
+func (s S) Git() Git {
+	return s.git
 }
 
 // BaseDir returns the base dir of the test env.
@@ -89,8 +98,8 @@ func (te TestEnv) Git() Git {
 //
 // It is a programming error to delete this dir, it will
 // be automatically removed when the test finishes.
-func (te TestEnv) BaseDir() string {
-	return te.basedir
+func (s S) BaseDir() string {
+	return s.basedir
 }
 
 // CreateModule will create a module dir with the given name
@@ -99,10 +108,10 @@ func (te TestEnv) BaseDir() string {
 //
 // It is a programming error to call this method with a module
 // name that already exists on this test env.
-func (te TestEnv) CreateModule(name string) DirEntry {
-	te.t.Helper()
+func (s S) CreateModule(name string) DirEntry {
+	s.t.Helper()
 
-	return newDirEntry(te.t, te.basedir, filepath.Join("modules", name))
+	return newDirEntry(s.t, s.basedir, filepath.Join("modules", name))
 }
 
 // CreateStack will create a stack dir with the given name
@@ -111,14 +120,14 @@ func (te TestEnv) CreateModule(name string) DirEntry {
 //
 // It is a programming error to call this method with a stack
 // name that already exists on this test env.
-func (te TestEnv) CreateStack(name string) *StackEntry {
-	te.t.Helper()
+func (s S) CreateStack(name string) *StackEntry {
+	s.t.Helper()
 
 	// Given the current design assuming ../../modules is safe
 	// But we could change this in the future and maintain the
 	// current API working.
 	return &StackEntry{
-		DirEntry:       newDirEntry(te.t, te.basedir, filepath.Join("stacks", name)),
+		DirEntry:       newDirEntry(s.t, s.basedir, filepath.Join("stacks", name)),
 		modulesRelPath: "../../modules",
 	}
 }
@@ -178,10 +187,10 @@ func (se StackEntry) Path() string {
 	return se.DirEntry.abspath
 }
 
-// PathRel returns the relative path of the stack.
+// RelPath returns the relative path of the stack.
 // It is relative to the base dir of the test environment
 // that created this stack.
-func (se StackEntry) PathRel() string {
+func (se StackEntry) RelPath() string {
 	return se.DirEntry.relpath
 }
 
