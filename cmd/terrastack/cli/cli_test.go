@@ -99,6 +99,12 @@ func TestListAndRunChangedStack(t *testing.T) {
 	).HasStdout(wantRun)
 }
 
+func TestNoArgsProvidesBasicHelp(t *testing.T) {
+	cli := newCLI(t)
+	help := cli.run("--help")
+	cli.run().HasStdout(help.Stdout)
+}
+
 type runResult struct {
 	t      *testing.T
 	Cmd    string

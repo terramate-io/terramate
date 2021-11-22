@@ -24,6 +24,11 @@ test:
 build:
 	go build -o bin/terrastack ./cmd/terrastack
 
+## Install terrastack on the host
+.PHONY: install
+install:
+	go install ./cmd/terrastack
+
 ## remove build artifacts
 .PHONY: clean
 clean:
