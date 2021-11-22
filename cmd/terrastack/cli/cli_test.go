@@ -17,7 +17,7 @@ func TestBug25(t *testing.T) {
 		mod2 = "2"
 	)
 
-	te := sandbox.NewTestEnv(t)
+	te := sandbox.New(t)
 
 	mod1MainTf := te.CreateModule(mod1).CreateFile("main.tf", "# module 1")
 	te.CreateModule(mod2).CreateFile("main.tf", "# module 2")
