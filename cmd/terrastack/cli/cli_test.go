@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -55,11 +56,16 @@ source = "%s"
 	tsrun(t, "list", te.BaseDir(), "--changed").HasStdout(want)
 }
 
-func TestListChangedStack(t *testing.T) {
+func TestListAndRunChangedStack(t *testing.T) {
+	const (
+		mainTfFileName = "main.tf"
+		mainTfContents = "# change is the eternal truth of the universe"
+	)
+
 	te := sandbox.New(t)
 
 	stack := te.CreateStack("stack")
-	stackMainTf := stack.CreateFile("main.tf", "# some code")
+	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
 
 	tsrun(t, "init", stack.Path())
 
@@ -70,13 +76,25 @@ func TestListChangedStack(t *testing.T) {
 
 	git.CheckoutNew("change-stack")
 
-	stackMainTf.Write("# change is the eternal truth of the universe")
-
+	stackMainTf.Write(mainTfContents)
 	git.CommitAll("stack changed")
 
-	want := stack.Path() + "\n"
+	wantList := stack.Path() + "\n"
+	tsrun(t, "list", te.BaseDir(), "--changed").HasStdout(wantList)
 
-	tsrun(t, "list", te.BaseDir(), "--changed").HasStdout(want)
+	catbin := "/bin/cat"
+	wantRun := fmt.Sprintf(`Running on changed stacks:
+[%s] running %s %s
+# change is the eternal truth of the universe`, stack.Path(), catbin, mainTfFileName)
+	tsrun(
+		t,
+		"run",
+		"--basedir",
+		te.BaseDir(),
+		"--changed",
+		"cat",
+		mainTfFileName,
+	).HasStdout(wantRun)
 }
 
 type runResult struct {
