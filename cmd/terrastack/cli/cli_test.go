@@ -40,12 +40,13 @@ source = "%s"
 
 	stack3.CreateFile("main.tf", "# no module")
 
-	tsrun(t, "init", stack1.Path(), stack2.Path(), stack3.Path())
+	cli := newCLI(t)
+	cli.run("init", stack1.Path(), stack2.Path(), stack3.Path())
 
 	git := te.Git()
 	git.CommitAll("first commit")
 
-	tsrun(t, "list", te.BaseDir(), "--changed").HasStdout("")
+	cli.run("list", te.BaseDir(), "--changed").HasStdout("")
 
 	git.CheckoutNew("change-the-module-1")
 
@@ -54,7 +55,7 @@ source = "%s"
 	git.CommitAll("module 1 changed")
 
 	want := stack1.Path() + "\n"
-	tsrun(t, "list", te.BaseDir(), "--changed").HasStdout(want)
+	cli.run("list", te.BaseDir(), "--changed").HasStdout(want)
 }
 
 func TestListAndRunChangedStack(t *testing.T) {
@@ -68,12 +69,13 @@ func TestListAndRunChangedStack(t *testing.T) {
 	stack := te.CreateStack("stack")
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
 
-	tsrun(t, "init", stack.Path())
+	cli := newCLI(t)
+	cli.run("init", stack.Path())
 
 	git := te.Git()
 	git.CommitAll("first commit")
 
-	tsrun(t, "list", te.BaseDir(), "--changed").HasStdout("")
+	cli.run("list", te.BaseDir(), "--changed").HasStdout("")
 
 	git.CheckoutNew("change-stack")
 
@@ -81,14 +83,13 @@ func TestListAndRunChangedStack(t *testing.T) {
 	git.CommitAll("stack changed")
 
 	wantList := stack.Path() + "\n"
-	tsrun(t, "list", te.BaseDir(), "--changed").HasStdout(wantList)
+	cli.run("list", te.BaseDir(), "--changed").HasStdout(wantList)
 
 	catbin := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(`Running on changed stacks:
 [%s] running %s %s
 # change is the eternal truth of the universe`, stack.Path(), catbin, mainTfFileName)
-	tsrun(
-		t,
+	cli.run(
 		"run",
 		"--basedir",
 		te.BaseDir(),
@@ -105,15 +106,23 @@ type runResult struct {
 	Stderr string
 }
 
-func tsrun(t *testing.T, args ...string) runResult {
-	t.Helper()
+type tscli struct {
+	t *testing.T
+}
+
+func newCLI(t *testing.T) tscli {
+	return tscli{t: t}
+}
+
+func (c tscli) run(args ...string) runResult {
+	c.t.Helper()
 
 	stdin := &bytes.Buffer{}
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 
 	if err := cli.Run(args, stdin, stdout, stderr); err != nil {
-		t.Fatalf(
+		c.t.Fatalf(
 			"cli.Run(args=%v) error=%q stdout=%q stderr=%q",
 			args,
 			err,
@@ -123,7 +132,7 @@ func tsrun(t *testing.T, args ...string) runResult {
 	}
 
 	return runResult{
-		t:      t,
+		t:      c.t,
 		Cmd:    strings.Join(args, " "),
 		Stdout: stdout.String(),
 		Stderr: stderr.String(),
