@@ -81,13 +81,7 @@ func TestListChangedStack(t *testing.T) {
 	git.Add(".")
 	git.Commit("all")
 
-	res := tsrun(t, "list", te.BaseDir(), "--changed")
-
-	const noChangesOutput = ""
-	if res.Stdout != noChangesOutput {
-		t.Errorf("%q stdout=%q, wanted=%q", res.Cmd, res.Stdout, noChangesOutput)
-		t.Fatalf("%q stderr=%q", res.Cmd, res.Stderr)
-	}
+	tsrun(t, "list", te.BaseDir(), "--changed").AssertEqualStdout("")
 
 	git.Checkout("change-stack", true)
 
@@ -96,17 +90,13 @@ func TestListChangedStack(t *testing.T) {
 	git.Add(stackMainTf.Path())
 	git.Commit("stack changed")
 
-	res = tsrun(t, "list", te.BaseDir(), "--changed")
+	want := stack.Path() + "\n"
 
-	changedStacks := stack.Path() + "\n"
-
-	if res.Stdout != changedStacks {
-		t.Errorf("%q stdout=%q, wanted=%q", res.Cmd, res.Stdout, changedStacks)
-		t.Fatalf("%q stderr=%q", res.Cmd, res.Stderr)
-	}
+	tsrun(t, "list", te.BaseDir(), "--changed").AssertEqualStdout(want)
 }
 
 type runResult struct {
+	t      *testing.T
 	Cmd    string
 	Stdout string
 	Stderr string
@@ -130,8 +120,18 @@ func tsrun(t *testing.T, args ...string) runResult {
 	}
 
 	return runResult{
+		t:      t,
 		Cmd:    strings.Join(args, " "),
 		Stdout: stdout.String(),
 		Stderr: stderr.String(),
+	}
+}
+
+func (res runResult) AssertEqualStdout(want string) {
+	res.t.Helper()
+
+	if res.Stdout != want {
+		res.t.Errorf("%q stdout=%q, wanted=%q", res.Cmd, res.Stdout, want)
+		res.t.Fatalf("%q stderr=%q", res.Cmd, res.Stderr)
 	}
 }
