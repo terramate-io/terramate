@@ -86,9 +86,14 @@ func TestListAndRunChangedStack(t *testing.T) {
 	cli.run("list", te.BaseDir(), "--changed").HasStdout(wantList)
 
 	cat := test.LookPath(t, "cat")
-	wantRun := fmt.Sprintf(`Running on changed stacks:
-[%s] running %s %s
-# change is the eternal truth of the universe`, stack.Path(), cat, mainTfFileName)
+	wantRun := fmt.Sprintf(
+		"Running on changed stacks:\n[%s] running %s %s\n%s",
+		stack.Path(),
+		cat,
+		mainTfFileName,
+		mainTfContents,
+	)
+
 	cli.run(
 		"run",
 		"--basedir",
