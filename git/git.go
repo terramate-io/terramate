@@ -560,8 +560,7 @@ func (e *CmdError) Is(err error) bool {
 
 // Error string representation.
 func (e *CmdError) Error() string {
-	return fmt.Sprintf("failed to execute command: %s (stdout: %s, stderr: %s)",
-		e.cmd, e.stdout, e.stderr)
+	return fmt.Sprintf("failed to execute command: %s : %s", e.cmd, string(e.stderr))
 }
 
 // Command is the failed command.
