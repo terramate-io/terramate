@@ -176,14 +176,25 @@ func (git *Git) Version() (string, error) {
 	return "", fmt.Errorf("unexpected \"git version\" output: %q", out)
 }
 
-// Init initializes a git repository.
+// Init initializes a git repository. If bare is true, it initializes a "bare
+// repository", in other words, a repository not intended for work but just
+// store revisions.
 // Beware: Init is a porcelain method.
-func (git *Git) Init(dir string) error {
+func (git *Git) Init(dir string, bare bool) error {
 	if !git.config.AllowPorcelain {
 		return fmt.Errorf("Init: %w", ErrDenyPorcelain)
 	}
 
-	_, err := git.exec("init", "-b", git.config.DefaultBranch, dir)
+	args := []string{
+		"-b", git.config.DefaultBranch,
+	}
+
+	if bare {
+		args = append(args, "--bare")
+	}
+
+	args = append(args, dir)
+	_, err := git.exec("init", args...)
 	if err != nil {
 		return err
 	}
@@ -211,6 +222,12 @@ func (git *Git) Init(dir string) error {
 	}
 
 	return nil
+}
+
+// RemoteAdd adds a new remote name.
+func (git *Git) RemoteAdd(name string, url string) error {
+	_, err := git.exec("remote", "add", name, url)
+	return err
 }
 
 // LogSummary returns a list of commit log summary in reverse chronological
@@ -393,6 +410,26 @@ func (git *Git) Merge(branch string) error {
 	}
 
 	_, err := git.exec("merge", "--no-ff", branch)
+	return err
+}
+
+// Push changes from branch onto remote.
+func (git *Git) Push(remote, branch string) error {
+	if !git.config.AllowPorcelain {
+		return fmt.Errorf("Push: %w", ErrDenyPorcelain)
+	}
+
+	_, err := git.exec("push", remote, branch)
+	return err
+}
+
+// Pull changes from remote into branch
+func (git *Git) Pull(remote, branch string) error {
+	if !git.config.AllowPorcelain {
+		return fmt.Errorf("Pull: %w", ErrDenyPorcelain)
+	}
+
+	_, err := git.exec("pull", remote, branch)
 	return err
 }
 

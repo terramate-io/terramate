@@ -2,7 +2,6 @@ package hhcl_test
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 
@@ -113,7 +112,6 @@ module "test" {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			path := test.WriteFile(t, "", "main.tf", tc.input)
-			defer os.RemoveAll(path)
 
 			parser := hhcl.NewParser()
 			modules, err := parser.ParseModules(path)

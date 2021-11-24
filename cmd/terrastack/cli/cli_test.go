@@ -45,6 +45,7 @@ source = "%s"
 
 	git := s.Git()
 	git.CommitAll("first commit")
+	git.Push("main")
 
 	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), runResult{})
 
@@ -77,6 +78,7 @@ func TestListAndRunChangedStack(t *testing.T) {
 
 	git := s.Git()
 	git.CommitAll("first commit")
+	git.Push("main")
 
 	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), runResult{})
 
@@ -105,6 +107,40 @@ func TestListAndRunChangedStack(t *testing.T) {
 		cat,
 		mainTfFileName,
 	), runResult{Stdout: wantRun})
+}
+
+func TestDefaultBaseRef(t *testing.T) {
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack-1")
+	stackFile := stack.CreateFile("main.tf", "# no code")
+
+	cli := newCLI(t)
+	assertRun(t, cli.run("init", stack.Path()), runResult{})
+
+	git := s.Git()
+	git.Add(".")
+	git.Commit("all")
+	git.Push("main")
+
+	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), runResult{})
+
+	git.CheckoutNew("change-the-stack")
+
+	stackFile.Write("# changed")
+	git.Add(stack.Path())
+	git.Commit("stack changed")
+
+	want := runResult{
+		Stdout: stack.Path() + "\n",
+	}
+	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), want)
+
+	git.Checkout("main")
+	git.Merge("change-the-stack")
+	git.Push("main")
+
+	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), runResult{})
 }
 
 func TestNoArgsProvidesBasicHelp(t *testing.T) {

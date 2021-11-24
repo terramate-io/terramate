@@ -13,6 +13,10 @@ import (
 func TempDir(t *testing.T, base string) string {
 	t.Helper()
 
+	if base == "" {
+		t.Fatalf("use t.TempDir() for temporary directories inside tmp")
+	}
+
 	dir, err := ioutil.TempDir(base, "terrastack-test")
 	assert.NoError(t, err, "creating temp directory")
 	return dir
@@ -24,13 +28,20 @@ func WriteFile(t *testing.T, dir string, filename string, content string) string
 	t.Helper()
 
 	if dir == "" {
-		dir = TempDir(t, "")
+		dir = t.TempDir()
 	}
 
 	path := filepath.Join(dir, filename)
 	err := ioutil.WriteFile(path, []byte(content), 0700)
 	assert.NoError(t, err, "writing test file %s", path)
 
+	return path
+}
+
+// Mkdir creates a directory inside base.
+func Mkdir(t *testing.T, base string, name string) string {
+	path := filepath.Join(base, name)
+	assert.NoError(t, os.Mkdir(path, 0700), "creating dir")
 	return path
 }
 
@@ -52,7 +63,7 @@ func RemoveAll(t *testing.T, path string) {
 func NonExistingDir(t *testing.T) string {
 	t.Helper()
 
-	tmp := TempDir(t, "")
+	tmp := t.TempDir()
 	tmp2 := TempDir(t, tmp)
 
 	RemoveAll(t, tmp)
