@@ -131,7 +131,6 @@ func TestFetchRemoteRev(t *testing.T) {
 	)
 
 	repodir := mkOneCommitRepo(t)
-
 	git := test.NewGitWrapper(t, repodir, false)
 
 	remoteDir := test.EmptyRepo(t, true)

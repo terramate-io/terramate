@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terrastack/git"
 	"github.com/mineiros-io/terrastack/hcl"
 	"github.com/mineiros-io/terrastack/hcl/hhcl"
@@ -27,6 +28,10 @@ type (
 		Dir    string
 		Reason string // Reason why this entry was returned.
 	}
+)
+
+const (
+	ErrOutdatedLocalRev errutil.Error = "outdated local revision"
 )
 
 // NewManager creates a new stack manager. The basedir is the base directory
@@ -78,6 +83,10 @@ func (m *Manager) List() ([]Entry, error) {
 // It's an error to call this method in a directory that's not
 // inside a repository or a repository with no commits in it.
 func (m *Manager) ListChanged() ([]Entry, error) {
+	if err := m.checkLocalDefaultIsUpdated(); err != nil {
+		return nil, errutil.Chain(ErrOutdatedLocalRev, err)
+	}
+
 	stackSet := map[string]Entry{}
 	files, err := listChangedFiles(m.basedir, m.gitBaseRef)
 	if err != nil {
@@ -146,6 +155,22 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 	sort.Sort(EntrySlice(changedStacks))
 
 	return changedStacks, nil
+}
+
+func (m *Manager) checkLocalDefaultIsUpdated() error {
+	// TODO(katcipis): extract git creation + repo check ?
+	g, err := git.WithConfig(git.Config{
+		WorkingDir: m.basedir,
+	})
+	if err != nil {
+		return fmt.Errorf("creating git on dir %q: %v", m.basedir, err)
+	}
+
+	if !g.IsRepository() {
+		return fmt.Errorf("dir %q is not a git repository", m.basedir)
+	}
+	// TODO: method is not done =P
+	return nil
 }
 
 func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) error {
