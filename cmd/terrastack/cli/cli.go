@@ -171,7 +171,7 @@ func (c *cli) initStack(basedir string, dirs []string) error {
 	return nil
 }
 
-func (c *cli) listStacks(mgr *terrastack.Manager, isChanged bool, basedir string) ([]terrastack.Entry, error) {
+func (c *cli) listStacks(mgr *terrastack.Manager, isChanged bool) ([]terrastack.Entry, error) {
 	var (
 		err    error
 		stacks []terrastack.Entry
@@ -188,7 +188,7 @@ func (c *cli) listStacks(mgr *terrastack.Manager, isChanged bool, basedir string
 
 func (c *cli) printStacks(basedir string, cwd string) error {
 	mgr := terrastack.NewManager(basedir, c.parsedArgs.GitChangeBase)
-	stacks, err := c.listStacks(mgr, c.parsedArgs.List.Changed, basedir)
+	stacks, err := c.listStacks(mgr, c.parsedArgs.List.Changed)
 	if err != nil {
 		return fmt.Errorf("can't list stacks: %v", err)
 	}
@@ -216,7 +216,7 @@ func (c *cli) runOnStacks(basedir string) error {
 	}
 
 	mgr := terrastack.NewManager(basedir, c.parsedArgs.GitChangeBase)
-	stacks, err := c.listStacks(mgr, c.parsedArgs.Run.Changed, basedir)
+	stacks, err := c.listStacks(mgr, c.parsedArgs.Run.Changed)
 	if err != nil {
 		return fmt.Errorf("can't list stacks: %v", err)
 	}
