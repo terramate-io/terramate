@@ -65,10 +65,19 @@ type cli struct {
 	stdin      io.Reader
 	stdout     io.Writer
 	stderr     io.Writer
+	exit       bool
 }
 
 func newCLI(args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) (*cli, error) {
+	if len(args) == 0 {
+		// WHY: avoid default kong error, print help
+		args = []string{"--help"}
+	}
+
 	parsedArgs := cliSpec{}
+	kongExit := false
+	kongExitStatus := 0
+
 	parser, err := kong.New(&parsedArgs,
 		kong.Name("terrastack"),
 		kong.Description("A tool for managing terraform stacks"),
@@ -76,12 +85,23 @@ func newCLI(args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) 
 		kong.ConfigureHelp(kong.HelpOptions{
 			Compact: true,
 		}),
+		kong.Exit(func(status int) {
+			// Avoid kong aborting entire process since we designed CLI as lib
+			kongExit = true
+			kongExitStatus = status
+		}),
 		kong.Writers(stdout, stderr))
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cli parser: %v", err)
 	}
 
 	ctx, err := parser.Parse(args)
+
+	if kongExit && kongExitStatus == 0 {
+		return &cli{exit: true}, nil
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse cli args %v: %v", args, err)
 	}
@@ -96,6 +116,10 @@ func newCLI(args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) 
 }
 
 func (c *cli) run() error {
+	if c.exit {
+		// WHY: parser called exit but with no error (like help)
+		return nil
+	}
 	wd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("cli.run(): failed to get process working dir: %v", err)

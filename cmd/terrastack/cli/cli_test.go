@@ -143,6 +143,13 @@ func TestDefaultBaseRef(t *testing.T) {
 	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), runResult{})
 }
 
+func TestNoArgsProvidesBasicHelp(t *testing.T) {
+	cli := newCLI(t)
+	cli.run("--help")
+	help := cli.run("--help")
+	assertRun(t, cli.run(), runResult{Stdout: help.Stdout})
+}
+
 type runResult struct {
 	Cmd    string
 	Stdout string
