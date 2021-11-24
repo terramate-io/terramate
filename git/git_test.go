@@ -160,6 +160,17 @@ func TestFetchRemoteRev(t *testing.T) {
 
 }
 
+func TestFetchRemoteRevErrorHandling(t *testing.T) {
+	repodir := test.NewRepo(t)
+	git := test.NewGitWrapper(t, repodir, false)
+
+	res, err := git.FetchRemoteRev("origin", "stonks")
+	assert.Error(t, err, "should fail with wrong branch, got: %v", res)
+
+	res, err = git.FetchRemoteRev("stonks", "main")
+	assert.Error(t, err, "should fail with wrong remote, got: %v", res)
+}
+
 func mkOneCommitRepo(t *testing.T) string {
 	repodir := test.EmptyRepo(t, false)
 

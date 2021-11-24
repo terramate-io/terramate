@@ -322,12 +322,21 @@ func (git *Git) RevParse(rev string) (string, error) {
 // for the given remote/revision name. This will make use of the network
 // to fetch data from the remote configured on the git repo.
 func (git *Git) FetchRemoteRev(remote, rev string) (Ref, error) {
-	// TODO(katcipis): add test for error handling
-	output, _ := git.exec("ls-remote", remote, rev)
+	output, err := git.exec("ls-remote", remote, rev)
+	if err != nil {
+		return Ref{}, fmt.Errorf(
+			"Git.FetchRemoteRev: git ls-remote %q %q failed: %v",
+			remote,
+			rev,
+			err,
+		)
+	}
 	parsed := strings.Split(output, "\t")
 	if len(parsed) != 2 {
 		return Ref{}, fmt.Errorf(
-			"unexpected result from git ls-remote: %q",
+			"Git.FetchRemoteRev: git ls-remote %q %q unknown output: %v",
+			remote,
+			rev,
 			output,
 		)
 	}
