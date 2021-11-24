@@ -14,7 +14,7 @@ const ConfigFilename = "terrastack"
 // stack unless they are of same versions. In case the stack is initialized with
 // other terrastack version, the force flag can be used to explicitly initialize
 // it anyway.
-func (m *Manager) Init(dir string, force bool) error {
+func Init(dir string, force bool) error {
 	st, err := os.Stat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {

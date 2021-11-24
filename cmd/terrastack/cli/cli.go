@@ -156,9 +156,8 @@ func (c *cli) run() error {
 
 func (c *cli) initStack(basedir string, dirs []string) error {
 	var nErrors int
-	mgr := terrastack.NewManager(basedir, c.parsedArgs.GitChangeBase)
 	for _, d := range dirs {
-		err := mgr.Init(d, c.parsedArgs.Init.Force)
+		err := terrastack.Init(d, c.parsedArgs.Init.Force)
 		if err != nil {
 			c.logerr("warn: failed to initialize stack: %v", err)
 			nErrors++
