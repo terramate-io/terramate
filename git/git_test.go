@@ -124,6 +124,42 @@ func TestRevParse(t *testing.T) {
 	assert.EqualStrings(t, CookedCommitID, out, "commit mismatch")
 }
 
+func TestFetchRemoteRev(t *testing.T) {
+	const (
+		remote   = "origin"
+		revision = "main"
+	)
+
+	repodir := test.NewRepo(t)
+
+	git := test.NewGitWrapper(t, repodir, false)
+	originMainRev := remote + "/" + revision
+	commitID, err := git.RevParse(originMainRev)
+	assert.NoError(t, err, "git.RevParse(%q)", originMainRev)
+
+	remoteRef, err := git.FetchRemoteRev(remote, revision)
+	assert.NoError(t, err, "git.FetchRemoteRev(%q, %q)", remote, revision)
+
+	assert.EqualStrings(
+		t,
+		commitID,
+		remoteRef.CommitID,
+		"%q remote rev doesn't match local",
+		originMainRev,
+	)
+
+	const wantRefName = "refs/heads/main"
+
+	assert.EqualStrings(
+		t,
+		wantRefName,
+		remoteRef.Name,
+		"%q remote ref name doesn't match local",
+		originMainRev,
+	)
+
+}
+
 func mkOneCommitRepo(t *testing.T) string {
 	repodir := test.EmptyRepo(t, false)
 

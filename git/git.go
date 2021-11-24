@@ -331,9 +331,9 @@ func (git *Git) FetchRemoteRev(remote, rev string) (Ref, error) {
 			output,
 		)
 	}
-	// TODO(katcipis): add test for ref name
 	return Ref{
 		CommitID: parsed[0],
+		Name:     parsed[1],
 	}, nil
 }
 
