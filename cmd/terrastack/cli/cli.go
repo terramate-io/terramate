@@ -128,9 +128,9 @@ func (c *cli) run() error {
 	case "version":
 		c.log(terrastack.Version())
 	case "init":
-		return c.initStack(wd, []string{wd})
+		return c.initStack([]string{wd})
 	case "init <paths>":
-		return c.initStack(wd, c.parsedArgs.Init.StackDirs)
+		return c.initStack(c.parsedArgs.Init.StackDirs)
 	case "list":
 		return c.printStacks(wd, wd)
 	case "list <path>":
@@ -154,7 +154,7 @@ func (c *cli) run() error {
 	return nil
 }
 
-func (c *cli) initStack(basedir string, dirs []string) error {
+func (c *cli) initStack(dirs []string) error {
 	var nErrors int
 	for _, d := range dirs {
 		err := terrastack.Init(d, c.parsedArgs.Init.Force)
