@@ -347,7 +347,7 @@ func singleChangedStacksRepo(t *testing.T) repository {
 
 // singleNotChangedStack returns a commited stack in main.
 func singleNotChangedStack(t *testing.T) repository {
-	repo := test.TestRepo(t)
+	repo := test.NewRepo(t)
 
 	g := test.NewGitWrapper(t, repo, false)
 

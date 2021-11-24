@@ -71,19 +71,19 @@ source = "%s"
 }
 
 func TestDefaultBaseRef(t *testing.T) {
-	te := sandbox.New(t)
+	s := sandbox.New(t)
 
-	stack := te.CreateStack("stack-1")
+	stack := s.CreateStack("stack-1")
 	stackFile := stack.CreateFile("main.tf", "# no code")
 
 	tsrun(t, "init", stack.Path())
 
-	git := te.Git()
+	git := s.Git()
 	git.Add(".")
 	git.Commit("all")
 	git.Push("main")
 
-	res := tsrun(t, "list", te.BaseDir(), "--changed")
+	res := tsrun(t, "list", s.BaseDir(), "--changed")
 
 	const noChangesOutput = ""
 	if res.Stdout != noChangesOutput {
@@ -97,7 +97,7 @@ func TestDefaultBaseRef(t *testing.T) {
 	git.Add(stack.Path())
 	git.Commit("stack changed")
 
-	res = tsrun(t, "list", te.BaseDir(), "--changed")
+	res = tsrun(t, "list", s.BaseDir(), "--changed")
 
 	changedStacks := stack.Path() + "\n"
 	if res.Stdout != changedStacks {
@@ -109,7 +109,7 @@ func TestDefaultBaseRef(t *testing.T) {
 	git.Merge("change-the-stack")
 	git.Push("main")
 
-	res = tsrun(t, "list", te.BaseDir(), "--changed")
+	res = tsrun(t, "list", s.BaseDir(), "--changed")
 	if res.Stdout != noChangesOutput {
 		t.Errorf("%q stdout=%q, wanted=%q", res.Cmd, res.Stdout, noChangesOutput)
 		t.Fatalf("%q stderr=%q", res.Cmd, res.Stderr)

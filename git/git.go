@@ -194,7 +194,6 @@ func (git *Git) Init(dir string, bare bool) error {
 	}
 
 	args = append(args, dir)
-
 	_, err := git.exec("init", args...)
 	if err != nil {
 		return err

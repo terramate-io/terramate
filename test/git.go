@@ -46,13 +46,13 @@ func EmptyRepo(t *testing.T, bare bool) string {
 	return repodir
 }
 
-// TestRepo creates and initializes a repository for terrastack use cases. It
+// NewRepo creates and initializes a repository for terrastack use cases. It
 // initializes two repositories, one for working and other bare for the
 // "remote". It sets up the working repository with a "origin" remote pointing
 // to the local "bare" repository and push a initial main commit onto
 // origin/main. The working git repository is returned and the other is
 // automatically cleaned up when the test function finishes.
-func TestRepo(t *testing.T) string {
+func NewRepo(t *testing.T) string {
 	t.Helper()
 
 	repoDir := EmptyRepo(t, false)
