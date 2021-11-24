@@ -46,7 +46,7 @@ source = "%s"
 	git := s.Git()
 	git.CommitAll("first commit")
 
-	cli.run("list", s.BaseDir(), "--changed").HasStdout("")
+	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), runResult{})
 
 	git.CheckoutNew("change-the-module-1")
 
@@ -55,7 +55,10 @@ source = "%s"
 	git.CommitAll("module 1 changed")
 
 	want := stack1.Path() + "\n"
-	cli.run("list", s.BaseDir(), "--changed").HasStdout(want)
+	assertRun(t, cli.run(
+		"list", s.BaseDir(), "--changed"),
+		runResult{Stdout: want},
+	)
 }
 
 func TestListAndRunChangedStack(t *testing.T) {
@@ -75,7 +78,7 @@ func TestListAndRunChangedStack(t *testing.T) {
 	git := s.Git()
 	git.CommitAll("first commit")
 
-	cli.run("list", s.BaseDir(), "--changed").HasStdout("")
+	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), runResult{})
 
 	git.CheckoutNew("change-stack")
 
@@ -83,7 +86,7 @@ func TestListAndRunChangedStack(t *testing.T) {
 	git.CommitAll("stack changed")
 
 	wantList := stack.Path() + "\n"
-	cli.run("list", s.BaseDir(), "--changed").HasStdout(wantList)
+	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), runResult{Stdout: wantList})
 
 	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
@@ -94,18 +97,17 @@ func TestListAndRunChangedStack(t *testing.T) {
 		mainTfContents,
 	)
 
-	cli.run(
+	assertRun(t, cli.run(
 		"run",
 		"--basedir",
 		s.BaseDir(),
 		"--changed",
 		cat,
 		mainTfFileName,
-	).HasStdout(wantRun)
+	), runResult{Stdout: wantRun})
 }
 
 type runResult struct {
-	t      *testing.T
 	Cmd    string
 	Stdout string
 	Stderr string
@@ -137,18 +139,20 @@ func (ts tscli) run(args ...string) runResult {
 	}
 
 	return runResult{
-		t:      ts.t,
 		Cmd:    strings.Join(args, " "),
 		Stdout: stdout.String(),
 		Stderr: stderr.String(),
 	}
 }
 
-func (res runResult) HasStdout(want string) {
-	res.t.Helper()
+func assertRun(t *testing.T, got runResult, want runResult) {
+	t.Helper()
 
-	if res.Stdout != want {
-		res.t.Errorf("%q stdout=%q, wanted=%q", res.Cmd, res.Stdout, want)
-		res.t.Fatalf("%q stderr=%q", res.Cmd, res.Stderr)
+	if got.Stdout != want.Stdout {
+		t.Errorf("%q stdout=%q, wanted=%q", got.Cmd, got.Stdout, want.Stdout)
+	}
+
+	if got.Stderr != want.Stderr {
+		t.Errorf("%q stderr=%q, wanted=%q", got.Cmd, got.Stderr, want.Stderr)
 	}
 }
