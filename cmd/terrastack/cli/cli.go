@@ -13,10 +13,12 @@ import (
 	"github.com/mineiros-io/terrastack"
 )
 
+const defaultBaseRef = "origin/main"
+
 type cliSpec struct {
 	Version struct{} `cmd:"" help:"Terrastack version."`
 
-	GitChangeBase string `short:"B" optional:"true" default:"origin/main" help:"git base ref for computing changes."`
+	GitChangeBase *string `short:"B" optional:"true" help:"git base ref for computing changes. (default: origin/main)"`
 
 	Init struct {
 		StackDirs []string `arg:"" name:"paths" optional:"true" help:"the stack directory (current directory if not set)."`
@@ -66,6 +68,8 @@ type cli struct {
 	stdout     io.Writer
 	stderr     io.Writer
 	exit       bool
+
+	mgr *terrastack.Manager
 }
 
 func newCLI(args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) (*cli, error) {
@@ -104,6 +108,11 @@ func newCLI(args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) 
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse cli args %v: %v", args, err)
+	}
+
+	baseRef := defaultBaseRef
+	if parsedArgs.GitChangeBase != nil {
+		baseRef = *parsedArgs.GitChangeBase
 	}
 
 	return &cli{
@@ -186,7 +195,7 @@ func (c *cli) listStacks(mgr *terrastack.Manager, isChanged bool) ([]terrastack.
 }
 
 func (c *cli) printStacks(basedir string, cwd string) error {
-	mgr := terrastack.NewManager(basedir, c.parsedArgs.GitChangeBase)
+	mgr := terrastack.NewManager(basedir, *c.parsedArgs.GitChangeBase)
 	stacks, err := c.listStacks(mgr, c.parsedArgs.List.Changed)
 	if err != nil {
 		return fmt.Errorf("can't list stacks: %v", err)
@@ -214,7 +223,7 @@ func (c *cli) runOnStacks(basedir string) error {
 		return fmt.Errorf("can't find absolute path for %q: %v", basedir, err)
 	}
 
-	mgr := terrastack.NewManager(basedir, c.parsedArgs.GitChangeBase)
+	mgr := terrastack.NewManager(basedir, *c.parsedArgs.GitChangeBase)
 	stacks, err := c.listStacks(mgr, c.parsedArgs.Run.Changed)
 	if err != nil {
 		return fmt.Errorf("can't list stacks: %v", err)
