@@ -19,14 +19,14 @@ func TestBug25(t *testing.T) {
 		mod2 = "2"
 	)
 
-	te := sandbox.New(t)
+	s := sandbox.New(t)
 
-	mod1MainTf := te.CreateModule(mod1).CreateFile("main.tf", "# module 1")
-	te.CreateModule(mod2).CreateFile("main.tf", "# module 2")
+	mod1MainTf := s.CreateModule(mod1).CreateFile("main.tf", "# module 1")
+	s.CreateModule(mod2).CreateFile("main.tf", "# module 2")
 
-	stack1 := te.CreateStack("stack-1")
-	stack2 := te.CreateStack("stack-2")
-	stack3 := te.CreateStack("stack-3")
+	stack1 := s.CreateStack("stack-1")
+	stack2 := s.CreateStack("stack-2")
+	stack3 := s.CreateStack("stack-3")
 
 	stack1.CreateFile("main.tf", `
 module "mod1" {
@@ -43,10 +43,10 @@ source = "%s"
 	cli := newCLI(t)
 	cli.run("init", stack1.Path(), stack2.Path(), stack3.Path())
 
-	git := te.Git()
+	git := s.Git()
 	git.CommitAll("first commit")
 
-	cli.run("list", te.BaseDir(), "--changed").HasStdout("")
+	cli.run("list", s.BaseDir(), "--changed").HasStdout("")
 
 	git.CheckoutNew("change-the-module-1")
 
@@ -55,7 +55,8 @@ source = "%s"
 	git.CommitAll("module 1 changed")
 
 	want := stack1.Path() + "\n"
-	cli.run("list", te.BaseDir(), "--changed").HasStdout(want)
+
+	cli.run("list", s.BaseDir(), "--changed").HasStdout(want)
 }
 
 func TestListAndRunChangedStack(t *testing.T) {
@@ -64,18 +65,18 @@ func TestListAndRunChangedStack(t *testing.T) {
 		mainTfContents = "# change is the eternal truth of the universe"
 	)
 
-	te := sandbox.New(t)
+	s := sandbox.New(t)
 
-	stack := te.CreateStack("stack")
+	stack := s.CreateStack("stack")
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
 
 	cli := newCLI(t)
 	cli.run("init", stack.Path())
 
-	git := te.Git()
+	git := s.Git()
 	git.CommitAll("first commit")
 
-	cli.run("list", te.BaseDir(), "--changed").HasStdout("")
+	cli.run("list", s.BaseDir(), "--changed").HasStdout("")
 
 	git.CheckoutNew("change-stack")
 
@@ -83,16 +84,21 @@ func TestListAndRunChangedStack(t *testing.T) {
 	git.CommitAll("stack changed")
 
 	wantList := stack.Path() + "\n"
-	cli.run("list", te.BaseDir(), "--changed").HasStdout(wantList)
+	cli.run("list", s.BaseDir(), "--changed").HasStdout(wantList)
 
 	cat := test.LookPath(t, "cat")
-	wantRun := fmt.Sprintf(`Running on changed stacks:
-[%s] running %s %s
-# change is the eternal truth of the universe`, stack.Path(), cat, mainTfFileName)
+	wantRun := fmt.Sprintf(
+		"Running on changed stacks:\n[%s] running %s %s\n%s",
+		stack.Path(),
+		cat,
+		mainTfFileName,
+		mainTfContents,
+	)
+
 	cli.run(
 		"run",
 		"--basedir",
-		te.BaseDir(),
+		s.BaseDir(),
 		"--changed",
 		cat,
 		mainTfFileName,
