@@ -7,10 +7,26 @@ import (
 	"github.com/mineiros-io/terrastack/test"
 )
 
-func TestRepo(t *testing.T) {
+func TestRepoIsSetupWithSyncRemoteOriginMain(t *testing.T) {
+	const (
+		remote   = "origin"
+		revision = "main"
+	)
 	repodir := test.NewRepo(t)
 
-	gw := test.NewGitWrapper(t, repodir, false)
-	_, err := gw.RevParse("origin/main")
-	assert.NoError(t, err, "new repo must resolve origin/main")
+	git := test.NewGitWrapper(t, repodir, false)
+	originMainRev := remote + "/" + revision
+	commitID, err := git.RevParse(originMainRev)
+	assert.NoError(t, err, "git.RevParse(%q)", originMainRev)
+
+	remoteRef, err := git.FetchRemoteRev(remote, revision)
+	assert.NoError(t, err, "git.FetchRemoteRev(%q, %q)", remote, revision)
+
+	assert.EqualStrings(
+		t,
+		commitID,
+		remoteRef.CommitID,
+		"%q remote rev doesn't match local",
+		originMainRev,
+	)
 }

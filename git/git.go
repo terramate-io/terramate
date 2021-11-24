@@ -41,6 +41,12 @@ type (
 		config Config
 	}
 
+	// Ref is a git reference.
+	Ref struct {
+		Name     string
+		CommitID string
+	}
+
 	// LogLine is a log summary.
 	LogLine struct {
 		CommitID string
@@ -310,6 +316,25 @@ func (git *Git) Commit(msg string, args ...string) error {
 // documentation.
 func (git *Git) RevParse(rev string) (string, error) {
 	return git.exec("rev-parse", rev)
+}
+
+// FetchRemoteRev will fetch from the remote repo the commit id and ref name
+// for the given remote/revision name. This will make use of the network
+// to fetch data from the remote configured on the git repo.
+func (git *Git) FetchRemoteRev(remote, rev string) (Ref, error) {
+	// TODO(katcipis): add test for error handling
+	output, _ := git.exec("ls-remote", remote, rev)
+	parsed := strings.Split(output, "\t")
+	if len(parsed) != 2 {
+		return Ref{}, fmt.Errorf(
+			"unexpected result from git ls-remote: %q",
+			output,
+		)
+	}
+	// TODO(katcipis): add test for ref name
+	return Ref{
+		CommitID: parsed[0],
+	}, nil
 }
 
 // MergeBase finds the common commit ancestor of commit1 and commit2.
