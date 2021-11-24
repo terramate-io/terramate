@@ -221,8 +221,27 @@ func (git Git) Commit(msg string, args ...string) {
 	}
 }
 
-// Checkout will checkout a branch
-func (git Git) Checkout(rev string, create bool) {
+// CommitAll will add all changed files and commit all of them
+func (git Git) CommitAll(msg string) {
+	git.t.Helper()
+
+	git.Add(".")
+	git.Commit(msg)
+}
+
+// Checkout will checkout a pre-existing revision
+func (git Git) Checkout(rev string) {
+	git.t.Helper()
+	git.checkout(rev, false)
+}
+
+// CheckoutNew will checkout a new revision (creating it on the process)
+func (git Git) CheckoutNew(rev string) {
+	git.t.Helper()
+	git.checkout(rev, true)
+}
+
+func (git Git) checkout(rev string, create bool) {
 	git.t.Helper()
 
 	if err := git.g.Checkout(rev, create); err != nil {
