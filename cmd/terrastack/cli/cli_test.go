@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mineiros-io/terrastack"
 	"github.com/mineiros-io/terrastack/cmd/terrastack/cli"
 	"github.com/mineiros-io/terrastack/test"
 	"github.com/mineiros-io/terrastack/test/sandbox"
@@ -158,9 +157,11 @@ func TestFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
 	git.Add(".")
 	git.Commit("all")
 
-	wantRes := runResult{Error: terrastack.ErrOutdatedLocalRev}
+	// TODO(katcipis): check list --changed
 
-	assertRun(t, ts.run("list", s.BaseDir(), "--changed"), wantRes)
+	//wantRes := runResult{Error: terrastack.ErrOutdatedLocalRev}
+
+	//assertRun(t, ts.run("list", s.BaseDir(), "--changed"), wantRes)
 
 	// TODO(katcipis): also check for run --changed
 
