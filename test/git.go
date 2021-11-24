@@ -70,8 +70,5 @@ func NewRepo(t *testing.T) string {
 	err = gw.Push("origin", "main")
 	assert.NoError(t, err, "git push origin main")
 
-	_, err = gw.RevParse("origin/main")
-	assert.NoError(t, err, "git rev-parse origin/main")
-
 	return repoDir
 }
