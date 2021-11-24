@@ -130,22 +130,25 @@ func TestFetchRemoteRev(t *testing.T) {
 		revision = "main"
 	)
 
-	repodir := test.NewRepo(t)
+	repodir := mkOneCommitRepo(t)
 
 	git := test.NewGitWrapper(t, repodir, false)
-	originMainRev := remote + "/" + revision
-	commitID, err := git.RevParse(originMainRev)
-	assert.NoError(t, err, "git.RevParse(%q)", originMainRev)
+
+	remoteDir := test.EmptyRepo(t, true)
+	err := git.RemoteAdd("origin", remoteDir)
+	assert.NoError(t, err)
+
+	err = git.Push("origin", "main")
+	assert.NoError(t, err)
 
 	remoteRef, err := git.FetchRemoteRev(remote, revision)
 	assert.NoError(t, err, "git.FetchRemoteRev(%q, %q)", remote, revision)
 
 	assert.EqualStrings(
 		t,
-		commitID,
+		CookedCommitID,
 		remoteRef.CommitID,
-		"%q remote rev doesn't match local",
-		originMainRev,
+		"remote reference ID doesn't match cooked commit ID",
 	)
 
 	const wantRefName = "refs/heads/main"
@@ -154,21 +157,16 @@ func TestFetchRemoteRev(t *testing.T) {
 		t,
 		wantRefName,
 		remoteRef.Name,
-		"%q remote ref name doesn't match local",
-		originMainRev,
+		"remote ref name doesn't match local",
 	)
 
 }
 
 func TestFetchRemoteRevErrorHandling(t *testing.T) {
-	repodir := test.NewRepo(t)
+	repodir := mkOneCommitRepo(t)
 	git := test.NewGitWrapper(t, repodir, false)
-
-	res, err := git.FetchRemoteRev("origin", "stonks")
-	assert.Error(t, err, "should fail with wrong branch, got: %v", res)
-
-	res, err = git.FetchRemoteRev("stonks", "main")
-	assert.Error(t, err, "should fail with wrong remote, got: %v", res)
+	remoteRef, err := git.FetchRemoteRev("origin", "main")
+	assert.Error(t, err, "unexpected result: %v", remoteRef)
 }
 
 func mkOneCommitRepo(t *testing.T) string {

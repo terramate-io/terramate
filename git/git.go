@@ -325,7 +325,7 @@ func (git *Git) FetchRemoteRev(remote, rev string) (Ref, error) {
 	output, err := git.exec("ls-remote", remote, rev)
 	if err != nil {
 		return Ref{}, fmt.Errorf(
-			"Git.FetchRemoteRev: git ls-remote %q %q failed: %v",
+			"Git.FetchRemoteRev: git ls-remote %q %q: %v",
 			remote,
 			rev,
 			err,
@@ -334,7 +334,7 @@ func (git *Git) FetchRemoteRev(remote, rev string) (Ref, error) {
 	parsed := strings.Split(output, "\t")
 	if len(parsed) != 2 {
 		return Ref{}, fmt.Errorf(
-			"Git.FetchRemoteRev: git ls-remote %q %q unknown output: %v",
+			"Git.FetchRemoteRev: git ls-remote %q %q can't parse: %v",
 			remote,
 			rev,
 			output,
