@@ -103,6 +103,50 @@ func TestListAndRunChangedStack(t *testing.T) {
 	), runResult{Stdout: wantRun})
 }
 
+func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
+	const (
+		mainTfFileName = "main.tf"
+		mainTfContents = "# change is the eternal truth of the universe"
+	)
+
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack")
+	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
+
+	cli := newCLI(t, t.TempDir())
+	cli.run("init", stack.Path())
+
+	git := s.Git()
+	git.CommitAll("first commit")
+	git.Push("main")
+	git.CheckoutNew("change-stack")
+
+	stackMainTf.Write(mainTfContents)
+	git.CommitAll("stack changed")
+
+	wantList := stack.Path() + "\n"
+	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), runResult{Stdout: wantList})
+
+	cat := test.LookPath(t, "cat")
+	wantRun := fmt.Sprintf(
+		"Running on changed stacks:\n[%s] running %s %s\n%s",
+		stack.Path(),
+		cat,
+		mainTfFileName,
+		mainTfContents,
+	)
+
+	assertRun(t, cli.run(
+		"run",
+		"--basedir",
+		s.BaseDir(),
+		"--changed",
+		cat,
+		mainTfFileName,
+	), runResult{Stdout: wantRun})
+}
+
 func TestDefaultBaseRefInOtherThanMain(t *testing.T) {
 	s := sandbox.New(t)
 
@@ -169,7 +213,7 @@ func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
 	}
 	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), want)
 	assertRun(t, cli.run(
-		"list", s.BaseDir(), "--changed","--git-change-base", "origin/main", 
+		"list", s.BaseDir(), "--changed", "--git-change-base", "origin/main",
 	), runResult{})
 }
 
