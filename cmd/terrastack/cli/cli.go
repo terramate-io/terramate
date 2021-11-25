@@ -11,6 +11,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/mineiros-io/terrastack"
+	"github.com/mineiros-io/terrastack/git"
 )
 
 const defaultBaseRef = "origin/main"
@@ -18,7 +19,7 @@ const defaultBaseRef = "origin/main"
 type cliSpec struct {
 	Version struct{} `cmd:"" help:"Terrastack version."`
 
-	GitChangeBase *string `short:"B" optional:"true" help:"git base ref for computing changes. (default: origin/main)"`
+	GitChangeBase string `short:"B" default:"${baseRef}" optional:"true" help:"git base ref for computing changes."`
 
 	Init struct {
 		StackDirs []string `arg:"" name:"paths" optional:"true" help:"the stack directory (current directory if not set)."`
@@ -39,7 +40,8 @@ type cliSpec struct {
 	} `cmd:"" help:"Run command in the stacks."`
 }
 
-// Run will run terrastack with the provided flags defined on args.
+// Run will run terrastack with the provided flags defined on args from the
+// directory wd.
 // Only flags should be on the args slice.
 
 // Results will be written on stdout, according to the
@@ -53,8 +55,8 @@ type cliSpec struct {
 // as far as the parameters are not shared between the Run calls.
 //
 // If a critical error is found an non-nil error is returned.
-func Run(args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
-	c, err := newCLI(args, stdin, stdout, stderr)
+func Run(wd string, args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
+	c, err := newCLI(wd, args, stdin, stdout, stderr)
 	if err != nil {
 		return err
 	}
@@ -68,11 +70,11 @@ type cli struct {
 	stdout     io.Writer
 	stderr     io.Writer
 	exit       bool
-
-	mgr *terrastack.Manager
+	wd         string
+	baseRef    string
 }
 
-func newCLI(args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) (*cli, error) {
+func newCLI(wd string, args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) (*cli, error) {
 	if len(args) == 0 {
 		// WHY: avoid default kong error, print help
 		args = []string{"--help"}
@@ -81,6 +83,25 @@ func newCLI(args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) 
 	parsedArgs := cliSpec{}
 	kongExit := false
 	kongExitStatus := 0
+
+	gw, err := git.WithConfig(git.Config{
+		WorkingDir: wd,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	baseRef := defaultBaseRef
+	if gw.IsRepository() {
+		branch, err := gw.CurrentBranch()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get current git branch: %v", err)
+		}
+
+		if branch == "main" {
+			baseRef = "HEAD^1"
+		}
+	}
 
 	parser, err := kong.New(&parsedArgs,
 		kong.Name("terrastack"),
@@ -94,7 +115,11 @@ func newCLI(args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) 
 			kongExit = true
 			kongExitStatus = status
 		}),
-		kong.Writers(stdout, stderr))
+		kong.Writers(stdout, stderr),
+		kong.Vars{
+			"baseRef": baseRef,
+		},
+	)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cli parser: %v", err)
@@ -110,17 +135,14 @@ func newCLI(args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) 
 		return nil, fmt.Errorf("failed to parse cli args %v: %v", args, err)
 	}
 
-	baseRef := defaultBaseRef
-	if parsedArgs.GitChangeBase != nil {
-		baseRef = *parsedArgs.GitChangeBase
-	}
-
 	return &cli{
 		stdin:      stdin,
 		stdout:     stdout,
 		stderr:     stderr,
 		parsedArgs: &parsedArgs,
 		ctx:        ctx,
+		baseRef:    parsedArgs.GitChangeBase,
+		wd:         wd,
 	}, nil
 }
 
@@ -129,28 +151,25 @@ func (c *cli) run() error {
 		// WHY: parser called exit but with no error (like help)
 		return nil
 	}
-	wd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("cli.run(): failed to get process working dir: %v", err)
-	}
+
 	switch c.ctx.Command() {
 	case "version":
 		c.log(terrastack.Version())
 	case "init":
-		return c.initStack(wd, []string{wd})
+		return c.initStack([]string{c.wd})
 	case "init <paths>":
-		return c.initStack(wd, c.parsedArgs.Init.StackDirs)
+		return c.initStack(c.parsedArgs.Init.StackDirs)
 	case "list":
-		return c.printStacks(wd, wd)
+		return c.printStacks(c.wd)
 	case "list <path>":
-		return c.printStacks(c.parsedArgs.List.BaseDir, wd)
+		return c.printStacks(c.parsedArgs.List.BaseDir)
 	case "run":
 		if len(c.parsedArgs.Run.Command) == 0 {
 			return errors.New("no command specified")
 		}
 		fallthrough
 	case "run <cmd>":
-		basedir := wd
+		basedir := c.wd
 		if c.parsedArgs.Run.Basedir != "" {
 			basedir = strings.TrimSuffix(c.parsedArgs.Run.Basedir, "/")
 		}
@@ -163,7 +182,7 @@ func (c *cli) run() error {
 	return nil
 }
 
-func (c *cli) initStack(basedir string, dirs []string) error {
+func (c *cli) initStack(dirs []string) error {
 	var nErrors int
 	for _, d := range dirs {
 		err := terrastack.Init(d, c.parsedArgs.Init.Force)
@@ -194,17 +213,16 @@ func (c *cli) listStacks(mgr *terrastack.Manager, isChanged bool) ([]terrastack.
 	return stacks, err
 }
 
-func (c *cli) printStacks(basedir string, cwd string) error {
-	mgr := terrastack.NewManager(basedir, *c.parsedArgs.GitChangeBase)
+func (c *cli) printStacks(basedir string) error {
+	mgr := terrastack.NewManager(basedir, c.baseRef)
 	stacks, err := c.listStacks(mgr, c.parsedArgs.List.Changed)
 	if err != nil {
 		return fmt.Errorf("can't list stacks: %v", err)
 	}
 
-	cwd = cwd + string(os.PathSeparator)
-
+	trimPart := c.wd + string(os.PathSeparator)
 	for _, stack := range stacks {
-		stackdir := strings.TrimPrefix(stack.Dir, cwd)
+		stackdir := strings.TrimPrefix(stack.Dir, trimPart)
 
 		if c.parsedArgs.List.Why {
 			c.log("%s - %s", stackdir, stack.Reason)
@@ -223,7 +241,7 @@ func (c *cli) runOnStacks(basedir string) error {
 		return fmt.Errorf("can't find absolute path for %q: %v", basedir, err)
 	}
 
-	mgr := terrastack.NewManager(basedir, *c.parsedArgs.GitChangeBase)
+	mgr := terrastack.NewManager(basedir, c.baseRef)
 	stacks, err := c.listStacks(mgr, c.parsedArgs.Run.Changed)
 	if err != nil {
 		return fmt.Errorf("can't list stacks: %v", err)
@@ -239,7 +257,6 @@ func (c *cli) runOnStacks(basedir string) error {
 	args := c.parsedArgs.Run.Command[1:]
 
 	for _, stack := range stacks {
-
 		cmd := exec.Command(cmdName, args...)
 		cmd.Dir = stack.Dir
 		cmd.Stdin = c.stdin

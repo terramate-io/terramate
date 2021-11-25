@@ -327,6 +327,11 @@ func (git *Git) Status() (string, error) {
 	return git.exec("status")
 }
 
+// CurrentBranch returns the branch that HEAD points to.
+func (git *Git) CurrentBranch() (string, error) {
+	return git.exec("symbolic-ref", "--short", "HEAD")
+}
+
 // DiffTree compares the from and to commit ids and returns the differences. If
 // nameOnly is set then only the file names of changed files are show. If
 // recurse is set, then it walks into child trees as well. If

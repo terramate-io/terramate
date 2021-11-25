@@ -40,22 +40,19 @@ source = "%s"
 
 	stack3.CreateFile("main.tf", "# no module")
 
-	cli := newCLI(t)
+	cli := newCLI(t, s.BaseDir())
 	cli.run("init", stack1.Path(), stack2.Path(), stack3.Path())
 
 	git := s.Git()
 	git.CommitAll("first commit")
 	git.Push("main")
-
-	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), runResult{})
-
 	git.CheckoutNew("change-the-module-1")
 
 	mod1MainTf.Write("# changed")
 
 	git.CommitAll("module 1 changed")
 
-	want := stack1.Path() + "\n"
+	want := stack1.RelPath() + "\n"
 	assertRun(t, cli.run(
 		"list", s.BaseDir(), "--changed"),
 		runResult{Stdout: want},
@@ -73,21 +70,18 @@ func TestListAndRunChangedStack(t *testing.T) {
 	stack := s.CreateStack("stack")
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
 
-	cli := newCLI(t)
+	cli := newCLI(t, s.BaseDir())
 	cli.run("init", stack.Path())
 
 	git := s.Git()
 	git.CommitAll("first commit")
 	git.Push("main")
-
-	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), runResult{})
-
 	git.CheckoutNew("change-stack")
 
 	stackMainTf.Write(mainTfContents)
 	git.CommitAll("stack changed")
 
-	wantList := stack.Path() + "\n"
+	wantList := stack.RelPath() + "\n"
 	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), runResult{Stdout: wantList})
 
 	cat := test.LookPath(t, "cat")
@@ -109,22 +103,19 @@ func TestListAndRunChangedStack(t *testing.T) {
 	), runResult{Stdout: wantRun})
 }
 
-func TestDefaultBaseRef(t *testing.T) {
+func TestDefaultBaseRefInOtherThanMain(t *testing.T) {
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack-1")
 	stackFile := stack.CreateFile("main.tf", "# no code")
 
-	cli := newCLI(t)
+	cli := newCLI(t, s.BaseDir())
 	assertRun(t, cli.run("init", stack.Path()), runResult{})
 
 	git := s.Git()
 	git.Add(".")
 	git.Commit("all")
 	git.Push("main")
-
-	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), runResult{})
-
 	git.CheckoutNew("change-the-stack")
 
 	stackFile.Write("# changed")
@@ -132,19 +123,58 @@ func TestDefaultBaseRef(t *testing.T) {
 	git.Commit("stack changed")
 
 	want := runResult{
-		Stdout: stack.Path() + "\n",
+		Stdout: stack.RelPath() + "\n",
 	}
 	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), want)
+}
 
-	git.Checkout("main")
-	git.Merge("change-the-stack")
+func TestDefaultBaseRefInMain(t *testing.T) {
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack-1")
+	stack.CreateFile("main.tf", "# no code")
+
+	cli := newCLI(t, s.BaseDir())
+	assertRun(t, cli.run("init", stack.Path()), runResult{})
+
+	git := s.Git()
+	git.Add(".")
+	git.Commit("all")
 	git.Push("main")
 
-	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), runResult{})
+	// main uses HEAD^1 as default baseRef.
+
+	want := runResult{
+		Stdout: stack.RelPath() + "\n",
+	}
+	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), want)
+}
+
+func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack-1")
+	stack.CreateFile("main.tf", "# no code")
+
+	cli := newCLI(t, s.BaseDir())
+	assertRun(t, cli.run("init", stack.Path()), runResult{})
+
+	git := s.Git()
+	git.Add(".")
+	git.Commit("all")
+	git.Push("main")
+
+	want := runResult{
+		Stdout: stack.RelPath() + "\n",
+	}
+	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), want)
+	assertRun(t, cli.run(
+		"--git-change-base", "origin/main", "list", s.BaseDir(), "--changed",
+	), runResult{})
 }
 
 func TestNoArgsProvidesBasicHelp(t *testing.T) {
-	cli := newCLI(t)
+	cli := newCLI(t, t.TempDir())
 	cli.run("--help")
 	help := cli.run("--help")
 	assertRun(t, cli.run(), runResult{Stdout: help.Stdout})
@@ -157,11 +187,15 @@ type runResult struct {
 }
 
 type tscli struct {
-	t *testing.T
+	t  *testing.T
+	wd string
 }
 
-func newCLI(t *testing.T) tscli {
-	return tscli{t: t}
+func newCLI(t *testing.T, wd string) tscli {
+	return tscli{
+		t:  t,
+		wd: wd,
+	}
 }
 
 func (ts tscli) run(args ...string) runResult {
@@ -171,7 +205,7 @@ func (ts tscli) run(args ...string) runResult {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 
-	if err := cli.Run(args, stdin, stdout, stderr); err != nil {
+	if err := cli.Run(ts.wd, args, stdin, stdout, stderr); err != nil {
 		ts.t.Fatalf(
 			"cli.Run(args=%v) error=%q stdout=%q stderr=%q",
 			args,
