@@ -15,7 +15,7 @@ const ConfigFilename = "terrastack"
 // other terrastack version, the force flag can be used to explicitly initialize
 // it anyway. The dir must be an absolute path.
 func Init(dir string, force bool) error {
-	if len(dir) > 0 && dir[0] != '/' {
+	if !filepath.IsAbs(dir) {
 		// TODO(i4k): this needs to go away soon.
 		return fmt.Errorf("init requires an absolute path")
 	}
