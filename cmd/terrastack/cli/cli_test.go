@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mineiros-io/terrastack"
 	"github.com/mineiros-io/terrastack/cmd/terrastack/cli"
 	"github.com/mineiros-io/terrastack/test"
 	"github.com/mineiros-io/terrastack/test/sandbox"
@@ -162,7 +161,10 @@ func TestFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
 	git.Add(".")
 	git.Commit("all")
 
-	wantRes := runResult{Error: terrastack.ErrOutdatedLocalRev}
+	wantRes := runResult{
+		Error:        cli.ErrOutdatedLocalRev,
+		IgnoreStdout: true,
+	}
 
 	assertRunResult(t, ts.run("list", s.BaseDir(), "--changed"), wantRes)
 
@@ -185,10 +187,11 @@ func TestNoArgsProvidesBasicHelp(t *testing.T) {
 }
 
 type runResult struct {
-	Cmd    string
-	Stdout string
-	Stderr string
-	Error  error
+	Cmd          string
+	Stdout       string
+	IgnoreStdout bool
+	Stderr       string
+	Error        error
 }
 
 type tscli struct {
@@ -217,7 +220,8 @@ func (ts tscli) run(args ...string) runResult {
 
 func assertRun(t *testing.T, got runResult) {
 	t.Helper()
-	assertRunResult(t, got, runResult{})
+
+	assertRunResult(t, got, runResult{IgnoreStdout: true})
 }
 
 func assertRunResult(t *testing.T, got runResult, want runResult) {
@@ -227,7 +231,7 @@ func assertRunResult(t *testing.T, got runResult, want runResult) {
 		t.Errorf("%q got.Error=[%v] != want.Error=[%v]", got.Cmd, got.Error, want.Error)
 	}
 
-	if got.Stdout != want.Stdout {
+	if !want.IgnoreStdout && got.Stdout != want.Stdout {
 		t.Errorf("%q stdout=%q != wanted=%q", got.Cmd, got.Stdout, want.Stdout)
 	}
 

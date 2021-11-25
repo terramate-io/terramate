@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terrastack/git"
 	"github.com/mineiros-io/terrastack/hcl"
 	"github.com/mineiros-io/terrastack/hcl/hhcl"
@@ -28,10 +27,6 @@ type (
 		Dir    string
 		Reason string // Reason why this entry was returned.
 	}
-)
-
-const (
-	ErrOutdatedLocalRev errutil.Error = "outdated local revision"
 )
 
 // NewManager creates a new stack manager. The basedir is the base directory
@@ -83,10 +78,6 @@ func (m *Manager) List() ([]Entry, error) {
 // It's an error to call this method in a directory that's not
 // inside a repository or a repository with no commits in it.
 func (m *Manager) ListChanged() ([]Entry, error) {
-	if err := m.checkLocalDefaultIsUpdated(); err != nil {
-		return nil, errutil.Chain(ErrOutdatedLocalRev, err)
-	}
-
 	stackSet := map[string]Entry{}
 	files, err := listChangedFiles(m.basedir, m.gitBaseRef)
 	if err != nil {
@@ -155,62 +146,6 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 	sort.Sort(EntrySlice(changedStacks))
 
 	return changedStacks, nil
-}
-
-func (m *Manager) checkLocalDefaultIsUpdated() error {
-	g, err := git.WithConfig(git.Config{
-		WorkingDir: m.basedir,
-	})
-	if err != nil {
-		return fmt.Errorf("creating git on dir %q: %v", m.basedir, err)
-	}
-
-	if !g.IsRepository() {
-		return fmt.Errorf("dir %q is not a git repository", m.basedir)
-	}
-
-	branch, err := g.CurrentBranch()
-	if err != nil {
-		return fmt.Errorf("checking local branch is updated: %v", err)
-	}
-
-	const (
-		defaultRemote = "origin"
-		defaultBranch = "main"
-	)
-
-	if branch != defaultBranch {
-		return nil
-	}
-
-	m.log("current branch %q is the default branch, checking if it is updated", branch)
-	m.log("retrieving info from remote branch: %s/%s", defaultRemote, defaultBranch)
-
-	remoteRef, err := g.FetchRemoteRev(defaultRemote, defaultBranch)
-	if err != nil {
-		return fmt.Errorf("checking local branch %q is update: %v", branch, err)
-	}
-	m.log("retrieved info from remote branch: %s/%s", defaultRemote, defaultBranch)
-
-	localRef, err := g.RevParse(branch)
-	if err != nil {
-		return fmt.Errorf("checking local branch %q is update: %v", branch, err)
-	}
-
-	if localRef != remoteRef.CommitID {
-		return fmt.Errorf(
-			"%w: remote %s/%s=%q != local %s=%q",
-			ErrOutdatedLocalRev,
-			defaultRemote,
-			defaultBranch,
-			remoteRef.CommitID,
-			branch,
-			localRef,
-		)
-
-	}
-
-	return nil
 }
 
 func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) error {
@@ -298,10 +233,6 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 	}
 
 	return g.DiffNames(baseRef, headRef)
-}
-
-func (m *Manager) log(f string, args ...interface{}) {
-	//TODO(katcipis): add logging here
 }
 
 // moduleChanged recursively check if the module mod or any of the modules it
