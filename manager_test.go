@@ -11,6 +11,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terrastack"
 	"github.com/mineiros-io/terrastack/test"
+	"github.com/mineiros-io/terrastack/test/sandbox"
 )
 
 type repository struct {
@@ -96,8 +97,6 @@ func TestListMultipleSubStacks(t *testing.T) {
 }
 
 func TestListChangedStacks(t *testing.T) {
-	t.Skip("TODO(katcipis): tests are failing because of new behavior")
-
 	for _, tc := range []listTestcase{
 		{
 			name:        "single stack: not changed",
@@ -263,7 +262,8 @@ func assertStacks(
 }
 
 func singleStack(t *testing.T) repository {
-	stackdir := t.TempDir()
+	stack := sandbox.New(t).CreateStack("stack-1")
+	stackdir := stack.Path()
 	err := terrastack.Init(stackdir, false)
 	assert.NoError(t, err, "terrastack.Init(%s)", stackdir)
 
@@ -488,6 +488,7 @@ module "something" {
 }
 `, module1))
 
+	assert.NoError(t, g.Checkout("changed", true))
 	assert.NoError(t, g.Add(mainFile), "add main.tf")
 	assert.NoError(t, g.Commit("add main.tf"), "commit main.tf")
 
