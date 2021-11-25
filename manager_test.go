@@ -11,7 +11,6 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terrastack"
 	"github.com/mineiros-io/terrastack/test"
-	"github.com/mineiros-io/terrastack/test/sandbox"
 )
 
 type repository struct {
@@ -262,8 +261,7 @@ func assertStacks(
 }
 
 func singleStack(t *testing.T) repository {
-	stack := sandbox.New(t).CreateStack("stack-1")
-	stackdir := stack.Path()
+	stackdir := t.TempDir()
 	err := terrastack.Init(stackdir, false)
 	assert.NoError(t, err, "terrastack.Init(%s)", stackdir)
 
@@ -488,7 +486,6 @@ module "something" {
 }
 `, module1))
 
-	assert.NoError(t, g.Checkout("changed", true))
 	assert.NoError(t, g.Add(mainFile), "add main.tf")
 	assert.NoError(t, g.Commit("add main.tf"), "commit main.tf")
 
