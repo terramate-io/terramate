@@ -53,15 +53,19 @@ func TestInitHCLFileAlreadyExists(t *testing.T) {
 	assertRun(t, c.run("init", basedir), runResult{})
 
 	// different version must fail and give a warning.
+
+	stackVersion := "99999.99999.99999"
 	test.WriteFile(t, basedir, terrastack.ConfigFilename, fmt.Sprintf(`
 terrastack {
 	required_version = %q
-}`, "99999.99999.99999"))
+}`, stackVersion))
 
 	wantResult := runResult{
 		Err: cli.ErrInit,
-		Stderr: "warn: failed to initialize stack: stack already initialized with " +
-			"version \"99999.99999.99999\" but terrastack version is \"0.0.1\"\n",
+		Stderr: fmt.Sprintf("warn: failed to initialize stack: stack already "+
+			"initialized with version %q but terrastack version is %q\n",
+			stackVersion,
+			terrastack.Version()),
 	}
 	assertRun(t, c.runFail("init", basedir), wantResult)
 }
