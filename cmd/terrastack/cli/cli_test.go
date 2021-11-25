@@ -149,7 +149,7 @@ func TestFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack-1")
-	stack.CreateFile("main.tf", "# no code")
+	mainTfFile := stack.CreateFile("main.tf", "# no code")
 
 	ts := newCLI(t)
 	assertRun(t, ts.run("init", stack.Path()), runResult{})
@@ -162,17 +162,15 @@ func TestFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
 
 	assertRun(t, ts.run("list", s.BaseDir(), "--changed"), wantRes)
 
-	// TODO(katcipis): also check for run --changed
-
-	//cat := test.LookPath(t, "cat")
-	//assertRun(t, ts.run(
-	//"run",
-	//"--basedir",
-	//s.BaseDir(),
-	//"--changed",
-	//cat,
-	//mainTfFile.Path(),
-	//), wantRes)
+	cat := test.LookPath(t, "cat")
+	assertRun(t, ts.run(
+		"run",
+		"--basedir",
+		s.BaseDir(),
+		"--changed",
+		cat,
+		mainTfFile.Path(),
+	), wantRes)
 }
 
 func TestNoArgsProvidesBasicHelp(t *testing.T) {
