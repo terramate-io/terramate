@@ -27,7 +27,7 @@ func TestInitHCLFile(t *testing.T) {
 		RequiredVersion: terrastack.Version(),
 	}
 	if *got != want {
-		t.Fatalf("terrastack file differs: %+v != %+v", want, got)
+		t.Fatalf("terrastack file differs: %+v != %+v", want, *got)
 	}
 }
 
