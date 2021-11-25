@@ -185,7 +185,14 @@ func (c *cli) run() error {
 func (c *cli) initStack(dirs []string) error {
 	var nErrors int
 	for _, d := range dirs {
-		err := terrastack.Init(d, c.parsedArgs.Init.Force)
+		path, err := filepath.Abs(d)
+		if err != nil {
+			c.logerr("warn: failed to get absolute path of %q: %v", d, err)
+			nErrors++
+			continue
+		}
+
+		err = terrastack.Init(path, c.parsedArgs.Init.Force)
 		if err != nil {
 			c.logerr("warn: failed to initialize stack: %v", err)
 			nErrors++
