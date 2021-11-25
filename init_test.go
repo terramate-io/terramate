@@ -9,6 +9,8 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terrastack"
+	"github.com/mineiros-io/terrastack/hcl"
+	"github.com/mineiros-io/terrastack/hcl/hhcl"
 	"github.com/mineiros-io/terrastack/test"
 )
 
@@ -67,23 +69,43 @@ func TestInit(t *testing.T) {
 
 			data, err := io.ReadAll(initFile)
 			assert.NoError(t, err, "init file read")
-			assert.EqualStrings(t, terrastack.Version(), string(data))
+			assertTSBlock(t, hcl.Terrastack{
+				RequiredVersion: terrastack.Version(),
+			}, string(data))
 		}
 	}
 }
 
 func sameVersionStack(t *testing.T) string {
 	stack := t.TempDir()
-	_ = test.WriteFile(t, stack, terrastack.ConfigFilename, terrastack.Version())
+	_ = test.WriteFile(t, stack, terrastack.ConfigFilename, fmt.Sprintf(`
+terrastack {
+	required_version = "~> %s"
+}
+`, terrastack.Version()))
 	return stack
 }
 
 func otherVersionStack(t *testing.T) string {
 	stack := t.TempDir()
-	_ = test.WriteFile(t, stack, terrastack.ConfigFilename, "9999.9999.9999")
+	_ = test.WriteFile(t, stack, terrastack.ConfigFilename, fmt.Sprintf(`
+terrastack {
+	required_version = "~> %s"
+}
+`, "9999.9999.9999"))
 	return stack
 }
 
 func newStack(t *testing.T) string {
 	return t.TempDir()
+}
+
+func assertTSBlock(t *testing.T, want hcl.Terrastack, got string) {
+	p := hhcl.NewTSParser()
+	ts, err := p.Parse("test", []byte(got))
+	assert.NoError(t, err, "parsing generated file")
+
+	if *ts != want {
+		t.Fatalf("terrastack file mismatch. %+v != %+v", *ts, want)
+	}
 }

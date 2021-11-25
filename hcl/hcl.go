@@ -1,9 +1,25 @@
 package hcl
 
+import "io"
+
 // Module represents a terraform module.
 // Note that only the fields relevant for terrastack are declared here.
 type Module struct {
 	Source string // Source is the module source path (eg.: directory, git path, etc).
+}
+
+type Terrastack struct {
+	// RequiredVersion contains the terrastack version required by the stack.
+	RequiredVersion string
+}
+
+// Parser is an interface for terrastack parsers.
+type Parser interface {
+	Parse(path string) (Terrastack, error)
+}
+
+type Printer interface {
+	PrintTerrastack(w io.Writer, ts Terrastack) error
 }
 
 // ModuleParser is an interface for parsing just the modules from HCL files.

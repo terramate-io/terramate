@@ -5,10 +5,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/mineiros-io/terrastack/hcl"
+	"github.com/mineiros-io/terrastack/hcl/hhcl"
 )
 
 // ConfigFilename is the name of the terrastack configuration file.
-const ConfigFilename = "terrastack"
+const ConfigFilename = "terrastack.tsk.hcl"
 
 // Init initialize a stack. It's an error to initialize an already initialized
 // stack unless they are of same versions. In case the stack is initialized with
@@ -66,7 +69,18 @@ func Init(dir string, force bool) error {
 		}
 	}
 
-	err = os.WriteFile(stackfile, []byte(Version()), 0644)
+	f, err := os.Create(stackfile)
+	if err != nil {
+		return err
+	}
+
+	defer f.Close()
+
+	p := hhcl.NewPrinter()
+	err = p.PrintTerrastack(f, hcl.Terrastack{
+		RequiredVersion: Version(),
+	})
+
 	if err != nil {
 		return fmt.Errorf("failed to write %q: %w", stackfile, err)
 	}
@@ -75,14 +89,16 @@ func Init(dir string, force bool) error {
 }
 
 func parseVersion(stackfile string) (string, error) {
-	data, err := os.ReadFile(stackfile)
+	parser := hhcl.NewTSParser()
+	ts, err := parser.ParseFile(stackfile)
 	if err != nil {
-		return "", fmt.Errorf("reading stack file: %w", err)
+		return "", fmt.Errorf("failed to parse file %q: %w", stackfile, err)
 	}
 
-	if len(strings.Split(string(data), ".")) != 3 {
-		return "", fmt.Errorf("wrong version number: %q", string(data))
+	// TODO(i4k): properly support version constraints.
+	if strings.HasPrefix(ts.RequiredVersion, "~>") {
+		return strings.TrimSpace(strings.TrimPrefix(ts.RequiredVersion, "~>")), nil
 	}
 
-	return string(data), nil
+	return ts.RequiredVersion, nil
 }

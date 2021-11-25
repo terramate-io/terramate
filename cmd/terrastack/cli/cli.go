@@ -10,11 +10,14 @@ import (
 	"strings"
 
 	"github.com/alecthomas/kong"
+	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terrastack"
 	"github.com/mineiros-io/terrastack/git"
 )
 
 const defaultBaseRef = "origin/main"
+
+const ErrInit errutil.Error = "failed to initialize all stack"
 
 type cliSpec struct {
 	Version struct{} `cmd:"" help:"Terrastack version."`
@@ -183,25 +186,26 @@ func (c *cli) run() error {
 }
 
 func (c *cli) initStack(dirs []string) error {
-	var nErrors int
+	var errmsgs []string
 	for _, d := range dirs {
 		path, err := filepath.Abs(d)
 		if err != nil {
 			c.logerr("warn: failed to get absolute path of %q: %v", d, err)
-			nErrors++
+			errmsgs = append(errmsgs, err.Error())
 			continue
 		}
 
 		err = terrastack.Init(path, c.parsedArgs.Init.Force)
 		if err != nil {
 			c.logerr("warn: failed to initialize stack: %v", err)
-			nErrors++
+			errmsgs = append(errmsgs, err.Error())
 		}
 	}
 
-	if nErrors > 0 {
-		return fmt.Errorf("failed to initialize %d stack(s)", nErrors)
+	if len(errmsgs) > 0 {
+		return fmt.Errorf("%w: %v", ErrInit, strings.Join(errmsgs, ": "))
 	}
+
 	return nil
 }
 

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/madlambda/spells/assert"
+
 	"github.com/mineiros-io/terrastack/cmd/terrastack/cli"
 	"github.com/mineiros-io/terrastack/test"
 	"github.com/mineiros-io/terrastack/test/sandbox"
@@ -182,6 +184,7 @@ func TestNoArgsProvidesBasicHelp(t *testing.T) {
 
 type runResult struct {
 	Cmd    string
+	Err    error
 	Stdout string
 	Stderr string
 }
@@ -222,8 +225,30 @@ func (ts tscli) run(args ...string) runResult {
 	}
 }
 
+func (ts tscli) runFail(args ...string) runResult {
+	ts.t.Helper()
+
+	stdin := &bytes.Buffer{}
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+
+	err := cli.Run(ts.wd, args, stdin, stdout, stderr)
+	if err == nil {
+		ts.t.Fatalf("cli.Run(args=%v) must fail", args)
+	}
+
+	return runResult{
+		Cmd:    strings.Join(args, " "),
+		Err:    err,
+		Stdout: stdout.String(),
+		Stderr: stderr.String(),
+	}
+}
+
 func assertRun(t *testing.T, got runResult, want runResult) {
 	t.Helper()
+
+	assert.IsError(t, got.Err, want.Err)
 
 	if got.Stdout != want.Stdout {
 		t.Errorf("%q stdout=%q, wanted=%q", got.Cmd, got.Stdout, want.Stdout)

@@ -35,7 +35,7 @@ func NewManager(basedir string, gitBaseRef string) *Manager {
 	return &Manager{
 		basedir:    basedir,
 		gitBaseRef: gitBaseRef,
-		parser:     hhcl.NewParser(),
+		parser:     hhcl.NewTSParser(),
 	}
 }
 
