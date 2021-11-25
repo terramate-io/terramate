@@ -187,7 +187,6 @@ func TestDefaultBaseRefInMain(t *testing.T) {
 	git.Push("main")
 
 	// main uses HEAD^1 as default baseRef.
-
 	want := runResult{
 		Stdout: stack.RelPath() + "\n",
 	}
