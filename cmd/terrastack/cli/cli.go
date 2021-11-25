@@ -189,7 +189,7 @@ func (c *cli) printStacks(basedir string, cwd string) error {
 	mgr := terrastack.NewManager(basedir, c.parsedArgs.GitChangeBase)
 	stacks, err := c.listStacks(mgr, c.parsedArgs.List.Changed)
 	if err != nil {
-		return fmt.Errorf("can't list stacks: %v", err)
+		return err
 	}
 
 	cwd = cwd + string(os.PathSeparator)
@@ -217,7 +217,7 @@ func (c *cli) runOnStacks(basedir string) error {
 	mgr := terrastack.NewManager(basedir, c.parsedArgs.GitChangeBase)
 	stacks, err := c.listStacks(mgr, c.parsedArgs.Run.Changed)
 	if err != nil {
-		return fmt.Errorf("can't list stacks: %v", err)
+		return err
 	}
 
 	if c.parsedArgs.Run.Changed {

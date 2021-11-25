@@ -158,7 +158,6 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 }
 
 func (m *Manager) checkLocalDefaultIsUpdated() error {
-	// TODO(katcipis): extract git creation + repo check ?
 	g, err := git.WithConfig(git.Config{
 		WorkingDir: m.basedir,
 	})
@@ -169,7 +168,48 @@ func (m *Manager) checkLocalDefaultIsUpdated() error {
 	if !g.IsRepository() {
 		return fmt.Errorf("dir %q is not a git repository", m.basedir)
 	}
-	// TODO: method is not done =P
+
+	branch, err := g.CurrentBranch()
+	if err != nil {
+		return fmt.Errorf("checking local branch is updated: %v", err)
+	}
+
+	const (
+		defaultRemote = "origin"
+		defaultBranch = "main"
+	)
+
+	if branch != defaultBranch {
+		return nil
+	}
+
+	m.log("current branch %q is the default branch, checking if it is updated", branch)
+	m.log("retrieving info from remote branch: %s/%s", defaultRemote, defaultBranch)
+
+	remoteRef, err := g.FetchRemoteRev(defaultRemote, defaultBranch)
+	if err != nil {
+		return fmt.Errorf("checking local branch %q is update: %v", branch, err)
+	}
+	m.log("retrieved info from remote branch: %s/%s", defaultRemote, defaultBranch)
+
+	localRef, err := g.RevParse(branch)
+	if err != nil {
+		return fmt.Errorf("checking local branch %q is update: %v", branch, err)
+	}
+
+	if localRef != remoteRef.CommitID {
+		return fmt.Errorf(
+			"%w: remote %s/%s=%q != local %s=%q",
+			ErrOutdatedLocalRev,
+			defaultRemote,
+			defaultBranch,
+			remoteRef.CommitID,
+			branch,
+			localRef,
+		)
+
+	}
+
 	return nil
 }
 
@@ -258,6 +298,10 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 	}
 
 	return g.DiffNames(baseRef, headRef)
+}
+
+func (m *Manager) log(fmt string, args ...interface{}) {
+	//TODO(katcipis): add stdout logging here
 }
 
 // moduleChanged recursively check if the module mod or any of the modules it
