@@ -169,7 +169,7 @@ func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
 	}
 	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), want)
 	assertRun(t, cli.run(
-		"--git-change-base", "origin/main", "list", s.BaseDir(), "--changed",
+		"list", s.BaseDir(), "--changed","--git-change-base", "origin/main", 
 	), runResult{})
 }
 
