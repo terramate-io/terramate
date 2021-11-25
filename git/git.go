@@ -534,6 +534,11 @@ func (git *Git) Exec(command string, args ...string) (string, error) {
 	return git.exec(command, args...)
 }
 
+// CurrentBranch returns the short branch name that HEAD points to.
+func (git *Git) CurrentBranch() (string, error) {
+	return git.exec("symbolic-ref", "--short", "HEAD")
+}
+
 func (git *Git) exec(command string, args ...string) (string, error) {
 	cmd := exec.Cmd{
 		Path: git.config.ProgramPath,

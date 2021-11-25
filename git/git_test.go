@@ -124,6 +124,14 @@ func TestRevParse(t *testing.T) {
 	assert.EqualStrings(t, CookedCommitID, out, "commit mismatch")
 }
 
+func TestCurrentBranch(t *testing.T) {
+	repodir := test.EmptyRepo(t, false)
+	git := test.NewGitWrapper(t, repodir, false)
+	got, err := git.CurrentBranch()
+	assert.NoError(t, err)
+	assert.EqualStrings(t, "main", got)
+}
+
 func TestFetchRemoteRev(t *testing.T) {
 	const (
 		remote   = "origin"
