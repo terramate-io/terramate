@@ -300,8 +300,8 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 	return g.DiffNames(baseRef, headRef)
 }
 
-func (m *Manager) log(fmt string, args ...interface{}) {
-	//TODO(katcipis): add stdout logging here
+func (m *Manager) log(f string, args ...interface{}) {
+	//TODO(katcipis): add logging here
 }
 
 // moduleChanged recursively check if the module mod or any of the modules it

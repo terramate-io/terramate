@@ -49,7 +49,7 @@ source = "%s"
 	git.CommitAll("first commit")
 	git.Push("main")
 
-	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), runResult{})
+	assertRun(t, cli.run("list", s.BaseDir(), "--changed"))
 
 	git.CheckoutNew("change-the-module-1")
 
@@ -58,7 +58,7 @@ source = "%s"
 	git.CommitAll("module 1 changed")
 
 	want := stack1.Path() + "\n"
-	assertRun(t, cli.run(
+	assertRunResult(t, cli.run(
 		"list", s.BaseDir(), "--changed"),
 		runResult{Stdout: want},
 	)
@@ -82,7 +82,7 @@ func TestListAndRunChangedStack(t *testing.T) {
 	git.CommitAll("first commit")
 	git.Push("main")
 
-	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), runResult{})
+	assertRun(t, cli.run("list", s.BaseDir(), "--changed"))
 
 	git.CheckoutNew("change-stack")
 
@@ -90,7 +90,11 @@ func TestListAndRunChangedStack(t *testing.T) {
 	git.CommitAll("stack changed")
 
 	wantList := stack.Path() + "\n"
-	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), runResult{Stdout: wantList})
+	assertRunResult(
+		t,
+		cli.run("list", s.BaseDir(), "--changed"),
+		runResult{Stdout: wantList},
+	)
 
 	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
@@ -101,7 +105,7 @@ func TestListAndRunChangedStack(t *testing.T) {
 		mainTfContents,
 	)
 
-	assertRun(t, cli.run(
+	assertRunResult(t, cli.run(
 		"run",
 		"--basedir",
 		s.BaseDir(),
@@ -118,14 +122,14 @@ func TestDefaultBaseRef(t *testing.T) {
 	stackFile := stack.CreateFile("main.tf", "# no code")
 
 	cli := newCLI(t)
-	assertRun(t, cli.run("init", stack.Path()), runResult{})
+	assertRun(t, cli.run("init", stack.Path()))
 
 	git := s.Git()
 	git.Add(".")
 	git.Commit("all")
 	git.Push("main")
 
-	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), runResult{})
+	assertRun(t, cli.run("list", s.BaseDir(), "--changed"))
 
 	git.CheckoutNew("change-the-stack")
 
@@ -136,13 +140,13 @@ func TestDefaultBaseRef(t *testing.T) {
 	want := runResult{
 		Stdout: stack.Path() + "\n",
 	}
-	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), want)
+	assertRunResult(t, cli.run("list", s.BaseDir(), "--changed"), want)
 
 	git.Checkout("main")
 	git.Merge("change-the-stack")
 	git.Push("main")
 
-	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), runResult{})
+	assertRun(t, cli.run("list", s.BaseDir(), "--changed"))
 }
 
 func TestFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
@@ -152,7 +156,7 @@ func TestFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
 	mainTfFile := stack.CreateFile("main.tf", "# no code")
 
 	ts := newCLI(t)
-	assertRun(t, ts.run("init", stack.Path()), runResult{})
+	assertRun(t, ts.run("init", stack.Path()))
 
 	git := s.Git()
 	git.Add(".")
@@ -160,10 +164,10 @@ func TestFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
 
 	wantRes := runResult{Error: terrastack.ErrOutdatedLocalRev}
 
-	assertRun(t, ts.run("list", s.BaseDir(), "--changed"), wantRes)
+	assertRunResult(t, ts.run("list", s.BaseDir(), "--changed"), wantRes)
 
 	cat := test.LookPath(t, "cat")
-	assertRun(t, ts.run(
+	assertRunResult(t, ts.run(
 		"run",
 		"--basedir",
 		s.BaseDir(),
@@ -177,7 +181,7 @@ func TestNoArgsProvidesBasicHelp(t *testing.T) {
 	cli := newCLI(t)
 	cli.run("--help")
 	help := cli.run("--help")
-	assertRun(t, cli.run(), runResult{Stdout: help.Stdout})
+	assertRunResult(t, cli.run(), runResult{Stdout: help.Stdout})
 }
 
 type runResult struct {
@@ -211,7 +215,12 @@ func (ts tscli) run(args ...string) runResult {
 	}
 }
 
-func assertRun(t *testing.T, got runResult, want runResult) {
+func assertRun(t *testing.T, got runResult) {
+	t.Helper()
+	assertRunResult(t, got, runResult{})
+}
+
+func assertRunResult(t *testing.T, got runResult, want runResult) {
 	t.Helper()
 
 	if !errors.Is(got.Error, want.Error) {
