@@ -8,6 +8,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terrastack/git"
 	"github.com/mineiros-io/terrastack/test"
+	"github.com/mineiros-io/terrastack/test/sandbox"
 )
 
 const CookedCommitID = "a022c39b57b1e711fb9298a05aacc699773e6d36"
@@ -125,11 +126,15 @@ func TestRevParse(t *testing.T) {
 }
 
 func TestCurrentBranch(t *testing.T) {
-	repodir := test.EmptyRepo(t, false)
-	git := test.NewGitWrapper(t, repodir, false)
-	got, err := git.CurrentBranch()
-	assert.NoError(t, err)
-	assert.EqualStrings(t, "main", got)
+	s := sandbox.New(t)
+	git := s.Git()
+
+	assert.EqualStrings(t, "main", git.CurrentBranch())
+
+	const newBranch = "test"
+
+	git.CheckoutNew(newBranch)
+	assert.EqualStrings(t, newBranch, git.CurrentBranch())
 }
 
 func TestFetchRemoteRev(t *testing.T) {
