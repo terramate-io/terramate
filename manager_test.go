@@ -262,24 +262,22 @@ func assertStacks(
 
 func singleStack(t *testing.T) repository {
 	stackdir := t.TempDir()
-	mgr := newManager(stackdir)
-	err := mgr.Init(stackdir, false)
-	assert.NoError(t, err, "mgr.Init(%s)", stackdir)
+	err := terrastack.Init(stackdir, false)
+	assert.NoError(t, err, "terrastack.Init(%s)", stackdir)
 
 	return repository{Dir: stackdir}
 }
 
 func subStack(t *testing.T) repository {
 	stackdir := t.TempDir()
-	mgr := newManager(stackdir)
-	err := mgr.Init(stackdir, false)
-	assert.NoError(t, err, "mgr.Init(%s)", stackdir)
+	err := terrastack.Init(stackdir, false)
+	assert.NoError(t, err, "terrastack.Init(%s)", stackdir)
 
 	substack := filepath.Join(stackdir, "substack")
 	test.MkdirAll(t, substack)
 
-	err = mgr.Init(substack, false)
-	assert.NoError(t, err, "mgr.Init(%s)", substack)
+	err = terrastack.Init(substack, false)
+	assert.NoError(t, err, "terrastack.Init(%s)", substack)
 
 	return repository{Dir: stackdir}
 }
@@ -290,24 +288,22 @@ func nestedStacks(t *testing.T) repository {
 	nestedStack := filepath.Join(stackrepo.Dir, "substack", "deepstack")
 	test.MkdirAll(t, nestedStack)
 
-	mgr := newManager(stackrepo.Dir)
-	err := mgr.Init(nestedStack, false)
-	assert.NoError(t, err, "mgr.Init(%s)", nestedStack)
+	err := terrastack.Init(nestedStack, false)
+	assert.NoError(t, err, "terrastack.Init(%s)", nestedStack)
 
 	return stackrepo
 }
 
 func nSubStacks(t *testing.T, n int) string {
 	stackdir := t.TempDir()
-	mgr := newManager(stackdir)
-	err := mgr.Init(stackdir, false)
-	assert.NoError(t, err, "mgr.Init(%s)", stackdir)
+	err := terrastack.Init(stackdir, false)
+	assert.NoError(t, err, "terrastack.Init(%s)", stackdir)
 
 	for i := 0; i < n; i++ {
 		substack := test.TempDir(t, stackdir)
 
-		err = mgr.Init(substack, false)
-		assert.NoError(t, err, "mgr.Init(%s)", substack)
+		err = terrastack.Init(substack, false)
+		assert.NoError(t, err, "terrastack.Init(%s)", substack)
 	}
 
 	return stackdir
@@ -352,8 +348,7 @@ func singleNotChangedStack(t *testing.T) repository {
 	g := test.NewGitWrapper(t, repo, false)
 
 	// make it a stack
-	mgr := newManager(repo)
-	assert.NoError(t, mgr.Init(repo, false), "terrastack init failed")
+	assert.NoError(t, terrastack.Init(repo, false), "terrastack init failed")
 	assert.NoError(t, g.Add(terrastack.ConfigFilename), "add terrastack file failed")
 	assert.NoError(t, g.Commit("terrastack message"), "terrastack commit failed")
 
@@ -432,8 +427,7 @@ func multipleStacksOneChangedRepo(t *testing.T) repository {
 	otherStack := filepath.Join(repo.Dir, "not-changed-stack")
 	test.MkdirAll(t, otherStack)
 
-	mgr := newManager(repo.Dir)
-	assert.NoError(t, mgr.Init(otherStack, false), "terrastack init failed")
+	assert.NoError(t, terrastack.Init(otherStack, false), "terrastack init failed")
 
 	assert.NoError(t, g.Add(filepath.Join(otherStack, terrastack.ConfigFilename)),
 		"git add otherstack failed")
@@ -448,7 +442,7 @@ func multipleStacksOneChangedRepo(t *testing.T) repository {
 	otherStack = filepath.Join(repo.Dir, "changed-stack")
 	test.MkdirAll(t, otherStack)
 
-	assert.NoError(t, mgr.Init(otherStack, false), "terrastack init failed")
+	assert.NoError(t, terrastack.Init(otherStack, false), "terrastack init failed")
 
 	assert.NoError(t, g.Add(filepath.Join(otherStack, terrastack.ConfigFilename)),
 		"git add otherstack failed")
@@ -461,13 +455,12 @@ func multipleChangedStacksRepo(t *testing.T) repository {
 	repo := multipleStacksOneChangedRepo(t)
 
 	g := test.NewGitWrapper(t, repo.Dir, false)
-	mgr := newManager(repo.Dir)
 
 	for i := 0; i < 3; i++ {
 		otherStack := filepath.Join(repo.Dir, "changed-stack-"+fmt.Sprint(i))
 		test.MkdirAll(t, otherStack)
 
-		assert.NoError(t, mgr.Init(otherStack, false), "terrastack init failed")
+		assert.NoError(t, terrastack.Init(otherStack, false), "terrastack init failed")
 
 		assert.NoError(t, g.Add(filepath.Join(otherStack, terrastack.ConfigFilename)),
 			"git add otherstack failed")
@@ -509,8 +502,7 @@ func multipleStackOneChangedModule(t *testing.T) repository {
 	otherStack := filepath.Join(repo.Dir, "stack1")
 	test.MkdirAll(t, otherStack)
 
-	mgr := newManager(repo.Dir)
-	assert.NoError(t, mgr.Init(otherStack, false), "terrastack init failed")
+	assert.NoError(t, terrastack.Init(otherStack, false), "terrastack init failed")
 
 	assert.NoError(t, g.Add(filepath.Join(otherStack, terrastack.ConfigFilename)),
 		"git add otherstack failed")
@@ -519,7 +511,7 @@ func multipleStackOneChangedModule(t *testing.T) repository {
 	otherStack = filepath.Join(repo.Dir, "stack2")
 	test.MkdirAll(t, otherStack)
 
-	assert.NoError(t, mgr.Init(otherStack, false), "terrastack init failed")
+	assert.NoError(t, terrastack.Init(otherStack, false), "terrastack init failed")
 
 	assert.NoError(t, g.Add(filepath.Join(otherStack, terrastack.ConfigFilename)),
 		"git add otherstack failed")
