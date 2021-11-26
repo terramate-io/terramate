@@ -301,7 +301,7 @@ func (c *cli) checkLocalDefaultIsUpdated(basedir string) error {
 	}
 
 	c.log("current branch %q is the default branch, checking if it is updated.", branch)
-	c.log("retrieving info from remote branch: %s/%s", defaultRemote, defaultBranch)
+	c.log("retrieving info from remote branch: %s/%s ...", defaultRemote, defaultBranch)
 
 	remoteRef, err := g.FetchRemoteRev(defaultRemote, defaultBranch)
 	if err != nil {
