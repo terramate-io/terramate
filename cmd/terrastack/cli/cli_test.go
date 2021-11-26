@@ -181,26 +181,33 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 
 func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
 	basedir := t.TempDir()
+	assertFails := func() {
+		t.Helper()
+
+		ts := newCLI(t)
+		wantRes := runResult{
+			Error:        cli.ErrNoDefaultRemoteConfig,
+			IgnoreStderr: true,
+		}
+
+		assertRunResult(t, ts.run("list", basedir, "--changed"), wantRes)
+
+		cat := test.LookPath(t, "cat")
+		assertRunResult(t, ts.run(
+			"run",
+			"--basedir",
+			basedir,
+			"--changed",
+			cat,
+			"whatever",
+		), wantRes)
+	}
+
 	git := sandbox.NewGit(t, basedir)
 	git.InitBasic()
 
-	ts := newCLI(t)
-	wantRes := runResult{
-		Error:        cli.ErrNoDefaultRemoteConfig,
-		IgnoreStderr: true,
-	}
+	assertFails()
 
-	assertRunResult(t, ts.run("list", basedir, "--changed"), wantRes)
-
-	cat := test.LookPath(t, "cat")
-	assertRunResult(t, ts.run(
-		"run",
-		"--basedir",
-		basedir,
-		"--changed",
-		cat,
-		"whatever",
-	), wantRes)
 }
 
 func TestNoArgsProvidesBasicHelp(t *testing.T) {
