@@ -180,8 +180,6 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 }
 
 func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
-	t.Skip("TODO: make test pass")
-
 	basedir := t.TempDir()
 	git := sandbox.NewGit(t, basedir)
 	git.InitBasic()
