@@ -20,6 +20,11 @@ const (
 	ErrNoDefaultRemoteConfig errutil.Error = "repository must have a configured origin/main"
 )
 
+const (
+	defaultRemote = "origin"
+	defaultBranch = "main"
+)
+
 type cliSpec struct {
 	Version struct{} `cmd:"" help:"Terrastack version."`
 
@@ -188,7 +193,14 @@ func (c *cli) listStacks(
 	)
 
 	if isChanged {
-		if err := c.checkLocalDefaultIsUpdated(basedir); err != nil {
+		git, err := newGit(basedir)
+		if err != nil {
+			return nil, err
+		}
+		if err := c.checkRemoteOrigin(git); err != nil {
+			return nil, err
+		}
+		if err := c.checkLocalDefaultIsUpdated(git); err != nil {
 			return nil, err
 		}
 		stacks, err = mgr.ListChanged()
@@ -275,27 +287,16 @@ func (c *cli) logerr(format string, args ...interface{}) {
 	fmt.Fprintln(c.stderr, fmt.Sprintf(format, args...))
 }
 
-func (c *cli) checkLocalDefaultIsUpdated(basedir string) error {
-	g, err := git.WithConfig(git.Config{
-		WorkingDir: basedir,
-	})
-	if err != nil {
-		return fmt.Errorf("creating git on dir %q: %v", basedir, err)
-	}
+func (c *cli) checkRemoteOrigin(g *git.Git) error {
+	// TODO(katcipis): add check remote origin/main
+	return nil
+}
 
-	if !g.IsRepository() {
-		return fmt.Errorf("dir %q is not a git repository", basedir)
-	}
-
+func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 	branch, err := g.CurrentBranch()
 	if err != nil {
 		return fmt.Errorf("checking local branch is updated: %v", err)
 	}
-
-	const (
-		defaultRemote = "origin"
-		defaultBranch = "main"
-	)
 
 	if branch != defaultBranch {
 		return nil
@@ -331,4 +332,20 @@ func (c *cli) checkLocalDefaultIsUpdated(basedir string) error {
 	}
 
 	return nil
+}
+
+func newGit(basedir string) (*git.Git, error) {
+	g, err := git.WithConfig(git.Config{
+		WorkingDir: basedir,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !g.IsRepository() {
+		return nil, fmt.Errorf("dir %q is not a git repository", basedir)
+	}
+
+	return g, nil
 }
