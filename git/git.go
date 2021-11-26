@@ -610,7 +610,12 @@ func (e *CmdError) Is(err error) bool {
 
 // Error string representation.
 func (e *CmdError) Error() string {
-	return fmt.Sprintf("failed to execute command: %s : %s", e.cmd, string(e.stderr))
+	return fmt.Sprintf(
+		"failed to exec: %s : stdout=%q stderr=%q",
+		e.cmd,
+		string(e.stdout),
+		string(e.stderr),
+	)
 }
 
 // ShortCommitID returns the short version of the commit ID.
