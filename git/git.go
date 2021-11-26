@@ -319,7 +319,7 @@ func (git *Git) RevParse(rev string) (string, error) {
 }
 
 // FetchRemoteRev will fetch from the remote repo the commit id and ref name
-// for the given remote/revision name. This will make use of the network
+// for the given remote and reference. This will make use of the network
 // to fetch data from the remote configured on the git repo.
 func (git *Git) FetchRemoteRev(remote, rev string) (Ref, error) {
 	output, err := git.exec("ls-remote", remote, rev)
