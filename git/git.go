@@ -322,12 +322,12 @@ func (git *Git) RevParse(rev string) (string, error) {
 // for the given remote and reference. This will make use of the network
 // to fetch data from the remote configured on the git repo.
 func (git *Git) FetchRemoteRev(remote, ref string) (Ref, error) {
-	output, err := git.exec("ls-remote", remote, rev)
+	output, err := git.exec("ls-remote", remote, ref)
 	if err != nil {
 		return Ref{}, fmt.Errorf(
 			"Git.FetchRemoteRev: git ls-remote %q %q: %v",
 			remote,
-			rev,
+			ref,
 			err,
 		)
 	}
@@ -336,7 +336,7 @@ func (git *Git) FetchRemoteRev(remote, ref string) (Ref, error) {
 		return Ref{}, fmt.Errorf(
 			"Git.FetchRemoteRev: git ls-remote %q %q can't parse: %v",
 			remote,
-			rev,
+			ref,
 			output,
 		)
 	}
