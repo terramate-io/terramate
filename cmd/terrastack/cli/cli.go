@@ -288,8 +288,18 @@ func (c *cli) logerr(format string, args ...interface{}) {
 }
 
 func (c *cli) checkRemoteOrigin(g *git.Git) error {
-	// TODO(katcipis): add check remote origin/main
-	return nil
+	remotes, err := g.Remotes()
+	if err != nil {
+		return fmt.Errorf("checking local branch is updated: %v", err)
+	}
+
+	for _, remote := range remotes {
+		if remote == defaultRemote {
+			return nil
+		}
+	}
+
+	return ErrNoDefaultRemoteConfig
 }
 
 func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
