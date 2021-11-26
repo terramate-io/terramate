@@ -290,7 +290,7 @@ func (c *cli) logerr(format string, args ...interface{}) {
 func (c *cli) checkRemoteOrigin(g *git.Git) error {
 	remotes, err := g.Remotes()
 	if err != nil {
-		return fmt.Errorf("checking local branch is updated: %v", err)
+		return fmt.Errorf("checking remote %q exists: %v", defaultRemote, err)
 	}
 
 	for _, remote := range remotes {
