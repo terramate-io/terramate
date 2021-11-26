@@ -307,7 +307,7 @@ func (c *cli) checkLocalDefaultIsUpdated(basedir string) error {
 	if err != nil {
 		return fmt.Errorf("checking local branch %q is update: %v", branch, err)
 	}
-	c.log("retrieved info from remote branch: %s/%s", defaultRemote, defaultBranch)
+	c.log("retrieved info from remote branch: %s/%s.", defaultRemote, defaultBranch)
 
 	localRef, err := g.RevParse(branch)
 	if err != nil {
