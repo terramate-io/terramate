@@ -187,10 +187,6 @@ func (c *cli) listStacks(
 	mgr *terrastack.Manager,
 	isChanged bool,
 ) ([]terrastack.Entry, error) {
-	var (
-		err    error
-		stacks []terrastack.Entry
-	)
 
 	if isChanged {
 		git, err := newGit(basedir)
@@ -203,12 +199,10 @@ func (c *cli) listStacks(
 		if err := c.checkLocalDefaultIsUpdated(git); err != nil {
 			return nil, err
 		}
-		stacks, err = mgr.ListChanged()
-	} else {
-		stacks, err = mgr.List()
+		return mgr.ListChanged()
 	}
 
-	return stacks, err
+	return mgr.List()
 }
 
 func (c *cli) printStacks(basedir string, cwd string) error {
