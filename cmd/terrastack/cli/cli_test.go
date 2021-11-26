@@ -163,7 +163,7 @@ func TestFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
 
 	wantRes := runResult{
 		Error:        cli.ErrOutdatedLocalRev,
-		IgnoreStdout: true,
+		IgnoreStderr: true,
 	}
 
 	assertRunResult(t, ts.run("list", s.BaseDir(), "--changed"), wantRes)
@@ -191,6 +191,7 @@ type runResult struct {
 	Stdout       string
 	IgnoreStdout bool
 	Stderr       string
+	IgnoreStderr bool
 	Error        error
 }
 
@@ -221,7 +222,7 @@ func (ts tscli) run(args ...string) runResult {
 func assertRun(t *testing.T, got runResult) {
 	t.Helper()
 
-	assertRunResult(t, got, runResult{IgnoreStdout: true})
+	assertRunResult(t, got, runResult{IgnoreStdout: true, IgnoreStderr: true})
 }
 
 func assertRunResult(t *testing.T, got runResult, want runResult) {
@@ -235,7 +236,7 @@ func assertRunResult(t *testing.T, got runResult, want runResult) {
 		t.Errorf("%q stdout=%q != wanted=%q", got.Cmd, got.Stdout, want.Stdout)
 	}
 
-	if got.Stderr != want.Stderr {
+	if !want.IgnoreStderr && got.Stderr != want.Stderr {
 		t.Errorf("%q stderr=%q != wanted=%q", got.Cmd, got.Stderr, want.Stderr)
 	}
 }
