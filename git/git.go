@@ -601,6 +601,15 @@ func (e *CmdError) Error() string {
 	return fmt.Sprintf("failed to execute command: %s : %s", e.cmd, string(e.stderr))
 }
 
+// ShortCommitID returns the short version of the commit ID.
+// If the reference doesn't have a valid commit id it returns empty.
+func (r Ref) ShortCommitID() string {
+	if len(r.CommitID) < 8 {
+		return ""
+	}
+	return r.CommitID[0:8]
+}
+
 // Command is the failed command.
 func (e *CmdError) Command() string { return e.cmd }
 

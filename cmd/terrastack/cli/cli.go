@@ -309,20 +309,22 @@ func (c *cli) checkLocalDefaultIsUpdated(basedir string) error {
 	}
 	c.log("retrieved info from remote branch: %s/%s", defaultRemote, defaultBranch)
 
-	localRef, err := g.RevParse(branch)
+	localCommitID, err := g.RevParse(branch)
 	if err != nil {
 		return fmt.Errorf("checking local branch %q is update: %v", branch, err)
 	}
 
-	if localRef != remoteRef.CommitID {
+	localRef := git.Ref{CommitID: localCommitID}
+
+	if localRef.CommitID != remoteRef.CommitID {
 		return fmt.Errorf(
 			"%w: remote %s/%s=%q != local %s=%q",
 			ErrOutdatedLocalRev,
 			defaultRemote,
 			defaultBranch,
-			remoteRef.CommitID,
+			remoteRef.ShortCommitID(),
 			branch,
-			localRef,
+			localRef.ShortCommitID(),
 		)
 
 	}
