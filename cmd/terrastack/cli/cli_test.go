@@ -208,6 +208,10 @@ func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
 
 	assertFails()
 
+	git.SetupRemote("notorigin")
+
+	assertFails()
+
 }
 
 func TestNoArgsProvidesBasicHelp(t *testing.T) {
