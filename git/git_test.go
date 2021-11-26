@@ -177,6 +177,7 @@ func TestFetchRemoteRev(t *testing.T) {
 func TestFetchRemoteRevErrorHandling(t *testing.T) {
 	repodir := mkOneCommitRepo(t)
 	git := test.NewGitWrapper(t, repodir, false)
+	// should fail because the repo has no origin remote set.
 	remoteRef, err := git.FetchRemoteRev("origin", "main")
 	assert.Error(t, err, "unexpected result: %v", remoteRef)
 }
