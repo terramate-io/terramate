@@ -148,7 +148,7 @@ func TestDefaultBaseRef(t *testing.T) {
 	assertRun(t, cli.run("list", s.BaseDir(), "--changed"))
 }
 
-func TestFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
+func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack-1")
@@ -176,6 +176,32 @@ func TestFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
 		"--changed",
 		cat,
 		mainTfFile.Path(),
+	), wantRes)
+}
+
+func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
+	t.Skip("TODO: make test pass")
+
+	basedir := t.TempDir()
+	git := sandbox.NewGit(t, basedir)
+	git.InitBasic()
+
+	ts := newCLI(t)
+	wantRes := runResult{
+		Error:        cli.ErrNoDefaultRemoteConfig,
+		IgnoreStderr: true,
+	}
+
+	assertRunResult(t, ts.run("list", basedir, "--changed"), wantRes)
+
+	cat := test.LookPath(t, "cat")
+	assertRunResult(t, ts.run(
+		"run",
+		"--basedir",
+		basedir,
+		"--changed",
+		cat,
+		"whatever",
 	), wantRes)
 }
 

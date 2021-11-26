@@ -16,7 +16,8 @@ import (
 )
 
 const (
-	ErrOutdatedLocalRev errutil.Error = "outdated local revision"
+	ErrOutdatedLocalRev      errutil.Error = "outdated local revision"
+	ErrNoDefaultRemoteConfig errutil.Error = "repository must have a configured origin/main"
 )
 
 type cliSpec struct {
