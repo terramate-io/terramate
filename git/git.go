@@ -41,6 +41,12 @@ type (
 		config Config
 	}
 
+	// Ref is a git reference.
+	Ref struct {
+		Name     string
+		CommitID string
+	}
+
 	// LogLine is a log summary.
 	LogLine struct {
 		CommitID string
@@ -312,6 +318,34 @@ func (git *Git) RevParse(rev string) (string, error) {
 	return git.exec("rev-parse", rev)
 }
 
+// FetchRemoteRev will fetch from the remote repo the commit id and ref name
+// for the given remote and reference. This will make use of the network
+// to fetch data from the remote configured on the git repo.
+func (git *Git) FetchRemoteRev(remote, ref string) (Ref, error) {
+	output, err := git.exec("ls-remote", remote, ref)
+	if err != nil {
+		return Ref{}, fmt.Errorf(
+			"Git.FetchRemoteRev: git ls-remote %q %q: %v",
+			remote,
+			ref,
+			err,
+		)
+	}
+	parsed := strings.Split(output, "\t")
+	if len(parsed) != 2 {
+		return Ref{}, fmt.Errorf(
+			"Git.FetchRemoteRev: git ls-remote %q %q can't parse: %v",
+			remote,
+			ref,
+			output,
+		)
+	}
+	return Ref{
+		CommitID: parsed[0],
+		Name:     parsed[1],
+	}, nil
+}
+
 // MergeBase finds the common commit ancestor of commit1 and commit2.
 func (git *Git) MergeBase(commit1, commit2 string) (string, error) {
 	return git.exec("merge-base", commit1, commit2)
@@ -500,6 +534,11 @@ func (git *Git) Exec(command string, args ...string) (string, error) {
 	return git.exec(command, args...)
 }
 
+// CurrentBranch returns the short branch name that HEAD points to.
+func (git *Git) CurrentBranch() (string, error) {
+	return git.exec("symbolic-ref", "--short", "HEAD")
+}
+
 func (git *Git) exec(command string, args ...string) (string, error) {
 	cmd := exec.Cmd{
 		Path: git.config.ProgramPath,
@@ -560,6 +599,15 @@ func (e *CmdError) Is(err error) bool {
 // Error string representation.
 func (e *CmdError) Error() string {
 	return fmt.Sprintf("failed to execute command: %s : %s", e.cmd, string(e.stderr))
+}
+
+// ShortCommitID returns the short version of the commit ID.
+// If the reference doesn't have a valid commit id it returns empty.
+func (r Ref) ShortCommitID() string {
+	if len(r.CommitID) < 8 {
+		return ""
+	}
+	return r.CommitID[0:8]
 }
 
 // Command is the failed command.

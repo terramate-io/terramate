@@ -10,7 +10,13 @@ import (
 	"strings"
 
 	"github.com/alecthomas/kong"
+	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terrastack"
+	"github.com/mineiros-io/terrastack/git"
+)
+
+const (
+	ErrOutdatedLocalRev errutil.Error = "outdated local revision"
 )
 
 type cliSpec struct {
@@ -170,13 +176,20 @@ func (c *cli) initStack(dirs []string) error {
 	return nil
 }
 
-func (c *cli) listStacks(mgr *terrastack.Manager, isChanged bool) ([]terrastack.Entry, error) {
+func (c *cli) listStacks(
+	basedir string,
+	mgr *terrastack.Manager,
+	isChanged bool,
+) ([]terrastack.Entry, error) {
 	var (
 		err    error
 		stacks []terrastack.Entry
 	)
 
 	if isChanged {
+		if err := c.checkLocalDefaultIsUpdated(basedir); err != nil {
+			return nil, err
+		}
 		stacks, err = mgr.ListChanged()
 	} else {
 		stacks, err = mgr.List()
@@ -187,9 +200,9 @@ func (c *cli) listStacks(mgr *terrastack.Manager, isChanged bool) ([]terrastack.
 
 func (c *cli) printStacks(basedir string, cwd string) error {
 	mgr := terrastack.NewManager(basedir, c.parsedArgs.GitChangeBase)
-	stacks, err := c.listStacks(mgr, c.parsedArgs.List.Changed)
+	stacks, err := c.listStacks(basedir, mgr, c.parsedArgs.List.Changed)
 	if err != nil {
-		return fmt.Errorf("can't list stacks: %v", err)
+		return err
 	}
 
 	cwd = cwd + string(os.PathSeparator)
@@ -215,9 +228,9 @@ func (c *cli) runOnStacks(basedir string) error {
 	}
 
 	mgr := terrastack.NewManager(basedir, c.parsedArgs.GitChangeBase)
-	stacks, err := c.listStacks(mgr, c.parsedArgs.Run.Changed)
+	stacks, err := c.listStacks(basedir, mgr, c.parsedArgs.Run.Changed)
 	if err != nil {
-		return fmt.Errorf("can't list stacks: %v", err)
+		return err
 	}
 
 	if c.parsedArgs.Run.Changed {
@@ -259,4 +272,62 @@ func (c *cli) log(format string, args ...interface{}) {
 
 func (c *cli) logerr(format string, args ...interface{}) {
 	fmt.Fprintln(c.stderr, fmt.Sprintf(format, args...))
+}
+
+func (c *cli) checkLocalDefaultIsUpdated(basedir string) error {
+	g, err := git.WithConfig(git.Config{
+		WorkingDir: basedir,
+	})
+	if err != nil {
+		return fmt.Errorf("creating git on dir %q: %v", basedir, err)
+	}
+
+	if !g.IsRepository() {
+		return fmt.Errorf("dir %q is not a git repository", basedir)
+	}
+
+	branch, err := g.CurrentBranch()
+	if err != nil {
+		return fmt.Errorf("checking local branch is updated: %v", err)
+	}
+
+	const (
+		defaultRemote = "origin"
+		defaultBranch = "main"
+	)
+
+	if branch != defaultBranch {
+		return nil
+	}
+
+	c.logerr("current branch %q is the default branch, checking if it is updated.", branch)
+	c.logerr("retrieving info from remote branch: %s/%s ...", defaultRemote, defaultBranch)
+
+	remoteRef, err := g.FetchRemoteRev(defaultRemote, defaultBranch)
+	if err != nil {
+		return fmt.Errorf("checking local branch %q is update: %v", branch, err)
+	}
+	c.logerr("retrieved info from remote branch: %s/%s.", defaultRemote, defaultBranch)
+
+	localCommitID, err := g.RevParse(branch)
+	if err != nil {
+		return fmt.Errorf("checking local branch %q is update: %v", branch, err)
+	}
+
+	localRef := git.Ref{CommitID: localCommitID}
+
+	if localRef.CommitID != remoteRef.CommitID {
+		return fmt.Errorf(
+			"%w: remote %s/%s=%q != local %s=%q",
+			ErrOutdatedLocalRev,
+			defaultRemote,
+			defaultBranch,
+			remoteRef.ShortCommitID(),
+			branch,
+			localRef.ShortCommitID(),
+		)
+
+	}
+
+	return nil
 }
