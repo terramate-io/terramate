@@ -14,7 +14,12 @@ import (
 	"github.com/mineiros-io/terrastack/git"
 )
 
-const defaultBaseRef = "origin/main"
+const (
+	defaultRemote       = "origin"
+	defaultBranch       = "main"
+	defaultMainBaseRef  = "HEAD^1"
+	defaultOtherBaseRef = defaultRemote + "/" + defaultBranch
+)
 
 type cliSpec struct {
 	Version struct{} `cmd:"" help:"Terrastack version."`
@@ -91,7 +96,7 @@ func newCLI(wd string, args []string, stdin io.Reader, stdout io.Writer, stderr 
 		return nil, err
 	}
 
-	baseRef := defaultBaseRef
+	baseRef := defaultOtherBaseRef
 	if gw.IsRepository() {
 		branch, err := gw.CurrentBranch()
 		if err != nil {
@@ -99,7 +104,7 @@ func newCLI(wd string, args []string, stdin io.Reader, stdout io.Writer, stderr 
 		}
 
 		if branch == "main" {
-			baseRef = "HEAD^1"
+			baseRef = defaultMainBaseRef
 		}
 	}
 
@@ -185,7 +190,7 @@ func (c *cli) run() error {
 func (c *cli) initStack(dirs []string) error {
 	var nErrors int
 	for _, d := range dirs {
-		if d[0] != '/' {
+		if !filepath.IsAbs(d) {
 			d = filepath.Join(c.wd, d)
 		}
 
