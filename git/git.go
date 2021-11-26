@@ -236,6 +236,18 @@ func (git *Git) RemoteAdd(name string, url string) error {
 	return err
 }
 
+// Remotes returns a list of all configure remotes, empty list if no remote is available.
+func (git *Git) Remotes() ([]string, error) {
+	res, err := git.exec("remote")
+	if err != nil {
+		return nil, err
+	}
+	if res == "" {
+		return nil, nil
+	}
+	return strings.Split(res, "\n"), nil
+}
+
 // LogSummary returns a list of commit log summary in reverse chronological
 // order from the revs set operation. It expects the same revision list as the
 // `git rev-list` command.
