@@ -38,6 +38,13 @@ func WriteFile(t *testing.T, dir string, filename string, content string) string
 	return path
 }
 
+// ReadFile reads the content of fname from dir directory.
+func ReadFile(t *testing.T, dir, fname string) []byte {
+	data, err := os.ReadFile(filepath.Join(dir, fname))
+	assert.NoError(t, err, "reading file")
+	return data
+}
+
 // Mkdir creates a directory inside base.
 func Mkdir(t *testing.T, base string, name string) string {
 	path := filepath.Join(base, name)

@@ -10,7 +10,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-// Parser is a High-Level parser.
+// Parser is a terrastack parser.
 type Parser struct {
 	p *hclparse.Parser
 }
@@ -43,7 +43,7 @@ func (p *Parser) ParseModules(path string) ([]hcl.Module, error) {
 		}
 
 		moduleName := block.Labels[0]
-		source, ok, err := findSourceAttribute(block)
+		source, ok, err := findStringAttr(block, "source")
 		if err != nil {
 			return nil, fmt.Errorf("looking for %q.source attribute: %w",
 				moduleName, err)
@@ -58,23 +58,78 @@ func (p *Parser) ParseModules(path string) ([]hcl.Module, error) {
 	return modules, nil
 }
 
-func findSourceAttribute(block *hclsyntax.Block) (string, bool, error) {
+// Parse parses a terrastack source.
+func (p *Parser) Parse(fname string, data []byte) (*hcl.Terrastack, error) {
+	f, diags := p.p.ParseHCL(data, fname)
+	if diags.HasErrors() {
+		return nil, fmt.Errorf("parsing terrastack: %w", diags)
+	}
+
+	body, _ := f.Body.(*hclsyntax.Body)
+
+	var terrastack []*hcl.Terrastack
+	for _, block := range body.Blocks {
+		if block.Type != "terrastack" {
+			continue
+		}
+
+		if len(block.Labels) > 0 {
+			return nil, fmt.Errorf("terrastack block must have no labels")
+		}
+
+		reqversion, ok, err := findStringAttr(block, "required_version")
+		if err != nil {
+			return nil, fmt.Errorf("looking for terrastack.required_version attribute: %w",
+				err)
+		}
+		if !ok {
+			return nil, fmt.Errorf("terrastack block requires a \"required_version\" attribute")
+		}
+
+		terrastack = append(terrastack, &hcl.Terrastack{
+			RequiredVersion: reqversion,
+		})
+	}
+
+	if len(terrastack) > 1 {
+		return nil, fmt.Errorf("only 1 \"terrastack\" block is allowed but found %d",
+			len(terrastack))
+	}
+
+	if len(terrastack) == 0 {
+		return nil, fmt.Errorf("no \"terrastack\" block found")
+	}
+
+	return terrastack[0], nil
+}
+
+// ParseFile parses a terrastack file.
+func (p *Parser) ParseFile(path string) (*hcl.Terrastack, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file %q: %w", path, err)
+	}
+
+	return p.Parse(path, data)
+}
+
+func findStringAttr(block *hclsyntax.Block, attr string) (string, bool, error) {
 	for name, value := range block.Body.Attributes {
-		if name != "source" {
+		if name != attr {
 			continue
 		}
 
-		sourceVal, diags := value.Expr.Value(nil)
+		attrVal, diags := value.Expr.Value(nil)
 		if diags.HasErrors() {
-			return "", false, fmt.Errorf("failed to evaluate source attribute: %w",
-				diags)
+			return "", false, fmt.Errorf("failed to evaluate %q attribute: %w",
+				attr, diags)
 		}
 
-		if sourceVal.Type() != cty.String {
-			continue
+		if attrVal.Type() != cty.String {
+			return "", false, fmt.Errorf("attribute %q is not a string", attr)
 		}
 
-		return sourceVal.AsString(), true, nil
+		return attrVal.AsString(), true, nil
 	}
 
 	return "", false, nil
