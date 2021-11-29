@@ -176,7 +176,7 @@ func TestFetchRemoteRevErrorHandling(t *testing.T) {
 func TestListingAvailableRemotes(t *testing.T) {
 	type testcase struct {
 		name    string
-		remotes []string
+		remotes []git.Remote
 		want    []git.Remote
 	}
 
@@ -186,7 +186,7 @@ func TestListingAvailableRemotes(t *testing.T) {
 		},
 		{
 			name:    "one remote",
-			remotes: []string{"origin"},
+			remotes: []git.Remote{{Name: "origin"}},
 			want: []git.Remote{
 				{
 					Name:     "origin",
@@ -196,7 +196,7 @@ func TestListingAvailableRemotes(t *testing.T) {
 		},
 		{
 			name:    "two remotes",
-			remotes: []string{"origin", "another"},
+			remotes: []git.Remote{{Name: "origin"}, {Name: "another"}},
 			want: []git.Remote{
 				{
 					Name:     "another",
@@ -218,11 +218,17 @@ func TestListingAvailableRemotes(t *testing.T) {
 			for _, remote := range tc.remotes {
 
 				remoteDir := test.EmptyRepo(t, true)
-				err := g.RemoteAdd(remote, remoteDir)
+				err := g.RemoteAdd(remote.Name, remoteDir)
 				assert.NoError(t, err)
 
-				err = g.Push(remote, "main")
-				assert.NoError(t, err)
+				if remote.Branches == nil {
+					remote.Branches = []string{"main"}
+				}
+
+				for _, branch := range remote.Branches {
+					err = g.Push(remote.Name, branch)
+					assert.NoError(t, err)
+				}
 			}
 
 			gotRemotes, err := g.Remotes()

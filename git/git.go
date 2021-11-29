@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 )
 
@@ -83,6 +84,8 @@ const (
 	// when AllowPorcelain is false.
 	ErrDenyPorcelain Error = "porcelain commands are not allowed by the configuration"
 )
+
+type remoteSorter []Remote
 
 // NewConfig creates a new configuration. The username and email are the only
 // required config fields.
@@ -245,14 +248,18 @@ func (git *Git) RemoteAdd(name string, url string) error {
 }
 
 // Remotes returns a list of all configured remotes and their respective branches,
-// returns an empty list if no remote is available.
+// The result slice is ordered lexicographically by the remote name.
+//
+// Returns an empty list if no remote is available.
 func (git *Git) Remotes() ([]Remote, error) {
 	const refprefix = "refs/remotes/"
 
 	res, err := git.exec("for-each-ref", "--format", "%(refname)", refprefix)
+
 	if err != nil {
 		return nil, err
 	}
+
 	if res == "" {
 		return nil, nil
 	}
@@ -270,12 +277,13 @@ func (git *Git) Remotes() ([]Remote, error) {
 		references[name] = append(branches, branch)
 	}
 
-	remotes := make([]Remote, 0, len(references))
+	var remotes remoteSorter
 
 	for name, branches := range references {
 		remotes = append(remotes, Remote{Name: name, Branches: branches})
 	}
 
+	sort.Stable(remotes)
 	return remotes, nil
 }
 
@@ -666,6 +674,18 @@ func (e *CmdError) Stdout() []byte { return e.stdout }
 
 // Stderr of the failed command.
 func (e *CmdError) Stderr() []byte { return e.stderr }
+
+func (r remoteSorter) Len() int {
+	return len(r)
+}
+
+func (r remoteSorter) Less(i, j int) bool {
+	return r[i].Name < r[j].Name
+}
+
+func (r remoteSorter) Swap(i, j int) {
+	r[i], r[j] = r[j], r[i]
+}
 
 func removeEmptyLines(lines []string) []string {
 	outlines := make([]string, 0, len(lines))
