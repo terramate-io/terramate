@@ -1,6 +1,7 @@
 package terrastack
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,21 +19,21 @@ const ConfigFilename = "terrastack.tsk.hcl"
 // other terrastack version, the force flag can be used to explicitly initialize
 // it anyway. The dir must be an absolute path.
 func Init(dir string, force bool) error {
-	if len(dir) > 0 && dir[0] != '/' {
+	if !filepath.IsAbs(dir) {
 		// TODO(i4k): this needs to go away soon.
-		return fmt.Errorf("init requires an absolute path")
+		return errors.New("init requires an absolute path")
 	}
 	st, err := os.Stat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("init requires an existing directory")
+			return errors.New("init requires an existing directory")
 		}
 
 		return fmt.Errorf("stat failed on %q: %w", dir, err)
 	}
 
 	if !st.IsDir() {
-		return fmt.Errorf("path is not a directory")
+		return errors.New("path is not a directory")
 	}
 
 	stackfile := filepath.Join(dir, ConfigFilename)

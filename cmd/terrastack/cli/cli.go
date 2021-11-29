@@ -15,9 +15,15 @@ import (
 	"github.com/mineiros-io/terrastack/git"
 )
 
-const defaultBaseRef = "origin/main"
+const (
+	defaultRemote       = "origin"
+	defaultBranch       = "main"
+	defaultMainBaseRef  = "HEAD^1"
+	defaultOtherBaseRef = defaultRemote + "/" + defaultBranch
 
-const ErrInit errutil.Error = "failed to initialize all stack"
+	ErrOutdatedLocalRev errutil.Error = "outdated local revision"
+	ErrInit             errutil.Error = "failed to initialize all stack"
+)
 
 type cliSpec struct {
 	Version struct{} `cmd:"" help:"Terrastack version."`
@@ -94,7 +100,7 @@ func newCLI(wd string, args []string, stdin io.Reader, stdout io.Writer, stderr 
 		return nil, err
 	}
 
-	baseRef := defaultBaseRef
+	baseRef := defaultOtherBaseRef
 	if gw.IsRepository() {
 		branch, err := gw.CurrentBranch()
 		if err != nil {
@@ -102,7 +108,7 @@ func newCLI(wd string, args []string, stdin io.Reader, stdout io.Writer, stderr 
 		}
 
 		if branch == "main" {
-			baseRef = "HEAD^1"
+			baseRef = defaultMainBaseRef
 		}
 	}
 
@@ -188,14 +194,11 @@ func (c *cli) run() error {
 func (c *cli) initStack(dirs []string) error {
 	var errmsgs []string
 	for _, d := range dirs {
-		path, err := filepath.Abs(d)
-		if err != nil {
-			c.logerr("warn: failed to get absolute path of %q: %v", d, err)
-			errmsgs = append(errmsgs, err.Error())
-			continue
+		if !filepath.IsAbs(d) {
+			d = filepath.Join(c.wd, d)
 		}
 
-		err = terrastack.Init(path, c.parsedArgs.Init.Force)
+		err := terrastack.Init(d, c.parsedArgs.Init.Force)
 		if err != nil {
 			c.logerr("warn: failed to initialize stack: %v", err)
 			errmsgs = append(errmsgs, err.Error())
@@ -209,13 +212,20 @@ func (c *cli) initStack(dirs []string) error {
 	return nil
 }
 
-func (c *cli) listStacks(mgr *terrastack.Manager, isChanged bool) ([]terrastack.Entry, error) {
+func (c *cli) listStacks(
+	basedir string,
+	mgr *terrastack.Manager,
+	isChanged bool,
+) ([]terrastack.Entry, error) {
 	var (
 		err    error
 		stacks []terrastack.Entry
 	)
 
 	if isChanged {
+		if err := c.checkLocalDefaultIsUpdated(basedir); err != nil {
+			return nil, err
+		}
 		stacks, err = mgr.ListChanged()
 	} else {
 		stacks, err = mgr.List()
@@ -226,9 +236,9 @@ func (c *cli) listStacks(mgr *terrastack.Manager, isChanged bool) ([]terrastack.
 
 func (c *cli) printStacks(basedir string) error {
 	mgr := terrastack.NewManager(basedir, c.baseRef)
-	stacks, err := c.listStacks(mgr, c.parsedArgs.List.Changed)
+	stacks, err := c.listStacks(basedir, mgr, c.parsedArgs.List.Changed)
 	if err != nil {
-		return fmt.Errorf("can't list stacks: %v", err)
+		return err
 	}
 
 	trimPart := c.wd + string(os.PathSeparator)
@@ -247,15 +257,14 @@ func (c *cli) printStacks(basedir string) error {
 func (c *cli) runOnStacks(basedir string) error {
 	var nErrors int
 
-	basedir, err := filepath.Abs(basedir)
-	if err != nil {
-		return fmt.Errorf("can't find absolute path for %q: %v", basedir, err)
+	if !filepath.IsAbs(basedir) {
+		basedir = filepath.Join(c.wd, basedir)
 	}
 
 	mgr := terrastack.NewManager(basedir, c.baseRef)
-	stacks, err := c.listStacks(mgr, c.parsedArgs.Run.Changed)
+	stacks, err := c.listStacks(basedir, mgr, c.parsedArgs.Run.Changed)
 	if err != nil {
-		return fmt.Errorf("can't list stacks: %v", err)
+		return err
 	}
 
 	if c.parsedArgs.Run.Changed {
@@ -296,4 +305,62 @@ func (c *cli) log(format string, args ...interface{}) {
 
 func (c *cli) logerr(format string, args ...interface{}) {
 	fmt.Fprintln(c.stderr, fmt.Sprintf(format, args...))
+}
+
+func (c *cli) checkLocalDefaultIsUpdated(basedir string) error {
+	g, err := git.WithConfig(git.Config{
+		WorkingDir: basedir,
+	})
+	if err != nil {
+		return fmt.Errorf("creating git on dir %q: %v", basedir, err)
+	}
+
+	if !g.IsRepository() {
+		return fmt.Errorf("dir %q is not a git repository", basedir)
+	}
+
+	branch, err := g.CurrentBranch()
+	if err != nil {
+		return fmt.Errorf("checking local branch is updated: %v", err)
+	}
+
+	const (
+		defaultRemote = "origin"
+		defaultBranch = "main"
+	)
+
+	if branch != defaultBranch {
+		return nil
+	}
+
+	c.logerr("current branch %q is the default branch, checking if it is updated.", branch)
+	c.logerr("retrieving info from remote branch: %s/%s ...", defaultRemote, defaultBranch)
+
+	remoteRef, err := g.FetchRemoteRev(defaultRemote, defaultBranch)
+	if err != nil {
+		return fmt.Errorf("checking local branch %q is update: %v", branch, err)
+	}
+	c.logerr("retrieved info from remote branch: %s/%s.", defaultRemote, defaultBranch)
+
+	localCommitID, err := g.RevParse(branch)
+	if err != nil {
+		return fmt.Errorf("checking local branch %q is update: %v", branch, err)
+	}
+
+	localRef := git.Ref{CommitID: localCommitID}
+
+	if localRef.CommitID != remoteRef.CommitID {
+		return fmt.Errorf(
+			"%w: remote %s/%s=%q != local %s=%q",
+			ErrOutdatedLocalRev,
+			defaultRemote,
+			defaultBranch,
+			remoteRef.ShortCommitID(),
+			branch,
+			localRef.ShortCommitID(),
+		)
+
+	}
+
+	return nil
 }

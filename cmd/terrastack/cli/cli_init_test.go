@@ -16,7 +16,7 @@ func TestInitHCLFile(t *testing.T) {
 	basedir := t.TempDir()
 
 	cli := newCLI(t, basedir)
-	assertRun(t, cli.run("init", basedir), runResult{})
+	assertRun(t, cli.run("init", basedir))
 
 	data := test.ReadFile(t, basedir, terrastack.ConfigFilename)
 	p := hhcl.NewTSParser()
@@ -35,7 +35,7 @@ func TestInitHCLFileAlreadyExists(t *testing.T) {
 	basedir := t.TempDir()
 
 	c := newCLI(t, basedir)
-	assertRun(t, c.run("init", basedir), runResult{})
+	assertRun(t, c.run("init", basedir))
 
 	data := test.ReadFile(t, basedir, terrastack.ConfigFilename)
 	p := hhcl.NewTSParser()
@@ -50,7 +50,7 @@ func TestInitHCLFileAlreadyExists(t *testing.T) {
 	}
 
 	// same version, must work
-	assertRun(t, c.run("init", basedir), runResult{})
+	assertRun(t, c.run("init", basedir))
 
 	// different version must fail and give a warning.
 
@@ -61,11 +61,8 @@ terrastack {
 }`, stackVersion))
 
 	wantResult := runResult{
-		Err: cli.ErrInit,
-		Stderr: fmt.Sprintf("warn: failed to initialize stack: stack already "+
-			"initialized with version %q but terrastack version is %q\n",
-			stackVersion,
-			terrastack.Version()),
+		Error:        cli.ErrInit,
+		IgnoreStderr: true,
 	}
-	assertRun(t, c.runFail("init", basedir), wantResult)
+	assertRunResult(t, c.run("init", basedir), wantResult)
 }

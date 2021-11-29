@@ -8,6 +8,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terrastack/git"
 	"github.com/mineiros-io/terrastack/test"
+	"github.com/mineiros-io/terrastack/test/sandbox"
 )
 
 const CookedCommitID = "a022c39b57b1e711fb9298a05aacc699773e6d36"
@@ -122,6 +123,63 @@ func TestRevParse(t *testing.T) {
 	out, err := git.RevParse("main")
 	assert.NoError(t, err, "rev-parse failed")
 	assert.EqualStrings(t, CookedCommitID, out, "commit mismatch")
+}
+
+func TestCurrentBranch(t *testing.T) {
+	s := sandbox.New(t)
+	git := s.Git()
+
+	assert.EqualStrings(t, "main", git.CurrentBranch())
+
+	const newBranch = "test"
+
+	git.CheckoutNew(newBranch)
+	assert.EqualStrings(t, newBranch, git.CurrentBranch())
+}
+
+func TestFetchRemoteRev(t *testing.T) {
+	const (
+		remote   = "origin"
+		revision = "main"
+	)
+
+	repodir := mkOneCommitRepo(t)
+	git := test.NewGitWrapper(t, repodir, false)
+
+	remoteDir := test.EmptyRepo(t, true)
+	err := git.RemoteAdd("origin", remoteDir)
+	assert.NoError(t, err)
+
+	err = git.Push("origin", "main")
+	assert.NoError(t, err)
+
+	remoteRef, err := git.FetchRemoteRev(remote, revision)
+	assert.NoError(t, err, "git.FetchRemoteRev(%q, %q)", remote, revision)
+
+	assert.EqualStrings(
+		t,
+		CookedCommitID,
+		remoteRef.CommitID,
+		"remote reference ID doesn't match cooked commit ID",
+	)
+
+	const wantRefName = "refs/heads/main"
+
+	assert.EqualStrings(
+		t,
+		wantRefName,
+		remoteRef.Name,
+		"remote ref name doesn't match local",
+	)
+
+}
+
+func TestFetchRemoteRevErrorHandling(t *testing.T) {
+	repodir := mkOneCommitRepo(t)
+	git := test.NewGitWrapper(t, repodir, false)
+	// should fail because the repo has no origin remote set.
+	remoteRef, err := git.FetchRemoteRev("origin", "main")
+	assert.Error(t, err, "unexpected result: %v", remoteRef)
 }
 
 func mkOneCommitRepo(t *testing.T) string {
