@@ -227,9 +227,6 @@ func (c *cli) listStacks(
 		if err := c.checkDefaultRemote(git); err != nil {
 			return nil, err
 		}
-		if err := c.checkDefaultBranch(git); err != nil {
-			return nil, err
-		}
 		if err := c.checkLocalDefaultIsUpdated(git); err != nil {
 			return nil, err
 		}
@@ -348,11 +345,6 @@ func (c *cli) checkDefaultRemote(g *git.Git) error {
 		defaultBranch,
 		defRemote.Branches,
 	)
-}
-
-func (c *cli) checkDefaultBranch(g *git.Git) error {
-	//TODO(katcipis): implement =P
-	return nil
 }
 
 func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
