@@ -16,13 +16,18 @@ import (
 )
 
 const (
+	defaultRemote       = "origin"
+	defaultBranch       = "main"
+	defaultMainBaseRef  = "HEAD^1"
+	defaultOtherBaseRef = defaultRemote + "/" + defaultBranch
+
 	ErrOutdatedLocalRev errutil.Error = "outdated local revision"
 )
 
 type cliSpec struct {
 	Version struct{} `cmd:"" help:"Terrastack version."`
 
-	GitChangeBase string `short:"B" optional:"true" default:"origin/main" help:"git base ref for computing changes."`
+	GitChangeBase string `short:"B" default:"${baseRef}" optional:"true" help:"git base ref for computing changes."`
 
 	Init struct {
 		StackDirs []string `arg:"" name:"paths" optional:"true" help:"the stack directory (current directory if not set)."`
@@ -43,7 +48,8 @@ type cliSpec struct {
 	} `cmd:"" help:"Run command in the stacks."`
 }
 
-// Run will run terrastack with the provided flags defined on args.
+// Run will run terrastack with the provided flags defined on args from the
+// directory wd.
 // Only flags should be on the args slice.
 
 // Results will be written on stdout, according to the
@@ -57,8 +63,8 @@ type cliSpec struct {
 // as far as the parameters are not shared between the Run calls.
 //
 // If a critical error is found an non-nil error is returned.
-func Run(args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
-	c, err := newCLI(args, stdin, stdout, stderr)
+func Run(wd string, args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
+	c, err := newCLI(wd, args, stdin, stdout, stderr)
 	if err != nil {
 		return err
 	}
@@ -72,9 +78,11 @@ type cli struct {
 	stdout     io.Writer
 	stderr     io.Writer
 	exit       bool
+	wd         string
+	baseRef    string
 }
 
-func newCLI(args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) (*cli, error) {
+func newCLI(wd string, args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) (*cli, error) {
 	if len(args) == 0 {
 		// WHY: avoid default kong error, print help
 		args = []string{"--help"}
@@ -83,6 +91,25 @@ func newCLI(args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) 
 	parsedArgs := cliSpec{}
 	kongExit := false
 	kongExitStatus := 0
+
+	gw, err := git.WithConfig(git.Config{
+		WorkingDir: wd,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	baseRef := defaultOtherBaseRef
+	if gw.IsRepository() {
+		branch, err := gw.CurrentBranch()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get current git branch: %v", err)
+		}
+
+		if branch == "main" {
+			baseRef = defaultMainBaseRef
+		}
+	}
 
 	parser, err := kong.New(&parsedArgs,
 		kong.Name("terrastack"),
@@ -96,7 +123,11 @@ func newCLI(args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) 
 			kongExit = true
 			kongExitStatus = status
 		}),
-		kong.Writers(stdout, stderr))
+		kong.Writers(stdout, stderr),
+		kong.Vars{
+			"baseRef": baseRef,
+		},
+	)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cli parser: %v", err)
@@ -118,6 +149,8 @@ func newCLI(args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) 
 		stderr:     stderr,
 		parsedArgs: &parsedArgs,
 		ctx:        ctx,
+		baseRef:    parsedArgs.GitChangeBase,
+		wd:         wd,
 	}, nil
 }
 
@@ -126,28 +159,25 @@ func (c *cli) run() error {
 		// WHY: parser called exit but with no error (like help)
 		return nil
 	}
-	wd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("cli.run(): failed to get process working dir: %v", err)
-	}
+
 	switch c.ctx.Command() {
 	case "version":
 		c.log(terrastack.Version())
 	case "init":
-		return c.initStack([]string{wd})
+		return c.initStack([]string{c.wd})
 	case "init <paths>":
 		return c.initStack(c.parsedArgs.Init.StackDirs)
 	case "list":
-		return c.printStacks(wd, wd)
+		return c.printStacks(c.wd)
 	case "list <path>":
-		return c.printStacks(c.parsedArgs.List.BaseDir, wd)
+		return c.printStacks(c.parsedArgs.List.BaseDir)
 	case "run":
 		if len(c.parsedArgs.Run.Command) == 0 {
 			return errors.New("no command specified")
 		}
 		fallthrough
 	case "run <cmd>":
-		basedir := wd
+		basedir := c.wd
 		if c.parsedArgs.Run.Basedir != "" {
 			basedir = strings.TrimSuffix(c.parsedArgs.Run.Basedir, "/")
 		}
@@ -163,6 +193,10 @@ func (c *cli) run() error {
 func (c *cli) initStack(dirs []string) error {
 	var nErrors int
 	for _, d := range dirs {
+		if !filepath.IsAbs(d) {
+			d = filepath.Join(c.wd, d)
+		}
+
 		err := terrastack.Init(d, c.parsedArgs.Init.Force)
 		if err != nil {
 			c.logerr("warn: failed to initialize stack: %v", err)
@@ -198,17 +232,16 @@ func (c *cli) listStacks(
 	return stacks, err
 }
 
-func (c *cli) printStacks(basedir string, cwd string) error {
-	mgr := terrastack.NewManager(basedir, c.parsedArgs.GitChangeBase)
+func (c *cli) printStacks(basedir string) error {
+	mgr := terrastack.NewManager(basedir, c.baseRef)
 	stacks, err := c.listStacks(basedir, mgr, c.parsedArgs.List.Changed)
 	if err != nil {
 		return err
 	}
 
-	cwd = cwd + string(os.PathSeparator)
-
+	trimPart := c.wd + string(os.PathSeparator)
 	for _, stack := range stacks {
-		stackdir := strings.TrimPrefix(stack.Dir, cwd)
+		stackdir := strings.TrimPrefix(stack.Dir, trimPart)
 
 		if c.parsedArgs.List.Why {
 			c.log("%s - %s", stackdir, stack.Reason)
@@ -222,12 +255,11 @@ func (c *cli) printStacks(basedir string, cwd string) error {
 func (c *cli) runOnStacks(basedir string) error {
 	var nErrors int
 
-	basedir, err := filepath.Abs(basedir)
-	if err != nil {
-		return fmt.Errorf("can't find absolute path for %q: %v", basedir, err)
+	if !filepath.IsAbs(basedir) {
+		basedir = filepath.Join(c.wd, basedir)
 	}
 
-	mgr := terrastack.NewManager(basedir, c.parsedArgs.GitChangeBase)
+	mgr := terrastack.NewManager(basedir, c.baseRef)
 	stacks, err := c.listStacks(basedir, mgr, c.parsedArgs.Run.Changed)
 	if err != nil {
 		return err
@@ -243,7 +275,6 @@ func (c *cli) runOnStacks(basedir string) error {
 	args := c.parsedArgs.Run.Command[1:]
 
 	for _, stack := range stacks {
-
 		cmd := exec.Command(cmdName, args...)
 		cmd.Dir = stack.Dir
 		cmd.Stdin = c.stdin

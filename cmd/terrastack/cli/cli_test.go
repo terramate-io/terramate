@@ -41,22 +41,19 @@ source = "%s"
 
 	stack3.CreateFile("main.tf", "# no module")
 
-	cli := newCLI(t)
+	cli := newCLI(t, s.BaseDir())
 	cli.run("init", stack1.Path(), stack2.Path(), stack3.Path())
 
 	git := s.Git()
 	git.CommitAll("first commit")
 	git.Push("main")
-
-	assertRun(t, cli.run("list", s.BaseDir(), "--changed"))
-
 	git.CheckoutNew("change-the-module-1")
 
 	mod1MainTf.Write("# changed")
 
 	git.CommitAll("module 1 changed")
 
-	want := stack1.Path() + "\n"
+	want := stack1.RelPath() + "\n"
 	assertRunResult(t, cli.run(
 		"list", s.BaseDir(), "--changed"),
 		runResult{Stdout: want},
@@ -74,15 +71,57 @@ func TestListAndRunChangedStack(t *testing.T) {
 	stack := s.CreateStack("stack")
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
 
-	cli := newCLI(t)
+	cli := newCLI(t, s.BaseDir())
 	cli.run("init", stack.Path())
 
 	git := s.Git()
 	git.CommitAll("first commit")
 	git.Push("main")
+	git.CheckoutNew("change-stack")
 
-	assertRun(t, cli.run("list", s.BaseDir(), "--changed"))
+	stackMainTf.Write(mainTfContents)
+	git.CommitAll("stack changed")
 
+	wantList := stack.RelPath() + "\n"
+	assertRunResult(t, cli.run("list", s.BaseDir(), "--changed"),
+		runResult{Stdout: wantList})
+
+	cat := test.LookPath(t, "cat")
+	wantRun := fmt.Sprintf(
+		"Running on changed stacks:\n[%s] running %s %s\n%s",
+		stack.Path(),
+		cat,
+		mainTfFileName,
+		mainTfContents,
+	)
+
+	assertRunResult(t, cli.run(
+		"run",
+		"--basedir",
+		s.BaseDir(),
+		"--changed",
+		cat,
+		mainTfFileName,
+	), runResult{Stdout: wantRun})
+}
+
+func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
+	const (
+		mainTfFileName = "main.tf"
+		mainTfContents = "# change is the eternal truth of the universe"
+	)
+
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack")
+	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
+
+	cli := newCLI(t, t.TempDir())
+	cli.run("init", stack.Path())
+
+	git := s.Git()
+	git.CommitAll("first commit")
+	git.Push("main")
 	git.CheckoutNew("change-stack")
 
 	stackMainTf.Write(mainTfContents)
@@ -114,22 +153,19 @@ func TestListAndRunChangedStack(t *testing.T) {
 	), runResult{Stdout: wantRun})
 }
 
-func TestDefaultBaseRef(t *testing.T) {
+func TestDefaultBaseRefInOtherThanMain(t *testing.T) {
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack-1")
 	stackFile := stack.CreateFile("main.tf", "# no code")
 
-	cli := newCLI(t)
+	cli := newCLI(t, s.BaseDir())
 	assertRun(t, cli.run("init", stack.Path()))
 
 	git := s.Git()
 	git.Add(".")
 	git.Commit("all")
 	git.Push("main")
-
-	assertRun(t, cli.run("list", s.BaseDir(), "--changed"))
-
 	git.CheckoutNew("change-the-stack")
 
 	stackFile.Write("# changed")
@@ -137,15 +173,53 @@ func TestDefaultBaseRef(t *testing.T) {
 	git.Commit("stack changed")
 
 	want := runResult{
-		Stdout: stack.Path() + "\n",
+		Stdout: stack.RelPath() + "\n",
 	}
 	assertRunResult(t, cli.run("list", s.BaseDir(), "--changed"), want)
+}
 
-	git.Checkout("main")
-	git.Merge("change-the-stack")
+func TestDefaultBaseRefInMain(t *testing.T) {
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack-1")
+	stack.CreateFile("main.tf", "# no code")
+
+	cli := newCLI(t, s.BaseDir())
+	assertRun(t, cli.run("init", stack.Path()))
+
+	git := s.Git()
+	git.Add(".")
+	git.Commit("all")
 	git.Push("main")
 
-	assertRun(t, cli.run("list", s.BaseDir(), "--changed"))
+	// main uses HEAD^1 as default baseRef.
+	want := runResult{
+		Stdout:       stack.RelPath() + "\n",
+		IgnoreStderr: true,
+	}
+	assertRunResult(t, cli.run("list", s.BaseDir(), "--changed"), want)
+}
+
+func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack-1")
+	stack.CreateFile("main.tf", "# no code")
+
+	cli := newCLI(t, s.BaseDir())
+	assertRun(t, cli.run("init", stack.Path()))
+
+	git := s.Git()
+	git.Add(".")
+	git.Commit("all")
+	git.Push("main")
+
+	assertRunResult(t, cli.run("list", s.BaseDir(), "--changed",
+		"--git-change-base", "origin/main"),
+		runResult{
+			IgnoreStderr: true,
+		},
+	)
 }
 
 func TestFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
@@ -154,7 +228,7 @@ func TestFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
 	stack := s.CreateStack("stack-1")
 	mainTfFile := stack.CreateFile("main.tf", "# no code")
 
-	ts := newCLI(t)
+	ts := newCLI(t, s.BaseDir())
 	assertRun(t, ts.run("init", stack.Path()))
 
 	git := s.Git()
@@ -180,7 +254,7 @@ func TestFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
 }
 
 func TestNoArgsProvidesBasicHelp(t *testing.T) {
-	cli := newCLI(t)
+	cli := newCLI(t, t.TempDir())
 	cli.run("--help")
 	help := cli.run("--help")
 	assertRunResult(t, cli.run(), runResult{Stdout: help.Stdout})
@@ -196,11 +270,15 @@ type runResult struct {
 }
 
 type tscli struct {
-	t *testing.T
+	t  *testing.T
+	wd string
 }
 
-func newCLI(t *testing.T) tscli {
-	return tscli{t: t}
+func newCLI(t *testing.T, wd string) tscli {
+	return tscli{
+		t:  t,
+		wd: wd,
+	}
 }
 
 func (ts tscli) run(args ...string) runResult {
@@ -209,7 +287,7 @@ func (ts tscli) run(args ...string) runResult {
 	stdin := &bytes.Buffer{}
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
-	err := cli.Run(args, stdin, stdout, stderr)
+	err := cli.Run(ts.wd, args, stdin, stdout, stderr)
 
 	return runResult{
 		Cmd:    strings.Join(args, " "),
