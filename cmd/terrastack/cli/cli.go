@@ -22,7 +22,7 @@ const (
 	defaultOtherBaseRef = defaultRemote + "/" + defaultBranch
 
 	ErrOutdatedLocalRev errutil.Error = "outdated local revision"
-	ErrInit             errutil.Error = "failed to initialize all stack"
+	ErrInit             errutil.Error = "failed to initialize all stacks"
 )
 
 type cliSpec struct {
