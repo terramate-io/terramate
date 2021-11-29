@@ -22,6 +22,7 @@ const (
 	defaultOtherBaseRef = defaultRemote + "/" + defaultBranch
 
 	ErrOutdatedLocalRev errutil.Error = "outdated local revision"
+	ErrInit             errutil.Error = "failed to initialize all stacks"
 )
 
 type cliSpec struct {
@@ -191,7 +192,7 @@ func (c *cli) run() error {
 }
 
 func (c *cli) initStack(dirs []string) error {
-	var nErrors int
+	var errmsgs []string
 	for _, d := range dirs {
 		if !filepath.IsAbs(d) {
 			d = filepath.Join(c.wd, d)
@@ -200,13 +201,14 @@ func (c *cli) initStack(dirs []string) error {
 		err := terrastack.Init(d, c.parsedArgs.Init.Force)
 		if err != nil {
 			c.logerr("warn: failed to initialize stack: %v", err)
-			nErrors++
+			errmsgs = append(errmsgs, err.Error())
 		}
 	}
 
-	if nErrors > 0 {
-		return fmt.Errorf("failed to initialize %d stack(s)", nErrors)
+	if len(errmsgs) > 0 {
+		return fmt.Errorf("%w: %v", ErrInit, strings.Join(errmsgs, ": "))
 	}
+
 	return nil
 }
 
