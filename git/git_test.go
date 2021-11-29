@@ -2,6 +2,7 @@ package git_test
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 
@@ -146,12 +147,7 @@ func TestFetchRemoteRev(t *testing.T) {
 	repodir := mkOneCommitRepo(t)
 	git := test.NewGitWrapper(t, repodir, false)
 
-	remoteDir := test.EmptyRepo(t, true)
-	err := git.RemoteAdd("origin", remoteDir)
-	assert.NoError(t, err)
-
-	err = git.Push("origin", "main")
-	assert.NoError(t, err)
+	addRemoteRevision(t, git, remote, revision)
 
 	remoteRef, err := git.FetchRemoteRev(remote, revision)
 	assert.NoError(t, err, "git.FetchRemoteRev(%q, %q)", remote, revision)
@@ -180,6 +176,38 @@ func TestFetchRemoteRevErrorHandling(t *testing.T) {
 	// should fail because the repo has no origin remote set.
 	remoteRef, err := git.FetchRemoteRev("origin", "main")
 	assert.Error(t, err, "unexpected result: %v", remoteRef)
+}
+
+func TestSymbolicReference(t *testing.T) {
+	const (
+		remote   = "origin"
+		revision = "main"
+	)
+
+	repodir := mkOneCommitRepo(t)
+	git := test.NewGitWrapper(t, repodir, false)
+
+	addRemoteRevision(t, git, remote, revision)
+
+	// FIXME(katcipis): REMOVE
+	_, err := git.FetchRemoteRev(remote, revision)
+	assert.NoError(t, err, "git.FetchRemoteRev(%q, %q)", remote, revision)
+	// FIXME(katcipis): REMOVE
+
+	symbref := fmt.Sprintf("refs/remotes/%s/HEAD", remote)
+	want := fmt.Sprintf("refs/remotes/%s/%s", remote, revision)
+	got, err := git.SymbolicRef(symbref)
+
+	assert.NoError(t, err, "git.SymbolicReference(%q)", symbref)
+	assert.EqualStrings(t, want, got, "symbolic references don't match")
+}
+
+func TestSymbolicReferenceErrorHandling(t *testing.T) {
+	repodir := mkOneCommitRepo(t)
+	git := test.NewGitWrapper(t, repodir, false)
+	// should fail because the repo has no origin remote set.
+	ref, err := git.SymbolicRef("refs/remotes/origin/HEAD")
+	assert.Error(t, err, "unexpected result: %v", ref)
 }
 
 func TestListingAvailableRemotes(t *testing.T) {
@@ -270,4 +298,15 @@ func mkOneCommitRepo(t *testing.T) string {
 	assert.NoError(t, err, "commit")
 
 	return repodir
+}
+
+func addRemoteRevision(t *testing.T, git *git.Git, remote, revision string) {
+	t.Helper()
+
+	remoteDir := test.EmptyRepo(t, true)
+	err := git.RemoteAdd(remote, remoteDir)
+	assert.NoError(t, err)
+
+	err = git.Push(remote, revision)
+	assert.NoError(t, err)
 }
