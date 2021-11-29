@@ -257,7 +257,7 @@ func (git *Git) Remotes() ([]Remote, error) {
 		return nil, nil
 	}
 
-	references := make(map[string][]string)
+	references := map[string][]string{}
 
 	for _, rawref := range strings.Split(res, "\n") {
 		trimmedref := strings.TrimPrefix(rawref, refprefix)
@@ -270,7 +270,7 @@ func (git *Git) Remotes() ([]Remote, error) {
 		references[name] = append(branches, branch)
 	}
 
-	remotes := []Remote{}
+	remotes := make([]Remote, 0, len(references))
 
 	for name, branches := range references {
 		remotes = append(remotes, Remote{Name: name, Branches: branches})
