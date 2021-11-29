@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terrastack/git"
 	"github.com/mineiros-io/terrastack/test"
@@ -176,7 +177,7 @@ func TestListingAvailableRemotes(t *testing.T) {
 	type testcase struct {
 		name    string
 		remotes []string
-		want    []string
+		want    []git.Remote
 	}
 
 	tests := []testcase{
@@ -186,42 +187,54 @@ func TestListingAvailableRemotes(t *testing.T) {
 		{
 			name:    "one remote",
 			remotes: []string{"origin"},
-			want:    []string{"origin"},
+			want: []git.Remote{
+				{
+					Name:     "origin",
+					Branches: []string{"main"},
+				},
+			},
 		},
 		{
 			name:    "two remotes",
 			remotes: []string{"origin", "another"},
-			want:    []string{"another", "origin"},
+			want: []git.Remote{
+				{
+					Name:     "another",
+					Branches: []string{"main"},
+				},
+				{
+					Name:     "origin",
+					Branches: []string{"main"},
+				},
+			},
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			repodir := mkOneCommitRepo(t)
-			git := test.NewGitWrapper(t, repodir, false)
+			g := test.NewGitWrapper(t, repodir, false)
 
 			for _, remote := range tc.remotes {
 
 				remoteDir := test.EmptyRepo(t, true)
-				err := git.RemoteAdd(remote, remoteDir)
+				err := g.RemoteAdd(remote, remoteDir)
 				assert.NoError(t, err)
 
-				err = git.Push(remote, "main")
+				err = g.Push(remote, "main")
 				assert.NoError(t, err)
 			}
 
-			gotRemotes, err := git.Remotes()
+			gotRemotes, err := g.Remotes()
 			assert.NoError(t, err)
 
-			if len(gotRemotes) != len(tc.want) {
-				t.Fatalf("got=%#v != want=%#v", gotRemotes, tc.want)
-			}
-
-			for i, got := range gotRemotes {
-				want := tc.want[i]
-				if got != want {
-					t.Errorf("got[%d]=%q != want[%d]=%q", i, got, i, want)
-				}
+			if diff := cmp.Diff(gotRemotes, tc.want); diff != "" {
+				t.Fatalf(
+					"got remotes %v != want %v. Details (got-, want+):\n%s",
+					gotRemotes,
+					tc.want,
+					diff,
+				)
 			}
 		})
 	}

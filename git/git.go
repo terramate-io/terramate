@@ -47,6 +47,14 @@ type (
 		CommitID string
 	}
 
+	// Remote is a git remote.
+	Remote struct {
+		// Name of the remote reference
+		Name string
+		// Branches are all the branches the remote reference has
+		Branches []string
+	}
+
 	// LogLine is a log summary.
 	LogLine struct {
 		CommitID string
@@ -236,16 +244,36 @@ func (git *Git) RemoteAdd(name string, url string) error {
 	return err
 }
 
-// Remotes returns a list of all configure remotes, empty list if no remote is available.
-func (git *Git) Remotes() ([]string, error) {
-	res, err := git.exec("remote")
+// Remotes returns a list of all configured remotes and their respective branches,
+// returns an empty list if no remote is available.
+func (git *Git) Remotes() ([]Remote, error) {
+	const refprefix = "refs/remotes/"
+
+	res, err := git.exec("for-each-ref", "--format", "%(refname)", refprefix)
 	if err != nil {
 		return nil, err
 	}
 	if res == "" {
 		return nil, nil
 	}
-	return strings.Split(res, "\n"), nil
+
+	references := make(map[string][]string)
+
+	for _, rawref := range strings.Split(res, "\n") {
+		rawref = strings.TrimPrefix(rawref, refprefix)
+		parsed := strings.Split(rawref, "/")
+		name, branch := parsed[0], parsed[1]
+		branches := references[name]
+		references[name] = append(branches, branch)
+	}
+
+	remotes := []Remote{}
+
+	for name, branches := range references {
+		remotes = append(remotes, Remote{Name: name, Branches: branches})
+	}
+
+	return remotes, nil
 }
 
 // LogSummary returns a list of commit log summary in reverse chronological

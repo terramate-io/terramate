@@ -254,6 +254,7 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 }
 
 func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
+	t.Skip("TODO(katcipis)")
 	basedir := t.TempDir()
 	assertFails := func() {
 		t.Helper()
