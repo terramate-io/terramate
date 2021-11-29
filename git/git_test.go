@@ -228,14 +228,7 @@ func TestListingAvailableRemotes(t *testing.T) {
 			gotRemotes, err := g.Remotes()
 			assert.NoError(t, err)
 
-			if diff := cmp.Diff(gotRemotes, tc.want); diff != "" {
-				t.Fatalf(
-					"got remotes %v != want %v. Details (got-, want+):\n%s",
-					gotRemotes,
-					tc.want,
-					diff,
-				)
-			}
+			assertEqualRemotes(t, gotRemotes, tc.want)
 		})
 	}
 
@@ -271,14 +264,7 @@ func TestListRemoteWithMultipleBranches(t *testing.T) {
 		},
 	}
 
-	if diff := cmp.Diff(got, want); diff != "" {
-		t.Fatalf(
-			"got remotes %v != want %v. Details (got-, want+):\n%s",
-			got,
-			want,
-			diff,
-		)
-	}
+	assertEqualRemotes(t, got, want)
 }
 
 func mkOneCommitRepo(t *testing.T) string {
@@ -329,10 +315,18 @@ func addDefaultRemoteRev(t *testing.T, git *git.Git) (string, string) {
 	err = git.Push(remote, revision)
 	assert.NoError(t, err)
 
-	// WHY: https://gitirc.eu/gitrepository-layout.html
-	// It does not mean much if the repository is not associated with
-	// any working tree (i.e. a bare repository), but a valid Git repository
-	// must have the HEAD file; some porcelains may use it to guess the designated
-	// "default" branch of the repository (usually master).
 	return remote, revision
+}
+
+func assertEqualRemotes(t *testing.T, got []git.Remote, want []git.Remote) {
+	t.Helper()
+
+	if diff := cmp.Diff(got, want); diff != "" {
+		t.Fatalf(
+			"got remotes %v != want %v. Details (got-, want+):\n%s",
+			got,
+			want,
+			diff,
+		)
+	}
 }
