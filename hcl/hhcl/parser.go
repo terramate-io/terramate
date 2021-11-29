@@ -11,19 +11,19 @@ import (
 )
 
 // Parser is a terrastack parser.
-type TSParser struct {
+type Parser struct {
 	p *hclparse.Parser
 }
 
 // NewParser creates a HCL parser
-func NewTSParser() *TSParser {
-	return &TSParser{
+func NewParser() *Parser {
+	return &Parser{
 		p: hclparse.NewParser(),
 	}
 }
 
 // ParseModules parses blocks of type "module" containing a single label.
-func (p *TSParser) ParseModules(path string) ([]hcl.Module, error) {
+func (p *Parser) ParseModules(path string) ([]hcl.Module, error) {
 	_, err := os.Stat(path)
 	if err != nil {
 		return nil, fmt.Errorf("stat failed on %q: %w", path, err)
@@ -59,7 +59,7 @@ func (p *TSParser) ParseModules(path string) ([]hcl.Module, error) {
 }
 
 // Parse parses a terrastack source.
-func (p *TSParser) Parse(fname string, data []byte) (*hcl.Terrastack, error) {
+func (p *Parser) Parse(fname string, data []byte) (*hcl.Terrastack, error) {
 	f, diags := p.p.ParseHCL(data, fname)
 	if diags.HasErrors() {
 		return nil, fmt.Errorf("parsing terrastack: %w", diags)
@@ -104,7 +104,7 @@ func (p *TSParser) Parse(fname string, data []byte) (*hcl.Terrastack, error) {
 }
 
 // ParseFile parses a terrastack file.
-func (p *TSParser) ParseFile(path string) (*hcl.Terrastack, error) {
+func (p *Parser) ParseFile(path string) (*hcl.Terrastack, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file %q: %w", path, err)

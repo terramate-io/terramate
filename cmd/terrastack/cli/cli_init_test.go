@@ -19,7 +19,7 @@ func TestInitHCLFile(t *testing.T) {
 	assertRun(t, cli.run("init", basedir))
 
 	data := test.ReadFile(t, basedir, terrastack.ConfigFilename)
-	p := hhcl.NewTSParser()
+	p := hhcl.NewParser()
 	got, err := p.Parse("TestInitHCL", data)
 	assert.NoError(t, err, "parsing terrastack file")
 
@@ -38,7 +38,7 @@ func TestInitHCLFileAlreadyExists(t *testing.T) {
 	assertRun(t, c.run("init", basedir))
 
 	data := test.ReadFile(t, basedir, terrastack.ConfigFilename)
-	p := hhcl.NewTSParser()
+	p := hhcl.NewParser()
 	got, err := p.Parse("TestInitHCL", data)
 	assert.NoError(t, err, "parsing terrastack file")
 

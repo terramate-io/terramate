@@ -77,7 +77,7 @@ func Init(dir string, force bool) error {
 
 	defer f.Close()
 
-	p := hhcl.NewPrinter()
+	var p hhcl.Printer
 	err = p.PrintTerrastack(f, hcl.Terrastack{
 		RequiredVersion: Version(),
 	})
@@ -90,7 +90,7 @@ func Init(dir string, force bool) error {
 }
 
 func parseVersion(stackfile string) (string, error) {
-	parser := hhcl.NewTSParser()
+	parser := hhcl.NewParser()
 	ts, err := parser.ParseFile(stackfile)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse file %q: %w", stackfile, err)

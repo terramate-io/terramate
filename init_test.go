@@ -101,7 +101,7 @@ func newStack(t *testing.T) string {
 }
 
 func assertTSBlock(t *testing.T, want hcl.Terrastack, got string) {
-	p := hhcl.NewTSParser()
+	p := hhcl.NewParser()
 	ts, err := p.Parse("test", []byte(got))
 	assert.NoError(t, err, "parsing generated file")
 

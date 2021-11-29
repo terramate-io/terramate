@@ -10,9 +10,7 @@ import (
 
 type Printer struct{}
 
-func NewPrinter() Printer { return Printer{} }
-
-func (p *Printer) PrintTerrastack(w io.Writer, ts hcl.Terrastack) error {
+func (Printer) PrintTerrastack(w io.Writer, ts hcl.Terrastack) error {
 	f := hclwrite.NewEmptyFile()
 	rootBody := f.Body()
 	tsBlock := rootBody.AppendNewBlock("terrastack", nil)

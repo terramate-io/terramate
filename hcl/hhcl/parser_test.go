@@ -113,7 +113,7 @@ module "test" {
 		t.Run(tc.name, func(t *testing.T) {
 			path := test.WriteFile(t, "", "main.tf", tc.input)
 
-			parser := hhcl.NewTSParser()
+			parser := hhcl.NewParser()
 			modules, err := parser.ParseModules(path)
 			if tc.want.errPrefix != nil {
 				if err == nil {
