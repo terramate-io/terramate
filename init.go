@@ -97,9 +97,6 @@ func parseVersion(stackfile string) (string, error) {
 	}
 
 	// TODO(i4k): properly support version constraints.
-	if strings.HasPrefix(ts.RequiredVersion, "~>") {
-		return strings.TrimSpace(strings.TrimPrefix(ts.RequiredVersion, "~>")), nil
-	}
-
+	ts.RequiredVersion = strings.TrimSpace(strings.TrimPrefix(ts.RequiredVersion, "~>"))
 	return ts.RequiredVersion, nil
 }
