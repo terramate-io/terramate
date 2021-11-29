@@ -248,25 +248,6 @@ func (git *Git) Remotes() ([]string, error) {
 	return strings.Split(res, "\n"), nil
 }
 
-// SymbolicRef reads a symbolic reference.
-// Given the reference, reads which branch head the given symbolic ref refers
-// to and outputs its path, relative to the .git/ directory.
-//
-// Typically you would give HEAD as the argument to see which branch
-// your working tree is on.
-//
-// Example: "refs/remotes/origin/HEAD"
-func (git *Git) SymbolicRef(ref string) (string, error) {
-	return git.Exec("symbolic-ref", ref)
-}
-
-// CreateSymbolicRef creates or updates a symbolic ref,
-// given by name, to point at the given reference.
-func (git *Git) CreateSymbolicRef(name, reference string) error {
-	_, err := git.Exec("symbolic-ref", name, reference)
-	return err
-}
-
 // LogSummary returns a list of commit log summary in reverse chronological
 // order from the revs set operation. It expects the same revision list as the
 // `git rev-list` command.

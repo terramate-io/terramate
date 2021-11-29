@@ -2,7 +2,6 @@ package git_test
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"testing"
 
@@ -139,15 +138,10 @@ func TestCurrentBranch(t *testing.T) {
 }
 
 func TestFetchRemoteRev(t *testing.T) {
-	const (
-		remote   = "origin"
-		revision = "main"
-	)
-
 	repodir := mkOneCommitRepo(t)
 	git := test.NewGitWrapper(t, repodir, false)
 
-	addRemoteRevision(t, git, remote, revision)
+	remote, revision := addDefaultRemoteRev(t, git)
 
 	remoteRef, err := git.FetchRemoteRev(remote, revision)
 	assert.NoError(t, err, "git.FetchRemoteRev(%q, %q)", remote, revision)
@@ -176,59 +170,6 @@ func TestFetchRemoteRevErrorHandling(t *testing.T) {
 	// should fail because the repo has no origin remote set.
 	remoteRef, err := git.FetchRemoteRev("origin", "main")
 	assert.Error(t, err, "unexpected result: %v", remoteRef)
-}
-
-func TestSymbolicReferenceCreation(t *testing.T) {
-	repodir := test.EmptyRepo(t, false)
-	git := test.NewGitWrapper(t, repodir, false)
-
-	name := "refs/remotes/test/HEAD"
-	reference := "refs/remotes/test/main"
-
-	err := git.CreateSymbolicRef(name, reference)
-	assert.NoError(t, err, "git.CreateSymbolicRef(%q, %q)", name, reference)
-
-	got, err := git.SymbolicRef(name)
-	assert.NoError(t, err, "git.SymbolicReference(%q)", name)
-	assert.EqualStrings(t, reference, got, "symbolic references don't match")
-}
-
-func TestSymbolicReference(t *testing.T) {
-	const (
-		remote   = "origin"
-		revision = "main"
-	)
-
-	t.Skip("TODO(katcipis)")
-
-	repodir := mkOneCommitRepo(t)
-	git := test.NewGitWrapper(t, repodir, false)
-
-	addRemoteRevision(t, git, remote, revision)
-
-	// FIXME(katcipis): REMOVE
-	_, err := git.FetchRemoteRev(remote, revision)
-	assert.NoError(t, err, "git.FetchRemoteRev(%q, %q)", remote, revision)
-
-	debug, err := git.Exec("show-ref")
-	assert.NoError(t, err)
-	t.Logf("show-ref: %q", debug)
-	// FIXME(katcipis): REMOVE
-
-	symbref := fmt.Sprintf("refs/remotes/%s/HEAD", remote)
-	want := fmt.Sprintf("refs/remotes/%s/%s", remote, revision)
-	got, err := git.SymbolicRef(symbref)
-
-	assert.NoError(t, err, "git.SymbolicReference(%q)", symbref)
-	assert.EqualStrings(t, want, got, "symbolic references don't match")
-}
-
-func TestSymbolicReferenceErrorHandling(t *testing.T) {
-	repodir := mkOneCommitRepo(t)
-	git := test.NewGitWrapper(t, repodir, false)
-	// should fail because the repo has no origin remote set.
-	ref, err := git.SymbolicRef("refs/remotes/origin/HEAD")
-	assert.Error(t, err, "unexpected result: %v", ref)
 }
 
 func TestListingAvailableRemotes(t *testing.T) {
@@ -321,7 +262,11 @@ func mkOneCommitRepo(t *testing.T) string {
 	return repodir
 }
 
-func addRemoteRevision(t *testing.T, git *git.Git, remote, revision string) {
+func addDefaultRemoteRev(t *testing.T, git *git.Git) (string, string) {
+	const (
+		remote   = "origin"
+		revision = "main"
+	)
 	t.Helper()
 
 	remoteDir := test.EmptyRepo(t, true)
@@ -330,4 +275,11 @@ func addRemoteRevision(t *testing.T, git *git.Git, remote, revision string) {
 
 	err = git.Push(remote, revision)
 	assert.NoError(t, err)
+
+	// WHY: https://gitirc.eu/gitrepository-layout.html
+	// It does not mean much if the repository is not associated with
+	// any working tree (i.e. a bare repository), but a valid Git repository
+	// must have the HEAD file; some porcelains may use it to guess the designated
+	// "default" branch of the repository (usually master).
+	return remote, revision
 }
