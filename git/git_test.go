@@ -241,6 +241,46 @@ func TestListingAvailableRemotes(t *testing.T) {
 
 }
 
+func TestListRemoteWithMultipleBranches(t *testing.T) {
+	const (
+		remote        = "origin"
+		defaultBranch = "main"
+	)
+
+	repodir := mkOneCommitRepo(t)
+	g := test.NewGitWrapper(t, repodir, false)
+
+	remoteDir := test.EmptyRepo(t, true)
+
+	assert.NoError(t, g.RemoteAdd(remote, remoteDir))
+	assert.NoError(t, g.Push(remote, defaultBranch))
+
+	branches := []string{"b1", "b2", "b3"}
+	for _, branch := range branches {
+		assert.NoError(t, g.Checkout(branch, true))
+		assert.NoError(t, g.Push(remote, branch))
+	}
+
+	got, err := g.Remotes()
+	assert.NoError(t, err)
+
+	want := []git.Remote{
+		{
+			Name:     remote,
+			Branches: append(branches, defaultBranch),
+		},
+	}
+
+	if diff := cmp.Diff(got, want); diff != "" {
+		t.Fatalf(
+			"got remotes %v != want %v. Details (got-, want+):\n%s",
+			got,
+			want,
+			diff,
+		)
+	}
+}
+
 func mkOneCommitRepo(t *testing.T) string {
 	repodir := test.EmptyRepo(t, false)
 
