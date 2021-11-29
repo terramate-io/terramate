@@ -257,7 +257,14 @@ func (git *Git) Remotes() ([]string, error) {
 //
 // Example: "refs/remotes/origin/HEAD"
 func (git *Git) SymbolicRef(ref string) (string, error) {
-	return git.exec("symbolic-ref", ref)
+	return git.Exec("symbolic-ref", ref)
+}
+
+// CreateSymbolicRef creates or updates a symbolic ref,
+// given by name, to point at the given reference.
+func (git *Git) CreateSymbolicRef(name, reference string) error {
+	_, err := git.Exec("symbolic-ref", name, reference)
+	return err
 }
 
 // LogSummary returns a list of commit log summary in reverse chronological
