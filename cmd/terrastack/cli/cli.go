@@ -255,7 +255,7 @@ func (c *cli) printStacks(basedir string) error {
 func (c *cli) runOnStacks(basedir string) error {
 	var nErrors int
 
-	if basedir[0] != '/' {
+	if !filepath.IsAbs(basedir) {
 		basedir = filepath.Join(c.wd, basedir)
 	}
 
