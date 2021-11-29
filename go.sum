@@ -28,6 +28,8 @@ github.com/kylelemons/godebug v0.0.0-20170820004349-d65d576e9348 h1:MtvEpTB6LX3v
 github.com/kylelemons/godebug v0.0.0-20170820004349-d65d576e9348/go.mod h1:B69LEHPfb2qLo0BaaOLcbitczOKLWTsrBG9LczfCD4k=
 github.com/madlambda/spells v0.1.0 h1:RmkcmYjHheutRfFt6DvpuGBMw3AG2ljzLKdc1NnLacc=
 github.com/madlambda/spells v0.1.0/go.mod h1:Z8EUYIlBI+GfxQQGHHPkzt9YGu9olhVTbhcnxMGpgYo=
+github.com/madlambda/spells v0.2.0 h1:Lrh7gF2P3kKLCfnTplzG7dp1TdF9UZm5wrVJk2gcqfo=
+github.com/madlambda/spells v0.2.0/go.mod h1:Z8EUYIlBI+GfxQQGHHPkzt9YGu9olhVTbhcnxMGpgYo=
 github.com/mitchellh/go-wordwrap v0.0.0-20150314170334-ad45545899c7 h1:DpOJ2HYzCv8LZP15IdmG+YdwD2luVPHITV96TkirNBM=
 github.com/mitchellh/go-wordwrap v0.0.0-20150314170334-ad45545899c7/go.mod h1:ZXFpozHsX6DPmq2I0TCekCxypsnAUbP2oI0UX1GXzOo=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=

@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -53,7 +54,7 @@ source = "%s"
 	git.CommitAll("module 1 changed")
 
 	want := stack1.RelPath() + "\n"
-	assertRun(t, cli.run(
+	assertRunResult(t, cli.run(
 		"list", s.BaseDir(), "--changed"),
 		runResult{Stdout: want},
 	)
@@ -82,7 +83,8 @@ func TestListAndRunChangedStack(t *testing.T) {
 	git.CommitAll("stack changed")
 
 	wantList := stack.RelPath() + "\n"
-	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), runResult{Stdout: wantList})
+	assertRunResult(t, cli.run("list", s.BaseDir(), "--changed"),
+		runResult{Stdout: wantList})
 
 	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
@@ -93,7 +95,7 @@ func TestListAndRunChangedStack(t *testing.T) {
 		mainTfContents,
 	)
 
-	assertRun(t, cli.run(
+	assertRunResult(t, cli.run(
 		"run",
 		"--basedir",
 		s.BaseDir(),
@@ -126,7 +128,11 @@ func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
 	git.CommitAll("stack changed")
 
 	wantList := stack.Path() + "\n"
-	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), runResult{Stdout: wantList})
+	assertRunResult(
+		t,
+		cli.run("list", s.BaseDir(), "--changed"),
+		runResult{Stdout: wantList},
+	)
 
 	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
@@ -137,7 +143,7 @@ func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
 		mainTfContents,
 	)
 
-	assertRun(t, cli.run(
+	assertRunResult(t, cli.run(
 		"run",
 		"--basedir",
 		s.BaseDir(),
@@ -154,7 +160,7 @@ func TestDefaultBaseRefInOtherThanMain(t *testing.T) {
 	stackFile := stack.CreateFile("main.tf", "# no code")
 
 	cli := newCLI(t, s.BaseDir())
-	assertRun(t, cli.run("init", stack.Path()), runResult{})
+	assertRun(t, cli.run("init", stack.Path()))
 
 	git := s.Git()
 	git.Add(".")
@@ -169,7 +175,7 @@ func TestDefaultBaseRefInOtherThanMain(t *testing.T) {
 	want := runResult{
 		Stdout: stack.RelPath() + "\n",
 	}
-	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), want)
+	assertRunResult(t, cli.run("list", s.BaseDir(), "--changed"), want)
 }
 
 func TestDefaultBaseRefInMain(t *testing.T) {
@@ -179,7 +185,7 @@ func TestDefaultBaseRefInMain(t *testing.T) {
 	stack.CreateFile("main.tf", "# no code")
 
 	cli := newCLI(t, s.BaseDir())
-	assertRun(t, cli.run("init", stack.Path()), runResult{})
+	assertRun(t, cli.run("init", stack.Path()))
 
 	git := s.Git()
 	git.Add(".")
@@ -188,9 +194,10 @@ func TestDefaultBaseRefInMain(t *testing.T) {
 
 	// main uses HEAD^1 as default baseRef.
 	want := runResult{
-		Stdout: stack.RelPath() + "\n",
+		Stdout:       stack.RelPath() + "\n",
+		IgnoreStderr: true,
 	}
-	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), want)
+	assertRunResult(t, cli.run("list", s.BaseDir(), "--changed"), want)
 }
 
 func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
@@ -200,33 +207,66 @@ func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
 	stack.CreateFile("main.tf", "# no code")
 
 	cli := newCLI(t, s.BaseDir())
-	assertRun(t, cli.run("init", stack.Path()), runResult{})
+	assertRun(t, cli.run("init", stack.Path()))
 
 	git := s.Git()
 	git.Add(".")
 	git.Commit("all")
 	git.Push("main")
 
-	want := runResult{
-		Stdout: stack.RelPath() + "\n",
+	assertRunResult(t, cli.run("list", s.BaseDir(), "--changed",
+		"--git-change-base", "origin/main"),
+		runResult{
+			IgnoreStderr: true,
+		},
+	)
+}
+
+func TestFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack-1")
+	mainTfFile := stack.CreateFile("main.tf", "# no code")
+
+	ts := newCLI(t, s.BaseDir())
+	assertRun(t, ts.run("init", stack.Path()))
+
+	git := s.Git()
+	git.Add(".")
+	git.Commit("all")
+
+	wantRes := runResult{
+		Error:        cli.ErrOutdatedLocalRev,
+		IgnoreStderr: true,
 	}
-	assertRun(t, cli.run("list", s.BaseDir(), "--changed"), want)
-	assertRun(t, cli.run(
-		"list", s.BaseDir(), "--changed", "--git-change-base", "origin/main",
-	), runResult{})
+
+	assertRunResult(t, ts.run("list", s.BaseDir(), "--changed"), wantRes)
+
+	cat := test.LookPath(t, "cat")
+	assertRunResult(t, ts.run(
+		"run",
+		"--basedir",
+		s.BaseDir(),
+		"--changed",
+		cat,
+		mainTfFile.Path(),
+	), wantRes)
 }
 
 func TestNoArgsProvidesBasicHelp(t *testing.T) {
 	cli := newCLI(t, t.TempDir())
 	cli.run("--help")
 	help := cli.run("--help")
-	assertRun(t, cli.run(), runResult{Stdout: help.Stdout})
+	assertRunResult(t, cli.run(), runResult{Stdout: help.Stdout})
 }
 
 type runResult struct {
-	Cmd    string
-	Stdout string
-	Stderr string
+	Cmd          string
+	Stdout       string
+	IgnoreStdout bool
+	Stderr       string
+	IgnoreStderr bool
+	Error        error
 }
 
 type tscli struct {
@@ -247,32 +287,34 @@ func (ts tscli) run(args ...string) runResult {
 	stdin := &bytes.Buffer{}
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
-
-	if err := cli.Run(ts.wd, args, stdin, stdout, stderr); err != nil {
-		ts.t.Fatalf(
-			"cli.Run(args=%v) error=%q stdout=%q stderr=%q",
-			args,
-			err,
-			stdout.String(),
-			stderr.String(),
-		)
-	}
+	err := cli.Run(ts.wd, args, stdin, stdout, stderr)
 
 	return runResult{
 		Cmd:    strings.Join(args, " "),
 		Stdout: stdout.String(),
 		Stderr: stderr.String(),
+		Error:  err,
 	}
 }
 
-func assertRun(t *testing.T, got runResult, want runResult) {
+func assertRun(t *testing.T, got runResult) {
 	t.Helper()
 
-	if got.Stdout != want.Stdout {
-		t.Errorf("%q stdout=%q, wanted=%q", got.Cmd, got.Stdout, want.Stdout)
+	assertRunResult(t, got, runResult{IgnoreStdout: true, IgnoreStderr: true})
+}
+
+func assertRunResult(t *testing.T, got runResult, want runResult) {
+	t.Helper()
+
+	if !errors.Is(got.Error, want.Error) {
+		t.Errorf("%q got.Error=[%v] != want.Error=[%v]", got.Cmd, got.Error, want.Error)
 	}
 
-	if got.Stderr != want.Stderr {
-		t.Errorf("%q stderr=%q, wanted=%q", got.Cmd, got.Stderr, want.Stderr)
+	if !want.IgnoreStdout && got.Stdout != want.Stdout {
+		t.Errorf("%q stdout=%q != wanted=%q", got.Cmd, got.Stdout, want.Stdout)
+	}
+
+	if !want.IgnoreStderr && got.Stderr != want.Stderr {
+		t.Errorf("%q stderr=%q != wanted=%q", got.Cmd, got.Stderr, want.Stderr)
 	}
 }
