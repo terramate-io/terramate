@@ -313,13 +313,41 @@ func (c *cli) logerr(format string, args ...interface{}) {
 }
 
 func (c *cli) checkDefaultRemote(g *git.Git) error {
-	_, err := g.Remotes()
+	remotes, err := g.Remotes()
 	if err != nil {
 		return fmt.Errorf("checking remote %q exists: %v", defaultRemote, err)
 	}
-	//TODO(katcipis): implement =P
-	//return fmt.Errorf("%w:no origin", ErrNoDefaultRemoteConfig)
-	return nil
+
+	var defRemote *git.Remote
+
+	for _, remote := range remotes {
+		if remote.Name == defaultRemote {
+			defRemote = &remote
+			break
+		}
+	}
+
+	if defRemote == nil {
+		return fmt.Errorf(
+			"%w:no default remote %q",
+			ErrNoDefaultRemoteConfig,
+			defaultRemote,
+		)
+	}
+
+	for _, branch := range defRemote.Branches {
+		if branch == defaultBranch {
+			return nil
+		}
+	}
+
+	return fmt.Errorf(
+		"%w:%q has no default branch %q,branches:%v",
+		ErrNoDefaultRemoteConfig,
+		defaultRemote,
+		defaultBranch,
+		defRemote.Branches,
+	)
 }
 
 func (c *cli) checkDefaultBranch(g *git.Git) error {

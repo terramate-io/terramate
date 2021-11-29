@@ -254,7 +254,6 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 }
 
 func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
-	t.Skip("TODO(katcipis)")
 	basedir := t.TempDir()
 	assertFails := func() {
 		t.Helper()
@@ -291,10 +290,9 @@ func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
 	git.SetupRemote("notorigin", "main")
 	assertFails()
 
-	// TODO(katcipis): test when origin exists but without main
-	//git.CheckoutNew("not-main")
-	//git.SetupRemote("origin", "not-main")
-	//assertFails()
+	git.CheckoutNew("not-main")
+	git.SetupRemote("origin", "not-main")
+	assertFails()
 }
 
 func TestNoArgsProvidesBasicHelp(t *testing.T) {
