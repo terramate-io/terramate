@@ -8,7 +8,12 @@ import (
 )
 
 func main() {
-	if err := cli.Run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr); err != nil {
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("failed to get process working dir: %v", err)
+	}
+	err = cli.Run(wd, os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
+	if err != nil {
 		log.Fatal(err)
 	}
 }
