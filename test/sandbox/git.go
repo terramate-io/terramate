@@ -50,9 +50,8 @@ func (git Git) SetupRemote(remote, branch string) {
 
 	baredir := t.TempDir()
 	baregit := test.NewGitWrapper(t, baredir, false)
-	if err := baregit.Init(baredir, true); err != nil {
-		t.Fatalf("init bare repository: Git.Init(%v, true) = %v", baredir, err)
-	}
+
+	assert.NoError(t, baregit.Init(baredir, true), "Git.Init(%v, true)", baredir)
 
 	git.RemoteAdd(remote, baredir)
 	git.PushOn(remote, branch)
