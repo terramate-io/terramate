@@ -247,7 +247,7 @@ func (git *Git) RemoteAdd(name string, url string) error {
 	return err
 }
 
-// Remotes returns a list of all configured remotes and their respective branches,
+// Remotes returns a list of all configured remotes and their respective branches.
 // The result slice is ordered lexicographically by the remote name.
 //
 // Returns an empty list if no remote is available.
