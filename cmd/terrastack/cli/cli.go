@@ -314,7 +314,7 @@ func (c *cli) logerr(format string, args ...interface{}) {
 func (c *cli) checkDefaultRemote(g *git.Git) error {
 	remotes, err := g.Remotes()
 	if err != nil {
-		return fmt.Errorf("checking remote %q exists: %v", defaultRemote, err)
+		return fmt.Errorf("checking if remote %q exists: %v", defaultRemote, err)
 	}
 
 	var defRemote *git.Remote
