@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 )
 
@@ -47,6 +48,14 @@ type (
 		CommitID string
 	}
 
+	// Remote is a git remote.
+	Remote struct {
+		// Name of the remote reference
+		Name string
+		// Branches are all the branches the remote reference has
+		Branches []string
+	}
+
 	// LogLine is a log summary.
 	LogLine struct {
 		CommitID string
@@ -75,6 +84,8 @@ const (
 	// when AllowPorcelain is false.
 	ErrDenyPorcelain Error = "porcelain commands are not allowed by the configuration"
 )
+
+type remoteSorter []Remote
 
 // NewConfig creates a new configuration. The username and email are the only
 // required config fields.
@@ -234,6 +245,46 @@ func (git *Git) Init(dir string, bare bool) error {
 func (git *Git) RemoteAdd(name string, url string) error {
 	_, err := git.exec("remote", "add", name, url)
 	return err
+}
+
+// Remotes returns a list of all configured remotes and their respective branches.
+// The result slice is ordered lexicographically by the remote name.
+//
+// Returns an empty list if no remote is found.
+func (git *Git) Remotes() ([]Remote, error) {
+	const refprefix = "refs/remotes/"
+
+	res, err := git.exec("for-each-ref", "--format", "%(refname)", refprefix)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if res == "" {
+		return nil, nil
+	}
+
+	references := map[string][]string{}
+
+	for _, rawref := range strings.Split(res, "\n") {
+		trimmedref := strings.TrimPrefix(rawref, refprefix)
+		parsed := strings.Split(trimmedref, "/")
+		if len(parsed) != 2 {
+			return nil, fmt.Errorf("unexpected remote reference %q", rawref)
+		}
+		name, branch := parsed[0], parsed[1]
+		branches := references[name]
+		references[name] = append(branches, branch)
+	}
+
+	var remotes remoteSorter
+
+	for name, branches := range references {
+		remotes = append(remotes, Remote{Name: name, Branches: branches})
+	}
+
+	sort.Stable(remotes)
+	return remotes, nil
 }
 
 // LogSummary returns a list of commit log summary in reverse chronological
@@ -598,7 +649,7 @@ func (e *CmdError) Is(err error) bool {
 
 // Error string representation.
 func (e *CmdError) Error() string {
-	return fmt.Sprintf("failed to execute command: %s : %s", e.cmd, string(e.stderr))
+	return fmt.Sprintf("failed to exec: %s : stderr=%q", e.cmd, string(e.stderr))
 }
 
 // ShortCommitID returns the short version of the commit ID.
@@ -618,6 +669,18 @@ func (e *CmdError) Stdout() []byte { return e.stdout }
 
 // Stderr of the failed command.
 func (e *CmdError) Stderr() []byte { return e.stderr }
+
+func (r remoteSorter) Len() int {
+	return len(r)
+}
+
+func (r remoteSorter) Less(i, j int) bool {
+	return r[i].Name < r[j].Name
+}
+
+func (r remoteSorter) Swap(i, j int) {
+	r[i], r[j] = r[j], r[i]
+}
 
 func removeEmptyLines(lines []string) []string {
 	outlines := make([]string, 0, len(lines))

@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/alecthomas/kong v0.2.17
+	github.com/google/go-cmp v0.3.1
 	github.com/hashicorp/hcl/v2 v2.10.1
 	github.com/madlambda/spells v0.2.0
 	github.com/zclconf/go-cty v1.8.0

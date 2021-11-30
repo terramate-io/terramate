@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terrastack/git"
 	"github.com/mineiros-io/terrastack/test"
@@ -138,20 +139,10 @@ func TestCurrentBranch(t *testing.T) {
 }
 
 func TestFetchRemoteRev(t *testing.T) {
-	const (
-		remote   = "origin"
-		revision = "main"
-	)
-
 	repodir := mkOneCommitRepo(t)
 	git := test.NewGitWrapper(t, repodir, false)
 
-	remoteDir := test.EmptyRepo(t, true)
-	err := git.RemoteAdd("origin", remoteDir)
-	assert.NoError(t, err)
-
-	err = git.Push("origin", "main")
-	assert.NoError(t, err)
+	remote, revision := addDefaultRemoteRev(t, git)
 
 	remoteRef, err := git.FetchRemoteRev(remote, revision)
 	assert.NoError(t, err, "git.FetchRemoteRev(%q, %q)", remote, revision)
@@ -180,6 +171,100 @@ func TestFetchRemoteRevErrorHandling(t *testing.T) {
 	// should fail because the repo has no origin remote set.
 	remoteRef, err := git.FetchRemoteRev("origin", "main")
 	assert.Error(t, err, "unexpected result: %v", remoteRef)
+}
+
+func TestListingAvailableRemotes(t *testing.T) {
+	type testcase struct {
+		name    string
+		remotes []string
+		want    []git.Remote
+	}
+
+	tests := []testcase{
+		{
+			name: "no remotes",
+		},
+		{
+			name:    "one remote",
+			remotes: []string{"origin"},
+			want: []git.Remote{
+				{
+					Name:     "origin",
+					Branches: []string{"main"},
+				},
+			},
+		},
+		{
+			name:    "two remotes",
+			remotes: []string{"origin", "another"},
+			want: []git.Remote{
+				{
+					Name:     "another",
+					Branches: []string{"main"},
+				},
+				{
+					Name:     "origin",
+					Branches: []string{"main"},
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repodir := mkOneCommitRepo(t)
+			g := test.NewGitWrapper(t, repodir, false)
+
+			for _, remote := range tc.remotes {
+
+				remoteDir := test.EmptyRepo(t, true)
+				err := g.RemoteAdd(remote, remoteDir)
+				assert.NoError(t, err)
+
+				err = g.Push(remote, "main")
+				assert.NoError(t, err)
+			}
+
+			gotRemotes, err := g.Remotes()
+			assert.NoError(t, err)
+
+			assertEqualRemotes(t, gotRemotes, tc.want)
+		})
+	}
+
+}
+
+func TestListRemoteWithMultipleBranches(t *testing.T) {
+	const (
+		remote        = "origin"
+		defaultBranch = "main"
+	)
+
+	repodir := mkOneCommitRepo(t)
+	g := test.NewGitWrapper(t, repodir, false)
+
+	remoteDir := test.EmptyRepo(t, true)
+
+	assert.NoError(t, g.RemoteAdd(remote, remoteDir))
+	assert.NoError(t, g.Push(remote, defaultBranch))
+
+	branches := []string{"b1", "b2", "b3"}
+	for _, branch := range branches {
+		assert.NoError(t, g.Checkout(branch, true))
+		assert.NoError(t, g.Push(remote, branch))
+	}
+
+	got, err := g.Remotes()
+	assert.NoError(t, err)
+
+	want := []git.Remote{
+		{
+			Name:     remote,
+			Branches: append(branches, defaultBranch),
+		},
+	}
+
+	assertEqualRemotes(t, got, want)
 }
 
 func mkOneCommitRepo(t *testing.T) string {
@@ -214,4 +299,34 @@ func mkOneCommitRepo(t *testing.T) string {
 	assert.NoError(t, err, "commit")
 
 	return repodir
+}
+
+func addDefaultRemoteRev(t *testing.T, git *git.Git) (string, string) {
+	const (
+		remote   = "origin"
+		revision = "main"
+	)
+	t.Helper()
+
+	remoteDir := test.EmptyRepo(t, true)
+	err := git.RemoteAdd(remote, remoteDir)
+	assert.NoError(t, err)
+
+	err = git.Push(remote, revision)
+	assert.NoError(t, err)
+
+	return remote, revision
+}
+
+func assertEqualRemotes(t *testing.T, got []git.Remote, want []git.Remote) {
+	t.Helper()
+
+	if diff := cmp.Diff(got, want); diff != "" {
+		t.Fatalf(
+			"got remotes %v != want %v. Details (got-, want+):\n%s",
+			got,
+			want,
+			diff,
+		)
+	}
 }
