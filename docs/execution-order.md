@@ -20,189 +20,174 @@ To help with that terrastack provides a way to explicit declare
 the desired order of execution between stacks.
 
 It is important to note that we are talking strictly about execution
-order, not hard dependencies, so behavior is much closer to
-[systemd before/after](https://www.freedesktop.org/software/systemd/man/systemd.unit.html#Before=)
-than a Makefile dependency or [systemd Wants](https://www.freedesktop.org/software/systemd/man/systemd.unit.html#Wants=).
-
-Ordering is imposed on top of selected stacks, and stacks are only
-selected if they have changes on it, so ordering definition never
-selects an unchanged stack.
+order, not hard dependencies, ordering is imposed on top of selected
+stacks, and stacks are only selected if they have changes on it,
+so ordering definition never selects an unchanged stack.
 
 
-## Declaring Dependencies
+## Defining Order Of Execution
 
-Dependencies are declared inside the **stack** block using the
-parameter **dependencies** which is a set of strings (**set(string)**),
+Order of execution is declared inside the **stack** block using the
+parameters **before** and **after**. 
+
+Each is a set of strings (**set(string)**),
 where each string is a reference to another stack.
+
+Those two settings configure ordering dependencies between units. 
+
+**before** ensures that the configured stack is executed before the
+listed stacks, as the stack you are saying "I execute before these stacks".
+
+**after** ensures the opposite, that the listed stacks are executed before
+the configured stack, you are saying "I execute after these stacks".
 
 For example, let's assume we have a project organized like this:
 
 ```
 .
 ├── stack-a
-│   ├── main.tsk
-│   └── version.tsk
+│   └── terrastack.tsk.hcl
 └── stack-b
-    ├── main.tsk
-    └── version.tsk
+    └── terrastack.tsk.hcl
 ```
 
-And **stack-a/main.tsk** looks like:
+And **stack-a/terrastack.tsk.hcl** looks like:
 
 ```
-stack {
+terrastack {
+    required_version = "<version>"
 }
 ```
 
-Which doesn't depend on anything,
-and then we have **stack-b/main.tsk**:
+And then we have **stack-b/terrastack.tsk.hcl**:
 
 ```
+terrastack {
+    required_version = "<version>"
+}
+
 stack {
-    dependencies = [
+    after = [
         "../stack-a"
     ]
 }
 ```
 
-This means that **stack-b** depends on **stack-a**.
-The expression of this dependency impacts order of
-execution of the stacks and also how to detect changes
-across them, which is defined along with this doc,
-but as far as defining dependencies goes, it is this easy.
+This means that **stack-b** should be executed after **stack-a**.
+For a scenario where both stacks have been detected as changed
+the order of execution will be:
 
-## Order of Execution
+* stack-a
+* stack-b
 
-For order of execution, let's discuss a more complex scenario.
-Let's assume you have 4 stacks: **stack-a, stack-b, stack-c, stack-d**.
+The same order of execution can be defined as:
 
-Organized like this on the local file system (omitted file names
-for brevity):
+**stack-a/terrastack.tsk.hcl**:
 
 ```
-.
-├── stack-a
-├── stack-b
-├── stack-c
-└── stack-d
-```
+terrastack {
+    required_version = "<version>"
+}
 
-Each stack is defined as follows:
-
-stack-a:
-```
 stack {
+    before = [
+        "../stack-b"
+    ]
 }
 ```
 
-stack-b:
+**stack-b/terrastack.tsk.hcl**:
+
 ```
+terrastack {
+    required_version = "<version>"
+}
+```
+
+This would also be a valid way to express the same order (although redundant):
+
+**stack-a/terrastack.tsk.hcl**:
+
+```
+terrastack {
+    required_version = "<version>"
+}
+
 stack {
-    dependencies = [
+    before = [
+        "../stack-b"
+    ]
+}
+```
+
+**stack-b/terrastack.tsk.hcl**:
+
+```
+terrastack {
+    required_version = "<version>"
+}
+
+stack {
+    after = [
         "../stack-a"
     ]
 }
 ```
 
-stack-c:
+You can also use **before** and **after** simultaneously on the same
+stack for more complex scenarios. Lets say now we add a third **stack-c**
+and the three stacks are defined as follows.
+
+**stack-a/terrastack.tsk.hcl**:
+
 ```
+terrastack {
+    required_version = "<version>"
+}
+```
+
+**stack-b/terrastack.tsk.hcl**:
+
+```
+terrastack {
+    required_version = "<version>"
+}
+```
+
+**stack-c/terrastack.tsk.hcl**:
+
+```
+terrastack {
+    required_version = "<version>"
+}
+
 stack {
-    dependencies = [
+    before = [
+        "../stack-b"
+    ]
+    after = [
         "../stack-a"
     ]
 }
 ```
 
-stack-d:
-```
-stack {
-    dependencies = [
-        "../stack-b",
-        "../stack-c",
-    ]
-}
-```
+For a scenario where all 3 stacks have been detected as changed
+the order of execution will be:
 
-This will produce the following dependency graph:
+* stack-a
+* stack-c
+* stack-b
 
-![depgraph](./graphs/depgraph.svg)
-
-From the dependency graph, the total order of execution will be:
-
-* 1 - stack-a
-* 2 - (stack-b,stack-c)
-* 3 - stack-d
-
-In this case, since stack-b and stack-c are independent from
-each other they don't have a defined order of execution between
-them, meaning that you should not rely on an specific order and that it
-will most likely be run concurrently. stack-d can only be
-executed after both stack-b and stack-c have finished successfully.
-
-### Change Detection
-
-Change detection across stacks happens in the same way that change
-detection works for imported modules. When a stack depend on a module,
-if that module is detected as changed, the stack importing it is also
-marked as changed.
-
-For stack dependencies, the same behavior is expected. Lets say you
-have **stack-b** depending on **stack-a**, if a change is detected
-on **stack-a** then **stack-b** will also be marked as changed since
-it depends on **stack-a**.
 
 ## Failure Modes
 
-When managing multiple stacks it can happen that a specific
-stack fails to be applied. If no other stack depends on a failed stack,
-meaning no other stack depends on any infrastructure that was
-supposed to be built by the failed stack, execution of other stacks
-continues normally.
-
-But if a stack has an explicit dependency and its dependency
-fails to be applied, execution of the stack that depended on it
-will be aborted, since it needs infrastructure that may not exist.
-
-Lets work with a concrete example, lets say you have 4 stacks:
-
-* stack-a
-* stack-b -(depends)-> stack-a
-* stack-c -(depends)-> stack-a
-* stack-d -(depends)-> (stack-b, stack-c)
-
-Which produces the following dependency graph:
-
-![failure-mode-example](./graphs/failure-mode-example.svg)
-
-Now assume none of the stacks have been applied yet
-(all of them have changed, they are all new).
-
-Given that, let's say **stack-a** execution fails, on
-this case all other stacks get aborted since they depend
-on **stack-a** (some directly, some transitively):
-
-![failure-mode-stack-a-fails](./graphs/failure-mode-stack-a-fails.svg)
-
-Given the same set of stacks/dependencies, let's assume that
-**stack-b** failed, in this case the final result is:
-
-![failure-mode-stack-b-fails](./graphs/failure-mode-stack-b-fails.svg)
-
-Overall if any of the stacks a stack depend on fails, execution of the
-stack will be aborted.
+Currently the behavior when a stack execution fails given a total order of
+execution is undefined. Whatever observed behavior should not be relied upon
+since it may change on the future.
 
 
 ## What About Cycles ?
 
-If any cycles are detected on the dependency graph this will be
+If any cycles are detected on the ordering definitions this will be
 considered a failure and **terrastack** will abort with an
 error message pointing out the detected cycle.
-
-
-## Inspecting the Dependency Graph
-
-TODO: THIS IS STILL UNDEFINED
-
-ideas on generating graphviz fun. We could output
-a dot file so anyone can use graphviz to see a graphical
-representation of the dependencies.
