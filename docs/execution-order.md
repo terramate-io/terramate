@@ -185,8 +185,29 @@ execution is undefined. Whatever observed behavior should not be relied upon
 since it may change on the future.
 
 
-## What About Cycles ?
+## What About Cycles/Conflicts ?
 
 If any cycles are detected on the ordering definitions this will be
 considered a failure and **terrastack** will abort with an
 error message pointing out the detected cycle.
+
+Also in the case of a conflict, like a stack defined like this:
+
+**stack-a/terrastack.tsk.hcl**:
+
+```
+terrastack {
+    required_version = "<version>"
+}
+
+stack {
+    before = [
+        "../stack-b"
+    ]
+    after = [
+        "../stack-b"
+    ]
+}
+```
+
+An error will be reported.
