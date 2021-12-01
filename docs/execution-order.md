@@ -2,16 +2,17 @@
 
 Sometimes stacks are completely independent of each other, but on
 certain occasions it may happen that infrastructure that is created
-by **stack A** is required by **stack B**, like using the outputs
-of **stack A** as inputs for **stack B**.
+by **stack-a** is required by **stack-b**, like using the outputs
+of **stack-a** as inputs for **stack-b**.
 
-This can be done through data sources (preferable, when available) or
+This can be done through data sources or
 by [loading the state](https://www.terraform.io/docs/language/state/remote-state-data.html)
-of another stack (or or even an implicit dependency like hard coding the name/ID).
+of another stack, or or even an implicit dependency like hard coding the name/ID.
 
 Independent on how you approach the problem, you need
 an explicit way to communicate that changes on **stack A** affect execution of
-**stack B**, so the order of execution of the stacks should always be:
+**stack B**, so the order of execution of the stacks, if they are
+selected for execution, should always be:
 
 * 1 - **stack A**
 * 2 - **stack B**
@@ -22,18 +23,16 @@ the desired order of execution between stacks.
 It is important to note that we are talking strictly about execution
 order, not hard dependencies, ordering is imposed on top of selected
 stacks, and stacks are only selected if they have changes on it,
-so ordering definition never selects an unchanged stack.
+so ordering definition **never** selects an unchanged stack.
 
 
 ## Defining Order Of Execution
 
 Order of execution is declared inside the **stack** block using the
-parameters **before** and **after**. 
+field **before** and **after**. 
 
-Each is a set of strings (**set(string)**),
+Each field is a set of strings (**set(string)**),
 where each string is a reference to another stack.
-
-Those two settings configure ordering dependencies between units. 
 
 **before** ensures that the configured stack is executed before the
 listed stacks, as the stack you are saying "I execute before these stacks".
