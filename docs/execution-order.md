@@ -134,8 +134,8 @@ stack {
 ```
 
 You can also use **before** and **after** simultaneously on the same
-stack for more complex scenarios. Lets say now we add a third **stack-c**
-and the three stacks are defined as follows.
+stack for more complex scenarios. Lets add a third **stack-c** to our example.
+The three stacks are defined as follows:
 
 **stack-a/terrastack.tsk.hcl**:
 
