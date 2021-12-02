@@ -169,6 +169,15 @@ The order of execution will be:
 * stack-c
 * stack-b
 
+One example of terrastack command that leverages order of
+execution is **terrastack run**.
+
+This will run **terraform** plan on all stacks, but respecting ordering:
+
+```sh
+terrastack run terraform plan
+```
+
 
 ## Change Detection And Ordering
 
