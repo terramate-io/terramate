@@ -173,11 +173,19 @@ the order of execution will be:
 
 ## Change Detection And Ordering
 
-Execution order is only imposed on stacks detected as changed. If a stack
+When using any terrastack command with support to change detection,
+execution order is only imposed on stacks detected as changed. If a stack
 is mentioned on **before**/**after** but the mentioned stack has no changes
 on it, it will be ignored when calculating order.
 
-The overall algorithm is:
+An example of such a command would be using terrastack to run **terraform apply**,
+but only on changes stacks, like this:
+
+```
+terrastack run --changed terraform apply
+```
+
+The overall algorithm for this case:
 
 * Check which stacks have changed, lets call the result a **changeset**
 * Ordering is established on top of the previously calculated **changeset**
