@@ -13,8 +13,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terrastack"
 	"github.com/mineiros-io/terrastack/test"
 )
 
@@ -72,6 +75,37 @@ func New(t *testing.T) S {
 	}
 }
 
+// BuildTree builds a tree layout based on the layout specification, defined
+// below:
+//   <kind>:<relative path>[:data]
+// Where kind is one of the below:
+//   "d" for directory creation.
+//   "s" for initialized stacks.
+//   "f" for file creation
+// The data field is optional and only with "f" for the file content.
+func (s S) BuildTree(layout []string) {
+	t := s.t
+	t.Helper()
+
+	for _, spec := range layout {
+		switch spec[0] {
+		case 'd':
+			test.MkdirAll(t, filepath.Join(s.basedir, spec[2:]))
+		case 's':
+			s.CreateStack(spec[2:])
+		case 'f':
+			tmp := spec[2:]
+			index := strings.IndexByte(tmp, ':')
+			file := tmp[0:index]
+			content := tmp[index+1:]
+
+			test.WriteFile(t, s.basedir, file, content)
+		default:
+			t.Fatalf("unknown tree identifier: %d", spec[0])
+		}
+	}
+}
+
 // Git returns a git wrapper that is useful to run git commands
 // safely inside the test env repo.
 func (s S) Git() Git {
@@ -88,16 +122,21 @@ func (s S) BaseDir() string {
 	return s.basedir
 }
 
-// CreateModule will create a module dir with the given name
+// CreateModule will create a module dir with the given relpath
 // returning a directory entry that can be used to
 // create files inside the module dir.
 //
 // It is a programming error to call this method with a module
-// name that already exists on this test env.
-func (s S) CreateModule(name string) DirEntry {
-	s.t.Helper()
+// path that already exists on this test env.
+func (s S) CreateModule(relpath string) DirEntry {
+	t := s.t
+	t.Helper()
 
-	return newDirEntry(s.t, s.basedir, filepath.Join("modules", name))
+	if filepath.IsAbs(relpath) {
+		t.Fatalf("module needs a relative path but given %q", relpath)
+	}
+
+	return newDirEntry(s.t, s.basedir, relpath)
 }
 
 // CreateStack will create a stack dir with the given name
@@ -106,16 +145,20 @@ func (s S) CreateModule(name string) DirEntry {
 //
 // It is a programming error to call this method with a stack
 // name that already exists on this test env.
-func (s S) CreateStack(name string) *StackEntry {
-	s.t.Helper()
+func (s S) CreateStack(relpath string) *StackEntry {
+	t := s.t
+	t.Helper()
 
 	// Given the current design assuming ../../modules is safe
 	// But we could change this in the future and maintain the
 	// current API working.
-	return &StackEntry{
-		DirEntry:       newDirEntry(s.t, s.basedir, filepath.Join("stacks", name)),
+	stack := &StackEntry{
+		DirEntry:       newDirEntry(t, s.basedir, relpath),
 		modulesRelPath: "../../modules",
 	}
+
+	assert.NoError(t, terrastack.Init(stack.Path(), false))
+	return stack
 }
 
 // CreateFile will create a file inside this dir entry with the
@@ -141,6 +184,16 @@ func (de DirEntry) CreateFile(name, body string, args ...interface{}) *FileEntry
 	return fe
 }
 
+// Path returns the absolute path of the directory entry.
+func (de DirEntry) Path() string {
+	return de.abspath
+}
+
+// RelPath returns the relative path of the directory entry.
+func (de DirEntry) RelPath() string {
+	return de.relpath
+}
+
 // Write writes the given text body on the file, replacing its contents.
 // The body can be plain text or a format string identical to what
 // is defined on Go fmt package.
@@ -162,10 +215,12 @@ func (fe FileEntry) Path() string {
 }
 
 // ModSource returns the relative import path for the
-// module with the given name. The path is relative to
+// module with the given module dir entry. The path is relative to
 // stack dir itself (hence suitable to be an source path).
-func (se StackEntry) ModSource(name string) string {
-	return filepath.Join(se.modulesRelPath, name)
+func (se StackEntry) ModSource(dir DirEntry) string {
+	relpath, err := filepath.Rel(se.abspath, dir.abspath)
+	assert.NoError(se.t, err)
+	return relpath
 }
 
 // Path returns the absolute path of the stack.

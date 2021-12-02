@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 
@@ -16,14 +17,17 @@ func TestBug25(t *testing.T) {
 	// bug: https://github.com/mineiros-io/terrastack/issues/25
 
 	const (
-		mod1 = "1"
-		mod2 = "2"
+		modname1 = "1"
+		modname2 = "2"
 	)
 
 	s := sandbox.New(t)
 
-	mod1MainTf := s.CreateModule(mod1).CreateFile("main.tf", "# module 1")
-	s.CreateModule(mod2).CreateFile("main.tf", "# module 2")
+	mod1 := s.CreateModule(modname1)
+	mod1MainTf := mod1.CreateFile("main.tf", "# module 1")
+
+	mod2 := s.CreateModule(modname2)
+	mod2.CreateFile("main.tf", "# module 2")
 
 	stack1 := s.CreateStack("stack-1")
 	stack2 := s.CreateStack("stack-2")
@@ -41,9 +45,6 @@ source = "%s"
 
 	stack3.CreateFile("main.tf", "# no module")
 
-	cli := newCLI(t, s.BaseDir())
-	cli.run("init", stack1.Path(), stack2.Path(), stack3.Path())
-
 	git := s.Git()
 	git.CommitAll("first commit")
 	git.Push("main")
@@ -53,11 +54,22 @@ source = "%s"
 
 	git.CommitAll("module 1 changed")
 
+	cli := newCLI(t, s.BaseDir())
 	want := stack1.RelPath() + "\n"
 	assertRunResult(t, cli.run(
 		"list", s.BaseDir(), "--changed"),
 		runResult{Stdout: want},
 	)
+}
+
+func TestListNoSuchFile(t *testing.T) {
+	notExists := test.NonExistingDir(t)
+	cli := newCLI(t, t.TempDir())
+
+	// errors from the manager are not logged in stderr
+	assertRunResult(t, cli.run("list", notExists), runResult{
+		Error: os.ErrNotExist,
+	})
 }
 
 func TestListAndRunChangedStack(t *testing.T) {
@@ -353,10 +365,10 @@ func assertRunResult(t *testing.T, got runResult, want runResult) {
 	}
 
 	if !want.IgnoreStdout && got.Stdout != want.Stdout {
-		t.Errorf("%q stdout=%q != wanted=%q", got.Cmd, got.Stdout, want.Stdout)
+		t.Errorf("%q stdout=\"%s\" != wanted=\"%s\"", got.Cmd, got.Stdout, want.Stdout)
 	}
 
 	if !want.IgnoreStderr && got.Stderr != want.Stderr {
-		t.Errorf("%q stderr=%q != wanted=%q", got.Cmd, got.Stderr, want.Stderr)
+		t.Errorf("%q stderr=\"%s\" != wanted=\"%s\"", got.Cmd, got.Stderr, want.Stderr)
 	}
 }
