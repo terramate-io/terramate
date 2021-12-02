@@ -20,11 +20,6 @@ selected for execution, should always be:
 To help with that terrastack provides a way to explicit declare
 the desired order of execution between stacks.
 
-It is important to note that we are talking strictly about execution
-order, not hard dependencies, ordering is imposed on top of selected
-stacks, and stacks are only selected if they have changes on it,
-so ordering definition **never** selects an unchanged stack.
-
 
 ## Defining Order Of Execution
 
@@ -72,9 +67,7 @@ stack {
 }
 ```
 
-This means that **stack-b** should be executed after **stack-a**.
-For a scenario where both stacks have been detected as changed
-the order of execution will be:
+The order of execution will be:
 
 * stack-a
 * stack-b
@@ -176,6 +169,56 @@ the order of execution will be:
 * stack-a
 * stack-c
 * stack-b
+
+
+## Change Detection And Ordering
+
+Execution order is only imposed on stacks detected as changed. If a stack
+is mentioned on **before**/**after** but the mentioned stack has no changes
+on it, it will be ignored when calculating order.
+
+The overall algorithm is:
+
+* Check which stacks have changed, lets call the result a **changeset**
+* Ordering is established on top of the previously calculated **changeset**
+
+Given that we have 3 stacks, **stack-a**, **stack-b**, **stack-c**.
+**stack-a** has no ordering requisites.
+**stack-b** defines this order:
+
+```
+stack {
+    after = [
+        "../stack-a",
+    ]
+}
+```
+
+**stack-c** defines this order:
+
+```
+stack {
+    after = [
+        "../stack-a",
+        "../stack-b",
+    ]
+}
+```
+
+The **static** order is defined as:
+
+* stack-a
+* stack-b
+* stack-c
+
+If the **changeset=('stack-a', 'stack-c')**, this will be the **runtime** order:
+
+* stack-a
+* stack-c
+
+Even though **stack-c** defined that it needs to be run after **stack-b**, since
+**stack-b** has no changes on it, it will be ignored when defining the
+**runtime** order.
 
 
 ## Failure Modes
