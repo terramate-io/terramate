@@ -163,8 +163,7 @@ stack {
 }
 ```
 
-For a scenario where all 3 stacks have been detected as changed
-the order of execution will be:
+The order of execution will be:
 
 * stack-a
 * stack-c
