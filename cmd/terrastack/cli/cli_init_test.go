@@ -37,30 +37,6 @@ func TestInit(t *testing.T) {
 		want   runResult
 	}
 
-	const bigVersionContent = `
-terrastack {
-	required_version = "~> 9999.9999.9999"
-}
-`
-
-	var biggerPatchVersionContent = sprintf(`
-terrastack {
-	required_version = "~> %s"
-}
-`, incVersion(t, tsversion, vPatch))
-
-	var biggerMinorVersionContent = sprintf(`
-terrastack {
-	required_version = "~> %s"
-}
-`, incVersion(t, tsversion, vMinor))
-
-	var biggerMajorVersionContent = sprintf(`
-terrastack {
-	required_version = "~> %s"
-}
-`, incVersion(t, tsversion, vMajor))
-
 	for _, tc := range []testcase{
 		{
 			name:   "init basedir",
@@ -91,7 +67,7 @@ terrastack {
 		{
 			name: "other version stack - not forced",
 			layout: []string{
-				sprintf("f:other-version/%s:%s", configFile, bigVersionContent),
+				sprintf("f:other-version/%s:version=~> 9999.9999.9999", configFile),
 			},
 			input: []string{"other-version"},
 			force: false,
@@ -103,7 +79,7 @@ terrastack {
 		{
 			name: "other version stack - forced",
 			layout: []string{
-				sprintf("f:other-version/%s:%s", configFile, bigVersionContent),
+				sprintf("f:other-version/%s:version=~> 9999.9999.9999", configFile),
 			},
 			input: []string{"other-version"},
 			force: true,
@@ -111,7 +87,7 @@ terrastack {
 		{
 			name: "multiple stacks, one incompatible version stack - not forced - fails",
 			layout: []string{
-				sprintf("f:other-version/%s:%s", configFile, bigVersionContent),
+				sprintf("f:other-version/%s:version=~> 9999.9999.9999", configFile),
 				"s:stack1",
 				"s:stack2",
 			},
@@ -125,7 +101,8 @@ terrastack {
 		{
 			name: "bigger version patch - fails",
 			layout: []string{
-				sprintf("f:other-version/%s:%s", configFile, biggerPatchVersionContent),
+				sprintf("f:other-version/%s:~> %s", configFile,
+					incVersion(t, tsversion, vPatch)),
 			},
 			input: []string{"other-version"},
 			force: false,
@@ -137,7 +114,8 @@ terrastack {
 		{
 			name: "bigger version patch - forced",
 			layout: []string{
-				sprintf("f:other-version/%s:%s", configFile, biggerPatchVersionContent),
+				sprintf("f:other-version/%s:~> %s", configFile,
+					incVersion(t, tsversion, vPatch)),
 			},
 			input: []string{"other-version"},
 			force: true,
@@ -145,7 +123,8 @@ terrastack {
 		{
 			name: "bigger version minor - fails",
 			layout: []string{
-				sprintf("f:other-version/%s:%s", configFile, biggerMinorVersionContent),
+				sprintf("f:other-version/%s:~> %s", configFile,
+					incVersion(t, tsversion, vMinor)),
 			},
 			input: []string{"other-version"},
 			force: false,
@@ -157,7 +136,8 @@ terrastack {
 		{
 			name: "bigger version minor - forced",
 			layout: []string{
-				sprintf("f:other-version/%s:%s", configFile, biggerMinorVersionContent),
+				sprintf("f:other-version/%s:~> %s", configFile,
+					incVersion(t, tsversion, vMinor)),
 			},
 			input: []string{"other-version"},
 			force: true,
@@ -165,7 +145,8 @@ terrastack {
 		{
 			name: "bigger version major - fails",
 			layout: []string{
-				sprintf("f:other-version/%s:%s", configFile, biggerMajorVersionContent),
+				sprintf("f:other-version/%s:version=~> %s",
+					configFile, incVersion(t, tsversion, vMajor)),
 			},
 			input: []string{"other-version"},
 			force: false,
@@ -177,7 +158,8 @@ terrastack {
 		{
 			name: "bigger version major - forced",
 			layout: []string{
-				sprintf("f:other-version/%s:%s", configFile, biggerMajorVersionContent),
+				sprintf("f:other-version/%s:version=~> %s",
+					configFile, incVersion(t, tsversion, vMajor)),
 			},
 			input: []string{"other-version"},
 			force: true,
