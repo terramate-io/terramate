@@ -15,6 +15,17 @@ func TestCLIList(t *testing.T) {
 
 	for _, tc := range []testcase{
 		{
+			name: "no stack",
+		},
+		{
+			name: "no stack, lots of dirs",
+			layout: []string{
+				"d:dir1/a/b/c",
+				"d:dir2/a/b/c/x/y",
+				"d:last/dir",
+			},
+		},
+		{
 			name:   "single stack",
 			layout: []string{"s:stack"},
 			want: runResult{
