@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	hclversion "github.com/hashicorp/go-version"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terrastack"
 	"github.com/mineiros-io/terrastack/cmd/terrastack/cli"
@@ -14,15 +15,18 @@ import (
 	"github.com/mineiros-io/terrastack/test/sandbox"
 )
 
-const otherVersionContent = `
-terrastack {
-	required_version = "~> 9999.9999.9999"
-}
-`
+type versionPart int
 
 const configFile = terrastack.ConfigFilename
 
+const (
+	vMajor = iota
+	vMinor
+	vPatch
+)
+
 var sprintf = fmt.Sprintf
+var tsversion = terrastack.Version()
 
 func TestInit(t *testing.T) {
 	type testcase struct {
@@ -32,6 +36,24 @@ func TestInit(t *testing.T) {
 		force  bool
 		want   runResult
 	}
+
+	const bigVersionContent = `
+terrastack {
+	required_version = "~> 9999.9999.9999"
+}
+`
+
+	var biggerPatchVersionContent = sprintf(`
+terrastack {
+	required_version = "~> %s"
+}
+`, incVersion(t, tsversion, vPatch))
+
+	var biggerMinorVersionContent = sprintf(`
+terrastack {
+	required_version = "~> %s"
+}
+`, incVersion(t, tsversion, vMinor))
 
 	for _, tc := range []testcase{
 		{
@@ -63,7 +85,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "other version stack - not forced",
 			layout: []string{
-				sprintf("f:other-version/%s:%s", configFile, otherVersionContent),
+				sprintf("f:other-version/%s:%s", configFile, bigVersionContent),
 			},
 			paths: []string{"other-version"},
 			force: false,
@@ -75,7 +97,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "other version stack - forced",
 			layout: []string{
-				sprintf("f:other-version/%s:%s", configFile, otherVersionContent),
+				sprintf("f:other-version/%s:%s", configFile, bigVersionContent),
 			},
 			paths: []string{"other-version"},
 			force: true,
@@ -83,7 +105,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "multiple stacks, one incompatible version stack - not forced - fails",
 			layout: []string{
-				sprintf("f:other-version/%s:%s", configFile, otherVersionContent),
+				sprintf("f:other-version/%s:%s", configFile, bigVersionContent),
 				"s:stack1",
 				"s:stack2",
 			},
@@ -93,6 +115,46 @@ func TestInit(t *testing.T) {
 				IgnoreStderr: true,
 				Error:        cli.ErrInit,
 			},
+		},
+		{
+			name: "bigger version patch - fails",
+			layout: []string{
+				sprintf("f:other-version/%s:%s", configFile, biggerPatchVersionContent),
+			},
+			paths: []string{"other-version"},
+			force: false,
+			want: runResult{
+				Error:        cli.ErrInit,
+				IgnoreStderr: true,
+			},
+		},
+		{
+			name: "bigger version patch - forced",
+			layout: []string{
+				sprintf("f:other-version/%s:%s", configFile, biggerPatchVersionContent),
+			},
+			paths: []string{"other-version"},
+			force: true,
+		},
+		{
+			name: "bigger version minor - fails",
+			layout: []string{
+				sprintf("f:other-version/%s:%s", configFile, biggerMinorVersionContent),
+			},
+			paths: []string{"other-version"},
+			force: false,
+			want: runResult{
+				Error:        cli.ErrInit,
+				IgnoreStderr: true,
+			},
+		},
+		{
+			name: "bigger version minor - forced",
+			layout: []string{
+				sprintf("f:other-version/%s:%s", configFile, biggerPatchVersionContent),
+			},
+			paths: []string{"other-version"},
+			force: true,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -139,4 +201,19 @@ func TestInitNonExistingDir(t *testing.T) {
 		Error:        cli.ErrInit,
 		IgnoreStderr: true,
 	})
+}
+
+func incVersion(t *testing.T, v string, pos versionPart) string {
+	semver, err := hclversion.NewSemver(v)
+	assert.NoError(t, err)
+	segs := semver.Segments()
+	if len(segs) == 1 {
+		segs = append(segs, 0)
+	}
+	if len(segs) == 2 {
+		segs = append(segs, 0)
+	}
+	segs[pos]++
+
+	return fmt.Sprintf("%d.%d.%d", segs[0], segs[1], segs[2])
 }
