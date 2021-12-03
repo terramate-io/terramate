@@ -165,13 +165,15 @@ func TestInit(t *testing.T) {
 			force: true,
 		},
 		{
-			name: "lower version",
+			name: "lower than terrastack version - fails",
 			layout: []string{
-				sprintf("t:other-version/%s:version=~> %s",
-					configFile, incVersion(t, tsversion, vMajor)),
+				sprintf("t:other-version/%s:version=< 0.0.1"),
 			},
-			input: []string{"other-version"},
-			force: true,
+			input: []string{"other-version2"},
+			want: runResult{
+				Error:        cli.ErrInit,
+				IgnoreStderr: true,
+			},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
