@@ -1,8 +1,10 @@
 package cli_test
 
 import (
+	"os"
 	"testing"
 
+	"github.com/mineiros-io/terrastack/test"
 	"github.com/mineiros-io/terrastack/test/sandbox"
 )
 
@@ -93,4 +95,14 @@ func TestCLIList(t *testing.T) {
 			assertRunResult(t, cli.run("list"), tc.want)
 		})
 	}
+}
+
+func TestListNoSuchFile(t *testing.T) {
+	notExists := test.NonExistingDir(t)
+	cli := newCLI(t, t.TempDir())
+
+	// errors from the manager are not logged in stderr
+	assertRunResult(t, cli.run("list", notExists), runResult{
+		Error: os.ErrNotExist,
+	})
 }

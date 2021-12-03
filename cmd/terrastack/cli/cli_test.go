@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 
@@ -60,16 +59,6 @@ source = "%s"
 		"list", s.BaseDir(), "--changed"),
 		runResult{Stdout: want},
 	)
-}
-
-func TestListNoSuchFile(t *testing.T) {
-	notExists := test.NonExistingDir(t)
-	cli := newCLI(t, t.TempDir())
-
-	// errors from the manager are not logged in stderr
-	assertRunResult(t, cli.run("list", notExists), runResult{
-		Error: os.ErrNotExist,
-	})
 }
 
 func TestListAndRunChangedStack(t *testing.T) {
