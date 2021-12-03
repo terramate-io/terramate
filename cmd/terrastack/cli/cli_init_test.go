@@ -120,7 +120,9 @@ func TestInit(t *testing.T) {
 				assert.NoError(t, err, "parsing terrastack file")
 
 				want := hcl.Terrastack{
-					RequiredVersion: terrastack.Version(),
+					RequiredVersion: fmt.Sprintf("%s %s",
+						terrastack.DefaultInitConstraint,
+						terrastack.Version()),
 				}
 				if *got != want {
 					t.Fatalf("terrastack file differs: want[%+v] != got[%+v]", want, *got)
