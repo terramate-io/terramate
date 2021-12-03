@@ -117,7 +117,10 @@ func (s S) BuildTree(layout []string) {
 			}
 		}
 
-		f, err := os.Create(filepath.Join(s.BaseDir(), name))
+		path := filepath.Join(s.BaseDir(), name)
+		test.MkdirAll(t, filepath.Dir(path))
+
+		f, err := os.Create(path)
 		assert.NoError(t, err, "BuildTree() failed to create file")
 
 		defer f.Close()

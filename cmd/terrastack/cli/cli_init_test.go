@@ -101,7 +101,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "bigger version patch - fails",
 			layout: []string{
-				sprintf("t:other-version/%s:~> %s", configFile,
+				sprintf("t:other-version/%s:version=~> %s", configFile,
 					incVersion(t, tsversion, vPatch)),
 			},
 			input: []string{"other-version"},
@@ -114,7 +114,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "bigger version patch - forced",
 			layout: []string{
-				sprintf("t:other-version/%s:~> %s", configFile,
+				sprintf("t:other-version/%s:version=~> %s", configFile,
 					incVersion(t, tsversion, vPatch)),
 			},
 			input: []string{"other-version"},
@@ -123,7 +123,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "bigger version minor - fails",
 			layout: []string{
-				sprintf("t:other-version/%s:~> %s", configFile,
+				sprintf("t:other-version/%s:version=~> %s", configFile,
 					incVersion(t, tsversion, vMinor)),
 			},
 			input: []string{"other-version"},
@@ -136,7 +136,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "bigger version minor - forced",
 			layout: []string{
-				sprintf("t:other-version/%s:~> %s", configFile,
+				sprintf("t:other-version/%s:version=~> %s", configFile,
 					incVersion(t, tsversion, vMinor)),
 			},
 			input: []string{"other-version"},
