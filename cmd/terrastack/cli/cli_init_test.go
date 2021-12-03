@@ -83,7 +83,7 @@ func TestInit(t *testing.T) {
 			force: true,
 		},
 		{
-			name: "multiple stacks, one other version stack - not forced",
+			name: "multiple stacks, one incompatible version stack - not forced - fails",
 			layout: []string{
 				"d:other-version",
 				sprintf("f:other-version/%s:%s", configFile, otherVersionContent),
