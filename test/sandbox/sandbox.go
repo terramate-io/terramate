@@ -220,8 +220,8 @@ func (fe FileEntry) Path() string {
 // ModSource returns the relative import path for the
 // module with the given module dir entry. The path is relative to
 // stack dir itself (hence suitable to be an source path).
-func (se StackEntry) ModSource(dir DirEntry) string {
-	relpath, err := filepath.Rel(se.abspath, dir.abspath)
+func (se StackEntry) ModSource(mod DirEntry) string {
+	relpath, err := filepath.Rel(se.abspath, mod.abspath)
 	assert.NoError(se.t, err)
 	return relpath
 }
