@@ -1,9 +1,7 @@
 package terrastack_test
 
 import (
-	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -32,68 +30,6 @@ type listTestcase struct {
 }
 
 const defaultBranch = "origin/main"
-
-func TestListStacks(t *testing.T) {
-	for _, tc := range []listTestcase{
-		{
-			name:        "directory does not exists",
-			repobuilder: nonExistentDir,
-			want: listTestResult{
-				err: os.ErrNotExist,
-			},
-		},
-		{
-			name:        "single stack",
-			repobuilder: singleStack,
-			want: listTestResult{
-				list: []string{"/"},
-			},
-		},
-		{
-			name:        "stack and substack",
-			repobuilder: subStack,
-			want: listTestResult{
-				list: []string{"/", "/substack"},
-			},
-		},
-		{
-			name:        "nested stacks",
-			repobuilder: nestedStacks,
-			want: listTestResult{
-				list: []string{"/", "/substack", "/substack/deepstack"},
-			},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			if tc.baseRef == "" {
-				tc.baseRef = defaultBranch
-			}
-
-			repo := tc.repobuilder(t)
-
-			m := terrastack.NewManager(repo.Dir, tc.baseRef)
-			stacks, err := m.List()
-
-			if !errors.Is(err, tc.want.err) {
-				t.Fatalf("error[%v] is not expected[%v]", err, tc.want.err)
-			}
-
-			assertStacks(t, repo.Dir, tc.want.list, stacks, false)
-		})
-	}
-}
-
-func TestListMultipleSubStacks(t *testing.T) {
-	n := 20
-	stackdir := nSubStacks(t, n)
-
-	m := newManager(stackdir)
-	stacks, err := m.List()
-	assert.NoError(t, err, "terrastack.List")
-
-	// n+1 because parent dir is also a stack
-	assert.EqualInts(t, n+1, len(stacks), "stacks size mismatch")
-}
 
 func TestListChangedStacks(t *testing.T) {
 	for _, tc := range []listTestcase{
@@ -233,12 +169,6 @@ func TestListChangedStackReason(t *testing.T) {
 	}
 }
 
-func nonExistentDir(t *testing.T) repository {
-	return repository{
-		Dir: test.NonExistingDir(t),
-	}
-}
-
 func assertStacks(
 	t *testing.T, basedir string, want []string, got []terrastack.Entry, wantReason bool,
 ) {
@@ -258,55 +188,6 @@ func assertStacks(
 			t.Errorf("stack [%s] has no reason", got[i].Dir)
 		}
 	}
-}
-
-func singleStack(t *testing.T) repository {
-	stackdir := t.TempDir()
-	err := terrastack.Init(stackdir, false)
-	assert.NoError(t, err, "terrastack.Init(%s)", stackdir)
-
-	return repository{Dir: stackdir}
-}
-
-func subStack(t *testing.T) repository {
-	stackdir := t.TempDir()
-	err := terrastack.Init(stackdir, false)
-	assert.NoError(t, err, "terrastack.Init(%s)", stackdir)
-
-	substack := filepath.Join(stackdir, "substack")
-	test.MkdirAll(t, substack)
-
-	err = terrastack.Init(substack, false)
-	assert.NoError(t, err, "terrastack.Init(%s)", substack)
-
-	return repository{Dir: stackdir}
-}
-
-func nestedStacks(t *testing.T) repository {
-	stackrepo := subStack(t)
-
-	nestedStack := filepath.Join(stackrepo.Dir, "substack", "deepstack")
-	test.MkdirAll(t, nestedStack)
-
-	err := terrastack.Init(nestedStack, false)
-	assert.NoError(t, err, "terrastack.Init(%s)", nestedStack)
-
-	return stackrepo
-}
-
-func nSubStacks(t *testing.T, n int) string {
-	stackdir := t.TempDir()
-	err := terrastack.Init(stackdir, false)
-	assert.NoError(t, err, "terrastack.Init(%s)", stackdir)
-
-	for i := 0; i < n; i++ {
-		substack := test.TempDir(t, stackdir)
-
-		err = terrastack.Init(substack, false)
-		assert.NoError(t, err, "terrastack.Init(%s)", substack)
-	}
-
-	return stackdir
 }
 
 // singleChangedStacksRepo creates a new repository with the commands below:

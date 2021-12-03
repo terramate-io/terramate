@@ -32,6 +32,8 @@ func WriteFile(t *testing.T, dir string, filename string, content string) string
 	}
 
 	path := filepath.Join(dir, filename)
+	pathdir := filepath.Dir(path)
+	MkdirAll(t, pathdir)
 	err := ioutil.WriteFile(path, []byte(content), 0700)
 	assert.NoError(t, err, "writing test file %s", path)
 
