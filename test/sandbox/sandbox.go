@@ -42,7 +42,6 @@ type DirEntry struct {
 // functionality.
 type StackEntry struct {
 	DirEntry
-	modulesRelPath string
 }
 
 // FileEntry represents a file and can be used
@@ -158,8 +157,7 @@ func (s S) CreateStack(relpath string) *StackEntry {
 	// But we could change this in the future and maintain the
 	// current API working.
 	stack := &StackEntry{
-		DirEntry:       newDirEntry(t, s.basedir, relpath),
-		modulesRelPath: "../../modules",
+		DirEntry: newDirEntry(t, s.basedir, relpath),
 	}
 
 	assert.NoError(t, terrastack.Init(stack.Path(), false))
