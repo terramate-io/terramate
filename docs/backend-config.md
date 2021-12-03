@@ -22,8 +22,12 @@ With those limitations in mind, terrastack provides a way to:
 * Use terrastack metadata, like stack name/path, on the backend config.
 * Use global variables on the backend config.
 
-This is done by defining a **backend** block, very similarly to how you would
-do on terraform, but inside a **terrastack** block, like this:
+
+## Basic Usage
+
+To generate a backend configuration you need to define a **backend** block,
+very similarly to how you would do on terraform,
+but inside a **terrastack** block, like this:
 
 ```hcl
 terrastack {
@@ -33,7 +37,74 @@ terrastack {
 }
 ```
 
-## Basic Usage
+And terrastack will use that to generate terraform code with a backend
+configuration. Let's start with a very simple example. Lets say your
+terrastack project has this layout:
+
+```
+.
+└── envs
+    ├── prod
+    │   ├── stack-1
+    │   └── stack-2
+    └── staging
+        ├── stack-1
+        └── stack-2
+```
+
+You can define a prod backend configuration by creating the file
+**envs/prod/terrastack.tsk.hcl**:
+
+```hcl
+terrastack {
+  backend "type" {
+    param = "prod"
+  }
+}
+```
+
+Then you can define a staging backend configuration by creating the file
+**envs/staging/terrastack.tsk.hcl**:
+
+```hcl
+terrastack {
+  backend "type" {
+    param = "staging"
+  }
+}
+```
+
+And finally generate the final terraform code on all the stacks of
+your project, by running from the project top level directory:
+
+```sh
+terrastack generate
+```
+
+Now you will see a **_gen_backend_terrastack.tsk.tf** file on each stack.
+The files generated on the stacks inside **envs/prod** will be:
+
+```hcl
+terraform {
+  backend "type" {
+    param = "prod"
+  }
+}
+```
+
+The files generated on the stacks inside **envs/staging** will be:
+
+```hcl
+terraform {
+  backend "type" {
+    param = "staging"
+  }
+}
+```
+
+Any changes on the terrastack backend configuration will require a generation
+step to automatically update the generated files. The generated files should never
+be manipulated manually.
 
 ## Overriding Configuration
 
