@@ -32,7 +32,7 @@ func TestInit(t *testing.T) {
 	type testcase struct {
 		name   string
 		layout []string
-		paths  []string
+		input  []string
 		force  bool
 		want   runResult
 	}
@@ -64,13 +64,13 @@ terrastack {
 		{
 			name:   "same version stack",
 			layout: []string{"s:same-version"},
-			paths:  []string{"same-version"},
+			input:  []string{"same-version"},
 			force:  false,
 		},
 		{
 			name:   "same version stack - init --force",
 			layout: []string{"s:same-version"},
-			paths:  []string{"same-version"},
+			input:  []string{"same-version"},
 			force:  true,
 		},
 		{
@@ -80,14 +80,14 @@ terrastack {
 				"s:same-version-2",
 				"s:same-version-3",
 			},
-			paths: []string{"same-version-1", "same-version-2", "same-version-3"},
+			input: []string{"same-version-1", "same-version-2", "same-version-3"},
 		},
 		{
 			name: "other version stack - not forced",
 			layout: []string{
 				sprintf("f:other-version/%s:%s", configFile, bigVersionContent),
 			},
-			paths: []string{"other-version"},
+			input: []string{"other-version"},
 			force: false,
 			want: runResult{
 				IgnoreStderr: true,
@@ -99,7 +99,7 @@ terrastack {
 			layout: []string{
 				sprintf("f:other-version/%s:%s", configFile, bigVersionContent),
 			},
-			paths: []string{"other-version"},
+			input: []string{"other-version"},
 			force: true,
 		},
 		{
@@ -109,7 +109,7 @@ terrastack {
 				"s:stack1",
 				"s:stack2",
 			},
-			paths: []string{"stack1", "stack2", "other-version"},
+			input: []string{"stack1", "stack2", "other-version"},
 			force: false,
 			want: runResult{
 				IgnoreStderr: true,
@@ -121,7 +121,7 @@ terrastack {
 			layout: []string{
 				sprintf("f:other-version/%s:%s", configFile, biggerPatchVersionContent),
 			},
-			paths: []string{"other-version"},
+			input: []string{"other-version"},
 			force: false,
 			want: runResult{
 				Error:        cli.ErrInit,
@@ -133,7 +133,7 @@ terrastack {
 			layout: []string{
 				sprintf("f:other-version/%s:%s", configFile, biggerPatchVersionContent),
 			},
-			paths: []string{"other-version"},
+			input: []string{"other-version"},
 			force: true,
 		},
 		{
@@ -141,7 +141,7 @@ terrastack {
 			layout: []string{
 				sprintf("f:other-version/%s:%s", configFile, biggerMinorVersionContent),
 			},
-			paths: []string{"other-version"},
+			input: []string{"other-version"},
 			force: false,
 			want: runResult{
 				Error:        cli.ErrInit,
@@ -153,7 +153,7 @@ terrastack {
 			layout: []string{
 				sprintf("f:other-version/%s:%s", configFile, biggerPatchVersionContent),
 			},
-			paths: []string{"other-version"},
+			input: []string{"other-version"},
 			force: true,
 		},
 	} {
@@ -166,8 +166,8 @@ terrastack {
 			if tc.force {
 				args = append(args, "--force")
 			}
-			if len(tc.paths) > 0 {
-				args = append(args, tc.paths...)
+			if len(tc.input) > 0 {
+				args = append(args, tc.input...)
 			}
 			assertRunResult(t, cli.run(args...), tc.want)
 
@@ -175,7 +175,7 @@ terrastack {
 				return
 			}
 
-			for _, path := range tc.paths {
+			for _, path := range tc.input {
 				data := test.ReadFile(t, s.BaseDir(), filepath.Join(path, configFile))
 				p := hhcl.NewParser()
 				got, err := p.Parse("TestInitHCL", data)
