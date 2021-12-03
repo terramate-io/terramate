@@ -37,9 +37,8 @@ type DirEntry struct {
 	relpath string
 }
 
-// StackEntry represents a directory that has a stack
-// inside, it extends a DirEntry with stack specific
-// functionality.
+// StackEntry represents a directory that's also a stack.
+// It extends a DirEntry with stack specific functionality.
 type StackEntry struct {
 	DirEntry
 }
@@ -126,32 +125,30 @@ func (s S) BaseDir() string {
 	return s.basedir
 }
 
-// CreateModule will create a module dir with the given relpath
-// returning a directory entry that can be used to
-// create files inside the module dir.
-//
-// It is a programming error to call this method with a module
-// path that already exists on this test env.
+// CreateModule will create a module dir with the given relative
+// path, returning a directory entry that can be used to create
+// files inside the module dir.
 func (s S) CreateModule(relpath string) DirEntry {
 	t := s.t
 	t.Helper()
 
 	if filepath.IsAbs(relpath) {
-		t.Fatalf("module needs a relative path but given %q", relpath)
+		t.Fatalf("CreateModule() needs a relative path but given %q", relpath)
 	}
 
 	return newDirEntry(s.t, s.basedir, relpath)
 }
 
-// CreateStack will create a stack dir with the given name
-// returning a stack entry that can be used to
-// create files inside the stack dir.
-//
-// It is a programming error to call this method with a stack
-// name that already exists on this test env.
+// CreateStack will create a stack dir with the given relative
+// path, returning a stack entry that can be used to create
+// files inside the stack dir.
 func (s S) CreateStack(relpath string) *StackEntry {
 	t := s.t
 	t.Helper()
+
+	if filepath.IsAbs(relpath) {
+		t.Fatalf("CreateStack() needs a relative path but given %q", relpath)
+	}
 
 	// Given the current design assuming ../../modules is safe
 	// But we could change this in the future and maintain the
@@ -218,8 +215,9 @@ func (fe FileEntry) Path() string {
 }
 
 // ModSource returns the relative import path for the
-// module with the given module dir entry. The path is relative to
-// stack dir itself (hence suitable to be an source path).
+// module with the given module dir entry. The path is
+// relative to stack dir itself (hence suitable to be
+// a module source path).
 func (se StackEntry) ModSource(mod DirEntry) string {
 	relpath, err := filepath.Rel(se.abspath, mod.abspath)
 	assert.NoError(se.t, err)
