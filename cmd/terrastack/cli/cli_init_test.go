@@ -55,6 +55,12 @@ terrastack {
 }
 `, incVersion(t, tsversion, vMinor))
 
+	var biggerMajorVersionContent = sprintf(`
+terrastack {
+	required_version = "~> %s"
+}
+`, incVersion(t, tsversion, vMajor))
+
 	for _, tc := range []testcase{
 		{
 			name:   "init basedir",
@@ -151,7 +157,27 @@ terrastack {
 		{
 			name: "bigger version minor - forced",
 			layout: []string{
-				sprintf("f:other-version/%s:%s", configFile, biggerPatchVersionContent),
+				sprintf("f:other-version/%s:%s", configFile, biggerMinorVersionContent),
+			},
+			input: []string{"other-version"},
+			force: true,
+		},
+		{
+			name: "bigger version major - fails",
+			layout: []string{
+				sprintf("f:other-version/%s:%s", configFile, biggerMajorVersionContent),
+			},
+			input: []string{"other-version"},
+			force: false,
+			want: runResult{
+				Error:        cli.ErrInit,
+				IgnoreStderr: true,
+			},
+		},
+		{
+			name: "bigger version major - forced",
+			layout: []string{
+				sprintf("f:other-version/%s:%s", configFile, biggerMajorVersionContent),
 			},
 			input: []string{"other-version"},
 			force: true,
