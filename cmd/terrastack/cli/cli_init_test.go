@@ -63,7 +63,6 @@ func TestInit(t *testing.T) {
 		{
 			name: "other version stack - not forced",
 			layout: []string{
-				"d:other-version",
 				sprintf("f:other-version/%s:%s", configFile, otherVersionContent),
 			},
 			paths: []string{"other-version"},
@@ -76,7 +75,6 @@ func TestInit(t *testing.T) {
 		{
 			name: "other version stack - forced",
 			layout: []string{
-				"d:other-version",
 				sprintf("f:other-version/%s:%s", configFile, otherVersionContent),
 			},
 			paths: []string{"other-version"},
@@ -85,7 +83,6 @@ func TestInit(t *testing.T) {
 		{
 			name: "multiple stacks, one incompatible version stack - not forced - fails",
 			layout: []string{
-				"d:other-version",
 				sprintf("f:other-version/%s:%s", configFile, otherVersionContent),
 				"s:stack1",
 				"s:stack2",

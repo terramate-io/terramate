@@ -77,12 +77,17 @@ func New(t *testing.T) S {
 
 // BuildTree builds a tree layout based on the layout specification, defined
 // below:
+// Each string in the slice represents a filesystem operation, and each
+// operation has the format below:
 //   <kind>:<relative path>[:data]
 // Where kind is one of the below:
 //   "d" for directory creation.
 //   "s" for initialized stacks.
 //   "f" for file creation
-// The data field is optional and only with "f" for the file content.
+// The data field is optional and only used with "f" for the file content.
+//
+// This is an internal mini-lang used to simplify testcases, so it expects well
+// formed layout specification.
 func (s S) BuildTree(layout []string) {
 	t := s.t
 	t.Helper()
