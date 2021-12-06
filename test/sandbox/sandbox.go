@@ -17,6 +17,8 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terrastack"
+	"github.com/mineiros-io/terrastack/hcl"
+	"github.com/mineiros-io/terrastack/hcl/hhcl"
 	"github.com/mineiros-io/terrastack/test"
 )
 
@@ -77,8 +79,13 @@ func New(t *testing.T) S {
 // Where kind is one of the below:
 //   "d" for directory creation.
 //   "s" for initialized stacks.
-//   "f" for file creation
-// The data field is optional and only used with "f" for the file content.
+//   "f" for file creation.
+//   "t" for terrastack block.
+// The data field is required only for operation "f" and "t":
+//   For "f" data is the content of the file to be created.
+//   For "t" data is a key value pair of the form:
+//     <attr1>=<val1>[,<attr2>=<val2>]
+// Where attrN is a string attribute of the terrastack block.
 //
 // This is an internal mini-lang used to simplify testcases, so it expects well
 // formed layout specification.
@@ -86,19 +93,54 @@ func (s S) BuildTree(layout []string) {
 	t := s.t
 	t.Helper()
 
+	parsePathData := func(spec string) (string, string) {
+		tmp := spec[2:]
+		index := strings.IndexByte(tmp, ':')
+		path := tmp[0:index]
+		data := tmp[index+1:]
+		return path, data
+	}
+
+	gentskfile := func(spec string) {
+		relpath, data := parsePathData(spec)
+		attrs := strings.Split(data, ",")
+
+		ts := hcl.Terrastack{}
+
+		for _, attr := range attrs {
+			parts := strings.Split(attr, "=")
+			switch parts[0] {
+			case "version":
+				ts.RequiredVersion = parts[1]
+			default:
+				t.Fatalf("attribute " + parts[0] + " not supported.")
+			}
+		}
+
+		path := filepath.Join(s.BaseDir(), relpath)
+		test.MkdirAll(t, filepath.Dir(path))
+
+		f, err := os.Create(path)
+		assert.NoError(t, err, "BuildTree() failed to create file")
+
+		defer f.Close()
+
+		var p hhcl.Printer
+		err = p.PrintTerrastack(f, ts)
+		assert.NoError(t, err, "BuildTree() failed to generate tsk file")
+	}
+
 	for _, spec := range layout {
 		switch spec[0] {
 		case 'd':
 			test.MkdirAll(t, filepath.Join(s.basedir, spec[2:]))
 		case 's':
 			s.CreateStack(spec[2:])
+		case 't':
+			gentskfile(spec)
 		case 'f':
-			tmp := spec[2:]
-			index := strings.IndexByte(tmp, ':')
-			file := tmp[0:index]
-			content := tmp[index+1:]
-
-			test.WriteFile(t, s.basedir, file, content)
+			path, data := parsePathData(spec)
+			test.WriteFile(t, s.basedir, path, data)
 		default:
 			t.Fatalf("unknown tree identifier: %d", spec[0])
 		}

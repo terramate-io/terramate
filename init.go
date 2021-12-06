@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
+
+	hclversion "github.com/hashicorp/go-version"
 
 	"github.com/mineiros-io/terrastack/hcl"
 	"github.com/mineiros-io/terrastack/hcl/hhcl"
@@ -13,6 +14,9 @@ import (
 
 // ConfigFilename is the name of the terrastack configuration file.
 const ConfigFilename = "terrastack.tsk.hcl"
+
+// DefaultInitConstraint is the default constraint used in stack initialization.
+const DefaultInitConstraint = "~>"
 
 // Init initialize a stack. It's an error to initialize an already initialized
 // stack unless they are of same versions. In case the stack is initialized with
@@ -53,15 +57,20 @@ func Init(dir string, force bool) error {
 	}
 
 	if isInitialized && !force {
-		version, err := parseVersion(stackfile)
+		vconstraint, err := parseVersion(stackfile)
 		if err != nil {
 			return fmt.Errorf("stack already initialized: error fetching "+
 				"version: %w", err)
 		}
 
-		if version != Version() {
-			return fmt.Errorf("stack already initialized with version %q "+
-				"but terrastack version is %q", version, Version())
+		constraint, err := hclversion.NewConstraint(vconstraint)
+		if err != nil {
+			return fmt.Errorf("unable to check stack constraint: %w", err)
+		}
+
+		if !constraint.Check(tfversionObj) {
+			return fmt.Errorf("stack version constraint %q do not match terrastack "+
+				"version %q", vconstraint, Version())
 		}
 
 		err = os.Remove(string(stackfile))
@@ -79,7 +88,7 @@ func Init(dir string, force bool) error {
 
 	var p hhcl.Printer
 	err = p.PrintTerrastack(f, hcl.Terrastack{
-		RequiredVersion: Version(),
+		RequiredVersion: DefaultVersionConstraint(),
 	})
 
 	if err != nil {
@@ -89,6 +98,12 @@ func Init(dir string, force bool) error {
 	return nil
 }
 
+// DefaultVersionConstraint is the default version constraint used by terrastack
+// when generating tsk files.
+func DefaultVersionConstraint() string {
+	return DefaultInitConstraint + " " + Version()
+}
+
 func parseVersion(stackfile string) (string, error) {
 	parser := hhcl.NewParser()
 	ts, err := parser.ParseFile(stackfile)
@@ -96,7 +111,5 @@ func parseVersion(stackfile string) (string, error) {
 		return "", fmt.Errorf("failed to parse file %q: %w", stackfile, err)
 	}
 
-	// TODO(i4k): properly support version constraints.
-	ts.RequiredVersion = strings.TrimSpace(strings.TrimPrefix(ts.RequiredVersion, "~>"))
 	return ts.RequiredVersion, nil
 }
