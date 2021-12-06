@@ -81,7 +81,7 @@ your project, by running from the project top level directory:
 terrastack generate
 ```
 
-Now you will see a **_gen_backend_terrastack.tsk.tf** file on each stack.
+Now you will see a **_gen_terrastack.tsk.tf** file on each stack.
 The files generated on the stacks inside **envs/prod** will be:
 
 ```hcl
