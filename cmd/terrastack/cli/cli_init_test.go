@@ -219,9 +219,7 @@ func TestInit(t *testing.T) {
 				want := hcl.Terrastack{
 					RequiredVersion: terrastack.DefaultVersionConstraint(),
 				}
-				if *got != want {
-					t.Fatalf("terrastack file differs: want[%+v] != got[%+v]", want, *got)
-				}
+				test.AssertTerrastackBlock(t, *got, want)
 			}
 		})
 	}

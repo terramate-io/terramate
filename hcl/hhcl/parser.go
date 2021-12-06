@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terrastack/hcl"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -62,45 +63,60 @@ func (p *Parser) ParseModules(path string) ([]hcl.Module, error) {
 func (p *Parser) Parse(fname string, data []byte) (*hcl.Terrastack, error) {
 	f, diags := p.p.ParseHCL(data, fname)
 	if diags.HasErrors() {
-		return nil, fmt.Errorf("parsing terrastack: %w", diags)
+		return nil, errutil.Chain(hcl.ErrHCLSyntax, diags)
 	}
 
 	body, _ := f.Body.(*hclsyntax.Body)
 
-	var terrastack []*hcl.Terrastack
+	var tsblock hcl.Terrastack
+	var found bool
 	for _, block := range body.Blocks {
 		if block.Type != "terrastack" {
 			continue
 		}
 
+		if found {
+			return nil, fmt.Errorf("multiple terrastack blocks in file %q", fname)
+		}
+
+		found = true
+
 		if len(block.Labels) > 0 {
 			return nil, fmt.Errorf("terrastack block must have no labels")
 		}
 
-		reqversion, ok, err := findStringAttr(block, "required_version")
-		if err != nil {
-			return nil, fmt.Errorf("looking for terrastack.required_version attribute: %w",
-				err)
+		for name, value := range block.Body.Attributes {
+			attrVal, diags := value.Expr.Value(nil)
+			if diags.HasErrors() {
+				return nil, fmt.Errorf("failed to evaluate %q attribute: %w",
+					name, diags)
+			}
+			switch name {
+			case "required_version":
+				if attrVal.Type() != cty.String {
+					return nil, fmt.Errorf("attribute %q is not a string", name)
+				}
+
+				tsblock.RequiredVersion = attrVal.AsString()
+			case "after":
+				err := assignSet(name, &tsblock.After, attrVal)
+				if err != nil {
+					return nil, err
+				}
+			case "before":
+				err := assignSet(name, &tsblock.Before, attrVal)
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
-		if !ok {
-			return nil, fmt.Errorf("terrastack block requires a \"required_version\" attribute")
-		}
-
-		terrastack = append(terrastack, &hcl.Terrastack{
-			RequiredVersion: reqversion,
-		})
 	}
 
-	if len(terrastack) > 1 {
-		return nil, fmt.Errorf("only 1 \"terrastack\" block is allowed but found %d",
-			len(terrastack))
+	if !found {
+		return nil, hcl.ErrNoTerrastackBlock
 	}
 
-	if len(terrastack) == 0 {
-		return nil, fmt.Errorf("no \"terrastack\" block found")
-	}
-
-	return terrastack[0], nil
+	return &tsblock, nil
 }
 
 // ParseFile parses a terrastack file.
@@ -133,4 +149,38 @@ func findStringAttr(block *hclsyntax.Block, attr string) (string, bool, error) {
 	}
 
 	return "", false, nil
+}
+
+func assignSet(name string, target *[]string, val cty.Value) error {
+	if val.Type().IsSetType() {
+		return fmt.Errorf("attribute %q is not a set", name)
+	}
+
+	values := map[string]struct{}{}
+	iterator := val.ElementIterator()
+	for iterator.Next() {
+		_, elem := iterator.Element()
+		if elem.Type() != cty.String {
+			return errutil.Chain(hcl.ErrInvalidRunOrder,
+				fmt.Errorf("field %q is a set(string) but contains %q",
+					name, elem.Type().FriendlyName()),
+			)
+		}
+
+		str := elem.AsString()
+		if _, ok := values[str]; ok {
+			return errutil.Chain(hcl.ErrInvalidRunOrder,
+				fmt.Errorf("duplicated entry %q in field %q of type set(string)",
+					str, name),
+			)
+		}
+		values[str] = struct{}{}
+	}
+
+	var elems []string
+	for v := range values {
+		elems = append(elems, v)
+	}
+	*target = elems
+	return nil
 }

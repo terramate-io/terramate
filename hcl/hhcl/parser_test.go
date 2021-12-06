@@ -135,3 +135,102 @@ module "test" {
 		})
 	}
 }
+
+func TestHHCLParserTerrastackBlock(t *testing.T) {
+	type want struct {
+		err   error
+		block hcl.Terrastack
+	}
+	type testcase struct {
+		name  string
+		input string
+		want  want
+	}
+
+	for _, tc := range []testcase{
+		{
+			name: "empty config",
+			want: want{
+				err: hcl.ErrNoTerrastackBlock,
+			},
+		},
+		{
+			name: "required_version > 0.0.0",
+			input: `
+terrastack {
+	required_version = "> 0.0.0"
+}
+`,
+			want: want{
+				block: hcl.Terrastack{
+					RequiredVersion: "> 0.0.0",
+				},
+			},
+		},
+		{
+			name: "after: empty set works",
+			input: `
+terrastack {
+	required_version = ""
+	after = []
+}`,
+		},
+		{
+			name: "'after' single entry",
+			input: `
+terrastack {
+	required_version = ""
+	after = ["test"]
+}`,
+			want: want{
+				block: hcl.Terrastack{
+					After: []string{"test"},
+				},
+			},
+		},
+		{
+			name: "'after' invalid element entry",
+			input: `
+terrastack {
+	required_version = ""
+	after = [1]
+}`,
+			want: want{
+				err: hcl.ErrInvalidRunOrder,
+			},
+		},
+		{
+			name: "'after' duplicated entry",
+			input: `
+terrastack {
+	required_version = ""
+	after = ["test", "test"]
+}`,
+			want: want{
+				err: hcl.ErrInvalidRunOrder,
+			},
+		},
+		{
+			name: "multiple 'after' fields",
+			input: `
+terrastack {
+	required_version = ""
+	after = ["test"]
+	after = []
+}`,
+			want: want{
+				err: hcl.ErrHCLSyntax,
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := hhcl.NewParser()
+			got, err := p.Parse(tc.name, []byte(tc.input))
+			assert.IsError(t, err, tc.want.err)
+
+			if tc.want.err == nil {
+				test.AssertTerrastackBlock(t, *got, tc.want.block)
+			}
+		})
+	}
+}
