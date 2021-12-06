@@ -1,8 +1,8 @@
 package terrastack
 
 import (
-	"io/fs"
-	"path/filepath"
+	"fmt"
+	"os"
 )
 
 // Generate will walk all the directories starting from basedir generating
@@ -13,7 +13,15 @@ import (
 //
 // The provided basedir must be an absolute path to a directory.
 func Generate(basedir string) error {
-	return filepath.WalkDir(basedir, func(path string, d fs.DirEntry, err error) error {
-		return err
-	})
+	// filepath.WalkDir doesn't fail if basedir is a file, so check explicitly
+	info, err := os.Lstat(basedir)
+	if err != nil {
+		return fmt.Errorf("Generate(): invalid base dir %q: %v", basedir, err)
+	}
+
+	if !info.IsDir() {
+		return fmt.Errorf("Generate(): base dir %q is not a directory", basedir)
+	}
+
+	return nil
 }
