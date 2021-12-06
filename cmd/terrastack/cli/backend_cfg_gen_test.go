@@ -20,7 +20,7 @@ func TestBackendConfigOnLeafSingleStack(t *testing.T) {
 }`
 
 	stack.CreateConfig(`terrastack {
-  version %s
+  required_version %s
   %s
 }`, terrastack.DefaultVersionConstraint(), backendBlock)
 
