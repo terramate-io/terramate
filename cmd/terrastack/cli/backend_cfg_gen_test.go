@@ -1,17 +1,13 @@
 package cli_test
 
 import (
-	"fmt"
 	"testing"
 
-	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terrastack"
 	"github.com/mineiros-io/terrastack/test/sandbox"
 )
 
 func TestBackendConfigOnLeafSingleStack(t *testing.T) {
-	t.Skip("TODO: failing for now, yay for tests first =P")
-
 	s := sandbox.New(t)
 	stack := s.CreateStack("stack")
 
@@ -20,19 +16,27 @@ func TestBackendConfigOnLeafSingleStack(t *testing.T) {
 }`
 
 	stack.CreateConfig(`terrastack {
-  required_version %s
   %s
-}`, terrastack.DefaultVersionConstraint(), backendBlock)
+  %s
+}`, versionAttribute(), backendBlock)
 
-	cli := newCLI(t, s.BaseDir())
-	gen := cli.run("generate", s.BaseDir())
-	assertRunResult(t, gen, runResult{IgnoreStdout: true})
+	ts := newCLI(t, s.BaseDir())
+	assertRunResult(t, ts.generate(), runResult{IgnoreStdout: true})
 
-	want := fmt.Sprintf(`%s
-terraform {
-	%s
-}`, terrastack.GeneratedCodeHeader, backendBlock)
-	got := stack.ReadGeneratedTf()
+	// TODO(katcipis): implement actual generation
+	//want := fmt.Sprintf(`%s
+	//terraform {
+	//%s
+	//}`, terrastack.GeneratedCodeHeader, backendBlock)
+	//got := stack.ReadGeneratedTf()
 
-	assert.EqualStrings(t, want, got, "generated terraform file mismatch")
+	//assert.EqualStrings(t, want, got, "generated terraform file mismatch")
+}
+
+func (ts tscli) generate() runResult {
+	return ts.run("generate", "--basedir", ts.wd)
+}
+
+func versionAttribute() string {
+	return "required_version " + terrastack.DefaultVersionConstraint()
 }
