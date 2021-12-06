@@ -12,11 +12,17 @@ import (
 	"github.com/mineiros-io/terrastack/hcl/hhcl"
 )
 
-// ConfigFilename is the name of the terrastack configuration file.
-const ConfigFilename = "terrastack.tsk.hcl"
+const (
 
-// DefaultInitConstraint is the default constraint used in stack initialization.
-const DefaultInitConstraint = "~>"
+	// ConfigFilename is the name of the terrastack configuration file.
+	ConfigFilename = "terrastack.tsk.hcl"
+
+	// GeneratedTfFilename is the name of the terrastack generated tf file.
+	GeneratedTfFilename = "_gen_terrastack.tsk.tf"
+
+	// DefaultInitConstraint is the default constraint used in stack initialization.
+	DefaultInitConstraint = "~>"
+)
 
 // Init initialize a stack. It's an error to initialize an already initialized
 // stack unless they are of same versions. In case the stack is initialized with
