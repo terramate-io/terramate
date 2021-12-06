@@ -1,7 +1,7 @@
 # Backend Configuration
 
 Terrastack provides some facilities to improve on how backend configuration
-is managed on terraform. The idea is to circumvent some of the limitations
+is managed on Terraform. The idea is to circumvent some of the limitations
 from terraform that makes it really hard to avoid duplication/mistakes
 when managing backend configuration.
 
