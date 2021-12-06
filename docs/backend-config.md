@@ -37,7 +37,7 @@ terrastack {
 }
 ```
 
-And terrastack will use that to generate terraform code with a backend
+And terrastack will use that to generate Terraform code with a backend
 configuration. A configuration can only provide one backend block
 (overriding the config is possible, check
 [Overriding Configuration](#overriding-configuration) for more details).
