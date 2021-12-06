@@ -26,8 +26,8 @@ With those limitations in mind, terrastack provides a way to:
 ## Basic Usage
 
 To generate a backend configuration you need to define a **backend** block,
-very similarly to how you would do on terraform,
-but inside a **terrastack** block, like this:
+very similarly to how you would do on terraform, but inside a
+**terrastack** block, like this:
 
 ```hcl
 terrastack {
@@ -38,8 +38,12 @@ terrastack {
 ```
 
 And terrastack will use that to generate terraform code with a backend
-configuration. Let's start with a very simple example. Lets say your
-terrastack project has this layout:
+configuration. A configuration can only provide one backend block
+(overriding the config is possible, check
+[Overriding Configuration](#overriding-configuration) for more details).
+
+Let's start with a very simple example. Lets say your terrastack project
+has this layout:
 
 ```
 .
@@ -103,10 +107,46 @@ terraform {
 ```
 
 Any changes on the terrastack backend configuration will require a generation
-step to automatically update the generated files. The generated files should never
+step to update the generated files. The generated files should never
 be manipulated manually.
 
+
 ## Overriding Configuration
+
+Every backend configuration should include just a single block/definition, but
+this single definition can exist on any directory, providing a clear way to
+override overall/general purpose configuration with more detailed/specific
+configuration.
+
+More specific configuration always override general purpose configuration.
+There is no merge strategy/ composition involved, the configuration found
+closest to a stack on the file system, or directly at the stack directory,
+is the one used, ignoring any previous configuration.
+
+As example, suppose we have this layout on a project:
+
+```
+.
+└── envs
+    ├── prod
+    │   ├── stack-1
+    │   └── stack-2
+    └── staging
+        ├── stack-1
+        └── stack-2
+```
+
+If there is a backend configuration inside **envs**, it will be used
+by all stacks. If a backend configuration is added on **envs/prod**,
+now all stacks inside **envs/prod** will use this new configuration,
+ignoring the one on **envs**, while **envs/staging** stacks will keep
+using the general **envs** configuration.
+
+Going further, if a backend configuration is added on **envs/prod/stack-1**,
+that configuration will replace the one on **envs/prod** for **stack-1**, while
+**envs/prod/stack-2** will continue to use the backend configuration defined
+on **envs/prod**.
+
 
 ## Using metadata
 
