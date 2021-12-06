@@ -44,6 +44,11 @@ func TestInit(t *testing.T) {
 			force:  false,
 		},
 		{
+			name:   "init basedir - init --force",
+			layout: nil,
+			force:  true,
+		},
+		{
 			name:   "same version stack",
 			layout: []string{"s:same-version"},
 			input:  []string{"same-version"},
@@ -65,7 +70,7 @@ func TestInit(t *testing.T) {
 			input: []string{"same-version-1", "same-version-2", "same-version-3"},
 		},
 		{
-			name: "other version stack - not forced",
+			name: "not compatible stack",
 			layout: []string{
 				sprintf("t:other-version/%s:version=~> 9999.9999.9999", configFile),
 			},
@@ -77,7 +82,7 @@ func TestInit(t *testing.T) {
 			},
 		},
 		{
-			name: "other version stack - forced",
+			name: "not compatible stack - init --forced",
 			layout: []string{
 				sprintf("t:other-version/%s:version=~> 9999.9999.9999", configFile),
 			},
@@ -85,7 +90,7 @@ func TestInit(t *testing.T) {
 			force: true,
 		},
 		{
-			name: "multiple stacks, one incompatible version stack - not forced - fails",
+			name: "multiple stacks, one incompatible version stack - fails",
 			layout: []string{
 				sprintf("t:other-version/%s:version=~> 9999.9999.9999", configFile),
 				"s:stack1",
@@ -112,7 +117,7 @@ func TestInit(t *testing.T) {
 			},
 		},
 		{
-			name: "bigger version patch - forced",
+			name: "bigger version patch - init --forced",
 			layout: []string{
 				sprintf("t:other-version/%s:version=~> %s", configFile,
 					incVersion(t, tsversion, vPatch)),
@@ -134,7 +139,7 @@ func TestInit(t *testing.T) {
 			},
 		},
 		{
-			name: "bigger version minor - forced",
+			name: "bigger version minor - init --forced",
 			layout: []string{
 				sprintf("t:other-version/%s:version=~> %s", configFile,
 					incVersion(t, tsversion, vMinor)),
@@ -156,7 +161,7 @@ func TestInit(t *testing.T) {
 			},
 		},
 		{
-			name: "bigger version major - forced",
+			name: "bigger version major - init --forced",
 			layout: []string{
 				sprintf("t:other-version/%s:version=~> %s",
 					configFile, incVersion(t, tsversion, vMajor)),
@@ -167,9 +172,20 @@ func TestInit(t *testing.T) {
 		{
 			name: "lower than terrastack version - fails",
 			layout: []string{
-				sprintf("t:other-version/%s:version=< 0.0.1"),
+				sprintf("t:other-version/%s:version=< 0.0.1", configFile),
 			},
-			input: []string{"other-version2"},
+			input: []string{"other-version"},
+			want: runResult{
+				Error:        cli.ErrInit,
+				IgnoreStderr: true,
+			},
+		},
+		{
+			name: "bigger than default constraint version - fails",
+			layout: []string{
+				sprintf("t:other-version/%s:version=> 999.0.0", configFile),
+			},
+			input: []string{"other-version"},
 			want: runResult{
 				Error:        cli.ErrInit,
 				IgnoreStderr: true,
