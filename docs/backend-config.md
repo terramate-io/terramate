@@ -150,4 +150,63 @@ on **envs/prod**.
 
 ## Using metadata
 
+Terrastack provides a set of metadata information as documented [here](metadata.md).
+Any metadata provided by terrastack can be used on a backend configuration.
+
+As a concrete example, given that we manage multiple stacks on GCP, it is useful
+to define a backend configuration only once that uses specific stacks paths
+as the prefix for the GCS storage, like this:
+
+```hcl
+terrastack {
+  backend "gcs" {
+    bucket = "bucket-name"
+    prefix = terrastack.path
+  }
+}
+```
+
+Metadata is always evaluated on the context of a specific stack, so this
+configuration can be added as an overall configuration for all stacks
+and each stack will get a different configuration specific for it, given:
+
+```
+.
+└── envs
+    ├── prod
+    │   ├── stack-1
+    │   └── stack-2
+    └── staging
+        ├── stack-1
+        └── stack-2
+```
+
+If the backend configuration mentioned above is created inside **envs**,
+then the generated backend config for **envs/prod/stack-1** will be:
+
+```
+terraform {
+  backend "gcs" {
+    bucket = "bucket-name"
+    prefix = "/envs/prod/stack-1"
+  }
+}
+```
+
+While for **envs/staging/stack-1** it will be:
+
+```
+terraform {
+  backend "gcs" {
+    bucket = "bucket-name"
+    prefix = "/envs/staging/stack-1"
+  }
+}
+```
+
+And the same applies to all other stacks.
+
+
 ## Using globals
+
+TODO: we don't have the globals spec yet, add it here once we got it.
