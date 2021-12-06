@@ -26,7 +26,7 @@ With those limitations in mind, terrastack provides a way to:
 ## Basic Usage
 
 To generate a backend configuration you need to define a **backend** block,
-very similarly to how you would do on terraform, but inside a
+very similar to how you would do on Terraform, but inside a
 **terrastack** block, like this:
 
 ```hcl
