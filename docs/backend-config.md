@@ -9,7 +9,7 @@ There is no way to define a single parametrized backend configuration
 that can then be re-used across different stacks/environments/etc.
 
 You can't even use a local variable as a parameter on the backend config,
-from [terraform docs](https://www.terraform.io/docs/language/settings/backends/configuration.html):
+from [Terraform docs](https://www.terraform.io/docs/language/settings/backends/configuration.html):
 
 ```
 A backend block cannot refer to named values
