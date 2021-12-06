@@ -78,7 +78,7 @@ terrastack {
 }
 ```
 
-And finally generate the final terraform code on all the stacks of
+And finally generate the final Terraform code on all the stacks of
 your project, by running from the project top level directory:
 
 ```sh
