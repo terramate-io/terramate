@@ -102,7 +102,7 @@ func (s S) BuildTree(layout []string) {
 	}
 
 	gentskfile := func(spec string) {
-		name, data := parsePathData(spec)
+		relpath, data := parsePathData(spec)
 		attrs := strings.Split(data, ",")
 
 		ts := hcl.Terrastack{}
@@ -117,7 +117,7 @@ func (s S) BuildTree(layout []string) {
 			}
 		}
 
-		path := filepath.Join(s.BaseDir(), name)
+		path := filepath.Join(s.BaseDir(), relpath)
 		test.MkdirAll(t, filepath.Dir(path))
 
 		f, err := os.Create(path)

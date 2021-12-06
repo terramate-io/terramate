@@ -18,17 +18,6 @@ const ConfigFilename = "terrastack.tsk.hcl"
 // DefaultInitConstraint is the default constraint used in stack initialization.
 const DefaultInitConstraint = "~>"
 
-func init() {
-	_, err := hclversion.NewSemver(Version())
-	if err != nil {
-		msg := fmt.Sprintf(
-			"terrastack version does not adhere to semver specification: %s",
-			err.Error(),
-		)
-		panic(msg)
-	}
-}
-
 // Init initialize a stack. It's an error to initialize an already initialized
 // stack unless they are of same versions. In case the stack is initialized with
 // other terrastack version, the force flag can be used to explicitly initialize
@@ -79,9 +68,7 @@ func Init(dir string, force bool) error {
 			return fmt.Errorf("unable to check stack constraint: %w", err)
 		}
 
-		// must work, checked on package init().
-		ownVersion, _ := hclversion.NewSemver(Version())
-		if !constraint.Check(ownVersion) {
+		if !constraint.Check(tfversionObj) {
 			return fmt.Errorf("stack version constraint %q do not match terrastack "+
 				"version %q", vconstraint, Version())
 		}
@@ -101,7 +88,7 @@ func Init(dir string, force bool) error {
 
 	var p hhcl.Printer
 	err = p.PrintTerrastack(f, hcl.Terrastack{
-		RequiredVersion: fmt.Sprintf("%s %s", DefaultInitConstraint, Version()),
+		RequiredVersion: DefaultVersionConstraint(),
 	})
 
 	if err != nil {
@@ -109,6 +96,12 @@ func Init(dir string, force bool) error {
 	}
 
 	return nil
+}
+
+// DefaultVersionConstraint is the default version constraint used by terrastack
+// when generating tsk files.
+func DefaultVersionConstraint() string {
+	return DefaultInitConstraint + " " + Version()
 }
 
 func parseVersion(stackfile string) (string, error) {
