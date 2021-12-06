@@ -61,6 +61,23 @@ func MkdirAll(t *testing.T, path string) {
 	assert.NoError(t, os.MkdirAll(path, 0700), "failed to create temp directory")
 }
 
+// Getwd gets the current working dir of the process
+func Getwd(t *testing.T) string {
+	t.Helper()
+
+	wd, err := os.Getwd()
+	assert.NoError(t, err)
+	return wd
+}
+
+func RelPath(t *testing.T, basepath, targetpath string) string {
+	t.Helper()
+
+	rel, err := filepath.Rel(basepath, targetpath)
+	assert.NoError(t, err)
+	return rel
+}
+
 // RemoveAll removes the directory and any of its children files and directories.
 func RemoveAll(t *testing.T, path string) {
 	t.Helper()

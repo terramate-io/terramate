@@ -22,3 +22,10 @@ func TestGenerateFailsIfPathIsNotDir(t *testing.T) {
 
 	assert.Error(t, terrastack.Generate(path))
 }
+
+func TestGenerateFailsIfPathIsRelative(t *testing.T) {
+	dir := t.TempDir()
+	relpath := test.RelPath(t, test.Getwd(t), dir)
+
+	assert.Error(t, terrastack.Generate(relpath))
+}
