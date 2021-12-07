@@ -42,34 +42,7 @@ func NewManager(basedir string, gitBaseRef string) *Manager {
 // List walks the basedir directory looking for terraform stacks.
 // It returns a lexicographic sorted list of stack directories.
 func (m *Manager) List() ([]Entry, error) {
-	entries := []Entry{}
-
-	err := filepath.Walk(
-		m.basedir,
-		func(path string, info fs.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-
-			if info.IsDir() {
-				stackfile := filepath.Join(path, ConfigFilename)
-				st, err := os.Stat(stackfile)
-				if err != nil || !st.Mode().IsRegular() {
-					return nil
-				}
-
-				entries = append(entries, Entry{Dir: path})
-			}
-
-			return nil
-		},
-	)
-
-	if err != nil {
-		return nil, fmt.Errorf("while walking dir: %w", err)
-	}
-
-	return entries, nil
+	return ListStacks(m.basedir)
 }
 
 // ListChanged lists the stacks that have changed on the current branch,
