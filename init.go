@@ -9,7 +9,6 @@ import (
 	hclversion "github.com/hashicorp/go-version"
 
 	"github.com/mineiros-io/terrastack/hcl"
-	"github.com/mineiros-io/terrastack/hcl/hhcl"
 )
 
 const (
@@ -95,7 +94,7 @@ func Init(dir string, force bool) error {
 
 	defer f.Close()
 
-	var p hhcl.Printer
+	var p hcl.Printer
 	err = p.PrintTerrastack(f, hcl.Terrastack{
 		RequiredVersion: DefaultVersionConstraint(),
 	})
@@ -114,7 +113,7 @@ func DefaultVersionConstraint() string {
 }
 
 func parseVersion(stackfile string) (string, error) {
-	parser := hhcl.NewParser()
+	parser := hcl.NewParser()
 	ts, err := parser.ParseFile(stackfile)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse file %q: %w", stackfile, err)

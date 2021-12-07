@@ -18,7 +18,6 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terrastack"
 	"github.com/mineiros-io/terrastack/hcl"
-	"github.com/mineiros-io/terrastack/hcl/hhcl"
 	"github.com/mineiros-io/terrastack/test"
 )
 
@@ -125,7 +124,7 @@ func (s S) BuildTree(layout []string) {
 
 		defer f.Close()
 
-		var p hhcl.Printer
+		var p hcl.Printer
 		err = p.PrintTerrastack(f, ts)
 		assert.NoError(t, err, "BuildTree() failed to generate tsk file")
 	}

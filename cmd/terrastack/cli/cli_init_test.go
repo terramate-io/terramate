@@ -10,7 +10,6 @@ import (
 	"github.com/mineiros-io/terrastack"
 	"github.com/mineiros-io/terrastack/cmd/terrastack/cli"
 	"github.com/mineiros-io/terrastack/hcl"
-	"github.com/mineiros-io/terrastack/hcl/hhcl"
 	"github.com/mineiros-io/terrastack/test"
 	"github.com/mineiros-io/terrastack/test/sandbox"
 )
@@ -212,7 +211,7 @@ func TestInit(t *testing.T) {
 
 			for _, path := range tc.input {
 				data := test.ReadFile(t, s.BaseDir(), filepath.Join(path, configFile))
-				p := hhcl.NewParser()
+				p := hcl.NewParser()
 				got, err := p.Parse("TestInitHCL", data)
 				assert.NoError(t, err, "parsing terrastack file")
 
