@@ -142,6 +142,12 @@ func (p *Parser) Parse(fname string, data []byte) (*Terrastack, error) {
 			}
 
 			tsconfig.RequiredVersion = attrVal.AsString()
+
+			// TODO(i4k): support other fields in the case (after, before, etc)
+		default:
+			return nil, errutil.Chain(ErrMalformedTerrastackBlock,
+				fmt.Errorf("invalid attribute %q", name),
+			)
 		}
 	}
 
