@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/mineiros-io/terrastack"
@@ -12,8 +13,8 @@ func TestBackendConfigOnLeafSingleStack(t *testing.T) {
 	stack := s.CreateStack("stack")
 
 	backendBlock := `backend "type" {
-    param = "value"
-}`
+		param = "value"
+	}`
 
 	stack.CreateConfig(`terrastack {
   %s
@@ -23,14 +24,13 @@ func TestBackendConfigOnLeafSingleStack(t *testing.T) {
 	ts := newCLI(t, s.BaseDir())
 	assertRunResult(t, ts.generate(), runResult{IgnoreStdout: true})
 
-	// TODO(katcipis): implement actual generation
-	//want := fmt.Sprintf(`%s
-	//terraform {
-	//%s
-	//}`, terrastack.GeneratedCodeHeader, backendBlock)
-	//got := stack.ReadGeneratedTf()
+	got := stack.ReadGeneratedTf()
 
-	//assert.EqualStrings(t, want, got, "generated terraform file mismatch")
+	if !strings.HasPrefix(got, terrastack.GeneratedCodeHeader) {
+		t.Fatal("generated code missing header")
+	}
+
+	// Parse + test actual generated code
 }
 
 func (ts tscli) generate() runResult {
