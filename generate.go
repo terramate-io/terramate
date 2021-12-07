@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/madlambda/spells/errutil"
 )
 
 const (
@@ -40,11 +42,17 @@ func Generate(basedir string) error {
 		return fmt.Errorf("Generate(%q): listing stack: %v", basedir, err)
 	}
 
+	var errs []error
+
 	for _, stack := range stacks {
 		genfile := filepath.Join(stack.Dir, GeneratedTfFilename)
 		// TODO(katcipis): error handling + proper implementation
 
-		os.WriteFile(genfile, []byte(GeneratedCodeHeader), 0666)
+		errs = append(errs, os.WriteFile(genfile, []byte(GeneratedCodeHeader), 0666))
+	}
+
+	if err := errutil.Chain(errs...); err != nil {
+		return fmt.Errorf("Generate(%q): %v", basedir, err)
 	}
 
 	return nil
