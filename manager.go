@@ -10,7 +10,6 @@ import (
 
 	"github.com/mineiros-io/terrastack/git"
 	"github.com/mineiros-io/terrastack/hcl"
-	"github.com/mineiros-io/terrastack/hcl/hhcl"
 )
 
 type (
@@ -19,7 +18,7 @@ type (
 		basedir    string // basedir is the stacks base directory.
 		gitBaseRef string // gitBaseRef is the git ref where we compare changes.
 
-		parser hcl.ModuleParser
+		parser *hcl.Parser
 	}
 
 	// Entry is a generic directory entry result.
@@ -35,7 +34,7 @@ func NewManager(basedir string, gitBaseRef string) *Manager {
 	return &Manager{
 		basedir:    basedir,
 		gitBaseRef: gitBaseRef,
-		parser:     hhcl.NewParser(),
+		parser:     hcl.NewParser(),
 	}
 }
 
