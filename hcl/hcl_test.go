@@ -1,4 +1,4 @@
-package hhcl_test
+package hcl_test
 
 import (
 	"fmt"
@@ -7,11 +7,10 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terrastack/hcl"
-	"github.com/mineiros-io/terrastack/hcl/hhcl"
 	"github.com/mineiros-io/terrastack/test"
 )
 
-func TestHHCLParserModules(t *testing.T) {
+func TestHCLParserModules(t *testing.T) {
 	type want struct {
 		modules   []hcl.Module
 		err       error
@@ -113,7 +112,7 @@ module "test" {
 		t.Run(tc.name, func(t *testing.T) {
 			path := test.WriteFile(t, "", "main.tf", tc.input)
 
-			parser := hhcl.NewParser()
+			parser := hcl.NewParser()
 			modules, err := parser.ParseModules(path)
 			if tc.want.errPrefix != nil {
 				if err == nil {
@@ -224,7 +223,7 @@ terrastack {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p := hhcl.NewParser()
+			p := hcl.NewParser()
 			got, err := p.Parse(tc.name, []byte(tc.input))
 			assert.IsError(t, err, tc.want.err)
 
