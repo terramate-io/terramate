@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/madlambda/spells/errutil"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -18,12 +19,21 @@ type Module struct {
 type Terrastack struct {
 	// RequiredVersion contains the terrastack version required by the stack.
 	RequiredVersion string
+
+	Backend *hclsyntax.Block
 }
 
 // Parser is a terrastack parser.
 type Parser struct {
 	p *hclparse.Parser
 }
+
+const (
+	ErrHCLSyntax                errutil.Error = "HCL syntax error"
+	ErrNoTerrastackBlock        errutil.Error = "no \"terrastack\" block found"
+	ErrMalformedTerrastackBlock errutil.Error = "malformed terrastack block"
+	ErrMalformedTerraform       errutil.Error = "malformed terraform"
+)
 
 // NewParser creates a HCL parser
 func NewParser() *Parser {
@@ -41,7 +51,10 @@ func (p *Parser) ParseModules(path string) ([]Module, error) {
 
 	f, diags := p.p.ParseHCLFile(path)
 	if diags.HasErrors() {
-		return nil, fmt.Errorf("parsing modules: %w", diags)
+		return nil, errutil.Chain(
+			ErrHCLSyntax,
+			fmt.Errorf("parsing modules: %w", diags),
+		)
 	}
 
 	body, _ := f.Body.(*hclsyntax.Body)
@@ -55,8 +68,11 @@ func (p *Parser) ParseModules(path string) ([]Module, error) {
 		moduleName := block.Labels[0]
 		source, ok, err := findStringAttr(block, "source")
 		if err != nil {
-			return nil, fmt.Errorf("looking for %q.source attribute: %w",
-				moduleName, err)
+			return nil, errutil.Chain(
+				ErrMalformedTerraform,
+				fmt.Errorf("looking for %q.source attribute: %w",
+					moduleName, err),
+			)
 		}
 		if !ok {
 			continue
@@ -72,45 +88,92 @@ func (p *Parser) ParseModules(path string) ([]Module, error) {
 func (p *Parser) Parse(fname string, data []byte) (*Terrastack, error) {
 	f, diags := p.p.ParseHCL(data, fname)
 	if diags.HasErrors() {
-		return nil, fmt.Errorf("parsing terrastack: %w", diags)
+		return nil, errutil.Chain(ErrHCLSyntax, diags)
 	}
 
 	body, _ := f.Body.(*hclsyntax.Body)
 
-	var terrastack []*Terrastack
+	var tsconfig Terrastack
+	var tsblock *hclsyntax.Block
+	var found bool
 	for _, block := range body.Blocks {
 		if block.Type != "terrastack" {
 			continue
 		}
 
-		if len(block.Labels) > 0 {
-			return nil, fmt.Errorf("terrastack block must have no labels")
+		if found {
+			return nil, errutil.Chain(
+				ErrMalformedTerrastackBlock,
+				fmt.Errorf("multiple terrastack blocks in file %q", fname),
+			)
 		}
 
-		reqversion, ok, err := findStringAttr(block, "required_version")
-		if err != nil {
-			return nil, fmt.Errorf("looking for terrastack.required_version attribute: %w",
-				err)
+		found = true
+		tsblock = block
+	}
+
+	if !found {
+		return nil, ErrNoTerrastackBlock
+	}
+
+	if len(tsblock.Labels) > 0 {
+		return nil, errutil.Chain(
+			ErrMalformedTerrastackBlock,
+			fmt.Errorf("terrastack block must have no labels"),
+		)
+	}
+
+	for name, value := range tsblock.Body.Attributes {
+		attrVal, diags := value.Expr.Value(nil)
+		if diags.HasErrors() {
+			return nil, errutil.Chain(
+				ErrHCLSyntax,
+				fmt.Errorf("failed to evaluate %q attribute: %w",
+					name, diags),
+			)
 		}
-		if !ok {
-			return nil, fmt.Errorf("terrastack block requires a \"required_version\" attribute")
+		switch name {
+		case "required_version":
+			if attrVal.Type() != cty.String {
+				return nil, errutil.Chain(
+					ErrMalformedTerrastackBlock,
+					fmt.Errorf("attribute %q is not a string", name),
+				)
+			}
+
+			tsconfig.RequiredVersion = attrVal.AsString()
+		}
+	}
+
+	found = false
+	for _, block := range tsblock.Body.Blocks {
+		if block.Type != "backend" {
+			return nil, errutil.Chain(
+				ErrMalformedTerrastackBlock,
+				fmt.Errorf("block type %q not supported", block.Type))
 		}
 
-		terrastack = append(terrastack, &Terrastack{
-			RequiredVersion: reqversion,
-		})
+		if found {
+			return nil, errutil.Chain(
+				ErrMalformedTerrastackBlock,
+				fmt.Errorf("multiple backend blocks in file %q", fname),
+			)
+		}
+
+		found = true
+
+		if len(block.Labels) != 1 {
+			return nil, errutil.Chain(
+				ErrMalformedTerrastackBlock,
+				fmt.Errorf("backend type expects 1 label but given %v",
+					block.Labels),
+			)
+		}
+
+		tsconfig.Backend = block
 	}
 
-	if len(terrastack) > 1 {
-		return nil, fmt.Errorf("only 1 \"terrastack\" block is allowed but found %d",
-			len(terrastack))
-	}
-
-	if len(terrastack) == 0 {
-		return nil, fmt.Errorf("no \"terrastack\" block found")
-	}
-
-	return terrastack[0], nil
+	return &tsconfig, nil
 }
 
 // ParseFile parses a terrastack file.
