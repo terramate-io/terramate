@@ -1,4 +1,4 @@
-package terrastack_test
+package terramate_test
 
 import (
 	"fmt"
@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terrastack"
-	"github.com/mineiros-io/terrastack/test"
+	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/test"
 )
 
 type repository struct {
@@ -131,7 +131,7 @@ func TestListChangedStacks(t *testing.T) {
 			}
 
 			repo := tc.repobuilder(t)
-			m := terrastack.NewManager(repo.Dir, tc.baseRef)
+			m := terramate.NewManager(repo.Dir, tc.baseRef)
 
 			changed, err := m.ListChanged()
 			assert.EqualErrs(t, tc.want.err, err, "ListChanged() error")
@@ -170,7 +170,7 @@ func TestListChangedStackReason(t *testing.T) {
 }
 
 func assertStacks(
-	t *testing.T, basedir string, want []string, got []terrastack.Entry, wantReason bool,
+	t *testing.T, basedir string, want []string, got []terramate.Entry, wantReason bool,
 ) {
 	assert.EqualInts(t, len(want), len(got), "wrong number of stacks: %+v", got)
 
@@ -194,9 +194,9 @@ func assertStacks(
 //
 // git init -b main <dir>
 // cd <dir>
-// terrastack init
-// git add terrastack
-// git commit -m "terrastack message"
+// terramate init
+// git add terramate
+// git commit -m "terramate message"
 // git checkout -b testbranch
 // echo foo > foo
 // git add foo
@@ -229,13 +229,13 @@ func singleNotChangedStack(t *testing.T) repository {
 	g := test.NewGitWrapper(t, repo, false)
 
 	// make it a stack
-	assert.NoError(t, terrastack.Init(repo, false), "terrastack init failed")
-	assert.NoError(t, g.Add(terrastack.ConfigFilename), "add terrastack file failed")
-	assert.NoError(t, g.Commit("terrastack message"), "terrastack commit failed")
+	assert.NoError(t, terramate.Init(repo, false), "terramate init failed")
+	assert.NoError(t, g.Add(terramate.ConfigFilename), "add terramate file failed")
+	assert.NoError(t, g.Commit("terramate message"), "terramate commit failed")
 
 	// add a second commit to be able to test gitBaseRef=HEAD^
 	readmePath := test.WriteFile(t, repo, "Something", "test")
-	assert.NoError(t, g.Add(readmePath), "add terrastack file failed")
+	assert.NoError(t, g.Add(readmePath), "add terramate file failed")
 	assert.NoError(t, g.Commit("add Something message"), "commit failed")
 
 	assert.NoError(t, g.Push("origin", "main"), "push to origin")
@@ -308,9 +308,9 @@ func multipleStacksOneChangedRepo(t *testing.T) repository {
 	otherStack := filepath.Join(repo.Dir, "not-changed-stack")
 	test.MkdirAll(t, otherStack)
 
-	assert.NoError(t, terrastack.Init(otherStack, false), "terrastack init failed")
+	assert.NoError(t, terramate.Init(otherStack, false), "terramate init failed")
 
-	assert.NoError(t, g.Add(filepath.Join(otherStack, terrastack.ConfigFilename)),
+	assert.NoError(t, g.Add(filepath.Join(otherStack, terramate.ConfigFilename)),
 		"git add otherstack failed")
 	assert.NoError(t, g.Commit("other stack message"), "commit failed")
 
@@ -323,9 +323,9 @@ func multipleStacksOneChangedRepo(t *testing.T) repository {
 	otherStack = filepath.Join(repo.Dir, "changed-stack")
 	test.MkdirAll(t, otherStack)
 
-	assert.NoError(t, terrastack.Init(otherStack, false), "terrastack init failed")
+	assert.NoError(t, terramate.Init(otherStack, false), "terramate init failed")
 
-	assert.NoError(t, g.Add(filepath.Join(otherStack, terrastack.ConfigFilename)),
+	assert.NoError(t, g.Add(filepath.Join(otherStack, terramate.ConfigFilename)),
 		"git add otherstack failed")
 	assert.NoError(t, g.Commit("other stack message"), "commit failed")
 
@@ -341,9 +341,9 @@ func multipleChangedStacksRepo(t *testing.T) repository {
 		otherStack := filepath.Join(repo.Dir, "changed-stack-"+fmt.Sprint(i))
 		test.MkdirAll(t, otherStack)
 
-		assert.NoError(t, terrastack.Init(otherStack, false), "terrastack init failed")
+		assert.NoError(t, terramate.Init(otherStack, false), "terramate init failed")
 
-		assert.NoError(t, g.Add(filepath.Join(otherStack, terrastack.ConfigFilename)),
+		assert.NoError(t, g.Add(filepath.Join(otherStack, terramate.ConfigFilename)),
 			"git add otherstack failed")
 		assert.NoError(t, g.Commit("other stack message"), "commit failed")
 	}
@@ -383,18 +383,18 @@ func multipleStackOneChangedModule(t *testing.T) repository {
 	otherStack := filepath.Join(repo.Dir, "stack1")
 	test.MkdirAll(t, otherStack)
 
-	assert.NoError(t, terrastack.Init(otherStack, false), "terrastack init failed")
+	assert.NoError(t, terramate.Init(otherStack, false), "terramate init failed")
 
-	assert.NoError(t, g.Add(filepath.Join(otherStack, terrastack.ConfigFilename)),
+	assert.NoError(t, g.Add(filepath.Join(otherStack, terramate.ConfigFilename)),
 		"git add otherstack failed")
 	assert.NoError(t, g.Commit("other stack message"), "commit failed")
 
 	otherStack = filepath.Join(repo.Dir, "stack2")
 	test.MkdirAll(t, otherStack)
 
-	assert.NoError(t, terrastack.Init(otherStack, false), "terrastack init failed")
+	assert.NoError(t, terramate.Init(otherStack, false), "terramate init failed")
 
-	assert.NoError(t, g.Add(filepath.Join(otherStack, terrastack.ConfigFilename)),
+	assert.NoError(t, g.Add(filepath.Join(otherStack, terramate.ConfigFilename)),
 		"git add otherstack failed")
 	assert.NoError(t, g.Commit("other stack message"), "commit failed")
 
@@ -474,6 +474,6 @@ module "module2" {
 	return repo
 }
 
-func newManager(basedir string) *terrastack.Manager {
-	return terrastack.NewManager(basedir, defaultBranch)
+func newManager(basedir string) *terramate.Manager {
+	return terramate.NewManager(basedir, defaultBranch)
 }

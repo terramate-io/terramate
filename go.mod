@@ -1,4 +1,4 @@
-module github.com/mineiros-io/terrastack
+module github.com/mineiros-io/terramate
 
 go 1.17
 

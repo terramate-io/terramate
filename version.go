@@ -1,4 +1,4 @@
-package terrastack
+package terramate
 
 import (
 	_ "embed"
@@ -18,14 +18,14 @@ func init() {
 	tfversionObj, err = tfversion.NewSemver(Version())
 	if err != nil {
 		msg := fmt.Sprintf(
-			"terrastack version does not adhere to semver specification: %s",
+			"terramate version does not adhere to semver specification: %s",
 			err.Error(),
 		)
 		panic(msg)
 	}
 }
 
-// Version of terrastack.
+// Version of terramate.
 func Version() string {
 	return strings.TrimSpace(version)
 }

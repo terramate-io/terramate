@@ -5,8 +5,8 @@ import (
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terrastack/hcl"
-	"github.com/mineiros-io/terrastack/test"
+	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/test"
 )
 
 func TestHCLParserModules(t *testing.T) {
@@ -148,7 +148,7 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 		{
 			name: "required_version > 0.0.0",
 			input: `
-	terrastack {
+	terramate {
 	       required_version = "> 0.0.0"
 	}
 	`,
@@ -161,7 +161,7 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 		{
 			name: "empty backend",
 			input: `
-	terrastack {
+	terramate {
 		   backend "something" {
 		   }
 	}
@@ -178,7 +178,7 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 		{
 			name: "backend with attributes",
 			input: `
-	terrastack {
+	terramate {
 		   backend "something" {
 			   something = "something else"
 		   }
@@ -196,7 +196,7 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 		{
 			name: "multiple backend blocks - fails",
 			input: `
-	terrastack {
+	terramate {
 		   backend "ah" {}
 		   backend "something" {
 			   something = "something else"
@@ -210,7 +210,7 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 		{
 			name: "backend with nested blocks",
 			input: `
-	terrastack {
+	terramate {
 		   backend "my-label" {
 			   something = "something else"
 			   other {
@@ -231,7 +231,7 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 		{
 			name: "backend with no labels - fails",
 			input: `
-	terrastack {
+	terramate {
 		   backend {
 			   something = "something else"
 		   }
@@ -244,7 +244,7 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 		{
 			name: "backend with more than 1 label - fails",
 			input: `
-	terrastack {
+	terramate {
 		   backend "1" "2" {
 			   something = "something else"
 		   }

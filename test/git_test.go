@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terrastack/test"
+	"github.com/mineiros-io/terramate/test"
 )
 
 func TestRepoIsSetupWithSyncRemoteOriginMain(t *testing.T) {

@@ -7,9 +7,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terrastack/git"
-	"github.com/mineiros-io/terrastack/test"
-	"github.com/mineiros-io/terrastack/test/sandbox"
+	"github.com/mineiros-io/terramate/git"
+	"github.com/mineiros-io/terramate/test"
+	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
 const CookedCommitID = "a022c39b57b1e711fb9298a05aacc699773e6d36"

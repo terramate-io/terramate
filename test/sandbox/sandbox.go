@@ -1,4 +1,4 @@
-// Package sandbox provides an easy way to setup isolated terrastack projects
+// Package sandbox provides an easy way to setup isolated terramate projects
 // that can be used on testing, acting like sandboxes.
 //
 // It helps with:
@@ -16,9 +16,9 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terrastack"
-	"github.com/mineiros-io/terrastack/hcl"
-	"github.com/mineiros-io/terrastack/test"
+	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/test"
 )
 
 // S is a full sandbox with its own base dir that is an initialized git repo for
@@ -79,12 +79,12 @@ func New(t *testing.T) S {
 //   "d" for directory creation.
 //   "s" for initialized stacks.
 //   "f" for file creation.
-//   "t" for terrastack block.
+//   "t" for terramate block.
 // The data field is required only for operation "f" and "t":
 //   For "f" data is the content of the file to be created.
 //   For "t" data is a key value pair of the form:
 //     <attr1>=<val1>[,<attr2>=<val2>]
-// Where attrN is a string attribute of the terrastack block.
+// Where attrN is a string attribute of the terramate block.
 //
 // This is an internal mini-lang used to simplify testcases, so it expects well
 // formed layout specification.
@@ -188,7 +188,7 @@ func (s S) CreateStack(relpath string) *StackEntry {
 		DirEntry: newDirEntry(t, s.basedir, relpath),
 	}
 
-	assert.NoError(t, terrastack.Init(stack.Path(), false))
+	assert.NoError(t, terramate.Init(stack.Path(), false))
 	return stack
 }
 

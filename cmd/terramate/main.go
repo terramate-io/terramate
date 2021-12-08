@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/mineiros-io/terrastack/cmd/terrastack/cli"
+	"github.com/mineiros-io/terramate/cmd/terramate/cli"
 )
 
 func main() {
