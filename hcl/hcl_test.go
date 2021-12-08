@@ -1,10 +1,9 @@
 package hcl_test
 
 import (
-	"fmt"
-	"strings"
 	"testing"
 
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terrastack/hcl"
 	"github.com/mineiros-io/terrastack/test"
@@ -12,14 +11,13 @@ import (
 
 func TestHCLParserModules(t *testing.T) {
 	type want struct {
-		modules   []hcl.Module
-		err       error
-		errPrefix error
+		modules []hcl.Module
+		err     error
 	}
 	type testcase struct {
 		name  string
 		input string
-		want
+		want  want
 	}
 
 	for _, tc := range []testcase{
@@ -100,12 +98,15 @@ module "test" {
 	source = -1
 }
 `,
+			want: want{
+				err: hcl.ErrMalformedTerraform,
+			},
 		},
 		{
+			name:  "variable interpolation in the source string - fails",
 			input: "module \"test\" {\nsource = \"${var.test}\"\n}\n",
 			want: want{
-				errPrefix: fmt.Errorf("looking for \"test\".source attribute: " +
-					"failed to evaluate"),
+				err: hcl.ErrMalformedTerraform,
 			},
 		},
 	} {
@@ -114,18 +115,9 @@ module "test" {
 
 			parser := hcl.NewParser()
 			modules, err := parser.ParseModules(path)
-			if tc.want.errPrefix != nil {
-				if err == nil {
-					t.Fatalf("expects error prefix: %v", tc.want.errPrefix)
-				}
-				if !strings.HasPrefix(err.Error(), tc.want.errPrefix.Error()) {
-					t.Fatalf("got[%v] but wants prefix [%v]", err, tc.want.errPrefix)
-				}
-			} else if tc.want.err != nil {
-				assert.EqualErrs(t, tc.want.err, err, "failed to parse module %q", path)
-			}
+			assert.IsError(t, err, tc.want.err)
 
-			assert.EqualInts(t, len(tc.modules), len(modules), "modules len mismatch")
+			assert.EqualInts(t, len(tc.want.modules), len(modules), "modules len mismatch")
 
 			for i := 0; i < len(tc.want.modules); i++ {
 				assert.EqualStrings(t, tc.want.modules[i].Source, modules[i].Source,
@@ -164,6 +156,182 @@ terrastack {
 				block: hcl.Terrastack{
 					RequiredVersion: "> 0.0.0",
 				},
+			},
+		},
+		{
+			name: "empty backend",
+			input: `
+	terrastack {
+		   backend "something" {
+		   }
+	}
+	`,
+			want: want{
+				block: hcl.Terrastack{
+					Backend: &hclsyntax.Block{
+						Type:   "backend",
+						Labels: []string{"something"},
+					},
+				},
+			},
+		},
+		{
+			name: "backend with attributes",
+			input: `
+terrastack {
+	   backend "something" {
+		   something = "something else"
+	   }
+}
+`,
+
+			want: want{
+				block: hcl.Terrastack{
+					Backend: &hclsyntax.Block{
+						Type:   "backend",
+						Labels: []string{"something"},
+					},
+				},
+			},
+		},
+		{
+			name: "multiple backend blocks - fails",
+			input: `
+terrastack {
+	   backend "ah" {}
+	   backend "something" {
+		   something = "something else"
+	   }
+}
+`,
+			want: want{
+				err: hcl.ErrMalformedTerrastackBlock,
+			},
+		},
+		{
+			name: "backend with nested blocks",
+			input: `
+terrastack {
+	   backend "my-label" {
+		   something = "something else"
+		   other {
+			   test = 1
+		   }
+	   }
+}
+`,
+			want: want{
+				block: hcl.Terrastack{
+					Backend: &hclsyntax.Block{
+						Type:   "backend",
+						Labels: []string{"my-label"},
+					},
+				},
+			},
+		},
+		{
+			name: "backend with no labels - fails",
+			input: `
+terrastack {
+	   backend {
+		   something = "something else"
+	   }
+}
+`,
+			want: want{
+				err: hcl.ErrMalformedTerrastackBlock,
+			},
+		},
+		{
+			name: "backend with more than 1 label - fails",
+			input: `
+terrastack {
+	   backend "1" "2" {
+		   something = "something else"
+	   }
+}
+`,
+			want: want{
+				err: hcl.ErrMalformedTerrastackBlock,
+			},
+		},
+		{
+			name: "backend with attributes",
+			input: `
+terrastack {
+   backend "something" {
+	   something = "something else"
+   }
+}
+`,
+			want: want{
+				block: hcl.Terrastack{
+					Backend: &hclsyntax.Block{
+						Type:   "backend",
+						Labels: []string{"something"},
+					},
+				},
+			},
+		},
+		{
+			name: "multiple backend blocks - fails",
+			input: `
+terrastack {
+   backend "ah" {}
+   backend "something" {
+	   something = "something else"
+   }
+}
+`,
+			want: want{
+				err: hcl.ErrMalformedTerrastackBlock,
+			},
+		},
+		{
+			name: "backend with nested blocks",
+			input: `
+terrastack {
+   backend "my-label" {
+	   something = "something else"
+	   other {
+		   test = 1
+	   }
+   }
+}
+`,
+			want: want{
+				block: hcl.Terrastack{
+					Backend: &hclsyntax.Block{
+						Type:   "backend",
+						Labels: []string{"my-label"},
+					},
+				},
+			},
+		},
+		{
+			name: "backend with no labels - fails",
+			input: `
+terrastack {
+   backend {
+	   something = "something else"
+   }
+}
+`,
+			want: want{
+				err: hcl.ErrMalformedTerrastackBlock,
+			},
+		},
+		{
+			name: "backend with more than 1 label - fails",
+			input: `
+terrastack {
+   backend "1" "2" {
+	   something = "something else"
+   }
+}
+`,
+			want: want{
+				err: hcl.ErrMalformedTerrastackBlock,
 			},
 		},
 		{
