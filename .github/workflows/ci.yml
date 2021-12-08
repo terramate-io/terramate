@@ -2,14 +2,8 @@ name: ci
 on: [push]
 jobs:
 
-  lint:
+  license:
     runs-on: ubuntu-20.04
-
-    # Lint with all supported go versions
-    # Doesn't seem necessary to lint on different OS's
-    strategy:
-      matrix:
-        go: ["1.17"]
 
     steps:
       - name: checkout repo
@@ -18,9 +12,25 @@ jobs:
       - name: setup go
         uses: actions/setup-go@v2
         with:
-          go-version: ${{ matrix.go }}
+          go-version: "1.17"
 
-      - name: make lint
+      - name: checking license on source code
+        run: make license/check
+
+
+  lint:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v2
+
+      - name: setup go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "1.17"
+
+      - name: linting code
         run: make lint
 
   build_test:
