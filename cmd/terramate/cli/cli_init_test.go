@@ -1,3 +1,17 @@
+// Copyright 2021 Mineiros GmbH
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package cli_test
 
 import (
@@ -7,16 +21,16 @@ import (
 
 	hclversion "github.com/hashicorp/go-version"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terrastack"
-	"github.com/mineiros-io/terrastack/cmd/terrastack/cli"
-	"github.com/mineiros-io/terrastack/hcl"
-	"github.com/mineiros-io/terrastack/test"
-	"github.com/mineiros-io/terrastack/test/sandbox"
+	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/cmd/terramate/cli"
+	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/test"
+	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
 type versionPart int
 
-const configFile = terrastack.ConfigFilename
+const configFile = terramate.ConfigFilename
 
 const (
 	vMajor = iota
@@ -25,7 +39,7 @@ const (
 )
 
 var sprintf = fmt.Sprintf
-var tsversion = terrastack.Version()
+var tsversion = terramate.Version()
 
 func TestInit(t *testing.T) {
 	type testcase struct {
@@ -169,7 +183,7 @@ func TestInit(t *testing.T) {
 			force: true,
 		},
 		{
-			name: "lower than terrastack version - fails",
+			name: "lower than terramate version - fails",
 			layout: []string{
 				sprintf("t:other-version/%s:version=< 0.0.1", configFile),
 			},
@@ -211,14 +225,13 @@ func TestInit(t *testing.T) {
 
 			for _, path := range tc.input {
 				data := test.ReadFile(t, s.BaseDir(), filepath.Join(path, configFile))
-				p := hcl.NewParser()
-				got, err := p.Parse("TestInitHCL", data)
-				assert.NoError(t, err, "parsing terrastack file")
+				got, err := hcl.Parse("TestInitHCL", data)
+				assert.NoError(t, err, "parsing terramate file")
 
-				want := hcl.Terrastack{
-					RequiredVersion: terrastack.DefaultVersionConstraint(),
+				want := hcl.Terramate{
+					RequiredVersion: terramate.DefaultVersionConstraint(),
 				}
-				test.AssertTerrastackBlock(t, *got, want)
+				test.AssertTerramateBlock(t, *got, want)
 			}
 		})
 	}

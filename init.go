@@ -1,4 +1,18 @@
-package terrastack
+// Copyright 2021 Mineiros GmbH
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package terramate
 
 import (
 	"errors"
@@ -8,18 +22,18 @@ import (
 
 	hclversion "github.com/hashicorp/go-version"
 
-	"github.com/mineiros-io/terrastack/hcl"
+	"github.com/mineiros-io/terramate/hcl"
 )
 
-// ConfigFilename is the name of the terrastack configuration file.
-const ConfigFilename = "terrastack.tsk.hcl"
+// ConfigFilename is the name of the terramate configuration file.
+const ConfigFilename = "terramate.tm.hcl"
 
 // DefaultInitConstraint is the default constraint used in stack initialization.
 const DefaultInitConstraint = "~>"
 
 // Init initialize a stack. It's an error to initialize an already initialized
 // stack unless they are of same versions. In case the stack is initialized with
-// other terrastack version, the force flag can be used to explicitly initialize
+// other terramate version, the force flag can be used to explicitly initialize
 // it anyway. The dir must be an absolute path.
 func Init(dir string, force bool) error {
 	if !filepath.IsAbs(dir) {
@@ -68,7 +82,7 @@ func Init(dir string, force bool) error {
 		}
 
 		if !constraint.Check(tfversionObj) {
-			return fmt.Errorf("stack version constraint %q do not match terrastack "+
+			return fmt.Errorf("stack version constraint %q do not match terramate "+
 				"version %q", vconstraint, Version())
 		}
 
@@ -85,8 +99,7 @@ func Init(dir string, force bool) error {
 
 	defer f.Close()
 
-	var p hcl.Printer
-	err = p.PrintTerrastack(f, hcl.Terrastack{
+	err = hcl.PrintTerramate(f, hcl.Terramate{
 		RequiredVersion: DefaultVersionConstraint(),
 	})
 
@@ -97,15 +110,14 @@ func Init(dir string, force bool) error {
 	return nil
 }
 
-// DefaultVersionConstraint is the default version constraint used by terrastack
-// when generating tsk files.
+// DefaultVersionConstraint is the default version constraint used by terramate
+// when generating tm files.
 func DefaultVersionConstraint() string {
 	return DefaultInitConstraint + " " + Version()
 }
 
 func parseVersion(stackfile string) (string, error) {
-	parser := hcl.NewParser()
-	ts, err := parser.ParseFile(stackfile)
+	ts, err := hcl.ParseFile(stackfile)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse file %q: %w", stackfile, err)
 	}

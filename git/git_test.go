@@ -1,3 +1,17 @@
+// Copyright 2021 Mineiros GmbH
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package git_test
 
 import (
@@ -7,12 +21,12 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terrastack/git"
-	"github.com/mineiros-io/terrastack/test"
-	"github.com/mineiros-io/terrastack/test/sandbox"
+	"github.com/mineiros-io/terramate/git"
+	"github.com/mineiros-io/terramate/test"
+	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
-const CookedCommitID = "a022c39b57b1e711fb9298a05aacc699773e6d36"
+const CookedCommitID = "4e991b55e3d58b9c3137a791a9986ed9c5069697"
 
 func TestGit(t *testing.T) {
 	git, err := git.NewWrapper(test.Username, test.Email)

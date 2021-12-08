@@ -2,17 +2,26 @@
 
 # Table of Contents
 
-- [terrastack](#terrastack)
+- [Terramate](#terramate)
     - [Installing](#installing)
-        - [Go/Git configuration for private Repositories](#gogit-configuration-for-private-repositories)
     - [Why using stacks?](#why-using-stacks)
+        - [High frequency of infrastructure change](#high-frequency-of-infrastructure-change)
+        - [Reduce the blast radius](#reduce-the-blast-radius)
+        - [Reduce execution time](#reduce-execution-time)
+        - [Ownership](#ownership)
+        - [Others](#others)
     - [Detecting IaC changes](#detecting-iac-changes)
+        - [Why this workflow?](#why-this-workflow)
 
 <!-- mdtocend -->
 
-# terrastack
+# Terramate
 
-Terrastack is a tool for managing multiple terraform stacks.
+[![GoDoc](https://pkg.go.dev/badge/github.com/mineiros-io/terramate)](https://pkg.go.dev/github.com/mineiros-io/terramate)
+![CI Status](https://github.com/mineiros-io/terramate/actions/workflows/ci.yml/badge.svg)
+[![Go Report Card](https://goreportcard.com/badge/github.com/mineiros-io/terramate)](https://goreportcard.com/report/github.com/mineiros-io/terramate)
+
+Terramate is a tool for managing multiple terraform stacks.
 
 The stack concept is not defined by Hashicorp's Terraform tooling but just a
 convention used by the _Terraform community_, so a stack can be loosely defined
@@ -34,17 +43,23 @@ also not a stack*.
 
 ## Installing
 
-To install **terrastack** using Go just run:
+To install **terramate** using Go just run:
 
 ```
-go install github.com/mineiros-io/terrastack/cmd/terrastack@<version>
+go install github.com/mineiros-io/terramate/cmd/terramate@<version>
 ```
 
-Where **<version>** is any terrastack [version tag](https://github.com/mineiros-io/terrastack/tags),
-or if you are feeling adventurous you can just install **latest**:
+Where **<version>** is any terramate [version tag](https://github.com/mineiros-io/terramate/tags),
+or you can just install the **latest** using go install:
 
 ```
-go install github.com/mineiros-io/terrastack/cmd/terrastack@latest
+go install github.com/mineiros-io/terramate/cmd/terramate@latest
+```
+
+Or if you have the project cloned locally just run:
+
+```
+make install
 ```
 
 We put great effort into keeping the main branch stable, so it should be safe
@@ -52,32 +67,11 @@ to use **latest** to play around, but not recommended for long term automation
 since you won't get the same build result each time you run the install command.
 
 
-### Go/Git configuration for private repositories
-
-While this repository is private, there is some extra work in order to
-download and install it using **go install**. There is two main steps.
-First you need to configure git to use ssh instead of https:
-
-```
-git config --global url.git@github.com:.insteadOf https://github.com/
-```
-
-This only needs to be done once and will change the **.gitconfig** on your
-host. Then you should always export **GOPRIVATE** for our mineiros-io repos
-before running go install:
-
-```
-export GOPRIVATE=github.com/mineiros-io
-```
-
-More info [here](https://golang.org/ref/mod#private-module-proxy-direct).
-
-
 ## Why using stacks?
 
-The stack concept is advised for several reasons:
+The stack concept is advised for several reasons. 
 
-- High frequency of infrastructure change
+### High frequency of infrastructure change
 
 If you infrastructure have a high frequency of change, for example, several
 deploys per day/week or several configuration changes per day/week, then if you
@@ -90,7 +84,7 @@ By using stacks you can modify only the stacks affected by the deploys or
 configuration changes needed, but you have to choose the size of the stack
 wisely to avoid duplication.
 
-- Reduce the blast radius
+### Reduce the blast radius
 
 A small change can lead to catastrofic events if you're not careful or makes a
 mistake like forgetting a "prevent_destroy" attribute in the production database
@@ -99,14 +93,14 @@ you could reduce the impact of such errors.
 An extreme example is: avoiding a database instance destroy because of a dns TTL
 change.
 
-- Reduce execution time
+### Reduce execution time
 
 By using stacks you can reduce the time a infrastracture change takes to finish.
 This is even more appealing if your terraform changes are applied through CI
 builders running in the cloud because faster integration/builds leads to reduced
 cloud costs.
 
-- Ownership
+### Ownership
 
 In the case of a big organization you probably don't want a single person or
 team responsible for the whole infrastructure. The company's stacks can be
@@ -116,7 +110,7 @@ By having this separation it also makes it easier when you want separation
 by resource permissions, so having some stacks that can only be run by
 specific individuals or teams.
 
-- Others
+### Others
 
 There are lots of other opinionated reasons why stacks would be a good option:
 stacks per environments or deploy region location, stacks per topic (IAM vs
@@ -128,7 +122,7 @@ When changing your infrastructure (made up of a set of stacks) it's common to
 make several changes to several stacks. But now that you have multiple terraform
 states (per stack), how to apply the changes only to the affected resources?
 
-The terrastack solves this by imposing a workflow:
+The terramate solves this by imposing a workflow:
 
 1. The default branch (commonly main) has the production (applied) code.
 2. Before planning and apply, the changes must be committed in a feature/bugfix
@@ -137,7 +131,7 @@ The terrastack solves this by imposing a workflow:
   fast-forwarded](https://git-scm.com/docs/git-merge#_fast_forward_merge) merge
   commits. (the default in github and bitbucket).
 
-Why this workflow?
+### Why this workflow?
 
 By using the method above all commits (except first) in the default branch are
 merge commits, then we have an easy way of detecting which stacks in the current

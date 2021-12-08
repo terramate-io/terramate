@@ -12,6 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package terramate provides functions for managing terraform stacks.
-// A stack is a unit of independent runnable terraform modules.
-package terramate
+package main
+
+import (
+	"log"
+	"os"
+
+	"github.com/mineiros-io/terramate/cmd/terramate/cli"
+)
+
+func main() {
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("failed to get process working dir: %v", err)
+	}
+	err = cli.Run(wd, os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
+	if err != nil {
+		log.Fatal(err)
+	}
+}

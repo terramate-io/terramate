@@ -1,3 +1,17 @@
+// Copyright 2021 Mineiros GmbH
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package hcl_test
 
 import (
@@ -5,8 +19,8 @@ import (
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terrastack/hcl"
-	"github.com/mineiros-io/terrastack/test"
+	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/test"
 )
 
 func TestHCLParserModules(t *testing.T) {
@@ -113,8 +127,7 @@ module "test" {
 		t.Run(tc.name, func(t *testing.T) {
 			path := test.WriteFile(t, "", "main.tf", tc.input)
 
-			parser := hcl.NewParser()
-			modules, err := parser.ParseModules(path)
+			modules, err := hcl.ParseModules(path)
 			assert.IsError(t, err, tc.want.err)
 
 			assert.EqualInts(t, len(tc.want.modules), len(modules), "modules len mismatch")
@@ -127,10 +140,10 @@ module "test" {
 	}
 }
 
-func TestHHCLParserTerrastackBlock(t *testing.T) {
+func TestHHCLParserTerramateBlock(t *testing.T) {
 	type want struct {
 		err   error
-		block hcl.Terrastack
+		block hcl.Terramate
 	}
 	type testcase struct {
 		name  string
@@ -142,18 +155,18 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 		{
 			name: "empty config",
 			want: want{
-				err: hcl.ErrNoTerrastackBlock,
+				err: hcl.ErrNoTerramateBlock,
 			},
 		},
 		{
 			name: "required_version > 0.0.0",
 			input: `
-terrastack {
-	required_version = "> 0.0.0"
-}
-`,
+	terramate {
+	       required_version = "> 0.0.0"
+	}
+	`,
 			want: want{
-				block: hcl.Terrastack{
+				block: hcl.Terramate{
 					RequiredVersion: "> 0.0.0",
 				},
 			},
@@ -161,13 +174,13 @@ terrastack {
 		{
 			name: "empty backend",
 			input: `
-	terrastack {
+	terramate {
 		   backend "something" {
 		   }
 	}
 	`,
 			want: want{
-				block: hcl.Terrastack{
+				block: hcl.Terramate{
 					Backend: &hclsyntax.Block{
 						Type:   "backend",
 						Labels: []string{"something"},
@@ -178,15 +191,14 @@ terrastack {
 		{
 			name: "backend with attributes",
 			input: `
-terrastack {
-	   backend "something" {
-		   something = "something else"
-	   }
+terramate {
+	backend "something" {
+		something = "something else"
+	}
 }
-`,
-
+	`,
 			want: want{
-				block: hcl.Terrastack{
+				block: hcl.Terramate{
 					Backend: &hclsyntax.Block{
 						Type:   "backend",
 						Labels: []string{"something"},
@@ -197,31 +209,31 @@ terrastack {
 		{
 			name: "multiple backend blocks - fails",
 			input: `
-terrastack {
-	   backend "ah" {}
-	   backend "something" {
-		   something = "something else"
-	   }
+terramate {
+	backend "ah" {}
+	backend "something" {
+		something = "something else"
+	}
 }
-`,
+	`,
 			want: want{
-				err: hcl.ErrMalformedTerrastackBlock,
+				err: hcl.ErrMalformedTerramateBlock,
 			},
 		},
 		{
 			name: "backend with nested blocks",
 			input: `
-terrastack {
-	   backend "my-label" {
-		   something = "something else"
-		   other {
-			   test = 1
-		   }
-	   }
+terramate {
+	backend "my-label" {
+		something = "something else"
+		other {
+			test = 1
+		}
+	}
 }
 `,
 			want: want{
-				block: hcl.Terrastack{
+				block: hcl.Terramate{
 					Backend: &hclsyntax.Block{
 						Type:   "backend",
 						Labels: []string{"my-label"},
@@ -232,112 +244,33 @@ terrastack {
 		{
 			name: "backend with no labels - fails",
 			input: `
-terrastack {
-	   backend {
-		   something = "something else"
-	   }
+terramate {
+	backend {
+		something = "something else"
+	}
 }
-`,
+	`,
 			want: want{
-				err: hcl.ErrMalformedTerrastackBlock,
+				err: hcl.ErrMalformedTerramateBlock,
 			},
 		},
 		{
 			name: "backend with more than 1 label - fails",
 			input: `
-terrastack {
-	   backend "1" "2" {
-		   something = "something else"
-	   }
+terramate {
+	backend "1" "2" {
+		something = "something else"
+	}
 }
-`,
+	`,
 			want: want{
-				err: hcl.ErrMalformedTerrastackBlock,
-			},
-		},
-		{
-			name: "backend with attributes",
-			input: `
-terrastack {
-   backend "something" {
-	   something = "something else"
-   }
-}
-`,
-			want: want{
-				block: hcl.Terrastack{
-					Backend: &hclsyntax.Block{
-						Type:   "backend",
-						Labels: []string{"something"},
-					},
-				},
-			},
-		},
-		{
-			name: "multiple backend blocks - fails",
-			input: `
-terrastack {
-   backend "ah" {}
-   backend "something" {
-	   something = "something else"
-   }
-}
-`,
-			want: want{
-				err: hcl.ErrMalformedTerrastackBlock,
-			},
-		},
-		{
-			name: "backend with nested blocks",
-			input: `
-terrastack {
-   backend "my-label" {
-	   something = "something else"
-	   other {
-		   test = 1
-	   }
-   }
-}
-`,
-			want: want{
-				block: hcl.Terrastack{
-					Backend: &hclsyntax.Block{
-						Type:   "backend",
-						Labels: []string{"my-label"},
-					},
-				},
-			},
-		},
-		{
-			name: "backend with no labels - fails",
-			input: `
-terrastack {
-   backend {
-	   something = "something else"
-   }
-}
-`,
-			want: want{
-				err: hcl.ErrMalformedTerrastackBlock,
-			},
-		},
-		{
-			name: "backend with more than 1 label - fails",
-			input: `
-terrastack {
-   backend "1" "2" {
-	   something = "something else"
-   }
-}
-`,
-			want: want{
-				err: hcl.ErrMalformedTerrastackBlock,
+				err: hcl.ErrMalformedTerramateBlock,
 			},
 		},
 		{
 			name: "after: empty set works",
 			input: `
-terrastack {
+terramate {
 	required_version = ""
 	after = []
 }`,
@@ -345,12 +278,12 @@ terrastack {
 		{
 			name: "'after' single entry",
 			input: `
-terrastack {
+terramate {
 	required_version = ""
 	after = ["test"]
 }`,
 			want: want{
-				block: hcl.Terrastack{
+				block: hcl.Terramate{
 					After: []string{"test"},
 				},
 			},
@@ -358,7 +291,7 @@ terrastack {
 		{
 			name: "'after' invalid element entry",
 			input: `
-terrastack {
+terramate {
 	required_version = ""
 	after = [1]
 }`,
@@ -369,7 +302,7 @@ terrastack {
 		{
 			name: "'after' duplicated entry",
 			input: `
-terrastack {
+terramate {
 	required_version = ""
 	after = ["test", "test"]
 }`,
@@ -380,7 +313,7 @@ terrastack {
 		{
 			name: "multiple 'after' fields",
 			input: `
-terrastack {
+terramate {
 	required_version = ""
 	after = ["test"]
 	after = []
@@ -391,12 +324,11 @@ terrastack {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p := hcl.NewParser()
-			got, err := p.Parse(tc.name, []byte(tc.input))
+			got, err := hcl.Parse(tc.name, []byte(tc.input))
 			assert.IsError(t, err, tc.want.err)
 
 			if tc.want.err == nil {
-				test.AssertTerrastackBlock(t, *got, tc.want.block)
+				test.AssertTerramateBlock(t, *got, tc.want.block)
 			}
 		})
 	}

@@ -1,3 +1,17 @@
+// Copyright 2021 Mineiros GmbH
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package hcl
 
 import (
@@ -11,13 +25,13 @@ import (
 )
 
 // Module represents a terraform module.
-// Note that only the fields relevant for terrastack are declared here.
+// Note that only the fields relevant for terramate are declared here.
 type Module struct {
 	Source string // Source is the module source path (eg.: directory, git path, etc).
 }
 
-type Terrastack struct {
-	// RequiredVersion contains the terrastack version required by the stack.
+type Terramate struct {
+	// RequiredVersion contains the terramate version required by the stack.
 	RequiredVersion string
 
 	// After is a list of non-duplicated stack entries that must run after the
@@ -31,34 +45,23 @@ type Terrastack struct {
 	Backend *hclsyntax.Block
 }
 
-// Parser is a terrastack parser.
-type Parser struct {
-	p *hclparse.Parser
-}
-
 const (
-	ErrHCLSyntax                errutil.Error = "HCL syntax error"
-	ErrNoTerrastackBlock        errutil.Error = "no \"terrastack\" block found"
-	ErrMalformedTerrastackBlock errutil.Error = "malformed terrastack block"
-	ErrMalformedTerraform       errutil.Error = "malformed terraform"
-	ErrInvalidRunOrder          errutil.Error = "invalid execution order definition"
+	ErrHCLSyntax               errutil.Error = "HCL syntax error"
+	ErrNoTerramateBlock        errutil.Error = "no \"terramate\" block found"
+	ErrMalformedTerramateBlock errutil.Error = "malformed terramate block"
+	ErrMalformedTerraform      errutil.Error = "malformed terraform"
+	ErrInvalidRunOrder         errutil.Error = "invalid execution order definition"
 )
 
-// NewParser creates a HCL parser
-func NewParser() *Parser {
-	return &Parser{
-		p: hclparse.NewParser(),
-	}
-}
-
 // ParseModules parses blocks of type "module" containing a single label.
-func (p *Parser) ParseModules(path string) ([]Module, error) {
+func ParseModules(path string) ([]Module, error) {
 	_, err := os.Stat(path)
 	if err != nil {
 		return nil, fmt.Errorf("stat failed on %q: %w", path, err)
 	}
 
-	f, diags := p.p.ParseHCLFile(path)
+	p := hclparse.NewParser()
+	f, diags := p.ParseHCLFile(path)
 	if diags.HasErrors() {
 		return nil, errutil.Chain(
 			ErrHCLSyntax,
@@ -93,27 +96,28 @@ func (p *Parser) ParseModules(path string) ([]Module, error) {
 	return modules, nil
 }
 
-// Parse parses a terrastack source.
-func (p *Parser) Parse(fname string, data []byte) (*Terrastack, error) {
-	f, diags := p.p.ParseHCL(data, fname)
+// Parse parses a terramate source.
+func Parse(fname string, data []byte) (*Terramate, error) {
+	p := hclparse.NewParser()
+	f, diags := p.ParseHCL(data, fname)
 	if diags.HasErrors() {
 		return nil, errutil.Chain(ErrHCLSyntax, diags)
 	}
 
 	body, _ := f.Body.(*hclsyntax.Body)
 
-	var tsconfig Terrastack
+	var tsconfig Terramate
 	var tsblock *hclsyntax.Block
 	var found bool
 	for _, block := range body.Blocks {
-		if block.Type != "terrastack" {
+		if block.Type != "terramate" {
 			continue
 		}
 
 		if found {
 			return nil, errutil.Chain(
-				ErrMalformedTerrastackBlock,
-				fmt.Errorf("multiple terrastack blocks in file %q", fname),
+				ErrMalformedTerramateBlock,
+				fmt.Errorf("multiple terramate blocks in file %q", fname),
 			)
 		}
 
@@ -122,13 +126,13 @@ func (p *Parser) Parse(fname string, data []byte) (*Terrastack, error) {
 	}
 
 	if !found {
-		return nil, ErrNoTerrastackBlock
+		return nil, ErrNoTerramateBlock
 	}
 
 	if len(tsblock.Labels) > 0 {
 		return nil, errutil.Chain(
-			ErrMalformedTerrastackBlock,
-			fmt.Errorf("terrastack block must have no labels"),
+			ErrMalformedTerramateBlock,
+			fmt.Errorf("terramate block must have no labels"),
 		)
 	}
 
@@ -145,7 +149,7 @@ func (p *Parser) Parse(fname string, data []byte) (*Terrastack, error) {
 		case "required_version":
 			if attrVal.Type() != cty.String {
 				return nil, errutil.Chain(
-					ErrMalformedTerrastackBlock,
+					ErrMalformedTerramateBlock,
 					fmt.Errorf("attribute %q is not a string", name),
 				)
 			}
@@ -164,7 +168,7 @@ func (p *Parser) Parse(fname string, data []byte) (*Terrastack, error) {
 			}
 
 		default:
-			return nil, errutil.Chain(ErrMalformedTerrastackBlock,
+			return nil, errutil.Chain(ErrMalformedTerramateBlock,
 				fmt.Errorf("invalid attribute %q", name),
 			)
 		}
@@ -174,13 +178,13 @@ func (p *Parser) Parse(fname string, data []byte) (*Terrastack, error) {
 	for _, block := range tsblock.Body.Blocks {
 		if block.Type != "backend" {
 			return nil, errutil.Chain(
-				ErrMalformedTerrastackBlock,
+				ErrMalformedTerramateBlock,
 				fmt.Errorf("block type %q not supported", block.Type))
 		}
 
 		if found {
 			return nil, errutil.Chain(
-				ErrMalformedTerrastackBlock,
+				ErrMalformedTerramateBlock,
 				fmt.Errorf("multiple backend blocks in file %q", fname),
 			)
 		}
@@ -189,7 +193,7 @@ func (p *Parser) Parse(fname string, data []byte) (*Terrastack, error) {
 
 		if len(block.Labels) != 1 {
 			return nil, errutil.Chain(
-				ErrMalformedTerrastackBlock,
+				ErrMalformedTerramateBlock,
 				fmt.Errorf("backend type expects 1 label but given %v",
 					block.Labels),
 			)
@@ -201,14 +205,14 @@ func (p *Parser) Parse(fname string, data []byte) (*Terrastack, error) {
 	return &tsconfig, nil
 }
 
-// ParseFile parses a terrastack file.
-func (p *Parser) ParseFile(path string) (*Terrastack, error) {
+// ParseFile parses a terramate file.
+func ParseFile(path string) (*Terramate, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file %q: %w", path, err)
 	}
 
-	return p.Parse(path, data)
+	return Parse(path, data)
 }
 
 func findStringAttr(block *hclsyntax.Block, attr string) (string, bool, error) {

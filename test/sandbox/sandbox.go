@@ -1,11 +1,25 @@
-// Package sandbox provides an easy way to setup isolated terrastack projects
+// Copyright 2021 Mineiros GmbH
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Package sandbox provides an easy way to setup isolated terramate projects
 // that can be used on testing, acting like sandboxes.
 //
 // It helps with:
 //
 // - git initialization/operations
 // - Terraform module creation
-// - Terrastack stack creation
+// - Terramate stack creation
 package sandbox
 
 import (
@@ -16,9 +30,9 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terrastack"
-	"github.com/mineiros-io/terrastack/hcl"
-	"github.com/mineiros-io/terrastack/test"
+	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/test"
 )
 
 // S is a full sandbox with its own base dir that is an initialized git repo for
@@ -79,12 +93,12 @@ func New(t *testing.T) S {
 //   "d" for directory creation.
 //   "s" for initialized stacks.
 //   "f" for file creation.
-//   "t" for terrastack block.
+//   "t" for terramate block.
 // The data field is required only for operation "f" and "t":
 //   For "f" data is the content of the file to be created.
 //   For "t" data is a key value pair of the form:
 //     <attr1>=<val1>[,<attr2>=<val2>]
-// Where attrN is a string attribute of the terrastack block.
+// Where attrN is a string attribute of the terramate block.
 //
 // This is an internal mini-lang used to simplify testcases, so it expects well
 // formed layout specification.
@@ -100,11 +114,11 @@ func (s S) BuildTree(layout []string) {
 		return path, data
 	}
 
-	gentskfile := func(spec string) {
+	gentmfile := func(spec string) {
 		relpath, data := parsePathData(spec)
 		attrs := strings.Split(data, ",")
 
-		ts := hcl.Terrastack{}
+		ts := hcl.Terramate{}
 
 		for _, attr := range attrs {
 			parts := strings.Split(attr, "=")
@@ -124,9 +138,8 @@ func (s S) BuildTree(layout []string) {
 
 		defer f.Close()
 
-		var p hcl.Printer
-		err = p.PrintTerrastack(f, ts)
-		assert.NoError(t, err, "BuildTree() failed to generate tsk file")
+		err = hcl.PrintTerramate(f, ts)
+		assert.NoError(t, err, "BuildTree() failed to generate tm file")
 	}
 
 	for _, spec := range layout {
@@ -136,7 +149,7 @@ func (s S) BuildTree(layout []string) {
 		case 's':
 			s.CreateStack(spec[2:])
 		case 't':
-			gentskfile(spec)
+			gentmfile(spec)
 		case 'f':
 			path, data := parsePathData(spec)
 			test.WriteFile(t, s.basedir, path, data)
@@ -188,7 +201,7 @@ func (s S) CreateStack(relpath string) *StackEntry {
 		DirEntry: newDirEntry(t, s.basedir, relpath),
 	}
 
-	assert.NoError(t, terrastack.Init(stack.Path(), false))
+	assert.NoError(t, terramate.Init(stack.Path(), false))
 	return stack
 }
 

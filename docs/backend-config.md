@@ -1,6 +1,6 @@
 # Backend Configuration
 
-Terrastack provides some facilities to improve on how backend configuration
+Terramate provides some facilities to improve on how backend configuration
 is managed on Terraform. The idea is to circumvent some of the limitations
 from Terraform that makes it really hard to avoid duplication/mistakes
 when managing backend configuration.
@@ -16,10 +16,10 @@ A backend block cannot refer to named values
 (like input variables, locals, or data source attributes).
 ```
 
-With those limitations in mind, terrastack provides a way to:
+With those limitations in mind, terramate provides a way to:
 
 * Define a single parametrized backend config and re-use it on multiple stacks.
-* Use terrastack metadata, like stack name/path, on the backend config.
+* Use terramate metadata, like stack name/path, on the backend config.
 * Use global variables on the backend config.
 
 
@@ -27,22 +27,22 @@ With those limitations in mind, terrastack provides a way to:
 
 To generate a backend configuration you need to define a **backend** block,
 very similar to how you would do on Terraform, but inside a
-**terrastack** block, like this:
+**terramate** block, like this:
 
 ```hcl
-terrastack {
+terramate {
   backend "type" {
     param = "value"
   }
 }
 ```
 
-And terrastack will use that to generate Terraform code with a backend
+And terramate will use that to generate Terraform code with a backend
 configuration. A configuration can only provide one backend block
 (overriding the config is possible, check
 [Overriding Configuration](#overriding-configuration) for more details).
 
-Let's start with a very simple example. Lets say your terrastack project
+Let's start with a very simple example. Lets say your terramate project
 has this layout:
 
 ```
@@ -57,10 +57,10 @@ has this layout:
 ```
 
 You can define a prod backend configuration by creating the file
-**envs/prod/terrastack.tsk.hcl**:
+**envs/prod/terramate.tm.hcl**:
 
 ```hcl
-terrastack {
+terramate {
   backend "type" {
     param = "prod"
   }
@@ -68,10 +68,10 @@ terrastack {
 ```
 
 Then you can define a staging backend configuration by creating the file
-**envs/staging/terrastack.tsk.hcl**:
+**envs/staging/terramate.tm.hcl**:
 
 ```hcl
-terrastack {
+terramate {
   backend "type" {
     param = "staging"
   }
@@ -82,10 +82,10 @@ And finally generate the final Terraform code on all the stacks of
 your project, by running from the project top level directory:
 
 ```sh
-terrastack generate
+terramate generate
 ```
 
-Now you will see a **_gen_terrastack.tsk.tf** file on each stack.
+Now you will see a **_gen_terramate.tm.tf** file on each stack.
 The files generated on the stacks inside **envs/prod** will be:
 
 ```hcl
@@ -106,7 +106,7 @@ terraform {
 }
 ```
 
-Any changes on the terrastack backend configuration will require a generation
+Any changes on the terramate backend configuration will require a generation
 step to update the generated files. The generated files should never
 be manipulated manually.
 
@@ -150,18 +150,18 @@ on **envs/prod**.
 
 ## Using metadata
 
-Terrastack provides a set of metadata information as documented [here](metadata.md).
-Any metadata provided by terrastack can be used on a backend configuration.
+Terramate provides a set of metadata information as documented [here](metadata.md).
+Any metadata provided by terramate can be used on a backend configuration.
 
 As a concrete example, given that we manage multiple stacks on GCP, it is useful
 to define a backend configuration only once that uses specific stacks paths
 as the prefix for the GCS storage, like this:
 
 ```hcl
-terrastack {
+terramate {
   backend "gcs" {
     bucket = "bucket-name"
-    prefix = terrastack.path
+    prefix = terramate.path
   }
 }
 ```
