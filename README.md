@@ -41,10 +41,16 @@ go install github.com/mineiros-io/terramate/cmd/terramate@<version>
 ```
 
 Where **<version>** is any terramate [version tag](https://github.com/mineiros-io/terramate/tags),
-or you can just install the **latest**:
+or you can just install the **latest** using go install:
 
 ```
 go install github.com/mineiros-io/terramate/cmd/terramate@latest
+```
+
+Or if you have the project cloned locally just run:
+
+```
+make install
 ```
 
 We put great effort into keeping the main branch stable, so it should be safe
