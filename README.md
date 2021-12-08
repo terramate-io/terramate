@@ -17,7 +17,7 @@
 
 # Terramate
 
-[![GoDoc](https://godoc.org/github.com/mineiros-io/terramate?status.svg)](https://godoc.org/github.com/mineiros-io/terramate)
+[![GoDoc](https://pkg.go.dev/github.com/mineiros-io/terramate?status.svg)](https://pkg.go.dev/github.com/mineiros-io/terramate)
 ![CI Status](https://github.com/mineiros-io/terramate/actions/workflows/ci.yml/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/mineiros-io/terramate)](https://goreportcard.com/report/github.com/mineiros-io/terramate)
 
