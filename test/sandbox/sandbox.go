@@ -5,7 +5,7 @@
 //
 // - git initialization/operations
 // - Terraform module creation
-// - Terrastack stack creation
+// - Terramate stack creation
 package sandbox
 
 import (

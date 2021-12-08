@@ -127,7 +127,7 @@ module "test" {
 	}
 }
 
-func TestHHCLParserTerrastackBlock(t *testing.T) {
+func TestHHCLParserTerramateBlock(t *testing.T) {
 	type want struct {
 		err   error
 		block hcl.Terramate
@@ -261,7 +261,7 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 			assert.IsError(t, err, tc.want.err)
 
 			if tc.want.err == nil {
-				test.AssertTerrastackBlock(t, *got, tc.want.block)
+				test.AssertTerramateBlock(t, *got, tc.want.block)
 			}
 		})
 	}
