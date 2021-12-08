@@ -17,7 +17,7 @@ selected for execution, should always be:
 * 1 - **stack A**
 * 2 - **stack B**
 
-To help with that terrastack provides a way to explicit declare
+To help with that terramate provides a way to explicit declare
 the desired order of execution between stacks.
 
 
@@ -40,23 +40,23 @@ For example, let's assume we have a project organized like this:
 ```
 .
 ├── stack-a
-│   └── terrastack.tsk.hcl
+│   └── terramate.tsk.hcl
 └── stack-b
-    └── terrastack.tsk.hcl
+    └── terramate.tsk.hcl
 ```
 
-And **stack-a/terrastack.tsk.hcl** looks like:
+And **stack-a/terramate.tsk.hcl** looks like:
 
 ```
-terrastack {
+terramate {
     required_version = "<version>"
 }
 ```
 
-And then we have **stack-b/terrastack.tsk.hcl**:
+And then we have **stack-b/terramate.tsk.hcl**:
 
 ```
-terrastack {
+terramate {
     required_version = "<version>"
 }
 
@@ -74,10 +74,10 @@ The order of execution will be:
 
 The same order of execution can be defined as:
 
-**stack-a/terrastack.tsk.hcl**:
+**stack-a/terramate.tsk.hcl**:
 
 ```
-terrastack {
+terramate {
     required_version = "<version>"
 }
 
@@ -88,20 +88,20 @@ stack {
 }
 ```
 
-**stack-b/terrastack.tsk.hcl**:
+**stack-b/terramate.tsk.hcl**:
 
 ```
-terrastack {
+terramate {
     required_version = "<version>"
 }
 ```
 
 This would also be a valid way to express the same order (although redundant):
 
-**stack-a/terrastack.tsk.hcl**:
+**stack-a/terramate.tsk.hcl**:
 
 ```
-terrastack {
+terramate {
     required_version = "<version>"
 }
 
@@ -112,10 +112,10 @@ stack {
 }
 ```
 
-**stack-b/terrastack.tsk.hcl**:
+**stack-b/terramate.tsk.hcl**:
 
 ```
-terrastack {
+terramate {
     required_version = "<version>"
 }
 
@@ -130,26 +130,26 @@ You can also use **before** and **after** simultaneously on the same
 stack for more complex scenarios. Lets add a third **stack-c** to our example.
 The three stacks are defined as follows:
 
-**stack-a/terrastack.tsk.hcl**:
+**stack-a/terramate.tsk.hcl**:
 
 ```
-terrastack {
+terramate {
     required_version = "<version>"
 }
 ```
 
-**stack-b/terrastack.tsk.hcl**:
+**stack-b/terramate.tsk.hcl**:
 
 ```
-terrastack {
+terramate {
     required_version = "<version>"
 }
 ```
 
-**stack-c/terrastack.tsk.hcl**:
+**stack-c/terramate.tsk.hcl**:
 
 ```
-terrastack {
+terramate {
     required_version = "<version>"
 }
 
@@ -169,28 +169,28 @@ The order of execution will be:
 * stack-c
 * stack-b
 
-One example of terrastack command that leverages order of
-execution is **terrastack run**.
+One example of terramate command that leverages order of
+execution is **terramate run**.
 
 This will run **terraform** plan on all stacks, but respecting ordering:
 
 ```sh
-terrastack run terraform plan
+terramate run terraform plan
 ```
 
 
 ## Change Detection And Ordering
 
-When using any terrastack command with support to change detection,
+When using any terramate command with support to change detection,
 execution order is only imposed on stacks detected as changed. If a stack
 is mentioned on **before**/**after** but the mentioned stack has no changes
 on it, it will be ignored when calculating order.
 
-An example of such a command would be using terrastack to run **terraform apply**,
+An example of such a command would be using terramate to run **terraform apply**,
 but only on changes stacks, like this:
 
 ```
-terrastack run --changed terraform apply
+terramate run --changed terraform apply
 ```
 
 The overall algorithm for this case:
@@ -247,15 +247,15 @@ since it may change on the future.
 ## What About Cycles/Conflicts ?
 
 If any cycles are detected on the ordering definitions this will be
-considered a failure and **terrastack** will abort with an
+considered a failure and **terramate** will abort with an
 error message pointing out the detected cycle.
 
 Also in the case of a conflict, like a stack defined like this:
 
-**stack-a/terrastack.tsk.hcl**:
+**stack-a/terramate.tsk.hcl**:
 
 ```
-terrastack {
+terramate {
     required_version = "<version>"
 }
 

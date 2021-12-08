@@ -2,7 +2,7 @@
 
 # Table of Contents
 
-- [terrastack](#terrastack)
+- [terramate](#terramate)
     - [Installing](#installing)
         - [Go/Git configuration for private Repositories](#gogit-configuration-for-private-repositories)
     - [Why using stacks?](#why-using-stacks)
@@ -10,9 +10,9 @@
 
 <!-- mdtocend -->
 
-# terrastack
+# terramate
 
-Terrastack is a tool for managing multiple terraform stacks.
+Terramate is a tool for managing multiple terraform stacks.
 
 The stack concept is not defined by Hashicorp's Terraform tooling but just a
 convention used by the _Terraform community_, so a stack can be loosely defined
@@ -34,17 +34,17 @@ also not a stack*.
 
 ## Installing
 
-To install **terrastack** using Go just run:
+To install **terramate** using Go just run:
 
 ```
-go install github.com/mineiros-io/terrastack/cmd/terrastack@<version>
+go install github.com/mineiros-io/terramate/cmd/terramate@<version>
 ```
 
-Where **<version>** is any terrastack [version tag](https://github.com/mineiros-io/terrastack/tags),
+Where **<version>** is any terramate [version tag](https://github.com/mineiros-io/terramate/tags),
 or if you are feeling adventurous you can just install **latest**:
 
 ```
-go install github.com/mineiros-io/terrastack/cmd/terrastack@latest
+go install github.com/mineiros-io/terramate/cmd/terramate@latest
 ```
 
 We put great effort into keeping the main branch stable, so it should be safe
@@ -128,7 +128,7 @@ When changing your infrastructure (made up of a set of stacks) it's common to
 make several changes to several stacks. But now that you have multiple terraform
 states (per stack), how to apply the changes only to the affected resources?
 
-The terrastack solves this by imposing a workflow:
+The terramate solves this by imposing a workflow:
 
 1. The default branch (commonly main) has the production (applied) code.
 2. Before planning and apply, the changes must be committed in a feature/bugfix
