@@ -16,7 +16,7 @@ type Module struct {
 	Source string // Source is the module source path (eg.: directory, git path, etc).
 }
 
-type Terrastack struct {
+type Terramate struct {
 	// RequiredVersion contains the terramate version required by the stack.
 	RequiredVersion string
 
@@ -85,7 +85,7 @@ func (p *Parser) ParseModules(path string) ([]Module, error) {
 }
 
 // Parse parses a terramate source.
-func (p *Parser) Parse(fname string, data []byte) (*Terrastack, error) {
+func (p *Parser) Parse(fname string, data []byte) (*Terramate, error) {
 	f, diags := p.p.ParseHCL(data, fname)
 	if diags.HasErrors() {
 		return nil, errutil.Chain(ErrHCLSyntax, diags)
@@ -93,7 +93,7 @@ func (p *Parser) Parse(fname string, data []byte) (*Terrastack, error) {
 
 	body, _ := f.Body.(*hclsyntax.Body)
 
-	var tsconfig Terrastack
+	var tsconfig Terramate
 	var tsblock *hclsyntax.Block
 	var found bool
 	for _, block := range body.Blocks {
@@ -183,7 +183,7 @@ func (p *Parser) Parse(fname string, data []byte) (*Terrastack, error) {
 }
 
 // ParseFile parses a terramate file.
-func (p *Parser) ParseFile(path string) (*Terrastack, error) {
+func (p *Parser) ParseFile(path string) (*Terramate, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file %q: %w", path, err)

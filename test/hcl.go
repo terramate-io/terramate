@@ -7,7 +7,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 )
 
-func AssertTerrastackBlock(t *testing.T, got, want hcl.Terrastack) {
+func AssertTerrastackBlock(t *testing.T, got, want hcl.Terramate) {
 	t.Helper()
 
 	assert.EqualStrings(t, got.RequiredVersion, want.RequiredVersion)

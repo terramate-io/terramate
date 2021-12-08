@@ -9,7 +9,7 @@ import (
 
 type Printer struct{}
 
-func (Printer) PrintTerrastack(w io.Writer, ts Terrastack) error {
+func (Printer) PrintTerramate(w io.Writer, ts Terramate) error {
 	f := hclwrite.NewEmptyFile()
 	rootBody := f.Body()
 	tsBlock := rootBody.AppendNewBlock("terramate", nil)

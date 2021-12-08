@@ -215,7 +215,7 @@ func TestInit(t *testing.T) {
 				got, err := p.Parse("TestInitHCL", data)
 				assert.NoError(t, err, "parsing terramate file")
 
-				want := hcl.Terrastack{
+				want := hcl.Terramate{
 					RequiredVersion: terramate.DefaultVersionConstraint(),
 				}
 				if *got != want {

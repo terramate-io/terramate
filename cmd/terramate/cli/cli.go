@@ -29,7 +29,7 @@ const (
 )
 
 type cliSpec struct {
-	Version struct{} `cmd:"" help:"Terrastack version."`
+	Version struct{} `cmd:"" help:"Terramate version."`
 
 	GitChangeBase string `short:"B" default:"${baseRef}" optional:"true" help:"git base ref for computing changes."`
 

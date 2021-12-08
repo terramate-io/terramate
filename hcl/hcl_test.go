@@ -130,7 +130,7 @@ module "test" {
 func TestHHCLParserTerrastackBlock(t *testing.T) {
 	type want struct {
 		err   error
-		block hcl.Terrastack
+		block hcl.Terramate
 	}
 	type testcase struct {
 		name  string
@@ -153,7 +153,7 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 	}
 	`,
 			want: want{
-				block: hcl.Terrastack{
+				block: hcl.Terramate{
 					RequiredVersion: "> 0.0.0",
 				},
 			},
@@ -167,7 +167,7 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 	}
 	`,
 			want: want{
-				block: hcl.Terrastack{
+				block: hcl.Terramate{
 					Backend: &hclsyntax.Block{
 						Type:   "backend",
 						Labels: []string{"something"},
@@ -185,7 +185,7 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 	}
 	`,
 			want: want{
-				block: hcl.Terrastack{
+				block: hcl.Terramate{
 					Backend: &hclsyntax.Block{
 						Type:   "backend",
 						Labels: []string{"something"},
@@ -220,7 +220,7 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 	}
 	`,
 			want: want{
-				block: hcl.Terrastack{
+				block: hcl.Terramate{
 					Backend: &hclsyntax.Block{
 						Type:   "backend",
 						Labels: []string{"my-label"},

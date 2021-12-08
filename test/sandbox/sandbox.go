@@ -104,7 +104,7 @@ func (s S) BuildTree(layout []string) {
 		relpath, data := parsePathData(spec)
 		attrs := strings.Split(data, ",")
 
-		ts := hcl.Terrastack{}
+		ts := hcl.Terramate{}
 
 		for _, attr := range attrs {
 			parts := strings.Split(attr, "=")
@@ -125,7 +125,7 @@ func (s S) BuildTree(layout []string) {
 		defer f.Close()
 
 		var p hcl.Printer
-		err = p.PrintTerrastack(f, ts)
+		err = p.PrintTerramate(f, ts)
 		assert.NoError(t, err, "BuildTree() failed to generate tsk file")
 	}
 

@@ -86,7 +86,7 @@ func Init(dir string, force bool) error {
 	defer f.Close()
 
 	var p hcl.Printer
-	err = p.PrintTerrastack(f, hcl.Terrastack{
+	err = p.PrintTerramate(f, hcl.Terramate{
 		RequiredVersion: DefaultVersionConstraint(),
 	})
 
