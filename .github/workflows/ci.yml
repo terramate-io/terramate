@@ -1,4 +1,4 @@
-name: terrastack-ci
+name: ci
 on: [push]
 jobs:
 
