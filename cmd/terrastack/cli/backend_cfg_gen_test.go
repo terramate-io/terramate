@@ -4,7 +4,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terrastack"
+	"github.com/mineiros-io/terrastack/hcl"
 	"github.com/mineiros-io/terrastack/test/sandbox"
 )
 
@@ -22,19 +24,19 @@ func TestBackendConfigOnLeafSingleStack(t *testing.T) {
 }`, versionAttribute(), backendBlock)
 
 	ts := newCLI(t, s.BaseDir())
-	assertRunResult(t, ts.generate(), runResult{IgnoreStdout: true})
+	assertRunResult(t, ts.run("generate"), runResult{IgnoreStdout: true})
 
 	got := stack.ReadGeneratedTf()
 
-	if !strings.HasPrefix(got, terrastack.GeneratedCodeHeader) {
+	if !strings.HasPrefix(string(got), terrastack.GeneratedCodeHeader) {
 		t.Fatal("generated code missing header")
 	}
 
-	// Parse + test actual generated code
-}
+	parser := hcl.NewParser()
+	_, err := parser.ParseBody(got, terrastack.GeneratedTfFilename)
 
-func (ts tscli) generate() runResult {
-	return ts.run("generate", "--basedir", ts.wd)
+	assert.NoError(t, err)
+	// TODO: test parsed body
 }
 
 func versionAttribute() string {

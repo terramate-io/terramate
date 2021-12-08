@@ -84,6 +84,23 @@ func (p *Parser) ParseModules(path string) ([]Module, error) {
 	return modules, nil
 }
 
+// ParseBody parses HCL and return the parsed body.
+func (p *Parser) ParseBody(src []byte, filename string) (*hclsyntax.Body, error) {
+	f, diags := p.p.ParseHCL(src, filename)
+	if diags.HasErrors() {
+		return nil, errutil.Chain(
+			ErrHCLSyntax,
+			fmt.Errorf("parsing modules: %w", diags),
+		)
+	}
+
+	body, ok := f.Body.(*hclsyntax.Body)
+	if !ok {
+		return nil, fmt.Errorf("expected to parse body, got[%v] type[%[1]T]", f.Body)
+	}
+	return body, nil
+}
+
 // Parse parses a terrastack source.
 func (p *Parser) Parse(fname string, data []byte) (*Terrastack, error) {
 	f, diags := p.p.ParseHCL(data, fname)
