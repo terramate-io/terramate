@@ -29,10 +29,10 @@ type Parser struct {
 }
 
 const (
-	ErrHCLSyntax                errutil.Error = "HCL syntax error"
-	ErrNoTerrastackBlock        errutil.Error = "no \"terramate\" block found"
-	ErrMalformedTerrastackBlock errutil.Error = "malformed terramate block"
-	ErrMalformedTerraform       errutil.Error = "malformed terraform"
+	ErrHCLSyntax               errutil.Error = "HCL syntax error"
+	ErrNoTerramateBlock        errutil.Error = "no \"terramate\" block found"
+	ErrMalformedTerramateBlock errutil.Error = "malformed terramate block"
+	ErrMalformedTerraform      errutil.Error = "malformed terraform"
 )
 
 // NewParser creates a HCL parser
@@ -103,7 +103,7 @@ func (p *Parser) Parse(fname string, data []byte) (*Terramate, error) {
 
 		if found {
 			return nil, errutil.Chain(
-				ErrMalformedTerrastackBlock,
+				ErrMalformedTerramateBlock,
 				fmt.Errorf("multiple terramate blocks in file %q", fname),
 			)
 		}
@@ -113,12 +113,12 @@ func (p *Parser) Parse(fname string, data []byte) (*Terramate, error) {
 	}
 
 	if !found {
-		return nil, ErrNoTerrastackBlock
+		return nil, ErrNoTerramateBlock
 	}
 
 	if len(tsblock.Labels) > 0 {
 		return nil, errutil.Chain(
-			ErrMalformedTerrastackBlock,
+			ErrMalformedTerramateBlock,
 			fmt.Errorf("terramate block must have no labels"),
 		)
 	}
@@ -136,7 +136,7 @@ func (p *Parser) Parse(fname string, data []byte) (*Terramate, error) {
 		case "required_version":
 			if attrVal.Type() != cty.String {
 				return nil, errutil.Chain(
-					ErrMalformedTerrastackBlock,
+					ErrMalformedTerramateBlock,
 					fmt.Errorf("attribute %q is not a string", name),
 				)
 			}
@@ -145,7 +145,7 @@ func (p *Parser) Parse(fname string, data []byte) (*Terramate, error) {
 
 			// TODO(i4k): support other fields in the case (after, before, etc)
 		default:
-			return nil, errutil.Chain(ErrMalformedTerrastackBlock,
+			return nil, errutil.Chain(ErrMalformedTerramateBlock,
 				fmt.Errorf("invalid attribute %q", name),
 			)
 		}
@@ -155,13 +155,13 @@ func (p *Parser) Parse(fname string, data []byte) (*Terramate, error) {
 	for _, block := range tsblock.Body.Blocks {
 		if block.Type != "backend" {
 			return nil, errutil.Chain(
-				ErrMalformedTerrastackBlock,
+				ErrMalformedTerramateBlock,
 				fmt.Errorf("block type %q not supported", block.Type))
 		}
 
 		if found {
 			return nil, errutil.Chain(
-				ErrMalformedTerrastackBlock,
+				ErrMalformedTerramateBlock,
 				fmt.Errorf("multiple backend blocks in file %q", fname),
 			)
 		}
@@ -170,7 +170,7 @@ func (p *Parser) Parse(fname string, data []byte) (*Terramate, error) {
 
 		if len(block.Labels) != 1 {
 			return nil, errutil.Chain(
-				ErrMalformedTerrastackBlock,
+				ErrMalformedTerramateBlock,
 				fmt.Errorf("backend type expects 1 label but given %v",
 					block.Labels),
 			)

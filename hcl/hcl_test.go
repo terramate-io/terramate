@@ -142,7 +142,7 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 		{
 			name: "empty config",
 			want: want{
-				err: hcl.ErrNoTerrastackBlock,
+				err: hcl.ErrNoTerramateBlock,
 			},
 		},
 		{
@@ -204,7 +204,7 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 	}
 	`,
 			want: want{
-				err: hcl.ErrMalformedTerrastackBlock,
+				err: hcl.ErrMalformedTerramateBlock,
 			},
 		},
 		{
@@ -238,7 +238,7 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 	}
 	`,
 			want: want{
-				err: hcl.ErrMalformedTerrastackBlock,
+				err: hcl.ErrMalformedTerramateBlock,
 			},
 		},
 		{
@@ -251,7 +251,7 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 	}
 	`,
 			want: want{
-				err: hcl.ErrMalformedTerrastackBlock,
+				err: hcl.ErrMalformedTerramateBlock,
 			},
 		},
 	} {
