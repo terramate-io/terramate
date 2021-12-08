@@ -2,7 +2,7 @@
 
 # Table of Contents
 
-- [terrastack](#terrastack)
+- [terramate](#terramate)
     - [Installing](#installing)
         - [Go/Git configuration for private Repositories](#gogit-configuration-for-private-repositories)
     - [Why using stacks?](#why-using-stacks)
@@ -10,9 +10,9 @@
 
 <!-- mdtocend -->
 
-# terrastack
+# terramate
 
-Terrastack is a tool for managing multiple terraform stacks.
+Terramate is a tool for managing multiple terraform stacks.
 
 The stack concept is not defined by Hashicorp's Terraform tooling but just a
 convention used by the _Terraform community_, so a stack can be loosely defined
@@ -34,43 +34,22 @@ also not a stack*.
 
 ## Installing
 
-To install **terrastack** using Go just run:
+To install **terramate** using Go just run:
 
 ```
-go install github.com/mineiros-io/terrastack/cmd/terrastack@<version>
+go install github.com/mineiros-io/terramate/cmd/terramate@<version>
 ```
 
-Where **<version>** is any terrastack [version tag](https://github.com/mineiros-io/terrastack/tags),
-or if you are feeling adventurous you can just install **latest**:
+Where **<version>** is any terramate [version tag](https://github.com/mineiros-io/terramate/tags),
+or you can just install the **latest**:
 
 ```
-go install github.com/mineiros-io/terrastack/cmd/terrastack@latest
+go install github.com/mineiros-io/terramate/cmd/terramate@latest
 ```
 
 We put great effort into keeping the main branch stable, so it should be safe
 to use **latest** to play around, but not recommended for long term automation
 since you won't get the same build result each time you run the install command.
-
-
-### Go/Git configuration for private repositories
-
-While this repository is private, there is some extra work in order to
-download and install it using **go install**. There is two main steps.
-First you need to configure git to use ssh instead of https:
-
-```
-git config --global url.git@github.com:.insteadOf https://github.com/
-```
-
-This only needs to be done once and will change the **.gitconfig** on your
-host. Then you should always export **GOPRIVATE** for our mineiros-io repos
-before running go install:
-
-```
-export GOPRIVATE=github.com/mineiros-io
-```
-
-More info [here](https://golang.org/ref/mod#private-module-proxy-direct).
 
 
 ## Why using stacks?
@@ -128,7 +107,7 @@ When changing your infrastructure (made up of a set of stacks) it's common to
 make several changes to several stacks. But now that you have multiple terraform
 states (per stack), how to apply the changes only to the affected resources?
 
-The terrastack solves this by imposing a workflow:
+The terramate solves this by imposing a workflow:
 
 1. The default branch (commonly main) has the production (applied) code.
 2. Before planning and apply, the changes must be committed in a feature/bugfix

@@ -1,3 +1,3 @@
-// Package test provides testing routines reused throughout terrastack code
+// Package test provides testing routines reused throughout terramate code
 // base.
 package test

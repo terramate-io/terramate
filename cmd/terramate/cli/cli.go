@@ -11,8 +11,8 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/madlambda/spells/errutil"
-	"github.com/mineiros-io/terrastack"
-	"github.com/mineiros-io/terrastack/git"
+	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/git"
 )
 
 const (
@@ -29,7 +29,7 @@ const (
 )
 
 type cliSpec struct {
-	Version struct{} `cmd:"" help:"Terrastack version."`
+	Version struct{} `cmd:"" help:"Terramate version."`
 
 	GitChangeBase string `short:"B" default:"${baseRef}" optional:"true" help:"git base ref for computing changes."`
 
@@ -56,7 +56,7 @@ type cliSpec struct {
 	} `cmd:"" help:"Generate terraform code for stacks."`
 }
 
-// Run will run terrastack with the provided flags defined on args from the
+// Run will run terramate with the provided flags defined on args from the
 // directory wd.
 // Only flags should be on the args slice.
 
@@ -120,7 +120,7 @@ func newCLI(wd string, args []string, stdin io.Reader, stdout io.Writer, stderr 
 	}
 
 	parser, err := kong.New(&parsedArgs,
-		kong.Name("terrastack"),
+		kong.Name("terramate"),
 		kong.Description("A tool for managing terraform stacks"),
 		kong.UsageOnError(),
 		kong.ConfigureHelp(kong.HelpOptions{
@@ -170,7 +170,7 @@ func (c *cli) run() error {
 
 	switch c.ctx.Command() {
 	case "version":
-		c.log(terrastack.Version())
+		c.log(terramate.Version())
 	case "init":
 		return c.initStack([]string{c.wd})
 	case "init <paths>":
@@ -191,7 +191,7 @@ func (c *cli) run() error {
 		}
 		return c.runOnStacks(basedir)
 	case "generate":
-		return terrastack.Generate(c.wd)
+		return terramate.Generate(c.wd)
 	default:
 		return fmt.Errorf("unexpected command sequence: %s", c.ctx.Command())
 	}
@@ -206,7 +206,7 @@ func (c *cli) initStack(dirs []string) error {
 			d = filepath.Join(c.wd, d)
 		}
 
-		err := terrastack.Init(d, c.parsedArgs.Init.Force)
+		err := terramate.Init(d, c.parsedArgs.Init.Force)
 		if err != nil {
 			c.logerr("warn: failed to initialize stack: %v", err)
 			errmsgs = append(errmsgs, err.Error())
@@ -222,9 +222,9 @@ func (c *cli) initStack(dirs []string) error {
 
 func (c *cli) listStacks(
 	basedir string,
-	mgr *terrastack.Manager,
+	mgr *terramate.Manager,
 	isChanged bool,
-) ([]terrastack.Entry, error) {
+) ([]terramate.Entry, error) {
 
 	if isChanged {
 		git, err := newGit(basedir)
@@ -244,7 +244,7 @@ func (c *cli) listStacks(
 }
 
 func (c *cli) printStacks(basedir string) error {
-	mgr := terrastack.NewManager(basedir, c.baseRef)
+	mgr := terramate.NewManager(basedir, c.baseRef)
 	stacks, err := c.listStacks(basedir, mgr, c.parsedArgs.List.Changed)
 	if err != nil {
 		return err
@@ -270,7 +270,7 @@ func (c *cli) runOnStacks(basedir string) error {
 		basedir = filepath.Join(c.wd, basedir)
 	}
 
-	mgr := terrastack.NewManager(basedir, c.baseRef)
+	mgr := terramate.NewManager(basedir, c.baseRef)
 	stacks, err := c.listStacks(basedir, mgr, c.parsedArgs.Run.Changed)
 	if err != nil {
 		return err

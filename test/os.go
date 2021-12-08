@@ -17,7 +17,7 @@ func TempDir(t *testing.T, base string) string {
 		t.Fatalf("use t.TempDir() for temporary directories inside tmp")
 	}
 
-	dir, err := ioutil.TempDir(base, "terrastack-test")
+	dir, err := ioutil.TempDir(base, "terramate-test")
 	assert.NoError(t, err, "creating temp directory")
 	return dir
 }

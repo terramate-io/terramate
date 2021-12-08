@@ -1,4 +1,4 @@
-package terrastack
+package terramate
 
 import (
 	"errors"
@@ -8,13 +8,12 @@ import (
 
 	hclversion "github.com/hashicorp/go-version"
 
-	"github.com/mineiros-io/terrastack/hcl"
+	"github.com/mineiros-io/terramate/hcl"
 )
 
 const (
-
-	// ConfigFilename is the name of the terrastack configuration file.
-	ConfigFilename = "terrastack.tsk.hcl"
+	// ConfigFilename is the name of the terramate configuration file.
+	ConfigFilename = "terramate.tsk.hcl"
 
 	// DefaultInitConstraint is the default constraint used in stack initialization.
 	DefaultInitConstraint = "~>"
@@ -22,7 +21,7 @@ const (
 
 // Init initialize a stack. It's an error to initialize an already initialized
 // stack unless they are of same versions. In case the stack is initialized with
-// other terrastack version, the force flag can be used to explicitly initialize
+// other terramate version, the force flag can be used to explicitly initialize
 // it anyway. The dir must be an absolute path.
 func Init(dir string, force bool) error {
 	if !filepath.IsAbs(dir) {
@@ -71,7 +70,7 @@ func Init(dir string, force bool) error {
 		}
 
 		if !constraint.Check(tfversionObj) {
-			return fmt.Errorf("stack version constraint %q do not match terrastack "+
+			return fmt.Errorf("stack version constraint %q do not match terramate "+
 				"version %q", vconstraint, Version())
 		}
 
@@ -89,7 +88,7 @@ func Init(dir string, force bool) error {
 	defer f.Close()
 
 	var p hcl.Printer
-	err = p.PrintTerrastack(f, hcl.Terrastack{
+	err = p.PrintTerramate(f, hcl.Terramate{
 		RequiredVersion: DefaultVersionConstraint(),
 	})
 
@@ -100,7 +99,7 @@ func Init(dir string, force bool) error {
 	return nil
 }
 
-// DefaultVersionConstraint is the default version constraint used by terrastack
+// DefaultVersionConstraint is the default version constraint used by terramate
 // when generating tsk files.
 func DefaultVersionConstraint() string {
 	return DefaultInitConstraint + " " + Version()

@@ -1,16 +1,16 @@
-package terrastack_test
+package terramate_test
 
 import (
 	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terrastack"
-	"github.com/mineiros-io/terrastack/test"
+	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/test"
 )
 
 func TestGenerateFailsIfPathDoesntExist(t *testing.T) {
-	assert.Error(t, terrastack.Generate(test.NonExistingDir(t)))
+	assert.Error(t, terramate.Generate(test.NonExistingDir(t)))
 }
 
 func TestGenerateFailsIfPathIsNotDir(t *testing.T) {
@@ -20,12 +20,12 @@ func TestGenerateFailsIfPathIsNotDir(t *testing.T) {
 	test.WriteFile(t, dir, filename, "whatever")
 	path := filepath.Join(dir, filename)
 
-	assert.Error(t, terrastack.Generate(path))
+	assert.Error(t, terramate.Generate(path))
 }
 
 func TestGenerateFailsIfPathIsRelative(t *testing.T) {
 	dir := t.TempDir()
 	relpath := test.RelPath(t, test.Getwd(t), dir)
 
-	assert.Error(t, terrastack.Generate(relpath))
+	assert.Error(t, terramate.Generate(relpath))
 }

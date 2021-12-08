@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terrastack"
-	"github.com/mineiros-io/terrastack/hcl"
-	"github.com/mineiros-io/terrastack/test/sandbox"
+	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
 func TestBackendConfigOnLeafSingleStack(t *testing.T) {
@@ -18,7 +18,7 @@ func TestBackendConfigOnLeafSingleStack(t *testing.T) {
 		param = "value"
 	}`
 
-	stack.CreateConfig(`terrastack {
+	stack.CreateConfig(`terramate {
   %s
   %s
 }`, versionAttribute(), backendBlock)
@@ -28,17 +28,17 @@ func TestBackendConfigOnLeafSingleStack(t *testing.T) {
 
 	got := stack.ReadGeneratedTf()
 
-	if !strings.HasPrefix(string(got), terrastack.GeneratedCodeHeader) {
+	if !strings.HasPrefix(string(got), terramate.GeneratedCodeHeader) {
 		t.Fatal("generated code missing header")
 	}
 
 	parser := hcl.NewParser()
-	_, err := parser.ParseBody(got, terrastack.GeneratedTfFilename)
+	_, err := parser.ParseBody(got, terramate.GeneratedTfFilename)
 
 	assert.NoError(t, err)
 	// TODO: test parsed body
 }
 
 func versionAttribute() string {
-	return "required_version " + terrastack.DefaultVersionConstraint()
+	return "required_version " + terramate.DefaultVersionConstraint()
 }
