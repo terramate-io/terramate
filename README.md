@@ -4,7 +4,6 @@
 
 - [terramate](#terramate)
     - [Installing](#installing)
-        - [Go/Git configuration for private Repositories](#gogit-configuration-for-private-repositories)
     - [Why using stacks?](#why-using-stacks)
     - [Detecting IaC changes](#detecting-iac-changes)
 
