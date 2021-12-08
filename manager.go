@@ -1,4 +1,4 @@
-package terrastack
+package terramate
 
 import (
 	"fmt"
@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/mineiros-io/terrastack/git"
-	"github.com/mineiros-io/terrastack/hcl"
+	"github.com/mineiros-io/terramate/git"
+	"github.com/mineiros-io/terramate/hcl"
 )
 
 type (
-	// Manager is the terrastack stacks manager.
+	// Manager is the terramate stacks manager.
 	Manager struct {
 		basedir    string // basedir is the stacks base directory.
 		gitBaseRef string // gitBaseRef is the git ref where we compare changes.
@@ -231,7 +231,7 @@ func (m *Manager) moduleChanged(
 	// TODO(i4k): resolve symlinks
 
 	if err != nil || !st.IsDir() {
-		// terrastack is not a TF linter so if the module source is not
+		// terramate is not a TF linter so if the module source is not
 		// reachable or is not a directory, for any reason, we do not fail.
 
 		return false, "", nil

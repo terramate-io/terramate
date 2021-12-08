@@ -3,7 +3,7 @@ package sandbox_test
 import (
 	"testing"
 
-	"github.com/mineiros-io/terrastack/test/sandbox"
+	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
 func TestInitializedGitHasOriginMain(t *testing.T) {

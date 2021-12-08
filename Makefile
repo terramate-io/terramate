@@ -19,15 +19,15 @@ lint:
 test: 
 	go test -race -coverprofile=coverage.txt -covermode=atomic ./...
 
-## Build terrastack into bin directory
+## Build terramate into bin directory
 .PHONY: build
 build:
-	go build -o bin/terrastack ./cmd/terrastack
+	go build -o bin/terramate ./cmd/terramate
 
-## Install terrastack on the host
+## Install terramate on the host
 .PHONY: install
 install:
-	go install ./cmd/terrastack
+	go install ./cmd/terramate
 
 ## remove build artifacts
 .PHONY: clean

@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/mineiros-io/terrastack/test"
-	"github.com/mineiros-io/terrastack/test/sandbox"
+	"github.com/mineiros-io/terramate/test"
+	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
 func TestCLIList(t *testing.T) {

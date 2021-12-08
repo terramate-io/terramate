@@ -5,8 +5,8 @@ import (
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terrastack/hcl"
-	"github.com/mineiros-io/terrastack/test"
+	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/test"
 )
 
 func TestHCLParserModules(t *testing.T) {
@@ -127,10 +127,10 @@ module "test" {
 	}
 }
 
-func TestHHCLParserTerrastackBlock(t *testing.T) {
+func TestHHCLParserTerramateBlock(t *testing.T) {
 	type want struct {
 		err   error
-		block hcl.Terrastack
+		block hcl.Terramate
 	}
 	type testcase struct {
 		name  string
@@ -142,18 +142,18 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 		{
 			name: "empty config",
 			want: want{
-				err: hcl.ErrNoTerrastackBlock,
+				err: hcl.ErrNoTerramateBlock,
 			},
 		},
 		{
 			name: "required_version > 0.0.0",
 			input: `
-	terrastack {
+	terramate {
 	       required_version = "> 0.0.0"
 	}
 	`,
 			want: want{
-				block: hcl.Terrastack{
+				block: hcl.Terramate{
 					RequiredVersion: "> 0.0.0",
 				},
 			},
@@ -161,13 +161,13 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 		{
 			name: "empty backend",
 			input: `
-	terrastack {
+	terramate {
 		   backend "something" {
 		   }
 	}
 	`,
 			want: want{
-				block: hcl.Terrastack{
+				block: hcl.Terramate{
 					Backend: &hclsyntax.Block{
 						Type:   "backend",
 						Labels: []string{"something"},
@@ -178,14 +178,14 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 		{
 			name: "backend with attributes",
 			input: `
-	terrastack {
+	terramate {
 		   backend "something" {
 			   something = "something else"
 		   }
 	}
 	`,
 			want: want{
-				block: hcl.Terrastack{
+				block: hcl.Terramate{
 					Backend: &hclsyntax.Block{
 						Type:   "backend",
 						Labels: []string{"something"},
@@ -196,7 +196,7 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 		{
 			name: "multiple backend blocks - fails",
 			input: `
-	terrastack {
+	terramate {
 		   backend "ah" {}
 		   backend "something" {
 			   something = "something else"
@@ -204,13 +204,13 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 	}
 	`,
 			want: want{
-				err: hcl.ErrMalformedTerrastackBlock,
+				err: hcl.ErrMalformedTerramateBlock,
 			},
 		},
 		{
 			name: "backend with nested blocks",
 			input: `
-	terrastack {
+	terramate {
 		   backend "my-label" {
 			   something = "something else"
 			   other {
@@ -220,7 +220,7 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 	}
 	`,
 			want: want{
-				block: hcl.Terrastack{
+				block: hcl.Terramate{
 					Backend: &hclsyntax.Block{
 						Type:   "backend",
 						Labels: []string{"my-label"},
@@ -231,27 +231,27 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 		{
 			name: "backend with no labels - fails",
 			input: `
-	terrastack {
+	terramate {
 		   backend {
 			   something = "something else"
 		   }
 	}
 	`,
 			want: want{
-				err: hcl.ErrMalformedTerrastackBlock,
+				err: hcl.ErrMalformedTerramateBlock,
 			},
 		},
 		{
 			name: "backend with more than 1 label - fails",
 			input: `
-	terrastack {
+	terramate {
 		   backend "1" "2" {
 			   something = "something else"
 		   }
 	}
 	`,
 			want: want{
-				err: hcl.ErrMalformedTerrastackBlock,
+				err: hcl.ErrMalformedTerramateBlock,
 			},
 		},
 	} {
@@ -261,7 +261,7 @@ func TestHHCLParserTerrastackBlock(t *testing.T) {
 			assert.IsError(t, err, tc.want.err)
 
 			if tc.want.err == nil {
-				test.AssertTerrastackBlock(t, *got, tc.want.block)
+				test.AssertTerramateBlock(t, *got, tc.want.block)
 			}
 		})
 	}

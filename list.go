@@ -1,4 +1,4 @@
-package terrastack
+package terramate
 
 import (
 	"fmt"
