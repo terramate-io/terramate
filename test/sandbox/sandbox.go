@@ -100,7 +100,7 @@ func (s S) BuildTree(layout []string) {
 		return path, data
 	}
 
-	gentskfile := func(spec string) {
+	gentmfile := func(spec string) {
 		relpath, data := parsePathData(spec)
 		attrs := strings.Split(data, ",")
 
@@ -126,7 +126,7 @@ func (s S) BuildTree(layout []string) {
 
 		var p hcl.Printer
 		err = p.PrintTerramate(f, ts)
-		assert.NoError(t, err, "BuildTree() failed to generate tsk file")
+		assert.NoError(t, err, "BuildTree() failed to generate tm file")
 	}
 
 	for _, spec := range layout {
@@ -136,7 +136,7 @@ func (s S) BuildTree(layout []string) {
 		case 's':
 			s.CreateStack(spec[2:])
 		case 't':
-			gentskfile(spec)
+			gentmfile(spec)
 		case 'f':
 			path, data := parsePathData(spec)
 			test.WriteFile(t, s.basedir, path, data)

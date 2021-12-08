@@ -57,7 +57,7 @@ has this layout:
 ```
 
 You can define a prod backend configuration by creating the file
-**envs/prod/terramate.tsk.hcl**:
+**envs/prod/terramate.tm.hcl**:
 
 ```hcl
 terramate {
@@ -68,7 +68,7 @@ terramate {
 ```
 
 Then you can define a staging backend configuration by creating the file
-**envs/staging/terramate.tsk.hcl**:
+**envs/staging/terramate.tm.hcl**:
 
 ```hcl
 terramate {
@@ -85,7 +85,7 @@ your project, by running from the project top level directory:
 terramate generate
 ```
 
-Now you will see a **_gen_terramate.tsk.tf** file on each stack.
+Now you will see a **_gen_terramate.tm.tf** file on each stack.
 The files generated on the stacks inside **envs/prod** will be:
 
 ```hcl
