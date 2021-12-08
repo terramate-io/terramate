@@ -1,5 +1,5 @@
 # Set default shell to bash
-SHELL := /bin/bash -o pipefail -o errexit -o nounset -O globstar
+SHELL := /bin/bash -o pipefail -o errexit -o nounset
 
 addlicense=go run github.com/google/addlicense@v1.0.0
 
@@ -19,12 +19,12 @@ lint:
 ## add license to code
 .PHONY: license
 license:
-	$(addlicense) -c "Mineiros GmbH" **/*.go
+	$(addlicense) -c "Mineiros GmbH" .
 
 ## check if code is licensed properly
 .PHONY: license/check
 license/check:
-	$(addlicense) --check **/*.go
+	$(addlicense) --check .
 
 ## test code
 .PHONY: test
