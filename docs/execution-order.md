@@ -40,12 +40,12 @@ For example, let's assume we have a project organized like this:
 ```
 .
 ├── stack-a
-│   └── terramate.tsk.hcl
+│   └── terramate.tm.hcl
 └── stack-b
-    └── terramate.tsk.hcl
+    └── terramate.tm.hcl
 ```
 
-And **stack-a/terramate.tsk.hcl** looks like:
+And **stack-a/terramate.tm.hcl** looks like:
 
 ```
 terramate {
@@ -53,7 +53,7 @@ terramate {
 }
 ```
 
-And then we have **stack-b/terramate.tsk.hcl**:
+And then we have **stack-b/terramate.tm.hcl**:
 
 ```
 terramate {
@@ -74,7 +74,7 @@ The order of execution will be:
 
 The same order of execution can be defined as:
 
-**stack-a/terramate.tsk.hcl**:
+**stack-a/terramate.tm.hcl**:
 
 ```
 terramate {
@@ -88,7 +88,7 @@ stack {
 }
 ```
 
-**stack-b/terramate.tsk.hcl**:
+**stack-b/terramate.tm.hcl**:
 
 ```
 terramate {
@@ -98,7 +98,7 @@ terramate {
 
 This would also be a valid way to express the same order (although redundant):
 
-**stack-a/terramate.tsk.hcl**:
+**stack-a/terramate.tm.hcl**:
 
 ```
 terramate {
@@ -112,7 +112,7 @@ stack {
 }
 ```
 
-**stack-b/terramate.tsk.hcl**:
+**stack-b/terramate.tm.hcl**:
 
 ```
 terramate {
@@ -130,7 +130,7 @@ You can also use **before** and **after** simultaneously on the same
 stack for more complex scenarios. Lets add a third **stack-c** to our example.
 The three stacks are defined as follows:
 
-**stack-a/terramate.tsk.hcl**:
+**stack-a/terramate.tm.hcl**:
 
 ```
 terramate {
@@ -138,7 +138,7 @@ terramate {
 }
 ```
 
-**stack-b/terramate.tsk.hcl**:
+**stack-b/terramate.tm.hcl**:
 
 ```
 terramate {
@@ -146,7 +146,7 @@ terramate {
 }
 ```
 
-**stack-c/terramate.tsk.hcl**:
+**stack-c/terramate.tm.hcl**:
 
 ```
 terramate {
@@ -252,7 +252,7 @@ error message pointing out the detected cycle.
 
 Also in the case of a conflict, like a stack defined like this:
 
-**stack-a/terramate.tsk.hcl**:
+**stack-a/terramate.tm.hcl**:
 
 ```
 terramate {

@@ -12,7 +12,7 @@ import (
 )
 
 // ConfigFilename is the name of the terramate configuration file.
-const ConfigFilename = "terramate.tsk.hcl"
+const ConfigFilename = "terramate.tm.hcl"
 
 // DefaultInitConstraint is the default constraint used in stack initialization.
 const DefaultInitConstraint = "~>"
@@ -98,7 +98,7 @@ func Init(dir string, force bool) error {
 }
 
 // DefaultVersionConstraint is the default version constraint used by terramate
-// when generating tsk files.
+// when generating tm files.
 func DefaultVersionConstraint() string {
 	return DefaultInitConstraint + " " + Version()
 }
