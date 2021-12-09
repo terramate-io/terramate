@@ -3,7 +3,7 @@ SHELL := /bin/bash -o pipefail -o errexit -o nounset
 
 addlicense=go run github.com/google/addlicense@v1.0.0
 version?=0.0.3-$(shell git rev-parse --short HEAD)
-buildflags=-ldflags "-X terramate.Version=$(version)"
+buildflags=-ldflags "-X github.com/mineiros-io/terramate.Version=$(version)"
 
 .PHONY: default
 default: help
