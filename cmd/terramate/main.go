@@ -17,8 +17,11 @@ package main
 import (
 	"log"
 	"os"
+	"runtime/debug"
 
+	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/cmd/terramate/cli"
+	"golang.org/x/mod/semver"
 )
 
 func main() {
@@ -26,8 +29,35 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to get process working dir: %v", err)
 	}
+	defineVersion()
 	err = cli.Run(wd, os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func defineVersion() {
+	const (
+		defaultVersion = "v0.0.0-devel"
+	)
+
+	if terramate.Version != "" {
+		return
+	}
+
+	info, available := debug.ReadBuildInfo()
+	if !available {
+		terramate.Version = defaultVersion
+		return
+	}
+
+	// Difference scenarios have all kind of build info version
+	// we only want valid semver, or else explosions !!
+	if !semver.IsValid(info.Main.Version) {
+		terramate.Version = defaultVersion
+		return
+	}
+
+	// Go adds v prefix to the semver...
+	terramate.Version = info.Main.Version[1:]
 }
