@@ -189,9 +189,8 @@ func TestFetchRemoteRevErrorHandling(t *testing.T) {
 
 func TestListingAvailableRemotes(t *testing.T) {
 	type testcase struct {
-		name    string
-		remotes []string
-		want    []git.Remote
+		name string
+		want []git.Remote
 	}
 
 	tests := []testcase{
