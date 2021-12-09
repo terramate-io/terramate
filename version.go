@@ -16,6 +16,7 @@ package terramate
 
 import (
 	"fmt"
+	"runtime/debug"
 
 	tfversion "github.com/hashicorp/go-version"
 )
@@ -23,6 +24,20 @@ import (
 // Version is the current version of terramate.
 // It is a programming error for it to not be defined as a semver.
 var Version string
+
+func init() {
+	if Version != "" {
+		return
+	}
+
+	info, available := debug.ReadBuildInfo()
+	if !available {
+		Version = "v0.0.0-noversion"
+		return
+	}
+
+	Version = info.Main.Version
+}
 
 func parsedTfVersion() *tfversion.Version {
 	v, err := tfversion.NewSemver(Version)
