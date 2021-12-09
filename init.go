@@ -81,9 +81,9 @@ func Init(dir string, force bool) error {
 			return fmt.Errorf("unable to check stack constraint: %w", err)
 		}
 
-		if !constraint.Check(tfversionObj) {
+		if !constraint.Check(parsedTfVersion()) {
 			return fmt.Errorf("stack version constraint %q do not match terramate "+
-				"version %q", vconstraint, Version())
+				"version %q", vconstraint, Version)
 		}
 
 		err = os.Remove(string(stackfile))
@@ -114,7 +114,7 @@ func Init(dir string, force bool) error {
 // DefaultVersionConstraint is the default version constraint used by terramate
 // when generating tm files.
 func DefaultVersionConstraint() string {
-	return DefaultInitConstraint + " " + Version()
+	return DefaultInitConstraint + " " + Version
 }
 
 func parseVersion(stackfile string) (string, error) {

@@ -35,8 +35,8 @@ import (
 	"github.com/mineiros-io/terramate/test"
 )
 
-// S is a full sandbox with its own base dir that is an initialized git repo for
-// test purposes.
+// S is a full sandbox with its own base dir that is an initialized terramate
+// git repo for test purposes.
 type S struct {
 	t       *testing.T
 	git     Git

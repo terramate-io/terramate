@@ -180,7 +180,7 @@ func (c *cli) run() error {
 
 	switch c.ctx.Command() {
 	case "version":
-		c.log(terramate.Version())
+		c.log(terramate.Version)
 	case "init":
 		return c.initStack([]string{c.wd})
 	case "init <paths>":

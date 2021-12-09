@@ -39,7 +39,6 @@ const (
 )
 
 var sprintf = fmt.Sprintf
-var tsversion = terramate.Version()
 
 func TestInit(t *testing.T) {
 	type testcase struct {
@@ -49,6 +48,8 @@ func TestInit(t *testing.T) {
 		force  bool
 		want   runResult
 	}
+
+	const tsversion = TerramateTestVersion
 
 	for _, tc := range []testcase{
 		{
@@ -207,6 +208,7 @@ func TestInit(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s := sandbox.New(t)
+
 			s.BuildTree(tc.layout)
 
 			cli := newCLI(t, s.BaseDir())

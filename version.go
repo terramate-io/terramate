@@ -15,21 +15,17 @@
 package terramate
 
 import (
-	_ "embed"
 	"fmt"
-	"strings"
 
 	tfversion "github.com/hashicorp/go-version"
 )
 
-//go:embed VERSION
-var version string
+// Version is the current version of terramate.
+// It is a programming error for it to not be defined as a semver.
+var Version string
 
-var tfversionObj *tfversion.Version
-
-func init() {
-	var err error
-	tfversionObj, err = tfversion.NewSemver(Version())
+func parsedTfVersion() *tfversion.Version {
+	v, err := tfversion.NewSemver(Version)
 	if err != nil {
 		msg := fmt.Sprintf(
 			"terramate version does not adhere to semver specification: %s",
@@ -37,9 +33,5 @@ func init() {
 		)
 		panic(msg)
 	}
-}
-
-// Version of terramate.
-func Version() string {
-	return strings.TrimSpace(version)
+	return v
 }
