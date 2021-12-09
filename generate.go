@@ -19,7 +19,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/errutil"
+	"github.com/mineiros-io/terramate/hcl"
 )
 
 const (
@@ -57,12 +59,33 @@ func Generate(basedir string) error {
 	}
 
 	var errs []error
+	parser := hcl.NewParser()
 
 	for _, stack := range stacks {
-		genfile := filepath.Join(stack.Dir, GeneratedTfFilename)
-		// TODO(katcipis): proper implementation
+		stackfile := filepath.Join(stack.Dir, ConfigFilename)
+		stackconfig, err := os.ReadFile(stackfile)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
 
-		errs = append(errs, os.WriteFile(genfile, []byte(GeneratedCodeHeader), 0666))
+		parsed, err := parser.Parse(stackfile, stackconfig)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		// TODO(katcipis): handle no backend config + search through project dirs
+
+		gen := hclwrite.NewEmptyFile()
+		rootBody := gen.Body()
+		tfBlock := rootBody.AppendNewBlock("terraform", nil)
+		tfBody := tfBlock.Body()
+		tfBody.AppendNewBlock("backend", parsed.Backend.Labels)
+
+		gencode := append([]byte(GeneratedCodeHeader+"\n\n"), gen.Bytes()...)
+		genfile := filepath.Join(stack.Dir, GeneratedTfFilename)
+		errs = append(errs, os.WriteFile(genfile, gencode, 0666))
 	}
 
 	if err := errutil.Chain(errs...); err != nil {
