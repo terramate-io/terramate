@@ -1,5 +1,7 @@
 # Set default shell to bash
-SHELL := /bin/bash -o pipefail -o errexit -o nounset 
+SHELL := /bin/bash -o pipefail -o errexit -o nounset
+
+addlicense=go run github.com/google/addlicense@v1.0.0
 
 .PHONY: default
 default: help
@@ -13,6 +15,16 @@ fmt:
 .PHONY: lint
 lint:
 	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.43.0 run ./...
+
+## add license to code
+.PHONY: license
+license:
+	$(addlicense) -c "Mineiros GmbH" .
+
+## check if code is licensed properly
+.PHONY: license/check
+license/check:
+	$(addlicense) --check .
 
 ## test code
 .PHONY: test
