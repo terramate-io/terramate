@@ -15,8 +15,8 @@ func TestBackendConfigOnLeafSingleStack(t *testing.T) {
 	stack := s.CreateStack("stack")
 
 	backendBlock := `backend "type" {
-		param = "value"
-	}`
+    param = "value"
+  }`
 
 	stack.CreateConfig(`terramate {
   %s
