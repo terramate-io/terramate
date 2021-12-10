@@ -98,9 +98,12 @@ func New(t *testing.T) S {
 // The data field is required only for operation "f" and "s":
 //   For "f" data is the content of the file to be created.
 //   For "s" data is a key value pair of the form:
-//     <attr1>=<val1>[,<attr2>=<val2>]
+//     <attr1>=<val1>[;<attr2>=<val2>]
 // Where attrN is a string attribute of the terramate block of the stack.
 // TODO(i4k): document empty data field.
+//
+// Example:
+//   s:name-of-the-stack:version=1.0;after=["other-stack"]
 //
 // This is an internal mini-lang used to simplify testcases, so it expects well
 // formed layout specification.
@@ -124,7 +127,7 @@ func (s S) BuildTree(layout []string) {
 	}
 
 	gentmfile := func(relpath, data string) {
-		attrs := strings.Split(data, ",")
+		attrs := strings.Split(data, ";")
 
 		tm := hcl.Terramate{}
 		for _, attr := range attrs {
@@ -315,11 +318,22 @@ func specList(t *testing.T, name, value string) []string {
 		t.Fatalf("malformed %q value: %q", name, value)
 	}
 	quotedList := strings.Split(value[1:len(value)-1], ",")
-	list := make([]string, len(quotedList))
-	for i, l := range quotedList {
+	list := make([]string, 0, len(quotedList))
+	for _, l := range quotedList {
+		l = strings.TrimSpace(l)
+		if l == "" {
+			continue
+		}
+
+		if !strings.HasPrefix(l, `"`) {
+			t.Fatalf("expect quoted strings but given %q", l)
+		}
+
 		var err error
-		list[i], err = strconv.Unquote(l)
+		val, err := strconv.Unquote(l)
 		assert.NoError(t, err)
+
+		list = append(list, val)
 	}
 
 	return list

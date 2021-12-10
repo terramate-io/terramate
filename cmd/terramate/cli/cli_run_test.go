@@ -40,6 +40,36 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
+			name: "empty ordering",
+			layout: []string{
+				"s:stack:after=[]",
+			},
+			want: runResult{
+				Stdout: `stack
+`,
+			},
+		},
+		{
+			name: "independent stacks, consistent ordering (reverse-lexicographic)",
+			layout: []string{
+				"s:batatinha",
+				"s:frita",
+				"s:1",
+				"s:2",
+				"s:3",
+				"s:boom",
+			},
+			want: runResult{
+				Stdout: `frita
+boom
+batatinha
+3
+2
+1
+`,
+			},
+		},
+		{
 			name: "stack-b after stack-a",
 			layout: []string{
 				"s:stack-a",
@@ -66,6 +96,20 @@ stack-c
 			},
 		},
 		{
+			name: "stack-a after stack-b after stack-c",
+			layout: []string{
+				"s:stack-c",
+				`s:stack-b:after=["../stack-c"]`,
+				`s:stack-a:after=["../stack-b"]`,
+			},
+			want: runResult{
+				Stdout: `stack-c
+stack-b
+stack-a
+`,
+			},
+		},
+		{
 			name: "stack-a after stack-b",
 			layout: []string{
 				`s:stack-a:after=["../stack-b"]`,
@@ -73,6 +117,22 @@ stack-c
 			},
 			want: runResult{
 				Stdout: `stack-b
+stack-a
+`,
+			},
+		},
+		{
+			name: "stack-a after (stack-b, stack-c, stack-d)",
+			layout: []string{
+				`s:stack-a:after=["../stack-b", "../stack-c", "../stack-d"]`,
+				`s:stack-b`,
+				`s:stack-c`,
+				`s:stack-d`,
+			},
+			want: runResult{
+				Stdout: `stack-d
+stack-c
+stack-b
 stack-a
 `,
 			},
@@ -106,8 +166,8 @@ stack-d
 			want: runResult{
 				Stdout: `stack-a
 stack-b
-stack-c
 stack-d
+stack-c
 `,
 			},
 		},
@@ -123,9 +183,51 @@ stack-d
 			want: runResult{
 				Stdout: `stack-a
 stack-b
-stack-c
 stack-d
 stack-z
+stack-c
+`,
+			},
+		},
+		{
+			name: "stack-g after stack-c after stack-b after stack-a, stack-z after stack-d after stack-b",
+			layout: []string{
+				`s:stack-g:after=["../stack-c"]`,
+				`s:stack-c:after=["../stack-b"]`,
+				`s:stack-b:after=["../stack-a"]`,
+				`s:stack-a`,
+				`s:stack-z:after=["../stack-d"]`,
+				`s:stack-d:after=["../stack-b"]`,
+			},
+			want: runResult{
+				Stdout: `stack-a
+stack-b
+stack-d
+stack-z
+stack-c
+stack-g
+`,
+			},
+		},
+		{
+			name: "stack-a after (stack-b, stack-c), stack-b after (stack-d, stack-f), stack-c after (stack-g, stack-h)",
+			layout: []string{
+				`s:stack-a:after=["../stack-b", "../stack-c"]`,
+				`s:stack-b:after=["../stack-d", "../stack-f"]`,
+				`s:stack-c:after=["../stack-g", "../stack-h"]`,
+				`s:stack-d`,
+				`s:stack-f`,
+				`s:stack-g`,
+				`s:stack-h`,
+			},
+			want: runResult{
+				Stdout: `stack-h
+stack-g
+stack-c
+stack-f
+stack-d
+stack-b
+stack-a
 `,
 			},
 		},
@@ -133,6 +235,28 @@ stack-z
 			name: "stack-a after stack-a - fails",
 			layout: []string{
 				`s:stack-a:after=["../stack-a"]`,
+			},
+			want: runResult{
+				Error:        terramate.ErrRunCycleDetected,
+				IgnoreStderr: true,
+			},
+		},
+		{
+			name: "CYCLE",
+			layout: []string{
+				`s:stack-a:after=["."]`,
+			},
+			want: runResult{
+				Error:        terramate.ErrRunCycleDetected,
+				IgnoreStderr: true,
+			},
+		},
+		{
+			name: "stack-a after stack-b after stack-c after stack-a - fails",
+			layout: []string{
+				`s:stack-a:after=["../stack-b"]`,
+				`s:stack-b:after=["../stack-c"]`,
+				`s:stack-c:after=["../stack-a"]`,
 			},
 			want: runResult{
 				Error:        terramate.ErrRunCycleDetected,

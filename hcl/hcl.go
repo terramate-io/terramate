@@ -17,6 +17,7 @@ package hcl
 import (
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -267,6 +268,8 @@ func assignSet(name string, target *[]string, val cty.Value) error {
 	for v := range values {
 		elems = append(elems, v)
 	}
+
+	sort.Strings(elems)
 	*target = elems
 	return nil
 }

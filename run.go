@@ -8,48 +8,50 @@ import (
 	"github.com/madlambda/spells/errutil"
 )
 
-type orderGetter func(s Stack) []string
-
 const ErrRunCycleDetected errutil.Error = "cycle detected in run order"
 
+// RunOrder calculates the order of execution for the stacks list.
 func RunOrder(stacks []Stack) ([]Stack, error) {
-	orders := map[string][]Stack{}
+	stackset := map[string]Stack{} // indexed by stack dir
+	orders := map[string][]Stack{} // indexed by stack dir
 
 	for _, stack := range stacks {
-		after, err := LoadStacks(stack.Dir, stack.After...)
-		if err != nil {
-			return nil, err
-		}
+		stackset[stack.Dir] = stack
 
+		reversedOrder := []Stack{stack}
 		visited := map[string]struct{}{}
-		err = checkRunOrder(stack, after, afterGet, visited)
-		if err != nil {
-			return nil, err
-		}
+		err := walkOrderList(stack, afterGet, func(s Stack) error {
+			if _, ok := visited[s.Dir]; ok {
+				return ErrRunCycleDetected
+			}
 
-		order := []Stack{}
-		err = walkOrder(stack, afterGet, func(s Stack) {
-			order = append(order, s)
+			visited[s.Dir] = struct{}{}
+			stackset[s.Dir] = s
+			reversedOrder = append(reversedOrder, s)
+			return nil
 		})
+
 		if err != nil {
 			return nil, err
 		}
 
-		order = append(order, stack)
-		orders[stack.Dir] = order
+		orders[stack.Dir] = reverse(reversedOrder)
 	}
 
 	order := []Stack{}
 	executed := map[string]struct{}{}
 
-	keys := []string{}
-	for k := range orders {
-		keys = append(keys, k)
+	keys := []stackOrder{}
+	for stackdir, order := range orders {
+		keys = append(keys, stackOrder{
+			s:     stackset[stackdir],
+			order: order,
+		})
 	}
 
-	sort.StringSlice(keys).Sort()
+	sort.Sort(sort.Reverse(orderSort(keys)))
 	for _, k := range keys {
-		stacks := orders[k]
+		stacks := orders[k.s.Dir]
 		for _, stack := range stacks {
 			if _, ok := executed[stack.Dir]; ok {
 				continue
@@ -82,44 +84,22 @@ func Run(stacks []Stack, cmd *exec.Cmd) error {
 	return nil
 }
 
-func checkRunOrder(stack Stack,
-	deps []Stack,
-	get orderGetter,
-	visited map[string]struct{},
-) error {
-	visited[stack.Dir] = struct{}{}
-
-	for _, b := range deps {
-		if _, ok := visited[b.Dir]; ok {
-			return ErrRunCycleDetected
-		}
-
-		children := get(b)
-		stacks, err := LoadStacks(b.Dir, children...)
-		if err != nil {
-			return err
-		}
-
-		err = checkRunOrder(b, stacks, get, visited)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func walkOrder(stack Stack, getOrder orderGetter, do func(s Stack)) error {
-	dirs := getOrder(stack)
-	stacks, err := LoadStacks(stack.Dir, dirs...)
+// walkOrderList walks through all stack order entries recursively, calling do
+// for each loaded stack entry. It calls get() to retrieve the order list.
+func walkOrderList(stack Stack, get getter, do func(s Stack) error) error {
+	orderDirs := get(stack)
+	stacks, err := LoadStacks(stack.Dir, orderDirs...)
 	if err != nil {
 		return err
 	}
 
 	for _, s := range stacks {
-		do(s)
+		err := do(s)
+		if err != nil {
+			return err
+		}
 
-		err := walkOrder(s, getOrder, do)
+		err = walkOrderList(s, get, do)
 		if err != nil {
 			return fmt.Errorf("walking order list of %s: %w", s, err)
 		}
@@ -128,5 +108,32 @@ func walkOrder(stack Stack, getOrder orderGetter, do func(s Stack)) error {
 	return nil
 }
 
-func afterGet(s Stack) []string  { return s.After }
-func beforeGet(s Stack) []string { return s.Before }
+func afterGet(s Stack) []string { return s.After }
+
+func reverse(list []Stack) []Stack {
+	for i, j := 0, len(list)-1; i < j; i, j = i+1, j-1 {
+		list[i], list[j] = list[j], list[i]
+	}
+
+	return list // unneeded but useful for renaming the slice
+}
+
+type getter func(s Stack) []string
+
+type stackOrder struct {
+	s     Stack
+	order []Stack
+}
+
+type orderSort []stackOrder
+
+func (x orderSort) Len() int { return len(x) }
+func (x orderSort) Less(i, j int) bool {
+	// if both orders have the same length, order lexicographically by the stack
+	// directory string.
+	if len(x[i].order) == len(x[j].order) {
+		return x[i].s.Dir < x[j].s.Dir
+	}
+	return len(x[i].order) < len(x[j].order)
+}
+func (x orderSort) Swap(i, j int) { x[i], x[j] = x[j], x[i] }

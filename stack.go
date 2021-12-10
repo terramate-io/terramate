@@ -47,12 +47,16 @@ func LoadStack(dir string) (Stack, error) {
 	}, nil
 }
 
-// LoadStacks loads all the stacks in the dirs directories relative to basedir.
+// LoadStacks loads all the stacks in the dirs directories. If dirs are relative
+// paths, then basedir is used as base.
 func LoadStacks(basedir string, dirs ...string) ([]Stack, error) {
 	stacks := []Stack{}
 
 	for _, d := range dirs {
-		stack, err := LoadStack(filepath.Join(basedir, d))
+		if !filepath.IsAbs(d) {
+			d = filepath.Join(basedir, d)
+		}
+		stack, err := LoadStack(d)
 		if err != nil {
 			return nil, err
 		}

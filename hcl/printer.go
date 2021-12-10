@@ -28,7 +28,7 @@ func PrintTerramate(w io.Writer, tm Terramate) error {
 	tsBody := tsBlock.Body()
 	tsBody.SetAttributeValue("required_version", cty.StringVal(tm.RequiredVersion))
 
-	if tm.After != nil {
+	if len(tm.After) > 0 {
 		strList := make([]cty.Value, len(tm.After))
 		for i, dir := range tm.After {
 			strList[i] = cty.StringVal(dir)
