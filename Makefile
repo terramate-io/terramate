@@ -2,7 +2,7 @@
 SHELL := /bin/bash -o pipefail -o errexit -o nounset
 
 addlicense=go run github.com/google/addlicense@v1.0.0
-latest_stable=$(shell go mod download -json github.com/mineiros-io/terramate@latest | jq -r .Version | cut -c2-)
+latest_stable=$(shell (go mod download -json github.com/mineiros-io/terramate@latest | jq -r .Version | cut -c2-) || echo 0.0.0)
 head_commit_id=$(shell git rev-parse --short HEAD)
 version?=$(latest_stable)-$(head_commit_id)
 buildflags=-ldflags "-X github.com/mineiros-io/terramate.Version=$(version)"
