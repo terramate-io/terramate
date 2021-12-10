@@ -15,11 +15,9 @@
 package cli_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -84,19 +82,4 @@ func TestBackendConfigGeneration(t *testing.T) {
 		})
 	}
 
-}
-
-func tfEvalString(t *testing.T, attr *hclsyntax.Attribute) string {
-	t.Helper()
-
-	val, diag := attr.Expr.Value(nil)
-	if diag.HasErrors() {
-		t.Fatal(diag.Error())
-	}
-
-	return val.AsString()
-}
-
-func versionAttribute() string {
-	return fmt.Sprintf("required_version = %q", terramate.DefaultVersionConstraint())
 }
