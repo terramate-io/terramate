@@ -26,7 +26,6 @@ import (
 
 // TODO(katcipis)
 //
-// - Empty backend block
 // - backend block with empty block inside
 // - backend block with block inside with random attrs
 // - backend block at project root
@@ -84,6 +83,32 @@ func TestBackendConfigGeneration(t *testing.T) {
 			},
 		},
 		{
+			name:   "single stack - config on stack - empty config label",
+			layout: []string{"s:stack"},
+			configs: []backendconfig{
+				{
+					relpath: "stack",
+					config: `terramate {
+  required_version = "~> 0.0.0"
+  backend "" {}
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stack",
+						code: `terraform {
+  backend "" {
+  }
+}
+`,
+					},
+				},
+				res: runResult{IgnoreStdout: true},
+			},
+		},
+		{
 			name:   "single stack - config on stack - config with 1 attr",
 			layout: []string{"s:stack"},
 			configs: []backendconfig{
@@ -104,6 +129,41 @@ func TestBackendConfigGeneration(t *testing.T) {
 						code: `terraform {
   backend "sometype" {
     attr = "value"
+  }
+}
+`,
+					},
+				},
+				res: runResult{IgnoreStdout: true},
+			},
+		},
+		{
+			name:   "single stack - config on stack - config N attrs",
+			layout: []string{"s:stack"},
+			configs: []backendconfig{
+				{
+					relpath: "stack",
+					config: `terramate {
+  required_version = "~> 0.0.0"
+  backend "lotsoftypes" {
+    attr = "value"
+    attrnumber = 5
+    attrbool = true
+    somelist = ["hi", "again"]
+  }
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stack",
+						code: `terraform {
+  backend "lotsoftypes" {
+    attr       = "value"
+    attrnumber = 5
+    attrbool   = true
+    somelist   = ["hi", "again"]
   }
 }
 `,
