@@ -81,7 +81,20 @@ func Generate(basedir string) error {
 		rootBody := gen.Body()
 		tfBlock := rootBody.AppendNewBlock("terraform", nil)
 		tfBody := tfBlock.Body()
-		tfBody.AppendNewBlock("backend", parsed.Backend.Labels)
+		backendBlock := tfBody.AppendNewBlock("backend", parsed.Backend.Labels)
+		backendBody := backendBlock.Body()
+
+		if parsed.Backend.Body != nil {
+			for name, attr := range parsed.Backend.Body.Attributes {
+				val, err := attr.Expr.Value(nil)
+				if err != nil {
+					errs = append(errs, fmt.Errorf("parsing attribute %q: %v", name, err))
+					continue
+				}
+
+				backendBody.SetAttributeValue(name, val)
+			}
+		}
 
 		gencode := append([]byte(GeneratedCodeHeader+"\n\n"), gen.Bytes()...)
 		genfile := filepath.Join(stack.Dir, GeneratedTfFilename)

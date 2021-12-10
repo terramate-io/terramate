@@ -26,6 +26,14 @@ import (
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
+// TODO(katcipis)
+//
+// - Empty backend block
+// - backend block with empty block inside
+// - backend block with block inside with random attrs
+// - backend block at project root
+// - backend block on different envs subdirs
+
 func TestBackendConfigOnLeafSingleStack(t *testing.T) {
 	const (
 		backendLabel   = "sometype"
@@ -73,15 +81,14 @@ func TestBackendConfigOnLeafSingleStack(t *testing.T) {
 		"wrong backend block label on:\n%s",
 		string(got),
 	)
-	// TODO: check attributes
-	//assert.EqualInts(t, 1, len(parsedBackend.Body.Attributes), "wrong amount of attrs")
-	//assert.EqualStrings(
-	//t,
-	//backendAttrVal,
-	//tfEvalString(t, parsedBackend.Body.Attributes[backendAttr]),
-	//"wrong attr value on:\n%s",
-	//string(got),
-	//)
+	assert.EqualInts(t, 1, len(parsedBackend.Body.Attributes), "wrong amount of attrs")
+	assert.EqualStrings(
+		t,
+		backendAttrVal,
+		tfEvalString(t, parsedBackend.Body.Attributes[backendAttr]),
+		"wrong attr value on:\n%s",
+		string(got),
+	)
 }
 
 func tfEvalString(t *testing.T, attr *hclsyntax.Attribute) string {
