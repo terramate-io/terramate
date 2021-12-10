@@ -58,6 +58,32 @@ func TestBackendConfigGeneration(t *testing.T) {
 	)
 	tcases := []testcase{
 		{
+			name:   "single stack - config on stack - empty config",
+			layout: []string{"s:stack"},
+			configs: []backendconfig{
+				{
+					relpath: "stack",
+					config: `terramate {
+  required_version = "~> 0.0.0"
+  backend "sometype" {}
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stack",
+						code: `terraform {
+  backend "sometype" {
+  }
+}
+`,
+					},
+				},
+				res: runResult{IgnoreStdout: true},
+			},
+		},
+		{
 			name:   "single stack - config on stack - config with 1 attr",
 			layout: []string{"s:stack"},
 			configs: []backendconfig{
