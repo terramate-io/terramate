@@ -15,10 +15,12 @@
 package cli_test
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -31,25 +33,44 @@ import (
 // - backend block on different envs subdirs
 
 func TestBackendConfigGeneration(t *testing.T) {
-	type stackcode struct {
-		relpath string
-		code    string
-	}
-	type want struct {
-		res    runResult
-		stacks []stackcode
-	}
+	type (
+		stackcode struct {
+			relpath string
+			code    string
+		}
 
-	type testcase struct {
-		name   string
-		layout []string
-		want   want
-	}
+		backendconfig struct {
+			relpath string
+			config  string
+		}
 
-	tests := []testcase{
+		want struct {
+			res    runResult
+			stacks []stackcode
+		}
+
+		testcase struct {
+			name    string
+			layout  []string
+			configs []backendconfig
+			want    want
+		}
+	)
+	tcases := []testcase{
 		{
-			name:   "single stack with config on it",
+			name:   "single stack - config on stack - config with 1 attr",
 			layout: []string{"s:stack"},
+			configs: []backendconfig{
+				{
+					relpath: "stack",
+					config: `terramate {
+  required_version = "~> 0.0.0"
+  backend "sometype" {
+    attr = "value"
+  }
+}`,
+				},
+			},
 			want: want{
 				stacks: []stackcode{
 					{
@@ -67,24 +88,21 @@ func TestBackendConfigGeneration(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, tcase := range tcases {
+		t.Run(tcase.name, func(t *testing.T) {
 			s := sandbox.New(t)
-			s.BuildTree(test.layout)
+			s.BuildTree(tcase.layout)
 
-			stackconfig := `terramate {
-  required_version = "~> 0.0.0"
-  backend "sometype" {
-    attr = "value"
-  }
-}`
-			stack := s.StackEntry("stack")
-			stack.CreateConfig(stackconfig)
+			for _, cfg := range tcase.configs {
+				dir := filepath.Join(s.BaseDir(), cfg.relpath)
+				test.WriteFile(t, dir, terramate.ConfigFilename, cfg.config)
+			}
+
 			ts := newCLI(t, s.BaseDir())
 
-			assertRunResult(t, ts.run("generate"), test.want.res)
+			assertRunResult(t, ts.run("generate"), tcase.want.res)
 
-			for _, want := range test.want.stacks {
+			for _, want := range tcase.want.stacks {
 				stack := s.StackEntry(want.relpath)
 				got := string(stack.ReadGeneratedTf())
 				wantcode := terramate.GeneratedCodeHeader + "\n\n" + want.code
