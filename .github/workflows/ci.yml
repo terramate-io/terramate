@@ -71,3 +71,6 @@ jobs:
 
       - name: make build
         run: make build
+
+      - name: check built bin
+        run: ./bin/terramate version
