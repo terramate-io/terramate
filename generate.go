@@ -59,46 +59,16 @@ func Generate(basedir string) error {
 	}
 
 	var errs []error
-	parser := hcl.NewParser()
 
 	for _, stack := range stacks {
-		stackfile := filepath.Join(stack.Dir, ConfigFilename)
-		stackconfig, err := os.ReadFile(stackfile)
+		tfcode, err := generateStackConfig(basedir, stack)
 		if err != nil {
 			errs = append(errs, err)
 			continue
 		}
 
-		parsed, err := parser.Parse(stackfile, stackconfig)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-
-		// TODO(katcipis): handle no backend config + search through project dirs
-
-		gen := hclwrite.NewEmptyFile()
-		rootBody := gen.Body()
-		tfBlock := rootBody.AppendNewBlock("terraform", nil)
-		tfBody := tfBlock.Body()
-		backendBlock := tfBody.AppendNewBlock("backend", parsed.Backend.Labels)
-		backendBody := backendBlock.Body()
-
-		if parsed.Backend.Body != nil {
-			for name, attr := range parsed.Backend.Body.Attributes {
-				val, err := attr.Expr.Value(nil)
-				if err != nil {
-					errs = append(errs, fmt.Errorf("parsing attribute %q: %v", name, err))
-					continue
-				}
-
-				backendBody.SetAttributeValue(name, val)
-			}
-		}
-
-		gencode := append([]byte(GeneratedCodeHeader+"\n\n"), gen.Bytes()...)
 		genfile := filepath.Join(stack.Dir, GeneratedTfFilename)
-		errs = append(errs, os.WriteFile(genfile, gencode, 0666))
+		errs = append(errs, os.WriteFile(genfile, tfcode, 0666))
 	}
 
 	if err := errutil.Chain(errs...); err != nil {
@@ -106,4 +76,40 @@ func Generate(basedir string) error {
 	}
 
 	return nil
+}
+
+func generateStackConfig(basedir string, stack Entry) ([]byte, error) {
+	stackfile := filepath.Join(stack.Dir, ConfigFilename)
+	stackconfig, err := os.ReadFile(stackfile)
+	if err != nil {
+		return nil, fmt.Errorf("reading stack config: %v", err)
+	}
+
+	parser := hcl.NewParser()
+	parsed, err := parser.Parse(stackfile, stackconfig)
+	if err != nil {
+		return nil, fmt.Errorf("parsing stack config: %v", err)
+	}
+
+	// TODO(katcipis): handle no backend config + search through project dirs
+
+	gen := hclwrite.NewEmptyFile()
+	rootBody := gen.Body()
+	tfBlock := rootBody.AppendNewBlock("terraform", nil)
+	tfBody := tfBlock.Body()
+	backendBlock := tfBody.AppendNewBlock("backend", parsed.Backend.Labels)
+	backendBody := backendBlock.Body()
+
+	if parsed.Backend.Body != nil {
+		for name, attr := range parsed.Backend.Body.Attributes {
+			val, err := attr.Expr.Value(nil)
+			if err != nil {
+				return nil, fmt.Errorf("parsing attribute %q: %v", name, err)
+			}
+
+			backendBody.SetAttributeValue(name, val)
+		}
+	}
+
+	return append([]byte(GeneratedCodeHeader+"\n\n"), gen.Bytes()...), nil
 }
