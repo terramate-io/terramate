@@ -31,18 +31,39 @@ import (
 // - backend block on different envs subdirs
 
 func TestBackendConfigGeneration(t *testing.T) {
+	type stackcode struct {
+		relpath string
+		code    string
+	}
+	type want struct {
+		res    runResult
+		stacks []stackcode
+	}
 
 	type testcase struct {
 		name   string
 		layout []string
-		want   runResult
+		want   want
 	}
 
 	tests := []testcase{
 		{
 			name:   "single stack with config on it",
 			layout: []string{"s:stack"},
-			want:   runResult{IgnoreStdout: true},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stack",
+						code: `terraform {
+  backend "sometype" {
+    attr = "value"
+  }
+}
+`,
+					},
+				},
+				res: runResult{IgnoreStdout: true},
+			},
 		},
 	}
 
@@ -57,27 +78,23 @@ func TestBackendConfigGeneration(t *testing.T) {
     attr = "value"
   }
 }`
-
-			want := `terraform {
-  backend "sometype" {
-    attr = "value"
-  }
-}
-`
 			stack := s.StackEntry("stack")
 			stack.CreateConfig(stackconfig)
 			ts := newCLI(t, s.BaseDir())
 
-			assertRunResult(t, ts.run("generate"), test.want)
+			assertRunResult(t, ts.run("generate"), test.want.res)
 
-			got := string(stack.ReadGeneratedTf())
-			want = terramate.GeneratedCodeHeader + "\n\n" + want
+			for _, want := range test.want.stacks {
+				stack := s.StackEntry(want.relpath)
+				got := string(stack.ReadGeneratedTf())
+				wantcode := terramate.GeneratedCodeHeader + "\n\n" + want.code
 
-			if diff := cmp.Diff(want, got); diff != "" {
-				t.Error("generated code doesn't match expectation")
-				t.Errorf("want:\n%q", want)
-				t.Errorf("got:\n%q", got)
-				t.Fatalf("diff:\n%s", diff)
+				if diff := cmp.Diff(wantcode, got); diff != "" {
+					t.Error("generated code doesn't match expectation")
+					t.Errorf("want:\n%q", wantcode)
+					t.Errorf("got:\n%q", got)
+					t.Fatalf("diff:\n%s", diff)
+				}
 			}
 		})
 	}
