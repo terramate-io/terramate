@@ -38,27 +38,29 @@ func RunOrder(stacks []Stack) ([]Stack, error) {
 		orders[stack.Dir] = reverse(reversedOrder)
 	}
 
-	order := []Stack{}
-	executed := map[string]struct{}{}
-
-	keys := []stackOrder{}
+	groups := []stackOrder{}
 	for stackdir, order := range orders {
-		keys = append(keys, stackOrder{
+		groups = append(groups, stackOrder{
 			s:     stackset[stackdir],
 			order: order,
 		})
 	}
 
-	sort.Sort(sort.Reverse(orderSort(keys)))
-	for _, k := range keys {
+	sort.Sort(sort.Reverse(byOrderSize(groups)))
+
+	order := []Stack{}
+	visited := map[string]struct{}{}
+
+	// build computed order by skipping seen stacks.
+	for _, k := range groups {
 		stacks := orders[k.s.Dir]
 		for _, stack := range stacks {
-			if _, ok := executed[stack.Dir]; ok {
+			if _, ok := visited[stack.Dir]; ok {
 				continue
 			}
 
 			order = append(order, stack)
-			executed[stack.Dir] = struct{}{}
+			visited[stack.Dir] = struct{}{}
 		}
 	}
 
@@ -125,10 +127,10 @@ type stackOrder struct {
 	order []Stack
 }
 
-type orderSort []stackOrder
+type byOrderSize []stackOrder
 
-func (x orderSort) Len() int { return len(x) }
-func (x orderSort) Less(i, j int) bool {
+func (x byOrderSize) Len() int { return len(x) }
+func (x byOrderSize) Less(i, j int) bool {
 	// if both orders have the same length, order lexicographically by the stack
 	// directory string.
 	if len(x[i].order) == len(x[j].order) {
@@ -136,4 +138,4 @@ func (x orderSort) Less(i, j int) bool {
 	}
 	return len(x[i].order) < len(x[j].order)
 }
-func (x orderSort) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
+func (x byOrderSize) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
