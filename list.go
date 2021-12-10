@@ -32,8 +32,8 @@ func ListStacks(basedir string) ([]Entry, error) {
 				return err
 			}
 
-			if ok, stackfile := IsStack(info, path); ok {
-				stack, err := LoadStack(stackfile)
+			if ok := IsStack(info, path); ok {
+				stack, err := LoadStack(path)
 				if err != nil {
 					return err
 				}

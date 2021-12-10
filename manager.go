@@ -74,8 +74,8 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 			return nil, fmt.Errorf("listing changed stacks: %w", err)
 		}
 
-		if ok, stackfile := IsStack(info, dirname); ok {
-			stack, err := LoadStack(stackfile)
+		if ok := IsStack(info, dirname); ok {
+			stack, err := LoadStack(dirname)
 			if err != nil {
 				return nil, err
 			}

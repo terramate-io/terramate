@@ -64,6 +64,11 @@ type cliSpec struct {
 		Basedir string   `short:"b" optional:"true" help:"Run on stacks inside basedir."`
 		Command []string `arg:"" name:"cmd" passthrough:"" help:"command to execute."`
 	} `cmd:"" help:"Run command in the stacks."`
+
+	RunOrder struct {
+		Changed bool   `short:"c" help:"Show order of run on changed stacks."`
+		Basedir string `short:"b" optional:"true" help:"Show order of run from basedir."`
+	} `cmd:"" help:"Show run order of execution"`
 }
 
 // Run will run terramate with the provided flags defined on args from the
@@ -189,6 +194,12 @@ func (c *cli) run() error {
 		return c.printStacks(c.wd)
 	case "list <path>":
 		return c.printStacks(c.parsedArgs.List.BaseDir)
+	case "run-order":
+		basedir := c.wd
+		if c.parsedArgs.RunOrder.Basedir != "" {
+			basedir = strings.TrimSuffix(c.parsedArgs.RunOrder.Basedir, "/")
+		}
+		return c.printRunOrder(basedir)
 	case "run":
 		if len(c.parsedArgs.Run.Command) == 0 {
 			return errors.New("no command specified")
@@ -273,9 +284,36 @@ func (c *cli) printStacks(basedir string) error {
 	return nil
 }
 
-func (c *cli) runOnStacks(basedir string) error {
-	var nErrors int
+func (c *cli) printRunOrder(basedir string) error {
+	if !filepath.IsAbs(basedir) {
+		basedir = filepath.Join(c.wd, basedir)
+	}
 
+	mgr := terramate.NewManager(basedir, c.baseRef)
+	entries, err := c.listStacks(basedir, mgr, c.parsedArgs.Run.Changed)
+	if err != nil {
+		return err
+	}
+
+	stacks := make([]terramate.Stack, len(entries))
+	for i, e := range entries {
+		stacks[i] = e.Stack
+	}
+
+	order, err := terramate.RunOrder(stacks)
+	if err != nil {
+		c.logerr("error: %v", err)
+		return err
+	}
+
+	for _, s := range order {
+		c.log("%s", s)
+	}
+
+	return nil
+}
+
+func (c *cli) runOnStacks(basedir string) error {
 	if !filepath.IsAbs(basedir) {
 		basedir = filepath.Join(c.wd, basedir)
 	}
@@ -292,28 +330,21 @@ func (c *cli) runOnStacks(basedir string) error {
 		c.log("Running on all stacks:")
 	}
 
-	cmdName := c.parsedArgs.Run.Command[0]
-	args := c.parsedArgs.Run.Command[1:]
-
-	for _, entry := range entries {
-		stack := entry.Stack
-		cmd := exec.Command(cmdName, args...)
-		cmd.Dir = stack.Dir
-		cmd.Stdin = c.stdin
-		cmd.Stdout = c.stdout
-		cmd.Stderr = c.stderr
-
-		c.log("[%s] running %s", stack.Dir, cmd)
-
-		err = cmd.Run()
-		if err != nil {
-			c.logerr("warn: failed to execute command: %v", err)
-			nErrors++
-		}
+	stacks := make([]terramate.Stack, len(entries))
+	for i, e := range entries {
+		stacks[i] = e.Stack
 	}
 
-	if nErrors != 0 {
-		return fmt.Errorf("some (%d) commands failed", nErrors)
+	cmdName := c.parsedArgs.Run.Command[0]
+	args := c.parsedArgs.Run.Command[1:]
+	cmd := exec.Command(cmdName, args...)
+	cmd.Stdin = c.stdin
+	cmd.Stdout = c.stdout
+	cmd.Stderr = c.stderr
+
+	err = terramate.Run(stacks, cmd)
+	if err != nil {
+		c.logerr("warn: failed to execute command: %v", err)
 	}
 
 	return nil

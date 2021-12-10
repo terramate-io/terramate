@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -94,11 +95,12 @@ func New(t *testing.T) S {
 //   "s" for initialized stacks.
 //   "f" for file creation.
 //   "t" for terramate block.
-// The data field is required only for operation "f" and "t":
+// The data field is required only for operation "f" and "s":
 //   For "f" data is the content of the file to be created.
-//   For "t" data is a key value pair of the form:
+//   For "s" data is a key value pair of the form:
 //     <attr1>=<val1>[,<attr2>=<val2>]
-// Where attrN is a string attribute of the terramate block.
+// Where attrN is a string attribute of the terramate block of the stack.
+// TODO(i4k): document empty data field.
 //
 // This is an internal mini-lang used to simplify testcases, so it expects well
 // formed layout specification.
@@ -108,29 +110,40 @@ func (s S) BuildTree(layout []string) {
 
 	parsePathData := func(spec string) (string, string) {
 		tmp := spec[2:]
+		if len(tmp) == 0 {
+			// relative to s.basedir
+			return ".", ""
+		}
 		index := strings.IndexByte(tmp, ':')
+		if index == -1 {
+			return tmp, ""
+		}
 		path := tmp[0:index]
 		data := tmp[index+1:]
 		return path, data
 	}
 
-	gentmfile := func(spec string) {
-		relpath, data := parsePathData(spec)
+	gentmfile := func(relpath, data string) {
 		attrs := strings.Split(data, ",")
 
-		ts := hcl.Terramate{}
-
+		tm := hcl.Terramate{}
 		for _, attr := range attrs {
 			parts := strings.Split(attr, "=")
-			switch parts[0] {
+			name := parts[0]
+			value := parts[1]
+			switch name {
 			case "version":
-				ts.RequiredVersion = parts[1]
+				tm.RequiredVersion = value
+			case "after":
+				tm.After = specList(t, name, value)
+			case "before":
+				tm.Before = specList(t, name, value)
 			default:
 				t.Fatalf("attribute " + parts[0] + " not supported.")
 			}
 		}
 
-		path := filepath.Join(s.BaseDir(), relpath)
+		path := filepath.Join(s.BaseDir(), filepath.Join(relpath, terramate.ConfigFilename))
 		test.MkdirAll(t, filepath.Dir(path))
 
 		f, err := os.Create(path)
@@ -138,20 +151,26 @@ func (s S) BuildTree(layout []string) {
 
 		defer f.Close()
 
-		err = hcl.PrintTerramate(f, ts)
+		err = hcl.PrintTerramate(f, tm)
 		assert.NoError(t, err, "BuildTree() failed to generate tm file")
+
+		//hcl.PrintTerramate(os.Stdout, tm)
 	}
 
 	for _, spec := range layout {
+		path, data := parsePathData(spec)
+
 		switch spec[0] {
 		case 'd':
 			test.MkdirAll(t, filepath.Join(s.basedir, spec[2:]))
 		case 's':
-			s.CreateStack(spec[2:])
-		case 't':
-			gentmfile(spec)
+			if data == "" {
+				s.CreateStack(path)
+				continue
+			}
+
+			gentmfile(path, data)
 		case 'f':
-			path, data := parsePathData(spec)
 			test.WriteFile(t, s.basedir, path, data)
 		default:
 			t.Fatalf("unknown tree identifier: %d", spec[0])
@@ -288,4 +307,20 @@ func newDirEntry(t *testing.T, basedir string, relpath string) DirEntry {
 		abspath: abspath,
 		relpath: relpath,
 	}
+}
+
+func specList(t *testing.T, name, value string) []string {
+	if !strings.HasPrefix(value, "[") ||
+		!strings.HasSuffix(value, "]") {
+		t.Fatalf("malformed %q value: %q", name, value)
+	}
+	quotedList := strings.Split(value[1:len(value)-1], ",")
+	list := make([]string, len(quotedList))
+	for i, l := range quotedList {
+		var err error
+		list[i], err = strconv.Unquote(l)
+		assert.NoError(t, err)
+	}
+
+	return list
 }

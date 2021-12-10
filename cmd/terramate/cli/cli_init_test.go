@@ -85,7 +85,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "not compatible stack",
 			layout: []string{
-				sprintf("t:other-version/%s:version=~> 9999.9999.9999", configFile),
+				"s:other-version:version=~> 9999.9999.9999",
 			},
 			input: []string{"other-version"},
 			force: false,
@@ -97,7 +97,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "not compatible stack - init --forced",
 			layout: []string{
-				sprintf("t:other-version/%s:version=~> 9999.9999.9999", configFile),
+				"s:other-version:version=~> 9999.9999.9999",
 			},
 			input: []string{"other-version"},
 			force: true,
@@ -105,7 +105,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "multiple stacks, one incompatible version stack - fails",
 			layout: []string{
-				sprintf("t:other-version/%s:version=~> 9999.9999.9999", configFile),
+				"s:other-version:version=~> 9999.9999.9999",
 				"s:stack1",
 				"s:stack2",
 			},
@@ -119,8 +119,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "bigger version patch - fails",
 			layout: []string{
-				sprintf("t:other-version/%s:version=~> %s", configFile,
-					incVersion(t, tsversion, vPatch)),
+				sprintf("s:other-version:version=~> %s", incVersion(t, tsversion, vPatch)),
 			},
 			input: []string{"other-version"},
 			force: false,
@@ -132,8 +131,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "bigger version patch - init --forced",
 			layout: []string{
-				sprintf("t:other-version/%s:version=~> %s", configFile,
-					incVersion(t, tsversion, vPatch)),
+				sprintf("s:other-version:version=~> %s", incVersion(t, tsversion, vPatch)),
 			},
 			input: []string{"other-version"},
 			force: true,
@@ -141,8 +139,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "bigger version minor - fails",
 			layout: []string{
-				sprintf("t:other-version/%s:version=~> %s", configFile,
-					incVersion(t, tsversion, vMinor)),
+				sprintf("s:other-version:version=~> %s", incVersion(t, tsversion, vMinor)),
 			},
 			input: []string{"other-version"},
 			force: false,
@@ -154,8 +151,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "bigger version minor - init --forced",
 			layout: []string{
-				sprintf("t:other-version/%s:version=~> %s", configFile,
-					incVersion(t, tsversion, vMinor)),
+				sprintf("s:other-version:version=~> %s", incVersion(t, tsversion, vMinor)),
 			},
 			input: []string{"other-version"},
 			force: true,
@@ -163,8 +159,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "bigger version major - fails",
 			layout: []string{
-				sprintf("t:other-version/%s:version=~> %s",
-					configFile, incVersion(t, tsversion, vMajor)),
+				sprintf("s:other-version:version=~> %s", incVersion(t, tsversion, vMajor)),
 			},
 			input: []string{"other-version"},
 			force: false,
@@ -176,8 +171,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "bigger version major - init --forced",
 			layout: []string{
-				sprintf("t:other-version/%s:version=~> %s",
-					configFile, incVersion(t, tsversion, vMajor)),
+				sprintf("s:other-version:version=~> %s", incVersion(t, tsversion, vMajor)),
 			},
 			input: []string{"other-version"},
 			force: true,
@@ -185,7 +179,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "lower than terramate version - fails",
 			layout: []string{
-				sprintf("t:other-version/%s:version=< 0.0.1", configFile),
+				"s:other-version:version=< 0.0.1",
 			},
 			input: []string{"other-version"},
 			want: runResult{
@@ -196,7 +190,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "bigger than default constraint version - fails",
 			layout: []string{
-				sprintf("t:other-version/%s:version=> 999.0.0", configFile),
+				"s:other-version:version=> 999.0.0",
 			},
 			input: []string{"other-version"},
 			want: runResult{
