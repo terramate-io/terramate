@@ -16,13 +16,11 @@ package cli_test
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
-	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -35,60 +33,36 @@ import (
 // - backend block on different envs subdirs
 
 func TestBackendConfigOnLeafSingleStack(t *testing.T) {
-	const (
-		backendLabel   = "sometype"
-		backendAttr    = "attr"
-		backendAttrVal = "value"
-	)
-
 	s := sandbox.New(t)
 	stack := s.CreateStack("stack")
 
-	backendBlock := fmt.Sprintf(`backend "%s" {
-    %s = "%s"
-  }`, backendLabel, backendAttr, backendAttrVal)
+	stackconfig := `terramate {
+  required_version = "~> 0.0.0"
+  backend "sometype" {
+    attr = "value"
+  }
+}`
 
-	stack.CreateConfig(`terramate {
-  %s
-  %s
-}`, versionAttribute(), backendBlock)
-
+	want := `terraform {
+  backend "sometype" {
+    attr = "value"
+  }
+}
+`
+	stack.CreateConfig(stackconfig)
 	ts := newCLI(t, s.BaseDir())
 
 	assertRunResult(t, ts.run("generate"), runResult{IgnoreStdout: true})
 
-	got := stack.ReadGeneratedTf()
+	got := string(stack.ReadGeneratedTf())
+	want = terramate.GeneratedCodeHeader + "\n\n" + want
 
-	if !strings.HasPrefix(string(got), terramate.GeneratedCodeHeader) {
-		t.Fatal("generated code missing header")
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Error("generated code doesn't match expectation")
+		t.Errorf("want:\n%q", want)
+		t.Errorf("got:\n%q", got)
+		t.Fatalf("diff:\n%s", diff)
 	}
-
-	parser := hcl.NewParser()
-	body, err := parser.ParseBody(got, terramate.GeneratedTfFilename)
-
-	assert.NoError(t, err, "can't parse:\n%s", string(got))
-	assert.EqualInts(t, 1, len(body.Blocks), "wrong amount of blocks on root on:\n%s", string(got))
-	assert.EqualInts(t, 1, len(body.Blocks[0].Body.Blocks), "wrong amount of blocks inside terraform on:\n%s", string(got))
-
-	parsedBackend := body.Blocks[0].Body.Blocks[0]
-
-	assert.EqualStrings(t, "backend", parsedBackend.Type)
-	assert.EqualInts(t, 1, len(parsedBackend.Labels), "wrong amount of labels on:\n%s", string(got))
-	assert.EqualStrings(
-		t,
-		backendLabel,
-		parsedBackend.Labels[0],
-		"wrong backend block label on:\n%s",
-		string(got),
-	)
-	assert.EqualInts(t, 1, len(parsedBackend.Body.Attributes), "wrong amount of attrs")
-	assert.EqualStrings(
-		t,
-		backendAttrVal,
-		tfEvalString(t, parsedBackend.Body.Attributes[backendAttr]),
-		"wrong attr value on:\n%s",
-		string(got),
-	)
 }
 
 func tfEvalString(t *testing.T, attr *hclsyntax.Attribute) string {
