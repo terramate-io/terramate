@@ -32,37 +32,58 @@ import (
 // - backend block at project root
 // - backend block on different envs subdirs
 
-func TestBackendConfigOnLeafSingleStack(t *testing.T) {
-	s := sandbox.New(t)
-	stack := s.CreateStack("stack")
+func TestBackendConfigGeneration(t *testing.T) {
 
-	stackconfig := `terramate {
+	type testcase struct {
+		name   string
+		layout []string
+		want   runResult
+	}
+
+	tests := []testcase{
+		{
+			name:   "single stack with config on it",
+			layout: []string{"s:stack"},
+			want:   runResult{IgnoreStdout: true},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			s := sandbox.New(t)
+			s.BuildTree(test.layout)
+
+			stackconfig := `terramate {
   required_version = "~> 0.0.0"
   backend "sometype" {
     attr = "value"
   }
 }`
 
-	want := `terraform {
+			want := `terraform {
   backend "sometype" {
     attr = "value"
   }
 }
 `
-	stack.CreateConfig(stackconfig)
-	ts := newCLI(t, s.BaseDir())
+			stack := s.StackEntry("stack")
+			stack.CreateConfig(stackconfig)
+			ts := newCLI(t, s.BaseDir())
 
-	assertRunResult(t, ts.run("generate"), runResult{IgnoreStdout: true})
+			assertRunResult(t, ts.run("generate"), test.want)
 
-	got := string(stack.ReadGeneratedTf())
-	want = terramate.GeneratedCodeHeader + "\n\n" + want
+			got := string(stack.ReadGeneratedTf())
+			want = terramate.GeneratedCodeHeader + "\n\n" + want
 
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Error("generated code doesn't match expectation")
-		t.Errorf("want:\n%q", want)
-		t.Errorf("got:\n%q", got)
-		t.Fatalf("diff:\n%s", diff)
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Error("generated code doesn't match expectation")
+				t.Errorf("want:\n%q", want)
+				t.Errorf("got:\n%q", got)
+				t.Fatalf("diff:\n%s", diff)
+			}
+		})
 	}
+
 }
 
 func tfEvalString(t *testing.T, attr *hclsyntax.Attribute) string {

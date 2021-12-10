@@ -207,6 +207,35 @@ func (s S) CreateStack(relpath string) *StackEntry {
 	return stack
 }
 
+// StackEntry gets the stack entry of the stack identified by relpath.
+// The stack must exist (previously created).
+func (s S) StackEntry(relpath string) *StackEntry {
+	t := s.t
+	t.Helper()
+
+	if filepath.IsAbs(relpath) {
+		t.Fatalf("StackEntry() needs a relative path but given %q", relpath)
+	}
+
+	abspath := filepath.Join(s.basedir, relpath)
+	stat, err := os.Stat(abspath)
+	if err != nil {
+		t.Fatalf("StackEntry(): stack must exist: %v", err)
+	}
+
+	if !stat.IsDir() {
+		t.Fatalf("StackEntry(): stack %q is not directory", abspath)
+	}
+
+	return &StackEntry{
+		DirEntry: DirEntry{
+			t:       t,
+			abspath: abspath,
+			relpath: relpath,
+		},
+	}
+}
+
 // CreateFile will create a file inside this dir entry with the given name and
 // the given body. The body can be plain text or a format string identical to
 // what is defined on Go fmt package.
