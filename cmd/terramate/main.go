@@ -38,7 +38,7 @@ func main() {
 
 func defineVersion() {
 	const (
-		defaultVersion = "v0.0.0-devel"
+		defaultVersion = "0.0.0-devel"
 	)
 
 	if terramate.Version != "" {
