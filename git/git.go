@@ -283,10 +283,11 @@ func (git *Git) Remotes() ([]Remote, error) {
 	for _, rawref := range strings.Split(res, "\n") {
 		trimmedref := strings.TrimPrefix(rawref, refprefix)
 		parsed := strings.Split(trimmedref, "/")
-		if len(parsed) != 2 {
+		if len(parsed) < 2 {
 			return nil, fmt.Errorf("unexpected remote reference %q", rawref)
 		}
-		name, branch := parsed[0], parsed[1]
+		name := parsed[0]
+		branch := strings.Join(parsed[1:], "/")
 		branches := references[name]
 		references[name] = append(branches, branch)
 	}
