@@ -49,7 +49,7 @@ func TestInit(t *testing.T) {
 		want   runResult
 	}
 
-	const tsversion = TerramateTestVersion
+	const tmversion = TerramateTestVersion
 
 	for _, tc := range []testcase{
 		{
@@ -121,7 +121,7 @@ func TestInit(t *testing.T) {
 			name: "bigger version patch - fails",
 			layout: []string{
 				sprintf("t:other-version/%s:version=~> %s", configFile,
-					incVersion(t, tsversion, vPatch)),
+					incVersion(t, tmversion, vPatch)),
 			},
 			input: []string{"other-version"},
 			force: false,
@@ -134,7 +134,7 @@ func TestInit(t *testing.T) {
 			name: "bigger version patch - init --forced",
 			layout: []string{
 				sprintf("t:other-version/%s:version=~> %s", configFile,
-					incVersion(t, tsversion, vPatch)),
+					incVersion(t, tmversion, vPatch)),
 			},
 			input: []string{"other-version"},
 			force: true,
@@ -143,7 +143,7 @@ func TestInit(t *testing.T) {
 			name: "bigger version minor - fails",
 			layout: []string{
 				sprintf("t:other-version/%s:version=~> %s", configFile,
-					incVersion(t, tsversion, vMinor)),
+					incVersion(t, tmversion, vMinor)),
 			},
 			input: []string{"other-version"},
 			force: false,
@@ -156,7 +156,7 @@ func TestInit(t *testing.T) {
 			name: "bigger version minor - init --forced",
 			layout: []string{
 				sprintf("t:other-version/%s:version=~> %s", configFile,
-					incVersion(t, tsversion, vMinor)),
+					incVersion(t, tmversion, vMinor)),
 			},
 			input: []string{"other-version"},
 			force: true,
@@ -165,7 +165,7 @@ func TestInit(t *testing.T) {
 			name: "bigger version major - fails",
 			layout: []string{
 				sprintf("t:other-version/%s:version=~> %s",
-					configFile, incVersion(t, tsversion, vMajor)),
+					configFile, incVersion(t, tmversion, vMajor)),
 			},
 			input: []string{"other-version"},
 			force: false,
@@ -178,7 +178,7 @@ func TestInit(t *testing.T) {
 			name: "bigger version major - init --forced",
 			layout: []string{
 				sprintf("t:other-version/%s:version=~> %s",
-					configFile, incVersion(t, tsversion, vMajor)),
+					configFile, incVersion(t, tmversion, vMajor)),
 			},
 			input: []string{"other-version"},
 			force: true,
@@ -208,17 +208,18 @@ func TestInit(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s := sandbox.New(t)
-
 			s.BuildTree(tc.layout)
-
 			cli := newCLI(t, s.BaseDir())
 			args := []string{"init"}
+
 			if tc.force {
 				args = append(args, "--force")
 			}
+
 			if len(tc.input) > 0 {
 				args = append(args, tc.input...)
 			}
+
 			assertRunResult(t, cli.run(args...), tc.want)
 
 			if tc.want.Error != nil {
