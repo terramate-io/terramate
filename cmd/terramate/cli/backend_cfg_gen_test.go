@@ -15,7 +15,6 @@
 package cli_test
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -463,7 +462,7 @@ func TestBackendConfigGeneration(t *testing.T) {
 				fp := filepath.Join(stack, terramate.GeneratedTfFilename)
 				_, err := os.Stat(fp)
 				if err == nil {
-					fmt.Errorf("stack %q should be untouched, but has generated code: %q", stack, fp)
+					t.Errorf("stack %q should be untouched, but has generated code: %q", stack, fp)
 				}
 			}
 		})
