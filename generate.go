@@ -155,7 +155,7 @@ func copyBody(target *hclwrite.Body, src *hclsyntax.Body) error {
 func sortedAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {
 	names := make([]string, 0, len(attrs))
 
-	for name, _ := range attrs {
+	for name := range attrs {
 		names = append(names, name)
 	}
 
