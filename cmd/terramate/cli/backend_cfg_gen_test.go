@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -56,6 +57,25 @@ func TestBackendConfigGeneration(t *testing.T) {
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
 				"s:stacks/stack-3",
+			},
+		},
+		{
+			name:   "fails on single stack with invalid config",
+			layout: []string{"s:stack"},
+			configs: []backendconfig{
+				{
+					relpath: "stack",
+					config: `terramate {
+  required_version = "~> 0.0.0"
+  backend {}
+}`,
+				},
+			},
+			want: want{
+				res: runResult{
+					Error:        hcl.ErrMalformedTerramateBlock,
+					IgnoreStdout: true,
+				},
 			},
 		},
 		{

@@ -84,7 +84,7 @@ func Generate(basedir string) error {
 	}
 
 	if err := errutil.Chain(errs...); err != nil {
-		return fmt.Errorf("Generate(%q): %v", basedir, err)
+		return fmt.Errorf("Generate(%q): %w", basedir, err)
 	}
 
 	return nil
@@ -109,8 +109,9 @@ func generateStackConfig(basedir string, configdir string) ([]byte, error) {
 
 	parser := hcl.NewParser()
 	parsed, err := parser.Parse(configfile, config)
+
 	if err != nil {
-		return nil, fmt.Errorf("parsing config: %v", err)
+		return nil, fmt.Errorf("parsing config: %w", err)
 	}
 
 	if parsed.Backend == nil {
