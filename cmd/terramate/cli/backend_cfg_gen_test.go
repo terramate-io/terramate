@@ -277,7 +277,7 @@ func TestBackendConfigGeneration(t *testing.T) {
 			},
 		},
 		{
-			name:   "single stack - config parent dir - empty config",
+			name:   "single stack with config parent dir",
 			layout: []string{"s:stacks/stack"},
 			configs: []backendconfig{
 				{
@@ -296,6 +296,122 @@ func TestBackendConfigGeneration(t *testing.T) {
 						code: `terraform {
   backend "fromparent" {
     attr = "value"
+  }
+}
+`,
+					},
+				},
+				res: runResult{IgnoreStdout: true},
+			},
+		},
+		{
+			name:   "single stack with config on basedir",
+			layout: []string{"s:stacks/stack"},
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: `terramate {
+  backend "basedir_config" {
+    attr = 666
+  }
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stacks/stack",
+						code: `terraform {
+  backend "basedir_config" {
+    attr = 666
+  }
+}
+`,
+					},
+				},
+				res: runResult{IgnoreStdout: true},
+			},
+		},
+		{
+			name: "multiple stacks with config on basedir",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: `terramate {
+  backend "basedir_config" {
+    attr = "test"
+  }
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stacks/stack-1",
+						code: `terraform {
+  backend "basedir_config" {
+    attr = "test"
+  }
+}
+`,
+					},
+					{
+						relpath: "stacks/stack-2",
+						code: `terraform {
+  backend "basedir_config" {
+    attr = "test"
+  }
+}
+`,
+					},
+				},
+				res: runResult{IgnoreStdout: true},
+			},
+		},
+		{
+			name: "stacks on different envs with per env config",
+			layout: []string{
+				"s:envs/prod/stacks/stack",
+				"s:envs/staging/stacks/stack",
+			},
+			configs: []backendconfig{
+				{
+					relpath: "envs/prod",
+					config: `terramate {
+  backend "remote" {
+    environment = "prod"
+  }
+}`,
+				},
+				{
+					relpath: "envs/staging",
+					config: `terramate {
+  backend "remote" {
+    environment = "staging"
+  }
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "envs/prod/stacks/stack",
+						code: `terraform {
+  backend "remote" {
+    environment = "prod"
+  }
+}
+`,
+					},
+					{
+						relpath: "envs/staging/stacks/stack",
+						code: `terraform {
+  backend "remote" {
+    environment = "staging"
   }
 }
 `,

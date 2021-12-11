@@ -89,16 +89,20 @@ func generateStackConfig(basedir string, configdir string) ([]byte, error) {
 	}
 
 	configfile := filepath.Join(configdir, ConfigFilename)
-	// TODO(katcipis): check config file exists
+
+	if _, err := os.Stat(configfile); err != nil {
+		return generateStackConfig(basedir, filepath.Dir(configdir))
+	}
+
 	config, err := os.ReadFile(configfile)
 	if err != nil {
-		return nil, fmt.Errorf("reading stack config: %v", err)
+		return nil, fmt.Errorf("reading config: %v", err)
 	}
 
 	parser := hcl.NewParser()
 	parsed, err := parser.Parse(configfile, config)
 	if err != nil {
-		return nil, fmt.Errorf("parsing stack config: %v", err)
+		return nil, fmt.Errorf("parsing config: %v", err)
 	}
 
 	if parsed.Backend == nil {
