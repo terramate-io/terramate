@@ -232,6 +232,26 @@ stack-a
 			},
 		},
 		{
+			name: "stack-z after (stack-a, stack-b, stack-c, stack-d)",
+			layout: []string{
+				`s:stack-z:after=["../stack-a", "../stack-b", "../stack-c", "../stack-d"]`,
+				`s:stack-a:after=["../stack-b", "../stack-c"]`,
+				`s:stack-b`,
+				`s:stack-c`,
+				`s:stack-d`,
+			},
+			want: runResult{
+				Stdout: `stack-h
+stack-g
+stack-c
+stack-f
+stack-d
+stack-b
+stack-a
+`,
+			},
+		},
+		{
 			name: "stack-a after stack-a - fails",
 			layout: []string{
 				`s:stack-a:after=["../stack-a"]`,
@@ -242,7 +262,7 @@ stack-a
 			},
 		},
 		{
-			name: "CYCLE",
+			name: "stack-a after stack-a - fails",
 			layout: []string{
 				`s:stack-a:after=["."]`,
 			},
