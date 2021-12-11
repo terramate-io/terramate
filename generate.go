@@ -64,10 +64,18 @@ func Generate(basedir string) error {
 	var errs []error
 
 	for _, stack := range stacks {
-		// TODO(katcipis): test no config found, so no code generated
+		// At the time the most intuitive way was to start from the stack
+		// and go up until reaching the basedir, looking for a config.
+		// Basically navigating from the order of precedence, since
+		// more specific configuration overrides base configuration.
+		// Not the most optimized way (re-parsing), we can improve later
 		tfcode, err := generateStackConfig(basedir, stack.Dir)
 		if err != nil {
 			errs = append(errs, err)
+			continue
+		}
+
+		if tfcode == nil {
 			continue
 		}
 
@@ -84,7 +92,7 @@ func Generate(basedir string) error {
 
 func generateStackConfig(basedir string, configdir string) ([]byte, error) {
 	if !strings.HasPrefix(configdir, basedir) {
-		// check if we are outside of basedir
+		// check if we are outside of basedir, time to stop
 		return nil, nil
 	}
 
@@ -113,7 +121,7 @@ func generateStackConfig(basedir string, configdir string) ([]byte, error) {
 	rootBody := gen.Body()
 	tfBlock := rootBody.AppendNewBlock("terraform", nil)
 	tfBody := tfBlock.Body()
-	backendBlock := tfBody.AppendNewBlock("backend", parsed.Backend.Labels)
+	backendBlock := tfBody.AppendNewBlock(parsed.Backend.Type, parsed.Backend.Labels)
 	backendBody := backendBlock.Body()
 
 	if err := copyBody(backendBody, parsed.Backend.Body); err != nil {
@@ -128,7 +136,7 @@ func copyBody(target *hclwrite.Body, src *hclsyntax.Body) error {
 		return nil
 	}
 
-	// Avoid generating code randomly different (random attr order)
+	// Avoid generating code with random attr order (map iteration is random)
 	attrs := sortedAttributes(src.Attributes)
 
 	for _, attr := range attrs {
