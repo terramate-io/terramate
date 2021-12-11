@@ -79,6 +79,45 @@ func TestBackendConfigGeneration(t *testing.T) {
 			},
 		},
 		{
+			name: "partial failure on multiple stacks and one has invalid config",
+			layout: []string{
+				"s:stack-invalid-backend",
+				"s:stack-ok-backend",
+			},
+			configs: []backendconfig{
+				{
+					relpath: "stack-invalid-backend",
+					config: `terramate {
+  required_version = "~> 0.0.0"
+  backend {}
+}`,
+				},
+				{
+					relpath: "stack-ok-backend",
+					config: `terramate {
+  required_version = "~> 0.0.0"
+  backend "valid" {}
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stack-ok-backend",
+						code: `terraform {
+  backend "valid" {
+  }
+}
+`,
+					},
+				},
+				res: runResult{
+					Error:        hcl.ErrMalformedTerramateBlock,
+					IgnoreStdout: true,
+				},
+			},
+		},
+		{
 			name:   "single stack with config on stack and empty config",
 			layout: []string{"s:stack"},
 			configs: []backendconfig{
