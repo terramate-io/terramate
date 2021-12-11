@@ -18,7 +18,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate/hcl"
@@ -61,7 +64,8 @@ func Generate(basedir string) error {
 	var errs []error
 
 	for _, stack := range stacks {
-		tfcode, err := generateStackConfig(basedir, stack)
+		// TODO(katcipis): test no config found, so no code generated
+		tfcode, err := generateStackConfig(basedir, stack.Dir)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -78,20 +82,28 @@ func Generate(basedir string) error {
 	return nil
 }
 
-func generateStackConfig(basedir string, stack Entry) ([]byte, error) {
-	stackfile := filepath.Join(stack.Dir, ConfigFilename)
-	stackconfig, err := os.ReadFile(stackfile)
+func generateStackConfig(basedir string, configdir string) ([]byte, error) {
+	if !strings.HasPrefix(configdir, basedir) {
+		// check if we are outside of basedir
+		return nil, nil
+	}
+
+	configfile := filepath.Join(configdir, ConfigFilename)
+	// TODO(katcipis): check config file exists
+	config, err := os.ReadFile(configfile)
 	if err != nil {
 		return nil, fmt.Errorf("reading stack config: %v", err)
 	}
 
 	parser := hcl.NewParser()
-	parsed, err := parser.Parse(stackfile, stackconfig)
+	parsed, err := parser.Parse(configfile, config)
 	if err != nil {
 		return nil, fmt.Errorf("parsing stack config: %v", err)
 	}
 
-	// TODO(katcipis): handle no backend config + search through project dirs
+	if parsed.Backend == nil {
+		return generateStackConfig(basedir, filepath.Dir(configdir))
+	}
 
 	gen := hclwrite.NewEmptyFile()
 	rootBody := gen.Body()
@@ -100,16 +112,55 @@ func generateStackConfig(basedir string, stack Entry) ([]byte, error) {
 	backendBlock := tfBody.AppendNewBlock("backend", parsed.Backend.Labels)
 	backendBody := backendBlock.Body()
 
-	if parsed.Backend.Body != nil {
-		for name, attr := range parsed.Backend.Body.Attributes {
-			val, err := attr.Expr.Value(nil)
-			if err != nil {
-				return nil, fmt.Errorf("parsing attribute %q: %v", name, err)
-			}
-
-			backendBody.SetAttributeValue(name, val)
-		}
+	if err := copyBody(backendBody, parsed.Backend.Body); err != nil {
+		return nil, err
 	}
 
 	return append([]byte(GeneratedCodeHeader+"\n\n"), gen.Bytes()...), nil
+}
+
+func copyBody(target *hclwrite.Body, src *hclsyntax.Body) error {
+	if src == nil || target == nil {
+		return nil
+	}
+
+	// Avoid generating code randomly different (random attr order)
+	attrs := sortedAttributes(src.Attributes)
+
+	for _, attr := range attrs {
+		val, err := attr.Expr.Value(nil)
+		if err != nil {
+			return fmt.Errorf("parsing attribute %q: %v", attr.Name, err)
+		}
+
+		target.SetAttributeValue(attr.Name, val)
+	}
+
+	for _, block := range src.Blocks {
+		targetBlock := target.AppendNewBlock(block.Type, block.Labels)
+		targetBody := targetBlock.Body()
+
+		if err := copyBody(targetBody, block.Body); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func sortedAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {
+	names := make([]string, 0, len(attrs))
+
+	for name, _ := range attrs {
+		names = append(names, name)
+	}
+
+	sort.Strings(names)
+
+	sorted := make([]*hclsyntax.Attribute, len(names))
+	for i, name := range names {
+		sorted[i] = attrs[name]
+	}
+
+	return sorted
 }

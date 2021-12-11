@@ -138,6 +138,71 @@ func TestBackendConfigGeneration(t *testing.T) {
 			},
 		},
 		{
+			name:   "multiple stacks - config on each stack",
+			layout: []string{"s:stack-1"},
+			configs: []backendconfig{
+				{
+					relpath: "stack-1",
+					config: `terramate {
+  required_version = "~> 0.0.0"
+  backend "1" {
+    attr = "hi"
+  }
+}`,
+				},
+				{
+					relpath: "stack-2",
+					config: `terramate {
+  required_version = "~> 0.0.0"
+  backend "2" {
+    somebool = true
+  }
+}`,
+				},
+				{
+					relpath: "stack-3",
+					config: `terramate {
+  required_version = "~> 0.0.0"
+  backend "3" {
+    somelist = ["m", "i", "n", "e", "i", "r", "o", "s"]
+  }
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stack-1",
+						code: `terraform {
+  backend "1" {
+    attr = "hi"
+  }
+}
+`,
+					},
+					{
+						relpath: "stack-2",
+						code: `terraform {
+  backend "2" {
+    somebool = true
+  }
+}
+`,
+					},
+					{
+						relpath: "stack-3",
+						code: `terraform {
+  backend "3" {
+    somelist = ["m", "i", "n", "e", "i", "r", "o", "s"]
+  }
+}
+`,
+					},
+				},
+				res: runResult{IgnoreStdout: true},
+			},
+		},
+		{
 			name:   "single stack - config on stack - config N attrs",
 			layout: []string{"s:stack"},
 			configs: []backendconfig{
@@ -161,9 +226,76 @@ func TestBackendConfigGeneration(t *testing.T) {
 						code: `terraform {
   backend "lotsoftypes" {
     attr       = "value"
-    attrnumber = 5
     attrbool   = true
+    attrnumber = 5
     somelist   = ["hi", "again"]
+  }
+}
+`,
+					},
+				},
+				res: runResult{IgnoreStdout: true},
+			},
+		},
+		{
+			name:   "single stack - config on stack - subblock",
+			layout: []string{"s:stack"},
+			configs: []backendconfig{
+				{
+					relpath: "stack",
+					config: `terramate {
+  required_version = "~> 0.0.0"
+  backend "lotsoftypes" {
+    attr = "value"
+    block {
+      attrbool   = true
+      attrnumber = 5
+      somelist   = ["hi", "again"]
+    }
+  }
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stack",
+						code: `terraform {
+  backend "lotsoftypes" {
+    attr = "value"
+    block {
+      attrbool   = true
+      attrnumber = 5
+      somelist   = ["hi", "again"]
+    }
+  }
+}
+`,
+					},
+				},
+				res: runResult{IgnoreStdout: true},
+			},
+		},
+		{
+			name:   "single stack - config parent dir - empty config",
+			layout: []string{"s:stacks/stack"},
+			configs: []backendconfig{
+				{
+					relpath: "stacks",
+					config: `terramate {
+  backend "fromparent" {
+    attr = "value"
+  }
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stacks/stack",
+						code: `terraform {
+  backend "fromparent" {
+    attr = "value"
   }
 }
 `,
