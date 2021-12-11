@@ -439,7 +439,7 @@ func TestBackendConfigGeneration(t *testing.T) {
 			for _, want := range tcase.want.stacks {
 				stack := s.StackEntry(want.relpath)
 				got := string(stack.ReadGeneratedTf())
-				wantcode := terramate.GeneratedCodeHeader + "\n\n" + want.code
+				wantcode := terramate.GeneratedCodeHeader + want.code
 
 				if diff := cmp.Diff(wantcode, got); diff != "" {
 					t.Error("generated code doesn't match expectation")
