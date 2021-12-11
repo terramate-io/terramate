@@ -15,6 +15,8 @@
 package cli_test
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -23,13 +25,6 @@ import (
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
-
-// TODO(katcipis)
-//
-// - backend block with empty block inside
-// - backend block with block inside with random attrs
-// - backend block at project root
-// - backend block on different envs subdirs
 
 func TestBackendConfigGeneration(t *testing.T) {
 	type (
@@ -57,7 +52,15 @@ func TestBackendConfigGeneration(t *testing.T) {
 	)
 	tcases := []testcase{
 		{
-			name:   "single stack - config on stack - empty config",
+			name: "multiple stacks with no config",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+				"s:stacks/stack-3",
+			},
+		},
+		{
+			name:   "single stack with config on stack and empty config",
 			layout: []string{"s:stack"},
 			configs: []backendconfig{
 				{
@@ -83,7 +86,7 @@ func TestBackendConfigGeneration(t *testing.T) {
 			},
 		},
 		{
-			name:   "single stack - config on stack - empty config label",
+			name:   "single stack with config on stack and empty config label",
 			layout: []string{"s:stack"},
 			configs: []backendconfig{
 				{
@@ -109,7 +112,7 @@ func TestBackendConfigGeneration(t *testing.T) {
 			},
 		},
 		{
-			name:   "single stack - config on stack - config with 1 attr",
+			name:   "single stack with config on stack and config with 1 attr",
 			layout: []string{"s:stack"},
 			configs: []backendconfig{
 				{
@@ -138,7 +141,7 @@ func TestBackendConfigGeneration(t *testing.T) {
 			},
 		},
 		{
-			name:   "multiple stacks - config on each stack",
+			name:   "multiple stacks with config on each stack",
 			layout: []string{"s:stack-1"},
 			configs: []backendconfig{
 				{
@@ -203,7 +206,7 @@ func TestBackendConfigGeneration(t *testing.T) {
 			},
 		},
 		{
-			name:   "single stack - config on stack - config N attrs",
+			name:   "single stack with config on stack with config N attrs",
 			layout: []string{"s:stack"},
 			configs: []backendconfig{
 				{
@@ -238,7 +241,7 @@ func TestBackendConfigGeneration(t *testing.T) {
 			},
 		},
 		{
-			name:   "single stack - config on stack - subblock",
+			name:   "single stack with config on stack with subblock",
 			layout: []string{"s:stack"},
 			configs: []backendconfig{
 				{
@@ -432,6 +435,11 @@ func TestBackendConfigGeneration(t *testing.T) {
 				test.WriteFile(t, dir, terramate.ConfigFilename, cfg.config)
 			}
 
+			untouchedStacks := map[string]struct{}{}
+			for _, relpath := range s.ListStacksRelPath() {
+				untouchedStacks[relpath] = struct{}{}
+			}
+
 			ts := newCLI(t, s.BaseDir())
 
 			assertRunResult(t, ts.run("generate"), tcase.want.res)
@@ -446,6 +454,16 @@ func TestBackendConfigGeneration(t *testing.T) {
 					t.Errorf("want:\n%q", wantcode)
 					t.Errorf("got:\n%q", got)
 					t.Fatalf("diff:\n%s", diff)
+				}
+
+				delete(untouchedStacks, want.relpath)
+			}
+
+			for stack := range untouchedStacks {
+				fp := filepath.Join(stack, terramate.GeneratedTfFilename)
+				_, err := os.Stat(fp)
+				if err == nil {
+					fmt.Errorf("stack %q should be untouched, but has generated code: %q", stack, fp)
 				}
 			}
 		})
