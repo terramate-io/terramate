@@ -232,7 +232,7 @@ stack-a
 			},
 		},
 		{
-			name: "stack-z after (stack-a, stack-b, stack-c, stack-d)",
+			name: "TODO: stack-z after (stack-a, stack-b, stack-c, stack-d), stack-a after (stack-b, stack-c)",
 			layout: []string{
 				`s:stack-z:after=["../stack-a", "../stack-b", "../stack-c", "../stack-d"]`,
 				`s:stack-a:after=["../stack-b", "../stack-c"]`,
@@ -241,13 +241,31 @@ stack-a
 				`s:stack-d`,
 			},
 			want: runResult{
-				Stdout: `stack-h
-stack-g
+				Stdout: `stack-d
 stack-c
-stack-f
-stack-d
 stack-b
 stack-a
+stack-z
+`,
+			},
+		},
+		{
+			name: "TODO: stack-z after (stack-a, stack-b, stack-c, stack-d), stack-a after (stack-x, stack-y)",
+			layout: []string{
+				`s:stack-z:after=["../stack-a", "../stack-b", "../stack-c", "../stack-d"]`,
+				`s:stack-a:after=["../stack-b", "../stack-c"]`,
+				`s:stack-b`,
+				`s:stack-c`,
+				`s:stack-d`,
+				`s:stack-x`,
+				`s:stack-y`,
+			},
+			want: runResult{
+				Stdout: `stack-d
+stack-c
+stack-b
+stack-a
+stack-z
 `,
 			},
 		},

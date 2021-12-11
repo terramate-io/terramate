@@ -19,17 +19,17 @@ func RunOrder(stacks []Stack) ([]Stack, error) {
 		stackset[stack.Dir] = stack
 
 		reversedOrder := []Stack{stack}
-		visited := map[string]struct{}{}
-		err := walkOrderList(stack, afterGet, func(s Stack) error {
-			if _, ok := visited[s.Dir]; ok {
-				return ErrRunCycleDetected
-			}
+		err := walkOrderList(stack, afterGet, map[string]struct{}{},
+			func(s Stack, visited map[string]struct{}) error {
+				if _, ok := visited[s.Dir]; ok {
+					return ErrRunCycleDetected
+				}
 
-			visited[s.Dir] = struct{}{}
-			stackset[s.Dir] = s
-			reversedOrder = append(reversedOrder, s)
-			return nil
-		})
+				visited[s.Dir] = struct{}{}
+				stackset[s.Dir] = s
+				reversedOrder = append(reversedOrder, s)
+				return nil
+			})
 
 		if err != nil {
 			return nil, err
@@ -88,7 +88,11 @@ func Run(stacks []Stack, cmd *exec.Cmd) error {
 
 // walkOrderList walks through all stack order entries recursively, calling do
 // for each loaded stack entry. It calls get() to retrieve the order list.
-func walkOrderList(stack Stack, get getter, do func(s Stack) error) error {
+func walkOrderList(stack Stack,
+	get getter,
+	visited map[string]struct{},
+	do func(s Stack, visited map[string]struct{}) error,
+) error {
 	orderDirs := get(stack)
 	stacks, err := LoadStacks(stack.Dir, orderDirs...)
 	if err != nil {
@@ -96,18 +100,27 @@ func walkOrderList(stack Stack, get getter, do func(s Stack) error) error {
 	}
 
 	for _, s := range stacks {
-		err := do(s)
+		err := do(s, visited)
 		if err != nil {
 			return err
 		}
 
-		err = walkOrderList(s, get, do)
+		childVisited := copyMap(visited)
+		err = walkOrderList(s, get, childVisited, do)
 		if err != nil {
 			return fmt.Errorf("walking order list of %s: %w", s, err)
 		}
 	}
 
 	return nil
+}
+
+func copyMap(m map[string]struct{}) map[string]struct{} {
+	r := map[string]struct{}{}
+	for k := range m {
+		r[k] = struct{}{}
+	}
+	return r
 }
 
 func afterGet(s Stack) []string { return s.After }
