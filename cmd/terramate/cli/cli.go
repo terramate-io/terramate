@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/alecthomas/kong"
+	"github.com/emicklei/dot"
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/git"
@@ -69,6 +70,10 @@ type cliSpec struct {
 		Changed bool   `short:"c" help:"Show order of run on changed stacks."`
 		Basedir string `short:"b" optional:"true" help:"Show order of run from basedir."`
 	} `cmd:"" help:"Show run order of execution"`
+
+	OrderGraph struct {
+		After struct{} `cmd:"" help:"graph of the \"after\" order."`
+	} `cmd:"" help:"Graph of the order"`
 }
 
 // Run will run terramate with the provided flags defined on args from the
@@ -194,6 +199,8 @@ func (c *cli) run() error {
 		return c.printStacks(c.wd)
 	case "list <path>":
 		return c.printStacks(c.parsedArgs.List.BaseDir)
+	case "order-graph after":
+		return c.generateAfterGraph(c.wd)
 	case "run-order":
 		basedir := c.wd
 		if c.parsedArgs.RunOrder.Basedir != "" {
@@ -279,6 +286,60 @@ func (c *cli) printStacks(basedir string) error {
 			c.log("%s - %s", stackdir, entry.Reason)
 		} else {
 			c.log(stackdir)
+		}
+	}
+	return nil
+}
+
+func (c *cli) generateAfterGraph(basedir string) error {
+	entries, err := terramate.ListStacks(basedir)
+	if err != nil {
+		return err
+	}
+
+	di := dot.NewGraph(dot.Directed)
+
+	for _, e := range entries {
+		tree, err := terramate.BuildOrderTree(e.Stack)
+		if err != nil {
+			return err
+		}
+
+		node := di.Node(filepath.Base(tree.Stack.Dir))
+		err = generateDot(di, node, tree)
+		if err != nil {
+			return err
+		}
+	}
+
+	c.log("%s", di.String())
+
+	return nil
+}
+
+func generateDot(g *dot.Graph, parent dot.Node, tree terramate.OrderTree) error {
+	if tree.Cycle {
+		return nil
+	}
+
+	for _, s := range tree.After {
+		n := g.Node(filepath.Base(s.Stack.Dir))
+
+		edges := g.FindEdges(parent, n)
+		if len(edges) == 0 {
+			edge := g.Edge(parent, n)
+			if s.Cycle {
+				edge.Attr("color", "red")
+			}
+		}
+
+		if s.Cycle {
+			continue
+		}
+
+		err := generateDot(g, n, s)
+		if err != nil {
+			return err
 		}
 	}
 	return nil

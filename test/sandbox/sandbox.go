@@ -331,7 +331,7 @@ func specList(t *testing.T, name, value string) []string {
 
 		var err error
 		val, err := strconv.Unquote(l)
-		assert.NoError(t, err)
+		assert.NoError(t, err, "list item not properly quoted")
 
 		list = append(list, val)
 	}

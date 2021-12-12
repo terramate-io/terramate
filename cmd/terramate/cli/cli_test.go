@@ -318,12 +318,13 @@ func TestNoArgsProvidesBasicHelp(t *testing.T) {
 }
 
 type runResult struct {
-	Cmd          string
-	Stdout       string
-	IgnoreStdout bool
-	Stderr       string
-	IgnoreStderr bool
-	Error        error
+	Cmd           string
+	Stdout        string
+	FlattenStdout bool
+	IgnoreStdout  bool
+	Stderr        string
+	IgnoreStderr  bool
+	Error         error
 }
 
 type tscli struct {
@@ -367,8 +368,15 @@ func assertRunResult(t *testing.T, got runResult, want runResult) {
 		t.Fatalf("%q got.Error=[%v] != want.Error=[%v]", got.Cmd, got.Error, want.Error)
 	}
 
-	if !want.IgnoreStdout && got.Stdout != want.Stdout {
-		t.Fatalf("%q stdout=\"%s\" != wanted=\"%s\"", got.Cmd, got.Stdout, want.Stdout)
+	stdout := got.Stdout
+	wantStdout := want.Stdout
+	if want.FlattenStdout {
+		stdout = flatten(stdout)
+		wantStdout = flatten(wantStdout)
+	}
+
+	if !want.IgnoreStdout && stdout != wantStdout {
+		t.Fatalf("%q stdout=\"%s\" != wanted=\"%s\"", got.Cmd, stdout, wantStdout)
 	}
 
 	if !want.IgnoreStderr && got.Stderr != want.Stderr {
