@@ -39,10 +39,6 @@ type Terramate struct {
 	// current stack runs.
 	After []string
 
-	// Before is a list of non-duplicated stack entries that must run before the
-	// current stack runs.
-	Before []string
-
 	Backend *hclsyntax.Block
 }
 
@@ -159,11 +155,6 @@ func Parse(fname string, data []byte) (*Terramate, error) {
 
 		case "after":
 			err := assignSet(name, &tsconfig.After, attrVal)
-			if err != nil {
-				return nil, err
-			}
-		case "before":
-			err := assignSet(name, &tsconfig.Before, attrVal)
 			if err != nil {
 				return nil, err
 			}

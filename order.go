@@ -19,19 +19,24 @@ import (
 	"sort"
 )
 
-type OrderTree struct {
-	Stack Stack
-	After []OrderTree
+// OrderDAG represents the Directed Acyclic Graph of the stack order.
+type OrderDAG struct {
+	Stack Stack      // Stack is the stack which is the root of this DAG.
+	Order []OrderDAG // After is the list of depend-on DAG trees.
 
-	Cycle bool
+	Cycle bool // Cycle tells if a cycle was detected at this level.
 }
 
-func BuildOrderTree(stack Stack) (OrderTree, error) {
+// BuildOrderTree builds the order tree data structure.
+func BuildOrderTree(stack Stack) (OrderDAG, error) {
 	return buildOrderTree(stack, map[string]struct{}{})
 }
 
+// RunOrder computes the final execution order for the given list of stacks.
+// In the case of multiple possible orders, it returns the lexicographic sorted
+// path.
 func RunOrder(stacks []Stack) ([]Stack, error) {
-	trees := map[string]OrderTree{} // indexed by stackdir
+	trees := map[string]OrderDAG{} // indexed by stackdir
 	for _, stack := range stacks {
 		tree, err := BuildOrderTree(stack)
 		if err != nil {
@@ -85,19 +90,19 @@ func RunOrder(stacks []Stack) ([]Stack, error) {
 	return order, nil
 }
 
-func walkOrderTree(tree OrderTree, do func(s Stack)) {
-	for _, child := range tree.After {
+func walkOrderTree(tree OrderDAG, do func(s Stack)) {
+	for _, child := range tree.Order {
 		walkOrderTree(child, do)
 	}
 
 	do(tree.Stack)
 }
 
-func IsSubtree(t1, t2 OrderTree) bool {
+func IsSubtree(t1, t2 OrderDAG) bool {
 	if t1.Stack.Dir == t2.Stack.Dir {
 		return true
 	}
-	for _, child := range t2.After {
+	for _, child := range t2.Order {
 		if IsSubtree(t1, child) {
 			return true
 		}
@@ -106,8 +111,9 @@ func IsSubtree(t1, t2 OrderTree) bool {
 	return false
 }
 
-func CheckCycle(tree OrderTree) error {
-	for _, subtree := range tree.After {
+// CheckCycle tells if the graph has cycles.
+func CheckCycle(tree OrderDAG) error {
+	for _, subtree := range tree.Order {
 		if subtree.Cycle {
 			return ErrRunCycleDetected
 		}
@@ -121,26 +127,28 @@ func CheckCycle(tree OrderTree) error {
 	return nil
 }
 
-func buildOrderTree(stack Stack, visited map[string]struct{}) (OrderTree, error) {
-	root := OrderTree{
+func buildOrderTree(stack Stack, visited map[string]struct{}) (OrderDAG, error) {
+	root := OrderDAG{
 		Stack: stack,
 	}
 
-	if _, ok := visited[stack.Dir]; ok {
-		root.Cycle = true
-		return root, nil
-	}
-	visited[stack.Dir] = struct{}{}
+	/*
+		if _, ok := visited[stack.Dir]; ok {
+			root.Cycle = true
+			return root, nil
+		}
+	*/
 
+	visited[stack.Dir] = struct{}{}
 	afterStacks, err := LoadStacks(stack.Dir, stack.After...)
 	if err != nil {
-		return OrderTree{}, err
+		return OrderDAG{}, err
 	}
 
 	for _, s := range afterStacks {
 		if _, ok := visited[s.Dir]; ok {
 			// cycle detected, dont recurse anymore
-			root.After = append(root.After, OrderTree{
+			root.Order = append(root.Order, OrderDAG{
 				Stack: s,
 				Cycle: true,
 			})
@@ -149,11 +157,11 @@ func buildOrderTree(stack Stack, visited map[string]struct{}) (OrderTree, error)
 
 		tree, err := buildOrderTree(s, copyVisited(visited))
 		if err != nil {
-			return OrderTree{}, fmt.Errorf("computing tree of stack %q: %w",
+			return OrderDAG{}, fmt.Errorf("computing tree of stack %q: %w",
 				stack.Dir, err)
 		}
 
-		root.After = append(root.After, tree)
+		root.Order = append(root.Order, tree)
 	}
 
 	return root, nil

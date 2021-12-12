@@ -338,7 +338,7 @@ stack-z
 			s.BuildTree(tc.layout)
 
 			cli := newCLI(t, s.BaseDir())
-			assertRunResult(t, cli.run("run-order"), tc.want)
+			assertRunResult(t, cli.run("plan", "run-order"), tc.want)
 		})
 	}
 }

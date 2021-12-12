@@ -139,8 +139,6 @@ func (s S) BuildTree(layout []string) {
 				tm.RequiredVersion = value
 			case "after":
 				tm.After = specList(t, name, value)
-			case "before":
-				tm.Before = specList(t, name, value)
 			default:
 				t.Fatalf("attribute " + parts[0] + " not supported.")
 			}

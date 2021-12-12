@@ -315,7 +315,7 @@ func TestOrderGraphAfter(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 			cli := newCLI(t, s.BaseDir())
-			assertRunResult(t, cli.run("order-graph", "after"), tc.want)
+			assertRunResult(t, cli.run("plan", "graph"), tc.want)
 		})
 	}
 }
