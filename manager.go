@@ -147,7 +147,7 @@ func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) err
 
 		err := apply(file)
 		if err != nil {
-			return fmt.Errorf("applying operation to file %q: %w", file, err)
+			return fmt.Errorf("applying operation to file %q: %w", file.Name(), err)
 		}
 	}
 
@@ -244,11 +244,12 @@ func (m *Manager) moduleChanged(
 
 	// TODO(i4k): resolve symlinks
 
-	if err != nil || !st.IsDir() {
-		// terramate is not a TF linter so if the module source is not
-		// reachable or is not a directory, for any reason, we do not fail.
+	if err != nil {
+		return false, "", err
+	}
 
-		return false, "", nil
+	if !st.IsDir() {
+		return false, "", fmt.Errorf("\"source\" path %q is not a directory", modPath)
 	}
 
 	changedFiles, err := listChangedFiles(modPath, m.gitBaseRef)
