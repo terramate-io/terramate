@@ -98,9 +98,9 @@ func TestBugModuleMultipleFilesSameDir(t *testing.T) {
 	mod1 := s.CreateModule(modname1)
 	mod1.CreateFile("1.tf", `
 module "changed" {
-	source = %q
+	source = "../2"
 }
-	`, "../2")
+	`)
 
 	mod1.CreateFile("2.tf", `
 module "any" {
