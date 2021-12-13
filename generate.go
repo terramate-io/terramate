@@ -71,7 +71,7 @@ func Generate(basedir string) error {
 		// Not the most optimized way (re-parsing), we can improve later
 		tfcode, err := generateStackConfig(basedir, stack.Dir)
 		if err != nil {
-			errs = append(errs, err)
+			errs = append(errs, fmt.Errorf("stack %q: %w", stack.Dir, err))
 			continue
 		}
 
@@ -84,7 +84,7 @@ func Generate(basedir string) error {
 	}
 
 	if err := errutil.Chain(errs...); err != nil {
-		return fmt.Errorf("Generate(%q): %w", basedir, err)
+		return fmt.Errorf("failed to generate code: %w", err)
 	}
 
 	return nil
