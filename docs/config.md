@@ -48,6 +48,9 @@ Stacks have configurations that are particular to them, like these:
 
 * [Execution Ordering](execution-order.md)
 
+Even though Terramate metadata is not exclusively about stacks, it does provide
+information that can be useful to stack configuration, more details [here](metadata.md).
+
 ## Hierarchical Configuration
 
 Hierarchical configuration is all configuration that can be defined on
