@@ -7,13 +7,12 @@ order of execution of stacks.
 In order to do so Terramate works with configuration files named
 **terramate.tm.hcl**. These files can be found on any directory
 of a Terramate project, but some configurations will be defined
-only once for an entire project, while others provide merge
+only once for an entire project, while others provide merge/overriding
 strategies, while others control only behavior specific for
 stacks.
 
-Given that it is important to define the different kinds of
-configurations and their respective behavior. First lets define
-some concepts:
+Here is defined the different kinds of configurations and
+how you can learn more about them.
 
 # Concepts
 
@@ -42,6 +41,10 @@ Per project configuration can be defined only once at the project base dir.
 Available project wide configurations can be found [here](project-config.md)
 
 ## Stack Configuration
+
+Any dir that has no child dirs, a leaf dir, is considered an stack.
+
+Stacks have configurations that are particular to them, like these:
 
 * [Execution Ordering](execution-order.md)
 
