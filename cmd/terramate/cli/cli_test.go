@@ -75,6 +75,65 @@ source = "%s"
 	)
 }
 
+func TestBugModuleDetection(t *testing.T) {
+	// bug: https://github.com/mineiros-io/terramate/issues/X
+
+	const (
+		modname1 = "1"
+		modname2 = "2"
+		modname3 = "3"
+	)
+
+	s := sandbox.New(t)
+
+	mod2 := s.CreateModule(modname2)
+	mod2MainTf := mod2.CreateFile("main.tf", "# module 2")
+
+	mod3 := s.CreateModule(modname2)
+	mod3.CreateFile("main.tf", "# module 3")
+
+	mod1 := s.CreateModule(modname1)
+	mod1.CreateFile("main.tf", `
+module "changed" {
+	source = %q
+}
+	`, "../2")
+
+	mod1.CreateFile("secret.tf", `
+module "changed" {
+	source = "anything"
+}
+
+module "not-changed" {
+	source = "anything"
+}
+	`)
+
+	stack := s.CreateStack("stack")
+
+	stack.CreateFile("main.tf", `
+module "mod1" {
+    source = %q
+}
+`, stack.ModSource(mod1))
+
+	git := s.Git()
+	git.CommitAll("first commit")
+	git.Push("main")
+	git.CheckoutNew("change-the-module-2")
+
+	mod2MainTf.Write("# changed")
+
+	git.CommitAll("module 2 changed")
+
+	cli := newCLI(t, s.BaseDir())
+	want := stack.RelPath() + "\n"
+	assertRunResult(t, cli.run(
+		"list", s.BaseDir(), "--changed"),
+		runResult{Stdout: want},
+	)
+}
+
 func TestListAndRunChangedStack(t *testing.T) {
 	const (
 		mainTfFileName = "main.tf"

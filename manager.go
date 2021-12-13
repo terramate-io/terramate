@@ -264,6 +264,9 @@ func (m *Manager) moduleChanged(
 
 	visited[mod.Source] = true
 	err = m.filesApply(modPath, func(file fs.DirEntry) error {
+		if changed {
+			return nil
+		}
 		if path.Ext(file.Name()) != ".tf" {
 			return nil
 		}
