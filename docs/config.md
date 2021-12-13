@@ -1,4 +1,4 @@
-# Terramate Project Configuration
+# Terramate Configuration
 
 There is a series of different configurations that can be done
 on Terramate, ranging from avoiding duplication to controlling
@@ -12,11 +12,10 @@ strategies, while others control only behavior specific for
 stacks.
 
 Here is defined the different kinds of configurations and
-how you can learn more about them.
+how you can learn more about them. But before getting into the different
+kinds of configurations, what would be a Terramate project ?
 
-# Project
-
-A Terramate project is essentially any project containing terraform code
+A Terramate project is essentially any collection of terraform code
 organized into stacks. You can have all terraform code together in a single
 directory but that would defeat the purpose of most Terramate features, so
 usually you have a set of stacks and maybe a set of terraform modules if they

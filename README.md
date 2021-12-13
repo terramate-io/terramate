@@ -67,6 +67,12 @@ to use **latest** to play around, but not recommended for long term automation
 since you won't get the same build result each time you run the install command.
 
 
+## Configuring Your Project
+
+Checkout [Project Configuration](docs/project-config.md) for details
+on how to configure a Terramate project.
+
+
 ## Why using stacks?
 
 The stack concept is advised for several reasons. 
