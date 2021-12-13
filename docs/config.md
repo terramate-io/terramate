@@ -14,9 +14,7 @@ stacks.
 Here is defined the different kinds of configurations and
 how you can learn more about them.
 
-# Concepts
-
-## Project
+# Project
 
 A Terramate project is essentially any project containing terraform code
 organized into stacks. You can have all terraform code together in a single
@@ -35,12 +33,12 @@ So in general, a Terramate project looks like this:
 * Stacks will be organized as different directories
 * Configuration may be present on any dir
 
-## Project Configuration
+# Project Configuration
 
 Per project configuration can be defined only once at the project base dir.
 Available project wide configurations can be found [here](project-config.md)
 
-## Stack Configuration
+# Stack Configuration
 
 Any dir that has no child dirs, a leaf dir, is considered an stack.
 
@@ -51,7 +49,7 @@ Stacks have configurations that are particular to them, like these:
 Even though Terramate metadata is not exclusively about stacks, it does provide
 information that can be useful to stack configuration, more details [here](metadata.md).
 
-## Hierarchical Configuration
+# Hierarchical Configuration
 
 Hierarchical configuration is all configuration that can be defined on
 any Terramate dir, with each kind of configuration having different semantics
