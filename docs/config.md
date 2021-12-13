@@ -40,8 +40,8 @@ Available project wide configurations can be found [here](project-config.md)
 
 # Stack Configuration
 
-Any dir that has no child dirs (a leaf in the project hierarchy),
-is considered an stack.
+Any dir that has no child dirs (a leaf in the project hierarchy) and
+has a valid terramate configuration file is considered a stack.
 
 Stacks have configurations that are particular to them, like these:
 
