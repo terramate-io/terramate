@@ -306,8 +306,8 @@ func (c *cli) printMetadata() error {
 
 	for _, stack := range metadata.Stacks {
 		c.log("\nstack %q:", stack.Path)
-		c.log("\tterraform.name=%q:\n", stack.Name)
-		c.log("\tterraform.path=%q:\n", stack.Path)
+		c.log("\tterraform.name=%q", stack.Name)
+		c.log("\tterraform.path=%q", stack.Path)
 	}
 
 	return nil
