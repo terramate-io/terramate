@@ -38,17 +38,21 @@ So in general, a Terramate project looks like this:
 
 ## Project Configuration
 
+Per project configuration can be defined only once at the project base dir.
+Available project wide configurations can be found [here](project-config.md)
+
 ## Stack Configuration
+
+* [Execution Ordering](execution-order.md)
 
 ## Hierarchical Configuration
 
-# Configurations
+Hierarchical configuration is all configuration that can be defined on
+any Terramate dir, with each kind of configuration having different semantics
+on how overriding/merging happens when multiple configurations are
+present across the project.
 
-Each kind of configuration will have its own particular semantics, like where
-it can be defined and how it composes with other configurations:
+The following configurations have hierarchical behavior:
 
-* [Project](project-config.md)
 * [Globals](globals.md)
 * [Backend](backend-config.md)
-* [Metadata](metadata.md)
-* [Execution Ordering](execution-order.md)
