@@ -58,7 +58,7 @@ func Generate(basedir string) error {
 
 	stacks, err := ListStacks(basedir)
 	if err != nil {
-		return fmt.Errorf("Generate(%q): listing stack: %v", basedir, err)
+		return fmt.Errorf("Generate(%q): listing stack: %w", basedir, err)
 	}
 
 	var errs []error

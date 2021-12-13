@@ -349,6 +349,7 @@ func (se StackEntry) CreateConfig(body string, args ...interface{}) {
 // It will fail the test if there is no generated code available on the stack,
 // since it assumes generated code is expected to be there.
 func (se StackEntry) ReadGeneratedTf() []byte {
+	se.t.Helper()
 	return se.DirEntry.ReadFile(terramate.GeneratedTfFilename)
 }
 
