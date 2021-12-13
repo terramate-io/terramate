@@ -7,7 +7,7 @@ require (
 	github.com/google/go-cmp v0.3.1
 	github.com/hashicorp/go-version v1.3.0
 	github.com/hashicorp/hcl/v2 v2.10.1
-	github.com/madlambda/spells v0.2.0
+	github.com/madlambda/spells v0.2.1
 	github.com/zclconf/go-cty v1.8.0
 )
 

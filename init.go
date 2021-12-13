@@ -25,11 +25,13 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 )
 
-// ConfigFilename is the name of the terramate configuration file.
-const ConfigFilename = "terramate.tm.hcl"
+const (
+	// ConfigFilename is the name of the terramate configuration file.
+	ConfigFilename = "terramate.tm.hcl"
 
-// DefaultInitConstraint is the default constraint used in stack initialization.
-const DefaultInitConstraint = "~>"
+	// DefaultInitConstraint is the default constraint used in stack initialization.
+	DefaultInitConstraint = "~>"
+)
 
 // Init initialize a stack. It's an error to initialize an already initialized
 // stack unless they are of same versions. In case the stack is initialized with
