@@ -36,11 +36,13 @@ So in general, a Terramate project looks like this:
 # Project Configuration
 
 Per project configuration can be defined only once at the project base dir.
+
 Available project wide configurations can be found [here](project-config.md)
 
 # Stack Configuration
 
-Any dir that has no child dirs, a leaf dir, is considered an stack.
+Any dir that has no child dirs (a leaf in the project hierarchy),
+is considered an stack.
 
 Stacks have configurations that are particular to them, like these:
 
