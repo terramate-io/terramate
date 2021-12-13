@@ -75,9 +75,7 @@ source = "%s"
 	)
 }
 
-func TestBugModuleDetection(t *testing.T) {
-	// bug: https://github.com/mineiros-io/terramate/issues/X
-
+func TestBugModuleMultipleFilesSameDir(t *testing.T) {
 	const (
 		modname1 = "1"
 		modname2 = "2"
@@ -100,14 +98,14 @@ module "changed" {
 	`, "../2")
 
 	mod1.CreateFile("secret.tf", `
-module "changed" {
+module "any" {
 	source = "anything"
 }
 
-module "not-changed" {
+module "any2" {
 	source = "anything"
 }
-	`)
+`)
 
 	stack := s.CreateStack("stack")
 
