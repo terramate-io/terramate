@@ -64,6 +64,10 @@ type cliSpec struct {
 		Basedir string   `short:"b" optional:"true" help:"Run on stacks inside basedir."`
 		Command []string `arg:"" name:"cmd" passthrough:"" help:"command to execute."`
 	} `cmd:"" help:"Run command in the stacks."`
+
+	Generate struct {
+		Basedir string `short:"b" optional:"true" help:"Generate code for stacks inside basedir."`
+	} `cmd:"" help:"Generate terraform code for stacks."`
 }
 
 // Run will run terramate with the provided flags defined on args from the
@@ -200,7 +204,8 @@ func (c *cli) run() error {
 			basedir = strings.TrimSuffix(c.parsedArgs.Run.Basedir, "/")
 		}
 		return c.runOnStacks(basedir)
-
+	case "generate":
+		return terramate.Generate(c.wd)
 	default:
 		return fmt.Errorf("unexpected command sequence: %s", c.ctx.Command())
 	}
