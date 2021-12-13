@@ -20,14 +20,17 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
 func TestStackMetadata(t *testing.T) {
 
 	type testcase struct {
-		name   string
-		layout []string
+		name    string
+		layout  []string
+		wantErr error
 	}
 
 	tcases := []testcase{
@@ -63,12 +66,38 @@ func TestStackMetadata(t *testing.T) {
 				"s:envs/staging/stack-1",
 			},
 		},
+		{
+			name: "single invalid stack",
+			layout: []string{
+				fmt.Sprintf("f:invalid-stack/%s:data=notvalidhcl", terramate.ConfigFilename),
+			},
+			wantErr: hcl.ErrMalformedTerramateBlock,
+		},
+		{
+			name: "valid stacks with invalid stack",
+			layout: []string{
+				"s:stack-valid-1",
+				"s:stack-valid-2",
+				fmt.Sprintf("f:invalid-stack/%s:data=notvalidhcl", terramate.ConfigFilename),
+			},
+			wantErr: hcl.ErrMalformedTerramateBlock,
+		},
 	}
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
+
+			ts := newCLI(t, s.BaseDir())
+
+			if tcase.wantErr != nil {
+				assertRunResult(t, ts.run("metadata"), runResult{
+					IgnoreStderr: true,
+					Error:        tcase.wantErr,
+				})
+				return
+			}
 
 			want := "Available metadata:\n"
 
@@ -79,7 +108,6 @@ func TestStackMetadata(t *testing.T) {
 				want += fmt.Sprintf("\tterraform.path=%q:\n", projectPath)
 			}
 
-			ts := newCLI(t, s.BaseDir())
 			assertRunResult(t, ts.run("metadata"), runResult{Stdout: want})
 		})
 	}
