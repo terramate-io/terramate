@@ -12,24 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cli_test
+package terramate_test
 
 import (
 	"fmt"
-	"path/filepath"
-	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
-func TestStackMetadata(t *testing.T) {
+func TestLoadMetadata(t *testing.T) {
 
 	type testcase struct {
 		name    string
 		layout  []string
+		want    terramate.Metadata
 		wantErr error
 	}
 
@@ -41,6 +42,14 @@ func TestStackMetadata(t *testing.T) {
 		{
 			name:   "single stacks",
 			layout: []string{"s:stack"},
+			want: terramate.Metadata{
+				Stacks: []terramate.StackMetadata{
+					{
+						Name: "stack",
+						Path: "/stack",
+					},
+				},
+			},
 		},
 		{
 			name: "two stacks",
@@ -48,15 +57,33 @@ func TestStackMetadata(t *testing.T) {
 				"s:stack-1",
 				"s:stack-2",
 			},
+			want: terramate.Metadata{
+				Stacks: []terramate.StackMetadata{
+					{
+						Name: "stack-1",
+						Path: "/stack-1",
+					},
+					{
+						Name: "stack-2",
+						Path: "/stack-2",
+					},
+				},
+			},
 		},
 		{
-			name: "three stacks and some non-stack dirs",
+			name: "stack and some non-stack dirs",
 			layout: []string{
-				"s:stack-1",
-				"s:stack-2",
-				"s:stack-3",
+				"s:stack",
 				"d:non-stack",
 				"d:non-stack-2",
+			},
+			want: terramate.Metadata{
+				Stacks: []terramate.StackMetadata{
+					{
+						Name: "stack",
+						Path: "/stack",
+					},
+				},
 			},
 		},
 		{
@@ -64,6 +91,18 @@ func TestStackMetadata(t *testing.T) {
 			layout: []string{
 				"s:envs/prod/stack-1",
 				"s:envs/staging/stack-1",
+			},
+			want: terramate.Metadata{
+				Stacks: []terramate.StackMetadata{
+					{
+						Name: "stack-1",
+						Path: "/envs/prod/stack-1",
+					},
+					{
+						Name: "stack-1",
+						Path: "/envs/staging/stack-1",
+					},
+				},
 			},
 		},
 		{
@@ -89,33 +128,16 @@ func TestStackMetadata(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
 
-			ts := newCLI(t, s.BaseDir())
+			metadata, err := terramate.LoadMetadata(s.BaseDir())
 
 			if tcase.wantErr != nil {
-				assertRunResult(t, ts.run("metadata"), runResult{
-					IgnoreStderr: true,
-					Error:        tcase.wantErr,
-				})
+				assert.IsError(t, err, tcase.wantErr)
 				return
 			}
 
-			want := "Available metadata:\n"
-
-			for _, stack := range s.ListStacks() {
-				projectPath := stackProjPath(s.BaseDir(), stack.Dir)
-				want += fmt.Sprintf("\nstack %q:\n", projectPath)
-				want += fmt.Sprintf("\tterraform.name=%q:\n", filepath.Base(projectPath))
-				want += fmt.Sprintf("\tterraform.path=%q:\n", projectPath)
+			if diff := cmp.Diff(tcase.want, metadata); diff != "" {
+				t.Fatalf("want %v != got %v.\ndiff:\n%s", tcase.want, metadata, diff)
 			}
-
-			assertRunResult(t, ts.run("metadata"), runResult{Stdout: want})
 		})
 	}
-}
-
-func stackProjPath(basedir string, stackpath string) string {
-	// As we refactor the stack type we may not need this anymore, since stacks
-	// should known their absolute path relative to the project root.
-	// Essentially this should go away soon :-)
-	return strings.TrimPrefix(stackpath, basedir)
 }
