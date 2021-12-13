@@ -69,8 +69,9 @@ since you won't get the same build result each time you run the install command.
 
 ## Configuring Your Project
 
-Checkout [Project Configuration](docs/project-config.md) for details
-on how to configure a Terramate project.
+Checkout the docs on [overall configuration](docs/config.md) for details
+on how different kinds of configurations can help you to avoid duplication
+and write solid infrastructure as code.
 
 
 ## Why using stacks?
