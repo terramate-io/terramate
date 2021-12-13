@@ -21,7 +21,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
-	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -38,6 +37,9 @@ func TestLoadMetadata(t *testing.T) {
 		{
 			name:   "no stacks",
 			layout: []string{},
+			want: terramate.Metadata{
+				Stacks: []terramate.StackMetadata{},
+			},
 		},
 		{
 			name:   "single stacks",
@@ -106,20 +108,41 @@ func TestLoadMetadata(t *testing.T) {
 			},
 		},
 		{
+			// TODO(katcipis): update to give error when we merge strict stack list logic
 			name: "single invalid stack",
 			layout: []string{
 				fmt.Sprintf("f:invalid-stack/%s:data=notvalidhcl", terramate.ConfigFilename),
 			},
-			wantErr: hcl.ErrMalformedTerramateBlock,
+			want: terramate.Metadata{
+				Stacks: []terramate.StackMetadata{
+					{
+						Name: "invalid-stack",
+						Path: "/invalid-stack",
+					},
+				},
+			},
+			//wantErr: hcl.ErrMalformedTerramateBlock,
 		},
 		{
-			name: "valid stacks with invalid stack",
+			// TODO(katcipis): update to give error when we merge strict stack list logic
+			name: "valid stack with invalid stack",
 			layout: []string{
 				"s:stack-valid-1",
-				"s:stack-valid-2",
 				fmt.Sprintf("f:invalid-stack/%s:data=notvalidhcl", terramate.ConfigFilename),
 			},
-			wantErr: hcl.ErrMalformedTerramateBlock,
+			want: terramate.Metadata{
+				Stacks: []terramate.StackMetadata{
+					{
+						Name: "invalid-stack",
+						Path: "/invalid-stack",
+					},
+					{
+						Name: "stack-valid-1",
+						Path: "/stack-valid-1",
+					},
+				},
+			},
+			//wantErr: hcl.ErrMalformedTerramateBlock,
 		},
 	}
 
