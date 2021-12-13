@@ -79,7 +79,7 @@ func TestBackendConfigGeneration(t *testing.T) {
 			},
 		},
 		{
-			name: "partial failure on multiple stacks and one has invalid config",
+			name: "multiple stacks and one has invalid config fails",
 			layout: []string{
 				"s:stack-invalid-backend",
 				"s:stack-ok-backend",
@@ -101,16 +101,6 @@ func TestBackendConfigGeneration(t *testing.T) {
 				},
 			},
 			want: want{
-				stacks: []stackcode{
-					{
-						relpath: "stack-ok-backend",
-						code: `terraform {
-  backend "valid" {
-  }
-}
-`,
-					},
-				},
 				res: runResult{
 					Error:        hcl.ErrMalformedTerramateBlock,
 					IgnoreStdout: true,
