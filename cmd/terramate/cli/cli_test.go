@@ -90,14 +90,19 @@ func TestBugModuleMultipleFilesSameDir(t *testing.T) {
 	mod3 := s.CreateModule(modname2)
 	mod3.CreateFile("main.tf", "# module 3")
 
+	// This issue is related to multiple files in the module directory and the
+	// order of the changed one is important, it should come first, with other
+	// files with module declarations skipped (module source not local).
+	// The files are named "1.tf" and "2.tf" because filepath.Walk() does a
+	// lexicographic walking of the files.
 	mod1 := s.CreateModule(modname1)
-	mod1.CreateFile("main.tf", `
+	mod1.CreateFile("1.tf", `
 module "changed" {
 	source = %q
 }
 	`, "../2")
 
-	mod1.CreateFile("secret.tf", `
+	mod1.CreateFile("2.tf", `
 module "any" {
 	source = "anything"
 }
