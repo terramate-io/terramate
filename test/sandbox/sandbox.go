@@ -175,6 +175,13 @@ func (s S) ListStacksRelPath() []string {
 	return relpaths
 }
 
+// ListStacks lists all valid stacks of the sandbox.
+func (s S) ListStacks() []terramate.Entry {
+	stacks, err := terramate.ListStacks(s.BaseDir())
+	assert.NoError(s.t, err)
+	return stacks
+}
+
 // Git returns a git wrapper that is useful to run git commands safely inside
 // the test env repo.
 func (s S) Git() Git {

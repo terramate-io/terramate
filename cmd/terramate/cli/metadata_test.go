@@ -1,6 +1,27 @@
+// Copyright 2021 Mineiros GmbH
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package cli_test
 
-import "testing"
+import (
+	"fmt"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/mineiros-io/terramate/test/sandbox"
+)
 
 func TestStackMetadata(t *testing.T) {
 
@@ -35,11 +56,38 @@ func TestStackMetadata(t *testing.T) {
 				"d:non-stack-2",
 			},
 		},
+		{
+			name: "stacks nested",
+			layout: []string{
+				"s:envs/prod/stack-1",
+				"s:envs/staging/stack-1",
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			t.Skip("TODO")
+			s := sandbox.New(t)
+			s.BuildTree(tcase.layout)
+
+			want := "Available metadata:\n"
+
+			for _, stack := range s.ListStacks() {
+				projectPath := stackProjPath(s.BaseDir(), stack.Dir)
+				want += fmt.Sprintf("\nstack %q:\n", projectPath)
+				want += fmt.Sprintf("\tterraform.name=%q:\n", filepath.Base(projectPath))
+				want += fmt.Sprintf("\tterraform.path=%q:\n", projectPath)
+			}
+
+			ts := newCLI(t, s.BaseDir())
+			assertRunResult(t, ts.run("metadata"), runResult{Stdout: want})
 		})
 	}
+}
+
+func stackProjPath(basedir string, stackpath string) string {
+	// As we refactor the stack type we may not need this anymore, since stacks
+	// should known their absolute path relative to the project root.
+	// Essentially this should go away soon :-)
+	return strings.TrimPrefix(stackpath, basedir)
 }
