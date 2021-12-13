@@ -344,7 +344,7 @@ func (ts tscli) run(args ...string) runResult {
 	stdin := &bytes.Buffer{}
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
-	err := cli.Run(ts.wd, args, stdin, stdout, stderr)
+	err := cli.Run(ts.wd, args, false, stdin, stdout, stderr)
 
 	return runResult{
 		Cmd:    strings.Join(args, " "),

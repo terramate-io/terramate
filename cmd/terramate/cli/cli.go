@@ -81,8 +81,15 @@ type cliSpec struct {
 // as far as the parameters are not shared between the Run calls.
 //
 // If a critical error is found an non-nil error is returned.
-func Run(wd string, args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
-	c, err := newCLI(wd, args, stdin, stdout, stderr)
+func Run(
+	wd string,
+	args []string,
+	inheritEnv bool,
+	stdin io.Reader,
+	stdout io.Writer,
+	stderr io.Writer,
+) error {
+	c, err := newCLI(wd, args, inheritEnv, stdin, stdout, stderr)
 	if err != nil {
 		return err
 	}
@@ -92,6 +99,7 @@ func Run(wd string, args []string, stdin io.Reader, stdout io.Writer, stderr io.
 type cli struct {
 	ctx        *kong.Context
 	parsedArgs *cliSpec
+	inheritEnv bool
 	stdin      io.Reader
 	stdout     io.Writer
 	stderr     io.Writer
@@ -100,7 +108,14 @@ type cli struct {
 	baseRef    string
 }
 
-func newCLI(wd string, args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) (*cli, error) {
+func newCLI(
+	wd string,
+	args []string,
+	inheritEnv bool,
+	stdin io.Reader,
+	stdout io.Writer,
+	stderr io.Writer,
+) (*cli, error) {
 	if len(args) == 0 {
 		// WHY: avoid default kong error, print help
 		args = []string{"--help"}
@@ -110,9 +125,7 @@ func newCLI(wd string, args []string, stdin io.Reader, stdout io.Writer, stderr 
 	kongExit := false
 	kongExitStatus := 0
 
-	gw, err := git.WithConfig(git.Config{
-		WorkingDir: wd,
-	})
+	gw, err := newGit(wd, inheritEnv, false)
 	if err != nil {
 		return nil, err
 	}
@@ -165,6 +178,7 @@ func newCLI(wd string, args []string, stdin io.Reader, stdout io.Writer, stderr 
 		stdin:      stdin,
 		stdout:     stdout,
 		stderr:     stderr,
+		inheritEnv: inheritEnv,
 		parsedArgs: &parsedArgs,
 		ctx:        ctx,
 		baseRef:    parsedArgs.GitChangeBase,
@@ -236,7 +250,7 @@ func (c *cli) listStacks(
 ) ([]terramate.Entry, error) {
 
 	if isChanged {
-		git, err := newGit(basedir)
+		git, err := newGit(basedir, c.inheritEnv, true)
 		if err != nil {
 			return nil, err
 		}
@@ -405,16 +419,17 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 	return nil
 }
 
-func newGit(basedir string) (*git.Git, error) {
+func newGit(basedir string, inheritEnv bool, checkrepo bool) (*git.Git, error) {
 	g, err := git.WithConfig(git.Config{
 		WorkingDir: basedir,
+		InheritEnv: inheritEnv,
 	})
 
 	if err != nil {
 		return nil, err
 	}
 
-	if !g.IsRepository() {
+	if checkrepo && !g.IsRepository() {
 		return nil, fmt.Errorf("dir %q is not a git repository", basedir)
 	}
 
