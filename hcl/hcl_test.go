@@ -267,61 +267,6 @@ terramate {
 				err: hcl.ErrMalformedTerramateBlock,
 			},
 		},
-		{
-			name: "after: empty set works",
-			input: `
-terramate {
-	required_version = ""
-	after = []
-}`,
-		},
-		{
-			name: "'after' single entry",
-			input: `
-terramate {
-	required_version = ""
-	after = ["test"]
-}`,
-			want: want{
-				block: hcl.Terramate{
-					After: []string{"test"},
-				},
-			},
-		},
-		{
-			name: "'after' invalid element entry",
-			input: `
-terramate {
-	required_version = ""
-	after = [1]
-}`,
-			want: want{
-				err: hcl.ErrInvalidRunOrder,
-			},
-		},
-		{
-			name: "'after' duplicated entry",
-			input: `
-terramate {
-	required_version = ""
-	after = ["test", "test"]
-}`,
-			want: want{
-				err: hcl.ErrInvalidRunOrder,
-			},
-		},
-		{
-			name: "multiple 'after' fields",
-			input: `
-terramate {
-	required_version = ""
-	after = ["test"]
-	after = []
-}`,
-			want: want{
-				err: hcl.ErrHCLSyntax,
-			},
-		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := hcl.Parse(tc.name, []byte(tc.input))

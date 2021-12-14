@@ -35,10 +35,6 @@ type Terramate struct {
 	// RequiredVersion contains the terramate version required by the stack.
 	RequiredVersion string
 
-	// After is a list of non-duplicated stack entries that must run after the
-	// current stack runs.
-	After []string
-
 	Backend *hclsyntax.Block
 }
 
@@ -170,13 +166,6 @@ func Parse(fname string, data []byte) (*Terramate, error) {
 			}
 
 			tsconfig.RequiredVersion = attrVal.AsString()
-
-		case "after":
-			err := assignSet(name, &tsconfig.After, attrVal)
-			if err != nil {
-				return nil, err
-			}
-
 		default:
 			return nil, errutil.Chain(ErrMalformedTerramateBlock,
 				fmt.Errorf("invalid attribute %q", name),

@@ -137,8 +137,6 @@ func (s S) BuildTree(layout []string) {
 			switch name {
 			case "version":
 				tm.RequiredVersion = value
-			case "after":
-				tm.After = specList(t, name, value)
 			default:
 				t.Fatalf("attribute " + parts[0] + " not supported.")
 			}
