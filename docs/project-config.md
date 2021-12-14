@@ -1,7 +1,7 @@
 # Project Config
 
 Terramate does not require any configurations to work, but in case default
-behavior is undesirable these configurations allows you to override it
+behavior is undesirable, these configurations allow you to override it
 on a per project basis.
 
 Project wide configuration is done via a **config** block inside the
