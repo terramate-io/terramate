@@ -15,9 +15,11 @@
 package cli_test
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
+	"text/template"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mineiros-io/terramate"
@@ -52,6 +54,13 @@ func TestBackendConfigGeneration(t *testing.T) {
 			layout  []string
 			configs []backendconfig
 			want    want
+		}
+
+		metadata struct {
+			Stack struct {
+				Name string
+				Path string
+			}
 		}
 	)
 	tcases := []testcase{
@@ -485,6 +494,38 @@ func TestBackendConfigGeneration(t *testing.T) {
 				res: runResult{IgnoreStdout: true},
 			},
 		},
+		//{
+		//name:   "single stack with config on stack and N attrs using metadata",
+		//layout: []string{"s:stack-metadata"},
+		//configs: []backendconfig{
+		//{
+		//relpath: "stack-metadata",
+		//config: `terramate {
+		//required_version = "~> 0.0.0"
+		//backend "metadata" {
+		//name = terramate.name
+		//path = terramate.path
+		//somelist = [terramate.name, terramate.path]
+		//}
+		//}`,
+		//},
+		//},
+		//want: want{
+		//stacks: []stackcode{
+		//{
+		//relpath: "stack-metadata",
+		//code: `terraform {
+		//backend "metadata" {
+		//name = "{{.Stack.Name}}"
+		//path = "{{.Stack.Path}}"
+		//somelist = ["{{.Stack.Name}}", "{{.Stack.Path}}"]
+		//}
+		//}
+		//`,
+		//},
+		//},
+		//},
+		//},
 	}
 
 	for _, tcase := range tcases {
@@ -509,7 +550,15 @@ func TestBackendConfigGeneration(t *testing.T) {
 			for _, want := range tcase.want.stacks {
 				stack := s.StackEntry(want.relpath)
 				got := string(stack.ReadGeneratedTf())
-				wantcode := terramate.GeneratedCodeHeader + want.code
+
+				// Use templating to allow testing of metadata eval
+				stackMetadata := metadata{}
+				stackMetadata.Stack.Name = filepath.Base(want.relpath)
+				stackMetadata.Stack.Path = "/" + want.relpath
+
+				code := applyTemplate(t, want.code, stackMetadata)
+
+				wantcode := terramate.GeneratedCodeHeader + code
 
 				if diff := cmp.Diff(wantcode, got); diff != "" {
 					t.Error("generated code doesn't match expectation")
@@ -531,4 +580,17 @@ func TestBackendConfigGeneration(t *testing.T) {
 		})
 	}
 
+}
+
+func applyTemplate(t *testing.T, templ string, data interface{}) string {
+	tmpl, err := template.New(t.Name()).Parse(templ)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b bytes.Buffer
+	err = tmpl.Execute(&b, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b.String()
 }
