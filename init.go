@@ -101,8 +101,7 @@ func Init(dir string, force bool) error {
 
 	defer f.Close()
 
-	var p hcl.Printer
-	err = p.PrintTerramate(f, hcl.Terramate{
+	err = hcl.PrintTerramate(f, hcl.Terramate{
 		RequiredVersion: DefaultVersionConstraint(),
 	})
 
@@ -120,8 +119,7 @@ func DefaultVersionConstraint() string {
 }
 
 func parseVersion(stackfile string) (string, error) {
-	parser := hcl.NewParser()
-	ts, err := parser.ParseFile(stackfile)
+	ts, err := hcl.ParseFile(stackfile)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse file %q: %w", stackfile, err)
 	}

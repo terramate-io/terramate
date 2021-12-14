@@ -36,18 +36,12 @@ func TestHCLParserModules(t *testing.T) {
 
 	for _, tc := range []testcase{
 		{
-			name:  "module must have 1 label",
+			name:  "ignore module type with no label",
 			input: `module {}`,
-			want: want{
-				err: hcl.ErrMalformedTerraform,
-			},
 		},
 		{
-			name:  "module must have a source attribute",
+			name:  "ignore module type with no source attribute",
 			input: `module "test" {}`,
-			want: want{
-				err: hcl.ErrMalformedTerraform,
-			},
 		},
 		{
 			name:  "empty source is a valid module",
@@ -133,8 +127,7 @@ module "test" {
 		t.Run(tc.name, func(t *testing.T) {
 			path := test.WriteFile(t, "", "main.tf", tc.input)
 
-			parser := hcl.NewParser()
-			modules, err := parser.ParseModules(path)
+			modules, err := hcl.ParseModules(path)
 			assert.IsError(t, err, tc.want.err)
 
 			assert.EqualInts(t, len(tc.want.modules), len(modules), "modules len mismatch")
@@ -198,11 +191,11 @@ func TestHHCLParserTerramateBlock(t *testing.T) {
 		{
 			name: "backend with attributes",
 			input: `
-	terramate {
-		   backend "something" {
-			   something = "something else"
-		   }
+terramate {
+	backend "something" {
+		something = "something else"
 	}
+}
 	`,
 			want: want{
 				block: hcl.Terramate{
@@ -216,12 +209,12 @@ func TestHHCLParserTerramateBlock(t *testing.T) {
 		{
 			name: "multiple backend blocks - fails",
 			input: `
-	terramate {
-		   backend "ah" {}
-		   backend "something" {
-			   something = "something else"
-		   }
+terramate {
+	backend "ah" {}
+	backend "something" {
+		something = "something else"
 	}
+}
 	`,
 			want: want{
 				err: hcl.ErrMalformedTerramateBlock,
@@ -230,15 +223,15 @@ func TestHHCLParserTerramateBlock(t *testing.T) {
 		{
 			name: "backend with nested blocks",
 			input: `
-	terramate {
-		   backend "my-label" {
-			   something = "something else"
-			   other {
-				   test = 1
-			   }
-		   }
+terramate {
+	backend "my-label" {
+		something = "something else"
+		other {
+			test = 1
+		}
 	}
-	`,
+}
+`,
 			want: want{
 				block: hcl.Terramate{
 					Backend: &hclsyntax.Block{
@@ -251,11 +244,11 @@ func TestHHCLParserTerramateBlock(t *testing.T) {
 		{
 			name: "backend with no labels - fails",
 			input: `
-	terramate {
-		   backend {
-			   something = "something else"
-		   }
+terramate {
+	backend {
+		something = "something else"
 	}
+}
 	`,
 			want: want{
 				err: hcl.ErrMalformedTerramateBlock,
@@ -264,20 +257,74 @@ func TestHHCLParserTerramateBlock(t *testing.T) {
 		{
 			name: "backend with more than 1 label - fails",
 			input: `
-	terramate {
-		   backend "1" "2" {
-			   something = "something else"
-		   }
+terramate {
+	backend "1" "2" {
+		something = "something else"
 	}
+}
 	`,
 			want: want{
 				err: hcl.ErrMalformedTerramateBlock,
 			},
 		},
+		{
+			name: "after: empty set works",
+			input: `
+terramate {
+	required_version = ""
+	after = []
+}`,
+		},
+		{
+			name: "'after' single entry",
+			input: `
+terramate {
+	required_version = ""
+	after = ["test"]
+}`,
+			want: want{
+				block: hcl.Terramate{
+					After: []string{"test"},
+				},
+			},
+		},
+		{
+			name: "'after' invalid element entry",
+			input: `
+terramate {
+	required_version = ""
+	after = [1]
+}`,
+			want: want{
+				err: hcl.ErrInvalidRunOrder,
+			},
+		},
+		{
+			name: "'after' duplicated entry",
+			input: `
+terramate {
+	required_version = ""
+	after = ["test", "test"]
+}`,
+			want: want{
+				err: hcl.ErrInvalidRunOrder,
+			},
+		},
+		{
+			name: "multiple 'after' fields",
+			input: `
+terramate {
+	required_version = ""
+	after = ["test"]
+	after = []
+}`,
+			want: want{
+				err: hcl.ErrHCLSyntax,
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p := hcl.NewParser()
-			got, err := p.Parse(tc.name, []byte(tc.input))
+			got, err := hcl.Parse(tc.name, []byte(tc.input))
 			assert.IsError(t, err, tc.want.err)
 
 			if tc.want.err == nil {

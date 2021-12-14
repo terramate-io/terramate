@@ -15,9 +15,9 @@
 package hcl
 
 import (
-	"errors"
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -35,12 +35,11 @@ type Terramate struct {
 	// RequiredVersion contains the terramate version required by the stack.
 	RequiredVersion string
 
-	Backend *hclsyntax.Block
-}
+	// After is a list of non-duplicated stack entries that must run after the
+	// current stack runs.
+	After []string
 
-// Parser is a terramate parser.
-type Parser struct {
-	p *hclparse.Parser
+	Backend *hclsyntax.Block
 }
 
 const (
@@ -48,23 +47,18 @@ const (
 	ErrNoTerramateBlock        errutil.Error = "no \"terramate\" block found"
 	ErrMalformedTerramateBlock errutil.Error = "malformed terramate block"
 	ErrMalformedTerraform      errutil.Error = "malformed terraform"
+	ErrInvalidRunOrder         errutil.Error = "invalid execution order definition"
 )
 
-// NewParser creates a HCL parser
-func NewParser() *Parser {
-	return &Parser{
-		p: hclparse.NewParser(),
-	}
-}
-
 // ParseModules parses blocks of type "module" containing a single label.
-func (p *Parser) ParseModules(path string) ([]Module, error) {
+func ParseModules(path string) ([]Module, error) {
 	_, err := os.Stat(path)
 	if err != nil {
 		return nil, fmt.Errorf("stat failed on %q: %w", path, err)
 	}
 
-	f, diags := p.p.ParseHCLFile(path)
+	p := hclparse.NewParser()
+	f, diags := p.ParseHCLFile(path)
 	if diags.HasErrors() {
 		return nil, errutil.Chain(
 			ErrHCLSyntax,
@@ -76,15 +70,8 @@ func (p *Parser) ParseModules(path string) ([]Module, error) {
 
 	var modules []Module
 	for _, block := range body.Blocks {
-		if block.Type != "module" {
+		if block.Type != "module" || len(block.Labels) != 1 {
 			continue
-		}
-
-		if len(block.Labels) != 1 {
-			return nil, errutil.Chain(
-				ErrMalformedTerraform,
-				fmt.Errorf("module block must have 1 label"),
-			)
 		}
 
 		moduleName := block.Labels[0]
@@ -92,15 +79,12 @@ func (p *Parser) ParseModules(path string) ([]Module, error) {
 		if err != nil {
 			return nil, errutil.Chain(
 				ErrMalformedTerraform,
-				fmt.Errorf("looking for module.%q.source attribute: %w",
+				fmt.Errorf("looking for %q.source attribute: %w",
 					moduleName, err),
 			)
 		}
 		if !ok {
-			return nil, errutil.Chain(
-				ErrMalformedTerraform,
-				errors.New("module must have a \"source\" attribute"),
-			)
+			continue
 		}
 
 		modules = append(modules, Module{Source: source})
@@ -110,8 +94,9 @@ func (p *Parser) ParseModules(path string) ([]Module, error) {
 }
 
 // ParseBody parses HCL and return the parsed body.
-func (p *Parser) ParseBody(src []byte, filename string) (*hclsyntax.Body, error) {
-	f, diags := p.p.ParseHCL(src, filename)
+func ParseBody(src []byte, filename string) (*hclsyntax.Body, error) {
+	parser := hclparse.NewParser()
+	f, diags := parser.ParseHCL(src, filename)
 	if diags.HasErrors() {
 		return nil, errutil.Chain(
 			ErrHCLSyntax,
@@ -127,8 +112,9 @@ func (p *Parser) ParseBody(src []byte, filename string) (*hclsyntax.Body, error)
 }
 
 // Parse parses a terramate source.
-func (p *Parser) Parse(fname string, data []byte) (*Terramate, error) {
-	f, diags := p.p.ParseHCL(data, fname)
+func Parse(fname string, data []byte) (*Terramate, error) {
+	p := hclparse.NewParser()
+	f, diags := p.ParseHCL(data, fname)
 	if diags.HasErrors() {
 		return nil, errutil.Chain(ErrHCLSyntax, diags)
 	}
@@ -185,7 +171,12 @@ func (p *Parser) Parse(fname string, data []byte) (*Terramate, error) {
 
 			tsconfig.RequiredVersion = attrVal.AsString()
 
-			// TODO(i4k): support other fields in the case (after, before, etc)
+		case "after":
+			err := assignSet(name, &tsconfig.After, attrVal)
+			if err != nil {
+				return nil, err
+			}
+
 		default:
 			return nil, errutil.Chain(ErrMalformedTerramateBlock,
 				fmt.Errorf("invalid attribute %q", name),
@@ -225,13 +216,13 @@ func (p *Parser) Parse(fname string, data []byte) (*Terramate, error) {
 }
 
 // ParseFile parses a terramate file.
-func (p *Parser) ParseFile(path string) (*Terramate, error) {
+func ParseFile(path string) (*Terramate, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file %q: %w", path, err)
 	}
 
-	return p.Parse(path, data)
+	return Parse(path, data)
 }
 
 func findStringAttr(block *hclsyntax.Block, attr string) (string, bool, error) {
@@ -254,6 +245,42 @@ func findStringAttr(block *hclsyntax.Block, attr string) (string, bool, error) {
 	}
 
 	return "", false, nil
+}
+
+func assignSet(name string, target *[]string, val cty.Value) error {
+	if val.Type().IsSetType() {
+		return fmt.Errorf("attribute %q is not a set", name)
+	}
+
+	values := map[string]struct{}{}
+	iterator := val.ElementIterator()
+	for iterator.Next() {
+		_, elem := iterator.Element()
+		if elem.Type() != cty.String {
+			return errutil.Chain(ErrInvalidRunOrder,
+				fmt.Errorf("field %q is a set(string) but contains %q",
+					name, elem.Type().FriendlyName()),
+			)
+		}
+
+		str := elem.AsString()
+		if _, ok := values[str]; ok {
+			return errutil.Chain(ErrInvalidRunOrder,
+				fmt.Errorf("duplicated entry %q in field %q of type set(string)",
+					str, name),
+			)
+		}
+		values[str] = struct{}{}
+	}
+
+	var elems []string
+	for v := range values {
+		elems = append(elems, v)
+	}
+
+	sort.Strings(elems)
+	*target = elems
+	return nil
 }
 
 // IsLocal tells if module source is a local directory.

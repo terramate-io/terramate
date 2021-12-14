@@ -68,9 +68,6 @@ type cliSpec struct {
 	Generate struct {
 		Basedir string `short:"b" optional:"true" help:"Generate code for stacks inside basedir."`
 	} `cmd:"" help:"Generate terraform code for stacks."`
-
-	Metadata struct {
-	} `cmd:"" help:"shows metadata available on the project"`
 }
 
 // Run will run terramate with the provided flags defined on args from the
@@ -223,8 +220,6 @@ func (c *cli) run() error {
 		return c.runOnStacks(basedir)
 	case "generate":
 		return terramate.Generate(c.wd)
-	case "metadata":
-		return c.printMetadata()
 	default:
 		return fmt.Errorf("unexpected command sequence: %s", c.ctx.Command())
 	}
@@ -278,38 +273,22 @@ func (c *cli) listStacks(
 
 func (c *cli) printStacks(basedir string) error {
 	mgr := terramate.NewManager(basedir, c.baseRef)
-	stacks, err := c.listStacks(basedir, mgr, c.parsedArgs.List.Changed)
+	entries, err := c.listStacks(basedir, mgr, c.parsedArgs.List.Changed)
 	if err != nil {
 		return err
 	}
 
 	trimPart := c.wd + string(os.PathSeparator)
-	for _, stack := range stacks {
+	for _, entry := range entries {
+		stack := entry.Stack
 		stackdir := strings.TrimPrefix(stack.Dir, trimPart)
 
 		if c.parsedArgs.List.Why {
-			c.log("%s - %s", stackdir, stack.Reason)
+			c.log("%s - %s", stackdir, entry.Reason)
 		} else {
 			c.log(stackdir)
 		}
 	}
-	return nil
-}
-
-func (c *cli) printMetadata() error {
-	metadata, err := terramate.LoadMetadata(c.wd)
-	if err != nil {
-		return err
-	}
-
-	c.log("Available metadata:")
-
-	for _, stack := range metadata.Stacks {
-		c.log("\nstack %q:", stack.Path)
-		c.log("\tterraform.name=%q", stack.Name)
-		c.log("\tterraform.path=%q", stack.Path)
-	}
-
 	return nil
 }
 
@@ -321,7 +300,7 @@ func (c *cli) runOnStacks(basedir string) error {
 	}
 
 	mgr := terramate.NewManager(basedir, c.baseRef)
-	stacks, err := c.listStacks(basedir, mgr, c.parsedArgs.Run.Changed)
+	stacksEntries, err := c.listStacks(basedir, mgr, c.parsedArgs.Run.Changed)
 	if err != nil {
 		return err
 	}
@@ -335,14 +314,14 @@ func (c *cli) runOnStacks(basedir string) error {
 	cmdName := c.parsedArgs.Run.Command[0]
 	args := c.parsedArgs.Run.Command[1:]
 
-	for _, stack := range stacks {
+	for _, stackEntry := range stacksEntries {
 		cmd := exec.Command(cmdName, args...)
-		cmd.Dir = stack.Dir
+		cmd.Dir = stackEntry.Stack.Dir
 		cmd.Stdin = c.stdin
 		cmd.Stdout = c.stdout
 		cmd.Stderr = c.stderr
 
-		c.log("[%s] running %s", stack.Dir, cmd)
+		c.log("[%s] running %s", stackEntry.Stack.Dir, cmd)
 
 		err = cmd.Run()
 		if err != nil {

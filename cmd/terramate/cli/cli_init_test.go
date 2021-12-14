@@ -225,16 +225,14 @@ func TestInit(t *testing.T) {
 
 			for _, path := range tc.input {
 				data := test.ReadFile(t, s.BaseDir(), filepath.Join(path, configFile))
-				p := hcl.NewParser()
-				got, err := p.Parse("TestInitHCL", data)
+				got, err := hcl.Parse("TestInitHCL", data)
 				assert.NoError(t, err, "parsing terramate file")
 
 				want := hcl.Terramate{
 					RequiredVersion: terramate.DefaultVersionConstraint(),
 				}
-				if *got != want {
-					t.Fatalf("terramate file differs: want[%+v] != got[%+v]", want, *got)
-				}
+
+				test.AssertTerramateBlock(t, *got, want)
 			}
 		})
 	}
