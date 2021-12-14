@@ -17,7 +17,6 @@ package hcl
 import (
 	"fmt"
 	"os"
-	"sort"
 
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -43,7 +42,6 @@ const (
 	ErrNoTerramateBlock        errutil.Error = "no \"terramate\" block found"
 	ErrMalformedTerramateBlock errutil.Error = "malformed terramate block"
 	ErrMalformedTerraform      errutil.Error = "malformed terraform"
-	ErrInvalidRunOrder         errutil.Error = "invalid execution order definition"
 )
 
 // ParseModules parses blocks of type "module" containing a single label.
@@ -234,42 +232,6 @@ func findStringAttr(block *hclsyntax.Block, attr string) (string, bool, error) {
 	}
 
 	return "", false, nil
-}
-
-func assignSet(name string, target *[]string, val cty.Value) error {
-	if val.Type().IsSetType() {
-		return fmt.Errorf("attribute %q is not a set", name)
-	}
-
-	values := map[string]struct{}{}
-	iterator := val.ElementIterator()
-	for iterator.Next() {
-		_, elem := iterator.Element()
-		if elem.Type() != cty.String {
-			return errutil.Chain(ErrInvalidRunOrder,
-				fmt.Errorf("field %q is a set(string) but contains %q",
-					name, elem.Type().FriendlyName()),
-			)
-		}
-
-		str := elem.AsString()
-		if _, ok := values[str]; ok {
-			return errutil.Chain(ErrInvalidRunOrder,
-				fmt.Errorf("duplicated entry %q in field %q of type set(string)",
-					str, name),
-			)
-		}
-		values[str] = struct{}{}
-	}
-
-	var elems []string
-	for v := range values {
-		elems = append(elems, v)
-	}
-
-	sort.Strings(elems)
-	*target = elems
-	return nil
 }
 
 // IsLocal tells if module source is a local directory.
