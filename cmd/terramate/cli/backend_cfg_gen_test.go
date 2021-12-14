@@ -26,6 +26,10 @@ import (
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
+// TODO(katcipis):
+// - unknown metadata on config
+// - unknown namespace on config
+
 func TestBackendConfigGeneration(t *testing.T) {
 	type (
 		stackcode struct {
