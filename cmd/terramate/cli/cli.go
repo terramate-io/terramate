@@ -297,6 +297,23 @@ func (c *cli) printStacks(basedir string) error {
 	return nil
 }
 
+func (c *cli) printMetadata() error {
+	metadata, err := terramate.LoadMetadata(c.wd)
+	if err != nil {
+		return err
+	}
+
+	c.log("Available metadata:")
+
+	for _, stack := range metadata.Stacks {
+		c.log("\nstack %q:", stack.Path)
+		c.log("\tterraform.name=%q", stack.Name)
+		c.log("\tterraform.path=%q", stack.Path)
+	}
+
+	return nil
+}
+
 func (c *cli) runOnStacks(basedir string) error {
 	var nErrors int
 
@@ -425,23 +442,6 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 			localRef.ShortCommitID(),
 		)
 
-	}
-
-	return nil
-}
-
-func (c *cli) printMetadata() error {
-	metadata, err := terramate.LoadMetadata(c.wd)
-	if err != nil {
-		return err
-	}
-
-	c.log("Available metadata:")
-
-	for _, stack := range metadata.Stacks {
-		c.log("\nstack %q:", stack.Path)
-		c.log("\tterraform.name=%q", stack.Name)
-		c.log("\tterraform.path=%q", stack.Path)
 	}
 
 	return nil
