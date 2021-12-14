@@ -15,10 +15,10 @@ Here is defined the different kinds of configurations and
 how you can learn more about them. But before getting into the different
 kinds of configurations, what would be a Terramate project?
 
-A Terramate project is essentially any collection of terraform code
-organized into stacks. You can have all terraform code together in a single
+A Terramate project is essentially any collection of Terraform code
+organized into stacks. You can have all Terraform code together in a single
 directory but that would defeat the purpose of most Terramate features, so
-usually you have a set of stacks and maybe a set of terraform modules if they
+usually, you have a set of stacks and maybe a set of Terraform modules if they
 are not maintained in a different repository.
 
 It is not a hard requirement for Terramate to work that the project uses git 
