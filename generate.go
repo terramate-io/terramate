@@ -83,7 +83,13 @@ func Generate(basedir string) error {
 			continue
 		}
 
-		tfcode, err := generateStackConfig(basedir, stack.Dir, stackMetadata)
+		evalctx, err := newHCLEvalContext(stackMetadata)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("stack %q: building eval ctx: %v", stack.Dir, err))
+			continue
+		}
+
+		tfcode, err := generateStackConfig(basedir, stack.Dir, evalctx)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("stack %q: %w", stack.Dir, err))
 			continue
@@ -104,7 +110,7 @@ func Generate(basedir string) error {
 	return nil
 }
 
-func generateStackConfig(basedir string, configdir string, metadata StackMetadata) ([]byte, error) {
+func generateStackConfig(basedir string, configdir string, evalctx *tfhcl.EvalContext) ([]byte, error) {
 	if !strings.HasPrefix(configdir, basedir) {
 		// check if we are outside of basedir, time to stop
 		return nil, nil
@@ -113,7 +119,7 @@ func generateStackConfig(basedir string, configdir string, metadata StackMetadat
 	configfile := filepath.Join(configdir, ConfigFilename)
 
 	if _, err := os.Stat(configfile); err != nil {
-		return generateStackConfig(basedir, filepath.Dir(configdir), metadata)
+		return generateStackConfig(basedir, filepath.Dir(configdir), evalctx)
 	}
 
 	config, err := os.ReadFile(configfile)
@@ -129,7 +135,7 @@ func generateStackConfig(basedir string, configdir string, metadata StackMetadat
 	}
 
 	if parsed.Backend == nil {
-		return generateStackConfig(basedir, filepath.Dir(configdir), metadata)
+		return generateStackConfig(basedir, filepath.Dir(configdir), evalctx)
 	}
 
 	gen := hclwrite.NewEmptyFile()
@@ -139,25 +145,20 @@ func generateStackConfig(basedir string, configdir string, metadata StackMetadat
 	backendBlock := tfBody.AppendNewBlock(parsed.Backend.Type, parsed.Backend.Labels)
 	backendBody := backendBlock.Body()
 
-	if err := copyBody(backendBody, parsed.Backend.Body, metadata); err != nil {
+	if err := copyBody(backendBody, parsed.Backend.Body, evalctx); err != nil {
 		return nil, err
 	}
 
 	return append([]byte(GeneratedCodeHeader), gen.Bytes()...), nil
 }
 
-func copyBody(target *hclwrite.Body, src *hclsyntax.Body, metadata StackMetadata) error {
+func copyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *tfhcl.EvalContext) error {
 	if src == nil || target == nil {
 		return nil
 	}
 
 	// Avoid generating code with random attr order (map iteration is random)
 	attrs := sortedAttributes(src.Attributes)
-	evalctx, err := newHCLEvalContext(metadata)
-	if err != nil {
-		// TODO(katcipis): create evalctx only once
-		return err
-	}
 
 	for _, attr := range attrs {
 		val, err := attr.Expr.Value(evalctx)
@@ -172,7 +173,7 @@ func copyBody(target *hclwrite.Body, src *hclsyntax.Body, metadata StackMetadata
 		targetBlock := target.AppendNewBlock(block.Type, block.Labels)
 		targetBody := targetBlock.Body()
 
-		if err := copyBody(targetBody, block.Body, metadata); err != nil {
+		if err := copyBody(targetBody, block.Body, evalctx); err != nil {
 			return err
 		}
 	}
@@ -181,7 +182,7 @@ func copyBody(target *hclwrite.Body, src *hclsyntax.Body, metadata StackMetadata
 }
 
 func newHCLEvalContext(metadata StackMetadata) (*tfhcl.EvalContext, error) {
-	vars, err := fromMapToCty(map[string]cty.Value{
+	vars, err := hclMapToCty(map[string]cty.Value{
 		"name": cty.StringVal(metadata.Name),
 		"path": cty.StringVal(metadata.Path),
 	})
@@ -195,7 +196,7 @@ func newHCLEvalContext(metadata StackMetadata) (*tfhcl.EvalContext, error) {
 	}, nil
 }
 
-func fromMapToCty(m map[string]cty.Value) (cty.Value, error) {
+func hclMapToCty(m map[string]cty.Value) (cty.Value, error) {
 	ctyTypes := map[string]cty.Type{}
 	for key, value := range m {
 		ctyTypes[key] = value.Type()
