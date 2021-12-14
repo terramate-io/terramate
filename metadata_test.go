@@ -121,14 +121,6 @@ func TestLoadMetadata(t *testing.T) {
 				"s:stack-valid-1",
 				fmt.Sprintf("f:invalid-stack/%s:data=notvalidhcl", terramate.ConfigFilename),
 			},
-			want: terramate.Metadata{
-				Stacks: []terramate.StackMetadata{
-					{
-						Name: "stack-valid-1",
-						Path: "/stack-valid-1",
-					},
-				},
-			},
 			wantErr: hcl.ErrNoTerramateBlock,
 		},
 	}
@@ -142,7 +134,6 @@ func TestLoadMetadata(t *testing.T) {
 
 			if tcase.wantErr != nil {
 				assert.IsError(t, err, tcase.wantErr)
-				return
 			}
 
 			if diff := cmp.Diff(tcase.want, metadata); diff != "" {
