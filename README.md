@@ -71,7 +71,7 @@ since you won't get the same build result each time you run the install command.
 
 Checkout the docs on [overall configuration](docs/config.md) for details
 on how different kinds of configurations can help you to avoid duplication
-and write solid infrastructure as code.
+and write solid Infrastructure as Code.
 
 
 ## Why using stacks?
