@@ -4,7 +4,7 @@ There is a series of different configurations that can be done
 on Terramate, ranging from avoiding duplication to controlling
 order of execution of stacks.
 
-In order to do so Terramate works with configuration files named
+In order to do so, Terramate works with configuration files named
 **terramate.tm.hcl**. These files can be found on any directory
 of a Terramate project, but some configurations will be defined
 only once for an entire project, while others provide merge/overriding
