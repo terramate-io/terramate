@@ -21,10 +21,13 @@ import (
 	"sort"
 	"strings"
 
+	tfhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/gocty"
 )
 
 const (
@@ -44,21 +47,26 @@ const (
 // The provided basedir must be an absolute path to a directory.
 func Generate(basedir string) error {
 	if !filepath.IsAbs(basedir) {
-		return fmt.Errorf("Generate(%q): basedir must be an absolute path", basedir)
+		return fmt.Errorf("basedir %q must be an absolute path", basedir)
 	}
 
 	info, err := os.Lstat(basedir)
 	if err != nil {
-		return fmt.Errorf("Generate(%q): checking basedir: %v", basedir, err)
+		return fmt.Errorf("checking basedir %q: %v", basedir, err)
 	}
 
 	if !info.IsDir() {
-		return fmt.Errorf("Generate(%q): basedir is not a directory", basedir)
+		return fmt.Errorf("basedir %q is not a directory", basedir)
 	}
 
 	stacks, err := ListStacks(basedir)
 	if err != nil {
-		return fmt.Errorf("Generate(%q): listing stack: %v", basedir, err)
+		return fmt.Errorf("listing stack: %v", err)
+	}
+
+	metadata, err := LoadMetadata(basedir)
+	if err != nil {
+		return fmt.Errorf("loading metadata: %v", err)
 	}
 
 	var errs []error
@@ -69,7 +77,13 @@ func Generate(basedir string) error {
 		// Basically navigating from the order of precedence, since
 		// more specific configuration overrides base configuration.
 		// Not the most optimized way (re-parsing), we can improve later
-		tfcode, err := generateStackConfig(basedir, stack.Dir)
+		stackMetadata, ok := metadata.StackMetadata(stack.Dir)
+		if !ok {
+			errs = append(errs, fmt.Errorf("stack %q: no metadata found", stack.Dir))
+			continue
+		}
+
+		tfcode, err := generateStackConfig(basedir, stack.Dir, stackMetadata)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("stack %q: %w", stack.Dir, err))
 			continue
@@ -90,7 +104,7 @@ func Generate(basedir string) error {
 	return nil
 }
 
-func generateStackConfig(basedir string, configdir string) ([]byte, error) {
+func generateStackConfig(basedir string, configdir string, metadata StackMetadata) ([]byte, error) {
 	if !strings.HasPrefix(configdir, basedir) {
 		// check if we are outside of basedir, time to stop
 		return nil, nil
@@ -99,7 +113,7 @@ func generateStackConfig(basedir string, configdir string) ([]byte, error) {
 	configfile := filepath.Join(configdir, ConfigFilename)
 
 	if _, err := os.Stat(configfile); err != nil {
-		return generateStackConfig(basedir, filepath.Dir(configdir))
+		return generateStackConfig(basedir, filepath.Dir(configdir), metadata)
 	}
 
 	config, err := os.ReadFile(configfile)
@@ -115,7 +129,7 @@ func generateStackConfig(basedir string, configdir string) ([]byte, error) {
 	}
 
 	if parsed.Backend == nil {
-		return generateStackConfig(basedir, filepath.Dir(configdir))
+		return generateStackConfig(basedir, filepath.Dir(configdir), metadata)
 	}
 
 	gen := hclwrite.NewEmptyFile()
@@ -125,23 +139,28 @@ func generateStackConfig(basedir string, configdir string) ([]byte, error) {
 	backendBlock := tfBody.AppendNewBlock(parsed.Backend.Type, parsed.Backend.Labels)
 	backendBody := backendBlock.Body()
 
-	if err := copyBody(backendBody, parsed.Backend.Body); err != nil {
+	if err := copyBody(backendBody, parsed.Backend.Body, metadata); err != nil {
 		return nil, err
 	}
 
 	return append([]byte(GeneratedCodeHeader), gen.Bytes()...), nil
 }
 
-func copyBody(target *hclwrite.Body, src *hclsyntax.Body) error {
+func copyBody(target *hclwrite.Body, src *hclsyntax.Body, metadata StackMetadata) error {
 	if src == nil || target == nil {
 		return nil
 	}
 
 	// Avoid generating code with random attr order (map iteration is random)
 	attrs := sortedAttributes(src.Attributes)
+	evalctx, err := newHCLEvalContext(metadata)
+	if err != nil {
+		// TODO(katcipis): create evalctx only once
+		return err
+	}
 
 	for _, attr := range attrs {
-		val, err := attr.Expr.Value(nil)
+		val, err := attr.Expr.Value(evalctx)
 		if err != nil {
 			return fmt.Errorf("parsing attribute %q: %v", attr.Name, err)
 		}
@@ -153,12 +172,40 @@ func copyBody(target *hclwrite.Body, src *hclsyntax.Body) error {
 		targetBlock := target.AppendNewBlock(block.Type, block.Labels)
 		targetBody := targetBlock.Body()
 
-		if err := copyBody(targetBody, block.Body); err != nil {
+		if err := copyBody(targetBody, block.Body, metadata); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func newHCLEvalContext(metadata StackMetadata) (*tfhcl.EvalContext, error) {
+	vars, err := fromMapToCty(map[string]cty.Value{
+		"name": cty.StringVal(metadata.Name),
+		"path": cty.StringVal(metadata.Path),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &tfhcl.EvalContext{
+		Variables: map[string]cty.Value{"terramate": vars},
+	}, nil
+}
+
+func fromMapToCty(m map[string]cty.Value) (cty.Value, error) {
+	ctyTypes := map[string]cty.Type{}
+	for key, value := range m {
+		ctyTypes[key] = value.Type()
+	}
+	ctyObject := cty.Object(ctyTypes)
+	ctyVal, err := gocty.ToCtyValue(m, ctyObject)
+	if err != nil {
+		return cty.Value{}, err
+	}
+	return ctyVal, nil
 }
 
 func sortedAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {

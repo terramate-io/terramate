@@ -29,6 +29,8 @@ type StackMetadata struct {
 type Metadata struct {
 	// Stacks is a lexycographicaly sorted (by stack path) list of stack metadata
 	Stacks []StackMetadata
+
+	basedir string
 }
 
 // LoadMetadata loads the project metadata given the project basedir.
@@ -47,6 +49,18 @@ func LoadMetadata(basedir string) (Metadata, error) {
 	}
 
 	return Metadata{
-		Stacks: stacksMetadata,
+		Stacks:  stacksMetadata,
+		basedir: basedir,
 	}, nil
+}
+
+// StackMetadata gets the metadata of a specific stack given its absolute path.
+func (m Metadata) StackMetadata(abspath string) (StackMetadata, bool) {
+	path := strings.TrimPrefix(abspath, m.basedir)
+	for _, stackMetadata := range m.Stacks {
+		if stackMetadata.Path == path {
+			return stackMetadata, true
+		}
+	}
+	return StackMetadata{}, false
 }

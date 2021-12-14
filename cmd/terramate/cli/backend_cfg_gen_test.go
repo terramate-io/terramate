@@ -494,38 +494,38 @@ func TestBackendConfigGeneration(t *testing.T) {
 				res: runResult{IgnoreStdout: true},
 			},
 		},
-		//{
-		//name:   "single stack with config on stack and N attrs using metadata",
-		//layout: []string{"s:stack-metadata"},
-		//configs: []backendconfig{
-		//{
-		//relpath: "stack-metadata",
-		//config: `terramate {
-		//required_version = "~> 0.0.0"
-		//backend "metadata" {
-		//name = terramate.name
-		//path = terramate.path
-		//somelist = [terramate.name, terramate.path]
-		//}
-		//}`,
-		//},
-		//},
-		//want: want{
-		//stacks: []stackcode{
-		//{
-		//relpath: "stack-metadata",
-		//code: `terraform {
-		//backend "metadata" {
-		//name = "{{.Stack.Name}}"
-		//path = "{{.Stack.Path}}"
-		//somelist = ["{{.Stack.Name}}", "{{.Stack.Path}}"]
-		//}
-		//}
-		//`,
-		//},
-		//},
-		//},
-		//},
+		{
+			name:   "single stack with config on stack and N attrs using metadata",
+			layout: []string{"s:stack-metadata"},
+			configs: []backendconfig{
+				{
+					relpath: "stack-metadata",
+					config: `terramate {
+  required_version = "~> 0.0.0"
+  backend "metadata" {
+    name = terramate.name
+    path = terramate.path
+    somelist = [terramate.name, terramate.path]
+  }
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stack-metadata",
+						code: `terraform {
+  backend "metadata" {
+    name     = "{{.Stack.Name}}"
+    path     = "{{.Stack.Path}}"
+    somelist = ["{{.Stack.Name}}", "{{.Stack.Path}}"]
+  }
+}
+`,
+					},
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {

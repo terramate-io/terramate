@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -158,7 +159,7 @@ func TestLoadMetadata(t *testing.T) {
 				return
 			}
 
-			if diff := cmp.Diff(tcase.want, metadata); diff != "" {
+			if diff := cmp.Diff(tcase.want, metadata, cmpopts.IgnoreUnexported(tcase.want)); diff != "" {
 				t.Fatalf("want %v != got %v.\ndiff:\n%s", tcase.want, metadata, diff)
 			}
 		})
