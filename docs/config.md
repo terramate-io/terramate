@@ -40,8 +40,12 @@ Available project-wide configurations can be found [here](project-config.md)
 
 # Stack Configuration
 
-Any dir that has no child dirs (a leaf in the project hierarchy) and
-has a valid terramate configuration file is considered a stack.
+Before talking about stack specific configuration, lets define what is a
+Terramate stack:
+
+* A dir that has no child dirs (a leaf in the file system tree)
+* Has a valid terramate configuration file (**terramate.tm.hcl**)
+* The terramate configuration file has a `stack {}` block on it
 
 Stacks have configurations that are particular to them, like these:
 
