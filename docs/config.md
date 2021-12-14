@@ -28,7 +28,7 @@ work and will fail if this requirement is not met.
 In general, a Terramate project looks like this:
 
 * A git project
-* The git top level dir is the project base dir
+* The git top-level dir is the project base dir
 * Stacks will be organized as different directories
 * Configuration may be present on any dir
 
