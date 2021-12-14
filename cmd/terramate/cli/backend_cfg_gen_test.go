@@ -68,12 +68,14 @@ func TestBackendConfigGeneration(t *testing.T) {
 					config: `terramate {
   required_version = "~> 0.0.0"
   backend {}
-}`,
+}
+
+stack{}`,
 				},
 			},
 			want: want{
 				res: runResult{
-					Error:        hcl.ErrMalformedTerramateBlock,
+					Error:        hcl.ErrMalformedTerramateConfig,
 					IgnoreStdout: true,
 				},
 			},
@@ -90,19 +92,23 @@ func TestBackendConfigGeneration(t *testing.T) {
 					config: `terramate {
   required_version = "~> 0.0.0"
   backend {}
-}`,
+}
+
+stack{}`,
 				},
 				{
 					relpath: "stack-ok-backend",
 					config: `terramate {
   required_version = "~> 0.0.0"
   backend "valid" {}
-}`,
+}
+
+stack{}`,
 				},
 			},
 			want: want{
 				res: runResult{
-					Error:        hcl.ErrMalformedTerramateBlock,
+					Error:        hcl.ErrMalformedTerramateConfig,
 					IgnoreStdout: true,
 				},
 			},
@@ -116,7 +122,9 @@ func TestBackendConfigGeneration(t *testing.T) {
 					config: `terramate {
   required_version = "~> 0.0.0"
   backend "sometype" {}
-}`,
+}
+
+stack{}`,
 				},
 			},
 			want: want{
@@ -142,7 +150,9 @@ func TestBackendConfigGeneration(t *testing.T) {
 					config: `terramate {
   required_version = "~> 0.0.0"
   backend "" {}
-}`,
+}
+
+stack{}`,
 				},
 			},
 			want: want{
@@ -170,7 +180,9 @@ func TestBackendConfigGeneration(t *testing.T) {
   backend "sometype" {
     attr = "value"
   }
-}`,
+}
+
+stack{}`,
 				},
 			},
 			want: want{
@@ -199,7 +211,9 @@ func TestBackendConfigGeneration(t *testing.T) {
   backend "1" {
     attr = "hi"
   }
-}`,
+}
+
+stack{}`,
 				},
 				{
 					relpath: "stack-2",
@@ -208,7 +222,9 @@ func TestBackendConfigGeneration(t *testing.T) {
   backend "2" {
     somebool = true
   }
-}`,
+}
+
+stack{}`,
 				},
 				{
 					relpath: "stack-3",
@@ -217,7 +233,9 @@ func TestBackendConfigGeneration(t *testing.T) {
   backend "3" {
     somelist = ["m", "i", "n", "e", "i", "r", "o", "s"]
   }
-}`,
+}
+
+stack{}`,
 				},
 			},
 			want: want{
@@ -267,7 +285,9 @@ func TestBackendConfigGeneration(t *testing.T) {
     attrbool = true
     somelist = ["hi", "again"]
   }
-}`,
+}
+
+stack{}`,
 				},
 			},
 			want: want{
@@ -304,7 +324,9 @@ func TestBackendConfigGeneration(t *testing.T) {
       somelist   = ["hi", "again"]
     }
   }
-}`,
+}
+
+stack{}`,
 				},
 			},
 			want: want{
@@ -337,7 +359,9 @@ func TestBackendConfigGeneration(t *testing.T) {
   backend "fromparent" {
     attr = "value"
   }
-}`,
+}
+
+stack{}`,
 				},
 			},
 			want: want{
@@ -365,7 +389,9 @@ func TestBackendConfigGeneration(t *testing.T) {
   backend "basedir_config" {
     attr = 666
   }
-}`,
+}
+
+stack{}`,
 				},
 			},
 			want: want{
@@ -396,7 +422,9 @@ func TestBackendConfigGeneration(t *testing.T) {
   backend "basedir_config" {
     attr = "test"
   }
-}`,
+}
+
+stack{}`,
 				},
 			},
 			want: want{
@@ -436,7 +464,9 @@ func TestBackendConfigGeneration(t *testing.T) {
   backend "remote" {
     environment = "prod"
   }
-}`,
+}
+
+stack{}`,
 				},
 				{
 					relpath: "envs/staging",
@@ -444,7 +474,9 @@ func TestBackendConfigGeneration(t *testing.T) {
   backend "remote" {
     environment = "staging"
   }
-}`,
+}
+
+stack{}`,
 				},
 			},
 			want: want{

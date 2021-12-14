@@ -140,10 +140,10 @@ module "test" {
 	}
 }
 
-func TestHHCLParserTerramateBlock(t *testing.T) {
+func TestHHCLParserTerramateConfig(t *testing.T) {
 	type want struct {
-		err   error
-		block hcl.Terramate
+		err    error
+		config hcl.Config
 	}
 	type testcase struct {
 		name  string
@@ -166,8 +166,10 @@ func TestHHCLParserTerramateBlock(t *testing.T) {
 	}
 	`,
 			want: want{
-				block: hcl.Terramate{
-					RequiredVersion: "> 0.0.0",
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						RequiredVersion: "> 0.0.0",
+					},
 				},
 			},
 		},
@@ -180,10 +182,12 @@ func TestHHCLParserTerramateBlock(t *testing.T) {
 	}
 	`,
 			want: want{
-				block: hcl.Terramate{
-					Backend: &hclsyntax.Block{
-						Type:   "backend",
-						Labels: []string{"something"},
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Backend: &hclsyntax.Block{
+							Type:   "backend",
+							Labels: []string{"something"},
+						},
 					},
 				},
 			},
@@ -198,10 +202,12 @@ terramate {
 }
 	`,
 			want: want{
-				block: hcl.Terramate{
-					Backend: &hclsyntax.Block{
-						Type:   "backend",
-						Labels: []string{"something"},
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Backend: &hclsyntax.Block{
+							Type:   "backend",
+							Labels: []string{"something"},
+						},
 					},
 				},
 			},
@@ -217,7 +223,7 @@ terramate {
 }
 	`,
 			want: want{
-				err: hcl.ErrMalformedTerramateBlock,
+				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
@@ -233,10 +239,12 @@ terramate {
 }
 `,
 			want: want{
-				block: hcl.Terramate{
-					Backend: &hclsyntax.Block{
-						Type:   "backend",
-						Labels: []string{"my-label"},
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Backend: &hclsyntax.Block{
+							Type:   "backend",
+							Labels: []string{"my-label"},
+						},
 					},
 				},
 			},
@@ -251,7 +259,7 @@ terramate {
 }
 	`,
 			want: want{
-				err: hcl.ErrMalformedTerramateBlock,
+				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
@@ -264,7 +272,7 @@ terramate {
 }
 	`,
 			want: want{
-				err: hcl.ErrMalformedTerramateBlock,
+				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
@@ -272,19 +280,31 @@ terramate {
 			input: `
 terramate {
 	required_version = ""
-	after = []
-}`,
+}
+stack {}`,
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{},
+					Stack:     &hcl.Stack{},
+				},
+			},
 		},
 		{
 			name: "'after' single entry",
 			input: `
 terramate {
 	required_version = ""
+}
+
+stack {
 	after = ["test"]
 }`,
 			want: want{
-				block: hcl.Terramate{
-					After: []string{"test"},
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{},
+					Stack: &hcl.Stack{
+						After: []string{"test"},
+					},
 				},
 			},
 		},
@@ -293,10 +313,13 @@ terramate {
 			input: `
 terramate {
 	required_version = ""
+}
+
+stack {
 	after = [1]
 }`,
 			want: want{
-				err: hcl.ErrInvalidRunOrder,
+				err: hcl.ErrStackInvalidRunOrder,
 			},
 		},
 		{
@@ -304,10 +327,13 @@ terramate {
 			input: `
 terramate {
 	required_version = ""
+}
+
+stack {
 	after = ["test", "test"]
 }`,
 			want: want{
-				err: hcl.ErrInvalidRunOrder,
+				err: hcl.ErrStackInvalidRunOrder,
 			},
 		},
 		{
@@ -315,6 +341,9 @@ terramate {
 			input: `
 terramate {
 	required_version = ""
+}
+
+stack {
 	after = ["test"]
 	after = []
 }`,
@@ -328,7 +357,7 @@ terramate {
 			assert.IsError(t, err, tc.want.err)
 
 			if tc.want.err == nil {
-				test.AssertTerramateBlock(t, *got, tc.want.block)
+				test.AssertTerramateConfig(t, *got, tc.want.config)
 			}
 		})
 	}

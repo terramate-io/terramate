@@ -21,15 +21,25 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 )
 
-func AssertTerramateBlock(t *testing.T, got, want hcl.Terramate) {
+func AssertTerramateConfig(t *testing.T, got, want hcl.Config) {
 	t.Helper()
 
-	assert.EqualStrings(t, got.RequiredVersion, want.RequiredVersion)
-	assert.EqualInts(t, len(got.After), len(want.After), "After length mismatch")
+	assertTerramateBlock(t, got.Terramate, want.Terramate)
+	assertStackBlock(t, got.Stack, want.Stack)
+}
 
-	for i, w := range want.After {
-		assert.EqualStrings(t, w, got.After[i], "stack mismatch")
+func assertTerramateBlock(t *testing.T, got, want *hcl.Terramate) {
+	if want == got {
+		// same pointer, or both nil
+		return
 	}
+
+	if want == nil {
+		t.Fatalf("want[nil] but got[%+v]", got)
+	}
+
+	assert.EqualStrings(t, want.RequiredVersion, got.RequiredVersion,
+		"required_version mismatch")
 
 	if (want.Backend == nil) != (got.Backend == nil) {
 		t.Fatalf("want.Backend[%+v] != got.Backend[%+v]",
@@ -45,5 +55,20 @@ func AssertTerramateBlock(t *testing.T, got, want hcl.Terramate) {
 
 		// TODO(i4k): compare the rest?
 	}
+}
 
+func assertStackBlock(t *testing.T, got, want *hcl.Stack) {
+	if (got == nil) != (want == nil) {
+		t.Fatalf("want[%+v] != got[%+v]", want, got)
+	}
+
+	if want == nil {
+		return
+	}
+
+	assert.EqualInts(t, len(got.After), len(want.After), "After length mismatch")
+
+	for i, w := range want.After {
+		assert.EqualStrings(t, w, got.After[i], "stack after mismatch")
+	}
 }

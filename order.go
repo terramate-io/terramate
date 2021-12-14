@@ -140,7 +140,7 @@ func buildOrderTree(stack Stack, visited map[string]struct{}) (OrderDAG, error) 
 	*/
 
 	visited[stack.Dir] = struct{}{}
-	afterStacks, err := LoadStacks(stack.Dir, stack.After...)
+	afterStacks, err := LoadStacks(stack.Dir, stack.After()...)
 	if err != nil {
 		return OrderDAG{}, err
 	}

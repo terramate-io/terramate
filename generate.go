@@ -107,11 +107,12 @@ func generateStackConfig(basedir string, configdir string) ([]byte, error) {
 		return nil, fmt.Errorf("reading config: %v", err)
 	}
 
-	parsed, err := hcl.Parse(configfile, config)
+	parsedConfig, err := hcl.Parse(configfile, config)
 	if err != nil {
 		return nil, fmt.Errorf("parsing config: %w", err)
 	}
 
+	parsed := parsedConfig.Terramate
 	if parsed.Backend == nil {
 		return generateStackConfig(basedir, filepath.Dir(configdir))
 	}

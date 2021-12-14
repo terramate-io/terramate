@@ -312,7 +312,7 @@ func (c *cli) generateGraph(basedir string) error {
 
 	switch c.parsedArgs.Plan.Graph.Label {
 	case "stack.name":
-		getLabel = func(s terramate.Stack) string { return s.Name }
+		getLabel = func(s terramate.Stack) string { return s.Name() }
 	case "stack.dir":
 		getLabel = func(s terramate.Stack) string { return s.Dir }
 	default:
@@ -457,7 +457,7 @@ func (c *cli) runOnStacks(basedir string) error {
 			trimPart := c.wd + string(os.PathSeparator)
 
 			for i, s := range order {
-				c.log("\t%d. %s (%s)", i, s.Name, strings.TrimPrefix(s.Dir, trimPart))
+				c.log("\t%d. %s (%s)", i, s.Name(), strings.TrimPrefix(s.Dir, trimPart))
 			}
 		} else {
 			c.log("No stacks will be executed.")

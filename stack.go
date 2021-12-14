@@ -25,25 +25,28 @@ import (
 )
 
 type Stack struct {
-	Name string
-	Dir  string
+	Dir string
 
-	*hcl.Terramate
+	block *hcl.Stack
 }
 
 // LoadStack loads the stack from dir directory.
 func LoadStack(dir string) (Stack, error) {
 	fname := filepath.Join(dir, ConfigFilename)
-	tm, err := hcl.ParseFile(fname)
+	cfg, err := hcl.ParseFile(fname)
 	if err != nil {
 		return Stack{}, err
 	}
+
+	if cfg.Stack == nil {
+		return Stack{}, fmt.Errorf("no stack found in %q", dir)
+	}
+
 	name := filepath.Base(fname)
 	stackdir := strings.TrimSuffix(fname, fmt.Sprintf("/%s", name))
 	return Stack{
-		Name:      filepath.Base(dir),
-		Dir:       stackdir,
-		Terramate: tm,
+		Dir:   stackdir,
+		block: cfg.Stack,
 	}, nil
 }
 
@@ -84,6 +87,15 @@ func IsStack(info fs.FileInfo, path string) bool {
 	return false
 }
 
+func (s Stack) Name() string {
+	if s.block.Name != "" {
+		return s.block.Name
+	}
+	return filepath.Base(s.Dir)
+}
+
+func (s Stack) After() []string { return s.block.After }
+
 func (s Stack) String() string {
-	return s.Name
+	return s.Name()
 }

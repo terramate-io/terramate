@@ -129,16 +129,19 @@ func (s S) BuildTree(layout []string) {
 	gentmfile := func(relpath, data string) {
 		attrs := strings.Split(data, ";")
 
-		tm := hcl.Terramate{}
+		tm := hcl.Config{
+			Terramate: &hcl.Terramate{},
+			Stack:     &hcl.Stack{},
+		}
 		for _, attr := range attrs {
 			parts := strings.Split(attr, "=")
 			name := parts[0]
 			value := parts[1]
 			switch name {
 			case "version":
-				tm.RequiredVersion = value
+				tm.Terramate.RequiredVersion = value
 			case "after":
-				tm.After = specList(t, name, value)
+				tm.Stack.After = specList(t, name, value)
 			default:
 				t.Fatalf("attribute " + parts[0] + " not supported.")
 			}
@@ -152,7 +155,7 @@ func (s S) BuildTree(layout []string) {
 
 		defer f.Close()
 
-		err = hcl.PrintTerramate(f, tm)
+		err = hcl.PrintConfig(f, tm)
 		assert.NoError(t, err, "BuildTree() failed to generate tm file")
 
 		//hcl.PrintTerramate(os.Stdout, tm)
