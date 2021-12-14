@@ -25,7 +25,7 @@ It is not a hard requirement for Terramate to work that the project uses git
 for version control, but features like change detection do depend on git to
 work and will fail if this requirement is not met.
 
-So in general, a Terramate project looks like this:
+In general, a Terramate project looks like this:
 
 * A git project
 * The git top level dir is the project base dir
