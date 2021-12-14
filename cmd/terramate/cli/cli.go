@@ -68,6 +68,9 @@ type cliSpec struct {
 	Generate struct {
 		Basedir string `short:"b" optional:"true" help:"Generate code for stacks inside basedir."`
 	} `cmd:"" help:"Generate terraform code for stacks."`
+
+	Metadata struct {
+	} `cmd:"" help:"shows metadata available on the project"`
 }
 
 // Run will run terramate with the provided flags defined on args from the
@@ -220,6 +223,8 @@ func (c *cli) run() error {
 		return c.runOnStacks(basedir)
 	case "generate":
 		return terramate.Generate(c.wd)
+	case "metadata":
+		return c.printMetadata()
 	default:
 		return fmt.Errorf("unexpected command sequence: %s", c.ctx.Command())
 	}
@@ -420,6 +425,23 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 			localRef.ShortCommitID(),
 		)
 
+	}
+
+	return nil
+}
+
+func (c *cli) printMetadata() error {
+	metadata, err := terramate.LoadMetadata(c.wd)
+	if err != nil {
+		return err
+	}
+
+	c.log("Available metadata:")
+
+	for _, stack := range metadata.Stacks {
+		c.log("\nstack %q:", stack.Path)
+		c.log("\tterraform.name=%q", stack.Name)
+		c.log("\tterraform.path=%q", stack.Path)
 	}
 
 	return nil
