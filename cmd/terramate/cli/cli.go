@@ -81,6 +81,9 @@ type cliSpec struct {
 	Generate struct {
 		Basedir string `short:"b" optional:"true" help:"Generate code for stacks inside basedir."`
 	} `cmd:"" help:"Generate terraform code for stacks."`
+
+	Metadata struct {
+	} `cmd:"" help:"shows metadata available on the project"`
 }
 
 // Run will run terramate with the provided flags defined on args from the
@@ -98,8 +101,15 @@ type cliSpec struct {
 // as far as the parameters are not shared between the Run calls.
 //
 // If a critical error is found an non-nil error is returned.
-func Run(wd string, args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
-	c, err := newCLI(wd, args, stdin, stdout, stderr)
+func Run(
+	wd string,
+	args []string,
+	inheritEnv bool,
+	stdin io.Reader,
+	stdout io.Writer,
+	stderr io.Writer,
+) error {
+	c, err := newCLI(wd, args, inheritEnv, stdin, stdout, stderr)
 	if err != nil {
 		return err
 	}
@@ -109,6 +119,7 @@ func Run(wd string, args []string, stdin io.Reader, stdout io.Writer, stderr io.
 type cli struct {
 	ctx        *kong.Context
 	parsedArgs *cliSpec
+	inheritEnv bool
 	stdin      io.Reader
 	stdout     io.Writer
 	stderr     io.Writer
@@ -117,7 +128,14 @@ type cli struct {
 	baseRef    string
 }
 
-func newCLI(wd string, args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) (*cli, error) {
+func newCLI(
+	wd string,
+	args []string,
+	inheritEnv bool,
+	stdin io.Reader,
+	stdout io.Writer,
+	stderr io.Writer,
+) (*cli, error) {
 	if len(args) == 0 {
 		// WHY: avoid default kong error, print help
 		args = []string{"--help"}
@@ -127,9 +145,7 @@ func newCLI(wd string, args []string, stdin io.Reader, stdout io.Writer, stderr 
 	kongExit := false
 	kongExitStatus := 0
 
-	gw, err := git.WithConfig(git.Config{
-		WorkingDir: wd,
-	})
+	gw, err := newGit(wd, inheritEnv, false)
 	if err != nil {
 		return nil, err
 	}
@@ -182,6 +198,7 @@ func newCLI(wd string, args []string, stdin io.Reader, stdout io.Writer, stderr 
 		stdin:      stdin,
 		stdout:     stdout,
 		stderr:     stderr,
+		inheritEnv: inheritEnv,
 		parsedArgs: &parsedArgs,
 		ctx:        ctx,
 		baseRef:    parsedArgs.GitChangeBase,
@@ -235,6 +252,8 @@ func (c *cli) run() error {
 		return c.runOnStacks(basedir)
 	case "generate":
 		return terramate.Generate(c.wd)
+	case "metadata":
+		return c.printMetadata()
 	default:
 		return fmt.Errorf("unexpected command sequence: %s", c.ctx.Command())
 	}
@@ -270,7 +289,7 @@ func (c *cli) listStacks(
 ) ([]terramate.Entry, error) {
 
 	if isChanged {
-		git, err := newGit(basedir)
+		git, err := newGit(basedir, c.inheritEnv, true)
 		if err != nil {
 			return nil, err
 		}
@@ -411,6 +430,23 @@ func (c *cli) printRunOrder(basedir string) error {
 
 	for _, s := range order {
 		c.log("%s", s)
+	}
+
+	return nil
+}
+
+func (c *cli) printMetadata() error {
+	metadata, err := terramate.LoadMetadata(c.wd)
+	if err != nil {
+		return err
+	}
+
+	c.log("Available metadata:")
+
+	for _, stack := range metadata.Stacks {
+		c.log("\nstack %q:", stack.Path)
+		c.log("\tterraform.name=%q", stack.Name)
+		c.log("\tterraform.path=%q", stack.Path)
 	}
 
 	return nil
@@ -562,16 +598,17 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 	return nil
 }
 
-func newGit(basedir string) (*git.Git, error) {
+func newGit(basedir string, inheritEnv bool, checkrepo bool) (*git.Git, error) {
 	g, err := git.WithConfig(git.Config{
 		WorkingDir: basedir,
+		InheritEnv: inheritEnv,
 	})
 
 	if err != nil {
 		return nil, err
 	}
 
-	if !g.IsRepository() {
+	if checkrepo && !g.IsRepository() {
 		return nil, fmt.Errorf("dir %q is not a git repository", basedir)
 	}
 

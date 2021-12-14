@@ -15,6 +15,7 @@
 package hcl
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -82,8 +83,15 @@ func ParseModules(path string) ([]Module, error) {
 
 	var modules []Module
 	for _, block := range body.Blocks {
-		if block.Type != "module" || len(block.Labels) != 1 {
+		if block.Type != "module" {
 			continue
+		}
+
+		if len(block.Labels) != 1 {
+			return nil, errutil.Chain(
+				ErrMalformedTerraform,
+				fmt.Errorf("module block must have 1 label"),
+			)
 		}
 
 		moduleName := block.Labels[0]
@@ -91,12 +99,15 @@ func ParseModules(path string) ([]Module, error) {
 		if err != nil {
 			return nil, errutil.Chain(
 				ErrMalformedTerraform,
-				fmt.Errorf("looking for %q.source attribute: %w",
+				fmt.Errorf("looking for module.%q.source attribute: %w",
 					moduleName, err),
 			)
 		}
 		if !ok {
-			continue
+			return nil, errutil.Chain(
+				ErrMalformedTerraform,
+				errors.New("module must have a \"source\" attribute"),
+			)
 		}
 
 		modules = append(modules, Module{Source: source})

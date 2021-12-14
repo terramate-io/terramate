@@ -56,22 +56,22 @@ func Generate(basedir string) error {
 		return fmt.Errorf("Generate(%q): basedir is not a directory", basedir)
 	}
 
-	stacks, err := ListStacks(basedir)
+	stackEntries, err := ListStacks(basedir)
 	if err != nil {
 		return fmt.Errorf("Generate(%q): listing stack: %w", basedir, err)
 	}
 
 	var errs []error
 
-	for _, stack := range stacks {
+	for _, entry := range stackEntries {
 		// At the time the most intuitive way was to start from the stack
 		// and go up until reaching the basedir, looking for a config.
 		// Basically navigating from the order of precedence, since
 		// more specific configuration overrides base configuration.
 		// Not the most optimized way (re-parsing), we can improve later
-		tfcode, err := generateStackConfig(basedir, stack.Stack.Dir)
+		tfcode, err := generateStackConfig(basedir, entry.Stack.Dir)
 		if err != nil {
-			errs = append(errs, err)
+			errs = append(errs, fmt.Errorf("stack %q: %w", entry.Stack.Dir, err))
 			continue
 		}
 
@@ -79,12 +79,12 @@ func Generate(basedir string) error {
 			continue
 		}
 
-		genfile := filepath.Join(stack.Stack.Dir, GeneratedTfFilename)
+		genfile := filepath.Join(entry.Stack.Dir, GeneratedTfFilename)
 		errs = append(errs, os.WriteFile(genfile, tfcode, 0666))
 	}
 
 	if err := errutil.Chain(errs...); err != nil {
-		return fmt.Errorf("Generate(%q): %w", basedir, err)
+		return fmt.Errorf("failed to generate code: %w", err)
 	}
 
 	return nil

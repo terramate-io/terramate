@@ -75,6 +75,68 @@ source = "%s"
 	)
 }
 
+func TestBugModuleMultipleFilesSameDir(t *testing.T) {
+	const (
+		modname1 = "1"
+		modname2 = "2"
+		modname3 = "3"
+	)
+
+	s := sandbox.New(t)
+
+	mod2 := s.CreateModule(modname2)
+	mod2MainTf := mod2.CreateFile("main.tf", "# module 2")
+
+	mod3 := s.CreateModule(modname2)
+	mod3.CreateFile("main.tf", "# module 3")
+
+	// This issue is related to multiple files in the module directory and the
+	// order of the changed one is important, it should come first, with other
+	// files with module declarations skipped (module source not local).
+	// The files are named "1.tf" and "2.tf" because filepath.Walk() does a
+	// lexicographic walking of the files.
+	mod1 := s.CreateModule(modname1)
+	mod1.CreateFile("1.tf", `
+module "changed" {
+	source = "../2"
+}
+	`)
+
+	mod1.CreateFile("2.tf", `
+module "any" {
+	source = "anything"
+}
+
+module "any2" {
+	source = "anything"
+}
+`)
+
+	stack := s.CreateStack("stack")
+
+	stack.CreateFile("main.tf", `
+module "mod1" {
+    source = %q
+}
+`, stack.ModSource(mod1))
+
+	git := s.Git()
+	git.CommitAll("first commit")
+	git.Push("main")
+	git.CheckoutNew("change-the-module-2")
+
+	mod2MainTf.Write("# changed")
+
+	git.CommitAll("module 2 changed")
+
+	cli := newCLI(t, s.BaseDir())
+	want := stack.RelPath() + "\n"
+	assertRunResult(t, cli.run(
+		"list", s.BaseDir(), "--changed"),
+		runResult{Stdout: want},
+	)
+}
+
 func TestListAndRunChangedStack(t *testing.T) {
 	const (
 		mainTfFileName = "main.tf"
@@ -345,7 +407,7 @@ func (ts tscli) run(args ...string) runResult {
 	stdin := &bytes.Buffer{}
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
-	err := cli.Run(ts.wd, args, stdin, stdout, stderr)
+	err := cli.Run(ts.wd, args, false, stdin, stdout, stderr)
 
 	return runResult{
 		Cmd:    strings.Join(args, " "),

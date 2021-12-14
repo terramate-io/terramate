@@ -6,6 +6,11 @@ accessed through the variable namespace **terramate**.
 This can be referenced from any terramate code to reference
 information like the path of the stack that is being evaluated.
 
+To see all metadata available on your project run:
+
+```
+terramate metadata
+```
 
 ## terramate.path (string) 
 

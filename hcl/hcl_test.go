@@ -36,12 +36,18 @@ func TestHCLParserModules(t *testing.T) {
 
 	for _, tc := range []testcase{
 		{
-			name:  "ignore module type with no label",
+			name:  "module must have 1 label",
 			input: `module {}`,
+			want: want{
+				err: hcl.ErrMalformedTerraform,
+			},
 		},
 		{
-			name:  "ignore module type with no source attribute",
+			name:  "module must have a source attribute",
 			input: `module "test" {}`,
+			want: want{
+				err: hcl.ErrMalformedTerraform,
+			},
 		},
 		{
 			name:  "empty source is a valid module",
