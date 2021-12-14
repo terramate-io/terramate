@@ -36,7 +36,7 @@ In general, a Terramate project looks like this:
 
 Per project configuration can be defined only once at the project base dir.
 
-Available project wide configurations can be found [here](project-config.md)
+Available project-wide configurations can be found [here](project-config.md)
 
 # Stack Configuration
 
