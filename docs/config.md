@@ -13,7 +13,7 @@ stacks.
 
 Here is defined the different kinds of configurations and
 how you can learn more about them. But before getting into the different
-kinds of configurations, what would be a Terramate project ?
+kinds of configurations, what would be a Terramate project?
 
 A Terramate project is essentially any collection of terraform code
 organized into stacks. You can have all terraform code together in a single
