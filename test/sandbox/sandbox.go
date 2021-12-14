@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -373,31 +372,4 @@ func newDirEntry(t *testing.T, basedir string, relpath string) DirEntry {
 		abspath: abspath,
 		relpath: relpath,
 	}
-}
-
-func specList(t *testing.T, name, value string) []string {
-	if !strings.HasPrefix(value, "[") ||
-		!strings.HasSuffix(value, "]") {
-		t.Fatalf("malformed %q value: %q", name, value)
-	}
-	quotedList := strings.Split(value[1:len(value)-1], ",")
-	list := make([]string, 0, len(quotedList))
-	for _, l := range quotedList {
-		l = strings.TrimSpace(l)
-		if l == "" {
-			continue
-		}
-
-		if !strings.HasPrefix(l, `"`) {
-			t.Fatalf("expect quoted strings but given %q", l)
-		}
-
-		var err error
-		val, err := strconv.Unquote(l)
-		assert.NoError(t, err, "list item not properly quoted")
-
-		list = append(list, val)
-	}
-
-	return list
 }
