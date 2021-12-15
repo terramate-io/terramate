@@ -1,8 +1,6 @@
 # Project Config
 
-Terramate does not require any configurations to work, but in case default
-behavior is undesirable, these configurations allow you to override it
-on a per project basis.
+Terramate does not depend on user configuration and comes with a set of sensible defaults. Configurations allow you to override any terramate default value.
 
 Project wide configuration is done via a **config** block inside the
 **terramate** block:
