@@ -504,7 +504,9 @@ stack {}`,
     somelist = [terramate.name, terramate.path]
   }
 }
-stack {}`,
+stack {
+  name = "custom-name"
+}`,
 				},
 			},
 			want: want{
@@ -513,9 +515,9 @@ stack {}`,
 						relpath: "stack-metadata",
 						code: `terraform {
   backend "metadata" {
-    name     = "stack-metadata"
+    name     = "custom-name"
     path     = "/stack-metadata"
-    somelist = ["stack-metadata", "/stack-metadata"]
+    somelist = ["custom-name", "/stack-metadata"]
   }
 }
 `,

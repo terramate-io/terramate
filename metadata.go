@@ -15,7 +15,6 @@
 package terramate
 
 import (
-	"path/filepath"
 	"strings"
 )
 
@@ -43,7 +42,7 @@ func LoadMetadata(basedir string) (Metadata, error) {
 	stacksMetadata := make([]StackMetadata, len(stackEntries))
 	for i, stackEntry := range stackEntries {
 		stacksMetadata[i] = StackMetadata{
-			Name: filepath.Base(stackEntry.Stack.Dir),
+			Name: stackEntry.Stack.Name(),
 			Path: strings.TrimPrefix(stackEntry.Stack.Dir, basedir),
 		}
 	}
