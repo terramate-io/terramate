@@ -354,8 +354,7 @@ stack {}`,
   backend "fromparent" {
     attr = "value"
   }
-}
-`,
+}`,
 				},
 			},
 			want: want{
@@ -383,8 +382,7 @@ stack {}`,
   backend "basedir_config" {
     attr = 666
   }
-}
-`,
+}`,
 				},
 			},
 			want: want{
@@ -415,8 +413,7 @@ stack {}`,
   backend "basedir_config" {
     attr = "test"
   }
-}
-`,
+}`,
 				},
 			},
 			want: want{
@@ -456,8 +453,7 @@ stack {}`,
   backend "remote" {
     environment = "prod"
   }
-}
-`,
+}`,
 				},
 				{
 					relpath: "envs/staging",
