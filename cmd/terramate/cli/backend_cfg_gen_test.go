@@ -355,8 +355,7 @@ stack {}`,
     attr = "value"
   }
 }
-
-stack {}`,
+`,
 				},
 			},
 			want: want{
@@ -385,8 +384,7 @@ stack {}`,
     attr = 666
   }
 }
-
-stack {}`,
+`,
 				},
 			},
 			want: want{
@@ -418,8 +416,7 @@ stack {}`,
     attr = "test"
   }
 }
-
-stack {}`,
+`,
 				},
 			},
 			want: want{
@@ -460,8 +457,7 @@ stack {}`,
     environment = "prod"
   }
 }
-
-stack {}`,
+`,
 				},
 				{
 					relpath: "envs/staging",
@@ -470,8 +466,7 @@ stack {}`,
     environment = "staging"
   }
 }
-
-stack {}`,
+`,
 				},
 			},
 			want: want{

@@ -40,6 +40,15 @@ func LoadStack(dir string) (Stack, error) {
 		return Stack{}, fmt.Errorf("no stack found in %q", dir)
 	}
 
+	ok, err := isLeafDirectory(dir)
+	if err != nil {
+		return Stack{}, err
+	}
+
+	if !ok {
+		return Stack{}, fmt.Errorf("stack %q is not a leaf directory", dir)
+	}
+
 	return stackFromBlock(dir, cfg.Stack), nil
 }
 
@@ -57,6 +66,15 @@ func TryLoadStack(dir string) (stack Stack, found bool, err error) {
 
 	if cfg.Stack == nil {
 		return Stack{}, false, nil
+	}
+
+	ok, err := isLeafDirectory(dir)
+	if err != nil {
+		return Stack{}, false, err
+	}
+
+	if !ok {
+		return Stack{}, false, fmt.Errorf("stack %q is not a leaf directory", dir)
 	}
 
 	return stackFromBlock(dir, cfg.Stack), true, nil
