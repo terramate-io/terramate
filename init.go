@@ -42,7 +42,7 @@ func Init(dir string, force bool) error {
 		// TODO(i4k): this needs to go away soon.
 		return errors.New("init requires an absolute path")
 	}
-	st, err := os.Stat(dir)
+	_, err := os.Stat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return errors.New("init requires an existing directory")
@@ -54,7 +54,7 @@ func Init(dir string, force bool) error {
 	stackfile := filepath.Join(dir, ConfigFilename)
 	isInitialized := false
 
-	st, err = os.Stat(stackfile)
+	st, err := os.Stat(stackfile)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return fmt.Errorf("stat failed on %q: %w", stackfile, err)
@@ -101,7 +101,9 @@ func Init(dir string, force bool) error {
 		Terramate: &hcl.Terramate{
 			RequiredVersion: DefaultVersionConstraint(),
 		},
-		Stack: &hcl.Stack{},
+		Stack: &hcl.Stack{
+			Name: filepath.Base(dir),
+		},
 	})
 
 	if err != nil {
