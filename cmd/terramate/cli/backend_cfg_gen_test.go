@@ -515,7 +515,8 @@ stack {}`,
     path = terramate.path
     somelist = [terramate.name, terramate.path]
   }
-}`,
+}
+stack {}`,
 				},
 			},
 			want: want{
