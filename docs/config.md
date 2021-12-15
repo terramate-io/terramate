@@ -43,9 +43,9 @@ Available project-wide configurations can be found [here](project-config.md)
 Before talking about stack specific configuration, lets define what is a
 Terramate stack:
 
-* A dir that has no child dirs (a leaf in the file system tree)
-* Has a valid terramate configuration file (**terramate.tm.hcl**)
-* The terramate configuration file has a `stack {}` block on it
+* Has a valid terramate configuration file (**terramate.tm.hcl**).
+* The terramate configuration file has a `stack {}` block on it.
+* It has no stacks on any of its subdirs (stacks can't have stacks inside them).
 
 Stacks have configurations that are particular to them, like these:
 
