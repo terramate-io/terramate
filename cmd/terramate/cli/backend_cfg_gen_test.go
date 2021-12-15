@@ -16,7 +16,6 @@ package cli_test
 
 import (
 	"bytes"
-	"os"
 	"path/filepath"
 	"testing"
 	"text/template"
@@ -542,11 +541,6 @@ stack {}`,
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
 
-			untouchedStacks := map[string]struct{}{}
-			for _, relpath := range s.ListStacksRelPath() {
-				untouchedStacks[relpath] = struct{}{}
-			}
-
 			for _, cfg := range tcase.configs {
 				dir := filepath.Join(s.BaseDir(), cfg.relpath)
 				test.WriteFile(t, dir, terramate.ConfigFilename, cfg.config)
@@ -575,17 +569,9 @@ stack {}`,
 					t.Errorf("got:\n%q", got)
 					t.Fatalf("diff:\n%s", diff)
 				}
-
-				delete(untouchedStacks, want.relpath)
 			}
 
-			for stack := range untouchedStacks {
-				fp := filepath.Join(stack, terramate.GeneratedTfFilename)
-				_, err := os.Stat(fp)
-				if err == nil {
-					t.Errorf("stack %q should be untouched, but has generated code: %q", stack, fp)
-				}
-			}
+			// TODO(katcipis): proper unexpected generated code check
 		})
 	}
 
