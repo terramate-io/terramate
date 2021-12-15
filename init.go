@@ -17,8 +17,10 @@ package terramate
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	hclversion "github.com/hashicorp/go-version"
 
@@ -90,6 +92,15 @@ func Init(dir string, force bool) error {
 		}
 	}
 
+	ok, err := isLeafDirectory(dir)
+	if err != nil {
+		return err
+	}
+
+	if !ok {
+		return fmt.Errorf("directory %q is not a leaf directory", dir)
+	}
+
 	f, err := os.Create(stackfile)
 	if err != nil {
 		return err
@@ -145,4 +156,35 @@ func HasConfig(path string) bool {
 	}
 
 	return info.Mode().IsRegular()
+}
+
+func isLeafDirectory(dir string) (bool, error) {
+	isValid := true
+	err := filepath.Walk(
+		dir,
+		func(path string, info fs.FileInfo, err error) error {
+			if !isValid {
+				return filepath.SkipDir
+			}
+			if err != nil {
+				return err
+			}
+			if path == dir {
+				return nil
+			}
+			if info.IsDir() {
+				if strings.HasSuffix(path, "/.git") {
+					return filepath.SkipDir
+				}
+				isValid = false
+				return nil
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		return false, err
+	}
+
+	return isValid, nil
 }
