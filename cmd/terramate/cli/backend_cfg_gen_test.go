@@ -16,11 +16,13 @@ package cli_test
 
 import (
 	"bytes"
+	"io/fs"
 	"path/filepath"
 	"testing"
 	"text/template"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
@@ -571,10 +573,38 @@ stack {}`,
 				}
 			}
 
-			// TODO(katcipis): proper unexpected generated code check
+			generatedFiles := listGeneratedTfFiles(t, s.BaseDir())
+
+			if len(generatedFiles) != len(tcase.want.stacks) {
+				t.Errorf("generated %d files, but wanted %d", len(generatedFiles), len(tcase.want.stacks))
+				t.Errorf("generated files: %v", generatedFiles)
+				t.Fatalf("wanted generated files: %#v", tcase.want.stacks)
+			}
 		})
 	}
 
+}
+
+func listGeneratedTfFiles(t *testing.T, basedir string) []string {
+	// Go's glob is not recursive, so can't just glob for generated filenames
+	var generatedTfFiles []string
+
+	err := filepath.Walk(basedir, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+
+		if info.Name() == terramate.GeneratedTfFilename {
+			generatedTfFiles = append(generatedTfFiles, path)
+		}
+		return nil
+	})
+	assert.NoError(t, err)
+
+	return generatedTfFiles
 }
 
 func applyTemplate(t *testing.T, templ string, data interface{}) string {
