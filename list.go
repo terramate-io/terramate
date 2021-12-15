@@ -17,7 +17,6 @@ package terramate
 import (
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 )
 
@@ -33,14 +32,13 @@ func ListStacks(basedir string) ([]Entry, error) {
 				return err
 			}
 
-			if info.IsDir() {
-				stackfile := filepath.Join(path, ConfigFilename)
-				st, err := os.Stat(stackfile)
-				if err != nil || !st.Mode().IsRegular() {
-					return nil
-				}
+			stack, found, err := TryLoadStack(path)
+			if err != nil {
+				return fmt.Errorf("listing stacks: %w", err)
+			}
 
-				entries = append(entries, Entry{Dir: path})
+			if found {
+				entries = append(entries, Entry{Stack: stack})
 			}
 
 			return nil

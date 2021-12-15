@@ -58,7 +58,7 @@ func Generate(basedir string) error {
 
 	stacks, err := ListStacks(basedir)
 	if err != nil {
-		return fmt.Errorf("Generate(%q): listing stack: %v", basedir, err)
+		return fmt.Errorf("Generate(%q): listing stack: %w", basedir, err)
 	}
 
 	var errs []error
@@ -69,9 +69,9 @@ func Generate(basedir string) error {
 		// Basically navigating from the order of precedence, since
 		// more specific configuration overrides base configuration.
 		// Not the most optimized way (re-parsing), we can improve later
-		tfcode, err := generateStackConfig(basedir, stack.Dir)
+		tfcode, err := generateStackConfig(basedir, stack.Stack.Dir)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("stack %q: %w", stack.Dir, err))
+			errs = append(errs, fmt.Errorf("stack %q: %w", stack.Stack.Dir, err))
 			continue
 		}
 
@@ -79,7 +79,7 @@ func Generate(basedir string) error {
 			continue
 		}
 
-		genfile := filepath.Join(stack.Dir, GeneratedTfFilename)
+		genfile := filepath.Join(stack.Stack.Dir, GeneratedTfFilename)
 		errs = append(errs, os.WriteFile(genfile, tfcode, 0666))
 	}
 
@@ -107,12 +107,12 @@ func generateStackConfig(basedir string, configdir string) ([]byte, error) {
 		return nil, fmt.Errorf("reading config: %v", err)
 	}
 
-	parser := hcl.NewParser()
-	parsed, err := parser.Parse(configfile, config)
-
+	parsedConfig, err := hcl.Parse(configfile, config)
 	if err != nil {
 		return nil, fmt.Errorf("parsing config: %w", err)
 	}
+
+	parsed := parsedConfig.Terramate
 
 	if parsed.Backend == nil {
 		return generateStackConfig(basedir, filepath.Dir(configdir))

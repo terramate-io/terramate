@@ -17,8 +17,10 @@ package terramate
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	hclversion "github.com/hashicorp/go-version"
 
@@ -42,7 +44,7 @@ func Init(dir string, force bool) error {
 		// TODO(i4k): this needs to go away soon.
 		return errors.New("init requires an absolute path")
 	}
-	st, err := os.Stat(dir)
+	_, err := os.Stat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return errors.New("init requires an existing directory")
@@ -51,14 +53,10 @@ func Init(dir string, force bool) error {
 		return fmt.Errorf("stat failed on %q: %w", dir, err)
 	}
 
-	if !st.IsDir() {
-		return errors.New("path is not a directory")
-	}
-
 	stackfile := filepath.Join(dir, ConfigFilename)
 	isInitialized := false
 
-	st, err = os.Stat(stackfile)
+	st, err := os.Stat(stackfile)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return fmt.Errorf("stat failed on %q: %w", stackfile, err)
@@ -94,6 +92,25 @@ func Init(dir string, force bool) error {
 		}
 	}
 
+	ok, err := isLeafStack(dir)
+	if err != nil {
+		return err
+	}
+
+	if !ok {
+		return fmt.Errorf("directory %q is not a leaf stack", dir)
+	}
+
+	parentStack, found, err := lookupParentStack(dir)
+	if err != nil {
+		return err
+	}
+
+	if found {
+		return fmt.Errorf("directory %q is inside stack %q but nested stacks are disallowed",
+			dir, parentStack.Dir)
+	}
+
 	f, err := os.Create(stackfile)
 	if err != nil {
 		return err
@@ -101,9 +118,13 @@ func Init(dir string, force bool) error {
 
 	defer f.Close()
 
-	var p hcl.Printer
-	err = p.PrintTerramate(f, hcl.Terramate{
-		RequiredVersion: DefaultVersionConstraint(),
+	err = hcl.PrintConfig(f, hcl.Config{
+		Terramate: &hcl.Terramate{
+			RequiredVersion: DefaultVersionConstraint(),
+		},
+		Stack: &hcl.Stack{
+			Name: filepath.Base(dir),
+		},
 	})
 
 	if err != nil {
@@ -120,11 +141,66 @@ func DefaultVersionConstraint() string {
 }
 
 func parseVersion(stackfile string) (string, error) {
-	parser := hcl.NewParser()
-	ts, err := parser.ParseFile(stackfile)
+	config, err := hcl.ParseFile(stackfile)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse file %q: %w", stackfile, err)
 	}
 
-	return ts.RequiredVersion, nil
+	return config.Terramate.RequiredVersion, nil
+}
+
+// HasConfig tells if path has a terramate config file.
+func HasConfig(path string) bool {
+	st, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	if !st.IsDir() {
+		return false
+	}
+
+	fname := filepath.Join(path, ConfigFilename)
+	info, err := os.Stat(fname)
+	if err != nil {
+		return false
+	}
+
+	return info.Mode().IsRegular()
+}
+
+func isLeafStack(dir string) (bool, error) {
+	isValid := true
+	err := filepath.Walk(
+		dir,
+		func(path string, info fs.FileInfo, err error) error {
+			if !isValid {
+				return filepath.SkipDir
+			}
+			if err != nil {
+				return err
+			}
+			if path == dir {
+				return nil
+			}
+			if info.IsDir() {
+				if strings.HasSuffix(path, "/.git") {
+					return filepath.SkipDir
+				}
+
+				_, found, err := TryLoadStack(path)
+				if err != nil {
+					return err
+				}
+
+				isValid = !found
+				return nil
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		return false, err
+	}
+
+	return isValid, nil
 }

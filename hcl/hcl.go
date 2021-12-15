@@ -31,6 +31,12 @@ type Module struct {
 	Source string // Source is the module source path (eg.: directory, git path, etc).
 }
 
+type Config struct {
+	Terramate *Terramate
+	Stack     *Stack
+}
+
+// Terramate is the parsed "terramate" HCL block.
 type Terramate struct {
 	// RequiredVersion contains the terramate version required by the stack.
 	RequiredVersion string
@@ -38,33 +44,28 @@ type Terramate struct {
 	Backend *hclsyntax.Block
 }
 
-// Parser is a terramate parser.
-type Parser struct {
-	p *hclparse.Parser
+// Stack is the parsed "stack" HCL block.
+type Stack struct {
+	// Name of the stack
+	Name string
 }
 
 const (
-	ErrHCLSyntax               errutil.Error = "HCL syntax error"
-	ErrNoTerramateBlock        errutil.Error = "no \"terramate\" block found"
-	ErrMalformedTerramateBlock errutil.Error = "malformed terramate block"
-	ErrMalformedTerraform      errutil.Error = "malformed terraform"
+	ErrHCLSyntax                errutil.Error = "HCL syntax error"
+	ErrNoTerramateBlock         errutil.Error = "no \"terramate\" block found"
+	ErrMalformedTerramateConfig errutil.Error = "malformed terramate config"
+	ErrMalformedTerraform       errutil.Error = "malformed terraform"
 )
 
-// NewParser creates a HCL parser
-func NewParser() *Parser {
-	return &Parser{
-		p: hclparse.NewParser(),
-	}
-}
-
 // ParseModules parses blocks of type "module" containing a single label.
-func (p *Parser) ParseModules(path string) ([]Module, error) {
+func ParseModules(path string) ([]Module, error) {
 	_, err := os.Stat(path)
 	if err != nil {
 		return nil, fmt.Errorf("stat failed on %q: %w", path, err)
 	}
 
-	f, diags := p.p.ParseHCLFile(path)
+	p := hclparse.NewParser()
+	f, diags := p.ParseHCLFile(path)
 	if diags.HasErrors() {
 		return nil, errutil.Chain(
 			ErrHCLSyntax,
@@ -109,63 +110,67 @@ func (p *Parser) ParseModules(path string) ([]Module, error) {
 	return modules, nil
 }
 
-// ParseBody parses HCL and return the parsed body.
-func (p *Parser) ParseBody(src []byte, filename string) (*hclsyntax.Body, error) {
-	f, diags := p.p.ParseHCL(src, filename)
-	if diags.HasErrors() {
-		return nil, errutil.Chain(
-			ErrHCLSyntax,
-			fmt.Errorf("parsing modules: %w", diags),
-		)
-	}
-
-	body, ok := f.Body.(*hclsyntax.Body)
-	if !ok {
-		return nil, fmt.Errorf("expected to parse body, got[%v] type[%[1]T]", f.Body)
-	}
-	return body, nil
-}
-
 // Parse parses a terramate source.
-func (p *Parser) Parse(fname string, data []byte) (*Terramate, error) {
-	f, diags := p.p.ParseHCL(data, fname)
+func Parse(fname string, data []byte) (*Config, error) {
+	p := hclparse.NewParser()
+	f, diags := p.ParseHCL(data, fname)
 	if diags.HasErrors() {
 		return nil, errutil.Chain(ErrHCLSyntax, diags)
 	}
 
 	body, _ := f.Body.(*hclsyntax.Body)
 
-	var tsconfig Terramate
-	var tsblock *hclsyntax.Block
-	var found bool
+	var tmconfig Config
+	var tmblock, stackblock *hclsyntax.Block
+	var foundtm, foundstack bool
 	for _, block := range body.Blocks {
-		if block.Type != "terramate" {
-			continue
-		}
-
-		if found {
+		if block.Type != "terramate" && block.Type != "stack" {
 			return nil, errutil.Chain(
-				ErrMalformedTerramateBlock,
-				fmt.Errorf("multiple terramate blocks in file %q", fname),
+				ErrMalformedTerramateConfig,
+				fmt.Errorf("block type %q is not supported", block.Type),
 			)
 		}
 
-		found = true
-		tsblock = block
+		if block.Type == "terramate" {
+			if foundtm {
+				return nil, errutil.Chain(
+					ErrMalformedTerramateConfig,
+					fmt.Errorf("multiple terramate blocks in file %q", fname),
+				)
+			}
+			foundtm = true
+			tmblock = block
+			continue
+		}
+
+		if block.Type == "stack" {
+			if foundstack {
+				return nil, errutil.Chain(
+					ErrMalformedTerramateConfig,
+					fmt.Errorf("multiple stack blocks in file %q", fname),
+				)
+			}
+
+			foundstack = true
+			stackblock = block
+		}
 	}
 
-	if !found {
+	if !foundtm {
 		return nil, ErrNoTerramateBlock
 	}
 
-	if len(tsblock.Labels) > 0 {
+	if len(tmblock.Labels) > 0 {
 		return nil, errutil.Chain(
-			ErrMalformedTerramateBlock,
+			ErrMalformedTerramateConfig,
 			fmt.Errorf("terramate block must have no labels"),
 		)
 	}
 
-	for name, value := range tsblock.Body.Attributes {
+	tmconfig.Terramate = &Terramate{}
+	tm := tmconfig.Terramate
+
+	for name, value := range tmblock.Body.Attributes {
 		attrVal, diags := value.Expr.Value(nil)
 		if diags.HasErrors() {
 			return nil, errutil.Chain(
@@ -178,60 +183,93 @@ func (p *Parser) Parse(fname string, data []byte) (*Terramate, error) {
 		case "required_version":
 			if attrVal.Type() != cty.String {
 				return nil, errutil.Chain(
-					ErrMalformedTerramateBlock,
+					ErrMalformedTerramateConfig,
 					fmt.Errorf("attribute %q is not a string", name),
 				)
 			}
 
-			tsconfig.RequiredVersion = attrVal.AsString()
+			tm.RequiredVersion = attrVal.AsString()
 
-			// TODO(i4k): support other fields in the case (after, before, etc)
 		default:
-			return nil, errutil.Chain(ErrMalformedTerramateBlock,
+			return nil, errutil.Chain(ErrMalformedTerramateConfig,
 				fmt.Errorf("invalid attribute %q", name),
 			)
 		}
 	}
 
-	found = false
-	for _, block := range tsblock.Body.Blocks {
+	foundBackend := false
+	for _, block := range tmblock.Body.Blocks {
 		if block.Type != "backend" {
 			return nil, errutil.Chain(
-				ErrMalformedTerramateBlock,
+				ErrMalformedTerramateConfig,
 				fmt.Errorf("block type %q not supported", block.Type))
 		}
 
-		if found {
+		if foundBackend {
 			return nil, errutil.Chain(
-				ErrMalformedTerramateBlock,
+				ErrMalformedTerramateConfig,
 				fmt.Errorf("multiple backend blocks in file %q", fname),
 			)
 		}
 
-		found = true
+		foundBackend = true
 
 		if len(block.Labels) != 1 {
 			return nil, errutil.Chain(
-				ErrMalformedTerramateBlock,
+				ErrMalformedTerramateConfig,
 				fmt.Errorf("backend type expects 1 label but given %v",
 					block.Labels),
 			)
 		}
 
-		tsconfig.Backend = block
+		tm.Backend = block
 	}
 
-	return &tsconfig, nil
+	if !foundstack {
+		return &tmconfig, nil
+	}
+
+	tmconfig.Stack = &Stack{}
+	stack := tmconfig.Stack
+
+	for name, value := range stackblock.Body.Attributes {
+		attrVal, diags := value.Expr.Value(nil)
+		if diags.HasErrors() {
+			return nil, errutil.Chain(
+				ErrHCLSyntax,
+				fmt.Errorf("failed to evaluate %q attribute: %w",
+					name, diags),
+			)
+		}
+		switch name {
+		case "name":
+			if attrVal.Type() != cty.String {
+				return nil, errutil.Chain(ErrMalformedTerramateConfig,
+					fmt.Errorf("field stack.\"name\" must be a \"string\" but given %q",
+						attrVal.Type().FriendlyName()),
+				)
+			}
+			stack.Name = attrVal.AsString()
+
+		default:
+			return nil, errutil.Chain(
+				ErrMalformedTerramateConfig,
+				fmt.Errorf("unknown attribute \"stack.%s\"", name),
+			)
+		}
+	}
+
+	return &tmconfig, nil
 }
 
 // ParseFile parses a terramate file.
-func (p *Parser) ParseFile(path string) (*Terramate, error) {
+func ParseFile(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file %q: %w", path, err)
 	}
 
-	return p.Parse(path, data)
+	return Parse(path, data)
 }
 
 func findStringAttr(block *hclsyntax.Block, attr string) (string, bool, error) {
