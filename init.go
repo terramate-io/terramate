@@ -92,7 +92,7 @@ func Init(dir string, force bool) error {
 		}
 	}
 
-	ok, err := isLeafDirectory(dir)
+	ok, err := isLeafStack(dir)
 	if err != nil {
 		return err
 	}
@@ -158,7 +158,7 @@ func HasConfig(path string) bool {
 	return info.Mode().IsRegular()
 }
 
-func isLeafDirectory(dir string) (bool, error) {
+func isLeafStack(dir string) (bool, error) {
 	isValid := true
 	err := filepath.Walk(
 		dir,
@@ -176,7 +176,13 @@ func isLeafDirectory(dir string) (bool, error) {
 				if strings.HasSuffix(path, "/.git") {
 					return filepath.SkipDir
 				}
-				isValid = false
+
+				_, found, err := TryLoadStack(path)
+				if err != nil {
+					return err
+				}
+
+				isValid = !found
 				return nil
 			}
 			return nil
