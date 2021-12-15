@@ -35,16 +35,16 @@ type Metadata struct {
 
 // LoadMetadata loads the project metadata given the project basedir.
 func LoadMetadata(basedir string) (Metadata, error) {
-	stacks, err := ListStacks(basedir)
+	stackEntries, err := ListStacks(basedir)
 	if err != nil {
 		return Metadata{}, err
 	}
 
-	stacksMetadata := make([]StackMetadata, len(stacks))
-	for i, stack := range stacks {
+	stacksMetadata := make([]StackMetadata, len(stackEntries))
+	for i, stackEntry := range stackEntries {
 		stacksMetadata[i] = StackMetadata{
-			Name: filepath.Base(stack.Dir),
-			Path: strings.TrimPrefix(stack.Dir, basedir),
+			Name: filepath.Base(stackEntry.Stack.Dir),
+			Path: strings.TrimPrefix(stackEntry.Stack.Dir, basedir),
 		}
 	}
 

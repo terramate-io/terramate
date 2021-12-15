@@ -22,6 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -109,41 +110,19 @@ func TestLoadMetadata(t *testing.T) {
 			},
 		},
 		{
-			// TODO(katcipis): update to give error when we merge strict stack list logic
 			name: "single invalid stack",
 			layout: []string{
 				fmt.Sprintf("f:invalid-stack/%s:data=notvalidhcl", terramate.ConfigFilename),
 			},
-			want: terramate.Metadata{
-				Stacks: []terramate.StackMetadata{
-					{
-						Name: "invalid-stack",
-						Path: "/invalid-stack",
-					},
-				},
-			},
-			//wantErr: hcl.ErrMalformedTerramateBlock,
+			wantErr: hcl.ErrNoTerramateBlock,
 		},
 		{
-			// TODO(katcipis): update to give error when we merge strict stack list logic
 			name: "valid stack with invalid stack",
 			layout: []string{
 				"s:stack-valid-1",
 				fmt.Sprintf("f:invalid-stack/%s:data=notvalidhcl", terramate.ConfigFilename),
 			},
-			want: terramate.Metadata{
-				Stacks: []terramate.StackMetadata{
-					{
-						Name: "invalid-stack",
-						Path: "/invalid-stack",
-					},
-					{
-						Name: "stack-valid-1",
-						Path: "/stack-valid-1",
-					},
-				},
-			},
-			//wantErr: hcl.ErrMalformedTerramateBlock,
+			wantErr: hcl.ErrNoTerramateBlock,
 		},
 	}
 
@@ -156,7 +135,6 @@ func TestLoadMetadata(t *testing.T) {
 
 			if tcase.wantErr != nil {
 				assert.IsError(t, err, tcase.wantErr)
-				return
 			}
 
 			if diff := cmp.Diff(tcase.want, metadata, cmpopts.IgnoreUnexported(tcase.want)); diff != "" {

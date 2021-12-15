@@ -133,8 +133,7 @@ module "test" {
 		t.Run(tc.name, func(t *testing.T) {
 			path := test.WriteFile(t, "", "main.tf", tc.input)
 
-			parser := hcl.NewParser()
-			modules, err := parser.ParseModules(path)
+			modules, err := hcl.ParseModules(path)
 			assert.IsError(t, err, tc.want.err)
 
 			assert.EqualInts(t, len(tc.want.modules), len(modules), "modules len mismatch")
@@ -147,10 +146,10 @@ module "test" {
 	}
 }
 
-func TestHHCLParserTerramateBlock(t *testing.T) {
+func TestHHCLParserTerramateConfig(t *testing.T) {
 	type want struct {
-		err   error
-		block hcl.Terramate
+		err    error
+		config hcl.Config
 	}
 	type testcase struct {
 		name  string
@@ -173,8 +172,10 @@ func TestHHCLParserTerramateBlock(t *testing.T) {
 	}
 	`,
 			want: want{
-				block: hcl.Terramate{
-					RequiredVersion: "> 0.0.0",
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						RequiredVersion: "> 0.0.0",
+					},
 				},
 			},
 		},
@@ -187,10 +188,12 @@ func TestHHCLParserTerramateBlock(t *testing.T) {
 	}
 	`,
 			want: want{
-				block: hcl.Terramate{
-					Backend: &hclsyntax.Block{
-						Type:   "backend",
-						Labels: []string{"something"},
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Backend: &hclsyntax.Block{
+							Type:   "backend",
+							Labels: []string{"something"},
+						},
 					},
 				},
 			},
@@ -198,17 +201,19 @@ func TestHHCLParserTerramateBlock(t *testing.T) {
 		{
 			name: "backend with attributes",
 			input: `
-	terramate {
-		   backend "something" {
-			   something = "something else"
-		   }
+terramate {
+	backend "something" {
+		something = "something else"
 	}
+}
 	`,
 			want: want{
-				block: hcl.Terramate{
-					Backend: &hclsyntax.Block{
-						Type:   "backend",
-						Labels: []string{"something"},
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Backend: &hclsyntax.Block{
+							Type:   "backend",
+							Labels: []string{"something"},
+						},
 					},
 				},
 			},
@@ -216,34 +221,36 @@ func TestHHCLParserTerramateBlock(t *testing.T) {
 		{
 			name: "multiple backend blocks - fails",
 			input: `
-	terramate {
-		   backend "ah" {}
-		   backend "something" {
-			   something = "something else"
-		   }
+terramate {
+	backend "ah" {}
+	backend "something" {
+		something = "something else"
 	}
+}
 	`,
 			want: want{
-				err: hcl.ErrMalformedTerramateBlock,
+				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
 			name: "backend with nested blocks",
 			input: `
-	terramate {
-		   backend "my-label" {
-			   something = "something else"
-			   other {
-				   test = 1
-			   }
-		   }
+terramate {
+	backend "my-label" {
+		something = "something else"
+		other {
+			test = 1
+		}
 	}
-	`,
+}
+`,
 			want: want{
-				block: hcl.Terramate{
-					Backend: &hclsyntax.Block{
-						Type:   "backend",
-						Labels: []string{"my-label"},
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Backend: &hclsyntax.Block{
+							Type:   "backend",
+							Labels: []string{"my-label"},
+						},
 					},
 				},
 			},
@@ -251,37 +258,36 @@ func TestHHCLParserTerramateBlock(t *testing.T) {
 		{
 			name: "backend with no labels - fails",
 			input: `
-	terramate {
-		   backend {
-			   something = "something else"
-		   }
+terramate {
+	backend {
+		something = "something else"
 	}
+}
 	`,
 			want: want{
-				err: hcl.ErrMalformedTerramateBlock,
+				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
 			name: "backend with more than 1 label - fails",
 			input: `
-	terramate {
-		   backend "1" "2" {
-			   something = "something else"
-		   }
+terramate {
+	backend "1" "2" {
+		something = "something else"
 	}
+}
 	`,
 			want: want{
-				err: hcl.ErrMalformedTerramateBlock,
+				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p := hcl.NewParser()
-			got, err := p.Parse(tc.name, []byte(tc.input))
+			got, err := hcl.Parse(tc.name, []byte(tc.input))
 			assert.IsError(t, err, tc.want.err)
 
 			if tc.want.err == nil {
-				test.AssertTerramateBlock(t, *got, tc.want.block)
+				test.AssertTerramateConfig(t, *got, tc.want.config)
 			}
 		})
 	}

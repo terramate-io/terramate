@@ -86,13 +86,13 @@ func TestBackendConfigGeneration(t *testing.T) {
 			},
 			want: want{
 				res: runResult{
-					Error:        hcl.ErrMalformedTerramateBlock,
+					Error:        hcl.ErrMalformedTerramateConfig,
 					IgnoreStdout: true,
 				},
 			},
 		},
 		{
-			name: "partial failure on multiple stacks and one has invalid config",
+			name: "multiple stacks and one has invalid config fails",
 			layout: []string{
 				"s:stack-invalid-backend",
 				"s:stack-ok-backend",
@@ -114,18 +114,8 @@ func TestBackendConfigGeneration(t *testing.T) {
 				},
 			},
 			want: want{
-				stacks: []stackcode{
-					{
-						relpath: "stack-ok-backend",
-						code: `terraform {
-  backend "valid" {
-  }
-}
-`,
-					},
-				},
 				res: runResult{
-					Error:        hcl.ErrMalformedTerramateBlock,
+					Error:        hcl.ErrMalformedTerramateConfig,
 					IgnoreStdout: true,
 				},
 			},
@@ -139,7 +129,9 @@ func TestBackendConfigGeneration(t *testing.T) {
 					config: `terramate {
   required_version = "~> 0.0.0"
   backend "sometype" {}
-}`,
+}
+
+stack {}`,
 				},
 			},
 			want: want{
@@ -165,7 +157,9 @@ func TestBackendConfigGeneration(t *testing.T) {
 					config: `terramate {
   required_version = "~> 0.0.0"
   backend "" {}
-}`,
+}
+
+stack {}`,
 				},
 			},
 			want: want{
@@ -193,7 +187,9 @@ func TestBackendConfigGeneration(t *testing.T) {
   backend "sometype" {
     attr = "value"
   }
-}`,
+}
+
+stack {}`,
 				},
 			},
 			want: want{
@@ -222,7 +218,9 @@ func TestBackendConfigGeneration(t *testing.T) {
   backend "1" {
     attr = "hi"
   }
-}`,
+}
+
+stack {}`,
 				},
 				{
 					relpath: "stack-2",
@@ -231,7 +229,9 @@ func TestBackendConfigGeneration(t *testing.T) {
   backend "2" {
     somebool = true
   }
-}`,
+}
+
+stack {}`,
 				},
 				{
 					relpath: "stack-3",
@@ -240,7 +240,9 @@ func TestBackendConfigGeneration(t *testing.T) {
   backend "3" {
     somelist = ["m", "i", "n", "e", "i", "r", "o", "s"]
   }
-}`,
+}
+
+stack {}`,
 				},
 			},
 			want: want{
@@ -290,7 +292,10 @@ func TestBackendConfigGeneration(t *testing.T) {
     attrbool = true
     somelist = ["hi", "again"]
   }
-}`,
+}
+
+stack {}
+`,
 				},
 			},
 			want: want{
@@ -327,7 +332,9 @@ func TestBackendConfigGeneration(t *testing.T) {
       somelist   = ["hi", "again"]
     }
   }
-}`,
+}
+
+stack {}`,
 				},
 			},
 			want: want{
@@ -467,7 +474,8 @@ func TestBackendConfigGeneration(t *testing.T) {
   backend "remote" {
     environment = "staging"
   }
-}`,
+}
+`,
 				},
 			},
 			want: want{
@@ -533,14 +541,14 @@ func TestBackendConfigGeneration(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
 
-			for _, cfg := range tcase.configs {
-				dir := filepath.Join(s.BaseDir(), cfg.relpath)
-				test.WriteFile(t, dir, terramate.ConfigFilename, cfg.config)
-			}
-
 			untouchedStacks := map[string]struct{}{}
 			for _, relpath := range s.ListStacksRelPath() {
 				untouchedStacks[relpath] = struct{}{}
+			}
+
+			for _, cfg := range tcase.configs {
+				dir := filepath.Join(s.BaseDir(), cfg.relpath)
+				test.WriteFile(t, dir, terramate.ConfigFilename, cfg.config)
 			}
 
 			ts := newCLI(t, s.BaseDir())

@@ -61,7 +61,7 @@ func Generate(basedir string) error {
 
 	stacks, err := ListStacks(basedir)
 	if err != nil {
-		return fmt.Errorf("listing stack: %v", err)
+		return fmt.Errorf("listing stack: %w", err)
 	}
 
 	metadata, err := LoadMetadata(basedir)
@@ -77,21 +77,21 @@ func Generate(basedir string) error {
 		// Basically navigating from the order of precedence, since
 		// more specific configuration overrides base configuration.
 		// Not the most optimized way (re-parsing), we can improve later
-		stackMetadata, ok := metadata.StackMetadata(stack.Dir)
+		stackMetadata, ok := metadata.StackMetadata(stack.Stack.Dir)
 		if !ok {
-			errs = append(errs, fmt.Errorf("stack %q: no metadata found", stack.Dir))
+			errs = append(errs, fmt.Errorf("stack %q: no metadata found", stack.Stack.Dir))
 			continue
 		}
 
 		evalctx, err := newHCLEvalContext(stackMetadata)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("stack %q: building eval ctx: %v", stack.Dir, err))
+			errs = append(errs, fmt.Errorf("stack %q: building eval ctx: %v", stack.Stack.Dir, err))
 			continue
 		}
 
-		tfcode, err := generateStackConfig(basedir, stack.Dir, evalctx)
+		tfcode, err := generateStackConfig(basedir, stack.Stack.Dir, evalctx)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("stack %q: %w", stack.Dir, err))
+			errs = append(errs, fmt.Errorf("stack %q: %w", stack.Stack.Dir, err))
 			continue
 		}
 
@@ -99,7 +99,7 @@ func Generate(basedir string) error {
 			continue
 		}
 
-		genfile := filepath.Join(stack.Dir, GeneratedTfFilename)
+		genfile := filepath.Join(stack.Stack.Dir, GeneratedTfFilename)
 		errs = append(errs, os.WriteFile(genfile, tfcode, 0666))
 	}
 
@@ -127,12 +127,12 @@ func generateStackConfig(basedir string, configdir string, evalctx *tfhcl.EvalCo
 		return nil, fmt.Errorf("reading config: %v", err)
 	}
 
-	parser := hcl.NewParser()
-	parsed, err := parser.Parse(configfile, config)
-
+	parsedConfig, err := hcl.Parse(configfile, config)
 	if err != nil {
 		return nil, fmt.Errorf("parsing config: %w", err)
 	}
+
+	parsed := parsedConfig.Terramate
 
 	if parsed.Backend == nil {
 		return generateStackConfig(basedir, filepath.Dir(configdir), evalctx)

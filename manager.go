@@ -31,13 +31,11 @@ type (
 	Manager struct {
 		basedir    string // basedir is the stacks base directory.
 		gitBaseRef string // gitBaseRef is the git ref where we compare changes.
-
-		parser *hcl.Parser
 	}
 
-	// Entry is a generic directory entry result.
+	// Entry is a stack entry result.
 	Entry struct {
-		Dir    string
+		Stack  Stack
 		Reason string // Reason why this entry was returned.
 	}
 )
@@ -48,7 +46,6 @@ func NewManager(basedir string, gitBaseRef string) *Manager {
 	return &Manager{
 		basedir:    basedir,
 		gitBaseRef: gitBaseRef,
-		parser:     hcl.NewParser(),
 	}
 }
 
@@ -64,17 +61,22 @@ func (m *Manager) List() ([]Entry, error) {
 // It's an error to call this method in a directory that's not
 // inside a repository or a repository with no commits in it.
 func (m *Manager) ListChanged() ([]Entry, error) {
-	stackSet := map[string]Entry{}
 	files, err := listChangedFiles(m.basedir, m.gitBaseRef)
 	if err != nil {
 		return nil, err
 	}
 
+	stackSet := map[string]Entry{}
 	for _, path := range files {
 		dirname := filepath.Dir(filepath.Join(m.basedir, path))
-		if _, ok := stackSet[dirname]; !ok && isStack(dirname) {
+		stack, found, err := TryLoadStack(dirname)
+		if err != nil {
+			return nil, fmt.Errorf("listing changed files: %w", err)
+		}
+
+		if found {
 			stackSet[dirname] = Entry{
-				Dir:    dirname,
+				Stack:  stack,
 				Reason: "stack has unmerged changes",
 			}
 		}
@@ -85,7 +87,8 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 		return nil, fmt.Errorf("searching for stacks: %v", err)
 	}
 
-	for _, stack := range allstacks {
+	for _, stackEntry := range allstacks {
+		stack := stackEntry.Stack
 		if _, ok := stackSet[stack.Dir]; ok {
 			continue
 		}
@@ -96,7 +99,7 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 			}
 
 			tfpath := filepath.Join(stack.Dir, file.Name())
-			modules, err := m.parser.ParseModules(tfpath)
+			modules, err := hcl.ParseModules(tfpath)
 			if err != nil {
 				return fmt.Errorf("parsing modules at %q: %w",
 					file.Name(), err)
@@ -110,7 +113,7 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 
 				if changed {
 					stackSet[stack.Dir] = Entry{
-						Dir:    stack.Dir,
+						Stack:  stack,
 						Reason: fmt.Sprintf("stack changed because %q changed because %s", mod.Source, why),
 					}
 					return nil
@@ -130,7 +133,6 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 	}
 
 	sort.Sort(EntrySlice(changedStacks))
-
 	return changedStacks, nil
 }
 
@@ -147,7 +149,7 @@ func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) err
 
 		err := apply(file)
 		if err != nil {
-			return fmt.Errorf("applying operation to file %q: %w", file.Name(), err)
+			return fmt.Errorf("applying operation to file %q: %w", file, err)
 		}
 	}
 
@@ -244,11 +246,7 @@ func (m *Manager) moduleChanged(
 
 	// TODO(i4k): resolve symlinks
 
-	if err != nil {
-		return false, "", err
-	}
-
-	if !st.IsDir() {
+	if err != nil || !st.IsDir() {
 		return false, "", fmt.Errorf("\"source\" path %q is not a directory", modPath)
 	}
 
@@ -271,7 +269,7 @@ func (m *Manager) moduleChanged(
 			return nil
 		}
 
-		modules, err := m.parser.ParseModules(filepath.Join(modPath, file.Name()))
+		modules, err := hcl.ParseModules(filepath.Join(modPath, file.Name()))
 		if err != nil {
 			return fmt.Errorf("parsing module %q: %w", mod.Source, err)
 		}
@@ -300,28 +298,9 @@ func (m *Manager) moduleChanged(
 	return changed, fmt.Sprintf("module %q changed because %s", mod.Source, why), nil
 }
 
-func isStack(dir string) bool {
-	st, err := os.Stat(dir)
-	if err != nil {
-		return false
-	}
-
-	if !st.IsDir() {
-		return false
-	}
-
-	fname := filepath.Join(dir, ConfigFilename)
-	st, err = os.Stat(fname)
-	if err != nil {
-		return false
-	}
-
-	return st.Mode().IsRegular()
-}
-
 // EntrySlice implements the Sort interface.
 type EntrySlice []Entry
 
 func (x EntrySlice) Len() int           { return len(x) }
-func (x EntrySlice) Less(i, j int) bool { return x[i].Dir < x[j].Dir }
+func (x EntrySlice) Less(i, j int) bool { return x[i].Stack.Dir < x[j].Stack.Dir }
 func (x EntrySlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }

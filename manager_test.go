@@ -90,7 +90,7 @@ func TestListChangedStacks(t *testing.T) {
 			name:        "multiple stacks: one changed",
 			repobuilder: multipleStacksOneChangedRepo,
 			want: listTestResult{
-				list:    []string{"/", "/changed-stack", "/not-changed-stack"},
+				list:    []string{"/changed-stack", "/not-changed-stack"},
 				changed: []string{"/changed-stack"},
 			},
 		},
@@ -99,7 +99,6 @@ func TestListChangedStacks(t *testing.T) {
 			repobuilder: multipleChangedStacksRepo,
 			want: listTestResult{
 				list: []string{
-					"/",
 					"/changed-stack",
 					"/changed-stack-0",
 					"/changed-stack-1",
@@ -118,23 +117,23 @@ func TestListChangedStacks(t *testing.T) {
 			name:        "single stack: single module changed",
 			repobuilder: singleStackSingleModuleChangedRepo,
 			want: listTestResult{
-				list:    []string{"/"},
-				changed: []string{"/"},
+				list:    []string{"/stack"},
+				changed: []string{"/stack"},
 			},
 		},
 		{
 			name:        "single stack: dependent module changed",
 			repobuilder: singleStackDependentModuleChangedRepo,
 			want: listTestResult{
-				list:    []string{"/"},
-				changed: []string{"/"},
+				list:    []string{"/stack"},
+				changed: []string{"/stack"},
 			},
 		},
 		{
 			name:        "multiple stack: single module changed",
 			repobuilder: multipleStackOneChangedModule,
 			want: listTestResult{
-				list:    []string{"/", "/stack1", "/stack2"},
+				list:    []string{"/stack1", "/stack2"},
 				changed: []string{"/stack2"},
 			},
 		},
@@ -166,7 +165,7 @@ func TestListChangedStackReason(t *testing.T) {
 	changed, err := m.ListChanged()
 	assert.NoError(t, err, "unexpected error")
 	assert.EqualInts(t, 1, len(changed), "unexpected number of entries")
-	assert.EqualStrings(t, repo.Dir, changed[0].Dir, "stack dir mismatch")
+	assert.EqualStrings(t, repo.Dir, changed[0].Stack.Dir, "stack dir mismatch")
 	assert.EqualStrings(t, "stack has unmerged changes", changed[0].Reason)
 
 	repo = singleStackDependentModuleChangedRepo(t)
@@ -175,7 +174,8 @@ func TestListChangedStackReason(t *testing.T) {
 	changed, err = m.ListChanged()
 	assert.NoError(t, err, "unexpected error")
 	assert.EqualInts(t, 1, len(changed), "unexpected number of entries")
-	assert.EqualStrings(t, repo.Dir, changed[0].Dir, "stack dir mismatch")
+	assert.EqualStrings(t, filepath.Join(repo.Dir, "stack"), changed[0].Stack.Dir,
+		"stack dir mismatch")
 
 	if !strings.Contains(changed[0].Reason, "modules/module1") ||
 		!strings.Contains(changed[0].Reason, "../module2") {
@@ -189,17 +189,17 @@ func assertStacks(
 	assert.EqualInts(t, len(want), len(got), "wrong number of stacks: %+v", got)
 
 	for i := 0; i < len(want); i++ {
-		index := strings.Index(got[i].Dir, basedir)
+		index := strings.Index(got[i].Stack.Dir, basedir)
 		assert.EqualInts(t, index, 0, "paths contains basedir")
 
-		shifted := got[i].Dir[len(basedir):]
+		shifted := got[i].Stack.Dir[len(basedir):]
 		if shifted == "" {
 			shifted = "/"
 		}
 		assert.EqualStrings(t, want[i], shifted, "path mismatch")
 
 		if wantReason && got[i].Reason == "" {
-			t.Errorf("stack [%s] has no reason", got[i].Dir)
+			t.Errorf("stack [%s] has no reason", got[i].Stack.Dir)
 		}
 	}
 }
@@ -312,8 +312,30 @@ func singleMergeCommitRepo(t *testing.T) repository {
 	return repo
 }
 
+func singleMergeCommitRepoNoStack(t *testing.T) repository {
+	repodir := test.NewRepo(t)
+	repo := repository{
+		Dir: repodir,
+	}
+
+	g := test.NewGitWrapper(t, repo.Dir, false)
+
+	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
+
+	_ = test.WriteFile(t, repo.Dir, "foo", "foo")
+
+	assert.NoError(t, g.Add("foo"), "add foo failed")
+	assert.NoError(t, g.Commit("foo message"), "commit foo failed")
+
+	addMergeCommit(t, repo.Dir, "testbranch")
+
+	assert.NoError(t, g.DeleteBranch("testbranch"), "delete testbranch")
+
+	return repo
+}
+
 func multipleStacksOneChangedRepo(t *testing.T) repository {
-	repo := singleMergeCommitRepo(t)
+	repo := singleMergeCommitRepoNoStack(t)
 
 	g := test.NewGitWrapper(t, repo.Dir, false)
 
@@ -366,29 +388,32 @@ func multipleChangedStacksRepo(t *testing.T) repository {
 }
 
 func singleStackSingleModuleChangedRepo(t *testing.T) repository {
-	repo := singleNotChangedStack(t)
+	repo := singleMergeCommitRepoNoStack(t)
 	modules := test.Mkdir(t, repo.Dir, "modules")
 	module1 := test.Mkdir(t, modules, "module1")
 	module2 := test.Mkdir(t, modules, "module2")
 
 	repo.modules = append(repo.modules, module1, module2)
 
+	stack := test.Mkdir(t, repo.Dir, "stack")
+	assert.NoError(t, terramate.Init(stack, false))
+
 	g := test.NewGitWrapper(t, repo.Dir, false)
 
-	mainFile := test.WriteFile(t, repo.Dir, "main.tf", fmt.Sprintf(`
+	test.WriteFile(t, stack, "main.tf", `
 module "something" {
-	source = "../../../../../..%s"
+	source = "../modules/module1"
 }
-`, module1))
+`)
 
-	assert.NoError(t, g.Add(mainFile), "add main.tf")
-	assert.NoError(t, g.Commit("add main.tf"), "commit main.tf")
+	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Commit("files"), "commit files")
 
 	return repo
 }
 
 func multipleStackOneChangedModule(t *testing.T) repository {
-	repo := singleMergeCommitRepo(t)
+	repo := singleMergeCommitRepoNoStack(t)
 
 	g := test.NewGitWrapper(t, repo.Dir, false)
 
@@ -441,7 +466,7 @@ module "something" {
 }
 
 func singleStackDependentModuleChangedRepo(t *testing.T) repository {
-	repo := singleNotChangedStack(t)
+	repo := singleMergeCommitRepoNoStack(t)
 
 	modules := test.Mkdir(t, repo.Dir, "modules")
 	module1 := test.Mkdir(t, modules, "module1")
@@ -449,21 +474,25 @@ func singleStackDependentModuleChangedRepo(t *testing.T) repository {
 
 	repo.modules = append(repo.modules, module1, module2)
 
+	stack := test.Mkdir(t, repo.Dir, "stack")
+	assert.NoError(t, terramate.Init(stack, false))
+
 	g := test.NewGitWrapper(t, repo.Dir, false)
 
-	mainFile := test.WriteFile(t, repo.Dir, "main.tf", `
-module "module1" {
-	source = "./modules/module1"
+	test.WriteFile(t, stack, "main.tf", `
+module "something" {
+	source = "../modules/module1"
 }
 `)
-	assert.NoError(t, g.Add(mainFile), "add main.tf")
-	assert.NoError(t, g.Commit("commit main.tf"), "commit main.tf")
+
+	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Commit("files"), "commit files")
 
 	readmeFile := test.WriteFile(t, module2, "README.md", "GENERATED BY TERRAMATE TESTS!")
 	assert.NoError(t, g.Add(readmeFile), "add readme file")
 	assert.NoError(t, g.Commit("commit"), "commit readme")
 
-	mainFile = test.WriteFile(t, module2, "main.tf", "")
+	mainFile := test.WriteFile(t, module2, "main.tf", "")
 	assert.NoError(t, g.Add(mainFile), "add main.tf")
 	assert.NoError(t, g.Commit("commit main.tf"), "commit main.tf")
 
