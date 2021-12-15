@@ -48,10 +48,6 @@ type Terramate struct {
 type Stack struct {
 	// Name of the stack
 	Name string
-
-	// After is a list of non-duplicated stack entries that must run after the
-	// current stack runs.
-	After []string
 }
 
 const (
@@ -59,7 +55,6 @@ const (
 	ErrNoTerramateBlock         errutil.Error = "no \"terramate\" block found"
 	ErrMalformedTerramateConfig errutil.Error = "malformed terramate config"
 	ErrMalformedTerraform       errutil.Error = "malformed terraform"
-	ErrStackInvalidRunOrder     errutil.Error = "invalid stack execution order definition"
 )
 
 // ParseModules parses blocks of type "module" containing a single label.

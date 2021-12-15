@@ -149,8 +149,6 @@ func (s Stack) Name() string {
 	return filepath.Base(s.Dir)
 }
 
-func (s Stack) After() []string { return s.block.After }
-
 func (s Stack) String() string {
 	return s.Name()
 }

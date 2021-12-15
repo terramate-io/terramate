@@ -38,16 +38,8 @@ func PrintConfig(w io.Writer, cfg Config) error {
 		stack := cfg.Stack
 		stackBlock := rootBody.AppendNewBlock("stack", nil)
 		stackBody := stackBlock.Body()
-		stackBody.SetAttributeValue("name", cty.StringVal(cfg.Stack.Name))
+		stackBody.SetAttributeValue("name", cty.StringVal(stack.Name))
 
-		if len(stack.After) > 0 {
-			strList := make([]cty.Value, len(stack.After))
-			for i, dir := range stack.After {
-				strList[i] = cty.StringVal(dir)
-			}
-
-			stackBody.SetAttributeValue("after", cty.SetVal(strList))
-		}
 		rootBody.AppendNewline()
 	}
 

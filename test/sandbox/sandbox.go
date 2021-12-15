@@ -102,7 +102,7 @@ func New(t *testing.T) S {
 // TODO(i4k): document empty data field.
 //
 // Example:
-//   s:name-of-the-stack:version=1.0;after=["other-stack"]
+//   s:name-of-the-stack:version=1.0
 //
 // This is an internal mini-lang used to simplify testcases, so it expects well
 // formed layout specification.
