@@ -16,6 +16,7 @@ package terramate
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/mineiros-io/terramate/hcl"
@@ -112,6 +113,33 @@ func LoadStacks(basedir string, dirs ...string) ([]Stack, error) {
 		stacks = append(stacks, stack)
 	}
 	return stacks, nil
+}
+
+func lookupParentStack(dir string) (stack Stack, found bool, err error) {
+	d := filepath.Dir(dir)
+	for {
+		stack, ok, err := TryLoadStack(d)
+		if err != nil {
+			return Stack{}, false, fmt.Errorf("looking for parent stacks: %w", err)
+		}
+
+		if ok {
+			return stack, true, nil
+		}
+
+		if d == string(filepath.Separator) {
+			break
+		}
+
+		gitpath := filepath.Join(d, ".git")
+		if _, err := os.Stat(gitpath); err == nil {
+			break
+		}
+
+		d = filepath.Dir(d)
+	}
+
+	return Stack{}, false, nil
 }
 
 func (s Stack) Name() string {

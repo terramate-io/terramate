@@ -247,7 +247,7 @@ func (c *cli) initStack(dirs []string) error {
 	}
 
 	if len(errmsgs) > 0 {
-		return fmt.Errorf("%w: %v", ErrInit, strings.Join(errmsgs, ": "))
+		return ErrInit
 	}
 
 	return nil

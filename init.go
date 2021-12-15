@@ -98,7 +98,17 @@ func Init(dir string, force bool) error {
 	}
 
 	if !ok {
-		return fmt.Errorf("directory %q is not a leaf directory", dir)
+		return fmt.Errorf("directory %q is not a leaf stack", dir)
+	}
+
+	parentStack, found, err := lookupParentStack(dir)
+	if err != nil {
+		return err
+	}
+
+	if found {
+		return fmt.Errorf("directory %q is inside stack %q but nested stacks are disallowed",
+			dir, parentStack.Dir)
 	}
 
 	f, err := os.Create(stackfile)
