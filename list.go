@@ -32,12 +32,12 @@ func ListStacks(basedir string) ([]Entry, error) {
 				return err
 			}
 
-			if ok := IsStack(info, path); ok {
-				stack, err := LoadStack(path)
-				if err != nil {
-					return err
-				}
+			stack, found, err := TryLoadStack(path)
+			if err != nil {
+				return fmt.Errorf("listing stacks: %w", err)
+			}
 
+			if found {
 				entries = append(entries, Entry{Stack: stack})
 			}
 

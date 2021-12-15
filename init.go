@@ -51,10 +51,6 @@ func Init(dir string, force bool) error {
 		return fmt.Errorf("stat failed on %q: %w", dir, err)
 	}
 
-	if !st.IsDir() {
-		return errors.New("path is not a directory")
-	}
-
 	stackfile := filepath.Join(dir, ConfigFilename)
 	isInitialized := false
 
@@ -101,8 +97,11 @@ func Init(dir string, force bool) error {
 
 	defer f.Close()
 
-	err = hcl.PrintTerramate(f, hcl.Terramate{
-		RequiredVersion: DefaultVersionConstraint(),
+	err = hcl.PrintConfig(f, hcl.Config{
+		Terramate: &hcl.Terramate{
+			RequiredVersion: DefaultVersionConstraint(),
+		},
+		Stack: &hcl.Stack{},
 	})
 
 	if err != nil {
@@ -119,10 +118,29 @@ func DefaultVersionConstraint() string {
 }
 
 func parseVersion(stackfile string) (string, error) {
-	ts, err := hcl.ParseFile(stackfile)
+	config, err := hcl.ParseFile(stackfile)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse file %q: %w", stackfile, err)
 	}
 
-	return ts.RequiredVersion, nil
+	return config.Terramate.RequiredVersion, nil
+}
+
+// HasConfig tells if path has a terramate config file.
+func HasConfig(path string) bool {
+	st, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	if !st.IsDir() {
+		return false
+	}
+
+	fname := filepath.Join(path, ConfigFilename)
+	info, err := os.Stat(fname)
+	if err != nil {
+		return false
+	}
+
+	return info.Mode().IsRegular()
 }

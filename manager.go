@@ -69,17 +69,12 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 	stackSet := map[string]Entry{}
 	for _, path := range files {
 		dirname := filepath.Dir(filepath.Join(m.basedir, path))
-		info, err := os.Stat(dirname)
+		stack, found, err := TryLoadStack(dirname)
 		if err != nil {
-			return nil, fmt.Errorf("listing changed stacks: %w", err)
+			return nil, fmt.Errorf("listing changed files: %w", err)
 		}
 
-		if ok := IsStack(info, dirname); ok {
-			stack, err := LoadStack(dirname)
-			if err != nil {
-				return nil, err
-			}
-
+		if found {
 			stackSet[dirname] = Entry{
 				Stack:  stack,
 				Reason: "stack has unmerged changes",

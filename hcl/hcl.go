@@ -15,8 +15,10 @@
 package hcl
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -30,6 +32,12 @@ type Module struct {
 	Source string // Source is the module source path (eg.: directory, git path, etc).
 }
 
+type Config struct {
+	Terramate *Terramate
+	Stack     *Stack
+}
+
+// Terramate is the parsed "terramate" HCL block.
 type Terramate struct {
 	// RequiredVersion contains the terramate version required by the stack.
 	RequiredVersion string
@@ -37,11 +45,22 @@ type Terramate struct {
 	Backend *hclsyntax.Block
 }
 
+// Stack is the parsed "stack" HCL block.
+type Stack struct {
+	// Name of the stack
+	Name string
+
+	// After is a list of non-duplicated stack entries that must run after the
+	// current stack runs.
+	After []string
+}
+
 const (
-	ErrHCLSyntax               errutil.Error = "HCL syntax error"
-	ErrNoTerramateBlock        errutil.Error = "no \"terramate\" block found"
-	ErrMalformedTerramateBlock errutil.Error = "malformed terramate block"
-	ErrMalformedTerraform      errutil.Error = "malformed terraform"
+	ErrHCLSyntax                errutil.Error = "HCL syntax error"
+	ErrNoTerramateBlock         errutil.Error = "no \"terramate\" block found"
+	ErrMalformedTerramateConfig errutil.Error = "malformed terramate config"
+	ErrMalformedTerraform       errutil.Error = "malformed terraform"
+	ErrStackInvalidRunOrder     errutil.Error = "invalid stack execution order definition"
 )
 
 // ParseModules parses blocks of type "module" containing a single label.
@@ -64,8 +83,15 @@ func ParseModules(path string) ([]Module, error) {
 
 	var modules []Module
 	for _, block := range body.Blocks {
-		if block.Type != "module" || len(block.Labels) != 1 {
+		if block.Type != "module" {
 			continue
+		}
+
+		if len(block.Labels) != 1 {
+			return nil, errutil.Chain(
+				ErrMalformedTerraform,
+				fmt.Errorf("module block must have 1 label"),
+			)
 		}
 
 		moduleName := block.Labels[0]
@@ -73,12 +99,15 @@ func ParseModules(path string) ([]Module, error) {
 		if err != nil {
 			return nil, errutil.Chain(
 				ErrMalformedTerraform,
-				fmt.Errorf("looking for %q.source attribute: %w",
+				fmt.Errorf("looking for module.%q.source attribute: %w",
 					moduleName, err),
 			)
 		}
 		if !ok {
-			continue
+			return nil, errutil.Chain(
+				ErrMalformedTerraform,
+				errors.New("module must have a \"source\" attribute"),
+			)
 		}
 
 		modules = append(modules, Module{Source: source})
@@ -106,7 +135,7 @@ func ParseBody(src []byte, filename string) (*hclsyntax.Body, error) {
 }
 
 // Parse parses a terramate source.
-func Parse(fname string, data []byte) (*Terramate, error) {
+func Parse(fname string, data []byte) (*Config, error) {
 	p := hclparse.NewParser()
 	f, diags := p.ParseHCL(data, fname)
 	if diags.HasErrors() {
@@ -115,37 +144,57 @@ func Parse(fname string, data []byte) (*Terramate, error) {
 
 	body, _ := f.Body.(*hclsyntax.Body)
 
-	var tsconfig Terramate
-	var tsblock *hclsyntax.Block
-	var found bool
+	var tmconfig Config
+	var tmblock, stackblock *hclsyntax.Block
+	var foundtm, foundstack bool
 	for _, block := range body.Blocks {
-		if block.Type != "terramate" {
-			continue
-		}
-
-		if found {
+		if block.Type != "terramate" && block.Type != "stack" {
 			return nil, errutil.Chain(
-				ErrMalformedTerramateBlock,
-				fmt.Errorf("multiple terramate blocks in file %q", fname),
+				ErrMalformedTerramateConfig,
+				fmt.Errorf("block type %q is not supported", block.Type),
 			)
 		}
 
-		found = true
-		tsblock = block
+		if block.Type == "terramate" {
+			if foundtm {
+				return nil, errutil.Chain(
+					ErrMalformedTerramateConfig,
+					fmt.Errorf("multiple terramate blocks in file %q", fname),
+				)
+			}
+			foundtm = true
+			tmblock = block
+			continue
+		}
+
+		if block.Type == "stack" {
+			if foundstack {
+				return nil, errutil.Chain(
+					ErrMalformedTerramateConfig,
+					fmt.Errorf("multiple stack blocks in file %q", fname),
+				)
+			}
+
+			foundstack = true
+			stackblock = block
+		}
 	}
 
-	if !found {
+	if !foundtm {
 		return nil, ErrNoTerramateBlock
 	}
 
-	if len(tsblock.Labels) > 0 {
+	if len(tmblock.Labels) > 0 {
 		return nil, errutil.Chain(
-			ErrMalformedTerramateBlock,
+			ErrMalformedTerramateConfig,
 			fmt.Errorf("terramate block must have no labels"),
 		)
 	}
 
-	for name, value := range tsblock.Body.Attributes {
+	tmconfig.Terramate = &Terramate{}
+	tm := tmconfig.Terramate
+
+	for name, value := range tmblock.Body.Attributes {
 		attrVal, diags := value.Expr.Value(nil)
 		if diags.HasErrors() {
 			return nil, errutil.Chain(
@@ -158,52 +207,87 @@ func Parse(fname string, data []byte) (*Terramate, error) {
 		case "required_version":
 			if attrVal.Type() != cty.String {
 				return nil, errutil.Chain(
-					ErrMalformedTerramateBlock,
+					ErrMalformedTerramateConfig,
 					fmt.Errorf("attribute %q is not a string", name),
 				)
 			}
 
-			tsconfig.RequiredVersion = attrVal.AsString()
+			tm.RequiredVersion = attrVal.AsString()
+
 		default:
-			return nil, errutil.Chain(ErrMalformedTerramateBlock,
+			return nil, errutil.Chain(ErrMalformedTerramateConfig,
 				fmt.Errorf("invalid attribute %q", name),
 			)
 		}
 	}
 
-	found = false
-	for _, block := range tsblock.Body.Blocks {
+	foundBackend := false
+	for _, block := range tmblock.Body.Blocks {
 		if block.Type != "backend" {
 			return nil, errutil.Chain(
-				ErrMalformedTerramateBlock,
+				ErrMalformedTerramateConfig,
 				fmt.Errorf("block type %q not supported", block.Type))
 		}
 
-		if found {
+		if foundBackend {
 			return nil, errutil.Chain(
-				ErrMalformedTerramateBlock,
+				ErrMalformedTerramateConfig,
 				fmt.Errorf("multiple backend blocks in file %q", fname),
 			)
 		}
 
-		found = true
+		foundBackend = true
 
 		if len(block.Labels) != 1 {
 			return nil, errutil.Chain(
-				ErrMalformedTerramateBlock,
+				ErrMalformedTerramateConfig,
 				fmt.Errorf("backend type expects 1 label but given %v",
 					block.Labels),
 			)
 		}
 
-		tsconfig.Backend = block
+		tm.Backend = block
 	}
 
-	return &tsconfig, nil
+	if !foundstack {
+		return &tmconfig, nil
+	}
+
+	tmconfig.Stack = &Stack{}
+	stack := tmconfig.Stack
+
+	for name, value := range stackblock.Body.Attributes {
+		attrVal, diags := value.Expr.Value(nil)
+		if diags.HasErrors() {
+			return nil, errutil.Chain(
+				ErrHCLSyntax,
+				fmt.Errorf("failed to evaluate %q attribute: %w",
+					name, diags),
+			)
+		}
+		switch name {
+		case "name":
+			if attrVal.Type() != cty.String {
+				return nil, errutil.Chain(ErrMalformedTerramateConfig,
+					fmt.Errorf("field stack.\"name\" must be a \"string\" but given %q",
+						attrVal.Type().FriendlyName()),
+				)
+			}
+			stack.Name = attrVal.AsString()
+
+		default:
+			return nil, errutil.Chain(
+				ErrMalformedTerramateConfig,
+				fmt.Errorf("unknown attribute \"stack.%s\"", name),
+			)
+		}
+	}
+
+	return &tmconfig, nil
 }
 
 // ParseFile parses a terramate file.
-func ParseFile(path string) (*Terramate, error) {
+func ParseFile(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file %q: %w", path, err)
@@ -232,6 +316,42 @@ func findStringAttr(block *hclsyntax.Block, attr string) (string, bool, error) {
 	}
 
 	return "", false, nil
+}
+
+func assignSet(name string, target *[]string, val cty.Value) error {
+	if val.Type().IsSetType() {
+		return fmt.Errorf("attribute %q is not a set", name)
+	}
+
+	values := map[string]struct{}{}
+	iterator := val.ElementIterator()
+	for iterator.Next() {
+		_, elem := iterator.Element()
+		if elem.Type() != cty.String {
+			return errutil.Chain(ErrStackInvalidRunOrder,
+				fmt.Errorf("field %q is a set(string) but contains %q",
+					name, elem.Type().FriendlyName()),
+			)
+		}
+
+		str := elem.AsString()
+		if _, ok := values[str]; ok {
+			return errutil.Chain(ErrStackInvalidRunOrder,
+				fmt.Errorf("duplicated entry %q in field %q of type set(string)",
+					str, name),
+			)
+		}
+		values[str] = struct{}{}
+	}
+
+	var elems []string
+	for v := range values {
+		elems = append(elems, v)
+	}
+
+	sort.Strings(elems)
+	*target = elems
+	return nil
 }
 
 // IsLocal tells if module source is a local directory.

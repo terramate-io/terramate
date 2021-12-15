@@ -16,35 +16,65 @@ package terramate
 
 import (
 	"fmt"
-	"io/fs"
-	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/mineiros-io/terramate/hcl"
 )
 
 type Stack struct {
-	Name string
+	name string
 	Dir  string
 
-	*hcl.Terramate
+	block *hcl.Stack
 }
 
-// LoadStack loads the stack from dir directory.
+// LoadStack loads a stack from dir directory.
 func LoadStack(dir string) (Stack, error) {
 	fname := filepath.Join(dir, ConfigFilename)
-	tm, err := hcl.ParseFile(fname)
+	cfg, err := hcl.ParseFile(fname)
 	if err != nil {
 		return Stack{}, err
 	}
-	name := filepath.Base(fname)
-	stackdir := strings.TrimSuffix(fname, fmt.Sprintf("/%s", name))
+
+	if cfg.Stack == nil {
+		return Stack{}, fmt.Errorf("no stack found in %q", dir)
+	}
+
+	return stackFromBlock(dir, cfg.Stack), nil
+}
+
+// TryLoadStack tries to load a stack from directory. It returns found as true
+// only in the case that path contains a stack and it was correctly parsed.
+func TryLoadStack(dir string) (stack Stack, found bool, err error) {
+	if ok := HasConfig(dir); !ok {
+		return Stack{}, false, err
+	}
+	fname := filepath.Join(dir, ConfigFilename)
+	cfg, err := hcl.ParseFile(fname)
+	if err != nil {
+		return Stack{}, false, err
+	}
+
+	if cfg.Stack == nil {
+		return Stack{}, false, nil
+	}
+
+	return stackFromBlock(dir, cfg.Stack), true, nil
+}
+
+func stackFromBlock(dir string, block *hcl.Stack) Stack {
+	var name string
+	if block.Name != "" {
+		name = block.Name
+	} else {
+		name = filepath.Base(dir)
+	}
+
 	return Stack{
-		Name:      filepath.Base(dir),
-		Dir:       stackdir,
-		Terramate: tm,
-	}, nil
+		name:  name,
+		Dir:   dir,
+		block: block,
+	}
 }
 
 // LoadStacks loads all the stacks in the dirs directories. If dirs are relative
@@ -66,24 +96,15 @@ func LoadStacks(basedir string, dirs ...string) ([]Stack, error) {
 	return stacks, nil
 }
 
-// IsStack tells if path is a stack and if so then it returns the stackfile path.
-func IsStack(info fs.FileInfo, path string) bool {
-	if !info.IsDir() {
-		return false
+func (s Stack) Name() string {
+	if s.block.Name != "" {
+		return s.block.Name
 	}
-
-	fname := filepath.Join(path, ConfigFilename)
-	info, err := os.Stat(fname)
-	if err != nil {
-		return false
-	}
-
-	if info.Mode().IsRegular() {
-		return true
-	}
-	return false
+	return filepath.Base(s.Dir)
 }
 
+func (s Stack) After() []string { return s.block.After }
+
 func (s Stack) String() string {
-	return s.Name
+	return s.Name()
 }

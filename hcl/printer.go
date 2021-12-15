@@ -21,12 +21,34 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-func PrintTerramate(w io.Writer, tm Terramate) error {
+func PrintConfig(w io.Writer, cfg Config) error {
 	f := hclwrite.NewEmptyFile()
 	rootBody := f.Body()
-	tsBlock := rootBody.AppendNewBlock("terramate", nil)
-	tsBody := tsBlock.Body()
-	tsBody.SetAttributeValue("required_version", cty.StringVal(tm.RequiredVersion))
+
+	if cfg.Terramate != nil {
+		tm := cfg.Terramate
+		tmBlock := rootBody.AppendNewBlock("terramate", nil)
+		tmBody := tmBlock.Body()
+		tmBody.SetAttributeValue("required_version", cty.StringVal(tm.RequiredVersion))
+
+		rootBody.AppendNewline()
+	}
+
+	if cfg.Stack != nil {
+		stack := cfg.Stack
+		stackBlock := rootBody.AppendNewBlock("stack", nil)
+		stackBody := stackBlock.Body()
+		if len(stack.After) > 0 {
+			strList := make([]cty.Value, len(stack.After))
+			for i, dir := range stack.After {
+				strList[i] = cty.StringVal(dir)
+			}
+
+			stackBody.SetAttributeValue("after", cty.SetVal(strList))
+		}
+		rootBody.AppendNewline()
+	}
+
 	_, err := w.Write(f.Bytes())
 	return err
 }
