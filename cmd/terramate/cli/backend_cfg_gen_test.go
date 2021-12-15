@@ -533,6 +533,7 @@ stack {}`,
   backend "metadata" {
     name = terramate.name
     path = terramate.path
+    interpolation = "interpolate-${terramate.name}-fun-${terramate.path}"
   }
 }`,
 				},
@@ -543,8 +544,9 @@ stack {}`,
 						relpath: "stacks/stack-1",
 						code: `terraform {
   backend "metadata" {
-    name = "stack-1"
-    path = "/stacks/stack-1"
+    interpolation = "interpolate-stack-1-fun-/stacks/stack-1"
+    name          = "stack-1"
+    path          = "/stacks/stack-1"
   }
 }
 `,
@@ -553,8 +555,9 @@ stack {}`,
 						relpath: "stacks/stack-2",
 						code: `terraform {
   backend "metadata" {
-    name = "stack-2"
-    path = "/stacks/stack-2"
+    interpolation = "interpolate-stack-2-fun-/stacks/stack-2"
+    name          = "stack-2"
+    path          = "/stacks/stack-2"
   }
 }
 `,
