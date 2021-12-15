@@ -1,6 +1,10 @@
 # Project Config
 
-Terramate does not depend on user configuration and comes with a set of sensible defaults. Configurations allow you to override any terramate default value.
+Terramate does not depend on user configuration and comes with a set of sensible defaults.
+Configurations allow you to override any terramate default value.
+
+There can be only one Terramate project configuration on the entire project and
+it **must** be located at the project root dir.
 
 Project wide configuration is done via a **config** block inside the
 **terramate** block:
