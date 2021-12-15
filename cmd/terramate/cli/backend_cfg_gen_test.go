@@ -15,11 +15,9 @@
 package cli_test
 
 import (
-	"bytes"
 	"io/fs"
 	"path/filepath"
 	"testing"
-	"text/template"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
@@ -55,13 +53,6 @@ func TestBackendConfigGeneration(t *testing.T) {
 			layout  []string
 			configs []backendconfig
 			want    want
-		}
-
-		metadata struct {
-			Stack struct {
-				Name string
-				Path string
-			}
 		}
 	)
 	tcases := []testcase{
@@ -526,9 +517,48 @@ stack {}`,
 						relpath: "stack-metadata",
 						code: `terraform {
   backend "metadata" {
-    name     = "{{.Stack.Name}}"
-    path     = "{{.Stack.Path}}"
-    somelist = ["{{.Stack.Name}}", "{{.Stack.Path}}"]
+    name     = "stack-metadata"
+    path     = "/stack-metadata"
+    somelist = ["stack-metadata", "/stack-metadata"]
+  }
+}
+`,
+					},
+				},
+			},
+		},
+		{
+			name:   "multiple stacks with config on root dir using metadata",
+			layout: []string{"s:stacks/stack-1", "s:stacks/stack-2"},
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: `terramate {
+  backend "metadata" {
+    name = terramate.name
+    path = terramate.path
+  }
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stacks/stack-1",
+						code: `terraform {
+  backend "metadata" {
+    name = "stack-1"
+    path = "/stacks/stack-1"
+  }
+}
+`,
+					},
+					{
+						relpath: "stacks/stack-2",
+						code: `terraform {
+  backend "metadata" {
+    name = "stack-2"
+    path = "/stacks/stack-2"
   }
 }
 `,
@@ -556,14 +586,7 @@ stack {}`,
 				stack := s.StackEntry(want.relpath)
 				got := string(stack.ReadGeneratedTf())
 
-				// Use templating to allow testing of metadata eval
-				stackMetadata := metadata{}
-				stackMetadata.Stack.Name = filepath.Base(want.relpath)
-				stackMetadata.Stack.Path = "/" + want.relpath
-
-				code := applyTemplate(t, want.code, stackMetadata)
-
-				wantcode := terramate.GeneratedCodeHeader + code
+				wantcode := terramate.GeneratedCodeHeader + want.code
 
 				if diff := cmp.Diff(wantcode, got); diff != "" {
 					t.Error("generated code doesn't match expectation")
@@ -605,17 +628,4 @@ func listGeneratedTfFiles(t *testing.T, basedir string) []string {
 	assert.NoError(t, err)
 
 	return generatedTfFiles
-}
-
-func applyTemplate(t *testing.T, templ string, data interface{}) string {
-	tmpl, err := template.New(t.Name()).Parse(templ)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var b bytes.Buffer
-	err = tmpl.Execute(&b, data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return b.String()
 }
