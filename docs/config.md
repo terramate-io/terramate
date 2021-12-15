@@ -51,9 +51,9 @@ Stacks have configurations that are particular to them, like these:
 
 * [Execution Ordering](execution-order.md)
 
-Even though Terramate metadata is not exclusively about stacks and can be
-used on any hierarchical configuration, it does provide information that can
-be useful to stack configuration, more details [here](metadata.md).
+[Metadata](metadata.md) can be used on any hierarchical configuration,
+it provides information that is useful to stack configuration and is
+always evaluated on the context of a stack.
 
 # Hierarchical Configuration
 
