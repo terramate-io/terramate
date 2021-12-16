@@ -15,11 +15,12 @@
 package cli_test
 
 import (
-	"os"
+	"io/fs"
 	"path/filepath"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
@@ -499,17 +500,89 @@ stack {}`,
 				res: runResult{IgnoreStdout: true},
 			},
 		},
+		{
+			name:   "single stack with config on stack and N attrs using metadata",
+			layout: []string{"s:stack-metadata"},
+			configs: []backendconfig{
+				{
+					relpath: "stack-metadata",
+					config: `terramate {
+  required_version = "~> 0.0.0"
+  backend "metadata" {
+    name = terramate.name
+    path = terramate.path
+    somelist = [terramate.name, terramate.path]
+  }
+}
+stack {
+  name = "custom-name"
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stack-metadata",
+						code: `terraform {
+  backend "metadata" {
+    name     = "custom-name"
+    path     = "/stack-metadata"
+    somelist = ["custom-name", "/stack-metadata"]
+  }
+}
+`,
+					},
+				},
+			},
+		},
+		{
+			name:   "multiple stacks with config on root dir using metadata",
+			layout: []string{"s:stacks/stack-1", "s:stacks/stack-2"},
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: `terramate {
+  backend "metadata" {
+    name = terramate.name
+    path = terramate.path
+    interpolation = "interpolate-${terramate.name}-fun-${terramate.path}"
+  }
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stacks/stack-1",
+						code: `terraform {
+  backend "metadata" {
+    interpolation = "interpolate-stack-1-fun-/stacks/stack-1"
+    name          = "stack-1"
+    path          = "/stacks/stack-1"
+  }
+}
+`,
+					},
+					{
+						relpath: "stacks/stack-2",
+						code: `terraform {
+  backend "metadata" {
+    interpolation = "interpolate-stack-2-fun-/stacks/stack-2"
+    name          = "stack-2"
+    path          = "/stacks/stack-2"
+  }
+}
+`,
+					},
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
-
-			untouchedStacks := map[string]struct{}{}
-			for _, relpath := range s.ListStacksRelPath() {
-				untouchedStacks[relpath] = struct{}{}
-			}
 
 			for _, cfg := range tcase.configs {
 				dir := filepath.Join(s.BaseDir(), cfg.relpath)
@@ -523,6 +596,7 @@ stack {}`,
 			for _, want := range tcase.want.stacks {
 				stack := s.StackEntry(want.relpath)
 				got := string(stack.ReadGeneratedTf())
+
 				wantcode := terramate.GeneratedCodeHeader + want.code
 
 				if diff := cmp.Diff(wantcode, got); diff != "" {
@@ -531,18 +605,38 @@ stack {}`,
 					t.Errorf("got:\n%q", got)
 					t.Fatalf("diff:\n%s", diff)
 				}
-
-				delete(untouchedStacks, want.relpath)
 			}
 
-			for stack := range untouchedStacks {
-				fp := filepath.Join(stack, terramate.GeneratedTfFilename)
-				_, err := os.Stat(fp)
-				if err == nil {
-					t.Errorf("stack %q should be untouched, but has generated code: %q", stack, fp)
-				}
+			generatedFiles := listGeneratedTfFiles(t, s.BaseDir())
+
+			if len(generatedFiles) != len(tcase.want.stacks) {
+				t.Errorf("generated %d files, but wanted %d", len(generatedFiles), len(tcase.want.stacks))
+				t.Errorf("generated files: %v", generatedFiles)
+				t.Fatalf("wanted generated files: %#v", tcase.want.stacks)
 			}
 		})
 	}
 
+}
+
+func listGeneratedTfFiles(t *testing.T, basedir string) []string {
+	// Go's glob is not recursive, so can't just glob for generated filenames
+	var generatedTfFiles []string
+
+	err := filepath.Walk(basedir, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+
+		if info.Name() == terramate.GeneratedTfFilename {
+			generatedTfFiles = append(generatedTfFiles, path)
+		}
+		return nil
+	})
+	assert.NoError(t, err)
+
+	return generatedTfFiles
 }

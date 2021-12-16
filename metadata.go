@@ -15,7 +15,6 @@
 package terramate
 
 import (
-	"path/filepath"
 	"strings"
 )
 
@@ -29,6 +28,8 @@ type StackMetadata struct {
 type Metadata struct {
 	// Stacks is a lexycographicaly sorted (by stack path) list of stack metadata
 	Stacks []StackMetadata
+
+	basedir string
 }
 
 // LoadMetadata loads the project metadata given the project basedir.
@@ -41,12 +42,24 @@ func LoadMetadata(basedir string) (Metadata, error) {
 	stacksMetadata := make([]StackMetadata, len(stackEntries))
 	for i, stackEntry := range stackEntries {
 		stacksMetadata[i] = StackMetadata{
-			Name: filepath.Base(stackEntry.Stack.Dir),
+			Name: stackEntry.Stack.Name(),
 			Path: strings.TrimPrefix(stackEntry.Stack.Dir, basedir),
 		}
 	}
 
 	return Metadata{
-		Stacks: stacksMetadata,
+		Stacks:  stacksMetadata,
+		basedir: basedir,
 	}, nil
+}
+
+// StackMetadata gets the metadata of a specific stack given its absolute path.
+func (m Metadata) StackMetadata(abspath string) (StackMetadata, bool) {
+	path := strings.TrimPrefix(abspath, m.basedir)
+	for _, stackMetadata := range m.Stacks {
+		if stackMetadata.Path == path {
+			return stackMetadata, true
+		}
+	}
+	return StackMetadata{}, false
 }

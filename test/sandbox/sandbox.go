@@ -184,21 +184,6 @@ func (s S) BuildTree(layout []string) {
 	}
 }
 
-// ListStacksRelPath lists all valid stacks relative path of the sandbox.
-// Paths are relative to the sandbox basedir.
-func (s S) ListStacksRelPath() []string {
-	entries, err := terramate.ListStacks(s.BaseDir())
-	assert.NoError(s.t, err)
-	relpaths := make([]string, len(entries))
-
-	for i, entry := range entries {
-		v, err := filepath.Rel(s.BaseDir(), entry.Stack.Dir)
-		assert.NoError(s.t, err)
-		relpaths[i] = v
-	}
-	return relpaths
-}
-
 // Git returns a git wrapper that is useful to run git commands safely inside
 // the test env repo.
 func (s S) Git() Git {
