@@ -119,8 +119,9 @@ project_name = "awesome-project"
 useful       = "useful"
 ```
 
-Overall **stacks/stack-1** now gets a full merge of all
-its globals + project wide globals.
+Overall **stacks/stack-1** is getting a full merge of all
+its globals + all globals defined on each dir until reaching
+the project root.
 
 Now lets say **stacks/stack-1** needs to override one of the globals,
 we just redefine the global on **stacks/stack-1/terramate.tm.hcl**:
@@ -135,8 +136,8 @@ stack {
 }
 
 globals {
-  stack_data = "some specialized stack-1 data"
   useful     = "overriden by stack-1"
+  stack_data = "some specialized stack-1 data"
 }
 ```
 
@@ -169,7 +170,7 @@ globals {
 }
 ```
 
-And define globals on **stacks/stack-1/terramate.tm.hcl**:
+And override it on **stacks/stack-1/terramate.tm.hcl**:
 
 ```hcl
 terramate {
