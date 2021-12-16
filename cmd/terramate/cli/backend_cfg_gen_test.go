@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -68,7 +69,9 @@ func TestBackendConfigGeneration(t *testing.T) {
 					config: `terramate {
   required_version = "~> 0.0.0"
   backend {}
-}`,
+}
+
+stack{}`,
 				},
 			},
 			want: want{
@@ -90,14 +93,18 @@ func TestBackendConfigGeneration(t *testing.T) {
 					config: `terramate {
   required_version = "~> 0.0.0"
   backend {}
-}`,
+}
+
+stack{}`,
 				},
 				{
 					relpath: "stack-ok-backend",
 					config: `terramate {
   required_version = "~> 0.0.0"
   backend "valid" {}
-}`,
+}
+
+stack{}`,
 				},
 			},
 			want: want{
@@ -382,7 +389,8 @@ stack {}`,
   backend "basedir_config" {
     attr = 666
   }
-}`,
+}
+`,
 				},
 			},
 			want: want{
@@ -413,7 +421,8 @@ stack {}`,
   backend "basedir_config" {
     attr = "test"
   }
-}`,
+}
+`,
 				},
 			},
 			want: want{
@@ -453,7 +462,8 @@ stack {}`,
   backend "remote" {
     environment = "prod"
   }
-}`,
+}
+`,
 				},
 				{
 					relpath: "envs/staging",
@@ -503,7 +513,7 @@ stack {}`,
 
 			for _, cfg := range tcase.configs {
 				dir := filepath.Join(s.BaseDir(), cfg.relpath)
-				test.WriteFile(t, dir, terramate.ConfigFilename, cfg.config)
+				test.WriteFile(t, dir, config.Filename, cfg.config)
 			}
 
 			ts := newCLI(t, s.BaseDir())

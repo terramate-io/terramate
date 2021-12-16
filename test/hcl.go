@@ -65,4 +65,10 @@ func assertStackBlock(t *testing.T, got, want *hcl.Stack) {
 	if want == nil {
 		return
 	}
+
+	assert.EqualInts(t, len(got.After), len(want.After), "After length mismatch")
+
+	for i, w := range want.After {
+		assert.EqualStrings(t, w, got.After[i], "stack after mismatch")
+	}
 }

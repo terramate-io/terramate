@@ -17,22 +17,14 @@ package terramate
 import (
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 
 	hclversion "github.com/hashicorp/go-version"
 
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
-)
-
-const (
-	// ConfigFilename is the name of the terramate configuration file.
-	ConfigFilename = "terramate.tm.hcl"
-
-	// DefaultInitConstraint is the default constraint used in stack initialization.
-	DefaultInitConstraint = "~>"
+	"github.com/mineiros-io/terramate/stack"
 )
 
 // Init initialize a stack. It's an error to initialize an already initialized
@@ -53,7 +45,7 @@ func Init(dir string, force bool) error {
 		return fmt.Errorf("stat failed on %q: %w", dir, err)
 	}
 
-	stackfile := filepath.Join(dir, ConfigFilename)
+	stackfile := filepath.Join(dir, config.Filename)
 	isInitialized := false
 
 	st, err := os.Stat(stackfile)
@@ -92,7 +84,7 @@ func Init(dir string, force bool) error {
 		}
 	}
 
-	ok, err := isLeafStack(dir)
+	ok, err := stack.IsLeaf(dir)
 	if err != nil {
 		return err
 	}
@@ -101,7 +93,7 @@ func Init(dir string, force bool) error {
 		return fmt.Errorf("directory %q is not a leaf stack", dir)
 	}
 
-	parentStack, found, err := lookupParentStack(dir)
+	parentStack, found, err := stack.LookupParent(dir)
 	if err != nil {
 		return err
 	}
@@ -118,15 +110,12 @@ func Init(dir string, force bool) error {
 
 	defer f.Close()
 
-	err = hcl.PrintConfig(f, hcl.Config{
-		Terramate: &hcl.Terramate{
-			RequiredVersion: DefaultVersionConstraint(),
-		},
-		Stack: &hcl.Stack{
-			Name: filepath.Base(dir),
-		},
-	})
+	cfg := hcl.NewConfig(DefaultVersionConstraint())
+	cfg.Stack = &hcl.Stack{
+		Name: filepath.Base(dir),
+	}
 
+	err = hcl.PrintConfig(f, cfg)
 	if err != nil {
 		return fmt.Errorf("failed to write %q: %w", stackfile, err)
 	}
@@ -137,7 +126,7 @@ func Init(dir string, force bool) error {
 // DefaultVersionConstraint is the default version constraint used by terramate
 // when generating tm files.
 func DefaultVersionConstraint() string {
-	return DefaultInitConstraint + " " + Version()
+	return config.DefaultInitConstraint + " " + Version()
 }
 
 func parseVersion(stackfile string) (string, error) {
@@ -147,60 +136,4 @@ func parseVersion(stackfile string) (string, error) {
 	}
 
 	return config.Terramate.RequiredVersion, nil
-}
-
-// HasConfig tells if path has a terramate config file.
-func HasConfig(path string) bool {
-	st, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-	if !st.IsDir() {
-		return false
-	}
-
-	fname := filepath.Join(path, ConfigFilename)
-	info, err := os.Stat(fname)
-	if err != nil {
-		return false
-	}
-
-	return info.Mode().IsRegular()
-}
-
-func isLeafStack(dir string) (bool, error) {
-	isValid := true
-	err := filepath.Walk(
-		dir,
-		func(path string, info fs.FileInfo, err error) error {
-			if !isValid {
-				return filepath.SkipDir
-			}
-			if err != nil {
-				return err
-			}
-			if path == dir {
-				return nil
-			}
-			if info.IsDir() {
-				if strings.HasSuffix(path, "/.git") {
-					return filepath.SkipDir
-				}
-
-				_, found, err := TryLoadStack(path)
-				if err != nil {
-					return err
-				}
-
-				isValid = !found
-				return nil
-			}
-			return nil
-		},
-	)
-	if err != nil {
-		return false, err
-	}
-
-	return isValid, nil
 }

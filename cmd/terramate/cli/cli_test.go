@@ -165,7 +165,7 @@ func TestListAndRunChangedStack(t *testing.T) {
 
 	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
-		"Running on changed stacks:\n[%s] running %s %s\n%s",
+		"Running on changed stacks:\n[%s] running %s %s\n%s\n",
 		stack.Path(),
 		cat,
 		mainTfFileName,
@@ -213,7 +213,7 @@ func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
 
 	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
-		"Running on changed stacks:\n[%s] running %s %s\n%s",
+		"Running on changed stacks:\n[%s] running %s %s\n%s\n",
 		stack.Path(),
 		cat,
 		mainTfFileName,
@@ -380,12 +380,13 @@ func TestNoArgsProvidesBasicHelp(t *testing.T) {
 }
 
 type runResult struct {
-	Cmd          string
-	Stdout       string
-	IgnoreStdout bool
-	Stderr       string
-	IgnoreStderr bool
-	Error        error
+	Cmd           string
+	Stdout        string
+	FlattenStdout bool
+	IgnoreStdout  bool
+	Stderr        string
+	IgnoreStderr  bool
+	Error         error
 }
 
 type tscli struct {
@@ -426,14 +427,21 @@ func assertRunResult(t *testing.T, got runResult, want runResult) {
 	t.Helper()
 
 	if !errors.Is(got.Error, want.Error) {
-		t.Errorf("%q got.Error=[%v] != want.Error=[%v]", got.Cmd, got.Error, want.Error)
+		t.Fatalf("%q got.Error=[%v] != want.Error=[%v]", got.Cmd, got.Error, want.Error)
 	}
 
-	if !want.IgnoreStdout && got.Stdout != want.Stdout {
-		t.Errorf("%q stdout=\"%s\" != wanted=\"%s\"", got.Cmd, got.Stdout, want.Stdout)
+	stdout := got.Stdout
+	wantStdout := want.Stdout
+	if want.FlattenStdout {
+		stdout = flatten(stdout)
+		wantStdout = flatten(wantStdout)
+	}
+
+	if !want.IgnoreStdout && stdout != wantStdout {
+		t.Fatalf("%q stdout=\"%s\" != wanted=\"%s\"", got.Cmd, stdout, wantStdout)
 	}
 
 	if !want.IgnoreStderr && got.Stderr != want.Stderr {
-		t.Errorf("%q stderr=\"%s\" != wanted=\"%s\"", got.Cmd, got.Stderr, want.Stderr)
+		t.Fatalf("%q stderr=\"%s\" != wanted=\"%s\"", got.Cmd, got.Stderr, want.Stderr)
 	}
 }

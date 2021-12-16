@@ -281,6 +281,82 @@ terramate {
 				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
+		{
+			name: "after: empty set works",
+			input: `
+terramate {
+	required_version = ""
+}
+stack {}`,
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{},
+					Stack:     &hcl.Stack{},
+				},
+			},
+		},
+		{
+			name: "'after' single entry",
+			input: `
+terramate {
+	required_version = ""
+}
+
+stack {
+	after = ["test"]
+}`,
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{},
+					Stack: &hcl.Stack{
+						After: []string{"test"},
+					},
+				},
+			},
+		},
+		{
+			name: "'after' invalid element entry",
+			input: `
+terramate {
+	required_version = ""
+}
+
+stack {
+	after = [1]
+}`,
+			want: want{
+				err: hcl.ErrStackInvalidRunOrder,
+			},
+		},
+		{
+			name: "'after' duplicated entry",
+			input: `
+terramate {
+	required_version = ""
+}
+
+stack {
+	after = ["test", "test"]
+}`,
+			want: want{
+				err: hcl.ErrStackInvalidRunOrder,
+			},
+		},
+		{
+			name: "multiple 'after' fields",
+			input: `
+terramate {
+	required_version = ""
+}
+
+stack {
+	after = ["test"]
+	after = []
+}`,
+			want: want{
+				err: hcl.ErrHCLSyntax,
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := hcl.Parse(tc.name, []byte(tc.input))

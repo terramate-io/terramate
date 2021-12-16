@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -48,6 +49,10 @@ type Terramate struct {
 type Stack struct {
 	// Name of the stack
 	Name string
+
+	// After is a list of non-duplicated stack entries that must run after the
+	// current stack runs.
+	After []string
 }
 
 const (
@@ -55,7 +60,16 @@ const (
 	ErrNoTerramateBlock         errutil.Error = "no \"terramate\" block found"
 	ErrMalformedTerramateConfig errutil.Error = "malformed terramate config"
 	ErrMalformedTerraform       errutil.Error = "malformed terraform"
+	ErrStackInvalidRunOrder     errutil.Error = "invalid stack execution order definition"
 )
+
+func NewConfig(reqversion string) Config {
+	return Config{
+		Terramate: &Terramate{
+			RequiredVersion: reqversion,
+		},
+	}
+}
 
 // ParseModules parses blocks of type "module" containing a single label.
 func ParseModules(path string) ([]Module, error) {
@@ -108,6 +122,24 @@ func ParseModules(path string) ([]Module, error) {
 	}
 
 	return modules, nil
+}
+
+// ParseBody parses HCL and return the parsed body.
+func ParseBody(src []byte, filename string) (*hclsyntax.Body, error) {
+	parser := hclparse.NewParser()
+	f, diags := parser.ParseHCL(src, filename)
+	if diags.HasErrors() {
+		return nil, errutil.Chain(
+			ErrHCLSyntax,
+			fmt.Errorf("parsing modules: %w", diags),
+		)
+	}
+
+	body, ok := f.Body.(*hclsyntax.Body)
+	if !ok {
+		return nil, fmt.Errorf("expected to parse body, got[%v] type[%[1]T]", f.Body)
+	}
+	return body, nil
 }
 
 // Parse parses a terramate source.
@@ -250,12 +282,11 @@ func Parse(fname string, data []byte) (*Config, error) {
 				)
 			}
 			stack.Name = attrVal.AsString()
-
-		default:
-			return nil, errutil.Chain(
-				ErrMalformedTerramateConfig,
-				fmt.Errorf("unknown attribute \"stack.%s\"", name),
-			)
+		case "after":
+			err := assignSet(name, &stack.After, attrVal)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -292,6 +323,42 @@ func findStringAttr(block *hclsyntax.Block, attr string) (string, bool, error) {
 	}
 
 	return "", false, nil
+}
+
+func assignSet(name string, target *[]string, val cty.Value) error {
+	if val.Type().IsSetType() {
+		return fmt.Errorf("attribute %q is not a set", name)
+	}
+
+	values := map[string]struct{}{}
+	iterator := val.ElementIterator()
+	for iterator.Next() {
+		_, elem := iterator.Element()
+		if elem.Type() != cty.String {
+			return errutil.Chain(ErrStackInvalidRunOrder,
+				fmt.Errorf("field %q is a set(string) but contains %q",
+					name, elem.Type().FriendlyName()),
+			)
+		}
+
+		str := elem.AsString()
+		if _, ok := values[str]; ok {
+			return errutil.Chain(ErrStackInvalidRunOrder,
+				fmt.Errorf("duplicated entry %q in field %q of type set(string)",
+					str, name),
+			)
+		}
+		values[str] = struct{}{}
+	}
+
+	var elems []string
+	for v := range values {
+		elems = append(elems, v)
+	}
+
+	sort.Strings(elems)
+	*target = elems
+	return nil
 }
 
 // IsLocal tells if module source is a local directory.

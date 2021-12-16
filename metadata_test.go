@@ -21,6 +21,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -111,7 +112,7 @@ func TestLoadMetadata(t *testing.T) {
 		{
 			name: "single invalid stack",
 			layout: []string{
-				fmt.Sprintf("f:invalid-stack/%s:data=notvalidhcl", terramate.ConfigFilename),
+				fmt.Sprintf("f:invalid-stack/%s:data=notvalidhcl", config.Filename),
 			},
 			wantErr: hcl.ErrNoTerramateBlock,
 		},
@@ -119,7 +120,7 @@ func TestLoadMetadata(t *testing.T) {
 			name: "valid stack with invalid stack",
 			layout: []string{
 				"s:stack-valid-1",
-				fmt.Sprintf("f:invalid-stack/%s:data=notvalidhcl", terramate.ConfigFilename),
+				fmt.Sprintf("f:invalid-stack/%s:data=notvalidhcl", config.Filename),
 			},
 			wantErr: hcl.ErrNoTerramateBlock,
 		},
