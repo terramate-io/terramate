@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+
+	"github.com/mineiros-io/terramate/stack"
 )
 
 // ListStacks walks the basedir directory looking for terraform stacks.
@@ -32,7 +34,7 @@ func ListStacks(basedir string) ([]Entry, error) {
 				return err
 			}
 
-			stack, found, err := TryLoadStack(path)
+			stack, found, err := stack.TryLoad(path)
 			if err != nil {
 				return fmt.Errorf("listing stacks: %w", err)
 			}

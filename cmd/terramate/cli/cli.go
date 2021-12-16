@@ -28,6 +28,7 @@ import (
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/git"
+	"github.com/mineiros-io/terramate/stack"
 )
 
 const (
@@ -69,15 +70,16 @@ type cliSpec struct {
 
 	Plan struct {
 		Graph struct {
-			Outfile string `short:"o" default:"" help:"output .dot file"`
-			Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\""`
-			Basedir string `arg:"" optional:"true" help:"base directory to search stacks"`
-		} `cmd:"" help:"generate a graph of the execution order"`
+			Outfile string `short:"o" default:"" help:"output .dot file."`
+			Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\"."`
+			Basedir string `arg:"" optional:"true" help:"base directory to search stacks."`
+		} `cmd:"" help:"generate a graph of the execution order."`
 
 		RunOrder struct {
-			Basedir string `arg:"" optional:"true" help:"base directory to search stacks"`
+			Basedir string `arg:"" optional:"true" help:"base directory to search stacks."`
+			Changed bool   `short:"c" help:"Shows run order of changed stacks."`
 		} `cmd:"" help:"show the topological ordering of the stacks"`
-	} `cmd:"" help:"plan execution"`
+	} `cmd:"" help:"plan execution."`
 	Generate struct {
 		Basedir string `short:"b" optional:"true" help:"Generate code for stacks inside basedir."`
 	} `cmd:"" help:"Generate terraform code for stacks."`
@@ -327,13 +329,13 @@ func (c *cli) printStacks(basedir string) error {
 }
 
 func (c *cli) generateGraph(basedir string) error {
-	var getLabel func(s terramate.Stack) string
+	var getLabel func(s stack.S) string
 
 	switch c.parsedArgs.Plan.Graph.Label {
 	case "stack.name":
-		getLabel = func(s terramate.Stack) string { return s.Name() }
+		getLabel = func(s stack.S) string { return s.Name() }
 	case "stack.dir":
-		getLabel = func(s terramate.Stack) string { return s.Dir }
+		getLabel = func(s stack.S) string { return s.Dir }
 	default:
 		return fmt.Errorf("-label expects the values \"stack.name\" or \"stack.dir\"")
 	}
@@ -342,10 +344,12 @@ func (c *cli) generateGraph(basedir string) error {
 		return err
 	}
 
+	loader := stack.NewLoader()
+
 	di := dot.NewGraph(dot.Directed)
 
 	for _, e := range entries {
-		tree, err := terramate.BuildOrderTree(e.Stack)
+		tree, err := terramate.BuildOrderTree(e.Stack, loader)
 		if err != nil {
 			return fmt.Errorf("failed to build order tree: %w", err)
 		}
@@ -381,7 +385,7 @@ func generateDot(
 	g *dot.Graph,
 	parent dot.Node,
 	tree terramate.OrderDAG,
-	getLabel func(s terramate.Stack) string,
+	getLabel func(s stack.S) string,
 ) {
 	if tree.Cycle {
 		return
@@ -417,12 +421,12 @@ func (c *cli) printRunOrder(basedir string) error {
 		return err
 	}
 
-	stacks := make([]terramate.Stack, len(entries))
+	stacks := make([]stack.S, len(entries))
 	for i, e := range entries {
 		stacks[i] = e.Stack
 	}
 
-	order, err := terramate.RunOrder(stacks)
+	order, err := terramate.RunOrder(stacks, c.parsedArgs.Plan.RunOrder.Changed)
 	if err != nil {
 		c.logerr("error: %v", err)
 		return err
@@ -469,7 +473,7 @@ func (c *cli) runOnStacks(basedir string) error {
 		c.log("Running on all stacks:")
 	}
 
-	stacks := make([]terramate.Stack, len(entries))
+	stacks := make([]stack.S, len(entries))
 	for i, e := range entries {
 		stacks[i] = e.Stack
 	}
@@ -481,12 +485,12 @@ func (c *cli) runOnStacks(basedir string) error {
 	cmd.Stdout = c.stdout
 	cmd.Stderr = c.stderr
 
-	if c.parsedArgs.Run.DryRun {
-		order, err := terramate.RunOrder(stacks)
-		if err != nil {
-			return fmt.Errorf("failed to plan execution: %w", err)
-		}
+	order, err := terramate.RunOrder(stacks, c.parsedArgs.Run.Changed)
+	if err != nil {
+		return fmt.Errorf("failed to plan execution: %w", err)
+	}
 
+	if c.parsedArgs.Run.DryRun {
 		if len(order) > 0 {
 			c.log("The stacks will be executed using order below:")
 
@@ -502,7 +506,7 @@ func (c *cli) runOnStacks(basedir string) error {
 		return nil
 	}
 
-	err = terramate.Run(stacks, cmd)
+	err = terramate.Run(order, cmd)
 	if err != nil {
 		c.logerr("warn: failed to execute command: %v", err)
 	}

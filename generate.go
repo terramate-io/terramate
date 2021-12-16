@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/errutil"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 )
 
@@ -96,8 +97,7 @@ func generateStackConfig(basedir string, configdir string) ([]byte, error) {
 		return nil, nil
 	}
 
-	configfile := filepath.Join(configdir, ConfigFilename)
-
+	configfile := filepath.Join(configdir, config.Filename)
 	if _, err := os.Stat(configfile); err != nil {
 		return generateStackConfig(basedir, filepath.Dir(configdir))
 	}

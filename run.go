@@ -19,17 +19,13 @@ import (
 	"os/exec"
 
 	"github.com/madlambda/spells/errutil"
+	"github.com/mineiros-io/terramate/stack"
 )
 
 const ErrRunCycleDetected errutil.Error = "cycle detected in run order"
 
-func Run(stacks []Stack, cmdSpec *exec.Cmd) error {
-	order, err := RunOrder(stacks)
-	if err != nil {
-		return err
-	}
-
-	for _, stack := range order {
+func Run(stacks []stack.S, cmdSpec *exec.Cmd) error {
+	for _, stack := range stacks {
 		cmd := *cmdSpec
 
 		fmt.Fprintf(cmd.Stdout, "[%s] running %s\n", stack.Dir, &cmd)

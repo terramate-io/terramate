@@ -17,28 +17,36 @@ package terramate
 import (
 	"fmt"
 	"sort"
+
+	"github.com/mineiros-io/terramate/stack"
 )
 
 // OrderDAG represents the Directed Acyclic Graph of the stack order.
 type OrderDAG struct {
-	Stack Stack      // Stack is the stack which is the root of this DAG.
+	Stack stack.S    // Stack is the stack which is the root of this DAG.
 	Order []OrderDAG // After is the list of depend-on DAG trees.
 
 	Cycle bool // Cycle tells if a cycle was detected at this level.
 }
 
 // BuildOrderTree builds the order tree data structure.
-func BuildOrderTree(stack Stack) (OrderDAG, error) {
-	return buildOrderTree(stack, map[string]struct{}{})
+func BuildOrderTree(stack stack.S, l stack.Loader) (OrderDAG, error) {
+	return buildOrderTree(stack, l, map[string]struct{}{})
 }
 
 // RunOrder computes the final execution order for the given list of stacks.
 // In the case of multiple possible orders, it returns the lexicographic sorted
 // path.
-func RunOrder(stacks []Stack) ([]Stack, error) {
+func RunOrder(stacks []stack.S, changed bool) ([]stack.S, error) {
 	trees := map[string]OrderDAG{} // indexed by stackdir
+
+	loader := stack.NewLoader()
 	for _, stack := range stacks {
-		tree, err := BuildOrderTree(stack)
+		loader.Set(stack.Dir, stack)
+	}
+
+	for _, stack := range stacks {
+		tree, err := BuildOrderTree(stack, loader)
 		if err != nil {
 			return nil, err
 		}
@@ -75,14 +83,17 @@ func RunOrder(stacks []Stack) ([]Stack, error) {
 
 	sort.Strings(keys)
 
-	order := []Stack{}
+	order := []stack.S{}
 	visited := map[string]struct{}{}
 	for _, k := range keys {
 		tree := trees[k]
-		walkOrderTree(tree, func(s Stack) {
+		walkOrderTree(tree, func(s stack.S) {
 			if _, ok := visited[s.Dir]; !ok {
-				order = append(order, s)
 				visited[s.Dir] = struct{}{}
+
+				if changed == s.IsChanged() {
+					order = append(order, s)
+				}
 			}
 		})
 	}
@@ -90,7 +101,7 @@ func RunOrder(stacks []Stack) ([]Stack, error) {
 	return order, nil
 }
 
-func walkOrderTree(tree OrderDAG, do func(s Stack)) {
+func walkOrderTree(tree OrderDAG, do func(s stack.S)) {
 	for _, child := range tree.Order {
 		walkOrderTree(child, do)
 	}
@@ -127,20 +138,17 @@ func CheckCycle(tree OrderDAG) error {
 	return nil
 }
 
-func buildOrderTree(stack Stack, visited map[string]struct{}) (OrderDAG, error) {
+func buildOrderTree(
+	stack stack.S,
+	loader stack.Loader,
+	visited map[string]struct{},
+) (OrderDAG, error) {
 	root := OrderDAG{
 		Stack: stack,
 	}
 
-	/*
-		if _, ok := visited[stack.Dir]; ok {
-			root.Cycle = true
-			return root, nil
-		}
-	*/
-
 	visited[stack.Dir] = struct{}{}
-	afterStacks, err := LoadStacks(stack.Dir, stack.After()...)
+	afterStacks, err := loader.LoadAll(stack.Dir, stack.After()...)
 	if err != nil {
 		return OrderDAG{}, err
 	}
@@ -155,7 +163,7 @@ func buildOrderTree(stack Stack, visited map[string]struct{}) (OrderDAG, error) 
 			continue
 		}
 
-		tree, err := buildOrderTree(s, copyVisited(visited))
+		tree, err := buildOrderTree(s, loader, copyVisited(visited))
 		if err != nil {
 			return OrderDAG{}, fmt.Errorf("computing tree of stack %q: %w",
 				stack.Dir, err)

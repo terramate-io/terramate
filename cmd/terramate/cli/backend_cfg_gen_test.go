@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -512,7 +513,7 @@ stack {}`,
 
 			for _, cfg := range tcase.configs {
 				dir := filepath.Join(s.BaseDir(), cfg.relpath)
-				test.WriteFile(t, dir, terramate.ConfigFilename, cfg.config)
+				test.WriteFile(t, dir, config.Filename, cfg.config)
 			}
 
 			ts := newCLI(t, s.BaseDir())

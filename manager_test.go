@@ -22,6 +22,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/test"
 )
 
@@ -244,7 +245,7 @@ func singleNotChangedStack(t *testing.T) repository {
 
 	// make it a stack
 	assert.NoError(t, terramate.Init(repo, false), "terramate init failed")
-	assert.NoError(t, g.Add(terramate.ConfigFilename), "add terramate file failed")
+	assert.NoError(t, g.Add(config.Filename), "add terramate file failed")
 	assert.NoError(t, g.Commit("terramate message"), "terramate commit failed")
 
 	// add a second commit to be able to test gitBaseRef=HEAD^
@@ -346,7 +347,7 @@ func multipleStacksOneChangedRepo(t *testing.T) repository {
 
 	assert.NoError(t, terramate.Init(otherStack, false), "terramate init failed")
 
-	assert.NoError(t, g.Add(filepath.Join(otherStack, terramate.ConfigFilename)),
+	assert.NoError(t, g.Add(filepath.Join(otherStack, config.Filename)),
 		"git add otherstack failed")
 	assert.NoError(t, g.Commit("other stack message"), "commit failed")
 
@@ -361,7 +362,7 @@ func multipleStacksOneChangedRepo(t *testing.T) repository {
 
 	assert.NoError(t, terramate.Init(otherStack, false), "terramate init failed")
 
-	assert.NoError(t, g.Add(filepath.Join(otherStack, terramate.ConfigFilename)),
+	assert.NoError(t, g.Add(filepath.Join(otherStack, config.Filename)),
 		"git add otherstack failed")
 	assert.NoError(t, g.Commit("other stack message"), "commit failed")
 
@@ -379,7 +380,7 @@ func multipleChangedStacksRepo(t *testing.T) repository {
 
 		assert.NoError(t, terramate.Init(otherStack, false), "terramate init failed")
 
-		assert.NoError(t, g.Add(filepath.Join(otherStack, terramate.ConfigFilename)),
+		assert.NoError(t, g.Add(filepath.Join(otherStack, config.Filename)),
 			"git add otherstack failed")
 		assert.NoError(t, g.Commit("other stack message"), "commit failed")
 	}
@@ -424,7 +425,7 @@ func multipleStackOneChangedModule(t *testing.T) repository {
 
 	assert.NoError(t, terramate.Init(otherStack, false), "terramate init failed")
 
-	assert.NoError(t, g.Add(filepath.Join(otherStack, terramate.ConfigFilename)),
+	assert.NoError(t, g.Add(filepath.Join(otherStack, config.Filename)),
 		"git add otherstack failed")
 	assert.NoError(t, g.Commit("other stack message"), "commit failed")
 
@@ -433,7 +434,7 @@ func multipleStackOneChangedModule(t *testing.T) repository {
 
 	assert.NoError(t, terramate.Init(otherStack, false), "terramate init failed")
 
-	assert.NoError(t, g.Add(filepath.Join(otherStack, terramate.ConfigFilename)),
+	assert.NoError(t, g.Add(filepath.Join(otherStack, config.Filename)),
 		"git add otherstack failed")
 	assert.NoError(t, g.Commit("other stack message"), "commit failed")
 

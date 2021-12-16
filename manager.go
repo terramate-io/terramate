@@ -24,6 +24,7 @@ import (
 
 	"github.com/mineiros-io/terramate/git"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/stack"
 )
 
 type (
@@ -31,11 +32,13 @@ type (
 	Manager struct {
 		basedir    string // basedir is the stacks base directory.
 		gitBaseRef string // gitBaseRef is the git ref where we compare changes.
+
+		stackLoader stack.Loader
 	}
 
 	// Entry is a stack entry result.
 	Entry struct {
-		Stack  Stack
+		Stack  stack.S
 		Reason string // Reason why this entry was returned.
 	}
 )
@@ -44,8 +47,9 @@ type (
 // where all stacks reside inside.
 func NewManager(basedir string, gitBaseRef string) *Manager {
 	return &Manager{
-		basedir:    basedir,
-		gitBaseRef: gitBaseRef,
+		basedir:     basedir,
+		gitBaseRef:  gitBaseRef,
+		stackLoader: make(stack.Loader),
 	}
 }
 
@@ -69,7 +73,7 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 	stackSet := map[string]Entry{}
 	for _, path := range files {
 		dirname := filepath.Dir(filepath.Join(m.basedir, path))
-		stack, found, err := TryLoadStack(dirname)
+		stack, found, err := m.stackLoader.TryLoadChanged(dirname)
 		if err != nil {
 			return nil, fmt.Errorf("listing changed files: %w", err)
 		}
