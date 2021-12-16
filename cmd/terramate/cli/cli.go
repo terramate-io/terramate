@@ -24,9 +24,11 @@ import (
 	"strings"
 
 	"github.com/alecthomas/kong"
+	"github.com/emicklei/dot"
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/git"
+	"github.com/mineiros-io/terramate/stack"
 )
 
 const (
@@ -61,13 +63,29 @@ type cliSpec struct {
 	Run struct {
 		Quiet   bool     `short:"q" help:"Don't print any information other than the command output."`
 		Changed bool     `short:"c" help:"Run on all changed stacks."`
+		DryRun  bool     `default:"false" help:"plan the execution but do not execute it"`
 		Basedir string   `short:"b" optional:"true" help:"Run on stacks inside basedir."`
 		Command []string `arg:"" name:"cmd" passthrough:"" help:"command to execute."`
 	} `cmd:"" help:"Run command in the stacks."`
 
+	Plan struct {
+		Graph struct {
+			Outfile string `short:"o" default:"" help:"output .dot file."`
+			Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\"."`
+			Basedir string `arg:"" optional:"true" help:"base directory to search stacks."`
+		} `cmd:"" help:"generate a graph of the execution order."`
+
+		RunOrder struct {
+			Basedir string `arg:"" optional:"true" help:"base directory to search stacks."`
+			Changed bool   `short:"c" help:"Shows run order of changed stacks."`
+		} `cmd:"" help:"show the topological ordering of the stacks"`
+	} `cmd:"" help:"plan execution."`
 	Generate struct {
 		Basedir string `short:"b" optional:"true" help:"Generate code for stacks inside basedir."`
 	} `cmd:"" help:"Generate terraform code for stacks."`
+
+	Metadata struct {
+	} `cmd:"" help:"shows metadata available on the project"`
 }
 
 // Run will run terramate with the provided flags defined on args from the
@@ -207,6 +225,22 @@ func (c *cli) run() error {
 		return c.printStacks(c.wd)
 	case "list <path>":
 		return c.printStacks(c.parsedArgs.List.BaseDir)
+	case "plan graph":
+		fallthrough
+	case "plan graph <basedir>":
+		basedir := c.wd
+		if c.parsedArgs.Plan.Graph.Basedir != "" {
+			basedir = strings.TrimSuffix(c.parsedArgs.Plan.Graph.Basedir, "/")
+		}
+		return c.generateGraph(basedir)
+	case "plan run-order":
+		fallthrough
+	case "plan run-order <basedir>":
+		basedir := c.wd
+		if c.parsedArgs.Plan.RunOrder.Basedir != "" {
+			basedir = strings.TrimSuffix(c.parsedArgs.Plan.RunOrder.Basedir, "/")
+		}
+		return c.printRunOrder(basedir)
 	case "run":
 		if len(c.parsedArgs.Run.Command) == 0 {
 			return errors.New("no command specified")
@@ -220,6 +254,8 @@ func (c *cli) run() error {
 		return c.runOnStacks(basedir)
 	case "generate":
 		return terramate.Generate(c.wd)
+	case "metadata":
+		return c.printMetadata()
 	default:
 		return fmt.Errorf("unexpected command sequence: %s", c.ctx.Command())
 	}
@@ -242,7 +278,7 @@ func (c *cli) initStack(dirs []string) error {
 	}
 
 	if len(errmsgs) > 0 {
-		return fmt.Errorf("%w: %v", ErrInit, strings.Join(errmsgs, ": "))
+		return ErrInit
 	}
 
 	return nil
@@ -273,17 +309,18 @@ func (c *cli) listStacks(
 
 func (c *cli) printStacks(basedir string) error {
 	mgr := terramate.NewManager(basedir, c.baseRef)
-	stacks, err := c.listStacks(basedir, mgr, c.parsedArgs.List.Changed)
+	entries, err := c.listStacks(basedir, mgr, c.parsedArgs.List.Changed)
 	if err != nil {
 		return err
 	}
 
 	trimPart := c.wd + string(os.PathSeparator)
-	for _, stack := range stacks {
+	for _, entry := range entries {
+		stack := entry.Stack
 		stackdir := strings.TrimPrefix(stack.Dir, trimPart)
 
 		if c.parsedArgs.List.Why {
-			c.log("%s - %s", stackdir, stack.Reason)
+			c.log("%s - %s", stackdir, entry.Reason)
 		} else {
 			c.log(stackdir)
 		}
@@ -291,15 +328,141 @@ func (c *cli) printStacks(basedir string) error {
 	return nil
 }
 
-func (c *cli) runOnStacks(basedir string) error {
-	var nErrors int
+func (c *cli) generateGraph(basedir string) error {
+	var getLabel func(s stack.S) string
 
+	switch c.parsedArgs.Plan.Graph.Label {
+	case "stack.name":
+		getLabel = func(s stack.S) string { return s.Name() }
+	case "stack.dir":
+		getLabel = func(s stack.S) string { return s.Dir }
+	default:
+		return fmt.Errorf("-label expects the values \"stack.name\" or \"stack.dir\"")
+	}
+	entries, err := terramate.ListStacks(basedir)
+	if err != nil {
+		return err
+	}
+
+	loader := stack.NewLoader()
+
+	di := dot.NewGraph(dot.Directed)
+
+	for _, e := range entries {
+		tree, err := terramate.BuildOrderTree(e.Stack, loader)
+		if err != nil {
+			return fmt.Errorf("failed to build order tree: %w", err)
+		}
+
+		node := di.Node(getLabel(tree.Stack))
+		generateDot(di, node, tree, getLabel)
+	}
+
+	outFile := c.parsedArgs.Plan.Graph.Outfile
+	var out io.Writer
+	if outFile == "" {
+		out = c.stdout
+	} else {
+		f, err := os.Create(outFile)
+		if err != nil {
+			return fmt.Errorf("opening file %q: %w", outFile, err)
+		}
+
+		defer f.Close()
+
+		out = f
+	}
+
+	_, err = out.Write([]byte(di.String()))
+	if err != nil {
+		return fmt.Errorf("writing output to %q: %w", outFile, err)
+	}
+
+	return nil
+}
+
+func generateDot(
+	g *dot.Graph,
+	parent dot.Node,
+	tree terramate.OrderDAG,
+	getLabel func(s stack.S) string,
+) {
+	if tree.Cycle {
+		return
+	}
+
+	for _, s := range tree.Order {
+		n := g.Node(getLabel(s.Stack))
+
+		edges := g.FindEdges(parent, n)
+		if len(edges) == 0 {
+			edge := g.Edge(parent, n)
+			if s.Cycle {
+				edge.Attr("color", "red")
+			}
+		}
+
+		if s.Cycle {
+			continue
+		}
+
+		generateDot(g, n, s, getLabel)
+	}
+}
+
+func (c *cli) printRunOrder(basedir string) error {
 	if !filepath.IsAbs(basedir) {
 		basedir = filepath.Join(c.wd, basedir)
 	}
 
 	mgr := terramate.NewManager(basedir, c.baseRef)
-	stacks, err := c.listStacks(basedir, mgr, c.parsedArgs.Run.Changed)
+	entries, err := c.listStacks(basedir, mgr, c.parsedArgs.Run.Changed)
+	if err != nil {
+		return err
+	}
+
+	stacks := make([]stack.S, len(entries))
+	for i, e := range entries {
+		stacks[i] = e.Stack
+	}
+
+	order, err := terramate.RunOrder(stacks, c.parsedArgs.Plan.RunOrder.Changed)
+	if err != nil {
+		c.logerr("error: %v", err)
+		return err
+	}
+
+	for _, s := range order {
+		c.log("%s", s)
+	}
+
+	return nil
+}
+
+func (c *cli) printMetadata() error {
+	metadata, err := terramate.LoadMetadata(c.wd)
+	if err != nil {
+		return err
+	}
+
+	c.log("Available metadata:")
+
+	for _, stack := range metadata.Stacks {
+		c.log("\nstack %q:", stack.Path)
+		c.log("\tterraform.name=%q", stack.Name)
+		c.log("\tterraform.path=%q", stack.Path)
+	}
+
+	return nil
+}
+
+func (c *cli) runOnStacks(basedir string) error {
+	if !filepath.IsAbs(basedir) {
+		basedir = filepath.Join(c.wd, basedir)
+	}
+
+	mgr := terramate.NewManager(basedir, c.baseRef)
+	entries, err := c.listStacks(basedir, mgr, c.parsedArgs.Run.Changed)
 	if err != nil {
 		return err
 	}
@@ -310,27 +473,42 @@ func (c *cli) runOnStacks(basedir string) error {
 		c.log("Running on all stacks:")
 	}
 
-	cmdName := c.parsedArgs.Run.Command[0]
-	args := c.parsedArgs.Run.Command[1:]
-
-	for _, stack := range stacks {
-		cmd := exec.Command(cmdName, args...)
-		cmd.Dir = stack.Dir
-		cmd.Stdin = c.stdin
-		cmd.Stdout = c.stdout
-		cmd.Stderr = c.stderr
-
-		c.log("[%s] running %s", stack.Dir, cmd)
-
-		err = cmd.Run()
-		if err != nil {
-			c.logerr("warn: failed to execute command: %v", err)
-			nErrors++
-		}
+	stacks := make([]stack.S, len(entries))
+	for i, e := range entries {
+		stacks[i] = e.Stack
 	}
 
-	if nErrors != 0 {
-		return fmt.Errorf("some (%d) commands failed", nErrors)
+	cmdName := c.parsedArgs.Run.Command[0]
+	args := c.parsedArgs.Run.Command[1:]
+	cmd := exec.Command(cmdName, args...)
+	cmd.Stdin = c.stdin
+	cmd.Stdout = c.stdout
+	cmd.Stderr = c.stderr
+
+	order, err := terramate.RunOrder(stacks, c.parsedArgs.Run.Changed)
+	if err != nil {
+		return fmt.Errorf("failed to plan execution: %w", err)
+	}
+
+	if c.parsedArgs.Run.DryRun {
+		if len(order) > 0 {
+			c.log("The stacks will be executed using order below:")
+
+			trimPart := c.wd + string(os.PathSeparator)
+
+			for i, s := range order {
+				c.log("\t%d. %s (%s)", i, s.Name(), strings.TrimPrefix(s.Dir, trimPart))
+			}
+		} else {
+			c.log("No stacks will be executed.")
+		}
+
+		return nil
+	}
+
+	err = terramate.Run(order, cmd)
+	if err != nil {
+		c.logerr("warn: failed to execute command: %v", err)
 	}
 
 	return nil

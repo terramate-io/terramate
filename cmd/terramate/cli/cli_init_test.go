@@ -23,14 +23,13 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/cmd/terramate/cli"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
 type versionPart int
-
-const configFile = terramate.ConfigFilename
 
 const (
 	vMajor = iota
@@ -85,7 +84,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "not compatible stack",
 			layout: []string{
-				sprintf("t:other-version/%s:version=~> 9999.9999.9999", configFile),
+				"s:other-version:version=~> 9999.9999.9999",
 			},
 			input: []string{"other-version"},
 			force: false,
@@ -97,7 +96,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "not compatible stack - init --forced",
 			layout: []string{
-				sprintf("t:other-version/%s:version=~> 9999.9999.9999", configFile),
+				"s:other-version:version=~> 9999.9999.9999",
 			},
 			input: []string{"other-version"},
 			force: true,
@@ -105,7 +104,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "multiple stacks, one incompatible version stack - fails",
 			layout: []string{
-				sprintf("t:other-version/%s:version=~> 9999.9999.9999", configFile),
+				"s:other-version:version=~> 9999.9999.9999",
 				"s:stack1",
 				"s:stack2",
 			},
@@ -119,8 +118,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "bigger version patch - fails",
 			layout: []string{
-				sprintf("t:other-version/%s:version=~> %s", configFile,
-					incVersion(t, tsversion, vPatch)),
+				sprintf("s:other-version:version=~> %s", incVersion(t, tsversion, vPatch)),
 			},
 			input: []string{"other-version"},
 			force: false,
@@ -132,8 +130,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "bigger version patch - init --forced",
 			layout: []string{
-				sprintf("t:other-version/%s:version=~> %s", configFile,
-					incVersion(t, tsversion, vPatch)),
+				sprintf("s:other-version:version=~> %s", incVersion(t, tsversion, vPatch)),
 			},
 			input: []string{"other-version"},
 			force: true,
@@ -141,8 +138,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "bigger version minor - fails",
 			layout: []string{
-				sprintf("t:other-version/%s:version=~> %s", configFile,
-					incVersion(t, tsversion, vMinor)),
+				sprintf("s:other-version:version=~> %s", incVersion(t, tsversion, vMinor)),
 			},
 			input: []string{"other-version"},
 			force: false,
@@ -154,8 +150,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "bigger version minor - init --forced",
 			layout: []string{
-				sprintf("t:other-version/%s:version=~> %s", configFile,
-					incVersion(t, tsversion, vMinor)),
+				sprintf("s:other-version:version=~> %s", incVersion(t, tsversion, vMinor)),
 			},
 			input: []string{"other-version"},
 			force: true,
@@ -163,8 +158,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "bigger version major - fails",
 			layout: []string{
-				sprintf("t:other-version/%s:version=~> %s",
-					configFile, incVersion(t, tsversion, vMajor)),
+				sprintf("s:other-version:version=~> %s", incVersion(t, tsversion, vMajor)),
 			},
 			input: []string{"other-version"},
 			force: false,
@@ -176,8 +170,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "bigger version major - init --forced",
 			layout: []string{
-				sprintf("t:other-version/%s:version=~> %s",
-					configFile, incVersion(t, tsversion, vMajor)),
+				sprintf("s:other-version:version=~> %s", incVersion(t, tsversion, vMajor)),
 			},
 			input: []string{"other-version"},
 			force: true,
@@ -185,7 +178,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "lower than terramate version - fails",
 			layout: []string{
-				sprintf("t:other-version/%s:version=< 0.0.1", configFile),
+				"s:other-version:version=< 0.0.1",
 			},
 			input: []string{"other-version"},
 			want: runResult{
@@ -196,7 +189,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "bigger than default constraint version - fails",
 			layout: []string{
-				sprintf("t:other-version/%s:version=> 999.0.0", configFile),
+				"s:other-version:version=> 999.0.0",
 			},
 			input: []string{"other-version"},
 			want: runResult{
@@ -224,17 +217,17 @@ func TestInit(t *testing.T) {
 			}
 
 			for _, path := range tc.input {
-				data := test.ReadFile(t, s.BaseDir(), filepath.Join(path, configFile))
-				p := hcl.NewParser()
-				got, err := p.Parse("TestInitHCL", data)
+				data := test.ReadFile(t, s.BaseDir(), filepath.Join(path, config.Filename))
+				got, err := hcl.Parse("TestInitHCL", data)
 				assert.NoError(t, err, "parsing terramate file")
 
-				want := hcl.Terramate{
-					RequiredVersion: terramate.DefaultVersionConstraint(),
+				want := hcl.Config{
+					Terramate: &hcl.Terramate{
+						RequiredVersion: terramate.DefaultVersionConstraint(),
+					},
+					Stack: &hcl.Stack{},
 				}
-				if *got != want {
-					t.Fatalf("terramate file differs: want[%+v] != got[%+v]", want, *got)
-				}
+				test.AssertTerramateConfig(t, *got, want)
 			}
 		})
 	}
@@ -244,6 +237,30 @@ func TestInitNonExistingDir(t *testing.T) {
 	s := sandbox.New(t)
 	c := newCLI(t, s.BaseDir())
 	assertRunResult(t, c.run("init", test.NonExistingDir(t)), runResult{
+		Error:        cli.ErrInit,
+		IgnoreStderr: true,
+	})
+}
+
+func TestInitFailInitializeChildOfStack(t *testing.T) {
+	s := sandbox.New(t)
+	c := newCLI(t, s.BaseDir())
+	parent := test.Mkdir(t, s.BaseDir(), "parent-stack")
+	child := test.Mkdir(t, parent, "child-stack")
+	assertRun(t, c.run("init", parent))
+	assertRunResult(t, c.run("init", child), runResult{
+		Error:        cli.ErrInit,
+		IgnoreStderr: true,
+	})
+}
+
+func TestInitFailInitializeParentOfChildStack(t *testing.T) {
+	s := sandbox.New(t)
+	c := newCLI(t, s.BaseDir())
+	parent := test.Mkdir(t, s.BaseDir(), "parent-stack")
+	child := test.Mkdir(t, parent, "child-stack")
+	assertRun(t, c.run("init", child))
+	assertRunResult(t, c.run("init", parent), runResult{
 		Error:        cli.ErrInit,
 		IgnoreStderr: true,
 	})

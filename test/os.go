@@ -56,6 +56,7 @@ func WriteFile(t *testing.T, dir string, filename string, content string) string
 
 // ReadFile reads the content of fname from dir directory.
 func ReadFile(t *testing.T, dir, fname string) []byte {
+	t.Helper()
 	data, err := os.ReadFile(filepath.Join(dir, fname))
 	assert.NoError(t, err, "reading file")
 	return data

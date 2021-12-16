@@ -15,12 +15,14 @@
 package cli_test
 
 import (
-	"os"
+	"io/fs"
 	"path/filepath"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -68,18 +70,20 @@ func TestBackendConfigGeneration(t *testing.T) {
 					config: `terramate {
   required_version = "~> 0.0.0"
   backend {}
-}`,
+}
+
+stack{}`,
 				},
 			},
 			want: want{
 				res: runResult{
-					Error:        hcl.ErrMalformedTerramateBlock,
+					Error:        hcl.ErrMalformedTerramateConfig,
 					IgnoreStdout: true,
 				},
 			},
 		},
 		{
-			name: "partial failure on multiple stacks and one has invalid config",
+			name: "multiple stacks and one has invalid config fails",
 			layout: []string{
 				"s:stack-invalid-backend",
 				"s:stack-ok-backend",
@@ -90,29 +94,23 @@ func TestBackendConfigGeneration(t *testing.T) {
 					config: `terramate {
   required_version = "~> 0.0.0"
   backend {}
-}`,
+}
+
+stack{}`,
 				},
 				{
 					relpath: "stack-ok-backend",
 					config: `terramate {
   required_version = "~> 0.0.0"
   backend "valid" {}
-}`,
+}
+
+stack{}`,
 				},
 			},
 			want: want{
-				stacks: []stackcode{
-					{
-						relpath: "stack-ok-backend",
-						code: `terraform {
-  backend "valid" {
-  }
-}
-`,
-					},
-				},
 				res: runResult{
-					Error:        hcl.ErrMalformedTerramateBlock,
+					Error:        hcl.ErrMalformedTerramateConfig,
 					IgnoreStdout: true,
 				},
 			},
@@ -126,7 +124,9 @@ func TestBackendConfigGeneration(t *testing.T) {
 					config: `terramate {
   required_version = "~> 0.0.0"
   backend "sometype" {}
-}`,
+}
+
+stack {}`,
 				},
 			},
 			want: want{
@@ -152,7 +152,9 @@ func TestBackendConfigGeneration(t *testing.T) {
 					config: `terramate {
   required_version = "~> 0.0.0"
   backend "" {}
-}`,
+}
+
+stack {}`,
 				},
 			},
 			want: want{
@@ -180,7 +182,9 @@ func TestBackendConfigGeneration(t *testing.T) {
   backend "sometype" {
     attr = "value"
   }
-}`,
+}
+
+stack {}`,
 				},
 			},
 			want: want{
@@ -209,7 +213,9 @@ func TestBackendConfigGeneration(t *testing.T) {
   backend "1" {
     attr = "hi"
   }
-}`,
+}
+
+stack {}`,
 				},
 				{
 					relpath: "stack-2",
@@ -218,7 +224,9 @@ func TestBackendConfigGeneration(t *testing.T) {
   backend "2" {
     somebool = true
   }
-}`,
+}
+
+stack {}`,
 				},
 				{
 					relpath: "stack-3",
@@ -227,7 +235,9 @@ func TestBackendConfigGeneration(t *testing.T) {
   backend "3" {
     somelist = ["m", "i", "n", "e", "i", "r", "o", "s"]
   }
-}`,
+}
+
+stack {}`,
 				},
 			},
 			want: want{
@@ -277,7 +287,10 @@ func TestBackendConfigGeneration(t *testing.T) {
     attrbool = true
     somelist = ["hi", "again"]
   }
-}`,
+}
+
+stack {}
+`,
 				},
 			},
 			want: want{
@@ -314,7 +327,9 @@ func TestBackendConfigGeneration(t *testing.T) {
       somelist   = ["hi", "again"]
     }
   }
-}`,
+}
+
+stack {}`,
 				},
 			},
 			want: want{
@@ -375,7 +390,8 @@ func TestBackendConfigGeneration(t *testing.T) {
   backend "basedir_config" {
     attr = 666
   }
-}`,
+}
+`,
 				},
 			},
 			want: want{
@@ -406,7 +422,8 @@ func TestBackendConfigGeneration(t *testing.T) {
   backend "basedir_config" {
     attr = "test"
   }
-}`,
+}
+`,
 				},
 			},
 			want: want{
@@ -446,7 +463,8 @@ func TestBackendConfigGeneration(t *testing.T) {
   backend "remote" {
     environment = "prod"
   }
-}`,
+}
+`,
 				},
 				{
 					relpath: "envs/staging",
@@ -454,7 +472,8 @@ func TestBackendConfigGeneration(t *testing.T) {
   backend "remote" {
     environment = "staging"
   }
-}`,
+}
+`,
 				},
 			},
 			want: want{
@@ -481,6 +500,83 @@ func TestBackendConfigGeneration(t *testing.T) {
 				res: runResult{IgnoreStdout: true},
 			},
 		},
+		{
+			name:   "single stack with config on stack and N attrs using metadata",
+			layout: []string{"s:stack-metadata"},
+			configs: []backendconfig{
+				{
+					relpath: "stack-metadata",
+					config: `terramate {
+  required_version = "~> 0.0.0"
+  backend "metadata" {
+    name = terramate.name
+    path = terramate.path
+    somelist = [terramate.name, terramate.path]
+  }
+}
+stack {
+  name = "custom-name"
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stack-metadata",
+						code: `terraform {
+  backend "metadata" {
+    name     = "custom-name"
+    path     = "/stack-metadata"
+    somelist = ["custom-name", "/stack-metadata"]
+  }
+}
+`,
+					},
+				},
+			},
+		},
+		{
+			name:   "multiple stacks with config on root dir using metadata",
+			layout: []string{"s:stacks/stack-1", "s:stacks/stack-2"},
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: `terramate {
+  backend "metadata" {
+    name = terramate.name
+    path = terramate.path
+    interpolation = "interpolate-${terramate.name}-fun-${terramate.path}"
+  }
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stacks/stack-1",
+						code: `terraform {
+  backend "metadata" {
+    interpolation = "interpolate-stack-1-fun-/stacks/stack-1"
+    name          = "stack-1"
+    path          = "/stacks/stack-1"
+  }
+}
+`,
+					},
+					{
+						relpath: "stacks/stack-2",
+						code: `terraform {
+  backend "metadata" {
+    interpolation = "interpolate-stack-2-fun-/stacks/stack-2"
+    name          = "stack-2"
+    path          = "/stacks/stack-2"
+  }
+}
+`,
+					},
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
@@ -490,12 +586,7 @@ func TestBackendConfigGeneration(t *testing.T) {
 
 			for _, cfg := range tcase.configs {
 				dir := filepath.Join(s.BaseDir(), cfg.relpath)
-				test.WriteFile(t, dir, terramate.ConfigFilename, cfg.config)
-			}
-
-			untouchedStacks := map[string]struct{}{}
-			for _, relpath := range s.ListStacksRelPath() {
-				untouchedStacks[relpath] = struct{}{}
+				test.WriteFile(t, dir, config.Filename, cfg.config)
 			}
 
 			ts := newCLI(t, s.BaseDir())
@@ -505,6 +596,7 @@ func TestBackendConfigGeneration(t *testing.T) {
 			for _, want := range tcase.want.stacks {
 				stack := s.StackEntry(want.relpath)
 				got := string(stack.ReadGeneratedTf())
+
 				wantcode := terramate.GeneratedCodeHeader + want.code
 
 				if diff := cmp.Diff(wantcode, got); diff != "" {
@@ -513,18 +605,38 @@ func TestBackendConfigGeneration(t *testing.T) {
 					t.Errorf("got:\n%q", got)
 					t.Fatalf("diff:\n%s", diff)
 				}
-
-				delete(untouchedStacks, want.relpath)
 			}
 
-			for stack := range untouchedStacks {
-				fp := filepath.Join(stack, terramate.GeneratedTfFilename)
-				_, err := os.Stat(fp)
-				if err == nil {
-					t.Errorf("stack %q should be untouched, but has generated code: %q", stack, fp)
-				}
+			generatedFiles := listGeneratedTfFiles(t, s.BaseDir())
+
+			if len(generatedFiles) != len(tcase.want.stacks) {
+				t.Errorf("generated %d files, but wanted %d", len(generatedFiles), len(tcase.want.stacks))
+				t.Errorf("generated files: %v", generatedFiles)
+				t.Fatalf("wanted generated files: %#v", tcase.want.stacks)
 			}
 		})
 	}
 
+}
+
+func listGeneratedTfFiles(t *testing.T, basedir string) []string {
+	// Go's glob is not recursive, so can't just glob for generated filenames
+	var generatedTfFiles []string
+
+	err := filepath.Walk(basedir, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+
+		if info.Name() == terramate.GeneratedTfFilename {
+			generatedTfFiles = append(generatedTfFiles, path)
+		}
+		return nil
+	})
+	assert.NoError(t, err)
+
+	return generatedTfFiles
 }

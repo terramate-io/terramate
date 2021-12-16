@@ -16,40 +16,26 @@ package terramate
 
 import (
 	"fmt"
-	"io/fs"
-	"path/filepath"
+	"os/exec"
 
+	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate/stack"
 )
 
-// ListStacks walks the basedir directory looking for terraform stacks.
-// It returns a lexicographic sorted list of stack directories.
-func ListStacks(basedir string) ([]Entry, error) {
-	entries := []Entry{}
+const ErrRunCycleDetected errutil.Error = "cycle detected in run order"
 
-	err := filepath.Walk(
-		basedir,
-		func(path string, info fs.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
+func Run(stacks []stack.S, cmdSpec *exec.Cmd) error {
+	for _, stack := range stacks {
+		cmd := *cmdSpec
 
-			stack, found, err := stack.TryLoad(path)
-			if err != nil {
-				return fmt.Errorf("listing stacks: %w", err)
-			}
-
-			if found {
-				entries = append(entries, Entry{Stack: stack})
-			}
-
-			return nil
-		},
-	)
-
-	if err != nil {
-		return nil, fmt.Errorf("while walking dir: %w", err)
+		fmt.Fprintf(cmd.Stdout, "[%s] running %s\n", stack.Dir, &cmd)
+		cmd.Dir = stack.Dir
+		err := cmd.Run()
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(cmd.Stdout, "\n")
 	}
 
-	return entries, nil
+	return nil
 }
