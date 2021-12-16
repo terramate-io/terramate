@@ -13,7 +13,7 @@ of each feature that leverages globals:
 Defining globals is fairly straightforward, you just need to
 add a **globals** block to your [Terramate configuration file](config.md):
 
-```
+```hcl
 terramate {
   // other Terramate related configs
 }
@@ -26,7 +26,7 @@ globals {
 
 And you can reference them on Terramate configuration:
 
-```
+```hcl
 terramate {
   backend "type" {
     param = "value-${global.env}"
@@ -50,9 +50,156 @@ If global variables don't have the same name, then globals are just merged
 together as they are evaluated going up on the project file system.
 
 If global variables have the same name, the most specific global overrides
-the more general one, where by specific we mean the global closes to the
+the more general one, where by specific we mean the global closest to the
 stack being evaluated.
 
+Given a project structured like this:
+
+```
+.
+└── stacks
+    ├── stack-1
+    │   └── terramate.tm.hcl
+    └── stack-2
+        └── terramate.tm.hcl
+```
+
+To create globals for the entire project just add a
+[Terramate configuration file](config.md) on the project
+root with some useful globals:
+
+```hcl
+globals {
+  project_name = "awesome-project"
+  useful       = "useful"
+}
+```
+
+Now any stack on the project can reference these globals on their
+Terramate configuration, like this backend config example:
+
+```hcl
+terramate {
+  backend "type" {
+    param = "${global.project_name}-${global.useful}"
+  }
+}
+```
+
+Now lets say one of the stacks wants to add more globals, to do
+so we can add globals on the stack configuration file
+**stacks/stack-1/terramate.tm.hcl**:
+
+```hcl
+terramate {
+  // ommited
+}
+
+stack {
+  // ommited
+}
+
+globals {
+  stack_data = "some specialized stack-1 data"
+}
+```
+
+Now the globals available to **stacks/stack-1** are:
+
+```
+project_name = "awesome-project"
+useful       = "useful"
+stack_data   = "some specialized stack-1 data"
+```
+
+And the globals available to **stacks/stack-2** :
+
+```
+project_name = "awesome-project"
+useful       = "useful"
+```
+
+Overall **stacks/stack-1** now gets a full merge of all
+its globals + project wide globals.
+
+Now lets say **stacks/stack-1** needs to override one of the globals,
+we just redefine the global on **stacks/stack-1/terramate.tm.hcl**:
+
+```hcl
+terramate {
+  // ommited
+}
+
+stack {
+  // ommited
+}
+
+globals {
+  stack_data = "some specialized stack-1 data"
+  useful     = "overriden by stack-1"
+}
+```
+
+Now the globals available to **stacks/stack-1** are:
+
+```
+project_name = "awesome-project"
+useful       = "overriden by stack-1"
+stack_data   = "some specialized stack-1 data"
+```
+
+And the globals available to **stacks/stack-2** remains:
+
+```
+project_name = "awesome-project"
+useful       = "useful"
+```
+
+Overriding happens at the global name level, so objects/maps/lists/sets
+won't get merged, they are completely overwritten by the most
+specific configuration with the same global name.
+
+Lets say we add this to our project wide configuration:
+
+```hcl
+globals {
+  project_name = "awesome-project"
+  useful       = "useful"
+  object       = { field_a = "field_a", field_b = "field_b" }
+}
+```
+
+And define globals on **stacks/stack-1/terramate.tm.hcl**:
+
+```hcl
+terramate {
+  // ommited
+}
+
+stack {
+  // ommited
+}
+
+globals {
+  object = { field_a = "overriden_field_a" }
+}
+```
+
+The globals available to **stacks/stack-1** will be:
+
+```
+project_name = "awesome-project"
+useful       = "useful"
+object       = { field_a = "overriden_field_a" }
+```
+
+And the globals available to **stacks/stack-2**:
+
+```
+project_name = "awesome-project"
+useful       = "useful"
+object       = { field_a = "field_a", field_b = "field_b" }
+```
 
 
 ## Referencing globals on terraform code
