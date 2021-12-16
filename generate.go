@@ -85,7 +85,7 @@ func Generate(basedir string) error {
 			continue
 		}
 
-		tfscope := tflang.Scope{
+		tfscope := &tflang.Scope{
 			BaseDir: filepath.Dir(entry.Stack.Dir),
 		}
 
@@ -185,7 +185,7 @@ func copyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *tfhcl.EvalCon
 	return nil
 }
 
-func newHCLEvalContext(metadata StackMetadata, scope tflang.Scope) (*tfhcl.EvalContext, error) {
+func newHCLEvalContext(metadata StackMetadata, scope *tflang.Scope) (*tfhcl.EvalContext, error) {
 	vars, err := hclMapToCty(map[string]cty.Value{
 		"name": cty.StringVal(metadata.Name),
 		"path": cty.StringVal(metadata.Path),
