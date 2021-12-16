@@ -165,7 +165,7 @@ func TestListAndRunChangedStack(t *testing.T) {
 
 	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
-		"Running on changed stacks:\n[%s] running %s %s\n%s",
+		"Running on changed stacks:\n[%s] running %s %s\n%s\n",
 		stack.Path(),
 		cat,
 		mainTfFileName,
@@ -213,7 +213,7 @@ func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
 
 	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
-		"Running on changed stacks:\n[%s] running %s %s\n%s",
+		"Running on changed stacks:\n[%s] running %s %s\n%s\n",
 		stack.Path(),
 		cat,
 		mainTfFileName,

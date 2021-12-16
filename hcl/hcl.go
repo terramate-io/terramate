@@ -63,6 +63,14 @@ const (
 	ErrStackInvalidRunOrder     errutil.Error = "invalid stack execution order definition"
 )
 
+func NewConfig(reqversion string) Config {
+	return Config{
+		Terramate: &Terramate{
+			RequiredVersion: reqversion,
+		},
+	}
+}
+
 // ParseModules parses blocks of type "module" containing a single label.
 func ParseModules(path string) ([]Module, error) {
 	_, err := os.Stat(path)

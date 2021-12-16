@@ -34,6 +34,7 @@ func Run(stacks []stack.S, cmdSpec *exec.Cmd) error {
 		if err != nil {
 			return err
 		}
+		fmt.Fprintf(cmd.Stdout, "\n")
 	}
 
 	return nil

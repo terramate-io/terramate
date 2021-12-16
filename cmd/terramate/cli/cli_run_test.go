@@ -15,17 +15,21 @@
 package cli_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
 func TestCLIRunOrder(t *testing.T) {
 	type testcase struct {
-		name   string
-		layout []string
-		want   runResult
+		name    string
+		layout  []string
+		changed bool
+		want    runResult
 	}
 
 	for _, tc := range []testcase{
@@ -338,7 +342,148 @@ stack-z
 			s.BuildTree(tc.layout)
 
 			cli := newCLI(t, s.BaseDir())
-			assertRunResult(t, cli.run("plan", "run-order"), tc.want)
+			args := []string{"plan", "run-order"}
+			if tc.changed {
+				args = append(args, "--changed")
+			}
+			assertRunResult(t, cli.run(args...), tc.want)
 		})
 	}
+}
+
+func TestRunOrderNotChangedStackIgnored(t *testing.T) {
+	const (
+		mainTfFileName = "main.tf"
+		mainTfContents = "# change is the eternal truth of the universe"
+	)
+
+	s := sandbox.New(t)
+
+	// stack must run after stack2 but stack2 didn't change.
+
+	stack2 := s.CreateStack("stack2")
+
+	stack := s.CreateStack("stack")
+	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
+	stackConfig := hcl.NewConfig(terramate.DefaultVersionConstraint())
+	stackConfig.Stack = &hcl.Stack{
+		After: []string{stack2.Path()},
+	}
+	stack.WriteConfig(stackConfig)
+
+	git := s.Git()
+	git.CommitAll("first commit")
+	git.Push("main")
+	git.CheckoutNew("change-stack")
+
+	stackMainTf.Write(mainTfContents)
+	git.CommitAll("stack changed")
+
+	cli := newCLI(t, s.BaseDir())
+
+	wantList := stack.RelPath() + "\n"
+	assertRunResult(t, cli.run("list", s.BaseDir(), "--changed"),
+		runResult{Stdout: wantList})
+
+	cat := test.LookPath(t, "cat")
+	wantRun := fmt.Sprintf(
+		"Running on changed stacks:\n[%s] running %s %s\n%s\n",
+		stack.Path(),
+		cat,
+		mainTfFileName,
+		mainTfContents,
+	)
+
+	assertRunResult(t, cli.run(
+		"run",
+		"--changed",
+		cat,
+		mainTfFileName,
+	), runResult{Stdout: wantRun})
+
+	assertRunResult(t, cli.run(
+		"run",
+		"--changed",
+		"--basedir",
+		s.BaseDir(),
+		cat,
+		mainTfFileName,
+	), runResult{Stdout: wantRun})
+
+	assertRunResult(t, cli.run(
+		"run",
+		"--changed",
+		"--basedir",
+		stack.Path(),
+		cat,
+		mainTfFileName,
+	), runResult{Stdout: wantRun})
+
+	assertRunResult(t, cli.run(
+		"run",
+		"--changed",
+		"--basedir",
+		stack2.Path(),
+		cat,
+		mainTfFileName,
+	), runResult{Stdout: "Running on changed stacks:\n"})
+}
+
+func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
+	const (
+		mainTfFileName = "main.tf"
+		mainTfContents = "# change is the eternal truth of the universe"
+	)
+
+	// stack2 must run after stack and both changed.
+
+	s := sandbox.New(t)
+
+	stack2 := s.CreateStack("stack2")
+	stack2MainTf := stack2.CreateFile(mainTfFileName, "# some code")
+
+	stack := s.CreateStack("stack")
+	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
+	stackConfig := hcl.NewConfig(terramate.DefaultVersionConstraint())
+	stackConfig.Stack = &hcl.Stack{
+		After: []string{stack2.Path()},
+	}
+	stack.WriteConfig(stackConfig)
+
+	git := s.Git()
+	git.CommitAll("first commit")
+	git.Push("main")
+	git.CheckoutNew("change-stack")
+
+	stackMainTf.Write(mainTfContents)
+	stack2MainTf.Write(mainTfContents)
+	git.CommitAll("stack changed")
+
+	cli := newCLI(t, s.BaseDir())
+
+	wantList := stack.RelPath() + "\n" + stack2.RelPath() + "\n"
+	assertRunResult(t, cli.run("list", s.BaseDir(), "--changed"),
+		runResult{Stdout: wantList})
+
+	cat := test.LookPath(t, "cat")
+	wantRun := fmt.Sprintf(
+		"Running on changed stacks:\n[%s] running %s %s\n%s\n[%s] running %s %s\n%s\n",
+		stack2.Path(),
+		cat,
+		mainTfFileName,
+		mainTfContents,
+		stack.Path(),
+		cat,
+		mainTfFileName,
+		mainTfContents,
+	)
+
+	assertRunResult(t, cli.run(
+		"run",
+		"--basedir",
+		s.BaseDir(),
+		"--changed",
+		cat,
+		mainTfFileName,
+	), runResult{Stdout: wantRun})
 }

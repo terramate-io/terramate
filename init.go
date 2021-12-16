@@ -110,15 +110,12 @@ func Init(dir string, force bool) error {
 
 	defer f.Close()
 
-	err = hcl.PrintConfig(f, hcl.Config{
-		Terramate: &hcl.Terramate{
-			RequiredVersion: DefaultVersionConstraint(),
-		},
-		Stack: &hcl.Stack{
-			Name: filepath.Base(dir),
-		},
-	})
+	cfg := hcl.NewConfig(DefaultVersionConstraint())
+	cfg.Stack = &hcl.Stack{
+		Name: filepath.Base(dir),
+	}
 
+	err = hcl.PrintConfig(f, cfg)
 	if err != nil {
 		return fmt.Errorf("failed to write %q: %w", stackfile, err)
 	}
