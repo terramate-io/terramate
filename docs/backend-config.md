@@ -209,4 +209,24 @@ And the same applies to all other stacks.
 
 ## Using globals
 
-TODO: we don't have the globals spec yet, add it here once we got it.
+Globals can be referenced on Terramate backend configuration, just
+like metadata. For example given this set of globals defined:
+
+```
+globals {
+  project_name = "awesome-project"
+  useful       = "useful"
+}
+```
+
+They can be used on any Terramate backend configuration:
+
+```hcl
+terramate {
+  backend "type" {
+    param = "${global.project_name}-${global.useful}"
+  }
+}
+```
+
+For more details on how to use globals check [its documentation](globals.md).
