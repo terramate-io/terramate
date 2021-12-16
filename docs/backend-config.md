@@ -19,8 +19,8 @@ A backend block cannot refer to named values
 With those limitations in mind, terramate provides a way to:
 
 * Define a single parametrized backend config and re-use it on multiple stacks.
-* Use terramate metadata, like stack name/path, on the backend config.
-* Use global variables on the backend config.
+* Use terramate [metadata](metadata.md) on the backend config.
+* Use [global variables](globals.md) on the backend config.
 
 
 ## Basic Usage
