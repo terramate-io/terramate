@@ -64,6 +64,12 @@ Given a project structured like this:
         └── terramate.tm.hcl
 ```
 
+The global evaluation order for stack-1, from higher to lower precedence, is:
+
+* stacks/stack-1
+* stacks
+* . (the project root dir)
+
 To create globals for the entire project just add a
 [Terramate configuration file](config.md) on the project
 root with some useful globals:
