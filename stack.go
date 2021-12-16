@@ -16,21 +16,20 @@ package terramate
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/mineiros-io/terramate/hcl"
 )
 
 type Stack struct {
-	Dir string
+	name string
+	Dir  string
 
 	block *hcl.Stack
 }
 
-// LoadStack loads the stack from dir directory.
+// LoadStack loads a stack from dir directory.
 func LoadStack(dir string) (Stack, error) {
 	fname := filepath.Join(dir, ConfigFilename)
 	cfg, err := hcl.ParseFile(fname)
@@ -42,12 +41,59 @@ func LoadStack(dir string) (Stack, error) {
 		return Stack{}, fmt.Errorf("no stack found in %q", dir)
 	}
 
-	name := filepath.Base(fname)
-	stackdir := strings.TrimSuffix(fname, fmt.Sprintf("/%s", name))
+	ok, err := isLeafStack(dir)
+	if err != nil {
+		return Stack{}, err
+	}
+
+	if !ok {
+		return Stack{}, fmt.Errorf("stack %q is not a leaf directory", dir)
+	}
+
+	return stackFromBlock(dir, cfg.Stack), nil
+}
+
+// TryLoadStack tries to load a stack from directory. It returns found as true
+// only in the case that path contains a stack and it was correctly parsed.
+func TryLoadStack(dir string) (stack Stack, found bool, err error) {
+	if ok := HasConfig(dir); !ok {
+		return Stack{}, false, err
+	}
+	fname := filepath.Join(dir, ConfigFilename)
+	cfg, err := hcl.ParseFile(fname)
+	if err != nil {
+		return Stack{}, false, err
+	}
+
+	if cfg.Stack == nil {
+		return Stack{}, false, nil
+	}
+
+	ok, err := isLeafStack(dir)
+	if err != nil {
+		return Stack{}, false, err
+	}
+
+	if !ok {
+		return Stack{}, false, fmt.Errorf("stack %q is not a leaf stack", dir)
+	}
+
+	return stackFromBlock(dir, cfg.Stack), true, nil
+}
+
+func stackFromBlock(dir string, block *hcl.Stack) Stack {
+	var name string
+	if block.Name != "" {
+		name = block.Name
+	} else {
+		name = filepath.Base(dir)
+	}
+
 	return Stack{
-		Dir:   stackdir,
-		block: cfg.Stack,
-	}, nil
+		name:  name,
+		Dir:   dir,
+		block: block,
+	}
 }
 
 // LoadStacks loads all the stacks in the dirs directories. If dirs are relative
@@ -69,22 +115,31 @@ func LoadStacks(basedir string, dirs ...string) ([]Stack, error) {
 	return stacks, nil
 }
 
-// IsStack tells if path is a stack and if so then it returns the stackfile path.
-func IsStack(info fs.FileInfo, path string) bool {
-	if !info.IsDir() {
-		return false
+func lookupParentStack(dir string) (stack Stack, found bool, err error) {
+	d := filepath.Dir(dir)
+	for {
+		stack, ok, err := TryLoadStack(d)
+		if err != nil {
+			return Stack{}, false, fmt.Errorf("looking for parent stacks: %w", err)
+		}
+
+		if ok {
+			return stack, true, nil
+		}
+
+		if d == string(filepath.Separator) {
+			break
+		}
+
+		gitpath := filepath.Join(d, ".git")
+		if _, err := os.Stat(gitpath); err == nil {
+			break
+		}
+
+		d = filepath.Dir(d)
 	}
 
-	fname := filepath.Join(path, ConfigFilename)
-	info, err := os.Stat(fname)
-	if err != nil {
-		return false
-	}
-
-	if info.Mode().IsRegular() {
-		return true
-	}
-	return false
+	return Stack{}, false, nil
 }
 
 func (s Stack) Name() string {

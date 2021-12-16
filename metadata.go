@@ -39,10 +39,10 @@ func LoadMetadata(basedir string) (Metadata, error) {
 	}
 
 	stacksMetadata := make([]StackMetadata, len(stackEntries))
-	for i, entry := range stackEntries {
+	for i, stackEntry := range stackEntries {
 		stacksMetadata[i] = StackMetadata{
-			Name: filepath.Base(entry.Stack.Dir),
-			Path: strings.TrimPrefix(entry.Stack.Dir, basedir),
+			Name: filepath.Base(stackEntry.Stack.Dir),
+			Path: strings.TrimPrefix(stackEntry.Stack.Dir, basedir),
 		}
 	}
 

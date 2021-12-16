@@ -134,7 +134,6 @@ func TestLoadMetadata(t *testing.T) {
 
 			if tcase.wantErr != nil {
 				assert.IsError(t, err, tcase.wantErr)
-				return
 			}
 
 			if diff := cmp.Diff(tcase.want, metadata); diff != "" {

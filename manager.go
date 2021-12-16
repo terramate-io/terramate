@@ -69,17 +69,12 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 	stackSet := map[string]Entry{}
 	for _, path := range files {
 		dirname := filepath.Dir(filepath.Join(m.basedir, path))
-		info, err := os.Stat(dirname)
+		stack, found, err := TryLoadStack(dirname)
 		if err != nil {
-			return nil, fmt.Errorf("listing changed stacks: %w", err)
+			return nil, fmt.Errorf("listing changed files: %w", err)
 		}
 
-		if ok := IsStack(info, dirname); ok {
-			stack, err := LoadStack(dirname)
-			if err != nil {
-				return nil, err
-			}
-
+		if found {
 			stackSet[dirname] = Entry{
 				Stack:  stack,
 				Reason: "stack has unmerged changes",
@@ -154,7 +149,7 @@ func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) err
 
 		err := apply(file)
 		if err != nil {
-			return fmt.Errorf("applying operation to file %q: %w", file.Name(), err)
+			return fmt.Errorf("applying operation to file %q: %w", file, err)
 		}
 	}
 
@@ -251,11 +246,7 @@ func (m *Manager) moduleChanged(
 
 	// TODO(i4k): resolve symlinks
 
-	if err != nil {
-		return false, "", err
-	}
-
-	if !st.IsDir() {
+	if err != nil || !st.IsDir() {
 		return false, "", fmt.Errorf("\"source\" path %q is not a directory", modPath)
 	}
 

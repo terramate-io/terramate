@@ -79,24 +79,18 @@ func TestCLIList(t *testing.T) {
 			layout: []string{
 				"s:1",
 				"s:2",
-				"s:1/a",
-				"s:1/b",
+				"s:z/a",
+				"s:x/b",
 				"d:not-stack",
 				"d:something/else/uninportant",
-				"s:3",
-				"s:3/x",
-				"s:3/x/y",
 				"s:3/x/y/z",
 			},
 			want: runResult{
 				Stdout: `1
-1/a
-1/b
 2
-3
-3/x
-3/x/y
 3/x/y/z
+x/b
+z/a
 `,
 			},
 		},

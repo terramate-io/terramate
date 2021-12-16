@@ -124,7 +124,7 @@ stack{}`,
   backend "sometype" {}
 }
 
-stack{}`,
+stack {}`,
 				},
 			},
 			want: want{
@@ -152,7 +152,7 @@ stack{}`,
   backend "" {}
 }
 
-stack{}`,
+stack {}`,
 				},
 			},
 			want: want{
@@ -182,7 +182,7 @@ stack{}`,
   }
 }
 
-stack{}`,
+stack {}`,
 				},
 			},
 			want: want{
@@ -213,7 +213,7 @@ stack{}`,
   }
 }
 
-stack{}`,
+stack {}`,
 				},
 				{
 					relpath: "stack-2",
@@ -224,7 +224,7 @@ stack{}`,
   }
 }
 
-stack{}`,
+stack {}`,
 				},
 				{
 					relpath: "stack-3",
@@ -235,7 +235,7 @@ stack{}`,
   }
 }
 
-stack{}`,
+stack {}`,
 				},
 			},
 			want: want{
@@ -287,7 +287,8 @@ stack{}`,
   }
 }
 
-stack{}`,
+stack {}
+`,
 				},
 			},
 			want: want{
@@ -326,7 +327,7 @@ stack{}`,
   }
 }
 
-stack{}`,
+stack {}`,
 				},
 			},
 			want: want{
@@ -359,9 +360,7 @@ stack{}`,
   backend "fromparent" {
     attr = "value"
   }
-}
-
-stack{}`,
+}`,
 				},
 			},
 			want: want{
@@ -390,8 +389,7 @@ stack{}`,
     attr = 666
   }
 }
-
-stack{}`,
+`,
 				},
 			},
 			want: want{
@@ -423,8 +421,7 @@ stack{}`,
     attr = "test"
   }
 }
-
-stack{}`,
+`,
 				},
 			},
 			want: want{
@@ -465,8 +462,7 @@ stack{}`,
     environment = "prod"
   }
 }
-
-stack{}`,
+`,
 				},
 				{
 					relpath: "envs/staging",
@@ -475,8 +471,7 @@ stack{}`,
     environment = "staging"
   }
 }
-
-stack{}`,
+`,
 				},
 			},
 			want: want{

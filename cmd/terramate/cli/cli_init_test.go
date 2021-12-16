@@ -243,6 +243,30 @@ func TestInitNonExistingDir(t *testing.T) {
 	})
 }
 
+func TestInitFailInitializeChildOfStack(t *testing.T) {
+	s := sandbox.New(t)
+	c := newCLI(t, s.BaseDir())
+	parent := test.Mkdir(t, s.BaseDir(), "parent-stack")
+	child := test.Mkdir(t, parent, "child-stack")
+	assertRun(t, c.run("init", parent))
+	assertRunResult(t, c.run("init", child), runResult{
+		Error:        cli.ErrInit,
+		IgnoreStderr: true,
+	})
+}
+
+func TestInitFailInitializeParentOfChildStack(t *testing.T) {
+	s := sandbox.New(t)
+	c := newCLI(t, s.BaseDir())
+	parent := test.Mkdir(t, s.BaseDir(), "parent-stack")
+	child := test.Mkdir(t, parent, "child-stack")
+	assertRun(t, c.run("init", child))
+	assertRunResult(t, c.run("init", parent), runResult{
+		Error:        cli.ErrInit,
+		IgnoreStderr: true,
+	})
+}
+
 func incVersion(t *testing.T, v string, pos versionPart) string {
 	semver, err := hclversion.NewSemver(v)
 	assert.NoError(t, err)
