@@ -25,6 +25,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/errutil"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
@@ -59,7 +60,7 @@ func Generate(basedir string) error {
 		return fmt.Errorf("basedir %q is not a directory", basedir)
 	}
 
-	stacks, err := ListStacks(basedir)
+	stackEntries, err := ListStacks(basedir)
 	if err != nil {
 		return fmt.Errorf("listing stack: %w", err)
 	}
@@ -71,27 +72,27 @@ func Generate(basedir string) error {
 
 	var errs []error
 
-	for _, stack := range stacks {
+	for _, entry := range stackEntries {
 		// At the time the most intuitive way was to start from the stack
 		// and go up until reaching the basedir, looking for a config.
 		// Basically navigating from the order of precedence, since
 		// more specific configuration overrides base configuration.
 		// Not the most optimized way (re-parsing), we can improve later
-		stackMetadata, ok := metadata.StackMetadata(stack.Stack.Dir)
+		stackMetadata, ok := metadata.StackMetadata(entry.Stack.Dir)
 		if !ok {
-			errs = append(errs, fmt.Errorf("stack %q: no metadata found", stack.Stack.Dir))
+			errs = append(errs, fmt.Errorf("stack %q: no metadata found", entry.Stack.Dir))
 			continue
 		}
 
 		evalctx, err := newHCLEvalContext(stackMetadata)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("stack %q: building eval ctx: %v", stack.Stack.Dir, err))
+			errs = append(errs, fmt.Errorf("stack %q: building eval ctx: %v", entry.Stack.Dir, err))
 			continue
 		}
 
-		tfcode, err := generateStackConfig(basedir, stack.Stack.Dir, evalctx)
+		tfcode, err := generateStackConfig(basedir, entry.Stack.Dir, evalctx)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("stack %q: %w", stack.Stack.Dir, err))
+			errs = append(errs, fmt.Errorf("stack %q: %w", entry.Stack.Dir, err))
 			continue
 		}
 
@@ -99,7 +100,7 @@ func Generate(basedir string) error {
 			continue
 		}
 
-		genfile := filepath.Join(stack.Stack.Dir, GeneratedTfFilename)
+		genfile := filepath.Join(entry.Stack.Dir, GeneratedTfFilename)
 		errs = append(errs, os.WriteFile(genfile, tfcode, 0666))
 	}
 
@@ -116,8 +117,7 @@ func generateStackConfig(basedir string, configdir string, evalctx *tfhcl.EvalCo
 		return nil, nil
 	}
 
-	configfile := filepath.Join(configdir, ConfigFilename)
-
+	configfile := filepath.Join(configdir, config.Filename)
 	if _, err := os.Stat(configfile); err != nil {
 		return generateStackConfig(basedir, filepath.Dir(configdir), evalctx)
 	}
@@ -133,7 +133,6 @@ func generateStackConfig(basedir string, configdir string, evalctx *tfhcl.EvalCo
 	}
 
 	parsed := parsedConfig.Terramate
-
 	if parsed.Backend == nil {
 		return generateStackConfig(basedir, filepath.Dir(configdir), evalctx)
 	}

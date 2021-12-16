@@ -23,14 +23,13 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/cmd/terramate/cli"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
 type versionPart int
-
-const configFile = terramate.ConfigFilename
 
 const (
 	vMajor = iota
@@ -218,7 +217,7 @@ func TestInit(t *testing.T) {
 			}
 
 			for _, path := range tc.input {
-				data := test.ReadFile(t, s.BaseDir(), filepath.Join(path, configFile))
+				data := test.ReadFile(t, s.BaseDir(), filepath.Join(path, config.Filename))
 				got, err := hcl.Parse("TestInitHCL", data)
 				assert.NoError(t, err, "parsing terramate file")
 
