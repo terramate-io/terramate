@@ -577,6 +577,51 @@ stack {
 				},
 			},
 		},
+		{
+			name:   "multiple stacks with config on root dir using metadata and tf functions",
+			layout: []string{"s:stacks/stack-1", "s:stacks/stack-2"},
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: `terramate {
+  backend "metadata" {
+    funcfun  = replace(terramate.path, "/","-")
+    funcfunb = "testing-funcs-${replace(terramate.path, "/",".")}"
+    name     = terramate.name
+    path     = terramate.path
+  }
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stacks/stack-1",
+						code: `terraform {
+  backend "metadata" {
+    funcfun  = "-stacks-stack-1"
+    funcfunb = "testing-funcs-.stacks.stack-1"
+    name     = "stack-1"
+    path     = "/stacks/stack-1"
+  }
+}
+`,
+					},
+					{
+						relpath: "stacks/stack-2",
+						code: `terraform {
+  backend "metadata" {
+    funcfun  = "-stacks-stack-2"
+    funcfunb = "testing-funcs-.stacks.stack-2"
+    name     = "stack-2"
+    path     = "/stacks/stack-2"
+  }
+}
+`,
+					},
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {

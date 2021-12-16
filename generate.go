@@ -24,6 +24,7 @@ import (
 	tfhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	tflang "github.com/hashicorp/terraform/lang"
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
@@ -84,7 +85,11 @@ func Generate(basedir string) error {
 			continue
 		}
 
-		evalctx, err := newHCLEvalContext(stackMetadata)
+		tfscope := &tflang.Scope{
+			BaseDir: filepath.Dir(entry.Stack.Dir),
+		}
+
+		evalctx, err := newHCLEvalContext(stackMetadata, tfscope)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("stack %q: building eval ctx: %v", entry.Stack.Dir, err))
 			continue
@@ -180,7 +185,7 @@ func copyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *tfhcl.EvalCon
 	return nil
 }
 
-func newHCLEvalContext(metadata StackMetadata) (*tfhcl.EvalContext, error) {
+func newHCLEvalContext(metadata StackMetadata, scope *tflang.Scope) (*tfhcl.EvalContext, error) {
 	vars, err := hclMapToCty(map[string]cty.Value{
 		"name": cty.StringVal(metadata.Name),
 		"path": cty.StringVal(metadata.Path),
@@ -192,6 +197,7 @@ func newHCLEvalContext(metadata StackMetadata) (*tfhcl.EvalContext, error) {
 
 	return &tfhcl.EvalContext{
 		Variables: map[string]cty.Value{"terramate": vars},
+		Functions: scope.Functions(),
 	}, nil
 }
 
