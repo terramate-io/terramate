@@ -585,9 +585,10 @@ stack {
 					relpath: ".",
 					config: `terramate {
   backend "metadata" {
-    funcfun = replace(terramate.path, "/","-")
-    name    = terramate.name
-    path    = terramate.path
+    funcfun  = replace(terramate.path, "/","-")
+    funcfunb = "testing-funcs-${replace(terramate.path, "/",".")}"
+    name     = terramate.name
+    path     = terramate.path
   }
 }`,
 				},
@@ -598,9 +599,10 @@ stack {
 						relpath: "stacks/stack-1",
 						code: `terraform {
   backend "metadata" {
-    funcfun = "-stacks-stack-1"
-    name    = "stack-1"
-    path    = "/stacks/stack-1"
+    funcfun  = "-stacks-stack-1"
+    funcfunb = "testing-funcs-.stacks.stack-1"
+    name     = "stack-1"
+    path     = "/stacks/stack-1"
   }
 }
 `,
@@ -609,9 +611,10 @@ stack {
 						relpath: "stacks/stack-2",
 						code: `terraform {
   backend "metadata" {
-    funcfun = "-stacks-stack-2"
-    name    = "stack-2"
-    path    = "/stacks/stack-2"
+    funcfun  = "-stacks-stack-2"
+    funcfunb = "testing-funcs-.stacks.stack-2"
+    name     = "stack-2"
+    path     = "/stacks/stack-2"
   }
 }
 `,
