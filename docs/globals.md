@@ -38,6 +38,45 @@ globals {
 }
 ```
 
+Globals can reference [metadata](metadata.md):
+
+```hcl
+globals {
+  extended_stack_path = "extended/${terramate.path}"
+}
+```
+
+Defining globals on the same configuration using multiple blocks
+is allowed, like this:
+
+```hcl
+terramate {
+  backend "type" {
+    param = "value-${global.env}"
+  }
+}
+
+globals {
+  env = "staging"
+}
+
+globals {
+  name = "name"
+}
+```
+
+Redefining a global on the same configuration is an error, eg:
+
+```hcl
+globals {
+  env = "staging"
+}
+
+globals {
+  env = "prod"
+}
+```
+
 Globals don't need to be defined on the same configuration
 they are referenced, users can define
 core/base configurations and use them across the entire project.
