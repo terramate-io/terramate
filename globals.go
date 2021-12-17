@@ -26,13 +26,29 @@ type StackGlobals struct {
 // More specific globals (closer or at the stack) have precedence over
 // less specific globals (closer or at the root dir).
 //
+// Metadata for the stack is used on the evaluation of globals, defined on stackmeta.
 // The rootdir MUST be an absolute path.
-func LoadStackGlobals(rootdir string, stackmeta StackMetadata) (StackGlobals, error) {
-	return StackGlobals{}, nil
+func LoadStackGlobals(rootdir string, stackmeta StackMetadata) (*StackGlobals, error) {
+	return &StackGlobals{}, nil
 }
 
 // Equal checks if two StackGlobals are equal. They are equal if both
 // have globals with the same name=value.
-func (sg StackGlobals) Equal(other StackGlobals) bool {
+func (sg *StackGlobals) Equal(other *StackGlobals) bool {
 	return true
+}
+
+// AddString adds a new global of the string type
+func (sg *StackGlobals) AddString(key, val string) error {
+	return nil
+}
+
+// AddInt adds a new global of the int type
+func (sg *StackGlobals) AddInt(key string, val int) error {
+	return nil
+}
+
+// AddBool adds a new global of the bool type
+func (sg *StackGlobals) AddBool(key string, val bool) error {
+	return nil
 }
