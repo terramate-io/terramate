@@ -156,7 +156,7 @@ func Parse(fname string, data []byte) (*Config, error) {
 	var tmblock, stackblock *hclsyntax.Block
 	var foundtm, foundstack bool
 	for _, block := range body.Blocks {
-		if block.Type != "terramate" && block.Type != "stack" {
+		if !blockIsAllowed(block.Type) {
 			return nil, errutil.Chain(
 				ErrMalformedTerramateConfig,
 				fmt.Errorf("block type %q is not supported", block.Type),
@@ -359,6 +359,15 @@ func assignSet(name string, target *[]string, val cty.Value) error {
 	sort.Strings(elems)
 	*target = elems
 	return nil
+}
+
+func blockIsAllowed(name string) bool {
+	switch name {
+	case "terramate", "stack", "backend", "globals":
+		return true
+	default:
+		return false
+	}
 }
 
 // IsLocal tells if module source is a local directory.

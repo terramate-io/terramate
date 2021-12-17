@@ -15,10 +15,13 @@
 package terramate_test
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -40,14 +43,14 @@ import (
 func TestLoadGlobals(t *testing.T) {
 
 	type (
-		config struct {
+		cfg struct {
 			path   string
 			config string
 		}
 		testcase struct {
 			name    string
 			layout  []string
-			configs []config
+			configs []cfg
 			want    map[string]*terramate.StackGlobals
 		}
 	)
@@ -94,7 +97,7 @@ func TestLoadGlobals(t *testing.T) {
 		{
 			name:   "single stack with its own globals",
 			layout: []string{"s:stack"},
-			configs: []config{
+			configs: []cfg{
 				{
 					path: "/stack",
 					config: `
@@ -125,7 +128,10 @@ func TestLoadGlobals(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
 
-			// TODO(katcipis): build config files
+			for _, cfg := range tcase.configs {
+				dir := filepath.Join(s.BaseDir(), cfg.path)
+				test.WriteFile(t, dir, config.Filename, cfg.config)
+			}
 
 			for _, stackMetadata := range s.LoadMetadata().Stacks {
 				got, err := terramate.LoadStackGlobals(s.BaseDir(), stackMetadata)
