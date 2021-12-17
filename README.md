@@ -2,16 +2,18 @@
 
 # Table of Contents
 
+- [Table of Contents](#table-of-contents)
 - [Terramate](#terramate)
-    - [Installing](#installing)
-    - [Why using stacks?](#why-using-stacks)
-        - [High frequency of infrastructure change](#high-frequency-of-infrastructure-change)
-        - [Reduce the blast radius](#reduce-the-blast-radius)
-        - [Reduce execution time](#reduce-execution-time)
-        - [Ownership](#ownership)
-        - [Others](#others)
-    - [Detecting IaC changes](#detecting-iac-changes)
-        - [Why this workflow?](#why-this-workflow)
+  - [Installing](#installing)
+  - [Configuring Your Project](#configuring-your-project)
+  - [Why using stacks?](#why-using-stacks)
+    - [High frequency of infrastructure change](#high-frequency-of-infrastructure-change)
+    - [Reduce the blast radius](#reduce-the-blast-radius)
+    - [Reduce execution time](#reduce-execution-time)
+    - [Ownership](#ownership)
+    - [Others](#others)
+  - [Detecting IaC changes](#detecting-iac-changes)
+    - [Why this workflow?](#why-this-workflow)
 
 <!-- mdtocend -->
 
@@ -66,6 +68,12 @@ We put great effort into keeping the main branch stable, so it should be safe
 to use **latest** to play around, but not recommended for long term automation
 since you won't get the same build result each time you run the install command.
 
+The tool supports autocompletion of commands for *bash*, *zsh* and *fish*. To
+install the completion just run the command below and open a new shell session:
+
+```
+$ terramate install-completions
+```
 
 ## Configuring Your Project
 

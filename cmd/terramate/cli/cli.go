@@ -29,6 +29,8 @@ import (
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/git"
 	"github.com/mineiros-io/terramate/stack"
+	"github.com/posener/complete"
+	"github.com/willabides/kongplete"
 )
 
 const (
@@ -86,6 +88,8 @@ type cliSpec struct {
 
 	Metadata struct {
 	} `cmd:"" help:"shows metadata available on the project"`
+
+	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"install shell completions"`
 }
 
 // Run will run terramate with the provided flags defined on args from the
@@ -186,6 +190,10 @@ func newCLI(
 		return nil, fmt.Errorf("failed to create cli parser: %v", err)
 	}
 
+	kongplete.Complete(parser,
+		kongplete.WithPredictor("cli", complete.PredictAnything),
+	)
+
 	ctx, err := parser.Parse(args)
 
 	if kongExit && kongExitStatus == 0 {
@@ -256,6 +264,8 @@ func (c *cli) run() error {
 		return terramate.Generate(c.wd)
 	case "metadata":
 		return c.printMetadata()
+	case "install-completions":
+		c.parsedArgs.InstallCompletions.Run(c.ctx)
 	default:
 		return fmt.Errorf("unexpected command sequence: %s", c.ctx.Command())
 	}
