@@ -39,7 +39,7 @@ globals {
 ```
 
 Globals don't need to be defined on the same configuration
-they are referenced, the idea is to be able to define
+they are referenced, users can define
 core/base configurations and use them across the entire project.
 
 Globals are evaluated on the context of a stack, evaluation starts
