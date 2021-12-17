@@ -10,6 +10,8 @@ require (
 	github.com/hashicorp/hcl/v2 v2.10.1
 	github.com/hashicorp/terraform v0.12.12
 	github.com/madlambda/spells v0.2.1
+	github.com/posener/complete v1.2.3
+	github.com/willabides/kongplete v0.2.0
 	github.com/zclconf/go-cty v1.8.0
 )
 

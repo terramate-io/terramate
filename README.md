@@ -66,6 +66,12 @@ We put great effort into keeping the main branch stable, so it should be safe
 to use **latest** to play around, but not recommended for long term automation
 since you won't get the same build result each time you run the install command.
 
+The tool supports autocompletion of commands for *bash*, *zsh* and *fish*. To
+install the completion just run the command below and open a new shell session:
+
+```
+$ terramate install-completions
+```
 
 ## Configuring Your Project
 
