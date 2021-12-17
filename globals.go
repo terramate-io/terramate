@@ -14,9 +14,15 @@
 
 package terramate
 
+import (
+	"strings"
+
+	"github.com/zclconf/go-cty/cty"
+)
+
 // StackGlobals holds all the globals defined for a stack.
-// The zero type is valid and it represents "no globals defined".
 type StackGlobals struct {
+	data map[string]cty.Value
 }
 
 // LoadStackGlobals loads from the file system all globals defined for
@@ -29,26 +35,57 @@ type StackGlobals struct {
 // Metadata for the stack is used on the evaluation of globals, defined on stackmeta.
 // The rootdir MUST be an absolute path.
 func LoadStackGlobals(rootdir string, stackmeta StackMetadata) (*StackGlobals, error) {
-	return &StackGlobals{}, nil
+	return NewStackGlobals(), nil
+}
+
+func NewStackGlobals() *StackGlobals {
+	return &StackGlobals{
+		data: map[string]cty.Value{},
+	}
 }
 
 // Equal checks if two StackGlobals are equal. They are equal if both
 // have globals with the same name=value.
 func (sg *StackGlobals) Equal(other *StackGlobals) bool {
+	if len(sg.data) != len(other.data) {
+		return false
+	}
+
+	for k, v := range other.data {
+		val, ok := sg.data[k]
+		if !ok {
+			return false
+		}
+		if !v.RawEquals(val) {
+			return false
+		}
+	}
+
 	return true
 }
 
 // AddString adds a new global of the string type
-func (sg *StackGlobals) AddString(key, val string) error {
-	return nil
+func (sg *StackGlobals) AddString(key, val string) {
+	sg.data[key] = cty.StringVal(val)
 }
 
 // AddInt adds a new global of the int type
-func (sg *StackGlobals) AddInt(key string, val int) error {
-	return nil
+func (sg *StackGlobals) AddInt(key string, val int64) {
+	sg.data[key] = cty.NumberIntVal(val)
 }
 
 // AddBool adds a new global of the bool type
-func (sg *StackGlobals) AddBool(key string, val bool) error {
-	return nil
+func (sg *StackGlobals) AddBool(key string, val bool) {
+	sg.data[key] = cty.BoolVal(val)
+}
+
+func (sg *StackGlobals) String() string {
+	strrepr := make([]string, 0, len(sg.data))
+
+	for k, v := range sg.data {
+		line := k + "=" + v.GoString()
+		strrepr = append(strrepr, line)
+	}
+
+	return strings.Join(strrepr, "\n")
 }

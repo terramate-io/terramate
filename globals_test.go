@@ -52,7 +52,7 @@ func TestLoadGlobals(t *testing.T) {
 	)
 
 	globals := func(builders ...func(g *terramate.StackGlobals)) *terramate.StackGlobals {
-		g := &terramate.StackGlobals{}
+		g := terramate.NewStackGlobals()
 		for _, builder := range builders {
 			builder(g)
 		}
@@ -63,7 +63,7 @@ func TestLoadGlobals(t *testing.T) {
 			g.AddString(key, val)
 		}
 	}
-	number := func(key string, val int) func(*terramate.StackGlobals) {
+	number := func(key string, val int64) func(*terramate.StackGlobals) {
 		return func(g *terramate.StackGlobals) {
 			g.AddInt(key, val)
 		}
@@ -130,7 +130,10 @@ func TestLoadGlobals(t *testing.T) {
 				got, err := terramate.LoadStackGlobals(s.BaseDir(), stackMetadata)
 				assert.NoError(t, err)
 
-				want := tcase.want[stackMetadata.Path]
+				want, ok := tcase.want[stackMetadata.Path]
+				if !ok {
+					want = terramate.NewStackGlobals()
+				}
 
 				if !got.Equal(want) {
 					t.Fatalf(
