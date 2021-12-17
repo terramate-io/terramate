@@ -2,18 +2,16 @@
 
 # Table of Contents
 
-- [Table of Contents](#table-of-contents)
 - [Terramate](#terramate)
-  - [Installing](#installing)
-  - [Configuring Your Project](#configuring-your-project)
-  - [Why using stacks?](#why-using-stacks)
-    - [High frequency of infrastructure change](#high-frequency-of-infrastructure-change)
-    - [Reduce the blast radius](#reduce-the-blast-radius)
-    - [Reduce execution time](#reduce-execution-time)
-    - [Ownership](#ownership)
-    - [Others](#others)
-  - [Detecting IaC changes](#detecting-iac-changes)
-    - [Why this workflow?](#why-this-workflow)
+    - [Installing](#installing)
+    - [Why using stacks?](#why-using-stacks)
+        - [High frequency of infrastructure change](#high-frequency-of-infrastructure-change)
+        - [Reduce the blast radius](#reduce-the-blast-radius)
+        - [Reduce execution time](#reduce-execution-time)
+        - [Ownership](#ownership)
+        - [Others](#others)
+    - [Detecting IaC changes](#detecting-iac-changes)
+        - [Why this workflow?](#why-this-workflow)
 
 <!-- mdtocend -->
 
