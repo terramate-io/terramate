@@ -20,7 +20,7 @@ terramate {
 
 globals {
   env = "staging"
-  values = [ 1, 2 , 3 ]
+  values = [ 1, 2, 3 ]
 }
 ```
 
