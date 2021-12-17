@@ -265,7 +265,7 @@ func (c *cli) run() error {
 	case "metadata":
 		return c.printMetadata()
 	case "install-completions":
-		c.parsedArgs.InstallCompletions.Run(c.ctx)
+		return c.parsedArgs.InstallCompletions.Run(c.ctx)
 	default:
 		return fmt.Errorf("unexpected command sequence: %s", c.ctx.Command())
 	}
