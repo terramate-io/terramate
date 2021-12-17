@@ -21,7 +21,6 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -43,14 +42,14 @@ import (
 func TestLoadGlobals(t *testing.T) {
 
 	type (
-		cfg struct {
-			path   string
-			config string
+		globalsBlock struct {
+			path string
+			add  *terramate.StackGlobals
 		}
 		testcase struct {
 			name    string
 			layout  []string
-			configs []cfg
+			globals []globalsBlock
 			want    map[string]*terramate.StackGlobals
 		}
 	)
@@ -97,20 +96,14 @@ func TestLoadGlobals(t *testing.T) {
 		{
 			name:   "single stack with its own globals",
 			layout: []string{"s:stack"},
-			configs: []cfg{
+			globals: []globalsBlock{
 				{
 					path: "/stack",
-					config: `
-						terramate {
-						  required_version = "~> 0.0.0"
-						}
-						stack{}
-						globals {
-						  some_string = "string"
-						  some_number = 777
-						  some_bool = true
-						}
-					`,
+					add: globals(
+						str("some_string", "string"),
+						number("some_number", 777),
+						boolean("some_bool", true),
+					),
 				},
 			},
 			want: map[string]*terramate.StackGlobals{
@@ -128,9 +121,9 @@ func TestLoadGlobals(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
 
-			for _, cfg := range tcase.configs {
-				dir := filepath.Join(s.BaseDir(), cfg.path)
-				test.WriteFile(t, dir, config.Filename, cfg.config)
+			for _, globalBlock := range tcase.globals {
+				path := filepath.Join(s.BaseDir(), globalBlock.path, config.Filename)
+				addGlobalsBlock(t, path, globalBlock.add)
 			}
 
 			for _, stackMetadata := range s.LoadMetadata().Stacks {
@@ -153,4 +146,8 @@ func TestLoadGlobals(t *testing.T) {
 			}
 		})
 	}
+}
+
+func addGlobalsBlock(t *testing.T, path string, globals *terramate.StackGlobals) {
+	t.Helper()
 }

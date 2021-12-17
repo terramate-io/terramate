@@ -15,8 +15,7 @@
 package terramate
 
 import (
-	"strings"
-
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -70,12 +69,14 @@ func (sg *StackGlobals) Add(key string, val cty.Value) {
 }
 
 func (sg *StackGlobals) String() string {
-	strrepr := make([]string, 0, len(sg.data))
+	gen := hclwrite.NewEmptyFile()
+	rootBody := gen.Body()
+	tfBlock := rootBody.AppendNewBlock("globals", nil)
+	tfBody := tfBlock.Body()
 
-	for k, v := range sg.data {
-		line := k + "=" + v.GoString()
-		strrepr = append(strrepr, line)
+	for name, val := range sg.data {
+		tfBody.SetAttributeValue(name, val)
 	}
 
-	return strings.Join(strrepr, "\n")
+	return string(gen.Bytes())
 }
