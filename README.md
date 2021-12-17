@@ -67,6 +67,13 @@ to use **latest** to play around, but not recommended for long term automation
 since you won't get the same build result each time you run the install command.
 
 
+## Configuring Your Project
+
+Checkout the docs on [overall configuration](docs/config.md) for details
+on how different kinds of configurations can help you to avoid duplication
+and write solid Infrastructure as Code.
+
+
 ## Why using stacks?
 
 The stack concept is advised for several reasons. 
