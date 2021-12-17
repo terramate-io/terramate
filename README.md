@@ -50,10 +50,17 @@ go install github.com/mineiros-io/terramate/cmd/terramate@<version>
 ```
 
 Where **<version>** is any terramate [version tag](https://github.com/mineiros-io/terramate/tags),
-or you can just install the **latest** using go install:
+or you can just install the **latest** release:
 
 ```
 go install github.com/mineiros-io/terramate/cmd/terramate@latest
+```
+
+To install the latest code on main:
+
+```
+export GOPROXY=direct
+go install github.com/mineiros-io/terramate/cmd/terramate@main
 ```
 
 Or if you have the project cloned locally just run:
@@ -63,8 +70,21 @@ make install
 ```
 
 We put great effort into keeping the main branch stable, so it should be safe
-to use **latest** to play around, but not recommended for long term automation
+to use **main** to play around, but not recommended for long term automation
 since you won't get the same build result each time you run the install command.
+
+The tool supports autocompletion of commands for *bash*, *zsh* and *fish*. To
+install the completion just run the command below and open a new shell session:
+
+```
+$ terramate install-completions
+```
+
+## Configuring Your Project
+
+Checkout the docs on [overall configuration](docs/config.md) for details
+on how different kinds of configurations can help you to avoid duplication
+and write solid Infrastructure as Code.
 
 
 ## Why using stacks?
