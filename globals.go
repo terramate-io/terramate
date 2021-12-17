@@ -64,19 +64,9 @@ func (sg *StackGlobals) Equal(other *StackGlobals) bool {
 	return true
 }
 
-// AddString adds a new global of the string type
-func (sg *StackGlobals) AddString(key, val string) {
-	sg.data[key] = cty.StringVal(val)
-}
-
-// AddInt adds a new global of the int type
-func (sg *StackGlobals) AddInt(key string, val int64) {
-	sg.data[key] = cty.NumberIntVal(val)
-}
-
-// AddBool adds a new global of the bool type
-func (sg *StackGlobals) AddBool(key string, val bool) {
-	sg.data[key] = cty.BoolVal(val)
+// Add adds a new global.
+func (sg *StackGlobals) Add(key string, val cty.Value) {
+	sg.data[key] = val
 }
 
 func (sg *StackGlobals) String() string {

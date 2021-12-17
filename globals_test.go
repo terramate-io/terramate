@@ -20,6 +20,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // TODO(katcipis):
@@ -60,17 +61,17 @@ func TestLoadGlobals(t *testing.T) {
 	}
 	str := func(key string, val string) func(*terramate.StackGlobals) {
 		return func(g *terramate.StackGlobals) {
-			g.AddString(key, val)
+			g.Add(key, cty.StringVal(val))
 		}
 	}
 	number := func(key string, val int64) func(*terramate.StackGlobals) {
 		return func(g *terramate.StackGlobals) {
-			g.AddInt(key, val)
+			g.Add(key, cty.NumberIntVal(val))
 		}
 	}
 	boolean := func(key string, val bool) func(*terramate.StackGlobals) {
 		return func(g *terramate.StackGlobals) {
-			g.AddBool(key, val)
+			g.Add(key, cty.BoolVal(val))
 		}
 	}
 
