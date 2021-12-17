@@ -20,14 +20,14 @@ type StackGlobals struct {
 }
 
 // LoadStackGlobals loads from the file system all globals defined for
-// a given stack. It will navigate the file system from stackdir until
+// a given stack. It will navigate the file system from the stack dir until
 // it reaches rootdir, loading globals and merging them appropriately.
 //
 // More specific globals (closer or at the stack) have precedence over
 // less specific globals (closer or at the root dir).
 //
-// Both rootdir and stackdir must be absolute paths.
-func LoadStackGlobals(rootdir string, stackdir string) (StackGlobals, error) {
+// The rootdir MUST be an absolute path.
+func LoadStackGlobals(rootdir string, stackmeta StackMetadata) (StackGlobals, error) {
 	return StackGlobals{}, nil
 }
 

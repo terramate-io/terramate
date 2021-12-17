@@ -190,14 +190,13 @@ func (s S) Git() Git {
 	return s.git
 }
 
-// ListStacks returns a lexicographic sorted list of stack directories
-// on this sandbox.
-func (s S) ListStacks() []terramate.Entry {
+// Loads metadata for sandbox
+func (s S) LoadMetadata() terramate.Metadata {
 	s.t.Helper()
 
-	stacks, err := terramate.ListStacks(s.BaseDir())
+	meta, err := terramate.LoadMetadata(s.BaseDir())
 	assert.NoError(s.t, err)
-	return stacks
+	return meta
 }
 
 // BaseDir returns the base dir of the test env. All dirs/files created through

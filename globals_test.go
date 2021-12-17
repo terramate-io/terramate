@@ -29,6 +29,9 @@ import (
 // - on root dir
 // - on stack + parent + root + no overriding
 // - on stack + parent + root + overriding
+// - using metadata
+// - using tf functions
+// - using metadata + tf functions
 
 func TestLoadGlobals(t *testing.T) {
 
@@ -66,12 +69,17 @@ func TestLoadGlobals(t *testing.T) {
 
 			// TODO(katcipis): build config files
 
-			for _, entry := range s.ListStacks() {
-				got, err := terramate.LoadStackGlobals(s.BaseDir(), entry.Stack.Dir)
+			for _, stackMetadata := range s.LoadMetadata().Stacks {
+				got, err := terramate.LoadStackGlobals(s.BaseDir(), stackMetadata)
 				assert.NoError(t, err)
 
 				if !got.Equal(tcase.want) {
-					t.Fatalf("got:\n%v\nwant:\n%v\n", got, tcase.want)
+					t.Fatalf(
+						"stack %q got:\n%v\nwant:\n%v\n",
+						stackMetadata.Path,
+						got,
+						tcase.want,
+					)
 				}
 			}
 		})
