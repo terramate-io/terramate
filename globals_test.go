@@ -15,12 +15,14 @@
 package terramate_test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -122,7 +124,7 @@ func TestLoadGlobals(t *testing.T) {
 			s.BuildTree(tcase.layout)
 
 			for _, globalBlock := range tcase.globals {
-				path := filepath.Join(s.BaseDir(), globalBlock.path, config.Filename)
+				path := filepath.Join(s.BaseDir(), globalBlock.path)
 				addGlobalsBlock(t, path, globalBlock.add)
 			}
 
@@ -148,6 +150,14 @@ func TestLoadGlobals(t *testing.T) {
 	}
 }
 
-func addGlobalsBlock(t *testing.T, path string, globals *terramate.StackGlobals) {
+func addGlobalsBlock(t *testing.T, dir string, globals *terramate.StackGlobals) {
 	t.Helper()
+
+	data, err := os.ReadFile(filepath.Join(dir, config.Filename))
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+
+	cfg := string(data) + "\n" + globals.String()
+	test.WriteFile(t, dir, config.Filename, cfg)
 }
