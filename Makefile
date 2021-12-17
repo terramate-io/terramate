@@ -26,6 +26,11 @@ license:
 license/check:
 	$(addlicense) --check .
 
+## check go modules are tidy
+.PHONY: mod/check
+mod/check:
+	@./hack/mod-check
+
 ## test code
 .PHONY: test
 test: 

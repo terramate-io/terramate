@@ -16,7 +16,7 @@ name: ci
 on: [push]
 jobs:
 
-  license:
+  checks:
     runs-on: ubuntu-20.04
 
     steps:
@@ -28,24 +28,14 @@ jobs:
         with:
           go-version: "1.17"
 
-      - name: checking license on source code
-        run: make license/check
-
-
-  lint:
-    runs-on: ubuntu-20.04
-
-    steps:
-      - name: checkout repo
-        uses: actions/checkout@v2
-
-      - name: setup go
-        uses: actions/setup-go@v2
-        with:
-          go-version: "1.17"
+      - name: checking go mod tidyness
+        run: make mod/check
 
       - name: linting code
         run: make lint
+
+      - name: checking license on source code
+        run: make license/check
 
   build_test:
     name: Build and Test

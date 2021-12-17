@@ -1,0 +1,26 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+
+# We need this script because Go doesn't support a nice/non-destructive way
+# to check for modules tidyness: https://github.com/golang/go/issues/27005
+
+changes="$(git status --porcelain)"
+
+if [[ ! -z "${changes}" ]]
+then
+      echo "project already has changes, this should be run on a clean repo"
+      exit 1
+fi
+
+go mod tidy
+changes="$(git status --porcelain)"
+git checkout .
+
+if [[ ! -z "${changes}" ]]
+then
+      echo "changes detected after tidying modules:"
+      echo "${changes}"
+      exit 1
+fi
