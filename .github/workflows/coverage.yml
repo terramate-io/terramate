@@ -1,0 +1,39 @@
+name: coverage report
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    name: generate and publish coverage
+    env:
+      COVERAGE_REPORT=coverage.txt
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "1.17"
+
+      - name: generate coverage report
+        run: make coverage
+
+      - name: upload coverage to codecov
+        uses: codecov/codecov-action@v2
+        with:
+          directory: .
+          files: $(COVERAGE_REPORT)
+          fail_ci_if_error: false
+          flags: tests
+          name: codecov-umbrella
+          path_to_write_report: ./coverage/codecov_report.txt
+          verbose: true
