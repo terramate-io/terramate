@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-20.04
     name: generate and publish coverage
     env:
-      COVERAGE_REPORT=coverage.txt
+      COVERAGE_REPORT: coverage.txt
 
     steps:
       - name: checkout
