@@ -36,6 +36,7 @@ func Init(dir string, force bool) error {
 		// TODO(i4k): this needs to go away soon.
 		return errors.New("init requires an absolute path")
 	}
+
 	_, err := os.Stat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -43,6 +44,25 @@ func Init(dir string, force bool) error {
 		}
 
 		return fmt.Errorf("stat failed on %q: %w", dir, err)
+	}
+
+	ok, err := stack.IsLeaf(dir)
+	if err != nil {
+		return err
+	}
+
+	if !ok {
+		return fmt.Errorf("directory %q is not a leaf stack", dir)
+	}
+
+	parentStack, found, err := stack.LookupParent(dir)
+	if err != nil {
+		return err
+	}
+
+	if found {
+		return fmt.Errorf("directory %q is inside stack %q but nested stacks are disallowed",
+			dir, parentStack.Dir)
 	}
 
 	stackfile := filepath.Join(dir, config.Filename)
@@ -77,25 +97,6 @@ func Init(dir string, force bool) error {
 			return fmt.Errorf("stack version constraint %q do not match terramate "+
 				"version %q", vconstraint, Version())
 		}
-	}
-
-	ok, err := stack.IsLeaf(dir)
-	if err != nil {
-		return err
-	}
-
-	if !ok {
-		return fmt.Errorf("directory %q is not a leaf stack", dir)
-	}
-
-	parentStack, found, err := stack.LookupParent(dir)
-	if err != nil {
-		return err
-	}
-
-	if found {
-		return fmt.Errorf("directory %q is inside stack %q but nested stacks are disallowed",
-			dir, parentStack.Dir)
 	}
 
 	f, err := os.Create(stackfile)
