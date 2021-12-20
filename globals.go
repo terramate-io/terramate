@@ -48,19 +48,15 @@ func LoadStackGlobals(rootdir string, stackmeta StackMetadata) (*StackGlobals, e
 	if os.IsNotExist(err) {
 		return globals, nil
 	}
-	if len(blocks) == 0 {
-		return globals, nil
-	}
-
-	// TODO(katcipis): handle multiple blocks (add tests)
 	// TODO(katcipis): handle proper evaluation context
-	block := blocks[0]
-	for name, attr := range block.Body.Attributes {
-		val, err := attr.Expr.Value(nil)
-		if err != nil {
-			return nil, fmt.Errorf("evaluating attribute %q: %v", attr.Name, err)
+	for _, block := range blocks {
+		for name, attr := range block.Body.Attributes {
+			val, err := attr.Expr.Value(nil)
+			if err != nil {
+				return nil, fmt.Errorf("evaluating attribute %q: %v", attr.Name, err)
+			}
+			globals.Add(name, val)
 		}
-		globals.Add(name, val)
 	}
 
 	return globals, nil
@@ -97,6 +93,7 @@ func (sg *StackGlobals) Add(key string, val cty.Value) {
 	sg.data[key] = val
 }
 
+// String representation of the stack globals as HCL.
 func (sg *StackGlobals) String() string {
 	gen := hclwrite.NewEmptyFile()
 	rootBody := gen.Body()

@@ -33,7 +33,6 @@ import (
 // - on root dir
 // - on stack + parent + root + no overriding
 // - on stack + parent + root + overriding
-// - multiple globals block
 // - using metadata
 // - using tf functions
 // - using metadata + tf functions
@@ -114,6 +113,22 @@ func TestLoadGlobals(t *testing.T) {
 					str("some_string", "string"),
 					number("some_number", 777),
 					boolean("some_bool", true),
+				),
+			},
+		},
+		{
+			name:   "single stack with three globals blocks",
+			layout: []string{"s:stack"},
+			globals: []globalsBlock{
+				{path: "/stack", add: globals(str("str", "hi"))},
+				{path: "/stack", add: globals(number("num", 666))},
+				{path: "/stack", add: globals(boolean("bool", false))},
+			},
+			want: map[string]*terramate.StackGlobals{
+				"/stack": globals(
+					str("str", "hi"),
+					number("num", 666),
+					boolean("bool", false),
 				),
 			},
 		},
