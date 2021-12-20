@@ -46,7 +46,6 @@ jobs:
         with:
           directory: .
           files: ${{env.COVERAGE_REPORT}}
-          fail_ci_if_error: false
           flags: tests
           name: codecov-umbrella
           verbose: true
