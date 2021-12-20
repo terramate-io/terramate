@@ -77,11 +77,6 @@ func Init(dir string, force bool) error {
 			return fmt.Errorf("stack version constraint %q do not match terramate "+
 				"version %q", vconstraint, Version())
 		}
-
-		err = os.Remove(string(stackfile))
-		if err != nil {
-			return fmt.Errorf("while removing %q: %w", stackfile, err)
-		}
 	}
 
 	ok, err := stack.IsLeaf(dir)
