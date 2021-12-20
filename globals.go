@@ -15,7 +15,13 @@
 package terramate
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -34,7 +40,30 @@ type StackGlobals struct {
 // Metadata for the stack is used on the evaluation of globals, defined on stackmeta.
 // The rootdir MUST be an absolute path.
 func LoadStackGlobals(rootdir string, stackmeta StackMetadata) (*StackGlobals, error) {
-	return NewStackGlobals(), nil
+	globals := NewStackGlobals()
+	cfgpath := filepath.Join(rootdir, stackmeta.Path, config.Filename)
+	blocks, err := hcl.ParseGlobalsBlocks(cfgpath)
+
+	// TODO(katcipis): navigate whole fs
+	if os.IsNotExist(err) {
+		return globals, nil
+	}
+	if len(blocks) == 0 {
+		return globals, nil
+	}
+
+	// TODO(katcipis): handle multiple blocks (add tests)
+	// TODO(katcipis): handle proper evaluation context
+	block := blocks[0]
+	for name, attr := range block.Body.Attributes {
+		val, err := attr.Expr.Value(nil)
+		if err != nil {
+			return nil, fmt.Errorf("evaluating attribute %q: %v", attr.Name, err)
+		}
+		globals.Add(name, val)
+	}
+
+	return globals, nil
 }
 
 func NewStackGlobals() *StackGlobals {

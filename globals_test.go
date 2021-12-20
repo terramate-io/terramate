@@ -37,6 +37,7 @@ import (
 // - using metadata
 // - using tf functions
 // - using metadata + tf functions
+// - globals referencing other globals
 // - err: config is not valid HCL/terramate
 // - err: config has single block + redefined names
 // - err: config has multiple blocks + redefined names
