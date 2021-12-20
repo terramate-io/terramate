@@ -36,6 +36,8 @@ func TestLoadMetadata(t *testing.T) {
 		wantErr error
 	}
 
+	const invalidHCL = "block {"
+
 	tcases := []testcase{
 		{
 			name:   "no stacks",
@@ -113,17 +115,17 @@ func TestLoadMetadata(t *testing.T) {
 		{
 			name: "single invalid stack",
 			layout: []string{
-				fmt.Sprintf("f:invalid-stack/%s:data=notvalidhcl", config.Filename),
+				fmt.Sprintf("f:invalid-stack/%s:data=%s", config.Filename, invalidHCL),
 			},
-			wantErr: hcl.ErrNoTerramateBlock,
+			wantErr: hcl.ErrHCLSyntax,
 		},
 		{
 			name: "valid stack with invalid stack",
 			layout: []string{
 				"s:stack-valid-1",
-				fmt.Sprintf("f:invalid-stack/%s:data=notvalidhcl", config.Filename),
+				fmt.Sprintf("f:invalid-stack/%s:data=%s", config.Filename, invalidHCL),
 			},
-			wantErr: hcl.ErrNoTerramateBlock,
+			wantErr: hcl.ErrHCLSyntax,
 		},
 	}
 
