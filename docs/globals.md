@@ -46,6 +46,15 @@ globals {
 }
 ```
 
+And also reference other globals:
+
+```hcl
+globals {
+  info = "something"
+  extended_stack_path = "${global.info}/extended/${terramate.path}"
+}
+```
+
 Defining globals on the same configuration using multiple blocks
 is allowed, like this:
 
@@ -103,7 +112,7 @@ Given a project structured like this:
         └── terramate.tm.hcl
 ```
 
-The global evaluation order for stack-1, from higher to lower precedence, is:
+The global precedence order for stack-1, from higher to lower precedence, is:
 
 * stacks/stack-1
 * stacks
@@ -246,6 +255,53 @@ project_name = "awesome-project"
 useful       = "useful"
 object       = { field_a = "field_a", field_b = "field_b" }
 ```
+
+## Evaluation Order
+
+Given that globals can reference other globals and Terramate metadata it is
+important to be clear about evaluation order. Both globals and metadata are
+evaluated on the context of a specific stack and are evaluated starting from
+the stack going upward on the file system.
+
+This means that globals at the root of a project can reference globals that
+are going to be defined only at a more specific configuration (potentially
+the stack itself).
+
+Given a project organized like this:
+
+```
+.
+└── envs
+    ├── prod
+    │   └── stack-1
+    │       └── terramate.tm.hcl
+    └── staging
+        └── stack-1
+            └── terramate.tm.hcl
+```
+
+We can define a single version of a [backend configuration](backend-config.md)
+for all envs referencing env + stack specific information at **envs/terramate.tm.hcl**:
+
+```
+terramate {
+  backend "gcs" {
+    bucket = globals.gcs_bucket
+    prefix = globals.gcs_prefix
+  }
+}
+
+globals {
+  gcs_bucket = "some-common-name-${global.env}"
+  gcs_prefix = terramate.path
+}
+```
+
+Neither at **envs** or at the parent dir is **global.env** defined. Any subdir
+until the stack is reached can define it (or override it if it is already defined),
+final values are evaluated when reaching the stack itself.
+
+On this particular case we can define **global.env** once per env.
 
 
 ## Referencing globals on terraform code
