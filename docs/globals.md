@@ -265,7 +265,12 @@ the stack going upward on the file system.
 
 This means that globals at the root of a project can reference globals that
 are going to be defined only at a more specific configuration (potentially
-the stack itself).
+the stack itself). 
+
+When analyzing globals at the root and intermediary
+directories this looks like lazy evaluation, you can reference information
+that will only be available later when a stack defines it (or some more
+specific configuration).
 
 Given a project organized like this:
 
@@ -320,7 +325,7 @@ globals {
 ```
 
 Given this setup, for  the stack **/envs/prod/stack**
-we have the following globals/metadata defined:
+we have the following globals defined:
 
 ```
 global.env        = "prod"
