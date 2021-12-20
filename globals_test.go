@@ -132,6 +132,34 @@ func TestLoadGlobals(t *testing.T) {
 				),
 			},
 		},
+		//{
+		//name: "multiple stacks with config on parent dir",
+		//layout: []string{
+		//"s:stacks/stack-1",
+		//"s:stacks/stack-2",
+		//},
+		//globals: []globalsBlock{
+		//{path: "/stacks", add: globals(str("parent", "hi"))},
+		//},
+		//want: map[string]*terramate.StackGlobals{
+		//"/stacks/stack-1": globals(str("parent", "hi")),
+		//"/stacks/stack-2": globals(str("parent", "hi")),
+		//},
+		//},
+		//{
+		//name: "multiple stacks with config on root dir",
+		//layout: []string{
+		//"s:stacks/stack-1",
+		//"s:stacks/stack-2",
+		//},
+		//globals: []globalsBlock{
+		//{path: "/", add: globals(str("root", "hi"))},
+		//},
+		//want: map[string]*terramate.StackGlobals{
+		//"/stacks/stack-1": globals(str("root", "hi")),
+		//"/stacks/stack-2": globals(str("root", "hi")),
+		//},
+		//},
 	}
 
 	for _, tcase := range tcases {
