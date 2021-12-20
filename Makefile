@@ -1,6 +1,8 @@
 # Set default shell to bash
 SHELL := /bin/bash -o pipefail -o errexit -o nounset
 
+COVERAGE_REPORT ?= coverage.txt
+
 addlicense=go run github.com/google/addlicense@v1.0.0
 
 .PHONY: default
@@ -31,10 +33,20 @@ license/check:
 mod/check:
 	@./hack/mod-check
 
+## generates coverage report
+.PHONY: coverage
+coverage: 
+	go test -coverprofile=$(COVERAGE_REPORT) -coverpkg=./...  ./...
+
+## generates coverage report and shows it on the browser locally
+.PHONY: coverage/show
+coverage/show: coverage
+	go tool cover -html=$(COVERAGE_REPORT)
+
 ## test code
 .PHONY: test
 test: 
-	go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+	go test -race ./...
 
 ## Build terramate into bin directory
 .PHONY: build
