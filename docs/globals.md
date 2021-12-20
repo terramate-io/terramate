@@ -273,26 +273,26 @@ Given a project organized like this:
 .
 └── envs
     ├── prod
-    │   └── stack-1
+    │   └── stack
     │       └── terramate.tm.hcl
     └── staging
-        └── stack-1
+        └── stack
             └── terramate.tm.hcl
 ```
 
 We can define a single version of a [backend configuration](backend-config.md)
 for all envs referencing env + stack specific information at **envs/terramate.tm.hcl**:
 
-```
+```hcl
 terramate {
   backend "gcs" {
-    bucket = globals.gcs_bucket
-    prefix = globals.gcs_prefix
+    bucket = global.gcs_bucket
+    prefix = global.gcs_prefix
   }
 }
 
 globals {
-  gcs_bucket = "some-common-name-${global.env}"
+  gcs_bucket = "prefix-${global.env}"
   gcs_prefix = terramate.path
 }
 ```
@@ -301,8 +301,62 @@ Neither at **envs** or at the parent dir is **global.env** defined. Any subdir
 until the stack is reached can define it (or override it if it is already defined),
 final values are evaluated when reaching the stack itself.
 
-On this particular case we can define **global.env** once per env.
+We can define **global.env** once per env.
 
+For production **envs/prod/terramate.tm.hcl**:
+
+```hcl
+globals {
+  env = "prod"
+}
+```
+
+For staging **envs/staging/terramate.tm.hcl**:
+
+```hcl
+globals {
+  env = "staging"
+}
+```
+
+Given this setup, for  the stack **/envs/prod/stack**
+we have the following globals/metadata defined:
+
+```
+global.env        = "prod"
+global.gcs_bucket = "prefix-prod"
+global.gcs_prefix = "/envs/prod/stack"
+```
+
+And the following backend configuration:
+
+```hcl
+terramate {
+  backend "gcs" {
+    bucket = "prefix-prod"
+    prefix = "/envs/prod/stack"
+  }
+}
+```
+
+And for the stack **/envs/staging/stack**:
+
+```
+global.env        = "staging"
+global.gcs_bucket = "prefix-staging"
+global.gcs_prefix = "/envs/staging/stack"
+```
+
+And the following backend configuration:
+
+```hcl
+terramate {
+  backend "gcs" {
+    bucket = "prefix-staging"
+    prefix = "/envs/staging/stack"
+  }
+}
+```
 
 ## Referencing globals on terraform code
 
