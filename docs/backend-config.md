@@ -19,8 +19,8 @@ A backend block cannot refer to named values
 With those limitations in mind, terramate provides a way to:
 
 * Define a single parametrized backend config and re-use it on multiple stacks.
-* Use terramate metadata, like stack name/path, on the backend config.
-* Use global variables on the backend config.
+* Use terramate [metadata](metadata.md) on the backend config.
+* Use [global variables](globals.md) on the backend config.
 
 
 ## Basic Usage
@@ -209,4 +209,24 @@ And the same applies to all other stacks.
 
 ## Using globals
 
-TODO: we don't have the globals spec yet, add it here once we got it.
+Globals can be referenced on Terramate backend configuration, just
+like metadata. For example given this set of globals defined:
+
+```
+globals {
+  project_name = "awesome-project"
+  useful       = "useful"
+}
+```
+
+They can be used on any Terramate backend configuration:
+
+```hcl
+terramate {
+  backend "type" {
+    param = "${global.project_name}-${global.useful}"
+  }
+}
+```
+
+For more details on how to use globals check [its documentation](globals.md).
