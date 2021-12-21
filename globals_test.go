@@ -158,6 +158,31 @@ func TestLoadGlobals(t *testing.T) {
 				"/stacks/stack-2": globals(str("root", "hi")),
 			},
 		},
+		{
+			name: "multiple stacks merging no overriding",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			globals: []globalsBlock{
+				{path: "/", add: globals(str("root", "root"))},
+				{path: "/stacks", add: globals(boolean("parent", true))},
+				{path: "/stacks/stack-1", add: globals(number("stack", 666))},
+				{path: "/stacks/stack-2", add: globals(number("stack", 777))},
+			},
+			want: map[string]*terramate.StackGlobals{
+				"/stacks/stack-1": globals(
+					str("root", "root"),
+					boolean("parent", true),
+					number("stack", 666),
+				),
+				"/stacks/stack-2": globals(
+					str("root", "root"),
+					boolean("parent", true),
+					number("stack", 777),
+				),
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
