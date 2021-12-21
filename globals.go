@@ -31,7 +31,7 @@ import (
 // Globals represents a globals block. Always use NewGlobals to create it.
 type Globals struct {
 	data         map[string]cty.Value
-	pendingExprs map[string]hclsyntax.Expression
+	pendingExprs map[string]pendingExpression
 }
 
 const ErrGlobalRedefined errutil.Error = "global redefined"
@@ -45,12 +45,12 @@ const ErrGlobalRedefined errutil.Error = "global redefined"
 //
 // Metadata for the stack is used on the evaluation of globals, defined on stackmeta.
 // The rootdir MUST be an absolute path.
-func LoadStackGlobals(rootdir string, stackmeta StackMetadata) (*Globals, error) {
-	globals, err := loadStackGlobals(rootdir, stackmeta.Path)
+func LoadStackGlobals(rootdir string, meta StackMetadata) (*Globals, error) {
+	globals, err := loadStackGlobals(rootdir, meta.Path)
 	if err != nil {
 		return nil, err
 	}
-	if err := globals.Eval(); err != nil {
+	if err := globals.Eval(meta); err != nil {
 		return nil, err
 	}
 	return globals, nil
@@ -59,7 +59,7 @@ func LoadStackGlobals(rootdir string, stackmeta StackMetadata) (*Globals, error)
 func NewGlobals() *Globals {
 	return &Globals{
 		data:         map[string]cty.Value{},
-		pendingExprs: map[string]hclsyntax.Expression{},
+		pendingExprs: map[string]pendingExpression{},
 	}
 }
 
@@ -89,32 +89,49 @@ func (g *Globals) Equal(other *Globals) bool {
 func (g *Globals) AddExpr(key string, expr string) error {
 	parsed, diags := hclsyntax.ParseExpression([]byte(expr), "", hhcl.Pos{})
 	if diags.HasErrors() {
-		return fmt.Errorf("adding %q=%q: %v", key, expr, diags)
+		return fmt.Errorf("parsing expression %q=%q: %v", key, expr, diags)
 	}
-	g.pendingExprs[key] = parsed
+	// It is remarkably hard to write HCL from an expression:
+	// https://stackoverflow.com/questions/67945463/how-to-use-hcl-write-to-set-expressions-with
+	// So this ugly hack for now :-(
+	// And yes, it seemed like a good idea to have two token types on each library.
+	hcltokens, diags := hclsyntax.LexExpression([]byte(expr), "", hhcl.Pos{})
+	if diags.HasErrors() {
+		return fmt.Errorf("tokenizing expression %q=%q: %v", key, expr, diags)
+	}
+	tokens := make([]*hclwrite.Token, len(hcltokens))
+
+	for i, t := range hcltokens {
+		tokens[i] = &hclwrite.Token{
+			Type:  t.Type,
+			Bytes: t.Bytes,
+		}
+	}
+
+	g.pendingExprs[key] = pendingExpression{
+		expr:   parsed,
+		tokens: tokens,
+	}
 	return nil
 }
 
 // Eval evaluates any pending expressions.
 // It can be called multiple times, if there are no new expressions
 // since the last Eval call it won't do anything.
-func (g *Globals) Eval() error {
-	for k, expr := range g.pendingExprs {
-		val, _ := expr.Value(nil)
+func (g *Globals) Eval(meta StackMetadata) error {
+	for k, p := range g.pendingExprs {
+		val, err := p.expr.Value(nil)
+		if err != nil {
+			return err
+		}
 		g.data[k] = val
 	}
-	g.pendingExprs = map[string]hclsyntax.Expression{}
+	g.pendingExprs = map[string]pendingExpression{}
 	return nil
 }
 
 // String representation of the stack globals as HCL.
-// It is an error to call this if Eval hasn't been successfully called
-// yet and will create a string representation that is not valid HCL.
 func (g *Globals) String() string {
-	if len(g.pendingExprs) > 0 {
-		return fmt.Sprintf("has unevaluated expressions: %v", g.pendingExprs)
-	}
-
 	gen := hclwrite.NewEmptyFile()
 	rootBody := gen.Body()
 	tfBlock := rootBody.AppendNewBlock("globals", nil)
@@ -122,6 +139,15 @@ func (g *Globals) String() string {
 
 	for name, val := range g.data {
 		tfBody.SetAttributeValue(name, val)
+	}
+
+	for name, pending := range g.pendingExprs {
+		// Not sure the best way to approach this.
+		// Just want to add raw expressions back to HCL but
+		// it was quite confusing with traversals and traversers, etc.
+		//
+		// - https://stackoverflow.com/questions/67945463/how-to-use-hcl-write-to-set-expressions-with
+		tfBody.SetAttributeRaw(name, pending.tokens)
 	}
 
 	return string(gen.Bytes())
@@ -134,6 +160,11 @@ func (g *Globals) merge(other *Globals) {
 			g.pendingExprs[k] = v
 		}
 	}
+}
+
+type pendingExpression struct {
+	expr   hclsyntax.Expression
+	tokens hclwrite.Tokens
 }
 
 func loadStackGlobals(rootdir string, cfgdir string) (*Globals, error) {
@@ -160,7 +191,9 @@ func loadStackGlobals(rootdir string, cfgdir string) (*Globals, error) {
 			if _, ok := globals.pendingExprs[name]; ok {
 				return nil, fmt.Errorf("%w: global %q already defined", ErrGlobalRedefined, name)
 			}
-			globals.pendingExprs[name] = attr.Expr
+			globals.pendingExprs[name] = pendingExpression{
+				expr: attr.Expr,
+			}
 		}
 	}
 

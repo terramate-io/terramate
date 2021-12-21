@@ -54,33 +54,23 @@ func TestLoadGlobals(t *testing.T) {
 		for _, builder := range builders {
 			builder(g)
 		}
-		assert.NoError(t, g.Eval())
 		return g
 	}
-	addexpr := func(g *terramate.Globals, name, expr string) {
-		t.Helper()
-		assert.NoError(t, g.AddExpr(name, expr))
+	expr := func(key string, expr string) func(*terramate.Globals) {
+		return func(g *terramate.Globals) {
+			t.Helper()
+			assert.NoError(t, g.AddExpr(key, expr), "building test globals")
+		}
 	}
 	str := func(key string, val string) func(*terramate.Globals) {
-		return func(g *terramate.Globals) {
-			addexpr(g, key, fmt.Sprintf("%q", val))
-		}
+		return expr(key, fmt.Sprintf("%q", val))
 	}
 	number := func(key string, val int64) func(*terramate.Globals) {
-		return func(g *terramate.Globals) {
-			addexpr(g, key, fmt.Sprintf("%d", val))
-		}
+		return expr(key, fmt.Sprintf("%d", val))
 	}
 	boolean := func(key string, val bool) func(*terramate.Globals) {
-		return func(g *terramate.Globals) {
-			addexpr(g, key, fmt.Sprintf("%t", val))
-		}
+		return expr(key, fmt.Sprintf("%t", val))
 	}
-	//expr := func(key string, expr string) func(*terramate.Globals) {
-	//return func(g *terramate.Globals) {
-	//addexpr(g, key, expr)
-	//}
-	//}
 
 	tcases := []testcase{
 		{
@@ -247,27 +237,27 @@ func TestLoadGlobals(t *testing.T) {
 				),
 			},
 		},
-		//{
-		//name: "stacks referencing metadata",
-		//layout: []string{
-		//"s:stacks/stack-1",
-		//"s:stacks/stack-1",
-		//},
-		//globals: []globalsBlock{
-		//{
-		//path: "/stacks/stack-1",
-		//add:  globals(expr("stack_path", "terramate.path")),
-		//},
-		//{
-		//path: "/stacks/stack-2",
-		//add:  globals(expr("stack_path", "terramate.path")),
-		//},
-		//},
-		//want: map[string]*terramate.Globals{
-		//"/stacks/stack-1": globals(str("stack_path", "/stacks/stack-1")),
-		//"/stacks/stack-2": globals(str("stack_path", "/stacks/stack-2")),
-		//},
-		//},
+		{
+			name: "stacks referencing metadata",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-1",
+			},
+			globals: []globalsBlock{
+				{
+					path: "/stacks/stack-1",
+					add:  globals(expr("stack_path", "terramate.path")),
+				},
+				{
+					path: "/stacks/stack-2",
+					add:  globals(expr("stack_path", "terramate.path")),
+				},
+			},
+			want: map[string]*terramate.Globals{
+				"/stacks/stack-1": globals(str("stack_path", "/stacks/stack-1")),
+				"/stacks/stack-2": globals(str("stack_path", "/stacks/stack-2")),
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
@@ -292,6 +282,8 @@ func TestLoadGlobals(t *testing.T) {
 					want = terramate.NewGlobals()
 				}
 				delete(wantGlobals, stackMetadata.Path)
+
+				assert.NoError(t, want.Eval(stackMetadata))
 
 				if !got.Equal(want) {
 					t.Fatalf(
