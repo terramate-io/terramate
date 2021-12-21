@@ -29,8 +29,6 @@ import (
 
 // TODO(katcipis):
 //
-// - on parent dir
-// - on root dir
 // - on stack + parent + root + no overriding
 // - on stack + parent + root + overriding
 // - using metadata
@@ -132,34 +130,34 @@ func TestLoadGlobals(t *testing.T) {
 				),
 			},
 		},
-		//{
-		//name: "multiple stacks with config on parent dir",
-		//layout: []string{
-		//"s:stacks/stack-1",
-		//"s:stacks/stack-2",
-		//},
-		//globals: []globalsBlock{
-		//{path: "/stacks", add: globals(str("parent", "hi"))},
-		//},
-		//want: map[string]*terramate.StackGlobals{
-		//"/stacks/stack-1": globals(str("parent", "hi")),
-		//"/stacks/stack-2": globals(str("parent", "hi")),
-		//},
-		//},
-		//{
-		//name: "multiple stacks with config on root dir",
-		//layout: []string{
-		//"s:stacks/stack-1",
-		//"s:stacks/stack-2",
-		//},
-		//globals: []globalsBlock{
-		//{path: "/", add: globals(str("root", "hi"))},
-		//},
-		//want: map[string]*terramate.StackGlobals{
-		//"/stacks/stack-1": globals(str("root", "hi")),
-		//"/stacks/stack-2": globals(str("root", "hi")),
-		//},
-		//},
+		{
+			name: "multiple stacks with config on parent dir",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			globals: []globalsBlock{
+				{path: "/stacks", add: globals(str("parent", "hi"))},
+			},
+			want: map[string]*terramate.StackGlobals{
+				"/stacks/stack-1": globals(str("parent", "hi")),
+				"/stacks/stack-2": globals(str("parent", "hi")),
+			},
+		},
+		{
+			name: "multiple stacks with config on root dir",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			globals: []globalsBlock{
+				{path: "/", add: globals(str("root", "hi"))},
+			},
+			want: map[string]*terramate.StackGlobals{
+				"/stacks/stack-1": globals(str("root", "hi")),
+				"/stacks/stack-2": globals(str("root", "hi")),
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
@@ -172,14 +170,18 @@ func TestLoadGlobals(t *testing.T) {
 				addGlobalsBlock(t, path, globalBlock.add)
 			}
 
-			for _, stackMetadata := range s.LoadMetadata().Stacks {
+			wantGlobals := tcase.want
+
+			stacks := s.LoadMetadata().Stacks
+			for _, stackMetadata := range stacks {
 				got, err := terramate.LoadStackGlobals(s.BaseDir(), stackMetadata)
 				assert.NoError(t, err)
 
-				want, ok := tcase.want[stackMetadata.Path]
+				want, ok := wantGlobals[stackMetadata.Path]
 				if !ok {
 					want = terramate.NewStackGlobals()
 				}
+				delete(wantGlobals, stackMetadata.Path)
 
 				if !got.Equal(want) {
 					t.Fatalf(
@@ -189,6 +191,10 @@ func TestLoadGlobals(t *testing.T) {
 						want,
 					)
 				}
+			}
+
+			if len(wantGlobals) > 0 {
+				t.Fatalf("wanted stack globals: %v that where not found on stacks: %v", wantGlobals, stacks)
 			}
 		})
 	}
