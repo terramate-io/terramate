@@ -584,10 +584,15 @@ func (git *Git) ListUncommitted(dirs ...string) ([]string, error) {
 	return removeEmptyLines(strings.Split(out, "\n")), nil
 }
 
+// Root returns the git root directory.
+func (git *Git) Root() (string, error) {
+	return git.exec("rev-parse", "--git-dir")
+}
+
 // IsRepository tell if the git wrapper setup is operating in a valid git
 // repository.
 func (git *Git) IsRepository() bool {
-	_, err := git.exec("rev-parse", "--git-dir")
+	_, err := git.Root()
 	return err == nil
 }
 

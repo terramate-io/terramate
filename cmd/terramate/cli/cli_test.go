@@ -69,10 +69,7 @@ source = "%s"
 
 	cli := newCLI(t, s.BaseDir())
 	want := stack1.RelPath() + "\n"
-	assertRunResult(t, cli.run(
-		"list", s.BaseDir(), "--changed"),
-		runResult{Stdout: want},
-	)
+	assertRunResult(t, cli.run("list", "--changed"), runResult{Stdout: want})
 }
 
 func TestBugModuleMultipleFilesSameDir(t *testing.T) {
@@ -131,10 +128,7 @@ module "mod1" {
 
 	cli := newCLI(t, s.BaseDir())
 	want := stack.RelPath() + "\n"
-	assertRunResult(t, cli.run(
-		"list", s.BaseDir(), "--changed"),
-		runResult{Stdout: want},
-	)
+	assertRunResult(t, cli.run("list", "--changed"), runResult{Stdout: want})
 }
 
 func TestListAndRunChangedStack(t *testing.T) {
@@ -160,8 +154,7 @@ func TestListAndRunChangedStack(t *testing.T) {
 	git.CommitAll("stack changed")
 
 	wantList := stack.RelPath() + "\n"
-	assertRunResult(t, cli.run("list", s.BaseDir(), "--changed"),
-		runResult{Stdout: wantList})
+	assertRunResult(t, cli.run("list", "--changed"), runResult{Stdout: wantList})
 
 	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
@@ -174,8 +167,6 @@ func TestListAndRunChangedStack(t *testing.T) {
 
 	assertRunResult(t, cli.run(
 		"run",
-		"--basedir",
-		s.BaseDir(),
 		"--changed",
 		cat,
 		mainTfFileName,
@@ -206,11 +197,7 @@ func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
 	git.CommitAll("stack changed")
 
 	wantList := stack.Path() + "\n"
-	assertRunResult(
-		t,
-		cli.run("list", "--changed"),
-		runResult{Stdout: wantList},
-	)
+	assertRunResult(t, cli.run("list", "--changed"), runResult{Stdout: wantList})
 
 	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
@@ -223,8 +210,6 @@ func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
 
 	assertRunResult(t, cli.run(
 		"run",
-		"--basedir",
-		s.BaseDir(),
 		"--changed",
 		cat,
 		mainTfFileName,
@@ -253,7 +238,7 @@ func TestDefaultBaseRefInOtherThanMain(t *testing.T) {
 	want := runResult{
 		Stdout: stack.RelPath() + "\n",
 	}
-	assertRunResult(t, cli.run("list", s.BaseDir(), "--changed"), want)
+	assertRunResult(t, cli.run("list", "--changed"), want)
 }
 
 func TestDefaultBaseRefInMain(t *testing.T) {
@@ -275,7 +260,7 @@ func TestDefaultBaseRefInMain(t *testing.T) {
 		Stdout:       stack.RelPath() + "\n",
 		IgnoreStderr: true,
 	}
-	assertRunResult(t, cli.run("list", s.BaseDir(), "--changed"), want)
+	assertRunResult(t, cli.run("list", "--changed"), want)
 }
 
 func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
@@ -292,7 +277,7 @@ func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
 	git.Commit("all")
 	git.Push("main")
 
-	assertRunResult(t, cli.run("list", s.BaseDir(), "--changed",
+	assertRunResult(t, cli.run("list", "--changed",
 		"--git-change-base", "origin/main"),
 		runResult{
 			IgnoreStderr: true,
@@ -318,13 +303,11 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 		IgnoreStderr: true,
 	}
 
-	assertRunResult(t, ts.run("list", s.BaseDir(), "--changed"), wantRes)
+	assertRunResult(t, ts.run("list", "--changed"), wantRes)
 
 	cat := test.LookPath(t, "cat")
 	assertRunResult(t, ts.run(
 		"run",
-		"--basedir",
-		s.BaseDir(),
 		"--changed",
 		cat,
 		mainTfFile.Path(),
@@ -342,13 +325,11 @@ func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
 			IgnoreStderr: true,
 		}
 
-		assertRunResult(t, ts.run("list", basedir, "--changed"), wantRes)
+		assertRunResult(t, ts.run("list", "--changed"), wantRes)
 
 		cat := test.LookPath(t, "cat")
 		assertRunResult(t, ts.run(
 			"run",
-			"--basedir",
-			basedir,
 			"--changed",
 			cat,
 			"whatever",
@@ -374,7 +355,7 @@ func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
 }
 
 func TestNoArgsProvidesBasicHelp(t *testing.T) {
-	cli := newCLI(t, t.TempDir())
+	cli := newCLI(t, "")
 	cli.run("--help")
 	help := cli.run("--help")
 	assertRunResult(t, cli.run(), runResult{Stdout: help.Stdout})
@@ -391,14 +372,14 @@ type runResult struct {
 }
 
 type tscli struct {
-	t  *testing.T
-	wd string
+	t     *testing.T
+	chdir string
 }
 
-func newCLI(t *testing.T, wd string) tscli {
+func newCLI(t *testing.T, chdir string) tscli {
 	return tscli{
-		t:  t,
-		wd: wd,
+		t:     t,
+		chdir: chdir,
 	}
 }
 
@@ -408,7 +389,15 @@ func (ts tscli) run(args ...string) runResult {
 	stdin := &bytes.Buffer{}
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
-	err := cli.Run(ts.wd, args, false, stdin, stdout, stderr)
+
+	allargs := []string{}
+	if ts.chdir != "" {
+		allargs = append(allargs, "--chdir", ts.chdir)
+	}
+
+	allargs = append(allargs, args...)
+
+	err := cli.Run(allargs, false, stdin, stdout, stderr)
 
 	return runResult{
 		Cmd:    strings.Join(args, " "),
