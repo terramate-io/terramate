@@ -19,6 +19,8 @@ import (
 	"os"
 	"path/filepath"
 
+	hhcl "github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate/config"
@@ -28,7 +30,8 @@ import (
 
 // Globals represents a globals block. Always use NewGlobals to create it.
 type Globals struct {
-	data map[string]cty.Value
+	data         map[string]cty.Value
+	pendingExprs map[string]hclsyntax.Expression
 }
 
 const ErrGlobalRedefined errutil.Error = "global redefined"
@@ -43,24 +46,32 @@ const ErrGlobalRedefined errutil.Error = "global redefined"
 // Metadata for the stack is used on the evaluation of globals, defined on stackmeta.
 // The rootdir MUST be an absolute path.
 func LoadStackGlobals(rootdir string, stackmeta StackMetadata) (*Globals, error) {
-	return loadStackGlobals(rootdir, stackmeta.Path)
+	globals, err := loadStackGlobals(rootdir, stackmeta.Path)
+	if err != nil {
+		return nil, err
+	}
+	if err := globals.Eval(); err != nil {
+		return nil, err
+	}
+	return globals, nil
 }
 
 func NewGlobals() *Globals {
 	return &Globals{
-		data: map[string]cty.Value{},
+		data:         map[string]cty.Value{},
+		pendingExprs: map[string]hclsyntax.Expression{},
 	}
 }
 
 // Equal checks if two StackGlobals are equal. They are equal if both
 // have globals with the same name=value.
-func (sg *Globals) Equal(other *Globals) bool {
-	if len(sg.data) != len(other.data) {
+func (g *Globals) Equal(other *Globals) bool {
+	if len(g.data) != len(other.data) {
 		return false
 	}
 
 	for k, v := range other.data {
-		val, ok := sg.data[k]
+		val, ok := g.data[k]
 		if !ok {
 			return false
 		}
@@ -72,36 +83,57 @@ func (sg *Globals) Equal(other *Globals) bool {
 	return true
 }
 
-// Add adds a new global.
-func (sg *Globals) Add(key string, val cty.Value) {
-	sg.data[key] = val
+// AddExpr adds a new expression to the global.
+// It will not be evaluated until Eval is called.
+// Returns an error if the expression is not a valid HCL expression.
+func (g *Globals) AddExpr(key string, expr string) error {
+	parsed, diags := hclsyntax.ParseExpression([]byte(expr), "", hhcl.Pos{})
+	if diags.HasErrors() {
+		return fmt.Errorf("adding %q=%q: %v", key, expr, diags)
+	}
+	g.pendingExprs[key] = parsed
+	return nil
+}
+
+// Eval evaluates any pending expressions.
+// It can be called multiple times, if there are no new expressions
+// since the last Eval call it won't do anything.
+func (g *Globals) Eval() error {
+	for k, expr := range g.pendingExprs {
+		val, _ := expr.Value(nil)
+		g.data[k] = val
+	}
+	g.pendingExprs = map[string]hclsyntax.Expression{}
+	return nil
 }
 
 // String representation of the stack globals as HCL.
-func (sg *Globals) String() string {
+// It is an error to call this if Eval hasn't been successfully called
+// yet and will create a string representation that is not valid HCL.
+func (g *Globals) String() string {
+	if len(g.pendingExprs) > 0 {
+		return fmt.Sprintf("has unevaluated expressions: %v", g.pendingExprs)
+	}
+
 	gen := hclwrite.NewEmptyFile()
 	rootBody := gen.Body()
 	tfBlock := rootBody.AppendNewBlock("globals", nil)
 	tfBody := tfBlock.Body()
 
-	for name, val := range sg.data {
+	for name, val := range g.data {
 		tfBody.SetAttributeValue(name, val)
 	}
 
 	return string(gen.Bytes())
 }
 
-func (sg *Globals) merge(other *Globals) {
-	for k, v := range other.data {
-		if !sg.hasField(k) {
-			sg.Add(k, v)
+func (g *Globals) merge(other *Globals) {
+	for k, v := range other.pendingExprs {
+		_, ok := g.pendingExprs[k]
+		if !ok {
+			g.pendingExprs[k] = v
 		}
 	}
-}
-
-func (sg *Globals) hasField(field string) bool {
-	_, ok := sg.data[field]
-	return ok
 }
 
 func loadStackGlobals(rootdir string, cfgdir string) (*Globals, error) {
@@ -125,14 +157,10 @@ func loadStackGlobals(rootdir string, cfgdir string) (*Globals, error) {
 
 	for _, block := range blocks {
 		for name, attr := range block.Body.Attributes {
-			if globals.hasField(name) {
+			if _, ok := globals.pendingExprs[name]; ok {
 				return nil, fmt.Errorf("%w: global %q already defined", ErrGlobalRedefined, name)
 			}
-			val, err := attr.Expr.Value(nil)
-			if err != nil {
-				return nil, fmt.Errorf("evaluating attribute %q: %v", attr.Name, err)
-			}
-			globals.Add(name, val)
+			globals.pendingExprs[name] = attr.Expr
 		}
 	}
 

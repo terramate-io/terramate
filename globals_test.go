@@ -15,6 +15,7 @@
 package terramate_test
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -24,15 +25,14 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // TODO(katcipis):
 //
-// - using metadata
 // - using tf functions
 // - using metadata + tf functions
 // - globals referencing other globals
+// - err: globals referencing non-existent globals
 
 func TestLoadGlobals(t *testing.T) {
 
@@ -54,23 +54,33 @@ func TestLoadGlobals(t *testing.T) {
 		for _, builder := range builders {
 			builder(g)
 		}
+		g.Eval()
 		return g
+	}
+	addexpr := func(g *terramate.Globals, name, expr string) {
+		t.Helper()
+		assert.NoError(t, g.AddExpr(name, expr))
 	}
 	str := func(key string, val string) func(*terramate.Globals) {
 		return func(g *terramate.Globals) {
-			g.Add(key, cty.StringVal(val))
+			addexpr(g, key, fmt.Sprintf("%q", val))
 		}
 	}
 	number := func(key string, val int64) func(*terramate.Globals) {
 		return func(g *terramate.Globals) {
-			g.Add(key, cty.NumberIntVal(val))
+			addexpr(g, key, fmt.Sprintf("%d", val))
 		}
 	}
 	boolean := func(key string, val bool) func(*terramate.Globals) {
 		return func(g *terramate.Globals) {
-			g.Add(key, cty.BoolVal(val))
+			addexpr(g, key, fmt.Sprintf("%t", val))
 		}
 	}
+	//expr := func(key string, expr string) func(*terramate.Globals) {
+	//return func(g *terramate.Globals) {
+	//addexpr(g, key, expr)
+	//}
+	//}
 
 	tcases := []testcase{
 		{
@@ -237,6 +247,27 @@ func TestLoadGlobals(t *testing.T) {
 				),
 			},
 		},
+		//{
+		//name: "stacks referencing metadata",
+		//layout: []string{
+		//"s:stacks/stack-1",
+		//"s:stacks/stack-1",
+		//},
+		//globals: []globalsBlock{
+		//{
+		//path: "/stacks/stack-1",
+		//add:  globals(expr("stack_path", "terramate.path")),
+		//},
+		//{
+		//path: "/stacks/stack-2",
+		//add:  globals(expr("stack_path", "terramate.path")),
+		//},
+		//},
+		//want: map[string]*terramate.Globals{
+		//"/stacks/stack-1": globals(str("stack_path", "/stacks/stack-1")),
+		//"/stacks/stack-2": globals(str("stack_path", "/stacks/stack-2")),
+		//},
+		//},
 	}
 
 	for _, tcase := range tcases {
