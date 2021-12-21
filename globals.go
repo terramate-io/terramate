@@ -158,7 +158,8 @@ func (g *Globals) String() string {
 		tfBody.SetAttributeRaw(name, pending.tokens)
 	}
 
-	return string(gen.Bytes())
+	// Tokens logic for pending expressions introduces messed up formatting.
+	return string(hclwrite.Format(gen.Bytes()))
 }
 
 func (g *Globals) merge(other *Globals) {
