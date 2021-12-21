@@ -40,26 +40,7 @@ type StackGlobals struct {
 // Metadata for the stack is used on the evaluation of globals, defined on stackmeta.
 // The rootdir MUST be an absolute path.
 func LoadStackGlobals(rootdir string, stackmeta StackMetadata) (*StackGlobals, error) {
-	globals := NewStackGlobals()
-	cfgpath := filepath.Join(rootdir, stackmeta.Path, config.Filename)
-	blocks, err := hcl.ParseGlobalsBlocks(cfgpath)
-
-	// TODO(katcipis): navigate whole fs
-	if os.IsNotExist(err) {
-		return globals, nil
-	}
-	// TODO(katcipis): handle proper evaluation context
-	for _, block := range blocks {
-		for name, attr := range block.Body.Attributes {
-			val, err := attr.Expr.Value(nil)
-			if err != nil {
-				return nil, fmt.Errorf("evaluating attribute %q: %v", attr.Name, err)
-			}
-			globals.Add(name, val)
-		}
-	}
-
-	return globals, nil
+	return loadStackGlobals(rootdir, stackmeta.Path)
 }
 
 func NewStackGlobals() *StackGlobals {
@@ -105,4 +86,56 @@ func (sg *StackGlobals) String() string {
 	}
 
 	return string(gen.Bytes())
+}
+
+func (sg *StackGlobals) merge(other *StackGlobals) {
+	for k, v := range other.data {
+		_, ok := sg.data[k]
+		if ok {
+			continue
+		}
+		sg.data[k] = v
+	}
+}
+
+func loadStackGlobals(rootdir string, cfgdir string) (*StackGlobals, error) {
+	cfgpath := filepath.Join(rootdir, cfgdir, config.Filename)
+	blocks, err := hcl.ParseGlobalsBlocks(cfgpath)
+
+	if os.IsNotExist(err) {
+		if cfgdir == "/" {
+			return NewStackGlobals(), nil
+		}
+		return loadStackGlobals(rootdir, filepath.Dir(cfgdir))
+
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	globals := NewStackGlobals()
+
+	for _, block := range blocks {
+		for name, attr := range block.Body.Attributes {
+			val, err := attr.Expr.Value(nil)
+			if err != nil {
+				return nil, fmt.Errorf("evaluating attribute %q: %v", attr.Name, err)
+			}
+			globals.Add(name, val)
+		}
+	}
+
+	if cfgdir == "/" {
+		return globals, nil
+	}
+
+	parentGlobals, err := loadStackGlobals(rootdir, filepath.Dir(cfgdir))
+
+	if err != nil {
+		return nil, err
+	}
+
+	globals.merge(parentGlobals)
+	return globals, nil
 }
