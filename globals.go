@@ -103,10 +103,11 @@ func loadStackGlobals(rootdir string, cfgdir string) (*StackGlobals, error) {
 	blocks, err := hcl.ParseGlobalsBlocks(cfgpath)
 
 	if os.IsNotExist(err) {
-		if cfgdir == "/" {
+		parentcfg, ok := parentDir(cfgdir)
+		if !ok {
 			return NewStackGlobals(), nil
 		}
-		return loadStackGlobals(rootdir, filepath.Dir(cfgdir))
+		return loadStackGlobals(rootdir, parentcfg)
 
 	}
 
@@ -126,11 +127,12 @@ func loadStackGlobals(rootdir string, cfgdir string) (*StackGlobals, error) {
 		}
 	}
 
-	if cfgdir == "/" {
+	parentcfg, ok := parentDir(cfgdir)
+	if !ok {
 		return globals, nil
 	}
 
-	parentGlobals, err := loadStackGlobals(rootdir, filepath.Dir(cfgdir))
+	parentGlobals, err := loadStackGlobals(rootdir, parentcfg)
 
 	if err != nil {
 		return nil, err
@@ -138,4 +140,9 @@ func loadStackGlobals(rootdir string, cfgdir string) (*StackGlobals, error) {
 
 	globals.merge(parentGlobals)
 	return globals, nil
+}
+
+func parentDir(dir string) (string, bool) {
+	parent := filepath.Dir(dir)
+	return parent, parent != dir
 }
