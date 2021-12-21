@@ -37,10 +37,25 @@ type Config struct {
 	Stack     *Stack
 }
 
+type GitConfig struct {
+	BaseRef     string // BaseRef is the general base git ref.
+	MainBaseRef string // MainBaseRef is the baseRef when in main branch.
+	Branch      string
+	Remote      string
+}
+
+type RootConfig struct {
+	Git GitConfig
+}
+
 // Terramate is the parsed "terramate" HCL block.
 type Terramate struct {
 	// RequiredVersion contains the terramate version required by the stack.
 	RequiredVersion string
+
+	// RootConfig is the configuration at the project root directory (commonly
+	// the git directory).
+	RootConfig RootConfig
 
 	Backend *hclsyntax.Block
 }
@@ -230,31 +245,48 @@ func Parse(fname string, data []byte) (*Config, error) {
 	}
 
 	foundBackend := false
+	foundConfig := false
 	for _, block := range tmblock.Body.Blocks {
-		if block.Type != "backend" {
+		switch block.Type {
+		case "backend":
+			if foundBackend {
+				return nil, errutil.Chain(
+					ErrMalformedTerramateConfig,
+					fmt.Errorf("multiple backend blocks in file %q", fname),
+				)
+			}
+
+			if len(block.Labels) != 1 {
+				return nil, errutil.Chain(
+					ErrMalformedTerramateConfig,
+					fmt.Errorf("backend type expects 1 label but given %v",
+						block.Labels),
+				)
+			}
+
+			foundBackend = true
+			tm.Backend = block
+
+		case "config":
+			if foundConfig {
+				return nil, errutil.Chain(
+					ErrMalformedTerramateConfig,
+					fmt.Errorf("multiple config blocks in file %q", fname),
+				)
+			}
+
+			err := parseRootConfig(&tm.RootConfig, block)
+			if err != nil {
+				return nil, err
+			}
+
+			foundConfig = true
+		default:
 			return nil, errutil.Chain(
 				ErrMalformedTerramateConfig,
 				fmt.Errorf("block type %q not supported", block.Type))
 		}
 
-		if foundBackend {
-			return nil, errutil.Chain(
-				ErrMalformedTerramateConfig,
-				fmt.Errorf("multiple backend blocks in file %q", fname),
-			)
-		}
-
-		foundBackend = true
-
-		if len(block.Labels) != 1 {
-			return nil, errutil.Chain(
-				ErrMalformedTerramateConfig,
-				fmt.Errorf("backend type expects 1 label but given %v",
-					block.Labels),
-			)
-		}
-
-		tm.Backend = block
 	}
 
 	if !foundstack {
@@ -262,32 +294,9 @@ func Parse(fname string, data []byte) (*Config, error) {
 	}
 
 	tmconfig.Stack = &Stack{}
-	stack := tmconfig.Stack
-
-	for name, value := range stackblock.Body.Attributes {
-		attrVal, diags := value.Expr.Value(nil)
-		if diags.HasErrors() {
-			return nil, errutil.Chain(
-				ErrHCLSyntax,
-				fmt.Errorf("failed to evaluate %q attribute: %w",
-					name, diags),
-			)
-		}
-		switch name {
-		case "name":
-			if attrVal.Type() != cty.String {
-				return nil, errutil.Chain(ErrMalformedTerramateConfig,
-					fmt.Errorf("field stack.\"name\" must be a \"string\" but given %q",
-						attrVal.Type().FriendlyName()),
-				)
-			}
-			stack.Name = attrVal.AsString()
-		case "after":
-			err := assignSet(name, &stack.After, attrVal)
-			if err != nil {
-				return nil, err
-			}
-		}
+	err := parseStack(tmconfig.Stack, stackblock)
+	if err != nil {
+		return nil, err
 	}
 
 	return &tmconfig, nil
@@ -358,6 +367,110 @@ func assignSet(name string, target *[]string, val cty.Value) error {
 
 	sort.Strings(elems)
 	*target = elems
+	return nil
+}
+
+func parseStack(stack *Stack, stackblock *hclsyntax.Block) error {
+	for name, value := range stackblock.Body.Attributes {
+		attrVal, diags := value.Expr.Value(nil)
+		if diags.HasErrors() {
+			return errutil.Chain(
+				ErrHCLSyntax,
+				fmt.Errorf("failed to evaluate %q attribute: %w",
+					name, diags),
+			)
+		}
+		switch name {
+		case "name":
+			if attrVal.Type() != cty.String {
+				return errutil.Chain(ErrMalformedTerramateConfig,
+					fmt.Errorf("field stack.\"name\" must be a \"string\" but given %q",
+						attrVal.Type().FriendlyName()),
+				)
+			}
+			stack.Name = attrVal.AsString()
+		case "after":
+			err := assignSet(name, &stack.After, attrVal)
+			if err != nil {
+				return err
+			}
+		default:
+			return errutil.Chain(ErrMalformedTerramateConfig,
+				fmt.Errorf("unrecognized attribute stack.%q", name),
+			)
+		}
+	}
+
+	return nil
+}
+
+func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
+	if len(block.Labels) != 0 {
+		return errutil.Chain(
+			ErrMalformedTerramateConfig,
+			fmt.Errorf("config type expects 0 label but given %v",
+				block.Labels),
+		)
+	}
+
+	for _, block := range block.Body.Blocks {
+		switch block.Type {
+		case "git":
+			err := parseGitConfig(&cfg.Git, block)
+			if err != nil {
+				return err
+			}
+		default:
+			return errutil.Chain(ErrMalformedTerramateConfig,
+				fmt.Errorf("unrecognized block type %q", block.Type),
+			)
+		}
+	}
+
+	return nil
+}
+
+func parseGitConfig(git *GitConfig, block *hclsyntax.Block) error {
+
+	for name, value := range block.Body.Attributes {
+		attrVal, diags := value.Expr.Value(nil)
+		if diags.HasErrors() {
+			return errutil.Chain(
+				ErrHCLSyntax,
+				fmt.Errorf("failed to evaluate terramate.config.%s attribute: %w",
+					name, diags),
+			)
+		}
+		switch name {
+		case "branch":
+			if attrVal.Type() != cty.String {
+				return fmt.Errorf("terramate.config.git.branch is not a string but %q",
+					attrVal.Type().FriendlyName())
+			}
+
+			git.Branch = attrVal.AsString()
+		case "remote":
+			if attrVal.Type() != cty.String {
+				return fmt.Errorf("terramate.config.git.remote is not a string but %q",
+					attrVal.Type().FriendlyName())
+			}
+
+			git.Remote = attrVal.AsString()
+
+		case "baseref":
+			if attrVal.Type() != cty.String {
+				return fmt.Errorf("terramate.config.git.baseref is not a string but %q",
+					attrVal.Type().FriendlyName())
+			}
+
+			git.BaseRef = attrVal.AsString()
+
+		default:
+			return errutil.Chain(ErrMalformedTerramateConfig,
+				fmt.Errorf("unrecognized attribute terramate.config.git.%s", name),
+			)
+		}
+	}
 	return nil
 }
 

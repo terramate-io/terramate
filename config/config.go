@@ -17,6 +17,8 @@ package config
 import (
 	"os"
 	"path/filepath"
+
+	"github.com/mineiros-io/terramate/hcl"
 )
 
 const (
@@ -44,4 +46,22 @@ func Exists(path string) bool {
 	}
 
 	return info.Mode().IsRegular()
+}
+
+func TryLoadRootConfig(dir string) (found bool, cfg *hcl.Config, err error) {
+	path := filepath.Join(dir, Filename)
+	_, err = os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil, nil
+		}
+
+		return false, nil, err
+	}
+
+	cfg, err = hcl.ParseFile(path)
+	if err != nil {
+		return false, nil, err
+	}
+	return true, cfg, nil
 }

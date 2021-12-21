@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -27,7 +28,9 @@ import (
 	"github.com/emicklei/dot"
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/git"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/posener/complete"
 	"github.com/willabides/kongplete"
@@ -40,11 +43,13 @@ const (
 )
 
 const (
-	defaultRemote       = "origin"
-	defaultBranch       = "main"
-	defaultMainBaseRef  = "HEAD^1"
-	defaultOtherBaseRef = defaultRemote + "/" + defaultBranch
+	defaultRemote      = "origin"
+	defaultBranch      = "main"
+	defaultBaseRef     = defaultRemote + "/" + defaultBranch
+	defaultMainBaseRef = "HEAD^1"
 )
+
+type gitBoolFlag bool
 
 type cliSpec struct {
 	Version struct{} `cmd:"" help:"Terramate version."`
@@ -57,17 +62,17 @@ type cliSpec struct {
 	} `cmd:"" help:"Initialize a stack."`
 
 	List struct {
-		Changed bool   `short:"c" help:"Shows only changed stacks."`
-		Why     bool   `help:"Shows reason on why the stack has changed."`
-		BaseDir string `arg:"" optional:"true" name:"path" type:"path" help:"base stack directory."`
+		Changed gitBoolFlag `short:"c" help:"Shows only changed stacks."`
+		Why     bool        `help:"Shows reason on why the stack has changed."`
+		BaseDir string      `arg:"" optional:"true" name:"path" type:"path" help:"base stack directory."`
 	} `cmd:"" help:"List stacks."`
 
 	Run struct {
-		Quiet   bool     `short:"q" help:"Don't print any information other than the command output."`
-		Changed bool     `short:"c" help:"Run on all changed stacks."`
-		DryRun  bool     `default:"false" help:"plan the execution but do not execute it"`
-		Basedir string   `short:"b" optional:"true" help:"Run on stacks inside basedir."`
-		Command []string `arg:"" name:"cmd" passthrough:"" help:"command to execute."`
+		Quiet   bool        `short:"q" help:"Don't print any information other than the command output."`
+		Changed gitBoolFlag `short:"c" help:"Run on all changed stacks."`
+		DryRun  bool        `default:"false" help:"plan the execution but do not execute it"`
+		Basedir string      `short:"b" optional:"true" help:"Run on stacks inside basedir."`
+		Command []string    `arg:"" name:"cmd" passthrough:"" help:"command to execute."`
 	} `cmd:"" help:"Run command in the stacks."`
 
 	Plan struct {
@@ -78,8 +83,8 @@ type cliSpec struct {
 		} `cmd:"" help:"generate a graph of the execution order."`
 
 		RunOrder struct {
-			Basedir string `arg:"" optional:"true" help:"base directory to search stacks."`
-			Changed bool   `short:"c" help:"Shows run order of changed stacks."`
+			Basedir string      `arg:"" optional:"true" help:"base directory to search stacks."`
+			Changed gitBoolFlag `short:"c" help:"Shows run order of changed stacks."`
 		} `cmd:"" help:"show the topological ordering of the stacks"`
 	} `cmd:"" help:"plan execution."`
 	Generate struct {
@@ -90,6 +95,13 @@ type cliSpec struct {
 	} `cmd:"" help:"shows metadata available on the project"`
 
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"install shell completions"`
+}
+
+func (flag gitBoolFlag) AfterApply(foundRoot bool) error {
+	if bool(flag) && !foundRoot {
+		return fmt.Errorf("change detection is disabled because git project was not found.")
+	}
+	return nil
 }
 
 // Run will run terramate with the provided flags defined on args from the
@@ -131,7 +143,10 @@ type cli struct {
 	stderr     io.Writer
 	exit       bool
 	wd         string
+	root       string // project root
 	baseRef    string
+	gitEnabled bool
+	config     *hcl.Config
 }
 
 func newCLI(
@@ -147,7 +162,6 @@ func newCLI(
 		args = []string{"--help"}
 	}
 
-	parsedArgs := cliSpec{}
 	kongExit := false
 	kongExitStatus := 0
 
@@ -156,18 +170,53 @@ func newCLI(
 		return nil, err
 	}
 
-	baseRef := defaultOtherBaseRef
+	foundRoot, root := lookupProjectRoot(wd)
+	if !foundRoot {
+		root = wd
+	}
+
+	_, cfg, err := config.TryLoadRootConfig(root)
+	if err != nil {
+		return nil, fmt.Errorf("parsing root config: %w", err)
+	}
+
+	// TODO(i4k): improve this
+	if cfg == nil {
+		c := hcl.NewConfig(terramate.Version())
+		cfg = &c
+	}
+
+	// TODO(i4k): also please improve this
+	gitOpt := &cfg.Terramate.RootConfig.Git
+	if gitOpt.BaseRef == "" {
+		gitOpt.BaseRef = defaultBaseRef
+	}
+
+	if gitOpt.MainBaseRef == "" {
+		gitOpt.MainBaseRef = defaultMainBaseRef
+	}
+
+	if gitOpt.Branch == "" {
+		gitOpt.Branch = defaultBranch
+	}
+
+	if gitOpt.Remote == "" {
+		gitOpt.Remote = defaultRemote
+	}
+
+	baseRef := gitOpt.BaseRef
 	if gw.IsRepository() {
 		branch, err := gw.CurrentBranch()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get current git branch: %v", err)
 		}
 
-		if branch == "main" {
-			baseRef = defaultMainBaseRef
+		if branch == gitOpt.Branch {
+			baseRef = gitOpt.MainBaseRef
 		}
 	}
 
+	parsedArgs := cliSpec{}
 	parser, err := kong.New(&parsedArgs,
 		kong.Name("terramate"),
 		kong.Description("A tool for managing terraform stacks"),
@@ -184,6 +233,7 @@ func newCLI(
 		kong.Vars{
 			"baseRef": baseRef,
 		},
+		kong.Bind(foundRoot),
 	)
 
 	if err != nil {
@@ -213,6 +263,9 @@ func newCLI(
 		ctx:        ctx,
 		baseRef:    parsedArgs.GitChangeBase,
 		wd:         wd,
+		root:       root,
+		gitEnabled: foundRoot,
+		config:     cfg,
 	}, nil
 }
 
@@ -230,17 +283,17 @@ func (c *cli) run() error {
 	case "init <paths>":
 		return c.initStack(c.parsedArgs.Init.StackDirs)
 	case "list":
-		return c.printStacks(c.wd)
+		return c.printStacks(c.root)
 	case "list <path>":
 		return c.printStacks(c.parsedArgs.List.BaseDir)
 	case "plan graph":
 		fallthrough
-	case "plan graph <basedir>":
-		basedir := c.wd
+	case "plan graph <dir>":
+		rel := c.root
 		if c.parsedArgs.Plan.Graph.Basedir != "" {
-			basedir = strings.TrimSuffix(c.parsedArgs.Plan.Graph.Basedir, "/")
+			rel = strings.TrimSuffix(c.parsedArgs.Plan.Graph.Basedir, "/")
 		}
-		return c.generateGraph(basedir)
+		return c.generateGraph(rel)
 	case "plan run-order":
 		fallthrough
 	case "plan run-order <basedir>":
@@ -255,11 +308,11 @@ func (c *cli) run() error {
 		}
 		fallthrough
 	case "run <cmd>":
-		basedir := c.wd
+		rel := c.wd
 		if c.parsedArgs.Run.Basedir != "" {
-			basedir = strings.TrimSuffix(c.parsedArgs.Run.Basedir, "/")
+			rel = strings.TrimSuffix(c.parsedArgs.Run.Basedir, "/")
 		}
-		return c.runOnStacks(basedir)
+		return c.runOnStacks(rel)
 	case "generate":
 		return terramate.Generate(c.wd)
 	case "metadata":
@@ -295,13 +348,11 @@ func (c *cli) initStack(dirs []string) error {
 }
 
 func (c *cli) listStacks(
-	basedir string,
 	mgr *terramate.Manager,
 	isChanged bool,
 ) ([]terramate.Entry, error) {
-
 	if isChanged {
-		git, err := newGit(basedir, c.inheritEnv, true)
+		git, err := newGit(c.root, c.inheritEnv, true)
 		if err != nil {
 			return nil, err
 		}
@@ -317,9 +368,18 @@ func (c *cli) listStacks(
 	return mgr.List()
 }
 
-func (c *cli) printStacks(basedir string) error {
-	mgr := terramate.NewManager(basedir, c.baseRef)
-	entries, err := c.listStacks(basedir, mgr, c.parsedArgs.List.Changed)
+func (c *cli) printStacks(relativeTo string) error {
+	info, err := os.Stat(relativeTo)
+	if err != nil {
+		return err
+	}
+
+	if !info.IsDir() {
+		return fmt.Errorf("path %q is not a directory.", relativeTo)
+	}
+
+	mgr := terramate.NewManager(c.root, c.baseRef)
+	entries, err := c.listStacks(mgr, bool(c.parsedArgs.List.Changed))
 	if err != nil {
 		return err
 	}
@@ -420,23 +480,25 @@ func generateDot(
 	}
 }
 
-func (c *cli) printRunOrder(basedir string) error {
-	if !filepath.IsAbs(basedir) {
-		basedir = filepath.Join(c.wd, basedir)
+func (c *cli) printRunOrder(relativeTo string) error {
+	if !filepath.IsAbs(relativeTo) {
+		relativeTo = filepath.Join(c.wd, relativeTo)
 	}
 
-	mgr := terramate.NewManager(basedir, c.baseRef)
-	entries, err := c.listStacks(basedir, mgr, c.parsedArgs.Run.Changed)
+	mgr := terramate.NewManager(c.root, c.baseRef)
+	entries, err := c.listStacks(mgr, bool(c.parsedArgs.Run.Changed))
 	if err != nil {
 		return err
 	}
+
+	// todo(i4k) use relativeto
 
 	stacks := make([]stack.S, len(entries))
 	for i, e := range entries {
 		stacks[i] = e.Stack
 	}
 
-	order, err := terramate.RunOrder(stacks, c.parsedArgs.Plan.RunOrder.Changed)
+	order, err := terramate.RunOrder(stacks, bool(c.parsedArgs.Plan.RunOrder.Changed))
 	if err != nil {
 		c.logerr("error: %v", err)
 		return err
@@ -466,13 +528,13 @@ func (c *cli) printMetadata() error {
 	return nil
 }
 
-func (c *cli) runOnStacks(basedir string) error {
-	if !filepath.IsAbs(basedir) {
-		basedir = filepath.Join(c.wd, basedir)
+func (c *cli) runOnStacks(relativeTo string) error {
+	if !filepath.IsAbs(relativeTo) {
+		relativeTo = filepath.Join(c.wd, relativeTo)
 	}
 
-	mgr := terramate.NewManager(basedir, c.baseRef)
-	entries, err := c.listStacks(basedir, mgr, c.parsedArgs.Run.Changed)
+	mgr := terramate.NewManager(c.root, c.baseRef)
+	entries, err := c.listStacks(mgr, bool(c.parsedArgs.Run.Changed))
 	if err != nil {
 		return err
 	}
@@ -483,9 +545,11 @@ func (c *cli) runOnStacks(basedir string) error {
 		c.log("Running on all stacks:")
 	}
 
-	stacks := make([]stack.S, len(entries))
-	for i, e := range entries {
-		stacks[i] = e.Stack
+	stacks := make([]stack.S, 0, len(entries))
+	for _, e := range entries {
+		if strings.HasPrefix(e.Stack.Dir, relativeTo) {
+			stacks = append(stacks, e.Stack)
+		}
 	}
 
 	cmdName := c.parsedArgs.Run.Command[0]
@@ -495,7 +559,7 @@ func (c *cli) runOnStacks(basedir string) error {
 	cmd.Stdout = c.stdout
 	cmd.Stderr = c.stderr
 
-	order, err := terramate.RunOrder(stacks, c.parsedArgs.Run.Changed)
+	order, err := terramate.RunOrder(stacks, bool(c.parsedArgs.Run.Changed))
 	if err != nil {
 		return fmt.Errorf("failed to plan execution: %w", err)
 	}
@@ -627,4 +691,27 @@ func newGit(basedir string, inheritEnv bool, checkrepo bool) (*git.Git, error) {
 	}
 
 	return g, nil
+}
+
+func lookupProjectRoot(dir string) (found bool, path string) {
+	for {
+		d := filepath.Join(dir, ".git")
+		info, err := os.Stat(d)
+		if err == nil {
+			if info.IsDir() {
+				return true, dir
+			}
+		} else if !os.IsNotExist(err) {
+			// TODO(i4k): improve logging
+			log.Printf("[warn] failed to stat %q: %v", d, err)
+		}
+
+		if dir == "/" {
+			break
+		}
+
+		dir = filepath.Dir(dir)
+	}
+
+	return false, ""
 }
