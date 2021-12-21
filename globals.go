@@ -31,8 +31,8 @@ import (
 
 // Globals represents a globals block. Always use NewGlobals to create it.
 type Globals struct {
-	data         map[string]cty.Value
-	pendingExprs map[string]pendingExpression
+	evaluated   map[string]cty.Value
+	nonEvaluted map[string]expression
 }
 
 const ErrGlobalRedefined errutil.Error = "global redefined"
@@ -59,20 +59,20 @@ func LoadStackGlobals(rootdir string, meta StackMetadata) (*Globals, error) {
 
 func NewGlobals() *Globals {
 	return &Globals{
-		data:         map[string]cty.Value{},
-		pendingExprs: map[string]pendingExpression{},
+		evaluated:   map[string]cty.Value{},
+		nonEvaluted: map[string]expression{},
 	}
 }
 
 // Equal checks if two StackGlobals are equal. They are equal if both
 // have globals with the same name=value.
 func (g *Globals) Equal(other *Globals) bool {
-	if len(g.data) != len(other.data) {
+	if len(g.evaluated) != len(other.evaluated) {
 		return false
 	}
 
-	for k, v := range other.data {
-		val, ok := g.data[k]
+	for k, v := range other.evaluated {
+		val, ok := g.evaluated[k]
 		if !ok {
 			return false
 		}
@@ -109,7 +109,7 @@ func (g *Globals) AddExpr(key string, expr string) error {
 		}
 	}
 
-	g.pendingExprs[key] = pendingExpression{
+	g.nonEvaluted[key] = expression{
 		expr:   parsed,
 		tokens: tokens,
 	}
@@ -127,14 +127,14 @@ func (g *Globals) Eval(meta StackMetadata) error {
 		return err
 	}
 
-	for k, p := range g.pendingExprs {
+	for k, p := range g.nonEvaluted {
 		val, err := p.expr.Value(evalctx)
 		if err != nil {
 			return err
 		}
-		g.data[k] = val
+		g.evaluated[k] = val
 	}
-	g.pendingExprs = map[string]pendingExpression{}
+	g.nonEvaluted = map[string]expression{}
 	return nil
 }
 
@@ -145,11 +145,11 @@ func (g *Globals) String() string {
 	tfBlock := rootBody.AppendNewBlock("globals", nil)
 	tfBody := tfBlock.Body()
 
-	for name, val := range g.data {
+	for name, val := range g.evaluated {
 		tfBody.SetAttributeValue(name, val)
 	}
 
-	for name, pending := range g.pendingExprs {
+	for name, pending := range g.nonEvaluted {
 		// Not sure the best way to approach this.
 		// Just want to add raw expressions back to HCL but
 		// it was quite confusing with traversals and traversers, etc.
@@ -163,15 +163,15 @@ func (g *Globals) String() string {
 }
 
 func (g *Globals) merge(other *Globals) {
-	for k, v := range other.pendingExprs {
-		_, ok := g.pendingExprs[k]
+	for k, v := range other.nonEvaluted {
+		_, ok := g.nonEvaluted[k]
 		if !ok {
-			g.pendingExprs[k] = v
+			g.nonEvaluted[k] = v
 		}
 	}
 }
 
-type pendingExpression struct {
+type expression struct {
 	expr   hclsyntax.Expression
 	tokens hclwrite.Tokens
 }
@@ -197,7 +197,7 @@ func loadStackGlobals(rootdir string, cfgdir string) (*Globals, error) {
 
 	for _, block := range blocks {
 		for name, attr := range block.Body.Attributes {
-			if _, ok := globals.pendingExprs[name]; ok {
+			if _, ok := globals.nonEvaluted[name]; ok {
 				return nil, fmt.Errorf("%w: global %q already defined", ErrGlobalRedefined, name)
 			}
 			// Would be consistent to also initialize
@@ -207,7 +207,7 @@ func loadStackGlobals(rootdir string, cfgdir string) (*Globals, error) {
 			// evaluate it before returning to the caller, so there
 			// will be no pending expression on the Globals object anyway.
 			// When manually building Globals then this can be an issue (see Globals.AddExpr).
-			globals.pendingExprs[name] = pendingExpression{
+			globals.nonEvaluted[name] = expression{
 				expr: attr.Expr,
 			}
 		}
