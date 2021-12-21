@@ -200,6 +200,13 @@ func loadStackGlobals(rootdir string, cfgdir string) (*Globals, error) {
 			if _, ok := globals.pendingExprs[name]; ok {
 				return nil, fmt.Errorf("%w: global %q already defined", ErrGlobalRedefined, name)
 			}
+			// Would be consistent to also initialize
+			// tokens on the pendingExpression, but betting tokens on this
+			// scenario is quite non-trivial sadly and not a requirement
+			// for core features since when loading globals we always
+			// evaluate it before returning to the caller, so there
+			// will be no pending expression on the Globals object anyway.
+			// When manually building Globals then this can be an issue (see Globals.AddExpr).
 			globals.pendingExprs[name] = pendingExpression{
 				expr: attr.Expr,
 			}
