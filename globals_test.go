@@ -54,7 +54,7 @@ func TestLoadGlobals(t *testing.T) {
 		for _, builder := range builders {
 			builder(g)
 		}
-		g.Eval()
+		assert.NoError(t, g.Eval())
 		return g
 	}
 	addexpr := func(g *terramate.Globals, name, expr string) {
