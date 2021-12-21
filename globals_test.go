@@ -241,7 +241,7 @@ func TestLoadGlobals(t *testing.T) {
 			name: "stacks referencing metadata",
 			layout: []string{
 				"s:stacks/stack-1",
-				"s:stacks/stack-1",
+				"s:stacks/stack-2",
 			},
 			globals: []globalsBlock{
 				{

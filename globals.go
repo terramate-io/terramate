@@ -22,6 +22,7 @@ import (
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	tflang "github.com/hashicorp/terraform/lang"
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
@@ -115,12 +116,19 @@ func (g *Globals) AddExpr(key string, expr string) error {
 	return nil
 }
 
-// Eval evaluates any pending expressions.
-// It can be called multiple times, if there are no new expressions
-// since the last Eval call it won't do anything.
+// Eval evaluates any pending expressions on the context of a specific stack.
+// It is safe to call Eval with the same metadata multiple times.
 func (g *Globals) Eval(meta StackMetadata) error {
+
+	// TODO(katcipis): add BaseDir on Scope.
+	tfscope := &tflang.Scope{}
+	evalctx, err := newHCLEvalContext(meta, tfscope)
+	if err != nil {
+		return err
+	}
+
 	for k, p := range g.pendingExprs {
-		val, err := p.expr.Value(nil)
+		val, err := p.expr.Value(evalctx)
 		if err != nil {
 			return err
 		}

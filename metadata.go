@@ -16,6 +16,11 @@ package terramate
 
 import (
 	"strings"
+
+	tfhcl "github.com/hashicorp/hcl/v2"
+	tflang "github.com/hashicorp/terraform/lang"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/gocty"
 )
 
 // StackMetadata has all metadata loaded per stack
@@ -62,4 +67,33 @@ func (m Metadata) StackMetadata(abspath string) (StackMetadata, bool) {
 		}
 	}
 	return StackMetadata{}, false
+}
+
+func newHCLEvalContext(metadata StackMetadata, scope *tflang.Scope) (*tfhcl.EvalContext, error) {
+	vars, err := hclMapToCty(map[string]cty.Value{
+		"name": cty.StringVal(metadata.Name),
+		"path": cty.StringVal(metadata.Path),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &tfhcl.EvalContext{
+		Variables: map[string]cty.Value{"terramate": vars},
+		Functions: scope.Functions(),
+	}, nil
+}
+
+func hclMapToCty(m map[string]cty.Value) (cty.Value, error) {
+	ctyTypes := map[string]cty.Type{}
+	for key, value := range m {
+		ctyTypes[key] = value.Type()
+	}
+	ctyObject := cty.Object(ctyTypes)
+	ctyVal, err := gocty.ToCtyValue(m, ctyObject)
+	if err != nil {
+		return cty.Value{}, err
+	}
+	return ctyVal, nil
 }
