@@ -20,15 +20,18 @@ import (
 	"path/filepath"
 
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/zclconf/go-cty/cty"
 )
 
-// Globals represents a globals block
+// Globals represents a globals block. Always use NewGlobals to create it.
 type Globals struct {
 	data map[string]cty.Value
 }
+
+const ErrGlobalRedefined errutil.Error = "global redefined"
 
 // LoadStackGlobals loads from the file system all globals defined for
 // a given stack. It will navigate the file system from the stack dir until
@@ -90,12 +93,15 @@ func (sg *Globals) String() string {
 
 func (sg *Globals) merge(other *Globals) {
 	for k, v := range other.data {
-		_, ok := sg.data[k]
-		if ok {
-			continue
+		if !sg.hasField(k) {
+			sg.Add(k, v)
 		}
-		sg.Add(k, v)
 	}
+}
+
+func (sg *Globals) hasField(field string) bool {
+	_, ok := sg.data[field]
+	return ok
 }
 
 func loadStackGlobals(rootdir string, cfgdir string) (*Globals, error) {
@@ -119,6 +125,9 @@ func loadStackGlobals(rootdir string, cfgdir string) (*Globals, error) {
 
 	for _, block := range blocks {
 		for name, attr := range block.Body.Attributes {
+			if globals.hasField(name) {
+				return nil, fmt.Errorf("%w: global %q already defined", ErrGlobalRedefined, name)
+			}
 			val, err := attr.Expr.Value(nil)
 			if err != nil {
 				return nil, fmt.Errorf("evaluating attribute %q: %v", attr.Name, err)

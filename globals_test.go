@@ -15,13 +15,13 @@
 package terramate_test
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/zclconf/go-cty/cty"
@@ -33,9 +33,6 @@ import (
 // - using tf functions
 // - using metadata + tf functions
 // - globals referencing other globals
-// - err: config is not valid HCL/terramate
-// - err: config has single block + redefined names
-// - err: config has multiple blocks + redefined names
 
 func TestLoadGlobals(t *testing.T) {
 
@@ -249,13 +246,13 @@ func TestLoadGlobals(t *testing.T) {
 
 			for _, globalBlock := range tcase.globals {
 				path := filepath.Join(s.BaseDir(), globalBlock.path)
-				addGlobalsBlock(t, path, globalBlock.add)
+				test.AppendFile(t, path, config.Filename, globalBlock.add.String())
 			}
 
 			wantGlobals := tcase.want
 
-			stacks := s.LoadMetadata().Stacks
-			for _, stackMetadata := range stacks {
+			metadata := s.LoadMetadata()
+			for _, stackMetadata := range metadata.Stacks {
 				got, err := terramate.LoadStackGlobals(s.BaseDir(), stackMetadata)
 				assert.NoError(t, err)
 
@@ -276,20 +273,89 @@ func TestLoadGlobals(t *testing.T) {
 			}
 
 			if len(wantGlobals) > 0 {
-				t.Fatalf("wanted stack globals: %v that was not found on stacks: %v", wantGlobals, stacks)
+				t.Fatalf("wanted stack globals: %v that was not found on stacks: %v", wantGlobals, metadata.Stacks)
 			}
 		})
 	}
 }
 
-func addGlobalsBlock(t *testing.T, dir string, globals *terramate.Globals) {
-	t.Helper()
+func TestLoadGlobalsErrors(t *testing.T) {
 
-	data, err := os.ReadFile(filepath.Join(dir, config.Filename))
-	if err != nil && !os.IsNotExist(err) {
-		t.Fatal(err)
+	type (
+		cfg struct {
+			path string
+			body string
+		}
+		testcase struct {
+			name    string
+			layout  []string
+			configs []cfg
+			want    error
+		}
+	)
+
+	// - err: config is not valid HCL/terramate
+	// - err: config has single block + redefined names
+	// - err: config has multiple blocks + redefined names
+
+	tcases := []testcase{
+		{
+			name:   "stack config has global redefinition on single block",
+			layout: []string{"s:stack"},
+			configs: []cfg{
+				{
+					path: "/stack",
+					body: `
+					  globals {
+					    a = "hi"
+					    a = 5
+					  }
+					`,
+				},
+			},
+			// FIXME(katcipis): would be better to have ErrGlobalRedefined
+			// for now we get an error directly from hcl for this.
+			want: hcl.ErrHCLSyntax,
+		},
+		{
+			name:   "stack config has global redefinition on multiple blocks",
+			layout: []string{"s:stack"},
+			configs: []cfg{
+				{
+					path: "/stack",
+					body: `
+					  globals {
+					    a = "hi"
+					  }
+					  globals {
+					    a = 5
+					  }
+					  globals {
+					    a = true
+					  }
+					`,
+				},
+			},
+			want: terramate.ErrGlobalRedefined,
+		},
 	}
 
-	cfg := string(data) + "\n" + globals.String()
-	test.WriteFile(t, dir, config.Filename, cfg)
+	for _, tcase := range tcases {
+		t.Run(tcase.name, func(t *testing.T) {
+			s := sandbox.New(t)
+			s.BuildTree(tcase.layout)
+
+			metadata := s.LoadMetadata()
+
+			for _, c := range tcase.configs {
+				path := filepath.Join(s.BaseDir(), c.path)
+				test.AppendFile(t, path, config.Filename, c.body)
+			}
+
+			for _, stackMetadata := range metadata.Stacks {
+				_, err := terramate.LoadStackGlobals(s.BaseDir(), stackMetadata)
+				assert.IsError(t, err, tcase.want)
+			}
+		})
+	}
 }
