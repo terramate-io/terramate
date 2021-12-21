@@ -246,7 +246,10 @@ func TestLoadGlobals(t *testing.T) {
 			globals: []globalsBlock{
 				{
 					path: "/stacks/stack-1",
-					add:  globals(expr("stack_path", "terramate.path")),
+					add: globals(
+						expr("stack_path", "terramate.path"),
+						expr("interpolated", `"prefix-${terramate.name}-suffix"`),
+					),
 				},
 				{
 					path: "/stacks/stack-2",
@@ -254,7 +257,10 @@ func TestLoadGlobals(t *testing.T) {
 				},
 			},
 			want: map[string]*terramate.Globals{
-				"/stacks/stack-1": globals(str("stack_path", "/stacks/stack-1")),
+				"/stacks/stack-1": globals(
+					str("stack_path", "/stacks/stack-1"),
+					str("interpolated", "prefix-stack-1-suffix"),
+				),
 				"/stacks/stack-2": globals(str("stack_path", "/stacks/stack-2")),
 			},
 		},
