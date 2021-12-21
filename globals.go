@@ -25,8 +25,8 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-// StackGlobals holds all the globals defined for a stack.
-type StackGlobals struct {
+// Globals represents a globals block
+type Globals struct {
 	data map[string]cty.Value
 }
 
@@ -39,19 +39,19 @@ type StackGlobals struct {
 //
 // Metadata for the stack is used on the evaluation of globals, defined on stackmeta.
 // The rootdir MUST be an absolute path.
-func LoadStackGlobals(rootdir string, stackmeta StackMetadata) (*StackGlobals, error) {
+func LoadStackGlobals(rootdir string, stackmeta StackMetadata) (*Globals, error) {
 	return loadStackGlobals(rootdir, stackmeta.Path)
 }
 
-func NewStackGlobals() *StackGlobals {
-	return &StackGlobals{
+func NewGlobals() *Globals {
+	return &Globals{
 		data: map[string]cty.Value{},
 	}
 }
 
 // Equal checks if two StackGlobals are equal. They are equal if both
 // have globals with the same name=value.
-func (sg *StackGlobals) Equal(other *StackGlobals) bool {
+func (sg *Globals) Equal(other *Globals) bool {
 	if len(sg.data) != len(other.data) {
 		return false
 	}
@@ -70,12 +70,12 @@ func (sg *StackGlobals) Equal(other *StackGlobals) bool {
 }
 
 // Add adds a new global.
-func (sg *StackGlobals) Add(key string, val cty.Value) {
+func (sg *Globals) Add(key string, val cty.Value) {
 	sg.data[key] = val
 }
 
 // String representation of the stack globals as HCL.
-func (sg *StackGlobals) String() string {
+func (sg *Globals) String() string {
 	gen := hclwrite.NewEmptyFile()
 	rootBody := gen.Body()
 	tfBlock := rootBody.AppendNewBlock("globals", nil)
@@ -88,24 +88,24 @@ func (sg *StackGlobals) String() string {
 	return string(gen.Bytes())
 }
 
-func (sg *StackGlobals) merge(other *StackGlobals) {
+func (sg *Globals) merge(other *Globals) {
 	for k, v := range other.data {
 		_, ok := sg.data[k]
 		if ok {
 			continue
 		}
-		sg.data[k] = v
+		sg.Add(k, v)
 	}
 }
 
-func loadStackGlobals(rootdir string, cfgdir string) (*StackGlobals, error) {
+func loadStackGlobals(rootdir string, cfgdir string) (*Globals, error) {
 	cfgpath := filepath.Join(rootdir, cfgdir, config.Filename)
 	blocks, err := hcl.ParseGlobalsBlocks(cfgpath)
 
 	if os.IsNotExist(err) {
 		parentcfg, ok := parentDir(cfgdir)
 		if !ok {
-			return NewStackGlobals(), nil
+			return NewGlobals(), nil
 		}
 		return loadStackGlobals(rootdir, parentcfg)
 
@@ -115,7 +115,7 @@ func loadStackGlobals(rootdir string, cfgdir string) (*StackGlobals, error) {
 		return nil, err
 	}
 
-	globals := NewStackGlobals()
+	globals := NewGlobals()
 
 	for _, block := range blocks {
 		for name, attr := range block.Body.Attributes {

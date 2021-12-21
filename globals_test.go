@@ -29,7 +29,6 @@ import (
 
 // TODO(katcipis):
 //
-// - on stack + parent + root + overriding
 // - using metadata
 // - using tf functions
 // - using metadata + tf functions
@@ -43,35 +42,35 @@ func TestLoadGlobals(t *testing.T) {
 	type (
 		globalsBlock struct {
 			path string
-			add  *terramate.StackGlobals
+			add  *terramate.Globals
 		}
 		testcase struct {
 			name    string
 			layout  []string
 			globals []globalsBlock
-			want    map[string]*terramate.StackGlobals
+			want    map[string]*terramate.Globals
 		}
 	)
 
-	globals := func(builders ...func(g *terramate.StackGlobals)) *terramate.StackGlobals {
-		g := terramate.NewStackGlobals()
+	globals := func(builders ...func(g *terramate.Globals)) *terramate.Globals {
+		g := terramate.NewGlobals()
 		for _, builder := range builders {
 			builder(g)
 		}
 		return g
 	}
-	str := func(key string, val string) func(*terramate.StackGlobals) {
-		return func(g *terramate.StackGlobals) {
+	str := func(key string, val string) func(*terramate.Globals) {
+		return func(g *terramate.Globals) {
 			g.Add(key, cty.StringVal(val))
 		}
 	}
-	number := func(key string, val int64) func(*terramate.StackGlobals) {
-		return func(g *terramate.StackGlobals) {
+	number := func(key string, val int64) func(*terramate.Globals) {
+		return func(g *terramate.Globals) {
 			g.Add(key, cty.NumberIntVal(val))
 		}
 	}
-	boolean := func(key string, val bool) func(*terramate.StackGlobals) {
-		return func(g *terramate.StackGlobals) {
+	boolean := func(key string, val bool) func(*terramate.Globals) {
+		return func(g *terramate.Globals) {
 			g.Add(key, cty.BoolVal(val))
 		}
 	}
@@ -105,7 +104,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			want: map[string]*terramate.StackGlobals{
+			want: map[string]*terramate.Globals{
 				"/stack": globals(
 					str("some_string", "string"),
 					number("some_number", 777),
@@ -121,7 +120,7 @@ func TestLoadGlobals(t *testing.T) {
 				{path: "/stack", add: globals(number("num", 666))},
 				{path: "/stack", add: globals(boolean("bool", false))},
 			},
-			want: map[string]*terramate.StackGlobals{
+			want: map[string]*terramate.Globals{
 				"/stack": globals(
 					str("str", "hi"),
 					number("num", 666),
@@ -138,7 +137,7 @@ func TestLoadGlobals(t *testing.T) {
 			globals: []globalsBlock{
 				{path: "/stacks", add: globals(str("parent", "hi"))},
 			},
-			want: map[string]*terramate.StackGlobals{
+			want: map[string]*terramate.Globals{
 				"/stacks/stack-1": globals(str("parent", "hi")),
 				"/stacks/stack-2": globals(str("parent", "hi")),
 			},
@@ -152,7 +151,7 @@ func TestLoadGlobals(t *testing.T) {
 			globals: []globalsBlock{
 				{path: "/", add: globals(str("root", "hi"))},
 			},
-			want: map[string]*terramate.StackGlobals{
+			want: map[string]*terramate.Globals{
 				"/stacks/stack-1": globals(str("root", "hi")),
 				"/stacks/stack-2": globals(str("root", "hi")),
 			},
@@ -169,7 +168,7 @@ func TestLoadGlobals(t *testing.T) {
 				{path: "/stacks/stack-1", add: globals(number("stack", 666))},
 				{path: "/stacks/stack-2", add: globals(number("stack", 777))},
 			},
-			want: map[string]*terramate.StackGlobals{
+			want: map[string]*terramate.Globals{
 				"/stacks/stack-1": globals(
 					str("root", "root"),
 					boolean("parent", true),
@@ -220,7 +219,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			want: map[string]*terramate.StackGlobals{
+			want: map[string]*terramate.Globals{
 				"/stacks/stack-1": globals(
 					str("field_a", "field_a_stack_1"),
 					str("field_b", "field_b_stack_1"),
@@ -262,7 +261,7 @@ func TestLoadGlobals(t *testing.T) {
 
 				want, ok := wantGlobals[stackMetadata.Path]
 				if !ok {
-					want = terramate.NewStackGlobals()
+					want = terramate.NewGlobals()
 				}
 				delete(wantGlobals, stackMetadata.Path)
 
@@ -283,7 +282,7 @@ func TestLoadGlobals(t *testing.T) {
 	}
 }
 
-func addGlobalsBlock(t *testing.T, dir string, globals *terramate.StackGlobals) {
+func addGlobalsBlock(t *testing.T, dir string, globals *terramate.Globals) {
 	t.Helper()
 
 	data, err := os.ReadFile(filepath.Join(dir, config.Filename))
