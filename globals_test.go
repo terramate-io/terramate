@@ -294,17 +294,64 @@ func TestLoadGlobalsErrors(t *testing.T) {
 		}
 	)
 
-	// - err: config is not valid HCL/terramate
-	// - err: config has single block + redefined names
-	// - err: config has multiple blocks + redefined names
+	// These test scenarios where quite hard to describe with the
+	// core test fixture (core model doesn't allow duplicated fields
+	// by nature, and it never creates malformed global blocks),
+	// hence this separate error tests exists :-).
 
 	tcases := []testcase{
+		{
+			name:   "stack config has invalid global definition",
+			layout: []string{"s:stack"},
+			configs: []cfg{
+				{
+					path: "/stack",
+					body: `
+					  globals {
+					    a = "hi"
+					`,
+				},
+			},
+			want: hcl.ErrHCLSyntax,
+		},
+		{
+			name:   "root config has invalid global definition",
+			layout: []string{"s:stack"},
+			configs: []cfg{
+				{
+					path: "/",
+					body: `
+					  globals {
+					    a = "hi"
+					`,
+				},
+			},
+			want: hcl.ErrHCLSyntax,
+		},
 		{
 			name:   "stack config has global redefinition on single block",
 			layout: []string{"s:stack"},
 			configs: []cfg{
 				{
 					path: "/stack",
+					body: `
+					  globals {
+					    a = "hi"
+					    a = 5
+					  }
+					`,
+				},
+			},
+			// FIXME(katcipis): would be better to have ErrGlobalRedefined
+			// for now we get an error directly from hcl for this.
+			want: hcl.ErrHCLSyntax,
+		},
+		{
+			name:   "root config has global redefinition on single block",
+			layout: []string{"s:stack"},
+			configs: []cfg{
+				{
+					path: "/",
 					body: `
 					  globals {
 					    a = "hi"
@@ -332,6 +379,24 @@ func TestLoadGlobalsErrors(t *testing.T) {
 					  }
 					  globals {
 					    a = true
+					  }
+					`,
+				},
+			},
+			want: terramate.ErrGlobalRedefined,
+		},
+		{
+			name:   "root config has global redefinition on multiple blocks",
+			layout: []string{"s:stack"},
+			configs: []cfg{
+				{
+					path: "/",
+					body: `
+					  globals {
+					    a = "hi"
+					  }
+					  globals {
+					    a = 5
 					  }
 					`,
 				},
