@@ -29,7 +29,6 @@ import (
 
 // TODO(katcipis):
 //
-// - on stack + parent + root + no overriding
 // - on stack + parent + root + overriding
 // - using metadata
 // - using tf functions
@@ -183,6 +182,65 @@ func TestLoadGlobals(t *testing.T) {
 				),
 			},
 		},
+		{
+			name: "multiple stacks merging with overriding",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+				"s:stacks/stack-3",
+			},
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add: globals(
+						str("field_a", "field_a_root"),
+						str("field_b", "field_b_root"),
+					),
+				},
+				{
+					path: "/stacks",
+					add: globals(
+						str("field_b", "field_b_stacks"),
+						str("field_c", "field_c_stacks"),
+						str("field_d", "field_d_stacks"),
+					),
+				},
+				{
+					path: "/stacks/stack-1",
+					add: globals(
+						str("field_a", "field_a_stack_1"),
+						str("field_b", "field_b_stack_1"),
+						str("field_c", "field_c_stack_1"),
+					),
+				},
+				{
+					path: "/stacks/stack-2",
+					add: globals(
+						str("field_d", "field_d_stack_2"),
+					),
+				},
+			},
+			want: map[string]*terramate.StackGlobals{
+				"/stacks/stack-1": globals(
+					str("field_a", "field_a_stack_1"),
+					str("field_b", "field_b_stack_1"),
+					str("field_c", "field_c_stack_1"),
+					str("field_d", "field_d_stacks"),
+				),
+				"/stacks/stack-2": globals(
+					str("field_a", "field_a_root"),
+					str("field_b", "field_b_stacks"),
+					str("field_c", "field_c_stacks"),
+					str("field_d", "field_d_stack_2"),
+				),
+				"/stacks/stack-3": globals(
+					str("field_a", "field_a_root"),
+					str("field_b", "field_b_stacks"),
+					str("field_c", "field_c_stacks"),
+					str("field_d", "field_d_stacks"),
+				),
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
@@ -219,7 +277,7 @@ func TestLoadGlobals(t *testing.T) {
 			}
 
 			if len(wantGlobals) > 0 {
-				t.Fatalf("wanted stack globals: %v that where not found on stacks: %v", wantGlobals, stacks)
+				t.Fatalf("wanted stack globals: %v that was not found on stacks: %v", wantGlobals, stacks)
 			}
 		})
 	}
