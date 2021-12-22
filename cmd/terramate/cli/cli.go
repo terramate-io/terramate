@@ -198,6 +198,11 @@ func newCLI(
 		return nil, fmt.Errorf("failed evaluating symlinks for %q: %w", wd, err)
 	}
 
+	wd, err = filepath.Abs(wd)
+	if err != nil {
+		return nil, fmt.Errorf("getting absolute path of %q: %w", wd, err)
+	}
+
 	err = os.Chdir(wd)
 	if err != nil {
 		return nil, fmt.Errorf("failed to change working directory to %q: %w", wd, err)
