@@ -40,7 +40,7 @@ func BuildOrderTree(root string, stack stack.S, l stack.Loader) (OrderDAG, error
 func RunOrder(root string, stacks []stack.S, changed bool) ([]stack.S, error) {
 	trees := map[string]OrderDAG{} // indexed by stackdir
 
-	loader := stack.NewLoader()
+	loader := stack.NewLoader(root)
 	for _, stack := range stacks {
 		loader.Set(stack.Dir, stack)
 	}

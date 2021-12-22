@@ -49,7 +49,7 @@ func NewManager(rootdir string, gitBaseRef string) *Manager {
 	return &Manager{
 		root:        rootdir,
 		gitBaseRef:  gitBaseRef,
-		stackLoader: make(stack.Loader),
+		stackLoader: stack.NewLoader(rootdir),
 	}
 }
 

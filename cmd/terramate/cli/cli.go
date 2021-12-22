@@ -390,8 +390,7 @@ func (c *cli) generateGraph() error {
 		return err
 	}
 
-	loader := stack.NewLoader()
-
+	loader := stack.NewLoader(c.prj.root)
 	di := dot.NewGraph(dot.Directed)
 
 	relwd := prj.RelPath(c.prj.root, c.wd)
