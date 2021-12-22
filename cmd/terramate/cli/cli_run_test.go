@@ -381,13 +381,13 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 
 	cli := newCLI(t, s.BaseDir())
 
-	wantList := "/" + stack.RelPath() + "\n"
+	wantList := stack.RelPath() + "\n"
 	assertRunResult(t, cli.run("list", "--changed"), runResult{Stdout: wantList})
 
 	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
 		"Running on changed stacks:\n[%s] running %s %s\n%s\n",
-		"/"+stack.RelPath(),
+		stack.RelPath(),
 		cat,
 		mainTfFileName,
 		mainTfContents,
@@ -399,6 +399,14 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 		cat,
 		mainTfFileName,
 	), runResult{Stdout: wantRun})
+
+	wantRun = fmt.Sprintf(
+		"Running on changed stacks:\n[%s] running %s %s\n%s\n",
+		".",
+		cat,
+		mainTfFileName,
+		mainTfContents,
+	)
 
 	cli = newCLI(t, stack.Path())
 	assertRunResult(t, cli.run(
@@ -449,17 +457,17 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 
 	cli := newCLI(t, s.BaseDir())
 
-	wantList := "/" + stack.RelPath() + "\n" + "/" + stack2.RelPath() + "\n"
+	wantList := stack.RelPath() + "\n" + stack2.RelPath() + "\n"
 	assertRunResult(t, cli.run("list", "--changed"), runResult{Stdout: wantList})
 
 	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
 		"Running on changed stacks:\n[%s] running %s %s\n%s\n[%s] running %s %s\n%s\n",
-		"/"+stack2.RelPath(),
+		stack2.RelPath(),
 		cat,
 		mainTfFileName,
 		mainTfContents,
-		"/"+stack.RelPath(),
+		stack.RelPath(),
 		cat,
 		mainTfFileName,
 		mainTfContents,

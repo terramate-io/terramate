@@ -358,10 +358,12 @@ func (c *cli) printStacks() error {
 		return err
 	}
 
-	trimPart := c.wd + string(os.PathSeparator)
 	for _, entry := range entries {
 		stack := entry.Stack
-		stackdir := strings.TrimPrefix(stack.Dir, trimPart)
+		stackdir, ok := c.showdir(stack.Dir)
+		if !ok {
+			continue
+		}
 
 		if c.parsedArgs.List.Why {
 			c.log("%s - %s", stackdir, entry.Reason)
@@ -541,10 +543,9 @@ func (c *cli) runOnStacks() error {
 		if len(order) > 0 {
 			c.log("The stacks will be executed using order below:")
 
-			trimPart := c.wd + string(os.PathSeparator)
-
 			for i, s := range order {
-				c.log("\t%d. %s (%s)", i, s.Name(), strings.TrimPrefix(s.Dir, trimPart))
+				stackdir, _ := c.showdir(s.Dir)
+				c.log("\t%d. %s (%s)", i, s.Name(), stackdir)
 			}
 		} else {
 			c.log("No stacks will be executed.")
@@ -647,6 +648,10 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 	}
 
 	return nil
+}
+
+func (c *cli) showdir(dir string) (string, bool) {
+	return prj.ShowDir(c.prj.root, c.wd, dir)
 }
 
 func newGit(basedir string, inheritEnv bool, checkrepo bool) (*git.Git, error) {

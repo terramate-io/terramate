@@ -32,3 +32,21 @@ func RelPath(root, dir string) string {
 func AbsPath(root, dir string) string {
 	return filepath.Join(root, dir)
 }
+
+func ShowDir(root, wd, dir string) (string, bool) {
+	trimPart := RelPath(root, wd)
+	if !strings.HasPrefix(dir, trimPart) {
+		return "", false
+	}
+
+	dir = strings.TrimPrefix(dir, trimPart)
+	if dir == "" {
+		dir = "."
+	}
+
+	if dir[0] == '/' {
+		dir = dir[1:]
+	}
+
+	return dir, true
+}

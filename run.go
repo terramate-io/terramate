@@ -16,20 +16,28 @@ package terramate
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 
 	"github.com/madlambda/spells/errutil"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 )
 
 const ErrRunCycleDetected errutil.Error = "cycle detected in run order"
 
 func Run(root string, stacks []stack.S, cmdSpec *exec.Cmd) error {
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("error getting current directory: %w", err)
+	}
+
 	for _, stack := range stacks {
 		cmd := *cmdSpec
 
-		fmt.Fprintf(cmd.Stdout, "[%s] running %s\n", stack.Dir, &cmd)
+		stackdir, _ := project.ShowDir(root, wd, stack.Dir)
+		fmt.Fprintf(cmd.Stdout, "[%s] running %s\n", stackdir, &cmd)
 		cmd.Dir = filepath.Join(root, stack.Dir)
 		err := cmd.Run()
 		if err != nil {

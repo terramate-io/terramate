@@ -45,7 +45,7 @@ func TestCLIList(t *testing.T) {
 			name:   "single stack",
 			layout: []string{"s:stack"},
 			want: runResult{
-				Stdout: "/stack\n",
+				Stdout: "stack\n",
 			},
 		},
 		{
@@ -62,7 +62,7 @@ func TestCLIList(t *testing.T) {
 				"d:waste/directories",
 			},
 			want: runResult{
-				Stdout: "/there/is/a/very/deep/hidden/stack/here\n",
+				Stdout: "there/is/a/very/deep/hidden/stack/here\n",
 			},
 		},
 		{
@@ -71,7 +71,7 @@ func TestCLIList(t *testing.T) {
 				"s:1", "s:2", "s:3",
 			},
 			want: runResult{
-				Stdout: "/1\n/2\n/3\n",
+				Stdout: "1\n2\n3\n",
 			},
 		},
 		{
@@ -86,11 +86,11 @@ func TestCLIList(t *testing.T) {
 				"s:3/x/y/z",
 			},
 			want: runResult{
-				Stdout: `/1
-/2
-/3/x/y/z
-/x/b
-/z/a
+				Stdout: `1
+2
+3/x/y/z
+x/b
+z/a
 `,
 			},
 		},
