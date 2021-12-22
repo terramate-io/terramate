@@ -474,7 +474,7 @@ func (c *cli) printRunOrder() error {
 		}
 	}
 
-	order, err := terramate.RunOrder(c.prj.root, stacks, bool(c.parsedArgs.Changed))
+	order, err := terramate.RunOrder(c.prj.root, stacks, c.parsedArgs.Changed)
 	if err != nil {
 		c.logerr("error: %v", err)
 		return err
@@ -532,7 +532,7 @@ func (c *cli) runOnStacks() error {
 	cmd.Stdout = c.stdout
 	cmd.Stderr = c.stderr
 
-	order, err := terramate.RunOrder(c.prj.root, stacks, bool(c.parsedArgs.Changed))
+	order, err := terramate.RunOrder(c.prj.root, stacks, c.parsedArgs.Changed)
 	if err != nil {
 		return fmt.Errorf("failed to plan execution: %w", err)
 	}
