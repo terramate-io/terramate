@@ -413,7 +413,7 @@ func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
 		)
 	}
 
-	for name, _ := range block.Body.Attributes {
+	for name := range block.Body.Attributes {
 		return errutil.Chain(ErrMalformedTerramateConfig,
 			fmt.Errorf("unrecognized attribute terramate.config.%s", name),
 		)
