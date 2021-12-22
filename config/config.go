@@ -48,24 +48,24 @@ func Exists(path string) bool {
 	return info.Mode().IsRegular()
 }
 
-func TryLoadRootConfig(dir string) (found bool, cfg hcl.Config, err error) {
+func TryLoadRootConfig(dir string) (cfg hcl.Config, found bool, err error) {
 	path := filepath.Join(dir, Filename)
 	_, err = os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return false, hcl.Config{}, nil
+			return hcl.Config{}, false, nil
 		}
 
-		return false, hcl.Config{}, err
+		return hcl.Config{}, false, err
 	}
 
 	cfg, err = hcl.ParseFile(path)
 	if err != nil {
-		return false, hcl.Config{}, err
+		return hcl.Config{}, false, err
 	}
 
 	if cfg.Terramate.RootConfig != nil {
-		return true, cfg, nil
+		return cfg, true, nil
 	}
-	return false, hcl.Config{}, nil
+	return hcl.Config{}, false, nil
 }

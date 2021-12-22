@@ -121,7 +121,7 @@ type project struct {
 	root    string
 	wd      string
 	isRepo  bool
-	cfg     hcl.Config // root config
+	rootcfg hcl.Config
 	baseRef string
 }
 
@@ -655,13 +655,13 @@ func lookupProject(wd string) (found bool, prj project, err error) {
 			}
 
 			root := filepath.Dir(gitabs)
-			_, cfg, err := config.TryLoadRootConfig(root)
+			cfg, _, err := config.TryLoadRootConfig(root)
 			if err != nil {
 				return false, project{}, err
 			}
 
 			prj.isRepo = true
-			prj.cfg = cfg
+			prj.rootcfg = cfg
 			prj.root = root
 
 			return true, prj, nil
@@ -671,14 +671,14 @@ func lookupProject(wd string) (found bool, prj project, err error) {
 	dir := wd
 
 	for {
-		ok, cfg, err := config.TryLoadRootConfig(dir)
+		cfg, ok, err := config.TryLoadRootConfig(dir)
 		if err != nil {
 			return false, project{}, err
 		}
 
 		if ok {
 			prj.root = dir
-			prj.cfg = cfg
+			prj.rootcfg = cfg
 
 			return true, prj, nil
 		}
@@ -694,15 +694,15 @@ func lookupProject(wd string) (found bool, prj project, err error) {
 }
 
 func (p *project) setDefaults(parsedArgs *cliSpec) error {
-	if p.cfg.Terramate == nil {
+	if p.rootcfg.Terramate == nil {
 		// if config has no terramate block we create one with default
 		// configurations.
-		p.cfg.Terramate = &hcl.Terramate{}
+		p.rootcfg.Terramate = &hcl.Terramate{}
 	}
 
-	cfg := &p.cfg
+	cfg := &p.rootcfg
 	if cfg.Terramate.RootConfig == nil {
-		p.cfg.Terramate.RootConfig = &hcl.RootConfig{}
+		p.rootcfg.Terramate.RootConfig = &hcl.RootConfig{}
 	}
 
 	gitOpt := &cfg.Terramate.RootConfig.Git
@@ -715,12 +715,12 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 		gitOpt.DefaultBranchBaseRef = defaultBranchBaseRef
 	}
 
-	if gitOpt.Branch == "" {
-		gitOpt.Branch = defaultBranch
+	if gitOpt.DefaultBranch == "" {
+		gitOpt.DefaultBranch = defaultBranch
 	}
 
-	if gitOpt.Remote == "" {
-		gitOpt.Remote = defaultRemote
+	if gitOpt.DefaultRemote == "" {
+		gitOpt.DefaultRemote = defaultRemote
 	}
 
 	baseRef := parsedArgs.GitChangeBase
@@ -737,7 +737,7 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 				return fmt.Errorf("failed to get current git branch: %v", err)
 			}
 
-			if branch == gitOpt.Branch {
+			if branch == gitOpt.DefaultBranch {
 				baseRef = gitOpt.DefaultBranchBaseRef
 			}
 		}

@@ -47,7 +47,7 @@ const (
 // It will return an error if it finds any invalid terramate configuration files
 // of if it can't generate the files properly for some reason.
 //
-// The provided basedir must be an absolute path to a directory.
+// The provided root must be an absolute path to project's root directory.
 func Generate(root string) error {
 	if !filepath.IsAbs(root) {
 		return fmt.Errorf("project's root %q must be an absolute path", root)
@@ -55,7 +55,7 @@ func Generate(root string) error {
 
 	info, err := os.Lstat(root)
 	if err != nil {
-		return fmt.Errorf("checking basedir %q: %v", root, err)
+		return fmt.Errorf("checking project's root directory %q: %v", root, err)
 	}
 
 	if !info.IsDir() {
@@ -76,7 +76,7 @@ func Generate(root string) error {
 
 	for _, entry := range stackEntries {
 		// At the time the most intuitive way was to start from the stack
-		// and go up until reaching the basedir, looking for a config.
+		// and go up until reaching the root, looking for a config.
 		// Basically navigating from the order of precedence, since
 		// more specific configuration overrides base configuration.
 		// Not the most optimized way (re-parsing), we can improve later
@@ -120,7 +120,7 @@ func Generate(root string) error {
 
 func generateStackConfig(root string, configdir string, evalctx *tfhcl.EvalContext) ([]byte, error) {
 	if !strings.HasPrefix(configdir, root) {
-		// check if we are outside of basedir, time to stop
+		// check if we are outside of project's root, time to stop
 		return nil, nil
 	}
 

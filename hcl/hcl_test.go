@@ -439,12 +439,26 @@ terramate {
 			},
 		},
 		{
+			name: "multiple config.git blocks - fails",
+			input: `
+terramate {
+	config {
+		git {}
+		git {}
+	}
+}
+	`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
 			name: "basic config.git block",
 			input: `
 terramate {
 	config {
 		git {
-			branch = "trunk"
+			default_branch = "trunk"
 		}
 	}
 }
@@ -454,7 +468,7 @@ terramate {
 					Terramate: &hcl.Terramate{
 						RootConfig: &hcl.RootConfig{
 							Git: hcl.GitConfig{
-								Branch: "trunk",
+								DefaultBranch: "trunk",
 							},
 						},
 					},
@@ -467,10 +481,10 @@ terramate {
 terramate {
 	config {
 		git {
-			branch = "trunk"
-			remote = "upstream"
-			baseRef = "upstream/trunk"
-			defaultBranchBaseRef = "HEAD~2"
+			default_branch = "trunk"
+			default_remote = "upstream"
+			base_ref = "upstream/trunk"
+			default_branch_base_ref = "HEAD~2"
 		}
 	}
 }
@@ -480,8 +494,8 @@ terramate {
 					Terramate: &hcl.Terramate{
 						RootConfig: &hcl.RootConfig{
 							Git: hcl.GitConfig{
-								Branch:               "trunk",
-								Remote:               "upstream",
+								DefaultBranch:        "trunk",
+								DefaultRemote:        "upstream",
 								BaseRef:              "upstream/trunk",
 								DefaultBranchBaseRef: "HEAD~2",
 							},
