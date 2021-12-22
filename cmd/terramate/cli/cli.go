@@ -234,7 +234,7 @@ func (c *cli) run() error {
 	}
 
 	if c.parsedArgs.Changed {
-		git, err := newGit(c.prj.root, c.inheritEnv, true)
+		git, err := newGit(c.root(), c.inheritEnv, true)
 		if err != nil {
 			return err
 		}
@@ -286,7 +286,7 @@ func (c *cli) initStack(dirs []string) error {
 			d = filepath.Join(c.wd(), d)
 		}
 
-		err := terramate.Init(c.prj.root, d, c.parsedArgs.Init.Force)
+		err := terramate.Init(c.root(), d, c.parsedArgs.Init.Force)
 		if err != nil {
 			c.logerr("warn: failed to initialize stack: %v", err)
 			errmsgs = append(errmsgs, err.Error())
@@ -309,7 +309,7 @@ func (c *cli) listStacks(mgr *terramate.Manager, isChanged bool) ([]terramate.En
 }
 
 func (c *cli) printStacks() error {
-	mgr := terramate.NewManager(c.prj.root, c.prj.baseRef)
+	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
 	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		return err
@@ -342,21 +342,21 @@ func (c *cli) generateGraph() error {
 	default:
 		return fmt.Errorf("-label expects the values \"stack.name\" or \"stack.dir\"")
 	}
-	entries, err := terramate.ListStacks(c.prj.root)
+	entries, err := terramate.ListStacks(c.root())
 	if err != nil {
 		return err
 	}
 
-	loader := stack.NewLoader(c.prj.root)
+	loader := stack.NewLoader(c.root())
 	di := dot.NewGraph(dot.Directed)
 
-	relwd := prj.RelPath(c.prj.root, c.wd())
+	relwd := prj.RelPath(c.root(), c.wd())
 	for _, e := range entries {
 		if !strings.HasPrefix(e.Stack.Dir, relwd) {
 			continue
 		}
 
-		tree, err := terramate.BuildOrderTree(c.prj.root, e.Stack, loader)
+		tree, err := terramate.BuildOrderTree(c.root(), e.Stack, loader)
 		if err != nil {
 			return fmt.Errorf("failed to build order tree: %w", err)
 		}
@@ -418,13 +418,13 @@ func generateDot(
 }
 
 func (c *cli) printRunOrder() error {
-	mgr := terramate.NewManager(c.prj.root, c.prj.baseRef)
+	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
 	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		return err
 	}
 
-	relwd := prj.RelPath(c.prj.root, c.wd())
+	relwd := prj.RelPath(c.root(), c.wd())
 	stacks := make([]stack.S, 0, len(entries))
 	for _, e := range entries {
 		if strings.HasPrefix(e.Stack.Dir, relwd) {
@@ -432,7 +432,7 @@ func (c *cli) printRunOrder() error {
 		}
 	}
 
-	order, err := terramate.RunOrder(c.prj.root, stacks, c.parsedArgs.Changed)
+	order, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
 		c.logerr("error: %v", err)
 		return err
@@ -463,7 +463,7 @@ func (c *cli) printMetadata() error {
 }
 
 func (c *cli) runOnStacks() error {
-	mgr := terramate.NewManager(c.prj.root, c.prj.baseRef)
+	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
 	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		return err
@@ -475,7 +475,7 @@ func (c *cli) runOnStacks() error {
 		c.log("Running on all stacks:")
 	}
 
-	relwd := prj.RelPath(c.prj.root, c.wd())
+	relwd := prj.RelPath(c.root(), c.wd())
 	stacks := make([]stack.S, 0, len(entries))
 	for _, e := range entries {
 		if strings.HasPrefix(e.Stack.Dir, relwd) {
@@ -490,7 +490,7 @@ func (c *cli) runOnStacks() error {
 	cmd.Stdout = c.stdout
 	cmd.Stderr = c.stderr
 
-	order, err := terramate.RunOrder(c.prj.root, stacks, c.parsedArgs.Changed)
+	order, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
 		return fmt.Errorf("failed to plan execution: %w", err)
 	}
@@ -510,7 +510,7 @@ func (c *cli) runOnStacks() error {
 		return nil
 	}
 
-	err = terramate.Run(c.prj.root, order, cmd)
+	err = terramate.Run(c.root(), order, cmd)
 	if err != nil {
 		c.logerr("warn: failed to execute command: %v", err)
 	}
@@ -610,7 +610,7 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 }
 
 func (c *cli) showdir(dir string) (string, bool) {
-	return prj.ShowDir(c.prj.root, c.wd(), dir)
+	return prj.ShowDir(c.root(), c.wd(), dir)
 }
 
 func newGit(basedir string, inheritEnv bool, checkrepo bool) (*git.Git, error) {
