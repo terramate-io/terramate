@@ -56,9 +56,6 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
 
-      - name: directory-sanity-check
-        run: cd stack && git rev-parse --git-dir
-
       - name: make test
         run: make test
 

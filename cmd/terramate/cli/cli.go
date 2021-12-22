@@ -643,6 +643,12 @@ func lookupProject(wd string) (found bool, prj project, err error) {
 				return false, project{}, fmt.Errorf("getting absolute path of %q: %w", gitdir, err)
 			}
 
+			gitabs, err = filepath.EvalSymlinks(gitabs)
+			if err != nil {
+				return false, project{}, fmt.Errorf("failed evaluating symlinks of %q: %w",
+					gitabs, err)
+			}
+
 			root := filepath.Dir(gitabs)
 			_, cfg, err := config.TryLoadRootConfig(root)
 			if err != nil {
