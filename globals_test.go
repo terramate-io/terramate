@@ -375,6 +375,53 @@ func TestLoadGlobals(t *testing.T) {
 				),
 			},
 		},
+		{
+			name: "stack with globals referencing globals hierarchically and overriding",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add: globals(
+						expr("stack_ref", "globals.stack"),
+					),
+				},
+				{
+					path: "/stacks",
+					add: globals(
+						expr("stack_ref", "globals.stack_other"),
+					),
+				},
+				{
+					path: "/stacks/stack-1",
+					add: globals(
+						str("stack", "stack-1"),
+						str("stack_other", "other stack-1"),
+					),
+				},
+				{
+					path: "/stacks/stack-2",
+					add: globals(
+						str("stack", "stack-2"),
+						str("stack_other", "other stack-2"),
+					),
+				},
+			},
+			want: map[string]*TestGlobals{
+				"/stacks/stack-1": globals(
+					str("stack", "stack-1"),
+					str("stack_other", "other stack-1"),
+					str("stack_ref", "other stack-1"),
+				),
+				"/stacks/stack-2": globals(
+					str("stack", "stack-2"),
+					str("stack_other", "other stack-2"),
+					str("stack_ref", "other stack-2"),
+				),
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
