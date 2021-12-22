@@ -27,7 +27,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-// Globals represents a globals block. Always use NewGlobals to create it.
+// Globals represents a globals block.
 type Globals struct {
 	evaluated   map[string]cty.Value
 	nonEvaluted map[string]hclsyntax.Expression
@@ -58,13 +58,6 @@ func LoadStackGlobals(rootdir string, meta StackMetadata) (*Globals, error) {
 	}
 
 	return globals, nil
-}
-
-func NewGlobals() *Globals {
-	return &Globals{
-		evaluated:   map[string]cty.Value{},
-		nonEvaluted: map[string]hclsyntax.Expression{},
-	}
 }
 
 // Iter iterates the globals. There is no order guarantee on the iteration.
@@ -112,7 +105,7 @@ func loadStackGlobals(rootdir string, cfgdir string) (*Globals, error) {
 	if os.IsNotExist(err) {
 		parentcfg, ok := parentDir(cfgdir)
 		if !ok {
-			return NewGlobals(), nil
+			return newGlobals(), nil
 		}
 		return loadStackGlobals(rootdir, parentcfg)
 
@@ -122,7 +115,7 @@ func loadStackGlobals(rootdir string, cfgdir string) (*Globals, error) {
 		return nil, err
 	}
 
-	globals := NewGlobals()
+	globals := newGlobals()
 
 	for _, block := range blocks {
 		for name, attr := range block.Body.Attributes {
@@ -151,4 +144,11 @@ func loadStackGlobals(rootdir string, cfgdir string) (*Globals, error) {
 func parentDir(dir string) (string, bool) {
 	parent := filepath.Dir(dir)
 	return parent, parent != dir
+}
+
+func newGlobals() *Globals {
+	return &Globals{
+		evaluated:   map[string]cty.Value{},
+		nonEvaluted: map[string]hclsyntax.Expression{},
+	}
 }
