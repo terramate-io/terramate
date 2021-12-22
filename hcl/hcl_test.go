@@ -527,7 +527,9 @@ stack {}`,
 		},
 		{
 			name: "multiple stack blocks",
-			input: `stack{}
+			input: `
+terramate {}
+stack{}
 stack {}`,
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
