@@ -77,7 +77,7 @@ type FileEntry struct {
 func New(t *testing.T) S {
 	t.Helper()
 
-	basedir := t.TempDir()
+	basedir := test.CanonPath(t, t.TempDir())
 	git := NewGit(t, basedir)
 	git.Init()
 	return S{
