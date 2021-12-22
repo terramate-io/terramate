@@ -29,7 +29,7 @@ import (
 
 // Globals represents a globals block.
 type Globals struct {
-	evaluated map[string]cty.Value
+	attributes map[string]cty.Value
 }
 
 const ErrGlobalRedefined errutil.Error = "global redefined"
@@ -57,29 +57,43 @@ func LoadStackGlobals(rootdir string, meta StackMetadata) (*Globals, error) {
 
 // Iter iterates the globals. There is no order guarantee on the iteration.
 func (g *Globals) Iter(iter func(name string, val cty.Value)) {
-	for name, val := range g.evaluated {
+	for name, val := range g.attributes {
 		iter(name, val)
 	}
 }
 
+// Attributes returns all the global attributes, the key in the map
+// is the attribute name with its corresponding value mapped
+func (g *Globals) Attributes() map[string]cty.Value {
+	return g.attributes
+}
+
 func (g *Globals) add(name string, val cty.Value) {
-	g.evaluated[name] = val
+	g.attributes[name] = val
 }
 
-type nonEvalGlobals struct {
-	nonEvaluted map[string]hclsyntax.Expression
+type rawGlobals struct {
+	expressions map[string]hclsyntax.Expression
 }
 
-func (n *nonEvalGlobals) merge(other *nonEvalGlobals) {
-	for k, v := range other.nonEvaluted {
-		_, ok := n.nonEvaluted[k]
-		if !ok {
-			n.nonEvaluted[k] = v
+func (r *rawGlobals) merge(other *rawGlobals) {
+	for k, v := range other.expressions {
+		if !r.has(k) {
+			r.add(k, v)
 		}
 	}
 }
 
-func (n *nonEvalGlobals) eval(meta StackMetadata) (*Globals, error) {
+func (r *rawGlobals) add(name string, expr hclsyntax.Expression) {
+	r.expressions[name] = expr
+}
+
+func (r *rawGlobals) has(name string) bool {
+	_, ok := r.expressions[name]
+	return ok
+}
+
+func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 	// TODO(katcipis): add BaseDir on Scope.
 	tfscope := &tflang.Scope{}
 	evalctx, err := newHCLEvalContext(meta, tfscope)
@@ -87,32 +101,65 @@ func (n *nonEvalGlobals) eval(meta StackMetadata) (*Globals, error) {
 		return nil, err
 	}
 
+	var errs []error
 	globals := newGlobals()
+	pendingExprs := r.expressions
 
-	for k, expr := range n.nonEvaluted {
-		val, err := expr.Value(evalctx)
-		if err != nil {
-			return nil, err
+	for len(pendingExprs) > 0 {
+		evaluated := 0
+
+		for name, expr := range pendingExprs {
+			val, err := expr.Value(evalctx)
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+
+			globals.add(name, val)
+			evaluated += 1
+			delete(pendingExprs, name)
 		}
-		globals.add(k, val)
+
+		if evaluated == 0 {
+			break
+		}
+
+		attrs := globals.Attributes()
+		globalsObj, err := hclMapToCty(attrs)
+
+		if err != nil {
+			return nil, fmt.Errorf("evaluating globals: unexpected %v", err)
+		}
+
+		evalctx.Variables["globals"] = globalsObj
+		errs = nil
 	}
+
+	err = errutil.Reduce(func(err1 error, err2 error) error {
+		return fmt.Errorf("%v:%v", err1, err2)
+	}, errs...)
+
+	if err != nil {
+		return nil, fmt.Errorf("evaluating globals: %v", err)
+	}
+
 	return globals, nil
 }
 
-func newNonEvalGlobals() *nonEvalGlobals {
-	return &nonEvalGlobals{
-		nonEvaluted: map[string]hclsyntax.Expression{},
+func newRawGlobals() *rawGlobals {
+	return &rawGlobals{
+		expressions: map[string]hclsyntax.Expression{},
 	}
 }
 
-func loadStackGlobals(rootdir string, cfgdir string) (*nonEvalGlobals, error) {
+func loadStackGlobals(rootdir string, cfgdir string) (*rawGlobals, error) {
 	cfgpath := filepath.Join(rootdir, cfgdir, config.Filename)
 	blocks, err := hcl.ParseGlobalsBlocks(cfgpath)
 
 	if os.IsNotExist(err) {
 		parentcfg, ok := parentDir(cfgdir)
 		if !ok {
-			return newNonEvalGlobals(), nil
+			return newRawGlobals(), nil
 		}
 		return loadStackGlobals(rootdir, parentcfg)
 
@@ -122,14 +169,14 @@ func loadStackGlobals(rootdir string, cfgdir string) (*nonEvalGlobals, error) {
 		return nil, err
 	}
 
-	globals := newNonEvalGlobals()
+	globals := newRawGlobals()
 
 	for _, block := range blocks {
 		for name, attr := range block.Body.Attributes {
-			if _, ok := globals.nonEvaluted[name]; ok {
+			if globals.has(name) {
 				return nil, fmt.Errorf("%w: global %q already defined", ErrGlobalRedefined, name)
 			}
-			globals.nonEvaluted[name] = attr.Expr
+			globals.add(name, attr.Expr)
 		}
 	}
 
@@ -155,6 +202,6 @@ func parentDir(dir string) (string, bool) {
 
 func newGlobals() *Globals {
 	return &Globals{
-		evaluated: map[string]cty.Value{},
+		attributes: map[string]cty.Value{},
 	}
 }

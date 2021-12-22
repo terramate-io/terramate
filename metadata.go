@@ -70,6 +70,7 @@ func (m Metadata) StackMetadata(abspath string) (StackMetadata, bool) {
 }
 
 func newHCLEvalContext(metadata StackMetadata, scope *tflang.Scope) (*tfhcl.EvalContext, error) {
+	// TODO(katcipis): move to hcl package
 	vars, err := hclMapToCty(map[string]cty.Value{
 		"name": cty.StringVal(metadata.Name),
 		"path": cty.StringVal(metadata.Path),
@@ -86,6 +87,7 @@ func newHCLEvalContext(metadata StackMetadata, scope *tflang.Scope) (*tfhcl.Eval
 }
 
 func hclMapToCty(m map[string]cty.Value) (cty.Value, error) {
+	// TODO(katcipis): move to hcl package
 	ctyTypes := map[string]cty.Type{}
 	for key, value := range m {
 		ctyTypes[key] = value.Type()

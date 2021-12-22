@@ -30,8 +30,7 @@ import (
 )
 
 // TODO(katcipis):
-//
-// - globals referencing other globals
+// - globals: list global + global referencing list by index
 // - err: globals referencing non-existent globals
 
 func TestLoadGlobals(t *testing.T) {
@@ -294,6 +293,33 @@ func TestLoadGlobals(t *testing.T) {
 					str("interpolated", "prefix-@stacks@stack-1-suffix"),
 				),
 				"/stacks/stack-2": globals(str("stack_path", "-stacks-stack-2")),
+			},
+		},
+		{
+			name:   "stack with globals referencing globals",
+			layout: []string{"s:stack"},
+			globals: []globalsBlock{
+				{
+					path: "/stack",
+					add: globals(
+						str("field", "some-string"),
+						expr("stack_path", "terramate.path"),
+						expr("ref_field", "globals.field"),
+						expr("ref_stack_path", "globals.stack_path"),
+						expr("interpolation", `"${globals.ref_stack_path}-${globals.ref_field}"`),
+						expr("ref_interpolation", "globals.interpolation"),
+					),
+				},
+			},
+			want: map[string]*TestGlobals{
+				"/stack": globals(
+					str("field", "some-string"),
+					str("stack_path", "/stack"),
+					str("ref_field", "some-string"),
+					str("ref_stack_path", "/stack"),
+					str("interpolation", "/stack-some-string"),
+					str("ref_interpolation", "/stack-some-string"),
+				),
 			},
 		},
 	}
