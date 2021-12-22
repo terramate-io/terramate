@@ -174,6 +174,16 @@ something = 1`,
 			},
 		},
 		{
+			name: "unrecognized block",
+			input: `terramate{
+				something {}
+			}
+`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
 			name: "multiple terramate blocks",
 			input: `terramate{}
 terramate {}`,
