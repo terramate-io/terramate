@@ -29,8 +29,7 @@ import (
 
 // Globals represents a globals block.
 type Globals struct {
-	evaluated   map[string]cty.Value
-	nonEvaluted map[string]hclsyntax.Expression
+	evaluated map[string]cty.Value
 }
 
 const ErrGlobalRedefined errutil.Error = "global redefined"
@@ -49,15 +48,11 @@ func LoadStackGlobals(rootdir string, meta StackMetadata) (*Globals, error) {
 		return nil, fmt.Errorf("%q is not absolute path", rootdir)
 	}
 
-	globals, err := loadStackGlobals(rootdir, meta.Path)
+	unEvalGlobals, err := loadStackGlobals(rootdir, meta.Path)
 	if err != nil {
 		return nil, err
 	}
-	if err := globals.Eval(meta); err != nil {
-		return nil, err
-	}
-
-	return globals, nil
+	return unEvalGlobals.eval(meta)
 }
 
 // Iter iterates the globals. There is no order guarantee on the iteration.
@@ -67,45 +62,57 @@ func (g *Globals) Iter(iter func(name string, val cty.Value)) {
 	}
 }
 
-// Eval evaluates any pending expressions on the context of a specific stack.
-// It is safe to call Eval with the same metadata multiple times.
-func (g *Globals) Eval(meta StackMetadata) error {
+func (g *Globals) add(name string, val cty.Value) {
+	g.evaluated[name] = val
+}
 
+type nonEvalGlobals struct {
+	nonEvaluted map[string]hclsyntax.Expression
+}
+
+func (n *nonEvalGlobals) merge(other *nonEvalGlobals) {
+	for k, v := range other.nonEvaluted {
+		_, ok := n.nonEvaluted[k]
+		if !ok {
+			n.nonEvaluted[k] = v
+		}
+	}
+}
+
+func (n *nonEvalGlobals) eval(meta StackMetadata) (*Globals, error) {
 	// TODO(katcipis): add BaseDir on Scope.
 	tfscope := &tflang.Scope{}
 	evalctx, err := newHCLEvalContext(meta, tfscope)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	for k, expr := range g.nonEvaluted {
+	globals := newGlobals()
+
+	for k, expr := range n.nonEvaluted {
 		val, err := expr.Value(evalctx)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		g.evaluated[k] = val
+		globals.add(k, val)
 	}
-	g.nonEvaluted = map[string]hclsyntax.Expression{}
-	return nil
+	return globals, nil
 }
 
-func (g *Globals) merge(other *Globals) {
-	for k, v := range other.nonEvaluted {
-		_, ok := g.nonEvaluted[k]
-		if !ok {
-			g.nonEvaluted[k] = v
-		}
+func newNonEvalGlobals() *nonEvalGlobals {
+	return &nonEvalGlobals{
+		nonEvaluted: map[string]hclsyntax.Expression{},
 	}
 }
 
-func loadStackGlobals(rootdir string, cfgdir string) (*Globals, error) {
+func loadStackGlobals(rootdir string, cfgdir string) (*nonEvalGlobals, error) {
 	cfgpath := filepath.Join(rootdir, cfgdir, config.Filename)
 	blocks, err := hcl.ParseGlobalsBlocks(cfgpath)
 
 	if os.IsNotExist(err) {
 		parentcfg, ok := parentDir(cfgdir)
 		if !ok {
-			return newGlobals(), nil
+			return newNonEvalGlobals(), nil
 		}
 		return loadStackGlobals(rootdir, parentcfg)
 
@@ -115,7 +122,7 @@ func loadStackGlobals(rootdir string, cfgdir string) (*Globals, error) {
 		return nil, err
 	}
 
-	globals := newGlobals()
+	globals := newNonEvalGlobals()
 
 	for _, block := range blocks {
 		for name, attr := range block.Body.Attributes {
@@ -148,7 +155,6 @@ func parentDir(dir string) (string, bool) {
 
 func newGlobals() *Globals {
 	return &Globals{
-		evaluated:   map[string]cty.Value{},
-		nonEvaluted: map[string]hclsyntax.Expression{},
+		evaluated: map[string]cty.Value{},
 	}
 }
