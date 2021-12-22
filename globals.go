@@ -19,7 +19,6 @@ import (
 	"os"
 	"path/filepath"
 
-	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	tflang "github.com/hashicorp/terraform/lang"
@@ -76,58 +75,6 @@ func (g *Globals) Iter(iter func(name string, val cty.Value)) {
 	}
 }
 
-// Equal checks if two StackGlobals are equal. They are equal if both
-// have globals with the same name=value.
-func (g *Globals) Equal(other *Globals) bool {
-	if len(g.evaluated) != len(other.evaluated) {
-		return false
-	}
-
-	for k, v := range other.evaluated {
-		val, ok := g.evaluated[k]
-		if !ok {
-			return false
-		}
-		if !v.RawEquals(val) {
-			return false
-		}
-	}
-
-	return true
-}
-
-// AddExpr adds a new expression to the global.
-// It will not be evaluated until Eval is called.
-// Returns an error if the expression is not a valid HCL expression.
-func (g *Globals) AddExpr(key string, expr string) error {
-	parsed, diags := hclsyntax.ParseExpression([]byte(expr), "", hhcl.Pos{})
-	if diags.HasErrors() {
-		return fmt.Errorf("parsing expression %q=%q: %v", key, expr, diags)
-	}
-	// It is remarkably hard to write HCL from an expression:
-	// https://stackoverflow.com/questions/67945463/how-to-use-hcl-write-to-set-expressions-with
-	// So this ugly hack for now :-(
-	// And yes, it seemed like a good idea to have two token types on each library.
-	hcltokens, diags := hclsyntax.LexExpression([]byte(expr), "", hhcl.Pos{})
-	if diags.HasErrors() {
-		return fmt.Errorf("tokenizing expression %q=%q: %v", key, expr, diags)
-	}
-	tokens := make([]*hclwrite.Token, len(hcltokens))
-
-	for i, t := range hcltokens {
-		tokens[i] = &hclwrite.Token{
-			Type:  t.Type,
-			Bytes: t.Bytes,
-		}
-	}
-
-	g.nonEvaluted[key] = expression{
-		expr:   parsed,
-		tokens: tokens,
-	}
-	return nil
-}
-
 // Eval evaluates any pending expressions on the context of a specific stack.
 // It is safe to call Eval with the same metadata multiple times.
 func (g *Globals) Eval(meta StackMetadata) error {
@@ -148,30 +95,6 @@ func (g *Globals) Eval(meta StackMetadata) error {
 	}
 	g.nonEvaluted = map[string]expression{}
 	return nil
-}
-
-// String representation of the stack globals as HCL.
-func (g *Globals) String() string {
-	gen := hclwrite.NewEmptyFile()
-	rootBody := gen.Body()
-	tfBlock := rootBody.AppendNewBlock("globals", nil)
-	tfBody := tfBlock.Body()
-
-	for name, val := range g.evaluated {
-		tfBody.SetAttributeValue(name, val)
-	}
-
-	for name, pending := range g.nonEvaluted {
-		// Not sure the best way to approach this.
-		// Just want to add raw expressions back to HCL but
-		// it was quite confusing with traversals and traversers, etc.
-		//
-		// - https://stackoverflow.com/questions/67945463/how-to-use-hcl-write-to-set-expressions-with
-		tfBody.SetAttributeRaw(name, pending.tokens)
-	}
-
-	// Tokens logic for pending expressions introduces messed up formatting.
-	return string(hclwrite.Format(gen.Bytes()))
 }
 
 func (g *Globals) merge(other *Globals) {
