@@ -228,7 +228,6 @@ terramate {
 }
 
 func TestHCLParserBackend(t *testing.T) {
-
 	for _, tc := range []testcase{
 		{
 			name: "backend with attributes",
@@ -391,6 +390,18 @@ terramate {
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{},
 				},
+			},
+		},
+		{
+			name: "multiple config blocks - fails",
+			input: `
+terramate {
+	config {}
+	config {}
+}
+	`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
