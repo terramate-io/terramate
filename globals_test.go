@@ -322,6 +322,59 @@ func TestLoadGlobals(t *testing.T) {
 				),
 			},
 		},
+		{
+			name:   "stack with globals referencing globals hierarchically no overriding",
+			layout: []string{"s:envs/prod/stacks/stack"},
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add: globals(
+						str("root_field", "root-data"),
+						number("root_number", 666),
+						boolean("root_bool", true),
+						expr("root_stack_ref", "globals.stack_inter"),
+					),
+				},
+				{
+					path: "/envs",
+					add: globals(
+						expr("env_metadata", "terramate.path"),
+						expr("env_root_ref", "globals.root_field"),
+					),
+				},
+				{
+					path: "/envs/prod",
+					add:  globals(str("env", "prod")),
+				},
+				{
+					path: "/envs/prod/stacks",
+					add: globals(
+						expr("stacks_field", `"${terramate.name}-${globals.env}"`),
+					),
+				},
+				{
+					path: "/envs/prod/stacks/stack",
+					add: globals(
+						expr("stack_inter", `"${globals.root_field}-${globals.env}-${globals.stacks_field}"`),
+						expr("stack_bool", "globals.root_bool"),
+					),
+				},
+			},
+			want: map[string]*TestGlobals{
+				"/envs/prod/stacks/stack": globals(
+					str("root_field", "root-data"),
+					number("root_number", 666),
+					boolean("root_bool", true),
+					str("root_stack_ref", "root-data-prod-stack-prod"),
+					str("env_metadata", "/envs/prod/stacks/stack"),
+					str("env_root_ref", "root-data"),
+					str("env", "prod"),
+					str("stacks_field", "stack-prod"),
+					str("stack_inter", "root-data-prod-stack-prod"),
+					boolean("stack_bool", true),
+				),
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
