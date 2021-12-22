@@ -31,8 +31,6 @@ import (
 
 // TODO(katcipis):
 //
-// - using tf functions
-// - using metadata + tf functions
 // - globals referencing other globals
 // - err: globals referencing non-existent globals
 
@@ -271,6 +269,33 @@ func TestLoadGlobals(t *testing.T) {
 				"/stacks/stack-2": globals(str("stack_path", "/stacks/stack-2")),
 			},
 		},
+		{
+			name: "stacks using functions and metadata",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			globals: []globalsBlock{
+				{
+					path: "/stacks/stack-1",
+					add: globals(
+						expr("interpolated", `"prefix-${replace(terramate.path, "/", "@")}-suffix"`),
+					),
+				},
+				{
+					path: "/stacks/stack-2",
+					add: globals(
+						expr("stack_path", `replace(terramate.path, "/", "-")`),
+					),
+				},
+			},
+			want: map[string]*TestGlobals{
+				"/stacks/stack-1": globals(
+					str("interpolated", "prefix-@stacks@stack-1-suffix"),
+				),
+				"/stacks/stack-2": globals(str("stack_path", "-stacks-stack-2")),
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
@@ -306,7 +331,7 @@ func TestLoadGlobals(t *testing.T) {
 
 				if diff, ok := want.Diff(got); !ok {
 					t.Fatalf(
-						"stack %q globals don't match want, diff:\n%s",
+						"stack %q globals don't match expectation, diff:\n%s",
 						stackMetadata.Path,
 						diff,
 					)
@@ -521,12 +546,12 @@ func (g *TestGlobals) Diff(globals *terramate.Globals) (string, bool) {
 		count += 1
 		testval, ok := g.ctyvalues[name]
 		if !ok {
-			diff += fmt.Sprintf("got unwanted global %s=%s\n", name, val.GoString())
+			diff += fmt.Sprintf("unwanted global %s=%s\n", name, val.GoString())
 			return
 		}
 		if !testval.RawEquals(val) {
 			diff += fmt.Sprintf(
-				"global %s got %s but wanted %s\n",
+				"global %s got %s != wanted %s\n",
 				name,
 				val.GoString(),
 				testval.GoString(),
