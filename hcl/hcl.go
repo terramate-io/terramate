@@ -149,6 +149,13 @@ func Parse(fname string, data []byte) (*Config, error) {
 
 	body, _ := f.Body.(*hclsyntax.Body)
 
+	for name := range body.Attributes {
+		return nil, errutil.Chain(
+			ErrMalformedTerramateConfig,
+			fmt.Errorf("unrecognized attribute %q", name),
+		)
+	}
+
 	var tmconfig Config
 	var tmblock, stackblock *hclsyntax.Block
 	var foundtm, foundstack bool

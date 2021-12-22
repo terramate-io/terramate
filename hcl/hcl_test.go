@@ -159,6 +159,29 @@ module "test" {
 func TestHCLParserTerramateBlock(t *testing.T) {
 	for _, tc := range []testcase{
 		{
+			name:  "unrecognized block",
+			input: `something {}`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
+			name: "unrecognized attribute",
+			input: `terramate{}
+something = 1`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
+			name: "multiple terramate blocks",
+			input: `terramate{}
+terramate {}`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
 			name: "empty config",
 			want: want{
 				err: hcl.ErrNoTerramateBlock,
@@ -407,8 +430,30 @@ terramate {
 	}
 }
 
-func TestHCLParserAfter(t *testing.T) {
+func TestHCLParserStack(t *testing.T) {
 	for _, tc := range []testcase{
+		{
+			name: "empty stack block",
+			input: `
+terramate {
+	required_version = ""
+}
+stack {}`,
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{},
+					Stack:     &hcl.Stack{},
+				},
+			},
+		},
+		{
+			name: "multiple stack blocks",
+			input: `stack{}
+stack {}`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
 		{
 			name: "after: empty set works",
 			input: `
