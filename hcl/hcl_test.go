@@ -174,6 +174,16 @@ something = 1`,
 			},
 		},
 		{
+			name: "unrecognized attribute inside terramate block",
+			input: `terramate{
+				something = 1
+			}
+`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
 			name: "unrecognized block",
 			input: `terramate{
 				something {}
@@ -199,9 +209,19 @@ terramate {}`,
 		},
 		{
 			name: "invalid version",
-			input: `terramate{}
+			input: `
 terramate {
 	required_version = 1
+}`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
+			name: "interpolation not allowed at req_version",
+			input: `
+terramate {
+	required_version = "${test.version}"
 }`,
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -491,6 +511,48 @@ stack {}`,
 			name: "multiple stack blocks",
 			input: `stack{}
 stack {}`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
+			name: "empty name",
+			input: `
+terramate {
+	required_version = ""
+}
+stack {
+	name = ""
+}`,
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{},
+					Stack:     &hcl.Stack{},
+				},
+			},
+		},
+		{
+			name: "name is not a string - fails",
+			input: `
+terramate {
+	required_version = ""
+}
+stack {
+	name = 1
+}`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
+			name: "name has interpolation - fails",
+			input: `
+terramate {
+	required_version = ""
+}
+stack {
+	name = "${test}"
+}`,
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},

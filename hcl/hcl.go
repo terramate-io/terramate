@@ -210,7 +210,7 @@ func Parse(fname string, data []byte) (*Config, error) {
 		attrVal, diags := value.Expr.Value(nil)
 		if diags.HasErrors() {
 			return nil, errutil.Chain(
-				ErrHCLSyntax,
+				ErrMalformedTerramateConfig,
 				fmt.Errorf("failed to evaluate %q attribute: %w",
 					name, diags),
 			)
@@ -364,7 +364,7 @@ func parseStack(stack *Stack, stackblock *hclsyntax.Block) error {
 		attrVal, diags := value.Expr.Value(nil)
 		if diags.HasErrors() {
 			return errutil.Chain(
-				ErrHCLSyntax,
+				ErrMalformedTerramateConfig,
 				fmt.Errorf("failed to evaluate %q attribute: %w",
 					name, diags),
 			)
