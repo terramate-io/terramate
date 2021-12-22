@@ -203,7 +203,7 @@ func newCLI(
 		return nil, fmt.Errorf("failed to change working directory to %q: %w", wd, err)
 	}
 
-	foundRoot, prj, err := lookupProject(wd)
+	prj, foundRoot, err := lookupProject(wd)
 	if err != nil {
 		return nil, fmt.Errorf("failed to lookup project root from %q: %w", wd, err)
 	}
@@ -635,7 +635,7 @@ func newGit(basedir string, inheritEnv bool, checkrepo bool) (*git.Git, error) {
 	return g, nil
 }
 
-func lookupProject(wd string) (found bool, prj project, err error) {
+func lookupProject(wd string) (prj project, found bool, err error) {
 	prj = project{
 		wd: wd,
 	}
@@ -645,26 +645,26 @@ func lookupProject(wd string) (found bool, prj project, err error) {
 		if err == nil {
 			gitabs, err := filepath.Abs(gitdir)
 			if err != nil {
-				return false, project{}, fmt.Errorf("getting absolute path of %q: %w", gitdir, err)
+				return project{}, false, fmt.Errorf("getting absolute path of %q: %w", gitdir, err)
 			}
 
 			gitabs, err = filepath.EvalSymlinks(gitabs)
 			if err != nil {
-				return false, project{}, fmt.Errorf("failed evaluating symlinks of %q: %w",
+				return project{}, false, fmt.Errorf("failed evaluating symlinks of %q: %w",
 					gitabs, err)
 			}
 
 			root := filepath.Dir(gitabs)
 			cfg, _, err := config.TryLoadRootConfig(root)
 			if err != nil {
-				return false, project{}, err
+				return project{}, false, err
 			}
 
 			prj.isRepo = true
 			prj.rootcfg = cfg
 			prj.root = root
 
-			return true, prj, nil
+			return prj, true, nil
 		}
 	}
 
@@ -673,14 +673,14 @@ func lookupProject(wd string) (found bool, prj project, err error) {
 	for {
 		cfg, ok, err := config.TryLoadRootConfig(dir)
 		if err != nil {
-			return false, project{}, err
+			return project{}, false, err
 		}
 
 		if ok {
 			prj.root = dir
 			prj.rootcfg = cfg
 
-			return true, prj, nil
+			return prj, true, nil
 		}
 
 		if dir == "/" {
@@ -690,7 +690,7 @@ func lookupProject(wd string) (found bool, prj project, err error) {
 		dir = filepath.Dir(dir)
 	}
 
-	return false, project{}, nil
+	return project{}, false, nil
 }
 
 func (p *project) setDefaults(parsedArgs *cliSpec) error {
