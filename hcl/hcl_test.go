@@ -188,6 +188,26 @@ terramate {}`,
 			},
 		},
 		{
+			name: "invalid version",
+			input: `terramate{}
+terramate {
+	required_version = 1
+}`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
+			name: "invalid attribute",
+			input: `terramate{}
+terramate {
+	version = 1
+}`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
 			name: "required_version > 0.0.0",
 			input: `
 	terramate {
