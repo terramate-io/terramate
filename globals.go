@@ -20,7 +20,6 @@ import (
 	"path/filepath"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/hashicorp/hcl/v2/hclwrite"
 	tflang "github.com/hashicorp/terraform/lang"
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate/config"
@@ -31,7 +30,7 @@ import (
 // Globals represents a globals block. Always use NewGlobals to create it.
 type Globals struct {
 	evaluated   map[string]cty.Value
-	nonEvaluted map[string]expression
+	nonEvaluted map[string]hclsyntax.Expression
 }
 
 const ErrGlobalRedefined errutil.Error = "global redefined"
@@ -64,7 +63,7 @@ func LoadStackGlobals(rootdir string, meta StackMetadata) (*Globals, error) {
 func NewGlobals() *Globals {
 	return &Globals{
 		evaluated:   map[string]cty.Value{},
-		nonEvaluted: map[string]expression{},
+		nonEvaluted: map[string]hclsyntax.Expression{},
 	}
 }
 
@@ -86,14 +85,14 @@ func (g *Globals) Eval(meta StackMetadata) error {
 		return err
 	}
 
-	for k, p := range g.nonEvaluted {
-		val, err := p.expr.Value(evalctx)
+	for k, expr := range g.nonEvaluted {
+		val, err := expr.Value(evalctx)
 		if err != nil {
 			return err
 		}
 		g.evaluated[k] = val
 	}
-	g.nonEvaluted = map[string]expression{}
+	g.nonEvaluted = map[string]hclsyntax.Expression{}
 	return nil
 }
 
@@ -104,11 +103,6 @@ func (g *Globals) merge(other *Globals) {
 			g.nonEvaluted[k] = v
 		}
 	}
-}
-
-type expression struct {
-	expr   hclsyntax.Expression
-	tokens hclwrite.Tokens
 }
 
 func loadStackGlobals(rootdir string, cfgdir string) (*Globals, error) {
@@ -135,16 +129,7 @@ func loadStackGlobals(rootdir string, cfgdir string) (*Globals, error) {
 			if _, ok := globals.nonEvaluted[name]; ok {
 				return nil, fmt.Errorf("%w: global %q already defined", ErrGlobalRedefined, name)
 			}
-			// Would be consistent to also initialize
-			// tokens on the pendingExpression, but betting tokens on this
-			// scenario is quite non-trivial sadly and not a requirement
-			// for core features since when loading globals we always
-			// evaluate it before returning to the caller, so there
-			// will be no pending expression on the Globals object anyway.
-			// When manually building Globals then this can be an issue (see Globals.AddExpr).
-			globals.nonEvaluted[name] = expression{
-				expr: attr.Expr,
-			}
+			globals.nonEvaluted[name] = attr.Expr
 		}
 	}
 
