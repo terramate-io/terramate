@@ -422,6 +422,23 @@ func TestLoadGlobals(t *testing.T) {
 				),
 			},
 		},
+		{
+			name:   "unknown global reference is ignored if it is overridden",
+			layout: []string{"s:stack"},
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add:  globals(expr("field", "globals.wont_exist")),
+				},
+				{
+					path: "/stack",
+					add:  globals(str("field", "data")),
+				},
+			},
+			want: map[string]*TestGlobals{
+				"/stack": globals(str("field", "data")),
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
