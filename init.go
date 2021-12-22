@@ -31,11 +31,12 @@ import (
 // stack unless they are of same versions. In case the stack is initialized with
 // other terramate version, the force flag can be used to explicitly initialize
 // it anyway. The dir must be an absolute path.
-func Init(projectdir, dir string, force bool) error {
+func Init(root, dir string, force bool) error {
 	if !filepath.IsAbs(dir) {
 		// TODO(i4k): this needs to go away soon.
 		return errors.New("init requires an absolute path")
 	}
+
 	_, err := os.Stat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -43,6 +44,25 @@ func Init(projectdir, dir string, force bool) error {
 		}
 
 		return fmt.Errorf("stat failed on %q: %w", dir, err)
+	}
+
+	ok, err := stack.IsLeaf(root, dir)
+	if err != nil {
+		return err
+	}
+
+	if !ok {
+		return fmt.Errorf("directory %q is not a leaf stack", dir)
+	}
+
+	parentStack, found, err := stack.LookupParent(root, dir)
+	if err != nil {
+		return err
+	}
+
+	if found {
+		return fmt.Errorf("directory %q is inside stack %q but nested stacks are disallowed",
+			dir, parentStack.Dir)
 	}
 
 	stackfile := filepath.Join(dir, config.Filename)
@@ -77,30 +97,6 @@ func Init(projectdir, dir string, force bool) error {
 			return fmt.Errorf("stack version constraint %q do not match terramate "+
 				"version %q", vconstraint, Version())
 		}
-
-		err = os.Remove(string(stackfile))
-		if err != nil {
-			return fmt.Errorf("while removing %q: %w", stackfile, err)
-		}
-	}
-
-	ok, err := stack.IsLeaf(projectdir, dir)
-	if err != nil {
-		return err
-	}
-
-	if !ok {
-		return fmt.Errorf("directory %q is not a leaf stack", dir)
-	}
-
-	parentStack, found, err := stack.LookupParent(projectdir, dir)
-	if err != nil {
-		return err
-	}
-
-	if found {
-		return fmt.Errorf("directory %q is inside stack %q but nested stacks are disallowed",
-			dir, parentStack.Dir)
 	}
 
 	f, err := os.Create(stackfile)

@@ -30,7 +30,9 @@ func PrintConfig(w io.Writer, cfg Config) error {
 		tmBlock := rootBody.AppendNewBlock("terramate", nil)
 		tmBody := tmBlock.Body()
 		tmBody.SetAttributeValue("required_version", cty.StringVal(tm.RequiredVersion))
+	}
 
+	if cfg.Terramate != nil && cfg.Stack != nil {
 		rootBody.AppendNewline()
 	}
 
@@ -46,7 +48,6 @@ func PrintConfig(w io.Writer, cfg Config) error {
 
 			stackBody.SetAttributeValue("after", cty.SetVal(strList))
 		}
-		rootBody.AppendNewline()
 	}
 
 	_, err := w.Write(f.Bytes())
