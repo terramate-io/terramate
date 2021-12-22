@@ -227,7 +227,7 @@ func TestInit(t *testing.T) {
 					},
 					Stack: &hcl.Stack{},
 				}
-				test.AssertTerramateConfig(t, *got, want)
+				test.AssertTerramateConfig(t, got, want)
 			}
 		})
 	}

@@ -390,7 +390,9 @@ terramate {
 `,
 			want: want{
 				config: hcl.Config{
-					Terramate: &hcl.Terramate{},
+					Terramate: &hcl.Terramate{
+						RootConfig: &hcl.RootConfig{},
+					},
 				},
 			},
 		},
@@ -418,7 +420,9 @@ terramate {
 `,
 			want: want{
 				config: hcl.Config{
-					Terramate: &hcl.Terramate{},
+					Terramate: &hcl.Terramate{
+						RootConfig: &hcl.RootConfig{},
+					},
 				},
 			},
 		},
@@ -448,7 +452,7 @@ terramate {
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
-						RootConfig: hcl.RootConfig{
+						RootConfig: &hcl.RootConfig{
 							Git: hcl.GitConfig{
 								Branch: "trunk",
 							},
@@ -474,7 +478,7 @@ terramate {
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
-						RootConfig: hcl.RootConfig{
+						RootConfig: &hcl.RootConfig{
 							Git: hcl.GitConfig{
 								Branch:               "trunk",
 								Remote:               "upstream",
@@ -644,7 +648,7 @@ func testParser(t *testing.T, tc testcase) {
 		assert.IsError(t, err, tc.want.err)
 
 		if tc.want.err == nil {
-			test.AssertTerramateConfig(t, *got, tc.want.config)
+			test.AssertTerramateConfig(t, got, tc.want.config)
 		}
 	})
 }

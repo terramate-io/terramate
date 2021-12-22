@@ -118,9 +118,11 @@ func Run(
 }
 
 type project struct {
-	root   string
-	isRepo bool
-	cfg    *hcl.Config // root config
+	root    string
+	wd      string
+	isRepo  bool
+	cfg     hcl.Config // root config
+	baseRef string
 }
 
 type cli struct {
@@ -131,8 +133,6 @@ type cli struct {
 	stdout     io.Writer
 	stderr     io.Writer
 	exit       bool
-	baseRef    string
-	wd         string
 	prj        project
 }
 
@@ -204,53 +204,12 @@ func newCLI(
 	}
 
 	if !foundRoot {
-		return nil, fmt.Errorf("project root not found. Please run \"terramate help project\" for details.")
+		return nil, fmt.Errorf("project root not found")
 	}
 
-	// TODO(i4k): improve this
-	if prj.cfg == nil {
-		c := hcl.NewConfig(terramate.Version())
-		prj.cfg = &c
-	}
-
-	cfg := prj.cfg
-
-	// TODO(i4k): also please improve this
-	gitOpt := &cfg.Terramate.RootConfig.Git
-	if gitOpt.BaseRef == "" {
-		gitOpt.BaseRef = defaultBaseRef
-	}
-
-	if gitOpt.DefaultBranchBaseRef == "" {
-		gitOpt.DefaultBranchBaseRef = defaultBranchBaseRef
-	}
-
-	if gitOpt.Branch == "" {
-		gitOpt.Branch = defaultBranch
-	}
-
-	if gitOpt.Remote == "" {
-		gitOpt.Remote = defaultRemote
-	}
-
-	baseRef := parsedArgs.GitChangeBase
-	if baseRef == "" {
-		baseRef = gitOpt.BaseRef
-		if prj.isRepo {
-			gw, err := newGit(wd, inheritEnv, false)
-			if err != nil {
-				return nil, err
-			}
-
-			branch, err := gw.CurrentBranch()
-			if err != nil {
-				return nil, fmt.Errorf("failed to get current git branch: %v", err)
-			}
-
-			if branch == gitOpt.Branch {
-				baseRef = gitOpt.DefaultBranchBaseRef
-			}
-		}
+	err = prj.setDefaults(&parsedArgs)
+	if err != nil {
+		return nil, fmt.Errorf("setting configuration: %w", err)
 	}
 
 	if parsedArgs.Changed && !prj.isRepo {
@@ -264,8 +223,6 @@ func newCLI(
 		inheritEnv: inheritEnv,
 		parsedArgs: &parsedArgs,
 		ctx:        ctx,
-		baseRef:    baseRef,
-		wd:         wd,
 		prj:        prj,
 	}, nil
 }
@@ -293,7 +250,7 @@ func (c *cli) run() error {
 	case "version":
 		c.log(terramate.Version())
 	case "init":
-		return c.initStack([]string{c.wd})
+		return c.initStack([]string{c.wd()})
 	case "init <paths>":
 		return c.initStack(c.parsedArgs.Init.StackDirs)
 	case "list":
@@ -310,7 +267,7 @@ func (c *cli) run() error {
 	case "run <cmd>":
 		return c.runOnStacks()
 	case "generate":
-		return terramate.Generate(c.wd)
+		return terramate.Generate(c.wd())
 	case "metadata":
 		return c.printMetadata()
 	case "install-completions":
@@ -326,7 +283,7 @@ func (c *cli) initStack(dirs []string) error {
 	var errmsgs []string
 	for _, d := range dirs {
 		if !filepath.IsAbs(d) {
-			d = filepath.Join(c.wd, d)
+			d = filepath.Join(c.wd(), d)
 		}
 
 		err := terramate.Init(c.prj.root, d, c.parsedArgs.Init.Force)
@@ -352,7 +309,7 @@ func (c *cli) listStacks(mgr *terramate.Manager, isChanged bool) ([]terramate.En
 }
 
 func (c *cli) printStacks() error {
-	mgr := terramate.NewManager(c.prj.root, c.baseRef)
+	mgr := terramate.NewManager(c.prj.root, c.prj.baseRef)
 	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		return err
@@ -393,7 +350,7 @@ func (c *cli) generateGraph() error {
 	loader := stack.NewLoader(c.prj.root)
 	di := dot.NewGraph(dot.Directed)
 
-	relwd := prj.RelPath(c.prj.root, c.wd)
+	relwd := prj.RelPath(c.prj.root, c.wd())
 	for _, e := range entries {
 		if !strings.HasPrefix(e.Stack.Dir, relwd) {
 			continue
@@ -461,13 +418,13 @@ func generateDot(
 }
 
 func (c *cli) printRunOrder() error {
-	mgr := terramate.NewManager(c.prj.root, c.baseRef)
+	mgr := terramate.NewManager(c.prj.root, c.prj.baseRef)
 	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		return err
 	}
 
-	relwd := prj.RelPath(c.prj.root, c.wd)
+	relwd := prj.RelPath(c.prj.root, c.wd())
 	stacks := make([]stack.S, 0, len(entries))
 	for _, e := range entries {
 		if strings.HasPrefix(e.Stack.Dir, relwd) {
@@ -489,7 +446,7 @@ func (c *cli) printRunOrder() error {
 }
 
 func (c *cli) printMetadata() error {
-	metadata, err := terramate.LoadMetadata(c.wd)
+	metadata, err := terramate.LoadMetadata(c.wd())
 	if err != nil {
 		return err
 	}
@@ -506,7 +463,7 @@ func (c *cli) printMetadata() error {
 }
 
 func (c *cli) runOnStacks() error {
-	mgr := terramate.NewManager(c.prj.root, c.baseRef)
+	mgr := terramate.NewManager(c.prj.root, c.prj.baseRef)
 	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		return err
@@ -518,7 +475,7 @@ func (c *cli) runOnStacks() error {
 		c.log("Running on all stacks:")
 	}
 
-	relwd := prj.RelPath(c.prj.root, c.wd)
+	relwd := prj.RelPath(c.prj.root, c.wd())
 	stacks := make([]stack.S, 0, len(entries))
 	for _, e := range entries {
 		if strings.HasPrefix(e.Stack.Dir, relwd) {
@@ -560,6 +517,9 @@ func (c *cli) runOnStacks() error {
 
 	return nil
 }
+
+func (c *cli) wd() string   { return c.prj.wd }
+func (c *cli) root() string { return c.prj.root }
 
 func (c *cli) log(format string, args ...interface{}) {
 	fmt.Fprintln(c.stdout, fmt.Sprintf(format, args...))
@@ -650,7 +610,7 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 }
 
 func (c *cli) showdir(dir string) (string, bool) {
-	return prj.ShowDir(c.prj.root, c.wd, dir)
+	return prj.ShowDir(c.prj.root, c.wd(), dir)
 }
 
 func newGit(basedir string, inheritEnv bool, checkrepo bool) (*git.Git, error) {
@@ -670,8 +630,11 @@ func newGit(basedir string, inheritEnv bool, checkrepo bool) (*git.Git, error) {
 	return g, nil
 }
 
-func lookupProject(dir string) (found bool, prj project, err error) {
-	gw, err := newGit(dir, false, false)
+func lookupProject(wd string) (found bool, prj project, err error) {
+	prj = project{
+		wd: wd,
+	}
+	gw, err := newGit(wd, false, false)
 	if err == nil {
 		gitdir, err := gw.Root()
 		if err == nil {
@@ -681,19 +644,20 @@ func lookupProject(dir string) (found bool, prj project, err error) {
 			}
 
 			root := filepath.Dir(gitabs)
-
 			_, cfg, err := config.TryLoadRootConfig(root)
 			if err != nil {
 				return false, project{}, err
 			}
 
-			return true, project{
-				root:   root,
-				cfg:    cfg,
-				isRepo: true,
-			}, nil
+			prj.isRepo = true
+			prj.cfg = cfg
+			prj.root = root
+
+			return true, prj, nil
 		}
 	}
+
+	dir := wd
 
 	for {
 		ok, cfg, err := config.TryLoadRootConfig(dir)
@@ -702,10 +666,10 @@ func lookupProject(dir string) (found bool, prj project, err error) {
 		}
 
 		if ok {
-			return true, project{
-				root: dir,
-				cfg:  cfg,
-			}, nil
+			prj.root = dir
+			prj.cfg = cfg
+
+			return true, prj, nil
 		}
 
 		if dir == "/" {
@@ -716,4 +680,59 @@ func lookupProject(dir string) (found bool, prj project, err error) {
 	}
 
 	return false, project{}, nil
+}
+
+func (p *project) setDefaults(parsedArgs *cliSpec) error {
+	if p.cfg.Terramate == nil {
+		// if config has no terramate block we create one with default
+		// configurations.
+		p.cfg.Terramate = &hcl.Terramate{}
+	}
+
+	cfg := &p.cfg
+	if cfg.Terramate.RootConfig == nil {
+		p.cfg.Terramate.RootConfig = &hcl.RootConfig{}
+	}
+
+	gitOpt := &cfg.Terramate.RootConfig.Git
+
+	if gitOpt.BaseRef == "" {
+		gitOpt.BaseRef = defaultBaseRef
+	}
+
+	if gitOpt.DefaultBranchBaseRef == "" {
+		gitOpt.DefaultBranchBaseRef = defaultBranchBaseRef
+	}
+
+	if gitOpt.Branch == "" {
+		gitOpt.Branch = defaultBranch
+	}
+
+	if gitOpt.Remote == "" {
+		gitOpt.Remote = defaultRemote
+	}
+
+	baseRef := parsedArgs.GitChangeBase
+	if baseRef == "" {
+		baseRef = gitOpt.BaseRef
+		if p.isRepo {
+			gw, err := newGit(p.wd, false, false)
+			if err != nil {
+				return err
+			}
+
+			branch, err := gw.CurrentBranch()
+			if err != nil {
+				return fmt.Errorf("failed to get current git branch: %v", err)
+			}
+
+			if branch == gitOpt.Branch {
+				baseRef = gitOpt.DefaultBranchBaseRef
+			}
+		}
+	}
+
+	p.baseRef = baseRef
+
+	return nil
 }

@@ -55,7 +55,7 @@ type Terramate struct {
 
 	// RootConfig is the configuration at the project root directory (commonly
 	// the git directory).
-	RootConfig RootConfig
+	RootConfig *RootConfig
 
 	Backend *hclsyntax.Block
 }
@@ -140,17 +140,17 @@ func ParseModules(path string) ([]Module, error) {
 }
 
 // Parse parses a terramate source.
-func Parse(fname string, data []byte) (*Config, error) {
+func Parse(fname string, data []byte) (Config, error) {
 	p := hclparse.NewParser()
 	f, diags := p.ParseHCL(data, fname)
 	if diags.HasErrors() {
-		return nil, errutil.Chain(ErrHCLSyntax, diags)
+		return Config{}, errutil.Chain(ErrHCLSyntax, diags)
 	}
 
 	body, _ := f.Body.(*hclsyntax.Body)
 
 	for name := range body.Attributes {
-		return nil, errutil.Chain(
+		return Config{}, errutil.Chain(
 			ErrMalformedTerramateConfig,
 			fmt.Errorf("unrecognized attribute %q", name),
 		)
@@ -161,7 +161,7 @@ func Parse(fname string, data []byte) (*Config, error) {
 	var foundtm, foundstack bool
 	for _, block := range body.Blocks {
 		if block.Type != "terramate" && block.Type != "stack" {
-			return nil, errutil.Chain(
+			return Config{}, errutil.Chain(
 				ErrMalformedTerramateConfig,
 				fmt.Errorf("block type %q is not supported", block.Type),
 			)
@@ -169,7 +169,7 @@ func Parse(fname string, data []byte) (*Config, error) {
 
 		if block.Type == "terramate" {
 			if foundtm {
-				return nil, errutil.Chain(
+				return Config{}, errutil.Chain(
 					ErrMalformedTerramateConfig,
 					fmt.Errorf("multiple terramate blocks in file %q", fname),
 				)
@@ -181,7 +181,7 @@ func Parse(fname string, data []byte) (*Config, error) {
 
 		if block.Type == "stack" {
 			if foundstack {
-				return nil, errutil.Chain(
+				return Config{}, errutil.Chain(
 					ErrMalformedTerramateConfig,
 					fmt.Errorf("multiple stack blocks in file %q", fname),
 				)
@@ -193,11 +193,11 @@ func Parse(fname string, data []byte) (*Config, error) {
 	}
 
 	if !foundtm {
-		return nil, ErrNoTerramateBlock
+		return Config{}, ErrNoTerramateBlock
 	}
 
 	if len(tmblock.Labels) > 0 {
-		return nil, errutil.Chain(
+		return Config{}, errutil.Chain(
 			ErrMalformedTerramateConfig,
 			fmt.Errorf("terramate block must have no labels"),
 		)
@@ -209,7 +209,7 @@ func Parse(fname string, data []byte) (*Config, error) {
 	for name, value := range tmblock.Body.Attributes {
 		attrVal, diags := value.Expr.Value(nil)
 		if diags.HasErrors() {
-			return nil, errutil.Chain(
+			return Config{}, errutil.Chain(
 				ErrMalformedTerramateConfig,
 				fmt.Errorf("failed to evaluate %q attribute: %w",
 					name, diags),
@@ -218,7 +218,7 @@ func Parse(fname string, data []byte) (*Config, error) {
 		switch name {
 		case "required_version":
 			if attrVal.Type() != cty.String {
-				return nil, errutil.Chain(
+				return Config{}, errutil.Chain(
 					ErrMalformedTerramateConfig,
 					fmt.Errorf("attribute %q is not a string", name),
 				)
@@ -227,7 +227,7 @@ func Parse(fname string, data []byte) (*Config, error) {
 			tm.RequiredVersion = attrVal.AsString()
 
 		default:
-			return nil, errutil.Chain(ErrMalformedTerramateConfig,
+			return Config{}, errutil.Chain(ErrMalformedTerramateConfig,
 				fmt.Errorf("invalid attribute %q", name),
 			)
 		}
@@ -239,14 +239,14 @@ func Parse(fname string, data []byte) (*Config, error) {
 		switch block.Type {
 		case "backend":
 			if foundBackend {
-				return nil, errutil.Chain(
+				return Config{}, errutil.Chain(
 					ErrMalformedTerramateConfig,
 					fmt.Errorf("multiple backend blocks in file %q", fname),
 				)
 			}
 
 			if len(block.Labels) != 1 {
-				return nil, errutil.Chain(
+				return Config{}, errutil.Chain(
 					ErrMalformedTerramateConfig,
 					fmt.Errorf("backend type expects 1 label but given %v",
 						block.Labels),
@@ -258,20 +258,22 @@ func Parse(fname string, data []byte) (*Config, error) {
 
 		case "config":
 			if foundConfig {
-				return nil, errutil.Chain(
+				return Config{}, errutil.Chain(
 					ErrMalformedTerramateConfig,
 					fmt.Errorf("multiple config blocks in file %q", fname),
 				)
 			}
 
-			err := parseRootConfig(&tm.RootConfig, block)
+			rootConfig := RootConfig{}
+			tm.RootConfig = &rootConfig
+			err := parseRootConfig(&rootConfig, block)
 			if err != nil {
-				return nil, err
+				return Config{}, err
 			}
 
 			foundConfig = true
 		default:
-			return nil, errutil.Chain(
+			return Config{}, errutil.Chain(
 				ErrMalformedTerramateConfig,
 				fmt.Errorf("block type %q not supported", block.Type))
 		}
@@ -279,23 +281,23 @@ func Parse(fname string, data []byte) (*Config, error) {
 	}
 
 	if !foundstack {
-		return &tmconfig, nil
+		return tmconfig, nil
 	}
 
 	tmconfig.Stack = &Stack{}
 	err := parseStack(tmconfig.Stack, stackblock)
 	if err != nil {
-		return nil, err
+		return Config{}, err
 	}
 
-	return &tmconfig, nil
+	return tmconfig, nil
 }
 
 // ParseFile parses a terramate file.
-func ParseFile(path string) (*Config, error) {
+func ParseFile(path string) (Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read file %q: %w", path, err)
+		return Config{}, fmt.Errorf("failed to read file %q: %w", path, err)
 	}
 
 	return Parse(path, data)
