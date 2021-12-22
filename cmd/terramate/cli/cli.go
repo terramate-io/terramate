@@ -44,10 +44,10 @@ const (
 )
 
 const (
-	defaultRemote      = "origin"
-	defaultBranch      = "main"
-	defaultBaseRef     = defaultRemote + "/" + defaultBranch
-	defaultMainBaseRef = "HEAD^1"
+	defaultRemote        = "origin"
+	defaultBranch        = "main"
+	defaultBaseRef       = defaultRemote + "/" + defaultBranch
+	defaultBranchBaseRef = "HEAD^1"
 )
 
 type cliSpec struct {
@@ -221,8 +221,8 @@ func newCLI(
 		gitOpt.BaseRef = defaultBaseRef
 	}
 
-	if gitOpt.MainBaseRef == "" {
-		gitOpt.MainBaseRef = defaultMainBaseRef
+	if gitOpt.DefaultBranchBaseRef == "" {
+		gitOpt.DefaultBranchBaseRef = defaultBranchBaseRef
 	}
 
 	if gitOpt.Branch == "" {
@@ -248,7 +248,7 @@ func newCLI(
 			}
 
 			if branch == gitOpt.Branch {
-				baseRef = gitOpt.MainBaseRef
+				baseRef = gitOpt.DefaultBranchBaseRef
 			}
 		}
 	}

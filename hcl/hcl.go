@@ -38,10 +38,10 @@ type Config struct {
 }
 
 type GitConfig struct {
-	BaseRef     string // BaseRef is the general base git ref.
-	MainBaseRef string // MainBaseRef is the baseRef when in main branch.
-	Branch      string
-	Remote      string
+	BaseRef              string // BaseRef is the general base git ref.
+	DefaultBranchBaseRef string // DefaultBranchBaseRef is the baseRef when in default branch.
+	Branch               string // Branch is the default branch.
+	Remote               string // Remote is the default remote.
 }
 
 type RootConfig struct {
@@ -413,16 +413,22 @@ func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
 		)
 	}
 
-	for _, block := range block.Body.Blocks {
-		switch block.Type {
+	for name, _ := range block.Body.Attributes {
+		return errutil.Chain(ErrMalformedTerramateConfig,
+			fmt.Errorf("unrecognized attribute terramate.config.%s", name),
+		)
+	}
+
+	for _, b := range block.Body.Blocks {
+		switch b.Type {
 		case "git":
-			err := parseGitConfig(&cfg.Git, block)
+			err := parseGitConfig(&cfg.Git, b)
 			if err != nil {
 				return err
 			}
 		default:
 			return errutil.Chain(ErrMalformedTerramateConfig,
-				fmt.Errorf("unrecognized block type %q", block.Type),
+				fmt.Errorf("unrecognized block type %q", b.Type),
 			)
 		}
 	}
@@ -431,7 +437,6 @@ func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
 }
 
 func parseGitConfig(git *GitConfig, block *hclsyntax.Block) error {
-
 	for name, value := range block.Body.Attributes {
 		attrVal, diags := value.Expr.Value(nil)
 		if diags.HasErrors() {
@@ -457,13 +462,21 @@ func parseGitConfig(git *GitConfig, block *hclsyntax.Block) error {
 
 			git.Remote = attrVal.AsString()
 
-		case "baseref":
+		case "baseRef":
 			if attrVal.Type() != cty.String {
-				return fmt.Errorf("terramate.config.git.baseref is not a string but %q",
+				return fmt.Errorf("terramate.config.git.baseRef is not a string but %q",
 					attrVal.Type().FriendlyName())
 			}
 
 			git.BaseRef = attrVal.AsString()
+
+		case "defaultBranchBaseRef":
+			if attrVal.Type() != cty.String {
+				return fmt.Errorf("terramate.config.git.defaultBranchBaseRef is not a string but %q",
+					attrVal.Type().FriendlyName())
+			}
+
+			git.DefaultBranchBaseRef = attrVal.AsString()
 
 		default:
 			return errutil.Chain(ErrMalformedTerramateConfig,
