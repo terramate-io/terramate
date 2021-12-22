@@ -101,6 +101,14 @@ func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 		return nil, err
 	}
 
+	// error messages improve if globals is empty instead of undefined
+	empty, err := hclMapToCty(nil)
+	if err != nil {
+		return nil, fmt.Errorf("initializing empty globals: %v", err)
+	}
+
+	evalctx.Variables["global"] = empty
+
 	var errs []error
 	globals := newGlobals()
 	pendingExprs := r.expressions
@@ -131,7 +139,7 @@ func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 			return nil, fmt.Errorf("evaluating globals: unexpected %v", err)
 		}
 
-		evalctx.Variables["globals"] = globalsObj
+		evalctx.Variables["global"] = globalsObj
 		errs = nil
 	}
 

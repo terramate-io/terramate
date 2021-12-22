@@ -29,10 +29,6 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-// TODO(katcipis):
-// - globals: list global + global referencing list by index
-// - err: globals referencing non-existent globals
-
 func TestLoadGlobals(t *testing.T) {
 
 	type (
@@ -45,6 +41,7 @@ func TestLoadGlobals(t *testing.T) {
 			layout  []string
 			globals []globalsBlock
 			want    map[string]*TestGlobals
+			wantErr bool
 		}
 	)
 
@@ -304,10 +301,10 @@ func TestLoadGlobals(t *testing.T) {
 					add: globals(
 						str("field", "some-string"),
 						expr("stack_path", "terramate.path"),
-						expr("ref_field", "globals.field"),
-						expr("ref_stack_path", "globals.stack_path"),
-						expr("interpolation", `"${globals.ref_stack_path}-${globals.ref_field}"`),
-						expr("ref_interpolation", "globals.interpolation"),
+						expr("ref_field", "global.field"),
+						expr("ref_stack_path", "global.stack_path"),
+						expr("interpolation", `"${global.ref_stack_path}-${global.ref_field}"`),
+						expr("ref_interpolation", "global.interpolation"),
 					),
 				},
 			},
@@ -332,14 +329,14 @@ func TestLoadGlobals(t *testing.T) {
 						str("root_field", "root-data"),
 						number("root_number", 666),
 						boolean("root_bool", true),
-						expr("root_stack_ref", "globals.stack_inter"),
+						expr("root_stack_ref", "global.stack_inter"),
 					),
 				},
 				{
 					path: "/envs",
 					add: globals(
 						expr("env_metadata", "terramate.path"),
-						expr("env_root_ref", "globals.root_field"),
+						expr("env_root_ref", "global.root_field"),
 					),
 				},
 				{
@@ -349,14 +346,14 @@ func TestLoadGlobals(t *testing.T) {
 				{
 					path: "/envs/prod/stacks",
 					add: globals(
-						expr("stacks_field", `"${terramate.name}-${globals.env}"`),
+						expr("stacks_field", `"${terramate.name}-${global.env}"`),
 					),
 				},
 				{
 					path: "/envs/prod/stacks/stack",
 					add: globals(
-						expr("stack_inter", `"${globals.root_field}-${globals.env}-${globals.stacks_field}"`),
-						expr("stack_bool", "globals.root_bool"),
+						expr("stack_inter", `"${global.root_field}-${global.env}-${global.stacks_field}"`),
+						expr("stack_bool", "global.root_bool"),
 					),
 				},
 			},
@@ -385,13 +382,13 @@ func TestLoadGlobals(t *testing.T) {
 				{
 					path: "/",
 					add: globals(
-						expr("stack_ref", "globals.stack"),
+						expr("stack_ref", "global.stack"),
 					),
 				},
 				{
 					path: "/stacks",
 					add: globals(
-						expr("stack_ref", "globals.stack_other"),
+						expr("stack_ref", "global.stack_other"),
 					),
 				},
 				{
@@ -428,7 +425,7 @@ func TestLoadGlobals(t *testing.T) {
 			globals: []globalsBlock{
 				{
 					path: "/",
-					add:  globals(expr("field", "globals.wont_exist")),
+					add:  globals(expr("field", "global.wont_exist")),
 				},
 				{
 					path: "/stack",
@@ -449,15 +446,45 @@ func TestLoadGlobals(t *testing.T) {
 				},
 				{
 					path: "/stack",
-					add:  globals(expr("newfield", `replace(globals.field, "@", "/")`)),
+					add: globals(
+						expr("newfield", `replace(global.field, "@", "/")`),
+						expr("splitfun", `split("@", global.field)[1]`),
+					),
 				},
 			},
 			want: map[string]*TestGlobals{
 				"/stack": globals(
 					str("field", "@lala@hello"),
 					str("newfield", "/lala/hello"),
+					str("splitfun", "lala"),
 				),
 			},
+		},
+		{
+			name:   "global undefined reference on root",
+			layout: []string{"s:stack"},
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add:  globals(expr("field", "global.unknown")),
+				},
+				{
+					path: "/stack",
+					add:  globals(str("stack", "whatever")),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name:   "global undefined reference on stack",
+			layout: []string{"s:stack"},
+			globals: []globalsBlock{
+				{
+					path: "/stack",
+					add:  globals(expr("field", "global.unknown")),
+				},
+			},
+			wantErr: true,
 		},
 	}
 
@@ -476,6 +503,12 @@ func TestLoadGlobals(t *testing.T) {
 			metadata := s.LoadMetadata()
 			for _, stackMetadata := range metadata.Stacks {
 				got, err := terramate.LoadStackGlobals(s.BaseDir(), stackMetadata)
+
+				if tcase.wantErr {
+					assert.Error(t, err)
+					continue
+				}
+
 				assert.NoError(t, err)
 
 				want, ok := wantGlobals[stackMetadata.Path]
