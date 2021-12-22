@@ -562,6 +562,19 @@ stack {
 			},
 		},
 		{
+			name: "unrecognized attribute name - fails",
+			input: `
+terramate {
+	required_version = ""
+}
+stack {
+	bleh = "a"
+}`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
 			name: "after: empty set works",
 			input: `
 terramate {
