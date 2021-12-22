@@ -296,6 +296,14 @@ func TestLoadGlobals(t *testing.T) {
 				}
 				delete(wantGlobals, stackMetadata.Path)
 
+				// Could have one type for globals configs and another type
+				// for wanted evaluated globals, but that would make
+				// globals building more annoying (two sets of functions).
+				if want.HasExpressions() {
+					t.Errorf("wanted globals definition:\n%s\n", want)
+					t.Fatal("can't contain expressions, loaded globals are evaluated")
+				}
+
 				if diff, ok := want.Diff(got); !ok {
 					t.Fatalf(
 						"stack %q globals don't match want, diff:\n%s",
@@ -497,8 +505,12 @@ func (g *TestGlobals) AddBoolean(key string, v bool) {
 	g.values[key] = v
 }
 
+func (g *TestGlobals) HasExpressions() bool {
+	return len(g.expressions) > 0
+}
+
 func (g *TestGlobals) Diff(globals *terramate.Globals) (string, bool) {
-	if len(g.expressions) > 0 {
+	if g.HasExpressions() {
 		return "TestGlobals has expressions, it should have only values", false
 	}
 
