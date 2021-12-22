@@ -439,6 +439,26 @@ func TestLoadGlobals(t *testing.T) {
 				"/stack": globals(str("field", "data")),
 			},
 		},
+		{
+			name:   "global reference with functions",
+			layout: []string{"s:stack"},
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add:  globals(str("field", "@lala@hello")),
+				},
+				{
+					path: "/stack",
+					add:  globals(expr("newfield", `replace(globals.field, "@", "/")`)),
+				},
+			},
+			want: map[string]*TestGlobals{
+				"/stack": globals(
+					str("field", "@lala@hello"),
+					str("newfield", "/lala/hello"),
+				),
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
