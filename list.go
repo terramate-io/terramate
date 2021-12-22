@@ -22,19 +22,19 @@ import (
 	"github.com/mineiros-io/terramate/stack"
 )
 
-// ListStacks walks the projectdir directory looking for terraform stacks.
+// ListStacks walks the project's root directory looking for terraform stacks.
 // It returns a lexicographic sorted list of stack directories.
-func ListStacks(projectdir string) ([]Entry, error) {
+func ListStacks(root string) ([]Entry, error) {
 	entries := []Entry{}
 
 	err := filepath.Walk(
-		projectdir,
+		root,
 		func(path string, info fs.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
 
-			stack, found, err := stack.TryLoad(path)
+			stack, found, err := stack.TryLoad(root, path)
 			if err != nil {
 				return fmt.Errorf("listing stacks: %w", err)
 			}

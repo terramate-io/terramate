@@ -23,6 +23,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	prj "github.com/mineiros-io/terramate/project"
+
 	"github.com/alecthomas/kong"
 	"github.com/emicklei/dot"
 	"github.com/madlambda/spells/errutil"
@@ -327,7 +329,7 @@ func (c *cli) initStack(dirs []string) error {
 			d = filepath.Join(c.wd, d)
 		}
 
-		err := terramate.Init(d, c.parsedArgs.Init.Force)
+		err := terramate.Init(c.prj.root, d, c.parsedArgs.Init.Force)
 		if err != nil {
 			c.logerr("warn: failed to initialize stack: %v", err)
 			errmsgs = append(errmsgs, err.Error())
@@ -390,12 +392,13 @@ func (c *cli) generateGraph() error {
 
 	di := dot.NewGraph(dot.Directed)
 
+	relwd := prj.RelPath(c.prj.root, c.wd)
 	for _, e := range entries {
-		if !strings.HasPrefix(e.Stack.Dir, c.wd) {
+		if !strings.HasPrefix(e.Stack.Dir, relwd) {
 			continue
 		}
 
-		tree, err := terramate.BuildOrderTree(e.Stack, loader)
+		tree, err := terramate.BuildOrderTree(c.prj.root, e.Stack, loader)
 		if err != nil {
 			return fmt.Errorf("failed to build order tree: %w", err)
 		}
@@ -463,14 +466,15 @@ func (c *cli) printRunOrder() error {
 		return err
 	}
 
+	relwd := prj.RelPath(c.prj.root, c.wd)
 	stacks := make([]stack.S, 0, len(entries))
 	for _, e := range entries {
-		if strings.HasPrefix(e.Stack.Dir, c.wd) {
+		if strings.HasPrefix(e.Stack.Dir, relwd) {
 			stacks = append(stacks, e.Stack)
 		}
 	}
 
-	order, err := terramate.RunOrder(stacks, bool(c.parsedArgs.Changed))
+	order, err := terramate.RunOrder(c.prj.root, stacks, bool(c.parsedArgs.Changed))
 	if err != nil {
 		c.logerr("error: %v", err)
 		return err
@@ -513,9 +517,10 @@ func (c *cli) runOnStacks() error {
 		c.log("Running on all stacks:")
 	}
 
+	relwd := prj.RelPath(c.prj.root, c.wd)
 	stacks := make([]stack.S, 0, len(entries))
 	for _, e := range entries {
-		if strings.HasPrefix(e.Stack.Dir, c.wd) {
+		if strings.HasPrefix(e.Stack.Dir, relwd) {
 			stacks = append(stacks, e.Stack)
 		}
 	}
@@ -527,7 +532,7 @@ func (c *cli) runOnStacks() error {
 	cmd.Stdout = c.stdout
 	cmd.Stderr = c.stderr
 
-	order, err := terramate.RunOrder(stacks, bool(c.parsedArgs.Changed))
+	order, err := terramate.RunOrder(c.prj.root, stacks, bool(c.parsedArgs.Changed))
 	if err != nil {
 		return fmt.Errorf("failed to plan execution: %w", err)
 	}
@@ -548,7 +553,7 @@ func (c *cli) runOnStacks() error {
 		return nil
 	}
 
-	err = terramate.Run(order, cmd)
+	err = terramate.Run(c.prj.root, order, cmd)
 	if err != nil {
 		c.logerr("warn: failed to execute command: %v", err)
 	}

@@ -24,6 +24,7 @@ import (
 
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/project"
 )
 
 // Loader is a stack loader.
@@ -36,8 +37,9 @@ func NewLoader() Loader {
 
 // Load loads a stack from dir directory. If the stack was previously loaded, it
 // returns the cached one.
-func (l Loader) Load(dir string) (S, error) {
-	if s, ok := l[dir]; ok {
+func (l Loader) Load(root, dir string) (S, error) {
+	stackpath := project.RelPath(root, dir)
+	if s, ok := l[stackpath]; ok {
 		return s, nil
 	}
 
@@ -51,7 +53,7 @@ func (l Loader) Load(dir string) (S, error) {
 		return S{}, fmt.Errorf("no stack found in %q", dir)
 	}
 
-	ok, err := l.IsLeafStack(dir)
+	ok, err := l.IsLeafStack(root, dir)
 	if err != nil {
 		return S{}, err
 	}
@@ -60,14 +62,14 @@ func (l Loader) Load(dir string) (S, error) {
 		return S{}, fmt.Errorf("stack %q is not a leaf directory", dir)
 	}
 
-	l.set(dir, cfg.Stack)
-	return l[dir], nil
+	l.set(stackpath, cfg.Stack)
+	return l[stackpath], nil
 }
 
 // LoadChanged is like Load but sets the stack as changed if loaded
 // successfully.
-func (l Loader) LoadChanged(dir string) (S, error) {
-	s, err := l.Load(dir)
+func (l Loader) LoadChanged(projectdir, dir string) (S, error) {
+	s, err := l.Load(projectdir, dir)
 	if err != nil {
 		return S{}, err
 	}
@@ -79,8 +81,13 @@ func (l Loader) LoadChanged(dir string) (S, error) {
 // TryLoad tries to load a stack from directory. It returns found as true
 // only in the case that path contains a stack and it was correctly parsed.
 // It caches the stack for later use.
-func (l Loader) TryLoad(dir string) (stack S, found bool, err error) {
-	if s, ok := l[dir]; ok {
+func (l Loader) TryLoad(root, dir string) (stack S, found bool, err error) {
+	if !strings.HasPrefix(dir, root) {
+		return S{}, false, fmt.Errorf("directory %q is not inside project root %q",
+			dir, root)
+	}
+	stackpath := project.RelPath(root, dir)
+	if s, ok := l[stackpath]; ok {
 		return s, true, nil
 	}
 
@@ -103,7 +110,7 @@ func (l Loader) TryLoad(dir string) (stack S, found bool, err error) {
 		return S{}, false, nil
 	}
 
-	ok, err := l.IsLeafStack(dir)
+	ok, err := l.IsLeafStack(root, dir)
 	if err != nil {
 		return S{}, false, err
 	}
@@ -112,31 +119,31 @@ func (l Loader) TryLoad(dir string) (stack S, found bool, err error) {
 		return S{}, false, fmt.Errorf("stack %q is not a leaf stack", dir)
 	}
 
-	l.set(dir, cfg.Stack)
-	return l[dir], true, nil
+	l.set(stackpath, cfg.Stack)
+	return l[stackpath], true, nil
 }
 
 // TryLoadChanged is like TryLoad but sets the stack as changed if loaded
 // successfully.
-func (l Loader) TryLoadChanged(dir string) (stack S, found bool, err error) {
-	s, ok, err := l.TryLoad(dir)
+func (l Loader) TryLoadChanged(root, dir string) (stack S, found bool, err error) {
+	s, ok, err := l.TryLoad(root, dir)
 	if ok {
 		s.changed = true
 	}
 	return s, ok, err
 }
 
-func (l Loader) set(dir string, block *hcl.Stack) {
+func (l Loader) set(path string, block *hcl.Stack) {
 	var name string
 	if block.Name != "" {
 		name = block.Name
 	} else {
-		name = filepath.Base(dir)
+		name = filepath.Base(path)
 	}
 
-	l[dir] = S{
+	l[path] = S{
 		name:  name,
-		Dir:   dir,
+		Dir:   path,
 		block: block,
 	}
 }
@@ -147,14 +154,16 @@ func (l Loader) Set(dir string, s S) {
 
 // LoadAll loads all the stacks in the dirs directories. If dirs are relative
 // paths, then basedir is used as base.
-func (l Loader) LoadAll(basedir string, dirs ...string) ([]S, error) {
+func (l Loader) LoadAll(root string, basedir string, dirs ...string) ([]S, error) {
 	stacks := []S{}
+
+	absbase := filepath.Join(root, basedir)
 
 	for _, d := range dirs {
 		if !filepath.IsAbs(d) {
-			d = filepath.Join(basedir, d)
+			d = filepath.Join(absbase, d)
 		}
-		stack, err := l.Load(d)
+		stack, err := l.Load(root, d)
 		if err != nil {
 			return nil, err
 		}
@@ -164,7 +173,7 @@ func (l Loader) LoadAll(basedir string, dirs ...string) ([]S, error) {
 	return stacks, nil
 }
 
-func (l Loader) IsLeafStack(dir string) (bool, error) {
+func (l Loader) IsLeafStack(root, dir string) (bool, error) {
 	isValid := true
 	err := filepath.Walk(
 		dir,
@@ -183,7 +192,7 @@ func (l Loader) IsLeafStack(dir string) (bool, error) {
 					return filepath.SkipDir
 				}
 
-				_, found, err := l.TryLoad(path)
+				_, found, err := l.TryLoad(root, path)
 				if err != nil {
 					return err
 				}
@@ -201,10 +210,13 @@ func (l Loader) IsLeafStack(dir string) (bool, error) {
 	return isValid, nil
 }
 
-func (l Loader) lookupParentStack(dir string) (stack S, found bool, err error) {
+func (l Loader) lookupParentStack(root, dir string) (stack S, found bool, err error) {
+	if root == dir {
+		return S{}, false, nil
+	}
 	d := filepath.Dir(dir)
 	for {
-		stack, ok, err := l.TryLoad(d)
+		stack, ok, err := l.TryLoad(root, d)
 		if err != nil {
 			return S{}, false, fmt.Errorf("looking for parent stacks: %w", err)
 		}
@@ -213,7 +225,7 @@ func (l Loader) lookupParentStack(dir string) (stack S, found bool, err error) {
 			return stack, true, nil
 		}
 
-		if d == string(filepath.Separator) {
+		if d == root || d == "/" {
 			break
 		}
 

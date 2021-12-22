@@ -44,25 +44,25 @@ func (s S) String() string {
 	return s.Name()
 }
 
-func IsLeaf(dir string) (bool, error) {
+func IsLeaf(projectdir, dir string) (bool, error) {
 	l := NewLoader()
-	return l.IsLeafStack(dir)
+	return l.IsLeafStack(projectdir, dir)
 }
 
-func LookupParent(dir string) (S, bool, error) {
+func LookupParent(projectdir, dir string) (S, bool, error) {
 	l := NewLoader()
-	return l.lookupParentStack(dir)
+	return l.lookupParentStack(projectdir, dir)
 }
 
 // Load a single stack from dir.
-func Load(dir string) (S, error) {
+func Load(projectdir, dir string) (S, error) {
 	l := NewLoader()
-	return l.Load(dir)
+	return l.Load(projectdir, dir)
 }
 
 // TryLoad tries to load a single stack from dir. It sets found as true in case
 // the stack was successfully loaded.
-func TryLoad(dir string) (stack S, found bool, err error) {
+func TryLoad(root, dir string) (stack S, found bool, err error) {
 	l := NewLoader()
-	return l.TryLoad(dir)
+	return l.TryLoad(root, dir)
 }

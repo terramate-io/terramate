@@ -68,7 +68,7 @@ source = "%s"
 	git.CommitAll("module 1 changed")
 
 	cli := newCLI(t, s.BaseDir())
-	want := stack1.RelPath() + "\n"
+	want := "/" + stack1.RelPath() + "\n"
 	assertRunResult(t, cli.run("list", "--changed"), runResult{Stdout: want})
 }
 
@@ -127,7 +127,7 @@ module "mod1" {
 	git.CommitAll("module 2 changed")
 
 	cli := newCLI(t, s.BaseDir())
-	want := stack.RelPath() + "\n"
+	want := "/" + stack.RelPath() + "\n"
 	assertRunResult(t, cli.run("list", "--changed"), runResult{Stdout: want})
 }
 
@@ -153,13 +153,13 @@ func TestListAndRunChangedStack(t *testing.T) {
 	stackMainTf.Write(mainTfContents)
 	git.CommitAll("stack changed")
 
-	wantList := stack.RelPath() + "\n"
+	wantList := "/" + stack.RelPath() + "\n"
 	assertRunResult(t, cli.run("list", "--changed"), runResult{Stdout: wantList})
 
 	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
 		"Running on changed stacks:\n[%s] running %s %s\n%s\n",
-		stack.Path(),
+		"/"+stack.RelPath(),
 		cat,
 		mainTfFileName,
 		mainTfContents,
@@ -196,13 +196,13 @@ func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
 	stackMainTf.Write(mainTfContents)
 	git.CommitAll("stack changed")
 
-	wantList := stack.Path() + "\n"
+	wantList := "/" + stack.Path() + "\n"
 	assertRunResult(t, cli.run("list", "--changed"), runResult{Stdout: wantList})
 
 	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
 		"Running on changed stacks:\n[%s] running %s %s\n%s\n",
-		stack.Path(),
+		"/"+stack.Path(),
 		cat,
 		mainTfFileName,
 		mainTfContents,
@@ -236,7 +236,7 @@ func TestDefaultBaseRefInOtherThanMain(t *testing.T) {
 	git.Commit("stack changed")
 
 	want := runResult{
-		Stdout: stack.RelPath() + "\n",
+		Stdout: "/" + stack.RelPath() + "\n",
 	}
 	assertRunResult(t, cli.run("list", "--changed"), want)
 }
@@ -257,7 +257,7 @@ func TestDefaultBaseRefInMain(t *testing.T) {
 
 	// main uses HEAD^1 as default baseRef.
 	want := runResult{
-		Stdout:       stack.RelPath() + "\n",
+		Stdout:       "/" + stack.RelPath() + "\n",
 		IgnoreStderr: true,
 	}
 	assertRunResult(t, cli.run("list", "--changed"), want)
@@ -396,7 +396,6 @@ func (ts tscli) run(args ...string) runResult {
 	}
 
 	allargs = append(allargs, args...)
-
 	err := cli.Run(allargs, false, stdin, stdout, stderr)
 
 	return runResult{

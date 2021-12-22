@@ -31,7 +31,7 @@ import (
 // stack unless they are of same versions. In case the stack is initialized with
 // other terramate version, the force flag can be used to explicitly initialize
 // it anyway. The dir must be an absolute path.
-func Init(dir string, force bool) error {
+func Init(projectdir, dir string, force bool) error {
 	if !filepath.IsAbs(dir) {
 		// TODO(i4k): this needs to go away soon.
 		return errors.New("init requires an absolute path")
@@ -84,7 +84,7 @@ func Init(dir string, force bool) error {
 		}
 	}
 
-	ok, err := stack.IsLeaf(dir)
+	ok, err := stack.IsLeaf(projectdir, dir)
 	if err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func Init(dir string, force bool) error {
 		return fmt.Errorf("directory %q is not a leaf stack", dir)
 	}
 
-	parentStack, found, err := stack.LookupParent(dir)
+	parentStack, found, err := stack.LookupParent(projectdir, dir)
 	if err != nil {
 		return err
 	}

@@ -12,31 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package terramate
+package project
 
 import (
-	"fmt"
-	"os/exec"
 	"path/filepath"
-
-	"github.com/madlambda/spells/errutil"
-	"github.com/mineiros-io/terramate/stack"
+	"strings"
 )
 
-const ErrRunCycleDetected errutil.Error = "cycle detected in run order"
-
-func Run(root string, stacks []stack.S, cmdSpec *exec.Cmd) error {
-	for _, stack := range stacks {
-		cmd := *cmdSpec
-
-		fmt.Fprintf(cmd.Stdout, "[%s] running %s\n", stack.Dir, &cmd)
-		cmd.Dir = filepath.Join(root, stack.Dir)
-		err := cmd.Run()
-		if err != nil {
-			return err
-		}
-		fmt.Fprintf(cmd.Stdout, "\n")
+// RelPath returns the dir relative to project's root.
+func RelPath(root, dir string) string {
+	d := strings.TrimPrefix(dir, root)
+	if d == "" {
+		d = "/"
 	}
+	return d
+}
 
-	return nil
+// AbsPath returns the absolute dir for project's root.
+func AbsPath(root, dir string) string {
+	return filepath.Join(root, dir)
 }

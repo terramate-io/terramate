@@ -227,7 +227,7 @@ func (s S) CreateStack(relpath string) *StackEntry {
 		DirEntry: newDirEntry(t, s.basedir, relpath),
 	}
 
-	assert.NoError(t, terramate.Init(stack.Path(), false))
+	assert.NoError(t, terramate.Init(s.BaseDir(), stack.Path(), false))
 	return stack
 }
 
