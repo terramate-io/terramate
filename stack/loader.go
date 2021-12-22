@@ -72,18 +72,6 @@ func (l Loader) Load(dir string) (S, error) {
 	return l.stacks[stackpath], nil
 }
 
-// LoadChanged is like Load but sets the stack as changed if loaded
-// successfully.
-func (l Loader) LoadChanged(dir string) (S, error) {
-	s, err := l.Load(dir)
-	if err != nil {
-		return S{}, err
-	}
-
-	s.changed = true
-	return s, nil
-}
-
 // TryLoad tries to load a stack from directory. It returns found as true
 // only in the case that path contains a stack and it was correctly parsed.
 // It caches the stack for later use.
