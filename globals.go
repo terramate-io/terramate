@@ -47,6 +47,10 @@ const ErrGlobalRedefined errutil.Error = "global redefined"
 // Metadata for the stack is used on the evaluation of globals, defined on stackmeta.
 // The rootdir MUST be an absolute path.
 func LoadStackGlobals(rootdir string, meta StackMetadata) (*Globals, error) {
+	if !filepath.IsAbs(rootdir) {
+		return nil, fmt.Errorf("%q is not absolute path", rootdir)
+	}
+
 	globals, err := loadStackGlobals(rootdir, meta.Path)
 	if err != nil {
 		return nil, err
@@ -54,6 +58,7 @@ func LoadStackGlobals(rootdir string, meta StackMetadata) (*Globals, error) {
 	if err := globals.Eval(meta); err != nil {
 		return nil, err
 	}
+
 	return globals, nil
 }
 
@@ -61,6 +66,13 @@ func NewGlobals() *Globals {
 	return &Globals{
 		evaluated:   map[string]cty.Value{},
 		nonEvaluted: map[string]expression{},
+	}
+}
+
+// Iter iterates the globals. There is no order guarantee on the iteration.
+func (g *Globals) Iter(iter func(name string, val cty.Value)) {
+	for name, val := range g.evaluated {
+		iter(name, val)
 	}
 }
 
