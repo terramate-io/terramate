@@ -415,10 +415,6 @@ func assertRun(t *testing.T, got runResult) {
 func assertRunResult(t *testing.T, got runResult, want runResult) {
 	t.Helper()
 
-	if !errors.Is(got.Error, want.Error) {
-		t.Fatalf("%q got.Error=[%v] != want.Error=[%v]", got.Cmd, got.Error, want.Error)
-	}
-
 	stdout := got.Stdout
 	wantStdout := want.Stdout
 	if want.FlattenStdout {
@@ -432,5 +428,9 @@ func assertRunResult(t *testing.T, got runResult, want runResult) {
 
 	if !want.IgnoreStderr && got.Stderr != want.Stderr {
 		t.Fatalf("%q stderr=\"%s\" != wanted=\"%s\"", got.Cmd, got.Stderr, want.Stderr)
+	}
+
+	if !errors.Is(got.Error, want.Error) {
+		t.Fatalf("%q got.Error=[%v] != want.Error=[%v]", got.Cmd, got.Error, want.Error)
 	}
 }
