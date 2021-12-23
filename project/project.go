@@ -33,7 +33,8 @@ func AbsPath(root, dir string) string {
 	return filepath.Join(root, dir)
 }
 
-func ShowDir(root, wd, dir string) (string, bool) {
+// FriendlyFmtDir formats the directory in a friendly way for tooling output.
+func FriendlyFmtDir(root, wd, dir string) (string, bool) {
 	trimPart := RelPath(root, wd)
 	if !strings.HasPrefix(dir, trimPart) {
 		return "", false

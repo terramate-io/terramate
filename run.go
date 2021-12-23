@@ -36,7 +36,7 @@ func Run(root string, stacks []stack.S, cmdSpec *exec.Cmd) error {
 	for _, stack := range stacks {
 		cmd := *cmdSpec
 
-		stackdir, _ := project.ShowDir(root, wd, stack.Dir)
+		stackdir, _ := project.FriendlyFmtDir(root, wd, stack.Dir)
 		fmt.Fprintf(cmd.Stdout, "[%s] running %s\n", stackdir, &cmd)
 		cmd.Dir = filepath.Join(root, stack.Dir)
 		err := cmd.Run()

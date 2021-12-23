@@ -327,15 +327,15 @@ func (c *cli) printStacks() error {
 
 	for _, entry := range entries {
 		stack := entry.Stack
-		stackdir, ok := c.showdir(stack.Dir)
+		stackRepr, ok := c.friendlyFmtDir(stack.Dir)
 		if !ok {
 			continue
 		}
 
 		if c.parsedArgs.List.Why {
-			c.log("%s - %s", stackdir, entry.Reason)
+			c.log("%s - %s", stackRepr, entry.Reason)
 		} else {
-			c.log(stackdir)
+			c.log(stackRepr)
 		}
 	}
 	return nil
@@ -501,7 +501,7 @@ func (c *cli) runOnStacks() error {
 			c.log("The stacks will be executed using order below:")
 
 			for i, s := range order {
-				stackdir, _ := c.showdir(s.Dir)
+				stackdir, _ := c.friendlyFmtDir(s.Dir)
 				c.log("\t%d. %s (%s)", i, s.Name(), stackdir)
 			}
 		} else {
@@ -610,8 +610,8 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 	return nil
 }
 
-func (c *cli) showdir(dir string) (string, bool) {
-	return prj.ShowDir(c.root(), c.wd(), dir)
+func (c *cli) friendlyFmtDir(dir string) (string, bool) {
+	return prj.FriendlyFmtDir(c.root(), c.wd(), dir)
 }
 
 func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Entry {
