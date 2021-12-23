@@ -33,7 +33,6 @@ import (
 // (BaseDir parameter passed on Scope when creating eval context).
 
 func TestLoadGlobals(t *testing.T) {
-
 	type (
 		globalsBlock struct {
 			path string
@@ -545,7 +544,6 @@ func TestLoadGlobals(t *testing.T) {
 }
 
 func TestLoadGlobalsErrors(t *testing.T) {
-
 	type (
 		cfg struct {
 			path string
