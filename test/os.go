@@ -54,6 +54,21 @@ func WriteFile(t *testing.T, dir string, filename string, content string) string
 	return path
 }
 
+// AppendFile appends content to a filename inside dir directory.
+// If file exists, appends on the end of it by adding a newline,
+//if file doesn't exists it will be created.
+func AppendFile(t *testing.T, dir string, filename string, content string) {
+	t.Helper()
+
+	oldContent, err := os.ReadFile(filepath.Join(dir, filename))
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+
+	newContents := string(oldContent) + "\n" + content
+	WriteFile(t, dir, filename, newContents)
+}
+
 // ReadFile reads the content of fname from dir directory.
 func ReadFile(t *testing.T, dir, fname string) []byte {
 	t.Helper()

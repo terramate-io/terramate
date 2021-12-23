@@ -190,6 +190,15 @@ func (s S) Git() Git {
 	return s.git
 }
 
+// Loads metadata for sandbox
+func (s S) LoadMetadata() terramate.Metadata {
+	s.t.Helper()
+
+	meta, err := terramate.LoadMetadata(s.RootDir())
+	assert.NoError(s.t, err)
+	return meta
+}
+
 // RootDir returns the root directory of the test env. All dirs/files created
 // through the test env will be included inside this dir.
 //
