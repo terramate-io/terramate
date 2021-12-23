@@ -360,12 +360,7 @@ func (c *cli) generateGraph() error {
 	loader := stack.NewLoader(c.root())
 	di := dot.NewGraph(dot.Directed)
 
-	relwd := prj.RelPath(c.root(), c.wd())
-	for _, e := range entries {
-		if !strings.HasPrefix(e.Stack.Dir, relwd) {
-			continue
-		}
-
+	for _, e := range c.filterStacksByWorkingDir(entries) {
 		tree, err := terramate.BuildOrderTree(c.root(), e.Stack, loader)
 		if err != nil {
 			return fmt.Errorf("failed to build order tree: %w", err)
@@ -434,12 +429,10 @@ func (c *cli) printRunOrder() error {
 		return err
 	}
 
-	relwd := prj.RelPath(c.root(), c.wd())
-	stacks := make([]stack.S, 0, len(entries))
-	for _, e := range entries {
-		if strings.HasPrefix(e.Stack.Dir, relwd) {
-			stacks = append(stacks, e.Stack)
-		}
+	entries = c.filterStacksByWorkingDir(entries)
+	stacks := make([]stack.S, len(entries))
+	for i, e := range entries {
+		stacks[i] = e.Stack
 	}
 
 	order, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
@@ -485,12 +478,10 @@ func (c *cli) runOnStacks() error {
 		c.log("Running on all stacks:")
 	}
 
-	relwd := prj.RelPath(c.root(), c.wd())
-	stacks := make([]stack.S, 0, len(entries))
-	for _, e := range entries {
-		if strings.HasPrefix(e.Stack.Dir, relwd) {
-			stacks = append(stacks, e.Stack)
-		}
+	entries = c.filterStacksByWorkingDir(entries)
+	stacks := make([]stack.S, len(entries))
+	for i, e := range entries {
+		stacks[i] = e.Stack
 	}
 
 	cmdName := c.parsedArgs.Run.Command[0]
@@ -621,6 +612,19 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 
 func (c *cli) showdir(dir string) (string, bool) {
 	return prj.ShowDir(c.root(), c.wd(), dir)
+}
+
+func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Entry {
+	relwd := prj.RelPath(c.root(), c.wd())
+
+	filtered := []terramate.Entry{}
+	for _, e := range stacks {
+		if strings.HasPrefix(e.Stack.Dir, relwd) {
+			filtered = append(filtered, e)
+		}
+	}
+
+	return filtered
 }
 
 func newGit(basedir string, inheritEnv bool, checkrepo bool) (*git.Git, error) {
