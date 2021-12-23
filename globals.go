@@ -107,7 +107,7 @@ func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 	pendingExprs := r.expressions
 
 	for len(pendingExprs) > 0 {
-		evaluated := 0
+		amountEvaluated := 0
 
 		for name, expr := range pendingExprs {
 			val, err := expr.Value(evalctx)
@@ -117,11 +117,11 @@ func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 			}
 
 			globals.set(name, val)
-			evaluated += 1
+			amountEvaluated += 1
 			delete(pendingExprs, name)
 		}
 
-		if evaluated == 0 {
+		if amountEvaluated == 0 {
 			break
 		}
 
