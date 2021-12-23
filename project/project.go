@@ -28,7 +28,8 @@ func RelPath(root, dir string) string {
 	return d
 }
 
-// AbsPath returns the absolute dir for project's root.
+// AbsPath takes the root project dir and a dir path that is relative to the
+// root project dir and returns an absolute path (relative to the host root).
 func AbsPath(root, dir string) string {
 	return filepath.Join(root, dir)
 }
