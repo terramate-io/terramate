@@ -163,7 +163,6 @@ func loadStackGlobals(rootdir string, cfgdir string) (*rawGlobals, error) {
 			return newRawGlobals(), nil
 		}
 		return loadStackGlobals(rootdir, parentcfg)
-
 	}
 
 	if err != nil {
