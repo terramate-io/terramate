@@ -688,6 +688,31 @@ globals {
 				},
 			},
 		},
+		{
+			name:   "invalid global definition fails",
+			layout: []string{"s:stack"},
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: `terramate {
+  backend "gcs" {
+    bucket = "all good"
+  }
+}
+
+globals {
+  undefined_reference = global.undefined
+}
+`,
+				},
+			},
+			want: want{
+				res: runResult{
+					Error:        terramate.ErrGenerateLoadingGlobals,
+					IgnoreStdout: true,
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {

@@ -39,7 +39,8 @@ const (
 )
 
 const (
-	ErrGenerateBackendConfig errutil.Error = "generating backend config"
+	ErrGenerateBackendConfig  errutil.Error = "generating backend config"
+	ErrGenerateLoadingGlobals errutil.Error = "loading globals"
 )
 
 // Generate will walk all the directories starting from basedir generating
@@ -89,7 +90,11 @@ func Generate(basedir string) error {
 
 		globals, err := LoadStackGlobals(basedir, stackMetadata)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("stack %q: cant load globals: %v", entry.Stack.Dir, err))
+			errs = append(errs, fmt.Errorf(
+				"stack %q: %w: %v",
+				entry.Stack.Dir,
+				ErrGenerateLoadingGlobals,
+				err))
 			continue
 		}
 
