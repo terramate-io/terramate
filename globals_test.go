@@ -488,6 +488,22 @@ func TestLoadGlobals(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name:   "global undefined references mixed on stack",
+			layout: []string{"s:stack"},
+			globals: []globalsBlock{
+				{
+					path: "/stack",
+					add: globals(
+						expr("field_a", "global.unknown"),
+						expr("field_b", "global.unknown_again"),
+						str("valid", "valid"),
+						expr("field_c", "global.oopsie"),
+					),
+				},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tcase := range tcases {
