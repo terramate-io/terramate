@@ -622,6 +622,52 @@ stack {
 				},
 			},
 		},
+		{
+			name:   "multiple stacks with config on parent dir using globals from root",
+			layout: []string{"s:stacks/stack-1", "s:stacks/stack-2"},
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: `
+globals {
+  bucket = "project-wide-bucket"
+}`,
+				},
+				{
+					relpath: "stacks",
+					config: `terramate {
+  backend "gcs" {
+    bucket = global.bucket
+    prefix = terramate.path
+  }
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stacks/stack-1",
+						code: `terraform {
+  backend "gcs" {
+    bucket = "project-wide-bucket"
+    prefix = "/stacks/stack-1"
+  }
+}
+`,
+					},
+					{
+						relpath: "stacks/stack-2",
+						code: `terraform {
+  backend "gcs" {
+    bucket = "project-wide-bucket"
+    prefix = "/stacks/stack-2"
+  }
+}
+`,
+					},
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
