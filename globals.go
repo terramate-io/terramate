@@ -127,7 +127,6 @@ func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 
 		attrs := globals.Attributes()
 		globalsObj, err := hclMapToCty(attrs)
-
 		if err != nil {
 			return nil, fmt.Errorf("evaluating globals: unexpected %v", err)
 		}
