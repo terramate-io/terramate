@@ -67,7 +67,7 @@ source = "%s"
 
 	git.CommitAll("module 1 changed")
 
-	cli := newCLI(t, s.BaseDir())
+	cli := newCLI(t, s.RootDir())
 	want := stack1.RelPath() + "\n"
 	assertRunResult(t, cli.run("list", "--changed"), runResult{Stdout: want})
 }
@@ -126,7 +126,7 @@ module "mod1" {
 
 	git.CommitAll("module 2 changed")
 
-	cli := newCLI(t, s.BaseDir())
+	cli := newCLI(t, s.RootDir())
 	want := stack.RelPath() + "\n"
 	assertRunResult(t, cli.run("list", "--changed"), runResult{Stdout: want})
 }
@@ -142,7 +142,7 @@ func TestListAndRunChangedStack(t *testing.T) {
 	stack := s.CreateStack("stack")
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
 
-	cli := newCLI(t, s.BaseDir())
+	cli := newCLI(t, s.RootDir())
 	cli.run("init", stack.Path())
 
 	git := s.Git()
@@ -222,7 +222,7 @@ func TestDefaultBaseRefInOtherThanMain(t *testing.T) {
 	stack := s.CreateStack("stack-1")
 	stackFile := stack.CreateFile("main.tf", "# no code")
 
-	cli := newCLI(t, s.BaseDir())
+	cli := newCLI(t, s.RootDir())
 	assertRun(t, cli.run("init", stack.Path()))
 
 	git := s.Git()
@@ -247,7 +247,7 @@ func TestDefaultBaseRefInMain(t *testing.T) {
 	stack := s.CreateStack("stack-1")
 	stack.CreateFile("main.tf", "# no code")
 
-	cli := newCLI(t, s.BaseDir())
+	cli := newCLI(t, s.RootDir())
 	assertRun(t, cli.run("init", stack.Path()))
 
 	git := s.Git()
@@ -269,7 +269,7 @@ func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
 	stack := s.CreateStack("stack-1")
 	stack.CreateFile("main.tf", "# no code")
 
-	cli := newCLI(t, s.BaseDir())
+	cli := newCLI(t, s.RootDir())
 	assertRun(t, cli.run("init", stack.Path()))
 
 	git := s.Git()
@@ -291,7 +291,7 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 	stack := s.CreateStack("stack-1")
 	mainTfFile := stack.CreateFile("main.tf", "# no code")
 
-	ts := newCLI(t, s.BaseDir())
+	ts := newCLI(t, s.RootDir())
 	assertRun(t, ts.run("init", stack.Path()))
 
 	git := s.Git()
@@ -315,11 +315,11 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 }
 
 func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
-	basedir := t.TempDir()
+	rootdir := t.TempDir()
 	assertFails := func() {
 		t.Helper()
 
-		ts := newCLI(t, basedir)
+		ts := newCLI(t, rootdir)
 		wantRes := runResult{
 			Error:        cli.ErrNoDefaultRemoteConfig,
 			IgnoreStderr: true,
@@ -336,7 +336,7 @@ func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
 		), wantRes)
 	}
 
-	git := sandbox.NewGit(t, basedir)
+	git := sandbox.NewGit(t, rootdir)
 	git.InitBasic()
 
 	assertFails()

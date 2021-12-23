@@ -630,12 +630,11 @@ stack {
 			s.BuildTree(tcase.layout)
 
 			for _, cfg := range tcase.configs {
-				dir := filepath.Join(s.BaseDir(), cfg.relpath)
+				dir := filepath.Join(s.RootDir(), cfg.relpath)
 				test.WriteFile(t, dir, config.Filename, cfg.config)
 			}
 
-			ts := newCLI(t, s.BaseDir())
-
+			ts := newCLI(t, s.RootDir())
 			assertRunResult(t, ts.run("generate"), tcase.want.res)
 
 			for _, want := range tcase.want.stacks {
@@ -652,7 +651,7 @@ stack {
 				}
 			}
 
-			generatedFiles := listGeneratedTfFiles(t, s.BaseDir())
+			generatedFiles := listGeneratedTfFiles(t, s.RootDir())
 
 			if len(generatedFiles) != len(tcase.want.stacks) {
 				t.Errorf("generated %d files, but wanted %d", len(generatedFiles), len(tcase.want.stacks))
@@ -664,11 +663,11 @@ stack {
 
 }
 
-func listGeneratedTfFiles(t *testing.T, basedir string) []string {
+func listGeneratedTfFiles(t *testing.T, rootdir string) []string {
 	// Go's glob is not recursive, so can't just glob for generated filenames
 	var generatedTfFiles []string
 
-	err := filepath.Walk(basedir, func(path string, info fs.FileInfo, err error) error {
+	err := filepath.Walk(rootdir, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}

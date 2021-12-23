@@ -341,7 +341,7 @@ stack-z
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 
-			cli := newCLI(t, s.BaseDir())
+			cli := newCLI(t, s.RootDir())
 			args := []string{"plan", "run-order"}
 			if tc.changed {
 				args = append(args, "--changed")
@@ -379,7 +379,7 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 	stackMainTf.Write(mainTfContents)
 	git.CommitAll("stack changed")
 
-	cli := newCLI(t, s.BaseDir())
+	cli := newCLI(t, s.RootDir())
 
 	wantList := stack.RelPath() + "\n"
 	assertRunResult(t, cli.run("list", "--changed"), runResult{Stdout: wantList})
@@ -455,7 +455,7 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 	stack2MainTf.Write(mainTfContents)
 	git.CommitAll("stack changed")
 
-	cli := newCLI(t, s.BaseDir())
+	cli := newCLI(t, s.RootDir())
 
 	wantList := stack.RelPath() + "\n" + stack2.RelPath() + "\n"
 	assertRunResult(t, cli.run("list", "--changed"), runResult{Stdout: wantList})

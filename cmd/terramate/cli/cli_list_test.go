@@ -99,7 +99,7 @@ z/a
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 
-			cli := newCLI(t, s.BaseDir())
+			cli := newCLI(t, s.RootDir())
 			assertRunResult(t, cli.run("list"), tc.want)
 		})
 	}
