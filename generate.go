@@ -129,6 +129,10 @@ func Generate(basedir string) error {
 		errs = append(errs, os.WriteFile(genfile, tfcode, 0666))
 	}
 
+	// FIXME(katcipis): errutil.Chain produces a very hard to read string representation
+	// for this case, we have a possibly big list of errors here, not an
+	// actual chain (multiple levels of calls).
+	// We do need the error wrapping for the error handling on tests (for now at least).
 	if err := errutil.Chain(errs...); err != nil {
 		return fmt.Errorf("failed to generate code: %w", err)
 	}
