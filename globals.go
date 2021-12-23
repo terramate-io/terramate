@@ -136,7 +136,7 @@ func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 	}
 
 	err = errutil.Reduce(func(err1 error, err2 error) error {
-		return fmt.Errorf("%v:%v", err1, err2)
+		return fmt.Errorf("%v,%v", err1, err2)
 	}, errs...)
 
 	if err != nil {
