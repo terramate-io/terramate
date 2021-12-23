@@ -83,6 +83,12 @@ func Generate(basedir string) error {
 			continue
 		}
 
+		globals, err := LoadStackGlobals(basedir, stackMetadata)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("stack %q: cant load globals: %v", entry.Stack.Dir, err))
+			continue
+		}
+
 		tfscope := &tflang.Scope{
 			BaseDir: filepath.Dir(entry.Stack.Dir),
 		}
@@ -90,6 +96,11 @@ func Generate(basedir string) error {
 		evalctx, err := newHCLEvalContext(stackMetadata, tfscope)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("stack %q: building eval ctx: %v", entry.Stack.Dir, err))
+			continue
+		}
+
+		if err := globals.addToEvalCtx(evalctx); err != nil {
+			errs = append(errs, fmt.Errorf("adding global namespace: %v", err))
 			continue
 		}
 

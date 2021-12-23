@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 
+	tfhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	tflang "github.com/hashicorp/terraform/lang"
 	"github.com/madlambda/spells/errutil"
@@ -65,6 +66,15 @@ func (g *Globals) set(name string, val cty.Value) {
 	g.attributes[name] = val
 }
 
+func (g *Globals) addToEvalCtx(evalctx *tfhcl.EvalContext) error {
+	ctyObj, err := hclMapToCty(g.Attributes())
+	if err != nil {
+		return fmt.Errorf("globals mapping to cty obj: %v", err)
+	}
+	evalctx.Variables["global"] = ctyObj
+	return nil
+}
+
 type rawGlobals struct {
 	expressions map[string]hclsyntax.Expression
 }
@@ -94,16 +104,13 @@ func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 		return nil, err
 	}
 
+	globals := newGlobals()
 	// error messages improve if globals is empty instead of undefined
-	empty, err := hclMapToCty(nil)
-	if err != nil {
-		return nil, fmt.Errorf("initializing empty globals: %v", err)
+	if err := globals.addToEvalCtx(evalctx); err != nil {
+		return nil, fmt.Errorf("initializing global eval: %v", err)
 	}
 
-	evalctx.Variables["global"] = empty
-
 	var errs []error
-	globals := newGlobals()
 	pendingExprs := r.expressions
 
 	for len(pendingExprs) > 0 {
@@ -125,13 +132,10 @@ func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 			break
 		}
 
-		attrs := globals.Attributes()
-		globalsObj, err := hclMapToCty(attrs)
-		if err != nil {
-			return nil, fmt.Errorf("evaluating globals: unexpected %v", err)
+		if err := globals.addToEvalCtx(evalctx); err != nil {
+			return nil, fmt.Errorf("evaluating globals: %v", err)
 		}
 
-		evalctx.Variables["global"] = globalsObj
 		errs = nil
 	}
 
