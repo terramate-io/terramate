@@ -29,7 +29,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-// TODO(katcipis): add tests related to tf functions that depend on filesyste
+// TODO(katcipis): add tests related to tf functions that depend on filesystem
 // (BaseDir parameter passed on Scope when creating eval context).
 
 func TestLoadGlobals(t *testing.T) {
