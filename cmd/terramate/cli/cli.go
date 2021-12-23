@@ -47,7 +47,7 @@ const (
 	defaultRemote        = "origin"
 	defaultBranch        = "main"
 	defaultBaseRef       = defaultRemote + "/" + defaultBranch
-	defaultBranchBaseRef = "HEAD^1"
+	defaultBranchBaseRef = "HEAD^"
 )
 
 type cliSpec struct {
