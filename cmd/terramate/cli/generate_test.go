@@ -668,6 +668,26 @@ globals {
 				},
 			},
 		},
+		{
+			name:   "reference to undefined global fails",
+			layout: []string{"s:stack"},
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: `terramate {
+  backend "gcs" {
+    bucket = global.bucket
+  }
+}`,
+				},
+			},
+			want: want{
+				res: runResult{
+					Error:        terramate.ErrGenerateBackendConfig,
+					IgnoreStdout: true,
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
