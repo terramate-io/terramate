@@ -738,15 +738,13 @@ func (g *TestGlobals) Diff(globals *terramate.Globals) (string, bool) {
 		return "TestGlobals has expressions, it should have only values", false
 	}
 
-	count := 0
 	diff := ""
 
-	globals.Iter(func(name string, val cty.Value) {
-		count += 1
+	for name, val := range globals.Attributes() {
 		testval, ok := g.ctyvalues[name]
 		if !ok {
 			diff += fmt.Sprintf("unwanted global %s=%s\n", name, val.GoString())
-			return
+			continue
 		}
 		if !testval.RawEquals(val) {
 			diff += fmt.Sprintf(
@@ -755,12 +753,16 @@ func (g *TestGlobals) Diff(globals *terramate.Globals) (string, bool) {
 				val.GoString(),
 				testval.GoString(),
 			)
-			return
+			continue
 		}
-	})
+	}
 
-	if count != len(g.ctyvalues) {
-		diff += fmt.Sprintf("wanted %d values but got only %d\n", len(g.ctyvalues), count)
+	if len(globals.Attributes()) != len(g.ctyvalues) {
+		diff += fmt.Sprintf(
+			"wanted %d values but got only %d\n",
+			len(g.ctyvalues),
+			len(globals.Attributes()),
+		)
 	}
 
 	return diff, diff == ""

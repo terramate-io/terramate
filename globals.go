@@ -55,13 +55,6 @@ func LoadStackGlobals(rootdir string, meta StackMetadata) (*Globals, error) {
 	return unEvalGlobals.eval(meta)
 }
 
-// Iter iterates the globals. There is no order guarantee on the iteration.
-func (g *Globals) Iter(iter func(name string, val cty.Value)) {
-	for name, val := range g.attributes {
-		iter(name, val)
-	}
-}
-
 // Attributes returns all the global attributes, the key in the map
 // is the attribute name with its corresponding value mapped
 func (g *Globals) Attributes() map[string]cty.Value {
