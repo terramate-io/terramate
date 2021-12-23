@@ -669,6 +669,42 @@ globals {
 			},
 		},
 		{
+			name:   "stack with global on parent dir using config from root",
+			layout: []string{"s:stacks/stack"},
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: `terramate {
+  backend "gcs" {
+    bucket = global.bucket
+    prefix = terramate.path
+  }
+}`,
+				},
+				{
+					relpath: "stacks",
+					config: `
+globals {
+  bucket = "project-wide-bucket"
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stacks/stack",
+						code: `terraform {
+  backend "gcs" {
+    bucket = "project-wide-bucket"
+    prefix = "/stacks/stack"
+  }
+}
+`,
+					},
+				},
+			},
+		},
+		{
 			name:   "reference to undefined global fails",
 			layout: []string{"s:stack"},
 			configs: []backendconfig{
