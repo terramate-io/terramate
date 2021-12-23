@@ -175,7 +175,7 @@ func loadStackGlobals(rootdir string, cfgdir string) (*rawGlobals, error) {
 	for _, block := range blocks {
 		for name, attr := range block.Body.Attributes {
 			if globals.has(name) {
-				return nil, fmt.Errorf("%w: global %q already defined", ErrGlobalRedefined, name)
+				return nil, fmt.Errorf("%w: global %q already defined in configuration %q", ErrGlobalRedefined, name, cfgpath)
 			}
 			globals.add(name, attr.Expr)
 		}
