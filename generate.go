@@ -28,8 +28,6 @@ import (
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
-	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/gocty"
 )
 
 const (
@@ -183,35 +181,6 @@ func copyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *tfhcl.EvalCon
 	}
 
 	return nil
-}
-
-func newHCLEvalContext(metadata StackMetadata, scope *tflang.Scope) (*tfhcl.EvalContext, error) {
-	vars, err := hclMapToCty(map[string]cty.Value{
-		"name": cty.StringVal(metadata.Name),
-		"path": cty.StringVal(metadata.Path),
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &tfhcl.EvalContext{
-		Variables: map[string]cty.Value{"terramate": vars},
-		Functions: scope.Functions(),
-	}, nil
-}
-
-func hclMapToCty(m map[string]cty.Value) (cty.Value, error) {
-	ctyTypes := map[string]cty.Type{}
-	for key, value := range m {
-		ctyTypes[key] = value.Type()
-	}
-	ctyObject := cty.Object(ctyTypes)
-	ctyVal, err := gocty.ToCtyValue(m, ctyObject)
-	if err != nil {
-		return cty.Value{}, err
-	}
-	return ctyVal, nil
 }
 
 func sortedAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {
