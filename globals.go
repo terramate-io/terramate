@@ -61,7 +61,7 @@ func (g *Globals) Attributes() map[string]cty.Value {
 	return g.attributes
 }
 
-func (g *Globals) add(name string, val cty.Value) {
+func (g *Globals) set(name string, val cty.Value) {
 	g.attributes[name] = val
 }
 
@@ -116,7 +116,7 @@ func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 				continue
 			}
 
-			globals.add(name, val)
+			globals.set(name, val)
 			evaluated += 1
 			delete(pendingExprs, name)
 		}
