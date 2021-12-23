@@ -87,6 +87,32 @@ on how different kinds of configurations can help you to avoid duplication
 and write solid Infrastructure as Code.
 
 
+## Debugging
+
+Terramate has detailed logs which can be enabled by setting the **TM\_LOG**
+environment variable to any of the following values:
+
+* DEBUG
+* INFO
+* WARN
+* ERROR
+
+This will cause detailed logs to appear on stderr. To control the format of
+the logs you can use TM\_LOG\_FMT, setting it to any of the following values:
+
+* CONSOLE
+* JSON
+
+**CONSOLE** gives you a nice colored output, while **JSON** gives you a JSON
+stream, where each log entry is a JSON object.
+
+To check default values run:
+
+```
+terramate help
+```
+
+
 ## Why using stacks?
 
 The stack concept is advised for several reasons. 
