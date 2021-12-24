@@ -30,6 +30,8 @@ import (
 	"github.com/mineiros-io/terramate/git"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/posener/complete"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/willabides/kongplete"
 )
 
@@ -115,6 +117,11 @@ func Run(
 	stdout io.Writer,
 	stderr io.Writer,
 ) error {
+
+	if err := configureLogging(stderr); err != nil {
+		return err
+	}
+
 	c, err := newCLI(wd, args, inheritEnv, stdin, stdout, stderr)
 	if err != nil {
 		return err
@@ -627,4 +634,57 @@ func newGit(basedir string, inheritEnv bool, checkrepo bool) (*git.Git, error) {
 	}
 
 	return g, nil
+}
+
+func configureLogging(output io.Writer) error {
+	level := lookupEnv("TM_LOG", "INFO")
+	fmt := lookupEnv("TM_LOG_FMT", "CONSOLE")
+
+	zloglevel, err := getzlogLevel(level)
+	if err != nil {
+		return err
+	}
+
+	logwriter, err := getzlogWriter(fmt, output)
+	if err != nil {
+		return err
+	}
+
+	zerolog.SetGlobalLevel(zloglevel)
+	log.Logger = zerolog.New(logwriter).With().Timestamp().Logger()
+	return nil
+}
+
+func lookupEnv(name, def string) string {
+	if v, ok := os.LookupEnv(name); ok {
+		return v
+	}
+	return def
+}
+
+func getzlogLevel(level string) (zerolog.Level, error) {
+	switch level {
+	case "DEBUG":
+		return zerolog.DebugLevel, nil
+	case "INFO":
+		return zerolog.InfoLevel, nil
+	case "WARN":
+		return zerolog.WarnLevel, nil
+	case "ERROR":
+		return zerolog.ErrorLevel, nil
+	default:
+		return zerolog.NoLevel, fmt.Errorf("unknown log level %q", level)
+	}
+}
+
+func getzlogWriter(format string, output io.Writer) (io.Writer, error) {
+	switch format {
+	case "CONSOLE":
+		return zerolog.ConsoleWriter{Out: output}, nil
+	case "JSON":
+		// Default is JSON on zlog
+		return output, nil
+	default:
+		return nil, fmt.Errorf("unknown log format %q", format)
+	}
 }

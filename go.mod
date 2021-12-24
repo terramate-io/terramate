@@ -11,6 +11,7 @@ require (
 	github.com/hashicorp/terraform v0.12.12
 	github.com/madlambda/spells v0.3.0
 	github.com/posener/complete v1.2.3
+	github.com/rs/zerolog v1.26.1
 	github.com/willabides/kongplete v0.2.0
 	github.com/zclconf/go-cty v1.8.0
 )
@@ -28,6 +29,6 @@ require (
 	github.com/mitchellh/go-wordwrap v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/zclconf/go-cty-yaml v1.0.1 // indirect
-	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4 // indirect
-	golang.org/x/text v0.3.5 // indirect
+	golang.org/x/crypto v0.0.0-20211215165025-cf75a172585e // indirect
+	golang.org/x/text v0.3.6 // indirect
 )

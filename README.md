@@ -107,11 +107,10 @@ the logs you can use TM\_LOG\_FMT, setting it to any of the following values:
 **CONSOLE** gives you a nice colored output, while **JSON** gives you a JSON
 stream, where each log entry is a JSON object.
 
-To check default values run:
+Default values are:
 
-```
-terramate help
-```
+* TM\_LOG=INFO
+* TM\_LOG_FMT=CONSOLE
 
 
 ## Why using stacks?
