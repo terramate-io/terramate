@@ -56,7 +56,18 @@ func RunOrder(root string, stacks []stack.S, changed bool) ([]stack.S, error) {
 			return nil, err
 		}
 
-		trees[stack.Dir] = tree
+		// check here if need to add to the list
+
+		trees[tree.Stack.Dir] = tree
+
+	}
+
+	for _, stack := range stacks {
+		if _, ok := trees[stack.Dir]; !ok {
+			trees[stack.Dir] = OrderDAG{
+				Stack: stack,
+			}
+		}
 	}
 
 	removeKeys := []string{}
@@ -154,6 +165,11 @@ func buildOrderTree(
 		return OrderDAG{}, err
 	}
 
+	beforeStacks, err := loader.LoadAll(rootdir, stack.Dir, stack.Before()...)
+	if err != nil {
+		return OrderDAG{}, err
+	}
+
 	for _, s := range afterStacks {
 		if _, ok := visited[s.Dir]; ok {
 			// cycle detected, dont recurse anymore
@@ -171,6 +187,28 @@ func buildOrderTree(
 		}
 
 		root.Order = append(root.Order, tree)
+	}
+
+	for _, s := range beforeStacks {
+		fmt.Printf("before stack %s\n", s.Dir)
+		if _, ok := visited[s.Dir]; ok {
+			root.Order = append(root.Order, OrderDAG{
+				Stack: s,
+				Cycle: true,
+			})
+			continue
+		}
+
+		tree, err := buildOrderTree(rootdir, s, loader, copyVisited(visited))
+		if err != nil {
+			return OrderDAG{}, fmt.Errorf("computing tree of stack %q: %w",
+				stack.Dir, err)
+		}
+
+		tmp := root
+		root = tree
+
+		tree.Order = append(tree.Order, tmp)
 	}
 
 	return root, nil
