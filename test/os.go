@@ -33,7 +33,7 @@ func TempDir(t *testing.T, base string) string {
 
 	dir, err := ioutil.TempDir(base, "terramate-test")
 	assert.NoError(t, err, "creating temp directory")
-	return dir
+	return CanonPath(t, dir)
 }
 
 // WriteFile writes content to a filename inside dir directory.
@@ -125,4 +125,12 @@ func NonExistingDir(t *testing.T) string {
 	RemoveAll(t, tmp)
 
 	return tmp2
+}
+
+func CanonPath(t *testing.T, path string) string {
+	p, err := filepath.EvalSymlinks(path)
+	assert.NoError(t, err)
+	p, err = filepath.Abs(p)
+	assert.NoError(t, err)
+	return p
 }

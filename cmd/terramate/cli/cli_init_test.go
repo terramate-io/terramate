@@ -202,7 +202,7 @@ func TestInit(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 
-			cli := newCLI(t, s.BaseDir())
+			cli := newCLI(t, s.RootDir())
 			args := []string{"init"}
 			if tc.force {
 				args = append(args, "--force")
@@ -217,7 +217,7 @@ func TestInit(t *testing.T) {
 			}
 
 			for _, path := range tc.input {
-				data := test.ReadFile(t, s.BaseDir(), filepath.Join(path, config.Filename))
+				data := test.ReadFile(t, s.RootDir(), filepath.Join(path, config.Filename))
 				got, err := hcl.Parse("TestInitHCL", data)
 				assert.NoError(t, err, "parsing terramate file")
 
@@ -227,7 +227,7 @@ func TestInit(t *testing.T) {
 					},
 					Stack: &hcl.Stack{},
 				}
-				test.AssertTerramateConfig(t, *got, want)
+				test.AssertTerramateConfig(t, got, want)
 			}
 		})
 	}
@@ -235,7 +235,7 @@ func TestInit(t *testing.T) {
 
 func TestInitNonExistingDir(t *testing.T) {
 	s := sandbox.New(t)
-	c := newCLI(t, s.BaseDir())
+	c := newCLI(t, s.RootDir())
 	assertRunResult(t, c.run("init", test.NonExistingDir(t)), runResult{
 		Error:        cli.ErrInit,
 		IgnoreStderr: true,
@@ -244,8 +244,8 @@ func TestInitNonExistingDir(t *testing.T) {
 
 func TestInitFailInitializeChildOfStack(t *testing.T) {
 	s := sandbox.New(t)
-	c := newCLI(t, s.BaseDir())
-	parent := test.Mkdir(t, s.BaseDir(), "parent-stack")
+	c := newCLI(t, s.RootDir())
+	parent := test.Mkdir(t, s.RootDir(), "parent-stack")
 	child := test.Mkdir(t, parent, "child-stack")
 	assertRun(t, c.run("init", parent))
 	assertRunResult(t, c.run("init", child), runResult{
@@ -256,8 +256,8 @@ func TestInitFailInitializeChildOfStack(t *testing.T) {
 
 func TestInitFailInitializeParentOfChildStack(t *testing.T) {
 	s := sandbox.New(t)
-	c := newCLI(t, s.BaseDir())
-	parent := test.Mkdir(t, s.BaseDir(), "parent-stack")
+	c := newCLI(t, s.RootDir())
+	parent := test.Mkdir(t, s.RootDir(), "parent-stack")
 	child := test.Mkdir(t, parent, "child-stack")
 	assertRun(t, c.run("init", child))
 	assertRunResult(t, c.run("init", parent), runResult{

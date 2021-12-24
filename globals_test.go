@@ -512,7 +512,7 @@ func TestLoadGlobals(t *testing.T) {
 			s.BuildTree(tcase.layout)
 
 			for _, globalBlock := range tcase.globals {
-				path := filepath.Join(s.BaseDir(), globalBlock.path)
+				path := filepath.Join(s.RootDir(), globalBlock.path)
 				test.AppendFile(t, path, config.Filename, globalBlock.add.String())
 			}
 
@@ -520,7 +520,7 @@ func TestLoadGlobals(t *testing.T) {
 
 			metadata := s.LoadMetadata()
 			for _, stackMetadata := range metadata.Stacks {
-				got, err := terramate.LoadStackGlobals(s.BaseDir(), stackMetadata)
+				got, err := terramate.LoadStackGlobals(s.RootDir(), stackMetadata)
 
 				if tcase.wantErr {
 					assert.Error(t, err)
@@ -692,12 +692,12 @@ func TestLoadGlobalsErrors(t *testing.T) {
 			metadata := s.LoadMetadata()
 
 			for _, c := range tcase.configs {
-				path := filepath.Join(s.BaseDir(), c.path)
+				path := filepath.Join(s.RootDir(), c.path)
 				test.AppendFile(t, path, config.Filename, c.body)
 			}
 
 			for _, stackMetadata := range metadata.Stacks {
-				_, err := terramate.LoadStackGlobals(s.BaseDir(), stackMetadata)
+				_, err := terramate.LoadStackGlobals(s.RootDir(), stackMetadata)
 				assert.IsError(t, err, tcase.want)
 			}
 		})
@@ -708,7 +708,7 @@ func TestLoadGlobalsErrorOnRelativeDir(t *testing.T) {
 	s := sandbox.New(t)
 	s.BuildTree([]string{"s:stack"})
 
-	rel, err := filepath.Rel(test.Getwd(t), s.BaseDir())
+	rel, err := filepath.Rel(test.Getwd(t), s.RootDir())
 	assert.NoError(t, err)
 
 	meta := s.LoadMetadata()

@@ -23,6 +23,16 @@ import (
 	"github.com/mineiros-io/terramate/test"
 )
 
+type want struct {
+	err    error
+	config hcl.Config
+}
+type testcase struct {
+	name  string
+	input string
+	want  want
+}
+
 func TestHCLParserModules(t *testing.T) {
 	type want struct {
 		modules []hcl.Module
@@ -146,22 +156,85 @@ module "test" {
 	}
 }
 
-func TestHHCLParserTerramateConfig(t *testing.T) {
-	type want struct {
-		err    error
-		config hcl.Config
-	}
-	type testcase struct {
-		name  string
-		input string
-		want  want
-	}
-
+func TestHCLParserTerramateBlock(t *testing.T) {
 	for _, tc := range []testcase{
+		{
+			name:  "unrecognized block",
+			input: `something {}`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
+			name: "unrecognized attribute",
+			input: `terramate{}
+something = 1`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
+			name: "unrecognized attribute inside terramate block",
+			input: `terramate{
+				something = 1
+			}
+`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
+			name: "unrecognized block",
+			input: `terramate{
+				something {}
+			}
+`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
+			name: "multiple terramate blocks",
+			input: `terramate{}
+terramate {}`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
 		{
 			name: "empty config",
 			want: want{
 				err: hcl.ErrNoTerramateBlock,
+			},
+		},
+		{
+			name: "invalid version",
+			input: `
+terramate {
+	required_version = 1
+}`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
+			name: "interpolation not allowed at req_version",
+			input: `
+terramate {
+	required_version = "${test.version}"
+}`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
+			name: "invalid attribute",
+			input: `terramate{}
+terramate {
+	version = 1
+}`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
@@ -179,25 +252,13 @@ func TestHHCLParserTerramateConfig(t *testing.T) {
 				},
 			},
 		},
-		{
-			name: "empty backend",
-			input: `
-	terramate {
-		   backend "something" {
-		   }
+	} {
+		testParser(t, tc)
 	}
-	`,
-			want: want{
-				config: hcl.Config{
-					Terramate: &hcl.Terramate{
-						Backend: &hclsyntax.Block{
-							Type:   "backend",
-							Labels: []string{"something"},
-						},
-					},
-				},
-			},
-		},
+}
+
+func TestHCLParserBackend(t *testing.T) {
+	for _, tc := range []testcase{
 		{
 			name: "backend with attributes",
 			input: `
@@ -282,6 +343,254 @@ terramate {
 			},
 		},
 		{
+			name: "empty backend",
+			input: `
+	terramate {
+		   backend "something" {
+		   }
+	}
+	`,
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Backend: &hclsyntax.Block{
+							Type:   "backend",
+							Labels: []string{"something"},
+						},
+					},
+				},
+			},
+		},
+	} {
+		testParser(t, tc)
+	}
+}
+
+func TestHCLParserRootConfig(t *testing.T) {
+	for _, tc := range []testcase{
+		{
+			name: "no config returns empty config",
+			input: `
+terramate {
+
+}
+`,
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{},
+				},
+			},
+		},
+		{
+			name: "empty config block returns empty config",
+			input: `
+terramate {
+	config {}
+}
+`,
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						RootConfig: &hcl.RootConfig{},
+					},
+				},
+			},
+		},
+		{
+			name: "unrecognized config attribute",
+			input: `
+terramate {
+	config {
+		something = "bleh"
+	}
+}
+`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
+			name: "empty config.git block",
+			input: `
+terramate {
+	config {
+		git {}
+	}
+}
+`,
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						RootConfig: &hcl.RootConfig{},
+					},
+				},
+			},
+		},
+		{
+			name: "multiple config blocks - fails",
+			input: `
+terramate {
+	config {}
+	config {}
+}
+	`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
+			name: "multiple config.git blocks - fails",
+			input: `
+terramate {
+	config {
+		git {}
+		git {}
+	}
+}
+	`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
+			name: "basic config.git block",
+			input: `
+terramate {
+	config {
+		git {
+			default_branch = "trunk"
+		}
+	}
+}
+`,
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						RootConfig: &hcl.RootConfig{
+							Git: hcl.GitConfig{
+								DefaultBranch: "trunk",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "all fields set for config.git",
+			input: `
+terramate {
+	config {
+		git {
+			default_branch = "trunk"
+			default_remote = "upstream"
+			base_ref = "upstream/trunk"
+			default_branch_base_ref = "HEAD~2"
+		}
+	}
+}
+`,
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						RootConfig: &hcl.RootConfig{
+							Git: hcl.GitConfig{
+								DefaultBranch:        "trunk",
+								DefaultRemote:        "upstream",
+								BaseRef:              "upstream/trunk",
+								DefaultBranchBaseRef: "HEAD~2",
+							},
+						},
+					},
+				},
+			},
+		},
+	} {
+		testParser(t, tc)
+	}
+}
+
+func TestHCLParserStack(t *testing.T) {
+	for _, tc := range []testcase{
+		{
+			name: "empty stack block",
+			input: `
+terramate {
+	required_version = ""
+}
+stack {}`,
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{},
+					Stack:     &hcl.Stack{},
+				},
+			},
+		},
+		{
+			name: "multiple stack blocks",
+			input: `
+terramate {}
+stack{}
+stack {}`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
+			name: "empty name",
+			input: `
+terramate {
+	required_version = ""
+}
+stack {
+	name = ""
+}`,
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{},
+					Stack:     &hcl.Stack{},
+				},
+			},
+		},
+		{
+			name: "name is not a string - fails",
+			input: `
+terramate {
+	required_version = ""
+}
+stack {
+	name = 1
+}`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
+			name: "name has interpolation - fails",
+			input: `
+terramate {
+	required_version = ""
+}
+stack {
+	name = "${test}"
+}`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
+			name: "unrecognized attribute name - fails",
+			input: `
+terramate {
+	required_version = ""
+}
+stack {
+	bleh = "a"
+}`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
 			name: "after: empty set works",
 			input: `
 terramate {
@@ -358,13 +667,17 @@ stack {
 			},
 		},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := hcl.Parse(tc.name, []byte(tc.input))
-			assert.IsError(t, err, tc.want.err)
-
-			if tc.want.err == nil {
-				test.AssertTerramateConfig(t, *got, tc.want.config)
-			}
-		})
+		testParser(t, tc)
 	}
+}
+
+func testParser(t *testing.T, tc testcase) {
+	t.Run(tc.name, func(t *testing.T) {
+		got, err := hcl.Parse(tc.name, []byte(tc.input))
+		assert.IsError(t, err, tc.want.err)
+
+		if tc.want.err == nil {
+			test.AssertTerramateConfig(t, got, tc.want.config)
+		}
+	})
 }

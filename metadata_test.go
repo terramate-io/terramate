@@ -134,7 +134,7 @@ func TestLoadMetadata(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
 
-			metadata, err := terramate.LoadMetadata(s.BaseDir())
+			metadata, err := terramate.LoadMetadata(s.RootDir())
 
 			if tcase.wantErr != nil {
 				assert.IsError(t, err, tcase.wantErr)

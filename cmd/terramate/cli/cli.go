@@ -23,11 +23,15 @@ import (
 	"path/filepath"
 	"strings"
 
+	prj "github.com/mineiros-io/terramate/project"
+
 	"github.com/alecthomas/kong"
 	"github.com/emicklei/dot"
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/git"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/posener/complete"
 	"github.com/willabides/kongplete"
@@ -40,16 +44,17 @@ const (
 )
 
 const (
-	defaultRemote       = "origin"
-	defaultBranch       = "main"
-	defaultMainBaseRef  = "HEAD^1"
-	defaultOtherBaseRef = defaultRemote + "/" + defaultBranch
+	defaultRemote        = "origin"
+	defaultBranch        = "main"
+	defaultBaseRef       = defaultRemote + "/" + defaultBranch
+	defaultBranchBaseRef = "HEAD^"
 )
 
 type cliSpec struct {
-	Version struct{} `cmd:"" help:"Terramate version."`
-
-	GitChangeBase string `short:"B" default:"${baseRef}" optional:"true" help:"git base ref for computing changes."`
+	Version       struct{} `cmd:"" help:"Terramate version."`
+	Chdir         string   `short:"C" optional:"true" help:"sets working directory."`
+	GitChangeBase string   `short:"B" optional:"true" help:"git base ref for computing changes."`
+	Changed       bool     `short:"c" optional:"true" help:"filter by changed infrastructure"`
 
 	Init struct {
 		StackDirs []string `arg:"" name:"paths" optional:"true" help:"the stack directory (current directory if not set)."`
@@ -57,16 +62,12 @@ type cliSpec struct {
 	} `cmd:"" help:"Initialize a stack."`
 
 	List struct {
-		Changed bool   `short:"c" help:"Shows only changed stacks."`
-		Why     bool   `help:"Shows reason on why the stack has changed."`
-		BaseDir string `arg:"" optional:"true" name:"path" type:"path" help:"base stack directory."`
+		Why bool `help:"Shows the reason why the stack has changed."`
 	} `cmd:"" help:"List stacks."`
 
 	Run struct {
 		Quiet   bool     `short:"q" help:"Don't print any information other than the command output."`
-		Changed bool     `short:"c" help:"Run on all changed stacks."`
 		DryRun  bool     `default:"false" help:"plan the execution but do not execute it"`
-		Basedir string   `short:"b" optional:"true" help:"Run on stacks inside basedir."`
 		Command []string `arg:"" name:"cmd" passthrough:"" help:"command to execute."`
 	} `cmd:"" help:"Run command in the stacks."`
 
@@ -74,20 +75,15 @@ type cliSpec struct {
 		Graph struct {
 			Outfile string `short:"o" default:"" help:"output .dot file."`
 			Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\"."`
-			Basedir string `arg:"" optional:"true" help:"base directory to search stacks."`
 		} `cmd:"" help:"generate a graph of the execution order."`
 
 		RunOrder struct {
 			Basedir string `arg:"" optional:"true" help:"base directory to search stacks."`
-			Changed bool   `short:"c" help:"Shows run order of changed stacks."`
 		} `cmd:"" help:"show the topological ordering of the stacks"`
 	} `cmd:"" help:"plan execution."`
-	Generate struct {
-		Basedir string `short:"b" optional:"true" help:"Generate code for stacks inside basedir."`
-	} `cmd:"" help:"Generate terraform code for stacks."`
 
-	Metadata struct {
-	} `cmd:"" help:"shows metadata available on the project"`
+	Generate struct{} `cmd:"" help:"Generate terraform code for stacks."`
+	Metadata struct{} `cmd:"" help:"shows metadata available on the project"`
 
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"install shell completions"`
 }
@@ -108,18 +104,25 @@ type cliSpec struct {
 //
 // If a critical error is found an non-nil error is returned.
 func Run(
-	wd string,
 	args []string,
 	inheritEnv bool,
 	stdin io.Reader,
 	stdout io.Writer,
 	stderr io.Writer,
 ) error {
-	c, err := newCLI(wd, args, inheritEnv, stdin, stdout, stderr)
+	c, err := newCLI(args, inheritEnv, stdin, stdout, stderr)
 	if err != nil {
 		return err
 	}
 	return c.run()
+}
+
+type project struct {
+	root    string
+	wd      string
+	isRepo  bool
+	rootcfg hcl.Config
+	baseRef string
 }
 
 type cli struct {
@@ -130,12 +133,10 @@ type cli struct {
 	stdout     io.Writer
 	stderr     io.Writer
 	exit       bool
-	wd         string
-	baseRef    string
+	prj        project
 }
 
 func newCLI(
-	wd string,
 	args []string,
 	inheritEnv bool,
 	stdin io.Reader,
@@ -147,27 +148,10 @@ func newCLI(
 		args = []string{"--help"}
 	}
 
-	parsedArgs := cliSpec{}
 	kongExit := false
 	kongExitStatus := 0
 
-	gw, err := newGit(wd, inheritEnv, false)
-	if err != nil {
-		return nil, err
-	}
-
-	baseRef := defaultOtherBaseRef
-	if gw.IsRepository() {
-		branch, err := gw.CurrentBranch()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get current git branch: %v", err)
-		}
-
-		if branch == "main" {
-			baseRef = defaultMainBaseRef
-		}
-	}
-
+	parsedArgs := cliSpec{}
 	parser, err := kong.New(&parsedArgs,
 		kong.Name("terramate"),
 		kong.Description("A tool for managing terraform stacks"),
@@ -181,9 +165,6 @@ func newCLI(
 			kongExitStatus = status
 		}),
 		kong.Writers(stdout, stderr),
-		kong.Vars{
-			"baseRef": baseRef,
-		},
 	)
 
 	if err != nil {
@@ -204,6 +185,47 @@ func newCLI(
 		return nil, fmt.Errorf("failed to parse cli args %v: %v", args, err)
 	}
 
+	wd := parsedArgs.Chdir
+	if wd == "" {
+		wd, err = os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get working directory: %w", err)
+		}
+	}
+
+	wd, err = filepath.EvalSymlinks(wd)
+	if err != nil {
+		return nil, fmt.Errorf("failed evaluating symlinks for %q: %w", wd, err)
+	}
+
+	wd, err = filepath.Abs(wd)
+	if err != nil {
+		return nil, fmt.Errorf("getting absolute path of %q: %w", wd, err)
+	}
+
+	err = os.Chdir(wd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to change working directory to %q: %w", wd, err)
+	}
+
+	prj, foundRoot, err := lookupProject(wd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup project root from %q: %w", wd, err)
+	}
+
+	if !foundRoot {
+		return nil, fmt.Errorf("project root not found")
+	}
+
+	err = prj.setDefaults(&parsedArgs)
+	if err != nil {
+		return nil, fmt.Errorf("setting configuration: %w", err)
+	}
+
+	if parsedArgs.Changed && !prj.isRepo {
+		return nil, fmt.Errorf("flag --changed provided but no git repository found.")
+	}
+
 	return &cli{
 		stdin:      stdin,
 		stdout:     stdout,
@@ -211,8 +233,7 @@ func newCLI(
 		inheritEnv: inheritEnv,
 		parsedArgs: &parsedArgs,
 		ctx:        ctx,
-		baseRef:    parsedArgs.GitChangeBase,
-		wd:         wd,
+		prj:        prj,
 	}, nil
 }
 
@@ -222,46 +243,41 @@ func (c *cli) run() error {
 		return nil
 	}
 
+	if c.parsedArgs.Changed {
+		git, err := newGit(c.root(), c.inheritEnv, true)
+		if err != nil {
+			return err
+		}
+		if err := c.checkDefaultRemote(git); err != nil {
+			return err
+		}
+		if err := c.checkLocalDefaultIsUpdated(git); err != nil {
+			return err
+		}
+	}
+
 	switch c.ctx.Command() {
 	case "version":
 		c.log(terramate.Version())
 	case "init":
-		return c.initStack([]string{c.wd})
+		return c.initStack([]string{c.wd()})
 	case "init <paths>":
 		return c.initStack(c.parsedArgs.Init.StackDirs)
 	case "list":
-		return c.printStacks(c.wd)
-	case "list <path>":
-		return c.printStacks(c.parsedArgs.List.BaseDir)
+		return c.printStacks()
 	case "plan graph":
-		fallthrough
-	case "plan graph <basedir>":
-		basedir := c.wd
-		if c.parsedArgs.Plan.Graph.Basedir != "" {
-			basedir = strings.TrimSuffix(c.parsedArgs.Plan.Graph.Basedir, "/")
-		}
-		return c.generateGraph(basedir)
+		return c.generateGraph()
 	case "plan run-order":
-		fallthrough
-	case "plan run-order <basedir>":
-		basedir := c.wd
-		if c.parsedArgs.Plan.RunOrder.Basedir != "" {
-			basedir = strings.TrimSuffix(c.parsedArgs.Plan.RunOrder.Basedir, "/")
-		}
-		return c.printRunOrder(basedir)
+		return c.printRunOrder()
 	case "run":
 		if len(c.parsedArgs.Run.Command) == 0 {
 			return errors.New("no command specified")
 		}
 		fallthrough
 	case "run <cmd>":
-		basedir := c.wd
-		if c.parsedArgs.Run.Basedir != "" {
-			basedir = strings.TrimSuffix(c.parsedArgs.Run.Basedir, "/")
-		}
-		return c.runOnStacks(basedir)
+		return c.runOnStacks()
 	case "generate":
-		return terramate.Generate(c.wd)
+		return terramate.Generate(c.root())
 	case "metadata":
 		return c.printMetadata()
 	case "install-completions":
@@ -277,10 +293,10 @@ func (c *cli) initStack(dirs []string) error {
 	var errmsgs []string
 	for _, d := range dirs {
 		if !filepath.IsAbs(d) {
-			d = filepath.Join(c.wd, d)
+			d = filepath.Join(c.wd(), d)
 		}
 
-		err := terramate.Init(d, c.parsedArgs.Init.Force)
+		err := terramate.Init(c.root(), d, c.parsedArgs.Init.Force)
 		if err != nil {
 			c.logerr("warn: failed to initialize stack: %v", err)
 			errmsgs = append(errmsgs, err.Error())
@@ -294,51 +310,38 @@ func (c *cli) initStack(dirs []string) error {
 	return nil
 }
 
-func (c *cli) listStacks(
-	basedir string,
-	mgr *terramate.Manager,
-	isChanged bool,
-) ([]terramate.Entry, error) {
-
+func (c *cli) listStacks(mgr *terramate.Manager, isChanged bool) ([]terramate.Entry, error) {
 	if isChanged {
-		git, err := newGit(basedir, c.inheritEnv, true)
-		if err != nil {
-			return nil, err
-		}
-		if err := c.checkDefaultRemote(git); err != nil {
-			return nil, err
-		}
-		if err := c.checkLocalDefaultIsUpdated(git); err != nil {
-			return nil, err
-		}
 		return mgr.ListChanged()
 	}
 
 	return mgr.List()
 }
 
-func (c *cli) printStacks(basedir string) error {
-	mgr := terramate.NewManager(basedir, c.baseRef)
-	entries, err := c.listStacks(basedir, mgr, c.parsedArgs.List.Changed)
+func (c *cli) printStacks() error {
+	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		return err
 	}
 
-	trimPart := c.wd + string(os.PathSeparator)
 	for _, entry := range entries {
 		stack := entry.Stack
-		stackdir := strings.TrimPrefix(stack.Dir, trimPart)
+		stackRepr, ok := c.friendlyFmtDir(stack.Dir)
+		if !ok {
+			continue
+		}
 
 		if c.parsedArgs.List.Why {
-			c.log("%s - %s", stackdir, entry.Reason)
+			c.log("%s - %s", stackRepr, entry.Reason)
 		} else {
-			c.log(stackdir)
+			c.log(stackRepr)
 		}
 	}
 	return nil
 }
 
-func (c *cli) generateGraph(basedir string) error {
+func (c *cli) generateGraph() error {
 	var getLabel func(s stack.S) string
 
 	switch c.parsedArgs.Plan.Graph.Label {
@@ -349,17 +352,16 @@ func (c *cli) generateGraph(basedir string) error {
 	default:
 		return fmt.Errorf("-label expects the values \"stack.name\" or \"stack.dir\"")
 	}
-	entries, err := terramate.ListStacks(basedir)
+	entries, err := terramate.ListStacks(c.root())
 	if err != nil {
 		return err
 	}
 
-	loader := stack.NewLoader()
-
+	loader := stack.NewLoader(c.root())
 	di := dot.NewGraph(dot.Directed)
 
-	for _, e := range entries {
-		tree, err := terramate.BuildOrderTree(e.Stack, loader)
+	for _, e := range c.filterStacksByWorkingDir(entries) {
+		tree, err := terramate.BuildOrderTree(c.root(), e.Stack, loader)
 		if err != nil {
 			return fmt.Errorf("failed to build order tree: %w", err)
 		}
@@ -420,23 +422,20 @@ func generateDot(
 	}
 }
 
-func (c *cli) printRunOrder(basedir string) error {
-	if !filepath.IsAbs(basedir) {
-		basedir = filepath.Join(c.wd, basedir)
-	}
-
-	mgr := terramate.NewManager(basedir, c.baseRef)
-	entries, err := c.listStacks(basedir, mgr, c.parsedArgs.Run.Changed)
+func (c *cli) printRunOrder() error {
+	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		return err
 	}
 
+	entries = c.filterStacksByWorkingDir(entries)
 	stacks := make([]stack.S, len(entries))
 	for i, e := range entries {
 		stacks[i] = e.Stack
 	}
 
-	order, err := terramate.RunOrder(stacks, c.parsedArgs.Plan.RunOrder.Changed)
+	order, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
 		c.logerr("error: %v", err)
 		return err
@@ -450,7 +449,7 @@ func (c *cli) printRunOrder(basedir string) error {
 }
 
 func (c *cli) printMetadata() error {
-	metadata, err := terramate.LoadMetadata(c.wd)
+	metadata, err := terramate.LoadMetadata(c.root())
 	if err != nil {
 		return err
 	}
@@ -466,23 +465,20 @@ func (c *cli) printMetadata() error {
 	return nil
 }
 
-func (c *cli) runOnStacks(basedir string) error {
-	if !filepath.IsAbs(basedir) {
-		basedir = filepath.Join(c.wd, basedir)
-	}
-
-	mgr := terramate.NewManager(basedir, c.baseRef)
-	entries, err := c.listStacks(basedir, mgr, c.parsedArgs.Run.Changed)
+func (c *cli) runOnStacks() error {
+	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		return err
 	}
 
-	if c.parsedArgs.Run.Changed {
+	if c.parsedArgs.Changed {
 		c.log("Running on changed stacks:")
 	} else {
 		c.log("Running on all stacks:")
 	}
 
+	entries = c.filterStacksByWorkingDir(entries)
 	stacks := make([]stack.S, len(entries))
 	for i, e := range entries {
 		stacks[i] = e.Stack
@@ -495,7 +491,7 @@ func (c *cli) runOnStacks(basedir string) error {
 	cmd.Stdout = c.stdout
 	cmd.Stderr = c.stderr
 
-	order, err := terramate.RunOrder(stacks, c.parsedArgs.Run.Changed)
+	order, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
 		return fmt.Errorf("failed to plan execution: %w", err)
 	}
@@ -504,10 +500,9 @@ func (c *cli) runOnStacks(basedir string) error {
 		if len(order) > 0 {
 			c.log("The stacks will be executed using order below:")
 
-			trimPart := c.wd + string(os.PathSeparator)
-
 			for i, s := range order {
-				c.log("\t%d. %s (%s)", i, s.Name(), strings.TrimPrefix(s.Dir, trimPart))
+				stackdir, _ := c.friendlyFmtDir(s.Dir)
+				c.log("\t%d. %s (%s)", i, s.Name(), stackdir)
 			}
 		} else {
 			c.log("No stacks will be executed.")
@@ -516,13 +511,16 @@ func (c *cli) runOnStacks(basedir string) error {
 		return nil
 	}
 
-	err = terramate.Run(order, cmd)
+	err = terramate.Run(c.root(), order, cmd)
 	if err != nil {
 		c.logerr("warn: failed to execute command: %v", err)
 	}
 
 	return nil
 }
+
+func (c *cli) wd() string   { return c.prj.wd }
+func (c *cli) root() string { return c.prj.root }
 
 func (c *cli) log(format string, args ...interface{}) {
 	fmt.Fprintln(c.stdout, fmt.Sprintf(format, args...))
@@ -612,6 +610,23 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 	return nil
 }
 
+func (c *cli) friendlyFmtDir(dir string) (string, bool) {
+	return prj.FriendlyFmtDir(c.root(), c.wd(), dir)
+}
+
+func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Entry {
+	relwd := prj.RelPath(c.root(), c.wd())
+
+	filtered := []terramate.Entry{}
+	for _, e := range stacks {
+		if strings.HasPrefix(e.Stack.Dir, relwd) {
+			filtered = append(filtered, e)
+		}
+	}
+
+	return filtered
+}
+
 func newGit(basedir string, inheritEnv bool, checkrepo bool) (*git.Git, error) {
 	g, err := git.WithConfig(git.Config{
 		WorkingDir: basedir,
@@ -627,4 +642,117 @@ func newGit(basedir string, inheritEnv bool, checkrepo bool) (*git.Git, error) {
 	}
 
 	return g, nil
+}
+
+func lookupProject(wd string) (prj project, found bool, err error) {
+	prj = project{
+		wd: wd,
+	}
+	gw, err := newGit(wd, false, false)
+	if err == nil {
+		gitdir, err := gw.Root()
+		if err == nil {
+			gitabs, err := filepath.Abs(gitdir)
+			if err != nil {
+				return project{}, false, fmt.Errorf("getting absolute path of %q: %w", gitdir, err)
+			}
+
+			gitabs, err = filepath.EvalSymlinks(gitabs)
+			if err != nil {
+				return project{}, false, fmt.Errorf("failed evaluating symlinks of %q: %w",
+					gitabs, err)
+			}
+
+			root := filepath.Dir(gitabs)
+			cfg, _, err := config.TryLoadRootConfig(root)
+			if err != nil {
+				return project{}, false, err
+			}
+
+			prj.isRepo = true
+			prj.rootcfg = cfg
+			prj.root = root
+
+			return prj, true, nil
+		}
+	}
+
+	dir := wd
+
+	for {
+		cfg, ok, err := config.TryLoadRootConfig(dir)
+		if err != nil {
+			return project{}, false, err
+		}
+
+		if ok {
+			prj.root = dir
+			prj.rootcfg = cfg
+
+			return prj, true, nil
+		}
+
+		if dir == "/" {
+			break
+		}
+
+		dir = filepath.Dir(dir)
+	}
+
+	return project{}, false, nil
+}
+
+func (p *project) setDefaults(parsedArgs *cliSpec) error {
+	if p.rootcfg.Terramate == nil {
+		// if config has no terramate block we create one with default
+		// configurations.
+		p.rootcfg.Terramate = &hcl.Terramate{}
+	}
+
+	cfg := &p.rootcfg
+	if cfg.Terramate.RootConfig == nil {
+		p.rootcfg.Terramate.RootConfig = &hcl.RootConfig{}
+	}
+
+	gitOpt := &cfg.Terramate.RootConfig.Git
+
+	if gitOpt.BaseRef == "" {
+		gitOpt.BaseRef = defaultBaseRef
+	}
+
+	if gitOpt.DefaultBranchBaseRef == "" {
+		gitOpt.DefaultBranchBaseRef = defaultBranchBaseRef
+	}
+
+	if gitOpt.DefaultBranch == "" {
+		gitOpt.DefaultBranch = defaultBranch
+	}
+
+	if gitOpt.DefaultRemote == "" {
+		gitOpt.DefaultRemote = defaultRemote
+	}
+
+	baseRef := parsedArgs.GitChangeBase
+	if baseRef == "" {
+		baseRef = gitOpt.BaseRef
+		if p.isRepo {
+			gw, err := newGit(p.wd, false, false)
+			if err != nil {
+				return err
+			}
+
+			branch, err := gw.CurrentBranch()
+			if err != nil {
+				return fmt.Errorf("failed to get current git branch: %v", err)
+			}
+
+			if branch == gitOpt.DefaultBranch {
+				baseRef = gitOpt.DefaultBranchBaseRef
+			}
+		}
+	}
+
+	p.baseRef = baseRef
+
+	return nil
 }

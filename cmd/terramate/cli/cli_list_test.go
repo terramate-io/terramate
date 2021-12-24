@@ -99,7 +99,7 @@ z/a
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 
-			cli := newCLI(t, s.BaseDir())
+			cli := newCLI(t, s.RootDir())
 			assertRunResult(t, cli.run("list"), tc.want)
 		})
 	}
@@ -107,10 +107,10 @@ z/a
 
 func TestListNoSuchFile(t *testing.T) {
 	notExists := test.NonExistingDir(t)
-	cli := newCLI(t, t.TempDir())
+	cli := newCLI(t, notExists)
 
 	// errors from the manager are not logged in stderr
-	assertRunResult(t, cli.run("list", notExists), runResult{
+	assertRunResult(t, cli.run("list"), runResult{
 		Error: os.ErrNotExist,
 	})
 }

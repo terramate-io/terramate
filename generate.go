@@ -29,6 +29,7 @@ import (
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/project"
 )
 
 const (
@@ -44,33 +45,33 @@ const (
 	ErrGenerateLoadingGlobals errutil.Error = "loading globals"
 )
 
-// Generate will walk all the directories starting from basedir generating
-// code for any stack it finds as it goes along
+// Generate will walk all the directories starting from project's root
+// generating code for any stack it finds as it goes along
 //
-// It will return an error if it finds any invalid terramate configuration files
+// It will return an error if it finds any invalid Terramate configuration files
 // of if it can't generate the files properly for some reason.
 //
-// The provided basedir must be an absolute path to a directory.
-func Generate(basedir string) error {
-	if !filepath.IsAbs(basedir) {
-		return fmt.Errorf("basedir %q must be an absolute path", basedir)
+// The provided root must be an absolute path to project's root directory.
+func Generate(root string) error {
+	if !filepath.IsAbs(root) {
+		return fmt.Errorf("project's root %q must be an absolute path", root)
 	}
 
-	info, err := os.Lstat(basedir)
+	info, err := os.Lstat(root)
 	if err != nil {
-		return fmt.Errorf("checking basedir %q: %v", basedir, err)
+		return fmt.Errorf("checking project's root directory %q: %v", root, err)
 	}
 
 	if !info.IsDir() {
-		return fmt.Errorf("basedir %q is not a directory", basedir)
+		return fmt.Errorf("project's root %q is not a directory", root)
 	}
 
-	stackEntries, err := ListStacks(basedir)
+	stackEntries, err := ListStacks(root)
 	if err != nil {
 		return fmt.Errorf("listing stack: %w", err)
 	}
 
-	metadata, err := LoadMetadata(basedir)
+	metadata, err := LoadMetadata(root)
 	if err != nil {
 		return fmt.Errorf("loading metadata: %v", err)
 	}
@@ -79,33 +80,34 @@ func Generate(basedir string) error {
 
 	for _, entry := range stackEntries {
 		// At the time the most intuitive way was to start from the stack
-		// and go up until reaching the basedir, looking for a config.
+		// and go up until reaching the root, looking for a config.
 		// Basically navigating from the order of precedence, since
 		// more specific configuration overrides base configuration.
 		// Not the most optimized way (re-parsing), we can improve later
-		stackMetadata, ok := metadata.StackMetadata(entry.Stack.Dir)
+		stackpath := project.AbsPath(root, entry.Stack.Dir)
+		stackMetadata, ok := metadata.StackMetadata(stackpath)
 		if !ok {
-			errs = append(errs, fmt.Errorf("stack %q: no metadata found", entry.Stack.Dir))
+			errs = append(errs, fmt.Errorf("stack %q: no metadata found", stackpath))
 			continue
 		}
 
-		globals, err := LoadStackGlobals(basedir, stackMetadata)
+		globals, err := LoadStackGlobals(root, stackMetadata)
 		if err != nil {
 			errs = append(errs, fmt.Errorf(
 				"stack %q: %w: %v",
-				entry.Stack.Dir,
+				stackpath,
 				ErrGenerateLoadingGlobals,
 				err))
 			continue
 		}
 
 		tfscope := &tflang.Scope{
-			BaseDir: filepath.Dir(entry.Stack.Dir),
+			BaseDir: filepath.Dir(stackpath),
 		}
 
 		evalctx, err := newHCLEvalContext(stackMetadata, tfscope)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("stack %q: building eval ctx: %v", entry.Stack.Dir, err))
+			errs = append(errs, fmt.Errorf("stack %q: building eval ctx: %v", stackpath, err))
 			continue
 		}
 
@@ -114,10 +116,10 @@ func Generate(basedir string) error {
 			continue
 		}
 
-		tfcode, err := generateStackConfig(basedir, entry.Stack.Dir, evalctx)
+		tfcode, err := generateStackConfig(root, stackpath, evalctx)
 		if err != nil {
 			err = errutil.Chain(ErrGenerateBackendConfig, err)
-			errs = append(errs, fmt.Errorf("stack %q: %w", entry.Stack.Dir, err))
+			errs = append(errs, fmt.Errorf("stack %q: %w", stackpath, err))
 			continue
 		}
 
@@ -125,7 +127,7 @@ func Generate(basedir string) error {
 			continue
 		}
 
-		genfile := filepath.Join(entry.Stack.Dir, GeneratedTfFilename)
+		genfile := filepath.Join(stackpath, GeneratedTfFilename)
 		errs = append(errs, os.WriteFile(genfile, tfcode, 0666))
 	}
 
@@ -140,15 +142,15 @@ func Generate(basedir string) error {
 	return nil
 }
 
-func generateStackConfig(basedir string, configdir string, evalctx *tfhcl.EvalContext) ([]byte, error) {
-	if !strings.HasPrefix(configdir, basedir) {
-		// check if we are outside of basedir, time to stop
+func generateStackConfig(root string, configdir string, evalctx *tfhcl.EvalContext) ([]byte, error) {
+	if !strings.HasPrefix(configdir, root) {
+		// check if we are outside of project's root, time to stop
 		return nil, nil
 	}
 
 	configfile := filepath.Join(configdir, config.Filename)
 	if _, err := os.Stat(configfile); err != nil {
-		return generateStackConfig(basedir, filepath.Dir(configdir), evalctx)
+		return generateStackConfig(root, filepath.Dir(configdir), evalctx)
 	}
 
 	config, err := os.ReadFile(configfile)
@@ -159,14 +161,14 @@ func generateStackConfig(basedir string, configdir string, evalctx *tfhcl.EvalCo
 	parsedConfig, err := hcl.Parse(configfile, config)
 	if err != nil {
 		if errors.Is(err, hcl.ErrNoTerramateBlock) {
-			return generateStackConfig(basedir, filepath.Dir(configdir), evalctx)
+			return generateStackConfig(root, filepath.Dir(configdir), evalctx)
 		}
 		return nil, fmt.Errorf("parsing config: %w", err)
 	}
 
 	parsed := parsedConfig.Terramate
 	if parsed.Backend == nil {
-		return generateStackConfig(basedir, filepath.Dir(configdir), evalctx)
+		return generateStackConfig(root, filepath.Dir(configdir), evalctx)
 	}
 
 	gen := hclwrite.NewEmptyFile()

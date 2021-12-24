@@ -55,6 +55,16 @@ func assertTerramateBlock(t *testing.T, got, want *hcl.Terramate) {
 
 		// TODO(i4k): compare the rest?
 	}
+
+	if (want.RootConfig == nil) != (got.RootConfig == nil) {
+		t.Fatalf("want.RootConfig[%+v] != got.RootConfig[%+v]",
+			want.RootConfig, got.RootConfig)
+	}
+
+	if want.RootConfig != nil && *want.RootConfig != *got.RootConfig {
+		t.Fatalf("want.RootConfig[%+v] != got.RootConfig[%+v]",
+			want.RootConfig, got.RootConfig)
+	}
 }
 
 func assertStackBlock(t *testing.T, got, want *hcl.Stack) {
