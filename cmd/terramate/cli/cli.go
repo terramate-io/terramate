@@ -277,7 +277,7 @@ func (c *cli) run() error {
 	case "run <cmd>":
 		return c.runOnStacks()
 	case "generate":
-		return terramate.Generate(c.wd())
+		return terramate.Generate(c.root())
 	case "metadata":
 		return c.printMetadata()
 	case "install-completions":
@@ -449,7 +449,7 @@ func (c *cli) printRunOrder() error {
 }
 
 func (c *cli) printMetadata() error {
-	metadata, err := terramate.LoadMetadata(c.wd())
+	metadata, err := terramate.LoadMetadata(c.root())
 	if err != nil {
 		return err
 	}
