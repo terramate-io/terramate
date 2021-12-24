@@ -671,6 +671,8 @@ func getzlogLevel(level string) (zerolog.Level, error) {
 		return zerolog.WarnLevel, nil
 	case "ERROR":
 		return zerolog.ErrorLevel, nil
+	case "DISABLED":
+		return zerolog.Disabled, nil
 	default:
 		return zerolog.NoLevel, fmt.Errorf("unknown log level %q", level)
 	}
@@ -679,7 +681,8 @@ func getzlogLevel(level string) (zerolog.Level, error) {
 func getzlogWriter(format string, output io.Writer) (io.Writer, error) {
 	switch format {
 	case "CONSOLE":
-		return zerolog.ConsoleWriter{Out: output}, nil
+		color := lookupEnv("TM_LOG_COLOR", "ON")
+		return zerolog.ConsoleWriter{Out: output, NoColor: color != "ON"}, nil
 	case "JSON":
 		// Default is JSON on zlog
 		return output, nil

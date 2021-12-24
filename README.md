@@ -111,14 +111,17 @@ setting it to any of the following values:
 **JSON** gives you a JSON stream ([Line delimited JSON](https://en.wikipedia.org/wiki/JSON_streaming#Line-delimited_JSON)).
 
 The **CONSOLE** format supports coloring, this can be controlled by the
-environment variable **TM\_LOG\_COLOR**. Color configuration has no effect
-when using a **JSON** formatter.
+environment variable **TM\_LOG\_COLOR**. If it is set to **ON** the output will
+colored, if set to **OFF* (or anything else other than **ON**) coloring will be
+disabled.
+
+Color configuration has no effect when using a **JSON** formatter.
 
 Default values are:
 
 * TM\_LOG=INFO
 * TM\_LOG_FMT=CONSOLE
-* TM\_LOG_COLOR=on
+* TM\_LOG_COLOR=ON
 
 
 ## Why using stacks?
