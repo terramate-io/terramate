@@ -360,17 +360,12 @@ func (c *cli) generateGraph() error {
 	loader := stack.NewLoader(c.root())
 	di := dot.NewGraph(dot.Directed)
 
-	trees := []terramate.OrderDAG{}
 	for _, e := range c.filterStacksByWorkingDir(entries) {
 		tree, err := terramate.BuildOrderTree(c.root(), e.Stack, loader)
 		if err != nil {
 			return fmt.Errorf("failed to build order tree: %w", err)
 		}
 
-		trees = append(trees, tree)
-	}
-
-	for _, tree := range trees {
 		node := di.Node(getLabel(tree.Stack))
 		generateDot(di, node, tree, getLabel)
 	}
