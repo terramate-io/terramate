@@ -705,6 +705,55 @@ globals {
 			},
 		},
 		{
+			name:   "stack overriding parent global",
+			layout: []string{"s:stacks/stack"},
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: `terramate {
+  backend "gcs" {
+    bucket = global.bucket
+    prefix = terramate.path
+  }
+}`,
+				},
+				{
+					relpath: "stacks",
+					config: `
+globals {
+  bucket = "project-wide-bucket"
+}`,
+				},
+				{
+					relpath: "stacks/stack",
+					config: `
+terramate {
+  required_version = "~> 0.0.0"
+}
+
+stack {}
+
+globals {
+  bucket = "stack-specific-bucket"
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stacks/stack",
+						code: `terraform {
+  backend "gcs" {
+    bucket = "stack-specific-bucket"
+    prefix = "/stacks/stack"
+  }
+}
+`,
+					},
+				},
+			},
+		},
+		{
 			name:   "reference to undefined global fails",
 			layout: []string{"s:stack"},
 			configs: []backendconfig{
