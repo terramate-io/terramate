@@ -30,23 +30,23 @@ type OrderDAG struct {
 }
 
 // BuildOrderTree builds the order tree data structure.
-func BuildOrderTree(stack stack.S, l stack.Loader) (OrderDAG, error) {
-	return buildOrderTree(stack, l, map[string]struct{}{})
+func BuildOrderTree(root string, stack stack.S, l stack.Loader) (OrderDAG, error) {
+	return buildOrderTree(root, stack, l, map[string]struct{}{})
 }
 
 // RunOrder computes the final execution order for the given list of stacks.
 // In the case of multiple possible orders, it returns the lexicographic sorted
 // path.
-func RunOrder(stacks []stack.S, changed bool) ([]stack.S, error) {
+func RunOrder(root string, stacks []stack.S, changed bool) ([]stack.S, error) {
 	trees := map[string]OrderDAG{} // indexed by stackdir
 
-	loader := stack.NewLoader()
+	loader := stack.NewLoader(root)
 	for _, stack := range stacks {
 		loader.Set(stack.Dir, stack)
 	}
 
 	for _, stack := range stacks {
-		tree, err := BuildOrderTree(stack, loader)
+		tree, err := BuildOrderTree(root, stack, loader)
 		if err != nil {
 			return nil, err
 		}
@@ -139,6 +139,7 @@ func CheckCycle(tree OrderDAG) error {
 }
 
 func buildOrderTree(
+	rootdir string,
 	stack stack.S,
 	loader stack.Loader,
 	visited map[string]struct{},
@@ -148,7 +149,7 @@ func buildOrderTree(
 	}
 
 	visited[stack.Dir] = struct{}{}
-	afterStacks, err := loader.LoadAll(stack.Dir, stack.After()...)
+	afterStacks, err := loader.LoadAll(rootdir, stack.Dir, stack.After()...)
 	if err != nil {
 		return OrderDAG{}, err
 	}
@@ -163,7 +164,7 @@ func buildOrderTree(
 			continue
 		}
 
-		tree, err := buildOrderTree(s, loader, copyVisited(visited))
+		tree, err := buildOrderTree(rootdir, s, loader, copyVisited(visited))
 		if err != nil {
 			return OrderDAG{}, fmt.Errorf("computing tree of stack %q: %w",
 				stack.Dir, err)

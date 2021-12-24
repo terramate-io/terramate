@@ -24,20 +24,28 @@ import (
 
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/project"
 )
 
 // Loader is a stack loader.
-type Loader map[string]S
+type Loader struct {
+	root   string
+	stacks map[string]S
+}
 
-// NewLoader creates a new stack loader.
-func NewLoader() Loader {
-	return make(Loader)
+// NewLoader creates a new stack loader for project's root directory.
+func NewLoader(root string) Loader {
+	return Loader{
+		root:   root,
+		stacks: make(map[string]S),
+	}
 }
 
 // Load loads a stack from dir directory. If the stack was previously loaded, it
 // returns the cached one.
 func (l Loader) Load(dir string) (S, error) {
-	if s, ok := l[dir]; ok {
+	stackpath := project.RelPath(l.root, dir)
+	if s, ok := l.stacks[stackpath]; ok {
 		return s, nil
 	}
 
@@ -60,27 +68,20 @@ func (l Loader) Load(dir string) (S, error) {
 		return S{}, fmt.Errorf("stack %q is not a leaf directory", dir)
 	}
 
-	l.set(dir, cfg.Stack)
-	return l[dir], nil
-}
-
-// LoadChanged is like Load but sets the stack as changed if loaded
-// successfully.
-func (l Loader) LoadChanged(dir string) (S, error) {
-	s, err := l.Load(dir)
-	if err != nil {
-		return S{}, err
-	}
-
-	s.changed = true
-	return s, nil
+	l.set(stackpath, cfg.Stack)
+	return l.stacks[stackpath], nil
 }
 
 // TryLoad tries to load a stack from directory. It returns found as true
 // only in the case that path contains a stack and it was correctly parsed.
 // It caches the stack for later use.
 func (l Loader) TryLoad(dir string) (stack S, found bool, err error) {
-	if s, ok := l[dir]; ok {
+	if !strings.HasPrefix(dir, l.root) {
+		return S{}, false, fmt.Errorf("directory %q is not inside project root %q",
+			dir, l.root)
+	}
+	stackpath := project.RelPath(l.root, dir)
+	if s, ok := l.stacks[stackpath]; ok {
 		return s, true, nil
 	}
 
@@ -112,13 +113,13 @@ func (l Loader) TryLoad(dir string) (stack S, found bool, err error) {
 		return S{}, false, fmt.Errorf("stack %q is not a leaf stack", dir)
 	}
 
-	l.set(dir, cfg.Stack)
-	return l[dir], true, nil
+	l.set(stackpath, cfg.Stack)
+	return l.stacks[stackpath], true, nil
 }
 
 // TryLoadChanged is like TryLoad but sets the stack as changed if loaded
 // successfully.
-func (l Loader) TryLoadChanged(dir string) (stack S, found bool, err error) {
+func (l Loader) TryLoadChanged(root, dir string) (stack S, found bool, err error) {
 	s, ok, err := l.TryLoad(dir)
 	if ok {
 		s.changed = true
@@ -126,33 +127,37 @@ func (l Loader) TryLoadChanged(dir string) (stack S, found bool, err error) {
 	return s, ok, err
 }
 
-func (l Loader) set(dir string, block *hcl.Stack) {
+func (l Loader) set(path string, block *hcl.Stack) {
 	var name string
 	if block.Name != "" {
 		name = block.Name
 	} else {
-		name = filepath.Base(dir)
+		name = filepath.Base(path)
 	}
 
-	l[dir] = S{
+	l.stacks[path] = S{
 		name:  name,
-		Dir:   dir,
+		Dir:   path,
 		block: block,
 	}
 }
 
+// Set stacks in the loader's cache. The dir directory must be relative to
+// project's root.
 func (l Loader) Set(dir string, s S) {
-	l[dir] = s
+	l.stacks[dir] = s
 }
 
 // LoadAll loads all the stacks in the dirs directories. If dirs are relative
 // paths, then basedir is used as base.
-func (l Loader) LoadAll(basedir string, dirs ...string) ([]S, error) {
+func (l Loader) LoadAll(root string, basedir string, dirs ...string) ([]S, error) {
 	stacks := []S{}
+
+	absbase := filepath.Join(root, basedir)
 
 	for _, d := range dirs {
 		if !filepath.IsAbs(d) {
-			d = filepath.Join(basedir, d)
+			d = filepath.Join(absbase, d)
 		}
 		stack, err := l.Load(d)
 		if err != nil {
@@ -202,6 +207,9 @@ func (l Loader) IsLeafStack(dir string) (bool, error) {
 }
 
 func (l Loader) lookupParentStack(dir string) (stack S, found bool, err error) {
+	if l.root == dir {
+		return S{}, false, nil
+	}
 	d := filepath.Dir(dir)
 	for {
 		stack, ok, err := l.TryLoad(d)
@@ -213,7 +221,7 @@ func (l Loader) lookupParentStack(dir string) (stack S, found bool, err error) {
 			return stack, true, nil
 		}
 
-		if d == string(filepath.Separator) {
+		if d == l.root || d == "/" {
 			break
 		}
 

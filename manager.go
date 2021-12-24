@@ -30,7 +30,7 @@ import (
 type (
 	// Manager is the terramate stacks manager.
 	Manager struct {
-		basedir    string // basedir is the stacks base directory.
+		root       string // root is the project's root directory
 		gitBaseRef string // gitBaseRef is the git ref where we compare changes.
 
 		stackLoader stack.Loader
@@ -43,20 +43,20 @@ type (
 	}
 )
 
-// NewManager creates a new stack manager. The basedir is the base directory
-// where all stacks reside inside.
-func NewManager(basedir string, gitBaseRef string) *Manager {
+// NewManager creates a new stack manager. The rootdir is the project's
+// directory and gitBaseRef is the git reference to compare against for changes.
+func NewManager(rootdir string, gitBaseRef string) *Manager {
 	return &Manager{
-		basedir:     basedir,
+		root:        rootdir,
 		gitBaseRef:  gitBaseRef,
-		stackLoader: make(stack.Loader),
+		stackLoader: stack.NewLoader(rootdir),
 	}
 }
 
 // List walks the basedir directory looking for terraform stacks.
 // It returns a lexicographic sorted list of stack directories.
 func (m *Manager) List() ([]Entry, error) {
-	return ListStacks(m.basedir)
+	return ListStacks(m.root)
 }
 
 // ListChanged lists the stacks that have changed on the current branch,
@@ -65,15 +65,15 @@ func (m *Manager) List() ([]Entry, error) {
 // It's an error to call this method in a directory that's not
 // inside a repository or a repository with no commits in it.
 func (m *Manager) ListChanged() ([]Entry, error) {
-	files, err := listChangedFiles(m.basedir, m.gitBaseRef)
+	files, err := listChangedFiles(m.root, m.gitBaseRef)
 	if err != nil {
 		return nil, err
 	}
 
 	stackSet := map[string]Entry{}
 	for _, path := range files {
-		dirname := filepath.Dir(filepath.Join(m.basedir, path))
-		stack, found, err := m.stackLoader.TryLoadChanged(dirname)
+		dirname := filepath.Dir(filepath.Join(m.root, path))
+		stack, found, err := m.stackLoader.TryLoadChanged(m.root, dirname)
 		if err != nil {
 			return nil, fmt.Errorf("listing changed files: %w", err)
 		}
@@ -97,12 +97,14 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 			continue
 		}
 
-		err := m.filesApply(stack.Dir, func(file fs.DirEntry) error {
+		abspath := filepath.Join(m.root, stack.Dir)
+		err := m.filesApply(abspath, func(file fs.DirEntry) error {
 			if path.Ext(file.Name()) != ".tf" {
 				return nil
 			}
 
-			tfpath := filepath.Join(stack.Dir, file.Name())
+			abspath := filepath.Join(m.root, stack.Dir)
+			tfpath := filepath.Join(abspath, file.Name())
 			modules, err := hcl.ParseModules(tfpath)
 			if err != nil {
 				return fmt.Errorf("parsing modules at %q: %w",
@@ -110,7 +112,7 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 			}
 
 			for _, mod := range modules {
-				changed, why, err := m.moduleChanged(mod, stack.Dir, make(map[string]bool))
+				changed, why, err := m.moduleChanged(mod, abspath, make(map[string]bool))
 				if err != nil {
 					return fmt.Errorf("checking module %q: %w", mod.Source, err)
 				}

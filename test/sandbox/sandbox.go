@@ -43,7 +43,7 @@ import (
 type S struct {
 	t       *testing.T
 	git     Git
-	basedir string
+	rootdir string
 }
 
 // DirEntry represents a directory and can be used to create files inside the
@@ -77,13 +77,13 @@ type FileEntry struct {
 func New(t *testing.T) S {
 	t.Helper()
 
-	basedir := t.TempDir()
-	git := NewGit(t, basedir)
+	rootdir := test.CanonPath(t, t.TempDir())
+	git := NewGit(t, rootdir)
 	git.Init()
 	return S{
 		t:       t,
 		git:     git,
-		basedir: basedir,
+		rootdir: rootdir,
 	}
 }
 
@@ -116,7 +116,7 @@ func (s S) BuildTree(layout []string) {
 	parsePathData := func(spec string) (string, string) {
 		tmp := spec[2:]
 		if len(tmp) == 0 {
-			// relative to s.basedir
+			// relative to s.rootdir
 			return ".", ""
 		}
 		index := strings.IndexByte(tmp, ':')
@@ -149,7 +149,7 @@ func (s S) BuildTree(layout []string) {
 			}
 		}
 
-		path := filepath.Join(s.BaseDir(), filepath.Join(relpath, config.Filename))
+		path := filepath.Join(s.RootDir(), filepath.Join(relpath, config.Filename))
 		test.MkdirAll(t, filepath.Dir(path))
 
 		f, err := os.Create(path)
@@ -168,7 +168,7 @@ func (s S) BuildTree(layout []string) {
 
 		switch spec[0] {
 		case 'd':
-			test.MkdirAll(t, filepath.Join(s.basedir, spec[2:]))
+			test.MkdirAll(t, filepath.Join(s.rootdir, spec[2:]))
 		case 's':
 			if data == "" {
 				s.CreateStack(path)
@@ -177,7 +177,7 @@ func (s S) BuildTree(layout []string) {
 
 			gentmfile(path, data)
 		case 'f':
-			test.WriteFile(t, s.basedir, path, data)
+			test.WriteFile(t, s.rootdir, path, data)
 		default:
 			t.Fatalf("unknown tree identifier: %d", spec[0])
 		}
@@ -194,18 +194,18 @@ func (s S) Git() Git {
 func (s S) LoadMetadata() terramate.Metadata {
 	s.t.Helper()
 
-	meta, err := terramate.LoadMetadata(s.BaseDir())
+	meta, err := terramate.LoadMetadata(s.RootDir())
 	assert.NoError(s.t, err)
 	return meta
 }
 
-// BaseDir returns the base dir of the test env. All dirs/files created through
-// the test env will be included inside this dir.
+// RootDir returns the root directory of the test env. All dirs/files created
+// through the test env will be included inside this dir.
 //
 // It is a programming error to delete this dir, it will be automatically
 // removed when the test finishes.
-func (s S) BaseDir() string {
-	return s.basedir
+func (s S) RootDir() string {
+	return s.rootdir
 }
 
 // CreateModule will create a module dir with the given relative path, returning
@@ -218,7 +218,7 @@ func (s S) CreateModule(relpath string) DirEntry {
 		t.Fatalf("CreateModule() needs a relative path but given %q", relpath)
 	}
 
-	return newDirEntry(s.t, s.basedir, relpath)
+	return newDirEntry(s.t, s.rootdir, relpath)
 }
 
 // CreateStack will create a stack dir with the given relative path and
@@ -233,10 +233,10 @@ func (s S) CreateStack(relpath string) *StackEntry {
 	}
 
 	stack := &StackEntry{
-		DirEntry: newDirEntry(t, s.basedir, relpath),
+		DirEntry: newDirEntry(t, s.rootdir, relpath),
 	}
 
-	assert.NoError(t, terramate.Init(stack.Path(), false))
+	assert.NoError(t, terramate.Init(s.RootDir(), stack.Path(), false))
 	return stack
 }
 
@@ -250,7 +250,7 @@ func (s S) StackEntry(relpath string) *StackEntry {
 		t.Fatalf("StackEntry() needs a relative path but given %q", relpath)
 	}
 
-	abspath := filepath.Join(s.basedir, relpath)
+	abspath := filepath.Join(s.rootdir, relpath)
 	stat, err := os.Stat(abspath)
 	if err != nil {
 		t.Fatalf("StackEntry(): stack must exist: %v", err)
