@@ -117,7 +117,6 @@ func Run(
 	stdout io.Writer,
 	stderr io.Writer,
 ) error {
-
 	if err := configureLogging(stderr); err != nil {
 		return err
 	}
