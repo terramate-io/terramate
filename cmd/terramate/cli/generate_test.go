@@ -705,8 +705,11 @@ globals {
 			},
 		},
 		{
-			name:   "stack overriding parent global",
-			layout: []string{"s:stacks/stack"},
+			name: "stack overriding parent global",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
 			configs: []backendconfig{
 				{
 					relpath: ".",
@@ -725,7 +728,7 @@ globals {
 }`,
 				},
 				{
-					relpath: "stacks/stack",
+					relpath: "stacks/stack-1",
 					config: `
 terramate {
   required_version = "~> 0.0.0"
@@ -741,11 +744,21 @@ globals {
 			want: want{
 				stacks: []stackcode{
 					{
-						relpath: "stacks/stack",
+						relpath: "stacks/stack-1",
 						code: `terraform {
   backend "gcs" {
     bucket = "stack-specific-bucket"
-    prefix = "/stacks/stack"
+    prefix = "/stacks/stack-1"
+  }
+}
+`,
+					},
+					{
+						relpath: "stacks/stack-2",
+						code: `terraform {
+  backend "gcs" {
+    bucket = "project-wide-bucket"
+    prefix = "/stacks/stack-2"
   }
 }
 `,
