@@ -33,6 +33,11 @@ license/check:
 mod/check:
 	@./hack/mod-check
 
+## tidy up go modules
+.PHONY: mod
+mod:
+	go mod tidy
+
 ## generates coverage report
 .PHONY: coverage
 coverage: 

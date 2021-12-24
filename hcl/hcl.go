@@ -124,6 +124,27 @@ func ParseModules(path string) ([]Module, error) {
 	return modules, nil
 }
 
+// ParseGlobalsBlocks parses globals blocks, ignoring any other blocks
+func ParseGlobalsBlocks(path string) ([]*hclsyntax.Block, error) {
+	_, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+
+	p := hclparse.NewParser()
+	f, diags := p.ParseHCLFile(path)
+	if diags.HasErrors() {
+		return nil, errutil.Chain(
+			ErrHCLSyntax,
+			fmt.Errorf("parsing globals: %w", diags),
+		)
+	}
+
+	body, _ := f.Body.(*hclsyntax.Body)
+
+	return filterBlocksByType("globals", body.Blocks), nil
+}
+
 // ParseBody parses HCL and return the parsed body.
 func ParseBody(src []byte, filename string) (*hclsyntax.Body, error) {
 	parser := hclparse.NewParser()
@@ -156,7 +177,7 @@ func Parse(fname string, data []byte) (*Config, error) {
 	var tmblock, stackblock *hclsyntax.Block
 	var foundtm, foundstack bool
 	for _, block := range body.Blocks {
-		if block.Type != "terramate" && block.Type != "stack" {
+		if !blockIsAllowed(block.Type) {
 			return nil, errutil.Chain(
 				ErrMalformedTerramateConfig,
 				fmt.Errorf("block type %q is not supported", block.Type),
@@ -359,6 +380,29 @@ func assignSet(name string, target *[]string, val cty.Value) error {
 	sort.Strings(elems)
 	*target = elems
 	return nil
+}
+
+func filterBlocksByType(blocktype string, blocks []*hclsyntax.Block) []*hclsyntax.Block {
+	var filtered []*hclsyntax.Block
+
+	for _, block := range blocks {
+		if block.Type != blocktype {
+			continue
+		}
+
+		filtered = append(filtered, block)
+	}
+
+	return filtered
+}
+
+func blockIsAllowed(name string) bool {
+	switch name {
+	case "terramate", "stack", "backend", "globals":
+		return true
+	default:
+		return false
+	}
 }
 
 // IsLocal tells if module source is a local directory.

@@ -267,10 +267,13 @@ This means that globals at the root of a project can reference globals that
 are going to be defined only at a more specific configuration (potentially
 the stack itself). 
 
-When analyzing globals at the root and intermediary
-directories this looks like lazy evaluation, you can reference information
-that will only be available later when a stack defines it (or some more
-specific configuration).
+Overall globals are evaluated lazily, actual evaluation only happens after
+all globals have been loaded and merged from all configurations defined
+for a stack (stack + its parents dir until project root).
+
+So on the project root you can reference globals that will only be defined
+later when a stack defines it, just as on a stack you can reference globals
+that are defined on the project root (or any parent dir).
 
 Given a project organized like this:
 

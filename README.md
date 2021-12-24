@@ -20,6 +20,7 @@
 [![GoDoc](https://pkg.go.dev/badge/github.com/mineiros-io/terramate)](https://pkg.go.dev/github.com/mineiros-io/terramate)
 ![CI Status](https://github.com/mineiros-io/terramate/actions/workflows/ci.yml/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/mineiros-io/terramate)](https://goreportcard.com/report/github.com/mineiros-io/terramate)
+[![codecov](https://codecov.io/gh/mineiros-io/terramate/branch/main/graph/badge.svg?token=gMRUkVUAQ4)](https://codecov.io/gh/mineiros-io/terramate)
 
 Terramate is a tool for managing multiple terraform stacks.
 
