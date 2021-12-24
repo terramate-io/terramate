@@ -97,20 +97,28 @@ environment variable to any of the following values:
 * INFO
 * WARN
 * ERROR
+* DISABLED
 
-This will cause detailed logs to appear on stderr. To control the format of
-the logs you can use TM\_LOG\_FMT, setting it to any of the following values:
+This will cause detailed logs to appear on stderr.
+
+To control the format of the logs you can use **TM\_LOG\_FMT**,
+setting it to any of the following values:
 
 * CONSOLE
 * JSON
 
-**CONSOLE** gives you a nice colored output, while **JSON** gives you a JSON
-stream, where each log entry is a JSON object.
+**CONSOLE** gives you line oriented output suitable for console usage.
+**JSON** gives you a JSON stream ([Line delimited JSON](https://en.wikipedia.org/wiki/JSON_streaming#Line-delimited_JSON)).
+
+The **CONSOLE** format supports coloring, this can be controlled by the
+environment variable **TM\_LOG\_COLOR**. Color configuration has no effect
+when using a **JSON** formatter.
 
 Default values are:
 
 * TM\_LOG=INFO
 * TM\_LOG_FMT=CONSOLE
+* TM\_LOG_COLOR=on
 
 
 ## Why using stacks?
