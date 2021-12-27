@@ -622,6 +622,195 @@ stack {
 				},
 			},
 		},
+		{
+			name:   "multiple stacks with config on parent dir using globals from root",
+			layout: []string{"s:stacks/stack-1", "s:stacks/stack-2"},
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: `
+globals {
+  bucket = "project-wide-bucket"
+}`,
+				},
+				{
+					relpath: "stacks",
+					config: `terramate {
+  backend "gcs" {
+    bucket = global.bucket
+    prefix = terramate.path
+  }
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stacks/stack-1",
+						code: `terraform {
+  backend "gcs" {
+    bucket = "project-wide-bucket"
+    prefix = "/stacks/stack-1"
+  }
+}
+`,
+					},
+					{
+						relpath: "stacks/stack-2",
+						code: `terraform {
+  backend "gcs" {
+    bucket = "project-wide-bucket"
+    prefix = "/stacks/stack-2"
+  }
+}
+`,
+					},
+				},
+			},
+		},
+		{
+			name:   "stack with global on parent dir using config from root",
+			layout: []string{"s:stacks/stack"},
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: `terramate {
+  backend "gcs" {
+    bucket = global.bucket
+    prefix = terramate.path
+  }
+}`,
+				},
+				{
+					relpath: "stacks",
+					config: `
+globals {
+  bucket = "project-wide-bucket"
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stacks/stack",
+						code: `terraform {
+  backend "gcs" {
+    bucket = "project-wide-bucket"
+    prefix = "/stacks/stack"
+  }
+}
+`,
+					},
+				},
+			},
+		},
+		{
+			name: "stack overriding parent global",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: `terramate {
+  backend "gcs" {
+    bucket = global.bucket
+    prefix = terramate.path
+  }
+}`,
+				},
+				{
+					relpath: "stacks",
+					config: `
+globals {
+  bucket = "project-wide-bucket"
+}`,
+				},
+				{
+					relpath: "stacks/stack-1",
+					config: `
+terramate {
+  required_version = "~> 0.0.0"
+}
+
+stack {}
+
+globals {
+  bucket = "stack-specific-bucket"
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stacks/stack-1",
+						code: `terraform {
+  backend "gcs" {
+    bucket = "stack-specific-bucket"
+    prefix = "/stacks/stack-1"
+  }
+}
+`,
+					},
+					{
+						relpath: "stacks/stack-2",
+						code: `terraform {
+  backend "gcs" {
+    bucket = "project-wide-bucket"
+    prefix = "/stacks/stack-2"
+  }
+}
+`,
+					},
+				},
+			},
+		},
+		{
+			name:   "reference to undefined global fails",
+			layout: []string{"s:stack"},
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: `terramate {
+  backend "gcs" {
+    bucket = global.bucket
+  }
+}`,
+				},
+			},
+			want: want{
+				res: runResult{
+					Error:        terramate.ErrGenerateBackendConfig,
+					IgnoreStdout: true,
+				},
+			},
+		},
+		{
+			name:   "invalid global definition fails",
+			layout: []string{"s:stack"},
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: `terramate {
+  backend "gcs" {
+    bucket = "all good"
+  }
+}
+
+globals {
+  undefined_reference = global.undefined
+}
+`,
+				},
+			},
+			want: want{
+				res: runResult{
+					Error:        terramate.ErrGenerateLoadingGlobals,
+					IgnoreStdout: true,
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
