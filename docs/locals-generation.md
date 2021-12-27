@@ -38,13 +38,22 @@ After running:
 terramate generate
 ```
 
-The following locals will be generated inside the stack:
+The following locals will be generated inside the stack on
+the **_gen_terramate.tm.tf** file:
 
 ```hcl
 locals {
   data      = "data"
   more_data = "more data"
 }
+```
+
+So any Terraform code present on the stack can access these locals
+as it would with any other manually defined locals:
+
+```hcl
+local.data
+local.more_data
 ```
 
 You can do the same for Terramate [metadata](metadata.md):
