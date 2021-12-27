@@ -72,7 +72,6 @@ type Stack struct {
 
 const (
 	ErrHCLSyntax                errutil.Error = "HCL syntax error"
-	ErrNoTerramateBlock         errutil.Error = "no \"terramate\" block found"
 	ErrMalformedTerramateConfig errutil.Error = "malformed terramate config"
 	ErrMalformedTerraform       errutil.Error = "malformed terraform"
 	ErrStackInvalidRunOrder     errutil.Error = "invalid stack execution order definition"
@@ -177,6 +176,7 @@ func Parse(fname string, data []byte) (Config, error) {
 	var tmconfig Config
 	var tmblock, stackblock *hclsyntax.Block
 	var foundtm, foundstack bool
+
 	for _, block := range body.Blocks {
 		if !blockIsAllowed(block.Type) {
 			return Config{}, errutil.Chain(
@@ -210,92 +210,91 @@ func Parse(fname string, data []byte) (Config, error) {
 		}
 	}
 
-	if !foundtm {
-		return Config{}, ErrNoTerramateBlock
-	}
-
-	if len(tmblock.Labels) > 0 {
-		return Config{}, errutil.Chain(
-			ErrMalformedTerramateConfig,
-			fmt.Errorf("terramate block must have no labels"),
-		)
-	}
-
-	tmconfig.Terramate = &Terramate{}
-	tm := tmconfig.Terramate
-
-	for name, value := range tmblock.Body.Attributes {
-		attrVal, diags := value.Expr.Value(nil)
-		if diags.HasErrors() {
+	if foundtm {
+		if len(tmblock.Labels) > 0 {
 			return Config{}, errutil.Chain(
 				ErrMalformedTerramateConfig,
-				fmt.Errorf("failed to evaluate %q attribute: %w",
-					name, diags),
+				fmt.Errorf("terramate block must have no labels"),
 			)
 		}
-		switch name {
-		case "required_version":
-			if attrVal.Type() != cty.String {
+
+		tmconfig.Terramate = &Terramate{}
+		tm := tmconfig.Terramate
+
+		for name, value := range tmblock.Body.Attributes {
+			attrVal, diags := value.Expr.Value(nil)
+			if diags.HasErrors() {
 				return Config{}, errutil.Chain(
 					ErrMalformedTerramateConfig,
-					fmt.Errorf("attribute %q is not a string", name),
+					fmt.Errorf("failed to evaluate %q attribute: %w",
+						name, diags),
 				)
 			}
+			switch name {
+			case "required_version":
+				if attrVal.Type() != cty.String {
+					return Config{}, errutil.Chain(
+						ErrMalformedTerramateConfig,
+						fmt.Errorf("attribute %q is not a string", name),
+					)
+				}
 
-			tm.RequiredVersion = attrVal.AsString()
+				tm.RequiredVersion = attrVal.AsString()
 
-		default:
-			return Config{}, errutil.Chain(ErrMalformedTerramateConfig,
-				fmt.Errorf("invalid attribute %q", name),
-			)
-		}
-	}
-
-	foundBackend := false
-	foundConfig := false
-	for _, block := range tmblock.Body.Blocks {
-		switch block.Type {
-		case "backend":
-			if foundBackend {
-				return Config{}, errutil.Chain(
-					ErrMalformedTerramateConfig,
-					fmt.Errorf("multiple backend blocks in file %q", fname),
+			default:
+				return Config{}, errutil.Chain(ErrMalformedTerramateConfig,
+					fmt.Errorf("invalid attribute %q", name),
 				)
 			}
-
-			if len(block.Labels) != 1 {
-				return Config{}, errutil.Chain(
-					ErrMalformedTerramateConfig,
-					fmt.Errorf("backend type expects 1 label but given %v",
-						block.Labels),
-				)
-			}
-
-			foundBackend = true
-			tm.Backend = block
-
-		case "config":
-			if foundConfig {
-				return Config{}, errutil.Chain(
-					ErrMalformedTerramateConfig,
-					fmt.Errorf("multiple config blocks in file %q", fname),
-				)
-			}
-
-			rootConfig := RootConfig{}
-			tm.RootConfig = &rootConfig
-			err := parseRootConfig(&rootConfig, block)
-			if err != nil {
-				return Config{}, err
-			}
-
-			foundConfig = true
-		default:
-			return Config{}, errutil.Chain(
-				ErrMalformedTerramateConfig,
-				fmt.Errorf("block type %q not supported", block.Type))
 		}
 
+		foundBackend := false
+		foundConfig := false
+
+		for _, block := range tmblock.Body.Blocks {
+			switch block.Type {
+			case "backend":
+				if foundBackend {
+					return Config{}, errutil.Chain(
+						ErrMalformedTerramateConfig,
+						fmt.Errorf("multiple backend blocks in file %q", fname),
+					)
+				}
+
+				if len(block.Labels) != 1 {
+					return Config{}, errutil.Chain(
+						ErrMalformedTerramateConfig,
+						fmt.Errorf("backend type expects 1 label but given %v",
+							block.Labels),
+					)
+				}
+
+				foundBackend = true
+				tm.Backend = block
+
+			case "config":
+				if foundConfig {
+					return Config{}, errutil.Chain(
+						ErrMalformedTerramateConfig,
+						fmt.Errorf("multiple config blocks in file %q", fname),
+					)
+				}
+
+				rootConfig := RootConfig{}
+				tm.RootConfig = &rootConfig
+				err := parseRootConfig(&rootConfig, block)
+				if err != nil {
+					return Config{}, err
+				}
+
+				foundConfig = true
+			default:
+				return Config{}, errutil.Chain(
+					ErrMalformedTerramateConfig,
+					fmt.Errorf("block type %q not supported", block.Type))
+			}
+
+		}
 	}
 
 	if !foundstack {

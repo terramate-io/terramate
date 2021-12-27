@@ -15,7 +15,6 @@
 package config
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 
@@ -62,13 +61,10 @@ func TryLoadRootConfig(dir string) (cfg hcl.Config, found bool, err error) {
 
 	cfg, err = hcl.ParseFile(path)
 	if err != nil {
-		if errors.Is(err, hcl.ErrNoTerramateBlock) {
-			return hcl.Config{}, false, nil
-		}
 		return hcl.Config{}, false, err
 	}
 
-	if cfg.Terramate.RootConfig != nil {
+	if cfg.Terramate != nil && cfg.Terramate.RootConfig != nil {
 		return cfg, true, nil
 	}
 	return hcl.Config{}, false, nil
