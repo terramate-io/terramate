@@ -15,7 +15,6 @@
 package terramate
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -160,14 +159,11 @@ func generateStackConfig(root string, configdir string, evalctx *tfhcl.EvalConte
 
 	parsedConfig, err := hcl.Parse(configfile, config)
 	if err != nil {
-		if errors.Is(err, hcl.ErrNoTerramateBlock) {
-			return generateStackConfig(root, filepath.Dir(configdir), evalctx)
-		}
 		return nil, fmt.Errorf("parsing config: %w", err)
 	}
 
 	parsed := parsedConfig.Terramate
-	if parsed.Backend == nil {
+	if parsed == nil || parsed.Backend == nil {
 		return generateStackConfig(root, filepath.Dir(configdir), evalctx)
 	}
 
