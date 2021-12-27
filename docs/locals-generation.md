@@ -26,7 +26,7 @@ to create them as locals:
 ```hcl
 stack {
     generate {
-        locals = {
+        locals {
              data = globals.data
              more_data = globals.more_data
         }
@@ -54,7 +54,7 @@ You can do the same for Terramate [metadata](metadata.md):
 ```hcl
 stack {
     generate {
-        locals = {
+        locals {
              stack_name = terramate.name
              stack_path = terramate.path
         }
@@ -67,7 +67,7 @@ Interpolation and functions also can be used:
 ```hcl
 stack {
     generate {
-        locals = {
+        locals {
              interpolate = "${globals.data}-${globals.more_data}"
              functions   = split(" ", globals.more_data)
         }
