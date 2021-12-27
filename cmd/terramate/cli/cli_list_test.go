@@ -18,6 +18,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -103,6 +104,17 @@ z/a
 			assertRunResult(t, cli.run("list"), tc.want)
 		})
 	}
+}
+
+func TestListStackWithNoTerramateBlock(t *testing.T) {
+	s := sandbox.New(t)
+	s.BuildTree([]string{"s:stack"})
+	stack := s.StackEntry("stack")
+	stack.WriteConfig(hcl.Config{
+		Stack: &hcl.Stack{},
+	})
+	cli := newCLI(t, s.RootDir())
+	assertRunResult(t, cli.run("list"), runResult{Stdout: "stack\n"})
 }
 
 func TestListNoSuchFile(t *testing.T) {
