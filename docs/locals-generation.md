@@ -117,6 +117,44 @@ local.data
 local.more_data
 ```
 
+Now lets extend the exported locals only for **stack-1** by adding
+this to **stacks/stack-1/terramate.tm.hcl**:
+
+```hcl
+export_as_locals {
+  stack_1_only = globals.yet_more_data
+}
+```
+
+Now the generated locals for **stacks/stack-1** will be
+(while **stacks/stack-2** remains unchanged): 
+
+```hcl
+locals {
+  data         = "data"
+  more_data    = "more data"
+  stack_1_only = "YMD"
+}
+```
+
+Now lets override the exported locals for **stack-1** by changing the
+export definition on **stacks/stack-1/terramate.tm.hcl** to:
+
+```hcl
+export_as_locals {
+  more_data    = globals.yet_more_data
+}
+```
+
+Now the generated locals for **stacks/stack-1** will be: 
+
+```hcl
+locals {
+  data         = "data"
+  more_data    = "YMD"
+}
+```
+
 You can also export Terramate [metadata](metadata.md) as locals:
 
 ```hcl
