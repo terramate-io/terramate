@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mineiros-io/terramate/dag"
 	prj "github.com/mineiros-io/terramate/project"
 
 	"github.com/alecthomas/kong"
@@ -359,15 +360,24 @@ func (c *cli) generateGraph() error {
 
 	loader := stack.NewLoader(c.root())
 	di := dot.NewGraph(dot.Directed)
+	d := dag.New()
+
+	visited := map[string]struct{}{}
 
 	for _, e := range c.filterStacksByWorkingDir(entries) {
-		tree, err := terramate.BuildOrderTree(c.root(), e.Stack, loader)
+		if _, ok := visited[e.Stack.Dir]; ok {
+			continue
+		}
+
+		err := terramate.BuildDAG(d, c.root(), e.Stack, loader, visited)
 		if err != nil {
 			return fmt.Errorf("failed to build order tree: %w", err)
 		}
+	}
 
-		node := di.Node(getLabel(tree.Stack))
-		generateDot(di, node, tree, getLabel)
+	for _, id := range d.IDs() {
+		stack := d.Vertice(id).(stack.S)
+		generateDot(di, d, id, stack, d.ChildrenOf(id), getLabel)
 	}
 
 	outFile := c.parsedArgs.Plan.Graph.Outfile
@@ -395,30 +405,33 @@ func (c *cli) generateGraph() error {
 
 func generateDot(
 	g *dot.Graph,
-	parent dot.Node,
-	tree terramate.OrderDAG,
+	d *dag.DAG,
+	id dag.ID,
+	stackval stack.S,
+	children []dag.ID,
 	getLabel func(s stack.S) string,
 ) {
-	if tree.Cycle {
+	parent := g.Node(getLabel(stackval))
+	if d.HasCycle(id) {
 		return
 	}
 
-	for _, s := range tree.Order {
-		n := g.Node(getLabel(s.Stack))
+	for _, childid := range children {
+		s := d.Vertice(childid).(stack.S)
+		n := g.Node(getLabel(s))
+
+		fmt.Printf("id %s, cycle: %t\n", childid, d.HasCycle(childid))
 
 		edges := g.FindEdges(parent, n)
 		if len(edges) == 0 {
 			edge := g.Edge(parent, n)
-			if s.Cycle {
+			if d.HasCycle(childid) {
 				edge.Attr("color", "red")
+				continue
 			}
 		}
 
-		if s.Cycle {
-			continue
-		}
-
-		generateDot(g, n, s, getLabel)
+		generateDot(g, d, childid, s, d.ChildrenOf(childid), getLabel)
 	}
 }
 
@@ -435,9 +448,13 @@ func (c *cli) printRunOrder() error {
 		stacks[i] = e.Stack
 	}
 
-	order, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
+	order, reason, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
-		c.logerr("error: %v", err)
+		if errors.Is(err, dag.ErrCycleDetected) {
+			c.logerr("error: %v: reason: %s", err, reason)
+		} else {
+			c.logerr("error: %v", err)
+		}
 		return err
 	}
 
@@ -491,9 +508,13 @@ func (c *cli) runOnStacks() error {
 	cmd.Stdout = c.stdout
 	cmd.Stderr = c.stderr
 
-	order, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
+	order, reason, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
-		return fmt.Errorf("failed to plan execution: %w", err)
+		if errors.Is(err, dag.ErrCycleDetected) {
+			return fmt.Errorf("%w: cycle at %s", err, reason)
+		} else {
+			return fmt.Errorf("failed to plan execution: %w", err)
+		}
 	}
 
 	if c.parsedArgs.Run.DryRun {

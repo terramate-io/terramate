@@ -15,209 +15,93 @@
 package terramate
 
 import (
-	"fmt"
-	"sort"
-
+	"github.com/mineiros-io/terramate/dag"
 	"github.com/mineiros-io/terramate/stack"
 )
-
-// OrderDAG represents the Directed Acyclic Graph of the stack order.
-type OrderDAG struct {
-	Stack stack.S    // Stack is the stack which is the root of this DAG.
-	Order []OrderDAG // After is the list of depend-on DAG trees.
-
-	Cycle bool // Cycle tells if a cycle was detected at this level.
-}
-
-// BuildOrderTree builds the order tree data structure.
-func BuildOrderTree(root string, stack stack.S, l stack.Loader) (OrderDAG, error) {
-	return buildOrderTree(root, stack, l, map[string]struct{}{})
-}
 
 // RunOrder computes the final execution order for the given list of stacks.
 // In the case of multiple possible orders, it returns the lexicographic sorted
 // path.
-func RunOrder(root string, stacks []stack.S, changed bool) ([]stack.S, error) {
-	trees := map[string]OrderDAG{} // indexed by stackdir
-
+func RunOrder(root string, stacks []stack.S, changed bool) ([]stack.S, string, error) {
+	d := dag.New()
 	loader := stack.NewLoader(root)
 	for _, stack := range stacks {
 		loader.Set(stack.Dir, stack)
 	}
 
-	for _, stack := range stacks {
-		tree, err := BuildOrderTree(root, stack, loader)
-		if err != nil {
-			return nil, err
-		}
-
-		err = CheckCycle(tree)
-		if err != nil {
-			return nil, err
-		}
-
-		// check here if need to add to the list
-
-		trees[tree.Stack.Dir] = tree
-
-	}
-
-	for _, stack := range stacks {
-		if _, ok := trees[stack.Dir]; !ok {
-			trees[stack.Dir] = OrderDAG{
-				Stack: stack,
-			}
-		}
-	}
-
-	removeKeys := []string{}
-	for key1, tree1 := range trees {
-		for key2, tree2 := range trees {
-			if key1 == key2 {
-				continue
-			}
-
-			if IsSubtree(tree1, tree2) {
-				removeKeys = append(removeKeys, key1)
-			}
-		}
-	}
-
-	for _, k := range removeKeys {
-		delete(trees, k)
-	}
-
-	keys := []string{}
-	for k := range trees {
-		keys = append(keys, k)
-	}
-
-	sort.Strings(keys)
-
-	order := []stack.S{}
 	visited := map[string]struct{}{}
-	for _, k := range keys {
-		tree := trees[k]
-		walkOrderTree(tree, func(s stack.S) {
-			if _, ok := visited[s.Dir]; !ok {
-				visited[s.Dir] = struct{}{}
-
-				if changed == s.IsChanged() {
-					order = append(order, s)
-				}
-			}
-		})
-	}
-
-	return order, nil
-}
-
-func walkOrderTree(tree OrderDAG, do func(s stack.S)) {
-	for _, child := range tree.Order {
-		walkOrderTree(child, do)
-	}
-
-	do(tree.Stack)
-}
-
-func IsSubtree(t1, t2 OrderDAG) bool {
-	if t1.Stack.Dir == t2.Stack.Dir {
-		return true
-	}
-	for _, child := range t2.Order {
-		if IsSubtree(t1, child) {
-			return true
+	for _, stack := range stacks {
+		if _, ok := visited[stack.Dir]; ok {
+			continue
+		}
+		err := BuildDAG(d, root, stack, loader, visited)
+		if err != nil {
+			return nil, "", err
 		}
 	}
 
-	return false
+	reason, err := d.Validate()
+	if err != nil {
+		return nil, reason, err
+	}
+
+	order := d.Order()
+
+	orderedStacks := make([]stack.S, 0, len(order))
+	for _, id := range order {
+		orderedStacks = append(orderedStacks, loader.MustGet(string(id)))
+	}
+
+	return orderedStacks, "", nil
 }
 
-// CheckCycle tells if the graph has cycles.
-func CheckCycle(tree OrderDAG) error {
-	for _, subtree := range tree.Order {
-		if subtree.Cycle {
-			return ErrRunCycleDetected
+func BuildDAG(
+	d *dag.DAG,
+	rootdir string,
+	stackval stack.S,
+	loader stack.Loader,
+	visited map[string]struct{},
+) error {
+	visited[stackval.Dir] = struct{}{}
+
+	afterStacks, err := loader.LoadAll(rootdir, stackval.Dir, stackval.After()...)
+	if err != nil {
+		return err
+	}
+
+	beforeStacks, err := loader.LoadAll(rootdir, stackval.Dir, stackval.Before()...)
+	if err != nil {
+		return err
+	}
+
+	err = d.AddVertice(dag.ID(stackval.Dir), stackval, toids(beforeStacks),
+		toids(afterStacks))
+
+	if err != nil {
+		return err
+	}
+
+	stacks := []stack.S{}
+	stacks = append(stacks, afterStacks...)
+	stacks = append(stacks, beforeStacks...)
+
+	for _, s := range stacks {
+		if _, ok := visited[s.Dir]; ok {
+			continue
 		}
 
-		err := CheckCycle(subtree)
+		err = BuildDAG(d, rootdir, s, loader, visited)
 		if err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
-func buildOrderTree(
-	rootdir string,
-	stack stack.S,
-	loader stack.Loader,
-	visited map[string]struct{},
-) (OrderDAG, error) {
-	root := OrderDAG{
-		Stack: stack,
+func toids(values []stack.S) []dag.ID {
+	ids := make([]dag.ID, 0, len(values))
+	for _, v := range values {
+		ids = append(ids, dag.ID(v.Dir))
 	}
-
-	visited[stack.Dir] = struct{}{}
-	afterStacks, err := loader.LoadAll(rootdir, stack.Dir, stack.After()...)
-	if err != nil {
-		return OrderDAG{}, err
-	}
-
-	beforeStacks, err := loader.LoadAll(rootdir, stack.Dir, stack.Before()...)
-	if err != nil {
-		return OrderDAG{}, err
-	}
-
-	for _, s := range afterStacks {
-		if _, ok := visited[s.Dir]; ok {
-			// cycle detected, dont recurse anymore
-			root.Order = append(root.Order, OrderDAG{
-				Stack: s,
-				Cycle: true,
-			})
-			continue
-		}
-
-		tree, err := buildOrderTree(rootdir, s, loader, copyVisited(visited))
-		if err != nil {
-			return OrderDAG{}, fmt.Errorf("computing tree of stack %q: %w",
-				stack.Dir, err)
-		}
-
-		root.Order = append(root.Order, tree)
-	}
-
-	for _, s := range beforeStacks {
-		fmt.Printf("before stack %s\n", s.Dir)
-		if _, ok := visited[s.Dir]; ok {
-			root.Order = append(root.Order, OrderDAG{
-				Stack: s,
-				Cycle: true,
-			})
-			continue
-		}
-
-		tree, err := buildOrderTree(rootdir, s, loader, copyVisited(visited))
-		if err != nil {
-			return OrderDAG{}, fmt.Errorf("computing tree of stack %q: %w",
-				stack.Dir, err)
-		}
-
-		tmp := root
-		root = tree
-
-		tree.Order = append(tree.Order, tmp)
-	}
-
-	return root, nil
-}
-
-func copyVisited(v map[string]struct{}) map[string]struct{} {
-	v2 := map[string]struct{}{}
-	for k := range v {
-		v2[k] = struct{}{}
-	}
-	return v2
+	return ids
 }

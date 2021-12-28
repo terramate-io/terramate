@@ -423,14 +423,14 @@ func assertRunResult(t *testing.T, got runResult, want runResult) {
 	}
 
 	if !want.IgnoreStdout && stdout != wantStdout {
-		t.Fatalf("%q stdout=\"%s\" != wanted=\"%s\"", got.Cmd, stdout, wantStdout)
+		t.Errorf("%q stdout=\"%s\" != wanted=\"%s\"", got.Cmd, stdout, wantStdout)
 	}
 
 	if !want.IgnoreStderr && got.Stderr != want.Stderr {
-		t.Fatalf("%q stderr=\"%s\" != wanted=\"%s\"", got.Cmd, got.Stderr, want.Stderr)
+		t.Errorf("%q stderr=\"%s\" != wanted=\"%s\"", got.Cmd, got.Stderr, want.Stderr)
 	}
 
 	if !errors.Is(got.Error, want.Error) {
-		t.Fatalf("%q got.Error=[%v] != want.Error=[%v]", got.Cmd, got.Error, want.Error)
+		t.Errorf("%q got.Error=[%v] != want.Error=[%v]", got.Cmd, got.Error, want.Error)
 	}
 }
