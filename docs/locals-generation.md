@@ -6,8 +6,8 @@ Terramate provides a way to integrate its [globals](globals.md) and
 then can be referenced by any Terraform code inside the stack.
 
 To make use of [globals](globals.md) and [metadata](metadata.md) define
-a **generate** block inside the **stack** block, defining all locals
-that you want exported.
+a **export_as_locals** block on a [Terramate configuration file](config.md)
+defining all locals that you want exported.
 
 Given these globals defined somewhere inside the project:
 
@@ -19,16 +19,73 @@ globals {
 ```
 
 To use then directly on Terraform you can instruct code generation
-to create them as locals for a stack:
+to create them as locals:
 
 ```hcl
-stack {
-  generate {
-    locals {
-      data      = globals.data
-      more_data = globals.more_data
-    }
-  }
+export_as_locals {
+  data      = globals.data
+  more_data = globals.more_data
+}
+```
+
+Exporting using multiple blocks on the same [configuration file](config.md)
+is also allowed, as far as no local is redefined, the previous example could
+also be written like this:
+
+```hcl
+export_as_locals {
+  data      = globals.data
+}
+
+export_as_locals {
+  more_data = globals.more_data
+}
+```
+
+Exported locals can be defined on any [configuration file](config.md)
+so you can have core/base export locals definitions that will generate
+locals for all stacks on your project.
+
+Exported locals, just as [globals](globals.md)  are evaluated on the context
+of a stack, evaluation starts with exported locals defined on the stack itself
+and then keeps going up on the file system until the project root is reached.
+
+If exported locals don't have the same name, then they are just merged
+together as they are evaluated going up on the project file system.
+
+If exported locals are defined at different configuration files,
+on different levels, but have the same name, the most specific exported locals
+override the more general one, where by specific we mean the definition closest
+to the stack being evaluated.
+
+Given a project structured like this:
+
+```
+.
+└── stacks
+    ├── stack-1
+    │   └── terramate.tm.hcl
+    └── stack-2
+        └── terramate.tm.hcl
+```
+
+Given a set of globals at the project root **./terramate.tm.hcl**:
+
+```hcl
+globals {
+  data          = "data"
+  more_data     = "more data"
+  yet_more_data = "YMD"
+}
+```
+
+If we define a [configuration file](config.md) for all stacks at
+**stacks/terramate.tm.hcl**:
+
+```hcl
+export_as_locals {
+  data      = globals.data
+  more_data = globals.more_data
 }
 ```
 
@@ -38,8 +95,12 @@ After running:
 terramate generate
 ```
 
-The following locals will be generated inside the stack on
-the **_gen_terramate.tm.tf** file:
+The following locals will be generated inside all stacks, creating two files:
+
+* stacks/stack-1/_gen_locals.tm.tf
+* stacks/stack-2/_gen_locals.tm.tf
+
+Both with the same contents:
 
 ```hcl
 locals {
@@ -56,29 +117,21 @@ local.data
 local.more_data
 ```
 
-You can do the same for Terramate [metadata](metadata.md):
+You can also export Terramate [metadata](metadata.md) as locals:
 
 ```hcl
-stack {
-  generate {
-    locals {
-      stack_name = terramate.name
-      stack_path = terramate.path
-    }
-  }
+export_as_locals {
+  stack_name = terramate.name
+  stack_path = terramate.path
 }
 ```
 
 Interpolation and functions can be used:
 
 ```hcl
-stack {
-  generate {
-    locals {
-      interpolate = "${globals.data}-${globals.more_data}"
-      functions   = split(" ", globals.more_data)
-    }
-  }
+export_as_locals {
+  interpolate = "${globals.data}-${globals.more_data}"
+  functions   = split(" ", globals.more_data)
 }
 ```
 
@@ -88,5 +141,14 @@ Generates:
 locals {
   interpolate = "data-more data"
   functions   = ["more", "data"]
+}
+```
+
+No namespace is created on Terramate for exported locals, since they are meant
+only to export Terramate data to Terraform, so this is invalid:
+
+```hcl
+export_as_locals {
+  something = export_as_locals.some_exported_name
 }
 ```
