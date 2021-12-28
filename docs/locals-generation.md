@@ -44,19 +44,18 @@ export_as_locals {
 
 Exported locals can be defined on any [configuration file](config.md)
 so you can have core/base export locals definitions that will generate
-locals for all stacks on your project.
+locals for all stacks that are a sub directory of the [configuration](config.md).
 
-Exported locals, just as [globals](globals.md)  are evaluated on the context
+Exported locals, just as [globals](globals.md), are evaluated on the context
 of a stack, evaluation starts with exported locals defined on the stack itself
 and then keeps going up on the file system until the project root is reached.
 
 If exported locals don't have the same name, then they are just merged
 together as they are evaluated going up on the project file system.
 
-If exported locals are defined at different configuration files,
-on different levels, but have the same name, the most specific exported locals
-override the more general one, where by specific we mean the definition closest
-to the stack being evaluated.
+Exported locals can be overridden, just as [globals](globals.md), the most
+specific exported locals override the more general ones, where by specific
+we mean the definition closest to the stack being evaluated.
 
 Given a project structured like this:
 
@@ -126,8 +125,7 @@ export_as_locals {
 }
 ```
 
-Now the generated locals for **stacks/stack-1** will be
-(while **stacks/stack-2** remains unchanged): 
+Now the generated locals for **stacks/stack-1** will be:
 
 ```hcl
 locals {
@@ -136,6 +134,8 @@ locals {
   stack_1_only = "YMD"
 }
 ```
+
+While **stacks/stack-2** remained unchanged.
 
 Now lets override the exported locals for **stack-1** by changing the
 export definition on **stacks/stack-1/terramate.tm.hcl** to:
@@ -173,17 +173,7 @@ export_as_locals {
 }
 ```
 
-Generates:
-
-```hcl
-locals {
-  interpolate = "data-more data"
-  functions   = ["more", "data"]
-}
-```
-
-No namespace is created on Terramate for exported locals, since they are meant
-only to export Terramate data to Terraform, so this is invalid:
+No namespace is created on Terramate for exported locals, so this is invalid:
 
 ```hcl
 export_as_locals {
