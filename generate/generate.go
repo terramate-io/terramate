@@ -21,7 +21,6 @@ import (
 	"sort"
 	"strings"
 
-	tfhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/errutil"
@@ -30,7 +29,6 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
-	"github.com/zclconf/go-cty/cty"
 )
 
 const (
@@ -103,20 +101,14 @@ func Generate(root string) error {
 		}
 
 		evalctx := eval.NewContext(stackpath)
-		evalctx, err := newHCLEvalContext(stackMetadata, tfscope)
 
-		vals := map[string]cty.Value{
-			"name": cty.StringVal(stackMetadata.Name),
-			"path": cty.StringVal(stackMetadata.Path),
-		}
-
-		if err := evalctx.SetNamespace("terramate", vals); err != nil {
-			errs = append(errs, fmt.Errorf("stack %q: building eval ctx: %v", stackpath, err))
+		if err := stackMetadata.SetOnEvalCtx(evalctx); err != nil {
+			errs = append(errs, fmt.Errorf("stack %q: %v", stackpath, err))
 			continue
 		}
 
-		if err := globals.addToEvalCtx(evalctx); err != nil {
-			errs = append(errs, fmt.Errorf("adding global namespace: %v", err))
+		if err := globals.SetOnEvalCtx(evalctx); err != nil {
+			errs = append(errs, fmt.Errorf("stack %q: %v", stackpath, err))
 			continue
 		}
 
@@ -146,7 +138,7 @@ func Generate(root string) error {
 	return nil
 }
 
-func generateStackConfig(root string, configdir string, evalctx *tfhcl.EvalContext) ([]byte, error) {
+func generateStackConfig(root string, configdir string, evalctx *eval.Context) ([]byte, error) {
 	if !strings.HasPrefix(configdir, root) {
 		// check if we are outside of project's root, time to stop
 		return nil, nil
@@ -186,7 +178,7 @@ func generateStackConfig(root string, configdir string, evalctx *tfhcl.EvalConte
 	return append([]byte(GeneratedCodeHeader), gen.Bytes()...), nil
 }
 
-func copyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *tfhcl.EvalContext) error {
+func copyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context) error {
 	if src == nil || target == nil {
 		return nil
 	}
@@ -195,18 +187,16 @@ func copyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *tfhcl.EvalCon
 	attrs := sortedAttributes(src.Attributes)
 
 	for _, attr := range attrs {
-		val, err := attr.Expr.Value(evalctx)
+		val, err := evalctx.Eval(attr.Expr)
 		if err != nil {
 			return fmt.Errorf("parsing attribute %q: %v", attr.Name, err)
 		}
-
 		target.SetAttributeValue(attr.Name, val)
 	}
 
 	for _, block := range src.Blocks {
 		targetBlock := target.AppendNewBlock(block.Type, block.Labels)
 		targetBody := targetBlock.Body()
-
 		if err := copyBody(targetBody, block.Body, evalctx); err != nil {
 			return err
 		}

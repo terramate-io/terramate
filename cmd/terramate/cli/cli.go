@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mineiros-io/terramate/generate"
 	prj "github.com/mineiros-io/terramate/project"
 
 	"github.com/alecthomas/kong"
@@ -277,7 +278,7 @@ func (c *cli) run() error {
 	case "run <cmd>":
 		return c.runOnStacks()
 	case "generate":
-		return terramate.Generate(c.root())
+		return generate.Generate(c.root())
 	case "metadata":
 		return c.printMetadata()
 	case "install-completions":

@@ -3,6 +3,7 @@ package eval
 import (
 	"fmt"
 
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
 
@@ -26,7 +27,7 @@ func NewContext(basedir string) *Context {
 	}
 	return &Context{
 		hclctx: hclctx,
-	}, nil
+	}
 }
 
 // SetNamespace will set the given values inside the given namespace on the
@@ -38,6 +39,15 @@ func (c *Context) SetNamespace(name string, vals map[string]cty.Value) error {
 	}
 	c.hclctx.Variables[name] = obj
 	return nil
+}
+
+// Eval will evaluate an expression given its context.
+func (c *Context) Eval(expr hclsyntax.Expression) (cty.Value, error) {
+	val, diag := expr.Value(c.hclctx)
+	if diag.HasErrors() {
+		return cty.NilVal, fmt.Errorf("evaluating expression: %v", diag)
+	}
+	return val, nil
 }
 
 func fromMapToObject(m map[string]cty.Value) (cty.Value, error) {
