@@ -94,7 +94,9 @@ func (r *rawGlobals) has(name string) bool {
 
 func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 	// FIXME(katcipis): get abs path for stack.
-	evalctx := eval.NewContext("fixme")
+	// This is relative only to root since meta.Path will look
+	// like: /some/path/relative/project/root
+	evalctx := eval.NewContext("." + meta.Path)
 
 	if err := meta.SetOnEvalCtx(evalctx); err != nil {
 		return nil, err
