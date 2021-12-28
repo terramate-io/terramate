@@ -78,8 +78,8 @@ globals {
 }
 ```
 
-If we define a [configuration file](config.md) for all stacks at
-**stacks/terramate.tm.hcl**:
+If we define a [configuration file](config.md) for all stacks 
+export some locals at **stacks/terramate.tm.hcl**:
 
 ```hcl
 export_as_locals {
@@ -142,7 +142,7 @@ export definition on **stacks/stack-1/terramate.tm.hcl** to:
 
 ```hcl
 export_as_locals {
-  more_data    = globals.yet_more_data
+  more_data = globals.yet_more_data
 }
 ```
 
@@ -150,8 +150,8 @@ Now the generated locals for **stacks/stack-1** will be:
 
 ```hcl
 locals {
-  data         = "data"
-  more_data    = "YMD"
+  data      = "data"
+  more_data = "YMD"
 }
 ```
 
@@ -173,10 +173,16 @@ export_as_locals {
 }
 ```
 
-No namespace is created on Terramate for exported locals, so this is invalid:
+No namespace is created on Terramate for exported locals, so these are invalid:
 
 ```hcl
 export_as_locals {
   something = export_as_locals.some_exported_name
+}
+```
+
+```hcl
+export_as_locals {
+  something = local.some_exported_name
 }
 ```
