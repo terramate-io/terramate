@@ -72,3 +72,37 @@ func NewBlock(name string) *Block {
 		values:      map[string]interface{}{},
 	}
 }
+
+type BlockBuilder func(*Block)
+
+func NewBuilder(name string, builders ...BlockBuilder) *Block {
+	b := NewBlock(name)
+	for _, builder := range builders {
+		builder(b)
+	}
+	return b
+}
+
+func Expression(key string, expr string) BlockBuilder {
+	return func(g *Block) {
+		g.AddExpr(key, expr)
+	}
+}
+
+func String(key string, val string) BlockBuilder {
+	return func(g *Block) {
+		g.AddString(key, val)
+	}
+}
+
+func Boolean(key string, val bool) BlockBuilder {
+	return func(g *Block) {
+		g.AddBoolean(key, val)
+	}
+}
+
+func NumberInt(key string, val int64) BlockBuilder {
+	return func(g *Block) {
+		g.AddNumberInt(key, val)
+	}
+}

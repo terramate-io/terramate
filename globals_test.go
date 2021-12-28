@@ -45,33 +45,13 @@ func TestLoadGlobals(t *testing.T) {
 		}
 	)
 
-	globals := func(builders ...func(g *hclwrite.Block)) *hclwrite.Block {
-		g := hclwrite.NewBlock("globals")
-		for _, builder := range builders {
-			builder(g)
-		}
-		return g
+	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.NewBuilder("globals", builders...)
 	}
-	expr := func(key string, expr string) func(*hclwrite.Block) {
-		return func(g *hclwrite.Block) {
-			g.AddExpr(key, expr)
-		}
-	}
-	str := func(key string, val string) func(*hclwrite.Block) {
-		return func(g *hclwrite.Block) {
-			g.AddString(key, val)
-		}
-	}
-	number := func(key string, val int64) func(*hclwrite.Block) {
-		return func(g *hclwrite.Block) {
-			g.AddNumberInt(key, val)
-		}
-	}
-	boolean := func(key string, val bool) func(*hclwrite.Block) {
-		return func(g *hclwrite.Block) {
-			g.AddBoolean(key, val)
-		}
-	}
+	expr := hclwrite.Expression
+	str := hclwrite.String
+	number := hclwrite.NumberInt
+	boolean := hclwrite.Boolean
 
 	tcases := []testcase{
 		{
