@@ -44,14 +44,14 @@ const (
 	ErrLoadingGlobals errutil.Error = "loading globals"
 )
 
-// Generate will walk all the directories starting from project's root
-// generating code for any stack it finds as it goes along
+// Do will walk all the directories starting from project's root
+// generating code for any stack it finds as it goes along.
 //
 // It will return an error if it finds any invalid Terramate configuration files
-// of if it can't generate the files properly for some reason.
+// or if it can't generate the files properly for some reason.
 //
-// The provided root must be an absolute path to project's root directory.
-func Generate(root string) error {
+// The provided root must be the project's root directory as an absolute path.
+func Do(root string) error {
 	if !filepath.IsAbs(root) {
 		return fmt.Errorf("project's root %q must be an absolute path", root)
 	}

@@ -24,7 +24,7 @@ import (
 )
 
 func TestGenerateFailsIfPathDoesntExist(t *testing.T) {
-	assert.Error(t, generate.Generate(test.NonExistingDir(t)))
+	assert.Error(t, generate.Do(test.NonExistingDir(t)))
 }
 
 func TestGenerateFailsIfPathIsNotDir(t *testing.T) {
@@ -34,12 +34,12 @@ func TestGenerateFailsIfPathIsNotDir(t *testing.T) {
 	test.WriteFile(t, dir, filename, "whatever")
 	path := filepath.Join(dir, filename)
 
-	assert.Error(t, generate.Generate(path))
+	assert.Error(t, generate.Do(path))
 }
 
 func TestGenerateFailsIfPathIsRelative(t *testing.T) {
 	dir := t.TempDir()
 	relpath := test.RelPath(t, test.Getwd(t), dir)
 
-	assert.Error(t, generate.Generate(relpath))
+	assert.Error(t, generate.Do(relpath))
 }

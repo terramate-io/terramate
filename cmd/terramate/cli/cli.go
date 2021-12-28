@@ -278,7 +278,7 @@ func (c *cli) run() error {
 	case "run <cmd>":
 		return c.runOnStacks()
 	case "generate":
-		return generate.Generate(c.root())
+		return generate.Do(c.root())
 	case "metadata":
 		return c.printMetadata()
 	case "install-completions":
