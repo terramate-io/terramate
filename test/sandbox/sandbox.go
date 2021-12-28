@@ -352,7 +352,7 @@ func (se StackEntry) WriteConfig(cfg hcl.Config) {
 // since it assumes generated code is expected to be there.
 func (se StackEntry) ReadGeneratedTf() []byte {
 	se.t.Helper()
-	return se.DirEntry.ReadFile(generate.GeneratedTfFilename)
+	return se.DirEntry.ReadFile(generate.TfFilename)
 }
 
 // Path returns the absolute path of the stack.
