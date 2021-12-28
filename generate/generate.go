@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package terramate
+package generate
 
 import (
 	"fmt"
@@ -24,11 +24,13 @@ import (
 	tfhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
-	tflang "github.com/hashicorp/terraform/lang"
 	"github.com/madlambda/spells/errutil"
+	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
+	"github.com/zclconf/go-cty/cty"
 )
 
 const (
@@ -65,12 +67,12 @@ func Generate(root string) error {
 		return fmt.Errorf("project's root %q is not a directory", root)
 	}
 
-	stackEntries, err := ListStacks(root)
+	stackEntries, err := terramate.ListStacks(root)
 	if err != nil {
 		return fmt.Errorf("listing stack: %w", err)
 	}
 
-	metadata, err := LoadMetadata(root)
+	metadata, err := terramate.LoadMetadata(root)
 	if err != nil {
 		return fmt.Errorf("loading metadata: %v", err)
 	}
@@ -90,7 +92,7 @@ func Generate(root string) error {
 			continue
 		}
 
-		globals, err := LoadStackGlobals(root, stackMetadata)
+		globals, err := terramate.LoadStackGlobals(root, stackMetadata)
 		if err != nil {
 			errs = append(errs, fmt.Errorf(
 				"stack %q: %w: %v",
@@ -100,12 +102,15 @@ func Generate(root string) error {
 			continue
 		}
 
-		tfscope := &tflang.Scope{
-			BaseDir: filepath.Dir(stackpath),
+		evalctx := eval.NewContext(stackpath)
+		evalctx, err := newHCLEvalContext(stackMetadata, tfscope)
+
+		vals := map[string]cty.Value{
+			"name": cty.StringVal(stackMetadata.Name),
+			"path": cty.StringVal(stackMetadata.Path),
 		}
 
-		evalctx, err := newHCLEvalContext(stackMetadata, tfscope)
-		if err != nil {
+		if err := evalctx.SetNamespace("terramate", vals); err != nil {
 			errs = append(errs, fmt.Errorf("stack %q: building eval ctx: %v", stackpath, err))
 			continue
 		}
