@@ -46,6 +46,10 @@ func (b *Block) AddBoolean(key string, v bool) {
 	b.values[key] = v
 }
 
+func (b *Block) AttributesValues() map[string]cty.Value {
+	return b.ctyvalues
+}
+
 func (b *Block) HasExpressions() bool {
 	return len(b.expressions) > 0
 }

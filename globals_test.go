@@ -499,7 +499,7 @@ func TestLoadGlobals(t *testing.T) {
 			metadata := s.LoadMetadata()
 			for _, stackMetadata := range metadata.Stacks {
 				// TODO(katcipis): check got again
-				_, err := terramate.LoadStackGlobals(s.RootDir(), stackMetadata)
+				got, err := terramate.LoadStackGlobals(s.RootDir(), stackMetadata)
 
 				if tcase.wantErr {
 					assert.Error(t, err)
@@ -519,17 +519,26 @@ func TestLoadGlobals(t *testing.T) {
 				// globals building more annoying (two sets of functions).
 				if want.HasExpressions() {
 					t.Errorf("wanted globals definition:\n%s\n", want)
-					t.Fatal("can't contain expressions, loaded globals are evaluated")
+					t.Fatal("can't contain expressions, loaded globals are evaluated (values only)")
 				}
 
-				// TODO(katcipis): properly compare
-				//if diff, ok := want.Diff(got); !ok {
-				//t.Fatalf(
-				//"stack %q globals don't match expectation, diff:\n%s",
-				//stackMetadata.Path,
-				//diff,
-				//)
-				//}
+				gotAttrs := got.Attributes()
+				wantAttrs := want.AttributesValues()
+
+				if len(gotAttrs) != len(wantAttrs) {
+					t.Errorf("got %d global attributes; wanted %d", len(gotAttrs), len(wantAttrs))
+				}
+
+				for name, wantVal := range wantAttrs {
+					gotVal, ok := gotAttrs[name]
+					if !ok {
+						t.Errorf("wanted global.%s is missing", name)
+						continue
+					}
+					if !gotVal.RawEquals(wantVal) {
+						t.Errorf("got global.%s=%v; want %v", name, gotVal, wantVal)
+					}
+				}
 			}
 
 			if len(wantGlobals) > 0 {
