@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/madlambda/spells/errutil"
@@ -64,14 +63,7 @@ func (g *Globals) Attributes() map[string]cty.Value {
 
 // String provides a string representation of the globals
 func (g *Globals) String() string {
-	if len(g.Attributes()) == 0 {
-		return ""
-	}
-	attrs := strings.Split(hcl.FormatAttributes(g.Attributes()), "\n")
-	for i, attr := range attrs {
-		attrs[i] = "global." + attr
-	}
-	return strings.Join(attrs, "\n")
+	return hcl.FormatAttributes(g.Attributes())
 }
 
 // SetOnEvalCtx will add the proper namespace for evaluation of globals

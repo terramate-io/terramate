@@ -77,9 +77,9 @@ func TestStacksGlobals(t *testing.T) {
 			want: runResult{
 				Stdout: `
 stack "/stack":
-	global.bool   = true
-	global.number = 777
-	global.str    = "string"
+	bool   = true
+	number = 777
+	str    = "string"
 `,
 			},
 		},
