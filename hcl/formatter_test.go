@@ -54,6 +54,19 @@ func TestFormatAttributes(t *testing.T) {
 			},
 			want: "bool = true\nnum  = 666\nstr  = \"value\"",
 		},
+		{
+			name: "format map attribute",
+			attributes: map[string]cty.Value{
+				"map": cty.MapVal(map[string]cty.Value{
+					"key1": cty.StringVal("value1"),
+					"key2": cty.StringVal("value2"),
+				}),
+			},
+			want: `map = {
+  key1 = "value1"
+  key2 = "value2"
+}`,
+		},
 	}
 
 	for _, tcase := range tcases {
