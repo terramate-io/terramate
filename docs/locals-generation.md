@@ -121,7 +121,7 @@ this to **stacks/stack-1/terramate.tm.hcl**:
 
 ```hcl
 export_as_locals {
-  stack_1_only = globals.yet_more_data
+  stack_1_only = global.yet_more_data
 }
 ```
 
