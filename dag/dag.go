@@ -111,8 +111,7 @@ func (d *DAG) Validate() (string, error) {
 }
 
 func (d *DAG) validateVertice(id ID, children []ID) (string, error) {
-	visited := map[ID]struct{}{}
-	found, reason := d.hasCycle(id, children, fmt.Sprintf("%s ->", id), visited)
+	found, reason := d.hasCycle([]ID{id}, children, fmt.Sprintf("%s ->", id))
 	if found {
 		d.cycles[id] = true
 		return reason, errutil.Chain(
@@ -124,21 +123,17 @@ func (d *DAG) validateVertice(id ID, children []ID) (string, error) {
 	return "", nil
 }
 
-func (d *DAG) hasCycle(id ID, children []ID, reason string, visited map[ID]struct{}) (bool, string) {
-	if IDList(children).Contains(id) {
-		d.cycles[id] = true
-		return true, fmt.Sprintf("%s %s", reason, id)
+func (d *DAG) hasCycle(branch []ID, children []ID, reason string) (bool, string) {
+	for _, id := range branch {
+		if IDList(children).Contains(id) {
+			d.cycles[id] = true
+			return true, fmt.Sprintf("%s %s", reason, id)
+		}
 	}
 
-	visited[id] = struct{}{}
 	for _, tid := range sortedIds(children) {
-		if _, ok := visited[tid]; ok {
-			d.cycles[tid] = true
-			return true, fmt.Sprintf("%s %s", reason, tid)
-		}
-
 		tlist := d.dag[tid]
-		found, reason := d.hasCycle(id, tlist, fmt.Sprintf("%s %s ->", reason, tid), visited)
+		found, reason := d.hasCycle(append(branch, tid), tlist, fmt.Sprintf("%s %s ->", reason, tid))
 		if found {
 			return true, reason
 		}
