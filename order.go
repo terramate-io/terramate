@@ -49,7 +49,11 @@ func RunOrder(root string, stacks []stack.S, changed bool) ([]stack.S, string, e
 
 	orderedStacks := make([]stack.S, 0, len(order))
 	for _, id := range order {
-		orderedStacks = append(orderedStacks, loader.MustGet(string(id)))
+		s := d.Vertice(id).(stack.S)
+
+		if s.IsChanged() == changed {
+			orderedStacks = append(orderedStacks, s)
+		}
 	}
 
 	return orderedStacks, "", nil

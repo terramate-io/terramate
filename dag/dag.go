@@ -176,6 +176,17 @@ func (d *DAG) HasCycle(id ID) bool {
 	return d.cycles[id]
 }
 
+func (d *DAG) ShowCycles() string {
+	out := ""
+
+	for id, has := range d.cycles {
+		if has {
+			out += string(id) + ","
+		}
+	}
+	return out
+}
+
 func (d *DAG) Order() []ID {
 	order := []ID{}
 	visited := map[ID]struct{}{}

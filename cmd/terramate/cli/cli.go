@@ -375,9 +375,12 @@ func (c *cli) generateGraph() error {
 		}
 	}
 
+	_, _ = d.Validate()
+
 	for _, id := range d.IDs() {
 		stack := d.Vertice(id).(stack.S)
-		generateDot(di, d, id, stack, d.ChildrenOf(id), getLabel)
+		node := di.Node(getLabel(stack))
+		generateDot(di, d, id, node, d.ChildrenOf(id), getLabel)
 	}
 
 	outFile := c.parsedArgs.Plan.Graph.Outfile
@@ -407,20 +410,13 @@ func generateDot(
 	g *dot.Graph,
 	d *dag.DAG,
 	id dag.ID,
-	stackval stack.S,
+	parent dot.Node,
 	children []dag.ID,
 	getLabel func(s stack.S) string,
 ) {
-	parent := g.Node(getLabel(stackval))
-	if d.HasCycle(id) {
-		return
-	}
-
 	for _, childid := range children {
 		s := d.Vertice(childid).(stack.S)
 		n := g.Node(getLabel(s))
-
-		fmt.Printf("id %s, cycle: %t\n", childid, d.HasCycle(childid))
 
 		edges := g.FindEdges(parent, n)
 		if len(edges) == 0 {
@@ -431,7 +427,11 @@ func generateDot(
 			}
 		}
 
-		generateDot(g, d, childid, s, d.ChildrenOf(childid), getLabel)
+		if d.HasCycle(childid) {
+			continue
+		}
+
+		generateDot(g, d, childid, n, d.ChildrenOf(childid), getLabel)
 	}
 }
 

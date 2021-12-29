@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/dag"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -207,8 +208,8 @@ stack-z
 				Stdout: `stack-a
 stack-b
 stack-c
-stack-g
 stack-d
+stack-g
 stack-z
 `,
 			},
@@ -281,7 +282,7 @@ stack-z
 				`s:stack-a:after=["../stack-a"]`,
 			},
 			want: runResult{
-				Error:        terramate.ErrRunCycleDetected,
+				Error:        dag.ErrCycleDetected,
 				IgnoreStderr: true,
 			},
 		},
@@ -291,7 +292,7 @@ stack-z
 				`s:stack-a:after=["."]`,
 			},
 			want: runResult{
-				Error:        terramate.ErrRunCycleDetected,
+				Error:        dag.ErrCycleDetected,
 				IgnoreStderr: true,
 			},
 		},
@@ -303,7 +304,7 @@ stack-z
 				`s:stack-c:after=["../stack-a"]`,
 			},
 			want: runResult{
-				Error:        terramate.ErrRunCycleDetected,
+				Error:        dag.ErrCycleDetected,
 				IgnoreStderr: true,
 			},
 		},
@@ -332,7 +333,7 @@ stack-z
 				`s:20:after=["../10", "../1"]`,
 			},
 			want: runResult{
-				Error:        terramate.ErrRunCycleDetected,
+				Error:        dag.ErrCycleDetected,
 				IgnoreStderr: true,
 			},
 		},
