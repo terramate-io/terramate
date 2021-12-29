@@ -21,8 +21,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -622,6 +622,195 @@ stack {
 				},
 			},
 		},
+		{
+			name:   "multiple stacks with config on parent dir using globals from root",
+			layout: []string{"s:stacks/stack-1", "s:stacks/stack-2"},
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: `
+globals {
+  bucket = "project-wide-bucket"
+}`,
+				},
+				{
+					relpath: "stacks",
+					config: `terramate {
+  backend "gcs" {
+    bucket = global.bucket
+    prefix = terramate.path
+  }
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stacks/stack-1",
+						code: `terraform {
+  backend "gcs" {
+    bucket = "project-wide-bucket"
+    prefix = "/stacks/stack-1"
+  }
+}
+`,
+					},
+					{
+						relpath: "stacks/stack-2",
+						code: `terraform {
+  backend "gcs" {
+    bucket = "project-wide-bucket"
+    prefix = "/stacks/stack-2"
+  }
+}
+`,
+					},
+				},
+			},
+		},
+		{
+			name:   "stack with global on parent dir using config from root",
+			layout: []string{"s:stacks/stack"},
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: `terramate {
+  backend "gcs" {
+    bucket = global.bucket
+    prefix = terramate.path
+  }
+}`,
+				},
+				{
+					relpath: "stacks",
+					config: `
+globals {
+  bucket = "project-wide-bucket"
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stacks/stack",
+						code: `terraform {
+  backend "gcs" {
+    bucket = "project-wide-bucket"
+    prefix = "/stacks/stack"
+  }
+}
+`,
+					},
+				},
+			},
+		},
+		{
+			name: "stack overriding parent global",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: `terramate {
+  backend "gcs" {
+    bucket = global.bucket
+    prefix = terramate.path
+  }
+}`,
+				},
+				{
+					relpath: "stacks",
+					config: `
+globals {
+  bucket = "project-wide-bucket"
+}`,
+				},
+				{
+					relpath: "stacks/stack-1",
+					config: `
+terramate {
+  required_version = "~> 0.0.0"
+}
+
+stack {}
+
+globals {
+  bucket = "stack-specific-bucket"
+}`,
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stacks/stack-1",
+						code: `terraform {
+  backend "gcs" {
+    bucket = "stack-specific-bucket"
+    prefix = "/stacks/stack-1"
+  }
+}
+`,
+					},
+					{
+						relpath: "stacks/stack-2",
+						code: `terraform {
+  backend "gcs" {
+    bucket = "project-wide-bucket"
+    prefix = "/stacks/stack-2"
+  }
+}
+`,
+					},
+				},
+			},
+		},
+		{
+			name:   "reference to undefined global fails",
+			layout: []string{"s:stack"},
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: `terramate {
+  backend "gcs" {
+    bucket = global.bucket
+  }
+}`,
+				},
+			},
+			want: want{
+				res: runResult{
+					Error:        generate.ErrBackendConfig,
+					IgnoreStdout: true,
+				},
+			},
+		},
+		{
+			name:   "invalid global definition fails",
+			layout: []string{"s:stack"},
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: `terramate {
+  backend "gcs" {
+    bucket = "all good"
+  }
+}
+
+globals {
+  undefined_reference = global.undefined
+}
+`,
+				},
+			},
+			want: want{
+				res: runResult{
+					Error:        generate.ErrLoadingGlobals,
+					IgnoreStdout: true,
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
@@ -641,7 +830,7 @@ stack {
 				stack := s.StackEntry(want.relpath)
 				got := string(stack.ReadGeneratedTf())
 
-				wantcode := terramate.GeneratedCodeHeader + want.code
+				wantcode := generate.CodeHeader + want.code
 
 				if diff := cmp.Diff(wantcode, got); diff != "" {
 					t.Error("generated code doesn't match expectation")
@@ -675,7 +864,7 @@ func listGeneratedTfFiles(t *testing.T, rootdir string) []string {
 			return nil
 		}
 
-		if info.Name() == terramate.GeneratedTfFilename {
+		if info.Name() == generate.TfFilename {
 			generatedTfFiles = append(generatedTfFiles, path)
 		}
 		return nil

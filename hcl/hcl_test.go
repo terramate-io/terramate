@@ -204,7 +204,7 @@ terramate {}`,
 		{
 			name: "empty config",
 			want: want{
-				err: hcl.ErrNoTerramateBlock,
+				config: hcl.Config{},
 			},
 		},
 		{

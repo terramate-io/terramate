@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/mineiros-io/terramate/dag"
+	"github.com/mineiros-io/terramate/generate"
 	prj "github.com/mineiros-io/terramate/project"
 
 	"github.com/alecthomas/kong"
@@ -278,7 +279,7 @@ func (c *cli) run() error {
 	case "run <cmd>":
 		return c.runOnStacks()
 	case "generate":
-		return terramate.Generate(c.root())
+		return generate.Do(c.root())
 	case "metadata":
 		return c.printMetadata()
 	case "install-completions":
@@ -472,8 +473,8 @@ func (c *cli) printMetadata() error {
 
 	for _, stack := range metadata.Stacks {
 		c.log("\nstack %q:", stack.Path)
-		c.log("\tterraform.name=%q", stack.Name)
-		c.log("\tterraform.path=%q", stack.Path)
+		c.log("\tterramate.name=%q", stack.Name)
+		c.log("\tterramate.path=%q", stack.Path)
 	}
 
 	return nil

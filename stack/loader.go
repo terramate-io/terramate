@@ -15,7 +15,6 @@
 package stack
 
 import (
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -90,11 +89,6 @@ func (l Loader) TryLoad(dir string) (stack S, found bool, err error) {
 	}
 	fname := filepath.Join(dir, config.Filename)
 	cfg, err := hcl.ParseFile(fname)
-
-	if errors.Is(err, hcl.ErrNoTerramateBlock) {
-		// Config blocks may have only globals, no terramate
-		return S{}, false, nil
-	}
 
 	if err != nil {
 		return S{}, false, err

@@ -34,6 +34,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 )
@@ -351,7 +352,7 @@ func (se StackEntry) WriteConfig(cfg hcl.Config) {
 // since it assumes generated code is expected to be there.
 func (se StackEntry) ReadGeneratedTf() []byte {
 	se.t.Helper()
-	return se.DirEntry.ReadFile(terramate.GeneratedTfFilename)
+	return se.DirEntry.ReadFile(generate.TfFilename)
 }
 
 // Path returns the absolute path of the stack.

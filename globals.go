@@ -20,10 +20,10 @@ import (
 	"path/filepath"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	tflang "github.com/hashicorp/terraform/lang"
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -61,6 +61,12 @@ func (g *Globals) Attributes() map[string]cty.Value {
 	return g.attributes
 }
 
+// SetOnEvalCtx will add the proper namespace for evaluation of globals
+// on the given evaluation context.
+func (g *Globals) SetOnEvalCtx(evalctx *eval.Context) error {
+	return evalctx.SetNamespace("global", g.Attributes())
+}
+
 func (g *Globals) set(name string, val cty.Value) {
 	g.attributes[name] = val
 }
@@ -87,30 +93,29 @@ func (r *rawGlobals) has(name string) bool {
 }
 
 func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
-	// TODO(katcipis): add BaseDir on Scope.
-	tfscope := &tflang.Scope{}
-	evalctx, err := newHCLEvalContext(meta, tfscope)
-	if err != nil {
+	// FIXME(katcipis): get abs path for stack.
+	// This is relative only to root since meta.Path will look
+	// like: /some/path/relative/project/root
+	evalctx := eval.NewContext("." + meta.Path)
+
+	if err := meta.SetOnEvalCtx(evalctx); err != nil {
 		return nil, err
 	}
 
+	globals := newGlobals()
 	// error messages improve if globals is empty instead of undefined
-	empty, err := hclMapToCty(nil)
-	if err != nil {
-		return nil, fmt.Errorf("initializing empty globals: %v", err)
+	if err := globals.SetOnEvalCtx(evalctx); err != nil {
+		return nil, fmt.Errorf("initializing global eval: %v", err)
 	}
 
-	evalctx.Variables["global"] = empty
-
 	var errs []error
-	globals := newGlobals()
 	pendingExprs := r.expressions
 
 	for len(pendingExprs) > 0 {
 		amountEvaluated := 0
 
 		for name, expr := range pendingExprs {
-			val, err := expr.Value(evalctx)
+			val, err := evalctx.Eval(expr)
 			if err != nil {
 				errs = append(errs, err)
 				continue
@@ -125,17 +130,14 @@ func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 			break
 		}
 
-		attrs := globals.Attributes()
-		globalsObj, err := hclMapToCty(attrs)
-		if err != nil {
-			return nil, fmt.Errorf("evaluating globals: unexpected %v", err)
+		if err := globals.SetOnEvalCtx(evalctx); err != nil {
+			return nil, fmt.Errorf("evaluating globals: %v", err)
 		}
 
-		evalctx.Variables["global"] = globalsObj
 		errs = nil
 	}
 
-	err = errutil.Reduce(func(err1 error, err2 error) error {
+	err := errutil.Reduce(func(err1 error, err2 error) error {
 		return fmt.Errorf("%v,%v", err1, err2)
 	}, errs...)
 
