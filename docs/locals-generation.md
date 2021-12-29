@@ -142,7 +142,7 @@ export definition on **stacks/stack-1/terramate.tm.hcl** to:
 
 ```hcl
 export_as_locals {
-  more_data = globals.yet_more_data
+  more_data = global.yet_more_data
 }
 ```
 
@@ -168,8 +168,8 @@ Interpolation and functions can be used:
 
 ```hcl
 export_as_locals {
-  interpolate = "${globals.data}-${globals.more_data}"
-  functions   = split(" ", globals.more_data)
+  interpolate = "${global.data}-${global.more_data}"
+  functions   = split(" ", global.more_data)
 }
 ```
 
