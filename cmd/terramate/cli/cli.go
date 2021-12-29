@@ -472,8 +472,8 @@ func (c *cli) printStacksGlobals() error {
 			continue
 		}
 		c.log("\nstack %q:", stackMetadata.Path)
-		for _, global := range strings.Split(globalsStrRepr, "\n") {
-			c.log("\t%s", global)
+		for _, line := range strings.Split(globalsStrRepr, "\n") {
+			c.log("\t%s", line)
 		}
 	}
 	return nil
