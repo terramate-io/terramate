@@ -52,7 +52,7 @@ func TestFormatAttributes(t *testing.T) {
 				"num":  cty.NumberIntVal(666),
 				"bool": cty.BoolVal(true),
 			},
-			want: "str  = \"value\"\nnum  = 666\nbool = true",
+			want: "bool = true\nnum  = 666\nstr  = \"value\"",
 		},
 	}
 
