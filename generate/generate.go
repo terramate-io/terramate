@@ -65,6 +65,8 @@ func Do(root string) error {
 		return fmt.Errorf("project's root %q is not a directory", root)
 	}
 
+	// FIXME(katcipis): we are listing stacks twice here
+	// terramate.LoadMetadata already lists stacks, so we can improve this for sure.
 	stackEntries, err := terramate.ListStacks(root)
 	if err != nil {
 		return fmt.Errorf("listing stack: %w", err)

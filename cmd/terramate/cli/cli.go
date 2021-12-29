@@ -457,6 +457,25 @@ func (c *cli) printRunOrder() error {
 }
 
 func (c *cli) printStacksGlobals() error {
+	metadata, err := terramate.LoadMetadata(c.root())
+	if err != nil {
+		return err
+	}
+
+	for _, stackMetadata := range metadata.Stacks {
+		globals, err := terramate.LoadStackGlobals(c.root(), stackMetadata)
+		if err != nil {
+			return err
+		}
+		globalsStrRepr := globals.String()
+		if globalsStrRepr == "" {
+			continue
+		}
+		c.log("\nstack %q:", stackMetadata.Path)
+		for _, global := range strings.Split(globalsStrRepr, "\n") {
+			c.log("\t%s", global)
+		}
+	}
 	return nil
 }
 
