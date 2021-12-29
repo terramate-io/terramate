@@ -337,6 +337,26 @@ stack-z
 				IgnoreStderr: true,
 			},
 		},
+		{
+			name: `stack-z after (stack-b, stack-c, stack-d)
+				   stack-a after stack-c
+				   stack-b before stack-a`,
+			layout: []string{
+				`s:stack-z:after=["../stack-b", "../stack-c", "../stack-d"]`,
+				`s:stack-a:after=["../stack-c"]`,
+				`s:stack-b:before=["../stack-a"]`,
+				`s:stack-c`,
+				`s:stack-d`,
+			},
+			want: runResult{
+				Stdout: `stack-b
+stack-c
+stack-a
+stack-d
+stack-z
+`,
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s := sandbox.New(t)
