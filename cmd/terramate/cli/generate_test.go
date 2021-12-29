@@ -21,8 +21,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -781,7 +781,7 @@ globals {
 			},
 			want: want{
 				res: runResult{
-					Error:        terramate.ErrGenerateBackendConfig,
+					Error:        generate.ErrBackendConfig,
 					IgnoreStdout: true,
 				},
 			},
@@ -806,7 +806,7 @@ globals {
 			},
 			want: want{
 				res: runResult{
-					Error:        terramate.ErrGenerateLoadingGlobals,
+					Error:        generate.ErrLoadingGlobals,
 					IgnoreStdout: true,
 				},
 			},
@@ -830,7 +830,7 @@ globals {
 				stack := s.StackEntry(want.relpath)
 				got := string(stack.ReadGeneratedTf())
 
-				wantcode := terramate.GeneratedCodeHeader + want.code
+				wantcode := generate.CodeHeader + want.code
 
 				if diff := cmp.Diff(wantcode, got); diff != "" {
 					t.Error("generated code doesn't match expectation")
@@ -864,7 +864,7 @@ func listGeneratedTfFiles(t *testing.T, rootdir string) []string {
 			return nil
 		}
 
-		if info.Name() == terramate.GeneratedTfFilename {
+		if info.Name() == generate.TfFilename {
 			generatedTfFiles = append(generatedTfFiles, path)
 		}
 		return nil

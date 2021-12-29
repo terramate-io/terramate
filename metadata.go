@@ -17,10 +17,8 @@ package terramate
 import (
 	"strings"
 
-	tfhcl "github.com/hashicorp/hcl/v2"
-	tflang "github.com/hashicorp/terraform/lang"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/gocty"
 )
 
 // StackMetadata has all metadata loaded per stack
@@ -69,33 +67,13 @@ func (m Metadata) StackMetadata(abspath string) (StackMetadata, bool) {
 	return StackMetadata{}, false
 }
 
-func newHCLEvalContext(metadata StackMetadata, scope *tflang.Scope) (*tfhcl.EvalContext, error) {
-	// TODO(katcipis): move to hcl package
-	vars, err := hclMapToCty(map[string]cty.Value{
-		"name": cty.StringVal(metadata.Name),
-		"path": cty.StringVal(metadata.Path),
-	})
-
-	if err != nil {
-		return nil, err
+// SetOnEvalCtx will add the proper namespace for evaluation of stack metadata
+// on the given evaluation context.
+func (m StackMetadata) SetOnEvalCtx(evalctx *eval.Context) error {
+	// Not 100% sure this eval related logic should be here.
+	vals := map[string]cty.Value{
+		"name": cty.StringVal(m.Name),
+		"path": cty.StringVal(m.Path),
 	}
-
-	return &tfhcl.EvalContext{
-		Variables: map[string]cty.Value{"terramate": vars},
-		Functions: scope.Functions(),
-	}, nil
-}
-
-func hclMapToCty(m map[string]cty.Value) (cty.Value, error) {
-	// TODO(katcipis): move to hcl package
-	ctyTypes := map[string]cty.Type{}
-	for key, value := range m {
-		ctyTypes[key] = value.Type()
-	}
-	ctyObject := cty.Object(ctyTypes)
-	ctyVal, err := gocty.ToCtyValue(m, ctyObject)
-	if err != nil {
-		return cty.Value{}, err
-	}
-	return ctyVal, nil
+	return evalctx.SetNamespace("terramate", vals)
 }

@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package terramate_test
+package generate_test
 
 import (
 	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/test"
 )
 
 func TestGenerateFailsIfPathDoesntExist(t *testing.T) {
-	assert.Error(t, terramate.Generate(test.NonExistingDir(t)))
+	assert.Error(t, generate.Do(test.NonExistingDir(t)))
 }
 
 func TestGenerateFailsIfPathIsNotDir(t *testing.T) {
@@ -34,12 +34,12 @@ func TestGenerateFailsIfPathIsNotDir(t *testing.T) {
 	test.WriteFile(t, dir, filename, "whatever")
 	path := filepath.Join(dir, filename)
 
-	assert.Error(t, terramate.Generate(path))
+	assert.Error(t, generate.Do(path))
 }
 
 func TestGenerateFailsIfPathIsRelative(t *testing.T) {
 	dir := t.TempDir()
 	relpath := test.RelPath(t, test.Getwd(t), dir)
 
-	assert.Error(t, terramate.Generate(relpath))
+	assert.Error(t, generate.Do(relpath))
 }
