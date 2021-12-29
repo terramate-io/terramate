@@ -79,7 +79,7 @@ globals {
 ```
 
 If we define a [configuration file](config.md) for all stacks 
-export some locals at **stacks/terramate.tm.hcl**:
+that export some locals at **stacks/terramate.tm.hcl**:
 
 ```hcl
 export_as_locals {
