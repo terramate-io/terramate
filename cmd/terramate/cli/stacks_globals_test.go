@@ -1,0 +1,66 @@
+package cli_test
+
+import (
+	"path/filepath"
+	"testing"
+
+	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/test"
+	"github.com/mineiros-io/terramate/test/hclwrite"
+	"github.com/mineiros-io/terramate/test/sandbox"
+)
+
+func TestStacksGlobals(t *testing.T) {
+	type (
+		globalsBlock struct {
+			path string
+			add  *hclwrite.Block
+		}
+		testcase struct {
+			name       string
+			layout     []string
+			workingDir string
+			globals    []globalsBlock
+			want       runResult
+		}
+	)
+
+	//globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	//return hclwrite.NewBuilder("globals", builders...)
+	//}
+	//expr := hclwrite.Expression
+	//str := hclwrite.String
+	//number := hclwrite.NumberInt
+	//boolean := hclwrite.Boolean
+
+	tcases := []testcase{
+		{
+			name:   "no stacks no globals",
+			layout: []string{},
+		},
+		{
+			name:   "single stacks no globals",
+			layout: []string{"s:stack"},
+		},
+		{
+			name: "two stacks no globals",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+		},
+	}
+
+	for _, tcase := range tcases {
+		s := sandbox.New(t)
+		s.BuildTree(tcase.layout)
+
+		for _, globalBlock := range tcase.globals {
+			path := filepath.Join(s.RootDir(), globalBlock.path)
+			test.AppendFile(t, path, config.Filename, globalBlock.add.String())
+		}
+
+		ts := newCLI(t, s.RootDir())
+		assertRunResult(t, ts.run("stacks", "globals"), tcase.want)
+	}
+}
