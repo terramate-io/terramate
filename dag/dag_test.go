@@ -39,7 +39,7 @@ var cycleTests = []testcase{
 		name: "empty dag",
 	},
 	{
-		name: "simple cycle",
+		name: "cycle: A after A",
 		vertices: map[string]vertice{
 			"A": {
 				after: []dag.ID{"A"},
@@ -49,7 +49,7 @@ var cycleTests = []testcase{
 		reason: "A -> A",
 	},
 	{
-		name: "cycle: A -> B, B -> A",
+		name: "cycle: A after B, B after A",
 		vertices: map[string]vertice{
 			"A": {
 				after: []dag.ID{"B"},
@@ -62,7 +62,7 @@ var cycleTests = []testcase{
 		reason: "A -> B -> A",
 	},
 	{
-		name: "after cycle: A -> B, B -> C, C -> A",
+		name: "cycle: A after B, B after C, C after A",
 		vertices: map[string]vertice{
 			"A": {
 				after: []dag.ID{"B"},
@@ -78,7 +78,7 @@ var cycleTests = []testcase{
 		reason: "A -> B -> C -> A",
 	},
 	{
-		name: "after/before cycle: A after B, C before B, C after A",
+		name: "cycle: A after B, C before B, C after A",
 		vertices: map[string]vertice{
 			"A": {
 				after: []dag.ID{"B"},
@@ -92,7 +92,41 @@ var cycleTests = []testcase{
 		reason: "A -> B -> C -> A",
 	},
 	{
-		name: "after cycle: A -> B, B -> C, C -> D, D -> F, F -> A",
+		name: "cycle: B before A, C before B, C after A",
+		vertices: map[string]vertice{
+			"B": {
+				before: []dag.ID{"A"},
+			},
+			"C": {
+				after:  []dag.ID{"A"},
+				before: []dag.ID{"B"},
+			},
+		},
+		err:    dag.ErrCycleDetected,
+		reason: "A -> B -> C -> A",
+	},
+	{
+		name: "cycle: B before A, A after C, C after D, D before B",
+		vertices: map[string]vertice{
+			"B": {
+				before: []dag.ID{"A"},
+			},
+			"A": {
+				after: []dag.ID{"C"},
+			},
+			"C": {
+				after: []dag.ID{"D"},
+			},
+			"D": {
+				before: []dag.ID{"B"},
+				after:  []dag.ID{"A"},
+			},
+		},
+		err:    dag.ErrCycleDetected,
+		reason: "A -> B -> D -> A",
+	},
+	{
+		name: "cycle: A after B, B after C, C after D, D after F, F after A",
 		vertices: map[string]vertice{
 			"A": {
 				after: []dag.ID{"B"},
@@ -114,7 +148,7 @@ var cycleTests = []testcase{
 		reason: "A -> B -> C -> D -> F -> A",
 	},
 	{
-		name: "cycle: A -> B, B -> C, C -> D, D -> A, F -> A",
+		name: "cycle: A after B, B after C, C after D, D after A, F after A",
 		vertices: map[string]vertice{
 			"A": {
 				after: []dag.ID{"B"},
@@ -134,6 +168,19 @@ var cycleTests = []testcase{
 		},
 		err:    dag.ErrCycleDetected,
 		reason: "A -> B -> C -> D -> A",
+	},
+	{
+		name: "cycle: A before B, B before A",
+		vertices: map[string]vertice{
+			"A": {
+				before: []dag.ID{"B"},
+			},
+			"B": {
+				before: []dag.ID{"A"},
+			},
+		},
+		err:    dag.ErrCycleDetected,
+		reason: "A -> B -> A",
 	},
 }
 
