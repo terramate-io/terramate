@@ -368,4 +368,5 @@ terramate {
 
 ## Referencing globals on terraform code
 
-TODO
+For more information on how to access globals from terraform code checkout
+the [locals generation](locals-generation.md) docs.
