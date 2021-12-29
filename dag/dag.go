@@ -93,20 +93,6 @@ func (d *DAG) addEdge(from, to ID) {
 	d.dag[from] = fromEdges
 }
 
-func (d *DAG) RemoveVertice(id ID) error {
-	if _, ok := d.values[id]; !ok {
-		return errutil.Chain(
-			ErrVerticeNotFound,
-			fmt.Errorf("removing vertice %q", id),
-		)
-	}
-
-	delete(d.values, id)
-	delete(d.dag, id)
-	d.validated = false
-	return nil
-}
-
 func (d *DAG) Validate() (string, error) {
 	d.cycles = make(map[ID]bool)
 	d.validated = true
@@ -192,10 +178,6 @@ func (d *DAG) HasCycle(id ID) bool {
 	}
 
 	return d.cycles[id]
-}
-
-func (d *DAG) DAG() map[ID][]ID {
-	return d.dag
 }
 
 func (d *DAG) Order() []ID {

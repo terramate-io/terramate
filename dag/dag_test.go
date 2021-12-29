@@ -265,9 +265,6 @@ func TestDAG(t *testing.T) {
 				errs = append(errs, d.AddVertice(dag.ID(id), nil, v.before, v.after))
 			}
 
-			for id, values := range d.DAG() {
-				t.Logf("id:%s, values:%+v", id, values)
-			}
 			reason, err := d.Validate()
 			if err != nil {
 				assert.EqualStrings(t, tc.reason, reason, "cycle reason differ")
