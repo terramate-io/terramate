@@ -25,13 +25,12 @@ func TestStacksGlobals(t *testing.T) {
 		}
 	)
 
-	//globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-	//return hclwrite.NewBuilder("globals", builders...)
-	//}
-	//expr := hclwrite.Expression
-	//str := hclwrite.String
-	//number := hclwrite.NumberInt
-	//boolean := hclwrite.Boolean
+	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.NewBuilder("globals", builders...)
+	}
+	str := hclwrite.String
+	number := hclwrite.NumberInt
+	boolean := hclwrite.Boolean
 
 	tcases := []testcase{
 		{
@@ -47,6 +46,27 @@ func TestStacksGlobals(t *testing.T) {
 			layout: []string{
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
+			},
+		},
+		{
+			name:   "single stack with a global",
+			layout: []string{"s:stack"},
+			globals: []globalsBlock{
+				{
+					path: "/stack",
+					add: globals(
+						str("str", "string"),
+						number("number", 777),
+						boolean("bool", true),
+					),
+				},
+			},
+			want: runResult{
+				Stdout: `stack "/stack":
+	global.str="string"
+	global.number=777
+	global.bool=true
+`,
 			},
 		},
 	}
