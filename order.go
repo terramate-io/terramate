@@ -19,6 +19,8 @@ import (
 	"github.com/mineiros-io/terramate/stack"
 )
 
+type visited map[string]struct{}
+
 // RunOrder computes the final execution order for the given list of stacks.
 // In the case of multiple possible orders, it returns the lexicographic sorted
 // path.
@@ -50,7 +52,6 @@ func RunOrder(root string, stacks []stack.S, changed bool) ([]stack.S, string, e
 	orderedStacks := make([]stack.S, 0, len(order))
 	for _, id := range order {
 		s := d.Vertice(id).(stack.S)
-
 		if s.IsChanged() == changed {
 			orderedStacks = append(orderedStacks, s)
 		}
@@ -61,26 +62,24 @@ func RunOrder(root string, stacks []stack.S, changed bool) ([]stack.S, string, e
 
 func BuildDAG(
 	d *dag.DAG,
-	rootdir string,
-	stackval stack.S,
+	root string,
+	s stack.S,
 	loader stack.Loader,
-	visited map[string]struct{},
+	visited visited,
 ) error {
-	visited[stackval.Dir] = struct{}{}
+	visited[s.Dir] = struct{}{}
 
-	afterStacks, err := loader.LoadAll(rootdir, stackval.Dir, stackval.After()...)
+	afterStacks, err := loader.LoadAll(root, s.Dir, s.After()...)
 	if err != nil {
 		return err
 	}
 
-	beforeStacks, err := loader.LoadAll(rootdir, stackval.Dir, stackval.Before()...)
+	beforeStacks, err := loader.LoadAll(root, s.Dir, s.Before()...)
 	if err != nil {
 		return err
 	}
 
-	err = d.AddVertice(dag.ID(stackval.Dir), stackval, toids(beforeStacks),
-		toids(afterStacks))
-
+	err = d.AddVertice(dag.ID(s.Dir), s, toids(beforeStacks), toids(afterStacks))
 	if err != nil {
 		return err
 	}
@@ -94,7 +93,7 @@ func BuildDAG(
 			continue
 		}
 
-		err = BuildDAG(d, rootdir, s, loader, visited)
+		err = BuildDAG(d, root, s, loader, visited)
 		if err != nil {
 			return err
 		}

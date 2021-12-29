@@ -23,13 +23,12 @@ import (
 )
 
 type vertice struct {
-	id     dag.ID
 	after  []dag.ID
 	before []dag.ID
 }
 type testcase struct {
 	name     string
-	vertices []vertice
+	vertices map[string]vertice
 	err      error
 	reason   string
 	order    []dag.ID
@@ -41,9 +40,8 @@ var cycleTests = []testcase{
 	},
 	{
 		name: "simple cycle",
-		vertices: []vertice{
-			{
-				id:    "A",
+		vertices: map[string]vertice{
+			"A": {
 				after: []dag.ID{"A"},
 			},
 		},
@@ -52,13 +50,11 @@ var cycleTests = []testcase{
 	},
 	{
 		name: "cycle: A -> B, B -> A",
-		vertices: []vertice{
-			{
-				id:    "A",
+		vertices: map[string]vertice{
+			"A": {
 				after: []dag.ID{"B"},
 			},
-			{
-				id:    "B",
+			"B": {
 				after: []dag.ID{"A"},
 			},
 		},
@@ -67,17 +63,14 @@ var cycleTests = []testcase{
 	},
 	{
 		name: "after cycle: A -> B, B -> C, C -> A",
-		vertices: []vertice{
-			{
-				id:    "A",
+		vertices: map[string]vertice{
+			"A": {
 				after: []dag.ID{"B"},
 			},
-			{
-				id:    "B",
+			"B": {
 				after: []dag.ID{"C"},
 			},
-			{
-				id:    "C",
+			"C": {
 				after: []dag.ID{"A"},
 			},
 		},
@@ -86,13 +79,11 @@ var cycleTests = []testcase{
 	},
 	{
 		name: "after/before cycle: A after B, C before B, C after A",
-		vertices: []vertice{
-			{
-				id:    "A",
+		vertices: map[string]vertice{
+			"A": {
 				after: []dag.ID{"B"},
 			},
-			{
-				id:     "C",
+			"C": {
 				after:  []dag.ID{"A"},
 				before: []dag.ID{"B"},
 			},
@@ -102,25 +93,20 @@ var cycleTests = []testcase{
 	},
 	{
 		name: "after cycle: A -> B, B -> C, C -> D, D -> F, F -> A",
-		vertices: []vertice{
-			{
-				id:    "A",
+		vertices: map[string]vertice{
+			"A": {
 				after: []dag.ID{"B"},
 			},
-			{
-				id:    "B",
+			"B": {
 				after: []dag.ID{"C"},
 			},
-			{
-				id:    "C",
+			"C": {
 				after: []dag.ID{"D"},
 			},
-			{
-				id:    "D",
+			"D": {
 				after: []dag.ID{"F"},
 			},
-			{
-				id:    "F",
+			"F": {
 				after: []dag.ID{"A"},
 			},
 		},
@@ -129,25 +115,20 @@ var cycleTests = []testcase{
 	},
 	{
 		name: "cycle: A -> B, B -> C, C -> D, D -> A, F -> A",
-		vertices: []vertice{
-			{
-				id:    "A",
+		vertices: map[string]vertice{
+			"A": {
 				after: []dag.ID{"B"},
 			},
-			{
-				id:    "B",
+			"B": {
 				after: []dag.ID{"C"},
 			},
-			{
-				id:    "C",
+			"C": {
 				after: []dag.ID{"D"},
 			},
-			{
-				id:    "D",
+			"D": {
 				after: []dag.ID{"A"},
 			},
-			{
-				id:    "F",
+			"F": {
 				after: []dag.ID{"A"},
 			},
 		},
@@ -159,50 +140,67 @@ var cycleTests = []testcase{
 var dagTests = []testcase{
 	{
 		name: "simple dag",
-		vertices: []vertice{
-			{
-				id:    "A",
+		vertices: map[string]vertice{
+			"A": {
 				after: []dag.ID{"B"},
 			},
-			{
-				id: "B",
-			},
+			"B": {},
 		},
 		order: []dag.ID{"B", "A"},
 	},
 	{
 		name: "A -> (B, E), B -> (C, D), D -> E",
-		vertices: []vertice{
-			{
-				id:    "A",
+		vertices: map[string]vertice{
+			"A": {
 				after: []dag.ID{"B", "E"},
 			},
-			{
-				id:    "B",
+			"B": {
 				after: []dag.ID{"C", "D"},
 			},
-			{
-				id:    "D",
+			"D": {
 				after: []dag.ID{"E"},
 			},
-			{
-				id: "E",
-			},
+			"E": {},
 		},
 		order: []dag.ID{"C", "E", "D", "B", "A"},
 	},
 	{
 		name: "simple before: A before B",
-		vertices: []vertice{
-			{
-				id: "B",
-			},
-			{
-				id:     "A",
+		vertices: map[string]vertice{
+			"B": {},
+			"A": {
 				before: []dag.ID{"B"},
 			},
 		},
 		order: []dag.ID{"A", "B"},
+	},
+	{
+		name: "A before B, B after C",
+		vertices: map[string]vertice{
+			"B": {
+				after: []dag.ID{"C"},
+			},
+			"A": {
+				before: []dag.ID{"B"},
+			},
+			"C": {},
+		},
+		order: []dag.ID{"A", "C", "B"},
+	},
+	{
+		name: "A before B, B before D and after C",
+		vertices: map[string]vertice{
+			"A": {
+				before: []dag.ID{"B"},
+			},
+			"B": {
+				before: []dag.ID{"D"},
+				after:  []dag.ID{"C"},
+			},
+			"C": {},
+			"D": {},
+		},
+		order: []dag.ID{"A", "C", "B", "D"},
 	},
 }
 
@@ -215,8 +213,13 @@ func TestDAG(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			d := dag.New()
 			var errs []error
-			for _, v := range tc.vertices {
-				errs = append(errs, d.AddVertice(v.id, nil, v.before, v.after))
+
+			for id, v := range tc.vertices {
+				errs = append(errs, d.AddVertice(dag.ID(id), nil, v.before, v.after))
+			}
+
+			for id, values := range d.DAG() {
+				t.Logf("id:%s, values:%+v", id, values)
 			}
 			reason, err := d.Validate()
 			if err != nil {
@@ -229,32 +232,6 @@ func TestDAG(t *testing.T) {
 
 			assert.IsError(t, errutil.Chain(errs...), tc.err, "failed to add vertice")
 
-		})
-	}
-}
-
-func TestBeforeAfterVerticeDAG(t *testing.T) {
-	for _, tc := range []testcase{
-		{
-			name: "1",
-			vertices: []vertice{
-				{
-					id: "B",
-				},
-				{
-					id:     "A",
-					before: []dag.ID{"B"},
-				},
-			},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			d := dag.New()
-			var errs []error
-			for _, v := range tc.vertices {
-				errs = append(errs, d.AddVertice(v.id, nil, v.before, v.after))
-			}
-			assert.IsError(t, errutil.Chain(errs...), tc.err, "failed to add vertice")
 		})
 	}
 }

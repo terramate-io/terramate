@@ -57,22 +57,40 @@ func (d *DAG) AddVertice(id ID, value interface{}, before, after []ID) error {
 	}
 
 	for _, bid := range before {
-		bvalues, ok := d.dag[bid]
-		if !ok {
-			bvalues = []ID{}
+		if _, ok := d.dag[bid]; !ok {
+			d.dag[bid] = []ID{}
 		}
 
-		if !IDList(bvalues).Contains(id) {
-			bvalues = append(bvalues, id)
-		}
-
-		d.dag[bid] = bvalues
+		d.addEdge(bid, id)
 	}
 
+	if _, ok := d.dag[id]; !ok {
+		d.dag[id] = []ID{}
+	}
+
+	d.addEdges(id, after)
 	d.values[id] = value
-	d.dag[id] = after
 	d.validated = false
 	return nil
+}
+
+func (d *DAG) addEdges(from ID, toids []ID) {
+	for _, to := range toids {
+		d.addEdge(from, to)
+	}
+}
+
+func (d *DAG) addEdge(from, to ID) {
+	fromEdges, ok := d.dag[from]
+	if !ok {
+		panic("internal error: empty list of edges must exist at this point")
+	}
+
+	if !IDList(fromEdges).Contains(to) {
+		fromEdges = append(fromEdges, to)
+	}
+
+	d.dag[from] = fromEdges
 }
 
 func (d *DAG) RemoveVertice(id ID) error {
@@ -176,15 +194,8 @@ func (d *DAG) HasCycle(id ID) bool {
 	return d.cycles[id]
 }
 
-func (d *DAG) ShowCycles() string {
-	out := ""
-
-	for id, has := range d.cycles {
-		if has {
-			out += string(id) + ","
-		}
-	}
-	return out
+func (d *DAG) DAG() map[ID][]ID {
+	return d.dag
 }
 
 func (d *DAG) Order() []ID {

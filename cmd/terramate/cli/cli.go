@@ -363,7 +363,6 @@ func (c *cli) generateGraph() error {
 	d := dag.New()
 
 	visited := map[string]struct{}{}
-
 	for _, e := range c.filterStacksByWorkingDir(entries) {
 		if _, ok := visited[e.Stack.Dir]; ok {
 			continue
@@ -374,8 +373,6 @@ func (c *cli) generateGraph() error {
 			return fmt.Errorf("failed to build order tree: %w", err)
 		}
 	}
-
-	_, _ = d.Validate()
 
 	for _, id := range d.IDs() {
 		stack := d.Vertice(id).(stack.S)
