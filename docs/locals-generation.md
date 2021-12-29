@@ -83,8 +83,8 @@ that export some locals at **stacks/terramate.tm.hcl**:
 
 ```hcl
 export_as_locals {
-  data      = globals.data
-  more_data = globals.more_data
+  data      = global.data
+  more_data = global.more_data
 }
 ```
 
