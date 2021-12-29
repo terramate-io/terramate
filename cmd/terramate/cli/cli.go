@@ -376,7 +376,7 @@ func (c *cli) generateGraph() error {
 	}
 
 	for _, id := range d.IDs() {
-		val, err := d.Vertice(id)
+		val, err := d.Node(id)
 		if err != nil {
 			return fmt.Errorf("generating graph: %w", err)
 		}
@@ -421,7 +421,7 @@ func generateDot(
 	getLabel func(s stack.S) string,
 ) error {
 	for _, childid := range children {
-		val, err := d.Vertice(childid)
+		val, err := d.Node(childid)
 		if err != nil {
 			return fmt.Errorf("generating dot file: %w", err)
 		}

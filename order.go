@@ -53,7 +53,7 @@ func RunOrder(root string, stacks []stack.S, changed bool) ([]stack.S, string, e
 
 	orderedStacks := make([]stack.S, 0, len(order))
 	for _, id := range order {
-		val, err := d.Vertice(id)
+		val, err := d.Node(id)
 		if err != nil {
 			return nil, "", fmt.Errorf("calculating run-order: %w", err)
 		}
@@ -85,7 +85,7 @@ func BuildDAG(
 		return err
 	}
 
-	err = d.AddVertice(dag.ID(s.Dir), s, toids(beforeStacks), toids(afterStacks))
+	err = d.AddNode(dag.ID(s.Dir), s, toids(beforeStacks), toids(afterStacks))
 	if err != nil {
 		return err
 	}

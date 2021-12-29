@@ -22,16 +22,16 @@ import (
 	"github.com/mineiros-io/terramate/dag"
 )
 
-type vertice struct {
+type node struct {
 	after  []dag.ID
 	before []dag.ID
 }
 type testcase struct {
-	name     string
-	vertices map[string]vertice
-	err      error
-	reason   string
-	order    []dag.ID
+	name   string
+	nodes  map[string]node
+	err    error
+	reason string
+	order  []dag.ID
 }
 
 var cycleTests = []testcase{
@@ -40,7 +40,7 @@ var cycleTests = []testcase{
 	},
 	{
 		name: "cycle: A after A",
-		vertices: map[string]vertice{
+		nodes: map[string]node{
 			"A": {
 				after: []dag.ID{"A"},
 			},
@@ -50,7 +50,7 @@ var cycleTests = []testcase{
 	},
 	{
 		name: "cycle: A after B, B after A",
-		vertices: map[string]vertice{
+		nodes: map[string]node{
 			"A": {
 				after: []dag.ID{"B"},
 			},
@@ -63,7 +63,7 @@ var cycleTests = []testcase{
 	},
 	{
 		name: "cycle: A after B, B after C, C after A",
-		vertices: map[string]vertice{
+		nodes: map[string]node{
 			"A": {
 				after: []dag.ID{"B"},
 			},
@@ -79,7 +79,7 @@ var cycleTests = []testcase{
 	},
 	{
 		name: "cycle: A after B, C before B, C after A",
-		vertices: map[string]vertice{
+		nodes: map[string]node{
 			"A": {
 				after: []dag.ID{"B"},
 			},
@@ -93,7 +93,7 @@ var cycleTests = []testcase{
 	},
 	{
 		name: "cycle: B before A, C before B, C after A",
-		vertices: map[string]vertice{
+		nodes: map[string]node{
 			"B": {
 				before: []dag.ID{"A"},
 			},
@@ -107,7 +107,7 @@ var cycleTests = []testcase{
 	},
 	{
 		name: "cycle: B before A, A after C, C after D, D before B",
-		vertices: map[string]vertice{
+		nodes: map[string]node{
 			"B": {
 				before: []dag.ID{"A"},
 			},
@@ -127,7 +127,7 @@ var cycleTests = []testcase{
 	},
 	{
 		name: "cycle: A after B, B after C, C after D, D after F, F after A",
-		vertices: map[string]vertice{
+		nodes: map[string]node{
 			"A": {
 				after: []dag.ID{"B"},
 			},
@@ -149,7 +149,7 @@ var cycleTests = []testcase{
 	},
 	{
 		name: "cycle: A after B, B after C, C after D, D after A, F after A",
-		vertices: map[string]vertice{
+		nodes: map[string]node{
 			"A": {
 				after: []dag.ID{"B"},
 			},
@@ -171,7 +171,7 @@ var cycleTests = []testcase{
 	},
 	{
 		name: "cycle: A after B, B after C, C after D, D after B, F after A",
-		vertices: map[string]vertice{
+		nodes: map[string]node{
 			"A": {
 				after: []dag.ID{"B"},
 			},
@@ -193,7 +193,7 @@ var cycleTests = []testcase{
 	},
 	{
 		name: "cycle: A before B, B before A",
-		vertices: map[string]vertice{
+		nodes: map[string]node{
 			"A": {
 				before: []dag.ID{"B"},
 			},
@@ -209,7 +209,7 @@ var cycleTests = []testcase{
 var dagTests = []testcase{
 	{
 		name: "simple dag",
-		vertices: map[string]vertice{
+		nodes: map[string]node{
 			"A": {
 				after: []dag.ID{"B"},
 			},
@@ -219,7 +219,7 @@ var dagTests = []testcase{
 	},
 	{
 		name: "A -> (B, E), B -> (C, D), D -> E",
-		vertices: map[string]vertice{
+		nodes: map[string]node{
 			"A": {
 				after: []dag.ID{"B", "E"},
 			},
@@ -235,7 +235,7 @@ var dagTests = []testcase{
 	},
 	{
 		name: "simple before: A before B",
-		vertices: map[string]vertice{
+		nodes: map[string]node{
 			"B": {},
 			"A": {
 				before: []dag.ID{"B"},
@@ -245,7 +245,7 @@ var dagTests = []testcase{
 	},
 	{
 		name: "A before B, B after C",
-		vertices: map[string]vertice{
+		nodes: map[string]node{
 			"B": {
 				after: []dag.ID{"C"},
 			},
@@ -258,7 +258,7 @@ var dagTests = []testcase{
 	},
 	{
 		name: "A before B, B before D and after C",
-		vertices: map[string]vertice{
+		nodes: map[string]node{
 			"A": {
 				before: []dag.ID{"B"},
 			},
@@ -283,8 +283,8 @@ func TestDAG(t *testing.T) {
 			d := dag.New()
 			var errs []error
 
-			for id, v := range tc.vertices {
-				errs = append(errs, d.AddVertice(dag.ID(id), nil, v.before, v.after))
+			for id, v := range tc.nodes {
+				errs = append(errs, d.AddNode(dag.ID(id), nil, v.before, v.after))
 			}
 
 			reason, err := d.Validate()
@@ -296,7 +296,7 @@ func TestDAG(t *testing.T) {
 				assertOrder(t, tc.order, order)
 			}
 
-			assert.IsError(t, errutil.Chain(errs...), tc.err, "failed to add vertice")
+			assert.IsError(t, errutil.Chain(errs...), tc.err, "failed to add node")
 
 		})
 	}

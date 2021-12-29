@@ -22,7 +22,7 @@ import (
 )
 
 type (
-	// ID of vertices
+	// ID of nodes
 	ID string
 
 	// DAG is a Directed-Acyclic Graph
@@ -36,11 +36,12 @@ type (
 )
 
 const (
-	ErrDuplicateVertice errutil.Error = "duplicate vertice"
-	ErrVerticeNotFound  errutil.Error = "vertice not found"
-	ErrCycleDetected    errutil.Error = "cycle detected"
+	ErrDuplicateNode errutil.Error = "duplicate node"
+	ErrNodeNotFound  errutil.Error = "node not found"
+	ErrCycleDetected errutil.Error = "cycle detected"
 )
 
+// New creates a new empty Directed-Acyclic-Graph.
 func New() *DAG {
 	return &DAG{
 		dag:    make(map[ID][]ID),
@@ -48,11 +49,13 @@ func New() *DAG {
 	}
 }
 
-func (d *DAG) AddVertice(id ID, value interface{}, before, after []ID) error {
+// AddNode adds a new node to the dag. The lists of before and after
+// defines its edge nodes.
+func (d *DAG) AddNode(id ID, value interface{}, before, after []ID) error {
 	if _, ok := d.values[id]; ok {
 		return errutil.Chain(
-			ErrDuplicateVertice,
-			fmt.Errorf("adding vertice id %q", id),
+			ErrDuplicateNode,
+			fmt.Errorf("adding node id %q", id),
 		)
 	}
 
@@ -86,13 +89,14 @@ func (d *DAG) addEdge(from, to ID) {
 		panic("internal error: empty list of edges must exist at this point")
 	}
 
-	if !IDList(fromEdges).Contains(to) {
+	if !IDList(fromEdges).contains(to) {
 		fromEdges = append(fromEdges, to)
 	}
 
 	d.dag[from] = fromEdges
 }
 
+// Validate the DAG looking for cycles.
 func (d *DAG) Validate() (string, error) {
 	d.cycles = make(map[ID]bool)
 	d.validated = true
@@ -102,7 +106,7 @@ func (d *DAG) Validate() (string, error) {
 	}
 
 	for _, id := range sortedIds(ids) {
-		reason, err := d.validateVertice(id, d.dag[id])
+		reason, err := d.validateNode(id, d.dag[id])
 		if err != nil {
 			return reason, err
 		}
@@ -110,13 +114,13 @@ func (d *DAG) Validate() (string, error) {
 	return "", nil
 }
 
-func (d *DAG) validateVertice(id ID, children []ID) (string, error) {
+func (d *DAG) validateNode(id ID, children []ID) (string, error) {
 	found, reason := d.hasCycle([]ID{id}, children, fmt.Sprintf("%s ->", id))
 	if found {
 		d.cycles[id] = true
 		return reason, errutil.Chain(
 			ErrCycleDetected,
-			fmt.Errorf("checking vertice id %q", id),
+			fmt.Errorf("checking node id %q", id),
 		)
 	}
 
@@ -125,7 +129,7 @@ func (d *DAG) validateVertice(id ID, children []ID) (string, error) {
 
 func (d *DAG) hasCycle(branch []ID, children []ID, reason string) (bool, string) {
 	for _, id := range branch {
-		if IDList(children).Contains(id) {
+		if IDList(children).contains(id) {
 			d.cycles[id] = true
 			return true, fmt.Sprintf("%s %s", reason, id)
 		}
@@ -142,7 +146,7 @@ func (d *DAG) hasCycle(branch []ID, children []ID, reason string) (bool, string)
 	return false, ""
 }
 
-// IDs returns the sorted list of vertices ids.
+// IDs returns the sorted list of node ids.
 func (d *DAG) IDs() []ID {
 	idlist := make(IDList, 0, len(d.dag))
 	for id := range d.dag {
@@ -152,14 +156,16 @@ func (d *DAG) IDs() []ID {
 	return idlist
 }
 
-func (d *DAG) Vertice(id ID) (interface{}, error) {
+// Node returns the node with the given id.
+func (d *DAG) Node(id ID) (interface{}, error) {
 	v, ok := d.values[id]
 	if !ok {
-		return nil, ErrVerticeNotFound
+		return nil, ErrNodeNotFound
 	}
 	return v, nil
 }
 
+// ChildrenOf returns the list of node ids that are children of the given id.
 func (d *DAG) ChildrenOf(id ID) []ID {
 	return d.dag[id]
 }
@@ -175,6 +181,8 @@ func (d *DAG) HasCycle(id ID) bool {
 	return d.cycles[id]
 }
 
+// Order returns the topological order of the DAG. The node ids are
+// lexicographic sorted whenever possible to give a consistent output.
 func (d *DAG) Order() []ID {
 	order := []ID{}
 	visited := map[ID]struct{}{}
@@ -216,7 +224,7 @@ func sortedIds(ids []ID) IDList {
 
 type IDList []ID
 
-func (ids IDList) Contains(other ID) bool {
+func (ids IDList) contains(other ID) bool {
 	for _, id := range ids {
 		if id == other {
 			return true

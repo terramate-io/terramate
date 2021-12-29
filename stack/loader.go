@@ -142,12 +142,6 @@ func (l Loader) Set(dir string, s S) {
 	l.stacks[dir] = s
 }
 
-// MustGet must return a stack from the loader's cache. It's a programming error
-// to call this method if the stack wasn't loaded before.
-func (l Loader) MustGet(dir string) S {
-	return l.stacks[dir]
-}
-
 // LoadAll loads all the stacks in the dirs directories. If dirs are relative
 // paths, then basedir is used as base.
 func (l Loader) LoadAll(root string, basedir string, dirs ...string) ([]S, error) {
