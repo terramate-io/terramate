@@ -31,11 +31,10 @@ func TestStacksGlobals(t *testing.T) {
 			add  *hclwrite.Block
 		}
 		testcase struct {
-			name       string
-			layout     []string
-			workingDir string
-			globals    []globalsBlock
-			want       runResult
+			name    string
+			layout  []string
+			globals []globalsBlock
+			want    runResult
 		}
 	)
 
