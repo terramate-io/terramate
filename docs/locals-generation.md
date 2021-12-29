@@ -34,7 +34,7 @@ also be written like this:
 
 ```hcl
 export_as_locals {
-  data      = globals.data
+  data = global.data
 }
 
 export_as_locals {
