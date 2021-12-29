@@ -15,6 +15,8 @@
 package terramate
 
 import (
+	"fmt"
+
 	"github.com/mineiros-io/terramate/dag"
 	"github.com/mineiros-io/terramate/stack"
 )
@@ -51,7 +53,11 @@ func RunOrder(root string, stacks []stack.S, changed bool) ([]stack.S, string, e
 
 	orderedStacks := make([]stack.S, 0, len(order))
 	for _, id := range order {
-		s := d.Vertice(id).(stack.S)
+		val, err := d.Vertice(id)
+		if err != nil {
+			return nil, "", fmt.Errorf("calculating run-order: %w", err)
+		}
+		s := val.(stack.S)
 		if s.IsChanged() == changed {
 			orderedStacks = append(orderedStacks, s)
 		}

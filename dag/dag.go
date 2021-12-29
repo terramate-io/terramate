@@ -152,12 +152,12 @@ func (d *DAG) IDs() []ID {
 	return idlist
 }
 
-func (d *DAG) Vertice(id ID) interface{} {
+func (d *DAG) Vertice(id ID) (interface{}, error) {
 	v, ok := d.values[id]
 	if !ok {
-		panic(id)
+		return nil, ErrVerticeNotFound
 	}
-	return v
+	return v, nil
 }
 
 func (d *DAG) ChildrenOf(id ID) []ID {

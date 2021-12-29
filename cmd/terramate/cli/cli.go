@@ -376,9 +376,17 @@ func (c *cli) generateGraph() error {
 	}
 
 	for _, id := range d.IDs() {
-		stack := d.Vertice(id).(stack.S)
+		val, err := d.Vertice(id)
+		if err != nil {
+			return fmt.Errorf("generating graph: %w", err)
+		}
+
+		stack := val.(stack.S)
 		node := di.Node(getLabel(stack))
-		generateDot(di, d, id, node, d.ChildrenOf(id), getLabel)
+		err = generateDot(di, d, id, node, d.ChildrenOf(id), getLabel)
+		if err != nil {
+			return err
+		}
 	}
 
 	outFile := c.parsedArgs.Plan.Graph.Outfile
@@ -411,9 +419,13 @@ func generateDot(
 	parent dot.Node,
 	children []dag.ID,
 	getLabel func(s stack.S) string,
-) {
+) error {
 	for _, childid := range children {
-		s := d.Vertice(childid).(stack.S)
+		val, err := d.Vertice(childid)
+		if err != nil {
+			return fmt.Errorf("generating dot file: %w", err)
+		}
+		s := val.(stack.S)
 		n := g.Node(getLabel(s))
 
 		edges := g.FindEdges(parent, n)
@@ -429,8 +441,12 @@ func generateDot(
 			continue
 		}
 
-		generateDot(g, d, childid, n, d.ChildrenOf(childid), getLabel)
+		err = generateDot(g, d, childid, n, d.ChildrenOf(childid), getLabel)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func (c *cli) printRunOrder() error {
