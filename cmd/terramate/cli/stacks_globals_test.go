@@ -83,6 +83,51 @@ stack "/stack":
 `,
 			},
 		},
+		{
+			name: "two stacks only one has globals",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			globals: []globalsBlock{
+				{
+					path: "/stacks/stack-1",
+					add: globals(
+						str("str", "string"),
+					),
+				},
+			},
+			want: runResult{
+				Stdout: `
+stack "/stacks/stack-1":
+	str = "string"
+`,
+			},
+		},
+		{
+			name: "two stacks with same globals",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			globals: []globalsBlock{
+				{
+					path: "/stacks",
+					add: globals(
+						str("str", "string"),
+					),
+				},
+			},
+			want: runResult{
+				Stdout: `
+stack "/stacks/stack-1":
+	str = "string"
+
+stack "/stacks/stack-2":
+	str = "string"
+`,
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
