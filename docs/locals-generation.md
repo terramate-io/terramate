@@ -38,7 +38,7 @@ export_as_locals {
 }
 
 export_as_locals {
-  more_data = globals.more_data
+  more_data = global.more_data
 }
 ```
 
