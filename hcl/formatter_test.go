@@ -67,6 +67,19 @@ func TestFormatAttributes(t *testing.T) {
   key2 = "value2"
 }`,
 		},
+		{
+			name: "format object attribute",
+			attributes: map[string]cty.Value{
+				"obj": cty.ObjectVal(map[string]cty.Value{
+					"key1": cty.StringVal("value1"),
+					"key2": cty.StringVal("value2"),
+				}),
+			},
+			want: `obj = {
+  key1 = "value1"
+  key2 = "value2"
+}`,
+		},
 	}
 
 	for _, tcase := range tcases {
