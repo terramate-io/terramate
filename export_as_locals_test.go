@@ -112,6 +112,7 @@ func TestExportAsLocals(t *testing.T) {
 					path: "/",
 					add: export_as_locals(
 						expr("num_local", "global.num"),
+						expr("path_local", "terramate.path"),
 					),
 				},
 				{
@@ -124,11 +125,14 @@ func TestExportAsLocals(t *testing.T) {
 					path: "/stacks",
 					add: export_as_locals(
 						expr("str_local", "global.str"),
+						expr("name_local", "terramate.name"),
 					),
 				},
 			},
 			want: map[string]*hclwrite.Block{
 				"/stacks/stack": export_as_locals(
+					str("name_local", "stack"),
+					str("path_local", "/stacks/stack"),
 					str("str_local", "string"),
 					number("num_local", 666),
 				),

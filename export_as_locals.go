@@ -132,10 +132,9 @@ func (r unEvalExportAsLocals) eval(meta StackMetadata, globals *Globals) (Export
 	// like: /some/path/relative/project/root
 	evalctx := eval.NewContext("." + meta.Path)
 
-	// TODO(katcipis): test behavior
-	//if err := meta.SetOnEvalCtx(evalctx); err != nil {
-	//return nil, fmt.Errorf("evaluating export_as_locals: setting terramate metadata namespace: %v", err)
-	//}
+	if err := meta.SetOnEvalCtx(evalctx); err != nil {
+		return ExportAsLocals{}, fmt.Errorf("evaluating export_as_locals: setting terramate metadata namespace: %v", err)
+	}
 
 	if err := globals.SetOnEvalCtx(evalctx); err != nil {
 		return ExportAsLocals{}, fmt.Errorf("evaluating export_as_locals: setting terramate globals namespace: %v", err)
