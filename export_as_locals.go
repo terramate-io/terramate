@@ -87,7 +87,7 @@ func loadStackExportAsLocals(rootdir string, cfgdir string) (unEvalExportAsLocal
 			//if globals.has(name) {
 			//return nil, fmt.Errorf("%w: global %q already defined in configuration %q", ErrGlobalRedefined, name, cfgpath)
 			//}
-			exportLocals.add(name, attr.Expr)
+			exportLocals.expressions[name] = attr.Expr
 		}
 	}
 
@@ -112,13 +112,9 @@ type unEvalExportAsLocals struct {
 func (r unEvalExportAsLocals) merge(other unEvalExportAsLocals) {
 	for k, v := range other.expressions {
 		if !r.has(k) {
-			r.add(k, v)
+			r.expressions[k] = v
 		}
 	}
-}
-
-func (r unEvalExportAsLocals) add(name string, expr hclsyntax.Expression) {
-	r.expressions[name] = expr
 }
 
 func (r unEvalExportAsLocals) has(name string) bool {

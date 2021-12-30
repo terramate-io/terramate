@@ -138,6 +138,55 @@ func TestExportAsLocals(t *testing.T) {
 				),
 			},
 		},
+		{
+			name: "multiple stacks with exported locals and globals from parent dirs",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			blocks: []block{
+				{
+					path: "/",
+					add: globals(
+						str("str", "string"),
+					),
+				},
+				{
+					path: "/",
+					add: export_as_locals(
+						expr("num_local", "global.num"),
+						expr("path_local", "terramate.path"),
+					),
+				},
+				{
+					path: "/stacks",
+					add: globals(
+						number("num", 666),
+					),
+				},
+				{
+					path: "/stacks",
+					add: export_as_locals(
+						expr("str_local", "global.str"),
+						expr("name_local", "terramate.name"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-1": export_as_locals(
+					str("name_local", "stack-1"),
+					str("path_local", "/stacks/stack-1"),
+					str("str_local", "string"),
+					number("num_local", 666),
+				),
+				"/stacks/stack-2": export_as_locals(
+					str("name_local", "stack-2"),
+					str("path_local", "/stacks/stack-2"),
+					str("str_local", "string"),
+					number("num_local", 666),
+				),
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
