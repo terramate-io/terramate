@@ -381,9 +381,7 @@ func (c *cli) generateGraph() error {
 			return fmt.Errorf("generating graph: %w", err)
 		}
 
-		stack := val.(stack.S)
-		node := dotGraph.Node(getLabel(stack))
-		err = generateDot(dotGraph, graph, id, node, getLabel)
+		err = generateDot(dotGraph, graph, id, val.(stack.S), getLabel)
 		if err != nil {
 			return err
 		}
@@ -416,9 +414,10 @@ func generateDot(
 	dotGraph *dot.Graph,
 	graph *dag.DAG,
 	id dag.ID,
-	parent dot.Node,
+	stackval stack.S,
 	getLabel func(s stack.S) string,
 ) error {
+	parent := dotGraph.Node(getLabel(stackval))
 	for _, childid := range graph.ChildrenOf(id) {
 		val, err := graph.Node(childid)
 		if err != nil {
@@ -440,7 +439,7 @@ func generateDot(
 			continue
 		}
 
-		err = generateDot(dotGraph, graph, childid, n, getLabel)
+		err = generateDot(dotGraph, graph, childid, s, getLabel)
 		if err != nil {
 			return err
 		}
