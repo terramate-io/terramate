@@ -27,7 +27,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-// Globals represents a globals block.
+// Globals represents information obtained by parsing and evaluating globals blocks.
 type Globals struct {
 	attributes map[string]cty.Value
 }
