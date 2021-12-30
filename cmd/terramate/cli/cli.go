@@ -360,8 +360,8 @@ func (c *cli) generateGraph() error {
 	}
 
 	loader := stack.NewLoader(c.root())
-	di := dot.NewGraph(dot.Directed)
-	d := dag.New()
+	dotGraph := dot.NewGraph(dot.Directed)
+	graph := dag.New()
 
 	visited := map[string]struct{}{}
 	for _, e := range c.filterStacksByWorkingDir(entries) {
@@ -369,21 +369,21 @@ func (c *cli) generateGraph() error {
 			continue
 		}
 
-		err := terramate.BuildDAG(d, c.root(), e.Stack, loader, visited)
+		err := terramate.BuildDAG(graph, c.root(), e.Stack, loader, visited)
 		if err != nil {
 			return fmt.Errorf("failed to build order tree: %w", err)
 		}
 	}
 
-	for _, id := range d.IDs() {
-		val, err := d.Node(id)
+	for _, id := range graph.IDs() {
+		val, err := graph.Node(id)
 		if err != nil {
 			return fmt.Errorf("generating graph: %w", err)
 		}
 
 		stack := val.(stack.S)
-		node := di.Node(getLabel(stack))
-		err = generateDot(di, d, id, node, d.ChildrenOf(id), getLabel)
+		node := dotGraph.Node(getLabel(stack))
+		err = generateDot(dotGraph, graph, id, node, getLabel)
 		if err != nil {
 			return err
 		}
@@ -404,7 +404,7 @@ func (c *cli) generateGraph() error {
 		out = f
 	}
 
-	_, err = out.Write([]byte(di.String()))
+	_, err = out.Write([]byte(dotGraph.String()))
 	if err != nil {
 		return fmt.Errorf("writing output to %q: %w", outFile, err)
 	}
@@ -413,35 +413,34 @@ func (c *cli) generateGraph() error {
 }
 
 func generateDot(
-	g *dot.Graph,
-	d *dag.DAG,
+	dotGraph *dot.Graph,
+	graph *dag.DAG,
 	id dag.ID,
 	parent dot.Node,
-	children []dag.ID,
 	getLabel func(s stack.S) string,
 ) error {
-	for _, childid := range children {
-		val, err := d.Node(childid)
+	for _, childid := range graph.ChildrenOf(id) {
+		val, err := graph.Node(childid)
 		if err != nil {
 			return fmt.Errorf("generating dot file: %w", err)
 		}
 		s := val.(stack.S)
-		n := g.Node(getLabel(s))
+		n := dotGraph.Node(getLabel(s))
 
-		edges := g.FindEdges(parent, n)
+		edges := dotGraph.FindEdges(parent, n)
 		if len(edges) == 0 {
-			edge := g.Edge(parent, n)
-			if d.HasCycle(childid) {
+			edge := dotGraph.Edge(parent, n)
+			if graph.HasCycle(childid) {
 				edge.Attr("color", "red")
 				continue
 			}
 		}
 
-		if d.HasCycle(childid) {
+		if graph.HasCycle(childid) {
 			continue
 		}
 
-		err = generateDot(g, d, childid, n, d.ChildrenOf(childid), getLabel)
+		err = generateDot(dotGraph, graph, childid, n, getLabel)
 		if err != nil {
 			return err
 		}
