@@ -366,6 +366,12 @@ func (se StackEntry) RelPath() string {
 	return se.DirEntry.relpath
 }
 
+// CreateDir creates a directory inside the stack directory. The relpath must be
+// relative to the stack directory.
+func (se StackEntry) CreateDir(relpath string) DirEntry {
+	return newDirEntry(se.t, se.abspath, relpath)
+}
+
 func newDirEntry(t *testing.T, basedir string, relpath string) DirEntry {
 	t.Helper()
 
