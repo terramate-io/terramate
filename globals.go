@@ -58,7 +58,14 @@ func LoadStackGlobals(rootdir string, meta StackMetadata) (*Globals, error) {
 // Attributes returns all the global attributes, the key in the map
 // is the attribute name with its corresponding value mapped
 func (g *Globals) Attributes() map[string]cty.Value {
-	return g.attributes
+	// FIXME(katcipis): this method is exported only for testing purposes.
+	// Would be nice to find a way to test globals only through their observable behavior
+	// Maybe using SetOnEvalCtx ?
+	attrcopy := map[string]cty.Value{}
+	for k, v := range g.attributes {
+		attrcopy[k] = v
+	}
+	return attrcopy
 }
 
 // String provides a string representation of the globals
