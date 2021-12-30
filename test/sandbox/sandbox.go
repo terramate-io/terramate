@@ -292,8 +292,8 @@ func (de DirEntry) CreateFile(name, body string, args ...interface{}) *FileEntry
 	return fe
 }
 
-// CreateDir creates a directory dir entry directory. The relpath must be
-// relative to the stack directory.
+// CreateDir creates a directory inside the dir entry directory. The relpath
+// must be relative to the stack directory.
 func (se DirEntry) CreateDir(relpath string) DirEntry {
 	return newDirEntry(se.t, se.abspath, relpath)
 }
