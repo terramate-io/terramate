@@ -297,7 +297,6 @@ func TestDAG(t *testing.T) {
 			}
 
 			assert.IsError(t, errutil.Chain(errs...), tc.err, "failed to add node")
-
 		})
 	}
 }
