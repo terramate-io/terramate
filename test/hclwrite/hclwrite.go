@@ -76,7 +76,7 @@ func (b *Block) HasExpressions() bool {
 }
 
 func (b *Block) String() string {
-	code := b.name + strings.Join(b.labels, ",") + "{\n"
+	code := b.name + strings.Join(b.labels, " ") + "{\n"
 	// Tried properly using hclwrite, it doesnt work well with expressions:
 	// - https://stackoverflow.com/questions/67945463/how-to-use-hcl-write-to-set-expressions-with
 	for _, name := range b.sortedExpressions() {
@@ -86,7 +86,7 @@ func (b *Block) String() string {
 		code += fmt.Sprintf("%s=%v\n", name, b.values[name])
 	}
 	code += "}"
-	return string(hclwrite.Format([]byte(code)))
+	return Format(code)
 }
 
 func NewBlock(name string) *Block {
@@ -100,7 +100,7 @@ func NewBlock(name string) *Block {
 
 type BlockBuilder func(*Block)
 
-func NewBuilder(name string, builders ...BlockBuilder) *Block {
+func BuildBlock(name string, builders ...BlockBuilder) *Block {
 	b := NewBlock(name)
 	for _, builder := range builders {
 		builder(b)

@@ -1,3 +1,17 @@
+// Copyright 2021 Mineiros GmbH
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package hclwrite_test
 
 import (
@@ -15,7 +29,7 @@ func TestHCLWrite(t *testing.T) {
 	}
 
 	block := func(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.NewBuilder(name, builders...)
+		return hclwrite.BuildBlock(name, builders...)
 	}
 	labels := hclwrite.Labels
 	expr := hclwrite.Expression
@@ -25,7 +39,15 @@ func TestHCLWrite(t *testing.T) {
 
 	tcases := []testcase{
 		{
-			name: "single block",
+			name:  "empty block",
+			block: block("test"),
+			want: `
+			  test {
+			  }
+			`,
+		},
+		{
+			name: "block with multiple attributes",
 			block: block("test",
 				str("str", "test"),
 				number("num", 666),
@@ -44,7 +66,7 @@ func TestHCLWrite(t *testing.T) {
 			`,
 		},
 		{
-			name: "single block with one label",
+			name: "block with one label",
 			block: block("test",
 				labels("label"),
 				str("str", "labeltest"),
@@ -52,6 +74,28 @@ func TestHCLWrite(t *testing.T) {
 			want: `
 			  test "label" {
 			    str    = "labeltest"
+			  }
+			`,
+		},
+		{
+			name: "empty block with one label",
+			block: block("test",
+				labels("label"),
+			),
+			want: `
+			  test "label" {
+			  }
+			`,
+		},
+		{
+			name: "block multiple labels",
+			block: block("test",
+				labels("label", "label2"),
+				str("str", "labelstest"),
+			),
+			want: `
+			  test "label" "label2" {
+			    str    = "labelstest"
 			  }
 			`,
 		},
