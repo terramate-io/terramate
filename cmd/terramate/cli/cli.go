@@ -83,6 +83,11 @@ type cliSpec struct {
 		} `cmd:"" help:"show the topological ordering of the stacks"`
 	} `cmd:"" help:"plan execution."`
 
+	Stacks struct {
+		Globals struct {
+		} `cmd:"" help:"list globals for all stacks."`
+	} `cmd:"" help:"stack related commands."`
+
 	Generate struct{} `cmd:"" help:"Generate terraform code for stacks."`
 	Metadata struct{} `cmd:"" help:"shows metadata available on the project"`
 
@@ -224,7 +229,7 @@ func newCLI(
 	}
 
 	if parsedArgs.Changed && !prj.isRepo {
-		return nil, fmt.Errorf("flag --changed provided but no git repository found.")
+		return nil, fmt.Errorf("flag --changed provided but no git repository found")
 	}
 
 	return &cli{
@@ -270,6 +275,8 @@ func (c *cli) run() error {
 		return c.generateGraph()
 	case "plan run-order":
 		return c.printRunOrder()
+	case "stacks globals":
+		return c.printStacksGlobals()
 	case "run":
 		if len(c.parsedArgs.Run.Command) == 0 {
 			return errors.New("no command specified")
@@ -446,6 +453,35 @@ func (c *cli) printRunOrder() error {
 		c.log("%s", s)
 	}
 
+	return nil
+}
+
+func (c *cli) printStacksGlobals() error {
+	metadata, err := terramate.LoadMetadata(c.root())
+	if err != nil {
+		return fmt.Errorf("listing stacks globals: loading stacks metadata: %v", err)
+	}
+
+	for _, stackMetadata := range metadata.Stacks {
+		globals, err := terramate.LoadStackGlobals(c.root(), stackMetadata)
+		if err != nil {
+			return fmt.Errorf(
+				"listing stacks globals: loading stack %q globals: %v",
+				stackMetadata.Path,
+				err,
+			)
+		}
+
+		globalsStrRepr := globals.String()
+		if globalsStrRepr == "" {
+			continue
+		}
+
+		c.log("\nstack %q:", stackMetadata.Path)
+		for _, line := range strings.Split(globalsStrRepr, "\n") {
+			c.log("\t%s", line)
+		}
+	}
 	return nil
 }
 
