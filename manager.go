@@ -22,7 +22,6 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/git"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/stack"
@@ -73,24 +72,26 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 
 	stackSet := map[string]Entry{}
 	for _, path := range files {
-		dirname, ok, err := config.Lookup(m.root, filepath.Dir(path))
-		if err != nil {
-			return nil, fmt.Errorf("listing changed stacks: %w", err)
-		}
-		if !ok {
-			continue
-		}
-
-		stack, found, err := m.stackLoader.TryLoadChanged(m.root, dirname)
+		dirname := filepath.Dir(filepath.Join(m.root, path))
+		s, found, err := m.stackLoader.TryLoadChanged(m.root, dirname)
 		if err != nil {
 			return nil, fmt.Errorf("listing changed files: %w", err)
 		}
 
-		if found {
-			stackSet[dirname] = Entry{
-				Stack:  stack,
-				Reason: "stack has unmerged changes",
+		if !found {
+			s, found, err = stack.LookupParent(m.root, dirname)
+			if err != nil {
+				return nil, fmt.Errorf("listing changed files: %w", err)
 			}
+
+			if !found {
+				continue
+			}
+		}
+
+		stackSet[dirname] = Entry{
+			Stack:  s,
+			Reason: "stack has unmerged changes",
 		}
 	}
 
