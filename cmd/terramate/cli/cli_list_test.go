@@ -135,7 +135,7 @@ func TestListDetectChangesInSubDirOfStack(t *testing.T) {
 	subfile := subdir.CreateFile("something.sh", "# nothing")
 
 	cli := newCLI(t, s.RootDir())
-	assertRun(t, cli.run("init", stack.Path()))
+	assertRun(t, cli.run("stacks", "init", stack.Path()))
 
 	git := s.Git()
 	git.Add(".")

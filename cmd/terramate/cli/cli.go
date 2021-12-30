@@ -57,11 +57,6 @@ type cliSpec struct {
 	GitChangeBase string   `short:"B" optional:"true" help:"git base ref for computing changes."`
 	Changed       bool     `short:"c" optional:"true" help:"filter by changed infrastructure"`
 
-	Init struct {
-		StackDirs []string `arg:"" name:"paths" optional:"true" help:"the stack directory (current directory if not set)."`
-		Force     bool     `help:"force initialization."`
-	} `cmd:"" help:"Initialize a stack."`
-
 	List struct {
 		Why bool `help:"Shows the reason why the stack has changed."`
 	} `cmd:"" help:"List stacks."`
@@ -84,6 +79,11 @@ type cliSpec struct {
 	} `cmd:"" help:"plan execution."`
 
 	Stacks struct {
+		Init struct {
+			StackDirs []string `arg:"" name:"paths" optional:"true" help:"the stack directory (current directory if not set)."`
+			Force     bool     `help:"force initialization."`
+		} `cmd:"" help:"Initialize a stack."`
+
 		Globals struct {
 		} `cmd:"" help:"list globals for all stacks."`
 	} `cmd:"" help:"stack related commands."`
@@ -265,16 +265,16 @@ func (c *cli) run() error {
 	switch c.ctx.Command() {
 	case "version":
 		c.log(terramate.Version())
-	case "init":
-		return c.initStack([]string{c.wd()})
-	case "init <paths>":
-		return c.initStack(c.parsedArgs.Init.StackDirs)
 	case "list":
 		return c.printStacks()
 	case "plan graph":
 		return c.generateGraph()
 	case "plan run-order":
 		return c.printRunOrder()
+	case "stacks init":
+		return c.initStack([]string{c.wd()})
+	case "stacks init <paths>":
+		return c.initStack(c.parsedArgs.Stacks.Init.StackDirs)
 	case "stacks globals":
 		return c.printStacksGlobals()
 	case "run":
@@ -304,7 +304,7 @@ func (c *cli) initStack(dirs []string) error {
 			d = filepath.Join(c.wd(), d)
 		}
 
-		err := terramate.Init(c.root(), d, c.parsedArgs.Init.Force)
+		err := terramate.Init(c.root(), d, c.parsedArgs.Stacks.Init.Force)
 		if err != nil {
 			c.logerr("warn: failed to initialize stack: %v", err)
 			errmsgs = append(errmsgs, err.Error())
