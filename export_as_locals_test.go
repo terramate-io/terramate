@@ -44,7 +44,7 @@ func TestExportAsLocals(t *testing.T) {
 	// Usually in Go names are cammel case, but on this case
 	// we want it to be as close to original HCL as possible (DSL).
 	export_as_locals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.NewBuilder("globals", builders...)
+		return hclwrite.NewBuilder("export_as_locals", builders...)
 	}
 	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.NewBuilder("globals", builders...)
@@ -147,17 +147,17 @@ func TestExportAsLocals(t *testing.T) {
 				wantAttrs := want.AttributesValues()
 
 				if len(gotAttrs) != len(wantAttrs) {
-					t.Errorf("got %d global attributes; wanted %d", len(gotAttrs), len(wantAttrs))
+					t.Errorf("got %d export_as_locals attributes; wanted %d", len(gotAttrs), len(wantAttrs))
 				}
 
 				for name, wantVal := range wantAttrs {
 					gotVal, ok := gotAttrs[name]
 					if !ok {
-						t.Errorf("wanted global.%s is missing", name)
+						t.Errorf("wanted %s is missing", name)
 						continue
 					}
 					if !gotVal.RawEquals(wantVal) {
-						t.Errorf("got global.%s=%v; want %v", name, gotVal, wantVal)
+						t.Errorf("got export_as_locals %s=%v; want %v", name, gotVal, wantVal)
 					}
 				}
 			}

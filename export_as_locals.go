@@ -43,5 +43,9 @@ func LoadStackExportAsLocals(rootdir string, sm StackMetadata, g *Globals) (Expo
 }
 
 func (e ExportAsLocals) Attributes() map[string]cty.Value {
-	return nil
+	attrcopy := map[string]cty.Value{}
+	for k, v := range e.attributes {
+		attrcopy[k] = v
+	}
+	return attrcopy
 }
