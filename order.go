@@ -33,7 +33,7 @@ func RunOrder(root string, stacks []stack.S, changed bool) ([]stack.S, string, e
 		loader.Set(stack.Dir, stack)
 	}
 
-	visited := map[string]struct{}{}
+	visited := visited{}
 	for _, stack := range stacks {
 		if _, ok := visited[stack.Dir]; ok {
 			continue

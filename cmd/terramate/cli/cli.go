@@ -463,11 +463,10 @@ func (c *cli) printRunOrder() error {
 	order, reason, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
 		if errors.Is(err, dag.ErrCycleDetected) {
-			c.logerr("error: %v: reason: %s", err, reason)
+			return fmt.Errorf("%w: reason is %s", err, reason)
 		} else {
-			c.logerr("error: %v", err)
+			return fmt.Errorf("failed to plan execution: %w", err)
 		}
-		return err
 	}
 
 	for _, s := range order {
@@ -523,7 +522,7 @@ func (c *cli) runOnStacks() error {
 	order, reason, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
 		if errors.Is(err, dag.ErrCycleDetected) {
-			return fmt.Errorf("%w: cycle at %s", err, reason)
+			return fmt.Errorf("%w: reason is %s", err, reason)
 		} else {
 			return fmt.Errorf("failed to plan execution: %w", err)
 		}

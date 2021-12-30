@@ -97,7 +97,7 @@ func (d *DAG) addEdge(from, to ID) {
 }
 
 // Validate the DAG looking for cycles.
-func (d *DAG) Validate() (string, error) {
+func (d *DAG) Validate() (reason string, err error) {
 	d.cycles = make(map[ID]bool)
 	d.validated = true
 
