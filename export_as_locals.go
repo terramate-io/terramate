@@ -27,6 +27,8 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+const ErrExportAsLocalsRedefined errutil.Error = "export_as_locals attribute redefined"
+
 // ExportAsLocals represents a export_as_locals block.
 type ExportAsLocals struct {
 	attributes map[string]cty.Value
@@ -83,10 +85,14 @@ func loadStackExportAsLocals(rootdir string, cfgdir string) (unEvalExportAsLocal
 
 	for _, block := range blocks {
 		for name, attr := range block.Body.Attributes {
-			// TODO(katcipis): test behavior
-			//if globals.has(name) {
-			//return nil, fmt.Errorf("%w: global %q already defined in configuration %q", ErrGlobalRedefined, name, cfgpath)
-			//}
+			if exportLocals.has(name) {
+				return unEvalExportAsLocals{}, fmt.Errorf(
+					"%w: export_as_locals %q already defined in configuration %q",
+					ErrExportAsLocalsRedefined,
+					name,
+					cfgpath,
+				)
+			}
 			exportLocals.expressions[name] = attr.Expr
 		}
 	}

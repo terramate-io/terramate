@@ -33,10 +33,11 @@ func TestExportAsLocals(t *testing.T) {
 			add  *hclwrite.Block
 		}
 		testcase struct {
-			name   string
-			layout []string
-			blocks []block
-			want   map[string]*hclwrite.Block
+			name    string
+			layout  []string
+			blocks  []block
+			want    map[string]*hclwrite.Block
+			wantErr error
 		}
 	)
 
@@ -292,6 +293,26 @@ func TestExportAsLocals(t *testing.T) {
 				),
 			},
 		},
+		{
+			name:   "stack has duplicated export as local attr on different blocks",
+			layout: []string{"s:stack"},
+			blocks: []block{
+				{
+					path: "/stack",
+					add: export_as_locals(
+						expr("some_local", "terramate.name"),
+					),
+				},
+				{
+					path: "/stack",
+					add: export_as_locals(
+						expr("some_local", "terramate.name"),
+						expr("some_other_local", "terramate.name"),
+					),
+				},
+			},
+			wantErr: terramate.ErrExportAsLocalsRedefined,
+		},
 	}
 
 	for _, tcase := range tcases {
@@ -315,14 +336,7 @@ func TestExportAsLocals(t *testing.T) {
 					stackMetadata,
 					globals,
 				)
-
-				// TODO(katcipis): test error scenarios
-				//if tcase.wantErr {
-				//assert.Error(t, err)
-				//continue
-				//}
-
-				assert.NoError(t, err)
+				assert.IsError(t, err, tcase.wantErr)
 
 				want, ok := wantExportAsLocals[stackMetadata.Path]
 				if !ok {
