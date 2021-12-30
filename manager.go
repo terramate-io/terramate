@@ -22,7 +22,6 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/git"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/stack"
@@ -73,14 +72,7 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 
 	stackSet := map[string]Entry{}
 	for _, path := range files {
-		dirname, ok, err := config.Lookup(m.root, filepath.Dir(path))
-		if err != nil {
-			return nil, fmt.Errorf("listing changed stacks: %w", err)
-		}
-		if !ok {
-			continue
-		}
-
+		dirname := filepath.Dir(filepath.Join(m.root, path))
 		stack, found, err := m.stackLoader.TryLoadChanged(m.root, dirname)
 		if err != nil {
 			return nil, fmt.Errorf("listing changed files: %w", err)

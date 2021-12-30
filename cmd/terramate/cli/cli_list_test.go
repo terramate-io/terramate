@@ -126,29 +126,3 @@ func TestListNoSuchFile(t *testing.T) {
 		Error: os.ErrNotExist,
 	})
 }
-
-func TestListDetectChangesInSubDirOfStack(t *testing.T) {
-	s := sandbox.New(t)
-
-	stack := s.CreateStack("stack")
-	subdir := stack.CreateDir("sub/dir")
-	subfile := subdir.CreateFile("something.sh", "# nothing")
-
-	cli := newCLI(t, s.RootDir())
-	assertRun(t, cli.run("stacks", "init", stack.Path()))
-
-	git := s.Git()
-	git.Add(".")
-	git.Commit("all")
-	git.Push("main")
-	git.CheckoutNew("change-the-stack")
-
-	subfile.Write("# changed")
-	git.Add(stack.Path())
-	git.Commit("stack changed")
-
-	want := runResult{
-		Stdout: stack.RelPath() + "\n",
-	}
-	assertRunResult(t, cli.run("list", "--changed"), want)
-}
