@@ -322,6 +322,15 @@ func ParseFile(path string) (Config, error) {
 
 // ParseGlobalsBlocks parses globals blocks, ignoring any other blocks
 func ParseGlobalsBlocks(path string) ([]*hclsyntax.Block, error) {
+	return parseBlocksOfType(path, "globals")
+}
+
+// ParseExportAsLocalsBlocks parses export_as_locals blocks, ignoring other blocks
+func ParseExportAsLocalsBlocks(path string) ([]*hclsyntax.Block, error) {
+	return parseBlocksOfType(path, "export_as_locals")
+}
+
+func parseBlocksOfType(path string, blocktype string) ([]*hclsyntax.Block, error) {
 	_, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -332,13 +341,12 @@ func ParseGlobalsBlocks(path string) ([]*hclsyntax.Block, error) {
 	if diags.HasErrors() {
 		return nil, errutil.Chain(
 			ErrHCLSyntax,
-			fmt.Errorf("parsing globals: %w", diags),
+			fmt.Errorf("parsing blocks of type %q: %w", blocktype, diags),
 		)
 	}
 
 	body, _ := f.Body.(*hclsyntax.Body)
-
-	return filterBlocksByType("globals", body.Blocks), nil
+	return filterBlocksByType(blocktype, body.Blocks), nil
 }
 
 func findStringAttr(block *hclsyntax.Block, attr string) (string, bool, error) {
@@ -541,7 +549,7 @@ func filterBlocksByType(blocktype string, blocks []*hclsyntax.Block) []*hclsynta
 
 func blockIsAllowed(name string) bool {
 	switch name {
-	case "terramate", "stack", "backend", "globals":
+	case "terramate", "stack", "backend", "globals", "export_as_locals":
 		return true
 	default:
 		return false

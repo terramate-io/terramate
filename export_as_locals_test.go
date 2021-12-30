@@ -33,11 +33,10 @@ func TestExportAsLocals(t *testing.T) {
 			add  *hclwrite.Block
 		}
 		testcase struct {
-			name    string
-			layout  []string
-			blocks  []block
-			want    map[string]*hclwrite.Block
-			wantErr bool
+			name   string
+			layout []string
+			blocks []block
+			want   map[string]*hclwrite.Block
 		}
 	)
 
@@ -99,12 +98,46 @@ func TestExportAsLocals(t *testing.T) {
 				),
 			},
 		},
+		{
+			name:   "single stack with exported locals and globals from parent dirs",
+			layout: []string{"s:stacks/stack"},
+			blocks: []block{
+				{
+					path: "/",
+					add: globals(
+						str("str", "string"),
+					),
+				},
+				{
+					path: "/",
+					add: export_as_locals(
+						expr("num_local", "global.num"),
+					),
+				},
+				{
+					path: "/stacks",
+					add: globals(
+						number("num", 666),
+					),
+				},
+				{
+					path: "/stacks",
+					add: export_as_locals(
+						expr("str_local", "global.str"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack": export_as_locals(
+					str("str_local", "string"),
+					number("num_local", 666),
+				),
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			t.Skip()
-
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
 
@@ -125,10 +158,11 @@ func TestExportAsLocals(t *testing.T) {
 					globals,
 				)
 
-				if tcase.wantErr {
-					assert.Error(t, err)
-					continue
-				}
+				// TODO(katcipis): test error scenarios
+				//if tcase.wantErr {
+				//assert.Error(t, err)
+				//continue
+				//}
 
 				assert.NoError(t, err)
 
