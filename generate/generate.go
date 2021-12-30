@@ -65,30 +65,20 @@ func Do(root string) error {
 		return fmt.Errorf("project's root %q is not a directory", root)
 	}
 
-	stackEntries, err := terramate.ListStacks(root)
-	if err != nil {
-		return fmt.Errorf("listing stack: %w", err)
-	}
-
 	metadata, err := terramate.LoadMetadata(root)
 	if err != nil {
-		return fmt.Errorf("loading metadata: %v", err)
+		return fmt.Errorf("loading metadata: %w", err)
 	}
 
 	var errs []error
 
-	for _, entry := range stackEntries {
+	for _, stackMetadata := range metadata.Stacks {
 		// At the time the most intuitive way was to start from the stack
 		// and go up until reaching the root, looking for a config.
 		// Basically navigating from the order of precedence, since
 		// more specific configuration overrides base configuration.
 		// Not the most optimized way (re-parsing), we can improve later
-		stackpath := project.AbsPath(root, entry.Stack.Dir)
-		stackMetadata, ok := metadata.StackMetadata(stackpath)
-		if !ok {
-			errs = append(errs, fmt.Errorf("stack %q: no metadata found", stackpath))
-			continue
-		}
+		stackpath := project.AbsPath(root, stackMetadata.Path)
 
 		globals, err := terramate.LoadStackGlobals(root, stackMetadata)
 		if err != nil {
