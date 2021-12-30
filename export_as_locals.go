@@ -29,7 +29,8 @@ import (
 
 const ErrExportAsLocalsRedefined errutil.Error = "export_as_locals attribute redefined"
 
-// ExportAsLocals represents a export_as_locals block.
+// ExportAsLocals represents information obtained by parsing and evaluating
+// export_as_locals blocks.
 type ExportAsLocals struct {
 	attributes map[string]cty.Value
 }
