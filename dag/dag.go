@@ -100,12 +100,8 @@ func (d *DAG) addEdge(from, to ID) {
 func (d *DAG) Validate() (string, error) {
 	d.cycles = make(map[ID]bool)
 	d.validated = true
-	ids := make([]ID, 0, len(d.dag))
-	for id := range d.dag {
-		ids = append(ids, id)
-	}
 
-	for _, id := range sortedIds(ids) {
+	for _, id := range d.IDs() {
 		reason, err := d.validateNode(id, d.dag[id])
 		if err != nil {
 			return reason, err
