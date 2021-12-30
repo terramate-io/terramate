@@ -145,6 +145,8 @@ func (s S) BuildTree(layout []string) {
 				tm.Terramate.RequiredVersion = value
 			case "after":
 				tm.Stack.After = specList(t, name, value)
+			case "before":
+				tm.Stack.Before = specList(t, name, value)
 			default:
 				t.Fatalf("attribute " + parts[0] + " not supported.")
 			}
@@ -160,8 +162,6 @@ func (s S) BuildTree(layout []string) {
 
 		err = hcl.PrintConfig(f, tm)
 		assert.NoError(t, err, "BuildTree() failed to generate tm file")
-
-		//hcl.PrintTerramate(os.Stdout, tm)
 	}
 
 	for _, spec := range layout {

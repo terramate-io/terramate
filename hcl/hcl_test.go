@@ -652,7 +652,7 @@ stack {
 			},
 		},
 		{
-			name: "multiple 'after' fields",
+			name: "multiple 'after' fields - fails",
 			input: `
 terramate {
 	required_version = ""
@@ -664,6 +664,81 @@ stack {
 }`,
 			want: want{
 				err: hcl.ErrHCLSyntax,
+			},
+		},
+		{
+			name: "multiple 'before' fields - fails",
+			input: `
+terramate {
+	required_version = ""
+}
+
+stack {
+	before = []
+	before = []
+}
+			`,
+			want: want{
+				err: hcl.ErrHCLSyntax,
+			},
+		},
+		{
+			name: "'before' single entry",
+			input: `
+terramate {
+	required_version = ""
+}
+
+stack {
+	before = ["something"]
+}`,
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{},
+					Stack: &hcl.Stack{
+						Before: []string{"something"},
+					},
+				},
+			},
+		},
+		{
+			name: "'before' multiple entries",
+			input: `
+terramate {
+	required_version = ""
+}
+
+stack {
+	before = ["something", "something-else", "test"]
+}`,
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{},
+					Stack: &hcl.Stack{
+						Before: []string{"something", "something-else", "test"},
+					},
+				},
+			},
+		},
+		{
+			name: "'before' and 'after'",
+			input: `
+terramate {
+	required_version = ""
+}
+
+stack {
+	before = ["something"]
+	after = ["else"]
+}`,
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{},
+					Stack: &hcl.Stack{
+						Before: []string{"something"},
+						After:  []string{"else"},
+					},
+				},
 			},
 		},
 	} {

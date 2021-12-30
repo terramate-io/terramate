@@ -68,6 +68,10 @@ type Stack struct {
 	// After is a list of non-duplicated stack entries that must run after the
 	// current stack runs.
 	After []string
+
+	// Before is a list of non-duplicated stack entries that must run before the
+	// current stack runs.
+	Before []string
 }
 
 const (
@@ -423,6 +427,13 @@ func parseStack(stack *Stack, stackblock *hclsyntax.Block) error {
 			if err != nil {
 				return err
 			}
+
+		case "before":
+			err := assignSet(name, &stack.Before, attrVal)
+			if err != nil {
+				return err
+			}
+
 		default:
 			return errutil.Chain(ErrMalformedTerramateConfig,
 				fmt.Errorf("unrecognized attribute stack.%q", name),

@@ -40,16 +40,25 @@ func PrintConfig(w io.Writer, cfg Config) error {
 		stack := cfg.Stack
 		stackBlock := rootBody.AppendNewBlock("stack", nil)
 		stackBody := stackBlock.Body()
-		if len(stack.After) > 0 {
-			strList := make([]cty.Value, len(stack.After))
-			for i, dir := range stack.After {
-				strList[i] = cty.StringVal(dir)
-			}
 
-			stackBody.SetAttributeValue("after", cty.SetVal(strList))
+		if len(stack.After) > 0 {
+			stackBody.SetAttributeValue("after", cty.SetVal(listToValue(stack.After)))
+		}
+
+		if len(stack.Before) > 0 {
+			stackBody.SetAttributeValue("before", cty.SetVal(listToValue(stack.Before)))
 		}
 	}
 
 	_, err := w.Write(f.Bytes())
 	return err
+}
+
+func listToValue(list []string) []cty.Value {
+	vlist := make([]cty.Value, len(list))
+	for i, val := range list {
+		vlist[i] = cty.StringVal(val)
+	}
+
+	return vlist
 }

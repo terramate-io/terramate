@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mineiros-io/terramate/dag"
 	"github.com/mineiros-io/terramate/generate"
 	prj "github.com/mineiros-io/terramate/project"
 
@@ -366,16 +367,31 @@ func (c *cli) generateGraph() error {
 	}
 
 	loader := stack.NewLoader(c.root())
-	di := dot.NewGraph(dot.Directed)
+	dotGraph := dot.NewGraph(dot.Directed)
+	graph := dag.New()
 
+	visited := map[string]struct{}{}
 	for _, e := range c.filterStacksByWorkingDir(entries) {
-		tree, err := terramate.BuildOrderTree(c.root(), e.Stack, loader)
+		if _, ok := visited[e.Stack.Dir]; ok {
+			continue
+		}
+
+		err := terramate.BuildDAG(graph, c.root(), e.Stack, loader, visited)
 		if err != nil {
 			return fmt.Errorf("failed to build order tree: %w", err)
 		}
+	}
 
-		node := di.Node(getLabel(tree.Stack))
-		generateDot(di, node, tree, getLabel)
+	for _, id := range graph.IDs() {
+		val, err := graph.Node(id)
+		if err != nil {
+			return fmt.Errorf("generating graph: %w", err)
+		}
+
+		err = generateDot(dotGraph, graph, id, val.(stack.S), getLabel)
+		if err != nil {
+			return err
+		}
 	}
 
 	outFile := c.parsedArgs.Plan.Graph.Outfile
@@ -393,7 +409,7 @@ func (c *cli) generateGraph() error {
 		out = f
 	}
 
-	_, err = out.Write([]byte(di.String()))
+	_, err = out.Write([]byte(dotGraph.String()))
 	if err != nil {
 		return fmt.Errorf("writing output to %q: %w", outFile, err)
 	}
@@ -402,32 +418,40 @@ func (c *cli) generateGraph() error {
 }
 
 func generateDot(
-	g *dot.Graph,
-	parent dot.Node,
-	tree terramate.OrderDAG,
+	dotGraph *dot.Graph,
+	graph *dag.DAG,
+	id dag.ID,
+	stackval stack.S,
 	getLabel func(s stack.S) string,
-) {
-	if tree.Cycle {
-		return
-	}
+) error {
+	parent := dotGraph.Node(getLabel(stackval))
+	for _, childid := range graph.ChildrenOf(id) {
+		val, err := graph.Node(childid)
+		if err != nil {
+			return fmt.Errorf("generating dot file: %w", err)
+		}
+		s := val.(stack.S)
+		n := dotGraph.Node(getLabel(s))
 
-	for _, s := range tree.Order {
-		n := g.Node(getLabel(s.Stack))
-
-		edges := g.FindEdges(parent, n)
+		edges := dotGraph.FindEdges(parent, n)
 		if len(edges) == 0 {
-			edge := g.Edge(parent, n)
-			if s.Cycle {
+			edge := dotGraph.Edge(parent, n)
+			if graph.HasCycle(childid) {
 				edge.Attr("color", "red")
+				continue
 			}
 		}
 
-		if s.Cycle {
+		if graph.HasCycle(childid) {
 			continue
 		}
 
-		generateDot(g, n, s, getLabel)
+		err = generateDot(dotGraph, graph, childid, s, getLabel)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func (c *cli) printRunOrder() error {
@@ -443,10 +467,13 @@ func (c *cli) printRunOrder() error {
 		stacks[i] = e.Stack
 	}
 
-	order, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
+	order, reason, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
-		c.logerr("error: %v", err)
-		return err
+		if errors.Is(err, dag.ErrCycleDetected) {
+			return fmt.Errorf("%w: reason is %s", err, reason)
+		} else {
+			return fmt.Errorf("failed to plan execution: %w", err)
+		}
 	}
 
 	for _, s := range order {
@@ -528,9 +555,13 @@ func (c *cli) runOnStacks() error {
 	cmd.Stdout = c.stdout
 	cmd.Stderr = c.stderr
 
-	order, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
+	order, reason, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
-		return fmt.Errorf("failed to plan execution: %w", err)
+		if errors.Is(err, dag.ErrCycleDetected) {
+			return fmt.Errorf("%w: reason is %s", err, reason)
+		} else {
+			return fmt.Errorf("failed to plan execution: %w", err)
+		}
 	}
 
 	if c.parsedArgs.Run.DryRun {
