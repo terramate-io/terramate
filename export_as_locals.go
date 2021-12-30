@@ -1,0 +1,47 @@
+// Copyright 2021 Mineiros GmbH
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package terramate
+
+import (
+	"fmt"
+	"path/filepath"
+
+	"github.com/zclconf/go-cty/cty"
+)
+
+// ExportAsLocals represents a export_as_locals block.
+type ExportAsLocals struct {
+	attributes map[string]cty.Value
+}
+
+// LoadStackGlobals loads from the file system all globals defined for
+// a given stack. It will navigate the file system from the stack dir until
+// it reaches rootdir, loading globals and merging them appropriately.
+//
+// More specific globals (closer or at the stack) have precedence over
+// less specific globals (closer or at the root dir).
+//
+// Metadata for the stack is used on the evaluation of globals, defined on stackmeta.
+// The rootdir MUST be an absolute path.
+func LoadStackExportAsLocals(rootdir string, sm StackMetadata, g *Globals) (ExportAsLocals, error) {
+	if !filepath.IsAbs(rootdir) {
+		return ExportAsLocals{}, fmt.Errorf("%q is not absolute path", rootdir)
+	}
+	return ExportAsLocals{}, nil
+}
+
+func (e ExportAsLocals) Attributes() map[string]cty.Value {
+	return nil
+}
