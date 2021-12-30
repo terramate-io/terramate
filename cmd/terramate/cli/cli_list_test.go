@@ -18,6 +18,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -144,6 +145,35 @@ func TestListDetectChangesInSubDirOfStack(t *testing.T) {
 	git.CheckoutNew("change-the-stack")
 
 	subfile.Write("# changed")
+	git.Add(stack.Path())
+	git.Commit("stack changed")
+
+	want := runResult{
+		Stdout: stack.RelPath() + "\n",
+	}
+	assertRunResult(t, cli.run("list", "--changed"), want)
+}
+
+func TestListDetectChangesInSubDirOfStackWithOtherConfigs(t *testing.T) {
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack")
+	subdir := stack.CreateDir("sub")
+	subsubdir := subdir.CreateDir("dir")
+	subsubfile := subsubdir.CreateFile("something.sh", "# nothing")
+
+	subdir.CreateFile(config.Filename, `# empty file`)
+
+	cli := newCLI(t, s.RootDir())
+	assertRun(t, cli.run("init", stack.Path()))
+
+	git := s.Git()
+	git.Add(".")
+	git.Commit("all")
+	git.Push("main")
+	git.CheckoutNew("change-the-stack")
+
+	subsubfile.Write("# changed")
 	git.Add(stack.Path())
 	git.Commit("stack changed")
 
