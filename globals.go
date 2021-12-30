@@ -61,6 +61,11 @@ func (g *Globals) Attributes() map[string]cty.Value {
 	return g.attributes
 }
 
+// String provides a string representation of the globals
+func (g *Globals) String() string {
+	return hcl.FormatAttributes(g.Attributes())
+}
+
 // SetOnEvalCtx will add the proper namespace for evaluation of globals
 // on the given evaluation context.
 func (g *Globals) SetOnEvalCtx(evalctx *eval.Context) error {

@@ -56,17 +56,6 @@ func LoadMetadata(basedir string) (Metadata, error) {
 	}, nil
 }
 
-// StackMetadata gets the metadata of a specific stack given its absolute path.
-func (m Metadata) StackMetadata(abspath string) (StackMetadata, bool) {
-	path := strings.TrimPrefix(abspath, m.basedir)
-	for _, stackMetadata := range m.Stacks {
-		if stackMetadata.Path == path {
-			return stackMetadata, true
-		}
-	}
-	return StackMetadata{}, false
-}
-
 // SetOnEvalCtx will add the proper namespace for evaluation of stack metadata
 // on the given evaluation context.
 func (m StackMetadata) SetOnEvalCtx(evalctx *eval.Context) error {

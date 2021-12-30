@@ -50,6 +50,7 @@ Terramate stack:
 Stacks have configurations that are particular to them, like these:
 
 * [Execution Ordering](execution-order.md)
+* [Locals Generation](locals-generation.md)
 
 [Metadata](metadata.md) can be used on any hierarchical configuration,
 it provides information that is useful to stack configuration and is
