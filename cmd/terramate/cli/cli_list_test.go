@@ -162,7 +162,11 @@ func TestListDetectChangesInSubDirOfStackWithOtherConfigs(t *testing.T) {
 	subsubdir := subdir.CreateDir("dir")
 	subsubfile := subsubdir.CreateFile("something.sh", "# nothing")
 
-	subdir.CreateFile(config.Filename, `# empty file`)
+	subdir.CreateFile(config.Filename, `
+terramate {
+	
+}	
+`)
 
 	cli := newCLI(t, s.RootDir())
 	assertRun(t, cli.run("init", stack.Path()))
