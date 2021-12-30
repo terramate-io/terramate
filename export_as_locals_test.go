@@ -99,6 +99,66 @@ func TestExportAsLocals(t *testing.T) {
 			},
 		},
 		{
+			name:   "single stack exporting metadata using functions",
+			layout: []string{"s:stack"},
+			blocks: []block{
+				{
+					path: "/stack",
+					add: export_as_locals(
+						expr("funny_path", `replace(terramate.path, "/", "@")`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": export_as_locals(
+					str("funny_path", "@stack"),
+				),
+			},
+		},
+		{
+			name: "multiple stack with exported locals being overridden",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			blocks: []block{
+				{
+					path: "/",
+					add: globals(
+						str("attr1", "value1"),
+						str("attr2", "value2"),
+						str("attr3", "value3"),
+					),
+				},
+				{
+					path: "/",
+					add: export_as_locals(
+						expr("string", "global.attr1"),
+					),
+				},
+				{
+					path: "/stacks",
+					add: export_as_locals(
+						expr("string", "global.attr2"),
+					),
+				},
+				{
+					path: "/stacks/stack-1",
+					add: export_as_locals(
+						expr("string", "global.attr3"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-1": export_as_locals(
+					str("string", "value3"),
+				),
+				"/stacks/stack-2": export_as_locals(
+					str("string", "value2"),
+				),
+			},
+		},
+		{
 			name:   "single stack with exported locals and globals from parent dirs",
 			layout: []string{"s:stacks/stack"},
 			blocks: []block{
