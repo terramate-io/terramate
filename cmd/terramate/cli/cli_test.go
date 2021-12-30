@@ -143,7 +143,7 @@ func TestListAndRunChangedStack(t *testing.T) {
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
 
 	cli := newCLI(t, s.RootDir())
-	cli.run("init", stack.Path())
+	cli.run("stacks", "init", stack.Path())
 
 	git := s.Git()
 	git.CommitAll("first commit")
@@ -186,7 +186,7 @@ func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
 
 	cli := newCLI(t, t.TempDir())
-	cli.run("init", stack.Path())
+	cli.run("stacks", "init", stack.Path())
 
 	git := s.Git()
 	git.CommitAll("first commit")
@@ -223,7 +223,7 @@ func TestDefaultBaseRefInOtherThanMain(t *testing.T) {
 	stackFile := stack.CreateFile("main.tf", "# no code")
 
 	cli := newCLI(t, s.RootDir())
-	assertRun(t, cli.run("init", stack.Path()))
+	assertRun(t, cli.run("stacks", "init", stack.Path()))
 
 	git := s.Git()
 	git.Add(".")
@@ -248,7 +248,7 @@ func TestDefaultBaseRefInMain(t *testing.T) {
 	stack.CreateFile("main.tf", "# no code")
 
 	cli := newCLI(t, s.RootDir())
-	assertRun(t, cli.run("init", stack.Path()))
+	assertRun(t, cli.run("stacks", "init", stack.Path()))
 
 	git := s.Git()
 	git.Add(".")
@@ -270,7 +270,7 @@ func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
 	stack.CreateFile("main.tf", "# no code")
 
 	cli := newCLI(t, s.RootDir())
-	assertRun(t, cli.run("init", stack.Path()))
+	assertRun(t, cli.run("stacks", "init", stack.Path()))
 
 	git := s.Git()
 	git.Add(".")
@@ -292,7 +292,7 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 	mainTfFile := stack.CreateFile("main.tf", "# no code")
 
 	ts := newCLI(t, s.RootDir())
-	assertRun(t, ts.run("init", stack.Path()))
+	assertRun(t, ts.run("stacks", "init", stack.Path()))
 
 	git := s.Git()
 	git.Add(".")
