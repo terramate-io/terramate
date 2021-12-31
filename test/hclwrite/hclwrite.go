@@ -105,7 +105,7 @@ func (b *Block) String() string {
 	return Format(code)
 }
 
-func (h *HCL) String() string {
+func (h HCL) String() string {
 	strs := make([]string, len(h.blocks))
 	for i, block := range h.blocks {
 		strs[i] = block.String()
@@ -122,8 +122,8 @@ func NewBlock(name string) *Block {
 	}
 }
 
-func NewHCL(blocks ...*Block) *HCL {
-	return &HCL{blocks: blocks}
+func NewHCL(blocks ...*Block) HCL {
+	return HCL{blocks: blocks}
 }
 
 type BlockBuilder interface {
