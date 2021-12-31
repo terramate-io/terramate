@@ -106,7 +106,11 @@ func Do(root string) error {
 		}
 
 		if err := generateStackBackendConfig(root, stackpath, evalctx); err != nil {
-			errs = append(errs, fmt.Errorf("stack %q: %w", stackpath, err))
+			errs = append(errs, fmt.Errorf("stack %q: generating backend config: %w", stackpath, err))
+		}
+
+		if err := generateStackLocals(root, stackpath, stackMetadata, globals); err != nil {
+			errs = append(errs, fmt.Errorf("stack %q: generating locals: %w", stackpath, err))
 		}
 	}
 
@@ -119,6 +123,44 @@ func Do(root string) error {
 	}
 
 	return nil
+}
+
+func generateStackLocals(
+	rootdir string,
+	stackpath string,
+	metadata terramate.StackMetadata,
+	globals *terramate.Globals,
+) error {
+	stackLocals, err := terramate.LoadStackExportAsLocals(rootdir, metadata, globals)
+	if err != nil {
+		return err
+	}
+
+	gen := hclwrite.NewEmptyFile()
+	body := gen.Body()
+	localsBlock := body.AppendNewBlock("locals", nil)
+	localsBody := localsBlock.Body()
+
+	localsAttrs := stackLocals.Attributes()
+	sortedAttrs := make([]string, 0, len(localsAttrs))
+
+	for name := range localsAttrs {
+		sortedAttrs = append(sortedAttrs, name)
+	}
+	sort.Strings(sortedAttrs)
+
+	for _, name := range sortedAttrs {
+		localsBody.SetAttributeValue(name, localsAttrs[name])
+	}
+
+	tfcode := gen.Bytes()
+	if len(tfcode) == 0 {
+		return nil
+	}
+
+	tfcode = addHeader(tfcode)
+	genfile := filepath.Join(stackpath, LocalsFilename)
+	return os.WriteFile(genfile, tfcode, 0666)
 }
 
 func generateStackBackendConfig(root string, stackpath string, evalctx *eval.Context) error {
@@ -173,6 +215,10 @@ func loadStackBackendConfig(root string, configdir string, evalctx *eval.Context
 	}
 
 	return append([]byte(CodeHeader), gen.Bytes()...), nil
+}
+
+func addHeader(code []byte) []byte {
+	return append([]byte(CodeHeader), code...)
 }
 
 func copyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context) error {

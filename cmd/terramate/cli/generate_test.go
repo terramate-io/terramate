@@ -1180,8 +1180,8 @@ func assertGeneratedHCLEquals(t *testing.T, got string, want string) {
 
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Error("generated code doesn't match expectation")
-		t.Errorf("want:\n%q", want)
-		t.Errorf("got:\n%q", got)
+		t.Errorf("want:\n%s", want)
+		t.Errorf("got:\n%s", got)
 		t.Fatalf("diff:\n%s", diff)
 	}
 }
