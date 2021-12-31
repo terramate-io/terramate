@@ -311,7 +311,7 @@ func TestExportAsLocals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: terramate.ErrExportAsLocalsRedefined,
+			wantErr: terramate.ErrExportedLocalRedefined,
 		},
 	}
 
@@ -331,7 +331,7 @@ func TestExportAsLocals(t *testing.T) {
 			for _, stackMetadata := range metadata.Stacks {
 
 				globals := s.LoadStackGlobals(stackMetadata)
-				got, err := terramate.LoadStackExportAsLocals(
+				got, err := terramate.LoadStackExportedLocals(
 					s.RootDir(),
 					stackMetadata,
 					globals,
@@ -387,6 +387,6 @@ func TestLoadStackExportAsLocalsErrorOnRelativeDir(t *testing.T) {
 
 	stackMetadata := meta.Stacks[0]
 	globals := s.LoadStackGlobals(stackMetadata)
-	exportLocals, err := terramate.LoadStackExportAsLocals(rel, stackMetadata, globals)
+	exportLocals, err := terramate.LoadStackExportedLocals(rel, stackMetadata, globals)
 	assert.Error(t, err, "got %v instead of error", exportLocals)
 }
