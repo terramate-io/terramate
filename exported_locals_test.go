@@ -44,16 +44,16 @@ func TestExportAsLocals(t *testing.T) {
 	// Usually in Go names are cammel case, but on this case
 	// we want it to be as close to original HCL as possible (DSL).
 	export_as_locals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.NewBuilder("export_as_locals", builders...)
+		return hclwrite.BuildBlock("export_as_locals", builders...)
 	}
 	// locals is used only as a syntatic sugar to build testcase.want
 	// HCL blocks, which are also just an easy way to describe the wanted
 	// result since the actual result is a map of cty.Values (quite annoying to build manually)
 	locals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.NewBuilder("block", builders...)
+		return hclwrite.BuildBlock("block", builders...)
 	}
 	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.NewBuilder("globals", builders...)
+		return hclwrite.BuildBlock("globals", builders...)
 	}
 	expr := hclwrite.Expression
 	str := hclwrite.String
