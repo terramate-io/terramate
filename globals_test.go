@@ -46,7 +46,7 @@ func TestLoadGlobals(t *testing.T) {
 	)
 
 	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.NewBuilder("globals", builders...)
+		return hclwrite.BuildBlock("globals", builders...)
 	}
 	expr := hclwrite.Expression
 	str := hclwrite.String

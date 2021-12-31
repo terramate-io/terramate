@@ -39,7 +39,7 @@ func TestStacksGlobals(t *testing.T) {
 	)
 
 	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.NewBuilder("globals", builders...)
+		return hclwrite.BuildBlock("globals", builders...)
 	}
 	str := hclwrite.String
 	number := hclwrite.NumberInt
