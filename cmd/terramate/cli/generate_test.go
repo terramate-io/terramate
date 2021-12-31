@@ -861,7 +861,7 @@ func TestLocalsGeneration(t *testing.T) {
 		}
 		want struct {
 			res          runResult
-			stacksGenHCL map[string]*hclwrite.Block
+			stacksLocals map[string]*hclwrite.Block
 		}
 		testcase struct {
 			name    string
@@ -925,7 +925,7 @@ func TestLocalsGeneration(t *testing.T) {
 				},
 			},
 			want: want{
-				stacksGenHCL: map[string]*hclwrite.Block{
+				stacksLocals: map[string]*hclwrite.Block{
 					"/stack": locals(
 						str("string_local", "string"),
 						number("number_local", 777),
@@ -946,7 +946,7 @@ func TestLocalsGeneration(t *testing.T) {
 				},
 			},
 			want: want{
-				stacksGenHCL: map[string]*hclwrite.Block{
+				stacksLocals: map[string]*hclwrite.Block{
 					"/stack": locals(
 						str("funny_path", "@stack"),
 					),
@@ -988,7 +988,7 @@ func TestLocalsGeneration(t *testing.T) {
 				},
 			},
 			want: want{
-				stacksGenHCL: map[string]*hclwrite.Block{
+				stacksLocals: map[string]*hclwrite.Block{
 					"/stacks/stack-1": locals(
 						str("string", "value3"),
 					),
@@ -1030,7 +1030,7 @@ func TestLocalsGeneration(t *testing.T) {
 				},
 			},
 			want: want{
-				stacksGenHCL: map[string]*hclwrite.Block{
+				stacksLocals: map[string]*hclwrite.Block{
 					"/stacks/stack": locals(
 						str("name_local", "stack"),
 						str("path_local", "/stacks/stack"),
@@ -1075,7 +1075,7 @@ func TestLocalsGeneration(t *testing.T) {
 				},
 			},
 			want: want{
-				stacksGenHCL: map[string]*hclwrite.Block{
+				stacksLocals: map[string]*hclwrite.Block{
 					"/stacks/stack-1": locals(
 						str("name_local", "stack-1"),
 						str("path_local", "/stacks/stack-1"),
@@ -1126,7 +1126,7 @@ func TestLocalsGeneration(t *testing.T) {
 				},
 			},
 			want: want{
-				stacksGenHCL: map[string]*hclwrite.Block{
+				stacksLocals: map[string]*hclwrite.Block{
 					"/stacks/stack-1": locals(
 						str("name_local", "stack-1"),
 						str("str_local", "string"),
@@ -1153,7 +1153,7 @@ func TestLocalsGeneration(t *testing.T) {
 			ts := newCLI(t, s.RootDir())
 			assertRunResult(t, ts.run("generate"), tcase.want.res)
 
-			for stackPath, wantHCLBlock := range tcase.want.stacksGenHCL {
+			for stackPath, wantHCLBlock := range tcase.want.stacksLocals {
 				stackRelPath := stackPath[1:]
 				want := wantHCLBlock.String()
 				stack := s.StackEntry(stackRelPath)
@@ -1164,10 +1164,10 @@ func TestLocalsGeneration(t *testing.T) {
 
 			generatedFiles := findFiles(t, s.RootDir(), generate.LocalsFilename)
 
-			if len(generatedFiles) != len(tcase.want.stacksGenHCL) {
-				t.Errorf("generated %d locals files, but wanted %d", len(generatedFiles), len(tcase.want.stacksGenHCL))
+			if len(generatedFiles) != len(tcase.want.stacksLocals) {
+				t.Errorf("generated %d locals files, but wanted %d", len(generatedFiles), len(tcase.want.stacksLocals))
 				t.Errorf("generated files: %v", generatedFiles)
-				t.Fatalf("wanted generated files: %#v", tcase.want.stacksGenHCL)
+				t.Fatalf("wanted generated files: %#v", tcase.want.stacksLocals)
 			}
 		})
 	}

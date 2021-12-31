@@ -105,19 +105,9 @@ func Do(root string) error {
 			continue
 		}
 
-		tfcode, err := generateStackConfig(root, stackpath, evalctx)
-		if err != nil {
-			err = errutil.Chain(ErrBackendConfig, err)
+		if err := generateStackBackendConfig(root, stackpath, evalctx); err != nil {
 			errs = append(errs, fmt.Errorf("stack %q: %w", stackpath, err))
-			continue
 		}
-
-		if tfcode == nil {
-			continue
-		}
-
-		genfile := filepath.Join(stackpath, TfFilename)
-		errs = append(errs, os.WriteFile(genfile, tfcode, 0666))
 	}
 
 	// FIXME(katcipis): errutil.Chain produces a very hard to read string representation
@@ -131,7 +121,21 @@ func Do(root string) error {
 	return nil
 }
 
-func generateStackConfig(root string, configdir string, evalctx *eval.Context) ([]byte, error) {
+func generateStackBackendConfig(root string, stackpath string, evalctx *eval.Context) error {
+	tfcode, err := loadStackBackendConfig(root, stackpath, evalctx)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrBackendConfig, err)
+	}
+
+	if len(tfcode) == 0 {
+		return nil
+	}
+
+	genfile := filepath.Join(stackpath, TfFilename)
+	return os.WriteFile(genfile, tfcode, 0666)
+}
+
+func loadStackBackendConfig(root string, configdir string, evalctx *eval.Context) ([]byte, error) {
 	if !strings.HasPrefix(configdir, root) {
 		// check if we are outside of project's root, time to stop
 		return nil, nil
@@ -139,7 +143,7 @@ func generateStackConfig(root string, configdir string, evalctx *eval.Context) (
 
 	configfile := filepath.Join(configdir, config.Filename)
 	if _, err := os.Stat(configfile); err != nil {
-		return generateStackConfig(root, filepath.Dir(configdir), evalctx)
+		return loadStackBackendConfig(root, filepath.Dir(configdir), evalctx)
 	}
 
 	config, err := os.ReadFile(configfile)
@@ -154,7 +158,7 @@ func generateStackConfig(root string, configdir string, evalctx *eval.Context) (
 
 	parsed := parsedConfig.Terramate
 	if parsed == nil || parsed.Backend == nil {
-		return generateStackConfig(root, filepath.Dir(configdir), evalctx)
+		return loadStackBackendConfig(root, filepath.Dir(configdir), evalctx)
 	}
 
 	gen := hclwrite.NewEmptyFile()
