@@ -44,10 +44,16 @@ func TestExportAsLocals(t *testing.T) {
 	// Usually in Go names are cammel case, but on this case
 	// we want it to be as close to original HCL as possible (DSL).
 	export_as_locals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.NewBuilder("export_as_locals", builders...)
+		return hclwrite.BuildBlock("export_as_locals", builders...)
+	}
+	// locals is used only as a syntatic sugar to build testcase.want
+	// HCL blocks, which are also just an easy way to describe the wanted
+	// result since the actual result is a map of cty.Values (quite annoying to build manually)
+	locals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("block", builders...)
 	}
 	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.NewBuilder("globals", builders...)
+		return hclwrite.BuildBlock("globals", builders...)
 	}
 	expr := hclwrite.Expression
 	str := hclwrite.String
@@ -92,7 +98,7 @@ func TestExportAsLocals(t *testing.T) {
 				},
 			},
 			want: map[string]*hclwrite.Block{
-				"/stack": export_as_locals(
+				"/stack": locals(
 					str("string_local", "string"),
 					number("number_local", 777),
 					boolean("bool_local", true),
@@ -111,7 +117,7 @@ func TestExportAsLocals(t *testing.T) {
 				},
 			},
 			want: map[string]*hclwrite.Block{
-				"/stack": export_as_locals(
+				"/stack": locals(
 					str("funny_path", "@stack"),
 				),
 			},
@@ -151,10 +157,10 @@ func TestExportAsLocals(t *testing.T) {
 				},
 			},
 			want: map[string]*hclwrite.Block{
-				"/stacks/stack-1": export_as_locals(
+				"/stacks/stack-1": locals(
 					str("string", "value3"),
 				),
-				"/stacks/stack-2": export_as_locals(
+				"/stacks/stack-2": locals(
 					str("string", "value2"),
 				),
 			},
@@ -191,7 +197,7 @@ func TestExportAsLocals(t *testing.T) {
 				},
 			},
 			want: map[string]*hclwrite.Block{
-				"/stacks/stack": export_as_locals(
+				"/stacks/stack": locals(
 					str("name_local", "stack"),
 					str("path_local", "/stacks/stack"),
 					str("str_local", "string"),
@@ -234,13 +240,13 @@ func TestExportAsLocals(t *testing.T) {
 				},
 			},
 			want: map[string]*hclwrite.Block{
-				"/stacks/stack-1": export_as_locals(
+				"/stacks/stack-1": locals(
 					str("name_local", "stack-1"),
 					str("path_local", "/stacks/stack-1"),
 					str("str_local", "string"),
 					number("num_local", 666),
 				),
-				"/stacks/stack-2": export_as_locals(
+				"/stacks/stack-2": locals(
 					str("name_local", "stack-2"),
 					str("path_local", "/stacks/stack-2"),
 					str("str_local", "string"),
@@ -283,11 +289,11 @@ func TestExportAsLocals(t *testing.T) {
 				},
 			},
 			want: map[string]*hclwrite.Block{
-				"/stacks/stack-1": export_as_locals(
+				"/stacks/stack-1": locals(
 					str("name_local", "stack-1"),
 					str("str_local", "string"),
 				),
-				"/stacks/stack-2": export_as_locals(
+				"/stacks/stack-2": locals(
 					str("path_local", "/stacks/stack-2"),
 					number("num_local", 666),
 				),
@@ -311,7 +317,7 @@ func TestExportAsLocals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: terramate.ErrExportAsLocalsRedefined,
+			wantErr: terramate.ErrExportedLocalRedefined,
 		},
 	}
 
@@ -331,7 +337,7 @@ func TestExportAsLocals(t *testing.T) {
 			for _, stackMetadata := range metadata.Stacks {
 
 				globals := s.LoadStackGlobals(stackMetadata)
-				got, err := terramate.LoadStackExportAsLocals(
+				got, err := terramate.LoadStackExportedLocals(
 					s.RootDir(),
 					stackMetadata,
 					globals,
@@ -387,6 +393,6 @@ func TestLoadStackExportAsLocalsErrorOnRelativeDir(t *testing.T) {
 
 	stackMetadata := meta.Stacks[0]
 	globals := s.LoadStackGlobals(stackMetadata)
-	exportLocals, err := terramate.LoadStackExportAsLocals(rel, stackMetadata, globals)
+	exportLocals, err := terramate.LoadStackExportedLocals(rel, stackMetadata, globals)
 	assert.Error(t, err, "got %v instead of error", exportLocals)
 }

@@ -876,13 +876,13 @@ func TestLocalsGeneration(t *testing.T) {
 	// Usually in Go names are cammel case, but on this case
 	// we want it to be as close to original HCL as possible (DSL).
 	export_as_locals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.NewBuilder("export_as_locals", builders...)
+		return hclwrite.BuildBlock("export_as_locals", builders...)
 	}
 	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.NewBuilder("globals", builders...)
+		return hclwrite.BuildBlock("globals", builders...)
 	}
 	locals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.NewBuilder("locals", builders...)
+		return hclwrite.BuildBlock("locals", builders...)
 	}
 	expr := hclwrite.Expression
 	str := hclwrite.String

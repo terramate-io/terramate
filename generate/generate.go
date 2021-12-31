@@ -131,7 +131,7 @@ func generateStackLocals(
 	metadata terramate.StackMetadata,
 	globals *terramate.Globals,
 ) error {
-	stackLocals, err := terramate.LoadStackExportAsLocals(rootdir, metadata, globals)
+	stackLocals, err := terramate.LoadStackExportedLocals(rootdir, metadata, globals)
 	if err != nil {
 		return err
 	}
