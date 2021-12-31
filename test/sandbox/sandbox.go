@@ -200,6 +200,15 @@ func (s S) LoadMetadata() terramate.Metadata {
 	return meta
 }
 
+// Loads globals for stack on the sandbox
+func (s S) LoadStackGlobals(sm terramate.StackMetadata) *terramate.Globals {
+	s.t.Helper()
+
+	g, err := terramate.LoadStackGlobals(s.RootDir(), sm)
+	assert.NoError(s.t, err)
+	return g
+}
+
 // RootDir returns the root directory of the test env. All dirs/files created
 // through the test env will be included inside this dir.
 //

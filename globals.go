@@ -27,7 +27,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-// Globals represents a globals block.
+// Globals represents information obtained by parsing and evaluating globals blocks.
 type Globals struct {
 	attributes map[string]cty.Value
 }
@@ -58,7 +58,11 @@ func LoadStackGlobals(rootdir string, meta StackMetadata) (*Globals, error) {
 // Attributes returns all the global attributes, the key in the map
 // is the attribute name with its corresponding value mapped
 func (g *Globals) Attributes() map[string]cty.Value {
-	return g.attributes
+	attrcopy := map[string]cty.Value{}
+	for k, v := range g.attributes {
+		attrcopy[k] = v
+	}
+	return attrcopy
 }
 
 // String provides a string representation of the globals
@@ -70,10 +74,6 @@ func (g *Globals) String() string {
 // on the given evaluation context.
 func (g *Globals) SetOnEvalCtx(evalctx *eval.Context) error {
 	return evalctx.SetNamespace("global", g.Attributes())
-}
-
-func (g *Globals) set(name string, val cty.Value) {
-	g.attributes[name] = val
 }
 
 type rawGlobals struct {
@@ -126,7 +126,7 @@ func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 				continue
 			}
 
-			globals.set(name, val)
+			globals.attributes[name] = val
 			amountEvaluated += 1
 			delete(pendingExprs, name)
 		}

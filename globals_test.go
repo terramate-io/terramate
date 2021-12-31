@@ -498,7 +498,6 @@ func TestLoadGlobals(t *testing.T) {
 
 			metadata := s.LoadMetadata()
 			for _, stackMetadata := range metadata.Stacks {
-				// TODO(katcipis): check got again
 				got, err := terramate.LoadStackGlobals(s.RootDir(), stackMetadata)
 
 				if tcase.wantErr {
