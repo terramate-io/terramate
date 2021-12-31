@@ -29,9 +29,9 @@ import (
 
 const ErrExportedLocalRedefined errutil.Error = "export_as_locals attribute redefined"
 
-// ExportedLocals represents exported locals, which is information exported
+// ExportedLocalValues represents exported local values, which is information exported
 // from Terramate in a way that is suitable to be used for Terraform.
-type ExportedLocals struct {
+type ExportedLocalValues struct {
 	attributes map[string]cty.Value
 }
 
@@ -46,19 +46,19 @@ type ExportedLocals struct {
 // export_as_locals blocks.
 //
 // The rootdir MUST be an absolute path.
-func LoadStackExportedLocals(rootdir string, sm StackMetadata, g *Globals) (ExportedLocals, error) {
+func LoadStackExportedLocals(rootdir string, sm StackMetadata, g *Globals) (ExportedLocalValues, error) {
 	if !filepath.IsAbs(rootdir) {
-		return ExportedLocals{}, fmt.Errorf("%q must be an absolute path", rootdir)
+		return ExportedLocalValues{}, fmt.Errorf("%q must be an absolute path", rootdir)
 	}
 
 	localVars, err := loadStackExportedLocals(rootdir, sm.Path)
 	if err != nil {
-		return ExportedLocals{}, err
+		return ExportedLocalValues{}, err
 	}
 	return localVars.eval(sm, g)
 }
 
-func (e ExportedLocals) Attributes() map[string]cty.Value {
+func (e ExportedLocalValues) Attributes() map[string]cty.Value {
 	attrcopy := map[string]cty.Value{}
 	for k, v := range e.attributes {
 		attrcopy[k] = v
@@ -66,28 +66,28 @@ func (e ExportedLocals) Attributes() map[string]cty.Value {
 	return attrcopy
 }
 
-func loadStackExportedLocals(rootdir string, cfgdir string) (exportedLocalVars, error) {
+func loadStackExportedLocals(rootdir string, cfgdir string) (exportedLocalExpr, error) {
 	cfgpath := filepath.Join(rootdir, cfgdir, config.Filename)
 	blocks, err := hcl.ParseExportAsLocalsBlocks(cfgpath)
 
 	if os.IsNotExist(err) {
 		parentcfg, ok := parentDir(cfgdir)
 		if !ok {
-			return newExportedLocalVars(), nil
+			return newExportedLocalExpr(), nil
 		}
 		return loadStackExportedLocals(rootdir, parentcfg)
 	}
 
 	if err != nil {
-		return exportedLocalVars{}, err
+		return exportedLocalExpr{}, err
 	}
 
-	exportLocals := newExportedLocalVars()
+	exportLocals := newExportedLocalExpr()
 
 	for _, block := range blocks {
 		for name, attr := range block.Body.Attributes {
 			if exportLocals.has(name) {
-				return exportedLocalVars{}, fmt.Errorf(
+				return exportedLocalExpr{}, fmt.Errorf(
 					"%w: export_as_locals %q already defined in configuration %q",
 					ErrExportedLocalRedefined,
 					name,
@@ -105,18 +105,18 @@ func loadStackExportedLocals(rootdir string, cfgdir string) (exportedLocalVars, 
 
 	parentExportLocals, err := loadStackExportedLocals(rootdir, parentcfg)
 	if err != nil {
-		return exportedLocalVars{}, err
+		return exportedLocalExpr{}, err
 	}
 
 	exportLocals.merge(parentExportLocals)
 	return exportLocals, nil
 }
 
-type exportedLocalVars struct {
+type exportedLocalExpr struct {
 	expressions map[string]hclsyntax.Expression
 }
 
-func (r exportedLocalVars) merge(other exportedLocalVars) {
+func (r exportedLocalExpr) merge(other exportedLocalExpr) {
 	for k, v := range other.expressions {
 		if !r.has(k) {
 			r.expressions[k] = v
@@ -124,27 +124,27 @@ func (r exportedLocalVars) merge(other exportedLocalVars) {
 	}
 }
 
-func (r exportedLocalVars) has(name string) bool {
+func (r exportedLocalExpr) has(name string) bool {
 	_, ok := r.expressions[name]
 	return ok
 }
 
-func (r exportedLocalVars) eval(meta StackMetadata, globals *Globals) (ExportedLocals, error) {
+func (r exportedLocalExpr) eval(meta StackMetadata, globals *Globals) (ExportedLocalValues, error) {
 	// FIXME(katcipis): get abs path for stack.
 	// This is relative only to root since meta.Path will look
 	// like: /some/path/relative/project/root
 	evalctx := eval.NewContext("." + meta.Path)
 
 	if err := meta.SetOnEvalCtx(evalctx); err != nil {
-		return ExportedLocals{}, fmt.Errorf("evaluating export_as_locals: setting terramate metadata namespace: %v", err)
+		return ExportedLocalValues{}, fmt.Errorf("evaluating export_as_locals: setting terramate metadata namespace: %v", err)
 	}
 
 	if err := globals.SetOnEvalCtx(evalctx); err != nil {
-		return ExportedLocals{}, fmt.Errorf("evaluating export_as_locals: setting terramate globals namespace: %v", err)
+		return ExportedLocalValues{}, fmt.Errorf("evaluating export_as_locals: setting terramate globals namespace: %v", err)
 	}
 
 	var errs []error
-	exportAsLocals := newExportedLocals()
+	exportAsLocals := newExportedLocalValues()
 
 	for name, expr := range r.expressions {
 		val, err := evalctx.Eval(expr)
@@ -161,20 +161,20 @@ func (r exportedLocalVars) eval(meta StackMetadata, globals *Globals) (ExportedL
 	}, errs...)
 
 	if err != nil {
-		return ExportedLocals{}, fmt.Errorf("evaluating export_as_locals attributes: [%v]", err)
+		return ExportedLocalValues{}, fmt.Errorf("evaluating export_as_locals attributes: [%v]", err)
 	}
 
 	return exportAsLocals, nil
 }
 
-func newExportedLocalVars() exportedLocalVars {
-	return exportedLocalVars{
+func newExportedLocalExpr() exportedLocalExpr {
+	return exportedLocalExpr{
 		expressions: map[string]hclsyntax.Expression{},
 	}
 }
 
-func newExportedLocals() ExportedLocals {
-	return ExportedLocals{
+func newExportedLocalValues() ExportedLocalValues {
+	return ExportedLocalValues{
 		attributes: map[string]cty.Value{},
 	}
 }
