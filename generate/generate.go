@@ -136,18 +136,22 @@ func generateStackLocals(
 		return err
 	}
 
+	localsAttrs := stackLocals.Attributes()
+	if len(localsAttrs) == 0 {
+		return nil
+	}
+
+	sortedAttrs := make([]string, 0, len(localsAttrs))
+	for name := range localsAttrs {
+		sortedAttrs = append(sortedAttrs, name)
+	}
+	// Avoid generating code with random attr order (map iteration is random)
+	sort.Strings(sortedAttrs)
+
 	gen := hclwrite.NewEmptyFile()
 	body := gen.Body()
 	localsBlock := body.AppendNewBlock("locals", nil)
 	localsBody := localsBlock.Body()
-
-	localsAttrs := stackLocals.Attributes()
-	sortedAttrs := make([]string, 0, len(localsAttrs))
-
-	for name := range localsAttrs {
-		sortedAttrs = append(sortedAttrs, name)
-	}
-	sort.Strings(sortedAttrs)
 
 	for _, name := range sortedAttrs {
 		localsBody.SetAttributeValue(name, localsAttrs[name])
