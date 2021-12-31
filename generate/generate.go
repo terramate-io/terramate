@@ -42,8 +42,9 @@ const (
 )
 
 const (
-	ErrBackendConfig  errutil.Error = "generating backend config"
-	ErrLoadingGlobals errutil.Error = "loading globals"
+	ErrBackendConfig   errutil.Error = "generating backend config"
+	ErrExportingLocals errutil.Error = "generating locals"
+	ErrLoadingGlobals  errutil.Error = "loading globals"
 )
 
 // Do will walk all the directories starting from project's root
@@ -109,7 +110,8 @@ func Do(root string) error {
 		}
 
 		if err := generateStackLocals(root, stackpath, stackMetadata, globals); err != nil {
-			errs = append(errs, fmt.Errorf("stack %q: generating locals: %w", stackpath, err))
+			err = errutil.Chain(ErrExportingLocals, err)
+			errs = append(errs, fmt.Errorf("stack %q: %w", stackpath, err))
 		}
 	}
 

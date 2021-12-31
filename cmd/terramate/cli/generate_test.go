@@ -956,6 +956,24 @@ func TestLocalsGeneration(t *testing.T) {
 			},
 		},
 		{
+			name:   "single stack referencing undefined global fails",
+			layout: []string{"s:stack"},
+			configs: []hclblock{
+				{
+					path: "/stack",
+					add: export_as_locals(
+						expr("undefined", "global.undefined"),
+					),
+				},
+			},
+			want: want{
+				res: runResult{
+					IgnoreStderr: true,
+					Error:        generate.ErrExportingLocals,
+				},
+			},
+		},
+		{
 			name: "multiple stack with exported locals being overridden",
 			layout: []string{
 				"s:stacks/stack-1",
