@@ -122,6 +122,32 @@ func TestHCLWrite(t *testing.T) {
 			  }
 			`,
 		},
+		{
+			name: "block nesting with labels",
+			block: block("test",
+				labels("label"),
+				str("str", "level1"),
+				block("nested",
+					labels("label1", "label2"),
+					str("str", "level2"),
+					block("yet_more_nesting",
+						labels("label1", "label2", "label3"),
+						str("str", "level3"),
+					),
+				),
+			),
+			want: `
+			  test "label" {
+			    str = "level1"
+			    nested "label1" "label2" {
+			      str = "level2"
+			      yet_more_nesting "label1" "label2" "label3" {
+			        str = "level3"
+			      }
+			    }
+			  }
+			`,
+		},
 	}
 
 	for _, tcase := range tcases {
