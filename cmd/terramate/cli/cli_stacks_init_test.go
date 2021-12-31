@@ -40,7 +40,7 @@ const (
 var sprintf = fmt.Sprintf
 var tsversion = terramate.Version()
 
-func TestInit(t *testing.T) {
+func TestStacksInit(t *testing.T) {
 	type testcase struct {
 		name   string
 		layout []string
@@ -203,7 +203,7 @@ func TestInit(t *testing.T) {
 			s.BuildTree(tc.layout)
 
 			cli := newCLI(t, s.RootDir())
-			args := []string{"init"}
+			args := []string{"stacks", "init"}
 			if tc.force {
 				args = append(args, "--force")
 			}
@@ -236,7 +236,7 @@ func TestInit(t *testing.T) {
 func TestInitNonExistingDir(t *testing.T) {
 	s := sandbox.New(t)
 	c := newCLI(t, s.RootDir())
-	assertRunResult(t, c.run("init", test.NonExistingDir(t)), runResult{
+	assertRunResult(t, c.run("stacks", "init", test.NonExistingDir(t)), runResult{
 		Error:        cli.ErrInit,
 		IgnoreStderr: true,
 	})
@@ -247,8 +247,8 @@ func TestInitFailInitializeChildOfStack(t *testing.T) {
 	c := newCLI(t, s.RootDir())
 	parent := test.Mkdir(t, s.RootDir(), "parent-stack")
 	child := test.Mkdir(t, parent, "child-stack")
-	assertRun(t, c.run("init", parent))
-	assertRunResult(t, c.run("init", child), runResult{
+	assertRun(t, c.run("stacks", "init", parent))
+	assertRunResult(t, c.run("stacks", "init", child), runResult{
 		Error:        cli.ErrInit,
 		IgnoreStderr: true,
 	})
@@ -259,8 +259,8 @@ func TestInitFailInitializeParentOfChildStack(t *testing.T) {
 	c := newCLI(t, s.RootDir())
 	parent := test.Mkdir(t, s.RootDir(), "parent-stack")
 	child := test.Mkdir(t, parent, "child-stack")
-	assertRun(t, c.run("init", child))
-	assertRunResult(t, c.run("init", parent), runResult{
+	assertRun(t, c.run("stacks", "init", child))
+	assertRunResult(t, c.run("stacks", "init", parent), runResult{
 		Error:        cli.ErrInit,
 		IgnoreStderr: true,
 	})
