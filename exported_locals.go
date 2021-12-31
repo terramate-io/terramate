@@ -29,8 +29,8 @@ import (
 
 const ErrExportedLocalRedefined errutil.Error = "export_as_locals attribute redefined"
 
-// ExportedLocalValues represents exported local values, which is information exported
-// from Terramate in a way that is suitable to be used for Terraform.
+// ExportedLocalValues represents information exported from Terramate
+// in a way that is suitable to be used for Terraform code generation.
 type ExportedLocalValues struct {
 	attributes map[string]cty.Value
 }
@@ -51,7 +51,7 @@ func LoadStackExportedLocals(rootdir string, sm StackMetadata, g *Globals) (Expo
 		return ExportedLocalValues{}, fmt.Errorf("%q must be an absolute path", rootdir)
 	}
 
-	localVars, err := loadStackExportedLocals(rootdir, sm.Path)
+	localVars, err := loadStackExportedLocalExprs(rootdir, sm.Path)
 	if err != nil {
 		return ExportedLocalValues{}, err
 	}
@@ -66,28 +66,28 @@ func (e ExportedLocalValues) Attributes() map[string]cty.Value {
 	return attrcopy
 }
 
-func loadStackExportedLocals(rootdir string, cfgdir string) (exportedLocalExpr, error) {
+func loadStackExportedLocalExprs(rootdir string, cfgdir string) (exportedLocalExprs, error) {
 	cfgpath := filepath.Join(rootdir, cfgdir, config.Filename)
 	blocks, err := hcl.ParseExportAsLocalsBlocks(cfgpath)
 
 	if os.IsNotExist(err) {
 		parentcfg, ok := parentDir(cfgdir)
 		if !ok {
-			return newExportedLocalExpr(), nil
+			return newExportedLocalExprs(), nil
 		}
-		return loadStackExportedLocals(rootdir, parentcfg)
+		return loadStackExportedLocalExprs(rootdir, parentcfg)
 	}
 
 	if err != nil {
-		return exportedLocalExpr{}, err
+		return exportedLocalExprs{}, err
 	}
 
-	exportLocals := newExportedLocalExpr()
+	exportLocals := newExportedLocalExprs()
 
 	for _, block := range blocks {
 		for name, attr := range block.Body.Attributes {
 			if exportLocals.has(name) {
-				return exportedLocalExpr{}, fmt.Errorf(
+				return exportedLocalExprs{}, fmt.Errorf(
 					"%w: export_as_locals %q already defined in configuration %q",
 					ErrExportedLocalRedefined,
 					name,
@@ -103,20 +103,20 @@ func loadStackExportedLocals(rootdir string, cfgdir string) (exportedLocalExpr, 
 		return exportLocals, nil
 	}
 
-	parentExportLocals, err := loadStackExportedLocals(rootdir, parentcfg)
+	parentExportLocals, err := loadStackExportedLocalExprs(rootdir, parentcfg)
 	if err != nil {
-		return exportedLocalExpr{}, err
+		return exportedLocalExprs{}, err
 	}
 
 	exportLocals.merge(parentExportLocals)
 	return exportLocals, nil
 }
 
-type exportedLocalExpr struct {
+type exportedLocalExprs struct {
 	expressions map[string]hclsyntax.Expression
 }
 
-func (r exportedLocalExpr) merge(other exportedLocalExpr) {
+func (r exportedLocalExprs) merge(other exportedLocalExprs) {
 	for k, v := range other.expressions {
 		if !r.has(k) {
 			r.expressions[k] = v
@@ -124,12 +124,12 @@ func (r exportedLocalExpr) merge(other exportedLocalExpr) {
 	}
 }
 
-func (r exportedLocalExpr) has(name string) bool {
+func (r exportedLocalExprs) has(name string) bool {
 	_, ok := r.expressions[name]
 	return ok
 }
 
-func (r exportedLocalExpr) eval(meta StackMetadata, globals *Globals) (ExportedLocalValues, error) {
+func (r exportedLocalExprs) eval(meta StackMetadata, globals *Globals) (ExportedLocalValues, error) {
 	// FIXME(katcipis): get abs path for stack.
 	// This is relative only to root since meta.Path will look
 	// like: /some/path/relative/project/root
@@ -167,8 +167,8 @@ func (r exportedLocalExpr) eval(meta StackMetadata, globals *Globals) (ExportedL
 	return exportAsLocals, nil
 }
 
-func newExportedLocalExpr() exportedLocalExpr {
-	return exportedLocalExpr{
+func newExportedLocalExprs() exportedLocalExprs {
+	return exportedLocalExprs{
 		expressions: map[string]hclsyntax.Expression{},
 	}
 }
