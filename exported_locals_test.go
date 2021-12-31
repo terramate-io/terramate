@@ -46,10 +46,10 @@ func TestExportAsLocals(t *testing.T) {
 	export_as_locals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.NewBuilder("export_as_locals", builders...)
 	}
-	// exported_locals is used only as a syntatic sugar to build testcase.want
+	// locals is used only as a syntatic sugar to build testcase.want
 	// HCL blocks, which are also just an easy way to describe the wanted
 	// result since the actual result is a map of cty.Values (quite annoying to build manually)
-	exported_locals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	locals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.NewBuilder("block", builders...)
 	}
 	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
@@ -98,7 +98,7 @@ func TestExportAsLocals(t *testing.T) {
 				},
 			},
 			want: map[string]*hclwrite.Block{
-				"/stack": exported_locals(
+				"/stack": locals(
 					str("string_local", "string"),
 					number("number_local", 777),
 					boolean("bool_local", true),
@@ -117,7 +117,7 @@ func TestExportAsLocals(t *testing.T) {
 				},
 			},
 			want: map[string]*hclwrite.Block{
-				"/stack": exported_locals(
+				"/stack": locals(
 					str("funny_path", "@stack"),
 				),
 			},
@@ -157,10 +157,10 @@ func TestExportAsLocals(t *testing.T) {
 				},
 			},
 			want: map[string]*hclwrite.Block{
-				"/stacks/stack-1": exported_locals(
+				"/stacks/stack-1": locals(
 					str("string", "value3"),
 				),
-				"/stacks/stack-2": exported_locals(
+				"/stacks/stack-2": locals(
 					str("string", "value2"),
 				),
 			},
@@ -197,7 +197,7 @@ func TestExportAsLocals(t *testing.T) {
 				},
 			},
 			want: map[string]*hclwrite.Block{
-				"/stacks/stack": exported_locals(
+				"/stacks/stack": locals(
 					str("name_local", "stack"),
 					str("path_local", "/stacks/stack"),
 					str("str_local", "string"),
@@ -240,13 +240,13 @@ func TestExportAsLocals(t *testing.T) {
 				},
 			},
 			want: map[string]*hclwrite.Block{
-				"/stacks/stack-1": exported_locals(
+				"/stacks/stack-1": locals(
 					str("name_local", "stack-1"),
 					str("path_local", "/stacks/stack-1"),
 					str("str_local", "string"),
 					number("num_local", 666),
 				),
-				"/stacks/stack-2": exported_locals(
+				"/stacks/stack-2": locals(
 					str("name_local", "stack-2"),
 					str("path_local", "/stacks/stack-2"),
 					str("str_local", "string"),
@@ -289,11 +289,11 @@ func TestExportAsLocals(t *testing.T) {
 				},
 			},
 			want: map[string]*hclwrite.Block{
-				"/stacks/stack-1": exported_locals(
+				"/stacks/stack-1": locals(
 					str("name_local", "stack-1"),
 					str("str_local", "string"),
 				),
-				"/stacks/stack-2": exported_locals(
+				"/stacks/stack-2": locals(
 					str("path_local", "/stacks/stack-2"),
 					number("num_local", 666),
 				),
