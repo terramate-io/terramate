@@ -27,6 +27,8 @@ package hclwrite
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
@@ -69,17 +71,17 @@ func (b *Block) HasExpressions() bool {
 }
 
 func (b *Block) String() string {
-	code := b.name + "{"
+	code := b.name + "{\n"
 	// Tried properly using hclwrite, it doesnt work well with expressions:
 	// - https://stackoverflow.com/questions/67945463/how-to-use-hcl-write-to-set-expressions-with
-	for name, expr := range b.expressions {
-		code += fmt.Sprintf("\n%s=%s\n", name, expr)
+	for _, name := range b.sortedExpressions() {
+		code += fmt.Sprintf("%s=%s\n", name, b.expressions[name])
 	}
-	for name, val := range b.values {
-		code += fmt.Sprintf("\n%s=%v\n", name, val)
+	for _, name := range b.sortedValues() {
+		code += fmt.Sprintf("%s=%v\n", name, b.values[name])
 	}
 	code += "}"
-	return string(hclwrite.Format([]byte(code)))
+	return Format(code)
 }
 
 func NewBlock(name string) *Block {
@@ -123,4 +125,26 @@ func NumberInt(key string, val int64) BlockBuilder {
 	return func(g *Block) {
 		g.AddNumberInt(key, val)
 	}
+}
+
+func Format(code string) string {
+	return strings.Trim(string(hclwrite.Format([]byte(code))), "\n ")
+}
+
+func (b *Block) sortedExpressions() []string {
+	keys := make([]string, 0, len(b.expressions))
+	for k := range b.expressions {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func (b *Block) sortedValues() []string {
+	keys := make([]string, 0, len(b.values))
+	for k := range b.values {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }

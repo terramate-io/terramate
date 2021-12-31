@@ -16,7 +16,9 @@ package cli_test
 
 import (
 	"io/fs"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -1166,6 +1168,11 @@ func TestLocalsGeneration(t *testing.T) {
 
 			if len(generatedFiles) != len(tcase.want.stacksLocals) {
 				t.Errorf("generated %d locals files, but wanted %d", len(generatedFiles), len(tcase.want.stacksLocals))
+				for _, genfilepath := range generatedFiles {
+					genfile, err := os.ReadFile(genfilepath)
+					assert.NoError(t, err, "reading generated file %s", genfilepath)
+					t.Errorf("generated file:\n%s", genfile)
+				}
 				t.Errorf("generated files: %v", generatedFiles)
 				t.Fatalf("wanted generated files: %#v", tcase.want.stacksLocals)
 			}
@@ -1176,12 +1183,19 @@ func TestLocalsGeneration(t *testing.T) {
 func assertGeneratedHCLEquals(t *testing.T, got string, want string) {
 	t.Helper()
 
+	// Not 100% sure it is a good idea to compare HCL as strings, formatting
+	// issues can be annoying and can make tests brittle
+	// (but we test the formatting too... so maybe that is good ? =P)
+	const trimmedChars = "\n "
+
 	want = generate.CodeHeader + want
+	got = strings.Trim(got, trimmedChars)
+	want = strings.Trim(want, trimmedChars)
 
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Error("generated code doesn't match expectation")
-		t.Errorf("want:\n%s", want)
-		t.Errorf("got:\n%s", got)
+		t.Errorf("want:\n%q", want)
+		t.Errorf("got:\n%q", got)
 		t.Fatalf("diff:\n%s", diff)
 	}
 }
