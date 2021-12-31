@@ -15,6 +15,7 @@
 package hclwrite_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -23,14 +24,15 @@ import (
 
 func TestHCLWrite(t *testing.T) {
 	type testcase struct {
-		name  string
-		block *hclwrite.Block
-		want  string
+		name string
+		hcl  fmt.Stringer
+		want string
 	}
 
 	block := func(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock(name, builders...)
 	}
+	hcl := hclwrite.NewHCL
 	labels := hclwrite.Labels
 	expr := hclwrite.Expression
 	str := hclwrite.String
@@ -39,8 +41,8 @@ func TestHCLWrite(t *testing.T) {
 
 	tcases := []testcase{
 		{
-			name:  "empty block",
-			block: block("test"),
+			name: "empty block",
+			hcl:  block("test"),
 			want: `
 			  test {
 			  }
@@ -48,7 +50,7 @@ func TestHCLWrite(t *testing.T) {
 		},
 		{
 			name: "block with multiple attributes",
-			block: block("test",
+			hcl: block("test",
 				str("str", "test"),
 				number("num", 666),
 				boolean("bool", true),
@@ -67,7 +69,7 @@ func TestHCLWrite(t *testing.T) {
 		},
 		{
 			name: "block with one label",
-			block: block("test",
+			hcl: block("test",
 				labels("label"),
 				str("str", "labeltest"),
 			),
@@ -79,7 +81,7 @@ func TestHCLWrite(t *testing.T) {
 		},
 		{
 			name: "empty block with one label",
-			block: block("test",
+			hcl: block("test",
 				labels("label"),
 			),
 			want: `
@@ -89,7 +91,7 @@ func TestHCLWrite(t *testing.T) {
 		},
 		{
 			name: "block multiple labels",
-			block: block("test",
+			hcl: block("test",
 				labels("label", "label2"),
 				str("str", "labelstest"),
 			),
@@ -101,7 +103,7 @@ func TestHCLWrite(t *testing.T) {
 		},
 		{
 			name: "block nesting",
-			block: block("test",
+			hcl: block("test",
 				str("str", "level1"),
 				block("nested",
 					str("str", "level2"),
@@ -124,7 +126,7 @@ func TestHCLWrite(t *testing.T) {
 		},
 		{
 			name: "block nesting with labels",
-			block: block("test",
+			hcl: block("test",
 				labels("label"),
 				str("str", "level1"),
 				block("nested",
@@ -148,12 +150,33 @@ func TestHCLWrite(t *testing.T) {
 			  }
 			`,
 		},
+		{
+			name: "terramate stack example",
+			hcl: hcl(
+				block("terramate",
+					str("required_version", "~> 0.0.1"),
+				),
+				block("stack",
+					expr("before", `["/stack/a", "/stack/b"]`),
+					expr("after", `["/stack/c"]`),
+				),
+			),
+			want: `
+			  terramate {
+			    required_version = "~> 0.0.1"
+			  }
+			  stack {
+			    after  = ["/stack/c"]
+			    before = ["/stack/a", "/stack/b"]
+			  }
+			`,
+		},
 	}
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
 			want := hclwrite.Format(tcase.want)
-			got := tcase.block.String()
+			got := tcase.hcl.String()
 
 			if diff := cmp.Diff(got, want); diff != "" {
 				t.Errorf("got:\n%s", got)

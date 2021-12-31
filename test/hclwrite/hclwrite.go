@@ -45,6 +45,10 @@ type Block struct {
 	values    map[string]interface{}
 }
 
+type HCL struct {
+	blocks []*Block
+}
+
 func (b *Block) AddLabel(name string) {
 	b.labels = append(b.labels, fmt.Sprintf("%q", name))
 }
@@ -101,6 +105,14 @@ func (b *Block) String() string {
 	return Format(code)
 }
 
+func (h *HCL) String() string {
+	strs := make([]string, len(h.blocks))
+	for i, block := range h.blocks {
+		strs[i] = block.String()
+	}
+	return strings.Join(strs, "\n")
+}
+
 func NewBlock(name string) *Block {
 	return &Block{
 		name:        name,
@@ -108,6 +120,10 @@ func NewBlock(name string) *Block {
 		ctyvalues:   map[string]cty.Value{},
 		values:      map[string]interface{}{},
 	}
+}
+
+func NewHCL(blocks ...*Block) *HCL {
+	return &HCL{blocks: blocks}
 }
 
 type BlockBuilder interface {
