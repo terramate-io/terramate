@@ -27,15 +27,15 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-const ErrExportAsLocalsRedefined errutil.Error = "export_as_locals attribute redefined"
+const ErrExportedLocalRedefined errutil.Error = "export_as_locals attribute redefined"
 
-// ExportAsLocals represents information obtained by parsing and evaluating
-// export_as_locals blocks.
-type ExportAsLocals struct {
+// ExportedLocalValues represents information exported from Terramate
+// in a way that is suitable to be used for Terraform code generation.
+type ExportedLocalValues struct {
 	attributes map[string]cty.Value
 }
 
-// LoadStackExportAsLocals loads from the file system all export_as_locals for
+// LoadStackExportedLocals loads from the file system all export_as_locals for
 // a given stack. It will navigate the file system from the stack dir until
 // it reaches rootdir, loading export_as_locals and merging them appropriately.
 //
@@ -46,19 +46,19 @@ type ExportAsLocals struct {
 // export_as_locals blocks.
 //
 // The rootdir MUST be an absolute path.
-func LoadStackExportAsLocals(rootdir string, sm StackMetadata, g *Globals) (ExportAsLocals, error) {
+func LoadStackExportedLocals(rootdir string, sm StackMetadata, g *Globals) (ExportedLocalValues, error) {
 	if !filepath.IsAbs(rootdir) {
-		return ExportAsLocals{}, fmt.Errorf("%q must be an absolute path", rootdir)
+		return ExportedLocalValues{}, fmt.Errorf("%q must be an absolute path", rootdir)
 	}
 
-	unEvalExport, err := loadStackExportAsLocals(rootdir, sm.Path)
+	localVars, err := loadStackExportedLocalExprs(rootdir, sm.Path)
 	if err != nil {
-		return ExportAsLocals{}, err
+		return ExportedLocalValues{}, err
 	}
-	return unEvalExport.eval(sm, g)
+	return localVars.eval(sm, g)
 }
 
-func (e ExportAsLocals) Attributes() map[string]cty.Value {
+func (e ExportedLocalValues) Attributes() map[string]cty.Value {
 	attrcopy := map[string]cty.Value{}
 	for k, v := range e.attributes {
 		attrcopy[k] = v
@@ -66,30 +66,30 @@ func (e ExportAsLocals) Attributes() map[string]cty.Value {
 	return attrcopy
 }
 
-func loadStackExportAsLocals(rootdir string, cfgdir string) (unEvalExportAsLocals, error) {
+func loadStackExportedLocalExprs(rootdir string, cfgdir string) (exportedLocalExprs, error) {
 	cfgpath := filepath.Join(rootdir, cfgdir, config.Filename)
 	blocks, err := hcl.ParseExportAsLocalsBlocks(cfgpath)
 
 	if os.IsNotExist(err) {
 		parentcfg, ok := parentDir(cfgdir)
 		if !ok {
-			return newUnEvalExportAsLocals(), nil
+			return newExportedLocalExprs(), nil
 		}
-		return loadStackExportAsLocals(rootdir, parentcfg)
+		return loadStackExportedLocalExprs(rootdir, parentcfg)
 	}
 
 	if err != nil {
-		return unEvalExportAsLocals{}, err
+		return exportedLocalExprs{}, err
 	}
 
-	exportLocals := newUnEvalExportAsLocals()
+	exportLocals := newExportedLocalExprs()
 
 	for _, block := range blocks {
 		for name, attr := range block.Body.Attributes {
 			if exportLocals.has(name) {
-				return unEvalExportAsLocals{}, fmt.Errorf(
+				return exportedLocalExprs{}, fmt.Errorf(
 					"%w: export_as_locals %q already defined in configuration %q",
-					ErrExportAsLocalsRedefined,
+					ErrExportedLocalRedefined,
 					name,
 					cfgpath,
 				)
@@ -103,20 +103,20 @@ func loadStackExportAsLocals(rootdir string, cfgdir string) (unEvalExportAsLocal
 		return exportLocals, nil
 	}
 
-	parentExportLocals, err := loadStackExportAsLocals(rootdir, parentcfg)
+	parentExportLocals, err := loadStackExportedLocalExprs(rootdir, parentcfg)
 	if err != nil {
-		return unEvalExportAsLocals{}, err
+		return exportedLocalExprs{}, err
 	}
 
 	exportLocals.merge(parentExportLocals)
 	return exportLocals, nil
 }
 
-type unEvalExportAsLocals struct {
+type exportedLocalExprs struct {
 	expressions map[string]hclsyntax.Expression
 }
 
-func (r unEvalExportAsLocals) merge(other unEvalExportAsLocals) {
+func (r exportedLocalExprs) merge(other exportedLocalExprs) {
 	for k, v := range other.expressions {
 		if !r.has(k) {
 			r.expressions[k] = v
@@ -124,27 +124,27 @@ func (r unEvalExportAsLocals) merge(other unEvalExportAsLocals) {
 	}
 }
 
-func (r unEvalExportAsLocals) has(name string) bool {
+func (r exportedLocalExprs) has(name string) bool {
 	_, ok := r.expressions[name]
 	return ok
 }
 
-func (r unEvalExportAsLocals) eval(meta StackMetadata, globals *Globals) (ExportAsLocals, error) {
+func (r exportedLocalExprs) eval(meta StackMetadata, globals *Globals) (ExportedLocalValues, error) {
 	// FIXME(katcipis): get abs path for stack.
 	// This is relative only to root since meta.Path will look
 	// like: /some/path/relative/project/root
 	evalctx := eval.NewContext("." + meta.Path)
 
 	if err := meta.SetOnEvalCtx(evalctx); err != nil {
-		return ExportAsLocals{}, fmt.Errorf("evaluating export_as_locals: setting terramate metadata namespace: %v", err)
+		return ExportedLocalValues{}, fmt.Errorf("evaluating export_as_locals: setting terramate metadata namespace: %v", err)
 	}
 
 	if err := globals.SetOnEvalCtx(evalctx); err != nil {
-		return ExportAsLocals{}, fmt.Errorf("evaluating export_as_locals: setting terramate globals namespace: %v", err)
+		return ExportedLocalValues{}, fmt.Errorf("evaluating export_as_locals: setting terramate globals namespace: %v", err)
 	}
 
 	var errs []error
-	exportAsLocals := newExportAsLocals()
+	exportAsLocals := newExportedLocalValues()
 
 	for name, expr := range r.expressions {
 		val, err := evalctx.Eval(expr)
@@ -161,20 +161,20 @@ func (r unEvalExportAsLocals) eval(meta StackMetadata, globals *Globals) (Export
 	}, errs...)
 
 	if err != nil {
-		return ExportAsLocals{}, fmt.Errorf("evaluating export_as_locals attributes: [%v]", err)
+		return ExportedLocalValues{}, fmt.Errorf("evaluating export_as_locals attributes: [%v]", err)
 	}
 
 	return exportAsLocals, nil
 }
 
-func newUnEvalExportAsLocals() unEvalExportAsLocals {
-	return unEvalExportAsLocals{
+func newExportedLocalExprs() exportedLocalExprs {
+	return exportedLocalExprs{
 		expressions: map[string]hclsyntax.Expression{},
 	}
 }
 
-func newExportAsLocals() ExportAsLocals {
-	return ExportAsLocals{
+func newExportedLocalValues() ExportedLocalValues {
+	return ExportedLocalValues{
 		attributes: map[string]cty.Value{},
 	}
 }
