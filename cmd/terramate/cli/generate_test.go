@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
+	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -828,19 +829,12 @@ globals {
 
 			for _, want := range tcase.want.stacks {
 				stack := s.StackEntry(want.relpath)
-				got := string(stack.ReadGeneratedTf())
+				got := string(stack.ReadGeneratedBackendCfg())
 
-				wantcode := generate.CodeHeader + want.code
-
-				if diff := cmp.Diff(wantcode, got); diff != "" {
-					t.Error("generated code doesn't match expectation")
-					t.Errorf("want:\n%q", wantcode)
-					t.Errorf("got:\n%q", got)
-					t.Fatalf("diff:\n%s", diff)
-				}
+				assertGeneratedHCLEquals(t, got, want.code)
 			}
 
-			generatedFiles := listGeneratedTfFiles(t, s.RootDir())
+			generatedFiles := findFiles(t, s.RootDir(), generate.TfFilename)
 
 			if len(generatedFiles) != len(tcase.want.stacks) {
 				t.Errorf("generated %d files, but wanted %d", len(generatedFiles), len(tcase.want.stacks))
@@ -849,12 +843,352 @@ globals {
 			}
 		})
 	}
-
 }
 
-func listGeneratedTfFiles(t *testing.T, rootdir string) []string {
+func TestLocalsGeneration(t *testing.T) {
+	// The test approach for locals generation already uses a new test package
+	// to help creating the HCL files instead of using plain raw strings.
+	// There are some trade-offs involved and we are assessing how to approach
+	// the testing, hence for now it is inconsistent between locals generation
+	// and backend configuration generation. The idea is to converge to a single
+	// approach ASAP.
+	type (
+		// hclblock represents an HCL block that will be appended on
+		// the file path.
+		hclblock struct {
+			path string
+			add  *hclwrite.Block
+		}
+		want struct {
+			res          runResult
+			stacksGenHCL map[string]*hclwrite.Block
+		}
+		testcase struct {
+			name    string
+			layout  []string
+			configs []hclblock
+			want    want
+		}
+	)
+
+	// Usually in Go names are cammel case, but on this case
+	// we want it to be as close to original HCL as possible (DSL).
+	export_as_locals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.NewBuilder("export_as_locals", builders...)
+	}
+	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.NewBuilder("globals", builders...)
+	}
+	locals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.NewBuilder("locals", builders...)
+	}
+	expr := hclwrite.Expression
+	str := hclwrite.String
+	number := hclwrite.NumberInt
+	boolean := hclwrite.Boolean
+
+	tcases := []testcase{
+		{
+			name:   "no stacks no exported locals",
+			layout: []string{},
+		},
+		{
+			name:   "single stacks no no exported locals",
+			layout: []string{"s:stack"},
+		},
+		{
+			name: "two stacks no exported locals",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+		},
+		{
+			name:   "single stack with its own exported locals using own globals",
+			layout: []string{"s:stack"},
+			configs: []hclblock{
+				{
+					path: "/stack",
+					add: globals(
+						str("some_string", "string"),
+						number("some_number", 777),
+						boolean("some_bool", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: export_as_locals(
+						expr("string_local", "global.some_string"),
+						expr("number_local", "global.some_number"),
+						expr("bool_local", "global.some_bool"),
+					),
+				},
+			},
+			want: want{
+				stacksGenHCL: map[string]*hclwrite.Block{
+					"/stack": locals(
+						str("string_local", "string"),
+						number("number_local", 777),
+						boolean("bool_local", true),
+					),
+				},
+			},
+		},
+		{
+			name:   "single stack exporting metadata using functions",
+			layout: []string{"s:stack"},
+			configs: []hclblock{
+				{
+					path: "/stack",
+					add: export_as_locals(
+						expr("funny_path", `replace(terramate.path, "/", "@")`),
+					),
+				},
+			},
+			want: want{
+				stacksGenHCL: map[string]*hclwrite.Block{
+					"/stack": locals(
+						str("funny_path", "@stack"),
+					),
+				},
+			},
+		},
+		{
+			name: "multiple stack with exported locals being overridden",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclblock{
+				{
+					path: "/",
+					add: globals(
+						str("attr1", "value1"),
+						str("attr2", "value2"),
+						str("attr3", "value3"),
+					),
+				},
+				{
+					path: "/",
+					add: export_as_locals(
+						expr("string", "global.attr1"),
+					),
+				},
+				{
+					path: "/stacks",
+					add: export_as_locals(
+						expr("string", "global.attr2"),
+					),
+				},
+				{
+					path: "/stacks/stack-1",
+					add: export_as_locals(
+						expr("string", "global.attr3"),
+					),
+				},
+			},
+			want: want{
+				stacksGenHCL: map[string]*hclwrite.Block{
+					"/stacks/stack-1": locals(
+						str("string", "value3"),
+					),
+					"/stacks/stack-2": locals(
+						str("string", "value2"),
+					),
+				},
+			},
+		},
+		{
+			name:   "single stack with exported locals and globals from parent dirs",
+			layout: []string{"s:stacks/stack"},
+			configs: []hclblock{
+				{
+					path: "/",
+					add: globals(
+						str("str", "string"),
+					),
+				},
+				{
+					path: "/",
+					add: export_as_locals(
+						expr("num_local", "global.num"),
+						expr("path_local", "terramate.path"),
+					),
+				},
+				{
+					path: "/stacks",
+					add: globals(
+						number("num", 666),
+					),
+				},
+				{
+					path: "/stacks",
+					add: export_as_locals(
+						expr("str_local", "global.str"),
+						expr("name_local", "terramate.name"),
+					),
+				},
+			},
+			want: want{
+				stacksGenHCL: map[string]*hclwrite.Block{
+					"/stacks/stack": locals(
+						str("name_local", "stack"),
+						str("path_local", "/stacks/stack"),
+						str("str_local", "string"),
+						number("num_local", 666),
+					),
+				},
+			},
+		},
+		{
+			name: "multiple stacks with exported locals and globals from parent dirs",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclblock{
+				{
+					path: "/",
+					add: globals(
+						str("str", "string"),
+					),
+				},
+				{
+					path: "/",
+					add: export_as_locals(
+						expr("num_local", "global.num"),
+						expr("path_local", "terramate.path"),
+					),
+				},
+				{
+					path: "/stacks",
+					add: globals(
+						number("num", 666),
+					),
+				},
+				{
+					path: "/stacks",
+					add: export_as_locals(
+						expr("str_local", "global.str"),
+						expr("name_local", "terramate.name"),
+					),
+				},
+			},
+			want: want{
+				stacksGenHCL: map[string]*hclwrite.Block{
+					"/stacks/stack-1": locals(
+						str("name_local", "stack-1"),
+						str("path_local", "/stacks/stack-1"),
+						str("str_local", "string"),
+						number("num_local", 666),
+					),
+					"/stacks/stack-2": locals(
+						str("name_local", "stack-2"),
+						str("path_local", "/stacks/stack-2"),
+						str("str_local", "string"),
+						number("num_local", 666),
+					),
+				},
+			},
+		},
+		{
+			name: "multiple stacks with specific exported locals and globals from parent dirs",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclblock{
+				{
+					path: "/",
+					add: globals(
+						str("str", "string"),
+					),
+				},
+				{
+					path: "/stacks",
+					add: globals(
+						number("num", 666),
+					),
+				},
+				{
+					path: "/stacks/stack-1",
+					add: export_as_locals(
+						expr("str_local", "global.str"),
+						expr("name_local", "terramate.name"),
+					),
+				},
+				{
+					path: "/stacks/stack-2",
+					add: export_as_locals(
+						expr("num_local", "global.num"),
+						expr("path_local", "terramate.path"),
+					),
+				},
+			},
+			want: want{
+				stacksGenHCL: map[string]*hclwrite.Block{
+					"/stacks/stack-1": locals(
+						str("name_local", "stack-1"),
+						str("str_local", "string"),
+					),
+					"/stacks/stack-2": locals(
+						str("path_local", "/stacks/stack-2"),
+						number("num_local", 666),
+					),
+				},
+			},
+		},
+	}
+
+	for _, tcase := range tcases {
+		t.Run(tcase.name, func(t *testing.T) {
+			s := sandbox.New(t)
+			s.BuildTree(tcase.layout)
+
+			for _, cfg := range tcase.configs {
+				path := filepath.Join(s.RootDir(), cfg.path)
+				test.AppendFile(t, path, config.Filename, cfg.add.String())
+			}
+
+			ts := newCLI(t, s.RootDir())
+			assertRunResult(t, ts.run("generate"), tcase.want.res)
+
+			for stackPath, wantHCLBlock := range tcase.want.stacksGenHCL {
+				stackRelPath := stackPath[1:]
+				want := wantHCLBlock.String()
+				stack := s.StackEntry(stackRelPath)
+				got := string(stack.ReadGeneratedLocals())
+
+				assertGeneratedHCLEquals(t, got, want)
+			}
+
+			generatedFiles := findFiles(t, s.RootDir(), generate.LocalsFilename)
+
+			if len(generatedFiles) != len(tcase.want.stacksGenHCL) {
+				t.Errorf("generated %d locals files, but wanted %d", len(generatedFiles), len(tcase.want.stacksGenHCL))
+				t.Errorf("generated files: %v", generatedFiles)
+				t.Fatalf("wanted generated files: %#v", tcase.want.stacksGenHCL)
+			}
+		})
+	}
+}
+
+func assertGeneratedHCLEquals(t *testing.T, got string, want string) {
+	t.Helper()
+
+	want = generate.CodeHeader + want
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Error("generated code doesn't match expectation")
+		t.Errorf("want:\n%q", want)
+		t.Errorf("got:\n%q", got)
+		t.Fatalf("diff:\n%s", diff)
+	}
+}
+
+func findFiles(t *testing.T, rootdir string, filename string) []string {
 	// Go's glob is not recursive, so can't just glob for generated filenames
-	var generatedTfFiles []string
+	var found []string
 
 	err := filepath.Walk(rootdir, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
@@ -864,12 +1198,12 @@ func listGeneratedTfFiles(t *testing.T, rootdir string) []string {
 			return nil
 		}
 
-		if info.Name() == generate.TfFilename {
-			generatedTfFiles = append(generatedTfFiles, path)
+		if info.Name() == filename {
+			found = append(found, path)
 		}
 		return nil
 	})
 	assert.NoError(t, err)
 
-	return generatedTfFiles
+	return found
 }
