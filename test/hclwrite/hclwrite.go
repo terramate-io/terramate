@@ -37,6 +37,7 @@ import (
 type Block struct {
 	name        string
 	labels      []string
+	children    []*Block
 	expressions map[string]string
 	// Not cool to keep 2 copies of values but casting around
 	// cty values is quite annoying, so this is a lazy solution.
@@ -67,12 +68,20 @@ func (b *Block) AddBoolean(key string, v bool) {
 	b.values[key] = v
 }
 
+func (b *Block) AddBlock(child *Block) {
+	b.children = append(b.children, child)
+}
+
 func (b *Block) AttributesValues() map[string]cty.Value {
 	return b.ctyvalues
 }
 
 func (b *Block) HasExpressions() bool {
 	return len(b.expressions) > 0
+}
+
+func (b *Block) Build(parent *Block) {
+	parent.AddBlock(b)
 }
 
 func (b *Block) String() string {
@@ -84,6 +93,9 @@ func (b *Block) String() string {
 	}
 	for _, name := range b.sortedValues() {
 		code += fmt.Sprintf("%s=%v\n", name, b.values[name])
+	}
+	for _, childblock := range b.children {
+		code += childblock.String() + "\n"
 	}
 	code += "}"
 	return Format(code)
@@ -98,50 +110,58 @@ func NewBlock(name string) *Block {
 	}
 }
 
-type BlockBuilder func(*Block)
+type BlockBuilder interface {
+	Build(*Block)
+}
+
+type BlockBuilderFunc func(*Block)
 
 func BuildBlock(name string, builders ...BlockBuilder) *Block {
 	b := NewBlock(name)
 	for _, builder := range builders {
-		builder(b)
+		builder.Build(b)
 	}
 	return b
 }
 
 func Labels(labels ...string) BlockBuilder {
-	return func(g *Block) {
+	return BlockBuilderFunc(func(g *Block) {
 		for _, label := range labels {
 			g.AddLabel(label)
 		}
-	}
+	})
 }
 
 func Expression(key string, expr string) BlockBuilder {
-	return func(g *Block) {
+	return BlockBuilderFunc(func(g *Block) {
 		g.AddExpr(key, expr)
-	}
+	})
 }
 
 func String(key string, val string) BlockBuilder {
-	return func(g *Block) {
+	return BlockBuilderFunc(func(g *Block) {
 		g.AddString(key, val)
-	}
+	})
 }
 
 func Boolean(key string, val bool) BlockBuilder {
-	return func(g *Block) {
+	return BlockBuilderFunc(func(g *Block) {
 		g.AddBoolean(key, val)
-	}
+	})
 }
 
 func NumberInt(key string, val int64) BlockBuilder {
-	return func(g *Block) {
+	return BlockBuilderFunc(func(g *Block) {
 		g.AddNumberInt(key, val)
-	}
+	})
 }
 
 func Format(code string) string {
 	return strings.Trim(string(hclwrite.Format([]byte(code))), "\n ")
+}
+
+func (builder BlockBuilderFunc) Build(b *Block) {
+	builder(b)
 }
 
 func (b *Block) sortedExpressions() []string {
