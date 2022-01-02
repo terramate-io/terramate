@@ -22,6 +22,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/mineiros-io/terramate/dag"
 	"github.com/mineiros-io/terramate/generate"
@@ -55,8 +56,8 @@ const (
 )
 
 const (
-	LogLevelDefault = "none"
-	LogFmtDefault   = "json"
+	defaultLogLevel = "none"
+	defaultLogFmt   = "json"
 )
 
 type cliSpec struct {
@@ -126,10 +127,6 @@ func Run(
 	stdout io.Writer,
 	stderr io.Writer,
 ) error {
-	if err := configureLogging(LogLevelDefault, LogFmtDefault, stderr); err != nil {
-		return err
-	}
-
 	c, err := newCLI(args, inheritEnv, stdin, stdout, stderr)
 	if err != nil {
 		return err
@@ -208,20 +205,13 @@ func newCLI(
 	logLevel := parsedArgs.LogLevel
 	logFmt := parsedArgs.LogFmt
 
-	if logLevel != "" || logFmt != "" {
-		if logLevel == "" {
-			logLevel = LogLevelDefault
-		}
-
-		if logFmt == "" {
-			logFmt = LogFmtDefault
-		}
-
-		if err := configureLogging(logLevel, logFmt, stderr); err != nil {
-			return nil, err
-		}
+	if err := configureLogging(logLevel, logFmt, stderr); err != nil {
+		return nil, err
 	}
 
+	log.Trace().
+		Str("actionContext", "newCli()").
+		Msg("Get working directory.")
 	wd := parsedArgs.Chdir
 	if wd == "" {
 		wd, err = os.Getwd()
@@ -230,21 +220,37 @@ func newCLI(
 		}
 	}
 
+	log.Trace().
+		Str("actionContext", "newCli()").
+		Str("stack", wd).
+		Msg(fmt.Sprintf("Evaluate symbolic links for %q.", wd))
 	wd, err = filepath.EvalSymlinks(wd)
 	if err != nil {
 		return nil, fmt.Errorf("failed evaluating symlinks for %q: %w", wd, err)
 	}
 
+	log.Trace().
+		Str("actionContext", "newCli()").
+		Str("stack", wd).
+		Msg(fmt.Sprintf("Get absolute file path of %q.", wd))
 	wd, err = filepath.Abs(wd)
 	if err != nil {
 		return nil, fmt.Errorf("getting absolute path of %q: %w", wd, err)
 	}
 
+	log.Trace().
+		Str("actionContext", "newCli()").
+		Str("stack", wd).
+		Msg(fmt.Sprintf("Change working directory to %q.", wd))
 	err = os.Chdir(wd)
 	if err != nil {
 		return nil, fmt.Errorf("failed to change working directory to %q: %w", wd, err)
 	}
 
+	log.Trace().
+		Str("actionContext", "newCli()").
+		Str("stack", wd).
+		Msg(fmt.Sprintf("Look up project in %q.", wd))
 	prj, foundRoot, err := lookupProject(wd)
 	if err != nil {
 		return nil, fmt.Errorf("failed to lookup project root from %q: %w", wd, err)
@@ -254,6 +260,10 @@ func newCLI(
 		return nil, fmt.Errorf("project root not found")
 	}
 
+	log.Trace().
+		Str("actionContext", "newCli()").
+		Str("stack", wd).
+		Msg("Set defaults from parsed command line arguments.")
 	err = prj.setDefaults(&parsedArgs)
 	if err != nil {
 		return nil, fmt.Errorf("setting configuration: %w", err)
@@ -281,45 +291,116 @@ func (c *cli) run() error {
 	}
 
 	if c.parsedArgs.Changed {
+		log.Trace().
+			Str("actionContext", "cli()").
+			Str("stack", c.wd()).
+			Msg("`Changed` flag was set.")
+
+		log.Trace().
+			Str("actionContext", "cli()").
+			Str("stack", c.wd()).
+			Msg("Create new git wrapper.")
 		git, err := newGit(c.root(), c.inheritEnv, true)
 		if err != nil {
 			return err
 		}
+
+		log.Trace().
+			Str("actionContext", "cli()").
+			Str("stack", c.wd()).
+			Msg("Check git default remote.")
 		if err := c.checkDefaultRemote(git); err != nil {
 			return err
 		}
+
+		log.Trace().
+			Str("actionContext", "cli()").
+			Str("stack", c.wd()).
+			Msg("Check git default branch was updated.")
 		if err := c.checkLocalDefaultIsUpdated(git); err != nil {
 			return err
 		}
 	}
 
+	log.Trace().
+		Str("actionContext", "cli()").
+		Str("stack", c.wd()).
+		Msg("Handle input command.")
 	switch c.ctx.Command() {
 	case "version":
+		log.Trace().
+			Str("actionContext", "cli()").
+			Str("stack", c.wd()).
+			Msg("Get terramate version.")
 		c.log(terramate.Version())
 	case "plan graph":
+		log.Trace().
+			Str("actionContext", "cli()").
+			Str("stack", c.wd()).
+			Msg("Handle `plan graph`.")
 		return c.generateGraph()
 	case "plan run-order":
+		log.Trace().
+			Str("actionContext", "cli()").
+			Str("stack", c.wd()).
+			Msg("Print run-order.")
 		return c.printRunOrder()
 	case "stacks init":
+		log.Trace().
+			Str("actionContext", "cli()").
+			Str("stack", c.wd()).
+			Msg("Handle stacks init command.")
 		return c.initStack([]string{c.wd()})
 	case "stacks list":
+		log.Trace().
+			Str("actionContext", "cli()").
+			Str("stack", c.wd()).
+			Msg("Print list of stacks.")
 		return c.printStacks()
 	case "stacks init <paths>":
+		log.Trace().
+			Str("actionContext", "cli()").
+			Str("stack", c.wd()).
+			Msg("Handle stacks init <paths> command.")
 		return c.initStack(c.parsedArgs.Stacks.Init.StackDirs)
 	case "stacks globals":
+		log.Trace().
+			Str("actionContext", "cli()").
+			Str("stack", c.wd()).
+			Msg("Handle stacks global command.")
 		return c.printStacksGlobals()
 	case "run":
+		log.Trace().
+			Str("actionContext", "cli()").
+			Str("stack", c.wd()).
+			Msg("Handle `run` command.")
 		if len(c.parsedArgs.Run.Command) == 0 {
 			return errors.New("no command specified")
 		}
 		fallthrough
 	case "run <cmd>":
+		log.Trace().
+			Str("actionContext", "cli()").
+			Str("stack", c.wd()).
+			Msg("Handle `run <cmd>` command.")
 		return c.runOnStacks()
 	case "generate":
+		log.Trace().
+			Str("actionContext", "cli()").
+			Str("stack", c.wd()).
+			Msg("Handle `generate` command.")
 		return generate.Do(c.root())
 	case "metadata":
+		log.Trace().
+			Str("actionContext", "cli()").
+			Str("stack", c.wd()).
+			Msg("Handle `metadata` command.")
 		return c.printMetadata()
 	case "install-completions":
+		log.Trace().
+			Str("actionContext", "cli()").
+			Str("stack", c.wd()).
+			Msg("Handle `install-completions` command.")
 		return c.parsedArgs.InstallCompletions.Run(c.ctx)
 	default:
 		return fmt.Errorf("unexpected command sequence: %s", c.ctx.Command())
@@ -330,10 +411,23 @@ func (c *cli) run() error {
 
 func (c *cli) initStack(dirs []string) error {
 	var errmsgs []string
+	log.Trace().
+		Str("actionContext", "initStack()").
+		Str("stack", c.wd()).
+		Msg("Init stacks.")
 	for _, d := range dirs {
 		if !filepath.IsAbs(d) {
+			log.Trace().
+				Str("actionContext", "initStack()").
+				Str("stack", fmt.Sprintf("%s%s", c.wd(), strings.Trim(d, "."))).
+				Msg("Make file path absolute.")
 			d = filepath.Join(c.wd(), d)
 		}
+
+		log.Trace().
+			Str("actionContext", "initStack()").
+			Str("stack", fmt.Sprintf("%s%s", c.wd(), strings.Trim(d, "."))).
+			Msg("Init stack.")
 
 		err := terramate.Init(c.root(), d, c.parsedArgs.Stacks.Init.Force)
 		if err != nil {
@@ -351,25 +445,46 @@ func (c *cli) initStack(dirs []string) error {
 
 func (c *cli) listStacks(mgr *terramate.Manager, isChanged bool) ([]terramate.Entry, error) {
 	if isChanged {
+		log.Trace().
+			Str("actionContext", "listStacks()").
+			Str("stack", c.wd()).
+			Msg("`Changed` flag was set. List changed stacks.")
 		return mgr.ListChanged()
 	}
-
 	return mgr.List()
 }
 
 func (c *cli) printStacks() error {
+	log.Trace().
+		Str("actionContext", "printStacks()").
+		Str("stack", c.wd()).
+		Msg("Create a new stack manager.")
 	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+
+	log.Trace().
+		Str("actionContext", "printStacks()").
+		Str("stack", c.wd()).
+		Msg("Get stack list.")
 	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		return err
 	}
 
+	log.Trace().
+		Str("actionContext", "printStacks()").
+		Str("stack", c.wd()).
+		Msg("Print stacks.")
 	for _, entry := range entries {
 		stack := entry.Stack
 		stackRepr, ok := c.friendlyFmtDir(stack.Dir)
 		if !ok {
 			continue
 		}
+
+		log.Trace().
+			Str("actionContext", "printStacks()").
+			Str("stack", c.wd()+stack.Dir).
+			Msg("Print stack.")
 
 		if c.parsedArgs.Stacks.List.Why {
 			c.log("%s - %s", stackRepr, entry.Reason)
@@ -383,10 +498,22 @@ func (c *cli) printStacks() error {
 func (c *cli) generateGraph() error {
 	var getLabel func(s stack.S) string
 
+	log.Trace().
+		Str("actionContext", "generateGraph()").
+		Str("stack", c.wd()).
+		Msg("Handle graph label command line argument.")
 	switch c.parsedArgs.Plan.Graph.Label {
 	case "stack.name":
+		log.Trace().
+			Str("actionContext", "generateGraph()").
+			Str("stack", c.wd()).
+			Msg("Set label to stack name.")
 		getLabel = func(s stack.S) string { return s.Name() }
 	case "stack.dir":
+		log.Trace().
+			Str("actionContext", "generateGraph()").
+			Str("stack", c.wd()).
+			Msg("Set label stack directory.")
 		getLabel = func(s stack.S) string { return s.Dir }
 	default:
 		return fmt.Errorf("-label expects the values \"stack.name\" or \"stack.dir\"")
@@ -396,6 +523,10 @@ func (c *cli) generateGraph() error {
 		return err
 	}
 
+	log.Trace().
+		Str("actionContext", "generateGraph()").
+		Str("stack", c.wd()).
+		Msg("Create new graph.")
 	loader := stack.NewLoader(c.root())
 	dotGraph := dot.NewGraph(dot.Directed)
 	graph := dag.New()
@@ -424,11 +555,23 @@ func (c *cli) generateGraph() error {
 		}
 	}
 
+	log.Trace().
+		Str("actionContext", "generateGraph()").
+		Str("stack", c.wd()).
+		Msg("Set output of graph.")
 	outFile := c.parsedArgs.Plan.Graph.Outfile
 	var out io.Writer
 	if outFile == "" {
+		log.Trace().
+			Str("actionContext", "generateGraph()").
+			Str("stack", c.wd()).
+			Msg("Set output to stdout.")
 		out = c.stdout
 	} else {
+		log.Trace().
+			Str("actionContext", "generateGraph()").
+			Str("stack", c.wd()).
+			Msg("Set output to file.")
 		f, err := os.Create(outFile)
 		if err != nil {
 			return fmt.Errorf("opening file %q: %w", outFile, err)
@@ -439,6 +582,10 @@ func (c *cli) generateGraph() error {
 		out = f
 	}
 
+	log.Trace().
+		Str("actionContext", "generateGraph()").
+		Str("stack", c.wd()).
+		Msg("Write graph to output.")
 	_, err = out.Write([]byte(dotGraph.String()))
 	if err != nil {
 		return fmt.Errorf("writing output to %q: %w", outFile, err)
@@ -485,18 +632,40 @@ func generateDot(
 }
 
 func (c *cli) printRunOrder() error {
+	log.Trace().
+		Str("actionContext", "printRunOrder()").
+		Str("stack", c.wd()).
+		Msg("Create new terramate manager.")
 	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+
+	log.Trace().
+		Str("actionContext", "printRunOrder()").
+		Str("stack", c.wd()).
+		Msg("Get list of stacks.")
 	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		return err
 	}
 
+	log.Trace().
+		Str("actionContext", "printRunOrder()").
+		Str("stack", c.wd()).
+		Msg("Filter stacks by working directory.")
 	entries = c.filterStacksByWorkingDir(entries)
+
+	log.Trace().
+		Str("actionContext", "printRunOrder()").
+		Str("stack", c.wd()).
+		Msg("Create stack array.")
 	stacks := make([]stack.S, len(entries))
 	for i, e := range entries {
 		stacks[i] = e.Stack
 	}
 
+	log.Trace().
+		Str("actionContext", "printRunOrder()").
+		Str("stack", c.wd()).
+		Msg("Get run order.")
 	order, reason, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
 		if errors.Is(err, dag.ErrCycleDetected) {
@@ -543,14 +712,26 @@ func (c *cli) printStacksGlobals() error {
 }
 
 func (c *cli) printMetadata() error {
+	log.Trace().
+		Str("actionContext", "printMetadata()").
+		Str("stack", c.wd()).
+		Msg("Load metadata.")
 	metadata, err := terramate.LoadMetadata(c.root())
 	if err != nil {
 		return err
 	}
 
+	log.Trace().
+		Str("actionContext", "printMetadata()").
+		Str("stack", c.wd()).
+		Msg("Log metadata.")
 	c.log("Available metadata:")
 
 	for _, stack := range metadata.Stacks {
+		log.Trace().
+			Str("actionContext", "printMetadata()").
+			Str("stack", c.wd()+stack.Path).
+			Msg("Print metadata for individual stack.")
 		c.log("\nstack %q:", stack.Path)
 		c.log("\tterramate.name=%q", stack.Name)
 		c.log("\tterramate.path=%q", stack.Path)
@@ -560,7 +741,16 @@ func (c *cli) printMetadata() error {
 }
 
 func (c *cli) runOnStacks() error {
+	log.Trace().
+		Str("actionContext", "runOnStacks()").
+		Str("stack", c.wd()).
+		Msg("Create new terramate manager.")
 	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+
+	log.Trace().
+		Str("actionContext", "runOnStacks()").
+		Str("stack", c.wd()).
+		Msg("Get list of stacks.")
 	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		return err
@@ -572,12 +762,25 @@ func (c *cli) runOnStacks() error {
 		c.log("Running on all stacks:")
 	}
 
+	log.Trace().
+		Str("actionContext", "runOnStacks()").
+		Str("stack", c.wd()).
+		Msg("Filter stacks by working directory.")
 	entries = c.filterStacksByWorkingDir(entries)
+
+	log.Trace().
+		Str("actionContext", "runOnStacks()").
+		Str("stack", c.wd()).
+		Msg("Create array of stacks.")
 	stacks := make([]stack.S, len(entries))
 	for i, e := range entries {
 		stacks[i] = e.Stack
 	}
 
+	log.Trace().
+		Str("actionContext", "runOnStacks()").
+		Str("stack", c.wd()).
+		Msg("Get command to run.")
 	cmdName := c.parsedArgs.Run.Command[0]
 	args := c.parsedArgs.Run.Command[1:]
 	cmd := exec.Command(cmdName, args...)
@@ -585,6 +788,10 @@ func (c *cli) runOnStacks() error {
 	cmd.Stdout = c.stdout
 	cmd.Stderr = c.stderr
 
+	log.Trace().
+		Str("actionContext", "runOnStacks()").
+		Str("stack", c.wd()).
+		Msg("Get order of stacks to run command on.")
 	order, reason, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
 		if errors.Is(err, dag.ErrCycleDetected) {
@@ -595,6 +802,10 @@ func (c *cli) runOnStacks() error {
 	}
 
 	if c.parsedArgs.Run.DryRun {
+		log.Trace().
+			Str("actionContext", "runOnStacks()").
+			Str("stack", c.wd()).
+			Msg("Do a dry run - get order without actually running command.")
 		if len(order) > 0 {
 			c.log("The stacks will be executed using order below:")
 
@@ -609,6 +820,10 @@ func (c *cli) runOnStacks() error {
 		return nil
 	}
 
+	log.Trace().
+		Str("actionContext", "runOnStacks()").
+		Str("stack", c.wd()).
+		Msg("Run command.")
 	err = terramate.Run(c.root(), order, cmd)
 	if err != nil {
 		c.logerr("warn: failed to execute command: %v", err)
@@ -629,6 +844,10 @@ func (c *cli) logerr(format string, args ...interface{}) {
 }
 
 func (c *cli) checkDefaultRemote(g *git.Git) error {
+	log.Trace().
+		Str("actionContext", "checkDefaultRemote()").
+		Str("stack", c.wd()).
+		Msg("Get list of configured git remotes.")
 	remotes, err := g.Remotes()
 	if err != nil {
 		return fmt.Errorf("checking if remote %q exists: %v", defaultRemote, err)
@@ -636,6 +855,10 @@ func (c *cli) checkDefaultRemote(g *git.Git) error {
 
 	var defRemote *git.Remote
 
+	log.Trace().
+		Str("actionContext", "checkDefaultRemote()").
+		Str("stack", c.wd()).
+		Msg("Find default git remote.")
 	for _, remote := range remotes {
 		if remote.Name == defaultRemote {
 			defRemote = &remote
@@ -651,6 +874,10 @@ func (c *cli) checkDefaultRemote(g *git.Git) error {
 		)
 	}
 
+	log.Trace().
+		Str("actionContext", "checkDefaultRemote()").
+		Str("stack", c.wd()).
+		Msg("Find default git branch.")
 	for _, branch := range defRemote.Branches {
 		if branch == defaultBranch {
 			return nil
@@ -667,6 +894,10 @@ func (c *cli) checkDefaultRemote(g *git.Git) error {
 }
 
 func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
+	log.Trace().
+		Str("actionContext", "checkLocalDefaultIsUpdated()").
+		Str("stack", c.wd()).
+		Msg("Get current git branch.")
 	branch, err := g.CurrentBranch()
 	if err != nil {
 		return fmt.Errorf("checking local branch is updated: %v", err)
@@ -679,12 +910,20 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 	c.logerr("current branch %q is the default branch, checking if it is updated.", branch)
 	c.logerr("retrieving info from remote branch: %s/%s ...", defaultRemote, defaultBranch)
 
+	log.Trace().
+		Str("actionContext", "checkLocalDefaultIsUpdated()").
+		Str("stack", c.wd()).
+		Msg("Fetch remote reference.")
 	remoteRef, err := g.FetchRemoteRev(defaultRemote, defaultBranch)
 	if err != nil {
 		return fmt.Errorf("checking local branch %q is update: %v", branch, err)
 	}
 	c.logerr("retrieved info from remote branch: %s/%s.", defaultRemote, defaultBranch)
 
+	log.Trace().
+		Str("actionContext", "checkLocalDefaultIsUpdated()").
+		Str("stack", c.wd()).
+		Msg("Get local commit ID.")
 	localCommitID, err := g.RevParse(branch)
 	if err != nil {
 		return fmt.Errorf("checking local branch %q is update: %v", branch, err)
@@ -713,8 +952,16 @@ func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 }
 
 func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Entry {
+	log.Trace().
+		Str("actionContext", "filterStacksByWorkingDir()").
+		Str("stack", c.wd()).
+		Msg("Get relative working directory.")
 	relwd := prj.RelPath(c.root(), c.wd())
 
+	log.Trace().
+		Str("actionContext", "filterStacksByWorkingDir()").
+		Str("stack", c.wd()).
+		Msg("Get filtered stacks.")
 	filtered := []terramate.Entry{}
 	for _, e := range stacks {
 		if strings.HasPrefix(e.Stack.Dir, relwd) {
@@ -726,6 +973,9 @@ func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Ent
 }
 
 func newGit(basedir string, inheritEnv bool, checkrepo bool) (*git.Git, error) {
+	log.Trace().
+		Str("actionContext", "newGit()").
+		Msg("Create new git wrapper providing config.")
 	g, err := git.WithConfig(git.Config{
 		WorkingDir: basedir,
 		InheritEnv: inheritEnv,
@@ -746,15 +996,32 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 	prj = project{
 		wd: wd,
 	}
+
+	log.Trace().
+		Str("actionContext", "lookupProject()").
+		Str("stack", wd).
+		Msg("Create new git wrapper.")
 	gw, err := newGit(wd, false, false)
 	if err == nil {
+		log.Trace().
+			Str("actionContext", "lookupProject()").
+			Str("stack", wd).
+			Msg("Get root of git repo.")
 		gitdir, err := gw.Root()
 		if err == nil {
+			log.Trace().
+				Str("actionContext", "lookupProject()").
+				Str("stack", wd).
+				Msg("Get absolute path of git directory.")
 			gitabs, err := filepath.Abs(gitdir)
 			if err != nil {
 				return project{}, false, fmt.Errorf("getting absolute path of %q: %w", gitdir, err)
 			}
 
+			log.Trace().
+				Str("actionContext", "lookupProject()").
+				Str("stack", wd).
+				Msg("Evaluate symbolic links.")
 			gitabs, err = filepath.EvalSymlinks(gitabs)
 			if err != nil {
 				return project{}, false, fmt.Errorf("failed evaluating symlinks of %q: %w",
@@ -762,6 +1029,11 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 			}
 
 			root := filepath.Dir(gitabs)
+
+			log.Trace().
+				Str("actionContext", "lookupProject()").
+				Str("stack", wd).
+				Msg("Load root config.")
 			cfg, _, err := config.TryLoadRootConfig(root)
 			if err != nil {
 				return project{}, false, err
@@ -778,6 +1050,10 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 	dir := wd
 
 	for {
+		log.Trace().
+			Str("actionContext", "lookupProject()").
+			Str("stack", wd).
+			Msg("Load root config.")
 		cfg, ok, err := config.TryLoadRootConfig(dir)
 		if err != nil {
 			return project{}, false, err
@@ -804,14 +1080,23 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 	if p.rootcfg.Terramate == nil {
 		// if config has no terramate block we create one with default
 		// configurations.
+		log.Trace().
+			Str("actionContext", "setDefaults()").
+			Str("stack", p.wd).
+			Str("configFile", p.root+"/terramate.tm.hcl").
+			Msg("Create terramate block.")
 		p.rootcfg.Terramate = &hcl.Terramate{}
 	}
 
+	log.Trace().
+		Str("actionContext", "setDefaults()").
+		Str("stack", p.wd).
+		Str("configFile", p.root+"/terramate.tm.hcl").
+		Msg("Set defaults.")
 	cfg := &p.rootcfg
 	if cfg.Terramate.RootConfig == nil {
 		p.rootcfg.Terramate.RootConfig = &hcl.RootConfig{}
 	}
-
 	gitOpt := &cfg.Terramate.RootConfig.Git
 
 	if gitOpt.BaseRef == "" {
@@ -834,11 +1119,21 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 	if baseRef == "" {
 		baseRef = gitOpt.BaseRef
 		if p.isRepo {
+			log.Trace().
+				Str("actionContext", "setDefaults()").
+				Str("stack", p.wd).
+				Str("configFile", p.root+"/terramate.tm.hcl").
+				Msg("Create new git wrapper.")
 			gw, err := newGit(p.wd, false, false)
 			if err != nil {
 				return err
 			}
 
+			log.Trace().
+				Str("actionContext", "setDefaults()").
+				Str("stack", p.wd).
+				Str("configFile", p.root+"/terramate.tm.hcl").
+				Msg("Get current branch.")
 			branch, err := gw.CurrentBranch()
 			if err != nil {
 				return fmt.Errorf("failed to get current git branch: %v", err)
@@ -856,6 +1151,15 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 }
 
 func configureLogging(logLevel string, logFmt string, output io.Writer) error {
+
+	if logLevel == "" {
+		logLevel = defaultLogLevel
+	}
+
+	if logFmt == "" {
+		logFmt = defaultLogFmt
+	}
+
 	zloglevel, err := getzlogLevel(logLevel)
 	if err != nil {
 		return err
@@ -867,7 +1171,7 @@ func configureLogging(logLevel string, logFmt string, output io.Writer) error {
 	}
 
 	zerolog.SetGlobalLevel(zloglevel)
-	log.Logger = zerolog.New(logwriter).With().Timestamp().Logger()
+	log.Logger = zerolog.New(logwriter).With().Timestamp().Caller().Logger()
 	return nil
 }
 
@@ -901,9 +1205,10 @@ func getzlogWriter(format string, output io.Writer) (io.Writer, error) {
 	switch format {
 	case "text":
 		color := lookupEnv("TM_LOG_COLOR", "ON")
-		return zerolog.ConsoleWriter{Out: output, NoColor: color != "ON"}, nil
+		return zerolog.ConsoleWriter{Out: output, NoColor: color != "ON", TimeFormat: time.RFC3339}, nil
 	case "json":
 		// Default is JSON on zlog
+		zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 		return output, nil
 	default:
 		return nil, fmt.Errorf("unknown log format %q", format)
