@@ -32,8 +32,8 @@ import (
 )
 
 const (
-	// TfFilename is the name of the terramate generated tf file.
-	TfFilename = "_gen_terramate.tm.tf"
+	// BackendCfgFilename is the name of the terramate generated tf file for backend configuration.
+	BackendCfgFilename = "_gen_backend_cfg.tm.tf"
 
 	// LocalsFilename is the name of the terramate generated tf file for exported locals.
 	LocalsFilename = "_gen_locals.tm.tf"
@@ -174,7 +174,7 @@ func generateStackBackendConfig(root string, stackpath string, evalctx *eval.Con
 		return nil
 	}
 
-	genfile := filepath.Join(stackpath, TfFilename)
+	genfile := filepath.Join(stackpath, BackendCfgFilename)
 	return os.WriteFile(genfile, tfcode, 0666)
 }
 
