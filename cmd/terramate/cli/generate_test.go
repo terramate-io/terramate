@@ -836,7 +836,7 @@ globals {
 				assertGeneratedHCLEquals(t, got, want.code)
 			}
 
-			generatedFiles := findFiles(t, s.RootDir(), generate.TfFilename)
+			generatedFiles := findFiles(t, s.RootDir(), generate.BackendCfgFilename)
 
 			if len(generatedFiles) != len(tcase.want.stacks) {
 				t.Errorf("generated %d files, but wanted %d", len(generatedFiles), len(tcase.want.stacks))
