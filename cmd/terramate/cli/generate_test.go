@@ -893,7 +893,7 @@ func TestLocalsGeneration(t *testing.T) {
 			layout: []string{},
 		},
 		{
-			name:   "single stacks no no exported locals",
+			name:   "single stacks no exported locals",
 			layout: []string{"s:stack"},
 		},
 		{
