@@ -102,7 +102,7 @@ z/a
 			s.BuildTree(tc.layout)
 
 			cli := newCLI(t, s.RootDir())
-			assertRunResult(t, cli.run("list"), tc.want)
+			assertRunResult(t, cli.run("stacks", "list"), tc.want)
 		})
 	}
 }
@@ -115,7 +115,7 @@ func TestListStackWithNoTerramateBlock(t *testing.T) {
 		Stack: &hcl.Stack{},
 	})
 	cli := newCLI(t, s.RootDir())
-	assertRunResult(t, cli.run("list"), runResult{Stdout: "stack\n"})
+	assertRunResult(t, cli.run("stacks", "list"), runResult{Stdout: "stack\n"})
 }
 
 func TestListNoSuchFile(t *testing.T) {
@@ -123,7 +123,7 @@ func TestListNoSuchFile(t *testing.T) {
 	cli := newCLI(t, notExists)
 
 	// errors from the manager are not logged in stderr
-	assertRunResult(t, cli.run("list"), runResult{
+	assertRunResult(t, cli.run("stacks", "list"), runResult{
 		Error: os.ErrNotExist,
 	})
 }
@@ -151,7 +151,7 @@ func TestListDetectChangesInSubDirOfStack(t *testing.T) {
 	want := runResult{
 		Stdout: stack.RelPath() + "\n",
 	}
-	assertRunResult(t, cli.run("list", "--changed"), want)
+	assertRunResult(t, cli.run("stacks", "list", "--changed"), want)
 }
 
 func TestListDetectChangesInSubDirOfStackWithOtherConfigs(t *testing.T) {
@@ -184,5 +184,5 @@ terramate {
 	want := runResult{
 		Stdout: stack.RelPath() + "\n",
 	}
-	assertRunResult(t, cli.run("list", "--changed"), want)
+	assertRunResult(t, cli.run("stacks", "list", "--changed"), want)
 }

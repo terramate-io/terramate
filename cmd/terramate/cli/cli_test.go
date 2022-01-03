@@ -69,7 +69,7 @@ source = "%s"
 
 	cli := newCLI(t, s.RootDir())
 	want := stack1.RelPath() + "\n"
-	assertRunResult(t, cli.run("list", "--changed"), runResult{Stdout: want})
+	assertRunResult(t, cli.run("stacks", "list", "--changed"), runResult{Stdout: want})
 }
 
 func TestBugModuleMultipleFilesSameDir(t *testing.T) {
@@ -128,7 +128,7 @@ module "mod1" {
 
 	cli := newCLI(t, s.RootDir())
 	want := stack.RelPath() + "\n"
-	assertRunResult(t, cli.run("list", "--changed"), runResult{Stdout: want})
+	assertRunResult(t, cli.run("stacks", "list", "--changed"), runResult{Stdout: want})
 }
 
 func TestListAndRunChangedStack(t *testing.T) {
@@ -154,7 +154,7 @@ func TestListAndRunChangedStack(t *testing.T) {
 	git.CommitAll("stack changed")
 
 	wantList := stack.RelPath() + "\n"
-	assertRunResult(t, cli.run("list", "--changed"), runResult{Stdout: wantList})
+	assertRunResult(t, cli.run("stacks", "list", "--changed"), runResult{Stdout: wantList})
 
 	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
@@ -197,7 +197,7 @@ func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
 	git.CommitAll("stack changed")
 
 	wantList := stack.Path() + "\n"
-	assertRunResult(t, cli.run("list", "--changed"), runResult{Stdout: wantList})
+	assertRunResult(t, cli.run("stacks", "list", "--changed"), runResult{Stdout: wantList})
 
 	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
@@ -238,7 +238,7 @@ func TestDefaultBaseRefInOtherThanMain(t *testing.T) {
 	want := runResult{
 		Stdout: stack.RelPath() + "\n",
 	}
-	assertRunResult(t, cli.run("list", "--changed"), want)
+	assertRunResult(t, cli.run("stacks", "list", "--changed"), want)
 }
 
 func TestDefaultBaseRefInMain(t *testing.T) {
@@ -260,7 +260,7 @@ func TestDefaultBaseRefInMain(t *testing.T) {
 		Stdout:       stack.RelPath() + "\n",
 		IgnoreStderr: true,
 	}
-	assertRunResult(t, cli.run("list", "--changed"), want)
+	assertRunResult(t, cli.run("stacks", "list", "--changed"), want)
 }
 
 func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
@@ -277,7 +277,7 @@ func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
 	git.Commit("all")
 	git.Push("main")
 
-	assertRunResult(t, cli.run("list", "--changed",
+	assertRunResult(t, cli.run("stacks", "list", "--changed",
 		"--git-change-base", "origin/main"),
 		runResult{
 			IgnoreStderr: true,
@@ -303,7 +303,7 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 		IgnoreStderr: true,
 	}
 
-	assertRunResult(t, ts.run("list", "--changed"), wantRes)
+	assertRunResult(t, ts.run("stacks", "list", "--changed"), wantRes)
 
 	cat := test.LookPath(t, "cat")
 	assertRunResult(t, ts.run(
@@ -325,7 +325,7 @@ func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
 			IgnoreStderr: true,
 		}
 
-		assertRunResult(t, ts.run("list", "--changed"), wantRes)
+		assertRunResult(t, ts.run("stacks", "list", "--changed"), wantRes)
 
 		cat := test.LookPath(t, "cat")
 		assertRunResult(t, ts.run(

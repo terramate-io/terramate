@@ -58,10 +58,6 @@ type cliSpec struct {
 	GitChangeBase string   `short:"B" optional:"true" help:"git base ref for computing changes."`
 	Changed       bool     `short:"c" optional:"true" help:"filter by changed infrastructure"`
 
-	List struct {
-		Why bool `help:"Shows the reason why the stack has changed."`
-	} `cmd:"" help:"List stacks."`
-
 	Run struct {
 		Quiet   bool     `short:"q" help:"Don't print any information other than the command output."`
 		DryRun  bool     `default:"false" help:"plan the execution but do not execute it"`
@@ -84,6 +80,10 @@ type cliSpec struct {
 			StackDirs []string `arg:"" name:"paths" optional:"true" help:"the stack directory (current directory if not set)."`
 			Force     bool     `help:"force initialization."`
 		} `cmd:"" help:"Initialize a stack."`
+
+		List struct {
+			Why bool `help:"Shows the reason why the stack has changed."`
+		} `cmd:"" help:"List stacks."`
 
 		Globals struct {
 		} `cmd:"" help:"list globals for all stacks."`
@@ -266,14 +266,14 @@ func (c *cli) run() error {
 	switch c.ctx.Command() {
 	case "version":
 		c.log(terramate.Version())
-	case "list":
-		return c.printStacks()
 	case "plan graph":
 		return c.generateGraph()
 	case "plan run-order":
 		return c.printRunOrder()
 	case "stacks init":
 		return c.initStack([]string{c.wd()})
+	case "stacks list":
+		return c.printStacks()
 	case "stacks init <paths>":
 		return c.initStack(c.parsedArgs.Stacks.Init.StackDirs)
 	case "stacks globals":
@@ -341,7 +341,7 @@ func (c *cli) printStacks() error {
 			continue
 		}
 
-		if c.parsedArgs.List.Why {
+		if c.parsedArgs.Stacks.List.Why {
 			c.log("%s - %s", stackRepr, entry.Reason)
 		} else {
 			c.log(stackRepr)
