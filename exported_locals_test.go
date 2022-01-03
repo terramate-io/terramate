@@ -41,9 +41,7 @@ func TestExportAsLocals(t *testing.T) {
 		}
 	)
 
-	// Usually in Go names are cammel case, but on this case
-	// we want it to be as close to original HCL as possible (DSL).
-	export_as_locals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	exportAsLocals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("export_as_locals", builders...)
 	}
 	// locals is used only as a syntatic sugar to build testcase.want
@@ -90,7 +88,7 @@ func TestExportAsLocals(t *testing.T) {
 				},
 				{
 					path: "/stack",
-					add: export_as_locals(
+					add: exportAsLocals(
 						expr("string_local", "global.some_string"),
 						expr("number_local", "global.some_number"),
 						expr("bool_local", "global.some_bool"),
@@ -111,7 +109,7 @@ func TestExportAsLocals(t *testing.T) {
 			blocks: []block{
 				{
 					path: "/stack",
-					add: export_as_locals(
+					add: exportAsLocals(
 						expr("funny_path", `replace(terramate.path, "/", "@")`),
 					),
 				},
@@ -139,19 +137,19 @@ func TestExportAsLocals(t *testing.T) {
 				},
 				{
 					path: "/",
-					add: export_as_locals(
+					add: exportAsLocals(
 						expr("string", "global.attr1"),
 					),
 				},
 				{
 					path: "/stacks",
-					add: export_as_locals(
+					add: exportAsLocals(
 						expr("string", "global.attr2"),
 					),
 				},
 				{
 					path: "/stacks/stack-1",
-					add: export_as_locals(
+					add: exportAsLocals(
 						expr("string", "global.attr3"),
 					),
 				},
@@ -177,7 +175,7 @@ func TestExportAsLocals(t *testing.T) {
 				},
 				{
 					path: "/",
-					add: export_as_locals(
+					add: exportAsLocals(
 						expr("num_local", "global.num"),
 						expr("path_local", "terramate.path"),
 					),
@@ -190,7 +188,7 @@ func TestExportAsLocals(t *testing.T) {
 				},
 				{
 					path: "/stacks",
-					add: export_as_locals(
+					add: exportAsLocals(
 						expr("str_local", "global.str"),
 						expr("name_local", "terramate.name"),
 					),
@@ -220,7 +218,7 @@ func TestExportAsLocals(t *testing.T) {
 				},
 				{
 					path: "/",
-					add: export_as_locals(
+					add: exportAsLocals(
 						expr("num_local", "global.num"),
 						expr("path_local", "terramate.path"),
 					),
@@ -233,7 +231,7 @@ func TestExportAsLocals(t *testing.T) {
 				},
 				{
 					path: "/stacks",
-					add: export_as_locals(
+					add: exportAsLocals(
 						expr("str_local", "global.str"),
 						expr("name_local", "terramate.name"),
 					),
@@ -275,14 +273,14 @@ func TestExportAsLocals(t *testing.T) {
 				},
 				{
 					path: "/stacks/stack-1",
-					add: export_as_locals(
+					add: exportAsLocals(
 						expr("str_local", "global.str"),
 						expr("name_local", "terramate.name"),
 					),
 				},
 				{
 					path: "/stacks/stack-2",
-					add: export_as_locals(
+					add: exportAsLocals(
 						expr("num_local", "global.num"),
 						expr("path_local", "terramate.path"),
 					),
@@ -305,13 +303,13 @@ func TestExportAsLocals(t *testing.T) {
 			blocks: []block{
 				{
 					path: "/stack",
-					add: export_as_locals(
+					add: exportAsLocals(
 						expr("some_local", "terramate.name"),
 					),
 				},
 				{
 					path: "/stack",
-					add: export_as_locals(
+					add: exportAsLocals(
 						expr("some_local", "terramate.name"),
 						expr("some_other_local", "terramate.name"),
 					),
@@ -346,7 +344,7 @@ func TestExportAsLocals(t *testing.T) {
 
 				want, ok := wantExportAsLocals[stackMetadata.Path]
 				if !ok {
-					want = export_as_locals()
+					want = exportAsLocals()
 				}
 				delete(wantExportAsLocals, stackMetadata.Path)
 
