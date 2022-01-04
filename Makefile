@@ -68,6 +68,21 @@ install:
 clean:
 	rm -rf bin/*
 
+## Runs pre-commit hook
+.PHONY: pre-commit
+pre-commit:
+	./hack/hooks/pre-commit
+
+## Sets up pre-commit hook on the local repo
+.PHONY: pre-commit/setup
+pre-commit/setup:
+	cp ./hack/hooks/pre-commit .git/hooks
+
+## Cleans up pre-commit hook on the local repo
+.PHONY: pre-commit/cleanup
+pre-commit/cleanup:
+	rm .git/hooks/pre-commit
+
 ## Display help for all targets
 .PHONY: help
 help:

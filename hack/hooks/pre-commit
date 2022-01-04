@@ -1,0 +1,19 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+
+echo
+echo "=== checking license info ==="
+make license/check
+
+echo
+echo "=== linting ==="
+make lint
+
+echo
+echo "=== testing ==="
+make test
+
+echo "=== building ==="
+make build
