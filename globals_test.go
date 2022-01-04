@@ -300,6 +300,46 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "stack with globals referencing globals using try",
+			layout: []string{"s:stack"},
+			globals: []globalsBlock{
+				{
+					path: "/stack",
+					add: globals(
+						str("field", "value"),
+						expr("field_try", `try(global.field, "error")`),
+						expr("undefined_try", `try(global.undefined, "undefined")`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					str("field", "value"),
+					str("field_try", "value"),
+					str("undefined_try", "undefined"),
+				),
+			},
+		},
+		{
+			name:   "stack with globals referencing metadata using try",
+			layout: []string{"s:stack"},
+			globals: []globalsBlock{
+				{
+					path: "/stack",
+					add: globals(
+						expr("path_try", `try(terramate.path, "error")`),
+						expr("undefined_try", `try(terramate.undefined, "undefined")`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					str("path_try", "/stack"),
+					str("undefined_try", "undefined"),
+				),
+			},
+		},
+		{
 			name:   "stack with globals referencing globals hierarchically no overriding",
 			layout: []string{"s:envs/prod/stacks/stack"},
 			globals: []globalsBlock{
@@ -535,7 +575,7 @@ func TestLoadGlobals(t *testing.T) {
 						continue
 					}
 					if !gotVal.RawEquals(wantVal) {
-						t.Errorf("got global.%s=%v; want %v", name, gotVal, wantVal)
+						t.Errorf("got global.%s=%s; want %s", name, gotVal.GoString(), wantVal.GoString())
 					}
 				}
 			}
