@@ -175,9 +175,9 @@ func generateStackBackendConfig(root string, stackpath string, evalctx *eval.Con
 	}
 
 	genfile := filepath.Join(stackpath, BackendCfgFilename)
-	//if err := checkFileCanBeOverwritten(genfile); err != nil {
-	//return err
-	//}
+	if err := checkFileCanBeOverwritten(genfile); err != nil {
+		return err
+	}
 	return os.WriteFile(genfile, tfcode, 0666)
 }
 
