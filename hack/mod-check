@@ -20,11 +20,14 @@ fi
 
 go mod tidy
 changes="$(go_mod_changes)"
-git checkout go.mod
 
 if [[ ! -z "${changes}" ]]
 then
       echo "changes detected after tidying modules:"
       echo "${changes}"
+
+      echo
+      echo "undoing changes"
+      git checkout go.mod
       exit 1
 fi
