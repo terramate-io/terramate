@@ -1199,7 +1199,7 @@ func TestLocalsGeneration(t *testing.T) {
 
 func TestWontOverwriteManuallyDefinedBackendConfig(t *testing.T) {
 	const (
-		manualContents = "some manual stuff"
+		manualContents = "some manual backend configs"
 	)
 
 	terramate := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
@@ -1228,7 +1228,7 @@ func TestWontOverwriteManuallyDefinedBackendConfig(t *testing.T) {
 	stack := s.StackEntry("stack")
 
 	backendConfig := string(stack.ReadGeneratedBackendCfg())
-	assert.EqualStrings(t, manualContents, backendConfig, "backend config was altered by generate")
+	assert.EqualStrings(t, manualContents, backendConfig, "backend config altered by generate")
 }
 
 func TestBackendConfigOverwriting(t *testing.T) {
@@ -1264,6 +1264,70 @@ func TestBackendConfigOverwriting(t *testing.T) {
 	assertRunResult(t, ts.run("generate"), runResult{})
 
 	got = string(stack.ReadGeneratedBackendCfg())
+	assertHCLEquals(t, got, secondWant.String())
+}
+
+func TestWontOverwriteManuallyDefinedLocals(t *testing.T) {
+	const (
+		manualLocals = "some manual stuff"
+	)
+
+	exportAsLocals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("export_as_locals", builders...)
+	}
+	expr := hclwrite.Expression
+
+	exportLocalsCfg := exportAsLocals(expr("a", "terramate.path"))
+
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		fmt.Sprintf("f:%s:%s", config.Filename, exportLocalsCfg.String()),
+		"s:stack",
+		fmt.Sprintf("f:stack/%s:%s", generate.LocalsFilename, manualLocals),
+	})
+
+	ts := newCLI(t, s.RootDir())
+	assertRunResult(t, ts.run("generate"), runResult{
+		IgnoreStderr: true,
+		Error:        generate.ErrManualCodeExists,
+	})
+
+	stack := s.StackEntry("stack")
+	locals := string(stack.ReadGeneratedLocals())
+	assert.EqualStrings(t, manualLocals, locals, "locals altered by generate")
+}
+
+func TestExportedLocalsOverwriting(t *testing.T) {
+	exportAsLocals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("export_as_locals", builders...)
+	}
+	locals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("locals", builders...)
+	}
+	expr := hclwrite.Expression
+	str := hclwrite.String
+
+	firstConfig := exportAsLocals(expr("a", "terramate.path"))
+	firstWant := locals(str("a", "/stack"))
+
+	s := sandbox.New(t)
+	stack := s.CreateStack("stack")
+	rootEntry := s.DirEntry(".")
+	rootConfig := rootEntry.CreateConfig(firstConfig.String())
+
+	ts := newCLI(t, s.RootDir())
+	assertRunResult(t, ts.run("generate"), runResult{})
+
+	got := string(stack.ReadGeneratedLocals())
+	assertHCLEquals(t, got, firstWant.String())
+
+	secondConfig := exportAsLocals(expr("b", "terramate.name"))
+	secondWant := locals(str("b", "stack"))
+	rootConfig.Write(secondConfig.String())
+
+	assertRunResult(t, ts.run("generate"), runResult{})
+
+	got = string(stack.ReadGeneratedLocals())
 	assertHCLEquals(t, got, secondWant.String())
 }
 

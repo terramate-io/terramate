@@ -133,6 +133,11 @@ func generateStackLocals(
 	metadata terramate.StackMetadata,
 	globals *terramate.Globals,
 ) error {
+	genfile := filepath.Join(stackpath, LocalsFilename)
+	if err := checkFileCanBeOverwritten(genfile); err != nil {
+		return err
+	}
+
 	stackLocals, err := terramate.LoadStackExportedLocals(rootdir, metadata, globals)
 	if err != nil {
 		return err
@@ -160,11 +165,15 @@ func generateStackLocals(
 	}
 
 	tfcode := AddHeader(gen.Bytes())
-	genfile := filepath.Join(stackpath, LocalsFilename)
 	return os.WriteFile(genfile, tfcode, 0666)
 }
 
 func generateStackBackendConfig(root string, stackpath string, evalctx *eval.Context) error {
+	genfile := filepath.Join(stackpath, BackendCfgFilename)
+	if err := checkFileCanBeOverwritten(genfile); err != nil {
+		return err
+	}
+
 	tfcode, err := loadStackBackendConfig(root, stackpath, evalctx)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrBackendConfigGen, err)
@@ -174,10 +183,6 @@ func generateStackBackendConfig(root string, stackpath string, evalctx *eval.Con
 		return nil
 	}
 
-	genfile := filepath.Join(stackpath, BackendCfgFilename)
-	if err := checkFileCanBeOverwritten(genfile); err != nil {
-		return err
-	}
 	return os.WriteFile(genfile, tfcode, 0666)
 }
 
