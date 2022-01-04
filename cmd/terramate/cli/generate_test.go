@@ -834,7 +834,7 @@ globals {
 				stack := s.StackEntry(want.relpath)
 				got := string(stack.ReadGeneratedBackendCfg())
 
-				assertGeneratedHCLEquals(t, got, want.code)
+				assertHCLEquals(t, got, want.code)
 			}
 
 			generatedFiles := findFiles(t, s.RootDir(), generate.BackendCfgFilename)
@@ -1178,7 +1178,7 @@ func TestLocalsGeneration(t *testing.T) {
 				stack := s.StackEntry(stackRelPath)
 				got := string(stack.ReadGeneratedLocals())
 
-				assertGeneratedHCLEquals(t, got, want)
+				assertHCLEquals(t, got, want)
 			}
 
 			generatedFiles := findFiles(t, s.RootDir(), generate.LocalsFilename)
@@ -1199,19 +1199,22 @@ func TestLocalsGeneration(t *testing.T) {
 
 func TestWontOverwriteManuallyDefinedBackendConfig(t *testing.T) {
 	const (
-		manualContents      = "some manual stuff"
-		rootTerramateConfig = `
-			terramate {
-				backend "test" {
-					attr = "whatever"
-				}
-			}
-		`
+		manualContents = "some manual stuff"
 	)
+
+	terramate := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("terramate", builders...)
+	}
+	backend := func(label string) *hclwrite.Block {
+		b := hclwrite.BuildBlock("backend")
+		b.AddLabel(label)
+		return b
+	}
+	rootTerramateConfig := terramate(backend("test"))
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		fmt.Sprintf("f:%s:%s", config.Filename, rootTerramateConfig),
+		fmt.Sprintf("f:%s:%s", config.Filename, rootTerramateConfig.String()),
 		"s:stack",
 		fmt.Sprintf("f:stack/%s:%s", generate.BackendCfgFilename, manualContents),
 	})
@@ -1228,7 +1231,43 @@ func TestWontOverwriteManuallyDefinedBackendConfig(t *testing.T) {
 	assert.EqualStrings(t, manualContents, backendConfig, "backend config was altered by generate")
 }
 
-func assertGeneratedHCLEquals(t *testing.T, got string, want string) {
+func TestBackendConfigOverwriting(t *testing.T) {
+	terramate := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("terramate", builders...)
+	}
+	terraform := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("terraform", builders...)
+	}
+	backend := func(label string) *hclwrite.Block {
+		b := hclwrite.BuildBlock("backend")
+		b.AddLabel(label)
+		return b
+	}
+	firstConfig := terramate(backend("first"))
+	firstWant := terraform(backend("first"))
+
+	s := sandbox.New(t)
+	stack := s.CreateStack("stack")
+	rootEntry := s.DirEntry(".")
+	rootConfig := rootEntry.CreateConfig(firstConfig.String())
+
+	ts := newCLI(t, s.RootDir())
+	assertRunResult(t, ts.run("generate"), runResult{})
+
+	got := string(stack.ReadGeneratedBackendCfg())
+	assertHCLEquals(t, got, firstWant.String())
+
+	secondConfig := terramate(backend("second"))
+	secondWant := terraform(backend("second"))
+	rootConfig.Write(secondConfig.String())
+
+	assertRunResult(t, ts.run("generate"), runResult{})
+
+	got = string(stack.ReadGeneratedBackendCfg())
+	assertHCLEquals(t, got, secondWant.String())
+}
+
+func assertHCLEquals(t *testing.T, got string, want string) {
 	t.Helper()
 
 	// Not 100% sure it is a good idea to compare HCL as strings, formatting

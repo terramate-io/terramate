@@ -253,29 +253,33 @@ func (s S) CreateStack(relpath string) *StackEntry {
 // StackEntry gets the stack entry of the stack identified by relpath.
 // The stack must exist (previously created).
 func (s S) StackEntry(relpath string) *StackEntry {
+	return &StackEntry{DirEntry: s.DirEntry(relpath)}
+}
+
+// DirEntry gets the dir entry for relpath.
+// The dir must exist and must be a relative path to the sandbox root dir.
+func (s S) DirEntry(relpath string) DirEntry {
 	t := s.t
 	t.Helper()
 
 	if filepath.IsAbs(relpath) {
-		t.Fatalf("StackEntry() needs a relative path but given %q", relpath)
+		t.Fatalf("DirEntry() needs a relative path but given %q", relpath)
 	}
 
 	abspath := filepath.Join(s.rootdir, relpath)
 	stat, err := os.Stat(abspath)
 	if err != nil {
-		t.Fatalf("StackEntry(): stack must exist: %v", err)
+		t.Fatalf("DirEntry(): dir must exist: %v", err)
 	}
 
 	if !stat.IsDir() {
-		t.Fatalf("StackEntry(): stack %q is not directory", abspath)
+		t.Fatalf("DirEntry(): %q is not directory", abspath)
 	}
 
-	return &StackEntry{
-		DirEntry: DirEntry{
-			t:       t,
-			abspath: abspath,
-			relpath: relpath,
-		},
+	return DirEntry{
+		t:       t,
+		abspath: abspath,
+		relpath: relpath,
 	}
 }
 
@@ -298,6 +302,26 @@ func (de DirEntry) CreateFile(name, body string, args ...interface{}) *FileEntry
 	}
 	fe.Write(body, args...)
 
+	return fe
+}
+
+// CreateConfig will create a terramate config file inside this dir entry with
+// the given body.
+//
+// It returns a file entry that can be used to further manipulate the created
+// file, like replacing its contents. The file entry is optimized for always
+// replacing the file contents, not streaming (using file as io.Writer).
+//
+// If the file already exists its contents will be truncated, like os.Create
+// behavior: https://pkg.go.dev/os#Create
+func (de DirEntry) CreateConfig(body string) *FileEntry {
+	de.t.Helper()
+
+	fe := &FileEntry{
+		t:    de.t,
+		path: filepath.Join(de.abspath, config.Filename),
+	}
+	fe.Write(body)
 	return fe
 }
 
