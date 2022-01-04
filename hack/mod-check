@@ -6,17 +6,21 @@ set -o nounset
 # We need this script because Go doesn't support a nice/non-destructive way
 # to check for modules tidyness: https://github.com/golang/go/issues/27005
 
-changes="$(git status --porcelain)"
+function go_mod_changes() {
+    git status go.mod --porcelain
+}
+
+changes="$(go_mod_changes)"
 
 if [[ ! -z "${changes}" ]]
 then
-      echo "project already has changes, this should be run on a clean repo"
+      echo "go.mod already has changes, this should be run with all go.mod changes commited"
       exit 1
 fi
 
 go mod tidy
-changes="$(git status --porcelain)"
-git checkout .
+changes="$(go_mod_changes)"
+git checkout go.mod
 
 if [[ ! -z "${changes}" ]]
 then
