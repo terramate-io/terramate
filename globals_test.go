@@ -482,6 +482,40 @@ func TestLoadGlobals(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name:   "global cyclic reference on stack",
+			layout: []string{"s:stack"},
+			globals: []globalsBlock{
+				{
+					path: "/stack",
+					add: globals(
+						expr("a", "global.b"),
+						expr("b", "global.c"),
+						expr("c", "global.a"),
+					),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name:   "global cyclic references across hierarchy",
+			layout: []string{"s:stacks/stack"},
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add:  globals(expr("a", "global.b")),
+				},
+				{
+					path: "/stacks",
+					add:  globals(expr("b", "global.c")),
+				},
+				{
+					path: "/stacks/stack",
+					add:  globals(expr("c", "global.a")),
+				},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tcase := range tcases {
