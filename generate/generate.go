@@ -215,7 +215,7 @@ func loadStackBackendConfig(root string, configdir string, evalctx *eval.Context
 		return nil, err
 	}
 
-	return append([]byte(CodeHeader), gen.Bytes()...), nil
+	return addHeader(gen.Bytes()), nil
 }
 
 func addHeader(code []byte) []byte {
