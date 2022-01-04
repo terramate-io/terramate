@@ -24,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
+	"github.com/rs/zerolog/log"
 )
 
 // Loader is a stack loader.
@@ -43,12 +44,23 @@ func NewLoader(root string) Loader {
 // Load loads a stack from dir directory. If the stack was previously loaded, it
 // returns the cached one.
 func (l Loader) Load(dir string) (S, error) {
+	logger := log.With().
+		Str("action", "Load()").
+		Str("stack", dir).
+		Logger()
+
+	logger.Trace().
+		Msg("Get relative path to root directory.")
 	stackpath := project.RelPath(l.root, dir)
 	if s, ok := l.stacks[stackpath]; ok {
 		return s, nil
 	}
 
 	fname := filepath.Join(dir, config.Filename)
+
+	logger.Trace().
+		Str("configFile", fname).
+		Msg("Parse config file.")
 	cfg, err := hcl.ParseFile(fname)
 	if err != nil {
 		return S{}, err
@@ -67,6 +79,8 @@ func (l Loader) Load(dir string) (S, error) {
 		return S{}, fmt.Errorf("stack %q is not a leaf directory", dir)
 	}
 
+	logger.Trace().
+		Msg("Set stack path and stack config.")
 	l.set(stackpath, cfg.Stack)
 	return l.stacks[stackpath], nil
 }
@@ -75,10 +89,18 @@ func (l Loader) Load(dir string) (S, error) {
 // only in the case that path contains a stack and it was correctly parsed.
 // It caches the stack for later use.
 func (l Loader) TryLoad(dir string) (stack S, found bool, err error) {
+	logger := log.With().
+		Str("action", "TryLoad()").
+		Str("stack", dir).
+		Logger()
+
 	if !strings.HasPrefix(dir, l.root) {
 		return S{}, false, fmt.Errorf("directory %q is not inside project root %q",
 			dir, l.root)
 	}
+
+	logger.Trace().
+		Msg("Get relative stack path to root directory.")
 	stackpath := project.RelPath(l.root, dir)
 	if s, ok := l.stacks[stackpath]; ok {
 		return s, true, nil
@@ -88,6 +110,10 @@ func (l Loader) TryLoad(dir string) (stack S, found bool, err error) {
 		return S{}, false, err
 	}
 	fname := filepath.Join(dir, config.Filename)
+
+	logger.Trace().
+		Str("configFile", fname).
+		Msg("Parse config file.")
 	cfg, err := hcl.ParseFile(fname)
 
 	if err != nil {
@@ -107,6 +133,8 @@ func (l Loader) TryLoad(dir string) (stack S, found bool, err error) {
 		return S{}, false, fmt.Errorf("stack %q is not a leaf stack", dir)
 	}
 
+	logger.Trace().
+		Msg("Set stack path and stack config.")
 	l.set(stackpath, cfg.Stack)
 	return l.stacks[stackpath], true, nil
 }
@@ -114,6 +142,13 @@ func (l Loader) TryLoad(dir string) (stack S, found bool, err error) {
 // TryLoadChanged is like TryLoad but sets the stack as changed if loaded
 // successfully.
 func (l Loader) TryLoadChanged(root, dir string) (stack S, found bool, err error) {
+	logger := log.With().
+		Str("action", "TryLoadChanged()").
+		Str("stack", dir).
+		Logger()
+
+	logger.Trace().
+		Msgf("Try load: %s", dir)
 	s, ok, err := l.TryLoad(dir)
 	if ok {
 		s.changed = true
@@ -123,12 +158,20 @@ func (l Loader) TryLoadChanged(root, dir string) (stack S, found bool, err error
 
 func (l Loader) set(path string, block *hcl.Stack) {
 	var name string
+	log.Trace().
+		Str("action", "set()").
+		Str("stack", path).
+		Msg("Set stack name.")
 	if block.Name != "" {
 		name = block.Name
 	} else {
 		name = filepath.Base(path)
 	}
 
+	log.Trace().
+		Str("action", "set()").
+		Str("stack", path).
+		Msg("Set stack information.")
 	l.stacks[path] = S{
 		name:  name,
 		Dir:   path,
@@ -145,14 +188,24 @@ func (l Loader) Set(dir string, s S) {
 // LoadAll loads all the stacks in the dirs directories. If dirs are relative
 // paths, then basedir is used as base.
 func (l Loader) LoadAll(root string, basedir string, dirs ...string) ([]S, error) {
+	logger := log.With().
+		Str("action", "LoadAll()").
+		Str("stack", root).
+		Logger()
+
 	stacks := []S{}
 
 	absbase := filepath.Join(root, basedir)
 
+	logger.Trace().
+		Msg("Range over directories.")
 	for _, d := range dirs {
 		if !filepath.IsAbs(d) {
 			d = filepath.Join(absbase, d)
 		}
+
+		logger.Trace().
+			Msgf("Load stack: %s.", d)
 		stack, err := l.Load(d)
 		if err != nil {
 			return nil, err
@@ -165,6 +218,10 @@ func (l Loader) LoadAll(root string, basedir string, dirs ...string) ([]S, error
 
 func (l Loader) IsLeafStack(dir string) (bool, error) {
 	isValid := true
+	log.Trace().
+		Str("action", "IsLeafStack()").
+		Str("stack", dir).
+		Msg("Walk directory.")
 	err := filepath.Walk(
 		dir,
 		func(path string, info fs.FileInfo, err error) error {
@@ -182,6 +239,10 @@ func (l Loader) IsLeafStack(dir string) (bool, error) {
 					return filepath.SkipDir
 				}
 
+				log.Trace().
+					Str("action", "IsLeafStack()").
+					Str("stack", dir).
+					Msgf("Try load: %s", path)
 				_, found, err := l.TryLoad(path)
 				if err != nil {
 					return err
@@ -206,6 +267,10 @@ func (l Loader) lookupParentStack(dir string) (stack S, found bool, err error) {
 	}
 	d := filepath.Dir(dir)
 	for {
+		log.Trace().
+			Str("action", "lookupParentStack()").
+			Str("stack", dir).
+			Msgf("Try load directory: %s.", d)
 		stack, ok, err := l.TryLoad(d)
 		if err != nil {
 			return S{}, false, fmt.Errorf("looking for parent stacks: %w", err)
@@ -219,6 +284,10 @@ func (l Loader) lookupParentStack(dir string) (stack S, found bool, err error) {
 			break
 		}
 
+		log.Trace().
+			Str("action", "lookupParentStack()").
+			Str("stack", dir).
+			Msg("Get git path.")
 		gitpath := filepath.Join(d, ".git")
 		if _, err := os.Stat(gitpath); err == nil {
 			// if reached root of git project, abort scanning
