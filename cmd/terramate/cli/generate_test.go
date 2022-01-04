@@ -15,6 +15,7 @@
 package cli_test
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -784,7 +785,7 @@ globals {
 			},
 			want: want{
 				res: runResult{
-					Error:        generate.ErrBackendConfig,
+					Error:        generate.ErrBackendConfigGen,
 					IgnoreStdout: true,
 				},
 			},
@@ -967,7 +968,7 @@ func TestLocalsGeneration(t *testing.T) {
 			want: want{
 				res: runResult{
 					IgnoreStderr: true,
-					Error:        generate.ErrExportingLocals,
+					Error:        generate.ErrExportingLocalsGen,
 				},
 			},
 		},
@@ -1194,6 +1195,37 @@ func TestLocalsGeneration(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestWontOverwriteManuallyDefinedBackendConfig(t *testing.T) {
+	const (
+		manualContents      = "some manual stuff"
+		rootTerramateConfig = `
+			terramate {
+				backend "test" {
+					attr = "whatever"
+				}
+			}
+		`
+	)
+
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		fmt.Sprintf("f:%s:%s", config.Filename, rootTerramateConfig),
+		"s:stack",
+		fmt.Sprintf("f:stack/%s:%s", generate.BackendCfgFilename, manualContents),
+	})
+
+	ts := newCLI(t, s.RootDir())
+	assertRunResult(t, ts.run("generate"), runResult{
+		IgnoreStderr: true,
+		Error:        generate.ErrManualCodeExists,
+	})
+
+	stack := s.StackEntry("stack")
+
+	backendConfig := string(stack.ReadGeneratedBackendCfg())
+	assert.EqualStrings(t, manualContents, backendConfig, "backend config was altered by generate")
 }
 
 func assertGeneratedHCLEquals(t *testing.T, got string, want string) {
