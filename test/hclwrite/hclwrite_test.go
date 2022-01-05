@@ -76,7 +76,7 @@ func TestHCLWrite(t *testing.T) {
 			`,
 		},
 		{
-			name: "block with evaluated complex data structures",
+			name: "block with complex attributes",
 			hcl: block("test",
 				attr("team", `{ members = ["aaa"] }`),
 				attr("nesting", `{ first = { second = { "hi": 666 } } }`),
