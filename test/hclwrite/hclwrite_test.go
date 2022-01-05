@@ -78,12 +78,14 @@ func TestHCLWrite(t *testing.T) {
 			name: "block with evaluated complex data structures",
 			hcl: block("test",
 				eval("team", `{ members = ["aaa"] }`),
+				eval("nesting", `{ first = { second = { "hi": 666 } } }`),
 				eval("list", `[1, 2, 3]`),
 			),
 			want: `
 			  test {
-			    list = [1, 2, 3]
-			    team = { members = ["aaa"] }
+			    list    = [1, 2, 3]
+			    nesting = { first = { second = { "hi": 666 } } }
+			    team    = { members = ["aaa"] }
 			  }
 			`,
 		},
