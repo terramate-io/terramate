@@ -15,32 +15,30 @@
 package terramate
 
 import (
-	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 
-	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
+
+	"github.com/rs/zerolog/log"
 )
 
 func Run(root string, stacks []stack.S, cmdSpec *exec.Cmd) error {
-	wd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("error getting current directory: %w", err)
-	}
-
 	for _, stack := range stacks {
 		cmd := *cmdSpec
 
-		stackdir, _ := project.FriendlyFmtDir(root, wd, stack.Dir)
-		fmt.Fprintf(cmd.Stdout, "[%s] running %s\n", stackdir, &cmd)
+		log.Info().
+			Str("stack", stack.Dir).
+			Str("cmd", cmd.String()).
+			Msg("Running command in stack")
+
 		cmd.Dir = filepath.Join(root, stack.Dir)
+
 		err := cmd.Run()
+
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(cmd.Stdout, "\n")
 	}
 
 	return nil
