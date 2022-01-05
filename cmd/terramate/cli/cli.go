@@ -55,6 +55,14 @@ const (
 	defaultBranchBaseRef = "HEAD^"
 )
 
+<<<<<<< HEAD
+=======
+const (
+	defaultLogLevel = "none"
+	defaultLogFmt   = "text"
+)
+
+>>>>>>> fix: change default logging fmt to text
 type cliSpec struct {
 	Version       struct{} `cmd:"" help:"Terramate version."`
 	Chdir         string   `short:"C" optional:"true" help:"sets working directory."`
