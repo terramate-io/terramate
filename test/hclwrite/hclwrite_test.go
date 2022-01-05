@@ -19,7 +19,11 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/hcl/v2/hclparse"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/test/hclwrite"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func TestHCLWrite(t *testing.T) {
@@ -35,6 +39,9 @@ func TestHCLWrite(t *testing.T) {
 	hcl := hclwrite.NewHCL
 	labels := hclwrite.Labels
 	expr := hclwrite.Expression
+	eval := func(name, expr string) hclwrite.BlockBuilder {
+		return hclwrite.Eval(t, name, expr)
+	}
 	str := hclwrite.String
 	number := hclwrite.NumberInt
 	boolean := hclwrite.Boolean
@@ -64,6 +71,19 @@ func TestHCLWrite(t *testing.T) {
 			    bool   = true
 			    num    = 666
 			    str    = "test"
+			  }
+			`,
+		},
+		{
+			name: "block with evaluated complex data structures",
+			hcl: block("test",
+				eval("team", `{ members = ["aaa"] }`),
+				eval("list", `[1, 2, 3]`),
+			),
+			want: `
+			  test {
+			    list = [1, 2, 3]
+			    team = { members = ["aaa"] }
 			  }
 			`,
 		},
@@ -186,4 +206,47 @@ func TestHCLWrite(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHCLWriteEvalReturnAttributeValue(t *testing.T) {
+	block := func(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock(name, builders...)
+	}
+	eval := func(name, expr string) hclwrite.BlockBuilder {
+		return hclwrite.Eval(t, name, expr)
+	}
+	const objectExpression = `{ members = ["aaa"] }`
+
+	testblock := block("test",
+		eval("team", objectExpression),
+	)
+
+	want := evaluateValExpr(t, objectExpression)
+	gotAttrsValues := testblock.AttributesValues()
+
+	assert.EqualInts(t, 1, len(gotAttrsValues))
+
+	got := gotAttrsValues["team"]
+
+	if !got.RawEquals(want) {
+		t.Errorf("got %v != %v", got, want)
+	}
+}
+
+func evaluateValExpr(t *testing.T, valueExpr string) cty.Value {
+	t.Helper()
+
+	parser := hclparse.NewParser()
+	res, diags := parser.ParseHCL([]byte("t = "+valueExpr), "")
+	if diags.HasErrors() {
+		t.Fatal(diags)
+	}
+	body := res.Body.(*hclsyntax.Body)
+
+	val, diags := body.Attributes["t"].Expr.Value(nil)
+	if diags.HasErrors() {
+		t.Fatal(diags)
+	}
+
+	return val
 }
