@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/test/hclwrite"
+	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -230,8 +231,8 @@ func TestHCLWriteEvalReturnAttributeValue(t *testing.T) {
 
 	got := gotAttrsValues["team"]
 
-	if !got.RawEquals(want) {
-		t.Errorf("got %v != %v", got, want)
+	if diff := ctydebug.DiffValues(want, got); diff != "" {
+		t.Fatal(diff)
 	}
 }
 

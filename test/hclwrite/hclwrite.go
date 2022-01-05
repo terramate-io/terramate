@@ -151,13 +151,14 @@ func Labels(labels ...string) BlockBuilder {
 	})
 }
 
-// Eval accepts an expr as parameter, similar to Expression
+// Eval accepts an expr as parameter, similar to Expression,
 // but will evaluate the expr and store the resulting value so
 // it will be available as an attribute value instead of as an
 // expression. If evaluation fails the test caller will fail.
+//
 // The evaluation is quite limited, only suitable for evaluating
-// objects/lists/etc, but won't work with any references (context
-// for evaluation is assumed as always empty).
+// objects/lists/etc, but won't work with any references to
+// namespaces of function calls (context for evaluation is always empty).
 func Eval(t *testing.T, key string, expr string) BlockBuilder {
 	t.Helper()
 
@@ -182,6 +183,11 @@ func Eval(t *testing.T, key string, expr string) BlockBuilder {
 	})
 }
 
+// Expression adds the attribute with the given name with the
+// given expression, the expression won't be evaluated and this won't
+// affect the attribute values of the block.
+//
+// The given expression will be added on the generated output verbatim.
 func Expression(key string, expr string) BlockBuilder {
 	return BlockBuilderFunc(func(g *Block) {
 		g.AddExpr(key, expr)
