@@ -13,6 +13,7 @@ require (
 	github.com/posener/complete v1.2.3
 	github.com/willabides/kongplete v0.2.0
 	github.com/zclconf/go-cty v1.8.3
+	github.com/zclconf/go-cty-debug v0.0.0-20191215020915-b22d67c1ba0b
 )
 
 require (

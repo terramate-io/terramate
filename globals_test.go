@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/zclconf/go-cty-debug/ctydebug"
 )
 
 // TODO(katcipis): add tests related to tf functions that depend on filesystem
@@ -592,8 +593,11 @@ func TestLoadGlobals(t *testing.T) {
 						t.Errorf("wanted global.%s is missing", name)
 						continue
 					}
-					if !gotVal.RawEquals(wantVal) {
-						t.Errorf("got global.%s=%v; want %v", name, gotVal.GoString(), wantVal.GoString())
+					if diff := ctydebug.DiffValues(wantVal, gotVal); diff != "" {
+						t.Errorf("global.%s doesn't match expectation", name)
+						t.Errorf("want: %s", ctydebug.ValueString(wantVal))
+						t.Errorf("got: %s", ctydebug.ValueString(gotVal))
+						t.Errorf("diff:\n%s", diff)
 					}
 				}
 			}
