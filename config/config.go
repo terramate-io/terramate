@@ -34,7 +34,7 @@ const (
 func Exists(path string) bool {
 	logger := log.With().
 		Str("action", "Exists()").
-		Str("stack", path).
+		Str("path", path).
 		Logger()
 
 	logger.Trace().
@@ -64,7 +64,7 @@ func Exists(path string) bool {
 func TryLoadRootConfig(dir string) (cfg hcl.Config, found bool, err error) {
 	logger := log.With().
 		Str("action", "TryLoadRootConfig()").
-		Str("stack", dir).
+		Str("path", dir).
 		Str("configFile", dir+Filename).
 		Logger()
 

@@ -24,6 +24,7 @@ import (
 // RelPath returns the dir relative to project's root.
 func RelPath(root, dir string) string {
 	log.Trace().
+		Str("action", "RelPath()").
 		Str("dir", dir).
 		Str("root", root).
 		Msg("Trim path to get relative dir.")
@@ -45,7 +46,11 @@ func AbsPath(root, dir string) string {
 
 // FriendlyFmtDir formats the directory in a friendly way for tooling output.
 func FriendlyFmtDir(root, wd, dir string) (string, bool) {
-	log.Trace().
+	logger := log.With().
+		Str("action", "FriendlyFmtDir()").
+		Logger()
+
+	logger.Trace().
 		Str("prefix", wd).
 		Str("root", root).
 		Str("dir", dir).
@@ -56,10 +61,10 @@ func FriendlyFmtDir(root, wd, dir string) (string, bool) {
 		return "", false
 	}
 
-	log.Trace().
+	logger.Trace().
 		Str("dir", dir).
 		Str("prefix", trimPart).
-		Msg("trimming prefix")
+		Msg("Trim prefix.")
 	dir = strings.TrimPrefix(dir, trimPart)
 
 	if dir == "" {
@@ -68,9 +73,9 @@ func FriendlyFmtDir(root, wd, dir string) (string, bool) {
 		dir = dir[1:]
 	}
 
-	log.Trace().
+	logger.Trace().
 		Str("newdir", dir).
-		Msg("friendly dir")
+		Msg("Get friendly dir.")
 
 	return dir, true
 }
