@@ -211,7 +211,7 @@ func TestHCLWrite(t *testing.T) {
 	}
 }
 
-func TestHCLWriteEvalReturnAttributeValue(t *testing.T) {
+func TestHCLWriteAddingAttributeValue(t *testing.T) {
 	block := func(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock(name, builders...)
 	}
@@ -223,7 +223,6 @@ func TestHCLWriteEvalReturnAttributeValue(t *testing.T) {
 	testblock := block("test",
 		attr("team", objectExpression),
 	)
-
 	want := evaluateValExpr(t, objectExpression)
 	gotAttrsValues := testblock.AttributesValues()
 
