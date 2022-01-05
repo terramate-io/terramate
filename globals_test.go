@@ -49,6 +49,9 @@ func TestLoadGlobals(t *testing.T) {
 		return hclwrite.BuildBlock("globals", builders...)
 	}
 	expr := hclwrite.Expression
+	eval := func(name, expr string) hclwrite.BlockBuilder {
+		return hclwrite.Eval(t, name, expr)
+	}
 	str := hclwrite.String
 	number := hclwrite.NumberInt
 	boolean := hclwrite.Boolean
@@ -441,6 +444,27 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "global reference with successful try on stack",
+			layout: []string{"s:stack"},
+			globals: []globalsBlock{
+				{
+					path: "/stack",
+					add: globals(
+						eval("team", `{ members = ["aaa"] }`),
+						expr("members", "global.team.members"),
+						expr("members_try", `try(global.team.members, [])`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					eval("team", `{ members = ["aaa"] }`),
+					eval("members", `["aaa"]`),
+					eval("members_try", `["aaa"]`),
+				),
+			},
+		},
+		{
 			name:   "global undefined reference on root",
 			layout: []string{"s:stack"},
 			globals: []globalsBlock{
@@ -551,8 +575,8 @@ func TestLoadGlobals(t *testing.T) {
 				// for wanted evaluated globals, but that would make
 				// globals building more annoying (two sets of functions).
 				if want.HasExpressions() {
+					t.Fatal("wanted globals definition contains expressions, they should be defined only by evaluated values")
 					t.Errorf("wanted globals definition:\n%s\n", want)
-					t.Fatal("can't contain expressions, loaded globals are evaluated (values only)")
 				}
 
 				gotAttrs := got.Attributes()
@@ -569,7 +593,7 @@ func TestLoadGlobals(t *testing.T) {
 						continue
 					}
 					if !gotVal.RawEquals(wantVal) {
-						t.Errorf("got global.%s=%v; want %v", name, gotVal, wantVal)
+						t.Errorf("got global.%s=%v; want %v", name, gotVal.GoString(), wantVal.GoString())
 					}
 				}
 			}
