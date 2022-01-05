@@ -201,6 +201,8 @@ func TestHCLWrite(t *testing.T) {
 			want := hclwrite.Format(tcase.want)
 			got := tcase.hcl.String()
 
+			assertIsValidHCL(t, got)
+
 			if diff := cmp.Diff(got, want); diff != "" {
 				t.Errorf("got:\n%s", got)
 				t.Errorf("want:\n%s", want)
@@ -232,6 +234,17 @@ func TestHCLWriteAddingAttributeValue(t *testing.T) {
 
 	if diff := ctydebug.DiffValues(want, got); diff != "" {
 		t.Fatal(diff)
+	}
+}
+
+func assertIsValidHCL(t *testing.T, code string) {
+	t.Helper()
+
+	parser := hclparse.NewParser()
+	_, diags := parser.ParseHCL([]byte(code), "")
+	if diags.HasErrors() {
+		t.Errorf("invalid HCL: %v", diags)
+		t.Fatalf("code:\n%s", code)
 	}
 }
 
