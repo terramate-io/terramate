@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 
+	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate/config"
@@ -116,10 +117,38 @@ func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 	var errs []error
 	pendingExprs := r.expressions
 
+	hclctx := evalctx.GetHCLContext()
+
 	for len(pendingExprs) > 0 {
 		amountEvaluated := 0
 
+	pendingExpression:
 		for name, expr := range pendingExprs {
+			vars := hclsyntax.Variables(expr)
+
+			for _, namespace := range vars {
+				if _, ok := hclctx.Variables[namespace.RootName()]; !ok {
+					return nil, fmt.Errorf("unknown variable namespace: %s - %s", namespace.RootName(), namespace.SourceRange())
+				}
+
+				if namespace.RootName() != "global" {
+					continue
+				}
+
+				switch attr := namespace[1].(type) {
+				case hhcl.TraverseAttr:
+					if _, isPending := pendingExprs[attr.Name]; isPending {
+						continue pendingExpression
+					}
+
+					if _, isEvaluated := globals.attributes[attr.Name]; !isEvaluated {
+						return nil, fmt.Errorf("unknown variable %s.%s - %s", namespace.RootName(), attr.Name, attr.SourceRange())
+					}
+				default:
+					return nil, fmt.Errorf("unexpected type of traversal in %s - this is a BUG", attr.SourceRange())
+				}
+			}
+
 			val, err := evalctx.Eval(expr)
 			if err != nil {
 				errs = append(errs, err)
@@ -129,17 +158,22 @@ func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 			globals.attributes[name] = val
 			amountEvaluated += 1
 			delete(pendingExprs, name)
+
+			if err := globals.SetOnEvalCtx(evalctx); err != nil {
+				return nil, fmt.Errorf("evaluating globals: %v", err)
+			}
 		}
 
 		if amountEvaluated == 0 {
 			break
 		}
 
-		if err := globals.SetOnEvalCtx(evalctx); err != nil {
-			return nil, fmt.Errorf("evaluating globals: %v", err)
-		}
-
 		errs = nil
+	}
+
+	if len(pendingExprs) > 0 {
+		// TODO/FIX: print list of unresolved variables
+		return nil, fmt.Errorf("could not resolve all globals")
 	}
 
 	err := errutil.Reduce(func(err1 error, err2 error) error {
