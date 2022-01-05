@@ -466,6 +466,32 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "global reference with try on root config and value defined on stack",
+			layout: []string{"s:stack"},
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add: globals(
+						expr("team_def", "global.team.def"),
+						expr("team_def_try", `try(global.team.def, {})`),
+					),
+				},
+				{
+					path: "/stack",
+					add: globals(
+						eval("team", `{ def = { name = "awesome" } }`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					eval("team", `{ def = { name = "awesome" } }`),
+					eval("team_def", `{ name = "awesome" }`),
+					eval("team_def_try", `{ name = "awesome" }`),
+				),
+			},
+		},
+		{
 			name:   "global undefined reference on root",
 			layout: []string{"s:stack"},
 			globals: []globalsBlock{
