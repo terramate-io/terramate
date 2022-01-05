@@ -55,14 +55,11 @@ const (
 	defaultBranchBaseRef = "HEAD^"
 )
 
-<<<<<<< HEAD
-=======
 const (
 	defaultLogLevel = "none"
 	defaultLogFmt   = "text"
 )
 
->>>>>>> fix: change default logging fmt to text
 type cliSpec struct {
 	Version       struct{} `cmd:"" help:"Terramate version."`
 	Chdir         string   `short:"C" optional:"true" help:"sets working directory."`
@@ -216,15 +213,17 @@ func newCLI(
 			Msg("Getwd() failed")
 	}
 
+	logger = logger.With().
+		Str("workingDir", wd).
+		Logger()
+
 	if parsedArgs.Chdir != "" {
 		logger.Debug().
-			Str("wd", wd).
 			Str("dir", parsedArgs.Chdir).
 			Msg("Changing working directory")
 		err = os.Chdir(parsedArgs.Chdir)
 		if err != nil {
 			logger.Fatal().
-				Str("wd", wd).
 				Str("dir", parsedArgs.Chdir).
 				Err(err).
 				Msg("Changing working directory failed")
@@ -246,13 +245,11 @@ func newCLI(
 	}
 
 	logger.Trace().
-		Str("wd", wd).
 		Msg("Running in directory")
 
 	prj, foundRoot, err := lookupProject(wd)
 	if err != nil {
 		logger.Fatal().
-			Str("wd", wd).
 			Err(err).
 			Msg("failed to lookup project root")
 	}
@@ -295,7 +292,7 @@ func (c *cli) run() {
 
 	logger := log.With().
 		Str("action", "run()").
-		Str("stack", c.wd()).
+		Str("workingDir", c.wd()).
 		Logger()
 
 	if c.parsedArgs.Changed {
@@ -338,37 +335,31 @@ func (c *cli) run() {
 	case "plan graph":
 		log.Trace().
 			Str("actionContext", "cli()").
-			Str("stack", c.wd()).
 			Msg("Handle `plan graph`.")
 		c.generateGraph()
 	case "plan run-order":
 		log.Trace().
 			Str("actionContext", "cli()").
-			Str("stack", c.wd()).
 			Msg("Print run-order.")
 		c.printRunOrder()
 	case "stacks init":
 		log.Trace().
 			Str("actionContext", "cli()").
-			Str("stack", c.wd()).
 			Msg("Handle stacks init command.")
 		c.initStack([]string{c.wd()})
 	case "stacks list":
 		log.Trace().
 			Str("actionContext", "cli()").
-			Str("stack", c.wd()).
 			Msg("Print list of stacks.")
 		c.printStacks()
 	case "stacks init <paths>":
 		log.Trace().
 			Str("actionContext", "cli()").
-			Str("stack", c.wd()).
 			Msg("Handle stacks init <paths> command.")
 		c.initStack(c.parsedArgs.Stacks.Init.StackDirs)
 	case "stacks globals":
 		log.Trace().
 			Str("actionContext", "cli()").
-			Str("stack", c.wd()).
 			Msg("Handle stacks global command.")
 		c.printStacksGlobals()
 	case "run":
