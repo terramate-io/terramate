@@ -1,4 +1,3 @@
-// Copyright 2021 Mineiros GmbH
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -50,8 +49,8 @@ func TestLoadGlobals(t *testing.T) {
 		return hclwrite.BuildBlock("globals", builders...)
 	}
 	expr := hclwrite.Expression
-	eval := func(name, expr string) hclwrite.BlockBuilder {
-		return hclwrite.Eval(t, name, expr)
+	attr := func(name, expr string) hclwrite.BlockBuilder {
+		return hclwrite.AttributeValue(t, name, expr)
 	}
 	str := hclwrite.String
 	number := hclwrite.NumberInt
@@ -451,7 +450,7 @@ func TestLoadGlobals(t *testing.T) {
 				{
 					path: "/stack",
 					add: globals(
-						eval("team", `{ members = ["aaa"] }`),
+						attr("team", `{ members = ["aaa"] }`),
 						expr("members", "global.team.members"),
 						expr("members_try", `try(global.team.members, [])`),
 					),
@@ -459,9 +458,9 @@ func TestLoadGlobals(t *testing.T) {
 			},
 			want: map[string]*hclwrite.Block{
 				"/stack": globals(
-					eval("team", `{ members = ["aaa"] }`),
-					eval("members", `["aaa"]`),
-					eval("members_try", `["aaa"]`),
+					attr("team", `{ members = ["aaa"] }`),
+					attr("members", `["aaa"]`),
+					attr("members_try", `["aaa"]`),
 				),
 			},
 		},
@@ -472,15 +471,15 @@ func TestLoadGlobals(t *testing.T) {
 				{
 					path: "/stack",
 					add: globals(
-						eval("team", `{ members = ["aaa"] }`),
+						attr("team", `{ members = ["aaa"] }`),
 						expr("members_try", `try(global.team.mistake, [])`),
 					),
 				},
 			},
 			want: map[string]*hclwrite.Block{
 				"/stack": globals(
-					eval("team", `{ members = ["aaa"] }`),
-					eval("members_try", "[]"),
+					attr("team", `{ members = ["aaa"] }`),
+					attr("members_try", "[]"),
 				),
 			},
 		},
@@ -498,15 +497,15 @@ func TestLoadGlobals(t *testing.T) {
 				{
 					path: "/stack",
 					add: globals(
-						eval("team", `{ def = { name = "awesome" } }`),
+						attr("team", `{ def = { name = "awesome" } }`),
 					),
 				},
 			},
 			want: map[string]*hclwrite.Block{
 				"/stack": globals(
-					eval("team", `{ def = { name = "awesome" } }`),
-					eval("team_def", `{ name = "awesome" }`),
-					eval("team_def_try", `{ name = "awesome" }`),
+					attr("team", `{ def = { name = "awesome" } }`),
+					attr("team_def", `{ name = "awesome" }`),
+					attr("team_def_try", `{ name = "awesome" }`),
 				),
 			},
 		},

@@ -40,8 +40,8 @@ func TestHCLWrite(t *testing.T) {
 	hcl := hclwrite.NewHCL
 	labels := hclwrite.Labels
 	expr := hclwrite.Expression
-	eval := func(name, expr string) hclwrite.BlockBuilder {
-		return hclwrite.Eval(t, name, expr)
+	attr := func(name, expr string) hclwrite.BlockBuilder {
+		return hclwrite.AttributeValue(t, name, expr)
 	}
 	str := hclwrite.String
 	number := hclwrite.NumberInt
@@ -78,9 +78,9 @@ func TestHCLWrite(t *testing.T) {
 		{
 			name: "block with evaluated complex data structures",
 			hcl: block("test",
-				eval("team", `{ members = ["aaa"] }`),
-				eval("nesting", `{ first = { second = { "hi": 666 } } }`),
-				eval("list", `[1, 2, 3]`),
+				attr("team", `{ members = ["aaa"] }`),
+				attr("nesting", `{ first = { second = { "hi": 666 } } }`),
+				attr("list", `[1, 2, 3]`),
 			),
 			want: `
 			  test {
@@ -215,13 +215,13 @@ func TestHCLWriteEvalReturnAttributeValue(t *testing.T) {
 	block := func(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock(name, builders...)
 	}
-	eval := func(name, expr string) hclwrite.BlockBuilder {
-		return hclwrite.Eval(t, name, expr)
+	attr := func(name, expr string) hclwrite.BlockBuilder {
+		return hclwrite.AttributeValue(t, name, expr)
 	}
 	const objectExpression = `{ members = ["aaa"] }`
 
 	testblock := block("test",
-		eval("team", objectExpression),
+		attr("team", objectExpression),
 	)
 
 	want := evaluateValExpr(t, objectExpression)

@@ -151,7 +151,7 @@ func Labels(labels ...string) BlockBuilder {
 	})
 }
 
-// Eval accepts an expr as parameter, similar to Expression,
+// AttributeValue accepts an expr as the attribute value, similar to Expression,
 // but will evaluate the expr and store the resulting value so
 // it will be available as an attribute value instead of as an
 // expression. If evaluation fails the test caller will fail.
@@ -159,10 +159,10 @@ func Labels(labels ...string) BlockBuilder {
 // The evaluation is quite limited, only suitable for evaluating
 // objects/lists/etc, but won't work with any references to
 // namespaces of function calls (context for evaluation is always empty).
-func Eval(t *testing.T, key string, expr string) BlockBuilder {
+func AttributeValue(t *testing.T, name string, expr string) BlockBuilder {
 	t.Helper()
 
-	rawbody := key + " = " + expr
+	rawbody := name + " = " + expr
 	parser := hclparse.NewParser()
 	res, diags := parser.ParseHCL([]byte(rawbody), "")
 	if diags.HasErrors() {
@@ -170,7 +170,7 @@ func Eval(t *testing.T, key string, expr string) BlockBuilder {
 	}
 	body := res.Body.(*hclsyntax.Body)
 
-	val, diags := body.Attributes[key].Expr.Value(nil)
+	val, diags := body.Attributes[name].Expr.Value(nil)
 	if diags.HasErrors() {
 		t.Fatalf("hclwrite.Eval: cant eval %s: %v", rawbody, diags)
 	}
@@ -178,8 +178,8 @@ func Eval(t *testing.T, key string, expr string) BlockBuilder {
 	return BlockBuilderFunc(func(g *Block) {
 		// hacky way to get original string representation of composite types
 		// but also have proper cty values that can be compared.
-		g.ctyvalues[key] = val
-		g.values[key] = expr
+		g.ctyvalues[name] = val
+		g.values[name] = expr
 	})
 }
 
@@ -188,27 +188,27 @@ func Eval(t *testing.T, key string, expr string) BlockBuilder {
 // affect the attribute values of the block.
 //
 // The given expression will be added on the generated output verbatim.
-func Expression(key string, expr string) BlockBuilder {
+func Expression(name string, expr string) BlockBuilder {
 	return BlockBuilderFunc(func(g *Block) {
-		g.AddExpr(key, expr)
+		g.AddExpr(name, expr)
 	})
 }
 
-func String(key string, val string) BlockBuilder {
+func String(name string, val string) BlockBuilder {
 	return BlockBuilderFunc(func(g *Block) {
-		g.AddString(key, val)
+		g.AddString(name, val)
 	})
 }
 
-func Boolean(key string, val bool) BlockBuilder {
+func Boolean(name string, val bool) BlockBuilder {
 	return BlockBuilderFunc(func(g *Block) {
-		g.AddBoolean(key, val)
+		g.AddBoolean(name, val)
 	})
 }
 
-func NumberInt(key string, val int64) BlockBuilder {
+func NumberInt(name string, val int64) BlockBuilder {
 	return BlockBuilderFunc(func(g *Block) {
-		g.AddNumberInt(key, val)
+		g.AddNumberInt(name, val)
 	})
 }
 
