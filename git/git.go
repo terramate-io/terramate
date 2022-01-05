@@ -114,7 +114,7 @@ func NewConfig(username, email string) Config {
 
 // NewConfigWithPath calls NewConfig but also sets the git program path.
 func NewConfigWithPath(username, email, programPath string) Config {
-	log.Trace().
+	log.Debug().
 		Str("action", "NewConfigWithPath()").
 		Msg("Make new config.")
 	config := NewConfig(username, email)
@@ -220,7 +220,8 @@ func (git *Git) validate() error {
 		Logger()
 
 	logger.Trace().
-		Msgf("Get path program path information for: %s.", cfg.ProgramPath)
+		Str("path", cfg.ProgramPath).
+		Msg("Get path program path information.")
 	_, err := os.Stat(cfg.ProgramPath)
 	if err != nil {
 		return fmt.Errorf("failed to stat git program path \"%s\": %w: %v",
@@ -241,7 +242,7 @@ func (git *Git) Version() (string, error) {
 		Str("stack", git.config.WorkingDir).
 		Logger()
 
-	logger.Trace().
+	logger.Debug().
 		Msg("Get git version.")
 	out, err := git.exec("version")
 	if err != nil {
@@ -353,7 +354,8 @@ func (git *Git) Remotes() ([]Remote, error) {
 		Msg("Range over references.")
 	for _, rawref := range strings.Split(res, "\n") {
 		logger.Trace().
-			Msgf("Format reference: %s.", rawref)
+			Str("reference", rawref).
+			Msg("Format reference.")
 		trimmedref := strings.TrimPrefix(rawref, refprefix)
 		parsed := strings.Split(trimmedref, "/")
 		if len(parsed) < 2 {
@@ -363,7 +365,8 @@ func (git *Git) Remotes() ([]Remote, error) {
 		branch := strings.Join(parsed[1:], "/")
 		branches := references[name]
 		logger.Trace().
-			Msgf("Append formatted reference to branches array: %s.", branch)
+			Str("reference", branch).
+			Msg("Append formatted reference to branches array.")
 		references[name] = append(branches, branch)
 	}
 
@@ -445,7 +448,7 @@ func (git *Git) Add(files ...string) error {
 		return fmt.Errorf("Add: %w", ErrDenyPorcelain)
 	}
 
-	log.Trace().
+	log.Debug().
 		Str("action", "Add()").
 		Str("stack", git.config.WorkingDir).
 		Msg("Add file to current staged index.")
@@ -480,7 +483,7 @@ func (git *Git) Commit(msg string, args ...string) error {
 
 	vargs = append(vargs, args...)
 
-	logger.Trace().
+	logger.Debug().
 		Msg("Commit with args.")
 	_, err := git.exec("commit", vargs...)
 	return err
@@ -502,7 +505,7 @@ func (git *Git) FetchRemoteRev(remote, ref string) (Ref, error) {
 		Str("stack", git.config.WorkingDir).
 		Logger()
 
-	logger.Trace().
+	logger.Debug().
 		Msg("List references in remote repository.")
 	output, err := git.exec("ls-remote", remote, ref)
 	if err != nil {
@@ -583,7 +586,8 @@ func (git *Git) DiffNames(from, to string) ([]string, error) {
 	log.Trace().
 		Str("action", "DiffNames()").
 		Str("stack", git.config.WorkingDir).
-		Msgf("Get tree differences from `%s` to `%s`.", from, to)
+		Str("reference", fmt.Sprintf("from `%s` to `%s`", from, to)).
+		Msg("Get tree differences.")
 	diff, err := git.DiffTree(from, to, true, true, true)
 	if err != nil {
 		return nil, fmt.Errorf("diff-tree: %w", err)
@@ -597,16 +601,18 @@ func (git *Git) NewBranch(name string) error {
 	log.Trace().
 		Str("action", "NewBranch()").
 		Str("stack", git.config.WorkingDir).
-		Msgf("Get commit ID of: %s.", name)
+		Str("reference", name).
+		Msg("Get commit ID.")
 	_, err := git.RevParse(name)
 	if err == nil {
 		return fmt.Errorf("branch \"%s\" already exists", name)
 	}
 
-	log.Trace().
+	log.Debug().
 		Str("action", "NewBranch()").
 		Str("stack", git.config.WorkingDir).
-		Msgf("Update ref: %s.", name)
+		Str("reference", name).
+		Msg("Create new branch.")
 	_, err = git.exec("update-ref", "refs/heads/"+name, "HEAD")
 	return err
 }
@@ -616,16 +622,18 @@ func (git *Git) DeleteBranch(name string) error {
 	log.Trace().
 		Str("action", "DeleteBranch()").
 		Str("stack", git.config.WorkingDir).
-		Msgf("Get commit ID of: %s.", name)
+		Str("reference", name).
+		Msg("Get commit ID.")
 	_, err := git.RevParse(name)
 	if err != nil {
 		return fmt.Errorf("branch \"%s\" doesn't exist", name)
 	}
 
-	log.Trace().
+	log.Debug().
 		Str("action", "DeleteBranch()").
 		Str("stack", git.config.WorkingDir).
-		Msgf("Delete branch: %s.", name)
+		Str("reference", name).
+		Msg("Delete branch.")
 	_, err = git.exec("update-ref", "-d", "refs/heads/"+name)
 	return err
 }
@@ -643,17 +651,19 @@ func (git *Git) Checkout(rev string, create bool) error {
 		log.Trace().
 			Str("action", "Checkout()").
 			Str("stack", git.config.WorkingDir).
-			Msgf("Create new branch: %s.", rev)
+			Str("reference", rev).
+			Msg("Create new branch.")
 		err := git.NewBranch(rev)
 		if err != nil {
 			return err
 		}
 	}
 
-	log.Trace().
+	log.Debug().
 		Str("action", "Checkout()").
 		Str("stack", git.config.WorkingDir).
-		Msgf("Checkout: %s.", rev)
+		Str("reference", rev).
+		Msg("Checkout.")
 	_, err := git.exec("checkout", rev)
 	return err
 }
@@ -666,10 +676,11 @@ func (git *Git) Merge(branch string) error {
 		return fmt.Errorf("Merge: %w", ErrDenyPorcelain)
 	}
 
-	log.Trace().
+	log.Debug().
 		Str("action", "Merge()").
 		Str("stack", git.config.WorkingDir).
-		Msgf("Merge: %s.", branch)
+		Str("reference", branch).
+		Msg("Merge.")
 	_, err := git.exec("merge", "--no-ff", branch)
 	return err
 }
@@ -680,10 +691,11 @@ func (git *Git) Push(remote, branch string) error {
 		return fmt.Errorf("Push: %w", ErrDenyPorcelain)
 	}
 
-	log.Trace().
+	log.Debug().
 		Str("action", "Push()").
 		Str("stack", git.config.WorkingDir).
-		Msgf("Push: %s to: %s.", branch, remote)
+		Str("reference", fmt.Sprintf("from `%s` to `%s`", branch, remote)).
+		Msg("Git push.")
 	_, err := git.exec("push", remote, branch)
 	return err
 }
@@ -694,10 +706,11 @@ func (git *Git) Pull(remote, branch string) error {
 		return fmt.Errorf("Pull: %w", ErrDenyPorcelain)
 	}
 
-	log.Trace().
+	log.Debug().
 		Str("action", "Pull()").
 		Str("stack", git.config.WorkingDir).
-		Msgf("Pull from: %s to: %s.", remote, branch)
+		Str("reference", fmt.Sprintf("from `%s` to `%s`", remote, branch)).
+		Msg("Git pull.")
 	_, err := git.exec("pull", remote, branch)
 	return err
 }
@@ -710,10 +723,11 @@ func (git *Git) FFMerge(branch string) error {
 		return fmt.Errorf("FFMerge: %w", ErrDenyPorcelain)
 	}
 
-	log.Trace().
+	log.Debug().
 		Str("action", "FFMerge()").
 		Str("stack", git.config.WorkingDir).
-		Msgf("Fast forward merge branch: %s.", branch)
+		Str("reference", branch).
+		Msg("Fast forward merge branch.")
 	_, err := git.exec("merge", "--ff", branch)
 	return err
 }
@@ -729,7 +743,7 @@ func (git *Git) ListUntracked(dirs ...string) ([]string, error) {
 		args = append(args, dirs...)
 	}
 
-	log.Trace().
+	log.Debug().
 		Str("action", "ListUntracked()").
 		Str("stack", git.config.WorkingDir).
 		Msg("List untracked files.")
@@ -753,7 +767,7 @@ func (git *Git) ListUncommitted(dirs ...string) ([]string, error) {
 		args = append(args, dirs...)
 	}
 
-	log.Trace().
+	log.Debug().
 		Str("action", "ListUncommitted()").
 		Str("stack", git.config.WorkingDir).
 		Msg("List uncommitted files.")
@@ -826,7 +840,7 @@ func (git *Git) exec(command string, args ...string) (string, error) {
 		cmd.Env = append(cmd.Env, "GIT_ATTR_NOSYSTEM=1")
 	}
 
-	logger.Trace().
+	logger.Debug().
 		Msg("Run command.")
 	stdout, err := cmd.Output()
 	if err != nil {

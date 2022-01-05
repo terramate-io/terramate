@@ -58,7 +58,7 @@ func (l Loader) Load(dir string) (S, error) {
 
 	fname := filepath.Join(dir, config.Filename)
 
-	logger.Trace().
+	logger.Debug().
 		Str("configFile", fname).
 		Msg("Parse config file.")
 	cfg, err := hcl.ParseFile(fname)
@@ -111,7 +111,7 @@ func (l Loader) TryLoad(dir string) (stack S, found bool, err error) {
 	}
 	fname := filepath.Join(dir, config.Filename)
 
-	logger.Trace().
+	logger.Debug().
 		Str("configFile", fname).
 		Msg("Parse config file.")
 	cfg, err := hcl.ParseFile(fname)
@@ -133,7 +133,7 @@ func (l Loader) TryLoad(dir string) (stack S, found bool, err error) {
 		return S{}, false, fmt.Errorf("stack %q is not a leaf stack", dir)
 	}
 
-	logger.Trace().
+	logger.Debug().
 		Msg("Set stack path and stack config.")
 	l.set(stackpath, cfg.Stack)
 	return l.stacks[stackpath], true, nil
@@ -147,8 +147,9 @@ func (l Loader) TryLoadChanged(root, dir string) (stack S, found bool, err error
 		Str("stack", dir).
 		Logger()
 
-	logger.Trace().
-		Msgf("Try load: %s", dir)
+	logger.Debug().
+		Str("path", dir).
+		Msg("Try load.")
 	s, ok, err := l.TryLoad(dir)
 	if ok {
 		s.changed = true
@@ -158,7 +159,7 @@ func (l Loader) TryLoadChanged(root, dir string) (stack S, found bool, err error
 
 func (l Loader) set(path string, block *hcl.Stack) {
 	var name string
-	log.Trace().
+	log.Debug().
 		Str("action", "set()").
 		Str("stack", path).
 		Msg("Set stack name.")
@@ -190,7 +191,6 @@ func (l Loader) Set(dir string, s S) {
 func (l Loader) LoadAll(root string, basedir string, dirs ...string) ([]S, error) {
 	logger := log.With().
 		Str("action", "LoadAll()").
-		Str("stack", root).
 		Logger()
 
 	stacks := []S{}
@@ -198,14 +198,16 @@ func (l Loader) LoadAll(root string, basedir string, dirs ...string) ([]S, error
 	absbase := filepath.Join(root, basedir)
 
 	logger.Trace().
+		Str("stack", root).
 		Msg("Range over directories.")
 	for _, d := range dirs {
 		if !filepath.IsAbs(d) {
 			d = filepath.Join(absbase, d)
 		}
 
-		logger.Trace().
-			Msgf("Load stack: %s.", d)
+		logger.Debug().
+			Str("stack", d).
+			Msg("Load stack.")
 		stack, err := l.Load(d)
 		if err != nil {
 			return nil, err
@@ -242,7 +244,8 @@ func (l Loader) IsLeafStack(dir string) (bool, error) {
 				log.Trace().
 					Str("action", "IsLeafStack()").
 					Str("stack", dir).
-					Msgf("Try load: %s", path)
+					Str("path", path).
+					Msg("Try load.")
 				_, found, err := l.TryLoad(path)
 				if err != nil {
 					return err
@@ -267,10 +270,11 @@ func (l Loader) lookupParentStack(dir string) (stack S, found bool, err error) {
 	}
 	d := filepath.Dir(dir)
 	for {
-		log.Trace().
+		log.Debug().
 			Str("action", "lookupParentStack()").
 			Str("stack", dir).
-			Msgf("Try load directory: %s.", d)
+			Str("path", d).
+			Msg("Try load directory.")
 		stack, ok, err := l.TryLoad(d)
 		if err != nil {
 			return S{}, false, fmt.Errorf("looking for parent stacks: %w", err)

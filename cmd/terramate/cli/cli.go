@@ -314,11 +314,11 @@ func (c *cli) run() error {
 		}
 	}
 
-	logger.Trace().
+	logger.Debug().
 		Msg("Handle input command.")
 	switch c.ctx.Command() {
 	case "version":
-		logger.Trace().
+		logger.Debug().
 			Msg("Get terramate version.")
 		c.log(terramate.Version())
 	case "plan graph":
@@ -358,26 +358,26 @@ func (c *cli) run() error {
 			Msg("Handle stacks global command.")
 		return c.printStacksGlobals()
 	case "run":
-		logger.Trace().
+		logger.Debug().
 			Msg("Handle `run` command.")
 		if len(c.parsedArgs.Run.Command) == 0 {
 			return errors.New("no command specified")
 		}
 		fallthrough
 	case "run <cmd>":
-		logger.Trace().
+		logger.Debug().
 			Msg("Handle `run <cmd>` command.")
 		return c.runOnStacks()
 	case "generate":
-		logger.Trace().
+		logger.Debug().
 			Msg("Handle `generate` command.")
 		return generate.Do(c.root())
 	case "metadata":
-		logger.Trace().
+		logger.Debug().
 			Msg("Handle `metadata` command.")
 		return c.printMetadata()
 	case "install-completions":
-		logger.Trace().
+		logger.Debug().
 			Msg("Handle `install-completions` command.")
 		return c.parsedArgs.InstallCompletions.Run(c.ctx)
 	default:
@@ -394,7 +394,7 @@ func (c *cli) initStack(dirs []string) error {
 		Str("action", "initStack()").
 		Logger()
 
-	logger.Trace().
+	logger.Debug().
 		Msg("Init stacks.")
 	for _, d := range dirs {
 		if !filepath.IsAbs(d) {
@@ -404,7 +404,7 @@ func (c *cli) initStack(dirs []string) error {
 			d = filepath.Join(c.wd(), d)
 		}
 
-		log.Trace().
+		log.Debug().
 			Str("stack", fmt.Sprintf("%s%s", c.wd(), strings.Trim(d, "."))).
 			Msg("Init stack.")
 
@@ -461,7 +461,7 @@ func (c *cli) printStacks() error {
 			continue
 		}
 
-		logger.Trace().
+		logger.Debug().
 			Str("stack", c.wd()+stack.Dir).
 			Msg("Print stack.")
 
@@ -486,11 +486,11 @@ func (c *cli) generateGraph() error {
 		Msg("Handle graph label command line argument.")
 	switch c.parsedArgs.Plan.Graph.Label {
 	case "stack.name":
-		logger.Trace().
+		logger.Debug().
 			Msg("Set label to stack name.")
 		getLabel = func(s stack.S) string { return s.Name() }
 	case "stack.dir":
-		logger.Trace().
+		logger.Debug().
 			Msg("Set label stack directory.")
 		getLabel = func(s stack.S) string { return s.Dir }
 	default:
@@ -501,7 +501,7 @@ func (c *cli) generateGraph() error {
 		return err
 	}
 
-	logger.Trace().
+	logger.Debug().
 		Msg("Create new graph.")
 	loader := stack.NewLoader(c.root())
 	dotGraph := dot.NewGraph(dot.Directed)
@@ -531,7 +531,7 @@ func (c *cli) generateGraph() error {
 		}
 	}
 
-	logger.Trace().
+	logger.Debug().
 		Msg("Set output of graph.")
 	outFile := c.parsedArgs.Plan.Graph.Outfile
 	var out io.Writer
@@ -552,7 +552,7 @@ func (c *cli) generateGraph() error {
 		out = f
 	}
 
-	logger.Trace().
+	logger.Debug().
 		Msg("Write graph to output.")
 	_, err = out.Write([]byte(dotGraph.String()))
 	if err != nil {
@@ -627,7 +627,7 @@ func (c *cli) printRunOrder() error {
 		stacks[i] = e.Stack
 	}
 
-	logger.Trace().
+	logger.Debug().
 		Msg("Get run order.")
 	order, reason, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
@@ -693,7 +693,7 @@ func (c *cli) printMetadata() error {
 	c.log("Available metadata:")
 
 	for _, stack := range metadata.Stacks {
-		logger.Trace().
+		logger.Debug().
 			Str("stack", c.wd()+stack.Path).
 			Msg("Print metadata for individual stack.")
 		c.log("\nstack %q:", stack.Path)
@@ -775,7 +775,7 @@ func (c *cli) runOnStacks() error {
 		return nil
 	}
 
-	logger.Trace().
+	logger.Debug().
 		Msg("Run command.")
 	err = terramate.Run(c.root(), order, cmd)
 	if err != nil {
@@ -925,7 +925,7 @@ func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Ent
 }
 
 func newGit(basedir string, inheritEnv bool, checkrepo bool) (*git.Git, error) {
-	log.Trace().
+	log.Debug().
 		Str("action", "newGit()").
 		Msg("Create new git wrapper providing config.")
 	g, err := git.WithConfig(git.Config{
@@ -1036,7 +1036,7 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 		p.rootcfg.Terramate = &hcl.Terramate{}
 	}
 
-	logger.Trace().
+	logger.Debug().
 		Str("configFile", p.root+"/terramate.tm.hcl").
 		Msg("Set defaults.")
 	cfg := &p.rootcfg
