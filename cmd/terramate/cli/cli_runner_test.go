@@ -104,9 +104,7 @@ func assertRunResult(t *testing.T, got runResult, want runExpected) {
 			stdout = flatten(stdout)
 			wantStdout = flatten(wantStdout)
 		}
-		if want.StdoutRegex == "" {
-			assert.EqualStrings(t, wantStdout, stdout, "stdout mismatch")
-		} else {
+		if want.StdoutRegex != "" {
 			matched, err := regexp.MatchString(want.StdoutRegex, stdout)
 			assert.NoError(t, err, "failed to compile regex %q", want.StdoutRegex)
 
@@ -116,13 +114,13 @@ func assertRunResult(t *testing.T, got runResult, want runExpected) {
 					want.StdoutRegex,
 				)
 			}
+		} else {
+			assert.EqualStrings(t, wantStdout, stdout, "stdout mismatch")
 		}
 	}
 
 	if !want.IgnoreStderr {
-		if want.StderrRegex == "" {
-			assert.EqualStrings(t, want.Stderr, got.Stderr, "stderr mismatch")
-		} else {
+		if want.StderrRegex != "" {
 			matched, err := regexp.MatchString(want.StderrRegex, got.Stderr)
 			assert.NoError(t, err, "failed to compile regex %q", want.StderrRegex)
 
@@ -132,6 +130,8 @@ func assertRunResult(t *testing.T, got runResult, want runExpected) {
 					want.StderrRegex,
 				)
 			}
+		} else {
+			assert.EqualStrings(t, want.Stderr, got.Stderr, "stderr mismatch")
 		}
 	}
 
