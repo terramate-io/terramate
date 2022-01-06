@@ -19,6 +19,7 @@ import (
 	"sort"
 
 	"github.com/madlambda/spells/errutil"
+	"github.com/rs/zerolog/log"
 )
 
 type (
@@ -52,6 +53,10 @@ func New() *DAG {
 // AddNode adds a new node to the dag. The lists of before and after
 // defines its edge nodes.
 func (d *DAG) AddNode(id ID, value interface{}, before, after []ID) error {
+	logger := log.With().
+		Str("action", "AddNode()").
+		Logger()
+
 	if _, ok := d.values[id]; ok {
 		return errutil.Chain(
 			ErrDuplicateNode,
@@ -64,6 +69,9 @@ func (d *DAG) AddNode(id ID, value interface{}, before, after []ID) error {
 			d.dag[bid] = []ID{}
 		}
 
+		logger.Trace().
+			Str("id", fmt.Sprintf("from `%s` to `%s`", bid, id)).
+			Msg("Add edge.")
 		d.addEdge(bid, id)
 	}
 
@@ -71,6 +79,9 @@ func (d *DAG) AddNode(id ID, value interface{}, before, after []ID) error {
 		d.dag[id] = []ID{}
 	}
 
+	logger.Trace().
+		Str("id", string(id)).
+		Msg("Add edges.")
 	d.addEdges(id, after)
 	d.values[id] = value
 	d.validated = false
@@ -79,6 +90,10 @@ func (d *DAG) AddNode(id ID, value interface{}, before, after []ID) error {
 
 func (d *DAG) addEdges(from ID, toids []ID) {
 	for _, to := range toids {
+		log.Trace().
+			Str("action", "addEdges()").
+			Str("id", fmt.Sprintf("from `%s` to `%s`", from, to)).
+			Msg("Add edges.")
 		d.addEdge(from, to)
 	}
 }
@@ -90,6 +105,10 @@ func (d *DAG) addEdge(from, to ID) {
 	}
 
 	if !IDList(fromEdges).contains(to) {
+		log.Trace().
+			Str("action", "addEdge()").
+			Str("id", fmt.Sprintf("from `%s` to `%s`", from, to)).
+			Msg("Append edge.")
 		fromEdges = append(fromEdges, to)
 	}
 
@@ -102,6 +121,10 @@ func (d *DAG) Validate() (reason string, err error) {
 	d.validated = true
 
 	for _, id := range d.IDs() {
+		log.Trace().
+			Str("action", "Validate()").
+			Str("id", string(id)).
+			Msg("Validate node.")
 		reason, err := d.validateNode(id, d.dag[id])
 		if err != nil {
 			return reason, err
@@ -111,6 +134,10 @@ func (d *DAG) Validate() (reason string, err error) {
 }
 
 func (d *DAG) validateNode(id ID, children []ID) (string, error) {
+	log.Trace().
+		Str("action", "validateNode()").
+		Str("id", string(id)).
+		Msg("Check if has cycle.")
 	found, reason := d.hasCycle([]ID{id}, children, fmt.Sprintf("%s ->", id))
 	if found {
 		d.cycles[id] = true
@@ -125,6 +152,10 @@ func (d *DAG) validateNode(id ID, children []ID) (string, error) {
 
 func (d *DAG) hasCycle(branch []ID, children []ID, reason string) (bool, string) {
 	for _, id := range branch {
+		log.Trace().
+			Str("action", "hasCycle()").
+			Str("id", string(id)).
+			Msg("Check if id is present in children.")
 		if IDList(children).contains(id) {
 			d.cycles[id] = true
 			return true, fmt.Sprintf("%s %s", reason, id)
@@ -133,6 +164,10 @@ func (d *DAG) hasCycle(branch []ID, children []ID, reason string) (bool, string)
 
 	for _, tid := range sortedIds(children) {
 		tlist := d.dag[tid]
+		log.Trace().
+			Str("action", "hasCycle()").
+			Str("id", string(tid)).
+			Msg("Check if id has cycle.")
 		found, reason := d.hasCycle(append(branch, tid), tlist, fmt.Sprintf("%s %s ->", reason, tid))
 		if found {
 			return true, reason
@@ -148,6 +183,10 @@ func (d *DAG) IDs() []ID {
 	for id := range d.dag {
 		idlist = append(idlist, id)
 	}
+
+	log.Trace().
+		Str("action", "IDs()").
+		Msg("Sort node ids.")
 	sort.Sort(idlist)
 	return idlist
 }
@@ -168,6 +207,10 @@ func (d *DAG) ChildrenOf(id ID) []ID {
 
 func (d *DAG) HasCycle(id ID) bool {
 	if !d.validated {
+		log.Trace().
+			Str("action", "HasCycle()").
+			Str("id", string(id)).
+			Msg("Validate.")
 		_, err := d.Validate()
 		if err == nil {
 			return false
@@ -186,8 +229,16 @@ func (d *DAG) Order() []ID {
 		if _, ok := visited[id]; ok {
 			continue
 		}
+		log.Trace().
+			Str("action", "Order()").
+			Str("id", string(id)).
+			Msg("Walk from current id.")
 		d.walkFrom(id, func(id ID) {
 			if _, ok := visited[id]; !ok {
+				log.Trace().
+					Str("action", "Order()").
+					Str("id", string(id)).
+					Msg("Append to ordered array.")
 				order = append(order, id)
 			}
 
@@ -202,6 +253,10 @@ func (d *DAG) Order() []ID {
 func (d *DAG) walkFrom(id ID, do func(id ID)) {
 	children := d.dag[id]
 	for _, tid := range sortedIds(children) {
+		log.Trace().
+			Str("action", "walkFrom()").
+			Str("id", string(id)).
+			Msg("Walk from current id.")
 		d.walkFrom(tid, do)
 	}
 
@@ -214,6 +269,9 @@ func sortedIds(ids []ID) IDList {
 		idlist = append(idlist, id)
 	}
 
+	log.Trace().
+		Str("action", "sortedIds()").
+		Msg("Sort ids.")
 	sort.Sort(idlist)
 	return idlist
 }
