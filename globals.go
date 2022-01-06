@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -45,10 +46,17 @@ const ErrGlobalRedefined errutil.Error = "global redefined"
 // Metadata for the stack is used on the evaluation of globals, defined on stackmeta.
 // The rootdir MUST be an absolute path.
 func LoadStackGlobals(rootdir string, meta StackMetadata) (*Globals, error) {
+	logger := log.With().
+		Str("action", "LoadStackGlobals()").
+		Str("stack", meta.Path).
+		Logger()
+
 	if !filepath.IsAbs(rootdir) {
 		return nil, fmt.Errorf("%q is not absolute path", rootdir)
 	}
 
+	logger.Debug().
+		Msg("Load stack globals.")
 	unEvalGlobals, err := loadStackGlobals(rootdir, meta.Path)
 	if err != nil {
 		return nil, err
@@ -102,14 +110,26 @@ func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 	// FIXME(katcipis): get abs path for stack.
 	// This is relative only to root since meta.Path will look
 	// like: /some/path/relative/project/root
+	logger := log.With().
+		Str("action", "eval()").
+		Str("stack", meta.Path).
+		Logger()
+
+	logger.Trace().
+		Msg("Create new evaluation context.")
 	evalctx := eval.NewContext("." + meta.Path)
 
+	logger.Trace().
+		Msg("Add proper name space for stack metadata evaluation.")
 	if err := meta.SetOnEvalCtx(evalctx); err != nil {
 		return nil, err
 	}
 
 	globals := newGlobals()
 	// error messages improve if globals is empty instead of undefined
+
+	logger.Trace().
+		Msg("Add proper name space for globals evaluation.")
 	if err := globals.SetOnEvalCtx(evalctx); err != nil {
 		return nil, fmt.Errorf("initializing global eval: %v", err)
 	}
@@ -122,10 +142,14 @@ func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 	for len(pendingExprs) > 0 {
 		amountEvaluated := 0
 
+		logger.Trace().
+			Msg("Range pending expressions.")
 	pendingExpression:
 		for name, expr := range pendingExprs {
 			vars := hclsyntax.Variables(expr)
 
+			logger.Trace().
+				Msg("Range vars.")
 			for _, namespace := range vars {
 				if _, ok := hclctx.Variables[namespace.RootName()]; !ok {
 					return nil, fmt.Errorf("unknown variable namespace: %s - %s", namespace.RootName(), namespace.SourceRange())
@@ -149,6 +173,8 @@ func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 				}
 			}
 
+			logger.Trace().
+				Msg("Evaluate expression.")
 			val, err := evalctx.Eval(expr)
 			if err != nil {
 				errs = append(errs, err)
@@ -157,8 +183,13 @@ func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 
 			globals.attributes[name] = val
 			amountEvaluated += 1
+
+			logger.Trace().
+				Msg("Delete pending expression.")
 			delete(pendingExprs, name)
 
+			logger.Trace().
+				Msg("Try add proper namespace for globals evaluation context.")
 			if err := globals.SetOnEvalCtx(evalctx); err != nil {
 				return nil, fmt.Errorf("evaluating globals: %v", err)
 			}
@@ -176,6 +207,8 @@ func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 		return nil, fmt.Errorf("could not resolve all globals")
 	}
 
+	logger.Trace().
+		Msg("Reduce multiple errors into one.")
 	err := errutil.Reduce(func(err1 error, err2 error) error {
 		return fmt.Errorf("%v,%v", err1, err2)
 	}, errs...)
@@ -194,9 +227,22 @@ func newRawGlobals() *rawGlobals {
 }
 
 func loadStackGlobals(rootdir string, cfgdir string) (*rawGlobals, error) {
+	logger := log.With().
+		Str("action", "loadStackGlobals()").
+		Logger()
+
+	logger.Trace().
+		Msg("Get config file path.")
 	cfgpath := filepath.Join(rootdir, cfgdir, config.Filename)
+
+	logger.Debug().
+		Str("configFile", cfgpath).
+		Msg("Parse globals blocks.")
 	blocks, err := hcl.ParseGlobalsBlocks(cfgpath)
 
+	logger.Trace().
+		Str("configFile", cfgpath).
+		Msg("Check if config file exists.")
 	if os.IsNotExist(err) {
 		parentcfg, ok := parentDir(cfgdir)
 		if !ok {
@@ -211,11 +257,20 @@ func loadStackGlobals(rootdir string, cfgdir string) (*rawGlobals, error) {
 
 	globals := newRawGlobals()
 
+	logger.Trace().
+		Str("configFile", cfgpath).
+		Msg("Range over blocks.")
 	for _, block := range blocks {
+		logger.Trace().
+			Str("configFile", cfgpath).
+			Msg("Range over block attributes.")
 		for name, attr := range block.Body.Attributes {
 			if globals.has(name) {
 				return nil, fmt.Errorf("%w: global %q already defined in configuration %q", ErrGlobalRedefined, name, cfgpath)
 			}
+			logger.Trace().
+				Str("configFile", cfgpath).
+				Msg("Add attribute to globals.")
 			globals.add(name, attr.Expr)
 		}
 	}
