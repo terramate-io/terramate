@@ -100,35 +100,6 @@ type cliSpec struct {
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"install shell completions"`
 }
 
-// run will run terramate with the provided flags defined on args from the
-// directory wd.
-// Only flags should be on the args slice.
-
-// Results will be written on stdout, according to the
-// command flags. Any partial/non-critical errors will be
-// written on stderr.
-//
-// Sometimes sub commands may be executed, the provided stdin
-// will be passed to then as the sub process stdin.
-//
-// Each run call is completely isolated from each other (no shared state)
-// as far as the parameters are not shared between the run calls.
-//
-// If a critical error is found an non-nil error is returned.
-func run(
-	args []string,
-	inheritEnv bool,
-	stdin io.Reader,
-	stdout io.Writer,
-	stderr io.Writer,
-) error {
-	c, err := newCLI(args, inheritEnv, stdin, stdout, stderr)
-	if err != nil {
-		return err
-	}
-	return c.run()
-}
-
 type project struct {
 	root    string
 	wd      string
@@ -148,7 +119,8 @@ type cli struct {
 	prj        project
 }
 
-func newCLI(
+// New creates a new terramate command-line interface.
+func New(
 	args []string,
 	inheritEnv bool,
 	stdin io.Reader,
@@ -272,7 +244,22 @@ func newCLI(
 	}, nil
 }
 
-func (c *cli) run() error {
+// Run will run terramate with the provided flags defined on args from the
+// directory wd.
+// Only flags should be on the args slice.
+
+// Results will be written on stdout, according to the
+// command flags. Any partial/non-critical errors will be
+// written on stderr.
+//
+// Sometimes sub commands may be executed, the provided stdin
+// will be passed to then as the sub process stdin.
+//
+// Each run call is completely isolated from each other (no shared state)
+// as far as the parameters are not shared between the run calls.
+//
+// If a critical error is found an non-nil error is returned.
+func (c *cli) Run() error {
 	if c.exit {
 		// WHY: parser called exit but with no error (like help)
 		return nil

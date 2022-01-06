@@ -22,7 +22,11 @@ import (
 )
 
 func main() {
-	err := cli.Run(os.Args[1:], true, os.Stdin, os.Stdout, os.Stderr)
+	c, err := cli.New(os.Args[1:], true, os.Stdin, os.Stdout, os.Stderr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = c.Run()
 	if err != nil {
 		log.Fatal(err)
 	}
