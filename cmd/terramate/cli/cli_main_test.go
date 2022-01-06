@@ -32,7 +32,7 @@ func TestMain(m *testing.M) {
 	os.Exit(setupAndRunTests(m))
 }
 
-func setupAndRunTests(m *testing.M) int {
+func setupAndRunTests(m *testing.M) (status int) {
 	binTmpdir, err := os.MkdirTemp("", "cmd-terramate-test-")
 	if err != nil {
 		log.Fatal(err)
@@ -42,12 +42,14 @@ func setupAndRunTests(m *testing.M) int {
 
 	goBin, err := lookupGoBin()
 	if err != nil {
-		log.Fatalf("failed to setup e2e tests: %v", err)
+		log.Printf("failed to setup e2e tests: %v", err)
+		return 1
 	}
 
 	packageDir, err := os.Getwd()
 	if err != nil {
-		log.Fatalf("failed to get test working directory: %v", err)
+		log.Printf("failed to get test working directory: %v", err)
+		return 1
 	}
 
 	// this file is inside cmd/terramate/cli
@@ -55,7 +57,8 @@ func setupAndRunTests(m *testing.M) int {
 	projectRoot := filepath.Join(packageDir, "../../..")
 	terramateTestBin, err = buildTerramate(goBin, projectRoot, binTmpdir)
 	if err != nil {
-		log.Fatalf("failed to setup e2e tests: %v", err)
+		log.Printf("failed to setup e2e tests: %v", err)
+		return 1
 	}
 
 	return m.Run()
