@@ -62,7 +62,7 @@ func PrintConfig(w io.Writer, cfg Config) error {
 		}
 	}
 
-	logger.Trace().
+	logger.Debug().
 		Msg("Write to output.")
 	_, err := w.Write(f.Bytes())
 	return err
