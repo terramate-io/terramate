@@ -24,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/git"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/rs/zerolog"
 )
 
 const CookedCommitID = "4e991b55e3d58b9c3137a791a9986ed9c5069697"
@@ -379,4 +380,8 @@ func assertEqualRemotes(t *testing.T, got []git.Remote, want []git.Remote) {
 			diff,
 		)
 	}
+}
+
+func init() {
+	zerolog.SetGlobalLevel(zerolog.Disabled)
 }
