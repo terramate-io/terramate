@@ -100,21 +100,18 @@ type cliSpec struct {
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"install shell completions"`
 }
 
-// Exec will execute terramate with the provided flags defined on args from the
-// directory wd.
+// Exec will execute terramate with the provided flags defined on args.
 // Only flags should be on the args slice.
 
-// Results will be written on stdout, according to the
-// command flags. Any partial/non-critical errors will be
-// written on stderr.
+// Results will be written on stdout, according to the command flags and
+// errors/warnings written on stderr. Exec will abort the process with a status
+// code different than zero in the case of fatal errors.
 //
-// Sometimes sub commands may be executed, the provided stdin
-// will be passed to then as the sub process stdin.
+// Sometimes sub commands may be executed, the provided stdin will be passed to
+// then as the sub process stdin.
 //
-// Each run call is completely isolated from each other (no shared state)
-// as far as the parameters are not shared between the run calls.
-//
-// If a critical error is found an non-nil error is returned.
+// Each Exec call is completely isolated from each other (no shared state) as
+// far as the parameters are not shared between the run calls.
 func Exec(
 	args []string,
 	inheritEnv bool,
