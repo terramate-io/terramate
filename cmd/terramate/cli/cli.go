@@ -199,10 +199,7 @@ func newCLI(
 			Msgf("failed to parse cli args: %v", args)
 	}
 
-	logLevel := parsedArgs.LogLevel
-	logFmt := parsedArgs.LogFmt
-
-	configureLogging(logLevel, logFmt, stderr)
+	configureLogging(parsedArgs.LogLevel, parsedArgs.LogFmt, stderr)
 
 	wd, err := os.Getwd()
 	if err != nil {
