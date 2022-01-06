@@ -100,6 +100,37 @@ type cliSpec struct {
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"install shell completions"`
 }
 
+// Exec will execute terramate with the provided flags defined on args from the
+// directory wd.
+// Only flags should be on the args slice.
+
+// Results will be written on stdout, according to the
+// command flags. Any partial/non-critical errors will be
+// written on stderr.
+//
+// Sometimes sub commands may be executed, the provided stdin
+// will be passed to then as the sub process stdin.
+//
+// Each run call is completely isolated from each other (no shared state)
+// as far as the parameters are not shared between the run calls.
+//
+// If a critical error is found an non-nil error is returned.
+func Exec(
+	args []string,
+	inheritEnv bool,
+	stdin io.Reader,
+	stdout io.Writer,
+	stderr io.Writer,
+) {
+	c, err := newCLI(args, inheritEnv, stdin, stdout, stderr)
+	if err != nil {
+		log.Fatal().
+			Str("action", "Exec()").
+			Msgf("calling newCli(): %v", err)
+	}
+	c.run()
+}
+
 type project struct {
 	root    string
 	wd      string
@@ -119,8 +150,7 @@ type cli struct {
 	prj        project
 }
 
-// New creates a new terramate command-line interface.
-func New(
+func newCLI(
 	args []string,
 	inheritEnv bool,
 	stdin io.Reader,
@@ -244,25 +274,10 @@ func New(
 	}, nil
 }
 
-// Run will run terramate with the provided flags defined on args from the
-// directory wd.
-// Only flags should be on the args slice.
-
-// Results will be written on stdout, according to the
-// command flags. Any partial/non-critical errors will be
-// written on stderr.
-//
-// Sometimes sub commands may be executed, the provided stdin
-// will be passed to then as the sub process stdin.
-//
-// Each run call is completely isolated from each other (no shared state)
-// as far as the parameters are not shared between the run calls.
-//
-// If a critical error is found an non-nil error is returned.
-func (c *cli) Run() error {
+func (c *cli) run() {
 	if c.exit {
 		// WHY: parser called exit but with no error (like help)
-		return nil
+		return
 	}
 
 	logger := log.With().
@@ -278,19 +293,19 @@ func (c *cli) Run() error {
 			Msg("Create new git wrapper.")
 		git, err := newGit(c.root(), c.inheritEnv, true)
 		if err != nil {
-			return err
+			log.Fatal().Err(err)
 		}
 
 		logger.Trace().
 			Msg("Check git default remote.")
 		if err := c.checkDefaultRemote(git); err != nil {
-			return err
+			log.Fatal().Err(err)
 		}
 
 		logger.Trace().
 			Msg("Check git default branch was updated.")
 		if err := c.checkLocalDefaultIsUpdated(git); err != nil {
-			return err
+			log.Fatal().Err(err)
 		}
 	}
 
@@ -306,68 +321,72 @@ func (c *cli) Run() error {
 			Str("actionContext", "cli()").
 			Str("stack", c.wd()).
 			Msg("Handle `plan graph`.")
-		return c.generateGraph()
+		c.generateGraph()
 	case "plan run-order":
 		log.Trace().
 			Str("actionContext", "cli()").
 			Str("stack", c.wd()).
 			Msg("Print run-order.")
-		return c.printRunOrder()
+		c.printRunOrder()
 	case "stacks init":
 		log.Trace().
 			Str("actionContext", "cli()").
 			Str("stack", c.wd()).
 			Msg("Handle stacks init command.")
-		return c.initStack([]string{c.wd()})
+		c.initStack([]string{c.wd()})
 	case "stacks list":
 		log.Trace().
 			Str("actionContext", "cli()").
 			Str("stack", c.wd()).
 			Msg("Print list of stacks.")
-		return c.printStacks()
+		c.printStacks()
 	case "stacks init <paths>":
 		log.Trace().
 			Str("actionContext", "cli()").
 			Str("stack", c.wd()).
 			Msg("Handle stacks init <paths> command.")
-		return c.initStack(c.parsedArgs.Stacks.Init.StackDirs)
+		c.initStack(c.parsedArgs.Stacks.Init.StackDirs)
 	case "stacks globals":
 		log.Trace().
 			Str("actionContext", "cli()").
 			Str("stack", c.wd()).
 			Msg("Handle stacks global command.")
-		return c.printStacksGlobals()
+		c.printStacksGlobals()
 	case "run":
 		logger.Debug().
 			Msg("Handle `run` command.")
 		if len(c.parsedArgs.Run.Command) == 0 {
-			return errors.New("no command specified")
+			log.Fatal().Msg("no command specified")
 		}
 		fallthrough
 	case "run <cmd>":
 		logger.Debug().
 			Msg("Handle `run <cmd>` command.")
-		return c.runOnStacks()
+		c.runOnStacks()
 	case "generate":
 		logger.Debug().
 			Msg("Handle `generate` command.")
-		return generate.Do(c.root())
+		err := generate.Do(c.root())
+		if err != nil {
+			log.Fatal().Err(err)
+		}
 	case "metadata":
 		logger.Debug().
 			Msg("Handle `metadata` command.")
-		return c.printMetadata()
+		c.printMetadata()
 	case "install-completions":
 		logger.Debug().
 			Msg("Handle `install-completions` command.")
-		return c.parsedArgs.InstallCompletions.Run(c.ctx)
+		err := c.parsedArgs.InstallCompletions.Run(c.ctx)
+		if err != nil {
+			log.Fatal().Err(err)
+		}
 	default:
-		return fmt.Errorf("unexpected command sequence: %s", c.ctx.Command())
+		log.Fatal().Msgf("unexpected command sequence: %s", c.ctx.Command())
 	}
-
-	return nil
 }
 
-func (c *cli) initStack(dirs []string) error {
+func (c *cli) initStack(dirs []string) {
 	var errmsgs []string
 
 	logger := log.With().
@@ -396,10 +415,8 @@ func (c *cli) initStack(dirs []string) error {
 	}
 
 	if len(errmsgs) > 0 {
-		return ErrInit
+		log.Fatal().Err(ErrInit)
 	}
-
-	return nil
 }
 
 func (c *cli) listStacks(mgr *terramate.Manager, isChanged bool) ([]terramate.Entry, error) {
