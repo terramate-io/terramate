@@ -15,6 +15,7 @@
 package terramate
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -200,21 +201,27 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 		return nil, fmt.Errorf("listing untracked files: %v", err)
 	}
 
-	if len(untracked) > 0 {
-		log.Fatal().
-			Strs("files", untracked).
-			Msg("repository has untracked files")
-	}
-
 	uncommitted, err := g.ListUncommitted()
 	if err != nil {
 		return nil, fmt.Errorf("listing uncommitted files: %v", err)
 	}
 
+	if len(untracked) > 0 {
+		log.Error().
+			Strs("files", untracked).
+			Err(errors.New("repository has untracked files")).
+			Msg("Ensuring clean git status")
+	}
+
 	if len(uncommitted) > 0 {
-		log.Fatal().
+		log.Error().
 			Strs("files", uncommitted).
-			Msg("repository has uncommitted files")
+			Err(errors.New("repository has uncommitted files")).
+			Msg("Ensuring clean git status")
+	}
+
+	if len(uncommitted)+len(untracked) > 0 {
+		return nil, errors.New("git status is not clean")
 	}
 
 	baseRef, err := g.RevParse(gitBaseRef)
