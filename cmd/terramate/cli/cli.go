@@ -55,18 +55,13 @@ const (
 	defaultBranchBaseRef = "HEAD^"
 )
 
-const (
-	defaultLogLevel = "none"
-	defaultLogFmt   = "json"
-)
-
 type cliSpec struct {
 	Version       struct{} `cmd:"" help:"Terramate version."`
 	Chdir         string   `short:"C" optional:"true" help:"sets working directory."`
 	GitChangeBase string   `short:"B" optional:"true" help:"git base ref for computing changes."`
 	Changed       bool     `short:"c" optional:"true" help:"filter by changed infrastructure"`
-	LogLevel      string   `optional:"true" help:"sets the log level. Possible values are: 'trace', 'debug', 'none'. The default is 'none'."`
-	LogFmt        string   `optional:"true" help:"sets the log format. Possible values are: 'json', 'text'. The default is 'text'."`
+	LogLevel      string   `optional:"true" default:"info" enum:"trace,debug,info,warn,error,fatal" help:"Log level to use: 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
+	LogFmt        string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'."`
 
 	Run struct {
 		Quiet   bool     `short:"q" help:"Don't print any information other than the command output."`
@@ -205,9 +200,7 @@ func newCLI(
 	logLevel := parsedArgs.LogLevel
 	logFmt := parsedArgs.LogFmt
 
-	if err := configureLogging(logLevel, logFmt, stderr); err != nil {
-		return nil, err
-	}
+	configureLogging(logLevel, logFmt, stderr)
 
 	log.Trace().
 		Str("action", "newCli()").
@@ -1092,67 +1085,21 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 	return nil
 }
 
-func configureLogging(logLevel string, logFmt string, output io.Writer) error {
+func configureLogging(logLevel string, logFmt string, output io.Writer) {
+	zloglevel, err := zerolog.ParseLevel(logLevel)
 
-	if logLevel == "" {
-		logLevel = defaultLogLevel
-	}
-
-	if logFmt == "" {
-		logFmt = defaultLogFmt
-	}
-
-	zloglevel, err := getzlogLevel(logLevel)
 	if err != nil {
-		return err
-	}
-
-	logwriter, err := getzlogWriter(logFmt, output)
-	if err != nil {
-		return err
+		zloglevel = zerolog.FatalLevel
 	}
 
 	zerolog.SetGlobalLevel(zloglevel)
-	log.Logger = zerolog.New(logwriter).With().Timestamp().Caller().Logger()
-	return nil
-}
 
-func lookupEnv(name, def string) string {
-	if v, ok := os.LookupEnv(name); ok {
-		return v
-	}
-	return def
-}
-
-func getzlogLevel(level string) (zerolog.Level, error) {
-	switch level {
-	case "trace":
-		return zerolog.TraceLevel, nil
-	case "debug":
-		return zerolog.DebugLevel, nil
-	case "info":
-		return zerolog.InfoLevel, nil
-	case "warn":
-		return zerolog.WarnLevel, nil
-	case "error":
-		return zerolog.ErrorLevel, nil
-	case "none":
-		return zerolog.Disabled, nil
-	default:
-		return zerolog.NoLevel, fmt.Errorf("unknown log level %q", level)
-	}
-}
-
-func getzlogWriter(format string, output io.Writer) (io.Writer, error) {
-	switch format {
-	case "text":
-		color := lookupEnv("TM_LOG_COLOR", "ON")
-		return zerolog.ConsoleWriter{Out: output, NoColor: color != "ON", TimeFormat: time.RFC3339}, nil
-	case "json":
-		// Default is JSON on zlog
+	if logFmt == "json" {
 		zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-		return output, nil
-	default:
-		return nil, fmt.Errorf("unknown log format %q", format)
+		log.Logger = log.Output(output)
+	} else if logFmt == "text" { // no color
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: output, NoColor: true, TimeFormat: time.RFC3339})
+	} else { // default: console mode using color
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: output, NoColor: false, TimeFormat: time.RFC3339})
 	}
 }
