@@ -30,6 +30,7 @@ import (
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/rs/zerolog"
 )
 
 func TestGenerateFailsIfPathDoesntExist(t *testing.T) {
@@ -1359,4 +1360,8 @@ func findFiles(t *testing.T, rootdir string, filename string) []string {
 	assert.NoError(t, err)
 
 	return found
+}
+
+func init() {
+	zerolog.SetGlobalLevel(zerolog.Disabled)
 }
