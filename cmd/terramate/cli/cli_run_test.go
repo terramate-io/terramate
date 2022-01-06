@@ -19,18 +19,19 @@ import (
 	"testing"
 
 	"github.com/mineiros-io/terramate"
-	"github.com/mineiros-io/terramate/dag"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
+
+var cycleDetectedRegex = ".*cycle detected.*"
 
 func TestCLIRunOrder(t *testing.T) {
 	type testcase struct {
 		name    string
 		layout  []string
 		changed bool
-		want    runResult
+		want    runExpected
 	}
 
 	for _, tc := range []testcase{
@@ -39,7 +40,7 @@ func TestCLIRunOrder(t *testing.T) {
 			layout: []string{
 				"s:stack-a",
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `stack-a
 `,
 			},
@@ -49,7 +50,7 @@ func TestCLIRunOrder(t *testing.T) {
 			layout: []string{
 				"s:stack:after=[]",
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `stack
 `,
 			},
@@ -64,7 +65,7 @@ func TestCLIRunOrder(t *testing.T) {
 				"s:3",
 				"s:boom",
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `1
 2
 3
@@ -80,7 +81,7 @@ frita
 				"s:stack-a",
 				`s:stack-b:after=["../stack-a"]`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `stack-a
 stack-b
 `,
@@ -93,7 +94,7 @@ stack-b
 				`s:stack-b:after=["../stack-a"]`,
 				`s:stack-c:after=["../stack-b"]`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `stack-a
 stack-b
 stack-c
@@ -107,7 +108,7 @@ stack-c
 				`s:stack-b:after=["../stack-c"]`,
 				`s:stack-a:after=["../stack-b"]`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `stack-c
 stack-b
 stack-a
@@ -120,7 +121,7 @@ stack-a
 				`s:stack-a:after=["../stack-b"]`,
 				`s:stack-b`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `stack-b
 stack-a
 `,
@@ -134,7 +135,7 @@ stack-a
 				`s:stack-c`,
 				`s:stack-d`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `stack-b
 stack-c
 stack-d
@@ -151,7 +152,7 @@ stack-a
 				`s:stack-d:after=["../stack-z"]`,
 				`s:stack-z`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `stack-a
 stack-b
 stack-c
@@ -168,7 +169,7 @@ stack-d
 				`s:stack-a`,
 				`s:stack-d:after=["../stack-b"]`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `stack-a
 stack-b
 stack-c
@@ -185,7 +186,7 @@ stack-d
 				`s:stack-z:after=["../stack-d"]`,
 				`s:stack-d:after=["../stack-b"]`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `stack-a
 stack-b
 stack-c
@@ -204,7 +205,7 @@ stack-z
 				`s:stack-z:after=["../stack-d"]`,
 				`s:stack-d:after=["../stack-b"]`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `stack-a
 stack-b
 stack-c
@@ -225,7 +226,7 @@ stack-z
 				`s:stack-g`,
 				`s:stack-h`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `stack-d
 stack-f
 stack-b
@@ -245,7 +246,7 @@ stack-a
 				`s:stack-c`,
 				`s:stack-d`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `stack-b
 stack-c
 stack-a
@@ -265,7 +266,7 @@ stack-z
 				`s:stack-x`,
 				`s:stack-y`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `stack-x
 stack-y
 stack-a
@@ -281,9 +282,9 @@ stack-z
 			layout: []string{
 				`s:stack-a:after=["../stack-a"]`,
 			},
-			want: runResult{
-				Error:        dag.ErrCycleDetected,
-				IgnoreStderr: true,
+			want: runExpected{
+				Status:      defaultErrExitStatus,
+				StderrRegex: cycleDetectedRegex,
 			},
 		},
 		{
@@ -291,9 +292,9 @@ stack-z
 			layout: []string{
 				`s:stack-a:after=["."]`,
 			},
-			want: runResult{
-				Error:        dag.ErrCycleDetected,
-				IgnoreStderr: true,
+			want: runExpected{
+				Status:      defaultErrExitStatus,
+				StderrRegex: cycleDetectedRegex,
 			},
 		},
 		{
@@ -303,9 +304,9 @@ stack-z
 				`s:stack-b:after=["../stack-c"]`,
 				`s:stack-c:after=["../stack-a"]`,
 			},
-			want: runResult{
-				Error:        dag.ErrCycleDetected,
-				IgnoreStderr: true,
+			want: runExpected{
+				Status:      defaultErrExitStatus,
+				StderrRegex: cycleDetectedRegex,
 			},
 		},
 		{
@@ -332,9 +333,9 @@ stack-z
 				`s:19`,
 				`s:20:after=["../10", "../1"]`,
 			},
-			want: runResult{
-				Error:        dag.ErrCycleDetected,
-				IgnoreStderr: true,
+			want: runExpected{
+				Status:      defaultErrExitStatus,
+				StderrRegex: cycleDetectedRegex,
 			},
 		},
 		{
@@ -348,7 +349,7 @@ stack-z
 				`s:stack-c`,
 				`s:stack-d`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `stack-b
 stack-c
 stack-a
@@ -403,7 +404,7 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 	cli := newCLI(t, s.RootDir())
 
 	wantList := stack.RelPath() + "\n"
-	assertRunResult(t, cli.run("stacks", "list", "--changed"), runResult{Stdout: wantList})
+	assertRunResult(t, cli.run("stacks", "list", "--changed"), runExpected{Stdout: wantList})
 
 	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
@@ -419,7 +420,7 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 		"--changed",
 		cat,
 		mainTfFileName,
-	), runResult{Stdout: wantRun})
+	), runExpected{Stdout: wantRun})
 
 	wantRun = fmt.Sprintf(
 		"Running on changed stacks:\n[%s] running %s %s\n%s\n",
@@ -435,7 +436,7 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 		"--changed",
 		cat,
 		mainTfFileName,
-	), runResult{Stdout: wantRun})
+	), runExpected{Stdout: wantRun})
 
 	cli = newCLI(t, stack2.Path())
 	assertRunResult(t, cli.run(
@@ -443,7 +444,7 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 		"--changed",
 		cat,
 		mainTfFileName,
-	), runResult{Stdout: "Running on changed stacks:\n"})
+	), runExpected{Stdout: "Running on changed stacks:\n"})
 }
 
 func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
@@ -479,7 +480,7 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 	cli := newCLI(t, s.RootDir())
 
 	wantList := stack.RelPath() + "\n" + stack2.RelPath() + "\n"
-	assertRunResult(t, cli.run("stacks", "list", "--changed"), runResult{Stdout: wantList})
+	assertRunResult(t, cli.run("stacks", "list", "--changed"), runExpected{Stdout: wantList})
 
 	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
@@ -499,5 +500,5 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 		"--changed",
 		cat,
 		mainTfFileName,
-	), runResult{Stdout: wantRun})
+	), runExpected{Stdout: wantRun})
 }

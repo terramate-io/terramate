@@ -2,11 +2,15 @@ package cli_test
 
 import (
 	"bytes"
-	"errors"
 	"os/exec"
+	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/madlambda/spells/assert"
 )
+
+const defaultErrExitStatus = 1
 
 type tscli struct {
 	t     *testing.T
@@ -14,13 +18,23 @@ type tscli struct {
 }
 
 type runResult struct {
-	Cmd           string
-	Stdout        string
+	Cmd    string
+	Stdout string
+	Stderr string
+	Status int
+}
+
+type runExpected struct {
+	Stdout      string
+	Stderr      string
+	StdoutRegex string
+	StderrRegex string
+
+	IgnoreStdout bool
+	IgnoreStderr bool
+
 	FlattenStdout bool
-	IgnoreStdout  bool
-	Stderr        string
-	IgnoreStderr  bool
-	Error         error
+	Status        int
 }
 
 func newCLI(t *testing.T, chdir string) tscli {
@@ -50,40 +64,62 @@ func (ts tscli) run(args ...string) runResult {
 	cmd.Stderr = stderr
 	cmd.Stdin = stdin
 
-	err := cmd.Run()
+	_ = cmd.Run()
+
 	return runResult{
 		Cmd:    strings.Join(args, " "),
 		Stdout: stdout.String(),
 		Stderr: stderr.String(),
-		Error:  err,
+		Status: cmd.ProcessState.ExitCode(),
 	}
 }
 
 func assertRun(t *testing.T, got runResult) {
 	t.Helper()
 
-	assertRunResult(t, got, runResult{IgnoreStdout: true, IgnoreStderr: true})
+	assertRunResult(t, got, runExpected{IgnoreStdout: true, IgnoreStderr: true})
 }
 
-func assertRunResult(t *testing.T, got runResult, want runResult) {
+func assertRunResult(t *testing.T, got runResult, want runExpected) {
 	t.Helper()
 
-	stdout := got.Stdout
-	wantStdout := want.Stdout
-	if want.FlattenStdout {
-		stdout = flatten(stdout)
-		wantStdout = flatten(wantStdout)
+	if !want.IgnoreStdout {
+		stdout := got.Stdout
+		wantStdout := want.Stdout
+		if want.FlattenStdout {
+			stdout = flatten(stdout)
+			wantStdout = flatten(wantStdout)
+		}
+		if want.StdoutRegex == "" {
+			assert.EqualStrings(t, wantStdout, stdout, "stdout mismatch")
+		} else {
+			matched, err := regexp.MatchString(want.StdoutRegex, stdout)
+			assert.NoError(t, err, "failed to compile regex %q", want.StdoutRegex)
+
+			if !matched {
+				t.Errorf("%q stdout=\"%s\" does not match regex %q", got.Cmd,
+					stdout,
+					want.StdoutRegex,
+				)
+			}
+		}
 	}
 
-	if !want.IgnoreStdout && stdout != wantStdout {
-		t.Errorf("%q stdout=\"%s\" != wanted=\"%s\"", got.Cmd, stdout, wantStdout)
+	if !want.IgnoreStderr {
+		if want.StderrRegex == "" {
+			assert.EqualStrings(t, want.Stderr, got.Stderr, "stderr mismatch")
+		} else {
+			matched, err := regexp.MatchString(want.StderrRegex, got.Stderr)
+			assert.NoError(t, err, "failed to compile regex %q", want.StderrRegex)
+
+			if !matched {
+				t.Errorf("%q stderr=\"%s\" does not match regex %q", got.Cmd,
+					got.Stderr,
+					want.StderrRegex,
+				)
+			}
+		}
 	}
 
-	if !want.IgnoreStderr && got.Stderr != want.Stderr {
-		t.Errorf("%q stderr=\"%s\" != wanted=\"%s\"", got.Cmd, got.Stderr, want.Stderr)
-	}
-
-	if !errors.Is(got.Error, want.Error) {
-		t.Errorf("%q got.Error=[%v] != want.Error=[%v]", got.Cmd, got.Error, want.Error)
-	}
+	assert.EqualInts(t, want.Status, got.Status, "exit status mismatch")
 }

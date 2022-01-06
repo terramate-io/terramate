@@ -66,7 +66,7 @@ source = "%s"
 
 	cli := newCLI(t, s.RootDir())
 	want := stack1.RelPath() + "\n"
-	assertRunResult(t, cli.run("stacks", "list", "--changed"), runResult{Stdout: want})
+	assertRunResult(t, cli.run("stacks", "list", "--changed"), runExpected{Stdout: want})
 }
 
 func TestBugModuleMultipleFilesSameDir(t *testing.T) {
@@ -125,7 +125,7 @@ module "mod1" {
 
 	cli := newCLI(t, s.RootDir())
 	want := stack.RelPath() + "\n"
-	assertRunResult(t, cli.run("stacks", "list", "--changed"), runResult{Stdout: want})
+	assertRunResult(t, cli.run("stacks", "list", "--changed"), runExpected{Stdout: want})
 }
 
 func TestListAndRunChangedStack(t *testing.T) {
@@ -151,7 +151,7 @@ func TestListAndRunChangedStack(t *testing.T) {
 	git.CommitAll("stack changed")
 
 	wantList := stack.RelPath() + "\n"
-	assertRunResult(t, cli.run("stacks", "list", "--changed"), runResult{Stdout: wantList})
+	assertRunResult(t, cli.run("stacks", "list", "--changed"), runExpected{Stdout: wantList})
 
 	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
@@ -167,7 +167,7 @@ func TestListAndRunChangedStack(t *testing.T) {
 		"--changed",
 		cat,
 		mainTfFileName,
-	), runResult{Stdout: wantRun})
+	), runExpected{Stdout: wantRun})
 }
 
 func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
@@ -194,7 +194,7 @@ func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
 	git.CommitAll("stack changed")
 
 	wantList := stack.Path() + "\n"
-	assertRunResult(t, cli.run("stacks", "list", "--changed"), runResult{Stdout: wantList})
+	assertRunResult(t, cli.run("stacks", "list", "--changed"), runExpected{Stdout: wantList})
 
 	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
@@ -210,7 +210,7 @@ func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
 		"--changed",
 		cat,
 		mainTfFileName,
-	), runResult{Stdout: wantRun})
+	), runExpected{Stdout: wantRun})
 }
 
 func TestDefaultBaseRefInOtherThanMain(t *testing.T) {
@@ -232,7 +232,7 @@ func TestDefaultBaseRefInOtherThanMain(t *testing.T) {
 	git.Add(stack.Path())
 	git.Commit("stack changed")
 
-	want := runResult{
+	want := runExpected{
 		Stdout: stack.RelPath() + "\n",
 	}
 	assertRunResult(t, cli.run("stacks", "list", "--changed"), want)
@@ -253,7 +253,7 @@ func TestDefaultBaseRefInMain(t *testing.T) {
 	git.Push("main")
 
 	// main uses HEAD^1 as default baseRef.
-	want := runResult{
+	want := runExpected{
 		Stdout:       stack.RelPath() + "\n",
 		IgnoreStderr: true,
 	}
@@ -276,7 +276,7 @@ func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
 
 	assertRunResult(t, cli.run("stacks", "list", "--changed",
 		"--git-change-base", "origin/main"),
-		runResult{
+		runExpected{
 			IgnoreStderr: true,
 		},
 	)
@@ -295,9 +295,9 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 	git.Add(".")
 	git.Commit("all")
 
-	wantRes := runResult{
-		Error:        cli.ErrOutdatedLocalRev,
-		IgnoreStderr: true,
+	wantRes := runExpected{
+		Status:      1,
+		StderrRegex: cli.ErrOutdatedLocalRev.Error(),
 	}
 
 	assertRunResult(t, ts.run("stacks", "list", "--changed"), wantRes)
@@ -317,9 +317,9 @@ func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
 		t.Helper()
 
 		ts := newCLI(t, rootdir)
-		wantRes := runResult{
-			Error:        cli.ErrNoDefaultRemoteConfig,
-			IgnoreStderr: true,
+		wantRes := runExpected{
+			Status:      1,
+			StderrRegex: cli.ErrNoDefaultRemoteConfig.Error(),
 		}
 
 		assertRunResult(t, ts.run("stacks", "list", "--changed"), wantRes)
@@ -355,5 +355,5 @@ func TestNoArgsProvidesBasicHelp(t *testing.T) {
 	cli := newCLI(t, "")
 	cli.run("--help")
 	help := cli.run("--help")
-	assertRunResult(t, cli.run(), runResult{Stdout: help.Stdout})
+	assertRunResult(t, cli.run(), runExpected{Stdout: help.Stdout})
 }
