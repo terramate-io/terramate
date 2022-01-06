@@ -20,13 +20,21 @@ import (
 	"path/filepath"
 
 	"github.com/mineiros-io/terramate/stack"
+	"github.com/rs/zerolog/log"
 )
 
 // ListStacks walks the project's root directory looking for terraform stacks.
 // It returns a lexicographic sorted list of stack directories.
 func ListStacks(root string) ([]Entry, error) {
+	logger := log.With().
+		Str("action", "ListStacks()").
+		Str("path", root).
+		Logger()
+
 	entries := []Entry{}
 
+	logger.Trace().
+		Msg("Walk path.")
 	err := filepath.Walk(
 		root,
 		func(path string, info fs.FileInfo, err error) error {
@@ -34,12 +42,18 @@ func ListStacks(root string) ([]Entry, error) {
 				return err
 			}
 
+			logger.Trace().
+				Str("stack", path).
+				Msg("Try load stack.")
 			stack, found, err := stack.TryLoad(root, path)
 			if err != nil {
 				return fmt.Errorf("listing stacks: %w", err)
 			}
 
 			if found {
+				logger.Debug().
+					Str("stack", stack.Dir).
+					Msg("Found stack.")
 				entries = append(entries, Entry{Stack: stack})
 			}
 
