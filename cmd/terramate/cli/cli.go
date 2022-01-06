@@ -100,7 +100,7 @@ type cliSpec struct {
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"install shell completions"`
 }
 
-// Run will run terramate with the provided flags defined on args from the
+// run will run terramate with the provided flags defined on args from the
 // directory wd.
 // Only flags should be on the args slice.
 
@@ -111,11 +111,11 @@ type cliSpec struct {
 // Sometimes sub commands may be executed, the provided stdin
 // will be passed to then as the sub process stdin.
 //
-// Each Run call is completely isolated from each other (no shared state)
-// as far as the parameters are not shared between the Run calls.
+// Each run call is completely isolated from each other (no shared state)
+// as far as the parameters are not shared between the run calls.
 //
 // If a critical error is found an non-nil error is returned.
-func Run(
+func run(
 	args []string,
 	inheritEnv bool,
 	stdin io.Reader,
