@@ -379,7 +379,8 @@ func (c *cli) run() {
 		logger.Debug().
 			Msg("Handle `run` command.")
 		if len(c.parsedArgs.Run.Command) == 0 {
-			log.Fatal().Msg("no command specified")
+			log.Fatal().
+				Msg("no command specified")
 		}
 		fallthrough
 	case "run <cmd>":
@@ -409,7 +410,8 @@ func (c *cli) run() {
 				Msg("installing shell completions.")
 		}
 	default:
-		log.Fatal().Msgf("unexpected command sequence: %s", c.ctx.Command())
+		log.Fatal().
+			Msgf("unexpected command sequence: %s", c.ctx.Command())
 	}
 }
 
