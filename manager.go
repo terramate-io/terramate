@@ -25,8 +25,6 @@ import (
 	"github.com/mineiros-io/terramate/git"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/stack"
-
-	"github.com/rs/zerolog/log"
 )
 
 type (
@@ -201,9 +199,7 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 	}
 
 	if len(untracked) > 0 {
-		log.Fatal().
-			Strs("files", untracked).
-			Msg("repository has untracked files")
+		return nil, fmt.Errorf("repository has untracked files: %v", untracked)
 	}
 
 	uncommitted, err := g.ListUncommitted()
@@ -212,9 +208,7 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 	}
 
 	if len(uncommitted) > 0 {
-		log.Fatal().
-			Strs("files", uncommitted).
-			Msg("repository has uncommitted files")
+		return nil, fmt.Errorf("repository has uncommitted files: %v", uncommitted)
 	}
 
 	baseRef, err := g.RevParse(gitBaseRef)

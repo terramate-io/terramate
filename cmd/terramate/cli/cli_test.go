@@ -392,7 +392,7 @@ func (ts tscli) run(args ...string) runResult {
 
 	allargs := []string{}
 	if ts.chdir != "" {
-		allargs = append(allargs, "--chdir", ts.chdir)
+		allargs = append(allargs, "--chdir", ts.chdir, "--log-level", "fatal")
 	}
 
 	allargs = append(allargs, args...)

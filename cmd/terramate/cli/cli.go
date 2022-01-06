@@ -206,9 +206,7 @@ func newCLI(
 
 	cwd, err := os.Getwd()
 	if err != nil {
-		log.Fatal().
-			Err(err).
-			Msg("Getwd() failed")
+		return nil, fmt.Errorf("Getwd() failed: %v", err)
 	}
 
 	if parsedArgs.Chdir != "" {
@@ -218,18 +216,12 @@ func newCLI(
 			Msg("Changing working directory")
 		err = os.Chdir(parsedArgs.Chdir)
 		if err != nil {
-			logger.Fatal().
-				Str("cwd", cwd).
-				Str("dir", parsedArgs.Chdir).
-				Err(err).
-				Msg("Changing working directory failed")
+			return nil, fmt.Errorf("Changing workind dir failed: %v", err)
 		}
 
 		cwd, err = os.Getwd()
 		if err != nil {
-			log.Fatal().
-				Err(err).
-				Msg("Getwd() failed")
+			return nil, fmt.Errorf("Getwd() failed: %v", err)
 		}
 	}
 
