@@ -96,7 +96,7 @@ func Do(root string) error {
 		// Not the most optimized way (re-parsing), we can improve later
 
 		logger.Trace().
-			Msg("Get stack path.")
+			Msg("Get stack absolute path.")
 		stackpath := project.AbsPath(root, stackMetadata.Path)
 
 		logger.Debug().
@@ -179,7 +179,7 @@ func generateStackLocals(
 	}
 
 	logger.Trace().
-		Str("configFile", genfile).
+		Str("genfile", genfile).
 		Msg("Load stack exported locals.")
 	stackLocals, err := terramate.LoadStackExportedLocals(rootdir, metadata, globals)
 	if err != nil {
@@ -187,7 +187,7 @@ func generateStackLocals(
 	}
 
 	logger.Trace().
-		Str("configFile", genfile).
+		Str("genfile", genfile).
 		Msg("Get stack attributes.")
 	localsAttrs := stackLocals.Attributes()
 	if len(localsAttrs) == 0 {
@@ -240,7 +240,7 @@ func generateStackBackendConfig(root string, stackpath string, evalctx *eval.Con
 	}
 
 	logger.Debug().
-		Str("configFile", genfile).
+		Str("genfile", genfile).
 		Msg("Load stack backend config.")
 	tfcode, err := loadStackBackendConfig(root, stackpath, evalctx)
 	if err != nil {
@@ -410,7 +410,7 @@ func checkFileCanBeOverwritten(path string) error {
 	}
 
 	logger.Trace().
-		Msg("Convert data to string.")
+		Msg("Check if code has terramate header.")
 	code := string(data)
 	if !strings.HasPrefix(code, codeHeader) {
 		return fmt.Errorf("%w: at %q", ErrManualCodeExists, path)

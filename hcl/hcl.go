@@ -281,7 +281,7 @@ func Parse(fname string, data []byte) (Config, error) {
 			switch name {
 			case "required_version":
 				logger.Trace().
-					Msg("Attribute name was 'required_version'.")
+					Msg("Parsing  attribute 'required_version'.")
 				if attrVal.Type() != cty.String {
 					return Config{}, errutil.Chain(
 						ErrMalformedTerramateConfig,
@@ -307,7 +307,7 @@ func Parse(fname string, data []byte) (Config, error) {
 			switch block.Type {
 			case "backend":
 				logger.Trace().
-					Msg("Block type was backend.")
+					Msg("Parsing backend block.")
 				if foundBackend {
 					return Config{}, errutil.Chain(
 						ErrMalformedTerramateConfig,
@@ -328,7 +328,7 @@ func Parse(fname string, data []byte) (Config, error) {
 
 			case "config":
 				logger.Trace().
-					Msg("Block type was config.")
+					Msg("Found config block.")
 				if foundConfig {
 					return Config{}, errutil.Chain(
 						ErrMalformedTerramateConfig,
