@@ -228,16 +228,6 @@ func newCLI(
 	}
 
 	logger.Trace().
-		Msgf("stating directory %q", wd)
-	_, err = os.Stat(wd)
-	if err != nil {
-		logger.Fatal().
-			Str("wd", wd).
-			Err(err).
-			Msg("stating working directory")
-	}
-
-	logger.Trace().
 		Msgf("Evaluate symbolic links for %q.", wd)
 	wd, err = filepath.EvalSymlinks(wd)
 	if err != nil {
