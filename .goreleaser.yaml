@@ -42,5 +42,7 @@ changelog:
       - '^docs:'
       - '^spec:'
       - '^test:'
+      - '^tests:'
+      - '^testing:'
       - '^refactor:'
       - '^chore:'
