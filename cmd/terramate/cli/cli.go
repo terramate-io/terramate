@@ -199,56 +199,48 @@ func newCLI(
 			Msgf("failed to parse cli args: %v", args)
 	}
 
-	logLevel := parsedArgs.LogLevel
-	logFmt := parsedArgs.LogFmt
+	configureLogging(parsedArgs.LogLevel, parsedArgs.LogFmt, stderr)
 
-	configureLogging(logLevel, logFmt, stderr)
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Fatal().
+			Err(err).
+			Msg("Getwd() failed")
+	}
 
-	logger.Trace().
-		Msg("Get working directory.")
-	wd := parsedArgs.Chdir
-	if wd == "" {
-		wd, err = os.Getwd()
+	if parsedArgs.Chdir != "" {
+		logger.Debug().
+			Str("wd", wd).
+			Str("dir", parsedArgs.Chdir).
+			Msg("Changing working directory")
+		err = os.Chdir(parsedArgs.Chdir)
 		if err != nil {
 			logger.Fatal().
+				Str("wd", wd).
+				Str("dir", parsedArgs.Chdir).
 				Err(err).
-				Msg("failed to get working directory")
+				Msg("Changing working directory failed")
 		}
+
+		wd, err = os.Getwd()
+		if err != nil {
+			log.Fatal().
+				Err(err).
+				Msg("Getwd() failed")
+		}
+	}
+
+	wd, err = filepath.EvalSymlinks(wd)
+	if err != nil {
+		log.Fatal().
+			Err(err).
+			Msg("EvalSymlinks() failed")
 	}
 
 	logger.Trace().
 		Str("wd", wd).
-		Msg("Get absolute filepath for working dir")
-	wd, err = filepath.Abs(wd)
-	if err != nil {
-		logger.Fatal().
-			Str("wd", wd).
-			Err(err).
-			Msg("getting absolute path")
-	}
+		Msg("Running in directory")
 
-	logger.Trace().
-		Msgf("Evaluate symbolic links for %q.", wd)
-	wd, err = filepath.EvalSymlinks(wd)
-	if err != nil {
-		logger.Fatal().
-			Str("wd", wd).
-			Err(err).
-			Msg("failed evaluating symlinks")
-	}
-
-	logger.Trace().
-		Msgf("Change working directory to %q.", wd)
-	err = os.Chdir(wd)
-	if err != nil {
-		logger.Fatal().
-			Str("wd", wd).
-			Err(err).
-			Msg("failed to change working directory")
-	}
-
-	logger.Trace().
-		Msgf("Look up project in %q.", wd)
 	prj, foundRoot, err := lookupProject(wd)
 	if err != nil {
 		logger.Fatal().
@@ -763,11 +755,10 @@ func (c *cli) runOnStacks() {
 			Err(err)
 	}
 
-	if c.parsedArgs.Changed {
-		c.log("Running on changed stacks:")
-	} else {
-		c.log("Running on all stacks:")
-	}
+	log.Info().
+		Str("wd", c.wd()).
+		Bool("changed", c.parsedArgs.Changed).
+		Msg("Running command in stacks reachable from working directory")
 
 	logger.Trace().
 		Msg("Filter stacks by working directory.")
