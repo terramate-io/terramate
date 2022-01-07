@@ -1,0 +1,32 @@
+builds:
+  - main: ./cmd/terramate
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      # - windows (when we add win support)
+      #
+archives:
+  - replacements:
+      darwin: Darwin
+      linux: Linux
+      #windows: Windows (when we add win support)
+      386: i386
+      amd64: x86_64
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^spec:'
+      - '^test:'
+      - '^refactor:'
+      - '^chore:'
