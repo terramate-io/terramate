@@ -34,7 +34,7 @@ func TestStacksGlobals(t *testing.T) {
 			name    string
 			layout  []string
 			globals []globalsBlock
-			want    runResult
+			want    runExpected
 		}
 	)
 
@@ -74,7 +74,7 @@ func TestStacksGlobals(t *testing.T) {
 					),
 				},
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `
 stack "/stack":
 	bool   = true
@@ -97,7 +97,7 @@ stack "/stack":
 					),
 				},
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `
 stack "/stacks/stack-1":
 	str = "string"
@@ -118,7 +118,7 @@ stack "/stacks/stack-1":
 					),
 				},
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `
 stack "/stacks/stack-1":
 	str = "string"

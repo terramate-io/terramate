@@ -41,7 +41,7 @@ mod:
 ## generates coverage report
 .PHONY: coverage
 coverage: 
-	go test -coverprofile=$(COVERAGE_REPORT) -coverpkg=./...  ./...
+	go test -count=1 -coverprofile=$(COVERAGE_REPORT) -coverpkg=./...  ./...
 
 ## generates coverage report and shows it on the browser locally
 .PHONY: coverage/show
@@ -51,7 +51,7 @@ coverage/show: coverage
 ## test code
 .PHONY: test
 test: 
-	go test -race ./...
+	go test -count=1 -race ./...
 
 ## Build terramate into bin directory
 .PHONY: build

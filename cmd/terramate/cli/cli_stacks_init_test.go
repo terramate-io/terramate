@@ -46,7 +46,7 @@ func TestStacksInit(t *testing.T) {
 		layout []string
 		input  []string
 		force  bool
-		want   runResult
+		want   runExpected
 	}
 
 	for _, tc := range []testcase{
@@ -88,9 +88,9 @@ func TestStacksInit(t *testing.T) {
 			},
 			input: []string{"other-version"},
 			force: false,
-			want: runResult{
-				IgnoreStderr: true,
-				Error:        cli.ErrInit,
+			want: runExpected{
+				StderrRegex: cli.ErrInit.Error(),
+				Status:      1,
 			},
 		},
 		{
@@ -110,9 +110,9 @@ func TestStacksInit(t *testing.T) {
 			},
 			input: []string{"stack1", "stack2", "other-version"},
 			force: false,
-			want: runResult{
-				IgnoreStderr: true,
-				Error:        cli.ErrInit,
+			want: runExpected{
+				StderrRegex: cli.ErrInit.Error(),
+				Status:      1,
 			},
 		},
 		{
@@ -122,9 +122,9 @@ func TestStacksInit(t *testing.T) {
 			},
 			input: []string{"other-version"},
 			force: false,
-			want: runResult{
-				Error:        cli.ErrInit,
-				IgnoreStderr: true,
+			want: runExpected{
+				StderrRegex: cli.ErrInit.Error(),
+				Status:      1,
 			},
 		},
 		{
@@ -142,9 +142,9 @@ func TestStacksInit(t *testing.T) {
 			},
 			input: []string{"other-version"},
 			force: false,
-			want: runResult{
-				Error:        cli.ErrInit,
-				IgnoreStderr: true,
+			want: runExpected{
+				StderrRegex: cli.ErrInit.Error(),
+				Status:      1,
 			},
 		},
 		{
@@ -162,9 +162,9 @@ func TestStacksInit(t *testing.T) {
 			},
 			input: []string{"other-version"},
 			force: false,
-			want: runResult{
-				Error:        cli.ErrInit,
-				IgnoreStderr: true,
+			want: runExpected{
+				StderrRegex: cli.ErrInit.Error(),
+				Status:      1,
 			},
 		},
 		{
@@ -181,9 +181,9 @@ func TestStacksInit(t *testing.T) {
 				"s:other-version:version=< 0.0.1",
 			},
 			input: []string{"other-version"},
-			want: runResult{
-				Error:        cli.ErrInit,
-				IgnoreStderr: true,
+			want: runExpected{
+				StderrRegex: cli.ErrInit.Error(),
+				Status:      1,
 			},
 		},
 		{
@@ -192,9 +192,9 @@ func TestStacksInit(t *testing.T) {
 				"s:other-version:version=> 999.0.0",
 			},
 			input: []string{"other-version"},
-			want: runResult{
-				Error:        cli.ErrInit,
-				IgnoreStderr: true,
+			want: runExpected{
+				StderrRegex: cli.ErrInit.Error(),
+				Status:      1,
 			},
 		},
 	} {
@@ -212,7 +212,7 @@ func TestStacksInit(t *testing.T) {
 			}
 			assertRunResult(t, cli.run(args...), tc.want)
 
-			if tc.want.Error != nil {
+			if tc.want.Status != 0 {
 				return
 			}
 
@@ -236,9 +236,9 @@ func TestStacksInit(t *testing.T) {
 func TestInitNonExistingDir(t *testing.T) {
 	s := sandbox.New(t)
 	c := newCLI(t, s.RootDir())
-	assertRunResult(t, c.run("stacks", "init", test.NonExistingDir(t)), runResult{
-		Error:        cli.ErrInit,
-		IgnoreStderr: true,
+	assertRunResult(t, c.run("stacks", "init", test.NonExistingDir(t)), runExpected{
+		StderrRegex: cli.ErrInit.Error(),
+		Status:      1,
 	})
 }
 
@@ -248,9 +248,9 @@ func TestInitFailInitializeChildOfStack(t *testing.T) {
 	parent := test.Mkdir(t, s.RootDir(), "parent-stack")
 	child := test.Mkdir(t, parent, "child-stack")
 	assertRun(t, c.run("stacks", "init", parent))
-	assertRunResult(t, c.run("stacks", "init", child), runResult{
-		Error:        cli.ErrInit,
-		IgnoreStderr: true,
+	assertRunResult(t, c.run("stacks", "init", child), runExpected{
+		StderrRegex: cli.ErrInit.Error(),
+		Status:      1,
 	})
 }
 
@@ -260,9 +260,9 @@ func TestInitFailInitializeParentOfChildStack(t *testing.T) {
 	parent := test.Mkdir(t, s.RootDir(), "parent-stack")
 	child := test.Mkdir(t, parent, "child-stack")
 	assertRun(t, c.run("stacks", "init", child))
-	assertRunResult(t, c.run("stacks", "init", parent), runResult{
-		Error:        cli.ErrInit,
-		IgnoreStderr: true,
+	assertRunResult(t, c.run("stacks", "init", parent), runExpected{
+		StderrRegex: cli.ErrInit.Error(),
+		Status:      1,
 	})
 }
 

@@ -15,15 +15,11 @@
 package main
 
 import (
-	"log"
 	"os"
 
 	"github.com/mineiros-io/terramate/cmd/terramate/cli"
 )
 
 func main() {
-	err := cli.Run(os.Args[1:], true, os.Stdin, os.Stdout, os.Stderr)
-	if err != nil {
-		log.Fatal(err)
-	}
+	cli.Exec(os.Args[1:], true, os.Stdin, os.Stdout, os.Stderr)
 }
