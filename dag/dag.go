@@ -70,8 +70,8 @@ func (d *DAG) AddNode(id ID, value interface{}, before, after []ID) error {
 		}
 
 		logger.Trace().
-			Str("from", bid).
-			Str("to", id).
+			Str("from", string(bid)).
+			Str("to", string(id)).
 			Msg("Add edge.")
 		d.addEdge(bid, id)
 	}
@@ -93,8 +93,8 @@ func (d *DAG) addEdges(from ID, toids []ID) {
 	for _, to := range toids {
 		log.Trace().
 			Str("action", "addEdges()").
-			Str("from", from).
-			Str("to", to).
+			Str("from", string(from)).
+			Str("to", string(to)).
 			Msg("Add edges.")
 		d.addEdge(from, to)
 	}
@@ -109,8 +109,8 @@ func (d *DAG) addEdge(from, to ID) {
 	if !IDList(fromEdges).contains(to) {
 		log.Trace().
 			Str("action", "addEdge()").
-			Str("from", from).
-			Str("to", to).
+			Str("from", string(from)).
+			Str("to", string(to)).
 			Msg("Append edge.")
 		fromEdges = append(fromEdges, to)
 	}
