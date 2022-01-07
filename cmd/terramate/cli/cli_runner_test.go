@@ -71,7 +71,7 @@ func (ts tscli) run(args ...string) runResult {
 		allargs = append(allargs, "--chdir", ts.chdir)
 	}
 	if len(args) > 0 {
-		// Avoid failing test when calling just terramate with no params
+		// Avoid failing test when calling just terramate with no args
 		allargs = append(allargs, "--log-level", "fatal")
 	}
 	allargs = append(allargs, args...)
