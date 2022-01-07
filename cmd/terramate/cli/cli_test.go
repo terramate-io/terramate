@@ -161,7 +161,7 @@ func TestListAndRunChangedStack(t *testing.T) {
 		"--changed",
 		cat,
 		mainTfFileName,
-	), runExpected{Stdout: wantRun, IgnoreStderr: true})
+	), runExpected{Stdout: wantRun})
 }
 
 func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
