@@ -99,8 +99,11 @@ func Do(root string) error {
 			Msg("Get stack absolute path.")
 		stackpath := project.AbsPath(root, stackMetadata.Path)
 
-		logger.Debug().
+		logger = logger.With().
 			Str("stack", stackpath).
+			Logger()
+
+		logger.Debug().
 			Msg("Load stack globals.")
 		globals, err := terramate.LoadStackGlobals(root, stackMetadata)
 		if err != nil {
@@ -113,12 +116,10 @@ func Do(root string) error {
 		}
 
 		logger.Trace().
-			Str("stack", stackpath).
 			Msg("Create new HCL evaluation context.")
 		evalctx := eval.NewContext(stackpath)
 
 		logger.Trace().
-			Str("stack", stackpath).
 			Msg("Add stack metadata evaluation namespace.")
 		if err := stackMetadata.SetOnEvalCtx(evalctx); err != nil {
 			errs = append(errs, fmt.Errorf("stack %q: %v", stackpath, err))
@@ -126,7 +127,6 @@ func Do(root string) error {
 		}
 
 		logger.Trace().
-			Str("stack", stackpath).
 			Msg("Add global evaluation namespace.")
 		if err := globals.SetOnEvalCtx(evalctx); err != nil {
 			errs = append(errs, fmt.Errorf("stack %q: %v", stackpath, err))
@@ -134,14 +134,12 @@ func Do(root string) error {
 		}
 
 		logger.Debug().
-			Str("stack", stackpath).
 			Msg("Generate stack backend config.")
 		if err := generateStackBackendConfig(root, stackpath, evalctx); err != nil {
 			errs = append(errs, fmt.Errorf("stack %q: generating backend config: %w", stackpath, err))
 		}
 
 		logger.Debug().
-			Str("stack", stackpath).
 			Msg("Generate stack locals.")
 		if err := generateStackLocals(root, stackpath, stackMetadata, globals); err != nil {
 			err = errutil.Chain(ErrExportingLocalsGen, err)
@@ -178,8 +176,11 @@ func generateStackLocals(
 		return err
 	}
 
-	logger.Trace().
+	logger = logger.With().
 		Str("genfile", genfile).
+		Logger()
+
+	logger.Trace().
 		Msg("Load stack exported locals.")
 	stackLocals, err := terramate.LoadStackExportedLocals(rootdir, metadata, globals)
 	if err != nil {
@@ -187,7 +188,6 @@ func generateStackLocals(
 	}
 
 	logger.Trace().
-		Str("genfile", genfile).
 		Msg("Get stack attributes.")
 	localsAttrs := stackLocals.Attributes()
 	if len(localsAttrs) == 0 {
@@ -195,7 +195,6 @@ func generateStackLocals(
 	}
 
 	logger.Trace().
-		Str("configFile", genfile).
 		Msg("Sort attributes.")
 	sortedAttrs := make([]string, 0, len(localsAttrs))
 	for name := range localsAttrs {
@@ -205,7 +204,6 @@ func generateStackLocals(
 	sort.Strings(sortedAttrs)
 
 	logger.Trace().
-		Str("configFile", genfile).
 		Msg("Append locals block to file.")
 	gen := hclwrite.NewEmptyFile()
 	body := gen.Body()
@@ -213,14 +211,12 @@ func generateStackLocals(
 	localsBody := localsBlock.Body()
 
 	logger.Trace().
-		Str("configFile", genfile).
 		Msg("Set attribute values.")
 	for _, name := range sortedAttrs {
 		localsBody.SetAttributeValue(name, localsAttrs[name])
 	}
 
 	logger.Debug().
-		Str("configFile", genfile).
 		Msg("Write file.")
 	tfcode := AddHeader(gen.Bytes())
 	return os.WriteFile(genfile, tfcode, 0666)
@@ -271,15 +267,17 @@ func loadStackBackendConfig(root string, configdir string, evalctx *eval.Context
 		Msg("Get config file path.")
 	configfile := filepath.Join(configdir, config.Filename)
 
-	logger.Trace().
+	logger = logger.With().
 		Str("configFile", configfile).
+		Logger()
+
+	logger.Trace().
 		Msg("Load stack backend config.")
 	if _, err := os.Stat(configfile); err != nil {
 		return loadStackBackendConfig(root, filepath.Dir(configdir), evalctx)
 	}
 
 	logger.Debug().
-		Str("configFile", configfile).
 		Msg("Read config file.")
 	config, err := os.ReadFile(configfile)
 	if err != nil {
@@ -287,7 +285,6 @@ func loadStackBackendConfig(root string, configdir string, evalctx *eval.Context
 	}
 
 	logger.Debug().
-		Str("configFile", configfile).
 		Msg("Parse config file.")
 	parsedConfig, err := hcl.Parse(configfile, config)
 	if err != nil {
@@ -295,7 +292,6 @@ func loadStackBackendConfig(root string, configdir string, evalctx *eval.Context
 	}
 
 	logger.Trace().
-		Str("configFile", configfile).
 		Msg("Check if parsed is empty.")
 	parsed := parsedConfig.Terramate
 	if parsed == nil || parsed.Backend == nil {
@@ -303,7 +299,6 @@ func loadStackBackendConfig(root string, configdir string, evalctx *eval.Context
 	}
 
 	logger.Debug().
-		Str("configFile", configfile).
 		Msg("Create new file and append parsed blocks.")
 	gen := hclwrite.NewEmptyFile()
 	rootBody := gen.Body()

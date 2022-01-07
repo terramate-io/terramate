@@ -88,17 +88,18 @@ func loadStackExportedLocalExprs(rootdir string, cfgdir string) (exportedLocalEx
 		Msg("Get config file path.")
 	cfgpath := filepath.Join(rootdir, cfgdir, config.Filename)
 
-	logger.Debug().
+	logger = logger.With().
 		Str("configFile", cfgpath).
+		Logger()
+
+	logger.Debug().
 		Msg("Parse export as locals blocks.")
 	blocks, err := hcl.ParseExportAsLocalsBlocks(cfgpath)
 
 	logger.Trace().
-		Str("configFile", cfgpath).
 		Msg("Check if file exists.")
 	if os.IsNotExist(err) {
 		logger.Trace().
-			Str("configFile", cfgpath).
 			Msg("Get parent directory.")
 		parentcfg, ok := parentDir(cfgdir)
 		if !ok {
@@ -112,16 +113,13 @@ func loadStackExportedLocalExprs(rootdir string, cfgdir string) (exportedLocalEx
 	}
 
 	logger.Trace().
-		Str("configFile", cfgpath).
 		Msg("Get new exported local exprs.")
 	exportLocals := newExportedLocalExprs()
 
 	logger.Trace().
-		Str("configFile", cfgpath).
 		Msg("Range over blocks.")
 	for _, block := range blocks {
 		logger.Trace().
-			Str("configFile", cfgpath).
 			Msg("Range over block attributes.")
 		for name, attr := range block.Body.Attributes {
 			if exportLocals.has(name) {
@@ -137,7 +135,6 @@ func loadStackExportedLocalExprs(rootdir string, cfgdir string) (exportedLocalEx
 	}
 
 	logger.Trace().
-		Str("configFile", cfgpath).
 		Msg("Get parent config.")
 	parentcfg, ok := parentDir(cfgdir)
 	if !ok {
@@ -145,7 +142,6 @@ func loadStackExportedLocalExprs(rootdir string, cfgdir string) (exportedLocalEx
 	}
 
 	logger.Debug().
-		Str("configFile", parentcfg).
 		Msg("Get parent export locals.")
 	parentExportLocals, err := loadStackExportedLocalExprs(rootdir, parentcfg)
 	if err != nil {
@@ -153,7 +149,6 @@ func loadStackExportedLocalExprs(rootdir string, cfgdir string) (exportedLocalEx
 	}
 
 	logger.Trace().
-		Str("configFile", parentcfg).
 		Msg("Merge export locals with parent export locals.")
 	exportLocals.merge(parentExportLocals)
 	return exportLocals, nil

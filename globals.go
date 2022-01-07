@@ -235,13 +235,15 @@ func loadStackGlobals(rootdir string, cfgdir string) (*rawGlobals, error) {
 		Msg("Get config file path.")
 	cfgpath := filepath.Join(rootdir, cfgdir, config.Filename)
 
-	logger.Debug().
+	logger = logger.With().
 		Str("configFile", cfgpath).
+		Logger()
+
+	logger.Debug().
 		Msg("Parse globals blocks.")
 	blocks, err := hcl.ParseGlobalsBlocks(cfgpath)
 
 	logger.Trace().
-		Str("configFile", cfgpath).
 		Msg("Check if config file exists.")
 	if os.IsNotExist(err) {
 		parentcfg, ok := parentDir(cfgdir)
@@ -258,18 +260,15 @@ func loadStackGlobals(rootdir string, cfgdir string) (*rawGlobals, error) {
 	globals := newRawGlobals()
 
 	logger.Trace().
-		Str("configFile", cfgpath).
 		Msg("Range over blocks.")
 	for _, block := range blocks {
 		logger.Trace().
-			Str("configFile", cfgpath).
 			Msg("Range over block attributes.")
 		for name, attr := range block.Body.Attributes {
 			if globals.has(name) {
 				return nil, fmt.Errorf("%w: global %q already defined in configuration %q", ErrGlobalRedefined, name, cfgpath)
 			}
 			logger.Trace().
-				Str("configFile", cfgpath).
 				Msg("Add attribute to globals.")
 			globals.add(name, attr.Expr)
 		}
