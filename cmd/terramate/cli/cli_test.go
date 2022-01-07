@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// FIXME(katcipis): improve CLI tests isolation
-//go:build ignore
-
 package cli_test
 
 import (
@@ -157,20 +154,14 @@ func TestListAndRunChangedStack(t *testing.T) {
 	assertRunResult(t, cli.run("stacks", "list", "--changed"), runExpected{Stdout: wantList})
 
 	cat := test.LookPath(t, "cat")
-	wantRun := fmt.Sprintf(
-		"Running on changed stacks:\n[%s] running %s %s\n%s\n",
-		stack.RelPath(),
-		cat,
-		mainTfFileName,
-		mainTfContents,
-	)
+	wantRun := mainTfContents
 
 	assertRunResult(t, cli.run(
 		"run",
 		"--changed",
 		cat,
 		mainTfFileName,
-	), runExpected{Stdout: wantRun})
+	), runExpected{Stdout: wantRun, IgnoreStderr: true})
 }
 
 func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {

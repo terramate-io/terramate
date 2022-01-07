@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// FIXME(katcipis): improve CLI tests isolation
-//go:build ignore
-
 package cli_test
 
 import (
@@ -409,28 +406,16 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 	assertRunResult(t, cli.run("stacks", "list", "--changed"), runExpected{Stdout: wantList})
 
 	cat := test.LookPath(t, "cat")
-	wantRun := fmt.Sprintf(
-		"Running on changed stacks:\n[%s] running %s %s\n%s\n",
-		stack.RelPath(),
-		cat,
-		mainTfFileName,
-		mainTfContents,
-	)
+	wantRun := mainTfContents
 
 	assertRunResult(t, cli.run(
 		"run",
 		"--changed",
 		cat,
 		mainTfFileName,
-	), runExpected{Stdout: wantRun})
+	), runExpected{Stdout: wantRun, IgnoreStderr: true})
 
-	wantRun = fmt.Sprintf(
-		"Running on changed stacks:\n[%s] running %s %s\n%s\n",
-		".",
-		cat,
-		mainTfFileName,
-		mainTfContents,
-	)
+	wantRun = mainTfContents
 
 	cli = newCLI(t, stack.Path())
 	assertRunResult(t, cli.run(
@@ -438,7 +423,7 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 		"--changed",
 		cat,
 		mainTfFileName,
-	), runExpected{Stdout: wantRun})
+	), runExpected{Stdout: wantRun, IgnoreStderr: true})
 
 	cli = newCLI(t, stack2.Path())
 	assertRunResult(t, cli.run(
@@ -446,7 +431,7 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 		"--changed",
 		cat,
 		mainTfFileName,
-	), runExpected{Stdout: "Running on changed stacks:\n"})
+	), runExpected{Stdout: "", IgnoreStderr: true})
 }
 
 func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
@@ -486,14 +471,8 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 
 	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
-		"Running on changed stacks:\n[%s] running %s %s\n%s\n[%s] running %s %s\n%s\n",
-		stack2.RelPath(),
-		cat,
-		mainTfFileName,
+		"%s%s",
 		mainTfContents,
-		stack.RelPath(),
-		cat,
-		mainTfFileName,
 		mainTfContents,
 	)
 
@@ -502,5 +481,5 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 		"--changed",
 		cat,
 		mainTfFileName,
-	), runExpected{Stdout: wantRun})
+	), runExpected{Stdout: wantRun, IgnoreStderr: true})
 }
