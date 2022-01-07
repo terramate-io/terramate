@@ -217,12 +217,14 @@ func newCLI(
 	}
 
 	logger.Trace().
-		Msgf("Get absolute file path of %q.", wd)
+		Str("wd", wd).
+		Msg("Get absolute filepath for working dir")
 	wd, err = filepath.Abs(wd)
 	if err != nil {
 		logger.Fatal().
+			Str("wd", wd).
 			Err(err).
-			Msgf("getting absolute path of %q", wd)
+			Msg("getting absolute path")
 	}
 
 	logger.Trace().
@@ -230,8 +232,9 @@ func newCLI(
 	_, err = os.Stat(wd)
 	if err != nil {
 		logger.Fatal().
+			Str("wd", wd).
 			Err(err).
-			Msgf("stating working directory %q", wd)
+			Msg("stating working directory")
 	}
 
 	logger.Trace().
@@ -239,8 +242,9 @@ func newCLI(
 	wd, err = filepath.EvalSymlinks(wd)
 	if err != nil {
 		logger.Fatal().
+			Str("wd", wd).
 			Err(err).
-			Msgf("failed evaluating symlinks for %q", wd)
+			Msg("failed evaluating symlinks")
 	}
 
 	logger.Trace().
@@ -248,8 +252,9 @@ func newCLI(
 	err = os.Chdir(wd)
 	if err != nil {
 		logger.Fatal().
+			Str("wd", wd).
 			Err(err).
-			Msgf("failed to change working directory to %q", wd)
+			Msg("failed to change working directory")
 	}
 
 	logger.Trace().
@@ -257,8 +262,9 @@ func newCLI(
 	prj, foundRoot, err := lookupProject(wd)
 	if err != nil {
 		logger.Fatal().
+			Str("wd", wd).
 			Err(err).
-			Msgf("failed to lookup project root from %q", wd)
+			Msg("failed to lookup project root")
 	}
 
 	if !foundRoot {
@@ -445,7 +451,8 @@ func (c *cli) initStack(dirs []string) {
 
 	if len(errmsgs) > 0 {
 		log.Fatal().
-			Msg(ErrInit.Error())
+			Err(ErrInit).
+			Send()
 	}
 }
 
@@ -546,7 +553,8 @@ func (c *cli) generateGraph() {
 		err := terramate.BuildDAG(graph, c.root(), e.Stack, loader, visited)
 		if err != nil {
 			log.Fatal().
-				Msgf("failed to build order tree: %v", err)
+				Err(err).
+				Msg("failed to build order tree")
 		}
 	}
 
@@ -554,7 +562,8 @@ func (c *cli) generateGraph() {
 		val, err := graph.Node(id)
 		if err != nil {
 			log.Fatal().
-				Msgf("generating graph: %v", err)
+				Err(err).
+				Msg("generating graph")
 		}
 
 		generateDot(dotGraph, graph, id, val.(stack.S), getLabel)
@@ -574,7 +583,9 @@ func (c *cli) generateGraph() {
 		f, err := os.Create(outFile)
 		if err != nil {
 			log.Fatal().
-				Msgf("opening file %q: %v", outFile, err)
+				Str("path", outFile).
+				Err(err).
+				Msg("opening file")
 		}
 
 		defer f.Close()
@@ -587,7 +598,9 @@ func (c *cli) generateGraph() {
 	_, err = out.Write([]byte(dotGraph.String()))
 	if err != nil {
 		log.Fatal().
-			Msgf("writing output to %q: %v", outFile, err)
+			Str("path", outFile).
+			Err(err).
+			Msg("writing output")
 	}
 }
 
@@ -607,7 +620,8 @@ func generateDot(
 		val, err := graph.Node(childid)
 		if err != nil {
 			logger.Fatal().
-				Msgf("generating dot file: %v", err)
+				Err(err).
+				Msg("generating dot file")
 		}
 		s := val.(stack.S)
 		n := dotGraph.Node(getLabel(s))
@@ -664,10 +678,13 @@ func (c *cli) printRunOrder() {
 	if err != nil {
 		if errors.Is(err, dag.ErrCycleDetected) {
 			log.Fatal().
-				Msgf("%v: reason is %s", err, reason)
+				Err(err).
+				Str("reason", reason).
+				Msg("running on order")
 		} else {
 			log.Fatal().
-				Msgf("failed to plan execution: %v", err)
+				Err(err).
+				Msg("failed to plan execution")
 		}
 	}
 
@@ -678,23 +695,23 @@ func (c *cli) printRunOrder() {
 
 func (c *cli) printStacksGlobals() {
 	log := log.With().
-		Str("action", "printRunOrder()").
+		Str("action", "printStacksGlobals()").
 		Logger()
 
 	metadata, err := terramate.LoadMetadata(c.root())
 	if err != nil {
 		log.Fatal().
-			Msgf("listing stacks globals: loading stacks metadata: %v", err)
+			Err(err).
+			Msg("listing stacks globals: loading stacks metadata")
 	}
 
 	for _, stackMetadata := range metadata.Stacks {
 		globals, err := terramate.LoadStackGlobals(c.root(), stackMetadata)
 		if err != nil {
 			log.Fatal().
-				Msgf("listing stacks globals: loading stack %q globals: %v",
-					stackMetadata.Path,
-					err,
-				)
+				Err(err).
+				Str("stack", stackMetadata.Path).
+				Msg("listing stacks globals: loading stack")
 		}
 
 		globalsStrRepr := globals.String()
@@ -787,11 +804,14 @@ func (c *cli) runOnStacks() {
 	order, reason, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
 		if errors.Is(err, dag.ErrCycleDetected) {
-			log.Fatal().
-				Msgf("%v: reason is %s", err, reason)
+			logger.Fatal().
+				Str("reason", reason).
+				Err(err).
+				Msg("running in order")
 		} else {
 			log.Fatal().
-				Msgf("failed to plan execution: %v", err)
+				Err(err).
+				Msg("failed to plan execution")
 		}
 	}
 
