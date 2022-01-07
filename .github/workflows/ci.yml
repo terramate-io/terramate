@@ -66,5 +66,5 @@ jobs:
         uses: goreleaser/goreleaser-action@v2
         with:
           distribution: goreleaser
-          version: v2.8.0
+          version: 2.8.0
           args: release --snapshot --rm-dist
