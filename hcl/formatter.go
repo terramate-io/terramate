@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -31,6 +32,12 @@ func FormatAttributes(attrs map[string]cty.Value) string {
 		return ""
 	}
 
+	logger := log.With().
+		Str("action", "FormatAttributes()").
+		Logger()
+
+	logger.Trace().
+		Msg("Create empty hcl file.")
 	f := hclwrite.NewEmptyFile()
 	body := f.Body()
 	sortedAttrNames := make([]string, 0, len(attrs))
@@ -39,8 +46,12 @@ func FormatAttributes(attrs map[string]cty.Value) string {
 		sortedAttrNames = append(sortedAttrNames, name)
 	}
 
+	logger.Trace().
+		Msg("Sort attributes.")
 	sort.Strings(sortedAttrNames)
 
+	logger.Trace().
+		Msg("Set attribute values.")
 	for _, name := range sortedAttrNames {
 		body.SetAttributeValue(name, attrs[name])
 	}

@@ -19,7 +19,6 @@ import (
 	"path/filepath"
 
 	"github.com/mineiros-io/terramate/stack"
-
 	"github.com/rs/zerolog/log"
 )
 

@@ -24,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -47,10 +48,21 @@ type ExportedLocalValues struct {
 //
 // The rootdir MUST be an absolute path.
 func LoadStackExportedLocals(rootdir string, sm StackMetadata, g *Globals) (ExportedLocalValues, error) {
+	logger := log.With().
+		Str("action", "LoadStackExportedLocals()").
+		Str("stack", sm.Path).
+		Logger()
+
+	logger.Trace().
+		Str("path", rootdir).
+		Msg("Get absolute file path of rootdir.")
 	if !filepath.IsAbs(rootdir) {
 		return ExportedLocalValues{}, fmt.Errorf("%q must be an absolute path", rootdir)
 	}
 
+	logger.Trace().
+		Str("path", rootdir).
+		Msg("Load stack exported locals exprs.")
 	localVars, err := loadStackExportedLocalExprs(rootdir, sm.Path)
 	if err != nil {
 		return ExportedLocalValues{}, err
@@ -67,10 +79,28 @@ func (e ExportedLocalValues) Attributes() map[string]cty.Value {
 }
 
 func loadStackExportedLocalExprs(rootdir string, cfgdir string) (exportedLocalExprs, error) {
+	logger := log.With().
+		Str("action", "loadStackExportedLocalExprs()").
+		Str("path", rootdir).
+		Logger()
+
+	logger.Trace().
+		Msg("Get config file path.")
 	cfgpath := filepath.Join(rootdir, cfgdir, config.Filename)
+
+	logger = logger.With().
+		Str("configFile", cfgpath).
+		Logger()
+
+	logger.Debug().
+		Msg("Parse export as locals blocks.")
 	blocks, err := hcl.ParseExportAsLocalsBlocks(cfgpath)
 
+	logger.Trace().
+		Msg("Check if file exists.")
 	if os.IsNotExist(err) {
+		logger.Trace().
+			Msg("Get parent directory.")
 		parentcfg, ok := parentDir(cfgdir)
 		if !ok {
 			return newExportedLocalExprs(), nil
@@ -82,9 +112,15 @@ func loadStackExportedLocalExprs(rootdir string, cfgdir string) (exportedLocalEx
 		return exportedLocalExprs{}, err
 	}
 
+	logger.Trace().
+		Msg("Get new exported local exprs.")
 	exportLocals := newExportedLocalExprs()
 
+	logger.Trace().
+		Msg("Range over blocks.")
 	for _, block := range blocks {
+		logger.Trace().
+			Msg("Range over block attributes.")
 		for name, attr := range block.Body.Attributes {
 			if exportLocals.has(name) {
 				return exportedLocalExprs{}, fmt.Errorf(
@@ -98,16 +134,22 @@ func loadStackExportedLocalExprs(rootdir string, cfgdir string) (exportedLocalEx
 		}
 	}
 
+	logger.Trace().
+		Msg("Get parent config.")
 	parentcfg, ok := parentDir(cfgdir)
 	if !ok {
 		return exportLocals, nil
 	}
 
+	logger.Debug().
+		Msg("Get parent export locals.")
 	parentExportLocals, err := loadStackExportedLocalExprs(rootdir, parentcfg)
 	if err != nil {
 		return exportedLocalExprs{}, err
 	}
 
+	logger.Trace().
+		Msg("Merge export locals with parent export locals.")
 	exportLocals.merge(parentExportLocals)
 	return exportLocals, nil
 }
@@ -133,12 +175,24 @@ func (r exportedLocalExprs) eval(meta StackMetadata, globals *Globals) (Exported
 	// FIXME(katcipis): get abs path for stack.
 	// This is relative only to root since meta.Path will look
 	// like: /some/path/relative/project/root
+
+	logger := log.With().
+		Str("action", "eval()").
+		Str("stack", meta.Path).
+		Logger()
+
+	logger.Trace().
+		Msg("Create new context.")
 	evalctx := eval.NewContext("." + meta.Path)
 
+	logger.Trace().
+		Msg("Add proper namespace for stack metadata evaluation.")
 	if err := meta.SetOnEvalCtx(evalctx); err != nil {
 		return ExportedLocalValues{}, fmt.Errorf("evaluating export_as_locals: setting terramate metadata namespace: %v", err)
 	}
 
+	logger.Trace().
+		Msg("Add proper namespace for globals evaluation.")
 	if err := globals.SetOnEvalCtx(evalctx); err != nil {
 		return ExportedLocalValues{}, fmt.Errorf("evaluating export_as_locals: setting terramate globals namespace: %v", err)
 	}
@@ -146,6 +200,8 @@ func (r exportedLocalExprs) eval(meta StackMetadata, globals *Globals) (Exported
 	var errs []error
 	exportAsLocals := newExportedLocalValues()
 
+	logger.Trace().
+		Msg("Range over exported locals expressions.")
 	for name, expr := range r.expressions {
 		val, err := evalctx.Eval(expr)
 		if err != nil {
@@ -156,6 +212,8 @@ func (r exportedLocalExprs) eval(meta StackMetadata, globals *Globals) (Exported
 	}
 
 	// TODO(katcipis): error reporting can be improved here.
+	logger.Trace().
+		Msg("Reduce errors to single error.")
 	err := errutil.Reduce(func(err1 error, err2 error) error {
 		return fmt.Errorf("%v,%v", err1, err2)
 	}, errs...)

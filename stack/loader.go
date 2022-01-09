@@ -198,7 +198,7 @@ func (l Loader) LoadAll(root string, basedir string, dirs ...string) ([]S, error
 	absbase := filepath.Join(root, basedir)
 
 	logger.Trace().
-		Str("stack", root).
+		Str("path", root).
 		Msg("Range over directories.")
 	for _, d := range dirs {
 		if !filepath.IsAbs(d) {

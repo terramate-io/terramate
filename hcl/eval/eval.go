@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
 
@@ -51,6 +52,12 @@ func (c *Context) GetHCLContext() *hhcl.EvalContext {
 // SetNamespace will set the given values inside the given namespace on the
 // evaluation context.
 func (c *Context) SetNamespace(name string, vals map[string]cty.Value) error {
+	logger := log.With().
+		Str("action", "SetNamespace()").
+		Logger()
+
+	logger.Trace().
+		Msg("Convert from map to object.")
 	obj, err := fromMapToObject(vals)
 	if err != nil {
 		return fmt.Errorf("setting namespace %q:%v", name, err)
@@ -69,10 +76,19 @@ func (c *Context) Eval(expr hclsyntax.Expression) (cty.Value, error) {
 }
 
 func fromMapToObject(m map[string]cty.Value) (cty.Value, error) {
+	logger := log.With().
+		Str("action", "fromMapToObject()").
+		Logger()
+
+	logger.Trace().
+		Msg("Range over map.")
 	ctyTypes := map[string]cty.Type{}
 	for key, value := range m {
 		ctyTypes[key] = value.Type()
 	}
+
+	logger.Trace().
+		Msg("Convert type and value to object.")
 	ctyObject := cty.Object(ctyTypes)
 	ctyVal, err := gocty.ToCtyValue(m, ctyObject)
 	if err != nil {

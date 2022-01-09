@@ -208,15 +208,17 @@ func newCLI(
 			Msg("Getwd() failed")
 	}
 
+	logger = logger.With().
+		Str("workingDir", wd).
+		Logger()
+
 	if parsedArgs.Chdir != "" {
 		logger.Debug().
-			Str("wd", wd).
 			Str("dir", parsedArgs.Chdir).
 			Msg("Changing working directory")
 		err = os.Chdir(parsedArgs.Chdir)
 		if err != nil {
 			logger.Fatal().
-				Str("wd", wd).
 				Str("dir", parsedArgs.Chdir).
 				Err(err).
 				Msg("Changing working directory failed")
@@ -238,13 +240,11 @@ func newCLI(
 	}
 
 	logger.Trace().
-		Str("wd", wd).
 		Msg("Running in directory")
 
 	prj, foundRoot, err := lookupProject(wd)
 	if err != nil {
 		logger.Fatal().
-			Str("wd", wd).
 			Err(err).
 			Msg("failed to lookup project root")
 	}
@@ -287,7 +287,7 @@ func (c *cli) run() {
 
 	logger := log.With().
 		Str("action", "run()").
-		Str("stack", c.wd()).
+		Str("workingDir", c.wd()).
 		Logger()
 
 	if c.parsedArgs.Changed {
@@ -330,37 +330,31 @@ func (c *cli) run() {
 	case "plan graph":
 		log.Trace().
 			Str("actionContext", "cli()").
-			Str("stack", c.wd()).
 			Msg("Handle `plan graph`.")
 		c.generateGraph()
 	case "plan run-order":
 		log.Trace().
 			Str("actionContext", "cli()").
-			Str("stack", c.wd()).
 			Msg("Print run-order.")
 		c.printRunOrder()
 	case "stacks init":
 		log.Trace().
 			Str("actionContext", "cli()").
-			Str("stack", c.wd()).
 			Msg("Handle stacks init command.")
 		c.initStack([]string{c.wd()})
 	case "stacks list":
 		log.Trace().
 			Str("actionContext", "cli()").
-			Str("stack", c.wd()).
 			Msg("Print list of stacks.")
 		c.printStacks()
 	case "stacks init <paths>":
 		log.Trace().
 			Str("actionContext", "cli()").
-			Str("stack", c.wd()).
 			Msg("Handle stacks init <paths> command.")
 		c.initStack(c.parsedArgs.Stacks.Init.StackDirs)
 	case "stacks globals":
 		log.Trace().
 			Str("actionContext", "cli()").
-			Str("stack", c.wd()).
 			Msg("Handle stacks global command.")
 		c.printStacksGlobals()
 	case "run":
@@ -442,7 +436,7 @@ func (c *cli) listStacks(mgr *terramate.Manager, isChanged bool) ([]terramate.En
 	if isChanged {
 		log.Trace().
 			Str("action", "listStacks()").
-			Str("stack", c.wd()).
+			Str("workingDir", c.wd()).
 			Msg("`Changed` flag was set. List changed stacks.")
 		return mgr.ListChanged()
 	}
@@ -455,12 +449,12 @@ func (c *cli) printStacks() {
 		Logger()
 
 	logger.Trace().
-		Str("stack", c.wd()).
+		Str("workingDir", c.wd()).
 		Msg("Create a new stack manager.")
 	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
 
 	logger.Trace().
-		Str("stack", c.wd()).
+		Str("workingDir", c.wd()).
 		Msg("Get stack list.")
 	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
@@ -469,7 +463,7 @@ func (c *cli) printStacks() {
 	}
 
 	logger.Trace().
-		Str("stack", c.wd()).
+		Str("workingDir", c.wd()).
 		Msg("Print stacks.")
 	for _, entry := range entries {
 		stack := entry.Stack
@@ -495,7 +489,7 @@ func (c *cli) generateGraph() {
 
 	logger := log.With().
 		Str("action", "generateGraph()").
-		Str("stack", c.wd()).
+		Str("workingDir", c.wd()).
 		Logger()
 
 	logger.Trace().
@@ -628,7 +622,7 @@ func generateDot(
 func (c *cli) printRunOrder() {
 	logger := log.With().
 		Str("action", "printRunOrder()").
-		Str("stack", c.wd()).
+		Str("workingDir", c.wd()).
 		Logger()
 
 	logger.Trace().
@@ -714,7 +708,7 @@ func (c *cli) printMetadata() {
 		Logger()
 
 	logger.Trace().
-		Str("stack", c.wd()).
+		Str("workingDir", c.wd()).
 		Msg("Load metadata.")
 	metadata, err := terramate.LoadMetadata(c.root())
 	if err != nil {
@@ -723,7 +717,7 @@ func (c *cli) printMetadata() {
 	}
 
 	logger.Trace().
-		Str("stack", c.wd()).
+		Str("workingDir", c.wd()).
 		Msg("Log metadata.")
 	c.log("Available metadata:")
 
@@ -740,7 +734,7 @@ func (c *cli) printMetadata() {
 func (c *cli) runOnStacks() {
 	logger := log.With().
 		Str("action", "runOnStacks()").
-		Str("stack", c.wd()).
+		Str("workingDir", c.wd()).
 		Logger()
 
 	logger.Trace().
@@ -884,7 +878,7 @@ func (c *cli) checkDefaultRemote(g *git.Git) error {
 func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 	logger := log.With().
 		Str("action", "checkLocalDefaultIsUpdated()").
-		Str("stack", c.wd()).
+		Str("workingDir", c.wd()).
 		Logger()
 
 	logger.Trace().
@@ -941,7 +935,7 @@ func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Entry {
 	logger := log.With().
 		Str("action", "filterStacksByWorkingDir()").
-		Str("stack", c.wd()).
+		Str("workingDir", c.wd()).
 		Logger()
 
 	logger.Trace().
@@ -987,7 +981,7 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 	logger := log.With().
 		Str("action", "lookupProject()").
-		Str("stack", wd).
+		Str("workingDir", wd).
 		Logger()
 
 	logger.Trace().
@@ -1060,7 +1054,7 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 func (p *project) setDefaults(parsedArgs *cliSpec) error {
 	logger := log.With().
 		Str("action", "setDefaults()").
-		Str("stack", p.wd).
+		Str("workingDir", p.wd).
 		Logger()
 
 	if p.rootcfg.Terramate == nil {

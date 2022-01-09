@@ -91,7 +91,7 @@ func (ts tscli) run(args ...string) runResult {
 func assertRun(t *testing.T, got runResult) {
 	t.Helper()
 
-	assertRunResult(t, got, runExpected{IgnoreStdout: true, IgnoreStderr: true})
+	assertRunResult(t, got, runExpected{})
 }
 
 func assertRunResult(t *testing.T, got runResult, want runExpected) {
@@ -115,7 +115,9 @@ func assertRunResult(t *testing.T, got runResult, want runExpected) {
 				)
 			}
 		} else {
-			assert.EqualStrings(t, wantStdout, stdout, "stdout mismatch")
+			if want.Stdout != "" {
+				assert.EqualStrings(t, wantStdout, stdout, "stdout mismatch")
+			}
 		}
 	}
 
@@ -131,7 +133,9 @@ func assertRunResult(t *testing.T, got runResult, want runExpected) {
 				)
 			}
 		} else {
-			assert.EqualStrings(t, want.Stderr, got.Stderr, "stderr mismatch")
+			if want.Stderr != "" {
+				assert.EqualStrings(t, want.Stderr, got.Stderr, "stderr mismatch")
+			}
 		}
 	}
 
