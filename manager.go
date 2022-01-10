@@ -73,9 +73,7 @@ func (m *Manager) List() ([]Entry, error) {
 		return nil, err
 	}
 
-	logger.Trace().
-		Str("repo", m.root).
-		Msg("Create git wrapper for repo.")
+	logger.Trace().Str("repo", m.root).Msg("Create git wrapper for repo.")
 
 	g, err := git.WithConfig(git.Config{
 		WorkingDir: m.root,
@@ -84,8 +82,7 @@ func (m *Manager) List() ([]Entry, error) {
 		return nil, err
 	}
 
-	logger.Trace().
-		Msg("Check if path is git repo.")
+	logger.Trace().Msg("Check if path is git repo.")
 	if !g.IsRepository() {
 		return entries, nil
 	}
