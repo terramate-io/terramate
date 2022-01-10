@@ -264,7 +264,7 @@ func writeStackBackendConfig(
 		Logger()
 
 	logger.Trace().Msg("Generating code.")
-	tfcode, err := loadStackBackendConfig(root, stackpath, stackpath, stackMetadata, globals)
+	tfcode, err := loadStackBackendConfig(root, stackpath, stackMetadata, globals, stackpath)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrBackendConfigGen, err)
 	}
@@ -291,10 +291,10 @@ func writeStackBackendConfig(
 
 func loadStackBackendConfig(
 	root string,
-	configdir string,
 	stackpath string,
 	stackMetadata terramate.StackMetadata,
 	globals *terramate.Globals,
+	configdir string,
 ) ([]byte, error) {
 	logger := log.With().
 		Str("action", "loadStackBackendConfig()").
@@ -320,7 +320,7 @@ func loadStackBackendConfig(
 	logger.Trace().
 		Msg("Load stack backend config.")
 	if _, err := os.Stat(configfile); err != nil {
-		return loadStackBackendConfig(root, filepath.Dir(configdir), stackpath, stackMetadata, globals)
+		return loadStackBackendConfig(root, stackpath, stackMetadata, globals, filepath.Dir(configdir))
 	}
 
 	logger.Debug().
@@ -341,7 +341,7 @@ func loadStackBackendConfig(
 		Msg("Check if parsed is empty.")
 	parsed := parsedConfig.Terramate
 	if parsed == nil || parsed.Backend == nil {
-		return loadStackBackendConfig(root, filepath.Dir(configdir), stackpath, stackMetadata, globals)
+		return loadStackBackendConfig(root, stackpath, stackMetadata, globals, filepath.Dir(configdir))
 	}
 
 	evalctx := eval.NewContext(stackpath)
