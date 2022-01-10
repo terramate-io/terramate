@@ -17,14 +17,24 @@ package project
 import (
 	"path/filepath"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 // RelPath returns the dir relative to project's root.
 func RelPath(root, dir string) string {
+	log.Trace().
+		Str("action", "RelPath()").
+		Str("dir", dir).
+		Str("root", root).
+		Msg("Trim path to get relative dir.")
+
 	d := strings.TrimPrefix(dir, root)
+
 	if d == "" {
 		d = "/"
 	}
+
 	return d
 }
 
@@ -36,19 +46,36 @@ func AbsPath(root, dir string) string {
 
 // FriendlyFmtDir formats the directory in a friendly way for tooling output.
 func FriendlyFmtDir(root, wd, dir string) (string, bool) {
+	logger := log.With().
+		Str("action", "FriendlyFmtDir()").
+		Logger()
+
+	logger.Trace().
+		Str("prefix", wd).
+		Str("root", root).
+		Str("dir", dir).
+		Msg("Get relative path.")
+
 	trimPart := RelPath(root, wd)
 	if !strings.HasPrefix(dir, trimPart) {
 		return "", false
 	}
 
+	logger.Trace().
+		Str("dir", dir).
+		Str("prefix", trimPart).
+		Msg("Trim prefix.")
 	dir = strings.TrimPrefix(dir, trimPart)
+
 	if dir == "" {
 		dir = "."
-	}
-
-	if dir[0] == '/' {
+	} else if dir[0] == '/' {
 		dir = dir[1:]
 	}
+
+	logger.Trace().
+		Str("newdir", dir).
+		Msg("Get friendly dir.")
 
 	return dir, true
 }

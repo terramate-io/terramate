@@ -15,7 +15,6 @@
 package cli_test
 
 import (
-	"os"
 	"testing"
 
 	"github.com/mineiros-io/terramate/config"
@@ -28,7 +27,7 @@ func TestCLIList(t *testing.T) {
 	type testcase struct {
 		name   string
 		layout []string
-		want   runResult
+		want   runExpected
 	}
 
 	for _, tc := range []testcase{
@@ -46,7 +45,7 @@ func TestCLIList(t *testing.T) {
 		{
 			name:   "single stack",
 			layout: []string{"s:stack"},
-			want: runResult{
+			want: runExpected{
 				Stdout: "stack\n",
 			},
 		},
@@ -63,7 +62,7 @@ func TestCLIList(t *testing.T) {
 				"d:more",
 				"d:waste/directories",
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: "there/is/a/very/deep/hidden/stack/here\n",
 			},
 		},
@@ -72,7 +71,7 @@ func TestCLIList(t *testing.T) {
 			layout: []string{
 				"s:1", "s:2", "s:3",
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: "1\n2\n3\n",
 			},
 		},
@@ -87,7 +86,7 @@ func TestCLIList(t *testing.T) {
 				"d:something/else/uninportant",
 				"s:3/x/y/z",
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `1
 2
 3/x/y/z
@@ -115,7 +114,7 @@ func TestListStackWithNoTerramateBlock(t *testing.T) {
 		Stack: &hcl.Stack{},
 	})
 	cli := newCLI(t, s.RootDir())
-	assertRunResult(t, cli.run("stacks", "list"), runResult{Stdout: "stack\n"})
+	assertRunResult(t, cli.run("stacks", "list"), runExpected{Stdout: "stack\n"})
 }
 
 func TestListNoSuchFile(t *testing.T) {
@@ -123,8 +122,9 @@ func TestListNoSuchFile(t *testing.T) {
 	cli := newCLI(t, notExists)
 
 	// errors from the manager are not logged in stderr
-	assertRunResult(t, cli.run("stacks", "list"), runResult{
-		Error: os.ErrNotExist,
+	assertRunResult(t, cli.run("stacks", "list"), runExpected{
+		Status:      1,
+		StderrRegex: "no such file or directory",
 	})
 }
 
@@ -148,7 +148,7 @@ func TestListDetectChangesInSubDirOfStack(t *testing.T) {
 	git.Add(stack.Path())
 	git.Commit("stack changed")
 
-	want := runResult{
+	want := runExpected{
 		Stdout: stack.RelPath() + "\n",
 	}
 	assertRunResult(t, cli.run("stacks", "list", "--changed"), want)
@@ -181,7 +181,7 @@ terramate {
 	git.Add(stack.Path())
 	git.Commit("stack changed")
 
-	want := runResult{
+	want := runExpected{
 		Stdout: stack.RelPath() + "\n",
 	}
 	assertRunResult(t, cli.run("stacks", "list", "--changed"), want)

@@ -19,6 +19,7 @@ import (
 
 	"github.com/mineiros-io/terramate/dag"
 	"github.com/mineiros-io/terramate/stack"
+	"github.com/rs/zerolog/log"
 )
 
 type visited map[string]struct{}
@@ -27,31 +28,58 @@ type visited map[string]struct{}
 // In the case of multiple possible orders, it returns the lexicographic sorted
 // path.
 func RunOrder(root string, stacks []stack.S, changed bool) ([]stack.S, string, error) {
+	logger := log.With().
+		Str("action", "RunOrder()").
+		Str("path", root).
+		Logger()
+
+	logger.Debug().
+		Msg("Create new directed acyclic graph.")
 	d := dag.New()
+
+	logger.Trace().
+		Msg("Create new stack loader.")
 	loader := stack.NewLoader(root)
+
+	logger.Trace().
+		Msg("Add stacks to loader.")
 	for _, stack := range stacks {
 		loader.Set(stack.Dir, stack)
 	}
 
 	visited := visited{}
+
+	logger.Trace().
+		Msg("Range over stacks.")
 	for _, stack := range stacks {
 		if _, ok := visited[stack.Dir]; ok {
 			continue
 		}
+
+		logger.Debug().
+			Str("stack", stack.Dir).
+			Msg("Build DAG.")
 		err := BuildDAG(d, root, stack, loader, visited)
 		if err != nil {
 			return nil, "", err
 		}
 	}
 
+	logger.Trace().
+		Msg("Validate DAG.")
 	reason, err := d.Validate()
 	if err != nil {
 		return nil, reason, err
 	}
 
+	logger.Trace().
+		Msg("Get topologically order DAG.")
 	order := d.Order()
 
 	orderedStacks := make([]stack.S, 0, len(order))
+
+	logger.Trace().
+		Msg("Get ordered stacks.")
 	for _, id := range order {
 		val, err := d.Node(id)
 		if err != nil {
@@ -73,18 +101,30 @@ func BuildDAG(
 	loader stack.Loader,
 	visited visited,
 ) error {
+	logger := log.With().
+		Str("action", "BuildDAG()").
+		Str("path", root).
+		Str("stack", s.Dir).
+		Logger()
+
 	visited[s.Dir] = struct{}{}
 
+	logger.Trace().
+		Msg("Load all stacks in dir after current stack.")
 	afterStacks, err := loader.LoadAll(root, s.Dir, s.After()...)
 	if err != nil {
 		return err
 	}
 
+	logger.Trace().
+		Msg("Load all stacks in dir before current stack.")
 	beforeStacks, err := loader.LoadAll(root, s.Dir, s.Before()...)
 	if err != nil {
 		return err
 	}
 
+	logger.Debug().
+		Msg("Add new node to DAG.")
 	err = d.AddNode(dag.ID(s.Dir), s, toids(beforeStacks), toids(afterStacks))
 	if err != nil {
 		return err
@@ -94,11 +134,21 @@ func BuildDAG(
 	stacks = append(stacks, afterStacks...)
 	stacks = append(stacks, beforeStacks...)
 
+	logger.Trace().
+		Msg("Range over stacks.")
 	for _, s := range stacks {
+		logger = log.With().
+			Str("action", "BuildDAG()").
+			Str("path", root).
+			Str("stack", s.Dir).
+			Logger()
+
 		if _, ok := visited[s.Dir]; ok {
 			continue
 		}
 
+		logger.Trace().
+			Msg("Build DAG.")
 		err = BuildDAG(d, root, s, loader, visited)
 		if err != nil {
 			return err

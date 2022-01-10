@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -37,11 +38,20 @@ type Metadata struct {
 
 // LoadMetadata loads the project metadata given the project basedir.
 func LoadMetadata(basedir string) (Metadata, error) {
+	logger := log.With().
+		Str("action", "LoadMetadata()").
+		Str("path", basedir).
+		Logger()
+
+	logger.Debug().
+		Msg("Get list of stacks in path.")
 	stackEntries, err := ListStacks(basedir)
 	if err != nil {
 		return Metadata{}, err
 	}
 
+	logger.Trace().
+		Msg("Make array of stack metadata entries.")
 	stacksMetadata := make([]StackMetadata, len(stackEntries))
 	for i, stackEntry := range stackEntries {
 		stacksMetadata[i] = StackMetadata{

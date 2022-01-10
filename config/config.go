@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -31,14 +32,26 @@ const (
 
 // Exists tells if path has a terramate config file.
 func Exists(path string) bool {
+	logger := log.With().
+		Str("action", "Exists()").
+		Str("path", path).
+		Logger()
+
+	logger.Trace().
+		Msg("Get path info.")
 	st, err := os.Stat(path)
 	if err != nil {
 		return false
 	}
+
+	logger.Trace().
+		Msg("Check if path is directory.")
 	if !st.IsDir() {
 		return false
 	}
 
+	logger.Trace().
+		Msg("Look for config file within directory.")
 	fname := filepath.Join(path, Filename)
 	info, err := os.Stat(fname)
 	if err != nil {
@@ -49,6 +62,14 @@ func Exists(path string) bool {
 }
 
 func TryLoadRootConfig(dir string) (cfg hcl.Config, found bool, err error) {
+	logger := log.With().
+		Str("action", "TryLoadRootConfig()").
+		Str("path", dir).
+		Str("configFile", dir+Filename).
+		Logger()
+
+	logger.Trace().
+		Msg("Check if file exists.")
 	path := filepath.Join(dir, Filename)
 	_, err = os.Stat(path)
 	if err != nil {
@@ -59,6 +80,8 @@ func TryLoadRootConfig(dir string) (cfg hcl.Config, found bool, err error) {
 		return hcl.Config{}, false, err
 	}
 
+	logger.Trace().
+		Msg("Parse file.")
 	cfg, err = hcl.ParseFile(path)
 	if err != nil {
 		return hcl.Config{}, false, err

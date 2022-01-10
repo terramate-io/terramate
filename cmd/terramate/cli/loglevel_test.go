@@ -1,4 +1,4 @@
-// Copyright 2021 Mineiros GmbH
+// Copyright 2022 Mineiros GmbH
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package cli_test
 
-import (
-	"os"
+import "github.com/rs/zerolog"
 
-	"github.com/mineiros-io/terramate/cmd/terramate/cli"
-)
-
-func main() {
-	cli.Exec(os.Args[1:], true, os.Stdin, os.Stdout, os.Stderr)
+func init() {
+	zerolog.SetGlobalLevel(zerolog.Disabled)
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
+	"github.com/rs/zerolog"
 )
 
 type want struct {
@@ -755,4 +756,8 @@ func testParser(t *testing.T, tc testcase) {
 			test.AssertTerramateConfig(t, got, tc.want.config)
 		}
 	})
+}
+
+func init() {
+	zerolog.SetGlobalLevel(zerolog.Disabled)
 }

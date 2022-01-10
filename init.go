@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 
 	hclversion "github.com/hashicorp/go-version"
+	"github.com/rs/zerolog/log"
 
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
@@ -32,11 +33,20 @@ import (
 // other terramate version, the force flag can be used to explicitly initialize
 // it anyway. The dir must be an absolute path.
 func Init(root, dir string, force bool) error {
+	logger := log.With().
+		Str("action", "Init()").
+		Str("stack", dir).
+		Logger()
+
+	logger.Trace().
+		Msg("Check if directory is abs.")
 	if !filepath.IsAbs(dir) {
 		// TODO(i4k): this needs to go away soon.
 		return errors.New("init requires an absolute path")
 	}
 
+	logger.Trace().
+		Msg("Get directory info.")
 	_, err := os.Stat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -46,6 +56,8 @@ func Init(root, dir string, force bool) error {
 		return fmt.Errorf("stat failed on %q: %w", dir, err)
 	}
 
+	logger.Trace().
+		Msg("Check if stack is leaf.")
 	ok, err := stack.IsLeaf(root, dir)
 	if err != nil {
 		return err
@@ -55,6 +67,8 @@ func Init(root, dir string, force bool) error {
 		return fmt.Errorf("directory %q is not a leaf stack", dir)
 	}
 
+	logger.Trace().
+		Msg("Lookup parent stack.")
 	parentStack, found, err := stack.LookupParent(root, dir)
 	if err != nil {
 		return err
@@ -65,9 +79,14 @@ func Init(root, dir string, force bool) error {
 			dir, parentStack.Dir)
 	}
 
+	logger.Trace().
+		Msg("Get stack file.")
 	stackfile := filepath.Join(dir, config.Filename)
 	isInitialized := false
 
+	logger.Trace().
+		Str("configFile", stackfile).
+		Msg("Get stack file info.")
 	st, err := os.Stat(stackfile)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -82,12 +101,22 @@ func Init(root, dir string, force bool) error {
 	}
 
 	if isInitialized && !force {
+		logger.Trace().
+			Str("configFile", stackfile).
+			Msg("Stack is initialized annd not forced.")
+
+		logger.Trace().
+			Str("configFile", stackfile).
+			Msg("Parse version.")
 		vconstraint, err := parseVersion(stackfile)
 		if err != nil {
 			return fmt.Errorf("stack already initialized: error fetching "+
 				"version: %w", err)
 		}
 
+		logger.Trace().
+			Str("configFile", stackfile).
+			Msg("Create new constraint from version.")
 		constraint, err := hclversion.NewConstraint(vconstraint)
 		if err != nil {
 			return fmt.Errorf("unable to check stack constraint: %w", err)
@@ -99,6 +128,9 @@ func Init(root, dir string, force bool) error {
 		}
 	}
 
+	logger.Debug().
+		Str("configFile", stackfile).
+		Msg("Create stack file.")
 	f, err := os.Create(stackfile)
 	if err != nil {
 		return err
@@ -106,11 +138,17 @@ func Init(root, dir string, force bool) error {
 
 	defer f.Close()
 
+	logger.Debug().
+		Str("configFile", stackfile).
+		Msg("Create new configuration.")
 	cfg := hcl.NewConfig(DefaultVersionConstraint())
 	cfg.Stack = &hcl.Stack{
 		Name: filepath.Base(dir),
 	}
 
+	logger.Debug().
+		Str("configFile", stackfile).
+		Msg("Print configuration.")
 	err = hcl.PrintConfig(f, cfg)
 	if err != nil {
 		return fmt.Errorf("failed to write %q: %w", stackfile, err)
@@ -126,6 +164,13 @@ func DefaultVersionConstraint() string {
 }
 
 func parseVersion(stackfile string) (string, error) {
+	logger := log.With().
+		Str("action", "parseVersion()").
+		Str("configFile", stackfile).
+		Logger()
+
+	logger.Debug().
+		Msg("Parse stack file.")
 	config, err := hcl.ParseFile(stackfile)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse file %q: %w", stackfile, err)

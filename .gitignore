@@ -3,3 +3,5 @@ coverage.txt
 .terraform
 .terraform.lock.hcl
 /cmd/terramate/terramate
+
+.vscode/

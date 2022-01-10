@@ -25,7 +25,7 @@ func TestOrderGraphAfter(t *testing.T) {
 	type testcase struct {
 		name   string
 		layout []string
-		want   runResult
+		want   runExpected
 	}
 
 	for _, tc := range []testcase{
@@ -34,7 +34,7 @@ func TestOrderGraphAfter(t *testing.T) {
 			layout: []string{
 				`s:stack`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout:        `digraph  {n1[label="stack"];}`,
 				FlattenStdout: true,
 			},
@@ -45,7 +45,7 @@ func TestOrderGraphAfter(t *testing.T) {
 				`s:stack1`,
 				`s:stack2`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `
 				digraph  {
 					n1[label="stack1"];
@@ -60,7 +60,7 @@ func TestOrderGraphAfter(t *testing.T) {
 				`s:stack:after=["../anotherstack"]`,
 				`s:anotherstack`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `
 				digraph  {
 					n1[label="anotherstack"];
@@ -77,7 +77,7 @@ func TestOrderGraphAfter(t *testing.T) {
 				`s:stack-b`,
 				`s:stack-c`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `
 				digraph  {
 					n1[label="stack-a"];
@@ -96,7 +96,7 @@ func TestOrderGraphAfter(t *testing.T) {
 				`s:stack-b:after=["../stack-c"]`,
 				`s:stack-c`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `digraph  {
 					n1[label="stack-a"];
 					n2[label="stack-b"];
@@ -120,7 +120,7 @@ func TestOrderGraphAfter(t *testing.T) {
 				`s:stack-g`,
 				`s:stack-x`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `digraph  {
 					n1[label="stack-a"];
 					n2[label="stack-b"];
@@ -148,7 +148,7 @@ func TestOrderGraphAfter(t *testing.T) {
 			layout: []string{
 				`s:stack-a:after=["../stack-a"]`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `
 				digraph  {
 					n1[label="stack-a"];
@@ -163,7 +163,7 @@ func TestOrderGraphAfter(t *testing.T) {
 				`s:stack-a:after=["../stack-b"]`,
 				`s:stack-b:after=["../stack-a"]`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `
 				digraph  {n1[label="stack-a"];
 					n2[label="stack-b"];
@@ -180,7 +180,7 @@ func TestOrderGraphAfter(t *testing.T) {
 				`s:stack-b:after=["../stack-a"]`,
 				`s:stack-c:after=["../stack-a"]`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `
 				digraph  {
 					n1[label="stack-a"];
@@ -203,7 +203,7 @@ func TestOrderGraphAfter(t *testing.T) {
 				`s:stack-c`,
 				`s:stack-d`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `
 				digraph  {
 					n1[label="stack-a"];
@@ -232,7 +232,7 @@ func TestOrderGraphAfter(t *testing.T) {
 				`s:stack-g`,
 				`s:stack-h`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `
 				digraph  {
 					n1[label="stack-a"];
@@ -261,7 +261,7 @@ func TestOrderGraphAfter(t *testing.T) {
 				`s:stack-c`,
 				`s:stack-d`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `
 				digraph  {
 					n1[label="stack-a"];
@@ -290,7 +290,7 @@ func TestOrderGraphAfter(t *testing.T) {
 				`s:stack-x`,
 				`s:stack-y`,
 			},
-			want: runResult{
+			want: runExpected{
 				Stdout: `
 				digraph  {
 					n1[label="stack-a"];

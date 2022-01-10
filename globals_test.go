@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/zclconf/go-cty-debug/ctydebug"
 )
 
 // TODO(katcipis): add tests related to tf functions that depend on filesystem
@@ -49,6 +50,9 @@ func TestLoadGlobals(t *testing.T) {
 		return hclwrite.BuildBlock("globals", builders...)
 	}
 	expr := hclwrite.Expression
+	attr := func(name, expr string) hclwrite.BlockBuilder {
+		return hclwrite.AttributeValue(t, name, expr)
+	}
 	str := hclwrite.String
 	number := hclwrite.NumberInt
 	boolean := hclwrite.Boolean
@@ -441,6 +445,72 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "global reference with successful try on stack",
+			layout: []string{"s:stack"},
+			globals: []globalsBlock{
+				{
+					path: "/stack",
+					add: globals(
+						attr("team", `{ members = ["aaa"] }`),
+						expr("members", "global.team.members"),
+						expr("members_try", `try(global.team.members, [])`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					attr("team", `{ members = ["aaa"] }`),
+					attr("members", `["aaa"]`),
+					attr("members_try", `["aaa"]`),
+				),
+			},
+		},
+		{
+			name:   "global reference with failed try on stack",
+			layout: []string{"s:stack"},
+			globals: []globalsBlock{
+				{
+					path: "/stack",
+					add: globals(
+						attr("team", `{ members = ["aaa"] }`),
+						expr("members_try", `try(global.team.mistake, [])`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					attr("team", `{ members = ["aaa"] }`),
+					attr("members_try", "[]"),
+				),
+			},
+		},
+		{
+			name:   "global reference with try on root config and value defined on stack",
+			layout: []string{"s:stack"},
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add: globals(
+						expr("team_def", "global.team.def"),
+						expr("team_def_try", `try(global.team.def, {})`),
+					),
+				},
+				{
+					path: "/stack",
+					add: globals(
+						attr("team", `{ def = { name = "awesome" } }`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					attr("team", `{ def = { name = "awesome" } }`),
+					attr("team_def", `{ name = "awesome" }`),
+					attr("team_def_try", `{ name = "awesome" }`),
+				),
+			},
+		},
+		{
 			name:   "global undefined reference on root",
 			layout: []string{"s:stack"},
 			globals: []globalsBlock{
@@ -482,6 +552,40 @@ func TestLoadGlobals(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name:   "global cyclic reference on stack",
+			layout: []string{"s:stack"},
+			globals: []globalsBlock{
+				{
+					path: "/stack",
+					add: globals(
+						expr("a", "global.b"),
+						expr("b", "global.c"),
+						expr("c", "global.a"),
+					),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name:   "global cyclic references across hierarchy",
+			layout: []string{"s:stacks/stack"},
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add:  globals(expr("a", "global.b")),
+				},
+				{
+					path: "/stacks",
+					add:  globals(expr("b", "global.c")),
+				},
+				{
+					path: "/stacks/stack",
+					add:  globals(expr("c", "global.a")),
+				},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tcase := range tcases {
@@ -517,8 +621,8 @@ func TestLoadGlobals(t *testing.T) {
 				// for wanted evaluated globals, but that would make
 				// globals building more annoying (two sets of functions).
 				if want.HasExpressions() {
+					t.Fatal("wanted globals definition contains expressions, they should be defined only by evaluated values")
 					t.Errorf("wanted globals definition:\n%s\n", want)
-					t.Fatal("can't contain expressions, loaded globals are evaluated (values only)")
 				}
 
 				gotAttrs := got.Attributes()
@@ -534,8 +638,11 @@ func TestLoadGlobals(t *testing.T) {
 						t.Errorf("wanted global.%s is missing", name)
 						continue
 					}
-					if !gotVal.RawEquals(wantVal) {
-						t.Errorf("got global.%s=%v; want %v", name, gotVal, wantVal)
+					if diff := ctydebug.DiffValues(wantVal, gotVal); diff != "" {
+						t.Errorf("global.%s doesn't match expectation", name)
+						t.Errorf("want: %s", ctydebug.ValueString(wantVal))
+						t.Errorf("got: %s", ctydebug.ValueString(gotVal))
+						t.Errorf("diff:\n%s", diff)
 					}
 				}
 			}

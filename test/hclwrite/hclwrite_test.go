@@ -19,7 +19,12 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/hcl/v2/hclparse"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/test/hclwrite"
+	"github.com/zclconf/go-cty-debug/ctydebug"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func TestHCLWrite(t *testing.T) {
@@ -35,6 +40,9 @@ func TestHCLWrite(t *testing.T) {
 	hcl := hclwrite.NewHCL
 	labels := hclwrite.Labels
 	expr := hclwrite.Expression
+	attr := func(name, expr string) hclwrite.BlockBuilder {
+		return hclwrite.AttributeValue(t, name, expr)
+	}
 	str := hclwrite.String
 	number := hclwrite.NumberInt
 	boolean := hclwrite.Boolean
@@ -64,6 +72,21 @@ func TestHCLWrite(t *testing.T) {
 			    bool   = true
 			    num    = 666
 			    str    = "test"
+			  }
+			`,
+		},
+		{
+			name: "block with complex attributes",
+			hcl: block("test",
+				attr("team", `{ members = ["aaa"] }`),
+				attr("nesting", `{ first = { second = { "hi": 666 } } }`),
+				attr("list", `[1, 2, 3]`),
+			),
+			want: `
+			  test {
+			    list    = [1, 2, 3]
+			    nesting = { first = { second = { "hi": 666 } } }
+			    team    = { members = ["aaa"] }
 			  }
 			`,
 		},
@@ -178,6 +201,8 @@ func TestHCLWrite(t *testing.T) {
 			want := hclwrite.Format(tcase.want)
 			got := tcase.hcl.String()
 
+			assertIsValidHCL(t, got)
+
 			if diff := cmp.Diff(got, want); diff != "" {
 				t.Errorf("got:\n%s", got)
 				t.Errorf("want:\n%s", want)
@@ -186,4 +211,57 @@ func TestHCLWrite(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHCLWriteAddingAttributeValue(t *testing.T) {
+	block := func(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock(name, builders...)
+	}
+	attr := func(name, expr string) hclwrite.BlockBuilder {
+		return hclwrite.AttributeValue(t, name, expr)
+	}
+	const objectExpression = `{ members = ["aaa"] }`
+
+	testblock := block("test",
+		attr("team", objectExpression),
+	)
+	want := evaluateValExpr(t, objectExpression)
+	gotAttrsValues := testblock.AttributesValues()
+
+	assert.EqualInts(t, 1, len(gotAttrsValues))
+
+	got := gotAttrsValues["team"]
+
+	if diff := ctydebug.DiffValues(want, got); diff != "" {
+		t.Fatal(diff)
+	}
+}
+
+func assertIsValidHCL(t *testing.T, code string) {
+	t.Helper()
+
+	parser := hclparse.NewParser()
+	_, diags := parser.ParseHCL([]byte(code), "")
+	if diags.HasErrors() {
+		t.Errorf("invalid HCL: %v", diags)
+		t.Fatalf("code:\n%s", code)
+	}
+}
+
+func evaluateValExpr(t *testing.T, valueExpr string) cty.Value {
+	t.Helper()
+
+	parser := hclparse.NewParser()
+	res, diags := parser.ParseHCL([]byte("t = "+valueExpr), "")
+	if diags.HasErrors() {
+		t.Fatal(diags)
+	}
+	body := res.Body.(*hclsyntax.Body)
+
+	val, diags := body.Attributes["t"].Expr.Value(nil)
+	if diags.HasErrors() {
+		t.Fatal(diags)
+	}
+
+	return val
 }

@@ -18,14 +18,24 @@ import (
 	"io"
 
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
 
 func PrintConfig(w io.Writer, cfg Config) error {
+	logger := log.With().
+		Str("action", "PrintConfig()").
+		Str("stack", cfg.Stack.Name).
+		Logger()
+
+	logger.Trace().
+		Msg("Create empty hcl file.")
 	f := hclwrite.NewEmptyFile()
 	rootBody := f.Body()
 
 	if cfg.Terramate != nil {
+		logger.Trace().
+			Msg("Append terramate block.")
 		tm := cfg.Terramate
 		tmBlock := rootBody.AppendNewBlock("terramate", nil)
 		tmBody := tmBlock.Body()
@@ -37,6 +47,8 @@ func PrintConfig(w io.Writer, cfg Config) error {
 	}
 
 	if cfg.Stack != nil {
+		logger.Trace().
+			Msg("Append 'stack' block.")
 		stack := cfg.Stack
 		stackBlock := rootBody.AppendNewBlock("stack", nil)
 		stackBody := stackBlock.Body()
@@ -50,6 +62,8 @@ func PrintConfig(w io.Writer, cfg Config) error {
 		}
 	}
 
+	logger.Debug().
+		Msg("Write to output.")
 	_, err := w.Write(f.Bytes())
 	return err
 }
