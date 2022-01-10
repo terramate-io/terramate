@@ -39,7 +39,8 @@ func (s S) Name() string {
 func (s S) After() []string  { return s.block.After }
 func (s S) Before() []string { return s.block.Before }
 
-func (s S) IsChanged() bool { return s.changed }
+func (s S) IsChanged() bool    { return s.changed }
+func (s *S) SetChanged(b bool) { s.changed = b }
 
 func (s S) String() string {
 	return s.Name()
