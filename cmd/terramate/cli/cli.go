@@ -459,7 +459,8 @@ func (c *cli) printStacks() {
 	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		logger.Fatal().
-			Err(err)
+			Err(err).
+			Msg("listing stacks")
 	}
 
 	logger.Trace().
@@ -634,7 +635,8 @@ func (c *cli) printRunOrder() {
 	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		logger.Fatal().
-			Err(err)
+			Err(err).
+			Msg("listing stacks")
 	}
 
 	logger.Trace().
@@ -713,7 +715,8 @@ func (c *cli) printMetadata() {
 	metadata, err := terramate.LoadMetadata(c.root())
 	if err != nil {
 		logger.Fatal().
-			Err(err)
+			Err(err).
+			Msg("loading metadata")
 	}
 
 	logger.Trace().
@@ -746,7 +749,8 @@ func (c *cli) runOnStacks() {
 	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		logger.Fatal().
-			Err(err)
+			Err(err).
+			Msg("listing stacks")
 	}
 
 	log.Info().
