@@ -263,22 +263,8 @@ func writeStackBackendConfig(
 		Str("targetFile", targetBackendCfgFile).
 		Logger()
 
-	evalctx := eval.NewContext(stackpath)
-
-	logger.Trace().Msg("Add stack metadata evaluation namespace.")
-
-	if err := stackMetadata.SetOnEvalCtx(evalctx); err != nil {
-		return fmt.Errorf("stack %q: %v", stackpath, err)
-	}
-
-	logger.Trace().Msg("Add global evaluation namespace.")
-
-	if err := globals.SetOnEvalCtx(evalctx); err != nil {
-		return fmt.Errorf("stack %q: %v", stackpath, err)
-	}
-
 	logger.Trace().Msg("Generating code.")
-	tfcode, err := loadStackBackendConfig(root, stackpath, evalctx)
+	tfcode, err := loadStackBackendConfig(root, stackpath, stackpath, stackMetadata, globals)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrBackendConfigGen, err)
 	}
@@ -303,7 +289,13 @@ func writeStackBackendConfig(
 	return nil
 }
 
-func loadStackBackendConfig(root string, configdir string, evalctx *eval.Context) ([]byte, error) {
+func loadStackBackendConfig(
+	root string,
+	configdir string,
+	stackpath string,
+	stackMetadata terramate.StackMetadata,
+	globals *terramate.Globals,
+) ([]byte, error) {
 	logger := log.With().
 		Str("action", "loadStackBackendConfig()").
 		Str("configDir", configdir).
@@ -311,6 +303,7 @@ func loadStackBackendConfig(root string, configdir string, evalctx *eval.Context
 
 	logger.Trace().
 		Msg("Check if config dir outside of root dir.")
+
 	if !strings.HasPrefix(configdir, root) {
 		// check if we are outside of project's root, time to stop
 		return nil, nil
@@ -327,7 +320,7 @@ func loadStackBackendConfig(root string, configdir string, evalctx *eval.Context
 	logger.Trace().
 		Msg("Load stack backend config.")
 	if _, err := os.Stat(configfile); err != nil {
-		return loadStackBackendConfig(root, filepath.Dir(configdir), evalctx)
+		return loadStackBackendConfig(root, filepath.Dir(configdir), stackpath, stackMetadata, globals)
 	}
 
 	logger.Debug().
@@ -348,7 +341,21 @@ func loadStackBackendConfig(root string, configdir string, evalctx *eval.Context
 		Msg("Check if parsed is empty.")
 	parsed := parsedConfig.Terramate
 	if parsed == nil || parsed.Backend == nil {
-		return loadStackBackendConfig(root, filepath.Dir(configdir), evalctx)
+		return loadStackBackendConfig(root, filepath.Dir(configdir), stackpath, stackMetadata, globals)
+	}
+
+	evalctx := eval.NewContext(stackpath)
+
+	logger.Trace().Msg("Add stack metadata evaluation namespace.")
+
+	if err := stackMetadata.SetOnEvalCtx(evalctx); err != nil {
+		return nil, fmt.Errorf("stack %q: %v", stackpath, err)
+	}
+
+	logger.Trace().Msg("Add global evaluation namespace.")
+
+	if err := globals.SetOnEvalCtx(evalctx); err != nil {
+		return nil, fmt.Errorf("stack %q: %v", stackpath, err)
 	}
 
 	logger.Debug().
