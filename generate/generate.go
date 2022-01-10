@@ -113,29 +113,11 @@ func Do(root string) error {
 			continue
 		}
 
-		logger.Trace().Msg("Create new HCL evaluation context.")
-
-		evalctx := eval.NewContext(stackpath)
-
-		logger.Trace().Msg("Add stack metadata evaluation namespace.")
-
-		if err := stackMetadata.SetOnEvalCtx(evalctx); err != nil {
-			errs = append(errs, fmt.Errorf("stack %q: %v", stackpath, err))
-			continue
-		}
-
-		logger.Trace().Msg("Add global evaluation namespace.")
-
-		if err := globals.SetOnEvalCtx(evalctx); err != nil {
-			errs = append(errs, fmt.Errorf("stack %q: %v", stackpath, err))
-			continue
-		}
-
 		logger.Debug().Msg("Generate stack backend config.")
 
 		// TODO(katcipis): allow this to be configured
 		targetBackendCfgFile := filepath.Join(stackpath, BackendCfgFilename)
-		if err := writeStackBackendConfig(root, stackpath, evalctx, targetBackendCfgFile); err != nil {
+		if err := writeStackBackendConfig(root, stackpath, stackMetadata, globals, targetBackendCfgFile); err != nil {
 			errs = append(errs, err)
 		}
 
@@ -167,7 +149,7 @@ func writeStackLocalsCode(
 	targetLocalsFile string,
 ) error {
 	logger := log.With().
-		Str("action", "saveStackLocalsCode()").
+		Str("action", "writeStackLocalsCode()").
 		Str("root", root).
 		Str("stack", stackpath).
 		Str("targetLocalsFile", targetLocalsFile).
@@ -268,12 +250,32 @@ func generateStackLocalsCode(
 	return tfcode, nil
 }
 
-func writeStackBackendConfig(root string, stackpath string, evalctx *eval.Context, targetFile string) error {
+func writeStackBackendConfig(
+	root string,
+	stackpath string,
+	stackMetadata terramate.StackMetadata,
+	globals *terramate.Globals,
+	targetBackendCfgFile string,
+) error {
 	logger := log.With().
 		Str("action", "generateStackBackendConfig()").
 		Str("stack", stackpath).
-		Str("targetFile", targetFile).
+		Str("targetFile", targetBackendCfgFile).
 		Logger()
+
+	evalctx := eval.NewContext(stackpath)
+
+	logger.Trace().Msg("Add stack metadata evaluation namespace.")
+
+	if err := stackMetadata.SetOnEvalCtx(evalctx); err != nil {
+		return fmt.Errorf("stack %q: %v", stackpath, err)
+	}
+
+	logger.Trace().Msg("Add global evaluation namespace.")
+
+	if err := globals.SetOnEvalCtx(evalctx); err != nil {
+		return fmt.Errorf("stack %q: %v", stackpath, err)
+	}
 
 	logger.Trace().Msg("Generating code.")
 	tfcode, err := loadStackBackendConfig(root, stackpath, evalctx)
@@ -288,12 +290,12 @@ func writeStackBackendConfig(root string, stackpath string, evalctx *eval.Contex
 
 	logger.Debug().Msg("Stack has backend config, saving generated code.")
 
-	if err := writeGeneratedCode(targetFile, tfcode); err != nil {
+	if err := writeGeneratedCode(targetBackendCfgFile, tfcode); err != nil {
 		return fmt.Errorf(
 			"stack %q: %w: saving code at %q",
 			stackpath,
 			err,
-			targetFile,
+			targetBackendCfgFile,
 		)
 	}
 
