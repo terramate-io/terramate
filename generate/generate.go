@@ -428,7 +428,7 @@ func sortedAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {
 func writeGeneratedCode(target string, code []byte) error {
 	logger := log.With().
 		Str("action", "writeGeneratedCode()").
-		Str("target", target).
+		Str("file", target).
 		Logger()
 
 	logger.Trace().Msg("Checking code can be written.")
