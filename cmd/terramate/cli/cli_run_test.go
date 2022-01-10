@@ -362,11 +362,6 @@ stack-z
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 
-			git := s.Git()
-			git.Add(".")
-			git.Commit("all")
-			git.Push("main")
-
 			cli := newCLI(t, s.RootDir())
 			args := []string{"plan", "run-order"}
 			if tc.changed {
