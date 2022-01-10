@@ -49,3 +49,18 @@ Given this stack layout (from the root of the project):
 
 * terramate.name for **stack-a** = stack-a
 * terramate.name for **stack-b** = stack-b
+
+
+## terramate.description (string) 
+
+The description of the stack, if it has any. The default value is an empty string
+if undefined.
+
+To define a description for a stack just add a **description**
+attribute to the **stack** block:
+
+```hcl
+stack {
+  description =  "some description"
+}
+```
