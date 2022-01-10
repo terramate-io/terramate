@@ -217,7 +217,7 @@ func assertStacks(
 func singleChangedStacksRepo(t *testing.T) repository {
 	repo := singleMergeCommitRepo(t)
 
-	g := test.NewGitWrapper(t, repo.Dir, false)
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
 
 	assert.NoError(t, g.Checkout("testbranch2", true), "git checkout failed")
 
@@ -233,7 +233,7 @@ func singleChangedStacksRepo(t *testing.T) repository {
 func singleNotChangedStack(t *testing.T) repository {
 	repo := test.NewRepo(t)
 
-	g := test.NewGitWrapper(t, repo, false)
+	g := test.NewGitWrapper(t, repo, []string{})
 
 	// make it a stack
 	assert.NoError(t, terramate.Init(repo, repo, false), "terramate init failed")
@@ -257,14 +257,14 @@ func singleNotChangedStack(t *testing.T) repository {
 func singleNotChangedStackNewBranch(t *testing.T) repository {
 	repo := singleNotChangedStack(t)
 
-	g := test.NewGitWrapper(t, repo.Dir, false)
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
 	assert.NoError(t, g.Checkout("testbranch2", true), "git checkout failed")
 
 	return repo
 }
 
 func addMergeCommit(t *testing.T, repodir, branch string) {
-	g := test.NewGitWrapper(t, repodir, false)
+	g := test.NewGitWrapper(t, repodir, []string{})
 
 	assert.NoError(t, g.Checkout("main", false), "checkout main failed")
 	assert.NoError(t, g.Merge(branch), "git merge failed")
@@ -274,7 +274,7 @@ func addMergeCommit(t *testing.T, repodir, branch string) {
 func singleNotMergedCommitBranch(t *testing.T) repository {
 	repo := singleNotChangedStack(t)
 
-	g := test.NewGitWrapper(t, repo.Dir, false)
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
 
 	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
 
@@ -289,7 +289,7 @@ func singleNotMergedCommitBranch(t *testing.T) repository {
 func singleMergeCommitRepo(t *testing.T) repository {
 	repo := singleNotChangedStack(t)
 
-	g := test.NewGitWrapper(t, repo.Dir, false)
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
 
 	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
 
@@ -311,7 +311,7 @@ func singleMergeCommitRepoNoStack(t *testing.T) repository {
 		Dir: repodir,
 	}
 
-	g := test.NewGitWrapper(t, repo.Dir, false)
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
 
 	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
 
@@ -330,7 +330,7 @@ func singleMergeCommitRepoNoStack(t *testing.T) repository {
 func multipleStacksOneChangedRepo(t *testing.T) repository {
 	repo := singleMergeCommitRepoNoStack(t)
 
-	g := test.NewGitWrapper(t, repo.Dir, false)
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
 
 	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
 
@@ -364,7 +364,7 @@ func multipleStacksOneChangedRepo(t *testing.T) repository {
 func multipleChangedStacksRepo(t *testing.T) repository {
 	repo := multipleStacksOneChangedRepo(t)
 
-	g := test.NewGitWrapper(t, repo.Dir, false)
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
 
 	for i := 0; i < 3; i++ {
 		otherStack := filepath.Join(repo.Dir, "changed-stack-"+fmt.Sprint(i))
@@ -391,7 +391,7 @@ func singleStackSingleModuleChangedRepo(t *testing.T) repository {
 	stack := test.Mkdir(t, repo.Dir, "stack")
 	assert.NoError(t, terramate.Init(repo.Dir, stack, false))
 
-	g := test.NewGitWrapper(t, repo.Dir, false)
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
 
 	test.WriteFile(t, stack, "main.tf", `
 module "something" {
@@ -408,7 +408,7 @@ module "something" {
 func multipleStackOneChangedModule(t *testing.T) repository {
 	repo := singleMergeCommitRepoNoStack(t)
 
-	g := test.NewGitWrapper(t, repo.Dir, false)
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
 
 	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
 
@@ -470,7 +470,7 @@ func singleStackDependentModuleChangedRepo(t *testing.T) repository {
 	stack := test.Mkdir(t, repo.Dir, "stack")
 	assert.NoError(t, terramate.Init(repo.Dir, stack, false))
 
-	g := test.NewGitWrapper(t, repo.Dir, false)
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
 
 	test.WriteFile(t, stack, "main.tf", `
 module "something" {

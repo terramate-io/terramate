@@ -28,7 +28,7 @@ func TestRepoIsSetupWithSyncRemoteOriginMain(t *testing.T) {
 	)
 	repodir := test.NewRepo(t)
 
-	git := test.NewGitWrapper(t, repodir, false)
+	git := test.NewGitWrapper(t, repodir, []string{})
 	originMainRev := remote + "/" + revision
 	commitID, err := git.RevParse(originMainRev)
 	assert.NoError(t, err, "git.RevParse(%q)", originMainRev)

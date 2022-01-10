@@ -960,7 +960,7 @@ func newGit(basedir string, inheritEnv bool, checkrepo bool) (*git.Git, error) {
 		Msg("Create new git wrapper providing config.")
 	g, err := git.WithConfig(git.Config{
 		WorkingDir: basedir,
-		InheritEnv: inheritEnv,
+		Env:        os.Environ(),
 	})
 
 	if err != nil {
