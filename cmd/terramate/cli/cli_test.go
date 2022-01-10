@@ -161,7 +161,9 @@ func TestListAndRunChangedStack(t *testing.T) {
 		"--changed",
 		cat,
 		mainTfFileName,
-	), runExpected{Stdout: wantRun})
+	), runExpected{
+		Stdout: wantRun,
+	})
 }
 
 func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
@@ -247,7 +249,10 @@ func TestDefaultBaseRefInMain(t *testing.T) {
 	git.Push("main")
 
 	// main uses HEAD^1 as default baseRef.
-	want := runExpected{Stdout: stack.RelPath() + "\n"}
+	want := runExpected{
+		Stdout:       stack.RelPath() + "\n",
+		IgnoreStderr: true,
+	}
 	assertRunResult(t, cli.run("stacks", "list", "--changed"), want)
 }
 
@@ -267,7 +272,9 @@ func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
 
 	assertRunResult(t, cli.run("stacks", "list", "--changed",
 		"--git-change-base", "origin/main"),
-		runExpected{},
+		runExpected{
+			IgnoreStderr: true,
+		},
 	)
 }
 

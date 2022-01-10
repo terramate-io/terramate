@@ -431,7 +431,7 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 		"--changed",
 		cat,
 		mainTfFileName,
-	), runExpected{Stdout: ""})
+	), runExpected{})
 }
 
 func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
