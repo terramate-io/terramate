@@ -712,16 +712,16 @@ func (c *cli) printMetadata() {
 	logger.Trace().
 		Str("workingDir", c.wd()).
 		Msg("Load metadata.")
+
 	metadata, err := terramate.LoadMetadata(c.root())
 	if err != nil {
-		logger.Fatal().
-			Err(err).
-			Msg("loading metadata")
+		logger.Fatal().Err(err).Msg("loading metadata")
 	}
 
 	logger.Trace().
 		Str("workingDir", c.wd()).
 		Msg("Log metadata.")
+
 	c.log("Available metadata:")
 
 	for _, stack := range metadata.Stacks {
@@ -731,6 +731,7 @@ func (c *cli) printMetadata() {
 		c.log("\nstack %q:", stack.Path)
 		c.log("\tterramate.name=%q", stack.Name)
 		c.log("\tterramate.path=%q", stack.Path)
+		c.log("\tterramate.description=%q", stack.Description)
 	}
 }
 
