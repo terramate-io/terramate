@@ -25,6 +25,7 @@ import (
 
 	"github.com/mineiros-io/terramate/git"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 )
@@ -87,6 +88,10 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 			Msg("Get dir name.")
 		dirname := filepath.Dir(filepath.Join(m.root, path))
 
+		if _, ok := stackSet[project.RelPath(m.root, dirname)]; ok {
+			continue
+		}
+
 		logger.Debug().
 			Str("path", dirname).
 			Msg("Try load changed.")
@@ -109,7 +114,7 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 			}
 		}
 
-		stackSet[dirname] = Entry{
+		stackSet[s.Dir] = Entry{
 			Stack:  s,
 			Reason: "stack has unmerged changes",
 		}
