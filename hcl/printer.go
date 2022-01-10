@@ -60,6 +60,10 @@ func PrintConfig(w io.Writer, cfg Config) error {
 		if len(stack.Before) > 0 {
 			stackBody.SetAttributeValue("before", cty.SetVal(listToValue(stack.Before)))
 		}
+
+		if stack.Description != "" {
+			stackBody.SetAttributeValue("description", cty.StringVal(stack.Description))
+		}
 	}
 
 	logger.Debug().
