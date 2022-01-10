@@ -362,6 +362,11 @@ stack-z
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 
+			git := s.Git()
+			git.Add(".")
+			git.Commit("all")
+			git.Push("main")
+
 			cli := newCLI(t, s.RootDir())
 			args := []string{"plan", "run-order"}
 			if tc.changed {
@@ -482,4 +487,67 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 		cat,
 		mainTfFileName,
 	), runExpected{Stdout: wantRun})
+}
+
+func TestRunFailIfDirtyRepo(t *testing.T) {
+	const (
+		mainTfFileName = "main.tf"
+		mainTfContents = "# some code"
+	)
+
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack")
+	stack.CreateFile(mainTfFileName, mainTfContents)
+
+	git := s.Git()
+	git.CommitAll("first commit")
+	git.Push("main")
+	git.CheckoutNew("change-stack")
+
+	untracked := stack.CreateFile("untracked-file.txt", `# something`)
+
+	cli := newCLI(t, s.RootDir())
+	cat := test.LookPath(t, "cat")
+
+	assertRunResult(t, cli.run(
+		"run",
+		"--changed",
+		cat,
+		mainTfFileName,
+	), runExpected{
+		Status:      defaultErrExitStatus,
+		StderrRegex: terramate.ErrDirtyRepo.Error(),
+	})
+
+	assertRunResult(t, cli.run(
+		"run",
+		cat,
+		mainTfFileName,
+	), runExpected{
+		Status:      defaultErrExitStatus,
+		StderrRegex: terramate.ErrDirtyRepo.Error(),
+	})
+
+	git.Add(untracked.Path())
+	git.Commit("commit untracked")
+
+	// everything commited, repo is clean
+	assertRunResult(t, cli.run(
+		"run",
+		"--changed",
+		cat,
+		mainTfFileName,
+	), runExpected{Stdout: mainTfContents})
+
+	// change file, no commit
+	untracked.Write("# changed")
+	assertRunResult(t, cli.run(
+		"run",
+		cat,
+		mainTfFileName,
+	), runExpected{
+		Status:      defaultErrExitStatus,
+		StderrRegex: terramate.ErrDirtyRepo.Error(),
+	})
 }

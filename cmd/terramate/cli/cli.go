@@ -457,7 +457,7 @@ func (c *cli) printStacks() {
 		Str("workingDir", c.wd()).
 		Msg("Get stack list.")
 	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
-	if err != nil {
+	if err != nil && !errors.Is(err, terramate.ErrDirtyRepo) {
 		logger.Fatal().
 			Err(err).
 			Msg("listing stacks")
@@ -509,7 +509,7 @@ func (c *cli) generateGraph() {
 			Msg("-label expects the values \"stack.name\" or \"stack.dir\"")
 	}
 	entries, err := terramate.ListStacks(c.root())
-	if err != nil {
+	if err != nil && !errors.Is(err, terramate.ErrDirtyRepo) {
 		logger.Fatal().
 			Err(err).
 			Msg("listing stacks.")
@@ -633,7 +633,7 @@ func (c *cli) printRunOrder() {
 	logger.Trace().
 		Msg("Get list of stacks.")
 	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
-	if err != nil {
+	if err != nil && !errors.Is(err, terramate.ErrDirtyRepo) {
 		logger.Fatal().
 			Err(err).
 			Msg("listing stacks")
