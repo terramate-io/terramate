@@ -187,6 +187,8 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 						Str("stack", abspath).
 						Str("configFile", tfpath).
 						Msg("Module changed.")
+
+					stack.SetChanged(true)
 					stackSet[stack.Dir] = Entry{
 						Stack:  stack,
 						Reason: fmt.Sprintf("stack changed because %q changed because %s", mod.Source, why),
