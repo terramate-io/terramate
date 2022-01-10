@@ -73,8 +73,9 @@ func LoadMetadata(basedir string) (Metadata, error) {
 func (m StackMetadata) SetOnEvalCtx(evalctx *eval.Context) error {
 	// Not 100% sure this eval related logic should be here.
 	vals := map[string]cty.Value{
-		"name": cty.StringVal(m.Name),
-		"path": cty.StringVal(m.Path),
+		"name":        cty.StringVal(m.Name),
+		"path":        cty.StringVal(m.Path),
+		"description": cty.StringVal(m.Description),
 	}
 	return evalctx.SetNamespace("terramate", vals)
 }

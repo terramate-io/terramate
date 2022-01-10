@@ -226,7 +226,7 @@ func TestLoadGlobals(t *testing.T) {
 			name: "stacks referencing metadata",
 			layout: []string{
 				"s:stacks/stack-1",
-				"s:stacks/stack-2",
+				"s:stacks/stack-2:description=someDescriptionStack2",
 			},
 			globals: []globalsBlock{
 				{
@@ -234,19 +234,27 @@ func TestLoadGlobals(t *testing.T) {
 					add: globals(
 						expr("stack_path", "terramate.path"),
 						expr("interpolated", `"prefix-${terramate.name}-suffix"`),
+						expr("stack_description", "terramate.description"),
 					),
 				},
 				{
 					path: "/stacks/stack-2",
-					add:  globals(expr("stack_path", "terramate.path")),
+					add: globals(
+						expr("stack_path", "terramate.path"),
+						expr("stack_description", "terramate.description"),
+					),
 				},
 			},
 			want: map[string]*hclwrite.Block{
 				"/stacks/stack-1": globals(
 					str("stack_path", "/stacks/stack-1"),
 					str("interpolated", "prefix-stack-1-suffix"),
+					str("stack_description", ""),
 				),
-				"/stacks/stack-2": globals(str("stack_path", "/stacks/stack-2")),
+				"/stacks/stack-2": globals(
+					str("stack_path", "/stacks/stack-2"),
+					str("stack_description", "someDescriptionStack2"),
+				),
 			},
 		},
 		{
