@@ -162,8 +162,7 @@ func TestListAndRunChangedStack(t *testing.T) {
 		cat,
 		mainTfFileName,
 	), runExpected{
-		Stdout:       wantRun,
-		IgnoreStderr: true,
+		Stdout: wantRun,
 	})
 }
 
