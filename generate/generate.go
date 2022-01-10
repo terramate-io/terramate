@@ -95,16 +95,14 @@ func Do(root string) error {
 		// more specific configuration overrides base configuration.
 		// Not the most optimized way (re-parsing), we can improve later
 
-		logger.Trace().
-			Msg("Get stack absolute path.")
 		stackpath := project.AbsPath(root, stackMetadata.Path)
 
 		logger = logger.With().
 			Str("stack", stackpath).
 			Logger()
 
-		logger.Debug().
-			Msg("Load stack globals.")
+		logger.Debug().Msg("Load stack globals.")
+
 		globals, err := terramate.LoadStackGlobals(root, stackMetadata)
 		if err != nil {
 			errs = append(errs, fmt.Errorf(
@@ -115,35 +113,53 @@ func Do(root string) error {
 			continue
 		}
 
-		logger.Trace().
-			Msg("Create new HCL evaluation context.")
+		logger.Trace().Msg("Create new HCL evaluation context.")
+
 		evalctx := eval.NewContext(stackpath)
 
-		logger.Trace().
-			Msg("Add stack metadata evaluation namespace.")
+		logger.Trace().Msg("Add stack metadata evaluation namespace.")
+
 		if err := stackMetadata.SetOnEvalCtx(evalctx); err != nil {
 			errs = append(errs, fmt.Errorf("stack %q: %v", stackpath, err))
 			continue
 		}
 
-		logger.Trace().
-			Msg("Add global evaluation namespace.")
+		logger.Trace().Msg("Add global evaluation namespace.")
+
 		if err := globals.SetOnEvalCtx(evalctx); err != nil {
 			errs = append(errs, fmt.Errorf("stack %q: %v", stackpath, err))
 			continue
 		}
 
-		logger.Debug().
-			Msg("Generate stack backend config.")
+		logger.Debug().Msg("Generate stack backend config.")
+
 		if err := generateStackBackendConfig(root, stackpath, evalctx); err != nil {
 			errs = append(errs, fmt.Errorf("stack %q: generating backend config: %w", stackpath, err))
 		}
 
-		logger.Debug().
-			Msg("Generate stack locals.")
-		if err := generateStackLocals(root, stackpath, stackMetadata, globals); err != nil {
+		logger.Debug().Msg("Generate stack locals.")
+
+		stackLocalsCode, err := generateStackLocals(root, stackpath, stackMetadata, globals)
+		if err != nil {
 			err = errutil.Chain(ErrExportingLocalsGen, err)
 			errs = append(errs, fmt.Errorf("stack %q: %w", stackpath, err))
+		}
+
+		if len(stackLocalsCode) > 0 {
+			logger.Debug().Msg("Stack has locals, saving generated code.")
+			// TODO(katcipis): allow this to be configured
+			stackLocalsFilepath := filepath.Join(stackpath, LocalsFilename)
+			if err := saveGeneratedCode(stackLocalsFilepath, stackLocalsCode); err != nil {
+				err = errutil.Chain(ErrExportingLocalsGen, err)
+				errs = append(errs, fmt.Errorf(
+					"stack %q: %w: saving code at %q",
+					stackpath,
+					err,
+					stackLocalsFilepath,
+				))
+			}
+		} else {
+			logger.Debug().Msg("Stack has no locals to be generated, nothing to do.")
 		}
 	}
 
@@ -158,44 +174,61 @@ func Do(root string) error {
 	return nil
 }
 
+func saveGeneratedCode(genfile string, code []byte) error {
+	logger := log.With().
+		Str("action", "saveGeneratedCode()").
+		Str("generatedFile", genfile).
+		Logger()
+
+	logger.Trace().Msg("Checking code can be written.")
+
+	//genfile := filepath.Join(stackpath, LocalsFilename)
+	if err := checkFileCanBeOverwritten(genfile); err != nil {
+		return err
+	}
+
+	logger.Trace().Msg("Writing code")
+	return os.WriteFile(genfile, code, 0666)
+}
+
 func generateStackLocals(
 	rootdir string,
 	stackpath string,
 	metadata terramate.StackMetadata,
 	globals *terramate.Globals,
-) error {
+) ([]byte, error) {
 	logger := log.With().
 		Str("action", "generateStackLocals()").
 		Str("stack", stackpath).
 		Logger()
 
-	logger.Trace().
-		Msg("Get generated file path.")
+	logger.Trace().Msg("Get generated file path.")
+
 	genfile := filepath.Join(stackpath, LocalsFilename)
 	if err := checkFileCanBeOverwritten(genfile); err != nil {
-		return err
+		return nil, err
 	}
 
 	logger = logger.With().
 		Str("genfile", genfile).
 		Logger()
 
-	logger.Trace().
-		Msg("Load stack exported locals.")
+	logger.Trace().Msg("Load stack exported locals.")
+
 	stackLocals, err := terramate.LoadStackExportedLocals(rootdir, metadata, globals)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	logger.Trace().
-		Msg("Get stack attributes.")
+	logger.Trace().Msg("Get stack attributes.")
+
 	localsAttrs := stackLocals.Attributes()
 	if len(localsAttrs) == 0 {
-		return nil
+		return nil, nil
 	}
 
-	logger.Trace().
-		Msg("Sort attributes.")
+	logger.Trace().Msg("Sort attributes.")
+
 	sortedAttrs := make([]string, 0, len(localsAttrs))
 	for name := range localsAttrs {
 		sortedAttrs = append(sortedAttrs, name)
@@ -219,7 +252,7 @@ func generateStackLocals(
 	logger.Debug().
 		Msg("Write file.")
 	tfcode := AddHeader(gen.Bytes())
-	return os.WriteFile(genfile, tfcode, 0666)
+	return tfcode, nil
 }
 
 func generateStackBackendConfig(root string, stackpath string, evalctx *eval.Context) error {
