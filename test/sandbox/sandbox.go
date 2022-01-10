@@ -147,6 +147,8 @@ func (s S) BuildTree(layout []string) {
 				tm.Stack.After = specList(t, name, value)
 			case "before":
 				tm.Stack.Before = specList(t, name, value)
+			case "description":
+				tm.Stack.Description = value
 			default:
 				t.Fatalf("attribute " + parts[0] + " not supported.")
 			}

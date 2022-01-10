@@ -113,6 +113,21 @@ func TestLoadMetadata(t *testing.T) {
 			},
 		},
 		{
+			name: "stacks with description",
+			layout: []string{
+				"s:stack:description=desc",
+			},
+			want: terramate.Metadata{
+				Stacks: []terramate.StackMetadata{
+					{
+						Name:        "stack",
+						Path:        "/stack",
+						Description: "desc",
+					},
+				},
+			},
+		},
+		{
 			name: "single invalid stack",
 			layout: []string{
 				fmt.Sprintf("f:invalid-stack/%s:data=%s", config.Filename, invalidHCL),
@@ -141,7 +156,7 @@ func TestLoadMetadata(t *testing.T) {
 			}
 
 			if diff := cmp.Diff(tcase.want, metadata, cmpopts.IgnoreUnexported(tcase.want)); diff != "" {
-				t.Fatalf("want %v != got %v.\ndiff:\n%s", tcase.want, metadata, diff)
+				t.Fatalf("want %+v != got %+v.\ndiff:\n%s", tcase.want, metadata, diff)
 			}
 		})
 	}

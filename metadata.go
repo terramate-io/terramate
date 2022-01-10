@@ -24,8 +24,9 @@ import (
 
 // StackMetadata has all metadata loaded per stack
 type StackMetadata struct {
-	Name string
-	Path string
+	Name        string
+	Path        string
+	Description string
 }
 
 // Metadata has all metadata loader per project
@@ -55,8 +56,9 @@ func LoadMetadata(basedir string) (Metadata, error) {
 	stacksMetadata := make([]StackMetadata, len(stackEntries))
 	for i, stackEntry := range stackEntries {
 		stacksMetadata[i] = StackMetadata{
-			Name: stackEntry.Stack.Name(),
-			Path: strings.TrimPrefix(stackEntry.Stack.Dir, basedir),
+			Name:        stackEntry.Stack.Name(),
+			Description: stackEntry.Stack.Description(),
+			Path:        strings.TrimPrefix(stackEntry.Stack.Dir, basedir),
 		}
 	}
 

@@ -36,6 +36,10 @@ func (s S) Name() string {
 	return filepath.Base(s.Dir)
 }
 
+func (s S) Description() string {
+	return s.block.Description
+}
+
 func (s S) After() []string  { return s.block.After }
 func (s S) Before() []string { return s.block.Before }
 
