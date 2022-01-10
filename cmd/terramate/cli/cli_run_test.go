@@ -413,7 +413,10 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 		"--changed",
 		cat,
 		mainTfFileName,
-	), runExpected{Stdout: wantRun})
+	), runExpected{
+		IgnoreStderr: true,
+		Stdout:       wantRun,
+	})
 
 	wantRun = mainTfContents
 
@@ -423,7 +426,10 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 		"--changed",
 		cat,
 		mainTfFileName,
-	), runExpected{Stdout: wantRun})
+	), runExpected{
+		Stdout:       wantRun,
+		IgnoreStderr: true,
+	})
 
 	cli = newCLI(t, stack2.Path())
 	assertRunResult(t, cli.run(
@@ -431,7 +437,10 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 		"--changed",
 		cat,
 		mainTfFileName,
-	), runExpected{Stdout: ""})
+	), runExpected{
+		Stdout:       "",
+		IgnoreStderr: true,
+	})
 }
 
 func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
@@ -481,5 +490,8 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 		"--changed",
 		cat,
 		mainTfFileName,
-	), runExpected{Stdout: wantRun})
+	), runExpected{
+		Stdout:       wantRun,
+		IgnoreStderr: true,
+	})
 }

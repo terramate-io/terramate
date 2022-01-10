@@ -115,9 +115,7 @@ func assertRunResult(t *testing.T, got runResult, want runExpected) {
 				)
 			}
 		} else {
-			if want.Stdout != "" {
-				assert.EqualStrings(t, wantStdout, stdout, "stdout mismatch")
-			}
+			assert.EqualStrings(t, wantStdout, stdout, "stdout mismatch")
 		}
 	}
 
@@ -133,9 +131,7 @@ func assertRunResult(t *testing.T, got runResult, want runExpected) {
 				)
 			}
 		} else {
-			if want.Stderr != "" {
-				assert.EqualStrings(t, want.Stderr, got.Stderr, "stderr mismatch")
-			}
+			assert.EqualStrings(t, want.Stderr, got.Stderr, "stderr mismatch")
 		}
 	}
 
