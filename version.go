@@ -20,7 +20,6 @@ import (
 	"strings"
 
 	tfversion "github.com/hashicorp/go-version"
-	"github.com/rs/zerolog/log"
 )
 
 //go:embed VERSION
@@ -29,13 +28,6 @@ var version string
 var tfversionObj *tfversion.Version
 
 func init() {
-	logger := log.With().
-		Str("action", "init()").
-		Str("version", Version()).
-		Logger()
-
-	logger.Debug().
-		Msg("Parsing version as semver.")
 	var err error
 	tfversionObj, err = tfversion.NewSemver(Version())
 	if err != nil {
