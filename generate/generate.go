@@ -183,22 +183,6 @@ func writeStackLocalsCode(
 	return nil
 }
 
-func writeGeneratedCode(target string, code []byte) error {
-	logger := log.With().
-		Str("action", "saveGeneratedCode()").
-		Str("target", target).
-		Logger()
-
-	logger.Trace().Msg("Checking code can be written.")
-
-	if err := checkFileCanBeOverwritten(target); err != nil {
-		return err
-	}
-
-	logger.Trace().Msg("Writing code")
-	return os.WriteFile(target, code, 0666)
-}
-
 func generateStackLocalsCode(
 	rootdir string,
 	stackpath string,
@@ -264,7 +248,7 @@ func writeStackBackendConfig(
 		Logger()
 
 	logger.Trace().Msg("Generating code.")
-	tfcode, err := loadStackBackendConfig(root, stackpath, stackMetadata, globals, stackpath)
+	tfcode, err := generateBackendCfgCode(root, stackpath, stackMetadata, globals, stackpath)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrBackendConfigGen, err)
 	}
@@ -289,7 +273,7 @@ func writeStackBackendConfig(
 	return nil
 }
 
-func loadStackBackendConfig(
+func generateBackendCfgCode(
 	root string,
 	stackpath string,
 	stackMetadata terramate.StackMetadata,
@@ -320,7 +304,7 @@ func loadStackBackendConfig(
 	logger.Trace().
 		Msg("Load stack backend config.")
 	if _, err := os.Stat(configfile); err != nil {
-		return loadStackBackendConfig(root, stackpath, stackMetadata, globals, filepath.Dir(configdir))
+		return generateBackendCfgCode(root, stackpath, stackMetadata, globals, filepath.Dir(configdir))
 	}
 
 	logger.Debug().
@@ -341,7 +325,7 @@ func loadStackBackendConfig(
 		Msg("Check if parsed is empty.")
 	parsed := parsedConfig.Terramate
 	if parsed == nil || parsed.Backend == nil {
-		return loadStackBackendConfig(root, stackpath, stackMetadata, globals, filepath.Dir(configdir))
+		return generateBackendCfgCode(root, stackpath, stackMetadata, globals, filepath.Dir(configdir))
 	}
 
 	evalctx := eval.NewContext(stackpath)
@@ -439,6 +423,22 @@ func sortedAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {
 	}
 
 	return sorted
+}
+
+func writeGeneratedCode(target string, code []byte) error {
+	logger := log.With().
+		Str("action", "writeGeneratedCode()").
+		Str("target", target).
+		Logger()
+
+	logger.Trace().Msg("Checking code can be written.")
+
+	if err := checkFileCanBeOverwritten(target); err != nil {
+		return err
+	}
+
+	logger.Trace().Msg("Writing code")
+	return os.WriteFile(target, code, 0666)
 }
 
 func checkFileCanBeOverwritten(path string) error {
