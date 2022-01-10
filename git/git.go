@@ -37,9 +37,8 @@ type (
 		// WorkingDir sets the directory where the commands will be applied.
 		WorkingDir string
 
-		// InheritEnv tells if the parent environment variables must be
-		// inherited by the git client.
-		InheritEnv bool
+		// Env is the environment variables to be passed over to git.
+		Env []string
 
 		// Isolated tells if the wrapper should run with isolated
 		// configurations, which means setting it to true will make the wrapper
@@ -824,12 +823,7 @@ func (git *Git) exec(command string, args ...string) (string, error) {
 	logger.Trace().
 		Msg("Append arguments.")
 	cmd.Args = append(cmd.Args, args...)
-
-	if git.config.InheritEnv {
-		logger.Trace().
-			Msg("Get environment.")
-		cmd.Env = os.Environ()
-	}
+	cmd.Env = git.config.Env
 
 	if git.config.Isolated {
 		logger.Trace().
