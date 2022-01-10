@@ -139,27 +139,10 @@ func Do(root string) error {
 
 		logger.Debug().Msg("Generate stack locals.")
 
-		stackLocalsCode, err := generateStackLocals(root, stackpath, stackMetadata, globals)
-		if err != nil {
-			err = errutil.Chain(ErrExportingLocalsGen, err)
-			errs = append(errs, fmt.Errorf("stack %q: %w", stackpath, err))
-		}
-
-		if len(stackLocalsCode) > 0 {
-			logger.Debug().Msg("Stack has locals, saving generated code.")
-			// TODO(katcipis): allow this to be configured
-			stackLocalsFilepath := filepath.Join(stackpath, LocalsFilename)
-			if err := saveGeneratedCode(stackLocalsFilepath, stackLocalsCode); err != nil {
-				err = errutil.Chain(ErrExportingLocalsGen, err)
-				errs = append(errs, fmt.Errorf(
-					"stack %q: %w: saving code at %q",
-					stackpath,
-					err,
-					stackLocalsFilepath,
-				))
-			}
-		} else {
-			logger.Debug().Msg("Stack has no locals to be generated, nothing to do.")
+		// TODO(katcipis): allow this to be configured
+		targetLocalsFile := filepath.Join(stackpath, LocalsFilename)
+		if err := saveStackLocalsCode(root, stackpath, stackMetadata, globals, targetLocalsFile); err != nil {
+			errs = append(errs, err)
 		}
 	}
 
@@ -169,6 +152,47 @@ func Do(root string) error {
 	// We do need the error wrapping for the error handling on tests (for now at least).
 	if err := errutil.Chain(errs...); err != nil {
 		return fmt.Errorf("failed to generate code: %w", err)
+	}
+
+	return nil
+}
+
+func saveStackLocalsCode(
+	root string,
+	stackpath string,
+	stackMetadata terramate.StackMetadata,
+	globals *terramate.Globals,
+	targetLocalsFile string,
+) error {
+	logger := log.With().
+		Str("action", "saveStackLocalsCode()").
+		Str("root", root).
+		Str("stack", stackpath).
+		Str("targetLocalsFile", targetLocalsFile).
+		Logger()
+	logger.Debug().Msg("Generate stack locals.")
+
+	stackLocalsCode, err := generateStackLocalsCode(root, stackpath, stackMetadata, globals)
+	if err != nil {
+		err = errutil.Chain(ErrExportingLocalsGen, err)
+		return fmt.Errorf("stack %q: %w", stackpath, err)
+	}
+
+	if len(stackLocalsCode) == 0 {
+		logger.Debug().Msg("Stack has no locals to be generated, nothing to do.")
+		return nil
+	}
+
+	logger.Debug().Msg("Stack has locals, saving generated code.")
+
+	if err := saveGeneratedCode(targetLocalsFile, stackLocalsCode); err != nil {
+		err = errutil.Chain(ErrExportingLocalsGen, err)
+		return fmt.Errorf(
+			"stack %q: %w: saving code at %q",
+			stackpath,
+			err,
+			targetLocalsFile,
+		)
 	}
 
 	return nil
@@ -191,7 +215,7 @@ func saveGeneratedCode(genfile string, code []byte) error {
 	return os.WriteFile(genfile, code, 0666)
 }
 
-func generateStackLocals(
+func generateStackLocalsCode(
 	rootdir string,
 	stackpath string,
 	metadata terramate.StackMetadata,
