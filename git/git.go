@@ -836,7 +836,6 @@ func (git *Git) exec(command string, args ...string) (string, error) {
 	}
 
 	logger.Debug().
-		Str("command", cmd.String()).
 		Msg("Run command.")
 	stdout, err := cmd.Output()
 	if err != nil {
@@ -845,12 +844,6 @@ func (git *Git) exec(command string, args ...string) (string, error) {
 		if errors.As(err, &exitError) {
 			stderr = exitError.Stderr
 		}
-
-		logger.Error().
-			Str("command", cmd.String()).
-			Str("stderr", string(stderr)).
-			Str("stdout", string(stdout)).
-			Msg("Run failed.")
 
 		return "", NewCmdError(cmd.String(), stdout, stderr)
 	}
