@@ -133,15 +133,17 @@ func Do(root string) error {
 
 		logger.Debug().Msg("Generate stack backend config.")
 
-		if err := generateStackBackendConfig(root, stackpath, evalctx); err != nil {
-			errs = append(errs, fmt.Errorf("stack %q: generating backend config: %w", stackpath, err))
+		// TODO(katcipis): allow this to be configured
+		targetBackendCfgFile := filepath.Join(stackpath, BackendCfgFilename)
+		if err := writeStackBackendConfig(root, stackpath, evalctx, targetBackendCfgFile); err != nil {
+			errs = append(errs, err)
 		}
 
 		logger.Debug().Msg("Generate stack locals.")
 
 		// TODO(katcipis): allow this to be configured
 		targetLocalsFile := filepath.Join(stackpath, LocalsFilename)
-		if err := saveStackLocalsCode(root, stackpath, stackMetadata, globals, targetLocalsFile); err != nil {
+		if err := writeStackLocalsCode(root, stackpath, stackMetadata, globals, targetLocalsFile); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -157,7 +159,7 @@ func Do(root string) error {
 	return nil
 }
 
-func saveStackLocalsCode(
+func writeStackLocalsCode(
 	root string,
 	stackpath string,
 	stackMetadata terramate.StackMetadata,
@@ -170,7 +172,7 @@ func saveStackLocalsCode(
 		Str("stack", stackpath).
 		Str("targetLocalsFile", targetLocalsFile).
 		Logger()
-	logger.Debug().Msg("Generate stack locals.")
+	logger.Debug().Msg("Save stack locals.")
 
 	stackLocalsCode, err := generateStackLocalsCode(root, stackpath, stackMetadata, globals)
 	if err != nil {
@@ -185,7 +187,7 @@ func saveStackLocalsCode(
 
 	logger.Debug().Msg("Stack has locals, saving generated code.")
 
-	if err := saveGeneratedCode(targetLocalsFile, stackLocalsCode); err != nil {
+	if err := writeGeneratedCode(targetLocalsFile, stackLocalsCode); err != nil {
 		err = errutil.Chain(ErrExportingLocalsGen, err)
 		return fmt.Errorf(
 			"stack %q: %w: saving code at %q",
@@ -195,24 +197,24 @@ func saveStackLocalsCode(
 		)
 	}
 
+	logger.Debug().Msg("Saved stack generated code.")
 	return nil
 }
 
-func saveGeneratedCode(genfile string, code []byte) error {
+func writeGeneratedCode(target string, code []byte) error {
 	logger := log.With().
 		Str("action", "saveGeneratedCode()").
-		Str("generatedFile", genfile).
+		Str("target", target).
 		Logger()
 
 	logger.Trace().Msg("Checking code can be written.")
 
-	//genfile := filepath.Join(stackpath, LocalsFilename)
-	if err := checkFileCanBeOverwritten(genfile); err != nil {
+	if err := checkFileCanBeOverwritten(target); err != nil {
 		return err
 	}
 
 	logger.Trace().Msg("Writing code")
-	return os.WriteFile(genfile, code, 0666)
+	return os.WriteFile(target, code, 0666)
 }
 
 func generateStackLocalsCode(
@@ -224,17 +226,6 @@ func generateStackLocalsCode(
 	logger := log.With().
 		Str("action", "generateStackLocals()").
 		Str("stack", stackpath).
-		Logger()
-
-	logger.Trace().Msg("Get generated file path.")
-
-	genfile := filepath.Join(stackpath, LocalsFilename)
-	if err := checkFileCanBeOverwritten(genfile); err != nil {
-		return nil, err
-	}
-
-	logger = logger.With().
-		Str("genfile", genfile).
 		Logger()
 
 	logger.Trace().Msg("Load stack exported locals.")
@@ -273,38 +264,41 @@ func generateStackLocalsCode(
 		localsBody.SetAttributeValue(name, localsAttrs[name])
 	}
 
-	logger.Debug().
-		Msg("Write file.")
 	tfcode := AddHeader(gen.Bytes())
 	return tfcode, nil
 }
 
-func generateStackBackendConfig(root string, stackpath string, evalctx *eval.Context) error {
+func writeStackBackendConfig(root string, stackpath string, evalctx *eval.Context, targetFile string) error {
 	logger := log.With().
 		Str("action", "generateStackBackendConfig()").
 		Str("stack", stackpath).
+		Str("targetFile", targetFile).
 		Logger()
 
-	logger.Trace().
-		Msg("Get generated file path.")
-	genfile := filepath.Join(stackpath, BackendCfgFilename)
-	if err := checkFileCanBeOverwritten(genfile); err != nil {
-		return err
-	}
-
-	logger.Debug().
-		Str("genfile", genfile).
-		Msg("Load stack backend config.")
+	logger.Trace().Msg("Generating code.")
 	tfcode, err := loadStackBackendConfig(root, stackpath, evalctx)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrBackendConfigGen, err)
 	}
 
 	if len(tfcode) == 0 {
+		logger.Debug().Msg("Stack has no backend config to be generated, nothing to do.")
 		return nil
 	}
 
-	return os.WriteFile(genfile, tfcode, 0666)
+	logger.Debug().Msg("Stack has backend config, saving generated code.")
+
+	if err := writeGeneratedCode(targetFile, tfcode); err != nil {
+		return fmt.Errorf(
+			"stack %q: %w: saving code at %q",
+			stackpath,
+			err,
+			targetFile,
+		)
+	}
+
+	logger.Debug().Msg("Saved stack generated code.")
+	return nil
 }
 
 func loadStackBackendConfig(root string, configdir string, evalctx *eval.Context) ([]byte, error) {
