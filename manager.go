@@ -426,7 +426,7 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 	}
 
 	err = checkRepoIsClean(g)
-	if errors.Is(err, ErrDirtyRepo) {
+	if err != nil {
 		return nil, err
 	}
 
