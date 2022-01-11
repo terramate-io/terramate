@@ -190,9 +190,7 @@ terramate {
 func TestListTwiceBug(t *testing.T) {
 	const (
 		mainTfFileName = "main.tf"
-		mainTfContents = "# change is the eternal truth of the universe"
-
-		modname = "modA"
+		modname        = "modA"
 	)
 
 	s := sandbox.New(t)
