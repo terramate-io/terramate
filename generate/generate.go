@@ -161,8 +161,8 @@ func Do(root string) error {
 // Outdated represents generated code considered outdated, with info
 // detailing where the code is, which stack it belongs, etc.
 type Outdated struct {
-	// StackID is the ID of the stack.
-	StackID string
+	// StackDir is the dir of the stack.
+	StackDir string
 
 	// Filename is the file name of the outdated code
 	Filename string
