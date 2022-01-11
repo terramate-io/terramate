@@ -19,7 +19,8 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/madlambda/spells/errutil"
-	"github.com/mineiros-io/terramate/dag"
+	"github.com/mineiros-io/terramate/run/dag"
+
 	"github.com/rs/zerolog"
 )
 

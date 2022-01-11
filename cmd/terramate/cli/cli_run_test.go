@@ -19,8 +19,9 @@ import (
 	"testing"
 
 	"github.com/mineiros-io/terramate"
-	"github.com/mineiros-io/terramate/dag"
+
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/run/dag"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )

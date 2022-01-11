@@ -19,14 +19,14 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/mineiros-io/terramate/dag"
 	"github.com/mineiros-io/terramate/generate"
 	prj "github.com/mineiros-io/terramate/project"
+	"github.com/mineiros-io/terramate/run"
+	"github.com/mineiros-io/terramate/run/dag"
 
 	"github.com/alecthomas/kong"
 	"github.com/emicklei/dot"
@@ -527,7 +527,7 @@ func (c *cli) generateGraph() {
 			continue
 		}
 
-		err := terramate.BuildDAG(graph, c.root(), e.Stack, loader, visited)
+		err := run.BuildDAG(graph, c.root(), e.Stack, loader, visited)
 		if err != nil {
 			log.Fatal().
 				Err(err).
@@ -650,9 +650,8 @@ func (c *cli) printRunOrder() {
 		stacks[i] = e.Stack
 	}
 
-	logger.Debug().
-		Msg("Get run order.")
-	order, reason, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
+	logger.Debug().Msg("Get run order.")
+	order, reason, err := run.Sort(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
 		if errors.Is(err, dag.ErrCycleDetected) {
 			log.Fatal().
@@ -771,17 +770,8 @@ func (c *cli) runOnStacks() {
 	}
 
 	logger.Trace().
-		Msg("Get command to run.")
-	cmdName := c.parsedArgs.Run.Command[0]
-	args := c.parsedArgs.Run.Command[1:]
-	cmd := exec.Command(cmdName, args...)
-	cmd.Stdin = c.stdin
-	cmd.Stdout = c.stdout
-	cmd.Stderr = c.stderr
-
-	logger.Trace().
 		Msg("Get order of stacks to run command on.")
-	order, reason, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
+	order, reason, err := run.Sort(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
 		if errors.Is(err, dag.ErrCycleDetected) {
 			logger.Fatal().
@@ -812,11 +802,20 @@ func (c *cli) runOnStacks() {
 		return
 	}
 
-	logger.Debug().
-		Msg("Run command.")
-	err = terramate.Run(c.root(), order, cmd)
+	logger.Trace().Msg("Get command to run.")
+	cmd := run.Cmd{
+		Path:    c.parsedArgs.Run.Command[0],
+		Args:    c.parsedArgs.Run.Command[1:],
+		Stdin:   c.stdin,
+		Stdout:  c.stdout,
+		Stderr:  c.stderr,
+		Environ: os.Environ(),
+	}
+
+	logger.Debug().Msg("Run command.")
+	err = run.Run(c.root(), order, cmd)
 	if err != nil {
-		c.logerr("warn: failed to execute command: %v", err)
+		log.Fatal().Err(err).Send()
 	}
 }
 
