@@ -490,10 +490,9 @@ func TestRunIgnoreFailedRuns(t *testing.T) {
 		mainTfContents = "# empty tf code"
 	)
 
-	// stack2 must run after stack and both changed.
-
 	s := sandbox.New(t)
 
+	// stack1 -> stack2 -> stack3
 	s.BuildTree([]string{
 		`s:stack1:after=["../stack2"]`,
 		`s:stack2:after=["../stack3"]`,
