@@ -58,29 +58,18 @@ const (
 // The provided root must be the project's root directory as an absolute path.
 func Do(root string) error {
 	logger := log.With().
-		Str("action", "Do()").
+		Str("action", "generate.Do()").
 		Str("path", root).
 		Logger()
 
-	if !filepath.IsAbs(root) {
-		return fmt.Errorf("project's root %q must be an absolute path", root)
+	logger.Trace().Msg("Check project root.")
+
+	if err := checkProjectRoot(root); err != nil {
+		return err
 	}
 
-	logger.Trace().
-		Msg("Get path info.")
-	info, err := os.Lstat(root)
-	if err != nil {
-		return fmt.Errorf("checking project's root directory %q: %v", root, err)
-	}
+	logger.Debug().Msg("Load metadata.")
 
-	logger.Trace().
-		Msg("Check if path is directory.")
-	if !info.IsDir() {
-		return fmt.Errorf("project's root %q is not a directory", root)
-	}
-
-	logger.Debug().
-		Msg("Load metadata.")
 	metadata, err := terramate.LoadMetadata(root)
 	if err != nil {
 		return fmt.Errorf("loading metadata: %w", err)
@@ -176,6 +165,16 @@ type Outdated struct {
 //
 // The provided root must be the project's root directory as an absolute path.
 func Check(root string) ([]Outdated, error) {
+	logger := log.With().
+		Str("action", "generate.Check()").
+		Str("path", root).
+		Logger()
+
+	logger.Trace().Msg("Check project root.")
+
+	if err := checkProjectRoot(root); err != nil {
+		return nil, err
+	}
 	return nil, nil
 }
 
@@ -430,6 +429,23 @@ func checkFileCanBeOverwritten(path string) error {
 	code := string(data)
 	if !strings.HasPrefix(code, codeHeader) {
 		return fmt.Errorf("%w: at %q", ErrManualCodeExists, path)
+	}
+
+	return nil
+}
+
+func checkProjectRoot(root string) error {
+	if !filepath.IsAbs(root) {
+		return fmt.Errorf("project's root %q must be an absolute path", root)
+	}
+
+	info, err := os.Lstat(root)
+	if err != nil {
+		return fmt.Errorf("checking project's root directory %q: %v", root, err)
+	}
+
+	if !info.IsDir() {
+		return fmt.Errorf("project's root %q is not a directory", root)
 	}
 
 	return nil
