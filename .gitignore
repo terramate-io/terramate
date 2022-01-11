@@ -5,3 +5,5 @@ coverage.txt
 /cmd/terramate/terramate
 
 .vscode/
+
+dist/
