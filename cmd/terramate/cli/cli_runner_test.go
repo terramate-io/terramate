@@ -85,9 +85,9 @@ func (ts tscli) run(args ...string) runResult {
 		loglevel = "fatal"
 	}
 
-	if len(args) > 0 {
-		// Avoid failing test when calling just terramate with no args
+	if len(args) > 0 { // Avoid failing test when calling terramate with no args
 		allargs = append(allargs, "--log-level", loglevel)
+		allargs = append(allargs, "--log-fmt", "text")
 	}
 
 	allargs = append(allargs, args...)

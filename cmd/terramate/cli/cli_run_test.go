@@ -494,6 +494,6 @@ func TestRunLogsUserCommand(t *testing.T) {
 	cli := newCLIWithLogLevel(t, s.RootDir(), "info")
 
 	assertRunResult(t, cli.run("run", "cat", testfile.Path()), runExpected{
-		StderrRegex: `"cat /`,
+		StderrRegex: `cmd="cat /`,
 	})
 }
