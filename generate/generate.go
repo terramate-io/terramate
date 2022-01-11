@@ -269,7 +269,6 @@ func writeStackBackendConfig(
 		)
 	}
 
-	logger.Debug().Msg("Saved stack generated code.")
 	return nil
 }
 
