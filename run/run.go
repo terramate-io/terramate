@@ -40,7 +40,7 @@ func (c *Cmd) String() string {
 	return c.Path + " " + strings.Join(c.Args, " ")
 }
 
-// Run runs the given cmdSpec in each stack.
+// Run runs the command in each stack.
 func (c Cmd) Run(root string, stacks []stack.S) error {
 	for _, stack := range stacks {
 		cmd := exec.Command(c.Path, c.Args...)
