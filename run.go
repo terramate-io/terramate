@@ -18,26 +18,40 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 )
 
+const (
+	ErrRunFailed errutil.Error = "run failed for some stacks"
+)
+
 func Run(root string, stacks []stack.S, cmdSpec *exec.Cmd) error {
+	logger := log.With().
+		Str("action", "Run()").
+		Str("command", cmdSpec.String()).
+		Logger()
+
+	var nerrs uint
 	for _, stack := range stacks {
 		cmd := *cmdSpec
 
-		log.Info().
+		logger.Info().
 			Str("stack", stack.Dir).
-			Str("cmd", cmd.String()).
-			Msg("Running command in stack")
+			Msg("Running command in stack.")
 
 		cmd.Dir = filepath.Join(root, stack.Dir)
 
 		err := cmd.Run()
-
 		if err != nil {
-			return err
+			log.Error().Err(err).Msg("Run failed.")
+			nerrs++
 		}
+	}
+
+	if nerrs > 0 {
+		return ErrRunFailed
 	}
 
 	return nil

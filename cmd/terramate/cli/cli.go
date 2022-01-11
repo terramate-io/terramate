@@ -812,11 +812,11 @@ func (c *cli) runOnStacks() {
 		return
 	}
 
-	logger.Debug().
-		Msg("Run command.")
+	logger.Debug().Msg("Run command.")
+
 	err = terramate.Run(c.root(), order, cmd)
 	if err != nil {
-		c.logerr("warn: failed to execute command: %v", err)
+		logger.Fatal().Err(err).Send()
 	}
 }
 

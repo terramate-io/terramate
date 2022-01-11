@@ -483,3 +483,51 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 		mainTfFileName,
 	), runExpected{Stdout: wantRun})
 }
+
+func TestRunIgnoreFailedRuns(t *testing.T) {
+	const (
+		mainTfFileName = "main.tf"
+		mainTfContents = "# empty tf code"
+	)
+
+	// stack2 must run after stack and both changed.
+
+	s := sandbox.New(t)
+
+	s.BuildTree([]string{
+		`s:stack1:after=["../stack2"]`,
+		`s:stack2:after=["../stack3"]`,
+		`s:stack3`,
+	})
+
+	stack1 := s.StackEntry("stack1")
+	stack2 := s.StackEntry("stack2")
+	stack3 := s.StackEntry("stack3")
+
+	// stack1 has no file
+	stack2.CreateFile(mainTfFileName, mainTfContents)
+	stack3.CreateFile(mainTfFileName, mainTfContents)
+
+	cli := newCLI(t, s.RootDir())
+
+	wantList := stack1.RelPath() + "\n" + stack2.RelPath() + "\n" + stack3.RelPath() + "\n"
+	assertRunResult(t, cli.run("stacks", "list"), runExpected{Stdout: wantList})
+
+	cli = newCLI(t, stack1.Path())
+	cat := test.LookPath(t, "cat")
+	wantRun := fmt.Sprintf(
+		"%s%s",
+		mainTfContents,
+		mainTfContents,
+	)
+
+	assertRunResult(t, cli.run(
+		"run",
+		cat,
+		mainTfFileName,
+	), runExpected{
+		Stdout:      wantRun,
+		StderrRegex: terramate.ErrRunFailed.Error(),
+		Status:      1,
+	})
+}
