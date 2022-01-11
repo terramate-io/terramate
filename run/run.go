@@ -41,19 +41,19 @@ func (c *Cmd) String() string {
 }
 
 // Run runs the given cmdSpec in each stack.
-func Run(root string, stacks []stack.S, cmdSpec Cmd) error {
+func (c Cmd) Run(root string, stacks []stack.S) error {
 	for _, stack := range stacks {
-		cmd := exec.Command(cmdSpec.Path, cmdSpec.Args...)
+		cmd := exec.Command(c.Path, c.Args...)
 		cmd.Dir = filepath.Join(root, stack.Dir)
-		cmd.Env = cmdSpec.Environ
-		cmd.Stdin = cmdSpec.Stdin
-		cmd.Stdout = cmdSpec.Stdout
-		cmd.Stderr = cmdSpec.Stderr
-		cmd.Env = cmdSpec.Environ
+		cmd.Env = c.Environ
+		cmd.Stdin = c.Stdin
+		cmd.Stdout = c.Stdout
+		cmd.Stderr = c.Stderr
+		cmd.Env = c.Environ
 
 		log.Info().
 			Str("stack", stack.Dir).
-			Str("cmd", cmdSpec.String()).
+			Str("cmd", c.String()).
 			Msg("Running command in stack")
 
 		err := cmd.Run()
