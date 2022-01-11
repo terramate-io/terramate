@@ -21,7 +21,87 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/test"
+	"github.com/mineiros-io/terramate/test/hclwrite"
+	"github.com/mineiros-io/terramate/test/sandbox"
 )
+
+func TestCheckReturnsOutdatedStacks(t *testing.T) {
+	hcl := hclwrite.NewHCL
+	stack := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("stack", builders...)
+	}
+	backend := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("backend", builders...)
+	}
+	exportAsLocals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("export_as_locals", builders...)
+	}
+	labels := hclwrite.Labels
+	expr := hclwrite.Expression
+
+	s := sandbox.New(t)
+
+	stack1 := s.CreateStack("stacks/stack-1")
+	stack2 := s.CreateStack("stacks/stack-2")
+
+	got, err := generate.Check(s.RootDir())
+	assert.NoError(t, err)
+	assertOutdatedEquals(t, got, []generate.Outdated{})
+
+	// Checking detection when there is no config generated yet
+	// for both locals and backend config
+	stack1.CreateConfig(
+		hcl(
+			stack(),
+			exportAsLocals(
+				expr("test", "terramate.path"),
+			),
+		).String())
+
+	got, err = generate.Check(s.RootDir())
+	assert.NoError(t, err)
+	assertOutdatedEquals(t, got, []generate.Outdated{
+		{
+			StackDir: stack1.RelPath(),
+			Filename: generate.LocalsFilename,
+		},
+	})
+
+	stack2.CreateConfig(
+		hcl(
+			stack(),
+			backend(labels("test")),
+		).String())
+
+	got, err = generate.Check(s.RootDir())
+	assert.NoError(t, err)
+	assertOutdatedEquals(t, got, []generate.Outdated{
+		{
+			StackDir: stack1.RelPath(),
+			Filename: generate.LocalsFilename,
+		},
+		{
+			StackDir: stack2.RelPath(),
+			Filename: generate.BackendCfgFilename,
+		},
+	})
+
+	s.Generate()
+
+	got, err = generate.Check(s.RootDir())
+	assert.NoError(t, err)
+	assertOutdatedEquals(t, got, []generate.Outdated{})
+
+	// TODO(katcipis): Now checking when we have code + it gets outdated
+	// for both locals and backend.
+}
+
+func TestCheckSucceedsOnEmptyProject(t *testing.T) {
+	s := sandbox.New(t)
+	got, err := generate.Check(s.RootDir())
+	assert.NoError(t, err)
+	assert.EqualInts(t, 0, len(got))
+}
 
 func TestCheckFailsIfPathDoesntExist(t *testing.T) {
 	_, err := generate.Check(test.NonExistingDir(t))
@@ -45,4 +125,16 @@ func TestCheckFailsIfPathIsRelative(t *testing.T) {
 
 	_, err := generate.Check(relpath)
 	assert.Error(t, err)
+}
+
+func assertOutdatedEquals(t *testing.T, got []generate.Outdated, want []generate.Outdated) {
+	t.Helper()
+
+	assert.EqualInts(t, len(want), len(got), "want %+v != got %+v", want, got)
+	for i, wv := range want {
+		gv := got[i]
+		if gv != wv {
+			t.Errorf("got[%d][%+v] != want[%d][%+v]", i, gv, i, wv)
+		}
+	}
 }
