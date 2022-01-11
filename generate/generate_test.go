@@ -1328,7 +1328,7 @@ func assertHCLEquals(t *testing.T, got string, want string) {
 	// (but we test the formatting too... so maybe that is good ? =P)
 	const trimmedChars = "\n "
 
-	want = string(generate.AddHeader([]byte(want)))
+	want = string(generate.PrependHeaderBytes([]byte(want)))
 	got = strings.Trim(got, trimmedChars)
 	want = strings.Trim(want, trimmedChars)
 

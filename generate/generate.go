@@ -95,16 +95,14 @@ func Do(root string) error {
 		// more specific configuration overrides base configuration.
 		// Not the most optimized way (re-parsing), we can improve later
 
-		logger.Trace().
-			Msg("Get stack absolute path.")
 		stackpath := project.AbsPath(root, stackMetadata.Path)
 
 		logger = logger.With().
 			Str("stack", stackpath).
 			Logger()
 
-		logger.Debug().
-			Msg("Load stack globals.")
+		logger.Debug().Msg("Load stack globals.")
+
 		globals, err := terramate.LoadStackGlobals(root, stackMetadata)
 		if err != nil {
 			errs = append(errs, fmt.Errorf(
@@ -115,35 +113,20 @@ func Do(root string) error {
 			continue
 		}
 
-		logger.Trace().
-			Msg("Create new HCL evaluation context.")
-		evalctx := eval.NewContext(stackpath)
+		logger.Debug().Msg("Generate stack backend config.")
 
-		logger.Trace().
-			Msg("Add stack metadata evaluation namespace.")
-		if err := stackMetadata.SetOnEvalCtx(evalctx); err != nil {
-			errs = append(errs, fmt.Errorf("stack %q: %v", stackpath, err))
-			continue
+		// TODO(katcipis): allow this to be configured
+		targetBackendCfgFile := filepath.Join(stackpath, BackendCfgFilename)
+		if err := writeStackBackendConfig(root, stackpath, stackMetadata, globals, targetBackendCfgFile); err != nil {
+			errs = append(errs, err)
 		}
 
-		logger.Trace().
-			Msg("Add global evaluation namespace.")
-		if err := globals.SetOnEvalCtx(evalctx); err != nil {
-			errs = append(errs, fmt.Errorf("stack %q: %v", stackpath, err))
-			continue
-		}
+		logger.Debug().Msg("Generate stack locals.")
 
-		logger.Debug().
-			Msg("Generate stack backend config.")
-		if err := generateStackBackendConfig(root, stackpath, evalctx); err != nil {
-			errs = append(errs, fmt.Errorf("stack %q: generating backend config: %w", stackpath, err))
-		}
-
-		logger.Debug().
-			Msg("Generate stack locals.")
-		if err := generateStackLocals(root, stackpath, stackMetadata, globals); err != nil {
-			err = errutil.Chain(ErrExportingLocalsGen, err)
-			errs = append(errs, fmt.Errorf("stack %q: %w", stackpath, err))
+		// TODO(katcipis): allow this to be configured
+		targetLocalsFile := filepath.Join(stackpath, LocalsFilename)
+		if err := writeStackLocalsCode(root, stackpath, stackMetadata, globals, targetLocalsFile); err != nil {
+			errs = append(errs, err)
 		}
 	}
 
@@ -158,44 +141,74 @@ func Do(root string) error {
 	return nil
 }
 
-func generateStackLocals(
+func writeStackLocalsCode(
+	root string,
+	stackpath string,
+	stackMetadata terramate.StackMetadata,
+	globals *terramate.Globals,
+	targetLocalsFile string,
+) error {
+	logger := log.With().
+		Str("action", "writeStackLocalsCode()").
+		Str("root", root).
+		Str("stack", stackpath).
+		Str("targetLocalsFile", targetLocalsFile).
+		Logger()
+	logger.Debug().Msg("Save stack locals.")
+
+	stackLocalsCode, err := generateStackLocalsCode(root, stackpath, stackMetadata, globals)
+	if err != nil {
+		return fmt.Errorf("stack %q: %w", stackpath, errutil.Chain(ErrExportingLocalsGen, err))
+	}
+
+	if len(stackLocalsCode) == 0 {
+		logger.Debug().Msg("Stack has no locals to be generated, nothing to do.")
+		return nil
+	}
+
+	logger.Debug().Msg("Stack has locals, saving generated code.")
+
+	if err := writeGeneratedCode(targetLocalsFile, stackLocalsCode); err != nil {
+		err = errutil.Chain(ErrExportingLocalsGen, err)
+		return fmt.Errorf(
+			"stack %q: %w: saving code at %q",
+			stackpath,
+			err,
+			targetLocalsFile,
+		)
+	}
+
+	logger.Debug().Msg("Saved stack generated code.")
+	return nil
+}
+
+func generateStackLocalsCode(
 	rootdir string,
 	stackpath string,
 	metadata terramate.StackMetadata,
 	globals *terramate.Globals,
-) error {
+) ([]byte, error) {
 	logger := log.With().
 		Str("action", "generateStackLocals()").
 		Str("stack", stackpath).
 		Logger()
 
-	logger.Trace().
-		Msg("Get generated file path.")
-	genfile := filepath.Join(stackpath, LocalsFilename)
-	if err := checkFileCanBeOverwritten(genfile); err != nil {
-		return err
-	}
+	logger.Trace().Msg("Load stack exported locals.")
 
-	logger = logger.With().
-		Str("genfile", genfile).
-		Logger()
-
-	logger.Trace().
-		Msg("Load stack exported locals.")
 	stackLocals, err := terramate.LoadStackExportedLocals(rootdir, metadata, globals)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	logger.Trace().
-		Msg("Get stack attributes.")
+	logger.Trace().Msg("Get stack attributes.")
+
 	localsAttrs := stackLocals.Attributes()
 	if len(localsAttrs) == 0 {
-		return nil
+		return nil, nil
 	}
 
-	logger.Trace().
-		Msg("Sort attributes.")
+	logger.Trace().Msg("Sort attributes.")
+
 	sortedAttrs := make([]string, 0, len(localsAttrs))
 	for name := range localsAttrs {
 		sortedAttrs = append(sortedAttrs, name)
@@ -216,41 +229,55 @@ func generateStackLocals(
 		localsBody.SetAttributeValue(name, localsAttrs[name])
 	}
 
-	logger.Debug().
-		Msg("Write file.")
-	tfcode := AddHeader(gen.Bytes())
-	return os.WriteFile(genfile, tfcode, 0666)
+	tfcode := PrependHeaderBytes(gen.Bytes())
+	return tfcode, nil
 }
 
-func generateStackBackendConfig(root string, stackpath string, evalctx *eval.Context) error {
+func writeStackBackendConfig(
+	root string,
+	stackpath string,
+	stackMetadata terramate.StackMetadata,
+	globals *terramate.Globals,
+	targetBackendCfgFile string,
+) error {
 	logger := log.With().
 		Str("action", "generateStackBackendConfig()").
 		Str("stack", stackpath).
+		Str("targetFile", targetBackendCfgFile).
 		Logger()
 
-	logger.Trace().
-		Msg("Get generated file path.")
-	genfile := filepath.Join(stackpath, BackendCfgFilename)
-	if err := checkFileCanBeOverwritten(genfile); err != nil {
-		return err
-	}
-
-	logger.Debug().
-		Str("genfile", genfile).
-		Msg("Load stack backend config.")
-	tfcode, err := loadStackBackendConfig(root, stackpath, evalctx)
+	logger.Trace().Msg("Generating code.")
+	tfcode, err := generateBackendCfgCode(root, stackpath, stackMetadata, globals, stackpath)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrBackendConfigGen, err)
 	}
 
 	if len(tfcode) == 0 {
+		logger.Debug().Msg("Stack has no backend config to be generated, nothing to do.")
 		return nil
 	}
 
-	return os.WriteFile(genfile, tfcode, 0666)
+	logger.Debug().Msg("Stack has backend config, saving generated code.")
+
+	if err := writeGeneratedCode(targetBackendCfgFile, tfcode); err != nil {
+		return fmt.Errorf(
+			"stack %q: %w: saving code at %q",
+			stackpath,
+			err,
+			targetBackendCfgFile,
+		)
+	}
+
+	return nil
 }
 
-func loadStackBackendConfig(root string, configdir string, evalctx *eval.Context) ([]byte, error) {
+func generateBackendCfgCode(
+	root string,
+	stackpath string,
+	stackMetadata terramate.StackMetadata,
+	globals *terramate.Globals,
+	configdir string,
+) ([]byte, error) {
 	logger := log.With().
 		Str("action", "loadStackBackendConfig()").
 		Str("configDir", configdir).
@@ -258,6 +285,7 @@ func loadStackBackendConfig(root string, configdir string, evalctx *eval.Context
 
 	logger.Trace().
 		Msg("Check if config dir outside of root dir.")
+
 	if !strings.HasPrefix(configdir, root) {
 		// check if we are outside of project's root, time to stop
 		return nil, nil
@@ -274,7 +302,7 @@ func loadStackBackendConfig(root string, configdir string, evalctx *eval.Context
 	logger.Trace().
 		Msg("Load stack backend config.")
 	if _, err := os.Stat(configfile); err != nil {
-		return loadStackBackendConfig(root, filepath.Dir(configdir), evalctx)
+		return generateBackendCfgCode(root, stackpath, stackMetadata, globals, filepath.Dir(configdir))
 	}
 
 	logger.Debug().
@@ -295,7 +323,21 @@ func loadStackBackendConfig(root string, configdir string, evalctx *eval.Context
 		Msg("Check if parsed is empty.")
 	parsed := parsedConfig.Terramate
 	if parsed == nil || parsed.Backend == nil {
-		return loadStackBackendConfig(root, filepath.Dir(configdir), evalctx)
+		return generateBackendCfgCode(root, stackpath, stackMetadata, globals, filepath.Dir(configdir))
+	}
+
+	evalctx := eval.NewContext(stackpath)
+
+	logger.Trace().Msg("Add stack metadata evaluation namespace.")
+
+	if err := stackMetadata.SetOnEvalCtx(evalctx); err != nil {
+		return nil, fmt.Errorf("stack %q: %v", stackpath, err)
+	}
+
+	logger.Trace().Msg("Add global evaluation namespace.")
+
+	if err := globals.SetOnEvalCtx(evalctx); err != nil {
+		return nil, fmt.Errorf("stack %q: %v", stackpath, err)
 	}
 
 	logger.Debug().
@@ -311,12 +353,12 @@ func loadStackBackendConfig(root string, configdir string, evalctx *eval.Context
 		return nil, err
 	}
 
-	return AddHeader(gen.Bytes()), nil
+	return PrependHeaderBytes(gen.Bytes()), nil
 }
 
-// AddHeader will add a proper Terramate header indicating that code
+// PrependHeaderBytes will add a proper Terramate header indicating that code
 // was generated by Terramate.
-func AddHeader(code []byte) []byte {
+func PrependHeaderBytes(code []byte) []byte {
 	return append([]byte(codeHeader+"\n\n"), code...)
 }
 
@@ -379,6 +421,22 @@ func sortedAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {
 	}
 
 	return sorted
+}
+
+func writeGeneratedCode(target string, code []byte) error {
+	logger := log.With().
+		Str("action", "writeGeneratedCode()").
+		Str("file", target).
+		Logger()
+
+	logger.Trace().Msg("Checking code can be written.")
+
+	if err := checkFileCanBeOverwritten(target); err != nil {
+		return err
+	}
+
+	logger.Trace().Msg("Writing code")
+	return os.WriteFile(target, code, 0666)
 }
 
 func checkFileCanBeOverwritten(path string) error {
