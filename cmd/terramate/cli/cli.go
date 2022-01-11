@@ -815,7 +815,7 @@ func (c *cli) runOnStacks() {
 	logger.Debug().Msg("Run command.")
 	err = run.Run(c.root(), order, cmd)
 	if err != nil {
-		log.Fatal().Err(err).Send()
+		c.logerr("warn: failed to execute command: %v", err)
 	}
 }
 
