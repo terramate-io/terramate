@@ -27,8 +27,9 @@ import (
 const defaultErrExitStatus = 1
 
 type tscli struct {
-	t     *testing.T
-	chdir string
+	t        *testing.T
+	chdir    string
+	loglevel string
 }
 
 type runResult struct {
@@ -58,6 +59,14 @@ func newCLI(t *testing.T, chdir string) tscli {
 	}
 }
 
+func newCLIWithLogLevel(t *testing.T, chdir string, loglevel string) tscli {
+	return tscli{
+		t:        t,
+		chdir:    chdir,
+		loglevel: loglevel,
+	}
+}
+
 func (ts tscli) run(args ...string) runResult {
 	t := ts.t
 	t.Helper()
@@ -71,9 +80,14 @@ func (ts tscli) run(args ...string) runResult {
 		allargs = append(allargs, "--chdir", ts.chdir)
 	}
 
-	if len(args) > 0 {
-		// Avoid failing test when calling just terramate with no args
-		allargs = append(allargs, "--log-level", "fatal")
+	loglevel := ts.loglevel
+	if loglevel == "" {
+		loglevel = "fatal"
+	}
+
+	if len(args) > 0 { // Avoid failing test when calling terramate with no args
+		allargs = append(allargs, "--log-level", loglevel)
+		allargs = append(allargs, "--log-fmt", "text")
 	}
 
 	allargs = append(allargs, args...)

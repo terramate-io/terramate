@@ -61,3 +61,10 @@ jobs:
 
       - name: make build
         run: make build
+
+      - name: release dry run
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          distribution: goreleaser
+          version: v1.2.5
+          args: release --snapshot --rm-dist

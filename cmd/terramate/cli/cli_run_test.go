@@ -19,8 +19,9 @@ import (
 	"testing"
 
 	"github.com/mineiros-io/terramate"
-	"github.com/mineiros-io/terramate/dag"
+
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/run/dag"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -544,5 +545,21 @@ func TestRunFailIfDirtyRepo(t *testing.T) {
 	), runExpected{
 		Status:      defaultErrExitStatus,
 		StderrRegex: terramate.ErrDirtyRepo.Error(),
+	})
+}
+
+func TestRunLogsUserCommand(t *testing.T) {
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack")
+	testfile := stack.CreateFile("test", "")
+
+	git := s.Git()
+	git.CommitAll("first commit")
+	git.Push("main")
+
+	cli := newCLIWithLogLevel(t, s.RootDir(), "info")
+	assertRunResult(t, cli.run("run", "cat", testfile.Path()), runExpected{
+		StderrRegex: `cmd="cat /`,
 	})
 }
