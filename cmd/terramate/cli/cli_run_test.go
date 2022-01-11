@@ -484,3 +484,16 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 		mainTfFileName,
 	), runExpected{Stdout: wantRun})
 }
+
+func TestRunLogsUserCommand(t *testing.T) {
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack")
+	testfile := stack.CreateFile("test", "")
+
+	cli := newCLIWithLogLevel(t, s.RootDir(), "info")
+
+	assertRunResult(t, cli.run("run", "cat", testfile.Path()), runExpected{
+		StderrRegex: `"cat /`,
+	})
+}
