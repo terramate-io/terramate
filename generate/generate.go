@@ -158,6 +158,27 @@ func Do(root string) error {
 	return nil
 }
 
+// Outdated represents generated code considered outdated, with info
+// detailing where the code is, which stack it belongs, etc.
+type Outdated struct {
+	// StackID is the ID of the stack.
+	StackID string
+
+	// Filename is the file name of the outdated code
+	Filename string
+}
+
+// Check will walk all the directories starting from project's root
+// checking if generated code is updated.
+//
+// It will return a list of outdated code descriptions, one for each
+// outdated generated code found. If all code is updated the list will be empty.
+//
+// The provided root must be the project's root directory as an absolute path.
+func Check(root string) ([]Outdated, error) {
+	return nil, nil
+}
+
 func generateStackLocals(
 	rootdir string,
 	stackpath string,
