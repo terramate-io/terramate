@@ -186,3 +186,35 @@ terramate {
 	}
 	assertRunResult(t, cli.run("stacks", "list", "--changed"), want)
 }
+
+func TestListTwiceBug(t *testing.T) {
+	const (
+		mainTfFileName = "main.tf"
+		modname        = "modA"
+	)
+
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack")
+	mod1 := s.CreateModule(modname)
+	mod1MainTf := mod1.CreateFile(mainTfFileName, "# module A")
+
+	stack.CreateFile("main.tf", `
+module "mod1" {
+source = "%s"
+}`, stack.ModSource(mod1))
+
+	git := s.Git()
+	git.CommitAll("first commit")
+	git.Push("main")
+	git.CheckoutNew("change-stack")
+
+	mod1MainTf.Write("# something else")
+	stack.CreateFile("test.txt", "something else")
+	git.CommitAll("stack and module changed")
+
+	cli := newCLI(t, s.RootDir())
+
+	wantList := stack.RelPath() + "\n"
+	assertRunResult(t, cli.run("stacks", "list", "--changed"), runExpected{Stdout: wantList})
+}

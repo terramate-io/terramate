@@ -12,29 +12,51 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package terramate
+package run
 
 import (
+	"io"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 )
 
-func Run(root string, stacks []stack.S, cmdSpec *exec.Cmd) error {
+// Cmd describes a command to be executed by terramate.
+type Cmd struct {
+	Path   string    // Path is the command path.
+	Args   []string  // Args is the command arguments.
+	Stdin  io.Reader // Stdin is the process standard input.
+	Stdout io.Writer // Stdout is the process standard output.
+	Stderr io.Writer // Stderr is the process standard error.
+
+	// Environ is the list of environment variables to be passed over to the cmd.
+	Environ []string
+}
+
+func (c *Cmd) String() string {
+	return c.Path + " " + strings.Join(c.Args, " ")
+}
+
+// Run runs the command in each stack.
+func (c Cmd) Run(root string, stacks []stack.S) error {
 	for _, stack := range stacks {
-		cmd := *cmdSpec
+		cmd := exec.Command(c.Path, c.Args...)
+		cmd.Dir = filepath.Join(root, stack.Dir)
+		cmd.Env = c.Environ
+		cmd.Stdin = c.Stdin
+		cmd.Stdout = c.Stdout
+		cmd.Stderr = c.Stderr
+		cmd.Env = c.Environ
 
 		log.Info().
 			Str("stack", stack.Dir).
-			Str("cmd", cmd.String()).
+			Str("cmd", c.String()).
 			Msg("Running command in stack")
 
-		cmd.Dir = filepath.Join(root, stack.Dir)
-
 		err := cmd.Run()
-
 		if err != nil {
 			return err
 		}

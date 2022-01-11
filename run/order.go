@@ -12,22 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package terramate
+package run
 
 import (
 	"fmt"
 
-	"github.com/mineiros-io/terramate/dag"
+	"github.com/mineiros-io/terramate/run/dag"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 )
 
 type visited map[string]struct{}
 
-// RunOrder computes the final execution order for the given list of stacks.
+// Sort computes the final execution order for the given list of stacks.
 // In the case of multiple possible orders, it returns the lexicographic sorted
 // path.
-func RunOrder(root string, stacks []stack.S, changed bool) ([]stack.S, string, error) {
+func Sort(root string, stacks []stack.S, changed bool) ([]stack.S, string, error) {
 	logger := log.With().
 		Str("action", "RunOrder()").
 		Str("path", root).
