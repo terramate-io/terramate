@@ -23,12 +23,15 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate/git"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 )
+
+const ErrDirtyRepo errutil.Error = "the repository is not clean"
 
 type (
 	// Manager is the terramate stacks manager.
@@ -59,7 +62,37 @@ func NewManager(rootdir string, gitBaseRef string) *Manager {
 // List walks the basedir directory looking for terraform stacks.
 // It returns a lexicographic sorted list of stack directories.
 func (m *Manager) List() ([]Entry, error) {
-	return ListStacks(m.root)
+	logger := log.With().
+		Str("action", "Manager.List()").
+		Logger()
+
+	logger.Debug().Msg("List stacks.")
+
+	entries, err := ListStacks(m.root)
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Trace().Str("repo", m.root).Msg("Create git wrapper for repo.")
+
+	g, err := git.WithConfig(git.Config{
+		WorkingDir: m.root,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Trace().Msg("Check if path is git repo.")
+	if !g.IsRepository() {
+		return entries, nil
+	}
+
+	err = checkRepoIsClean(g)
+	if err == nil || errors.Is(err, ErrDirtyRepo) {
+		return entries, err
+	}
+
+	return nil, err
 }
 
 // ListChanged lists the stacks that have changed on the current branch,
@@ -248,106 +281,6 @@ func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) err
 	return nil
 }
 
-// listChangedFiles lists all changed files in the dir directory.
-func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
-	logger := log.With().
-		Str("action", "listChangedFiles()").
-		Str("path", dir).
-		Logger()
-
-	logger.Trace().
-		Msg("Get dir info.")
-	st, err := os.Stat(dir)
-	if err != nil {
-		return nil, fmt.Errorf("stat failed on %q: %w", dir, err)
-	}
-
-	logger.Trace().
-		Msg("Check if path is dir.")
-	if !st.IsDir() {
-		return nil, fmt.Errorf("is not a directory")
-	}
-
-	logger.Trace().
-		Msg("Create git wrapper with dir.")
-	g, err := git.WithConfig(git.Config{
-		WorkingDir: dir,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	logger.Trace().
-		Msg("Check if path is git repo.")
-	if !g.IsRepository() {
-		return nil, fmt.Errorf("the path \"%s\" is not a git repository", dir)
-	}
-
-	logger.Debug().
-		Msg("Get list of untracked files.")
-	untracked, err := g.ListUntracked()
-	if err != nil {
-		return nil, fmt.Errorf("listing untracked files: %v", err)
-	}
-
-	logger.Debug().
-		Msg("Get list of uncommitted files in dir.")
-	uncommitted, err := g.ListUncommitted()
-	if err != nil {
-		return nil, fmt.Errorf("listing uncommitted files: %v", err)
-	}
-
-	if len(untracked) > 0 {
-		log.Error().
-			Strs("files", untracked).
-			Err(errors.New("repository has untracked files")).
-			Msg("Ensuring clean git status")
-	}
-
-	if len(uncommitted) > 0 {
-		log.Error().
-			Strs("files", uncommitted).
-			Err(errors.New("repository has uncommitted files")).
-			Msg("Ensuring clean git status")
-	}
-
-	if len(uncommitted)+len(untracked) > 0 {
-		return nil, errors.New("git status is not clean")
-	}
-
-	logger.Trace().
-		Msg("Get commit id of git base ref.")
-	baseRef, err := g.RevParse(gitBaseRef)
-	if err != nil {
-		return nil, fmt.Errorf("getting revision %q: %w", gitBaseRef, err)
-	}
-
-	logger.Trace().
-		Msg("Get commit id of HEAD.")
-	headRef, err := g.RevParse("HEAD")
-	if err != nil {
-		return nil, fmt.Errorf("getting HEAD revision: %w", err)
-	}
-
-	if baseRef == headRef {
-		return []string{}, nil
-	}
-
-	logger.Trace().
-		Msg("Find common commit ancestor of HEAd and base ref.")
-	mergeBaseRef, err := g.MergeBase("HEAD", baseRef)
-	if err != nil {
-		return nil, fmt.Errorf("getting merge-base HEAD main: %w", err)
-	}
-
-	if baseRef != mergeBaseRef {
-		return nil, fmt.Errorf("main branch is not reachable: main ref %q can't reach %q",
-			baseRef, mergeBaseRef)
-	}
-
-	return g.DiffNames(baseRef, headRef)
-}
-
 // moduleChanged recursively check if the module mod or any of the modules it
 // uses has changed. All .tf files of the module are parsed and this function is
 // called recursively. The visited keep track of the modules already parsed to
@@ -455,6 +388,117 @@ func (m *Manager) moduleChanged(
 	}
 
 	return changed, fmt.Sprintf("module %q changed because %s", mod.Source, why), nil
+}
+
+// listChangedFiles lists all changed files in the dir directory.
+func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
+	logger := log.With().
+		Str("action", "listChangedFiles()").
+		Str("path", dir).
+		Logger()
+
+	logger.Trace().
+		Msg("Get dir info.")
+	st, err := os.Stat(dir)
+	if err != nil {
+		return nil, fmt.Errorf("stat failed on %q: %w", dir, err)
+	}
+
+	logger.Trace().
+		Msg("Check if path is dir.")
+	if !st.IsDir() {
+		return nil, fmt.Errorf("is not a directory")
+	}
+
+	logger.Trace().
+		Msg("Create git wrapper with dir.")
+	g, err := git.WithConfig(git.Config{
+		WorkingDir: dir,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Trace().
+		Msg("Check if path is git repo.")
+	if !g.IsRepository() {
+		return nil, fmt.Errorf("the path \"%s\" is not a git repository", dir)
+	}
+
+	err = checkRepoIsClean(g)
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Trace().
+		Msg("Get commit id of git base ref.")
+	baseRef, err := g.RevParse(gitBaseRef)
+	if err != nil {
+		return nil, fmt.Errorf("getting revision %q: %w", gitBaseRef, err)
+	}
+
+	logger.Trace().
+		Msg("Get commit id of HEAD.")
+	headRef, err := g.RevParse("HEAD")
+	if err != nil {
+		return nil, fmt.Errorf("getting HEAD revision: %w", err)
+	}
+
+	if baseRef == headRef {
+		return []string{}, nil
+	}
+
+	logger.Trace().
+		Msg("Find common commit ancestor of HEAd and base ref.")
+	mergeBaseRef, err := g.MergeBase("HEAD", baseRef)
+	if err != nil {
+		return nil, fmt.Errorf("getting merge-base HEAD main: %w", err)
+	}
+
+	if baseRef != mergeBaseRef {
+		return nil, fmt.Errorf("main branch is not reachable: main ref %q can't reach %q",
+			baseRef, mergeBaseRef)
+	}
+
+	return g.DiffNames(baseRef, headRef)
+}
+
+func checkRepoIsClean(g *git.Git) error {
+	logger := log.With().
+		Str("action", "checkRepoIsClean()").
+		Logger()
+
+	logger.Debug().
+		Msg("Get list of untracked files.")
+	untracked, err := g.ListUntracked()
+	if err != nil {
+		return fmt.Errorf("listing untracked files: %v", err)
+	}
+
+	logger.Debug().
+		Msg("Get list of uncommitted files in dir.")
+	uncommitted, err := g.ListUncommitted()
+	if err != nil {
+		return fmt.Errorf("listing uncommitted files: %v", err)
+	}
+
+	if len(untracked) > 0 {
+		logger.Warn().
+			Strs("files", untracked).
+			Msg("repository has untracked files")
+	}
+
+	if len(uncommitted) > 0 {
+		log.Warn().
+			Strs("files", uncommitted).
+			Msg("repository has uncommitted files")
+	}
+
+	if len(uncommitted)+len(untracked) > 0 {
+		return ErrDirtyRepo
+	}
+
+	return nil
 }
 
 // EntrySlice implements the Sort interface.
