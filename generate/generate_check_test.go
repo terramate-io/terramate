@@ -27,20 +27,6 @@ import (
 
 func TestCheckReturnsOutdatedStacks(t *testing.T) {
 	hcl := hclwrite.NewHCL
-	stack := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("stack", builders...)
-	}
-	backend := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("backend", builders...)
-	}
-	terramate := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("terramate", builders...)
-	}
-	exportAsLocals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("export_as_locals", builders...)
-	}
-	labels := hclwrite.Labels
-	expr := hclwrite.Expression
 
 	s := sandbox.New(t)
 
@@ -156,20 +142,6 @@ func TestCheckSucceedsOnEmptyProject(t *testing.T) {
 
 func TestCheckFailsWithInvalidConfig(t *testing.T) {
 	hcl := hclwrite.NewHCL
-	stack := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("stack", builders...)
-	}
-	backend := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("backend", builders...)
-	}
-	terramate := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("terramate", builders...)
-	}
-	exportAsLocals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("export_as_locals", builders...)
-	}
-	expr := hclwrite.Expression
-	labels := hclwrite.Labels
 
 	invalidConfigs := []string{
 		hcl(
