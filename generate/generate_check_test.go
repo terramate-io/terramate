@@ -154,6 +154,54 @@ func TestCheckSucceedsOnEmptyProject(t *testing.T) {
 	assert.EqualInts(t, 0, len(got))
 }
 
+func TestCheckFailsWithInvalidConfig(t *testing.T) {
+	hcl := hclwrite.NewHCL
+	stack := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("stack", builders...)
+	}
+	backend := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("backend", builders...)
+	}
+	terramate := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("terramate", builders...)
+	}
+	exportAsLocals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("export_as_locals", builders...)
+	}
+	expr := hclwrite.Expression
+	labels := hclwrite.Labels
+
+	invalidConfigs := []string{
+		hcl(
+			terramate(
+				backend(
+					labels("test"),
+					expr("undefined", "terramate.undefined"),
+				),
+			),
+			stack(),
+		).String(),
+		hcl(
+			exportAsLocals(
+				expr("undefined", "terramate.undefined"),
+			),
+			stack(),
+		).String(),
+	}
+
+	for _, invalidConfig := range invalidConfigs {
+		s := sandbox.New(t)
+		_, err := generate.Check(s.RootDir())
+		assert.NoError(t, err)
+
+		stackEntry := s.CreateStack("stack")
+		stackEntry.CreateConfig(invalidConfig)
+
+		_, err = generate.Check(s.RootDir())
+		assert.Error(t, err, "should fail for configuration:\n%s", invalidConfig)
+	}
+}
+
 func TestCheckFailsIfPathDoesntExist(t *testing.T) {
 	_, err := generate.Check(test.NonExistingDir(t))
 	assert.Error(t, err)
