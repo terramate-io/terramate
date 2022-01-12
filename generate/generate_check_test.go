@@ -92,8 +92,49 @@ func TestCheckReturnsOutdatedStacks(t *testing.T) {
 	assert.NoError(t, err)
 	assertOutdatedEquals(t, got, []generate.Outdated{})
 
-	// TODO(katcipis): Now checking when we have code + it gets outdated
+	// Now checking when we have code + it gets outdated
 	// for both locals and backend.
+	stack1.CreateConfig(
+		hcl(
+			stack(),
+			exportAsLocals(
+				expr("changed", "terramate.name"),
+			),
+		).String())
+
+	got, err = generate.Check(s.RootDir())
+	assert.NoError(t, err)
+	assertOutdatedEquals(t, got, []generate.Outdated{
+		{
+			StackDir: stack1.RelPath(),
+			Filename: generate.LocalsFilename,
+		},
+	})
+
+	stack2.CreateConfig(
+		hcl(
+			stack(),
+			backend(labels("changed")),
+		).String())
+
+	got, err = generate.Check(s.RootDir())
+	assert.NoError(t, err)
+	assertOutdatedEquals(t, got, []generate.Outdated{
+		{
+			StackDir: stack1.RelPath(),
+			Filename: generate.LocalsFilename,
+		},
+		{
+			StackDir: stack2.RelPath(),
+			Filename: generate.BackendCfgFilename,
+		},
+	})
+
+	s.Generate()
+
+	got, err = generate.Check(s.RootDir())
+	assert.NoError(t, err)
+	assertOutdatedEquals(t, got, []generate.Outdated{})
 }
 
 func TestCheckSucceedsOnEmptyProject(t *testing.T) {
