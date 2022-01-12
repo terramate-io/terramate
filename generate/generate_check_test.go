@@ -21,13 +21,10 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/test"
-	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
 func TestCheckReturnsOutdatedStacks(t *testing.T) {
-	hcl := hclwrite.NewHCL
-
 	s := sandbox.New(t)
 
 	stack1 := s.CreateStack("stacks/stack-1")
@@ -43,7 +40,7 @@ func TestCheckReturnsOutdatedStacks(t *testing.T) {
 	// Checking detection when there is no config generated yet
 	// for both locals and backend config
 	stack1.CreateConfig(
-		hcl(
+		hcldoc(
 			stack(),
 			exportAsLocals(
 				expr("test", "terramate.path"),
@@ -60,7 +57,7 @@ func TestCheckReturnsOutdatedStacks(t *testing.T) {
 	})
 
 	stack2.CreateConfig(
-		hcl(
+		hcldoc(
 			terramate(
 				backend(labels("test")),
 			),
@@ -89,7 +86,7 @@ func TestCheckReturnsOutdatedStacks(t *testing.T) {
 	// Now checking when we have code + it gets outdated
 	// for both locals and backend.
 	stack1.CreateConfig(
-		hcl(
+		hcldoc(
 			stack(),
 			exportAsLocals(
 				expr("changed", "terramate.name"),
@@ -106,7 +103,7 @@ func TestCheckReturnsOutdatedStacks(t *testing.T) {
 	})
 
 	stack2.CreateConfig(
-		hcl(
+		hcldoc(
 			terramate(
 				backend(labels("changed")),
 			),
@@ -141,10 +138,8 @@ func TestCheckSucceedsOnEmptyProject(t *testing.T) {
 }
 
 func TestCheckFailsWithInvalidConfig(t *testing.T) {
-	hcl := hclwrite.NewHCL
-
 	invalidConfigs := []string{
-		hcl(
+		hcldoc(
 			terramate(
 				backend(
 					labels("test"),
@@ -153,7 +148,7 @@ func TestCheckFailsWithInvalidConfig(t *testing.T) {
 			),
 			stack(),
 		).String(),
-		hcl(
+		hcldoc(
 			exportAsLocals(
 				expr("undefined", "terramate.undefined"),
 			),

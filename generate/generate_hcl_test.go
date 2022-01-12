@@ -18,6 +18,10 @@ import "github.com/mineiros-io/terramate/test/hclwrite"
 
 // useful function aliases to build HCL documents
 
+func hcldoc(blocks ...*hclwrite.Block) hclwrite.HCL {
+	return hclwrite.NewHCL(blocks...)
+}
+
 func expr(name string, expr string) hclwrite.BlockBuilder {
 	return hclwrite.Expression(name, expr)
 }
