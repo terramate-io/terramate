@@ -555,11 +555,11 @@ func iterateStacks(root string, iter stackIterator) []error {
 		return []error{err}
 	}
 
-	logger.Debug().Msg("Load stacks metadata.")
+	logger.Trace().Msg("Load stacks metadata.")
 
 	metadata, err := terramate.LoadMetadata(root)
 	if err != nil {
-		return []error{fmt.Errorf("checking for outdated code: %w", err)}
+		return []error{err}
 	}
 
 	var errs []error
@@ -571,7 +571,7 @@ func iterateStacks(root string, iter stackIterator) []error {
 			Str("stack", stackpath).
 			Logger()
 
-		logger.Debug().Msg("Load stack globals.")
+		logger.Trace().Msg("Load stack globals.")
 
 		globals, err := terramate.LoadStackGlobals(root, stackMetadata)
 		if err != nil {
@@ -583,7 +583,7 @@ func iterateStacks(root string, iter stackIterator) []error {
 			continue
 		}
 
-		logger.Debug().Msg("Calling iterator.")
+		logger.Trace().Msg("Calling iterator.")
 		if err := iter(stackpath, stackMetadata, globals); err != nil {
 			errs = append(errs, err)
 		}
