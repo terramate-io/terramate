@@ -16,6 +16,8 @@ package generate_test
 
 import "github.com/mineiros-io/terramate/test/hclwrite"
 
+// useful function aliases to build HCL documents
+
 func expr(name string, expr string) hclwrite.BlockBuilder {
 	return hclwrite.Expression(name, expr)
 }
@@ -27,12 +29,15 @@ func labels(labels ...string) hclwrite.BlockBuilder {
 func stack(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("stack", builders...)
 }
+
 func backend(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("backend", builders...)
 }
+
 func terramate(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("terramate", builders...)
 }
+
 func exportAsLocals(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("export_as_locals", builders...)
 }
