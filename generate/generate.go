@@ -58,7 +58,7 @@ const (
 // The provided root must be the project's root directory as an absolute path.
 func Do(root string) error {
 
-	errs := iterateStacks(root, func(
+	errs := forEachStack(root, func(
 		stackpath string,
 		metadata terramate.StackMetadata,
 		globals *terramate.Globals,
@@ -117,7 +117,7 @@ type Outdated struct {
 // The provided root must be the project's root directory as an absolute path.
 func Check(root string) ([]Outdated, error) {
 	outdated := []Outdated{}
-	errs := iterateStacks(root, func(
+	errs := forEachStack(root, func(
 		stackpath string,
 		metadata terramate.StackMetadata,
 		globals *terramate.Globals,
@@ -127,8 +127,6 @@ func Check(root string) ([]Outdated, error) {
 			Str("path", root).
 			Str("stack", stackpath).
 			Logger()
-
-		logger.Trace().Msg("Checking for outdated backend cfg code on stack.")
 
 		logger.Trace().Msg("Generating backend cfg code for stack.")
 
@@ -143,6 +141,8 @@ func Check(root string) ([]Outdated, error) {
 		if err != nil {
 			return err
 		}
+
+		logger.Trace().Msg("Checking for outdated backend cfg code on stack.")
 
 		if string(genbackend) != string(currentbackend) {
 			logger.Trace().Msg("Detected outdated backend config.")
@@ -537,13 +537,13 @@ func checkProjectRoot(root string) error {
 	return nil
 }
 
-type stackIterator func(
+type forEachStackCallback func(
 	stackpath string,
 	metadata terramate.StackMetadata,
 	globals *terramate.Globals,
 ) error
 
-func iterateStacks(root string, iter stackIterator) []error {
+func forEachStack(root string, callback forEachStackCallback) []error {
 	logger := log.With().
 		Str("action", "generate.iterateStacks()").
 		Str("path", root).
@@ -584,7 +584,7 @@ func iterateStacks(root string, iter stackIterator) []error {
 		}
 
 		logger.Trace().Msg("Calling iterator.")
-		if err := iter(stackpath, stackMetadata, globals); err != nil {
+		if err := callback(stackpath, stackMetadata, globals); err != nil {
 			errs = append(errs, err)
 		}
 	}
