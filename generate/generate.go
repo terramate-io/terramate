@@ -128,7 +128,26 @@ func Check(root string) ([]Outdated, error) {
 			Str("stack", stackpath).
 			Logger()
 
-		logger.Trace().Msg("Checking for outdated code on stack.")
+		logger.Trace().Msg("Checking for outdated backend cfg code on stack.")
+
+		// TODO(katcipis): allow this to be configured
+		// targetBackendCfgFile := filepath.Join(stackpath, BackendCfgFilename)
+
+		logger.Trace().Msg("Generating backend cfg code for stack.")
+
+		_, err := generateBackendCfgCode(root, stackpath, metadata, globals, stackpath)
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrBackendConfigGen, err)
+		}
+		// TODO: CHECK BACKEND
+
+		logger.Trace().Msg("Generating backend cfg code for stack.")
+
+		logger.Trace().Msg("Checking for outdated exported locals code on stack.")
+
+		// TODO(katcipis): allow this to be configured
+		// targetLocalsFile := filepath.Join(stackpath, LocalsFilename)
+
 		return nil
 	})
 
@@ -442,36 +461,40 @@ func writeGeneratedCode(target string, code []byte) error {
 }
 
 func checkFileCanBeOverwritten(path string) error {
+	_, err := loadGeneratedCode(path)
+	return err
+}
+
+func loadGeneratedCode(path string) ([]byte, error) {
 	logger := log.With().
-		Str("action", "checkFileCanBeOverwritten()").
+		Str("action", "loadGeneratedCode()").
 		Str("path", path).
 		Logger()
 
-	logger.Trace().
-		Msg("Get file information.")
+	logger.Trace().Msg("Get file information.")
+
 	_, err := os.Stat(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return nil
+			return nil, nil
 		}
-		return fmt.Errorf("unsafe to overwrite file, can't stat %q", path)
+		return nil, fmt.Errorf("loading code: can't stat %q: %v", path, err)
 	}
 
-	logger.Trace().
-		Msg("Read file.")
+	logger.Trace().Msg("Read file.")
+
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("unsafe to overwrite file, can't read %q", path)
+		return nil, fmt.Errorf("loading code, can't read %q: %v", path, err)
 	}
 
-	logger.Trace().
-		Msg("Check if code has terramate header.")
-	code := string(data)
-	if !strings.HasPrefix(code, codeHeader) {
-		return fmt.Errorf("%w: at %q", ErrManualCodeExists, path)
+	logger.Trace().Msg("Check if code has terramate header.")
+
+	if !strings.HasPrefix(string(data), codeHeader) {
+		return nil, fmt.Errorf("%w: at %q", ErrManualCodeExists, path)
 	}
 
-	return nil
+	return data, nil
 }
 
 func checkProjectRoot(root string) error {
