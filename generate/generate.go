@@ -134,7 +134,7 @@ func Check(root string) ([]Outdated, error) {
 
 		genbackend, err := generateBackendCfgCode(root, stackpath, metadata, globals, stackpath)
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrBackendConfigGen, err)
+			return err
 		}
 
 		// TODO(katcipis): allow BackendCfgFilename to be configured
@@ -156,7 +156,7 @@ func Check(root string) ([]Outdated, error) {
 
 		genlocals, err := generateStackLocalsCode(root, stackpath, metadata, globals)
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrBackendConfigGen, err)
+			return err
 		}
 
 		// TODO(katcipis): allow LocalsFilename to be configured
@@ -177,12 +177,9 @@ func Check(root string) ([]Outdated, error) {
 		return nil
 	})
 
-	// FIXME(katcipis): errutil.Chain produces a very hard to read string representation
-	// for this case, we have a possibly big list of errors here, not an
-	// actual chain (multiple levels of calls).
-	// We do need the error wrapping for the error handling on tests (for now at least).
-	if err := errutil.Chain(errs...); err != nil {
-		return nil, fmt.Errorf("failed to check for outdated code: %w", err)
+	if len(errs) > 0 {
+		err := fmt.Errorf("checking outdated code: %v : and %d other errors", errs[0], len(errs)-1)
+		return nil, err
 	}
 
 	return outdated, nil
