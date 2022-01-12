@@ -33,6 +33,9 @@ func TestCheckReturnsOutdatedStacks(t *testing.T) {
 	backend := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("backend", builders...)
 	}
+	terramate := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("terramate", builders...)
+	}
 	exportAsLocals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("export_as_locals", builders...)
 	}
@@ -43,6 +46,9 @@ func TestCheckReturnsOutdatedStacks(t *testing.T) {
 
 	stack1 := s.CreateStack("stacks/stack-1")
 	stack2 := s.CreateStack("stacks/stack-2")
+
+	stack1Dir := "/" + stack1.RelPath()
+	stack2Dir := "/" + stack2.RelPath()
 
 	got, err := generate.Check(s.RootDir())
 	assert.NoError(t, err)
@@ -62,26 +68,28 @@ func TestCheckReturnsOutdatedStacks(t *testing.T) {
 	assert.NoError(t, err)
 	assertOutdatedEquals(t, got, []generate.Outdated{
 		{
-			StackDir: stack1.RelPath(),
+			StackDir: stack1Dir,
 			Filename: generate.LocalsFilename,
 		},
 	})
 
 	stack2.CreateConfig(
 		hcl(
+			terramate(
+				backend(labels("test")),
+			),
 			stack(),
-			backend(labels("test")),
 		).String())
 
 	got, err = generate.Check(s.RootDir())
 	assert.NoError(t, err)
 	assertOutdatedEquals(t, got, []generate.Outdated{
 		{
-			StackDir: stack1.RelPath(),
+			StackDir: stack1Dir,
 			Filename: generate.LocalsFilename,
 		},
 		{
-			StackDir: stack2.RelPath(),
+			StackDir: stack2Dir,
 			Filename: generate.BackendCfgFilename,
 		},
 	})
@@ -106,26 +114,28 @@ func TestCheckReturnsOutdatedStacks(t *testing.T) {
 	assert.NoError(t, err)
 	assertOutdatedEquals(t, got, []generate.Outdated{
 		{
-			StackDir: stack1.RelPath(),
+			StackDir: stack1Dir,
 			Filename: generate.LocalsFilename,
 		},
 	})
 
 	stack2.CreateConfig(
 		hcl(
+			terramate(
+				backend(labels("changed")),
+			),
 			stack(),
-			backend(labels("changed")),
 		).String())
 
 	got, err = generate.Check(s.RootDir())
 	assert.NoError(t, err)
 	assertOutdatedEquals(t, got, []generate.Outdated{
 		{
-			StackDir: stack1.RelPath(),
+			StackDir: stack1Dir,
 			Filename: generate.LocalsFilename,
 		},
 		{
-			StackDir: stack2.RelPath(),
+			StackDir: stack2Dir,
 			Filename: generate.BackendCfgFilename,
 		},
 	})

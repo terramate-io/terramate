@@ -116,7 +116,7 @@ type Outdated struct {
 //
 // The provided root must be the project's root directory as an absolute path.
 func Check(root string) ([]Outdated, error) {
-
+	outdated := []Outdated{}
 	errs := iterateStacks(root, func(
 		stackpath string,
 		metadata terramate.StackMetadata,
@@ -130,23 +130,49 @@ func Check(root string) ([]Outdated, error) {
 
 		logger.Trace().Msg("Checking for outdated backend cfg code on stack.")
 
-		// TODO(katcipis): allow this to be configured
-		// targetBackendCfgFile := filepath.Join(stackpath, BackendCfgFilename)
-
 		logger.Trace().Msg("Generating backend cfg code for stack.")
 
-		_, err := generateBackendCfgCode(root, stackpath, metadata, globals, stackpath)
+		genbackend, err := generateBackendCfgCode(root, stackpath, metadata, globals, stackpath)
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrBackendConfigGen, err)
 		}
-		// TODO: CHECK BACKEND
 
-		logger.Trace().Msg("Generating backend cfg code for stack.")
+		// TODO(katcipis): allow BackendCfgFilename to be configured
+		targetBackendCfgFile := filepath.Join(stackpath, BackendCfgFilename)
+		currentbackend, err := loadGeneratedCode(targetBackendCfgFile)
+		if err != nil {
+			return err
+		}
+
+		if string(genbackend) != string(currentbackend) {
+			logger.Trace().Msg("Detected outdated backend config.")
+			outdated = append(outdated, Outdated{
+				StackDir: metadata.Path,
+				Filename: BackendCfgFilename,
+			})
+		}
 
 		logger.Trace().Msg("Checking for outdated exported locals code on stack.")
 
-		// TODO(katcipis): allow this to be configured
-		// targetLocalsFile := filepath.Join(stackpath, LocalsFilename)
+		genlocals, err := generateStackLocalsCode(root, stackpath, metadata, globals)
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrBackendConfigGen, err)
+		}
+
+		// TODO(katcipis): allow LocalsFilename to be configured
+		targetLocalsFile := filepath.Join(stackpath, LocalsFilename)
+		currentlocals, err := loadGeneratedCode(targetLocalsFile)
+		if err != nil {
+			return err
+		}
+
+		if string(genlocals) != string(currentlocals) {
+			logger.Trace().Msg("Detected outdated exported locals.")
+			outdated = append(outdated, Outdated{
+				StackDir: metadata.Path,
+				Filename: LocalsFilename,
+			})
+		}
 
 		return nil
 	})
@@ -159,7 +185,7 @@ func Check(root string) ([]Outdated, error) {
 		return nil, fmt.Errorf("failed to check for outdated code: %w", err)
 	}
 
-	return nil, nil
+	return outdated, nil
 }
 
 func writeStackLocalsCode(
