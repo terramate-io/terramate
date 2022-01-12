@@ -57,78 +57,35 @@ const (
 //
 // The provided root must be the project's root directory as an absolute path.
 func Do(root string) error {
-	logger := log.With().
-		Str("action", "Do()").
-		Str("path", root).
-		Logger()
 
-	if !filepath.IsAbs(root) {
-		return fmt.Errorf("project's root %q must be an absolute path", root)
-	}
-
-	logger.Trace().
-		Msg("Get path info.")
-	info, err := os.Lstat(root)
-	if err != nil {
-		return fmt.Errorf("checking project's root directory %q: %v", root, err)
-	}
-
-	logger.Trace().
-		Msg("Check if path is directory.")
-	if !info.IsDir() {
-		return fmt.Errorf("project's root %q is not a directory", root)
-	}
-
-	logger.Debug().
-		Msg("Load metadata.")
-	metadata, err := terramate.LoadMetadata(root)
-	if err != nil {
-		return fmt.Errorf("loading metadata: %w", err)
-	}
-
-	var errs []error
-
-	for _, stackMetadata := range metadata.Stacks {
-		// At the time the most intuitive way was to start from the stack
-		// and go up until reaching the root, looking for a config.
-		// Basically navigating from the order of precedence, since
-		// more specific configuration overrides base configuration.
-		// Not the most optimized way (re-parsing), we can improve later
-
-		stackpath := project.AbsPath(root, stackMetadata.Path)
-
-		logger = logger.With().
+	errs := forEachStack(root, func(
+		stackpath string,
+		metadata terramate.StackMetadata,
+		globals *terramate.Globals,
+	) error {
+		logger := log.With().
+			Str("action", "generate.Do()").
+			Str("path", root).
 			Str("stack", stackpath).
 			Logger()
-
-		logger.Debug().Msg("Load stack globals.")
-
-		globals, err := terramate.LoadStackGlobals(root, stackMetadata)
-		if err != nil {
-			errs = append(errs, fmt.Errorf(
-				"stack %q: %w: %v",
-				stackpath,
-				ErrLoadingGlobals,
-				err))
-			continue
-		}
 
 		logger.Debug().Msg("Generate stack backend config.")
 
 		// TODO(katcipis): allow this to be configured
 		targetBackendCfgFile := filepath.Join(stackpath, BackendCfgFilename)
-		if err := writeStackBackendConfig(root, stackpath, stackMetadata, globals, targetBackendCfgFile); err != nil {
-			errs = append(errs, err)
+		if err := writeStackBackendConfig(root, stackpath, metadata, globals, targetBackendCfgFile); err != nil {
+			return err
 		}
 
 		logger.Debug().Msg("Generate stack locals.")
 
 		// TODO(katcipis): allow this to be configured
 		targetLocalsFile := filepath.Join(stackpath, LocalsFilename)
-		if err := writeStackLocalsCode(root, stackpath, stackMetadata, globals, targetLocalsFile); err != nil {
-			errs = append(errs, err)
+		if err := writeStackLocalsCode(root, stackpath, metadata, globals, targetLocalsFile); err != nil {
+			return err
 		}
-	}
+		return nil
+	})
 
 	// FIXME(katcipis): errutil.Chain produces a very hard to read string representation
 	// for this case, we have a possibly big list of errors here, not an
@@ -139,6 +96,93 @@ func Do(root string) error {
 	}
 
 	return nil
+}
+
+// Outdated represents generated code considered outdated, with info
+// detailing where the code is, which stack it belongs, etc.
+type Outdated struct {
+	// StackDir is the dir of the stack.
+	StackDir string
+
+	// Filename is the file name of the outdated code
+	Filename string
+}
+
+// Check will walk all the directories starting from project's root
+// checking if generated code is updated.
+//
+// It will return a list of outdated code descriptions, one for each
+// outdated generated code found. If all code is updated the list will be empty.
+//
+// The provided root must be the project's root directory as an absolute path.
+func Check(root string) ([]Outdated, error) {
+	outdated := []Outdated{}
+	errs := forEachStack(root, func(
+		stackpath string,
+		metadata terramate.StackMetadata,
+		globals *terramate.Globals,
+	) error {
+		logger := log.With().
+			Str("action", "generate.Check()").
+			Str("path", root).
+			Str("stack", stackpath).
+			Logger()
+
+		logger.Trace().Msg("Generating backend cfg code for stack.")
+
+		genbackend, err := generateBackendCfgCode(root, stackpath, metadata, globals, stackpath)
+		if err != nil {
+			return err
+		}
+
+		// TODO(katcipis): allow BackendCfgFilename to be configured
+		stackBackendCfgFile := filepath.Join(stackpath, BackendCfgFilename)
+		currentbackend, err := loadGeneratedCode(stackBackendCfgFile)
+		if err != nil {
+			return err
+		}
+
+		logger.Trace().Msg("Checking for outdated backend cfg code on stack.")
+
+		if string(genbackend) != string(currentbackend) {
+			logger.Trace().Msg("Detected outdated backend config.")
+			outdated = append(outdated, Outdated{
+				StackDir: metadata.Path,
+				Filename: BackendCfgFilename,
+			})
+		}
+
+		logger.Trace().Msg("Checking for outdated exported locals code on stack.")
+
+		genlocals, err := generateStackLocalsCode(root, stackpath, metadata, globals)
+		if err != nil {
+			return err
+		}
+
+		// TODO(katcipis): allow LocalsFilename to be configured
+		stackLocalsFile := filepath.Join(stackpath, LocalsFilename)
+		currentlocals, err := loadGeneratedCode(stackLocalsFile)
+		if err != nil {
+			return err
+		}
+
+		if string(genlocals) != string(currentlocals) {
+			logger.Trace().Msg("Detected outdated exported locals.")
+			outdated = append(outdated, Outdated{
+				StackDir: metadata.Path,
+				Filename: LocalsFilename,
+			})
+		}
+
+		return nil
+	})
+
+	if len(errs) > 0 {
+		err := fmt.Errorf("checking outdated code: %v : and %d other errors", errs[0], len(errs)-1)
+		return nil, err
+	}
+
+	return outdated, nil
 }
 
 func writeStackLocalsCode(
@@ -440,34 +484,110 @@ func writeGeneratedCode(target string, code []byte) error {
 }
 
 func checkFileCanBeOverwritten(path string) error {
+	_, err := loadGeneratedCode(path)
+	return err
+}
+
+func loadGeneratedCode(path string) ([]byte, error) {
 	logger := log.With().
-		Str("action", "checkFileCanBeOverwritten()").
+		Str("action", "loadGeneratedCode()").
 		Str("path", path).
 		Logger()
 
-	logger.Trace().
-		Msg("Get file information.")
+	logger.Trace().Msg("Get file information.")
+
 	_, err := os.Stat(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return nil
+			return nil, nil
 		}
-		return fmt.Errorf("unsafe to overwrite file, can't stat %q", path)
+		return nil, fmt.Errorf("loading code: can't stat %q: %v", path, err)
 	}
 
-	logger.Trace().
-		Msg("Read file.")
+	logger.Trace().Msg("Read file.")
+
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("unsafe to overwrite file, can't read %q", path)
+		return nil, fmt.Errorf("loading code, can't read %q: %v", path, err)
 	}
 
-	logger.Trace().
-		Msg("Check if code has terramate header.")
-	code := string(data)
-	if !strings.HasPrefix(code, codeHeader) {
-		return fmt.Errorf("%w: at %q", ErrManualCodeExists, path)
+	logger.Trace().Msg("Check if code has terramate header.")
+
+	if !strings.HasPrefix(string(data), codeHeader) {
+		return nil, fmt.Errorf("%w: at %q", ErrManualCodeExists, path)
+	}
+
+	return data, nil
+}
+
+func checkProjectRoot(root string) error {
+	if !filepath.IsAbs(root) {
+		return fmt.Errorf("project's root %q must be an absolute path", root)
+	}
+
+	info, err := os.Lstat(root)
+	if err != nil {
+		return fmt.Errorf("checking project's root directory %q: %v", root, err)
+	}
+
+	if !info.IsDir() {
+		return fmt.Errorf("project's root %q is not a directory", root)
 	}
 
 	return nil
+}
+
+type forEachStackCallback func(
+	stackpath string,
+	metadata terramate.StackMetadata,
+	globals *terramate.Globals,
+) error
+
+func forEachStack(root string, callback forEachStackCallback) []error {
+	logger := log.With().
+		Str("action", "generate.iterateStacks()").
+		Str("path", root).
+		Logger()
+
+	logger.Trace().Msg("Check project root.")
+
+	if err := checkProjectRoot(root); err != nil {
+		return []error{err}
+	}
+
+	logger.Trace().Msg("Load stacks metadata.")
+
+	metadata, err := terramate.LoadMetadata(root)
+	if err != nil {
+		return []error{err}
+	}
+
+	var errs []error
+
+	for _, stackMetadata := range metadata.Stacks {
+		stackpath := project.AbsPath(root, stackMetadata.Path)
+
+		logger := logger.With().
+			Str("stack", stackpath).
+			Logger()
+
+		logger.Trace().Msg("Load stack globals.")
+
+		globals, err := terramate.LoadStackGlobals(root, stackMetadata)
+		if err != nil {
+			errs = append(errs, fmt.Errorf(
+				"stack %q: %w: %v",
+				stackpath,
+				ErrLoadingGlobals,
+				err))
+			continue
+		}
+
+		logger.Trace().Msg("Calling iterator.")
+		if err := callback(stackpath, stackMetadata, globals); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return errs
 }

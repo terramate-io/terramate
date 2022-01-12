@@ -202,6 +202,14 @@ func (s S) LoadMetadata() terramate.Metadata {
 	return meta
 }
 
+// Generate generates code for all stacks on the sandbox
+func (s S) Generate() {
+	s.t.Helper()
+
+	err := generate.Do(s.RootDir())
+	assert.NoError(s.t, err)
+}
+
 // Loads globals for stack on the sandbox
 func (s S) LoadStackGlobals(sm terramate.StackMetadata) *terramate.Globals {
 	s.t.Helper()
