@@ -548,6 +548,41 @@ func TestRunFailIfDirtyRepo(t *testing.T) {
 	})
 }
 
+func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
+	const (
+		testFilename = "test.txt"
+		contents     = "something testy"
+	)
+	s := sandbox.New(t)
+
+	stack1 := s.CreateStack("stacks/stack-1")
+	stack2 := s.CreateStack("stacks/stack-2")
+
+	stack1.CreateFile(testFilename, contents)
+	stack2.CreateFile(testFilename, contents)
+
+	git := s.Git()
+	git.CommitAll("first commit")
+	git.Push("main")
+
+	cli := newCLI(t, s.RootDir())
+	cat := test.LookPath(t, "cat")
+
+	assertRunResult(t, cli.run("run", cat, testFilename), runExpected{
+		Stdout: contents + contents,
+	})
+
+	stack1.CreateConfig(`
+		stack {}
+		export_as_locals {
+		  test = terramate.path
+		}
+	`)
+
+	git.CheckoutNew("adding-stack1-config")
+	git.CommitAll("adding stack-1 config")
+}
+
 func TestRunLogsUserCommand(t *testing.T) {
 	s := sandbox.New(t)
 
