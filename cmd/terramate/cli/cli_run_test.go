@@ -20,6 +20,7 @@ import (
 
 	"github.com/mineiros-io/terramate"
 
+	"github.com/mineiros-io/terramate/cmd/terramate/cli"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/run/dag"
 	"github.com/mineiros-io/terramate/test"
@@ -550,26 +551,27 @@ func TestRunFailIfDirtyRepo(t *testing.T) {
 
 func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
 	const (
-		testFilename = "test.txt"
-		contents     = "something testy"
+		testFilename   = "test.txt"
+		contentsStack1 = "stack-1 file"
+		contentsStack2 = "stack-2 file"
 	)
 	s := sandbox.New(t)
 
 	stack1 := s.CreateStack("stacks/stack-1")
 	stack2 := s.CreateStack("stacks/stack-2")
 
-	stack1.CreateFile(testFilename, contents)
-	stack2.CreateFile(testFilename, contents)
+	stack1.CreateFile(testFilename, contentsStack1)
+	stack2.CreateFile(testFilename, contentsStack2)
 
 	git := s.Git()
 	git.CommitAll("first commit")
 	git.Push("main")
 
-	cli := newCLI(t, s.RootDir())
+	tmcli := newCLI(t, s.RootDir())
 	cat := test.LookPath(t, "cat")
 
-	assertRunResult(t, cli.run("run", cat, testFilename), runExpected{
-		Stdout: contents + contents,
+	assertRunResult(t, tmcli.run("run", cat, testFilename), runExpected{
+		Stdout: contentsStack1 + contentsStack2,
 	})
 
 	stack1.CreateConfig(`
@@ -581,6 +583,24 @@ func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
 
 	git.CheckoutNew("adding-stack1-config")
 	git.CommitAll("adding stack-1 config")
+
+	assertRunResult(t, tmcli.run("run", cat, testFilename), runExpected{
+		Status:      defaultErrExitStatus,
+		StderrRegex: cli.ErrStackGenCodeOutdated.Error(),
+	})
+
+	assertRunResult(t, tmcli.run("run", "--changed", cat, testFilename), runExpected{
+		Status:      defaultErrExitStatus,
+		StderrRegex: cli.ErrStackGenCodeOutdated.Error(),
+	})
+
+	// Check that if inside cwd all is good it should work
+	// Ignoring the other stack that has outdated code
+	tmcli = newCLI(t, stack2.Path())
+
+	assertRunResult(t, tmcli.run("run", cat, testFilename), runExpected{
+		Stdout: contentsStack2,
+	})
 }
 
 func TestRunLogsUserCommand(t *testing.T) {

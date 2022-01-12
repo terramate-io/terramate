@@ -46,6 +46,7 @@ const (
 	ErrOutdatedLocalRev      errutil.Error = "outdated local revision"
 	ErrNoDefaultRemoteConfig errutil.Error = "repository must have a configured origin/main"
 	ErrInit                  errutil.Error = "failed to initialize all stacks"
+	ErrStackGenCodeOutdated  errutil.Error = "stack has outdated generated code"
 )
 
 const (
