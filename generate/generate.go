@@ -138,8 +138,8 @@ func Check(root string) ([]Outdated, error) {
 		}
 
 		// TODO(katcipis): allow BackendCfgFilename to be configured
-		targetBackendCfgFile := filepath.Join(stackpath, BackendCfgFilename)
-		currentbackend, err := loadGeneratedCode(targetBackendCfgFile)
+		stackBackendCfgFile := filepath.Join(stackpath, BackendCfgFilename)
+		currentbackend, err := loadGeneratedCode(stackBackendCfgFile)
 		if err != nil {
 			return err
 		}
@@ -160,8 +160,8 @@ func Check(root string) ([]Outdated, error) {
 		}
 
 		// TODO(katcipis): allow LocalsFilename to be configured
-		targetLocalsFile := filepath.Join(stackpath, LocalsFilename)
-		currentlocals, err := loadGeneratedCode(targetLocalsFile)
+		stackLocalsFile := filepath.Join(stackpath, LocalsFilename)
+		currentlocals, err := loadGeneratedCode(stackLocalsFile)
 		if err != nil {
 			return err
 		}
