@@ -596,7 +596,7 @@ func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
 		StderrRegex: cli.ErrStackGenCodeOutdated.Error(),
 	})
 
-	// Check that if inside cwd all is good it should work
+	// Check that if inside cwd it should work
 	// Ignoring the other stack that has outdated code
 	tmcli = newCLI(t, stack2.Path())
 
