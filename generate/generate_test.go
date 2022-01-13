@@ -1281,9 +1281,6 @@ func TestWontOverwriteManuallyDefinedBackendConfig(t *testing.T) {
 		manualContents = "some manual backend configs"
 	)
 
-	terramate := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("terramate", builders...)
-	}
 	backend := func(label string) *hclwrite.Block {
 		b := hclwrite.BuildBlock("backend")
 		b.AddLabel(label)
@@ -1308,12 +1305,6 @@ func TestWontOverwriteManuallyDefinedBackendConfig(t *testing.T) {
 }
 
 func TestBackendConfigOverwriting(t *testing.T) {
-	terramate := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("terramate", builders...)
-	}
-	terraform := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("terraform", builders...)
-	}
 	backend := func(label string) *hclwrite.Block {
 		b := hclwrite.BuildBlock("backend")
 		b.AddLabel(label)
@@ -1347,11 +1338,6 @@ func TestWontOverwriteManuallyDefinedLocals(t *testing.T) {
 		manualLocals = "some manual stuff"
 	)
 
-	exportAsLocals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("export_as_locals", builders...)
-	}
-	expr := hclwrite.Expression
-
 	exportLocalsCfg := exportAsLocals(expr("a", "terramate.path"))
 
 	s := sandbox.New(t)
@@ -1370,15 +1356,6 @@ func TestWontOverwriteManuallyDefinedLocals(t *testing.T) {
 }
 
 func TestExportedLocalsOverwriting(t *testing.T) {
-	exportAsLocals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("export_as_locals", builders...)
-	}
-	locals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("locals", builders...)
-	}
-	expr := hclwrite.Expression
-	str := hclwrite.String
-
 	firstConfig := exportAsLocals(expr("a", "terramate.path"))
 	firstWant := locals(str("a", "/stack"))
 
