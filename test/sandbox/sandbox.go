@@ -206,7 +206,7 @@ func (s S) LoadMetadata() terramate.Metadata {
 func (s S) Generate() {
 	s.t.Helper()
 
-	err := generate.Do(s.RootDir())
+	err := generate.Do(s.RootDir(), s.RootDir())
 	assert.NoError(s.t, err)
 }
 

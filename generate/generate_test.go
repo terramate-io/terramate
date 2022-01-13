@@ -33,27 +33,6 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func TestGenerateFailsIfPathDoesntExist(t *testing.T) {
-	assert.Error(t, generate.Do(test.NonExistingDir(t)))
-}
-
-func TestGenerateFailsIfPathIsNotDir(t *testing.T) {
-	dir := t.TempDir()
-	filename := "test"
-
-	test.WriteFile(t, dir, filename, "whatever")
-	path := filepath.Join(dir, filename)
-
-	assert.Error(t, generate.Do(path))
-}
-
-func TestGenerateFailsIfPathIsRelative(t *testing.T) {
-	dir := t.TempDir()
-	relpath := test.RelPath(t, test.Getwd(t), dir)
-
-	assert.Error(t, generate.Do(relpath))
-}
-
 func TestBackendConfigGeneration(t *testing.T) {
 	type (
 		stackcode struct {
@@ -72,10 +51,11 @@ func TestBackendConfigGeneration(t *testing.T) {
 		}
 
 		testcase struct {
-			name    string
-			layout  []string
-			configs []backendconfig
-			want    want
+			name       string
+			layout     []string
+			configs    []backendconfig
+			workingDir string
+			want       want
 		}
 	)
 	tcases := []testcase{
@@ -827,7 +807,12 @@ globals {
 				test.WriteFile(t, dir, config.Filename, cfg.config)
 			}
 
-			err := generate.Do(s.RootDir())
+			workingDir := tcase.workingDir
+			if workingDir == "" {
+				workingDir = s.RootDir()
+			}
+
+			err := generate.Do(s.RootDir(), workingDir)
 			assert.IsError(t, err, tcase.want.err)
 
 			for _, want := range tcase.want.stacks {
@@ -867,10 +852,11 @@ func TestLocalsGeneration(t *testing.T) {
 			stacksLocals map[string]*hclwrite.Block
 		}
 		testcase struct {
-			name    string
-			layout  []string
-			configs []hclblock
-			want    want
+			name       string
+			layout     []string
+			configs    []hclblock
+			workingDir string
+			want       want
 		}
 	)
 
@@ -1166,7 +1152,12 @@ func TestLocalsGeneration(t *testing.T) {
 				test.AppendFile(t, path, config.Filename, cfg.add.String())
 			}
 
-			err := generate.Do(s.RootDir())
+			workingDir := tcase.workingDir
+			if workingDir == "" {
+				workingDir = s.RootDir()
+			}
+
+			err := generate.Do(s.RootDir(), workingDir)
 			assert.IsError(t, err, tcase.want.err)
 
 			for stackPath, wantHCLBlock := range tcase.want.stacksLocals {
@@ -1216,7 +1207,7 @@ func TestWontOverwriteManuallyDefinedBackendConfig(t *testing.T) {
 		fmt.Sprintf("f:stack/%s:%s", generate.BackendCfgFilename, manualContents),
 	})
 
-	err := generate.Do(s.RootDir())
+	err := generate.Do(s.RootDir(), s.RootDir())
 	assert.IsError(t, err, generate.ErrManualCodeExists)
 
 	stack := s.StackEntry("stack")
@@ -1245,7 +1236,7 @@ func TestBackendConfigOverwriting(t *testing.T) {
 	rootEntry := s.DirEntry(".")
 	rootConfig := rootEntry.CreateConfig(firstConfig.String())
 
-	assert.NoError(t, generate.Do(s.RootDir()))
+	assert.NoError(t, generate.Do(s.RootDir(), s.RootDir()))
 
 	got := string(stack.ReadGeneratedBackendCfg())
 	assertHCLEquals(t, got, firstWant.String())
@@ -1254,7 +1245,7 @@ func TestBackendConfigOverwriting(t *testing.T) {
 	secondWant := terraform(backend("second"))
 	rootConfig.Write(secondConfig.String())
 
-	assert.NoError(t, generate.Do(s.RootDir()))
+	assert.NoError(t, generate.Do(s.RootDir(), s.RootDir()))
 
 	got = string(stack.ReadGeneratedBackendCfg())
 	assertHCLEquals(t, got, secondWant.String())
@@ -1279,7 +1270,7 @@ func TestWontOverwriteManuallyDefinedLocals(t *testing.T) {
 		fmt.Sprintf("f:stack/%s:%s", generate.LocalsFilename, manualLocals),
 	})
 
-	err := generate.Do(s.RootDir())
+	err := generate.Do(s.RootDir(), s.RootDir())
 	assert.IsError(t, err, generate.ErrManualCodeExists)
 
 	stack := s.StackEntry("stack")
@@ -1305,7 +1296,7 @@ func TestExportedLocalsOverwriting(t *testing.T) {
 	rootEntry := s.DirEntry(".")
 	rootConfig := rootEntry.CreateConfig(firstConfig.String())
 
-	assert.NoError(t, generate.Do(s.RootDir()))
+	assert.NoError(t, generate.Do(s.RootDir(), s.RootDir()))
 
 	got := string(stack.ReadGeneratedLocals())
 	assertHCLEquals(t, got, firstWant.String())
@@ -1314,7 +1305,7 @@ func TestExportedLocalsOverwriting(t *testing.T) {
 	secondWant := locals(str("b", "stack"))
 	rootConfig.Write(secondConfig.String())
 
-	assert.NoError(t, generate.Do(s.RootDir()))
+	assert.NoError(t, generate.Do(s.RootDir(), s.RootDir()))
 
 	got = string(stack.ReadGeneratedLocals())
 	assertHCLEquals(t, got, secondWant.String())
