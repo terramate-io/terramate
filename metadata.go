@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
@@ -71,11 +72,13 @@ func LoadStackMetadata(root string, stackDir string) (StackMetadata, error) {
 	logger := log.With().
 		Str("action", "LoadStackMetadata()").
 		Str("root", root).
-		Str("stackDir", stackDir).
+		Str("stack", stackDir).
 		Logger()
 
 	logger.Trace().Msg("loading stack metadata.")
-	stackEntry, err := stack.Load(root, stackDir)
+
+	stackAbsPath := project.AbsPath(root, stackDir)
+	stackEntry, err := stack.Load(root, stackAbsPath)
 	if err != nil {
 		return StackMetadata{}, fmt.Errorf("loading stack metadata: %v", err)
 	}
