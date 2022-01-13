@@ -43,10 +43,10 @@ import (
 )
 
 const (
-	ErrOutdatedLocalRev      errutil.Error = "outdated local revision"
-	ErrNoDefaultRemoteConfig errutil.Error = "repository must have a configured origin/main"
-	ErrInit                  errutil.Error = "failed to initialize all stacks"
-	ErrStackGenCodeOutdated  errutil.Error = "stack has outdated generated code"
+	ErrOutdatedLocalRev        errutil.Error = "outdated local revision"
+	ErrNoDefaultRemoteConfig   errutil.Error = "repository must have a configured origin/main"
+	ErrInit                    errutil.Error = "failed to initialize all stacks"
+	ErrOutdatedGenCodeDetected errutil.Error = "outdated generated code detected"
 )
 
 const (
@@ -790,13 +790,14 @@ func (c *cli) runOnStacks() {
 		for _, filename := range outdated {
 			logger.Error().
 				Str("filename", filename).
-				Msg("is outdated")
+				Msg("outdated code found")
 		}
 	}
 
 	if hasOutdated {
 		logger.Fatal().
-			Msg("detected stacks with outdated code, please run: 'terramate generate'")
+			Err(ErrOutdatedGenCodeDetected).
+			Msg("please run: 'terramate generate' to update generated code")
 	}
 
 	logger.Trace().Msg("Get order of stacks to run command on.")

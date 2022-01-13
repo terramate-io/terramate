@@ -550,8 +550,6 @@ func TestRunFailIfDirtyRepo(t *testing.T) {
 }
 
 func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
-	t.Skip("FIXME: make it pass")
-
 	const (
 		testFilename   = "test.txt"
 		contentsStack1 = "stack-1 file"
@@ -588,12 +586,12 @@ func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
 
 	assertRunResult(t, tmcli.run("run", cat, testFilename), runExpected{
 		Status:      defaultErrExitStatus,
-		StderrRegex: cli.ErrStackGenCodeOutdated.Error(),
+		StderrRegex: cli.ErrOutdatedGenCodeDetected.Error(),
 	})
 
 	assertRunResult(t, tmcli.run("run", "--changed", cat, testFilename), runExpected{
 		Status:      defaultErrExitStatus,
-		StderrRegex: cli.ErrStackGenCodeOutdated.Error(),
+		StderrRegex: cli.ErrOutdatedGenCodeDetected.Error(),
 	})
 
 	// Check that if inside cwd it should work
