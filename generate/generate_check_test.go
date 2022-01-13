@@ -98,7 +98,27 @@ func TestCheckReturnsOutdatedStackFilenames(t *testing.T) {
 	assert.NoError(t, err)
 	assertStringsEquals(t, got, []string{generate.BackendCfgFilename})
 
-	// TODO(katcipis): add another config to test stack with 2 outdated files
+	s.Generate()
+
+	assertAllStacksAreUpdated()
+
+	stack2.CreateConfig(
+		hcldoc(
+			terramate(
+				backend(labels("anotherChange")),
+			),
+			exportAsLocals(
+				expr("changed", "terramate.name"),
+			),
+			stack(),
+		).String())
+
+	got, err = generate.CheckStack(s.RootDir(), stack2Dir)
+	assert.NoError(t, err)
+	assertStringsEquals(t, got, []string{
+		generate.BackendCfgFilename,
+		generate.LocalsFilename,
+	})
 
 	s.Generate()
 
