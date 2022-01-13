@@ -769,8 +769,8 @@ func (c *cli) runOnStacks() {
 	}
 
 	logger.Trace().Msg("Checking if any stack has outdated code.")
-	hasOutdated := false
 
+	hasOutdated := false
 	for _, stack := range stacks {
 		logger := logger.With().
 			Str("stack", stack.Dir).
