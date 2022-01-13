@@ -795,6 +795,65 @@ globals {
 				err: generate.ErrLoadingGlobals,
 			},
 		},
+		{
+			name: "multiple stacks selecting single stack with working dir",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			workingDir: "stacks/stack-1",
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: hcldoc(
+						terramate(
+							backend(
+								labels("gcs"),
+								expr("prefix", "terramate.path"),
+							),
+						),
+					).String(),
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stacks/stack-1",
+						code: hcldoc(
+							terraform(
+								backend(
+									labels("gcs"),
+									str("prefix", "/stacks/stack-1"),
+								),
+							),
+						).String(),
+					},
+				},
+			},
+		},
+		{
+			name: "working dir has no stacks inside",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+				"d:notstack",
+			},
+			workingDir: "notstack",
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: hcldoc(
+						terramate(
+							backend(
+								labels("gcs"),
+								expr("prefix", "terramate.path"),
+							),
+						),
+					).String(),
+				},
+			},
+			want: want{},
+		},
 	}
 
 	for _, tcase := range tcases {
@@ -807,11 +866,7 @@ globals {
 				test.WriteFile(t, dir, config.Filename, cfg.config)
 			}
 
-			workingDir := tcase.workingDir
-			if workingDir == "" {
-				workingDir = s.RootDir()
-			}
-
+			workingDir := filepath.Join(s.RootDir(), tcase.workingDir)
 			err := generate.Do(s.RootDir(), workingDir)
 			assert.IsError(t, err, tcase.want.err)
 
@@ -859,20 +914,6 @@ func TestLocalsGeneration(t *testing.T) {
 			want       want
 		}
 	)
-
-	exportAsLocals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("export_as_locals", builders...)
-	}
-	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("globals", builders...)
-	}
-	locals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("locals", builders...)
-	}
-	expr := hclwrite.Expression
-	str := hclwrite.String
-	number := hclwrite.NumberInt
-	boolean := hclwrite.Boolean
 
 	tcases := []testcase{
 		{
@@ -1140,6 +1181,58 @@ func TestLocalsGeneration(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "multiple stacks selecting single stack with working dir",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			workingDir: "stacks/stack-1",
+			configs: []hclblock{
+				{
+					path: "/",
+					add: globals(
+						str("str", "string"),
+					),
+				},
+				{
+					path: "/stacks/stack-1",
+					add: exportAsLocals(
+						expr("str_local", "global.str"),
+					),
+				},
+				{
+					path: "/stacks/stack-2",
+					add: exportAsLocals(
+						expr("str_local", "global.str"),
+					),
+				},
+			},
+			want: want{
+				stacksLocals: map[string]*hclwrite.Block{
+					"/stacks/stack-1": locals(
+						str("str_local", "string"),
+					),
+				},
+			},
+		},
+		{
+			name: "working dir has no stacks inside",
+			layout: []string{
+				"s:stack",
+				"d:somedir",
+			},
+			workingDir: "somedir",
+			configs: []hclblock{
+				{
+					path: "/stack",
+					add: exportAsLocals(
+						expr("path", "terramate.path"),
+					),
+				},
+			},
+			want: want{},
+		},
 	}
 
 	for _, tcase := range tcases {
@@ -1152,11 +1245,7 @@ func TestLocalsGeneration(t *testing.T) {
 				test.AppendFile(t, path, config.Filename, cfg.add.String())
 			}
 
-			workingDir := tcase.workingDir
-			if workingDir == "" {
-				workingDir = s.RootDir()
-			}
-
+			workingDir := filepath.Join(s.RootDir(), tcase.workingDir)
 			err := generate.Do(s.RootDir(), workingDir)
 			assert.IsError(t, err, tcase.want.err)
 
@@ -1173,13 +1262,15 @@ func TestLocalsGeneration(t *testing.T) {
 
 			if len(generatedFiles) != len(tcase.want.stacksLocals) {
 				t.Errorf("generated %d locals files, but wanted %d", len(generatedFiles), len(tcase.want.stacksLocals))
+				t.Errorf("generated files: %v", generatedFiles)
 				for _, genfilepath := range generatedFiles {
 					genfile, err := os.ReadFile(genfilepath)
 					assert.NoError(t, err, "reading generated file %s", genfilepath)
-					t.Errorf("generated file:\n%s", genfile)
+					t.Errorf("generated file %q:\n%s", genfilepath, genfile)
 				}
-				t.Errorf("generated files: %v", generatedFiles)
-				t.Fatalf("wanted generated files: %#v", tcase.want.stacksLocals)
+				for stack, hcldoc := range tcase.want.stacksLocals {
+					t.Errorf("wanted generated file for stack %q:\n%s", stack, hcldoc)
+				}
 			}
 		})
 	}
