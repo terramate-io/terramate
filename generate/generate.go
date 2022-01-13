@@ -65,9 +65,7 @@ const (
 // or if it can't generate the files properly for some reason.
 func Do(root string, workingDir string) error {
 
-	// TODO(katcipis): properly use workingDir
-
-	errs := forEachStack(root, func(
+	errs := forEachStack(root, workingDir, func(
 		stackpath string,
 		metadata terramate.StackMetadata,
 		globals *terramate.Globals,
@@ -126,7 +124,7 @@ type Outdated struct {
 // The provided root must be the project's root directory as an absolute path.
 func Check(root string) ([]Outdated, error) {
 	outdated := []Outdated{}
-	errs := forEachStack(root, func(
+	errs := forEachStack(root, root, func(
 		stackpath string,
 		metadata terramate.StackMetadata,
 		globals *terramate.Globals,
@@ -529,40 +527,18 @@ func loadGeneratedCode(path string) ([]byte, error) {
 	return data, nil
 }
 
-func checkProjectRoot(root string) error {
-	if !filepath.IsAbs(root) {
-		return fmt.Errorf("project's root %q must be an absolute path", root)
-	}
-
-	info, err := os.Lstat(root)
-	if err != nil {
-		return fmt.Errorf("checking project's root directory %q: %v", root, err)
-	}
-
-	if !info.IsDir() {
-		return fmt.Errorf("project's root %q is not a directory", root)
-	}
-
-	return nil
-}
-
 type forEachStackCallback func(
 	stackpath string,
 	metadata terramate.StackMetadata,
 	globals *terramate.Globals,
 ) error
 
-func forEachStack(root string, callback forEachStackCallback) []error {
+func forEachStack(root, workingDir string, callback forEachStackCallback) []error {
 	logger := log.With().
-		Str("action", "generate.iterateStacks()").
-		Str("path", root).
+		Str("action", "generate.forEachStack()").
+		Str("root", root).
+		Str("workingDir", workingDir).
 		Logger()
-
-	logger.Trace().Msg("Check project root.")
-
-	if err := checkProjectRoot(root); err != nil {
-		return []error{err}
-	}
 
 	logger.Trace().Msg("Load stacks metadata.")
 
@@ -579,6 +555,11 @@ func forEachStack(root string, callback forEachStackCallback) []error {
 		logger := logger.With().
 			Str("stack", stackpath).
 			Logger()
+
+		if !strings.HasPrefix(stackpath, workingDir) {
+			logger.Trace().Msg("discarding stack outside working dir")
+			continue
+		}
 
 		logger.Trace().Msg("Load stack globals.")
 

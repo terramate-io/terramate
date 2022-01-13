@@ -20,13 +20,14 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 )
 
+// S represents a stack
 type S struct {
-	name string
-	Dir  string
+	// Dir is the stack dir path relative to the project root
+	Dir string
 
+	name    string
 	changed bool
-
-	block *hcl.Stack
+	block   *hcl.Stack
 }
 
 func (s S) Name() string {
