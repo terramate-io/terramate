@@ -15,9 +15,11 @@
 package terramate
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -38,15 +40,15 @@ type Metadata struct {
 }
 
 // LoadMetadata loads the project metadata given the project basedir.
-func LoadMetadata(basedir string) (Metadata, error) {
+func LoadMetadata(root string) (Metadata, error) {
 	logger := log.With().
 		Str("action", "LoadMetadata()").
-		Str("path", basedir).
+		Str("root", root).
 		Logger()
 
 	logger.Debug().
 		Msg("Get list of stacks in path.")
-	stackEntries, err := ListStacks(basedir)
+	stackEntries, err := ListStacks(root)
 	if err != nil {
 		return Metadata{}, err
 	}
@@ -55,17 +57,37 @@ func LoadMetadata(basedir string) (Metadata, error) {
 		Msg("Make array of stack metadata entries.")
 	stacksMetadata := make([]StackMetadata, len(stackEntries))
 	for i, stackEntry := range stackEntries {
-		stacksMetadata[i] = StackMetadata{
-			Name:        stackEntry.Stack.Name(),
-			Description: stackEntry.Stack.Description(),
-			Path:        strings.TrimPrefix(stackEntry.Stack.Dir, basedir),
-		}
+		stacksMetadata[i] = newStackMetadata(root, stackEntry.Stack)
 	}
 
 	return Metadata{
 		Stacks:  stacksMetadata,
-		basedir: basedir,
+		basedir: root,
 	}, nil
+}
+
+// LoadStackMetadata loads the metadata for a specific stack.
+func LoadStackMetadata(root string, stackDir string) (StackMetadata, error) {
+	logger := log.With().
+		Str("action", "LoadStackMetadata()").
+		Str("root", root).
+		Str("stackDir", stackDir).
+		Logger()
+
+	logger.Trace().Msg("loading stack metadata.")
+	stackEntry, err := stack.Load(root, stackDir)
+	if err != nil {
+		return StackMetadata{}, fmt.Errorf("loading stack metadata: %v", err)
+	}
+	return newStackMetadata(root, stackEntry), nil
+}
+
+func newStackMetadata(root string, s stack.S) StackMetadata {
+	return StackMetadata{
+		Name:        s.Name(),
+		Description: s.Description(),
+		Path:        strings.TrimPrefix(s.Dir, root),
+	}
 }
 
 // SetOnEvalCtx will add the proper namespace for evaluation of stack metadata

@@ -15,27 +15,33 @@
 package generate_test
 
 import (
-	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/generate"
-	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
-func TestCheckReturnsOutdatedStacks(t *testing.T) {
+func TestCheckReturnsOutdatedStackFilenames(t *testing.T) {
 	s := sandbox.New(t)
 
 	stack1 := s.CreateStack("stacks/stack-1")
 	stack2 := s.CreateStack("stacks/stack-2")
 
-	stack1Dir := "/" + stack1.RelPath()
-	stack2Dir := "/" + stack2.RelPath()
+	stack1Dir := stack1.RelPath()
+	stack2Dir := stack2.RelPath()
 
-	got, err := generate.Check(s.RootDir())
-	assert.NoError(t, err)
-	assertOutdatedEquals(t, got, []generate.Outdated{})
+	assertAllStacksAreUpdated := func() {
+		t.Helper()
+
+		for _, stackDir := range []string{stack1Dir, stack2Dir} {
+			got, err := generate.CheckStack(s.RootDir(), stackDir)
+			assert.NoError(t, err)
+			assertStringsEquals(t, got, []string{})
+		}
+	}
+
+	assertAllStacksAreUpdated()
 
 	// Checking detection when there is no config generated yet
 	// for both locals and backend config
@@ -47,14 +53,9 @@ func TestCheckReturnsOutdatedStacks(t *testing.T) {
 			),
 		).String())
 
-	got, err = generate.Check(s.RootDir())
+	got, err := generate.CheckStack(s.RootDir(), stack1Dir)
 	assert.NoError(t, err)
-	assertOutdatedEquals(t, got, []generate.Outdated{
-		{
-			StackDir: stack1Dir,
-			Filename: generate.LocalsFilename,
-		},
-	})
+	assertStringsEquals(t, got, []string{generate.LocalsFilename})
 
 	stack2.CreateConfig(
 		hcldoc(
@@ -64,27 +65,15 @@ func TestCheckReturnsOutdatedStacks(t *testing.T) {
 			stack(),
 		).String())
 
-	got, err = generate.Check(s.RootDir())
+	got, err = generate.CheckStack(s.RootDir(), stack2Dir)
 	assert.NoError(t, err)
-	assertOutdatedEquals(t, got, []generate.Outdated{
-		{
-			StackDir: stack1Dir,
-			Filename: generate.LocalsFilename,
-		},
-		{
-			StackDir: stack2Dir,
-			Filename: generate.BackendCfgFilename,
-		},
-	})
+	assertStringsEquals(t, got, []string{generate.BackendCfgFilename})
 
 	s.Generate()
 
-	got, err = generate.Check(s.RootDir())
-	assert.NoError(t, err)
-	assertOutdatedEquals(t, got, []generate.Outdated{})
+	assertAllStacksAreUpdated()
 
-	// Now checking when we have code + it gets outdated
-	// for both locals and backend.
+	// Now checking when we have code + it gets outdated for both stacks.
 	stack1.CreateConfig(
 		hcldoc(
 			stack(),
@@ -93,14 +82,9 @@ func TestCheckReturnsOutdatedStacks(t *testing.T) {
 			),
 		).String())
 
-	got, err = generate.Check(s.RootDir())
+	got, err = generate.CheckStack(s.RootDir(), stack1Dir)
 	assert.NoError(t, err)
-	assertOutdatedEquals(t, got, []generate.Outdated{
-		{
-			StackDir: stack1Dir,
-			Filename: generate.LocalsFilename,
-		},
-	})
+	assertStringsEquals(t, got, []string{generate.LocalsFilename})
 
 	stack2.CreateConfig(
 		hcldoc(
@@ -110,31 +94,15 @@ func TestCheckReturnsOutdatedStacks(t *testing.T) {
 			stack(),
 		).String())
 
-	got, err = generate.Check(s.RootDir())
+	got, err = generate.CheckStack(s.RootDir(), stack2Dir)
 	assert.NoError(t, err)
-	assertOutdatedEquals(t, got, []generate.Outdated{
-		{
-			StackDir: stack1Dir,
-			Filename: generate.LocalsFilename,
-		},
-		{
-			StackDir: stack2Dir,
-			Filename: generate.BackendCfgFilename,
-		},
-	})
+	assertStringsEquals(t, got, []string{generate.BackendCfgFilename})
+
+	// TODO(katcipis): add another config to test stack with 2 outdated files
 
 	s.Generate()
 
-	got, err = generate.Check(s.RootDir())
-	assert.NoError(t, err)
-	assertOutdatedEquals(t, got, []generate.Outdated{})
-}
-
-func TestCheckSucceedsOnEmptyProject(t *testing.T) {
-	s := sandbox.New(t)
-	got, err := generate.Check(s.RootDir())
-	assert.NoError(t, err)
-	assert.EqualInts(t, 0, len(got))
+	assertAllStacksAreUpdated()
 }
 
 func TestCheckFailsWithInvalidConfig(t *testing.T) {
@@ -158,49 +126,23 @@ func TestCheckFailsWithInvalidConfig(t *testing.T) {
 
 	for _, invalidConfig := range invalidConfigs {
 		s := sandbox.New(t)
-		_, err := generate.Check(s.RootDir())
-		assert.NoError(t, err)
 
 		stackEntry := s.CreateStack("stack")
 		stackEntry.CreateConfig(invalidConfig)
 
-		_, err = generate.Check(s.RootDir())
+		_, err := generate.CheckStack(s.RootDir(), stackEntry.RelPath())
 		assert.Error(t, err, "should fail for configuration:\n%s", invalidConfig)
 	}
 }
 
-func TestCheckFailsIfPathDoesntExist(t *testing.T) {
-	_, err := generate.Check(test.NonExistingDir(t))
-	assert.Error(t, err)
-}
-
-func TestCheckFailsIfPathIsNotDir(t *testing.T) {
-	dir := t.TempDir()
-	filename := "test"
-
-	test.WriteFile(t, dir, filename, "whatever")
-	path := filepath.Join(dir, filename)
-
-	_, err := generate.Check(path)
-	assert.Error(t, err)
-}
-
-func TestCheckFailsIfPathIsRelative(t *testing.T) {
-	dir := t.TempDir()
-	relpath := test.RelPath(t, test.Getwd(t), dir)
-
-	_, err := generate.Check(relpath)
-	assert.Error(t, err)
-}
-
-func assertOutdatedEquals(t *testing.T, got []generate.Outdated, want []generate.Outdated) {
+func assertStringsEquals(t *testing.T, got []string, want []string) {
 	t.Helper()
 
 	assert.EqualInts(t, len(want), len(got), "want %+v != got %+v", want, got)
 	for i, wv := range want {
 		gv := got[i]
 		if gv != wv {
-			t.Errorf("got[%d][%+v] != want[%d][%+v]", i, gv, i, wv)
+			t.Errorf("got[%d][%s] != want[%d][%s]", i, gv, i, wv)
 		}
 	}
 }
