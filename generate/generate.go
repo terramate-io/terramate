@@ -49,16 +49,23 @@ const (
 	ErrManualCodeExists   errutil.Error = "manually defined code found"
 )
 
-// Do will walk all the directories starting from project's root
+// Do will walk all the stacks inside the given working dir
 // generating code for any stack it finds as it goes along.
+//
+// Code is generated based on configuration files spread around the entire
+// project until it reaches the given root. So even though a configuration
+// file may be outside the given working dir it may be used on code generation
+// if it is in a dir that is a parent of a stack found inside the working dir.
+//
+// The provided root must be the project's root directory as an absolute path.
+// The provided working dir must be an absolute path that is a child of the
+// provided root (or the same as root, indicating that working dir is the project root).
 //
 // It will return an error if it finds any invalid Terramate configuration files
 // or if it can't generate the files properly for some reason.
-//
-// The provided root must be the project's root directory as an absolute path.
-func Do(root string) error {
+func Do(root string, workingDir string) error {
 
-	errs := forEachStack(root, func(
+	errs := forEachStack(root, workingDir, func(
 		stackpath string,
 		metadata terramate.StackMetadata,
 		globals *terramate.Globals,
@@ -117,7 +124,7 @@ type Outdated struct {
 // The provided root must be the project's root directory as an absolute path.
 func Check(root string) ([]Outdated, error) {
 	outdated := []Outdated{}
-	errs := forEachStack(root, func(
+	errs := forEachStack(root, root, func(
 		stackpath string,
 		metadata terramate.StackMetadata,
 		globals *terramate.Globals,
@@ -520,40 +527,18 @@ func loadGeneratedCode(path string) ([]byte, error) {
 	return data, nil
 }
 
-func checkProjectRoot(root string) error {
-	if !filepath.IsAbs(root) {
-		return fmt.Errorf("project's root %q must be an absolute path", root)
-	}
-
-	info, err := os.Lstat(root)
-	if err != nil {
-		return fmt.Errorf("checking project's root directory %q: %v", root, err)
-	}
-
-	if !info.IsDir() {
-		return fmt.Errorf("project's root %q is not a directory", root)
-	}
-
-	return nil
-}
-
 type forEachStackCallback func(
 	stackpath string,
 	metadata terramate.StackMetadata,
 	globals *terramate.Globals,
 ) error
 
-func forEachStack(root string, callback forEachStackCallback) []error {
+func forEachStack(root, workingDir string, callback forEachStackCallback) []error {
 	logger := log.With().
-		Str("action", "generate.iterateStacks()").
-		Str("path", root).
+		Str("action", "generate.forEachStack()").
+		Str("root", root).
+		Str("workingDir", workingDir).
 		Logger()
-
-	logger.Trace().Msg("Check project root.")
-
-	if err := checkProjectRoot(root); err != nil {
-		return []error{err}
-	}
 
 	logger.Trace().Msg("Load stacks metadata.")
 
@@ -570,6 +555,11 @@ func forEachStack(root string, callback forEachStackCallback) []error {
 		logger := logger.With().
 			Str("stack", stackpath).
 			Logger()
+
+		if !strings.HasPrefix(stackpath, workingDir) {
+			logger.Trace().Msg("discarding stack outside working dir")
+			continue
+		}
 
 		logger.Trace().Msg("Load stack globals.")
 
