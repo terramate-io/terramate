@@ -191,6 +191,40 @@ stack "/stacks/stack-2":
 `,
 			},
 		},
+		{
+			name: "two stacks with globals and one without, wd = stack3",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+				"s:stack3",
+			},
+			wd: "/stack3",
+			globals: []globalsBlock{
+				{
+					path: "/stacks",
+					add: globals(
+						str("str", "string"),
+					),
+				},
+			},
+		},
+		{
+			name: "two stacks with globals and wd = some-non-stack-dir",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+				"d:some-non-stack-dir",
+			},
+			wd: "/some-non-stack-dir",
+			globals: []globalsBlock{
+				{
+					path: "/stacks",
+					add: globals(
+						str("str", "string"),
+					),
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
