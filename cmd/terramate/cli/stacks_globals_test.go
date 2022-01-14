@@ -160,7 +160,7 @@ stack "/stack3":
 			},
 		},
 		{
-			name: "three stacks only two has globals, wd = stacks",
+			name: "three stacks with globals, wd = stacks",
 			layout: []string{
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
