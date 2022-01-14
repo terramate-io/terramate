@@ -31,6 +31,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
+	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 )
 
@@ -64,23 +65,25 @@ const (
 // It will return an error if it finds any invalid Terramate configuration files
 // or if it can't generate the files properly for some reason.
 func Do(root string, workingDir string) error {
-
 	errs := forEachStack(root, workingDir, func(
-		stackpath string,
-		metadata terramate.StackMetadata,
+		stack stack.S,
 		globals *terramate.Globals,
 	) error {
+		stackpath := project.AbsPath(root, stack.Dir)
 		logger := log.With().
 			Str("action", "generate.Do()").
 			Str("path", root).
-			Str("stack", stackpath).
+			Str("stackpath", stackpath).
 			Logger()
 
 		logger.Debug().Msg("Generate stack backend config.")
 
+		stackMeta := stack.Meta()
+
 		// TODO(katcipis): allow this to be configured
 		targetBackendCfgFile := filepath.Join(stackpath, BackendCfgFilename)
-		if err := writeStackBackendConfig(root, stackpath, metadata, globals, targetBackendCfgFile); err != nil {
+		err := writeStackBackendConfig(root, stackpath, stackMeta, globals, targetBackendCfgFile)
+		if err != nil {
 			return err
 		}
 
@@ -88,7 +91,8 @@ func Do(root string, workingDir string) error {
 
 		// TODO(katcipis): allow this to be configured
 		targetLocalsFile := filepath.Join(stackpath, LocalsFilename)
-		if err := writeStackLocalsCode(root, stackpath, metadata, globals, targetLocalsFile); err != nil {
+		err = writeStackLocalsCode(root, stackpath, stackMeta, globals, targetLocalsFile)
+		if err != nil {
 			return err
 		}
 		return nil
@@ -112,34 +116,27 @@ func Do(root string, workingDir string) error {
 // The provided root must be the project's root directory as an absolute path.
 // The provided stack dir must be the stack dir relative to the project
 // root, in the form of path/to/the/stack.
-func CheckStack(root string, stackDir string) ([]string, error) {
+func CheckStack(root string, stack stack.S) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.CheckStack()").
 		Str("path", root).
-		Str("stack", stackDir).
+		Str("stackdir", stack.Dir).
 		Logger()
 
 	outdated := []string{}
 
-	logger.Trace().Msg("Loading metadata for stack.")
-
-	stackMetadata, err := terramate.LoadStackMetadata(root, stackDir)
-	if err != nil {
-		return nil, fmt.Errorf("checking for outdated code: %v", err)
-	}
-
 	logger.Trace().Msg("Loading globals for stack.")
 
-	globals, err := terramate.LoadStackGlobals(root, stackMetadata)
+	globals, err := terramate.LoadStackGlobals(root, stack.Meta())
 	if err != nil {
 		return nil, fmt.Errorf("checking for outdated code: %v", err)
 	}
 
 	logger.Trace().Msg("Generating backend cfg code for stack.")
 
-	stackpath := project.AbsPath(root, stackDir)
-
-	genbackend, err := generateBackendCfgCode(root, stackpath, stackMetadata, globals, stackpath)
+	stackpath := project.AbsPath(root, stack.Dir)
+	stackMeta := stack.Meta()
+	genbackend, err := generateBackendCfgCode(root, stackpath, stackMeta, globals, stackpath)
 	if err != nil {
 		return nil, fmt.Errorf("checking for outdated code: %v", err)
 	}
@@ -160,7 +157,7 @@ func CheckStack(root string, stackDir string) ([]string, error) {
 
 	logger.Trace().Msg("Checking for outdated exported locals code on stack.")
 
-	genlocals, err := generateStackLocalsCode(root, stackpath, stackMetadata, globals)
+	genlocals, err := generateStackLocalsCode(root, stackpath, stackMeta, globals)
 	if err != nil {
 		return nil, fmt.Errorf("checking for outdated code: %v", err)
 	}
@@ -183,7 +180,7 @@ func CheckStack(root string, stackDir string) ([]string, error) {
 func writeStackLocalsCode(
 	root string,
 	stackpath string,
-	stackMetadata terramate.StackMetadata,
+	stackMetadata stack.Metadata,
 	globals *terramate.Globals,
 	targetLocalsFile string,
 ) error {
@@ -224,7 +221,7 @@ func writeStackLocalsCode(
 func generateStackLocalsCode(
 	rootdir string,
 	stackpath string,
-	metadata terramate.StackMetadata,
+	metadata stack.Metadata,
 	globals *terramate.Globals,
 ) ([]byte, error) {
 	logger := log.With().
@@ -275,7 +272,7 @@ func generateStackLocalsCode(
 func writeStackBackendConfig(
 	root string,
 	stackpath string,
-	stackMetadata terramate.StackMetadata,
+	stackMetadata stack.Metadata,
 	globals *terramate.Globals,
 	targetBackendCfgFile string,
 ) error {
@@ -313,7 +310,7 @@ func writeStackBackendConfig(
 func generateBackendCfgCode(
 	root string,
 	stackpath string,
-	stackMetadata terramate.StackMetadata,
+	stackMetadata stack.Metadata,
 	globals *terramate.Globals,
 	configdir string,
 ) ([]byte, error) {
@@ -369,14 +366,17 @@ func generateBackendCfgCode(
 
 	logger.Trace().Msg("Add stack metadata evaluation namespace.")
 
-	if err := stackMetadata.SetOnEvalCtx(evalctx); err != nil {
-		return nil, fmt.Errorf("stack %q: %v", stackpath, err)
+	err = evalctx.SetNamespace("terramate", stackMetadata.ToCtyMap())
+	if err != nil {
+		return nil, fmt.Errorf("setting terramate namespace on eval context for stack %q: %v",
+			stackpath, err)
 	}
 
 	logger.Trace().Msg("Add global evaluation namespace.")
 
-	if err := globals.SetOnEvalCtx(evalctx); err != nil {
-		return nil, fmt.Errorf("stack %q: %v", stackpath, err)
+	if err := evalctx.SetNamespace("global", globals.Attributes()); err != nil {
+		return nil, fmt.Errorf("setting global namespace on eval context for stack %q: %v",
+			stackpath, err)
 	}
 
 	logger.Debug().
@@ -515,11 +515,7 @@ func loadGeneratedCode(path string) ([]byte, error) {
 	return data, nil
 }
 
-type forEachStackCallback func(
-	stackpath string,
-	metadata terramate.StackMetadata,
-	globals *terramate.Globals,
-) error
+type forEachStackCallback func(stack stack.S, globals *terramate.Globals) error
 
 func forEachStack(root, workingDir string, callback forEachStackCallback) []error {
 	logger := log.With().
@@ -528,17 +524,18 @@ func forEachStack(root, workingDir string, callback forEachStackCallback) []erro
 		Str("workingDir", workingDir).
 		Logger()
 
-	logger.Trace().Msg("Load stacks metadata.")
+	logger.Trace().Msg("List stacks.")
 
-	metadata, err := terramate.LoadMetadata(root)
+	stackEntries, err := terramate.ListStacks(root)
 	if err != nil {
 		return []error{err}
 	}
 
 	var errs []error
 
-	for _, stackMetadata := range metadata.Stacks {
-		stackpath := project.AbsPath(root, stackMetadata.Path)
+	for _, entry := range stackEntries {
+		stack := entry.Stack
+		stackpath := project.AbsPath(root, stack.Dir)
 
 		logger := logger.With().
 			Str("stack", stackpath).
@@ -551,7 +548,7 @@ func forEachStack(root, workingDir string, callback forEachStackCallback) []erro
 
 		logger.Trace().Msg("Load stack globals.")
 
-		globals, err := terramate.LoadStackGlobals(root, stackMetadata)
+		globals, err := terramate.LoadStackGlobals(root, stack.Meta())
 		if err != nil {
 			errs = append(errs, fmt.Errorf(
 				"stack %q: %w: %v",
@@ -561,8 +558,8 @@ func forEachStack(root, workingDir string, callback forEachStackCallback) []erro
 			continue
 		}
 
-		logger.Trace().Msg("Calling iterator.")
-		if err := callback(stackpath, stackMetadata, globals); err != nil {
+		logger.Trace().Msg("Calling stack callback.")
+		if err := callback(stack, globals); err != nil {
 			errs = append(errs, err)
 		}
 	}

@@ -24,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -32,7 +33,7 @@ func TestLoadMetadata(t *testing.T) {
 	type testcase struct {
 		name    string
 		layout  []string
-		want    terramate.Metadata
+		want    []stack.Metadata
 		wantErr error
 	}
 
@@ -42,19 +43,15 @@ func TestLoadMetadata(t *testing.T) {
 		{
 			name:   "no stacks",
 			layout: []string{},
-			want: terramate.Metadata{
-				Stacks: []terramate.StackMetadata{},
-			},
+			want:   []stack.Metadata{},
 		},
 		{
 			name:   "single stacks",
 			layout: []string{"s:stack"},
-			want: terramate.Metadata{
-				Stacks: []terramate.StackMetadata{
-					{
-						Name: "stack",
-						Path: "/stack",
-					},
+			want: []stack.Metadata{
+				{
+					Name: "stack",
+					Path: "/stack",
 				},
 			},
 		},
@@ -64,16 +61,14 @@ func TestLoadMetadata(t *testing.T) {
 				"s:stack-1",
 				"s:stack-2",
 			},
-			want: terramate.Metadata{
-				Stacks: []terramate.StackMetadata{
-					{
-						Name: "stack-1",
-						Path: "/stack-1",
-					},
-					{
-						Name: "stack-2",
-						Path: "/stack-2",
-					},
+			want: []stack.Metadata{
+				{
+					Name: "stack-1",
+					Path: "/stack-1",
+				},
+				{
+					Name: "stack-2",
+					Path: "/stack-2",
 				},
 			},
 		},
@@ -84,12 +79,10 @@ func TestLoadMetadata(t *testing.T) {
 				"d:non-stack",
 				"d:non-stack-2",
 			},
-			want: terramate.Metadata{
-				Stacks: []terramate.StackMetadata{
-					{
-						Name: "stack",
-						Path: "/stack",
-					},
+			want: []stack.Metadata{
+				{
+					Name: "stack",
+					Path: "/stack",
 				},
 			},
 		},
@@ -99,16 +92,14 @@ func TestLoadMetadata(t *testing.T) {
 				"s:envs/prod/stack-1",
 				"s:envs/staging/stack-1",
 			},
-			want: terramate.Metadata{
-				Stacks: []terramate.StackMetadata{
-					{
-						Name: "stack-1",
-						Path: "/envs/prod/stack-1",
-					},
-					{
-						Name: "stack-1",
-						Path: "/envs/staging/stack-1",
-					},
+			want: []stack.Metadata{
+				{
+					Name: "stack-1",
+					Path: "/envs/prod/stack-1",
+				},
+				{
+					Name: "stack-1",
+					Path: "/envs/staging/stack-1",
 				},
 			},
 		},
@@ -117,13 +108,11 @@ func TestLoadMetadata(t *testing.T) {
 			layout: []string{
 				"s:stack:description=desc",
 			},
-			want: terramate.Metadata{
-				Stacks: []terramate.StackMetadata{
-					{
-						Name:        "stack",
-						Path:        "/stack",
-						Description: "desc",
-					},
+			want: []stack.Metadata{
+				{
+					Name:        "stack",
+					Path:        "/stack",
+					Description: "desc",
 				},
 			},
 		},
@@ -149,14 +138,22 @@ func TestLoadMetadata(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
 
-			metadata, err := terramate.LoadMetadata(s.RootDir())
-
+			stackEntries, err := terramate.ListStacks(s.RootDir())
 			if tcase.wantErr != nil {
 				assert.IsError(t, err, tcase.wantErr)
 			}
 
-			if diff := cmp.Diff(tcase.want, metadata, cmpopts.IgnoreUnexported(tcase.want)); diff != "" {
-				t.Fatalf("want %+v != got %+v.\ndiff:\n%s", tcase.want, metadata, diff)
+			gotMetadata := []stack.Metadata{}
+			for _, entry := range stackEntries {
+				gotMetadata = append(gotMetadata, entry.Stack.Meta())
+			}
+
+			assert.EqualInts(t, len(tcase.want), len(gotMetadata))
+
+			for i, wantMeta := range tcase.want {
+				if diff := cmp.Diff(wantMeta, gotMetadata[i], cmpopts.IgnoreUnexported(wantMeta)); diff != "" {
+					t.Fatalf("want %+v != got %+v.\ndiff:\n%s", wantMeta, gotMetadata[i], diff)
+				}
 			}
 		})
 	}

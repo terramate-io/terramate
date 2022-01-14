@@ -668,23 +668,29 @@ func (c *cli) printRunOrder() {
 }
 
 func (c *cli) printStacksGlobals() {
-	log := log.With().
+	logger := log.With().
 		Str("action", "printStacksGlobals()").
 		Logger()
 
-	metadata, err := terramate.LoadMetadata(c.root())
-	if err != nil {
-		log.Fatal().
+	logger.Trace().
+		Msg("Create new terramate manager.")
+
+	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+	stackEntries, err := c.listStacks(mgr, c.parsedArgs.Changed)
+	if err != nil && !errors.Is(err, terramate.ErrDirtyRepo) {
+		logger.Fatal().
 			Err(err).
-			Msg("listing stacks globals: loading stacks metadata")
+			Msg("listing stacks")
 	}
 
-	for _, stackMetadata := range metadata.Stacks {
-		globals, err := terramate.LoadStackGlobals(c.root(), stackMetadata)
+	for _, stackEntry := range stackEntries {
+		stack := stackEntry.Stack
+		stackMeta := stack.Meta()
+		globals, err := terramate.LoadStackGlobals(c.root(), stackMeta)
 		if err != nil {
 			log.Fatal().
 				Err(err).
-				Str("stack", stackMetadata.Path).
+				Str("stack", stackMeta.Path).
 				Msg("listing stacks globals: loading stack")
 		}
 
@@ -693,7 +699,7 @@ func (c *cli) printStacksGlobals() {
 			continue
 		}
 
-		c.log("\nstack %q:", stackMetadata.Path)
+		c.log("\nstack %q:", stackMeta.Path)
 		for _, line := range strings.Split(globalsStrRepr, "\n") {
 			c.log("\t%s", line)
 		}
@@ -706,28 +712,30 @@ func (c *cli) printMetadata() {
 		Logger()
 
 	logger.Trace().
-		Str("workingDir", c.wd()).
-		Msg("Load metadata.")
+		Msg("Create new terramate manager.")
 
-	metadata, err := terramate.LoadMetadata(c.root())
-	if err != nil {
-		logger.Fatal().Err(err).Msg("loading metadata")
+	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+	stackEntries, err := c.listStacks(mgr, c.parsedArgs.Changed)
+	if err != nil && !errors.Is(err, terramate.ErrDirtyRepo) {
+		logger.Fatal().
+			Err(err).
+			Msg("listing stacks")
 	}
-
-	logger.Trace().
-		Str("workingDir", c.wd()).
-		Msg("Log metadata.")
 
 	c.log("Available metadata:")
 
-	for _, stack := range metadata.Stacks {
+	for _, stackEntry := range stackEntries {
+		stack := stackEntry.Stack
+		stackMeta := stack.Meta()
+
 		logger.Debug().
-			Str("stack", c.wd()+stack.Path).
+			Str("stack", stack.Dir).
 			Msg("Print metadata for individual stack.")
-		c.log("\nstack %q:", stack.Path)
-		c.log("\tterramate.name=%q", stack.Name)
-		c.log("\tterramate.path=%q", stack.Path)
-		c.log("\tterramate.description=%q", stack.Description)
+
+		c.log("\nstack %q:", stack.Dir)
+		c.log("\tterramate.name=%q", stackMeta.Name)
+		c.log("\tterramate.path=%q", stackMeta.Path)
+		c.log("\tterramate.description=%q", stackMeta.Description)
 	}
 }
 
@@ -774,7 +782,7 @@ func (c *cli) runOnStacks() {
 
 		logger.Trace().Msg("checking stack for outdated code")
 
-		outdated, err := generate.CheckStack(c.root(), stack.Dir)
+		outdated, err := generate.CheckStack(c.root(), stack)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("checking stack for outdated code")
 		}

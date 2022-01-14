@@ -331,22 +331,22 @@ func TestExportAsLocals(t *testing.T) {
 
 			wantExportAsLocals := tcase.want
 
-			metadata := s.LoadMetadata()
-			for _, stackMetadata := range metadata.Stacks {
-
-				globals := s.LoadStackGlobals(stackMetadata)
+			stacks := s.LoadStacks()
+			for _, stack := range stacks {
+				meta := stack.Meta()
+				globals := s.LoadStackGlobals(meta)
 				got, err := terramate.LoadStackExportedLocals(
 					s.RootDir(),
-					stackMetadata,
+					meta,
 					globals,
 				)
 				assert.IsError(t, err, tcase.wantErr)
 
-				want, ok := wantExportAsLocals[stackMetadata.Path]
+				want, ok := wantExportAsLocals[meta.Path]
 				if !ok {
 					want = exportAsLocals()
 				}
-				delete(wantExportAsLocals, stackMetadata.Path)
+				delete(wantExportAsLocals, meta.Path)
 
 				if want.HasExpressions() {
 					t.Errorf("wanted export_as_locals definition:\n%s\n", want)
@@ -373,7 +373,8 @@ func TestExportAsLocals(t *testing.T) {
 			}
 
 			if len(wantExportAsLocals) > 0 {
-				t.Fatalf("wanted stack export as locals: %v that was not found on stacks: %v", wantExportAsLocals, metadata.Stacks)
+				t.Fatalf("wanted stack export as locals: %v that was not found on stacks: %v",
+					wantExportAsLocals, stacks)
 			}
 		})
 	}
@@ -386,10 +387,10 @@ func TestLoadStackExportAsLocalsErrorOnRelativeDir(t *testing.T) {
 	rel, err := filepath.Rel(test.Getwd(t), s.RootDir())
 	assert.NoError(t, err)
 
-	meta := s.LoadMetadata()
-	assert.EqualInts(t, 1, len(meta.Stacks))
+	stacks := s.LoadStacks()
+	assert.EqualInts(t, 1, len(stacks))
 
-	stackMetadata := meta.Stacks[0]
+	stackMetadata := stacks[0].Meta()
 	globals := s.LoadStackGlobals(stackMetadata)
 	exportLocals, err := terramate.LoadStackExportedLocals(rel, stackMetadata, globals)
 	assert.Error(t, err, "got %v instead of error", exportLocals)

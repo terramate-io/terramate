@@ -24,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -47,7 +48,7 @@ type ExportedLocalValues struct {
 // export_as_locals blocks.
 //
 // The rootdir MUST be an absolute path.
-func LoadStackExportedLocals(rootdir string, sm StackMetadata, g *Globals) (ExportedLocalValues, error) {
+func LoadStackExportedLocals(rootdir string, sm stack.Metadata, g *Globals) (ExportedLocalValues, error) {
 	logger := log.With().
 		Str("action", "LoadStackExportedLocals()").
 		Str("stack", sm.Path).
@@ -171,7 +172,7 @@ func (r exportedLocalExprs) has(name string) bool {
 	return ok
 }
 
-func (r exportedLocalExprs) eval(meta StackMetadata, globals *Globals) (ExportedLocalValues, error) {
+func (r exportedLocalExprs) eval(meta stack.Metadata, globals *Globals) (ExportedLocalValues, error) {
 	// FIXME(katcipis): get abs path for stack.
 	// This is relative only to root since meta.Path will look
 	// like: /some/path/relative/project/root
@@ -187,13 +188,15 @@ func (r exportedLocalExprs) eval(meta StackMetadata, globals *Globals) (Exported
 
 	logger.Trace().
 		Msg("Add proper namespace for stack metadata evaluation.")
-	if err := meta.SetOnEvalCtx(evalctx); err != nil {
+	err := evalctx.SetNamespace("terramate", meta.ToCtyMap())
+	if err != nil {
 		return ExportedLocalValues{}, fmt.Errorf("evaluating export_as_locals: setting terramate metadata namespace: %v", err)
 	}
 
 	logger.Trace().
 		Msg("Add proper namespace for globals evaluation.")
-	if err := globals.SetOnEvalCtx(evalctx); err != nil {
+	err = evalctx.SetNamespace("global", globals.Attributes())
+	if err != nil {
 		return ExportedLocalValues{}, fmt.Errorf("evaluating export_as_locals: setting terramate globals namespace: %v", err)
 	}
 
@@ -214,7 +217,7 @@ func (r exportedLocalExprs) eval(meta StackMetadata, globals *Globals) (Exported
 	// TODO(katcipis): error reporting can be improved here.
 	logger.Trace().
 		Msg("Reduce errors to single error.")
-	err := errutil.Reduce(func(err1 error, err2 error) error {
+	err = errutil.Reduce(func(err1 error, err2 error) error {
 		return fmt.Errorf("%v,%v", err1, err2)
 	}, errs...)
 

@@ -19,6 +19,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/generate"
+	tmstack "github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -28,14 +29,16 @@ func TestCheckReturnsOutdatedStackFilenames(t *testing.T) {
 	stack1 := s.CreateStack("stacks/stack-1")
 	stack2 := s.CreateStack("stacks/stack-2")
 
-	stack1Dir := stack1.RelPath()
-	stack2Dir := stack2.RelPath()
+	stack1val, err := tmstack.Load(s.RootDir(), stack1.Path())
+	assert.NoError(t, err)
+	stack2val, err := tmstack.Load(s.RootDir(), stack2.Path())
+	assert.NoError(t, err)
 
 	assertAllStacksAreUpdated := func() {
 		t.Helper()
 
-		for _, stackDir := range []string{stack1Dir, stack2Dir} {
-			got, err := generate.CheckStack(s.RootDir(), stackDir)
+		for _, stack := range []tmstack.S{stack1val, stack2val} {
+			got, err := generate.CheckStack(s.RootDir(), stack)
 			assert.NoError(t, err)
 			assertStringsEquals(t, got, []string{})
 		}
@@ -53,7 +56,7 @@ func TestCheckReturnsOutdatedStackFilenames(t *testing.T) {
 			),
 		).String())
 
-	got, err := generate.CheckStack(s.RootDir(), stack1Dir)
+	got, err := generate.CheckStack(s.RootDir(), stack1val)
 	assert.NoError(t, err)
 	assertStringsEquals(t, got, []string{generate.LocalsFilename})
 
@@ -65,7 +68,7 @@ func TestCheckReturnsOutdatedStackFilenames(t *testing.T) {
 			stack(),
 		).String())
 
-	got, err = generate.CheckStack(s.RootDir(), stack2Dir)
+	got, err = generate.CheckStack(s.RootDir(), stack2val)
 	assert.NoError(t, err)
 	assertStringsEquals(t, got, []string{generate.BackendCfgFilename})
 
@@ -82,7 +85,7 @@ func TestCheckReturnsOutdatedStackFilenames(t *testing.T) {
 			),
 		).String())
 
-	got, err = generate.CheckStack(s.RootDir(), stack1Dir)
+	got, err = generate.CheckStack(s.RootDir(), stack1val)
 	assert.NoError(t, err)
 	assertStringsEquals(t, got, []string{generate.LocalsFilename})
 
@@ -94,7 +97,7 @@ func TestCheckReturnsOutdatedStackFilenames(t *testing.T) {
 			stack(),
 		).String())
 
-	got, err = generate.CheckStack(s.RootDir(), stack2Dir)
+	got, err = generate.CheckStack(s.RootDir(), stack2val)
 	assert.NoError(t, err)
 	assertStringsEquals(t, got, []string{generate.BackendCfgFilename})
 
@@ -113,7 +116,7 @@ func TestCheckReturnsOutdatedStackFilenames(t *testing.T) {
 			stack(),
 		).String())
 
-	got, err = generate.CheckStack(s.RootDir(), stack2Dir)
+	got, err = generate.CheckStack(s.RootDir(), stack2val)
 	assert.NoError(t, err)
 	assertStringsEquals(t, got, []string{
 		generate.BackendCfgFilename,
@@ -150,7 +153,10 @@ func TestCheckFailsWithInvalidConfig(t *testing.T) {
 		stackEntry := s.CreateStack("stack")
 		stackEntry.CreateConfig(invalidConfig)
 
-		_, err := generate.CheckStack(s.RootDir(), stackEntry.RelPath())
+		stack, err := tmstack.Load(s.RootDir(), stackEntry.Path())
+		assert.NoError(t, err)
+
+		_, err = generate.CheckStack(s.RootDir(), stack)
 		assert.Error(t, err, "should fail for configuration:\n%s", invalidConfig)
 	}
 }
