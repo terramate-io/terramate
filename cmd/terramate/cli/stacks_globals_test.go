@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -33,6 +34,7 @@ func TestStacksGlobals(t *testing.T) {
 		testcase struct {
 			name    string
 			layout  []string
+			wd      string
 			globals []globalsBlock
 			want    runExpected
 		}
@@ -62,7 +64,7 @@ func TestStacksGlobals(t *testing.T) {
 			},
 		},
 		{
-			name:   "single stack with a global",
+			name:   "single stack with a global, wd = root",
 			layout: []string{"s:stack"},
 			globals: []globalsBlock{
 				{
@@ -84,7 +86,7 @@ stack "/stack":
 			},
 		},
 		{
-			name: "two stacks only one has globals",
+			name: "two stacks only one has globals, wd = root",
 			layout: []string{
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
@@ -105,7 +107,7 @@ stack "/stacks/stack-1":
 			},
 		},
 		{
-			name: "two stacks with same globals",
+			name: "two stacks with same globals, wd = root",
 			layout: []string{
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
@@ -128,6 +130,67 @@ stack "/stacks/stack-2":
 `,
 			},
 		},
+		{
+			name: "three stacks only two has globals, wd = stack3",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+				"s:stack3",
+			},
+			wd: "/stack3",
+			globals: []globalsBlock{
+				{
+					path: "/stacks/stack-1",
+					add: globals(
+						str("str", "string"),
+					),
+				},
+				{
+					path: "/stack3",
+					add: globals(
+						str("str", "stack3-string"),
+					),
+				},
+			},
+			want: runExpected{
+				Stdout: `
+stack "/stack3":
+	str = "stack3-string"
+`,
+			},
+		},
+		{
+			name: "three stacks only two has globals, wd = stacks",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+				"s:stack3",
+			},
+			wd: "/stacks",
+			globals: []globalsBlock{
+				{
+					path: "/stacks",
+					add: globals(
+						str("str", "stacks-string"),
+					),
+				},
+				{
+					path: "/stack3",
+					add: globals(
+						str("str", "stack3-string"),
+					),
+				},
+			},
+			want: runExpected{
+				Stdout: `
+stack "/stacks/stack-1":
+	str = "stacks-string"
+
+stack "/stacks/stack-2":
+	str = "stacks-string"
+`,
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
@@ -140,7 +203,7 @@ stack "/stacks/stack-2":
 				test.AppendFile(t, path, config.Filename, globalBlock.add.String())
 			}
 
-			ts := newCLI(t, s.RootDir())
+			ts := newCLI(t, project.AbsPath(s.RootDir(), tcase.wd))
 			assertRunResult(t, ts.run("stacks", "globals"), tcase.want)
 		})
 	}
