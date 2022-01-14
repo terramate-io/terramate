@@ -1,9 +1,8 @@
 # Code Generation Configuration
 
 Terramate provides facilities to control how code generation happens
-inside a project. Allowing you to configure code generation for
-a single stack or for all stacks in a project, leveraging the
-project hierarchy.
+inside a project. Allowing you to easily configure code generation for
+a single stack or for all stacks in a project.
 
 ## Basic Usage
 
@@ -25,20 +24,8 @@ Where the available configurations are:
 * `backend_config_filename` : filename of generated backend config code
 * `locals_filename` : filename of generated locals code
 
-Example changing both backend and locals generated code filenames:
 
-```hcl
-terramate {
-  config {
-    generate {
-      backend_config_filename = "backend.tf"
-      locals_filename = "locals.tf"
-    }
-  }
-}
-```
-
-Let's start with a very simple example. Lets say your Terramate project
+Let's start with a simple example. Lets say your Terramate project
 has this layout:
 
 ```
@@ -49,7 +36,7 @@ has this layout:
 ```
 
 You can change how code is generated for **stacks/stack-1** by changing
-the stack configuration **stacks/stack-1/terramate.tm.hcl** :
+the stack configuration file **stacks/stack-1/terramate.tm.hcl** :
 
 ```hcl
 terramate {
@@ -72,8 +59,8 @@ stacks/stack-1/backend.tf
 stacks/stack-1/locals.tf
 ```
 
-Lets say now we want the same setup for both stacks, instead of duplication the
-configuration, we can just create the configuration on the parent dir of both
+Lets say now we want the same setup for both stacks, instead of duplicating the
+configuration, we can just create a configuration file on the parent dir of both
 stacks **stacks/terramate.tm.hcl** :
 
 ```hcl
@@ -89,8 +76,8 @@ terramate {
 
 Now both stacks, or any new stack added inside **stacks**, will generate code
 using this configuration. Since the configuration can be defined on any level of
-the hierarchy of a project, it does raise the question of how the overriding
-behaves.
+the hierarchy of the project file system, it does raise the question of how
+the overriding of the configuration files behaves.
 
 More specific configuration always override general purpose configuration.
 There is no merge strategy or composition involved, the configuration found
@@ -110,16 +97,16 @@ terramate {
 }
 ```
 
-Lets say that for **stacks/stack-1** you want a different configuration,
-to do that you just need to add a configuration (as mentioned above) on
+Lets say that for **stacks/stack-1** you want a different configuration.
+To do that you just need to add a configuration file on
 the stack itself and it will override the one from the parent directory.
 
 This works at any level of the hierarchy, so you can organize configurations
 in a way that you have sensible defaults but can override them for specific
-stacks of subset of stacks, depending on how your project is organized.
+stacks or subset of stacks, depending on how your project is organized.
 
-It is invalid to define the generate block more than once. This is invalid
-for example:
+It is invalid to define the generate block more than once in the same
+configuration file. This is invalid for example:
 
 
 ```hcl
