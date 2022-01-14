@@ -683,7 +683,7 @@ func (c *cli) printStacksGlobals() {
 			Msg("listing stacks")
 	}
 
-	for _, stackEntry := range c.filterStacksByWorkingDir(stackEntries) {
+	for _, stackEntry := range stackEntries {
 		stack := stackEntry.Stack
 		stackMeta := stack.Meta()
 		globals, err := terramate.LoadStackGlobals(c.root(), stackMeta)
@@ -722,7 +722,7 @@ func (c *cli) printMetadata() {
 			Msg("listing stacks")
 	}
 
-	for _, stackEntry := range c.filterStacksByWorkingDir(stackEntries) {
+	for _, stackEntry := range stackEntries {
 		stack := stackEntry.Stack
 		stackMeta := stack.Meta()
 
