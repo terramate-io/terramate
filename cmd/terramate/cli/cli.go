@@ -722,6 +722,12 @@ func (c *cli) printMetadata() {
 			Msg("listing stacks")
 	}
 
+	stackEntries = c.filterStacksByWorkingDir(stackEntries)
+
+	if len(stackEntries) == 0 {
+		return
+	}
+
 	c.log("Available metadata:")
 
 	for _, stackEntry := range stackEntries {
