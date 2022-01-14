@@ -100,6 +100,30 @@ stack "/stack1":
 `,
 			},
 		},
+		{
+			name: "multiple stacks, wd = /somedir",
+			layout: []string{
+				"s:stack1",
+				"s:stack2",
+				"s:somedir/stack3",
+				"s:somedir/stack4",
+			},
+			wd: "/somedir",
+			want: runExpected{
+				Stdout: `Available metadata:
+
+stack "/somedir/stack3":
+	terramate.name="stack3"
+	terramate.path="/somedir/stack3"
+	terramate.description=""
+
+stack "/somedir/stack4":
+	terramate.name="stack4"
+	terramate.path="/somedir/stack4"
+	terramate.description=""
+`,
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s := sandbox.New(t)
