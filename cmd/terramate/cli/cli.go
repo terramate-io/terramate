@@ -373,7 +373,7 @@ func (c *cli) run() {
 	case "generate":
 		logger.Debug().
 			Msg("Handle `generate` command.")
-		err := generate.Do(c.root())
+		err := generate.Do(c.root(), c.wd())
 		if err != nil {
 			log.Fatal().
 				Err(err).

@@ -33,27 +33,6 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func TestGenerateFailsIfPathDoesntExist(t *testing.T) {
-	assert.Error(t, generate.Do(test.NonExistingDir(t)))
-}
-
-func TestGenerateFailsIfPathIsNotDir(t *testing.T) {
-	dir := t.TempDir()
-	filename := "test"
-
-	test.WriteFile(t, dir, filename, "whatever")
-	path := filepath.Join(dir, filename)
-
-	assert.Error(t, generate.Do(path))
-}
-
-func TestGenerateFailsIfPathIsRelative(t *testing.T) {
-	dir := t.TempDir()
-	relpath := test.RelPath(t, test.Getwd(t), dir)
-
-	assert.Error(t, generate.Do(relpath))
-}
-
 func TestBackendConfigGeneration(t *testing.T) {
 	type (
 		stackcode struct {
@@ -72,10 +51,11 @@ func TestBackendConfigGeneration(t *testing.T) {
 		}
 
 		testcase struct {
-			name    string
-			layout  []string
-			configs []backendconfig
-			want    want
+			name       string
+			layout     []string
+			configs    []backendconfig
+			workingDir string
+			want       want
 		}
 	)
 	tcases := []testcase{
@@ -815,6 +795,65 @@ globals {
 				err: generate.ErrLoadingGlobals,
 			},
 		},
+		{
+			name: "multiple stacks selecting single stack with working dir",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			workingDir: "stacks/stack-1",
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: hcldoc(
+						terramate(
+							backend(
+								labels("gcs"),
+								expr("prefix", "terramate.path"),
+							),
+						),
+					).String(),
+				},
+			},
+			want: want{
+				stacks: []stackcode{
+					{
+						relpath: "stacks/stack-1",
+						code: hcldoc(
+							terraform(
+								backend(
+									labels("gcs"),
+									str("prefix", "/stacks/stack-1"),
+								),
+							),
+						).String(),
+					},
+				},
+			},
+		},
+		{
+			name: "working dir has no stacks inside",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+				"d:notstack",
+			},
+			workingDir: "notstack",
+			configs: []backendconfig{
+				{
+					relpath: ".",
+					config: hcldoc(
+						terramate(
+							backend(
+								labels("gcs"),
+								expr("prefix", "terramate.path"),
+							),
+						),
+					).String(),
+				},
+			},
+			want: want{},
+		},
 	}
 
 	for _, tcase := range tcases {
@@ -827,7 +866,8 @@ globals {
 				test.WriteFile(t, dir, config.Filename, cfg.config)
 			}
 
-			err := generate.Do(s.RootDir())
+			workingDir := filepath.Join(s.RootDir(), tcase.workingDir)
+			err := generate.Do(s.RootDir(), workingDir)
 			assert.IsError(t, err, tcase.want.err)
 
 			for _, want := range tcase.want.stacks {
@@ -867,26 +907,13 @@ func TestLocalsGeneration(t *testing.T) {
 			stacksLocals map[string]*hclwrite.Block
 		}
 		testcase struct {
-			name    string
-			layout  []string
-			configs []hclblock
-			want    want
+			name       string
+			layout     []string
+			configs    []hclblock
+			workingDir string
+			want       want
 		}
 	)
-
-	exportAsLocals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("export_as_locals", builders...)
-	}
-	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("globals", builders...)
-	}
-	locals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("locals", builders...)
-	}
-	expr := hclwrite.Expression
-	str := hclwrite.String
-	number := hclwrite.NumberInt
-	boolean := hclwrite.Boolean
 
 	tcases := []testcase{
 		{
@@ -1154,6 +1181,58 @@ func TestLocalsGeneration(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "multiple stacks selecting single stack with working dir",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			workingDir: "stacks/stack-1",
+			configs: []hclblock{
+				{
+					path: "/",
+					add: globals(
+						str("str", "string"),
+					),
+				},
+				{
+					path: "/stacks/stack-1",
+					add: exportAsLocals(
+						expr("str_local", "global.str"),
+					),
+				},
+				{
+					path: "/stacks/stack-2",
+					add: exportAsLocals(
+						expr("str_local", "global.str"),
+					),
+				},
+			},
+			want: want{
+				stacksLocals: map[string]*hclwrite.Block{
+					"/stacks/stack-1": locals(
+						str("str_local", "string"),
+					),
+				},
+			},
+		},
+		{
+			name: "working dir has no stacks inside",
+			layout: []string{
+				"s:stack",
+				"d:somedir",
+			},
+			workingDir: "somedir",
+			configs: []hclblock{
+				{
+					path: "/stack",
+					add: exportAsLocals(
+						expr("path", "terramate.path"),
+					),
+				},
+			},
+			want: want{},
+		},
 	}
 
 	for _, tcase := range tcases {
@@ -1166,7 +1245,8 @@ func TestLocalsGeneration(t *testing.T) {
 				test.AppendFile(t, path, config.Filename, cfg.add.String())
 			}
 
-			err := generate.Do(s.RootDir())
+			workingDir := filepath.Join(s.RootDir(), tcase.workingDir)
+			err := generate.Do(s.RootDir(), workingDir)
 			assert.IsError(t, err, tcase.want.err)
 
 			for stackPath, wantHCLBlock := range tcase.want.stacksLocals {
@@ -1182,13 +1262,15 @@ func TestLocalsGeneration(t *testing.T) {
 
 			if len(generatedFiles) != len(tcase.want.stacksLocals) {
 				t.Errorf("generated %d locals files, but wanted %d", len(generatedFiles), len(tcase.want.stacksLocals))
+				t.Errorf("generated files: %v", generatedFiles)
 				for _, genfilepath := range generatedFiles {
 					genfile, err := os.ReadFile(genfilepath)
 					assert.NoError(t, err, "reading generated file %s", genfilepath)
-					t.Errorf("generated file:\n%s", genfile)
+					t.Errorf("generated file %q:\n%s", genfilepath, genfile)
 				}
-				t.Errorf("generated files: %v", generatedFiles)
-				t.Fatalf("wanted generated files: %#v", tcase.want.stacksLocals)
+				for stack, hcldoc := range tcase.want.stacksLocals {
+					t.Errorf("wanted generated file for stack %q:\n%s", stack, hcldoc)
+				}
 			}
 		})
 	}
@@ -1199,9 +1281,6 @@ func TestWontOverwriteManuallyDefinedBackendConfig(t *testing.T) {
 		manualContents = "some manual backend configs"
 	)
 
-	terramate := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("terramate", builders...)
-	}
 	backend := func(label string) *hclwrite.Block {
 		b := hclwrite.BuildBlock("backend")
 		b.AddLabel(label)
@@ -1216,7 +1295,7 @@ func TestWontOverwriteManuallyDefinedBackendConfig(t *testing.T) {
 		fmt.Sprintf("f:stack/%s:%s", generate.BackendCfgFilename, manualContents),
 	})
 
-	err := generate.Do(s.RootDir())
+	err := generate.Do(s.RootDir(), s.RootDir())
 	assert.IsError(t, err, generate.ErrManualCodeExists)
 
 	stack := s.StackEntry("stack")
@@ -1226,12 +1305,6 @@ func TestWontOverwriteManuallyDefinedBackendConfig(t *testing.T) {
 }
 
 func TestBackendConfigOverwriting(t *testing.T) {
-	terramate := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("terramate", builders...)
-	}
-	terraform := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("terraform", builders...)
-	}
 	backend := func(label string) *hclwrite.Block {
 		b := hclwrite.BuildBlock("backend")
 		b.AddLabel(label)
@@ -1245,7 +1318,7 @@ func TestBackendConfigOverwriting(t *testing.T) {
 	rootEntry := s.DirEntry(".")
 	rootConfig := rootEntry.CreateConfig(firstConfig.String())
 
-	assert.NoError(t, generate.Do(s.RootDir()))
+	assert.NoError(t, generate.Do(s.RootDir(), s.RootDir()))
 
 	got := string(stack.ReadGeneratedBackendCfg())
 	assertHCLEquals(t, got, firstWant.String())
@@ -1254,7 +1327,7 @@ func TestBackendConfigOverwriting(t *testing.T) {
 	secondWant := terraform(backend("second"))
 	rootConfig.Write(secondConfig.String())
 
-	assert.NoError(t, generate.Do(s.RootDir()))
+	assert.NoError(t, generate.Do(s.RootDir(), s.RootDir()))
 
 	got = string(stack.ReadGeneratedBackendCfg())
 	assertHCLEquals(t, got, secondWant.String())
@@ -1265,11 +1338,6 @@ func TestWontOverwriteManuallyDefinedLocals(t *testing.T) {
 		manualLocals = "some manual stuff"
 	)
 
-	exportAsLocals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("export_as_locals", builders...)
-	}
-	expr := hclwrite.Expression
-
 	exportLocalsCfg := exportAsLocals(expr("a", "terramate.path"))
 
 	s := sandbox.New(t)
@@ -1279,7 +1347,7 @@ func TestWontOverwriteManuallyDefinedLocals(t *testing.T) {
 		fmt.Sprintf("f:stack/%s:%s", generate.LocalsFilename, manualLocals),
 	})
 
-	err := generate.Do(s.RootDir())
+	err := generate.Do(s.RootDir(), s.RootDir())
 	assert.IsError(t, err, generate.ErrManualCodeExists)
 
 	stack := s.StackEntry("stack")
@@ -1288,15 +1356,6 @@ func TestWontOverwriteManuallyDefinedLocals(t *testing.T) {
 }
 
 func TestExportedLocalsOverwriting(t *testing.T) {
-	exportAsLocals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("export_as_locals", builders...)
-	}
-	locals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("locals", builders...)
-	}
-	expr := hclwrite.Expression
-	str := hclwrite.String
-
 	firstConfig := exportAsLocals(expr("a", "terramate.path"))
 	firstWant := locals(str("a", "/stack"))
 
@@ -1305,7 +1364,7 @@ func TestExportedLocalsOverwriting(t *testing.T) {
 	rootEntry := s.DirEntry(".")
 	rootConfig := rootEntry.CreateConfig(firstConfig.String())
 
-	assert.NoError(t, generate.Do(s.RootDir()))
+	assert.NoError(t, generate.Do(s.RootDir(), s.RootDir()))
 
 	got := string(stack.ReadGeneratedLocals())
 	assertHCLEquals(t, got, firstWant.String())
@@ -1314,7 +1373,7 @@ func TestExportedLocalsOverwriting(t *testing.T) {
 	secondWant := locals(str("b", "stack"))
 	rootConfig.Write(secondConfig.String())
 
-	assert.NoError(t, generate.Do(s.RootDir()))
+	assert.NoError(t, generate.Do(s.RootDir(), s.RootDir()))
 
 	got = string(stack.ReadGeneratedLocals())
 	assertHCLEquals(t, got, secondWant.String())

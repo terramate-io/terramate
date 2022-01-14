@@ -26,6 +26,18 @@ func expr(name string, expr string) hclwrite.BlockBuilder {
 	return hclwrite.Expression(name, expr)
 }
 
+func str(name string, val string) hclwrite.BlockBuilder {
+	return hclwrite.String(name, val)
+}
+
+func number(name string, val int64) hclwrite.BlockBuilder {
+	return hclwrite.NumberInt(name, val)
+}
+
+func boolean(name string, val bool) hclwrite.BlockBuilder {
+	return hclwrite.Boolean(name, val)
+}
+
 func labels(labels ...string) hclwrite.BlockBuilder {
 	return hclwrite.Labels(labels...)
 }
@@ -38,8 +50,20 @@ func backend(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("backend", builders...)
 }
 
+func globals(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return hclwrite.BuildBlock("globals", builders...)
+}
+
+func locals(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return hclwrite.BuildBlock("locals", builders...)
+}
+
 func terramate(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("terramate", builders...)
+}
+
+func terraform(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return hclwrite.BuildBlock("terraform", builders...)
 }
 
 func exportAsLocals(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
