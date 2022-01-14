@@ -36,6 +36,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 )
 
@@ -193,15 +194,6 @@ func (s S) Git() Git {
 	return s.git
 }
 
-// Loads metadata for sandbox
-func (s S) LoadMetadata() terramate.Metadata {
-	s.t.Helper()
-
-	meta, err := terramate.LoadMetadata(s.RootDir())
-	assert.NoError(s.t, err)
-	return meta
-}
-
 // Generate generates code for all stacks on the sandbox
 func (s S) Generate() {
 	s.t.Helper()
@@ -210,8 +202,23 @@ func (s S) Generate() {
 	assert.NoError(s.t, err)
 }
 
+// LoadStacks load all stacks from sandbox rootdir.
+func (s S) LoadStacks() []stack.S {
+	s.t.Helper()
+
+	entries, err := terramate.ListStacks(s.rootdir)
+	assert.NoError(s.t, err)
+
+	var stacks []stack.S
+	for _, entry := range entries {
+		stacks = append(stacks, entry.Stack)
+	}
+
+	return stacks
+}
+
 // Loads globals for stack on the sandbox
-func (s S) LoadStackGlobals(sm terramate.StackMetadata) *terramate.Globals {
+func (s S) LoadStackGlobals(sm stack.Metadata) *terramate.Globals {
 	s.t.Helper()
 
 	g, err := terramate.LoadStackGlobals(s.RootDir(), sm)
