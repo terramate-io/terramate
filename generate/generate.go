@@ -368,7 +368,7 @@ func generateBackendCfgCode(
 
 	err = evalctx.SetNamespace("terramate", stackMetadata.ToCtyMap())
 	if err != nil {
-		return nil, fmt.Errorf("setting evalctx namespace values for stack %q: %v",
+		return nil, fmt.Errorf("setting terramate namespace on eval context for stack %q: %v",
 			stackpath, err)
 	}
 
