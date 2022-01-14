@@ -116,8 +116,6 @@ func assertRun(t *testing.T, got runResult) {
 func assertRunResult(t *testing.T, got runResult, want runExpected) {
 	t.Helper()
 
-	assert.EqualInts(t, want.Status, got.Status, "exit status mismatch")
-
 	if !want.IgnoreStdout {
 		stdout := got.Stdout
 		wantStdout := want.Stdout
@@ -155,4 +153,6 @@ func assertRunResult(t *testing.T, got runResult, want runExpected) {
 			assert.EqualStrings(t, want.Stderr, got.Stderr, "stderr mismatch")
 		}
 	}
+
+	assert.EqualInts(t, want.Status, got.Status, "exit status mismatch")
 }
