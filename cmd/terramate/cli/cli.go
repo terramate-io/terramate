@@ -114,12 +114,11 @@ type cliSpec struct {
 // far as the parameters are not shared between the run calls.
 func Exec(
 	args []string,
-	inheritEnv bool,
 	stdin io.Reader,
 	stdout io.Writer,
 	stderr io.Writer,
 ) {
-	c := newCLI(args, inheritEnv, stdin, stdout, stderr)
+	c := newCLI(args, stdin, stdout, stderr)
 	c.run()
 }
 
@@ -134,7 +133,6 @@ type project struct {
 type cli struct {
 	ctx        *kong.Context
 	parsedArgs *cliSpec
-	inheritEnv bool
 	stdin      io.Reader
 	stdout     io.Writer
 	stderr     io.Writer
@@ -144,7 +142,6 @@ type cli struct {
 
 func newCLI(
 	args []string,
-	inheritEnv bool,
 	stdin io.Reader,
 	stdout io.Writer,
 	stderr io.Writer,
@@ -272,7 +269,6 @@ func newCLI(
 		stdin:      stdin,
 		stdout:     stdout,
 		stderr:     stderr,
-		inheritEnv: inheritEnv,
 		parsedArgs: &parsedArgs,
 		ctx:        ctx,
 		prj:        prj,
@@ -296,7 +292,7 @@ func (c *cli) run() {
 
 		logger.Trace().
 			Msg("Create new git wrapper.")
-		git, err := newGit(c.root(), c.inheritEnv, true)
+		git, err := newGit(c.root(), true)
 		if err != nil {
 			log.Fatal().
 				Err(err).
@@ -958,7 +954,7 @@ func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Ent
 	return filtered
 }
 
-func newGit(basedir string, inheritEnv bool, checkrepo bool) (*git.Git, error) {
+func newGit(basedir string, checkrepo bool) (*git.Git, error) {
 	log.Debug().
 		Str("action", "newGit()").
 		Msg("Create new git wrapper providing config.")
@@ -990,7 +986,7 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 	logger.Trace().
 		Msg("Create new git wrapper.")
-	gw, err := newGit(wd, false, false)
+	gw, err := newGit(wd, false)
 	if err == nil {
 		logger.Trace().
 			Msg("Get root of git repo.")
@@ -1102,7 +1098,7 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 			logger.Trace().
 				Str("configFile", p.root+"/terramate.tm.hcl").
 				Msg("Create new git wrapper.")
-			gw, err := newGit(p.wd, false, false)
+			gw, err := newGit(p.wd, false)
 			if err != nil {
 				return err
 			}
