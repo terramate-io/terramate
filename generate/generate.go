@@ -58,7 +58,7 @@ const (
 // if it is in a dir that is a parent of a stack found inside the working dir.
 //
 // The provided root must be the project's root directory as an absolute path.
-// The provided workding dir must be an absolute path that is a child of the
+// The provided working dir must be an absolute path that is a child of the
 // provided root (or the same as root, indicating that working dir is the project root).
 //
 // It will return an error if it finds any invalid Terramate configuration files
