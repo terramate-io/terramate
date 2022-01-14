@@ -71,3 +71,66 @@ default filenames for the generated code, for **stacks/stack-1** you will get:
 stacks/stack-1/backend.tf
 stacks/stack-1/locals.tf
 ```
+
+Lets say now we want the same setup for both stacks, instead of duplication the
+configuration, we can just create the configuration on the parent dir of both
+stacks **stacks/terramate.tm.hcl** :
+
+```hcl
+terramate {
+  config {
+    generate {
+      backend_config_filename = "backend.tf"
+      locals_filename = "locals.tf"
+    }
+  }
+}
+```
+
+Now both stacks, or any new stack added inside **stacks**, will generate code
+using this configuration. Since the configuration can be defined on any level of
+the hierarchy of a project, it does raise the question of how the overriding
+behaves.
+
+More specific configuration always override general purpose configuration.
+There is no merge strategy or composition involved, the configuration found
+closest to a stack on the file system, or directly at the stack directory,
+is the one used, ignoring any configuration on parent directories.
+
+Lets take as an example the previous configuration on **stacks/terramate.tm.hcl** :
+
+```hcl
+terramate {
+  config {
+    generate {
+      backend_config_filename = "backend.tf"
+      locals_filename = "locals.tf"
+    }
+  }
+}
+```
+
+Lets say that for **stacks/stack-1** you want a different configuration,
+to do that you just need to add a configuration (as mentioned above) on
+the stack itself and it will override the one from the parent directory.
+
+This works at any level of the hierarchy, so you can organize configurations
+in a way that you have sensible defaults but can override them for specific
+stacks of subset of stacks, depending on how your project is organized.
+
+It is invalid to define the generate block more than once. This is invalid
+for example:
+
+
+```hcl
+terramate {
+  config {
+    generate {
+      backend_config_filename = "backend.tf"
+    }
+    generate {
+      locals_filename = "locals.tf"
+    }
+  }
+}
+```
