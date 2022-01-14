@@ -105,88 +105,76 @@ func Do(root string, workingDir string) error {
 	return nil
 }
 
-// Outdated represents generated code considered outdated, with info
-// detailing where the code is, which stack it belongs, etc.
-type Outdated struct {
-	// StackDir is the dir of the stack.
-	StackDir string
-
-	// Filename is the file name of the outdated code
-	Filename string
-}
-
-// Check will walk all the directories starting from project's root
-// checking if generated code is updated.
-//
-// It will return a list of outdated code descriptions, one for each
-// outdated generated code found. If all code is updated the list will be empty.
+// CheckStack will verify if a given stack has outdated code and return a list
+// of filenames that are outdated. If the stack has invalid configuration
+// it will return an error.
 //
 // The provided root must be the project's root directory as an absolute path.
-func Check(root string) ([]Outdated, error) {
-	outdated := []Outdated{}
-	errs := forEachStack(root, root, func(
-		stackpath string,
-		metadata terramate.StackMetadata,
-		globals *terramate.Globals,
-	) error {
-		logger := log.With().
-			Str("action", "generate.Check()").
-			Str("path", root).
-			Str("stack", stackpath).
-			Logger()
+// The provided stack dir must be the stack dir relative to the project
+// root, in the form of path/to/the/stack.
+func CheckStack(root string, stackDir string) ([]string, error) {
+	logger := log.With().
+		Str("action", "generate.CheckStack()").
+		Str("path", root).
+		Str("stack", stackDir).
+		Logger()
 
-		logger.Trace().Msg("Generating backend cfg code for stack.")
+	outdated := []string{}
 
-		genbackend, err := generateBackendCfgCode(root, stackpath, metadata, globals, stackpath)
-		if err != nil {
-			return err
-		}
+	logger.Trace().Msg("Loading metadata for stack.")
 
-		// TODO(katcipis): allow BackendCfgFilename to be configured
-		stackBackendCfgFile := filepath.Join(stackpath, BackendCfgFilename)
-		currentbackend, err := loadGeneratedCode(stackBackendCfgFile)
-		if err != nil {
-			return err
-		}
+	stackMetadata, err := terramate.LoadStackMetadata(root, stackDir)
+	if err != nil {
+		return nil, fmt.Errorf("checking for outdated code: %v", err)
+	}
 
-		logger.Trace().Msg("Checking for outdated backend cfg code on stack.")
+	logger.Trace().Msg("Loading globals for stack.")
 
-		if string(genbackend) != string(currentbackend) {
-			logger.Trace().Msg("Detected outdated backend config.")
-			outdated = append(outdated, Outdated{
-				StackDir: metadata.Path,
-				Filename: BackendCfgFilename,
-			})
-		}
+	globals, err := terramate.LoadStackGlobals(root, stackMetadata)
+	if err != nil {
+		return nil, fmt.Errorf("checking for outdated code: %v", err)
+	}
 
-		logger.Trace().Msg("Checking for outdated exported locals code on stack.")
+	logger.Trace().Msg("Generating backend cfg code for stack.")
 
-		genlocals, err := generateStackLocalsCode(root, stackpath, metadata, globals)
-		if err != nil {
-			return err
-		}
+	stackpath := project.AbsPath(root, stackDir)
 
-		// TODO(katcipis): allow LocalsFilename to be configured
-		stackLocalsFile := filepath.Join(stackpath, LocalsFilename)
-		currentlocals, err := loadGeneratedCode(stackLocalsFile)
-		if err != nil {
-			return err
-		}
+	genbackend, err := generateBackendCfgCode(root, stackpath, stackMetadata, globals, stackpath)
+	if err != nil {
+		return nil, fmt.Errorf("checking for outdated code: %v", err)
+	}
 
-		if string(genlocals) != string(currentlocals) {
-			logger.Trace().Msg("Detected outdated exported locals.")
-			outdated = append(outdated, Outdated{
-				StackDir: metadata.Path,
-				Filename: LocalsFilename,
-			})
-		}
+	// TODO(katcipis): allow BackendCfgFilename to be configured
+	stackBackendCfgFile := filepath.Join(stackpath, BackendCfgFilename)
+	currentbackend, err := loadGeneratedCode(stackBackendCfgFile)
+	if err != nil {
+		return nil, fmt.Errorf("checking for outdated code: %v", err)
+	}
 
-		return nil
-	})
+	logger.Trace().Msg("Checking for outdated backend cfg code on stack.")
 
-	if len(errs) > 0 {
-		err := fmt.Errorf("checking outdated code: %v : and %d other errors", errs[0], len(errs)-1)
-		return nil, err
+	if string(genbackend) != string(currentbackend) {
+		logger.Trace().Msg("Detected outdated backend config.")
+		outdated = append(outdated, BackendCfgFilename)
+	}
+
+	logger.Trace().Msg("Checking for outdated exported locals code on stack.")
+
+	genlocals, err := generateStackLocalsCode(root, stackpath, stackMetadata, globals)
+	if err != nil {
+		return nil, fmt.Errorf("checking for outdated code: %v", err)
+	}
+
+	// TODO(katcipis): allow LocalsFilename to be configured
+	stackLocalsFile := filepath.Join(stackpath, LocalsFilename)
+	currentlocals, err := loadGeneratedCode(stackLocalsFile)
+	if err != nil {
+		return nil, fmt.Errorf("checking for outdated code: %v", err)
+	}
+
+	if string(genlocals) != string(currentlocals) {
+		logger.Trace().Msg("Detected outdated exported locals.")
+		outdated = append(outdated, LocalsFilename)
 	}
 
 	return outdated, nil

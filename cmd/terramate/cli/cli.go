@@ -43,9 +43,10 @@ import (
 )
 
 const (
-	ErrOutdatedLocalRev      errutil.Error = "outdated local revision"
-	ErrNoDefaultRemoteConfig errutil.Error = "repository must have a configured origin/main"
-	ErrInit                  errutil.Error = "failed to initialize all stacks"
+	ErrOutdatedLocalRev        errutil.Error = "outdated local revision"
+	ErrNoDefaultRemoteConfig   errutil.Error = "repository must have a configured origin/main"
+	ErrInit                    errutil.Error = "failed to initialize all stacks"
+	ErrOutdatedGenCodeDetected errutil.Error = "outdated generated code detected"
 )
 
 const (
@@ -754,19 +755,49 @@ func (c *cli) runOnStacks() {
 		Bool("changed", c.parsedArgs.Changed).
 		Msg("Running command in stacks reachable from working directory")
 
-	logger.Trace().
-		Msg("Filter stacks by working directory.")
+	logger.Trace().Msg("Filter stacks by working directory.")
+
 	entries = c.filterStacksByWorkingDir(entries)
 
-	logger.Trace().
-		Msg("Create array of stacks.")
 	stacks := make([]stack.S, len(entries))
 	for i, e := range entries {
 		stacks[i] = e.Stack
 	}
 
-	logger.Trace().
-		Msg("Get order of stacks to run command on.")
+	logger.Trace().Msg("Checking if any stack has outdated code.")
+
+	hasOutdated := false
+	for _, stack := range stacks {
+		logger := logger.With().
+			Str("stack", stack.Dir).
+			Logger()
+
+		logger.Trace().Msg("checking stack for outdated code")
+
+		outdated, err := generate.CheckStack(c.root(), stack.Dir)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("checking stack for outdated code")
+		}
+
+		if len(outdated) > 0 {
+			hasOutdated = true
+		}
+
+		for _, filename := range outdated {
+			logger.Error().
+				Str("filename", filename).
+				Msg("outdated code found")
+		}
+	}
+
+	if hasOutdated {
+		logger.Fatal().
+			Err(ErrOutdatedGenCodeDetected).
+			Msg("please run: 'terramate generate' to update generated code")
+	}
+
+	logger.Trace().Msg("Get order of stacks to run command on.")
+
 	order, reason, err := run.Sort(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
 		if errors.Is(err, dag.ErrCycleDetected) {
