@@ -65,5 +65,6 @@ present across the project.
 
 The following configurations have hierarchical behavior:
 
+* [Code Generation](code-generation-config.md)
 * [Globals](globals.md)
 * [Backend](backend-config.md)
