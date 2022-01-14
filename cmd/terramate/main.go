@@ -21,5 +21,5 @@ import (
 )
 
 func main() {
-	cli.Exec(os.Args[1:], true, os.Stdin, os.Stdout, os.Stderr)
+	cli.Exec(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
 }
