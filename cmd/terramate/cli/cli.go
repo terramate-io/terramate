@@ -722,11 +722,11 @@ func (c *cli) printMetadata() {
 			Msg("listing stacks")
 	}
 
-	for _, stackEntry := range stackEntries {
+	c.log("Available metadata:")
+
+	for _, stackEntry := range c.filterStacksByWorkingDir(stackEntries) {
 		stack := stackEntry.Stack
 		stackMeta := stack.Meta()
-
-		c.log("Available metadata:")
 
 		logger.Debug().
 			Str("stack", stack.Dir).
