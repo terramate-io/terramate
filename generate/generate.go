@@ -524,7 +524,7 @@ func forEachStack(root, workingDir string, callback forEachStackCallback) []erro
 		Str("workingDir", workingDir).
 		Logger()
 
-	logger.Trace().Msg("Load stacks.")
+	logger.Trace().Msg("List stacks.")
 
 	stackEntries, err := terramate.ListStacks(root)
 	if err != nil {
