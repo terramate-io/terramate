@@ -42,7 +42,7 @@ configuration. A configuration can only provide one backend block
 (overriding the config is possible, check
 [Overriding Configuration](#overriding-configuration) for more details).
 
-Let's start with a very simple example. Lets say your terramate project
+Let's start with a very simple example. Lets say your Terramate project
 has this layout:
 
 ```
