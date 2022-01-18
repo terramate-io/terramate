@@ -199,6 +199,13 @@ func newCLI(
 
 	configureLogging(parsedArgs.LogLevel, parsedArgs.LogFmt, stderr)
 
+	if ctx.Command() == "version" {
+		logger.Debug().
+			Msg("Get terramate version.")
+		fmt.Println(terramate.Version())
+		return &cli{exit: true}
+	}
+
 	wd, err := os.Getwd()
 	if err != nil {
 		log.Fatal().
@@ -320,10 +327,6 @@ func (c *cli) run() {
 	logger.Debug().
 		Msg("Handle input command.")
 	switch c.ctx.Command() {
-	case "version":
-		logger.Debug().
-			Msg("Get terramate version.")
-		c.log(terramate.Version())
 	case "plan graph":
 		log.Trace().
 			Str("actionContext", "cli()").
