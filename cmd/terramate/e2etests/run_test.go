@@ -22,6 +22,7 @@ import (
 
 	"github.com/mineiros-io/terramate/cmd/terramate/cli"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/run/dag"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -390,7 +391,7 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
 	stackConfig := hcl.NewConfig(terramate.DefaultVersionConstraint())
 	stackConfig.Stack = &hcl.Stack{
-		After: []string{stack2.Path()},
+		After: []string{project.RelPath(s.RootDir(), stack2.Path())},
 	}
 	stack.WriteConfig(stackConfig)
 
@@ -453,7 +454,7 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
 	stackConfig := hcl.NewConfig(terramate.DefaultVersionConstraint())
 	stackConfig.Stack = &hcl.Stack{
-		After: []string{stack2.Path()},
+		After: []string{project.RelPath(s.RootDir(), stack2.Path())},
 	}
 	stack.WriteConfig(stackConfig)
 
