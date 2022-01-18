@@ -201,7 +201,9 @@ func (l Loader) LoadAll(root string, basedir string, dirs ...string) ([]S, error
 		Str("path", root).
 		Msg("Range over directories.")
 	for _, d := range dirs {
-		if !filepath.IsAbs(d) {
+		if filepath.IsAbs(d) {
+			d = filepath.Join(root, d)
+		} else {
 			d = filepath.Join(absbase, d)
 		}
 

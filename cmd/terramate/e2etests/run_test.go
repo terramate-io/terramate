@@ -22,6 +22,7 @@ import (
 
 	"github.com/mineiros-io/terramate/cmd/terramate/cli"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/run/dag"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -77,7 +78,7 @@ frita
 			},
 		},
 		{
-			name: "stack-b after stack-a",
+			name: "stack-b after stack-a (relpaths)",
 			layout: []string{
 				"s:stack-a",
 				`s:stack-b:after=["../stack-a"]`,
@@ -89,7 +90,19 @@ stack-b
 			},
 		},
 		{
-			name: "stack-c after stack-b after stack-a",
+			name: "stack-b after stack-a (abspaths)",
+			layout: []string{
+				"s:stack-a",
+				`s:stack-b:after=["/stack-a"]`,
+			},
+			want: runExpected{
+				Stdout: `stack-a
+stack-b
+`,
+			},
+		},
+		{
+			name: "stack-c after stack-b after stack-a (relpaths)",
 			layout: []string{
 				"s:stack-a",
 				`s:stack-b:after=["../stack-a"]`,
@@ -103,7 +116,21 @@ stack-c
 			},
 		},
 		{
-			name: "stack-a after stack-b after stack-c",
+			name: "stack-c after stack-b after stack-a (abspaths)",
+			layout: []string{
+				"s:stack-a",
+				`s:stack-b:after=["/stack-a"]`,
+				`s:stack-c:after=["/stack-b"]`,
+			},
+			want: runExpected{
+				Stdout: `stack-a
+stack-b
+stack-c
+`,
+			},
+		},
+		{
+			name: "stack-a after stack-b after stack-c (relpaths)",
 			layout: []string{
 				"s:stack-c",
 				`s:stack-b:after=["../stack-c"]`,
@@ -117,7 +144,21 @@ stack-a
 			},
 		},
 		{
-			name: "stack-a after stack-b",
+			name: "stack-a after stack-b after stack-c (abspaths)",
+			layout: []string{
+				"s:stack-c",
+				`s:stack-b:after=["/stack-c"]`,
+				`s:stack-a:after=["/stack-b"]`,
+			},
+			want: runExpected{
+				Stdout: `stack-c
+stack-b
+stack-a
+`,
+			},
+		},
+		{
+			name: "stack-a after stack-b (relpaths)",
 			layout: []string{
 				`s:stack-a:after=["../stack-b"]`,
 				`s:stack-b`,
@@ -145,12 +186,46 @@ stack-a
 			},
 		},
 		{
-			name: "stack-c after stack-b after stack-a, stack-d after stack-z",
+			name: "stack-a after (stack-b, stack-c, stack-d) (abspaths)",
+			layout: []string{
+				`s:stack-a:after=["/stack-b", "/stack-c", "/stack-d"]`,
+				`s:stack-b`,
+				`s:stack-c`,
+				`s:stack-d`,
+			},
+			want: runExpected{
+				Stdout: `stack-b
+stack-c
+stack-d
+stack-a
+`,
+			},
+		},
+		{
+			name: "stack-c after stack-b after stack-a, stack-d after stack-z (relpaths)",
 			layout: []string{
 				`s:stack-c:after=["../stack-b"]`,
 				`s:stack-b:after=["../stack-a"]`,
 				`s:stack-a`,
 				`s:stack-d:after=["../stack-z"]`,
+				`s:stack-z`,
+			},
+			want: runExpected{
+				Stdout: `stack-a
+stack-b
+stack-c
+stack-z
+stack-d
+`,
+			},
+		},
+		{
+			name: "stack-c after stack-b after stack-a, stack-d after stack-z (abspaths)",
+			layout: []string{
+				`s:stack-c:after=["/stack-b"]`,
+				`s:stack-b:after=["/stack-a"]`,
+				`s:stack-a`,
+				`s:stack-d:after=["/stack-z"]`,
 				`s:stack-z`,
 			},
 			want: runExpected{
@@ -390,7 +465,7 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
 	stackConfig := hcl.NewConfig(terramate.DefaultVersionConstraint())
 	stackConfig.Stack = &hcl.Stack{
-		After: []string{stack2.Path()},
+		After: []string{project.RelPath(s.RootDir(), stack2.Path())},
 	}
 	stack.WriteConfig(stackConfig)
 
@@ -453,7 +528,7 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
 	stackConfig := hcl.NewConfig(terramate.DefaultVersionConstraint())
 	stackConfig.Stack = &hcl.Stack{
-		After: []string{stack2.Path()},
+		After: []string{project.RelPath(s.RootDir(), stack2.Path())},
 	}
 	stack.WriteConfig(stackConfig)
 
