@@ -29,6 +29,18 @@ field **before** and **after**.
 Each field is a set of strings (**set(string)**),
 where each string is a reference to another stack.
 
+References to stacks can be relative to the stack being configured in the form:
+
+```
+../../stack
+```
+
+Or they can be relative to the project root, starting with "/":
+
+```
+/path/relative/to/project/root/stack
+```
+
 **before** ensures that the configured stack is executed before the
 listed stacks, as the stack you are saying "I execute before these stacks".
 
