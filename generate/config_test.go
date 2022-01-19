@@ -2,10 +2,15 @@ package generate_test
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 
+	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
+	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
 // Tests
@@ -20,9 +25,9 @@ import (
 func TestGenerateStackConfigLoad(t *testing.T) {
 
 	type (
-		hclblock struct {
+		hclcfg struct {
 			path string
-			cfg  fmt.Stringer
+			body fmt.Stringer
 		}
 
 		want struct {
@@ -33,7 +38,7 @@ func TestGenerateStackConfigLoad(t *testing.T) {
 		testcase struct {
 			name    string
 			stack   string
-			configs []hclblock
+			configs []hclcfg
 			want    want
 		}
 	)
@@ -42,8 +47,8 @@ func TestGenerateStackConfigLoad(t *testing.T) {
 	gen := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("generate", builders...)
 	}
-	// avoid conflicts with config package, so define on smaller scope
-	config := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	// cfg instead of config because name conflicts with config pkg
+	cfg := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("config", builders...)
 	}
 
@@ -61,18 +66,14 @@ func TestGenerateStackConfigLoad(t *testing.T) {
 		{
 			name:  "backend and locals config on stack",
 			stack: "stack",
-			configs: []hclblock{
+			configs: []hclcfg{
 				{
 					path: "/stack",
-					cfg: hcldoc(
-						terramate(
-							config(
-								gen(
-									str("backend_config_filename", "backend.tf"),
-									str("locals_filename", "locals.tf"),
-								),
-							),
-						),
+					body: hcldoc(
+						terramate(cfg(gen(
+							str("backend_config_filename", "backend.tf"),
+							str("locals_filename", "locals.tf"),
+						))),
 						stack(),
 					),
 				},
@@ -88,7 +89,21 @@ func TestGenerateStackConfigLoad(t *testing.T) {
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
+			s := sandbox.New(t)
+			stackEntry := s.CreateStack(tcase.stack)
+			stack := stackEntry.Load()
 
+			for _, cfg := range tcase.configs {
+				path := filepath.Join(s.RootDir(), cfg.path)
+				test.WriteFile(t, path, config.Filename, cfg.body.String())
+			}
+
+			got, err := generate.LoadStackCfg(s.RootDir(), stack)
+			assert.IsError(t, err, tcase.want.err)
+
+			if got != tcase.want.cfg {
+				t.Fatalf("got stack cfg %v; want %v", got, tcase.want.cfg)
+			}
 		})
 	}
 }
