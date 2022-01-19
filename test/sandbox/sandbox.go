@@ -251,7 +251,7 @@ func (s S) CreateModule(relpath string) DirEntry {
 // CreateStack will create a stack dir with the given relative path and
 // initializes the stack, returning a stack entry that can be used
 // to create files inside the stack dir.
-func (s S) CreateStack(relpath string) *StackEntry {
+func (s S) CreateStack(relpath string) StackEntry {
 	t := s.t
 	t.Helper()
 
@@ -259,7 +259,7 @@ func (s S) CreateStack(relpath string) *StackEntry {
 		t.Fatalf("CreateStack() needs a relative path but given %q", relpath)
 	}
 
-	stack := &StackEntry{
+	stack := StackEntry{
 		DirEntry: newDirEntry(t, s.rootdir, relpath),
 	}
 
@@ -269,8 +269,8 @@ func (s S) CreateStack(relpath string) *StackEntry {
 
 // StackEntry gets the stack entry of the stack identified by relpath.
 // The stack must exist (previously created).
-func (s S) StackEntry(relpath string) *StackEntry {
-	return &StackEntry{DirEntry: s.DirEntry(relpath)}
+func (s S) StackEntry(relpath string) StackEntry {
+	return StackEntry{DirEntry: s.DirEntry(relpath)}
 }
 
 // DirEntry gets the dir entry for relpath.
@@ -310,10 +310,10 @@ func (s S) DirEntry(relpath string) DirEntry {
 //
 // If the file already exists its contents will be truncated, like os.Create
 // behavior: https://pkg.go.dev/os#Create
-func (de DirEntry) CreateFile(name, body string, args ...interface{}) *FileEntry {
+func (de DirEntry) CreateFile(name, body string, args ...interface{}) FileEntry {
 	de.t.Helper()
 
-	fe := &FileEntry{
+	fe := FileEntry{
 		t:    de.t,
 		path: filepath.Join(de.abspath, name),
 	}
@@ -331,10 +331,10 @@ func (de DirEntry) CreateFile(name, body string, args ...interface{}) *FileEntry
 //
 // If the file already exists its contents will be truncated, like os.Create
 // behavior: https://pkg.go.dev/os#Create
-func (de DirEntry) CreateConfig(body string) *FileEntry {
+func (de DirEntry) CreateConfig(body string) FileEntry {
 	de.t.Helper()
 
-	fe := &FileEntry{
+	fe := FileEntry{
 		t:    de.t,
 		path: filepath.Join(de.abspath, config.Filename),
 	}
