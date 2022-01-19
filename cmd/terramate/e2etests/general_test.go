@@ -349,7 +349,6 @@ func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
 
 func TestNoArgsProvidesBasicHelp(t *testing.T) {
 	cli := newCLI(t, "")
-	cli.run("--help")
 	help := cli.run("--help")
 	assertRunResult(t, cli.run(), runExpected{Stdout: help.Stdout})
 }
