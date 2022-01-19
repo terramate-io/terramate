@@ -28,13 +28,13 @@ work and will fail if this requirement is not met.
 In general, a Terramate project looks like this:
 
 * A git project
-* The git top-level dir is the project base dir
+* The git top-level dir is the project root dir
 * Stacks will be organized as different directories
 * Configuration may be present on any dir
 
 # Project Configuration
 
-Per project configuration can be defined only once at the project base dir.
+Per project configuration can be defined only once at the project root dir.
 
 Available project-wide configurations can be found [here](project-config.md)
 

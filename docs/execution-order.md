@@ -29,6 +29,18 @@ field **before** and **after**.
 Each field is a set of strings (**set(string)**),
 where each string is a reference to another stack.
 
+References to stacks can be relative to the stack being configured in the form:
+
+```
+../../stack
+```
+
+Or they can be relative to the project root, starting with "/":
+
+```
+/path/relative/to/project/root/stack
+```
+
 **before** ensures that the configured stack is executed before the
 listed stacks, as the stack you are saying "I execute before these stacks".
 
@@ -47,15 +59,18 @@ For example, let's assume we have a project organized like this:
 
 And **stack-a/terramate.tm.hcl** looks like:
 
-```
+
+```hcl
 terramate {
     required_version = "<version>"
 }
 ```
 
+
 And then we have **stack-b/terramate.tm.hcl**:
 
-```
+
+```hcl
 terramate {
     required_version = "<version>"
 }
@@ -67,16 +82,31 @@ stack {
 }
 ```
 
-The order of execution will be:
+That can also be defined by using a project root relative path:
+
+
+```hcl
+terramate {
+    required_version = "<version>"
+}
+
+stack {
+    after = [
+        "/stack-a"
+    ]
+}
+```
+
+For both equivalent configurations, the order of execution will be:
 
 * stack-a
 * stack-b
 
-The same order of execution can be defined as:
+The same order of execution can be defined using **before**:
 
 **stack-a/terramate.tm.hcl**:
 
-```
+```hcl
 terramate {
     required_version = "<version>"
 }
@@ -90,7 +120,7 @@ stack {
 
 **stack-b/terramate.tm.hcl**:
 
-```
+```hcl
 terramate {
     required_version = "<version>"
 }
@@ -100,7 +130,7 @@ This would also be a valid way to express the same order (although redundant):
 
 **stack-a/terramate.tm.hcl**:
 
-```
+```hcl
 terramate {
     required_version = "<version>"
 }
@@ -114,7 +144,7 @@ stack {
 
 **stack-b/terramate.tm.hcl**:
 
-```
+```hcl
 terramate {
     required_version = "<version>"
 }
@@ -132,7 +162,7 @@ The three stacks are defined as follows:
 
 **stack-a/terramate.tm.hcl**:
 
-```
+```hcl
 terramate {
     required_version = "<version>"
 }
@@ -140,7 +170,7 @@ terramate {
 
 **stack-b/terramate.tm.hcl**:
 
-```
+```hcl
 terramate {
     required_version = "<version>"
 }
@@ -148,7 +178,7 @@ terramate {
 
 **stack-c/terramate.tm.hcl**:
 
-```
+```hcl
 terramate {
     required_version = "<version>"
 }
@@ -202,7 +232,7 @@ Given that we have 3 stacks, **stack-a**, **stack-b**, **stack-c**.
 **stack-a** has no ordering requisites.
 **stack-b** defines this order:
 
-```
+```hcl
 stack {
     after = [
         "../stack-a",
@@ -212,7 +242,7 @@ stack {
 
 **stack-c** defines this order:
 
-```
+```hcl
 stack {
     after = [
         "../stack-a",
@@ -254,7 +284,7 @@ Also in the case of a conflict, like a stack defined like this:
 
 **stack-a/terramate.tm.hcl**:
 
-```
+```hcl
 terramate {
     required_version = "<version>"
 }
