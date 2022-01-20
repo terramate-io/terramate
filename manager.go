@@ -387,12 +387,16 @@ func (m *Manager) moduleChanged(
 	return changed, fmt.Sprintf("module %q changed because %s", mod.Source, why), nil
 }
 
-func (m *Manager) ListWantedBy(s stack.S) ([]stack.S, error) {
+func (m *Manager) AddWantedOf(stacks []stack.S) ([]stack.S, error) {
 	wantedBy := map[string]stack.S{}
 	wanted := []stack.S{}
-	visited := map[string]struct{}{}
 
-	wantedBy[s.PrjAbsPath()] = s
+	for _, s := range stacks {
+		wantedBy[s.PrjAbsPath()] = s
+		wanted = append(wanted, s)
+	}
+
+	visited := map[string]struct{}{}
 
 	for len(wantedBy) > 0 {
 		for _, s := range wantedBy {

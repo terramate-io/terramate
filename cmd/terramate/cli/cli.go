@@ -974,28 +974,16 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) ([]stack.S, error) {
 
 	entries = c.filterStacksByWorkingDir(entries)
 
-	stackMap := map[string]struct{}{}
 	stacks := make([]stack.S, len(entries))
 	for i, e := range entries {
 		stacks[i] = e.Stack
-		stackMap[e.Stack.PrjAbsPath()] = struct{}{}
 	}
 
-	for _, s := range stacks {
-		wanted, err := mgr.ListWantedBy(s)
-		if err != nil {
-			return nil, fmt.Errorf("loading wanted stacks of %q: %w", s, err)
-		}
-
-		for _, ws := range wanted {
-			if _, ok := stackMap[ws.PrjAbsPath()]; !ok {
-				stacks = append(stacks, ws)
-				stackMap[ws.PrjAbsPath()] = struct{}{}
-			}
-		}
+	stacks, err = mgr.AddWantedOf(stacks)
+	if err != nil {
+		return nil, fmt.Errorf("loading wanted stacks: %w", err)
 	}
 
-	stack.Sort(stacks)
 	return stacks, nil
 }
 
