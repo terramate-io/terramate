@@ -520,6 +520,18 @@ func TestRunWants(t *testing.T) {
 			},
 		},
 		{
+			name: "stack-b wants (stack-a, stack-c), stack-c wants stack-a (from inside stack-b)",
+			layout: []string{
+				`s:stack-b:wants=["/stack-a", "/stack-c"]`,
+				`s:stack-a`,
+				`s:stack-c:wants=["/stack-a"]`,
+			},
+			wd: "/stack-b",
+			want: runExpected{
+				Stdout: "stack-a\nstack-b\nstack-c\n",
+			},
+		},
+		{
 			name: `stack-a wants (stack-b, stack-c) and stack-b wants (stack-d, stack-e)
 					(from inside stack-a) - recursive`,
 			layout: []string{
