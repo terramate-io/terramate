@@ -130,26 +130,21 @@ func Init(root, dir string, force bool) error {
 
 	logger.Debug().
 		Str("configFile", stackfile).
-		Msg("Create stack file.")
-	f, err := os.Create(stackfile)
+		Msg("Create new configuration.")
+	cfg, err := hcl.NewConfig(dir, DefaultVersionConstraint())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to initialize stack: %w", err)
 	}
 
-	defer f.Close()
-
-	logger.Debug().
-		Str("configFile", stackfile).
-		Msg("Create new configuration.")
-	cfg := hcl.NewConfig(DefaultVersionConstraint())
 	cfg.Stack = &hcl.Stack{
 		Name: filepath.Base(dir),
 	}
 
 	logger.Debug().
 		Str("configFile", stackfile).
-		Msg("Print configuration.")
-	err = hcl.PrintConfig(f, cfg)
+		Msg("Save configuration.")
+
+	err = cfg.Save(config.Filename)
 	if err != nil {
 		return fmt.Errorf("failed to write %q: %w", stackfile, err)
 	}

@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 
 	"github.com/hashicorp/hcl/v2/hclparse"
@@ -34,6 +35,8 @@ type Module struct {
 }
 
 type Config struct {
+	// absdir is the absolute path to the configuration directory.
+	absdir    string
 	Terramate *Terramate
 	Stack     *Stack
 }
@@ -85,11 +88,48 @@ const (
 	ErrStackInvalidRunOrder     errutil.Error = "invalid stack execution order definition"
 )
 
-func NewConfig(reqversion string) Config {
+// NewConfig creates a new HCL config with absdir as config directory path.
+func NewConfig(absdir string, reqversion string) (Config, error) {
+	st, err := os.Stat(absdir)
+	if err != nil {
+		return Config{}, fmt.Errorf("initializing config: %w", err)
+	}
+
+	if !st.IsDir() {
+		return Config{}, fmt.Errorf("config constructor requires a directory path")
+	}
+
+	var tmblock *Terramate
+	if reqversion != "" {
+		tmblock = NewTerramate(reqversion)
+	}
+
 	return Config{
-		Terramate: &Terramate{
-			RequiredVersion: reqversion,
-		},
+		absdir:    absdir,
+		Terramate: tmblock,
+	}, nil
+}
+
+// AbsDir returns the absolute path of the configuration directory.
+func (c Config) AbsDir() string { return c.absdir }
+
+// Save the configuration file using filename inside config directory.
+func (c Config) Save(filename string) error {
+	cfgpath := filepath.Join(c.absdir, filename)
+	f, err := os.Create(cfgpath)
+	if err != nil {
+		return fmt.Errorf("saving configuration file %q: %w", cfgpath, err)
+	}
+
+	defer f.Close()
+
+	return PrintConfig(f, c)
+}
+
+// NewTerramate creates a new TerramateBlock with reqversion.
+func NewTerramate(reqversion string) *Terramate {
+	return &Terramate{
+		RequiredVersion: reqversion,
 	}
 }
 
@@ -214,7 +254,11 @@ func Parse(fname string, data []byte) (Config, error) {
 		)
 	}
 
-	var tmconfig Config
+	tmconfig, err := NewConfig(filepath.Dir(fname), "")
+	if err != nil {
+		return Config{}, fmt.Errorf("parsing HCL file %q: %w", fname, err)
+	}
+
 	var tmblock, stackblock *hclsyntax.Block
 	var foundtm, foundstack bool
 
@@ -365,7 +409,7 @@ func Parse(fname string, data []byte) (Config, error) {
 	logger.Debug().
 		Msg("Parse stack.")
 	tmconfig.Stack = &Stack{}
-	err := parseStack(tmconfig.Stack, stackblock)
+	err = parseStack(tmconfig.Stack, stackblock)
 	if err != nil {
 		return Config{}, err
 	}

@@ -72,6 +72,7 @@ func (l Loader) TryLoad(dir string) (stack S, found bool, err error) {
 
 	logger.Trace().
 		Msg("Get relative stack path to root directory.")
+
 	stackpath := project.RelPath(l.root, dir)
 	if s, ok := l.stacks[stackpath]; ok {
 		return s, true, nil
@@ -80,13 +81,14 @@ func (l Loader) TryLoad(dir string) (stack S, found bool, err error) {
 	if ok := config.Exists(dir); !ok {
 		return S{}, false, err
 	}
+
 	fname := filepath.Join(dir, config.Filename)
 
 	logger.Debug().
 		Str("configFile", fname).
 		Msg("Parse config file.")
-	cfg, err := hcl.ParseFile(fname)
 
+	cfg, err := hcl.ParseFile(fname)
 	if err != nil {
 		return S{}, false, err
 	}
@@ -105,9 +107,11 @@ func (l Loader) TryLoad(dir string) (stack S, found bool, err error) {
 	}
 
 	logger.Debug().
-		Msg("Set stack path and stack config.")
-	l.set(stackpath, cfg.Stack)
-	return l.stacks[stackpath], true, nil
+		Msg("Creates a new stack")
+
+	stack = New(l.root, cfg)
+	l.stacks[stack.Dir] = stack
+	return stack, true, nil
 }
 
 // TryLoadChanged is like TryLoad but sets the stack as changed if loaded
@@ -126,29 +130,6 @@ func (l Loader) TryLoadChanged(root, dir string) (stack S, found bool, err error
 		s.changed = true
 	}
 	return s, ok, err
-}
-
-func (l Loader) set(path string, block *hcl.Stack) {
-	var name string
-	log.Debug().
-		Str("action", "set()").
-		Str("stack", path).
-		Msg("Set stack name.")
-	if block.Name != "" {
-		name = block.Name
-	} else {
-		name = filepath.Base(path)
-	}
-
-	log.Trace().
-		Str("action", "set()").
-		Str("stack", path).
-		Msg("Set stack information.")
-	l.stacks[path] = S{
-		name:  name,
-		Dir:   path,
-		block: block,
-	}
 }
 
 // Set stacks in the loader's cache. The dir directory must be relative to

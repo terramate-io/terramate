@@ -133,38 +133,34 @@ func (s S) BuildTree(layout []string) {
 	gentmfile := func(relpath, data string) {
 		attrs := strings.Split(data, ";")
 
-		tm := hcl.Config{
-			Terramate: &hcl.Terramate{},
-			Stack:     &hcl.Stack{},
-		}
+		cfgdir := filepath.Join(s.RootDir(), relpath)
+		test.MkdirAll(t, cfgdir)
+		cfg, err := hcl.NewConfig(cfgdir, "")
+		assert.NoError(t, err)
+
+		cfg.Stack = &hcl.Stack{}
+		cfg.Terramate = &hcl.Terramate{}
+
 		for _, attr := range attrs {
 			parts := strings.Split(attr, "=")
 			name := parts[0]
 			value := parts[1]
 			switch name {
 			case "version":
-				tm.Terramate.RequiredVersion = value
+				cfg.Terramate.RequiredVersion = value
 			case "after":
-				tm.Stack.After = specList(t, name, value)
+				cfg.Stack.After = specList(t, name, value)
 			case "before":
-				tm.Stack.Before = specList(t, name, value)
+				cfg.Stack.Before = specList(t, name, value)
 			case "description":
-				tm.Stack.Description = value
+				cfg.Stack.Description = value
 			default:
 				t.Fatalf("attribute " + parts[0] + " not supported.")
 			}
 		}
 
-		path := filepath.Join(s.RootDir(), filepath.Join(relpath, config.Filename))
-		test.MkdirAll(t, filepath.Dir(path))
-
-		f, err := os.Create(path)
-		assert.NoError(t, err, "BuildTree() failed to create file")
-
-		defer f.Close()
-
-		err = hcl.PrintConfig(f, tm)
-		assert.NoError(t, err, "BuildTree() failed to generate tm file")
+		assert.NoError(t, cfg.Save(config.Filename),
+			"BuildTree() failed to generate config file.")
 	}
 
 	for _, spec := range layout {
