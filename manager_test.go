@@ -166,7 +166,7 @@ func TestListChangedStackReason(t *testing.T) {
 	changed, err := m.ListChanged()
 	assert.NoError(t, err, "unexpected error")
 	assert.EqualInts(t, 1, len(changed), "unexpected number of entries")
-	assert.EqualStrings(t, "/", changed[0].Stack.Dir, "stack dir mismatch")
+	assert.EqualStrings(t, "/", changed[0].Stack.PrjAbsPath(), "stack dir mismatch")
 	assert.EqualStrings(t, "stack has unmerged changes", changed[0].Reason)
 
 	repo = singleStackDependentModuleChangedRepo(t)
@@ -175,7 +175,7 @@ func TestListChangedStackReason(t *testing.T) {
 	changed, err = m.ListChanged()
 	assert.NoError(t, err, "unexpected error")
 	assert.EqualInts(t, 1, len(changed), "unexpected number of entries")
-	assert.EqualStrings(t, "/stack", changed[0].Stack.Dir, "stack dir mismatch")
+	assert.EqualStrings(t, "/stack", changed[0].Stack.PrjAbsPath(), "stack dir mismatch")
 
 	if !strings.Contains(changed[0].Reason, "modules/module1") ||
 		!strings.Contains(changed[0].Reason, "../module2") {
@@ -189,10 +189,10 @@ func assertStacks(
 	assert.EqualInts(t, len(want), len(got), "wrong number of stacks: %+v", got)
 
 	for i := 0; i < len(want); i++ {
-		assert.EqualStrings(t, want[i], got[i].Stack.Dir, "path mismatch")
+		assert.EqualStrings(t, want[i], got[i].Stack.PrjAbsPath(), "path mismatch")
 
 		if wantReason && got[i].Reason == "" {
-			t.Errorf("stack [%s] has no reason", got[i].Stack.Dir)
+			t.Errorf("stack [%s] has no reason", got[i].Stack.PrjAbsPath())
 		}
 	}
 }

@@ -25,8 +25,11 @@ import (
 type (
 	// S represents a stack
 	S struct {
-		// Dir is the stack dir path relative to the project root
-		Dir string
+		// abspath is the file system absolute path of the stack.
+		abspath string
+
+		// prjAbsPath is the absolute path of the stack relative to project's root.
+		prjAbsPath string
 
 		// name of the stack.
 		name string
@@ -61,10 +64,11 @@ func New(root string, cfg hcl.Config) S {
 
 	return S{
 		name:        name,
-		Dir:         project.RelPath(root, cfg.AbsDir()),
 		description: cfg.Stack.Description,
 		after:       cfg.Stack.After,
 		before:      cfg.Stack.Before,
+		abspath:     cfg.AbsDir(),
+		prjAbsPath:  project.PrjAbsPath(root, cfg.AbsDir()),
 	}
 }
 
@@ -73,7 +77,7 @@ func (s S) Name() string {
 	if s.name != "" {
 		return s.name
 	}
-	return s.Dir
+	return s.PrjAbsPath()
 }
 
 // Description of stack.
@@ -94,11 +98,17 @@ func (s *S) SetChanged(b bool) { s.changed = b }
 // String representation of the stack.
 func (s S) String() string { return s.Name() }
 
+// PrjAbsPath returns the project's absolute path of stack.
+func (s S) PrjAbsPath() string { return s.prjAbsPath }
+
+// AbsPath returns the file system absolute path of stack.
+func (s S) AbsPath() string { return s.abspath }
+
 // Meta returns the stack metadata.
 func (s S) Meta() Metadata {
 	return Metadata{
 		Name:        s.Name(),
-		Path:        s.Dir,
+		Path:        s.PrjAbsPath(),
 		Description: s.Description(),
 	}
 }

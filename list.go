@@ -52,7 +52,7 @@ func ListStacks(root string) ([]Entry, error) {
 
 			if found {
 				logger.Debug().
-					Str("stack", stack.Dir).
+					Stringer("stack", stack).
 					Msg("Found stack.")
 				entries = append(entries, Entry{Stack: stack})
 			}

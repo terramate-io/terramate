@@ -73,7 +73,7 @@ func (l Loader) TryLoad(dir string) (stack S, found bool, err error) {
 	logger.Trace().
 		Msg("Get relative stack path to root directory.")
 
-	stackpath := project.RelPath(l.root, dir)
+	stackpath := project.PrjAbsPath(l.root, dir)
 	if s, ok := l.stacks[stackpath]; ok {
 		return s, true, nil
 	}
@@ -110,7 +110,7 @@ func (l Loader) TryLoad(dir string) (stack S, found bool, err error) {
 		Msg("Creates a new stack")
 
 	stack = New(l.root, cfg)
-	l.stacks[stack.Dir] = stack
+	l.stacks[stack.PrjAbsPath()] = stack
 	return stack, true, nil
 }
 

@@ -30,7 +30,6 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
-	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 )
@@ -69,7 +68,7 @@ func Do(root string, workingDir string) error {
 		stack stack.S,
 		globals *terramate.Globals,
 	) error {
-		stackpath := project.AbsPath(root, stack.Dir)
+		stackpath := stack.AbsPath()
 		logger := log.With().
 			Str("action", "generate.Do()").
 			Str("path", root).
@@ -120,7 +119,7 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.CheckStack()").
 		Str("path", root).
-		Str("stackdir", stack.Dir).
+		Stringer("stack", stack).
 		Logger()
 
 	outdated := []string{}
@@ -134,7 +133,7 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 
 	logger.Trace().Msg("Generating backend cfg code for stack.")
 
-	stackpath := project.AbsPath(root, stack.Dir)
+	stackpath := stack.AbsPath()
 	stackMeta := stack.Meta()
 	genbackend, err := generateBackendCfgCode(root, stackpath, stackMeta, globals, stackpath)
 	if err != nil {
@@ -535,13 +534,12 @@ func forEachStack(root, workingDir string, callback forEachStackCallback) []erro
 
 	for _, entry := range stackEntries {
 		stack := entry.Stack
-		stackpath := project.AbsPath(root, stack.Dir)
 
 		logger := logger.With().
-			Str("stack", stackpath).
+			Stringer("stack", stack).
 			Logger()
 
-		if !strings.HasPrefix(stackpath, workingDir) {
+		if !strings.HasPrefix(stack.AbsPath(), workingDir) {
 			logger.Trace().Msg("discarding stack outside working dir")
 			continue
 		}
@@ -552,7 +550,7 @@ func forEachStack(root, workingDir string, callback forEachStackCallback) []erro
 		if err != nil {
 			errs = append(errs, fmt.Errorf(
 				"stack %q: %w: %v",
-				stackpath,
+				stack.AbsPath(),
 				ErrLoadingGlobals,
 				err))
 			continue

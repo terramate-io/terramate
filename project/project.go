@@ -21,16 +21,16 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// RelPath returns the dir relative to project's root.
-func RelPath(root, dir string) string {
+// PrjAbsPath converts the file system absolute path absdir into an absolute
+// project path.
+func PrjAbsPath(root, absdir string) string {
 	log.Trace().
-		Str("action", "RelPath()").
-		Str("dir", dir).
+		Str("action", "PrjAbsPath()").
+		Str("dir", absdir).
 		Str("root", root).
 		Msg("Trim path to get relative dir.")
 
-	d := strings.TrimPrefix(dir, root)
-
+	d := strings.TrimPrefix(absdir, root)
 	if d == "" {
 		d = "/"
 	}
@@ -38,10 +38,10 @@ func RelPath(root, dir string) string {
 	return d
 }
 
-// AbsPath takes the root project dir and a dir path that is relative to the
-// root project dir and returns an absolute path (relative to the host root).
-func AbsPath(root, dir string) string {
-	return filepath.Join(root, dir)
+// AbsPath takes the root project dir and a project's absolute path prjAbsPath
+// and returns an absolute path to the file system.
+func AbsPath(root, prjAbsPath string) string {
+	return filepath.Join(root, prjAbsPath)
 }
 
 // FriendlyFmtDir formats the directory in a friendly way for tooling output.
@@ -56,7 +56,7 @@ func FriendlyFmtDir(root, wd, dir string) (string, bool) {
 		Str("dir", dir).
 		Msg("Get relative path.")
 
-	trimPart := RelPath(root, wd)
+	trimPart := PrjAbsPath(root, wd)
 	if !strings.HasPrefix(dir, trimPart) {
 		return "", false
 	}

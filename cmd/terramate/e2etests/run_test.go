@@ -467,7 +467,7 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 	stackConfig, err := hcl.NewConfig(stack.Path(), terramate.DefaultVersionConstraint())
 	assert.NoError(t, err)
 	stackConfig.Stack = &hcl.Stack{
-		After: []string{project.RelPath(s.RootDir(), stack2.Path())},
+		After: []string{project.PrjAbsPath(s.RootDir(), stack2.Path())},
 	}
 	stack.WriteConfig(stackConfig)
 
@@ -532,7 +532,7 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 	assert.NoError(t, err)
 
 	stackConfig.Stack = &hcl.Stack{
-		After: []string{project.RelPath(s.RootDir(), stack2.Path())},
+		After: []string{project.PrjAbsPath(s.RootDir(), stack2.Path())},
 	}
 	stack.WriteConfig(stackConfig)
 
