@@ -31,10 +31,9 @@ import (
 
 func TestCLIRunOrder(t *testing.T) {
 	type testcase struct {
-		name    string
-		layout  []string
-		changed bool
-		want    runExpected
+		name   string
+		layout []string
+		want   runExpected
 	}
 
 	for _, tc := range []testcase{
@@ -442,9 +441,46 @@ stack-z
 
 			cli := newCLI(t, s.RootDir())
 			args := []string{"plan", "run-order"}
-			if tc.changed {
-				args = append(args, "--changed")
-			}
+			assertRunResult(t, cli.run(args...), tc.want)
+		})
+	}
+}
+
+func TestRunWants(t *testing.T) {
+	type testcase struct {
+		name   string
+		layout []string
+		want   runExpected
+	}
+
+	for _, tc := range []testcase{
+		{
+			name: "stack-a wants stack-b",
+			layout: []string{
+				`s:stack-a:wants=["/stack-b"]`,
+				`s:stack-b`,
+			},
+			want: runExpected{
+				Stdout: "stack-a\nstack-b",
+			},
+		},
+		{
+			name: "stack-b wants stack-a (same ordering)",
+			layout: []string{
+				`s:stack-b:wants=["/stack-a"]`,
+				`s:stack-a`,
+			},
+			want: runExpected{
+				Stdout: "stack-a\nstack-b",
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := sandbox.New(t)
+			s.BuildTree(tc.layout)
+
+			cli := newCLI(t, s.RootDir())
+			args := []string{"plan", "run-order"}
 			assertRunResult(t, cli.run(args...), tc.want)
 		})
 	}

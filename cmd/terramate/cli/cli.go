@@ -443,6 +443,17 @@ func (c *cli) listStacks(mgr *terramate.Manager, isChanged bool) ([]terramate.En
 	return mgr.List()
 }
 
+func (c *cli) addWantedStacks(stacks []stack.S) ([]stack.S, error) {
+	stackMap := map[string]stack.S{}
+	for _, s := range stacks {
+		stackMap[s.PrjAbsPath()] = s
+	}
+
+	for _, s := range stacks {
+		wanted, err := s.LoadAllWanted()
+	}
+}
+
 func (c *cli) printStacks() {
 	logger := log.With().
 		Str("action", "printStacks()").
@@ -779,6 +790,13 @@ func (c *cli) runOnStacks() {
 	stacks := make([]stack.S, len(entries))
 	for i, e := range entries {
 		stacks[i] = e.Stack
+	}
+
+	stacks, err = c.addWantedStacks(stacks)
+	if err != nil {
+		logger.Fatal().
+			Err(err).
+			Msg("processing wanted stacks")
 	}
 
 	logger.Trace().Msg("Checking if any stack has outdated code.")
