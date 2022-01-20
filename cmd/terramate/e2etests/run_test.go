@@ -441,8 +441,7 @@ stack-z
 			s.BuildTree(tc.layout)
 
 			cli := newCLI(t, s.RootDir())
-			args := []string{"plan", "run-order"}
-			assertRunResult(t, cli.run(args...), tc.want)
+			assertRunResult(t, cli.run("plan", "run-order"), tc.want)
 		})
 	}
 }
@@ -593,8 +592,7 @@ func TestRunWants(t *testing.T) {
 			s.BuildTree(tc.layout)
 
 			cli := newCLI(t, filepath.Join(s.RootDir(), tc.wd))
-			args := []string{"plan", "run-order"}
-			assertRunResult(t, cli.run(args...), tc.want)
+			assertRunResult(t, cli.run("plan", "run-order"), tc.want)
 		})
 	}
 }
