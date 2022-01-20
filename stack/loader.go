@@ -106,8 +106,7 @@ func (l Loader) TryLoad(dir string) (stack S, found bool, err error) {
 		return S{}, false, fmt.Errorf("stack %q is not a leaf stack", dir)
 	}
 
-	logger.Debug().
-		Msg("Creates a new stack")
+	logger.Debug().Msg("Create a new stack")
 
 	stack = New(l.root, cfg)
 	l.stacks[stack.Dir] = stack
