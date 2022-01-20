@@ -443,17 +443,6 @@ func (c *cli) listStacks(mgr *terramate.Manager, isChanged bool) ([]terramate.En
 	return mgr.List()
 }
 
-func (c *cli) addWantedStacks(stacks []stack.S) ([]stack.S, error) {
-	stackMap := map[string]stack.S{}
-	for _, s := range stacks {
-		stackMap[s.PrjAbsPath()] = s
-	}
-
-	for _, s := range stacks {
-		wanted, err := s.LoadAllWanted()
-	}
-}
-
 func (c *cli) printStacks() {
 	logger := log.With().
 		Str("action", "printStacks()").
@@ -637,28 +626,11 @@ func (c *cli) printRunOrder() {
 		Str("workingDir", c.wd()).
 		Logger()
 
-	logger.Trace().
-		Msg("Create new terramate manager.")
-	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
-
-	logger.Trace().
-		Msg("Get list of stacks.")
-	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
-	if err != nil && !errors.Is(err, terramate.ErrDirtyRepo) {
+	stacks, err := c.computeSelectedStacks(false)
+	if err != nil {
 		logger.Fatal().
 			Err(err).
-			Msg("listing stacks")
-	}
-
-	logger.Trace().
-		Msg("Filter stacks by working directory.")
-	entries = c.filterStacksByWorkingDir(entries)
-
-	logger.Trace().
-		Msg("Create stack array.")
-	stacks := make([]stack.S, len(entries))
-	for i, e := range entries {
-		stacks[i] = e.Stack
+			Msgf("computing selected stacks")
 	}
 
 	logger.Debug().Msg("Get run order.")
@@ -765,38 +737,11 @@ func (c *cli) runOnStacks() {
 		Str("workingDir", c.wd()).
 		Logger()
 
-	logger.Trace().
-		Msg("Create new terramate manager.")
-	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
-
-	logger.Trace().
-		Msg("Get list of stacks.")
-	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
+	stacks, err := c.computeSelectedStacks(true)
 	if err != nil {
 		logger.Fatal().
 			Err(err).
-			Msg("listing stacks")
-	}
-
-	log.Info().
-		Str("wd", c.wd()).
-		Bool("changed", c.parsedArgs.Changed).
-		Msg("Running command in stacks reachable from working directory")
-
-	logger.Trace().Msg("Filter stacks by working directory.")
-
-	entries = c.filterStacksByWorkingDir(entries)
-
-	stacks := make([]stack.S, len(entries))
-	for i, e := range entries {
-		stacks[i] = e.Stack
-	}
-
-	stacks, err = c.addWantedStacks(stacks)
-	if err != nil {
-		logger.Fatal().
-			Err(err).
-			Msg("processing wanted stacks")
+			Msgf("computing selected stacks")
 	}
 
 	logger.Trace().Msg("Checking if any stack has outdated code.")
@@ -863,6 +808,10 @@ func (c *cli) runOnStacks() {
 
 		return
 	}
+
+	logger.Info().
+		Bool("changed", c.parsedArgs.Changed).
+		Msg("Running command in stacks reachable from working directory")
 
 	logger.Trace().Msg("Get command to run.")
 	cmd := run.Cmd{
@@ -996,6 +945,58 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 
 func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.root(), c.wd(), dir)
+}
+
+func (c *cli) computeSelectedStacks(ensureCleanRepo bool) ([]stack.S, error) {
+	logger := log.With().
+		Str("action", "computeSelectedStacks()").
+		Str("workingDir", c.wd()).
+		Logger()
+
+	logger.Trace().Msg("Create new terramate manager.")
+
+	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+
+	logger.Trace().Msg("Get list of stacks.")
+
+	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
+	if ensureCleanRepo {
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		if err != nil && !errors.Is(err, terramate.ErrDirtyRepo) {
+			return nil, err
+		}
+	}
+
+	logger.Trace().Msg("Filter stacks by working directory.")
+
+	entries = c.filterStacksByWorkingDir(entries)
+
+	stackMap := map[string]struct{}{}
+	stacks := make([]stack.S, len(entries))
+	for i, e := range entries {
+		stacks[i] = e.Stack
+		stackMap[e.Stack.PrjAbsPath()] = struct{}{}
+	}
+
+	for _, s := range stacks {
+		wanted, err := mgr.ListWantedBy(s)
+		if err != nil {
+			return nil, fmt.Errorf("loading wanted stacks of %q: %w", s, err)
+		}
+
+		for _, ws := range wanted {
+			if _, ok := stackMap[ws.PrjAbsPath()]; !ok {
+				stacks = append(stacks, ws)
+				stackMap[ws.PrjAbsPath()] = struct{}{}
+			}
+		}
+	}
+
+	stack.Sort(stacks)
+	return stacks, nil
 }
 
 func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Entry {

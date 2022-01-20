@@ -16,6 +16,7 @@ package e2etest
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -450,10 +451,21 @@ func TestRunWants(t *testing.T) {
 	type testcase struct {
 		name   string
 		layout []string
+		wd     string
 		want   runExpected
 	}
 
 	for _, tc := range []testcase{
+		{
+			/* TODO(i4k): stack-a wants stack-a should error */
+			name: "stack-a wants stack-a",
+			layout: []string{
+				`s:stack-a:wants=["/stack-a"]`,
+			},
+			want: runExpected{
+				Stdout: "stack-a\n",
+			},
+		},
 		{
 			name: "stack-a wants stack-b",
 			layout: []string{
@@ -461,7 +473,7 @@ func TestRunWants(t *testing.T) {
 				`s:stack-b`,
 			},
 			want: runExpected{
-				Stdout: "stack-a\nstack-b",
+				Stdout: "stack-a\nstack-b\n",
 			},
 		},
 		{
@@ -471,7 +483,108 @@ func TestRunWants(t *testing.T) {
 				`s:stack-a`,
 			},
 			want: runExpected{
-				Stdout: "stack-a\nstack-b",
+				Stdout: "stack-a\nstack-b\n",
+			},
+		},
+		{
+			name: "stack-a wants stack-b (from inside stack-a)",
+			layout: []string{
+				`s:stack-a:wants=["/stack-b"]`,
+				`s:stack-b`,
+			},
+			wd: "/stack-a",
+			want: runExpected{
+				Stdout: "stack-a\nstack-b\n",
+			},
+		},
+		{
+			name: "stack-b wants stack-a (same ordering) (from inside stack-b)",
+			layout: []string{
+				`s:stack-b:wants=["/stack-a"]`,
+				`s:stack-a`,
+			},
+			wd: "/stack-b",
+			want: runExpected{
+				Stdout: "stack-a\nstack-b\n",
+			},
+		},
+		{
+			name: "stack-b wants (stack-a, stack-c) (from inside stack-b)",
+			layout: []string{
+				`s:stack-b:wants=["/stack-a", "/stack-c"]`,
+				`s:stack-a`,
+				`s:stack-c`,
+			},
+			wd: "/stack-b",
+			want: runExpected{
+				Stdout: "stack-a\nstack-b\nstack-c\n",
+			},
+		},
+		{
+			name: `stack-a wants (stack-b, stack-c) and stack-b wants (stack-d, stack-e)
+					(from inside stack-a) - recursive`,
+			layout: []string{
+				`s:stack-a:wants=["/stack-b", "/stack-c"]`,
+				`s:stack-b:wants=["/stack-d", "/stack-e"]`,
+				`s:stack-c`,
+				`s:stack-d`,
+				`s:stack-e`,
+			},
+			wd: "/stack-a",
+			want: runExpected{
+				Stdout: "stack-a\nstack-b\nstack-c\nstack-d\nstack-e\n",
+			},
+		},
+		{
+			name: `stack-a wants (stack-b, stack-c) and stack-b wants (stack-d, stack-e)
+					(from inside stack-b) - not recursive`,
+			layout: []string{
+				`s:stack-a:wants=["/stack-b", "/stack-c"]`,
+				`s:stack-b:wants=["/stack-d", "/stack-e"]`,
+				`s:stack-c`,
+				`s:stack-d`,
+				`s:stack-e`,
+			},
+			wd: "/stack-b",
+			want: runExpected{
+				Stdout: "stack-b\nstack-d\nstack-e\n",
+			},
+		},
+		{
+			name: `	stack-a wants (stack-b, stack-c)
+					stack-b wants (stack-d, stack-e)
+					stack-e wants (stack-a, stack-z)
+					(from inside stack-b) - recursive, *circular*
+					must pull all stacks`,
+			layout: []string{
+				`s:stack-a:wants=["/stack-b", "/stack-c"]`,
+				`s:stack-b:wants=["/stack-d", "/stack-e"]`,
+				`s:stack-c`,
+				`s:stack-d`,
+				`s:stack-e:wants=["/stack-a", "/stack-z"]`,
+				`s:stack-z`,
+			},
+			wd: "/stack-b",
+			want: runExpected{
+				Stdout: "stack-a\nstack-b\nstack-c\nstack-d\nstack-e\nstack-z\n",
+			},
+		},
+		{
+			name: `wants+order - stack-a after stack-b / stack-d before stack-a
+	* stack-a wants (stack-b, stack-c)
+	* stack-b wants (stack-d, stack-e)
+	* stack-e wants (stack-a, stack-z) (from inside stack-b) - recursive, *circular*`,
+			layout: []string{
+				`s:stack-a:wants=["/stack-b", "/stack-c"];after=["/stack-b"]`,
+				`s:stack-b:wants=["/stack-d", "/stack-e"]`,
+				`s:stack-c`,
+				`s:stack-d:before=["/stack-a"]`,
+				`s:stack-e:wants=["/stack-a", "/stack-z"]`,
+				`s:stack-z`,
+			},
+			wd: "/stack-b",
+			want: runExpected{
+				Stdout: "stack-b\nstack-d\nstack-a\nstack-c\nstack-e\nstack-z\n",
 			},
 		},
 	} {
@@ -479,7 +592,7 @@ func TestRunWants(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 
-			cli := newCLI(t, s.RootDir())
+			cli := newCLI(t, filepath.Join(s.RootDir(), tc.wd))
 			args := []string{"plan", "run-order"}
 			assertRunResult(t, cli.run(args...), tc.want)
 		})

@@ -387,6 +387,36 @@ func (m *Manager) moduleChanged(
 	return changed, fmt.Sprintf("module %q changed because %s", mod.Source, why), nil
 }
 
+func (m *Manager) ListWantedBy(s stack.S) ([]stack.S, error) {
+	wantedBy := map[string]stack.S{}
+	wanted := []stack.S{}
+	visited := map[string]struct{}{}
+
+	wantedBy[s.PrjAbsPath()] = s
+
+	for len(wantedBy) > 0 {
+		for _, s := range wantedBy {
+			ws, err := m.stackLoader.LoadAll(m.root, s.AbsPath(), s.Wants()...)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, wws := range ws {
+				if _, ok := visited[wws.PrjAbsPath()]; !ok {
+					wanted = append(wanted, wws)
+					visited[wws.PrjAbsPath()] = struct{}{}
+					wantedBy[wws.PrjAbsPath()] = wws
+				}
+			}
+
+			delete(wantedBy, s.PrjAbsPath())
+		}
+	}
+
+	stack.Sort(wanted)
+	return wanted, nil
+}
+
 // listChangedFiles lists all changed files in the dir directory.
 func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 	logger := log.With().

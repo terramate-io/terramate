@@ -152,6 +152,8 @@ func (s S) BuildTree(layout []string) {
 				cfg.Stack.After = specList(t, name, value)
 			case "before":
 				cfg.Stack.Before = specList(t, name, value)
+			case "wants":
+				cfg.Stack.Wants = specList(t, name, value)
 			case "description":
 				cfg.Stack.Description = value
 			default:

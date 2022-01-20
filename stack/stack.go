@@ -17,6 +17,7 @@ package stack
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/mineiros-io/terramate/config"
@@ -193,3 +194,14 @@ func TryLoad(root, absdir string) (stack S, found bool, err error) {
 
 	return New(root, cfg), true, nil
 }
+
+func Sort(stacks []S) {
+	sort.Sort(stackSlice(stacks))
+}
+
+// stackSlice implements the Sort interface.
+type stackSlice []S
+
+func (l stackSlice) Len() int           { return len(l) }
+func (l stackSlice) Less(i, j int) bool { return l[i].PrjAbsPath() < l[j].PrjAbsPath() }
+func (l stackSlice) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
