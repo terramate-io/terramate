@@ -591,8 +591,14 @@ func TestRunWants(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 
+			git := s.Git()
+			git.CommitAll("everything")
+
 			cli := newCLI(t, filepath.Join(s.RootDir(), tc.wd))
 			assertRunResult(t, cli.run("plan", "run-order"), tc.want)
+
+			// TODO(i4k): not portable
+			assertRunResult(t, cli.run("run", "sh", "-c", "pwd | xargs basename"), tc.want)
 		})
 	}
 }
