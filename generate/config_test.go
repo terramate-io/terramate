@@ -268,8 +268,8 @@ func TestGenerateStackConfigLoad(t *testing.T) {
 					path: "/stacks",
 					body: hcldoc(
 						terramate(cfg(gen(
-							str("backend_config_filename", "root_backend.tf"),
-							str("locals_filename", "root_locals.tf"),
+							str("backend_config_filename", "parent_backend.tf"),
+							str("locals_filename", "parent_locals.tf"),
 						))),
 					),
 				},
@@ -285,6 +285,61 @@ func TestGenerateStackConfigLoad(t *testing.T) {
 				cfg: generate.StackCfg{
 					BackendCfgFilename: generate.BackendCfgFilename,
 					LocalsFilename:     generate.LocalsFilename,
+				},
+			},
+		},
+		{
+			name:  "load parent config if stack has no terramate",
+			stack: "stacks/stack",
+			configs: []hclcfg{
+				{
+					path: "/stacks",
+					body: hcldoc(
+						terramate(cfg(gen(
+							str("backend_config_filename", "parent_backend.tf"),
+							str("locals_filename", "parent_locals.tf"),
+						))),
+					),
+				},
+				{
+					path: "/stacks/stack",
+					body: hcldoc(
+						stack(),
+					),
+				},
+			},
+			want: want{
+				cfg: generate.StackCfg{
+					BackendCfgFilename: "parent_backend.tf",
+					LocalsFilename:     "parent_locals.tf",
+				},
+			},
+		},
+		{
+			name:  "load parent config if stack has no terramate.config.generate",
+			stack: "stacks/stack",
+			configs: []hclcfg{
+				{
+					path: "/stacks",
+					body: hcldoc(
+						terramate(cfg(gen(
+							str("backend_config_filename", "parent_backend.tf"),
+							str("locals_filename", "parent_locals.tf"),
+						))),
+					),
+				},
+				{
+					path: "/stacks/stack",
+					body: hcldoc(
+						terramate(cfg()),
+						stack(),
+					),
+				},
+			},
+			want: want{
+				cfg: generate.StackCfg{
+					BackendCfgFilename: "parent_backend.tf",
+					LocalsFilename:     "parent_locals.tf",
 				},
 			},
 		},
