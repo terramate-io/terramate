@@ -960,15 +960,14 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) ([]stack.S, error) {
 	logger.Trace().Msg("Get list of stacks.")
 
 	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
-	if ensureCleanRepo {
-		if err != nil {
+	if err != nil {
+		if ensureCleanRepo {
 			return nil, err
 		}
-	} else {
-		if err != nil && !errors.Is(err, terramate.ErrDirtyRepo) {
+		if !errors.Is(err, terramate.ErrDirtyRepo) {
 			return nil, err
 		}
-	}
+	} 
 
 	logger.Trace().Msg("Filter stacks by working directory.")
 
