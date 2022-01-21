@@ -400,16 +400,16 @@ func (m *Manager) AddWantedOf(stacks []stack.S) ([]stack.S, error) {
 
 	for len(wantedBy) > 0 {
 		for _, s := range wantedBy {
-			ws, err := m.stackLoader.LoadAll(m.root, s.AbsPath(), s.Wants()...)
+			wantedStacks, err := m.stackLoader.LoadAll(m.root, s.AbsPath(), s.Wants()...)
 			if err != nil {
 				return nil, fmt.Errorf("calculating wanted stacks: %v", err)
 			}
 
-			for _, wws := range ws {
-				if _, ok := visited[wws.PrjAbsPath()]; !ok {
-					wanted = append(wanted, wws)
-					visited[wws.PrjAbsPath()] = struct{}{}
-					wantedBy[wws.PrjAbsPath()] = wws
+			for _, wantedStack := range wantedStacks {
+				if _, ok := visited[wantedStack.PrjAbsPath()]; !ok {
+					wanted = append(wanted, wantedStack)
+					visited[wantedStack.PrjAbsPath()] = struct{}{}
+					wantedBy[wantedStack.PrjAbsPath()] = wantedStack
 				}
 			}
 
