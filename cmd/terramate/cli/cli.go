@@ -468,13 +468,13 @@ func (c *cli) printStacks() {
 		Msg("Print stacks.")
 	for _, entry := range entries {
 		stack := entry.Stack
-		stackRepr, ok := c.friendlyFmtDir(stack.Dir)
+		stackRepr, ok := c.friendlyFmtDir(stack.PrjAbsPath())
 		if !ok {
 			continue
 		}
 
 		logger.Debug().
-			Str("stack", c.wd()+stack.Dir).
+			Stringer("stack", stack).
 			Msg("Print stack.")
 
 		if c.parsedArgs.Stacks.List.Why {
@@ -503,7 +503,7 @@ func (c *cli) generateGraph() {
 	case "stack.dir":
 		logger.Debug().
 			Msg("Set label stack directory.")
-		getLabel = func(s stack.S) string { return s.Dir }
+		getLabel = func(s stack.S) string { return s.PrjAbsPath() }
 	default:
 		logger.Fatal().
 			Msg("-label expects the values \"stack.name\" or \"stack.dir\"")
@@ -523,7 +523,7 @@ func (c *cli) generateGraph() {
 
 	visited := map[string]struct{}{}
 	for _, e := range c.filterStacksByWorkingDir(entries) {
-		if _, ok := visited[e.Stack.Dir]; ok {
+		if _, ok := visited[e.Stack.PrjAbsPath()]; ok {
 			continue
 		}
 
@@ -738,10 +738,10 @@ func (c *cli) printMetadata() {
 		stackMeta := stack.Meta()
 
 		logger.Debug().
-			Str("stack", stack.Dir).
+			Stringer("stack", stack).
 			Msg("Print metadata for individual stack.")
 
-		c.log("\nstack %q:", stack.Dir)
+		c.log("\nstack %q:", stack.PrjAbsPath())
 		c.log("\tterramate.name=%q", stackMeta.Name)
 		c.log("\tterramate.path=%q", stackMeta.Path)
 		c.log("\tterramate.description=%q", stackMeta.Description)
@@ -786,7 +786,7 @@ func (c *cli) runOnStacks() {
 	hasOutdated := false
 	for _, stack := range stacks {
 		logger := logger.With().
-			Str("stack", stack.Dir).
+			Stringer("stack", stack).
 			Logger()
 
 		logger.Trace().Msg("checking stack for outdated code")
@@ -836,7 +836,7 @@ func (c *cli) runOnStacks() {
 			c.log("The stacks will be executed using order below:")
 
 			for i, s := range order {
-				stackdir, _ := c.friendlyFmtDir(s.Dir)
+				stackdir, _ := c.friendlyFmtDir(s.PrjAbsPath())
 				c.log("\t%d. %s (%s)", i, s.Name(), stackdir)
 			}
 		} else {
@@ -988,13 +988,13 @@ func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Ent
 
 	logger.Trace().
 		Msg("Get relative working directory.")
-	relwd := prj.RelPath(c.root(), c.wd())
+	relwd := prj.PrjAbsPath(c.root(), c.wd())
 
 	logger.Trace().
 		Msg("Get filtered stacks.")
 	filtered := []terramate.Entry{}
 	for _, e := range stacks {
-		if strings.HasPrefix(e.Stack.Dir, relwd) {
+		if strings.HasPrefix(e.Stack.PrjAbsPath(), relwd) {
 			filtered = append(filtered, e)
 		}
 	}
