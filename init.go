@@ -106,7 +106,7 @@ func Init(root, dir string, force bool) error {
 	}
 
 	if isInitialized && !force {
-		logger.Trace().Msg("Stack is initialized annd not forced.")
+		logger.Trace().Msg("Stack is initialized and not forced.")
 
 		logger.Trace().Msg("Parse version.")
 
