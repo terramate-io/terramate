@@ -497,6 +497,17 @@ func TestRunWants(t *testing.T) {
 			},
 		},
 		{
+			name: "stack-a wants stack-b (from inside stack-b)",
+			layout: []string{
+				`s:stack-a:wants=["/stack-b"]`,
+				`s:stack-b`,
+			},
+			wd: "/stack-b",
+			want: runExpected{
+				Stdout: "stack-b\n",
+			},
+		},
+		{
 			name: "stack-b wants stack-a (same ordering) (from inside stack-b)",
 			layout: []string{
 				`s:stack-b:wants=["/stack-a"]`,
