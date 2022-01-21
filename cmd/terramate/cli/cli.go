@@ -980,7 +980,7 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) ([]stack.S, error) {
 
 	stacks, err = mgr.AddWantedOf(stacks)
 	if err != nil {
-		return nil, fmt.Errorf("loading wanted stacks: %w", err)
+		return nil, fmt.Errorf("adding wanted stacks: %w", err)
 	}
 
 	return stacks, nil
