@@ -22,7 +22,7 @@ import (
 )
 
 // PrjAbsPath converts the file system absolute path absdir into an absolute
-// project path.
+// project path on the form /path/on/project relative to the given root.
 func PrjAbsPath(root, absdir string) string {
 	log.Trace().
 		Str("action", "PrjAbsPath()").
