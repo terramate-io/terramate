@@ -18,16 +18,27 @@ import (
 	"path/filepath"
 
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/zclconf/go-cty/cty"
 )
 
-type S struct {
-	name string
-	Dir  string
+type (
+	// S represents a stack
+	S struct {
+		// Dir is the stack dir path relative to the project root
+		Dir string
 
-	changed bool
+		name    string
+		changed bool
+		block   *hcl.Stack
+	}
 
-	block *hcl.Stack
-}
+	// Metadata has all metadata loaded per stack
+	Metadata struct {
+		Name        string
+		Path        string
+		Description string
+	}
+)
 
 func (s S) Name() string {
 	if s.block.Name != "" {
@@ -36,13 +47,35 @@ func (s S) Name() string {
 	return filepath.Base(s.Dir)
 }
 
+func (s S) Description() string {
+	return s.block.Description
+}
+
 func (s S) After() []string  { return s.block.After }
 func (s S) Before() []string { return s.block.Before }
 
-func (s S) IsChanged() bool { return s.changed }
+func (s S) IsChanged() bool    { return s.changed }
+func (s *S) SetChanged(b bool) { s.changed = b }
 
 func (s S) String() string {
 	return s.Name()
+}
+
+// Meta returns the stack metadata.
+func (s S) Meta() Metadata {
+	return Metadata{
+		Name:        s.Name(),
+		Path:        s.Dir,
+		Description: s.Description(),
+	}
+}
+
+func (m Metadata) ToCtyMap() map[string]cty.Value {
+	return map[string]cty.Value{
+		"name":        cty.StringVal(m.Name),
+		"path":        cty.StringVal(m.Path),
+		"description": cty.StringVal(m.Description),
+	}
 }
 
 func IsLeaf(root, dir string) (bool, error) {

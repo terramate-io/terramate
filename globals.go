@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -45,7 +46,7 @@ const ErrGlobalRedefined errutil.Error = "global redefined"
 //
 // Metadata for the stack is used on the evaluation of globals, defined on stackmeta.
 // The rootdir MUST be an absolute path.
-func LoadStackGlobals(rootdir string, meta StackMetadata) (*Globals, error) {
+func LoadStackGlobals(rootdir string, meta stack.Metadata) (*Globals, error) {
 	logger := log.With().
 		Str("action", "LoadStackGlobals()").
 		Str("stack", meta.Path).
@@ -79,12 +80,6 @@ func (g *Globals) String() string {
 	return hcl.FormatAttributes(g.Attributes())
 }
 
-// SetOnEvalCtx will add the proper namespace for evaluation of globals
-// on the given evaluation context.
-func (g *Globals) SetOnEvalCtx(evalctx *eval.Context) error {
-	return evalctx.SetNamespace("global", g.Attributes())
-}
-
 type rawGlobals struct {
 	expressions map[string]hclsyntax.Expression
 }
@@ -106,7 +101,7 @@ func (r *rawGlobals) has(name string) bool {
 	return ok
 }
 
-func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
+func (r *rawGlobals) eval(meta stack.Metadata) (*Globals, error) {
 	// FIXME(katcipis): get abs path for stack.
 	// This is relative only to root since meta.Path will look
 	// like: /some/path/relative/project/root
@@ -121,7 +116,8 @@ func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 
 	logger.Trace().
 		Msg("Add proper name space for stack metadata evaluation.")
-	if err := meta.SetOnEvalCtx(evalctx); err != nil {
+
+	if err := evalctx.SetNamespace("terramate", meta.ToCtyMap()); err != nil {
 		return nil, err
 	}
 
@@ -130,7 +126,7 @@ func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 
 	logger.Trace().
 		Msg("Add proper name space for globals evaluation.")
-	if err := globals.SetOnEvalCtx(evalctx); err != nil {
+	if err := evalctx.SetNamespace("global", globals.Attributes()); err != nil {
 		return nil, fmt.Errorf("initializing global eval: %v", err)
 	}
 
@@ -190,7 +186,8 @@ func (r *rawGlobals) eval(meta StackMetadata) (*Globals, error) {
 
 			logger.Trace().
 				Msg("Try add proper namespace for globals evaluation context.")
-			if err := globals.SetOnEvalCtx(evalctx); err != nil {
+
+			if err := evalctx.SetNamespace("global", globals.Attributes()); err != nil {
 				return nil, fmt.Errorf("evaluating globals: %v", err)
 			}
 		}

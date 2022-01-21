@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cli_test
+package e2etest
 
 import (
 	"fmt"
@@ -161,7 +161,9 @@ func TestListAndRunChangedStack(t *testing.T) {
 		"--changed",
 		cat,
 		mainTfFileName,
-	), runExpected{Stdout: wantRun})
+	), runExpected{
+		Stdout: wantRun,
+	})
 }
 
 func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
@@ -247,7 +249,10 @@ func TestDefaultBaseRefInMain(t *testing.T) {
 	git.Push("main")
 
 	// main uses HEAD^1 as default baseRef.
-	want := runExpected{Stdout: stack.RelPath() + "\n"}
+	want := runExpected{
+		Stdout:       stack.RelPath() + "\n",
+		IgnoreStderr: true,
+	}
 	assertRunResult(t, cli.run("stacks", "list", "--changed"), want)
 }
 
@@ -267,7 +272,9 @@ func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
 
 	assertRunResult(t, cli.run("stacks", "list", "--changed",
 		"--git-change-base", "origin/main"),
-		runExpected{},
+		runExpected{
+			IgnoreStderr: true,
+		},
 	)
 }
 
@@ -342,7 +349,6 @@ func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
 
 func TestNoArgsProvidesBasicHelp(t *testing.T) {
 	cli := newCLI(t, "")
-	cli.run("--help")
 	help := cli.run("--help")
 	assertRunResult(t, cli.run(), runExpected{Stdout: help.Stdout})
 }

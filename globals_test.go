@@ -15,6 +15,7 @@
 package terramate_test
 
 import (
+	"errors"
 	"path/filepath"
 	"testing"
 
@@ -226,7 +227,7 @@ func TestLoadGlobals(t *testing.T) {
 			name: "stacks referencing metadata",
 			layout: []string{
 				"s:stacks/stack-1",
-				"s:stacks/stack-2",
+				"s:stacks/stack-2:description=someDescriptionStack2",
 			},
 			globals: []globalsBlock{
 				{
@@ -234,19 +235,27 @@ func TestLoadGlobals(t *testing.T) {
 					add: globals(
 						expr("stack_path", "terramate.path"),
 						expr("interpolated", `"prefix-${terramate.name}-suffix"`),
+						expr("stack_description", "terramate.description"),
 					),
 				},
 				{
 					path: "/stacks/stack-2",
-					add:  globals(expr("stack_path", "terramate.path")),
+					add: globals(
+						expr("stack_path", "terramate.path"),
+						expr("stack_description", "terramate.description"),
+					),
 				},
 			},
 			want: map[string]*hclwrite.Block{
 				"/stacks/stack-1": globals(
 					str("stack_path", "/stacks/stack-1"),
 					str("interpolated", "prefix-stack-1-suffix"),
+					str("stack_description", ""),
 				),
-				"/stacks/stack-2": globals(str("stack_path", "/stacks/stack-2")),
+				"/stacks/stack-2": globals(
+					str("stack_path", "/stacks/stack-2"),
+					str("stack_description", "someDescriptionStack2"),
+				),
 			},
 		},
 		{
@@ -600,9 +609,10 @@ func TestLoadGlobals(t *testing.T) {
 
 			wantGlobals := tcase.want
 
-			metadata := s.LoadMetadata()
-			for _, stackMetadata := range metadata.Stacks {
-				got, err := terramate.LoadStackGlobals(s.RootDir(), stackMetadata)
+			stacks := s.LoadStacks()
+			for _, stack := range stacks {
+				stackMeta := stack.Meta()
+				got, err := terramate.LoadStackGlobals(s.RootDir(), stackMeta)
 
 				if tcase.wantErr {
 					assert.Error(t, err)
@@ -611,11 +621,11 @@ func TestLoadGlobals(t *testing.T) {
 
 				assert.NoError(t, err)
 
-				want, ok := wantGlobals[stackMetadata.Path]
+				want, ok := wantGlobals[stackMeta.Path]
 				if !ok {
 					want = hclwrite.NewBlock("globals")
 				}
-				delete(wantGlobals, stackMetadata.Path)
+				delete(wantGlobals, stackMeta.Path)
 
 				// Could have one type for globals configs and another type
 				// for wanted evaluated globals, but that would make
@@ -648,7 +658,7 @@ func TestLoadGlobals(t *testing.T) {
 			}
 
 			if len(wantGlobals) > 0 {
-				t.Fatalf("wanted stack globals: %v that was not found on stacks: %v", wantGlobals, metadata.Stacks)
+				t.Fatalf("wanted stack globals: %v that was not found on stacks: %v", wantGlobals, stacks)
 			}
 		})
 	}
@@ -784,15 +794,20 @@ func TestLoadGlobalsErrors(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
 
-			metadata := s.LoadMetadata()
-
 			for _, c := range tcase.configs {
 				path := filepath.Join(s.RootDir(), c.path)
 				test.AppendFile(t, path, config.Filename, c.body)
 			}
 
-			for _, stackMetadata := range metadata.Stacks {
-				_, err := terramate.LoadStackGlobals(s.RootDir(), stackMetadata)
+			stackEntries, err := terramate.ListStacks(s.RootDir())
+			// TODO(i4k): this better not be tested here.
+			if errors.Is(tcase.want, hcl.ErrHCLSyntax) {
+				assert.IsError(t, err, tcase.want)
+			}
+
+			for _, entry := range stackEntries {
+				stack := entry.Stack
+				_, err := terramate.LoadStackGlobals(s.RootDir(), stack.Meta())
 				assert.IsError(t, err, tcase.want)
 			}
 		})
@@ -806,7 +821,8 @@ func TestLoadGlobalsErrorOnRelativeDir(t *testing.T) {
 	rel, err := filepath.Rel(test.Getwd(t), s.RootDir())
 	assert.NoError(t, err)
 
-	meta := s.LoadMetadata()
-	globals, err := terramate.LoadStackGlobals(rel, meta.Stacks[0])
+	stacks := s.LoadStacks()
+	assert.EqualInts(t, 1, len(stacks))
+	globals, err := terramate.LoadStackGlobals(rel, stacks[0].Meta())
 	assert.Error(t, err, "got %v instead of error", globals)
 }

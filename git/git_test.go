@@ -16,7 +16,6 @@ package git_test
 
 import (
 	"errors"
-	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -135,7 +134,7 @@ func TestGitLog(t *testing.T) {
 func TestRevParse(t *testing.T) {
 	repodir := mkOneCommitRepo(t)
 
-	git := test.NewGitWrapper(t, repodir, false)
+	git := test.NewGitWrapper(t, repodir, []string{})
 	out, err := git.RevParse("main")
 	assert.NoError(t, err, "rev-parse failed")
 	assert.EqualStrings(t, CookedCommitID, out, "commit mismatch")
@@ -155,7 +154,7 @@ func TestCurrentBranch(t *testing.T) {
 
 func TestFetchRemoteRev(t *testing.T) {
 	repodir := mkOneCommitRepo(t)
-	git := test.NewGitWrapper(t, repodir, false)
+	git := test.NewGitWrapper(t, repodir, []string{})
 
 	remote, revision := addDefaultRemoteRev(t, git)
 
@@ -182,7 +181,7 @@ func TestFetchRemoteRev(t *testing.T) {
 
 func TestFetchRemoteRevErrorHandling(t *testing.T) {
 	repodir := mkOneCommitRepo(t)
-	git := test.NewGitWrapper(t, repodir, false)
+	git := test.NewGitWrapper(t, repodir, []string{})
 	// should fail because the repo has no origin remote set.
 	remoteRef, err := git.FetchRemoteRev("origin", "main")
 	assert.Error(t, err, "unexpected result: %v", remoteRef)
@@ -252,7 +251,7 @@ func TestListingAvailableRemotes(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			repodir := mkOneCommitRepo(t)
-			g := test.NewGitWrapper(t, repodir, false)
+			g := test.NewGitWrapper(t, repodir, []string{})
 
 			for _, gitRemote := range tc.want {
 
@@ -290,7 +289,7 @@ func TestListRemoteWithMultipleBranches(t *testing.T) {
 	)
 
 	repodir := mkOneCommitRepo(t)
-	g := test.NewGitWrapper(t, repodir, false)
+	g := test.NewGitWrapper(t, repodir, []string{})
 
 	remoteDir := test.EmptyRepo(t, true)
 
@@ -326,23 +325,16 @@ func mkOneCommitRepo(t *testing.T) string {
 
 	// Other than the environment variables below, the file's permission bits
 	// are also used as entropy for the commitid.
-	os.Setenv("GIT_COMMITTER_DATE", "1597490918 +0530")
-	os.Setenv("GIT_AUTHOR_DATE", "1597490918 +0530")
-	os.Setenv("GIT_COMMITTER_NAME", test.Username)
-	os.Setenv("GIT_AUTHOR_NAME", test.Username)
-	os.Setenv("GIT_COMMITTER_EMAIL", test.Email)
-	os.Setenv("GIT_AUTHOR_EMAIL", test.Email)
+	env := []string{
+		"GIT_COMMITTER_DATE=1597490918 +0530",
+		"GIT_AUTHOR_DATE=1597490918 +0530",
+		"GIT_COMMITTER_NAME=" + test.Username,
+		"GIT_AUTHOR_NAME=" + test.Username,
+		"GIT_COMMITTER_EMAIL=" + test.Email,
+		"GIT_AUTHOR_EMAIL=" + test.Email,
+	}
 
-	defer func() {
-		os.Unsetenv("GIT_COMMITTER_DATE")
-		os.Unsetenv("GIT_AUTHOR_DATE")
-		os.Unsetenv("GIT_COMMITTER_NAME")
-		os.Unsetenv("GIT_AUTHOR_NAME")
-		os.Unsetenv("GIT_COMMITTER_EMAIL")
-		os.Unsetenv("GIT_AUTHOR_EMAIL")
-	}()
-
-	gw := test.NewGitWrapper(t, repodir, true)
+	gw := test.NewGitWrapper(t, repodir, env)
 	filename := test.WriteFile(t, repodir, "README.md", "# Test")
 	assert.NoError(t, gw.Add(filename), "git add %s", filename)
 

@@ -19,14 +19,14 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/mineiros-io/terramate/dag"
 	"github.com/mineiros-io/terramate/generate"
 	prj "github.com/mineiros-io/terramate/project"
+	"github.com/mineiros-io/terramate/run"
+	"github.com/mineiros-io/terramate/run/dag"
 
 	"github.com/alecthomas/kong"
 	"github.com/emicklei/dot"
@@ -43,9 +43,10 @@ import (
 )
 
 const (
-	ErrOutdatedLocalRev      errutil.Error = "outdated local revision"
-	ErrNoDefaultRemoteConfig errutil.Error = "repository must have a configured origin/main"
-	ErrInit                  errutil.Error = "failed to initialize all stacks"
+	ErrOutdatedLocalRev        errutil.Error = "outdated local revision"
+	ErrNoDefaultRemoteConfig   errutil.Error = "repository must have a configured origin/main"
+	ErrInit                    errutil.Error = "failed to initialize all stacks"
+	ErrOutdatedGenCodeDetected errutil.Error = "outdated generated code detected"
 )
 
 const (
@@ -114,12 +115,11 @@ type cliSpec struct {
 // far as the parameters are not shared between the run calls.
 func Exec(
 	args []string,
-	inheritEnv bool,
 	stdin io.Reader,
 	stdout io.Writer,
 	stderr io.Writer,
 ) {
-	c := newCLI(args, inheritEnv, stdin, stdout, stderr)
+	c := newCLI(args, stdin, stdout, stderr)
 	c.run()
 }
 
@@ -134,7 +134,6 @@ type project struct {
 type cli struct {
 	ctx        *kong.Context
 	parsedArgs *cliSpec
-	inheritEnv bool
 	stdin      io.Reader
 	stdout     io.Writer
 	stderr     io.Writer
@@ -144,7 +143,6 @@ type cli struct {
 
 func newCLI(
 	args []string,
-	inheritEnv bool,
 	stdin io.Reader,
 	stdout io.Writer,
 	stderr io.Writer,
@@ -200,6 +198,13 @@ func newCLI(
 	}
 
 	configureLogging(parsedArgs.LogLevel, parsedArgs.LogFmt, stderr)
+
+	if ctx.Command() == "version" {
+		logger.Debug().
+			Msg("Get terramate version.")
+		fmt.Println(terramate.Version())
+		return &cli{exit: true}
+	}
 
 	wd, err := os.Getwd()
 	if err != nil {
@@ -272,7 +277,6 @@ func newCLI(
 		stdin:      stdin,
 		stdout:     stdout,
 		stderr:     stderr,
-		inheritEnv: inheritEnv,
 		parsedArgs: &parsedArgs,
 		ctx:        ctx,
 		prj:        prj,
@@ -296,7 +300,7 @@ func (c *cli) run() {
 
 		logger.Trace().
 			Msg("Create new git wrapper.")
-		git, err := newGit(c.root(), c.inheritEnv, true)
+		git, err := newGit(c.root(), true)
 		if err != nil {
 			log.Fatal().
 				Err(err).
@@ -323,10 +327,6 @@ func (c *cli) run() {
 	logger.Debug().
 		Msg("Handle input command.")
 	switch c.ctx.Command() {
-	case "version":
-		logger.Debug().
-			Msg("Get terramate version.")
-		c.log(terramate.Version())
 	case "plan graph":
 		log.Trace().
 			Str("actionContext", "cli()").
@@ -372,7 +372,7 @@ func (c *cli) run() {
 	case "generate":
 		logger.Debug().
 			Msg("Handle `generate` command.")
-		err := generate.Do(c.root())
+		err := generate.Do(c.root(), c.wd())
 		if err != nil {
 			log.Fatal().
 				Err(err).
@@ -457,9 +457,10 @@ func (c *cli) printStacks() {
 		Str("workingDir", c.wd()).
 		Msg("Get stack list.")
 	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
-	if err != nil {
+	if err != nil && !errors.Is(err, terramate.ErrDirtyRepo) {
 		logger.Fatal().
-			Err(err)
+			Err(err).
+			Msg("listing stacks")
 	}
 
 	logger.Trace().
@@ -508,7 +509,7 @@ func (c *cli) generateGraph() {
 			Msg("-label expects the values \"stack.name\" or \"stack.dir\"")
 	}
 	entries, err := terramate.ListStacks(c.root())
-	if err != nil {
+	if err != nil && !errors.Is(err, terramate.ErrDirtyRepo) {
 		logger.Fatal().
 			Err(err).
 			Msg("listing stacks.")
@@ -526,7 +527,7 @@ func (c *cli) generateGraph() {
 			continue
 		}
 
-		err := terramate.BuildDAG(graph, c.root(), e.Stack, loader, visited)
+		err := run.BuildDAG(graph, c.root(), e.Stack, loader, visited)
 		if err != nil {
 			log.Fatal().
 				Err(err).
@@ -632,9 +633,10 @@ func (c *cli) printRunOrder() {
 	logger.Trace().
 		Msg("Get list of stacks.")
 	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
-	if err != nil {
+	if err != nil && !errors.Is(err, terramate.ErrDirtyRepo) {
 		logger.Fatal().
-			Err(err)
+			Err(err).
+			Msg("listing stacks")
 	}
 
 	logger.Trace().
@@ -648,9 +650,8 @@ func (c *cli) printRunOrder() {
 		stacks[i] = e.Stack
 	}
 
-	logger.Debug().
-		Msg("Get run order.")
-	order, reason, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
+	logger.Debug().Msg("Get run order.")
+	order, reason, err := run.Sort(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
 		if errors.Is(err, dag.ErrCycleDetected) {
 			log.Fatal().
@@ -670,23 +671,29 @@ func (c *cli) printRunOrder() {
 }
 
 func (c *cli) printStacksGlobals() {
-	log := log.With().
+	logger := log.With().
 		Str("action", "printStacksGlobals()").
 		Logger()
 
-	metadata, err := terramate.LoadMetadata(c.root())
-	if err != nil {
-		log.Fatal().
+	logger.Trace().
+		Msg("Create new terramate manager.")
+
+	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+	stackEntries, err := c.listStacks(mgr, c.parsedArgs.Changed)
+	if err != nil && !errors.Is(err, terramate.ErrDirtyRepo) {
+		logger.Fatal().
 			Err(err).
-			Msg("listing stacks globals: loading stacks metadata")
+			Msg("listing stacks")
 	}
 
-	for _, stackMetadata := range metadata.Stacks {
-		globals, err := terramate.LoadStackGlobals(c.root(), stackMetadata)
+	for _, stackEntry := range c.filterStacksByWorkingDir(stackEntries) {
+		stack := stackEntry.Stack
+		stackMeta := stack.Meta()
+		globals, err := terramate.LoadStackGlobals(c.root(), stackMeta)
 		if err != nil {
 			log.Fatal().
 				Err(err).
-				Str("stack", stackMetadata.Path).
+				Str("stack", stackMeta.Path).
 				Msg("listing stacks globals: loading stack")
 		}
 
@@ -695,7 +702,7 @@ func (c *cli) printStacksGlobals() {
 			continue
 		}
 
-		c.log("\nstack %q:", stackMetadata.Path)
+		c.log("\nstack %q:", stackMeta.Path)
 		for _, line := range strings.Split(globalsStrRepr, "\n") {
 			c.log("\t%s", line)
 		}
@@ -708,26 +715,36 @@ func (c *cli) printMetadata() {
 		Logger()
 
 	logger.Trace().
-		Str("workingDir", c.wd()).
-		Msg("Load metadata.")
-	metadata, err := terramate.LoadMetadata(c.root())
-	if err != nil {
+		Msg("Create new terramate manager.")
+
+	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+	stackEntries, err := c.listStacks(mgr, c.parsedArgs.Changed)
+	if err != nil && !errors.Is(err, terramate.ErrDirtyRepo) {
 		logger.Fatal().
-			Err(err)
+			Err(err).
+			Msg("listing stacks")
 	}
 
-	logger.Trace().
-		Str("workingDir", c.wd()).
-		Msg("Log metadata.")
+	stackEntries = c.filterStacksByWorkingDir(stackEntries)
+
+	if len(stackEntries) == 0 {
+		return
+	}
+
 	c.log("Available metadata:")
 
-	for _, stack := range metadata.Stacks {
+	for _, stackEntry := range stackEntries {
+		stack := stackEntry.Stack
+		stackMeta := stack.Meta()
+
 		logger.Debug().
-			Str("stack", c.wd()+stack.Path).
+			Str("stack", stack.Dir).
 			Msg("Print metadata for individual stack.")
-		c.log("\nstack %q:", stack.Path)
-		c.log("\tterramate.name=%q", stack.Name)
-		c.log("\tterramate.path=%q", stack.Path)
+
+		c.log("\nstack %q:", stack.Dir)
+		c.log("\tterramate.name=%q", stackMeta.Name)
+		c.log("\tterramate.path=%q", stackMeta.Path)
+		c.log("\tterramate.description=%q", stackMeta.Description)
 	}
 }
 
@@ -746,7 +763,8 @@ func (c *cli) runOnStacks() {
 	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		logger.Fatal().
-			Err(err)
+			Err(err).
+			Msg("listing stacks")
 	}
 
 	log.Info().
@@ -754,29 +772,50 @@ func (c *cli) runOnStacks() {
 		Bool("changed", c.parsedArgs.Changed).
 		Msg("Running command in stacks reachable from working directory")
 
-	logger.Trace().
-		Msg("Filter stacks by working directory.")
+	logger.Trace().Msg("Filter stacks by working directory.")
+
 	entries = c.filterStacksByWorkingDir(entries)
 
-	logger.Trace().
-		Msg("Create array of stacks.")
 	stacks := make([]stack.S, len(entries))
 	for i, e := range entries {
 		stacks[i] = e.Stack
 	}
 
-	logger.Trace().
-		Msg("Get command to run.")
-	cmdName := c.parsedArgs.Run.Command[0]
-	args := c.parsedArgs.Run.Command[1:]
-	cmd := exec.Command(cmdName, args...)
-	cmd.Stdin = c.stdin
-	cmd.Stdout = c.stdout
-	cmd.Stderr = c.stderr
+	logger.Trace().Msg("Checking if any stack has outdated code.")
 
-	logger.Trace().
-		Msg("Get order of stacks to run command on.")
-	order, reason, err := terramate.RunOrder(c.root(), stacks, c.parsedArgs.Changed)
+	hasOutdated := false
+	for _, stack := range stacks {
+		logger := logger.With().
+			Str("stack", stack.Dir).
+			Logger()
+
+		logger.Trace().Msg("checking stack for outdated code")
+
+		outdated, err := generate.CheckStack(c.root(), stack)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("checking stack for outdated code")
+		}
+
+		if len(outdated) > 0 {
+			hasOutdated = true
+		}
+
+		for _, filename := range outdated {
+			logger.Error().
+				Str("filename", filename).
+				Msg("outdated code found")
+		}
+	}
+
+	if hasOutdated {
+		logger.Fatal().
+			Err(ErrOutdatedGenCodeDetected).
+			Msg("please run: 'terramate generate' to update generated code")
+	}
+
+	logger.Trace().Msg("Get order of stacks to run command on.")
+
+	order, reason, err := run.Sort(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
 		if errors.Is(err, dag.ErrCycleDetected) {
 			logger.Fatal().
@@ -807,9 +846,18 @@ func (c *cli) runOnStacks() {
 		return
 	}
 
-	logger.Debug().
-		Msg("Run command.")
-	err = terramate.Run(c.root(), order, cmd)
+	logger.Trace().Msg("Get command to run.")
+	cmd := run.Cmd{
+		Path:    c.parsedArgs.Run.Command[0],
+		Args:    c.parsedArgs.Run.Command[1:],
+		Stdin:   c.stdin,
+		Stdout:  c.stdout,
+		Stderr:  c.stderr,
+		Environ: os.Environ(),
+	}
+
+	logger.Debug().Msg("Run command.")
+	err = cmd.Run(c.root(), order)
 	if err != nil {
 		c.logerr("warn: failed to execute command: %v", err)
 	}
@@ -954,13 +1002,13 @@ func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Ent
 	return filtered
 }
 
-func newGit(basedir string, inheritEnv bool, checkrepo bool) (*git.Git, error) {
+func newGit(basedir string, checkrepo bool) (*git.Git, error) {
 	log.Debug().
 		Str("action", "newGit()").
 		Msg("Create new git wrapper providing config.")
 	g, err := git.WithConfig(git.Config{
 		WorkingDir: basedir,
-		InheritEnv: inheritEnv,
+		Env:        os.Environ(),
 	})
 
 	if err != nil {
@@ -986,7 +1034,7 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 	logger.Trace().
 		Msg("Create new git wrapper.")
-	gw, err := newGit(wd, false, false)
+	gw, err := newGit(wd, false)
 	if err == nil {
 		logger.Trace().
 			Msg("Get root of git repo.")
@@ -1098,7 +1146,7 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 			logger.Trace().
 				Str("configFile", p.root+"/terramate.tm.hcl").
 				Msg("Create new git wrapper.")
-			gw, err := newGit(p.wd, false, false)
+			gw, err := newGit(p.wd, false)
 			if err != nil {
 				return err
 			}

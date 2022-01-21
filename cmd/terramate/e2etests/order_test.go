@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cli_test
+package e2etest
 
 import (
 	"strings"
@@ -58,6 +58,22 @@ func TestOrderGraphAfter(t *testing.T) {
 			name: "stack after anotherstack",
 			layout: []string{
 				`s:stack:after=["../anotherstack"]`,
+				`s:anotherstack`,
+			},
+			want: runExpected{
+				Stdout: `
+				digraph  {
+					n1[label="anotherstack"];
+					n2[label="stack"];
+					n2->n1;
+				}`,
+				FlattenStdout: true,
+			},
+		},
+		{
+			name: "stack after anotherstack (root path)",
+			layout: []string{
+				`s:stack:after=["/anotherstack"]`,
 				`s:anotherstack`,
 			},
 			want: runExpected{

@@ -722,6 +722,35 @@ stack {
 			},
 		},
 		{
+			name: "stack with valid description",
+			input: ` stack {
+				description = "some cool description"
+			}`,
+			want: want{
+				config: hcl.Config{
+					Stack: &hcl.Stack{
+						Description: "some cool description",
+					},
+				},
+			},
+		},
+		{
+			name: "stack with multiline description",
+			input: ` stack {
+				description =  <<-EOD
+line1
+line2
+EOD
+			}`,
+			want: want{
+				config: hcl.Config{
+					Stack: &hcl.Stack{
+						Description: "line1\nline2",
+					},
+				},
+			},
+		},
+		{
 			name: "'before' and 'after'",
 			input: `
 terramate {

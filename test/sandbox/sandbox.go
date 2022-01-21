@@ -36,6 +36,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 )
 
@@ -147,6 +148,8 @@ func (s S) BuildTree(layout []string) {
 				tm.Stack.After = specList(t, name, value)
 			case "before":
 				tm.Stack.Before = specList(t, name, value)
+			case "description":
+				tm.Stack.Description = value
 			default:
 				t.Fatalf("attribute " + parts[0] + " not supported.")
 			}
@@ -191,17 +194,31 @@ func (s S) Git() Git {
 	return s.git
 }
 
-// Loads metadata for sandbox
-func (s S) LoadMetadata() terramate.Metadata {
+// Generate generates code for all stacks on the sandbox
+func (s S) Generate() {
 	s.t.Helper()
 
-	meta, err := terramate.LoadMetadata(s.RootDir())
+	err := generate.Do(s.RootDir(), s.RootDir())
 	assert.NoError(s.t, err)
-	return meta
+}
+
+// LoadStacks load all stacks from sandbox rootdir.
+func (s S) LoadStacks() []stack.S {
+	s.t.Helper()
+
+	entries, err := terramate.ListStacks(s.rootdir)
+	assert.NoError(s.t, err)
+
+	var stacks []stack.S
+	for _, entry := range entries {
+		stacks = append(stacks, entry.Stack)
+	}
+
+	return stacks
 }
 
 // Loads globals for stack on the sandbox
-func (s S) LoadStackGlobals(sm terramate.StackMetadata) *terramate.Globals {
+func (s S) LoadStackGlobals(sm stack.Metadata) *terramate.Globals {
 	s.t.Helper()
 
 	g, err := terramate.LoadStackGlobals(s.RootDir(), sm)
@@ -234,7 +251,7 @@ func (s S) CreateModule(relpath string) DirEntry {
 // CreateStack will create a stack dir with the given relative path and
 // initializes the stack, returning a stack entry that can be used
 // to create files inside the stack dir.
-func (s S) CreateStack(relpath string) *StackEntry {
+func (s S) CreateStack(relpath string) StackEntry {
 	t := s.t
 	t.Helper()
 
@@ -242,7 +259,7 @@ func (s S) CreateStack(relpath string) *StackEntry {
 		t.Fatalf("CreateStack() needs a relative path but given %q", relpath)
 	}
 
-	stack := &StackEntry{
+	stack := StackEntry{
 		DirEntry: newDirEntry(t, s.rootdir, relpath),
 	}
 
@@ -252,8 +269,8 @@ func (s S) CreateStack(relpath string) *StackEntry {
 
 // StackEntry gets the stack entry of the stack identified by relpath.
 // The stack must exist (previously created).
-func (s S) StackEntry(relpath string) *StackEntry {
-	return &StackEntry{DirEntry: s.DirEntry(relpath)}
+func (s S) StackEntry(relpath string) StackEntry {
+	return StackEntry{DirEntry: s.DirEntry(relpath)}
 }
 
 // DirEntry gets the dir entry for relpath.
@@ -293,10 +310,10 @@ func (s S) DirEntry(relpath string) DirEntry {
 //
 // If the file already exists its contents will be truncated, like os.Create
 // behavior: https://pkg.go.dev/os#Create
-func (de DirEntry) CreateFile(name, body string, args ...interface{}) *FileEntry {
+func (de DirEntry) CreateFile(name, body string, args ...interface{}) FileEntry {
 	de.t.Helper()
 
-	fe := &FileEntry{
+	fe := FileEntry{
 		t:    de.t,
 		path: filepath.Join(de.abspath, name),
 	}
@@ -314,10 +331,10 @@ func (de DirEntry) CreateFile(name, body string, args ...interface{}) *FileEntry
 //
 // If the file already exists its contents will be truncated, like os.Create
 // behavior: https://pkg.go.dev/os#Create
-func (de DirEntry) CreateConfig(body string) *FileEntry {
+func (de DirEntry) CreateConfig(body string) FileEntry {
 	de.t.Helper()
 
-	fe := &FileEntry{
+	fe := FileEntry{
 		t:    de.t,
 		path: filepath.Join(de.abspath, config.Filename),
 	}

@@ -35,7 +35,7 @@ type Git struct {
 func NewGit(t *testing.T, basedir string) Git {
 	return Git{
 		t:       t,
-		g:       test.NewGitWrapper(t, basedir, false),
+		g:       test.NewGitWrapper(t, basedir, []string{}),
 		basedir: basedir,
 	}
 }
@@ -63,7 +63,7 @@ func (git Git) SetupRemote(remote, branch string) {
 	t.Helper()
 
 	baredir := t.TempDir()
-	baregit := test.NewGitWrapper(t, baredir, false)
+	baregit := test.NewGitWrapper(t, baredir, []string{})
 
 	assert.NoError(t, baregit.Init(baredir, true), "Git.Init(%v, true)", baredir)
 

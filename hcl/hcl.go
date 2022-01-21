@@ -66,6 +66,9 @@ type Stack struct {
 	// Name of the stack
 	Name string
 
+	// Description of the stack
+	Description string
+
 	// After is a list of non-duplicated stack entries that must run after the
 	// current stack runs.
 	After []string
@@ -517,11 +520,11 @@ func parseStack(stack *Stack, stackblock *hclsyntax.Block) error {
 		Str("stack", stack.Name).
 		Logger()
 
-	logger.Debug().
-		Msg("Get stack attributes.")
+	logger.Debug().Msg("Get stack attributes.")
+
 	for name, value := range stackblock.Body.Attributes {
-		logger.Trace().
-			Msg("Get attribute value.")
+		logger.Trace().Msg("Get attribute value.")
+
 		attrVal, diags := value.Expr.Value(nil)
 		if diags.HasErrors() {
 			return errutil.Chain(
@@ -531,6 +534,7 @@ func parseStack(stack *Stack, stackblock *hclsyntax.Block) error {
 			)
 		}
 		switch name {
+
 		case "name":
 			logger.Trace().
 				Msg("Attribute name was 'name'.")
@@ -541,6 +545,7 @@ func parseStack(stack *Stack, stackblock *hclsyntax.Block) error {
 				)
 			}
 			stack.Name = attrVal.AsString()
+
 		case "after":
 			logger.Trace().
 				Msg("Attribute name was 'after'.")
@@ -556,6 +561,16 @@ func parseStack(stack *Stack, stackblock *hclsyntax.Block) error {
 			if err != nil {
 				return err
 			}
+
+		case "description":
+			logger.Trace().Msg("parsing stack description.")
+			if attrVal.Type() != cty.String {
+				return errutil.Chain(ErrMalformedTerramateConfig,
+					fmt.Errorf("field stack.\"description\" must be a \"string\" but given %q",
+						attrVal.Type().FriendlyName()),
+				)
+			}
+			stack.Description = attrVal.AsString()
 
 		default:
 			return errutil.Chain(ErrMalformedTerramateConfig,

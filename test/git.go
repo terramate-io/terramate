@@ -30,7 +30,9 @@ const (
 )
 
 // NewGitWrapper tests the creation of a git wrapper and returns it if success.
-func NewGitWrapper(t *testing.T, wd string, inheritEnv bool) *git.Git {
+// The env is the list of environment variables to be passed to git but if nil
+// is provided then the complete os.Environ() is used.
+func NewGitWrapper(t *testing.T, wd string, env []string) *git.Git {
 	t.Helper()
 
 	gw, err := git.WithConfig(git.Config{
@@ -38,7 +40,7 @@ func NewGitWrapper(t *testing.T, wd string, inheritEnv bool) *git.Git {
 		Email:          Email,
 		WorkingDir:     wd,
 		Isolated:       true,
-		InheritEnv:     inheritEnv,
+		Env:            env,
 		AllowPorcelain: true,
 	})
 	assert.NoError(t, err, "new git wrapper")
@@ -51,7 +53,7 @@ func NewGitWrapper(t *testing.T, wd string, inheritEnv bool) *git.Git {
 func EmptyRepo(t *testing.T, bare bool) string {
 	t.Helper()
 
-	gw := NewGitWrapper(t, "", false)
+	gw := NewGitWrapper(t, "", []string{})
 
 	repodir := t.TempDir()
 	err := gw.Init(repodir, bare)
@@ -72,7 +74,7 @@ func NewRepo(t *testing.T) string {
 	repoDir := EmptyRepo(t, false)
 	remoteDir := EmptyRepo(t, true)
 
-	gw := NewGitWrapper(t, repoDir, false)
+	gw := NewGitWrapper(t, repoDir, []string{})
 
 	err := gw.RemoteAdd("origin", remoteDir)
 	assert.NoError(t, err, "git remote add origin")
