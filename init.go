@@ -133,7 +133,7 @@ func Init(root, dir string, force bool) error {
 
 	cfg, err := hcl.NewConfig(dir, DefaultVersionConstraint())
 	if err != nil {
-		return fmt.Errorf("failed to initialize stack: %w", err)
+		return fmt.Errorf("failed to create new stack config: %w", err)
 	}
 
 	cfg.Stack = &hcl.Stack{
