@@ -59,11 +59,11 @@ func (l Loader) Load(dir string) (S, error) {
 // It caches the stack for later use.
 func (l Loader) TryLoad(dir string) (stack S, found bool, err error) {
 	logger := log.With().
-		Str("action", "loader.TryLoad()").
+		Str("action", "Loader.TryLoad()").
 		Str("dir", dir).
 		Logger()
 
-	logger.Trace().Msg("Get relative stack path to root directory.")
+	logger.Trace().Msg("Get project absolute stack path.")
 
 	stackpath := project.PrjAbsPath(l.root, dir)
 	if s, ok := l.stacks[stackpath]; ok {
