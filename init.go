@@ -79,14 +79,19 @@ func Init(root, dir string, force bool) error {
 			dir, parentStack.PrjAbsPath())
 	}
 
-	logger.Trace().
-		Msg("Get stack file.")
+	logger.Trace().Msg("Get stack file.")
+
 	stackfile := filepath.Join(dir, config.Filename)
 	isInitialized := false
 
-	logger.Trace().
+	logger = log.With().
+		Str("action", "Init()").
+		Str("stack", dir).
 		Str("configFile", stackfile).
-		Msg("Get stack file info.")
+		Logger()
+
+	logger.Trace().Msg("Get stack file info.")
+
 	st, err := os.Stat(stackfile)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -101,22 +106,18 @@ func Init(root, dir string, force bool) error {
 	}
 
 	if isInitialized && !force {
-		logger.Trace().
-			Str("configFile", stackfile).
-			Msg("Stack is initialized annd not forced.")
+		logger.Trace().Msg("Stack is initialized and not forced.")
 
-		logger.Trace().
-			Str("configFile", stackfile).
-			Msg("Parse version.")
+		logger.Trace().Msg("Parse version.")
+
 		vconstraint, err := parseVersion(stackfile)
 		if err != nil {
 			return fmt.Errorf("stack already initialized: error fetching "+
 				"version: %w", err)
 		}
 
-		logger.Trace().
-			Str("configFile", stackfile).
-			Msg("Create new constraint from version.")
+		logger.Trace().Msg("Create new constraint from version.")
+
 		constraint, err := hclversion.NewConstraint(vconstraint)
 		if err != nil {
 			return fmt.Errorf("unable to check stack constraint: %w", err)
@@ -128,21 +129,18 @@ func Init(root, dir string, force bool) error {
 		}
 	}
 
-	logger.Debug().
-		Str("configFile", stackfile).
-		Msg("Create new configuration.")
+	logger.Debug().Msg("Create new configuration.")
+
 	cfg, err := hcl.NewConfig(dir, DefaultVersionConstraint())
 	if err != nil {
-		return fmt.Errorf("failed to initialize stack: %w", err)
+		return fmt.Errorf("failed to create new stack config: %w", err)
 	}
 
 	cfg.Stack = &hcl.Stack{
 		Name: filepath.Base(dir),
 	}
 
-	logger.Debug().
-		Str("configFile", stackfile).
-		Msg("Save configuration.")
+	logger.Debug().Msg("Save configuration.")
 
 	err = cfg.Save(config.Filename)
 	if err != nil {

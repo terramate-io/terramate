@@ -88,9 +88,11 @@ const (
 	ErrStackInvalidRunOrder     errutil.Error = "invalid stack execution order definition"
 )
 
-// NewConfig creates a new HCL config with absdir as config directory path.
-func NewConfig(absdir string, reqversion string) (Config, error) {
-	st, err := os.Stat(absdir)
+// NewConfig creates a new HCL config with dir as config directory path.
+// If reqversion is provided then it also creates a terramate block with
+// RequiredVersion set to this value.
+func NewConfig(dir string, reqversion string) (Config, error) {
+	st, err := os.Stat(dir)
 	if err != nil {
 		return Config{}, fmt.Errorf("initializing config: %w", err)
 	}
@@ -105,7 +107,7 @@ func NewConfig(absdir string, reqversion string) (Config, error) {
 	}
 
 	return Config{
-		absdir:    absdir,
+		absdir:    dir,
 		Terramate: tmblock,
 	}, nil
 }
@@ -114,14 +116,22 @@ func NewConfig(absdir string, reqversion string) (Config, error) {
 func (c Config) AbsDir() string { return c.absdir }
 
 // Save the configuration file using filename inside config directory.
-func (c Config) Save(filename string) error {
+func (c Config) Save(filename string) (err error) {
 	cfgpath := filepath.Join(c.absdir, filename)
 	f, err := os.Create(cfgpath)
 	if err != nil {
 		return fmt.Errorf("saving configuration file %q: %w", cfgpath, err)
 	}
 
-	defer f.Close()
+	defer func() {
+		err2 := f.Close()
+
+		if err != nil {
+			return
+		}
+
+		err = err2
+	}()
 
 	return PrintConfig(f, c)
 }
