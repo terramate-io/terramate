@@ -823,7 +823,13 @@ func (git *Git) exec(command string, args ...string) (string, error) {
 	logger.Trace().
 		Msg("Append arguments.")
 	cmd.Args = append(cmd.Args, args...)
-	cmd.Env = git.config.Env
+
+	// Nil and empty slice behave differently on exec.Cmd.
+	// Nil defaults to use parent env, empty means actually empty.
+	// We want nil and empty to behave the same (no env).
+	if git.config.Env != nil {
+		cmd.Env = git.config.Env
+	}
 
 	if git.config.Isolated {
 		logger.Trace().
