@@ -116,14 +116,22 @@ func NewConfig(dir string, reqversion string) (Config, error) {
 func (c Config) AbsDir() string { return c.absdir }
 
 // Save the configuration file using filename inside config directory.
-func (c Config) Save(filename string) error {
+func (c Config) Save(filename string) (err error) {
 	cfgpath := filepath.Join(c.absdir, filename)
 	f, err := os.Create(cfgpath)
 	if err != nil {
 		return fmt.Errorf("saving configuration file %q: %w", cfgpath, err)
 	}
 
-	defer f.Close()
+	defer func() {
+		err2 := f.Close()
+
+		if err != nil {
+			return
+		}
+
+		err = err2
+	}()
 
 	return PrintConfig(f, c)
 }
