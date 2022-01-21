@@ -29,6 +29,8 @@ func AssertTerramateConfig(t *testing.T, got, want hcl.Config) {
 }
 
 func assertTerramateBlock(t *testing.T, got, want *hcl.Terramate) {
+	t.Helper()
+
 	if want == got {
 		// same pointer, or both nil
 		return
@@ -61,9 +63,39 @@ func assertTerramateBlock(t *testing.T, got, want *hcl.Terramate) {
 			want.RootConfig, got.RootConfig)
 	}
 
-	if want.RootConfig != nil && *want.RootConfig != *got.RootConfig {
-		t.Fatalf("want.RootConfig[%+v] != got.RootConfig[%+v]",
-			want.RootConfig, got.RootConfig)
+	assertTerramateConfigBlock(t, want.RootConfig, got.RootConfig)
+}
+
+func assertTerramateConfigBlock(t *testing.T, got, want *hcl.RootConfig) {
+	t.Helper()
+
+	if (want == nil) != (got == nil) {
+		t.Fatalf("want[%+v] != got[%+v]", want, got)
+	}
+
+	if want == nil {
+		return
+	}
+
+	if want.Git != got.Git {
+		t.Fatalf("want.Git[%+v] != got.Git[%+v]", want.Git, got.Git)
+	}
+
+	if (want.Generate == nil) != (got.Generate == nil) {
+		t.Fatalf(
+			"want.Generate[%+v] != got.Generate[%+v]",
+			want.Generate,
+			got.Generate,
+		)
+	}
+
+	if want.Generate != nil {
+		wantgen := *want.Generate
+		gotgen := *got.Generate
+
+		if wantgen != gotgen {
+			t.Fatalf("want.Generate[%+v] != got.Generate[%+v]", wantgen, gotgen)
+		}
 	}
 }
 

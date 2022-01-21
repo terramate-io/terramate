@@ -48,8 +48,15 @@ type GitConfig struct {
 	DefaultRemote        string // DefaultRemote is the default remote.
 }
 
+// GenerateConfig represents code generation config
+type GenerateConfig struct {
+	LocalsFilename     string
+	BackendCfgFilename string
+}
+
 type RootConfig struct {
-	Git GitConfig
+	Git      GitConfig
+	Generate *GenerateConfig
 }
 
 // Terramate is the parsed "terramate" HCL block.
@@ -384,8 +391,8 @@ func Parse(fname string, data []byte) (Config, error) {
 				tm.Backend = block
 
 			case "config":
-				logger.Trace().
-					Msg("Found config block.")
+				logger.Trace().Msg("Found config block.")
+
 				if foundConfig {
 					return Config{}, errutil.Chain(
 						ErrMalformedTerramateConfig,
@@ -393,8 +400,8 @@ func Parse(fname string, data []byte) (Config, error) {
 					)
 				}
 
-				logger.Trace().
-					Msg("Parse root config.")
+				logger.Trace().Msg("Parse root config.")
+
 				rootConfig := RootConfig{}
 				tm.RootConfig = &rootConfig
 				err := parseRootConfig(&rootConfig, block)
@@ -649,8 +656,8 @@ func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
 		)
 	}
 
-	logger.Trace().
-		Msg("Range over block attributes.")
+	logger.Trace().Msg("Range over block attributes.")
+
 	for name := range block.Body.Attributes {
 		return errutil.Chain(ErrMalformedTerramateConfig,
 			fmt.Errorf("unrecognized attribute terramate.config.%s", name),
@@ -658,14 +665,15 @@ func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
 	}
 
 	foundGit := false
+	foundGenerate := false
 
-	logger.Trace().
-		Msg("Range over blocks.")
+	logger.Trace().Msg("Range over blocks.")
+
 	for _, b := range block.Body.Blocks {
 		switch b.Type {
 		case "git":
-			logger.Trace().
-				Msg("Type was 'git'.")
+			logger.Trace().Msg("Type was 'git'.")
+
 			if foundGit {
 				return errutil.Chain(
 					ErrMalformedTerramateConfig,
@@ -680,6 +688,26 @@ func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
 			if err != nil {
 				return err
 			}
+		case "generate":
+			logger.Trace().Msg("Found block generate")
+
+			if foundGenerate {
+				return errutil.Chain(
+					ErrMalformedTerramateConfig,
+					fmt.Errorf("multiple terramate.config.generate blocks"),
+				)
+			}
+
+			foundGenerate = true
+
+			logger.Trace().Msg("Parsing terramate.config.generate.")
+
+			gencfg, err := parseGenerateConfig(b)
+			if err != nil {
+				return errutil.Chain(ErrMalformedTerramateConfig, err)
+			}
+			cfg.Generate = &gencfg
+
 		default:
 			return errutil.Chain(ErrMalformedTerramateConfig,
 				fmt.Errorf("unrecognized block type %q", b.Type),
@@ -688,6 +716,65 @@ func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
 	}
 
 	return nil
+}
+
+func parseGenerateConfig(block *hclsyntax.Block) (GenerateConfig, error) {
+	logger := log.With().
+		Str("action", "parseGenerateConfig()").
+		Logger()
+
+	logger.Trace().Msg("Range over block attributes.")
+
+	cfg := GenerateConfig{}
+
+	for name, value := range block.Body.Attributes {
+		logger := logger.With().
+			Str("attribute", name).
+			Logger()
+
+		attrVal, diags := value.Expr.Value(nil)
+		if diags.HasErrors() {
+			return GenerateConfig{}, errutil.Chain(
+				ErrHCLSyntax,
+				fmt.Errorf("failed to evaluate terramate.config.generate.%s attribute: %w",
+					name, diags),
+			)
+		}
+
+		switch name {
+		case "backend_config_filename":
+			{
+				logger.Trace().Msg("parsing")
+
+				if attrVal.Type() != cty.String {
+					return GenerateConfig{}, fmt.Errorf("terramate.config.generate.%s is not a string but %q",
+						name,
+						attrVal.Type().FriendlyName())
+				}
+				cfg.BackendCfgFilename = attrVal.AsString()
+
+				logger.Trace().Msg("parsed with success")
+			}
+		case "locals_filename":
+			{
+				logger.Trace().Msg("parsing")
+
+				if attrVal.Type() != cty.String {
+					return GenerateConfig{}, fmt.Errorf("terramate.config.generate.%s is not a string but %q",
+						name,
+						attrVal.Type().FriendlyName())
+				}
+				cfg.LocalsFilename = attrVal.AsString()
+
+				logger.Trace().Msg("parsed with success")
+			}
+
+		default:
+			return GenerateConfig{}, fmt.Errorf("unrecognized attribute terramate.config.generate.%s", name)
+		}
+	}
+
+	return cfg, nil
 }
 
 func parseGitConfig(git *GitConfig, block *hclsyntax.Block) error {
