@@ -103,9 +103,9 @@ func (l Loader) Set(dir string, s S) {
 	l.stacks[dir] = s
 }
 
-// LoadAll loads all the stacks in the dirs directories. If dirs are project
-// paths, then absBaseDir is used as base.
-func (l Loader) LoadAll(root string, absBaseDir string, dirs ...string) ([]S, error) {
+// LoadAll loads all the stacks in the dirs project paths. If dirs are relative,
+// then wd is used as working directory to compute their absolute paths.
+func (l Loader) LoadAll(root string, wd string, dirs ...string) ([]S, error) {
 	logger := log.With().
 		Str("action", "LoadAll()").
 		Logger()
@@ -115,11 +115,12 @@ func (l Loader) LoadAll(root string, absBaseDir string, dirs ...string) ([]S, er
 	logger.Trace().
 		Str("path", root).
 		Msg("Range over directories.")
+
 	for _, d := range dirs {
 		if filepath.IsAbs(d) {
 			d = filepath.Join(root, d)
 		} else {
-			d = filepath.Join(absBaseDir, d)
+			d = filepath.Join(wd, d)
 		}
 
 		logger.Debug().
