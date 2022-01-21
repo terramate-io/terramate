@@ -27,15 +27,6 @@ import (
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
-// Tests
-// - 2 terramate.config on same file works if generate not duplicated
-// - 2 terramate.config.generate on same file fails
-// - parent dir config
-// - root dir config
-// - stack invalid config err
-// - parent invalid config err
-// - stack valid config + parent invalid config = works ?
-
 func TestGenerateStackConfigLoad(t *testing.T) {
 
 	type (
@@ -96,6 +87,204 @@ func TestGenerateStackConfigLoad(t *testing.T) {
 				cfg: generate.StackCfg{
 					BackendCfgFilename: "backend.tf",
 					LocalsFilename:     "locals.tf",
+				},
+			},
+		},
+		{
+			name:  "config on parent",
+			stack: "stacks/stack",
+			configs: []hclcfg{
+				{
+					path: "/stacks",
+					body: hcldoc(
+						terramate(cfg(gen(
+							str("backend_config_filename", "parent_backend.tf"),
+							str("locals_filename", "parent_locals.tf"),
+						))),
+					),
+				},
+			},
+			want: want{
+				cfg: generate.StackCfg{
+					BackendCfgFilename: "parent_backend.tf",
+					LocalsFilename:     "parent_locals.tf",
+				},
+			},
+		},
+		{
+			name:  "config on parent overrides root",
+			stack: "stacks/stack",
+			configs: []hclcfg{
+				{
+					path: "/",
+					body: hcldoc(
+						terramate(cfg(gen(
+							str("backend_config_filename", "root_backend.tf"),
+							str("locals_filename", "root_locals.tf"),
+						))),
+					),
+				},
+				{
+					path: "/stacks",
+					body: hcldoc(
+						terramate(cfg(gen(
+							str("backend_config_filename", "parent_backend.tf"),
+							str("locals_filename", "parent_locals.tf"),
+						))),
+					),
+				},
+			},
+			want: want{
+				cfg: generate.StackCfg{
+					BackendCfgFilename: "parent_backend.tf",
+					LocalsFilename:     "parent_locals.tf",
+				},
+			},
+		},
+		{
+			name:  "config on stack overrides all parent configs",
+			stack: "stacks/stack",
+			configs: []hclcfg{
+				{
+					path: "/",
+					body: hcldoc(
+						terramate(cfg(gen(
+							str("backend_config_filename", "root_backend.tf"),
+							str("locals_filename", "root_locals.tf"),
+						))),
+					),
+				},
+				{
+					path: "/stacks",
+					body: hcldoc(
+						terramate(cfg(gen(
+							str("backend_config_filename", "parent_backend.tf"),
+							str("locals_filename", "parent_locals.tf"),
+						))),
+					),
+				},
+				{
+					path: "/stacks/stack",
+					body: hcldoc(
+						terramate(cfg(gen(
+							str("backend_config_filename", "stack_backend.tf"),
+							str("locals_filename", "stack_locals.tf"),
+						))),
+						stack(),
+					),
+				},
+			},
+			want: want{
+				cfg: generate.StackCfg{
+					BackendCfgFilename: "stack_backend.tf",
+					LocalsFilename:     "stack_locals.tf",
+				},
+			},
+		},
+		{
+			name:  "valid config on stack ignores parent invalid config",
+			stack: "stacks/stack",
+			configs: []hclcfg{
+				{
+					path: "/stacks",
+					body: hcldoc(
+						terramate(cfg(gen(
+							str("oh_no_such_invalid_much_error", "parent_backend.tf"),
+						))),
+					),
+				},
+				{
+					path: "/stacks/stack",
+					body: hcldoc(
+						terramate(cfg(gen(
+							str("backend_config_filename", "stack_backend.tf"),
+							str("locals_filename", "stack_locals.tf"),
+						))),
+						stack(),
+					),
+				},
+			},
+			want: want{
+				cfg: generate.StackCfg{
+					BackendCfgFilename: "stack_backend.tf",
+					LocalsFilename:     "stack_locals.tf",
+				},
+			},
+		},
+		{
+			name:  "config is overridden not merged",
+			stack: "stacks/stack",
+			configs: []hclcfg{
+				{
+					path: "/stacks",
+					body: hcldoc(
+						terramate(cfg(gen(
+							str("backend_config_filename", "parent_backend.tf"),
+							str("locals_filename", "parent_locals.tf"),
+						))),
+					),
+				},
+				{
+					path: "/stacks/stack",
+					body: hcldoc(
+						terramate(cfg(gen(
+							str("locals_filename", "stack_locals.tf"),
+						))),
+						stack(),
+					),
+				},
+			},
+			want: want{
+				cfg: generate.StackCfg{
+					BackendCfgFilename: generate.BackendCfgFilename,
+					LocalsFilename:     "stack_locals.tf",
+				},
+			},
+		},
+		{
+			name:  "empty generate block sets defaults",
+			stack: "stack",
+			configs: []hclcfg{
+				{
+					path: "/stack",
+					body: hcldoc(
+						terramate(cfg(gen())),
+						stack(),
+					),
+				},
+			},
+			want: want{
+				cfg: generate.StackCfg{
+					BackendCfgFilename: generate.BackendCfgFilename,
+					LocalsFilename:     generate.LocalsFilename,
+				},
+			},
+		},
+		{
+			name:  "empty generate block overrides parent config with defaults",
+			stack: "stacks/stack",
+			configs: []hclcfg{
+				{
+					path: "/stacks",
+					body: hcldoc(
+						terramate(cfg(gen(
+							str("backend_config_filename", "root_backend.tf"),
+							str("locals_filename", "root_locals.tf"),
+						))),
+					),
+				},
+				{
+					path: "/stacks/stack",
+					body: hcldoc(
+						terramate(cfg(gen())),
+						stack(),
+					),
+				},
+			},
+			want: want{
+				cfg: generate.StackCfg{
+					BackendCfgFilename: generate.BackendCfgFilename,
+					LocalsFilename:     generate.LocalsFilename,
 				},
 			},
 		},

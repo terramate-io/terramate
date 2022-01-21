@@ -110,8 +110,17 @@ func loadStackCfg(root string, configdir string) (StackCfg, error) {
 
 	logger.Trace().Msg("terramate.config.generate found.")
 
+	gen := tmconfig.Generate
+
 	return StackCfg{
-		BackendCfgFilename: tmconfig.Generate.BackendCfgFilename,
-		LocalsFilename:     tmconfig.Generate.LocalsFilename,
+		BackendCfgFilename: optstr(gen.BackendCfgFilename, BackendCfgFilename),
+		LocalsFilename:     optstr(gen.LocalsFilename, LocalsFilename),
 	}, nil
+}
+
+func optstr(val string, def string) string {
+	if val == "" {
+		return def
+	}
+	return val
 }
