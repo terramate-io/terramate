@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -27,9 +28,20 @@ type (
 		// Dir is the stack dir path relative to the project root
 		Dir string
 
-		name    string
+		// name of the stack.
+		name string
+
+		// description of the stack.
+		description string
+
+		// after is a list of stack paths that must run before this stack.
+		after []string
+
+		// before is a list of stack paths that must run after this stack.
+		before []string
+
+		// changed tells if this is a changed stack.
 		changed bool
-		block   *hcl.Stack
 	}
 
 	// Metadata has all metadata loaded per stack
@@ -40,26 +52,47 @@ type (
 	}
 )
 
-func (s S) Name() string {
-	if s.block.Name != "" {
-		return s.block.Name
+// New creates a new stack from configuration cfg.
+func New(root string, cfg hcl.Config) S {
+	name := cfg.Stack.Name
+	if name == "" {
+		name = filepath.Base(cfg.AbsDir())
 	}
-	return filepath.Base(s.Dir)
+
+	return S{
+		name:        name,
+		Dir:         project.RelPath(root, cfg.AbsDir()),
+		description: cfg.Stack.Description,
+		after:       cfg.Stack.After,
+		before:      cfg.Stack.Before,
+	}
 }
 
-func (s S) Description() string {
-	return s.block.Description
+// Name of the stack.
+func (s S) Name() string {
+	if s.name != "" {
+		return s.name
+	}
+	return s.Dir
 }
 
-func (s S) After() []string  { return s.block.After }
-func (s S) Before() []string { return s.block.Before }
+// Description of stack.
+func (s S) Description() string { return s.description }
 
-func (s S) IsChanged() bool    { return s.changed }
+// After specifies the list of stacks that must run before this stack.
+func (s S) After() []string { return s.after }
+
+// Before specifies the list of stacks that must run after this stack.
+func (s S) Before() []string { return s.before }
+
+// IsChanged tells if the stack is marked as changed.
+func (s S) IsChanged() bool { return s.changed }
+
+// SetChanged sets the changed flag of the stack.
 func (s *S) SetChanged(b bool) { s.changed = b }
 
-func (s S) String() string {
-	return s.Name()
-}
+// String representation of the stack.
+func (s S) String() string { return s.Name() }
 
 // Meta returns the stack metadata.
 func (s S) Meta() Metadata {

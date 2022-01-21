@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
 
 	"github.com/mineiros-io/terramate/cmd/terramate/cli"
@@ -463,7 +464,8 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 
 	stack := s.CreateStack("stack")
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
-	stackConfig := hcl.NewConfig(terramate.DefaultVersionConstraint())
+	stackConfig, err := hcl.NewConfig(stack.Path(), terramate.DefaultVersionConstraint())
+	assert.NoError(t, err)
 	stackConfig.Stack = &hcl.Stack{
 		After: []string{project.RelPath(s.RootDir(), stack2.Path())},
 	}
@@ -526,7 +528,9 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 
 	stack := s.CreateStack("stack")
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
-	stackConfig := hcl.NewConfig(terramate.DefaultVersionConstraint())
+	stackConfig, err := hcl.NewConfig(stack.Path(), terramate.DefaultVersionConstraint())
+	assert.NoError(t, err)
+
 	stackConfig.Stack = &hcl.Stack{
 		After: []string{project.RelPath(s.RootDir(), stack2.Path())},
 	}
