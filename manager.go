@@ -121,7 +121,7 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 			Msg("Get dir name.")
 		dirname := filepath.Dir(filepath.Join(m.root, path))
 
-		if _, ok := stackSet[project.RelPath(m.root, dirname)]; ok {
+		if _, ok := stackSet[project.PrjAbsPath(m.root, dirname)]; ok {
 			continue
 		}
 
@@ -147,7 +147,7 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 			}
 		}
 
-		stackSet[s.Dir] = Entry{
+		stackSet[s.PrjAbsPath()] = Entry{
 			Stack:  s,
 			Reason: "stack has unmerged changes",
 		}
@@ -164,37 +164,30 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 		Msg("Range over all stacks.")
 	for _, stackEntry := range allstacks {
 		stack := stackEntry.Stack
-		if _, ok := stackSet[stack.Dir]; ok {
+		if _, ok := stackSet[stack.PrjAbsPath()]; ok {
 			continue
 		}
 
-		logger.Trace().
-			Str("stack", stack.Dir).
-			Msg("Get absolute path of stack.")
-		abspath := filepath.Join(m.root, stack.Dir)
-
 		logger.Debug().
-			Str("stack", abspath).
+			Stringer("stack", stack).
 			Msg("Apply function to stack.")
-		err := m.filesApply(abspath, func(file fs.DirEntry) error {
+
+		err := m.filesApply(stack.AbsPath(), func(file fs.DirEntry) error {
 			if path.Ext(file.Name()) != ".tf" {
 				return nil
 			}
 
-			logger.Trace().
-				Str("stack", stack.Dir).
-				Msg("Get absolute path of stack.")
-			abspath := filepath.Join(m.root, stack.Dir)
-
 			logger.Debug().
-				Str("stack", abspath).
+				Stringer("stack", stack).
 				Msg("Get tf file path.")
-			tfpath := filepath.Join(abspath, file.Name())
+
+			tfpath := filepath.Join(stack.AbsPath(), file.Name())
 
 			logger.Trace().
-				Str("stack", abspath).
+				Stringer("stack", stack).
 				Str("configFile", tfpath).
 				Msg("Parse modules.")
+
 			modules, err := hcl.ParseModules(tfpath)
 			if err != nil {
 				return fmt.Errorf("parsing modules at %q: %w",
@@ -202,27 +195,29 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 			}
 
 			logger.Trace().
-				Str("stack", abspath).
+				Stringer("stack", stack).
 				Str("configFile", tfpath).
 				Msg("Range over modules.")
+
 			for _, mod := range modules {
 				logger.Trace().
-					Str("stack", abspath).
+					Stringer("stack", stack).
 					Str("configFile", tfpath).
 					Msg("Check if module changed.")
-				changed, why, err := m.moduleChanged(mod, abspath, make(map[string]bool))
+
+				changed, why, err := m.moduleChanged(mod, stack.AbsPath(), make(map[string]bool))
 				if err != nil {
 					return fmt.Errorf("checking module %q: %w", mod.Source, err)
 				}
 
 				if changed {
 					logger.Debug().
-						Str("stack", abspath).
+						Stringer("stack", stack).
 						Str("configFile", tfpath).
 						Msg("Module changed.")
 
 					stack.SetChanged(true)
-					stackSet[stack.Dir] = Entry{
+					stackSet[stack.PrjAbsPath()] = Entry{
 						Stack:  stack,
 						Reason: fmt.Sprintf("stack changed because %q changed because %s", mod.Source, why),
 					}
@@ -239,6 +234,7 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 
 	logger.Trace().
 		Msg("Make set of changed stacks.")
+
 	changedStacks := make([]Entry, 0, len(stackSet))
 	for _, stack := range stackSet {
 		changedStacks = append(changedStacks, stack)
@@ -246,6 +242,7 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 
 	logger.Trace().
 		Msg("Sort changed stacks.")
+
 	sort.Sort(EntrySlice(changedStacks))
 	return changedStacks, nil
 }
@@ -505,5 +502,5 @@ func checkRepoIsClean(g *git.Git) error {
 type EntrySlice []Entry
 
 func (x EntrySlice) Len() int           { return len(x) }
-func (x EntrySlice) Less(i, j int) bool { return x[i].Stack.Dir < x[j].Stack.Dir }
+func (x EntrySlice) Less(i, j int) bool { return x[i].Stack.PrjAbsPath() < x[j].Stack.PrjAbsPath() }
 func (x EntrySlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }

@@ -17,7 +17,6 @@ package run
 import (
 	"io"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/mineiros-io/terramate/stack"
@@ -44,7 +43,7 @@ func (c *Cmd) String() string {
 func (c Cmd) Run(root string, stacks []stack.S) error {
 	for _, stack := range stacks {
 		cmd := exec.Command(c.Path, c.Args...)
-		cmd.Dir = filepath.Join(root, stack.Dir)
+		cmd.Dir = stack.AbsPath()
 		cmd.Env = c.Environ
 		cmd.Stdin = c.Stdin
 		cmd.Stdout = c.Stdout
@@ -52,7 +51,7 @@ func (c Cmd) Run(root string, stacks []stack.S) error {
 		cmd.Env = c.Environ
 
 		log.Info().
-			Str("stack", stack.Dir).
+			Stringer("stack", stack).
 			Str("cmd", c.String()).
 			Msg("Running command in stack")
 

@@ -134,38 +134,34 @@ func (s S) BuildTree(layout []string) {
 	gentmfile := func(relpath, data string) {
 		attrs := strings.Split(data, ";")
 
-		tm := hcl.Config{
-			Terramate: &hcl.Terramate{},
-			Stack:     &hcl.Stack{},
-		}
+		cfgdir := filepath.Join(s.RootDir(), relpath)
+		test.MkdirAll(t, cfgdir)
+		cfg, err := hcl.NewConfig(cfgdir, "")
+		assert.NoError(t, err)
+
+		cfg.Stack = &hcl.Stack{}
+		cfg.Terramate = &hcl.Terramate{}
+
 		for _, attr := range attrs {
 			parts := strings.Split(attr, "=")
 			name := parts[0]
 			value := parts[1]
 			switch name {
 			case "version":
-				tm.Terramate.RequiredVersion = value
+				cfg.Terramate.RequiredVersion = value
 			case "after":
-				tm.Stack.After = specList(t, name, value)
+				cfg.Stack.After = specList(t, name, value)
 			case "before":
-				tm.Stack.Before = specList(t, name, value)
+				cfg.Stack.Before = specList(t, name, value)
 			case "description":
-				tm.Stack.Description = value
+				cfg.Stack.Description = value
 			default:
 				t.Fatalf("attribute " + parts[0] + " not supported.")
 			}
 		}
 
-		path := filepath.Join(s.RootDir(), filepath.Join(relpath, config.Filename))
-		test.MkdirAll(t, filepath.Dir(path))
-
-		f, err := os.Create(path)
-		assert.NoError(t, err, "BuildTree() failed to create file")
-
-		defer f.Close()
-
-		err = hcl.PrintConfig(f, tm)
-		assert.NoError(t, err, "BuildTree() failed to generate tm file")
+		assert.NoError(t, cfg.Save(config.Filename),
+			"BuildTree() failed to generate config file.")
 	}
 
 	for _, spec := range layout {
@@ -252,7 +248,7 @@ func (s S) CreateModule(relpath string) DirEntry {
 // CreateStack will create a stack dir with the given relative path and
 // initializes the stack, returning a stack entry that can be used
 // to create files inside the stack dir.
-func (s S) CreateStack(relpath string) *StackEntry {
+func (s S) CreateStack(relpath string) StackEntry {
 	t := s.t
 	t.Helper()
 
@@ -267,7 +263,7 @@ func (s S) CreateStack(relpath string) *StackEntry {
 
 // StackEntry gets the stack entry of the stack identified by relpath.
 // The stack must exist (previously created).
-func (s S) StackEntry(relpath string) *StackEntry {
+func (s S) StackEntry(relpath string) StackEntry {
 	return newStackEntry(s.t, s.RootDir(), relpath)
 }
 
@@ -308,10 +304,10 @@ func (s S) DirEntry(relpath string) DirEntry {
 //
 // If the file already exists its contents will be truncated, like os.Create
 // behavior: https://pkg.go.dev/os#Create
-func (de DirEntry) CreateFile(name, body string, args ...interface{}) *FileEntry {
+func (de DirEntry) CreateFile(name, body string, args ...interface{}) FileEntry {
 	de.t.Helper()
 
-	fe := &FileEntry{
+	fe := FileEntry{
 		t:    de.t,
 		path: filepath.Join(de.abspath, name),
 	}
@@ -329,10 +325,10 @@ func (de DirEntry) CreateFile(name, body string, args ...interface{}) *FileEntry
 //
 // If the file already exists its contents will be truncated, like os.Create
 // behavior: https://pkg.go.dev/os#Create
-func (de DirEntry) CreateConfig(body string) *FileEntry {
+func (de DirEntry) CreateConfig(body string) FileEntry {
 	de.t.Helper()
 
-	fe := &FileEntry{
+	fe := FileEntry{
 		t:    de.t,
 		path: filepath.Join(de.abspath, config.Filename),
 	}
@@ -451,8 +447,8 @@ func newDirEntry(t *testing.T, rootdir string, relpath string) DirEntry {
 	}
 }
 
-func newStackEntry(t *testing.T, rootdir string, relpath string) *StackEntry {
-	return &StackEntry{DirEntry: newDirEntry(t, rootdir, relpath)}
+func newStackEntry(t *testing.T, rootdir string, relpath string) StackEntry {
+	return StackEntry{DirEntry: newDirEntry(t, rootdir, relpath)}
 }
 
 func specList(t *testing.T, name, value string) []string {

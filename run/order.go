@@ -44,7 +44,7 @@ func Sort(root string, stacks []stack.S, changed bool) ([]stack.S, string, error
 	logger.Trace().
 		Msg("Add stacks to loader.")
 	for _, stack := range stacks {
-		loader.Set(stack.Dir, stack)
+		loader.Set(stack.PrjAbsPath(), stack)
 	}
 
 	visited := visited{}
@@ -52,12 +52,12 @@ func Sort(root string, stacks []stack.S, changed bool) ([]stack.S, string, error
 	logger.Trace().
 		Msg("Range over stacks.")
 	for _, stack := range stacks {
-		if _, ok := visited[stack.Dir]; ok {
+		if _, ok := visited[stack.PrjAbsPath()]; ok {
 			continue
 		}
 
 		logger.Debug().
-			Str("stack", stack.Dir).
+			Str("stack", stack.PrjAbsPath()).
 			Msg("Build DAG.")
 		err := BuildDAG(d, root, stack, loader, visited)
 		if err != nil {
@@ -104,28 +104,28 @@ func BuildDAG(
 	logger := log.With().
 		Str("action", "BuildDAG()").
 		Str("path", root).
-		Str("stack", s.Dir).
+		Str("stack", s.PrjAbsPath()).
 		Logger()
 
-	visited[s.Dir] = struct{}{}
+	visited[s.PrjAbsPath()] = struct{}{}
 
 	logger.Trace().
 		Msg("Load all stacks in dir after current stack.")
-	afterStacks, err := loader.LoadAll(root, s.Dir, s.After()...)
+	afterStacks, err := loader.LoadAll(root, s.PrjAbsPath(), s.After()...)
 	if err != nil {
 		return err
 	}
 
 	logger.Trace().
 		Msg("Load all stacks in dir before current stack.")
-	beforeStacks, err := loader.LoadAll(root, s.Dir, s.Before()...)
+	beforeStacks, err := loader.LoadAll(root, s.PrjAbsPath(), s.Before()...)
 	if err != nil {
 		return err
 	}
 
 	logger.Debug().
 		Msg("Add new node to DAG.")
-	err = d.AddNode(dag.ID(s.Dir), s, toids(beforeStacks), toids(afterStacks))
+	err = d.AddNode(dag.ID(s.PrjAbsPath()), s, toids(beforeStacks), toids(afterStacks))
 	if err != nil {
 		return err
 	}
@@ -140,10 +140,10 @@ func BuildDAG(
 		logger = log.With().
 			Str("action", "BuildDAG()").
 			Str("path", root).
-			Str("stack", s.Dir).
+			Str("stack", s.PrjAbsPath()).
 			Logger()
 
-		if _, ok := visited[s.Dir]; ok {
+		if _, ok := visited[s.PrjAbsPath()]; ok {
 			continue
 		}
 
@@ -160,7 +160,7 @@ func BuildDAG(
 func toids(values []stack.S) []dag.ID {
 	ids := make([]dag.ID, 0, len(values))
 	for _, v := range values {
-		ids = append(ids, dag.ID(v.Dir))
+		ids = append(ids, dag.ID(v.PrjAbsPath()))
 	}
 	return ids
 }
