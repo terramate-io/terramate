@@ -149,9 +149,11 @@ func (s S) BuildTree(layout []string) {
 			case "version":
 				cfg.Terramate.RequiredVersion = value
 			case "after":
-				cfg.Stack.After = specList(t, name, value)
+				cfg.Stack.After = parseListSpec(t, name, value)
 			case "before":
-				cfg.Stack.Before = specList(t, name, value)
+				cfg.Stack.Before = parseListSpec(t, name, value)
+			case "wants":
+				cfg.Stack.Wants = parseListSpec(t, name, value)
 			case "description":
 				cfg.Stack.Description = value
 			default:
@@ -439,7 +441,7 @@ func newDirEntry(t *testing.T, basedir string, relpath string) DirEntry {
 	}
 }
 
-func specList(t *testing.T, name, value string) []string {
+func parseListSpec(t *testing.T, name, value string) []string {
 	if !strings.HasPrefix(value, "[") ||
 		!strings.HasSuffix(value, "]") {
 		t.Fatalf("malformed %q value: %q", name, value)

@@ -17,6 +17,7 @@ package stack
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/mineiros-io/terramate/config"
@@ -47,6 +48,10 @@ type (
 		// before is a list of stack paths that must run after this stack.
 		before []string
 
+		// wants is the list of stacks that must be selected whenever this stack
+		// is selected.
+		wants []string
+
 		// changed tells if this is a changed stack.
 		changed bool
 	}
@@ -71,6 +76,7 @@ func New(root string, cfg hcl.Config) S {
 		description: cfg.Stack.Description,
 		after:       cfg.Stack.After,
 		before:      cfg.Stack.Before,
+		wants:       cfg.Stack.Wants,
 		abspath:     cfg.AbsDir(),
 		prjAbsPath:  project.PrjAbsPath(root, cfg.AbsDir()),
 	}
@@ -92,6 +98,8 @@ func (s S) After() []string { return s.after }
 
 // Before specifies the list of stacks that must run after this stack.
 func (s S) Before() []string { return s.before }
+
+func (s S) Wants() []string { return s.wants }
 
 // IsChanged tells if the stack is marked as changed.
 func (s S) IsChanged() bool { return s.changed }
@@ -186,3 +194,14 @@ func TryLoad(root, absdir string) (stack S, found bool, err error) {
 
 	return New(root, cfg), true, nil
 }
+
+func Sort(stacks []S) {
+	sort.Sort(stackSlice(stacks))
+}
+
+// stackSlice implements the Sort interface.
+type stackSlice []S
+
+func (l stackSlice) Len() int           { return len(l) }
+func (l stackSlice) Less(i, j int) bool { return l[i].PrjAbsPath() < l[j].PrjAbsPath() }
+func (l stackSlice) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
