@@ -37,7 +37,6 @@ func TestGenerateStackConfigLoad(t *testing.T) {
 
 		want struct {
 			cfg generate.StackCfg
-			err error
 		}
 
 		testcase struct {
@@ -357,11 +356,34 @@ func TestGenerateStackConfigLoad(t *testing.T) {
 			}
 
 			got, err := generate.LoadStackCfg(s.RootDir(), stack)
-			assert.IsError(t, err, tcase.want.err)
+			assert.NoError(t, err)
 
 			if got != tcase.want.cfg {
 				t.Fatalf("got stack cfg %v; want %v", got, tcase.want.cfg)
 			}
 		})
 	}
+}
+
+func TestStackConfigLoadingFailsOnInvalidConfig(t *testing.T) {
+	s := sandbox.New(t)
+
+	invalidConfig := hcldoc(
+		terramate(
+			block("config",
+				block("generate",
+					str("invalid", "ohno"),
+				),
+			),
+		),
+	)
+
+	stackEntry := s.CreateStack("stacks/stack")
+	stack := stackEntry.Load()
+
+	rootEntry := s.DirEntry(".")
+	rootEntry.CreateConfig(invalidConfig.String())
+
+	got, err := generate.LoadStackCfg(s.RootDir(), stack)
+	assert.Error(t, err, "wanted error, instead got %v", got)
 }
