@@ -387,6 +387,57 @@ func (m *Manager) moduleChanged(
 	return changed, fmt.Sprintf("module %q changed because %s", mod.Source, why), nil
 }
 
+func (m *Manager) AddWantedOf(stacks []stack.S) ([]stack.S, error) {
+	wantedBy := map[string]stack.S{}
+	wanted := []stack.S{}
+
+	for _, s := range stacks {
+		wantedBy[s.PrjAbsPath()] = s
+		wanted = append(wanted, s)
+	}
+
+	visited := map[string]struct{}{}
+
+	for len(wantedBy) > 0 {
+		for _, s := range wantedBy {
+			logger := log.With().
+				Str("action", "AddWantedOf()").
+				Stringer("stack", s).
+				Logger()
+
+			logger.Debug().Msg("Loading \"wanted\" stacks.")
+
+			wantedStacks, err := m.stackLoader.LoadAll(m.root, s.AbsPath(), s.Wants()...)
+			if err != nil {
+				return nil, fmt.Errorf("calculating wanted stacks: %v", err)
+			}
+
+			logger.Debug().Msg("The \"wanted\" stacks were loaded successfully.")
+
+			for _, wantedStack := range wantedStacks {
+				if wantedStack.AbsPath() == s.AbsPath() {
+					logger.Warn().
+						Stringer("stack", s).
+						Msgf("stack %q wants itself.", s)
+
+					continue
+				}
+
+				if _, ok := visited[wantedStack.PrjAbsPath()]; !ok {
+					wanted = append(wanted, wantedStack)
+					visited[wantedStack.PrjAbsPath()] = struct{}{}
+					wantedBy[wantedStack.PrjAbsPath()] = wantedStack
+				}
+			}
+
+			delete(wantedBy, s.PrjAbsPath())
+		}
+	}
+
+	stack.Sort(wanted)
+	return wanted, nil
+}
+
 // listChangedFiles lists all changed files in the dir directory.
 func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 	logger := log.With().

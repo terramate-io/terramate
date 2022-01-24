@@ -79,13 +79,17 @@ type Stack struct {
 	// Description of the stack
 	Description string
 
-	// After is a list of non-duplicated stack entries that must run after the
+	// After is a list of non-duplicated stack entries that must run before the
 	// current stack runs.
 	After []string
 
-	// Before is a list of non-duplicated stack entries that must run before the
+	// Before is a list of non-duplicated stack entries that must run after the
 	// current stack runs.
 	Before []string
+
+	// Wants is a list of non-duplicated stack entries that must be selected
+	// whenever the current stack is selected.
+	Wants []string
 }
 
 const (
@@ -619,6 +623,15 @@ func parseStack(stack *Stack, stackblock *hclsyntax.Block) error {
 			logger.Trace().
 				Msg("Attribute name was 'before'.")
 			err := assignSet(name, &stack.Before, attrVal)
+			if err != nil {
+				return err
+			}
+
+		case "wants":
+			logger.Trace().
+				Msg("Attribute name was 'wants'.")
+
+			err := assignSet(name, &stack.Wants, attrVal)
 			if err != nil {
 				return err
 			}
