@@ -38,6 +38,7 @@ const (
 	ErrBackendConfigGen   errutil.Error = "generating backend config"
 	ErrExportingLocalsGen errutil.Error = "generating locals"
 	ErrLoadingGlobals     errutil.Error = "loading globals"
+	ErrLoadingStackCfg    errutil.Error = "loading stack code gen config"
 	ErrManualCodeExists   errutil.Error = "manually defined code found"
 )
 
@@ -59,6 +60,7 @@ func Do(root string, workingDir string) error {
 	errs := forEachStack(root, workingDir, func(
 		stack stack.S,
 		globals *terramate.Globals,
+		cfg StackCfg,
 	) error {
 		stackpath := stack.AbsPath()
 		logger := log.With().
@@ -71,8 +73,7 @@ func Do(root string, workingDir string) error {
 
 		stackMeta := stack.Meta()
 
-		// TODO(katcipis): allow this to be configured
-		targetBackendCfgFile := filepath.Join(stackpath, BackendCfgFilename)
+		targetBackendCfgFile := filepath.Join(stackpath, cfg.BackendCfgFilename)
 		err := writeStackBackendConfig(root, stackpath, stackMeta, globals, targetBackendCfgFile)
 		if err != nil {
 			return err
@@ -508,7 +509,7 @@ func loadGeneratedCode(path string) ([]byte, error) {
 	return data, nil
 }
 
-type forEachStackCallback func(stack stack.S, globals *terramate.Globals) error
+type forEachStackCallback func(stack.S, *terramate.Globals, StackCfg) error
 
 func forEachStack(root, workingDir string, callback forEachStackCallback) []error {
 	logger := log.With().
@@ -538,6 +539,18 @@ func forEachStack(root, workingDir string, callback forEachStackCallback) []erro
 			continue
 		}
 
+		logger.Trace().Msg("Load stack code generation config.")
+
+		cfg, err := LoadStackCfg(root, stack)
+		if err != nil {
+			errs = append(errs, fmt.Errorf(
+				"stack %q: %w: %v",
+				stack.AbsPath(),
+				ErrLoadingStackCfg,
+				err))
+			continue
+		}
+
 		logger.Trace().Msg("Load stack globals.")
 
 		globals, err := terramate.LoadStackGlobals(root, stack.Meta())
@@ -551,7 +564,7 @@ func forEachStack(root, workingDir string, callback forEachStackCallback) []erro
 		}
 
 		logger.Trace().Msg("Calling stack callback.")
-		if err := callback(stack, globals); err != nil {
+		if err := callback(stack, globals, cfg); err != nil {
 			errs = append(errs, err)
 		}
 	}
