@@ -16,12 +16,10 @@ package generate
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 )
@@ -62,55 +60,29 @@ func loadStackCfg(root string, configdir string) (StackCfg, error) {
 		}, nil
 	}
 
-	configfile := filepath.Join(configdir, config.Filename)
-	logger = logger.With().
-		Str("configFile", configfile).
-		Logger()
+	logger.Trace().Msg("loading config.")
 
-	logger.Trace().Msg("checking for code generation config.")
+	parsedConfig, found, err := config.TryLoadRootConfig(configdir)
 
-	if _, err := os.Stat(configfile); err != nil {
-		if os.IsNotExist(err) {
-			logger.Trace().Msg("config file not found.")
-			return loadStackCfg(root, filepath.Dir(configdir))
-		}
-		return StackCfg{}, fmt.Errorf("stat config file: %v", err)
-	}
-
-	logger.Trace().Msg("Read config file.")
-
-	config, err := os.ReadFile(configfile)
 	if err != nil {
-		return StackCfg{}, fmt.Errorf("reading config: %v", err)
+		return StackCfg{}, fmt.Errorf("loading stack config: %v", err)
 	}
 
-	logger.Trace().Msg("Parse config file.")
-
-	parsedConfig, err := hcl.Parse(configfile, config)
-	if err != nil {
-		return StackCfg{}, fmt.Errorf("parsing config: %w", err)
-	}
-
-	if parsedConfig.Terramate == nil {
-		logger.Trace().Msg("terramate block not found.")
+	if !found {
+		logger.Trace().Msg("config file not found.")
 		return loadStackCfg(root, filepath.Dir(configdir))
 	}
 
-	terramate := parsedConfig.Terramate
-	if terramate.RootConfig == nil {
-		logger.Trace().Msg("terramate.config block not found.")
-		return loadStackCfg(root, filepath.Dir(configdir))
-	}
+	logger.Trace().Msg("loaded config.")
 
-	tmconfig := terramate.RootConfig
-	if tmconfig.Generate == nil {
+	if parsedConfig.Terramate.RootConfig.Generate == nil {
 		logger.Trace().Msg("terramate.config.generate block not found.")
 		return loadStackCfg(root, filepath.Dir(configdir))
 	}
 
 	logger.Trace().Msg("terramate.config.generate found.")
 
-	gen := tmconfig.Generate
+	gen := parsedConfig.Terramate.RootConfig.Generate
 
 	return StackCfg{
 		BackendCfgFilename: optstr(gen.BackendCfgFilename, BackendCfgFilename),
