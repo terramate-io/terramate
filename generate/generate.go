@@ -116,6 +116,13 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 
 	outdated := []string{}
 
+	logger.Trace().Msg("Load stack code generation config.")
+
+	cfg, err := LoadStackCfg(root, stack)
+	if err != nil {
+		return nil, fmt.Errorf("checking for outdated code: %v", err)
+	}
+
 	logger.Trace().Msg("Loading globals for stack.")
 
 	globals, err := terramate.LoadStackGlobals(root, stack.Meta())
@@ -132,8 +139,7 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 		return nil, fmt.Errorf("checking for outdated code: %v", err)
 	}
 
-	// TODO(katcipis): allow BackendCfgFilename to be configured
-	stackBackendCfgFile := filepath.Join(stackpath, BackendCfgFilename)
+	stackBackendCfgFile := filepath.Join(stackpath, cfg.BackendCfgFilename)
 	currentbackend, err := loadGeneratedCode(stackBackendCfgFile)
 	if err != nil {
 		return nil, fmt.Errorf("checking for outdated code: %v", err)
@@ -143,7 +149,7 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 
 	if string(genbackend) != string(currentbackend) {
 		logger.Trace().Msg("Detected outdated backend config.")
-		outdated = append(outdated, BackendCfgFilename)
+		outdated = append(outdated, cfg.BackendCfgFilename)
 	}
 
 	logger.Trace().Msg("Checking for outdated exported locals code on stack.")
@@ -153,8 +159,7 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 		return nil, fmt.Errorf("checking for outdated code: %v", err)
 	}
 
-	// TODO(katcipis): allow LocalsFilename to be configured
-	stackLocalsFile := filepath.Join(stackpath, LocalsFilename)
+	stackLocalsFile := filepath.Join(stackpath, cfg.LocalsFilename)
 	currentlocals, err := loadGeneratedCode(stackLocalsFile)
 	if err != nil {
 		return nil, fmt.Errorf("checking for outdated code: %v", err)
@@ -162,7 +167,7 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 
 	if string(genlocals) != string(currentlocals) {
 		logger.Trace().Msg("Detected outdated exported locals.")
-		outdated = append(outdated, LocalsFilename)
+		outdated = append(outdated, cfg.LocalsFilename)
 	}
 
 	return outdated, nil

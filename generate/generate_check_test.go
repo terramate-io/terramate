@@ -126,6 +126,38 @@ func TestCheckReturnsOutdatedStackFilenames(t *testing.T) {
 	s.Generate()
 
 	assertAllStacksAreUpdated()
+
+	// Changing generated filenames will trigger detection, with new filenames
+
+	const (
+		backendFilename = "backend.tf"
+		localsFilename  = "locals.tf"
+	)
+
+	codegenConfig := hcldoc(
+		terramate(
+			block("config",
+				block("generate",
+					str("backend_config_filename", backendFilename),
+					str("locals_filename", localsFilename),
+				),
+			),
+		),
+	)
+
+	rootEntry := s.DirEntry(".")
+	rootEntry.CreateConfig(codegenConfig.String())
+
+	got, err = generate.CheckStack(s.RootDir(), stack1val)
+	assert.NoError(t, err)
+	assertStringsEquals(t, got, []string{localsFilename})
+
+	got, err = generate.CheckStack(s.RootDir(), stack2val)
+	assert.NoError(t, err)
+	assertStringsEquals(t, got, []string{backendFilename, localsFilename})
+
+	s.Generate()
+	assertAllStacksAreUpdated()
 }
 
 func TestCheckFailsWithInvalidConfig(t *testing.T) {
