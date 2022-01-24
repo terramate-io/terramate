@@ -1363,6 +1363,54 @@ func TestLocalsGeneration(t *testing.T) {
 					"/stacks/stack-1": locals(
 						str("str_local", "string"),
 					),
+					"/stacks/stack-2": locals(
+						str("str_local", "string"),
+					),
+				},
+			},
+		},
+		{
+			name: "stacks with code gen cfg filtered by working dir",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			workingDir: "stacks/stack-2",
+			configs: []hclblock{
+				{
+					path: "/",
+					add: globals(
+						str("str", "string"),
+					),
+				},
+				{
+					path: "/stacks",
+					add: terramate(
+						cfg(
+							gen(
+								str("locals_filename", "locals.tf"),
+							),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack-1",
+					add: exportAsLocals(
+						expr("str_local", "global.str"),
+					),
+				},
+				{
+					path: "/stacks/stack-2",
+					add: exportAsLocals(
+						expr("str_local", "global.str"),
+					),
+				},
+			},
+			want: want{
+				stacksLocals: map[string]*hclwrite.Block{
+					"/stacks/stack-2": locals(
+						str("str_local", "string"),
+					),
 				},
 			},
 		},
