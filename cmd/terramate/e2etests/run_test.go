@@ -456,7 +456,7 @@ func TestRunWants(t *testing.T) {
 
 	for _, tc := range []testcase{
 		{
-			/* TODO(i4k): stack-a wants stack-a should error */
+			/* this works but gives a warning */
 			name: "stack-a wants stack-a",
 			layout: []string{
 				`s:stack-a:wants=["/stack-a"]`,

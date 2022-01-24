@@ -388,6 +388,10 @@ func (m *Manager) moduleChanged(
 }
 
 func (m *Manager) AddWantedOf(stacks []stack.S) ([]stack.S, error) {
+	logger := log.With().
+		Str("action", "AddWantedOf()").
+		Logger()
+
 	wantedBy := map[string]stack.S{}
 	wanted := []stack.S{}
 
@@ -400,12 +404,24 @@ func (m *Manager) AddWantedOf(stacks []stack.S) ([]stack.S, error) {
 
 	for len(wantedBy) > 0 {
 		for _, s := range wantedBy {
+			logger.Debug().
+				Stringer("stack", s).
+				Msg("Loading \"wants\".")
+
 			wantedStacks, err := m.stackLoader.LoadAll(m.root, s.AbsPath(), s.Wants()...)
 			if err != nil {
 				return nil, fmt.Errorf("calculating wanted stacks: %v", err)
 			}
 
 			for _, wantedStack := range wantedStacks {
+				if wantedStack.AbsPath() == s.AbsPath() {
+					logger.Warn().
+						Stringer("stack", s).
+						Msgf("stack %q wants itself.", s)
+
+					continue
+				}
+
 				if _, ok := visited[wantedStack.PrjAbsPath()]; !ok {
 					wanted = append(wanted, wantedStack)
 					visited[wantedStack.PrjAbsPath()] = struct{}{}
