@@ -81,8 +81,7 @@ func Do(root string, workingDir string) error {
 
 		logger.Debug().Msg("Generate stack locals.")
 
-		// TODO(katcipis): allow this to be configured
-		targetLocalsFile := filepath.Join(stackpath, LocalsFilename)
+		targetLocalsFile := filepath.Join(stackpath, cfg.LocalsFilename)
 		err = writeStackLocalsCode(root, stackpath, stackMeta, globals, targetLocalsFile)
 		if err != nil {
 			return err
