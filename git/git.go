@@ -38,6 +38,9 @@ type (
 		WorkingDir string
 
 		// Env is the environment variables to be passed over to git.
+		// If it is nil it means no environment variables should be passed.
+		// To inherit all env vars from the parent process os.Getenv() needs
+		// to be passed explicitly.
 		Env []string
 
 		// Isolated tells if the wrapper should run with isolated
@@ -823,7 +826,13 @@ func (git *Git) exec(command string, args ...string) (string, error) {
 	logger.Trace().
 		Msg("Append arguments.")
 	cmd.Args = append(cmd.Args, args...)
-	cmd.Env = git.config.Env
+
+	// nil and empty slice behave differently on exec.Cmd.
+	// nil defaults to use parent env, empty means actually empty.
+	// we want nil and empty to behave the same (no env).
+	if git.config.Env != nil {
+		cmd.Env = git.config.Env
+	}
 
 	if git.config.Isolated {
 		logger.Trace().
