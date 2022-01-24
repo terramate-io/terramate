@@ -103,8 +103,9 @@ func (l Loader) Set(dir string, s S) {
 	l.stacks[dir] = s
 }
 
-// LoadAll loads all the stacks in the dirs project paths. If dirs are relative,
-// then wd is used as working directory to compute their absolute paths.
+// LoadAll loads all the stacks in the dirs paths. For each dir in dirs: 
+// - If it is relative, it will be considered relative to wd, path = wd + dir
+// - If it is absolute, it will be considered absolute in relation to the given root, path = root + dir
 func (l Loader) LoadAll(root string, wd string, dirs ...string) ([]S, error) {
 	logger := log.With().
 		Str("action", "LoadAll()").
