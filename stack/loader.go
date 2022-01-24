@@ -21,8 +21,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
 )
@@ -61,54 +59,22 @@ func (l Loader) Load(dir string) (S, error) {
 // It caches the stack for later use.
 func (l Loader) TryLoad(dir string) (stack S, found bool, err error) {
 	logger := log.With().
-		Str("action", "TryLoad()").
-		Str("stack", dir).
+		Str("action", "Loader.TryLoad()").
+		Str("dir", dir).
 		Logger()
 
-	if !strings.HasPrefix(dir, l.root) {
-		return S{}, false, fmt.Errorf("directory %q is not inside project root %q",
-			dir, l.root)
-	}
-
-	logger.Trace().
-		Msg("Get relative stack path to root directory.")
+	logger.Trace().Msg("Get project absolute stack path.")
 
 	stackpath := project.PrjAbsPath(l.root, dir)
 	if s, ok := l.stacks[stackpath]; ok {
 		return s, true, nil
 	}
 
-	if ok := config.Exists(dir); !ok {
-		return S{}, false, err
+	stack, found, err = TryLoad(l.root, dir)
+	if !found {
+		return S{}, found, err
 	}
 
-	fname := filepath.Join(dir, config.Filename)
-
-	logger.Debug().
-		Str("configFile", fname).
-		Msg("Parse config file.")
-
-	cfg, err := hcl.ParseFile(fname)
-	if err != nil {
-		return S{}, false, err
-	}
-
-	if cfg.Stack == nil {
-		return S{}, false, nil
-	}
-
-	ok, err := l.IsLeafStack(dir)
-	if err != nil {
-		return S{}, false, err
-	}
-
-	if !ok {
-		return S{}, false, fmt.Errorf("stack %q is not a leaf stack", dir)
-	}
-
-	logger.Debug().Msg("Create a new stack")
-
-	stack = New(l.root, cfg)
 	l.stacks[stack.PrjAbsPath()] = stack
 	return stack, true, nil
 }
