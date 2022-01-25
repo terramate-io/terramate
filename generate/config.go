@@ -63,7 +63,6 @@ func loadStackCfg(root string, configdir string) (StackCfg, error) {
 	logger.Trace().Msg("loading config.")
 
 	parsedConfig, found, err := config.TryLoadRootConfig(configdir)
-
 	if err != nil {
 		return StackCfg{}, fmt.Errorf("loading stack config: %v", err)
 	}
