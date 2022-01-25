@@ -38,6 +38,7 @@ const (
 	ErrBackendConfigGen   errutil.Error = "generating backend config"
 	ErrExportingLocalsGen errutil.Error = "generating locals"
 	ErrLoadingGlobals     errutil.Error = "loading globals"
+	ErrLoadingStackCfg    errutil.Error = "loading stack code gen config"
 	ErrManualCodeExists   errutil.Error = "manually defined code found"
 )
 
@@ -59,6 +60,7 @@ func Do(root string, workingDir string) error {
 	errs := forEachStack(root, workingDir, func(
 		stack stack.S,
 		globals *terramate.Globals,
+		cfg StackCfg,
 	) error {
 		stackpath := stack.AbsPath()
 		logger := log.With().
@@ -71,8 +73,7 @@ func Do(root string, workingDir string) error {
 
 		stackMeta := stack.Meta()
 
-		// TODO(katcipis): allow this to be configured
-		targetBackendCfgFile := filepath.Join(stackpath, BackendCfgFilename)
+		targetBackendCfgFile := filepath.Join(stackpath, cfg.BackendCfgFilename)
 		err := writeStackBackendConfig(root, stackpath, stackMeta, globals, targetBackendCfgFile)
 		if err != nil {
 			return err
@@ -80,8 +81,7 @@ func Do(root string, workingDir string) error {
 
 		logger.Debug().Msg("Generate stack locals.")
 
-		// TODO(katcipis): allow this to be configured
-		targetLocalsFile := filepath.Join(stackpath, LocalsFilename)
+		targetLocalsFile := filepath.Join(stackpath, cfg.LocalsFilename)
 		err = writeStackLocalsCode(root, stackpath, stackMeta, globals, targetLocalsFile)
 		if err != nil {
 			return err
@@ -116,6 +116,13 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 
 	outdated := []string{}
 
+	logger.Trace().Msg("Load stack code generation config.")
+
+	cfg, err := LoadStackCfg(root, stack)
+	if err != nil {
+		return nil, fmt.Errorf("checking for outdated code: %v", err)
+	}
+
 	logger.Trace().Msg("Loading globals for stack.")
 
 	globals, err := terramate.LoadStackGlobals(root, stack.Meta())
@@ -132,8 +139,7 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 		return nil, fmt.Errorf("checking for outdated code: %v", err)
 	}
 
-	// TODO(katcipis): allow BackendCfgFilename to be configured
-	stackBackendCfgFile := filepath.Join(stackpath, BackendCfgFilename)
+	stackBackendCfgFile := filepath.Join(stackpath, cfg.BackendCfgFilename)
 	currentbackend, err := loadGeneratedCode(stackBackendCfgFile)
 	if err != nil {
 		return nil, fmt.Errorf("checking for outdated code: %v", err)
@@ -143,7 +149,7 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 
 	if string(genbackend) != string(currentbackend) {
 		logger.Trace().Msg("Detected outdated backend config.")
-		outdated = append(outdated, BackendCfgFilename)
+		outdated = append(outdated, cfg.BackendCfgFilename)
 	}
 
 	logger.Trace().Msg("Checking for outdated exported locals code on stack.")
@@ -153,8 +159,7 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 		return nil, fmt.Errorf("checking for outdated code: %v", err)
 	}
 
-	// TODO(katcipis): allow LocalsFilename to be configured
-	stackLocalsFile := filepath.Join(stackpath, LocalsFilename)
+	stackLocalsFile := filepath.Join(stackpath, cfg.LocalsFilename)
 	currentlocals, err := loadGeneratedCode(stackLocalsFile)
 	if err != nil {
 		return nil, fmt.Errorf("checking for outdated code: %v", err)
@@ -162,7 +167,7 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 
 	if string(genlocals) != string(currentlocals) {
 		logger.Trace().Msg("Detected outdated exported locals.")
-		outdated = append(outdated, LocalsFilename)
+		outdated = append(outdated, cfg.LocalsFilename)
 	}
 
 	return outdated, nil
@@ -508,7 +513,7 @@ func loadGeneratedCode(path string) ([]byte, error) {
 	return data, nil
 }
 
-type forEachStackCallback func(stack stack.S, globals *terramate.Globals) error
+type forEachStackCallback func(stack.S, *terramate.Globals, StackCfg) error
 
 func forEachStack(root, workingDir string, callback forEachStackCallback) []error {
 	logger := log.With().
@@ -538,6 +543,18 @@ func forEachStack(root, workingDir string, callback forEachStackCallback) []erro
 			continue
 		}
 
+		logger.Trace().Msg("Load stack code generation config.")
+
+		cfg, err := LoadStackCfg(root, stack)
+		if err != nil {
+			errs = append(errs, fmt.Errorf(
+				"stack %q: %w: %v",
+				stack.AbsPath(),
+				ErrLoadingStackCfg,
+				err))
+			continue
+		}
+
 		logger.Trace().Msg("Load stack globals.")
 
 		globals, err := terramate.LoadStackGlobals(root, stack.Meta())
@@ -551,7 +568,7 @@ func forEachStack(root, workingDir string, callback forEachStackCallback) []erro
 		}
 
 		logger.Trace().Msg("Calling stack callback.")
-		if err := callback(stack, globals); err != nil {
+		if err := callback(stack, globals, cfg); err != nil {
 			errs = append(errs, err)
 		}
 	}
