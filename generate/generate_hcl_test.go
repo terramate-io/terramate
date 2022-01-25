@@ -50,6 +50,10 @@ func backend(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("backend", builders...)
 }
 
+func block(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return hclwrite.BuildBlock(name, builders...)
+}
+
 func globals(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("globals", builders...)
 }

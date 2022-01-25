@@ -35,14 +35,6 @@ import (
 )
 
 const (
-	// BackendCfgFilename is the name of the terramate generated tf file for backend configuration.
-	BackendCfgFilename = "_gen_backend_cfg.tm.tf"
-
-	// LocalsFilename is the name of the terramate generated tf file for exported locals.
-	LocalsFilename = "_gen_locals.tm.tf"
-)
-
-const (
 	ErrBackendConfigGen   errutil.Error = "generating backend config"
 	ErrExportingLocalsGen errutil.Error = "generating locals"
 	ErrLoadingGlobals     errutil.Error = "loading globals"
@@ -337,6 +329,8 @@ func generateBackendCfgCode(
 	logger.Trace().
 		Msg("Load stack backend config.")
 	if _, err := os.Stat(configfile); err != nil {
+		// FIXME(katcipis): use  os.IsNotExist(err) to handle errors properly.
+		// Unknown stat errors will be ignored right now.
 		return generateBackendCfgCode(root, stackpath, stackMetadata, globals, filepath.Dir(configdir))
 	}
 

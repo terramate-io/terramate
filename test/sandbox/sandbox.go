@@ -51,9 +51,10 @@ type S struct {
 // DirEntry represents a directory and can be used to create files inside the
 // directory.
 type DirEntry struct {
-	t       *testing.T
-	abspath string
-	relpath string
+	t        *testing.T
+	rootpath string
+	abspath  string
+	relpath  string
 }
 
 // StackEntry represents a directory that's also a stack.
@@ -257,10 +258,7 @@ func (s S) CreateStack(relpath string) StackEntry {
 		t.Fatalf("CreateStack() needs a relative path but given %q", relpath)
 	}
 
-	stack := StackEntry{
-		DirEntry: newDirEntry(t, s.rootdir, relpath),
-	}
-
+	stack := newStackEntry(t, s.RootDir(), relpath)
 	assert.NoError(t, terramate.Init(s.RootDir(), stack.Path(), false))
 	return stack
 }
@@ -268,7 +266,7 @@ func (s S) CreateStack(relpath string) StackEntry {
 // StackEntry gets the stack entry of the stack identified by relpath.
 // The stack must exist (previously created).
 func (s S) StackEntry(relpath string) StackEntry {
-	return StackEntry{DirEntry: s.DirEntry(relpath)}
+	return newStackEntry(s.t, s.RootDir(), relpath)
 }
 
 // DirEntry gets the dir entry for relpath.
@@ -417,6 +415,15 @@ func (se StackEntry) ReadGeneratedLocals() []byte {
 	return se.DirEntry.ReadFile(generate.LocalsFilename)
 }
 
+// Load loads the terramate stack instance.
+func (se StackEntry) Load() stack.S {
+	se.t.Helper()
+
+	loadedStack, err := stack.Load(se.rootpath, se.Path())
+	assert.NoError(se.t, err)
+	return loadedStack
+}
+
 // Path returns the absolute path of the stack.
 func (se StackEntry) Path() string {
 	return se.DirEntry.abspath
@@ -428,17 +435,22 @@ func (se StackEntry) RelPath() string {
 	return se.DirEntry.relpath
 }
 
-func newDirEntry(t *testing.T, basedir string, relpath string) DirEntry {
+func newDirEntry(t *testing.T, rootdir string, relpath string) DirEntry {
 	t.Helper()
 
-	abspath := filepath.Join(basedir, relpath)
+	abspath := filepath.Join(rootdir, relpath)
 	test.MkdirAll(t, abspath)
 
 	return DirEntry{
-		t:       t,
-		abspath: abspath,
-		relpath: relpath,
+		t:        t,
+		rootpath: rootdir,
+		abspath:  abspath,
+		relpath:  relpath,
 	}
+}
+
+func newStackEntry(t *testing.T, rootdir string, relpath string) StackEntry {
+	return StackEntry{DirEntry: newDirEntry(t, rootdir, relpath)}
 }
 
 func parseListSpec(t *testing.T, name, value string) []string {

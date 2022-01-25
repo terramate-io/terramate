@@ -39,8 +39,9 @@ func NewLoader(root string) Loader {
 	}
 }
 
-// Load loads a stack from dir directory. If the stack was previously loaded, it
-// returns the cached one.
+// Load loads a stack from dir directory.
+// The provided directory must be an absolute path to the stack dir.
+// If the stack was previously loaded, it returns the cached one.
 func (l Loader) Load(dir string) (S, error) {
 	stack, found, err := l.TryLoad(dir)
 	if err != nil {

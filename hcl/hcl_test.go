@@ -454,6 +454,31 @@ terramate {
 			},
 		},
 		{
+			name: "multiple config.generate blocks - fails",
+			input: `terramate {
+				  config {
+				    generate {}
+				    generate {}
+				  }
+				}`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
+			name: "config.generate block with unknown attribute",
+			input: `terramate {
+				  config {
+				    generate {
+				      very_unknown_attribute = "oopsie"
+				    }
+				  }
+				}`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
 			name: "basic config.git block",
 			input: `
 terramate {
@@ -474,6 +499,61 @@ terramate {
 						},
 					},
 				},
+			},
+		},
+		{
+			name: "empty config.generate block",
+			input: `terramate {
+				  config {
+				    generate {
+				    }
+				  }
+				}`,
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						RootConfig: &hcl.RootConfig{
+							Generate: &hcl.GenerateConfig{},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "full config.generate block",
+			input: `terramate {
+				  config {
+				    generate {
+				      backend_config_filename = "backend.tf"
+				      locals_filename = "locals.tf"
+				    }
+				  }
+				}`,
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						RootConfig: &hcl.RootConfig{
+							Generate: &hcl.GenerateConfig{
+								BackendCfgFilename: "backend.tf",
+								LocalsFilename:     "locals.tf",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "config.generate block with invalid cfg",
+			input: `terramate {
+				  config {
+				    generate {
+				      backend_config_filename = true
+				      locals_filename = 666
+				    }
+				  }
+				}`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
