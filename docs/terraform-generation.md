@@ -6,36 +6,38 @@ arbitrary terraform code that leverages Terramate data.
 The generated code can then be composed/referenced by any Terraform code
 inside a stack.
 
-This feature is a superset (and generalization) of 
-[locals generation](locals-generation.md) and
-[backend config generation](backend-config.md).
+This feature is a generalization of [locals generation](locals-generation.md) and
+[backend config generation](backend-config.md), so both can be achieved by
+using it (as will be shown).
 
-To make use of [globals](globals.md) and [metadata](metadata.md) define
-a `export_as_terraform` block on a [Terramate configuration file](config.md)
-defining the code you want to generate. The code may include:
+Terraform code generation starts with the definition of a `export_as_terraform`
+block on a [Terramate configuration file](config.md) defining the code you
+want to generate inside the block. The code may include:
 
 * Blocks, sub blocks,etc 
 * Attributes initialized by literals
-* Global references
-* Metadata references
+* Terramate Global references
+* Terramate Metadata references
 * Expressions using interpolation, functions, etc
 
-Mostly of what you can do on Terraform can be defined here, for now the
-following is disallowed:
+Mostly of what you can do on Terraform can be done on a `export_as_terraform`
+block, for now only the following is disallowed:
 
 * References to variables on the form `var.name`
 * References to locals on the form `local.name`
 
 Basically there is no support for partial evaluation (yet), so anything defined
-needs to be evaluated on the context of the code generation.
+needs to be evaluated on the context of the code generation and the final generated
+code will have the results of the evaluation.
 
-Each `export_as_terraform` requires a label. This label is part of the identity
+Each `export_as_terraform` block requires a label. This label is part of the identity
 of the block and is also used as a default to which filename will be used when
 code is generated. Given a label `x` the filename will be `_gen_terramate_x.tf`. The labels are
 also used to configure different filenames for each block if the default names are
 undesired, more details on how to configure this can be checked [here](todo-docs-for-config).
 
-Now lets jump to some examples.
+Now lets jump to some examples. Lets generate backend and provider configuration
+for all stacks inside a project.
 
 Given these globals defined on the root of the project:
 
@@ -49,11 +51,8 @@ globals {
 ```
 
 We can define the generation of a backend configuration for all
-stacks by defining `export_as_terraform` blocks on the root
-of the project.
-
-For example, to generate backend configurations for
-all stacks we can add this to the root configuration:
+stacks by defining a `export_as_terraform` blocks on the root
+of the project:
 
 ```hcl
 export_as_terraform "backend" {
@@ -116,3 +115,5 @@ terraform {
   required_version = "1.1.3"
 }
 ```
+
+TODO: Define overriding behavior (hierarchies).
