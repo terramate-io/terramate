@@ -31,9 +31,9 @@ needs to be evaluated on the context of the code generation.
 
 Each `export_as_terraform` requires a label. This label is part of the identity
 of the block and is also used as a default to which filename will be used when
-code is generated. Given a label `x` the filename will be `x.tf`. The labels are
-also used to configure a different behavior for the filenames, as can be seen
-[here](todo-docs-for-config).
+code is generated. Given a label `x` the filename will be `_gen_terramate_x.tf`. The labels are
+also used to configure different filenames for each block if the default names are
+undesired, more details on how to configure this can be checked [here](todo-docs-for-config).
 
 Now lets jump to some examples.
 
@@ -63,7 +63,7 @@ export_as_terraform "backend" {
 }
 ```
 
-Which will generate code for all stacks using the filename `backend.tf`:
+Which will generate code for all stacks using the filename `_gen_terramate_backend.tf`:
 
 ```hcl
 backend "local" {
@@ -96,7 +96,7 @@ export_as_terraform "provider" {
 }
 ```
 
-Which will generate code for all stacks using the filename `provider.tf`:
+Which will generate code for all stacks using the filename `_gen_terramate_provider.tf`:
 
 ```hcl
 provider "name" {
