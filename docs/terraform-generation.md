@@ -6,10 +6,6 @@ arbitrary terraform code that leverages Terramate data.
 The generated code can then be composed/referenced by any Terraform code
 inside a stack.
 
-This feature is a generalization of [locals generation](locals-generation.md) and
-[backend config generation](backend-config.md), so both can be achieved by
-using it (as will be shown).
-
 Terraform code generation starts with the definition of a `export_as_terraform`
 block on a [Terramate configuration file](config.md) defining the code you
 want to generate inside the block. The code may include:
