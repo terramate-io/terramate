@@ -1,8 +1,7 @@
 # Terraform Code Generation
 
-Terramate provides a way to integrate its [globals](globals.md) and
-[metadata](metadata.md) in Terraform code by allowing you to generate
-arbitrary Terraform code that leverages Terramate data.
+Terramate supports the generation of arbitrary Terraform code using 
+both [globals](globals.md) and [metadata](metadata.md).
 The generated code can then be composed/referenced by any Terraform code
 inside a stack.
 
