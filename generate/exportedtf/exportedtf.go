@@ -6,19 +6,17 @@ import (
 	"github.com/mineiros-io/terramate/stack"
 )
 
-// Configs represents a map of configurations for exported
-// Terraform code. These configurations are HCL with
-// evaluated values on them.
-type Configs map[string]Config
+// TfCode represents all exported terraform code for a stack,
+// mapping the exported code name to the actual Terraform code.
+type TfCode map[string]Body
 
-// Config represents a configuration for exported Terraform code.
-// Is contains HCL parsed code with evaluated values on it.
-type Config hclsyntax.Body
+// Body represents exported Terraform code from a single block.
+// Is contains parsed and evaluated code on it.
+type Body hclsyntax.Body
 
-// String returns a string representation of the configuration
-// that is guaranteed to be valid HCL or an empty string if the config
-// itself is empty.
-func (c Config) String() string {
+// String returns a string representation of the Terraform code
+// or an empty string if the config itself is empty.
+func (b Body) String() string {
 	return ""
 }
 
@@ -35,6 +33,6 @@ func (c Config) String() string {
 // The returned result only contains evaluated values.
 //
 // The rootdir MUST be an absolute path.
-func Load(rootdir string, sm stack.Metadata, globals *terramate.Globals) (Configs, error) {
+func Load(rootdir string, sm stack.Metadata, globals *terramate.Globals) (TfCode, error) {
 	return nil, nil
 }
