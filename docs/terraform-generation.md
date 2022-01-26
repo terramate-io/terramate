@@ -10,7 +10,7 @@ Terraform code generation starts with the definition of a `export_as_terraform`
 block in a [Terramate configuration file](config.md) defining the code you
 want to generate inside the block. The code may include:
 
-* Blocks, sub blocks,etc 
+* Blocks, sub blocks, etc 
 * Attributes initialized by literals
 * Terramate Global references
 * Terramate Metadata references
