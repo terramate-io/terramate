@@ -67,7 +67,7 @@ backend "local" {
 ```
 
 To generate provider/Terraform configuration for all stacks we can add
-on the root configuration:
+in the root configuration:
 
 ```hcl
 export_as_terraform "provider" {
