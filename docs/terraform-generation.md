@@ -167,8 +167,8 @@ export_as_terraform "backend" {
 }
 ```
 
-No overriding happens since each block has a different label and will generate
-its own code in a separated file.
+No overriding happens since each `export_as_terraform` block has a different
+label and will generate its own code in a separated file.
 
 But if we had this configuration at `stacks/stack-1/terramate.tm.hcl`:
 
