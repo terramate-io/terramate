@@ -142,9 +142,10 @@ There is no merge strategy/ composition involved, the configuration found
 closest to a stack on the file system, or directly at the stack directory,
 is the one used, ignoring more general configuration.
 
-It is important to note that overriding happens when blocks are considered
-the same, and the identity of a block includes its label. Lets use as an example
-the previously mentioned `stacks/stack-1`.
+It is important to note that overriding happens when `export_as_terraform`
+blocks are considered the same, and the identity of a `export_as_terraform`
+block includes its label. Lets use as an example the
+previously mentioned `stacks/stack-1`.
 
 Given this configuration at `stacks/terramate.tm.hcl`:
 
