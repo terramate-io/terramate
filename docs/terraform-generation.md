@@ -23,7 +23,7 @@ block. For now, only the following is not allowed:
 * References to locals on the form `local.name`
 
 Basically there is no support for partial evaluation (yet), so anything defined
-needs to be evaluated on the context of the code generation and the final generated
+needs to be evaluated in the context of the code generation, and the final generated
 code will have the results of the evaluation.
 
 Each `export_as_terraform` block requires a label. This label is part of the identity
