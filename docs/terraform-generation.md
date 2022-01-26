@@ -7,7 +7,7 @@ The generated code can then be composed/referenced by any Terraform code
 inside a stack.
 
 Terraform code generation starts with the definition of a `export_as_terraform`
-block on a [Terramate configuration file](config.md) defining the code you
+block in a [Terramate configuration file](config.md) defining the code you
 want to generate inside the block. The code may include:
 
 * Blocks, sub blocks,etc 
