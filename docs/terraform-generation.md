@@ -23,7 +23,10 @@ block. For now, only the following is not allowed:
 
 Basically there is no support for partial evaluation (yet), so anything defined
 needs to be evaluated in the context of the code generation, and the final generated
-code will have the results of the evaluation.
+code will have the results of the evaluation. This means that any function calls,
+file reading functions, references to globals/metadata, will all be evaluated
+at code generation time and the generated code will only have literals like strings,
+numbers, lists, maps, objects, etc.
 
 Each `export_as_terraform` block requires a label. This label is part of the identity
 of the block and is also used as a default for which filename will be used when
