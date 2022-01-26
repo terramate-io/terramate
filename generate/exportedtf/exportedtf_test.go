@@ -19,11 +19,15 @@ func TestLoadExportedTerraform(t *testing.T) {
 			path string
 			add  fmt.Stringer
 		}
+		result struct {
+			name string
+			hcl  fmt.Stringer
+		}
 		testcase struct {
 			name    string
 			stack   string
 			configs []hclconfig
-			want    map[string]fmt.Stringer
+			want    []result
 			wantErr error
 		}
 	)
@@ -38,6 +42,10 @@ func TestLoadExportedTerraform(t *testing.T) {
 	}
 	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("globals", builders...)
+	}
+	attr := func(name, expr string) hclwrite.BlockBuilder {
+		t.Helper()
+		return hclwrite.AttributeValue(t, name, expr)
 	}
 	expr := hclwrite.Expression
 	str := hclwrite.String
@@ -65,19 +73,32 @@ func TestLoadExportedTerraform(t *testing.T) {
 					path: "/stack",
 					add: exportAsTerraform("test",
 						block("testblock",
-							expr("string", "global.some_string"),
-							expr("number", "global.some_number"),
 							expr("bool", "global.some_bool"),
+							expr("number", "global.some_number"),
+							expr("string", "global.some_string"),
+							expr("obj", `{ 
+								string = global.some_string
+								number = global.some_number
+								bool = global.bool
+							}`),
 						),
 					),
 				},
 			},
-			want: map[string]fmt.Stringer{
-				"test": block("testblock",
-					str("string_local", "string"),
-					number("number_local", 777),
-					boolean("bool_local", true),
-				),
+			want: []result{
+				{
+					name: "test",
+					hcl: block("testblock",
+						boolean("bool", true),
+						number("number", 777),
+						str("string", "string"),
+						attr("obj", `{ 
+							bool   = true
+							number = 777
+							string = "string"
+						}`),
+					),
+				},
 			},
 		},
 	}
