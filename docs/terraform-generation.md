@@ -2,7 +2,7 @@
 
 Terramate provides a way to integrate its [globals](globals.md) and
 [metadata](metadata.md) in Terraform code by allowing you to generate
-arbitrary terraform code that leverages Terramate data.
+arbitrary Terraform code that leverages Terramate data.
 The generated code can then be composed/referenced by any Terraform code
 inside a stack.
 
