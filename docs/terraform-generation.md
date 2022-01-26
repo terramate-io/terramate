@@ -30,7 +30,7 @@ Each `export_as_terraform` block requires a label. This label is part of the ide
 of the block and is also used as a default for which filename will be used when
 code is generated. Given a label `x` the filename will be `_gen_terramate_x.tf`. The labels are
 also used to configure different filenames for each block if the default names are
-undesired, more details on how to configure this can be checked [here](todo-docs-for-config).
+undesired. More details on how to configure this can be checked [here](todo-docs-for-config).
 
 Now lets jump to some examples. Lets generate backend and provider configuration
 for all stacks inside a project.
