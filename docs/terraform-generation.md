@@ -47,7 +47,7 @@ globals {
 ```
 
 We can define the generation of a backend configuration for all
-stacks by defining a `export_as_terraform` blocks on the root
+stacks by defining a `export_as_terraform` block in the root
 of the project:
 
 ```hcl
