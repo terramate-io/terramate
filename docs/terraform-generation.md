@@ -16,7 +16,7 @@ want to generate inside the block. The code may include:
 * Terramate Metadata references
 * Expressions using interpolation, functions, etc
 
-Mostly of what you can do on Terraform can be done on a `export_as_terraform`
+Most of what you can do in Terraform can be done in a `export_as_terraform`
 block, for now only the following is disallowed:
 
 * References to variables on the form `var.name`
