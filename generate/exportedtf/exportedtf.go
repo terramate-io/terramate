@@ -28,14 +28,26 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// TfCode represents all exported terraform code for a stack,
+// StackTf represents all exported terraform code for a stack,
 // mapping the exported code name to the actual Terraform code.
-type TfCode map[string]Body
+type StackTf struct {
+	tfcode map[string]Body
+}
 
 // Body represents exported Terraform code from a single block.
 // Is contains parsed and evaluated code on it.
 type Body struct {
 	body []byte
+}
+
+// ExportedCode returns all exported code, mapping the name to its
+// equivalent generated code.
+func (s StackTf) ExportedCode() map[string]Body {
+	cp := map[string]Body{}
+	for k, v := range s.tfcode {
+		cp[k] = v
+	}
+	return cp
 }
 
 // String returns a string representation of the Terraform code
@@ -57,7 +69,7 @@ func (b Body) String() string {
 // The returned result only contains evaluated values.
 //
 // The rootdir MUST be an absolute path.
-func Load(rootdir string, sm stack.Metadata, globals *terramate.Globals) (TfCode, error) {
+func Load(rootdir string, sm stack.Metadata, globals *terramate.Globals) (StackTf, error) {
 	stackpath := filepath.Join(rootdir, sm.Path, config.Filename)
 	logger := log.With().
 		Str("action", "exportedtf.Load()").
@@ -68,17 +80,19 @@ func Load(rootdir string, sm stack.Metadata, globals *terramate.Globals) (TfCode
 
 	exportBlocks, err := loadExportBlocks(rootdir, stackpath)
 	if err != nil {
-		return nil, fmt.Errorf("loading exported terraform code: %v", err)
+		return StackTf{}, fmt.Errorf("loading exported terraform code: %v", err)
 	}
 
 	evalctx, err := newEvalCtx(stackpath, sm, globals)
 	if err != nil {
-		return nil, fmt.Errorf("preparing to eval exported terraform code: %v", err)
+		return StackTf{}, fmt.Errorf("preparing to eval exported terraform code: %v", err)
 	}
 
 	logger.Trace().Msg("generating exported terraform code.")
 
-	res := map[string]Body{}
+	res := StackTf{
+		tfcode: map[string]Body{},
+	}
 
 	for name, block := range exportBlocks {
 		logger := logger.With().
@@ -89,14 +103,14 @@ func Load(rootdir string, sm stack.Metadata, globals *terramate.Globals) (TfCode
 
 		gen := hclwrite.NewEmptyFile()
 		if err := hcl.CopyBody(gen.Body(), block.Body, evalctx); err != nil {
-			return nil, fmt.Errorf(
+			return StackTf{}, fmt.Errorf(
 				"generating terraform code for stack %q block %q: %v",
 				stackpath,
 				name,
 				err,
 			)
 		}
-		res[name] = Body{body: gen.Bytes()}
+		res.tfcode[name] = Body{body: gen.Bytes()}
 	}
 
 	return res, nil

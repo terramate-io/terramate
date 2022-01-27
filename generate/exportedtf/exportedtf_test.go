@@ -155,6 +155,58 @@ func TestLoadExportedTerraform(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:  "exported terraform on stack with single nested block",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						str("some_string", "string"),
+						number("some_number", 777),
+						boolean("some_bool", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: exportAsTerraform("nesting",
+						block("block1",
+							expr("bool", "global.some_bool"),
+							block("block2",
+								expr("number", "global.some_number"),
+								block("block3",
+									expr("string", "global.some_string"),
+									expr("obj", `{
+										string = global.some_string
+										number = global.some_number
+										bool = global.some_bool
+									}`),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "nesting",
+					hcl: block("block1",
+						boolean("bool", true),
+						block("block2",
+							number("number", 777),
+							block("block3",
+								str("string", "string"),
+								attr("obj", `{
+									bool   = true
+									number = 777
+									string = "string"
+								}`),
+							),
+						),
+					),
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
@@ -170,8 +222,10 @@ func TestLoadExportedTerraform(t *testing.T) {
 
 			meta := stack.Meta()
 			globals := s.LoadStackGlobals(meta)
-			got, err := exportedtf.Load(s.RootDir(), meta, globals)
+			res, err := exportedtf.Load(s.RootDir(), meta, globals)
 			assert.IsError(t, err, tcase.wantErr)
+
+			got := res.ExportedCode()
 
 			for _, res := range tcase.want {
 				gothcl, ok := got[res.name]
