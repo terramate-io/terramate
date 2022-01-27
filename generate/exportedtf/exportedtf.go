@@ -88,8 +88,6 @@ func Load(rootdir string, sm stack.Metadata, globals *terramate.Globals) (TfCode
 		logger.Trace().Msg("evaluating block.")
 
 		gen := hclwrite.NewEmptyFile()
-
-		// TODO(katcipis): test if block.Body is nil
 		if err := hcl.CopyBody(gen.Body(), block.Body, evalctx); err != nil {
 			return nil, fmt.Errorf(
 				"generating terraform code for stack %q block %q: %v",
@@ -98,7 +96,6 @@ func Load(rootdir string, sm stack.Metadata, globals *terramate.Globals) (TfCode
 				err,
 			)
 		}
-
 		res[name] = Body{body: gen.Bytes()}
 	}
 
