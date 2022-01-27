@@ -119,7 +119,7 @@ terraform {
 Terraform code generation can be defined anywhere inside a project, from a specific
 stack, which defines code generation only for the specific stack, to parent dirs
 or even the project root, which then has the potential to affect code generation
-to multiple or all stacks (as seen on the previous example).
+to multiple or all stacks (as seen in the previous example).
 
 This does raise the question of how code generation configuration is merged/overridden
 as Terramate navigate the project loading and evaluating configuration in order to
