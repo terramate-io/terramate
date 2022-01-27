@@ -46,10 +46,10 @@ func TestLoadExportedTerraform(t *testing.T) {
 	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("globals", builders...)
 	}
-	//attr := func(name, expr string) hclwrite.BlockBuilder {
-	//t.Helper()
-	//return hclwrite.AttributeValue(t, name, expr)
-	//}
+	attr := func(name, expr string) hclwrite.BlockBuilder {
+		t.Helper()
+		return hclwrite.AttributeValue(t, name, expr)
+	}
 	expr := hclwrite.Expression
 	str := hclwrite.String
 	number := hclwrite.NumberInt
@@ -79,11 +79,11 @@ func TestLoadExportedTerraform(t *testing.T) {
 							expr("bool", "global.some_bool"),
 							expr("number", "global.some_number"),
 							expr("string", "global.some_string"),
-							//expr("obj", `{
-							//string = global.some_string
-							//number = global.some_number
-							//bool = global.bool
-							//}`),
+							expr("obj", `{
+								string = global.some_string
+								number = global.some_number
+								bool = global.some_bool
+							}`),
 						),
 					),
 				},
@@ -95,11 +95,11 @@ func TestLoadExportedTerraform(t *testing.T) {
 						boolean("bool", true),
 						number("number", 777),
 						str("string", "string"),
-						//attr("obj", `{
-						//bool   = true
-						//number = 777
-						//string = "string"
-						//}`),
+						attr("obj", `{
+							bool   = true
+							number = 777
+							string = "string"
+						}`),
 					),
 				},
 			},
