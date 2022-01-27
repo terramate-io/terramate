@@ -190,7 +190,7 @@ terraform {
 
 Since the `stacks/stack-1` configuration is overriding the previous
 definition at `stacks`. Any other stack under `stacks` would remain
-with the configuration defined on the parent dir `stacks`.
+with the configuration defined in the parent dir `stacks`.
 
 The overriding is total, there is no merging involved on the blocks inside
 `export_as_terraform`, so if a parent directory defines a
