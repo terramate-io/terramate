@@ -49,6 +49,9 @@ func TestLoadExportedTerraform(t *testing.T) {
 		}
 	)
 
+	hcldoc := func(blocks ...*hclwrite.Block) hclwrite.HCL {
+		return hclwrite.NewHCL(blocks...)
+	}
 	exportAsTerraform := func(label string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		b := hclwrite.BuildBlock("export_as_terraform", builders...)
 		b.AddLabel(label)
@@ -73,6 +76,40 @@ func TestLoadExportedTerraform(t *testing.T) {
 		{
 			name:  "no exported terraform",
 			stack: "/stack",
+		},
+		{
+			name:  "empty export_as_terraform block generates empty code",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add:  exportAsTerraform("empty"),
+				},
+			},
+			want: []result{
+				{
+					name: "empty",
+					hcl:  hcldoc(),
+				},
+			},
+		},
+		{
+			name:  "exported terraform on stack with single empty block",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: exportAsTerraform("emptytest",
+						block("empty"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "emptytest",
+					hcl:  block("empty"),
+				},
+			},
 		},
 		{
 			name:  "exported terraform on stack with single block",
@@ -145,7 +182,11 @@ func TestLoadExportedTerraform(t *testing.T) {
 				wantcode := res.hcl.String()
 
 				assertHCLEquals(t, gotcode, wantcode)
+
+				delete(got, res.name)
 			}
+
+			assert.EqualInts(t, 0, len(got), "got unexpected exported code: %v", got)
 		})
 	}
 }
