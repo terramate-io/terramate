@@ -21,6 +21,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
@@ -40,6 +41,10 @@ type StackTf struct {
 type Body struct {
 	body []byte
 }
+
+const (
+	ErrInvalidBlock errutil.Error = "invalid export_as_terraform block"
+)
 
 // ExportedCode returns all exported code, mapping the name to its
 // equivalent generated code.
@@ -81,7 +86,7 @@ func Load(rootdir string, sm stack.Metadata, globals *terramate.Globals) (StackT
 
 	exportBlocks, err := loadExportBlocks(rootdir, stackpath)
 	if err != nil {
-		return StackTf{}, fmt.Errorf("loading exported terraform code: %v", err)
+		return StackTf{}, fmt.Errorf("loading exported terraform code: %w", err)
 	}
 
 	evalctx, err := newEvalCtx(stackpath, sm, globals)
@@ -168,8 +173,14 @@ func loadExportBlocks(rootdir string, cfgdir string) (map[string]*hclsyntax.Bloc
 	res := map[string]*hclsyntax.Block{}
 
 	for _, block := range blocks {
-		// TODO(katcipis): properly test wrong amount of labels
 		// TODO(katcipis): properly test two blocks with same label on same config file
+		if len(block.Labels) != 1 {
+			return nil, fmt.Errorf(
+				"%w: want single label instead got %d",
+				ErrInvalidBlock,
+				len(block.Labels),
+			)
+		}
 		name := block.Labels[0]
 		res[name] = block
 	}

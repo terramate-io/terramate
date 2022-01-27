@@ -67,6 +67,9 @@ func TestLoadExportedTerraform(t *testing.T) {
 		t.Helper()
 		return hclwrite.AttributeValue(t, name, expr)
 	}
+	labels := func(labels ...string) hclwrite.BlockBuilder {
+		return hclwrite.Labels(labels...)
+	}
 	expr := hclwrite.Expression
 	str := hclwrite.String
 	number := hclwrite.NumberInt
@@ -438,6 +441,37 @@ func TestLoadExportedTerraform(t *testing.T) {
 					),
 				},
 			},
+		},
+		{
+			name:  "export block with no label on stack gives err",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack",
+					add: block("export_as_terraform",
+						block("block",
+							str("data", "some literal data"),
+						),
+					),
+				},
+			},
+			wantErr: exportedtf.ErrInvalidBlock,
+		},
+		{
+			name:  "export block with two labels on stack gives err",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack",
+					add: block("export_as_terraform",
+						labels("one", "two"),
+						block("block",
+							str("data", "some literal data"),
+						),
+					),
+				},
+			},
+			wantErr: exportedtf.ErrInvalidBlock,
 		},
 	}
 
