@@ -17,6 +17,7 @@ package exportedtf
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
@@ -70,7 +71,7 @@ func (b Body) String() string {
 //
 // The rootdir MUST be an absolute path.
 func Load(rootdir string, sm stack.Metadata, globals *terramate.Globals) (StackTf, error) {
-	stackpath := filepath.Join(rootdir, sm.Path, config.Filename)
+	stackpath := filepath.Join(rootdir, sm.Path)
 	logger := log.With().
 		Str("action", "exportedtf.Load()").
 		Str("path", stackpath).
@@ -144,14 +145,21 @@ func newEvalCtx(stackpath string, sm stack.Metadata, globals *terramate.Globals)
 
 // loadExportBlocks will load all export_as_terraform blocks applying overriding
 // as it goes, the returned map maps the name of the block (its label) to the original block
-func loadExportBlocks(rootdir string, cfgpath string) (map[string]*hclsyntax.Block, error) {
+func loadExportBlocks(rootdir string, cfgdir string) (map[string]*hclsyntax.Block, error) {
 	logger := log.With().
 		Str("action", "exportedtf.loadExportBlocks()").
-		Str("configFile", cfgpath).
+		Str("root", rootdir).
+		Str("configDir", cfgdir).
 		Logger()
 
 	logger.Trace().Msg("Parsing export_as_terraform blocks.")
 
+	if !strings.HasPrefix(cfgdir, rootdir) {
+		logger.Trace().Msg("config dir outside root, nothing to do")
+		return nil, nil
+	}
+
+	cfgpath := filepath.Join(cfgdir, config.Filename)
 	blocks, err := hcl.ParseExportAsTerraformBlocks(cfgpath)
 	if err != nil {
 		return nil, fmt.Errorf("loading exported terraform code: %v", err)
@@ -166,5 +174,18 @@ func loadExportBlocks(rootdir string, cfgpath string) (map[string]*hclsyntax.Blo
 		res[name] = block
 	}
 
+	// TODO(katcipis): Handle failure on parent configs
+	parentRes, _ := loadExportBlocks(rootdir, filepath.Dir(cfgdir))
+
+	merge(res, parentRes)
 	return res, nil
+}
+
+func merge(target, src map[string]*hclsyntax.Block) {
+	for k, v := range src {
+		if _, ok := target[k]; ok {
+			continue
+		}
+		target[k] = v
+	}
 }

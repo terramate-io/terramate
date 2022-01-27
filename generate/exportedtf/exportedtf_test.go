@@ -207,6 +207,238 @@ func TestLoadExportedTerraform(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:  "multiple exported terraform blocks on stack",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						str("some_string", "string"),
+						number("some_number", 666),
+						boolean("some_bool", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: hcldoc(
+						exportAsTerraform("exported_one",
+							block("block1",
+								expr("bool", "global.some_bool"),
+								block("block2",
+									expr("number", "global.some_number"),
+								),
+							),
+						),
+						exportAsTerraform("exported_two",
+							block("yay",
+								expr("data", "global.some_string"),
+							),
+						),
+						exportAsTerraform("exported_three",
+							block("something",
+								expr("number", "global.some_number"),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "exported_one",
+					hcl: block("block1",
+						boolean("bool", true),
+						block("block2",
+							number("number", 666),
+						),
+					),
+				},
+				{
+					name: "exported_two",
+					hcl: block("yay",
+						str("data", "string"),
+					),
+				},
+				{
+					name: "exported_three",
+					hcl: block("something",
+						number("number", 666),
+					),
+				},
+			},
+		},
+		{
+			name:  "exported terraform on stack parent dir",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: globals(
+						str("some_string", "string"),
+						number("some_number", 777),
+						boolean("some_bool", true),
+					),
+				},
+				{
+					path: "/stacks",
+					add: exportAsTerraform("on_parent",
+						block("on_parent_block",
+							expr("obj", `{
+								string = global.some_string
+								number = global.some_number
+								bool = global.some_bool
+							}`),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "on_parent",
+					hcl: block("on_parent_block",
+						attr("obj", `{
+							bool   = true
+							number = 777
+							string = "string"
+						}`),
+					),
+				},
+			},
+		},
+		{
+			name:  "exporting on all dirs of the project with different names get merged",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: globals(
+						str("some_string", "string"),
+						number("some_number", 777),
+						boolean("some_bool", true),
+					),
+				},
+				{
+					path: "/",
+					add: exportAsTerraform("on_root",
+						block("on_root_block",
+							expr("obj", `{
+								string = global.some_string
+							}`),
+						),
+					),
+				},
+				{
+					path: "/stacks",
+					add: exportAsTerraform("on_parent",
+						block("on_parent_block",
+							expr("obj", `{
+								number = global.some_number
+							}`),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack",
+					add: exportAsTerraform("on_stack",
+						block("on_stack_block",
+							expr("obj", `{
+								bool = global.some_bool
+							}`),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "on_root",
+					hcl: block("on_root_block",
+						attr("obj", `{
+							string = "string"
+						}`),
+					),
+				},
+				{
+					name: "on_parent",
+					hcl: block("on_parent_block",
+						attr("obj", `{
+							number = 777
+						}`),
+					),
+				},
+				{
+					name: "on_stack",
+					hcl: block("on_stack_block",
+						attr("obj", `{
+							bool   = true
+						}`),
+					),
+				},
+			},
+		},
+		{
+			name:  "specific config overrides general config",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: hcldoc(
+						exportAsTerraform("root",
+							block("block",
+								expr("root_stackpath", "terramate.path"),
+							),
+						),
+						exportAsTerraform("parent",
+							block("block",
+								expr("root_stackpath", "terramate.path"),
+							),
+						),
+						exportAsTerraform("stack",
+							block("block",
+								expr("root_stackpath", "terramate.path"),
+							),
+						),
+					),
+				},
+				{
+					path: "/stacks",
+					add: exportAsTerraform("parent",
+						block("block",
+							expr("parent_stackpath", "terramate.path"),
+							expr("parent_stackname", "terramate.name"),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack",
+					add: exportAsTerraform("stack",
+						block("block",
+							str("overridden", "some literal data"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "root",
+					hcl: block("block",
+						str("root_stackpath", "/stacks/stack"),
+					),
+				},
+				{
+					name: "parent",
+					hcl: block("block",
+						str("parent_stackpath", "/stacks/stack"),
+						str("parent_stackname", "stack"),
+					),
+				},
+				{
+					name: "stack",
+					hcl: block("block",
+						str("overridden", "some literal data"),
+					),
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
