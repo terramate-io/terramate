@@ -23,7 +23,9 @@ import (
 
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/errutil"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -463,6 +465,73 @@ func ParseGlobalsBlocks(path string) ([]*hclsyntax.Block, error) {
 // ParseExportAsLocalsBlocks parses export_as_locals blocks, ignoring other blocks
 func ParseExportAsLocalsBlocks(path string) ([]*hclsyntax.Block, error) {
 	return parseBlocksOfType(path, "export_as_locals")
+}
+
+// ParseExportAsTerraformBlocks parses export_as_terraform blocks, ignoring other blocks
+func ParseExportAsTerraformBlocks(path string) ([]*hclsyntax.Block, error) {
+	return parseBlocksOfType(path, "export_as_terraform")
+}
+
+// CopyBody will copy the src body to the given target, evaluating attributes using the
+// given evaluation context.
+//
+// Returns an error if the evaluation fails.
+func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context) error {
+	logger := log.With().
+		Str("action", "CopyBody()").
+		Logger()
+
+	logger.Trace().Msg("Sorting attributes.")
+
+	// Avoid generating code with random attr order (map iteration is random)
+	attrs := sortedAttributes(src.Attributes)
+
+	for _, attr := range attrs {
+		val, err := evalctx.Eval(attr.Expr)
+		if err != nil {
+			return fmt.Errorf("parsing attribute %q: %v", attr.Name, err)
+		}
+
+		logger.Trace().
+			Str("attribute", attr.Name).
+			Msg("Setting evaluated attribute.")
+
+		target.SetAttributeValue(attr.Name, val)
+	}
+
+	logger.Trace().Msg("Append blocks.")
+
+	for _, block := range src.Blocks {
+		targetBlock := target.AppendNewBlock(block.Type, block.Labels)
+		if block.Body == nil {
+			continue
+		}
+		if err := CopyBody(targetBlock.Body(), block.Body, evalctx); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func sortedAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {
+	names := make([]string, 0, len(attrs))
+
+	for name := range attrs {
+		names = append(names, name)
+	}
+
+	log.Trace().
+		Str("action", "sortedAttributes()").
+		Msg("Sort attributes.")
+	sort.Strings(names)
+
+	sorted := make([]*hclsyntax.Attribute, len(names))
+	for i, name := range names {
+		sorted[i] = attrs[name]
+	}
+
+	return sorted
 }
 
 func parseBlocksOfType(path string, blocktype string) ([]*hclsyntax.Block, error) {

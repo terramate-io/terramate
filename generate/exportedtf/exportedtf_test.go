@@ -3,14 +3,17 @@ package exportedtf_test
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate/exportedtf"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/rs/zerolog"
 )
 
 func TestLoadExportedTerraform(t *testing.T) {
@@ -43,10 +46,10 @@ func TestLoadExportedTerraform(t *testing.T) {
 	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("globals", builders...)
 	}
-	attr := func(name, expr string) hclwrite.BlockBuilder {
-		t.Helper()
-		return hclwrite.AttributeValue(t, name, expr)
-	}
+	//attr := func(name, expr string) hclwrite.BlockBuilder {
+	//t.Helper()
+	//return hclwrite.AttributeValue(t, name, expr)
+	//}
 	expr := hclwrite.Expression
 	str := hclwrite.String
 	number := hclwrite.NumberInt
@@ -76,11 +79,11 @@ func TestLoadExportedTerraform(t *testing.T) {
 							expr("bool", "global.some_bool"),
 							expr("number", "global.some_number"),
 							expr("string", "global.some_string"),
-							expr("obj", `{ 
-								string = global.some_string
-								number = global.some_number
-								bool = global.bool
-							}`),
+							//expr("obj", `{
+							//string = global.some_string
+							//number = global.some_number
+							//bool = global.bool
+							//}`),
 						),
 					),
 				},
@@ -92,11 +95,11 @@ func TestLoadExportedTerraform(t *testing.T) {
 						boolean("bool", true),
 						number("number", 777),
 						str("string", "string"),
-						attr("obj", `{ 
-							bool   = true
-							number = 777
-							string = "string"
-						}`),
+						//attr("obj", `{
+						//bool   = true
+						//number = 777
+						//string = "string"
+						//}`),
 					),
 				},
 			},
@@ -116,10 +119,39 @@ func TestLoadExportedTerraform(t *testing.T) {
 
 			meta := stack.Meta()
 			globals := s.LoadStackGlobals(meta)
-			_, err := exportedtf.Load(s.RootDir(), meta, globals)
+			got, err := exportedtf.Load(s.RootDir(), meta, globals)
 			assert.IsError(t, err, tcase.wantErr)
 
-			// TODO(katcipis): check exported terraform
+			for _, res := range tcase.want {
+				gothcl, ok := got[res.name]
+				if !ok {
+					t.Fatalf("want hcl code for %q, got: %v", res.name, got)
+				}
+				gotcode := gothcl.String()
+				wantcode := res.hcl.String()
+
+				assertHCLEquals(t, gotcode, wantcode)
+			}
 		})
 	}
+}
+
+func assertHCLEquals(t *testing.T, got string, want string) {
+	t.Helper()
+
+	const trimmedChars = "\n "
+
+	got = strings.Trim(got, trimmedChars)
+	want = strings.Trim(want, trimmedChars)
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Error("generated code doesn't match expectation")
+		t.Errorf("want:\n%q", want)
+		t.Errorf("got:\n%q", got)
+		t.Fatalf("diff:\n%s", diff)
+	}
+}
+
+func init() {
+	zerolog.SetGlobalLevel(zerolog.Disabled)
 }

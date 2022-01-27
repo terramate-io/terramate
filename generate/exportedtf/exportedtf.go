@@ -1,9 +1,17 @@
 package exportedtf
 
 import (
+	"fmt"
+	"path/filepath"
+
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/stack"
+	"github.com/rs/zerolog/log"
 )
 
 // TfCode represents all exported terraform code for a stack,
@@ -12,12 +20,14 @@ type TfCode map[string]Body
 
 // Body represents exported Terraform code from a single block.
 // Is contains parsed and evaluated code on it.
-type Body hclsyntax.Body
+type Body struct {
+	body []byte
+}
 
 // String returns a string representation of the Terraform code
 // or an empty string if the config itself is empty.
 func (b Body) String() string {
-	return ""
+	return string(b.body)
 }
 
 // Load loads from the file system all export_as_terraform for
@@ -34,5 +44,102 @@ func (b Body) String() string {
 //
 // The rootdir MUST be an absolute path.
 func Load(rootdir string, sm stack.Metadata, globals *terramate.Globals) (TfCode, error) {
-	return nil, nil
+	stackpath := filepath.Join(rootdir, sm.Path, config.Filename)
+	logger := log.With().
+		Str("action", "exportedtf.Load()").
+		Str("path", stackpath).
+		Logger()
+
+	logger.Trace().Msg("loading export_as_terraform blocks.")
+
+	exportBlocks, err := loadExportBlocks(rootdir, stackpath)
+	if err != nil {
+		return nil, fmt.Errorf("loading exported terraform code: %v", err)
+	}
+
+	evalctx, err := newEvalCtx(stackpath, sm, globals)
+	if err != nil {
+		return nil, fmt.Errorf("preparing to eval exported terraform code: %v", err)
+	}
+
+	logger.Trace().Msg("generating exported terraform code.")
+
+	res := map[string]Body{}
+
+	for name, block := range exportBlocks {
+		logger := logger.With().
+			Str("block", name).
+			Logger()
+
+		logger.Trace().Msg("evaluating block.")
+
+		gen := hclwrite.NewEmptyFile()
+
+		// TODO(katcipis): test if block.Body is nil
+		if err := hcl.CopyBody(gen.Body(), block.Body, evalctx); err != nil {
+			return nil, fmt.Errorf(
+				"generating terraform code for stack %q block %q: %v",
+				stackpath,
+				name,
+				err,
+			)
+		}
+
+		res[name] = Body{body: gen.Bytes()}
+	}
+
+	return res, nil
+}
+
+func newEvalCtx(stackpath string, sm stack.Metadata, globals *terramate.Globals) (*eval.Context, error) {
+	logger := log.With().
+		Str("action", "exportedtf.newEvalCtx()").
+		Str("path", stackpath).
+		Logger()
+
+	evalctx := eval.NewContext(stackpath)
+
+	logger.Trace().Msg("Add stack metadata evaluation namespace.")
+
+	err := evalctx.SetNamespace("terramate", sm.ToCtyMap())
+	if err != nil {
+		return nil, fmt.Errorf("setting terramate namespace on eval context for stack %q: %v",
+			stackpath, err)
+	}
+
+	logger.Trace().Msg("Add global evaluation namespace.")
+
+	if err := evalctx.SetNamespace("global", globals.Attributes()); err != nil {
+		return nil, fmt.Errorf("setting global namespace on eval context for stack %q: %v",
+			stackpath, err)
+	}
+
+	return evalctx, nil
+}
+
+// loadExportBlocks will load all export_as_terraform blocks applying overriding
+// as it goes, the returned map maps the name of the block (its label) to the original block
+func loadExportBlocks(rootdir string, cfgpath string) (map[string]*hclsyntax.Block, error) {
+	logger := log.With().
+		Str("action", "exportedtf.loadExportBlocks()").
+		Str("configFile", cfgpath).
+		Logger()
+
+	logger.Trace().Msg("Parsing export_as_terraform blocks.")
+
+	blocks, err := hcl.ParseExportAsTerraformBlocks(cfgpath)
+	if err != nil {
+		return nil, fmt.Errorf("loading exported terraform code: %v", err)
+	}
+
+	res := map[string]*hclsyntax.Block{}
+
+	for _, block := range blocks {
+		// TODO(katcipis): properly test wrong amount of labels
+		// TODO(katcipis): properly test two blocks with same label on same config file
+		name := block.Labels[0]
+		res[name] = block
+	}
+
+	return res, nil
 }
