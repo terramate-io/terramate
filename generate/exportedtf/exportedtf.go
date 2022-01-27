@@ -45,6 +45,7 @@ type Body struct {
 
 const (
 	ErrInvalidBlock errutil.Error = "invalid export_as_terraform block"
+	ErrEval         errutil.Error = "evaluating export_as_terraform block"
 )
 
 // ExportedCode returns all exported code, mapping the name to its
@@ -111,7 +112,8 @@ func Load(rootdir string, sm stack.Metadata, globals *terramate.Globals) (StackT
 		gen := hclwrite.NewEmptyFile()
 		if err := hcl.CopyBody(gen.Body(), block.Body, evalctx); err != nil {
 			return StackTf{}, fmt.Errorf(
-				"generating terraform code for stack %q block %q: %v",
+				"%w: stack %q block %q: %v",
+				ErrEval,
 				stackpath,
 				name,
 				err,

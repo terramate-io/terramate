@@ -159,6 +159,46 @@ func TestLoadExportedTerraform(t *testing.T) {
 			},
 		},
 		{
+			name:  "exported terraform on stack using try and labelled block",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						attr("obj", `{
+							field_a = "a"
+							field_b = "b"
+							field_c = "c"
+						}`),
+					),
+				},
+				{
+					path: "/stack",
+					add: exportAsTerraform("test",
+						block("labeled",
+							labels("label1", "label2"),
+							expr("field_a", "try(global.obj.field_a, null)"),
+							expr("field_b", "try(global.obj.field_b, null)"),
+							expr("field_c", "try(global.obj.field_c, null)"),
+							expr("field_d", "try(global.obj.field_d, null)"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test",
+					hcl: block("labeled",
+						labels("label1", "label2"),
+						str("field_a", "a"),
+						str("field_b", "b"),
+						str("field_c", "c"),
+						attr("field_d", "null"),
+					),
+				},
+			},
+		},
+		{
 			name:  "exported terraform on stack with single nested block",
 			stack: "/stack",
 			configs: []hclconfig{
@@ -512,6 +552,21 @@ func TestLoadExportedTerraform(t *testing.T) {
 				},
 			},
 			wantErr: exportedtf.ErrInvalidBlock,
+		},
+		{
+			name:  "evaluation failure on stack config gives err",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack",
+					add: hcldoc(
+						exportAsTerraform("test",
+							expr("attr", "global.undefined"),
+						),
+					),
+				},
+			},
+			wantErr: exportedtf.ErrEval,
 		},
 		{
 			name:  "valid config on stack but invalid on parent gives err",
