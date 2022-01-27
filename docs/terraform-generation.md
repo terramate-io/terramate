@@ -122,7 +122,7 @@ or even the project root, which then has the potential to affect code generation
 to multiple or all stacks (as seen in the previous example).
 
 This does raise the question of how code generation configuration is merged/overridden
-as Terramate navigate the project loading and evaluating configuration in order to
+as Terramate navigates the project loading and evaluating configuration in order to
 generate code for each stack.
 
 In order to explain how this works, lets define the concept of specific vs general
