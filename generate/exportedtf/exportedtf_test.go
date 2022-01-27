@@ -309,6 +309,28 @@ func TestLoadExportedTerraform(t *testing.T) {
 			},
 		},
 		{
+			name:  "exported terraform project root dir",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: exportAsTerraform("root",
+						block("root",
+							expr("test", "terramate.path"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "root",
+					hcl: block("root",
+						str("test", "/stacks/stack"),
+					),
+				},
+			},
+		},
+		{
 			name:  "exporting on all dirs of the project with different names get merged",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
@@ -466,6 +488,47 @@ func TestLoadExportedTerraform(t *testing.T) {
 					add: block("export_as_terraform",
 						labels("one", "two"),
 						block("block",
+							str("data", "some literal data"),
+						),
+					),
+				},
+			},
+			wantErr: exportedtf.ErrInvalidBlock,
+		},
+		{
+			name:  "export blocks with same label on same config gives err",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack",
+					add: hcldoc(
+						exportAsTerraform("duplicated",
+							str("data", "some literal data"),
+						),
+						exportAsTerraform("duplicated",
+							str("data2", "some literal data2"),
+						),
+					),
+				},
+			},
+			wantErr: exportedtf.ErrInvalidBlock,
+		},
+		{
+			name:  "valid config on stack but invalid on parent gives err",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: block("export_as_terraform",
+						block("block",
+							str("data", "some literal data"),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack",
+					add: hcldoc(
+						exportAsTerraform("valid",
 							str("data", "some literal data"),
 						),
 					),

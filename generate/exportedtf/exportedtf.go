@@ -16,6 +16,7 @@ package exportedtf
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -167,13 +168,15 @@ func loadExportBlocks(rootdir string, cfgdir string) (map[string]*hclsyntax.Bloc
 	cfgpath := filepath.Join(cfgdir, config.Filename)
 	blocks, err := hcl.ParseExportAsTerraformBlocks(cfgpath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return loadExportBlocks(rootdir, filepath.Dir(cfgdir))
+		}
 		return nil, fmt.Errorf("loading exported terraform code: %v", err)
 	}
 
 	res := map[string]*hclsyntax.Block{}
 
 	for _, block := range blocks {
-		// TODO(katcipis): properly test two blocks with same label on same config file
 		if len(block.Labels) != 1 {
 			return nil, fmt.Errorf(
 				"%w: want single label instead got %d",
@@ -182,11 +185,20 @@ func loadExportBlocks(rootdir string, cfgdir string) (map[string]*hclsyntax.Bloc
 			)
 		}
 		name := block.Labels[0]
+		if _, ok := res[name]; ok {
+			return nil, fmt.Errorf(
+				"%w: found two blocks with same label %q",
+				ErrInvalidBlock,
+				name,
+			)
+		}
 		res[name] = block
 	}
 
-	// TODO(katcipis): Handle failure on parent configs
-	parentRes, _ := loadExportBlocks(rootdir, filepath.Dir(cfgdir))
+	parentRes, err := loadExportBlocks(rootdir, filepath.Dir(cfgdir))
+	if err != nil {
+		return nil, err
+	}
 
 	merge(res, parentRes)
 	return res, nil
