@@ -43,6 +43,11 @@ func LoadStackCfg(root string, stack stack.S) (StackCfg, error) {
 	return loadStackCfg(root, stack.AbsPath())
 }
 
+func (s StackCfg) ExportedTfFilename(name string) string {
+	// We may have customized configuration someday
+	return fmt.Sprintf("_gen_terramate_%s.tf", name)
+}
+
 func loadStackCfg(root string, configdir string) (StackCfg, error) {
 	logger := log.With().
 		Str("action", "loadStackCfg()").
