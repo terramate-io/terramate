@@ -536,6 +536,22 @@ func TestLoadExportedTerraform(t *testing.T) {
 			wantErr: exportedtf.ErrInvalidBlock,
 		},
 		{
+			name:  "export block with empty label on stack gives err",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack",
+					add: block("export_as_terraform",
+						labels(""),
+						block("block",
+							str("data", "some literal data"),
+						),
+					),
+				},
+			},
+			wantErr: exportedtf.ErrInvalidBlock,
+		},
+		{
 			name:  "export blocks with same label on same config gives err",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
