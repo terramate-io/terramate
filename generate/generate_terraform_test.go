@@ -93,7 +93,7 @@ func TestTerraformGeneration(t *testing.T) {
 			// Wanted/expected generated code was removed by this point
 			// So we should have only basic terramate configs left
 			// There is potential to extract this for other code generation tests.
-			filepath.WalkDir(s.RootDir(), func(path string, d fs.DirEntry, err error) error {
+			err = filepath.WalkDir(s.RootDir(), func(path string, d fs.DirEntry, err error) error {
 				t.Helper()
 
 				assert.NoError(t, err, "checking for unwanted generated files")
@@ -112,6 +112,8 @@ func TestTerraformGeneration(t *testing.T) {
 				t.Errorf("expected only basic terramate config at %q, got %q", path, d.Name())
 				return nil
 			})
+
+			assert.NoError(t, err)
 		})
 	}
 }
