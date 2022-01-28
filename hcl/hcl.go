@@ -950,9 +950,8 @@ func blockIsAllowed(name string) bool {
 		Logger()
 
 	switch name {
-	case "terramate", "stack", "backend", "globals", "export_as_locals":
-		logger.Trace().
-			Msg("Block name was allowed.")
+	case "terramate", "stack", "backend", "globals", "export_as_locals", "export_as_terraform":
+		logger.Trace().Msg("Block name was allowed.")
 		return true
 	default:
 		return false
