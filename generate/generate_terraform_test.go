@@ -77,6 +77,19 @@ func TestTerraformGeneration(t *testing.T) {
 			},
 		},
 		{
+			name: "empty export_as_terraform block is ignored",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add:  exportAsTerraform("empty"),
+				},
+			},
+		},
+		{
 			name: "export terraform for all stacks on parent",
 			layout: []string{
 				"s:stacks/stack-1",
