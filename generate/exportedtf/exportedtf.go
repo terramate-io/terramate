@@ -93,7 +93,7 @@ func Load(rootdir string, sm stack.Metadata, globals *terramate.Globals) (StackT
 
 	evalctx, err := newEvalCtx(stackpath, sm, globals)
 	if err != nil {
-		return StackTf{}, fmt.Errorf("preparing to eval exported terraform code: %v", err)
+		return StackTf{}, fmt.Errorf("%w: creating eval context: %v", ErrEval, err)
 	}
 
 	logger.Trace().Msg("generating exported terraform code.")
