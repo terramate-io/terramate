@@ -250,12 +250,15 @@ func (s S) CreateModule(relpath string) DirEntry {
 // CreateStack will create a stack dir with the given relative path and
 // initializes the stack, returning a stack entry that can be used
 // to create files inside the stack dir.
+//
+// If the path is absolute, it will be considered in relation to the sandbox
+// root dir.
 func (s S) CreateStack(relpath string) StackEntry {
 	t := s.t
 	t.Helper()
 
 	if filepath.IsAbs(relpath) {
-		t.Fatalf("CreateStack() needs a relative path but given %q", relpath)
+		relpath = relpath[1:]
 	}
 
 	stack := newStackEntry(t, s.RootDir(), relpath)
