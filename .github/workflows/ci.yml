@@ -16,6 +16,23 @@ name: ci
 on: [push]
 jobs:
 
+  debug_remove_me_katz:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v2
+
+      - name: git merge base
+        run: git merge-base HEAD origin/main
+
+      - name: git rev-parse origin/main
+        run: git rev-parse origin/main
+
+      - name: git rev-parse HEAD
+        run: git rev-parse HEAD
+
+
   checks:
     runs-on: ubuntu-20.04
 
