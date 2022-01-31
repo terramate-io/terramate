@@ -119,10 +119,10 @@ terraform {
 Terraform code generation can be defined anywhere inside a project, from a specific
 stack, which defines code generation only for the specific stack, to parent dirs
 or even the project root, which then has the potential to affect code generation
-to multiple or all stacks (as seen on the previous example).
+to multiple or all stacks (as seen in the previous example).
 
 This does raise the question of how code generation configuration is merged/overridden
-as Terramate navigate the project loading and evaluating configuration in order to
+as Terramate navigates the project loading and evaluating configuration in order to
 generate code for each stack.
 
 In order to explain how this works, lets define the concept of specific vs general
@@ -190,7 +190,7 @@ terraform {
 
 Since the `stacks/stack-1` configuration is overriding the previous
 definition at `stacks`. Any other stack under `stacks` would remain
-with the configuration defined on the parent dir `stacks`.
+with the configuration defined in the parent dir `stacks`.
 
 The overriding is total, there is no merging involved on the blocks inside
 `export_as_terraform`, so if a parent directory defines a
