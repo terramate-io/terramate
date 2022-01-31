@@ -897,48 +897,51 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 		Logger()
 
 	logger.Trace().
-		Msg("Get current git branch.")
-	branch, err := g.CurrentBranch()
-	if err != nil {
-		return fmt.Errorf("checking local branch is updated: %v", err)
-	}
+		Msg("Temporarily disabled.")
 
-	if branch != defaultBranch {
-		return nil
-	}
+	//logger.Trace().
+	//Msg("Get current git branch.")
+	//branch, err := g.CurrentBranch()
+	//if err != nil {
+	//return fmt.Errorf("checking local branch is updated: %v", err)
+	//}
 
-	c.logerr("current branch %q is the default branch, checking if it is updated.", branch)
-	c.logerr("retrieving info from remote branch: %s/%s ...", defaultRemote, defaultBranch)
+	//if branch != defaultBranch {
+	//return nil
+	//}
 
-	logger.Trace().
-		Msg("Fetch remote reference.")
-	remoteRef, err := g.FetchRemoteRev(defaultRemote, defaultBranch)
-	if err != nil {
-		return fmt.Errorf("checking local branch %q is update: %v", branch, err)
-	}
-	c.logerr("retrieved info from remote branch: %s/%s.", defaultRemote, defaultBranch)
+	//c.logerr("current branch %q is the default branch, checking if it is updated.", branch)
+	//c.logerr("retrieving info from remote branch: %s/%s ...", defaultRemote, defaultBranch)
 
-	logger.Trace().
-		Msg("Get local commit ID.")
-	localCommitID, err := g.RevParse(branch)
-	if err != nil {
-		return fmt.Errorf("checking local branch %q is update: %v", branch, err)
-	}
+	//logger.Trace().
+	//Msg("Fetch remote reference.")
+	//remoteRef, err := g.FetchRemoteRev(defaultRemote, defaultBranch)
+	//if err != nil {
+	//return fmt.Errorf("checking local branch %q is update: %v", branch, err)
+	//}
+	//c.logerr("retrieved info from remote branch: %s/%s.", defaultRemote, defaultBranch)
 
-	localRef := git.Ref{CommitID: localCommitID}
+	//logger.Trace().
+	//Msg("Get local commit ID.")
+	//localCommitID, err := g.RevParse(branch)
+	//if err != nil {
+	//return fmt.Errorf("checking local branch %q is update: %v", branch, err)
+	//}
 
-	if localRef.CommitID != remoteRef.CommitID {
-		return fmt.Errorf(
-			"%w: remote %s/%s=%q != local %s=%q",
-			ErrOutdatedLocalRev,
-			defaultRemote,
-			defaultBranch,
-			remoteRef.ShortCommitID(),
-			branch,
-			localRef.ShortCommitID(),
-		)
+	//localRef := git.Ref{CommitID: localCommitID}
 
-	}
+	//if localRef.CommitID != remoteRef.CommitID {
+	//return fmt.Errorf(
+	//"%w: remote %s/%s=%q != local %s=%q",
+	//ErrOutdatedLocalRev,
+	//defaultRemote,
+	//defaultBranch,
+	//remoteRef.ShortCommitID(),
+	//branch,
+	//localRef.ShortCommitID(),
+	//)
+
+	//}
 
 	return nil
 }
@@ -967,7 +970,7 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) ([]stack.S, error) {
 		if !errors.Is(err, terramate.ErrDirtyRepo) {
 			return nil, err
 		}
-	} 
+	}
 
 	logger.Trace().Msg("Filter stacks by working directory.")
 
