@@ -20,8 +20,11 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
-      - name: checkout repo
+      - name: Checkout
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: git merge base
         continue-on-error: true
