@@ -24,12 +24,15 @@ jobs:
         uses: actions/checkout@v2
 
       - name: git merge base
+        continue-on-error: true
         run: git merge-base HEAD origin/main
 
       - name: git rev-parse origin/main
+        continue-on-error: true
         run: git rev-parse origin/main
 
       - name: git rev-parse HEAD
+        continue-on-error: true
         run: git rev-parse HEAD
 
 
