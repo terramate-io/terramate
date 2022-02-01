@@ -103,8 +103,8 @@ func Do(root string, workingDir string) error {
 }
 
 // CheckStack will verify if a given stack has outdated code and return a list
-// of filenames that are outdated. If the stack has invalid configuration
-// it will return an error.
+// of filenames that are outdated, ordered lexicographically.
+// If the stack has an invalid configuration it will return an error.
 //
 // The provided root must be the project's root directory as an absolute path.
 // The provided stack dir must be the stack dir relative to the project
@@ -147,6 +147,14 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 	}
 	outdated = append(outdated, outdatedLocalsFiles...)
 
+	outdatedTerraformFiles, err := exportedTerraformOutdatedFiles(root, stackpath, stackMeta, globals, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("checking for outdated exported terraform: %v", err)
+	}
+	outdated = append(outdated, outdatedTerraformFiles...)
+
+	sort.Strings(outdated)
+
 	return outdated, nil
 }
 
@@ -184,6 +192,55 @@ func backendConfigOutdatedFiles(
 
 	logger.Trace().Msg("backend cfg is updated.")
 	return nil, nil
+}
+
+func exportedTerraformOutdatedFiles(
+	root, stackpath string,
+	stackMeta stack.Metadata,
+	globals *terramate.Globals,
+	cfg StackCfg,
+) ([]string, error) {
+	logger := log.With().
+		Str("action", "generate.exportedTerraformOutdatedFiles()").
+		Str("root", root).
+		Str("stackpath", stackpath).
+		Logger()
+
+	logger.Trace().Msg("Checking for outdated exported terraform code on stack.")
+
+	loadedStackTf, err := exportedtf.Load(root, stackMeta, globals)
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Trace().Msg("Loaded exported terraform code, checking")
+
+	outdated := []string{}
+
+	for name, tf := range loadedStackTf.ExportedCode() {
+		exportedTfFilename := name
+		targetpath := filepath.Join(stackpath, exportedTfFilename)
+		logger := logger.With().
+			Str("blockName", name).
+			Str("targetpath", targetpath).
+			Logger()
+
+		logger.Trace().Msg("checking if code is updated.")
+
+		tfcode := PrependHeader(tf.String())
+		currentTfCode, err := loadGeneratedCode(targetpath)
+		if err != nil {
+			return nil, err
+		}
+
+		if tfcode != string(currentTfCode) {
+			logger.Trace().Msg("Outdated code detected.")
+			outdated = append(outdated, exportedTfFilename)
+		}
+
+	}
+
+	return outdated, nil
 }
 
 func exportedLocalsOutdatedFiles(
@@ -244,7 +301,7 @@ func writeStackTerraformCode(
 	logger.Trace().Msg("generated terraform code.")
 
 	for name, tf := range loadedStackTf.ExportedCode() {
-		targetpath := filepath.Join(stackpath, cfg.ExportedTfFilename(name))
+		targetpath := filepath.Join(stackpath, name)
 		logger := logger.With().
 			Str("blockName", name).
 			Str("targetpath", targetpath).

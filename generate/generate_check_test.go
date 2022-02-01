@@ -96,7 +96,7 @@ func TestCheckReturnsOutdatedStackFilenamesForExportedTf(t *testing.T) {
 			),
 		).String())
 
-	assertOutdated([]string{"testnew.tf", "another.tf"})
+	assertOutdated([]string{"another.tf", "testnew.tf"})
 
 	s.Generate()
 

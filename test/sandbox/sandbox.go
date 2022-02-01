@@ -435,8 +435,7 @@ func (se StackEntry) ReadGeneratedLocals() []byte {
 // since it assumes generated code is expected to be there.
 func (se StackEntry) ReadGeneratedTerraform(name string) []byte {
 	se.t.Helper()
-	cfg := se.LoadStackCodeGenCfg()
-	return se.DirEntry.ReadFile(cfg.ExportedTfFilename(name))
+	return se.DirEntry.ReadFile(name)
 }
 
 // RemoveGeneratedTerraform will delete the file with generated code from
@@ -444,8 +443,7 @@ func (se StackEntry) ReadGeneratedTerraform(name string) []byte {
 // The given name is the name of the export_as_terraform block as indicated by its label.
 func (se StackEntry) RemoveGeneratedTerraform(name string) {
 	se.t.Helper()
-	cfg := se.LoadStackCodeGenCfg()
-	se.DirEntry.RemoveFile(cfg.ExportedTfFilename(name))
+	se.DirEntry.RemoveFile(name)
 }
 
 // LoadStackCodeGenCfg will load the stack code generation configuration.
