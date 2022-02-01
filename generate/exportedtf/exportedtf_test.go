@@ -562,10 +562,14 @@ func TestLoadExportedTerraform(t *testing.T) {
 					path: "/stacks/stack",
 					add: hcldoc(
 						exportAsTerraform("duplicated",
-							str("data", "some literal data"),
+							terraform(
+								str("data", "some literal data"),
+							),
 						),
 						exportAsTerraform("duplicated",
-							str("data2", "some literal data2"),
+							terraform(
+								str("data2", "some literal data2"),
+							),
 						),
 					),
 				},
@@ -605,7 +609,9 @@ func TestLoadExportedTerraform(t *testing.T) {
 					path: "/stacks/stack",
 					add: hcldoc(
 						exportAsTerraform("valid",
-							str("data", "some literal data"),
+							terraform(
+								str("data", "some literal data"),
+							),
 						),
 					),
 				},

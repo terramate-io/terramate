@@ -173,7 +173,7 @@ func loadExportBlocks(rootdir string, cfgdir string) (map[string]*hclsyntax.Bloc
 		if os.IsNotExist(err) {
 			return loadExportBlocks(rootdir, filepath.Dir(cfgdir))
 		}
-		return nil, fmt.Errorf("loading exported terraform code: %v", err)
+		return nil, fmt.Errorf("parsing exported terraform code: %v", err)
 	}
 
 	res := map[string]*hclsyntax.Block{}
