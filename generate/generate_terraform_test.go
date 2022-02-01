@@ -249,7 +249,7 @@ func TestTerraformGeneration(t *testing.T) {
 
 				for name, wantHCL := range wantDesc.hcls {
 					want := wantHCL.String()
-					got := string(stack.ReadGeneratedTerraform(name))
+					got := stack.ReadGeneratedTerraform(name)
 
 					assertHCLEquals(t, got, want)
 
@@ -277,7 +277,7 @@ func TestTerraformGeneration(t *testing.T) {
 					return nil
 				}
 
-				t.Errorf("expected only basic terramate config at %q, got %q", path, d.Name())
+				t.Errorf("unwanted file at %q, got %q", path, d.Name())
 				return nil
 			})
 

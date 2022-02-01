@@ -433,9 +433,9 @@ func (se StackEntry) ReadGeneratedLocals() []byte {
 //
 // It will fail the test if there is no generated code available on the stack,
 // since it assumes generated code is expected to be there.
-func (se StackEntry) ReadGeneratedTerraform(name string) []byte {
+func (se StackEntry) ReadGeneratedTerraform(name string) string {
 	se.t.Helper()
-	return se.DirEntry.ReadFile(name)
+	return string(se.DirEntry.ReadFile(name))
 }
 
 // RemoveGeneratedTerraform will delete the file with generated code from
