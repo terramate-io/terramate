@@ -135,41 +135,29 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 	stackpath := stack.AbsPath()
 	stackMeta := stack.Meta()
 
-	outdatedBackendFiles, err := backendConfigIsOutdated(root, stackpath, stackMeta, globals, cfg)
+	outdatedBackendFiles, err := backendConfigOutdatedFiles(root, stackpath, stackMeta, globals, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("checking for outdated backend config: %v", err)
 	}
 	outdated = append(outdated, outdatedBackendFiles...)
 
-	logger.Trace().Msg("Checking for outdated exported locals code on stack.")
-
-	genlocals, err := generateStackLocalsCode(root, stackpath, stackMeta, globals)
+	outdatedLocalsFiles, err := exportedLocalsOutdatedFiles(root, stackpath, stackMeta, globals, cfg)
 	if err != nil {
-		return nil, fmt.Errorf("checking for outdated code: %v", err)
+		return nil, fmt.Errorf("checking for outdated exported locals: %v", err)
 	}
-
-	stackLocalsFile := filepath.Join(stackpath, cfg.LocalsFilename)
-	currentlocals, err := loadGeneratedCode(stackLocalsFile)
-	if err != nil {
-		return nil, fmt.Errorf("checking for outdated code: %v", err)
-	}
-
-	if string(genlocals) != string(currentlocals) {
-		logger.Trace().Msg("Detected outdated exported locals.")
-		outdated = append(outdated, cfg.LocalsFilename)
-	}
+	outdated = append(outdated, outdatedLocalsFiles...)
 
 	return outdated, nil
 }
 
-func backendConfigIsOutdated(
+func backendConfigOutdatedFiles(
 	root, stackpath string,
 	stackMeta stack.Metadata,
 	globals *terramate.Globals,
 	cfg StackCfg,
 ) ([]string, error) {
 	logger := log.With().
-		Str("action", "generate.backendConfigIsOutdated()").
+		Str("action", "generate.backendConfigOutdatedFiles()").
 		Str("root", root).
 		Str("stackpath", stackpath).
 		Logger()
@@ -190,8 +178,45 @@ func backendConfigIsOutdated(
 	logger.Trace().Msg("Checking for outdated backend cfg code on stack.")
 
 	if string(genbackend) != string(currentbackend) {
+		logger.Trace().Msg("Detected outdated backend cfg.")
 		return []string{cfg.BackendCfgFilename}, nil
 	}
+
+	logger.Trace().Msg("backend cfg is updated.")
+	return nil, nil
+}
+
+func exportedLocalsOutdatedFiles(
+	root, stackpath string,
+	stackMeta stack.Metadata,
+	globals *terramate.Globals,
+	cfg StackCfg,
+) ([]string, error) {
+	logger := log.With().
+		Str("action", "generate.exportedLocalsOutdatedFiles()").
+		Str("root", root).
+		Str("stackpath", stackpath).
+		Logger()
+
+	logger.Trace().Msg("Checking for outdated exported locals code on stack.")
+
+	genlocals, err := generateStackLocalsCode(root, stackpath, stackMeta, globals)
+	if err != nil {
+		return nil, err
+	}
+
+	stackLocalsFile := filepath.Join(stackpath, cfg.LocalsFilename)
+	currentlocals, err := loadGeneratedCode(stackLocalsFile)
+	if err != nil {
+		return nil, err
+	}
+
+	if string(genlocals) != string(currentlocals) {
+		logger.Trace().Msg("Detected outdated exported locals.")
+		return []string{cfg.LocalsFilename}, nil
+	}
+
+	logger.Trace().Msg("exported locals are updated.")
 
 	return nil, nil
 }
