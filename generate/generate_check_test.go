@@ -76,7 +76,7 @@ func TestCheckReturnsOutdatedStackFilenamesForExportedTf(t *testing.T) {
 
 	// TODO(katcipis): detect the old test.tf generated file.
 	// It is stale but it doesn't map to code generation anymore so
-	// we need extra steps to detect it that are not done today.
+	// we need extra steps to detect it that are not done right now.
 	assertOutdated([]string{"testnew.tf"})
 
 	// TODO(katcipis): cleanup the old test.tf

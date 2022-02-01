@@ -95,14 +95,14 @@ func TestTerraformGeneration(t *testing.T) {
 					path: "/stacks",
 					add: hcldoc(
 						exportAsTerraform(
-							labels("backend"),
+							labels("backend.tf"),
 							backend(
 								labels("test"),
 								expr("prefix", "global.backend_prefix"),
 							),
 						),
 						exportAsTerraform(
-							labels("locals"),
+							labels("locals.tf"),
 							locals(
 								expr("stackpath", "terramate.path"),
 								expr("local_a", "global.local_a"),
@@ -112,7 +112,7 @@ func TestTerraformGeneration(t *testing.T) {
 							),
 						),
 						exportAsTerraform(
-							labels("provider"),
+							labels("provider.tf"),
 							provider(
 								labels("name"),
 								expr("data", "global.provider_data"),
@@ -162,20 +162,18 @@ func TestTerraformGeneration(t *testing.T) {
 				{
 					stack: "/stacks/stack-1",
 					hcls: map[string]fmt.Stringer{
-						"backend": backend(
+						"backend.tf": backend(
 							labels("test"),
 							str("prefix", "stack-1-backend"),
 						),
-
-						"locals": locals(
+						"locals.tf": locals(
 							str("stackpath", "/stacks/stack-1"),
 							str("local_a", "stack-1-local"),
 							boolean("local_b", true),
 							number("local_c", 666),
 							str("local_d", "local_d_field"),
 						),
-
-						"provider": hcldoc(
+						"provider.tf": hcldoc(
 							provider(
 								labels("name"),
 								str("data", "stack-1-provider-data"),
@@ -197,18 +195,18 @@ func TestTerraformGeneration(t *testing.T) {
 				{
 					stack: "/stacks/stack-2",
 					hcls: map[string]fmt.Stringer{
-						"backend": backend(
+						"backend.tf": backend(
 							labels("test"),
 							str("prefix", "stack-2-backend"),
 						),
-						"locals": locals(
+						"locals.tf": locals(
 							str("stackpath", "/stacks/stack-2"),
 							str("local_a", "stack-2-local"),
 							boolean("local_b", false),
 							number("local_c", 777),
 							attr("local_d", "null"),
 						),
-						"provider": hcldoc(
+						"provider.tf": hcldoc(
 							provider(
 								labels("name"),
 								str("data", "stack-2-provider-data"),
