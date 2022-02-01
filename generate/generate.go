@@ -608,9 +608,9 @@ func loadGeneratedCode(path string) ([]byte, error) {
 	return data, nil
 }
 
-type forEachStackCallback func(stack.S, *terramate.Globals, StackCfg) error
+type forEachStackFunc func(stack.S, *terramate.Globals, StackCfg) error
 
-func forEachStack(root, workingDir string, callback forEachStackCallback) []error {
+func forEachStack(root, workingDir string, fn forEachStackFunc) []error {
 	logger := log.With().
 		Str("action", "generate.forEachStack()").
 		Str("root", root).
@@ -663,7 +663,7 @@ func forEachStack(root, workingDir string, callback forEachStackCallback) []erro
 		}
 
 		logger.Trace().Msg("Calling stack callback.")
-		if err := callback(stack, globals, cfg); err != nil {
+		if err := fn(stack, globals, cfg); err != nil {
 			errs = append(errs, err)
 		}
 	}
