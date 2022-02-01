@@ -23,7 +23,87 @@ import (
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
-func TestCheckReturnsOutdatedStackFilenames(t *testing.T) {
+func TestCheckReturnsOutdatedStackFilenamesForExportedTf(t *testing.T) {
+	s := sandbox.New(t)
+
+	stackEntry := s.CreateStack("stacks/stack")
+	stack := stackEntry.Load()
+
+	assertOutdated := func(want []string) {
+		t.Helper()
+
+		got, err := generate.CheckStack(s.RootDir(), stack)
+		assert.NoError(t, err)
+		assertStringsEquals(t, got, want)
+	}
+
+	// Checking detection when there is no config generated yet
+	assertOutdated([]string{})
+	stackEntry.CreateConfig(
+		stackConfig(
+			exportAsTerraform(
+				labels("test.tf"),
+				str("required_version", "1.10"),
+			),
+		).String())
+	assertOutdated([]string{"test.tf"})
+
+	s.Generate()
+
+	assertOutdated([]string{})
+
+	// Now checking when we have code + it gets outdated.
+	stackEntry.CreateConfig(
+		stackConfig(
+			exportAsTerraform(
+				labels("test.tf"),
+				str("required_version", "1.11"),
+			),
+		).String())
+
+	assertOutdated([]string{"test.tf"})
+
+	s.Generate()
+
+	// Changing generated filenames will trigger detection, with new filenames
+	stackEntry.CreateConfig(
+		stackConfig(
+			exportAsTerraform(
+				labels("testnew.tf"),
+				str("required_version", "1.11"),
+			),
+		).String())
+
+	// TODO(katcipis): detect the old test.tf generated file.
+	// It is stale but it doesn't map to code generation anymore so
+	// we need extra steps to detect it that are not done today.
+	assertOutdated([]string{"testnew.tf"})
+
+	// TODO(katcipis): cleanup the old test.tf
+
+	// Adding new filename to generation trigger detection
+	stackEntry.CreateConfig(
+		stackConfig(
+			exportAsTerraform(
+				labels("testnew.tf"),
+				str("required_version", "1.11"),
+			),
+			exportAsTerraform(
+				labels("another.tf"),
+				backend(
+					labels("type"),
+				),
+			),
+		).String())
+
+	assertOutdated([]string{"testnew.tf", "another.tf"})
+
+	s.Generate()
+
+	assertOutdated([]string{})
+}
+
+func TestCheckReturnsOutdatedStackFilenamesForBackendAndLocals(t *testing.T) {
 	s := sandbox.New(t)
 
 	stack1 := s.CreateStack("stacks/stack-1")
@@ -161,6 +241,7 @@ func TestCheckReturnsOutdatedStackFilenames(t *testing.T) {
 }
 
 func TestCheckFailsWithInvalidConfig(t *testing.T) {
+	// TODO(katcipis): add export_as_terraform
 	invalidConfigs := []string{
 		hcldoc(
 			terramate(

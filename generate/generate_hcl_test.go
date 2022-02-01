@@ -22,6 +22,18 @@ func hcldoc(blocks ...*hclwrite.Block) hclwrite.HCL {
 	return hclwrite.NewHCL(blocks...)
 }
 
+// stackConfig wraps the blocks built by the given builders in a valid stack
+// configuration
+func stackConfig(blocks ...*hclwrite.Block) hclwrite.HCL {
+	b := []*hclwrite.Block{stack()}
+	b = append(b, blocks...)
+	return hcldoc(b...)
+}
+
+func exportAsTerraform(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return hclwrite.BuildBlock("export_as_terraform", builders...)
+}
+
 func expr(name string, expr string) hclwrite.BlockBuilder {
 	return hclwrite.Expression(name, expr)
 }

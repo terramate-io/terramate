@@ -52,11 +52,6 @@ func TestTerraformGeneration(t *testing.T) {
 		}
 	)
 
-	exportAsTerraform := func(label string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		b := hclwrite.BuildBlock("export_as_terraform", builders...)
-		b.AddLabel(label)
-		return b
-	}
 	provider := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("provider", builders...)
 	}
@@ -85,7 +80,7 @@ func TestTerraformGeneration(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks",
-					add:  exportAsTerraform("empty"),
+					add:  exportAsTerraform(labels("empty")),
 				},
 			},
 		},
@@ -99,13 +94,15 @@ func TestTerraformGeneration(t *testing.T) {
 				{
 					path: "/stacks",
 					add: hcldoc(
-						exportAsTerraform("backend",
+						exportAsTerraform(
+							labels("backend"),
 							backend(
 								labels("test"),
 								expr("prefix", "global.backend_prefix"),
 							),
 						),
-						exportAsTerraform("locals",
+						exportAsTerraform(
+							labels("locals"),
 							locals(
 								expr("stackpath", "terramate.path"),
 								expr("local_a", "global.local_a"),
@@ -114,7 +111,8 @@ func TestTerraformGeneration(t *testing.T) {
 								expr("local_d", "try(global.local_d.field, null)"),
 							),
 						),
-						exportAsTerraform("provider",
+						exportAsTerraform(
+							labels("provider"),
 							provider(
 								labels("name"),
 								expr("data", "global.provider_data"),
