@@ -285,3 +285,70 @@ func TestTerraformGeneration(t *testing.T) {
 		})
 	}
 }
+
+func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
+	const (
+		genFilename  = "test.tf"
+		manualTfCode = "some manual stuff, doesn't matter"
+	)
+
+	exportTfConfig := exportAsTerraform(
+		labels(genFilename),
+		str("required_version", "1.11"),
+	)
+
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		fmt.Sprintf("f:%s:%s", config.Filename, exportTfConfig.String()),
+		"s:stack",
+		fmt.Sprintf("f:stack/%s:%s", genFilename, manualTfCode),
+	})
+
+	err := generate.Do(s.RootDir(), s.RootDir())
+	assert.IsError(t, err, generate.ErrManualCodeExists)
+
+	stack := s.StackEntry("stack")
+	actualTfCode := stack.ReadGeneratedTerraform(genFilename)
+	assert.EqualStrings(t, manualTfCode, actualTfCode, "tf code altered by generate")
+}
+
+func TestExportedTerraformOverwriting(t *testing.T) {
+	const genFilename = "test.tf"
+
+	firstConfig := exportAsTerraform(
+		labels(genFilename),
+		terraform(
+			str("required_version", "1.11"),
+		),
+	)
+	firstWant := terraform(
+		str("required_version", "1.11"),
+	)
+
+	s := sandbox.New(t)
+	stack := s.CreateStack("stack")
+	rootEntry := s.DirEntry(".")
+	rootConfig := rootEntry.CreateConfig(firstConfig.String())
+
+	s.Generate()
+
+	got := stack.ReadGeneratedTerraform(genFilename)
+	assertHCLEquals(t, got, firstWant.String())
+
+	secondConfig := exportAsTerraform(
+		labels(genFilename),
+		terraform(
+			str("required_version", "2.0"),
+		),
+	)
+	secondWant := terraform(
+		str("required_version", "2.0"),
+	)
+
+	rootConfig.Write(secondConfig.String())
+
+	s.Generate()
+
+	got = stack.ReadGeneratedTerraform(genFilename)
+	assertHCLEquals(t, got, secondWant.String())
+}

@@ -317,7 +317,7 @@ func writeStackTerraformCode(
 
 		tfcode = PrependHeader(tfcode)
 		if err := writeGeneratedCode(targetpath, tfcode); err != nil {
-			return fmt.Errorf("stack %q: writing code at %q: %v", stackpath, targetpath, err)
+			return fmt.Errorf("stack %q: writing code at %q: %w", stackpath, targetpath, err)
 		}
 
 		logger.Debug().Msg("Saved stack generated code.")
