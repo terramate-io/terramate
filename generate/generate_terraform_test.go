@@ -28,10 +28,6 @@ import (
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
-// Test
-//
-// - Overwriting Behavior (manual tf code already exists)
-
 func TestTerraformGeneration(t *testing.T) {
 	type (
 		hclconfig struct {
@@ -294,7 +290,9 @@ func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
 
 	exportTfConfig := exportAsTerraform(
 		labels(genFilename),
-		str("required_version", "1.11"),
+		terraform(
+			str("required_version", "1.11"),
+		),
 	)
 
 	s := sandbox.New(t)

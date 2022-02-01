@@ -60,6 +60,9 @@ func TestLoadExportedTerraform(t *testing.T) {
 	block := func(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock(name, builders...)
 	}
+	terraform := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("terraform", builders...)
+	}
 	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("globals", builders...)
 	}
@@ -159,7 +162,7 @@ func TestLoadExportedTerraform(t *testing.T) {
 			},
 		},
 		{
-			name:  "exported terraform on stack using try and labelled block",
+			name:  "exported terraform on stack using try and labeled block",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
@@ -570,14 +573,16 @@ func TestLoadExportedTerraform(t *testing.T) {
 			wantErr: exportedtf.ErrInvalidBlock,
 		},
 		{
-			name:  "evaluation failure on stack config gives err",
+			name:  "evaluation failure on stack config fails",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
 					path: "/stacks/stack",
 					add: hcldoc(
 						exportAsTerraform("test",
-							expr("attr", "global.undefined"),
+							terraform(
+								expr("required_version", "global.undefined"),
+							),
 						),
 					),
 				},
@@ -585,7 +590,7 @@ func TestLoadExportedTerraform(t *testing.T) {
 			wantErr: exportedtf.ErrEval,
 		},
 		{
-			name:  "valid config on stack but invalid on parent gives err",
+			name:  "valid config on stack but invalid on parent fails",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
@@ -601,6 +606,24 @@ func TestLoadExportedTerraform(t *testing.T) {
 					add: hcldoc(
 						exportAsTerraform("valid",
 							str("data", "some literal data"),
+						),
+					),
+				},
+			},
+			wantErr: exportedtf.ErrInvalidBlock,
+		},
+		{
+			name:  "attributes on export_as_terraform block fails",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack",
+					add: hcldoc(
+						exportAsTerraform("test",
+							str("some_attribute", "whatever"),
+							terraform(
+								str("required_version", "1.11"),
+							),
 						),
 					),
 				},

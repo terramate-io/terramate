@@ -191,6 +191,10 @@ func loadExportBlocks(rootdir string, cfgdir string) (map[string]*hclsyntax.Bloc
 			return nil, fmt.Errorf("%w: label can't be empty", ErrInvalidBlock)
 		}
 
+		if len(block.Body.Attributes) != 0 {
+			return nil, fmt.Errorf("%w: attributes are not allowed", ErrInvalidBlock)
+		}
+
 		if _, ok := res[name]; ok {
 			return nil, fmt.Errorf(
 				"%w: found two blocks with same label %q",

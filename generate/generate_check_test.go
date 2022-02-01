@@ -43,7 +43,9 @@ func TestCheckReturnsOutdatedStackFilenamesForExportedTf(t *testing.T) {
 		stackConfig(
 			exportAsTerraform(
 				labels("test.tf"),
-				str("required_version", "1.10"),
+				terraform(
+					str("required_version", "1.10"),
+				),
 			),
 		).String())
 	assertOutdated([]string{"test.tf"})
@@ -57,7 +59,9 @@ func TestCheckReturnsOutdatedStackFilenamesForExportedTf(t *testing.T) {
 		stackConfig(
 			exportAsTerraform(
 				labels("test.tf"),
-				str("required_version", "1.11"),
+				terraform(
+					str("required_version", "1.11"),
+				),
 			),
 		).String())
 
@@ -70,7 +74,9 @@ func TestCheckReturnsOutdatedStackFilenamesForExportedTf(t *testing.T) {
 		stackConfig(
 			exportAsTerraform(
 				labels("testnew.tf"),
-				str("required_version", "1.11"),
+				terraform(
+					str("required_version", "1.11"),
+				),
 			),
 		).String())
 
@@ -86,7 +92,9 @@ func TestCheckReturnsOutdatedStackFilenamesForExportedTf(t *testing.T) {
 		stackConfig(
 			exportAsTerraform(
 				labels("testnew.tf"),
-				str("required_version", "1.11"),
+				terraform(
+					str("required_version", "1.11"),
+				),
 			),
 			exportAsTerraform(
 				labels("another.tf"),
