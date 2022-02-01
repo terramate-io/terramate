@@ -28,11 +28,8 @@ file reading functions, references to globals/metadata, will all be evaluated
 at code generation time and the generated code will only have literals like strings,
 numbers, lists, maps, objects, etc.
 
-Each `export_as_terraform` block requires a label. This label is part of the identity
-of the block and is also used as a default for which filename will be used when
-code is generated. Given a label `x` the filename will be `_gen_terramate_x.tf`. The labels are
-also used to configure different filenames for each block if the default names are
-undesired. More details on how to configure this can be checked [here](todo-docs-for-config).
+Each `export_as_terraform` block requires a single label.
+This label is the filename of the generated code.
 
 Now lets jump to some examples. Lets generate backend and provider configurations
 for all stacks inside a project.
@@ -53,14 +50,14 @@ stacks by defining a `export_as_terraform` block in the root
 of the project:
 
 ```hcl
-export_as_terraform "backend" {
+export_as_terraform "backend.tf" {
   backend "local" {
     param = global.backend_data
   }
 }
 ```
 
-Which will generate code for all stacks using the filename `_gen_terramate_backend.tf`:
+Which will generate code for all stacks using the filename `backend.tf`:
 
 ```hcl
 backend "local" {
@@ -68,11 +65,11 @@ backend "local" {
 }
 ```
 
-To generate provider/Terraform configuration for all stacks we can add
+To generate provider/terraform configuration for all stacks we can add
 in the root configuration:
 
 ```hcl
-export_as_terraform "provider" {
+export_as_terraform "provider.tf" {
 
   provider "name" {
     param = global.provider_data
@@ -93,7 +90,7 @@ export_as_terraform "provider" {
 }
 ```
 
-Which will generate code for all stacks using the filename `_gen_terramate_provider.tf`:
+Which will generate code for all stacks using the filename `provider.tf`:
 
 ```hcl
 provider "name" {
@@ -150,7 +147,7 @@ previously mentioned `stacks/stack-1`.
 Given this configuration at `stacks/terramate.tm.hcl`:
 
 ```hcl
-export_as_terraform "provider" {
+export_as_terraform "provider.tf" {
   terraform {
     required_version = "1.1.13"
   }
@@ -160,7 +157,7 @@ export_as_terraform "provider" {
 And this configuration at `stacks/stack-1/terramate.tm.hcl`:
 
 ```hcl
-export_as_terraform "backend" {
+export_as_terraform "backend.tf" {
   backend "local" {
     param = "example"
   }
@@ -173,7 +170,7 @@ label and will generate its own code in a separated file.
 But if we had this configuration at `stacks/stack-1/terramate.tm.hcl`:
 
 ```hcl
-export_as_terraform "provider" {
+export_as_terraform "provider.tf" {
   terraform {
     required_version = "overriden"
   }
@@ -197,7 +194,7 @@ The overriding is total, there is no merging involved on the blocks inside
 configuration like this:
 
 ```hcl
-export_as_terraform "name" {
+export_as_terraform "name.tf" {
     block1 {
     }
     block2 {
@@ -210,7 +207,7 @@ export_as_terraform "name" {
 And a more specific configuration redefines it like this:
 
 ```hcl
-export_as_terraform "name" {
+export_as_terraform "name.tf" {
     block4 {
     }
 }
