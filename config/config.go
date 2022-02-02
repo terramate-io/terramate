@@ -62,15 +62,15 @@ func Exists(path string) bool {
 }
 
 func TryLoadRootConfig(dir string) (cfg hcl.Config, found bool, err error) {
+	path := filepath.Join(dir, Filename)
 	logger := log.With().
 		Str("action", "TryLoadRootConfig()").
 		Str("path", dir).
-		Str("configFile", dir+Filename).
+		Str("configFile", path).
 		Logger()
 
 	logger.Trace().
 		Msg("Check if file exists.")
-	path := filepath.Join(dir, Filename)
 	_, err = os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
