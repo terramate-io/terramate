@@ -44,7 +44,6 @@ func TestHCLGeneration(t *testing.T) {
 			configs    []hclconfig
 			workingDir string
 			want       []want
-			wantErr    error
 		}
 	)
 
@@ -237,7 +236,7 @@ func TestHCLGeneration(t *testing.T) {
 
 			workingDir := filepath.Join(s.RootDir(), tcase.workingDir)
 			err := generate.Do(s.RootDir(), workingDir)
-			assert.IsError(t, err, tcase.wantErr)
+			assert.NoError(t, err)
 
 			for _, wantDesc := range tcase.want {
 				stackRelPath := wantDesc.stack[1:]
