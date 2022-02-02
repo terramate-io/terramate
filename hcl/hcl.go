@@ -467,7 +467,7 @@ func ParseExportAsLocalsBlocks(path string) ([]*hclsyntax.Block, error) {
 	return parseBlocksOfType(path, "export_as_locals")
 }
 
-// ParseGenerateHCLBlocks parses export_as_terraform blocks, ignoring other blocks
+// ParseGenerateHCLBlocks parses generate_hcl blocks, ignoring other blocks
 func ParseGenerateHCLBlocks(path string) ([]*hclsyntax.Block, error) {
 	return parseBlocksOfType(path, "generate_hcl")
 }

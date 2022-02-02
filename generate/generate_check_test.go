@@ -249,7 +249,7 @@ func TestCheckReturnsOutdatedStackFilenamesForBackendAndLocals(t *testing.T) {
 }
 
 func TestCheckFailsWithInvalidConfig(t *testing.T) {
-	// TODO(katcipis): add export_as_terraform
+	// TODO(katcipis): add generate_hcl
 	invalidConfigs := []string{
 		hcldoc(
 			terramate(

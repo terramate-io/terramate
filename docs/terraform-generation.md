@@ -5,7 +5,7 @@ both [globals](globals.md) and [metadata](metadata.md).
 The generated code can then be composed/referenced by any Terraform code
 inside a stack.
 
-Terraform code generation starts with the definition of a `export_as_terraform`
+Terraform code generation starts with the definition of a `generate_hcl`
 block in a [Terramate configuration file](config.md) defining the code you
 want to generate inside the block. The code may include:
 
@@ -15,7 +15,7 @@ want to generate inside the block. The code may include:
 * Terramate Metadata references
 * Expressions using interpolation, functions, etc
 
-Most of what you can do in Terraform can be done in a `export_as_terraform`
+Most of what you can do in Terraform can be done in a `generate_hcl`
 block. For now, only the following is not allowed:
 
 * References to variables on the form `var.name`
@@ -28,7 +28,7 @@ file reading functions, references to globals/metadata, will all be evaluated
 at code generation time and the generated code will only have literals like strings,
 numbers, lists, maps, objects, etc.
 
-Each `export_as_terraform` block requires a single label.
+Each `generate_hcl` block requires a single label.
 This label is the filename of the generated code.
 
 Now lets jump to some examples. Lets generate backend and provider configurations
@@ -46,11 +46,11 @@ globals {
 ```
 
 We can define the generation of a backend configuration for all
-stacks by defining a `export_as_terraform` block in the root
+stacks by defining a `generate_hcl` block in the root
 of the project:
 
 ```hcl
-export_as_terraform "backend.tf" {
+generate_hcl "backend.tf" {
   backend "local" {
     param = global.backend_data
   }
@@ -69,7 +69,7 @@ To generate provider/terraform configuration for all stacks we can add
 in the root configuration:
 
 ```hcl
-export_as_terraform "provider.tf" {
+generate_hcl "provider.tf" {
 
   provider "name" {
     param = global.provider_data
@@ -133,21 +133,21 @@ to more general:
 * `stacks`
 * `/` which means the project root
 
-Given this definition, the behavior of `export_as_terraform` blocks is that
+Given this definition, the behavior of `generate_hcl` blocks is that
 more specific configuration always override general purpose configuration.
 There is no merge strategy/ composition involved, the configuration found
 closest to a stack on the file system, or directly at the stack directory,
 is the one used, ignoring more general configuration.
 
-It is important to note that overriding happens when `export_as_terraform`
-blocks are considered the same, and the identity of a `export_as_terraform`
+It is important to note that overriding happens when `generate_hcl`
+blocks are considered the same, and the identity of a `generate_hcl`
 block includes its label. Lets use as an example the
 previously mentioned `stacks/stack-1`.
 
 Given this configuration at `stacks/terramate.tm.hcl`:
 
 ```hcl
-export_as_terraform "provider.tf" {
+generate_hcl "provider.tf" {
   terraform {
     required_version = "1.1.13"
   }
@@ -157,20 +157,20 @@ export_as_terraform "provider.tf" {
 And this configuration at `stacks/stack-1/terramate.tm.hcl`:
 
 ```hcl
-export_as_terraform "backend.tf" {
+generate_hcl "backend.tf" {
   backend "local" {
     param = "example"
   }
 }
 ```
 
-No overriding happens since each `export_as_terraform` block has a different
+No overriding happens since each `generate_hcl` block has a different
 label and will generate its own code in a separated file.
 
 But if we had this configuration at `stacks/stack-1/terramate.tm.hcl`:
 
 ```hcl
-export_as_terraform "provider.tf" {
+generate_hcl "provider.tf" {
   terraform {
     required_version = "overriden"
   }
@@ -190,11 +190,11 @@ definition at `stacks`. Any other stack under `stacks` would remain
 with the configuration defined in the parent dir `stacks`.
 
 The overriding is total, there is no merging involved on the blocks inside
-`export_as_terraform`, so if a parent directory defines a
+`generate_hcl`, so if a parent directory defines a
 configuration like this:
 
 ```hcl
-export_as_terraform "name.tf" {
+generate_hcl "name.tf" {
     block1 {
     }
     block2 {
@@ -207,7 +207,7 @@ export_as_terraform "name.tf" {
 And a more specific configuration redefines it like this:
 
 ```hcl
-export_as_terraform "name.tf" {
+generate_hcl "name.tf" {
     block4 {
     }
 }

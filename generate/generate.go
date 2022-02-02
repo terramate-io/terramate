@@ -308,7 +308,7 @@ func writeStackTerraformCode(
 
 		tfcode := tf.String()
 		if tfcode == "" {
-			logger.Debug().Msg("ignoring empty export_as_terraform block.")
+			logger.Debug().Msg("ignoring empty generate_hcl block.")
 			continue
 		}
 
