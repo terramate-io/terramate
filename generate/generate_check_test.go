@@ -41,7 +41,7 @@ func TestCheckReturnsOutdatedStackFilenamesForExportedTf(t *testing.T) {
 	assertOutdated([]string{})
 	stackEntry.CreateConfig(
 		stackConfig(
-			exportAsTerraform(
+			generateHCL(
 				labels("test.tf"),
 				terraform(
 					str("required_version", "1.10"),
@@ -57,7 +57,7 @@ func TestCheckReturnsOutdatedStackFilenamesForExportedTf(t *testing.T) {
 	// Now checking when we have code + it gets outdated.
 	stackEntry.CreateConfig(
 		stackConfig(
-			exportAsTerraform(
+			generateHCL(
 				labels("test.tf"),
 				terraform(
 					str("required_version", "1.11"),
@@ -72,7 +72,7 @@ func TestCheckReturnsOutdatedStackFilenamesForExportedTf(t *testing.T) {
 	// Changing generated filenames will trigger detection, with new filenames
 	stackEntry.CreateConfig(
 		stackConfig(
-			exportAsTerraform(
+			generateHCL(
 				labels("testnew.tf"),
 				terraform(
 					str("required_version", "1.11"),
@@ -90,13 +90,13 @@ func TestCheckReturnsOutdatedStackFilenamesForExportedTf(t *testing.T) {
 	// Adding new filename to generation trigger detection
 	stackEntry.CreateConfig(
 		stackConfig(
-			exportAsTerraform(
+			generateHCL(
 				labels("testnew.tf"),
 				terraform(
 					str("required_version", "1.11"),
 				),
 			),
-			exportAsTerraform(
+			generateHCL(
 				labels("another.tf"),
 				backend(
 					labels("type"),
