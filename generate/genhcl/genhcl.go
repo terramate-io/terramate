@@ -32,7 +32,7 @@ import (
 )
 
 // StackHCLs represents all generated HCL code for a stack,
-// mapping the generated code name to the actual HCL code.
+// mapping the generated code filename to the actual HCL code.
 type StackHCLs struct {
 	hcls map[string]HCL
 }
