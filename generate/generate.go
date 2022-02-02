@@ -217,17 +217,16 @@ func exportedTerraformOutdatedFiles(
 
 	outdated := []string{}
 
-	for name, tf := range loadedStackTf.ExportedCode() {
-		exportedTfFilename := name
-		targetpath := filepath.Join(stackpath, exportedTfFilename)
+	for filename, hclcode := range loadedStackTf.ExportedCode() {
+		targetpath := filepath.Join(stackpath, filename)
 		logger := logger.With().
-			Str("blockName", name).
+			Str("blockName", filename).
 			Str("targetpath", targetpath).
 			Logger()
 
 		logger.Trace().Msg("checking if code is updated.")
 
-		tfcode := PrependHeader(tf.String())
+		tfcode := PrependHeader(hclcode.String())
 		currentTfCode, err := loadGeneratedCode(targetpath)
 		if err != nil {
 			return nil, err
@@ -235,7 +234,7 @@ func exportedTerraformOutdatedFiles(
 
 		if tfcode != string(currentTfCode) {
 			logger.Trace().Msg("Outdated code detected.")
-			outdated = append(outdated, exportedTfFilename)
+			outdated = append(outdated, filename)
 		}
 	}
 
