@@ -224,7 +224,7 @@ func exportedTerraformOutdatedFiles(
 			Str("targetpath", targetpath).
 			Logger()
 
-		logger.Trace().Msg("checking if code is updated.")
+		logger.Trace().Msg("Checking if code is updated.")
 
 		tfcode := PrependHeader(hclcode.String())
 		currentTfCode, err := loadGeneratedCode(targetpath)
@@ -233,7 +233,7 @@ func exportedTerraformOutdatedFiles(
 		}
 
 		if tfcode != string(currentTfCode) {
-			logger.Trace().Msg("Outdated code detected.")
+			logger.Trace().Msg("Outdated HCL code detected.")
 			outdated = append(outdated, filename)
 		}
 	}
