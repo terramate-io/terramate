@@ -42,6 +42,10 @@ func ListStacks(root string) ([]Entry, error) {
 				return err
 			}
 
+			if info.IsDir() && info.Name() == ".git" {
+				return filepath.SkipDir
+			}
+
 			logger.Trace().
 				Str("stack", path).
 				Msg("Try load stack.")
