@@ -249,7 +249,6 @@ func TestCheckReturnsOutdatedStackFilenamesForBackendAndLocals(t *testing.T) {
 }
 
 func TestCheckFailsWithInvalidConfig(t *testing.T) {
-	// TODO(katcipis): add generate_hcl
 	invalidConfigs := []string{
 		hcldoc(
 			terramate(
@@ -262,6 +261,12 @@ func TestCheckFailsWithInvalidConfig(t *testing.T) {
 		).String(),
 		hcldoc(
 			exportAsLocals(
+				expr("undefined", "terramate.undefined"),
+			),
+			stack(),
+		).String(),
+		hcldoc(
+			generateHCL(
 				expr("undefined", "terramate.undefined"),
 			),
 			stack(),
