@@ -29,7 +29,7 @@ func TestCheckReturnsOutdatedStackFilenamesForExportedTf(t *testing.T) {
 	stackEntry := s.CreateStack("stacks/stack")
 	stack := stackEntry.Load()
 
-	assertOutdated := func(want []string) {
+	assertOutdatedFiles := func(want []string) {
 		t.Helper()
 
 		got, err := generate.CheckStack(s.RootDir(), stack)
@@ -38,7 +38,7 @@ func TestCheckReturnsOutdatedStackFilenamesForExportedTf(t *testing.T) {
 	}
 
 	// Checking detection when there is no config generated yet
-	assertOutdated([]string{})
+	assertOutdatedFiles([]string{})
 	stackEntry.CreateConfig(
 		stackConfig(
 			generateHCL(
@@ -48,11 +48,11 @@ func TestCheckReturnsOutdatedStackFilenamesForExportedTf(t *testing.T) {
 				),
 			),
 		).String())
-	assertOutdated([]string{"test.tf"})
+	assertOutdatedFiles([]string{"test.tf"})
 
 	s.Generate()
 
-	assertOutdated([]string{})
+	assertOutdatedFiles([]string{})
 
 	// Now checking when we have code + it gets outdated.
 	stackEntry.CreateConfig(
@@ -65,7 +65,7 @@ func TestCheckReturnsOutdatedStackFilenamesForExportedTf(t *testing.T) {
 			),
 		).String())
 
-	assertOutdated([]string{"test.tf"})
+	assertOutdatedFiles([]string{"test.tf"})
 
 	s.Generate()
 
@@ -83,7 +83,7 @@ func TestCheckReturnsOutdatedStackFilenamesForExportedTf(t *testing.T) {
 	// TODO(katcipis): detect the old test.tf generated file.
 	// It is stale but it doesn't map to code generation anymore so
 	// we need extra steps to detect it that are not done right now.
-	assertOutdated([]string{"testnew.tf"})
+	assertOutdatedFiles([]string{"testnew.tf"})
 
 	// TODO(katcipis): cleanup the old test.tf
 
@@ -104,11 +104,11 @@ func TestCheckReturnsOutdatedStackFilenamesForExportedTf(t *testing.T) {
 			),
 		).String())
 
-	assertOutdated([]string{"another.tf", "testnew.tf"})
+	assertOutdatedFiles([]string{"another.tf", "testnew.tf"})
 
 	s.Generate()
 
-	assertOutdated([]string{})
+	assertOutdatedFiles([]string{})
 }
 
 func TestCheckReturnsOutdatedStackFilenamesForBackendAndLocals(t *testing.T) {
