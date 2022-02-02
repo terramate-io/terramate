@@ -237,7 +237,6 @@ func exportedTerraformOutdatedFiles(
 			logger.Trace().Msg("Outdated code detected.")
 			outdated = append(outdated, exportedTfFilename)
 		}
-
 	}
 
 	return outdated, nil
