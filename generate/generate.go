@@ -27,7 +27,7 @@ import (
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/generate/exportedtf"
+	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/stack"
@@ -208,7 +208,7 @@ func exportedTerraformOutdatedFiles(
 
 	logger.Trace().Msg("Checking for outdated exported terraform code on stack.")
 
-	loadedStackTf, err := exportedtf.Load(root, stackMeta, globals)
+	loadedStackTf, err := genhcl.Load(root, stackMeta, globals)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +292,7 @@ func writeStackTerraformCode(
 
 	logger.Trace().Msg("generating terraform code.")
 
-	loadedStackTf, err := exportedtf.Load(root, meta, globals)
+	loadedStackTf, err := genhcl.Load(root, meta, globals)
 	if err != nil {
 		return err
 	}

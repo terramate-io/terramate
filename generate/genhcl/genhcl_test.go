@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package exportedtf_test
+package genhcl_test
 
 import (
 	"fmt"
@@ -23,7 +23,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/generate/exportedtf"
+	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -520,7 +520,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: exportedtf.ErrInvalidBlock,
+			wantErr: genhcl.ErrInvalidBlock,
 		},
 		{
 			name:  "block with two labels on stack gives err",
@@ -536,7 +536,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: exportedtf.ErrInvalidBlock,
+			wantErr: genhcl.ErrInvalidBlock,
 		},
 		{
 			name:  "block with empty label on stack gives err",
@@ -552,7 +552,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: exportedtf.ErrInvalidBlock,
+			wantErr: genhcl.ErrInvalidBlock,
 		},
 		{
 			name:  "blocks with same label on same config gives err",
@@ -574,7 +574,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: exportedtf.ErrInvalidBlock,
+			wantErr: genhcl.ErrInvalidBlock,
 		},
 		{
 			name:  "evaluation failure on stack config fails",
@@ -591,7 +591,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: exportedtf.ErrEval,
+			wantErr: genhcl.ErrEval,
 		},
 		{
 			name:  "valid config on stack but invalid on parent fails",
@@ -616,7 +616,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: exportedtf.ErrInvalidBlock,
+			wantErr: genhcl.ErrInvalidBlock,
 		},
 		{
 			name:  "attributes on generate_hcl block fails",
@@ -634,7 +634,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: exportedtf.ErrInvalidBlock,
+			wantErr: genhcl.ErrInvalidBlock,
 		},
 	}
 
@@ -651,7 +651,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 
 			meta := stack.Meta()
 			globals := s.LoadStackGlobals(meta)
-			res, err := exportedtf.Load(s.RootDir(), meta, globals)
+			res, err := genhcl.Load(s.RootDir(), meta, globals)
 			assert.IsError(t, err, tcase.wantErr)
 
 			got := res.ExportedCode()
