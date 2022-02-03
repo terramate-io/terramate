@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -348,4 +349,51 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 
 	got = stack.ReadGeneratedHCL(genFilename)
 	assertHCLEquals(t, got, secondWant.String())
+}
+
+func TestGeneratedHCLHeaders(t *testing.T) {
+	const (
+		rootFilename        = "root.tf"
+		stackFilename       = "stack.tf"
+		traceHeaderTemplate = "TERRAMATE: originated from generate_hcl block on %s"
+	)
+
+	s := sandbox.New(t)
+	stackEntry := s.CreateStack("stack")
+	rootEntry := s.DirEntry(".")
+
+	rootEntry.CreateConfig(
+		generateHCL(
+			labels(rootFilename),
+			block("root",
+				str("attr", "root"),
+			),
+		).String(),
+	)
+
+	stackEntry.CreateConfig(
+		hcldoc(
+			stack(),
+			generateHCL(
+				labels(stackFilename),
+				block("stack",
+					str("attr", "stack"),
+				),
+			),
+		).String(),
+	)
+
+	s.Generate()
+
+	stackGen := stackEntry.ReadGeneratedHCL(stackFilename)
+	stackHeader := fmt.Sprintf(traceHeaderTemplate, filepath.Join("/stack", config.Filename))
+	if !strings.Contains(stackGen, stackHeader) {
+		t.Errorf("wanted header %q\n\ngenerated file:\n%s\n", stackHeader, stackGen)
+	}
+
+	rootGen := stackEntry.ReadGeneratedHCL(rootFilename)
+	rootHeader := fmt.Sprintf(traceHeaderTemplate, "/"+config.Filename)
+	if !strings.Contains(rootGen, rootHeader) {
+		t.Errorf("wanted header %q\n\ngenerated file:\n%s\n", rootHeader, rootGen)
+	}
 }
