@@ -41,7 +41,8 @@ type StackHCLs struct {
 // Is contains parsed and evaluated code on it and information
 // about the origin of the generated code.
 type HCL struct {
-	body []byte
+	origin string
+	body   []byte
 }
 
 const (
@@ -63,6 +64,12 @@ func (s StackHCLs) ExportedCode() map[string]HCL {
 // or an empty string if the config itself is empty.
 func (b HCL) String() string {
 	return string(b.body)
+}
+
+// Origin returns the path, relative to the project root,
+// of the configuration that originated the code.
+func (b HCL) Origin() string {
+	return b.origin
 }
 
 // Load loads from the file system all generate_hcl for
@@ -87,7 +94,7 @@ func Load(rootdir string, sm stack.Metadata, globals *terramate.Globals) (StackH
 
 	logger.Trace().Msg("loading generate_hcl blocks.")
 
-	generatedBlocks, err := loadGenHCLBlocks(rootdir, stackpath)
+	loadedHCLs, err := loadGenHCLBlocks(rootdir, stackpath)
 	if err != nil {
 		return StackHCLs{}, fmt.Errorf("loading generated HCL code: %w", err)
 	}
@@ -103,7 +110,7 @@ func Load(rootdir string, sm stack.Metadata, globals *terramate.Globals) (StackH
 		hcls: map[string]HCL{},
 	}
 
-	for name, block := range generatedBlocks {
+	for name, loadedHCL := range loadedHCLs {
 		logger := logger.With().
 			Str("block", name).
 			Logger()
@@ -111,7 +118,7 @@ func Load(rootdir string, sm stack.Metadata, globals *terramate.Globals) (StackH
 		logger.Trace().Msg("evaluating block.")
 
 		gen := hclwrite.NewEmptyFile()
-		if err := hcl.CopyBody(gen.Body(), block.Body, evalctx); err != nil {
+		if err := hcl.CopyBody(gen.Body(), loadedHCL.block.Body, evalctx); err != nil {
 			return StackHCLs{}, fmt.Errorf(
 				"%w: stack %q block %q: %v",
 				ErrEval,
@@ -120,7 +127,10 @@ func Load(rootdir string, sm stack.Metadata, globals *terramate.Globals) (StackH
 				err,
 			)
 		}
-		res.hcls[name] = HCL{body: gen.Bytes()}
+		res.hcls[name] = HCL{
+			origin: loadedHCL.origin,
+			body:   gen.Bytes(),
+		}
 	}
 
 	return res, nil
@@ -152,11 +162,16 @@ func newEvalCtx(stackpath string, sm stack.Metadata, globals *terramate.Globals)
 	return evalctx, nil
 }
 
+type loadedHCL struct {
+	origin string
+	block  *hclsyntax.Block
+}
+
 // loadGenHCLBlocks will load all generate_hcl blocks applying overriding
 // as it goes, the returned map maps the name of the block (its label)
 // to the original block and the path (relative to project root) of the config
 // from where it was parsed.
-func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]*hclsyntax.Block, error) {
+func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, error) {
 	logger := log.With().
 		Str("action", "genhcl.loadGenHCLBlocks()").
 		Str("root", rootdir).
@@ -179,7 +194,7 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]*hclsyntax.Bloc
 		return nil, fmt.Errorf("parsing generate_hcl code: %v", err)
 	}
 
-	res := map[string]*hclsyntax.Block{}
+	res := map[string]loadedHCL{}
 
 	for _, block := range blocks {
 		if len(block.Labels) != 1 {
@@ -205,7 +220,10 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]*hclsyntax.Bloc
 				name,
 			)
 		}
-		res[name] = block
+		res[name] = loadedHCL{
+			origin: strings.TrimPrefix(cfgpath, rootdir),
+			block:  block,
+		}
 	}
 
 	parentRes, err := loadGenHCLBlocks(rootdir, filepath.Dir(cfgdir))
@@ -217,7 +235,7 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]*hclsyntax.Bloc
 	return res, nil
 }
 
-func merge(target, src map[string]*hclsyntax.Block) {
+func merge(target, src map[string]loadedHCL) {
 	for k, v := range src {
 		if _, ok := target[k]; ok {
 			continue

@@ -743,6 +743,11 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				wantcode := res.hcl.body.String()
 
 				assertHCLEquals(t, gotcode, wantcode)
+				assert.EqualStrings(t,
+					res.hcl.origin,
+					gothcl.Origin(),
+					"wrong origin config path for generated code",
+				)
 
 				delete(got, res.name)
 			}
