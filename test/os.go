@@ -77,6 +77,14 @@ func ReadFile(t *testing.T, dir, fname string) []byte {
 	return data
 }
 
+// RemoveFile removes the file fname from dir directory.
+// If the files doesn't exists, it succeeds.
+func RemoveFile(t *testing.T, dir, fname string) {
+	t.Helper()
+	err := os.Remove(filepath.Join(dir, fname))
+	assert.NoError(t, err)
+}
+
 // Mkdir creates a directory inside base.
 func Mkdir(t *testing.T, base string, name string) string {
 	path := filepath.Join(base, name)

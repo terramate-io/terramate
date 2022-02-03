@@ -27,6 +27,7 @@ import (
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/stack"
@@ -85,7 +86,9 @@ func Do(root string, workingDir string) error {
 		if err != nil {
 			return err
 		}
-		return nil
+
+		logger.Debug().Msg("Generate stack terraform.")
+		return writeStackTerraformCode(root, stackpath, stackMeta, globals, cfg)
 	})
 
 	// FIXME(katcipis): errutil.Chain produces a very hard to read string representation
@@ -100,8 +103,8 @@ func Do(root string, workingDir string) error {
 }
 
 // CheckStack will verify if a given stack has outdated code and return a list
-// of filenames that are outdated. If the stack has invalid configuration
-// it will return an error.
+// of filenames that are outdated, ordered lexicographically.
+// If the stack has an invalid configuration it will return an error.
 //
 // The provided root must be the project's root directory as an absolute path.
 // The provided stack dir must be the stack dir relative to the project
@@ -129,47 +132,197 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 		return nil, fmt.Errorf("checking for outdated code: %v", err)
 	}
 
-	logger.Trace().Msg("Generating backend cfg code for stack.")
-
 	stackpath := stack.AbsPath()
 	stackMeta := stack.Meta()
+
+	outdatedBackendFiles, err := backendConfigOutdatedFiles(root, stackpath, stackMeta, globals, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("checking for outdated backend config: %v", err)
+	}
+	outdated = append(outdated, outdatedBackendFiles...)
+
+	outdatedLocalsFiles, err := exportedLocalsOutdatedFiles(root, stackpath, stackMeta, globals, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("checking for outdated exported locals: %v", err)
+	}
+	outdated = append(outdated, outdatedLocalsFiles...)
+
+	outdatedTerraformFiles, err := exportedTerraformOutdatedFiles(root, stackpath, stackMeta, globals, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("checking for outdated exported terraform: %v", err)
+	}
+	outdated = append(outdated, outdatedTerraformFiles...)
+
+	sort.Strings(outdated)
+
+	return outdated, nil
+}
+
+func backendConfigOutdatedFiles(
+	root, stackpath string,
+	stackMeta stack.Metadata,
+	globals *terramate.Globals,
+	cfg StackCfg,
+) ([]string, error) {
+	logger := log.With().
+		Str("action", "generate.backendConfigOutdatedFiles()").
+		Str("root", root).
+		Str("stackpath", stackpath).
+		Logger()
+
+	logger.Trace().Msg("Generating backend cfg code for stack.")
+
 	genbackend, err := generateBackendCfgCode(root, stackpath, stackMeta, globals, stackpath)
 	if err != nil {
-		return nil, fmt.Errorf("checking for outdated code: %v", err)
+		return nil, err
 	}
 
 	stackBackendCfgFile := filepath.Join(stackpath, cfg.BackendCfgFilename)
 	currentbackend, err := loadGeneratedCode(stackBackendCfgFile)
 	if err != nil {
-		return nil, fmt.Errorf("checking for outdated code: %v", err)
+		return nil, err
 	}
 
 	logger.Trace().Msg("Checking for outdated backend cfg code on stack.")
 
 	if string(genbackend) != string(currentbackend) {
-		logger.Trace().Msg("Detected outdated backend config.")
-		outdated = append(outdated, cfg.BackendCfgFilename)
+		logger.Trace().Msg("Detected outdated backend cfg.")
+		return []string{cfg.BackendCfgFilename}, nil
 	}
+
+	logger.Trace().Msg("backend cfg is updated.")
+	return nil, nil
+}
+
+func exportedTerraformOutdatedFiles(
+	root, stackpath string,
+	stackMeta stack.Metadata,
+	globals *terramate.Globals,
+	cfg StackCfg,
+) ([]string, error) {
+	logger := log.With().
+		Str("action", "generate.exportedTerraformOutdatedFiles()").
+		Str("root", root).
+		Str("stackpath", stackpath).
+		Logger()
+
+	logger.Trace().Msg("Checking for outdated exported terraform code on stack.")
+
+	loadedStackTf, err := genhcl.Load(root, stackMeta, globals)
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Trace().Msg("Loaded exported terraform code, checking")
+
+	outdated := []string{}
+
+	for filename, hclcode := range loadedStackTf.ExportedCode() {
+		targetpath := filepath.Join(stackpath, filename)
+		logger := logger.With().
+			Str("blockName", filename).
+			Str("targetpath", targetpath).
+			Logger()
+
+		logger.Trace().Msg("Checking if code is updated.")
+
+		tfcode := PrependHeader(hclcode.String())
+		currentTfCode, err := loadGeneratedCode(targetpath)
+		if err != nil {
+			return nil, err
+		}
+
+		if tfcode != string(currentTfCode) {
+			logger.Trace().Msg("Outdated HCL code detected.")
+			outdated = append(outdated, filename)
+		}
+	}
+
+	return outdated, nil
+}
+
+func exportedLocalsOutdatedFiles(
+	root, stackpath string,
+	stackMeta stack.Metadata,
+	globals *terramate.Globals,
+	cfg StackCfg,
+) ([]string, error) {
+	logger := log.With().
+		Str("action", "generate.exportedLocalsOutdatedFiles()").
+		Str("root", root).
+		Str("stackpath", stackpath).
+		Logger()
 
 	logger.Trace().Msg("Checking for outdated exported locals code on stack.")
 
 	genlocals, err := generateStackLocalsCode(root, stackpath, stackMeta, globals)
 	if err != nil {
-		return nil, fmt.Errorf("checking for outdated code: %v", err)
+		return nil, err
 	}
 
 	stackLocalsFile := filepath.Join(stackpath, cfg.LocalsFilename)
 	currentlocals, err := loadGeneratedCode(stackLocalsFile)
 	if err != nil {
-		return nil, fmt.Errorf("checking for outdated code: %v", err)
+		return nil, err
 	}
 
 	if string(genlocals) != string(currentlocals) {
 		logger.Trace().Msg("Detected outdated exported locals.")
-		outdated = append(outdated, cfg.LocalsFilename)
+		return []string{cfg.LocalsFilename}, nil
 	}
 
-	return outdated, nil
+	logger.Trace().Msg("exported locals are updated.")
+
+	return nil, nil
+}
+
+func writeStackTerraformCode(
+	root string,
+	stackpath string,
+	meta stack.Metadata,
+	globals *terramate.Globals,
+	cfg StackCfg,
+) error {
+	logger := log.With().
+		Str("action", "writeStackTerraformCode()").
+		Str("root", root).
+		Str("stackpath", stackpath).
+		Logger()
+
+	logger.Trace().Msg("generating terraform code.")
+
+	loadedStackTf, err := genhcl.Load(root, meta, globals)
+	if err != nil {
+		return err
+	}
+
+	logger.Trace().Msg("generated terraform code.")
+
+	for name, tf := range loadedStackTf.ExportedCode() {
+		targetpath := filepath.Join(stackpath, name)
+		logger := logger.With().
+			Str("blockName", name).
+			Str("targetpath", targetpath).
+			Logger()
+
+		tfcode := tf.String()
+		if tfcode == "" {
+			logger.Debug().Msg("ignoring empty generate_hcl block.")
+			continue
+		}
+
+		logger.Debug().Msg("Stack has exported terraform, saving generated code.")
+
+		tfcode = PrependHeader(tfcode)
+		if err := writeGeneratedCode(targetpath, tfcode); err != nil {
+			return fmt.Errorf("stack %q: writing code at %q: %w", stackpath, targetpath, err)
+		}
+
+		logger.Debug().Msg("Saved stack generated code.")
+	}
+
+	logger.Trace().Msg("all terraform code has been saved.")
+	return nil
 }
 
 func writeStackLocalsCode(
@@ -218,7 +371,7 @@ func generateStackLocalsCode(
 	stackpath string,
 	metadata stack.Metadata,
 	globals *terramate.Globals,
-) ([]byte, error) {
+) (string, error) {
 	logger := log.With().
 		Str("action", "generateStackLocals()").
 		Str("stack", stackpath).
@@ -228,14 +381,14 @@ func generateStackLocalsCode(
 
 	stackLocals, err := terramate.LoadStackExportedLocals(rootdir, metadata, globals)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	logger.Trace().Msg("Get stack attributes.")
 
 	localsAttrs := stackLocals.Attributes()
 	if len(localsAttrs) == 0 {
-		return nil, nil
+		return "", nil
 	}
 
 	logger.Trace().Msg("Sort attributes.")
@@ -260,7 +413,7 @@ func generateStackLocalsCode(
 		localsBody.SetAttributeValue(name, localsAttrs[name])
 	}
 
-	tfcode := PrependHeaderBytes(gen.Bytes())
+	tfcode := PrependHeader(string(gen.Bytes()))
 	return tfcode, nil
 }
 
@@ -308,7 +461,7 @@ func generateBackendCfgCode(
 	stackMetadata stack.Metadata,
 	globals *terramate.Globals,
 	configdir string,
-) ([]byte, error) {
+) (string, error) {
 	logger := log.With().
 		Str("action", "loadStackBackendConfig()").
 		Str("configDir", configdir).
@@ -319,7 +472,7 @@ func generateBackendCfgCode(
 
 	if !strings.HasPrefix(configdir, root) {
 		// check if we are outside of project's root, time to stop
-		return nil, nil
+		return "", nil
 	}
 
 	logger.Trace().
@@ -342,14 +495,14 @@ func generateBackendCfgCode(
 		Msg("Read config file.")
 	config, err := os.ReadFile(configfile)
 	if err != nil {
-		return nil, fmt.Errorf("reading config: %v", err)
+		return "", fmt.Errorf("reading config: %v", err)
 	}
 
 	logger.Debug().
 		Msg("Parse config file.")
 	parsedConfig, err := hcl.Parse(configfile, config)
 	if err != nil {
-		return nil, fmt.Errorf("parsing config: %w", err)
+		return "", fmt.Errorf("parsing config: %w", err)
 	}
 
 	logger.Trace().
@@ -365,14 +518,14 @@ func generateBackendCfgCode(
 
 	err = evalctx.SetNamespace("terramate", stackMetadata.ToCtyMap())
 	if err != nil {
-		return nil, fmt.Errorf("setting terramate namespace on eval context for stack %q: %v",
+		return "", fmt.Errorf("setting terramate namespace on eval context for stack %q: %v",
 			stackpath, err)
 	}
 
 	logger.Trace().Msg("Add global evaluation namespace.")
 
 	if err := evalctx.SetNamespace("global", globals.Attributes()); err != nil {
-		return nil, fmt.Errorf("setting global namespace on eval context for stack %q: %v",
+		return "", fmt.Errorf("setting global namespace on eval context for stack %q: %v",
 			stackpath, err)
 	}
 
@@ -386,21 +539,21 @@ func generateBackendCfgCode(
 	backendBody := backendBlock.Body()
 
 	if err := hcl.CopyBody(backendBody, parsed.Backend.Body, evalctx); err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return PrependHeaderBytes(gen.Bytes()), nil
+	return PrependHeader(string(gen.Bytes())), nil
 }
 
-// PrependHeaderBytes will add a proper Terramate header indicating that code
+// PrependHeader will add a proper Terramate header indicating that code
 // was generated by Terramate.
-func PrependHeaderBytes(code []byte) []byte {
-	return append([]byte(codeHeader+"\n\n"), code...)
+func PrependHeader(code string) string {
+	return codeHeader + "\n\n" + code
 }
 
 const codeHeader = "// GENERATED BY TERRAMATE: DO NOT EDIT"
 
-func writeGeneratedCode(target string, code []byte) error {
+func writeGeneratedCode(target string, code string) error {
 	logger := log.With().
 		Str("action", "writeGeneratedCode()").
 		Str("file", target).
@@ -413,7 +566,7 @@ func writeGeneratedCode(target string, code []byte) error {
 	}
 
 	logger.Trace().Msg("Writing code")
-	return os.WriteFile(target, code, 0666)
+	return os.WriteFile(target, []byte(code), 0666)
 }
 
 func checkFileCanBeOverwritten(path string) error {
@@ -453,9 +606,9 @@ func loadGeneratedCode(path string) ([]byte, error) {
 	return data, nil
 }
 
-type forEachStackCallback func(stack.S, *terramate.Globals, StackCfg) error
+type forEachStackFunc func(stack.S, *terramate.Globals, StackCfg) error
 
-func forEachStack(root, workingDir string, callback forEachStackCallback) []error {
+func forEachStack(root, workingDir string, fn forEachStackFunc) []error {
 	logger := log.With().
 		Str("action", "generate.forEachStack()").
 		Str("root", root).
@@ -508,7 +661,7 @@ func forEachStack(root, workingDir string, callback forEachStackCallback) []erro
 		}
 
 		logger.Trace().Msg("Calling stack callback.")
-		if err := callback(stack, globals, cfg); err != nil {
+		if err := fn(stack, globals, cfg); err != nil {
 			errs = append(errs, err)
 		}
 	}

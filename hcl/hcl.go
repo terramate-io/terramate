@@ -467,9 +467,9 @@ func ParseExportAsLocalsBlocks(path string) ([]*hclsyntax.Block, error) {
 	return parseBlocksOfType(path, "export_as_locals")
 }
 
-// ParseExportAsTerraformBlocks parses export_as_terraform blocks, ignoring other blocks
-func ParseExportAsTerraformBlocks(path string) ([]*hclsyntax.Block, error) {
-	return parseBlocksOfType(path, "export_as_terraform")
+// ParseGenerateHCLBlocks parses generate_hcl blocks, ignoring other blocks
+func ParseGenerateHCLBlocks(path string) ([]*hclsyntax.Block, error) {
+	return parseBlocksOfType(path, "generate_hcl")
 }
 
 // CopyBody will copy the src body to the given target, evaluating attributes using the
@@ -950,9 +950,8 @@ func blockIsAllowed(name string) bool {
 		Logger()
 
 	switch name {
-	case "terramate", "stack", "backend", "globals", "export_as_locals":
-		logger.Trace().
-			Msg("Block name was allowed.")
+	case "terramate", "stack", "backend", "globals", "export_as_locals", "generate_hcl":
+		logger.Trace().Msg("Block name was allowed.")
 		return true
 	default:
 		return false

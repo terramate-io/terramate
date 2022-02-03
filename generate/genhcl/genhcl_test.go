@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package exportedtf_test
+package genhcl_test
 
 import (
 	"fmt"
@@ -23,14 +23,14 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/generate/exportedtf"
+	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
 )
 
-func TestLoadExportedTerraform(t *testing.T) {
+func TestLoadGeneratedHCL(t *testing.T) {
 	type (
 		hclconfig struct {
 			path string
@@ -52,13 +52,16 @@ func TestLoadExportedTerraform(t *testing.T) {
 	hcldoc := func(blocks ...*hclwrite.Block) hclwrite.HCL {
 		return hclwrite.NewHCL(blocks...)
 	}
-	exportAsTerraform := func(label string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		b := hclwrite.BuildBlock("export_as_terraform", builders...)
+	generateHCL := func(label string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		b := hclwrite.BuildBlock("generate_hcl", builders...)
 		b.AddLabel(label)
 		return b
 	}
 	block := func(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock(name, builders...)
+	}
+	terraform := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("terraform", builders...)
 	}
 	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("globals", builders...)
@@ -77,16 +80,16 @@ func TestLoadExportedTerraform(t *testing.T) {
 
 	tcases := []testcase{
 		{
-			name:  "no exported terraform",
+			name:  "no generation",
 			stack: "/stack",
 		},
 		{
-			name:  "empty export_as_terraform block generates empty code",
+			name:  "empty block generates empty code",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add:  exportAsTerraform("empty"),
+					add:  generateHCL("empty"),
 				},
 			},
 			want: []result{
@@ -97,12 +100,12 @@ func TestLoadExportedTerraform(t *testing.T) {
 			},
 		},
 		{
-			name:  "exported terraform on stack with single empty block",
+			name:  "generate hcl on stack with single empty block",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: exportAsTerraform("emptytest",
+					add: generateHCL("emptytest",
 						block("empty"),
 					),
 				},
@@ -115,7 +118,7 @@ func TestLoadExportedTerraform(t *testing.T) {
 			},
 		},
 		{
-			name:  "exported terraform on stack with single block",
+			name:  "generate HCL on stack with single block",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
@@ -128,7 +131,7 @@ func TestLoadExportedTerraform(t *testing.T) {
 				},
 				{
 					path: "/stack",
-					add: exportAsTerraform("test",
+					add: generateHCL("test",
 						block("testblock",
 							expr("bool", "global.some_bool"),
 							expr("number", "global.some_number"),
@@ -159,7 +162,7 @@ func TestLoadExportedTerraform(t *testing.T) {
 			},
 		},
 		{
-			name:  "exported terraform on stack using try and labelled block",
+			name:  "generate HCL on stack using try and labeled block",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
@@ -174,7 +177,7 @@ func TestLoadExportedTerraform(t *testing.T) {
 				},
 				{
 					path: "/stack",
-					add: exportAsTerraform("test",
+					add: generateHCL("test",
 						block("labeled",
 							labels("label1", "label2"),
 							expr("field_a", "try(global.obj.field_a, null)"),
@@ -199,7 +202,7 @@ func TestLoadExportedTerraform(t *testing.T) {
 			},
 		},
 		{
-			name:  "exported terraform on stack with single nested block",
+			name:  "generate HCL on stack with single nested block",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
@@ -212,7 +215,7 @@ func TestLoadExportedTerraform(t *testing.T) {
 				},
 				{
 					path: "/stack",
-					add: exportAsTerraform("nesting",
+					add: generateHCL("nesting",
 						block("block1",
 							expr("bool", "global.some_bool"),
 							block("block2",
@@ -251,7 +254,7 @@ func TestLoadExportedTerraform(t *testing.T) {
 			},
 		},
 		{
-			name:  "multiple exported terraform blocks on stack",
+			name:  "multiple generate HCL blocks on stack",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
@@ -265,7 +268,7 @@ func TestLoadExportedTerraform(t *testing.T) {
 				{
 					path: "/stack",
 					add: hcldoc(
-						exportAsTerraform("exported_one",
+						generateHCL("exported_one",
 							block("block1",
 								expr("bool", "global.some_bool"),
 								block("block2",
@@ -273,12 +276,12 @@ func TestLoadExportedTerraform(t *testing.T) {
 								),
 							),
 						),
-						exportAsTerraform("exported_two",
+						generateHCL("exported_two",
 							block("yay",
 								expr("data", "global.some_string"),
 							),
 						),
-						exportAsTerraform("exported_three",
+						generateHCL("exported_three",
 							block("something",
 								expr("number", "global.some_number"),
 							),
@@ -311,7 +314,7 @@ func TestLoadExportedTerraform(t *testing.T) {
 			},
 		},
 		{
-			name:  "exported terraform on stack parent dir",
+			name:  "generate HCL on stack parent dir",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
@@ -324,7 +327,7 @@ func TestLoadExportedTerraform(t *testing.T) {
 				},
 				{
 					path: "/stacks",
-					add: exportAsTerraform("on_parent",
+					add: generateHCL("on_parent",
 						block("on_parent_block",
 							expr("obj", `{
 								string = global.some_string
@@ -349,12 +352,12 @@ func TestLoadExportedTerraform(t *testing.T) {
 			},
 		},
 		{
-			name:  "exported terraform project root dir",
+			name:  "generate HCL on project root dir",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
 					path: "/",
-					add: exportAsTerraform("root",
+					add: generateHCL("root",
 						block("root",
 							expr("test", "terramate.path"),
 						),
@@ -371,7 +374,7 @@ func TestLoadExportedTerraform(t *testing.T) {
 			},
 		},
 		{
-			name:  "exporting on all dirs of the project with different names get merged",
+			name:  "generate HCL on all dirs of the project with different labels",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
@@ -384,7 +387,7 @@ func TestLoadExportedTerraform(t *testing.T) {
 				},
 				{
 					path: "/",
-					add: exportAsTerraform("on_root",
+					add: generateHCL("on_root",
 						block("on_root_block",
 							expr("obj", `{
 								string = global.some_string
@@ -394,7 +397,7 @@ func TestLoadExportedTerraform(t *testing.T) {
 				},
 				{
 					path: "/stacks",
-					add: exportAsTerraform("on_parent",
+					add: generateHCL("on_parent",
 						block("on_parent_block",
 							expr("obj", `{
 								number = global.some_number
@@ -404,7 +407,7 @@ func TestLoadExportedTerraform(t *testing.T) {
 				},
 				{
 					path: "/stacks/stack",
-					add: exportAsTerraform("on_stack",
+					add: generateHCL("on_stack",
 						block("on_stack_block",
 							expr("obj", `{
 								bool = global.some_bool
@@ -447,17 +450,17 @@ func TestLoadExportedTerraform(t *testing.T) {
 				{
 					path: "/",
 					add: hcldoc(
-						exportAsTerraform("root",
+						generateHCL("root",
 							block("block",
 								expr("root_stackpath", "terramate.path"),
 							),
 						),
-						exportAsTerraform("parent",
+						generateHCL("parent",
 							block("block",
 								expr("root_stackpath", "terramate.path"),
 							),
 						),
-						exportAsTerraform("stack",
+						generateHCL("stack",
 							block("block",
 								expr("root_stackpath", "terramate.path"),
 							),
@@ -466,7 +469,7 @@ func TestLoadExportedTerraform(t *testing.T) {
 				},
 				{
 					path: "/stacks",
-					add: exportAsTerraform("parent",
+					add: generateHCL("parent",
 						block("block",
 							expr("parent_stackpath", "terramate.path"),
 							expr("parent_stackname", "terramate.name"),
@@ -475,7 +478,7 @@ func TestLoadExportedTerraform(t *testing.T) {
 				},
 				{
 					path: "/stacks/stack",
-					add: exportAsTerraform("stack",
+					add: generateHCL("stack",
 						block("block",
 							str("overridden", "some literal data"),
 						),
@@ -505,27 +508,27 @@ func TestLoadExportedTerraform(t *testing.T) {
 			},
 		},
 		{
-			name:  "export block with no label on stack gives err",
+			name:  "block with no label on stack gives err",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
 					path: "/stacks/stack",
-					add: block("export_as_terraform",
+					add: block("generate_hcl",
 						block("block",
 							str("data", "some literal data"),
 						),
 					),
 				},
 			},
-			wantErr: exportedtf.ErrInvalidBlock,
+			wantErr: genhcl.ErrInvalidBlock,
 		},
 		{
-			name:  "export block with two labels on stack gives err",
+			name:  "block with two labels on stack gives err",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
 					path: "/stacks/stack",
-					add: block("export_as_terraform",
+					add: block("generate_hcl",
 						labels("one", "two"),
 						block("block",
 							str("data", "some literal data"),
@@ -533,48 +536,70 @@ func TestLoadExportedTerraform(t *testing.T) {
 					),
 				},
 			},
-			wantErr: exportedtf.ErrInvalidBlock,
+			wantErr: genhcl.ErrInvalidBlock,
 		},
 		{
-			name:  "export blocks with same label on same config gives err",
+			name:  "block with empty label on stack gives err",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
 					path: "/stacks/stack",
-					add: hcldoc(
-						exportAsTerraform("duplicated",
+					add: block("generate_hcl",
+						labels(""),
+						block("block",
 							str("data", "some literal data"),
 						),
-						exportAsTerraform("duplicated",
-							str("data2", "some literal data2"),
-						),
 					),
 				},
 			},
-			wantErr: exportedtf.ErrInvalidBlock,
+			wantErr: genhcl.ErrInvalidBlock,
 		},
 		{
-			name:  "evaluation failure on stack config gives err",
+			name:  "blocks with same label on same config gives err",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
 					path: "/stacks/stack",
 					add: hcldoc(
-						exportAsTerraform("test",
-							expr("attr", "global.undefined"),
+						generateHCL("duplicated",
+							terraform(
+								str("data", "some literal data"),
+							),
+						),
+						generateHCL("duplicated",
+							terraform(
+								str("data2", "some literal data2"),
+							),
 						),
 					),
 				},
 			},
-			wantErr: exportedtf.ErrEval,
+			wantErr: genhcl.ErrInvalidBlock,
 		},
 		{
-			name:  "valid config on stack but invalid on parent gives err",
+			name:  "evaluation failure on stack config fails",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack",
+					add: hcldoc(
+						generateHCL("test",
+							terraform(
+								expr("required_version", "global.undefined"),
+							),
+						),
+					),
+				},
+			},
+			wantErr: genhcl.ErrEval,
+		},
+		{
+			name:  "valid config on stack but invalid on parent fails",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
 					path: "/stacks",
-					add: block("export_as_terraform",
+					add: block("generate_hcl",
 						block("block",
 							str("data", "some literal data"),
 						),
@@ -583,13 +608,33 @@ func TestLoadExportedTerraform(t *testing.T) {
 				{
 					path: "/stacks/stack",
 					add: hcldoc(
-						exportAsTerraform("valid",
-							str("data", "some literal data"),
+						generateHCL("valid",
+							terraform(
+								str("data", "some literal data"),
+							),
 						),
 					),
 				},
 			},
-			wantErr: exportedtf.ErrInvalidBlock,
+			wantErr: genhcl.ErrInvalidBlock,
+		},
+		{
+			name:  "attributes on generate_hcl block fails",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack",
+					add: hcldoc(
+						generateHCL("test",
+							str("some_attribute", "whatever"),
+							terraform(
+								str("required_version", "1.11"),
+							),
+						),
+					),
+				},
+			},
+			wantErr: genhcl.ErrInvalidBlock,
 		},
 	}
 
@@ -606,7 +651,7 @@ func TestLoadExportedTerraform(t *testing.T) {
 
 			meta := stack.Meta()
 			globals := s.LoadStackGlobals(meta)
-			res, err := exportedtf.Load(s.RootDir(), meta, globals)
+			res, err := genhcl.Load(s.RootDir(), meta, globals)
 			assert.IsError(t, err, tcase.wantErr)
 
 			got := res.ExportedCode()
