@@ -223,6 +223,54 @@ func TestHCLGeneration(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "generate HCL with traversal of unknown namespaces",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: hcldoc(
+						generateHCL(
+							labels("traversal.tf"),
+							block("traversal",
+								expr("locals", "local.hi"),
+								expr("some_anything", "something.should_work"),
+								expr("multiple_traversal", "one.two.three.four.five"),
+							),
+						),
+					),
+				},
+			},
+			want: []want{
+				{
+					stack: "/stacks/stack-1",
+					hcls: map[string]fmt.Stringer{
+						"traversal.tf": hcldoc(
+							block("traversal",
+								expr("locals", "local.hi"),
+								expr("multiple_traversal", "one.two.three.four.five"),
+								expr("some_anything", "something.should_work"),
+							),
+						),
+					},
+				},
+				{
+					stack: "/stacks/stack-2",
+					hcls: map[string]fmt.Stringer{
+						"traversal.tf": hcldoc(
+							block("traversal",
+								expr("locals", "local.hi"),
+								expr("multiple_traversal", "one.two.three.four.five"),
+								expr("some_anything", "something.should_work"),
+							),
+						),
+					},
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
