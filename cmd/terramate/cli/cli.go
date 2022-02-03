@@ -926,7 +926,7 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 		Msg("Fetch remote reference.")
 	remoteRef, err := g.FetchRemoteRev(defaultRemote, defaultBranch)
 	if err != nil {
-		return fmt.Errorf("checking local branch %q is update: %v", branch, err)
+		return fmt.Errorf("checking if local branch %q is updated: %v", branch, err)
 	}
 	c.logerr("retrieved info from remote branch: %s/%s.", defaultRemote, defaultBranch)
 
