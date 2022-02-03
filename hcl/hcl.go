@@ -534,7 +534,7 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context)
 
 func getUnknownScopeTraversal(expr hclsyntax.Expression, evalctx *eval.Context) (*hclsyntax.ScopeTraversalExpr, bool) {
 	logger := log.With().
-		Str("action", "parseUnknownTraversal").
+		Str("action", "hcl.getUnknownScopeTraversal").
 		Logger()
 
 	scopeTraversal, ok := expr.(*hclsyntax.ScopeTraversalExpr)
