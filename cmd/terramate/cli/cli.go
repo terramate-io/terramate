@@ -897,51 +897,60 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 		Logger()
 
 	logger.Trace().
-		Msg("Temporarily disabled.")
+		Msg("Get current git branch.")
+	branch, err := g.CurrentBranch()
+	if err != nil {
+		// ON CI envs we don't have a clean way to get the branch name
+		// git symbolic-ref will just fail. but we don't want a hard
+		// fail on this case. We need to re-assess this, if we really
+		// need the branch name, is there some other way to solve this ? etc.
+		//
+		// More info on git branch names on GHA:
+		//
+		// - https://github.com/github/feedback/discussions/5251
+		// - https://stackoverflow.com/questions/58033366/how-to-get-the-current-branch-within-github-actions
+		logger.Debug().
+			Str("details", err.Error()).
+			Msg("getting git branch name")
+		return nil
+	}
 
-	//logger.Trace().
-	//Msg("Get current git branch.")
-	//branch, err := g.CurrentBranch()
-	//if err != nil {
-	//return fmt.Errorf("checking local branch is updated: %v", err)
-	//}
+	if branch != defaultBranch {
+		return nil
+	}
 
-	//if branch != defaultBranch {
-	//return nil
-	//}
+	c.logerr("current branch %q is the default branch, checking if it is updated.", branch)
+	c.logerr("retrieving info from remote branch: %s/%s ...", defaultRemote, defaultBranch)
 
-	//c.logerr("current branch %q is the default branch, checking if it is updated.", branch)
-	//c.logerr("retrieving info from remote branch: %s/%s ...", defaultRemote, defaultBranch)
+	logger.Trace().
+		Msg("Fetch remote reference.")
+	remoteRef, err := g.FetchRemoteRev(defaultRemote, defaultBranch)
+	if err != nil {
+		return fmt.Errorf("checking local branch %q is update: %v", branch, err)
+	}
+	c.logerr("retrieved info from remote branch: %s/%s.", defaultRemote, defaultBranch)
 
-	//logger.Trace().
-	//Msg("Fetch remote reference.")
-	//remoteRef, err := g.FetchRemoteRev(defaultRemote, defaultBranch)
-	//if err != nil {
-	//return fmt.Errorf("checking local branch %q is update: %v", branch, err)
-	//}
-	//c.logerr("retrieved info from remote branch: %s/%s.", defaultRemote, defaultBranch)
+	logger.Trace().
+		Msg("Get local commit ID.")
+	localCommitID, err := g.RevParse(branch)
+	if err != nil {
+		return fmt.Errorf("checking local branch %q is update: %v", branch, err)
+	}
 
-	//logger.Trace().
-	//Msg("Get local commit ID.")
-	//localCommitID, err := g.RevParse(branch)
-	//if err != nil {
-	//return fmt.Errorf("checking local branch %q is update: %v", branch, err)
-	//}
+	localRef := git.Ref{CommitID: localCommitID}
 
-	//localRef := git.Ref{CommitID: localCommitID}
+	if localRef.CommitID != remoteRef.CommitID {
+		return fmt.Errorf(
+			"%w: remote %s/%s=%q != local %s=%q",
+			ErrOutdatedLocalRev,
+			defaultRemote,
+			defaultBranch,
+			remoteRef.ShortCommitID(),
+			branch,
+			localRef.ShortCommitID(),
+		)
 
-	//if localRef.CommitID != remoteRef.CommitID {
-	//return fmt.Errorf(
-	//"%w: remote %s/%s=%q != local %s=%q",
-	//ErrOutdatedLocalRev,
-	//defaultRemote,
-	//defaultBranch,
-	//remoteRef.ShortCommitID(),
-	//branch,
-	//localRef.ShortCommitID(),
-	//)
-
-	//}
+	}
 
 	return nil
 }
