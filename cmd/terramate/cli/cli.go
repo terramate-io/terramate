@@ -910,7 +910,7 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 		// - https://github.com/github/feedback/discussions/5251
 		// - https://stackoverflow.com/questions/58033366/how-to-get-the-current-branch-within-github-actions
 		logger.Debug().
-			Str("details", err.Error()).
+			Str("error", err.Error()).
 			Msg("getting git branch name")
 		return nil
 	}
@@ -1184,7 +1184,7 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 				// - https://github.com/github/feedback/discussions/5251
 				// - https://stackoverflow.com/questions/58033366/how-to-get-the-current-branch-within-github-actions
 				logger.Debug().
-					Str("details", err.Error()).
+					Str("error", err.Error()).
 					Msg("getting git branch name")
 			} else {
 				if branch == gitOpt.DefaultBranch {
