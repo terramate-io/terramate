@@ -153,7 +153,9 @@ func newEvalCtx(stackpath string, sm stack.Metadata, globals *terramate.Globals)
 }
 
 // loadGenHCLBlocks will load all generate_hcl blocks applying overriding
-// as it goes, the returned map maps the name of the block (its label) to the original block
+// as it goes, the returned map maps the name of the block (its label)
+// to the original block and the path (relative to project root) of the config
+// from where it was parsed.
 func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]*hclsyntax.Block, error) {
 	logger := log.With().
 		Str("action", "genhcl.loadGenHCLBlocks()").

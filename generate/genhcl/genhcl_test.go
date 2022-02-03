@@ -36,9 +36,13 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			path string
 			add  fmt.Stringer
 		}
+		genHCL struct {
+			body   fmt.Stringer
+			origin string
+		}
 		result struct {
 			name string
-			hcl  fmt.Stringer
+			hcl  genHCL
 		}
 		testcase struct {
 			name    string
@@ -76,6 +80,10 @@ func TestLoadGeneratedHCL(t *testing.T) {
 	number := hclwrite.NumberInt
 	boolean := hclwrite.Boolean
 
+	defaultCfg := func(dir string) string {
+		return filepath.Join(dir, config.Filename)
+	}
+
 	tcases := []testcase{
 		{
 			name:  "no generation",
@@ -95,7 +103,10 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			want: []result{
 				{
 					name: "empty",
-					hcl:  hcldoc(),
+					hcl: genHCL{
+						origin: defaultCfg("/stack"),
+						body:   hcldoc(),
+					},
 				},
 			},
 		},
@@ -114,7 +125,10 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			want: []result{
 				{
 					name: "emptytest",
-					hcl:  block("empty"),
+					hcl: genHCL{
+						origin: defaultCfg("/stack"),
+						body:   block("empty"),
+					},
 				},
 			},
 		},
@@ -150,16 +164,19 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			want: []result{
 				{
 					name: "test",
-					hcl: block("testblock",
-						boolean("bool", true),
-						number("number", 777),
-						str("string", "string"),
-						attr("obj", `{
-							bool   = true
-							number = 777
-							string = "string"
-						}`),
-					),
+					hcl: genHCL{
+						origin: defaultCfg("/stack"),
+						body: block("testblock",
+							boolean("bool", true),
+							number("number", 777),
+							str("string", "string"),
+							attr("obj", `{
+								bool   = true
+								number = 777
+								string = "string"
+							}`),
+						),
+					},
 				},
 			},
 		},
@@ -194,13 +211,16 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			want: []result{
 				{
 					name: "test",
-					hcl: block("labeled",
-						labels("label1", "label2"),
-						str("field_a", "a"),
-						str("field_b", "b"),
-						str("field_c", "c"),
-						attr("field_d", "null"),
-					),
+					hcl: genHCL{
+						origin: defaultCfg("/stack"),
+						body: block("labeled",
+							labels("label1", "label2"),
+							str("field_a", "a"),
+							str("field_b", "b"),
+							str("field_c", "c"),
+							attr("field_d", "null"),
+						),
+					},
 				},
 			},
 		},
@@ -240,20 +260,23 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			want: []result{
 				{
 					name: "nesting",
-					hcl: block("block1",
-						boolean("bool", true),
-						block("block2",
-							number("number", 777),
-							block("block3",
-								str("string", "string"),
-								attr("obj", `{
+					hcl: genHCL{
+						origin: defaultCfg("/stack"),
+						body: block("block1",
+							boolean("bool", true),
+							block("block2",
+								number("number", 777),
+								block("block3",
+									str("string", "string"),
+									attr("obj", `{
 									bool   = true
 									number = 777
 									string = "string"
 								}`),
+								),
 							),
 						),
-					),
+					},
 				},
 			},
 		},
@@ -299,24 +322,33 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			want: []result{
 				{
 					name: "exported_one",
-					hcl: block("block1",
-						boolean("bool", true),
-						block("block2",
-							number("number", 666),
+					hcl: genHCL{
+						origin: defaultCfg("/stack"),
+						body: block("block1",
+							boolean("bool", true),
+							block("block2",
+								number("number", 666),
+							),
 						),
-					),
+					},
 				},
 				{
 					name: "exported_two",
-					hcl: block("yay",
-						str("data", "string"),
-					),
+					hcl: genHCL{
+						origin: defaultCfg("/stack"),
+						body: block("yay",
+							str("data", "string"),
+						),
+					},
 				},
 				{
 					name: "exported_three",
-					hcl: block("something",
-						number("number", 666),
-					),
+					hcl: genHCL{
+						origin: defaultCfg("/stack"),
+						body: block("something",
+							number("number", 666),
+						),
+					},
 				},
 			},
 		},
@@ -349,13 +381,16 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			want: []result{
 				{
 					name: "on_parent",
-					hcl: block("on_parent_block",
-						attr("obj", `{
-							bool   = true
-							number = 777
-							string = "string"
-						}`),
-					),
+					hcl: genHCL{
+						origin: defaultCfg("/stacks"),
+						body: block("on_parent_block",
+							attr("obj", `{
+								bool   = true
+								number = 777
+								string = "string"
+							}`),
+						),
+					},
 				},
 			},
 		},
@@ -376,9 +411,12 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			want: []result{
 				{
 					name: "root",
-					hcl: block("root",
-						str("test", "/stacks/stack"),
-					),
+					hcl: genHCL{
+						origin: defaultCfg("/"),
+						body: block("root",
+							str("test", "/stacks/stack"),
+						),
+					},
 				},
 			},
 		},
@@ -431,27 +469,36 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			want: []result{
 				{
 					name: "on_root",
-					hcl: block("on_root_block",
-						attr("obj", `{
-							string = "string"
-						}`),
-					),
+					hcl: genHCL{
+						origin: defaultCfg("/"),
+						body: block("on_root_block",
+							attr("obj", `{
+								string = "string"
+							}`),
+						),
+					},
 				},
 				{
 					name: "on_parent",
-					hcl: block("on_parent_block",
-						attr("obj", `{
-							number = 777
-						}`),
-					),
+					hcl: genHCL{
+						origin: defaultCfg("/stacks"),
+						body: block("on_parent_block",
+							attr("obj", `{
+								number = 777
+							}`),
+						),
+					},
 				},
 				{
 					name: "on_stack",
-					hcl: block("on_stack_block",
-						attr("obj", `{
-							bool   = true
-						}`),
-					),
+					hcl: genHCL{
+						origin: defaultCfg("/stacks/stack"),
+						body: block("on_stack_block",
+							attr("obj", `{
+								bool   = true
+							}`),
+						),
+					},
 				},
 			},
 		},
@@ -505,22 +552,31 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			want: []result{
 				{
 					name: "root",
-					hcl: block("block",
-						str("root_stackpath", "/stacks/stack"),
-					),
+					hcl: genHCL{
+						origin: defaultCfg("/"),
+						body: block("block",
+							str("root_stackpath", "/stacks/stack"),
+						),
+					},
 				},
 				{
 					name: "parent",
-					hcl: block("block",
-						str("parent_stackpath", "/stacks/stack"),
-						str("parent_stackname", "stack"),
-					),
+					hcl: genHCL{
+						origin: defaultCfg("/stacks"),
+						body: block("block",
+							str("parent_stackpath", "/stacks/stack"),
+							str("parent_stackname", "stack"),
+						),
+					},
 				},
 				{
 					name: "stack",
-					hcl: block("block",
-						str("overridden", "some literal data"),
-					),
+					hcl: genHCL{
+						origin: defaultCfg("/stacks/stack"),
+						body: block("block",
+							str("overridden", "some literal data"),
+						),
+					},
 				},
 			},
 		},
@@ -684,7 +740,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					t.Fatalf("want hcl code for %q, got: %v", res.name, got)
 				}
 				gotcode := gothcl.String()
-				wantcode := res.hcl.String()
+				wantcode := res.hcl.body.String()
 
 				assertHCLEquals(t, gotcode, wantcode)
 
