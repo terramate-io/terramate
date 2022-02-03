@@ -51,9 +51,9 @@ const (
 	ErrEval         errutil.Error = "evaluating generate_hcl block"
 )
 
-// ExportedCode returns all generated code, mapping the name to its
+// GeneratedHCLs returns all generated code, mapping the name to its
 // equivalent generated code.
-func (s StackHCLs) ExportedCode() map[string]HCL {
+func (s StackHCLs) GeneratedHCLs() map[string]HCL {
 	cp := map[string]HCL{}
 	for k, v := range s.hcls {
 		cp[k] = v

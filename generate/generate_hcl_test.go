@@ -352,8 +352,6 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 }
 
 func TestGeneratedHCLHeaders(t *testing.T) {
-	t.Skip("TODO: MAKE IT PASS")
-
 	const (
 		rootFilename        = "root.tf"
 		stackFilename       = "stack.tf"

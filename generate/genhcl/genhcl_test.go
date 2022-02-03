@@ -732,7 +732,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			res, err := genhcl.Load(s.RootDir(), meta, globals)
 			assert.IsError(t, err, tcase.wantErr)
 
-			got := res.ExportedCode()
+			got := res.GeneratedHCLs()
 
 			for _, res := range tcase.want {
 				gothcl, ok := got[res.name]

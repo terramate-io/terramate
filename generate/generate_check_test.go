@@ -23,7 +23,7 @@ import (
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
-func TestCheckReturnsOutdatedStackFilenamesForExportedTf(t *testing.T) {
+func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 	s := sandbox.New(t)
 
 	stackEntry := s.CreateStack("stacks/stack")
