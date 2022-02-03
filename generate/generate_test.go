@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/mineiros-io/terramate/generate"
 	"github.com/rs/zerolog"
 )
 
@@ -31,7 +30,9 @@ func assertHCLEquals(t *testing.T, got string, want string) {
 	// (but we test the formatting too... so maybe that is good ? =P)
 	const trimmedChars = "\n "
 
-	want = string(generate.PrependHeader(want))
+	// Terramate header validation is done separatedely, here we check only code.
+	// So headers are removed.
+	got = removeTerramateHeader(got)
 	got = strings.Trim(got, trimmedChars)
 	want = strings.Trim(want, trimmedChars)
 
@@ -41,6 +42,19 @@ func assertHCLEquals(t *testing.T, got string, want string) {
 		t.Errorf("got:\n%q", got)
 		t.Fatalf("diff:\n%s", diff)
 	}
+}
+
+func removeTerramateHeader(code string) string {
+	lines := []string{}
+
+	for _, line := range strings.Split(code, "\n") {
+		if strings.HasPrefix(line, "//") && strings.Contains(line, "TERRAMATE") {
+			continue
+		}
+		lines = append(lines, line)
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 func init() {
