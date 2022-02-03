@@ -475,6 +475,9 @@ func ParseGenerateHCLBlocks(path string) ([]*hclsyntax.Block, error) {
 // CopyBody will copy the src body to the given target, evaluating attributes using the
 // given evaluation context.
 //
+// Scoped traversals, like name.traverse, for unknown namespaces will be copied
+// as is (original expression form, no evaluation).
+//
 // Returns an error if the evaluation fails.
 func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context) error {
 	logger := log.With().
@@ -487,8 +490,23 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context)
 	attrs := sortedAttributes(src.Attributes)
 
 	for _, attr := range attrs {
+		logger := logger.With().
+			Str("attrName", attr.Name).
+			Logger()
+
+		logger.Trace().Msg("evaluating.")
+
 		val, err := evalctx.Eval(attr.Expr)
 		if err != nil {
+			logger.Trace().Msg("evaluation failed, checking if is unknown scope traversal.")
+
+			scope, isUnknownTraversal := getUnknownScopeTraversal(attr.Expr, evalctx)
+			if isUnknownTraversal {
+				logger.Trace().Msg("Is unknown scope traversal, copying as traversal.")
+				target.SetAttributeTraversal(attr.Name, scope.Traversal)
+				continue
+			}
+
 			return fmt.Errorf("parsing attribute %q: %v", attr.Name, err)
 		}
 
@@ -512,6 +530,27 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context)
 	}
 
 	return nil
+}
+
+func getUnknownScopeTraversal(expr hclsyntax.Expression, evalctx *eval.Context) (*hclsyntax.ScopeTraversalExpr, bool) {
+	logger := log.With().
+		Str("action", "parseUnknownTraversal").
+		Logger()
+
+	scopeTraversal, ok := expr.(*hclsyntax.ScopeTraversalExpr)
+	if !ok {
+		logger.Trace().Msg("expression is not a scope traversal")
+		return nil, false
+	}
+
+	for _, varTraversal := range hclsyntax.Variables(scopeTraversal) {
+		if evalctx.HasNamespace(varTraversal.RootName()) {
+			logger.Trace().Msg("expression has known namespace")
+			return nil, false
+		}
+	}
+
+	return scopeTraversal, true
 }
 
 func sortedAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {

@@ -133,6 +133,38 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 		},
 		{
+			name:  "scope traversals of unknown namespaces are copied as is",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("scope_traversal"),
+						block("traversals",
+							expr("local", "local.something"),
+							expr("mul", "omg.wat.something"),
+							expr("res", "resource.something"),
+							expr("val", "omg.something"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "scope_traversal",
+					hcl: genHCL{
+						origin: defaultCfg("/stack"),
+						body: block("traversals",
+							expr("local", "local.something"),
+							expr("mul", "omg.wat.something"),
+							expr("res", "resource.something"),
+							expr("val", "omg.something"),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "generate HCL on stack with single block",
 			stack: "/stack",
 			configs: []hclconfig{
@@ -652,7 +684,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			wantErr: genhcl.ErrInvalidBlock,
 		},
 		{
-			name:  "evaluation failure on stack config fails",
+			name:  "global evaluation failure",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
@@ -662,6 +694,24 @@ func TestLoadGeneratedHCL(t *testing.T) {
 							labels("test"),
 							terraform(
 								expr("required_version", "global.undefined"),
+							),
+						),
+					),
+				},
+			},
+			wantErr: genhcl.ErrEval,
+		},
+		{
+			name:  "metadata evaluation failure",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack",
+					add: hcldoc(
+						generateHCL(
+							labels("test"),
+							terraform(
+								expr("much_wrong", "terramate.undefined"),
 							),
 						),
 					),
