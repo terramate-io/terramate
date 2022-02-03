@@ -30,7 +30,7 @@ func assertHCLEquals(t *testing.T, got string, want string) {
 	// (but we test the formatting too... so maybe that is good ? =P)
 	const trimmedChars = "\n "
 
-	// Terramate header validation is done separatedely, here we check only code.
+	// Terramate header validation is done separately, here we check only code.
 	// So headers are removed.
 	got = removeTerramateHeader(got)
 	got = strings.Trim(got, trimmedChars)
