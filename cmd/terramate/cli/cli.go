@@ -1165,11 +1165,22 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 				Msg("Get current branch.")
 			branch, err := gw.CurrentBranch()
 			if err != nil {
-				return fmt.Errorf("failed to get current git branch: %v", err)
-			}
-
-			if branch == gitOpt.DefaultBranch {
-				baseRef = gitOpt.DefaultBranchBaseRef
+				// ON CI envs we don't have a clean way to get the branch name
+				// git symbolic-ref will just fail. but we don't want a hard
+				// fail on this case. We need to re-assess this, if we really
+				// need the branch name, is there some other way to solve this ? etc.
+				//
+				// More info on git branch names on GHA:
+				//
+				// - https://github.com/github/feedback/discussions/5251
+				// - https://stackoverflow.com/questions/58033366/how-to-get-the-current-branch-within-github-actions
+				logger.Debug().
+					Str("details", err.Error()).
+					Msg("getting git branch name")
+			} else {
+				if branch == gitOpt.DefaultBranch {
+					baseRef = gitOpt.DefaultBranchBaseRef
+				}
 			}
 		}
 	}
