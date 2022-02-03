@@ -15,6 +15,7 @@
 package genhcl
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -197,22 +198,10 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 	res := map[string]loadedHCL{}
 
 	for _, block := range blocks {
-		if len(block.Labels) != 1 {
-			return nil, fmt.Errorf(
-				"%w: want single label instead got %d",
-				ErrInvalidBlock,
-				len(block.Labels),
-			)
+		if err := validateGenerateHCLBlock(block); err != nil {
+			return nil, fmt.Errorf("%w:%v", ErrInvalidBlock, err)
 		}
 		name := block.Labels[0]
-		if name == "" {
-			return nil, fmt.Errorf("%w: label can't be empty", ErrInvalidBlock)
-		}
-
-		if len(block.Body.Attributes) != 0 {
-			return nil, fmt.Errorf("%w: attributes are not allowed", ErrInvalidBlock)
-		}
-
 		if _, ok := res[name]; ok {
 			return nil, fmt.Errorf(
 				"%w: found two blocks with same label %q",
@@ -233,6 +222,22 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 
 	merge(res, parentRes)
 	return res, nil
+}
+
+func validateGenerateHCLBlock(block *hclsyntax.Block) error {
+	if len(block.Labels) != 1 {
+		return fmt.Errorf(
+			"want single label instead got %d",
+			len(block.Labels),
+		)
+	}
+	if block.Labels[0] == "" {
+		return errors.New("label can't be empty")
+	}
+	if len(block.Body.Attributes) != 0 {
+		return errors.New("attributes are not allowed")
+	}
+	return nil
 }
 
 func merge(target, src map[string]loadedHCL) {
