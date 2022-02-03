@@ -52,10 +52,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 	hcldoc := func(blocks ...*hclwrite.Block) hclwrite.HCL {
 		return hclwrite.NewHCL(blocks...)
 	}
-	generateHCL := func(label string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		b := hclwrite.BuildBlock("generate_hcl", builders...)
-		b.AddLabel(label)
-		return b
+	generateHCL := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("generate_hcl", builders...)
 	}
 	block := func(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock(name, builders...)
@@ -89,7 +87,9 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add:  generateHCL("empty"),
+					add: generateHCL(
+						labels("empty"),
+					),
 				},
 			},
 			want: []result{
@@ -105,7 +105,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL("emptytest",
+					add: generateHCL(
+						labels("emptytest"),
 						block("empty"),
 					),
 				},
@@ -131,7 +132,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				},
 				{
 					path: "/stack",
-					add: generateHCL("test",
+					add: generateHCL(
+						labels("test"),
 						block("testblock",
 							expr("bool", "global.some_bool"),
 							expr("number", "global.some_number"),
@@ -177,7 +179,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				},
 				{
 					path: "/stack",
-					add: generateHCL("test",
+					add: generateHCL(
+						labels("test"),
 						block("labeled",
 							labels("label1", "label2"),
 							expr("field_a", "try(global.obj.field_a, null)"),
@@ -215,7 +218,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				},
 				{
 					path: "/stack",
-					add: generateHCL("nesting",
+					add: generateHCL(
+						labels("nesting"),
 						block("block1",
 							expr("bool", "global.some_bool"),
 							block("block2",
@@ -268,7 +272,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					path: "/stack",
 					add: hcldoc(
-						generateHCL("exported_one",
+						generateHCL(
+							labels("exported_one"),
 							block("block1",
 								expr("bool", "global.some_bool"),
 								block("block2",
@@ -276,12 +281,14 @@ func TestLoadGeneratedHCL(t *testing.T) {
 								),
 							),
 						),
-						generateHCL("exported_two",
+						generateHCL(
+							labels("exported_two"),
 							block("yay",
 								expr("data", "global.some_string"),
 							),
 						),
-						generateHCL("exported_three",
+						generateHCL(
+							labels("exported_three"),
 							block("something",
 								expr("number", "global.some_number"),
 							),
@@ -327,7 +334,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				},
 				{
 					path: "/stacks",
-					add: generateHCL("on_parent",
+					add: generateHCL(
+						labels("on_parent"),
 						block("on_parent_block",
 							expr("obj", `{
 								string = global.some_string
@@ -357,7 +365,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/",
-					add: generateHCL("root",
+					add: generateHCL(
+						labels("root"),
 						block("root",
 							expr("test", "terramate.path"),
 						),
@@ -387,7 +396,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				},
 				{
 					path: "/",
-					add: generateHCL("on_root",
+					add: generateHCL(
+						labels("on_root"),
 						block("on_root_block",
 							expr("obj", `{
 								string = global.some_string
@@ -397,7 +407,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				},
 				{
 					path: "/stacks",
-					add: generateHCL("on_parent",
+					add: generateHCL(
+						labels("on_parent"),
 						block("on_parent_block",
 							expr("obj", `{
 								number = global.some_number
@@ -407,7 +418,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				},
 				{
 					path: "/stacks/stack",
-					add: generateHCL("on_stack",
+					add: generateHCL(
+						labels("on_stack"),
 						block("on_stack_block",
 							expr("obj", `{
 								bool = global.some_bool
@@ -450,17 +462,20 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					path: "/",
 					add: hcldoc(
-						generateHCL("root",
+						generateHCL(
+							labels("root"),
 							block("block",
 								expr("root_stackpath", "terramate.path"),
 							),
 						),
-						generateHCL("parent",
+						generateHCL(
+							labels("parent"),
 							block("block",
 								expr("root_stackpath", "terramate.path"),
 							),
 						),
-						generateHCL("stack",
+						generateHCL(
+							labels("stack"),
 							block("block",
 								expr("root_stackpath", "terramate.path"),
 							),
@@ -469,7 +484,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				},
 				{
 					path: "/stacks",
-					add: generateHCL("parent",
+					add: generateHCL(
+						labels("parent"),
 						block("block",
 							expr("parent_stackpath", "terramate.path"),
 							expr("parent_stackname", "terramate.name"),
@@ -478,7 +494,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				},
 				{
 					path: "/stacks/stack",
-					add: generateHCL("stack",
+					add: generateHCL(
+						labels("stack"),
 						block("block",
 							str("overridden", "some literal data"),
 						),
@@ -561,12 +578,14 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					path: "/stacks/stack",
 					add: hcldoc(
-						generateHCL("duplicated",
+						generateHCL(
+							labels("duplicated"),
 							terraform(
 								str("data", "some literal data"),
 							),
 						),
-						generateHCL("duplicated",
+						generateHCL(
+							labels("duplicated"),
 							terraform(
 								str("data2", "some literal data2"),
 							),
@@ -583,7 +602,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					path: "/stacks/stack",
 					add: hcldoc(
-						generateHCL("test",
+						generateHCL(
+							labels("test"),
 							terraform(
 								expr("required_version", "global.undefined"),
 							),
@@ -608,7 +628,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					path: "/stacks/stack",
 					add: hcldoc(
-						generateHCL("valid",
+						generateHCL(
+							labels("valid"),
 							terraform(
 								str("data", "some literal data"),
 							),
@@ -625,7 +646,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					path: "/stacks/stack",
 					add: hcldoc(
-						generateHCL("test",
+						generateHCL(
+							labels("test"),
 							str("some_attribute", "whatever"),
 							terraform(
 								str("required_version", "1.11"),

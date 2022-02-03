@@ -38,7 +38,8 @@ type StackHCLs struct {
 }
 
 // HCL represents generated HCL code from a single block.
-// Is contains parsed and evaluated code on it.
+// Is contains parsed and evaluated code on it and information
+// about the origin of the generated code.
 type HCL struct {
 	body []byte
 }
