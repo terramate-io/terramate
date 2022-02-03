@@ -553,7 +553,7 @@ func prependHeader(code string) string {
 
 func prependGenHCLHeader(origin, code string) string {
 	return fmt.Sprintf(
-		"%s\n//TERRAMATE: originated from generate_hcl block on %s\n\n%s",
+		"%s\n// TERRAMATE: originated from generate_hcl block on %s\n\n%s",
 		generalHeader,
 		origin,
 		code,
