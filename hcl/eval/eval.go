@@ -66,6 +66,12 @@ func (c *Context) SetNamespace(name string, vals map[string]cty.Value) error {
 	return nil
 }
 
+// HasNamespace returns true the evaluation context knows this namespace, false otherwise.
+func (c *Context) HasNamespace(name string) bool {
+	_, has := c.hclctx.Variables[name]
+	return has
+}
+
 // Eval will evaluate an expression given its context.
 func (c *Context) Eval(expr hclsyntax.Expression) (cty.Value, error) {
 	val, diag := expr.Value(c.hclctx)
