@@ -934,7 +934,7 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 		Msg("Get local commit ID.")
 	localCommitID, err := g.RevParse(branch)
 	if err != nil {
-		return fmt.Errorf("checking local branch %q is update: %v", branch, err)
+		return fmt.Errorf("checking if local branch %q is updated: %v", branch, err)
 	}
 
 	localRef := git.Ref{CommitID: localCommitID}
