@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/madlambda/spells/assert"
 	"github.com/rs/zerolog"
 )
 
@@ -55,6 +56,18 @@ func removeTerramateHeader(code string) string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+func assertEqualStringList(t *testing.T, got []string, want []string) {
+	t.Helper()
+
+	assert.EqualInts(t, len(want), len(got), "want %+v != got %+v", want, got)
+	for i, wv := range want {
+		gv := got[i]
+		if gv != wv {
+			t.Errorf("got[%d][%s] != want[%d][%s]", i, gv, i, wv)
+		}
+	}
 }
 
 func init() {

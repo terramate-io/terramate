@@ -34,7 +34,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 
 		got, err := generate.CheckStack(s.RootDir(), stack)
 		assert.NoError(t, err)
-		assertStringsEquals(t, got, want)
+		assertEqualStringList(t, got, want)
 	}
 
 	// Checking detection when there is no config generated yet
@@ -123,7 +123,7 @@ func TestCheckReturnsOutdatedStackFilenamesForBackendAndLocals(t *testing.T) {
 		for _, stack := range []tmstack.S{stack1val, stack2val} {
 			got, err := generate.CheckStack(s.RootDir(), stack)
 			assert.NoError(t, err)
-			assertStringsEquals(t, got, []string{})
+			assertEqualStringList(t, got, []string{})
 		}
 	}
 
@@ -141,7 +141,7 @@ func TestCheckReturnsOutdatedStackFilenamesForBackendAndLocals(t *testing.T) {
 
 	got, err := generate.CheckStack(s.RootDir(), stack1val)
 	assert.NoError(t, err)
-	assertStringsEquals(t, got, []string{generate.LocalsFilename})
+	assertEqualStringList(t, got, []string{generate.LocalsFilename})
 
 	stack2.CreateConfig(
 		hcldoc(
@@ -153,7 +153,7 @@ func TestCheckReturnsOutdatedStackFilenamesForBackendAndLocals(t *testing.T) {
 
 	got, err = generate.CheckStack(s.RootDir(), stack2val)
 	assert.NoError(t, err)
-	assertStringsEquals(t, got, []string{generate.BackendCfgFilename})
+	assertEqualStringList(t, got, []string{generate.BackendCfgFilename})
 
 	s.Generate()
 
@@ -170,7 +170,7 @@ func TestCheckReturnsOutdatedStackFilenamesForBackendAndLocals(t *testing.T) {
 
 	got, err = generate.CheckStack(s.RootDir(), stack1val)
 	assert.NoError(t, err)
-	assertStringsEquals(t, got, []string{generate.LocalsFilename})
+	assertEqualStringList(t, got, []string{generate.LocalsFilename})
 
 	stack2.CreateConfig(
 		hcldoc(
@@ -182,7 +182,7 @@ func TestCheckReturnsOutdatedStackFilenamesForBackendAndLocals(t *testing.T) {
 
 	got, err = generate.CheckStack(s.RootDir(), stack2val)
 	assert.NoError(t, err)
-	assertStringsEquals(t, got, []string{generate.BackendCfgFilename})
+	assertEqualStringList(t, got, []string{generate.BackendCfgFilename})
 
 	s.Generate()
 
@@ -201,7 +201,7 @@ func TestCheckReturnsOutdatedStackFilenamesForBackendAndLocals(t *testing.T) {
 
 	got, err = generate.CheckStack(s.RootDir(), stack2val)
 	assert.NoError(t, err)
-	assertStringsEquals(t, got, []string{
+	assertEqualStringList(t, got, []string{
 		generate.BackendCfgFilename,
 		generate.LocalsFilename,
 	})
@@ -233,11 +233,11 @@ func TestCheckReturnsOutdatedStackFilenamesForBackendAndLocals(t *testing.T) {
 
 	got, err = generate.CheckStack(s.RootDir(), stack1val)
 	assert.NoError(t, err)
-	assertStringsEquals(t, got, []string{localsFilename})
+	assertEqualStringList(t, got, []string{localsFilename})
 
 	got, err = generate.CheckStack(s.RootDir(), stack2val)
 	assert.NoError(t, err)
-	assertStringsEquals(t, got, []string{backendFilename, localsFilename})
+	assertEqualStringList(t, got, []string{backendFilename, localsFilename})
 
 	s.Generate()
 	assertAllStacksAreUpdated()
@@ -279,17 +279,5 @@ func TestCheckFailsWithInvalidConfig(t *testing.T) {
 
 		_, err = generate.CheckStack(s.RootDir(), stack)
 		assert.Error(t, err, "should fail for configuration:\n%s", invalidConfig)
-	}
-}
-
-func assertStringsEquals(t *testing.T, got []string, want []string) {
-	t.Helper()
-
-	assert.EqualInts(t, len(want), len(got), "want %+v != got %+v", want, got)
-	for i, wv := range want {
-		gv := got[i]
-		if gv != wv {
-			t.Errorf("got[%d][%s] != want[%d][%s]", i, gv, i, wv)
-		}
 	}
 }

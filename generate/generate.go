@@ -102,13 +102,19 @@ func Do(root string, workingDir string) error {
 	return nil
 }
 
+// ListStackGenFiles will list the filenames of all generated code inside
+// a stack.  The filenames are ordered lexicographically.
+//
+// The provided root must be the project's root directory as an absolute path.
+func ListStackGenFiles(root string, stack stack.S) ([]string, error) {
+	return nil, nil
+}
+
 // CheckStack will verify if a given stack has outdated code and return a list
 // of filenames that are outdated, ordered lexicographically.
 // If the stack has an invalid configuration it will return an error.
 //
 // The provided root must be the project's root directory as an absolute path.
-// The provided stack dir must be the stack dir relative to the project
-// root, in the form of path/to/the/stack.
 func CheckStack(root string, stack stack.S) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.CheckStack()").
