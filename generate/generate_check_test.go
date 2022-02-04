@@ -80,12 +80,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 			),
 		).String())
 
-	// TODO(katcipis): detect the old test.tf generated file.
-	// It is stale but it doesn't map to code generation anymore so
-	// we need extra steps to detect it that are not done right now.
 	assertOutdatedFiles([]string{"testnew.tf"})
-
-	// TODO(katcipis): cleanup the old test.tf
 
 	// Adding new filename to generation trigger detection
 	stackEntry.CreateConfig(
