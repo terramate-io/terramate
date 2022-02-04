@@ -707,8 +707,8 @@ func removeStackGeneratedFiles(stack stack.S) error {
 	}
 
 	for _, file := range files {
-		filepath := filepath.Join(stack.AbsPath(), file)
-		if err := os.Remove(filepath); err != nil {
+		path := filepath.Join(stack.AbsPath(), file)
+		if err := os.Remove(path); err != nil {
 			return fmt.Errorf("removing gen file: %v", err)
 		}
 	}
