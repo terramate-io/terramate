@@ -92,7 +92,7 @@ func Do(root string, workingDir string) error {
 
 		stackLocalsCode, err := generateStackLocalsCode(root, stackpath, stackMeta, globals)
 		if err != nil {
-			return errutil.Chain(ErrExportingLocalsGen, err)
+			return fmt.Errorf("%w: %v", ErrExportingLocalsGen, err)
 		}
 		genfiles = append(genfiles, genfile{filename: cfg.LocalsFilename, body: stackLocalsCode})
 
