@@ -126,7 +126,6 @@ func ListStackGenFiles(stack stack.S) ([]string, error) {
 	}
 
 	genfiles := []string{}
-	headers := terramateHeaders()
 
 	for _, dirEntry := range dirEntries {
 		if dirEntry.IsDir() {
@@ -145,12 +144,10 @@ func ListStackGenFiles(stack stack.S) ([]string, error) {
 		}
 
 		logger.Trace().Msg("File read, checking for terramate headers")
-		for _, header := range headers {
-			if strings.HasPrefix(string(data), header) {
-				logger.Trace().Msg("Terramate header detected")
-				genfiles = append(genfiles, dirEntry.Name())
-				break
-			}
+
+		if hasTerramateHeader(data) {
+			logger.Trace().Msg("Terramate header detected")
+			genfiles = append(genfiles, dirEntry.Name())
 		}
 	}
 
@@ -658,10 +655,8 @@ func loadGeneratedCode(path string) ([]byte, error) {
 
 	logger.Trace().Msg("Check if code has terramate header.")
 
-	for _, header := range terramateHeaders() {
-		if strings.HasPrefix(string(data), header) {
-			return data, nil
-		}
+	if hasTerramateHeader(data) {
+		return data, nil
 	}
 
 	return nil, fmt.Errorf("%w: at %q", ErrManualCodeExists, path)
@@ -730,6 +725,11 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) []error {
 	return errs
 }
 
-func terramateHeaders() []string {
-	return []string{Header, HeaderV0}
+func hasTerramateHeader(code []byte) bool {
+	for _, header := range []string{Header, HeaderV0} {
+		if strings.HasPrefix(string(code), header) {
+			return true
+		}
+	}
+	return false
 }
