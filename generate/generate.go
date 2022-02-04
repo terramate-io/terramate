@@ -121,6 +121,11 @@ func Do(root string, workingDir string) error {
 				Str("filepath", filepath).
 				Logger()
 
+			// Empty results are used when doing the outdated code
+			// generation detection. A config previously generating
+			// some code could now be generating nothing
+			// (like an empty block on gen_hcl, or an empty export_as_locals)
+			// And we don't want to generate files just with a header inside.
 			if genfile.body == "" {
 				logger.Trace().Msg("ignoring empty code")
 				continue
