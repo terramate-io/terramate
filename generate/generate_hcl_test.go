@@ -465,3 +465,51 @@ func TestGeneratedHCLHeaders(t *testing.T) {
 		t.Errorf("wanted header %q\n\ngenerated file:\n%s\n", rootHeader, rootGen)
 	}
 }
+
+func TestGenerateHCLCleanupOldFiles(t *testing.T) {
+	s := sandbox.New(t)
+	stackEntry := s.CreateStack("stack")
+	rootEntry := s.DirEntry(".")
+	rootConfig := rootEntry.CreateConfig(
+		hcldoc(
+			generateHCL(
+				labels("file1.tf"),
+				block("block1",
+					boolean("whatever", true),
+				),
+			),
+			generateHCL(
+				labels("file2.tf"),
+				block("block2",
+					boolean("whatever", true),
+				),
+			),
+		).String(),
+	)
+
+	s.Generate()
+
+	got := stackEntry.ListGenFiles()
+	assertEqualStringList(t, got, []string{"file1.tf", "file2.tf"})
+
+	rootConfig.Write(
+		hcldoc(
+			generateHCL(
+				labels("file1.tf"),
+				block("block1",
+					boolean("whatever", true),
+				),
+			),
+		).String(),
+	)
+
+	s.Generate()
+	got = stackEntry.ListGenFiles()
+	assertEqualStringList(t, got, []string{"file1.tf"})
+
+	rootConfig.Write("")
+
+	s.Generate()
+	got = stackEntry.ListGenFiles()
+	assertEqualStringList(t, got, []string{})
+}

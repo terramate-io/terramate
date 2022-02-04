@@ -77,26 +77,65 @@ func Do(root string, workingDir string) error {
 			Str("stackpath", stackpath).
 			Logger()
 
-		logger.Debug().Msg("Generate stack backend config.")
-
+		genfiles := []genfile{}
 		stackMeta := stack.Meta()
 
-		targetBackendCfgFile := filepath.Join(stackpath, cfg.BackendCfgFilename)
-		err := writeStackBackendConfig(root, stackpath, stackMeta, globals, targetBackendCfgFile)
+		logger.Debug().Msg("Generate stack backend config.")
+
+		stackBackendCfgCode, err := generateBackendCfgCode(root, stackpath, stackMeta, globals, stackpath)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: %v", ErrBackendConfigGen, err)
 		}
+		genfiles = append(genfiles, genfile{filename: cfg.BackendCfgFilename, body: stackBackendCfgCode})
 
 		logger.Debug().Msg("Generate stack locals.")
 
-		targetLocalsFile := filepath.Join(stackpath, cfg.LocalsFilename)
-		err = writeStackLocalsCode(root, stackpath, stackMeta, globals, targetLocalsFile)
+		stackLocalsCode, err := generateStackLocalsCode(root, stackpath, stackMeta, globals)
+		if err != nil {
+			return errutil.Chain(ErrExportingLocalsGen, err)
+		}
+		genfiles = append(genfiles, genfile{filename: cfg.LocalsFilename, body: stackLocalsCode})
+
+		logger.Debug().Msg("Generate stack terraform.")
+		stackHCLsCode, err := generateStackHCLCode(root, stackpath, stackMeta, globals, cfg)
 		if err != nil {
 			return err
 		}
+		genfiles = append(genfiles, stackHCLsCode...)
 
-		logger.Debug().Msg("Generate stack terraform.")
-		return writeStackGeneratedHCLCode(root, stackpath, stackMeta, globals, cfg)
+		logger.Debug().Msg("Removing outdated generated files.")
+
+		if err := removeStackGeneratedFiles(stack); err != nil {
+			return fmt.Errorf("removing old files to generate new ones: %v", err)
+		}
+
+		logger.Debug().Msg("Saving generated files.")
+
+		// FIXME(katcipis): fail if different code gen mechanism have config
+		// to save on same file. Right now one overwrites the other.
+
+		for _, genfile := range genfiles {
+			filepath := filepath.Join(stackpath, genfile.filename)
+			logger := logger.With().
+				Str("filepath", filepath).
+				Logger()
+
+			if genfile.body == "" {
+				logger.Trace().Msg("ignoring empty code")
+				continue
+			}
+
+			logger.Trace().Msg("saving generated file")
+
+			err := writeGeneratedCode(filepath, genfile.body)
+			if err != nil {
+				return fmt.Errorf("saving file %q: %w", genfile.filename, err)
+			}
+
+			logger.Trace().Msg("saved generated file")
+		}
+
+		return nil
 	})
 
 	// FIXME(katcipis): errutil.Chain produces a very hard to read string representation
@@ -207,6 +246,11 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 	sort.Strings(outdated)
 
 	return outdated, nil
+}
+
+type genfile struct {
+	filename string
+	body     string
 }
 
 func backendConfigOutdatedFiles(
@@ -327,27 +371,29 @@ func exportedLocalsOutdatedFiles(
 	return nil, nil
 }
 
-func writeStackGeneratedHCLCode(
+func generateStackHCLCode(
 	root string,
 	stackpath string,
 	meta stack.Metadata,
 	globals *terramate.Globals,
 	cfg StackCfg,
-) error {
+) ([]genfile, error) {
 	logger := log.With().
-		Str("action", "writeStackGeneratedHCLCode()").
+		Str("action", "generateStackHCLCode()").
 		Str("root", root).
 		Str("stackpath", stackpath).
 		Logger()
 
-	logger.Trace().Msg("generating terraform code.")
+	logger.Trace().Msg("generating HCL code.")
 
 	stackGeneratedHCL, err := genhcl.Load(root, meta, globals)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	logger.Trace().Msg("generated terraform code.")
+	logger.Trace().Msg("generated HCL code.")
+
+	files := []genfile{}
 
 	for name, generatedHCL := range stackGeneratedHCL.GeneratedHCLs() {
 		targetpath := filepath.Join(stackpath, name)
@@ -356,65 +402,19 @@ func writeStackGeneratedHCLCode(
 			Str("targetpath", targetpath).
 			Logger()
 
-		tfcode := generatedHCL.String()
-		if tfcode == "" {
-			logger.Debug().Msg("ignoring empty generate_hcl block.")
+		hclCode := generatedHCL.String()
+		if hclCode == "" {
+			files = append(files, genfile{filename: name, body: hclCode})
 			continue
 		}
 
-		logger.Debug().Msg("Stack has exported terraform, saving generated code.")
+		hclCode = prependGenHCLHeader(generatedHCL.Origin(), hclCode)
+		files = append(files, genfile{filename: name, body: hclCode})
 
-		tfcode = prependGenHCLHeader(generatedHCL.Origin(), tfcode)
-		if err := writeGeneratedCode(targetpath, tfcode); err != nil {
-			return fmt.Errorf("stack %q: writing code at %q: %w", stackpath, targetpath, err)
-		}
-
-		logger.Debug().Msg("Saved stack generated code.")
+		logger.Debug().Msg("stack HCL code loaded.")
 	}
 
-	logger.Trace().Msg("all terraform code has been saved.")
-	return nil
-}
-
-func writeStackLocalsCode(
-	root string,
-	stackpath string,
-	stackMetadata stack.Metadata,
-	globals *terramate.Globals,
-	targetLocalsFile string,
-) error {
-	logger := log.With().
-		Str("action", "writeStackLocalsCode()").
-		Str("root", root).
-		Str("stack", stackpath).
-		Str("targetLocalsFile", targetLocalsFile).
-		Logger()
-	logger.Debug().Msg("Save stack locals.")
-
-	stackLocalsCode, err := generateStackLocalsCode(root, stackpath, stackMetadata, globals)
-	if err != nil {
-		return fmt.Errorf("stack %q: %w", stackpath, errutil.Chain(ErrExportingLocalsGen, err))
-	}
-
-	if len(stackLocalsCode) == 0 {
-		logger.Debug().Msg("Stack has no locals to be generated, nothing to do.")
-		return nil
-	}
-
-	logger.Debug().Msg("Stack has locals, saving generated code.")
-
-	if err := writeGeneratedCode(targetLocalsFile, stackLocalsCode); err != nil {
-		err = errutil.Chain(ErrExportingLocalsGen, err)
-		return fmt.Errorf(
-			"stack %q: %w: saving code at %q",
-			stackpath,
-			err,
-			targetLocalsFile,
-		)
-	}
-
-	logger.Debug().Msg("Saved stack generated code.")
-	return nil
+	return files, nil
 }
 
 func generateStackLocalsCode(
@@ -466,44 +466,6 @@ func generateStackLocalsCode(
 
 	tfcode := prependHeader(string(gen.Bytes()))
 	return tfcode, nil
-}
-
-func writeStackBackendConfig(
-	root string,
-	stackpath string,
-	stackMetadata stack.Metadata,
-	globals *terramate.Globals,
-	targetBackendCfgFile string,
-) error {
-	logger := log.With().
-		Str("action", "generateStackBackendConfig()").
-		Str("stack", stackpath).
-		Str("targetFile", targetBackendCfgFile).
-		Logger()
-
-	logger.Trace().Msg("Generating code.")
-	tfcode, err := generateBackendCfgCode(root, stackpath, stackMetadata, globals, stackpath)
-	if err != nil {
-		return fmt.Errorf("%w: %v", ErrBackendConfigGen, err)
-	}
-
-	if len(tfcode) == 0 {
-		logger.Debug().Msg("Stack has no backend config to be generated, nothing to do.")
-		return nil
-	}
-
-	logger.Debug().Msg("Stack has backend config, saving generated code.")
-
-	if err := writeGeneratedCode(targetBackendCfgFile, tfcode); err != nil {
-		return fmt.Errorf(
-			"stack %q: %w: saving code at %q",
-			stackpath,
-			err,
-			targetBackendCfgFile,
-		)
-	}
-
-	return nil
 }
 
 func generateBackendCfgCode(
@@ -723,6 +685,28 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) []error {
 	}
 
 	return errs
+}
+
+func removeStackGeneratedFiles(stack stack.S) error {
+	logger := log.With().
+		Str("action", "generate.removeStackGeneratedFiles()").
+		Stringer("stack", stack).
+		Logger()
+
+	logger.Trace().Msg("listing generated files")
+
+	files, err := ListStackGenFiles(stack)
+	if err != nil {
+		return err
+	}
+
+	for _, file := range files {
+		filepath := filepath.Join(stack.AbsPath(), file)
+		if err := os.Remove(filepath); err != nil {
+			return fmt.Errorf("removing gen file: %v", err)
+		}
+	}
+	return nil
 }
 
 func hasTerramateHeader(code []byte) bool {
