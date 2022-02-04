@@ -80,7 +80,7 @@ func Do(root string, workingDir string) error {
 		genfiles := []genfile{}
 		stackMeta := stack.Meta()
 
-		logger.Debug().Msg("Generate stack backend config.")
+		logger.Trace().Msg("Generate stack backend config.")
 
 		stackBackendCfgCode, err := generateBackendCfgCode(root, stackpath, stackMeta, globals, stackpath)
 		if err != nil {
@@ -88,7 +88,7 @@ func Do(root string, workingDir string) error {
 		}
 		genfiles = append(genfiles, genfile{filename: cfg.BackendCfgFilename, body: stackBackendCfgCode})
 
-		logger.Debug().Msg("Generate stack locals.")
+		logger.Trace().Msg("Generate stack locals.")
 
 		stackLocalsCode, err := generateStackLocalsCode(root, stackpath, stackMeta, globals)
 		if err != nil {
@@ -96,7 +96,7 @@ func Do(root string, workingDir string) error {
 		}
 		genfiles = append(genfiles, genfile{filename: cfg.LocalsFilename, body: stackLocalsCode})
 
-		logger.Debug().Msg("Generate stack terraform.")
+		logger.Trace().Msg("Generate stack terraform.")
 
 		stackHCLsCode, err := generateStackHCLCode(root, stackpath, stackMeta, globals, cfg)
 		if err != nil {
@@ -104,13 +104,13 @@ func Do(root string, workingDir string) error {
 		}
 		genfiles = append(genfiles, stackHCLsCode...)
 
-		logger.Debug().Msg("Removing outdated generated files.")
+		logger.Trace().Msg("Removing outdated generated files.")
 
 		if err := removeStackGeneratedFiles(stack); err != nil {
 			return fmt.Errorf("removing old files to generate new ones: %v", err)
 		}
 
-		logger.Debug().Msg("Saving generated files.")
+		logger.Trace().Msg("Saving generated files.")
 
 		// FIXME(katcipis): fail if different code gen mechanism have config
 		// to save on same file. Right now one overwrites the other.
