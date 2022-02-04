@@ -97,6 +97,7 @@ func Do(root string, workingDir string) error {
 		genfiles = append(genfiles, genfile{filename: cfg.LocalsFilename, body: stackLocalsCode})
 
 		logger.Debug().Msg("Generate stack terraform.")
+
 		stackHCLsCode, err := generateStackHCLCode(root, stackpath, stackMeta, globals, cfg)
 		if err != nil {
 			return err
