@@ -19,27 +19,161 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/generate"
-	tmstack "github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
 func TestStackGeneratedFilesListing(t *testing.T) {
-	s := sandbox.New(t)
+	type (
+		file struct {
+			name string
+			body string
+		}
+		testcase struct {
+			name  string
+			files []file
+			want  []string
+		}
+	)
 
-	stackEntry1 := s.CreateStack("stacks/stack-1")
-	stackEntry2 := s.CreateStack("stacks/stack-2")
-
-	stack1 := stackEntry1.Load()
-	stack2 := stackEntry2.Load()
-
-	assertStackGenFiles := func(stack tmstack.S, want []string) {
-		t.Helper()
-
-		gen, err := generate.ListStackGenFiles(s.RootDir(), stack)
-		assert.NoError(t, err)
-		assertEqualStringList(t, gen, want)
+	tcases := []testcase{
+		{
+			name: "no files equals empty",
+		},
+		{
+			name: "single file, non-generated equals empty",
+			files: []file{
+				{
+					name: "somefile.tf",
+					body: "whatever",
+				},
+			},
+		},
+		{
+			name: "single empty file equals empty",
+			files: []file{
+				{
+					name: "somefile.tf",
+					body: "",
+				},
+			},
+		},
+		{
+			name: "multiple files, multiple suffixes, non-generated equals empty",
+			files: []file{
+				{
+					name: "file.tf",
+					body: "whatever",
+				},
+				{
+					name: "file.hcl",
+					body: "dont care",
+				},
+				{
+					name: "another.tm.hcl",
+					body: "terramate is awesome",
+				},
+			},
+		},
+		{
+			name: "single generated file, header detection",
+			files: []file{
+				{
+					name: "generated.tf",
+					body: generate.Header,
+				},
+			},
+			want: []string{"generated.tf"},
+		},
+		{
+			name: "single generated file, v0 header detection",
+			files: []file{
+				{
+					name: "generated.tf",
+					body: generate.HeaderV0,
+				},
+			},
+			want: []string{"generated.tf"},
+		},
+		{
+			name: "single generated file contents after header newline dont matter",
+			files: []file{
+				{
+					name: "generated.tf",
+					body: generate.Header + "\ndoesnt matter",
+				},
+			},
+			want: []string{"generated.tf"},
+		},
+		{
+			name: "multiple generated files",
+			files: []file{
+				{
+					name: "generated1.tf",
+					body: generate.Header,
+				},
+				{
+					name: "generated2.hcl",
+					body: generate.Header,
+				},
+				{
+					name: "somename",
+					body: generate.Header,
+				},
+			},
+			want: []string{"generated1.tf", "generated2.hcl", "somename"},
+		},
+		{
+			name: "multiple generated files mixed versions",
+			files: []file{
+				{
+					name: "old.tf",
+					body: generate.HeaderV0,
+				},
+				{
+					name: "current.hcl",
+					body: generate.Header,
+				},
+			},
+			want: []string{"current.hcl", "old.tf"},
+		},
+		{
+			name: "gen and manual files mixed",
+			files: []file{
+				{
+					name: "gen.tf",
+					body: generate.Header,
+				},
+				{
+					name: "manual.tf",
+					body: "some on terramate stuff",
+				},
+				{
+					name: "gen2.tf",
+					body: generate.Header,
+				},
+				{
+					name: "manual2.tf",
+					body: "data",
+				},
+			},
+			want: []string{"gen.tf", "gen2.tf"},
+		},
 	}
 
-	assertStackGenFiles(stack1, []string{})
-	assertStackGenFiles(stack2, []string{})
+	for _, tcase := range tcases {
+		t.Run(tcase.name, func(t *testing.T) {
+			s := sandbox.New(t)
+			stackEntry := s.CreateStack("stacks/stack")
+			stack := stackEntry.Load()
+
+			for _, file := range tcase.files {
+				stackEntry.CreateFile(file.name, file.body)
+			}
+
+			got, err := generate.ListStackGenFiles(stack)
+
+			assert.NoError(t, err)
+			assertEqualStringList(t, tcase.want, got)
+		})
+	}
 }
