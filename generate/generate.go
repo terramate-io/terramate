@@ -116,9 +116,9 @@ func Do(root string, workingDir string) error {
 		// to save on same file. Right now one overwrites the other.
 
 		for _, genfile := range genfiles {
-			filepath := filepath.Join(stackpath, genfile.name)
+			path := filepath.Join(stackpath, genfile.name)
 			logger := logger.With().
-				Str("filepath", filepath).
+				Str("filepath", path).
 				Logger()
 
 			// Empty results are used when doing the outdated code
@@ -133,7 +133,7 @@ func Do(root string, workingDir string) error {
 
 			logger.Trace().Msg("saving generated file")
 
-			err := writeGeneratedCode(filepath, genfile.body)
+			err := writeGeneratedCode(path, genfile.body)
 			if err != nil {
 				return fmt.Errorf("saving file %q: %w", genfile.name, err)
 			}
@@ -718,7 +718,6 @@ func removeStackGeneratedFiles(stack stack.S) error {
 func hasTerramateHeader(code []byte) bool {
 	// When changing headers we need to support old ones (or break).
 	// For now keeping them here, to avoid breaks.
-
 	for _, header := range []string{Header, HeaderV0} {
 		if strings.HasPrefix(string(code), header) {
 			return true
