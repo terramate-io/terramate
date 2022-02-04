@@ -716,6 +716,9 @@ func removeStackGeneratedFiles(stack stack.S) error {
 }
 
 func hasTerramateHeader(code []byte) bool {
+	// When changing headers we need to support old ones (or break).
+	// For now keeping them here, to avoid breaks.
+
 	for _, header := range []string{Header, HeaderV0} {
 		if strings.HasPrefix(string(code), header) {
 			return true
