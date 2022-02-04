@@ -86,7 +86,7 @@ func Do(root string, workingDir string) error {
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrBackendConfigGen, err)
 		}
-		genfiles = append(genfiles, genfile{filename: cfg.BackendCfgFilename, body: stackBackendCfgCode})
+		genfiles = append(genfiles, genfile{name: cfg.BackendCfgFilename, body: stackBackendCfgCode})
 
 		logger.Trace().Msg("Generate stack locals.")
 
@@ -94,7 +94,7 @@ func Do(root string, workingDir string) error {
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrExportingLocalsGen, err)
 		}
-		genfiles = append(genfiles, genfile{filename: cfg.LocalsFilename, body: stackLocalsCode})
+		genfiles = append(genfiles, genfile{name: cfg.LocalsFilename, body: stackLocalsCode})
 
 		logger.Trace().Msg("Generate stack terraform.")
 
@@ -116,7 +116,7 @@ func Do(root string, workingDir string) error {
 		// to save on same file. Right now one overwrites the other.
 
 		for _, genfile := range genfiles {
-			filepath := filepath.Join(stackpath, genfile.filename)
+			filepath := filepath.Join(stackpath, genfile.name)
 			logger := logger.With().
 				Str("filepath", filepath).
 				Logger()
@@ -130,7 +130,7 @@ func Do(root string, workingDir string) error {
 
 			err := writeGeneratedCode(filepath, genfile.body)
 			if err != nil {
-				return fmt.Errorf("saving file %q: %w", genfile.filename, err)
+				return fmt.Errorf("saving file %q: %w", genfile.name, err)
 			}
 
 			logger.Trace().Msg("saved generated file")
@@ -250,8 +250,8 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 }
 
 type genfile struct {
-	filename string
-	body     string
+	name string
+	body string
 }
 
 func backendConfigOutdatedFiles(
@@ -405,12 +405,12 @@ func generateStackHCLCode(
 
 		hclCode := generatedHCL.String()
 		if hclCode == "" {
-			files = append(files, genfile{filename: name, body: hclCode})
+			files = append(files, genfile{name: name, body: hclCode})
 			continue
 		}
 
 		hclCode = prependGenHCLHeader(generatedHCL.Origin(), hclCode)
-		files = append(files, genfile{filename: name, body: hclCode})
+		files = append(files, genfile{name: name, body: hclCode})
 
 		logger.Debug().Msg("stack HCL code loaded.")
 	}
