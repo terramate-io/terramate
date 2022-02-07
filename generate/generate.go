@@ -279,9 +279,13 @@ func backendConfigOutdatedFiles(
 	}
 
 	stackBackendCfgFile := filepath.Join(stackpath, cfg.BackendCfgFilename)
-	currentbackend, err := loadGeneratedCode(stackBackendCfgFile)
+	currentbackend, codeFound, err := loadGeneratedCode(stackBackendCfgFile)
 	if err != nil {
 		return nil, err
+	}
+	if !codeFound && len(genbackend) == 0 {
+		logger.Trace().Msg("Updated since code not found and block is empty.")
+		return nil, nil
 	}
 
 	logger.Trace().Msg("Checking for outdated backend cfg code on stack.")
@@ -326,12 +330,11 @@ func generatedHCLOutdatedFiles(
 			Logger()
 
 		logger.Trace().Msg("Checking if code is updated.")
-		currentHCLcode, err := loadGeneratedCode(targetpath)
+		currentHCLcode, codeFound, err := loadGeneratedCode(targetpath)
 		if err != nil {
 			return nil, err
 		}
-
-		if currentHCLcode == "" && genHCL.String() == "" {
+		if !codeFound && genHCL.String() == "" {
 			logger.Trace().Msg("Updated since file not found and generated_hcl is empty")
 			continue
 		}
@@ -367,9 +370,13 @@ func exportedLocalsOutdatedFiles(
 	}
 
 	stackLocalsFile := filepath.Join(stackpath, cfg.LocalsFilename)
-	currentlocals, err := loadGeneratedCode(stackLocalsFile)
+	currentlocals, codeFound, err := loadGeneratedCode(stackLocalsFile)
 	if err != nil {
 		return nil, err
+	}
+	if !codeFound && len(genlocals) == 0 {
+		logger.Trace().Msg("Updated since code not found and block is empty.")
+		return nil, nil
 	}
 
 	if string(genlocals) != currentlocals {
@@ -599,11 +606,18 @@ func writeGeneratedCode(target string, code string) error {
 }
 
 func checkFileCanBeOverwritten(path string) error {
-	_, err := loadGeneratedCode(path)
+	_, _, err := loadGeneratedCode(path)
 	return err
 }
 
-func loadGeneratedCode(path string) (string, error) {
+// loadGeneratedCode will load the generated code at the given path.
+// It returns an error if it can't read the file of if the file is not
+// a Terramate generated file.
+//
+// The returned boolean indicates if the file exists, so the contents of
+// the file + true is returned if a file is found, but if no file is found
+// it will return an empty string and false indicating that the file doesn't exist.
+func loadGeneratedCode(path string) (string, bool, error) {
 	logger := log.With().
 		Str("action", "loadGeneratedCode()").
 		Str("path", path).
@@ -614,25 +628,25 @@ func loadGeneratedCode(path string) (string, error) {
 	_, err := os.Stat(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return "", nil
+			return "", false, nil
 		}
-		return "", fmt.Errorf("loading code: can't stat %q: %v", path, err)
+		return "", false, fmt.Errorf("loading code: can't stat %q: %v", path, err)
 	}
 
 	logger.Trace().Msg("Read file.")
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return "", fmt.Errorf("loading code, can't read %q: %v", path, err)
+		return "", false, fmt.Errorf("loading code, can't read %q: %v", path, err)
 	}
 
 	logger.Trace().Msg("Check if code has terramate header.")
 
 	if hasTerramateHeader(data) {
-		return string(data), nil
+		return string(data), true, nil
 	}
 
-	return "", fmt.Errorf("%w: at %q", ErrManualCodeExists, path)
+	return "", false, fmt.Errorf("%w: at %q", ErrManualCodeExists, path)
 }
 
 type forEachStackFunc func(stack.S, *terramate.Globals, StackCfg) error
