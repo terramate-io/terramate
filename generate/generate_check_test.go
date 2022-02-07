@@ -106,6 +106,59 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 	assertOutdatedFiles([]string{})
 }
 
+func TestCheckOutdatedIgnoresEmptyGenerateHCLBlocks(t *testing.T) {
+	s := sandbox.New(t)
+
+	stackEntry := s.CreateStack("stacks/stack")
+	stack := stackEntry.Load()
+
+	assertOutdatedFiles := func(want []string) {
+		t.Helper()
+
+		got, err := generate.CheckStack(s.RootDir(), stack)
+		assert.NoError(t, err)
+		assertEqualStringList(t, got, want)
+	}
+
+	// Checking detection when the config is empty at first
+	stackEntry.CreateConfig(
+		stackConfig(
+			generateHCL(
+				labels("test.tf"),
+			),
+		).String())
+
+	assertOutdatedFiles([]string{})
+
+	// Checking detection when the config isnt empty, is generated, but then becomes empty
+	stackEntry.CreateConfig(
+		stackConfig(
+			generateHCL(
+				labels("test.tf"),
+				block("whatever"),
+			),
+		).String())
+
+	assertOutdatedFiles([]string{"test.tf"})
+
+	s.Generate()
+
+	assertOutdatedFiles([]string{})
+
+	stackEntry.CreateConfig(
+		stackConfig(
+			generateHCL(
+				labels("test.tf"),
+			),
+		).String())
+
+	assertOutdatedFiles([]string{"test.tf"})
+
+	s.Generate()
+
+	assertOutdatedFiles([]string{})
+}
+
 func TestCheckReturnsOutdatedStackFilenamesForBackendAndLocals(t *testing.T) {
 	s := sandbox.New(t)
 

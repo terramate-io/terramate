@@ -68,7 +68,7 @@ func TestHCLGeneration(t *testing.T) {
 			},
 		},
 		{
-			name: "empty generate_hcl block is ignored",
+			name: "empty generate_hcl block generates nothing",
 			layout: []string{
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
@@ -341,7 +341,7 @@ func TestHCLGeneration(t *testing.T) {
 					return nil
 				}
 
-				t.Errorf("unwanted file at %q, got %q", path, d.Name())
+				t.Errorf("unwanted file %q", path)
 				return nil
 			})
 
