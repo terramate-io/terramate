@@ -307,18 +307,18 @@ func generatedHCLOutdatedFiles(
 		Str("stackpath", stackpath).
 		Logger()
 
-	logger.Trace().Msg("Checking for outdated exported terraform code on stack.")
+	logger.Trace().Msg("Checking for outdated generated_hcl code on stack.")
 
-	loadedStackTf, err := genhcl.Load(root, stackMeta, globals)
+	stackHCLs, err := genhcl.Load(root, stackMeta, globals)
 	if err != nil {
 		return nil, err
 	}
 
-	logger.Trace().Msg("Loaded exported terraform code, checking")
+	logger.Trace().Msg("Loaded generated_hcl code, checking")
 
 	outdated := []string{}
 
-	for filename, genHCL := range loadedStackTf.GeneratedHCLs() {
+	for filename, genHCL := range stackHCLs.GeneratedHCLs() {
 		targetpath := filepath.Join(stackpath, filename)
 		logger := logger.With().
 			Str("blockName", filename).
@@ -326,12 +326,17 @@ func generatedHCLOutdatedFiles(
 			Logger()
 
 		logger.Trace().Msg("Checking if code is updated.")
-
-		tfcode := prependGenHCLHeader(genHCL.Origin(), genHCL.String())
 		currentTfCode, err := loadGeneratedCode(targetpath)
 		if err != nil {
 			return nil, err
 		}
+
+		if len(currentTfCode) == 0 && genHCL.String() == "" {
+			logger.Trace().Msg("Updated since file not found and generated_hcl is empty")
+			continue
+		}
+
+		tfcode := prependGenHCLHeader(genHCL.Origin(), genHCL.String())
 
 		if tfcode != string(currentTfCode) {
 			logger.Trace().Msg("Outdated HCL code detected.")
