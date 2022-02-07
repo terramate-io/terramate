@@ -76,17 +76,9 @@ jobs:
         with:
           go-version: "1.17"
 
-      # TODO: REMOVE, JUST TESTING
-      - name: Log in to ghcr.io container registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
       - name: release dry run
         uses: goreleaser/goreleaser-action@v2
         with:
           distribution: goreleaser
           version: v1.2.5
           args: release --snapshot --rm-dist
-
-      # TODO: REMOVE, JUST TESTING
-      - name: Test if we can push the image
-        run: docker push ghcr.io/mineiros-io/terramate:latest
