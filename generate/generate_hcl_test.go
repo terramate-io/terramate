@@ -176,7 +176,7 @@ func TestHCLGeneration(t *testing.T) {
 							),
 							terraform(
 								required_providers(
-									expr("name", `{
+									attr("name", `{
 										source  = "integrations/name"
 										version = "stack-1-provider-version"
 									}`),
@@ -209,7 +209,7 @@ func TestHCLGeneration(t *testing.T) {
 							),
 							terraform(
 								required_providers(
-									expr("name", `{
+									attr("name", `{
 										source  = "integrations/name"
 										version = "stack-2-provider-version"
 									}`),
@@ -283,28 +283,48 @@ func TestHCLGeneration(t *testing.T) {
 				test.AppendFile(t, path, config.Filename, cfg.add.String())
 			}
 
+			assertGeneratedHCLs := func(t *testing.T) {
+				t.Helper()
+
+				for _, wantDesc := range tcase.want {
+					stackRelPath := wantDesc.stack[1:]
+					stack := s.StackEntry(stackRelPath)
+
+					for name, wantHCL := range wantDesc.hcls {
+						want := wantHCL.String()
+						got := stack.ReadGeneratedHCL(name)
+
+						assertHCLEquals(t, got, want)
+					}
+				}
+			}
+
 			workingDir := filepath.Join(s.RootDir(), tcase.workingDir)
 			err := generate.Do(s.RootDir(), workingDir)
 			assert.NoError(t, err)
 
+			assertGeneratedHCLs(t)
+
+			// piggyback on the tests to validate that regeneration doesnt
+			// delete files or fail and has identical results.
+			t.Run("regenerate", func(t *testing.T) {
+				err := generate.Do(s.RootDir(), workingDir)
+				assert.NoError(t, err)
+
+				assertGeneratedHCLs(t)
+			})
+
+			// Check we don't have extraneous/unwanted files
+			// We remove wanted/expected generated code
+			// So we should have only basic terramate configs left
+			// There is potential to extract this for other code generation tests.
 			for _, wantDesc := range tcase.want {
 				stackRelPath := wantDesc.stack[1:]
 				stack := s.StackEntry(stackRelPath)
-
-				for name, wantHCL := range wantDesc.hcls {
-					want := wantHCL.String()
-					got := stack.ReadGeneratedHCL(name)
-
-					assertHCLEquals(t, got, want)
-
+				for name := range wantDesc.hcls {
 					stack.RemoveGeneratedHCL(name)
 				}
 			}
-
-			// Check we don't have extraneous/unwanted files
-			// Wanted/expected generated code was removed by this point
-			// So we should have only basic terramate configs left
-			// There is potential to extract this for other code generation tests.
 			err = filepath.WalkDir(s.RootDir(), func(path string, d fs.DirEntry, err error) error {
 				t.Helper()
 
@@ -444,4 +464,52 @@ func TestGeneratedHCLHeaders(t *testing.T) {
 	if !strings.Contains(rootGen, rootHeader) {
 		t.Errorf("wanted header %q\n\ngenerated file:\n%s\n", rootHeader, rootGen)
 	}
+}
+
+func TestGenerateHCLCleanupOldFiles(t *testing.T) {
+	s := sandbox.New(t)
+	stackEntry := s.CreateStack("stack")
+	rootEntry := s.DirEntry(".")
+	rootConfig := rootEntry.CreateConfig(
+		hcldoc(
+			generateHCL(
+				labels("file1.tf"),
+				block("block1",
+					boolean("whatever", true),
+				),
+			),
+			generateHCL(
+				labels("file2.tf"),
+				block("block2",
+					boolean("whatever", true),
+				),
+			),
+		).String(),
+	)
+
+	s.Generate()
+
+	got := stackEntry.ListGenFiles()
+	assertEqualStringList(t, got, []string{"file1.tf", "file2.tf"})
+
+	rootConfig.Write(
+		hcldoc(
+			generateHCL(
+				labels("file1.tf"),
+				block("block1",
+					boolean("whatever", true),
+				),
+			),
+		).String(),
+	)
+
+	s.Generate()
+	got = stackEntry.ListGenFiles()
+	assertEqualStringList(t, got, []string{"file1.tf"})
+
+	rootConfig.Write("")
+
+	s.Generate()
+	got = stackEntry.ListGenFiles()
+	assertEqualStringList(t, got, []string{})
 }
