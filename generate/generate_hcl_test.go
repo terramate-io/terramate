@@ -507,7 +507,14 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 	got = stackEntry.ListGenFiles()
 	assertEqualStringList(t, got, []string{"file1.tf"})
 
-	rootConfig.Write("")
+	// empty block generates no code, so it gets deleted
+	rootConfig.Write(
+		hcldoc(
+			generateHCL(
+				labels("file1.tf"),
+			),
+		).String(),
+	)
 
 	s.Generate()
 	got = stackEntry.ListGenFiles()

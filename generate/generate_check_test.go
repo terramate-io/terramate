@@ -130,7 +130,7 @@ func TestCheckOutdatedIgnoresEmptyGenerateHCLBlocks(t *testing.T) {
 
 	assertOutdatedFiles([]string{})
 
-	// Checking detection when the config isnt empty, is generated, but then becomes empty
+	// Checking detection when the config isnt empty, is generated and then becomes empty
 	stackEntry.CreateConfig(
 		stackConfig(
 			generateHCL(
