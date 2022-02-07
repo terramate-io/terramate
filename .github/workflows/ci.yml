@@ -72,3 +72,7 @@ jobs:
           distribution: goreleaser
           version: v1.2.5
           args: release --snapshot --rm-dist
+
+      # TODO: REMOVE, JUST TESTING
+      - name: Test if we can push the image
+        run: docker push ghcr.io/mineiros-io/terramate:latest
