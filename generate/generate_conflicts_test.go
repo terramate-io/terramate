@@ -66,6 +66,47 @@ func TestFilenameConflictsOnGeneration(t *testing.T) {
 			},
 			want: generate.ErrConflictingConfig,
 		},
+		{
+			name:   "empty export_as_locals conflicting with generate_hcl",
+			layout: []string{"s:stacks/stack"},
+			configs: []hclconfig{
+				{
+					path: "stacks",
+					add: hcldoc(
+						terramate(cfg(gen(
+							str("locals_filename", "file.tf"),
+						))),
+						exportAsLocals(),
+						generateHCL(
+							labels("file.tf"),
+							block("test"),
+						),
+					),
+				},
+			},
+			want: generate.ErrConflictingConfig,
+		},
+		{
+			name:   "export_as_locals conflicting with empty generate_hcl",
+			layout: []string{"s:stacks/stack"},
+			configs: []hclconfig{
+				{
+					path: "stacks",
+					add: hcldoc(
+						terramate(cfg(gen(
+							str("locals_filename", "file.tf"),
+						))),
+						exportAsLocals(
+							str("test", "hi"),
+						),
+						generateHCL(
+							labels("file.tf"),
+						),
+					),
+				},
+			},
+			want: generate.ErrConflictingConfig,
+		},
 	}
 
 	for _, tcase := range tcases {

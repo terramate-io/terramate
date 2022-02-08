@@ -87,9 +87,7 @@ func Do(root string, workingDir string) error {
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrBackendConfigGen, err)
 		}
-		if stackBackendCfgCode != "" {
-			genfiles = append(genfiles, genfile{name: cfg.BackendCfgFilename, body: stackBackendCfgCode})
-		}
+		genfiles = append(genfiles, genfile{name: cfg.BackendCfgFilename, body: stackBackendCfgCode})
 
 		logger.Trace().Msg("Generate stack locals.")
 
@@ -97,9 +95,7 @@ func Do(root string, workingDir string) error {
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrExportingLocalsGen, err)
 		}
-		if stackLocalsCode != "" {
-			genfiles = append(genfiles, genfile{name: cfg.LocalsFilename, body: stackLocalsCode})
-		}
+		genfiles = append(genfiles, genfile{name: cfg.LocalsFilename, body: stackLocalsCode})
 
 		logger.Trace().Msg("Generate stack terraform.")
 
@@ -128,6 +124,12 @@ func Do(root string, workingDir string) error {
 			logger := logger.With().
 				Str("filepath", path).
 				Logger()
+
+			// For now we don't want to generate files just with a header inside.
+			if genfile.body == "" {
+				logger.Trace().Msg("ignoring empty code")
+				continue
+			}
 
 			logger.Trace().Msg("saving generated file")
 
@@ -419,7 +421,7 @@ func generateStackHCLCode(
 
 		hclCode := generatedHCL.String()
 		if hclCode == "" {
-			logger.Trace().Msg("Ignoring empty block.")
+			files = append(files, genfile{name: name, body: hclCode})
 			continue
 		}
 
