@@ -335,7 +335,7 @@ func generatedHCLOutdatedFiles(
 			return nil, err
 		}
 		if !codeFound && genHCL.String() == "" {
-			logger.Trace().Msg("Updated since file not found and generated_hcl is empty")
+			logger.Trace().Msg("Not outdated since file not found and generated_hcl is empty")
 			continue
 		}
 
