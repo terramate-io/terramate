@@ -40,6 +40,7 @@ const (
 	ErrLoadingGlobals     errutil.Error = "loading globals"
 	ErrLoadingStackCfg    errutil.Error = "loading stack code gen config"
 	ErrManualCodeExists   errutil.Error = "manually defined code found"
+	ErrConflictingConfig  errutil.Error = "conflicting config detected"
 )
 
 const (

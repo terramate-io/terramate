@@ -24,17 +24,12 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate"
-	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
 func TestHCLGeneration(t *testing.T) {
 	type (
-		hclconfig struct {
-			path string
-			add  fmt.Stringer
-		}
 		want struct {
 			stack string
 			hcls  map[string]fmt.Stringer
@@ -279,8 +274,7 @@ func TestHCLGeneration(t *testing.T) {
 			s.BuildTree(tcase.layout)
 
 			for _, cfg := range tcase.configs {
-				path := filepath.Join(s.RootDir(), cfg.path)
-				test.AppendFile(t, path, config.Filename, cfg.add.String())
+				cfg.Append(t, s.RootDir())
 			}
 
 			assertGeneratedHCLs := func(t *testing.T) {

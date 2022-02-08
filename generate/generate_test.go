@@ -15,13 +15,28 @@
 package generate_test
 
 import (
+	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/test"
 	"github.com/rs/zerolog"
 )
+
+type hclconfig struct {
+	path string
+	add  fmt.Stringer
+}
+
+func (c hclconfig) Append(t *testing.T, rootdir string) {
+	t.Helper()
+	path := filepath.Join(rootdir, c.path)
+	test.AppendFile(t, path, config.Filename, c.add.String())
+}
 
 func assertHCLEquals(t *testing.T, got string, want string) {
 	t.Helper()
