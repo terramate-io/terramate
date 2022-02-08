@@ -87,7 +87,9 @@ func Do(root string, workingDir string) error {
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrBackendConfigGen, err)
 		}
-		genfiles = append(genfiles, genfile{name: cfg.BackendCfgFilename, body: stackBackendCfgCode})
+		if stackBackendCfgCode != "" {
+			genfiles = append(genfiles, genfile{name: cfg.BackendCfgFilename, body: stackBackendCfgCode})
+		}
 
 		logger.Trace().Msg("Generate stack locals.")
 
@@ -95,15 +97,23 @@ func Do(root string, workingDir string) error {
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrExportingLocalsGen, err)
 		}
-		genfiles = append(genfiles, genfile{name: cfg.LocalsFilename, body: stackLocalsCode})
+		if stackLocalsCode != "" {
+			genfiles = append(genfiles, genfile{name: cfg.LocalsFilename, body: stackLocalsCode})
+		}
 
 		logger.Trace().Msg("Generate stack terraform.")
 
-		stackHCLsCode, err := generateStackHCLCode(root, stackpath, stackMeta, globals, cfg)
+		stackHCLsCode, err := generateStackHCLCode(root, stackpath, stackMeta, globals)
 		if err != nil {
 			return err
 		}
 		genfiles = append(genfiles, stackHCLsCode...)
+
+		logger.Trace().Msg("Checking for conflicts on generated files.")
+
+		if err := checkGeneratedFilesConflicts(genfiles); err != nil {
+			return fmt.Errorf("%w: %v", ErrConflictingConfig, err)
+		}
 
 		logger.Trace().Msg("Removing outdated generated files.")
 
@@ -113,24 +123,11 @@ func Do(root string, workingDir string) error {
 
 		logger.Trace().Msg("Saving generated files.")
 
-		// FIXME(katcipis): fail if different code gen mechanism have config
-		// to save on same file. Right now one overwrites the other.
-
 		for _, genfile := range genfiles {
 			path := filepath.Join(stackpath, genfile.name)
 			logger := logger.With().
 				Str("filepath", path).
 				Logger()
-
-			// Empty results are used when doing the outdated code
-			// generation detection. A config previously generating
-			// some code could now be generating nothing
-			// (like an empty block on gen_hcl, or an empty export_as_locals)
-			// And we don't want to generate files just with a header inside.
-			if genfile.body == "" {
-				logger.Trace().Msg("ignoring empty code")
-				continue
-			}
 
 			logger.Trace().Msg("saving generated file")
 
@@ -383,7 +380,6 @@ func generateStackHCLCode(
 	stackpath string,
 	meta stack.Metadata,
 	globals *terramate.Globals,
-	cfg StackCfg,
 ) ([]genfile, error) {
 	logger := log.With().
 		Str("action", "generateStackHCLCode()").
@@ -411,7 +407,7 @@ func generateStackHCLCode(
 
 		hclCode := generatedHCL.String()
 		if hclCode == "" {
-			files = append(files, genfile{name: name, body: hclCode})
+			logger.Trace().Msg("Ignoring empty block.")
 			continue
 		}
 
@@ -725,4 +721,17 @@ func hasTerramateHeader(code []byte) bool {
 		}
 	}
 	return false
+}
+
+func checkGeneratedFilesConflicts(genfiles []genfile) error {
+	observed := map[string]genfile{}
+	for _, genf := range genfiles {
+		if _, ok := observed[genf.name]; ok {
+			// TODO(katcipis): improve error with origin info
+			// Right now it is not as nice/easy as I would like :-(.
+			return fmt.Errorf("two configurations produce same file %s", genf.name)
+		}
+		observed[genf.name] = genf
+	}
+	return nil
 }

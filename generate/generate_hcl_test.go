@@ -274,7 +274,7 @@ func TestHCLGeneration(t *testing.T) {
 			s.BuildTree(tcase.layout)
 
 			for _, cfg := range tcase.configs {
-				cfg.Append(t, s.RootDir())
+				cfg.append(t, s.RootDir())
 			}
 
 			assertGeneratedHCLs := func(t *testing.T) {

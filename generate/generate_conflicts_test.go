@@ -22,11 +22,9 @@ func TestFilenameConflictsOnGeneration(t *testing.T) {
 		want       error
 	}
 
-	// gen instead of generate because name conflicts with generate pkg
 	gen := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("generate", builders...)
 	}
-	// cfg instead of config because name conflicts with config pkg
 	cfg := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("config", builders...)
 	}
@@ -34,7 +32,7 @@ func TestFilenameConflictsOnGeneration(t *testing.T) {
 	tcases := []testcase{
 		{
 			name:   "export_as_locals conflicting with generate_hcl",
-			layout: []string{"stacks/stack"},
+			layout: []string{"s:stacks/stack"},
 			configs: []hclconfig{
 				{
 					path: "stacks",
@@ -62,7 +60,7 @@ func TestFilenameConflictsOnGeneration(t *testing.T) {
 			s.BuildTree(tcase.layout)
 
 			for _, cfg := range tcase.configs {
-				cfg.Append(t, s.RootDir())
+				cfg.append(t, s.RootDir())
 			}
 
 			workingDir := filepath.Join(s.RootDir(), tcase.workingDir)

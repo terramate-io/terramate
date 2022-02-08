@@ -32,7 +32,7 @@ type hclconfig struct {
 	add  fmt.Stringer
 }
 
-func (c hclconfig) Append(t *testing.T, rootdir string) {
+func (c hclconfig) append(t *testing.T, rootdir string) {
 	t.Helper()
 	path := filepath.Join(rootdir, c.path)
 	test.AppendFile(t, path, config.Filename, c.add.String())
