@@ -748,7 +748,7 @@ func checkGeneratedFilesConflicts(genfiles []genfile) error {
 		if _, ok := observed[genf.name]; ok {
 			// TODO(katcipis): improve error with origin info
 			// Right now it is not as nice/easy as I would like :-(.
-			return fmt.Errorf("two configurations produce same file %s", genf.name)
+			return fmt.Errorf("two configurations produce same file %q", genf.name)
 		}
 		observed[genf.name] = struct{}{}
 	}
