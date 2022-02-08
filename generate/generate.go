@@ -279,14 +279,18 @@ func backendConfigOutdatedFiles(
 	}
 
 	stackBackendCfgFile := filepath.Join(stackpath, cfg.BackendCfgFilename)
-	currentbackend, err := loadGeneratedCode(stackBackendCfgFile)
+	currentbackend, codeFound, err := loadGeneratedCode(stackBackendCfgFile)
 	if err != nil {
 		return nil, err
+	}
+	if !codeFound && len(genbackend) == 0 {
+		logger.Trace().Msg("Updated since code not found and block is empty.")
+		return nil, nil
 	}
 
 	logger.Trace().Msg("Checking for outdated backend cfg code on stack.")
 
-	if string(genbackend) != string(currentbackend) {
+	if string(genbackend) != currentbackend {
 		logger.Trace().Msg("Detected outdated backend cfg.")
 		return []string{cfg.BackendCfgFilename}, nil
 	}
@@ -307,18 +311,18 @@ func generatedHCLOutdatedFiles(
 		Str("stackpath", stackpath).
 		Logger()
 
-	logger.Trace().Msg("Checking for outdated exported terraform code on stack.")
+	logger.Trace().Msg("Checking for outdated generated_hcl code on stack.")
 
-	loadedStackTf, err := genhcl.Load(root, stackMeta, globals)
+	stackHCLs, err := genhcl.Load(root, stackMeta, globals)
 	if err != nil {
 		return nil, err
 	}
 
-	logger.Trace().Msg("Loaded exported terraform code, checking")
+	logger.Trace().Msg("Loaded generated_hcl code, checking")
 
 	outdated := []string{}
 
-	for filename, genHCL := range loadedStackTf.GeneratedHCLs() {
+	for filename, genHCL := range stackHCLs.GeneratedHCLs() {
 		targetpath := filepath.Join(stackpath, filename)
 		logger := logger.With().
 			Str("blockName", filename).
@@ -326,14 +330,18 @@ func generatedHCLOutdatedFiles(
 			Logger()
 
 		logger.Trace().Msg("Checking if code is updated.")
-
-		tfcode := prependGenHCLHeader(genHCL.Origin(), genHCL.String())
-		currentTfCode, err := loadGeneratedCode(targetpath)
+		currentHCLcode, codeFound, err := loadGeneratedCode(targetpath)
 		if err != nil {
 			return nil, err
 		}
+		if !codeFound && genHCL.String() == "" {
+			logger.Trace().Msg("Not outdated since file not found and generated_hcl is empty")
+			continue
+		}
 
-		if tfcode != string(currentTfCode) {
+		genHCLCode := prependGenHCLHeader(genHCL.Origin(), genHCL.String())
+
+		if genHCLCode != currentHCLcode {
 			logger.Trace().Msg("Outdated HCL code detected.")
 			outdated = append(outdated, filename)
 		}
@@ -362,12 +370,16 @@ func exportedLocalsOutdatedFiles(
 	}
 
 	stackLocalsFile := filepath.Join(stackpath, cfg.LocalsFilename)
-	currentlocals, err := loadGeneratedCode(stackLocalsFile)
+	currentlocals, codeFound, err := loadGeneratedCode(stackLocalsFile)
 	if err != nil {
 		return nil, err
 	}
+	if !codeFound && len(genlocals) == 0 {
+		logger.Trace().Msg("Updated since code not found and block is empty.")
+		return nil, nil
+	}
 
-	if string(genlocals) != string(currentlocals) {
+	if string(genlocals) != currentlocals {
 		logger.Trace().Msg("Detected outdated exported locals.")
 		return []string{cfg.LocalsFilename}, nil
 	}
@@ -594,11 +606,18 @@ func writeGeneratedCode(target string, code string) error {
 }
 
 func checkFileCanBeOverwritten(path string) error {
-	_, err := loadGeneratedCode(path)
+	_, _, err := loadGeneratedCode(path)
 	return err
 }
 
-func loadGeneratedCode(path string) ([]byte, error) {
+// loadGeneratedCode will load the generated code at the given path.
+// It returns an error if it can't read the file or if the file is not
+// a Terramate generated file.
+//
+// The returned boolean indicates if the file exists, so the contents of
+// the file + true is returned if a file is found, but if no file is found
+// it will return an empty string and false indicating that the file doesn't exist.
+func loadGeneratedCode(path string) (string, bool, error) {
 	logger := log.With().
 		Str("action", "loadGeneratedCode()").
 		Str("path", path).
@@ -609,25 +628,25 @@ func loadGeneratedCode(path string) ([]byte, error) {
 	_, err := os.Stat(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return nil, nil
+			return "", false, nil
 		}
-		return nil, fmt.Errorf("loading code: can't stat %q: %v", path, err)
+		return "", false, fmt.Errorf("loading code: can't stat %q: %v", path, err)
 	}
 
 	logger.Trace().Msg("Read file.")
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("loading code, can't read %q: %v", path, err)
+		return "", false, fmt.Errorf("loading code, can't read %q: %v", path, err)
 	}
 
 	logger.Trace().Msg("Check if code has terramate header.")
 
 	if hasTerramateHeader(data) {
-		return data, nil
+		return string(data), true, nil
 	}
 
-	return nil, fmt.Errorf("%w: at %q", ErrManualCodeExists, path)
+	return "", false, fmt.Errorf("%w: at %q", ErrManualCodeExists, path)
 }
 
 type forEachStackFunc func(stack.S, *terramate.Globals, StackCfg) error
