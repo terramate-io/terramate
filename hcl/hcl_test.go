@@ -543,6 +543,20 @@ terramate {
 			},
 		},
 		{
+			name: "config.generate with conflicting config fails",
+			input: `terramate {
+				  config {
+				    generate {
+				      backend_config_filename = "file.tf"
+				      locals_filename = "file.tf"
+				    }
+				  }
+				}`,
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
 			name: "config.generate block with invalid cfg",
 			input: `terramate {
 				  config {
