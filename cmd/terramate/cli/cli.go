@@ -56,6 +56,11 @@ const (
 	defaultBranchBaseRef = "HEAD^"
 )
 
+const (
+	defaultLogLevel = "info"
+	defaultLogFmt   = "console"
+)
+
 type cliSpec struct {
 	Version       struct{} `cmd:"" help:"Terramate version."`
 	Chdir         string   `short:"C" optional:"true" help:"sets working directory."`
@@ -119,6 +124,7 @@ func Exec(
 	stdout io.Writer,
 	stderr io.Writer,
 ) {
+	configureLogging(defaultLogLevel, defaultLogFmt, stderr)
 	c := newCLI(args, stdin, stdout, stderr)
 	c.run()
 }
@@ -198,6 +204,11 @@ func newCLI(
 	}
 
 	configureLogging(parsedArgs.LogLevel, parsedArgs.LogFmt, stderr)
+	// If we don't re-create the logger after configuring we get some
+	// log entries with a mix of default fmt and selected fmt.
+	logger = log.With().
+		Str("action", "newCli()").
+		Logger()
 
 	if ctx.Command() == "version" {
 		logger.Debug().
