@@ -29,6 +29,12 @@ archives:
       386: i386
       amd64: x86_64
 
+dockers:
+  - dockerfile: hack/release/Dockerfile
+    image_templates:
+      - "ghcr.io/mineiros-io/{{.ProjectName}}:latest"
+      - "ghcr.io/mineiros-io/{{.ProjectName}}:{{.Version}}"
+
 checksum:
   name_template: 'checksums.txt'
 
