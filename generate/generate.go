@@ -611,7 +611,7 @@ func checkFileCanBeOverwritten(path string) error {
 }
 
 // loadGeneratedCode will load the generated code at the given path.
-// It returns an error if it can't read the file of if the file is not
+// It returns an error if it can't read the file or if the file is not
 // a Terramate generated file.
 //
 // The returned boolean indicates if the file exists, so the contents of
