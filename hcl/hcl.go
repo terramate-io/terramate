@@ -895,6 +895,11 @@ func parseGenerateConfig(block *hclsyntax.Block) (GenerateConfig, error) {
 		}
 	}
 
+	if cfg.LocalsFilename != "" && cfg.LocalsFilename == cfg.BackendCfgFilename {
+		return GenerateConfig{}, fmt.Errorf(
+			"terramate.config.generate: locals and backend cfg files have the same name %q", cfg.LocalsFilename)
+	}
+
 	return cfg, nil
 }
 
