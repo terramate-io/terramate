@@ -169,20 +169,21 @@ func (s S) BuildTree(layout []string) {
 	for _, spec := range layout {
 		path, data := parsePathData(spec)
 
-		switch spec[0] {
-		case 'd':
+		specKind := string(spec[0:2])
+		switch specKind {
+		case "d:":
 			test.MkdirAll(t, filepath.Join(s.rootdir, spec[2:]))
-		case 's':
+		case "s:":
 			if data == "" {
 				s.CreateStack(path)
 				continue
 			}
 
 			gentmfile(path, data)
-		case 'f':
+		case "f:":
 			test.WriteFile(t, s.rootdir, path, data)
 		default:
-			t.Fatalf("unknown tree identifier: %d", spec[0])
+			t.Fatalf("unknown spec kind: %q", specKind)
 		}
 	}
 }
