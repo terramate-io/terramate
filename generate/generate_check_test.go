@@ -69,7 +69,8 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 
 	s.Generate()
 
-	// Changing generated filenames will trigger detection, with new filenames
+	// Changing generated filenames will trigger detection,
+	// with new + old filenames.
 	stackEntry.CreateConfig(
 		stackConfig(
 			generateHCL(
@@ -80,7 +81,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 			),
 		).String())
 
-	assertOutdatedFiles([]string{"testnew.tf"})
+	assertOutdatedFiles([]string{"test.tf", "testnew.tf"})
 
 	// Adding new filename to generation trigger detection
 	stackEntry.CreateConfig(
@@ -98,6 +99,15 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 				),
 			),
 		).String())
+
+	assertOutdatedFiles([]string{"another.tf", "test.tf", "testnew.tf"})
+
+	s.Generate()
+
+	assertOutdatedFiles([]string{})
+
+	// Detects configurations that have been removed.
+	stackEntry.CreateConfig(stackConfig().String())
 
 	assertOutdatedFiles([]string{"another.tf", "testnew.tf"})
 
