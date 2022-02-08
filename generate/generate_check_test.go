@@ -274,6 +274,8 @@ func TestCheckReturnsOutdatedStackFilenamesForBackendAndLocals(t *testing.T) {
 	assertAllStacksAreUpdated()
 
 	// Changing generated filenames will trigger detection, with new filenames
+	// Here we detect both new files missing and also current files that should
+	// not exist, since no configuration generates them anymore
 
 	const (
 		backendFilename = "backend.tf"
@@ -296,11 +298,16 @@ func TestCheckReturnsOutdatedStackFilenamesForBackendAndLocals(t *testing.T) {
 
 	got, err = generate.CheckStack(s.RootDir(), stack1val)
 	assert.NoError(t, err)
-	assertEqualStringList(t, got, []string{localsFilename})
+	assertEqualStringList(t, got, []string{generate.LocalsFilename, localsFilename})
 
 	got, err = generate.CheckStack(s.RootDir(), stack2val)
 	assert.NoError(t, err)
-	assertEqualStringList(t, got, []string{backendFilename, localsFilename})
+	assertEqualStringList(t, got, []string{
+		generate.BackendCfgFilename,
+		generate.LocalsFilename,
+		backendFilename,
+		localsFilename,
+	})
 
 	s.Generate()
 	assertAllStacksAreUpdated()
