@@ -98,7 +98,7 @@ func Load(rootdir string, sm stack.Metadata, globals *terramate.Globals) (StackH
 
 	loadedHCLs, err := loadGenHCLBlocks(rootdir, stackpath)
 	if err != nil {
-		return StackHCLs{}, fmt.Errorf("loading generated HCL code: %w", err)
+		return StackHCLs{}, fmt.Errorf("loading generate_hcl: %w", err)
 	}
 
 	evalctx, err := newEvalCtx(stackpath, sm, globals)
@@ -246,7 +246,7 @@ func join(target, src map[string]loadedHCL) error {
 	for blockLabel, srcHCL := range src {
 		if targetHCL, ok := target[blockLabel]; ok {
 			return fmt.Errorf(
-				"duplicated block with label %q at %q and %q",
+				"found label %q at %q and %q",
 				blockLabel,
 				srcHCL.origin,
 				targetHCL.origin,
