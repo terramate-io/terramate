@@ -69,7 +69,8 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 
 	s.Generate()
 
-	// Changing generated filenames will trigger detection, with new filenames
+	// Changing generated filenames will trigger detection,
+	// with new + old filenames.
 	stackEntry.CreateConfig(
 		stackConfig(
 			generateHCL(
@@ -80,7 +81,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 			),
 		).String())
 
-	assertOutdatedFiles([]string{"testnew.tf"})
+	assertOutdatedFiles([]string{"test.tf", "testnew.tf"})
 
 	// Adding new filename to generation trigger detection
 	stackEntry.CreateConfig(
@@ -98,6 +99,15 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 				),
 			),
 		).String())
+
+	assertOutdatedFiles([]string{"another.tf", "test.tf", "testnew.tf"})
+
+	s.Generate()
+
+	assertOutdatedFiles([]string{})
+
+	// Detects configurations that have been removed.
+	stackEntry.CreateConfig(stackConfig().String())
 
 	assertOutdatedFiles([]string{"another.tf", "testnew.tf"})
 
@@ -264,6 +274,8 @@ func TestCheckReturnsOutdatedStackFilenamesForBackendAndLocals(t *testing.T) {
 	assertAllStacksAreUpdated()
 
 	// Changing generated filenames will trigger detection, with new filenames
+	// Here we detect both new files missing and also current files that should
+	// not exist, since no configuration generates them anymore
 
 	const (
 		backendFilename = "backend.tf"
@@ -286,11 +298,16 @@ func TestCheckReturnsOutdatedStackFilenamesForBackendAndLocals(t *testing.T) {
 
 	got, err = generate.CheckStack(s.RootDir(), stack1val)
 	assert.NoError(t, err)
-	assertEqualStringList(t, got, []string{localsFilename})
+	assertEqualStringList(t, got, []string{generate.LocalsFilename, localsFilename})
 
 	got, err = generate.CheckStack(s.RootDir(), stack2val)
 	assert.NoError(t, err)
-	assertEqualStringList(t, got, []string{backendFilename, localsFilename})
+	assertEqualStringList(t, got, []string{
+		generate.BackendCfgFilename,
+		generate.LocalsFilename,
+		backendFilename,
+		localsFilename,
+	})
 
 	s.Generate()
 	assertAllStacksAreUpdated()

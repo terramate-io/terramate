@@ -228,26 +228,56 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 		return nil, fmt.Errorf("checking for outdated code: %v", err)
 	}
 
+	logger.Trace().Msg("Listing current generated files.")
+
+	g, err := ListStackGenFiles(stack)
+	if err != nil {
+		return nil, fmt.Errorf("checking for outdated code: %v", err)
+	}
+	currentFiles := newStringSet(g...)
+
 	stackpath := stack.AbsPath()
 	stackMeta := stack.Meta()
 
-	outdatedBackendFiles, err := backendConfigOutdatedFiles(root, stackpath, stackMeta, globals, cfg)
+	outdatedBackendFiles, err := backendConfigOutdatedFiles(
+		root,
+		stackpath,
+		stackMeta,
+		globals,
+		cfg,
+		currentFiles,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("checking for outdated backend config: %v", err)
 	}
 	outdated = append(outdated, outdatedBackendFiles...)
 
-	outdatedLocalsFiles, err := exportedLocalsOutdatedFiles(root, stackpath, stackMeta, globals, cfg)
+	outdatedLocalsFiles, err := exportedLocalsOutdatedFiles(
+		root,
+		stackpath,
+		stackMeta,
+		globals,
+		cfg,
+		currentFiles,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("checking for outdated exported locals: %v", err)
 	}
 	outdated = append(outdated, outdatedLocalsFiles...)
 
-	outdatedTerraformFiles, err := generatedHCLOutdatedFiles(root, stackpath, stackMeta, globals, cfg)
+	outdatedTerraformFiles, err := generatedHCLOutdatedFiles(
+		root,
+		stackpath,
+		stackMeta,
+		globals,
+		cfg,
+		currentFiles,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("checking for outdated exported terraform: %v", err)
 	}
 	outdated = append(outdated, outdatedTerraformFiles...)
+	outdated = append(outdated, currentFiles.slice()...)
 
 	sort.Strings(outdated)
 
@@ -264,6 +294,7 @@ func backendConfigOutdatedFiles(
 	stackMeta stack.Metadata,
 	globals *terramate.Globals,
 	cfg StackCfg,
+	currentGenFiles *stringSet,
 ) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.backendConfigOutdatedFiles()").
@@ -284,9 +315,10 @@ func backendConfigOutdatedFiles(
 		return nil, err
 	}
 	if !codeFound && len(genbackend) == 0 {
-		logger.Trace().Msg("Updated since code not found and block is empty.")
+		logger.Trace().Msg("Not outdated since code not found and block is empty.")
 		return nil, nil
 	}
+	currentGenFiles.remove(cfg.BackendCfgFilename)
 
 	logger.Trace().Msg("Checking for outdated backend cfg code on stack.")
 
@@ -304,6 +336,7 @@ func generatedHCLOutdatedFiles(
 	stackMeta stack.Metadata,
 	globals *terramate.Globals,
 	cfg StackCfg,
+	currentGenFiles *stringSet,
 ) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.generateHCLOutdatedFiles()").
@@ -330,6 +363,7 @@ func generatedHCLOutdatedFiles(
 			Logger()
 
 		logger.Trace().Msg("Checking if code is updated.")
+
 		currentHCLcode, codeFound, err := loadGeneratedCode(targetpath)
 		if err != nil {
 			return nil, err
@@ -338,9 +372,9 @@ func generatedHCLOutdatedFiles(
 			logger.Trace().Msg("Not outdated since file not found and generated_hcl is empty")
 			continue
 		}
+		currentGenFiles.remove(filename)
 
 		genHCLCode := prependGenHCLHeader(genHCL.Origin(), genHCL.String())
-
 		if genHCLCode != currentHCLcode {
 			logger.Trace().Msg("Outdated HCL code detected.")
 			outdated = append(outdated, filename)
@@ -355,6 +389,7 @@ func exportedLocalsOutdatedFiles(
 	stackMeta stack.Metadata,
 	globals *terramate.Globals,
 	cfg StackCfg,
+	currentGenFiles *stringSet,
 ) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.exportedLocalsOutdatedFiles()").
@@ -378,6 +413,7 @@ func exportedLocalsOutdatedFiles(
 		logger.Trace().Msg("Updated since code not found and block is empty.")
 		return nil, nil
 	}
+	currentGenFiles.remove(cfg.LocalsFilename)
 
 	if string(genlocals) != currentlocals {
 		logger.Trace().Msg("Detected outdated exported locals.")
@@ -745,14 +781,49 @@ func hasTerramateHeader(code []byte) bool {
 }
 
 func checkGeneratedFilesConflicts(genfiles []genfile) error {
-	observed := map[string]struct{}{}
+	observed := newStringSet()
 	for _, genf := range genfiles {
-		if _, ok := observed[genf.name]; ok {
+		if observed.has(genf.name) {
 			// TODO(katcipis): improve error with origin info
 			// Right now it is not as nice/easy as I would like :-(.
 			return fmt.Errorf("two configurations produce same file %q", genf.name)
 		}
-		observed[genf.name] = struct{}{}
+		observed.add(genf.name)
 	}
 	return nil
+}
+
+type stringSet struct {
+	vals map[string]struct{}
+}
+
+func newStringSet(vals ...string) *stringSet {
+	ss := &stringSet{
+		vals: map[string]struct{}{},
+	}
+	for _, v := range vals {
+		ss.add(v)
+	}
+	return ss
+}
+
+func (ss *stringSet) remove(val string) {
+	delete(ss.vals, val)
+}
+
+func (ss *stringSet) has(val string) bool {
+	_, ok := ss.vals[val]
+	return ok
+}
+
+func (ss *stringSet) add(val string) {
+	ss.vals[val] = struct{}{}
+}
+
+func (ss *stringSet) slice() []string {
+	res := make([]string, 0, len(ss.vals))
+	for k := range ss.vals {
+		res = append(res, k)
+	}
+	return res
 }
