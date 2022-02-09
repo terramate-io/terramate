@@ -318,15 +318,12 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: globals(
-						str("some_string", "string"),
-						number("some_number", 666),
-						boolean("some_bool", true),
-					),
-				},
-				{
-					path: "/stack",
 					add: hcldoc(
+						globals(
+							str("some_string", "string"),
+							number("some_number", 666),
+							boolean("some_bool", true),
+						),
 						generateHCL(
 							labels("exported_one"),
 							block("block1",
@@ -458,20 +455,19 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/",
-					add: globals(
-						str("some_string", "string"),
-						number("some_number", 777),
-						boolean("some_bool", true),
-					),
-				},
-				{
-					path: "/",
-					add: generateHCL(
-						labels("on_root"),
-						block("on_root_block",
-							expr("obj", `{
+					add: hcldoc(
+						globals(
+							str("some_string", "string"),
+							number("some_number", 777),
+							boolean("some_bool", true),
+						),
+						generateHCL(
+							labels("on_root"),
+							block("on_root_block",
+								expr("obj", `{
 								string = global.some_string
 							}`),
+							),
 						),
 					),
 				},
@@ -535,82 +531,54 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 		},
 		{
-			name:  "specific config overrides general config",
+			name:  "stack with block with same label as parent is an error",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
-					path: "/",
-					add: hcldoc(
-						generateHCL(
-							labels("root"),
-							block("block",
-								expr("root_stackpath", "terramate.path"),
-							),
-						),
-						generateHCL(
-							labels("parent"),
-							block("block",
-								expr("root_stackpath", "terramate.path"),
-							),
-						),
-						generateHCL(
-							labels("stack"),
-							block("block",
-								expr("root_stackpath", "terramate.path"),
-							),
-						),
-					),
-				},
-				{
 					path: "/stacks",
 					add: generateHCL(
-						labels("parent"),
+						labels("repeated"),
 						block("block",
-							expr("parent_stackpath", "terramate.path"),
-							expr("parent_stackname", "terramate.name"),
+							str("data", "parent data"),
 						),
 					),
 				},
 				{
 					path: "/stacks/stack",
 					add: generateHCL(
-						labels("stack"),
+						labels("repeated"),
 						block("block",
-							str("overridden", "some literal data"),
+							str("data", "stack data"),
 						),
 					),
 				},
 			},
-			want: []result{
+			wantErr: genhcl.ErrMultiLevelConflict,
+		},
+		{
+			name:  "stack parents with block with same label is an error",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
 				{
-					name: "root",
-					hcl: genHCL{
-						origin: defaultCfg("/"),
-						body: block("block",
-							str("root_stackpath", "/stacks/stack"),
+					path: "/",
+					add: generateHCL(
+						labels("repeated"),
+						block("block",
+							str("data", "root data"),
 						),
-					},
+					),
 				},
 				{
-					name: "parent",
-					hcl: genHCL{
-						origin: defaultCfg("/stacks"),
-						body: block("block",
-							str("parent_stackpath", "/stacks/stack"),
-							str("parent_stackname", "stack"),
+					path: "/stacks",
+					add: generateHCL(
+						labels("repeated"),
+						block("block",
+							str("data", "parent data"),
 						),
-					},
-				},
-				{
-					name: "stack",
-					hcl: genHCL{
-						origin: defaultCfg("/stacks/stack"),
-						body: block("block",
-							str("overridden", "some literal data"),
-						),
-					},
+					),
 				},
 			},
+			wantErr: genhcl.ErrMultiLevelConflict,
 		},
 		{
 			name:  "block with no label on stack gives err",
