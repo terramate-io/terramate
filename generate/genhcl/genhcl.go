@@ -220,7 +220,7 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 	if err != nil {
 		return nil, err
 	}
-	if err := merge(res, parentRes); err != nil {
+	if err := join(res, parentRes); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrMultiLevelConflict, err)
 	}
 	return res, nil
@@ -242,7 +242,7 @@ func validateGenerateHCLBlock(block *hclsyntax.Block) error {
 	return nil
 }
 
-func merge(target, src map[string]loadedHCL) error {
+func join(target, src map[string]loadedHCL) error {
 	for blockLabel, srcHCL := range src {
 		if targetHCL, ok := target[blockLabel]; ok {
 			return fmt.Errorf(
