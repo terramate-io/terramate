@@ -87,4 +87,4 @@ jobs:
           args: release --snapshot --rm-dist
 
       - name: Publishing Latest
-        run: docker push ghcr.io/mineiros-io/terramate:katztest
+        run: docker push ghcr.io/mineiros-io/terramate:latest
