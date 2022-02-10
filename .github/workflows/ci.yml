@@ -77,7 +77,7 @@ jobs:
           go-version: "1.17"
 
       - name: Log in to ghcr.io container registry
-        run: echo "${{ secrets.MINEIROS_IAC_GITHUB_TOKEN }}" | docker login ghcr.io -u USERNAME --password-stdin
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: release dry run
         uses: goreleaser/goreleaser-action@v2
