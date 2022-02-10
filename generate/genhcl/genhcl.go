@@ -47,8 +47,9 @@ type HCL struct {
 }
 
 const (
-	ErrInvalidBlock errutil.Error = "invalid generate_hcl block"
-	ErrEval         errutil.Error = "evaluating generate_hcl block"
+	ErrMultiLevelConflict errutil.Error = "conflicting generate_hcl blocks"
+	ErrInvalidBlock       errutil.Error = "invalid generate_hcl block"
+	ErrEval               errutil.Error = "evaluating generate_hcl block"
 )
 
 // GeneratedHCLs returns all generated code, mapping the name to its
@@ -97,7 +98,7 @@ func Load(rootdir string, sm stack.Metadata, globals *terramate.Globals) (StackH
 
 	loadedHCLs, err := loadGenHCLBlocks(rootdir, stackpath)
 	if err != nil {
-		return StackHCLs{}, fmt.Errorf("loading generated HCL code: %w", err)
+		return StackHCLs{}, fmt.Errorf("loading generate_hcl: %w", err)
 	}
 
 	evalctx, err := newEvalCtx(stackpath, sm, globals)
@@ -219,8 +220,9 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 	if err != nil {
 		return nil, err
 	}
-
-	merge(res, parentRes)
+	if err := join(res, parentRes); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrMultiLevelConflict, err)
+	}
 	return res, nil
 }
 
@@ -240,11 +242,17 @@ func validateGenerateHCLBlock(block *hclsyntax.Block) error {
 	return nil
 }
 
-func merge(target, src map[string]loadedHCL) {
-	for k, v := range src {
-		if _, ok := target[k]; ok {
-			continue
+func join(target, src map[string]loadedHCL) error {
+	for blockLabel, srcHCL := range src {
+		if targetHCL, ok := target[blockLabel]; ok {
+			return fmt.Errorf(
+				"found label %q at %q and %q",
+				blockLabel,
+				srcHCL.origin,
+				targetHCL.origin,
+			)
 		}
-		target[k] = v
+		target[blockLabel] = srcHCL
 	}
+	return nil
 }
