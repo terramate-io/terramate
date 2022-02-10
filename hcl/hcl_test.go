@@ -28,9 +28,13 @@ type want struct {
 	err    error
 	config hcl.Config
 }
+type cfgfile struct {
+	filename string
+	body     string
+}
 type testcase struct {
 	name  string
-	input string
+	input cfgfile
 	want  want
 }
 
@@ -85,12 +89,12 @@ func TestHCLParserModules(t *testing.T) {
 		{
 			name: "mixing modules and attributes, ignore attrs",
 			input: `
-a = 1
-module "test" {
-	source = "test"
-}
-b = 1
-`,
+				a = 1
+				module "test" {
+					source = "test"
+				}
+				b = 1
+			`,
 			want: want{
 				modules: []hcl.Module{
 					{
@@ -160,44 +164,62 @@ module "test" {
 func TestHCLParserTerramateBlock(t *testing.T) {
 	for _, tc := range []testcase{
 		{
-			name:  "unrecognized block",
-			input: `something {}`,
+			name: "unrecognized block",
+			input: cfgfile{
+				body: `something {}`,
+			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
 			name: "unrecognized attribute",
-			input: `terramate{}
-something = 1`,
+			input: cfgfile{
+				body: `
+					terramate{}
+					something = 1
+				`,
+			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
 			name: "unrecognized attribute inside terramate block",
-			input: `terramate{
-				something = 1
-			}
-`,
+			input: cfgfile{
+				body: `
+					terramate{
+						something = 1
+					}
+				`,
+			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
 			name: "unrecognized block",
-			input: `terramate{
-				something {}
-			}
-`,
+			input: cfgfile{
+				body: `terramate{
+						something {}
+					}
+				`,
+			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
-			name: "multiple terramate blocks",
-			input: `terramate{}
-terramate {}`,
+			// TODO(katcipis): this should work, if we allow
+			// multiple terramate{} in different files for different
+			// kinds of terramate config.
+			name: "multiple terramate blocks on same file",
+			input: cfgfile{
+				body: `
+					terramate{}
+					terramate{}
+				`,
+			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},
@@ -210,41 +232,52 @@ terramate {}`,
 		},
 		{
 			name: "invalid version",
-			input: `
-terramate {
-	required_version = 1
-}`,
+			input: cfgfile{
+				body: `
+					terramate {
+						required_version = 1
+					}
+				`,
+			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
 			name: "interpolation not allowed at req_version",
-			input: `
-terramate {
-	required_version = "${test.version}"
-}`,
+			input: cfgfile{
+				body: `
+					terramate {
+						required_version = "${test.version}"
+					}
+				`,
+			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
 			name: "invalid attribute",
-			input: `terramate{}
-terramate {
-	version = 1
-}`,
+			input: cfgfile{
+				body: `
+					terramate {
+						version = 1
+					}
+				`,
+			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
 			name: "required_version > 0.0.0",
-			input: `
-	terramate {
-	       required_version = "> 0.0.0"
-	}
-	`,
+			input: cfgfile{
+				body: `
+					terramate {
+					       required_version = "> 0.0.0"
+					}
+				`,
+			},
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
