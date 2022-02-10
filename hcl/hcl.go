@@ -120,8 +120,8 @@ func NewConfig(dir string, reqversion string) (Config, error) {
 	}
 
 	return Config{
-		absdir:    dir,
 		Terramate: tmblock,
+		absdir:    dir,
 	}, nil
 }
 
@@ -251,7 +251,14 @@ func ParseBody(src []byte, filename string) (*hclsyntax.Body, error) {
 	return body, nil
 }
 
-// Parse parses a terramate source.
+// ParseDir will parse Terramate configuration from a given directory,
+// parsing all files with the suffixes .tm and .tm.hcl.
+func ParseDir(dir string) (Config, error) {
+	return Config{}, nil
+}
+
+// Parse parses Terramate configuration from a file.
+// Deprecated: Parse should not be used anymore in favor of ParseDir.
 func Parse(fname string, data []byte) (Config, error) {
 	logger := log.With().
 		Str("action", "Parse()").
@@ -440,7 +447,8 @@ func Parse(fname string, data []byte) (Config, error) {
 	return tmconfig, nil
 }
 
-// ParseFile parses a terramate file.
+// ParseFile parses a Terramate file for configuration.
+// Deprecation: ParseFile should not be used anymore, in favor of ParseDir.
 func ParseFile(path string) (Config, error) {
 	logger := log.With().
 		Str("action", "ParseFile()").
@@ -1000,6 +1008,200 @@ func blockIsAllowed(name string) bool {
 	default:
 		return false
 	}
+}
+
+type terramateCfgBlock struct {
+	filename string
+	body     *hclsyntax.Body
+}
+
+func parseTerramateConfig(dir string, cfgBlocks []terramateCfgBlock) (Config, error) {
+	logger := log.With().
+		Str("action", "parseTerramateConfig()").
+		Str("dir", dir).
+		Logger()
+
+	tmconfig := Config{
+		absdir: dir,
+	}
+
+	for _, cfgBlock := range cfgBlocks {
+		fname := cfgBlock.filename
+		body := cfgBlock.body
+		logger := logger.With().
+			Str("filename", fname).
+			Logger()
+
+		logger.Trace().Msg("checking for attributes.")
+
+		for name := range body.Attributes {
+			return Config{}, errutil.Chain(
+				ErrMalformedTerramateConfig,
+				fmt.Errorf("unrecognized attribute %q", name),
+			)
+		}
+
+		var tmblock, stackblock *hclsyntax.Block
+		var foundtm, foundstack bool
+
+		logger.Trace().Msg("Range over blocks.")
+
+		for _, block := range body.Blocks {
+			if !blockIsAllowed(block.Type) {
+				return Config{}, errutil.Chain(
+					ErrMalformedTerramateConfig,
+					fmt.Errorf("block type %q is not supported", block.Type),
+				)
+			}
+
+			if block.Type == "terramate" {
+				logger.Trace().
+					Msg("Found 'terramate' block type.")
+				if foundtm {
+					return Config{}, errutil.Chain(
+						ErrMalformedTerramateConfig,
+						fmt.Errorf("multiple terramate blocks in file %q", fname),
+					)
+				}
+				foundtm = true
+				tmblock = block
+				continue
+			}
+
+			if block.Type == "stack" {
+				logger.Trace().
+					Msg("Found stack block type.")
+				if foundstack {
+					return Config{}, errutil.Chain(
+						ErrMalformedTerramateConfig,
+						fmt.Errorf("multiple stack blocks in file %q", fname),
+					)
+				}
+
+				foundstack = true
+				stackblock = block
+			}
+		}
+
+		if foundtm {
+			logger.Trace().Msg("Found terramate block type.")
+
+			if len(tmblock.Labels) > 0 {
+				return Config{}, errutil.Chain(
+					ErrMalformedTerramateConfig,
+					fmt.Errorf("terramate block must have no labels"),
+				)
+			}
+
+			if tmconfig.Terramate == nil {
+				tmconfig.Terramate = &Terramate{}
+			}
+
+			tm := tmconfig.Terramate
+
+			logger.Trace().Msg("Range over terramate block attributes.")
+
+			for name, value := range tmblock.Body.Attributes {
+				attrVal, diags := value.Expr.Value(nil)
+				if diags.HasErrors() {
+					return Config{}, errutil.Chain(
+						ErrMalformedTerramateConfig,
+						fmt.Errorf("failed to evaluate %q attribute: %w",
+							name, diags),
+					)
+				}
+				switch name {
+				case "required_version":
+					logger.Trace().Msg("Parsing  attribute 'required_version'.")
+
+					if attrVal.Type() != cty.String {
+						return Config{}, errutil.Chain(
+							ErrMalformedTerramateConfig,
+							fmt.Errorf("attribute %q is not a string", name),
+						)
+					}
+					if tm.RequiredVersion != "" {
+						return Config{}, errutil.Chain(
+							ErrMalformedTerramateConfig,
+							fmt.Errorf("attribute %q is duplicated", name),
+						)
+					}
+					tm.RequiredVersion = attrVal.AsString()
+
+				default:
+					return Config{}, errutil.Chain(ErrMalformedTerramateConfig,
+						fmt.Errorf("invalid attribute %q", name),
+					)
+				}
+			}
+
+			logger.Trace().Msg("Range over terramate blocks")
+
+			for _, block := range tmblock.Body.Blocks {
+				switch block.Type {
+				case "backend":
+					logger.Trace().Msg("Parsing backend block.")
+
+					if tm.Backend != nil {
+						return Config{}, errutil.Chain(
+							ErrMalformedTerramateConfig,
+							fmt.Errorf("found second backend block in file %q, only one allowed", fname),
+						)
+					}
+
+					if len(block.Labels) != 1 {
+						return Config{}, errutil.Chain(
+							ErrMalformedTerramateConfig,
+							fmt.Errorf("backend type expects 1 label but given %v",
+								block.Labels),
+						)
+					}
+					tm.Backend = block
+
+				case "config":
+					logger.Trace().Msg("Found config block.")
+
+					if tm.RootConfig != nil {
+						return Config{}, errutil.Chain(
+							ErrMalformedTerramateConfig,
+							fmt.Errorf("found second config block in file %q, only one allowed", fname),
+						)
+					}
+
+					logger.Trace().Msg("Parse root config.")
+
+					tm.RootConfig = &RootConfig{}
+					err := parseRootConfig(tm.RootConfig, block)
+					if err != nil {
+						return Config{}, err
+					}
+				default:
+					return Config{}, errutil.Chain(
+						ErrMalformedTerramateConfig,
+						fmt.Errorf("block type %q not supported", block.Type))
+				}
+
+			}
+		}
+
+		if !foundstack {
+			continue
+		}
+
+		logger.Debug().Msg("Parsing stack cfg.")
+
+		if tmconfig.Stack != nil {
+			return Config{}, fmt.Errorf("found second stack block in file %q, only one allowed", fname)
+		}
+
+		tmconfig.Stack = &Stack{}
+		err := parseStack(tmconfig.Stack, stackblock)
+		if err != nil {
+			return Config{}, err
+		}
+	}
+
+	return tmconfig, nil
 }
 
 // IsLocal tells if module source is a local directory.
