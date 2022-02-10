@@ -331,7 +331,7 @@ func TestHCLGeneration(t *testing.T) {
 				}
 
 				// sandbox create README.md inside test dirs
-				if d.Name() == config.Filename || d.Name() == "README.md" {
+				if d.Name() == config.DefaultFilename || d.Name() == "README.md" {
 					return nil
 				}
 
@@ -359,7 +359,7 @@ func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		fmt.Sprintf("f:%s:%s", config.Filename, generateHCLConfig.String()),
+		fmt.Sprintf("f:%s:%s", config.DefaultFilename, generateHCLConfig.String()),
 		"s:stack",
 		fmt.Sprintf("f:stack/%s:%s", genFilename, manualTfCode),
 	})
@@ -448,13 +448,13 @@ func TestGeneratedHCLHeaders(t *testing.T) {
 	s.Generate()
 
 	stackGen := stackEntry.ReadGeneratedHCL(stackFilename)
-	stackHeader := fmt.Sprintf(traceHeaderTemplate, filepath.Join("/stack", config.Filename))
+	stackHeader := fmt.Sprintf(traceHeaderTemplate, filepath.Join("/stack", config.DefaultFilename))
 	if !strings.Contains(stackGen, stackHeader) {
 		t.Errorf("wanted header %q\n\ngenerated file:\n%s\n", stackHeader, stackGen)
 	}
 
 	rootGen := stackEntry.ReadGeneratedHCL(rootFilename)
-	rootHeader := fmt.Sprintf(traceHeaderTemplate, "/"+config.Filename)
+	rootHeader := fmt.Sprintf(traceHeaderTemplate, "/"+config.DefaultFilename)
 	if !strings.Contains(rootGen, rootHeader) {
 		t.Errorf("wanted header %q\n\ngenerated file:\n%s\n", rootHeader, rootGen)
 	}

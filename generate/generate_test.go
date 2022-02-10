@@ -35,7 +35,7 @@ type hclconfig struct {
 func (c hclconfig) append(t *testing.T, rootdir string) {
 	t.Helper()
 	path := filepath.Join(rootdir, c.path)
-	test.AppendFile(t, path, config.Filename, c.add.String())
+	test.AppendFile(t, path, config.DefaultFilename, c.add.String())
 }
 
 func assertHCLEquals(t *testing.T, got string, want string) {

@@ -186,7 +186,7 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 		return nil, nil
 	}
 
-	cfgpath := filepath.Join(cfgdir, config.Filename)
+	cfgpath := filepath.Join(cfgdir, config.DefaultFilename)
 	blocks, err := hcl.ParseGenerateHCLBlocks(cfgpath)
 	if err != nil {
 		if os.IsNotExist(err) {

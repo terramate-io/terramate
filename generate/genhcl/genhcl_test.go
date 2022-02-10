@@ -81,7 +81,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 	boolean := hclwrite.Boolean
 
 	defaultCfg := func(dir string) string {
-		return filepath.Join(dir, config.Filename)
+		return filepath.Join(dir, config.DefaultFilename)
 	}
 
 	tcases := []testcase{
@@ -774,7 +774,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 
 			for _, cfg := range tcase.configs {
 				path := filepath.Join(s.RootDir(), cfg.path)
-				test.AppendFile(t, path, config.Filename, cfg.add.String())
+				test.AppendFile(t, path, config.DefaultFilename, cfg.add.String())
 			}
 
 			meta := stack.Meta()

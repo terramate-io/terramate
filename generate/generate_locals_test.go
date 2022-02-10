@@ -482,7 +482,7 @@ func TestLocalsGeneration(t *testing.T) {
 
 			for _, cfg := range tcase.configs {
 				path := filepath.Join(s.RootDir(), cfg.path)
-				test.AppendFile(t, path, config.Filename, cfg.add.String())
+				test.AppendFile(t, path, config.DefaultFilename, cfg.add.String())
 			}
 
 			workingDir := filepath.Join(s.RootDir(), tcase.workingDir)
@@ -513,7 +513,7 @@ func TestWontOverwriteManuallyDefinedLocals(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		fmt.Sprintf("f:%s:%s", config.Filename, exportLocalsCfg.String()),
+		fmt.Sprintf("f:%s:%s", config.DefaultFilename, exportLocalsCfg.String()),
 		"s:stack",
 		fmt.Sprintf("f:stack/%s:%s", generate.LocalsFilename, manualLocals),
 	})

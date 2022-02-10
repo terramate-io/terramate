@@ -543,7 +543,7 @@ func generateBackendCfgCode(
 
 	logger.Trace().
 		Msg("Get config file path.")
-	configfile := filepath.Join(configdir, config.Filename)
+	configfile := filepath.Join(configdir, config.DefaultFilename)
 
 	logger = logger.With().
 		Str("configFile", configfile).

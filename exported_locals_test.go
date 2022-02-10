@@ -326,7 +326,7 @@ func TestExportAsLocals(t *testing.T) {
 
 			for _, block := range tcase.blocks {
 				path := filepath.Join(s.RootDir(), block.path)
-				test.AppendFile(t, path, config.Filename, block.add.String())
+				test.AppendFile(t, path, config.DefaultFilename, block.add.String())
 			}
 
 			wantExportAsLocals := tcase.want
