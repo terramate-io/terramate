@@ -166,13 +166,9 @@ func TryLoad(root, absdir string) (stack S, found bool, err error) {
 		return S{}, false, err
 	}
 
-	fname := filepath.Join(absdir, config.DefaultFilename)
+	logger.Debug().Msg("Parsing configuration.")
 
-	logger.Debug().
-		Str("configFile", fname).
-		Msg("Parse config file.")
-
-	cfg, err := hcl.ParseFile(fname)
+	cfg, err := hcl.ParseDir(absdir)
 	if err != nil {
 		return S{}, false, err
 	}

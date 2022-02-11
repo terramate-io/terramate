@@ -80,9 +80,9 @@ func TryLoadRootConfig(dir string) (cfg hcl.Config, found bool, err error) {
 		return hcl.Config{}, false, err
 	}
 
-	logger.Trace().
-		Msg("Parse file.")
-	cfg, err = hcl.ParseFile(path)
+	logger.Trace().Msg("Parse Terramate config.")
+
+	cfg, err = hcl.ParseDir(dir)
 	if err != nil {
 		return hcl.Config{}, false, err
 	}
