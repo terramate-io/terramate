@@ -295,13 +295,15 @@ func TestHCLParserBackend(t *testing.T) {
 	for _, tc := range []testcase{
 		{
 			name: "backend with attributes",
-			input: `
-terramate {
-	backend "something" {
-		something = "something else"
-	}
-}
-	`,
+			input: cfgfile{
+				body: `
+					terramate {
+						backend "something" {
+							something = "something else"
+						}
+					}
+				`,
+			},
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
@@ -315,30 +317,34 @@ terramate {
 		},
 		{
 			name: "multiple backend blocks - fails",
-			input: `
-terramate {
-	backend "ah" {}
-	backend "something" {
-		something = "something else"
-	}
-}
-	`,
+			input: cfgfile{
+				body: `
+					terramate {
+						backend "ah" {}
+						backend "something" {
+							something = "something else"
+						}
+					}
+				`,
+			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
 			name: "backend with nested blocks",
-			input: `
-terramate {
-	backend "my-label" {
-		something = "something else"
-		other {
-			test = 1
-		}
-	}
-}
-`,
+			input: cfgfile{
+				body: `
+					terramate {
+						backend "my-label" {
+							something = "something else"
+							other {
+								test = 1
+							}
+						}
+					}
+				`,
+			},
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
@@ -352,38 +358,44 @@ terramate {
 		},
 		{
 			name: "backend with no labels - fails",
-			input: `
-terramate {
-	backend {
-		something = "something else"
-	}
-}
-	`,
+			input: cfgfile{
+				body: `
+					terramate {
+						backend {
+							something = "something else"
+						}
+					}
+				`,
+			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
 			name: "backend with more than 1 label - fails",
-			input: `
-terramate {
-	backend "1" "2" {
-		something = "something else"
-	}
-}
-	`,
+			input: cfgfile{
+				body: `
+					terramate {
+						backend "1" "2" {
+							something = "something else"
+						}
+					}
+				`,
+			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
 			name: "empty backend",
-			input: `
-	terramate {
-		   backend "something" {
-		   }
-	}
-	`,
+			input: cfgfile{
+				body: `
+					terramate {
+						   backend "something" {
+						   }
+					}
+				`,
+			},
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
@@ -404,11 +416,9 @@ func TestHCLParserRootConfig(t *testing.T) {
 	for _, tc := range []testcase{
 		{
 			name: "no config returns empty config",
-			input: `
-terramate {
-
-}
-`,
+			input: cfgfile{
+				body: `terramate {}`,
+			},
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{},
@@ -417,11 +427,13 @@ terramate {
 		},
 		{
 			name: "empty config block returns empty config",
-			input: `
-terramate {
-	config {}
-}
-`,
+			input: cfgfile{
+				body: `
+					terramate {
+						config {}
+					}
+				`,
+			},
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
@@ -432,26 +444,30 @@ terramate {
 		},
 		{
 			name: "unrecognized config attribute",
-			input: `
-terramate {
-	config {
-		something = "bleh"
-	}
-}
-`,
+			input: cfgfile{
+				body: `
+					terramate {
+						config {
+							something = "bleh"
+						}
+					}
+				`,
+			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
 			name: "empty config.git block",
-			input: `
-terramate {
-	config {
-		git {}
-	}
-}
-`,
+			input: cfgfile{
+				body: `
+					terramate {
+						config {
+							git {}
+						}
+					}
+				`,
+			},
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
@@ -462,66 +478,80 @@ terramate {
 		},
 		{
 			name: "multiple config blocks - fails",
-			input: `
-terramate {
-	config {}
-	config {}
-}
-	`,
+			input: cfgfile{
+				body: `
+					terramate {
+						config {}
+						config {}
+					}
+				`,
+			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
 			name: "multiple config.git blocks - fails",
-			input: `
-terramate {
-	config {
-		git {}
-		git {}
-	}
-}
-	`,
+			input: cfgfile{
+				body: `
+					terramate {
+						config {
+							git {}
+							git {}
+						}
+					}
+				`,
+			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
 			name: "multiple config.generate blocks - fails",
-			input: `terramate {
-				  config {
-				    generate {}
-				    generate {}
-				  }
-				}`,
+			input: cfgfile{
+				body: `
+					terramate {
+					  config {
+					    generate {}
+					    generate {}
+					  }
+					}
+				`,
+			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
 			name: "config.generate block with unknown attribute",
-			input: `terramate {
-				  config {
-				    generate {
-				      very_unknown_attribute = "oopsie"
-				    }
-				  }
-				}`,
+			input: cfgfile{
+				body: `
+					terramate {
+					  config {
+					    generate {
+					      very_unknown_attribute = "oopsie"
+					    }
+					  }
+					}
+				`,
+			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
 			name: "basic config.git block",
-			input: `
-terramate {
-	config {
-		git {
-			default_branch = "trunk"
-		}
-	}
-}
-`,
+			input: cfgfile{
+				body: `
+					terramate {
+						config {
+							git {
+								default_branch = "trunk"
+							}
+						}
+					}
+				`,
+			},
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
@@ -536,12 +566,16 @@ terramate {
 		},
 		{
 			name: "empty config.generate block",
-			input: `terramate {
-				  config {
-				    generate {
-				    }
-				  }
-				}`,
+			input: cfgfile{
+				body: `
+					terramate {
+					  config {
+					    generate {
+					    }
+					  }
+					}
+				`,
+			},
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
@@ -554,14 +588,18 @@ terramate {
 		},
 		{
 			name: "full config.generate block",
-			input: `terramate {
-				  config {
-				    generate {
-				      backend_config_filename = "backend.tf"
-				      locals_filename = "locals.tf"
-				    }
-				  }
-				}`,
+			input: cfgfile{
+				body: `
+					terramate {
+					  config {
+					    generate {
+					      backend_config_filename = "backend.tf"
+					      locals_filename = "locals.tf"
+					    }
+					  }
+					}
+				`,
+			},
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
@@ -577,46 +615,56 @@ terramate {
 		},
 		{
 			name: "config.generate with conflicting config fails",
-			input: `terramate {
-				  config {
-				    generate {
-				      backend_config_filename = "file.tf"
-				      locals_filename = "file.tf"
-				    }
-				  }
-				}`,
+			input: cfgfile{
+				body: `
+					terramate {
+					  config {
+					    generate {
+					      backend_config_filename = "file.tf"
+					      locals_filename = "file.tf"
+					    }
+					  }
+					}
+				`,
+			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
 			name: "config.generate block with invalid cfg",
-			input: `terramate {
-				  config {
-				    generate {
-				      backend_config_filename = true
-				      locals_filename = 666
-				    }
-				  }
-				}`,
+			input: cfgfile{
+				body: `
+					terramate {
+					  config {
+					    generate {
+					      backend_config_filename = true
+					      locals_filename = 666
+					    }
+					  }
+					}
+				`,
+			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
 			name: "all fields set for config.git",
-			input: `
-terramate {
-	config {
-		git {
-			default_branch = "trunk"
-			default_remote = "upstream"
-			base_ref = "upstream/trunk"
-			default_branch_base_ref = "HEAD~2"
-		}
-	}
-}
-`,
+			input: cfgfile{
+				body: `
+					terramate {
+						config {
+							git {
+								default_branch = "trunk"
+								default_remote = "upstream"
+								base_ref = "upstream/trunk"
+								default_branch_base_ref = "HEAD~2"
+							}
+						}
+					}
+				`,
+			},
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
@@ -641,11 +689,14 @@ func TestHCLParserStack(t *testing.T) {
 	for _, tc := range []testcase{
 		{
 			name: "empty stack block",
-			input: `
-terramate {
-	required_version = ""
-}
-stack {}`,
+			input: cfgfile{
+				body: `
+					terramate {
+						required_version = ""
+					}
+					stack {}
+				`,
+			},
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{},
@@ -655,23 +706,29 @@ stack {}`,
 		},
 		{
 			name: "multiple stack blocks",
-			input: `
-terramate {}
-stack{}
-stack {}`,
+			input: cfgfile{
+				body: `
+					terramate {}
+					stack{}
+					stack{}
+				`,
+			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
 			name: "empty name",
-			input: `
-terramate {
-	required_version = ""
-}
-stack {
-	name = ""
-}`,
+			input: cfgfile{
+				body: `
+					terramate {
+						required_version = ""
+					}
+					stack {
+						name = ""
+					}
+				`,
+			},
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{},
@@ -681,50 +738,62 @@ stack {
 		},
 		{
 			name: "name is not a string - fails",
-			input: `
-terramate {
-	required_version = ""
-}
-stack {
-	name = 1
-}`,
+			input: cfgfile{
+				body: `
+					terramate {
+						required_version = ""
+					}
+					stack {
+						name = 1
+					}
+				`,
+			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
 			name: "name has interpolation - fails",
-			input: `
-terramate {
-	required_version = ""
-}
-stack {
-	name = "${test}"
-}`,
+			input: cfgfile{
+				body: `
+					terramate {
+						required_version = ""
+					}
+					stack {
+						name = "${test}"
+					}
+				`,
+			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
 			name: "unrecognized attribute name - fails",
-			input: `
-terramate {
-	required_version = ""
-}
-stack {
-	bleh = "a"
-}`,
+			input: cfgfile{
+				body: `
+					terramate {
+						required_version = ""
+					}
+					stack {
+						bleh = "a"
+					}
+				`,
+			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
 			name: "after: empty set works",
-			input: `
-terramate {
-	required_version = ""
-}
-stack {}`,
+			input: cfgfile{
+				body: `
+					terramate {
+						required_version = ""
+					}
+					stack {}
+				`,
+			},
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{},
@@ -734,14 +803,17 @@ stack {}`,
 		},
 		{
 			name: "'after' single entry",
-			input: `
-terramate {
-	required_version = ""
-}
+			input: cfgfile{
+				body: `
+					terramate {
+						required_version = ""
+					}
 
-stack {
-	after = ["test"]
-}`,
+					stack {
+						after = ["test"]
+					}
+				`,
+			},
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{},
@@ -753,73 +825,87 @@ stack {
 		},
 		{
 			name: "'after' invalid element entry",
-			input: `
-terramate {
-	required_version = ""
-}
+			input: cfgfile{
+				body: `
+					terramate {
+						required_version = ""
+					}
 
-stack {
-	after = [1]
-}`,
+					stack {
+						after = [1]
+					}
+				`,
+			},
 			want: want{
 				err: hcl.ErrStackInvalidRunOrder,
 			},
 		},
 		{
 			name: "'after' duplicated entry",
-			input: `
-terramate {
-	required_version = ""
-}
+			input: cfgfile{
+				body: `
+					terramate {
+						required_version = ""
+					}
 
-stack {
-	after = ["test", "test"]
-}`,
+					stack {
+						after = ["test", "test"]
+					}
+				`,
+			},
 			want: want{
 				err: hcl.ErrStackInvalidRunOrder,
 			},
 		},
 		{
 			name: "multiple 'after' fields - fails",
-			input: `
-terramate {
-	required_version = ""
-}
+			input: cfgfile{
+				body: `
+					terramate {
+						required_version = ""
+					}
 
-stack {
-	after = ["test"]
-	after = []
-}`,
+					stack {
+						after = ["test"]
+						after = []
+					}
+				`,
+			},
 			want: want{
 				err: hcl.ErrHCLSyntax,
 			},
 		},
 		{
 			name: "multiple 'before' fields - fails",
-			input: `
-terramate {
-	required_version = ""
-}
+			input: cfgfile{
+				body: `
+					terramate {
+						required_version = ""
+					}
 
-stack {
-	before = []
-	before = []
-}
-			`,
+					stack {
+						before = []
+						before = []
+					}
+				`,
+			},
 			want: want{
 				err: hcl.ErrHCLSyntax,
 			},
 		},
 		{
 			name: "'before' single entry",
-			input: `
-terramate {
-	required_version = ""
-}
+			input: cfgfile{
+				body: `
+					terramate {
+						required_version = ""
+					}
 
-stack {
-	before = ["something"]
-}`,
+					stack {
+						before = ["something"]
+					}
+				`,
+			},
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{},
@@ -831,14 +917,17 @@ stack {
 		},
 		{
 			name: "'before' multiple entries",
-			input: `
-terramate {
-	required_version = ""
-}
+			input: cfgfile{
+				body: `
+					terramate {
+						required_version = ""
+					}
 
-stack {
-	before = ["something", "something-else", "test"]
-}`,
+					stack {
+						before = ["something", "something-else", "test"]
+					}
+				`,
+			},
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{},
@@ -850,9 +939,13 @@ stack {
 		},
 		{
 			name: "stack with valid description",
-			input: ` stack {
-				description = "some cool description"
-			}`,
+			input: cfgfile{
+				body: `
+					stack {
+						description = "some cool description"
+					}
+				`,
+			},
 			want: want{
 				config: hcl.Config{
 					Stack: &hcl.Stack{
@@ -863,12 +956,15 @@ stack {
 		},
 		{
 			name: "stack with multiline description",
-			input: ` stack {
-				description =  <<-EOD
+			input: cfgfile{
+				body: `
+				stack {
+					description =  <<-EOD
 line1
 line2
 EOD
-			}`,
+				}`,
+			},
 			want: want{
 				config: hcl.Config{
 					Stack: &hcl.Stack{
@@ -879,15 +975,18 @@ EOD
 		},
 		{
 			name: "'before' and 'after'",
-			input: `
-terramate {
-	required_version = ""
-}
+			input: cfgfile{
+				body: `
+					terramate {
+						required_version = ""
+					}
 
-stack {
-	before = ["something"]
-	after = ["else"]
-}`,
+					stack {
+						before = ["something"]
+						after = ["else"]
+					}
+				`,
+			},
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{},
@@ -905,7 +1004,7 @@ stack {
 
 func testParser(t *testing.T, tc testcase) {
 	t.Run(tc.name, func(t *testing.T) {
-		got, err := hcl.Parse(tc.name, []byte(tc.input))
+		got, err := hcl.Parse(tc.name, []byte(tc.input.body))
 		assert.IsError(t, err, tc.want.err)
 
 		if tc.want.err == nil {
