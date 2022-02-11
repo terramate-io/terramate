@@ -910,14 +910,15 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 			}
 
 			if block.Type == "terramate" {
-				logger.Trace().
-					Msg("Found 'terramate' block type.")
+				logger.Trace().Msg("Found 'terramate' block type.")
+
 				if foundtm {
 					return Config{}, errutil.Chain(
 						ErrMalformedTerramateConfig,
 						fmt.Errorf("multiple terramate blocks in file %q", fname),
 					)
 				}
+
 				foundtm = true
 				tmblock = block
 				continue

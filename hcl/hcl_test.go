@@ -220,10 +220,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			},
 		},
 		{
-			// TODO(katcipis): this should work, if we allow
-			// multiple terramate{} in different files for different
-			// kinds of terramate config.
-			name: "multiple terramate blocks on same file",
+			name: "multiple empty terramate blocks on same file",
 			input: []cfgfile{
 				{
 					body: `
@@ -1092,6 +1089,52 @@ func TestHCLParserStack(t *testing.T) {
 			},
 		},
 	} {
+		testParser(t, tc)
+	}
+}
+
+func TestHCLParserTerramateBlocksMerge(t *testing.T) {
+	tcases := []testcase{
+		{
+			name: "single file and two terramate blocks",
+			input: []cfgfile{
+				{
+					filename: "version.tm",
+					body: `
+						terramate {
+							required_version = "0.0.1"
+						}
+					`,
+				},
+				{
+					filename: "config.tm",
+					body: `
+						terramate {
+							config {
+								git {
+									default_branch = "trunk"
+								}
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						RequiredVersion: "0.0.1",
+						RootConfig: &hcl.RootConfig{
+							Git: hcl.GitConfig{
+								DefaultBranch: "trunk",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range tcases {
 		testParser(t, tc)
 	}
 }
