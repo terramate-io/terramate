@@ -919,6 +919,8 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 					)
 				}
 
+				// TODO (Katcipis): handle multiple terramate blocks on same file
+				// It already works in multiple files.
 				foundtm = true
 				tmblock = block
 				continue
@@ -1047,7 +1049,10 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 		logger.Debug().Msg("Parsing stack cfg.")
 
 		if tmconfig.Stack != nil {
-			return Config{}, fmt.Errorf("found second stack block in file %q, only one allowed", fname)
+			return Config{}, fmt.Errorf(
+				"%w: found stack blocks in multiple files, only one block allowed",
+				ErrMalformedTerramateConfig,
+			)
 		}
 
 		tmconfig.Stack = &Stack{}

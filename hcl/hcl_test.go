@@ -1096,7 +1096,7 @@ func TestHCLParserStack(t *testing.T) {
 func TestHCLParserTerramateBlocksMerge(t *testing.T) {
 	tcases := []testcase{
 		{
-			name: "single file and two terramate blocks",
+			name: "two config file with terramate blocks",
 			input: []cfgfile{
 				{
 					filename: "version.tm",
@@ -1130,6 +1130,86 @@ func TestHCLParserTerramateBlocksMerge(t *testing.T) {
 						},
 					},
 				},
+			},
+		},
+		{
+			name: "three config files with terramate and stack blocks",
+			input: []cfgfile{
+				{
+					filename: "version.tm",
+					body: `
+						terramate {
+							required_version = "6.6.6"
+						}
+					`,
+				},
+				{
+					filename: "config.tm",
+					body: `
+						terramate {
+							config {
+								git {
+									default_branch = "trunk"
+								}
+							}
+						}
+					`,
+				},
+				{
+					filename: "stack.tm",
+					body: `
+						stack {
+							name = "stack"
+							description = "some stack"
+							after = ["after"]
+							before = ["before"]
+							wants = ["wants"]
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						RequiredVersion: "6.6.6",
+						RootConfig: &hcl.RootConfig{
+							Git: hcl.GitConfig{
+								DefaultBranch: "trunk",
+							},
+						},
+					},
+					Stack: &hcl.Stack{
+						Name:        "stack",
+						Description: "some stack",
+						After:       []string{"after"},
+						Before:      []string{"before"},
+						Wants:       []string{"wants"},
+					},
+				},
+			},
+		},
+		{
+			name: "multiple files with stack blocks fail",
+			input: []cfgfile{
+				{
+					filename: "stack_name.tm",
+					body: `
+						stack {
+							name = "stack"
+						}
+					`,
+				},
+				{
+					filename: "stack_desc.tm",
+					body: `
+						stack {
+							description = "some stack"
+						}
+					`,
+				},
+			},
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 	}
