@@ -436,8 +436,8 @@ func Parse(fname string, data []byte) (Config, error) {
 		return tmconfig, nil
 	}
 
-	logger.Debug().
-		Msg("Parse stack.")
+	logger.Debug().Msg("Parse stack.")
+
 	tmconfig.Stack = &Stack{}
 	err = parseStack(tmconfig.Stack, stackblock)
 	if err != nil {

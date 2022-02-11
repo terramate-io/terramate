@@ -34,7 +34,7 @@ type cfgfile struct {
 }
 type testcase struct {
 	name  string
-	input cfgfile
+	input []cfgfile
 	want  want
 }
 
@@ -165,8 +165,10 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 	for _, tc := range []testcase{
 		{
 			name: "unrecognized block",
-			input: cfgfile{
-				body: `something {}`,
+			input: []cfgfile{
+				{
+					body: `something {}`,
+				},
 			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -174,11 +176,13 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 		},
 		{
 			name: "unrecognized attribute",
-			input: cfgfile{
-				body: `
-					terramate{}
-					something = 1
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate{}
+						something = 1
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -186,12 +190,14 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 		},
 		{
 			name: "unrecognized attribute inside terramate block",
-			input: cfgfile{
-				body: `
-					terramate{
-						something = 1
-					}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate{
+							something = 1
+						}
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -199,11 +205,13 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 		},
 		{
 			name: "unrecognized block",
-			input: cfgfile{
-				body: `terramate{
-						something {}
-					}
-				`,
+			input: []cfgfile{
+				{
+					body: `terramate{
+							something {}
+						}
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -214,11 +222,13 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			// multiple terramate{} in different files for different
 			// kinds of terramate config.
 			name: "multiple terramate blocks on same file",
-			input: cfgfile{
-				body: `
-					terramate{}
-					terramate{}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate{}
+						terramate{}
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -232,12 +242,14 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 		},
 		{
 			name: "invalid version",
-			input: cfgfile{
-				body: `
-					terramate {
-						required_version = 1
-					}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							required_version = 1
+						}
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -245,12 +257,14 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 		},
 		{
 			name: "interpolation not allowed at req_version",
-			input: cfgfile{
-				body: `
-					terramate {
-						required_version = "${test.version}"
-					}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							required_version = "${test.version}"
+						}
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -258,12 +272,14 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 		},
 		{
 			name: "invalid attribute",
-			input: cfgfile{
-				body: `
-					terramate {
-						version = 1
-					}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							version = 1
+						}
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -271,12 +287,14 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 		},
 		{
 			name: "required_version > 0.0.0",
-			input: cfgfile{
-				body: `
-					terramate {
-					       required_version = "> 0.0.0"
-					}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+						       required_version = "> 0.0.0"
+						}
+					`,
+				},
 			},
 			want: want{
 				config: hcl.Config{
@@ -295,14 +313,16 @@ func TestHCLParserBackend(t *testing.T) {
 	for _, tc := range []testcase{
 		{
 			name: "backend with attributes",
-			input: cfgfile{
-				body: `
-					terramate {
-						backend "something" {
-							something = "something else"
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							backend "something" {
+								something = "something else"
+							}
 						}
-					}
-				`,
+					`,
+				},
 			},
 			want: want{
 				config: hcl.Config{
@@ -317,15 +337,17 @@ func TestHCLParserBackend(t *testing.T) {
 		},
 		{
 			name: "multiple backend blocks - fails",
-			input: cfgfile{
-				body: `
-					terramate {
-						backend "ah" {}
-						backend "something" {
-							something = "something else"
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							backend "ah" {}
+							backend "something" {
+								something = "something else"
+							}
 						}
-					}
-				`,
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -333,17 +355,19 @@ func TestHCLParserBackend(t *testing.T) {
 		},
 		{
 			name: "backend with nested blocks",
-			input: cfgfile{
-				body: `
-					terramate {
-						backend "my-label" {
-							something = "something else"
-							other {
-								test = 1
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							backend "my-label" {
+								something = "something else"
+								other {
+									test = 1
+								}
 							}
 						}
-					}
-				`,
+					`,
+				},
 			},
 			want: want{
 				config: hcl.Config{
@@ -358,14 +382,16 @@ func TestHCLParserBackend(t *testing.T) {
 		},
 		{
 			name: "backend with no labels - fails",
-			input: cfgfile{
-				body: `
-					terramate {
-						backend {
-							something = "something else"
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							backend {
+								something = "something else"
+							}
 						}
-					}
-				`,
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -373,14 +399,16 @@ func TestHCLParserBackend(t *testing.T) {
 		},
 		{
 			name: "backend with more than 1 label - fails",
-			input: cfgfile{
-				body: `
-					terramate {
-						backend "1" "2" {
-							something = "something else"
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							backend "1" "2" {
+								something = "something else"
+							}
 						}
-					}
-				`,
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -388,13 +416,15 @@ func TestHCLParserBackend(t *testing.T) {
 		},
 		{
 			name: "empty backend",
-			input: cfgfile{
-				body: `
-					terramate {
-						   backend "something" {
-						   }
-					}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							   backend "something" {
+							   }
+						}
+					`,
+				},
 			},
 			want: want{
 				config: hcl.Config{
@@ -416,8 +446,10 @@ func TestHCLParserRootConfig(t *testing.T) {
 	for _, tc := range []testcase{
 		{
 			name: "no config returns empty config",
-			input: cfgfile{
-				body: `terramate {}`,
+			input: []cfgfile{
+				{
+					body: `terramate {}`,
+				},
 			},
 			want: want{
 				config: hcl.Config{
@@ -427,12 +459,14 @@ func TestHCLParserRootConfig(t *testing.T) {
 		},
 		{
 			name: "empty config block returns empty config",
-			input: cfgfile{
-				body: `
-					terramate {
-						config {}
-					}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							config {}
+						}
+					`,
+				},
 			},
 			want: want{
 				config: hcl.Config{
@@ -444,14 +478,16 @@ func TestHCLParserRootConfig(t *testing.T) {
 		},
 		{
 			name: "unrecognized config attribute",
-			input: cfgfile{
-				body: `
-					terramate {
-						config {
-							something = "bleh"
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							config {
+								something = "bleh"
+							}
 						}
-					}
-				`,
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -459,14 +495,16 @@ func TestHCLParserRootConfig(t *testing.T) {
 		},
 		{
 			name: "empty config.git block",
-			input: cfgfile{
-				body: `
-					terramate {
-						config {
-							git {}
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							config {
+								git {}
+							}
 						}
-					}
-				`,
+					`,
+				},
 			},
 			want: want{
 				config: hcl.Config{
@@ -478,13 +516,15 @@ func TestHCLParserRootConfig(t *testing.T) {
 		},
 		{
 			name: "multiple config blocks - fails",
-			input: cfgfile{
-				body: `
-					terramate {
-						config {}
-						config {}
-					}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							config {}
+							config {}
+						}
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -492,15 +532,17 @@ func TestHCLParserRootConfig(t *testing.T) {
 		},
 		{
 			name: "multiple config.git blocks - fails",
-			input: cfgfile{
-				body: `
-					terramate {
-						config {
-							git {}
-							git {}
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							config {
+								git {}
+								git {}
+							}
 						}
-					}
-				`,
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -508,15 +550,17 @@ func TestHCLParserRootConfig(t *testing.T) {
 		},
 		{
 			name: "multiple config.generate blocks - fails",
-			input: cfgfile{
-				body: `
-					terramate {
-					  config {
-					    generate {}
-					    generate {}
-					  }
-					}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+						  config {
+						    generate {}
+						    generate {}
+						  }
+						}
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -524,16 +568,18 @@ func TestHCLParserRootConfig(t *testing.T) {
 		},
 		{
 			name: "config.generate block with unknown attribute",
-			input: cfgfile{
-				body: `
-					terramate {
-					  config {
-					    generate {
-					      very_unknown_attribute = "oopsie"
-					    }
-					  }
-					}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+						  config {
+						    generate {
+						      very_unknown_attribute = "oopsie"
+						    }
+						  }
+						}
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -541,16 +587,18 @@ func TestHCLParserRootConfig(t *testing.T) {
 		},
 		{
 			name: "basic config.git block",
-			input: cfgfile{
-				body: `
-					terramate {
-						config {
-							git {
-								default_branch = "trunk"
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							config {
+								git {
+									default_branch = "trunk"
+								}
 							}
 						}
-					}
-				`,
+					`,
+				},
 			},
 			want: want{
 				config: hcl.Config{
@@ -566,15 +614,17 @@ func TestHCLParserRootConfig(t *testing.T) {
 		},
 		{
 			name: "empty config.generate block",
-			input: cfgfile{
-				body: `
-					terramate {
-					  config {
-					    generate {
-					    }
-					  }
-					}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+						  config {
+						    generate {
+						    }
+						  }
+						}
+					`,
+				},
 			},
 			want: want{
 				config: hcl.Config{
@@ -588,17 +638,19 @@ func TestHCLParserRootConfig(t *testing.T) {
 		},
 		{
 			name: "full config.generate block",
-			input: cfgfile{
-				body: `
-					terramate {
-					  config {
-					    generate {
-					      backend_config_filename = "backend.tf"
-					      locals_filename = "locals.tf"
-					    }
-					  }
-					}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+						  config {
+						    generate {
+						      backend_config_filename = "backend.tf"
+						      locals_filename = "locals.tf"
+						    }
+						  }
+						}
+					`,
+				},
 			},
 			want: want{
 				config: hcl.Config{
@@ -615,17 +667,19 @@ func TestHCLParserRootConfig(t *testing.T) {
 		},
 		{
 			name: "config.generate with conflicting config fails",
-			input: cfgfile{
-				body: `
-					terramate {
-					  config {
-					    generate {
-					      backend_config_filename = "file.tf"
-					      locals_filename = "file.tf"
-					    }
-					  }
-					}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+						  config {
+						    generate {
+						      backend_config_filename = "file.tf"
+						      locals_filename = "file.tf"
+						    }
+						  }
+						}
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -633,17 +687,19 @@ func TestHCLParserRootConfig(t *testing.T) {
 		},
 		{
 			name: "config.generate block with invalid cfg",
-			input: cfgfile{
-				body: `
-					terramate {
-					  config {
-					    generate {
-					      backend_config_filename = true
-					      locals_filename = 666
-					    }
-					  }
-					}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+						  config {
+						    generate {
+						      backend_config_filename = true
+						      locals_filename = 666
+						    }
+						  }
+						}
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -651,19 +707,21 @@ func TestHCLParserRootConfig(t *testing.T) {
 		},
 		{
 			name: "all fields set for config.git",
-			input: cfgfile{
-				body: `
-					terramate {
-						config {
-							git {
-								default_branch = "trunk"
-								default_remote = "upstream"
-								base_ref = "upstream/trunk"
-								default_branch_base_ref = "HEAD~2"
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							config {
+								git {
+									default_branch = "trunk"
+									default_remote = "upstream"
+									base_ref = "upstream/trunk"
+									default_branch_base_ref = "HEAD~2"
+								}
 							}
 						}
-					}
-				`,
+					`,
+				},
 			},
 			want: want{
 				config: hcl.Config{
@@ -689,13 +747,15 @@ func TestHCLParserStack(t *testing.T) {
 	for _, tc := range []testcase{
 		{
 			name: "empty stack block",
-			input: cfgfile{
-				body: `
-					terramate {
-						required_version = ""
-					}
-					stack {}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							required_version = ""
+						}
+						stack {}
+					`,
+				},
 			},
 			want: want{
 				config: hcl.Config{
@@ -706,12 +766,14 @@ func TestHCLParserStack(t *testing.T) {
 		},
 		{
 			name: "multiple stack blocks",
-			input: cfgfile{
-				body: `
-					terramate {}
-					stack{}
-					stack{}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate {}
+						stack{}
+						stack{}
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -719,15 +781,17 @@ func TestHCLParserStack(t *testing.T) {
 		},
 		{
 			name: "empty name",
-			input: cfgfile{
-				body: `
-					terramate {
-						required_version = ""
-					}
-					stack {
-						name = ""
-					}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							required_version = ""
+						}
+						stack {
+							name = ""
+						}
+					`,
+				},
 			},
 			want: want{
 				config: hcl.Config{
@@ -738,15 +802,17 @@ func TestHCLParserStack(t *testing.T) {
 		},
 		{
 			name: "name is not a string - fails",
-			input: cfgfile{
-				body: `
-					terramate {
-						required_version = ""
-					}
-					stack {
-						name = 1
-					}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							required_version = ""
+						}
+						stack {
+							name = 1
+						}
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -754,15 +820,17 @@ func TestHCLParserStack(t *testing.T) {
 		},
 		{
 			name: "name has interpolation - fails",
-			input: cfgfile{
-				body: `
-					terramate {
-						required_version = ""
-					}
-					stack {
-						name = "${test}"
-					}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							required_version = ""
+						}
+						stack {
+							name = "${test}"
+						}
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -770,15 +838,17 @@ func TestHCLParserStack(t *testing.T) {
 		},
 		{
 			name: "unrecognized attribute name - fails",
-			input: cfgfile{
-				body: `
-					terramate {
-						required_version = ""
-					}
-					stack {
-						bleh = "a"
-					}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							required_version = ""
+						}
+						stack {
+							bleh = "a"
+						}
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrMalformedTerramateConfig,
@@ -786,13 +856,15 @@ func TestHCLParserStack(t *testing.T) {
 		},
 		{
 			name: "after: empty set works",
-			input: cfgfile{
-				body: `
-					terramate {
-						required_version = ""
-					}
-					stack {}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							required_version = ""
+						}
+						stack {}
+					`,
+				},
 			},
 			want: want{
 				config: hcl.Config{
@@ -803,16 +875,18 @@ func TestHCLParserStack(t *testing.T) {
 		},
 		{
 			name: "'after' single entry",
-			input: cfgfile{
-				body: `
-					terramate {
-						required_version = ""
-					}
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							required_version = ""
+						}
 
-					stack {
-						after = ["test"]
-					}
-				`,
+						stack {
+							after = ["test"]
+						}
+					`,
+				},
 			},
 			want: want{
 				config: hcl.Config{
@@ -825,16 +899,18 @@ func TestHCLParserStack(t *testing.T) {
 		},
 		{
 			name: "'after' invalid element entry",
-			input: cfgfile{
-				body: `
-					terramate {
-						required_version = ""
-					}
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							required_version = ""
+						}
 
-					stack {
-						after = [1]
-					}
-				`,
+						stack {
+							after = [1]
+						}
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrStackInvalidRunOrder,
@@ -842,16 +918,18 @@ func TestHCLParserStack(t *testing.T) {
 		},
 		{
 			name: "'after' duplicated entry",
-			input: cfgfile{
-				body: `
-					terramate {
-						required_version = ""
-					}
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							required_version = ""
+						}
 
-					stack {
-						after = ["test", "test"]
-					}
-				`,
+						stack {
+							after = ["test", "test"]
+						}
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrStackInvalidRunOrder,
@@ -859,17 +937,19 @@ func TestHCLParserStack(t *testing.T) {
 		},
 		{
 			name: "multiple 'after' fields - fails",
-			input: cfgfile{
-				body: `
-					terramate {
-						required_version = ""
-					}
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							required_version = ""
+						}
 
-					stack {
-						after = ["test"]
-						after = []
-					}
-				`,
+						stack {
+							after = ["test"]
+							after = []
+						}
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrHCLSyntax,
@@ -877,17 +957,19 @@ func TestHCLParserStack(t *testing.T) {
 		},
 		{
 			name: "multiple 'before' fields - fails",
-			input: cfgfile{
-				body: `
-					terramate {
-						required_version = ""
-					}
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							required_version = ""
+						}
 
-					stack {
-						before = []
-						before = []
-					}
-				`,
+						stack {
+							before = []
+							before = []
+						}
+					`,
+				},
 			},
 			want: want{
 				err: hcl.ErrHCLSyntax,
@@ -895,16 +977,18 @@ func TestHCLParserStack(t *testing.T) {
 		},
 		{
 			name: "'before' single entry",
-			input: cfgfile{
-				body: `
-					terramate {
-						required_version = ""
-					}
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							required_version = ""
+						}
 
-					stack {
-						before = ["something"]
-					}
-				`,
+						stack {
+							before = ["something"]
+						}
+					`,
+				},
 			},
 			want: want{
 				config: hcl.Config{
@@ -917,16 +1001,18 @@ func TestHCLParserStack(t *testing.T) {
 		},
 		{
 			name: "'before' multiple entries",
-			input: cfgfile{
-				body: `
-					terramate {
-						required_version = ""
-					}
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							required_version = ""
+						}
 
-					stack {
-						before = ["something", "something-else", "test"]
-					}
-				`,
+						stack {
+							before = ["something", "something-else", "test"]
+						}
+					`,
+				},
 			},
 			want: want{
 				config: hcl.Config{
@@ -939,12 +1025,14 @@ func TestHCLParserStack(t *testing.T) {
 		},
 		{
 			name: "stack with valid description",
-			input: cfgfile{
-				body: `
-					stack {
-						description = "some cool description"
-					}
-				`,
+			input: []cfgfile{
+				{
+					body: `
+						stack {
+							description = "some cool description"
+						}
+					`,
+				},
 			},
 			want: want{
 				config: hcl.Config{
@@ -956,14 +1044,16 @@ func TestHCLParserStack(t *testing.T) {
 		},
 		{
 			name: "stack with multiline description",
-			input: cfgfile{
-				body: `
-				stack {
-					description =  <<-EOD
-line1
-line2
-EOD
-				}`,
+			input: []cfgfile{
+				{
+					body: `
+					stack {
+						description =  <<-EOD
+	line1
+	line2
+	EOD
+					}`,
+				},
 			},
 			want: want{
 				config: hcl.Config{
@@ -975,17 +1065,19 @@ EOD
 		},
 		{
 			name: "'before' and 'after'",
-			input: cfgfile{
-				body: `
-					terramate {
-						required_version = ""
-					}
+			input: []cfgfile{
+				{
+					body: `
+						terramate {
+							required_version = ""
+						}
 
-					stack {
-						before = ["something"]
-						after = ["else"]
-					}
-				`,
+						stack {
+							before = ["something"]
+							after = ["else"]
+						}
+					`,
+				},
 			},
 			want: want{
 				config: hcl.Config{
@@ -1004,7 +1096,15 @@ EOD
 
 func testParser(t *testing.T, tc testcase) {
 	t.Run(tc.name, func(t *testing.T) {
-		got, err := hcl.Parse(tc.name, []byte(tc.input.body))
+		configsDir := t.TempDir()
+		for _, inputConfigFile := range tc.input {
+			filename := inputConfigFile.filename
+			//if filename == "" {
+			//filename = config.Filename
+			//}
+			test.WriteFile(t, configsDir, filename, inputConfigFile.body)
+		}
+		got, err := hcl.ParseDir(configsDir)
 		assert.IsError(t, err, tc.want.err)
 
 		if tc.want.err == nil {
