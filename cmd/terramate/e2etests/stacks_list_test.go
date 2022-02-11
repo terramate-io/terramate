@@ -106,6 +106,16 @@ z/a
 	}
 }
 
+func TestListStackWithDefinitionOnNonDefaultFilename(t *testing.T) {
+	s := sandbox.New(t)
+	s.BuildTree([]string{"d:stack"})
+	stackDir := s.DirEntry("stack")
+	stackDir.CreateFile("stack.tm", "stack {}")
+
+	cli := newCLI(t, s.RootDir())
+	assertRunResult(t, cli.run("stacks", "list"), runExpected{Stdout: "stack\n"})
+}
+
 func TestListStackWithNoTerramateBlock(t *testing.T) {
 	s := sandbox.New(t)
 	s.BuildTree([]string{"s:stack"})
