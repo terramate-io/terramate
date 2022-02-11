@@ -19,6 +19,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/rs/zerolog"
@@ -1099,9 +1100,9 @@ func testParser(t *testing.T, tc testcase) {
 		configsDir := t.TempDir()
 		for _, inputConfigFile := range tc.input {
 			filename := inputConfigFile.filename
-			//if filename == "" {
-			//filename = config.Filename
-			//}
+			if filename == "" {
+				filename = config.DefaultFilename
+			}
 			test.WriteFile(t, configsDir, filename, inputConfigFile.body)
 		}
 		got, err := hcl.ParseDir(configsDir)

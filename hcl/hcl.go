@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -254,7 +255,21 @@ func ParseBody(src []byte, filename string) (*hclsyntax.Body, error) {
 // ParseDir will parse Terramate configuration from a given directory,
 // parsing all files with the suffixes .tm and .tm.hcl.
 func ParseDir(dir string) (Config, error) {
-	return Config{}, nil
+	logger := log.With().
+		Str("action", "ParseDir()").
+		Str("dir", dir).
+		Logger()
+
+	logger.Trace().Msg("loading parser for configuration files")
+
+	loadedParser, err := loadCfgBlocks(dir)
+	if err != nil {
+		return Config{}, fmt.Errorf("loading parser for config files: %w", err)
+	}
+
+	logger.Trace().Msg("creating config from loaded parser")
+
+	return newCfgFromParsedHCLs(dir, loadedParser)
 }
 
 // Parse parses Terramate configuration from a file.
@@ -688,8 +703,8 @@ func assignSet(name string, target *[]string, val cty.Value) error {
 		elems = append(elems, v)
 	}
 
-	logger.Trace().
-		Msg("Sort elements.")
+	logger.Trace().Msg("Sort elements.")
+
 	sort.Strings(elems)
 	*target = elems
 	return nil
@@ -717,8 +732,8 @@ func parseStack(stack *Stack, stackblock *hclsyntax.Block) error {
 		switch name {
 
 		case "name":
-			logger.Trace().
-				Msg("Attribute name was 'name'.")
+			logger.Trace().Msg("Attribute name was 'name'.")
+
 			if attrVal.Type() != cty.String {
 				return errutil.Chain(ErrMalformedTerramateConfig,
 					fmt.Errorf("field stack.\"name\" must be a \"string\" but given %q",
@@ -728,24 +743,23 @@ func parseStack(stack *Stack, stackblock *hclsyntax.Block) error {
 			stack.Name = attrVal.AsString()
 
 		case "after":
-			logger.Trace().
-				Msg("Attribute name was 'after'.")
+			logger.Trace().Msg("Attribute name was 'after'.")
+
 			err := assignSet(name, &stack.After, attrVal)
 			if err != nil {
 				return err
 			}
 
 		case "before":
-			logger.Trace().
-				Msg("Attribute name was 'before'.")
+			logger.Trace().Msg("Attribute name was 'before'.")
+
 			err := assignSet(name, &stack.Before, attrVal)
 			if err != nil {
 				return err
 			}
 
 		case "wants":
-			logger.Trace().
-				Msg("Attribute name was 'wants'.")
+			logger.Trace().Msg("Attribute name was 'wants'.")
 
 			err := assignSet(name, &stack.Wants, attrVal)
 			if err != nil {
@@ -1010,14 +1024,60 @@ func blockIsAllowed(name string) bool {
 	}
 }
 
-type terramateCfgBlock struct {
-	filename string
-	body     *hclsyntax.Body
+func loadCfgBlocks(dir string) (*hclparse.Parser, error) {
+	logger := log.With().
+		Str("action", "loadCfgBlocks()").
+		Str("dir", dir).
+		Logger()
+
+	logger.Trace().Msg("listing files")
+
+	dirEntries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("reading files to load terramate cfg: %v", err)
+	}
+
+	logger.Trace().Msg("looking for Terramate files")
+
+	parser := hclparse.NewParser()
+
+	for _, dirEntry := range dirEntries {
+		logger := logger.With().
+			Str("entryName", dirEntry.Name()).
+			Logger()
+
+		if dirEntry.IsDir() {
+			logger.Trace().Msg("ignoring dir")
+			continue
+		}
+
+		filename := dirEntry.Name()
+		if strings.HasSuffix(filename, ".tm") || strings.HasSuffix(filename, ".tm.hcl") {
+			logger.Trace().Msg("found Terramate config, reading file")
+
+			path := filepath.Join(dir, filename)
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return nil, fmt.Errorf("reading Terramate config %q: %v", path, err)
+			}
+
+			logger.Trace().Msg("Terramate config read, parsing it")
+
+			_, diags := parser.ParseHCL(data, filename)
+			if diags.HasErrors() {
+				return nil, errutil.Chain(ErrHCLSyntax, diags)
+			}
+
+			logger.Trace().Msg("Terramate config file parsed successfully")
+		}
+	}
+
+	return parser, nil
 }
 
-func parseTerramateConfig(dir string, cfgBlocks []terramateCfgBlock) (Config, error) {
+func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 	logger := log.With().
-		Str("action", "parseTerramateConfig()").
+		Str("action", "newCfgFromParsedHCLs()").
 		Str("dir", dir).
 		Logger()
 
@@ -1025,12 +1085,15 @@ func parseTerramateConfig(dir string, cfgBlocks []terramateCfgBlock) (Config, er
 		absdir: dir,
 	}
 
-	for _, cfgBlock := range cfgBlocks {
-		fname := cfgBlock.filename
-		body := cfgBlock.body
+	for fname, hclfile := range parser.Files() {
 		logger := logger.With().
 			Str("filename", fname).
 			Logger()
+
+		body, ok := hclfile.Body.(*hclsyntax.Body)
+		if !ok {
+			return Config{}, fmt.Errorf("can't get hcl body of file %q", fname)
+		}
 
 		logger.Trace().Msg("checking for attributes.")
 
