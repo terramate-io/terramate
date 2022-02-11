@@ -87,7 +87,7 @@ func loadStackExportedLocalExprs(rootdir string, cfgdir string) (exportedLocalEx
 
 	logger.Trace().
 		Msg("Get config file path.")
-	cfgpath := filepath.Join(rootdir, cfgdir, config.Filename)
+	cfgpath := filepath.Join(rootdir, cfgdir, config.DefaultFilename)
 
 	logger = logger.With().
 		Str("configFile", cfgpath).

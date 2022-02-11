@@ -962,7 +962,7 @@ globals {
 
 			for _, cfg := range tcase.configs {
 				dir := filepath.Join(s.RootDir(), cfg.relpath)
-				test.WriteFile(t, dir, config.Filename, cfg.config)
+				test.WriteFile(t, dir, config.DefaultFilename, cfg.config)
 			}
 
 			workingDir := filepath.Join(s.RootDir(), tcase.workingDir)
@@ -996,7 +996,7 @@ func TestWontOverwriteManuallyDefinedBackendConfig(t *testing.T) {
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		fmt.Sprintf("f:%s:%s", config.Filename, rootTerramateConfig.String()),
+		fmt.Sprintf("f:%s:%s", config.DefaultFilename, rootTerramateConfig.String()),
 		"s:stack",
 		fmt.Sprintf("f:stack/%s:%s", generate.BackendCfgFilename, manualContents),
 	})

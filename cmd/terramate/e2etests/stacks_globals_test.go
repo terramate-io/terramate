@@ -234,7 +234,7 @@ stack "/stacks/stack-2":
 
 			for _, globalBlock := range tcase.globals {
 				path := filepath.Join(s.RootDir(), globalBlock.path)
-				test.AppendFile(t, path, config.Filename, globalBlock.add.String())
+				test.AppendFile(t, path, config.DefaultFilename, globalBlock.add.String())
 			}
 
 			ts := newCLI(t, project.AbsPath(s.RootDir(), tcase.wd))

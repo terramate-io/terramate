@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	// Filename is the name of the terramate configuration file.
-	Filename = "terramate.tm.hcl"
+	// DefaultFilename is the name of the default Terramate configuration file.
+	DefaultFilename = "terramate.tm.hcl"
 
 	// DefaultInitConstraint is the default constraint used in stack initialization.
 	DefaultInitConstraint = "~>"
@@ -52,7 +52,7 @@ func Exists(path string) bool {
 
 	logger.Trace().
 		Msg("Look for config file within directory.")
-	fname := filepath.Join(path, Filename)
+	fname := filepath.Join(path, DefaultFilename)
 	info, err := os.Stat(fname)
 	if err != nil {
 		return false
@@ -62,7 +62,7 @@ func Exists(path string) bool {
 }
 
 func TryLoadRootConfig(dir string) (cfg hcl.Config, found bool, err error) {
-	path := filepath.Join(dir, Filename)
+	path := filepath.Join(dir, DefaultFilename)
 	logger := log.With().
 		Str("action", "TryLoadRootConfig()").
 		Str("path", dir).
