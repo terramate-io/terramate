@@ -23,7 +23,6 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/cmd/terramate/cli"
-	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -217,8 +216,8 @@ func TestStacksInit(t *testing.T) {
 			}
 
 			for _, path := range tc.input {
-				data := test.ReadFile(t, s.RootDir(), filepath.Join(path, config.DefaultFilename))
-				got, err := hcl.Parse("TestInitHCL", data)
+				dir := filepath.Join(s.RootDir(), path)
+				got, err := hcl.ParseDir(dir)
 				assert.NoError(t, err, "parsing terramate file")
 
 				want := hcl.Config{
