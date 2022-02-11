@@ -15,6 +15,7 @@
 package hcl_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -1112,6 +1113,35 @@ func testParser(t *testing.T, tc testcase) {
 			test.AssertTerramateConfig(t, got, tc.want.config)
 		}
 	})
+
+	// This is a lazy way to piggyback on our current set of tests
+	// to test that we have identical behavior when configuration
+	// is on a different file that is not Terramate default.
+	// Old tests don't inform a specific filename (assuming default).
+	// We use this to test each of these simple scenarios with
+	// different filenames (other than default).
+	if len(tc.input) != 1 || tc.input[0].filename != "" {
+		return
+	}
+
+	validConfigFilenames := []string{
+		"config.tm",
+		"config.tm.hcl",
+	}
+
+	for _, filename := range validConfigFilenames {
+		newtc := testcase{
+			name: fmt.Sprintf("%s with filename %s", tc.name, filename),
+			input: []cfgfile{
+				{
+					filename: filename,
+					body:     tc.input[0].body,
+				},
+			},
+			want: tc.want,
+		}
+		testParser(t, newtc)
+	}
 }
 
 func init() {
