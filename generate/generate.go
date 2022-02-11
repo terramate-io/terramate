@@ -26,7 +26,6 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate"
-	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
@@ -533,46 +532,22 @@ func generateBackendCfgCode(
 		Str("configDir", configdir).
 		Logger()
 
-	logger.Trace().
-		Msg("Check if config dir outside of root dir.")
+	logger.Trace().Msg("Check if config dir outside of root dir.")
 
 	if !strings.HasPrefix(configdir, root) {
 		// check if we are outside of project's root, time to stop
 		return "", nil
 	}
 
-	logger.Trace().
-		Msg("Get config file path.")
-	configfile := filepath.Join(configdir, config.DefaultFilename)
+	logger.Trace().Msg("Load stack backend config.")
 
-	logger = logger.With().
-		Str("configFile", configfile).
-		Logger()
-
-	logger.Trace().
-		Msg("Load stack backend config.")
-	if _, err := os.Stat(configfile); err != nil {
-		// FIXME(katcipis): use  os.IsNotExist(err) to handle errors properly.
-		// Unknown stat errors will be ignored right now.
-		return generateBackendCfgCode(root, stackpath, stackMetadata, globals, filepath.Dir(configdir))
-	}
-
-	logger.Debug().
-		Msg("Read config file.")
-	config, err := os.ReadFile(configfile)
+	parsedConfig, err := hcl.ParseDir(configdir)
 	if err != nil {
-		return "", fmt.Errorf("reading config: %v", err)
+		return "", fmt.Errorf("loading backend config from %q: %v", configdir, err)
 	}
 
-	logger.Debug().
-		Msg("Parse config file.")
-	parsedConfig, err := hcl.Parse(configfile, config)
-	if err != nil {
-		return "", fmt.Errorf("parsing config: %w", err)
-	}
+	logger.Trace().Msg("Check if we have Terramate block")
 
-	logger.Trace().
-		Msg("Check if parsed is empty.")
 	parsed := parsedConfig.Terramate
 	if parsed == nil || parsed.Backend == nil {
 		return generateBackendCfgCode(root, stackpath, stackMetadata, globals, filepath.Dir(configdir))
