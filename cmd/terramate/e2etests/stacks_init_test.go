@@ -217,7 +217,7 @@ func TestStacksInit(t *testing.T) {
 			}
 
 			for _, path := range tc.input {
-				data := test.ReadFile(t, s.RootDir(), filepath.Join(path, config.Filename))
+				data := test.ReadFile(t, s.RootDir(), filepath.Join(path, config.DefaultFilename))
 				got, err := hcl.Parse("TestInitHCL", data)
 				assert.NoError(t, err, "parsing terramate file")
 

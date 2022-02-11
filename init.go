@@ -81,7 +81,7 @@ func Init(root, dir string, force bool) error {
 
 	logger.Trace().Msg("Get stack file.")
 
-	stackfile := filepath.Join(dir, config.Filename)
+	stackfile := filepath.Join(dir, config.DefaultFilename)
 	isInitialized := false
 
 	logger = log.With().
@@ -142,7 +142,7 @@ func Init(root, dir string, force bool) error {
 
 	logger.Debug().Msg("Save configuration.")
 
-	err = cfg.Save(config.Filename)
+	err = cfg.Save(config.DefaultFilename)
 	if err != nil {
 		return fmt.Errorf("failed to write %q: %w", stackfile, err)
 	}

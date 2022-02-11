@@ -162,7 +162,7 @@ func TestListDetectChangesInSubDirOfStackWithOtherConfigs(t *testing.T) {
 	subsubdir := subdir.CreateDir("dir")
 	subsubfile := subsubdir.CreateFile("something.sh", "# nothing")
 
-	subdir.CreateFile(config.Filename, `
+	subdir.CreateFile(config.DefaultFilename, `
 terramate {
 	
 }	

@@ -604,7 +604,7 @@ func TestLoadGlobals(t *testing.T) {
 
 			for _, globalBlock := range tcase.globals {
 				path := filepath.Join(s.RootDir(), globalBlock.path)
-				test.AppendFile(t, path, config.Filename, globalBlock.add.String())
+				test.AppendFile(t, path, config.DefaultFilename, globalBlock.add.String())
 			}
 
 			wantGlobals := tcase.want
@@ -796,7 +796,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 
 			for _, c := range tcase.configs {
 				path := filepath.Join(s.RootDir(), c.path)
-				test.AppendFile(t, path, config.Filename, c.body)
+				test.AppendFile(t, path, config.DefaultFilename, c.body)
 			}
 
 			stackEntries, err := terramate.ListStacks(s.RootDir())

@@ -119,7 +119,7 @@ func TestLoadMetadata(t *testing.T) {
 		{
 			name: "single invalid stack",
 			layout: []string{
-				fmt.Sprintf("f:invalid-stack/%s:data=%s", config.Filename, invalidHCL),
+				fmt.Sprintf("f:invalid-stack/%s:data=%s", config.DefaultFilename, invalidHCL),
 			},
 			wantErr: hcl.ErrHCLSyntax,
 		},
@@ -127,7 +127,7 @@ func TestLoadMetadata(t *testing.T) {
 			name: "valid stack with invalid stack",
 			layout: []string{
 				"s:stack-valid-1",
-				fmt.Sprintf("f:invalid-stack/%s:data=%s", config.Filename, invalidHCL),
+				fmt.Sprintf("f:invalid-stack/%s:data=%s", config.DefaultFilename, invalidHCL),
 			},
 			wantErr: hcl.ErrHCLSyntax,
 		},

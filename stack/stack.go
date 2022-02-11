@@ -166,7 +166,7 @@ func TryLoad(root, absdir string) (stack S, found bool, err error) {
 		return S{}, false, err
 	}
 
-	fname := filepath.Join(absdir, config.Filename)
+	fname := filepath.Join(absdir, config.DefaultFilename)
 
 	logger.Debug().
 		Str("configFile", fname).

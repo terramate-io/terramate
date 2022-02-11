@@ -352,7 +352,7 @@ func TestGenerateStackConfigLoad(t *testing.T) {
 
 			for _, cfg := range tcase.configs {
 				path := filepath.Join(s.RootDir(), cfg.path)
-				test.WriteFile(t, path, config.Filename, cfg.body.String())
+				test.WriteFile(t, path, config.DefaultFilename, cfg.body.String())
 			}
 
 			got, err := generate.LoadStackCfg(s.RootDir(), stack)
