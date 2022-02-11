@@ -20,7 +20,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
@@ -160,10 +159,6 @@ func TryLoad(root, absdir string) (stack S, found bool, err error) {
 	if !strings.HasPrefix(absdir, root) {
 		return S{}, false, fmt.Errorf("directory %q is not inside project root %q",
 			absdir, root)
-	}
-
-	if ok := config.Exists(absdir); !ok {
-		return S{}, false, err
 	}
 
 	logger.Debug().Msg("Parsing configuration.")
