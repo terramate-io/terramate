@@ -848,6 +848,9 @@ func loadCfgBlocks(dir string) (*hclparse.Parser, error) {
 			logger.Trace().Msg("found Terramate config, reading file")
 
 			path := filepath.Join(dir, filename)
+			
+			logger.Trace().Msg("Reading config file.")
+
 			data, err := os.ReadFile(path)
 			if err != nil {
 				return nil, fmt.Errorf("reading Terramate config %q: %v", path, err)
