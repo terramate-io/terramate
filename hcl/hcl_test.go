@@ -26,19 +26,23 @@ import (
 	"github.com/rs/zerolog"
 )
 
-type want struct {
-	err    error
-	config hcl.Config
-}
-type cfgfile struct {
-	filename string
-	body     string
-}
-type testcase struct {
-	name  string
-	input []cfgfile
-	want  want
-}
+type (
+	want struct {
+		err    error
+		config hcl.Config
+	}
+
+	cfgfile struct {
+		filename string
+		body     string
+	}
+
+	testcase struct {
+		name  string
+		input []cfgfile
+		want  want
+	}
+)
 
 func TestHCLParserModules(t *testing.T) {
 	type want struct {
