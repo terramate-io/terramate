@@ -882,10 +882,9 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 			Str("filename", fname).
 			Logger()
 
-		body, ok := hclfile.Body.(*hclsyntax.Body)
-		if !ok {
-			return Config{}, fmt.Errorf("can't get hcl body of file %q", fname)
-		}
+		// A cast error here would be a severe programming error on Terramate
+		// side, so we are by design allowing the cast to panic
+		body := hclfile.Body.(*hclsyntax.Body)
 
 		logger.Trace().Msg("checking for attributes.")
 
