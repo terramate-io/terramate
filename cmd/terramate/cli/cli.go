@@ -861,8 +861,7 @@ func (c *cli) runOnStacks() {
 	}
 
 	if failed {
-		logger.Fatal().
-			Msg("some commands failed.")
+		os.Exit(1)
 	}
 }
 
