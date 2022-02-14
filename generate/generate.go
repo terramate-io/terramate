@@ -546,7 +546,7 @@ func generateBackendCfgCode(
 		return "", fmt.Errorf("loading backend config from %q: %v", configdir, err)
 	}
 
-	logger.Trace().Msg("Check if we have Terramate block")
+	logger.Trace().Msg("Check if config has a Terramate block")
 
 	parsed := parsedConfig.Terramate
 	if parsed == nil || parsed.Backend == nil {

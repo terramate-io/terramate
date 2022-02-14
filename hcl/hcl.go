@@ -254,6 +254,7 @@ func ParseBody(src []byte, filename string) (*hclsyntax.Body, error) {
 
 // ParseDir will parse Terramate configuration from a given directory,
 // parsing all files with the suffixes .tm and .tm.hcl.
+// Note: it does not recurse into child directories.
 func ParseDir(dir string) (Config, error) {
 	logger := log.With().
 		Str("action", "ParseDir()").
@@ -845,12 +846,15 @@ func loadCfgBlocks(dir string) (*hclparse.Parser, error) {
 			logger.Trace().Msg("found Terramate config, reading file")
 
 			path := filepath.Join(dir, filename)
+			
+			logger.Trace().Msg("Reading config file.")
+
 			data, err := os.ReadFile(path)
 			if err != nil {
 				return nil, fmt.Errorf("reading Terramate config %q: %v", path, err)
 			}
 
-			logger.Trace().Msg("Terramate config read, parsing it")
+			logger.Trace().Msg("Parsing config.")
 
 			_, diags := parser.ParseHCL(data, filename)
 			if diags.HasErrors() {
