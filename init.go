@@ -81,40 +81,32 @@ func Init(root, dir string, force bool) error {
 
 	logger.Trace().Msg("Get stack file.")
 
-	stackfile := filepath.Join(dir, config.DefaultFilename)
 	isInitialized := false
 
 	logger = log.With().
 		Str("action", "Init()").
 		Str("stack", dir).
-		Str("configFile", stackfile).
 		Logger()
 
-	logger.Trace().Msg("Get stack file info.")
+	logger.Trace().Msg("Get stack info.")
 
-	st, err := os.Stat(stackfile)
+	parsedCfg, err := hcl.ParseDir(dir)
 	if err != nil {
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("stat failed on %q: %w", stackfile, err)
-		}
-	} else {
-		isInitialized = true
+		return fmt.Errorf("checking config for stack %q: %w", dir, err)
 	}
 
-	if isInitialized && !st.Mode().IsRegular() {
-		return fmt.Errorf("the path %q is not a regular file", stackfile)
-	}
+	isInitialized = parsedCfg.Stack != nil
 
 	if isInitialized && !force {
 		logger.Trace().Msg("Stack is initialized and not forced.")
 
-		logger.Trace().Msg("Parse version.")
+		logger.Trace().Msg("Checking version.")
 
-		vconstraint, err := parseVersion(stackfile)
-		if err != nil {
-			return fmt.Errorf("stack already initialized: error fetching "+
-				"version: %w", err)
+		if parsedCfg.Terramate == nil {
+			return fmt.Errorf("stack %q configuration has no 'terramate.required_version'", dir)
 		}
+
+		vconstraint := parsedCfg.Terramate.RequiredVersion
 
 		logger.Trace().Msg("Create new constraint from version.")
 
@@ -144,7 +136,12 @@ func Init(root, dir string, force bool) error {
 
 	err = cfg.Save(config.DefaultFilename)
 	if err != nil {
-		return fmt.Errorf("failed to write %q: %w", stackfile, err)
+		return fmt.Errorf(
+			"failed to write %q on stack %q: %w",
+			config.DefaultFilename,
+			dir,
+			err,
+		)
 	}
 
 	return nil
@@ -154,20 +151,4 @@ func Init(root, dir string, force bool) error {
 // when generating tm files.
 func DefaultVersionConstraint() string {
 	return config.DefaultInitConstraint + " " + Version()
-}
-
-func parseVersion(stackfile string) (string, error) {
-	logger := log.With().
-		Str("action", "parseVersion()").
-		Str("configFile", stackfile).
-		Logger()
-
-	logger.Debug().
-		Msg("Parse stack file.")
-	config, err := hcl.ParseFile(stackfile)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse file %q: %w", stackfile, err)
-	}
-
-	return config.Terramate.RequiredVersion, nil
 }

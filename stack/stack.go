@@ -20,7 +20,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
@@ -162,17 +161,9 @@ func TryLoad(root, absdir string) (stack S, found bool, err error) {
 			absdir, root)
 	}
 
-	if ok := config.Exists(absdir); !ok {
-		return S{}, false, err
-	}
+	logger.Debug().Msg("Parsing configuration.")
 
-	fname := filepath.Join(absdir, config.DefaultFilename)
-
-	logger.Debug().
-		Str("configFile", fname).
-		Msg("Parse config file.")
-
-	cfg, err := hcl.ParseFile(fname)
+	cfg, err := hcl.ParseDir(absdir)
 	if err != nil {
 		return S{}, false, err
 	}

@@ -30,37 +30,6 @@ const (
 	DefaultInitConstraint = "~>"
 )
 
-// Exists tells if path has a terramate config file.
-func Exists(path string) bool {
-	logger := log.With().
-		Str("action", "Exists()").
-		Str("path", path).
-		Logger()
-
-	logger.Trace().
-		Msg("Get path info.")
-	st, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-
-	logger.Trace().
-		Msg("Check if path is directory.")
-	if !st.IsDir() {
-		return false
-	}
-
-	logger.Trace().
-		Msg("Look for config file within directory.")
-	fname := filepath.Join(path, DefaultFilename)
-	info, err := os.Stat(fname)
-	if err != nil {
-		return false
-	}
-
-	return info.Mode().IsRegular()
-}
-
 func TryLoadRootConfig(dir string) (cfg hcl.Config, found bool, err error) {
 	path := filepath.Join(dir, DefaultFilename)
 	logger := log.With().
@@ -80,9 +49,9 @@ func TryLoadRootConfig(dir string) (cfg hcl.Config, found bool, err error) {
 		return hcl.Config{}, false, err
 	}
 
-	logger.Trace().
-		Msg("Parse file.")
-	cfg, err = hcl.ParseFile(path)
+	logger.Trace().Msg("Parse Terramate config.")
+
+	cfg, err = hcl.ParseDir(dir)
 	if err != nil {
 		return hcl.Config{}, false, err
 	}
