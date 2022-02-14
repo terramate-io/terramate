@@ -521,11 +521,14 @@ func parseStack(stack *Stack, stackblock *hclsyntax.Block) error {
 					name, diags),
 			)
 		}
+
+		logger.Trace().
+			Str("attribute", name).
+			Msg("Setting attribute on configuration.")
+
 		switch name {
 
 		case "name":
-			logger.Trace().Msg("Attribute name was 'name'.")
-
 			if attrVal.Type() != cty.String {
 				return errutil.Chain(ErrMalformedTerramateConfig,
 					fmt.Errorf("field stack.\"name\" must be a \"string\" but given %q",
@@ -535,24 +538,18 @@ func parseStack(stack *Stack, stackblock *hclsyntax.Block) error {
 			stack.Name = attrVal.AsString()
 
 		case "after":
-			logger.Trace().Msg("Attribute name was 'after'.")
-
 			err := assignSet(name, &stack.After, attrVal)
 			if err != nil {
 				return err
 			}
 
 		case "before":
-			logger.Trace().Msg("Attribute name was 'before'.")
-
 			err := assignSet(name, &stack.Before, attrVal)
 			if err != nil {
 				return err
 			}
 
 		case "wants":
-			logger.Trace().Msg("Attribute name was 'wants'.")
-
 			err := assignSet(name, &stack.Wants, attrVal)
 			if err != nil {
 				return err
