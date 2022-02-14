@@ -70,9 +70,9 @@ type cliSpec struct {
 	LogFmt        string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'."`
 
 	Run struct {
-		Quiet   bool     `short:"q" help:"Don't print any information other than the command output."`
-		DryRun  bool     `default:"false" help:"plan the execution but do not execute it"`
-		Command []string `arg:"" name:"cmd" passthrough:"" help:"command to execute."`
+		ContinueOnError bool     `default:"false" help:"continue executing in other stacks in case of error."`
+		DryRun          bool     `default:"false" help:"plan the execution but do not execute it"`
+		Command         []string `arg:"" name:"cmd" passthrough:"" help:"command to execute."`
 	} `cmd:"" help:"Run command in the stacks."`
 
 	Plan struct {
@@ -789,7 +789,7 @@ func (c *cli) runOnStacks() {
 
 	logger.Trace().Msg("Get order of stacks to run command on.")
 
-	order, reason, err := run.Sort(c.root(), stacks, c.parsedArgs.Changed)
+	orderedStacks, reason, err := run.Sort(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
 		if errors.Is(err, dag.ErrCycleDetected) {
 			logger.Fatal().
@@ -806,10 +806,10 @@ func (c *cli) runOnStacks() {
 	if c.parsedArgs.Run.DryRun {
 		logger.Trace().
 			Msg("Do a dry run - get order without actually running command.")
-		if len(order) > 0 {
+		if len(orderedStacks) > 0 {
 			c.log("The stacks will be executed using order below:")
 
-			for i, s := range order {
+			for i, s := range orderedStacks {
 				stackdir, _ := c.friendlyFmtDir(s.PrjAbsPath())
 				c.log("\t%d. %s (%s)", i, s.Name(), stackdir)
 			}
@@ -834,10 +834,35 @@ func (c *cli) runOnStacks() {
 		Environ: os.Environ(),
 	}
 
-	logger.Debug().Msg("Run command.")
-	err = cmd.Run(c.root(), order)
-	if err != nil {
-		c.logerr("warn: failed to execute command: %v", err)
+	failed := false
+
+	for _, stack := range orderedStacks {
+		logger := logger.With().
+			Stringer("stack", stack).
+			Stringer("command", &cmd).
+			Logger()
+
+		logger.Debug().Msg("Run command.")
+
+		err = cmd.Run(c.root(), stack)
+		if err != nil {
+			failed = true
+
+			if c.parsedArgs.Run.ContinueOnError {
+				logger.Warn().
+					Err(err).
+					Msg("failed to execute command")
+			} else {
+				logger.Fatal().
+					Err(err).
+					Msg("failed to execute command")
+			}
+		}
+	}
+
+	if failed {
+		logger.Fatal().
+			Msg("some commands failed.")
 	}
 }
 

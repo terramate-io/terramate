@@ -39,27 +39,20 @@ func (c *Cmd) String() string {
 	return c.Path + " " + strings.Join(c.Args, " ")
 }
 
-// Run runs the command in each stack.
-func (c Cmd) Run(root string, stacks []stack.S) error {
-	for _, stack := range stacks {
-		cmd := exec.Command(c.Path, c.Args...)
-		cmd.Dir = stack.AbsPath()
-		cmd.Env = c.Environ
-		cmd.Stdin = c.Stdin
-		cmd.Stdout = c.Stdout
-		cmd.Stderr = c.Stderr
-		cmd.Env = c.Environ
+// Run runs the command in the stack.
+func (c Cmd) Run(root string, stack stack.S) error {
+	cmd := exec.Command(c.Path, c.Args...)
+	cmd.Dir = stack.AbsPath()
+	cmd.Env = c.Environ
+	cmd.Stdin = c.Stdin
+	cmd.Stdout = c.Stdout
+	cmd.Stderr = c.Stderr
+	cmd.Env = c.Environ
 
-		log.Info().
-			Stringer("stack", stack).
-			Str("cmd", c.String()).
-			Msg("Running command in stack")
+	log.Info().
+		Stringer("stack", stack).
+		Str("cmd", c.String()).
+		Msg("Running command in stack")
 
-		err := cmd.Run()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return cmd.Run()
 }
