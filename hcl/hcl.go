@@ -839,8 +839,6 @@ func loadCfgBlocks(dir string) (*hclparse.Parser, error) {
 
 		filename := dirEntry.Name()
 		if strings.HasSuffix(filename, ".tm") || strings.HasSuffix(filename, ".tm.hcl") {
-			logger.Trace().Msg("found Terramate config, reading file")
-
 			path := filepath.Join(dir, filename)
 
 			logger.Trace().Msg("Reading config file.")
@@ -940,6 +938,7 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 			if tmconfig.Terramate == nil {
 				tmconfig.Terramate = &Terramate{}
 			}
+
 			tm := tmconfig.Terramate
 
 			logger.Trace().Msg("Range over terramate block attributes.")

@@ -540,24 +540,6 @@ func TestHCLParserRootConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "multiple config.git blocks - fails",
-			input: []cfgfile{
-				{
-					body: `
-						terramate {
-							config {
-								git {}
-								git {}
-							}
-						}
-					`,
-				},
-			},
-			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
-			},
-		},
-		{
 			name: "multiple config.generate blocks",
 			input: []cfgfile{
 				{
