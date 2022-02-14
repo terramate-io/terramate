@@ -70,7 +70,7 @@ func assertTerramateConfigBlock(t *testing.T, got, want *hcl.RootConfig) {
 	t.Helper()
 
 	if (want == nil) != (got == nil) {
-		t.Fatalf("want[%+v] != got[%+v]", want, got)
+		t.Fatalf("want.Git[%+v] != got.Git[%+v]", want, got)
 	}
 
 	if want == nil {
