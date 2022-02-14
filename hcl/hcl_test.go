@@ -234,7 +234,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				config: hcl.Config{Terramate: &hcl.Terramate{}},
 			},
 		},
 		{
@@ -512,7 +512,9 @@ func TestHCLParserRootConfig(t *testing.T) {
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
-						RootConfig: &hcl.RootConfig{},
+						RootConfig: &hcl.RootConfig{
+							Git: &hcl.GitConfig{},
+						},
 					},
 				},
 			},
@@ -556,7 +558,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "multiple config.generate blocks - fails",
+			name: "multiple config.generate blocks",
 			input: []cfgfile{
 				{
 					body: `
@@ -611,7 +613,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						RootConfig: &hcl.RootConfig{
-							Git: hcl.GitConfig{
+							Git: &hcl.GitConfig{
 								DefaultBranch: "trunk",
 							},
 						},
@@ -734,7 +736,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						RootConfig: &hcl.RootConfig{
-							Git: hcl.GitConfig{
+							Git: &hcl.GitConfig{
 								DefaultBranch:        "trunk",
 								DefaultRemote:        "upstream",
 								BaseRef:              "upstream/trunk",
@@ -1101,7 +1103,7 @@ func TestHCLParserStack(t *testing.T) {
 	}
 }
 
-func TestHCLParserTerramateBlocksMerge(t *testing.T) {
+func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 	tcases := []testcase{
 		{
 			name: "two config file with terramate blocks",
@@ -1132,7 +1134,7 @@ func TestHCLParserTerramateBlocksMerge(t *testing.T) {
 					Terramate: &hcl.Terramate{
 						RequiredVersion: "0.0.1",
 						RootConfig: &hcl.RootConfig{
-							Git: hcl.GitConfig{
+							Git: &hcl.GitConfig{
 								DefaultBranch: "trunk",
 							},
 						},
@@ -1176,7 +1178,53 @@ func TestHCLParserTerramateBlocksMerge(t *testing.T) {
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						RootConfig: &hcl.RootConfig{
-							Git: hcl.GitConfig{
+							Git: &hcl.GitConfig{
+								BaseRef:              "upstream/trunk",
+								DefaultBranch:        "trunk",
+								DefaultRemote:        "upstream",
+								DefaultBranchBaseRef: "HEAD~2",
+							},
+							Generate: &hcl.GenerateConfig{
+								LocalsFilename:     "locals.tf",
+								BackendCfgFilename: "backend.tf",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "different terramate.generate and terramate.config on same file",
+			input: []cfgfile{
+				{
+					filename: "config.tm",
+					body: `
+						terramate {
+							config {
+								generate {
+									locals_filename = "locals.tf"
+									backend_config_filename = "backend.tf"
+								}
+							}
+						}
+						terramate {
+							config {
+								git {
+									default_branch = "trunk"
+									default_remote = "upstream"
+									base_ref = "upstream/trunk"
+									default_branch_base_ref = "HEAD~2"
+								}
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						RootConfig: &hcl.RootConfig{
+							Git: &hcl.GitConfig{
 								BaseRef:              "upstream/trunk",
 								DefaultBranch:        "trunk",
 								DefaultRemote:        "upstream",
@@ -1232,7 +1280,7 @@ func TestHCLParserTerramateBlocksMerge(t *testing.T) {
 					Terramate: &hcl.Terramate{
 						RequiredVersion: "6.6.6",
 						RootConfig: &hcl.RootConfig{
-							Git: hcl.GitConfig{
+							Git: &hcl.GitConfig{
 								DefaultBranch: "trunk",
 							},
 						},
@@ -1263,6 +1311,70 @@ func TestHCLParserTerramateBlocksMerge(t *testing.T) {
 					body: `
 						stack {
 							description = "some stack"
+						}
+					`,
+				},
+			},
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
+			name: "multiple files with terramate.config.git blocks fail",
+			input: []cfgfile{
+				{
+					filename: "git.tm",
+					body: `
+						terramate {
+							config {
+								git {
+									default_branch = "trunk"
+								}
+							}
+						}
+					`,
+				},
+				{
+					filename: "gitagain.tm",
+					body: `
+						terramate {
+							config {
+								git {
+									base_ref = "trunk"
+								}
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				err: hcl.ErrMalformedTerramateConfig,
+			},
+		},
+		{
+			name: "multiple files with terramate.config.generate blocks fail",
+			input: []cfgfile{
+				{
+					filename: "locals.tm",
+					body: `
+						terramate {
+							config {
+								generate {
+									locals_filename = "test.tf"
+								}
+							}
+						}
+					`,
+				},
+				{
+					filename: "backend.tm",
+					body: `
+						terramate {
+							config {
+								generate {
+									backend_config_filename = "backend.tf"
+								}
+							}
 						}
 					`,
 				},
