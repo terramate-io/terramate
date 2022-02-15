@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -70,9 +71,9 @@ type cliSpec struct {
 	LogFmt        string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'."`
 
 	Run struct {
-		Quiet   bool     `short:"q" help:"Don't print any information other than the command output."`
-		DryRun  bool     `default:"false" help:"plan the execution but do not execute it"`
-		Command []string `arg:"" name:"cmd" passthrough:"" help:"command to execute."`
+		ContinueOnError bool     `default:"false" help:"continue executing in other stacks in case of error."`
+		DryRun          bool     `default:"false" help:"plan the execution but do not execute it"`
+		Command         []string `arg:"" name:"cmd" passthrough:"" help:"command to execute."`
 	} `cmd:"" help:"Run command in the stacks."`
 
 	Plan struct {
@@ -789,7 +790,7 @@ func (c *cli) runOnStacks() {
 
 	logger.Trace().Msg("Get order of stacks to run command on.")
 
-	order, reason, err := run.Sort(c.root(), stacks, c.parsedArgs.Changed)
+	orderedStacks, reason, err := run.Sort(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
 		if errors.Is(err, dag.ErrCycleDetected) {
 			logger.Fatal().
@@ -806,10 +807,10 @@ func (c *cli) runOnStacks() {
 	if c.parsedArgs.Run.DryRun {
 		logger.Trace().
 			Msg("Do a dry run - get order without actually running command.")
-		if len(order) > 0 {
+		if len(orderedStacks) > 0 {
 			c.log("The stacks will be executed using order below:")
 
-			for i, s := range order {
+			for i, s := range orderedStacks {
 				stackdir, _ := c.friendlyFmtDir(s.PrjAbsPath())
 				c.log("\t%d. %s (%s)", i, s.Name(), stackdir)
 			}
@@ -824,20 +825,41 @@ func (c *cli) runOnStacks() {
 		Bool("changed", c.parsedArgs.Changed).
 		Msg("Running command in stacks reachable from working directory")
 
-	logger.Trace().Msg("Get command to run.")
-	cmd := run.Cmd{
-		Path:    c.parsedArgs.Run.Command[0],
-		Args:    c.parsedArgs.Run.Command[1:],
-		Stdin:   c.stdin,
-		Stdout:  c.stdout,
-		Stderr:  c.stderr,
-		Environ: os.Environ(),
+	failed := false
+
+	for _, stack := range orderedStacks {
+		cmd := exec.Command(c.parsedArgs.Run.Command[0], c.parsedArgs.Run.Command[1:]...)
+		cmd.Dir = stack.AbsPath()
+		cmd.Env = os.Environ()
+		cmd.Stdin = c.stdin
+		cmd.Stdout = c.stdout
+		cmd.Stderr = c.stderr
+
+		logger := logger.With().
+			Stringer("stack", stack).
+			Str("cmd", strings.Join(c.parsedArgs.Run.Command, " ")).
+			Logger()
+
+		logger.Info().Msg("Running command in stack")
+
+		err = cmd.Run()
+		if err != nil {
+			failed = true
+
+			if c.parsedArgs.Run.ContinueOnError {
+				logger.Warn().
+					Err(err).
+					Msg("failed to execute command")
+			} else {
+				logger.Fatal().
+					Err(err).
+					Msg("failed to execute command")
+			}
+		}
 	}
 
-	logger.Debug().Msg("Run command.")
-	err = cmd.Run(c.root(), order)
-	if err != nil {
-		c.logerr("warn: failed to execute command: %v", err)
+	if failed {
+		os.Exit(1)
 	}
 }
 

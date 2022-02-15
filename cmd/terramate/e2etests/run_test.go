@@ -874,3 +874,33 @@ func TestRunLogsUserCommand(t *testing.T) {
 		StderrRegex: `cmd="cat /`,
 	})
 }
+
+func TestRunContinueOnError(t *testing.T) {
+	s := sandbox.New(t)
+
+	s.BuildTree([]string{
+		`s:s1`,
+		`s:s2`,
+	})
+
+	const expectedOutput = "# no code"
+
+	s2 := s.StackEntry("s2")
+	s2.CreateFile("main.tf", expectedOutput)
+
+	git := s.Git()
+	git.CommitAll("first commit")
+	git.Push("main")
+
+	cli := newCLI(t, s.RootDir())
+	assertRunResult(t, cli.run("run", "cat", "main.tf"), runExpected{
+		IgnoreStderr: true,
+		Status:       1,
+	})
+
+	assertRunResult(t, cli.run("run", "--continue-on-error", "cat", "main.tf"), runExpected{
+		IgnoreStderr: true,
+		Stdout:       expectedOutput,
+		Status:       1,
+	})
+}
