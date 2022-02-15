@@ -30,6 +30,9 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// TESTS
+// - attributes inside content block should work
+
 func TestLoadGeneratedHCL(t *testing.T) {
 	type (
 		hclconfig struct {
@@ -68,6 +71,9 @@ func TestLoadGeneratedHCL(t *testing.T) {
 	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("globals", builders...)
 	}
+	content := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("content", builders...)
+	}
 	attr := func(name, expr string) hclwrite.BlockBuilder {
 		t.Helper()
 		return hclwrite.AttributeValue(t, name, expr)
@@ -90,13 +96,14 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			stack: "/stack",
 		},
 		{
-			name:  "empty block generates empty code",
+			name:  "empty content block generates empty code",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack",
 					add: generateHCL(
 						labels("empty"),
+						content(),
 					),
 				},
 			},
@@ -118,7 +125,9 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					path: "/stack",
 					add: generateHCL(
 						labels("emptytest"),
-						block("empty"),
+						content(
+							block("empty"),
+						),
 					),
 				},
 			},
@@ -140,11 +149,13 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					path: "/stack",
 					add: generateHCL(
 						labels("scope_traversal"),
-						block("traversals",
-							expr("local", "local.something"),
-							expr("mul", "omg.wat.something"),
-							expr("res", "resource.something"),
-							expr("val", "omg.something"),
+						content(
+							block("traversals",
+								expr("local", "local.something"),
+								expr("mul", "omg.wat.something"),
+								expr("res", "resource.something"),
+								expr("val", "omg.something"),
+							),
 						),
 					),
 				},
@@ -180,15 +191,17 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					path: "/stack",
 					add: generateHCL(
 						labels("test"),
-						block("testblock",
-							expr("bool", "global.some_bool"),
-							expr("number", "global.some_number"),
-							expr("string", "global.some_string"),
-							expr("obj", `{
-								string = global.some_string
-								number = global.some_number
-								bool = global.some_bool
-							}`),
+						content(
+							block("testblock",
+								expr("bool", "global.some_bool"),
+								expr("number", "global.some_number"),
+								expr("string", "global.some_string"),
+								expr("obj", `{
+									string = global.some_string
+									number = global.some_number
+									bool = global.some_bool
+								}`),
+							),
 						),
 					),
 				},
@@ -230,12 +243,14 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					path: "/stack",
 					add: generateHCL(
 						labels("test"),
-						block("labeled",
-							labels("label1", "label2"),
-							expr("field_a", "try(global.obj.field_a, null)"),
-							expr("field_b", "try(global.obj.field_b, null)"),
-							expr("field_c", "try(global.obj.field_c, null)"),
-							expr("field_d", "try(global.obj.field_d, null)"),
+						content(
+							block("labeled",
+								labels("label1", "label2"),
+								expr("field_a", "try(global.obj.field_a, null)"),
+								expr("field_b", "try(global.obj.field_b, null)"),
+								expr("field_c", "try(global.obj.field_c, null)"),
+								expr("field_d", "try(global.obj.field_d, null)"),
+							),
 						),
 					),
 				},
@@ -272,17 +287,19 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					path: "/stack",
 					add: generateHCL(
 						labels("nesting"),
-						block("block1",
-							expr("bool", "global.some_bool"),
-							block("block2",
-								expr("number", "global.some_number"),
-								block("block3",
-									expr("string", "global.some_string"),
-									expr("obj", `{
-										string = global.some_string
-										number = global.some_number
-										bool = global.some_bool
-									}`),
+						content(
+							block("block1",
+								expr("bool", "global.some_bool"),
+								block("block2",
+									expr("number", "global.some_number"),
+									block("block3",
+										expr("string", "global.some_string"),
+										expr("obj", `{
+											string = global.some_string
+											number = global.some_number
+											bool = global.some_bool
+										}`),
+									),
 								),
 							),
 						),
@@ -326,23 +343,29 @@ func TestLoadGeneratedHCL(t *testing.T) {
 						),
 						generateHCL(
 							labels("exported_one"),
-							block("block1",
-								expr("bool", "global.some_bool"),
-								block("block2",
-									expr("number", "global.some_number"),
+							content(
+								block("block1",
+									expr("bool", "global.some_bool"),
+									block("block2",
+										expr("number", "global.some_number"),
+									),
 								),
 							),
 						),
 						generateHCL(
 							labels("exported_two"),
-							block("yay",
-								expr("data", "global.some_string"),
+							content(
+								block("yay",
+									expr("data", "global.some_string"),
+								),
 							),
 						),
 						generateHCL(
 							labels("exported_three"),
-							block("something",
-								expr("number", "global.some_number"),
+							content(
+								block("something",
+									expr("number", "global.some_number"),
+								),
 							),
 						),
 					),
@@ -397,12 +420,14 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					path: "/stacks",
 					add: generateHCL(
 						labels("on_parent"),
-						block("on_parent_block",
-							expr("obj", `{
-								string = global.some_string
-								number = global.some_number
-								bool = global.some_bool
-							}`),
+						content(
+							block("on_parent_block",
+								expr("obj", `{
+									string = global.some_string
+									number = global.some_number
+									bool = global.some_bool
+								}`),
+							),
 						),
 					),
 				},
@@ -431,8 +456,10 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					path: "/",
 					add: generateHCL(
 						labels("root"),
-						block("root",
-							expr("test", "terramate.path"),
+						content(
+							block("root",
+								expr("test", "terramate.path"),
+							),
 						),
 					),
 				},
@@ -463,10 +490,12 @@ func TestLoadGeneratedHCL(t *testing.T) {
 						),
 						generateHCL(
 							labels("on_root"),
-							block("on_root_block",
-								expr("obj", `{
-								string = global.some_string
-							}`),
+							content(
+								block("on_root_block",
+									expr("obj", `{
+										string = global.some_string
+									}`),
+								),
 							),
 						),
 					),
@@ -475,10 +504,12 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					path: "/stacks",
 					add: generateHCL(
 						labels("on_parent"),
-						block("on_parent_block",
-							expr("obj", `{
-								number = global.some_number
-							}`),
+						content(
+							block("on_parent_block",
+								expr("obj", `{
+									number = global.some_number
+								}`),
+							),
 						),
 					),
 				},
@@ -486,10 +517,12 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					path: "/stacks/stack",
 					add: generateHCL(
 						labels("on_stack"),
-						block("on_stack_block",
-							expr("obj", `{
-								bool = global.some_bool
-							}`),
+						content(
+							block("on_stack_block",
+								expr("obj", `{
+									bool = global.some_bool
+								}`),
+							),
 						),
 					),
 				},
@@ -538,8 +571,10 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					path: "/stacks",
 					add: generateHCL(
 						labels("repeated"),
-						block("block",
-							str("data", "parent data"),
+						content(
+							block("block",
+								str("data", "parent data"),
+							),
 						),
 					),
 				},
@@ -547,8 +582,10 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					path: "/stacks/stack",
 					add: generateHCL(
 						labels("repeated"),
-						block("block",
-							str("data", "stack data"),
+						content(
+							block("block",
+								str("data", "stack data"),
+							),
 						),
 					),
 				},
@@ -563,8 +600,10 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					path: "/",
 					add: generateHCL(
 						labels("repeated"),
-						block("block",
-							str("data", "root data"),
+						content(
+							block("block",
+								str("data", "root data"),
+							),
 						),
 					),
 				},
@@ -572,8 +611,10 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					path: "/stacks",
 					add: generateHCL(
 						labels("repeated"),
-						block("block",
-							str("data", "parent data"),
+						content(
+							block("block",
+								str("data", "parent data"),
+							),
 						),
 					),
 				},
@@ -586,10 +627,25 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks/stack",
-					add: block("generate_hcl",
-						block("block",
-							str("data", "some literal data"),
+					add: generateHCL(
+						content(
+							block("block",
+								str("data", "some literal data"),
+							),
 						),
+					),
+				},
+			},
+			wantErr: genhcl.ErrInvalidBlock,
+		},
+		{
+			name:  "content block is required",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("empty"),
 					),
 				},
 			},
@@ -603,8 +659,10 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					path: "/stacks/stack",
 					add: block("generate_hcl",
 						labels("one", "two"),
-						block("block",
-							str("data", "some literal data"),
+						content(
+							block("block",
+								str("data", "some literal data"),
+							),
 						),
 					),
 				},
@@ -619,8 +677,10 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					path: "/stacks/stack",
 					add: block("generate_hcl",
 						labels(""),
-						block("block",
-							str("data", "some literal data"),
+						content(
+							block("block",
+								str("data", "some literal data"),
+							),
 						),
 					),
 				},
@@ -636,14 +696,18 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					add: hcldoc(
 						generateHCL(
 							labels("duplicated"),
-							terraform(
-								str("data", "some literal data"),
+							content(
+								terraform(
+									str("data", "some literal data"),
+								),
 							),
 						),
 						generateHCL(
 							labels("duplicated"),
-							terraform(
-								str("data2", "some literal data2"),
+							content(
+								terraform(
+									str("data2", "some literal data2"),
+								),
 							),
 						),
 					),
@@ -660,8 +724,10 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					add: hcldoc(
 						generateHCL(
 							labels("test"),
-							terraform(
-								expr("required_version", "global.undefined"),
+							content(
+								terraform(
+									expr("required_version", "global.undefined"),
+								),
 							),
 						),
 					),
@@ -678,8 +744,10 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					add: hcldoc(
 						generateHCL(
 							labels("test"),
-							terraform(
-								expr("much_wrong", "terramate.undefined"),
+							content(
+								terraform(
+									expr("much_wrong", "terramate.undefined"),
+								),
 							),
 						),
 					),
@@ -693,7 +761,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks",
-					add: block("generate_hcl",
+					add: generateHCL(
 						block("block",
 							str("data", "some literal data"),
 						),
@@ -704,8 +772,10 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					add: hcldoc(
 						generateHCL(
 							labels("valid"),
-							terraform(
-								str("data", "some literal data"),
+							content(
+								terraform(
+									str("data", "some literal data"),
+								),
 							),
 						),
 					),
@@ -723,8 +793,10 @@ func TestLoadGeneratedHCL(t *testing.T) {
 						generateHCL(
 							labels("test"),
 							str("some_attribute", "whatever"),
-							terraform(
-								str("required_version", "1.11"),
+							content(
+								terraform(
+									str("required_version", "1.11"),
+								),
 							),
 						),
 					),
