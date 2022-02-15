@@ -71,7 +71,10 @@ func TestHCLGeneration(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks",
-					add:  generateHCL(labels("empty")),
+					add: generateHCL(
+						labels("empty"),
+						content(),
+					),
 				},
 			},
 		},
@@ -87,37 +90,43 @@ func TestHCLGeneration(t *testing.T) {
 					add: hcldoc(
 						generateHCL(
 							labels("backend.tf"),
-							backend(
-								labels("test"),
-								expr("prefix", "global.backend_prefix"),
+							content(
+								backend(
+									labels("test"),
+									expr("prefix", "global.backend_prefix"),
+								),
 							),
 						),
 						generateHCL(
 							labels("locals.tf"),
-							locals(
-								expr("stackpath", "terramate.path"),
-								expr("local_a", "global.local_a"),
-								expr("local_b", "global.local_b"),
-								expr("local_c", "global.local_c"),
-								expr("local_d", "try(global.local_d.field, null)"),
+							content(
+								locals(
+									expr("stackpath", "terramate.path"),
+									expr("local_a", "global.local_a"),
+									expr("local_b", "global.local_b"),
+									expr("local_c", "global.local_c"),
+									expr("local_d", "try(global.local_d.field, null)"),
+								),
 							),
 						),
 						generateHCL(
 							labels("provider.tf"),
-							provider(
-								labels("name"),
-								expr("data", "global.provider_data"),
-							),
-							terraform(
-								required_providers(
-									expr("name", `{
+							content(
+								provider(
+									labels("name"),
+									expr("data", "global.provider_data"),
+								),
+								terraform(
+									required_providers(
+										expr("name", `{
 										source  = "integrations/name"
 										version = global.provider_version
 									}`),
+									),
 								),
-							),
-							terraform(
-								expr("required_version", "global.terraform_version"),
+								terraform(
+									expr("required_version", "global.terraform_version"),
+								),
 							),
 						),
 					),
@@ -230,10 +239,12 @@ func TestHCLGeneration(t *testing.T) {
 					add: hcldoc(
 						generateHCL(
 							labels("traversal.tf"),
-							block("traversal",
-								expr("locals", "local.hi"),
-								expr("some_anything", "something.should_work"),
-								expr("multiple_traversal", "one.two.three.four.five"),
+							content(
+								block("traversal",
+									expr("locals", "local.hi"),
+									expr("some_anything", "something.should_work"),
+									expr("multiple_traversal", "one.two.three.four.five"),
+								),
 							),
 						),
 					),
@@ -352,8 +363,10 @@ func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
 
 	generateHCLConfig := generateHCL(
 		labels(genFilename),
-		terraform(
-			str("required_version", "1.11"),
+		content(
+			terraform(
+				str("required_version", "1.11"),
+			),
 		),
 	)
 
@@ -377,8 +390,10 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 
 	firstConfig := generateHCL(
 		labels(genFilename),
-		terraform(
-			str("required_version", "1.11"),
+		content(
+			terraform(
+				str("required_version", "1.11"),
+			),
 		),
 	)
 	firstWant := terraform(
@@ -397,8 +412,10 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 
 	secondConfig := generateHCL(
 		labels(genFilename),
-		terraform(
-			str("required_version", "2.0"),
+		content(
+			terraform(
+				str("required_version", "2.0"),
+			),
 		),
 	)
 	secondWant := terraform(
@@ -427,8 +444,10 @@ func TestGeneratedHCLHeaders(t *testing.T) {
 	rootEntry.CreateConfig(
 		generateHCL(
 			labels(rootFilename),
-			block("root",
-				str("attr", "root"),
+			content(
+				block("root",
+					str("attr", "root"),
+				),
 			),
 		).String(),
 	)
@@ -438,8 +457,10 @@ func TestGeneratedHCLHeaders(t *testing.T) {
 			stack(),
 			generateHCL(
 				labels(stackFilename),
-				block("stack",
-					str("attr", "stack"),
+				content(
+					block("stack",
+						str("attr", "stack"),
+					),
 				),
 			),
 		).String(),
@@ -468,14 +489,18 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		hcldoc(
 			generateHCL(
 				labels("file1.tf"),
-				block("block1",
-					boolean("whatever", true),
+				content(
+					block("block1",
+						boolean("whatever", true),
+					),
 				),
 			),
 			generateHCL(
 				labels("file2.tf"),
-				block("block2",
-					boolean("whatever", true),
+				content(
+					block("block2",
+						boolean("whatever", true),
+					),
 				),
 			),
 		).String(),
@@ -490,8 +515,10 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		hcldoc(
 			generateHCL(
 				labels("file1.tf"),
-				block("block1",
-					boolean("whatever", true),
+				content(
+					block("block1",
+						boolean("whatever", true),
+					),
 				),
 			),
 		).String(),
@@ -506,6 +533,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		hcldoc(
 			generateHCL(
 				labels("file1.tf"),
+				content(),
 			),
 		).String(),
 	)

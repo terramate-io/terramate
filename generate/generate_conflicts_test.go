@@ -59,7 +59,9 @@ func TestFilenameConflictsOnGeneration(t *testing.T) {
 						),
 						generateHCL(
 							labels("file.tf"),
-							block("test"),
+							content(
+								block("test"),
+							),
 						),
 					),
 				},
@@ -79,7 +81,9 @@ func TestFilenameConflictsOnGeneration(t *testing.T) {
 						exportAsLocals(),
 						generateHCL(
 							labels("file.tf"),
-							block("test"),
+							content(
+								block("test"),
+							),
 						),
 					),
 				},
@@ -101,6 +105,7 @@ func TestFilenameConflictsOnGeneration(t *testing.T) {
 						),
 						generateHCL(
 							labels("file.tf"),
+							content(),
 						),
 					),
 				},
