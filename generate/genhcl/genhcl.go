@@ -198,11 +198,12 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 
 	res := map[string]loadedHCL{}
 
-	for _, block := range blocks {
-		if err := validateGenerateHCLBlock(block); err != nil {
+	// TODO(katcipis): improve error messages by including filenames/path
+	for _, genhclBlock := range blocks {
+		if err := validateGenerateHCLBlock(genhclBlock); err != nil {
 			return nil, fmt.Errorf("%w:%v", ErrInvalidBlock, err)
 		}
-		name := block.Labels[0]
+		name := genhclBlock.Labels[0]
 		if _, ok := res[name]; ok {
 			return nil, fmt.Errorf(
 				"%w: found two blocks with same label %q",
@@ -210,9 +211,10 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 				name,
 			)
 		}
+		contentBlock := genhclBlock.Body.Blocks[0]
 		res[name] = loadedHCL{
 			origin: strings.TrimPrefix(cfgpath, rootdir),
-			block:  block,
+			block:  contentBlock,
 		}
 	}
 
@@ -238,6 +240,16 @@ func validateGenerateHCLBlock(block *hclsyntax.Block) error {
 	}
 	if len(block.Body.Attributes) != 0 {
 		return errors.New("attributes are not allowed")
+	}
+	if len(block.Body.Blocks) != 1 {
+		return fmt.Errorf("one 'content' block is required, got %d blocks", len(block.Body.Blocks))
+	}
+	contentBlock := block.Body.Blocks[0]
+	if contentBlock.Type != "content" {
+		return fmt.Errorf("one 'content' block is required, got %q block", contentBlock.Type)
+	}
+	if len(contentBlock.Labels) > 0 {
+		return fmt.Errorf("content block has unexpected labels: %v", contentBlock.Labels)
 	}
 	return nil
 }

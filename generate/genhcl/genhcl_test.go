@@ -30,9 +30,6 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// TESTS
-// - attributes inside content block should work
-
 func TestLoadGeneratedHCL(t *testing.T) {
 	type (
 		hclconfig struct {
@@ -622,7 +619,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			wantErr: genhcl.ErrMultiLevelConflict,
 		},
 		{
-			name:  "block with no label on stack gives err",
+			name:  "block with no label fails",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
@@ -639,13 +636,64 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			wantErr: genhcl.ErrInvalidBlock,
 		},
 		{
-			name:  "content block is required",
+			name:  "generate_hcl with non-content block inside fails",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack",
+					add: generateHCL(
+						labels("test"),
+						block("block",
+							str("data", "some literal data"),
+						),
+					),
+				},
+			},
+			wantErr: genhcl.ErrInvalidBlock,
+		},
+		{
+			name:  "generate_hcl with other blocks than content fails",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack",
+					add: generateHCL(
+						labels("test"),
+						content(
+							str("data", "some literal data"),
+						),
+						block("block",
+							str("data", "some literal data"),
+						),
+					),
+				},
+			},
+			wantErr: genhcl.ErrInvalidBlock,
+		},
+		{
+			name:  "generate_hcl.content block is required",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack",
 					add: generateHCL(
 						labels("empty"),
+					),
+				},
+			},
+			wantErr: genhcl.ErrInvalidBlock,
+		},
+		{
+			name:  "generate_hcl.content block with label fails",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("empty"),
+						content(
+							labels("not allowed"),
+						),
 					),
 				},
 			},
