@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -824,27 +825,24 @@ func (c *cli) runOnStacks() {
 		Bool("changed", c.parsedArgs.Changed).
 		Msg("Running command in stacks reachable from working directory")
 
-	logger.Trace().Msg("Get command to run.")
-	cmd := run.Cmd{
-		Path:    c.parsedArgs.Run.Command[0],
-		Args:    c.parsedArgs.Run.Command[1:],
-		Stdin:   c.stdin,
-		Stdout:  c.stdout,
-		Stderr:  c.stderr,
-		Environ: os.Environ(),
-	}
-
 	failed := false
 
 	for _, stack := range orderedStacks {
+		cmd := exec.Command(c.parsedArgs.Run.Command[0], c.parsedArgs.Run.Command[1:]...)
+		cmd.Dir = stack.AbsPath()
+		cmd.Env = os.Environ()
+		cmd.Stdin = c.stdin
+		cmd.Stdout = c.stdout
+		cmd.Stderr = c.stderr
+
 		logger := logger.With().
 			Stringer("stack", stack).
-			Stringer("command", &cmd).
+			Str("cmd", strings.Join(c.parsedArgs.Run.Command, " ")).
 			Logger()
 
-		logger.Debug().Msg("Run command.")
+		logger.Info().Msg("Running command in stack")
 
-		err = cmd.Run(c.root(), stack)
+		err = cmd.Run()
 		if err != nil {
 			failed = true
 
