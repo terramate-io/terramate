@@ -135,6 +135,8 @@ func Load(rootdir string, sm stack.Metadata, globals *terramate.Globals) (StackH
 		}
 	}
 
+	logger.Trace().Msg("evaluated all blocks with success.")
+
 	return res, nil
 }
 
@@ -196,13 +198,20 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 		return nil, fmt.Errorf("parsing generate_hcl code: %v", err)
 	}
 
+	logger.Trace().Msg("Parsed generate_hcl blocks.")
+
 	res := map[string]loadedHCL{}
 
 	// TODO(katcipis): improve error messages by including filenames/path
 	for _, genhclBlock := range blocks {
+		logger.Trace().Msg("Validating generate_hcl block.")
+
 		if err := validateGenerateHCLBlock(genhclBlock); err != nil {
-			return nil, fmt.Errorf("%w:%v", ErrInvalidBlock, err)
+			return nil, fmt.Errorf("%w: %v", ErrInvalidBlock, err)
 		}
+
+		logger.Trace().Msg("generate_hcl block is valid.")
+
 		name := genhclBlock.Labels[0]
 		if _, ok := res[name]; ok {
 			return nil, fmt.Errorf(
@@ -216,6 +225,8 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 			origin: strings.TrimPrefix(cfgpath, rootdir),
 			block:  contentBlock,
 		}
+
+		logger.Trace().Msg("loaded generate_hcl block.")
 	}
 
 	parentRes, err := loadGenHCLBlocks(rootdir, filepath.Dir(cfgdir))
@@ -225,6 +236,8 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 	if err := join(res, parentRes); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrMultiLevelConflict, err)
 	}
+
+	logger.Trace().Msg("loaded generate_hcl blocks with success.")
 	return res, nil
 }
 
