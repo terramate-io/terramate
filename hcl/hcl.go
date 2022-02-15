@@ -58,7 +58,7 @@ type GenerateConfig struct {
 }
 
 type RootConfig struct {
-	Git      GitConfig
+	Git      *GitConfig
 	Generate *GenerateConfig
 }
 
@@ -597,9 +597,6 @@ func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
 		)
 	}
 
-	foundGit := false
-	foundGenerate := false
-
 	logger.Trace().Msg("Range over blocks.")
 
 	for _, b := range block.Body.Blocks {
@@ -607,31 +604,30 @@ func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
 		case "git":
 			logger.Trace().Msg("Type was 'git'.")
 
-			if foundGit {
+			if cfg.Git != nil {
 				return errutil.Chain(
 					ErrMalformedTerramateConfig,
 					fmt.Errorf("multiple terramate.config.git blocks"),
 				)
 			}
 
-			foundGit = true
-			logger.Trace().
-				Msg("Parse git config.")
-			err := parseGitConfig(&cfg.Git, b)
+			cfg.Git = &GitConfig{}
+
+			logger.Trace().Msg("Parse git config.")
+
+			err := parseGitConfig(cfg.Git, b)
 			if err != nil {
 				return err
 			}
 		case "generate":
 			logger.Trace().Msg("Found block generate")
 
-			if foundGenerate {
+			if cfg.Generate != nil {
 				return errutil.Chain(
 					ErrMalformedTerramateConfig,
-					fmt.Errorf("multiple terramate.config.generate blocks"),
+					fmt.Errorf("multiple terramate.config.backend blocks"),
 				)
 			}
-
-			foundGenerate = true
 
 			logger.Trace().Msg("Parsing terramate.config.generate.")
 
@@ -720,8 +716,8 @@ func parseGitConfig(git *GitConfig, block *hclsyntax.Block) error {
 		Str("action", "parseGitConfig()").
 		Logger()
 
-	logger.Trace().
-		Msg("Range over block attributes.")
+	logger.Trace().Msg("Range over block attributes.")
+
 	for name, value := range block.Body.Attributes {
 		attrVal, diags := value.Expr.Value(nil)
 		if diags.HasErrors() {
@@ -843,10 +839,8 @@ func loadCfgBlocks(dir string) (*hclparse.Parser, error) {
 
 		filename := dirEntry.Name()
 		if strings.HasSuffix(filename, ".tm") || strings.HasSuffix(filename, ".tm.hcl") {
-			logger.Trace().Msg("found Terramate config, reading file")
-
 			path := filepath.Join(dir, filename)
-			
+
 			logger.Trace().Msg("Reading config file.")
 
 			data, err := os.ReadFile(path)
@@ -896,8 +890,9 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 			)
 		}
 
-		var tmblock, stackblock *hclsyntax.Block
-		var foundtm, foundstack bool
+		var stackblock *hclsyntax.Block
+		var tmblocks []*hclsyntax.Block
+		var foundstack bool
 
 		logger.Trace().Msg("Range over blocks.")
 
@@ -910,19 +905,8 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 			}
 
 			if block.Type == "terramate" {
-				logger.Trace().Msg("Found 'terramate' block type.")
-
-				if foundtm {
-					return Config{}, errutil.Chain(
-						ErrMalformedTerramateConfig,
-						fmt.Errorf("multiple terramate blocks in file %q", fname),
-					)
-				}
-
-				// TODO (Katcipis): handle multiple terramate blocks on same file
-				// It already works in multiple files.
-				foundtm = true
-				tmblock = block
+				logger.Trace().Msg("Found 'terramate' block.")
+				tmblocks = append(tmblocks, block)
 				continue
 			}
 
@@ -941,7 +925,7 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 			}
 		}
 
-		if foundtm {
+		for _, tmblock := range tmblocks {
 			logger.Trace().Msg("Found terramate block type.")
 
 			if len(tmblock.Labels) > 0 {
@@ -1019,16 +1003,12 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 				case "config":
 					logger.Trace().Msg("Found config block.")
 
-					if tm.RootConfig != nil {
-						return Config{}, errutil.Chain(
-							ErrMalformedTerramateConfig,
-							fmt.Errorf("found second config block in file %q, only one allowed", fname),
-						)
+					if tm.RootConfig == nil {
+						tm.RootConfig = &RootConfig{}
 					}
 
 					logger.Trace().Msg("Parse root config.")
 
-					tm.RootConfig = &RootConfig{}
 					err := parseRootConfig(tm.RootConfig, block)
 					if err != nil {
 						return Config{}, err

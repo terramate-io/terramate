@@ -1150,7 +1150,10 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 	if cfg.Terramate.RootConfig == nil {
 		p.rootcfg.Terramate.RootConfig = &hcl.RootConfig{}
 	}
-	gitOpt := &cfg.Terramate.RootConfig.Git
+	if cfg.Terramate.RootConfig.Git == nil {
+		cfg.Terramate.RootConfig.Git = &hcl.GitConfig{}
+	}
+	gitOpt := cfg.Terramate.RootConfig.Git
 
 	if gitOpt.BaseRef == "" {
 		gitOpt.BaseRef = defaultBaseRef
