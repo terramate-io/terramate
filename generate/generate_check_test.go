@@ -43,8 +43,10 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 		stackConfig(
 			generateHCL(
 				labels("test.tf"),
-				terraform(
-					str("required_version", "1.10"),
+				content(
+					terraform(
+						str("required_version", "1.10"),
+					),
 				),
 			),
 		).String())
@@ -59,8 +61,10 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 		stackConfig(
 			generateHCL(
 				labels("test.tf"),
-				terraform(
-					str("required_version", "1.11"),
+				content(
+					terraform(
+						str("required_version", "1.11"),
+					),
 				),
 			),
 		).String())
@@ -75,8 +79,10 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 		stackConfig(
 			generateHCL(
 				labels("testnew.tf"),
-				terraform(
-					str("required_version", "1.11"),
+				content(
+					terraform(
+						str("required_version", "1.11"),
+					),
 				),
 			),
 		).String())
@@ -88,14 +94,18 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 		stackConfig(
 			generateHCL(
 				labels("testnew.tf"),
-				terraform(
-					str("required_version", "1.11"),
+				content(
+					terraform(
+						str("required_version", "1.11"),
+					),
 				),
 			),
 			generateHCL(
 				labels("another.tf"),
-				backend(
-					labels("type"),
+				content(
+					backend(
+						labels("type"),
+					),
 				),
 			),
 		).String())
@@ -135,6 +145,7 @@ func TestCheckOutdatedIgnoresEmptyGenerateHCLBlocks(t *testing.T) {
 		stackConfig(
 			generateHCL(
 				labels("test.tf"),
+				content(),
 			),
 		).String())
 
@@ -145,7 +156,9 @@ func TestCheckOutdatedIgnoresEmptyGenerateHCLBlocks(t *testing.T) {
 		stackConfig(
 			generateHCL(
 				labels("test.tf"),
-				block("whatever"),
+				content(
+					block("whatever"),
+				),
 			),
 		).String())
 
@@ -159,6 +172,7 @@ func TestCheckOutdatedIgnoresEmptyGenerateHCLBlocks(t *testing.T) {
 		stackConfig(
 			generateHCL(
 				labels("test.tf"),
+				content(),
 			),
 		).String())
 

@@ -22,6 +22,9 @@ other reference is just transported to the generated code (partial evaluation).
 Each `generate_hcl` block requires a single label.
 This label is the filename of the generated code.
 
+Inside the `generate_hcl` block a `content` block is required.
+All code inside `content` is going to be used to generate the final code.
+
 Now lets jump to some examples. Lets generate backend and provider configurations
 for all stacks inside a project.
 
@@ -42,8 +45,10 @@ of the project:
 
 ```hcl
 generate_hcl "backend.tf" {
-  backend "local" {
-    param = global.backend_data
+  content {
+    backend "local" {
+      param = global.backend_data
+    }
   }
 }
 ```
@@ -62,22 +67,26 @@ in the root configuration:
 ```hcl
 generate_hcl "provider.tf" {
 
-  provider "name" {
-    param = global.provider_data
-  }
+  content {
+    provider "name" {
+      param = global.provider_data
+    }
 
-  terraform {
-    required_providers {
-      name = {
-        source  = "integrations/name"
-        version = global.provider_version
+    terraform {
+      required_providers {
+        name = {
+          source  = "integrations/name"
+          version = global.provider_version
+        }
       }
     }
+
+    terraform {
+      required_version = global.terraform_version
+    }
+
   }
 
-  terraform {
-    required_version = global.terraform_version
-  }
 }
 ```
 
