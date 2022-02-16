@@ -261,11 +261,11 @@ func ParseDir(dir string) (Config, error) {
 		Str("dir", dir).
 		Logger()
 
-	logger.Trace().Msg("loading parser for configuration files")
+	logger.Trace().Msg("Parsing configuration files")
 
 	loadedParser, err := loadCfgBlocks(dir)
 	if err != nil {
-		return Config{}, fmt.Errorf("loading parser for config files: %w", err)
+		return Config{}, fmt.Errorf("parsing config files: %w", err)
 	}
 
 	logger.Trace().Msg("creating config from loaded parser")
@@ -273,9 +273,45 @@ func ParseDir(dir string) (Config, error) {
 	return newCfgFromParsedHCLs(dir, loadedParser)
 }
 
-// ParseGlobalsBlocks parses globals blocks, ignoring any other blocks
-func ParseGlobalsBlocks(path string) ([]*hclsyntax.Block, error) {
-	return parseBlocksOfType(path, "globals")
+// HCLBlocks maps a filename to a slice of blocks associated with it
+type HCLBlocks map[string][]*hclsyntax.Block
+
+// ParseGlobalsBlocks parses all Terramate files on the given dir, returning
+// only global blocks (other blocks are discarded).
+func ParseGlobalsBlocks(dir string) (HCLBlocks, error) {
+	logger := log.With().
+		Str("action", "ParseGlobalsBlocks").
+		Str("configdir", dir).
+		Logger()
+
+	logger.Trace().Msg("loading config")
+
+	parser, err := loadCfgBlocks(dir)
+	if err != nil {
+		return HCLBlocks{}, fmt.Errorf("parsing globals: %w", err)
+	}
+
+	logger.Trace().Msg("Filtering globals blocks")
+
+	hclblocks := HCLBlocks{}
+
+	for fname, hclfile := range parser.Files() {
+		logger := logger.With().
+			Str("filename", fname).
+			Logger()
+
+		logger.Trace().Msg("Filtering globals blocks")
+		// A cast error here would be a severe programming error on Terramate
+		// side, so we are by design allowing the cast to panic
+		body := hclfile.Body.(*hclsyntax.Body)
+		blocks := filterBlocksByType("globals", body.Blocks)
+		if len(blocks) == 0 {
+			continue
+		}
+		hclblocks[fname] = blocks
+	}
+
+	return hclblocks, nil
 }
 
 // ParseExportAsLocalsBlocks parses export_as_locals blocks, ignoring other blocks
@@ -395,8 +431,8 @@ func parseBlocksOfType(path string, blocktype string) ([]*hclsyntax.Block, error
 		Str("path", path).
 		Logger()
 
-	logger.Trace().
-		Msg("Get file info.")
+	logger.Trace().Msg("Get file info.")
+
 	_, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -783,8 +819,8 @@ func filterBlocksByType(blocktype string, blocks []*hclsyntax.Block) []*hclsynta
 
 	var filtered []*hclsyntax.Block
 
-	logger.Trace().
-		Msg("Range over blocks.")
+	logger.Trace().Msg("Range over blocks.")
+
 	for _, block := range blocks {
 		if block.Type != blocktype {
 			continue

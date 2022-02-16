@@ -16,13 +16,11 @@ package terramate
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/madlambda/spells/errutil"
-	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/stack"
@@ -61,7 +59,7 @@ func LoadStackGlobals(rootdir string, meta stack.Metadata) (*Globals, error) {
 
 	logger.Debug().Msg("Load stack globals.")
 
-	globalsExprs, err := loadStackGlobalsExpr(rootdir, meta.Path)
+	globalsExprs, err := loadStackGlobalsExprs(rootdir, meta.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +210,7 @@ func (r *globalsExpr) eval(meta stack.Metadata) (*Globals, error) {
 
 	if len(pendingExprs) > 0 {
 		// TODO/FIX: print list of unresolved variables
-		return nil, fmt.Errorf("could not resolve all globals")
+		return nil, fmt.Errorf("%w: could not resolve all globals", ErrGlobalEval)
 	}
 
 	logger.Trace().Msg("Reduce multiple errors into one.")
@@ -234,33 +232,16 @@ func newGlobalsExpr() *globalsExpr {
 	}
 }
 
-func loadStackGlobalsExpr(rootdir string, cfgdir string) (*globalsExpr, error) {
+func loadStackGlobalsExprs(rootdir string, cfgdir string) (*globalsExpr, error) {
 	logger := log.With().
 		Str("action", "loadStackGlobalsExpr()").
-		Logger()
-
-	logger.Trace().Msg("Get config file path.")
-
-	cfgpath := filepath.Join(rootdir, cfgdir, config.DefaultFilename)
-
-	logger = logger.With().
-		Str("configFile", cfgpath).
+		Str("root", rootdir).
+		Str("cfgdir", cfgdir).
 		Logger()
 
 	logger.Debug().Msg("Parse globals blocks.")
 
-	blocks, err := hcl.ParseGlobalsBlocks(cfgpath)
-
-	logger.Trace().Msg("Check if config file exists.")
-
-	if os.IsNotExist(err) {
-		parentcfg, ok := parentDir(cfgdir)
-		if !ok {
-			return newGlobalsExpr(), nil
-		}
-		return loadStackGlobalsExpr(rootdir, parentcfg)
-	}
-
+	blocks, err := hcl.ParseGlobalsBlocks(filepath.Join(rootdir, cfgdir))
 	if err != nil {
 		return nil, err
 	}
@@ -269,17 +250,21 @@ func loadStackGlobalsExpr(rootdir string, cfgdir string) (*globalsExpr, error) {
 
 	logger.Trace().Msg("Range over blocks.")
 
-	for _, block := range blocks {
+	for filename, fileblocks := range blocks {
 		logger.Trace().Msg("Range over block attributes.")
 
-		for name, attr := range block.Body.Attributes {
-			if globals.has(name) {
-				return nil, fmt.Errorf("%w: global %q already defined in configuration %q", ErrGlobalRedefined, name, cfgpath)
+		// TODO(katcipis): should check globals cant have blocks inside
+
+		for _, fileblock := range fileblocks {
+			for name, attr := range fileblock.Body.Attributes {
+				if globals.has(name) {
+					return nil, fmt.Errorf("%w: %q redefined in %q", ErrGlobalRedefined, name, filename)
+				}
+
+				logger.Trace().Msg("Add attribute to globals.")
+
+				globals.add(name, attr.Expr)
 			}
-
-			logger.Trace().Msg("Add attribute to globals.")
-
-			globals.add(name, attr.Expr)
 		}
 	}
 
@@ -288,10 +273,14 @@ func loadStackGlobalsExpr(rootdir string, cfgdir string) (*globalsExpr, error) {
 		return globals, nil
 	}
 
-	parentGlobals, err := loadStackGlobalsExpr(rootdir, parentcfg)
+	logger.Trace().Msg("Loading stack globals from parent dir.")
+
+	parentGlobals, err := loadStackGlobalsExprs(rootdir, parentcfg)
 	if err != nil {
 		return nil, err
 	}
+
+	logger.Trace().Msg("Merging globals with parent.")
 
 	globals.merge(parentGlobals)
 	return globals, nil

@@ -34,7 +34,7 @@ import (
 
 func TestLoadGlobals(t *testing.T) {
 	type (
-		globalsBlock struct {
+		hclconfig struct {
 			path     string
 			filename string
 			add      *hclwrite.Block
@@ -42,7 +42,7 @@ func TestLoadGlobals(t *testing.T) {
 		testcase struct {
 			name    string
 			layout  []string
-			globals []globalsBlock
+			configs []hclconfig
 			want    map[string]*hclwrite.Block
 			wantErr error
 		}
@@ -50,6 +50,9 @@ func TestLoadGlobals(t *testing.T) {
 
 	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("globals", builders...)
+	}
+	block := func(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock(name, builders...)
 	}
 	expr := hclwrite.Expression
 	attr := func(name, expr string) hclwrite.BlockBuilder {
@@ -76,9 +79,22 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name: "non-global block is ignored",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add:  block("terramate"),
+				},
+			},
+		},
+		{
 			name:   "single stack with its own globals",
 			layout: []string{"s:stack"},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{
 					path: "/stack",
 					add: globals(
@@ -99,7 +115,7 @@ func TestLoadGlobals(t *testing.T) {
 		{
 			name:   "single stack with three globals blocks",
 			layout: []string{"s:stack"},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{path: "/stack", add: globals(str("str", "hi"))},
 				{path: "/stack", add: globals(number("num", 666))},
 				{path: "/stack", add: globals(boolean("bool", false))},
@@ -118,7 +134,7 @@ func TestLoadGlobals(t *testing.T) {
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
 			},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{path: "/stacks", add: globals(str("parent", "hi"))},
 			},
 			want: map[string]*hclwrite.Block{
@@ -132,7 +148,7 @@ func TestLoadGlobals(t *testing.T) {
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
 			},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{path: "/", add: globals(str("root", "hi"))},
 			},
 			want: map[string]*hclwrite.Block{
@@ -146,7 +162,7 @@ func TestLoadGlobals(t *testing.T) {
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
 			},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{path: "/", add: globals(str("root", "root"))},
 				{path: "/stacks", add: globals(boolean("parent", true))},
 				{path: "/stacks/stack-1", add: globals(number("stack", 666))},
@@ -172,7 +188,7 @@ func TestLoadGlobals(t *testing.T) {
 				"s:stacks/stack-2",
 				"s:stacks/stack-3",
 			},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{
 					path: "/",
 					add: globals(
@@ -230,7 +246,7 @@ func TestLoadGlobals(t *testing.T) {
 				"s:stacks/stack-1",
 				"s:stacks/stack-2:description=someDescriptionStack2",
 			},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{
 					path: "/stacks/stack-1",
 					add: globals(
@@ -265,7 +281,7 @@ func TestLoadGlobals(t *testing.T) {
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
 			},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{
 					path: "/stacks/stack-1",
 					add: globals(
@@ -289,7 +305,7 @@ func TestLoadGlobals(t *testing.T) {
 		{
 			name:   "stack with globals referencing globals",
 			layout: []string{"s:stack"},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{
 					path: "/stack",
 					add: globals(
@@ -316,7 +332,7 @@ func TestLoadGlobals(t *testing.T) {
 		{
 			name:   "stack with globals referencing globals on multiple files",
 			layout: []string{"s:stack"},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{
 					path:     "/stack",
 					filename: "globals_1.tm.hcl",
@@ -359,7 +375,7 @@ func TestLoadGlobals(t *testing.T) {
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
 			},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{
 					path:     "/",
 					filename: "globals_1.tm.hcl",
@@ -388,26 +404,26 @@ func TestLoadGlobals(t *testing.T) {
 			want: map[string]*hclwrite.Block{
 				"/stacks/stack-1": globals(
 					str("field", "some-string"),
-					str("stack_path", "/stack"),
+					str("stack_path", "/stacks/stack-1"),
 					str("ref_field", "some-string"),
-					str("ref_stack_path", "/stack"),
-					str("interpolation", "/stack-some-string"),
-					str("ref_interpolation", "/stack-some-string"),
+					str("ref_stack_path", "/stacks/stack-1"),
+					str("interpolation", "/stacks/stack-1-some-string"),
+					str("ref_interpolation", "/stacks/stack-1-some-string"),
 				),
 				"/stacks/stack-2": globals(
 					str("field", "some-string"),
-					str("stack_path", "/stack"),
+					str("stack_path", "/stacks/stack-2"),
 					str("ref_field", "some-string"),
-					str("ref_stack_path", "/stack"),
-					str("interpolation", "/stack-some-string"),
-					str("ref_interpolation", "/stack-some-string"),
+					str("ref_stack_path", "/stacks/stack-2"),
+					str("interpolation", "/stacks/stack-2-some-string"),
+					str("ref_interpolation", "/stacks/stack-2-some-string"),
 				),
 			},
 		},
 		{
 			name:   "stack with globals referencing globals hierarchically no overriding",
 			layout: []string{"s:envs/prod/stacks/stack"},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{
 					path: "/",
 					add: globals(
@@ -463,7 +479,7 @@ func TestLoadGlobals(t *testing.T) {
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
 			},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{
 					path: "/",
 					add: globals(
@@ -510,7 +526,7 @@ func TestLoadGlobals(t *testing.T) {
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
 			},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{
 					path:     "/",
 					filename: "root_globals.tm",
@@ -558,7 +574,7 @@ func TestLoadGlobals(t *testing.T) {
 		{
 			name:   "unknown global reference is ignored if it is overridden",
 			layout: []string{"s:stack"},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{
 					path: "/",
 					add:  globals(expr("field", "global.wont_exist")),
@@ -575,7 +591,7 @@ func TestLoadGlobals(t *testing.T) {
 		{
 			name:   "global reference with functions",
 			layout: []string{"s:stack"},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{
 					path: "/",
 					add:  globals(str("field", "@lala@hello")),
@@ -599,7 +615,7 @@ func TestLoadGlobals(t *testing.T) {
 		{
 			name:   "global reference with successful try on stack",
 			layout: []string{"s:stack"},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{
 					path: "/stack",
 					add: globals(
@@ -620,7 +636,7 @@ func TestLoadGlobals(t *testing.T) {
 		{
 			name:   "global reference with failed try on stack",
 			layout: []string{"s:stack"},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{
 					path: "/stack",
 					add: globals(
@@ -639,7 +655,7 @@ func TestLoadGlobals(t *testing.T) {
 		{
 			name:   "global reference with try on root config and value defined on stack",
 			layout: []string{"s:stack"},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{
 					path: "/",
 					add: globals(
@@ -665,7 +681,7 @@ func TestLoadGlobals(t *testing.T) {
 		{
 			name:   "global undefined reference on root",
 			layout: []string{"s:stack"},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{
 					path: "/",
 					add:  globals(expr("field", "global.unknown")),
@@ -680,7 +696,7 @@ func TestLoadGlobals(t *testing.T) {
 		{
 			name:   "global undefined reference on stack",
 			layout: []string{"s:stack"},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{
 					path: "/stack",
 					add:  globals(expr("field", "global.unknown")),
@@ -691,7 +707,7 @@ func TestLoadGlobals(t *testing.T) {
 		{
 			name:   "global undefined references mixed on stack",
 			layout: []string{"s:stack"},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{
 					path: "/stack",
 					add: globals(
@@ -707,7 +723,7 @@ func TestLoadGlobals(t *testing.T) {
 		{
 			name:   "global cyclic reference on stack",
 			layout: []string{"s:stack"},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{
 					path: "/stack",
 					add: globals(
@@ -722,7 +738,7 @@ func TestLoadGlobals(t *testing.T) {
 		{
 			name:   "global cyclic references across hierarchy",
 			layout: []string{"s:stacks/stack"},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{
 					path: "/",
 					add:  globals(expr("a", "global.b")),
@@ -741,7 +757,7 @@ func TestLoadGlobals(t *testing.T) {
 		{
 			name:   "global redefined on different file on stack",
 			layout: []string{"s:stack"},
-			globals: []globalsBlock{
+			configs: []hclconfig{
 				{
 					path:     "/stack",
 					filename: "globals.tm.hcl",
@@ -762,7 +778,7 @@ func TestLoadGlobals(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
 
-			for _, globalBlock := range tcase.globals {
+			for _, globalBlock := range tcase.configs {
 				path := filepath.Join(s.RootDir(), globalBlock.path)
 				filename := config.DefaultFilename
 				if globalBlock.filename != "" {
