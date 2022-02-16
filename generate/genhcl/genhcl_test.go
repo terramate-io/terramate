@@ -224,6 +224,76 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 		},
 		{
+			name:  "generate HCL on root with multiple files",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						str("some_string", "string"),
+						number("some_number", 777),
+						boolean("some_bool", true),
+					),
+				},
+				{
+					path:     "/",
+					filename: "root.tm.hcl",
+					add: generateHCL(
+						labels("test"),
+						content(
+							block("testblock",
+								expr("bool", "global.some_bool"),
+								expr("number", "global.some_number"),
+								expr("string", "global.some_string"),
+							),
+						),
+					),
+				},
+				{
+					path:     "/",
+					filename: "root2.tm.hcl",
+					add: generateHCL(
+						labels("test2"),
+						content(
+							block("testblock2",
+								expr("obj", `{
+									string = global.some_string
+									number = global.some_number
+									bool = global.some_bool
+								}`),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test",
+					hcl: genHCL{
+						origin: "/root.tm.hcl",
+						body: block("testblock",
+							boolean("bool", true),
+							number("number", 777),
+							str("string", "string"),
+						),
+					},
+				},
+				{
+					name: "test2",
+					hcl: genHCL{
+						origin: "/root2.tm.hcl",
+						body: block("testblock2",
+							attr("obj", `{
+								bool   = true
+								number = 777
+								string = "string"
+							}`),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "generate HCL on stack with multiple files",
 			stack: "/stack",
 			configs: []hclconfig{
@@ -270,7 +340,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "test",
 					hcl: genHCL{
-						origin: defaultCfg("/stack"),
+						origin: "/stack/test.tm.hcl",
 						body: block("testblock",
 							boolean("bool", true),
 							number("number", 777),
@@ -281,7 +351,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "test2",
 					hcl: genHCL{
-						origin: defaultCfg("/stack"),
+						origin: "/stack/test2.tm.hcl",
 						body: block("testblock2",
 							attr("obj", `{
 								bool   = true
@@ -379,7 +449,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "nesting",
 					hcl: genHCL{
-						origin: defaultCfg("/stack"),
+						origin: "/stack/genhcl.tm.hcl",
 						body: block("block1",
 							boolean("bool", true),
 							block("block2",
