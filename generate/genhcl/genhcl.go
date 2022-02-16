@@ -17,7 +17,6 @@ package genhcl
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -25,7 +24,6 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate"
-	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/stack"
@@ -171,8 +169,8 @@ type loadedHCL struct {
 	block  *hclsyntax.Block
 }
 
-// loadGenHCLBlocks will load all generate_hcl blocks applying overriding
-// as it goes, the returned map maps the name of the block (its label)
+// loadGenHCLBlocks will load all generate_hcl blocks.
+// The returned map maps the name of the block (its label)
 // to the original block and the path (relative to project root) of the config
 // from where it was parsed.
 func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, error) {
@@ -189,12 +187,8 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 		return nil, nil
 	}
 
-	cfgpath := filepath.Join(cfgdir, config.DefaultFilename)
-	blocks, err := hcl.ParseGenerateHCLBlocks(cfgpath)
+	blocks, err := hcl.ParseGenerateHCLBlocks(cfgdir)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return loadGenHCLBlocks(rootdir, filepath.Dir(cfgdir))
-		}
 		return nil, fmt.Errorf("parsing generate_hcl code: %v", err)
 	}
 
@@ -202,31 +196,38 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 
 	res := map[string]loadedHCL{}
 
-	// TODO(katcipis): improve error messages by including filenames/path
-	for _, genhclBlock := range blocks {
-		logger.Trace().Msg("Validating generate_hcl block.")
+	for filename, genhclBlocks := range blocks {
+		for _, genhclBlock := range genhclBlocks {
+			logger.Trace().Msg("Validating generate_hcl block.")
 
-		if err := validateGenerateHCLBlock(genhclBlock); err != nil {
-			return nil, fmt.Errorf("%w: %v", ErrInvalidBlock, err)
+			if err := validateGenerateHCLBlock(genhclBlock); err != nil {
+				return nil, fmt.Errorf("%w: %v", ErrInvalidBlock, err)
+			}
+
+			logger.Trace().Msg("generate_hcl block is valid.")
+
+			name := genhclBlock.Labels[0]
+			if _, ok := res[name]; ok {
+				return nil, fmt.Errorf(
+					"%w: found two blocks with same label %q",
+					ErrInvalidBlock,
+					name,
+				)
+			}
+
+			contentBlock := genhclBlock.Body.Blocks[0]
+			relpath := strings.TrimPrefix(cfgdir, rootdir)
+			if relpath == "" {
+				relpath = "/"
+			}
+			origin := filepath.Join(relpath, filename)
+			res[name] = loadedHCL{
+				origin: origin,
+				block:  contentBlock,
+			}
+
+			logger.Trace().Msg("loaded generate_hcl block.")
 		}
-
-		logger.Trace().Msg("generate_hcl block is valid.")
-
-		name := genhclBlock.Labels[0]
-		if _, ok := res[name]; ok {
-			return nil, fmt.Errorf(
-				"%w: found two blocks with same label %q",
-				ErrInvalidBlock,
-				name,
-			)
-		}
-		contentBlock := genhclBlock.Body.Blocks[0]
-		res[name] = loadedHCL{
-			origin: strings.TrimPrefix(cfgpath, rootdir),
-			block:  contentBlock,
-		}
-
-		logger.Trace().Msg("loaded generate_hcl block.")
 	}
 
 	parentRes, err := loadGenHCLBlocks(rootdir, filepath.Dir(cfgdir))

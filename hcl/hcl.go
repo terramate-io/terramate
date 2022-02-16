@@ -22,6 +22,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
@@ -273,6 +274,9 @@ func ParseDir(dir string) (Config, error) {
 	return newCfgFromParsedHCLs(dir, loadedParser)
 }
 
+// HCLBlocks maps a filename to a slice of blocks associated with it
+type HCLBlocks map[string][]*hclsyntax.Block
+
 // ParseGlobalsBlocks parses globals blocks, ignoring any other blocks
 func ParseGlobalsBlocks(path string) ([]*hclsyntax.Block, error) {
 	return parseBlocksOfType(path, "globals")
@@ -283,9 +287,25 @@ func ParseExportAsLocalsBlocks(path string) ([]*hclsyntax.Block, error) {
 	return parseBlocksOfType(path, "export_as_locals")
 }
 
-// ParseGenerateHCLBlocks parses generate_hcl blocks, ignoring other blocks
-func ParseGenerateHCLBlocks(path string) ([]*hclsyntax.Block, error) {
-	return parseBlocksOfType(path, "generate_hcl")
+// ParseGenerateHCLBlocks parses all Terramate files on the given dir, returning
+// only generate_hcl blocks (other blocks are discarded).
+func ParseGenerateHCLBlocks(dir string) (HCLBlocks, error) {
+	logger := log.With().
+		Str("action", "hcl.ParseGenerateHCLBlocks").
+		Str("configdir", dir).
+		Logger()
+
+	logger.Trace().Msg("loading config")
+
+	return parseHCLBlocks(dir, "generate_hcl", &hcl.BodySchema{
+		Attributes: []hcl.AttributeSchema{},
+		Blocks: []hcl.BlockHeaderSchema{
+			{
+				Type:       "content",
+				LabelNames: []string{},
+			},
+		},
+	})
 }
 
 // CopyBody will copy the src body to the given target, evaluating attributes using the
@@ -1043,6 +1063,56 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 	}
 
 	return tmconfig, nil
+}
+
+func parseHCLBlocks(dir, blocktype string, schema *hcl.BodySchema) (HCLBlocks, error) {
+	logger := log.With().
+		Str("action", "hcl.parseHCLBlocks").
+		Str("configdir", dir).
+		Str("blocktype", blocktype).
+		Logger()
+
+	logger.Trace().Msg("loading config")
+
+	parser, err := loadCfgBlocks(dir)
+	if err != nil {
+		return HCLBlocks{}, fmt.Errorf("parsing %q: %w", blocktype, err)
+	}
+
+	logger.Trace().Msg("Validating and filtering blocks")
+
+	hclblocks := HCLBlocks{}
+
+	for fname, hclfile := range parser.Files() {
+		logger := logger.With().
+			Str("filename", fname).
+			Logger()
+
+		logger.Trace().Msg("filtering blocks")
+		// A cast error here would be a severe programming error on Terramate
+		// side, so we are by design allowing the cast to panic
+		body := hclfile.Body.(*hclsyntax.Body)
+		blocks := filterBlocksByType(blocktype, body.Blocks)
+
+		if len(blocks) == 0 {
+			continue
+		}
+
+		logger.Trace().Msg("validating blocks")
+
+		//for _, block := range blocks {
+		//_, diags := block.Body.Content(schema)
+		//if diags.HasErrors() {
+		//return nil, diags
+		//}
+		//}
+
+		logger.Trace().Msg("validated blocks")
+
+		hclblocks[fname] = blocks
+	}
+
+	return hclblocks, nil
 }
 
 // IsLocal tells if module source is a local directory.
