@@ -48,11 +48,14 @@ func TestLoadGlobals(t *testing.T) {
 		}
 	)
 
-	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("globals", builders...)
+	labels := func(labels ...string) hclwrite.BlockBuilder {
+		return hclwrite.Labels(labels...)
 	}
 	block := func(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock(name, builders...)
+	}
+	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return block("globals", builders...)
 	}
 	expr := hclwrite.Expression
 	attr := func(name, expr string) hclwrite.BlockBuilder {
@@ -687,6 +690,20 @@ func TestLoadGlobals(t *testing.T) {
 					add: globals(
 						str("test", "hallo"),
 						block("notallowed"),
+					),
+				},
+			},
+			wantErr: terramate.ErrGlobalParse,
+		},
+		{
+			name:   "globals cant have labels",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: globals(
+						labels("no"),
+						str("test", "hallo"),
 					),
 				},
 			},

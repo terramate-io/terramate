@@ -310,8 +310,13 @@ func ParseGlobalsBlocks(dir string) (HCLBlocks, error) {
 		}
 
 		for _, block := range blocks {
+			// Not validated with schema because cant find a way to validate
+			// N arbitrary attributes (defined by user/dynamic).
 			if len(block.Body.Blocks) > 0 {
 				return nil, fmt.Errorf("blocks inside globals are not allowed at %q", fname)
+			}
+			if len(block.Labels) > 0 {
+				return nil, fmt.Errorf("labels on globals block are not allowed, found %v at %q", block.Labels, fname)
 			}
 		}
 
