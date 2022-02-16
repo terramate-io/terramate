@@ -68,7 +68,6 @@ in the root configuration:
 generate_hcl "provider.tf" {
 
   content {
-
     provider "name" {
       param = global.provider_data
     }
