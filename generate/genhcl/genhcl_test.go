@@ -775,7 +775,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrInvalidBlock,
+			wantErr: genhcl.ErrParsing,
 		},
 		{
 			name:  "generate_hcl with non-content block inside fails",
@@ -791,7 +791,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrInvalidBlock,
+			wantErr: genhcl.ErrParsing,
 		},
 		{
 			name:  "generate_hcl with other blocks than content fails",
@@ -810,7 +810,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrInvalidBlock,
+			wantErr: genhcl.ErrParsing,
 		},
 		{
 			name:  "generate_hcl.content block is required",
@@ -823,7 +823,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrInvalidBlock,
+			wantErr: genhcl.ErrParsing,
 		},
 		{
 			name:  "generate_hcl.content block with label fails",
@@ -839,7 +839,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrInvalidBlock,
+			wantErr: genhcl.ErrParsing,
 		},
 		{
 			name:  "block with two labels on stack fails",
@@ -857,7 +857,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrInvalidBlock,
+			wantErr: genhcl.ErrParsing,
 		},
 		{
 			name:  "block with empty label on stack fails",
@@ -875,7 +875,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrInvalidBlock,
+			wantErr: genhcl.ErrParsing,
 		},
 		{
 			name:  "blocks with same label on same config fails",
@@ -903,7 +903,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrInvalidBlock,
+			wantErr: genhcl.ErrParsing,
 		},
 		{
 			name:  "blocks with same label on multiple config files fails",
@@ -938,7 +938,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrInvalidBlock,
+			wantErr: genhcl.ErrParsing,
 		},
 		{
 			name:  "global evaluation failure",
@@ -1006,7 +1006,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrInvalidBlock,
+			wantErr: genhcl.ErrParsing,
 		},
 		{
 			name:  "attributes on generate_hcl block fails",
@@ -1027,7 +1027,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrInvalidBlock,
+			wantErr: genhcl.ErrParsing,
 		},
 	}
 

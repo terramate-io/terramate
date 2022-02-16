@@ -46,7 +46,7 @@ type HCL struct {
 
 const (
 	ErrMultiLevelConflict errutil.Error = "conflicting generate_hcl blocks"
-	ErrInvalidBlock       errutil.Error = "invalid generate_hcl block"
+	ErrParsing            errutil.Error = "parsing generate_hcl block"
 	ErrEval               errutil.Error = "evaluating generate_hcl block"
 )
 
@@ -189,7 +189,7 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 
 	blocks, err := hcl.ParseGenerateHCLBlocks(cfgdir)
 	if err != nil {
-		return nil, fmt.Errorf("parsing generate_hcl code: %v", err)
+		return nil, fmt.Errorf("%w: %v", ErrParsing, err)
 	}
 
 	logger.Trace().Msg("Parsed generate_hcl blocks.")
@@ -201,7 +201,7 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 			logger.Trace().Msg("Validating generate_hcl block.")
 
 			if err := validateGenerateHCLBlock(genhclBlock); err != nil {
-				return nil, fmt.Errorf("%w: %v", ErrInvalidBlock, err)
+				return nil, fmt.Errorf("%w: %v", ErrParsing, err)
 			}
 
 			logger.Trace().Msg("generate_hcl block is valid.")
@@ -210,7 +210,7 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 			if _, ok := res[name]; ok {
 				return nil, fmt.Errorf(
 					"%w: found two blocks with same label %q",
-					ErrInvalidBlock,
+					ErrParsing,
 					name,
 				)
 			}
@@ -252,18 +252,8 @@ func validateGenerateHCLBlock(block *hclsyntax.Block) error {
 	if block.Labels[0] == "" {
 		return errors.New("label can't be empty")
 	}
-	if len(block.Body.Attributes) != 0 {
-		return errors.New("attributes are not allowed")
-	}
 	if len(block.Body.Blocks) != 1 {
 		return fmt.Errorf("one 'content' block is required, got %d blocks", len(block.Body.Blocks))
-	}
-	contentBlock := block.Body.Blocks[0]
-	if contentBlock.Type != "content" {
-		return fmt.Errorf("one 'content' block is required, got %q block", contentBlock.Type)
-	}
-	if len(contentBlock.Labels) > 0 {
-		return fmt.Errorf("content block has unexpected labels: %v", contentBlock.Labels)
 	}
 	return nil
 }

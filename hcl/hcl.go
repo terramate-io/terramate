@@ -1100,12 +1100,12 @@ func parseHCLBlocks(dir, blocktype string, schema *hcl.BodySchema) (HCLBlocks, e
 
 		logger.Trace().Msg("validating blocks")
 
-		//for _, block := range blocks {
-		//_, diags := block.Body.Content(schema)
-		//if diags.HasErrors() {
-		//return nil, diags
-		//}
-		//}
+		for _, block := range blocks {
+			_, diags := block.Body.Content(schema)
+			if diags.HasErrors() {
+				return nil, diags
+			}
+		}
 
 		logger.Trace().Msg("validated blocks")
 
