@@ -308,6 +308,13 @@ func ParseGlobalsBlocks(dir string) (HCLBlocks, error) {
 		if len(blocks) == 0 {
 			continue
 		}
+
+		for _, block := range blocks {
+			if len(block.Body.Blocks) > 0 {
+				return nil, fmt.Errorf("blocks inside globals are not allowed at %q", fname)
+			}
+		}
+
 		hclblocks[fname] = blocks
 	}
 

@@ -34,7 +34,8 @@ type Globals struct {
 }
 
 const (
-	ErrGlobalEval      errutil.Error = "global eval failed"
+	ErrGlobalEval      errutil.Error = "globals eval failed"
+	ErrGlobalParse     errutil.Error = "globals parsing failed"
 	ErrGlobalRedefined errutil.Error = "global redefined"
 )
 
@@ -243,7 +244,7 @@ func loadStackGlobalsExprs(rootdir string, cfgdir string) (*globalsExpr, error) 
 
 	blocks, err := hcl.ParseGlobalsBlocks(filepath.Join(rootdir, cfgdir))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", ErrGlobalParse, err)
 	}
 
 	globals := newGlobalsExpr()
@@ -252,8 +253,6 @@ func loadStackGlobalsExprs(rootdir string, cfgdir string) (*globalsExpr, error) 
 
 	for filename, fileblocks := range blocks {
 		logger.Trace().Msg("Range over block attributes.")
-
-		// TODO(katcipis): should check globals cant have blocks inside
 
 		for _, fileblock := range fileblocks {
 			for name, attr := range fileblock.Body.Attributes {

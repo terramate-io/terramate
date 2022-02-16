@@ -679,6 +679,20 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "globals cant have blocks inside",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: globals(
+						str("test", "hallo"),
+						block("notallowed"),
+					),
+				},
+			},
+			wantErr: terramate.ErrGlobalParse,
+		},
+		{
 			name:   "global undefined reference on root",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
