@@ -188,7 +188,7 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 
 	blocks, err := hcl.ParseGenerateHCLBlocks(cfgdir)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrParsing, err)
+		return nil, fmt.Errorf("%w: cfgdir %q: %v", ErrParsing, cfgdir, err)
 	}
 
 	logger.Trace().Msg("Parsed generate_hcl blocks.")

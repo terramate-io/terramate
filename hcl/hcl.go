@@ -312,16 +312,16 @@ func ParseGenerateHCLBlocks(dir string) (HCLBlocks, error) {
 		// labels, only specific label values.
 		if len(block.Labels) != 1 {
 			return fmt.Errorf(
-				"want single label instead got %d",
+				"generate_hcl must have single label instead got %d",
 				len(block.Labels),
 			)
 		}
 		if block.Labels[0] == "" {
-			return errors.New("label can't be empty")
+			return errors.New("generate_hcl label can't be empty")
 		}
 		// Schema check passes if no block is present, so check for amount of blocks
 		if len(block.Body.Blocks) != 1 {
-			return fmt.Errorf("one 'content' block is required, got %d blocks", len(block.Body.Blocks))
+			return fmt.Errorf("generate_hcl must have one 'content' block, got %d blocks", len(block.Body.Blocks))
 		}
 		_, diags := block.Body.Content(schema)
 		if diags.HasErrors() {
@@ -1127,7 +1127,7 @@ func parseHCLBlocks(dir, blocktype string, validate blockValidator) (HCLBlocks, 
 
 		for _, block := range blocks {
 			if err := validate(block); err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%q: %v", fname, err)
 			}
 		}
 
