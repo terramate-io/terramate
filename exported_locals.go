@@ -29,7 +29,10 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-const ErrExportedLocalRedefined errutil.Error = "export_as_locals attribute redefined"
+const (
+	ErrExportedLocalRedefined errutil.Error = "export_as_locals attribute redefined"
+	ErrExportedLocalsParsing  errutil.Error = "parsing export_as_locals"
+)
 
 // ExportedLocalValues represents information exported from Terramate
 // in a way that is suitable to be used for Terraform code generation.
@@ -97,11 +100,11 @@ func loadStackExportedLocalExprs(rootdir string, cfgdir string) (exportedLocalEx
 		Msg("Parse export as locals blocks.")
 	blocks, err := hcl.ParseExportAsLocalsBlocks(cfgpath)
 
-	logger.Trace().
-		Msg("Check if file exists.")
+	logger.Trace().Msg("Check if file exists.")
+
 	if os.IsNotExist(err) {
-		logger.Trace().
-			Msg("Get parent directory.")
+		logger.Trace().Msg("Get parent directory.")
+
 		parentcfg, ok := parentDir(cfgdir)
 		if !ok {
 			return newExportedLocalExprs(), nil
@@ -113,15 +116,15 @@ func loadStackExportedLocalExprs(rootdir string, cfgdir string) (exportedLocalEx
 		return exportedLocalExprs{}, err
 	}
 
-	logger.Trace().
-		Msg("Get new exported local exprs.")
+	logger.Trace().Msg("Get new exported local exprs.")
+
 	exportLocals := newExportedLocalExprs()
 
-	logger.Trace().
-		Msg("Range over blocks.")
+	logger.Trace().Msg("Range over blocks.")
+
 	for _, block := range blocks {
-		logger.Trace().
-			Msg("Range over block attributes.")
+		logger.Trace().Msg("Range over block attributes.")
+
 		for name, attr := range block.Body.Attributes {
 			if exportLocals.has(name) {
 				return exportedLocalExprs{}, fmt.Errorf(
