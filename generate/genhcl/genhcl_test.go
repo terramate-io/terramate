@@ -33,8 +33,9 @@ import (
 func TestLoadGeneratedHCL(t *testing.T) {
 	type (
 		hclconfig struct {
-			path string
-			add  fmt.Stringer
+			path     string
+			filename string
+			add      fmt.Stringer
 		}
 		genHCL struct {
 			body   fmt.Stringer
@@ -861,8 +862,12 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			stack := stackEntry.Load()
 
 			for _, cfg := range tcase.configs {
+				filename := cfg.filename
+				if filename == "" {
+					filename = config.DefaultFilename
+				}
 				path := filepath.Join(s.RootDir(), cfg.path)
-				test.AppendFile(t, path, config.DefaultFilename, cfg.add.String())
+				test.AppendFile(t, path, filename, cfg.add.String())
 			}
 
 			meta := stack.Meta()
