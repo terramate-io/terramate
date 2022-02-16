@@ -297,7 +297,7 @@ func ParseGenerateHCLBlocks(dir string) (HCLBlocks, error) {
 
 	logger.Trace().Msg("loading config")
 
-	return parseHCLBlocks(dir, "generate_hcl", &hcl.BodySchema{
+	schema := &hcl.BodySchema{
 		Attributes: []hcl.AttributeSchema{},
 		Blocks: []hcl.BlockHeaderSchema{
 			{
@@ -305,6 +305,28 @@ func ParseGenerateHCLBlocks(dir string) (HCLBlocks, error) {
 				LabelNames: []string{},
 			},
 		},
+	}
+
+	return parseHCLBlocks(dir, "generate_hcl", func(block *hclsyntax.Block) error {
+		// Don't seem like I can use hcl.Body schema to check for any non-empty
+		// labels, only specific label values.
+		if len(block.Labels) != 1 {
+			return fmt.Errorf(
+				"want single label instead got %d",
+				len(block.Labels),
+			)
+		}
+		if block.Labels[0] == "" {
+			return errors.New("label can't be empty")
+		}
+		if len(block.Body.Blocks) != 1 {
+			return fmt.Errorf("one 'content' block is required, got %d blocks", len(block.Body.Blocks))
+		}
+		_, diags := block.Body.Content(schema)
+		if diags.HasErrors() {
+			return diags
+		}
+		return nil
 	})
 }
 
@@ -1065,7 +1087,9 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 	return tmconfig, nil
 }
 
-func parseHCLBlocks(dir, blocktype string, schema *hcl.BodySchema) (HCLBlocks, error) {
+type blockValidator func(*hclsyntax.Block) error
+
+func parseHCLBlocks(dir, blocktype string, validate blockValidator) (HCLBlocks, error) {
 	logger := log.With().
 		Str("action", "hcl.parseHCLBlocks").
 		Str("configdir", dir).
@@ -1101,9 +1125,8 @@ func parseHCLBlocks(dir, blocktype string, schema *hcl.BodySchema) (HCLBlocks, e
 		logger.Trace().Msg("validating blocks")
 
 		for _, block := range blocks {
-			_, diags := block.Body.Content(schema)
-			if diags.HasErrors() {
-				return nil, diags
+			if err := validate(block); err != nil {
+				return nil, err
 			}
 		}
 

@@ -15,7 +15,6 @@
 package genhcl
 
 import (
-	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -198,14 +197,6 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 
 	for filename, genhclBlocks := range blocks {
 		for _, genhclBlock := range genhclBlocks {
-			logger.Trace().Msg("Validating generate_hcl block.")
-
-			if err := validateGenerateHCLBlock(genhclBlock); err != nil {
-				return nil, fmt.Errorf("%w: %v", ErrParsing, err)
-			}
-
-			logger.Trace().Msg("generate_hcl block is valid.")
-
 			name := genhclBlock.Labels[0]
 			if _, ok := res[name]; ok {
 				return nil, fmt.Errorf(
@@ -240,22 +231,6 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 
 	logger.Trace().Msg("loaded generate_hcl blocks with success.")
 	return res, nil
-}
-
-func validateGenerateHCLBlock(block *hclsyntax.Block) error {
-	if len(block.Labels) != 1 {
-		return fmt.Errorf(
-			"want single label instead got %d",
-			len(block.Labels),
-		)
-	}
-	if block.Labels[0] == "" {
-		return errors.New("label can't be empty")
-	}
-	if len(block.Body.Blocks) != 1 {
-		return fmt.Errorf("one 'content' block is required, got %d blocks", len(block.Body.Blocks))
-	}
-	return nil
 }
 
 func join(target, src map[string]loadedHCL) error {
