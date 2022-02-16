@@ -44,7 +44,7 @@ func TestLoadGlobals(t *testing.T) {
 			layout  []string
 			globals []globalsBlock
 			want    map[string]*hclwrite.Block
-			wantErr bool
+			wantErr error
 		}
 	)
 
@@ -314,6 +314,97 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "stack with globals referencing globals on multiple files",
+			layout: []string{"s:stack"},
+			globals: []globalsBlock{
+				{
+					path:     "/stack",
+					filename: "globals_1.tm.hcl",
+					add: globals(
+						str("field", "some-string"),
+						expr("stack_path", "terramate.path"),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "globals_2.tm.hcl",
+					add: globals(
+						expr("ref_field", "global.field"),
+						expr("ref_stack_path", "global.stack_path"),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "globals_3.tm.hcl",
+					add: globals(
+						expr("interpolation", `"${global.ref_stack_path}-${global.ref_field}"`),
+						expr("ref_interpolation", "global.interpolation"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					str("field", "some-string"),
+					str("stack_path", "/stack"),
+					str("ref_field", "some-string"),
+					str("ref_stack_path", "/stack"),
+					str("interpolation", "/stack-some-string"),
+					str("ref_interpolation", "/stack-some-string"),
+				),
+			},
+		},
+		{
+			name: "root with globals referencing globals on multiple files",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			globals: []globalsBlock{
+				{
+					path:     "/",
+					filename: "globals_1.tm.hcl",
+					add: globals(
+						str("field", "some-string"),
+						expr("stack_path", "terramate.path"),
+					),
+				},
+				{
+					path:     "/",
+					filename: "globals_2.tm.hcl",
+					add: globals(
+						expr("ref_field", "global.field"),
+						expr("ref_stack_path", "global.stack_path"),
+					),
+				},
+				{
+					path:     "/",
+					filename: "globals_3.tm.hcl",
+					add: globals(
+						expr("interpolation", `"${global.ref_stack_path}-${global.ref_field}"`),
+						expr("ref_interpolation", "global.interpolation"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-1": globals(
+					str("field", "some-string"),
+					str("stack_path", "/stack"),
+					str("ref_field", "some-string"),
+					str("ref_stack_path", "/stack"),
+					str("interpolation", "/stack-some-string"),
+					str("ref_interpolation", "/stack-some-string"),
+				),
+				"/stacks/stack-2": globals(
+					str("field", "some-string"),
+					str("stack_path", "/stack"),
+					str("ref_field", "some-string"),
+					str("ref_stack_path", "/stack"),
+					str("interpolation", "/stack-some-string"),
+					str("ref_interpolation", "/stack-some-string"),
+				),
+			},
+		},
+		{
 			name:   "stack with globals referencing globals hierarchically no overriding",
 			layout: []string{"s:envs/prod/stacks/stack"},
 			globals: []globalsBlock{
@@ -394,6 +485,57 @@ func TestLoadGlobals(t *testing.T) {
 				},
 				{
 					path: "/stacks/stack-2",
+					add: globals(
+						str("stack", "stack-2"),
+						str("stack_other", "other stack-2"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-1": globals(
+					str("stack", "stack-1"),
+					str("stack_other", "other stack-1"),
+					str("stack_ref", "other stack-1"),
+				),
+				"/stacks/stack-2": globals(
+					str("stack", "stack-2"),
+					str("stack_other", "other stack-2"),
+					str("stack_ref", "other stack-2"),
+				),
+			},
+		},
+		{
+			name: "globals hierarchically defined with different filenames",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			globals: []globalsBlock{
+				{
+					path:     "/",
+					filename: "root_globals.tm",
+					add: globals(
+						expr("stack_ref", "global.stack"),
+					),
+				},
+				{
+					path:     "/stacks",
+					filename: "stacks_globals.tm.hcl",
+					add: globals(
+						expr("stack_ref", "global.stack_other"),
+					),
+				},
+				{
+					path:     "/stacks/stack-1",
+					filename: "stack_1_globals.tm",
+					add: globals(
+						str("stack", "stack-1"),
+						str("stack_other", "other stack-1"),
+					),
+				},
+				{
+					path:     "/stacks/stack-2",
+					filename: "stack_2_globals.tm.hcl",
 					add: globals(
 						str("stack", "stack-2"),
 						str("stack_other", "other stack-2"),
@@ -533,7 +675,7 @@ func TestLoadGlobals(t *testing.T) {
 					add:  globals(str("stack", "whatever")),
 				},
 			},
-			wantErr: true,
+			wantErr: terramate.ErrGlobalEval,
 		},
 		{
 			name:   "global undefined reference on stack",
@@ -544,7 +686,7 @@ func TestLoadGlobals(t *testing.T) {
 					add:  globals(expr("field", "global.unknown")),
 				},
 			},
-			wantErr: true,
+			wantErr: terramate.ErrGlobalEval,
 		},
 		{
 			name:   "global undefined references mixed on stack",
@@ -560,7 +702,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: true,
+			wantErr: terramate.ErrGlobalEval,
 		},
 		{
 			name:   "global cyclic reference on stack",
@@ -575,7 +717,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: true,
+			wantErr: terramate.ErrGlobalEval,
 		},
 		{
 			name:   "global cyclic references across hierarchy",
@@ -594,7 +736,24 @@ func TestLoadGlobals(t *testing.T) {
 					add:  globals(expr("c", "global.a")),
 				},
 			},
-			wantErr: true,
+			wantErr: terramate.ErrGlobalEval,
+		},
+		{
+			name:   "global redefined on different file on stack",
+			layout: []string{"s:stack"},
+			globals: []globalsBlock{
+				{
+					path:     "/stack",
+					filename: "globals.tm.hcl",
+					add:      globals(str("a", "a")),
+				},
+				{
+					path:     "/stack",
+					filename: "globals2.tm.hcl",
+					add:      globals(str("a", "b")),
+				},
+			},
+			wantErr: terramate.ErrGlobalRedefined,
 		},
 	}
 
@@ -619,12 +778,10 @@ func TestLoadGlobals(t *testing.T) {
 				stackMeta := stack.Meta()
 				got, err := terramate.LoadStackGlobals(s.RootDir(), stackMeta)
 
-				if tcase.wantErr {
-					assert.Error(t, err)
+				assert.IsError(t, err, tcase.wantErr)
+				if tcase.wantErr != nil {
 					continue
 				}
-
-				assert.NoError(t, err)
 
 				want, ok := wantGlobals[stackMeta.Path]
 				if !ok {

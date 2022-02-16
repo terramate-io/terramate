@@ -35,7 +35,10 @@ type Globals struct {
 	attributes map[string]cty.Value
 }
 
-const ErrGlobalRedefined errutil.Error = "global redefined"
+const (
+	ErrGlobalEval      errutil.Error = "global eval failed"
+	ErrGlobalRedefined errutil.Error = "global redefined"
+)
 
 // LoadStackGlobals loads from the file system all globals defined for
 // a given stack. It will navigate the file system from the stack dir until
@@ -146,7 +149,12 @@ func (r *globalsExpr) eval(meta stack.Metadata) (*Globals, error) {
 				Msg("Range vars.")
 			for _, namespace := range vars {
 				if _, ok := hclctx.Variables[namespace.RootName()]; !ok {
-					return nil, fmt.Errorf("unknown variable namespace: %s - %s", namespace.RootName(), namespace.SourceRange())
+					return nil, fmt.Errorf(
+						"%w: unknown variable namespace: %s - %s",
+						ErrGlobalEval,
+						namespace.RootName(),
+						namespace.SourceRange(),
+					)
 				}
 
 				if namespace.RootName() != "global" {
@@ -160,7 +168,13 @@ func (r *globalsExpr) eval(meta stack.Metadata) (*Globals, error) {
 					}
 
 					if _, isEvaluated := globals.attributes[attr.Name]; !isEvaluated {
-						return nil, fmt.Errorf("unknown variable %s.%s - %s", namespace.RootName(), attr.Name, attr.SourceRange())
+						return nil, fmt.Errorf(
+							"%w: unknown variable %s.%s - %s",
+							ErrGlobalEval,
+							namespace.RootName(),
+							attr.Name,
+							attr.SourceRange(),
+						)
 					}
 				default:
 					return nil, fmt.Errorf("unexpected type of traversal in %s - this is a BUG", attr.SourceRange())
@@ -208,7 +222,7 @@ func (r *globalsExpr) eval(meta stack.Metadata) (*Globals, error) {
 	}, errs...)
 
 	if err != nil {
-		return nil, fmt.Errorf("evaluating globals: %v", err)
+		return nil, fmt.Errorf("%w: %v", ErrGlobalEval, err)
 	}
 
 	return globals, nil
