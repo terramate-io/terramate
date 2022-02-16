@@ -415,14 +415,14 @@ func TestExportAsLocals(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path:     "/stack",
-					filename: "locals.tm.tf",
+					filename: "locals.tm.hcl",
 					add: exportAsLocals(
 						expr("some_local", "terramate.name"),
 					),
 				},
 				{
 					path:     "/stack",
-					filename: "locals2.tm.tf",
+					filename: "locals2.tm.hcl",
 					add: exportAsLocals(
 						expr("some_local", "terramate.name"),
 						expr("some_other_local", "terramate.name"),
@@ -437,7 +437,7 @@ func TestExportAsLocals(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path:     "/stack",
-					filename: "locals.tm.tf",
+					filename: "locals.tm.hcl",
 					add: exportAsLocals(
 						labels("ohno"),
 						expr("some_local", "terramate.name"),
@@ -452,7 +452,7 @@ func TestExportAsLocals(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path:     "/stack",
-					filename: "locals.tm.tf",
+					filename: "locals.tm.hcl",
 					add: exportAsLocals(
 						block("ohno"),
 						expr("some_local", "terramate.name"),
