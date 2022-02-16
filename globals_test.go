@@ -35,8 +35,9 @@ import (
 func TestLoadGlobals(t *testing.T) {
 	type (
 		globalsBlock struct {
-			path string
-			add  *hclwrite.Block
+			path     string
+			filename string
+			add      *hclwrite.Block
 		}
 		testcase struct {
 			name    string
@@ -604,7 +605,11 @@ func TestLoadGlobals(t *testing.T) {
 
 			for _, globalBlock := range tcase.globals {
 				path := filepath.Join(s.RootDir(), globalBlock.path)
-				test.AppendFile(t, path, config.DefaultFilename, globalBlock.add.String())
+				filename := config.DefaultFilename
+				if globalBlock.filename != "" {
+					filename = globalBlock.filename
+				}
+				test.AppendFile(t, path, filename, globalBlock.add.String())
 			}
 
 			wantGlobals := tcase.want
