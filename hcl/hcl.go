@@ -319,6 +319,7 @@ func ParseGenerateHCLBlocks(dir string) (HCLBlocks, error) {
 		if block.Labels[0] == "" {
 			return errors.New("label can't be empty")
 		}
+		// Schema check passes if no block is present, so check for amount of blocks
 		if len(block.Body.Blocks) != 1 {
 			return fmt.Errorf("one 'content' block is required, got %d blocks", len(block.Body.Blocks))
 		}
