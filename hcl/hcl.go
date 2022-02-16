@@ -289,6 +289,7 @@ func ParseExportAsLocalsBlocks(path string) ([]*hclsyntax.Block, error) {
 
 // ParseGenerateHCLBlocks parses all Terramate files on the given dir, returning
 // only generate_hcl blocks (other blocks are discarded).
+// generate_hcl blocks are validated, so the caller can expect valid blocks only or an error.
 func ParseGenerateHCLBlocks(dir string) (HCLBlocks, error) {
 	logger := log.With().
 		Str("action", "hcl.ParseGenerateHCLBlocks").

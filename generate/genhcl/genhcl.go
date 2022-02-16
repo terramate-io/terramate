@@ -186,7 +186,7 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 		return nil, nil
 	}
 
-	blocks, err := hcl.ParseGenerateHCLBlocks(cfgdir)
+	hclblocks, err := hcl.ParseGenerateHCLBlocks(cfgdir)
 	if err != nil {
 		return nil, fmt.Errorf("%w: cfgdir %q: %v", ErrParsing, cfgdir, err)
 	}
@@ -195,7 +195,7 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 
 	res := map[string]loadedHCL{}
 
-	for filename, genhclBlocks := range blocks {
+	for filename, genhclBlocks := range hclblocks {
 		for _, genhclBlock := range genhclBlocks {
 			name := genhclBlock.Labels[0]
 			if _, ok := res[name]; ok {
