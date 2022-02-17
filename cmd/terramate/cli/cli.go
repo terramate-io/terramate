@@ -382,13 +382,13 @@ func (c *cli) run() {
 			Msg("Handle `run <cmd>` command.")
 		c.runOnStacks()
 	case "generate":
-		logger.Debug().
-			Msg("Handle `generate` command.")
-		err := generate.Do(c.root(), c.wd())
-		if err != nil {
-			log.Fatal().
-				Err(err).
-				Msg("generating code.")
+		logger.Debug().Msg("Handle `generate` command.")
+
+		report := generate.Do(c.root(), c.wd())
+		c.log(report.String())
+
+		if report.HasFailures() {
+			os.Exit(1)
 		}
 	case "metadata":
 		logger.Debug().
