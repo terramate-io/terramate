@@ -287,44 +287,17 @@ func ParseGlobalsBlocks(dir string) (HCLBlocks, error) {
 
 	logger.Trace().Msg("loading config")
 
-	parser, err := loadCfgBlocks(dir)
-	if err != nil {
-		return HCLBlocks{}, fmt.Errorf("parsing globals: %w", err)
-	}
-
-	logger.Trace().Msg("Filtering globals blocks")
-
-	hclblocks := HCLBlocks{}
-
-	for fname, hclfile := range parser.Files() {
-		logger := logger.With().
-			Str("filename", fname).
-			Logger()
-
-		logger.Trace().Msg("Filtering globals blocks")
-		// A cast error here would be a severe programming error on Terramate
-		// side, so we are by design allowing the cast to panic
-		body := hclfile.Body.(*hclsyntax.Body)
-		blocks := filterBlocksByType("globals", body.Blocks)
-		if len(blocks) == 0 {
-			continue
+	return parseHCLBlocks(dir, "globals", func(block *hclsyntax.Block) error {
+		// Not validated with schema because cant find a way to validate
+		// N arbitrary attributes (defined by user/dynamic).
+		if len(block.Body.Blocks) > 0 {
+			return errors.New("blocks inside globals are not allowed")
 		}
-
-		for _, block := range blocks {
-			// Not validated with schema because cant find a way to validate
-			// N arbitrary attributes (defined by user/dynamic).
-			if len(block.Body.Blocks) > 0 {
-				return nil, fmt.Errorf("blocks inside globals are not allowed at %q", fname)
-			}
-			if len(block.Labels) > 0 {
-				return nil, fmt.Errorf("labels on globals block are not allowed, found %v at %q", block.Labels, fname)
-			}
+		if len(block.Labels) > 0 {
+			return fmt.Errorf("labels on globals block are not allowed, found %v", block.Labels)
 		}
-
-		hclblocks[fname] = blocks
-	}
-
-	return hclblocks, nil
+		return nil
+	})
 }
 
 // ParseExportAsLocalsBlocks parses export_as_locals blocks, ignoring other blocks
@@ -354,12 +327,12 @@ func ParseGenerateHCLBlocks(dir string) (HCLBlocks, error) {
 	}
 
 	return parseHCLBlocks(dir, "generate_hcl", func(block *hclsyntax.Block) error {
-		// Don't seem like I can use hcl.Body schema to check for any non-empty
-		// labels, only specific label values.
+		// Don't seem like I can use hcl.BodySchema to check for any non-empty
+		// label, only specific label values.
 		if len(block.Labels) != 1 {
 			return fmt.Errorf(
-				"generate_hcl must have single label instead got %d",
-				len(block.Labels),
+				"generate_hcl must have single label instead got %v",
+				block.Labels,
 			)
 		}
 		if block.Labels[0] == "" {
