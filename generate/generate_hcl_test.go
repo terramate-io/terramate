@@ -30,7 +30,7 @@ import (
 
 func TestHCLGeneration(t *testing.T) {
 	type (
-		want struct {
+		generatedHCL struct {
 			stack string
 			hcls  map[string]fmt.Stringer
 		}
@@ -39,7 +39,8 @@ func TestHCLGeneration(t *testing.T) {
 			layout     []string
 			configs    []hclconfig
 			workingDir string
-			want       []want
+			wantHCL    []generatedHCL
+			wantReport generate.Report
 		}
 	)
 
@@ -158,7 +159,7 @@ func TestHCLGeneration(t *testing.T) {
 					),
 				},
 			},
-			want: []want{
+			wantHCL: []generatedHCL{
 				{
 					stack: "/stacks/stack-1",
 					hcls: map[string]fmt.Stringer{
@@ -250,7 +251,7 @@ func TestHCLGeneration(t *testing.T) {
 					),
 				},
 			},
-			want: []want{
+			wantHCL: []generatedHCL{
 				{
 					stack: "/stacks/stack-1",
 					hcls: map[string]fmt.Stringer{
@@ -291,7 +292,7 @@ func TestHCLGeneration(t *testing.T) {
 			assertGeneratedHCLs := func(t *testing.T) {
 				t.Helper()
 
-				for _, wantDesc := range tcase.want {
+				for _, wantDesc := range tcase.wantHCL {
 					stackRelPath := wantDesc.stack[1:]
 					stack := s.StackEntry(stackRelPath)
 
@@ -306,7 +307,7 @@ func TestHCLGeneration(t *testing.T) {
 
 			workingDir := filepath.Join(s.RootDir(), tcase.workingDir)
 			report := generate.Do(s.RootDir(), workingDir)
-			assertReportHasNoError(t, report)
+			assertEqualReports(t, report, tcase.wantReport)
 
 			assertGeneratedHCLs(t)
 
@@ -314,8 +315,8 @@ func TestHCLGeneration(t *testing.T) {
 			// delete files or fail and has identical results.
 			t.Run("regenerate", func(t *testing.T) {
 				report := generate.Do(s.RootDir(), workingDir)
-				assertReportHasNoError(t, report)
-
+				// since we just generated everything, report should be empty
+				assertEqualReports(t, report, generate.Report{})
 				assertGeneratedHCLs(t)
 			})
 
@@ -323,7 +324,7 @@ func TestHCLGeneration(t *testing.T) {
 			// We remove wanted/expected generated code
 			// So we should have only basic terramate configs left
 			// There is potential to extract this for other code generation tests.
-			for _, wantDesc := range tcase.want {
+			for _, wantDesc := range tcase.wantHCL {
 				stackRelPath := wantDesc.stack[1:]
 				stack := s.StackEntry(stackRelPath)
 				for name := range wantDesc.hcls {

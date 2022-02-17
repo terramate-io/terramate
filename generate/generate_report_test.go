@@ -18,6 +18,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/mineiros-io/terramate/generate"
 )
 
@@ -47,7 +48,6 @@ func assertReportHasError(t *testing.T, report generate.Report, err error) {
 			return
 		}
 	}
-
 	t.Fatalf("unable to find match for %v on report:\n%s", err, report)
 }
 
@@ -56,5 +56,13 @@ func assertReportHasNoError(t *testing.T, report generate.Report) {
 
 	if report.HasFailures() {
 		t.Fatalf("wanted no error but got failures:\n%s", report)
+	}
+}
+
+func assertEqualReports(t *testing.T, got, want generate.Report) {
+	t.Helper()
+	if diff := cmp.Diff(got, want); diff != "" {
+		t.Errorf("got(-) want(+)")
+		t.Fatal(diff)
 	}
 }

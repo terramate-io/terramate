@@ -823,6 +823,13 @@ func (s stackReport) isSuccess() bool {
 	return s.err == nil
 }
 
+func (s stackReport) empty() bool {
+	return len(s.created) == 0 &&
+		len(s.changed) == 0 &&
+		len(s.deleted) == 0 &&
+		s.err == nil
+}
+
 func (r *Report) addFailure(s stack.S, err error) {
 	r.Failures = append(r.Failures, FailureResult{
 		Result: Result{
@@ -833,6 +840,9 @@ func (r *Report) addFailure(s stack.S, err error) {
 }
 
 func (r *Report) addStackReport(s stack.S, sr stackReport) {
+	if sr.empty() {
+		return
+	}
 	if sr.isSuccess() {
 		r.Successes = append(r.Successes, Result{
 			Stack:   s,
