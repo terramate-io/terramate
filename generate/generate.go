@@ -58,7 +58,7 @@ type Result struct {
 	Deleted []string
 }
 
-// Result represents a failure at code generation
+// FailureResult represents a failure at code generation
 type FailureResult struct {
 	Error error
 }
