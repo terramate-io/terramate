@@ -58,22 +58,23 @@ type Result struct {
 	Deleted []string
 }
 
-// FailureResult represents a failure at code generation
+// FailureResult represents a failure on code generation.
 type FailureResult struct {
-	Error error
-}
-
-// PartialFailure represents code generation that partially failed
-type PartialFailure struct {
 	Result
-	FailureResult
+	Error error
 }
 
 // Report has the results of the code generation process.
 type Report struct {
-	Successes       []SuccessResult
-	PartialFailures []PartialFailure
-	Failures        []FailureResult
+	// BootstrapErr is an error that happened before code generation
+	// could be started, indicating that no changes were made to any stack.
+	BootstrapErr error
+
+	// Successes are the success results
+	Successes []Result
+
+	// Failures are stacks that failed without generating any code
+	Failures []FailureResult
 }
 
 // Do will walk all the stacks inside the given working dir
@@ -93,11 +94,11 @@ type Report struct {
 // the overall code generation process, so partial results can be obtained and the
 // report needs to be inspected to check.
 func Do(root string, workingDir string) Report {
-	errs := forEachStack(root, workingDir, func(
+	return forEachStack(root, workingDir, func(
 		stack stack.S,
 		globals *terramate.Globals,
 		cfg StackCfg,
-	) error {
+	) stackReport {
 		stackpath := stack.AbsPath()
 		logger := log.With().
 			Str("action", "generate.Do()").
@@ -107,12 +108,14 @@ func Do(root string, workingDir string) Report {
 
 		genfiles := []genfile{}
 		stackMeta := stack.Meta()
+		report := stackReport{}
 
 		logger.Trace().Msg("Generate stack backend config.")
 
 		stackBackendCfgCode, err := generateBackendCfgCode(root, stackpath, stackMeta, globals, stackpath)
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrBackendConfigGen, err)
+			report.err = fmt.Errorf("%w: %v", ErrBackendConfigGen, err)
+			return report
 		}
 		genfiles = append(genfiles, genfile{name: cfg.BackendCfgFilename, body: stackBackendCfgCode})
 
@@ -120,7 +123,8 @@ func Do(root string, workingDir string) Report {
 
 		stackLocalsCode, err := generateStackLocalsCode(root, stackpath, stackMeta, globals)
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrExportingLocalsGen, err)
+			report.err = fmt.Errorf("%w: %v", ErrExportingLocalsGen, err)
+			return report
 		}
 		genfiles = append(genfiles, genfile{name: cfg.LocalsFilename, body: stackLocalsCode})
 
@@ -128,20 +132,25 @@ func Do(root string, workingDir string) Report {
 
 		stackHCLsCode, err := generateStackHCLCode(root, stackpath, stackMeta, globals)
 		if err != nil {
-			return err
+			report.err = err
+			return report
 		}
 		genfiles = append(genfiles, stackHCLsCode...)
 
 		logger.Trace().Msg("Checking for conflicts on generated files.")
 
 		if err := checkGeneratedFilesConflicts(genfiles); err != nil {
-			return fmt.Errorf("%w: %v", ErrConflictingConfig, err)
+			report.err = fmt.Errorf("%w: %v", ErrConflictingConfig, err)
+			return report
 		}
 
 		logger.Trace().Msg("Removing outdated generated files.")
 
+		// TODO(katcipis): need to improve so we can get proper changed/deleted files
+		// And this is a partial failure (some files may have been deleted).
 		if err := removeStackGeneratedFiles(stack); err != nil {
-			return fmt.Errorf("removing old files to generate new ones: %v", err)
+			report.err = fmt.Errorf("removing old generated files: %v", err)
+			return report
 		}
 
 		logger.Trace().Msg("Saving generated files.")
@@ -162,24 +171,17 @@ func Do(root string, workingDir string) Report {
 
 			err := writeGeneratedCode(path, genfile.body)
 			if err != nil {
-				return fmt.Errorf("saving file %q: %w", genfile.name, err)
+				report.err = fmt.Errorf("saving file %q: %w", genfile.name, err)
+				return report
 			}
+
+			report.addCreatedFile(genfile.name)
 
 			logger.Trace().Msg("saved generated file")
 		}
 
-		return nil
+		return report
 	})
-
-	// FIXME(katcipis): errutil.Chain produces a very hard to read string representation
-	// for this case, we have a possibly big list of errors here, not an
-	// actual chain (multiple levels of calls).
-	// We do need the error wrapping for the error handling on tests (for now at least).
-	if err := errutil.Chain(errs...); err != nil {
-		return fmt.Errorf("failed to generate code: %w", err)
-	}
-
-	return nil
 }
 
 // ListStackGenFiles will list the filenames of all generated code inside
@@ -309,6 +311,14 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 	sort.Strings(outdated)
 
 	return outdated, nil
+}
+
+func (r Report) HasFailures() bool {
+	return r.BootstrapErr != nil || len(r.Failures) > 0
+}
+
+func (r Report) String() string {
+	return "TODO"
 }
 
 type genfile struct {
@@ -687,23 +697,24 @@ func loadGeneratedCode(path string) (string, bool, error) {
 	return "", false, fmt.Errorf("%w: at %q", ErrManualCodeExists, path)
 }
 
-type forEachStackFunc func(stack.S, *terramate.Globals, StackCfg) error
+type forEachStackFunc func(stack.S, *terramate.Globals, StackCfg) stackReport
 
-func forEachStack(root, workingDir string, fn forEachStackFunc) []error {
+func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 	logger := log.With().
 		Str("action", "generate.forEachStack()").
 		Str("root", root).
 		Str("workingDir", workingDir).
 		Logger()
 
+	report := Report{}
+
 	logger.Trace().Msg("List stacks.")
 
 	stackEntries, err := terramate.ListStacks(root)
 	if err != nil {
-		return []error{err}
+		report.BootstrapErr = err
+		return report
 	}
-
-	var errs []error
 
 	for _, entry := range stackEntries {
 		stack := entry.Stack
@@ -721,11 +732,7 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) []error {
 
 		cfg, err := LoadStackCfg(root, stack)
 		if err != nil {
-			errs = append(errs, fmt.Errorf(
-				"stack %q: %w: %v",
-				stack.AbsPath(),
-				ErrLoadingStackCfg,
-				err))
+			report.addFailure(stack, fmt.Errorf("%w: %v", ErrLoadingStackCfg, err))
 			continue
 		}
 
@@ -733,21 +740,16 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) []error {
 
 		globals, err := terramate.LoadStackGlobals(root, stack.Meta())
 		if err != nil {
-			errs = append(errs, fmt.Errorf(
-				"stack %q: %w: %v",
-				stack.AbsPath(),
-				ErrLoadingGlobals,
-				err))
+			report.addFailure(stack, fmt.Errorf("%w: %v", ErrLoadingGlobals, err))
 			continue
 		}
 
 		logger.Trace().Msg("Calling stack callback.")
-		if err := fn(stack, globals, cfg); err != nil {
-			errs = append(errs, err)
-		}
+
+		report.addStackReport(stack, fn(stack, globals, cfg))
 	}
 
-	return errs
+	return report
 }
 
 func removeStackGeneratedFiles(stack stack.S) error {
@@ -794,6 +796,61 @@ func checkGeneratedFilesConflicts(genfiles []genfile) error {
 		observed.add(genf.name)
 	}
 	return nil
+}
+
+type stackReport struct {
+	created []string
+	changed []string
+	deleted []string
+	err     error
+}
+
+func (s *stackReport) addCreatedFile(filename string) {
+	s.created = append(s.created, filename)
+}
+
+// TODO(katcipis): use on stack handling to get deleted/changed files
+
+//func (s *stackReport) addDeletedFile(filename string) {
+//s.deleted = append(s.deleted, filename)
+//}
+
+//func (s *stackReport) addChangedFile(filename string) {
+//s.changed = append(s.changed, filename)
+//}
+
+func (s stackReport) isSuccess() bool {
+	return s.err == nil
+}
+
+func (r *Report) addFailure(s stack.S, err error) {
+	r.Failures = append(r.Failures, FailureResult{
+		Result: Result{
+			Stack: s,
+		},
+		Error: err,
+	})
+}
+
+func (r *Report) addStackReport(s stack.S, sr stackReport) {
+	if sr.isSuccess() {
+		r.Successes = append(r.Successes, Result{
+			Stack:   s,
+			Created: sr.created,
+			Changed: sr.changed,
+			Deleted: sr.deleted,
+		})
+		return
+	}
+	r.Failures = append(r.Failures, FailureResult{
+		Result: Result{
+			Stack:   s,
+			Created: sr.created,
+			Changed: sr.changed,
+			Deleted: sr.deleted,
+		},
+		Error: sr.err,
+	})
 }
 
 type stringSet struct {

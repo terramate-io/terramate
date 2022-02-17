@@ -18,7 +18,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -124,8 +123,8 @@ func TestFilenameConflictsOnGeneration(t *testing.T) {
 			}
 
 			workingDir := filepath.Join(s.RootDir(), tcase.workingDir)
-			err := generate.Do(s.RootDir(), workingDir)
-			assert.IsError(t, err, tcase.want)
+			report := generate.Do(s.RootDir(), workingDir)
+			assertReportHasError(t, report, tcase.want)
 		})
 	}
 }

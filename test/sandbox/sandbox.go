@@ -196,10 +196,13 @@ func (s S) Git() Git {
 
 // Generate generates code for all stacks on the sandbox
 func (s S) Generate() {
-	s.t.Helper()
+	t := s.t
+	t.Helper()
 
-	err := generate.Do(s.RootDir(), s.RootDir())
-	assert.NoError(s.t, err)
+	report := generate.Do(s.RootDir(), s.RootDir())
+	for _, failure := range report.Failures {
+		t.Errorf("Generate unexpected failure: %v", failure)
+	}
 }
 
 // LoadStacks load all stacks from sandbox rootdir.

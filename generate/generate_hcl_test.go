@@ -305,16 +305,16 @@ func TestHCLGeneration(t *testing.T) {
 			}
 
 			workingDir := filepath.Join(s.RootDir(), tcase.workingDir)
-			err := generate.Do(s.RootDir(), workingDir)
-			assert.NoError(t, err)
+			report := generate.Do(s.RootDir(), workingDir)
+			assertReportHasNoError(t, report)
 
 			assertGeneratedHCLs(t)
 
 			// piggyback on the tests to validate that regeneration doesnt
 			// delete files or fail and has identical results.
 			t.Run("regenerate", func(t *testing.T) {
-				err := generate.Do(s.RootDir(), workingDir)
-				assert.NoError(t, err)
+				report := generate.Do(s.RootDir(), workingDir)
+				assertReportHasNoError(t, report)
 
 				assertGeneratedHCLs(t)
 			})
@@ -330,7 +330,7 @@ func TestHCLGeneration(t *testing.T) {
 					stack.RemoveGeneratedHCL(name)
 				}
 			}
-			err = filepath.WalkDir(s.RootDir(), func(path string, d fs.DirEntry, err error) error {
+			err := filepath.WalkDir(s.RootDir(), func(path string, d fs.DirEntry, err error) error {
 				t.Helper()
 
 				assert.NoError(t, err, "checking for unwanted generated files")
@@ -377,8 +377,8 @@ func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
 		fmt.Sprintf("f:stack/%s:%s", genFilename, manualTfCode),
 	})
 
-	err := generate.Do(s.RootDir(), s.RootDir())
-	assert.IsError(t, err, generate.ErrManualCodeExists)
+	report := generate.Do(s.RootDir(), s.RootDir())
+	assertReportHasError(t, report, generate.ErrManualCodeExists)
 
 	stack := s.StackEntry("stack")
 	actualTfCode := stack.ReadGeneratedHCL(genFilename)
