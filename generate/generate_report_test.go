@@ -79,7 +79,7 @@ func assertReportHasError(t *testing.T, report generate.Report, err error) {
 func assertReportHasNoError(t *testing.T, report generate.Report) {
 	t.Helper()
 
-	if report.BootstrapErr != nil || len(report.Failures) > 0 {
+	if report.HasFailures() {
 		t.Fatalf("wanted no error but got failures:\n%s", report)
 	}
 }

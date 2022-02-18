@@ -227,6 +227,18 @@ func TestHCLGeneration(t *testing.T) {
 					},
 				},
 			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						StackPath: "/stacks/stack-1",
+						Created:   []string{"backend.tf", "locals.tf", "provider.tf"},
+					},
+					{
+						StackPath: "/stacks/stack-2",
+						Created:   []string{"backend.tf", "locals.tf", "provider.tf"},
+					},
+				},
+			},
 		},
 		{
 			name: "generate HCL with traversal of unknown namespaces",
@@ -274,6 +286,18 @@ func TestHCLGeneration(t *testing.T) {
 								expr("some_anything", "something.should_work"),
 							),
 						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						StackPath: "/stacks/stack-1",
+						Created:   []string{"traversal.tf"},
+					},
+					{
+						StackPath: "/stacks/stack-2",
+						Created:   []string{"traversal.tf"},
 					},
 				},
 			},
