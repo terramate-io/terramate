@@ -432,7 +432,15 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 	rootEntry := s.DirEntry(".")
 	rootConfig := rootEntry.CreateConfig(firstConfig.String())
 
-	s.Generate()
+	report := s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				StackPath: "/stack",
+				Created:   []string{genFilename},
+			},
+		},
+	})
 
 	got := stack.ReadGeneratedHCL(genFilename)
 	assertHCLEquals(t, got, firstWant.String())
@@ -451,10 +459,19 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 
 	rootConfig.Write(secondConfig.String())
 
-	s.Generate()
+	report = s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				StackPath: "/stack",
+				Changed:   []string{genFilename},
+			},
+		},
+	})
 
 	got = stack.ReadGeneratedHCL(genFilename)
 	assertHCLEquals(t, got, secondWant.String())
+	assertEqualReports(t, s.Generate(), generate.Report{})
 }
 
 func TestGeneratedHCLHeaders(t *testing.T) {
