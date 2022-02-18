@@ -313,11 +313,10 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 	return outdated, nil
 }
 
-func (r Report) HasFailures() bool {
-	return r.BootstrapErr != nil || len(r.Failures) > 0
-}
-
 func (r Report) String() string {
+	if r.empty() {
+		return "Nothing to do, code generation is updated"
+	}
 	return "TODO"
 }
 
@@ -828,6 +827,12 @@ func (s stackReport) empty() bool {
 		len(s.changed) == 0 &&
 		len(s.deleted) == 0 &&
 		s.err == nil
+}
+
+func (r Report) empty() bool {
+	return r.BootstrapErr == nil &&
+		len(r.Failures) == 0 &&
+		len(r.Successes) == 0
 }
 
 func (r *Report) addFailure(s stack.S, err error) {

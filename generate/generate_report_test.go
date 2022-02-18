@@ -22,6 +22,31 @@ import (
 	"github.com/mineiros-io/terramate/generate"
 )
 
+func TestReportRepresentation(t *testing.T) {
+	type testcase struct {
+		name   string
+		report generate.Report
+		want   string
+	}
+
+	tcases := []testcase{
+		{
+			name:   "empty report",
+			report: generate.Report{},
+			want:   "Nothing to do, code generation is updated",
+		},
+	}
+
+	for _, tcase := range tcases {
+		t.Run(tcase.name, func(t *testing.T) {
+			if diff := cmp.Diff(tcase.report.String(), tcase.want); diff != "" {
+				t.Error("got(-), want(+)")
+				t.Fatal(diff)
+			}
+		})
+	}
+}
+
 func assertReportHasError(t *testing.T, report generate.Report, err error) {
 	t.Helper()
 	// Most of this assertion behavior is due to making it easier to
@@ -54,7 +79,7 @@ func assertReportHasError(t *testing.T, report generate.Report, err error) {
 func assertReportHasNoError(t *testing.T, report generate.Report) {
 	t.Helper()
 
-	if report.HasFailures() {
+	if report.BootstrapErr != nil || len(report.Failures) > 0 {
 		t.Fatalf("wanted no error but got failures:\n%s", report)
 	}
 }
