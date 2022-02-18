@@ -35,12 +35,125 @@ func TestReportRepresentation(t *testing.T) {
 			report: generate.Report{},
 			want:   "Nothing to do, code generation is updated",
 		},
+		{
+			name: "with bootstrap err",
+			report: generate.Report{
+				BootstrapErr: errors.New("such fail, much terrible"),
+			},
+			want: `Fatal failure preparing for code generation.
+Error details: such fail, much terrible`,
+		},
+		{
+			name: "with bootstrap err results are ignored (should have none)",
+			report: generate.Report{
+				BootstrapErr: errors.New("ignore"),
+				Successes: []generate.Result{
+					{
+						StackPath: "/test",
+						Created:   []string{"test"},
+					},
+				},
+				Failures: []generate.FailureResult{
+					{
+						Error: errors.New("ignored"),
+					},
+				},
+			},
+			want: `Fatal failure preparing for code generation.
+Error details: ignore`,
+		},
+		{
+			name: "success results",
+			report: generate.Report{
+				Successes: []generate.Result{
+					{
+						StackPath: "/test",
+						Created:   []string{"test"},
+					},
+					{
+						StackPath: "/test2",
+						Changed:   []string{"test"},
+					},
+					{
+						StackPath: "/test3",
+						Deleted:   []string{"test"},
+					},
+					{
+						StackPath: "/test4",
+						Created:   []string{"created1.tf", "created2.tf"},
+						Changed:   []string{"changed.tf", "changed2.tf"},
+						Deleted:   []string{"removed1.tf", "removed2.tf"},
+					},
+				},
+			},
+			want: ``,
+		},
+		{
+			name: "failure results",
+			report: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							StackPath: "/test",
+						},
+						Error: errors.New("full error"),
+					},
+					{
+						Result: generate.Result{
+							StackPath: "/test2",
+							Created:   []string{"created1.tf", "created2.tf"},
+							Changed:   []string{"changed.tf", "changed2.tf"},
+							Deleted:   []string{"removed1.tf", "removed2.tf"},
+						},
+						Error: errors.New("partial error"),
+					},
+				},
+			},
+			want: ``,
+		},
+		{
+			name: "partial result",
+			report: generate.Report{
+				Successes: []generate.Result{
+					{
+						StackPath: "/success",
+						Created:   []string{"created.tf"},
+						Changed:   []string{"changed.tf"},
+						Deleted:   []string{"removed.tf"},
+					},
+					{
+						StackPath: "/success2",
+						Created:   []string{"created.tf"},
+						Changed:   []string{"changed.tf"},
+						Deleted:   []string{"removed.tf"},
+					},
+				},
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							StackPath: "/failed",
+						},
+						Error: errors.New("error"),
+					},
+					{
+						Result: generate.Result{
+							StackPath: "/failed2",
+						},
+						Error: errors.New("error"),
+					},
+				},
+			},
+			want: ``,
+		},
 	}
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			if diff := cmp.Diff(tcase.report.String(), tcase.want); diff != "" {
-				t.Error("got(-), want(+)")
+			got := tcase.report.String()
+			if diff := cmp.Diff(got, tcase.want); diff != "" {
+				t.Errorf("got:\n%s\n", got)
+				t.Errorf("want:\n%s\n", tcase.want)
+				t.Error("diff: got(-), want(+)")
 				t.Fatal(diff)
 			}
 		})

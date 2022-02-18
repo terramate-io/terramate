@@ -15,7 +15,9 @@
 package generate
 
 import (
+	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/mineiros-io/terramate/stack"
 )
@@ -59,7 +61,64 @@ func (r Report) String() string {
 	if r.empty() {
 		return "Nothing to do, code generation is updated"
 	}
-	return "TODO"
+	if r.BootstrapErr != nil {
+		return fmt.Sprintf(
+			"Fatal failure preparing for code generation.\nError details: %v",
+			r.BootstrapErr,
+		)
+	}
+
+	report := []string{
+		"Code generation report",
+		"",
+		"\t[+] <filename> : <filename> was created",
+		"\t[~] <filename> : <filename> was changed",
+		"\t[-] <filename> : <filename> was deleted",
+		"",
+	}
+	addLine := func(msg string, args ...interface{}) {
+		report = append(report, fmt.Sprintf(msg, args...))
+	}
+	newline := func() {
+		addLine("")
+	}
+	addStack := func(stack string) {
+		addLine("- stack %s", stack)
+	}
+	addResultChangeset := func(res Result) {
+		for _, created := range res.Created {
+			addLine("\t[+] %s", created)
+		}
+		for _, changed := range res.Changed {
+			addLine("\t[~] %s", changed)
+		}
+		for _, deleted := range res.Deleted {
+			addLine("\t[-] %s", deleted)
+		}
+	}
+
+	if len(r.Successes) > 0 {
+		addLine("Successes:")
+		newline()
+		for _, success := range r.Successes {
+			addStack(success.StackPath)
+			addResultChangeset(success)
+			newline()
+		}
+	}
+
+	if len(r.Failures) > 0 {
+		addLine("Failures:")
+		newline()
+		for _, failure := range r.Failures {
+			addStack(failure.StackPath)
+			addLine("\terror: %s", failure.Error)
+			addResultChangeset(failure.Result)
+			newline()
+		}
+	}
+
+	return strings.Join(report, "\n")
 }
 
 func (r Report) empty() bool {
