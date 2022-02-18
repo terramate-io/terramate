@@ -139,7 +139,7 @@ func Do(root string, workingDir string) Report {
 		for _, genfile := range genfiles {
 			path := filepath.Join(stackpath, genfile.name)
 			logger := logger.With().
-				Str("filepath", path).
+				Str("filename", genfile.name).
 				Logger()
 
 			// For now we don't want to generate files just with a header inside.
