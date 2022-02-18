@@ -125,15 +125,13 @@ func (s *stackReport) addCreatedFile(filename string) {
 	s.created = append(s.created, filename)
 }
 
-// TODO(katcipis): use on stack handling to get deleted/changed files
+func (s *stackReport) addDeletedFile(filename string) {
+	s.deleted = append(s.deleted, filename)
+}
 
-//func (s *stackReport) addDeletedFile(filename string) {
-//s.deleted = append(s.deleted, filename)
-//}
-
-//func (s *stackReport) addChangedFile(filename string) {
-//s.changed = append(s.changed, filename)
-//}
+func (s *stackReport) addChangedFile(filename string) {
+	s.changed = append(s.changed, filename)
+}
 
 func (s stackReport) isSuccess() bool {
 	return s.err == nil

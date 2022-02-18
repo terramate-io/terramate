@@ -119,11 +119,19 @@ func Do(root string, workingDir string) Report {
 
 		logger.Trace().Msg("Removing outdated generated files.")
 
-		// TODO(katcipis): need to improve so we can get proper changed/deleted files
-		// And this is a partial failure (some files may have been deleted).
-		if err := removeStackGeneratedFiles(stack); err != nil {
-			report.err = fmt.Errorf("removing old generated files: %v", err)
-			return report
+		removedFiles, err := removeStackGeneratedFiles(stack)
+		failureReport := func(r stackReport, err error) stackReport {
+			r.err = err
+			for filename := range removedFiles {
+				r.addDeletedFile(filename)
+			}
+			return r
+		}
+		if err != nil {
+			return failureReport(
+				report,
+				fmt.Errorf("removing old generated files: %v", err),
+			)
 		}
 
 		logger.Trace().Msg("Saving generated files.")
@@ -144,15 +152,29 @@ func Do(root string, workingDir string) Report {
 
 			err := writeGeneratedCode(path, genfile.body)
 			if err != nil {
-				report.err = fmt.Errorf("saving file %q: %w", genfile.name, err)
-				return report
+				return failureReport(
+					report,
+					fmt.Errorf("saving file %q: %w", genfile.name, err),
+				)
 			}
 
-			report.addCreatedFile(genfile.name)
-
+			// Change detection + remove code that got deleted but
+			// was just re-generated from the removed files map
+			removedFileBody, ok := removedFiles[genfile.name]
+			if !ok {
+				report.addCreatedFile(genfile.name)
+			} else {
+				if genfile.body != removedFileBody {
+					report.addChangedFile(genfile.name)
+				}
+				delete(removedFiles, genfile.name)
+			}
 			logger.Trace().Msg("saved generated file")
 		}
 
+		for filename := range removedFiles {
+			report.addDeletedFile(filename)
+		}
 		return report
 	})
 }
@@ -717,7 +739,7 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 	return report
 }
 
-func removeStackGeneratedFiles(stack stack.S) error {
+func removeStackGeneratedFiles(stack stack.S) (map[string]string, error) {
 	logger := log.With().
 		Str("action", "generate.removeStackGeneratedFiles()").
 		Stringer("stack", stack).
@@ -725,18 +747,37 @@ func removeStackGeneratedFiles(stack stack.S) error {
 
 	logger.Trace().Msg("listing generated files")
 
+	removedFiles := map[string]string{}
+
 	files, err := ListStackGenFiles(stack)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	for _, file := range files {
-		path := filepath.Join(stack.AbsPath(), file)
-		if err := os.Remove(path); err != nil {
-			return fmt.Errorf("removing gen file: %v", err)
+	logger.Trace().Msg("deleting all Terramate generated files")
+
+	for _, filename := range files {
+		logger := logger.With().
+			Str("filename", filename).
+			Logger()
+
+		logger.Trace().Msg("reading current file before removal")
+
+		path := filepath.Join(stack.AbsPath(), filename)
+		body, err := os.ReadFile(path)
+		if err != nil {
+			return removedFiles, fmt.Errorf("reading gen file before removal: %v", err)
 		}
+
+		logger.Trace().Msg("removing file")
+
+		if err := os.Remove(path); err != nil {
+			return removedFiles, fmt.Errorf("removing gen file: %v", err)
+		}
+
+		removedFiles[filename] = string(body)
 	}
-	return nil
+	return removedFiles, nil
 }
 
 func hasTerramateHeader(code []byte) bool {
