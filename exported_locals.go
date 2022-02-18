@@ -16,12 +16,10 @@ package terramate
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/madlambda/spells/errutil"
-	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/stack"
@@ -29,7 +27,10 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-const ErrExportedLocalRedefined errutil.Error = "export_as_locals attribute redefined"
+const (
+	ErrExportedLocalRedefined errutil.Error = "export_as_locals attribute redefined"
+	ErrExportedLocalsParsing  errutil.Error = "parsing export_as_locals"
+)
 
 // ExportedLocalValues represents information exported from Terramate
 // in a way that is suitable to be used for Terraform code generation.
@@ -85,72 +86,54 @@ func loadStackExportedLocalExprs(rootdir string, cfgdir string) (exportedLocalEx
 		Str("path", rootdir).
 		Logger()
 
-	logger.Trace().
-		Msg("Get config file path.")
-	cfgpath := filepath.Join(rootdir, cfgdir, config.DefaultFilename)
+	logger.Debug().Msg("Parse export as locals blocks.")
 
-	logger = logger.With().
-		Str("configFile", cfgpath).
-		Logger()
-
-	logger.Debug().
-		Msg("Parse export as locals blocks.")
-	blocks, err := hcl.ParseExportAsLocalsBlocks(cfgpath)
-
-	logger.Trace().
-		Msg("Check if file exists.")
-	if os.IsNotExist(err) {
-		logger.Trace().
-			Msg("Get parent directory.")
-		parentcfg, ok := parentDir(cfgdir)
-		if !ok {
-			return newExportedLocalExprs(), nil
-		}
-		return loadStackExportedLocalExprs(rootdir, parentcfg)
-	}
-
+	blocks, err := hcl.ParseExportAsLocalsBlocks(filepath.Join(rootdir, cfgdir))
 	if err != nil {
-		return exportedLocalExprs{}, err
+		return exportedLocalExprs{}, fmt.Errorf("%w: %v", ErrExportedLocalsParsing, err)
 	}
 
-	logger.Trace().
-		Msg("Get new exported local exprs.")
 	exportLocals := newExportedLocalExprs()
 
-	logger.Trace().
-		Msg("Range over blocks.")
-	for _, block := range blocks {
-		logger.Trace().
-			Msg("Range over block attributes.")
-		for name, attr := range block.Body.Attributes {
-			if exportLocals.has(name) {
-				return exportedLocalExprs{}, fmt.Errorf(
-					"%w: export_as_locals %q already defined in configuration %q",
-					ErrExportedLocalRedefined,
-					name,
-					cfgpath,
-				)
+	logger.Trace().Msg("Range over blocks.")
+
+	for filename, hclblocks := range blocks {
+		for _, hclblock := range hclblocks {
+			logger := log.With().
+				Str("filename", filename).
+				Logger()
+			logger.Trace().Msg("Range over block attributes.")
+
+			for name, attr := range hclblock.Body.Attributes {
+				if exportLocals.has(name) {
+					return exportedLocalExprs{}, fmt.Errorf(
+						"%w: export_as_locals %q redefined in configuration %q",
+						ErrExportedLocalRedefined,
+						name,
+						filepath.Join(cfgdir, filename),
+					)
+				}
+				exportLocals.expressions[name] = attr.Expr
 			}
-			exportLocals.expressions[name] = attr.Expr
 		}
 	}
 
-	logger.Trace().
-		Msg("Get parent config.")
+	logger.Trace().Msg("Get parent config.")
+
 	parentcfg, ok := parentDir(cfgdir)
 	if !ok {
 		return exportLocals, nil
 	}
 
-	logger.Debug().
-		Msg("Get parent export locals.")
+	logger.Debug().Msg("Get parent export locals.")
+
 	parentExportLocals, err := loadStackExportedLocalExprs(rootdir, parentcfg)
 	if err != nil {
 		return exportedLocalExprs{}, err
 	}
 
-	logger.Trace().
-		Msg("Merge export locals with parent export locals.")
+	logger.Trace().Msg("Merge export locals with parent export locals.")
+
 	exportLocals.merge(parentExportLocals)
 	return exportLocals, nil
 }
