@@ -22,6 +22,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
@@ -264,11 +265,11 @@ func ParseDir(dir string) (Config, error) {
 		Str("dir", dir).
 		Logger()
 
-	logger.Trace().Msg("loading parser for configuration files")
+	logger.Trace().Msg("Parsing configuration files")
 
 	loadedParser, err := loadCfgBlocks(dir)
 	if err != nil {
-		return Config{}, fmt.Errorf("loading parser for config files: %w", err)
+		return Config{}, fmt.Errorf("parsing config files: %w", err)
 	}
 
 	logger.Trace().Msg("creating config from loaded parser")
@@ -276,9 +277,30 @@ func ParseDir(dir string) (Config, error) {
 	return newCfgFromParsedHCLs(dir, loadedParser)
 }
 
-// ParseGlobalsBlocks parses globals blocks, ignoring any other blocks
-func ParseGlobalsBlocks(path string) ([]*hclsyntax.Block, error) {
-	return parseBlocksOfType(path, "globals")
+// HCLBlocks maps a filename to a slice of blocks associated with it
+type HCLBlocks map[string][]*hclsyntax.Block
+
+// ParseGlobalsBlocks parses all Terramate files on the given dir, returning
+// only global blocks (other blocks are discarded).
+func ParseGlobalsBlocks(dir string) (HCLBlocks, error) {
+	logger := log.With().
+		Str("action", "ParseGlobalsBlocks").
+		Str("configdir", dir).
+		Logger()
+
+	logger.Trace().Msg("loading config")
+
+	return parseHCLBlocks(dir, "globals", func(block *hclsyntax.Block) error {
+		// Not validated with schema because cant find a way to validate
+		// N arbitrary attributes (defined by user/dynamic).
+		if len(block.Body.Blocks) > 0 {
+			return errors.New("blocks inside globals are not allowed")
+		}
+		if len(block.Labels) > 0 {
+			return fmt.Errorf("labels on globals block are not allowed, found %v", block.Labels)
+		}
+		return nil
+	})
 }
 
 // ParseExportAsLocalsBlocks parses all Terramate files on the given dir, returning
@@ -306,9 +328,49 @@ func ParseExportAsLocalsBlocks(dir string) (HCLBlocks, error) {
 	})
 }
 
-// ParseGenerateHCLBlocks parses generate_hcl blocks, ignoring other blocks
-func ParseGenerateHCLBlocks(path string) ([]*hclsyntax.Block, error) {
-	return parseBlocksOfType(path, "generate_hcl")
+// ParseGenerateHCLBlocks parses all Terramate files on the given dir, returning
+// only generate_hcl blocks (other blocks are discarded).
+// generate_hcl blocks are validated, so the caller can expect valid blocks only or an error.
+func ParseGenerateHCLBlocks(dir string) (HCLBlocks, error) {
+	logger := log.With().
+		Str("action", "hcl.ParseGenerateHCLBlocks").
+		Str("configdir", dir).
+		Logger()
+
+	logger.Trace().Msg("loading config")
+
+	schema := &hcl.BodySchema{
+		Attributes: []hcl.AttributeSchema{},
+		Blocks: []hcl.BlockHeaderSchema{
+			{
+				Type:       "content",
+				LabelNames: []string{},
+			},
+		},
+	}
+
+	return parseHCLBlocks(dir, "generate_hcl", func(block *hclsyntax.Block) error {
+		// Don't seem like I can use hcl.BodySchema to check for any non-empty
+		// label, only specific label values.
+		if len(block.Labels) != 1 {
+			return fmt.Errorf(
+				"generate_hcl must have single label instead got %v",
+				block.Labels,
+			)
+		}
+		if block.Labels[0] == "" {
+			return errors.New("generate_hcl label can't be empty")
+		}
+		// Schema check passes if no block is present, so check for amount of blocks
+		if len(block.Body.Blocks) != 1 {
+			return fmt.Errorf("generate_hcl must have one 'content' block, got %d blocks", len(block.Body.Blocks))
+		}
+		_, diags := block.Body.Content(schema)
+		if diags.HasErrors() {
+			return diags
+		}
+		return nil
+	})
 }
 
 // CopyBody will copy the src body to the given target, evaluating attributes using the
@@ -418,8 +480,8 @@ func parseBlocksOfType(path string, blocktype string) ([]*hclsyntax.Block, error
 		Str("path", path).
 		Logger()
 
-	logger.Trace().
-		Msg("Get file info.")
+	logger.Trace().Msg("Get file info.")
+
 	_, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -806,8 +868,8 @@ func filterBlocksByType(blocktype string, blocks []*hclsyntax.Block) []*hclsynta
 
 	var filtered []*hclsyntax.Block
 
-	logger.Trace().
-		Msg("Range over blocks.")
+	logger.Trace().Msg("Range over blocks.")
+
 	for _, block := range blocks {
 		if block.Type != blocktype {
 			continue
