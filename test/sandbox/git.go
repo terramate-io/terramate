@@ -109,17 +109,6 @@ func (git Git) Add(files ...string) {
 	}
 }
 
-// CurrentBranch returns the short branch name that HEAD points to.
-func (git *Git) CurrentBranch() string {
-	git.t.Helper()
-
-	branch, err := git.g.CurrentBranch()
-	if err != nil {
-		git.t.Fatalf("Git.CurrentBranch() = %v", err)
-	}
-	return branch
-}
-
 // Commit will commit previously added files
 func (git Git) Commit(msg string, args ...string) {
 	git.t.Helper()

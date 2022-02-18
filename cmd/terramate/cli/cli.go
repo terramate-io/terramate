@@ -53,7 +53,6 @@ const (
 const (
 	defaultRemote        = "origin"
 	defaultBranch        = "main"
-	defaultBaseRef       = defaultRemote + "/" + defaultBranch
 	defaultBranchBaseRef = "HEAD^"
 )
 
@@ -133,9 +132,15 @@ func Exec(
 type project struct {
 	root    string
 	wd      string
-	isRepo  bool
 	rootcfg hcl.Config
-	baseRef string
+
+	git struct {
+		isRepo            bool
+		defaultBranch     string
+		defaultBranchHash string // SHA1 of the default branch.
+		baseRef           string
+		headHash          string // SHA1 of the HEAD ref.
+	}
 }
 
 type cli struct {
@@ -271,18 +276,24 @@ func newCLI(
 			Msg("project root not found")
 	}
 
+	if parsedArgs.GitChangeBase != "" && !prj.git.isRepo {
+		logger.Fatal().
+			Msg("flag --git-change-base provided but no git repository found.")
+	}
+
+	if parsedArgs.Changed && !prj.git.isRepo {
+		logger.Fatal().
+			Msg("flag --changed provided but no git repository found.")
+	}
+
 	logger.Trace().
 		Msg("Set defaults from parsed command line arguments.")
+
 	err = prj.setDefaults(&parsedArgs)
 	if err != nil {
 		logger.Fatal().
 			Err(err).
 			Msg("setting configuration")
-	}
-
-	if parsedArgs.Changed && !prj.isRepo {
-		logger.Fatal().
-			Msg("flag --changed provided but no git repository found")
 	}
 
 	return &cli{
@@ -310,8 +321,8 @@ func (c *cli) run() {
 		logger.Trace().
 			Msg("`Changed` flag was set.")
 
-		logger.Trace().
-			Msg("Create new git wrapper.")
+		logger.Trace().Msg("Create new git wrapper.")
+
 		git, err := newGit(c.root(), true)
 		if err != nil {
 			log.Fatal().
@@ -327,8 +338,43 @@ func (c *cli) run() {
 				Msg("Checking git default remote.")
 		}
 
-		logger.Trace().
-			Msg("Check git default branch was updated.")
+		logger.Trace().Msgf("call git rev-parse %q", c.prj.git.baseRef)
+
+		gitOpt := c.prj.rootcfg.Terramate.RootConfig.Git
+
+		ref := gitOpt.DefaultRemote + "/" + gitOpt.DefaultBranch
+		defaultBranchHash, err := git.RevParse(ref)
+		if err != nil {
+			log.Fatal().
+				Err(err).
+				Msg("rev-parse.")
+		}
+
+		c.prj.git.defaultBranchHash = defaultBranchHash
+
+		logger.Trace().Msg("call git rev-parse HEAD")
+
+		headHash, err := git.RevParse("HEAD")
+		if err != nil {
+			log.Fatal().
+				Err(err).
+				Msg("rev-parse.")
+		}
+
+		c.prj.git.headHash = headHash
+
+		if defaultBranchHash == headHash {
+			// parsing of baseRef deferred to manager because HEAD^ could not exist.
+			c.prj.git.baseRef = gitOpt.DefaultBranchBaseRef
+		}
+
+		changeBaseRef := c.parsedArgs.GitChangeBase
+		if changeBaseRef != "" {
+			c.prj.git.baseRef = changeBaseRef
+		}
+
+		logger.Trace().Msg("Check git default branch was updated.")
+
 		if err := c.checkLocalDefaultIsUpdated(git); err != nil {
 			log.Fatal().
 				Err(err).
@@ -463,7 +509,7 @@ func (c *cli) printStacks() {
 	logger.Trace().
 		Str("workingDir", c.wd()).
 		Msg("Create a new stack manager.")
-	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+	mgr := terramate.NewManager(c.root(), c.prj.git.baseRef)
 
 	logger.Trace().
 		Str("workingDir", c.wd()).
@@ -673,7 +719,7 @@ func (c *cli) printStacksGlobals() {
 	logger.Trace().
 		Msg("Create new terramate manager.")
 
-	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+	mgr := terramate.NewManager(c.root(), c.prj.git.baseRef)
 	stackEntries, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil && !errors.Is(err, terramate.ErrDirtyRepo) {
 		logger.Fatal().
@@ -712,7 +758,7 @@ func (c *cli) printMetadata() {
 	logger.Trace().
 		Msg("Create new terramate manager.")
 
-	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+	mgr := terramate.NewManager(c.root(), c.prj.git.baseRef)
 	stackEntries, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil && !errors.Is(err, terramate.ErrDirtyRepo) {
 		logger.Fatal().
@@ -929,57 +975,37 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 		Str("workingDir", c.wd()).
 		Logger()
 
-	logger.Trace().
-		Msg("Get current git branch.")
-	branch, err := g.CurrentBranch()
-	if err != nil {
-		// ON CI envs we don't have a clean way to get the branch name
-		// git symbolic-ref will just fail. but we don't want a hard
-		// fail on this case. We need to re-assess this, if we really
-		// need the branch name, is there some other way to solve this ? etc.
-		//
-		// More info on git branch names on GHA:
-		//
-		// - https://github.com/github/feedback/discussions/5251
-		// - https://stackoverflow.com/questions/58033366/how-to-get-the-current-branch-within-github-actions
-		logger.Debug().
-			Str("error", err.Error()).
-			Msg("getting git branch name")
+	fmt.Printf("%s %s\n", c.prj.git.headHash, c.prj.git.defaultBranchHash)
+
+	if c.prj.git.headHash != c.prj.git.defaultBranchHash {
 		return nil
 	}
 
-	if branch != defaultBranch {
-		return nil
-	}
+	logger.Info().
+		Msg("operating on default branch: checking if it's updated...")
 
-	c.logerr("current branch %q is the default branch, checking if it is updated.", branch)
-	c.logerr("retrieving info from remote branch: %s/%s ...", defaultRemote, defaultBranch)
+	logger.Info().
+		Msgf("retrieving info from remote branch: %s/%s ...", defaultRemote, defaultBranch)
 
-	logger.Trace().
-		Msg("Fetch remote reference.")
+	logger.Trace().Msg("Fetch remote reference.")
+
 	remoteRef, err := g.FetchRemoteRev(defaultRemote, defaultBranch)
 	if err != nil {
-		return fmt.Errorf("checking if local branch %q is updated: %v", branch, err)
-	}
-	c.logerr("retrieved info from remote branch: %s/%s.", defaultRemote, defaultBranch)
-
-	logger.Trace().
-		Msg("Get local commit ID.")
-	localCommitID, err := g.RevParse(branch)
-	if err != nil {
-		return fmt.Errorf("checking if local branch %q is updated: %v", branch, err)
+		return fmt.Errorf("checking if branch is updated: %v", err)
 	}
 
-	localRef := git.Ref{CommitID: localCommitID}
+	logger.Info().
+		Msgf("retrieved info from remote branch: %s/%s.", defaultRemote, defaultBranch)
+
+	localRef := git.Ref{CommitID: c.prj.git.headHash}
 
 	if localRef.CommitID != remoteRef.CommitID {
 		return fmt.Errorf(
-			"%w: remote %s/%s=%q != local %s=%q",
+			"%w: remote %s/%s=%q != local %q",
 			ErrOutdatedLocalRev,
 			defaultRemote,
 			defaultBranch,
 			remoteRef.ShortCommitID(),
-			branch,
 			localRef.ShortCommitID(),
 		)
 
@@ -1000,7 +1026,7 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) ([]stack.S, error) {
 
 	logger.Trace().Msg("Create new terramate manager.")
 
-	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+	mgr := terramate.NewManager(c.root(), c.prj.git.baseRef)
 
 	logger.Trace().Msg("Get list of stacks.")
 
@@ -1115,7 +1141,7 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 				return project{}, false, err
 			}
 
-			prj.isRepo = true
+			prj.git.isRepo = true
 			prj.rootcfg = cfg
 			prj.root = root
 
@@ -1159,15 +1185,12 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 	if p.rootcfg.Terramate == nil {
 		// if config has no terramate block we create one with default
 		// configurations.
-		logger.Trace().
-			Str("configFile", p.root+"/terramate.tm.hcl").
-			Msg("Create terramate block.")
+		logger.Trace().Msg("Create terramate block.")
 		p.rootcfg.Terramate = &hcl.Terramate{}
 	}
 
-	logger.Debug().
-		Str("configFile", p.root+"/terramate.tm.hcl").
-		Msg("Set defaults.")
+	logger.Debug().Msg("Set defaults.")
+
 	cfg := &p.rootcfg
 	if cfg.Terramate.RootConfig == nil {
 		p.rootcfg.Terramate.RootConfig = &hcl.RootConfig{}
@@ -1175,11 +1198,12 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 	if cfg.Terramate.RootConfig.Git == nil {
 		cfg.Terramate.RootConfig.Git = &hcl.GitConfig{}
 	}
-	gitOpt := cfg.Terramate.RootConfig.Git
 
-	if gitOpt.BaseRef == "" {
-		gitOpt.BaseRef = defaultBaseRef
+	if !p.git.isRepo {
+		return nil
 	}
+
+	gitOpt := cfg.Terramate.RootConfig.Git
 
 	if gitOpt.DefaultBranchBaseRef == "" {
 		gitOpt.DefaultBranchBaseRef = defaultBranchBaseRef
@@ -1193,44 +1217,7 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 		gitOpt.DefaultRemote = defaultRemote
 	}
 
-	baseRef := parsedArgs.GitChangeBase
-	if baseRef == "" {
-		baseRef = gitOpt.BaseRef
-		if p.isRepo {
-			logger.Trace().
-				Str("configFile", p.root+"/terramate.tm.hcl").
-				Msg("Create new git wrapper.")
-			gw, err := newGit(p.wd, false)
-			if err != nil {
-				return err
-			}
-
-			logger.Trace().
-				Str("configFile", p.root+"/terramate.tm.hcl").
-				Msg("Get current branch.")
-			branch, err := gw.CurrentBranch()
-			if err != nil {
-				// ON CI envs we don't have a clean way to get the branch name
-				// git symbolic-ref will just fail. but we don't want a hard
-				// fail on this case. We need to re-assess this, if we really
-				// need the branch name, is there some other way to solve this ? etc.
-				//
-				// More info on git branch names on GHA:
-				//
-				// - https://github.com/github/feedback/discussions/5251
-				// - https://stackoverflow.com/questions/58033366/how-to-get-the-current-branch-within-github-actions
-				logger.Debug().
-					Str("error", err.Error()).
-					Msg("getting git branch name")
-			} else {
-				if branch == gitOpt.DefaultBranch {
-					baseRef = gitOpt.DefaultBranchBaseRef
-				}
-			}
-		}
-	}
-
-	p.baseRef = baseRef
+	p.git.baseRef = gitOpt.DefaultRemote + "/" + gitOpt.DefaultBranch
 
 	return nil
 }

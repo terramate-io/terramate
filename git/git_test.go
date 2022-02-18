@@ -22,7 +22,6 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/git"
 	"github.com/mineiros-io/terramate/test"
-	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
 )
 
@@ -138,18 +137,6 @@ func TestRevParse(t *testing.T) {
 	out, err := git.RevParse("main")
 	assert.NoError(t, err, "rev-parse failed")
 	assert.EqualStrings(t, CookedCommitID, out, "commit mismatch")
-}
-
-func TestCurrentBranch(t *testing.T) {
-	s := sandbox.New(t)
-	git := s.Git()
-
-	assert.EqualStrings(t, "main", git.CurrentBranch())
-
-	const newBranch = "test"
-
-	git.CheckoutNew(newBranch)
-	assert.EqualStrings(t, newBranch, git.CurrentBranch())
 }
 
 func TestFetchRemoteRev(t *testing.T) {
