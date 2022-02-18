@@ -15,6 +15,7 @@
 package terramate_test
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -28,14 +29,15 @@ import (
 
 func TestExportAsLocals(t *testing.T) {
 	type (
-		block struct {
-			path string
-			add  *hclwrite.Block
+		hclconfig struct {
+			filename string
+			path     string
+			add      fmt.Stringer
 		}
 		testcase struct {
 			name    string
 			layout  []string
-			blocks  []block
+			configs []hclconfig
 			want    map[string]*hclwrite.Block
 			wantErr error
 		}
@@ -44,11 +46,17 @@ func TestExportAsLocals(t *testing.T) {
 	exportAsLocals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("export_as_locals", builders...)
 	}
+	block := func(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock(name, builders...)
+	}
 	// locals is used only as a syntatic sugar to build testcase.want
 	// HCL blocks, which are also just an easy way to describe the wanted
 	// result since the actual result is a map of cty.Values (quite annoying to build manually)
 	locals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("block", builders...)
+		return hclwrite.BuildBlock("locals", builders...)
+	}
+	labels := func(labels ...string) hclwrite.BlockBuilder {
+		return hclwrite.Labels(labels...)
 	}
 	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("globals", builders...)
@@ -77,7 +85,7 @@ func TestExportAsLocals(t *testing.T) {
 		{
 			name:   "single stack with its own exported locals using own globals",
 			layout: []string{"s:stack"},
-			blocks: []block{
+			configs: []hclconfig{
 				{
 					path: "/stack",
 					add: globals(
@@ -104,9 +112,93 @@ func TestExportAsLocals(t *testing.T) {
 			},
 		},
 		{
+			name:   "multiple files defining exported locals on root",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						str("some_string", "string"),
+						number("some_number", 777),
+						boolean("some_bool", true),
+					),
+				},
+				{
+					path:     "/",
+					filename: "locals1.tm.hcl",
+					add: exportAsLocals(
+						expr("string_local", "global.some_string"),
+					),
+				},
+				{
+					path:     "/",
+					filename: "locals2.tm.hcl",
+					add: exportAsLocals(
+						expr("number_local", "global.some_number"),
+					),
+				},
+				{
+					path:     "/",
+					filename: "locals3.tm.hcl",
+					add: exportAsLocals(
+						expr("bool_local", "global.some_bool"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": locals(
+					str("string_local", "string"),
+					number("number_local", 777),
+					boolean("bool_local", true),
+				),
+			},
+		},
+		{
+			name:   "multiple files defining exported locals on stack",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						str("some_string", "string"),
+						number("some_number", 777),
+						boolean("some_bool", true),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "locals1.tm.hcl",
+					add: exportAsLocals(
+						expr("string_local", "global.some_string"),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "locals2.tm.hcl",
+					add: exportAsLocals(
+						expr("number_local", "global.some_number"),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "locals3.tm.hcl",
+					add: exportAsLocals(
+						expr("bool_local", "global.some_bool"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": locals(
+					str("string_local", "string"),
+					number("number_local", 777),
+					boolean("bool_local", true),
+				),
+			},
+		},
+		{
 			name:   "single stack exporting metadata using functions",
 			layout: []string{"s:stack"},
-			blocks: []block{
+			configs: []hclconfig{
 				{
 					path: "/stack",
 					add: exportAsLocals(
@@ -126,7 +218,7 @@ func TestExportAsLocals(t *testing.T) {
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
 			},
-			blocks: []block{
+			configs: []hclconfig{
 				{
 					path: "/",
 					add: globals(
@@ -166,7 +258,7 @@ func TestExportAsLocals(t *testing.T) {
 		{
 			name:   "single stack with exported locals and globals from parent dirs",
 			layout: []string{"s:stacks/stack"},
-			blocks: []block{
+			configs: []hclconfig{
 				{
 					path: "/",
 					add: globals(
@@ -209,7 +301,7 @@ func TestExportAsLocals(t *testing.T) {
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
 			},
-			blocks: []block{
+			configs: []hclconfig{
 				{
 					path: "/",
 					add: globals(
@@ -258,7 +350,7 @@ func TestExportAsLocals(t *testing.T) {
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
 			},
-			blocks: []block{
+			configs: []hclconfig{
 				{
 					path: "/",
 					add: globals(
@@ -298,9 +390,9 @@ func TestExportAsLocals(t *testing.T) {
 			},
 		},
 		{
-			name:   "stack has duplicated export as local attr on different blocks",
+			name:   "stack has duplicated exported local on different blocks",
 			layout: []string{"s:stack"},
-			blocks: []block{
+			configs: []hclconfig{
 				{
 					path: "/stack",
 					add: exportAsLocals(
@@ -317,6 +409,58 @@ func TestExportAsLocals(t *testing.T) {
 			},
 			wantErr: terramate.ErrExportedLocalRedefined,
 		},
+		{
+			name:   "stack has duplicated exported local on different files",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "locals.tm.hcl",
+					add: exportAsLocals(
+						expr("some_local", "terramate.name"),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "locals2.tm.hcl",
+					add: exportAsLocals(
+						expr("some_local", "terramate.name"),
+						expr("some_other_local", "terramate.name"),
+					),
+				},
+			},
+			wantErr: terramate.ErrExportedLocalRedefined,
+		},
+		{
+			name:   "export_as_locals with label fails",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "locals.tm.hcl",
+					add: exportAsLocals(
+						labels("ohno"),
+						expr("some_local", "terramate.name"),
+					),
+				},
+			},
+			wantErr: terramate.ErrExportedLocalsParsing,
+		},
+		{
+			name:   "export_as_locals with block fails",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "locals.tm.hcl",
+					add: exportAsLocals(
+						block("ohno"),
+						expr("some_local", "terramate.name"),
+					),
+				},
+			},
+			wantErr: terramate.ErrExportedLocalsParsing,
+		},
 	}
 
 	for _, tcase := range tcases {
@@ -324,9 +468,13 @@ func TestExportAsLocals(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
 
-			for _, block := range tcase.blocks {
-				path := filepath.Join(s.RootDir(), block.path)
-				test.AppendFile(t, path, config.DefaultFilename, block.add.String())
+			for _, cfg := range tcase.configs {
+				path := filepath.Join(s.RootDir(), cfg.path)
+				filename := cfg.filename
+				if filename == "" {
+					filename = config.DefaultFilename
+				}
+				test.AppendFile(t, path, filename, cfg.add.String())
 			}
 
 			wantExportAsLocals := tcase.want
