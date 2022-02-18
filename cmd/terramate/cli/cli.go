@@ -338,16 +338,15 @@ func (c *cli) run() {
 				Msg("Checking git default remote.")
 		}
 
-		logger.Trace().Msgf("call git rev-parse %q", c.prj.git.baseRef)
-
 		gitOpt := c.prj.rootcfg.Terramate.RootConfig.Git
 
-		ref := gitOpt.DefaultRemote + "/" + gitOpt.DefaultBranch
-		defaultBranchHash, err := git.RevParse(ref)
+		logger.Trace().Msgf("call git rev-parse %q", gitOpt.DefaultBranch)
+
+		defaultBranchHash, err := git.RevParse(gitOpt.DefaultBranch)
 		if err != nil {
 			log.Fatal().
 				Err(err).
-				Msg("rev-parse.")
+				Msg("Failed to parse git default_branch reference.")
 		}
 
 		c.prj.git.defaultBranchHash = defaultBranchHash
@@ -358,14 +357,22 @@ func (c *cli) run() {
 		if err != nil {
 			log.Fatal().
 				Err(err).
-				Msg("rev-parse.")
+				Msg("Failed to parse git HEAD reference.")
 		}
 
 		c.prj.git.headHash = headHash
 
-		if defaultBranchHash == headHash {
-			// parsing of baseRef deferred to manager because HEAD^ could not exist.
-			c.prj.git.baseRef = gitOpt.DefaultBranchBaseRef
+		if c.prj.isDefaultBranch() {
+			rev, err := git.RevParse(gitOpt.DefaultBranchBaseRef)
+			if err != nil {
+				log.Fatal().
+					Err(err).
+					Msgf("Failed to get %q revision of default_branch (%s).",
+						gitOpt.DefaultBranchBaseRef,
+						c.prj.git.defaultBranch)
+			}
+
+			c.prj.git.baseRef = rev
 		}
 
 		changeBaseRef := c.parsedArgs.GitChangeBase
@@ -975,9 +982,7 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 		Str("workingDir", c.wd()).
 		Logger()
 
-	fmt.Printf("%s %s\n", c.prj.git.headHash, c.prj.git.defaultBranchHash)
-
-	if c.prj.git.headHash != c.prj.git.defaultBranchHash {
+	if !c.prj.isDefaultBranch() {
 		return nil
 	}
 
@@ -1220,6 +1225,10 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 	p.git.baseRef = gitOpt.DefaultRemote + "/" + gitOpt.DefaultBranch
 
 	return nil
+}
+
+func (p project) isDefaultBranch() bool {
+	return p.git.headHash == p.git.defaultBranchHash
 }
 
 func configureLogging(logLevel string, logFmt string, output io.Writer) {
