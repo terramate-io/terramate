@@ -15,9 +15,7 @@
 package genhcl
 
 import (
-	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -25,7 +23,6 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate"
-	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/stack"
@@ -48,7 +45,7 @@ type HCL struct {
 
 const (
 	ErrMultiLevelConflict errutil.Error = "conflicting generate_hcl blocks"
-	ErrInvalidBlock       errutil.Error = "invalid generate_hcl block"
+	ErrParsing            errutil.Error = "parsing generate_hcl block"
 	ErrEval               errutil.Error = "evaluating generate_hcl block"
 )
 
@@ -171,8 +168,8 @@ type loadedHCL struct {
 	block  *hclsyntax.Block
 }
 
-// loadGenHCLBlocks will load all generate_hcl blocks applying overriding
-// as it goes, the returned map maps the name of the block (its label)
+// loadGenHCLBlocks will load all generate_hcl blocks.
+// The returned map maps the name of the block (its label)
 // to the original block and the path (relative to project root) of the config
 // from where it was parsed.
 func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, error) {
@@ -189,44 +186,39 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 		return nil, nil
 	}
 
-	cfgpath := filepath.Join(cfgdir, config.DefaultFilename)
-	blocks, err := hcl.ParseGenerateHCLBlocks(cfgpath)
+	hclblocks, err := hcl.ParseGenerateHCLBlocks(cfgdir)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return loadGenHCLBlocks(rootdir, filepath.Dir(cfgdir))
-		}
-		return nil, fmt.Errorf("parsing generate_hcl code: %v", err)
+		return nil, fmt.Errorf("%w: cfgdir %q: %v", ErrParsing, cfgdir, err)
 	}
 
 	logger.Trace().Msg("Parsed generate_hcl blocks.")
 
 	res := map[string]loadedHCL{}
 
-	// TODO(katcipis): improve error messages by including filenames/path
-	for _, genhclBlock := range blocks {
-		logger.Trace().Msg("Validating generate_hcl block.")
+	for filename, genhclBlocks := range hclblocks {
+		for _, genhclBlock := range genhclBlocks {
+			name := genhclBlock.Labels[0]
+			if _, ok := res[name]; ok {
+				return nil, fmt.Errorf(
+					"%w: found two blocks with same label %q",
+					ErrParsing,
+					name,
+				)
+			}
 
-		if err := validateGenerateHCLBlock(genhclBlock); err != nil {
-			return nil, fmt.Errorf("%w: %v", ErrInvalidBlock, err)
+			contentBlock := genhclBlock.Body.Blocks[0]
+			relpath := strings.TrimPrefix(cfgdir, rootdir)
+			if relpath == "" {
+				relpath = "/"
+			}
+			origin := filepath.Join(relpath, filename)
+			res[name] = loadedHCL{
+				origin: origin,
+				block:  contentBlock,
+			}
+
+			logger.Trace().Msg("loaded generate_hcl block.")
 		}
-
-		logger.Trace().Msg("generate_hcl block is valid.")
-
-		name := genhclBlock.Labels[0]
-		if _, ok := res[name]; ok {
-			return nil, fmt.Errorf(
-				"%w: found two blocks with same label %q",
-				ErrInvalidBlock,
-				name,
-			)
-		}
-		contentBlock := genhclBlock.Body.Blocks[0]
-		res[name] = loadedHCL{
-			origin: strings.TrimPrefix(cfgpath, rootdir),
-			block:  contentBlock,
-		}
-
-		logger.Trace().Msg("loaded generate_hcl block.")
 	}
 
 	parentRes, err := loadGenHCLBlocks(rootdir, filepath.Dir(cfgdir))
@@ -239,32 +231,6 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 
 	logger.Trace().Msg("loaded generate_hcl blocks with success.")
 	return res, nil
-}
-
-func validateGenerateHCLBlock(block *hclsyntax.Block) error {
-	if len(block.Labels) != 1 {
-		return fmt.Errorf(
-			"want single label instead got %d",
-			len(block.Labels),
-		)
-	}
-	if block.Labels[0] == "" {
-		return errors.New("label can't be empty")
-	}
-	if len(block.Body.Attributes) != 0 {
-		return errors.New("attributes are not allowed")
-	}
-	if len(block.Body.Blocks) != 1 {
-		return fmt.Errorf("one 'content' block is required, got %d blocks", len(block.Body.Blocks))
-	}
-	contentBlock := block.Body.Blocks[0]
-	if contentBlock.Type != "content" {
-		return fmt.Errorf("one 'content' block is required, got %q block", contentBlock.Type)
-	}
-	if len(contentBlock.Labels) > 0 {
-		return fmt.Errorf("content block has unexpected labels: %v", contentBlock.Labels)
-	}
-	return nil
 }
 
 func join(target, src map[string]loadedHCL) error {

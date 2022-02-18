@@ -33,8 +33,9 @@ import (
 func TestLoadGeneratedHCL(t *testing.T) {
 	type (
 		hclconfig struct {
-			path string
-			add  fmt.Stringer
+			path     string
+			filename string
+			add      fmt.Stringer
 		}
 		genHCL struct {
 			body   fmt.Stringer
@@ -223,6 +224,146 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 		},
 		{
+			name:  "generate HCL on root with multiple files",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						str("some_string", "string"),
+						number("some_number", 777),
+						boolean("some_bool", true),
+					),
+				},
+				{
+					path:     "/",
+					filename: "root.tm.hcl",
+					add: generateHCL(
+						labels("test"),
+						content(
+							block("testblock",
+								expr("bool", "global.some_bool"),
+								expr("number", "global.some_number"),
+								expr("string", "global.some_string"),
+							),
+						),
+					),
+				},
+				{
+					path:     "/",
+					filename: "root2.tm.hcl",
+					add: generateHCL(
+						labels("test2"),
+						content(
+							block("testblock2",
+								expr("obj", `{
+									string = global.some_string
+									number = global.some_number
+									bool = global.some_bool
+								}`),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test",
+					hcl: genHCL{
+						origin: "/root.tm.hcl",
+						body: block("testblock",
+							boolean("bool", true),
+							number("number", 777),
+							str("string", "string"),
+						),
+					},
+				},
+				{
+					name: "test2",
+					hcl: genHCL{
+						origin: "/root2.tm.hcl",
+						body: block("testblock2",
+							attr("obj", `{
+								bool   = true
+								number = 777
+								string = "string"
+							}`),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "generate HCL on stack with multiple files",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						str("some_string", "string"),
+						number("some_number", 777),
+						boolean("some_bool", true),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "test.tm.hcl",
+					add: generateHCL(
+						labels("test"),
+						content(
+							block("testblock",
+								expr("bool", "global.some_bool"),
+								expr("number", "global.some_number"),
+								expr("string", "global.some_string"),
+							),
+						),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "test2.tm.hcl",
+					add: generateHCL(
+						labels("test2"),
+						content(
+							block("testblock2",
+								expr("obj", `{
+									string = global.some_string
+									number = global.some_number
+									bool = global.some_bool
+								}`),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test",
+					hcl: genHCL{
+						origin: "/stack/test.tm.hcl",
+						body: block("testblock",
+							boolean("bool", true),
+							number("number", 777),
+							str("string", "string"),
+						),
+					},
+				},
+				{
+					name: "test2",
+					hcl: genHCL{
+						origin: "/stack/test2.tm.hcl",
+						body: block("testblock2",
+							attr("obj", `{
+								bool   = true
+								number = 777
+								string = "string"
+							}`),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "generate HCL on stack using try and labeled block",
 			stack: "/stack",
 			configs: []hclconfig{
@@ -281,7 +422,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 				{
-					path: "/stack",
+					path:     "/stack",
+					filename: "genhcl.tm.hcl",
 					add: generateHCL(
 						labels("nesting"),
 						content(
@@ -307,7 +449,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "nesting",
 					hcl: genHCL{
-						origin: defaultCfg("/stack"),
+						origin: "/stack/genhcl.tm.hcl",
 						body: block("block1",
 							boolean("bool", true),
 							block("block2",
@@ -327,7 +469,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 		},
 		{
-			name:  "multiple generate HCL blocks on stack",
+			name:  "multiple generate HCL blocks on single file",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
@@ -633,7 +775,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrInvalidBlock,
+			wantErr: genhcl.ErrParsing,
 		},
 		{
 			name:  "generate_hcl with non-content block inside fails",
@@ -649,7 +791,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrInvalidBlock,
+			wantErr: genhcl.ErrParsing,
 		},
 		{
 			name:  "generate_hcl with other blocks than content fails",
@@ -668,7 +810,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrInvalidBlock,
+			wantErr: genhcl.ErrParsing,
 		},
 		{
 			name:  "generate_hcl.content block is required",
@@ -681,7 +823,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrInvalidBlock,
+			wantErr: genhcl.ErrParsing,
 		},
 		{
 			name:  "generate_hcl.content block with label fails",
@@ -697,10 +839,10 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrInvalidBlock,
+			wantErr: genhcl.ErrParsing,
 		},
 		{
-			name:  "block with two labels on stack gives err",
+			name:  "block with two labels on stack fails",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
@@ -715,10 +857,10 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrInvalidBlock,
+			wantErr: genhcl.ErrParsing,
 		},
 		{
-			name:  "block with empty label on stack gives err",
+			name:  "block with empty label on stack fails",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
@@ -733,10 +875,10 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrInvalidBlock,
+			wantErr: genhcl.ErrParsing,
 		},
 		{
-			name:  "blocks with same label on same config gives err",
+			name:  "blocks with same label on same config fails",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
@@ -761,7 +903,42 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrInvalidBlock,
+			wantErr: genhcl.ErrParsing,
+		},
+		{
+			name:  "blocks with same label on multiple config files fails",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
+				{
+					path:     "/stacks/stack",
+					filename: "test.tm.hcl",
+					add: hcldoc(
+						generateHCL(
+							labels("duplicated"),
+							content(
+								terraform(
+									str("data", "some literal data"),
+								),
+							),
+						),
+					),
+				},
+				{
+					path:     "/stacks/stack",
+					filename: "test2.tm.hcl",
+					add: hcldoc(
+						generateHCL(
+							labels("duplicated"),
+							content(
+								terraform(
+									str("data", "some literal data"),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: genhcl.ErrParsing,
 		},
 		{
 			name:  "global evaluation failure",
@@ -829,7 +1006,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrInvalidBlock,
+			wantErr: genhcl.ErrParsing,
 		},
 		{
 			name:  "attributes on generate_hcl block fails",
@@ -850,7 +1027,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrInvalidBlock,
+			wantErr: genhcl.ErrParsing,
 		},
 	}
 
@@ -861,8 +1038,12 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			stack := stackEntry.Load()
 
 			for _, cfg := range tcase.configs {
+				filename := cfg.filename
+				if filename == "" {
+					filename = config.DefaultFilename
+				}
 				path := filepath.Join(s.RootDir(), cfg.path)
-				test.AppendFile(t, path, config.DefaultFilename, cfg.add.String())
+				test.AppendFile(t, path, filename, cfg.add.String())
 			}
 
 			meta := stack.Meta()
@@ -875,7 +1056,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			for _, res := range tcase.want {
 				gothcl, ok := got[res.name]
 				if !ok {
-					t.Fatalf("want hcl code for %q, got: %v", res.name, got)
+					t.Fatalf("want hcl code to be generated for %q but no code was generated for it", res.name)
 				}
 				gotcode := gothcl.String()
 				wantcode := res.hcl.body.String()
