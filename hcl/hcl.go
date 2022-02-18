@@ -96,6 +96,9 @@ type Stack struct {
 	Wants []string
 }
 
+// HCLBlocks maps a filename to a slice of blocks associated with it
+type HCLBlocks map[string][]*hclsyntax.Block
+
 const (
 	ErrHCLSyntax                errutil.Error = "HCL syntax error"
 	ErrMalformedTerramateConfig errutil.Error = "malformed terramate config"
@@ -274,9 +277,6 @@ func ParseDir(dir string) (Config, error) {
 	return newCfgFromParsedHCLs(dir, loadedParser)
 }
 
-// HCLBlocks maps a filename to a slice of blocks associated with it
-type HCLBlocks map[string][]*hclsyntax.Block
-
 // ParseGlobalsBlocks parses all Terramate files on the given dir, returning
 // only global blocks (other blocks are discarded).
 func ParseGlobalsBlocks(dir string) (HCLBlocks, error) {
@@ -300,9 +300,29 @@ func ParseGlobalsBlocks(dir string) (HCLBlocks, error) {
 	})
 }
 
-// ParseExportAsLocalsBlocks parses export_as_locals blocks, ignoring other blocks
-func ParseExportAsLocalsBlocks(path string) ([]*hclsyntax.Block, error) {
-	return parseBlocksOfType(path, "export_as_locals")
+// ParseExportAsLocalsBlocks parses all Terramate files on the given dir, returning
+// only export_as_locals blocks (other blocks are discarded).
+// export_as_locals blocks are validated, so the caller can expect valid blocks only or an error.
+func ParseExportAsLocalsBlocks(dir string) (HCLBlocks, error) {
+	logger := log.With().
+		Str("action", "hcl.ParseExportAsLocalsBlocks").
+		Str("configdir", dir).
+		Logger()
+
+	logger.Trace().Msg("loading config")
+
+	return parseHCLBlocks(dir, "export_as_locals", func(block *hclsyntax.Block) error {
+		if len(block.Labels) != 0 {
+			return fmt.Errorf(
+				"exported_as_locals should not have labels but has %v",
+				block.Labels,
+			)
+		}
+		if len(block.Body.Blocks) != 0 {
+			return errors.New("export_as_locals should not have blocks")
+		}
+		return nil
+	})
 }
 
 // ParseGenerateHCLBlocks parses all Terramate files on the given dir, returning
@@ -449,34 +469,6 @@ func sortedAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {
 	}
 
 	return sorted
-}
-
-func parseBlocksOfType(path string, blocktype string) ([]*hclsyntax.Block, error) {
-	logger := log.With().
-		Str("action", "parseBlocksOfType()").
-		Str("path", path).
-		Logger()
-
-	logger.Trace().Msg("Get file info.")
-
-	_, err := os.Stat(path)
-	if err != nil {
-		return nil, err
-	}
-
-	logger.Debug().
-		Msg("Parse file.")
-	p := hclparse.NewParser()
-	f, diags := p.ParseHCLFile(path)
-	if diags.HasErrors() {
-		return nil, errutil.Chain(
-			ErrHCLSyntax,
-			fmt.Errorf("parsing blocks of type %q: %w", blocktype, diags),
-		)
-	}
-
-	body, _ := f.Body.(*hclsyntax.Body)
-	return filterBlocksByType(blocktype, body.Blocks), nil
 }
 
 func findStringAttr(block *hclsyntax.Block, attr string) (string, bool, error) {
