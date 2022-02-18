@@ -68,14 +68,9 @@ func (r Report) String() string {
 		)
 	}
 
-	report := []string{
-		"Code generation report",
-		"",
-		"\t[+] <filename> : <filename> was created",
-		"\t[~] <filename> : <filename> was changed",
-		"\t[-] <filename> : <filename> was deleted",
-		"",
-	}
+	// Probably could look better as a single template
+	// Since the report for now is simple enough just went with plain Go
+	report := []string{"Code generation report", ""}
 	addLine := func(msg string, args ...interface{}) {
 		report = append(report, fmt.Sprintf(msg, args...))
 	}
@@ -96,6 +91,7 @@ func (r Report) String() string {
 			addLine("\t[-] %s", deleted)
 		}
 	}
+	needsHint := false
 
 	if len(r.Successes) > 0 {
 		addLine("Successes:")
@@ -105,6 +101,7 @@ func (r Report) String() string {
 			addResultChangeset(success)
 			newline()
 		}
+		needsHint = true
 	}
 
 	if len(r.Failures) > 0 {
@@ -116,6 +113,11 @@ func (r Report) String() string {
 			addResultChangeset(failure.Result)
 			newline()
 		}
+		needsHint = true
+	}
+
+	if needsHint {
+		addLine("Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.")
 	}
 
 	return strings.Join(report, "\n")
