@@ -195,7 +195,7 @@ func (s S) Git() Git {
 }
 
 // Generate generates code for all stacks on the sandbox
-func (s S) Generate() {
+func (s S) Generate() generate.Report {
 	t := s.t
 	t.Helper()
 
@@ -203,6 +203,7 @@ func (s S) Generate() {
 	for _, failure := range report.Failures {
 		t.Errorf("Generate unexpected failure: %v", failure)
 	}
+	return report
 }
 
 // LoadStacks load all stacks from sandbox rootdir.

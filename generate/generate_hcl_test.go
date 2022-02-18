@@ -403,6 +403,8 @@ func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
 	})
 
 	report := generate.Do(s.RootDir(), s.RootDir())
+	assert.EqualInts(t, 0, len(report.Successes), "want no success")
+	assert.EqualInts(t, 1, len(report.Failures), "want single failure")
 	assertReportHasError(t, report, generate.ErrManualCodeExists)
 
 	stack := s.StackEntry("stack")
@@ -531,29 +533,48 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		).String(),
 	)
 
-	s.Generate()
+	report := s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				StackPath: "/stack",
+				Created:   []string{"file1.tf", "file2.tf"},
+			},
+		},
+	})
 
 	got := stackEntry.ListGenFiles()
 	assertEqualStringList(t, got, []string{"file1.tf", "file2.tf"})
 
+	// Lets change one of the files, but delete the other
 	rootConfig.Write(
 		hcldoc(
 			generateHCL(
 				labels("file1.tf"),
 				content(
-					block("block1",
-						boolean("whatever", true),
+					block("changed",
+						boolean("newstuff", true),
 					),
 				),
 			),
 		).String(),
 	)
 
-	s.Generate()
+	report = s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				StackPath: "/stack",
+				Changed:   []string{"file1.tf"},
+				Deleted:   []string{"file2.tf"},
+			},
+		},
+	})
+
 	got = stackEntry.ListGenFiles()
 	assertEqualStringList(t, got, []string{"file1.tf"})
 
-	// empty block generates no code, so it gets deleted
+	// Empty block generates no code, so it gets deleted
 	rootConfig.Write(
 		hcldoc(
 			generateHCL(
@@ -563,7 +584,18 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		).String(),
 	)
 
-	s.Generate()
+	report = s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				StackPath: "/stack",
+				Deleted:   []string{"file1.tf"},
+			},
+		},
+	})
+
 	got = stackEntry.ListGenFiles()
 	assertEqualStringList(t, got, []string{})
+
+	assertEqualReports(t, s.Generate(), generate.Report{})
 }
