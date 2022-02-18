@@ -496,16 +496,16 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 		return []string{}, nil
 	}
 
-	logger.Trace().
-		Msg("Find common commit ancestor of HEAd and base ref.")
+	logger.Trace().Msg("Find common commit ancestor of HEAd and base ref.")
+
 	mergeBaseRef, err := g.MergeBase("HEAD", baseRef)
 	if err != nil {
-		return nil, fmt.Errorf("getting merge-base HEAD main: %w", err)
+		return nil, fmt.Errorf("getting merge-base HEAD %s: %w", baseRef, err)
 	}
 
 	if baseRef != mergeBaseRef {
-		return nil, fmt.Errorf("main branch is not reachable: main ref %q can't reach %q",
-			baseRef, mergeBaseRef)
+		return nil, fmt.Errorf("%s is not reachable: ref %q can't reach %q",
+			baseRef, baseRef, mergeBaseRef)
 	}
 
 	return g.DiffNames(baseRef, headRef)
