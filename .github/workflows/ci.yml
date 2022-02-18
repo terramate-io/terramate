@@ -62,6 +62,9 @@ jobs:
       - name: make build
         run: make build
 
+      - name: make test/ci
+        run: make test/ci
+
   release_dry_run:
     name: Release Dry Run
 
