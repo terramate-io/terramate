@@ -74,6 +74,7 @@ jobs:
       - name: checkout repo
         uses: actions/checkout@v2
         with:
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
 
       - name: setup go
