@@ -13,13 +13,7 @@
 # limitations under the License.
 
 name: ci
-on:
-  pull_request:
-
-permissions:
-  contents: read
-  pull-requests: write
-
+on: [push]
 jobs:
 
   checks:
