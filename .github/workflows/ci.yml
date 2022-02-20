@@ -55,6 +55,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: git branch
+        run: git branch
+        
+      - name: git rev-parse main
+        run: git rev-parse main
+
+      - name: git rev-parse origin/main
+        run: git rev-parse origin/main
+
       - name: setup go
         uses: actions/setup-go@v2
         with:
