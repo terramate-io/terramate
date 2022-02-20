@@ -17,7 +17,12 @@ on:
   pull_request:
 
 jobs:
-
+  terramate:
+    permissions:
+      id-token: write
+      contents: write # This is required for actions/checkout@v2
+      issues: write
+      pull-requests: write
   checks:
     runs-on: ubuntu-20.04
 
