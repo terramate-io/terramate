@@ -16,94 +16,92 @@ name: ci
 on:
   pull_request:
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
-  terramate:
-    permissions:
-      id-token: write
-      contents: write # This is required for actions/checkout@v2
-      issues: write
-      pull-requests: write
 
-    checks:
-      runs-on: ubuntu-20.04
+  checks:
+    runs-on: ubuntu-20.04
 
-      steps:
-        - name: checkout repo
-          uses: actions/checkout@v2
-          with:
-            fetch-depth: 0
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-        - name: setup go
-          uses: actions/setup-go@v2
-          with:
-            go-version: "1.17"
+      - name: setup go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "1.17"
 
-        - name: checking go mod tidyness
-          run: make mod/check
+      - name: checking go mod tidyness
+        run: make mod/check
 
-        - name: linting code
-          run: make lint
+      - name: linting code
+        run: make lint
 
-        - name: checking license on source code
-          run: make license/check
+      - name: checking license on source code
+        run: make license/check
 
-    build_test:
-      name: Build and Test
+  build_test:
+    name: Build and Test
 
-      runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
 
-      strategy:
-        matrix:
-          os: ["ubuntu-20.04", "macos-10.15"] # maybe in the future: windows-2019
-          go: ["1.17"]
+    strategy:
+      matrix:
+        os: ["ubuntu-20.04", "macos-10.15"] # maybe in the future: windows-2019
+        go: ["1.17"]
 
-      steps:
-        - name: checkout repo
-          uses: actions/checkout@v2
-          with:
-            fetch-depth: 0
-            ref: ${{ github.head_ref }}
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
 
-        - name: git branch
-          run: git branch
+      - name: git branch
+        run: git branch
 
-        - name: git rev-parse origin/main
-          run: git rev-parse origin/main
-          
-        - name: git rev-parse main
-          run: git rev-parse main
+      - name: git rev-parse origin/main
+        run: git rev-parse origin/main
+        
+      - name: git rev-parse main
+        run: git rev-parse main
 
-        - name: setup go
-          uses: actions/setup-go@v2
-          with:
-            go-version: ${{ matrix.go }}
+      - name: setup go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
 
-        - name: make test
-          run: make test
+      - name: make test
+        run: make test
 
-        - name: make build
-          run: make build
+      - name: make build
+        run: make build
 
-        - name: make test/ci
-          run: make test/ci
+      - name: make test/ci
+        run: make test/ci
 
-    release_dry_run:
-      name: Release Dry Run
+  release_dry_run:
+    name: Release Dry Run
 
-      runs-on: ubuntu-20.04
+    runs-on: ubuntu-20.04
 
-      steps:
-        - name: checkout repo
-          uses: actions/checkout@v2
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v2
 
-        - name: setup go
-          uses: actions/setup-go@v2
-          with:
-            go-version: "1.17"
+      - name: setup go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "1.17"
 
-        - name: release dry run
-          uses: goreleaser/goreleaser-action@v2
-          with:
-            distribution: goreleaser
-            version: v1.2.5
-            args: release --snapshot --rm-dist
+      - name: release dry run
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          distribution: goreleaser
+          version: v1.2.5
+          args: release --snapshot --rm-dist
