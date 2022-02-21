@@ -330,8 +330,8 @@ func (c *cli) run() {
 				Msg("creating git wrapper.")
 		}
 
-		logger.Trace().
-			Msg("Check git default remote.")
+		logger.Trace().Msg("Check git default remote.")
+
 		if err := c.checkDefaultRemote(git); err != nil {
 			log.Fatal().
 				Err(err).
@@ -342,11 +342,12 @@ func (c *cli) run() {
 
 		logger.Trace().Msgf("call git rev-parse %q", gitOpt.DefaultBranch)
 
-		defaultBranchHash, err := git.RevParse(gitOpt.DefaultBranch)
+		remoteDefaultBranch := gitOpt.DefaultRemote + "/" + gitOpt.DefaultBranch
+		defaultBranchHash, err := git.RevParse(remoteDefaultBranch)
 		if err != nil {
 			log.Fatal().
 				Err(err).
-				Msg("Failed to parse git default_branch reference.")
+				Msg("Failed to parse git remote default_branch reference.")
 		}
 
 		c.prj.git.defaultBranchHash = defaultBranchHash

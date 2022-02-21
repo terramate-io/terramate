@@ -56,15 +56,6 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.head_ref }}
 
-      - name: git branch
-        run: git branch
-
-      - name: git rev-parse origin/main
-        run: git rev-parse origin/main
-        
-      - name: git rev-parse main
-        run: git rev-parse main
-
       - name: setup go
         uses: actions/setup-go@v2
         with:
