@@ -44,7 +44,7 @@ func TestCLIRunOrder(t *testing.T) {
 				"s:stack-a",
 			},
 			want: runExpected{
-				Stdout: `/stack-a
+				Stdout: `stack-a
 `,
 			},
 		},
@@ -54,7 +54,7 @@ func TestCLIRunOrder(t *testing.T) {
 				"s:stack:after=[]",
 			},
 			want: runExpected{
-				Stdout: `/stack
+				Stdout: `stack
 `,
 			},
 		},
@@ -69,12 +69,12 @@ func TestCLIRunOrder(t *testing.T) {
 				"s:boom",
 			},
 			want: runExpected{
-				Stdout: `/1
-/2
-/3
-/batatinha
-/boom
-/frita
+				Stdout: `1
+2
+3
+batatinha
+boom
+frita
 `,
 			},
 		},
@@ -85,8 +85,8 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-b:after=["../stack-a"]`,
 			},
 			want: runExpected{
-				Stdout: `/stack-a
-/stack-b
+				Stdout: `stack-a
+stack-b
 `,
 			},
 		},
@@ -97,8 +97,8 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-b:after=["/stack-a"]`,
 			},
 			want: runExpected{
-				Stdout: `/stack-a
-/stack-b
+				Stdout: `stack-a
+stack-b
 `,
 			},
 		},
@@ -110,9 +110,9 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-c:after=["../stack-b"]`,
 			},
 			want: runExpected{
-				Stdout: `/stack-a
-/stack-b
-/stack-c
+				Stdout: `stack-a
+stack-b
+stack-c
 `,
 			},
 		},
@@ -124,9 +124,9 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-c:after=["/stack-b"]`,
 			},
 			want: runExpected{
-				Stdout: `/stack-a
-/stack-b
-/stack-c
+				Stdout: `stack-a
+stack-b
+stack-c
 `,
 			},
 		},
@@ -138,9 +138,9 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-a:after=["../stack-b"]`,
 			},
 			want: runExpected{
-				Stdout: `/stack-c
-/stack-b
-/stack-a
+				Stdout: `stack-c
+stack-b
+stack-a
 `,
 			},
 		},
@@ -152,9 +152,9 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-a:after=["/stack-b"]`,
 			},
 			want: runExpected{
-				Stdout: `/stack-c
-/stack-b
-/stack-a
+				Stdout: `stack-c
+stack-b
+stack-a
 `,
 			},
 		},
@@ -165,8 +165,8 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-b`,
 			},
 			want: runExpected{
-				Stdout: `/stack-b
-/stack-a
+				Stdout: `stack-b
+stack-a
 `,
 			},
 		},
@@ -179,10 +179,10 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-d`,
 			},
 			want: runExpected{
-				Stdout: `/stack-b
-/stack-c
-/stack-d
-/stack-a
+				Stdout: `stack-b
+stack-c
+stack-d
+stack-a
 `,
 			},
 		},
@@ -195,10 +195,10 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-d`,
 			},
 			want: runExpected{
-				Stdout: `/stack-b
-/stack-c
-/stack-d
-/stack-a
+				Stdout: `stack-b
+stack-c
+stack-d
+stack-a
 `,
 			},
 		},
@@ -212,11 +212,11 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-z`,
 			},
 			want: runExpected{
-				Stdout: `/stack-a
-/stack-b
-/stack-c
-/stack-z
-/stack-d
+				Stdout: `stack-a
+stack-b
+stack-c
+stack-z
+stack-d
 `,
 			},
 		},
@@ -230,11 +230,11 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-z`,
 			},
 			want: runExpected{
-				Stdout: `/stack-a
-/stack-b
-/stack-c
-/stack-z
-/stack-d
+				Stdout: `stack-a
+stack-b
+stack-c
+stack-z
+stack-d
 `,
 			},
 		},
@@ -247,10 +247,10 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-d:after=["../stack-b"]`,
 			},
 			want: runExpected{
-				Stdout: `/stack-a
-/stack-b
-/stack-c
-/stack-d
+				Stdout: `stack-a
+stack-b
+stack-c
+stack-d
 `,
 			},
 		},
@@ -264,11 +264,11 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-d:after=["../stack-b"]`,
 			},
 			want: runExpected{
-				Stdout: `/stack-a
-/stack-b
-/stack-c
-/stack-d
-/stack-z
+				Stdout: `stack-a
+stack-b
+stack-c
+stack-d
+stack-z
 `,
 			},
 		},
@@ -283,12 +283,12 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-d:after=["../stack-b"]`,
 			},
 			want: runExpected{
-				Stdout: `/stack-a
-/stack-b
-/stack-c
-/stack-d
-/stack-g
-/stack-z
+				Stdout: `stack-a
+stack-b
+stack-c
+stack-d
+stack-g
+stack-z
 `,
 			},
 		},
@@ -304,13 +304,13 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-h`,
 			},
 			want: runExpected{
-				Stdout: `/stack-d
-/stack-f
-/stack-b
-/stack-g
-/stack-h
-/stack-c
-/stack-a
+				Stdout: `stack-d
+stack-f
+stack-b
+stack-g
+stack-h
+stack-c
+stack-a
 `,
 			},
 		},
@@ -324,11 +324,11 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-d`,
 			},
 			want: runExpected{
-				Stdout: `/stack-b
-/stack-c
-/stack-a
-/stack-d
-/stack-z
+				Stdout: `stack-b
+stack-c
+stack-a
+stack-d
+stack-z
 `,
 			},
 		},
@@ -344,13 +344,13 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-y`,
 			},
 			want: runExpected{
-				Stdout: `/stack-x
-/stack-y
-/stack-a
-/stack-b
-/stack-c
-/stack-d
-/stack-z
+				Stdout: `stack-x
+stack-y
+stack-a
+stack-b
+stack-c
+stack-d
+stack-z
 `,
 			},
 		},
@@ -427,11 +427,11 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-d`,
 			},
 			want: runExpected{
-				Stdout: `/stack-b
-/stack-c
-/stack-a
-/stack-d
-/stack-z
+				Stdout: `stack-b
+stack-c
+stack-a
+stack-d
+stack-z
 `,
 			},
 		},
@@ -462,7 +462,7 @@ func TestRunWants(t *testing.T) {
 				`s:stack-a:wants=["/stack-a"]`,
 			},
 			want: runExpected{
-				Stdout: "/stack-a\n",
+				Stdout: "stack-a\n",
 			},
 		},
 		{
@@ -472,7 +472,7 @@ func TestRunWants(t *testing.T) {
 				`s:stack-b`,
 			},
 			want: runExpected{
-				Stdout: "/stack-a\n/stack-b\n",
+				Stdout: "stack-a\nstack-b\n",
 			},
 		},
 		{
@@ -482,7 +482,7 @@ func TestRunWants(t *testing.T) {
 				`s:stack-a`,
 			},
 			want: runExpected{
-				Stdout: "/stack-a\n/stack-b\n",
+				Stdout: "stack-a\nstack-b\n",
 			},
 		},
 		{
@@ -493,7 +493,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-a",
 			want: runExpected{
-				Stdout: "/stack-a\n/stack-b\n",
+				Stdout: "stack-a\nstack-b\n",
 			},
 		},
 		{
@@ -504,7 +504,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: runExpected{
-				Stdout: "/stack-b\n",
+				Stdout: "stack-b\n",
 			},
 		},
 		{
@@ -515,7 +515,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: runExpected{
-				Stdout: "/stack-a\n/stack-b\n",
+				Stdout: "stack-a\nstack-b\n",
 			},
 		},
 		{
@@ -527,7 +527,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: runExpected{
-				Stdout: "/stack-a\n/stack-b\n/stack-c\n",
+				Stdout: "stack-a\nstack-b\nstack-c\n",
 			},
 		},
 		{
@@ -539,7 +539,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: runExpected{
-				Stdout: "/stack-a\n/stack-b\n/stack-c\n",
+				Stdout: "stack-a\nstack-b\nstack-c\n",
 			},
 		},
 		{
@@ -554,7 +554,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-a",
 			want: runExpected{
-				Stdout: "/stack-a\n/stack-b\n/stack-c\n/stack-d\n/stack-e\n",
+				Stdout: "stack-a\nstack-b\nstack-c\nstack-d\nstack-e\n",
 			},
 		},
 		{
@@ -569,7 +569,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: runExpected{
-				Stdout: "/stack-b\n/stack-d\n/stack-e\n",
+				Stdout: "stack-b\nstack-d\nstack-e\n",
 			},
 		},
 		{
@@ -588,7 +588,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: runExpected{
-				Stdout: "/stack-a\n/stack-b\n/stack-c\n/stack-d\n/stack-e\n/stack-z\n",
+				Stdout: "stack-a\nstack-b\nstack-c\nstack-d\nstack-e\nstack-z\n",
 			},
 		},
 		{
@@ -606,7 +606,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: runExpected{
-				Stdout: "/stack-b\n/stack-d\n/stack-a\n/stack-c\n/stack-e\n/stack-z\n",
+				Stdout: "stack-b\nstack-d\nstack-a\nstack-c\nstack-e\nstack-z\n",
 			},
 		},
 	} {
