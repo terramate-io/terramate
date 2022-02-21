@@ -107,7 +107,7 @@ func (s S) IsChanged() bool { return s.changed }
 func (s *S) SetChanged(b bool) { s.changed = b }
 
 // String representation of the stack.
-func (s S) String() string { return s.Name() }
+func (s S) String() string { return s.PrjAbsPath() }
 
 // PrjAbsPath returns the project's absolute path of stack.
 func (s S) PrjAbsPath() string { return s.prjAbsPath }
