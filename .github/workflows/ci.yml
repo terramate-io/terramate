@@ -56,6 +56,12 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.head_ref }}
 
+      - name: git branch --show-current
+        run: git branch --show-current
+
+      - name: git symbolic-ref HEAD
+        run: git symbolic-ref HEAD
+
       - name: setup go
         uses: actions/setup-go@v2
         with:
