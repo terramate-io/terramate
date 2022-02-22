@@ -30,7 +30,7 @@ import (
 
 func TestHCLGeneration(t *testing.T) {
 	type (
-		want struct {
+		generatedHCL struct {
 			stack string
 			hcls  map[string]fmt.Stringer
 		}
@@ -39,7 +39,8 @@ func TestHCLGeneration(t *testing.T) {
 			layout     []string
 			configs    []hclconfig
 			workingDir string
-			want       []want
+			wantHCL    []generatedHCL
+			wantReport generate.Report
 		}
 	)
 
@@ -158,7 +159,7 @@ func TestHCLGeneration(t *testing.T) {
 					),
 				},
 			},
-			want: []want{
+			wantHCL: []generatedHCL{
 				{
 					stack: "/stacks/stack-1",
 					hcls: map[string]fmt.Stringer{
@@ -226,6 +227,18 @@ func TestHCLGeneration(t *testing.T) {
 					},
 				},
 			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						StackPath: "/stacks/stack-1",
+						Created:   []string{"backend.tf", "locals.tf", "provider.tf"},
+					},
+					{
+						StackPath: "/stacks/stack-2",
+						Created:   []string{"backend.tf", "locals.tf", "provider.tf"},
+					},
+				},
+			},
 		},
 		{
 			name: "generate HCL with traversal of unknown namespaces",
@@ -250,7 +263,7 @@ func TestHCLGeneration(t *testing.T) {
 					),
 				},
 			},
-			want: []want{
+			wantHCL: []generatedHCL{
 				{
 					stack: "/stacks/stack-1",
 					hcls: map[string]fmt.Stringer{
@@ -276,6 +289,18 @@ func TestHCLGeneration(t *testing.T) {
 					},
 				},
 			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						StackPath: "/stacks/stack-1",
+						Created:   []string{"traversal.tf"},
+					},
+					{
+						StackPath: "/stacks/stack-2",
+						Created:   []string{"traversal.tf"},
+					},
+				},
+			},
 		},
 	}
 
@@ -291,7 +316,7 @@ func TestHCLGeneration(t *testing.T) {
 			assertGeneratedHCLs := func(t *testing.T) {
 				t.Helper()
 
-				for _, wantDesc := range tcase.want {
+				for _, wantDesc := range tcase.wantHCL {
 					stackRelPath := wantDesc.stack[1:]
 					stack := s.StackEntry(stackRelPath)
 
@@ -305,17 +330,17 @@ func TestHCLGeneration(t *testing.T) {
 			}
 
 			workingDir := filepath.Join(s.RootDir(), tcase.workingDir)
-			err := generate.Do(s.RootDir(), workingDir)
-			assert.NoError(t, err)
+			report := generate.Do(s.RootDir(), workingDir)
+			assertEqualReports(t, report, tcase.wantReport)
 
 			assertGeneratedHCLs(t)
 
 			// piggyback on the tests to validate that regeneration doesnt
 			// delete files or fail and has identical results.
 			t.Run("regenerate", func(t *testing.T) {
-				err := generate.Do(s.RootDir(), workingDir)
-				assert.NoError(t, err)
-
+				report := generate.Do(s.RootDir(), workingDir)
+				// since we just generated everything, report should be empty
+				assertEqualReports(t, report, generate.Report{})
 				assertGeneratedHCLs(t)
 			})
 
@@ -323,14 +348,14 @@ func TestHCLGeneration(t *testing.T) {
 			// We remove wanted/expected generated code
 			// So we should have only basic terramate configs left
 			// There is potential to extract this for other code generation tests.
-			for _, wantDesc := range tcase.want {
+			for _, wantDesc := range tcase.wantHCL {
 				stackRelPath := wantDesc.stack[1:]
 				stack := s.StackEntry(stackRelPath)
 				for name := range wantDesc.hcls {
 					stack.RemoveGeneratedHCL(name)
 				}
 			}
-			err = filepath.WalkDir(s.RootDir(), func(path string, d fs.DirEntry, err error) error {
+			err := filepath.WalkDir(s.RootDir(), func(path string, d fs.DirEntry, err error) error {
 				t.Helper()
 
 				assert.NoError(t, err, "checking for unwanted generated files")
@@ -377,8 +402,10 @@ func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
 		fmt.Sprintf("f:stack/%s:%s", genFilename, manualTfCode),
 	})
 
-	err := generate.Do(s.RootDir(), s.RootDir())
-	assert.IsError(t, err, generate.ErrManualCodeExists)
+	report := generate.Do(s.RootDir(), s.RootDir())
+	assert.EqualInts(t, 0, len(report.Successes), "want no success")
+	assert.EqualInts(t, 1, len(report.Failures), "want single failure")
+	assertReportHasError(t, report, generate.ErrManualCodeExists)
 
 	stack := s.StackEntry("stack")
 	actualTfCode := stack.ReadGeneratedHCL(genFilename)
@@ -405,7 +432,15 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 	rootEntry := s.DirEntry(".")
 	rootConfig := rootEntry.CreateConfig(firstConfig.String())
 
-	s.Generate()
+	report := s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				StackPath: "/stack",
+				Created:   []string{genFilename},
+			},
+		},
+	})
 
 	got := stack.ReadGeneratedHCL(genFilename)
 	assertHCLEquals(t, got, firstWant.String())
@@ -424,10 +459,19 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 
 	rootConfig.Write(secondConfig.String())
 
-	s.Generate()
+	report = s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				StackPath: "/stack",
+				Changed:   []string{genFilename},
+			},
+		},
+	})
 
 	got = stack.ReadGeneratedHCL(genFilename)
 	assertHCLEquals(t, got, secondWant.String())
+	assertEqualReports(t, s.Generate(), generate.Report{})
 }
 
 func TestGeneratedHCLHeaders(t *testing.T) {
@@ -506,29 +550,48 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		).String(),
 	)
 
-	s.Generate()
+	report := s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				StackPath: "/stack",
+				Created:   []string{"file1.tf", "file2.tf"},
+			},
+		},
+	})
 
 	got := stackEntry.ListGenFiles()
 	assertEqualStringList(t, got, []string{"file1.tf", "file2.tf"})
 
+	// Lets change one of the files, but delete the other
 	rootConfig.Write(
 		hcldoc(
 			generateHCL(
 				labels("file1.tf"),
 				content(
-					block("block1",
-						boolean("whatever", true),
+					block("changed",
+						boolean("newstuff", true),
 					),
 				),
 			),
 		).String(),
 	)
 
-	s.Generate()
+	report = s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				StackPath: "/stack",
+				Changed:   []string{"file1.tf"},
+				Deleted:   []string{"file2.tf"},
+			},
+		},
+	})
+
 	got = stackEntry.ListGenFiles()
 	assertEqualStringList(t, got, []string{"file1.tf"})
 
-	// empty block generates no code, so it gets deleted
+	// Empty block generates no code, so it gets deleted
 	rootConfig.Write(
 		hcldoc(
 			generateHCL(
@@ -538,7 +601,18 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		).String(),
 	)
 
-	s.Generate()
+	report = s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				StackPath: "/stack",
+				Deleted:   []string{"file1.tf"},
+			},
+		},
+	})
+
 	got = stackEntry.ListGenFiles()
 	assertEqualStringList(t, got, []string{})
+
+	assertEqualReports(t, s.Generate(), generate.Report{})
 }
