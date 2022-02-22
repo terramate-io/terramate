@@ -27,6 +27,9 @@ const (
 
 	// Email for the test commits.
 	Email = "terramate@mineiros.io"
+
+	// DefBranch is the default repository branch.
+	DefBranch = "main"
 )
 
 // NewGitWrapper tests the creation of a git wrapper and returns it if success.
@@ -56,7 +59,7 @@ func EmptyRepo(t *testing.T, bare bool) string {
 	gw := NewGitWrapper(t, "", []string{})
 
 	repodir := t.TempDir()
-	err := gw.Init(repodir, bare)
+	err := gw.Init(repodir, DefBranch, bare)
 	assert.NoError(t, err, "git init")
 
 	return repodir
