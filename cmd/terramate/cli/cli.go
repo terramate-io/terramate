@@ -661,7 +661,7 @@ func (c *cli) printRunOrder() {
 	}
 
 	for _, s := range order {
-		c.log("%s", s)
+		c.log(s.Name())
 	}
 }
 
