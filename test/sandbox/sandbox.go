@@ -44,7 +44,7 @@ import (
 // test purposes.
 type S struct {
 	t       *testing.T
-	git     Git
+	git     *Git
 	rootdir string
 }
 
@@ -72,20 +72,43 @@ type FileEntry struct {
 	path string
 }
 
-// New creates a new test sandbox.
+// New creates a new complete test sandbox.
+// The git repository is set up with sane defaults.
 //
 // It is a programming error to use a test env created with a *testing.T other
 // than the one of the test using the test env, for a new test/sub-test always
 // create a new test env for it.
 func New(t *testing.T) S {
+	s := NoGit(t)
+
+	s.git = NewGit(t, s.RootDir())
+	s.git.Init()
+	return s
+}
+
+// NewWithGitConfig creates a new sandbox using the cfg configuration for the
+// git repository.
+func NewWithGitConfig(t *testing.T, cfg GitConfig) S {
+	s := NoGit(t)
+
+	cfg.repoDir = s.RootDir()
+
+	s.git = NewGitWithConfig(t, cfg)
+	s.git.Init()
+	return s
+}
+
+// NoGit creates a new test sandbox with no git repository.
+//
+// It is a programming error to use a test env created with a *testing.T other
+// than the one of the test using the test env, for a new test/sub-test always
+// create a new test env for it.
+func NoGit(t *testing.T) S {
 	t.Helper()
 
 	rootdir := test.CanonPath(t, t.TempDir())
-	git := NewGit(t, rootdir)
-	git.Init()
 	return S{
 		t:       t,
-		git:     git,
 		rootdir: rootdir,
 	}
 }
@@ -190,7 +213,11 @@ func (s S) BuildTree(layout []string) {
 
 // Git returns a git wrapper that is useful to run git commands safely inside
 // the test env repo.
-func (s S) Git() Git {
+func (s S) Git() *Git {
+	if s.git == nil {
+		s.t.Fatal("git not initialized for the sandbox")
+	}
+
 	return s.git
 }
 

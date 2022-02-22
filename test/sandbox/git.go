@@ -23,24 +23,44 @@ import (
 	"github.com/mineiros-io/terramate/test"
 )
 
-const defRemote = "origin"
-const defRemoteBranch = "main"
-const defLocalBranch = "main"
+// GitConfig configures the sandbox's git repository.
+type GitConfig struct {
+	LocalBranchName         string
+	DefaultRemoteName       string
+	DefaultRemoteBranchName string
+
+	repoDir string
+}
 
 // Git is a git wrapper that makes testing easy by handling
 // errors automatically, failing the caller test.
 type Git struct {
 	t          *testing.T
 	g          *git.Git
+	cfg        GitConfig
 	localrepo  string
 	remoterepo string
 }
 
-func NewGit(t *testing.T, basedir string) Git {
-	return Git{
+// NewGit creates a new git wrapper using sandbox defaults.
+func NewGit(t *testing.T, repodir string) *Git {
+	cfg := defaultGitConfig()
+	cfg.repoDir = repodir
+
+	return &Git{
 		t:         t,
-		g:         test.NewGitWrapper(t, basedir, []string{}),
-		localrepo: basedir,
+		cfg:       cfg,
+		g:         test.NewGitWrapper(t, repodir, []string{}),
+		localrepo: repodir,
+	}
+}
+
+func NewGitWithConfig(t *testing.T, cfg GitConfig) *Git {
+	return &Git{
+		t:         t,
+		cfg:       cfg,
+		g:         test.NewGitWrapper(t, cfg.repoDir, []string{}),
+		localrepo: cfg.repoDir,
 	}
 }
 
@@ -62,10 +82,11 @@ func (git Git) Init() {
 }
 
 func (git Git) ConfigureDefaultRemote() {
-	git.initRemoteRepo(defRemoteBranch)
-	git.RemoteAdd(defRemote, git.remoterepo)
+	cfg := git.cfg
+	git.initRemoteRepo(cfg.DefaultRemoteBranchName)
+	git.RemoteAdd(cfg.DefaultRemoteName, git.remoterepo)
 	// Pushes current branch onto defRemote and defBranch
-	git.PushOn(defRemote, defRemoteBranch, defLocalBranch)
+	git.PushOn(cfg.DefaultRemoteName, cfg.DefaultRemoteBranchName, cfg.LocalBranchName)
 
 }
 
@@ -94,8 +115,8 @@ func (git Git) InitLocalRepo() {
 	t := git.t
 	t.Helper()
 
-	if err := git.g.Init(git.localrepo, defLocalBranch, false); err != nil {
-		t.Fatalf("Git.Init(%v, %v, false) = %v", git.localrepo, defLocalBranch, err)
+	if err := git.g.Init(git.localrepo, git.cfg.LocalBranchName, false); err != nil {
+		t.Fatalf("Git.Init(%v, %v, false) = %v", git.localrepo, git.cfg.LocalBranchName, err)
 	}
 }
 
@@ -149,7 +170,7 @@ func (git Git) Commit(msg string, args ...string) {
 // Push pushes changes from branch onto default remote and same remote branch name.
 func (git Git) Push(branch string) {
 	git.t.Helper()
-	git.PushOn(defRemote, branch, branch)
+	git.PushOn(git.cfg.DefaultRemoteName, branch, branch)
 }
 
 // PushOn pushes changes from localBranch onto the given remote and remoteBranch.
@@ -166,8 +187,8 @@ func (git Git) PushOn(remote, remoteBranch, localBranch string) {
 func (git Git) Pull(branch string) {
 	git.t.Helper()
 
-	if err := git.g.Pull(defRemote, branch); err != nil {
-		git.t.Fatalf("Git.Pull(%v, %v) = %v", defRemote, branch, err)
+	if err := git.g.Pull(git.cfg.DefaultRemoteName, branch); err != nil {
+		git.t.Fatalf("Git.Pull(%v, %v) = %v", git.cfg.DefaultRemoteName, branch, err)
 	}
 }
 
@@ -210,4 +231,12 @@ func (git Git) Merge(branch string) {
 // BaseDir the repository base dir
 func (git Git) BaseDir() string {
 	return git.localrepo
+}
+
+func defaultGitConfig() GitConfig {
+	return GitConfig{
+		LocalBranchName:         "main",
+		DefaultRemoteName:       "origin",
+		DefaultRemoteBranchName: "main",
+	}
 }
