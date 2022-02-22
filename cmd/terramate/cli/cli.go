@@ -271,8 +271,8 @@ func newCLI(
 			Msg("project root not found")
 	}
 
-	logger.Trace().
-		Msg("Set defaults from parsed command line arguments.")
+	logger.Trace().Msg("Set defaults from parsed command line arguments.")
+
 	err = prj.setDefaults(&parsedArgs)
 	if err != nil {
 		logger.Fatal().
@@ -382,13 +382,13 @@ func (c *cli) run() {
 			Msg("Handle `run <cmd>` command.")
 		c.runOnStacks()
 	case "generate":
-		logger.Debug().
-			Msg("Handle `generate` command.")
-		err := generate.Do(c.root(), c.wd())
-		if err != nil {
-			log.Fatal().
-				Err(err).
-				Msg("generating code.")
+		logger.Debug().Msg("Handle `generate` command.")
+
+		report := generate.Do(c.root(), c.wd())
+		c.log(report.String())
+
+		if report.HasFailures() {
+			os.Exit(1)
 		}
 	case "metadata":
 		logger.Debug().
@@ -1177,10 +1177,6 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 	}
 	gitOpt := cfg.Terramate.RootConfig.Git
 
-	if gitOpt.BaseRef == "" {
-		gitOpt.BaseRef = defaultBaseRef
-	}
-
 	if gitOpt.DefaultBranchBaseRef == "" {
 		gitOpt.DefaultBranchBaseRef = defaultBranchBaseRef
 	}
@@ -1195,7 +1191,7 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 
 	baseRef := parsedArgs.GitChangeBase
 	if baseRef == "" {
-		baseRef = gitOpt.BaseRef
+		baseRef = defaultBaseRef
 		if p.isRepo {
 			logger.Trace().
 				Str("configFile", p.root+"/terramate.tm.hcl").
