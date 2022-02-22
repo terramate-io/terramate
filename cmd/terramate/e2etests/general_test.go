@@ -330,7 +330,7 @@ func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
 	}
 
 	git := sandbox.NewGit(t, rootdir)
-	git.InitBasic()
+	git.InitLocalRepo()
 
 	assertFails()
 

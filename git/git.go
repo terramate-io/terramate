@@ -28,11 +28,9 @@ import (
 type (
 	// Config configures the wrapper.
 	Config struct {
-		Username      string // Username used in commits.
-		Email         string // Email used in commits.
-		DefaultBranch string // DefaultBranch is the default branch (commonly main).
-		DefaultRemote string // DefaultRemote is the default remote (commonly origin).
-		ProgramPath   string
+		Username    string // Username used in commits.
+		Email       string // Email used in commits.
+		ProgramPath string
 
 		// WorkingDir sets the directory where the commands will be applied.
 		WorkingDir string
@@ -199,18 +197,6 @@ func (git *Git) applyDefaults() error {
 		cfg.WorkingDir = wd
 	}
 
-	if cfg.DefaultBranch == "" {
-		logger.Trace().
-			Msg("Default branch was null. Set default to 'main'.")
-		cfg.DefaultBranch = "main"
-	}
-
-	if cfg.DefaultRemote == "" {
-		logger.Trace().
-			Msg("Default remote was null. Set default to 'origin'.")
-		cfg.DefaultRemote = "origin"
-	}
-
 	return nil
 }
 
@@ -266,7 +252,7 @@ func (git *Git) Version() (string, error) {
 // repository", in other words, a repository not intended for work but just
 // store revisions.
 // Beware: Init is a porcelain method.
-func (git *Git) Init(dir string, bare bool) error {
+func (git *Git) Init(dir string, defaultBranch string, bare bool) error {
 	logger := log.With().
 		Str("action", "Init()").
 		Str("workingDir", git.config.WorkingDir).
@@ -277,15 +263,15 @@ func (git *Git) Init(dir string, bare bool) error {
 	}
 
 	args := []string{
-		"-b", git.config.DefaultBranch,
+		"-b", defaultBranch,
 	}
 
 	if bare {
 		args = append(args, "--bare")
 	}
 
-	logger.Trace().
-		Msg("Append arguments to init command and execute.")
+	logger.Trace().Msg("Append arguments to init command and execute.")
+
 	args = append(args, dir)
 	_, err := git.exec("init", args...)
 	if err != nil {
