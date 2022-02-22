@@ -119,7 +119,8 @@ func Do(root string, workingDir string) Report {
 
 		logger.Trace().Msg("Removing outdated generated files.")
 
-		removedFiles, err := removeStackGeneratedFiles(stack)
+		var removedFiles map[string]string
+
 		failureReport := func(r stackReport, err error) stackReport {
 			r.err = err
 			for filename := range removedFiles {
@@ -127,6 +128,8 @@ func Do(root string, workingDir string) Report {
 			}
 			return r
 		}
+
+		removedFiles, err = removeStackGeneratedFiles(stack)
 		if err != nil {
 			return failureReport(
 				report,
