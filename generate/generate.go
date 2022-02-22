@@ -62,7 +62,7 @@ const (
 // The provided working dir must be an absolute path that is a child of the
 // provided root (or the same as root, indicating that working dir is the project root).
 //
-// It will return an report including details of which stacks succeed and failed
+// It will return a report including details of which stacks succeed and failed
 // on code generation, any failure found is added to the report but does not abort
 // the overall code generation process, so partial results can be obtained and the
 // report needs to be inspected to check.
