@@ -70,10 +70,10 @@ func (git Git) ConfigureDefaultRemote() {
 
 // SetupRemote creates a bare remote repository and setup the local repo with it
 // using remoteName and remoteBranch.
-func (git Git) SetupRemote(remoteName, remoteBranch string) {
+func (git Git) SetupRemote(remoteName, remoteBranch, localBranch string) {
 	git.initRemoteRepo(remoteBranch)
 	git.RemoteAdd(remoteName, git.remoterepo)
-	git.PushOn(remoteName, remoteBranch)
+	git.PushOn(remoteName, localBranch+":"+remoteBranch)
 }
 
 func (git *Git) initRemoteRepo(branchName string) {
@@ -151,12 +151,14 @@ func (git Git) Push(branch string) {
 	git.PushOn(defRemote, branch)
 }
 
-// PushOn pushes changes from branch onto the given remote
-func (git Git) PushOn(remote, branch string) {
+// PushOn pushes changes from localBranch onto the given remote.
+// Optionally, the localBranch can have the format <localBranch>:<remoteBranch>
+// if user intend to push onto a different remote branch name.
+func (git Git) PushOn(remote, localBranch string) {
 	git.t.Helper()
 
-	if err := git.g.Push(remote, branch); err != nil {
-		git.t.Fatalf("Git.Push(%v, %v) = %v", remote, branch, err)
+	if err := git.g.Push(remote, localBranch); err != nil {
+		git.t.Fatalf("Git.Push(%v, %v) = %v", remote, localBranch, err)
 	}
 }
 

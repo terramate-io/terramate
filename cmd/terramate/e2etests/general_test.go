@@ -339,11 +339,11 @@ func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
 	git.Add(path)
 	git.Commit("first commit")
 
-	git.SetupRemote("notorigin", "main")
+	git.SetupRemote("notorigin", "main", "main")
 	assertFails()
 
 	git.CheckoutNew("not-main")
-	git.SetupRemote("origin", "not-main")
+	git.SetupRemote("origin", "not-main", "main")
 	assertFails()
 }
 
