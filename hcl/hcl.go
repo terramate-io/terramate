@@ -46,7 +46,6 @@ type Config struct {
 }
 
 type GitConfig struct {
-	BaseRef              string // BaseRef is the general base git ref.
 	DefaultBranchBaseRef string // DefaultBranchBaseRef is the baseRef when in default branch.
 	DefaultBranch        string // DefaultBranch is the default branch.
 	DefaultRemote        string // DefaultRemote is the default remote.
@@ -800,16 +799,6 @@ func parseGitConfig(git *GitConfig, block *hclsyntax.Block) error {
 			}
 
 			git.DefaultRemote = attrVal.AsString()
-
-		case "base_ref":
-			logger.Trace().
-				Msg("Attribute name was 'base_ref.")
-			if attrVal.Type() != cty.String {
-				return fmt.Errorf("terramate.config.git.baseRef is not a string but %q",
-					attrVal.Type().FriendlyName())
-			}
-
-			git.BaseRef = attrVal.AsString()
 
 		case "default_branch_base_ref":
 			logger.Trace().
