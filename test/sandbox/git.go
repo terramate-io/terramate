@@ -30,10 +30,9 @@ const defLocalBranch = "main"
 // Git is a git wrapper that makes testing easy by handling
 // errors automatically, failing the caller test.
 type Git struct {
-	t          *testing.T
-	g          *git.Git
-	localrepo  string
-	remoterepo string
+	t         *testing.T
+	g         *git.Git
+	localrepo string
 }
 
 func NewGit(t *testing.T, basedir string) Git {
@@ -62,8 +61,8 @@ func (git Git) Init() {
 }
 
 func (git Git) ConfigureDefaultRemote() {
-	git.initRemoteRepo(defRemoteBranch)
-	git.RemoteAdd(defRemote, git.remoterepo)
+	remoteRepo := git.initRemoteRepo(defRemoteBranch)
+	git.RemoteAdd(defRemote, remoteRepo)
 	// Pushes current branch onto defRemote and defBranch
 	git.PushOn(defRemote, defRemoteBranch, defLocalBranch)
 }
@@ -71,24 +70,22 @@ func (git Git) ConfigureDefaultRemote() {
 // SetupRemote creates a bare remote repository and setup the local repo with it
 // using remoteName and remoteBranch.
 func (git Git) SetupRemote(remoteName, remoteBranch, localBranch string) {
-	git.initRemoteRepo(remoteBranch)
-	git.RemoteAdd(remoteName, git.remoterepo)
+	remoteRepo := git.initRemoteRepo(remoteBranch)
+	git.RemoteAdd(remoteName, remoteRepo)
 	git.PushOn(remoteName, remoteBranch, localBranch)
 }
 
-func (git *Git) initRemoteRepo(branchName string) {
+func (git *Git) initRemoteRepo(branchName string) string {
 	t := git.t
 	t.Helper()
 
-	if git.remoterepo != "" {
-		t.Fatalf("sandbox.Git only supports 1 remote but initRemoteRepo() called twice.")
-	}
+	repo := t.TempDir()
+	baregit := test.NewGitWrapper(t, repo, []string{})
 
-	git.remoterepo = t.TempDir()
-	baregit := test.NewGitWrapper(t, git.remoterepo, []string{})
+	err := baregit.Init(repo, branchName, true)
+	assert.NoError(t, err, "Git.Init(%v, %v, true)", repo, branchName)
 
-	err := baregit.Init(git.remoterepo, branchName, true)
-	assert.NoError(t, err, "Git.Init(%v, %v, true)", git.remoterepo, branchName)
+	return repo
 }
 
 // InitLocalRepo will do the git initialization of a local repository,
