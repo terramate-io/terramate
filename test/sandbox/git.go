@@ -66,7 +66,6 @@ func (git Git) ConfigureDefaultRemote() {
 	git.RemoteAdd(defRemote, git.remoterepo)
 	// Pushes current branch onto defRemote and defBranch
 	git.PushOn(defRemote, defRemoteBranch, defLocalBranch)
-
 }
 
 // SetupRemote creates a bare remote repository and setup the local repo with it
