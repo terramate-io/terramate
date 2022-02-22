@@ -152,9 +152,7 @@ func (git Git) Push(branch string) {
 	git.PushOn(defRemote, branch, branch)
 }
 
-// PushOn pushes changes from localBranch onto the given remote.
-// Optionally, the localBranch can have the format <localBranch>:<remoteBranch>
-// if user intend to push onto a different remote branch name.
+// PushOn pushes changes from localBranch onto the given remote and remoteBranch.
 func (git Git) PushOn(remote, remoteBranch, localBranch string) {
 	git.t.Helper()
 
