@@ -81,6 +81,10 @@ func (git *Git) initRemoteRepo(branchName string) {
 	t := git.t
 	t.Helper()
 
+	if git.remoterepo != "" {
+		t.Fatalf("sandbox.Git only supports 1 remote but initRemoteRepo() called twice.")
+	}
+
 	git.remoterepo = t.TempDir()
 	baregit := test.NewGitWrapper(t, git.remoterepo, []string{})
 
