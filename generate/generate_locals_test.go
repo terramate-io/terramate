@@ -486,8 +486,8 @@ func TestLocalsGeneration(t *testing.T) {
 			}
 
 			workingDir := filepath.Join(s.RootDir(), tcase.workingDir)
-			err := generate.Do(s.RootDir(), workingDir)
-			assert.IsError(t, err, tcase.want.err)
+			report := generate.Do(s.RootDir(), workingDir)
+			assertReportHasError(t, report, tcase.want.err)
 
 			for stackPath, wantHCLBlock := range tcase.want.stacksLocals {
 				stackRelPath := stackPath[1:]
@@ -518,8 +518,8 @@ func TestWontOverwriteManuallyDefinedLocals(t *testing.T) {
 		fmt.Sprintf("f:stack/%s:%s", generate.LocalsFilename, manualLocals),
 	})
 
-	err := generate.Do(s.RootDir(), s.RootDir())
-	assert.IsError(t, err, generate.ErrManualCodeExists)
+	report := generate.Do(s.RootDir(), s.RootDir())
+	assertReportHasError(t, report, generate.ErrManualCodeExists)
 
 	stack := s.StackEntry("stack")
 	locals := string(stack.ReadGeneratedLocals())
@@ -535,7 +535,7 @@ func TestExportedLocalsOverwriting(t *testing.T) {
 	rootEntry := s.DirEntry(".")
 	rootConfig := rootEntry.CreateConfig(firstConfig.String())
 
-	assert.NoError(t, generate.Do(s.RootDir(), s.RootDir()))
+	assertReportHasNoError(t, generate.Do(s.RootDir(), s.RootDir()))
 
 	got := string(stack.ReadGeneratedLocals())
 	assertHCLEquals(t, got, firstWant.String())
@@ -544,7 +544,7 @@ func TestExportedLocalsOverwriting(t *testing.T) {
 	secondWant := locals(str("b", "stack"))
 	rootConfig.Write(secondConfig.String())
 
-	assert.NoError(t, generate.Do(s.RootDir(), s.RootDir()))
+	assertReportHasNoError(t, generate.Do(s.RootDir(), s.RootDir()))
 
 	got = string(stack.ReadGeneratedLocals())
 	assertHCLEquals(t, got, secondWant.String())

@@ -966,8 +966,8 @@ globals {
 			}
 
 			workingDir := filepath.Join(s.RootDir(), tcase.workingDir)
-			err := generate.Do(s.RootDir(), workingDir)
-			assert.IsError(t, err, tcase.want.err)
+			report := generate.Do(s.RootDir(), workingDir)
+			assertReportHasError(t, report, tcase.want.err)
 
 			for _, want := range tcase.want.stacks {
 				stack := s.StackEntry(want.relpath)
@@ -1001,8 +1001,8 @@ func TestWontOverwriteManuallyDefinedBackendConfig(t *testing.T) {
 		fmt.Sprintf("f:stack/%s:%s", generate.BackendCfgFilename, manualContents),
 	})
 
-	err := generate.Do(s.RootDir(), s.RootDir())
-	assert.IsError(t, err, generate.ErrManualCodeExists)
+	report := generate.Do(s.RootDir(), s.RootDir())
+	assertReportHasError(t, report, generate.ErrManualCodeExists)
 
 	stack := s.StackEntry("stack")
 
@@ -1024,7 +1024,7 @@ func TestBackendConfigOverwriting(t *testing.T) {
 	rootEntry := s.DirEntry(".")
 	rootConfig := rootEntry.CreateConfig(firstConfig.String())
 
-	assert.NoError(t, generate.Do(s.RootDir(), s.RootDir()))
+	assertReportHasNoError(t, generate.Do(s.RootDir(), s.RootDir()))
 
 	got := string(stack.ReadGeneratedBackendCfg())
 	assertHCLEquals(t, got, firstWant.String())
@@ -1033,7 +1033,7 @@ func TestBackendConfigOverwriting(t *testing.T) {
 	secondWant := terraform(backend("second"))
 	rootConfig.Write(secondConfig.String())
 
-	assert.NoError(t, generate.Do(s.RootDir(), s.RootDir()))
+	assertReportHasNoError(t, generate.Do(s.RootDir(), s.RootDir()))
 
 	got = string(stack.ReadGeneratedBackendCfg())
 	assertHCLEquals(t, got, secondWant.String())

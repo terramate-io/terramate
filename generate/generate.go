@@ -62,14 +62,16 @@ const (
 // The provided working dir must be an absolute path that is a child of the
 // provided root (or the same as root, indicating that working dir is the project root).
 //
-// It will return an error if it finds any invalid Terramate configuration files
-// or if it can't generate the files properly for some reason.
-func Do(root string, workingDir string) error {
-	errs := forEachStack(root, workingDir, func(
+// It will return a report including details of which stacks succeed and failed
+// on code generation, any failure found is added to the report but does not abort
+// the overall code generation process, so partial results can be obtained and the
+// report needs to be inspected to check.
+func Do(root string, workingDir string) Report {
+	return forEachStack(root, workingDir, func(
 		stack stack.S,
 		globals *terramate.Globals,
 		cfg StackCfg,
-	) error {
+	) stackReport {
 		stackpath := stack.AbsPath()
 		logger := log.With().
 			Str("action", "generate.Do()").
@@ -79,12 +81,14 @@ func Do(root string, workingDir string) error {
 
 		genfiles := []genfile{}
 		stackMeta := stack.Meta()
+		report := stackReport{}
 
 		logger.Trace().Msg("Generate stack backend config.")
 
 		stackBackendCfgCode, err := generateBackendCfgCode(root, stackpath, stackMeta, globals, stackpath)
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrBackendConfigGen, err)
+			report.err = fmt.Errorf("%w: %v", ErrBackendConfigGen, err)
+			return report
 		}
 		genfiles = append(genfiles, genfile{name: cfg.BackendCfgFilename, body: stackBackendCfgCode})
 
@@ -92,7 +96,8 @@ func Do(root string, workingDir string) error {
 
 		stackLocalsCode, err := generateStackLocalsCode(root, stackpath, stackMeta, globals)
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrExportingLocalsGen, err)
+			report.err = fmt.Errorf("%w: %v", ErrExportingLocalsGen, err)
+			return report
 		}
 		genfiles = append(genfiles, genfile{name: cfg.LocalsFilename, body: stackLocalsCode})
 
@@ -100,20 +105,36 @@ func Do(root string, workingDir string) error {
 
 		stackHCLsCode, err := generateStackHCLCode(root, stackpath, stackMeta, globals)
 		if err != nil {
-			return err
+			report.err = err
+			return report
 		}
 		genfiles = append(genfiles, stackHCLsCode...)
 
 		logger.Trace().Msg("Checking for conflicts on generated files.")
 
 		if err := checkGeneratedFilesConflicts(genfiles); err != nil {
-			return fmt.Errorf("%w: %v", ErrConflictingConfig, err)
+			report.err = fmt.Errorf("%w: %v", ErrConflictingConfig, err)
+			return report
 		}
 
 		logger.Trace().Msg("Removing outdated generated files.")
 
-		if err := removeStackGeneratedFiles(stack); err != nil {
-			return fmt.Errorf("removing old files to generate new ones: %v", err)
+		var removedFiles map[string]string
+
+		failureReport := func(r stackReport, err error) stackReport {
+			r.err = err
+			for filename := range removedFiles {
+				r.addDeletedFile(filename)
+			}
+			return r
+		}
+
+		removedFiles, err = removeStackGeneratedFiles(stack)
+		if err != nil {
+			return failureReport(
+				report,
+				fmt.Errorf("removing old generated files: %v", err),
+			)
 		}
 
 		logger.Trace().Msg("Saving generated files.")
@@ -121,7 +142,7 @@ func Do(root string, workingDir string) error {
 		for _, genfile := range genfiles {
 			path := filepath.Join(stackpath, genfile.name)
 			logger := logger.With().
-				Str("filepath", path).
+				Str("filename", genfile.name).
 				Logger()
 
 			// For now we don't want to generate files just with a header inside.
@@ -134,24 +155,31 @@ func Do(root string, workingDir string) error {
 
 			err := writeGeneratedCode(path, genfile.body)
 			if err != nil {
-				return fmt.Errorf("saving file %q: %w", genfile.name, err)
+				return failureReport(
+					report,
+					fmt.Errorf("saving file %q: %w", genfile.name, err),
+				)
 			}
 
+			// Change detection + remove code that got deleted but
+			// was just re-generated from the removed files map
+			removedFileBody, ok := removedFiles[genfile.name]
+			if !ok {
+				report.addCreatedFile(genfile.name)
+			} else {
+				if genfile.body != removedFileBody {
+					report.addChangedFile(genfile.name)
+				}
+				delete(removedFiles, genfile.name)
+			}
 			logger.Trace().Msg("saved generated file")
 		}
 
-		return nil
+		for filename := range removedFiles {
+			report.addDeletedFile(filename)
+		}
+		return report
 	})
-
-	// FIXME(katcipis): errutil.Chain produces a very hard to read string representation
-	// for this case, we have a possibly big list of errors here, not an
-	// actual chain (multiple levels of calls).
-	// We do need the error wrapping for the error handling on tests (for now at least).
-	if err := errutil.Chain(errs...); err != nil {
-		return fmt.Errorf("failed to generate code: %w", err)
-	}
-
-	return nil
 }
 
 // ListStackGenFiles will list the filenames of all generated code inside
@@ -659,23 +687,24 @@ func loadGeneratedCode(path string) (string, bool, error) {
 	return "", false, fmt.Errorf("%w: at %q", ErrManualCodeExists, path)
 }
 
-type forEachStackFunc func(stack.S, *terramate.Globals, StackCfg) error
+type forEachStackFunc func(stack.S, *terramate.Globals, StackCfg) stackReport
 
-func forEachStack(root, workingDir string, fn forEachStackFunc) []error {
+func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 	logger := log.With().
 		Str("action", "generate.forEachStack()").
 		Str("root", root).
 		Str("workingDir", workingDir).
 		Logger()
 
+	report := Report{}
+
 	logger.Trace().Msg("List stacks.")
 
 	stackEntries, err := terramate.ListStacks(root)
 	if err != nil {
-		return []error{err}
+		report.BootstrapErr = err
+		return report
 	}
-
-	var errs []error
 
 	for _, entry := range stackEntries {
 		stack := entry.Stack
@@ -693,11 +722,7 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) []error {
 
 		cfg, err := LoadStackCfg(root, stack)
 		if err != nil {
-			errs = append(errs, fmt.Errorf(
-				"stack %q: %w: %v",
-				stack.AbsPath(),
-				ErrLoadingStackCfg,
-				err))
+			report.addFailure(stack, fmt.Errorf("%w: %v", ErrLoadingStackCfg, err))
 			continue
 		}
 
@@ -705,24 +730,19 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) []error {
 
 		globals, err := terramate.LoadStackGlobals(root, stack.Meta())
 		if err != nil {
-			errs = append(errs, fmt.Errorf(
-				"stack %q: %w: %v",
-				stack.AbsPath(),
-				ErrLoadingGlobals,
-				err))
+			report.addFailure(stack, fmt.Errorf("%w: %v", ErrLoadingGlobals, err))
 			continue
 		}
 
 		logger.Trace().Msg("Calling stack callback.")
-		if err := fn(stack, globals, cfg); err != nil {
-			errs = append(errs, err)
-		}
-	}
 
-	return errs
+		report.addStackReport(stack, fn(stack, globals, cfg))
+	}
+	report.sortFilenames()
+	return report
 }
 
-func removeStackGeneratedFiles(stack stack.S) error {
+func removeStackGeneratedFiles(stack stack.S) (map[string]string, error) {
 	logger := log.With().
 		Str("action", "generate.removeStackGeneratedFiles()").
 		Stringer("stack", stack).
@@ -730,18 +750,37 @@ func removeStackGeneratedFiles(stack stack.S) error {
 
 	logger.Trace().Msg("listing generated files")
 
+	removedFiles := map[string]string{}
+
 	files, err := ListStackGenFiles(stack)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	for _, file := range files {
-		path := filepath.Join(stack.AbsPath(), file)
-		if err := os.Remove(path); err != nil {
-			return fmt.Errorf("removing gen file: %v", err)
+	logger.Trace().Msg("deleting all Terramate generated files")
+
+	for _, filename := range files {
+		logger := logger.With().
+			Str("filename", filename).
+			Logger()
+
+		logger.Trace().Msg("reading current file before removal")
+
+		path := filepath.Join(stack.AbsPath(), filename)
+		body, err := os.ReadFile(path)
+		if err != nil {
+			return removedFiles, fmt.Errorf("reading gen file before removal: %v", err)
 		}
+
+		logger.Trace().Msg("removing file")
+
+		if err := os.Remove(path); err != nil {
+			return removedFiles, fmt.Errorf("removing gen file: %v", err)
+		}
+
+		removedFiles[filename] = string(body)
 	}
-	return nil
+	return removedFiles, nil
 }
 
 func hasTerramateHeader(code []byte) bool {
