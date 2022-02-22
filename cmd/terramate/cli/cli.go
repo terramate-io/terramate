@@ -271,8 +271,8 @@ func newCLI(
 			Msg("project root not found")
 	}
 
-	logger.Trace().
-		Msg("Set defaults from parsed command line arguments.")
+	logger.Trace().Msg("Set defaults from parsed command line arguments.")
+
 	err = prj.setDefaults(&parsedArgs)
 	if err != nil {
 		logger.Fatal().
@@ -1177,10 +1177,6 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 	}
 	gitOpt := cfg.Terramate.RootConfig.Git
 
-	if gitOpt.BaseRef == "" {
-		gitOpt.BaseRef = defaultBaseRef
-	}
-
 	if gitOpt.DefaultBranchBaseRef == "" {
 		gitOpt.DefaultBranchBaseRef = defaultBranchBaseRef
 	}
@@ -1195,7 +1191,7 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 
 	baseRef := parsedArgs.GitChangeBase
 	if baseRef == "" {
-		baseRef = gitOpt.BaseRef
+		baseRef = defaultBaseRef
 		if p.isRepo {
 			logger.Trace().
 				Str("configFile", p.root+"/terramate.tm.hcl").
