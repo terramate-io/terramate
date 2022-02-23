@@ -136,7 +136,7 @@ func (s S) BuildTree(layout []string) {
 
 		cfgdir := filepath.Join(s.RootDir(), relpath)
 		test.MkdirAll(t, cfgdir)
-		cfg, err := hcl.NewConfig(cfgdir, "")
+		cfg, err := hcl.NewConfig(cfgdir)
 		assert.NoError(t, err)
 
 		cfg.Stack = &hcl.Stack{}
@@ -267,7 +267,7 @@ func (s S) CreateStack(relpath string) StackEntry {
 	}
 
 	stack := newStackEntry(t, s.RootDir(), relpath)
-	assert.NoError(t, terramate.Init(s.RootDir(), stack.Path(), false))
+	assert.NoError(t, terramate.Init(s.RootDir(), stack.Path()))
 	return stack
 }
 

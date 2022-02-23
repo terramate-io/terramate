@@ -19,27 +19,48 @@ import (
 	"fmt"
 	"strings"
 
+	hclversion "github.com/hashicorp/go-version"
 	tfversion "github.com/hashicorp/go-version"
+	"github.com/rs/zerolog/log"
 )
 
 //go:embed VERSION
 var version string
 
-var tfversionObj *tfversion.Version
-
-func init() {
-	var err error
-	tfversionObj, err = tfversion.NewSemver(Version())
-	if err != nil {
-		msg := fmt.Sprintf(
-			"terramate version does not adhere to semver specification: %s",
-			err.Error(),
-		)
-		panic(msg)
-	}
-}
-
 // Version of terramate.
 func Version() string {
 	return strings.TrimSpace(version)
+}
+
+func CheckVersion(vconstraint string) error {
+	version := Version()
+	logger := log.With().
+		Str("version", version).
+		Str("constraint", vconstraint).
+		Logger()
+
+	logger.Trace().Msg("parsing version constraint")
+
+	constraint, err := hclversion.NewConstraint(vconstraint)
+	if err != nil {
+		return fmt.Errorf("unable to check stack constraint: %w", err)
+	}
+
+	logger.Trace().Msg("parsing terramate version")
+
+	semver, err := tfversion.NewSemver(version)
+	if err != nil {
+		return fmt.Errorf("terramate built with invalid version: %b", err)
+	}
+
+	logger.Trace().Msg("checking version constraint")
+
+	if !constraint.Check(semver) {
+		return fmt.Errorf(
+			"version constraint %q not satisfied by terramate version %q",
+			vconstraint,
+			Version(),
+		)
+	}
+	return nil
 }

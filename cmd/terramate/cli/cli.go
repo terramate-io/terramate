@@ -90,8 +90,7 @@ type cliSpec struct {
 	Stacks struct {
 		Init struct {
 			StackDirs []string `arg:"" name:"paths" optional:"true" help:"the stack directory (current directory if not set)."`
-			Force     bool     `help:"force initialization."`
-		} `cmd:"" help:"Initialize a stack."`
+		} `cmd:"" help:"Initialize a stack, does nothing if stack already initialized."`
 
 		List struct {
 			Why bool `help:"Shows the reason why the stack has changed."`
@@ -430,7 +429,7 @@ func (c *cli) initStack(dirs []string) {
 			Str("stack", fmt.Sprintf("%s%s", c.wd(), strings.Trim(d, "."))).
 			Msg("Init stack.")
 
-		err := terramate.Init(c.root(), d, c.parsedArgs.Stacks.Init.Force)
+		err := terramate.Init(c.root(), d)
 		if err != nil {
 			c.logerr("warn: failed to initialize stack: %v", err)
 			errmsgs = append(errmsgs, err.Error())
