@@ -21,11 +21,14 @@ import (
 
 	hclversion "github.com/hashicorp/go-version"
 	tfversion "github.com/hashicorp/go-version"
+	"github.com/madlambda/spells/errutil"
 	"github.com/rs/zerolog/log"
 )
 
 //go:embed VERSION
 var version string
+
+const ErrVersion errutil.Error = "version check error"
 
 // Version of terramate.
 func Version() string {
@@ -43,21 +46,22 @@ func CheckVersion(vconstraint string) error {
 
 	constraint, err := hclversion.NewConstraint(vconstraint)
 	if err != nil {
-		return fmt.Errorf("unable to check stack constraint: %w", err)
+		return fmt.Errorf("%w: invalid constraint: %v", ErrVersion, err)
 	}
 
 	logger.Trace().Msg("parsing terramate version")
 
 	semver, err := tfversion.NewSemver(version)
 	if err != nil {
-		return fmt.Errorf("terramate built with invalid version: %b", err)
+		return fmt.Errorf("%w: terramate built with invalid version: %b", ErrVersion, err)
 	}
 
 	logger.Trace().Msg("checking version constraint")
 
 	if !constraint.Check(semver) {
 		return fmt.Errorf(
-			"version constraint %q not satisfied by terramate version %q",
+			"%w: version constraint %q not satisfied by terramate version %q",
+			ErrVersion,
 			vconstraint,
 			Version(),
 		)

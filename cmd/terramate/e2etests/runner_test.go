@@ -26,7 +26,7 @@ import (
 
 const defaultErrExitStatus = 1
 
-type tscli struct {
+type tmcli struct {
 	t        *testing.T
 	chdir    string
 	loglevel string
@@ -52,22 +52,22 @@ type runExpected struct {
 	Status        int
 }
 
-func newCLI(t *testing.T, chdir string) tscli {
-	return tscli{
+func newCLI(t *testing.T, chdir string) tmcli {
+	return tmcli{
 		t:     t,
 		chdir: chdir,
 	}
 }
 
-func newCLIWithLogLevel(t *testing.T, chdir string, loglevel string) tscli {
-	return tscli{
+func newCLIWithLogLevel(t *testing.T, chdir string, loglevel string) tmcli {
+	return tmcli{
 		t:        t,
 		chdir:    chdir,
 		loglevel: loglevel,
 	}
 }
 
-func (ts tscli) run(args ...string) runResult {
+func (ts tmcli) run(args ...string) runResult {
 	t := ts.t
 	t.Helper()
 
