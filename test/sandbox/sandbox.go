@@ -147,8 +147,6 @@ func (s S) BuildTree(layout []string) {
 			name := parts[0]
 			value := parts[1]
 			switch name {
-			case "version":
-				cfg.Terramate.RequiredVersion = value
 			case "after":
 				cfg.Stack.After = parseListSpec(t, name, value)
 			case "before":
