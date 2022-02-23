@@ -222,7 +222,7 @@ func (s S) LoadStacks() []stack.S {
 }
 
 // Loads globals for stack on the sandbox
-func (s S) LoadStackGlobals(sm stack.Metadata) *terramate.Globals {
+func (s S) LoadStackGlobals(sm stack.Metadata) terramate.Globals {
 	s.t.Helper()
 
 	g, err := terramate.LoadStackGlobals(s.RootDir(), sm)

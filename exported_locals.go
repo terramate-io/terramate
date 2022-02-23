@@ -49,7 +49,7 @@ type ExportedLocalValues struct {
 // export_as_locals blocks.
 //
 // The rootdir MUST be an absolute path.
-func LoadStackExportedLocals(rootdir string, sm stack.Metadata, g *Globals) (ExportedLocalValues, error) {
+func LoadStackExportedLocals(rootdir string, sm stack.Metadata, g Globals) (ExportedLocalValues, error) {
 	logger := log.With().
 		Str("action", "LoadStackExportedLocals()").
 		Str("stack", sm.Path).
@@ -155,7 +155,7 @@ func (r exportedLocalExprs) has(name string) bool {
 	return ok
 }
 
-func (r exportedLocalExprs) eval(meta stack.Metadata, globals *Globals) (ExportedLocalValues, error) {
+func (r exportedLocalExprs) eval(meta stack.Metadata, globals Globals) (ExportedLocalValues, error) {
 	// FIXME(katcipis): get abs path for stack.
 	// This is relative only to root since meta.Path will look
 	// like: /some/path/relative/project/root
