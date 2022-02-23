@@ -87,7 +87,9 @@ func Init(root, dir string) error {
 		return nil
 	}
 
-	// TODO(katcipis): there is a Terramate but no Stack...overwrite ? fail ?
+	if !parsedCfg.IsEmpty() {
+		return errors.New("dir has terramate config with no stack defined, expected empty or a stack")
+	}
 
 	logger.Debug().Msg("Create new configuration.")
 

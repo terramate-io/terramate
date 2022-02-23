@@ -124,6 +124,11 @@ func NewConfig(dir string) (Config, error) {
 // AbsDir returns the absolute path of the configuration directory.
 func (c Config) AbsDir() string { return c.absdir }
 
+// IsEmpty returns true if the config is empty, false otherwise.
+func (c Config) IsEmpty() bool {
+	return c.Stack == nil && c.Terramate == nil
+}
+
 // Save the configuration file using filename inside config directory.
 func (c Config) Save(filename string) (err error) {
 	cfgpath := filepath.Join(c.absdir, filename)

@@ -39,11 +39,17 @@ func TestStacksInit(t *testing.T) {
 			layout: nil,
 		},
 		{
-			name: "initialize stack",
+			name: "initialize subdirs",
 			layout: []string{
 				"d:stack",
+				"d:stacks/stack-1",
 			},
-			input: []string{"stack"},
+			input: []string{"stack", "stacks/stack-1"},
+		},
+		{
+			name:   "initialized stacks are ignored",
+			layout: []string{"s:stack"},
+			input:  []string{"stack"},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
