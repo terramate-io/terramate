@@ -40,6 +40,10 @@ func TestVersionCheck(t *testing.T) {
 	run := func(t *testing.T, cmd string) runResult {
 		s := sandbox.New(t)
 		s.BuildTree([]string{"s:stack"})
+		root := s.RootEntry()
+		root.CreateConfig(`terramate {
+			required_version = "= 0.0.0"
+		}`)
 		cli := newCLI(t, s.RootDir())
 		return cli.run(strings.Split(cmd, " ")...)
 	}

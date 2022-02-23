@@ -237,6 +237,11 @@ func (s S) RootDir() string {
 	return s.rootdir
 }
 
+// RootEntry returns a DirEntry for the root directory of the test env.
+func (s S) RootEntry() DirEntry {
+	return s.DirEntry(".")
+}
+
 // CreateModule will create a module dir with the given relative path, returning
 // a directory entry that can be used to create files inside the module dir.
 func (s S) CreateModule(relpath string) DirEntry {

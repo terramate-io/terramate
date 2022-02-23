@@ -211,8 +211,7 @@ func newCLI(
 		Logger()
 
 	if ctx.Command() == "version" {
-		logger.Debug().
-			Msg("Get terramate version.")
+		logger.Debug().Msg("Get terramate version.")
 		fmt.Println(terramate.Version())
 		return &cli{exit: true}
 	}
@@ -304,6 +303,8 @@ func (c *cli) run() {
 		Str("action", "run()").
 		Str("workingDir", c.wd()).
 		Logger()
+
+	c.checkVersion()
 
 	if c.parsedArgs.Changed {
 		logger.Trace().
@@ -1050,6 +1051,36 @@ func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Ent
 	}
 
 	return filtered
+}
+
+func (c cli) checkVersion() {
+	logger := log.With().
+		Str("action", "cli.checkVersion()").
+		Str("root", c.root()).
+		Logger()
+
+	logger.Trace().Msg("checking if terramate version satisfies project constraint")
+
+	rootcfg, err := hcl.ParseDir(c.root())
+	if err != nil {
+		logger.Fatal().
+			Err(err).
+			Msg("checking terramate root config for required version")
+	}
+
+	if rootcfg.Terramate == nil {
+		logger.Info().Msg("project root has no config, skipping version check")
+		return
+	}
+
+	if rootcfg.Terramate.RequiredVersion == "" {
+		logger.Info().Msg("project root config has no required_version, skipping version check")
+		return
+	}
+
+	if err := terramate.CheckVersion(rootcfg.Terramate.RequiredVersion); err != nil {
+		logger.Fatal().Err(err).Send()
+	}
 }
 
 func newGit(basedir string, checkrepo bool) (*git.Git, error) {
