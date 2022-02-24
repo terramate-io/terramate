@@ -886,12 +886,12 @@ func (c *cli) checkDefaultRemote(g *git.Git) error {
 
 	var defRemote *git.Remote
 
-	gitOpt := c.gitcfg()
+	gitcfg := c.gitcfg()
 
 	logger.Trace().
 		Msg("Find default git remote.")
 	for _, remote := range remotes {
-		if remote.Name == gitOpt.DefaultRemote {
+		if remote.Name == gitcfg.DefaultRemote {
 			defRemote = &remote
 			break
 		}
@@ -899,20 +899,20 @@ func (c *cli) checkDefaultRemote(g *git.Git) error {
 
 	if defRemote == nil {
 		return fmt.Errorf("repository must have a configured %q remote",
-			gitOpt.DefaultRemote,
+			gitcfg.DefaultRemote,
 		)
 	}
 
 	logger.Trace().Msg("Find default git branch.")
 	for _, branch := range defRemote.Branches {
-		if branch == gitOpt.DefaultBranch {
+		if branch == gitcfg.DefaultBranch {
 			return nil
 		}
 	}
 
 	return fmt.Errorf("remote %q has no default branch %q,branches:%v",
-		gitOpt.DefaultRemote,
-		gitOpt.DefaultBranch,
+		gitcfg.DefaultRemote,
+		gitcfg.DefaultBranch,
 		defRemote.Branches,
 	)
 }
