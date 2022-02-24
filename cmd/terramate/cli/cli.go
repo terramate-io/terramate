@@ -886,7 +886,7 @@ func (c *cli) checkDefaultRemote(g *git.Git) error {
 
 	var defRemote *git.Remote
 
-	gitOpt := c.gitcfg()
+	gitcfg := c.gitcfg()
 
 	logger.Trace().
 		Msg("Find default git remote.")
