@@ -863,7 +863,7 @@ func loadCfgBlocks(dir string) (*hclparse.Parser, error) {
 
 	dirEntries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, fmt.Errorf("reading files to load terramate cfg: %v", err)
+		return nil, fmt.Errorf("reading dir to load config files: %v", err)
 	}
 
 	logger.Trace().Msg("looking for Terramate files")
@@ -888,7 +888,7 @@ func loadCfgBlocks(dir string) (*hclparse.Parser, error) {
 
 			data, err := os.ReadFile(path)
 			if err != nil {
-				return nil, fmt.Errorf("reading Terramate config %q: %v", path, err)
+				return nil, fmt.Errorf("reading config file %q: %v", path, err)
 			}
 
 			logger.Trace().Msg("Parsing config.")
@@ -898,7 +898,7 @@ func loadCfgBlocks(dir string) (*hclparse.Parser, error) {
 				return nil, errutil.Chain(ErrHCLSyntax, diags)
 			}
 
-			logger.Trace().Msg("Terramate config file parsed successfully")
+			logger.Trace().Msg("Config file parsed successfully")
 		}
 	}
 
@@ -920,6 +920,17 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 			Str("filename", fname).
 			Logger()
 
+		cfgErr := func(format string, args ...interface{}) error {
+			path := filepath.Join(dir, fname)
+			details := fmt.Sprintf(format, args...)
+			return fmt.Errorf(
+				"%w file %s: %s",
+				ErrMalformedTerramateConfig,
+				path,
+				details,
+			)
+		}
+
 		// A cast error here would be a severe programming error on Terramate
 		// side, so we are by design allowing the cast to panic
 		body := hclfile.Body.(*hclsyntax.Body)
@@ -927,10 +938,7 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 		logger.Trace().Msg("checking for attributes.")
 
 		for name := range body.Attributes {
-			return Config{}, errutil.Chain(
-				ErrMalformedTerramateConfig,
-				fmt.Errorf("unrecognized attribute %q", name),
-			)
+			return Config{}, cfgErr("unrecognized attribute %q", name)
 		}
 
 		var stackblock *hclsyntax.Block
@@ -938,13 +946,11 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 		var foundstack bool
 
 		logger.Trace().Msg("Range over blocks.")
+		// TODO(katcipis): consistently use cfgErr
 
 		for _, block := range body.Blocks {
 			if !blockIsAllowed(block.Type) {
-				return Config{}, errutil.Chain(
-					ErrMalformedTerramateConfig,
-					fmt.Errorf("block type %q is not supported", block.Type),
-				)
+				return Config{}, cfgErr("block type %q is not supported", block.Type)
 			}
 
 			if block.Type == "terramate" {
