@@ -32,12 +32,12 @@ func TestVersionCheck(t *testing.T) {
 		"stacks globals",
 		"plan run-order",
 		"plan graph",
-		"install-completions",
 		"run cat terramate.tm.hcl",
 	}
 	uncheckedCmds := []string{
 		"--help",
 		"version",
+		"install-completions",
 	}
 	run := func(t *testing.T, cmd string) runResult {
 		s := sandbox.New(t)

@@ -210,9 +210,20 @@ func newCLI(
 		Str("action", "newCli()").
 		Logger()
 
-	if ctx.Command() == "version" {
+	switch ctx.Command() {
+	case "version":
 		logger.Debug().Msg("Get terramate version.")
 		fmt.Println(terramate.Version())
+		return &cli{exit: true}
+	case "install-completions":
+		logger.Debug().Msg("Handle `install-completions` command.")
+
+		err := parsedArgs.InstallCompletions.Run(ctx)
+		if err != nil {
+			log.Fatal().
+				Err(err).
+				Msg("installing shell completions.")
+		}
 		return &cli{exit: true}
 	}
 
@@ -394,15 +405,6 @@ func (c *cli) run() {
 		logger.Debug().
 			Msg("Handle `metadata` command.")
 		c.printMetadata()
-	case "install-completions":
-		logger.Debug().
-			Msg("Handle `install-completions` command.")
-		err := c.parsedArgs.InstallCompletions.Run(c.ctx)
-		if err != nil {
-			log.Fatal().
-				Err(err).
-				Msg("installing shell completions.")
-		}
 	default:
 		log.Fatal().
 			Msgf("unexpected command sequence: %s", c.ctx.Command())
