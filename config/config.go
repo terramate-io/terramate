@@ -15,9 +15,6 @@
 package config
 
 import (
-	"os"
-	"path/filepath"
-
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/rs/zerolog/log"
 )
@@ -31,23 +28,10 @@ const (
 )
 
 func TryLoadRootConfig(dir string) (cfg hcl.Config, found bool, err error) {
-	path := filepath.Join(dir, DefaultFilename)
 	logger := log.With().
 		Str("action", "TryLoadRootConfig()").
 		Str("path", dir).
-		Str("configFile", path).
 		Logger()
-
-	logger.Trace().
-		Msg("Check if file exists.")
-	_, err = os.Stat(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return hcl.Config{}, false, nil
-		}
-
-		return hcl.Config{}, false, err
-	}
 
 	logger.Trace().Msg("Parse Terramate config.")
 
