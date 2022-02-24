@@ -891,10 +891,6 @@ func TestHCLParserStack(t *testing.T) {
 			input: []cfgfile{
 				{
 					body: `
-						terramate {
-							required_version = ""
-						}
-
 						stack {
 							after = [1]
 						}
@@ -902,7 +898,7 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrStackInvalidRunOrder,
+				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
@@ -910,10 +906,6 @@ func TestHCLParserStack(t *testing.T) {
 			input: []cfgfile{
 				{
 					body: `
-						terramate {
-							required_version = ""
-						}
-
 						stack {
 							after = ["test", "test"]
 						}
@@ -921,7 +913,7 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrStackInvalidRunOrder,
+				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
@@ -929,10 +921,6 @@ func TestHCLParserStack(t *testing.T) {
 			input: []cfgfile{
 				{
 					body: `
-						terramate {
-							required_version = ""
-						}
-
 						stack {
 							after = ["test"]
 							after = []
@@ -949,10 +937,6 @@ func TestHCLParserStack(t *testing.T) {
 			input: []cfgfile{
 				{
 					body: `
-						terramate {
-							required_version = ""
-						}
-
 						stack {
 							before = []
 							before = []
