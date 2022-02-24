@@ -84,7 +84,7 @@ func (b HCL) Origin() string {
 // The returned result only contains evaluated values.
 //
 // The rootdir MUST be an absolute path.
-func Load(rootdir string, sm stack.Metadata, globals *terramate.Globals) (StackHCLs, error) {
+func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackHCLs, error) {
 	stackpath := filepath.Join(rootdir, sm.Path)
 	logger := log.With().
 		Str("action", "genhcl.Load()").
@@ -137,7 +137,7 @@ func Load(rootdir string, sm stack.Metadata, globals *terramate.Globals) (StackH
 	return res, nil
 }
 
-func newEvalCtx(stackpath string, sm stack.Metadata, globals *terramate.Globals) (*eval.Context, error) {
+func newEvalCtx(stackpath string, sm stack.Metadata, globals terramate.Globals) (*eval.Context, error) {
 	logger := log.With().
 		Str("action", "genhcl.newEvalCtx()").
 		Str("path", stackpath).

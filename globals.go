@@ -48,28 +48,28 @@ const (
 //
 // Metadata for the stack is used on the evaluation of globals, defined on stackmeta.
 // The rootdir MUST be an absolute path.
-func LoadStackGlobals(rootdir string, meta stack.Metadata) (*Globals, error) {
+func LoadStackGlobals(rootdir string, meta stack.Metadata) (Globals, error) {
 	logger := log.With().
 		Str("action", "LoadStackGlobals()").
 		Str("stack", meta.Path).
 		Logger()
 
 	if !filepath.IsAbs(rootdir) {
-		return nil, fmt.Errorf("%q is not absolute path", rootdir)
+		return Globals{}, fmt.Errorf("%q is not absolute path", rootdir)
 	}
 
 	logger.Debug().Msg("Load stack globals.")
 
 	globalsExprs, err := loadStackGlobalsExprs(rootdir, meta.Path)
 	if err != nil {
-		return nil, err
+		return Globals{}, err
 	}
 	return globalsExprs.eval(meta)
 }
 
 // Attributes returns all the global attributes, the key in the map
 // is the attribute name with its corresponding value mapped
-func (g *Globals) Attributes() map[string]cty.Value {
+func (g Globals) Attributes() map[string]cty.Value {
 	attrcopy := map[string]cty.Value{}
 	for k, v := range g.attributes {
 		attrcopy[k] = v
@@ -78,8 +78,8 @@ func (g *Globals) Attributes() map[string]cty.Value {
 }
 
 // String provides a string representation of the globals
-func (g *Globals) String() string {
-	return hcl.FormatAttributes(g.Attributes())
+func (g Globals) String() string {
+	return hcl.FormatAttributes(g.attributes)
 }
 
 type globalsExpr struct {
@@ -103,7 +103,7 @@ func (r *globalsExpr) has(name string) bool {
 	return ok
 }
 
-func (r *globalsExpr) eval(meta stack.Metadata) (*Globals, error) {
+func (r *globalsExpr) eval(meta stack.Metadata) (Globals, error) {
 	// FIXME(katcipis): get abs path for stack.
 	// This is relative only to root since meta.Path will look
 	// like: /some/path/relative/project/root
@@ -119,15 +119,17 @@ func (r *globalsExpr) eval(meta stack.Metadata) (*Globals, error) {
 	logger.Trace().Msg("Add proper name space for stack metadata evaluation.")
 
 	if err := evalctx.SetNamespace("terramate", meta.ToCtyMap()); err != nil {
-		return nil, err
+		return Globals{}, err
 	}
 
 	logger.Trace().Msg("Add proper name space for globals evaluation.")
 
 	// error messages improve if globals is empty instead of undefined
-	globals := newGlobals()
+	globals := Globals{
+		attributes: map[string]cty.Value{},
+	}
 	if err := evalctx.SetNamespace("global", globals.Attributes()); err != nil {
-		return nil, fmt.Errorf("initializing global eval: %v", err)
+		return Globals{}, fmt.Errorf("initializing global eval: %v", err)
 	}
 
 	var errs []error
@@ -148,7 +150,7 @@ func (r *globalsExpr) eval(meta stack.Metadata) (*Globals, error) {
 				Msg("Range vars.")
 			for _, namespace := range vars {
 				if _, ok := hclctx.Variables[namespace.RootName()]; !ok {
-					return nil, fmt.Errorf(
+					return Globals{}, fmt.Errorf(
 						"%w: unknown variable namespace: %s - %s",
 						ErrGlobalEval,
 						namespace.RootName(),
@@ -167,7 +169,7 @@ func (r *globalsExpr) eval(meta stack.Metadata) (*Globals, error) {
 					}
 
 					if _, isEvaluated := globals.attributes[attr.Name]; !isEvaluated {
-						return nil, fmt.Errorf(
+						return Globals{}, fmt.Errorf(
 							"%w: unknown variable %s.%s - %s",
 							ErrGlobalEval,
 							namespace.RootName(),
@@ -176,7 +178,7 @@ func (r *globalsExpr) eval(meta stack.Metadata) (*Globals, error) {
 						)
 					}
 				default:
-					return nil, fmt.Errorf("unexpected type of traversal in %s - this is a BUG", attr.SourceRange())
+					return Globals{}, fmt.Errorf("unexpected type of traversal in %s - this is a BUG", attr.SourceRange())
 				}
 			}
 
@@ -198,7 +200,7 @@ func (r *globalsExpr) eval(meta stack.Metadata) (*Globals, error) {
 			logger.Trace().Msg("Try add proper namespace for globals evaluation context.")
 
 			if err := evalctx.SetNamespace("global", globals.Attributes()); err != nil {
-				return nil, fmt.Errorf("evaluating globals: %v", err)
+				return Globals{}, fmt.Errorf("evaluating globals: %v", err)
 			}
 		}
 
@@ -210,8 +212,12 @@ func (r *globalsExpr) eval(meta stack.Metadata) (*Globals, error) {
 	}
 
 	if len(pendingExprs) > 0 {
-		// TODO/FIX: print list of unresolved variables
-		return nil, fmt.Errorf("%w: could not resolve all globals", ErrGlobalEval)
+		for name := range pendingExprs {
+			logger.Warn().
+				Str("name", name).
+				Msg("unresolved global")
+		}
+		return Globals{}, fmt.Errorf("%w: could not resolve all globals", ErrGlobalEval)
 	}
 
 	logger.Trace().Msg("Reduce multiple errors into one.")
@@ -221,7 +227,7 @@ func (r *globalsExpr) eval(meta stack.Metadata) (*Globals, error) {
 	}, errs...)
 
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrGlobalEval, err)
+		return Globals{}, fmt.Errorf("%w: %v", ErrGlobalEval, err)
 	}
 
 	return globals, nil
@@ -288,10 +294,4 @@ func loadStackGlobalsExprs(rootdir string, cfgdir string) (*globalsExpr, error) 
 func parentDir(dir string) (string, bool) {
 	parent := filepath.Dir(dir)
 	return parent, parent != dir
-}
-
-func newGlobals() *Globals {
-	return &Globals{
-		attributes: map[string]cty.Value{},
-	}
 }
