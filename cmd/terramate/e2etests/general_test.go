@@ -352,3 +352,26 @@ func TestNoArgsProvidesBasicHelp(t *testing.T) {
 	help := cli.run("--help")
 	assertRunResult(t, cli.run(), runExpected{Stdout: help.Stdout})
 }
+
+func TestLoadGitRootConfig(t *testing.T) {
+	s := sandbox.NewWithGitConfig(t, sandbox.GitConfig{
+		DefaultRemoteName:       "mineiros",
+		DefaultRemoteBranchName: "default",
+		LocalBranchName:         "trunk",
+	})
+
+	cli := newCLI(t, s.RootDir())
+
+	test.WriteFile(t, s.RootDir(), "git.tm.hcl", `
+terramate {
+	config {
+		git {
+			default_remote = "mineiros"
+			default_branch = "default"
+		}
+	}
+}
+`)
+
+	assertRun(t, cli.run("stacks", "list", "--changed"))
+}
