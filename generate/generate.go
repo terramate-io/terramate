@@ -69,7 +69,7 @@ const (
 func Do(root string, workingDir string) Report {
 	return forEachStack(root, workingDir, func(
 		stack stack.S,
-		globals *terramate.Globals,
+		globals terramate.Globals,
 		cfg StackCfg,
 	) stackReport {
 		stackpath := stack.AbsPath()
@@ -319,7 +319,7 @@ type genfile struct {
 func backendConfigOutdatedFiles(
 	root, stackpath string,
 	stackMeta stack.Metadata,
-	globals *terramate.Globals,
+	globals terramate.Globals,
 	cfg StackCfg,
 	currentGenFiles *stringSet,
 ) ([]string, error) {
@@ -361,7 +361,7 @@ func backendConfigOutdatedFiles(
 func generatedHCLOutdatedFiles(
 	root, stackpath string,
 	stackMeta stack.Metadata,
-	globals *terramate.Globals,
+	globals terramate.Globals,
 	cfg StackCfg,
 	currentGenFiles *stringSet,
 ) ([]string, error) {
@@ -414,7 +414,7 @@ func generatedHCLOutdatedFiles(
 func exportedLocalsOutdatedFiles(
 	root, stackpath string,
 	stackMeta stack.Metadata,
-	globals *terramate.Globals,
+	globals terramate.Globals,
 	cfg StackCfg,
 	currentGenFiles *stringSet,
 ) ([]string, error) {
@@ -456,7 +456,7 @@ func generateStackHCLCode(
 	root string,
 	stackpath string,
 	meta stack.Metadata,
-	globals *terramate.Globals,
+	globals terramate.Globals,
 ) ([]genfile, error) {
 	logger := log.With().
 		Str("action", "generateStackHCLCode()").
@@ -501,7 +501,7 @@ func generateStackLocalsCode(
 	rootdir string,
 	stackpath string,
 	metadata stack.Metadata,
-	globals *terramate.Globals,
+	globals terramate.Globals,
 ) (string, error) {
 	logger := log.With().
 		Str("action", "generateStackLocals()").
@@ -552,7 +552,7 @@ func generateBackendCfgCode(
 	root string,
 	stackpath string,
 	stackMetadata stack.Metadata,
-	globals *terramate.Globals,
+	globals terramate.Globals,
 	configdir string,
 ) (string, error) {
 	logger := log.With().
@@ -687,7 +687,7 @@ func loadGeneratedCode(path string) (string, bool, error) {
 	return "", false, fmt.Errorf("%w: at %q", ErrManualCodeExists, path)
 }
 
-type forEachStackFunc func(stack.S, *terramate.Globals, StackCfg) stackReport
+type forEachStackFunc func(stack.S, terramate.Globals, StackCfg) stackReport
 
 func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 	logger := log.With().
