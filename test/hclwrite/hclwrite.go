@@ -48,10 +48,6 @@ type Block struct {
 	values    map[string]interface{}
 }
 
-type HCL struct {
-	blocks []*Block
-}
-
 func (b *Block) AddLabel(name string) {
 	b.labels = append(b.labels, fmt.Sprintf("%q", name))
 }
@@ -92,7 +88,11 @@ func (b *Block) Build(parent *Block) {
 }
 
 func (b *Block) String() string {
-	code := b.name + strings.Join(b.labels, " ") + "{\n"
+	var code string
+
+	if b.name != "" {
+		code = b.name + strings.Join(b.labels, " ") + "{\n"
+	}
 	// Tried properly using hclwrite, it doesnt work well with expressions:
 	// - https://stackoverflow.com/questions/67945463/how-to-use-hcl-write-to-set-expressions-with
 	for _, name := range b.sortedExpressions() {
@@ -104,29 +104,10 @@ func (b *Block) String() string {
 	for _, childblock := range b.children {
 		code += childblock.String() + "\n"
 	}
-	code += "}"
+	if b.name != "" {
+		code += "}"
+	}
 	return Format(code)
-}
-
-func (h HCL) String() string {
-	strs := make([]string, len(h.blocks))
-	for i, block := range h.blocks {
-		strs[i] = block.String()
-	}
-	return strings.Join(strs, "\n")
-}
-
-func NewBlock(name string) *Block {
-	return &Block{
-		name:        name,
-		expressions: map[string]string{},
-		ctyvalues:   map[string]cty.Value{},
-		values:      map[string]interface{}{},
-	}
-}
-
-func NewHCL(blocks ...*Block) HCL {
-	return HCL{blocks: blocks}
 }
 
 type BlockBuilder interface {
@@ -136,11 +117,15 @@ type BlockBuilder interface {
 type BlockBuilderFunc func(*Block)
 
 func BuildBlock(name string, builders ...BlockBuilder) *Block {
-	b := NewBlock(name)
+	b := newBlock(name)
 	for _, builder := range builders {
 		builder.Build(b)
 	}
 	return b
+}
+
+func BuildHCL(builders ...BlockBuilder) *Block {
+	return BuildBlock("", builders...)
 }
 
 func Labels(labels ...string) BlockBuilder {
@@ -236,4 +221,13 @@ func (b *Block) sortedValues() []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func newBlock(name string) *Block {
+	return &Block{
+		name:        name,
+		expressions: map[string]string{},
+		ctyvalues:   map[string]cty.Value{},
+		values:      map[string]interface{}{},
+	}
 }

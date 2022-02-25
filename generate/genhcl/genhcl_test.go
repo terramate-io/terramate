@@ -54,8 +54,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 		}
 	)
 
-	hcldoc := func(blocks ...*hclwrite.Block) hclwrite.HCL {
-		return hclwrite.NewHCL(blocks...)
+	hcldoc := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildHCL(builders...)
 	}
 	generateHCL := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("generate_hcl", builders...)

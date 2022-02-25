@@ -18,15 +18,15 @@ import "github.com/mineiros-io/terramate/test/hclwrite"
 
 // useful function aliases to build HCL documents
 
-func hcldoc(blocks ...*hclwrite.Block) hclwrite.HCL {
-	return hclwrite.NewHCL(blocks...)
+func hcldoc(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return hclwrite.BuildHCL(builders...)
 }
 
 // stackConfig wraps the blocks built by the given builders in a valid stack
 // configuration
-func stackConfig(blocks ...*hclwrite.Block) hclwrite.HCL {
-	b := []*hclwrite.Block{stack()}
-	b = append(b, blocks...)
+func stackConfig(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	b := []hclwrite.BlockBuilder{stack()}
+	b = append(b, builders...)
 	return hcldoc(b...)
 }
 

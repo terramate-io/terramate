@@ -37,7 +37,9 @@ func TestHCLWrite(t *testing.T) {
 	block := func(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock(name, builders...)
 	}
-	hcl := hclwrite.NewHCL
+	hcl := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildHCL(builders...)
+	}
 	labels := hclwrite.Labels
 	expr := hclwrite.Expression
 	attr := func(name, expr string) hclwrite.BlockBuilder {
@@ -170,6 +172,74 @@ func TestHCLWrite(t *testing.T) {
 			        str = "level3"
 			      }
 			    }
+			  }
+			`,
+		},
+		{
+			name: "multiple blocks on root doc follow order of insertion",
+			hcl: hcl(
+				block("b",
+					labels("label1", "label2"),
+					str("str", "level2"),
+				),
+				block("a",
+					labels("label"),
+					str("str", "level1"),
+				),
+			),
+			want: `
+			  b "label1" "label2" {
+			    str = "level2"
+			  }
+			  a "label" {
+			    str = "level1"
+			  }
+			`,
+		},
+		{
+			name: "attributes on root doc with blocks",
+			hcl: hcl(
+				boolean("rootbool", true),
+				number("rootnum", 666),
+				str("rootstr", "hi"),
+				block("b",
+					labels("label1", "label2"),
+					str("str", "level2"),
+				),
+				block("a",
+					labels("label"),
+					str("str", "level1"),
+				),
+			),
+			want: `
+			  rootbool = true
+			  rootnum  = 666
+			  rootstr  = "hi"
+			  b "label1" "label2" {
+			    str = "level2"
+			  }
+			  a "label" {
+			    str = "level1"
+			  }
+			`,
+		},
+		{
+			name: "attributes always come before blocks",
+			hcl: hcl(
+				block("a",
+					labels("label"),
+					str("str", "level1"),
+				),
+				boolean("rootbool", true),
+				number("rootnum", 666),
+				str("rootstr", "hi"),
+			),
+			want: `
+			  rootbool = true
+			  rootnum  = 666
+			  rootstr  = "hi"
+			  a "label" {
+			    str = "level1"
 			  }
 			`,
 		},
