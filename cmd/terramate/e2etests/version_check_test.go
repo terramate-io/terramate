@@ -19,6 +19,8 @@ import (
 	"strings"
 	"testing"
 
+	tfversion "github.com/hashicorp/go-version"
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -37,23 +39,32 @@ func TestVersionCheck(t *testing.T) {
 	uncheckedCmds := []string{
 		"--help",
 		"version",
-		"install-completions",
 	}
-	run := func(t *testing.T, cmd string) runResult {
+
+	run := func(t *testing.T, cmd string, version string) runResult {
 		s := sandbox.New(t)
 		s.BuildTree([]string{"s:stack"})
 		root := s.RootEntry()
-		root.CreateConfig(`terramate {
-			required_version = "= 0.0.0"
-		}`)
+		root.CreateConfig(fmt.Sprintf(`terramate {
+			required_version = "= %s"
+		}`, version))
+
+		// required because `terramate run` requires a clean repo.
+		git := s.Git()
+		git.CommitAll("everything")
+
 		cli := newCLI(t, s.RootDir())
 		return cli.run(strings.Split(cmd, " ")...)
 	}
 
+	const (
+		invalidVersion = "0.0.0"
+	)
+
 	for _, checkedCmd := range checkedCmds {
 		name := fmt.Sprintf("%s is checked", checkedCmd)
 		t.Run(name, func(t *testing.T) {
-			assertRunResult(t, run(t, checkedCmd), runExpected{
+			assertRunResult(t, run(t, checkedCmd, invalidVersion), runExpected{
 				Status:      1,
 				StderrRegex: terramate.ErrVersion.Error(),
 			})
@@ -62,10 +73,26 @@ func TestVersionCheck(t *testing.T) {
 	for _, uncheckedCmd := range uncheckedCmds {
 		name := fmt.Sprintf("%s isnt checked", uncheckedCmd)
 		t.Run(name, func(t *testing.T) {
-			assertRunResult(t, run(t, uncheckedCmd), runExpected{
+			assertRunResult(t, run(t, uncheckedCmd, invalidVersion), runExpected{
 				Status:       0,
 				IgnoreStdout: true,
 			})
 		})
 	}
+
+	cmds := append(checkedCmds, uncheckedCmds...)
+	for _, cmd := range cmds {
+		name := fmt.Sprintf("%s works with valid version", cmd)
+		t.Run(name, func(t *testing.T) {
+			assertRunResult(t, run(t, cmd, terramate.Version()), runExpected{
+				Status:       0,
+				IgnoreStdout: true,
+			})
+		})
+	}
+}
+
+func TestTerramateHasValidSemver(t *testing.T) {
+	_, err := tfversion.NewSemver(terramate.Version())
+	assert.NoError(t, err, "terramate VERSION file has invalid version")
 }
