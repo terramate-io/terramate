@@ -250,7 +250,6 @@ func TestDefaultBaseRefInMain(t *testing.T) {
 	// main uses HEAD^ as default baseRef.
 	want := runExpected{
 		Stdout: stack.RelPath() + "\n",
-		//IgnoreStderr: true,
 	}
 	assertRunResult(t, cli.run("stacks", "list", "--changed"), want)
 }
