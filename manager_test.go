@@ -147,14 +147,17 @@ func TestListChangedStacks(t *testing.T) {
 			repo := tc.repobuilder(t)
 			m := terramate.NewManager(repo.Dir, tc.baseRef)
 
-			changed, err := m.ListChanged()
+			report, err := m.ListChanged()
 			assert.EqualErrs(t, tc.want.err, err, "ListChanged() error")
 
-			assertStacks(t, tc.want.changed, changed, true)
+			changedStacks := report.Stacks
+			assertStacks(t, tc.want.changed, changedStacks, true)
 
-			list, err := m.List()
+			report, err = m.List()
 			assert.EqualErrs(t, tc.want.err, err, "List() error")
-			assertStacks(t, tc.want.list, list, false)
+
+			allstacks := report.Stacks
+			assertStacks(t, tc.want.list, allstacks, false)
 		})
 	}
 }
@@ -163,8 +166,10 @@ func TestListChangedStackReason(t *testing.T) {
 	repo := singleNotMergedCommitBranch(t)
 
 	m := newManager(repo.Dir)
-	changed, err := m.ListChanged()
+	report, err := m.ListChanged()
 	assert.NoError(t, err, "unexpected error")
+
+	changed := report.Stacks
 	assert.EqualInts(t, 1, len(changed), "unexpected number of entries")
 	assert.EqualStrings(t, "/", changed[0].Stack.PrjAbsPath(), "stack dir mismatch")
 	assert.EqualStrings(t, "stack has unmerged changes", changed[0].Reason)
@@ -172,8 +177,10 @@ func TestListChangedStackReason(t *testing.T) {
 	repo = singleStackDependentModuleChangedRepo(t)
 
 	m = newManager(repo.Dir)
-	changed, err = m.ListChanged()
+	report, err = m.ListChanged()
 	assert.NoError(t, err, "unexpected error")
+
+	changed = report.Stacks
 	assert.EqualInts(t, 1, len(changed), "unexpected number of entries")
 	assert.EqualStrings(t, "/stack", changed[0].Stack.PrjAbsPath(), "stack dir mismatch")
 

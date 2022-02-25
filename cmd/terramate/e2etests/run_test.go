@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate"
 
 	"github.com/mineiros-io/terramate/cmd/terramate/cli"
 	"github.com/mineiros-io/terramate/hcl"
@@ -770,7 +769,7 @@ func TestRunFailIfDirtyRepo(t *testing.T) {
 		mainTfFileName,
 	), runExpected{
 		Status:      defaultErrExitStatus,
-		StderrRegex: terramate.ErrDirtyRepo.Error(),
+		StderrRegex: "repository has untracked files",
 	})
 
 	assertRunResult(t, cli.run(
@@ -779,7 +778,7 @@ func TestRunFailIfDirtyRepo(t *testing.T) {
 		mainTfFileName,
 	), runExpected{
 		Status:      defaultErrExitStatus,
-		StderrRegex: terramate.ErrDirtyRepo.Error(),
+		StderrRegex: "repository has untracked files",
 	})
 
 	git.Add(untracked.Path())
@@ -801,7 +800,7 @@ func TestRunFailIfDirtyRepo(t *testing.T) {
 		mainTfFileName,
 	), runExpected{
 		Status:      defaultErrExitStatus,
-		StderrRegex: terramate.ErrDirtyRepo.Error(),
+		StderrRegex: "repository has uncommitted files",
 	})
 }
 
