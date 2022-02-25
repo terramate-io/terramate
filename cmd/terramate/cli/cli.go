@@ -45,7 +45,6 @@ import (
 
 const (
 	ErrOutdatedLocalRev        errutil.Error = "outdated local revision"
-	ErrNoDefaultRemoteConfig   errutil.Error = "repository must have a configured origin/main"
 	ErrInit                    errutil.Error = "failed to initialize all stacks"
 	ErrOutdatedGenCodeDetected errutil.Error = "outdated generated code detected"
 )
@@ -147,12 +146,7 @@ type cli struct {
 	prj        project
 }
 
-func newCLI(
-	args []string,
-	stdin io.Reader,
-	stdout io.Writer,
-	stderr io.Writer,
-) *cli {
+func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 	if len(args) == 0 {
 		// WHY: avoid default kong error, print help
 		args = []string{"--help"}
@@ -318,11 +312,10 @@ func (c *cli) run() {
 	c.checkVersion()
 
 	if c.parsedArgs.Changed {
-		logger.Trace().
-			Msg("`Changed` flag was set.")
+		logger.Trace().Msg("`Changed` flag was set.")
 
-		logger.Trace().
-			Msg("Create new git wrapper.")
+		logger.Trace().Msg("Create new git wrapper.")
+
 		git, err := newGit(c.root(), true)
 		if err != nil {
 			log.Fatal().
@@ -330,8 +323,8 @@ func (c *cli) run() {
 				Msg("creating git wrapper.")
 		}
 
-		logger.Trace().
-			Msg("Check git default remote.")
+		logger.Trace().Msg("Check git default remote.")
+
 		if err := c.checkDefaultRemote(git); err != nil {
 			log.Fatal().
 				Err(err).
@@ -868,6 +861,10 @@ func (c *cli) runOnStacks() {
 func (c *cli) wd() string   { return c.prj.wd }
 func (c *cli) root() string { return c.prj.root }
 
+func (c *cli) gitcfg() *hcl.GitConfig {
+	return c.prj.rootcfg.Terramate.RootConfig.Git
+}
+
 func (c *cli) log(format string, args ...interface{}) {
 	fmt.Fprintln(c.stdout, fmt.Sprintf(format, args...))
 }
@@ -882,8 +879,8 @@ func (c *cli) checkDefaultRemote(g *git.Git) error {
 		Str("stack", c.wd()).
 		Logger()
 
-	logger.Trace().
-		Msg("Get list of configured git remotes.")
+	logger.Trace().Msg("Get list of configured git remotes.")
+
 	remotes, err := g.Remotes()
 	if err != nil {
 		return fmt.Errorf("checking if remote %q exists: %v", defaultRemote, err)
@@ -891,36 +888,33 @@ func (c *cli) checkDefaultRemote(g *git.Git) error {
 
 	var defRemote *git.Remote
 
+	gitcfg := c.gitcfg()
+
 	logger.Trace().
 		Msg("Find default git remote.")
 	for _, remote := range remotes {
-		if remote.Name == defaultRemote {
+		if remote.Name == gitcfg.DefaultRemote {
 			defRemote = &remote
 			break
 		}
 	}
 
 	if defRemote == nil {
-		return fmt.Errorf(
-			"%w:no default remote %q",
-			ErrNoDefaultRemoteConfig,
-			defaultRemote,
+		return fmt.Errorf("repository must have a configured %q remote",
+			gitcfg.DefaultRemote,
 		)
 	}
 
-	logger.Trace().
-		Msg("Find default git branch.")
+	logger.Trace().Msg("Find default git branch.")
 	for _, branch := range defRemote.Branches {
-		if branch == defaultBranch {
+		if branch == gitcfg.DefaultBranch {
 			return nil
 		}
 	}
 
-	return fmt.Errorf(
-		"%w:%q has no default branch %q,branches:%v",
-		ErrNoDefaultRemoteConfig,
-		defaultRemote,
-		defaultBranch,
+	return fmt.Errorf("remote %q has no default branch %q,branches:%v",
+		gitcfg.DefaultRemote,
+		gitcfg.DefaultBranch,
 		defRemote.Branches,
 	)
 }
@@ -931,8 +925,8 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 		Str("workingDir", c.wd()).
 		Logger()
 
-	logger.Trace().
-		Msg("Get current git branch.")
+	logger.Trace().Msg("Get current git branch.")
+
 	branch, err := g.CurrentBranch()
 	if err != nil {
 		// ON CI envs we don't have a clean way to get the branch name
@@ -950,23 +944,26 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 		return nil
 	}
 
-	if branch != defaultBranch {
+	gitcfg := c.gitcfg()
+	if branch != gitcfg.DefaultBranch {
 		return nil
 	}
 
 	c.logerr("current branch %q is the default branch, checking if it is updated.", branch)
-	c.logerr("retrieving info from remote branch: %s/%s ...", defaultRemote, defaultBranch)
+	c.logerr("retrieving info from remote branch: %s/%s ...",
+		gitcfg.DefaultRemote, gitcfg.DefaultBranch)
 
-	logger.Trace().
-		Msg("Fetch remote reference.")
-	remoteRef, err := g.FetchRemoteRev(defaultRemote, defaultBranch)
+	logger.Trace().Msg("Fetch remote reference.")
+
+	remoteRef, err := g.FetchRemoteRev(gitcfg.DefaultRemote, gitcfg.DefaultBranch)
 	if err != nil {
 		return fmt.Errorf("checking if local branch %q is updated: %v", branch, err)
 	}
-	c.logerr("retrieved info from remote branch: %s/%s.", defaultRemote, defaultBranch)
 
-	logger.Trace().
-		Msg("Get local commit ID.")
+	c.logerr("retrieved info from remote branch: %s/%s.", gitcfg.DefaultRemote, gitcfg.DefaultBranch)
+
+	logger.Trace().Msg("Get local commit ID.")
+
 	localCommitID, err := g.RevParse(branch)
 	if err != nil {
 		return fmt.Errorf("checking if local branch %q is updated: %v", branch, err)
@@ -978,8 +975,8 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 		return fmt.Errorf(
 			"%w: remote %s/%s=%q != local %s=%q",
 			ErrOutdatedLocalRev,
-			defaultRemote,
-			defaultBranch,
+			gitcfg.DefaultRemote,
+			gitcfg.DefaultBranch,
 			remoteRef.ShortCommitID(),
 			branch,
 			localRef.ShortCommitID(),
