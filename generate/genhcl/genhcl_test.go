@@ -54,8 +54,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 		}
 	)
 
-	hcldoc := func(blocks ...*hclwrite.Block) hclwrite.HCL {
-		return hclwrite.NewHCL(blocks...)
+	hcldoc := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildHCL(builders...)
 	}
 	generateHCL := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("generate_hcl", builders...)
@@ -140,6 +140,64 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 		},
 		{
+			name:  "generate hcl with only attributes on root body",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("attrs"),
+						content(
+							number("num", 666),
+							str("str", "hi"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "attrs",
+					hcl: genHCL{
+						origin: defaultCfg("/stack"),
+						body: hcldoc(
+							number("num", 666),
+							str("str", "hi"),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "generate hcl with attributes and blocks on root body",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("attrs"),
+						content(
+							number("num", 666),
+							block("test"),
+							str("str", "hi"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "attrs",
+					hcl: genHCL{
+						origin: defaultCfg("/stack"),
+						body: hcldoc(
+							number("num", 666),
+							str("str", "hi"),
+							block("test"),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "scope traversals of unknown namespaces are copied as is",
 			stack: "/stack",
 			configs: []hclconfig{
@@ -212,12 +270,12 @@ func TestLoadGeneratedHCL(t *testing.T) {
 						body: block("testblock",
 							boolean("bool", true),
 							number("number", 777),
-							str("string", "string"),
 							attr("obj", `{
 								bool   = true
 								number = 777
 								string = "string"
 							}`),
+							str("string", "string"),
 						),
 					},
 				},
@@ -455,12 +513,12 @@ func TestLoadGeneratedHCL(t *testing.T) {
 							block("block2",
 								number("number", 777),
 								block("block3",
-									str("string", "string"),
 									attr("obj", `{
-									bool   = true
-									number = 777
-									string = "string"
-								}`),
+										bool   = true
+										number = 777
+										string = "string"
+									}`),
+									str("string", "string"),
 								),
 							),
 						),

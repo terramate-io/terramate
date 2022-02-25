@@ -23,11 +23,13 @@
 // It is just easier/nicer to use on tests + circumvents some limitations like:
 //
 // - https://stackoverflow.com/questions/67945463/how-to-use-hcl-write-to-set-expressions-with
+//
+// We are missing a way to build objects and lists with a similar syntax to blocks.
+// For now we circumvent this with the AttributeValue function.
 package hclwrite
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 	"testing"
 
@@ -38,45 +40,41 @@ import (
 )
 
 type Block struct {
-	name        string
-	labels      []string
-	children    []*Block
-	expressions map[string]string
+	name    string
+	labels  []string
+	hasexpr bool
 	// Not cool to keep 2 copies of values but casting around
 	// cty values is quite annoying, so this is a lazy solution.
 	ctyvalues map[string]cty.Value
-	values    map[string]interface{}
-}
-
-type HCL struct {
-	blocks []*Block
+	contents  []string
 }
 
 func (b *Block) AddLabel(name string) {
 	b.labels = append(b.labels, fmt.Sprintf("%q", name))
 }
 
-func (b *Block) AddExpr(key string, expr string) {
-	b.expressions[key] = expr
+func (b *Block) AddExpr(name string, expr string) {
+	b.hasexpr = true
+	b.addAttr(name, expr)
 }
 
-func (b *Block) AddNumberInt(key string, v int64) {
-	b.ctyvalues[key] = cty.NumberIntVal(v)
-	b.values[key] = v
+func (b *Block) AddNumberInt(name string, v int64) {
+	b.ctyvalues[name] = cty.NumberIntVal(v)
+	b.addAttr(name, v)
 }
 
-func (b *Block) AddString(key string, v string) {
-	b.ctyvalues[key] = cty.StringVal(v)
-	b.values[key] = fmt.Sprintf("%q", v)
+func (b *Block) AddString(name string, v string) {
+	b.ctyvalues[name] = cty.StringVal(v)
+	b.addAttr(name, fmt.Sprintf("%q", v))
 }
 
-func (b *Block) AddBoolean(key string, v bool) {
-	b.ctyvalues[key] = cty.BoolVal(v)
-	b.values[key] = v
+func (b *Block) AddBoolean(name string, v bool) {
+	b.ctyvalues[name] = cty.BoolVal(v)
+	b.addAttr(name, v)
 }
 
 func (b *Block) AddBlock(child *Block) {
-	b.children = append(b.children, child)
+	b.contents = append(b.contents, child.String())
 }
 
 func (b *Block) AttributesValues() map[string]cty.Value {
@@ -84,7 +82,7 @@ func (b *Block) AttributesValues() map[string]cty.Value {
 }
 
 func (b *Block) HasExpressions() bool {
-	return len(b.expressions) > 0
+	return b.hasexpr
 }
 
 func (b *Block) Build(parent *Block) {
@@ -92,41 +90,22 @@ func (b *Block) Build(parent *Block) {
 }
 
 func (b *Block) String() string {
-	code := b.name + strings.Join(b.labels, " ") + "{\n"
+	var code string
+
+	if b.name != "" {
+		code = b.name + strings.Join(b.labels, " ") + "{\n"
+	}
 	// Tried properly using hclwrite, it doesnt work well with expressions:
 	// - https://stackoverflow.com/questions/67945463/how-to-use-hcl-write-to-set-expressions-with
-	for _, name := range b.sortedExpressions() {
-		code += fmt.Sprintf("%s=%s\n", name, b.expressions[name])
+	code += strings.Join(b.contents, "\n")
+
+	if b.name != "" {
+		if len(b.contents) > 0 {
+			code += "\n"
+		}
+		code += "}"
 	}
-	for _, name := range b.sortedValues() {
-		code += fmt.Sprintf("%s=%v\n", name, b.values[name])
-	}
-	for _, childblock := range b.children {
-		code += childblock.String() + "\n"
-	}
-	code += "}"
 	return Format(code)
-}
-
-func (h HCL) String() string {
-	strs := make([]string, len(h.blocks))
-	for i, block := range h.blocks {
-		strs[i] = block.String()
-	}
-	return strings.Join(strs, "\n")
-}
-
-func NewBlock(name string) *Block {
-	return &Block{
-		name:        name,
-		expressions: map[string]string{},
-		ctyvalues:   map[string]cty.Value{},
-		values:      map[string]interface{}{},
-	}
-}
-
-func NewHCL(blocks ...*Block) HCL {
-	return HCL{blocks: blocks}
 }
 
 type BlockBuilder interface {
@@ -136,11 +115,15 @@ type BlockBuilder interface {
 type BlockBuilderFunc func(*Block)
 
 func BuildBlock(name string, builders ...BlockBuilder) *Block {
-	b := NewBlock(name)
+	b := newBlock(name)
 	for _, builder := range builders {
 		builder.Build(b)
 	}
 	return b
+}
+
+func BuildHCL(builders ...BlockBuilder) *Block {
+	return BuildBlock("", builders...)
 }
 
 func Labels(labels ...string) BlockBuilder {
@@ -179,7 +162,7 @@ func AttributeValue(t *testing.T, name string, expr string) BlockBuilder {
 		// hacky way to get original string representation of composite types
 		// but also have proper cty values that can be compared.
 		g.ctyvalues[name] = val
-		g.values[name] = expr
+		g.addAttr(name, expr)
 	})
 }
 
@@ -220,20 +203,13 @@ func (builder BlockBuilderFunc) Build(b *Block) {
 	builder(b)
 }
 
-func (b *Block) sortedExpressions() []string {
-	keys := make([]string, 0, len(b.expressions))
-	for k := range b.expressions {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
+func (b *Block) addAttr(name string, val interface{}) {
+	b.contents = append(b.contents, fmt.Sprintf("%s=%v", name, val))
 }
 
-func (b *Block) sortedValues() []string {
-	keys := make([]string, 0, len(b.values))
-	for k := range b.values {
-		keys = append(keys, k)
+func newBlock(name string) *Block {
+	return &Block{
+		name:      name,
+		ctyvalues: map[string]cty.Value{},
 	}
-	sort.Strings(keys)
-	return keys
 }

@@ -37,7 +37,9 @@ func TestHCLWrite(t *testing.T) {
 	block := func(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock(name, builders...)
 	}
-	hcl := hclwrite.NewHCL
+	hcl := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildHCL(builders...)
+	}
 	labels := hclwrite.Labels
 	expr := hclwrite.Expression
 	attr := func(name, expr string) hclwrite.BlockBuilder {
@@ -67,11 +69,11 @@ func TestHCLWrite(t *testing.T) {
 			),
 			want: `
 			  test {
+			    str    = "test"
+			    num    = 666
+			    bool   = true
 			    expr_a = local.name
 			    expr_b = local.name
-			    bool   = true
-			    num    = 666
-			    str    = "test"
 			  }
 			`,
 		},
@@ -84,9 +86,9 @@ func TestHCLWrite(t *testing.T) {
 			),
 			want: `
 			  test {
-			    list    = [1, 2, 3]
-			    nesting = { first = { second = { "hi": 666 } } }
 			    team    = { members = ["aaa"] }
+			    nesting = { first = { second = { "hi": 666 } } }
+			    list    = [1, 2, 3]
 			  }
 			`,
 		},
@@ -174,23 +176,85 @@ func TestHCLWrite(t *testing.T) {
 			`,
 		},
 		{
+			name: "multiple blocks on root doc follow order of insertion",
+			hcl: hcl(
+				block("b",
+					labels("label1", "label2"),
+					str("str", "level2"),
+				),
+				block("a",
+					labels("label"),
+					str("str", "level1"),
+				),
+			),
+			want: `
+			  b "label1" "label2" {
+			    str = "level2"
+			  }
+			  a "label" {
+			    str = "level1"
+			  }
+			`,
+		},
+		{
+			name: "attributes on root doc with blocks",
+			hcl: hcl(
+				boolean("rootbool", true),
+				number("rootnum", 666),
+				str("rootstr", "hi"),
+				block("b",
+					labels("label1", "label2"),
+					str("str", "level2"),
+				),
+				block("a",
+					labels("label"),
+					str("str", "level1"),
+				),
+			),
+			want: `
+			  rootbool = true
+			  rootnum  = 666
+			  rootstr  = "hi"
+			  b "label1" "label2" {
+			    str = "level2"
+			  }
+			  a "label" {
+			    str = "level1"
+			  }
+			`,
+		},
+		{
+			name: "attributes can be added after blocks",
+			hcl: hcl(
+				block("a",
+					labels("label"),
+					str("str", "level1"),
+				),
+				boolean("rootbool", true),
+				number("rootnum", 666),
+				str("rootstr", "hi"),
+			),
+			want: `
+			  a "label" {
+			    str = "level1"
+			  }
+			  rootbool = true
+			  rootnum  = 666
+			  rootstr  = "hi"
+			`,
+		},
+		{
 			name: "terramate stack example",
 			hcl: hcl(
-				block("terramate",
-					str("required_version", "~> 0.0.1"),
-				),
 				block("stack",
 					expr("before", `["/stack/a", "/stack/b"]`),
 					expr("after", `["/stack/c"]`),
 				),
 			),
 			want: `
-			  terramate {
-			    required_version = "~> 0.0.1"
-			  }
 			  stack {
-			    after  = ["/stack/c"]
 			    before = ["/stack/a", "/stack/b"]
+			    after  = ["/stack/c"]
 			  }
 			`,
 		},

@@ -168,11 +168,11 @@ func TestHCLGeneration(t *testing.T) {
 							str("prefix", "stack-1-backend"),
 						),
 						"locals.tf": locals(
-							str("stackpath", "/stacks/stack-1"),
 							str("local_a", "stack-1-local"),
 							boolean("local_b", true),
 							number("local_c", 666),
 							str("local_d", "local_d_field"),
+							str("stackpath", "/stacks/stack-1"),
 						),
 						"provider.tf": hcldoc(
 							provider(
@@ -201,11 +201,11 @@ func TestHCLGeneration(t *testing.T) {
 							str("prefix", "stack-2-backend"),
 						),
 						"locals.tf": locals(
-							str("stackpath", "/stacks/stack-2"),
 							str("local_a", "stack-2-local"),
 							boolean("local_b", false),
 							number("local_c", 777),
 							attr("local_d", "null"),
+							str("stackpath", "/stacks/stack-2"),
 						),
 						"provider.tf": hcldoc(
 							provider(

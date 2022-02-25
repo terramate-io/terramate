@@ -832,7 +832,7 @@ func TestLoadGlobals(t *testing.T) {
 
 				want, ok := wantGlobals[stackMeta.Path]
 				if !ok {
-					want = hclwrite.NewBlock("globals")
+					want = globals()
 				}
 				delete(wantGlobals, stackMeta.Path)
 
