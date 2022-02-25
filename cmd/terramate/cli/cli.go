@@ -1114,19 +1114,19 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 		Msg("Create new git wrapper.")
 	gw, err := newGit(wd, false)
 	if err == nil {
-		logger.Trace().
-			Msg("Get root of git repo.")
+		logger.Trace().Msg("Get root of git repo.")
+
 		gitdir, err := gw.Root()
 		if err == nil {
-			logger.Trace().
-				Msg("Get absolute path of git directory.")
+			logger.Trace().Msg("Get absolute path of git directory.")
+
 			gitabs, err := filepath.Abs(gitdir)
 			if err != nil {
 				return project{}, false, fmt.Errorf("getting absolute path of %q: %w", gitdir, err)
 			}
 
-			logger.Trace().
-				Msg("Evaluate symbolic links.")
+			logger.Trace().Msg("Evaluate symbolic links.")
+
 			gitabs, err = filepath.EvalSymlinks(gitabs)
 			if err != nil {
 				return project{}, false, fmt.Errorf("failed evaluating symlinks of %q: %w",
@@ -1135,8 +1135,8 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 			root := filepath.Dir(gitabs)
 
-			logger.Trace().
-				Msg("Load root config.")
+			logger.Trace().Msg("Load root config.")
+
 			cfg, _, err := config.TryLoadRootConfig(root)
 			if err != nil {
 				return project{}, false, err
@@ -1153,8 +1153,8 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 	dir := wd
 
 	for {
-		logger.Trace().
-			Msg("Load root config.")
+		logger.Trace().Msg("Load root config.")
+
 		cfg, ok, err := config.TryLoadRootConfig(dir)
 		if err != nil {
 			return project{}, false, err
