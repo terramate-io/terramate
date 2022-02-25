@@ -68,6 +68,8 @@ type cliSpec struct {
 	LogLevel      string   `optional:"true" default:"info" enum:"trace,debug,info,warn,error,fatal" help:"Log level to use: 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
 	LogFmt        string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'."`
 
+	DisableCheckGitUntracked bool `optional:"true" default:"false" help:"disable git check for untracked files."`
+
 	Run struct {
 		ContinueOnError bool     `default:"false" help:"continue executing in other stacks in case of error."`
 		DryRun          bool     `default:"false" help:"plan the execution but do not execute it"`
@@ -427,7 +429,7 @@ func (c *cli) gitSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
 		Str("action", "gitSafeguards()").
 		Logger()
 
-	if len(checks.UntrackedFiles) > 0 {
+	if !c.parsedArgs.DisableCheckGitUntracked && len(checks.UntrackedFiles) > 0 {
 		if shouldAbort {
 			logger.Fatal().
 				Strs("files", checks.UntrackedFiles).
