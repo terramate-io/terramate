@@ -156,6 +156,15 @@ func (git *Git) CurrentBranch() string {
 	return branch
 }
 
+// DeleteBranch deletes the ref branch.
+func (git Git) DeleteBranch(ref string) {
+	git.t.Helper()
+
+	if err := git.g.DeleteBranch(ref); err != nil {
+		git.t.Fatalf("Git.DeleteBranch(%q) = %v", ref, err)
+	}
+}
+
 // Commit will commit previously added files
 func (git Git) Commit(msg string, args ...string) {
 	git.t.Helper()

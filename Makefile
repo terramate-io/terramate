@@ -53,6 +53,11 @@ coverage/show: coverage
 test: 
 	go test -count=1 -race ./...
 
+## test if terramate works with CI git environment.
+.PHONY: test/ci
+test/ci: build
+	./bin/terramate stacks list --changed
+
 ## Build terramate into bin directory
 .PHONY: build
 build:
