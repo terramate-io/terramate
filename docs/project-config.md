@@ -1,23 +1,15 @@
 # Project Config
 
 Terramate does not depend on user configuration and comes with a set of sensible defaults.
-Configurations allow you to override any terramate default value.
+But when defaults doesn't work Terramate allows some project wide configurations
+to be changed.
 
-There can be only one Terramate project configuration on the entire project and
-it **must** be located at the project root dir.
+Configurations that are project wide can be defined only once, and they **MUST**
+be defined at the project root.
 
-Project wide configuration is done via a **config** block inside the
-**terramate** block:
+Here it is documented all Terramate configurations that are project wide.
 
-```hcl
-terramate {
-  config {
-    // project wide configurations here
-  }
-}
-```
-
-## Required Version
+## terramate.required_version
 
 Required version is defined by the attribute `terramate.required_version`
 where `required_version` accepts a version constraint string,
@@ -45,7 +37,7 @@ check will be performed. If one is defined, running `terramate` with a
 incompatible version will result in an error for any Terramate command.
 
 
-## Git
+## terramate.config.git
 
 Git related configurations are defined inside the **git** block, like this:
 
