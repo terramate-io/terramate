@@ -1063,12 +1063,7 @@ func (c cli) checkVersion() {
 
 	logger.Trace().Msg("checking if terramate version satisfies project constraint")
 
-	rootcfg, err := hcl.ParseDir(c.root())
-	if err != nil {
-		logger.Fatal().
-			Err(err).
-			Msg("checking terramate root config for required version")
-	}
+	rootcfg := c.prj.rootcfg
 
 	if rootcfg.Terramate == nil {
 		logger.Info().Msg("project root has no config, skipping version check")
