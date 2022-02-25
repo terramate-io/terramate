@@ -855,6 +855,26 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 		Status:      defaultErrExitStatus,
 		StderrRegex: "repository has uncommitted files",
 	})
+
+	// disable uncommitted check
+	assertRunResult(t, cli.run(
+		"--disable-check-git-uncommitted",
+		"run",
+		cat,
+		mainTfFileName,
+	), runExpected{
+		Stdout: mainTfAlteredContents,
+	})
+
+	assertRunResult(t, cli.run(
+		"--disable-check-git-uncommitted",
+		"--changed",
+		"run",
+		cat,
+		mainTfFileName,
+	), runExpected{
+		Stdout: mainTfAlteredContents,
+	})
 }
 
 func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
