@@ -40,19 +40,13 @@ import (
 )
 
 type Block struct {
-	name     string
-	labels   []string
-	children []*Block
-	hasexpr  bool
+	name    string
+	labels  []string
+	hasexpr bool
 	// Not cool to keep 2 copies of values but casting around
 	// cty values is quite annoying, so this is a lazy solution.
-	ctyvalues  map[string]cty.Value
-	attributes []attribute
-}
-
-type attribute struct {
-	name  string
-	value string
+	ctyvalues map[string]cty.Value
+	contents  []string
 }
 
 func (b *Block) AddLabel(name string) {
@@ -80,7 +74,7 @@ func (b *Block) AddBoolean(name string, v bool) {
 }
 
 func (b *Block) AddBlock(child *Block) {
-	b.children = append(b.children, child)
+	b.contents = append(b.contents, child.String())
 }
 
 func (b *Block) AttributesValues() map[string]cty.Value {
@@ -103,13 +97,12 @@ func (b *Block) String() string {
 	}
 	// Tried properly using hclwrite, it doesnt work well with expressions:
 	// - https://stackoverflow.com/questions/67945463/how-to-use-hcl-write-to-set-expressions-with
-	for _, attr := range b.attributes {
-		code += fmt.Sprintf("%s=%s\n", attr.name, attr.value)
-	}
-	for _, childblock := range b.children {
-		code += childblock.String() + "\n"
-	}
+	code += strings.Join(b.contents, "\n")
+
 	if b.name != "" {
+		if len(b.contents) > 0 {
+			code += "\n"
+		}
 		code += "}"
 	}
 	return Format(code)
@@ -211,10 +204,7 @@ func (builder BlockBuilderFunc) Build(b *Block) {
 }
 
 func (b *Block) addAttr(name string, val interface{}) {
-	b.attributes = append(b.attributes, attribute{
-		name:  name,
-		value: fmt.Sprint(val),
-	})
+	b.contents = append(b.contents, fmt.Sprintf("%s=%v", name, val))
 }
 
 func newBlock(name string) *Block {

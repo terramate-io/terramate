@@ -224,7 +224,7 @@ func TestHCLWrite(t *testing.T) {
 			`,
 		},
 		{
-			name: "attributes always come before blocks",
+			name: "attributes can be added after blocks",
 			hcl: hcl(
 				block("a",
 					labels("label"),
@@ -235,29 +235,23 @@ func TestHCLWrite(t *testing.T) {
 				str("rootstr", "hi"),
 			),
 			want: `
-			  rootbool = true
-			  rootnum  = 666
-			  rootstr  = "hi"
 			  a "label" {
 			    str = "level1"
 			  }
+			  rootbool = true
+			  rootnum  = 666
+			  rootstr  = "hi"
 			`,
 		},
 		{
 			name: "terramate stack example",
 			hcl: hcl(
-				block("terramate",
-					str("required_version", "~> 0.0.1"),
-				),
 				block("stack",
 					expr("before", `["/stack/a", "/stack/b"]`),
 					expr("after", `["/stack/c"]`),
 				),
 			),
 			want: `
-			  terramate {
-			    required_version = "~> 0.0.1"
-			  }
 			  stack {
 			    before = ["/stack/a", "/stack/b"]
 			    after  = ["/stack/c"]
