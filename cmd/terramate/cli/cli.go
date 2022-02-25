@@ -844,10 +844,6 @@ func (c *cli) runOnStacks() {
 func (c *cli) wd() string   { return c.prj.wd }
 func (c *cli) root() string { return c.prj.root }
 
-func (c *cli) gitcfg() *hcl.GitConfig {
-	return c.prj.gitcfg()
-}
-
 func (c *cli) log(format string, args ...interface{}) {
 	fmt.Fprintln(c.stdout, fmt.Sprintf(format, args...))
 }
