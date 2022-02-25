@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/mineiros-io/terramate/cmd/terramate/cli"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -248,10 +247,10 @@ func TestDefaultBaseRefInMain(t *testing.T) {
 	git.Commit("all")
 	git.Push("main")
 
-	// main uses HEAD^1 as default baseRef.
+	// main uses HEAD^ as default baseRef.
 	want := runExpected{
-		Stdout:       stack.RelPath() + "\n",
-		IgnoreStderr: true,
+		Stdout: stack.RelPath() + "\n",
+		//IgnoreStderr: true,
 	}
 	assertRunResult(t, cli.run("stacks", "list", "--changed"), want)
 }
@@ -291,9 +290,24 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 	git.Add(".")
 	git.Commit("all")
 
+	// dance below makes makes local main branch behind origin/main by 1 commit.
+	//   - a "temp" branch is created to record current commit.
+	//   - go back to main and create 1 additional commit and push to origin/main.
+	//   - switch to "temp" and delete "main" reference.
+	//   - create "main" branch again based on temp.
+
+	git.CheckoutNew("temp")
+	git.Checkout("main")
+	stack.CreateFile("tempfile", "any content")
+	git.CommitAll("additional commit")
+	git.Push("main")
+	git.Checkout("temp")
+	git.DeleteBranch("main")
+	git.CheckoutNew("main")
+
 	wantRes := runExpected{
 		Status:      1,
-		StderrRegex: cli.ErrOutdatedLocalRev.Error(),
+		StderrRegex: "main branch is not reachable",
 	}
 
 	assertRunResult(t, ts.run("stacks", "list", "--changed"), wantRes)
@@ -305,6 +319,39 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 		cat,
 		mainTfFile.Path(),
 	), wantRes)
+}
+
+func TestMainAfterOriginMainMustUseDefaultBaseRef(t *testing.T) {
+	s := sandbox.New(t)
+	ts := newCLI(t, s.RootDir())
+
+	createCommittedStack := func(name string) {
+		stack := s.CreateStack(name)
+		stack.CreateFile("main.tf", "# no code")
+
+		assertRun(t, ts.run("stacks", "init", stack.Path()))
+
+		git := s.Git()
+		git.Add(".")
+		git.Commit(name)
+	}
+
+	wantStdout := ""
+
+	// creates N commits in main.
+	// in this case, it should use origin/main as baseRef even if in main.
+
+	for i := 0; i < 10; i++ {
+		name := fmt.Sprintf("stack-%d", i)
+		createCommittedStack(name)
+		wantStdout += name + "\n"
+	}
+
+	wantRes := runExpected{
+		Stdout: wantStdout,
+	}
+
+	assertRunResult(t, ts.run("stacks", "list", "--changed"), wantRes)
 }
 
 func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
