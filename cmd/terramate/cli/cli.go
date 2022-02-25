@@ -1110,8 +1110,8 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 		Str("workingDir", wd).
 		Logger()
 
-	logger.Trace().
-		Msg("Create new git wrapper.")
+	logger.Trace().Msg("Create new git wrapper.")
+
 	gw, err := newGit(wd, false)
 	if err == nil {
 		logger.Trace().Msg("Get root of git repo.")
@@ -1137,7 +1137,7 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 			logger.Trace().Msg("Load root config.")
 
-			cfg, _, err := config.TryLoadRootConfig(root)
+			cfg, err := hcl.ParseDir(root)
 			if err != nil {
 				return project{}, false, err
 			}
