@@ -741,7 +741,7 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 	), runExpected{Stdout: wantRun})
 }
 
-func TestRunFailIfUntrackedFiles(t *testing.T) {
+func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 	const (
 		mainTfFileName = "main.tf"
 		mainTfContents = "# some code"
@@ -802,7 +802,7 @@ func TestRunFailIfUntrackedFiles(t *testing.T) {
 	})
 }
 
-func TestRunGitSafeguardUncommitted(t *testing.T) {
+func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 	const (
 		mainTfFileName        = "main.tf"
 		mainTfInitialContents = "# some code"
