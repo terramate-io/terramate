@@ -105,9 +105,7 @@ const (
 )
 
 // NewConfig creates a new HCL config with dir as config directory path.
-// If reqversion is provided then it also creates a terramate block with
-// RequiredVersion set to this value.
-func NewConfig(dir string, reqversion string) (Config, error) {
+func NewConfig(dir string) (Config, error) {
 	st, err := os.Stat(dir)
 	if err != nil {
 		return Config{}, fmt.Errorf("initializing config: %w", err)
@@ -117,19 +115,18 @@ func NewConfig(dir string, reqversion string) (Config, error) {
 		return Config{}, fmt.Errorf("config constructor requires a directory path")
 	}
 
-	var tmblock *Terramate
-	if reqversion != "" {
-		tmblock = NewTerramate(reqversion)
-	}
-
 	return Config{
-		Terramate: tmblock,
-		absdir:    dir,
+		absdir: dir,
 	}, nil
 }
 
 // AbsDir returns the absolute path of the configuration directory.
 func (c Config) AbsDir() string { return c.absdir }
+
+// IsEmpty returns true if the config is empty, false otherwise.
+func (c Config) IsEmpty() bool {
+	return c.Stack == nil && c.Terramate == nil
+}
 
 // Save the configuration file using filename inside config directory.
 func (c Config) Save(filename string) (err error) {

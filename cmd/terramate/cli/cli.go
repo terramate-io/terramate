@@ -45,7 +45,6 @@ import (
 
 const (
 	ErrOutdatedLocalRev        errutil.Error = "outdated local revision"
-	ErrNoDefaultRemoteConfig   errutil.Error = "repository must have a configured origin/main"
 	ErrInit                    errutil.Error = "failed to initialize all stacks"
 	ErrOutdatedGenCodeDetected errutil.Error = "outdated generated code detected"
 )
@@ -90,8 +89,7 @@ type cliSpec struct {
 	Stacks struct {
 		Init struct {
 			StackDirs []string `arg:"" name:"paths" optional:"true" help:"the stack directory (current directory if not set)."`
-			Force     bool     `help:"force initialization."`
-		} `cmd:"" help:"Initialize a stack."`
+		} `cmd:"" help:"Initialize a stack, does nothing if stack already initialized."`
 
 		List struct {
 			Why bool `help:"Shows the reason why the stack has changed."`
@@ -148,12 +146,7 @@ type cli struct {
 	prj        project
 }
 
-func newCLI(
-	args []string,
-	stdin io.Reader,
-	stdout io.Writer,
-	stderr io.Writer,
-) *cli {
+func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 	if len(args) == 0 {
 		// WHY: avoid default kong error, print help
 		args = []string{"--help"}
@@ -211,10 +204,20 @@ func newCLI(
 		Str("action", "newCli()").
 		Logger()
 
-	if ctx.Command() == "version" {
-		logger.Debug().
-			Msg("Get terramate version.")
+	switch ctx.Command() {
+	case "version":
+		logger.Debug().Msg("Get terramate version.")
 		fmt.Println(terramate.Version())
+		return &cli{exit: true}
+	case "install-completions":
+		logger.Debug().Msg("Handle `install-completions` command.")
+
+		err := parsedArgs.InstallCompletions.Run(ctx)
+		if err != nil {
+			log.Fatal().
+				Err(err).
+				Msg("installing shell completions.")
+		}
 		return &cli{exit: true}
 	}
 
@@ -306,12 +309,13 @@ func (c *cli) run() {
 		Str("workingDir", c.wd()).
 		Logger()
 
-	if c.parsedArgs.Changed {
-		logger.Trace().
-			Msg("`Changed` flag was set.")
+	c.checkVersion()
 
-		logger.Trace().
-			Msg("Create new git wrapper.")
+	if c.parsedArgs.Changed {
+		logger.Trace().Msg("`Changed` flag was set.")
+
+		logger.Trace().Msg("Create new git wrapper.")
+
 		git, err := newGit(c.root(), true)
 		if err != nil {
 			log.Fatal().
@@ -319,8 +323,8 @@ func (c *cli) run() {
 				Msg("creating git wrapper.")
 		}
 
-		logger.Trace().
-			Msg("Check git default remote.")
+		logger.Trace().Msg("Check git default remote.")
+
 		if err := c.checkDefaultRemote(git); err != nil {
 			log.Fatal().
 				Err(err).
@@ -394,15 +398,6 @@ func (c *cli) run() {
 		logger.Debug().
 			Msg("Handle `metadata` command.")
 		c.printMetadata()
-	case "install-completions":
-		logger.Debug().
-			Msg("Handle `install-completions` command.")
-		err := c.parsedArgs.InstallCompletions.Run(c.ctx)
-		if err != nil {
-			log.Fatal().
-				Err(err).
-				Msg("installing shell completions.")
-		}
 	default:
 		log.Fatal().
 			Msgf("unexpected command sequence: %s", c.ctx.Command())
@@ -430,7 +425,7 @@ func (c *cli) initStack(dirs []string) {
 			Str("stack", fmt.Sprintf("%s%s", c.wd(), strings.Trim(d, "."))).
 			Msg("Init stack.")
 
-		err := terramate.Init(c.root(), d, c.parsedArgs.Stacks.Init.Force)
+		err := terramate.Init(c.root(), d)
 		if err != nil {
 			c.logerr("warn: failed to initialize stack: %v", err)
 			errmsgs = append(errmsgs, err.Error())
@@ -866,6 +861,10 @@ func (c *cli) runOnStacks() {
 func (c *cli) wd() string   { return c.prj.wd }
 func (c *cli) root() string { return c.prj.root }
 
+func (c *cli) gitcfg() *hcl.GitConfig {
+	return c.prj.rootcfg.Terramate.RootConfig.Git
+}
+
 func (c *cli) log(format string, args ...interface{}) {
 	fmt.Fprintln(c.stdout, fmt.Sprintf(format, args...))
 }
@@ -880,8 +879,8 @@ func (c *cli) checkDefaultRemote(g *git.Git) error {
 		Str("stack", c.wd()).
 		Logger()
 
-	logger.Trace().
-		Msg("Get list of configured git remotes.")
+	logger.Trace().Msg("Get list of configured git remotes.")
+
 	remotes, err := g.Remotes()
 	if err != nil {
 		return fmt.Errorf("checking if remote %q exists: %v", defaultRemote, err)
@@ -889,36 +888,33 @@ func (c *cli) checkDefaultRemote(g *git.Git) error {
 
 	var defRemote *git.Remote
 
+	gitcfg := c.gitcfg()
+
 	logger.Trace().
 		Msg("Find default git remote.")
 	for _, remote := range remotes {
-		if remote.Name == defaultRemote {
+		if remote.Name == gitcfg.DefaultRemote {
 			defRemote = &remote
 			break
 		}
 	}
 
 	if defRemote == nil {
-		return fmt.Errorf(
-			"%w:no default remote %q",
-			ErrNoDefaultRemoteConfig,
-			defaultRemote,
+		return fmt.Errorf("repository must have a configured %q remote",
+			gitcfg.DefaultRemote,
 		)
 	}
 
-	logger.Trace().
-		Msg("Find default git branch.")
+	logger.Trace().Msg("Find default git branch.")
 	for _, branch := range defRemote.Branches {
-		if branch == defaultBranch {
+		if branch == gitcfg.DefaultBranch {
 			return nil
 		}
 	}
 
-	return fmt.Errorf(
-		"%w:%q has no default branch %q,branches:%v",
-		ErrNoDefaultRemoteConfig,
-		defaultRemote,
-		defaultBranch,
+	return fmt.Errorf("remote %q has no default branch %q,branches:%v",
+		gitcfg.DefaultRemote,
+		gitcfg.DefaultBranch,
 		defRemote.Branches,
 	)
 }
@@ -929,8 +925,8 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 		Str("workingDir", c.wd()).
 		Logger()
 
-	logger.Trace().
-		Msg("Get current git branch.")
+	logger.Trace().Msg("Get current git branch.")
+
 	branch, err := g.CurrentBranch()
 	if err != nil {
 		// ON CI envs we don't have a clean way to get the branch name
@@ -948,23 +944,26 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 		return nil
 	}
 
-	if branch != defaultBranch {
+	gitcfg := c.gitcfg()
+	if branch != gitcfg.DefaultBranch {
 		return nil
 	}
 
 	c.logerr("current branch %q is the default branch, checking if it is updated.", branch)
-	c.logerr("retrieving info from remote branch: %s/%s ...", defaultRemote, defaultBranch)
+	c.logerr("retrieving info from remote branch: %s/%s ...",
+		gitcfg.DefaultRemote, gitcfg.DefaultBranch)
 
-	logger.Trace().
-		Msg("Fetch remote reference.")
-	remoteRef, err := g.FetchRemoteRev(defaultRemote, defaultBranch)
+	logger.Trace().Msg("Fetch remote reference.")
+
+	remoteRef, err := g.FetchRemoteRev(gitcfg.DefaultRemote, gitcfg.DefaultBranch)
 	if err != nil {
 		return fmt.Errorf("checking if local branch %q is updated: %v", branch, err)
 	}
-	c.logerr("retrieved info from remote branch: %s/%s.", defaultRemote, defaultBranch)
 
-	logger.Trace().
-		Msg("Get local commit ID.")
+	c.logerr("retrieved info from remote branch: %s/%s.", gitcfg.DefaultRemote, gitcfg.DefaultBranch)
+
+	logger.Trace().Msg("Get local commit ID.")
+
 	localCommitID, err := g.RevParse(branch)
 	if err != nil {
 		return fmt.Errorf("checking if local branch %q is updated: %v", branch, err)
@@ -976,8 +975,8 @@ func (c *cli) checkLocalDefaultIsUpdated(g *git.Git) error {
 		return fmt.Errorf(
 			"%w: remote %s/%s=%q != local %s=%q",
 			ErrOutdatedLocalRev,
-			defaultRemote,
-			defaultBranch,
+			gitcfg.DefaultRemote,
+			gitcfg.DefaultBranch,
 			remoteRef.ShortCommitID(),
 			branch,
 			localRef.ShortCommitID(),
@@ -1053,6 +1052,31 @@ func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Ent
 	return filtered
 }
 
+func (c cli) checkVersion() {
+	logger := log.With().
+		Str("action", "cli.checkVersion()").
+		Str("root", c.root()).
+		Logger()
+
+	logger.Trace().Msg("checking if terramate version satisfies project constraint")
+
+	rootcfg := c.prj.rootcfg
+
+	if rootcfg.Terramate == nil {
+		logger.Info().Msg("project root has no config, skipping version check")
+		return
+	}
+
+	if rootcfg.Terramate.RequiredVersion == "" {
+		logger.Info().Msg("project root config has no required_version, skipping version check")
+		return
+	}
+
+	if err := terramate.CheckVersion(rootcfg.Terramate.RequiredVersion); err != nil {
+		logger.Fatal().Err(err).Send()
+	}
+}
+
 func newGit(basedir string, checkrepo bool) (*git.Git, error) {
 	log.Debug().
 		Str("action", "newGit()").
@@ -1083,23 +1107,23 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 		Str("workingDir", wd).
 		Logger()
 
-	logger.Trace().
-		Msg("Create new git wrapper.")
+	logger.Trace().Msg("Create new git wrapper.")
+
 	gw, err := newGit(wd, false)
 	if err == nil {
-		logger.Trace().
-			Msg("Get root of git repo.")
+		logger.Trace().Msg("Get root of git repo.")
+
 		gitdir, err := gw.Root()
 		if err == nil {
-			logger.Trace().
-				Msg("Get absolute path of git directory.")
+			logger.Trace().Msg("Get absolute path of git directory.")
+
 			gitabs, err := filepath.Abs(gitdir)
 			if err != nil {
 				return project{}, false, fmt.Errorf("getting absolute path of %q: %w", gitdir, err)
 			}
 
-			logger.Trace().
-				Msg("Evaluate symbolic links.")
+			logger.Trace().Msg("Evaluate symbolic links.")
+
 			gitabs, err = filepath.EvalSymlinks(gitabs)
 			if err != nil {
 				return project{}, false, fmt.Errorf("failed evaluating symlinks of %q: %w",
@@ -1108,9 +1132,9 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 			root := filepath.Dir(gitabs)
 
-			logger.Trace().
-				Msg("Load root config.")
-			cfg, _, err := config.TryLoadRootConfig(root)
+			logger.Trace().Msg("Load root config.")
+
+			cfg, err := hcl.ParseDir(root)
 			if err != nil {
 				return project{}, false, err
 			}
@@ -1126,8 +1150,8 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 	dir := wd
 
 	for {
-		logger.Trace().
-			Msg("Load root config.")
+		logger.Trace().Msg("Load root config.")
+
 		cfg, ok, err := config.TryLoadRootConfig(dir)
 		if err != nil {
 			return project{}, false, err

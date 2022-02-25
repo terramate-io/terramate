@@ -641,7 +641,7 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 
 	stack := s.CreateStack("stack")
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
-	stackConfig, err := hcl.NewConfig(stack.Path(), terramate.DefaultVersionConstraint())
+	stackConfig, err := hcl.NewConfig(stack.Path())
 	assert.NoError(t, err)
 	stackConfig.Stack = &hcl.Stack{
 		After: []string{project.PrjAbsPath(s.RootDir(), stack2.Path())},
@@ -705,7 +705,7 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 
 	stack := s.CreateStack("stack")
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
-	stackConfig, err := hcl.NewConfig(stack.Path(), terramate.DefaultVersionConstraint())
+	stackConfig, err := hcl.NewConfig(stack.Path())
 	assert.NoError(t, err)
 
 	stackConfig.Stack = &hcl.Stack{
