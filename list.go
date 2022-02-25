@@ -70,7 +70,7 @@ func ListStacks(root string) ([]Entry, error) {
 	)
 
 	if err != nil {
-		return nil, fmt.Errorf("while walking dir: %w", err)
+		return nil, err
 	}
 
 	return entries, nil

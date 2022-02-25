@@ -102,7 +102,6 @@ const (
 	ErrHCLSyntax                errutil.Error = "HCL syntax error"
 	ErrMalformedTerramateConfig errutil.Error = "malformed terramate config"
 	ErrMalformedTerraform       errutil.Error = "malformed terraform"
-	ErrStackInvalidRunOrder     errutil.Error = "invalid stack execution order definition"
 )
 
 // NewConfig creates a new HCL config with dir as config directory path.
@@ -523,20 +522,16 @@ func assignSet(name string, target *[]string, val cty.Value) error {
 		logger.Trace().
 			Msg("Check element is of correct type.")
 		if elem.Type() != cty.String {
-			return errutil.Chain(ErrStackInvalidRunOrder,
-				fmt.Errorf("field %q is a set(string) but contains %q",
-					name, elem.Type().FriendlyName()),
-			)
+			return fmt.Errorf("field %q is a set(string) but contains %q",
+				name, elem.Type().FriendlyName())
 		}
 
-		logger.Trace().
-			Msg("Get element as string.")
+		logger.Trace().Msg("Get element as string.")
+
 		str := elem.AsString()
 		if _, ok := values[str]; ok {
-			return errutil.Chain(ErrStackInvalidRunOrder,
-				fmt.Errorf("duplicated entry %q in field %q of type set(string)",
-					str, name),
-			)
+			return fmt.Errorf("duplicated entry %q in field %q of type set(string)",
+				str, name)
 		}
 		values[str] = struct{}{}
 	}
@@ -566,11 +561,7 @@ func parseStack(stack *Stack, stackblock *hclsyntax.Block) error {
 
 		attrVal, diags := value.Expr.Value(nil)
 		if diags.HasErrors() {
-			return errutil.Chain(
-				ErrMalformedTerramateConfig,
-				fmt.Errorf("failed to evaluate %q attribute: %w",
-					name, diags),
-			)
+			return fmt.Errorf("failed to evaluate %q attribute: %w", name, diags)
 		}
 
 		logger.Trace().
@@ -581,10 +572,8 @@ func parseStack(stack *Stack, stackblock *hclsyntax.Block) error {
 
 		case "name":
 			if attrVal.Type() != cty.String {
-				return errutil.Chain(ErrMalformedTerramateConfig,
-					fmt.Errorf("field stack.\"name\" must be a \"string\" but given %q",
-						attrVal.Type().FriendlyName()),
-				)
+				return fmt.Errorf("field stack.\"name\" must be a \"string\" but given %q",
+					attrVal.Type().FriendlyName())
 			}
 			stack.Name = attrVal.AsString()
 
@@ -609,17 +598,13 @@ func parseStack(stack *Stack, stackblock *hclsyntax.Block) error {
 		case "description":
 			logger.Trace().Msg("parsing stack description.")
 			if attrVal.Type() != cty.String {
-				return errutil.Chain(ErrMalformedTerramateConfig,
-					fmt.Errorf("field stack.\"description\" must be a \"string\" but given %q",
-						attrVal.Type().FriendlyName()),
-				)
+				return fmt.Errorf("field stack.\"description\" must be a \"string\" but given %q",
+					attrVal.Type().FriendlyName())
 			}
 			stack.Description = attrVal.AsString()
 
 		default:
-			return errutil.Chain(ErrMalformedTerramateConfig,
-				fmt.Errorf("unrecognized attribute stack.%q", name),
-			)
+			return fmt.Errorf("unrecognized attribute stack.%q", name)
 		}
 	}
 
@@ -632,19 +617,13 @@ func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
 		Logger()
 
 	if len(block.Labels) != 0 {
-		return errutil.Chain(
-			ErrMalformedTerramateConfig,
-			fmt.Errorf("config type expects 0 label but given %v",
-				block.Labels),
-		)
+		return fmt.Errorf("config type expects 0 label but has %v", block.Labels)
 	}
 
 	logger.Trace().Msg("Range over block attributes.")
 
 	for name := range block.Body.Attributes {
-		return errutil.Chain(ErrMalformedTerramateConfig,
-			fmt.Errorf("unrecognized attribute terramate.config.%s", name),
-		)
+		return fmt.Errorf("unrecognized attribute terramate.config.%s", name)
 	}
 
 	logger.Trace().Msg("Range over blocks.")
@@ -655,42 +634,33 @@ func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
 			logger.Trace().Msg("Type was 'git'.")
 
 			if cfg.Git != nil {
-				return errutil.Chain(
-					ErrMalformedTerramateConfig,
-					fmt.Errorf("multiple terramate.config.git blocks"),
-				)
+				return errors.New("multiple terramate.config.git blocks")
 			}
 
 			cfg.Git = &GitConfig{}
 
 			logger.Trace().Msg("Parse git config.")
 
-			err := parseGitConfig(cfg.Git, b)
-			if err != nil {
+			if err := parseGitConfig(cfg.Git, b); err != nil {
 				return err
 			}
 		case "generate":
 			logger.Trace().Msg("Found block generate")
 
 			if cfg.Generate != nil {
-				return errutil.Chain(
-					ErrMalformedTerramateConfig,
-					fmt.Errorf("multiple terramate.config.backend blocks"),
-				)
+				return errors.New("multiple terramate.config.backend blocks")
 			}
 
 			logger.Trace().Msg("Parsing terramate.config.generate.")
 
 			gencfg, err := parseGenerateConfig(b)
 			if err != nil {
-				return errutil.Chain(ErrMalformedTerramateConfig, err)
+				return err
 			}
 			cfg.Generate = &gencfg
 
 		default:
-			return errutil.Chain(ErrMalformedTerramateConfig,
-				fmt.Errorf("unrecognized block type %q", b.Type),
-			)
+			return fmt.Errorf("unrecognized block type %q", b.Type)
 		}
 	}
 
@@ -771,16 +741,12 @@ func parseGitConfig(git *GitConfig, block *hclsyntax.Block) error {
 	for name, value := range block.Body.Attributes {
 		attrVal, diags := value.Expr.Value(nil)
 		if diags.HasErrors() {
-			return errutil.Chain(
-				ErrHCLSyntax,
-				fmt.Errorf("failed to evaluate terramate.config.%s attribute: %w",
-					name, diags),
-			)
+			return fmt.Errorf("failed to evaluate terramate.config.%s attribute: %w", name, diags)
 		}
 		switch name {
 		case "default_branch":
-			logger.Trace().
-				Msg("Attribute name was 'default_branch'.")
+			logger.Trace().Msg("Attribute name was 'default_branch'.")
+
 			if attrVal.Type() != cty.String {
 				return fmt.Errorf("terramate.config.git.branch is not a string but %q",
 					attrVal.Type().FriendlyName())
@@ -788,8 +754,8 @@ func parseGitConfig(git *GitConfig, block *hclsyntax.Block) error {
 
 			git.DefaultBranch = attrVal.AsString()
 		case "default_remote":
-			logger.Trace().
-				Msg("Attribute name was 'default_remote'.")
+			logger.Trace().Msg("Attribute name was 'default_remote'.")
+
 			if attrVal.Type() != cty.String {
 				return fmt.Errorf("terramate.config.git.remote is not a string but %q",
 					attrVal.Type().FriendlyName())
@@ -798,8 +764,8 @@ func parseGitConfig(git *GitConfig, block *hclsyntax.Block) error {
 			git.DefaultRemote = attrVal.AsString()
 
 		case "default_branch_base_ref":
-			logger.Trace().
-				Msg("Attribute name was 'default_branch_base_ref.")
+			logger.Trace().Msg("Attribute name was 'default_branch_base_ref.")
+
 			if attrVal.Type() != cty.String {
 				return fmt.Errorf("terramate.config.git.defaultBranchBaseRef is not a string but %q",
 					attrVal.Type().FriendlyName())
@@ -808,9 +774,7 @@ func parseGitConfig(git *GitConfig, block *hclsyntax.Block) error {
 			git.DefaultBranchBaseRef = attrVal.AsString()
 
 		default:
-			return errutil.Chain(ErrMalformedTerramateConfig,
-				fmt.Errorf("unrecognized attribute terramate.config.git.%s", name),
-			)
+			return fmt.Errorf("unrecognized attribute terramate.config.git.%s", name)
 		}
 	}
 	return nil
@@ -860,7 +824,7 @@ func loadCfgBlocks(dir string) (*hclparse.Parser, error) {
 
 	dirEntries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, fmt.Errorf("reading files to load terramate cfg: %v", err)
+		return nil, fmt.Errorf("reading dir to load config files: %v", err)
 	}
 
 	logger.Trace().Msg("looking for Terramate files")
@@ -885,7 +849,7 @@ func loadCfgBlocks(dir string) (*hclparse.Parser, error) {
 
 			data, err := os.ReadFile(path)
 			if err != nil {
-				return nil, fmt.Errorf("reading Terramate config %q: %v", path, err)
+				return nil, fmt.Errorf("reading config file %q: %v", path, err)
 			}
 
 			logger.Trace().Msg("Parsing config.")
@@ -895,7 +859,7 @@ func loadCfgBlocks(dir string) (*hclparse.Parser, error) {
 				return nil, errutil.Chain(ErrHCLSyntax, diags)
 			}
 
-			logger.Trace().Msg("Terramate config file parsed successfully")
+			logger.Trace().Msg("Config file parsed successfully")
 		}
 	}
 
@@ -917,6 +881,17 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 			Str("filename", fname).
 			Logger()
 
+		cfgErr := func(format string, args ...interface{}) error {
+			path := filepath.Join(dir, fname)
+			details := fmt.Sprintf(format, args...)
+			return fmt.Errorf(
+				"%w %s: %s",
+				ErrMalformedTerramateConfig,
+				path,
+				details,
+			)
+		}
+
 		// A cast error here would be a severe programming error on Terramate
 		// side, so we are by design allowing the cast to panic
 		body := hclfile.Body.(*hclsyntax.Body)
@@ -924,10 +899,7 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 		logger.Trace().Msg("checking for attributes.")
 
 		for name := range body.Attributes {
-			return Config{}, errutil.Chain(
-				ErrMalformedTerramateConfig,
-				fmt.Errorf("unrecognized attribute %q", name),
-			)
+			return Config{}, cfgErr("unrecognized attribute %q", name)
 		}
 
 		var stackblock *hclsyntax.Block
@@ -938,26 +910,21 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 
 		for _, block := range body.Blocks {
 			if !blockIsAllowed(block.Type) {
-				return Config{}, errutil.Chain(
-					ErrMalformedTerramateConfig,
-					fmt.Errorf("block type %q is not supported", block.Type),
-				)
+				return Config{}, cfgErr("block type %q is not supported", block.Type)
 			}
 
 			if block.Type == "terramate" {
 				logger.Trace().Msg("Found 'terramate' block.")
+
 				tmblocks = append(tmblocks, block)
 				continue
 			}
 
 			if block.Type == "stack" {
-				logger.Trace().
-					Msg("Found stack block type.")
+				logger.Trace().Msg("Found stack block type.")
+
 				if foundstack {
-					return Config{}, errutil.Chain(
-						ErrMalformedTerramateConfig,
-						fmt.Errorf("multiple stack blocks in file %q", fname),
-					)
+					return Config{}, cfgErr("duplicated stack block")
 				}
 
 				foundstack = true
@@ -966,13 +933,8 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 		}
 
 		for _, tmblock := range tmblocks {
-			logger.Trace().Msg("Found terramate block type.")
-
 			if len(tmblock.Labels) > 0 {
-				return Config{}, errutil.Chain(
-					ErrMalformedTerramateConfig,
-					fmt.Errorf("terramate block must have no labels"),
-				)
+				return Config{}, cfgErr("terramate block should not have labels")
 			}
 
 			if tmconfig.Terramate == nil {
@@ -986,34 +948,22 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 			for name, value := range tmblock.Body.Attributes {
 				attrVal, diags := value.Expr.Value(nil)
 				if diags.HasErrors() {
-					return Config{}, errutil.Chain(
-						ErrMalformedTerramateConfig,
-						fmt.Errorf("failed to evaluate %q attribute: %w",
-							name, diags),
-					)
+					return Config{}, cfgErr("evaluating %q: %w", name, diags)
 				}
 				switch name {
 				case "required_version":
 					logger.Trace().Msg("Parsing  attribute 'required_version'.")
 
 					if attrVal.Type() != cty.String {
-						return Config{}, errutil.Chain(
-							ErrMalformedTerramateConfig,
-							fmt.Errorf("attribute %q is not a string", name),
-						)
+						return Config{}, cfgErr("attribute %q is not a string", name)
 					}
 					if tm.RequiredVersion != "" {
-						return Config{}, errutil.Chain(
-							ErrMalformedTerramateConfig,
-							fmt.Errorf("attribute %q is duplicated", name),
-						)
+						return Config{}, cfgErr("attribute %q is duplicated", name)
 					}
 					tm.RequiredVersion = attrVal.AsString()
 
 				default:
-					return Config{}, errutil.Chain(ErrMalformedTerramateConfig,
-						fmt.Errorf("invalid attribute %q", name),
-					)
+					return Config{}, cfgErr("unsupported attribute %q", name)
 				}
 			}
 
@@ -1025,18 +975,11 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 					logger.Trace().Msg("Parsing backend block.")
 
 					if tm.Backend != nil {
-						return Config{}, errutil.Chain(
-							ErrMalformedTerramateConfig,
-							fmt.Errorf("found second backend block in file %q, only one allowed", fname),
-						)
+						return Config{}, cfgErr("duplicated terramate.backend block")
 					}
 
 					if len(block.Labels) != 1 {
-						return Config{}, errutil.Chain(
-							ErrMalformedTerramateConfig,
-							fmt.Errorf("backend type expects 1 label but given %v",
-								block.Labels),
-						)
+						return Config{}, cfgErr("backend block expects 1 label but has %v", block.Labels)
 					}
 					tm.Backend = block
 
@@ -1051,12 +994,10 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 
 					err := parseRootConfig(tm.RootConfig, block)
 					if err != nil {
-						return Config{}, err
+						return Config{}, cfgErr("parsing terramate.config: %v", err)
 					}
 				default:
-					return Config{}, errutil.Chain(
-						ErrMalformedTerramateConfig,
-						fmt.Errorf("block type %q not supported", block.Type))
+					return Config{}, cfgErr("block type %q not supported", block.Type)
 				}
 
 			}
@@ -1069,16 +1010,13 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 		logger.Debug().Msg("Parsing stack cfg.")
 
 		if tmconfig.Stack != nil {
-			return Config{}, fmt.Errorf(
-				"%w: found stack blocks in multiple files, only one block allowed",
-				ErrMalformedTerramateConfig,
-			)
+			return Config{}, cfgErr("duplicated stack blocks across configs")
 		}
 
 		tmconfig.Stack = &Stack{}
 		err := parseStack(tmconfig.Stack, stackblock)
 		if err != nil {
-			return Config{}, err
+			return Config{}, cfgErr("parsing stack: %v", err)
 		}
 	}
 
