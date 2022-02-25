@@ -894,8 +894,6 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 
 		// A cast error here would be a severe programming error on Terramate
 		// side, so we are by design allowing the cast to panic
-		// This could be improved by using hcl.BodySchema or parsing using
-		// hclsimple (maybe). So there is space for simplifying cfg loading.
 		body := hclfile.Body.(*hclsyntax.Body)
 
 		logger.Trace().Msg("checking for attributes.")
