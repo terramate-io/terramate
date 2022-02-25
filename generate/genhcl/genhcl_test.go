@@ -140,6 +140,64 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 		},
 		{
+			name:  "generate hcl with only attributes on root body",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("attrs"),
+						content(
+							number("num", 666),
+							str("str", "hi"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "attrs",
+					hcl: genHCL{
+						origin: defaultCfg("/stack"),
+						body: hcldoc(
+							number("num", 666),
+							str("str", "hi"),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "generate hcl with attributes and blocks on root body",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("attrs"),
+						content(
+							number("num", 666),
+							block("test"),
+							str("str", "hi"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "attrs",
+					hcl: genHCL{
+						origin: defaultCfg("/stack"),
+						body: hcldoc(
+							number("num", 666),
+							str("str", "hi"),
+							block("test"),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "scope traversals of unknown namespaces are copied as is",
 			stack: "/stack",
 			configs: []hclconfig{
