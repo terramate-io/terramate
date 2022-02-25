@@ -159,7 +159,7 @@ func (s S) BuildTree(layout []string) {
 
 		cfgdir := filepath.Join(s.RootDir(), relpath)
 		test.MkdirAll(t, cfgdir)
-		cfg, err := hcl.NewConfig(cfgdir, "")
+		cfg, err := hcl.NewConfig(cfgdir)
 		assert.NoError(t, err)
 
 		cfg.Stack = &hcl.Stack{}
@@ -170,8 +170,6 @@ func (s S) BuildTree(layout []string) {
 			name := parts[0]
 			value := parts[1]
 			switch name {
-			case "version":
-				cfg.Terramate.RequiredVersion = value
 			case "after":
 				cfg.Stack.After = parseListSpec(t, name, value)
 			case "before":
@@ -266,6 +264,11 @@ func (s S) RootDir() string {
 	return s.rootdir
 }
 
+// RootEntry returns a DirEntry for the root directory of the test env.
+func (s S) RootEntry() DirEntry {
+	return s.DirEntry(".")
+}
+
 // CreateModule will create a module dir with the given relative path, returning
 // a directory entry that can be used to create files inside the module dir.
 func (s S) CreateModule(relpath string) DirEntry {
@@ -294,7 +297,7 @@ func (s S) CreateStack(relpath string) StackEntry {
 	}
 
 	stack := newStackEntry(t, s.RootDir(), relpath)
-	assert.NoError(t, terramate.Init(s.RootDir(), stack.Path(), false))
+	assert.NoError(t, terramate.Init(s.RootDir(), stack.Path()))
 	return stack
 }
 

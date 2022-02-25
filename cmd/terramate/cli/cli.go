@@ -89,8 +89,7 @@ type cliSpec struct {
 	Stacks struct {
 		Init struct {
 			StackDirs []string `arg:"" name:"paths" optional:"true" help:"the stack directory (current directory if not set)."`
-			Force     bool     `help:"force initialization."`
-		} `cmd:"" help:"Initialize a stack."`
+		} `cmd:"" help:"Initialize a stack, does nothing if stack already initialized."`
 
 		List struct {
 			Why bool `help:"Shows the reason why the stack has changed."`
@@ -197,10 +196,20 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 		Str("action", "newCli()").
 		Logger()
 
-	if ctx.Command() == "version" {
-		logger.Debug().
-			Msg("Get terramate version.")
+	switch ctx.Command() {
+	case "version":
+		logger.Debug().Msg("Get terramate version.")
 		fmt.Println(terramate.Version())
+		return &cli{exit: true}
+	case "install-completions":
+		logger.Debug().Msg("Handle `install-completions` command.")
+
+		err := parsedArgs.InstallCompletions.Run(ctx)
+		if err != nil {
+			log.Fatal().
+				Err(err).
+				Msg("installing shell completions.")
+		}
 		return &cli{exit: true}
 	}
 
@@ -292,6 +301,8 @@ func (c *cli) run() {
 		Str("workingDir", c.wd()).
 		Logger()
 
+	c.checkVersion()
+
 	if c.parsedArgs.Changed {
 		logger.Trace().Msg("`Changed` flag was set.")
 
@@ -371,15 +382,6 @@ func (c *cli) run() {
 		logger.Debug().
 			Msg("Handle `metadata` command.")
 		c.printMetadata()
-	case "install-completions":
-		logger.Debug().
-			Msg("Handle `install-completions` command.")
-		err := c.parsedArgs.InstallCompletions.Run(c.ctx)
-		if err != nil {
-			log.Fatal().
-				Err(err).
-				Msg("installing shell completions.")
-		}
 	default:
 		log.Fatal().
 			Msgf("unexpected command sequence: %s", c.ctx.Command())
@@ -407,7 +409,7 @@ func (c *cli) initStack(dirs []string) {
 			Str("stack", fmt.Sprintf("%s%s", c.wd(), strings.Trim(d, "."))).
 			Msg("Init stack.")
 
-		err := terramate.Init(c.root(), d, c.parsedArgs.Stacks.Init.Force)
+		err := terramate.Init(c.root(), d)
 		if err != nil {
 			c.logerr("warn: failed to initialize stack: %v", err)
 			errmsgs = append(errmsgs, err.Error())
@@ -920,6 +922,31 @@ func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Ent
 	return filtered
 }
 
+func (c cli) checkVersion() {
+	logger := log.With().
+		Str("action", "cli.checkVersion()").
+		Str("root", c.root()).
+		Logger()
+
+	logger.Trace().Msg("checking if terramate version satisfies project constraint")
+
+	rootcfg := c.prj.rootcfg
+
+	if rootcfg.Terramate == nil {
+		logger.Info().Msg("project root has no config, skipping version check")
+		return
+	}
+
+	if rootcfg.Terramate.RequiredVersion == "" {
+		logger.Info().Msg("project root config has no required_version, skipping version check")
+		return
+	}
+
+	if err := terramate.CheckVersion(rootcfg.Terramate.RequiredVersion); err != nil {
+		logger.Fatal().Err(err).Send()
+	}
+}
+
 func newGit(basedir string, checkrepo bool) (*git.Git, error) {
 	log.Debug().
 		Str("action", "newGit()").
@@ -954,19 +981,19 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 	gw, err := newGit(wd, false)
 	if err == nil {
-		logger.Trace().
-			Msg("Get root of git repo.")
+		logger.Trace().Msg("Get root of git repo.")
+
 		gitdir, err := gw.Root()
 		if err == nil {
-			logger.Trace().
-				Msg("Get absolute path of git directory.")
+			logger.Trace().Msg("Get absolute path of git directory.")
+
 			gitabs, err := filepath.Abs(gitdir)
 			if err != nil {
 				return project{}, false, fmt.Errorf("getting absolute path of %q: %w", gitdir, err)
 			}
 
-			logger.Trace().
-				Msg("Evaluate symbolic links.")
+			logger.Trace().Msg("Evaluate symbolic links.")
+
 			gitabs, err = filepath.EvalSymlinks(gitabs)
 			if err != nil {
 				return project{}, false, fmt.Errorf("failed evaluating symlinks of %q: %w",
@@ -975,9 +1002,9 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 			root := filepath.Dir(gitabs)
 
-			logger.Trace().
-				Msg("Load root config.")
-			cfg, _, err := config.TryLoadRootConfig(root)
+			logger.Trace().Msg("Load root config.")
+
+			cfg, err := hcl.ParseDir(root)
 			if err != nil {
 				return project{}, false, err
 			}
@@ -993,8 +1020,8 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 	dir := wd
 
 	for {
-		logger.Trace().
-			Msg("Load root config.")
+		logger.Trace().Msg("Load root config.")
+
 		cfg, ok, err := config.TryLoadRootConfig(dir)
 		if err != nil {
 			return project{}, false, err

@@ -22,9 +22,6 @@ import (
 const (
 	// DefaultFilename is the name of the default Terramate configuration file.
 	DefaultFilename = "terramate.tm.hcl"
-
-	// DefaultInitConstraint is the default constraint used in stack initialization.
-	DefaultInitConstraint = "~>"
 )
 
 func TryLoadRootConfig(dir string) (cfg hcl.Config, found bool, err error) {

@@ -20,7 +20,6 @@ import (
 	"os"
 	"path/filepath"
 
-	hclversion "github.com/hashicorp/go-version"
 	"github.com/rs/zerolog/log"
 
 	"github.com/mineiros-io/terramate/config"
@@ -28,25 +27,23 @@ import (
 	"github.com/mineiros-io/terramate/stack"
 )
 
-// Init initialize a stack. It's an error to initialize an already initialized
-// stack unless they are of same versions. In case the stack is initialized with
-// other terramate version, the force flag can be used to explicitly initialize
-// it anyway. The dir must be an absolute path.
-func Init(root, dir string, force bool) error {
+// Init initialize a stack. If the stack is already initialized it returns
+// with no error and no changes will be performed on the stack.
+func Init(root, dir string) error {
 	logger := log.With().
 		Str("action", "Init()").
 		Str("stack", dir).
 		Logger()
 
-	logger.Trace().
-		Msg("Check if directory is abs.")
+	logger.Trace().Msg("Check if directory is abs.")
+
 	if !filepath.IsAbs(dir) {
 		// TODO(i4k): this needs to go away soon.
 		return errors.New("init requires an absolute path")
 	}
 
-	logger.Trace().
-		Msg("Get directory info.")
+	logger.Trace().Msg("Get directory info.")
+
 	_, err := os.Stat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -56,8 +53,8 @@ func Init(root, dir string, force bool) error {
 		return fmt.Errorf("stat failed on %q: %w", dir, err)
 	}
 
-	logger.Trace().
-		Msg("Check if stack is leaf.")
+	logger.Trace().Msg("Check if stack is leaf.")
+
 	ok, err := stack.IsLeaf(root, dir)
 	if err != nil {
 		return err
@@ -67,8 +64,7 @@ func Init(root, dir string, force bool) error {
 		return fmt.Errorf("directory %q is not a leaf stack", dir)
 	}
 
-	logger.Trace().
-		Msg("Lookup parent stack.")
+	logger.Trace().Msg("Lookup parent stack.")
 	parentStack, found, err := stack.LookupParent(root, dir)
 	if err != nil {
 		return err
@@ -79,15 +75,6 @@ func Init(root, dir string, force bool) error {
 			dir, parentStack.PrjAbsPath())
 	}
 
-	logger.Trace().Msg("Get stack file.")
-
-	isInitialized := false
-
-	logger = log.With().
-		Str("action", "Init()").
-		Str("stack", dir).
-		Logger()
-
 	logger.Trace().Msg("Get stack info.")
 
 	parsedCfg, err := hcl.ParseDir(dir)
@@ -95,35 +82,18 @@ func Init(root, dir string, force bool) error {
 		return fmt.Errorf("checking config for stack %q: %w", dir, err)
 	}
 
-	isInitialized = parsedCfg.Stack != nil
+	if parsedCfg.Stack != nil {
+		logger.Debug().Msg("Stack already initialized, nothing to do")
+		return nil
+	}
 
-	if isInitialized && !force {
-		logger.Trace().Msg("Stack is initialized and not forced.")
-
-		logger.Trace().Msg("Checking version.")
-
-		if parsedCfg.Terramate == nil {
-			return fmt.Errorf("stack %q configuration has no 'terramate.required_version'", dir)
-		}
-
-		vconstraint := parsedCfg.Terramate.RequiredVersion
-
-		logger.Trace().Msg("Create new constraint from version.")
-
-		constraint, err := hclversion.NewConstraint(vconstraint)
-		if err != nil {
-			return fmt.Errorf("unable to check stack constraint: %w", err)
-		}
-
-		if !constraint.Check(tfversionObj) {
-			return fmt.Errorf("stack version constraint %q do not match terramate "+
-				"version %q", vconstraint, Version())
-		}
+	if !parsedCfg.IsEmpty() {
+		return errors.New("dir has terramate config with no stack defined, expected empty or a stack")
 	}
 
 	logger.Debug().Msg("Create new configuration.")
 
-	cfg, err := hcl.NewConfig(dir, DefaultVersionConstraint())
+	cfg, err := hcl.NewConfig(dir)
 	if err != nil {
 		return fmt.Errorf("failed to create new stack config: %w", err)
 	}
@@ -145,10 +115,4 @@ func Init(root, dir string, force bool) error {
 	}
 
 	return nil
-}
-
-// DefaultVersionConstraint is the default version constraint used by terramate
-// when generating tm files.
-func DefaultVersionConstraint() string {
-	return config.DefaultInitConstraint + " " + Version()
 }
