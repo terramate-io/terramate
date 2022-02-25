@@ -107,18 +107,14 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 		Str("workingDir", p.wd).
 		Logger()
 
+	logger.Debug().Msg("Set defaults.")
+
 	if p.rootcfg.Terramate == nil {
 		// if config has no terramate block we create one with default
 		// configurations.
-		logger.Trace().
-			Str("configFile", p.root+"/terramate.tm.hcl").
-			Msg("Create terramate block.")
 		p.rootcfg.Terramate = &hcl.Terramate{}
 	}
 
-	logger.Debug().
-		Str("configFile", p.root+"/terramate.tm.hcl").
-		Msg("Set defaults.")
 	cfg := &p.rootcfg
 	if cfg.Terramate.RootConfig == nil {
 		p.rootcfg.Terramate.RootConfig = &hcl.RootConfig{}
@@ -126,6 +122,7 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 	if cfg.Terramate.RootConfig.Git == nil {
 		cfg.Terramate.RootConfig.Git = &hcl.GitConfig{}
 	}
+
 	gitOpt := cfg.Terramate.RootConfig.Git
 
 	if gitOpt.DefaultBranchBaseRef == "" {
