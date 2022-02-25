@@ -103,9 +103,9 @@ func TestLocalsGeneration(t *testing.T) {
 			want: want{
 				stacksLocals: map[string]*hclwrite.Block{
 					"/stack": locals(
-						str("string_local", "string"),
-						number("number_local", 777),
 						boolean("bool_local", true),
+						number("number_local", 777),
+						str("string_local", "string"),
 					),
 				},
 			},
@@ -224,9 +224,9 @@ func TestLocalsGeneration(t *testing.T) {
 				stacksLocals: map[string]*hclwrite.Block{
 					"/stacks/stack": locals(
 						str("name_local", "stack"),
+						number("num_local", 666),
 						str("path_local", "/stacks/stack"),
 						str("str_local", "string"),
-						number("num_local", 666),
 					),
 				},
 			},
@@ -269,15 +269,15 @@ func TestLocalsGeneration(t *testing.T) {
 				stacksLocals: map[string]*hclwrite.Block{
 					"/stacks/stack-1": locals(
 						str("name_local", "stack-1"),
+						number("num_local", 666),
 						str("path_local", "/stacks/stack-1"),
 						str("str_local", "string"),
-						number("num_local", 666),
 					),
 					"/stacks/stack-2": locals(
 						str("name_local", "stack-2"),
+						number("num_local", 666),
 						str("path_local", "/stacks/stack-2"),
 						str("str_local", "string"),
-						number("num_local", 666),
 					),
 				},
 			},
@@ -323,8 +323,8 @@ func TestLocalsGeneration(t *testing.T) {
 						str("str_local", "string"),
 					),
 					"/stacks/stack-2": locals(
-						str("path_local", "/stacks/stack-2"),
 						number("num_local", 666),
+						str("path_local", "/stacks/stack-2"),
 					),
 				},
 			},

@@ -212,12 +212,12 @@ func TestLoadGeneratedHCL(t *testing.T) {
 						body: block("testblock",
 							boolean("bool", true),
 							number("number", 777),
-							str("string", "string"),
 							attr("obj", `{
 								bool   = true
 								number = 777
 								string = "string"
 							}`),
+							str("string", "string"),
 						),
 					},
 				},
@@ -455,12 +455,12 @@ func TestLoadGeneratedHCL(t *testing.T) {
 							block("block2",
 								number("number", 777),
 								block("block3",
-									str("string", "string"),
 									attr("obj", `{
-									bool   = true
-									number = 777
-									string = "string"
-								}`),
+										bool   = true
+										number = 777
+										string = "string"
+									}`),
+									str("string", "string"),
 								),
 							),
 						),

@@ -69,11 +69,11 @@ func TestHCLWrite(t *testing.T) {
 			),
 			want: `
 			  test {
+			    str    = "test"
+			    num    = 666
+			    bool   = true
 			    expr_a = local.name
 			    expr_b = local.name
-			    bool   = true
-			    num    = 666
-			    str    = "test"
 			  }
 			`,
 		},
@@ -86,9 +86,9 @@ func TestHCLWrite(t *testing.T) {
 			),
 			want: `
 			  test {
-			    list    = [1, 2, 3]
-			    nesting = { first = { second = { "hi": 666 } } }
 			    team    = { members = ["aaa"] }
+			    nesting = { first = { second = { "hi": 666 } } }
+			    list    = [1, 2, 3]
 			  }
 			`,
 		},
@@ -259,8 +259,8 @@ func TestHCLWrite(t *testing.T) {
 			    required_version = "~> 0.0.1"
 			  }
 			  stack {
-			    after  = ["/stack/c"]
 			    before = ["/stack/a", "/stack/b"]
+			    after  = ["/stack/c"]
 			  }
 			`,
 		},
