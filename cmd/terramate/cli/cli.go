@@ -52,7 +52,6 @@ const (
 const (
 	defaultRemote        = "origin"
 	defaultBranch        = "main"
-	defaultBaseRef       = defaultRemote + "/" + defaultBranch
 	defaultBranchBaseRef = "HEAD^"
 )
 
