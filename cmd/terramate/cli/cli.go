@@ -422,7 +422,38 @@ func (c *cli) initStack(dirs []string) {
 	}
 }
 
-func (c *cli) listStacks(mgr *terramate.Manager, isChanged bool) ([]terramate.Entry, error) {
+func (c *cli) gitSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
+	logger := log.With().
+		Str("action", "gitSafeguards()").
+		Logger()
+
+	if len(checks.UntrackedFiles) > 0 {
+		if shouldAbort {
+			logger.Fatal().
+				Strs("files", checks.UntrackedFiles).
+				Msg("repository has untracked files")
+		} else {
+			logger.Warn().
+				Strs("files", checks.UntrackedFiles).
+				Msg("repository has untracked files")
+		}
+
+	}
+
+	if len(checks.UncommittedFiles) > 0 {
+		if shouldAbort {
+			logger.Fatal().
+				Strs("files", checks.UncommittedFiles).
+				Msg("repository has uncommitted files")
+		} else {
+			logger.Warn().
+				Strs("files", checks.UncommittedFiles).
+				Msg("repository has uncommitted files")
+		}
+	}
+}
+
+func (c *cli) listStacks(mgr *terramate.Manager, isChanged bool) (*terramate.StacksReport, error) {
 	if isChanged {
 		log.Trace().
 			Str("action", "listStacks()").
@@ -446,17 +477,20 @@ func (c *cli) printStacks() {
 	logger.Trace().
 		Str("workingDir", c.wd()).
 		Msg("Get stack list.")
-	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
-	if err != nil && !errors.Is(err, terramate.ErrDirtyRepo) {
+	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
+	if err != nil {
 		logger.Fatal().
 			Err(err).
 			Msg("listing stacks")
 	}
 
+	c.gitSafeguards(report.Checks, false)
+
 	logger.Trace().
 		Str("workingDir", c.wd()).
 		Msg("Print stacks.")
-	for _, entry := range entries {
+
+	for _, entry := range report.Stacks {
 		stack := entry.Stack
 		stackRepr, ok := c.friendlyFmtDir(stack.PrjAbsPath())
 		if !ok {
@@ -483,30 +517,31 @@ func (c *cli) generateGraph() {
 		Str("workingDir", c.wd()).
 		Logger()
 
-	logger.Trace().
-		Msg("Handle graph label command line argument.")
+	logger.Trace().Msg("Handle graph label command line argument.")
+
 	switch c.parsedArgs.Plan.Graph.Label {
 	case "stack.name":
-		logger.Debug().
-			Msg("Set label to stack name.")
+		logger.Debug().Msg("Set label to stack name.")
+
 		getLabel = func(s stack.S) string { return s.Name() }
 	case "stack.dir":
-		logger.Debug().
-			Msg("Set label stack directory.")
+		logger.Debug().Msg("Set label stack directory.")
+
 		getLabel = func(s stack.S) string { return s.PrjAbsPath() }
 	default:
 		logger.Fatal().
 			Msg("-label expects the values \"stack.name\" or \"stack.dir\"")
 	}
+
 	entries, err := terramate.ListStacks(c.root())
-	if err != nil && !errors.Is(err, terramate.ErrDirtyRepo) {
+	if err != nil {
 		logger.Fatal().
 			Err(err).
 			Msg("listing stacks.")
 	}
 
-	logger.Debug().
-		Msg("Create new graph.")
+	logger.Debug().Msg("Create new graph.")
+
 	loader := stack.NewLoader(c.root())
 	dotGraph := dot.NewGraph(dot.Directed)
 	graph := dag.New()
@@ -652,14 +687,14 @@ func (c *cli) printStacksGlobals() {
 		Msg("Create new terramate manager.")
 
 	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
-	stackEntries, err := c.listStacks(mgr, c.parsedArgs.Changed)
-	if err != nil && !errors.Is(err, terramate.ErrDirtyRepo) {
+	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
+	if err != nil {
 		logger.Fatal().
 			Err(err).
 			Msg("listing stacks")
 	}
 
-	for _, stackEntry := range c.filterStacksByWorkingDir(stackEntries) {
+	for _, stackEntry := range c.filterStacksByWorkingDir(report.Stacks) {
 		stack := stackEntry.Stack
 		stackMeta := stack.Meta()
 		globals, err := terramate.LoadStackGlobals(c.root(), stackMeta)
@@ -691,14 +726,14 @@ func (c *cli) printMetadata() {
 		Msg("Create new terramate manager.")
 
 	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
-	stackEntries, err := c.listStacks(mgr, c.parsedArgs.Changed)
-	if err != nil && !errors.Is(err, terramate.ErrDirtyRepo) {
+	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
+	if err != nil {
 		logger.Fatal().
 			Err(err).
 			Msg("listing stacks")
 	}
 
-	stackEntries = c.filterStacksByWorkingDir(stackEntries)
+	stackEntries := c.filterStacksByWorkingDir(report.Stacks)
 
 	if len(stackEntries) == 0 {
 		return
@@ -868,19 +903,16 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) ([]stack.S, error) {
 
 	logger.Trace().Msg("Get list of stacks.")
 
-	entries, err := c.listStacks(mgr, c.parsedArgs.Changed)
+	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
-		if ensureCleanRepo {
-			return nil, err
-		}
-		if !errors.Is(err, terramate.ErrDirtyRepo) {
-			return nil, err
-		}
+		return nil, err
 	}
+
+	c.gitSafeguards(report.Checks, ensureCleanRepo)
 
 	logger.Trace().Msg("Filter stacks by working directory.")
 
-	entries = c.filterStacksByWorkingDir(entries)
+	entries := c.filterStacksByWorkingDir(report.Stacks)
 
 	stacks := make([]stack.S, len(entries))
 	for i, e := range entries {

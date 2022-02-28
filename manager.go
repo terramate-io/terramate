@@ -15,7 +15,6 @@
 package terramate
 
 import (
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -23,15 +22,12 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate/git"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 )
-
-const ErrDirtyRepo errutil.Error = "the repository is not clean"
 
 type (
 	// Manager is the terramate stacks manager.
@@ -40,6 +36,21 @@ type (
 		gitBaseRef string // gitBaseRef is the git ref where we compare changes.
 
 		stackLoader stack.Loader
+	}
+
+	// StacksReport is the report of project's stacks and the result of its
+	// default checks.
+	StacksReport struct {
+		Stacks []Entry
+
+		// Checks contains the result info of default checks.
+		Checks RepoChecks
+	}
+
+	// RepoChecks contains the info of default checks.
+	RepoChecks struct {
+		UncommittedFiles []string
+		UntrackedFiles   []string
 	}
 
 	// Entry is a stack entry result.
@@ -61,7 +72,7 @@ func NewManager(rootdir string, gitBaseRef string) *Manager {
 
 // List walks the basedir directory looking for terraform stacks.
 // It returns a lexicographic sorted list of stack directories.
-func (m *Manager) List() ([]Entry, error) {
+func (m *Manager) List() (*StacksReport, error) {
 	logger := log.With().
 		Str("action", "Manager.List()").
 		Logger()
@@ -71,6 +82,10 @@ func (m *Manager) List() ([]Entry, error) {
 	entries, err := ListStacks(m.root)
 	if err != nil {
 		return nil, err
+	}
+
+	report := &StacksReport{
+		Stacks: entries,
 	}
 
 	logger.Trace().Str("repo", m.root).Msg("Create git wrapper for repo.")
@@ -84,15 +99,15 @@ func (m *Manager) List() ([]Entry, error) {
 
 	logger.Trace().Msg("Check if path is git repo.")
 	if !g.IsRepository() {
-		return entries, nil
+		return report, nil
 	}
 
-	err = checkRepoIsClean(g)
-	if err == nil || errors.Is(err, ErrDirtyRepo) {
-		return entries, err
+	report.Checks, err = checkRepoIsClean(g)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, err
+	return report, nil
 }
 
 // ListChanged lists the stacks that have changed on the current branch,
@@ -100,13 +115,34 @@ func (m *Manager) List() ([]Entry, error) {
 // system in place and that you are working on a branch that is not main.
 // It's an error to call this method in a directory that's not
 // inside a repository or a repository with no commits in it.
-func (m *Manager) ListChanged() ([]Entry, error) {
+func (m *Manager) ListChanged() (*StacksReport, error) {
 	logger := log.With().
 		Str("action", "ListChanged()").
 		Logger()
 
-	logger.Debug().
-		Msg("List changed files.")
+	logger.Trace().Msg("Create git wrapper on project root.")
+
+	g, err := git.WithConfig(git.Config{
+		WorkingDir: m.root,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Trace().Msg("Check if path is git repo.")
+
+	if !g.IsRepository() {
+		return nil, fmt.Errorf("the path \"%s\" is not a git repository", m.root)
+	}
+
+	checks, err := checkRepoIsClean(g)
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Debug().Msg("List changed files.")
+
 	files, err := listChangedFiles(m.root, m.gitBaseRef)
 	if err != nil {
 		return nil, err
@@ -153,15 +189,15 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 		}
 	}
 
-	logger.Debug().
-		Msg("Get list of all stacks.")
-	allstacks, err := m.List()
+	logger.Debug().Msg("Get list of all stacks.")
+
+	allstacks, err := ListStacks(m.root)
 	if err != nil {
 		return nil, fmt.Errorf("searching for stacks: %v", err)
 	}
 
-	logger.Trace().
-		Msg("Range over all stacks.")
+	logger.Trace().Msg("Range over all stacks.")
+
 	for _, stackEntry := range allstacks {
 		stack := stackEntry.Stack
 		if _, ok := stackSet[stack.PrjAbsPath()]; ok {
@@ -232,19 +268,21 @@ func (m *Manager) ListChanged() ([]Entry, error) {
 		}
 	}
 
-	logger.Trace().
-		Msg("Make set of changed stacks.")
+	logger.Trace().Msg("Make set of changed stacks.")
 
 	changedStacks := make([]Entry, 0, len(stackSet))
 	for _, stack := range stackSet {
 		changedStacks = append(changedStacks, stack)
 	}
 
-	logger.Trace().
-		Msg("Sort changed stacks.")
+	logger.Trace().Msg("Sort changed stacks.")
 
 	sort.Sort(EntrySlice(changedStacks))
-	return changedStacks, nil
+
+	return &StacksReport{
+		Checks: checks,
+		Stacks: changedStacks,
+	}, nil
 }
 
 func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) error {
@@ -445,35 +483,24 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 		Str("path", dir).
 		Logger()
 
-	logger.Trace().
-		Msg("Get dir info.")
+	logger.Trace().Msg("Get dir info.")
+
 	st, err := os.Stat(dir)
 	if err != nil {
 		return nil, fmt.Errorf("stat failed on %q: %w", dir, err)
 	}
 
-	logger.Trace().
-		Msg("Check if path is dir.")
+	logger.Trace().Msg("Check if path is dir.")
+
 	if !st.IsDir() {
 		return nil, fmt.Errorf("is not a directory")
 	}
 
-	logger.Trace().
-		Msg("Create git wrapper with dir.")
+	logger.Trace().Msg("Create git wrapper with dir.")
+
 	g, err := git.WithConfig(git.Config{
 		WorkingDir: dir,
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	logger.Trace().
-		Msg("Check if path is git repo.")
-	if !g.IsRepository() {
-		return nil, fmt.Errorf("the path \"%s\" is not a git repository", dir)
-	}
-
-	err = checkRepoIsClean(g)
 	if err != nil {
 		return nil, err
 	}
@@ -511,42 +538,29 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 	return g.DiffNames(baseRef, headRef)
 }
 
-func checkRepoIsClean(g *git.Git) error {
+func checkRepoIsClean(g *git.Git) (RepoChecks, error) {
 	logger := log.With().
 		Str("action", "checkRepoIsClean()").
 		Logger()
 
-	logger.Debug().
-		Msg("Get list of untracked files.")
+	logger.Debug().Msg("Get list of untracked files.")
+
 	untracked, err := g.ListUntracked()
 	if err != nil {
-		return fmt.Errorf("listing untracked files: %v", err)
+		return RepoChecks{}, fmt.Errorf("listing untracked files: %v", err)
 	}
 
-	logger.Debug().
-		Msg("Get list of uncommitted files in dir.")
+	logger.Debug().Msg("Get list of uncommitted files in dir.")
+
 	uncommitted, err := g.ListUncommitted()
 	if err != nil {
-		return fmt.Errorf("listing uncommitted files: %v", err)
+		return RepoChecks{}, fmt.Errorf("listing uncommitted files: %v", err)
 	}
 
-	if len(untracked) > 0 {
-		logger.Warn().
-			Strs("files", untracked).
-			Msg("repository has untracked files")
-	}
-
-	if len(uncommitted) > 0 {
-		log.Warn().
-			Strs("files", uncommitted).
-			Msg("repository has uncommitted files")
-	}
-
-	if len(uncommitted)+len(untracked) > 0 {
-		return ErrDirtyRepo
-	}
-
-	return nil
+	return RepoChecks{
+		UntrackedFiles:   untracked,
+		UncommittedFiles: uncommitted,
+	}, nil
 }
 
 // EntrySlice implements the Sort interface.
