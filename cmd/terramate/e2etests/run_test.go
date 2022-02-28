@@ -741,7 +741,7 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 	), runExpected{Stdout: wantRun})
 }
 
-func TestRunFailIfDirtyRepo(t *testing.T) {
+func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 	const (
 		mainTfFileName = "main.tf"
 		mainTfContents = "# some code"
@@ -757,11 +757,12 @@ func TestRunFailIfDirtyRepo(t *testing.T) {
 	git.Push("main")
 	git.CheckoutNew("change-stack")
 
-	untracked := stack.CreateFile("untracked-file.txt", `# something`)
+	stack.CreateFile("untracked-file.txt", `# something`)
 
 	cli := newCLI(t, s.RootDir())
 	cat := test.LookPath(t, "cat")
 
+	// check untracked with --changed
 	assertRunResult(t, cli.run(
 		"run",
 		"--changed",
@@ -772,6 +773,7 @@ func TestRunFailIfDirtyRepo(t *testing.T) {
 		StderrRegex: "repository has untracked files",
 	})
 
+	// check untracked *without* --changed
 	assertRunResult(t, cli.run(
 		"run",
 		cat,
@@ -781,21 +783,72 @@ func TestRunFailIfDirtyRepo(t *testing.T) {
 		StderrRegex: "repository has untracked files",
 	})
 
-	git.Add(untracked.Path())
-	git.Commit("commit untracked")
+	// disabling the check must work for both with and without --changed
+	assertRun(t, cli.run(
+		"run",
+		"--changed",
+		"--disable-check-git-untracked",
+		cat,
+		mainTfFileName,
+	))
+
+	assertRunResult(t, cli.run(
+		"run",
+		"--disable-check-git-untracked",
+		cat,
+		mainTfFileName,
+	), runExpected{
+		Stdout: mainTfContents,
+	})
+}
+
+func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
+	const (
+		mainTfFileName        = "main.tf"
+		mainTfInitialContents = "# some code"
+		mainTfAlteredContents = "# other code"
+	)
+
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack")
+	file := stack.CreateFile(mainTfFileName, mainTfInitialContents)
+
+	git := s.Git()
+	git.CommitAll("first commit")
+
+	cli := newCLI(t, s.RootDir())
+	cat := test.LookPath(t, "cat")
 
 	// everything commited, repo is clean
 	assertRunResult(t, cli.run(
 		"run",
+		cat,
+		mainTfFileName,
+	), runExpected{Stdout: mainTfInitialContents})
+
+	assertRunResult(t, cli.run(
+		"run",
 		"--changed",
 		cat,
 		mainTfFileName,
-	), runExpected{Stdout: mainTfContents})
+	), runExpected{Stdout: mainTfInitialContents})
 
-	// change file, no commit
-	untracked.Write("# changed")
+	// make it uncommitted
+	file.Write(mainTfAlteredContents)
+
 	assertRunResult(t, cli.run(
 		"run",
+		cat,
+		mainTfFileName,
+	), runExpected{
+		Status:      defaultErrExitStatus,
+		StderrRegex: "repository has uncommitted files",
+	})
+
+	assertRunResult(t, cli.run(
+		"run",
+		"--changed",
 		cat,
 		mainTfFileName,
 	), runExpected{
