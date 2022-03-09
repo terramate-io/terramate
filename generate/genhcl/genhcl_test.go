@@ -1123,10 +1123,24 @@ func TestPartialEval(t *testing.T) {
 
 	tcases := []testcase{
 		{
-			name:   "referencing locals",
-			config: expr("localref", "local.ref"),
+			name: "unknown simple references",
+			config: hcldoc(
+				expr("count", "count.index"),
+				expr("data", "data.ref"),
+				expr("local", "local.ref"),
+				expr("module", "module.ref"),
+				expr("path", "path.ref"),
+				expr("resource", "resource.name.etc"),
+				expr("terraform", "terraform.ref"),
+			),
 			want: hcldoc(
-				expr("localref", "local.ref"),
+				expr("count", "count.index"),
+				expr("data", "data.ref"),
+				expr("local", "local.ref"),
+				expr("module", "module.ref"),
+				expr("path", "path.ref"),
+				expr("resource", "resource.name.etc"),
+				expr("terraform", "terraform.ref"),
 			),
 		},
 	}
