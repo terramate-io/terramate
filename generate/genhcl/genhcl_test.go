@@ -1168,6 +1168,36 @@ func TestPartialEval(t *testing.T) {
 				 }`),
 			),
 		},
+		{
+			name: "mixed references on same object",
+			config: hcldoc(
+				globals(
+					number("ref", 666),
+				),
+				expr("obj", `{
+					local     = local.ref,
+					global    = global.ref,
+				 }`),
+			),
+			want: hcldoc(
+				expr("obj", `{
+					local   = local.ref,
+					global  = 666,
+				 }`),
+			),
+		},
+		{
+			name: "mixed references on list",
+			config: hcldoc(
+				globals(
+					number("ref", 666),
+				),
+				expr("list", `[ local.ref, global.ref ]`),
+			),
+			want: hcldoc(
+				expr("list", `[ local.ref, 666 ]`),
+			),
+		},
 	}
 
 	for _, tcase := range tcases {
