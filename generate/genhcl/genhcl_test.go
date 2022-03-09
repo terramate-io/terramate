@@ -1123,7 +1123,7 @@ func TestPartialEval(t *testing.T) {
 
 	tcases := []testcase{
 		{
-			name: "unknown simple references",
+			name: "terraform simple references on attributes",
 			config: hcldoc(
 				expr("count", "count.index"),
 				expr("data", "data.ref"),
@@ -1141,6 +1141,31 @@ func TestPartialEval(t *testing.T) {
 				expr("path", "path.ref"),
 				expr("resource", "resource.name.etc"),
 				expr("terraform", "terraform.ref"),
+			),
+		},
+		{
+			name: "terraform simple references on object",
+			config: hcldoc(
+				expr("obj", `{
+					count     = count.index,
+					data      = data.ref,
+					local     = local.ref,
+					module    = module.ref,
+					path      = path.ref,
+					resource  = resource.name.etc,
+					terraform = terraform.ref,
+				 }`),
+			),
+			want: hcldoc(
+				expr("obj", `{
+					count     = count.index,
+					data      = data.ref,
+					local     = local.ref,
+					module    = module.ref,
+					path      = path.ref,
+					resource  = resource.name.etc,
+					terraform = terraform.ref,
+				 }`),
 			),
 		},
 	}
