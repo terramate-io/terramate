@@ -1134,6 +1134,46 @@ func TestLoadGeneratedHCL(t *testing.T) {
 	}
 }
 
+func TestPartialEval(t *testing.T) {
+	// These tests simplify the overall setup/description and focus only
+	// on how code will be partially evaluated.
+	// No support for multiple config files or generating multiple
+	// configurations.
+	type testcase struct {
+		name    string
+		config  fmt.Stringer
+		want    fmt.Stringer
+		wantErr error
+	}
+
+	tcases := []testcase{}
+
+	for _, tcase := range tcases {
+		t.Run(tcase.name, func(t *testing.T) {
+			s := sandbox.New(t)
+			stackEntry := s.CreateStack("stack")
+			stack := stackEntry.Load()
+			path := filepath.Join(s.RootDir(), "stack")
+			test.AppendFile(t, path, config.DefaultFilename, tcase.config.String())
+
+			meta := stack.Meta()
+			globals := s.LoadStackGlobals(meta)
+			res, err := genhcl.Load(s.RootDir(), meta, globals)
+			assert.IsError(t, err, tcase.wantErr)
+
+			got := res.GeneratedHCLs()
+
+			assert.EqualInts(t, len(got), 1, "want single generated HCL")
+
+			for _, gothcl := range got {
+				gotcode := gothcl.String()
+				wantcode := tcase.want.String()
+				assertHCLEquals(t, gotcode, wantcode)
+			}
+		})
+	}
+}
+
 func assertHCLEquals(t *testing.T, got string, want string) {
 	t.Helper()
 
