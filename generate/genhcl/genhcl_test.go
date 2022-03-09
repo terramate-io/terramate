@@ -1116,20 +1116,38 @@ func TestPartialEval(t *testing.T) {
 	// configurations.
 	type testcase struct {
 		name    string
-		config  fmt.Stringer
+		config  hclwrite.BlockBuilder
 		want    fmt.Stringer
 		wantErr error
 	}
 
-	tcases := []testcase{}
+	tcases := []testcase{
+		{
+			name:   "referencing locals",
+			config: expr("localref", "local.ref"),
+			want: hcldoc(
+				expr("localref", "local.ref"),
+			),
+		},
+	}
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
+			const (
+				stackname = "stack"
+				genname   = "test"
+			)
 			s := sandbox.New(t)
-			stackEntry := s.CreateStack("stack")
+			stackEntry := s.CreateStack(stackname)
 			stack := stackEntry.Load()
-			path := filepath.Join(s.RootDir(), "stack")
-			test.AppendFile(t, path, config.DefaultFilename, tcase.config.String())
+			path := filepath.Join(s.RootDir(), stackname)
+			cfg := generateHCL(
+				labels(genname),
+				content(
+					tcase.config,
+				),
+			)
+			test.AppendFile(t, path, config.DefaultFilename, cfg.String())
 
 			meta := stack.Meta()
 			globals := s.LoadStackGlobals(meta)
@@ -1140,11 +1158,10 @@ func TestPartialEval(t *testing.T) {
 
 			assert.EqualInts(t, len(got), 1, "want single generated HCL")
 
-			for _, gothcl := range got {
-				gotcode := gothcl.String()
-				wantcode := tcase.want.String()
-				assertHCLEquals(t, gotcode, wantcode)
-			}
+			gothcl := got[genname]
+			gotcode := gothcl.String()
+			wantcode := tcase.want.String()
+			assertHCLEquals(t, gotcode, wantcode)
 		})
 	}
 }
