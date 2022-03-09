@@ -54,35 +54,10 @@ func TestLoadGeneratedHCL(t *testing.T) {
 		}
 	)
 
-	hcldoc := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildHCL(builders...)
-	}
-	generateHCL := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("generate_hcl", builders...)
-	}
-	block := func(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock(name, builders...)
-	}
-	terraform := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("terraform", builders...)
-	}
-	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("globals", builders...)
-	}
-	content := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("content", builders...)
-	}
 	attr := func(name, expr string) hclwrite.BlockBuilder {
 		t.Helper()
 		return hclwrite.AttributeValue(t, name, expr)
 	}
-	labels := func(labels ...string) hclwrite.BlockBuilder {
-		return hclwrite.Labels(labels...)
-	}
-	expr := hclwrite.Expression
-	str := hclwrite.String
-	number := hclwrite.NumberInt
-	boolean := hclwrite.Boolean
 
 	defaultCfg := func(dir string) string {
 		return filepath.Join(dir, config.DefaultFilename)
