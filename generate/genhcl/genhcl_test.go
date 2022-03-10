@@ -1123,7 +1123,7 @@ func TestPartialEval(t *testing.T) {
 
 	tcases := []testcase{
 		{
-			name: "terraform simple references on attributes",
+			name: "unknown references on attributes",
 			config: hcldoc(
 				expr("count", "count.index"),
 				expr("data", "data.ref"),
@@ -1144,7 +1144,7 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			name: "terraform simple references on object",
+			name: "unknown references on object",
 			config: hcldoc(
 				expr("obj", `{
 					count     = count.index,
@@ -1196,6 +1196,39 @@ func TestPartialEval(t *testing.T) {
 			),
 			want: hcldoc(
 				expr("list", `[ local.ref, 666 ]`),
+			),
+		},
+		{
+			name: "try with unknown reference on attribute is not evaluated",
+			config: hcldoc(
+				expr("attr", "try(something.val, null)"),
+			),
+			want: hcldoc(
+				expr("attr", "try(something.val, null)"),
+			),
+		},
+		{
+			name: "try with unknown reference on list is not evaluated",
+			config: hcldoc(
+				expr("list", "[try(something.val, null), 1]"),
+			),
+			want: hcldoc(
+				expr("list", "[try(something.val, null), 1]"),
+			),
+		},
+		{
+			name: "try with unknown reference on object is not evaluated",
+			config: hcldoc(
+				expr("obj", `{
+					a = try(something.val, null),	
+					b = "val",
+				}`),
+			),
+			want: hcldoc(
+				expr("obj", `{
+					a = try(something.val, null),	
+					b = "val",
+				}`),
 			),
 		},
 	}
