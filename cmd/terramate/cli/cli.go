@@ -759,19 +759,10 @@ func (c *cli) printMetadata() {
 	}
 }
 
-func (c *cli) runOnStacks() {
+func (c *cli) checkOutdatedGeneratedCode(stacks []stack.S) {
 	logger := log.With().
-		Str("action", "runOnStacks()").
-		Str("workingDir", c.wd()).
+		Str("action", "checkOutdatedGeneratedCode()").
 		Logger()
-
-	stacks, err := c.computeSelectedStacks(true)
-	if err != nil {
-		logger.Fatal().
-			Err(err).
-			Msgf("computing selected stacks")
-	}
-
 	logger.Trace().Msg("Checking if any stack has outdated code.")
 
 	hasOutdated := false
@@ -803,6 +794,22 @@ func (c *cli) runOnStacks() {
 			Err(ErrOutdatedGenCodeDetected).
 			Msg("please run: 'terramate generate' to update generated code")
 	}
+}
+
+func (c *cli) runOnStacks() {
+	logger := log.With().
+		Str("action", "runOnStacks()").
+		Str("workingDir", c.wd()).
+		Logger()
+
+	stacks, err := c.computeSelectedStacks(true)
+	if err != nil {
+		logger.Fatal().
+			Err(err).
+			Msgf("computing selected stacks")
+	}
+
+	c.checkOutdatedGeneratedCode(stacks)
 
 	logger.Trace().Msg("Get order of stacks to run command on.")
 
