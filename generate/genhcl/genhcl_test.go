@@ -58,7 +58,6 @@ func TestLoadGeneratedHCL(t *testing.T) {
 		t.Helper()
 		return hclwrite.AttributeValue(t, name, expr)
 	}
-
 	defaultCfg := func(dir string) string {
 		return filepath.Join(dir, config.DefaultFilename)
 	}
@@ -1121,6 +1120,11 @@ func TestPartialEval(t *testing.T) {
 		wantErr error
 	}
 
+	attr := func(name, expr string) hclwrite.BlockBuilder {
+		t.Helper()
+		return hclwrite.AttributeValue(t, name, expr)
+	}
+
 	tcases := []testcase{
 		{
 			name: "unknown references on attributes",
@@ -1228,6 +1232,36 @@ func TestPartialEval(t *testing.T) {
 				expr("obj", `{
 					a = try(something.val, null),	
 					b = "val",
+				}`),
+			),
+		},
+		{
+			name: "function call on attr with mixed references is partially evaluated",
+			config: hcldoc(
+				globals(
+					attr("list", "[1, 2, 3]"),
+				),
+				expr("a", "merge(something.val, global.list)"),
+				expr("b", "merge(global.list, local.list)"),
+			),
+			want: hcldoc(
+				expr("a", "merge(something.val, [1, 2, 3])"),
+				expr("b", "merge([1, 2, 3], local.list)"),
+			),
+		},
+		{
+			name: "function call on obj with mixed references is partially evaluated",
+			config: hcldoc(
+				globals(
+					attr("list", "[1, 2, 3]"),
+				),
+				expr("obj", `{
+					a = merge(something.val, global.list)
+				}`),
+			),
+			want: hcldoc(
+				expr("obj", `{
+					a = merge(something.val, [1, 2, 3])
 				}`),
 			),
 		},
