@@ -571,13 +571,6 @@ func interpTokenStart() *hclwrite.Token {
 	}
 }
 
-func interpTokenEnd() *hclwrite.Token {
-	return &hclwrite.Token{
-		Type:  hclsyntax.TokenTemplateSeqEnd,
-		Bytes: []byte("}"),
-	}
-}
-
 func countVarParts(tokens hclwrite.Tokens) int {
 	count := 0
 	for i := 0; i < len(tokens); i++ {
