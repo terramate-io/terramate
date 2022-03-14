@@ -365,21 +365,20 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context)
 
 		logger.Trace().Msg("evaluating.")
 
-		b, err := ioutil.ReadFile(attr.SrcRange.Filename)
+		attrFname := attr.SrcRange.Filename
+		filedata, err := ioutil.ReadFile(attrFname)
 		if err != nil {
 			return err
 		}
 
-		exprContent := b[attr.Expr.Range().Start.Byte:attr.Expr.Range().End.Byte]
-		stokens, diags := hclsyntax.LexExpression(exprContent, attr.SrcRange.Filename, hcl.Pos{})
-
+		exprRange := attr.Expr.Range()
+		exprBytes := filedata[exprRange.Start.Byte:exprRange.End.Byte]
+		stokens, diags := hclsyntax.LexExpression(exprBytes, attrFname, hcl.Pos{})
 		if diags.HasErrors() {
 			return diags
 		}
 
-		tokens := toWriteTokens(stokens)
-
-		tokens, err = eval.Partial(attr.SrcRange.Filename, tokens, evalctx)
+		tokens, err := eval.Partial(attrFname, toWriteTokens(stokens), evalctx)
 		if err != nil {
 			return err
 		}
