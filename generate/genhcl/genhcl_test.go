@@ -246,9 +246,9 @@ func TestLoadGeneratedHCL(t *testing.T) {
 							boolean("bool", true),
 							number("number", 777),
 							attr("obj", `{
-								bool   = true
-								number = 777
 								string = "string"
+								number = 777
+								bool   = true
 							}`),
 							str("string", "string"),
 						),

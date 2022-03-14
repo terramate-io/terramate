@@ -607,11 +607,11 @@ func generateBackendCfgCode(
 	backendBlock := tfBody.AppendNewBlock(parsed.Backend.Type, parsed.Backend.Labels)
 	backendBody := backendBlock.Body()
 
-	if err := hcl.CopyBody(backendBody, parsed.Backend.Body, evalctx); err != nil {
+	if err := hcl.CopyBody(stackpath, backendBody, parsed.Backend.Body, evalctx); err != nil {
 		return "", err
 	}
 
-	return prependHeader(string(gen.Bytes())), nil
+	return prependHeader(string(hclwrite.Format(gen.Bytes()))), nil
 }
 
 func prependHeader(code string) string {

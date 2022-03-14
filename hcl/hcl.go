@@ -17,6 +17,7 @@ package hcl
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -226,31 +227,6 @@ func ParseModules(path string) ([]Module, error) {
 	return modules, nil
 }
 
-// ParseBody parses HCL and return the parsed body.
-func ParseBody(src []byte, filename string) (*hclsyntax.Body, error) {
-	logger := log.With().
-		Str("action", "ParseBody()").
-		Logger()
-
-	logger.Trace().
-		Str("path", filename).
-		Msg("Parse file.")
-	parser := hclparse.NewParser()
-	f, diags := parser.ParseHCL(src, filename)
-	if diags.HasErrors() {
-		return nil, errutil.Chain(
-			ErrHCLSyntax,
-			fmt.Errorf("parsing modules: %w", diags),
-		)
-	}
-
-	body, ok := f.Body.(*hclsyntax.Body)
-	if !ok {
-		return nil, fmt.Errorf("expected to parse body, got[%v] type[%[1]T]", f.Body)
-	}
-	return body, nil
-}
-
 // ParseDir will parse Terramate configuration from a given directory,
 // parsing all files with the suffixes .tm and .tm.hcl.
 // Note: it does not recurse into child directories.
@@ -372,7 +348,7 @@ func ParseGenerateHCLBlocks(dir string) (HCLBlocks, error) {
 // as is (original expression form, no evaluation).
 //
 // Returns an error if the evaluation fails.
-func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context) error {
+func CopyBody(stackpath string, target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context) error {
 	logger := log.With().
 		Str("action", "CopyBody()").
 		Logger()
@@ -389,7 +365,26 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context)
 
 		logger.Trace().Msg("evaluating.")
 
-		val, err := evalctx.Eval(attr.Expr)
+		b, err := ioutil.ReadFile(attr.SrcRange.Filename)
+		if err != nil {
+			return err
+		}
+
+		exprContent := b[attr.Expr.Range().Start.Byte:attr.Expr.Range().End.Byte]
+		stokens, diags := hclsyntax.LexExpression(exprContent, attr.SrcRange.Filename, hcl.Pos{})
+
+		if diags.HasErrors() {
+			return diags
+		}
+
+		tokens := ToWriteTokens(stokens)
+
+		tokens, err = PartialEval(attr.SrcRange.Filename, tokens, evalctx)
+		if err != nil {
+			return err
+		}
+
+		/*val, err := evalctx.Eval(attr.Expr)
 		if err != nil {
 			logger.Trace().Msg("evaluation failed, checking if is unknown scope traversal.")
 
@@ -401,13 +396,13 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context)
 			}
 
 			return fmt.Errorf("parsing attribute %q: %v", attr.Name, err)
-		}
+		}*/
 
 		logger.Trace().
 			Str("attribute", attr.Name).
 			Msg("Setting evaluated attribute.")
 
-		target.SetAttributeValue(attr.Name, val)
+		target.SetAttributeRaw(attr.Name, tokens)
 	}
 
 	logger.Trace().Msg("Append blocks.")
@@ -417,7 +412,7 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context)
 		if block.Body == nil {
 			continue
 		}
-		if err := CopyBody(targetBlock.Body(), block.Body, evalctx); err != nil {
+		if err := CopyBody(stackpath, targetBlock.Body(), block.Body, evalctx); err != nil {
 			return err
 		}
 	}
@@ -425,25 +420,310 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context)
 	return nil
 }
 
-func getUnknownScopeTraversal(expr hclsyntax.Expression, evalctx *eval.Context) (*hclsyntax.ScopeTraversalExpr, bool) {
-	logger := log.With().
-		Str("action", "hcl.getUnknownScopeTraversal").
-		Logger()
-
-	scopeTraversal, ok := expr.(*hclsyntax.ScopeTraversalExpr)
-	if !ok {
-		logger.Trace().Msg("expression is not a scope traversal")
-		return nil, false
-	}
-
-	for _, varTraversal := range hclsyntax.Variables(scopeTraversal) {
-		if evalctx.HasNamespace(varTraversal.RootName()) {
-			logger.Trace().Msg("expression has known namespace")
-			return nil, false
+func ToWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {
+	tokens := make([]*hclwrite.Token, len(in))
+	for i, st := range in {
+		tokens[i] = &hclwrite.Token{
+			Type:  st.Type,
+			Bytes: st.Bytes,
 		}
 	}
+	return tokens
+}
 
-	return scopeTraversal, true
+func evalArgs(fname string, tokens hclwrite.Tokens, evalctx *eval.Context) (hclwrite.Tokens, int, error) {
+	pos := 0
+
+	out := hclwrite.Tokens{}
+	var next *hclwrite.Token
+
+	for pos < len(tokens) {
+		tok := tokens[pos]
+
+		if tok.Type == hclsyntax.TokenOQuote {
+			evaluated, skip, err := partialEvalString(fname, tokens[pos:], evalctx)
+			if err != nil {
+				return nil, 0, err
+			}
+
+			pos += skip
+
+			out = append(out, evaluated...)
+			goto nextArg
+		}
+
+		if tok.Type == hclsyntax.TokenCParen {
+			out = append(out, tok)
+			pos++
+			break
+		}
+
+		if len(tokens[pos:]) < 2 {
+			return tokens, pos, nil // TODO(i4k): review this
+		}
+
+		if tok.Type != hclsyntax.TokenIdent {
+			return nil, 0, fmt.Errorf("unexpected token 2: %s '%s' (%s)", tokens[pos-1].Bytes, tok.Bytes, tok.Type)
+		}
+
+		next = tokens[pos+1]
+		if next.Type == hclsyntax.TokenDot {
+			evaluated, skipVar, err := evalOneVar(fname, tokens[pos:], evalctx)
+			if err != nil {
+				return nil, 0, err
+			}
+
+			//fmt.Printf("skipping %d tokens\n", skip)
+
+			pos += skipVar - 1
+
+			out = append(out, evaluated...)
+		} else if next.Type == hclsyntax.TokenOParen {
+			out = append(out, tok, next)
+			pos += 2
+			continue
+		}
+
+	nextArg:
+
+		pos++
+		if pos >= len(tokens) {
+			break
+		}
+
+		tok = tokens[pos]
+		if tok.Type != hclsyntax.TokenCParen &&
+			tok.Type != hclsyntax.TokenComma && tok.Type != hclsyntax.TokenEOF {
+			return out, pos - 1, nil
+		}
+
+		out = append(out, tok)
+
+		if tok.Type == hclsyntax.TokenCParen {
+			return out, pos, nil
+		}
+
+		pos++
+	}
+
+	return out, pos, nil
+}
+
+func interpTokenStart() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenTemplateInterp,
+		Bytes: []byte("${"),
+	}
+}
+
+func interpTokenEnd() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenTemplateSeqEnd,
+		Bytes: []byte("}"),
+	}
+}
+
+func countVarParts(tokens hclwrite.Tokens) int {
+	count := 0
+	for i := 0; i < len(tokens); i++ {
+		if tokens[i].Type != hclsyntax.TokenIdent && tokens[i].Type != hclsyntax.TokenDot {
+			return count
+		}
+		count++
+	}
+
+	return count
+}
+
+func evalOneVar(fname string, tokens hclwrite.Tokens, evalctx *eval.Context) (hclwrite.Tokens, int, error) {
+	out := hclwrite.Tokens{}
+
+	if len(tokens) < 3 {
+		return nil, 0, fmt.Errorf("expected a.b but got %d tokens", len(tokens))
+	}
+
+	varLen := countVarParts(tokens)
+
+	if string(tokens[0].Bytes) != "global" &&
+		string(tokens[0].Bytes) != "terramate" {
+		out = append(out, tokens...)
+
+		return out, varLen, nil
+	}
+
+	var expr []byte
+
+	for _, et := range tokens[:varLen] {
+		expr = append(expr, et.Bytes...)
+	}
+
+	e, diags := hclsyntax.ParseExpression(expr, fname, hcl.Pos{})
+	if diags.HasErrors() {
+		return nil, 0, fmt.Errorf("failed to parse expr: %v", diags.Error())
+	}
+
+	val, err := evalctx.Eval(e)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	newtoks := hclwrite.TokensForValue(val)
+
+	out = append(out, newtoks...)
+
+	return out, varLen, nil
+}
+
+func partialEvalString(fname string, tokens hclwrite.Tokens, evalctx *eval.Context) (hclwrite.Tokens, int, error) {
+	if len(tokens) == 1 {
+		panic("HCL parser should have caught this syntax error")
+	}
+
+	out := hclwrite.Tokens{}
+
+	out = append(out, tokens[0])
+
+	pos := 1
+	didEval := false
+	hasPrevQuoteLit := false
+
+	for pos < len(tokens) {
+		tok := tokens[pos]
+		switch tok.Type {
+		case hclsyntax.TokenCQuote:
+			out = append(out, tok)
+			return out, pos, nil
+		case hclsyntax.TokenQuotedLit:
+			out = append(out, tok)
+			hasPrevQuoteLit = true
+			//fmt.Printf("quoted lit: %s\n", tok.Bytes)
+		case hclsyntax.TokenTemplateSeqEnd:
+			if !didEval {
+				out = append(out, tok)
+			}
+			didEval = false
+		case hclsyntax.TokenTemplateInterp:
+			pos++
+
+			evaluated, skipArgs, err := evalArgs(fname, tokens[pos:], evalctx)
+			if err != nil {
+				return nil, 0, err
+			}
+
+			if string(evaluated[0].Bytes) != string(tokens[pos].Bytes) {
+				didEval = true
+
+				if hasPrevQuoteLit {
+					str := out[len(out)-1]
+					switch evaluated[0].Type {
+					case hclsyntax.TokenOQuote:
+						if evaluated[1].Type != hclsyntax.TokenQuotedLit {
+							panic(fmt.Errorf("unexpected type %s", evaluated[1].Type))
+						}
+
+						str.Bytes = append(str.Bytes, evaluated[1].Bytes...)
+					default:
+						panic(fmt.Sprintf("%s (%s)", evaluated[0].Bytes, evaluated[0].Type))
+					}
+				} else {
+					out = append(out, evaluated...)
+				}
+			} else {
+				out = append(out, interpTokenStart())
+				out = append(out, evaluated...)
+			}
+
+			pos += skipArgs
+
+		default:
+			panic(fmt.Errorf("unexpected token here %s %s (%s)", tokens[pos-1].Bytes, tok.Bytes, tok.Type))
+		}
+
+		pos++
+	}
+
+	return out, pos - 1, nil
+}
+
+func PartialEval(fname string, tokens hclwrite.Tokens, evalctx *eval.Context) (hclwrite.Tokens, error) {
+	pos := 0
+	out := hclwrite.Tokens{}
+	for pos < len(tokens) {
+		evaluated, skip, err := evalExpr(fname, tokens[pos:], evalctx)
+		if err != nil {
+			return nil, err
+		}
+
+		pos += skip
+		out = append(out, evaluated...)
+	}
+
+	if pos < len(tokens) {
+		panic(fmt.Errorf("failed to evaluate all tokens: %d != %d", pos, len(tokens)))
+	}
+
+	return out, nil
+}
+
+func evalExpr(fname string, tokens hclwrite.Tokens, evalctx *eval.Context) (hclwrite.Tokens, int, error) {
+	if len(tokens) == 0 {
+		return tokens, 0, nil
+	}
+
+	pos := 0
+
+	out := hclwrite.Tokens{}
+
+	for pos < len(tokens) {
+		tok := tokens[pos]
+		switch tok.Type {
+		case hclsyntax.TokenEOF:
+			pos += 1
+		case hclsyntax.TokenOQuote:
+			evaluated, skip, err := partialEvalString(fname, tokens[pos:], evalctx)
+			if err != nil {
+				return nil, 0, err
+			}
+
+			out = append(out, evaluated...)
+			pos += skip
+		case hclsyntax.TokenIdent:
+			switch string(tok.Bytes) {
+			case "true", "false", "null":
+				out = append(out, tok)
+			default:
+				evaluated, skip, err := evalArgs(fname, tokens[pos:], evalctx)
+				if err != nil {
+					return nil, 0, err
+				}
+
+				pos += skip
+				out = append(out, evaluated...)
+			}
+		case hclsyntax.TokenCBrack:
+			out = append(out, tok)
+		case hclsyntax.TokenOBrack:
+			out = append(out, tok)
+		case hclsyntax.TokenComma:
+			out = append(out, tok)
+		case hclsyntax.TokenNumberLit:
+			out = append(out, tok)
+		case hclsyntax.TokenOBrace:
+			out = append(out, tok)
+		case hclsyntax.TokenCBrace:
+			out = append(out, tok)
+		case hclsyntax.TokenNewline:
+			out = append(out, tok)
+		case hclsyntax.TokenEqual:
+			out = append(out, tok)
+		default:
+			panic(fmt.Errorf("not implemented: %s (%s)", tok.Bytes, tok.Type))
+		}
+
+		pos++
+	}
+
+	return out, pos, nil
 }
 
 func sortedAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {
@@ -854,7 +1134,7 @@ func loadCfgBlocks(dir string) (*hclparse.Parser, error) {
 
 			logger.Trace().Msg("Parsing config.")
 
-			_, diags := parser.ParseHCL(data, filename)
+			_, diags := parser.ParseHCL(data, path)
 			if diags.HasErrors() {
 				return nil, errutil.Chain(ErrHCLSyntax, diags)
 			}
@@ -909,6 +1189,7 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 		logger.Trace().Msg("Range over blocks.")
 
 		for _, block := range body.Blocks {
+			block.TypeRange.Filename = filepath.Join(dir, block.TypeRange.Filename)
 			if !blockIsAllowed(block.Type) {
 				return Config{}, cfgErr("block type %q is not supported", block.Type)
 			}

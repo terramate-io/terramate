@@ -259,6 +259,8 @@ func assertReportHasNoError(t *testing.T, report generate.Report) {
 func assertEqualReports(t *testing.T, got, want generate.Report) {
 	t.Helper()
 	if diff := cmp.Diff(got, want); diff != "" {
+		t.Errorf("got %s", got)
+		t.Errorf("want %s", want)
 		t.Errorf("got(-) want(+)")
 		t.Fatal(diff)
 	}
