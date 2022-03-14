@@ -1116,6 +1116,7 @@ func TestPartialEval(t *testing.T) {
 	type testcase struct {
 		name    string
 		config  hclwrite.BlockBuilder
+		globals hclwrite.BlockBuilder
 		want    fmt.Stringer
 		wantErr error
 	}
@@ -1174,10 +1175,12 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "mixed references on same object",
-			config: hcldoc(
+			globals: hcldoc(
 				globals(
 					number("ref", 666),
 				),
+			),
+			config: hcldoc(
 				expr("obj", `{
 					local     = local.ref,
 					global    = global.ref,
@@ -1192,10 +1195,12 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "mixed references on list",
-			config: hcldoc(
+			globals: hcldoc(
 				globals(
 					number("ref", 666),
 				),
+			),
+			config: hcldoc(
 				expr("list", `[ local.ref, global.ref ]`),
 			),
 			want: hcldoc(
@@ -1237,10 +1242,12 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "function call on attr with mixed references is partially evaluated",
-			config: hcldoc(
+			globals: hcldoc(
 				globals(
 					attr("list", "[1, 2, 3]"),
 				),
+			),
+			config: hcldoc(
 				expr("a", "merge(something.val, global.list)"),
 				expr("b", "merge(global.list, local.list)"),
 			),
@@ -1251,10 +1258,12 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "function call on obj with mixed references is partially evaluated",
-			config: hcldoc(
+			globals: hcldoc(
 				globals(
 					attr("list", "[1, 2, 3]"),
 				),
+			),
+			config: hcldoc(
 				expr("obj", `{
 					a = merge(something.val, global.list)
 				}`),
@@ -1277,12 +1286,19 @@ func TestPartialEval(t *testing.T) {
 			stackEntry := s.CreateStack(stackname)
 			stack := stackEntry.Load()
 			path := filepath.Join(s.RootDir(), stackname)
-			cfg := generateHCL(
-				labels(genname),
-				content(
-					tcase.config,
+			if tcase.globals == nil {
+				tcase.globals = globals()
+			}
+			cfg := hcldoc(
+				tcase.globals,
+				generateHCL(
+					labels(genname),
+					content(
+						tcase.config,
+					),
 				),
 			)
+
 			t.Logf("input: %s", cfg.String())
 			test.AppendFile(t, path, config.DefaultFilename, cfg.String())
 

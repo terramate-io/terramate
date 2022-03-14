@@ -18,17 +18,12 @@ import (
 	"fmt"
 	"testing"
 
-	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/test"
-	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
-	"github.com/zclconf/go-cty/cty"
 )
 
 type (
@@ -1400,148 +1395,6 @@ func testParser(t *testing.T, tc testcase) {
 			want: tc.want,
 		}
 		testParser(t, newtc)
-	}
-}
-
-type token hclwrite.Token
-
-func (t token) String() string { return fmt.Sprintf("type:%s bytes:%s", t.Type, t.Bytes) }
-
-func toTokens(in hclwrite.Tokens) []token {
-	out := make([]token, len(in))
-	for i, v := range in {
-		out[i] = token(*v)
-	}
-	return out
-}
-func TestPartialEval(t *testing.T) {
-	type testcase struct {
-		name      string
-		in        string
-		out       []*token
-		globals   map[string]cty.Value
-		terramate map[string]cty.Value
-	}
-
-	for _, tc := range []testcase{
-		{
-			name: "empty input results empty output",
-			out: []*token{
-				{Type: hclsyntax.TokenEOF},
-			},
-		},
-		{
-			name: "simple empty string literal",
-			in:   `""`,
-			out: []*token{
-				{Type: hclsyntax.TokenOQuote, Bytes: []byte("\"")},
-				{Type: hclsyntax.TokenCQuote, Bytes: []byte("\"")},
-				{Type: hclsyntax.TokenEOF, Bytes: []byte("")},
-			},
-		},
-		{
-			name: "simple string with ident",
-			in:   `"test"`,
-			out: []*token{
-				{Type: hclsyntax.TokenOQuote, Bytes: []byte("\"")},
-				{Type: hclsyntax.TokenQuotedLit, Bytes: []byte("test")},
-				{Type: hclsyntax.TokenCQuote, Bytes: []byte("\"")},
-				{Type: hclsyntax.TokenEOF},
-			},
-		},
-		{
-			name: "simple var",
-			in:   `a.b`,
-			out: []*token{
-				{Type: hclsyntax.TokenIdent, Bytes: []byte("a")},
-				{Type: hclsyntax.TokenDot, Bytes: []byte(".")},
-				{Type: hclsyntax.TokenIdent, Bytes: []byte("b")},
-				{Type: hclsyntax.TokenEOF},
-			},
-		},
-		{
-			name: "simple global eval",
-			in:   `global.a`,
-			out: []*token{
-				{Type: hclsyntax.TokenOQuote, Bytes: []byte("\"")},
-				{Type: hclsyntax.TokenQuotedLit, Bytes: []byte("test")},
-				{Type: hclsyntax.TokenCQuote, Bytes: []byte("\"")},
-				{Type: hclsyntax.TokenEOF},
-			},
-			globals: map[string]cty.Value{
-				"a": cty.StringVal("test"),
-			},
-		},
-		{
-			name: "simple terramate eval",
-			in:   `terramate.a`,
-			out: []*token{
-				{Type: hclsyntax.TokenOQuote, Bytes: []byte("\"")},
-				{Type: hclsyntax.TokenQuotedLit, Bytes: []byte("test")},
-				{Type: hclsyntax.TokenCQuote, Bytes: []byte("\"")},
-				{Type: hclsyntax.TokenEOF},
-			},
-			terramate: map[string]cty.Value{
-				"a": cty.StringVal("test"),
-			},
-		},
-		{
-			name: "simple global interpolation",
-			in:   `"${global.a}"`,
-			out: []*token{
-				{Type: hclsyntax.TokenOQuote, Bytes: []byte("\"")},
-				{Type: hclsyntax.TokenQuotedLit, Bytes: []byte("test")},
-				{Type: hclsyntax.TokenCQuote, Bytes: []byte("\"")},
-				{Type: hclsyntax.TokenEOF},
-			},
-			globals: map[string]cty.Value{
-				"a": cty.StringVal("test"),
-			},
-		},
-		{
-			name: "simple global interpolation with prefix str",
-			in:   `"HAHA ${global.a}"`,
-			out: []*token{
-				{Type: hclsyntax.TokenOQuote, Bytes: []byte("\"")},
-				{Type: hclsyntax.TokenQuotedLit, Bytes: []byte("HAHA ")},
-				{Type: hclsyntax.TokenQuotedLit, Bytes: []byte("test")},
-				{Type: hclsyntax.TokenCQuote, Bytes: []byte("\"")},
-				{Type: hclsyntax.TokenEOF},
-			},
-			globals: map[string]cty.Value{
-				"a": cty.StringVal("test"),
-			},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			s := sandbox.New(t)
-
-			evalctx := eval.NewContext(s.RootDir())
-			assert.NoError(t, evalctx.SetNamespace("global", tc.globals))
-			assert.NoError(t, evalctx.SetNamespace("terramate", tc.terramate))
-
-			fname := fmt.Sprintf("%s.hcl", tc.name)
-			in, diags := hclsyntax.LexExpression([]byte(tc.in), fname, hhcl.Pos{})
-			if diags.HasErrors() {
-				t.Fatal(diags.Error())
-			}
-
-			t.Logf("lex: %v", in)
-
-			gotwrite, err := hcl.PartialEval(fname, hcl.ToWriteTokens(in), evalctx)
-			assert.NoError(t, err)
-
-			got := toTokens(gotwrite)
-
-			t.Logf("GOT: %v", got)
-
-			assert.EqualInts(t, len(tc.out), len(got), "mismatched number of tokens: %s", got)
-
-			for i, want := range tc.out {
-				assert.EqualInts(t, int(want.Type), int(got[i].Type), "token[%d] type mismatch: %s", i, got[i].Type)
-				assert.EqualStrings(t, string(want.Bytes), string(got[i].Bytes), "token[%d] bytes mismatch: %v", i, got[i])
-			}
-		})
 	}
 }
 

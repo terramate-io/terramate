@@ -432,6 +432,10 @@ func ToWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {
 }
 
 func isCanEvaluateIdent(tokens hclwrite.Tokens) bool {
+	if len(tokens) < 3 {
+		return false
+	}
+
 	if tokens[0].Type != hclsyntax.TokenIdent {
 		panic("bug: expects an IDENT at pos 0")
 	}
@@ -507,6 +511,7 @@ func evalFuncall(fname string, tokens hclwrite.Tokens, evalctx *eval.Context) (h
 		evaluated, skip, err := evalExpr(false, fname, tokens[pos:], evalctx)
 		if err != nil {
 			if funcname == "try" {
+				// TODO(i4k): create a type/sentinel/whatever.
 				if !strings.Contains(err.Error(), "evaluating expression") {
 					return nil, 0, err
 				}
@@ -522,6 +527,7 @@ func evalFuncall(fname string, tokens hclwrite.Tokens, evalctx *eval.Context) (h
 		}
 
 		if tokens[pos].Type == hclsyntax.TokenComma {
+			// commas will be emited later.
 			pos++
 		}
 	}
@@ -595,8 +601,7 @@ func evalOneVar(fname string, tokens hclwrite.Tokens, evalctx *eval.Context) (hc
 
 	if string(tokens[0].Bytes) != "global" &&
 		string(tokens[0].Bytes) != "terramate" {
-		out = append(out, tokens...)
-
+		out = append(out, tokens[:varLen]...)
 		return out, varLen, nil
 	}
 
@@ -613,6 +618,7 @@ func evalOneVar(fname string, tokens hclwrite.Tokens, evalctx *eval.Context) (hc
 
 	val, err := evalctx.Eval(e)
 	if err != nil {
+		// return the skip size for the try().
 		return nil, varLen, err
 	}
 
@@ -711,7 +717,7 @@ func PartialEval(fname string, tokens hclwrite.Tokens, evalctx *eval.Context) (h
 	pos := 0
 	out := hclwrite.Tokens{}
 	for pos < len(tokens) {
-		//fmt.Printf("%s (%s) ", tokens[pos].Bytes, tokens[pos].Type)
+		//fmt.Printf("calling evalExpr %s (%s) pos: %d", tokens[pos].Bytes, tokens[pos].Type, pos)
 		evaluated, skip, err := evalExpr(false, fname, tokens[pos:], evalctx)
 		if err != nil {
 			return nil, err
@@ -723,6 +729,8 @@ func PartialEval(fname string, tokens hclwrite.Tokens, evalctx *eval.Context) (h
 
 		pos += skip
 		out = append(out, evaluated...)
+
+		//fmt.Printf(", got skip: %d\n", skip)
 	}
 
 	if pos < len(tokens) {
@@ -751,8 +759,6 @@ func evalList(fname string, tokens hclwrite.Tokens, evalctx *eval.Context) (hclw
 			pos++
 			continue
 		}
-
-		fmt.Printf("%s (%s)\n", tokens[pos].Bytes, tokens[pos].Type)
 
 		evaluated, skip, err := evalExpr(false, fname, tokens[pos:], evalctx)
 		if err != nil {
@@ -830,6 +836,12 @@ func evalObject(fname string, tokens hclwrite.Tokens, evalctx *eval.Context) (hc
 
 		pos += skip
 		out = append(out, rfs...)
+
+		tok = tokens[pos]
+		if tok.Type == hclsyntax.TokenComma {
+			out = append(out, tok)
+			pos++
+		}
 	}
 
 	if pos >= len(tokens) {
@@ -864,6 +876,9 @@ func evalExpr(iskey bool, fname string, tokens hclwrite.Tokens, evalctx *eval.Co
 	switch tok.Type {
 	case hclsyntax.TokenEOF:
 		pos++
+		if len(tokens) != pos {
+			panic(fmt.Sprintf("got EOF at middle: %d < %d", pos, len(tokens)))
+		}
 	case hclsyntax.TokenOQuote:
 		evaluated, skip, err := partialEvalString(fname, tokens[pos:], evalctx)
 		if err != nil {
@@ -901,6 +916,7 @@ func evalExpr(iskey bool, fname string, tokens hclwrite.Tokens, evalctx *eval.Co
 
 		pos += skip
 		out = append(out, evaluated...)
+
 	case hclsyntax.TokenOBrack:
 		evaluated, skip, err := evalList(fname, tokens[pos:], evalctx)
 		if err != nil {
@@ -909,7 +925,6 @@ func evalExpr(iskey bool, fname string, tokens hclwrite.Tokens, evalctx *eval.Co
 
 		pos += skip
 		out = append(out, evaluated...)
-
 	case hclsyntax.TokenNumberLit:
 		out = append(out, tok)
 		pos++
