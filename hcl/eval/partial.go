@@ -467,6 +467,7 @@ func evalString(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.To
 				return nil, 0, err
 			}
 
+			// TODO(i4k): improve this.
 			if string(evaluated[0].Bytes) != string(tokens[pos].Bytes) {
 				didEval = true
 
@@ -480,10 +481,10 @@ func evalString(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.To
 
 						str.Bytes = append(str.Bytes, evaluated[1].Bytes...)
 					default:
-						panic(fmt.Sprintf("%s (%s)", evaluated[0].Bytes, evaluated[0].Type))
+						panic(fmt.Sprintf("interpolation kind not supported: %s (%s)", evaluated[0].Bytes, evaluated[0].Type))
 					}
 				} else {
-					out = append(out, evaluated...)
+					out = append(out, evaluated[1:len(evaluated)-1]...)
 				}
 			} else {
 				out = append(out, interpTokenStart())

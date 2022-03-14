@@ -1274,6 +1274,78 @@ func TestPartialEval(t *testing.T) {
 				}`),
 			),
 		},
+		{
+			name: "variable interpolation without prefixed string",
+			globals: hcldoc(
+				globals(
+					str("string", "hello"),
+				),
+			),
+			config: hcldoc(
+				str("string", `${global.string}`),
+			),
+			want: hcldoc(
+				str("string", "hello"),
+			),
+		},
+		{
+			name: "variable interpolation with prefixed string",
+			globals: hcldoc(
+				globals(
+					str("string", "hello"),
+				),
+			),
+			config: hcldoc(
+				str("string", `test-${global.string}`),
+			),
+			want: hcldoc(
+				str("string", "test-hello"),
+			),
+		},
+		{
+			name: "variable interpolation with suffixed string",
+			globals: hcldoc(
+				globals(
+					str("string", "hello"),
+				),
+			),
+			config: hcldoc(
+				str("string", `${global.string}-test`),
+			),
+			want: hcldoc(
+				str("string", "hello-test"),
+			),
+		},
+		{
+			name: "multiple variable interpolation with prefixed string",
+			globals: hcldoc(
+				globals(
+					str("string1", "hello1"),
+					str("string2", "hello2"),
+				),
+			),
+			config: hcldoc(
+				str("string", `something ${global.string1} and ${global.string2}`),
+			),
+			want: hcldoc(
+				str("string", "something hello1 and hello2"),
+			),
+		},
+		{
+			name: "multiple variable interpolation without prefixed string",
+			globals: hcldoc(
+				globals(
+					str("string1", "hello1"),
+					str("string2", "hello2"),
+				),
+			),
+			config: hcldoc(
+				str("string", `${global.string1}${global.string2}`),
+			),
+			want: hcldoc(
+				str("string", "hello1hello2"),
+			),
+		},
 	}
 
 	for _, tcase := range tcases {
