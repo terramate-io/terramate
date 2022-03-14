@@ -348,7 +348,7 @@ func ParseGenerateHCLBlocks(dir string) (HCLBlocks, error) {
 // as is (original expression form, no evaluation).
 //
 // Returns an error if the evaluation fails.
-func CopyBody(stackpath string, target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context) error {
+func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context) error {
 	logger := log.With().
 		Str("action", "CopyBody()").
 		Logger()
@@ -412,7 +412,7 @@ func CopyBody(stackpath string, target *hclwrite.Body, src *hclsyntax.Body, eval
 		if block.Body == nil {
 			continue
 		}
-		if err := CopyBody(stackpath, targetBlock.Body(), block.Body, evalctx); err != nil {
+		if err := CopyBody(targetBlock.Body(), block.Body, evalctx); err != nil {
 			return err
 		}
 	}

@@ -607,7 +607,7 @@ func generateBackendCfgCode(
 	backendBlock := tfBody.AppendNewBlock(parsed.Backend.Type, parsed.Backend.Labels)
 	backendBody := backendBlock.Body()
 
-	if err := hcl.CopyBody(stackpath, backendBody, parsed.Backend.Body, evalctx); err != nil {
+	if err := hcl.CopyBody(backendBody, parsed.Backend.Body, evalctx); err != nil {
 		return "", err
 	}
 

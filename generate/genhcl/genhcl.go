@@ -118,7 +118,7 @@ func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackHC
 		logger.Trace().Msg("evaluating block.")
 
 		gen := hclwrite.NewEmptyFile()
-		if err := hcl.CopyBody(stackpath, gen.Body(), loadedHCL.block.Body, evalctx); err != nil {
+		if err := hcl.CopyBody(gen.Body(), loadedHCL.block.Body, evalctx); err != nil {
 			return StackHCLs{}, fmt.Errorf(
 				"%w: stack %q block %q: %v",
 				ErrEval,
