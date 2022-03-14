@@ -23,13 +23,11 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 )
 
-func Partial(fname string, tokens hclwrite.Tokens, evalctx *Context) (hclwrite.Tokens, error) {
-	//fmt.Printf("starting eval\n")
+func Partial(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, error) {
 	pos := 0
 	out := hclwrite.Tokens{}
 	for pos < len(tokens) {
-		//fmt.Printf("calling evalExpr %s (%s) pos: %d", tokens[pos].Bytes, tokens[pos].Type, pos)
-		evaluated, skip, err := evalExpr(false, fname, tokens[pos:], evalctx)
+		evaluated, skip, err := evalExpr(false, fname, tokens[pos:], ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -40,20 +38,16 @@ func Partial(fname string, tokens hclwrite.Tokens, evalctx *Context) (hclwrite.T
 
 		pos += skip
 		out = append(out, evaluated...)
-
-		//fmt.Printf(", got skip: %d\n", skip)
 	}
 
 	if pos < len(tokens) {
 		panic(fmt.Errorf("failed to evaluate all tokens: %d != %d", pos, len(tokens)))
 	}
 
-	//fmt.Printf("finishing eval\n")
-
 	return out, nil
 }
 
-func evalIdent(fname string, tokens hclwrite.Tokens, evalctx *Context) (hclwrite.Tokens, int, error) {
+func evalIdent(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
 	out := hclwrite.Tokens{}
 
 	if !isCanEvaluateIdent(tokens) {
@@ -69,7 +63,7 @@ func evalIdent(fname string, tokens hclwrite.Tokens, evalctx *Context) (hclwrite
 	next := tokens[pos+1]
 	switch next.Type {
 	case hclsyntax.TokenDot:
-		evaluated, skip, err := evalOneVar(fname, tokens[pos:], evalctx)
+		evaluated, skip, err := evalOneVar(fname, tokens[pos:], ctx)
 		if err != nil {
 			return nil, skip, err
 		}
@@ -77,7 +71,7 @@ func evalIdent(fname string, tokens hclwrite.Tokens, evalctx *Context) (hclwrite
 		pos += skip
 		out = append(out, evaluated...)
 	case hclsyntax.TokenOParen:
-		evaluated, skip, err := evalFuncall(fname, tokens[pos:], evalctx)
+		evaluated, skip, err := evalFuncall(fname, tokens[pos:], ctx)
 		if err != nil {
 			return nil, skip, err
 		}
@@ -104,7 +98,7 @@ func isCanEvaluateIdent(tokens hclwrite.Tokens) bool {
 	return next.Type == hclsyntax.TokenDot || next.Type == hclsyntax.TokenOParen
 }
 
-func evalList(fname string, tokens hclwrite.Tokens, evalctx *Context) (hclwrite.Tokens, int, error) {
+func evalList(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
 	pos := 0
 	tok := tokens[pos]
 
@@ -122,7 +116,7 @@ func evalList(fname string, tokens hclwrite.Tokens, evalctx *Context) (hclwrite.
 			continue
 		}
 
-		evaluated, skip, err := evalExpr(false, fname, tokens[pos:], evalctx)
+		evaluated, skip, err := evalExpr(false, fname, tokens[pos:], ctx)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -152,7 +146,7 @@ func evalList(fname string, tokens hclwrite.Tokens, evalctx *Context) (hclwrite.
 	return out, pos, nil
 }
 
-func evalObject(fname string, tokens hclwrite.Tokens, evalctx *Context) (hclwrite.Tokens, int, error) {
+func evalObject(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
 	pos := 0
 	tok := tokens[pos]
 
@@ -170,7 +164,7 @@ func evalObject(fname string, tokens hclwrite.Tokens, evalctx *Context) (hclwrit
 			continue
 		}
 
-		lfs, skip, err := evalKeyExpr(fname, tokens[pos:], evalctx)
+		lfs, skip, err := evalKeyExpr(fname, tokens[pos:], ctx)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -185,13 +179,13 @@ func evalObject(fname string, tokens hclwrite.Tokens, evalctx *Context) (hclwrit
 
 		tok = tokens[pos]
 		if tok.Type != hclsyntax.TokenEqual && tok.Type != hclsyntax.TokenColon {
-			return nil, 0, fmt.Errorf("unexpected tokenn '%s' %s", tokens[pos-2].Type, tok.Bytes)
+			return nil, 0, fmt.Errorf("unexpected token '%s' (%s)", tok.Bytes, tok.Type)
 		}
 
 		out = append(out, tok)
 		pos++
 
-		rfs, skip, err := evalKeyExpr(fname, tokens[pos:], evalctx)
+		rfs, skip, err := evalKeyExpr(fname, tokens[pos:], ctx)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -221,11 +215,11 @@ func evalObject(fname string, tokens hclwrite.Tokens, evalctx *Context) (hclwrit
 	return out, pos, nil
 }
 
-func evalKeyExpr(fname string, tokens hclwrite.Tokens, evalctx *Context) (hclwrite.Tokens, int, error) {
-	return evalExpr(true, fname, tokens, evalctx)
+func evalKeyExpr(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
+	return evalExpr(true, fname, tokens, ctx)
 }
 
-func evalExpr(iskey bool, fname string, tokens hclwrite.Tokens, evalctx *Context) (hclwrite.Tokens, int, error) {
+func evalExpr(iskey bool, fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
 	if len(tokens) == 0 {
 		return tokens, 0, nil
 	}
@@ -242,7 +236,7 @@ func evalExpr(iskey bool, fname string, tokens hclwrite.Tokens, evalctx *Context
 			panic(fmt.Sprintf("got EOF at middle: %d < %d", pos, len(tokens)))
 		}
 	case hclsyntax.TokenOQuote:
-		evaluated, skip, err := partialEvalString(fname, tokens[pos:], evalctx)
+		evaluated, skip, err := evalString(fname, tokens[pos:], ctx)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -256,7 +250,7 @@ func evalExpr(iskey bool, fname string, tokens hclwrite.Tokens, evalctx *Context
 			pos++
 		default:
 			if isCanEvaluateIdent(tokens[pos:]) {
-				evaluated, skip, err := evalIdent(fname, tokens[pos:], evalctx)
+				evaluated, skip, err := evalIdent(fname, tokens[pos:], ctx)
 				if err != nil {
 					return nil, 0, err
 				}
@@ -271,7 +265,7 @@ func evalExpr(iskey bool, fname string, tokens hclwrite.Tokens, evalctx *Context
 			}
 		}
 	case hclsyntax.TokenOBrace:
-		evaluated, skip, err := evalObject(fname, tokens[pos:], evalctx)
+		evaluated, skip, err := evalObject(fname, tokens[pos:], ctx)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -280,7 +274,7 @@ func evalExpr(iskey bool, fname string, tokens hclwrite.Tokens, evalctx *Context
 		out = append(out, evaluated...)
 
 	case hclsyntax.TokenOBrack:
-		evaluated, skip, err := evalList(fname, tokens[pos:], evalctx)
+		evaluated, skip, err := evalList(fname, tokens[pos:], ctx)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -295,13 +289,13 @@ func evalExpr(iskey bool, fname string, tokens hclwrite.Tokens, evalctx *Context
 	}
 
 	if pos == 0 {
-		panic("bug 2")
+		panic("bug: no advance in the position")
 	}
 
 	return out, pos, nil
 }
 
-func evalFuncall(fname string, tokens hclwrite.Tokens, evalctx *Context) (hclwrite.Tokens, int, error) {
+func evalFuncall(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
 	if len(tokens) < 3 {
 		return nil, 0, fmt.Errorf("not a funcall")
 	}
@@ -327,7 +321,7 @@ func evalFuncall(fname string, tokens hclwrite.Tokens, evalctx *Context) (hclwri
 
 	pos++
 	for pos < len(tokens) && tokens[pos].Type != hclsyntax.TokenCParen {
-		evaluated, skip, err := evalExpr(false, fname, tokens[pos:], evalctx)
+		evaluated, skip, err := evalExpr(false, fname, tokens[pos:], ctx)
 		if err != nil {
 			if funcname == "try" {
 				// TODO(i4k): create a type/sentinel/whatever.
@@ -402,7 +396,7 @@ func countVarParts(tokens hclwrite.Tokens) int {
 	return count
 }
 
-func evalOneVar(fname string, tokens hclwrite.Tokens, evalctx *Context) (hclwrite.Tokens, int, error) {
+func evalOneVar(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
 	out := hclwrite.Tokens{}
 
 	if len(tokens) < 3 {
@@ -428,24 +422,18 @@ func evalOneVar(fname string, tokens hclwrite.Tokens, evalctx *Context) (hclwrit
 		return nil, 0, fmt.Errorf("failed to parse expr: %v", diags.Error())
 	}
 
-	val, err := evalctx.Eval(e)
+	val, err := ctx.Eval(e)
 	if err != nil {
 		// return the skip size for the try().
 		return nil, varLen, err
 	}
 
 	newtoks := hclwrite.TokensForValue(val)
-
 	out = append(out, newtoks...)
-
 	return out, varLen, nil
 }
 
-func partialEvalString(fname string, tokens hclwrite.Tokens, evalctx *Context) (hclwrite.Tokens, int, error) {
-	if len(tokens) == 1 {
-		panic("HCL parser should have caught this syntax error")
-	}
-
+func evalString(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
 	tok := tokens[0]
 	if tok.Type != hclsyntax.TokenOQuote {
 		return nil, 0, fmt.Errorf("bug: not a quoted string")
@@ -474,7 +462,7 @@ func partialEvalString(fname string, tokens hclwrite.Tokens, evalctx *Context) (
 		case hclsyntax.TokenTemplateInterp:
 			pos++
 
-			evaluated, skipArgs, err := evalIdent(fname, tokens[pos:], evalctx)
+			evaluated, skipArgs, err := evalIdent(fname, tokens[pos:], ctx)
 			if err != nil {
 				return nil, 0, err
 			}
