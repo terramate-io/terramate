@@ -171,7 +171,7 @@ func TestHCLGeneration(t *testing.T) {
 							str("local_a", "stack-1-local"),
 							boolean("local_b", true),
 							number("local_c", 666),
-							str("local_d", "local_d_field"),
+							expr("local_d", "try(\"local_d_field\", null)"),
 							str("stackpath", "/stacks/stack-1"),
 						),
 						"provider.tf": hcldoc(

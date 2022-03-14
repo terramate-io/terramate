@@ -316,9 +316,9 @@ func TestLoadGeneratedHCL(t *testing.T) {
 						origin: "/root2.tm.hcl",
 						body: block("testblock2",
 							attr("obj", `{
-								bool   = true
-								number = 777
 								string = "string"
+								number = 777
+								bool   = true
 							}`),
 						),
 					},
@@ -386,9 +386,9 @@ func TestLoadGeneratedHCL(t *testing.T) {
 						origin: "/stack/test2.tm.hcl",
 						body: block("testblock2",
 							attr("obj", `{
-								bool   = true
-								number = 777
 								string = "string"
+								number = 777
+								bool   = true
 							}`),
 						),
 					},
@@ -432,9 +432,9 @@ func TestLoadGeneratedHCL(t *testing.T) {
 						origin: defaultCfg("/stack"),
 						body: block("labeled",
 							labels("label1", "label2"),
-							str("field_a", "a"),
-							str("field_b", "b"),
-							str("field_c", "c"),
+							expr("field_a", `try("a", null)`),
+							expr("field_b", `try("b", null)`),
+							expr("field_c", `try("c", null)`),
 							attr("field_d", "null"),
 						),
 					},
@@ -488,9 +488,9 @@ func TestLoadGeneratedHCL(t *testing.T) {
 								number("number", 777),
 								block("block3",
 									attr("obj", `{
-										bool   = true
-										number = 777
 										string = "string"
+										number = 777
+										bool   = true
 									}`),
 									str("string", "string"),
 								),
@@ -610,9 +610,9 @@ func TestLoadGeneratedHCL(t *testing.T) {
 						origin: defaultCfg("/stacks"),
 						body: block("on_parent_block",
 							attr("obj", `{
-								bool   = true
-								number = 777
 								string = "string"
+								number = 777
+								bool   = true
 							}`),
 						),
 					},
@@ -1283,6 +1283,7 @@ func TestPartialEval(t *testing.T) {
 					tcase.config,
 				),
 			)
+			t.Logf("input: %s", cfg.String())
 			test.AppendFile(t, path, config.DefaultFilename, cfg.String())
 
 			meta := stack.Meta()
