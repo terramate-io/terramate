@@ -23,17 +23,25 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 )
 
+// Partial evaluates only the terramate variable expressions from the list of
+// tokens, leaving all the rest as-is. It returns a modified list of tokens with
+// no reference to terramate namespaced variables (globals and terramate).
+// Caveats:
+//   - In the case of the `try` function, the terramate variables get removed if
+//     non existent.
+//   - The try() function gets completed removed and replaced by the default
+//     value if only it is left as an argument.
 func Partial(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, error) {
 	pos := 0
 	out := hclwrite.Tokens{}
 	for pos < len(tokens) {
-		evaluated, skip, err := evalExpr(false, fname, tokens[pos:], ctx)
+		evaluated, skip, err := evalExpr(false, tokens[pos:], ctx)
 		if err != nil {
 			return nil, err
 		}
 
 		if skip == 0 {
-			panic("serious bug")
+			panic("eval.Partial: this should not have happened: please open a bug ticket.")
 		}
 
 		pos += skip
@@ -41,29 +49,113 @@ func Partial(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Token
 	}
 
 	if pos < len(tokens) {
-		panic(fmt.Errorf("failed to evaluate all tokens: %d != %d", pos, len(tokens)))
+		panic("eval.Partial: this should not have happened: please open a bug ticket")
 	}
 
 	return out, nil
 }
 
-func evalIdent(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
+func evalExpr(iskey bool, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
+	out := hclwrite.Tokens{}
+
+	pos := 0
+	tok := tokens[pos]
+	switch tok.Type {
+	case hclsyntax.TokenEOF:
+		pos++
+		if len(tokens) != pos {
+			panic(sprintf("got EOF in the middle: %d < %d", pos, len(tokens)))
+		}
+	case hclsyntax.TokenOQuote:
+		evaluated, skip, err := evalString(tokens[pos:], ctx)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		out = append(out, evaluated...)
+		pos += skip
+	case hclsyntax.TokenIdent:
+		switch string(tok.Bytes) {
+		case "true", "false", "null":
+			out = append(out, tok)
+			pos++
+		default:
+			if isCanEvaluateIdent(tokens[pos:]) {
+				evaluated, skip, err := evalIdent(tokens[pos:], ctx)
+				if err != nil {
+					return nil, 0, err
+				}
+
+				pos += skip
+				out = append(out, evaluated...)
+			} else if iskey {
+				out = append(out, tok)
+				pos++
+			} else {
+				return nil, 0, errorf(
+					"expression cannot evaluate IDENT (%s) at this point",
+					tok.Bytes,
+				)
+			}
+		}
+	case hclsyntax.TokenOBrace:
+		next := tokens[pos+1]
+		if next.Type == hclsyntax.TokenIdent && string(next.Bytes) == "for" {
+			evaluated, skip, err := evalForExpr(tokens[pos:], ctx)
+			if err != nil {
+				return nil, 0, err
+			}
+
+			pos += skip
+			out = append(out, evaluated...)
+		} else {
+			evaluated, skip, err := evalObject(tokens[pos:], ctx)
+			if err != nil {
+				return nil, 0, err
+			}
+
+			pos += skip
+			out = append(out, evaluated...)
+		}
+	case hclsyntax.TokenOBrack:
+		evaluated, skip, err := evalList(tokens[pos:], ctx)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		pos += skip
+		out = append(out, evaluated...)
+	case hclsyntax.TokenNumberLit:
+		out = append(out, tok)
+		pos++
+	default:
+		panic(errorf("not implemented: %s (%s)", tok.Bytes, tok.Type))
+	}
+
+	if pos == 0 {
+		panic("bug: no advance in the position")
+	}
+
+	return out, pos, nil
+}
+
+func evalIdent(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
 	out := hclwrite.Tokens{}
 
 	if !isCanEvaluateIdent(tokens) {
-		return nil, 0, fmt.Errorf("malformed code")
+		return nil, 0, errorf("malformed code")
 	}
 
 	pos := 0
 	tok := tokens[pos]
 	if tok.Type != hclsyntax.TokenIdent {
-		return nil, 0, fmt.Errorf("evalIdent: unexpected token '%s' (%s)", tok.Bytes, tok.Type)
+		return nil, 0, errorf("evalIdent: unexpected token '%s' (%s)", tok.Bytes, tok.Type)
 	}
 
 	next := tokens[pos+1]
 	switch next.Type {
 	case hclsyntax.TokenDot:
-		evaluated, skip, err := evalVar(fname, tokens[pos:], ctx)
+		evaluated, skip, err := evalVar(tokens[pos:], ctx)
 		if err != nil {
 			return nil, skip, err
 		}
@@ -71,7 +163,7 @@ func evalIdent(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tok
 		pos += skip
 		out = append(out, evaluated...)
 	case hclsyntax.TokenOParen:
-		evaluated, skip, err := evalFuncall(fname, tokens[pos:], ctx)
+		evaluated, skip, err := evalFuncall(tokens[pos:], ctx)
 		if err != nil {
 			return nil, skip, err
 		}
@@ -98,7 +190,7 @@ func isCanEvaluateIdent(tokens hclwrite.Tokens) bool {
 	return next.Type == hclsyntax.TokenDot || next.Type == hclsyntax.TokenOParen
 }
 
-func evalList(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
+func evalList(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
 	pos := 0
 	tok := tokens[pos]
 
@@ -116,7 +208,7 @@ func evalList(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Toke
 			continue
 		}
 
-		evaluated, skip, err := evalExpr(false, fname, tokens[pos:], ctx)
+		evaluated, skip, err := evalExpr(false, tokens[pos:], ctx)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -132,12 +224,12 @@ func evalList(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Toke
 	}
 
 	if pos >= len(tokens) {
-		return nil, 0, fmt.Errorf("malformed list")
+		return nil, 0, errorf("malformed list")
 	}
 
 	tok = tokens[pos]
 	if tok.Type != hclsyntax.TokenCBrack {
-		return nil, 0, fmt.Errorf("malformed list, unexpected %s", tok.Bytes)
+		return nil, 0, errorf("malformed list, unexpected %s", tok.Bytes)
 	}
 
 	pos++
@@ -146,7 +238,7 @@ func evalList(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Toke
 	return out, pos, nil
 }
 
-func evalObject(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
+func evalObject(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
 	pos := 0
 	tok := tokens[pos]
 
@@ -164,7 +256,7 @@ func evalObject(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.To
 			continue
 		}
 
-		lfs, skip, err := evalKeyExpr(fname, tokens[pos:], ctx)
+		lfs, skip, err := evalKeyExpr(tokens[pos:], ctx)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -179,13 +271,13 @@ func evalObject(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.To
 
 		tok = tokens[pos]
 		if tok.Type != hclsyntax.TokenEqual && tok.Type != hclsyntax.TokenColon {
-			return nil, 0, fmt.Errorf("evalObject: unexpected token '%s' (%s)", tok.Bytes, tok.Type)
+			return nil, 0, errorf("evalObject: unexpected token '%s' (%s)", tok.Bytes, tok.Type)
 		}
 
 		out = append(out, tok)
 		pos++
 
-		rfs, skip, err := evalKeyExpr(fname, tokens[pos:], ctx)
+		rfs, skip, err := evalKeyExpr(tokens[pos:], ctx)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -201,12 +293,12 @@ func evalObject(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.To
 	}
 
 	if pos >= len(tokens) {
-		return nil, 0, fmt.Errorf("malformed object")
+		return nil, 0, errorf("malformed object")
 	}
 
 	tok = tokens[pos]
 	if tok.Type != hclsyntax.TokenCBrace {
-		return nil, 0, fmt.Errorf("malformed object, unexpected %s", tok.Bytes)
+		return nil, 0, errorf("malformed object, unexpected %s", tok.Bytes)
 	}
 
 	pos++
@@ -215,104 +307,16 @@ func evalObject(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.To
 	return out, pos, nil
 }
 
-func evalKeyExpr(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
-	return evalExpr(true, fname, tokens, ctx)
+func evalKeyExpr(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
+	return evalExpr(true, tokens, ctx)
 }
 
-func evalExpr(iskey bool, fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
-	if len(tokens) == 0 {
-		return tokens, 0, nil
-	}
-
-	out := hclwrite.Tokens{}
-
-	pos := 0
-	tok := tokens[pos]
-	switch tok.Type {
-	case hclsyntax.TokenEOF:
-		pos++
-		if len(tokens) != pos {
-			panic(fmt.Sprintf("got EOF at middle: %d < %d", pos, len(tokens)))
-		}
-	case hclsyntax.TokenOQuote:
-		evaluated, skip, err := evalString(fname, tokens[pos:], ctx)
-		if err != nil {
-			return nil, 0, err
-		}
-
-		out = append(out, evaluated...)
-		pos += skip
-	case hclsyntax.TokenIdent:
-		switch string(tok.Bytes) {
-		case "true", "false", "null":
-			out = append(out, tok)
-			pos++
-		default:
-			if isCanEvaluateIdent(tokens[pos:]) {
-				evaluated, skip, err := evalIdent(fname, tokens[pos:], ctx)
-				if err != nil {
-					return nil, 0, err
-				}
-
-				pos += skip
-				out = append(out, evaluated...)
-			} else if iskey {
-				out = append(out, tok)
-				pos++
-			} else {
-				return nil, 0, fmt.Errorf(
-					"expression cannot evaluate IDENT (%s) at this point",
-					tok.Bytes,
-				)
-			}
-		}
-	case hclsyntax.TokenOBrace:
-		next := tokens[pos+1]
-		if next.Type == hclsyntax.TokenIdent && string(next.Bytes) == "for" {
-			evaluated, skip, err := evalForExpr(fname, tokens[pos:], ctx)
-			if err != nil {
-				return nil, 0, err
-			}
-
-			pos += skip
-			out = append(out, evaluated...)
-		} else {
-			evaluated, skip, err := evalObject(fname, tokens[pos:], ctx)
-			if err != nil {
-				return nil, 0, err
-			}
-
-			pos += skip
-			out = append(out, evaluated...)
-		}
-	case hclsyntax.TokenOBrack:
-		evaluated, skip, err := evalList(fname, tokens[pos:], ctx)
-		if err != nil {
-			return nil, 0, err
-		}
-
-		pos += skip
-		out = append(out, evaluated...)
-	case hclsyntax.TokenNumberLit:
-		out = append(out, tok)
-		pos++
-	default:
-		panic(fmt.Errorf("not implemented: %s (%s)", tok.Bytes, tok.Type))
-	}
-
-	if pos == 0 {
-		panic("bug: no advance in the position")
-	}
-
-	return out, pos, nil
-}
-
-func evalForExpr(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
+func evalForExpr(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
 	// {
 	pos := 0
 	tok := tokens[pos]
 	if tok.Type != hclsyntax.TokenOBrace {
-		panic(fmt.Sprintf("evalForExpr: malformed `for` expression: %s", tok.Bytes))
+		panic(sprintf("evalForExpr: malformed `for` expression: %s", tok.Bytes))
 	}
 
 	out := hclwrite.Tokens{tok}
@@ -321,7 +325,7 @@ func evalForExpr(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.T
 	pos++
 	tok = tokens[pos]
 	if tok.Type != hclsyntax.TokenIdent || string(tok.Bytes) != "for" {
-		panic(fmt.Sprintf("evalForExpr: malformed `for` expression: %s", tok.Bytes))
+		panic(sprintf("evalForExpr: malformed `for` expression: %s", tok.Bytes))
 	}
 
 	out = append(out, tok)
@@ -330,7 +334,7 @@ func evalForExpr(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.T
 	pos++
 	tok = tokens[pos]
 	if tok.Type != hclsyntax.TokenIdent {
-		return nil, 0, fmt.Errorf("invalid for expression")
+		return nil, 0, errorf("invalid for expression")
 	}
 
 	out = append(out, tok)
@@ -339,14 +343,14 @@ func evalForExpr(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.T
 	pos++
 	tok = tokens[pos]
 	if tok.Type != hclsyntax.TokenIdent && string(tok.Bytes) != "in" {
-		return nil, 0, fmt.Errorf("invalid `for` expression: expected `in`")
+		return nil, 0, errorf("invalid `for` expression: expected `in`")
 	}
 
 	out = append(out, tok)
 
 	// { for <ident> in <expression>
 	pos++
-	evaluated, skip, err := evalExpr(false, fname, tokens[pos:], ctx)
+	evaluated, skip, err := evalExpr(false, tokens[pos:], ctx)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -357,14 +361,14 @@ func evalForExpr(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.T
 	// { for <ident> in <expression> :
 	tok = tokens[pos]
 	if tok.Type != hclsyntax.TokenColon {
-		return nil, 0, fmt.Errorf("invalid `for` expression: expected `:`")
+		return nil, 0, errorf("invalid `for` expression: expected `:`")
 	}
 
 	out = append(out, tok)
 
 	// { for <ident> in <expression> : <expression>
 	pos++
-	evaluated, skip, err = evalExpr(true, fname, tokens[pos:], ctx)
+	evaluated, skip, err = evalExpr(true, tokens[pos:], ctx)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -375,14 +379,14 @@ func evalForExpr(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.T
 	// { for <ident> in <expression> : <expression> =>
 	tok = tokens[pos]
 	if tok.Type != hclsyntax.TokenFatArrow {
-		return nil, 0, fmt.Errorf("evalForExpr: unexpected token `%s`, expected `=>`", tok.Bytes)
+		return nil, 0, errorf("evalForExpr: unexpected token `%s`, expected `=>`", tok.Bytes)
 	}
 
 	out = append(out, tok)
 
 	// { for <ident> in <expression> : <expression> => <expression>
 	pos++
-	evaluated, skip, err = evalExpr(true, fname, tokens[pos:], ctx)
+	evaluated, skip, err = evalExpr(true, tokens[pos:], ctx)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -393,7 +397,7 @@ func evalForExpr(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.T
 	// { for <ident> in <expression> : <expression> => <expression> }
 	tok = tokens[pos]
 	if tok.Type != hclsyntax.TokenCBrace {
-		return nil, 0, fmt.Errorf("evalForExpr: unexpected token `%s`, expected `}`", tok.Bytes)
+		return nil, 0, errorf("evalForExpr: unexpected token `%s`, expected `}`", tok.Bytes)
 	}
 
 	out = append(out, tok)
@@ -402,16 +406,16 @@ func evalForExpr(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.T
 	return out, pos, nil
 }
 
-func evalFuncall(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
+func evalFuncall(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
 	if len(tokens) < 3 {
-		return nil, 0, fmt.Errorf("not a funcall")
+		return nil, 0, errorf("not a funcall")
 	}
 
 	pos := 0
 	tok := tokens[pos]
 
 	if tok.Type != hclsyntax.TokenIdent {
-		return nil, 0, fmt.Errorf("malformed funcall, not start with IDENT")
+		return nil, 0, errorf("malformed funcall, not start with IDENT")
 	}
 
 	functok := tok
@@ -419,7 +423,7 @@ func evalFuncall(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.T
 
 	pos++
 	if tokens[pos].Type != hclsyntax.TokenOParen {
-		return nil, 0, fmt.Errorf("not a funcall")
+		return nil, 0, errorf("not a funcall")
 	}
 
 	oparenTok := tokens[pos]
@@ -428,7 +432,7 @@ func evalFuncall(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.T
 
 	pos++
 	for pos < len(tokens) && tokens[pos].Type != hclsyntax.TokenCParen {
-		evaluated, skip, err := evalExpr(false, fname, tokens[pos:], ctx)
+		evaluated, skip, err := evalExpr(false, tokens[pos:], ctx)
 		if err != nil {
 			if funcname == "try" {
 				// TODO(i4k): create a type/sentinel/whatever.
@@ -453,7 +457,7 @@ func evalFuncall(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.T
 	}
 
 	if pos >= len(tokens) {
-		return nil, 0, fmt.Errorf("malformed funcall")
+		return nil, 0, errorf("malformed funcall")
 	}
 
 	cloparenTok := tokens[pos]
@@ -525,7 +529,7 @@ loop:
 		index = indexTokens
 
 		if tokens[count].Type != hclsyntax.TokenCBrack {
-			panic(fmt.Sprintf("malformed variable: %s", tokens[count].Type))
+			panic(sprintf("malformed variable: %s", tokens[count].Type))
 		}
 
 		count++
@@ -534,11 +538,11 @@ loop:
 	return count, index
 }
 
-func evalVar(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
+func evalVar(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
 	out := hclwrite.Tokens{}
 
 	if len(tokens) < 3 {
-		return nil, 0, fmt.Errorf("expected a.b but got %d tokens", len(tokens))
+		return nil, 0, errorf("expected a.b but got %d tokens", len(tokens))
 	}
 
 	varLen, index := varInfo(false, tokens)
@@ -550,7 +554,7 @@ func evalVar(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Token
 	}
 
 	if len(index) > 0 && index[0].Type != hclsyntax.TokenNumberLit {
-		return nil, 0, fmt.Errorf("evalVar: indexing kind not implemented: %s", index[0].Type)
+		return nil, 0, errorf("evalVar: indexing kind not implemented: %s", index[0].Type)
 	}
 
 	var expr []byte
@@ -559,9 +563,9 @@ func evalVar(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Token
 		expr = append(expr, et.Bytes...)
 	}
 
-	e, diags := hclsyntax.ParseExpression(expr, fname, hcl.Pos{})
+	e, diags := hclsyntax.ParseExpression(expr, "gen.hcl", hcl.Pos{})
 	if diags.HasErrors() {
-		return nil, 0, fmt.Errorf("failed to parse expr: %v", diags.Error())
+		return nil, 0, errorf("failed to parse expr: %v", diags.Error())
 	}
 
 	val, err := ctx.Eval(e)
@@ -575,10 +579,10 @@ func evalVar(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Token
 	return out, varLen, nil
 }
 
-func evalString(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
+func evalString(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
 	tok := tokens[0]
 	if tok.Type != hclsyntax.TokenOQuote {
-		return nil, 0, fmt.Errorf("bug: not a quoted string")
+		return nil, 0, errorf("bug: not a quoted string")
 	}
 
 	out := hclwrite.Tokens{}
@@ -604,7 +608,7 @@ func evalString(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.To
 		case hclsyntax.TokenTemplateInterp:
 			pos++
 
-			evaluated, skipArgs, err := evalIdent(fname, tokens[pos:], ctx)
+			evaluated, skipArgs, err := evalIdent(tokens[pos:], ctx)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -618,14 +622,14 @@ func evalString(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.To
 					switch evaluated[0].Type {
 					case hclsyntax.TokenOQuote:
 						if evaluated[1].Type != hclsyntax.TokenQuotedLit {
-							panic(fmt.Errorf("unexpectedd type %s", evaluated[1].Type))
+							panic(errorf("unexpected type %s", evaluated[1].Type))
 						}
 
 						str.Bytes = append(str.Bytes, evaluated[1].Bytes...)
 					case hclsyntax.TokenNumberLit, hclsyntax.TokenIdent: // numbers, true, false, null
 						str.Bytes = append(str.Bytes, evaluated[0].Bytes...)
 					default:
-						panic(fmt.Sprintf("interpolation kind not supported: %s (%s)",
+						panic(sprintf("interpolation kind not supported: %s (%s)",
 							evaluated[0].Bytes, evaluated[0].Type))
 					}
 				} else {
@@ -635,7 +639,7 @@ func evalString(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.To
 					case hclsyntax.TokenNumberLit, hclsyntax.TokenIdent: // numbers, true, false, null
 						out = append(out, evaluated...)
 					default:
-						panic(fmt.Sprintf("interpolation kind not supported: %s (%s)",
+						panic(sprintf("interpolation kind not supported: %s (%s)",
 							evaluated[0].Bytes, evaluated[0].Type))
 					}
 
@@ -648,17 +652,17 @@ func evalString(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.To
 			pos += skipArgs
 
 		default:
-			panic(fmt.Errorf("evalString: unexpected token %s (%s)", tok.Bytes, tok.Type))
+			panic(errorf("evalString: unexpected token %s (%s)", tok.Bytes, tok.Type))
 		}
 	}
 
 	if pos >= len(tokens) {
-		return nil, 0, fmt.Errorf("malformed quoted string %d %d", len(tokens), pos)
+		return nil, 0, errorf("malformed quoted string %d %d", len(tokens), pos)
 	}
 
 	tok = tokens[pos]
 	if tok.Type != hclsyntax.TokenCQuote {
-		return nil, 0, fmt.Errorf("malformed quoted string, expected '\"' (close quote)")
+		return nil, 0, errorf("malformed quoted string, expected '\"' (close quote)")
 	}
 
 	out = append(out, tok)
@@ -666,3 +670,6 @@ func evalString(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.To
 
 	return out, pos, nil
 }
+
+var sprintf = fmt.Sprintf
+var errorf = fmt.Errorf
