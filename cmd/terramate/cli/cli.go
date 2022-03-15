@@ -72,9 +72,10 @@ type cliSpec struct {
 	DisableCheckGitUncommitted bool `optional:"true" default:"false" help:"disable git check for uncommitted files."`
 
 	Run struct {
-		ContinueOnError bool     `default:"false" help:"continue executing in other stacks in case of error."`
-		DryRun          bool     `default:"false" help:"plan the execution but do not execute it"`
-		Command         []string `arg:"" name:"cmd" passthrough:"" help:"command to execute."`
+		DisableCheckGenCode bool     `optional:"true" default:"false" help:"disable outdated generated code check."`
+		ContinueOnError     bool     `default:"false" help:"continue executing in other stacks in case of error."`
+		DryRun              bool     `default:"false" help:"plan the execution but do not execute it"`
+		Command             []string `arg:"" name:"cmd" passthrough:"" help:"command to execute."`
 	} `cmd:"" help:"Run command in the stacks."`
 
 	Plan struct {
@@ -759,17 +760,14 @@ func (c *cli) printMetadata() {
 	}
 }
 
-func (c *cli) runOnStacks() {
+func (c *cli) checkOutdatedGeneratedCode(stacks []stack.S) {
 	logger := log.With().
-		Str("action", "runOnStacks()").
-		Str("workingDir", c.wd()).
+		Str("action", "checkOutdatedGeneratedCode()").
 		Logger()
 
-	stacks, err := c.computeSelectedStacks(true)
-	if err != nil {
-		logger.Fatal().
-			Err(err).
-			Msgf("computing selected stacks")
+	if c.parsedArgs.Run.DisableCheckGenCode {
+		logger.Trace().Msg("Outdated generated code check is disabled.")
+		return
 	}
 
 	logger.Trace().Msg("Checking if any stack has outdated code.")
@@ -803,6 +801,22 @@ func (c *cli) runOnStacks() {
 			Err(ErrOutdatedGenCodeDetected).
 			Msg("please run: 'terramate generate' to update generated code")
 	}
+}
+
+func (c *cli) runOnStacks() {
+	logger := log.With().
+		Str("action", "runOnStacks()").
+		Str("workingDir", c.wd()).
+		Logger()
+
+	stacks, err := c.computeSelectedStacks(true)
+	if err != nil {
+		logger.Fatal().
+			Err(err).
+			Msgf("computing selected stacks")
+	}
+
+	c.checkOutdatedGeneratedCode(stacks)
 
 	logger.Trace().Msg("Get order of stacks to run command on.")
 
