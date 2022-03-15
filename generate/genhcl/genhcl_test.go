@@ -1501,6 +1501,48 @@ func TestPartialEval(t *testing.T) {
 				str("var", "hello 1337"),
 			),
 		},
+		{
+			name: "basic list indexing",
+			globals: hcldoc(
+				globals(
+					expr("list", `["a", "b", "c"]`),
+				),
+			),
+			config: hcldoc(
+				expr("string", `global.list[0]`),
+			),
+			want: hcldoc(
+				str("string", "a"),
+			),
+		},
+		{
+			name: "basic object indexing",
+			globals: hcldoc(
+				globals(
+					expr("obj", `{"a" = "b"}`),
+				),
+			),
+			config: hcldoc(
+				expr("string", `global.obj["a"]`),
+			),
+			want: hcldoc(
+				str("string", "b"),
+			),
+		},
+		{
+			name: "basic for loops",
+			globals: hcldoc(
+				globals(
+					expr("list", `["a", "b", "c"]`),
+				),
+			),
+			config: hcldoc(
+				expr("obj", `{for k in global.list : k => k}`),
+			),
+			want: hcldoc(
+				expr("obj", `{for k in ["a", "b", "c"] : k => k}`),
+			),
+		},
 	}
 
 	for _, tcase := range tcases {
