@@ -63,7 +63,7 @@ jobs:
         run: make build
 
   gh_integration_test:
-    name: GH Action Integration Test
+    name: GHA Integration Test
 
     runs-on: "ubuntu-20.04"
 
