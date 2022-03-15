@@ -50,8 +50,6 @@ jobs:
     steps:
       - name: checkout repo
         uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
 
       - name: setup go
         uses: actions/setup-go@v2
@@ -63,7 +61,23 @@ jobs:
 
       - name: make build
         run: make build
-      
+
+  gh_integration_test:
+    name: GH Action Integration Test
+
+    runs-on: "ubuntu-20.04"
+
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: setup go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "1.17"
+
       - name: make test/ci
         run: make test/ci
 
