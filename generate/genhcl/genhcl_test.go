@@ -1275,6 +1275,62 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
+			name: "variable interpolation of number",
+			globals: hcldoc(
+				globals(
+					number("num", 1337),
+				),
+			),
+			config: hcldoc(
+				str("num", `${global.num}`),
+			),
+			want: hcldoc(
+				str("num", "1337"),
+			),
+		},
+		{
+			name: "variable interpolation of number with prefix str",
+			globals: hcldoc(
+				globals(
+					number("num", 1337),
+				),
+			),
+			config: hcldoc(
+				str("num", `test-${global.num}`),
+			),
+			want: hcldoc(
+				str("num", "test-1337"),
+			),
+		},
+		{
+			name: "variable interpolation of bool",
+			globals: hcldoc(
+				globals(
+					boolean("flag", true),
+				),
+			),
+			config: hcldoc(
+				str("flag", `${global.flag}`),
+			),
+			want: hcldoc(
+				str("flag", "true"),
+			),
+		},
+		{
+			name: "variable interpolation of bool with prefixed str",
+			globals: hcldoc(
+				globals(
+					boolean("flag", true),
+				),
+			),
+			config: hcldoc(
+				str("flag", `test-${global.flag}`),
+			),
+			want: hcldoc(
+				str("flag", "test-true"),
+			),
+		},
+		{
 			name: "variable interpolation without prefixed string",
 			globals: hcldoc(
 				globals(
@@ -1344,6 +1400,105 @@ func TestPartialEval(t *testing.T) {
 			),
 			want: hcldoc(
 				str("string", "hello1hello2"),
+			),
+		},
+		/**
+		 * review this test.
+		 * TODO(i4k): help
+		 *
+		{
+		    name: `example test using previously evaluated global object into a string
+			       - only used as base to next test`,
+			globals: hcldoc(
+				globals(
+					expr("obj", `{
+						string = "hello"
+						number = 1337
+						bool = false
+					}`),
+					str("evaluated", "${global.obj}"),
+				),
+			),
+			config: hcldoc(
+				str("var", "${global.evaluated}"),
+			),
+			want: hcldoc(
+				str("var", "\nbool   = false\nnumber = 1337\nstring = \" hello \"\n"),
+			),
+		},
+		*
+		*
+		{
+			name: "test object interpolation/serialization",
+			globals: hcldoc(
+				globals(
+					expr("obj", `{
+						string = "hello"
+						number = 1337
+						bool = false
+					}`),
+				),
+			),
+			config: hcldoc(
+				str("var", "${global.obj}"),
+			),
+			want: hcldoc(
+				str("var", "\nbool   = false\nnumber = 1337\nstring = \" hello \"\n"),
+			),
+		},
+		*/
+		{
+			name: "test list - just to see how hcl lib serializes a list // remove me",
+			globals: hcldoc(
+				globals(
+					expr("list", `[1, 2, 3]`),
+					str("interp", "${global.list}"),
+				),
+			),
+			config: hcldoc(
+				str("var", "${global.interp}"),
+			),
+			want: hcldoc(
+				str("var", "1, 2, 3"),
+			),
+		},
+		{
+			name: "variable list interpolation/serialization in a string",
+			globals: hcldoc(
+				globals(
+					expr("list", `[1, 2, 3]`),
+				),
+			),
+			config: hcldoc(
+				str("var", "${global.list}"),
+			),
+			want: hcldoc(
+				str("var", "1, 2, 3"),
+			),
+		},
+		{
+			name: "deep object interpolation",
+			globals: hcldoc(
+				globals(
+					expr("obj", `{
+						obj2 = {
+							obj3 = {
+								string = "hello"
+								number = 1337
+								bool = false
+							}
+						}
+						string = "hello"
+						number = 1337
+						bool = false
+					}`),
+				),
+			),
+			config: hcldoc(
+				str("var", "${global.obj.string} ${global.obj.obj2.obj3.number}"),
+			),
+			want: hcldoc(
+				str("var", "hello 1337"),
 			),
 		},
 	}

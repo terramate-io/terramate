@@ -480,11 +480,23 @@ func evalString(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.To
 						}
 
 						str.Bytes = append(str.Bytes, evaluated[1].Bytes...)
+					case hclsyntax.TokenNumberLit, hclsyntax.TokenIdent: // numbers, true, false, null
+						str.Bytes = append(str.Bytes, evaluated[0].Bytes...)
 					default:
-						panic(fmt.Sprintf("interpolation kind not supported: %s (%s)", evaluated[0].Bytes, evaluated[0].Type))
+						panic(fmt.Sprintf("interpolation kind not supported: %s (%s)",
+							evaluated[0].Bytes, evaluated[0].Type))
 					}
 				} else {
-					out = append(out, evaluated[1:len(evaluated)-1]...)
+					switch evaluated[0].Type {
+					case hclsyntax.TokenOQuote, hclsyntax.TokenOBrack, hclsyntax.TokenOBrace:
+						out = append(out, evaluated[1:len(evaluated)-1]...)
+					case hclsyntax.TokenNumberLit, hclsyntax.TokenIdent: // numbers, true, false, null
+						out = append(out, evaluated...)
+					default:
+						panic(fmt.Sprintf("interpolation kind not supported: %s (%s)",
+							evaluated[0].Bytes, evaluated[0].Type))
+					}
+
 				}
 			} else {
 				out = append(out, interpTokenStart())
