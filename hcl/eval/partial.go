@@ -31,6 +31,8 @@ import (
 //     non existent.
 //   - The try() function gets completed removed and replaced by the default
 //     value if only it is left as an argument.
+//     - try(terramate.non_existant, 1) -> try(1) -> 1
+//     - try(globals.non_existant, locals.b, "default") -> try(locals.b, "default")
 func Partial(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, error) {
 	pos := 0
 	out := hclwrite.Tokens{}
