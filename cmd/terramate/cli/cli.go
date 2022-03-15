@@ -62,6 +62,7 @@ const (
 
 type cliSpec struct {
 	Version       struct{} `cmd:"" help:"Terramate version."`
+	VersionFlag   bool     `name:"version" help:"Terramate version."`
 	Chdir         string   `short:"C" optional:"true" help:"sets working directory."`
 	GitChangeBase string   `short:"B" optional:"true" help:"git base ref for computing changes."`
 	Changed       bool     `short:"c" optional:"true" help:"filter by changed infrastructure"`
@@ -186,6 +187,15 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 		return &cli{exit: true}
 	}
 
+	// When we run terramate --version the kong parser just fails
+	// since no subcommand was provided (which is odd..but happens).
+	// So we check if the flag for version is present before checking the error.
+	if parsedArgs.VersionFlag {
+		logger.Debug().Msg("Get terramate version using --version.")
+		fmt.Println(terramate.Version())
+		return &cli{exit: true}
+	}
+
 	if err != nil {
 		logger.Fatal().
 			Err(err).
@@ -201,7 +211,7 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 
 	switch ctx.Command() {
 	case "version":
-		logger.Debug().Msg("Get terramate version.")
+		logger.Debug().Msg("Get terramate version with version subcommand.")
 		fmt.Println(terramate.Version())
 		return &cli{exit: true}
 	case "install-completions":
