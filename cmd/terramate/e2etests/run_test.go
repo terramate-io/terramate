@@ -26,6 +26,7 @@ import (
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/run/dag"
 	"github.com/mineiros-io/terramate/test"
+	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -799,6 +800,85 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		mainTfFileName,
 	), runExpected{
 		Stdout: mainTfContents,
+	})
+}
+
+func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
+	const generateFile = "generate.tm.hcl"
+
+	generateHCL := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("generate_hcl", builders...)
+	}
+	content := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("content", builders...)
+	}
+	labels := func(labels ...string) hclwrite.BlockBuilder {
+		return hclwrite.Labels(labels...)
+	}
+	str := hclwrite.String
+
+	s := sandbox.New(t)
+	stack := s.CreateStack("stack")
+
+	// So we can list the stack as changed
+	stack.CreateFile(generateFile, "")
+	git := s.Git()
+	git.CommitAll("first commit")
+	git.Push("main")
+	git.CheckoutNew("generate-code")
+
+	generateFileBody := generateHCL(
+		labels("test.tf"),
+		content(
+			str("test", "test"),
+		),
+	).String()
+	stack.CreateFile(generateFile, generateFileBody)
+
+	git.CommitAll("generating some code commit")
+
+	tmcli := newCLI(t, s.RootDir())
+	cat := test.LookPath(t, "cat")
+
+	// check with --changed
+	assertRunResult(t, tmcli.run(
+		"run",
+		"--changed",
+		cat,
+		generateFile,
+	), runExpected{
+		Status:      defaultErrExitStatus,
+		StderrRegex: cli.ErrOutdatedGenCodeDetected.Error(),
+	})
+
+	// check without --changed
+	assertRunResult(t, tmcli.run(
+		"run",
+		cat,
+		generateFile,
+	), runExpected{
+		Status:      defaultErrExitStatus,
+		StderrRegex: cli.ErrOutdatedGenCodeDetected.Error(),
+	})
+
+	// disabling the check must work for both with and without --changed
+	assertRunResult(t, tmcli.run(
+		"run",
+		"--changed",
+		"--disable-check-gen-code",
+		cat,
+		generateFile,
+	), runExpected{
+		Stdout: generateFileBody,
+	})
+
+	assertRunResult(t, tmcli.run(
+		"run",
+		"--disable-check-gen-code",
+		cat,
+		generateFile,
+	), runExpected{
+		Stdout: generateFileBody,
 	})
 }
 

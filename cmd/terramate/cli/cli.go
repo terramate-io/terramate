@@ -62,6 +62,7 @@ const (
 
 type cliSpec struct {
 	Version       struct{} `cmd:"" help:"Terramate version."`
+	VersionFlag   bool     `name:"version" help:"Terramate version."`
 	Chdir         string   `short:"C" optional:"true" help:"sets working directory."`
 	GitChangeBase string   `short:"B" optional:"true" help:"git base ref for computing changes."`
 	Changed       bool     `short:"c" optional:"true" help:"filter by changed infrastructure"`
@@ -72,9 +73,10 @@ type cliSpec struct {
 	DisableCheckGitUncommitted bool `optional:"true" default:"false" help:"disable git check for uncommitted files."`
 
 	Run struct {
-		ContinueOnError bool     `default:"false" help:"continue executing in other stacks in case of error."`
-		DryRun          bool     `default:"false" help:"plan the execution but do not execute it"`
-		Command         []string `arg:"" name:"cmd" passthrough:"" help:"command to execute."`
+		DisableCheckGenCode bool     `optional:"true" default:"false" help:"disable outdated generated code check."`
+		ContinueOnError     bool     `default:"false" help:"continue executing in other stacks in case of error."`
+		DryRun              bool     `default:"false" help:"plan the execution but do not execute it"`
+		Command             []string `arg:"" name:"cmd" passthrough:"" help:"command to execute."`
 	} `cmd:"" help:"Run command in the stacks."`
 
 	Plan struct {
@@ -185,6 +187,15 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 		return &cli{exit: true}
 	}
 
+	// When we run terramate --version the kong parser just fails
+	// since no subcommand was provided (which is odd..but happens).
+	// So we check if the flag for version is present before checking the error.
+	if parsedArgs.VersionFlag {
+		logger.Debug().Msg("Get terramate version using --version.")
+		fmt.Println(terramate.Version())
+		return &cli{exit: true}
+	}
+
 	if err != nil {
 		logger.Fatal().
 			Err(err).
@@ -200,7 +211,7 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 
 	switch ctx.Command() {
 	case "version":
-		logger.Debug().Msg("Get terramate version.")
+		logger.Debug().Msg("Get terramate version with version subcommand.")
 		fmt.Println(terramate.Version())
 		return &cli{exit: true}
 	case "install-completions":
@@ -759,17 +770,14 @@ func (c *cli) printMetadata() {
 	}
 }
 
-func (c *cli) runOnStacks() {
+func (c *cli) checkOutdatedGeneratedCode(stacks []stack.S) {
 	logger := log.With().
-		Str("action", "runOnStacks()").
-		Str("workingDir", c.wd()).
+		Str("action", "checkOutdatedGeneratedCode()").
 		Logger()
 
-	stacks, err := c.computeSelectedStacks(true)
-	if err != nil {
-		logger.Fatal().
-			Err(err).
-			Msgf("computing selected stacks")
+	if c.parsedArgs.Run.DisableCheckGenCode {
+		logger.Trace().Msg("Outdated generated code check is disabled.")
+		return
 	}
 
 	logger.Trace().Msg("Checking if any stack has outdated code.")
@@ -803,6 +811,22 @@ func (c *cli) runOnStacks() {
 			Err(ErrOutdatedGenCodeDetected).
 			Msg("please run: 'terramate generate' to update generated code")
 	}
+}
+
+func (c *cli) runOnStacks() {
+	logger := log.With().
+		Str("action", "runOnStacks()").
+		Str("workingDir", c.wd()).
+		Logger()
+
+	stacks, err := c.computeSelectedStacks(true)
+	if err != nil {
+		logger.Fatal().
+			Err(err).
+			Msgf("computing selected stacks")
+	}
+
+	c.checkOutdatedGeneratedCode(stacks)
 
 	logger.Trace().Msg("Get order of stacks to run command on.")
 
