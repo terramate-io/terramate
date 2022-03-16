@@ -656,6 +656,171 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "global interpolating strings",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						str("str1", "hello"),
+						str("str2", "world"),
+						str("str3", "${global.str1}-${global.str2}"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					str("str1", "hello"),
+					str("str2", "world"),
+					str("str3", "hello-world"),
+				),
+			},
+		},
+		{
+			// This tests double check that interpolation on a single list
+			// produces an actual list object on hcl eval, not a string
+			// Which is bizarre...but why not ?
+			name:   "global interpolating single list",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						attr("a", `["aaa"]`),
+						str("a_interpolated", "${global.a}"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					attr("a", `["aaa"]`),
+					attr("a_interpolated", `["aaa"]`),
+				),
+			},
+		},
+		{
+			name:   "global interpolating multiple lists fails",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						attr("a", `["aaa"]`),
+						str("a_interpolated", "${global.a}-${global.a}"),
+					),
+				},
+			},
+			wantErr: terramate.ErrGlobalEval,
+		},
+		{
+			name:   "global interpolating list with space fails",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						attr("a", `["aaa"]`),
+						str("a_interpolated", " ${global.a}"),
+					),
+				},
+			},
+			wantErr: terramate.ErrGlobalEval,
+		},
+		{
+			// This tests double check that interpolation on a single object/map
+			// produces an actual object on hcl eval, not a string.
+			// Which is bizarre...but why not ?
+			name:   "global interpolating single object",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						attr("a", `{ members = ["aaa"] }`),
+						str("a_interpolated", "${global.a}"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					attr("a", `{ members = ["aaa"] }`),
+					attr("a_interpolated", `{ members = ["aaa"] }`),
+				),
+			},
+		},
+		{
+			name:   "global interpolating multiple objects fails",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						attr("a", `{ members = ["aaa"] }`),
+						str("a_interpolated", "${global.a}-${global.a}"),
+					),
+				},
+			},
+			wantErr: terramate.ErrGlobalEval,
+		},
+		{
+			name:   "global interpolating object with space fails",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						attr("a", `{ members = ["aaa"] }`),
+						str("a_interpolated", "${global.a} "),
+					),
+				},
+			},
+			wantErr: terramate.ErrGlobalEval,
+		},
+		{
+			// This tests double check that interpolation on a single number
+			// produces an actual number on hcl eval, not a string.
+			// Which is bizarre...but why not ?
+			name:   "global interpolating numbers",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						number("a", 666),
+						str("a_interpolated", "${global.a}"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					number("a", 666),
+					number("a_interpolated", 666),
+				),
+			},
+		},
+		{
+			// Composing numbers on a interpolation works and then produces
+			// string. Testing this because this does not work with all types
+			// and it is useful for us as maintainers to map/test these different behaviors.
+			name:   "global interpolating multiple numbers",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						number("a", 666),
+						str("a_interpolated", "${global.a}-${global.a}"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					number("a", 666),
+					str("a_interpolated", "666-666"),
+				),
+			},
+		},
+		{
 			name:   "global reference with try on root config and value defined on stack",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
