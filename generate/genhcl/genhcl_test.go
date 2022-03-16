@@ -419,7 +419,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 								expr("field_a", "try(global.obj.field_a, null)"),
 								expr("field_b", "try(global.obj.field_b, null)"),
 								expr("field_c", "try(global.obj.field_c, null)"),
-								expr("field_d", "try(global.obj.field_d, null)"),
+								expr("field_d", "tm_try(global.obj.field_d, null)"),
 							),
 						),
 					),

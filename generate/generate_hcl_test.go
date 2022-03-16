@@ -106,7 +106,7 @@ func TestHCLGeneration(t *testing.T) {
 									expr("local_a", "global.local_a"),
 									expr("local_b", "global.local_b"),
 									expr("local_c", "global.local_c"),
-									expr("local_d", "try(global.local_d.field, null)"),
+									expr("local_d", "tm_try(global.local_d.field, null)"),
 								),
 							),
 						),
@@ -171,7 +171,7 @@ func TestHCLGeneration(t *testing.T) {
 							str("local_a", "stack-1-local"),
 							boolean("local_b", true),
 							number("local_c", 666),
-							expr("local_d", "try(\"local_d_field\", null)"),
+							str("local_d", "local_d_field"),
 							str("stackpath", "/stacks/stack-1"),
 						),
 						"provider.tf": hcldoc(

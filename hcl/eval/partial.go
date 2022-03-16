@@ -411,6 +411,58 @@ func evalForExpr(
 	return out, pos, nil
 }
 
+func isTmFuncall(tok *hclwrite.Token) bool {
+	return tok.Type == hclsyntax.TokenIdent &&
+		strings.HasPrefix(string(tok.Bytes), "tm_")
+}
+
+func evalTmFuncall(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
+	if len(tokens) < 3 {
+		return nil, 0, errorf("not a funcall")
+	}
+
+	pos := 0
+	tok := tokens[pos]
+
+	if !isTmFuncall(tok) {
+		panic("not a `tm_` function")
+	}
+
+	pos++
+	if tokens[pos].Type != hclsyntax.TokenOParen {
+		return nil, 0, errorf("not a funcall")
+	}
+
+	pos++
+	for pos < len(tokens) && tokens[pos].Type != hclsyntax.TokenCParen {
+		pos++
+	}
+
+	if tokens[pos].Type != hclsyntax.TokenCParen {
+		return nil, 0, errorf("malformed funcall")
+	}
+
+	pos++
+
+	var expr []byte
+
+	for _, et := range tokens[:pos] {
+		expr = append(expr, et.Bytes...)
+	}
+
+	e, diags := hclsyntax.ParseExpression(expr, "gen.hcl", hcl.Pos{})
+	if diags.HasErrors() {
+		return nil, 0, errorf("failed to parse expr ('%s'): %v", expr, diags.Error())
+	}
+
+	val, err := ctx.Eval(e)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return hclwrite.TokensForValue(val), pos, nil
+}
+
 func evalFuncall(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
 	if len(tokens) < 3 {
 		return nil, 0, errorf("not a funcall")
@@ -423,41 +475,31 @@ func evalFuncall(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, er
 		return nil, 0, errorf("malformed funcall, not start with IDENT")
 	}
 
-	functok := tok
-	funcname := string(tok.Bytes)
+	if isTmFuncall(tok) {
+		return evalTmFuncall(tokens, ctx)
+	}
+
+	out := hclwrite.Tokens{tok}
 
 	pos++
 	if tokens[pos].Type != hclsyntax.TokenOParen {
 		return nil, 0, errorf("not a funcall")
 	}
 
-	oparenTok := tokens[pos]
-
-	args := []hclwrite.Tokens{}
+	out = append(out, tokens[pos])
 
 	pos++
 	for pos < len(tokens) && tokens[pos].Type != hclsyntax.TokenCParen {
 		evaluated, skip, err := evalExpr(false, tokens[pos:], ctx)
 		if err != nil {
-			if funcname == "try" {
-				// TODO(i4k): create a type/sentinel/whatever.
-				if !strings.Contains(err.Error(), "evaluating expression") {
-					return nil, 0, err
-				}
-				v, _ := parseVariable(tokens[pos:])
-				skip = v.size()
-			} else {
-				return nil, 0, err
-			}
+			return nil, 0, err
 		}
 
 		pos += skip
-		if len(evaluated) > 0 {
-			args = append(args, evaluated)
-		}
+		out = append(out, evaluated...)
 
 		if tokens[pos].Type == hclsyntax.TokenComma {
-			// commas will be emited later.
+			out = append(out, tokens[pos])
 			pos++
 		}
 	}
@@ -466,27 +508,12 @@ func evalFuncall(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, er
 		return nil, 0, errorf("malformed funcall")
 	}
 
-	cloparenTok := tokens[pos]
-	if cloparenTok.Type != hclsyntax.TokenCParen {
+	if tokens[pos].Type != hclsyntax.TokenCParen {
 		panic("bug: funcall not closed")
 	}
 
+	out = append(out, tokens[pos])
 	pos++
-
-	out := hclwrite.Tokens{}
-
-	if funcname == "try" && len(args) == 1 {
-		out = append(out, args[0]...)
-	} else {
-		out = append(out, functok, oparenTok)
-		for i, arg := range args {
-			out = append(out, arg...)
-			if i != len(args)-1 {
-				out = append(out, tokenComma())
-			}
-		}
-		out = append(out, cloparenTok)
-	}
 
 	return out, pos, nil
 }
