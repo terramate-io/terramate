@@ -1374,11 +1374,9 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "multiple variable interpolation with prefixed string",
-			globals: hcldoc(
-				globals(
-					str("string1", "hello1"),
-					str("string2", "hello2"),
-				),
+			globals: globals(
+				str("string1", "hello1"),
+				str("string2", "hello2"),
 			),
 			config: hcldoc(
 				str("string", `something ${global.string1} and ${global.string2}`),
