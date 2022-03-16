@@ -680,7 +680,7 @@ func TestLoadGlobals(t *testing.T) {
 			// This tests double check that interpolation on a single list
 			// produces an actual list object on hcl eval, not a string
 			// Which is bizarre...but why not ?
-			name:   "global interpolating lists",
+			name:   "global interpolating single list",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
 				{
@@ -699,10 +699,24 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "global interpolating multiple lists fails",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						attr("a", `["aaa"]`),
+						str("a_interpolated", "${global.a}-${global.a}"),
+					),
+				},
+			},
+			wantErr: terramate.ErrGlobalEval,
+		},
+		{
 			// This tests double check that interpolation on a single object/map
 			// produces an actual object on hcl eval, not a string.
 			// Which is bizarre...but why not ?
-			name:   "global interpolating objects",
+			name:   "global interpolating single object",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
 				{
@@ -719,6 +733,20 @@ func TestLoadGlobals(t *testing.T) {
 					attr("a_interpolated", `{ members = ["aaa"] }`),
 				),
 			},
+		},
+		{
+			name:   "global interpolating multiple objects fails",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						attr("a", `{ members = ["aaa"] }`),
+						str("a_interpolated", "${global.a}-${global.a}"),
+					),
+				},
+			},
+			wantErr: terramate.ErrGlobalEval,
 		},
 		{
 			// This tests double check that interpolation on a single number
