@@ -127,26 +127,46 @@ func evalExpr(iskey bool, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens
 			}
 		}
 	case hclsyntax.TokenOBrace:
+		var evaluated hclwrite.Tokens
+		var err error
+		var skip int
+
 		next := tokens[pos+1]
 		if next.Type == hclsyntax.TokenIdent && string(next.Bytes) == "for" {
-			evaluated, skip, err := evalForExpr(tokens[pos:], ctx)
-			if err != nil {
-				return nil, 0, err
-			}
-
-			pos += skip
-			out = append(out, evaluated...)
+			evaluated, skip, err = evalForExpr(
+				tokens[pos:],
+				ctx,
+				hclsyntax.TokenOBrace,
+				hclsyntax.TokenCBrace,
+			)
 		} else {
-			evaluated, skip, err := evalObject(tokens[pos:], ctx)
-			if err != nil {
-				return nil, 0, err
-			}
-
-			pos += skip
-			out = append(out, evaluated...)
+			evaluated, skip, err = evalObject(tokens[pos:], ctx)
 		}
+
+		if err != nil {
+			return nil, 0, err
+		}
+
+		pos += skip
+		out = append(out, evaluated...)
+
 	case hclsyntax.TokenOBrack:
-		evaluated, skip, err := evalList(tokens[pos:], ctx)
+		var evaluated hclwrite.Tokens
+		var err error
+		var skip int
+
+		next := tokens[pos+1]
+		if next.Type == hclsyntax.TokenIdent && string(next.Bytes) == "for" {
+			evaluated, skip, err = evalForExpr(
+				tokens[pos:],
+				ctx,
+				hclsyntax.TokenOBrack,
+				hclsyntax.TokenCBrack,
+			)
+		} else {
+			evaluated, skip, err = evalList(tokens[pos:], ctx)
+		}
+
 		if err != nil {
 			return nil, 0, err
 		}
@@ -206,7 +226,7 @@ func evalIdent(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, erro
 }
 
 func isCanEvaluateIdent(tokens hclwrite.Tokens) bool {
-	if len(tokens) < 3 {
+	if len(tokens) < 2 {
 		return false
 	}
 
@@ -339,7 +359,12 @@ func evalKeyExpr(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, er
 	return evalExpr(true, tokens, ctx)
 }
 
-func evalForExpr(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
+func evalForExpr(
+	tokens hclwrite.Tokens,
+	eval *Context,
+	matchOpenType hclsyntax.TokenType,
+	matchCloseType hclsyntax.TokenType,
+) (hclwrite.Tokens, int, error) {
 	// {
 	pos := 0
 	tok := tokens[pos]
@@ -358,78 +383,57 @@ func evalForExpr(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, er
 
 	out = append(out, tok)
 
-	// { for <ident>
+	// { for <ident>,<ident>,...
 	pos++
+	for pos < len(tokens) && string(tokens[pos].Bytes) != "in" {
+		tok = tokens[pos]
+		if tok.Type != hclsyntax.TokenIdent {
+			return nil, 0, errorf("invalid `for` expression: found %s", tok.Type)
+		}
+
+		out = append(out, tok)
+
+		pos++
+		tok = tokens[pos]
+		if tok.Type == hclsyntax.TokenComma {
+			out = append(out, tok)
+			pos++
+		}
+	}
+
 	tok = tokens[pos]
 	if tok.Type != hclsyntax.TokenIdent {
-		return nil, 0, errorf("invalid for expression")
+		panic(errorf("found the `in` bytes of %s type instead of IDENT", tok.Type))
 	}
 
 	out = append(out, tok)
 
-	// { for <ident> in
+	// consume everything and give errors in case of terramate variables being
+	// used in the `for`.
 	pos++
-	tok = tokens[pos]
-	if tok.Type != hclsyntax.TokenIdent && string(tok.Bytes) != "in" {
-		return nil, 0, errorf("invalid `for` expression: expected `in`")
+	matchingCollectionTokens := 1
+	for pos < len(tokens) && matchingCollectionTokens > 0 {
+		tok = tokens[pos]
+		if tok.Type == matchOpenType {
+			matchingCollectionTokens++
+		} else if tok.Type == matchCloseType {
+			matchingCollectionTokens--
+		}
+		v, found := parseVariable(tokens[pos:])
+		if found {
+			if v.isTerramate {
+				return nil, 0, fmt.Errorf(
+					"`for` expression does not support terramate variables (globals, terramate)",
+				)
+			}
+
+			out = append(out, v.alltokens()...)
+			pos += v.size()
+		} else {
+			pos++
+			out = append(out, tok)
+		}
 	}
-
-	out = append(out, tok)
-
-	// { for <ident> in <expression>
-	pos++
-	evaluated, skip, err := evalExpr(false, tokens[pos:], ctx)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	pos += skip
-	out = append(out, evaluated...)
-
-	// { for <ident> in <expression> :
-	tok = tokens[pos]
-	if tok.Type != hclsyntax.TokenColon {
-		return nil, 0, errorf("invalid `for` expression: expected `:`")
-	}
-
-	out = append(out, tok)
-
-	// { for <ident> in <expression> : <expression>
-	pos++
-	evaluated, skip, err = evalExpr(true, tokens[pos:], ctx)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	pos += skip
-	out = append(out, evaluated...)
-
-	// { for <ident> in <expression> : <expression> =>
-	tok = tokens[pos]
-	if tok.Type != hclsyntax.TokenFatArrow {
-		return nil, 0, errorf("evalForExpr: unexpected token `%s`, expected `=>`", tok.Bytes)
-	}
-
-	out = append(out, tok)
-
-	// { for <ident> in <expression> : <expression> => <expression>
-	pos++
-	evaluated, skip, err = evalExpr(true, tokens[pos:], ctx)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	pos += skip
-	out = append(out, evaluated...)
-
-	// { for <ident> in <expression> : <expression> => <expression> }
-	tok = tokens[pos]
-	if tok.Type != hclsyntax.TokenCBrace {
-		return nil, 0, errorf("evalForExpr: unexpected token `%s`, expected `}`", tok.Bytes)
-	}
-
-	out = append(out, tok)
-	pos++
 
 	return out, pos, nil
 }
@@ -467,7 +471,8 @@ func evalFuncall(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, er
 				if !strings.Contains(err.Error(), "evaluating expression") {
 					return nil, 0, err
 				}
-				skip, _ = varInfo(false, tokens[pos:])
+				v, _ := parseVariable(tokens[pos:])
+				skip = v.size()
 			} else {
 				return nil, 0, err
 			}
@@ -516,78 +521,105 @@ func evalFuncall(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, er
 	return out, pos, nil
 }
 
-func interpTokenStart() *hclwrite.Token {
-	return &hclwrite.Token{
-		Type:  hclsyntax.TokenTemplateInterp,
-		Bytes: []byte("${"),
+func parseVariable(tokens hclwrite.Tokens) (v variable, found bool) {
+	if len(tokens) < 3 {
+		// a variable has at least the format: a.b
+		return variable{}, false
 	}
+
+	if tokens[0].Type != hclsyntax.TokenIdent {
+		return variable{}, false
+	}
+
+	pos := 1
+	wantDot := true
+	for pos < len(tokens) {
+		tok := tokens[pos]
+
+		if wantDot {
+			if tok.Type != hclsyntax.TokenDot {
+				break
+			}
+		} else {
+			if tok.Type != hclsyntax.TokenIdent {
+				break
+			}
+		}
+
+		pos++
+		wantDot = !wantDot
+	}
+
+	if pos < 3 {
+		// found <IDENT> <DOT> so not a variable...
+		return variable{}, false
+	}
+
+	v.name = tokens[:pos]
+	nsvar := string(v.name[0].Bytes)
+	v.isTerramate = nsvar == "global" || nsvar == "terramate"
+
+	if pos < len(tokens) && tokens[pos].Type == hclsyntax.TokenOBrack {
+		v.index = parseIndexing(tokens[pos:])
+
+		pos += 1 + len(v.index) // "[" + tokens
+
+		if tokens[pos].Type != hclsyntax.TokenCBrack {
+			panic(sprintf("malformed variable: %s", tokens[pos].Type))
+		}
+	}
+
+	return v, true
 }
 
-func varInfo(isIndexing bool, tokens hclwrite.Tokens) (count int, index hclwrite.Tokens) {
-	count = 0
-loop:
-	for i := 0; i < len(tokens); i++ {
-		switch tokens[i].Type {
-		case hclsyntax.TokenNumberLit:
-			if !isIndexing {
-				break loop
-			}
-			count++
-			return count, nil
-		case hclsyntax.TokenOQuote, hclsyntax.TokenQuotedLit:
-			if !isIndexing {
-				break loop
-			}
-
-			count++
-		case hclsyntax.TokenCQuote:
-			count++
-			return count, nil
-		case hclsyntax.TokenIdent, hclsyntax.TokenDot:
-			count++
-		default:
-			break loop
-		}
+func parseIndexing(tokens hclwrite.Tokens) hclwrite.Tokens {
+	if tokens[0].Type != hclsyntax.TokenOBrack {
+		panic("not an indexing")
 	}
 
-	if count < len(tokens) && tokens[count].Type == hclsyntax.TokenOBrack {
-		count++
-		indexSize, indexTokens := varInfo(true, tokens[count:])
-		count += indexSize
-		index = indexTokens
+	pos := 1
 
-		if tokens[count].Type != hclsyntax.TokenCBrack {
-			panic(sprintf("malformed variable: %s", tokens[count].Type))
-		}
+	v, found := parseVariable(tokens[pos:])
+	if found {
+		return v.alltokens()
+	}
 
+	pos += v.size()
+
+	count := 0
+	for ; pos < len(tokens) && tokens[pos].Type != hclsyntax.TokenCBrack; pos++ {
+		// here be dragons
+		// in other words: we don't validate the index expression, as it's going
+		// to be evaluated by hashicorp library anyway (if global/terramate) or
+		// ignored otherwise. Let's trust that hcl.Parse() catches all the issues.
 		count++
 	}
 
-	return count, index
+	if tokens[count+1].Type != hclsyntax.TokenCBrack {
+		panic("unexpected")
+	}
+
+	count++
+
+	return tokens[1:count]
 }
 
 func evalVar(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
 	out := hclwrite.Tokens{}
 
-	if len(tokens) < 3 {
-		return nil, 0, errorf("expected a.b but got %d tokens", len(tokens))
+	v, found := parseVariable(tokens)
+	if !found {
+		panic("expect a variable")
 	}
 
-	varLen, index := varInfo(false, tokens)
-
-	if string(tokens[0].Bytes) != "global" &&
-		string(tokens[0].Bytes) != "terramate" {
-		out = append(out, tokens[:varLen]...)
-		return out, varLen, nil
-	}
-
-	if len(index) > 0 && index[0].Type != hclsyntax.TokenNumberLit {
-		return nil, 0, errorf("evalVar: indexing kind not implemented: %s", index[0].Type)
+	if !v.isTerramate {
+		out = append(out, v.alltokens()...)
+		return out, v.size(), nil
 	}
 
 	var expr []byte
 
-	for _, et := range tokens[:varLen] {
+	for _, et := range v.alltokens() {
 		expr = append(expr, et.Bytes...)
 	}
 
@@ -599,12 +631,12 @@ func evalVar(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error)
 	val, err := ctx.Eval(e)
 	if err != nil {
 		// return the skip size for the try().
-		return nil, varLen, err
+		return nil, v.size(), err
 	}
 
 	newtoks := hclwrite.TokensForValue(val)
 	out = append(out, newtoks...)
-	return out, varLen, nil
+	return out, v.size(), nil
 }
 
 func evalString(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
@@ -673,7 +705,7 @@ func evalString(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, err
 
 				}
 			} else {
-				out = append(out, interpTokenStart())
+				out = append(out, tokenInterpBegin())
 				out = append(out, evaluated...)
 			}
 
@@ -697,6 +729,32 @@ func evalString(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, err
 	pos++
 
 	return out, pos, nil
+}
+
+// variable is a low-level representation of a variable in terms of tokens.
+type variable struct {
+	name  hclwrite.Tokens
+	index hclwrite.Tokens
+
+	isTerramate bool
+}
+
+func (v variable) alltokens() hclwrite.Tokens {
+	tokens := v.name
+	if len(v.index) > 0 {
+		tokens = append(tokens, tokenOBrack())
+		tokens = append(tokens, v.index...)
+		tokens = append(tokens, tokenCBrack())
+	}
+	return tokens
+}
+
+func (v variable) size() int {
+	sz := len(v.name)
+	if len(v.index) > 0 {
+		sz += len(v.index) + 2 // `[` <tokens> `]`
+	}
+	return sz
 }
 
 var sprintf = fmt.Sprintf
