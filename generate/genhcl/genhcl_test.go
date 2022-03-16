@@ -1127,6 +1127,12 @@ func TestPartialEval(t *testing.T) {
 		return hclwrite.AttributeValue(t, name, expr)
 	}
 
+	// TODO: Test interpolation error scenarios like:
+	// - ${string}-${object}
+	// - ${string}-${list}
+	// - " ${list}"
+	// - " ${object}"
+
 	tcases := []testcase{
 		{
 			name: "unknown references on attributes",
