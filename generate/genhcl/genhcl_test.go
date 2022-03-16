@@ -1404,6 +1404,7 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
+			// Here we check that a intepolated object results on the object itself, not a string.
 			name: "test object interpolation/serialization",
 			skip: true,
 			globals: globals(
@@ -1412,17 +1413,38 @@ func TestPartialEval(t *testing.T) {
 					number = 1337
 					bool = false
 				}`),
-				str("obj_str", "${global.obj}"),
 			),
 			config: hcldoc(
-				str("obj", "${global.obj}"),
-				expr("obj_str", "global.obj_str"),
+				expr("obj", "global.obj"),
+				str("obj_interpolated", "${global.obj}"),
 			),
-			// The idea here is that our interpolated version should be the
-			// same as the eval result from the global
 			want: hcldoc(
-				str("obj", "\nbool   = false\nnumber = 1337\nstring = \" hello \"\n"),
-				str("obj_str", "\nbool   = false\nnumber = 1337\nstring = \" hello \"\n"),
+				expr("obj", `{
+					bool = false
+					number = 1337
+					string = "hello"
+				}`),
+				expr("obj_interpolated", `{
+					bool = false
+					number = 1337
+					string = "hello"
+				}`),
+			),
+		},
+		{
+			// Here we check that a intepolated lists results on the list itself, not a string.
+			name: "test object interpolation/serialization",
+			skip: true,
+			globals: globals(
+				expr("list", `["hi"]`),
+			),
+			config: hcldoc(
+				expr("list", "global.list"),
+				str("list_interpolated", "${global.list}"),
+			),
+			want: hcldoc(
+				expr("list", `["hi"]`),
+				expr("list_interpolated", `["hi"]`),
 			),
 		},
 		{
