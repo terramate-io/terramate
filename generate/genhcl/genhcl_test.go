@@ -1531,11 +1531,6 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "basic {for loops",
-			globals: hcldoc(
-				globals(
-					expr("list", `["a", "b", "c"]`),
-				),
-			),
 			config: hcldoc(
 				expr("obj", `{for k in local.list : k => k}`),
 			),
@@ -1545,16 +1540,11 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "basic [for loops",
-			globals: hcldoc(
-				globals(
-					expr("list", `["a", "b", "c"]`),
-				),
-			),
 			config: hcldoc(
-				expr("obj", `[for k in local.list : k => k]`),
+				expr("obj", `[for k in local.list : k]`),
 			),
 			want: hcldoc(
-				expr("obj", `[for k in local.list : k => k]`),
+				expr("obj", `[for k in local.list : k]`),
 			),
 		},
 	}

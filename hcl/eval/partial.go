@@ -339,10 +339,10 @@ func evalForExpr(
 	matchOpenType hclsyntax.TokenType,
 	matchCloseType hclsyntax.TokenType,
 ) (hclwrite.Tokens, int, error) {
-	// {
+	// { | [
 	pos := 0
 	tok := tokens[pos]
-	if tok.Type != hclsyntax.TokenOBrace {
+	if tok.Type != matchOpenType {
 		panic(sprintf("evalForExpr: malformed `for` expression: %s", tok.Bytes))
 	}
 
@@ -483,10 +483,7 @@ func evalFuncall(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, er
 		for i, arg := range args {
 			out = append(out, arg...)
 			if i != len(args)-1 {
-				out = append(out, &hclwrite.Token{
-					Type:  hclsyntax.TokenComma,
-					Bytes: []byte(","),
-				})
+				out = append(out, tokenComma())
 			}
 		}
 		out = append(out, cloparenTok)
