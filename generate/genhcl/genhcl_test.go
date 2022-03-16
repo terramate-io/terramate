@@ -1119,6 +1119,7 @@ func TestPartialEval(t *testing.T) {
 		globals hclwrite.BlockBuilder
 		want    fmt.Stringer
 		wantErr error
+		skip    bool
 	}
 
 	attr := func(name, expr string) hclwrite.BlockBuilder {
@@ -1402,51 +1403,28 @@ func TestPartialEval(t *testing.T) {
 				str("string", "hello1hello2"),
 			),
 		},
-		/**
-		 * review this test.
-		 * TODO(i4k): help
-		 *
-		{
-		    name: `example test using previously evaluated global object into a string
-			       - only used as base to next test`,
-			globals: hcldoc(
-				globals(
-					expr("obj", `{
-						string = "hello"
-						number = 1337
-						bool = false
-					}`),
-					str("evaluated", "${global.obj}"),
-				),
-			),
-			config: hcldoc(
-				str("var", "${global.evaluated}"),
-			),
-			want: hcldoc(
-				str("var", "\nbool   = false\nnumber = 1337\nstring = \" hello \"\n"),
-			),
-		},
-		*
-		*
 		{
 			name: "test object interpolation/serialization",
-			globals: hcldoc(
-				globals(
-					expr("obj", `{
-						string = "hello"
-						number = 1337
-						bool = false
-					}`),
-				),
+			skip: true,
+			globals: globals(
+				expr("obj", `{
+					string = "hello"
+					number = 1337
+					bool = false
+				}`),
+				str("obj_str", "${global.obj}"),
 			),
 			config: hcldoc(
-				str("var", "${global.obj}"),
+				str("obj", "${global.obj}"),
+				expr("obj_str", "global.obj_str"),
 			),
+			// The idea here is that our interpolated version should be the
+			// same as the eval result from the global
 			want: hcldoc(
-				str("var", "\nbool   = false\nnumber = 1337\nstring = \" hello \"\n"),
+				str("obj", "\nbool   = false\nnumber = 1337\nstring = \" hello \"\n"),
+				str("obj_str", "\nbool   = false\nnumber = 1337\nstring = \" hello \"\n"),
 			),
 		},
-		*/
 		{
 			name: "test list - just to see how hcl lib serializes a list // remove me",
 			globals: hcldoc(
@@ -1545,6 +1523,7 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "basic [for loops",
+			skip: true,
 			globals: hcldoc(
 				globals(
 					expr("list", `["a", "b", "c"]`),
@@ -1565,6 +1544,11 @@ func TestPartialEval(t *testing.T) {
 				stackname = "stack"
 				genname   = "test"
 			)
+
+			if tcase.skip {
+				t.Skip()
+			}
+
 			s := sandbox.New(t)
 			stackEntry := s.CreateStack(stackname)
 			stack := stackEntry.Load()
