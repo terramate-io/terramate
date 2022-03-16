@@ -19,13 +19,6 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 )
 
-func tokenComma() *hclwrite.Token {
-	return &hclwrite.Token{
-		Type:  hclsyntax.TokenComma,
-		Bytes: []byte(","),
-	}
-}
-
 func tokenOBrack() *hclwrite.Token {
 	return &hclwrite.Token{
 		Type:  hclsyntax.TokenOBrack,
