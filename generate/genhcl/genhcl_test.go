@@ -1119,12 +1119,19 @@ func TestPartialEval(t *testing.T) {
 		globals hclwrite.BlockBuilder
 		want    fmt.Stringer
 		wantErr error
+		skip    bool
 	}
 
 	attr := func(name, expr string) hclwrite.BlockBuilder {
 		t.Helper()
 		return hclwrite.AttributeValue(t, name, expr)
 	}
+
+	// TODO: Test interpolation error scenarios like:
+	// - ${string}-${object}
+	// - ${string}-${list}
+	// - " ${list}"
+	// - " ${object}"
 
 	tcases := []testcase{
 		{
@@ -1400,51 +1407,81 @@ func TestPartialEval(t *testing.T) {
 				str("string", "hello1hello2"),
 			),
 		},
-		/**
-		 * review this test.
-		 * TODO(i4k): help
-		 *
 		{
-		    name: `example test using previously evaluated global object into a string
-			       - only used as base to next test`,
-			globals: hcldoc(
-				globals(
-					expr("obj", `{
-						string = "hello"
-						number = 1337
-						bool = false
-					}`),
-					str("evaluated", "${global.obj}"),
-				),
+			// Here we check that a intepolated object results on the object itself, not a string.
+			name: "object interpolation/serialization",
+			skip: true,
+			globals: globals(
+				expr("obj", `{
+					string = "hello"
+					number = 1337
+					bool = false
+				}`),
 			),
 			config: hcldoc(
-				str("var", "${global.evaluated}"),
+				expr("obj", "global.obj"),
+				str("obj_interpolated", "${global.obj}"),
 			),
 			want: hcldoc(
-				str("var", "\nbool   = false\nnumber = 1337\nstring = \" hello \"\n"),
+				expr("obj", `{
+					bool = false
+					number = 1337
+					string = "hello"
+				}`),
+				expr("obj_interpolated", `{
+					bool = false
+					number = 1337
+					string = "hello"
+				}`),
 			),
 		},
-		*
-		*
 		{
-			name: "test object interpolation/serialization",
-			globals: hcldoc(
-				globals(
-					expr("obj", `{
-						string = "hello"
-						number = 1337
-						bool = false
-					}`),
-				),
+			// Here we check that a intepolated lists results on the list itself, not a string.
+			name: "list interpolation/serialization",
+			skip: true,
+			globals: globals(
+				expr("list", `["hi"]`),
 			),
 			config: hcldoc(
-				str("var", "${global.obj}"),
+				expr("list", "global.list"),
+				str("list_interpolated", "${global.list}"),
 			),
 			want: hcldoc(
-				str("var", "\nbool   = false\nnumber = 1337\nstring = \" hello \"\n"),
+				expr("list", `["hi"]`),
+				expr("list_interpolated", `["hi"]`),
 			),
 		},
-		*/
+		{
+			// Here we check that a interpolated number results on the number itself, not a string.
+			name: "number interpolation/serialization",
+			skip: true,
+			globals: globals(
+				number("number", 666),
+			),
+			config: hcldoc(
+				expr("number", "global.number"),
+				str("number_interpolated", "${global.number}"),
+			),
+			want: hcldoc(
+				number("number", 666),
+				number("number_interpolated", 666),
+			),
+		},
+		{
+			// Here we check that multiple interpolated numbers results on a string.
+			name: "multiple numbers interpolation/serialization",
+			globals: globals(
+				number("number", 666),
+			),
+			config: hcldoc(
+				expr("number", "global.number"),
+				str("number_interpolated", "${global.number}-${global.number}"),
+			),
+			want: hcldoc(
+				number("number", 666),
+				str("number_interpolated", "666-666"),
+			),
+		},
 		{
 			name: "test list - just to see how hcl lib serializes a list // remove me",
 			globals: hcldoc(
@@ -1538,6 +1575,11 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "basic [for loops",
+			globals: hcldoc(
+				globals(
+					expr("list", `["a", "b", "c"]`),
+				),
+			),
 			config: hcldoc(
 				expr("obj", `[for k in local.list : k]`),
 			),
@@ -1553,6 +1595,11 @@ func TestPartialEval(t *testing.T) {
 				stackname = "stack"
 				genname   = "test"
 			)
+
+			if tcase.skip {
+				t.Skip()
+			}
+
 			s := sandbox.New(t)
 			stackEntry := s.CreateStack(stackname)
 			stack := stackEntry.Load()
