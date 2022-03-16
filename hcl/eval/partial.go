@@ -21,6 +21,13 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/madlambda/spells/errutil"
+)
+
+const (
+	ErrPartialEval         errutil.Error = "partial evaluation failed"
+	ErrForExprDisallowEval errutil.Error = "`for` expression disallow globals/terramate variables"
+	ErrInterpolationEval   errutil.Error = "interpolation failed"
 )
 
 // Partial evaluates only the terramate variable expressions from the list of
@@ -39,7 +46,7 @@ func Partial(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Token
 	for pos < len(tokens) {
 		evaluated, skip, err := evalExpr(false, tokens[pos:], ctx)
 		if err != nil {
-			return nil, err
+			return nil, errutil.Chain(ErrPartialEval, err)
 		}
 
 		if skip == 0 {
@@ -48,10 +55,6 @@ func Partial(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Token
 
 		pos += skip
 		out = append(out, evaluated...)
-	}
-
-	if pos < len(tokens) {
-		panic("eval.Partial: this should not have happened: please open a bug ticket")
 	}
 
 	return out, nil
@@ -395,8 +398,9 @@ func evalForExpr(
 		v, found := parseVariable(tokens[pos:])
 		if found {
 			if v.isTerramate {
-				return nil, 0, fmt.Errorf(
-					"`for` expression does not support terramate variables (globals, terramate)",
+				return nil, 0, errutil.Chain(
+					ErrForExprDisallowEval,
+					fmt.Errorf("evaluating expression: %s", v.alltokens().Bytes()),
 				)
 			}
 
@@ -667,7 +671,7 @@ func evalString(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, err
 
 			evaluated, skipArgs, err := evalIdent(tokens[pos:], ctx)
 			if err != nil {
-				return nil, 0, err
+				return nil, 0, errutil.Chain(ErrInterpolationEval, err)
 			}
 
 			// TODO(i4k): improve this.
