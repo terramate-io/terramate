@@ -117,7 +117,7 @@ func TestLocalsGeneration(t *testing.T) {
 				{
 					path: "/stack",
 					add: exportAsLocals(
-						expr("funny_path", `replace(terramate.path, "/", "@")`),
+						expr("funny_path", `tm_replace(terramate.path, "/", "@")`),
 					),
 				},
 			},

@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 	"github.com/zclconf/go-cty/cty/gocty"
 
 	hhcl "github.com/hashicorp/hcl/v2"
@@ -37,7 +38,7 @@ type Context struct {
 func NewContext(basedir string) *Context {
 	scope := &tflang.Scope{BaseDir: basedir}
 	hclctx := &hhcl.EvalContext{
-		Functions: scope.Functions(),
+		Functions: newTmFunctions(scope.Functions()),
 		Variables: map[string]cty.Value{},
 	}
 	return &Context{
@@ -101,4 +102,12 @@ func fromMapToObject(m map[string]cty.Value) (cty.Value, error) {
 		return cty.Value{}, err
 	}
 	return ctyVal, nil
+}
+
+func newTmFunctions(tffuncs map[string]function.Function) map[string]function.Function {
+	tmfuncs := map[string]function.Function{}
+	for name, function := range tffuncs {
+		tmfuncs["tm_"+name] = function
+	}
+	return tmfuncs
 }
