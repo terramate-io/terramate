@@ -23,6 +23,32 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 )
 
+/*
+
+Here be dragons. Thou art forewarned
+
+
+                                             _   __,----'~~~~~~~~~`-----.__
+                                      .  .    `//====-              ____,-'~`
+                      -.            \_|// .   /||\\  `~~~~`---.___./
+                ______-==.       _-~o  `\/    |||  \\           _,'`
+          __,--'   ,=='||\=_    ;_,_,/ _-'|-   |`\   \\        ,'
+       _-'      ,='    | \\`.    '',/~7  /-   /  ||   `\.     /
+     .'       ,'       |  \\  \_  "  /  /-   /   ||      \   /
+    / _____  /         |     \\.`-_/  /|- _/   ,||       \ /
+   ,-'     `-|--'~~`--_ \     `==-/  `| \'--===-'       _/`
+             '         `-|      /|    )-'\~'      _,--"'
+                         '-~^\_/ |    |   `\_   ,^             /\
+                              /  \     \__   \/~               `\__
+                          _,-' _/'\ ,-'~____-'`-/                 ``===\
+                         ((->/'    \|||' `.     `\.  ,                _||
+           ./                       \_     `\      `~---|__i__i__\--~'_/
+          <_n_                     __-^-_    `)  \-.______________,-~'
+           `B'\)                  ///,-'~`__--^-  |-------~~~~^'
+           /^>                           ///,--~`-\
+          `  `
+*/
+
 // Partial evaluates only the terramate variable expressions from the list of
 // tokens, leaving all the rest as-is. It returns a modified list of tokens with
 // no reference to terramate namespaced variables (globals and terramate).
