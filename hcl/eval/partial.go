@@ -59,7 +59,6 @@ func Partial(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Token
 
 func evalExpr(iskey bool, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
 	out := hclwrite.Tokens{}
-
 	pos := 0
 	tok := tokens[pos]
 	switch tok.Type {
