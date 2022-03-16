@@ -713,6 +713,20 @@ func TestLoadGlobals(t *testing.T) {
 			wantErr: terramate.ErrGlobalEval,
 		},
 		{
+			name:   "global interpolating list with space fails",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						attr("a", `["aaa"]`),
+						str("a_interpolated", " ${global.a}"),
+					),
+				},
+			},
+			wantErr: terramate.ErrGlobalEval,
+		},
+		{
 			// This tests double check that interpolation on a single object/map
 			// produces an actual object on hcl eval, not a string.
 			// Which is bizarre...but why not ?
@@ -743,6 +757,20 @@ func TestLoadGlobals(t *testing.T) {
 					add: globals(
 						attr("a", `{ members = ["aaa"] }`),
 						str("a_interpolated", "${global.a}-${global.a}"),
+					),
+				},
+			},
+			wantErr: terramate.ErrGlobalEval,
+		},
+		{
+			name:   "global interpolating object with space fails",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						attr("a", `{ members = ["aaa"] }`),
+						str("a_interpolated", "${global.a} "),
 					),
 				},
 			},
