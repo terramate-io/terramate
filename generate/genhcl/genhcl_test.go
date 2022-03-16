@@ -1529,23 +1529,34 @@ func TestPartialEval(t *testing.T) {
 				str("string", "b"),
 			),
 		},
-		/*
-			now this should check the error (global not allowed in `for`)
-			{
-				name: "basic for loops in list",
-				globals: hcldoc(
-					globals(
-						expr("list", `["a", "b", "c"]`),
-					),
+		{
+			name: "basic {for loops",
+			globals: hcldoc(
+				globals(
+					expr("list", `["a", "b", "c"]`),
 				),
-				config: hcldoc(
-					expr("obj", `{for k in global.list : k => k}`),
+			),
+			config: hcldoc(
+				expr("obj", `{for k in local.list : k => k}`),
+			),
+			want: hcldoc(
+				expr("obj", `{for k in local.list : k => k}`),
+			),
+		},
+		{
+			name: "basic [for loops",
+			globals: hcldoc(
+				globals(
+					expr("list", `["a", "b", "c"]`),
 				),
-				want: hcldoc(
-					expr("obj", `{for k in ["a", "b", "c"] : k => k}`),
-				),
-			},
-		*/
+			),
+			config: hcldoc(
+				expr("obj", `[for k in local.list : k => k]`),
+			),
+			want: hcldoc(
+				expr("obj", `[for k in local.list : k => k]`),
+			),
+		},
 	}
 
 	for _, tcase := range tcases {

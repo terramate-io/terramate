@@ -365,6 +365,8 @@ func evalForExpr(
 			return nil, 0, errorf("invalid `for` expression: found %s", tok.Type)
 		}
 
+		out = append(out, tok)
+
 		pos++
 		tok = tokens[pos]
 		if tok.Type == hclsyntax.TokenComma {
@@ -399,9 +401,11 @@ func evalForExpr(
 				)
 			}
 
+			out = append(out, v.alltokens()...)
 			pos += v.size()
 		} else {
 			pos++
+			out = append(out, tok)
 		}
 	}
 
