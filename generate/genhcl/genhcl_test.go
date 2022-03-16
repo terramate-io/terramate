@@ -1530,7 +1530,7 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			name: "basic for loops",
+			name: "basic for loops in list",
 			globals: hcldoc(
 				globals(
 					expr("list", `["a", "b", "c"]`),
