@@ -1405,7 +1405,7 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			// Here we check that a intepolated object results on the object itself, not a string.
-			name: "test object interpolation/serialization",
+			name: "object interpolation/serialization",
 			skip: true,
 			globals: globals(
 				expr("obj", `{
@@ -1433,7 +1433,7 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			// Here we check that a intepolated lists results on the list itself, not a string.
-			name: "test object interpolation/serialization",
+			name: "list interpolation/serialization",
 			skip: true,
 			globals: globals(
 				expr("list", `["hi"]`),
@@ -1445,6 +1445,37 @@ func TestPartialEval(t *testing.T) {
 			want: hcldoc(
 				expr("list", `["hi"]`),
 				expr("list_interpolated", `["hi"]`),
+			),
+		},
+		{
+			// Here we check that a interpolated number results on the number itself, not a string.
+			name: "number interpolation/serialization",
+			skip: true,
+			globals: globals(
+				number("number", 666),
+			),
+			config: hcldoc(
+				expr("number", "global.number"),
+				str("number_interpolated", "${global.number}"),
+			),
+			want: hcldoc(
+				number("number", 666),
+				number("number_interpolated", 666),
+			),
+		},
+		{
+			// Here we check that multiple interpolated numbers results on a string.
+			name: "multiple numbers interpolation/serialization",
+			globals: globals(
+				number("number", 666),
+			),
+			config: hcldoc(
+				expr("number", "global.number"),
+				str("number_interpolated", "${global.number}-${global.number}"),
+			),
+			want: hcldoc(
+				number("number", 666),
+				str("number_interpolated", "666-666"),
 			),
 		},
 		{
