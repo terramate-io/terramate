@@ -38,6 +38,7 @@ func TestVersionCheck(t *testing.T) {
 	}
 	uncheckedCmds := []string{
 		"--help",
+		"--version",
 		"version",
 	}
 
@@ -90,6 +91,21 @@ func TestVersionCheck(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestProvidesCorrectVersion(t *testing.T) {
+	s := sandbox.New(t)
+	cli := newCLI(t, s.RootDir())
+	want := terramate.Version() + "\n"
+
+	assertRunResult(t, cli.run("version"), runExpected{
+		Status: 0,
+		Stdout: want,
+	})
+	assertRunResult(t, cli.run("--version"), runExpected{
+		Status: 0,
+		Stdout: want,
+	})
 }
 
 func TestTerramateHasValidSemver(t *testing.T) {
