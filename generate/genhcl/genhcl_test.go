@@ -24,6 +24,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate/genhcl"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -1565,7 +1566,7 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			name: "basic {for loops",
+			name: "obj for loop without eval references",
 			config: hcldoc(
 				expr("obj", `{for k in local.list : k => k}`),
 			),
@@ -1574,18 +1575,33 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			name: "basic [for loops",
-			globals: hcldoc(
-				globals(
-					expr("list", `["a", "b", "c"]`),
-				),
-			),
+			name: "list for loop without eval references",
 			config: hcldoc(
 				expr("obj", `[for k in local.list : k]`),
 			),
 			want: hcldoc(
 				expr("obj", `[for k in local.list : k]`),
 			),
+		},
+		{
+			name: "list for loop with global reference fails",
+			globals: globals(
+				expr("list", `["a", "b", "c"]`),
+			),
+			config: hcldoc(
+				expr("list", `[for k in global.list : k]`),
+			),
+			wantErr: eval.ErrForExprDisallowEval,
+		},
+		{
+			name: "obj for loop with global reference fails",
+			globals: globals(
+				expr("obj", `{ a = 1}`),
+			),
+			config: hcldoc(
+				expr("obj", `[for k in global.obj : k]`),
+			),
+			wantErr: eval.ErrForExprDisallowEval,
 		},
 	}
 
@@ -1624,6 +1640,10 @@ func TestPartialEval(t *testing.T) {
 			globals := s.LoadStackGlobals(meta)
 			res, err := genhcl.Load(s.RootDir(), meta, globals)
 			assert.IsError(t, err, tcase.wantErr)
+
+			if err != nil {
+				return
+			}
 
 			got := res.GeneratedHCLs()
 
