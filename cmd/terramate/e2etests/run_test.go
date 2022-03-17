@@ -441,7 +441,7 @@ stack-z
 			s.BuildTree(tc.layout)
 
 			cli := newCLI(t, s.RootDir())
-			assertRunResult(t, cli.run("plan", "run-order"), tc.want)
+			assertRunResult(t, cli.stacksRunOrder(), tc.want)
 		})
 	}
 }
@@ -615,7 +615,7 @@ func TestRunWants(t *testing.T) {
 			s.BuildTree(tc.layout)
 
 			cli := newCLI(t, filepath.Join(s.RootDir(), tc.wd))
-			assertRunResult(t, cli.run("plan", "run-order"), tc.want)
+			assertRunResult(t, cli.stacksRunOrder(), tc.want)
 
 			// required because `terramate run` requires a clean repo.
 			git := s.Git()

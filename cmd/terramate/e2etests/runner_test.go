@@ -111,6 +111,14 @@ func (tm tmcli) initStacks(args ...string) runResult {
 	return tm.run(append([]string{"experimental", "init"}, args...)...)
 }
 
+func (tm tmcli) stacksRunOrder(args ...string) runResult {
+	return tm.run(append([]string{"experimental", "run-order"}, args...)...)
+}
+
+func (tm tmcli) stacksRunGraph(args ...string) runResult {
+	return tm.run(append([]string{"experimental", "run-graph"}, args...)...)
+}
+
 func assertRun(t *testing.T, got runResult) {
 	t.Helper()
 

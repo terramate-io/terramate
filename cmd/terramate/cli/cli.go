@@ -79,28 +79,6 @@ type cliSpec struct {
 		Command             []string `arg:"" name:"cmd" passthrough:"" help:"command to execute."`
 	} `cmd:"" help:"Run command in the stacks."`
 
-	Experimental struct {
-		Init struct {
-			StackDirs []string `arg:"" name:"paths" optional:"true" help:"the stack directory (current directory if not set)."`
-		} `cmd:"" help:"Initialize a stack, does nothing if stack already initialized."`
-
-		Metadata struct{} `cmd:"" help:"shows metadata available on the project"`
-
-		Globals struct {
-		} `cmd:"" help:"list globals for all stacks."`
-	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
-
-	Plan struct {
-		Graph struct {
-			Outfile string `short:"o" default:"" help:"output .dot file."`
-			Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\"."`
-		} `cmd:"" help:"generate a graph of the execution order."`
-
-		RunOrder struct {
-			Basedir string `arg:"" optional:"true" help:"base directory to search stacks."`
-		} `cmd:"" help:"show the topological ordering of the stacks"`
-	} `cmd:"" help:"plan execution."`
-
 	Stacks struct {
 		List struct {
 			Why bool `help:"Shows the reason why the stack has changed."`
@@ -110,6 +88,26 @@ type cliSpec struct {
 	Generate struct{} `cmd:"" help:"Generate terraform code for stacks."`
 
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"install shell completions"`
+
+	Experimental struct {
+		Init struct {
+			StackDirs []string `arg:"" name:"paths" optional:"true" help:"the stack directory (current directory if not set)."`
+		} `cmd:"" help:"Initialize a stack, does nothing if stack already initialized."`
+
+		Metadata struct{} `cmd:"" help:"shows metadata available on the project"`
+
+		Globals struct {
+		} `cmd:"" help:"list globals for all stacks."`
+
+		RunGraph struct {
+			Outfile string `short:"o" default:"" help:"output .dot file."`
+			Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\"."`
+		} `cmd:"" help:"generate a graph of the execution order."`
+
+		RunOrder struct {
+			Basedir string `arg:"" optional:"true" help:"base directory to search stacks."`
+		} `cmd:"" help:"show the topological ordering of the stacks"`
+	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
 
 // Exec will execute terramate with the provided flags defined on args.
@@ -344,16 +342,6 @@ func (c *cli) run() {
 	logger.Debug().Msg("Handle command.")
 
 	switch c.ctx.Command() {
-	case "plan graph":
-		log.Trace().
-			Str("actionContext", "cli()").
-			Msg("Handle `plan graph`.")
-		c.generateGraph()
-	case "plan run-order":
-		log.Trace().
-			Str("actionContext", "cli()").
-			Msg("Print run-order.")
-		c.printRunOrder()
 	case "stacks list":
 		log.Trace().
 			Str("actionContext", "cli()").
@@ -386,9 +374,12 @@ func (c *cli) run() {
 		c.initStack(c.parsedArgs.Experimental.Init.StackDirs)
 	case "experimental init":
 		c.initStack([]string{c.wd()})
+	case "experimental run-graph":
+		c.generateGraph()
+	case "experimental run-order":
+		c.printRunOrder()
 	default:
-		log.Fatal().
-			Msgf("unexpected command sequence: %s", c.ctx.Command())
+		log.Fatal().Msg("unexpected command sequence")
 	}
 }
 
@@ -524,7 +515,7 @@ func (c *cli) generateGraph() {
 
 	logger.Trace().Msg("Handle graph label command line argument.")
 
-	switch c.parsedArgs.Plan.Graph.Label {
+	switch c.parsedArgs.Experimental.RunGraph.Label {
 	case "stack.name":
 		logger.Debug().Msg("Set label to stack name.")
 
@@ -578,7 +569,7 @@ func (c *cli) generateGraph() {
 
 	logger.Debug().
 		Msg("Set output of graph.")
-	outFile := c.parsedArgs.Plan.Graph.Outfile
+	outFile := c.parsedArgs.Experimental.RunGraph.Outfile
 	var out io.Writer
 	if outFile == "" {
 		logger.Trace().
