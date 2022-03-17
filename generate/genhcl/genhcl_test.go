@@ -1277,19 +1277,6 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			name: "variable interpolation of number",
-			skip: true,
-			globals: globals(
-				number("num", 1337),
-			),
-			config: hcldoc(
-				str("num", `${global.num}`),
-			),
-			want: hcldoc(
-				number("num", 1337),
-			),
-		},
-		{
 			name: "variable interpolation of number with prefix str",
 			globals: hcldoc(
 				globals(
@@ -1301,19 +1288,6 @@ func TestPartialEval(t *testing.T) {
 			),
 			want: hcldoc(
 				str("num", "test-1337"),
-			),
-		},
-		{
-			name: "variable interpolation of bool",
-			skip: true,
-			globals: globals(
-				boolean("flag", true),
-			),
-			config: hcldoc(
-				str("flag", `${global.flag}`),
-			),
-			want: hcldoc(
-				boolean("flag", true),
 			),
 		},
 		{
