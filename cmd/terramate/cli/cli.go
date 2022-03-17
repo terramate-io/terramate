@@ -80,6 +80,10 @@ type cliSpec struct {
 	} `cmd:"" help:"Run command in the stacks."`
 
 	Experimental struct {
+		Init struct {
+			StackDirs []string `arg:"" name:"paths" optional:"true" help:"the stack directory (current directory if not set)."`
+		} `cmd:"" help:"Initialize a stack, does nothing if stack already initialized."`
+
 		Metadata struct{} `cmd:"" help:"shows metadata available on the project"`
 
 		Globals struct {
@@ -98,10 +102,6 @@ type cliSpec struct {
 	} `cmd:"" help:"plan execution."`
 
 	Stacks struct {
-		Init struct {
-			StackDirs []string `arg:"" name:"paths" optional:"true" help:"the stack directory (current directory if not set)."`
-		} `cmd:"" help:"Initialize a stack, does nothing if stack already initialized."`
-
 		List struct {
 			Why bool `help:"Shows the reason why the stack has changed."`
 		} `cmd:"" help:"List stacks."`
@@ -354,21 +354,11 @@ func (c *cli) run() {
 			Str("actionContext", "cli()").
 			Msg("Print run-order.")
 		c.printRunOrder()
-	case "stacks init":
-		log.Trace().
-			Str("actionContext", "cli()").
-			Msg("Handle stacks init command.")
-		c.initStack([]string{c.wd()})
 	case "stacks list":
 		log.Trace().
 			Str("actionContext", "cli()").
 			Msg("Print list of stacks.")
 		c.printStacks()
-	case "stacks init <paths>":
-		log.Trace().
-			Str("actionContext", "cli()").
-			Msg("Handle stacks init <paths> command.")
-		c.initStack(c.parsedArgs.Stacks.Init.StackDirs)
 	case "run":
 		logger.Debug().
 			Msg("Handle `run` command.")
@@ -382,8 +372,6 @@ func (c *cli) run() {
 			Msg("Handle `run <cmd>` command.")
 		c.runOnStacks()
 	case "generate":
-		logger.Debug().Msg("Handle `generate` command.")
-
 		report := generate.Do(c.root(), c.wd())
 		c.log(report.String())
 
@@ -394,6 +382,10 @@ func (c *cli) run() {
 		c.printStacksGlobals()
 	case "experimental metadata":
 		c.printMetadata()
+	case "experimental init <paths>":
+		c.initStack(c.parsedArgs.Experimental.Init.StackDirs)
+	case "experimental init":
+		c.initStack([]string{c.wd()})
 	default:
 		log.Fatal().
 			Msgf("unexpected command sequence: %s", c.ctx.Command())
