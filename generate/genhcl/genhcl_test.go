@@ -24,6 +24,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate/genhcl"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -1127,12 +1128,6 @@ func TestPartialEval(t *testing.T) {
 		return hclwrite.AttributeValue(t, name, expr)
 	}
 
-	// TODO: Test interpolation error scenarios like:
-	// - ${string}-${object}
-	// - ${string}-${list}
-	// - " ${list}"
-	// - " ${object}"
-
 	tcases := []testcase{
 		{
 			name: "unknown references on attributes",
@@ -1283,16 +1278,15 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "variable interpolation of number",
-			globals: hcldoc(
-				globals(
-					number("num", 1337),
-				),
+			skip: true,
+			globals: globals(
+				number("num", 1337),
 			),
 			config: hcldoc(
 				str("num", `${global.num}`),
 			),
 			want: hcldoc(
-				str("num", "1337"),
+				number("num", 1337),
 			),
 		},
 		{
@@ -1311,16 +1305,15 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "variable interpolation of bool",
-			globals: hcldoc(
-				globals(
-					boolean("flag", true),
-				),
+			skip: true,
+			globals: globals(
+				boolean("flag", true),
 			),
 			config: hcldoc(
 				str("flag", `${global.flag}`),
 			),
 			want: hcldoc(
-				str("flag", "true"),
+				boolean("flag", true),
 			),
 		},
 		{
@@ -1408,7 +1401,7 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			// Here we check that a intepolated object results on the object itself, not a string.
+			// Here we check that a interpolated object results on the object itself, not a string.
 			name: "object interpolation/serialization",
 			skip: true,
 			globals: globals(
@@ -1436,7 +1429,73 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			// Here we check that a intepolated lists results on the list itself, not a string.
+			name: "interpolating multiple objects fails",
+			skip: true,
+			globals: globals(
+				expr("obj", `{ string = "hello" }`),
+			),
+			config: hcldoc(
+				str("a", "${global.obj}-${global.obj}"),
+			),
+			wantErr: eval.ErrInterpolationEval,
+		},
+		{
+			name: "interpolating object with prefix space fails",
+			skip: true,
+			globals: globals(
+				expr("obj", `{ string = "hello" }`),
+			),
+			config: hcldoc(
+				str("a", " ${global.obj}"),
+			),
+			wantErr: eval.ErrInterpolationEval,
+		},
+		{
+			name: "interpolating object with suffix space fails",
+			skip: true,
+			globals: globals(
+				expr("obj", `{ string = "hello" }`),
+			),
+			config: hcldoc(
+				str("a", "${global.obj} "),
+			),
+			wantErr: eval.ErrInterpolationEval,
+		},
+		{
+			name: "interpolating multiple lists fails",
+			skip: true,
+			globals: globals(
+				expr("list", `["hello"]`),
+			),
+			config: hcldoc(
+				str("a", "${global.list}-${global.list}"),
+			),
+			wantErr: eval.ErrInterpolationEval,
+		},
+		{
+			name: "interpolating list with prefix space fails",
+			skip: true,
+			globals: globals(
+				expr("list", `["hello"]`),
+			),
+			config: hcldoc(
+				str("a", " ${global.list}"),
+			),
+			wantErr: eval.ErrInterpolationEval,
+		},
+		{
+			name: "interpolating list with suffix space fails",
+			skip: true,
+			globals: globals(
+				expr("list", `["hello"]`),
+			),
+			config: hcldoc(
+				str("a", "${global.list} "),
+			),
+			wantErr: eval.ErrInterpolationEval,
+		},
+		{
+			// Here we check that a interpolated lists results on the list itself, not a string.
 			name: "list interpolation/serialization",
 			skip: true,
 			globals: globals(
@@ -1480,6 +1539,37 @@ func TestPartialEval(t *testing.T) {
 			want: hcldoc(
 				number("number", 666),
 				str("number_interpolated", "666-666"),
+			),
+		},
+		{
+			// Here we check that a interpolated booleans results on the boolean itself, not a string.
+			name: "boolean interpolation/serialization",
+			skip: true,
+			globals: globals(
+				boolean("bool", true),
+			),
+			config: hcldoc(
+				expr("bool", "global.bool"),
+				str("bool_interpolated", "${global.bool}"),
+			),
+			want: hcldoc(
+				boolean("bool", true),
+				boolean("bool_interpolated", true),
+			),
+		},
+		{
+			// Here we check that multiple interpolated booleans results on a string.
+			name: "multiple booleans interpolation/serialization",
+			globals: globals(
+				boolean("bool", true),
+			),
+			config: hcldoc(
+				expr("bool", "global.bool"),
+				str("bool_interpolated", "${global.bool}-${global.bool}"),
+			),
+			want: hcldoc(
+				boolean("bool", true),
+				str("bool_interpolated", "true-true"),
 			),
 		},
 		{
@@ -1535,6 +1625,30 @@ func TestPartialEval(t *testing.T) {
 			want: hcldoc(
 				str("var", "hello 1337"),
 			),
+		},
+		{
+			name: "deep object interpolation of object field and str field fails",
+			skip: true,
+			globals: hcldoc(
+				globals(
+					expr("obj", `{
+						obj2 = {
+							obj3 = {
+								string = "hello"
+								number = 1337
+								bool = false
+							}
+						}
+						string = "hello"
+						number = 1337
+						bool = false
+					}`),
+				),
+			),
+			config: hcldoc(
+				str("var", "${global.obj.string} ${global.obj.obj2.obj3}"),
+			),
+			wantErr: eval.ErrInterpolationEval,
 		},
 		{
 			name: "basic list indexing",
