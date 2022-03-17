@@ -27,7 +27,7 @@ import (
 
 func TestVersionCheck(t *testing.T) {
 	checkedCmds := []string{
-		"metadata",
+		"experimental metadata",
 		"generate",
 		"stacks list",
 		"stacks init stack",

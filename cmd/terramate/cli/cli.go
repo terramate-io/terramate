@@ -79,6 +79,10 @@ type cliSpec struct {
 		Command             []string `arg:"" name:"cmd" passthrough:"" help:"command to execute."`
 	} `cmd:"" help:"Run command in the stacks."`
 
+	Experimental struct {
+		Metadata struct{} `cmd:"" help:"shows metadata available on the project"`
+	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
+
 	Plan struct {
 		Graph struct {
 			Outfile string `short:"o" default:"" help:"output .dot file."`
@@ -104,7 +108,6 @@ type cliSpec struct {
 	} `cmd:"" help:"stack related commands."`
 
 	Generate struct{} `cmd:"" help:"Generate terraform code for stacks."`
-	Metadata struct{} `cmd:"" help:"shows metadata available on the project"`
 
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"install shell completions"`
 }
@@ -391,7 +394,7 @@ func (c *cli) run() {
 		if report.HasFailures() {
 			os.Exit(1)
 		}
-	case "metadata":
+	case "experimental metadata":
 		logger.Debug().
 			Msg("Handle `metadata` command.")
 		c.printMetadata()
