@@ -81,6 +81,9 @@ type cliSpec struct {
 
 	Experimental struct {
 		Metadata struct{} `cmd:"" help:"shows metadata available on the project"`
+
+		Globals struct {
+		} `cmd:"" help:"list globals for all stacks."`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 
 	Plan struct {
@@ -102,9 +105,6 @@ type cliSpec struct {
 		List struct {
 			Why bool `help:"Shows the reason why the stack has changed."`
 		} `cmd:"" help:"List stacks."`
-
-		Globals struct {
-		} `cmd:"" help:"list globals for all stacks."`
 	} `cmd:"" help:"stack related commands."`
 
 	Generate struct{} `cmd:"" help:"Generate terraform code for stacks."`
@@ -314,6 +314,7 @@ func (c *cli) run() {
 
 	logger := log.With().
 		Str("action", "run()").
+		Str("cmd", c.ctx.Command()).
 		Str("workingDir", c.wd()).
 		Logger()
 
@@ -340,8 +341,8 @@ func (c *cli) run() {
 		}
 	}
 
-	logger.Debug().
-		Msg("Handle input command.")
+	logger.Debug().Msg("Handle command.")
+
 	switch c.ctx.Command() {
 	case "plan graph":
 		log.Trace().
@@ -368,11 +369,6 @@ func (c *cli) run() {
 			Str("actionContext", "cli()").
 			Msg("Handle stacks init <paths> command.")
 		c.initStack(c.parsedArgs.Stacks.Init.StackDirs)
-	case "stacks globals":
-		log.Trace().
-			Str("actionContext", "cli()").
-			Msg("Handle stacks global command.")
-		c.printStacksGlobals()
 	case "run":
 		logger.Debug().
 			Msg("Handle `run` command.")
@@ -394,9 +390,9 @@ func (c *cli) run() {
 		if report.HasFailures() {
 			os.Exit(1)
 		}
+	case "experimental globals":
+		c.printStacksGlobals()
 	case "experimental metadata":
-		logger.Debug().
-			Msg("Handle `metadata` command.")
 		c.printMetadata()
 	default:
 		log.Fatal().
