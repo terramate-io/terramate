@@ -67,8 +67,8 @@ func newCLIWithLogLevel(t *testing.T, chdir string, loglevel string) tmcli {
 	}
 }
 
-func (ts tmcli) run(args ...string) runResult {
-	t := ts.t
+func (tm tmcli) run(args ...string) runResult {
+	t := tm.t
 	t.Helper()
 
 	stdin := &bytes.Buffer{}
@@ -76,11 +76,11 @@ func (ts tmcli) run(args ...string) runResult {
 	stderr := &bytes.Buffer{}
 
 	allargs := []string{}
-	if ts.chdir != "" {
-		allargs = append(allargs, "--chdir", ts.chdir)
+	if tm.chdir != "" {
+		allargs = append(allargs, "--chdir", tm.chdir)
 	}
 
-	loglevel := ts.loglevel
+	loglevel := tm.loglevel
 	if loglevel == "" {
 		loglevel = "fatal"
 	}
@@ -107,6 +107,14 @@ func (ts tmcli) run(args ...string) runResult {
 	}
 }
 
+func (tm tmcli) listStacks(args ...string) runResult {
+	return tm.run(append([]string{"list"}, args...)...)
+}
+
+func (tm tmcli) listChangedStacks(args ...string) runResult {
+	return tm.listStacks(append([]string{"--changed"}, args...)...)
+}
+
 func assertRun(t *testing.T, got runResult) {
 	t.Helper()
 
@@ -115,6 +123,13 @@ func assertRun(t *testing.T, got runResult) {
 
 func assertRunResult(t *testing.T, got runResult, want runExpected) {
 	t.Helper()
+
+	// Why not use assert functions here but use t.Error ? We get simple errors like:
+	// "wanted[stack] but got[].stdout mismatch"
+	// And nothing else.
+	// In case of errors, more detailed information on the errors
+	// like what we got on stderr helps the dev to understand
+	// in more detail why it has failed.
 
 	if !want.IgnoreStdout {
 		stdout := got.Stdout
@@ -134,7 +149,9 @@ func assertRunResult(t *testing.T, got runResult, want runExpected) {
 				)
 			}
 		} else {
-			assert.EqualStrings(t, wantStdout, stdout, "stdout mismatch")
+			if wantStdout != stdout {
+				t.Errorf("stdout mismatch: got %q != want %q", stdout, wantStdout)
+			}
 		}
 	}
 
@@ -150,7 +167,9 @@ func assertRunResult(t *testing.T, got runResult, want runExpected) {
 				)
 			}
 		} else {
-			assert.EqualStrings(t, want.Stderr, got.Stderr, "stderr mismatch")
+			if want.Stderr != got.Stderr {
+				t.Errorf("stderr mismatch: got %q != want %q", got.Stderr, want.Stderr)
+			}
 		}
 	}
 
