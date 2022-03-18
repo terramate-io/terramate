@@ -89,6 +89,7 @@ func evalExpr(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error
 	switch tok.Type {
 	case hclsyntax.TokenEOF:
 		pos++
+		out = append(out, tok)
 		if len(tokens) != pos {
 			panic(sprintf("got EOF in the middle: %d < %d", pos, len(tokens)))
 		}
