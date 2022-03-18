@@ -152,6 +152,9 @@ func evalExpr(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error
 
 		pos += skip
 		out = append(out, evaluated...)
+	case hclsyntax.TokenBang, hclsyntax.TokenAnd, hclsyntax.TokenOr:
+		out = append(out, tok)
+		pos++
 	case hclsyntax.TokenNumberLit:
 		out = append(out, tok)
 		pos++
