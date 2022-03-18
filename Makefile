@@ -56,7 +56,7 @@ test:
 ## test if terramate works with CI git environment.
 .PHONY: test/ci
 test/ci: build
-	./bin/terramate stacks list --changed
+	./bin/terramate list --changed
 
 ## Build terramate into bin directory
 .PHONY: build

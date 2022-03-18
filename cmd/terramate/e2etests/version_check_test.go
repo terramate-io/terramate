@@ -33,7 +33,7 @@ func TestVersionCheck(t *testing.T) {
 		"experimental run-order",
 		"experimental run-graph",
 		"generate",
-		"stacks list",
+		"list",
 		"run cat terramate.tm.hcl",
 	}
 	uncheckedCmds := []string{

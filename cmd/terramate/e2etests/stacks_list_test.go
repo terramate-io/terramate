@@ -101,7 +101,7 @@ z/a
 			s.BuildTree(tc.layout)
 
 			cli := newCLI(t, s.RootDir())
-			assertRunResult(t, cli.run("stacks", "list"), tc.want)
+			assertRunResult(t, cli.listStacks(), tc.want)
 		})
 	}
 }
@@ -113,7 +113,7 @@ func TestListStackWithDefinitionOnNonDefaultFilename(t *testing.T) {
 	stackDir.CreateFile("stack.tm", "stack {}")
 
 	cli := newCLI(t, s.RootDir())
-	assertRunResult(t, cli.run("stacks", "list"), runExpected{Stdout: "stack\n"})
+	assertRunResult(t, cli.listStacks(), runExpected{Stdout: "stack\n"})
 }
 
 func TestListStackWithNoTerramateBlock(t *testing.T) {
@@ -124,7 +124,7 @@ func TestListStackWithNoTerramateBlock(t *testing.T) {
 		Stack: &hcl.Stack{},
 	})
 	cli := newCLI(t, s.RootDir())
-	assertRunResult(t, cli.run("stacks", "list"), runExpected{Stdout: "stack\n"})
+	assertRunResult(t, cli.listStacks(), runExpected{Stdout: "stack\n"})
 }
 
 func TestListNoSuchFile(t *testing.T) {
@@ -132,7 +132,7 @@ func TestListNoSuchFile(t *testing.T) {
 	cli := newCLI(t, notExists)
 
 	// errors from the manager are not logged in stderr
-	assertRunResult(t, cli.run("stacks", "list"), runExpected{
+	assertRunResult(t, cli.listStacks(), runExpected{
 		Status:      1,
 		StderrRegex: "no such file or directory",
 	})
@@ -160,7 +160,7 @@ func TestListDetectChangesInSubDirOfStack(t *testing.T) {
 	want := runExpected{
 		Stdout: stack.RelPath() + "\n",
 	}
-	assertRunResult(t, cli.run("stacks", "list", "--changed"), want)
+	assertRunResult(t, cli.listChangedStacks(), want)
 }
 
 func TestListDetectChangesInSubDirOfStackWithOtherConfigs(t *testing.T) {
@@ -192,7 +192,7 @@ terramate {
 	want := runExpected{
 		Stdout: stack.RelPath() + "\n",
 	}
-	assertRunResult(t, cli.run("stacks", "list", "--changed"), want)
+	assertRunResult(t, cli.listChangedStacks(), want)
 }
 
 func TestListTwiceBug(t *testing.T) {
@@ -224,5 +224,5 @@ source = "%s"
 	cli := newCLI(t, s.RootDir())
 
 	wantList := stack.RelPath() + "\n"
-	assertRunResult(t, cli.run("stacks", "list", "--changed"), runExpected{Stdout: wantList})
+	assertRunResult(t, cli.listChangedStacks(), runExpected{Stdout: wantList})
 }

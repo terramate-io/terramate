@@ -659,7 +659,7 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 	cli := newCLI(t, s.RootDir())
 
 	wantList := stack.RelPath() + "\n"
-	assertRunResult(t, cli.run("stacks", "list", "--changed"), runExpected{Stdout: wantList})
+	assertRunResult(t, cli.listChangedStacks(), runExpected{Stdout: wantList})
 
 	cat := test.LookPath(t, "cat")
 	wantRun := mainTfContents
@@ -725,7 +725,7 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 	cli := newCLI(t, s.RootDir())
 
 	wantList := stack.RelPath() + "\n" + stack2.RelPath() + "\n"
-	assertRunResult(t, cli.run("stacks", "list", "--changed"), runExpected{Stdout: wantList})
+	assertRunResult(t, cli.listChangedStacks(), runExpected{Stdout: wantList})
 
 	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
