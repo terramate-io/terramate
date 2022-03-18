@@ -130,7 +130,7 @@ stack "/somedir/stack4":
 			s.BuildTree(tc.layout)
 
 			cli := newCLI(t, project.AbsPath(s.RootDir(), tc.wd))
-			assertRunResult(t, cli.run("metadata"), tc.want)
+			assertRunResult(t, cli.run("experimental", "metadata"), tc.want)
 		})
 	}
 }

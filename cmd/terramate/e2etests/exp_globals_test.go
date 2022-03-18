@@ -238,7 +238,7 @@ stack "/stacks/stack-2":
 			}
 
 			ts := newCLI(t, project.AbsPath(s.RootDir(), tcase.wd))
-			assertRunResult(t, ts.run("stacks", "globals"), tcase.want)
+			assertRunResult(t, ts.run("experimental", "globals"), tcase.want)
 		})
 	}
 }

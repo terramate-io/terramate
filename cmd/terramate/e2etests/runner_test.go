@@ -107,6 +107,18 @@ func (tm tmcli) run(args ...string) runResult {
 	}
 }
 
+func (tm tmcli) initStack(args ...string) runResult {
+	return tm.run(append([]string{"experimental", "init-stack"}, args...)...)
+}
+
+func (tm tmcli) stacksRunOrder(args ...string) runResult {
+	return tm.run(append([]string{"experimental", "run-order"}, args...)...)
+}
+
+func (tm tmcli) stacksRunGraph(args ...string) runResult {
+	return tm.run(append([]string{"experimental", "run-graph"}, args...)...)
+}
+
 func (tm tmcli) listStacks(args ...string) runResult {
 	return tm.run(append([]string{"list"}, args...)...)
 }

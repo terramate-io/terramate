@@ -143,6 +143,34 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 		},
 		{
+			name:  "generate hcl with attrs referencing attrs on root",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("attrs"),
+						content(
+							number("a", 666),
+							expr("b", "a"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "attrs",
+					hcl: genHCL{
+						origin: defaultCfg("/stack"),
+						body: hcldoc(
+							number("a", 666),
+							expr("b", "a"),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "generate hcl with attributes and blocks on root body",
 			stack: "/stack",
 			configs: []hclconfig{
@@ -1734,6 +1762,21 @@ func TestPartialEval(t *testing.T) {
 			),
 			want: hcldoc(
 				number("num", 5),
+			),
+		},
+		{
+			name: "advanced list indexing 2",
+			skip: true,
+			globals: hcldoc(
+				globals(
+					expr("list", `[ [1, 2, 3], [4, 5, 6], [7, 8, 9]]`),
+				),
+			),
+			config: hcldoc(
+				expr("num", `global.list[1+1][1-1]`),
+			),
+			want: hcldoc(
+				number("num", 7),
 			),
 		},
 		{

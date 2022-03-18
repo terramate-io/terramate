@@ -27,13 +27,13 @@ import (
 
 func TestVersionCheck(t *testing.T) {
 	checkedCmds := []string{
-		"metadata",
+		"experimental metadata",
+		"experimental globals",
+		"experimental init-stack stack",
+		"experimental run-order",
+		"experimental run-graph",
 		"generate",
 		"list",
-		"stacks init stack",
-		"stacks globals",
-		"plan run-order",
-		"plan graph",
 		"run cat terramate.tm.hcl",
 	}
 	uncheckedCmds := []string{

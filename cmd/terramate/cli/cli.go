@@ -63,50 +63,49 @@ const (
 type cliSpec struct {
 	Version       struct{} `cmd:"" help:"Terramate version."`
 	VersionFlag   bool     `name:"version" help:"Terramate version."`
-	Chdir         string   `short:"C" optional:"true" help:"sets working directory."`
-	GitChangeBase string   `short:"B" optional:"true" help:"git base ref for computing changes."`
-	Changed       bool     `short:"c" optional:"true" help:"filter by changed infrastructure"`
+	Chdir         string   `short:"C" optional:"true" help:"Sets working directory."`
+	GitChangeBase string   `short:"B" optional:"true" help:"Git base ref for computing changes."`
+	Changed       bool     `short:"c" optional:"true" help:"Filter by changed infrastructure"`
 	LogLevel      string   `optional:"true" default:"info" enum:"trace,debug,info,warn,error,fatal" help:"Log level to use: 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
 	LogFmt        string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'."`
 
-	DisableCheckGitUntracked   bool `optional:"true" default:"false" help:"disable git check for untracked files."`
-	DisableCheckGitUncommitted bool `optional:"true" default:"false" help:"disable git check for uncommitted files."`
+	DisableCheckGitUntracked   bool `optional:"true" default:"false" help:"Disable git check for untracked files."`
+	DisableCheckGitUncommitted bool `optional:"true" default:"false" help:"Disable git check for uncommitted files."`
 
 	List struct {
 		Why bool `help:"Shows the reason why the stack has changed."`
 	} `cmd:"" help:"List stacks."`
 
 	Run struct {
-		DisableCheckGenCode bool     `optional:"true" default:"false" help:"disable outdated generated code check."`
-		ContinueOnError     bool     `default:"false" help:"continue executing in other stacks in case of error."`
-		DryRun              bool     `default:"false" help:"plan the execution but do not execute it"`
-		Command             []string `arg:"" name:"cmd" passthrough:"" help:"command to execute."`
+		DisableCheckGenCode bool     `optional:"true" default:"false" help:"Disable outdated generated code check."`
+		ContinueOnError     bool     `default:"false" help:"Continue executing in other stacks in case of error."`
+		DryRun              bool     `default:"false" help:"Plan the execution but do not execute it"`
+		Command             []string `arg:"" name:"cmd" passthrough:"" help:"Command to execute."`
 	} `cmd:"" help:"Run command in the stacks."`
 
-	Plan struct {
-		Graph struct {
-			Outfile string `short:"o" default:"" help:"output .dot file."`
-			Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\"."`
-		} `cmd:"" help:"generate a graph of the execution order."`
+	Generate struct{} `cmd:"" help:"Generate terraform code for stacks."`
 
-		RunOrder struct {
-			Basedir string `arg:"" optional:"true" help:"base directory to search stacks."`
-		} `cmd:"" help:"show the topological ordering of the stacks"`
-	} `cmd:"" help:"plan execution."`
+	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"Install shell completions"`
 
-	Stacks struct {
-		Init struct {
-			StackDirs []string `arg:"" name:"paths" optional:"true" help:"the stack directory (current directory if not set)."`
+	Experimental struct {
+		InitStack struct {
+			StackDirs []string `arg:"" name:"paths" optional:"true" help:"The stack directory (current directory if not set)."`
 		} `cmd:"" help:"Initialize a stack, does nothing if stack already initialized."`
 
+		Metadata struct{} `cmd:"" help:"Shows metadata available on the project"`
+
 		Globals struct {
-		} `cmd:"" help:"list globals for all stacks."`
-	} `cmd:"" help:"stack related commands."`
+		} `cmd:"" help:"List globals for all stacks."`
 
-	Generate struct{} `cmd:"" help:"Generate terraform code for stacks."`
-	Metadata struct{} `cmd:"" help:"shows metadata available on the project"`
+		RunGraph struct {
+			Outfile string `short:"o" default:"" help:"Output .dot file."`
+			Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\"."`
+		} `cmd:"" help:"Generate a graph of the execution order."`
 
-	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"install shell completions"`
+		RunOrder struct {
+			Basedir string `arg:"" optional:"true" help:"Base directory to search stacks."`
+		} `cmd:"" help:"Show the topological ordering of the stacks"`
+	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
 
 // Exec will execute terramate with the provided flags defined on args.
@@ -311,6 +310,7 @@ func (c *cli) run() {
 
 	logger := log.With().
 		Str("action", "run()").
+		Str("cmd", c.ctx.Command()).
 		Str("workingDir", c.wd()).
 		Logger()
 
@@ -337,39 +337,14 @@ func (c *cli) run() {
 		}
 	}
 
-	logger.Debug().
-		Msg("Handle input command.")
+	logger.Debug().Msg("Handle command.")
+
 	switch c.ctx.Command() {
-	case "plan graph":
-		log.Trace().
-			Str("actionContext", "cli()").
-			Msg("Handle `plan graph`.")
-		c.generateGraph()
-	case "plan run-order":
-		log.Trace().
-			Str("actionContext", "cli()").
-			Msg("Print run-order.")
-		c.printRunOrder()
-	case "stacks init":
-		log.Trace().
-			Str("actionContext", "cli()").
-			Msg("Handle stacks init command.")
-		c.initStack([]string{c.wd()})
 	case "list":
 		log.Trace().
 			Str("actionContext", "cli()").
 			Msg("Print list of stacks.")
 		c.printStacks()
-	case "stacks init <paths>":
-		log.Trace().
-			Str("actionContext", "cli()").
-			Msg("Handle stacks init <paths> command.")
-		c.initStack(c.parsedArgs.Stacks.Init.StackDirs)
-	case "stacks globals":
-		log.Trace().
-			Str("actionContext", "cli()").
-			Msg("Handle stacks global command.")
-		c.printStacksGlobals()
 	case "run":
 		logger.Debug().
 			Msg("Handle `run` command.")
@@ -383,21 +358,26 @@ func (c *cli) run() {
 			Msg("Handle `run <cmd>` command.")
 		c.runOnStacks()
 	case "generate":
-		logger.Debug().Msg("Handle `generate` command.")
-
 		report := generate.Do(c.root(), c.wd())
 		c.log(report.String())
 
 		if report.HasFailures() {
 			os.Exit(1)
 		}
-	case "metadata":
-		logger.Debug().
-			Msg("Handle `metadata` command.")
+	case "experimental globals":
+		c.printStacksGlobals()
+	case "experimental metadata":
 		c.printMetadata()
+	case "experimental init-stack <paths>":
+		c.initStack(c.parsedArgs.Experimental.InitStack.StackDirs)
+	case "experimental init-stack":
+		c.initStack([]string{c.wd()})
+	case "experimental run-graph":
+		c.generateGraph()
+	case "experimental run-order":
+		c.printRunOrder()
 	default:
-		log.Fatal().
-			Msgf("unexpected command sequence: %s", c.ctx.Command())
+		log.Fatal().Msg("unexpected command sequence")
 	}
 }
 
@@ -533,7 +513,7 @@ func (c *cli) generateGraph() {
 
 	logger.Trace().Msg("Handle graph label command line argument.")
 
-	switch c.parsedArgs.Plan.Graph.Label {
+	switch c.parsedArgs.Experimental.RunGraph.Label {
 	case "stack.name":
 		logger.Debug().Msg("Set label to stack name.")
 
@@ -587,7 +567,7 @@ func (c *cli) generateGraph() {
 
 	logger.Debug().
 		Msg("Set output of graph.")
-	outFile := c.parsedArgs.Plan.Graph.Outfile
+	outFile := c.parsedArgs.Experimental.RunGraph.Outfile
 	var out io.Writer
 	if outFile == "" {
 		logger.Trace().
