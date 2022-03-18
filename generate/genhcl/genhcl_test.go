@@ -1566,6 +1566,63 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
+			name: "basic plus expression",
+			config: hcldoc(
+				expr("var", `1 + 1`),
+			),
+			want: hcldoc(
+				expr("var", `1 + 1`),
+			),
+		},
+		{
+			name: "plus expression funcall",
+			config: hcldoc(
+				expr("var", `len(a.b) + len2(c.d)`),
+			),
+			want: hcldoc(
+				expr("var", `len(a.b) + len2(c.d)`),
+			),
+		},
+		{
+			name: "plus expression evaluated",
+			globals: hcldoc(
+				globals(
+					str("a", "hello"),
+					str("b", "world"),
+				),
+			),
+			config: hcldoc(
+				expr("var", `tm_upper(global.a) + tm_upper(global.b)`),
+			),
+			want: hcldoc(
+				expr("var", `"HELLO" + "WORLD"`),
+			),
+		},
+		{
+			name: "plus expression evaluated advanced",
+			globals: hcldoc(
+				globals(
+					str("a", "hello"),
+					str("b", "world"),
+				),
+			),
+			config: hcldoc(
+				expr("var", `tm_lower(tm_upper(global.a)) + tm_lower(tm_upper(global.b))`),
+			),
+			want: hcldoc(
+				expr("var", `"hello" + "world"`),
+			),
+		},
+		{
+			name: "basic minus expression",
+			config: hcldoc(
+				expr("var", `1 + 1`),
+			),
+			want: hcldoc(
+				expr("var", `1 + 1`),
+			),
+		},
+		{
 			name: "deep object interpolation",
 			globals: hcldoc(
 				globals(

@@ -157,15 +157,32 @@ func evalExpr(iskey bool, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens
 	case hclsyntax.TokenNumberLit:
 		out = append(out, tok)
 		pos++
-	default:
-		panic(errorf("not implemented: %s (%s)", tok.Bytes, tok.Type))
 	}
 
 	if pos == 0 {
 		panic("bug: no advance in the position")
 	}
 
+	if pos >= len(tokens) {
+		return out, pos, nil
+	}
+
 	// exprTerm, operation, etc
+
+	tok = tokens[pos]
+	switch tok.Type {
+	case hclsyntax.TokenPlus, hclsyntax.TokenMinus,
+		hclsyntax.TokenStar, hclsyntax.TokenSlash, hclsyntax.TokenPercent:
+		out = append(out, tok)
+		pos++
+		evaluated, skip, err := evalExpr(false, tokens[pos:], ctx)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		pos += skip
+		out = append(out, evaluated...)
+	}
 
 	return out, pos, nil
 }
@@ -448,12 +465,24 @@ func evalTmFuncall(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, 
 		return nil, 0, errorf("not a funcall")
 	}
 
+	matchingParens := 1
 	pos++
-	for pos < len(tokens) && tokens[pos].Type != hclsyntax.TokenCParen {
+	for pos < len(tokens) {
+		switch tokens[pos].Type {
+		case hclsyntax.TokenOParen:
+			matchingParens++
+		case hclsyntax.TokenCParen:
+			matchingParens--
+		}
+
+		if matchingParens == 0 {
+			break
+		}
+
 		pos++
 	}
 
-	if tokens[pos].Type != hclsyntax.TokenCParen {
+	if matchingParens > 0 || tokens[pos].Type != hclsyntax.TokenCParen {
 		return nil, 0, errorf("malformed funcall")
 	}
 
