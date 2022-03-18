@@ -43,7 +43,15 @@ func FuzzPartialEval(f *testing.F) {
 		// Here we fuzz that anything that the hclsyntax lib handle we should
 		// also handle with no errors. We dont fuzz actual substitution
 		// scenarios that would require a proper context with globals loaded.
-		parsedTokens, diags := hclsyntax.LexExpression([]byte(expr), "fuzz", hcl.Pos{})
+		parsedExpr, diags := hclsyntax.ParseExpression([]byte(expr), "fuzz", hcl.Pos{})
+		if diags.HasErrors() {
+			return
+		}
+
+		exprRange := parsedExpr.Range()
+		exprBytes := expr[exprRange.Start.Byte:exprRange.End.Byte]
+
+		parsedTokens, diags := hclsyntax.LexExpression([]byte(exprBytes), "fuzz", hcl.Pos{})
 		if diags.HasErrors() {
 			return
 		}
