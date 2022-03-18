@@ -1403,7 +1403,6 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "interpolating multiple objects fails",
-			skip: true,
 			globals: globals(
 				expr("obj", `{ string = "hello" }`),
 			),
@@ -1414,7 +1413,6 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "interpolating object with prefix space fails",
-			skip: true,
 			globals: globals(
 				expr("obj", `{ string = "hello" }`),
 			),
@@ -1425,7 +1423,6 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "interpolating object with suffix space fails",
-			skip: true,
 			globals: globals(
 				expr("obj", `{ string = "hello" }`),
 			),
@@ -1436,7 +1433,6 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "interpolating multiple lists fails",
-			skip: true,
 			globals: globals(
 				expr("list", `["hello"]`),
 			),
@@ -1447,7 +1443,6 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "interpolating list with prefix space fails",
-			skip: true,
 			globals: globals(
 				expr("list", `["hello"]`),
 			),
@@ -1458,7 +1453,6 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "interpolating list with suffix space fails",
-			skip: true,
 			globals: globals(
 				expr("list", `["hello"]`),
 			),
@@ -1515,7 +1509,6 @@ func TestPartialEval(t *testing.T) {
 		{
 			// Here we check that a interpolated booleans results on the boolean itself, not a string.
 			name: "boolean interpolation/serialization",
-			skip: true,
 			globals: globals(
 				boolean("bool", true),
 			),
@@ -1599,7 +1592,6 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "deep object interpolation of object field and str field fails",
-			skip: true,
 			globals: hcldoc(
 				globals(
 					expr("obj", `{
