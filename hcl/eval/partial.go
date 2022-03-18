@@ -91,7 +91,7 @@ func evalExpr(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error
 		pos++
 		out = append(out, tok)
 		if len(tokens) != pos {
-			panic(sprintf("got EOF in the middle: %d < %d", pos, len(tokens)))
+			panic("got EOF in the middle of the token stream")
 		}
 	case hclsyntax.TokenOQuote:
 		evaluated, skip, err := evalString(tokens[pos:], ctx)
@@ -152,6 +152,9 @@ func evalExpr(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error
 
 		pos += skip
 		out = append(out, evaluated...)
+	case hclsyntax.TokenBang, hclsyntax.TokenMinus:
+		out = append(out, tok)
+		pos++
 	case hclsyntax.TokenNumberLit:
 		out = append(out, tok)
 		pos++

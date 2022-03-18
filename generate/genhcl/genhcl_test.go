@@ -1928,6 +1928,15 @@ func TestPartialEval(t *testing.T) {
 				expr("obj", `{for k, v in [for k in a.b : k] : k => v}`),
 			),
 		},
+		{
+			name: "unary operation !",
+			config: hcldoc(
+				expr("num", "!0"),
+			),
+			want: hcldoc(
+				expr("num", "!0"),
+			),
+		},
 	}
 
 	for _, tcase := range tcases {
