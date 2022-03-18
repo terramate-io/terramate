@@ -64,7 +64,7 @@ func Partial(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Token
 	pos := 0
 	out := hclwrite.Tokens{}
 	for pos < len(tokens) {
-		evaluated, skip, err := evalExpr(false, tokens[pos:], ctx)
+		evaluated, skip, err := evalExpr(tokens[pos:], ctx)
 		if err != nil {
 			return nil, errutil.Chain(ErrPartialEval, err)
 		}
@@ -80,7 +80,7 @@ func Partial(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Token
 	return out, nil
 }
 
-func evalExpr(iskey bool, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
+func evalExpr(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
 	out := hclwrite.Tokens{}
 	pos := 0
 	tok := tokens[pos]
@@ -114,14 +114,9 @@ func evalExpr(iskey bool, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens
 
 				pos += skip
 				out = append(out, evaluated...)
-			} else if iskey {
+			} else {
 				out = append(out, tok)
 				pos++
-			} else {
-				return nil, 0, errorf(
-					"expression cannot evaluate IDENT (%s) at this point",
-					tok.Bytes,
-				)
 			}
 		}
 	case hclsyntax.TokenOBrace, hclsyntax.TokenOBrack:
@@ -179,7 +174,7 @@ func evalExpr(iskey bool, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens
 		out = append(out, tok)
 		pos++
 
-		evaluated, skip, err := evalExpr(false, tokens[pos:], ctx)
+		evaluated, skip, err := evalExpr(tokens[pos:], ctx)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -190,7 +185,7 @@ func evalExpr(iskey bool, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens
 		hclsyntax.TokenStar, hclsyntax.TokenSlash, hclsyntax.TokenPercent:
 		out = append(out, tok)
 		pos++
-		evaluated, skip, err := evalExpr(false, tokens[pos:], ctx)
+		evaluated, skip, err := evalExpr(tokens[pos:], ctx)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -201,7 +196,7 @@ func evalExpr(iskey bool, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens
 		out = append(out, tok)
 		pos++
 
-		evaluated, skip, err := evalExpr(false, tokens[pos:], ctx)
+		evaluated, skip, err := evalExpr(tokens[pos:], ctx)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -219,7 +214,7 @@ func evalExpr(iskey bool, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens
 		out = append(out, tokens[pos])
 		pos++
 
-		evaluated, skip, err = evalExpr(false, tokens[pos:], ctx)
+		evaluated, skip, err = evalExpr(tokens[pos:], ctx)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -304,7 +299,7 @@ func evalList(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error
 			continue
 		}
 
-		evaluated, skip, err := evalExpr(false, tokens[pos:], ctx)
+		evaluated, skip, err := evalExpr(tokens[pos:], ctx)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -404,7 +399,7 @@ func evalObject(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, err
 }
 
 func evalKeyExpr(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
-	return evalExpr(true, tokens, ctx)
+	return evalExpr(tokens, ctx)
 }
 
 func evalForExpr(
@@ -578,7 +573,7 @@ func evalFuncall(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, er
 
 	pos++
 	for pos < len(tokens) && tokens[pos].Type != hclsyntax.TokenCParen {
-		evaluated, skip, err := evalExpr(false, tokens[pos:], ctx)
+		evaluated, skip, err := evalExpr(tokens[pos:], ctx)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -738,7 +733,7 @@ func evalInterp(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, err
 	}
 
 	pos++
-	evaluated, skip, err := evalExpr(false, tokens[pos:], ctx)
+	evaluated, skip, err := evalExpr(tokens[pos:], ctx)
 	if err != nil {
 		return nil, 0, err
 	}
