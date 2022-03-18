@@ -1292,7 +1292,7 @@ func TestPartialEval(t *testing.T) {
 				str("num", `${global.num}`),
 			),
 			want: hcldoc(
-				str("num", "1337"),
+				number("num", 1337),
 			),
 		},
 		{
@@ -1320,7 +1320,7 @@ func TestPartialEval(t *testing.T) {
 				str("flag", `${global.flag}`),
 			),
 			want: hcldoc(
-				str("flag", "true"),
+				boolean("flag", true),
 			),
 		},
 		{
@@ -1408,9 +1408,8 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			// Here we check that a intepolated object results on the object itself, not a string.
+			// Here we check that an interpolated object results on the object itself, not a string.
 			name: "object interpolation/serialization",
-			skip: true,
 			globals: globals(
 				expr("obj", `{
 					string = "hello"
@@ -1480,35 +1479,6 @@ func TestPartialEval(t *testing.T) {
 			want: hcldoc(
 				number("number", 666),
 				str("number_interpolated", "666-666"),
-			),
-		},
-		{
-			name: "test list - just to see how hcl lib serializes a list // remove me",
-			globals: hcldoc(
-				globals(
-					expr("list", `[1, 2, 3]`),
-					str("interp", "${global.list}"),
-				),
-			),
-			config: hcldoc(
-				str("var", "${global.interp}"),
-			),
-			want: hcldoc(
-				str("var", "1, 2, 3"),
-			),
-		},
-		{
-			name: "variable list interpolation/serialization in a string",
-			globals: hcldoc(
-				globals(
-					expr("list", `[1, 2, 3]`),
-				),
-			),
-			config: hcldoc(
-				str("var", "${global.list}"),
-			),
-			want: hcldoc(
-				str("var", "1, 2, 3"),
 			),
 		},
 		{

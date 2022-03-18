@@ -699,6 +699,44 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "global interpolating of single number",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						number("a", 1),
+						str("a_interpolated", "${global.a}"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					number("a", 1),
+					number("a_interpolated", 1),
+				),
+			},
+		},
+		{
+			name:   "global interpolating of single boolean",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						boolean("a", true),
+						str("a_interpolated", "${global.a}"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					boolean("a", true),
+					boolean("a_interpolated", true),
+				),
+			},
+		},
+		{
 			name:   "global interpolating multiple lists fails",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
