@@ -859,6 +859,50 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			// This tests double check that interpolation on a single boolean
+			// produces an actual boolean on hcl eval, not a string.
+			// Which is bizarre...but why not ?
+			name:   "global interpolating numbers",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						boolean("a", true),
+						str("a_interpolated", "${global.a}"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					boolean("a", true),
+					boolean("a_interpolated", true),
+				),
+			},
+		},
+		{
+			// Composing booleans on a interpolation works and then produces
+			// string. Testing this because this does not work with all types
+			// and it is useful for us as maintainers to map/test these different behaviors.
+			name:   "global interpolating multiple numbers",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						boolean("a", false),
+						str("a_interpolated", "${global.a}-${global.a}"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					boolean("a", false),
+					str("a_interpolated", "false-false"),
+				),
+			},
+		},
+		{
 			name:   "global reference with try on root config and value defined on stack",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
