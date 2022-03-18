@@ -1437,7 +1437,6 @@ func TestPartialEval(t *testing.T) {
 		{
 			// Here we check that a intepolated lists results on the list itself, not a string.
 			name: "list interpolation/serialization",
-			skip: true,
 			globals: globals(
 				expr("list", `["hi"]`),
 			),
@@ -1453,7 +1452,6 @@ func TestPartialEval(t *testing.T) {
 		{
 			// Here we check that a interpolated number results on the number itself, not a string.
 			name: "number interpolation/serialization",
-			skip: true,
 			globals: globals(
 				number("number", 666),
 			),
