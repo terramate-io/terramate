@@ -61,7 +61,7 @@ func TestStacksInit(t *testing.T) {
 			if len(tc.input) > 0 {
 				args = append(args, tc.input...)
 			}
-			assertRunResult(t, cli.initStacks(args...), tc.want)
+			assertRunResult(t, cli.initStack(args...), tc.want)
 
 			if tc.want.Status != 0 {
 				return
@@ -84,7 +84,7 @@ func TestStacksInit(t *testing.T) {
 func TestInitNonExistingDir(t *testing.T) {
 	s := sandbox.New(t)
 	c := newCLI(t, s.RootDir())
-	assertRunResult(t, c.initStacks(test.NonExistingDir(t)), runExpected{
+	assertRunResult(t, c.initStack(test.NonExistingDir(t)), runExpected{
 		StderrRegex: cli.ErrInit.Error(),
 		Status:      1,
 	})
@@ -95,8 +95,8 @@ func TestInitFailInitializeChildOfStack(t *testing.T) {
 	c := newCLI(t, s.RootDir())
 	parent := test.Mkdir(t, s.RootDir(), "parent-stack")
 	child := test.Mkdir(t, parent, "child-stack")
-	assertRun(t, c.initStacks(parent))
-	assertRunResult(t, c.initStacks(child), runExpected{
+	assertRun(t, c.initStack(parent))
+	assertRunResult(t, c.initStack(child), runExpected{
 		StderrRegex: cli.ErrInit.Error(),
 		Status:      1,
 	})
@@ -107,8 +107,8 @@ func TestInitFailInitializeParentOfChildStack(t *testing.T) {
 	c := newCLI(t, s.RootDir())
 	parent := test.Mkdir(t, s.RootDir(), "parent-stack")
 	child := test.Mkdir(t, parent, "child-stack")
-	assertRun(t, c.initStacks(child))
-	assertRunResult(t, c.initStacks(parent), runExpected{
+	assertRun(t, c.initStack(child))
+	assertRunResult(t, c.initStack(parent), runExpected{
 		StderrRegex: cli.ErrInit.Error(),
 		Status:      1,
 	})

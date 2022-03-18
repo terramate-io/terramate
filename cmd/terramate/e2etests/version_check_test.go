@@ -29,7 +29,7 @@ func TestVersionCheck(t *testing.T) {
 	checkedCmds := []string{
 		"experimental metadata",
 		"experimental globals",
-		"experimental init stack",
+		"experimental init-stack stack",
 		"experimental run-order",
 		"experimental run-graph",
 		"generate",

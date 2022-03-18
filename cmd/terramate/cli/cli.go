@@ -88,7 +88,7 @@ type cliSpec struct {
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"install shell completions"`
 
 	Experimental struct {
-		Init struct {
+		InitStack struct {
 			StackDirs []string `arg:"" name:"paths" optional:"true" help:"the stack directory (current directory if not set)."`
 		} `cmd:"" help:"Initialize a stack, does nothing if stack already initialized."`
 
@@ -368,9 +368,9 @@ func (c *cli) run() {
 		c.printStacksGlobals()
 	case "experimental metadata":
 		c.printMetadata()
-	case "experimental init <paths>":
-		c.initStack(c.parsedArgs.Experimental.Init.StackDirs)
-	case "experimental init":
+	case "experimental init-stack <paths>":
+		c.initStack(c.parsedArgs.Experimental.InitStack.StackDirs)
+	case "experimental init-stack":
 		c.initStack([]string{c.wd()})
 	case "experimental run-graph":
 		c.generateGraph()
