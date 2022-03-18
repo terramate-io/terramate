@@ -58,6 +58,13 @@ func FuzzPartialEval(f *testing.F) {
 
 		want := toWriteTokens(parsedTokens)
 		got, err := eval.Partial("fuzz", want, eval.NewContext(""))
+
+		if strings.Contains(expr, "global.") || strings.Contains(expr, "terramate.") {
+			// TODO(katcipis): Validate generated code properties when
+			// substitution is in play.
+			return
+		}
+
 		if err != nil {
 			t.Fatal(err)
 		}
