@@ -40,7 +40,7 @@ func FuzzPartialEval(f *testing.F) {
 			t.Fatal(err)
 		}
 
-		// Since we dont fuzz substitution, the amount of tokens should be the same
+		// Since we dont fuzz substitution/evaluation the tokens should be the same
 		assert.EqualInts(t, len(got), len(want), "got %s != want %s", tokensStr(got), tokensStr(want))
 
 		for i, gotToken := range got {
