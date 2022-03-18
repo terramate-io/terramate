@@ -1760,6 +1760,15 @@ func TestPartialEval(t *testing.T) {
 			),
 			wantErr: eval.ErrForExprDisallowEval,
 		},
+		{
+			name: "mixing {for and [for",
+			config: hcldoc(
+				expr("obj", `{for k, v in [for k in a.b : k] : k => v}`),
+			),
+			want: hcldoc(
+				expr("obj", `{for k, v in [for k in a.b : k] : k => v}`),
+			),
+		},
 	}
 
 	for _, tcase := range tcases {
