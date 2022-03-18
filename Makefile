@@ -58,6 +58,11 @@ test:
 test/ci: build
 	./bin/terramate list --changed
 
+## start fuzzying to generate some new corpus/find errors
+.PHONY: test/fuzz
+test/fuzz:
+	go test ./hcl/eval -fuzz=FuzzPartialEval
+
 ## Build terramate into bin directory
 .PHONY: build
 build:
