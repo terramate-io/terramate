@@ -1677,6 +1677,15 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
+			name: "{for in from {for map",
+			config: hcldoc(
+				expr("obj", `{for k, v in {for k,v in a.b : k=>v} : k => v}`),
+			),
+			want: hcldoc(
+				expr("obj", `{for k, v in {for k,v in a.b : k=>v} : k => v}`),
+			),
+		},
+		{
 			name: "[for with funcall",
 			config: hcldoc(
 				expr("obj", `[for s in var.list : upper(s)]`),
@@ -1713,6 +1722,15 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
+			name: "[for in from [for list",
+			config: hcldoc(
+				expr("obj", `[for s in [for s in a.b : s] : s]`),
+			),
+			want: hcldoc(
+				expr("obj", `[for s in [for s in a.b : s] : s]`),
+			),
+		},
+		{
 			name: "list for loop with global reference fails",
 			globals: globals(
 				expr("list", `["a", "b", "c"]`),
@@ -1729,6 +1747,16 @@ func TestPartialEval(t *testing.T) {
 			),
 			config: hcldoc(
 				expr("obj", `[for k in global.obj : k]`),
+			),
+			wantErr: eval.ErrForExprDisallowEval,
+		},
+		{
+			name: "[for in from [for list with global references",
+			globals: globals(
+				expr("list", `["a", "b", "c"]`),
+			),
+			config: hcldoc(
+				expr("obj", `[for s in [for s in global.list : s] : s]`),
 			),
 			wantErr: eval.ErrForExprDisallowEval,
 		},
