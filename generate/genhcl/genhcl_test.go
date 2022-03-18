@@ -1660,16 +1660,56 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "basic [for loops",
-			globals: hcldoc(
-				globals(
-					expr("list", `["a", "b", "c"]`),
-				),
-			),
 			config: hcldoc(
 				expr("obj", `[for k in local.list : k]`),
 			),
 			want: hcldoc(
 				expr("obj", `[for k in local.list : k]`),
+			),
+		},
+		{
+			name: "{for loop from map and funcall",
+			config: hcldoc(
+				expr("obj", `{for s in var.list : s => upper(s)}`),
+			),
+			want: hcldoc(
+				expr("obj", `{for s in var.list : s => upper(s)}`),
+			),
+		},
+		{
+			name: "[for with funcall",
+			config: hcldoc(
+				expr("obj", `[for s in var.list : upper(s)]`),
+			),
+			want: hcldoc(
+				expr("obj", `[for s in var.list : upper(s)]`),
+			),
+		},
+		{
+			name: "[for in from map and Operation body",
+			config: hcldoc(
+				expr("obj", `[for k, v in var.map : length(k) + length(v)]`),
+			),
+			want: hcldoc(
+				expr("obj", `[for k, v in var.map : length(k) + length(v)]`),
+			),
+		},
+		{
+			name: "[for in from map and interpolation body",
+			config: hcldoc(
+				expr("obj", `[for i, v in var.list : "${i} is ${v}"]`),
+			),
+			want: hcldoc(
+				expr("obj", `[for i, v in var.list : "${i} is ${v}"]`),
+			),
+		},
+		{
+			name: "[for in from map with conditional body",
+			config: hcldoc(
+				expr("obj", `[for s in var.list : upper(s) if s != ""]`),
+			),
+			want: hcldoc(
+				expr("obj", `[for s in var.list : upper(s) if s != ""]`),
 			),
 		},
 	}
