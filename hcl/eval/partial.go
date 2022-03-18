@@ -120,6 +120,9 @@ func evalExpr(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error
 				pos++
 			}
 		}
+	case hclsyntax.TokenOParen, hclsyntax.TokenCParen:
+		out = append(out, tok)
+		pos++
 	case hclsyntax.TokenOBrace, hclsyntax.TokenOBrack:
 		var evaluated hclwrite.Tokens
 		var err error
@@ -158,6 +161,47 @@ func evalExpr(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error
 	case hclsyntax.TokenNumberLit:
 		out = append(out, tok)
 		pos++
+
+		next := tokens[pos]
+		if next.Type == hclsyntax.TokenDot {
+			out = append(out, next)
+
+			pos++
+			next = tokens[pos]
+
+			if next.Type == hclsyntax.TokenIdent {
+				// HCL lib allows the syntax 0.A (NUMBER DOT IDENT)
+				// sure why not?
+				out = append(out, next)
+				pos++
+				break
+			}
+
+			if next.Type != hclsyntax.TokenNumberLit {
+				panic(next.Type)
+			}
+
+			out = append(out, next)
+			pos++
+		}
+
+		next = tokens[pos]
+		if strings.ToLower(string(next.Bytes)) == "e" {
+			out = append(out, next)
+			pos++
+
+			next = tokens[pos]
+			if next.Type == hclsyntax.TokenPlus || next.Type == hclsyntax.TokenMinus {
+				out = append(out, next)
+				pos++
+			}
+
+			next = tokens[pos]
+			if next.Type == hclsyntax.TokenNumberLit {
+				out = append(out, next)
+				pos++
+			}
+		}
 	}
 
 	if pos == 0 {

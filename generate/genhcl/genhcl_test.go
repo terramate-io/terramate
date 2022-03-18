@@ -1955,6 +1955,15 @@ func TestPartialEval(t *testing.T) {
 				expr("a", "b.1000"),
 			),
 		},
+		{
+			name: "advanced number literam",
+			config: hcldoc(
+				expr("a", "10.1200"),
+			),
+			want: hcldoc(
+				expr("a", "10.1200"),
+			),
+		},
 	}
 
 	for _, tcase := range tcases {
