@@ -168,6 +168,34 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 		},
 		{
+			name:  "generate hcl with attrs referencing attrs on root",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("attrs"),
+						content(
+							number("a", 666),
+							expr("b", "a"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "attrs",
+					hcl: genHCL{
+						origin: defaultCfg("/stack"),
+						body: hcldoc(
+							number("a", 666),
+							expr("b", "a"),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "generate hcl with attributes and blocks on root body",
 			stack: "/stack",
 			configs: []hclconfig{
