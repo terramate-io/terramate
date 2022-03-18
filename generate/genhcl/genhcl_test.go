@@ -1937,6 +1937,15 @@ func TestPartialEval(t *testing.T) {
 				expr("num", "!0"),
 			),
 		},
+		{
+			name: "unary operation -",
+			config: hcldoc(
+				expr("num", "-0"),
+			),
+			want: hcldoc(
+				expr("num", "-0"),
+			),
+		},
 	}
 
 	for _, tcase := range tcases {
