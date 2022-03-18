@@ -1722,6 +1722,36 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
+			name: "advanced list indexing",
+			skip: true,
+			globals: hcldoc(
+				globals(
+					expr("list", `[ [1, 2, 3], [4, 5, 6], [7, 8, 9]]`),
+				),
+			),
+			config: hcldoc(
+				expr("num", `global.list[1][1]`),
+			),
+			want: hcldoc(
+				number("num", 5),
+			),
+		},
+		{
+			name: "advanced object indexing",
+			skip: true,
+			globals: hcldoc(
+				globals(
+					expr("obj", `{A = {B = "test"}}`),
+				),
+			),
+			config: hcldoc(
+				expr("string", `global.list[tm_upper("a")][tm_upper("b)]`),
+			),
+			want: hcldoc(
+				str("string", "test"),
+			),
+		},
+		{
 			name: "basic object indexing",
 			globals: hcldoc(
 				globals(

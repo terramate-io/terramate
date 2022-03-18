@@ -646,12 +646,6 @@ func parseVariable(tokens hclwrite.Tokens) (v variable, found bool) {
 
 	if pos < len(tokens) && tokens[pos].Type == hclsyntax.TokenOBrack {
 		v.index = parseIndexing(tokens[pos:])
-
-		pos += 1 + len(v.index) // "[" + tokens
-
-		if tokens[pos].Type != hclsyntax.TokenCBrack {
-			panic(sprintf("malformed variable: %s", tokens[pos].Type))
-		}
 	}
 
 	return v, true
@@ -663,30 +657,41 @@ func parseIndexing(tokens hclwrite.Tokens) hclwrite.Tokens {
 	}
 
 	pos := 1
-
-	v, found := parseVariable(tokens[pos:])
-	if found {
-		return v.alltokens()
-	}
-
-	pos += v.size()
-
-	count := 0
-	for ; pos < len(tokens) && tokens[pos].Type != hclsyntax.TokenCBrack; pos++ {
+	matchingBracks := 1
+	for pos < len(tokens) {
 		// here be dragons
 		// in other words: we don't validate the index expression, as it's going
 		// to be evaluated by hashicorp library anyway (if global/terramate) or
-		// ignored otherwise. Let's trust that hcl.Parse() catches all the issues.
-		count++
+		// ignored otherwise. Let's trust that hcl.Parse() catches all the
+		// issues.
+
+		switch tokens[pos].Type {
+		case hclsyntax.TokenOBrack:
+			matchingBracks++
+		case hclsyntax.TokenCBrack:
+			matchingBracks--
+		}
+
+		if matchingBracks == 0 {
+			if tokens[pos+1].Type == hclsyntax.TokenOBrack {
+				// beginning of next '[' sequence.
+				// this is for the parsing of a.b[<expr][<expr2]...
+				matchingBracks++
+				pos += 2
+				continue
+			}
+
+			break
+		}
+
+		pos++
 	}
 
-	if tokens[count+1].Type != hclsyntax.TokenCBrack {
+	if tokens[pos].Type != hclsyntax.TokenCBrack {
 		panic("unexpected")
 	}
 
-	count++
-
-	return tokens[1:count]
+	return tokens[1:pos]
 }
 
 func evalVar(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
@@ -710,7 +715,7 @@ func evalVar(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error)
 
 	e, diags := hclsyntax.ParseExpression(expr, "gen.hcl", hcl.Pos{})
 	if diags.HasErrors() {
-		return nil, 0, errorf("failed to parse expr: %v", diags.Error())
+		return nil, 0, errorf("failed to parse expr %s: %v", expr, diags.Error())
 	}
 
 	val, err := ctx.Eval(e)
