@@ -58,14 +58,8 @@ Here be dragons. Thou art forewarned
 
 // Partial evaluates only the terramate variable expressions from the list of
 // tokens, leaving all the rest as-is. It returns a modified list of tokens with
-// no reference to terramate namespaced variables (globals and terramate).
-// Caveats:
-//   - In the case of the `try` function, the terramate variables get removed if
-//     non existent.
-//   - The try() function gets completed removed and replaced by the default
-//     value if only it is left as an argument.
-//     - try(terramate.non_existant, 1) -> try(1) -> 1
-//     - try(globals.non_existant, locals.b, "default") -> try(locals.b, "default")
+// no reference to terramate namespaced variables (globals and terramate) and
+// functions (tm_ prefixed functions).
 func Partial(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, error) {
 	pos := 0
 	out := hclwrite.Tokens{}
