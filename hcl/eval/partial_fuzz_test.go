@@ -3,8 +3,11 @@
 package eval_test
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
@@ -15,6 +18,7 @@ import (
 func FuzzPartialEval(f *testing.F) {
 	seedCorpus := []string{
 		"attr",
+		"attr.value",
 	}
 
 	for _, seed := range seedCorpus {
@@ -37,8 +41,26 @@ func FuzzPartialEval(f *testing.F) {
 		}
 
 		// Since we dont fuzz substitution, the amount of tokens should be the same
-		assert.EqualInts(t, len(got), len(want), "got %v != want %v", got.Bytes(), want.Bytes())
+		assert.EqualInts(t, len(got), len(want), "got %s != want %s", tokensStr(got), tokensStr(want))
+
+		for i, gotToken := range got {
+			wantToken := want[i]
+			if diff := cmp.Diff(*gotToken, *wantToken); diff != "" {
+				t.Errorf("got: %v", *gotToken)
+				t.Errorf("want: %v", *wantToken)
+				t.Error("diff:")
+				t.Fatal(diff)
+			}
+		}
 	})
+}
+
+func tokensStr(t hclwrite.Tokens) string {
+	tokensStrs := make([]string, len(t))
+	for i, token := range t {
+		tokensStrs[i] = fmt.Sprintf("{Type=%q Bytes=%v}", token.Type, token.Bytes)
+	}
+	return "[" + strings.Join(tokensStrs, ",") + "]"
 }
 
 func toWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {
