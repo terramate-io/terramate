@@ -63,48 +63,48 @@ const (
 type cliSpec struct {
 	Version       struct{} `cmd:"" help:"Terramate version."`
 	VersionFlag   bool     `name:"version" help:"Terramate version."`
-	Chdir         string   `short:"C" optional:"true" help:"sets working directory."`
-	GitChangeBase string   `short:"B" optional:"true" help:"git base ref for computing changes."`
-	Changed       bool     `short:"c" optional:"true" help:"filter by changed infrastructure"`
+	Chdir         string   `short:"C" optional:"true" help:"Sets working directory."`
+	GitChangeBase string   `short:"B" optional:"true" help:"Git base ref for computing changes."`
+	Changed       bool     `short:"c" optional:"true" help:"Filter by changed infrastructure"`
 	LogLevel      string   `optional:"true" default:"info" enum:"trace,debug,info,warn,error,fatal" help:"Log level to use: 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
 	LogFmt        string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'."`
 
-	DisableCheckGitUntracked   bool `optional:"true" default:"false" help:"disable git check for untracked files."`
-	DisableCheckGitUncommitted bool `optional:"true" default:"false" help:"disable git check for uncommitted files."`
+	DisableCheckGitUntracked   bool `optional:"true" default:"false" help:"Disable git check for untracked files."`
+	DisableCheckGitUncommitted bool `optional:"true" default:"false" help:"Disable git check for uncommitted files."`
 
 	List struct {
 		Why bool `help:"Shows the reason why the stack has changed."`
 	} `cmd:"" help:"List stacks."`
 
 	Run struct {
-		DisableCheckGenCode bool     `optional:"true" default:"false" help:"disable outdated generated code check."`
-		ContinueOnError     bool     `default:"false" help:"continue executing in other stacks in case of error."`
-		DryRun              bool     `default:"false" help:"plan the execution but do not execute it"`
-		Command             []string `arg:"" name:"cmd" passthrough:"" help:"command to execute."`
+		DisableCheckGenCode bool     `optional:"true" default:"false" help:"Disable outdated generated code check."`
+		ContinueOnError     bool     `default:"false" help:"Continue executing in other stacks in case of error."`
+		DryRun              bool     `default:"false" help:"Plan the execution but do not execute it"`
+		Command             []string `arg:"" name:"cmd" passthrough:"" help:"Command to execute."`
 	} `cmd:"" help:"Run command in the stacks."`
 
 	Generate struct{} `cmd:"" help:"Generate terraform code for stacks."`
 
-	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"install shell completions"`
+	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"Install shell completions"`
 
 	Experimental struct {
 		InitStack struct {
-			StackDirs []string `arg:"" name:"paths" optional:"true" help:"the stack directory (current directory if not set)."`
+			StackDirs []string `arg:"" name:"paths" optional:"true" help:"The stack directory (current directory if not set)."`
 		} `cmd:"" help:"Initialize a stack, does nothing if stack already initialized."`
 
-		Metadata struct{} `cmd:"" help:"shows metadata available on the project"`
+		Metadata struct{} `cmd:"" help:"Shows metadata available on the project"`
 
 		Globals struct {
-		} `cmd:"" help:"list globals for all stacks."`
+		} `cmd:"" help:"List globals for all stacks."`
 
 		RunGraph struct {
-			Outfile string `short:"o" default:"" help:"output .dot file."`
+			Outfile string `short:"o" default:"" help:"Output .dot file."`
 			Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\"."`
-		} `cmd:"" help:"generate a graph of the execution order."`
+		} `cmd:"" help:"Generate a graph of the execution order."`
 
 		RunOrder struct {
-			Basedir string `arg:"" optional:"true" help:"base directory to search stacks."`
-		} `cmd:"" help:"show the topological ordering of the stacks"`
+			Basedir string `arg:"" optional:"true" help:"Base directory to search stacks."`
+		} `cmd:"" help:"Show the topological ordering of the stacks"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
 
