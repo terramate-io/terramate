@@ -186,6 +186,8 @@ func evalExpr(iskey bool, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens
 		panic("bug: no advance in the position")
 	}
 
+	// exprTerm, operation, etc
+
 	return out, pos, nil
 }
 
@@ -666,77 +668,115 @@ func evalVar(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error)
 	return out, v.size(), nil
 }
 
+func evalInterp(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
+	pos := 0
+	tok := tokens[pos]
+
+	if tok.Type != hclsyntax.TokenTemplateInterp {
+		panic("unexpected token")
+	}
+
+	pos++
+	evaluated, skip, err := evalExpr(false, tokens[pos:], ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	pos += skip
+	tok = tokens[pos]
+	if tok.Type != hclsyntax.TokenTemplateSeqEnd {
+		panic("malformed interpolation expression, missing }")
+	}
+
+	pos++
+
+	// TODO(i4k):
+	//
+	// We should emit a `${` and `}` when the expression has non-evaluated parts
+	// but there's no easy way of figuring out this without an AST.
+	// The naive approach is defined below:
+	//   1. check if there's any Operation | Conditional.
+	//   2. check if the expression is not fully evaluated.
+	//
+	// if any of the checks are true, then we need to emit the interp tokens.
+	//
+	// But there's no way to correctly check 1 without building a AST, as some
+	// tokens are used in different grammar constructs (eg.: the ":" is by
+	// ConditionalExpr and ForExpr...).
+	// So for now we do a lazy (incorrect) check, but this needs to be improved.
+	isCombinedExpr := func(tokens hclwrite.Tokens) bool {
+		for i := 0; i < len(tokens); i++ {
+			switch tokens[i].Type {
+			// it's a shame that hclsyntax.TokenType are not integers
+			// organized/sorted by kind, so we can check by range...
+			case hclsyntax.TokenColon, hclsyntax.TokenQuestion, // conditional
+				hclsyntax.TokenAnd, hclsyntax.TokenOr, hclsyntax.TokenBang: // logical
+				// TODO(i4k): add the rest.
+
+				return true
+			}
+		}
+		return false
+	}
+
+	needsEval := func(tokens hclwrite.Tokens) bool {
+		for i := 0; len(tokens) > 2 && i < len(tokens)-2; i++ {
+			tok1 := tokens[i]
+			tok2 := tokens[i+1]
+			tok3 := tokens[i+2]
+
+			if (tok1.Type == hclsyntax.TokenIdent &&
+				tok2.Type == hclsyntax.TokenDot &&
+				tok3.Type == hclsyntax.TokenIdent) ||
+				(tok1.Type == hclsyntax.TokenIdent &&
+					tok2.Type == hclsyntax.TokenOParen) {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	out := hclwrite.Tokens{}
+
+	shouldEmitInterp := isCombinedExpr(evaluated) || needsEval(evaluated)
+
+	if shouldEmitInterp {
+		out = append(out, tokenInterpBegin())
+	}
+
+	out = append(out, evaluated...)
+
+	if shouldEmitInterp {
+		out = append(out, tokenInterpEnd())
+	}
+
+	return out, pos, nil
+}
+
 func evalString(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
 	tok := tokens[0]
 	if tok.Type != hclsyntax.TokenOQuote {
 		return nil, 0, errorf("bug: not a quoted string")
 	}
 
-	out := hclwrite.Tokens{}
-	out = append(out, tok)
+	parts := []hclwrite.Tokens{}
 
 	pos := 1
-	didEval := false
-	hasPrevQuoteLit := false
-
 	for pos < len(tokens) && tokens[pos].Type != hclsyntax.TokenCQuote {
 		tok := tokens[pos]
 		switch tok.Type {
 		case hclsyntax.TokenQuotedLit:
-			out = append(out, tok)
-			hasPrevQuoteLit = true
-			pos++
-		case hclsyntax.TokenTemplateSeqEnd:
-			if !didEval {
-				out = append(out, tok)
-			}
-			didEval = false
+			parts = append(parts, hclwrite.Tokens{tok})
 			pos++
 		case hclsyntax.TokenTemplateInterp:
-			pos++
-
-			evaluated, skipArgs, err := evalIdent(tokens[pos:], ctx)
+			evaluated, skip, err := evalInterp(tokens[pos:], ctx)
 			if err != nil {
 				return nil, 0, errutil.Chain(ErrInterpolationEval, err)
 			}
 
-			// TODO(i4k): improve this.
-			if string(evaluated[0].Bytes) != string(tokens[pos].Bytes) {
-				didEval = true
-
-				if hasPrevQuoteLit {
-					str := out[len(out)-1]
-					switch evaluated[0].Type {
-					case hclsyntax.TokenOQuote:
-						if evaluated[1].Type != hclsyntax.TokenQuotedLit {
-							panic(errorf("unexpected type %s", evaluated[1].Type))
-						}
-
-						str.Bytes = append(str.Bytes, evaluated[1].Bytes...)
-					case hclsyntax.TokenNumberLit, hclsyntax.TokenIdent: // numbers, true, false, null
-						str.Bytes = append(str.Bytes, evaluated[0].Bytes...)
-					default:
-						panic(sprintf("interpolation kind not supported: %s (%s)",
-							evaluated[0].Bytes, evaluated[0].Type))
-					}
-				} else {
-					switch evaluated[0].Type {
-					case hclsyntax.TokenOQuote, hclsyntax.TokenOBrack, hclsyntax.TokenOBrace:
-						out = append(out, evaluated[1:len(evaluated)-1]...)
-					case hclsyntax.TokenNumberLit, hclsyntax.TokenIdent: // numbers, true, false, null
-						out = append(out, evaluated...)
-					default:
-						panic(sprintf("interpolation kind not supported: %s (%s)",
-							evaluated[0].Bytes, evaluated[0].Type))
-					}
-
-				}
-			} else {
-				out = append(out, tokenInterpBegin())
-				out = append(out, evaluated...)
-			}
-
-			pos += skipArgs
+			parts = append(parts, evaluated)
+			pos += skip
 
 		default:
 			panic(errorf("evalString: unexpected token %s (%s)", tok.Bytes, tok.Type))
@@ -752,8 +792,83 @@ func evalString(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, err
 		return nil, 0, errorf("malformed quoted string, expected '\"' (close quote)")
 	}
 
-	out = append(out, tok)
 	pos++
+
+	out := hclwrite.Tokens{
+		tokenOQuote(),
+	}
+
+	// handles the case of `"${a.b}"` where a.b is not a string.
+	if len(parts) == 1 {
+		switch parts[0][0].Type {
+		case hclsyntax.TokenQuotedLit:
+			out = append(out, parts[0]...)
+			out = append(out, tokenCQuote())
+			return out, pos, nil
+		default:
+			return parts[0], pos, nil
+		}
+	}
+
+	var last *hclwrite.Token
+	for i := 0; i < len(parts); i++ {
+		switch parts[i][0].Type {
+		case hclsyntax.TokenOBrace, hclsyntax.TokenOBrack:
+			return nil, 0, errutil.Chain(
+				ErrInterpolationEval,
+				fmt.Errorf("serialization of collection value is not supported"),
+			)
+		case hclsyntax.TokenQuotedLit:
+			if len(parts[i]) > 1 {
+				panic("unexpected case")
+			}
+			if last != nil {
+				last.Bytes = append(last.Bytes, parts[i][0].Bytes...)
+			} else {
+				out = append(out, parts[i]...)
+				last = out[len(out)-1]
+			}
+		case hclsyntax.TokenTemplateInterp:
+			out = append(out, parts[i]...)
+			last = out[len(out)-1]
+		case hclsyntax.TokenNumberLit, hclsyntax.TokenIdent:
+			if len(parts[i]) > 1 {
+				panic("expects one part")
+			}
+
+			if last == nil {
+				out = append(out, &hclwrite.Token{
+					Type:  hclsyntax.TokenQuotedLit,
+					Bytes: parts[i][0].Bytes,
+				})
+				last = out[len(out)-1]
+			} else {
+				last.Bytes = append(last.Bytes, parts[i][0].Bytes...)
+			}
+
+		case hclsyntax.TokenOQuote:
+			if len(parts[i]) != 3 {
+				panic(sprintf(
+					"unexpected string case: %s (%d)",
+					parts[i].Bytes(), len(parts[i])))
+			}
+
+			if last == nil {
+				out = append(out, &hclwrite.Token{
+					Type:  hclsyntax.TokenQuotedLit,
+					Bytes: parts[i][1].Bytes,
+				})
+				last = out[len(out)-1]
+			} else {
+				last.Bytes = append(last.Bytes, parts[i][1].Bytes...)
+			}
+
+		default:
+			panic(sprintf("unexpected interpolation type: %s (%s)", parts[i][0].Bytes, parts[i][0].Type))
+		}
+	}
+
+	out = append(out, tokenCQuote())
 
 	return out, pos, nil
 }

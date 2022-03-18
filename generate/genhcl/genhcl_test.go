@@ -1375,9 +1375,8 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			// Here we check that a interpolated object results on the object itself, not a string.
+			// Here we check that an interpolated object results on the object itself, not a string.
 			name: "object interpolation/serialization",
-			skip: true,
 			globals: globals(
 				expr("obj", `{
 					string = "hello"
@@ -1558,7 +1557,7 @@ func TestPartialEval(t *testing.T) {
 				str("var", "${global.interp}"),
 			),
 			want: hcldoc(
-				str("var", "1, 2, 3"),
+				expr("var", "[1, 2, 3]"),
 			),
 		},
 		{
@@ -1572,7 +1571,7 @@ func TestPartialEval(t *testing.T) {
 				str("var", "${global.list}"),
 			),
 			want: hcldoc(
-				str("var", "1, 2, 3"),
+				expr("var", "[1, 2, 3]"),
 			),
 		},
 		{

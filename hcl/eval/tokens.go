@@ -19,6 +19,20 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 )
 
+func tokenOQuote() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenOQuote,
+		Bytes: []byte("\""),
+	}
+}
+
+func tokenCQuote() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenCQuote,
+		Bytes: []byte("\""),
+	}
+}
+
 func tokenOBrack() *hclwrite.Token {
 	return &hclwrite.Token{
 		Type:  hclsyntax.TokenOBrack,
@@ -37,5 +51,12 @@ func tokenInterpBegin() *hclwrite.Token {
 	return &hclwrite.Token{
 		Type:  hclsyntax.TokenTemplateInterp,
 		Bytes: []byte("${"),
+	}
+}
+
+func tokenInterpEnd() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenTemplateSeqEnd,
+		Bytes: []byte("}"),
 	}
 }
