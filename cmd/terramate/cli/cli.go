@@ -72,6 +72,10 @@ type cliSpec struct {
 	DisableCheckGitUntracked   bool `optional:"true" default:"false" help:"disable git check for untracked files."`
 	DisableCheckGitUncommitted bool `optional:"true" default:"false" help:"disable git check for uncommitted files."`
 
+	List struct {
+		Why bool `help:"Shows the reason why the stack has changed."`
+	} `cmd:"" help:"List stacks."`
+
 	Run struct {
 		DisableCheckGenCode bool     `optional:"true" default:"false" help:"disable outdated generated code check."`
 		ContinueOnError     bool     `default:"false" help:"continue executing in other stacks in case of error."`
@@ -94,10 +98,6 @@ type cliSpec struct {
 		Init struct {
 			StackDirs []string `arg:"" name:"paths" optional:"true" help:"the stack directory (current directory if not set)."`
 		} `cmd:"" help:"Initialize a stack, does nothing if stack already initialized."`
-
-		List struct {
-			Why bool `help:"Shows the reason why the stack has changed."`
-		} `cmd:"" help:"List stacks."`
 
 		Globals struct {
 		} `cmd:"" help:"list globals for all stacks."`
@@ -355,7 +355,7 @@ func (c *cli) run() {
 			Str("actionContext", "cli()").
 			Msg("Handle stacks init command.")
 		c.initStack([]string{c.wd()})
-	case "stacks list":
+	case "list":
 		log.Trace().
 			Str("actionContext", "cli()").
 			Msg("Print list of stacks.")
@@ -515,7 +515,7 @@ func (c *cli) printStacks() {
 			Stringer("stack", stack).
 			Msg("Print stack.")
 
-		if c.parsedArgs.Stacks.List.Why {
+		if c.parsedArgs.List.Why {
 			c.log("%s - %s", stackRepr, entry.Reason)
 		} else {
 			c.log(stackRepr)
