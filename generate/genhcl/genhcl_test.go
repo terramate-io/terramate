@@ -1650,7 +1650,7 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			name: "basic {for loops",
+			name: "obj for loop without eval references",
 			config: hcldoc(
 				expr("obj", `{for k in local.list : k => k}`),
 			),
@@ -1659,7 +1659,7 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			name: "basic [for loops",
+			name: "list for loop without eval references",
 			config: hcldoc(
 				expr("obj", `[for k in local.list : k]`),
 			),
@@ -1712,6 +1712,26 @@ func TestPartialEval(t *testing.T) {
 				expr("obj", `[for s in var.list : upper(s) if s != ""]`),
 			),
 		},
+		{
+			name: "list for loop with global reference fails",
+			globals: globals(
+				expr("list", `["a", "b", "c"]`),
+			),
+			config: hcldoc(
+				expr("list", `[for k in global.list : k]`),
+			),
+			wantErr: eval.ErrForExprDisallowEval,
+		},
+		{
+			name: "obj for loop with global reference fails",
+			globals: globals(
+				expr("obj", `{ a = 1}`),
+			),
+			config: hcldoc(
+				expr("obj", `[for k in global.obj : k]`),
+			),
+			wantErr: eval.ErrForExprDisallowEval,
+		},
 	}
 
 	for _, tcase := range tcases {
@@ -1749,6 +1769,10 @@ func TestPartialEval(t *testing.T) {
 			globals := s.LoadStackGlobals(meta)
 			res, err := genhcl.Load(s.RootDir(), meta, globals)
 			assert.IsError(t, err, tcase.wantErr)
+
+			if err != nil {
+				return
+			}
 
 			got := res.GeneratedHCLs()
 
