@@ -1623,6 +1623,43 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
+			name: "conditional expression",
+			config: hcldoc(
+				expr("var", `1 == 1 ? 0 : 1`),
+			),
+			want: hcldoc(
+				expr("var", `1 == 1 ? 0 : 1`),
+			),
+		},
+		{
+			name: "conditional expression 2",
+			globals: hcldoc(
+				globals(
+					number("num", 10),
+				),
+			),
+			config: hcldoc(
+				expr("var", `1 >= global.num ? local.x : [for x in local.a : x]`),
+			),
+			want: hcldoc(
+				expr("var", `1 >= 10 ? local.x : [for x in local.a : x]`),
+			),
+		},
+		{
+			name: "operation + conditional expression",
+			globals: hcldoc(
+				globals(
+					number("num", 10),
+				),
+			),
+			config: hcldoc(
+				expr("var", `local.x + 1 >= global.num ? local.x : [for x in local.a : x]`),
+			),
+			want: hcldoc(
+				expr("var", `local.x + 1 >= 10 ? local.x : [for x in local.a : x]`),
+			),
+		},
+		{
 			name: "deep object interpolation",
 			globals: hcldoc(
 				globals(

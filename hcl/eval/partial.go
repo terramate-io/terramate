@@ -84,6 +84,8 @@ func evalExpr(iskey bool, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens
 	out := hclwrite.Tokens{}
 	pos := 0
 	tok := tokens[pos]
+
+	// exprTerm
 	switch tok.Type {
 	case hclsyntax.TokenEOF:
 		pos++
@@ -160,22 +162,64 @@ func evalExpr(iskey bool, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens
 	}
 
 	if pos == 0 {
-		panic("bug: no advance in the position")
+		panic(sprintf("bug: no advance in the position: %s", tokens[pos].Type))
 	}
 
 	if pos >= len(tokens) {
 		return out, pos, nil
 	}
 
-	// exprTerm, operation, etc
+	// operation && conditional
 
 	tok = tokens[pos]
 	switch tok.Type {
+	case hclsyntax.TokenEqualOp, hclsyntax.TokenNotEqual,
+		hclsyntax.TokenLessThan, hclsyntax.TokenLessThanEq,
+		hclsyntax.TokenGreaterThan, hclsyntax.TokenGreaterThanEq:
+		out = append(out, tok)
+		pos++
+
+		evaluated, skip, err := evalExpr(false, tokens[pos:], ctx)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		pos += skip
+		out = append(out, evaluated...)
 	case hclsyntax.TokenPlus, hclsyntax.TokenMinus,
 		hclsyntax.TokenStar, hclsyntax.TokenSlash, hclsyntax.TokenPercent:
 		out = append(out, tok)
 		pos++
 		evaluated, skip, err := evalExpr(false, tokens[pos:], ctx)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		pos += skip
+		out = append(out, evaluated...)
+	case hclsyntax.TokenQuestion:
+		out = append(out, tok)
+		pos++
+
+		evaluated, skip, err := evalExpr(false, tokens[pos:], ctx)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		pos += skip
+		out = append(out, evaluated...)
+
+		if tokens[pos].Type != hclsyntax.TokenColon {
+			return nil, 0, fmt.Errorf(
+				"expected `:` but found a %s (%s)",
+				tokens[pos].Bytes, tokens[pos].Type,
+			)
+		}
+
+		out = append(out, tokens[pos])
+		pos++
+
+		evaluated, skip, err = evalExpr(false, tokens[pos:], ctx)
 		if err != nil {
 			return nil, 0, err
 		}
