@@ -122,45 +122,30 @@ func evalExpr(iskey bool, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens
 				)
 			}
 		}
-	case hclsyntax.TokenOBrace:
+	case hclsyntax.TokenOBrace, hclsyntax.TokenOBrack:
 		var evaluated hclwrite.Tokens
 		var err error
 		var skip int
 
-		next := tokens[pos+1]
-		if next.Type == hclsyntax.TokenIdent && string(next.Bytes) == "for" {
-			evaluated, skip, err = evalForExpr(
-				tokens[pos:],
-				ctx,
-				hclsyntax.TokenOBrace,
-				hclsyntax.TokenCBrace,
-			)
+		var closeToken hclsyntax.TokenType
+
+		openToken := tok.Type
+		if openToken == hclsyntax.TokenOBrace {
+			closeToken = hclsyntax.TokenCBrace
 		} else {
+			closeToken = hclsyntax.TokenCBrack
+		}
+
+		next := tokens[pos+1]
+		switch {
+		case isForExpr(next):
+			evaluated, skip, err = evalForExpr(tokens[pos:], ctx, openToken, closeToken)
+		case openToken == hclsyntax.TokenOBrace:
 			evaluated, skip, err = evalObject(tokens[pos:], ctx)
-		}
-
-		if err != nil {
-			return nil, 0, err
-		}
-
-		pos += skip
-		out = append(out, evaluated...)
-
-	case hclsyntax.TokenOBrack:
-		var evaluated hclwrite.Tokens
-		var err error
-		var skip int
-
-		next := tokens[pos+1]
-		if next.Type == hclsyntax.TokenIdent && string(next.Bytes) == "for" {
-			evaluated, skip, err = evalForExpr(
-				tokens[pos:],
-				ctx,
-				hclsyntax.TokenOBrack,
-				hclsyntax.TokenCBrack,
-			)
-		} else {
+		case openToken == hclsyntax.TokenOBrack:
 			evaluated, skip, err = evalList(tokens[pos:], ctx)
+		default:
+			panic("unexpected")
 		}
 
 		if err != nil {
@@ -234,6 +219,10 @@ func isCanEvaluateIdent(tokens hclwrite.Tokens) bool {
 
 	next := tokens[1]
 	return next.Type == hclsyntax.TokenDot || next.Type == hclsyntax.TokenOParen
+}
+
+func isForExpr(tok *hclwrite.Token) bool {
+	return tok.Type == hclsyntax.TokenIdent && string(tok.Bytes) == "for"
 }
 
 func evalList(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
