@@ -624,10 +624,9 @@ func parseVariable(tokens hclwrite.Tokens) (v variable, found bool) {
 			if tok.Type != hclsyntax.TokenDot {
 				break
 			}
-		} else {
-			if tok.Type != hclsyntax.TokenIdent {
-				break
-			}
+		} else if tok.Type != hclsyntax.TokenIdent &&
+			tok.Type != hclsyntax.TokenNumberLit {
+			break
 		}
 
 		pos++

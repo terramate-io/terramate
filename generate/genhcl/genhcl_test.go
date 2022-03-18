@@ -1946,6 +1946,15 @@ func TestPartialEval(t *testing.T) {
 				expr("num", "-0"),
 			),
 		},
+		{
+			name: "number indexing",
+			config: hcldoc(
+				expr("a", "b.1000"),
+			),
+			want: hcldoc(
+				expr("a", "b.1000"),
+			),
+		},
 	}
 
 	for _, tcase := range tcases {
