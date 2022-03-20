@@ -83,8 +83,27 @@ func Partial(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Token
 func evalExpr(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
 	out := hclwrite.Tokens{}
 	pos := 0
-	tok := tokens[pos]
 
+loop:
+	for {
+		tok := tokens[pos]
+
+		switch tok.Type {
+		case hclsyntax.TokenComment:
+			out = append(out, tok)
+			pos++
+		case hclsyntax.TokenNewline:
+			out = append(out, tok)
+			pos++
+		case hclsyntax.TokenBang, hclsyntax.TokenMinus:
+			out = append(out, tok)
+			pos++
+		default:
+			break loop
+		}
+	}
+
+	tok := tokens[pos]
 	// exprTerm
 	switch tok.Type {
 	case hclsyntax.TokenEOF:
@@ -120,8 +139,39 @@ func evalExpr(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error
 				pos++
 			}
 		}
-	case hclsyntax.TokenOParen, hclsyntax.TokenCParen:
+	case hclsyntax.TokenOParen:
 		out = append(out, tok)
+		pos++
+
+		for tokens[pos].Type == hclsyntax.TokenNewline {
+			out = append(out, tokens[pos])
+			pos++
+		}
+
+		evaluated, skip, err := evalExpr(tokens[pos:], ctx)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		pos += skip
+		out = append(out, evaluated...)
+
+	parenLoop:
+		for pos < len(tokens) {
+			switch tokens[pos].Type {
+			case hclsyntax.TokenNewline, hclsyntax.TokenComment:
+				out = append(out, tokens[pos])
+				pos++
+			default:
+				break parenLoop
+			}
+		}
+
+		if tokens[pos].Type != hclsyntax.TokenCParen {
+			panic(tokens[pos].Type)
+		}
+
+		out = append(out, tokens[pos])
 		pos++
 	case hclsyntax.TokenOBrace, hclsyntax.TokenOBrack:
 		var evaluated hclwrite.Tokens
@@ -155,53 +205,10 @@ func evalExpr(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error
 
 		pos += skip
 		out = append(out, evaluated...)
-	case hclsyntax.TokenBang, hclsyntax.TokenMinus:
-		out = append(out, tok)
-		pos++
+
 	case hclsyntax.TokenNumberLit:
 		out = append(out, tok)
 		pos++
-
-		next := tokens[pos]
-		if next.Type == hclsyntax.TokenDot {
-			out = append(out, next)
-
-			pos++
-			next = tokens[pos]
-
-			if next.Type == hclsyntax.TokenIdent {
-				// HCL lib allows the syntax 0.A (NUMBER DOT IDENT)
-				// sure why not?
-				out = append(out, next)
-				pos++
-				break
-			}
-
-			if next.Type != hclsyntax.TokenNumberLit {
-				panic(next.Type)
-			}
-
-			out = append(out, next)
-			pos++
-		}
-
-		next = tokens[pos]
-		if strings.ToLower(string(next.Bytes)) == "e" {
-			out = append(out, next)
-			pos++
-
-			next = tokens[pos]
-			if next.Type == hclsyntax.TokenPlus || next.Type == hclsyntax.TokenMinus {
-				out = append(out, next)
-				pos++
-			}
-
-			next = tokens[pos]
-			if next.Type == hclsyntax.TokenNumberLit {
-				out = append(out, next)
-				pos++
-			}
-		}
 	}
 
 	if pos == 0 {
@@ -212,13 +219,53 @@ func evalExpr(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error
 		return out, pos, nil
 	}
 
+	// exprTerm INDEX,GETATTR,SPLAT
+	tok = tokens[pos]
+	switch tok.Type {
+	case hclsyntax.TokenOBrack:
+		evaluated, skip, err := evalIndex(tokens[pos:], ctx)
+		if err != nil {
+			return nil, 0, err
+		}
+		pos += skip
+		out = append(out, evaluated...)
+	case hclsyntax.TokenDot:
+		parsed := false
+		for tokens[pos].Type == hclsyntax.TokenDot {
+			next := tokens[pos+1]
+			if next.Type == hclsyntax.TokenStar {
+				out = append(out, tok)
+				out = append(out, next)
+				pos += 2
+				parsed = true
+			}
+
+			if tokens[pos].Type == hclsyntax.TokenDot {
+				evaluated, skip, err := evalGetAttr(tokens[pos:], ctx)
+				if err != nil {
+					return nil, 0, err
+				}
+
+				pos += skip
+				out = append(out, evaluated...)
+
+				parsed = true
+			}
+
+			if !parsed {
+				break
+			}
+		}
+	}
+
 	// operation && conditional
 
 	tok = tokens[pos]
 	switch tok.Type {
 	case hclsyntax.TokenEqualOp, hclsyntax.TokenNotEqual,
 		hclsyntax.TokenLessThan, hclsyntax.TokenLessThanEq,
-		hclsyntax.TokenGreaterThan, hclsyntax.TokenGreaterThanEq:
+		hclsyntax.TokenGreaterThan, hclsyntax.TokenGreaterThanEq,
+		hclsyntax.TokenOr, hclsyntax.TokenAnd:
 		out = append(out, tok)
 		pos++
 
@@ -269,6 +316,86 @@ func evalExpr(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error
 
 		pos += skip
 		out = append(out, evaluated...)
+	}
+
+	return out, pos, nil
+}
+
+func evalIndex(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
+	out := hclwrite.Tokens{}
+
+	pos := 0
+	tok := tokens[pos]
+
+	if tok.Type != hclsyntax.TokenOBrack {
+		panic("expect a '['")
+	}
+
+	out = append(out, tok)
+	pos++
+
+	if tokens[pos].Type == hclsyntax.TokenStar {
+		// splat: <expr>[*]
+		out = append(out, tokens[pos])
+		pos++
+	} else {
+		evaluated, skip, err := evalExpr(tokens[pos:], ctx)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		pos += skip
+		out = append(out, evaluated...)
+	}
+
+	tok = tokens[pos]
+	if tok.Type != hclsyntax.TokenCBrack {
+		panic("expect a ']'")
+	}
+
+	out = append(out, tok)
+	pos++
+
+	tok = tokens[pos]
+	switch tok.Type {
+	case hclsyntax.TokenOBrack:
+		evaluated, skip, err := evalIndex(tokens[pos:], ctx)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		pos += skip
+		out = append(out, evaluated...)
+	case hclsyntax.TokenDot:
+		evaluated, skip, err := evalGetAttr(tokens[pos:], ctx)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		pos += skip
+		out = append(out, evaluated...)
+	}
+
+	return out, pos, nil
+}
+
+func evalGetAttr(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
+	out := hclwrite.Tokens{}
+	pos := 0
+
+	if tokens[pos].Type != hclsyntax.TokenDot {
+		panic("expected . IDENT (getAttr)")
+	}
+
+	out = append(out, tokens[pos])
+
+	pos++
+	if tokens[pos].Type == hclsyntax.TokenIdent ||
+		tokens[pos].Type == hclsyntax.TokenNumberLit {
+		out = append(out, tokens[pos])
+		pos++
+	} else {
+		panic("expect an IDENT or number")
 	}
 
 	return out, pos, nil
@@ -669,7 +796,8 @@ func parseVariable(tokens hclwrite.Tokens) (v variable, found bool) {
 				break
 			}
 		} else if tok.Type != hclsyntax.TokenIdent &&
-			tok.Type != hclsyntax.TokenNumberLit {
+			tok.Type != hclsyntax.TokenNumberLit &&
+			tok.Type != hclsyntax.TokenStar {
 			break
 		}
 
@@ -925,12 +1053,9 @@ func evalString(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, err
 			if len(parts[i]) > 1 {
 				panic("unexpected case")
 			}
-			if last != nil {
-				last.Bytes = append(last.Bytes, parts[i][0].Bytes...)
-			} else {
-				out = append(out, parts[i]...)
-				last = out[len(out)-1]
-			}
+
+			out = append(out, parts[i]...)
+			last = out[len(out)-1]
 		case hclsyntax.TokenTemplateInterp:
 			out = append(out, parts[i]...)
 			last = out[len(out)-1]

@@ -1956,12 +1956,21 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			name: "advanced number literam",
+			name: "advanced number literal",
 			config: hcldoc(
 				expr("a", "10.1200"),
 			),
 			want: hcldoc(
 				expr("a", "10.1200"),
+			),
+		},
+		{
+			name: "advanced number literal",
+			config: hcldoc(
+				expr("a", "0.0.A.0"),
+			),
+			want: hcldoc(
+				expr("a", "0.0.A.0"),
 			),
 		},
 	}

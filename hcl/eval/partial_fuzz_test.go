@@ -23,10 +23,12 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	tmhclwrite "github.com/mineiros-io/terramate/test/hclwrite"
 )
 
 func FuzzPartialEval(f *testing.F) {
@@ -39,17 +41,30 @@ func FuzzPartialEval(f *testing.F) {
 		f.Add(seed)
 	}
 
-	f.Fuzz(func(t *testing.T, expr string) {
+	f.Fuzz(func(t *testing.T, str string) {
 		// Here we fuzz that anything that the hclsyntax lib handle we should
 		// also handle with no errors. We dont fuzz actual substitution
 		// scenarios that would require a proper context with globals loaded.
-		parsedExpr, diags := hclsyntax.ParseExpression([]byte(expr), "fuzz", hcl.Pos{})
+
+		cfg := hcldoc(
+			expr("attr", str),
+		)
+
+		cfgString := cfg.String()
+		parser := hclparse.NewParser()
+		file, diags := parser.ParseHCL([]byte(cfgString), "fuzz")
 		if diags.HasErrors() {
 			return
 		}
 
+		fmt.Printf("config: %s\n", cfgString)
+
+		body := file.Body.(*hclsyntax.Body)
+		attr := body.Attributes["attr"]
+		parsedExpr := attr.Expr
+
 		exprRange := parsedExpr.Range()
-		exprBytes := expr[exprRange.Start.Byte:exprRange.End.Byte]
+		exprBytes := cfgString[exprRange.Start.Byte:exprRange.End.Byte]
 
 		parsedTokens, diags := hclsyntax.LexExpression([]byte(exprBytes), "fuzz", hcl.Pos{})
 		if diags.HasErrors() {
@@ -59,7 +74,7 @@ func FuzzPartialEval(f *testing.F) {
 		want := toWriteTokens(parsedTokens)
 		got, err := eval.Partial("fuzz", want, eval.NewContext(""))
 
-		if strings.Contains(expr, "global.") || strings.Contains(expr, "terramate.") {
+		if strings.Contains(cfgString, "global.") || strings.Contains(cfgString, "terramate.") {
 			// TODO(katcipis): Validate generated code properties when
 			// substitution is in play.
 			return
@@ -70,7 +85,7 @@ func FuzzPartialEval(f *testing.F) {
 		}
 
 		// Since we dont fuzz substitution/evaluation the tokens should be the same
-		assert.EqualInts(t, len(got), len(want), "got %s != want %s", tokensStr(got), tokensStr(want))
+		assert.EqualInts(t, len(want), len(got), "got %s != want %s", tokensStr(got), tokensStr(want))
 
 		for i, gotToken := range got {
 			wantToken := want[i]
@@ -87,7 +102,7 @@ func FuzzPartialEval(f *testing.F) {
 func tokensStr(t hclwrite.Tokens) string {
 	tokensStrs := make([]string, len(t))
 	for i, token := range t {
-		tokensStrs[i] = fmt.Sprintf("{Type=%q Bytes=%v}", token.Type, token.Bytes)
+		tokensStrs[i] = fmt.Sprintf("{Type=%q Bytes=%s}", token.Type, token.Bytes)
 	}
 	return "[" + strings.Join(tokensStrs, ",") + "]"
 }
@@ -101,4 +116,48 @@ func toWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {
 		}
 	}
 	return tokens
+}
+
+func hcldoc(builders ...tmhclwrite.BlockBuilder) *tmhclwrite.Block {
+	return tmhclwrite.BuildHCL(builders...)
+}
+
+func generateHCL(builders ...tmhclwrite.BlockBuilder) *tmhclwrite.Block {
+	return tmhclwrite.BuildBlock("generate_hcl", builders...)
+}
+
+func block(name string, builders ...tmhclwrite.BlockBuilder) *tmhclwrite.Block {
+	return tmhclwrite.BuildBlock(name, builders...)
+}
+
+func terraform(builders ...tmhclwrite.BlockBuilder) *tmhclwrite.Block {
+	return tmhclwrite.BuildBlock("terraform", builders...)
+}
+
+func globals(builders ...tmhclwrite.BlockBuilder) *tmhclwrite.Block {
+	return tmhclwrite.BuildBlock("globals", builders...)
+}
+
+func content(builders ...tmhclwrite.BlockBuilder) *tmhclwrite.Block {
+	return tmhclwrite.BuildBlock("content", builders...)
+}
+
+func labels(labels ...string) tmhclwrite.BlockBuilder {
+	return tmhclwrite.Labels(labels...)
+}
+
+func expr(name string, expr string) tmhclwrite.BlockBuilder {
+	return tmhclwrite.Expression(name, expr)
+}
+
+func str(name string, val string) tmhclwrite.BlockBuilder {
+	return tmhclwrite.String(name, val)
+}
+
+func number(name string, val int64) tmhclwrite.BlockBuilder {
+	return tmhclwrite.NumberInt(name, val)
+}
+
+func boolean(name string, val bool) tmhclwrite.BlockBuilder {
+	return tmhclwrite.Boolean(name, val)
 }
