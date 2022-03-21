@@ -23,6 +23,7 @@ import (
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
@@ -82,28 +83,33 @@ func (g Globals) String() string {
 	return hcl.FormatAttributes(g.attributes)
 }
 
-type globalsExpr struct {
-	expressions map[string]hclsyntax.Expression
+type expression struct {
+	origin string
+	value  hclsyntax.Expression
 }
 
-func (r *globalsExpr) merge(other *globalsExpr) {
+type globalsExpr struct {
+	expressions map[string]expression
+}
+
+func (ge *globalsExpr) merge(other *globalsExpr) {
 	for k, v := range other.expressions {
-		if !r.has(k) {
-			r.add(k, v)
+		if !ge.has(k) {
+			ge.add(k, v)
 		}
 	}
 }
 
-func (r *globalsExpr) add(name string, expr hclsyntax.Expression) {
-	r.expressions[name] = expr
+func (ge *globalsExpr) add(name string, expr expression) {
+	ge.expressions[name] = expr
 }
 
-func (r *globalsExpr) has(name string) bool {
-	_, ok := r.expressions[name]
+func (ge *globalsExpr) has(name string) bool {
+	_, ok := ge.expressions[name]
 	return ok
 }
 
-func (r *globalsExpr) eval(meta stack.Metadata) (Globals, error) {
+func (ge *globalsExpr) eval(meta stack.Metadata) (Globals, error) {
 	// FIXME(katcipis): get abs path for stack.
 	// This is relative only to root since meta.Path will look
 	// like: /some/path/relative/project/root
@@ -132,8 +138,8 @@ func (r *globalsExpr) eval(meta stack.Metadata) (Globals, error) {
 		return Globals{}, fmt.Errorf("initializing global eval: %v", err)
 	}
 
-	var errs []error
-	pendingExprs := r.expressions
+	pendingExprsErrs := map[string]error{}
+	pendingExprs := ge.expressions
 
 	hclctx := evalctx.GetHCLContext()
 
@@ -144,10 +150,10 @@ func (r *globalsExpr) eval(meta stack.Metadata) (Globals, error) {
 
 	pendingExpression:
 		for name, expr := range pendingExprs {
-			vars := hclsyntax.Variables(expr)
+			vars := hclsyntax.Variables(expr.value)
 
-			logger.Trace().
-				Msg("Range vars.")
+			logger.Trace().Msg("Range vars.")
+
 			for _, namespace := range vars {
 				if _, ok := hclctx.Variables[namespace.RootName()]; !ok {
 					return Globals{}, fmt.Errorf(
@@ -184,9 +190,9 @@ func (r *globalsExpr) eval(meta stack.Metadata) (Globals, error) {
 
 			logger.Trace().Msg("Evaluate expression.")
 
-			val, err := evalctx.Eval(expr)
+			val, err := evalctx.Eval(expr.value)
 			if err != nil {
-				errs = append(errs, err)
+				pendingExprsErrs[name] = err
 				continue
 			}
 
@@ -196,6 +202,7 @@ func (r *globalsExpr) eval(meta stack.Metadata) (Globals, error) {
 			logger.Trace().Msg("Delete pending expression.")
 
 			delete(pendingExprs, name)
+			delete(pendingExprsErrs, name)
 
 			logger.Trace().Msg("Try add proper namespace for globals evaluation context.")
 
@@ -207,27 +214,18 @@ func (r *globalsExpr) eval(meta stack.Metadata) (Globals, error) {
 		if amountEvaluated == 0 {
 			break
 		}
-
-		errs = nil
 	}
 
 	if len(pendingExprs) > 0 {
-		for name := range pendingExprs {
-			logger.Warn().
+		// TODO(katcipis): model proper error list and return that
+		// Caller can decide how to format/log things (like code generation report).
+		for name, expr := range pendingExprs {
+			logger.Err(pendingExprsErrs[name]).
 				Str("name", name).
-				Msg("unresolved global")
+				Str("origin", expr.origin).
+				Msg("evaluating global")
 		}
-		return Globals{}, fmt.Errorf("%w: could not resolve all globals", ErrGlobalEval)
-	}
-
-	logger.Trace().Msg("Reduce multiple errors into one.")
-
-	err := errutil.Reduce(func(err1 error, err2 error) error {
-		return fmt.Errorf("%v,%v", err1, err2)
-	}, errs...)
-
-	if err != nil {
-		return Globals{}, fmt.Errorf("%w: %v", ErrGlobalEval, err)
+		return Globals{}, fmt.Errorf("%w: unable to evaluate %d globals", ErrGlobalEval, len(pendingExprs))
 	}
 
 	return globals, nil
@@ -235,7 +233,7 @@ func (r *globalsExpr) eval(meta stack.Metadata) (Globals, error) {
 
 func newGlobalsExpr() *globalsExpr {
 	return &globalsExpr{
-		expressions: map[string]hclsyntax.Expression{},
+		expressions: map[string]expression{},
 	}
 }
 
@@ -268,7 +266,10 @@ func loadStackGlobalsExprs(rootdir string, cfgdir string) (*globalsExpr, error) 
 
 				logger.Trace().Msg("Add attribute to globals.")
 
-				globals.add(name, attr.Expr)
+				globals.add(name, expression{
+					origin: project.PrjAbsPath(rootdir, filename),
+					value:  attr.Expr,
+				})
 			}
 		}
 	}
