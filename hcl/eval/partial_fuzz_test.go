@@ -40,6 +40,7 @@ func FuzzPartialEval(f *testing.F) {
 		`"test"`,
 		`[1, 2, 3]`,
 		`a()`,
+		`${var.name}`,
 	}
 
 	for _, seed := range seedCorpus {
@@ -50,9 +51,10 @@ func FuzzPartialEval(f *testing.F) {
 		// Here we fuzz that anything that the hclsyntax lib handle we should
 		// also handle with no errors. We dont fuzz actual substitution
 		// scenarios that would require a proper context with globals loaded.
+		const testattr = "attr"
 
 		cfg := hcldoc(
-			expr("attr", str),
+			expr(testattr, str),
 		)
 
 		cfgString := cfg.String()
@@ -63,7 +65,7 @@ func FuzzPartialEval(f *testing.F) {
 		}
 
 		body := file.Body.(*hclsyntax.Body)
-		attr := body.Attributes["attr"]
+		attr := body.Attributes[testattr]
 		parsedExpr := attr.Expr
 
 		exprRange := parsedExpr.Range()
