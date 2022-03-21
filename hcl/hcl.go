@@ -378,7 +378,8 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context)
 			return diags
 		}
 
-		tokens, err := eval.Partial(attrFname, toWriteTokens(stokens), evalctx)
+		engine := eval.NewEngine(toWriteTokens(stokens), evalctx)
+		tokens, err := engine.PartialEval()
 		if err != nil {
 			return err
 		}

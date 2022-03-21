@@ -56,127 +56,180 @@ Here be dragons. Thou art forewarned
           `  `
 */
 
-// Partial evaluates only the terramate variable expressions from the list of
+type Engine struct {
+	tokens    hclwrite.Tokens
+	pos       int
+	ctx       *Context
+	evaluated []hclwrite.Tokens
+
+	isparen bool
+}
+
+func NewEngine(tokens hclwrite.Tokens, ctx *Context) *Engine {
+	return &Engine{
+		tokens: tokens,
+		ctx:    ctx,
+	}
+}
+
+// PartialEval evaluates only the terramate variable expressions from the list of
 // tokens, leaving all the rest as-is. It returns a modified list of tokens with
 // no reference to terramate namespaced variables (globals and terramate) and
 // functions (tm_ prefixed functions).
-func Partial(fname string, tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, error) {
-	pos := 0
-	out := hclwrite.Tokens{}
-	for pos < len(tokens) {
-		evaluated, skip, err := evalExpr(tokens[pos:], ctx)
+func (e *Engine) PartialEval() (hclwrite.Tokens, error) {
+	e.scratch()
+	for e.hasTokens() {
+		err := e.evalExpr()
 		if err != nil {
 			return nil, errutil.Chain(ErrPartialEval, err)
 		}
-
-		if skip == 0 {
-			panic("eval.Partial: this should not have happened: please open a bug ticket.")
-		}
-
-		pos += skip
-		out = append(out, evaluated...)
+		e.commit()
 	}
 
-	return out, nil
+	if len(e.evaluated) != 1 {
+		panic("invalid number of scratch spaces")
+	}
+
+	return e.evaluated[0], nil
 }
 
-func evalExpr(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
-	out := hclwrite.Tokens{}
-	pos := 0
+func (e *Engine) hasTokens() bool {
+	return e.pos < len(e.tokens)
+}
+
+func (e *Engine) peek() *hclwrite.Token {
+	return e.tokens[e.pos]
+}
+
+func (e *Engine) peekn(n int) *hclwrite.Token {
+	return e.tokens[e.pos+n]
+}
+
+func (e *Engine) scratch() int {
+	e.evaluated = append(e.evaluated, hclwrite.Tokens{})
+	return e.tailpos()
+}
+
+func (e *Engine) commit() {
+	if e.tailpos() == e.headpos() {
+		panic("everything committed")
+	}
+
+	mergeat := e.tailpos() - 1
+	e.evaluated[mergeat] = append(e.evaluated[mergeat], e.tail()...)
+	e.evaluated = e.evaluated[e.headpos() : mergeat+1]
+}
+
+func (e *Engine) head() hclwrite.Tokens { return e.evaluated[e.headpos()] }
+func (e *Engine) tail() hclwrite.Tokens { return e.evaluated[e.tailpos()] }
+
+func (e *Engine) emit() {
+	e.evaluated[e.tailpos()] = append(e.tail(), e.peek())
+	e.pos++
+}
+
+func (e *Engine) emitn(n int) {
+	for i := 0; e.hasTokens() && i < n; i++ {
+		e.emit()
+	}
+}
+
+func (e *Engine) emitVariable(v variable) {
+	e.evaluated[e.tailpos()] = append(e.evaluated[e.tailpos()], v.alltokens()...)
+	e.pos += v.size()
+}
+
+func (e *Engine) emitTokens(toks ...*hclwrite.Token) {
+	e.evaluated[e.tailpos()] = append(e.evaluated[e.tailpos()], toks...)
+}
+
+func (e *Engine) emitNewLines() {
+	for e.hasTokens() && (e.peek().Type == hclsyntax.TokenNewline ||
+		e.peek().Type == hclsyntax.TokenComment) {
+		e.emit()
+	}
+}
+
+func (e *Engine) skipNewLines(from int) int {
+	i := from
+	for e.hasTokens() && (e.peekn(i).Type == hclsyntax.TokenNewline ||
+		e.peekn(i).Type == hclsyntax.TokenComment) {
+		i++
+	}
+	return i
+}
+
+func (e *Engine) evalExpr() error {
+	//fmt.Printf("parsing: %s %s\n", e.tokens[e.pos:].Bytes(), e.peek().Type)
+	e.scratch()
 
 loop:
 	for {
-		tok := tokens[pos]
-
-		switch tok.Type {
-		case hclsyntax.TokenComment:
-			out = append(out, tok)
-			pos++
-		case hclsyntax.TokenNewline:
-			out = append(out, tok)
-			pos++
-		case hclsyntax.TokenBang, hclsyntax.TokenMinus:
-			out = append(out, tok)
-			pos++
+		if e.isparen {
+			e.emitNewLines()
+		}
+		switch e.peek().Type {
+		case hclsyntax.TokenBang, hclsyntax.TokenMinus, hclsyntax.TokenComment:
+			e.emit()
 		default:
 			break loop
 		}
 	}
 
-	tok := tokens[pos]
+	if e.isparen {
+		e.emitNewLines()
+	}
+
+	beginPos := e.pos
+	tok := e.peek()
 	// exprTerm
 	switch tok.Type {
 	case hclsyntax.TokenEOF:
-		pos++
-		out = append(out, tok)
-		if len(tokens) != pos {
-			panic("got EOF in the middle of the token stream")
-		}
+		e.emit()
 	case hclsyntax.TokenOQuote:
-		evaluated, skip, err := evalString(tokens[pos:], ctx)
+		err := e.evalString()
 		if err != nil {
-			return nil, 0, err
+			return err
 		}
-
-		out = append(out, evaluated...)
-		pos += skip
+		e.commit()
 	case hclsyntax.TokenIdent:
 		switch string(tok.Bytes) {
 		case "true", "false", "null":
-			out = append(out, tok)
-			pos++
+			e.emit()
 		default:
-			if isCanEvaluateIdent(tokens[pos:]) {
-				evaluated, skip, err := evalIdent(tokens[pos:], ctx)
+			if e.canEvaluateIdent() {
+				err := e.evalIdent()
 				if err != nil {
-					return nil, 0, err
+					return err
 				}
+				e.commit()
 
-				pos += skip
-				out = append(out, evaluated...)
 			} else {
-				out = append(out, tok)
-				pos++
+				e.emit()
 			}
 		}
 	case hclsyntax.TokenOParen:
-		out = append(out, tok)
-		pos++
+		e.emit()
+		e.emitNewLines()
 
-		for tokens[pos].Type == hclsyntax.TokenNewline {
-			out = append(out, tokens[pos])
-			pos++
-		}
+		e.isparen = true
 
-		evaluated, skip, err := evalExpr(tokens[pos:], ctx)
+		err := e.evalExpr()
 		if err != nil {
-			return nil, 0, err
+			return err
 		}
 
-		pos += skip
-		out = append(out, evaluated...)
+		e.commit()
+		e.emitNewLines()
 
-	parenLoop:
-		for pos < len(tokens) {
-			switch tokens[pos].Type {
-			case hclsyntax.TokenNewline, hclsyntax.TokenComment:
-				out = append(out, tokens[pos])
-				pos++
-			default:
-				break parenLoop
-			}
+		if e.peek().Type != hclsyntax.TokenCParen {
+			panic(e.peek().Type)
 		}
 
-		if tokens[pos].Type != hclsyntax.TokenCParen {
-			panic(tokens[pos].Type)
-		}
-
-		out = append(out, tokens[pos])
-		pos++
+		e.emit()
+		e.isparen = false
 	case hclsyntax.TokenOBrace, hclsyntax.TokenOBrack:
-		var evaluated hclwrite.Tokens
 		var err error
-		var skip int
 
 		var closeToken hclsyntax.TokenType
 
@@ -187,68 +240,60 @@ loop:
 			closeToken = hclsyntax.TokenCBrack
 		}
 
-		next := tokens[pos+1]
+		next := e.peekn(1)
 		switch {
 		case isForExpr(next):
-			evaluated, skip, err = evalForExpr(tokens[pos:], ctx, openToken, closeToken)
+			err = e.evalForExpr(openToken, closeToken)
 		case openToken == hclsyntax.TokenOBrace:
-			evaluated, skip, err = evalObject(tokens[pos:], ctx)
+			err = e.evalObject()
 		case openToken == hclsyntax.TokenOBrack:
-			evaluated, skip, err = evalList(tokens[pos:], ctx)
+			err = e.evalList()
 		default:
 			panic("unexpected")
 		}
 
 		if err != nil {
-			return nil, 0, err
+			return err
 		}
 
-		pos += skip
-		out = append(out, evaluated...)
+		e.commit()
 
 	case hclsyntax.TokenNumberLit:
-		out = append(out, tok)
-		pos++
+		e.emit()
 	}
 
-	if pos == 0 {
-		panic(sprintf("bug: no advance in the position: %s", tokens[pos].Type))
+	if e.pos == beginPos {
+		panic(sprintf("bug: no advance in the position: %s (%s)", e.peek().Type, e.tokens[e.pos:].Bytes()))
 	}
 
-	if pos >= len(tokens) {
-		return out, pos, nil
+	if !e.hasTokens() {
+		return nil
 	}
 
 	// exprTerm INDEX,GETATTR,SPLAT
-	tok = tokens[pos]
+	tok = e.peek()
 	switch tok.Type {
 	case hclsyntax.TokenOBrack:
-		evaluated, skip, err := evalIndex(tokens[pos:], ctx)
+		err := e.evalIndex()
 		if err != nil {
-			return nil, 0, err
+			return err
 		}
-		pos += skip
-		out = append(out, evaluated...)
+		e.commit()
 	case hclsyntax.TokenDot:
 		parsed := false
-		for tokens[pos].Type == hclsyntax.TokenDot {
-			next := tokens[pos+1]
+		for e.peek().Type == hclsyntax.TokenDot {
+			next := e.peekn(1)
 			if next.Type == hclsyntax.TokenStar {
-				out = append(out, tok)
-				out = append(out, next)
-				pos += 2
+				e.emitn(2)
 				parsed = true
 			}
 
-			if tokens[pos].Type == hclsyntax.TokenDot {
-				evaluated, skip, err := evalGetAttr(tokens[pos:], ctx)
+			if e.peek().Type == hclsyntax.TokenDot {
+				err := e.evalGetAttr()
 				if err != nil {
-					return nil, 0, err
+					return err
 				}
-
-				pos += skip
-				out = append(out, evaluated...)
-
+				e.commit()
 				parsed = true
 			}
 
@@ -258,431 +303,340 @@ loop:
 		}
 	}
 
+	if e.isparen {
+		e.emitNewLines()
+	}
+
 	// operation && conditional
 
-	tok = tokens[pos]
+	tok = e.peek()
 	switch tok.Type {
 	case hclsyntax.TokenEqualOp, hclsyntax.TokenNotEqual,
 		hclsyntax.TokenLessThan, hclsyntax.TokenLessThanEq,
 		hclsyntax.TokenGreaterThan, hclsyntax.TokenGreaterThanEq,
 		hclsyntax.TokenOr, hclsyntax.TokenAnd:
-		out = append(out, tok)
-		pos++
-
-		evaluated, skip, err := evalExpr(tokens[pos:], ctx)
-		if err != nil {
-			return nil, 0, err
+		e.emit()
+		if e.isparen {
+			e.emitNewLines()
 		}
+		err := e.evalExpr()
+		if err != nil {
+			return err
+		}
+		e.commit()
 
-		pos += skip
-		out = append(out, evaluated...)
 	case hclsyntax.TokenPlus, hclsyntax.TokenMinus,
 		hclsyntax.TokenStar, hclsyntax.TokenSlash, hclsyntax.TokenPercent:
-		out = append(out, tok)
-		pos++
-		evaluated, skip, err := evalExpr(tokens[pos:], ctx)
-		if err != nil {
-			return nil, 0, err
+		e.emit()
+		if e.isparen {
+			e.emitNewLines()
 		}
-
-		pos += skip
-		out = append(out, evaluated...)
+		err := e.evalExpr()
+		if err != nil {
+			return err
+		}
+		e.commit()
 	case hclsyntax.TokenQuestion:
-		out = append(out, tok)
-		pos++
-
-		evaluated, skip, err := evalExpr(tokens[pos:], ctx)
+		e.emit()
+		if e.isparen {
+			e.emitNewLines()
+		}
+		err := e.evalExpr()
 		if err != nil {
-			return nil, 0, err
+			return err
 		}
 
-		pos += skip
-		out = append(out, evaluated...)
+		e.commit()
 
-		if tokens[pos].Type != hclsyntax.TokenColon {
-			return nil, 0, fmt.Errorf(
+		if e.peek().Type != hclsyntax.TokenColon {
+			panic(errorf(
 				"expected `:` but found a %s (%s)",
-				tokens[pos].Bytes, tokens[pos].Type,
-			)
+				e.peek().Bytes, e.peek().Type,
+			))
 		}
 
-		out = append(out, tokens[pos])
-		pos++
-
-		evaluated, skip, err = evalExpr(tokens[pos:], ctx)
+		e.emit()
+		if e.isparen {
+			e.emitNewLines()
+		}
+		err = e.evalExpr()
 		if err != nil {
-			return nil, 0, err
+			return err
 		}
-
-		pos += skip
-		out = append(out, evaluated...)
+		e.commit()
 	}
 
-	return out, pos, nil
+	return nil
 }
 
-func evalIndex(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
-	out := hclwrite.Tokens{}
-
-	pos := 0
-	tok := tokens[pos]
-
+func (e *Engine) evalIndex() error {
+	e.scratch()
+	tok := e.peek()
 	if tok.Type != hclsyntax.TokenOBrack {
 		panic("expect a '['")
 	}
 
-	out = append(out, tok)
-	pos++
-
-	if tokens[pos].Type == hclsyntax.TokenStar {
+	e.emit()
+	if e.peek().Type == hclsyntax.TokenStar {
 		// splat: <expr>[*]
-		out = append(out, tokens[pos])
-		pos++
+		e.emit()
 	} else {
-		evaluated, skip, err := evalExpr(tokens[pos:], ctx)
+		err := e.evalExpr()
 		if err != nil {
-			return nil, 0, err
+			return err
 		}
-
-		pos += skip
-		out = append(out, evaluated...)
+		e.commit()
 	}
 
-	tok = tokens[pos]
+	tok = e.peek()
 	if tok.Type != hclsyntax.TokenCBrack {
 		panic("expect a ']'")
 	}
 
-	out = append(out, tok)
-	pos++
-
-	tok = tokens[pos]
+	e.emit()
+	tok = e.peek()
 	switch tok.Type {
 	case hclsyntax.TokenOBrack:
-		evaluated, skip, err := evalIndex(tokens[pos:], ctx)
+		err := e.evalIndex()
 		if err != nil {
-			return nil, 0, err
+			return err
 		}
+		e.commit()
 
-		pos += skip
-		out = append(out, evaluated...)
 	case hclsyntax.TokenDot:
-		evaluated, skip, err := evalGetAttr(tokens[pos:], ctx)
+		err := e.evalGetAttr()
 		if err != nil {
-			return nil, 0, err
+			return err
 		}
-
-		pos += skip
-		out = append(out, evaluated...)
+		e.commit()
 	}
 
-	return out, pos, nil
+	return nil
 }
 
-func evalGetAttr(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
-	out := hclwrite.Tokens{}
-	pos := 0
-
-	if tokens[pos].Type != hclsyntax.TokenDot {
+func (e *Engine) evalGetAttr() error {
+	e.scratch()
+	if e.peek().Type != hclsyntax.TokenDot {
 		panic("expected . IDENT (getAttr)")
 	}
 
-	out = append(out, tokens[pos])
-
-	pos++
-	if tokens[pos].Type == hclsyntax.TokenIdent ||
-		tokens[pos].Type == hclsyntax.TokenNumberLit {
-		out = append(out, tokens[pos])
-		pos++
+	e.emit()
+	tok := e.peek()
+	if tok.Type == hclsyntax.TokenIdent ||
+		tok.Type == hclsyntax.TokenNumberLit {
+		e.emit()
 	} else {
 		panic("expect an IDENT or number")
 	}
 
-	return out, pos, nil
+	return nil
 }
 
-func evalIdent(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
-	out := hclwrite.Tokens{}
-
-	if !isCanEvaluateIdent(tokens) {
-		return nil, 0, errorf("malformed code")
+func (e *Engine) evalIdent() error {
+	e.scratch()
+	if !e.canEvaluateIdent() {
+		return errorf("malformed code")
 	}
 
-	pos := 0
-	tok := tokens[pos]
+	tok := e.peek()
 	if tok.Type != hclsyntax.TokenIdent {
-		return nil, 0, errorf("evalIdent: unexpected token '%s' (%s)", tok.Bytes, tok.Type)
+		panic(errorf("evalIdent: unexpected token '%s' (%s)", tok.Bytes, tok.Type))
 	}
 
-	next := tokens[pos+1]
+	i := e.skipNewLines(1)
+
+	next := e.peekn(i)
 	switch next.Type {
 	case hclsyntax.TokenDot:
-		evaluated, skip, err := evalVar(tokens[pos:], ctx)
+		err := e.evalVar()
 		if err != nil {
-			return nil, skip, err
+			return err
 		}
-
-		pos += skip
-		out = append(out, evaluated...)
+		e.commit()
 	case hclsyntax.TokenOParen:
-		evaluated, skip, err := evalFuncall(tokens[pos:], ctx)
+		err := e.evalFuncall()
 		if err != nil {
-			return nil, skip, err
+			return err
 		}
-
-		pos += skip
-		out = append(out, evaluated...)
+		e.commit()
 	default:
 		panic("ident cannot be evaluated")
 	}
 
-	return out, pos, nil
+	return nil
 }
 
-func isCanEvaluateIdent(tokens hclwrite.Tokens) bool {
-	if len(tokens) < 2 {
-		return false
-	}
-
-	if tokens[0].Type != hclsyntax.TokenIdent {
-		panic("bug: expects an IDENT at pos 0")
-	}
-
-	next := tokens[1]
-	return next.Type == hclsyntax.TokenDot || next.Type == hclsyntax.TokenOParen
-}
-
-func isForExpr(tok *hclwrite.Token) bool {
-	return tok.Type == hclsyntax.TokenIdent && string(tok.Bytes) == "for"
-}
-
-func evalList(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
-	pos := 0
-	tok := tokens[pos]
-
+func (e *Engine) evalList() error {
+	e.scratch()
+	tok := e.peek()
 	if tok.Type != hclsyntax.TokenOBrack {
 		panic("bug")
 	}
 
-	out := hclwrite.Tokens{tok}
-
-	pos++
-	for pos < len(tokens) && tokens[pos].Type != hclsyntax.TokenCBrack {
-		if tokens[pos].Type == hclsyntax.TokenNewline {
-			out = append(out, tokens[pos])
-			pos++
-			continue
-		}
-
-		evaluated, skip, err := evalExpr(tokens[pos:], ctx)
+	e.emit()
+	for e.hasTokens() && e.peek().Type != hclsyntax.TokenCBrack {
+		e.emitNewLines()
+		err := e.evalExpr()
 		if err != nil {
-			return nil, 0, err
+			return err
 		}
 
-		pos += skip
-		out = append(out, evaluated...)
-
-		tok := tokens[pos]
+		e.commit()
+		tok := e.peek()
 		if tok.Type == hclsyntax.TokenComma {
-			pos++
-			out = append(out, tok)
+			e.emit()
 		}
 	}
 
-	if pos >= len(tokens) {
-		return nil, 0, errorf("malformed list")
+	if !e.hasTokens() {
+		panic("malformed list")
 	}
 
-	tok = tokens[pos]
+	tok = e.peek()
 	if tok.Type != hclsyntax.TokenCBrack {
-		return nil, 0, errorf("malformed list, unexpected %s", tok.Bytes)
+		panic(errorf("malformed list, unexpected %s", tok.Bytes))
 	}
 
-	pos++
-	out = append(out, tok)
-
-	return out, pos, nil
+	e.emit()
+	return nil
 }
 
-func evalObject(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
-	pos := 0
-	tok := tokens[pos]
-
+func (e *Engine) evalObject() error {
+	e.scratch()
+	tok := e.peek()
 	if tok.Type != hclsyntax.TokenOBrace {
 		panic("bug")
 	}
 
-	out := hclwrite.Tokens{tok}
-
-	pos++
-	for pos < len(tokens) && tokens[pos].Type != hclsyntax.TokenCBrace {
-		if tokens[pos].Type == hclsyntax.TokenNewline {
-			out = append(out, tokens[pos])
-			pos++
-			continue
-		}
-
-		lfs, skip, err := evalKeyExpr(tokens[pos:], ctx)
+	e.emit()
+	e.emitNewLines()
+	for e.hasTokens() && e.peek().Type != hclsyntax.TokenCBrace {
+		err := e.evalExpr()
 		if err != nil {
-			return nil, 0, err
+			return err
 		}
 
-		pos += skip
-		out = append(out, lfs...)
-
-		for tokens[pos].Type == hclsyntax.TokenNewline {
-			out = append(out, tokens[pos])
-			pos++
-		}
-
-		tok = tokens[pos]
+		e.commit()
+		e.emitNewLines()
+		tok = e.peek()
 		if tok.Type != hclsyntax.TokenEqual && tok.Type != hclsyntax.TokenColon {
-			return nil, 0, errorf("evalObject: unexpected token '%s' (%s)", tok.Bytes, tok.Type)
+			panic(errorf("evalObject: unexpected token '%s' (%s)", tok.Bytes, tok.Type))
 		}
 
-		out = append(out, tok)
-		pos++
-
-		rfs, skip, err := evalKeyExpr(tokens[pos:], ctx)
+		e.emit()
+		err = e.evalExpr()
 		if err != nil {
-			return nil, 0, err
+			return err
 		}
 
-		pos += skip
-		out = append(out, rfs...)
-
-		tok = tokens[pos]
+		e.commit()
+		tok = e.peek()
 		if tok.Type == hclsyntax.TokenComma {
-			out = append(out, tok)
-			pos++
+			e.emit()
 		}
+
+		e.emitNewLines()
 	}
 
-	if pos >= len(tokens) {
-		return nil, 0, errorf("malformed object")
+	if !e.hasTokens() {
+		panic("malformed object")
 	}
 
-	tok = tokens[pos]
+	tok = e.peek()
 	if tok.Type != hclsyntax.TokenCBrace {
-		return nil, 0, errorf("malformed object, unexpected %s", tok.Bytes)
+		panic(errorf("malformed object, unexpected %s", tok.Bytes))
 	}
 
-	pos++
-	out = append(out, tok)
-
-	return out, pos, nil
+	e.emit()
+	return nil
 }
 
-func evalKeyExpr(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
-	return evalExpr(tokens, ctx)
-}
-
-func evalForExpr(
-	tokens hclwrite.Tokens,
-	eval *Context,
-	matchOpenType hclsyntax.TokenType,
-	matchCloseType hclsyntax.TokenType,
-) (hclwrite.Tokens, int, error) {
+func (e *Engine) evalForExpr(matchOpenType, matchCloseType hclsyntax.TokenType) error {
+	e.scratch()
 	// { | [
-	pos := 0
-	tok := tokens[pos]
+	tok := e.peek()
 	if tok.Type != matchOpenType {
 		panic(sprintf("evalForExpr: malformed `for` expression: %s", tok.Bytes))
 	}
 
-	out := hclwrite.Tokens{tok}
+	e.emit()
 
 	// { for
-	pos++
-	tok = tokens[pos]
+	tok = e.peek()
 	if tok.Type != hclsyntax.TokenIdent || string(tok.Bytes) != "for" {
 		panic(sprintf("evalForExpr: malformed `for` expression: %s", tok.Bytes))
 	}
 
-	out = append(out, tok)
-
+	e.emit()
 	// { for <ident>,<ident>,...
-	pos++
-	for pos < len(tokens) && string(tokens[pos].Bytes) != "in" {
-		tok = tokens[pos]
+	for e.hasTokens() && string(e.peek().Bytes) != "in" {
+		tok = e.peek()
 		if tok.Type != hclsyntax.TokenIdent {
-			return nil, 0, errorf("invalid `for` expression: found %s", tok.Type)
+			return errorf("invalid `for` expression: found %s", tok.Type)
 		}
 
-		out = append(out, tok)
-
-		pos++
-		tok = tokens[pos]
+		e.emit()
+		tok = e.peek()
 		if tok.Type == hclsyntax.TokenComma {
-			out = append(out, tok)
-			pos++
+			e.emit()
 		}
 	}
 
-	tok = tokens[pos]
+	tok = e.peek()
 	if tok.Type != hclsyntax.TokenIdent {
 		panic(errorf("found the `in` bytes of %s type instead of IDENT", tok.Type))
 	}
 
-	out = append(out, tok)
+	e.emit()
 
 	// consume everything and give errors in case of terramate variables being
 	// used in the `for`.
-	pos++
 	matchingCollectionTokens := 1
-	for pos < len(tokens) && matchingCollectionTokens > 0 {
-		tok = tokens[pos]
+	for e.hasTokens() && matchingCollectionTokens > 0 {
+		tok = e.peek()
 		if tok.Type == matchOpenType {
 			matchingCollectionTokens++
 		} else if tok.Type == matchCloseType {
 			matchingCollectionTokens--
 		}
-		v, found := parseVariable(tokens[pos:])
+		v, found := parseVariable(e.tokens[e.pos:])
 		if found {
 			if v.isTerramate {
-				return nil, 0, errutil.Chain(
+				return errutil.Chain(
 					ErrForExprDisallowEval,
-					fmt.Errorf("evaluating expression: %s", v.alltokens().Bytes()),
+					errorf("evaluating expression: %s", v.alltokens().Bytes()),
 				)
 			}
 
-			out = append(out, v.alltokens()...)
-			pos += v.size()
+			e.emitVariable(v)
 		} else {
-			pos++
-			out = append(out, tok)
+			e.emit()
 		}
 	}
 
-	return out, pos, nil
+	return nil
 }
 
-func isTmFuncall(tok *hclwrite.Token) bool {
-	return tok.Type == hclsyntax.TokenIdent &&
-		strings.HasPrefix(string(tok.Bytes), "tm_")
-}
-
-func evalTmFuncall(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
-	if len(tokens) < 3 {
-		return nil, 0, errorf("not a funcall")
+func (e *Engine) evalTmFuncall() error {
+	e.scratch()
+	if len(e.tokens[e.pos:]) < 3 {
+		return errorf("not a funcall")
 	}
 
-	pos := 0
-	tok := tokens[pos]
-
+	begin := e.pos
+	tok := e.peek()
 	if !isTmFuncall(tok) {
 		panic("not a `tm_` function")
 	}
 
-	pos++
-	if tokens[pos].Type != hclsyntax.TokenOParen {
-		return nil, 0, errorf("not a funcall")
+	if e.peekn(1).Type != hclsyntax.TokenOParen {
+		panic(errorf("not a funcall: %s", e.tokens[e.pos:].Bytes()))
 	}
 
 	matchingParens := 1
-	pos++
-	for pos < len(tokens) {
-		switch tokens[pos].Type {
+	e.pos += 2
+	for e.hasTokens() {
+		switch e.peek().Type {
 		case hclsyntax.TokenOParen:
 			matchingParens++
 		case hclsyntax.TokenCParen:
@@ -693,87 +647,321 @@ func evalTmFuncall(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, 
 			break
 		}
 
-		pos++
+		e.pos++
 	}
 
-	if matchingParens > 0 || tokens[pos].Type != hclsyntax.TokenCParen {
-		return nil, 0, errorf("malformed funcall")
+	if matchingParens > 0 || e.peek().Type != hclsyntax.TokenCParen {
+		panic(errorf("malformed funcall: %s", e.tokens.Bytes()))
 	}
 
-	pos++
+	e.pos++
 
 	var expr []byte
 
-	for _, et := range tokens[:pos] {
+	for _, et := range e.tokens[begin:e.pos] {
 		expr = append(expr, et.Bytes...)
 	}
 
-	e, diags := hclsyntax.ParseExpression(expr, "gen.hcl", hcl.Pos{})
+	exprParsed, diags := hclsyntax.ParseExpression(expr, "gen.hcl", hcl.Pos{})
 	if diags.HasErrors() {
-		return nil, 0, errorf("failed to parse expr ('%s'): %v", expr, diags.Error())
+		return errorf("failed to parse expr ('%s'): %v", expr, diags.Error())
 	}
 
-	val, err := ctx.Eval(e)
+	val, err := e.ctx.Eval(exprParsed)
 	if err != nil {
-		return nil, 0, err
+		return err
 	}
 
-	return hclwrite.TokensForValue(val), pos, nil
+	e.emitTokens(hclwrite.TokensForValue(val)...)
+	return nil
 }
 
-func evalFuncall(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
-	if len(tokens) < 3 {
-		return nil, 0, errorf("not a funcall")
+func (e *Engine) evalFuncall() error {
+	if len(e.tokens[e.pos:]) < 3 {
+		return errorf("not a funcall")
 	}
 
-	pos := 0
-	tok := tokens[pos]
-
+	tok := e.peek()
 	if tok.Type != hclsyntax.TokenIdent {
-		return nil, 0, errorf("malformed funcall, not start with IDENT")
+		panic(errorf("malformed funcall, not start with IDENT"))
 	}
 
 	if isTmFuncall(tok) {
-		return evalTmFuncall(tokens, ctx)
+		return e.evalTmFuncall()
 	}
 
-	out := hclwrite.Tokens{tok}
-
-	pos++
-	if tokens[pos].Type != hclsyntax.TokenOParen {
-		return nil, 0, errorf("not a funcall")
+	e.scratch()
+	e.emit()
+	e.emitNewLines()
+	if e.peek().Type != hclsyntax.TokenOParen {
+		panic(errorf("not a funcall: %s", e.tokens[e.pos:].Bytes()))
 	}
 
-	out = append(out, tokens[pos])
-
-	pos++
-	for pos < len(tokens) && tokens[pos].Type != hclsyntax.TokenCParen {
-		evaluated, skip, err := evalExpr(tokens[pos:], ctx)
+	e.emit()
+	e.emitNewLines()
+	e.isparen = true
+	for e.hasTokens() && e.peek().Type != hclsyntax.TokenCParen {
+		err := e.evalExpr()
 		if err != nil {
-			return nil, 0, err
+			return err
 		}
+		e.commit()
+		e.emitNewLines()
 
-		pos += skip
-		out = append(out, evaluated...)
-
-		if tokens[pos].Type == hclsyntax.TokenComma {
-			out = append(out, tokens[pos])
-			pos++
+		if e.peek().Type == hclsyntax.TokenComma {
+			e.emit()
+		} else if e.peek().Type != hclsyntax.TokenCParen {
+			panic(errorf("expect a comma or ) but found %s", e.tokens[e.pos:].Bytes()))
 		}
 	}
+	e.isparen = false
 
-	if pos >= len(tokens) {
-		return nil, 0, errorf("malformed funcall")
+	if !e.hasTokens() {
+		panic(errorf("malformed funcall: %s", e.tokens.Bytes()))
 	}
 
-	if tokens[pos].Type != hclsyntax.TokenCParen {
+	if e.peek().Type != hclsyntax.TokenCParen {
 		panic("bug: funcall not closed")
 	}
 
-	out = append(out, tokens[pos])
-	pos++
+	e.emit()
+	return nil
+}
 
-	return out, pos, nil
+func (e *Engine) evalVar() error {
+	e.scratch()
+	v, found := parseVariable(e.tokens[e.pos:])
+	if !found {
+		panic("expect a variable")
+	}
+
+	if !v.isTerramate {
+		e.emitVariable(v)
+		return nil
+	}
+
+	var expr []byte
+	for _, et := range v.alltokens() {
+		expr = append(expr, et.Bytes...)
+	}
+
+	parsedExpr, diags := hclsyntax.ParseExpression(expr, "gen.hcl", hcl.Pos{})
+	if diags.HasErrors() {
+		return errorf("failed to parse expr %s: %v", expr, diags.Error())
+	}
+
+	val, err := e.ctx.Eval(parsedExpr)
+	if err != nil {
+		return err
+	}
+
+	e.emitTokens(hclwrite.TokensForValue(val)...)
+	e.pos += v.size()
+	return nil
+}
+
+func (e *Engine) evalInterp() error {
+	e.scratch()
+	tok := e.peek()
+
+	if tok.Type != hclsyntax.TokenTemplateInterp {
+		panic("unexpected token")
+	}
+
+	e.pos++
+	err := e.evalExpr()
+	if err != nil {
+		return err
+	}
+
+	e.commit()
+
+	tok = e.peek()
+	if tok.Type != hclsyntax.TokenTemplateSeqEnd {
+		panic("malformed interpolation expression, missing }")
+	}
+
+	e.pos++
+
+	// TODO(i4k):
+	//
+	// We should emit a `${` and `}` when the expression has non-evaluated parts
+	// but there's no easy way of figuring out this without an AST.
+	// The naive approach is defined below:
+	//   1. check if there's any Operation | Conditional.
+	//   2. check if the expression is not fully evaluated.
+	//
+	// if any of the checks are true, then we need to emit the interp tokens.
+	//
+	// But there's no way to correctly check 1 without building a AST, as some
+	// tokens are used in different grammar constructs (eg.: the ":" is by
+	// ConditionalExpr and ForExpr...).
+	// So for now we do a lazy (incorrect) check, but this needs to be improved.
+	isCombinedExpr := func(tokens hclwrite.Tokens) bool {
+		for i := 0; i < len(tokens); i++ {
+			switch tokens[i].Type {
+			// it's a shame that hclsyntax.TokenType are not integers
+			// organized/sorted by kind, so we can check by range...
+			case hclsyntax.TokenColon, hclsyntax.TokenQuestion, // conditional
+				hclsyntax.TokenAnd, hclsyntax.TokenOr, hclsyntax.TokenBang: // logical
+				// TODO(i4k): add the rest.
+
+				return true
+			}
+		}
+		return false
+	}
+
+	needsEval := func(tokens hclwrite.Tokens) bool {
+		for i := 0; len(tokens) > 2 && i < len(tokens)-2; i++ {
+			tok1 := tokens[i]
+			tok2 := tokens[i+1]
+			tok3 := tokens[i+2]
+
+			if (tok1.Type == hclsyntax.TokenIdent &&
+				tok2.Type == hclsyntax.TokenDot &&
+				tok3.Type == hclsyntax.TokenIdent) ||
+				(tok1.Type == hclsyntax.TokenIdent &&
+					tok2.Type == hclsyntax.TokenOParen) {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	evaluated := e.tail()
+	rewritten := hclwrite.Tokens{}
+
+	shouldEmitInterp := isCombinedExpr(evaluated) || needsEval(evaluated)
+
+	if shouldEmitInterp {
+		rewritten = append(rewritten, tokenInterpBegin())
+	}
+
+	rewritten = append(rewritten, evaluated...)
+
+	if shouldEmitInterp {
+		rewritten = append(rewritten, tokenInterpEnd())
+	}
+
+	e.evaluated[e.tailpos()] = rewritten
+	return nil
+}
+
+func (e *Engine) evalString() error {
+	scratchPos := e.scratch()
+	tok := e.peek()
+	if tok.Type != hclsyntax.TokenOQuote {
+		return errorf("bug: not a quoted string")
+	}
+
+	e.pos++
+	for e.hasTokens() && e.peek().Type != hclsyntax.TokenCQuote {
+		tok := e.peek()
+		switch tok.Type {
+		case hclsyntax.TokenQuotedLit:
+			e.scratch()
+			e.emit()
+		case hclsyntax.TokenTemplateInterp:
+			err := e.evalInterp()
+			if err != nil {
+				return errutil.Chain(ErrInterpolationEval, err)
+			}
+		default:
+			panic(errorf("evalString: unexpected token %s (%s)", tok.Bytes, tok.Type))
+		}
+	}
+
+	if !e.hasTokens() {
+		panic(errorf("malformed quoted string %d %d", len(e.tokens[e.pos:]), e.pos))
+	}
+
+	tok = e.peek()
+	if tok.Type != hclsyntax.TokenCQuote {
+		return errorf("malformed quoted string, expected '\"' (close quote)")
+	}
+
+	e.pos++
+	rewritten := hclwrite.Tokens{
+		tokenOQuote(),
+	}
+
+	// handles the case of `"${a.b}"` where a.b is not a string.
+	if e.tailpos()-scratchPos == 1 {
+		e.commit()
+		tail := e.tail()
+		switch tail[0].Type {
+		case hclsyntax.TokenQuotedLit:
+			rewritten = append(rewritten, e.tail()...)
+			rewritten = append(rewritten, tokenCQuote())
+			e.evaluated[e.tailpos()] = rewritten
+		}
+
+		return nil
+	}
+
+	var last *hclwrite.Token
+	for i := scratchPos + 1; i <= e.tailpos(); i++ {
+		switch e.evaluated[i][0].Type {
+		case hclsyntax.TokenOBrace, hclsyntax.TokenOBrack:
+			return errutil.Chain(
+				ErrInterpolationEval,
+				errorf("serialization of collection value is not supported"),
+			)
+		case hclsyntax.TokenQuotedLit:
+			if len(e.evaluated[i]) > 1 {
+				panic("unexpected case")
+			}
+
+			rewritten = append(rewritten, e.evaluated[i]...)
+			last = rewritten[len(rewritten)-1]
+		case hclsyntax.TokenTemplateInterp:
+			rewritten = append(rewritten, e.evaluated[i]...)
+			last = rewritten[len(rewritten)-1]
+		case hclsyntax.TokenNumberLit, hclsyntax.TokenIdent:
+			if len(e.evaluated[i]) > 1 {
+				panic("expects one part")
+			}
+
+			if last == nil {
+				rewritten = append(rewritten, &hclwrite.Token{
+					Type:  hclsyntax.TokenQuotedLit,
+					Bytes: e.evaluated[i][0].Bytes,
+				})
+				last = rewritten[len(rewritten)-1]
+			} else {
+				last.Bytes = append(last.Bytes, e.evaluated[i][0].Bytes...)
+			}
+
+		case hclsyntax.TokenOQuote:
+			if len(e.evaluated[i]) != 3 {
+				panic(sprintf(
+					"unexpected string case: %s (%d)",
+					e.evaluated[i].Bytes(), len(e.evaluated[i])))
+			}
+
+			if last == nil {
+				rewritten = append(rewritten, &hclwrite.Token{
+					Type:  hclsyntax.TokenQuotedLit,
+					Bytes: e.evaluated[i][1].Bytes,
+				})
+				last = rewritten[len(rewritten)-1]
+			} else {
+				last.Bytes = append(last.Bytes, e.evaluated[i][1].Bytes...)
+			}
+
+		default:
+			panic(sprintf("unexpected interpolation type: %s (%s)",
+				e.evaluated[i][0].Bytes, e.evaluated[i][0].Type))
+		}
+	}
+
+	rewritten = append(rewritten, tokenCQuote())
+	e.evaluated[scratchPos] = rewritten
+	e.evaluated = e.evaluated[e.headpos() : scratchPos+1]
+
+	return nil
 }
 
 func parseVariable(tokens hclwrite.Tokens) (v variable, found bool) {
@@ -864,241 +1052,45 @@ func parseIndexing(tokens hclwrite.Tokens) hclwrite.Tokens {
 	return tokens[1:pos]
 }
 
-func evalVar(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
-	out := hclwrite.Tokens{}
-
-	v, found := parseVariable(tokens)
-	if !found {
-		panic("expect a variable")
-	}
-
-	if !v.isTerramate {
-		out = append(out, v.alltokens()...)
-		return out, v.size(), nil
-	}
-
-	var expr []byte
-
-	for _, et := range v.alltokens() {
-		expr = append(expr, et.Bytes...)
-	}
-
-	e, diags := hclsyntax.ParseExpression(expr, "gen.hcl", hcl.Pos{})
-	if diags.HasErrors() {
-		return nil, 0, errorf("failed to parse expr %s: %v", expr, diags.Error())
-	}
-
-	val, err := ctx.Eval(e)
-	if err != nil {
-		// return the skip size for the try().
-		return nil, v.size(), err
-	}
-
-	newtoks := hclwrite.TokensForValue(val)
-	out = append(out, newtoks...)
-	return out, v.size(), nil
-}
-
-func evalInterp(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
-	pos := 0
-	tok := tokens[pos]
-
-	if tok.Type != hclsyntax.TokenTemplateInterp {
-		panic("unexpected token")
-	}
-
-	pos++
-	evaluated, skip, err := evalExpr(tokens[pos:], ctx)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	pos += skip
-	tok = tokens[pos]
-	if tok.Type != hclsyntax.TokenTemplateSeqEnd {
-		panic("malformed interpolation expression, missing }")
-	}
-
-	pos++
-
-	// TODO(i4k):
-	//
-	// We should emit a `${` and `}` when the expression has non-evaluated parts
-	// but there's no easy way of figuring out this without an AST.
-	// The naive approach is defined below:
-	//   1. check if there's any Operation | Conditional.
-	//   2. check if the expression is not fully evaluated.
-	//
-	// if any of the checks are true, then we need to emit the interp tokens.
-	//
-	// But there's no way to correctly check 1 without building a AST, as some
-	// tokens are used in different grammar constructs (eg.: the ":" is by
-	// ConditionalExpr and ForExpr...).
-	// So for now we do a lazy (incorrect) check, but this needs to be improved.
-	isCombinedExpr := func(tokens hclwrite.Tokens) bool {
-		for i := 0; i < len(tokens); i++ {
-			switch tokens[i].Type {
-			// it's a shame that hclsyntax.TokenType are not integers
-			// organized/sorted by kind, so we can check by range...
-			case hclsyntax.TokenColon, hclsyntax.TokenQuestion, // conditional
-				hclsyntax.TokenAnd, hclsyntax.TokenOr, hclsyntax.TokenBang: // logical
-				// TODO(i4k): add the rest.
-
-				return true
-			}
-		}
+func (e *Engine) canEvaluateIdent() bool {
+	if len(e.tokens[e.pos:]) < 2 {
 		return false
 	}
 
-	needsEval := func(tokens hclwrite.Tokens) bool {
-		for i := 0; len(tokens) > 2 && i < len(tokens)-2; i++ {
-			tok1 := tokens[i]
-			tok2 := tokens[i+1]
-			tok3 := tokens[i+2]
-
-			if (tok1.Type == hclsyntax.TokenIdent &&
-				tok2.Type == hclsyntax.TokenDot &&
-				tok3.Type == hclsyntax.TokenIdent) ||
-				(tok1.Type == hclsyntax.TokenIdent &&
-					tok2.Type == hclsyntax.TokenOParen) {
-				return true
-			}
-		}
-
-		return false
+	if e.peek().Type != hclsyntax.TokenIdent {
+		panic("bug: expects an IDENT at pos 0")
 	}
 
-	out := hclwrite.Tokens{}
+	i := e.skipNewLines(1)
 
-	shouldEmitInterp := isCombinedExpr(evaluated) || needsEval(evaluated)
-
-	if shouldEmitInterp {
-		out = append(out, tokenInterpBegin())
-	}
-
-	out = append(out, evaluated...)
-
-	if shouldEmitInterp {
-		out = append(out, tokenInterpEnd())
-	}
-
-	return out, pos, nil
+	next := e.peekn(i)
+	return next.Type == hclsyntax.TokenDot || next.Type == hclsyntax.TokenOParen
 }
 
-func evalString(tokens hclwrite.Tokens, ctx *Context) (hclwrite.Tokens, int, error) {
-	tok := tokens[0]
-	if tok.Type != hclsyntax.TokenOQuote {
-		return nil, 0, errorf("bug: not a quoted string")
+func (e *Engine) headpos() int {
+	if len(e.evaluated) == 0 {
+		panic("no evaluated elements")
 	}
+	return 0
+}
 
-	parts := []hclwrite.Tokens{}
-
-	pos := 1
-	for pos < len(tokens) && tokens[pos].Type != hclsyntax.TokenCQuote {
-		tok := tokens[pos]
-		switch tok.Type {
-		case hclsyntax.TokenQuotedLit:
-			parts = append(parts, hclwrite.Tokens{tok})
-			pos++
-		case hclsyntax.TokenTemplateInterp:
-			evaluated, skip, err := evalInterp(tokens[pos:], ctx)
-			if err != nil {
-				return nil, 0, errutil.Chain(ErrInterpolationEval, err)
-			}
-
-			parts = append(parts, evaluated)
-			pos += skip
-
-		default:
-			panic(errorf("evalString: unexpected token %s (%s)", tok.Bytes, tok.Type))
-		}
+func (e *Engine) tailpos() int {
+	var pos int
+	if len(e.evaluated) > 0 {
+		pos = len(e.evaluated) - 1
+	} else {
+		pos = 0
 	}
+	return pos
+}
 
-	if pos >= len(tokens) {
-		return nil, 0, errorf("malformed quoted string %d %d", len(tokens), pos)
-	}
+func isForExpr(tok *hclwrite.Token) bool {
+	return tok.Type == hclsyntax.TokenIdent && string(tok.Bytes) == "for"
+}
 
-	tok = tokens[pos]
-	if tok.Type != hclsyntax.TokenCQuote {
-		return nil, 0, errorf("malformed quoted string, expected '\"' (close quote)")
-	}
-
-	pos++
-
-	out := hclwrite.Tokens{
-		tokenOQuote(),
-	}
-
-	// handles the case of `"${a.b}"` where a.b is not a string.
-	if len(parts) == 1 {
-		switch parts[0][0].Type {
-		case hclsyntax.TokenQuotedLit:
-			out = append(out, parts[0]...)
-			out = append(out, tokenCQuote())
-			return out, pos, nil
-		default:
-			return parts[0], pos, nil
-		}
-	}
-
-	var last *hclwrite.Token
-	for i := 0; i < len(parts); i++ {
-		switch parts[i][0].Type {
-		case hclsyntax.TokenOBrace, hclsyntax.TokenOBrack:
-			return nil, 0, errutil.Chain(
-				ErrInterpolationEval,
-				fmt.Errorf("serialization of collection value is not supported"),
-			)
-		case hclsyntax.TokenQuotedLit:
-			if len(parts[i]) > 1 {
-				panic("unexpected case")
-			}
-
-			out = append(out, parts[i]...)
-			last = out[len(out)-1]
-		case hclsyntax.TokenTemplateInterp:
-			out = append(out, parts[i]...)
-			last = out[len(out)-1]
-		case hclsyntax.TokenNumberLit, hclsyntax.TokenIdent:
-			if len(parts[i]) > 1 {
-				panic("expects one part")
-			}
-
-			if last == nil {
-				out = append(out, &hclwrite.Token{
-					Type:  hclsyntax.TokenQuotedLit,
-					Bytes: parts[i][0].Bytes,
-				})
-				last = out[len(out)-1]
-			} else {
-				last.Bytes = append(last.Bytes, parts[i][0].Bytes...)
-			}
-
-		case hclsyntax.TokenOQuote:
-			if len(parts[i]) != 3 {
-				panic(sprintf(
-					"unexpected string case: %s (%d)",
-					parts[i].Bytes(), len(parts[i])))
-			}
-
-			if last == nil {
-				out = append(out, &hclwrite.Token{
-					Type:  hclsyntax.TokenQuotedLit,
-					Bytes: parts[i][1].Bytes,
-				})
-				last = out[len(out)-1]
-			} else {
-				last.Bytes = append(last.Bytes, parts[i][1].Bytes...)
-			}
-
-		default:
-			panic(sprintf("unexpected interpolation type: %s (%s)", parts[i][0].Bytes, parts[i][0].Type))
-		}
-	}
-
-	out = append(out, tokenCQuote())
-
-	return out, pos, nil
+func isTmFuncall(tok *hclwrite.Token) bool {
+	return tok.Type == hclsyntax.TokenIdent &&
+		strings.HasPrefix(string(tok.Bytes), "tm_")
 }
 
 // variable is a low-level representation of a variable in terms of tokens.
