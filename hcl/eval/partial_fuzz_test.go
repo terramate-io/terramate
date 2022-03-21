@@ -123,42 +123,6 @@ func hcldoc(builders ...tmhclwrite.BlockBuilder) *tmhclwrite.Block {
 	return tmhclwrite.BuildHCL(builders...)
 }
 
-func generateHCL(builders ...tmhclwrite.BlockBuilder) *tmhclwrite.Block {
-	return tmhclwrite.BuildBlock("generate_hcl", builders...)
-}
-
-func block(name string, builders ...tmhclwrite.BlockBuilder) *tmhclwrite.Block {
-	return tmhclwrite.BuildBlock(name, builders...)
-}
-
-func terraform(builders ...tmhclwrite.BlockBuilder) *tmhclwrite.Block {
-	return tmhclwrite.BuildBlock("terraform", builders...)
-}
-
-func globals(builders ...tmhclwrite.BlockBuilder) *tmhclwrite.Block {
-	return tmhclwrite.BuildBlock("globals", builders...)
-}
-
-func content(builders ...tmhclwrite.BlockBuilder) *tmhclwrite.Block {
-	return tmhclwrite.BuildBlock("content", builders...)
-}
-
-func labels(labels ...string) tmhclwrite.BlockBuilder {
-	return tmhclwrite.Labels(labels...)
-}
-
 func expr(name string, expr string) tmhclwrite.BlockBuilder {
 	return tmhclwrite.Expression(name, expr)
-}
-
-func str(name string, val string) tmhclwrite.BlockBuilder {
-	return tmhclwrite.String(name, val)
-}
-
-func number(name string, val int64) tmhclwrite.BlockBuilder {
-	return tmhclwrite.NumberInt(name, val)
-}
-
-func boolean(name string, val bool) tmhclwrite.BlockBuilder {
-	return tmhclwrite.Boolean(name, val)
 }
