@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 )
@@ -207,13 +208,8 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 			}
 
 			contentBlock := genhclBlock.Body.Blocks[0]
-			relpath := strings.TrimPrefix(cfgdir, rootdir)
-			if relpath == "" {
-				relpath = "/"
-			}
-			origin := filepath.Join(relpath, filename)
 			res[name] = loadedHCL{
-				origin: origin,
+				origin: project.PrjAbsPath(rootdir, filename),
 				block:  contentBlock,
 			}
 

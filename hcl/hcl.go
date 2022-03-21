@@ -854,7 +854,7 @@ func loadCfgBlocks(dir string) (*hclparse.Parser, error) {
 
 			logger.Trace().Msg("Parsing config.")
 
-			_, diags := parser.ParseHCL(data, filename)
+			_, diags := parser.ParseHCL(data, path)
 			if diags.HasErrors() {
 				return nil, errutil.Chain(ErrHCLSyntax, diags)
 			}
