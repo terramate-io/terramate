@@ -120,7 +120,6 @@ func (e *Engine) commit() {
 	e.evaluated = e.evaluated[e.headpos() : mergeat+1]
 }
 
-func (e *Engine) head() hclwrite.Tokens { return e.evaluated[e.headpos()] }
 func (e *Engine) tail() hclwrite.Tokens { return e.evaluated[e.tailpos()] }
 
 func (e *Engine) emit() {
