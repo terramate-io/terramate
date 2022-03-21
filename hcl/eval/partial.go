@@ -297,9 +297,13 @@ loop:
 	case hclsyntax.TokenDot:
 		parsed := false
 		for e.peek().Type == hclsyntax.TokenDot {
-			next := e.peekn(1)
+			pos := 1
+			if e.nparen > 0 {
+				pos = e.skipNewLines(1)
+			}
+			next := e.peekn(pos)
 			if next.Type == hclsyntax.TokenStar {
-				e.emitn(2)
+				e.emitn(pos + 1)
 				parsed = true
 			}
 

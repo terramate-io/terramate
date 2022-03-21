@@ -1973,6 +1973,15 @@ func TestPartialEval(t *testing.T) {
 				expr("a", "0.0.A.0"),
 			),
 		},
+		{
+			name: "parenthesis and splat with newlines",
+			config: hcldoc(
+				expr("a", "(A(). \n*)"),
+			),
+			want: hcldoc(
+				expr("a", "(A(). \n*)"),
+			),
+		},
 	}
 
 	for _, tcase := range tcases {
