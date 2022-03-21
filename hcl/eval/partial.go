@@ -485,6 +485,8 @@ func (e *Engine) evalList() error {
 		panic("bug")
 	}
 
+	e.nparen++
+
 	e.emit()
 	e.emitnl()
 	for e.hasTokens() && e.peek().Type != hclsyntax.TokenCBrack {
@@ -509,6 +511,8 @@ func (e *Engine) evalList() error {
 	if tok.Type != hclsyntax.TokenCBrack {
 		panic(errorf("malformed list, unexpected %s", tok.Bytes))
 	}
+
+	e.nparen--
 
 	e.emit()
 	return nil
