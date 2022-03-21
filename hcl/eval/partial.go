@@ -185,6 +185,16 @@ loop:
 	switch tok.Type {
 	case hclsyntax.TokenEOF:
 		e.emit()
+	case hclsyntax.TokenOHeredoc:
+		e.emit()
+		for e.hasTokens() && e.peek().Type != hclsyntax.TokenCHeredoc {
+			e.emit()
+		}
+		if e.peek().Type != hclsyntax.TokenCHeredoc {
+			panic("expect close heredoc")
+		}
+
+		e.emit()
 	case hclsyntax.TokenOQuote:
 		err := e.evalString()
 		if err != nil {
@@ -712,6 +722,7 @@ func (e *Engine) evalFuncall() error {
 		} else if e.peek().Type != hclsyntax.TokenCParen {
 			panic(errorf("expect a comma or ) but found %s", e.tokens[e.pos:].Bytes()))
 		}
+		e.emitNewLines()
 	}
 	e.isparen = false
 
