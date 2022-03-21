@@ -62,8 +62,6 @@ func FuzzPartialEval(f *testing.F) {
 			return
 		}
 
-		fmt.Printf("config: %s\n", cfgString)
-
 		body := file.Body.(*hclsyntax.Body)
 		attr := body.Attributes["attr"]
 		parsedExpr := attr.Expr

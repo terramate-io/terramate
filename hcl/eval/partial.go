@@ -187,10 +187,13 @@ loop:
 		e.emit()
 	case hclsyntax.TokenOHeredoc:
 		e.emit()
-		for e.hasTokens() && e.peek().Type != hclsyntax.TokenCHeredoc {
+
+		for e.hasTokens() &&
+			e.peek().Type != hclsyntax.TokenCHeredoc &&
+			e.peek().Type != hclsyntax.TokenEOF { // TODO(i4k): hack to imitate hashicorp lib
 			e.emit()
 		}
-		if e.peek().Type != hclsyntax.TokenCHeredoc {
+		if !e.hasTokens() {
 			panic("expect close heredoc")
 		}
 
@@ -430,6 +433,9 @@ func (e *Engine) evalGetAttr() error {
 	}
 
 	e.emit()
+	if e.isparen {
+		e.emitNewLines()
+	}
 	tok := e.peek()
 	if tok.Type == hclsyntax.TokenIdent ||
 		tok.Type == hclsyntax.TokenNumberLit {
@@ -608,7 +614,7 @@ func (e *Engine) evalForExpr(matchOpenType, matchCloseType hclsyntax.TokenType) 
 		} else if tok.Type == matchCloseType {
 			matchingCollectionTokens--
 		}
-		v, found := parseVariable(e.tokens[e.pos:])
+		v, found := e.parseVariable(e.tokens[e.pos:])
 		if found {
 			if v.isTerramate {
 				return errutil.Chain(
@@ -740,7 +746,7 @@ func (e *Engine) evalFuncall() error {
 
 func (e *Engine) evalVar() error {
 	e.scratch()
-	v, found := parseVariable(e.tokens[e.pos:])
+	v, found := e.parseVariable(e.tokens[e.pos:])
 	if !found {
 		panic("expect a variable")
 	}
@@ -974,7 +980,7 @@ func (e *Engine) evalString() error {
 	return nil
 }
 
-func parseVariable(tokens hclwrite.Tokens) (v variable, found bool) {
+func (e *Engine) parseVariable(tokens hclwrite.Tokens) (v variable, found bool) {
 	if len(tokens) < 3 {
 		// a variable has at least the format: a.b
 		return variable{}, false
@@ -988,6 +994,11 @@ func parseVariable(tokens hclwrite.Tokens) (v variable, found bool) {
 	wantDot := true
 	for pos < len(tokens) {
 		tok := tokens[pos]
+
+		if e.isparen && tok.Type == hclsyntax.TokenNewline {
+			pos++
+			continue
+		}
 
 		if wantDot {
 			if tok.Type != hclsyntax.TokenDot {
