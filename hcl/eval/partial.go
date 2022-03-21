@@ -142,10 +142,16 @@ func (e *Engine) emitTokens(toks ...*hclwrite.Token) {
 	e.evaluated[e.tailpos()] = append(e.evaluated[e.tailpos()], toks...)
 }
 
-func (e *Engine) emitNewLines() {
+func (e *Engine) emitnl() {
 	for e.hasTokens() && (e.peek().Type == hclsyntax.TokenNewline ||
 		e.peek().Type == hclsyntax.TokenComment) {
 		e.emit()
+	}
+}
+
+func (e *Engine) emitnlparens() {
+	if e.nparen > 0 {
+		e.emitnl()
 	}
 }
 
@@ -164,9 +170,7 @@ func (e *Engine) evalExpr() error {
 
 loop:
 	for {
-		if e.nparen > 0 {
-			e.emitNewLines()
-		}
+		e.emitnlparens()
 		switch e.peek().Type {
 		case hclsyntax.TokenBang, hclsyntax.TokenMinus, hclsyntax.TokenComment:
 			e.emit()
@@ -175,10 +179,7 @@ loop:
 		}
 	}
 
-	if e.nparen > 0 {
-		e.emitNewLines()
-	}
-
+	e.emitnlparens()
 	beginPos := e.pos
 	tok := e.peek()
 	// exprTerm
@@ -222,7 +223,7 @@ loop:
 		}
 	case hclsyntax.TokenOParen:
 		e.emit()
-		e.emitNewLines()
+		e.emitnl()
 
 		e.nparen++
 
@@ -232,7 +233,7 @@ loop:
 		}
 
 		e.commit()
-		e.emitNewLines()
+		e.emitnl()
 
 		if e.peek().Type != hclsyntax.TokenCParen {
 			panic(e.peek().Type)
@@ -282,9 +283,7 @@ loop:
 		return nil
 	}
 
-	if e.nparen > 0 {
-		e.emitNewLines()
-	}
+	e.emitnlparens()
 
 	// exprTerm INDEX,GETATTR,SPLAT
 	tok = e.peek()
@@ -313,15 +312,15 @@ loop:
 				parsed = true
 			}
 
+			e.emitnlparens()
+
 			if !parsed {
 				break
 			}
 		}
 	}
 
-	if e.nparen > 0 {
-		e.emitNewLines()
-	}
+	e.emitnlparens()
 
 	// operation && conditional
 
@@ -332,9 +331,7 @@ loop:
 		hclsyntax.TokenGreaterThan, hclsyntax.TokenGreaterThanEq,
 		hclsyntax.TokenOr, hclsyntax.TokenAnd:
 		e.emit()
-		if e.nparen > 0 {
-			e.emitNewLines()
-		}
+		e.emitnlparens()
 		err := e.evalExpr()
 		if err != nil {
 			return err
@@ -344,9 +341,7 @@ loop:
 	case hclsyntax.TokenPlus, hclsyntax.TokenMinus,
 		hclsyntax.TokenStar, hclsyntax.TokenSlash, hclsyntax.TokenPercent:
 		e.emit()
-		if e.nparen > 0 {
-			e.emitNewLines()
-		}
+		e.emitnlparens()
 		err := e.evalExpr()
 		if err != nil {
 			return err
@@ -354,9 +349,7 @@ loop:
 		e.commit()
 	case hclsyntax.TokenQuestion:
 		e.emit()
-		if e.nparen > 0 {
-			e.emitNewLines()
-		}
+		e.emitnlparens()
 		err := e.evalExpr()
 		if err != nil {
 			return err
@@ -372,9 +365,7 @@ loop:
 		}
 
 		e.emit()
-		if e.nparen > 0 {
-			e.emitNewLines()
-		}
+		e.emitnlparens()
 		err = e.evalExpr()
 		if err != nil {
 			return err
@@ -437,9 +428,7 @@ func (e *Engine) evalGetAttr() error {
 	}
 
 	e.emit()
-	if e.nparen > 0 {
-		e.emitNewLines()
-	}
+	e.emitnlparens()
 	tok := e.peek()
 	if tok.Type == hclsyntax.TokenIdent ||
 		tok.Type == hclsyntax.TokenNumberLit {
@@ -493,8 +482,8 @@ func (e *Engine) evalList() error {
 	}
 
 	e.emit()
+	e.emitnl()
 	for e.hasTokens() && e.peek().Type != hclsyntax.TokenCBrack {
-		e.emitNewLines()
 		err := e.evalExpr()
 		if err != nil {
 			return err
@@ -505,6 +494,7 @@ func (e *Engine) evalList() error {
 		if tok.Type == hclsyntax.TokenComma {
 			e.emit()
 		}
+		e.emitnl()
 	}
 
 	if !e.hasTokens() {
@@ -528,7 +518,7 @@ func (e *Engine) evalObject() error {
 	}
 
 	e.emit()
-	e.emitNewLines()
+	e.emitnl()
 	for e.hasTokens() && e.peek().Type != hclsyntax.TokenCBrace {
 		err := e.evalExpr()
 		if err != nil {
@@ -536,7 +526,7 @@ func (e *Engine) evalObject() error {
 		}
 
 		e.commit()
-		e.emitNewLines()
+		e.emitnl()
 		tok = e.peek()
 		if tok.Type != hclsyntax.TokenEqual && tok.Type != hclsyntax.TokenColon {
 			panic(errorf("evalObject: unexpected token '%s' (%s)", tok.Bytes, tok.Type))
@@ -554,7 +544,7 @@ func (e *Engine) evalObject() error {
 			e.emit()
 		}
 
-		e.emitNewLines()
+		e.emitnl()
 	}
 
 	if !e.hasTokens() {
@@ -711,13 +701,13 @@ func (e *Engine) evalFuncall() error {
 
 	e.scratch()
 	e.emit()
-	e.emitNewLines()
+	e.emitnl()
 	if e.peek().Type != hclsyntax.TokenOParen {
 		panic(errorf("not a funcall: %s", e.tokens[e.pos:].Bytes()))
 	}
 
 	e.emit()
-	e.emitNewLines()
+	e.emitnl()
 	e.nparen++
 	for e.hasTokens() && e.peek().Type != hclsyntax.TokenCParen {
 		err := e.evalExpr()
@@ -725,14 +715,14 @@ func (e *Engine) evalFuncall() error {
 			return err
 		}
 		e.commit()
-		e.emitNewLines()
+		e.emitnl()
 
 		if e.peek().Type == hclsyntax.TokenComma {
 			e.emit()
 		} else if e.peek().Type != hclsyntax.TokenCParen {
 			panic(errorf("expect a comma or ) but found %s", e.tokens[e.pos:].Bytes()))
 		}
-		e.emitNewLines()
+		e.emitnl()
 	}
 	e.nparen--
 
