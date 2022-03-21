@@ -717,10 +717,11 @@ func (e *Engine) evalFuncall() error {
 		e.commit()
 		e.emitnl()
 
-		if e.peek().Type == hclsyntax.TokenComma {
+		if e.peek().Type == hclsyntax.TokenComma ||
+			e.peek().Type == hclsyntax.TokenEllipsis {
 			e.emit()
 		} else if e.peek().Type != hclsyntax.TokenCParen {
-			panic(errorf("expect a comma or ) but found %s", e.tokens[e.pos:].Bytes()))
+			panic(errorf("expect a comma or ) but found %s", e.tokens[e.pos].Type))
 		}
 		e.emitnl()
 	}
@@ -897,7 +898,7 @@ func (e *Engine) evalString() error {
 		tokenOQuote(),
 	}
 
-	// handles the case of `"${a.b}"` where a.b is not a string.
+	// handles the case of `"${a.b}"`.
 	if e.tailpos()-scratchPos == 1 {
 		e.commit()
 		tail := e.tail()
