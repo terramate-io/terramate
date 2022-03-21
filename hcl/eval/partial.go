@@ -382,6 +382,7 @@ loop:
 
 func (e *Engine) evalIndex() error {
 	e.scratch()
+	e.nparen++
 	tok := e.peek()
 	if tok.Type != hclsyntax.TokenOBrack {
 		panic("expect a '['")
@@ -421,6 +422,8 @@ func (e *Engine) evalIndex() error {
 		}
 		e.commit()
 	}
+
+	e.nparen--
 
 	return nil
 }
