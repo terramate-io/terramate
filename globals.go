@@ -217,6 +217,8 @@ func (ge *globalsExpr) eval(meta stack.Metadata) (Globals, error) {
 	}
 
 	if len(pendingExprs) > 0 {
+		// TODO(katcipis): model proper error list and return that
+		// Caller can decide how to format/log things (like code generation report).
 		for name, expr := range pendingExprs {
 			logger.Err(pendingExprsErrs[name]).
 				Str("name", name).
