@@ -62,7 +62,7 @@ type Engine struct {
 	ctx       *Context
 	evaluated []hclwrite.Tokens
 
-	isparen bool
+	nparen int
 }
 
 func NewEngine(tokens hclwrite.Tokens, ctx *Context) *Engine {
@@ -164,7 +164,7 @@ func (e *Engine) evalExpr() error {
 
 loop:
 	for {
-		if e.isparen {
+		if e.nparen > 0 {
 			e.emitNewLines()
 		}
 		switch e.peek().Type {
@@ -175,7 +175,7 @@ loop:
 		}
 	}
 
-	if e.isparen {
+	if e.nparen > 0 {
 		e.emitNewLines()
 	}
 
@@ -224,7 +224,7 @@ loop:
 		e.emit()
 		e.emitNewLines()
 
-		e.isparen = true
+		e.nparen++
 
 		err := e.evalExpr()
 		if err != nil {
@@ -239,7 +239,7 @@ loop:
 		}
 
 		e.emit()
-		e.isparen = false
+		e.nparen--
 	case hclsyntax.TokenOBrace, hclsyntax.TokenOBrack:
 		var err error
 
@@ -282,6 +282,10 @@ loop:
 		return nil
 	}
 
+	if e.nparen > 0 {
+		e.emitNewLines()
+	}
+
 	// exprTerm INDEX,GETATTR,SPLAT
 	tok = e.peek()
 	switch tok.Type {
@@ -315,7 +319,7 @@ loop:
 		}
 	}
 
-	if e.isparen {
+	if e.nparen > 0 {
 		e.emitNewLines()
 	}
 
@@ -328,7 +332,7 @@ loop:
 		hclsyntax.TokenGreaterThan, hclsyntax.TokenGreaterThanEq,
 		hclsyntax.TokenOr, hclsyntax.TokenAnd:
 		e.emit()
-		if e.isparen {
+		if e.nparen > 0 {
 			e.emitNewLines()
 		}
 		err := e.evalExpr()
@@ -340,7 +344,7 @@ loop:
 	case hclsyntax.TokenPlus, hclsyntax.TokenMinus,
 		hclsyntax.TokenStar, hclsyntax.TokenSlash, hclsyntax.TokenPercent:
 		e.emit()
-		if e.isparen {
+		if e.nparen > 0 {
 			e.emitNewLines()
 		}
 		err := e.evalExpr()
@@ -350,7 +354,7 @@ loop:
 		e.commit()
 	case hclsyntax.TokenQuestion:
 		e.emit()
-		if e.isparen {
+		if e.nparen > 0 {
 			e.emitNewLines()
 		}
 		err := e.evalExpr()
@@ -368,7 +372,7 @@ loop:
 		}
 
 		e.emit()
-		if e.isparen {
+		if e.nparen > 0 {
 			e.emitNewLines()
 		}
 		err = e.evalExpr()
@@ -433,7 +437,7 @@ func (e *Engine) evalGetAttr() error {
 	}
 
 	e.emit()
-	if e.isparen {
+	if e.nparen > 0 {
 		e.emitNewLines()
 	}
 	tok := e.peek()
@@ -441,7 +445,7 @@ func (e *Engine) evalGetAttr() error {
 		tok.Type == hclsyntax.TokenNumberLit {
 		e.emit()
 	} else {
-		panic("expect an IDENT or number")
+		panic(sprintf("expect an IDENT or number: %s %t", e.peek().Type, e.nparen))
 	}
 
 	return nil
@@ -714,7 +718,7 @@ func (e *Engine) evalFuncall() error {
 
 	e.emit()
 	e.emitNewLines()
-	e.isparen = true
+	e.nparen++
 	for e.hasTokens() && e.peek().Type != hclsyntax.TokenCParen {
 		err := e.evalExpr()
 		if err != nil {
@@ -730,7 +734,7 @@ func (e *Engine) evalFuncall() error {
 		}
 		e.emitNewLines()
 	}
-	e.isparen = false
+	e.nparen--
 
 	if !e.hasTokens() {
 		panic(errorf("malformed funcall: %s", e.tokens.Bytes()))
@@ -990,15 +994,14 @@ func (e *Engine) parseVariable(tokens hclwrite.Tokens) (v variable, found bool) 
 		return variable{}, false
 	}
 
-	pos := 1
+	pos := e.skipNewLines(1)
 	wantDot := true
 	for pos < len(tokens) {
-		tok := tokens[pos]
-
-		if e.isparen && tok.Type == hclsyntax.TokenNewline {
-			pos++
-			continue
+		if e.nparen > 0 {
+			pos = e.skipNewLines(pos)
 		}
+
+		tok := tokens[pos]
 
 		if wantDot {
 			if tok.Type != hclsyntax.TokenDot {
