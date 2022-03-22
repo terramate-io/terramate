@@ -2,7 +2,7 @@
 
 In order to keep your code [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself)
 it is important to have an easy and safe way to define data once and share it
-across different stacks.
+across your project.
 
 This is done on Terramate using globals and metadata. Globals are defined by
 the user, similar to how you would define locals in Terraform, and metadata
@@ -220,25 +220,19 @@ merged together into a single globals set before evaluation.
 
 # Metadata
 
-Terramate provides a set of well defined metadata that can be
+Terramate provides a set of metadata that can be
 accessed through the variable namespace **terramate**.
 
-This can be referenced from any terramate code to reference
-information like the path of the stack that is being evaluated.
-
-To see all metadata available on your project run:
-
-```
-terramate metadata
-```
+This can be referenced from any Terramate code to reference
+information like the path of the stack or its name.
 
 ## terramate.path (string) 
 
-Absolute path of the stack.  The path is relative to the project
+The absolute path of the stack relative to the project
 root directory, not the host root directory. So it is absolute
 on the context of the entire project.
 
-Given this stack layout (from the root of the project):
+Given this project layout:
 
 ```
 .
@@ -250,13 +244,9 @@ Given this stack layout (from the root of the project):
 * terramate.path for **stack-a** = /stacks/stack-a
 * terramate.path for **stack-b** = /stacks/stack-b
 
-Inside the context of a project **terramate.path** can
-uniquely identify stacks.
-
-
 ## terramate.name (string) 
 
-Name of the stack.
+The name of the stack.
 
 Given this stack layout (from the root of the project):
 
@@ -270,17 +260,13 @@ Given this stack layout (from the root of the project):
 * terramate.name for **stack-a** = stack-a
 * terramate.name for **stack-b** = stack-b
 
+Checkout [stack configuration](stack.md) to see how
+you can change the default stack name.
 
 ## terramate.description (string) 
 
-The description of the stack, if it has any. The default value is an empty string
-if undefined.
+The description of the stack, if it has any.
+The default value is an empty string.
 
-To define a description for a stack just add a **description**
-attribute to the **stack** block:
-
-```hcl
-stack {
-  description =  "some description"
-}
-```
+Checkout [stack configuration](stack.md) to see how
+you can change the default stack description.
