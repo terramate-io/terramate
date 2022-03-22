@@ -70,21 +70,17 @@ this definition:
 * Globals can be redefined in different configurations.
 * Globals can reference globals from other configurations.
 
-Since globals can be referenced from other configurations users can define
-core/base configurations and use them across the entire project.
+Each stack will have its globals defined by loading them from
+the stack directory and all the way up until the project root
+is reached. This is called the stack globals set.
 
-Globals are evaluated on the context of a stack, evaluation starts
-with any globals defined on the stack itself and then keeps going up
-on the file system until the project root is reached.
+For globals being redefined on different configurations we follow
+a very simple merge strategy to build each stack globals set:
 
-If global variables don't have the same name, then globals are just merged
-together as they are evaluated going up on the project file system.
+* Globals with different names are merged together.
+* Globals with same names: more specific configuration replaces the general one.
 
-If global variables have the same name, the most specific global overrides
-the more general one, where by specific we mean the global closest to the
-stack being evaluated.
-
-Given a project structured like this:
+Lets check this with an example. Given a project structured like this:
 
 ```
 .
