@@ -22,15 +22,14 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/mineiros-io/terramate)](https://goreportcard.com/report/github.com/mineiros-io/terramate)
 [![codecov](https://codecov.io/gh/mineiros-io/terramate/branch/main/graph/badge.svg?token=gMRUkVUAQ4)](https://codecov.io/gh/mineiros-io/terramate)
 
-Terramate is a tool for managing multiple terraform stacks.
+Terramate is a tool for managing multiple Terraform stacks.
 
 The stack concept is not defined by Hashicorp's Terraform tooling but just a
-convention used by the _Terraform community_, so a stack can be loosely defined
-as:
+convention used by the _Terraform community_, so a stack can be loosely defined as:
 
 ```
 A terraform stack is a runnable terraform module that operates on a subset of
-the infrastructure's resource.
+the infrastructure's resources.
 ```
 
 By _runnable_ it means it has everything needed to call
@@ -38,8 +37,9 @@ By _runnable_ it means it has everything needed to call
 don't have the `provider` explicitly set, is not runnable hence it's
 **not a stack**.
 
-So, if your runnable terraform module creates your whole infrastructure, *it's
-also not a stack*.
+If your runnable terraform module creates your whole infrastructure, *it's
+also not a stack*, since the idea of stacks is to be a unit of infrastructure
+decomposition.
 
 
 ## Installing
