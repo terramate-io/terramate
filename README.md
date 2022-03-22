@@ -3,15 +3,13 @@
 # Table of Contents
 
 - [Terramate](#terramate)
-    - [Installing](#installing)
-    - [Why using stacks?](#why-using-stacks)
-        - [High frequency of infrastructure change](#high-frequency-of-infrastructure-change)
-        - [Reduce the blast radius](#reduce-the-blast-radius)
-        - [Reduce execution time](#reduce-execution-time)
-        - [Ownership](#ownership)
-        - [Others](#others)
-    - [Detecting IaC changes](#detecting-iac-changes)
-        - [Why this workflow?](#why-this-workflow)
+    - [Getting Started](#getting-started)
+        - [Installing](#installing)
+            - [Using Go](#using-go)
+            - [Using Release Binaries](#using-release-binaries)
+            - [Using Docker](#using-docker)
+            - [Auto Completion](#auto-completion)
+        - [Project Setup](#project-setup)
 
 <!-- mdtocend -->
 
