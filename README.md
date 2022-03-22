@@ -37,6 +37,7 @@ For more details on how this is achieved you can check:
 * [Change Detection](docs/change-detection.md)
 * [Config Overview](docs/config-overview.md)
 * [Sharing Data](docs/sharing-data.md)
+* [Code Generation](docs/codegen/overview.md)
 * [Orchestrating Stacks Execution](docs/orchestration.md)
 
 ## Getting Started
