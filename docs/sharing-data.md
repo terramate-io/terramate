@@ -206,116 +206,17 @@ So far we described how globals on different configurations are merged.
 Given that globals can reference other globals and Terramate metadata it is
 important to be clear about how/when evaluation happens. 
 
-Globals are lazily evaluated. The whole process per stack can
+Globals are lazily evaluated. The per stack process can
 be described on this order:
 
-* On each configuration, starting on the stack, globals definitions are loaded.
+* Load globals for each configuration, starting on the stack.
 * Merge strategy is applied as configurations are loaded.
-* All merging is done and the globals set is defined for a stack.
-* The globals set is evaluated.
+* All merging is done and the globals set is defined for the stack.
+* The stack globals set is evaluated.
 
-This means that globals at the root configuration of a project can reference
-globals that are going to be defined only at a more specific configuration
-(potentially the stack itself). 
-
-Overall globals are evaluated lazily, actual evaluation only happens after
-all globals have been loaded and merged from all configurations defined
-for a stack (stack + its parents dir until project root).
-
-So on the project root you can reference globals that will only be defined
-later when a stack defines it, just as on a stack you can reference globals
-that are defined on the project root (or any parent dir).
-
-Given a project organized like this:
-
-```
-.
-└── envs
-    ├── prod
-    │   └── stack
-    │       └── terramate.tm.hcl
-    └── staging
-        └── stack
-            └── terramate.tm.hcl
-```
-
-We can define a single version of a [backend configuration](backend-config.md)
-for all envs referencing env + stack specific information at **envs/terramate.tm.hcl**:
-
-```hcl
-terramate {
-  backend "gcs" {
-    bucket = global.gcs_bucket
-    prefix = global.gcs_prefix
-  }
-}
-
-globals {
-  gcs_bucket = "prefix-${global.env}"
-  gcs_prefix = terramate.path
-}
-```
-
-Neither at **envs** or at the parent dir is **global.env** defined. Any subdir
-until the stack is reached can define it (or override it if it is already defined),
-final values are evaluated when reaching the stack itself.
-
-We can define **global.env** once per env.
-
-For production **envs/prod/terramate.tm.hcl**:
-
-```hcl
-globals {
-  env = "prod"
-}
-```
-
-For staging **envs/staging/terramate.tm.hcl**:
-
-```hcl
-globals {
-  env = "staging"
-}
-```
-
-Given this setup, for  the stack **/envs/prod/stack**
-we have the following globals defined:
-
-```
-global.env        = "prod"
-global.gcs_bucket = "prefix-prod"
-global.gcs_prefix = "/envs/prod/stack"
-```
-
-And the following backend configuration:
-
-```hcl
-terramate {
-  backend "gcs" {
-    bucket = "prefix-prod"
-    prefix = "/envs/prod/stack"
-  }
-}
-```
-
-And for the stack **/envs/staging/stack**:
-
-```
-global.env        = "staging"
-global.gcs_bucket = "prefix-staging"
-global.gcs_prefix = "/envs/staging/stack"
-```
-
-And the following backend configuration:
-
-```hcl
-terramate {
-  backend "gcs" {
-    bucket = "prefix-staging"
-    prefix = "/envs/staging/stack"
-  }
-}
-```
+This means that globals can reference globals on other configurations
+independent of how specific or general the configuration is since it is all
+merged together into a single globals set before evaluation.
 
 # Metadata
 
