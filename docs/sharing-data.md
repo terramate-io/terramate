@@ -80,7 +80,8 @@ a very simple merge strategy to build each stack globals set:
 * Globals with different names are merged together.
 * Globals with same names: more specific configuration replaces the general one.
 
-Lets check this with an example. Given a project structured like this:
+Lets explore a little further with an example.
+Given a project structured like this:
 
 ```
 .
@@ -91,14 +92,14 @@ Lets check this with an example. Given a project structured like this:
         └── terramate.tm.hcl
 ```
 
-The global precedence order for stack-1, from higher to lower precedence, is:
+The configurations available, from more specific to more general, for `stack-1` are:
 
 * stacks/stack-1
 * stacks
 * . (the project root dir)
 
-To create globals for the entire project just add a
-[Terramate configuration file](config.md) on the project
+To create globals that will be available for all stacks int the entire project
+just add a [Terramate configuration file](config-overview.md) on the project
 root with some useful globals:
 
 ```hcl
@@ -109,35 +110,19 @@ globals {
 ```
 
 Now any stack on the project can reference these globals on their
-Terramate configuration, like this backend config example:
-
-```hcl
-terramate {
-  backend "type" {
-    param = "${global.project_name}-${global.useful}"
-  }
-}
-```
+[Terramate configuration](config-overview.md).
 
 Now lets say one of the stacks wants to add more globals, to do
-so we can add globals on the stack configuration file
-**stacks/stack-1/terramate.tm.hcl**:
+so we can add globals on the stack configuration by creating the file
+`stacks/stack-1/globals.tm.hcl`:
 
 ```hcl
-terramate {
-  // ommited
-}
-
-stack {
-  // ommited
-}
-
 globals {
   stack_data = "some specialized stack-1 data"
 }
 ```
 
-Now the globals available to **stacks/stack-1** are:
+Now `stacks/stack-1` globals set is:
 
 ```
 project_name = "awesome-project"
@@ -145,36 +130,24 @@ useful       = "useful"
 stack_data   = "some specialized stack-1 data"
 ```
 
-And the globals available to **stacks/stack-2** :
+And for `stacks/stack-2`:
 
 ```
 project_name = "awesome-project"
 useful       = "useful"
 ```
 
-Overall **stacks/stack-1** is getting a full merge of all
-its globals + all globals defined on each dir until reaching
-the project root.
-
-Now lets say **stacks/stack-1** needs to override one of the globals,
-we just redefine the global on **stacks/stack-1/terramate.tm.hcl**:
+Now lets redefine a global on `stacks/stack-1`.
+We do that by changing `stacks/stack-1/globals.tm.hcl`:
 
 ```hcl
-terramate {
-  // ommited
-}
-
-stack {
-  // ommited
-}
-
 globals {
   useful     = "overriden by stack-1"
   stack_data = "some specialized stack-1 data"
 }
 ```
 
-Now the globals available to **stacks/stack-1** are:
+Now `stacks/stack-1` globals set is:
 
 ```
 project_name = "awesome-project"
@@ -182,7 +155,7 @@ useful       = "overriden by stack-1"
 stack_data   = "some specialized stack-1 data"
 ```
 
-And the globals available to **stacks/stack-2** remains:
+And for `stacks/stack-2` it remains:
 
 ```
 project_name = "awesome-project"
@@ -190,10 +163,10 @@ useful       = "useful"
 ```
 
 Overriding happens at the global name level, so objects/maps/lists/sets
-won't get merged, they are completely overwritten by the most
+won't get merged, they are completely replaced by the most
 specific configuration with the same global name.
 
-Lets say we add this to our project wide configuration:
+Lets say we add this to our project root configuration:
 
 ```hcl
 globals {
@@ -203,23 +176,15 @@ globals {
 }
 ```
 
-And override it on **stacks/stack-1/terramate.tm.hcl**:
+And redefine it on `stacks/stack-1/globals.tm.hcl`:
 
 ```hcl
-terramate {
-  // ommited
-}
-
-stack {
-  // ommited
-}
-
 globals {
   object = { field_a = "overriden_field_a" }
 }
 ```
 
-The globals available to **stacks/stack-1** will be:
+Now `stacks/stack-1` globals set is:
 
 ```
 project_name = "awesome-project"
@@ -227,7 +192,7 @@ useful       = "useful"
 object       = { field_a = "overriden_field_a" }
 ```
 
-And the globals available to **stacks/stack-2**:
+And for `stacks/stack-2`:
 
 ```
 project_name = "awesome-project"
