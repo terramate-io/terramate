@@ -25,14 +25,24 @@
 Terramate is a tool for managing multiple Terraform stacks.
 It provides ways to keep your code [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself)
 and also manage dependencies between stacks with minimal effort to get
-started and very non-intrusive
+started in a non-intrusive way.
 
+* Avoid duplication by easily sharing data across your project.
+* Explicitly define order of execution of stacks.
+* Code generation ensures that plan/apply is always done with plain Terraform commands.
+* Change detection, including for local modules used by stacks.
+* All done with [HCL](https://github.com/hashicorp/hcl).
+
+For more details on how this is achieved you can check:
+
+* [Why stacks ?](docs/why-stacks.md)
+* [Change detection](docs/change-detection.md)
 
 ## Getting Started
 
 ### Installing
 
-To install **terramate** using Go just run:
+To install using Go just run:
 
 ```
 go install github.com/mineiros-io/terramate/cmd/terramate@<version>
@@ -64,38 +74,4 @@ Container images tagged with release versions are also provided.
 
 ### Project Setup
 
-TODO: More details
-
-
-## Configuring Your Project
-
-Checkout the docs on [overall configuration](docs/config.md) for details
-on how different kinds of configurations can help you to avoid duplication
-and write solid Infrastructure as Code.
-
-
-## Change Detection
-
-When changing your infrastructure (made up of a set of stacks) it's common to
-make several changes to several stacks. But now that you have multiple terraform
-states (per stack), how to apply the changes only to the affected resources?
-
-The terramate solves this by imposing a workflow:
-
-1. The default branch (commonly main) has the production (applied) code.
-2. Before planning and apply, the changes must be committed in a feature/bugfix
-  branch.
-3. The IaC project must use [non
-  fast-forwarded](https://git-scm.com/docs/git-merge#_fast_forward_merge) merge
-  commits. (the default in github and bitbucket).
-
-### Why this workflow?
-
-By using the method above all commits (except first) in the default branch are
-merge commits, then we have an easy way of detecting which stacks in the current
-feature branch differs from the main branch.
-
-The technique is super simple and consists of finding the common ancestor
-between the current branch and the default branch (most commonly the commit that
-current branch forked from) and then list the files that have changed since then
-and filter the ones that are part of terraform stacks.
+TODO: More details on the basics to setup a project
