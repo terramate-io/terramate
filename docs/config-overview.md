@@ -37,26 +37,7 @@ In general, a Terramate project looks like this:
 * Stacks will be organized as different directories
 * Configuration may be present on any dir
 
-# Project Configuration
-
 Per project configuration can be defined only once at the project root dir.
-
 Available project-wide configurations can be found [here](project-config.md).
 
-# Stack Configuration
-
-Before talking about stack specific configuration, lets define what is a
-Terramate stack:
-
-* Has one or more Terramate configuration files.
-* One of the configuration files has a `stack {}` block on it.
-* It has no stacks on any of its subdirs (stacks can't have stacks inside them).
-
-Here is the list of configurations specific to stacks:
-
-* [Execution Ordering](execution-order.md)
-* [Globals](globals.md)
-* [HCL Generation](hcl-generation.md)
-* [Code Generation](code-generation-config.md)
-* [Locals Generation](locals-generation.md)
-* [Backend](backend-config.md)
+Stack specific configurations can be found [here](stack.md).
