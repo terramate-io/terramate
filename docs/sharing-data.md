@@ -200,16 +200,23 @@ useful       = "useful"
 object       = { field_a = "field_a", field_b = "field_b" }
 ```
 
-## Evaluation Order
+## Lazy Evaluation
 
+So far we described how globals on different configurations are merged.
 Given that globals can reference other globals and Terramate metadata it is
-important to be clear about evaluation order. Both globals and metadata are
-evaluated on the context of a specific stack and are evaluated starting from
-the stack going upward on the file system.
+important to be clear about how/when evaluation happens. 
 
-This means that globals at the root of a project can reference globals that
-are going to be defined only at a more specific configuration (potentially
-the stack itself). 
+Globals are lazily evaluated. The whole process per stack can
+be described on this order:
+
+* On each configuration, starting on the stack, globals definitions are loaded.
+* Merge strategy is applied as configurations are loaded.
+* All merging is done and the globals set is defined for a stack.
+* The globals set is evaluated.
+
+This means that globals at the root configuration of a project can reference
+globals that are going to be defined only at a more specific configuration
+(potentially the stack itself). 
 
 Overall globals are evaluated lazily, actual evaluation only happens after
 all globals have been loaded and merged from all configurations defined
