@@ -23,23 +23,10 @@
 [![codecov](https://codecov.io/gh/mineiros-io/terramate/branch/main/graph/badge.svg?token=gMRUkVUAQ4)](https://codecov.io/gh/mineiros-io/terramate)
 
 Terramate is a tool for managing multiple Terraform stacks.
+It provides ways to keep your code [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself)
+and also manage dependencies between stacks with minimal effort to get
+started and very non-intrusive
 
-The stack concept is not defined by Hashicorp's Terraform tooling but just a
-convention used by the _Terraform community_, so a stack can be loosely defined as:
-
-```
-A terraform stack is a runnable terraform module that operates on a subset of
-the infrastructure's resources.
-```
-
-By _runnable_ it means it has everything needed to call
-`terraform init/plan/apply` . For example, a module used by other modules, ie,
-don't have the `provider` explicitly set, is not runnable hence it's
-**not a stack**.
-
-If your runnable terraform module creates your whole infrastructure, *it's
-also not a stack*, since the idea of stacks is to be a unit of infrastructure
-decomposition.
 
 ## Getting Started
 
@@ -87,56 +74,7 @@ on how different kinds of configurations can help you to avoid duplication
 and write solid Infrastructure as Code.
 
 
-## Why using stacks?
-
-The stack concept is advised for several reasons. 
-
-### High frequency of infrastructure change
-
-If you infrastructure have a high frequency of change, for example, several
-deploys per day/week or several configuration changes per day/week, then if you
-apply the change in your single terraform project, some dependent resources can
-be recreated leading to increased downtime. There are several reasons why a
-dependent module can be recreated, eg.: attributes with variable interpolation
-from recreated resources; underspecified attributes refreshing during plan, etc.
-
-By using stacks you can modify only the stacks affected by the deploys or
-configuration changes needed, but you have to choose the size of the stack
-wisely to avoid duplication.
-
-### Reduce the blast radius
-
-A small change can lead to catastrofic events if you're not careful or makes a
-mistake like forgetting a "prevent_destroy" attribute in the production database
-lifecycle declaration. Sometime someone will commit mistakes and it's better if
-you could reduce the impact of such errors.
-An extreme example is: avoiding a database instance destroy because of a dns TTL
-change.
-
-### Reduce execution time
-
-By using stacks you can reduce the time a infrastracture change takes to finish.
-This is even more appealing if your terraform changes are applied through CI
-builders running in the cloud because faster integration/builds leads to reduced
-cloud costs.
-
-### Ownership
-
-In the case of a big organization you probably don't want a single person or
-team responsible for the whole infrastructure. The company's stacks can be
-spread over several repositories and managed by different teams.
-
-By having this separation it also makes it easier when you want separation
-by resource permissions, so having some stacks that can only be run by
-specific individuals or teams.
-
-### Others
-
-There are lots of other opinionated reasons why stacks would be a good option:
-stacks per environments or deploy region location, stacks per topic (IAM vs
-actual resources) and so on.
-
-## Detecting IaC changes
+## Change Detection
 
 When changing your infrastructure (made up of a set of stacks) it's common to
 make several changes to several stacks. But now that you have multiple terraform
