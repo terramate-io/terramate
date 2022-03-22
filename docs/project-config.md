@@ -1,4 +1,4 @@
-# Project Config
+# Project Configuration
 
 Terramate does not depend on user configuration and comes with a set of sensible defaults.
 But when defaults doesn't work Terramate allows some project wide configurations
