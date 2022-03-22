@@ -16,7 +16,7 @@ fmt:
 ## lint code
 .PHONY: lint
 lint:
-	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.43.0 run ./...
+	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.45.0 run ./...
 
 ## add license to code
 .PHONY: license
