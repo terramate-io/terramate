@@ -1,4 +1,17 @@
-# Global Configuration
+# Sharing Data
+
+In order to keep your code [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself)
+it is important to have an easy and safe way to define data once and share it
+across different stacks.
+
+This is done on Terramate using globals and metadata. Globals are defined by
+the user, similar to how you would define locals in Terraform, and metadata
+is provided by Terramate itself.
+
+Terramate globals and metadata are integrated with Terraform using code
+generation, you can check it into more details [here](codegen/overview.md).
+
+# Globals
 
 Globals provide a way to define information that can be re-used
 across stacks with a clear hierarchical/merge semantic.
@@ -366,7 +379,69 @@ terramate {
 }
 ```
 
-## Referencing globals on terraform code
+# Metadata
 
-For more information on how to access globals from terraform code checkout
-the [locals generation](locals-generation.md) docs.
+Terramate provides a set of well defined metadata that can be
+accessed through the variable namespace **terramate**.
+
+This can be referenced from any terramate code to reference
+information like the path of the stack that is being evaluated.
+
+To see all metadata available on your project run:
+
+```
+terramate metadata
+```
+
+## terramate.path (string) 
+
+Absolute path of the stack.  The path is relative to the project
+root directory, not the host root directory. So it is absolute
+on the context of the entire project.
+
+Given this stack layout (from the root of the project):
+
+```
+.
+└── stacks
+    ├── stack-a
+    └── stack-b
+```
+
+* terramate.path for **stack-a** = /stacks/stack-a
+* terramate.path for **stack-b** = /stacks/stack-b
+
+Inside the context of a project **terramate.path** can
+uniquely identify stacks.
+
+
+## terramate.name (string) 
+
+Name of the stack.
+
+Given this stack layout (from the root of the project):
+
+```
+.
+└── stacks
+    ├── stack-a
+    └── stack-b
+```
+
+* terramate.name for **stack-a** = stack-a
+* terramate.name for **stack-b** = stack-b
+
+
+## terramate.description (string) 
+
+The description of the stack, if it has any. The default value is an empty string
+if undefined.
+
+To define a description for a stack just add a **description**
+attribute to the **stack** block:
+
+```hcl
+stack {
+  description =  "some description"
+}
+```

@@ -35,12 +35,17 @@ started in a non-intrusive way.
 
 For more details on how this is achieved you can check:
 
-* [Why stacks ?](docs/why-stacks.md)
-* [Change detection](docs/change-detection.md)
+* [Why Stacks ?](docs/why-stacks.md)
+* [Change Detection](docs/change-detection.md)
+* [Config Overview](docs/config-overview.md)
+* [Sharing Data](docs/sharing-data.md)
+* [Orchestrating Stacks Execution](docs/orchestration.md)
 
 ## Getting Started
 
 ### Installing
+
+#### Using Go
 
 To install using Go just run:
 
@@ -55,12 +60,11 @@ or you can just install the **latest** release:
 go install github.com/mineiros-io/terramate/cmd/terramate@latest
 ```
 
-Terramate supports autocompletion of commands for *bash*, *zsh* and *fish*. To
-install the completion just run the command below and open a new shell session:
+#### Using Release Binaries
 
-```
-$ terramate install-completions
-```
+TODO
+
+#### Using Docker
 
 If you don't want to install Terramate on your host you can use
 [Docker](https://www.docker.com/) or [Podman](https://podman.io/) to
@@ -71,6 +75,16 @@ docker run ghcr.io/mineiros-io/terramate
 ```
 
 Container images tagged with release versions are also provided.
+
+
+#### Auto Completion
+
+Terramate supports autocompletion of commands for *bash*, *zsh* and *fish*. To
+install the completion just run the command below and open a new shell session:
+
+```
+$ terramate install-completions
+```
 
 ### Project Setup
 
