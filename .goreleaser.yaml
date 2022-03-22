@@ -23,8 +23,8 @@ builds:
       #
 archives:
   - replacements:
-      darwin: darwin
-      linux: linux
+      darwin: Darwin
+      linux: Linux
       #windows: Windows (when we add win support)
       386: i386
       amd64: x86_64
