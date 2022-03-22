@@ -41,8 +41,9 @@ If your runnable terraform module creates your whole infrastructure, *it's
 also not a stack*, since the idea of stacks is to be a unit of infrastructure
 decomposition.
 
+## Getting Started
 
-## Installing
+### Installing
 
 To install **terramate** using Go just run:
 
@@ -57,29 +58,27 @@ or you can just install the **latest** release:
 go install github.com/mineiros-io/terramate/cmd/terramate@latest
 ```
 
-To install the latest code on main:
-
-```
-export GOPROXY=direct
-go install github.com/mineiros-io/terramate/cmd/terramate@main
-```
-
-Or if you have the project cloned locally just run:
-
-```
-make install
-```
-
-We put great effort into keeping the main branch stable, so it should be safe
-to use **main** to play around, but not recommended for long term automation
-since you won't get the same build result each time you run the install command.
-
-The tool supports autocompletion of commands for *bash*, *zsh* and *fish*. To
+Terramate supports autocompletion of commands for *bash*, *zsh* and *fish*. To
 install the completion just run the command below and open a new shell session:
 
 ```
 $ terramate install-completions
 ```
+
+If you don't want to install Terramate on your host you can use
+[Docker](https://www.docker.com/) or [Podman](https://podman.io/) to
+run Terramate inside a container:
+
+```
+docker run ghcr.io/mineiros-io/terramate
+```
+
+Container images tagged with release versions are also provided.
+
+### Project Setup
+
+TODO: More details
+
 
 ## Configuring Your Project
 
