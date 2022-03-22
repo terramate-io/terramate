@@ -47,14 +47,14 @@ For more details on how this is achieved you can check:
 
 To install using Go just run:
 
-```
+```sh
 go install github.com/mineiros-io/terramate/cmd/terramate@<version>
 ```
 
 Where **<version>** is any terramate [version tag](https://github.com/mineiros-io/terramate/tags),
 or you can just install the **latest** release:
 
-```
+```sh
 go install github.com/mineiros-io/terramate/cmd/terramate@latest
 ```
 
@@ -68,7 +68,7 @@ If you don't want to install Terramate on your host you can use
 [Docker](https://www.docker.com/) or [Podman](https://podman.io/) to
 run Terramate inside a container:
 
-```
+```sh
 docker run ghcr.io/mineiros-io/terramate
 ```
 
@@ -80,8 +80,8 @@ Container images tagged with release versions are also provided.
 Terramate supports autocompletion of commands for *bash*, *zsh* and *fish*. To
 install the completion just run the command below and open a new shell session:
 
-```
-$ terramate install-completions
+```sh
+terramate install-completions
 ```
 
 ### Project Setup
