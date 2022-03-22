@@ -16,33 +16,24 @@ generation, you can check it into more details [here](codegen/overview.md).
 Globals provide a way to define information that can be re-used
 across stacks with a clear hierarchical/merge semantic.
 
-Here we explain the overall semantics on how globals are defined
-inside a Terramate project, they can be used in different ways
-inside stacks and for specific details check the documentation
-of each feature that leverages globals: 
-
-* [backend configuration](backend-config.md)
-
 Defining globals is fairly straightforward, you just need to
-add a **globals** block to your [Terramate configuration file](config.md):
+add a **globals** block to your [Terramate configuration file](config-overview.md):
 
 ```hcl
-terramate {
-  // other Terramate related configs
-}
-
 globals {
   env = "staging"
   values = [ 1, 2, 3 ]
 }
 ```
 
-And you can reference them on Terramate configuration:
+And you can reference them on [code generation](codegen/overview.md):
 
 ```hcl
-terramate {
-  backend "type" {
-    param = "value-${global.env}"
+generate_hcl "backend.tf" {
+  content {
+    backend "type" {
+      param = "value-${global.env}"
+    }
   }
 }
 
@@ -68,39 +59,18 @@ globals {
 }
 ```
 
-Defining globals on the same configuration using multiple blocks
-is allowed, like this:
+Globals can be defined on multiple Terramate files, lets call this
+set of files in a specific directory a **configuration**. Given
+this definition:
 
-```hcl
-terramate {
-  backend "type" {
-    param = "value-${global.env}"
-  }
-}
+* A project has multiple configurations, one for each of its directories. 
+* The most specific configuration is the stack directory.
+* The most general configuration is the project root directory.
+* Globals can't be redefined in the same configuration.
+* Globals can be redefined in different configurations.
+* Globals can reference globals from other configurations.
 
-globals {
-  env = "staging"
-}
-
-globals {
-  name = "name"
-}
-```
-
-Redefining a global on the same configuration is an error, eg:
-
-```hcl
-globals {
-  env = "staging"
-}
-
-globals {
-  env = "prod"
-}
-```
-
-Globals don't need to be defined on the same configuration
-they are referenced, users can define
+Since globals can be referenced from other configurations users can define
 core/base configurations and use them across the entire project.
 
 Globals are evaluated on the context of a stack, evaluation starts
