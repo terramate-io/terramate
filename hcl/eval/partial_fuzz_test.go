@@ -35,12 +35,16 @@ func FuzzPartialEval(f *testing.F) {
 	seedCorpus := []string{
 		"attr",
 		"attr.value",
+		"attr.*.value",
 		`{}`,
 		`10`,
 		`"test"`,
 		`[1, 2, 3]`,
 		`a()`,
+		`föo("föo") + föo`,
 		`${var.name}`,
+		`{ for k in var.val : k => k }`,
+		`[ for k in var.val : k => k ]`,
 	}
 
 	for _, seed := range seedCorpus {
