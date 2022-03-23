@@ -4,7 +4,7 @@ When changing your infrastructure (made up of a set of stacks) it's common to
 make several changes to several stacks. But now that you have multiple terraform
 states (per stack), how to apply the changes only to the affected resources?
 
-The terramate solves this by imposing a workflow:
+Terramate comes with support for change detection by imposing the following workflow:
 
 1. The default branch (commonly main) has the production (applied) code.
 2. Before planning and apply, the changes must be committed in a feature/bugfix
