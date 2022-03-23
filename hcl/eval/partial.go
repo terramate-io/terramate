@@ -1238,11 +1238,7 @@ func isArithOp(t hclsyntax.TokenType) bool {
 }
 
 func isBinOp(t hclsyntax.TokenType) bool {
-	switch {
-	case isCmpOp(t), isArithOp(t), isLogicOp(t):
-		return true
-	}
-	return false
+	return isCmpOp(t) || isArithOp(t) || isLogicOp(t)
 }
 
 func isUnaryOp(t hclsyntax.TokenType) bool {
