@@ -94,8 +94,8 @@ type node struct {
 	source    hclwrite.Tokens
 	evaluated hclwrite.Tokens
 
-	hasCond bool
-	hasOp   bool
+	hasCond  bool
+	hasBinOp bool
 }
 
 func newPartialEvalEngine(tokens hclwrite.Tokens, ctx *Context) *engine {
@@ -155,8 +155,8 @@ func (e *engine) commit() {
 	if tos.hasCond {
 		merge.hasCond = true
 	}
-	if tos.hasOp {
-		merge.hasOp = true
+	if tos.hasBinOp {
+		merge.hasBinOp = true
 	}
 
 	e.evalstack.push(merge)
@@ -375,7 +375,7 @@ loop:
 			return err
 		}
 		e.commit()
-		thisNode.hasOp = true
+		thisNode.hasBinOp = true
 
 	case t == hclsyntax.TokenQuestion:
 		e.emit()
@@ -915,7 +915,7 @@ func (e *engine) evalInterp() error {
 	//
 	// if any of the checks are true, then we need to emit the interp tokens.
 	isCombinedExpr := func(n *node) bool {
-		return n.hasCond || n.hasOp
+		return n.hasCond || n.hasBinOp
 	}
 
 	needsEval := func(n *node) bool {
