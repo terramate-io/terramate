@@ -81,8 +81,8 @@ func FuzzPartialEval(f *testing.F) {
 		}
 
 		want := toWriteTokens(parsedTokens)
-		engine := newPartialEngine(want, NewContext(""))
-		got, err := engine.PartialEval()
+		engine := newPartialEvalEngine(want, NewContext(""))
+		got, err := engine.Eval()
 
 		if strings.Contains(cfgString, "global.") || strings.Contains(cfgString, "terramate.") {
 			// TODO(katcipis): Validate generated code properties when

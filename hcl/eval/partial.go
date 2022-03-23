@@ -54,21 +54,26 @@ Here be dragons. Thou art forewarned
            `B'\)                  ///,-'~`__--^-  |-------~~~~^'
            /^>                           ///,--~`-\
           `  `
+
+
+This implementation is based on HCL v2.11.1 as defined in the "spec" below:
+  - https://github.com/hashicorp/hcl/blob/v2.11.1/hclsyntax/spec.md
+
+Motivation:
+
+Terramate supports a HCL code generation feature driven by pure HCL, where
+everything with the exception of terramate variables must be copied verbatim
+into the generated file. This code is needed because the Hashicorp's hcl library
+does not support the partial evaluation of expressions, in other words, given an
+expression containing unknown symbols and terramate symbols, the hcl
+expression.Value(ctx) fails because all symbols must be populated in the context
+and this is obviously not possible for generating arbitrary code.
+
+The solution here involves lexing/scanning the expression bytes into tokens,
+then parsing them and evaluating the terramate symbols as they are found,
+rewriting the token stream with the primitive values, and keeping everything
+else untouched.
 */
-
-// node represents a grammar node but in terms of its original source tokens and
-// the rewritten (evaluated) ones.
-type node struct {
-	source    hclwrite.Tokens
-	evaluated hclwrite.Tokens
-
-	hasCond bool
-	hasOp   bool
-}
-
-type nodestack struct {
-	elems []*node
-}
 
 type engine struct {
 	tokens hclwrite.Tokens
@@ -83,18 +88,24 @@ type engine struct {
 	nparen int
 }
 
-func newPartialEngine(tokens hclwrite.Tokens, ctx *Context) *engine {
+// node represents a grammar node but in terms of its original source tokens and
+// the rewritten (evaluated) ones.
+type node struct {
+	source    hclwrite.Tokens
+	evaluated hclwrite.Tokens
+
+	hasCond bool
+	hasOp   bool
+}
+
+func newPartialEvalEngine(tokens hclwrite.Tokens, ctx *Context) *engine {
 	return &engine{
 		tokens: tokens,
 		ctx:    ctx,
 	}
 }
 
-// PartialEval evaluates only the terramate variable expressions from the list
-// of tokens, leaving all the rest as-is. It returns a modified list of tokens
-// with  no reference to terramate namespaced variables (globals and terramate)
-// and functions (tm_ prefixed functions).
-func (e *engine) PartialEval() (hclwrite.Tokens, error) {
+func (e *engine) Eval() (hclwrite.Tokens, error) {
 	e.newnode()
 	for e.hasTokens() {
 		err := e.evalExpr()
@@ -131,6 +142,7 @@ func (e *engine) newnode() (int, *node) {
 	return e.evalstack.len(), n
 }
 
+// commit the last node into the previous one.
 func (e *engine) commit() {
 	if e.evalstack.len() == 1 {
 		panic("everything committed")
@@ -1288,6 +1300,10 @@ func (n *node) pushEvaluated(toks ...*hclwrite.Token) {
 
 func (n *node) pushSource(toks ...*hclwrite.Token) {
 	n.source = append(n.source, toks...)
+}
+
+type nodestack struct {
+	elems []*node
 }
 
 func (s *nodestack) push(n *node) {

@@ -88,6 +88,10 @@ func (c *Context) Eval(expr hclsyntax.Expression) (cty.Value, error) {
 	return val, nil
 }
 
+// PartialEval evaluates only the terramate variable expressions from the list
+// of tokens, leaving all the rest as-is. It returns a modified list of tokens
+// with  no reference to terramate namespaced variables (globals and terramate)
+// and functions (tm_ prefixed functions).
 func (c *Context) PartialEval(expr hclsyntax.Expression) (hclwrite.Tokens, error) {
 	exprFname := expr.Range().Filename
 	filedata, err := ioutil.ReadFile(exprFname)
@@ -102,8 +106,8 @@ func (c *Context) PartialEval(expr hclsyntax.Expression) (hclwrite.Tokens, error
 		return nil, fmt.Errorf("failed to scan expression bytes: %w", diags)
 	}
 
-	engine := newPartialEngine(toWriteTokens(stokens), c)
-	return engine.PartialEval()
+	engine := newPartialEvalEngine(toWriteTokens(stokens), c)
+	return engine.Eval()
 }
 
 func toWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {
