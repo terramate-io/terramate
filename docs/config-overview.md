@@ -5,7 +5,7 @@ ranging from avoiding duplication by leveraging powerful
 code generation to flexible orchestration by allowing control
 of stacks order of execution.
 
-In order to do so, Terramate works with configuration files that
+To do so, Terramate works with configuration files that
 have the suffixes:
 
 * `tm`
