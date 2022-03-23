@@ -116,7 +116,7 @@ func (e *engine) Eval() (hclwrite.Tokens, error) {
 	}
 
 	if e.evalstack.len() != 1 {
-		panic("invalid result stack size")
+		panic(errorf("eval stack size must always be 1 but got %d", e.evalstack.len()))
 	}
 
 	root := e.evalstack.pop()
