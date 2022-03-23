@@ -1982,6 +1982,33 @@ func TestPartialEval(t *testing.T) {
 				expr("a", "(A(). \n*)"),
 			),
 		},
+		{
+			name: "funcall and newlines",
+			config: hcldoc(
+				expr("a", "funcall(\na,b\n)"),
+			),
+			want: hcldoc(
+				expr("a", "funcall(\na,b\n)"),
+			),
+		},
+		{
+			name: "funcall and newlines/comments",
+			config: hcldoc(
+				expr("a", "funcall(\n/**/a\n/**/,/**/b/**/\n/**/)"),
+			),
+			want: hcldoc(
+				expr("a", "funcall(\n/**/a\n/**/,/**/b/**/\n/**/)"),
+			),
+		},
+		{
+			name: "objects and newlines/comments",
+			config: hcldoc(
+				expr("a", "{/**/\n/**/a/**/=/**/\"a\"/**/\n}"),
+			),
+			want: hcldoc(
+				expr("a", "{/**/\n/**/a/**/=/**/\"a\"/**/\n}"),
+			),
+		},
 	}
 
 	for _, tcase := range tcases {
