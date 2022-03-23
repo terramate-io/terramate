@@ -15,7 +15,7 @@ Terramate files can be found in any directory of a Terramate project and
 all the files in a single directory will be handled as the concatenation
 of all of them in a single file, forming a single **configuration**.
 
-A Terramate project is essentially any collection of Terraform code
+A Terramate project is essentially a collection of Terraform code
 organized into stacks. The stacks can also reference local modules
 inside the project or remote ones.
 
