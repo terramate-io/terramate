@@ -1992,6 +1992,15 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
+			name: "tm_ funcall and newlines/comments",
+			config: hcldoc(
+				expr("a", "tm_try(\n/**/a\n/**/,/**/b, null/**/\n/**/)"),
+			),
+			want: hcldoc(
+				expr("a", "null"),
+			),
+		},
+		{
 			name: "objects and newlines/comments",
 			config: hcldoc(
 				expr("a", "{/**/\n/**/a/**/=/**/\"a\"/**/\n}"),
