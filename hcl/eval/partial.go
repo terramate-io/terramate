@@ -163,7 +163,7 @@ func (e *engine) commit() {
 }
 
 func (e *engine) emit() {
-	tos := e.evalstack.top()
+	tos := e.evalstack.peek()
 	tos.push(e.peek())
 	e.pos++
 }
@@ -175,7 +175,7 @@ func (e *engine) emitn(n int) {
 }
 
 func (e *engine) emitVariable(v variable) {
-	tos := e.evalstack.top()
+	tos := e.evalstack.peek()
 	tos.pushEvaluated(v.alltokens()...)
 	for i := 0; i < v.size(); i++ {
 		tos.source = append(tos.source, e.peek())
@@ -184,7 +184,7 @@ func (e *engine) emitVariable(v variable) {
 }
 
 func (e *engine) emitTokens(source hclwrite.Tokens, evaluated hclwrite.Tokens) {
-	tos := e.evalstack.top()
+	tos := e.evalstack.peek()
 	tos.pushEvaluated(evaluated...)
 	tos.pushSource(source...)
 }
@@ -1036,7 +1036,7 @@ func (e *engine) evalString() error {
 	// we merge subsequent string interpolation into previous (last) TokenQuotedLit.
 	var last *hclwrite.Token
 	for i := stacksize; i < e.evalstack.len(); i++ {
-		elem := e.evalstack.peek(i)
+		elem := e.evalstack.peekn(i)
 		switch elem.evaluated[0].Type {
 		case hclsyntax.TokenOBrace, hclsyntax.TokenOBrack:
 			return errutil.Chain(
@@ -1044,7 +1044,7 @@ func (e *engine) evalString() error {
 				errorf("serialization of collection value is not supported"),
 			)
 		case hclsyntax.TokenQuotedLit:
-			if len(e.evalstack.peek(i).evaluated) > 1 {
+			if len(elem.evaluated) > 1 {
 				panic("unexpected case")
 			}
 
@@ -1307,11 +1307,11 @@ func (s *nodestack) pop() *node {
 	return top
 }
 
-func (s *nodestack) top() *node {
-	return s.peek(s.len() - 1)
+func (s *nodestack) peek() *node {
+	return s.peekn(s.len() - 1)
 }
 
-func (s *nodestack) peek(pos int) *node {
+func (s *nodestack) peekn(pos int) *node {
 	return s.nodes[pos]
 }
 
