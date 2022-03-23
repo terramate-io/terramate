@@ -18,7 +18,7 @@ Using the method above, all commits (except first) in the default branch
 are merge commits, which provides us with an easy way of detecting
 which stacks in the current feature branch differ from the main branch.
 
-The technique is super simple and consists of finding the common ancestor
-between the current branch and the default branch (most commonly the commit that
-current branch forked from) and then list the files that have changed since then
-and filter the ones that are part of terraform stacks.
+This technique is simple and consists of finding the common ancestor
+between the current branch and the default branch (most commonly
+the commit that the current branch forked from) and then list the files
+that have changed since then and filter the ones that are part of Terraform stacks.
