@@ -1983,15 +1983,6 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			name: "funcall and newlines",
-			config: hcldoc(
-				expr("a", "funcall(\na,b\n)"),
-			),
-			want: hcldoc(
-				expr("a", "funcall(\na,b\n)"),
-			),
-		},
-		{
 			name: "funcall and newlines/comments",
 			config: hcldoc(
 				expr("a", "funcall(\n/**/a\n/**/,/**/b/**/\n/**/)"),
@@ -2007,6 +1998,15 @@ func TestPartialEval(t *testing.T) {
 			),
 			want: hcldoc(
 				expr("a", "{/**/\n/**/a/**/=/**/\"a\"/**/\n}"),
+			),
+		},
+		{
+			name: "lists and newlines/comments",
+			config: hcldoc(
+				expr("a", "[/**/\n/**/a/**/\n,\"a\"/**/\n]"),
+			),
+			want: hcldoc(
+				expr("a", "[/**/\n/**/a/**/\n,\"a\"/**/\n]"),
 			),
 		},
 	}
