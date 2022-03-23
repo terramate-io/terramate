@@ -31,7 +31,7 @@ started in a non-intrusive way.
 * Change detection, including for local modules used by stacks.
 * All done with [HCL](https://github.com/hashicorp/hcl).
 
-For more details on how this is achieved you can check:
+For more details on how this is achieved, please consider:
 
 * [Why Stacks ?](docs/why-stacks.md)
 * [Change Detection](docs/change-detection.md)
