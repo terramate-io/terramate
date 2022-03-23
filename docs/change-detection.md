@@ -10,7 +10,7 @@ Terramate comes with support for change detection by imposing the following work
 2. Changes that should be planned and applied should be added through a feature or bugfix branch.
 3. The IaC project must use [non
   fast-forwarded](https://git-scm.com/docs/git-merge#_fast_forward_merge) merge
-  commits. (the default in github and bitbucket).
+  commits. (the default in GitHub and Bitbucket).
 
 ## Why this workflow?
 
