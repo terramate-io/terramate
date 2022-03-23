@@ -919,7 +919,7 @@ func (e *engine) evalInterp() error {
 	}
 
 	needsEval := func(n *node) bool {
-		if isSameTokens(n.source, n.evaluated) {
+		if areSameTokens(n.source, n.evaluated) {
 			return true
 		}
 
@@ -1256,8 +1256,7 @@ func isTmFuncall(tok *hclwrite.Token) bool {
 		strings.HasPrefix(string(tok.Bytes), "tm_")
 }
 
-func isSameTokens(a, b hclwrite.Tokens) bool {
-	//fmt.Printf("len(a): %d, len(b): %d: `%s` != `%s`\n", len(a), len(b), a.Bytes(), b.Bytes())
+func areSameTokens(a, b hclwrite.Tokens) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -1265,11 +1264,9 @@ func isSameTokens(a, b hclwrite.Tokens) bool {
 	for i := 0; i < len(a); i++ {
 		if b[i].Type != a[i].Type ||
 			string(b[i].Bytes) != string(a[i].Bytes) {
-			//fmt.Printf("a[%d] != b[%d]: `%s` != `%s`\n", i, i, a[i].Bytes, b[i].Bytes)
 			return false
 		}
 	}
-	//fmt.Printf("are the same\n")
 	return true
 }
 
