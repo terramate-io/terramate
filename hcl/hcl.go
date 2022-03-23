@@ -17,7 +17,6 @@ package hcl
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -365,23 +364,9 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context)
 
 		logger.Trace().Msg("evaluating.")
 
-		attrFname := attr.SrcRange.Filename
-		filedata, err := ioutil.ReadFile(attrFname)
+		tokens, err := evalctx.PartialEval(attr.Expr)
 		if err != nil {
-			return err
-		}
-
-		exprRange := attr.Expr.Range()
-		exprBytes := filedata[exprRange.Start.Byte:exprRange.End.Byte]
-		stokens, diags := hclsyntax.LexExpression(exprBytes, attrFname, hcl.Pos{})
-		if diags.HasErrors() {
-			return diags
-		}
-
-		engine := eval.NewEngine(toWriteTokens(stokens), evalctx)
-		tokens, err := engine.PartialEval()
-		if err != nil {
-			return err
+			return fmt.Errorf("failed to evaluate expression: %w", err)
 		}
 
 		logger.Trace().
@@ -404,17 +389,6 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context)
 	}
 
 	return nil
-}
-
-func toWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {
-	tokens := make([]*hclwrite.Token, len(in))
-	for i, st := range in {
-		tokens[i] = &hclwrite.Token{
-			Type:  st.Type,
-			Bytes: st.Bytes,
-		}
-	}
-	return tokens
 }
 
 func sortedAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {

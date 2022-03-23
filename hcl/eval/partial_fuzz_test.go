@@ -14,7 +14,7 @@
 
 //go:build go1.18
 
-package eval_test
+package eval
 
 import (
 	"fmt"
@@ -27,7 +27,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/hcl/eval"
+
 	tmhclwrite "github.com/mineiros-io/terramate/test/hclwrite"
 )
 
@@ -77,7 +77,7 @@ func FuzzPartialEval(f *testing.F) {
 		}
 
 		want := toWriteTokens(parsedTokens)
-		engine := eval.NewEngine(want, eval.NewContext(""))
+		engine := newPartialEngine(want, NewContext(""))
 		got, err := engine.PartialEval()
 
 		if strings.Contains(cfgString, "global.") || strings.Contains(cfgString, "terramate.") {
@@ -111,17 +111,6 @@ func tokensStr(t hclwrite.Tokens) string {
 		tokensStrs[i] = fmt.Sprintf("{Type=%q Bytes=%s}", token.Type, token.Bytes)
 	}
 	return "[" + strings.Join(tokensStrs, ",") + "]"
-}
-
-func toWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {
-	tokens := make([]*hclwrite.Token, len(in))
-	for i, st := range in {
-		tokens[i] = &hclwrite.Token{
-			Type:  st.Type,
-			Bytes: st.Bytes,
-		}
-	}
-	return tokens
 }
 
 func hcldoc(builders ...tmhclwrite.BlockBuilder) *tmhclwrite.Block {
