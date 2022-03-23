@@ -96,7 +96,7 @@ func (c *Context) PartialEval(expr hclsyntax.Expression) (hclwrite.Tokens, error
 	exprFname := expr.Range().Filename
 	filedata, err := ioutil.ReadFile(exprFname)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("reading expression from file: %v", err)
 	}
 
 	exprRange := expr.Range()
