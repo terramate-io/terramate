@@ -66,6 +66,10 @@ type node struct {
 	hasOp   bool
 }
 
+type nodestack struct {
+	elems []*node
+}
+
 type engine struct {
 	tokens hclwrite.Tokens
 	pos    int
@@ -74,7 +78,7 @@ type engine struct {
 	// evalstack is a stack of evaluated nodes.
 	// The engine walks through the token list evaluating them as needed into a
 	// separated node struct placed in this stack.
-	evalstack []*node
+	evalstack nodestack
 
 	nparen int
 }
@@ -100,11 +104,12 @@ func (e *engine) PartialEval() (hclwrite.Tokens, error) {
 		e.commit()
 	}
 
-	if len(e.evalstack) != 1 {
-		panic("invalid number of scratch spaces")
+	if e.evalstack.len() != 1 {
+		panic("invalid result stack size")
 	}
 
-	return e.evalstack[0].evaluated, nil
+	root := e.evalstack.pop()
+	return root.evaluated, nil
 }
 
 func (e *engine) hasTokens() bool {
@@ -119,37 +124,35 @@ func (e *engine) peekn(n int) *hclwrite.Token {
 	return e.tokens[e.pos+n]
 }
 
-// newnode creates a pushes a new node into the evaluation stack.
+// newnode creates and pushes a new node into the evaluation stack.
 func (e *engine) newnode() (int, *node) {
 	n := &node{}
-	e.evalstack = append(e.evalstack, n)
-	return e.tailpos(), n
+	e.evalstack.push(n)
+	return e.evalstack.len(), n
 }
 
 func (e *engine) commit() {
-	if e.tailpos() == e.headpos() {
+	if e.evalstack.len() == 1 {
 		panic("everything committed")
 	}
 
-	tail := e.tail()
+	tos := e.evalstack.pop()
+	merge := e.evalstack.pop()
 
-	mergeat := e.tailpos() - 1
-	merge := e.evalstack[mergeat]
-	merge.pushfrom(tail)
-	if tail.hasCond {
+	merge.pushfrom(tos)
+	if tos.hasCond {
 		merge.hasCond = true
 	}
-	if tail.hasOp {
+	if tos.hasOp {
 		merge.hasOp = true
 	}
-	e.evalstack = e.evalstack[e.headpos() : mergeat+1]
+
+	e.evalstack.push(merge)
 }
 
-func (e *engine) tail() *node { return e.evalstack[e.tailpos()] }
-
 func (e *engine) emit() {
-	tail := e.tail()
-	tail.push(e.peek())
+	tos := e.evalstack.top()
+	tos.push(e.peek())
 	e.pos++
 }
 
@@ -160,23 +163,29 @@ func (e *engine) emitn(n int) {
 }
 
 func (e *engine) emitVariable(v variable) {
-	tail := e.tail()
-	tail.pushEvaluated(v.alltokens()...)
+	tos := e.evalstack.top()
+	tos.pushEvaluated(v.alltokens()...)
 	for i := 0; i < v.size(); i++ {
-		tail.source = append(tail.source, e.peek())
+		tos.source = append(tos.source, e.peek())
 		e.pos++
 	}
 }
 
 func (e *engine) emitTokens(source hclwrite.Tokens, evaluated hclwrite.Tokens) {
-	tail := e.tail()
-	tail.evaluated = append(tail.evaluated, evaluated...)
-	tail.source = append(tail.source, source...)
+	tos := e.evalstack.top()
+	tos.pushEvaluated(evaluated...)
+	tos.pushSource(source...)
 }
 
 func (e *engine) emitnl() {
 	for e.hasTokens() && (e.peek().Type == hclsyntax.TokenNewline ||
 		e.peek().Type == hclsyntax.TokenComment) {
+		e.emit()
+	}
+}
+
+func (e *engine) emitComments() {
+	for e.hasTokens() && e.peek().Type == hclsyntax.TokenComment {
 		e.emit()
 	}
 }
@@ -196,14 +205,23 @@ func (e *engine) skipNewLines(from int) int {
 	return i
 }
 
+func (e *engine) skipComments(from int) int {
+	i := from
+	for e.hasTokens() && e.peekn(i).Type == hclsyntax.TokenComment {
+		i++
+	}
+	return i
+}
+
 func (e *engine) evalExpr() error {
 	_, thisNode := e.newnode()
 
 loop:
 	for {
 		e.emitnlparens()
-		switch e.peek().Type {
-		case hclsyntax.TokenBang, hclsyntax.TokenMinus, hclsyntax.TokenComment:
+		e.emitComments()
+		switch t := e.peek().Type; {
+		case isUnaryOp(t):
 			e.emit()
 		default:
 			break loop
@@ -317,6 +335,7 @@ loop:
 	}
 
 	e.emitnlparens()
+	e.emitComments()
 
 	// exprTerm INDEX,GETATTR,SPLAT (expression acessors)
 	tok = e.peek()
@@ -330,6 +349,7 @@ loop:
 	}
 
 	e.emitnlparens()
+	e.emitComments()
 
 	// operation && conditional
 
@@ -402,7 +422,9 @@ func (e *engine) evalAcessors() error {
 
 			pos := 1
 			if e.nparen > 0 {
-				pos = e.skipNewLines(1)
+				pos = e.skipNewLines(pos)
+			} else {
+				pos = e.skipComments(pos)
 			}
 			next := e.peekn(pos)
 			if next.Type == hclsyntax.TokenStar {
@@ -420,6 +442,7 @@ func (e *engine) evalAcessors() error {
 			}
 
 			e.emitnlparens()
+			e.emitComments()
 
 			if !parsed {
 				panic("unexpected acessor sequence")
@@ -440,6 +463,7 @@ func (e *engine) evalIndex() error {
 
 	e.emit()
 	e.emitnlparens()
+	e.emitComments()
 	if e.peek().Type == hclsyntax.TokenStar {
 		// splat: <expr>[*]
 		e.emit()
@@ -452,6 +476,7 @@ func (e *engine) evalIndex() error {
 	}
 
 	e.emitnlparens()
+	e.emitComments()
 
 	tok = e.peek()
 	if tok.Type != hclsyntax.TokenCBrack {
@@ -460,6 +485,7 @@ func (e *engine) evalIndex() error {
 
 	e.emit()
 	e.emitnlparens()
+	e.emitComments()
 	tok = e.peek()
 	switch tok.Type {
 	case hclsyntax.TokenOBrack, hclsyntax.TokenDot:
@@ -483,6 +509,7 @@ func (e *engine) evalGetAttr() error {
 
 	e.emit()
 	e.emitnlparens()
+	e.emitComments()
 	tok := e.peek()
 	if tok.Type == hclsyntax.TokenIdent ||
 		tok.Type == hclsyntax.TokenNumberLit {
@@ -906,7 +933,7 @@ func (e *engine) evalInterp() error {
 		return false
 	}
 
-	n := e.tail()
+	n := e.evalstack.pop()
 	rewritten := &node{}
 
 	shouldEmitInterp := isCombinedExpr(n) || needsEval(n)
@@ -921,12 +948,12 @@ func (e *engine) evalInterp() error {
 		rewritten.push(interpClose)
 	}
 
-	e.evalstack[e.tailpos()] = rewritten
+	e.evalstack.push(rewritten)
 	return nil
 }
 
 func (e *engine) evalString() error {
-	nodePos, _ := e.newnode()
+	stacksize, _ := e.newnode()
 	tok := e.peek()
 	if tok.Type != hclsyntax.TokenOQuote {
 		return errorf("bug: not a quoted string")
@@ -968,14 +995,16 @@ func (e *engine) evalString() error {
 	// - "${a}"
 	// - "${0}"
 	// - "${global.something}"
-	if e.tailpos()-nodePos == 1 {
+	if e.evalstack.len()-stacksize == 1 {
 		e.commit()
-		tail := e.tail()
-		switch tail.evaluated[0].Type {
+		tos := e.evalstack.pop()
+		switch tos.evaluated[0].Type {
 		case hclsyntax.TokenQuotedLit, hclsyntax.TokenTemplateInterp:
-			rewritten.pushfrom(e.tail())
+			rewritten.pushfrom(tos)
 			rewritten.push(tokenCQuote())
-			e.evalstack[e.tailpos()] = rewritten
+			e.evalstack.push(rewritten)
+		default:
+			e.evalstack.push(tos)
 		}
 
 		return nil
@@ -999,66 +1028,68 @@ func (e *engine) evalString() error {
 
 	// we merge subsequent string interpolation into previous (last) TokenQuotedLit.
 	var last *hclwrite.Token
-	for i := nodePos + 1; i <= e.tailpos(); i++ {
-		switch e.evalstack[i].evaluated[0].Type {
+	for i := stacksize; i < e.evalstack.len(); i++ {
+		elem := e.evalstack.peek(i)
+		switch elem.evaluated[0].Type {
 		case hclsyntax.TokenOBrace, hclsyntax.TokenOBrack:
 			return errutil.Chain(
 				ErrInterpolationEval,
 				errorf("serialization of collection value is not supported"),
 			)
 		case hclsyntax.TokenQuotedLit:
-			if len(e.evalstack[i].evaluated) > 1 {
+			if len(e.evalstack.peek(i).evaluated) > 1 {
 				panic("unexpected case")
 			}
 
-			rewritten.pushfrom(e.evalstack[i])
+			rewritten.pushfrom(elem)
 			last = rewritten.evaluated[len(rewritten.evaluated)-1]
 		case hclsyntax.TokenTemplateInterp:
-			rewritten.pushfrom(e.evalstack[i])
+			rewritten.pushfrom(elem)
 			last = rewritten.evaluated[len(rewritten.evaluated)-1]
 		case hclsyntax.TokenNumberLit, hclsyntax.TokenIdent:
-			if len(e.evalstack[i].evaluated) > 1 {
+			if len(elem.evaluated) > 1 {
 				panic("expects one part")
 			}
 
 			if last == nil {
 				rewritten.pushEvaluated(&hclwrite.Token{
 					Type:  hclsyntax.TokenQuotedLit,
-					Bytes: e.evalstack[i].evaluated[0].Bytes,
+					Bytes: elem.evaluated[0].Bytes,
 				})
-				rewritten.pushSource(e.evalstack[i].source...)
+				rewritten.pushSource(elem.source...)
 				last = rewritten.evaluated[len(rewritten.evaluated)-1]
 			} else {
-				last.Bytes = append(last.Bytes, e.evalstack[i].evaluated[0].Bytes...)
+				last.Bytes = append(last.Bytes, elem.evaluated[0].Bytes...)
 			}
 
 		case hclsyntax.TokenOQuote:
-			if len(e.evalstack[i].evaluated) != 3 {
+			if len(elem.evaluated) != 3 {
 				panic(sprintf(
 					"unexpected string case: %s (%d)",
-					e.evalstack[i].evaluated.Bytes(), len(e.evalstack[i].evaluated)))
+					elem.evaluated.Bytes(),
+					len(elem.evaluated)))
 			}
 
 			if last == nil {
 				rewritten.pushEvaluated(&hclwrite.Token{
 					Type:  hclsyntax.TokenQuotedLit,
-					Bytes: e.evalstack[i].evaluated[1].Bytes,
+					Bytes: elem.evaluated[1].Bytes,
 				})
-				rewritten.pushSource(e.evalstack[i].source...)
+				rewritten.pushSource(elem.source...)
 				last = rewritten.evaluated[len(rewritten.evaluated)-1]
 			} else {
-				last.Bytes = append(last.Bytes, e.evalstack[i].evaluated[1].Bytes...)
+				last.Bytes = append(last.Bytes, elem.evaluated[1].Bytes...)
 			}
 
 		default:
 			panic(sprintf("unexpected interpolation type: %s (%s)",
-				e.evalstack[i].evaluated[0].Bytes, e.evalstack[i].evaluated[0].Type))
+				elem.evaluated[0].Bytes, elem.evaluated[0].Type))
 		}
 	}
 
 	rewritten.push(tokenCQuote())
-	e.evalstack[nodePos] = rewritten
-	e.evalstack = e.evalstack[e.headpos() : nodePos+1]
+	e.evalstack.elems[stacksize-1] = rewritten
+	e.evalstack.elems = e.evalstack.elems[0:stacksize]
 
 	return nil
 }
@@ -1078,6 +1109,8 @@ func (e *engine) parseVariable(tokens hclwrite.Tokens) (v variable, found bool) 
 	for pos < len(tokens) {
 		if e.nparen > 0 {
 			pos = e.skipNewLines(pos)
+		} else {
+			pos = e.skipComments(pos)
 		}
 
 		tok := tokens[pos]
@@ -1170,23 +1203,6 @@ func (e *engine) canEvaluateIdent() bool {
 	return next.Type == hclsyntax.TokenDot || next.Type == hclsyntax.TokenOParen
 }
 
-func (e *engine) headpos() int {
-	if len(e.evalstack) == 0 {
-		panic("no evaluated elements")
-	}
-	return 0
-}
-
-func (e *engine) tailpos() int {
-	var pos int
-	if len(e.evalstack) > 0 {
-		pos = len(e.evalstack) - 1
-	} else {
-		pos = 0
-	}
-	return pos
-}
-
 func isCmpOp(t hclsyntax.TokenType) bool {
 	switch t {
 	case hclsyntax.TokenEqualOp, hclsyntax.TokenNotEqual,
@@ -1220,6 +1236,12 @@ func isBinOp(t hclsyntax.TokenType) bool {
 		return true
 	}
 	return false
+}
+
+func isUnaryOp(t hclsyntax.TokenType) bool {
+	return t == hclsyntax.TokenBang ||
+		t == hclsyntax.TokenMinus ||
+		t == hclsyntax.TokenPlus
 }
 
 func isForExpr(tok *hclwrite.Token) bool {
@@ -1267,6 +1289,29 @@ func (n *node) pushEvaluated(toks ...*hclwrite.Token) {
 func (n *node) pushSource(toks ...*hclwrite.Token) {
 	n.source = append(n.source, toks...)
 }
+
+func (s *nodestack) push(n *node) {
+	s.elems = append(s.elems, n)
+}
+
+func (s *nodestack) pop() *node {
+	if len(s.elems) <= 0 {
+		panic("popping on an empty stack")
+	}
+	top := s.elems[len(s.elems)-1]
+	s.elems = s.elems[:len(s.elems)-1]
+	return top
+}
+
+func (s *nodestack) top() *node {
+	return s.peek(s.len() - 1)
+}
+
+func (s *nodestack) peek(pos int) *node {
+	return s.elems[pos]
+}
+
+func (s *nodestack) len() int { return len(s.elems) }
 
 // variable is a low-level representation of a variable in terms of tokens.
 type variable struct {
