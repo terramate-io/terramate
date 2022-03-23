@@ -56,9 +56,14 @@ Here be dragons. Thou art forewarned
           `  `
 */
 
+// node represents a grammar node but in terms of its original source tokens and
+// the rewritten (evaluated) ones.
 type node struct {
-	tokens    hclwrite.Tokens
+	source    hclwrite.Tokens
 	evaluated hclwrite.Tokens
+
+	hasCond bool
+	hasOp   bool
 }
 
 type engine struct {
@@ -110,9 +115,10 @@ func (e *engine) peekn(n int) *hclwrite.Token {
 	return e.tokens[e.pos+n]
 }
 
-func (e *engine) newnode() int {
-	e.evaluated = append(e.evaluated, &node{})
-	return e.tailpos()
+func (e *engine) newnode() (int, *node) {
+	n := &node{}
+	e.evaluated = append(e.evaluated, n)
+	return e.tailpos(), n
 }
 
 func (e *engine) commit() {
@@ -125,7 +131,7 @@ func (e *engine) commit() {
 	mergeat := e.tailpos() - 1
 	merge := e.evaluated[mergeat]
 	merge.evaluated = append(merge.evaluated, tail.evaluated...)
-	merge.tokens = append(merge.tokens, tail.tokens...)
+	merge.source = append(merge.source, tail.source...)
 	e.evaluated = e.evaluated[e.headpos() : mergeat+1]
 }
 
@@ -134,7 +140,7 @@ func (e *engine) tail() *node { return e.evaluated[e.tailpos()] }
 func (e *engine) emit() {
 	tail := e.tail()
 	tail.evaluated = append(tail.evaluated, e.peek())
-	tail.tokens = append(tail.tokens, e.peek())
+	tail.source = append(tail.source, e.peek())
 	e.pos++
 }
 
@@ -148,7 +154,7 @@ func (e *engine) emitVariable(v variable) {
 	tail := e.tail()
 	tail.evaluated = append(tail.evaluated, v.alltokens()...)
 	for i := 0; i < v.size(); i++ {
-		tail.tokens = append(tail.tokens, e.peek())
+		tail.source = append(tail.source, e.peek())
 		e.pos++
 	}
 }
@@ -156,7 +162,7 @@ func (e *engine) emitVariable(v variable) {
 func (e *engine) emitTokens(source hclwrite.Tokens, evaluated hclwrite.Tokens) {
 	tail := e.tail()
 	tail.evaluated = append(tail.evaluated, evaluated...)
-	tail.tokens = append(tail.tokens, source...)
+	tail.source = append(tail.source, source...)
 }
 
 func (e *engine) emitnl() {
@@ -182,7 +188,7 @@ func (e *engine) skipNewLines(from int) int {
 }
 
 func (e *engine) evalExpr() error {
-	e.newnode()
+	_, thisNode := e.newnode()
 
 loop:
 	for {
@@ -301,43 +307,15 @@ loop:
 
 	e.emitnlparens()
 
-	// exprTerm INDEX,GETATTR,SPLAT
+	// exprTerm INDEX,GETATTR,SPLAT (expression acessors)
 	tok = e.peek()
 	switch tok.Type {
-	case hclsyntax.TokenOBrack:
-		err := e.evalIndex()
+	case hclsyntax.TokenOBrack, hclsyntax.TokenDot:
+		err := e.evalAcessors()
 		if err != nil {
 			return err
 		}
 		e.commit()
-	case hclsyntax.TokenDot:
-		parsed := false
-		for e.peek().Type == hclsyntax.TokenDot {
-			pos := 1
-			if e.nparen > 0 {
-				pos = e.skipNewLines(1)
-			}
-			next := e.peekn(pos)
-			if next.Type == hclsyntax.TokenStar {
-				e.emitn(pos + 1)
-				parsed = true
-			}
-
-			if e.peek().Type == hclsyntax.TokenDot {
-				err := e.evalGetAttr()
-				if err != nil {
-					return err
-				}
-				e.commit()
-				parsed = true
-			}
-
-			e.emitnlparens()
-
-			if !parsed {
-				break
-			}
-		}
 	}
 
 	e.emitnlparens()
@@ -345,11 +323,8 @@ loop:
 	// operation && conditional
 
 	tok = e.peek()
-	switch tok.Type {
-	case hclsyntax.TokenEqualOp, hclsyntax.TokenNotEqual,
-		hclsyntax.TokenLessThan, hclsyntax.TokenLessThanEq,
-		hclsyntax.TokenGreaterThan, hclsyntax.TokenGreaterThanEq,
-		hclsyntax.TokenOr, hclsyntax.TokenAnd:
+	switch t := tok.Type; {
+	case isBinOp(t):
 		e.emit()
 		e.emitnlparens()
 		err := e.evalExpr()
@@ -357,17 +332,9 @@ loop:
 			return err
 		}
 		e.commit()
+		thisNode.hasOp = true
 
-	case hclsyntax.TokenPlus, hclsyntax.TokenMinus,
-		hclsyntax.TokenStar, hclsyntax.TokenSlash, hclsyntax.TokenPercent:
-		e.emit()
-		e.emitnlparens()
-		err := e.evalExpr()
-		if err != nil {
-			return err
-		}
-		e.commit()
-	case hclsyntax.TokenQuestion:
+	case t == hclsyntax.TokenQuestion:
 		e.emit()
 		e.emitnlparens()
 		err := e.evalExpr()
@@ -391,6 +358,62 @@ loop:
 			return err
 		}
 		e.commit()
+
+		thisNode.hasCond = true
+	}
+
+	return nil
+}
+
+func (e *engine) evalAcessors() error {
+	e.newnode()
+
+	tok := e.peek()
+	if tok.Type != hclsyntax.TokenOBrack &&
+		tok.Type != hclsyntax.TokenDot {
+		panic("not an acessor")
+	}
+
+	for e.hasTokens() {
+		tok := e.peek()
+		switch tok.Type {
+		default:
+			// parsed whole acessor sequence.
+			return nil
+		case hclsyntax.TokenOBrack:
+			err := e.evalIndex()
+			if err != nil {
+				return err
+			}
+			e.commit()
+		case hclsyntax.TokenDot:
+			parsed := false
+
+			pos := 1
+			if e.nparen > 0 {
+				pos = e.skipNewLines(1)
+			}
+			next := e.peekn(pos)
+			if next.Type == hclsyntax.TokenStar {
+				e.emitn(pos + 1)
+				parsed = true
+			}
+
+			if e.peek().Type == hclsyntax.TokenDot {
+				err := e.evalGetAttr()
+				if err != nil {
+					return err
+				}
+				e.commit()
+				parsed = true
+			}
+
+			e.emitnlparens()
+
+			if !parsed {
+				panic("unexpected acessor sequence")
+			}
+		}
 	}
 
 	return nil
@@ -424,15 +447,8 @@ func (e *engine) evalIndex() error {
 	e.emit()
 	tok = e.peek()
 	switch tok.Type {
-	case hclsyntax.TokenOBrack:
-		err := e.evalIndex()
-		if err != nil {
-			return err
-		}
-		e.commit()
-
-	case hclsyntax.TokenDot:
-		err := e.evalGetAttr()
+	case hclsyntax.TokenOBrack, hclsyntax.TokenDot:
+		err := e.evalAcessors()
 		if err != nil {
 			return err
 		}
@@ -835,7 +851,8 @@ func (e *engine) evalInterp() error {
 	// tokens are used in different grammar constructs (eg.: the ":" is by
 	// ConditionalExpr and ForExpr...).
 	// So for now we do a lazy (incorrect) check, but this needs to be improved.
-	isCombinedExpr := func(tokens hclwrite.Tokens) bool {
+	isCombinedExpr := func(n *node) bool {
+		tokens := n.evaluated
 		for i := 0; i < len(tokens); i++ {
 			switch tokens[i].Type {
 			// it's a shame that hclsyntax.TokenType are not integers
@@ -850,19 +867,15 @@ func (e *engine) evalInterp() error {
 		return false
 	}
 
-	// "${a}"
 	needsEval := func(n *node) bool {
-		tokens := n.tokens // ignore ${ and }
-		evaluated := n.evaluated
-
-		if isSameTokens(tokens, evaluated) {
+		if isSameTokens(n.source, n.evaluated) {
 			return true
 		}
 
-		for i := 0; i < len(evaluated)-2; i++ {
-			tok1 := evaluated[i]
-			tok2 := evaluated[i+1]
-			tok3 := evaluated[i+2]
+		for i := 0; i < len(n.evaluated)-2; i++ {
+			tok1 := n.evaluated[i]
+			tok2 := n.evaluated[i+1]
+			tok3 := n.evaluated[i+2]
 
 			if (tok1.Type == hclsyntax.TokenIdent &&
 				tok2.Type == hclsyntax.TokenDot &&
@@ -879,7 +892,7 @@ func (e *engine) evalInterp() error {
 	n := e.tail()
 	rewritten := hclwrite.Tokens{}
 
-	shouldEmitInterp := isCombinedExpr(n.evaluated) || needsEval(n)
+	shouldEmitInterp := isCombinedExpr(n) || needsEval(n)
 
 	if shouldEmitInterp {
 		rewritten = append(rewritten, tokenInterpBegin())
@@ -896,7 +909,7 @@ func (e *engine) evalInterp() error {
 }
 
 func (e *engine) evalString() error {
-	scratchPos := e.newnode()
+	scratchPos, _ := e.newnode()
 	tok := e.peek()
 	if tok.Type != hclsyntax.TokenOQuote {
 		return errorf("bug: not a quoted string")
@@ -1132,6 +1145,41 @@ func (e *engine) tailpos() int {
 		pos = 0
 	}
 	return pos
+}
+
+func isCmpOp(t hclsyntax.TokenType) bool {
+	switch t {
+	case hclsyntax.TokenEqualOp, hclsyntax.TokenNotEqual,
+		hclsyntax.TokenLessThan, hclsyntax.TokenLessThanEq,
+		hclsyntax.TokenGreaterThan, hclsyntax.TokenGreaterThanEq:
+		return true
+	}
+	return false
+}
+
+func isLogicOp(t hclsyntax.TokenType) bool {
+	switch t {
+	case hclsyntax.TokenOr, hclsyntax.TokenAnd, hclsyntax.TokenBang:
+		return true
+	}
+	return false
+}
+
+func isArithOp(t hclsyntax.TokenType) bool {
+	switch t {
+	case hclsyntax.TokenPlus, hclsyntax.TokenMinus,
+		hclsyntax.TokenStar, hclsyntax.TokenSlash, hclsyntax.TokenPercent:
+		return true
+	}
+	return false
+}
+
+func isBinOp(t hclsyntax.TokenType) bool {
+	switch {
+	case isCmpOp(t), isArithOp(t), isLogicOp(t):
+		return true
+	}
+	return false
 }
 
 func isForExpr(tok *hclwrite.Token) bool {
