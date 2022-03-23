@@ -20,7 +20,8 @@ organized into stacks. The stacks can also reference local modules
 inside the project or remote ones.
 
 It is not a hard requirement for Terramate to work that the project uses git 
-for version control, but features like change detection do depend on git to
+for version control (support to other VCS maybe added on the future),
+but features like change detection do depend on a VCS to
 work and will fail if this soft requirement is not met.
 
 In general, a Terramate project looks like this:
