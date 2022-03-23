@@ -16,8 +16,7 @@ all the files in a single directory will be handled as the concatenation
 of all of them in a single file, forming a single **configuration**.
 
 A Terramate project is essentially a collection of Terraform code
-organized into stacks. The stacks can also reference local modules
-inside the project or remote ones.
+organized into stacks.
 
 It is not a hard requirement for Terramate to work that the project uses git 
 for version control (support to other VCS maybe added on the future),
