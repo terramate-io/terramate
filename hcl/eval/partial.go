@@ -79,26 +79,6 @@ type engine struct {
 	nparen int
 }
 
-// pushfrom push the source and evaluated tokens from other node into this one.
-func (n *node) pushfrom(other *node) {
-	n.source = append(n.source, other.source...)
-	n.evaluated = append(n.evaluated, other.evaluated...)
-}
-
-// push the token into both source and evaluated.
-func (n *node) push(tok *hclwrite.Token) {
-	n.source = append(n.source, tok)
-	n.evaluated = append(n.evaluated, tok)
-}
-
-func (n *node) pushEvaluated(toks ...*hclwrite.Token) {
-	n.evaluated = append(n.evaluated, toks...)
-}
-
-func (n *node) pushSource(toks ...*hclwrite.Token) {
-	n.source = append(n.source, toks...)
-}
-
 func newPartialEngine(tokens hclwrite.Tokens, ctx *Context) *engine {
 	return &engine{
 		tokens: tokens,
@@ -139,6 +119,7 @@ func (e *engine) peekn(n int) *hclwrite.Token {
 	return e.tokens[e.pos+n]
 }
 
+// newnode creates a pushes a new node into the evaluation stack.
 func (e *engine) newnode() (int, *node) {
 	n := &node{}
 	e.evalstack = append(e.evalstack, n)
@@ -168,8 +149,7 @@ func (e *engine) tail() *node { return e.evalstack[e.tailpos()] }
 
 func (e *engine) emit() {
 	tail := e.tail()
-	tail.evaluated = append(tail.evaluated, e.peek())
-	tail.source = append(tail.source, e.peek())
+	tail.push(e.peek())
 	e.pos++
 }
 
@@ -181,7 +161,7 @@ func (e *engine) emitn(n int) {
 
 func (e *engine) emitVariable(v variable) {
 	tail := e.tail()
-	tail.evaluated = append(tail.evaluated, v.alltokens()...)
+	tail.pushEvaluated(v.alltokens()...)
 	for i := 0; i < v.size(); i++ {
 		tail.source = append(tail.source, e.peek())
 		e.pos++
@@ -459,6 +439,7 @@ func (e *engine) evalIndex() error {
 	}
 
 	e.emit()
+	e.emitnlparens()
 	if e.peek().Type == hclsyntax.TokenStar {
 		// splat: <expr>[*]
 		e.emit()
@@ -469,6 +450,8 @@ func (e *engine) evalIndex() error {
 		}
 		e.commit()
 	}
+
+	e.emitnlparens()
 
 	tok = e.peek()
 	if tok.Type != hclsyntax.TokenCBrack {
@@ -1263,6 +1246,26 @@ func isSameTokens(a, b hclwrite.Tokens) bool {
 	}
 	//fmt.Printf("are the same\n")
 	return true
+}
+
+// pushfrom push the source and evaluated tokens from other node into this one.
+func (n *node) pushfrom(other *node) {
+	n.source = append(n.source, other.source...)
+	n.evaluated = append(n.evaluated, other.evaluated...)
+}
+
+// push the token into both source and evaluated.
+func (n *node) push(tok *hclwrite.Token) {
+	n.source = append(n.source, tok)
+	n.evaluated = append(n.evaluated, tok)
+}
+
+func (n *node) pushEvaluated(toks ...*hclwrite.Token) {
+	n.evaluated = append(n.evaluated, toks...)
+}
+
+func (n *node) pushSource(toks ...*hclwrite.Token) {
+	n.source = append(n.source, toks...)
 }
 
 // variable is a low-level representation of a variable in terms of tokens.
