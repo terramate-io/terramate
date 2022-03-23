@@ -14,9 +14,9 @@ Terramate comes with support for change detection by imposing the following work
 
 ## Why this workflow?
 
-By using the method above all commits (except first) in the default branch are
-merge commits, then we have an easy way of detecting which stacks in the current
-feature branch differs from the main branch.
+Using the method above, all commits (except first) in the default branch
+are merge commits, which provides us with an easy way of detecting
+which stacks in the current feature branch differ from the main branch.
 
 The technique is super simple and consists of finding the common ancestor
 between the current branch and the default branch (most commonly the commit that
