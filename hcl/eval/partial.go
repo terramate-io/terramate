@@ -146,6 +146,12 @@ func (e *engine) commit() {
 	merge := e.evalstack[mergeat]
 	merge.add(tail.evaluated...)
 	merge.addsrc(tail.source...)
+	if tail.hasCond {
+		merge.hasCond = true
+	}
+	if tail.hasOp {
+		merge.hasOp = true
+	}
 	e.evalstack = e.evalstack[e.headpos() : mergeat+1]
 }
 
@@ -620,7 +626,7 @@ func (e *engine) evalObject() error {
 }
 
 func (e *engine) evalForExpr(matchOpenType, matchCloseType hclsyntax.TokenType) error {
-	e.newnode()
+	_, thisNode := e.newnode()
 	// { | [
 	tok := e.peek()
 	if tok.Type != matchOpenType {
@@ -639,12 +645,14 @@ func (e *engine) evalForExpr(matchOpenType, matchCloseType hclsyntax.TokenType) 
 	e.emit()
 	// { for <ident>,<ident>,...
 	for e.hasTokens() && string(e.peek().Bytes) != "in" {
+		e.emitnl()
 		tok = e.peek()
 		if tok.Type != hclsyntax.TokenIdent {
 			return errorf("invalid `for` expression: found %s", tok.Type)
 		}
 
 		e.emit()
+		e.emitnl()
 		tok = e.peek()
 		if tok.Type == hclsyntax.TokenComma {
 			e.emit()
@@ -663,10 +671,13 @@ func (e *engine) evalForExpr(matchOpenType, matchCloseType hclsyntax.TokenType) 
 	matchingCollectionTokens := 1
 	for e.hasTokens() && matchingCollectionTokens > 0 {
 		tok = e.peek()
-		if tok.Type == matchOpenType {
+		switch tok.Type {
+		case matchOpenType:
 			matchingCollectionTokens++
-		} else if tok.Type == matchCloseType {
+		case matchCloseType:
 			matchingCollectionTokens--
+		case hclsyntax.TokenQuestion:
+			thisNode.hasCond = true
 		}
 		v, found := e.parseVariable(e.tokens[e.pos:])
 		if found {
@@ -873,19 +884,7 @@ func (e *engine) evalInterp() error {
 	// ConditionalExpr and ForExpr...).
 	// So for now we do a lazy (incorrect) check, but this needs to be improved.
 	isCombinedExpr := func(n *node) bool {
-		tokens := n.evaluated
-		for i := 0; i < len(tokens); i++ {
-			switch tokens[i].Type {
-			// it's a shame that hclsyntax.TokenType are not integers
-			// organized/sorted by kind, so we can check by range...
-			case hclsyntax.TokenColon, hclsyntax.TokenQuestion, // conditional
-				hclsyntax.TokenAnd, hclsyntax.TokenOr, hclsyntax.TokenBang: // logical
-				// TODO(i4k): add the rest.
-
-				return true
-			}
-		}
-		return false
+		return n.hasCond || n.hasOp
 	}
 
 	needsEval := func(n *node) bool {
@@ -911,21 +910,24 @@ func (e *engine) evalInterp() error {
 	}
 
 	n := e.tail()
-	rewritten := hclwrite.Tokens{}
+	rewritten := &node{}
 
 	shouldEmitInterp := isCombinedExpr(n) || needsEval(n)
 
 	if shouldEmitInterp {
-		rewritten = append(rewritten, interpOpen)
+		rewritten.add(interpOpen)
+		rewritten.addsrc(interpOpen)
 	}
 
-	rewritten = append(rewritten, n.evaluated...)
+	rewritten.add(n.evaluated...)
+	rewritten.addsrc(n.source...)
 
 	if shouldEmitInterp {
-		rewritten = append(rewritten, interpClose)
+		rewritten.add(interpClose)
+		rewritten.addsrc(interpClose)
 	}
 
-	e.evalstack[e.tailpos()].evaluated = rewritten
+	e.evalstack[e.tailpos()] = rewritten
 	return nil
 }
 
@@ -979,6 +981,7 @@ func (e *engine) evalString() error {
 		switch tail.evaluated[0].Type {
 		case hclsyntax.TokenQuotedLit, hclsyntax.TokenTemplateInterp:
 			rewritten.add(e.tail().evaluated...)
+			rewritten.addsrc(e.tail().source...)
 			rewritten.add(tokenCQuote())
 			rewritten.addsrc(tokenCQuote())
 			e.evalstack[e.tailpos()] = rewritten
@@ -1241,7 +1244,7 @@ func isTmFuncall(tok *hclwrite.Token) bool {
 }
 
 func isSameTokens(a, b hclwrite.Tokens) bool {
-	fmt.Printf("len(a): %d, len(b): %d\n", len(a), len(b))
+	//fmt.Printf("len(a): %d, len(b): %d: `%s` != `%s`\n", len(a), len(b), a.Bytes(), b.Bytes())
 	if len(a) != len(b) {
 		return false
 	}
@@ -1249,11 +1252,11 @@ func isSameTokens(a, b hclwrite.Tokens) bool {
 	for i := 0; i < len(a); i++ {
 		if b[i].Type != a[i].Type ||
 			string(b[i].Bytes) != string(a[i].Bytes) {
-			fmt.Printf("a[%d] != b[%d]: `%s` != `%s`\n", i, i, a[i].Bytes, b[i].Bytes)
+			//fmt.Printf("a[%d] != b[%d]: `%s` != `%s`\n", i, i, a[i].Bytes, b[i].Bytes)
 			return false
 		}
 	}
-	fmt.Printf("are the same\n")
+	//fmt.Printf("are the same\n")
 	return true
 }
 
