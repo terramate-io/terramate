@@ -1,9 +1,9 @@
 # Terramate Configuration Overview
 
-There is a series of different configurations that can be done
-on Terramate, ranging from avoiding duplication by leveraging
-powerful code generation to flexible orchestration by allowing
-control of stacks order of execution.
+Different configurations can be done in Terramate,
+ranging from avoiding duplication by leveraging powerful
+code generation to flexible orchestration by allowing control
+of stacks order of execution.
 
 In order to do so, Terramate works with configuration files that
 have the suffixes:
