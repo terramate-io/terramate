@@ -6,7 +6,7 @@ states (per stack), how to apply the changes only to the affected resources?
 
 Terramate comes with support for change detection by imposing the following workflow:
 
-1. The default branch (commonly main) has the production (applied) code.
+1. The default branch (commonly `main`) is considered to be the stable branch that represents the deployed state of our IaC.
 2. Before planning and apply, the changes must be committed in a feature/bugfix
   branch.
 3. The IaC project must use [non
