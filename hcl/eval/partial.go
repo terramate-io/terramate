@@ -914,11 +914,6 @@ func (e *engine) evalInterp() error {
 	//   2. check if the expression is not fully evaluated.
 	//
 	// if any of the checks are true, then we need to emit the interp tokens.
-	//
-	// But there's no way to correctly check 1 without building a AST, as some
-	// tokens are used in different grammar constructs (eg.: the ":" is by
-	// ConditionalExpr and ForExpr...).
-	// So for now we do a lazy (incorrect) check, but this needs to be improved.
 	isCombinedExpr := func(n *node) bool {
 		return n.hasCond || n.hasOp
 	}
