@@ -101,12 +101,12 @@ func (c *Context) PartialEval(expr hclsyntax.Expression) (hclwrite.Tokens, error
 
 	exprRange := expr.Range()
 	exprBytes := filedata[exprRange.Start.Byte:exprRange.End.Byte]
-	stokens, diags := hclsyntax.LexExpression(exprBytes, exprFname, hcl.Pos{})
+	tokens, diags := hclsyntax.LexExpression(exprBytes, exprFname, hcl.Pos{})
 	if diags.HasErrors() {
 		return nil, fmt.Errorf("failed to scan expression bytes: %w", diags)
 	}
 
-	engine := newPartialEvalEngine(toWriteTokens(stokens), c)
+	engine := newPartialEvalEngine(toWriteTokens(tokens), c)
 	return engine.Eval()
 }
 
