@@ -79,14 +79,24 @@ type engine struct {
 	nparen int
 }
 
-// addsrc adds source token.
-func (n *node) addsrc(toks ...*hclwrite.Token) {
-	n.source = append(n.source, toks...)
+// pushfrom push the source and evaluated tokens from other node into this one.
+func (n *node) pushfrom(other *node) {
+	n.source = append(n.source, other.source...)
+	n.evaluated = append(n.evaluated, other.evaluated...)
 }
 
-// add evaluated token.
-func (n *node) add(toks ...*hclwrite.Token) {
+// push the token into both source and evaluated.
+func (n *node) push(tok *hclwrite.Token) {
+	n.source = append(n.source, tok)
+	n.evaluated = append(n.evaluated, tok)
+}
+
+func (n *node) pushEvaluated(toks ...*hclwrite.Token) {
 	n.evaluated = append(n.evaluated, toks...)
+}
+
+func (n *node) pushSource(toks ...*hclwrite.Token) {
+	n.source = append(n.source, toks...)
 }
 
 func newPartialEngine(tokens hclwrite.Tokens, ctx *Context) *engine {
@@ -144,8 +154,7 @@ func (e *engine) commit() {
 
 	mergeat := e.tailpos() - 1
 	merge := e.evalstack[mergeat]
-	merge.add(tail.evaluated...)
-	merge.addsrc(tail.source...)
+	merge.pushfrom(tail)
 	if tail.hasCond {
 		merge.hasCond = true
 	}
@@ -467,6 +476,7 @@ func (e *engine) evalIndex() error {
 	}
 
 	e.emit()
+	e.emitnlparens()
 	tok = e.peek()
 	switch tok.Type {
 	case hclsyntax.TokenOBrack, hclsyntax.TokenDot:
@@ -852,11 +862,15 @@ func (e *engine) evalInterp() error {
 
 	interpOpen := tok
 
+	e.nparen++
+
 	e.pos++
 	err := e.evalExpr()
 	if err != nil {
 		return err
 	}
+
+	e.nparen--
 
 	e.commit()
 
@@ -915,16 +929,13 @@ func (e *engine) evalInterp() error {
 	shouldEmitInterp := isCombinedExpr(n) || needsEval(n)
 
 	if shouldEmitInterp {
-		rewritten.add(interpOpen)
-		rewritten.addsrc(interpOpen)
+		rewritten.push(interpOpen)
 	}
 
-	rewritten.add(n.evaluated...)
-	rewritten.addsrc(n.source...)
+	rewritten.pushfrom(n)
 
 	if shouldEmitInterp {
-		rewritten.add(interpClose)
-		rewritten.addsrc(interpClose)
+		rewritten.push(interpClose)
 	}
 
 	e.evalstack[e.tailpos()] = rewritten
@@ -967,8 +978,7 @@ func (e *engine) evalString() error {
 	e.pos++
 
 	rewritten := &node{}
-	rewritten.addsrc(tokenOQuote())
-	rewritten.add(tokenOQuote())
+	rewritten.push(tokenOQuote())
 
 	// handles the case of a single interpolated object, examples:
 	// - "${a.b}"
@@ -980,10 +990,8 @@ func (e *engine) evalString() error {
 		tail := e.tail()
 		switch tail.evaluated[0].Type {
 		case hclsyntax.TokenQuotedLit, hclsyntax.TokenTemplateInterp:
-			rewritten.add(e.tail().evaluated...)
-			rewritten.addsrc(e.tail().source...)
-			rewritten.add(tokenCQuote())
-			rewritten.addsrc(tokenCQuote())
+			rewritten.pushfrom(e.tail())
+			rewritten.push(tokenCQuote())
 			e.evalstack[e.tailpos()] = rewritten
 		}
 
@@ -1020,12 +1028,10 @@ func (e *engine) evalString() error {
 				panic("unexpected case")
 			}
 
-			rewritten.add(e.evalstack[i].evaluated...)
-			rewritten.addsrc(e.evalstack[i].source...)
+			rewritten.pushfrom(e.evalstack[i])
 			last = rewritten.evaluated[len(rewritten.evaluated)-1]
 		case hclsyntax.TokenTemplateInterp:
-			rewritten.add(e.evalstack[i].evaluated...)
-			rewritten.addsrc(e.evalstack[i].source...)
+			rewritten.pushfrom(e.evalstack[i])
 			last = rewritten.evaluated[len(rewritten.evaluated)-1]
 		case hclsyntax.TokenNumberLit, hclsyntax.TokenIdent:
 			if len(e.evalstack[i].evaluated) > 1 {
@@ -1033,11 +1039,11 @@ func (e *engine) evalString() error {
 			}
 
 			if last == nil {
-				rewritten.add(&hclwrite.Token{
+				rewritten.pushEvaluated(&hclwrite.Token{
 					Type:  hclsyntax.TokenQuotedLit,
 					Bytes: e.evalstack[i].evaluated[0].Bytes,
 				})
-				rewritten.addsrc(e.evalstack[i].source...)
+				rewritten.pushSource(e.evalstack[i].source...)
 				last = rewritten.evaluated[len(rewritten.evaluated)-1]
 			} else {
 				last.Bytes = append(last.Bytes, e.evalstack[i].evaluated[0].Bytes...)
@@ -1051,11 +1057,11 @@ func (e *engine) evalString() error {
 			}
 
 			if last == nil {
-				rewritten.add(&hclwrite.Token{
+				rewritten.pushEvaluated(&hclwrite.Token{
 					Type:  hclsyntax.TokenQuotedLit,
 					Bytes: e.evalstack[i].evaluated[1].Bytes,
 				})
-				rewritten.addsrc(e.evalstack[i].source...)
+				rewritten.pushSource(e.evalstack[i].source...)
 				last = rewritten.evaluated[len(rewritten.evaluated)-1]
 			} else {
 				last.Bytes = append(last.Bytes, e.evalstack[i].evaluated[1].Bytes...)
@@ -1067,8 +1073,7 @@ func (e *engine) evalString() error {
 		}
 	}
 
-	rewritten.add(tokenCQuote())
-	rewritten.addsrc(tokenCQuote())
+	rewritten.push(tokenCQuote())
 	e.evalstack[nodePos] = rewritten
 	e.evalstack = e.evalstack[e.headpos() : nodePos+1]
 
