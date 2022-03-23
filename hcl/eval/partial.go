@@ -116,7 +116,7 @@ func (e *engine) Eval() (hclwrite.Tokens, error) {
 	}
 
 	if e.evalstack.len() != 1 {
-		panic("invalid result stack size")
+		panic(errorf("eval stack size must always be 1 but got %d", e.evalstack.len()))
 	}
 
 	root := e.evalstack.pop()
@@ -680,7 +680,7 @@ func (e *engine) evalForExpr(matchOpenType, matchCloseType hclsyntax.TokenType) 
 		e.emitnl()
 		tok = e.peek()
 		if tok.Type != hclsyntax.TokenIdent {
-			return errorf("invalid `for` expression: found %s", tok.Type)
+			return errorf("invalid `for` expression: wanted identifier, found %s", tok.Type)
 		}
 
 		e.emit()
