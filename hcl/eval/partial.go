@@ -414,7 +414,7 @@ func (e *engine) evalAcessors() error {
 	tok := e.peek()
 	if tok.Type != hclsyntax.TokenOBrack &&
 		tok.Type != hclsyntax.TokenDot {
-		panic("not an acessor")
+		panic(errorf("token `%s` is not an acessor", tok.Type))
 	}
 
 	for e.hasTokens() {
@@ -1095,8 +1095,8 @@ func (e *engine) evalString() error {
 	}
 
 	rewritten.push(tokenCQuote())
-	e.evalstack.elems[stacksize-1] = rewritten
-	e.evalstack.elems = e.evalstack.elems[0:stacksize]
+	e.evalstack.nodes[stacksize-1] = rewritten
+	e.evalstack.nodes = e.evalstack.nodes[0:stacksize]
 
 	return nil
 }
@@ -1294,19 +1294,19 @@ func (n *node) pushSource(toks ...*hclwrite.Token) {
 }
 
 type nodestack struct {
-	elems []*node
+	nodes []*node
 }
 
 func (s *nodestack) push(n *node) {
-	s.elems = append(s.elems, n)
+	s.nodes = append(s.nodes, n)
 }
 
 func (s *nodestack) pop() *node {
-	if len(s.elems) <= 0 {
+	if len(s.nodes) <= 0 {
 		panic("popping on an empty stack")
 	}
-	top := s.elems[len(s.elems)-1]
-	s.elems = s.elems[:len(s.elems)-1]
+	top := s.nodes[len(s.nodes)-1]
+	s.nodes = s.nodes[:len(s.nodes)-1]
 	return top
 }
 
@@ -1315,10 +1315,10 @@ func (s *nodestack) top() *node {
 }
 
 func (s *nodestack) peek(pos int) *node {
-	return s.elems[pos]
+	return s.nodes[pos]
 }
 
-func (s *nodestack) len() int { return len(s.elems) }
+func (s *nodestack) len() int { return len(s.nodes) }
 
 // variable is a low-level representation of a variable in terms of tokens.
 type variable struct {
