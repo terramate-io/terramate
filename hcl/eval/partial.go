@@ -82,10 +82,10 @@ func newPartialEngine(tokens hclwrite.Tokens, ctx *Context) *engine {
 	}
 }
 
-// PartialEval evaluates only the terramate variable expressions from the list of
-// tokens, leaving all the rest as-is. It returns a modified list of tokens with
-// no reference to terramate namespaced variables (globals and terramate) and
-// functions (tm_ prefixed functions).
+// PartialEval evaluates only the terramate variable expressions from the list
+// of tokens, leaving all the rest as-is. It returns a modified list of tokens
+// with  no reference to terramate namespaced variables (globals and terramate)
+// and functions (tm_ prefixed functions).
 func (e *engine) PartialEval() (hclwrite.Tokens, error) {
 	e.newnode()
 	for e.hasTokens() {
@@ -822,6 +822,8 @@ func (e *engine) evalInterp() error {
 		panic("unexpected token")
 	}
 
+	interpOpen := tok
+
 	e.pos++
 	err := e.evalExpr()
 	if err != nil {
@@ -834,6 +836,8 @@ func (e *engine) evalInterp() error {
 	if tok.Type != hclsyntax.TokenTemplateSeqEnd {
 		panic("malformed interpolation expression, missing }")
 	}
+
+	interpClose := tok
 
 	e.pos++
 
@@ -895,13 +899,13 @@ func (e *engine) evalInterp() error {
 	shouldEmitInterp := isCombinedExpr(n) || needsEval(n)
 
 	if shouldEmitInterp {
-		rewritten = append(rewritten, tokenInterpBegin())
+		rewritten = append(rewritten, interpOpen)
 	}
 
 	rewritten = append(rewritten, n.evaluated...)
 
 	if shouldEmitInterp {
-		rewritten = append(rewritten, tokenInterpEnd())
+		rewritten = append(rewritten, interpClose)
 	}
 
 	e.evaluated[e.tailpos()].evaluated = rewritten
