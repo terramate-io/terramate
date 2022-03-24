@@ -13,7 +13,7 @@ generation, you can check it into more details [here](codegen/overview.md).
 
 # Globals
 
-Globals provide a way to define information that can be re-used
+Globals provide a way to define data that can be re-used
 across stacks with a clear hierarchical/merge semantic.
 
 Defining globals is fairly straightforward, you just need to
