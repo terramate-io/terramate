@@ -2018,6 +2018,19 @@ func TestPartialEval(t *testing.T) {
 				expr("a", "[/**/\n/**/a/**/\n,\"a\"/**/\n]"),
 			),
 		},
+		{
+			name: "conditional globals evaluation",
+			globals: globals(
+				str("domain", "mineiros.io"),
+				boolean("exists", true),
+			),
+			config: hcldoc(
+				expr("a", `global.exists ? global.domain : "example.com"`),
+			),
+			want: hcldoc(
+				expr("a", `true ? "mineiros.io" : "example.com"`),
+			),
+		},
 	}
 
 	for _, tcase := range tcases {

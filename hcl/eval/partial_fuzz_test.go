@@ -18,6 +18,7 @@ package eval
 
 import (
 	"fmt"
+	"math/big"
 	"strings"
 	"testing"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
+	"github.com/zclconf/go-cty/cty"
 
 	tmhclwrite "github.com/mineiros-io/terramate/test/hclwrite"
 )
@@ -34,7 +36,11 @@ import (
 func FuzzPartialEval(f *testing.F) {
 	seedCorpus := []string{
 		"attr",
-		"attr.value",
+		"global.str",
+		`"a ${global.str}"`,
+		`"${global.obj}"`,
+		`"${global.list} fail`,
+		`"domain is ${tm_replace(global.str, "io", "com")}"`,
 		"attr.*.value",
 		`{}`,
 		`10`,
@@ -49,6 +55,26 @@ func FuzzPartialEval(f *testing.F) {
 
 	for _, seed := range seedCorpus {
 		f.Add(seed)
+	}
+
+	globals := map[string]cty.Value{
+		"str":  cty.StringVal("mineiros.io"),
+		"bool": cty.BoolVal(true),
+		"list": cty.ListVal([]cty.Value{
+			cty.NumberVal(big.NewFloat(1)),
+			cty.NumberVal(big.NewFloat(2)),
+			cty.NumberVal(big.NewFloat(3)),
+		}),
+		"obj": cty.ObjectVal(map[string]cty.Value{
+			"a": cty.StringVal("b"),
+			"b": cty.StringVal("c"),
+			"c": cty.StringVal("d"),
+		}),
+	}
+
+	terramate := map[string]cty.Value{
+		"path": cty.StringVal("/my/project"),
+		"name": cty.StringVal("happy stack"),
 	}
 
 	f.Fuzz(func(t *testing.T, str string) {
@@ -80,11 +106,17 @@ func FuzzPartialEval(f *testing.F) {
 			return
 		}
 
+		ctx := NewContext("")
+		assert.NoError(t, ctx.SetNamespace("globals", globals))
+		assert.NoError(t, ctx.SetNamespace("terramate", terramate))
+
 		want := toWriteTokens(parsedTokens)
-		engine := newPartialEvalEngine(want, NewContext(""))
+		engine := newPartialEvalEngine(want, ctx)
 		got, err := engine.Eval()
 
-		if strings.Contains(cfgString, "global.") || strings.Contains(cfgString, "terramate.") {
+		if strings.Contains(cfgString, "global.") ||
+			strings.Contains(cfgString, "terramate.") ||
+			strings.Contains(cfgString, "tm_") {
 			// TODO(katcipis): Validate generated code properties when
 			// substitution is in play.
 			return

@@ -741,12 +741,19 @@ func (e *engine) evalTmFuncall() error {
 		panic("not a `tm_` function")
 	}
 
-	if e.peekn(1).Type != hclsyntax.TokenOParen {
+	pos := 1
+	if e.nparen > 0 {
+		pos = e.skipNewLines(pos)
+	} else {
+		pos = e.skipComments(pos)
+	}
+
+	if e.peekn(pos).Type != hclsyntax.TokenOParen {
 		panic(errorf("not a funcall: %s", e.tokens[e.pos:].Bytes()))
 	}
 
 	matchingParens := 1
-	e.pos += 2
+	e.pos += pos + 1
 	for e.hasTokens() {
 		switch e.peek().Type {
 		case hclsyntax.TokenOParen:
