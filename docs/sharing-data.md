@@ -98,7 +98,7 @@ The configurations available, from more specific to more general, for `stack-1` 
 * stacks
 * . (the project root dir)
 
-To create globals that will be available for all stacks int the entire project
+To create globals that will be available for all stacks in the entire project
 just add a [Terramate configuration file](config-overview.md) on the project
 root with some useful globals:
 
