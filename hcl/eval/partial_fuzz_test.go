@@ -19,6 +19,7 @@ package eval
 import (
 	"fmt"
 	"math/big"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -28,6 +29,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
+	"github.com/rs/zerolog"
 	"github.com/zclconf/go-cty/cty"
 
 	tmhclwrite "github.com/mineiros-io/terramate/test/hclwrite"
@@ -78,6 +80,14 @@ func FuzzPartialEval(f *testing.F) {
 	}
 
 	f.Fuzz(func(t *testing.T, str string) {
+		// WHY? because HCL uses the big.Float library for numbers and then
+		// fuzzer can generate huge number strings like 100E101000000 that will
+		// hang the process and eat all the memory....
+		hasBigNumbers, _ := regexp.MatchString("[\\d]+[Ee]{1}[\\d]+", str)
+		if hasBigNumbers {
+			return
+		}
+
 		// Here we fuzz that anything that the hclsyntax lib handle we should
 		// also handle with no errors. We dont fuzz actual substitution
 		// scenarios that would require a proper context with globals loaded.
@@ -155,4 +165,8 @@ func hcldoc(builders ...tmhclwrite.BlockBuilder) *tmhclwrite.Block {
 
 func expr(name string, expr string) tmhclwrite.BlockBuilder {
 	return tmhclwrite.Expression(name, expr)
+}
+
+func init() {
+	zerolog.SetGlobalLevel(zerolog.Disabled)
 }

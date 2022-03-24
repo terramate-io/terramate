@@ -2031,6 +2031,42 @@ func TestPartialEval(t *testing.T) {
 				expr("a", `true ? "mineiros.io" : "example.com"`),
 			),
 		},
+		{
+			name: "evaluated empty string in the prefix",
+			config: hcldoc(
+				expr("a", "\"${tm_replace(0,\"0\",\"\")}0\""),
+			),
+			want: hcldoc(
+				expr("a", "\"0\""),
+			),
+		},
+		{
+			name: "evaluated empty string in the suffix",
+			config: hcldoc(
+				expr("a", "\"0${tm_replace(0,\"0\",\"\")}\""),
+			),
+			want: hcldoc(
+				expr("a", "\"0\""),
+			),
+		},
+		{
+			name: "evaluated funcall with newlines prefix",
+			config: hcldoc(
+				expr("a", "\"${\ntm_replace(0,0,\"\")}0\""),
+			),
+			want: hcldoc(
+				expr("a", "\"0\""),
+			),
+		},
+		{
+			name: "evaluated funcall with newlines suffix",
+			config: hcldoc(
+				expr("a", "\"${tm_replace(0,0,\"\")\n}0\""),
+			),
+			want: hcldoc(
+				expr("a", "\"0\""),
+			),
+		},
 	}
 
 	for _, tcase := range tcases {

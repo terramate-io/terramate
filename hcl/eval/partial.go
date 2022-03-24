@@ -85,7 +85,7 @@ type engine struct {
 	// separated node struct placed in this stack.
 	evalstack nodestack
 
-	nparen int
+	multiline int
 }
 
 // node represents a grammar node but in terms of its original tokens and
@@ -94,8 +94,8 @@ type node struct {
 	original  hclwrite.Tokens
 	evaluated hclwrite.Tokens
 
-	hasCond  bool
-	hasBinOp bool
+	hasCond bool
+	hasOp   bool
 }
 
 func newPartialEvalEngine(tokens hclwrite.Tokens, ctx *Context) *engine {
@@ -155,8 +155,8 @@ func (e *engine) commit() {
 	if tos.hasCond {
 		merge.hasCond = true
 	}
-	if tos.hasBinOp {
-		merge.hasBinOp = true
+	if tos.hasOp {
+		merge.hasOp = true
 	}
 
 	e.evalstack.push(merge)
@@ -203,26 +203,41 @@ func (e *engine) emitComments() {
 }
 
 func (e *engine) emitnlparens() {
-	if e.nparen > 0 {
+	if e.multiline > 0 {
 		e.emitnl()
 	}
 }
 
-func (e *engine) skipNewLines(from int) int {
+func (e *engine) skipTokens(from int, tokens ...hclsyntax.TokenType) int {
 	i := from
-	for e.hasTokens() && (e.peekn(i).Type == hclsyntax.TokenNewline ||
-		e.peekn(i).Type == hclsyntax.TokenComment) {
+	for e.hasTokens() {
+		found := false
+		for _, t := range tokens {
+			if e.peekn(i).Type == t {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			break
+		}
+
 		i++
 	}
 	return i
 }
 
-func (e *engine) skipComments(from int) int {
-	i := from
-	for e.hasTokens() && e.peekn(i).Type == hclsyntax.TokenComment {
-		i++
+func (e *engine) skip(from int) int {
+	if e.multiline > 0 {
+		return e.multilineSkip(from)
+	} else {
+		return e.skipTokens(from, hclsyntax.TokenComment)
 	}
-	return i
+}
+
+func (e *engine) multilineSkip(from int) int {
+	return e.skipTokens(from, hclsyntax.TokenNewline, hclsyntax.TokenComment)
 }
 
 func (e *engine) evalExpr() error {
@@ -234,6 +249,7 @@ loop:
 		e.emitComments()
 		switch t := e.peek().Type; {
 		case isUnaryOp(t):
+			thisNode.hasOp = true
 			e.emit()
 		default:
 			break loop
@@ -286,7 +302,7 @@ loop:
 		e.emit()
 		e.emitnl()
 
-		e.nparen++
+		e.multiline++
 
 		err := e.evalExpr()
 		if err != nil {
@@ -301,7 +317,7 @@ loop:
 		}
 
 		e.emit()
-		e.nparen--
+		e.multiline--
 	case hclsyntax.TokenOBrace, hclsyntax.TokenOBrack:
 		var err error
 
@@ -314,8 +330,7 @@ loop:
 			closeToken = hclsyntax.TokenCBrack
 		}
 
-		pos := e.skipNewLines(1)
-
+		pos := e.multilineSkip(1)
 		next := e.peekn(pos)
 		switch {
 		case isForExpr(next):
@@ -375,7 +390,7 @@ loop:
 			return err
 		}
 		e.commit()
-		thisNode.hasBinOp = true
+		thisNode.hasOp = true
 
 	case t == hclsyntax.TokenQuestion:
 		e.emit()
@@ -432,12 +447,7 @@ func (e *engine) evalAcessors() error {
 		case hclsyntax.TokenDot:
 			parsed := false
 
-			pos := 1
-			if e.nparen > 0 {
-				pos = e.skipNewLines(pos)
-			} else {
-				pos = e.skipComments(pos)
-			}
+			pos := e.skip(1)
 			next := e.peekn(pos)
 			if next.Type == hclsyntax.TokenStar {
 				e.emitn(pos + 1)
@@ -467,7 +477,7 @@ func (e *engine) evalAcessors() error {
 
 func (e *engine) evalIndex() error {
 	e.newnode()
-	e.nparen++
+	e.multiline++
 	tok := e.peek()
 	if tok.Type != hclsyntax.TokenOBrack {
 		panic("expect a '['")
@@ -508,7 +518,7 @@ func (e *engine) evalIndex() error {
 		e.commit()
 	}
 
-	e.nparen--
+	e.multiline--
 
 	return nil
 }
@@ -527,7 +537,7 @@ func (e *engine) evalGetAttr() error {
 		tok.Type == hclsyntax.TokenNumberLit {
 		e.emit()
 	} else {
-		panic(sprintf("expect an IDENT or number: %s %t", e.peek().Type, e.nparen))
+		panic(sprintf("expect an IDENT or number: %s %t", e.peek().Type, e.multiline))
 	}
 
 	return nil
@@ -544,9 +554,7 @@ func (e *engine) evalIdent() error {
 		panic(errorf("evalIdent: unexpected token '%s' (%s)", tok.Bytes, tok.Type))
 	}
 
-	i := e.skipNewLines(1)
-
-	next := e.peekn(i)
+	next := e.peekn(e.skip(1))
 	switch next.Type {
 	case hclsyntax.TokenDot:
 		err := e.evalVar()
@@ -574,7 +582,7 @@ func (e *engine) evalList() error {
 		panic("bug")
 	}
 
-	e.nparen++
+	e.multiline++
 
 	e.emit()
 	e.emitnl()
@@ -601,7 +609,7 @@ func (e *engine) evalList() error {
 		panic(errorf("malformed list, unexpected %s", tok.Bytes))
 	}
 
-	e.nparen--
+	e.multiline--
 
 	e.emit()
 	return nil
@@ -741,15 +749,9 @@ func (e *engine) evalTmFuncall() error {
 		panic("not a `tm_` function")
 	}
 
-	pos := 1
-	if e.nparen > 0 {
-		pos = e.skipNewLines(pos)
-	} else {
-		pos = e.skipComments(pos)
-	}
-
+	pos := e.skip(1)
 	if e.peekn(pos).Type != hclsyntax.TokenOParen {
-		panic(errorf("not a funcall: %s", e.tokens[e.pos:].Bytes()))
+		panic(errorf("not a funcall: %s", e.tokens[pos:].Bytes()))
 	}
 
 	matchingParens := 1
@@ -818,7 +820,7 @@ func (e *engine) evalFuncall() error {
 
 	e.emit()
 	e.emitnl()
-	e.nparen++
+	e.multiline++
 	for e.hasTokens() && e.peek().Type != hclsyntax.TokenCParen {
 		err := e.evalExpr()
 		if err != nil {
@@ -835,7 +837,7 @@ func (e *engine) evalFuncall() error {
 		}
 		e.emitnl()
 	}
-	e.nparen--
+	e.multiline--
 
 	if !e.hasTokens() {
 		panic(errorf("malformed funcall: %s", e.tokens.Bytes()))
@@ -891,7 +893,7 @@ func (e *engine) evalInterp() error {
 
 	interpOpen := tok
 
-	e.nparen++
+	e.multiline++
 
 	e.pos++
 	err := e.evalExpr()
@@ -899,7 +901,7 @@ func (e *engine) evalInterp() error {
 		return err
 	}
 
-	e.nparen--
+	e.multiline--
 
 	e.commit()
 
@@ -922,7 +924,7 @@ func (e *engine) evalInterp() error {
 	//
 	// if any of the checks are true, then we need to emit the interp tokens.
 	isCombinedExpr := func(n *node) bool {
-		return n.hasCond || n.hasBinOp
+		return n.hasCond || n.hasOp
 	}
 
 	needsEval := func(n *node) bool {
@@ -1044,6 +1046,8 @@ func (e *engine) evalString() error {
 	var last *hclwrite.Token
 	for i := stacksize; i < e.evalstack.len(); i++ {
 		elem := e.evalstack.peekn(i)
+		elem.evaluated = trimIgnored(elem.evaluated)
+
 		switch elem.evaluated[0].Type {
 		case hclsyntax.TokenOBrace, hclsyntax.TokenOBrack:
 			return errutil.Chain(
@@ -1077,7 +1081,13 @@ func (e *engine) evalString() error {
 			}
 
 		case hclsyntax.TokenOQuote:
-			if len(elem.evaluated) != 3 {
+			var quotedBytes []byte
+			switch len(elem.evaluated) {
+			case 2:
+				quotedBytes = nil
+			case 3:
+				quotedBytes = elem.evaluated[1].Bytes
+			default:
 				panic(sprintf(
 					"unexpected string case: %s (%d)",
 					elem.evaluated.Bytes(),
@@ -1085,19 +1095,20 @@ func (e *engine) evalString() error {
 			}
 
 			if last == nil {
-				rewritten.pushEvaluated(&hclwrite.Token{
+				tok := &hclwrite.Token{
 					Type:  hclsyntax.TokenQuotedLit,
-					Bytes: elem.evaluated[1].Bytes,
-				})
-				rewritten.pushOriginal(elem.original...)
-				last = rewritten.evaluated[len(rewritten.evaluated)-1]
-			} else {
-				last.Bytes = append(last.Bytes, elem.evaluated[1].Bytes...)
-			}
+					Bytes: quotedBytes,
+				}
+				rewritten.pushEvaluated(tok)
 
+				rewritten.pushOriginal(elem.original...)
+				last = tok
+			} else {
+				last.Bytes = append(last.Bytes, quotedBytes...)
+			}
 		default:
 			panic(sprintf("unexpected interpolation type: %s (%s)",
-				elem.evaluated[0].Bytes, elem.evaluated[0].Type))
+				elem.evaluated.Bytes(), elem.evaluated[0].Type))
 		}
 	}
 
@@ -1118,15 +1129,10 @@ func (e *engine) parseVariable(tokens hclwrite.Tokens) (v variable, found bool) 
 		return variable{}, false
 	}
 
-	pos := e.skipNewLines(1)
+	pos := e.skip(1)
 	wantDot := true
 	for pos < len(tokens) {
-		if e.nparen > 0 {
-			pos = e.skipNewLines(pos)
-		} else {
-			pos = e.skipComments(pos)
-		}
-
+		pos = e.skip(pos)
 		tok := tokens[pos]
 
 		if wantDot {
@@ -1211,9 +1217,7 @@ func (e *engine) canEvaluateIdent() bool {
 		panic("bug: expects an IDENT at pos 0")
 	}
 
-	i := e.skipNewLines(1)
-
-	next := e.peekn(i)
+	next := e.peekn(e.skip(1))
 	return next.Type == hclsyntax.TokenDot || next.Type == hclsyntax.TokenOParen
 }
 
@@ -1323,6 +1327,34 @@ func (s *nodestack) peekn(pos int) *node {
 }
 
 func (s *nodestack) len() int { return len(s.nodes) }
+
+func trimIgnored(tokens hclwrite.Tokens) hclwrite.Tokens {
+	// ignore prefixed and suffixed newlines/comments.
+
+	ignorePos := 0
+	for j := 0; j < len(tokens); j++ {
+		if tokens[j].Type == hclsyntax.TokenNewline ||
+			tokens[j].Type == hclsyntax.TokenComment {
+			ignorePos = j + 1
+		} else {
+			break
+		}
+	}
+
+	tokens = tokens[ignorePos:]
+
+	ignorePos = len(tokens)
+	for j := len(tokens) - 1; j >= 0; j-- {
+		if tokens[j].Type == hclsyntax.TokenNewline ||
+			tokens[j].Type == hclsyntax.TokenComment {
+			ignorePos = j
+		} else {
+			break
+		}
+	}
+
+	return tokens[:ignorePos]
+}
 
 // variable is a low-level representation of a variable in terms of tokens.
 type variable struct {
