@@ -1,13 +1,15 @@
 # HCL Code Generation
 
-Terramate supports the generation of arbitrary HCL code using 
-both [globals](globals.md) and [metadata](metadata.md).
-The generated code can then be composed/referenced by any Terraform code
-inside a stack (or some other tool that uses HCL).
+Terramate supports the generation of arbitrary HCL code referencing 
+[Terramate defined data](../sharing-data.md).
 
-HCL code generation starts with the definition of a `generate_hcl`
-block in a [Terramate configuration file](config.md) defining the code you
-want to generate inside the block. The code may include:
+The generated code can then be composed/referenced by any Terraform code
+inside a stack (or any other tool that uses HCL, like [Packer](https://www.packer.io/)).
+
+HCL code generation is done using `generate_hcl`
+blocks in [Terramate configuration files](../config-overview.md).
+
+The code may include:
 
 * Blocks, sub blocks, etc 
 * Attributes initialized by literals
@@ -15,15 +17,16 @@ want to generate inside the block. The code may include:
 * Terramate Metadata references
 * Expressions using interpolation, functions, etc
 
-Most of what you can do in Terraform can be done in a `generate_hcl`
+Anything you can do in Terraform can be generated using a `generate_hcl`
 block. References to Terramate globals and metadata are evaluated, but any
 other reference is just transported to the generated code (partial evaluation).
 
 Each `generate_hcl` block requires a single label.
-This label is the filename of the generated code.
+This label is the filename of the generated code, multiple `generate_hcl` blocks
+with the same label/filename will result in an error.
 
 Inside the `generate_hcl` block a `content` block is required.
-All code inside `content` is going to be used to generate the final code.
+All code inside `content` is going to be used to generate the final HCL code.
 
 Now lets jump to some examples. Lets generate backend and provider configurations
 for all stacks inside a project.
@@ -40,8 +43,7 @@ globals {
 ```
 
 We can define the generation of a backend configuration for all
-stacks by defining a `generate_hcl` block in the root
-of the project:
+stacks by defining a `generate_hcl` block in the root of the project:
 
 ```hcl
 generate_hcl "backend.tf" {
@@ -53,7 +55,7 @@ generate_hcl "backend.tf" {
 }
 ```
 
-Which will generate code for all stacks using the filename `backend.tf`:
+Which will generate code for all stacks, creating a file named `backend.tf`:
 
 ```hcl
 backend "local" {
