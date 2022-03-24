@@ -128,8 +128,8 @@ in failure for the overall code generation process.
 ## Partial Evaluation
 
 A partial evaluation strategy is used when generating HCL code.
-This means that you can generate code with unknown references and
-those will be copied verbatim to the generated code.
+This means that you can generate code with unknown references/function calls
+and those will be copied verbatim to the generated code.
 
 Lets assume we have a single global:
 
@@ -139,8 +139,6 @@ globals {
 }
 ```
 
-You can reference Terramate data and also reference data that will only
-be available later when the generated code is evaluated by some other tool.
 
 For example, for Terraform, we can generate code that references
 locals/vars/outputs/etc:
