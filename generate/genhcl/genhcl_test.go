@@ -1982,6 +1982,91 @@ func TestPartialEval(t *testing.T) {
 				expr("a", "(A(). \n*)"),
 			),
 		},
+		{
+			name: "funcall and newlines/comments",
+			config: hcldoc(
+				expr("a", "funcall(\n/**/a\n/**/,/**/b/**/\n/**/)"),
+			),
+			want: hcldoc(
+				expr("a", "funcall(\n/**/a\n/**/,/**/b/**/\n/**/)"),
+			),
+		},
+		{
+			name: "tm_ funcall and newlines/comments",
+			config: hcldoc(
+				expr("a", "tm_try(\n/**/a\n/**/,/**/b, null/**/\n/**/)"),
+			),
+			want: hcldoc(
+				expr("a", "null"),
+			),
+		},
+		{
+			name: "objects and newlines/comments",
+			config: hcldoc(
+				expr("a", "{/**/\n/**/a/**/=/**/\"a\"/**/\n}"),
+			),
+			want: hcldoc(
+				expr("a", "{/**/\n/**/a/**/=/**/\"a\"/**/\n}"),
+			),
+		},
+		{
+			name: "lists and newlines/comments",
+			config: hcldoc(
+				expr("a", "[/**/\n/**/a/**/\n,\"a\"/**/\n]"),
+			),
+			want: hcldoc(
+				expr("a", "[/**/\n/**/a/**/\n,\"a\"/**/\n]"),
+			),
+		},
+		{
+			name: "conditional globals evaluation",
+			globals: globals(
+				str("domain", "mineiros.io"),
+				boolean("exists", true),
+			),
+			config: hcldoc(
+				expr("a", `global.exists ? global.domain : "example.com"`),
+			),
+			want: hcldoc(
+				expr("a", `true ? "mineiros.io" : "example.com"`),
+			),
+		},
+		{
+			name: "evaluated empty string in the prefix",
+			config: hcldoc(
+				expr("a", "\"${tm_replace(0,\"0\",\"\")}0\""),
+			),
+			want: hcldoc(
+				expr("a", "\"0\""),
+			),
+		},
+		{
+			name: "evaluated empty string in the suffix",
+			config: hcldoc(
+				expr("a", "\"0${tm_replace(0,\"0\",\"\")}\""),
+			),
+			want: hcldoc(
+				expr("a", "\"0\""),
+			),
+		},
+		{
+			name: "evaluated funcall with newlines prefix",
+			config: hcldoc(
+				expr("a", "\"${\ntm_replace(0,0,\"\")}0\""),
+			),
+			want: hcldoc(
+				expr("a", "\"0\""),
+			),
+		},
+		{
+			name: "evaluated funcall with newlines suffix",
+			config: hcldoc(
+				expr("a", "\"${tm_replace(0,0,\"\")\n}0\""),
+			),
+			want: hcldoc(
+				expr("a", "\"0\""),
+			),
+		},
 	}
 
 	for _, tcase := range tcases {

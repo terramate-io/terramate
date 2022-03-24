@@ -1,0 +1,2 @@
+go test fuzz v1
+string("{\nfor A in 0:0=>0}")

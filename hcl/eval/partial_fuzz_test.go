@@ -14,10 +14,12 @@
 
 //go:build go1.18
 
-package eval_test
+package eval
 
 import (
 	"fmt"
+	"math/big"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -27,7 +29,9 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/rs/zerolog"
+	"github.com/zclconf/go-cty/cty"
+
 	tmhclwrite "github.com/mineiros-io/terramate/test/hclwrite"
 )
 
@@ -51,7 +55,35 @@ func FuzzPartialEval(f *testing.F) {
 		f.Add(seed)
 	}
 
+	globals := map[string]cty.Value{
+		"str":  cty.StringVal("mineiros.io"),
+		"bool": cty.BoolVal(true),
+		"list": cty.ListVal([]cty.Value{
+			cty.NumberVal(big.NewFloat(1)),
+			cty.NumberVal(big.NewFloat(2)),
+			cty.NumberVal(big.NewFloat(3)),
+		}),
+		"obj": cty.ObjectVal(map[string]cty.Value{
+			"a": cty.StringVal("b"),
+			"b": cty.StringVal("c"),
+			"c": cty.StringVal("d"),
+		}),
+	}
+
+	terramate := map[string]cty.Value{
+		"path": cty.StringVal("/my/project"),
+		"name": cty.StringVal("happy stack"),
+	}
+
 	f.Fuzz(func(t *testing.T, str string) {
+		// WHY? because HCL uses the big.Float library for numbers and then
+		// fuzzer can generate huge number strings like 100E101000000 that will
+		// hang the process and eat all the memory....
+		hasBigNumbers, _ := regexp.MatchString("[\\d]+[.]?[\\d]?[Ee]{1}[+-]?[\\d]+", str)
+		if hasBigNumbers {
+			return
+		}
+
 		// Here we fuzz that anything that the hclsyntax lib handle we should
 		// also handle with no errors. We dont fuzz actual substitution
 		// scenarios that would require a proper context with globals loaded.
@@ -80,11 +112,17 @@ func FuzzPartialEval(f *testing.F) {
 			return
 		}
 
-		want := toWriteTokens(parsedTokens)
-		engine := eval.NewEngine(want, eval.NewContext(""))
-		got, err := engine.PartialEval()
+		ctx := NewContext("")
+		assert.NoError(t, ctx.SetNamespace("globals", globals))
+		assert.NoError(t, ctx.SetNamespace("terramate", terramate))
 
-		if strings.Contains(cfgString, "global.") || strings.Contains(cfgString, "terramate.") {
+		want := toWriteTokens(parsedTokens)
+		engine := newPartialEvalEngine(want, ctx)
+		got, err := engine.Eval()
+
+		if strings.Contains(cfgString, "global") ||
+			strings.Contains(cfgString, "terramate") ||
+			strings.Contains(cfgString, "tm_") {
 			// TODO(katcipis): Validate generated code properties when
 			// substitution is in play.
 			return
@@ -117,21 +155,14 @@ func tokensStr(t hclwrite.Tokens) string {
 	return "[" + strings.Join(tokensStrs, ",") + "]"
 }
 
-func toWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {
-	tokens := make([]*hclwrite.Token, len(in))
-	for i, st := range in {
-		tokens[i] = &hclwrite.Token{
-			Type:  st.Type,
-			Bytes: st.Bytes,
-		}
-	}
-	return tokens
-}
-
 func hcldoc(builders ...tmhclwrite.BlockBuilder) *tmhclwrite.Block {
 	return tmhclwrite.BuildHCL(builders...)
 }
 
 func expr(name string, expr string) tmhclwrite.BlockBuilder {
 	return tmhclwrite.Expression(name, expr)
+}
+
+func init() {
+	zerolog.SetGlobalLevel(zerolog.Disabled)
 }

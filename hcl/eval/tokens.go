@@ -46,17 +46,3 @@ func tokenCBrack() *hclwrite.Token {
 		Bytes: []byte("]"),
 	}
 }
-
-func tokenInterpBegin() *hclwrite.Token {
-	return &hclwrite.Token{
-		Type:  hclsyntax.TokenTemplateInterp,
-		Bytes: []byte("${"),
-	}
-}
-
-func tokenInterpEnd() *hclwrite.Token {
-	return &hclwrite.Token{
-		Type:  hclsyntax.TokenTemplateSeqEnd,
-		Bytes: []byte("}"),
-	}
-}
