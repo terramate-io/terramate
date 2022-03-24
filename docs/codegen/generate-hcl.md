@@ -55,7 +55,7 @@ generate_hcl "backend.tf" {
 }
 ```
 
-Which will generate code for all stacks, creating a file named `backend.tf`:
+Which will generate code for all stacks, creating a file named `backend.tf` on each stack:
 
 ```hcl
 backend "local" {
@@ -92,7 +92,7 @@ generate_hcl "provider.tf" {
 }
 ```
 
-Which will generate code for all stacks using the filename `provider.tf`:
+Which will generate code for all stacks, creating a file named `provider.tf` on each stack:
 
 ```hcl
 provider "name" {
@@ -123,3 +123,109 @@ to multiple or all stacks (as seen in the previous example).
 There is no overriding or merging behavior for `generate_hcl` blocks.
 Blocks defined at different levels with the same label aren't allowed, resulting
 in failure for the overall code generation process.
+
+
+## Partial Evaluation
+
+A partial evaluation strategy is used when generating HCL code.
+This means that you can generate code with unknown references and
+those will be copied verbatim to the generated code.
+
+Lets assume we have a single global:
+
+```hcl
+globals {
+  terramate_data = "terramate_data"
+}
+```
+
+You can reference Terramate data and also reference data that will only
+be available later when the generated code is evaluated by some other tool.
+
+For example, for Terraform, we can generate code that references
+locals/vars/outputs/etc:
+
+
+```hcl
+generate_hcl "main.tf" {
+  content {
+    resource "myresource" "name" {
+      count = var.enabled ? 1 : 0
+      data  = global.terramate_data
+      path  = terramate.path
+      name  = local.name
+    }
+}
+```
+
+Will generate the following `main.tf` file:
+
+```
+resource "myresource" "name" {
+  count = var.enabled ? 1 : 0
+  data  = "terramate_data"
+  path  = "/path/to/stack"
+  name  = local.name
+}
+```
+
+The `global.terramate_data` and `terramate.path` references were evaluated,
+but the references to `var.enabled` and `local.name` were retained as is,
+hence the partial evaluation.
+
+Function calls are also partially evaluated. Any unknown function call
+will be retained as is, but any function call starting with the prefix
+`tm_` will be evaluated and can only have as parameter Terramate references
+or literals.
+
+For example, given:
+
+```hcl
+generate_hcl "main.tf" {
+  content {
+    resource "myresource" "name" {
+      data  = tm_upper(global.terramate_data)
+      name  = upper(local.name)
+    }
+}
+```
+
+This will be generated:
+
+```hcl
+resource "myresource" "name" {
+  data  = "TERRAMATE_DATA"
+  name  = upper(local.name)
+}
+```
+
+If a reference to Terramate data is made as a parameter to an unknown
+function call the value of the data will be replaced on function call.
+
+This:
+
+```hcl
+generate_hcl "main.tf" {
+  content {
+    resource "myresource" "name" {
+      data  = upper(global.terramate_data)
+      name  = upper(local.name)
+    }
+}
+```
+
+Generates:
+
+```hcl
+generate_hcl "main.tf" {
+  content {
+    resource "myresource" "name" {
+      data  = upper("terramate_data")
+      name  = upper(local.name)
+    }
+}
+```
+
+Currently there is no partial evaluation of `for` expressions.
+Referencing Terramate data inside a `for` expression will result
+in an error (`for` expressions with unknown references are copied as is).
