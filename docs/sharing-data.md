@@ -59,7 +59,7 @@ globals {
 }
 ```
 
-Globals can be defined on multiple Terramate files, lets call this
+Globals can be defined on multiple Terramate files, let's call this
 set of files in a specific directory a **configuration**. Given
 this definition:
 
@@ -71,16 +71,16 @@ this definition:
 * Globals can reference globals from other configurations.
 
 Each stack will have its globals defined by loading them from
-the stack directory and all the way up until the project root
+the stack directory and up until the project root
 is reached. This is called the stack globals set.
 
 For globals being redefined on different configurations we follow
-a very simple merge strategy to build each stack globals set:
+a simple merge strategy to build each stack globals set:
 
-* Globals with different names are merged together.
+* Globals with different names are merged.
 * Globals with same names: more specific configuration replaces the general one.
 
-Lets explore a little further with an example.
+Let's explore a little further with an example.
 Given a project structured like this:
 
 ```
@@ -98,7 +98,7 @@ The configurations available, from more specific to more general, for `stack-1` 
 * stacks
 * . (the project root dir)
 
-To create globals that will be available for all stacks int the entire project
+To create globals that will be available for all stacks in the entire project
 just add a [Terramate configuration file](config-overview.md) on the project
 root with some useful globals:
 
@@ -112,7 +112,7 @@ globals {
 Now any stack on the project can reference these globals on their
 [Terramate configuration](config-overview.md).
 
-Now lets say one of the stacks wants to add more globals, to do
+Now, let's say one of the stacks wants to add more globals, to do
 so we can add globals on the stack configuration by creating the file
 `stacks/stack-1/globals.tm.hcl`:
 
