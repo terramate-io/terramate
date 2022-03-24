@@ -38,11 +38,7 @@ import (
 func FuzzPartialEval(f *testing.F) {
 	seedCorpus := []string{
 		"attr",
-		"global.str",
-		`"a ${global.str}"`,
-		`"${global.obj}"`,
-		`"${global.list} fail`,
-		`"domain is ${tm_replace(global.str, "io", "com")}"`,
+		"attr.value",
 		"attr.*.value",
 		`{}`,
 		`10`,
@@ -83,7 +79,7 @@ func FuzzPartialEval(f *testing.F) {
 		// WHY? because HCL uses the big.Float library for numbers and then
 		// fuzzer can generate huge number strings like 100E101000000 that will
 		// hang the process and eat all the memory....
-		hasBigNumbers, _ := regexp.MatchString("[\\d]+[Ee]{1}[+-]?[\\d]+", str)
+		hasBigNumbers, _ := regexp.MatchString("[\\d]+[.]?[\\d]?[Ee]{1}[+-]?[\\d]+", str)
 		if hasBigNumbers {
 			return
 		}
