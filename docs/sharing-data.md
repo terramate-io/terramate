@@ -207,7 +207,7 @@ Given that globals can reference other globals and Terramate metadata, it is
 important to be clear about how/when evaluation happens. 
 
 Globals are lazily evaluated. The per stack process can
-be described on this order:
+be described in this order:
 
 * Load globals for each configuration, starting on the stack.
 * Merge strategy is applied as configurations are loaded.
