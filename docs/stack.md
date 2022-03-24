@@ -1,5 +1,11 @@
 # Stack
 
+When working with Infrastructure as Code it's considered to be a best practice
+to split up and organize your IaC into several smaller and isolated stacks.
+
+Typically, each stack comes with its own Terraform state which allows us
+to plan and apply each stack on its own.
+
 A Terramate stack is:
 
 * A directory inside your project.
