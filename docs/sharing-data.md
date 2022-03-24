@@ -59,7 +59,7 @@ globals {
 }
 ```
 
-Globals can be defined on multiple Terramate files, lets call this
+Globals can be defined on multiple Terramate files, let's call this
 set of files in a specific directory a **configuration**. Given
 this definition:
 
