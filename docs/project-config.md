@@ -1,4 +1,4 @@
-# Project Config
+# Project Configuration
 
 Terramate does not depend on user configuration and comes with a set of sensible defaults.
 But when defaults doesn't work Terramate allows some project wide configurations
@@ -6,8 +6,6 @@ to be changed.
 
 Configurations that are project wide can be defined only once, and they **MUST**
 be defined at the project root.
-
-Here it is documented all Terramate configurations that are project wide.
 
 ## terramate.required_version
 
@@ -35,7 +33,6 @@ terramate {
 If no `terramate.required_version` is defined on a project, no versioning
 check will be performed. If one is defined, running `terramate` with a
 incompatible version will result in an error for any Terramate command.
-
 
 ## terramate.config.git
 

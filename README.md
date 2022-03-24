@@ -3,15 +3,13 @@
 # Table of Contents
 
 - [Terramate](#terramate)
-    - [Installing](#installing)
-    - [Why using stacks?](#why-using-stacks)
-        - [High frequency of infrastructure change](#high-frequency-of-infrastructure-change)
-        - [Reduce the blast radius](#reduce-the-blast-radius)
-        - [Reduce execution time](#reduce-execution-time)
-        - [Ownership](#ownership)
-        - [Others](#others)
-    - [Detecting IaC changes](#detecting-iac-changes)
-        - [Why this workflow?](#why-this-workflow)
+    - [Getting Started](#getting-started)
+        - [Installing](#installing)
+            - [Using Go](#using-go)
+            - [Using Release Binaries](#using-release-binaries)
+            - [Using Docker](#using-docker)
+            - [Auto Completion](#auto-completion)
+        - [Project Setup](#project-setup)
 
 <!-- mdtocend -->
 
@@ -22,7 +20,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/mineiros-io/terramate)](https://goreportcard.com/report/github.com/mineiros-io/terramate)
 [![codecov](https://codecov.io/gh/mineiros-io/terramate/branch/main/graph/badge.svg?token=gMRUkVUAQ4)](https://codecov.io/gh/mineiros-io/terramate)
 
-Terramate is a tool for managing multiple terraform stacks.
+Terramate is a tool for managing multiple Terraform stacks.
 
 The stack concept is not defined by Hashicorp's Terraform tooling but just a
 convention used by the _Terraform community_, so a stack can be loosely defined
@@ -33,132 +31,71 @@ A terraform stack is a runnable terraform module that operates on a subset of
 the infrastructure's resource.
 ```
 
-By _runnable_ it means it has everything needed to call
-`terraform init/plan/apply` . For example, a module used by other modules, ie,
-don't have the `provider` explicitly set, is not runnable hence it's
-**not a stack**.
+It provides ways to keep your code [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself)
+and also manage dependencies between stacks with minimal effort to get
+started in a non-intrusive way.
 
-So, if your runnable terraform module creates your whole infrastructure, *it's
-also not a stack*.
+* Avoid duplication by easily sharing data across your project.
+* Explicitly define order of execution of stacks.
+* Code generation ensures that plan/apply is always done with plain Terraform commands.
+* Change detection, including for local modules used by stacks.
+* All done with [HCL](https://github.com/hashicorp/hcl).
 
+For more details on how this is achieved, please consider:
 
-## Installing
+* [Why Stacks ?](docs/why-stacks.md)
+* [Change Detection](docs/change-detection.md)
+* [Config Overview](docs/config-overview.md)
+* [Configuring A Project](docs/project-config.md)
+* [Sharing Data](docs/sharing-data.md)
+* [Code Generation](docs/codegen/overview.md)
+* [Orchestrating Stacks Execution](docs/orchestration.md)
 
-To install **terramate** using Go just run:
+## Getting Started
 
-```
+### Installing
+
+#### Using Go
+
+To install using Go just run:
+
+```sh
 go install github.com/mineiros-io/terramate/cmd/terramate@<version>
 ```
 
 Where **<version>** is any terramate [version tag](https://github.com/mineiros-io/terramate/tags),
 or you can just install the **latest** release:
 
-```
+```sh
 go install github.com/mineiros-io/terramate/cmd/terramate@latest
 ```
 
-To install the latest code on main:
+#### Using Release Binaries
 
+TODO
+
+#### Using Docker
+
+If you don't want to install Terramate on your host you can use
+[Docker](https://www.docker.com/) or [Podman](https://podman.io/) to
+run Terramate inside a container:
+
+```sh
+docker run ghcr.io/mineiros-io/terramate
 ```
-export GOPROXY=direct
-go install github.com/mineiros-io/terramate/cmd/terramate@main
-```
 
-Or if you have the project cloned locally just run:
+Container images tagged with release versions are also provided. For getting an overview of the available releases, please see https://github.com/mineiros-io/terramate/releases
 
-```
-make install
-```
 
-We put great effort into keeping the main branch stable, so it should be safe
-to use **main** to play around, but not recommended for long term automation
-since you won't get the same build result each time you run the install command.
+#### Auto Completion
 
-The tool supports autocompletion of commands for *bash*, *zsh* and *fish*. To
+Terramate supports autocompletion of commands for *bash*, *zsh* and *fish*. To
 install the completion just run the command below and open a new shell session:
 
+```sh
+terramate install-completions
 ```
-$ terramate install-completions
-```
 
-## Configuring Your Project
+### Project Setup
 
-Checkout the docs on [overall configuration](docs/config.md) for details
-on how different kinds of configurations can help you to avoid duplication
-and write solid Infrastructure as Code.
-
-
-## Why using stacks?
-
-The stack concept is advised for several reasons. 
-
-### High frequency of infrastructure change
-
-If you infrastructure have a high frequency of change, for example, several
-deploys per day/week or several configuration changes per day/week, then if you
-apply the change in your single terraform project, some dependent resources can
-be recreated leading to increased downtime. There are several reasons why a
-dependent module can be recreated, eg.: attributes with variable interpolation
-from recreated resources; underspecified attributes refreshing during plan, etc.
-
-By using stacks you can modify only the stacks affected by the deploys or
-configuration changes needed, but you have to choose the size of the stack
-wisely to avoid duplication.
-
-### Reduce the blast radius
-
-A small change can lead to catastrofic events if you're not careful or makes a
-mistake like forgetting a "prevent_destroy" attribute in the production database
-lifecycle declaration. Sometime someone will commit mistakes and it's better if
-you could reduce the impact of such errors.
-An extreme example is: avoiding a database instance destroy because of a dns TTL
-change.
-
-### Reduce execution time
-
-By using stacks you can reduce the time a infrastracture change takes to finish.
-This is even more appealing if your terraform changes are applied through CI
-builders running in the cloud because faster integration/builds leads to reduced
-cloud costs.
-
-### Ownership
-
-In the case of a big organization you probably don't want a single person or
-team responsible for the whole infrastructure. The company's stacks can be
-spread over several repositories and managed by different teams.
-
-By having this separation it also makes it easier when you want separation
-by resource permissions, so having some stacks that can only be run by
-specific individuals or teams.
-
-### Others
-
-There are lots of other opinionated reasons why stacks would be a good option:
-stacks per environments or deploy region location, stacks per topic (IAM vs
-actual resources) and so on.
-
-## Detecting IaC changes
-
-When changing your infrastructure (made up of a set of stacks) it's common to
-make several changes to several stacks. But now that you have multiple terraform
-states (per stack), how to apply the changes only to the affected resources?
-
-The terramate solves this by imposing a workflow:
-
-1. The default branch (commonly main) has the production (applied) code.
-2. Before planning and apply, the changes must be committed in a feature/bugfix
-  branch.
-3. The IaC project must use [non
-  fast-forwarded](https://git-scm.com/docs/git-merge#_fast_forward_merge) merge
-  commits. (the default in github and bitbucket).
-
-### Why this workflow?
-
-By using the method above all commits (except first) in the default branch are
-merge commits, then we have an easy way of detecting which stacks in the current
-feature branch differs from the main branch.
-
-The technique is super simple and consists of finding the common ancestor
-between the current branch and the default branch (most commonly the commit that
-current branch forked from) and then list the files that have changed since then
-and filter the ones that are part of terraform stacks.
+TODO: More details on the basics to setup a project
