@@ -80,7 +80,7 @@ a simple merge strategy to build each stack globals set:
 * Globals with different names are merged.
 * Globals with same names: more specific configuration replaces the general one.
 
-Lets explore a little further with an example.
+Let's explore a little further with an example.
 Given a project structured like this:
 
 ```
