@@ -155,6 +155,7 @@ generate_hcl "main.tf" {
       path  = terramate.path
       name  = local.name
     }
+  }
 }
 ```
 
@@ -188,6 +189,7 @@ generate_hcl "main.tf" {
       data  = tm_upper(global.terramate_data)
       name  = upper(local.name)
     }
+  }
 }
 ```
 
@@ -212,6 +214,7 @@ generate_hcl "main.tf" {
       data  = upper(global.terramate_data)
       name  = upper(local.name)
     }
+  }
 }
 ```
 
@@ -224,6 +227,7 @@ generate_hcl "main.tf" {
       data  = upper("terramate_data")
       name  = upper(local.name)
     }
+  }
 }
 ```
 
