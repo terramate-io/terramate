@@ -1081,17 +1081,22 @@ func (e *engine) evalString() error {
 			}
 
 		case hclsyntax.TokenOQuote:
-			var quotedBytes []byte
-			switch len(elem.evaluated) {
-			case 2:
-				quotedBytes = nil
-			case 3:
-				quotedBytes = elem.evaluated[1].Bytes
-			default:
+			if len(elem.evaluated) < 2 {
 				panic(sprintf(
 					"unexpected string case: %s (%d)",
 					elem.evaluated.Bytes(),
 					len(elem.evaluated)))
+			}
+
+			var quotedBytes []byte
+
+			if len(elem.evaluated) > 2 {
+				for j := 1; j < len(elem.evaluated)-1; j++ {
+					if elem.evaluated[j].Type != hclsyntax.TokenQuotedLit {
+						panic(errorf("expect to be all string parts but found %s", elem.evaluated[j].Type))
+					}
+					quotedBytes = append(quotedBytes, elem.evaluated[j].Bytes...)
+				}
 			}
 
 			if last == nil {
