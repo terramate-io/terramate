@@ -217,8 +217,6 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 		Stringer("stack", stack).
 		Logger()
 
-	outdated := []string{}
-
 	logger.Trace().Msg("Load stack code generation config.")
 
 	cfg, err := LoadStackCfg(root, stack)
@@ -240,13 +238,14 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 		return nil, fmt.Errorf("checking for outdated code: %v", err)
 	}
 
-	// TODO(katcipis): Do we need this string set here ?
+	// TODO(katcipis): currentFiles/string set logic seems overcomplicated
+	// for the current code.
 	currentFiles := newStringSet(g...)
 
 	stackpath := stack.AbsPath()
 	stackMeta := stack.Meta()
 
-	outdatedTerraformFiles, err := generatedHCLOutdatedFiles(
+	outdatedGenHCLFiles, err := generatedHCLOutdatedFiles(
 		root,
 		stackpath,
 		stackMeta,
@@ -257,7 +256,7 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("checking for outdated exported terraform: %v", err)
 	}
-	outdated = append(outdated, outdatedTerraformFiles...)
+	outdated := outdatedGenHCLFiles
 	outdated = append(outdated, currentFiles.slice()...)
 
 	sort.Strings(outdated)
