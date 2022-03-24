@@ -285,5 +285,5 @@ you can change the default stack name.
 The description of the stack, if it has any.
 The default value is an empty string.
 
-Checkout [stack configuration](stack.md) to see how
+Please consider [stack configuration](stack.md) to see how
 you can change the default stack description.
