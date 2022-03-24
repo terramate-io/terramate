@@ -84,9 +84,6 @@ func FuzzPartialEval(f *testing.F) {
 			return
 		}
 
-		// Here we fuzz that anything that the hclsyntax lib handle we should
-		// also handle with no errors. We dont fuzz actual substitution
-		// scenarios that would require a proper context with globals loaded.
 		const testattr = "attr"
 
 		cfg := hcldoc(
