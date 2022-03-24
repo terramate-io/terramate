@@ -48,7 +48,7 @@ change.
 
 ## Reduce execution time
 
-By using stacks you can reduce the time a infrastructure change takes to finish.
+By using stacks you can reduce the time an infrastructure change takes to finish.
 This is even more appealing if your Terraform changes are applied through CI
 builders running in the cloud because faster integration/builds leads to reduced
 cloud costs.
