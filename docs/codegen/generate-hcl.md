@@ -202,8 +202,9 @@ resource "myresource" "name" {
 }
 ```
 
-If a reference to Terramate data is made as a parameter to an unknown
-function call the value of the data will be replaced on function call.
+If one of the parameters of a unknown function call is a Terramate
+reference the value of the Terramate reference will be replaced on the
+function call.
 
 This:
 
