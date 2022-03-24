@@ -21,6 +21,16 @@
 [![codecov](https://codecov.io/gh/mineiros-io/terramate/branch/main/graph/badge.svg?token=gMRUkVUAQ4)](https://codecov.io/gh/mineiros-io/terramate)
 
 Terramate is a tool for managing multiple Terraform stacks.
+
+The stack concept is not defined by Hashicorp's Terraform tooling but just a
+convention used by the _Terraform community_, so a stack can be loosely defined
+as:
+
+```
+A terraform stack is a runnable terraform module that operates on a subset of
+the infrastructure's resource.
+```
+
 It provides ways to keep your code [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself)
 and also manage dependencies between stacks with minimal effort to get
 started in a non-intrusive way.
