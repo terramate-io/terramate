@@ -16,7 +16,7 @@ By _runnable_ it means it has everything needed to call
 don't have the `provider` explicitly set, is not runnable hence it's
 **not a stack**.
 
-If your runnable terraform module creates your whole infrastructure, *it's
+If your runnable Terraform module creates your whole infrastructure, *it's
 also not a stack*, since the idea of stacks is to be a unit of infrastructure
 decomposition.
 
