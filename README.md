@@ -85,8 +85,9 @@ run Terramate inside a container:
 docker run ghcr.io/mineiros-io/terramate
 ```
 
-Container images tagged with release versions are also provided. For getting an overview of the available releases, please see https://github.com/mineiros-io/terramate/releases
-
+Container images tagged with release versions are also provided.
+Click [here](https://github.com/mineiros-io/terramate/pkgs/container/terramate/versions)
+for a list of the available container image tags.
 
 #### Auto Completion
 
