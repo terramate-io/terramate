@@ -1,6 +1,6 @@
 # Sharing Data
 
-In order to keep your code [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself)
+To keep your code [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself)
 it is important to have an easy and safe way to define data once and share it
 across your project.
 
