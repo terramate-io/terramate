@@ -175,7 +175,8 @@ hence the partial evaluation.
 
 Function calls are also partially evaluated. Any unknown function call
 will be retained as is, but any function call starting with the prefix
-`tm_` will be evaluated and can only have as parameter Terramate references
+`tm_` is considered a Terramate function and will be evaluated.
+Terramate function calls can only have as parameters Terramate references
 or literals.
 
 For example, given:
