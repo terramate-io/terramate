@@ -25,7 +25,7 @@ work and will fail if this soft requirement is not met.
 
 In general, a Terramate project looks like this:
 
-* A git project.
+* A Git project.
 * The git top-level dir is the project root dir.
 * Stacks are organized as different directories.
 * Configuration may be present on any directory.
