@@ -6,7 +6,7 @@ across your project.
 
 This is done on Terramate using globals and metadata. Globals are defined by
 the user, similar to how you would define locals in Terraform, and metadata
-is provided by Terramate itself.
+is provided by Terramate.
 
 Terramate globals and metadata are integrated with Terraform using code
 generation, you can check it into more details [here](codegen/overview.md).
