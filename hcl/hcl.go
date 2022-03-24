@@ -51,15 +51,8 @@ type GitConfig struct {
 	DefaultRemote        string // DefaultRemote is the default remote.
 }
 
-// GenerateConfig represents code generation config
-type GenerateConfig struct {
-	LocalsFilename     string
-	BackendCfgFilename string
-}
-
 type RootConfig struct {
-	Git      *GitConfig
-	Generate *GenerateConfig
+	Git *GitConfig
 }
 
 // Terramate is the parsed "terramate" HCL block.
@@ -70,8 +63,6 @@ type Terramate struct {
 	// RootConfig is the configuration at the project root directory (commonly
 	// the git directory).
 	RootConfig *RootConfig
-
-	Backend *hclsyntax.Block
 }
 
 // Stack is the parsed "stack" HCL block.
@@ -290,31 +281,6 @@ func ParseGlobalsBlocks(dir string) (HCLBlocks, error) {
 		}
 		if len(block.Labels) > 0 {
 			return fmt.Errorf("labels on globals block are not allowed, found %v", block.Labels)
-		}
-		return nil
-	})
-}
-
-// ParseExportAsLocalsBlocks parses all Terramate files on the given dir, returning
-// only export_as_locals blocks (other blocks are discarded).
-// export_as_locals blocks are validated, so the caller can expect valid blocks only or an error.
-func ParseExportAsLocalsBlocks(dir string) (HCLBlocks, error) {
-	logger := log.With().
-		Str("action", "hcl.ParseExportAsLocalsBlocks").
-		Str("configdir", dir).
-		Logger()
-
-	logger.Trace().Msg("loading config")
-
-	return parseHCLBlocks(dir, "export_as_locals", func(block *hclsyntax.Block) error {
-		if len(block.Labels) != 0 {
-			return fmt.Errorf(
-				"exported_as_locals should not have labels but has %v",
-				block.Labels,
-			)
-		}
-		if len(block.Body.Blocks) != 0 {
-			return errors.New("export_as_locals should not have blocks")
 		}
 		return nil
 	})
@@ -644,91 +610,12 @@ func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
 			if err := parseGitConfig(cfg.Git, b); err != nil {
 				return err
 			}
-		case "generate":
-			logger.Trace().Msg("Found block generate")
-
-			if cfg.Generate != nil {
-				return errors.New("multiple terramate.config.backend blocks")
-			}
-
-			logger.Trace().Msg("Parsing terramate.config.generate.")
-
-			gencfg, err := parseGenerateConfig(b)
-			if err != nil {
-				return err
-			}
-			cfg.Generate = &gencfg
-
 		default:
 			return fmt.Errorf("unrecognized block type %q", b.Type)
 		}
 	}
 
 	return nil
-}
-
-func parseGenerateConfig(block *hclsyntax.Block) (GenerateConfig, error) {
-	logger := log.With().
-		Str("action", "parseGenerateConfig()").
-		Logger()
-
-	logger.Trace().Msg("Range over block attributes.")
-
-	cfg := GenerateConfig{}
-
-	for name, value := range block.Body.Attributes {
-		logger := logger.With().
-			Str("attribute", name).
-			Logger()
-
-		attrVal, diags := value.Expr.Value(nil)
-		if diags.HasErrors() {
-			return GenerateConfig{}, errutil.Chain(
-				ErrHCLSyntax,
-				fmt.Errorf("failed to evaluate terramate.config.generate.%s attribute: %w",
-					name, diags),
-			)
-		}
-
-		switch name {
-		case "backend_config_filename":
-			{
-				logger.Trace().Msg("parsing")
-
-				if attrVal.Type() != cty.String {
-					return GenerateConfig{}, fmt.Errorf("terramate.config.generate.%s is not a string but %q",
-						name,
-						attrVal.Type().FriendlyName())
-				}
-				cfg.BackendCfgFilename = attrVal.AsString()
-
-				logger.Trace().Msg("parsed with success")
-			}
-		case "locals_filename":
-			{
-				logger.Trace().Msg("parsing")
-
-				if attrVal.Type() != cty.String {
-					return GenerateConfig{}, fmt.Errorf("terramate.config.generate.%s is not a string but %q",
-						name,
-						attrVal.Type().FriendlyName())
-				}
-				cfg.LocalsFilename = attrVal.AsString()
-
-				logger.Trace().Msg("parsed with success")
-			}
-
-		default:
-			return GenerateConfig{}, fmt.Errorf("unrecognized attribute terramate.config.generate.%s", name)
-		}
-	}
-
-	if cfg.LocalsFilename != "" && cfg.LocalsFilename == cfg.BackendCfgFilename {
-		return GenerateConfig{}, fmt.Errorf(
-			"terramate.config.generate: locals and backend cfg files have the same name %q", cfg.LocalsFilename)
-	}
-
-	return cfg, nil
 }
 
 func parseGitConfig(git *GitConfig, block *hclsyntax.Block) error {
@@ -806,7 +693,7 @@ func blockIsAllowed(name string) bool {
 		Logger()
 
 	switch name {
-	case "terramate", "stack", "backend", "globals", "export_as_locals", "generate_hcl":
+	case "terramate", "stack", "globals", "generate_hcl":
 		logger.Trace().Msg("Block name was allowed.")
 		return true
 	default:
@@ -971,18 +858,6 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 
 			for _, block := range tmblock.Body.Blocks {
 				switch block.Type {
-				case "backend":
-					logger.Trace().Msg("Parsing backend block.")
-
-					if tm.Backend != nil {
-						return Config{}, cfgErr("duplicated terramate.backend block")
-					}
-
-					if len(block.Labels) != 1 {
-						return Config{}, cfgErr("backend block expects 1 label but has %v", block.Labels)
-					}
-					tm.Backend = block
-
 				case "config":
 					logger.Trace().Msg("Found config block.")
 

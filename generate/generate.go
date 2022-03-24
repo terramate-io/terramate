@@ -66,7 +66,6 @@ func Do(root string, workingDir string) Report {
 	return forEachStack(root, workingDir, func(
 		stack stack.S,
 		globals terramate.Globals,
-		cfg StackCfg,
 	) stackReport {
 		stackpath := stack.AbsPath()
 		logger := log.With().
@@ -219,11 +218,6 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 
 	logger.Trace().Msg("Load stack code generation config.")
 
-	cfg, err := LoadStackCfg(root, stack)
-	if err != nil {
-		return nil, fmt.Errorf("checking for outdated code: %v", err)
-	}
-
 	logger.Trace().Msg("Loading globals for stack.")
 
 	globals, err := terramate.LoadStackGlobals(root, stack.Meta())
@@ -250,7 +244,6 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 		stackpath,
 		stackMeta,
 		globals,
-		cfg,
 		currentFiles,
 	)
 	if err != nil {
@@ -273,7 +266,6 @@ func generatedHCLOutdatedFiles(
 	root, stackpath string,
 	stackMeta stack.Metadata,
 	globals terramate.Globals,
-	cfg StackCfg,
 	currentGenFiles *stringSet,
 ) ([]string, error) {
 	logger := log.With().
@@ -436,7 +428,7 @@ func loadGeneratedCode(path string) (string, bool, error) {
 	return "", false, fmt.Errorf("%w: at %q", ErrManualCodeExists, path)
 }
 
-type forEachStackFunc func(stack.S, terramate.Globals, StackCfg) stackReport
+type forEachStackFunc func(stack.S, terramate.Globals) stackReport
 
 func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 	logger := log.With().
@@ -467,14 +459,6 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 			continue
 		}
 
-		logger.Trace().Msg("Load stack code generation config.")
-
-		cfg, err := LoadStackCfg(root, stack)
-		if err != nil {
-			report.addFailure(stack, fmt.Errorf("%w: %v", ErrLoadingStackCfg, err))
-			continue
-		}
-
 		logger.Trace().Msg("Load stack globals.")
 
 		globals, err := terramate.LoadStackGlobals(root, stack.Meta())
@@ -485,7 +469,7 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 
 		logger.Trace().Msg("Calling stack callback.")
 
-		report.addStackReport(stack, fn(stack, globals, cfg))
+		report.addStackReport(stack, fn(stack, globals))
 	}
 	report.sortFilenames()
 	return report
