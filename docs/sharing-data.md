@@ -112,7 +112,7 @@ globals {
 Now any stack on the project can reference these globals on their
 [Terramate configuration](config-overview.md).
 
-Now lets say one of the stacks wants to add more globals, to do
+Now, let's say one of the stacks wants to add more globals, to do
 so we can add globals on the stack configuration by creating the file
 `stacks/stack-1/globals.tm.hcl`:
 
