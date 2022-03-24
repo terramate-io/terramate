@@ -88,10 +88,10 @@ type engine struct {
 	nparen int
 }
 
-// node represents a grammar node but in terms of its original source tokens and
+// node represents a grammar node but in terms of its original tokens and
 // the rewritten (evaluated) ones.
 type node struct {
-	source    hclwrite.Tokens
+	original  hclwrite.Tokens
 	evaluated hclwrite.Tokens
 
 	hasCond  bool
@@ -178,15 +178,15 @@ func (e *engine) emitVariable(v variable) {
 	tos := e.evalstack.peek()
 	tos.pushEvaluated(v.alltokens()...)
 	for i := 0; i < v.size(); i++ {
-		tos.source = append(tos.source, e.peek())
+		tos.original = append(tos.original, e.peek())
 		e.pos++
 	}
 }
 
-func (e *engine) emitTokens(source hclwrite.Tokens, evaluated hclwrite.Tokens) {
+func (e *engine) emitTokens(original hclwrite.Tokens, evaluated hclwrite.Tokens) {
 	tos := e.evalstack.peek()
 	tos.pushEvaluated(evaluated...)
-	tos.pushSource(source...)
+	tos.pushOriginal(original...)
 }
 
 func (e *engine) emitnl() {
@@ -926,7 +926,7 @@ func (e *engine) evalInterp() error {
 	}
 
 	needsEval := func(n *node) bool {
-		if areSameTokens(n.source, n.evaluated) {
+		if areSameTokens(n.original, n.evaluated) {
 			return true
 		}
 
@@ -1070,7 +1070,7 @@ func (e *engine) evalString() error {
 					Type:  hclsyntax.TokenQuotedLit,
 					Bytes: elem.evaluated[0].Bytes,
 				})
-				rewritten.pushSource(elem.source...)
+				rewritten.pushOriginal(elem.original...)
 				last = rewritten.evaluated[len(rewritten.evaluated)-1]
 			} else {
 				last.Bytes = append(last.Bytes, elem.evaluated[0].Bytes...)
@@ -1089,7 +1089,7 @@ func (e *engine) evalString() error {
 					Type:  hclsyntax.TokenQuotedLit,
 					Bytes: elem.evaluated[1].Bytes,
 				})
-				rewritten.pushSource(elem.source...)
+				rewritten.pushOriginal(elem.original...)
 				last = rewritten.evaluated[len(rewritten.evaluated)-1]
 			} else {
 				last.Bytes = append(last.Bytes, elem.evaluated[1].Bytes...)
@@ -1277,15 +1277,15 @@ func areSameTokens(a, b hclwrite.Tokens) bool {
 	return true
 }
 
-// pushfrom push the source and evaluated tokens from other node into this one.
+// pushfrom push the original and evaluated tokens from other node into this one.
 func (n *node) pushfrom(other *node) {
-	n.source = append(n.source, other.source...)
+	n.original = append(n.original, other.original...)
 	n.evaluated = append(n.evaluated, other.evaluated...)
 }
 
-// push the token into both source and evaluated.
+// push the token into both original and evaluated.
 func (n *node) push(tok *hclwrite.Token) {
-	n.source = append(n.source, tok)
+	n.original = append(n.original, tok)
 	n.evaluated = append(n.evaluated, tok)
 }
 
@@ -1293,8 +1293,8 @@ func (n *node) pushEvaluated(toks ...*hclwrite.Token) {
 	n.evaluated = append(n.evaluated, toks...)
 }
 
-func (n *node) pushSource(toks ...*hclwrite.Token) {
-	n.source = append(n.source, toks...)
+func (n *node) pushOriginal(toks ...*hclwrite.Token) {
+	n.original = append(n.original, toks...)
 }
 
 type nodestack struct {
