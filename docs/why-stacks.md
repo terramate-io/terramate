@@ -43,7 +43,7 @@ A small change can lead to catastrophic events if you're not careful or makes a
 mistake like forgetting a "prevent_destroy" attribute in the production database
 lifecycle declaration. Someone may commit mistakes and it's better if
 you could reduce the impact of such errors.
-An extreme example is: avoiding a database instance destroy because of a dns TTL
+An extreme example is: avoiding a database instance destroy because of a DNS TTL
 change.
 
 ## Reduce execution time
