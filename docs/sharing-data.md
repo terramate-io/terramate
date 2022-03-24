@@ -202,7 +202,7 @@ object       = { field_a = "field_a", field_b = "field_b" }
 
 ## Lazy Evaluation
 
-So far we described how globals on different configurations are merged.
+So far, we've described how globals on different configurations are merged.
 Given that globals can reference other globals and Terramate metadata it is
 important to be clear about how/when evaluation happens. 
 
