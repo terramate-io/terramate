@@ -368,10 +368,6 @@ func generateStackHCLCode(
 	return files, nil
 }
 
-func prependHeader(code string) string {
-	return Header + "\n\n" + code
-}
-
 func prependGenHCLHeader(origin, code string) string {
 	return fmt.Sprintf(
 		"%s\n// TERRAMATE: originated from generate_hcl block on %s\n\n%s",
