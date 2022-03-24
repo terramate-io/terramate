@@ -59,7 +59,7 @@ In the case of a big organization you probably don't want a single person or
 team responsible for the whole infrastructure. The company's stacks can be
 spread over several repositories and managed by different teams.
 
-By having this separation it also makes it easier when you want separation
+By having this separation, it also makes it easier when you want separation
 by resource permissions, so having some stacks that can only be run by
 specific individuals or teams.
 
