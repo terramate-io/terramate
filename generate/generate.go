@@ -23,7 +23,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/generate/genhcl"
@@ -79,15 +78,6 @@ func Do(root string, workingDir string) Report {
 		genfiles := []genfile{}
 		stackMeta := stack.Meta()
 		report := stackReport{}
-
-		logger.Trace().Msg("Generate stack locals.")
-
-		stackLocalsCode, err := generateStackLocalsCode(root, stackpath, stackMeta, globals)
-		if err != nil {
-			report.err = fmt.Errorf("%w: %v", ErrExportingLocalsGen, err)
-			return report
-		}
-		genfiles = append(genfiles, genfile{name: cfg.LocalsFilename, body: stackLocalsCode})
 
 		logger.Trace().Msg("Generate stack terraform.")
 
@@ -249,23 +239,12 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("checking for outdated code: %v", err)
 	}
+
+	// TODO(katcipis): Do we need this string set here ?
 	currentFiles := newStringSet(g...)
 
 	stackpath := stack.AbsPath()
 	stackMeta := stack.Meta()
-
-	outdatedLocalsFiles, err := exportedLocalsOutdatedFiles(
-		root,
-		stackpath,
-		stackMeta,
-		globals,
-		cfg,
-		currentFiles,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("checking for outdated exported locals: %v", err)
-	}
-	outdated = append(outdated, outdatedLocalsFiles...)
 
 	outdatedTerraformFiles, err := generatedHCLOutdatedFiles(
 		root,
@@ -344,47 +323,6 @@ func generatedHCLOutdatedFiles(
 	return outdated, nil
 }
 
-func exportedLocalsOutdatedFiles(
-	root, stackpath string,
-	stackMeta stack.Metadata,
-	globals terramate.Globals,
-	cfg StackCfg,
-	currentGenFiles *stringSet,
-) ([]string, error) {
-	logger := log.With().
-		Str("action", "generate.exportedLocalsOutdatedFiles()").
-		Str("root", root).
-		Str("stackpath", stackpath).
-		Logger()
-
-	logger.Trace().Msg("Checking for outdated exported locals code on stack.")
-
-	genlocals, err := generateStackLocalsCode(root, stackpath, stackMeta, globals)
-	if err != nil {
-		return nil, err
-	}
-
-	stackLocalsFile := filepath.Join(stackpath, cfg.LocalsFilename)
-	currentlocals, codeFound, err := loadGeneratedCode(stackLocalsFile)
-	if err != nil {
-		return nil, err
-	}
-	if !codeFound && len(genlocals) == 0 {
-		logger.Trace().Msg("Updated since code not found and block is empty.")
-		return nil, nil
-	}
-	currentGenFiles.remove(cfg.LocalsFilename)
-
-	if string(genlocals) != currentlocals {
-		logger.Trace().Msg("Detected outdated exported locals.")
-		return []string{cfg.LocalsFilename}, nil
-	}
-
-	logger.Trace().Msg("exported locals are updated.")
-
-	return nil, nil
-}
-
 func generateStackHCLCode(
 	root string,
 	stackpath string,
@@ -428,57 +366,6 @@ func generateStackHCLCode(
 	}
 
 	return files, nil
-}
-
-func generateStackLocalsCode(
-	rootdir string,
-	stackpath string,
-	metadata stack.Metadata,
-	globals terramate.Globals,
-) (string, error) {
-	logger := log.With().
-		Str("action", "generateStackLocals()").
-		Str("stack", stackpath).
-		Logger()
-
-	logger.Trace().Msg("Load stack exported locals.")
-
-	stackLocals, err := terramate.LoadStackExportedLocals(rootdir, metadata, globals)
-	if err != nil {
-		return "", err
-	}
-
-	logger.Trace().Msg("Get stack attributes.")
-
-	localsAttrs := stackLocals.Attributes()
-	if len(localsAttrs) == 0 {
-		return "", nil
-	}
-
-	logger.Trace().Msg("Sort attributes.")
-
-	sortedAttrs := make([]string, 0, len(localsAttrs))
-	for name := range localsAttrs {
-		sortedAttrs = append(sortedAttrs, name)
-	}
-	// Avoid generating code with random attr order (map iteration is random)
-	sort.Strings(sortedAttrs)
-
-	logger.Trace().
-		Msg("Append locals block to file.")
-	gen := hclwrite.NewEmptyFile()
-	body := gen.Body()
-	localsBlock := body.AppendNewBlock("locals", nil)
-	localsBody := localsBlock.Body()
-
-	logger.Trace().
-		Msg("Set attribute values.")
-	for _, name := range sortedAttrs {
-		localsBody.SetAttributeValue(name, localsAttrs[name])
-	}
-
-	tfcode := prependHeader(string(gen.Bytes()))
-	return tfcode, nil
 }
 
 func prependHeader(code string) string {

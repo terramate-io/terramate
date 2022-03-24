@@ -984,8 +984,10 @@ func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
 
 	stack1.CreateConfig(`
 		stack {}
-		export_as_locals {
-		  test = terramate.path
+		generate_hcl "test.tf" {
+		  content {
+		    test = terramate.path
+		  }
 		}
 	`)
 
