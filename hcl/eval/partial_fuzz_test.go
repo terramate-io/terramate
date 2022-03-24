@@ -84,7 +84,7 @@ func FuzzPartialEval(f *testing.F) {
 		// WHY? because HCL uses the big.Float library for numbers and then
 		// fuzzer can generate huge number strings like 100E101000000 that will
 		// hang the process and eat all the memory....
-		const bigNumRegex = "[\\d]+[\\s]?[.]?[\\s]?[\\d]?[Ee]{1}[\\s]?[+-]?[\\s]?[\\d]+"
+		const bigNumRegex = "[\\d]+[\\s]*[.]?[\\s]*[\\d]*[Ee]{1}[\\s]*[+-]?[\\s]*[\\d]+"
 		hasBigNumbers, _ := regexp.MatchString(bigNumRegex, str)
 		if hasBigNumbers {
 			return
