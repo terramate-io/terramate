@@ -19,7 +19,7 @@ A Terramate project is essentially a collection of Terraform code
 organized into stacks.
 
 It is not a hard requirement for Terramate to work that the project uses Git 
-for version control (support to other VCS maybe added on the future),
+for version control (support to other VCS might be added in the future),
 but features like change detection do depend on a VCS to
 work and will fail if this soft requirement is not met.
 
