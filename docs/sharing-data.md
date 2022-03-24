@@ -77,7 +77,7 @@ is reached. This is called the stack globals set.
 For globals being redefined on different configurations we follow
 a simple merge strategy to build each stack globals set:
 
-* Globals with different names are merged together.
+* Globals with different names are merged.
 * Globals with same names: more specific configuration replaces the general one.
 
 Lets explore a little further with an example.
