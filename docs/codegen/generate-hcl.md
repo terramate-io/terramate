@@ -131,7 +131,7 @@ A partial evaluation strategy is used when generating HCL code.
 This means that you can generate code with unknown references/function calls
 and those will be copied verbatim to the generated code.
 
-Lets assume we have a single global:
+Lets assume we have a single global as Terramate data:
 
 ```hcl
 globals {
@@ -139,9 +139,9 @@ globals {
 }
 ```
 
-
-For example, for Terraform, we can generate code that references
-locals/vars/outputs/etc:
+And we want to mix this Terramate data with Terraform references,
+like locals/vars/outputs/etc. All we have to do is define our
+`generate_hcl` block like this:
 
 
 ```hcl
@@ -157,7 +157,7 @@ generate_hcl "main.tf" {
 }
 ```
 
-Will generate the following `main.tf` file:
+And it will generate the following `main.tf` file:
 
 ```
 resource "myresource" "name" {
