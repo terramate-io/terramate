@@ -277,7 +277,7 @@ Given this stack layout (from the root of the project):
 * terramate.name for **stack-a** = stack-a
 * terramate.name for **stack-b** = stack-b
 
-Checkout [stack configuration](stack.md) to see how
+Please consider [stack configuration](stack.md) to see how
 you can change the default stack name.
 
 ## terramate.description (string) 
