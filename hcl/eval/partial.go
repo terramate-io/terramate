@@ -1334,7 +1334,8 @@ func trimIgnored(tokens hclwrite.Tokens) hclwrite.Tokens {
 	ignorePos := 0
 	for j := 0; j < len(tokens); j++ {
 		if tokens[j].Type == hclsyntax.TokenNewline ||
-			tokens[j].Type == hclsyntax.TokenComment {
+			tokens[j].Type == hclsyntax.TokenComment ||
+			tokens[j].Type == hclsyntax.TokenOParen {
 			ignorePos = j + 1
 		} else {
 			break
@@ -1346,7 +1347,8 @@ func trimIgnored(tokens hclwrite.Tokens) hclwrite.Tokens {
 	ignorePos = len(tokens)
 	for j := len(tokens) - 1; j >= 0; j-- {
 		if tokens[j].Type == hclsyntax.TokenNewline ||
-			tokens[j].Type == hclsyntax.TokenComment {
+			tokens[j].Type == hclsyntax.TokenComment ||
+			tokens[j].Type == hclsyntax.TokenCParen {
 			ignorePos = j
 		} else {
 			break
