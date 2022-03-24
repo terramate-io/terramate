@@ -22,7 +22,7 @@ decomposition.
 
 ## Isolate code with higher change frequency
 
-If you infrastructure have a high frequency of change, for example, several
+If you have a high change frequency in your infrastructure, for example, several
 deploys per day/week or several configuration changes per day/week, then if you
 apply the change in your single Terraform project, some dependent resources can
 be recreated leading to increased downtime. There are several reasons why a
