@@ -166,7 +166,7 @@ Overriding happens at the global name level, so objects/maps/lists/sets
 won't get merged, they are completely replaced by the most
 specific configuration with the same global name.
 
-Lets say we add this to our project root configuration:
+Let's say we add this to our project root configuration:
 
 ```hcl
 globals {
