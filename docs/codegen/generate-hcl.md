@@ -139,9 +139,9 @@ globals {
 }
 ```
 
-And we want to mix this Terramate data with Terraform references,
-like locals/vars/outputs/etc. All we have to do is define our
-`generate_hcl` block like this:
+And we want to mix this Terramate references with Terraform
+references, like locals/vars/outputs/etc.
+All we have to do is define our `generate_hcl` block like this:
 
 
 ```hcl
