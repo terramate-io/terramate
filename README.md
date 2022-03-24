@@ -39,6 +39,7 @@ started in a non-intrusive way.
 * Explicitly define order of execution of stacks.
 * Code generation ensures that plan/apply is always done with plain Terraform commands.
 * Change detection, including for local modules used by stacks.
+* Not a wrapper, you keep using Terraform or any other of your tools.
 * All done with [HCL](https://github.com/hashicorp/hcl).
 
 For more details on how this is achieved, please consider:
