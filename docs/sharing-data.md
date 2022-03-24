@@ -137,7 +137,7 @@ project_name = "awesome-project"
 useful       = "useful"
 ```
 
-Now lets redefine a global on `stacks/stack-1`.
+Now, let's redefine a global on `stacks/stack-1`.
 We do that by changing `stacks/stack-1/globals.tm.hcl`:
 
 ```hcl
