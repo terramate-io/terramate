@@ -71,7 +71,7 @@ this definition:
 * Globals can reference globals from other configurations.
 
 Each stack will have its globals defined by loading them from
-the stack directory and all the way up until the project root
+the stack directory and up until the project root
 is reached. This is called the stack globals set.
 
 For globals being redefined on different configurations we follow
