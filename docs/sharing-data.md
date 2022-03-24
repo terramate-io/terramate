@@ -75,7 +75,7 @@ the stack directory and up until the project root
 is reached. This is called the stack globals set.
 
 For globals being redefined on different configurations we follow
-a very simple merge strategy to build each stack globals set:
+a simple merge strategy to build each stack globals set:
 
 * Globals with different names are merged together.
 * Globals with same names: more specific configuration replaces the general one.
