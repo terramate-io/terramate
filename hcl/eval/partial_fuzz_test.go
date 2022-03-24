@@ -124,8 +124,8 @@ func FuzzPartialEval(f *testing.F) {
 		engine := newPartialEvalEngine(want, ctx)
 		got, err := engine.Eval()
 
-		if strings.Contains(cfgString, "global.") ||
-			strings.Contains(cfgString, "terramate.") ||
+		if strings.Contains(cfgString, "global") ||
+			strings.Contains(cfgString, "terramate") ||
 			strings.Contains(cfgString, "tm_") {
 			// TODO(katcipis): Validate generated code properties when
 			// substitution is in play.
