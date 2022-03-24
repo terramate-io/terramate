@@ -66,5 +66,5 @@ specific individuals or teams.
 ## Others
 
 There are lots of other opinionated reasons why stacks would be a good option:
-stacks per environments or deploy region location, stacks per topic (IAM vs
+stacks per environment or deploy region location, stacks per topic (IAM vs
 actual resources) and so on.
