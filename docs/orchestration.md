@@ -23,9 +23,9 @@ project structure will select only stacks that are children of the current direc
 3. Explicit `wants` relationship.
 
 The `wants` attribute of the stack block defines an explicit relationship
-between two stacks, that when provided it says that selecting this stack *also
-selects the provided list of stacks*. So instead of filtering this explicitly
-selects stacks that would have been filtered out by the other methods.
+between a stack and its list of wanted stacks, that when provided it says
+that when a stack is selected all the stacks listed on its `wants` list will also be
+selected, always, independent of any other selection criteria. 
 
 Example:
 
