@@ -44,7 +44,7 @@ applied is: `change detection`, `current directory`, `wants`.
 ## Stacks ordering
 
 Sometimes stacks are completely independent of each other, but on
-certain occasions it may happen that they have some infrastructure that is created
+certain occasions it may happen that infrastructure that is created
 by **stack-a** is required by **stack-b**, like using the outputs
 of **stack-a** as inputs for **stack-b**.
 
