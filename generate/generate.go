@@ -27,14 +27,11 @@ import (
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/generate/genhcl"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 )
 
 const (
-	ErrBackendConfigGen   errutil.Error = "generating backend config"
 	ErrExportingLocalsGen errutil.Error = "generating locals"
 	ErrLoadingGlobals     errutil.Error = "loading globals"
 	ErrLoadingStackCfg    errutil.Error = "loading stack code gen config"
@@ -82,15 +79,6 @@ func Do(root string, workingDir string) Report {
 		genfiles := []genfile{}
 		stackMeta := stack.Meta()
 		report := stackReport{}
-
-		logger.Trace().Msg("Generate stack backend config.")
-
-		stackBackendCfgCode, err := generateBackendCfgCode(root, stackpath, stackMeta, globals, stackpath)
-		if err != nil {
-			report.err = fmt.Errorf("%w: %v", ErrBackendConfigGen, err)
-			return report
-		}
-		genfiles = append(genfiles, genfile{name: cfg.BackendCfgFilename, body: stackBackendCfgCode})
 
 		logger.Trace().Msg("Generate stack locals.")
 
@@ -145,7 +133,7 @@ func Do(root string, workingDir string) Report {
 				Str("filename", genfile.name).
 				Logger()
 
-			// For now we don't want to generate files just with a header inside.
+			// We don't want to generate files just with a header inside.
 			if genfile.body == "" {
 				logger.Trace().Msg("ignoring empty code")
 				continue
@@ -162,7 +150,7 @@ func Do(root string, workingDir string) Report {
 			}
 
 			// Change detection + remove code that got deleted but
-			// was just re-generated from the removed files map
+			// was re-generated from the removed files map
 			removedFileBody, ok := removedFiles[genfile.name]
 			if !ok {
 				report.addCreatedFile(genfile.name)
@@ -266,19 +254,6 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 	stackpath := stack.AbsPath()
 	stackMeta := stack.Meta()
 
-	outdatedBackendFiles, err := backendConfigOutdatedFiles(
-		root,
-		stackpath,
-		stackMeta,
-		globals,
-		cfg,
-		currentFiles,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("checking for outdated backend config: %v", err)
-	}
-	outdated = append(outdated, outdatedBackendFiles...)
-
 	outdatedLocalsFiles, err := exportedLocalsOutdatedFiles(
 		root,
 		stackpath,
@@ -314,48 +289,6 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 type genfile struct {
 	name string
 	body string
-}
-
-func backendConfigOutdatedFiles(
-	root, stackpath string,
-	stackMeta stack.Metadata,
-	globals terramate.Globals,
-	cfg StackCfg,
-	currentGenFiles *stringSet,
-) ([]string, error) {
-	logger := log.With().
-		Str("action", "generate.backendConfigOutdatedFiles()").
-		Str("root", root).
-		Str("stackpath", stackpath).
-		Logger()
-
-	logger.Trace().Msg("Generating backend cfg code for stack.")
-
-	genbackend, err := generateBackendCfgCode(root, stackpath, stackMeta, globals, stackpath)
-	if err != nil {
-		return nil, err
-	}
-
-	stackBackendCfgFile := filepath.Join(stackpath, cfg.BackendCfgFilename)
-	currentbackend, codeFound, err := loadGeneratedCode(stackBackendCfgFile)
-	if err != nil {
-		return nil, err
-	}
-	if !codeFound && len(genbackend) == 0 {
-		logger.Trace().Msg("Not outdated since code not found and block is empty.")
-		return nil, nil
-	}
-	currentGenFiles.remove(cfg.BackendCfgFilename)
-
-	logger.Trace().Msg("Checking for outdated backend cfg code on stack.")
-
-	if string(genbackend) != currentbackend {
-		logger.Trace().Msg("Detected outdated backend cfg.")
-		return []string{cfg.BackendCfgFilename}, nil
-	}
-
-	logger.Trace().Msg("backend cfg is updated.")
-	return nil, nil
 }
 
 func generatedHCLOutdatedFiles(
@@ -546,72 +479,6 @@ func generateStackLocalsCode(
 
 	tfcode := prependHeader(string(gen.Bytes()))
 	return tfcode, nil
-}
-
-func generateBackendCfgCode(
-	root string,
-	stackpath string,
-	stackMetadata stack.Metadata,
-	globals terramate.Globals,
-	configdir string,
-) (string, error) {
-	logger := log.With().
-		Str("action", "loadStackBackendConfig()").
-		Str("configDir", configdir).
-		Logger()
-
-	logger.Trace().Msg("Check if config dir outside of root dir.")
-
-	if !strings.HasPrefix(configdir, root) {
-		// check if we are outside of project's root, time to stop
-		return "", nil
-	}
-
-	logger.Trace().Msg("Load stack backend config.")
-
-	parsedConfig, err := hcl.ParseDir(configdir)
-	if err != nil {
-		return "", fmt.Errorf("loading backend config from %q: %v", configdir, err)
-	}
-
-	logger.Trace().Msg("Check if config has a Terramate block")
-
-	parsed := parsedConfig.Terramate
-	if parsed == nil || parsed.Backend == nil {
-		return generateBackendCfgCode(root, stackpath, stackMetadata, globals, filepath.Dir(configdir))
-	}
-
-	evalctx := eval.NewContext(stackpath)
-
-	logger.Trace().Msg("Add stack metadata evaluation namespace.")
-
-	err = evalctx.SetNamespace("terramate", stackMetadata.ToCtyMap())
-	if err != nil {
-		return "", fmt.Errorf("setting terramate namespace on eval context for stack %q: %v",
-			stackpath, err)
-	}
-
-	logger.Trace().Msg("Add global evaluation namespace.")
-
-	if err := evalctx.SetNamespace("global", globals.Attributes()); err != nil {
-		return "", fmt.Errorf("setting global namespace on eval context for stack %q: %v",
-			stackpath, err)
-	}
-
-	logger.Debug().Msg("Create new file and append parsed blocks.")
-
-	gen := hclwrite.NewEmptyFile()
-	rootBody := gen.Body()
-	tfBlock := rootBody.AppendNewBlock("terraform", nil)
-	tfBody := tfBlock.Body()
-	backendBlock := tfBody.AppendNewBlock(parsed.Backend.Type, parsed.Backend.Labels)
-	backendBody := backendBlock.Body()
-
-	if err := hcl.CopyBody(backendBody, parsed.Backend.Body, evalctx); err != nil {
-		return "", err
-	}
-
-	return prependHeader(string(gen.Bytes())), nil
 }
 
 func prependHeader(code string) string {
