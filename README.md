@@ -39,6 +39,7 @@ started in a non-intrusive way.
 * Explicitly define order of execution of stacks.
 * Code generation ensures that plan/apply is always done with plain Terraform commands.
 * Change detection, including for local modules used by stacks.
+* Not a wrapper, you keep using Terraform or any other of your tools.
 * All done with [HCL](https://github.com/hashicorp/hcl).
 
 For more details on how this is achieved, please consider:
@@ -84,8 +85,9 @@ run Terramate inside a container:
 docker run ghcr.io/mineiros-io/terramate
 ```
 
-Container images tagged with release versions are also provided. For getting an overview of the available releases, please see https://github.com/mineiros-io/terramate/releases
-
+Container images tagged with release versions are also provided.
+Click [here](https://github.com/mineiros-io/terramate/pkgs/container/terramate/versions)
+for a list of the available container image tags.
 
 #### Auto Completion
 
