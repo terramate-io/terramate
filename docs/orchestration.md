@@ -1,4 +1,4 @@
-# Execution Ordering
+# Stacks Execution Orchestration
 
 Sometimes stacks are completely independent of each other, but on
 certain occasions it may happen that infrastructure that is created
