@@ -186,12 +186,6 @@ func TestCheckOutdatedIgnoresEmptyGenerateHCLBlocks(t *testing.T) {
 func TestCheckFailsWithInvalidConfig(t *testing.T) {
 	invalidConfigs := []string{
 		hcldoc(
-			exportAsLocals(
-				expr("undefined", "terramate.undefined"),
-			),
-			stack(),
-		).String(),
-		hcldoc(
 			generateHCL(
 				expr("undefined", "terramate.undefined"),
 			),

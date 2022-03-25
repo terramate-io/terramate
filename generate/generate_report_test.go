@@ -248,14 +248,6 @@ func assertReportHasError(t *testing.T, report generate.Report, err error) {
 	t.Fatalf("unable to find match for %v on report:\n%s", err, report)
 }
 
-func assertReportHasNoError(t *testing.T, report generate.Report) {
-	t.Helper()
-
-	if report.HasFailures() {
-		t.Fatalf("wanted no error but got failures:\n%s", report)
-	}
-}
-
 func assertEqualReports(t *testing.T, got, want generate.Report) {
 	t.Helper()
 	if diff := cmp.Diff(got, want); diff != "" {
