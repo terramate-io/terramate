@@ -1314,8 +1314,8 @@ func trimIgnored(tokens hclwrite.Tokens) hclwrite.Tokens {
 	}
 
 	tokens = tokens[ignorePos:]
-
 	ignorePos = len(tokens)
+
 	for j := len(tokens) - 1; j >= 0; j-- {
 		if tokens[j].Type == hclsyntax.TokenNewline ||
 			tokens[j].Type == hclsyntax.TokenComment ||
