@@ -2088,6 +2088,108 @@ func TestPartialEval(t *testing.T) {
 				str("a", "012"),
 			),
 		},
+		{
+			name: "escaped interpolation with global reference",
+			config: hcldoc(
+				str("string", `$${global.string}`),
+			),
+			want: hcldoc(
+				str("string", "$${global.string}"),
+			),
+		},
+		{
+			name: "escaped interpolation with attr",
+			config: hcldoc(
+				str("string", `$${hi}`),
+			),
+			want: hcldoc(
+				str("string", "$${hi}"),
+			),
+		},
+		{
+			name: "escaped interpolation with number",
+			config: hcldoc(
+				str("string", `$${5}`),
+			),
+			want: hcldoc(
+				str("string", "$${5}"),
+			),
+		},
+		{
+			name: "empty escaped interpolation",
+			config: hcldoc(
+				str("string", `$${}`),
+			),
+			want: hcldoc(
+				str("string", "$${}"),
+			),
+		},
+		{
+			name: "escaped interpolation with prefix",
+			config: hcldoc(
+				str("string", `something-$${hi}`),
+			),
+			want: hcldoc(
+				str("string", "something-$${hi}"),
+			),
+		},
+		{
+			name: "escaped interpolation with suffix",
+			config: hcldoc(
+				str("string", `$${hi}-suffix`),
+			),
+			want: hcldoc(
+				str("string", "$${hi}-suffix"),
+			),
+		},
+		{
+			name: "nested escaped interpolation",
+			config: hcldoc(
+				str("string", `$${hi$${again}}`),
+			),
+			want: hcldoc(
+				str("string", `$${hi$${again}}`),
+			),
+		},
+		{
+			name: "interpolation inside escaped interpolation",
+			config: hcldoc(
+				str("string", `$${hi${attr}}`),
+			),
+			want: hcldoc(
+				str("string", `$${hi${attr}}`),
+			),
+		},
+		{
+			name: "global interpolation inside escaped interpolation",
+			globals: globals(
+				number("a", 666),
+			),
+			config: hcldoc(
+				str("string", `$${hi-${global.a}}`),
+			),
+			want: hcldoc(
+				str("string", `$${hi-666}`),
+			),
+		},
+		{
+			name: "for inside escaped interpolation",
+			config: hcldoc(
+				str("string", `$${[for k in local.a : k]}`),
+			),
+			want: hcldoc(
+				str("string", `$${[for k in local.a : k]}`),
+			),
+		},
+		{
+			name: "for inside escaped interpolation referencing global",
+			config: hcldoc(
+				str("string", `$${[for k in global.a : k]}`),
+			),
+			want: hcldoc(
+				str("string", `$${[for k in global.a : k]}`),
+			),
+		},
 		/*
 			 * Hashicorp HCL formats the `wants` wrong.
 			 *

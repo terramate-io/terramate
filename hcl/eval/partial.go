@@ -870,8 +870,8 @@ func (e *engine) evalInterp() error {
 	interpOpen := e.peekAssert(hclsyntax.TokenTemplateInterp)
 
 	e.multiline++
-
 	e.pos++
+
 	err := e.evalExpr()
 	if err != nil {
 		return err
