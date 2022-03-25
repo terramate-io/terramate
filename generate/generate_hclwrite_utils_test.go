@@ -85,7 +85,3 @@ func terramate(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 func terraform(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("terraform", builders...)
 }
-
-func exportAsLocals(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-	return hclwrite.BuildBlock("export_as_locals", builders...)
-}
