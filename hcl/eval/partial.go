@@ -94,8 +94,9 @@ type node struct {
 	original  hclwrite.Tokens
 	evaluated hclwrite.Tokens
 
-	hasCond bool
-	hasOp   bool
+	hasCond    bool
+	hasOp      bool
+	hasAcessor bool
 }
 
 func newPartialEvalEngine(tokens hclwrite.Tokens, ctx *Context) *engine {
@@ -157,6 +158,9 @@ func (e *engine) commit() {
 	}
 	if tos.hasOp {
 		merge.hasOp = true
+	}
+	if tos.hasAcessor {
+		merge.hasAcessor = true
 	}
 
 	e.evalstack.push(merge)
@@ -424,13 +428,15 @@ loop:
 }
 
 func (e *engine) evalAcessors() error {
-	e.newnode()
+	_, thisNode := e.newnode()
 
 	tok := e.peek()
 	if tok.Type != hclsyntax.TokenOBrack &&
 		tok.Type != hclsyntax.TokenDot {
 		panic(errorf("token `%s` is not an acessor", tok.Type))
 	}
+
+	thisNode.hasAcessor = true
 
 	for e.hasTokens() {
 		tok := e.peek()
@@ -924,7 +930,7 @@ func (e *engine) evalInterp() error {
 	//
 	// if any of the checks are true, then we need to emit the interp tokens.
 	isCombinedExpr := func(n *node) bool {
-		return n.hasCond || n.hasOp
+		return n.hasCond || n.hasOp || n.hasAcessor
 	}
 
 	needsEval := func(n *node) bool {
@@ -1093,7 +1099,8 @@ func (e *engine) evalString() error {
 			if len(elem.evaluated) > 2 {
 				for j := 1; j < len(elem.evaluated)-1; j++ {
 					if elem.evaluated[j].Type != hclsyntax.TokenQuotedLit {
-						panic(errorf("expect to be all string parts but found %s", elem.evaluated[j].Type))
+						panic(errorf("expect to be all string parts but found %s (%s)",
+							elem.evaluated[j].Type, elem.evaluated[j:].Bytes()))
 					}
 					quotedBytes = append(quotedBytes, elem.evaluated[j].Bytes...)
 				}
