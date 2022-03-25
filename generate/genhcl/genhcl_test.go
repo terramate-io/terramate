@@ -2067,6 +2067,43 @@ func TestPartialEval(t *testing.T) {
 				expr("a", "\"0\""),
 			),
 		},
+		{
+			name: "lists and newlines/comments",
+			config: hcldoc(
+				expr("a", "[/**/\n/**/1/**/\n/**/,/**/\n/**/2/**/\n]"),
+			),
+			want: hcldoc(
+				expr("a", "[/**/\n/**/1/**/\n/**/,/**/\n/**/2/**/\n]"),
+			),
+		},
+		{
+			name: "interpolation advanced 1",
+			globals: globals(
+				str("a", "1"),
+			),
+			config: hcldoc(
+				str("a", "0${tm_try(global.a)}2"),
+			),
+			want: hcldoc(
+				str("a", "012"),
+			),
+		},
+		/*
+			 * Hashicorp HCL formats the `wants` wrong.
+			 *
+			{
+				name: "interpolation advanced 2",
+				globals: globals(
+					str("a", "1"),
+				),
+				config: hcldoc(
+					str("a", "0${!tm_try(global.a)}2"),
+				),
+				want: hcldoc(
+					str("a", `0${!"1"}2`),
+				),
+			},
+		*/
 	}
 
 	for _, tcase := range tcases {
