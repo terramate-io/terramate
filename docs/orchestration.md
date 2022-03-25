@@ -15,10 +15,10 @@ The [change detection](./change-detection.md) filter out stacks not changed.
 
 2. Current directory
 
-Terramate uses the current directory to filter out stacks, ie., limit the scope
+Terramate uses the current directory it is being executed to filter out stacks, ie., limit the scope
 of the execution, so if you execute `terramate` from the project's root
 directory, all stacks will be selected, and changing to inner directories in the
-project structure will select only the child stacks.
+project structure will select only stacks that are children of the current directory.
 
 3. Explicit `wants` relationship.
 
