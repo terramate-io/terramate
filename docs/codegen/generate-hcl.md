@@ -1,13 +1,15 @@
 # HCL Code Generation
 
-Terramate supports the generation of arbitrary HCL code using 
-both [globals](globals.md) and [metadata](metadata.md).
-The generated code can then be composed/referenced by any Terraform code
-inside a stack (or some other tool that uses HCL).
+Terramate supports the generation of arbitrary HCL code referencing 
+[Terramate defined data](../sharing-data.md).
 
-HCL code generation starts with the definition of a `generate_hcl`
-block in a [Terramate configuration file](config.md) defining the code you
-want to generate inside the block. The code may include:
+The generated code can then be composed/referenced by any Terraform code
+inside a stack (or any other tool that uses HCL, like [Packer](https://www.packer.io/)).
+
+HCL code generation is done using `generate_hcl`
+blocks in [Terramate configuration files](../config-overview.md).
+
+The code may include:
 
 * Blocks, sub blocks, etc 
 * Attributes initialized by literals
@@ -15,15 +17,16 @@ want to generate inside the block. The code may include:
 * Terramate Metadata references
 * Expressions using interpolation, functions, etc
 
-Most of what you can do in Terraform can be done in a `generate_hcl`
+Anything you can do in Terraform can be generated using a `generate_hcl`
 block. References to Terramate globals and metadata are evaluated, but any
 other reference is just transported to the generated code (partial evaluation).
 
 Each `generate_hcl` block requires a single label.
-This label is the filename of the generated code.
+This label is the filename of the generated code, multiple `generate_hcl` blocks
+with the same label/filename will result in an error.
 
 Inside the `generate_hcl` block a `content` block is required.
-All code inside `content` is going to be used to generate the final code.
+All code inside `content` is going to be used to generate the final HCL code.
 
 Now lets jump to some examples. Lets generate backend and provider configurations
 for all stacks inside a project.
@@ -40,8 +43,7 @@ globals {
 ```
 
 We can define the generation of a backend configuration for all
-stacks by defining a `generate_hcl` block in the root
-of the project:
+stacks by defining a `generate_hcl` block in the root of the project:
 
 ```hcl
 generate_hcl "backend.tf" {
@@ -53,7 +55,7 @@ generate_hcl "backend.tf" {
 }
 ```
 
-Which will generate code for all stacks using the filename `backend.tf`:
+Which will generate code for all stacks, creating a file named `backend.tf` on each stack:
 
 ```hcl
 backend "local" {
@@ -90,7 +92,7 @@ generate_hcl "provider.tf" {
 }
 ```
 
-Which will generate code for all stacks using the filename `provider.tf`:
+Which will generate code for all stacks, creating a file named `provider.tf` on each stack:
 
 ```hcl
 provider "name" {
@@ -121,3 +123,113 @@ to multiple or all stacks (as seen in the previous example).
 There is no overriding or merging behavior for `generate_hcl` blocks.
 Blocks defined at different levels with the same label aren't allowed, resulting
 in failure for the overall code generation process.
+
+
+## Partial Evaluation
+
+A partial evaluation strategy is used when generating HCL code.
+This means that you can generate code with unknown references/function calls
+and those will be copied verbatim to the generated code.
+
+Lets assume we have a single global as Terramate data:
+
+```hcl
+globals {
+  terramate_data = "terramate_data"
+}
+```
+
+And we want to mix this Terramate references with Terraform
+references, like locals/vars/outputs/etc.
+All we have to do is define our `generate_hcl` block like this:
+
+
+```hcl
+generate_hcl "main.tf" {
+  content {
+    resource "myresource" "name" {
+      count = var.enabled ? 1 : 0
+      data  = global.terramate_data
+      path  = terramate.path
+      name  = local.name
+    }
+  }
+}
+```
+
+And it will generate the following `main.tf` file:
+
+```
+resource "myresource" "name" {
+  count = var.enabled ? 1 : 0
+  data  = "terramate_data"
+  path  = "/path/to/stack"
+  name  = local.name
+}
+```
+
+The `global.terramate_data` and `terramate.path` references were evaluated,
+but the references to `var.enabled` and `local.name` were retained as is,
+hence the partial evaluation.
+
+Function calls are also partially evaluated. Any unknown function call
+will be retained as is, but any function call starting with the prefix
+`tm_` is considered a Terramate function and will be evaluated.
+Terramate function calls can only have as parameters Terramate references
+or literals.
+
+For example, given:
+
+```hcl
+generate_hcl "main.tf" {
+  content {
+    resource "myresource" "name" {
+      data  = tm_upper(global.terramate_data)
+      name  = upper(local.name)
+    }
+  }
+}
+```
+
+This will be generated:
+
+```hcl
+resource "myresource" "name" {
+  data  = "TERRAMATE_DATA"
+  name  = upper(local.name)
+}
+```
+
+If one of the parameters of a unknown function call is a Terramate
+reference the value of the Terramate reference will be replaced on the
+function call.
+
+This:
+
+```hcl
+generate_hcl "main.tf" {
+  content {
+    resource "myresource" "name" {
+      data  = upper(global.terramate_data)
+      name  = upper(local.name)
+    }
+  }
+}
+```
+
+Generates:
+
+```hcl
+generate_hcl "main.tf" {
+  content {
+    resource "myresource" "name" {
+      data  = upper("terramate_data")
+      name  = upper(local.name)
+    }
+  }
+}
+```
+
+Currently there is no partial evaluation of `for` expressions.
+Referencing Terramate data inside a `for` expression will result
+in an error (`for` expressions with unknown references are copied as is).
