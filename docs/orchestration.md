@@ -24,7 +24,7 @@ project structure will select only the child stacks.
 
 The `wants` attribute of the stack block defines an explicit relationship
 between two stacks, that when provided it says that selecting this stack *also
-selects the provided list of stacks*. So instead of filtering this explicit
+selects the provided list of stacks*. So instead of filtering this explicitly
 selects stacks that would have been filtered out by the other methods.
 
 Example:
