@@ -131,9 +131,7 @@ func FuzzPartialEval(f *testing.F) {
 			return
 		}
 
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.NoError(t, err)
 
 		// Since we dont fuzz substitution/evaluation the tokens should be the same
 		assert.EqualInts(t, len(want), len(got), "got %s != want %s", tokensStr(got), tokensStr(want))
