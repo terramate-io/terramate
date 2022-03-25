@@ -16,15 +16,22 @@ package eval
 
 import (
 	"fmt"
+	"io/ioutil"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/madlambda/spells/errutil"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 	"github.com/zclconf/go-cty/cty/gocty"
 
 	hhcl "github.com/hashicorp/hcl/v2"
 	tflang "github.com/hashicorp/terraform/lang"
 )
+
+const ErrEval errutil.Error = "failed to evaluate expression"
 
 // Context is used to evaluate HCL code.
 type Context struct {
@@ -37,7 +44,7 @@ type Context struct {
 func NewContext(basedir string) *Context {
 	scope := &tflang.Scope{BaseDir: basedir}
 	hclctx := &hhcl.EvalContext{
-		Functions: scope.Functions(),
+		Functions: newTmFunctions(scope.Functions()),
 		Variables: map[string]cty.Value{},
 	}
 	return &Context{
@@ -76,9 +83,42 @@ func (c *Context) HasNamespace(name string) bool {
 func (c *Context) Eval(expr hclsyntax.Expression) (cty.Value, error) {
 	val, diag := expr.Value(c.hclctx)
 	if diag.HasErrors() {
-		return cty.NilVal, fmt.Errorf("evaluating expression: %v", diag)
+		return cty.NilVal, errutil.Chain(ErrEval, diag)
 	}
 	return val, nil
+}
+
+// PartialEval evaluates only the terramate variable expressions from the list
+// of tokens, leaving all the rest as-is. It returns a modified list of tokens
+// with  no reference to terramate namespaced variables (globals and terramate)
+// and functions (tm_ prefixed functions).
+func (c *Context) PartialEval(expr hclsyntax.Expression) (hclwrite.Tokens, error) {
+	exprFname := expr.Range().Filename
+	filedata, err := ioutil.ReadFile(exprFname)
+	if err != nil {
+		return nil, fmt.Errorf("reading expression from file: %v", err)
+	}
+
+	exprRange := expr.Range()
+	exprBytes := filedata[exprRange.Start.Byte:exprRange.End.Byte]
+	tokens, diags := hclsyntax.LexExpression(exprBytes, exprFname, hcl.Pos{})
+	if diags.HasErrors() {
+		return nil, fmt.Errorf("failed to scan expression: %w", diags)
+	}
+
+	engine := newPartialEvalEngine(toWriteTokens(tokens), c)
+	return engine.Eval()
+}
+
+func toWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {
+	tokens := make([]*hclwrite.Token, len(in))
+	for i, st := range in {
+		tokens[i] = &hclwrite.Token{
+			Type:  st.Type,
+			Bytes: st.Bytes,
+		}
+	}
+	return tokens
 }
 
 func fromMapToObject(m map[string]cty.Value) (cty.Value, error) {
@@ -101,4 +141,12 @@ func fromMapToObject(m map[string]cty.Value) (cty.Value, error) {
 		return cty.Value{}, err
 	}
 	return ctyVal, nil
+}
+
+func newTmFunctions(tffuncs map[string]function.Function) map[string]function.Function {
+	tmfuncs := map[string]function.Function{}
+	for name, function := range tffuncs {
+		tmfuncs["tm_"+name] = function
+	}
+	return tmfuncs
 }

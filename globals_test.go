@@ -288,13 +288,13 @@ func TestLoadGlobals(t *testing.T) {
 				{
 					path: "/stacks/stack-1",
 					add: globals(
-						expr("interpolated", `"prefix-${replace(terramate.path, "/", "@")}-suffix"`),
+						expr("interpolated", `"prefix-${tm_replace(terramate.path, "/", "@")}-suffix"`),
 					),
 				},
 				{
 					path: "/stacks/stack-2",
 					add: globals(
-						expr("stack_path", `replace(terramate.path, "/", "-")`),
+						expr("stack_path", `tm_replace(terramate.path, "/", "-")`),
 					),
 				},
 			},
@@ -602,8 +602,8 @@ func TestLoadGlobals(t *testing.T) {
 				{
 					path: "/stack",
 					add: globals(
-						expr("newfield", `replace(global.field, "@", "/")`),
-						expr("splitfun", `split("@", global.field)[1]`),
+						expr("newfield", `tm_replace(global.field, "@", "/")`),
+						expr("splitfun", `tm_split("@", global.field)[1]`),
 					),
 				},
 			},
@@ -624,7 +624,7 @@ func TestLoadGlobals(t *testing.T) {
 					add: globals(
 						attr("team", `{ members = ["aaa"] }`),
 						expr("members", "global.team.members"),
-						expr("members_try", `try(global.team.members, [])`),
+						expr("members_try", `tm_try(global.team.members, [])`),
 					),
 				},
 			},
@@ -644,7 +644,7 @@ func TestLoadGlobals(t *testing.T) {
 					path: "/stack",
 					add: globals(
 						attr("team", `{ members = ["aaa"] }`),
-						expr("members_try", `try(global.team.mistake, [])`),
+						expr("members_try", `tm_try(global.team.mistake, [])`),
 					),
 				},
 			},
@@ -695,6 +695,44 @@ func TestLoadGlobals(t *testing.T) {
 				"/stack": globals(
 					attr("a", `["aaa"]`),
 					attr("a_interpolated", `["aaa"]`),
+				),
+			},
+		},
+		{
+			name:   "global interpolating of single number",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						number("a", 1),
+						str("a_interpolated", "${global.a}"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					number("a", 1),
+					number("a_interpolated", 1),
+				),
+			},
+		},
+		{
+			name:   "global interpolating of single boolean",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						boolean("a", true),
+						str("a_interpolated", "${global.a}"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					boolean("a", true),
+					boolean("a_interpolated", true),
 				),
 			},
 		},
@@ -872,7 +910,7 @@ func TestLoadGlobals(t *testing.T) {
 					path: "/",
 					add: globals(
 						expr("team_def", "global.team.def"),
-						expr("team_def_try", `try(global.team.def, {})`),
+						expr("team_def_try", `tm_try(global.team.def, {})`),
 					),
 				},
 				{
