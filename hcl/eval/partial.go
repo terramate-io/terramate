@@ -356,7 +356,6 @@ loop:
 		e.multiline--
 	case hclsyntax.TokenOBrace, hclsyntax.TokenOBrack:
 		var err error
-
 		var closeToken hclsyntax.TokenType
 
 		openToken := tok.Type
