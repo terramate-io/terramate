@@ -217,31 +217,6 @@ func ParseModules(path string) ([]Module, error) {
 	return modules, nil
 }
 
-// ParseBody parses HCL and return the parsed body.
-func ParseBody(src []byte, filename string) (*hclsyntax.Body, error) {
-	logger := log.With().
-		Str("action", "ParseBody()").
-		Logger()
-
-	logger.Trace().
-		Str("path", filename).
-		Msg("Parse file.")
-	parser := hclparse.NewParser()
-	f, diags := parser.ParseHCL(src, filename)
-	if diags.HasErrors() {
-		return nil, errutil.Chain(
-			ErrHCLSyntax,
-			fmt.Errorf("parsing modules: %w", diags),
-		)
-	}
-
-	body, ok := f.Body.(*hclsyntax.Body)
-	if !ok {
-		return nil, fmt.Errorf("expected to parse body, got[%v] type[%[1]T]", f.Body)
-	}
-	return body, nil
-}
-
 // ParseDir will parse Terramate configuration from a given directory,
 // parsing all files with the suffixes .tm and .tm.hcl.
 // Note: it does not recurse into child directories.
@@ -355,25 +330,16 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context)
 
 		logger.Trace().Msg("evaluating.")
 
-		val, err := evalctx.Eval(attr.Expr)
+		tokens, err := evalctx.PartialEval(attr.Expr)
 		if err != nil {
-			logger.Trace().Msg("evaluation failed, checking if is unknown scope traversal.")
-
-			scope, isUnknownTraversal := getUnknownScopeTraversal(attr.Expr, evalctx)
-			if isUnknownTraversal {
-				logger.Trace().Msg("Is unknown scope traversal, copying as traversal.")
-				target.SetAttributeTraversal(attr.Name, scope.Traversal)
-				continue
-			}
-
-			return fmt.Errorf("parsing attribute %q: %v", attr.Name, err)
+			return fmt.Errorf("failed to evaluate expression: %w", err)
 		}
 
 		logger.Trace().
 			Str("attribute", attr.Name).
 			Msg("Setting evaluated attribute.")
 
-		target.SetAttributeValue(attr.Name, val)
+		target.SetAttributeRaw(attr.Name, tokens)
 	}
 
 	logger.Trace().Msg("Append blocks.")
@@ -389,27 +355,6 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context)
 	}
 
 	return nil
-}
-
-func getUnknownScopeTraversal(expr hclsyntax.Expression, evalctx *eval.Context) (*hclsyntax.ScopeTraversalExpr, bool) {
-	logger := log.With().
-		Str("action", "hcl.getUnknownScopeTraversal").
-		Logger()
-
-	scopeTraversal, ok := expr.(*hclsyntax.ScopeTraversalExpr)
-	if !ok {
-		logger.Trace().Msg("expression is not a scope traversal")
-		return nil, false
-	}
-
-	for _, varTraversal := range hclsyntax.Variables(scopeTraversal) {
-		if evalctx.HasNamespace(varTraversal.RootName()) {
-			logger.Trace().Msg("expression has known namespace")
-			return nil, false
-		}
-	}
-
-	return scopeTraversal, true
 }
 
 func sortedAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {

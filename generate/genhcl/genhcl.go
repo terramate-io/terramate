@@ -119,17 +119,17 @@ func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackHC
 
 		gen := hclwrite.NewEmptyFile()
 		if err := hcl.CopyBody(gen.Body(), loadedHCL.block.Body, evalctx); err != nil {
-			return StackHCLs{}, fmt.Errorf(
-				"%w: stack %q block %q: %v",
+			evalErr := fmt.Errorf(
+				"%w: stack %q block %q",
 				ErrEval,
 				stackpath,
 				name,
-				err,
 			)
+			return StackHCLs{}, errutil.Chain(evalErr, err)
 		}
 		res.hcls[name] = HCL{
 			origin: loadedHCL.origin,
-			body:   gen.Bytes(),
+			body:   hclwrite.Format(gen.Bytes()),
 		}
 	}
 

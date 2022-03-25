@@ -106,7 +106,7 @@ func TestHCLGeneration(t *testing.T) {
 									expr("local_a", "global.local_a"),
 									expr("local_b", "global.local_b"),
 									expr("local_c", "global.local_c"),
-									expr("local_d", "try(global.local_d.field, null)"),
+									expr("local_d", "tm_try(global.local_d.field, null)"),
 								),
 							),
 						),
