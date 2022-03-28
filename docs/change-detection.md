@@ -39,7 +39,7 @@ way, this is probably the most common git flow used by the git community):
    that represents the deployed state of your IaC.
 2. Changes that should be planned and applied should be added through a feature
    or bugfix branch.
-3. The IaC project must use [non
+3. The IaC project uses [non
   fast-forwarded](https://git-scm.com/docs/git-merge#_fast_forward_merge) merge
   commits. (the default in GitHub and Bitbucket).
 
