@@ -13,7 +13,7 @@ can be added in the future.
 The approach is as simple as computing `git diff` changes between the revision of
 the last `terraform applied` change (ie. the released revision) and the current
 change. Let's call the released revision `baseref`, which means
-`base reference` which commonly is default branch (`origin/main` or
+`base reference` which commonly is the default branch (`origin/main` or
 `origin/default`) and this is the reference we're going to compare when
 computing the changed stacks.
 
