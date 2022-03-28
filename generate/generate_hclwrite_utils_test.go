@@ -78,10 +78,6 @@ func locals(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("locals", builders...)
 }
 
-func terramate(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-	return hclwrite.BuildBlock("terramate", builders...)
-}
-
 func terraform(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("terraform", builders...)
 }
