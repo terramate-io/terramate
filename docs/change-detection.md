@@ -20,8 +20,8 @@ computing the changed stacks.
 By default the `baseref` can have two values, depending on if you're in the
 default branch or in a feature branch, and they are:
 
-`origin/main` if you're in a feature branch.
-`HEAD^` if you're in the default branch.
+* `origin/main` : if you're in a feature branch.
+* `HEAD^` : if you're in the default branch.
 
 The [HEAD^](https://git-scm.com/docs/gitrevisions) syntax means the first
 parent of the `HEAD` commit and the reasoning for using it for the default
