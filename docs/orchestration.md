@@ -1,5 +1,48 @@
 # Stacks Execution Orchestration
 
+The orchestration of stack's execution is driven by the `terramate run` command
+and it supports different ways of selecting stacks and configuring the order of
+execution.
+
+## Stacks selection
+
+The **selection** defines which stacks from the whole set must be selected to
+execute and terramate provides three ways of configuring that:
+
+1. Change detection
+
+The [change detection](./change-detection.md) filter out stacks not changed.
+
+2. Current directory
+
+Terramate uses the current directory it is being executed to filter out stacks, ie., limit the scope
+of the execution, so if you execute `terramate` from the project's root
+directory, all stacks will be selected, and changing to inner directories in the
+project structure will select only stacks that are children of the current directory.
+
+3. Explicit `wants` relationship.
+
+The `wants` attribute of the stack block defines an explicit relationship
+between a stack and its list of wanted stacks, that when provided it says
+that when a stack is selected all the stacks listed on its `wants` list will also be
+selected, always, independent of any other selection criteria. 
+
+Example:
+
+```hcl
+stack {
+    wants = [
+        "/other/stack1",
+        "/other/stack2"
+    ]
+}
+```
+
+These 3 selection methods could be used together, and the order which they are
+applied is: `change detection`, `current directory`, `wants`.
+
+## Stacks ordering
+
 Sometimes stacks are completely independent of each other, but on
 certain occasions it may happen that infrastructure that is created
 by **stack-a** is required by **stack-b**, like using the outputs
@@ -7,10 +50,10 @@ of **stack-a** as inputs for **stack-b**.
 
 This can be done through data sources or
 by [loading the state](https://www.terraform.io/docs/language/state/remote-state-data.html)
-of another stack, or or even an implicit dependency like hard coding the name/ID.
+of another stack, or even an implicit dependency like hard coding the name/ID.
 
 Independent on how you approach the problem, you need
-an explicit way to communicate that changes on **stack A** affect execution of
+an explicit way to communicate that changes on **stack A** affects execution of
 **stack B**, so the order of execution of the stacks, if they are
 selected for execution, should always be:
 
@@ -21,7 +64,7 @@ To help with that terramate provides a way to explicit declare
 the desired order of execution between stacks.
 
 
-## Defining Order Of Execution
+### Defining Order Of Execution
 
 Order of execution is declared inside the **stack** block using the
 field **before** and **after**. 
@@ -209,7 +252,7 @@ terramate run terraform plan
 ```
 
 
-## Change Detection And Ordering
+### Change Detection And Ordering
 
 When using any terramate command with support to change detection,
 execution order is only imposed on stacks detected as changed. If a stack
@@ -274,7 +317,7 @@ execution is undefined. Whatever observed behavior should not be relied upon
 since it may change on the future.
 
 
-## What About Cycles/Conflicts ?
+### What About Cycles/Conflicts ?
 
 If any cycles are detected on the ordering definitions this will be
 considered a failure and **terramate** will abort with an
