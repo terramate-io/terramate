@@ -55,7 +55,7 @@ different strategy for computing the changes it's probably supported if you do
 it yourself. 
 
 Then, if you use rebase as the merge strategy and need to apply the changes to
-the stacks modified by the last merge, you first need to identify the base
+the stacks modified by the last rebase, you first need to identify the base
 commit (the commit before the merge) and then provide this commit hash in the
 `--git-change-base` flag.
 
