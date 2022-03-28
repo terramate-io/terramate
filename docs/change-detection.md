@@ -10,7 +10,7 @@ We solve that by leveraging the power of the VCS (Version Control System)
 already in place. At the moment, Terramate only supports `git` but other VCSs
 can be added in the future.
 
-So the idea is as simple as computing `git diff` changes between the revision of
+The approach is as simple as computing `git diff` changes between the revision of
 the last `terraform applied` change (ie. the released revision) and the current
 change. Let's call the released revision of `baseref`, which means
 `base reference` which commonly is default branch (`origin/main` or
