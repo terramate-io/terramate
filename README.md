@@ -64,7 +64,7 @@ To install using Go just run:
 go install github.com/mineiros-io/terramate/cmd/terramate@<version>
 ```
 
-Where **<version>** is any terramate [version tag](https://github.com/mineiros-io/terramate/tags),
+Where `<version>` is any terramate [version tag](https://github.com/mineiros-io/terramate/tags),
 or you can just install the **latest** release:
 
 ```sh
