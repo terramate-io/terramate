@@ -50,9 +50,8 @@ merged but alternatively the terraform plan/apply can be run in the PR's branch
 just before merge using the default branch base ref (`origin/main`).
 
 The `baseref` can be manually changed by the terramate command line at any given
-point in time using the `--git-change-base` option, so whenever you need a
-different strategy for computing the changes it's probably supported if you do
-it yourself. 
+point in time using the `--git-change-base` option or through the [project configuration](project-config.md),
+so different strategies for computing the changes are supported.
 
 Then, if you use rebase as the merge strategy and need to apply the changes to
 the stacks modified by the last rebase, you first need to identify the base
