@@ -946,6 +946,16 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 		Stdout: mainTfAlteredContents,
 	})
 
+	// --dry-run ignore safeguards
+	assertRunResult(t, cli.run(
+		"run",
+		"--dry-run",
+		cat,
+		mainTfFileName,
+	), runExpected{
+		IgnoreStdout: true,
+	})
+
 	assertRunResult(t, cli.run(
 		"--disable-check-git-uncommitted",
 		"--changed",
