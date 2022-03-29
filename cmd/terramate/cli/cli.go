@@ -967,12 +967,12 @@ func (c cli) checkVersion() {
 	rootcfg := c.prj.rootcfg
 
 	if rootcfg.Terramate == nil {
-		logger.Info().Msg("project root has no config, skipping version check")
+		logger.Debug().Msg("project root has no config, skipping version check")
 		return
 	}
 
 	if rootcfg.Terramate.RequiredVersion == "" {
-		logger.Info().Msg("project root config has no required_version, skipping version check")
+		logger.Debug().Msg("project root config has no required_version, skipping version check")
 		return
 	}
 
