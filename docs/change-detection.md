@@ -72,3 +72,13 @@ $ terramate run --changed --git-change-base 80e581a8ce8cc1394da48402cc68a1f47b3c
 `--git-change-base` supports all [git
 revision](https://git-scm.com/docs/gitrevisions) syntaxes, so if you know the
 number of parent commits you can use `HEAD^n` or `HEAD@{<query>}, etc.
+
+# Module change detection
+
+A terraform stack could be composed of multiple local modules and if that's the
+case then any change to its modules code will mark the stack as changed.
+The rationale is that if any module changed the stack needs to be re-deployed.
+
+See the example below:
+
+![Module Change Detection](/docs/module-change-detection.gif)
