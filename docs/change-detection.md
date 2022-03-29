@@ -10,12 +10,12 @@ We solve that by leveraging the power of the VCS (Version Control System)
 already in place. At the moment, Terramate only supports `git` but other VCSs
 can be added in the future.
 
-The approach is as simple as computing `git diff` changes between the revision of
-the last `terraform applied` change (ie. the released revision) and the current
-change. Let's call the released revision `baseref`, which means
-`base reference` which commonly is the default branch (`origin/main` or
-`origin/default`) and this is the reference we're going to compare when
-computing the changed stacks.
+The approach is as simple as computing the changed stacks from the changed files 
+discovered by the `git diff` between the revision of the last `terraform applied` 
+change (ie. the released revision) and the current change.
+
+Let's call the released revision `baseref`, which means `base reference` which
+commonly is the default branch (`origin/main` or `origin/default`).
 
 By default the `baseref` can have two values, depending on if you're in the
 default branch or in a feature branch, and they are:
