@@ -81,7 +81,7 @@ The rationale is that if any module changed then stack needs to be re-deployed.
 
 See the example below:
 
-![Module Change Detection](/docs/module-change-detection.gif)
+![Module Change Detection](/docs/assets/module-change-detection.gif)
 
 In order to do that, terramate will parse all `.tf` files inside the stack and
 check if the local modules it depend on have changed.
