@@ -421,6 +421,10 @@ func (c *cli) gitSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
 		Str("action", "gitSafeguards()").
 		Logger()
 
+	if c.parsedArgs.Run.DryRun {
+		return
+	}
+
 	if !c.parsedArgs.DisableCheckGitUntracked && len(checks.UntrackedFiles) > 0 {
 		if shouldAbort {
 			logger.Fatal().
