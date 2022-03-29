@@ -77,8 +77,11 @@ number of parent commits you can use `HEAD^n` or `HEAD@{<query>}, etc.
 
 A terraform stack could be composed of multiple local modules and if that's the
 case then any change to its modules code will mark the stack as changed.
-The rationale is that if any module changed the stack needs to be re-deployed.
+The rationale is that if any module changed then stack needs to be re-deployed.
 
 See the example below:
 
 ![Module Change Detection](/docs/module-change-detection.gif)
+
+In order to do that, terramate will parse all `.tf` codes inside the stack and
+check if the local modules it depend on have changed.
