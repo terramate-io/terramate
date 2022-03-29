@@ -69,6 +69,6 @@ $ terramate run --changed --git-change-base 80e581a8ce8cc1394da48402cc68a1f47b3c
     -- terraform plan
 ```
 
-The option also supports all [git
+`--git-change-base` supports all [git
 revision](https://git-scm.com/docs/gitrevisions) syntaxes, so if you know the
 number of parent commits you can use `HEAD^n` or `HEAD@{<query>}, etc.
