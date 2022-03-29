@@ -84,4 +84,4 @@ See the example below:
 ![Module Change Detection](/docs/assets/module-change-detection.gif)
 
 In order to do that, Terramate will parse all `.tf` files inside the stack and
-check if the local modules it depend on have changed.
+check if the local modules it depends on have changed.
