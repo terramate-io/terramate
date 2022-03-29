@@ -79,7 +79,7 @@ A Terraform stack can be composed of multiple local modules and if that's the
 case then any changes on a module that a stack references will mark the stack as changed.
 The rationale is that if any module referenced by a stack changed then the stack itself changed and needs to be re-deployed.
 
-See the example below:
+For more details see the example below:
 
 ![Module Change Detection](/docs/assets/module-change-detection.gif)
 
