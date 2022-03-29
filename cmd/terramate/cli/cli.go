@@ -841,9 +841,9 @@ func (c *cli) runOnStacks() {
 		return
 	}
 
-	logger.Info().
-		Bool("changed", c.parsedArgs.Changed).
-		Msg("Running command in stacks reachable from working directory")
+	log.Info().
+		Str("cmd", strings.Join(c.parsedArgs.Run.Command, " ")).
+		Msg("Running on selected stacks")
 
 	failed := false
 
@@ -855,12 +855,11 @@ func (c *cli) runOnStacks() {
 		cmd.Stdout = c.stdout
 		cmd.Stderr = c.stderr
 
-		logger := logger.With().
+		logger := log.With().
 			Stringer("stack", stack).
-			Str("cmd", strings.Join(c.parsedArgs.Run.Command, " ")).
 			Logger()
 
-		logger.Info().Msg("Running command in stack")
+		logger.Info().Msg("Running")
 
 		err = cmd.Run()
 		if err != nil {
