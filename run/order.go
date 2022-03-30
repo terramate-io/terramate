@@ -120,7 +120,7 @@ func BuildDAG(
 		Msg("Load all stacks in dir before current stack.")
 	beforeStacks, err := loader.LoadAll(root, s.AbsPath(), s.Before()...)
 	if err != nil {
-		return fmt.Errorf("failed to load the \"before\" stacks of the stack %q: %w", s, err)
+		return fmt.Errorf("stack %q: failed to load the \"before\" stacks: %w", s, err)
 	}
 
 	logger.Debug().
