@@ -2190,6 +2190,15 @@ func TestPartialEval(t *testing.T) {
 				str("string", `$${[for k in global.a : k]}`),
 			),
 		},
+		{
+			name: "terramate.path interpolation",
+			config: hcldoc(
+				str("string", `${terramate.path} test`),
+			),
+			want: hcldoc(
+				str("string", `/stack test`),
+			),
+		},
 		/*
 			 * Hashicorp HCL formats the `wants` wrong.
 			 *
