@@ -113,21 +113,21 @@ func BuildDAG(
 		Msg("Load all stacks in dir after current stack.")
 	afterStacks, err := loader.LoadAll(root, s.AbsPath(), s.After()...)
 	if err != nil {
-		return err
+		return fmt.Errorf("stack %q: failed to load the \"after\" stacks: %w", s, err)
 	}
 
 	logger.Trace().
 		Msg("Load all stacks in dir before current stack.")
 	beforeStacks, err := loader.LoadAll(root, s.AbsPath(), s.Before()...)
 	if err != nil {
-		return err
+		return fmt.Errorf("stack %q: failed to load the \"before\" stacks: %w", s, err)
 	}
 
 	logger.Debug().
 		Msg("Add new node to DAG.")
 	err = d.AddNode(dag.ID(s.PrjAbsPath()), s, toids(beforeStacks), toids(afterStacks))
 	if err != nil {
-		return err
+		return fmt.Errorf("stack %q: failed to build DAG: %w", s, err)
 	}
 
 	stacks := []stack.S{}
@@ -151,7 +151,7 @@ func BuildDAG(
 			Msg("Build DAG.")
 		err = BuildDAG(d, root, s, loader, visited)
 		if err != nil {
-			return err
+			return fmt.Errorf("stack %q: failed to build DAG: %w", s, err)
 		}
 	}
 	return nil
