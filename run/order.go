@@ -127,7 +127,7 @@ func BuildDAG(
 		Msg("Add new node to DAG.")
 	err = d.AddNode(dag.ID(s.PrjAbsPath()), s, toids(beforeStacks), toids(afterStacks))
 	if err != nil {
-		return fmt.Errorf("failed to build DAG for stack %q: %w", s, err)
+		return fmt.Errorf("stack %q: failed to build DAG: %w", s, err)
 	}
 
 	stacks := []stack.S{}
