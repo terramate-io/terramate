@@ -94,7 +94,7 @@ func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackHC
 
 	logger.Trace().Msg("loading generate_file blocks.")
 
-	loadedHCLs, err := loadGenHCLBlocks(rootdir, stackpath)
+	loadedHCLs, err := loadGenFileBlocks(rootdir, stackpath)
 	if err != nil {
 		return StackHCLs{}, fmt.Errorf("loading generate_file: %w", err)
 	}
@@ -112,13 +112,13 @@ func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackHC
 
 	for name, loadedHCL := range loadedHCLs {
 		logger := logger.With().
-			Str("block", name).
+			Str("attribute", name).
 			Logger()
 
 		logger.Trace().Msg("evaluating block.")
 
 		gen := hclwrite.NewEmptyFile()
-		if err := hcl.CopyBody(gen.Body(), loadedHCL.block.Body, evalctx); err != nil {
+		if err := hcl.CopyAttribute(gen.Body(), loadedHCL.attr, evalctx); err != nil {
 			evalErr := fmt.Errorf(
 				"%w: stack %q block %q",
 				ErrEval,
@@ -166,14 +166,14 @@ func newEvalCtx(stackpath string, sm stack.Metadata, globals terramate.Globals) 
 
 type loadedHCL struct {
 	origin string
-	block  *hclsyntax.Block
+	attr   *hclsyntax.Attribute
 }
 
 // loadGenHCLBlocks will load all generate_hcl blocks.
 // The returned map maps the name of the block (its label)
 // to the original block and the path (relative to project root) of the config
 // from where it was parsed.
-func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, error) {
+func loadGenFileBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, error) {
 	logger := log.With().
 		Str("action", "genfile.loadGenHCLBlocks()").
 		Str("root", rootdir).
@@ -207,17 +207,17 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 				)
 			}
 
-			contentBlock := genhclBlock.Body.Blocks[0]
+			contentAttr := genhclBlock.Body.Attributes["content"]
 			res[name] = loadedHCL{
 				origin: project.PrjAbsPath(rootdir, filename),
-				block:  contentBlock,
+				attr:   contentAttr,
 			}
 
 			logger.Trace().Msg("loaded generate_file block.")
 		}
 	}
 
-	parentRes, err := loadGenHCLBlocks(rootdir, filepath.Dir(cfgdir))
+	parentRes, err := loadGenFileBlocks(rootdir, filepath.Dir(cfgdir))
 	if err != nil {
 		return nil, err
 	}

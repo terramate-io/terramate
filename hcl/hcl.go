@@ -318,13 +318,13 @@ func ParseGenerateFileBlocks(dir string) (HCLBlocks, error) {
 	logger.Trace().Msg("loading config")
 
 	schema := &hcl.BodySchema{
-		Attributes: []hcl.AttributeSchema{},
-		Blocks: []hcl.BlockHeaderSchema{
+		Attributes: []hcl.AttributeSchema{
 			{
-				Type:       "content",
-				LabelNames: []string{},
+				Name:     "content",
+				Required: true,
 			},
 		},
+		Blocks: []hcl.BlockHeaderSchema{},
 	}
 
 	return parseHCLBlocks(dir, "generate_file", func(block *hclsyntax.Block) error {
@@ -339,10 +339,11 @@ func ParseGenerateFileBlocks(dir string) (HCLBlocks, error) {
 		if block.Labels[0] == "" {
 			return errors.New("generate_file label can't be empty")
 		}
-		// Schema check passes if no block is present, so check for amount of blocks
-		if len(block.Body.Blocks) != 1 {
-			return fmt.Errorf("generate_file must have one 'content' block, got %d blocks", len(block.Body.Blocks))
+
+		if len(block.Body.Attributes) != 1 {
+			return fmt.Errorf("generate_file must have one 'content' attribute, got %d", len(block.Body.Attributes))
 		}
+
 		_, diags := block.Body.Content(schema)
 		if diags.HasErrors() {
 			return diags
@@ -398,6 +399,40 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context)
 			return err
 		}
 	}
+
+	return nil
+}
+
+func CopyAttribute(target *hclwrite.Body, src *hclsyntax.Attribute, evalctx *eval.Context) error {
+	logger := log.With().
+		Str("action", "CopyBody()").
+		Logger()
+
+	logger.Trace().Msg("Sorting attributes.")
+
+	// Avoid generating code with random attr order (map iteration is random)
+	//attrs := sortedAttributes(src.Attributes)
+
+	//for _, attr := range attrs {
+	logger = logger.With().
+		Str("attrName", src.Name).
+		Logger()
+
+	logger.Trace().Msg("evaluating.")
+
+	tokens, err := evalctx.PartialEval(src.Expr)
+	if err != nil {
+		return fmt.Errorf("failed to evaluate expression: %w", err)
+	}
+
+	logger.Trace().
+		Str("attribute", src.Name).
+		Msg("Setting evaluated attribute.")
+
+	target.SetAttributeRaw(src.Name, tokens)
+	//}
+
+	logger.Trace().Msg("Append blocks.")
 
 	return nil
 }
