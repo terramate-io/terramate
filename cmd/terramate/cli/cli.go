@@ -467,6 +467,11 @@ func (c *cli) printStacks() {
 		Str("action", "printStacks()").
 		Logger()
 
+	if c.parsedArgs.List.Why && !c.parsedArgs.Changed {
+		logger.Fatal().
+			Msg("the --why flag must be used together with --changed")
+	}
+
 	logger.Trace().
 		Str("workingDir", c.wd()).
 		Msg("Create a new stack manager.")
