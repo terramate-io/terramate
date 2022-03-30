@@ -306,6 +306,51 @@ func ParseGenerateHCLBlocks(dir string) (HCLBlocks, error) {
 	})
 }
 
+// ParseGenerateFileBlocks parses all Terramate files on the given dir, returning
+// only generate_file blocks (other blocks are discarded).
+// generate_file blocks are validated, so the caller can expect valid blocks only or an error.
+func ParseGenerateFileBlocks(dir string) (HCLBlocks, error) {
+	logger := log.With().
+		Str("action", "hcl.ParseGenerateFileBlocks").
+		Str("configdir", dir).
+		Logger()
+
+	logger.Trace().Msg("loading config")
+
+	schema := &hcl.BodySchema{
+		Attributes: []hcl.AttributeSchema{},
+		Blocks: []hcl.BlockHeaderSchema{
+			{
+				Type:       "content",
+				LabelNames: []string{},
+			},
+		},
+	}
+
+	return parseHCLBlocks(dir, "generate_file", func(block *hclsyntax.Block) error {
+		// Don't seem like I can use hcl.BodySchema to check for any non-empty
+		// label, only specific label values.
+		if len(block.Labels) != 1 {
+			return fmt.Errorf(
+				"generate_file must have single label instead got %v",
+				block.Labels,
+			)
+		}
+		if block.Labels[0] == "" {
+			return errors.New("generate_file label can't be empty")
+		}
+		// Schema check passes if no block is present, so check for amount of blocks
+		if len(block.Body.Blocks) != 1 {
+			return fmt.Errorf("generate_file must have one 'content' block, got %d blocks", len(block.Body.Blocks))
+		}
+		_, diags := block.Body.Content(schema)
+		if diags.HasErrors() {
+			return diags
+		}
+		return nil
+	})
+}
+
 // CopyBody will copy the src body to the given target, evaluating attributes using the
 // given evaluation context.
 //
