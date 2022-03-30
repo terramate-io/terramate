@@ -151,7 +151,7 @@ func BuildDAG(
 			Msg("Build DAG.")
 		err = BuildDAG(d, root, s, loader, visited)
 		if err != nil {
-			return fmt.Errorf("failed to build DAG for stack %q: %w", s, err)
+			return fmt.Errorf("stack %q: failed to build DAG: %w", s, err)
 		}
 	}
 	return nil
