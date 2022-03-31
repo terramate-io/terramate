@@ -195,6 +195,26 @@ terramate {
 	assertRunResult(t, cli.listChangedStacks(), want)
 }
 
+func TestListChangedIgnoreDeletedFilesInGitDiff(t *testing.T) {
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack-old")
+	cli := newCLI(t, s.RootDir())
+
+	git := s.Git()
+	git.Add(".")
+	git.Commit("all")
+	git.Push("main")
+	git.CheckoutNew("deleted-stack")
+
+	test.RemoveAll(t, stack.Path())
+
+	git.Add(".")
+	git.Commit("removed stack")
+
+	assertRun(t, cli.listChangedStacks())
+}
+
 func TestListTwiceBug(t *testing.T) {
 	const (
 		mainTfFileName = "main.tf"
