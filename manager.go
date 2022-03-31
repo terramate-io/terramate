@@ -15,6 +15,7 @@
 package terramate
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -165,7 +166,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 			Str("path", dirname).
 			Msg("Try load changed.")
 		s, found, err := m.stackLoader.TryLoadChanged(m.root, dirname)
-		if err != nil {
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("listing changed files: %w", err)
 		}
 
