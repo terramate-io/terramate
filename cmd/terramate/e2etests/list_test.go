@@ -15,6 +15,7 @@
 package e2etest
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/mineiros-io/terramate/config"
@@ -195,7 +196,7 @@ terramate {
 	assertRunResult(t, cli.listChangedStacks(), want)
 }
 
-func TestListChangedIgnoreDeletedNonStackDirectoryInGitDiff(t *testing.T) {
+func TestListChangedIgnoreDeletedStackDirectoryInGitDiff(t *testing.T) {
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack-old")
@@ -211,6 +212,29 @@ func TestListChangedIgnoreDeletedNonStackDirectoryInGitDiff(t *testing.T) {
 
 	git.Add(".")
 	git.Commit("removed stack")
+
+	assertRun(t, cli.listChangedStacks())
+}
+
+func TestListChangedIgnoreDeletedNonStackDirectoryInGitDiff(t *testing.T) {
+	s := sandbox.New(t)
+
+	s.CreateStack("stack")
+	toBeDeletedDir := filepath.Join(s.RootDir(), "to-be-deleted")
+	test.MkdirAll(t, toBeDeletedDir)
+	test.WriteFile(t, toBeDeletedDir, "test.txt", "")
+	cli := newCLI(t, s.RootDir())
+
+	git := s.Git()
+	git.Add(".")
+	git.Commit("all")
+	git.Push("main")
+	git.CheckoutNew("deleted-diretory")
+
+	test.RemoveAll(t, toBeDeletedDir)
+
+	git.Add(".")
+	git.Commit("removed directory")
 
 	assertRun(t, cli.listChangedStacks())
 }
