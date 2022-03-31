@@ -149,8 +149,7 @@ func TestListDetectChangesInSubDirOfStack(t *testing.T) {
 	cli := newCLI(t, s.RootDir())
 
 	git := s.Git()
-	git.Add(".")
-	git.Commit("all")
+	git.CommitAll("all")
 	git.Push("main")
 	git.CheckoutNew("change-the-stack")
 
@@ -181,8 +180,7 @@ terramate {
 	cli := newCLI(t, s.RootDir())
 
 	git := s.Git()
-	git.Add(".")
-	git.Commit("all")
+	git.CommitAll("all")
 	git.Push("main")
 	git.CheckoutNew("change-the-stack")
 
@@ -196,27 +194,25 @@ terramate {
 	assertRunResult(t, cli.listChangedStacks(), want)
 }
 
-func TestListChangedIgnoreDeletedStackDirectoryInGitDiff(t *testing.T) {
+func TestListChangedIgnoreDeletedStackDirectory(t *testing.T) {
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack-old")
 	cli := newCLI(t, s.RootDir())
 
 	git := s.Git()
-	git.Add(".")
-	git.Commit("all")
+	git.CommitAll("all")
 	git.Push("main")
 	git.CheckoutNew("deleted-stack")
 
 	test.RemoveAll(t, stack.Path())
 
-	git.Add(".")
-	git.Commit("removed stack")
+	git.CommitAll("removed stack")
 
 	assertRun(t, cli.listChangedStacks())
 }
 
-func TestListChangedIgnoreDeletedNonStackDirectoryInGitDiff(t *testing.T) {
+func TestListChangedIgnoreDeletedNonStackDirectory(t *testing.T) {
 	s := sandbox.New(t)
 
 	s.CreateStack("stack")
@@ -226,20 +222,18 @@ func TestListChangedIgnoreDeletedNonStackDirectoryInGitDiff(t *testing.T) {
 	cli := newCLI(t, s.RootDir())
 
 	git := s.Git()
-	git.Add(".")
-	git.Commit("all")
+	git.CommitAll("all")
 	git.Push("main")
+
 	git.CheckoutNew("deleted-diretory")
 
 	test.RemoveAll(t, toBeDeletedDir)
-
-	git.Add(".")
-	git.Commit("removed directory")
+	git.CommitAll("removed directory")
 
 	assertRun(t, cli.listChangedStacks())
 }
 
-func TestListChangedDontIgnoreStackDeletedFilesInGitDiff(t *testing.T) {
+func TestListChangedDontIgnoreStackDeletedFiles(t *testing.T) {
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack")
@@ -248,22 +242,20 @@ func TestListChangedDontIgnoreStackDeletedFilesInGitDiff(t *testing.T) {
 	cli := newCLI(t, s.RootDir())
 
 	git := s.Git()
-	git.Add(".")
-	git.Commit("all")
+	git.CommitAll("all")
 	git.Push("main")
 	git.CheckoutNew("deleted-file")
 
 	test.RemoveAll(t, file.Path())
 
-	git.Add(".")
-	git.Commit("removed file")
+	git.CommitAll("removed file")
 
 	assertRunResult(t, cli.listChangedStacks(), runExpected{
 		Stdout: stack.RelPath() + "\n",
 	})
 }
 
-func TestListChangedDontIgnoreStackDeletedDirectoriesInGitDiff(t *testing.T) {
+func TestListChangedDontIgnoreStackDeletedDirectories(t *testing.T) {
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack")
@@ -273,15 +265,13 @@ func TestListChangedDontIgnoreStackDeletedDirectoriesInGitDiff(t *testing.T) {
 	cli := newCLI(t, s.RootDir())
 
 	git := s.Git()
-	git.Add(".")
-	git.Commit("all")
+	git.CommitAll("all")
 	git.Push("main")
 	git.CheckoutNew("deleted-file")
 
 	test.RemoveAll(t, testDir.Path())
 
-	git.Add(".")
-	git.Commit("removed directory")
+	git.CommitAll("removed directory")
 
 	assertRunResult(t, cli.listChangedStacks(), runExpected{
 		Stdout: stack.RelPath() + "\n",
