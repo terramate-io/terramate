@@ -239,6 +239,31 @@ func TestListChangedDontIgnoreStackDeletedFilesInGitDiff(t *testing.T) {
 	})
 }
 
+func TestListChangedDontIgnoreStackDeletedDirectoriesInGitDiff(t *testing.T) {
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack")
+	testDir := stack.CreateDir("test")
+	testDir.CreateFile("testfile1", "")
+	testDir.CreateFile("testfile2", "")
+	cli := newCLI(t, s.RootDir())
+
+	git := s.Git()
+	git.Add(".")
+	git.Commit("all")
+	git.Push("main")
+	git.CheckoutNew("deleted-file")
+
+	test.RemoveAll(t, testDir.Path())
+
+	git.Add(".")
+	git.Commit("removed directory")
+
+	assertRunResult(t, cli.listChangedStacks(), runExpected{
+		Stdout: stack.RelPath() + "\n",
+	})
+}
+
 func TestListTwiceBug(t *testing.T) {
 	const (
 		mainTfFileName = "main.tf"
