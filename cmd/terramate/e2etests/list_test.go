@@ -267,7 +267,7 @@ func TestListChangedDontIgnoreStackDeletedDirectories(t *testing.T) {
 	git := s.Git()
 	git.CommitAll("all")
 	git.Push("main")
-	git.CheckoutNew("deleted-file")
+	git.CheckoutNew("deleted-dir")
 
 	test.RemoveAll(t, testDir.Path())
 
