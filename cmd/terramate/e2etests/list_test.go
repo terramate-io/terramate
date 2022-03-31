@@ -195,7 +195,7 @@ terramate {
 	assertRunResult(t, cli.listChangedStacks(), want)
 }
 
-func TestListChangedIgnoreDeletedFilesInGitDiff(t *testing.T) {
+func TestListChangedIgnoreDeletedNonStackDirectoryInGitDiff(t *testing.T) {
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack-old")
