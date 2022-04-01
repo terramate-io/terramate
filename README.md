@@ -73,7 +73,17 @@ go install github.com/mineiros-io/terramate/cmd/terramate@latest
 
 #### Using Release Binaries
 
-TODO
+To install Terramate using a release binary, find the
+[appropriate package](https://github.com/mineiros-io/terramate/releases) for
+your system and download it.
+
+After downloading Terramate, unzip the package. Terramate runs as a single
+binary named `terramate`. Any other files in the package can be safely removed
+and Terramate will still function.
+
+Finally, make sure that the `terramate` binary is available on your PATH.
+This process will differ depending on your operating system.
+
 
 #### Using Docker
 
