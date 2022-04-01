@@ -116,6 +116,30 @@ If you already have a Terraform project versioned on Git setting up
 Terramate is as easy as just [installing Terramate](#installing).
 Terramate comes with sensible defaults so just using it inside a pre existent
 Git repository should not require any configurations. The main exception
-being for repositories that have a default remote branch other than `main`,
+being for repositories that have a default remote branch other than `origin/main`,
 in that case to make change detection work you will need to set a customized
 [project configuration](docs/project-config.md).
+
+If you want to play around with Terramate from scratch locally you can also
+setup a local git repository:
+
+```sh
+playground=$(mktemp -d)
+local_origin=$(mktemp -d)
+
+git init "${playground}"
+git init "${local_origin}"  --bare
+
+cd "${playground}"
+git remote add origin "${local_origin}"
+
+echo "My Terramate Playground" > README.md
+
+git add README.md
+git commit -m "first commit"
+git push --set-upstream origin main
+
+# Start using terramate
+```
+
+TODO: add examples repos links here.
