@@ -112,7 +112,7 @@ terramate install-completions
 
 ### Project Setup
 
-If you already have a Terraform project versioned on Git setting up
+If you already have a project versioned on Git setting up
 Terramate is as easy as just [installing Terramate](#installing).
 Terramate comes with sensible defaults so just using it inside a pre existent
 Git repository should not require any configurations.
