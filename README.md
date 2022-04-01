@@ -115,10 +115,11 @@ terramate install-completions
 If you already have a Terraform project versioned on Git setting up
 Terramate is as easy as just [installing Terramate](#installing).
 Terramate comes with sensible defaults so just using it inside a pre existent
-Git repository should not require any configurations. The main exception
-being for repositories that have a default remote branch other than `origin/main`,
-in that case to make change detection work you will need to set a customized
-[project configuration](docs/project-config.md).
+Git repository should not require any configurations.
+
+The main exception being for repositories that have a default remote branch
+other than `origin/main`, in that case to make change detection work you will
+need to set a customized [project configuration](docs/project-config.md).
 
 If you want to play around with Terramate from scratch locally you can also
 setup a local git repository:
@@ -142,4 +143,21 @@ git push --set-upstream origin main
 # Start using terramate
 ```
 
-TODO: add examples repos links here.
+Terramate can also work without any VCS setup, it will only require
+a Terramate configuration at the top level directory of the project
+
+```sh
+playground=$(mktemp -d)
+cd "${playground}"
+
+cat > terramate.tm.hcl <<- EOM
+terramate {
+  config {
+  }
+}
+EOM
+
+# Start using terramate
+```
+
+In a setup with no VCS change detection features will not be available.
