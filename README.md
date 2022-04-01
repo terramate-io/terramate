@@ -117,7 +117,7 @@ Terramate is as easy as just [installing Terramate](#installing).
 Terramate comes with sensible defaults so just using it inside a pre existent
 Git repository should not require any configurations.
 
-The main exception being for repositories that have a default remote branch
+The exception being repositories that have a default remote branch
 other than `origin/main`, in that case to make change detection work you will
 need to set a customized [project configuration](docs/project-config.md).
 
