@@ -161,3 +161,8 @@ EOM
 ```
 
 In a setup with no VCS change detection features will not be available.
+
+We also provide a few example projects:
+
+* [Orchestrating stacks](https://github.com/mineiros-io/terramate-example-orchestration)
+* [Sharing data across stacks](https://github.com/mineiros-io/terramate-example-code-generation)
