@@ -19,6 +19,7 @@
 ![CI Status](https://github.com/mineiros-io/terramate/actions/workflows/ci.yml/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/mineiros-io/terramate)](https://goreportcard.com/report/github.com/mineiros-io/terramate)
 [![codecov](https://codecov.io/gh/mineiros-io/terramate/branch/main/graph/badge.svg?token=gMRUkVUAQ4)](https://codecov.io/gh/mineiros-io/terramate)
+[![Join Slack](https://img.shields.io/badge/slack-@mineiros--community-f32752.svg?logo=slack)](https://mineiros.io/slack)
 
 Terramate is a tool for managing multiple Terraform stacks.
 
@@ -98,6 +99,7 @@ docker run ghcr.io/mineiros-io/terramate
 Container images tagged with release versions are also provided.
 Click [here](https://github.com/mineiros-io/terramate/pkgs/container/terramate/versions)
 for a list of the available container image tags.
+
 
 #### Auto Completion
 
