@@ -1,0 +1,9 @@
+linters:
+  enable:
+    - revive
+
+linters-settings:
+  revive:
+    rules:
+      - name: exported
+        severity: error
