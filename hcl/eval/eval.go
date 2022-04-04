@@ -31,6 +31,7 @@ import (
 	tflang "github.com/hashicorp/terraform/lang"
 )
 
+// ErrEval indicates a failure during the evaluation process
 const ErrEval errutil.Error = "failed to evaluate expression"
 
 // Context is used to evaluate HCL code.
@@ -52,6 +53,7 @@ func NewContext(basedir string) *Context {
 	}
 }
 
+// GetHCLContext gets the evaluation context.
 func (c *Context) GetHCLContext() *hhcl.EvalContext {
 	return c.hclctx
 }

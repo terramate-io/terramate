@@ -52,6 +52,7 @@ func NewGit(t *testing.T, repodir string) *Git {
 	}
 }
 
+// NewGitWithConfig creates a new git wrapper with the provided GitConfig.
 func NewGitWithConfig(t *testing.T, cfg GitConfig) *Git {
 	return &Git{
 		t:   t,
