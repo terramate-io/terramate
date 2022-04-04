@@ -128,7 +128,7 @@ type BlockBuilder interface {
 	Build(*Block)
 }
 
-// BlockBuilderFunc an adapter to allow the use of ordinary functions as BlockBuilders.
+// BlockBuilderFunc is an adapter to allow the use of ordinary functions as BlockBuilders.
 type BlockBuilderFunc func(*Block)
 
 // BuildBlock builds a block with the given name and N block builders.
