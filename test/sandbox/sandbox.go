@@ -378,8 +378,8 @@ func (de DirEntry) CreateConfig(body string) FileEntry {
 
 // CreateDir creates a directory inside the dir entry directory. The relpath
 // must be relative to the stack directory.
-func (se DirEntry) CreateDir(relpath string) DirEntry {
-	return newDirEntry(se.t, se.abspath, relpath)
+func (de DirEntry) CreateDir(relpath string) DirEntry {
+	return newDirEntry(de.t, de.abspath, relpath)
 }
 
 // ReadFile will read a file inside this dir entry with the given name.

@@ -633,7 +633,7 @@ func (git *Git) DeleteBranch(name string) error {
 // Beware: Checkout is a porcelain method.
 func (git *Git) Checkout(rev string, create bool) error {
 	if !git.config.AllowPorcelain {
-		return fmt.Errorf("Checkout: %w.", ErrDenyPorcelain)
+		return fmt.Errorf("checkout: %w", ErrDenyPorcelain)
 	}
 
 	if create {

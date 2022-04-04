@@ -197,7 +197,7 @@ func (ge *globalsExpr) eval(meta stack.Metadata) (Globals, error) {
 			}
 
 			globals.attributes[name] = val
-			amountEvaluated += 1
+			amountEvaluated++
 
 			logger.Trace().Msg("Delete pending expression.")
 

@@ -47,7 +47,7 @@ func TestHCLGeneration(t *testing.T) {
 	provider := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("provider", builders...)
 	}
-	required_providers := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	requiredProviders := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("required_providers", builders...)
 	}
 	attr := func(name, expr string) hclwrite.BlockBuilder {
@@ -118,7 +118,7 @@ func TestHCLGeneration(t *testing.T) {
 									expr("data", "global.provider_data"),
 								),
 								terraform(
-									required_providers(
+									requiredProviders(
 										expr("name", `{
 										source  = "integrations/name"
 										version = global.provider_version
@@ -180,7 +180,7 @@ func TestHCLGeneration(t *testing.T) {
 								str("data", "stack-1-provider-data"),
 							),
 							terraform(
-								required_providers(
+								requiredProviders(
 									attr("name", `{
 										source  = "integrations/name"
 										version = "stack-1-provider-version"
@@ -213,7 +213,7 @@ func TestHCLGeneration(t *testing.T) {
 								str("data", "stack-2-provider-data"),
 							),
 							terraform(
-								required_providers(
+								requiredProviders(
 									attr("name", `{
 										source  = "integrations/name"
 										version = "stack-2-provider-version"
