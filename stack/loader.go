@@ -104,7 +104,7 @@ func (l Loader) Set(dir string, s S) {
 	l.stacks[dir] = s
 }
 
-// LoadAll loads all the stacks in the dirs paths. For each dir in dirs: 
+// LoadAll loads all the stacks in the dirs paths. For each dir in dirs:
 // - If it is relative, it will be considered relative to wd, path = wd + dir
 // - If it is absolute, it will be considered absolute in relation to the given root, path = root + dir
 func (l Loader) LoadAll(root string, wd string, dirs ...string) ([]S, error) {
@@ -138,6 +138,7 @@ func (l Loader) LoadAll(root string, wd string, dirs ...string) ([]S, error) {
 	return stacks, nil
 }
 
+// IsLeafStack returns true if dir is a leaf stack.
 func (l Loader) IsLeafStack(dir string) (bool, error) {
 	isValid := true
 	log.Trace().

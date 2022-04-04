@@ -22,6 +22,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+// PrintConfig will print the given config as HCL on the given writer.
 func PrintConfig(w io.Writer, cfg Config) error {
 	logger := log.With().
 		Str("action", "PrintConfig()").

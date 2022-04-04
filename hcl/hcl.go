@@ -38,6 +38,7 @@ type Module struct {
 	Source string // Source is the module source path (eg.: directory, git path, etc).
 }
 
+// Config represents a Terramate configuration.
 type Config struct {
 	// absdir is the absolute path to the configuration directory.
 	absdir    string
@@ -45,12 +46,14 @@ type Config struct {
 	Stack     *Stack
 }
 
+// GitConfig represents Terramate Git configuration.
 type GitConfig struct {
 	DefaultBranchBaseRef string // DefaultBranchBaseRef is the baseRef when in default branch.
 	DefaultBranch        string // DefaultBranch is the default branch.
 	DefaultRemote        string // DefaultRemote is the default remote.
 }
 
+// RootConfig represents the root config block of a Terramate configuration.
 type RootConfig struct {
 	Git *GitConfig
 }
@@ -89,6 +92,7 @@ type Stack struct {
 // Blocks maps a filename to a slice of HCL blocks associated with it
 type Blocks map[string][]*hclsyntax.Block
 
+// Errors returned when parsing Terramate configuration.
 const (
 	ErrHCLSyntax                errutil.Error = "HCL syntax error"
 	ErrMalformedTerramateConfig errutil.Error = "malformed terramate config"

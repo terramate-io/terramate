@@ -98,6 +98,7 @@ func (s S) After() []string { return s.after }
 // Before specifies the list of stacks that must run after this stack.
 func (s S) Before() []string { return s.before }
 
+// Wants specifies the list of wanted stacks.
 func (s S) Wants() []string { return s.wants }
 
 // IsChanged tells if the stack is marked as changed.
@@ -124,6 +125,7 @@ func (s S) Meta() Metadata {
 	}
 }
 
+// ToCtyMap returns metadata as a cty values map.
 func (m Metadata) ToCtyMap() map[string]cty.Value {
 	return map[string]cty.Value{
 		"name":        cty.StringVal(m.Name),
@@ -132,11 +134,14 @@ func (m Metadata) ToCtyMap() map[string]cty.Value {
 	}
 }
 
+// IsLeaf returns true if dir is a leaf stack.
 func IsLeaf(root, dir string) (bool, error) {
 	l := NewLoader(root)
 	return l.IsLeafStack(dir)
 }
 
+// LookupParent checks parent stack of given dir.
+// Returns false, nil if the given dir has no parent stack.
 func LookupParent(root, dir string) (S, bool, error) {
 	l := NewLoader(root)
 	return l.lookupParentStack(dir)
@@ -186,6 +191,7 @@ func TryLoad(root, absdir string) (stack S, found bool, err error) {
 	return New(root, cfg), true, nil
 }
 
+// Sort sorts the given stacks.
 func Sort(stacks []S) {
 	sort.Sort(stackSlice(stacks))
 }
