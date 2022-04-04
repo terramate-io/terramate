@@ -53,6 +53,7 @@ type Report struct {
 	Failures []FailureResult
 }
 
+// HasFailures returns true if this report includes any failures.
 func (r Report) HasFailures() bool {
 	return r.BootstrapErr != nil || len(r.Failures) > 0
 }

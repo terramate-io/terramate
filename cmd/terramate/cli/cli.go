@@ -44,8 +44,11 @@ import (
 )
 
 const (
-	ErrOutdatedLocalRev        errutil.Error = "outdated local revision"
-	ErrInit                    errutil.Error = "failed to initialize all stacks"
+	// ErrOutdatedLocalRev indicates the local revision is outdated.
+	ErrOutdatedLocalRev errutil.Error = "outdated local revision"
+	// ErrInit indicates a failure to initialize stacks.
+	ErrInit errutil.Error = "failed to initialize all stacks"
+	// ErrOutdatedGenCodeDetected indicates outdated generated code detected.
 	ErrOutdatedGenCodeDetected errutil.Error = "outdated generated code detected"
 )
 
@@ -110,7 +113,7 @@ type cliSpec struct {
 
 // Exec will execute terramate with the provided flags defined on args.
 // Only flags should be on the args slice.
-
+//
 // Results will be written on stdout, according to the command flags and
 // errors/warnings written on stderr. Exec will abort the process with a status
 // code different than zero in the case of fatal errors.
@@ -593,7 +596,13 @@ func (c *cli) generateGraph() {
 				Msg("opening file")
 		}
 
-		defer f.Close()
+		defer func() {
+			if err := f.Close(); err != nil {
+				log.Fatal().
+					Err(err).
+					Msg("closing output graph file")
+			}
+		}()
 
 		out = f
 	}

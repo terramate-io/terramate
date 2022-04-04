@@ -38,6 +38,7 @@ type Module struct {
 	Source string // Source is the module source path (eg.: directory, git path, etc).
 }
 
+// Config represents a Terramate configuration.
 type Config struct {
 	// absdir is the absolute path to the configuration directory.
 	absdir    string
@@ -45,12 +46,14 @@ type Config struct {
 	Stack     *Stack
 }
 
+// GitConfig represents Terramate Git configuration.
 type GitConfig struct {
 	DefaultBranchBaseRef string // DefaultBranchBaseRef is the baseRef when in default branch.
 	DefaultBranch        string // DefaultBranch is the default branch.
 	DefaultRemote        string // DefaultRemote is the default remote.
 }
 
+// RootConfig represents the root config block of a Terramate configuration.
 type RootConfig struct {
 	Git *GitConfig
 }
@@ -86,9 +89,10 @@ type Stack struct {
 	Wants []string
 }
 
-// HCLBlocks maps a filename to a slice of blocks associated with it
-type HCLBlocks map[string][]*hclsyntax.Block
+// Blocks maps a filename to a slice of HCL blocks associated with it
+type Blocks map[string][]*hclsyntax.Block
 
+// Errors returned when parsing Terramate configuration.
 const (
 	ErrHCLSyntax                errutil.Error = "HCL syntax error"
 	ErrMalformedTerramateConfig errutil.Error = "malformed terramate config"
@@ -240,7 +244,7 @@ func ParseDir(dir string) (Config, error) {
 
 // ParseGlobalsBlocks parses all Terramate files on the given dir, returning
 // only global blocks (other blocks are discarded).
-func ParseGlobalsBlocks(dir string) (HCLBlocks, error) {
+func ParseGlobalsBlocks(dir string) (Blocks, error) {
 	logger := log.With().
 		Str("action", "ParseGlobalsBlocks").
 		Str("configdir", dir).
@@ -248,7 +252,7 @@ func ParseGlobalsBlocks(dir string) (HCLBlocks, error) {
 
 	logger.Trace().Msg("loading config")
 
-	return parseHCLBlocks(dir, "globals", func(block *hclsyntax.Block) error {
+	return parseBlocks(dir, "globals", func(block *hclsyntax.Block) error {
 		// Not validated with schema because cant find a way to validate
 		// N arbitrary attributes (defined by user/dynamic).
 		if len(block.Body.Blocks) > 0 {
@@ -264,7 +268,7 @@ func ParseGlobalsBlocks(dir string) (HCLBlocks, error) {
 // ParseGenerateHCLBlocks parses all Terramate files on the given dir, returning
 // only generate_hcl blocks (other blocks are discarded).
 // generate_hcl blocks are validated, so the caller can expect valid blocks only or an error.
-func ParseGenerateHCLBlocks(dir string) (HCLBlocks, error) {
+func ParseGenerateHCLBlocks(dir string) (Blocks, error) {
 	logger := log.With().
 		Str("action", "hcl.ParseGenerateHCLBlocks").
 		Str("configdir", dir).
@@ -282,7 +286,7 @@ func ParseGenerateHCLBlocks(dir string) (HCLBlocks, error) {
 		},
 	}
 
-	return parseHCLBlocks(dir, "generate_hcl", func(block *hclsyntax.Block) error {
+	return parseBlocks(dir, "generate_hcl", func(block *hclsyntax.Block) error {
 		// Don't seem like I can use hcl.BodySchema to check for any non-empty
 		// label, only specific label values.
 		if len(block.Labels) != 1 {
@@ -845,9 +849,9 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 
 type blockValidator func(*hclsyntax.Block) error
 
-func parseHCLBlocks(dir, blocktype string, validate blockValidator) (HCLBlocks, error) {
+func parseBlocks(dir, blocktype string, validate blockValidator) (Blocks, error) {
 	logger := log.With().
-		Str("action", "hcl.parseHCLBlocks").
+		Str("action", "hcl.parseBlocks").
 		Str("configdir", dir).
 		Str("blocktype", blocktype).
 		Logger()
@@ -856,12 +860,12 @@ func parseHCLBlocks(dir, blocktype string, validate blockValidator) (HCLBlocks, 
 
 	parser, err := loadCfgBlocks(dir)
 	if err != nil {
-		return HCLBlocks{}, fmt.Errorf("parsing %q: %w", blocktype, err)
+		return Blocks{}, fmt.Errorf("parsing %q: %w", blocktype, err)
 	}
 
 	logger.Trace().Msg("Validating and filtering blocks")
 
-	hclblocks := HCLBlocks{}
+	hclblocks := Blocks{}
 
 	for fname, hclfile := range parser.Files() {
 		logger := logger.With().

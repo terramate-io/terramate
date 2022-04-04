@@ -36,6 +36,7 @@ type (
 	}
 )
 
+// Errors returned by operations on the DAG.
 const (
 	ErrDuplicateNode errutil.Error = "duplicate node"
 	ErrNodeNotFound  errutil.Error = "node not found"
@@ -106,7 +107,7 @@ func (d *DAG) addEdge(from, to ID) {
 		panic("internal error: empty list of edges must exist at this point")
 	}
 
-	if !IDList(fromEdges).contains(to) {
+	if !idList(fromEdges).contains(to) {
 		log.Trace().
 			Str("action", "addEdge()").
 			Str("from", string(from)).
@@ -159,7 +160,7 @@ func (d *DAG) hasCycle(branch []ID, children []ID, reason string) (bool, string)
 			Str("action", "hasCycle()").
 			Str("id", string(id)).
 			Msg("Check if id is present in children.")
-		if IDList(children).contains(id) {
+		if idList(children).contains(id) {
 			d.cycles[id] = true
 			return true, fmt.Sprintf("%s %s", reason, id)
 		}
@@ -182,7 +183,7 @@ func (d *DAG) hasCycle(branch []ID, children []ID, reason string) (bool, string)
 
 // IDs returns the sorted list of node ids.
 func (d *DAG) IDs() []ID {
-	idlist := make(IDList, 0, len(d.dag))
+	idlist := make(idList, 0, len(d.dag))
 	for id := range d.dag {
 		idlist = append(idlist, id)
 	}
@@ -208,6 +209,7 @@ func (d *DAG) ChildrenOf(id ID) []ID {
 	return d.dag[id]
 }
 
+// HasCycle returns true if the DAG has a cycle.
 func (d *DAG) HasCycle(id ID) bool {
 	if !d.validated {
 		log.Trace().
@@ -266,8 +268,8 @@ func (d *DAG) walkFrom(id ID, do func(id ID)) {
 	do(id)
 }
 
-func sortedIds(ids []ID) IDList {
-	idlist := make(IDList, 0, len(ids))
+func sortedIds(ids []ID) idList {
+	idlist := make(idList, 0, len(ids))
 	for _, id := range ids {
 		idlist = append(idlist, id)
 	}
@@ -279,9 +281,9 @@ func sortedIds(ids []ID) IDList {
 	return idlist
 }
 
-type IDList []ID
+type idList []ID
 
-func (ids IDList) contains(other ID) bool {
+func (ids idList) contains(other ID) bool {
 	for _, id := range ids {
 		if id == other {
 			return true
@@ -291,6 +293,6 @@ func (ids IDList) contains(other ID) bool {
 	return false
 }
 
-func (ids IDList) Len() int           { return len(ids) }
-func (ids IDList) Swap(i, j int)      { ids[i], ids[j] = ids[j], ids[i] }
-func (ids IDList) Less(i, j int) bool { return ids[i] < ids[j] }
+func (ids idList) Len() int           { return len(ids) }
+func (ids idList) Swap(i, j int)      { ids[i], ids[j] = ids[j], ids[i] }
+func (ids idList) Less(i, j int) bool { return ids[i] < ids[j] }

@@ -426,6 +426,7 @@ func (m *Manager) moduleChanged(
 	return changed, fmt.Sprintf("module %q changed because %s", mod.Source, why), nil
 }
 
+// AddWantedOf returns all wanted stacks from the given stacks.
 func (m *Manager) AddWantedOf(stacks []stack.S) ([]stack.S, error) {
 	wantedBy := map[string]stack.S{}
 	wanted := []stack.S{}
@@ -457,7 +458,7 @@ func (m *Manager) AddWantedOf(stacks []stack.S) ([]stack.S, error) {
 				if wantedStack.AbsPath() == s.AbsPath() {
 					logger.Warn().
 						Stringer("stack", s).
-						Msgf("stack %q wants itself.", s)
+						Msg("stack wants itself.")
 
 					continue
 				}

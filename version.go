@@ -28,6 +28,7 @@ import (
 //go:embed VERSION
 var version string
 
+// ErrVersion indicates failure when checking Terramate version.
 const ErrVersion errutil.Error = "version check error"
 
 // Version of terramate.
@@ -35,6 +36,7 @@ func Version() string {
 	return strings.TrimSpace(version)
 }
 
+// CheckVersion checks Terramate version against the given constraint.
 func CheckVersion(vconstraint string) error {
 	version := Version()
 	logger := log.With().

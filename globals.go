@@ -34,6 +34,7 @@ type Globals struct {
 	attributes map[string]cty.Value
 }
 
+// Errors returned when parsing and evaluating globals.
 const (
 	ErrGlobalEval      errutil.Error = "globals eval failed"
 	ErrGlobalParse     errutil.Error = "globals parsing failed"
@@ -197,7 +198,7 @@ func (ge *globalsExpr) eval(meta stack.Metadata) (Globals, error) {
 			}
 
 			globals.attributes[name] = val
-			amountEvaluated += 1
+			amountEvaluated++
 
 			logger.Trace().Msg("Delete pending expression.")
 

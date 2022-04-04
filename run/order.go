@@ -94,6 +94,7 @@ func Sort(root string, stacks []stack.S, changed bool) ([]stack.S, string, error
 	return orderedStacks, "", nil
 }
 
+// BuildDAG builds a run order DAG for the given stack.
 func BuildDAG(
 	d *dag.DAG,
 	root string,

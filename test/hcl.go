@@ -21,6 +21,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 )
 
+// AssertTerramateConfig checks if two given Terramate configs are equal.
 func AssertTerramateConfig(t *testing.T, got, want hcl.Config) {
 	t.Helper()
 

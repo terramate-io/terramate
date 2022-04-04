@@ -45,9 +45,16 @@ type HCL struct {
 }
 
 const (
+	// ErrMultiLevelConflict indicates that generate_hcl blocks on different
+	// hierarchical levels have a conflict, like having the same filename
+	// as its output.
 	ErrMultiLevelConflict errutil.Error = "conflicting generate_hcl blocks"
-	ErrParsing            errutil.Error = "parsing generate_hcl block"
-	ErrEval               errutil.Error = "evaluating generate_hcl block"
+
+	// ErrParsing indicates the failure of parsing the generate_hcl block.
+	ErrParsing errutil.Error = "parsing generate_hcl block"
+
+	// ErrEval indicates the failure to evaluate the generate_hcl block.
+	ErrEval errutil.Error = "evaluating generate_hcl block"
 )
 
 // GeneratedHCLs returns all generated code, mapping the name to its

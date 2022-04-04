@@ -900,7 +900,7 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 	cli := newCLI(t, s.RootDir())
 	cat := test.LookPath(t, "cat")
 
-	// everything commited, repo is clean
+	// everything committed, repo is clean
 	assertRunResult(t, cli.run(
 		"run",
 		cat,

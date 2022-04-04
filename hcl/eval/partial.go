@@ -24,6 +24,7 @@ import (
 	"github.com/madlambda/spells/errutil"
 )
 
+// Errors returned when doing partial evaluation.
 const (
 	ErrPartialEval         errutil.Error = "partial evaluation failed"
 	ErrForExprDisallowEval errutil.Error = "`for` expression disallow globals/terramate variables"
@@ -269,9 +270,8 @@ func (e *engine) skipTokens(from int, tokens ...hclsyntax.TokenType) int {
 func (e *engine) skip(from int) int {
 	if e.multiline > 0 {
 		return e.multilineSkip(from)
-	} else {
-		return e.skipTokens(from, hclsyntax.TokenComment)
 	}
+	return e.skipTokens(from, hclsyntax.TokenComment)
 }
 
 func (e *engine) multilineSkip(from int) int {
