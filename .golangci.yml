@@ -1,3 +1,9 @@
 linters:
   enable:
     - revive
+issues:
+  # So we can detect exported/undocumented symbols
+  # https://github.com/golangci/golangci-lint/issues/2114
+  exclude:
+    - EXC0012
+  exclude-use-default: false
