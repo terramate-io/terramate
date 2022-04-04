@@ -246,7 +246,8 @@ func (s S) LoadStacks() []stack.S {
 	return stacks
 }
 
-// Loads globals for stack on the sandbox
+// LoadStackGlobals loads globals for specific stack on the sandbox.
+// Fails the caller test if an error is found.
 func (s S) LoadStackGlobals(sm stack.Metadata) terramate.Globals {
 	s.t.Helper()
 
