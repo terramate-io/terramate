@@ -236,7 +236,7 @@ func singleChangedStacksRepo(t *testing.T) repository {
 	return repo
 }
 
-// singleNotChangedStack returns a commited stack in main.
+// singleNotChangedStack returns a committed stack in main.
 func singleNotChangedStack(t *testing.T) repository {
 	repo := test.NewRepo(t)
 
