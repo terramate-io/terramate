@@ -24,6 +24,7 @@ import (
 	"github.com/madlambda/spells/errutil"
 )
 
+// Errors returned when doing partial evaluation.
 const (
 	ErrPartialEval         errutil.Error = "partial evaluation failed"
 	ErrForExprDisallowEval errutil.Error = "`for` expression disallow globals/terramate variables"
