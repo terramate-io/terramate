@@ -86,8 +86,8 @@ type Stack struct {
 	Wants []string
 }
 
-// HCLBlocks maps a filename to a slice of blocks associated with it
-type HCLBlocks map[string][]*hclsyntax.Block
+// Blocks maps a filename to a slice of HCL blocks associated with it
+type Blocks map[string][]*hclsyntax.Block
 
 const (
 	ErrHCLSyntax                errutil.Error = "HCL syntax error"
@@ -240,7 +240,7 @@ func ParseDir(dir string) (Config, error) {
 
 // ParseGlobalsBlocks parses all Terramate files on the given dir, returning
 // only global blocks (other blocks are discarded).
-func ParseGlobalsBlocks(dir string) (HCLBlocks, error) {
+func ParseGlobalsBlocks(dir string) (Blocks, error) {
 	logger := log.With().
 		Str("action", "ParseGlobalsBlocks").
 		Str("configdir", dir).
@@ -264,7 +264,7 @@ func ParseGlobalsBlocks(dir string) (HCLBlocks, error) {
 // ParseGenerateHCLBlocks parses all Terramate files on the given dir, returning
 // only generate_hcl blocks (other blocks are discarded).
 // generate_hcl blocks are validated, so the caller can expect valid blocks only or an error.
-func ParseGenerateHCLBlocks(dir string) (HCLBlocks, error) {
+func ParseGenerateHCLBlocks(dir string) (Blocks, error) {
 	logger := log.With().
 		Str("action", "hcl.ParseGenerateHCLBlocks").
 		Str("configdir", dir).
@@ -845,7 +845,7 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 
 type blockValidator func(*hclsyntax.Block) error
 
-func parseHCLBlocks(dir, blocktype string, validate blockValidator) (HCLBlocks, error) {
+func parseHCLBlocks(dir, blocktype string, validate blockValidator) (Blocks, error) {
 	logger := log.With().
 		Str("action", "hcl.parseHCLBlocks").
 		Str("configdir", dir).
@@ -856,12 +856,12 @@ func parseHCLBlocks(dir, blocktype string, validate blockValidator) (HCLBlocks, 
 
 	parser, err := loadCfgBlocks(dir)
 	if err != nil {
-		return HCLBlocks{}, fmt.Errorf("parsing %q: %w", blocktype, err)
+		return Blocks{}, fmt.Errorf("parsing %q: %w", blocktype, err)
 	}
 
 	logger.Trace().Msg("Validating and filtering blocks")
 
-	hclblocks := HCLBlocks{}
+	hclblocks := Blocks{}
 
 	for fname, hclfile := range parser.Files() {
 		logger := logger.With().
