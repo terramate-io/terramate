@@ -199,7 +199,7 @@ func Expression(name string, expr string) BlockBuilder {
 	})
 }
 
-// String add a string attribute to the block.
+// String adds a string attribute to the block.
 func String(name string, val string) BlockBuilder {
 	return BlockBuilderFunc(func(g *Block) {
 		g.AddString(name, val)
