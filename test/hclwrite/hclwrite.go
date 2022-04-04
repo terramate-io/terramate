@@ -50,12 +50,12 @@ type Block struct {
 	contents  []string
 }
 
-// AddLabel add label on block.
+// AddLabel adds a label to the block.
 func (b *Block) AddLabel(name string) {
 	b.labels = append(b.labels, fmt.Sprintf("%q", name))
 }
 
-// AddExpr add expression on block. The expressions is kept as is on the
+// AddExpr adds an expression to the block. The expressions are kept as is on the
 // final document.
 func (b *Block) AddExpr(name string, expr string) {
 	b.hasexpr = true
