@@ -75,10 +75,10 @@ func (git Git) Init() {
 	git.Add(path)
 	git.Commit("first commit")
 
-	git.ConfigureDefaultRemote()
+	git.configureDefaultRemote()
 }
 
-func (git Git) ConfigureDefaultRemote() {
+func (git Git) configureDefaultRemote() {
 	cfg := git.cfg
 	remoteRepo := git.initRemoteRepo(cfg.DefaultRemoteBranchName)
 	git.RemoteAdd(cfg.DefaultRemoteName, remoteRepo)
@@ -228,6 +228,8 @@ func (git Git) checkout(rev string, create bool) {
 	}
 }
 
+// Merge will merge the current branch with the given branch.
+// Fails the caller test if an error is found.
 func (git Git) Merge(branch string) {
 	git.t.Helper()
 
