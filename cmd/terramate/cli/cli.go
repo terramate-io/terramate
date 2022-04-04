@@ -46,7 +46,7 @@ import (
 const (
 	// ErrOutdatedLocalRev indicates the local revision is outdated.
 	ErrOutdatedLocalRev errutil.Error = "outdated local revision"
-	// ErrInit failed initializing stacks.
+	// ErrInit indicates a failure to initialize stacks.
 	ErrInit errutil.Error = "failed to initialize all stacks"
 	// ErrOutdatedGenCodeDetected outdated generated code detected.
 	ErrOutdatedGenCodeDetected errutil.Error = "outdated generated code detected"
