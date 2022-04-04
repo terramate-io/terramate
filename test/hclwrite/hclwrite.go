@@ -213,7 +213,7 @@ func Boolean(name string, val bool) BlockBuilder {
 	})
 }
 
-// NumberInt add a number attribute to the block.
+// NumberInt adds a number attribute to the block.
 func NumberInt(name string, val int64) BlockBuilder {
 	return BlockBuilderFunc(func(g *Block) {
 		g.AddNumberInt(name, val)
