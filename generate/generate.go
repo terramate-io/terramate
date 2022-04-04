@@ -45,7 +45,7 @@ const (
 )
 
 const (
-	// Header Current header used by Terramate code generation.
+	// Header is the current header string used by Terramate code generation.
 	Header = "// TERRAMATE: GENERATED AUTOMATICALLY DO NOT EDIT"
 
 	// HeaderV0 First header used by Terramate code generation.
