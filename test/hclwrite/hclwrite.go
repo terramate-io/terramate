@@ -39,6 +39,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+// Block represents an HCL block.
 type Block struct {
 	name    string
 	labels  []string
@@ -49,46 +50,60 @@ type Block struct {
 	contents  []string
 }
 
+// AddLabel add label on block.
 func (b *Block) AddLabel(name string) {
 	b.labels = append(b.labels, fmt.Sprintf("%q", name))
 }
 
+// AddExpr add expression on block. The expressions is kept as is on the
+// final document.
 func (b *Block) AddExpr(name string, expr string) {
 	b.hasexpr = true
 	b.addAttr(name, expr)
 }
 
+// AddNumberInt add number on block.
 func (b *Block) AddNumberInt(name string, v int64) {
 	b.ctyvalues[name] = cty.NumberIntVal(v)
 	b.addAttr(name, v)
 }
 
+// AddString adds string on block.
 func (b *Block) AddString(name string, v string) {
 	b.ctyvalues[name] = cty.StringVal(v)
 	b.addAttr(name, fmt.Sprintf("%q", v))
 }
 
+// AddBoolean adds boolean on block.
 func (b *Block) AddBoolean(name string, v bool) {
 	b.ctyvalues[name] = cty.BoolVal(v)
 	b.addAttr(name, v)
 }
 
+// AddBlock adds a nested block on the block.
 func (b *Block) AddBlock(child *Block) {
 	b.contents = append(b.contents, child.String())
 }
 
+// AttributesValues gets all attributes that are evaluated
+// values. Added expressions are ignored.
 func (b *Block) AttributesValues() map[string]cty.Value {
 	return b.ctyvalues
 }
 
+// HasExpressions returns true if block has any non-evaluated
+// expressions.
 func (b *Block) HasExpressions() bool {
 	return b.hasexpr
 }
 
+// Build builds the given parent block by adding itself on it.
 func (b *Block) Build(parent *Block) {
 	parent.AddBlock(b)
 }
 
+// String returns a string representation of the block that should always be
+// formatted HCL code.
 func (b *Block) String() string {
 	var code string
 
@@ -108,12 +123,15 @@ func (b *Block) String() string {
 	return Format(code)
 }
 
+// BlockBuilder provides a general purpose way to build blocks.
 type BlockBuilder interface {
 	Build(*Block)
 }
 
+// BlockBuilderFunc an adapter to allow the use of ordinary functions as BlockBuilders.
 type BlockBuilderFunc func(*Block)
 
+// BuildBlock builds a block with the given name and N block builders.
 func BuildBlock(name string, builders ...BlockBuilder) *Block {
 	b := newBlock(name)
 	for _, builder := range builders {
@@ -122,10 +140,14 @@ func BuildBlock(name string, builders ...BlockBuilder) *Block {
 	return b
 }
 
+// BuildHCL builds a root HCL document.
 func BuildHCL(builders ...BlockBuilder) *Block {
+	// Design is messed up since we only have blocks.
+	// Would be better to have explicit body/blocks.
 	return BuildBlock("", builders...)
 }
 
+// Labels creates a block builder that adds labels to block.
 func Labels(labels ...string) BlockBuilder {
 	return BlockBuilderFunc(func(g *Block) {
 		for _, label := range labels {
@@ -177,28 +199,33 @@ func Expression(name string, expr string) BlockBuilder {
 	})
 }
 
+// String add a string attribute to the block.
 func String(name string, val string) BlockBuilder {
 	return BlockBuilderFunc(func(g *Block) {
 		g.AddString(name, val)
 	})
 }
 
+// Boolean add a boolean attribute to the block.
 func Boolean(name string, val bool) BlockBuilder {
 	return BlockBuilderFunc(func(g *Block) {
 		g.AddBoolean(name, val)
 	})
 }
 
+// NumberInt add a number attribute to the block.
 func NumberInt(name string, val int64) BlockBuilder {
 	return BlockBuilderFunc(func(g *Block) {
 		g.AddNumberInt(name, val)
 	})
 }
 
+// Format formats the given HCL code.
 func Format(code string) string {
 	return strings.Trim(string(hclwrite.Format([]byte(code))), "\n ")
 }
 
+// Build calls the underlying builder function to build the given block.
 func (builder BlockBuilderFunc) Build(b *Block) {
 	builder(b)
 }
