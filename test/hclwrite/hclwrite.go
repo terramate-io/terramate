@@ -50,7 +50,7 @@ type Block struct {
 	contents  []string
 }
 
-// AddLabel add label on block.
+// AddLabel adds a label to the block.
 func (b *Block) AddLabel(name string) {
 	b.labels = append(b.labels, fmt.Sprintf("%q", name))
 }
