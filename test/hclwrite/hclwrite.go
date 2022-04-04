@@ -206,7 +206,7 @@ func String(name string, val string) BlockBuilder {
 	})
 }
 
-// Boolean add a boolean attribute to the block.
+// Boolean adds a boolean attribute to the block.
 func Boolean(name string, val bool) BlockBuilder {
 	return BlockBuilderFunc(func(g *Block) {
 		g.AddBoolean(name, val)
