@@ -252,7 +252,7 @@ func ParseGlobalsBlocks(dir string) (Blocks, error) {
 
 	logger.Trace().Msg("loading config")
 
-	return parseHCLBlocks(dir, "globals", func(block *hclsyntax.Block) error {
+	return parseBlocks(dir, "globals", func(block *hclsyntax.Block) error {
 		// Not validated with schema because cant find a way to validate
 		// N arbitrary attributes (defined by user/dynamic).
 		if len(block.Body.Blocks) > 0 {
@@ -286,7 +286,7 @@ func ParseGenerateHCLBlocks(dir string) (Blocks, error) {
 		},
 	}
 
-	return parseHCLBlocks(dir, "generate_hcl", func(block *hclsyntax.Block) error {
+	return parseBlocks(dir, "generate_hcl", func(block *hclsyntax.Block) error {
 		// Don't seem like I can use hcl.BodySchema to check for any non-empty
 		// label, only specific label values.
 		if len(block.Labels) != 1 {
@@ -849,9 +849,9 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 
 type blockValidator func(*hclsyntax.Block) error
 
-func parseHCLBlocks(dir, blocktype string, validate blockValidator) (Blocks, error) {
+func parseBlocks(dir, blocktype string, validate blockValidator) (Blocks, error) {
 	logger := log.With().
-		Str("action", "hcl.parseHCLBlocks").
+		Str("action", "hcl.parseBlocks").
 		Str("configdir", dir).
 		Str("blocktype", blocktype).
 		Logger()
