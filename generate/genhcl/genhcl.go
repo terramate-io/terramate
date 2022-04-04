@@ -50,7 +50,7 @@ const (
 	// as its output.
 	ErrMultiLevelConflict errutil.Error = "conflicting generate_hcl blocks"
 
-	// ErrParsing failed to parse generate_hcl block.
+	// ErrParsing indicates the failure of parsing the generate_hcl block.
 	ErrParsing errutil.Error = "parsing generate_hcl block"
 
 	// ErrEval failed to evaluate generate_hcl block.
