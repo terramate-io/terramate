@@ -62,7 +62,7 @@ func (b *Block) AddExpr(name string, expr string) {
 	b.addAttr(name, expr)
 }
 
-// AddNumberInt add number on block.
+// AddNumberInt adds a number to the block.
 func (b *Block) AddNumberInt(name string, v int64) {
 	b.ctyvalues[name] = cty.NumberIntVal(v)
 	b.addAttr(name, v)
