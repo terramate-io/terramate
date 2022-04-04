@@ -24,6 +24,8 @@ const (
 	DefaultFilename = "terramate.tm.hcl"
 )
 
+// TryLoadRootConfig loads Terramate root config. If no configuration is found
+// it returns false, nil.
 func TryLoadRootConfig(dir string) (cfg hcl.Config, found bool, err error) {
 	logger := log.With().
 		Str("action", "TryLoadRootConfig()").
