@@ -53,7 +53,7 @@ const (
 	// ErrParsing indicates the failure of parsing the generate_hcl block.
 	ErrParsing errutil.Error = "parsing generate_hcl block"
 
-	// ErrEval failed to evaluate generate_hcl block.
+	// ErrEval indicates the failure to evaluate the generate_hcl block.
 	ErrEval errutil.Error = "evaluating generate_hcl block"
 )
 
