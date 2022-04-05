@@ -130,7 +130,7 @@ func E(args ...interface{}) error {
 		}
 	}
 	if e.isEmpty() {
-		panic(fmt.Errorf("empty error"))
+		panic(errors.New("empty error"))
 	}
 	prev, ok := e.Err.(*Error)
 	if !ok {
