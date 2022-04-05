@@ -104,9 +104,7 @@ And **stack-a/terramate.tm.hcl** looks like:
 
 
 ```hcl
-terramate {
-    required_version = "<version>"
-}
+stack {}
 ```
 
 
@@ -114,10 +112,6 @@ And then we have **stack-b/terramate.tm.hcl**:
 
 
 ```hcl
-terramate {
-    required_version = "<version>"
-}
-
 stack {
     after = [
         "../stack-a"
@@ -129,10 +123,6 @@ That can also be defined by using a project root relative path:
 
 
 ```hcl
-terramate {
-    required_version = "<version>"
-}
-
 stack {
     after = [
         "/stack-a"
@@ -150,10 +140,6 @@ The same order of execution can be defined using **before**:
 **stack-a/terramate.tm.hcl**:
 
 ```hcl
-terramate {
-    required_version = "<version>"
-}
-
 stack {
     before = [
         "../stack-b"
@@ -164,9 +150,7 @@ stack {
 **stack-b/terramate.tm.hcl**:
 
 ```hcl
-terramate {
-    required_version = "<version>"
-}
+stack {}
 ```
 
 This would also be a valid way to express the same order (although redundant):
@@ -174,10 +158,6 @@ This would also be a valid way to express the same order (although redundant):
 **stack-a/terramate.tm.hcl**:
 
 ```hcl
-terramate {
-    required_version = "<version>"
-}
-
 stack {
     before = [
         "../stack-b"
@@ -188,10 +168,6 @@ stack {
 **stack-b/terramate.tm.hcl**:
 
 ```hcl
-terramate {
-    required_version = "<version>"
-}
-
 stack {
     after = [
         "../stack-a"
@@ -206,26 +182,18 @@ The three stacks are defined as follows:
 **stack-a/terramate.tm.hcl**:
 
 ```hcl
-terramate {
-    required_version = "<version>"
-}
+stack {}
 ```
 
 **stack-b/terramate.tm.hcl**:
 
 ```hcl
-terramate {
-    required_version = "<version>"
-}
+stack {}
 ```
 
 **stack-c/terramate.tm.hcl**:
 
 ```hcl
-terramate {
-    required_version = "<version>"
-}
-
 stack {
     before = [
         "../stack-b"
@@ -328,10 +296,6 @@ Also in the case of a conflict, like a stack defined like this:
 **stack-a/terramate.tm.hcl**:
 
 ```hcl
-terramate {
-    required_version = "<version>"
-}
-
 stack {
     before = [
         "../stack-b"
