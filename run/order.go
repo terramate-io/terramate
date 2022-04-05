@@ -28,29 +28,23 @@ type visited map[string]struct{}
 // In the case of multiple possible orders, it returns the lexicographic sorted
 // path.
 func Sort(root string, stacks []stack.S, changed bool) ([]stack.S, string, error) {
-	logger := log.With().
-		Str("action", "RunOrder()").
-		Str("path", root).
-		Logger()
-
-	logger.Debug().
-		Msg("Create new directed acyclic graph.")
 	d := dag.New()
-
-	logger.Trace().
-		Msg("Create new stack loader.")
 	loader := stack.NewLoader(root)
 
-	logger.Trace().
-		Msg("Add stacks to loader.")
 	for _, stack := range stacks {
 		loader.Set(stack.PrjAbsPath(), stack)
 	}
 
 	visited := visited{}
 
-	logger.Trace().
-		Msg("Range over stacks.")
+	logger := log.With().
+		Str("action", "run.Sort()").
+		Str("root", root).
+		Bool("changed", changed).
+		Logger()
+
+	logger.Trace().Msg("Sorting stacks.")
+
 	for _, stack := range stacks {
 		if _, ok := visited[stack.PrjAbsPath()]; ok {
 			continue
@@ -65,28 +59,42 @@ func Sort(root string, stacks []stack.S, changed bool) ([]stack.S, string, error
 		}
 	}
 
-	logger.Trace().
-		Msg("Validate DAG.")
+	logger.Trace().Msg("Validate DAG.")
+
 	reason, err := d.Validate()
 	if err != nil {
 		return nil, reason, err
 	}
 
-	logger.Trace().
-		Msg("Get topologically order DAG.")
+	logger.Trace().Msg("Get topologically order DAG.")
+
 	order := d.Order()
 
 	orderedStacks := make([]stack.S, 0, len(order))
 
-	logger.Trace().
-		Msg("Get ordered stacks.")
+	logger.Trace().Msg("Get ordered stacks.")
+
+	isSelectedStack := func(s stack.S) bool {
+		// Stacks may be added on the DAG from after/before references
+		// but they should not be on the final order if they are not part
+		// of the previously selected stacks passed as a parameter.
+		// This is important for change detection to work on ordering and
+		// also for filtering by cwd.
+		for _, stack := range stacks {
+			if s.PrjAbsPath() == stack.PrjAbsPath() {
+				return true
+			}
+		}
+		return false
+	}
+
 	for _, id := range order {
 		val, err := d.Node(id)
 		if err != nil {
 			return nil, "", fmt.Errorf("calculating run-order: %w", err)
 		}
 		s := val.(stack.S)
-		if s.IsChanged() == changed {
+		if isSelectedStack(s) {
 			orderedStacks = append(orderedStacks, s)
 		}
 	}
