@@ -21,14 +21,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
-	"github.com/madlambda/spells/errutil"
-)
-
-// Errors returned when doing partial evaluation.
-const (
-	ErrPartialEval         errutil.Error = "partial evaluation failed"
-	ErrForExprDisallowEval errutil.Error = "`for` expression disallow globals/terramate variables"
-	ErrInterpolationEval   errutil.Error = "interpolation failed"
+	"github.com/mineiros-io/terramate/errors"
 )
 
 /*
@@ -112,7 +105,7 @@ func (e *engine) Eval() (hclwrite.Tokens, error) {
 	for e.hasTokens() {
 		err := e.evalExpr()
 		if err != nil {
-			return nil, errutil.Chain(ErrPartialEval, err)
+			return nil, errors.E(errors.ExprPartialEval, err)
 		}
 		e.commit()
 	}
@@ -713,9 +706,8 @@ func (e *engine) evalForExpr(matchOpenType, matchCloseType hclsyntax.TokenType) 
 		v, found := e.parseVariable(e.tokens[e.pos:])
 		if found {
 			if v.isTerramate {
-				return errutil.Chain(
-					ErrForExprDisallowEval,
-					errorf("evaluating expression: %s", v.alltokens().Bytes()),
+				return errors.E(errors.ForExprDisallowEval,
+					sprintf("evaluating expression: %s", v.alltokens().Bytes()),
 				)
 			}
 
@@ -953,7 +945,7 @@ func (e *engine) evalString() error {
 		case hclsyntax.TokenTemplateInterp:
 			err := e.evalInterp()
 			if err != nil {
-				return errutil.Chain(ErrInterpolationEval, err)
+				return errors.E(errors.InterpolationEval, err)
 			}
 		default:
 			panic(errorf("unexpected token %s (token bytes: %s)", tok.Type, tok.Bytes))
@@ -1014,8 +1006,8 @@ func (e *engine) evalString() error {
 
 		switch elem.evaluated[0].Type {
 		case hclsyntax.TokenOBrace, hclsyntax.TokenOBrack:
-			return errutil.Chain(
-				ErrInterpolationEval,
+			return errors.E(
+				errors.InterpolationEval,
 				errorf("serialization of collection value is not supported"),
 			)
 		case hclsyntax.TokenQuotedLit:

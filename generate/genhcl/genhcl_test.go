@@ -23,8 +23,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genhcl"
-	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -1437,7 +1437,7 @@ func TestPartialEval(t *testing.T) {
 			config: hcldoc(
 				str("a", "${global.obj}-${global.obj}"),
 			),
-			wantErr: eval.ErrInterpolationEval,
+			wantErr: errors.E(errors.InterpolationEval),
 		},
 		{
 			name: "interpolating object with prefix space fails",
@@ -1447,7 +1447,7 @@ func TestPartialEval(t *testing.T) {
 			config: hcldoc(
 				str("a", " ${global.obj}"),
 			),
-			wantErr: eval.ErrInterpolationEval,
+			wantErr: errors.E(errors.InterpolationEval),
 		},
 		{
 			name: "interpolating object with suffix space fails",
@@ -1457,7 +1457,7 @@ func TestPartialEval(t *testing.T) {
 			config: hcldoc(
 				str("a", "${global.obj} "),
 			),
-			wantErr: eval.ErrInterpolationEval,
+			wantErr: errors.E(errors.InterpolationEval),
 		},
 		{
 			name: "interpolating multiple lists fails",
@@ -1467,7 +1467,7 @@ func TestPartialEval(t *testing.T) {
 			config: hcldoc(
 				str("a", "${global.list}-${global.list}"),
 			),
-			wantErr: eval.ErrInterpolationEval,
+			wantErr: errors.E(errors.InterpolationEval),
 		},
 		{
 			name: "interpolating list with prefix space fails",
@@ -1477,7 +1477,7 @@ func TestPartialEval(t *testing.T) {
 			config: hcldoc(
 				str("a", " ${global.list}"),
 			),
-			wantErr: eval.ErrInterpolationEval,
+			wantErr: errors.E(errors.InterpolationEval),
 		},
 		{
 			name: "interpolating list with suffix space fails",
@@ -1487,7 +1487,7 @@ func TestPartialEval(t *testing.T) {
 			config: hcldoc(
 				str("a", "${global.list} "),
 			),
-			wantErr: eval.ErrInterpolationEval,
+			wantErr: errors.E(errors.InterpolationEval),
 		},
 		{
 			// Here we check that a interpolated lists results on the list itself, not a string.
@@ -1733,7 +1733,7 @@ func TestPartialEval(t *testing.T) {
 			config: hcldoc(
 				str("var", "${global.obj.string} ${global.obj.obj2.obj3}"),
 			),
-			wantErr: eval.ErrInterpolationEval,
+			wantErr: errors.E(errors.InterpolationEval),
 		},
 		{
 			name: "basic list indexing",
@@ -1897,7 +1897,7 @@ func TestPartialEval(t *testing.T) {
 			config: hcldoc(
 				expr("list", `[for k in global.list : k]`),
 			),
-			wantErr: eval.ErrForExprDisallowEval,
+			wantErr: errors.E(errors.ForExprDisallowEval),
 		},
 		{
 			name: "obj for loop with global reference fails",
@@ -1907,7 +1907,7 @@ func TestPartialEval(t *testing.T) {
 			config: hcldoc(
 				expr("obj", `[for k in global.obj : k]`),
 			),
-			wantErr: eval.ErrForExprDisallowEval,
+			wantErr: errors.E(errors.ForExprDisallowEval),
 		},
 		{
 			name: "[for in from [for list with global references",
@@ -1917,7 +1917,7 @@ func TestPartialEval(t *testing.T) {
 			config: hcldoc(
 				expr("obj", `[for s in [for s in global.list : s] : s]`),
 			),
-			wantErr: eval.ErrForExprDisallowEval,
+			wantErr: errors.E(errors.ForExprDisallowEval),
 		},
 		{
 			name: "mixing {for and [for",
@@ -2251,7 +2251,7 @@ func TestPartialEval(t *testing.T) {
 			meta := stack.Meta()
 			globals := s.LoadStackGlobals(meta)
 			res, err := genhcl.Load(s.RootDir(), meta, globals)
-			assert.IsError(t, err, tcase.wantErr)
+			errors.Assert(t, err, tcase.wantErr)
 
 			if err != nil {
 				return

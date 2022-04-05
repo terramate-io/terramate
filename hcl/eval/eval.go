@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/errutil"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -98,14 +99,14 @@ func (c *Context) PartialEval(expr hclsyntax.Expression) (hclwrite.Tokens, error
 	exprFname := expr.Range().Filename
 	filedata, err := ioutil.ReadFile(exprFname)
 	if err != nil {
-		return nil, fmt.Errorf("reading expression from file: %v", err)
+		return nil, errors.E("reading expression from file", err)
 	}
 
 	exprRange := expr.Range()
 	exprBytes := filedata[exprRange.Start.Byte:exprRange.End.Byte]
 	tokens, diags := hclsyntax.LexExpression(exprBytes, exprFname, hcl.Pos{})
 	if diags.HasErrors() {
-		return nil, fmt.Errorf("failed to scan expression: %w", diags)
+		return nil, errors.E("failed to scan expression", diags)
 	}
 
 	engine := newPartialEvalEngine(toWriteTokens(tokens), c)

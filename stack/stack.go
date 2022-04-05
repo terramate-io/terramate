@@ -20,6 +20,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
@@ -162,12 +163,11 @@ func TryLoad(root, absdir string) (stack S, found bool, err error) {
 		Logger()
 
 	if !strings.HasPrefix(absdir, root) {
-		return S{}, false, fmt.Errorf("directory %q is not inside project root %q",
-			absdir, root)
+		return S{}, false, errors.E(fmt.Sprintf("directory %q is not inside project root %q",
+			absdir, root))
 	}
 
 	logger.Debug().Msg("Parsing configuration.")
-
 	cfg, err := hcl.ParseDir(absdir)
 	if err != nil {
 		return S{}, false, err
@@ -183,11 +183,10 @@ func TryLoad(root, absdir string) (stack S, found bool, err error) {
 	}
 
 	if !ok {
-		return S{}, false, fmt.Errorf("stack %q is not a leaf stack", absdir)
+		return S{}, false, errors.E(fmt.Sprintf("stack %q is not a leaf stack", absdir))
 	}
 
 	logger.Debug().Msg("Create a new stack")
-
 	return New(root, cfg), true, nil
 }
 

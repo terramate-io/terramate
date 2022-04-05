@@ -20,6 +20,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/rs/zerolog"
@@ -59,14 +60,14 @@ func TestHCLParserModules(t *testing.T) {
 			name:  "module must have 1 label",
 			input: `module {}`,
 			want: want{
-				err: hcl.ErrMalformedTerraform,
+				err: errors.E(errors.TerraformSchema),
 			},
 		},
 		{
 			name:  "module must have a source attribute",
 			input: `module "test" {}`,
 			want: want{
-				err: hcl.ErrMalformedTerraform,
+				err: errors.E(errors.TerraformSchema),
 			},
 		},
 		{
@@ -139,14 +140,14 @@ module "test" {
 }
 `,
 			want: want{
-				err: hcl.ErrMalformedTerraform,
+				err: errors.E(errors.TerraformSchema),
 			},
 		},
 		{
 			name:  "variable interpolation in the source string - fails",
 			input: "module \"test\" {\nsource = \"${var.test}\"\n}\n",
 			want: want{
-				err: hcl.ErrMalformedTerraform,
+				err: errors.E(errors.TerraformSchema),
 			},
 		},
 	} {
@@ -154,7 +155,7 @@ module "test" {
 			path := test.WriteFile(t, "", "main.tf", tc.input)
 
 			modules, err := hcl.ParseModules(path)
-			assert.IsError(t, err, tc.want.err)
+			errors.AssertKind(t, err, tc.want.err)
 
 			assert.EqualInts(t, len(tc.want.modules), len(modules), "modules len mismatch")
 
@@ -176,7 +177,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(errors.TerramateSchema),
 			},
 		},
 		{
@@ -190,7 +191,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(errors.TerramateSchema),
 			},
 		},
 		{
@@ -205,7 +206,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(errors.TerramateSchema),
 			},
 		},
 		{
@@ -219,7 +220,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(errors.TerramateSchema),
 			},
 		},
 		{
@@ -254,7 +255,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(errors.TerramateSchema),
 			},
 		},
 		{
@@ -269,7 +270,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(errors.TerramateSchema),
 			},
 		},
 		{
@@ -284,7 +285,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(errors.TerramateSchema),
 			},
 		},
 		{
@@ -359,7 +360,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(errors.TerramateSchema),
 			},
 		},
 		{
@@ -501,7 +502,7 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(errors.TerramateSchema),
 			},
 		},
 		{
@@ -540,7 +541,7 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(errors.TerramateSchema),
 			},
 		},
 		{
@@ -558,7 +559,7 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(errors.TerramateSchema),
 			},
 		},
 		{
@@ -576,7 +577,7 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(errors.TerramateSchema),
 			},
 		},
 		{
@@ -634,7 +635,7 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(errors.TerramateSchema),
 			},
 		},
 		{
@@ -649,7 +650,7 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(errors.TerramateSchema),
 			},
 		},
 		{
@@ -665,7 +666,7 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrHCLSyntax,
+				err: errors.E(errors.HCLSyntax),
 			},
 		},
 		{
@@ -681,7 +682,7 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrHCLSyntax,
+				err: errors.E(errors.HCLSyntax),
 			},
 		},
 		{
@@ -919,7 +920,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(errors.TerramateSchema),
 			},
 		},
 		{
@@ -951,7 +952,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(errors.TerramateSchema),
 			},
 		},
 	}
@@ -972,7 +973,7 @@ func testParser(t *testing.T, tc testcase) {
 			test.WriteFile(t, configsDir, filename, inputConfigFile.body)
 		}
 		got, err := hcl.ParseDir(configsDir)
-		assert.IsError(t, err, tc.want.err)
+		errors.AssertKind(t, err, tc.want.err)
 
 		if tc.want.err == nil {
 			test.AssertTerramateConfig(t, got, tc.want.config)

@@ -23,7 +23,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -121,7 +121,7 @@ func TestLoadMetadata(t *testing.T) {
 			layout: []string{
 				fmt.Sprintf("f:invalid-stack/%s:data=%s", config.DefaultFilename, invalidHCL),
 			},
-			wantErr: hcl.ErrHCLSyntax,
+			wantErr: errors.E(errors.HCLSyntax),
 		},
 		{
 			name: "valid stack with invalid stack",
@@ -129,7 +129,7 @@ func TestLoadMetadata(t *testing.T) {
 				"s:stack-valid-1",
 				fmt.Sprintf("f:invalid-stack/%s:data=%s", config.DefaultFilename, invalidHCL),
 			},
-			wantErr: hcl.ErrHCLSyntax,
+			wantErr: errors.E(errors.HCLSyntax),
 		},
 	}
 
@@ -140,7 +140,7 @@ func TestLoadMetadata(t *testing.T) {
 
 			stackEntries, err := terramate.ListStacks(s.RootDir())
 			if tcase.wantErr != nil {
-				assert.IsError(t, err, tcase.wantErr)
+				errors.AssertKind(t, err, tcase.wantErr)
 			}
 
 			gotMetadata := []stack.Metadata{}

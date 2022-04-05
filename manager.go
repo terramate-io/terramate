@@ -15,7 +15,6 @@
 package terramate
 
 import (
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -23,6 +22,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/git"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"

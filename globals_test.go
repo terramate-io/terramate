@@ -15,14 +15,13 @@
 package terramate_test
 
 import (
-	"errors"
 	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -1152,7 +1151,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 					`,
 				},
 			},
-			want: hcl.ErrHCLSyntax,
+			want: errors.E(errors.HCLSyntax),
 		},
 		{
 			name:   "root config has invalid global definition",
@@ -1166,7 +1165,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 					`,
 				},
 			},
-			want: hcl.ErrHCLSyntax,
+			want: errors.E(errors.HCLSyntax),
 		},
 		{
 			name:   "stack config has global redefinition on single block",
@@ -1184,7 +1183,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 			},
 			// FIXME(katcipis): would be better to have ErrGlobalRedefined
 			// for now we get an error directly from hcl for this.
-			want: hcl.ErrHCLSyntax,
+			want: errors.E(errors.HCLSyntax),
 		},
 		{
 			name:   "root config has global redefinition on single block",
@@ -1202,7 +1201,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 			},
 			// FIXME(katcipis): would be better to have ErrGlobalRedefined
 			// for now we get an error directly from hcl for this.
-			want: hcl.ErrHCLSyntax,
+			want: errors.E(errors.HCLSyntax),
 		},
 		{
 			name:   "stack config has global redefinition on multiple blocks",
@@ -1257,8 +1256,8 @@ func TestLoadGlobalsErrors(t *testing.T) {
 
 			stackEntries, err := terramate.ListStacks(s.RootDir())
 			// TODO(i4k): this better not be tested here.
-			if errors.Is(tcase.want, hcl.ErrHCLSyntax) {
-				assert.IsError(t, err, tcase.want)
+			if errors.IsKind(tcase.want, errors.HCLSyntax) {
+				errors.AssertKind(t, err, tcase.want)
 			}
 
 			for _, entry := range stackEntries {
