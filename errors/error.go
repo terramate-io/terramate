@@ -46,12 +46,13 @@ type Error struct {
 }
 
 type (
-	Kind  string // Kind defines the kind of error.
-	Stack string // Stack represents the stack info in an error.
+	// Kind defines the kind of error.
+	Kind string
+	// Stack represents the stack info in an error.
+	Stack string
 )
 
-const Separator = ": "
-const Any Kind = "unspecified error"
+const separator = ": "
 
 // E builds an error value from its arguments.
 // There must be at least one argument or E panics.
@@ -128,25 +129,18 @@ func E(args ...interface{}) error {
 			panic(fmt.Errorf("called with unknown type %T", arg))
 		}
 	}
-
-	if e.Kind == "" {
-		e.Kind = Any
-	}
-
 	if e.isEmpty() {
 		panic(fmt.Errorf("empty error"))
 	}
-
 	prev, ok := e.Err.(*Error)
 	if !ok {
 		return e
 	}
-
 	if prev.Kind == e.Kind {
-		prev.Kind = Any
-	} else if e.Kind == Any {
+		prev.Kind = ""
+	} else if e.Kind == "" {
 		e.Kind = prev.Kind
-		prev.Kind = Any
+		prev.Kind = ""
 	}
 	if e.FileRange.Empty() {
 		e.FileRange = prev.FileRange
@@ -167,9 +161,9 @@ func E(args ...interface{}) error {
 	}
 
 	// If this error has Kind unset or Other, pull up the inner one.
-	if e.Kind == Any {
+	if e.Kind == "" {
 		e.Kind = prev.Kind
-		prev.Kind = Any
+		prev.Kind = ""
 	}
 	return e
 }
@@ -177,7 +171,7 @@ func E(args ...interface{}) error {
 // isEmpty tells if all fields of this error are empty.
 // Note that e.Err is the underlying error hence not checked.
 func (e *Error) isEmpty() bool {
-	return e.FileRange.Empty() && e.Kind == Any && e.Description == "" && e.Stack == ""
+	return e.FileRange.Empty() && e.Kind == "" && e.Description == "" && e.Stack == ""
 }
 
 // Error returns the error message.
@@ -203,7 +197,7 @@ func (e *Error) Error() string {
 				errParts = append(errParts, v.String())
 			}
 		case Kind:
-			if v != Any && v != "" {
+			if v != "" {
 				errParts = append(errParts, string(v))
 			}
 		case string:
@@ -225,7 +219,7 @@ func (e *Error) Error() string {
 		}
 	}
 
-	return strings.Join(errParts, Separator)
+	return strings.Join(errParts, separator)
 }
 
 // IsKind tells if err is of kind k.
@@ -235,16 +229,13 @@ func IsKind(err error, k Kind) bool {
 	if err == nil {
 		return false
 	}
-
 	e, ok := err.(*Error)
 	if !ok {
 		return false
 	}
-
-	if e.Kind != Any {
+	if e.Kind != "" {
 		return e.Kind == k
 	}
-
 	return IsKind(e.Err, k)
 }
 
