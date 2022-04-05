@@ -167,7 +167,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 			Msg("Try load changed.")
 		s, found, err := m.stackLoader.TryLoadChanged(m.root, dirname)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("listing changed files: %w", err)
+			return nil, errors.E("listing changed files", err)
 		}
 
 		if !found {
@@ -176,7 +176,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 				Msg("Lookup parent stack.")
 			s, found, err = stack.LookupParent(m.root, dirname)
 			if err != nil {
-				return nil, fmt.Errorf("listing changed files: %w", err)
+				return nil, errors.E("listing changed files", err)
 			}
 
 			if !found {
@@ -194,7 +194,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 
 	allstacks, err := ListStacks(m.root)
 	if err != nil {
-		return nil, fmt.Errorf("searching for stacks: %v", err)
+		return nil, errors.E("searching for stacks", err)
 	}
 
 	logger.Trace().Msg("Range over all stacks.")
@@ -227,8 +227,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 
 			modules, err := hcl.ParseModules(tfpath)
 			if err != nil {
-				return fmt.Errorf("parsing modules at %q: %w",
-					file.Name(), err)
+				return errors.E("parsing modules", err)
 			}
 
 			logger.Trace().

@@ -161,7 +161,7 @@ func ParseModules(path string) ([]Module, error) {
 		Msg("Get path information.")
 	_, err := os.Stat(path)
 	if err != nil {
-		return nil, fmt.Errorf("stat failed on %q: %w", path, err)
+		return nil, errors.E(sprintf("stat failed on %q", path), err)
 	}
 
 	logger.Trace().
@@ -172,7 +172,7 @@ func ParseModules(path string) ([]Module, error) {
 		Msg("Parse HCL file.")
 	f, diags := p.ParseHCLFile(path)
 	if diags.HasErrors() {
-		return nil, errors.E(ErrHCLSyntax, diags, "parsing modules")
+		return nil, errors.E(ErrHCLSyntax, diags)
 	}
 
 	body, _ := f.Body.(*hclsyntax.Body)

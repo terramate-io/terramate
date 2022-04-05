@@ -22,9 +22,15 @@ import (
 	"github.com/hashicorp/hcl/v2"
 )
 
+// Error is the default Terramate error type.
+// It may contains some fields unset, but not all.
+// See E() for its usage.
 type Error struct {
 	// Kind is the kind of error.
 	Kind Kind
+
+	// Description of the error.
+	Description string
 
 	// FileRange holds the error source.
 	FileRange hcl.Range
@@ -32,20 +38,16 @@ type Error struct {
 	// Stack which originated the error.
 	Stack Stack
 
-	// Description of the error.
-	Description string
-
 	// Err represents the underlying error.
 	Err error
 }
 
-type Stack string
-
-// Kind defines the kind of error.
-type Kind string
+type (
+	Kind  string // Kind defines the kind of error.
+	Stack string // Stack represents the stack info in an error.
+)
 
 const Separator = ": "
-
 const Any Kind = "unspecified error"
 
 // E builds an error value from its arguments.
@@ -243,6 +245,9 @@ func IsKind(err error, k Kind) bool {
 	return IsKind(e.Err, k)
 }
 
+// Is tells if err (or any of its underlying errors) matches target.
+// It works with any error but if comparing *Error type it uses the Kind field,
+// otherwise it fallback to standard errors.Is().
 func Is(err, target error) bool {
 	e, ok := err.(*Error)
 	if !ok {
