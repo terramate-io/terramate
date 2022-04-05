@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package errors implements the Terramate standard error type.
+// It's heavily influenced by Rob Pike `errors` package in the Upspin project:
+// 	https://commandcenter.blogspot.com/2017/12/error-handling-in-upspin.html
 package errors
 
 import (
