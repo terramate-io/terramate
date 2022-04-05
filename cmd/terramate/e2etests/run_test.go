@@ -361,7 +361,7 @@ stack-z
 			},
 			want: runExpected{
 				Status:      defaultErrExitStatus,
-				StderrRegex: dag.ErrCycleDetected.Error(),
+				StderrRegex: string(dag.ErrCycleDetected),
 			},
 		},
 		{
@@ -371,7 +371,7 @@ stack-z
 			},
 			want: runExpected{
 				Status:      defaultErrExitStatus,
-				StderrRegex: dag.ErrCycleDetected.Error(),
+				StderrRegex: string(dag.ErrCycleDetected),
 			},
 		},
 		{
@@ -383,7 +383,7 @@ stack-z
 			},
 			want: runExpected{
 				Status:      defaultErrExitStatus,
-				StderrRegex: dag.ErrCycleDetected.Error(),
+				StderrRegex: string(dag.ErrCycleDetected),
 			},
 		},
 		{
@@ -412,7 +412,7 @@ stack-z
 			},
 			want: runExpected{
 				Status:      defaultErrExitStatus,
-				StderrRegex: dag.ErrCycleDetected.Error(),
+				StderrRegex: string(dag.ErrCycleDetected),
 			},
 		},
 		{

@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/madlambda/spells/errutil"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/run/dag"
 
 	"github.com/rs/zerolog"
@@ -47,7 +47,7 @@ var cycleTests = []testcase{
 				after: []dag.ID{"A"},
 			},
 		},
-		err:    dag.ErrCycleDetected,
+		err:    errors.E(dag.ErrCycleDetected),
 		reason: "A -> A",
 	},
 	{
@@ -60,7 +60,7 @@ var cycleTests = []testcase{
 				after: []dag.ID{"A"},
 			},
 		},
-		err:    dag.ErrCycleDetected,
+		err:    errors.E(dag.ErrCycleDetected),
 		reason: "A -> B -> A",
 	},
 	{
@@ -76,7 +76,7 @@ var cycleTests = []testcase{
 				after: []dag.ID{"A"},
 			},
 		},
-		err:    dag.ErrCycleDetected,
+		err:    errors.E(dag.ErrCycleDetected),
 		reason: "A -> B -> C -> A",
 	},
 	{
@@ -90,7 +90,7 @@ var cycleTests = []testcase{
 				before: []dag.ID{"B"},
 			},
 		},
-		err:    dag.ErrCycleDetected,
+		err:    errors.E(dag.ErrCycleDetected),
 		reason: "A -> B -> C -> A",
 	},
 	{
@@ -104,7 +104,7 @@ var cycleTests = []testcase{
 				before: []dag.ID{"B"},
 			},
 		},
-		err:    dag.ErrCycleDetected,
+		err:    errors.E(dag.ErrCycleDetected),
 		reason: "A -> B -> C -> A",
 	},
 	{
@@ -124,7 +124,7 @@ var cycleTests = []testcase{
 				after:  []dag.ID{"A"},
 			},
 		},
-		err:    dag.ErrCycleDetected,
+		err:    errors.E(dag.ErrCycleDetected),
 		reason: "A -> B -> D -> A",
 	},
 	{
@@ -146,7 +146,7 @@ var cycleTests = []testcase{
 				after: []dag.ID{"A"},
 			},
 		},
-		err:    dag.ErrCycleDetected,
+		err:    errors.E(dag.ErrCycleDetected),
 		reason: "A -> B -> C -> D -> F -> A",
 	},
 	{
@@ -168,7 +168,7 @@ var cycleTests = []testcase{
 				after: []dag.ID{"A"},
 			},
 		},
-		err:    dag.ErrCycleDetected,
+		err:    errors.E(dag.ErrCycleDetected),
 		reason: "A -> B -> C -> D -> A",
 	},
 	{
@@ -190,7 +190,7 @@ var cycleTests = []testcase{
 				after: []dag.ID{"A"},
 			},
 		},
-		err:    dag.ErrCycleDetected,
+		err:    errors.E(dag.ErrCycleDetected),
 		reason: "A -> B -> C -> D -> B",
 	},
 	{
@@ -203,7 +203,7 @@ var cycleTests = []testcase{
 				before: []dag.ID{"A"},
 			},
 		},
-		err:    dag.ErrCycleDetected,
+		err:    errors.E(dag.ErrCycleDetected),
 		reason: "A -> B -> A",
 	},
 }
@@ -298,7 +298,23 @@ func TestDAG(t *testing.T) {
 				assertOrder(t, tc.order, order)
 			}
 
-			assert.IsError(t, errutil.Chain(errs...), tc.err, "failed to add node")
+			// TODO(i4k): we need a similar errutil.Chain() function.
+
+			found := false
+			for _, err := range errs {
+				if err == nil {
+					// ignore success runs
+					continue
+				}
+				if errors.Is(err, tc.err) {
+					found = true
+					break
+				}
+			}
+
+			if tc.err != nil && !found {
+				t.Fatalf("none of errors [%+v] matches want [%v]", errs, tc.err)
+			}
 		})
 	}
 }

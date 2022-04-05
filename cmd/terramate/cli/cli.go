@@ -15,7 +15,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -24,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
 	prj "github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/run"
@@ -673,7 +673,7 @@ func (c *cli) printRunOrder() {
 	logger.Debug().Msg("Get run order.")
 	order, reason, err := run.Sort(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
-		if errors.Is(err, dag.ErrCycleDetected) {
+		if errors.IsKind(err, dag.ErrCycleDetected) {
 			log.Fatal().
 				Err(err).
 				Str("reason", reason).
@@ -830,7 +830,7 @@ func (c *cli) runOnStacks() {
 
 	orderedStacks, reason, err := run.Sort(c.root(), stacks, c.parsedArgs.Changed)
 	if err != nil {
-		if errors.Is(err, dag.ErrCycleDetected) {
+		if errors.IsKind(err, dag.ErrCycleDetected) {
 			logger.Fatal().
 				Str("reason", reason).
 				Err(err).

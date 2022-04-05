@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/madlambda/spells/errutil"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -38,9 +38,9 @@ type (
 
 // Errors returned by operations on the DAG.
 const (
-	ErrDuplicateNode errutil.Error = "duplicate node"
-	ErrNodeNotFound  errutil.Error = "node not found"
-	ErrCycleDetected errutil.Error = "cycle detected"
+	ErrDuplicateNode errors.Kind = "duplicate node"
+	ErrNodeNotFound  errors.Kind = "node not found"
+	ErrCycleDetected errors.Kind = "cycle detected"
 )
 
 // New creates a new empty Directed-Acyclic-Graph.
@@ -59,9 +59,8 @@ func (d *DAG) AddNode(id ID, value interface{}, before, after []ID) error {
 		Logger()
 
 	if _, ok := d.values[id]; ok {
-		return errutil.Chain(
-			ErrDuplicateNode,
-			fmt.Errorf("adding node id %q", id),
+		return errors.E(ErrDuplicateNode,
+			fmt.Sprintf("adding node id %q", id),
 		)
 	}
 
@@ -145,9 +144,9 @@ func (d *DAG) validateNode(id ID, children []ID) (string, error) {
 	found, reason := d.hasCycle([]ID{id}, children, fmt.Sprintf("%s ->", id))
 	if found {
 		d.cycles[id] = true
-		return reason, errutil.Chain(
+		return reason, errors.E(
 			ErrCycleDetected,
-			fmt.Errorf("checking node id %q", id),
+			fmt.Sprintf("checking node id %q", id),
 		)
 	}
 
@@ -199,7 +198,7 @@ func (d *DAG) IDs() []ID {
 func (d *DAG) Node(id ID) (interface{}, error) {
 	v, ok := d.values[id]
 	if !ok {
-		return nil, ErrNodeNotFound
+		return nil, errors.E(ErrNodeNotFound)
 	}
 	return v, nil
 }

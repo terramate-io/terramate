@@ -16,7 +16,7 @@ package errors
 
 import "testing"
 
-// Assert that got is of same error kind as want.
+// AssertKind asserts that got is of same error kind as want.
 func AssertKind(t *testing.T, got, want error) {
 	t.Helper()
 	if (got == nil) != (want == nil) {

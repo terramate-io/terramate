@@ -243,6 +243,10 @@ func IsKind(err error, k Kind) bool {
 // It works with any error but if comparing *Error type it uses the Kind field,
 // otherwise it fallback to standard errors.Is().
 func Is(err, target error) bool {
+	if (err == nil) != (target == nil) {
+		return false
+	}
+
 	e, ok := err.(*Error)
 	if !ok {
 		return errors.Is(err, target)
