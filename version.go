@@ -54,7 +54,7 @@ func CheckVersion(vconstraint string) error {
 
 	semver, err := hclversion.NewSemver(version)
 	if err != nil {
-		return fmt.Errorf("%w: terramate built with invalid version: %b", ErrVersion, err)
+		return fmt.Errorf("%w: terramate built with invalid version: %v", ErrVersion, err)
 	}
 
 	logger.Trace().Msg("checking version constraint")
