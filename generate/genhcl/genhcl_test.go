@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genhcl"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -790,7 +791,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrMultiLevelConflict,
+			wantErr: errors.E(genhcl.ErrMultiLevelConflict),
 		},
 		{
 			name:  "stack parents with block with same label is an error",
@@ -819,7 +820,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrMultiLevelConflict,
+			wantErr: errors.E(genhcl.ErrMultiLevelConflict),
 		},
 		{
 			name:  "block with no label fails",
@@ -836,7 +837,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrParsing,
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "generate_hcl with non-content block inside fails",
@@ -852,7 +853,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrParsing,
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "generate_hcl with other blocks than content fails",
@@ -871,7 +872,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrParsing,
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "generate_hcl.content block is required",
@@ -884,7 +885,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrParsing,
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "generate_hcl.content block with label fails",
@@ -900,7 +901,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrParsing,
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "block with two labels on stack fails",
@@ -918,7 +919,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrParsing,
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "block with empty label on stack fails",
@@ -936,7 +937,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrParsing,
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "blocks with same label on same config fails",
@@ -964,7 +965,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrParsing,
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "blocks with same label on multiple config files fails",
@@ -999,7 +1000,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrParsing,
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "global evaluation failure",
@@ -1019,7 +1020,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrEval,
+			wantErr: errors.E(genhcl.ErrEval),
 		},
 		{
 			name:  "metadata evaluation failure",
@@ -1039,7 +1040,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrEval,
+			wantErr: errors.E(genhcl.ErrEval),
 		},
 		{
 			name:  "valid config on stack but invalid on parent fails",
@@ -1067,7 +1068,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrParsing,
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "attributes on generate_hcl block fails",
@@ -1088,7 +1089,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: genhcl.ErrParsing,
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 	}
 
@@ -1110,7 +1111,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			meta := stack.Meta()
 			globals := s.LoadStackGlobals(meta)
 			res, err := genhcl.Load(s.RootDir(), meta, globals)
-			assert.IsError(t, err, tcase.wantErr)
+			errors.Assert(t, err, tcase.wantErr)
 
 			got := res.GeneratedHCLs()
 
@@ -1437,7 +1438,7 @@ func TestPartialEval(t *testing.T) {
 			config: hcldoc(
 				str("a", "${global.obj}-${global.obj}"),
 			),
-			wantErr: errors.E(errors.InterpolationEval),
+			wantErr: errors.E(eval.ErrInterpolation),
 		},
 		{
 			name: "interpolating object with prefix space fails",
@@ -1447,7 +1448,7 @@ func TestPartialEval(t *testing.T) {
 			config: hcldoc(
 				str("a", " ${global.obj}"),
 			),
-			wantErr: errors.E(errors.InterpolationEval),
+			wantErr: errors.E(eval.ErrInterpolation),
 		},
 		{
 			name: "interpolating object with suffix space fails",
@@ -1457,7 +1458,7 @@ func TestPartialEval(t *testing.T) {
 			config: hcldoc(
 				str("a", "${global.obj} "),
 			),
-			wantErr: errors.E(errors.InterpolationEval),
+			wantErr: errors.E(eval.ErrInterpolation),
 		},
 		{
 			name: "interpolating multiple lists fails",
@@ -1467,7 +1468,7 @@ func TestPartialEval(t *testing.T) {
 			config: hcldoc(
 				str("a", "${global.list}-${global.list}"),
 			),
-			wantErr: errors.E(errors.InterpolationEval),
+			wantErr: errors.E(eval.ErrInterpolation),
 		},
 		{
 			name: "interpolating list with prefix space fails",
@@ -1477,7 +1478,7 @@ func TestPartialEval(t *testing.T) {
 			config: hcldoc(
 				str("a", " ${global.list}"),
 			),
-			wantErr: errors.E(errors.InterpolationEval),
+			wantErr: errors.E(eval.ErrInterpolation),
 		},
 		{
 			name: "interpolating list with suffix space fails",
@@ -1487,7 +1488,7 @@ func TestPartialEval(t *testing.T) {
 			config: hcldoc(
 				str("a", "${global.list} "),
 			),
-			wantErr: errors.E(errors.InterpolationEval),
+			wantErr: errors.E(eval.ErrInterpolation),
 		},
 		{
 			// Here we check that a interpolated lists results on the list itself, not a string.
@@ -1733,7 +1734,7 @@ func TestPartialEval(t *testing.T) {
 			config: hcldoc(
 				str("var", "${global.obj.string} ${global.obj.obj2.obj3}"),
 			),
-			wantErr: errors.E(errors.InterpolationEval),
+			wantErr: errors.E(eval.ErrInterpolation),
 		},
 		{
 			name: "basic list indexing",
@@ -1897,7 +1898,7 @@ func TestPartialEval(t *testing.T) {
 			config: hcldoc(
 				expr("list", `[for k in global.list : k]`),
 			),
-			wantErr: errors.E(errors.ForExprDisallowEval),
+			wantErr: errors.E(eval.ErrForExprDisallowEval),
 		},
 		{
 			name: "obj for loop with global reference fails",
@@ -1907,7 +1908,7 @@ func TestPartialEval(t *testing.T) {
 			config: hcldoc(
 				expr("obj", `[for k in global.obj : k]`),
 			),
-			wantErr: errors.E(errors.ForExprDisallowEval),
+			wantErr: errors.E(eval.ErrForExprDisallowEval),
 		},
 		{
 			name: "[for in from [for list with global references",
@@ -1917,7 +1918,7 @@ func TestPartialEval(t *testing.T) {
 			config: hcldoc(
 				expr("obj", `[for s in [for s in global.list : s] : s]`),
 			),
-			wantErr: errors.E(errors.ForExprDisallowEval),
+			wantErr: errors.E(eval.ErrForExprDisallowEval),
 		},
 		{
 			name: "mixing {for and [for",

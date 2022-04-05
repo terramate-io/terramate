@@ -24,6 +24,13 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 )
 
+// Errors returned when doing partial evaluation.
+const (
+	ErrPartial             errors.Kind = "partial evaluation failed"
+	ErrInterpolation       errors.Kind = "interpolation failed"
+	ErrForExprDisallowEval errors.Kind = "`for` expression disallow globals/terramate variables"
+)
+
 /*
 
 Here be dragons. Thou art forewarned
@@ -105,7 +112,7 @@ func (e *engine) Eval() (hclwrite.Tokens, error) {
 	for e.hasTokens() {
 		err := e.evalExpr()
 		if err != nil {
-			return nil, errors.E(errors.ExprPartialEval, err)
+			return nil, errors.E(ErrPartial, err)
 		}
 		e.commit()
 	}
@@ -706,7 +713,7 @@ func (e *engine) evalForExpr(matchOpenType, matchCloseType hclsyntax.TokenType) 
 		v, found := e.parseVariable(e.tokens[e.pos:])
 		if found {
 			if v.isTerramate {
-				return errors.E(errors.ForExprDisallowEval,
+				return errors.E(ErrForExprDisallowEval,
 					sprintf("evaluating expression: %s", v.alltokens().Bytes()),
 				)
 			}
@@ -945,7 +952,7 @@ func (e *engine) evalString() error {
 		case hclsyntax.TokenTemplateInterp:
 			err := e.evalInterp()
 			if err != nil {
-				return errors.E(errors.InterpolationEval, err)
+				return errors.E(ErrInterpolation, err)
 			}
 		default:
 			panic(errorf("unexpected token %s (token bytes: %s)", tok.Type, tok.Bytes))
@@ -1007,7 +1014,7 @@ func (e *engine) evalString() error {
 		switch elem.evaluated[0].Type {
 		case hclsyntax.TokenOBrace, hclsyntax.TokenOBrack:
 			return errors.E(
-				errors.InterpolationEval,
+				ErrInterpolation,
 				errorf("serialization of collection value is not supported"),
 			)
 		case hclsyntax.TokenQuotedLit:

@@ -52,13 +52,11 @@ func ListStacks(root string) ([]Entry, error) {
 			logger.Trace().Str("stack", path).Msg("Try load stack.")
 			stack, found, err := stack.TryLoad(root, path)
 			if err != nil {
-				return errors.E("listing stacks", err)
+				return err
 			}
 
 			if found {
-				logger.Debug().
-					Stringer("stack", stack).
-					Msg("Found stack.")
+				logger.Debug().Stringer("stack", stack).Msg("Found stack.")
 				entries = append(entries, Entry{Stack: stack})
 			}
 
@@ -67,7 +65,7 @@ func ListStacks(root string) ([]Entry, error) {
 	)
 
 	if err != nil {
-		return nil, err
+		return nil, errors.E("listing stacks", err)
 	}
 
 	return entries, nil

@@ -24,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -121,7 +122,7 @@ func TestLoadMetadata(t *testing.T) {
 			layout: []string{
 				fmt.Sprintf("f:invalid-stack/%s:data=%s", config.DefaultFilename, invalidHCL),
 			},
-			wantErr: errors.E(errors.HCLSyntax),
+			wantErr: errors.E(hcl.ErrHCLSyntax),
 		},
 		{
 			name: "valid stack with invalid stack",
@@ -129,7 +130,7 @@ func TestLoadMetadata(t *testing.T) {
 				"s:stack-valid-1",
 				fmt.Sprintf("f:invalid-stack/%s:data=%s", config.DefaultFilename, invalidHCL),
 			},
-			wantErr: errors.E(errors.HCLSyntax),
+			wantErr: errors.E(hcl.ErrHCLSyntax),
 		},
 	}
 

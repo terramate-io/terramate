@@ -21,8 +21,8 @@ import (
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
-	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
@@ -48,13 +48,13 @@ const (
 	// ErrMultiLevelConflict indicates that generate_hcl blocks on different
 	// hierarchical levels have a conflict, like having the same filename
 	// as its output.
-	ErrMultiLevelConflict errutil.Error = "conflicting generate_hcl blocks"
+	ErrMultiLevelConflict errors.Kind = "conflicting generate_hcl blocks"
 
 	// ErrParsing indicates the failure of parsing the generate_hcl block.
-	ErrParsing errutil.Error = "parsing generate_hcl block"
+	ErrParsing errors.Kind = "parsing generate_hcl block"
 
 	// ErrEval indicates the failure to evaluate the generate_hcl block.
-	ErrEval errutil.Error = "evaluating generate_hcl block"
+	ErrEval errors.Kind = "evaluating generate_hcl block"
 )
 
 // GeneratedHCLs returns all generated code, mapping the name to its
@@ -103,12 +103,12 @@ func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackHC
 
 	loadedHCLs, err := loadGenHCLBlocks(rootdir, stackpath)
 	if err != nil {
-		return StackHCLs{}, fmt.Errorf("loading generate_hcl: %w", err)
+		return StackHCLs{}, errors.E("loading generate_hcl", err)
 	}
 
 	evalctx, err := newEvalCtx(stackpath, sm, globals)
 	if err != nil {
-		return StackHCLs{}, fmt.Errorf("%w: creating eval context: %v", ErrEval, err)
+		return StackHCLs{}, errors.E(ErrEval, "creating eval context", err)
 	}
 
 	logger.Trace().Msg("generating HCL code.")
@@ -126,13 +126,12 @@ func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackHC
 
 		gen := hclwrite.NewEmptyFile()
 		if err := hcl.CopyBody(gen.Body(), loadedHCL.block.Body, evalctx); err != nil {
-			evalErr := fmt.Errorf(
-				"%w: stack %q block %q",
+			return StackHCLs{}, errors.E(
 				ErrEval,
-				stackpath,
-				name,
+				fmt.Sprintf("failed to generate block %q", name),
+				errors.Stack(stackpath),
+				err,
 			)
-			return StackHCLs{}, errutil.Chain(evalErr, err)
 		}
 		res.hcls[name] = HCL{
 			origin: loadedHCL.origin,
@@ -141,7 +140,6 @@ func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackHC
 	}
 
 	logger.Trace().Msg("evaluated all blocks with success.")
-
 	return res, nil
 }
 
@@ -157,15 +155,20 @@ func newEvalCtx(stackpath string, sm stack.Metadata, globals terramate.Globals) 
 
 	err := evalctx.SetNamespace("terramate", sm.ToCtyMap())
 	if err != nil {
-		return nil, fmt.Errorf("setting terramate namespace on eval context for stack %q: %v",
-			stackpath, err)
+		return nil, errors.E(
+			"setting terramate namespace on eval context",
+			errors.Stack(stackpath),
+			err,
+		)
 	}
 
 	logger.Trace().Msg("Add global evaluation namespace.")
 
 	if err := evalctx.SetNamespace("global", globals.Attributes()); err != nil {
-		return nil, fmt.Errorf("setting global namespace on eval context for stack %q: %v",
-			stackpath, err)
+		return nil, errors.E("setting global namespace on eval context",
+			errors.Stack(stackpath),
+			err,
+		)
 	}
 
 	return evalctx, nil
@@ -196,21 +199,20 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 
 	hclblocks, err := hcl.ParseGenerateHCLBlocks(cfgdir)
 	if err != nil {
-		return nil, fmt.Errorf("%w: cfgdir %q: %v", ErrParsing, cfgdir, err)
+		return nil, errors.E(ErrParsing, fmt.Sprintf("cfgdir %q", cfgdir), err)
 	}
 
 	logger.Trace().Msg("Parsed generate_hcl blocks.")
-
 	res := map[string]loadedHCL{}
 
 	for filename, genhclBlocks := range hclblocks {
 		for _, genhclBlock := range genhclBlocks {
 			name := genhclBlock.Labels[0]
 			if _, ok := res[name]; ok {
-				return nil, fmt.Errorf(
-					"%w: found two blocks with same label %q",
+				return nil, errors.E(
 					ErrParsing,
-					name,
+					fmt.Sprintf("found two blocks with same label %q", name),
+					genhclBlock.LabelRanges[0],
 				)
 			}
 
@@ -229,7 +231,7 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 		return nil, err
 	}
 	if err := join(res, parentRes); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrMultiLevelConflict, err)
+		return nil, errors.E(ErrMultiLevelConflict, err)
 	}
 
 	logger.Trace().Msg("loaded generate_hcl blocks with success.")
@@ -239,11 +241,11 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 func join(target, src map[string]loadedHCL) error {
 	for blockLabel, srcHCL := range src {
 		if targetHCL, ok := target[blockLabel]; ok {
-			return fmt.Errorf(
-				"found label %q at %q and %q",
-				blockLabel,
-				srcHCL.origin,
-				targetHCL.origin,
+			return errors.E(
+				fmt.Sprintf("found label %q at %q and %q",
+					blockLabel,
+					srcHCL.origin,
+					targetHCL.origin),
 			)
 		}
 		target[blockLabel] = srcHCL

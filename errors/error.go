@@ -28,42 +28,11 @@ type Error struct {
 type Stack string
 
 // Kind defines the kind of error.
-type Kind uint8
-
-const (
-	Any Kind = iota
-	HCLSyntax
-	TerramateSchema
-	TerraformSchema
-	ExprEval
-	ExprPartialEval
-	InterpolationEval
-	ForExprDisallowEval
-)
+type Kind string
 
 const Separator = ": "
 
-func (k Kind) String() string {
-	switch k {
-	case Any:
-		return "unspecified error"
-	case HCLSyntax:
-		return "HCL syntax error"
-	case TerramateSchema:
-		return "Terramate schema error"
-	case TerraformSchema:
-		return "Terraform schema error"
-	case ExprEval:
-		return "expression evaluation error"
-	case ExprPartialEval:
-		return "expression partial evaluation error"
-	case InterpolationEval:
-		return "interpolation error"
-	case ForExprDisallowEval:
-		return "`for` expression disallow globals/terramate variables"
-	}
-	return fmt.Sprintf("unknown error %d", k)
-}
+const Any Kind = "unspecified error"
 
 // E builds an error value from its arguments.
 // There must be at least one argument or E panics.
@@ -141,6 +110,10 @@ func E(args ...interface{}) error {
 		}
 	}
 
+	if e.Kind == "" {
+		e.Kind = Any
+	}
+
 	if e.isEmpty() {
 		panic(fmt.Errorf("empty error"))
 	}
@@ -185,7 +158,7 @@ func E(args ...interface{}) error {
 // isEmpty tells if all fields of this error are empty.
 // Note that e.Err is the underlying error hence not checked.
 func (e *Error) isEmpty() bool {
-	return e.Kind == Any && e.Description == "" && e.Stack == ""
+	return e.FileRange.Empty() && e.Kind == Any && e.Description == "" && e.Stack == ""
 }
 
 // Error returns the error message.
@@ -211,8 +184,8 @@ func (e *Error) Error() string {
 				errParts = append(errParts, v.String())
 			}
 		case Kind:
-			if v != Any {
-				errParts = append(errParts, v.String())
+			if v != Any && v != "" {
+				errParts = append(errParts, string(v))
 			}
 		case string:
 			if v != "" {

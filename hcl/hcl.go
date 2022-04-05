@@ -31,6 +31,13 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+// Errors returned during the HCL parsing.
+const (
+	ErrHCLSyntax       errors.Kind = "HCL syntax error"
+	ErrTerramateSchema errors.Kind = "terramate schema error"
+	ErrTerraformSchema errors.Kind = "terraform schema error"
+)
+
 // Module represents a terraform module.
 // Note that only the fields relevant for terramate are declared here.
 type Module struct {
@@ -165,7 +172,7 @@ func ParseModules(path string) ([]Module, error) {
 		Msg("Parse HCL file.")
 	f, diags := p.ParseHCLFile(path)
 	if diags.HasErrors() {
-		return nil, errors.E(errors.HCLSyntax, diags, "parsing modules")
+		return nil, errors.E(ErrHCLSyntax, diags, "parsing modules")
 	}
 
 	body, _ := f.Body.(*hclsyntax.Body)
@@ -179,7 +186,7 @@ func ParseModules(path string) ([]Module, error) {
 		}
 
 		if len(block.Labels) != 1 {
-			return nil, errors.E(errors.TerraformSchema, "\"module\" block must have 1 label")
+			return nil, errors.E(ErrTerraformSchema, "\"module\" block must have 1 label")
 		}
 
 		moduleName := block.Labels[0]
@@ -187,12 +194,12 @@ func ParseModules(path string) ([]Module, error) {
 		logger.Trace().Msg("Get source attribute.")
 		source, ok, err := findStringAttr(block, "source")
 		if err != nil {
-			return nil, errors.E(errors.TerraformSchema, block.Range(),
+			return nil, errors.E(ErrTerraformSchema, block.Range(),
 				sprintf("looking for module.%q.source attribute",
 					moduleName), err)
 		}
 		if !ok {
-			return nil, errors.E(errors.TerraformSchema, block.Range(),
+			return nil, errors.E(ErrTerraformSchema, block.Range(),
 				"module must have a \"source\" attribute",
 			)
 		}
@@ -238,11 +245,11 @@ func ParseGlobalsBlocks(dir string) (Blocks, error) {
 		// Not validated with schema because cant find a way to validate
 		// N arbitrary attributes (defined by user/dynamic).
 		if len(block.Body.Blocks) > 0 {
-			return errors.E(errors.TerramateSchema, block.Body.Blocks[0].Range(),
+			return errors.E(ErrTerramateSchema, block.Body.Blocks[0].Range(),
 				"blocks inside globals are not allowed")
 		}
 		if len(block.Labels) > 0 {
-			return errors.E(errors.TerramateSchema, block.OpenBraceRange,
+			return errors.E(ErrTerramateSchema, block.OpenBraceRange,
 				sprintf("labels on globals block are not allowed, found %v", block.Labels))
 		}
 		return nil
@@ -274,28 +281,28 @@ func ParseGenerateHCLBlocks(dir string) (Blocks, error) {
 		// Don't seem like I can use hcl.BodySchema to check for any non-empty
 		// label, only specific label values.
 		if len(block.Labels) != 1 {
-			return errors.E(errors.TerramateSchema, block.OpenBraceRange,
+			return errors.E(ErrTerramateSchema, block.OpenBraceRange,
 				sprintf("generate_hcl must have single label instead got %v",
 					block.Labels),
 			)
 		}
 		if block.Labels[0] == "" {
-			return errors.E(errors.TerramateSchema, block.OpenBraceRange,
+			return errors.E(ErrTerramateSchema, block.OpenBraceRange,
 				"generate_hcl label can't be empty")
 		}
 		// Schema check passes if no block is present, so check for amount of blocks
 		if len(block.Body.Blocks) == 0 {
-			return errors.E(errors.TerramateSchema, block.Body.Range(),
+			return errors.E(ErrTerramateSchema, block.Body.Range(),
 				"generate_hcl must have one 'content' block")
 		}
 		if len(block.Body.Blocks) != 1 {
-			return errors.E(errors.TerramateSchema, block.Body.Range(),
+			return errors.E(ErrTerramateSchema, block.Body.Range(),
 				sprintf("generate_hcl must have one block of type 'content', found %d blocks",
 					len(block.Body.Blocks)))
 		}
 		_, diags := block.Body.Content(schema)
 		if diags.HasErrors() {
-			return errors.E(errors.HCLSyntax, diags)
+			return errors.E(ErrHCLSyntax, diags)
 		}
 		return nil
 	})
@@ -326,7 +333,7 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context)
 		logger.Trace().Msg("evaluating.")
 		tokens, err := evalctx.PartialEval(attr.Expr)
 		if err != nil {
-			return errors.E(errors.ExprEval, attr.Expr.Range(), err)
+			return errors.E(err, attr.Expr.Range())
 		}
 
 		logger.Trace().Str("attribute", attr.Name).Msg("Setting evaluated attribute.")
@@ -529,7 +536,7 @@ func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
 			logger.Trace().Msg("Type was 'git'.")
 
 			if cfg.Git != nil {
-				return errors.E(errors.TerramateSchema, b.DefRange(),
+				return errors.E(ErrTerramateSchema, b.DefRange(),
 					"multiple terramate.config.git blocks")
 			}
 
@@ -541,7 +548,7 @@ func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
 				return err
 			}
 		default:
-			return errors.E(errors.TerramateSchema, b.DefRange(),
+			return errors.E(ErrTerramateSchema, b.DefRange(),
 				"unrecognized block type")
 		}
 	}
@@ -674,7 +681,7 @@ func loadCfgBlocks(dir string) (*hclparse.Parser, error) {
 
 			_, diags := parser.ParseHCL(data, path)
 			if diags.HasErrors() {
-				return nil, errors.E(errors.HCLSyntax, diags)
+				return nil, errors.E(ErrHCLSyntax, diags)
 			}
 
 			logger.Trace().Msg("Config file parsed successfully")
@@ -706,7 +713,7 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 		logger.Trace().Msg("checking for attributes.")
 
 		for name, val := range body.Attributes {
-			return Config{}, errors.E(errors.TerramateSchema, val.NameRange,
+			return Config{}, errors.E(ErrTerramateSchema, val.NameRange,
 				sprintf("unrecognized attribute %q", name))
 		}
 
@@ -718,7 +725,7 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 
 		for _, block := range body.Blocks {
 			if !blockIsAllowed(block.Type) {
-				return Config{}, errors.E(errors.TerramateSchema, block.DefRange(),
+				return Config{}, errors.E(ErrTerramateSchema, block.DefRange(),
 					sprintf("block type %q is not supported", block.Type))
 			}
 
@@ -733,7 +740,7 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 				logger.Trace().Msg("Found stack block type.")
 
 				if foundstack {
-					return Config{}, errors.E(errors.TerramateSchema, block.DefRange(),
+					return Config{}, errors.E(ErrTerramateSchema, block.DefRange(),
 						"duplicated stack block")
 				}
 
@@ -744,7 +751,7 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 
 		for _, tmblock := range tmblocks {
 			if len(tmblock.Labels) > 0 {
-				return Config{}, errors.E(errors.TerramateSchema, tmblock.LabelRanges,
+				return Config{}, errors.E(ErrTerramateSchema, tmblock.LabelRanges,
 					"terramate block should not have labels")
 			}
 
@@ -759,24 +766,24 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 			for name, value := range tmblock.Body.Attributes {
 				attrVal, diags := value.Expr.Value(nil)
 				if diags.HasErrors() {
-					return Config{}, errors.E(errors.ExprEval, diags)
+					return Config{}, errors.E(eval.ErrEval, diags)
 				}
 				switch name {
 				case "required_version":
 					logger.Trace().Msg("Parsing  attribute 'required_version'.")
 
 					if attrVal.Type() != cty.String {
-						return Config{}, errors.E(errors.TerramateSchema, value.Expr.Range(),
+						return Config{}, errors.E(ErrTerramateSchema, value.Expr.Range(),
 							"attribute is not a string")
 					}
 					if tm.RequiredVersion != "" {
-						return Config{}, errors.E(errors.TerramateSchema, value.NameRange,
+						return Config{}, errors.E(ErrTerramateSchema, value.NameRange,
 							"duplicated attribute")
 					}
 					tm.RequiredVersion = attrVal.AsString()
 
 				default:
-					return Config{}, errors.E(errors.TerraformSchema, value.NameRange,
+					return Config{}, errors.E(ErrTerraformSchema, value.NameRange,
 						"unsupported attribute")
 				}
 			}
@@ -799,7 +806,7 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 						return Config{}, err
 					}
 				default:
-					return Config{}, errors.E(errors.TerramateSchema, block.DefRange(),
+					return Config{}, errors.E(ErrTerramateSchema, block.DefRange(),
 						"block not supported")
 				}
 
@@ -813,7 +820,7 @@ func newCfgFromParsedHCLs(dir string, parser *hclparse.Parser) (Config, error) {
 		logger.Debug().Msg("Parsing stack cfg.")
 
 		if tmconfig.Stack != nil {
-			return Config{}, errors.E(errors.TerramateSchema, stackblock.DefRange(),
+			return Config{}, errors.E(ErrTerramateSchema, stackblock.DefRange(),
 				"duplicated stack blocks across configs")
 		}
 

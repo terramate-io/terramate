@@ -13,6 +13,12 @@ import (
 
 var E = errors.E
 
+var (
+	syntaxError   errors.Kind = "syntax error"
+	tmSchemaError errors.Kind = "terramate schema error"
+	tfSchemaError errors.Kind = "terraform schema error"
+)
+
 func TestNoArgs(t *testing.T) {
 	defer func() {
 		err := recover()
@@ -41,42 +47,42 @@ func TestErrorString(t *testing.T) {
 		{
 			name: "simple message with kind",
 			args: []interface{}{
-				errors.HCLSyntax,
+				syntaxError,
 				"failed to parse config",
 			},
-			want: fmt("%s: failed to parse config", errors.HCLSyntax),
+			want: fmt("%s: failed to parse config", syntaxError),
 		},
 		{
 			name: "the kind of previous error is promoted if new one lacks it",
 			args: []interface{}{
 				"failed to parse config",
-				E(errors.HCLSyntax, "unexpected IDENT"),
+				E(syntaxError, "unexpected IDENT"),
 			},
-			want: fmt("%s: failed to parse config: unexpected IDENT", errors.HCLSyntax),
+			want: fmt("%s: failed to parse config: unexpected IDENT", syntaxError),
 		},
 		{
 			name: "multiple different error kinds",
 			args: []interface{}{
-				errors.TerramateSchema, "failed to parse config",
-				E(errors.TerraformSchema, "malformed terraform code"),
+				tmSchemaError, "failed to parse config",
+				E(tfSchemaError, "malformed terraform code"),
 			},
 			want: fmt(
 				"%s: failed to parse config: %s: malformed terraform code",
-				errors.TerramateSchema, errors.TerraformSchema,
+				tmSchemaError, tfSchemaError,
 			),
 		},
 		{
 			name: "the file range gets promoted if current error lacks the file context",
 			args: []interface{}{
 				"failed to parse config",
-				E(errors.TerramateSchema, "unexpected attribute name", hcl.Range{
+				E(tmSchemaError, "unexpected attribute name", hcl.Range{
 					Filename: "test.tm",
 					Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},
 					End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},
 				}),
 			},
 			want: fmt("test.tm:1,5-10: %s: failed to parse config: unexpected attribute name",
-				errors.TerramateSchema),
+				tmSchemaError),
 		},
 		{
 			name: "nested errors",
@@ -130,20 +136,20 @@ func TestErrorIs(t *testing.T) {
 		},
 		{
 			name:    "same kind",
-			args:    []interface{}{errors.HCLSyntax, "error"},
-			target:  E(errors.HCLSyntax),
+			args:    []interface{}{syntaxError, "error"},
+			target:  E(syntaxError),
 			areSame: true,
 		},
 		{
 			name:    "same underlying kind",
-			args:    []interface{}{"error", E(errors.HCLSyntax)},
-			target:  E(errors.HCLSyntax),
+			args:    []interface{}{"error", E(syntaxError)},
+			target:  E(syntaxError),
 			areSame: true,
 		},
 		{
 			name:    "same underlying kind (deep nested)",
-			args:    []interface{}{"error", E(errors.TerraformSchema, E(errors.TerramateSchema, E(errors.HCLSyntax)))},
-			target:  E(errors.HCLSyntax),
+			args:    []interface{}{"error", E(tfSchemaError, E(tmSchemaError, E(syntaxError)))},
+			target:  E(syntaxError),
 			areSame: true,
 		},
 		{

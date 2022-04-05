@@ -21,7 +21,6 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
-	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
@@ -33,7 +32,7 @@ import (
 )
 
 // ErrEval indicates a failure during the evaluation process
-const ErrEval errutil.Error = "failed to evaluate expression"
+const ErrEval errors.Kind = "failed to evaluate expression"
 
 // Context is used to evaluate HCL code.
 type Context struct {
@@ -86,7 +85,7 @@ func (c *Context) HasNamespace(name string) bool {
 func (c *Context) Eval(expr hclsyntax.Expression) (cty.Value, error) {
 	val, diag := expr.Value(c.hclctx)
 	if diag.HasErrors() {
-		return cty.NilVal, errutil.Chain(ErrEval, diag)
+		return cty.NilVal, errors.E(ErrEval, diag)
 	}
 	return val, nil
 }
