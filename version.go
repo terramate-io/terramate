@@ -20,7 +20,6 @@ import (
 	"strings"
 
 	hclversion "github.com/hashicorp/go-version"
-	tfversion "github.com/hashicorp/go-version"
 	"github.com/madlambda/spells/errutil"
 	"github.com/rs/zerolog/log"
 )
@@ -53,7 +52,7 @@ func CheckVersion(vconstraint string) error {
 
 	logger.Trace().Msg("parsing terramate version")
 
-	semver, err := tfversion.NewSemver(version)
+	semver, err := hclversion.NewSemver(version)
 	if err != nil {
 		return fmt.Errorf("%w: terramate built with invalid version: %b", ErrVersion, err)
 	}
