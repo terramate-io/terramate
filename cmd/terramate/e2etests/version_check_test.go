@@ -67,7 +67,7 @@ func TestVersionCheck(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			assertRunResult(t, run(t, checkedCmd, invalidVersion), runExpected{
 				Status:      1,
-				StderrRegex: terramate.ErrVersion.Error(),
+				StderrRegex: string(terramate.ErrVersion),
 			})
 		})
 	}

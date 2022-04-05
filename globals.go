@@ -15,12 +15,13 @@
 package terramate
 
 import (
-	"fmt"
 	"path/filepath"
+
+	stdfmt "fmt"
 
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/madlambda/spells/errutil"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
@@ -36,9 +37,9 @@ type Globals struct {
 
 // Errors returned when parsing and evaluating globals.
 const (
-	ErrGlobalEval      errutil.Error = "globals eval failed"
-	ErrGlobalParse     errutil.Error = "globals parsing failed"
-	ErrGlobalRedefined errutil.Error = "global redefined"
+	ErrGlobalEval      errors.Kind = "globals eval failed"
+	ErrGlobalParse     errors.Kind = "globals parsing failed"
+	ErrGlobalRedefined errors.Kind = "global redefined"
 )
 
 // LoadStackGlobals loads from the file system all globals defined for
@@ -57,7 +58,7 @@ func LoadStackGlobals(rootdir string, meta stack.Metadata) (Globals, error) {
 		Logger()
 
 	if !filepath.IsAbs(rootdir) {
-		return Globals{}, fmt.Errorf("%q is not absolute path", rootdir)
+		return Globals{}, errors.E(fmt("%q is not absolute path", rootdir))
 	}
 
 	logger.Debug().Msg("Load stack globals.")
@@ -136,7 +137,7 @@ func (ge *globalsExpr) eval(meta stack.Metadata) (Globals, error) {
 		attributes: map[string]cty.Value{},
 	}
 	if err := evalctx.SetNamespace("global", globals.Attributes()); err != nil {
-		return Globals{}, fmt.Errorf("initializing global eval: %v", err)
+		return Globals{}, errors.E("initializing global eval", err)
 	}
 
 	pendingExprsErrs := map[string]error{}
@@ -157,10 +158,9 @@ func (ge *globalsExpr) eval(meta stack.Metadata) (Globals, error) {
 
 			for _, namespace := range vars {
 				if _, ok := hclctx.Variables[namespace.RootName()]; !ok {
-					return Globals{}, fmt.Errorf(
-						"%w: unknown variable namespace: %s - %s",
+					return Globals{}, errors.E(
 						ErrGlobalEval,
-						namespace.RootName(),
+						fmt("unknown variable namespace: %s", namespace.RootName()),
 						namespace.SourceRange(),
 					)
 				}
@@ -176,16 +176,19 @@ func (ge *globalsExpr) eval(meta stack.Metadata) (Globals, error) {
 					}
 
 					if _, isEvaluated := globals.attributes[attr.Name]; !isEvaluated {
-						return Globals{}, fmt.Errorf(
-							"%w: unknown variable %s.%s - %s",
+						return Globals{}, errors.E(
 							ErrGlobalEval,
-							namespace.RootName(),
-							attr.Name,
+							fmt("unknown variable %s.%s",
+								namespace.RootName(),
+								attr.Name),
 							attr.SourceRange(),
 						)
 					}
 				default:
-					return Globals{}, fmt.Errorf("unexpected type of traversal in %s - this is a BUG", attr.SourceRange())
+					return Globals{}, errors.E(
+						fmt("unexpected type of traversal - this is a BUG"),
+						attr.SourceRange(),
+					)
 				}
 			}
 
@@ -208,7 +211,7 @@ func (ge *globalsExpr) eval(meta stack.Metadata) (Globals, error) {
 			logger.Trace().Msg("Try add proper namespace for globals evaluation context.")
 
 			if err := evalctx.SetNamespace("global", globals.Attributes()); err != nil {
-				return Globals{}, fmt.Errorf("evaluating globals: %v", err)
+				return Globals{}, errors.E("evaluating globals", err)
 			}
 		}
 
@@ -226,7 +229,10 @@ func (ge *globalsExpr) eval(meta stack.Metadata) (Globals, error) {
 				Str("origin", expr.origin).
 				Msg("evaluating global")
 		}
-		return Globals{}, fmt.Errorf("%w: unable to evaluate %d globals", ErrGlobalEval, len(pendingExprs))
+		return Globals{}, errors.E(
+			ErrGlobalEval,
+			fmt("unable to evaluate %d globals", len(pendingExprs)),
+		)
 	}
 
 	return globals, nil
@@ -249,7 +255,7 @@ func loadStackGlobalsExprs(rootdir string, cfgdir string) (*globalsExpr, error) 
 
 	blocks, err := hcl.ParseGlobalsBlocks(filepath.Join(rootdir, cfgdir))
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrGlobalParse, err)
+		return nil, errors.E(ErrGlobalParse, err)
 	}
 
 	globals := newGlobalsExpr()
@@ -262,7 +268,10 @@ func loadStackGlobalsExprs(rootdir string, cfgdir string) (*globalsExpr, error) 
 		for _, fileblock := range fileblocks {
 			for name, attr := range fileblock.Body.Attributes {
 				if globals.has(name) {
-					return nil, fmt.Errorf("%w: %q redefined in %q", ErrGlobalRedefined, name, filename)
+					return nil, errors.E(
+						ErrGlobalRedefined,
+						fmt("%q redefined in %q", name, filename),
+					)
 				}
 
 				logger.Trace().Msg("Add attribute to globals.")
@@ -296,4 +305,8 @@ func loadStackGlobalsExprs(rootdir string, cfgdir string) (*globalsExpr, error) 
 func parentDir(dir string) (string, bool) {
 	parent := filepath.Dir(dir)
 	return parent, parent != dir
+}
+
+func fmt(format string, args ...interface{}) string {
+	return stdfmt.Sprintf(format, args...)
 }

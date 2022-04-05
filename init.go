@@ -15,17 +15,18 @@
 package terramate
 
 import (
-	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/rs/zerolog/log"
 
 	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/stack"
 )
+
+const errInit errors.Kind = "stack initialization failed"
 
 // Init initialize a stack. If the stack is already initialized it returns
 // with no error and no changes will be performed on the stack.
@@ -39,7 +40,7 @@ func Init(root, dir string) error {
 
 	if !filepath.IsAbs(dir) {
 		// TODO(i4k): this needs to go away soon.
-		return errors.New("init requires an absolute path")
+		return errors.E(errInit, "init requires an absolute path")
 	}
 
 	logger.Trace().Msg("Get directory info.")
@@ -47,39 +48,42 @@ func Init(root, dir string) error {
 	_, err := os.Stat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return errors.New("init requires an existing directory")
+			return errors.E(errInit, "init requires an existing directory")
 		}
 
-		return fmt.Errorf("stat failed on %q: %w", dir, err)
+		return errors.E(errInit, fmt("stat failed on %q", dir), err)
 	}
 
 	logger.Trace().Msg("Check if stack is leaf.")
 
 	ok, err := stack.IsLeaf(root, dir)
 	if err != nil {
-		return err
+		return errors.E(errInit, err)
 	}
 
 	if !ok {
-		return fmt.Errorf("directory %q is not a leaf stack", dir)
+		return errors.E(errInit, fmt("directory %q is not a leaf stack", dir))
 	}
 
 	logger.Trace().Msg("Lookup parent stack.")
 	parentStack, found, err := stack.LookupParent(root, dir)
 	if err != nil {
-		return err
+		return errors.E(errInit, err)
 	}
 
 	if found {
-		return fmt.Errorf("directory %q is inside stack %q but nested stacks are disallowed",
-			dir, parentStack.PrjAbsPath())
+		return errors.E(
+			errInit,
+			fmt("directory %q is inside stack %q but nested stacks are disallowed",
+				dir, parentStack.PrjAbsPath()),
+		)
 	}
 
 	logger.Trace().Msg("Get stack info.")
 
 	parsedCfg, err := hcl.ParseDir(dir)
 	if err != nil {
-		return fmt.Errorf("checking config for stack %q: %w", dir, err)
+		return errors.E(errInit, fmt("checking config in %q", dir), err)
 	}
 
 	if parsedCfg.Stack != nil {
@@ -88,14 +92,14 @@ func Init(root, dir string) error {
 	}
 
 	if !parsedCfg.IsEmpty() {
-		return errors.New("dir has terramate config with no stack defined, expected empty or a stack")
+		return errors.E("dir has terramate config with no stack defined, expected empty or a stack")
 	}
 
 	logger.Debug().Msg("Create new configuration.")
 
 	cfg, err := hcl.NewConfig(dir)
 	if err != nil {
-		return fmt.Errorf("failed to create new stack config: %w", err)
+		return errors.E(errInit, "failed to create new stack config", err)
 	}
 
 	cfg.Stack = &hcl.Stack{
@@ -106,10 +110,10 @@ func Init(root, dir string) error {
 
 	err = cfg.Save(config.DefaultFilename)
 	if err != nil {
-		return fmt.Errorf(
-			"failed to write %q on stack %q: %w",
-			config.DefaultFilename,
-			dir,
+		return errors.E(errInit,
+			fmt("failed to write %q on stack %q",
+				config.DefaultFilename,
+				dir),
 			err,
 		)
 	}

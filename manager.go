@@ -15,7 +15,6 @@
 package terramate
 
 import (
-	"fmt"
 	"io/fs"
 	"os"
 	"path"
@@ -61,6 +60,9 @@ type (
 	}
 )
 
+const errList errors.Kind = "listing stacks error"
+const errListChanged errors.Kind = "listing changed stacks error"
+
 // NewManager creates a new stack manager. The rootdir is the project's
 // directory and gitBaseRef is the git reference to compare against for changes.
 func NewManager(rootdir string, gitBaseRef string) *Manager {
@@ -95,7 +97,7 @@ func (m *Manager) List() (*StacksReport, error) {
 		WorkingDir: m.root,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.E(errList, err)
 	}
 
 	logger.Trace().Msg("Check if path is git repo.")
@@ -105,7 +107,7 @@ func (m *Manager) List() (*StacksReport, error) {
 
 	report.Checks, err = checkRepoIsClean(g)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(errList, err)
 	}
 
 	return report, nil
@@ -128,25 +130,25 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, errors.E(errListChanged, err)
 	}
 
 	logger.Trace().Msg("Check if path is git repo.")
 
 	if !g.IsRepository() {
-		return nil, fmt.Errorf("the path \"%s\" is not a git repository", m.root)
+		return nil, errors.E(errListChanged, fmt("the path \"%s\" is not a git repository", m.root))
 	}
 
 	checks, err := checkRepoIsClean(g)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(errListChanged, err)
 	}
 
 	logger.Debug().Msg("List changed files.")
 
 	files, err := listChangedFiles(m.root, m.gitBaseRef)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(errListChanged, err)
 	}
 
 	stackSet := map[string]Entry{}
@@ -167,7 +169,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 			Msg("Try load changed.")
 		s, found, err := m.stackLoader.TryLoadChanged(m.root, dirname)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return nil, errors.E("listing changed files", err)
+			return nil, errors.E(errListChanged, err)
 		}
 
 		if !found {
@@ -176,7 +178,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 				Msg("Lookup parent stack.")
 			s, found, err = stack.LookupParent(m.root, dirname)
 			if err != nil {
-				return nil, errors.E("listing changed files", err)
+				return nil, errors.E(errListChanged, err)
 			}
 
 			if !found {
@@ -194,7 +196,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 
 	allstacks, err := ListStacks(m.root)
 	if err != nil {
-		return nil, errors.E("searching for stacks", err)
+		return nil, errors.E(errListChanged, "searching for stacks", err)
 	}
 
 	logger.Trace().Msg("Range over all stacks.")
@@ -227,7 +229,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 
 			modules, err := hcl.ParseModules(tfpath)
 			if err != nil {
-				return errors.E("parsing modules", err)
+				return errors.E(errListChanged, "parsing modules", err)
 			}
 
 			logger.Trace().
@@ -243,7 +245,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 
 				changed, why, err := m.moduleChanged(mod, stack.AbsPath(), make(map[string]bool))
 				if err != nil {
-					return fmt.Errorf("checking module %q: %w", mod.Source, err)
+					return errors.E(errListChanged, fmt("checking module %q", mod.Source), err)
 				}
 
 				if changed {
@@ -255,7 +257,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 					stack.SetChanged(true)
 					stackSet[stack.PrjAbsPath()] = Entry{
 						Stack:  stack,
-						Reason: fmt.Sprintf("stack changed because %q changed because %s", mod.Source, why),
+						Reason: fmt("stack changed because %q changed because %s", mod.Source, why),
 					}
 					return nil
 				}
@@ -264,7 +266,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 		})
 
 		if err != nil {
-			return nil, fmt.Errorf("checking module changes: %w", err)
+			return nil, errors.E(errListChanged, "checking module changes", err)
 		}
 	}
 
@@ -295,7 +297,7 @@ func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) err
 		Msg("Read dir.")
 	files, err := os.ReadDir(dir)
 	if err != nil {
-		return fmt.Errorf("listing files of directory %q: %w", dir, err)
+		return errors.E(fmt("listing files of directory %q", dir), err)
 	}
 
 	logger.Trace().
@@ -309,7 +311,7 @@ func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) err
 			Msg("Apply function to file.")
 		err := apply(file)
 		if err != nil {
-			return fmt.Errorf("applying operation to file %q: %w", file, err)
+			return errors.E(fmt("applying operation to file %q", file), err)
 		}
 	}
 
@@ -354,7 +356,7 @@ func (m *Manager) moduleChanged(
 	// TODO(i4k): resolve symlinks
 
 	if err != nil || !st.IsDir() {
-		return false, "", fmt.Errorf("\"source\" path %q is not a directory", modPath)
+		return false, "", errors.E(fmt("\"source\" path %q is not a directory", modPath))
 	}
 
 	logger.Debug().
@@ -362,12 +364,13 @@ func (m *Manager) moduleChanged(
 		Msg("Get list of changed files.")
 	changedFiles, err := listChangedFiles(modPath, m.gitBaseRef)
 	if err != nil {
-		return false, "", fmt.Errorf("listing changes in the module %q: %w",
-			mod.Source, err)
+		return false, "", errors.E(
+			fmt("listing changes in the module %q",
+				mod.Source), err)
 	}
 
 	if len(changedFiles) > 0 {
-		return true, fmt.Sprintf("module %q has unmerged changes", mod.Source), nil
+		return true, fmt("module %q has unmerged changes", mod.Source), nil
 	}
 
 	visited[mod.Source] = true
@@ -388,7 +391,7 @@ func (m *Manager) moduleChanged(
 			Msg("Parse modules.")
 		modules, err := hcl.ParseModules(filepath.Join(modPath, file.Name()))
 		if err != nil {
-			return fmt.Errorf("parsing module %q: %w", mod.Source, err)
+			return errors.E(fmt("parsing module %q", mod.Source), err)
 		}
 
 		logger.Trace().
@@ -409,8 +412,7 @@ func (m *Manager) moduleChanged(
 				logger.Trace().
 					Str("path", modPath).
 					Msg("Module was changed.")
-				why = fmt.Sprintf("%s%s changed because %s ", why, mod.Source,
-					reason)
+				why = fmt("%s%s changed because %s ", why, mod.Source, reason)
 				return nil
 			}
 		}
@@ -422,7 +424,7 @@ func (m *Manager) moduleChanged(
 		return false, "", err
 	}
 
-	return changed, fmt.Sprintf("module %q changed because %s", mod.Source, why), nil
+	return changed, fmt("module %q changed because %s", mod.Source, why), nil
 }
 
 // AddWantedOf returns all wanted stacks from the given stacks.
@@ -448,7 +450,7 @@ func (m *Manager) AddWantedOf(stacks []stack.S) ([]stack.S, error) {
 
 			wantedStacks, err := m.stackLoader.LoadAll(m.root, s.AbsPath(), s.Wants()...)
 			if err != nil {
-				return nil, fmt.Errorf("calculating wanted stacks: %v", err)
+				return nil, errors.E("calculating wanted stacks", err)
 			}
 
 			logger.Debug().Msg("The \"wanted\" stacks were loaded successfully.")
@@ -488,13 +490,13 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 
 	st, err := os.Stat(dir)
 	if err != nil {
-		return nil, fmt.Errorf("stat failed on %q: %w", dir, err)
+		return nil, errors.E(fmt("stat failed on %q", dir), err)
 	}
 
 	logger.Trace().Msg("Check if path is dir.")
 
 	if !st.IsDir() {
-		return nil, fmt.Errorf("is not a directory")
+		return nil, errors.E("is not a directory")
 	}
 
 	logger.Trace().Msg("Create git wrapper with dir.")
@@ -510,14 +512,14 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 		Msg("Get commit id of git base ref.")
 	baseRef, err := g.RevParse(gitBaseRef)
 	if err != nil {
-		return nil, fmt.Errorf("getting revision %q: %w", gitBaseRef, err)
+		return nil, errors.E(fmt("getting revision %q", gitBaseRef), err)
 	}
 
 	logger.Trace().
 		Msg("Get commit id of HEAD.")
 	headRef, err := g.RevParse("HEAD")
 	if err != nil {
-		return nil, fmt.Errorf("getting HEAD revision: %w", err)
+		return nil, errors.E("getting HEAD revision", err)
 	}
 
 	if baseRef == headRef {
@@ -528,12 +530,13 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 		Msg("Find common commit ancestor of HEAd and base ref.")
 	mergeBaseRef, err := g.MergeBase("HEAD", baseRef)
 	if err != nil {
-		return nil, fmt.Errorf("getting merge-base HEAD main: %w", err)
+		return nil, errors.E("getting merge-base HEAD main", err)
 	}
 
 	if baseRef != mergeBaseRef {
-		return nil, fmt.Errorf("main branch is not reachable: main ref %q can't reach %q",
-			baseRef, mergeBaseRef)
+		return nil, errors.E(
+			fmt("main branch is not reachable: main ref %q can't reach %q",
+				baseRef, mergeBaseRef))
 	}
 
 	return g.DiffNames(baseRef, headRef)
@@ -548,14 +551,14 @@ func checkRepoIsClean(g *git.Git) (RepoChecks, error) {
 
 	untracked, err := g.ListUntracked()
 	if err != nil {
-		return RepoChecks{}, fmt.Errorf("listing untracked files: %v", err)
+		return RepoChecks{}, errors.E("listing untracked files", err)
 	}
 
 	logger.Debug().Msg("Get list of uncommitted files in dir.")
 
 	uncommitted, err := g.ListUncommitted()
 	if err != nil {
-		return RepoChecks{}, fmt.Errorf("listing uncommitted files: %v", err)
+		return RepoChecks{}, errors.E("listing uncommitted files", err)
 	}
 
 	return RepoChecks{
