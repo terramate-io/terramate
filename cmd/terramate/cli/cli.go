@@ -671,7 +671,7 @@ func (c *cli) printRunOrder() {
 	}
 
 	logger.Debug().Msg("Get run order.")
-	order, reason, err := run.Sort(c.root(), stacks)
+	orderedStacks, reason, err := run.Sort(c.root(), stacks)
 	if err != nil {
 		if errors.Is(err, dag.ErrCycleDetected) {
 			log.Fatal().
@@ -685,7 +685,7 @@ func (c *cli) printRunOrder() {
 		}
 	}
 
-	for _, s := range order {
+	for _, s := range orderedStacks {
 		c.log(s.Name())
 	}
 }
