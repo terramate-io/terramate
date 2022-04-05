@@ -32,9 +32,10 @@ import (
 
 func TestCLIRunOrder(t *testing.T) {
 	type testcase struct {
-		name   string
-		layout []string
-		want   runExpected
+		name       string
+		layout     []string
+		workingDir string
+		want       runExpected
 	}
 
 	for _, tc := range []testcase{
@@ -435,12 +436,31 @@ stack-z
 `,
 			},
 		},
+		{
+			name: `run order selects only stacks inside working dir`,
+			layout: []string{
+				`s:stacks/stack-a:after=["/stacks/stack-b", "/parent-stack"]`,
+				`s:stacks/stack-b:before=["/parent-stack"]`,
+				`s:parent-stack`,
+			},
+			workingDir: "stacks",
+			want: runExpected{
+				Stdout: `stack-b
+stack-a
+`,
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 
-			cli := newCLI(t, s.RootDir())
+			wd := s.RootDir()
+			if tc.workingDir != "" {
+				wd = filepath.Join(wd, tc.workingDir)
+			}
+
+			cli := newCLI(t, wd)
 			assertRunResult(t, cli.stacksRunOrder(), tc.want)
 		})
 	}
@@ -638,7 +658,6 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 	// stack must run after stack2 but stack2 didn't change.
 
 	stack2 := s.CreateStack("stack2")
-
 	stack := s.CreateStack("stack")
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
 	stackConfig, err := hcl.NewConfig(stack.Path())
@@ -670,8 +689,6 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 		cat,
 		mainTfFileName,
 	), runExpected{Stdout: wantRun})
-
-	wantRun = mainTfContents
 
 	cli = newCLI(t, stack.Path())
 	assertRunResult(t, cli.run(
