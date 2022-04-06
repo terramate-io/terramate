@@ -138,7 +138,8 @@ func E(args ...interface{}) error {
 	}
 	if prev.Kind == e.Kind {
 		prev.Kind = ""
-	} else if e.Kind == "" {
+	}
+	if e.Kind == "" {
 		e.Kind = prev.Kind
 		prev.Kind = ""
 	}
@@ -151,11 +152,9 @@ func E(args ...interface{}) error {
 	if prev.Stack == e.Stack {
 		prev.Stack = ""
 	}
-
 	if prev.Description == e.Description {
 		prev.Description = ""
 	}
-
 	if prev.isEmpty() {
 		e.Err = prev.Err
 	}
