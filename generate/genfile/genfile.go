@@ -111,7 +111,7 @@ func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackHC
 		hcls: map[string]HCL{},
 	}
 
-	for name, loadedHCL := range loadedFileBlocks {
+	for name, loadedFileBlock := range loadedFileBlocks {
 		logger := logger.With().
 			Str("block", name).
 			Logger()
@@ -119,7 +119,7 @@ func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackHC
 		logger.Trace().Msg("evaluating block.")
 
 		gen := hclwrite.NewEmptyFile()
-		if err := hcl.CopyAttribute(gen.Body(), loadedHCL.attribute, evalctx); err != nil {
+		if err := hcl.CopyAttribute(gen.Body(), loadedFileBlock.attribute, evalctx); err != nil {
 			evalErr := fmt.Errorf(
 				"%w: stack %q block %q",
 				ErrEval,
@@ -129,7 +129,7 @@ func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackHC
 			return StackHCLs{}, errutil.Chain(evalErr, err)
 		}
 		res.hcls[name] = HCL{
-			origin: loadedHCL.origin,
+			origin: loadedFileBlock.origin,
 			body:   hclwrite.Format(gen.Bytes()),
 		}
 	}
@@ -165,7 +165,7 @@ func newEvalCtx(stackpath string, sm stack.Metadata, globals terramate.Globals) 
 	return evalctx, nil
 }
 
-type loadedHCL struct {
+type loadedFile struct {
 	origin    string
 	attribute *hclsyntax.Attribute
 }
@@ -174,7 +174,7 @@ type loadedHCL struct {
 // The returned map maps the name of the block (its label)
 // to the original block and the path (relative to project root) of the config
 // from where it was parsed.
-func loadGenFileBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, error) {
+func loadGenFileBlocks(rootdir string, cfgdir string) (map[string]loadedFile, error) {
 	logger := log.With().
 		Str("action", "genfile.loadGenFileBlocks()").
 		Str("root", rootdir).
@@ -200,7 +200,7 @@ func loadGenFileBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, err
 
 	schema := hcl.MakeBodySchema(bodySchema)
 
-	hclblocks, err := hcl.ParseGenerateBlocks(cfgdir, "generate_file", func(block *hclsyntax.Block) error {
+	generateFileBlocks, err := hcl.ParseGenerateBlocks(cfgdir, "generate_file", func(block *hclsyntax.Block) error {
 		// Don't seem like I can use hcl.BodySchema to check for any non-empty
 		// label, only specific label values.
 
@@ -229,11 +229,11 @@ func loadGenFileBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, err
 
 	logger.Trace().Msg("Parsed generate_file blocks.")
 
-	res := map[string]loadedHCL{}
+	res := map[string]loadedFile{}
 
-	for filename, genhclBlocks := range hclblocks {
-		for _, genhclBlock := range genhclBlocks {
-			name := genhclBlock.Labels[0]
+	for filename, genFileBlocks := range generateFileBlocks {
+		for _, genhFileBlock := range genFileBlocks {
+			name := genhFileBlock.Labels[0]
 			if _, ok := res[name]; ok {
 				return nil, fmt.Errorf(
 					"%w: found two blocks with same label %q",
@@ -242,8 +242,8 @@ func loadGenFileBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, err
 				)
 			}
 
-			contentAttr := genhclBlock.Body.Attributes["content"]
-			res[name] = loadedHCL{
+			contentAttr := genhFileBlock.Body.Attributes["content"]
+			res[name] = loadedFile{
 				origin:    project.PrjAbsPath(rootdir, filename),
 				attribute: contentAttr,
 			}
@@ -264,17 +264,17 @@ func loadGenFileBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, err
 	return res, nil
 }
 
-func join(target, src map[string]loadedHCL) error {
-	for blockLabel, srcHCL := range src {
-		if targetHCL, ok := target[blockLabel]; ok {
+func join(target, src map[string]loadedFile) error {
+	for blockLabel, srcFile := range src {
+		if targetFile, ok := target[blockLabel]; ok {
 			return fmt.Errorf(
 				"found label %q at %q and %q",
 				blockLabel,
-				srcHCL.origin,
-				targetHCL.origin,
+				srcFile.origin,
+				targetFile.origin,
 			)
 		}
-		target[blockLabel] = srcHCL
+		target[blockLabel] = srcFile
 	}
 	return nil
 }
