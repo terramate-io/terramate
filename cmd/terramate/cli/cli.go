@@ -59,7 +59,7 @@ const (
 )
 
 const (
-	defaultLogLevel = "info"
+	defaultLogLevel = "warn"
 	defaultLogFmt   = "console"
 )
 
@@ -69,7 +69,7 @@ type cliSpec struct {
 	Chdir         string   `short:"C" optional:"true" help:"Sets working directory."`
 	GitChangeBase string   `short:"B" optional:"true" help:"Git base ref for computing changes."`
 	Changed       bool     `short:"c" optional:"true" help:"Filter by changed infrastructure"`
-	LogLevel      string   `optional:"true" default:"info" enum:"trace,debug,info,warn,error,fatal" help:"Log level to use: 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
+	LogLevel      string   `optional:"true" default:"warn" enum:"trace,debug,info,warn,error,fatal" help:"Log level to use: 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
 	LogFmt        string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'."`
 
 	DisableCheckGitUntracked   bool `optional:"true" default:"false" help:"Disable git check for untracked files."`
