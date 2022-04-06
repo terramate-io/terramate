@@ -64,102 +64,102 @@ func TestLoadGeneratedHCL(t *testing.T) {
 	}
 
 	tcases := []testcase{
-		// {
-		// 	name:  "generate file with only text in it",
-		// 	stack: "/stack",
-		// 	configs: []hclconfig{
-		// 		{
-		// 			path: "/stack",
-		// 			add: generateHCL(
-		// 				labels("test.txt"),
-		// 				str("content", "hello world"),
-		// 			),
-		// 		},
-		// 	},
-		// 	want: []result{
-		// 		{
-		// 			name: "test.txt",
-		// 			hcl: genFile{
-		// 				origin: defaultCfg("/stack"),
-		// 				body: hcldoc(
-		// 					str("content", "hello world"),
-		// 				),
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	name:  "generate file with only text in it",
-		// 	stack: "/stack",
-		// 	configs: []hclconfig{
-		// 		{
-		// 			path: "/stack",
-		// 			add: generateHCL(
-		// 				labels("test.txt"),
-		// 				str("content", "something = \"something\""),
-		// 			),
-		// 		},
-		// 	},
-		// 	want: []result{
-		// 		{
-		// 			name: "test.txt",
-		// 			hcl: genFile{
-		// 				origin: defaultCfg("/stack"),
-		// 				body: hcldoc(
-		// 					str("content", "something = \"something\""),
-		// 				),
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	name:  "generate file with line break",
-		// 	stack: "/stack",
-		// 	configs: []hclconfig{
-		// 		{
-		// 			path: "/stack",
-		// 			add: generateHCL(
-		// 				labels("test.txt"),
-		// 				str("content", "something = \"something\"\nsomething = \"something\""),
-		// 			),
-		// 		},
-		// 	},
-		// 	want: []result{
-		// 		{
-		// 			name: "test.txt",
-		// 			hcl: genFile{
-		// 				origin: defaultCfg("/stack"),
-		// 				body: hcldoc(
-		// 					str("content", "something = \"something\"\nsomething = \"something\""),
-		// 				),
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	name:  "generate file with function",
-		// 	stack: "/stack",
-		// 	configs: []hclconfig{
-		// 		{
-		// 			path: "/stack",
-		// 			add: generateHCL(
-		// 				labels("test.json"),
-		// 				expr("content", "jsonencode({hello = \"world\"})"),
-		// 			),
-		// 		},
-		// 	},
-		// 	want: []result{
-		// 		{
-		// 			name: "test.json",
-		// 			hcl: genFile{
-		// 				origin: defaultCfg("/stack"),
-		// 				body: hcldoc(
-		// 					expr("content", "jsonencode({hello = \"world\"})"),
-		// 				),
-		// 			},
-		// 		},
-		// 	},
-		// },
+		{
+			name:  "generate file with only text in it",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("test.txt"),
+						str("content", "hello world"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test.txt",
+					hcl: genFile{
+						origin: defaultCfg("/stack"),
+						body: hcldoc(
+							str("content", "hello world"),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "generate file with only text in it",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("test.txt"),
+						str("content", "something = \"something\""),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test.txt",
+					hcl: genFile{
+						origin: defaultCfg("/stack"),
+						body: hcldoc(
+							str("content", "something = \"something\""),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "generate file with line break",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("test.txt"),
+						str("content", "something = \"something\"\nsomething = \"something\""),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test.txt",
+					hcl: genFile{
+						origin: defaultCfg("/stack"),
+						body: hcldoc(
+							str("content", "something = \"something\"\nsomething = \"something\""),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "generate file with function",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("test.json"),
+						expr("content", "jsonencode({hello = \"world\"})"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test.json",
+					hcl: genFile{
+						origin: defaultCfg("/stack"),
+						body: hcldoc(
+							expr("content", "jsonencode({hello = \"world\"})"),
+						),
+					},
+				},
+			},
+		},
 		{
 			name:  "generate file in stack with multiple files",
 			stack: "/stack",
@@ -174,17 +174,25 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				},
 				{
 					path:     "/stack",
-					filename: "test.txt",
+					filename: "test.tm.hcl",
 					add: generateHCL(
 						labels("test.txt"),
-						expr("content", "global.some_bool"),
+						expr("content", "global.some_string"),
 					),
 				},
 				{
 					path:     "/stack",
-					filename: "test2.txt",
+					filename: "test2.tm.hcl",
 					add: generateHCL(
 						labels("test2.txt"),
+						expr("content", "global.some_number"),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "test3.tm.hcl",
+					add: generateHCL(
+						labels("test3.txt"),
 						expr("content", "global.some_bool"),
 					),
 				},
@@ -193,18 +201,27 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "test.txt",
 					hcl: genFile{
-						origin: defaultCfg("/stack/test.txt"),
+						origin: "/stack/test.tm.hcl",
 						body: hcldoc(
-							str("content", "true; 777; string"),
+							str("content", "string"),
 						),
 					},
 				},
 				{
 					name: "test2.txt",
 					hcl: genFile{
-						origin: defaultCfg("/stack/test2.txt"),
+						origin: "/stack/test2.tm.hcl",
 						body: hcldoc(
-							str("content", "true; 777; string"),
+							number("content", 777),
+						),
+					},
+				},
+				{
+					name: "test3.txt",
+					hcl: genFile{
+						origin: "/stack/test3.tm.hcl",
+						body: hcldoc(
+							boolean("content", true),
 						),
 					},
 				},
@@ -278,69 +295,66 @@ func TestPartialEval(t *testing.T) {
 
 	tcases := []testcase{
 		{
-			name: "unknown references on attributes",
+			name: "unknown references on count attributes",
 			config: hcldoc(
-				expr("count", "count.index"),
-				expr("data", "data.ref"),
-				expr("local", "local.ref"),
-				expr("module", "module.ref"),
-				expr("path", "path.ref"),
-				expr("resource", "resource.name.etc"),
-				expr("terraform", "terraform.ref"),
+				expr("content", "count.index"),
 			),
 			want: hcldoc(
-				expr("count", "count.index"),
-				expr("data", "data.ref"),
-				expr("local", "local.ref"),
-				expr("module", "module.ref"),
-				expr("path", "path.ref"),
-				expr("resource", "resource.name.etc"),
-				expr("terraform", "terraform.ref"),
+				expr("content", "count.index"),
 			),
 		},
 		{
-			name: "unknown references on object",
+			name: "unknown references on data attributes",
 			config: hcldoc(
-				expr("obj", `{
-					count     = count.index,
-					data      = data.ref,
-					local     = local.ref,
-					module    = module.ref,
-					path      = path.ref,
-					resource  = resource.name.etc,
-					terraform = terraform.ref,
-				 }`),
+				expr("content", "data.ref"),
 			),
 			want: hcldoc(
-				expr("obj", `{
-					count     = count.index,
-					data      = data.ref,
-					local     = local.ref,
-					module    = module.ref,
-					path      = path.ref,
-					resource  = resource.name.etc,
-					terraform = terraform.ref,
-				 }`),
+				expr("content", "data.ref"),
 			),
 		},
 		{
-			name: "mixed references on same object",
-			globals: hcldoc(
-				globals(
-					number("ref", 666),
-				),
-			),
+			name: "unknown references on local attributes",
 			config: hcldoc(
-				expr("obj", `{
-					local     = local.ref,
-					global    = global.ref,
-				 }`),
+				expr("content", "local.ref"),
 			),
 			want: hcldoc(
-				expr("obj", `{
-					local   = local.ref,
-					global  = 666,
-				 }`),
+				expr("content", "local.ref"),
+			),
+		},
+		{
+			name: "unknown references on module attributes",
+			config: hcldoc(
+				expr("content", "module.ref"),
+			),
+			want: hcldoc(
+				expr("content", "module.ref"),
+			),
+		},
+		{
+			name: "unknown references on path attributes",
+			config: hcldoc(
+				expr("content", "path.ref"),
+			),
+			want: hcldoc(
+				expr("content", "path.ref"),
+			),
+		},
+		{
+			name: "unknown references on resource attributes",
+			config: hcldoc(
+				expr("content", "resource.name.etc"),
+			),
+			want: hcldoc(
+				expr("content", "resource.name.etc"),
+			),
+		},
+		{
+			name: "unknown references on terraform attributes",
+			config: hcldoc(
+				expr("content", "terraform.ref"),
+			),
+			want: hcldoc(
+				expr("content", "terraform.ref"),
 			),
 		},
 		{
@@ -351,77 +365,56 @@ func TestPartialEval(t *testing.T) {
 				),
 			),
 			config: hcldoc(
-				expr("list", `[ local.ref, global.ref ]`),
+				expr("content", `[ local.ref, global.ref ]`),
 			),
 			want: hcldoc(
-				expr("list", `[ local.ref, 666 ]`),
+				expr("content", `[ local.ref, 666 ]`),
 			),
 		},
 		{
 			name: "try with unknown reference on attribute is not evaluated",
 			config: hcldoc(
-				expr("attr", "try(something.val, null)"),
+				expr("content", "try(something.val, null)"),
 			),
 			want: hcldoc(
-				expr("attr", "try(something.val, null)"),
+				expr("content", "try(something.val, null)"),
 			),
 		},
 		{
 			name: "try with unknown reference on list is not evaluated",
 			config: hcldoc(
-				expr("list", "[try(something.val, null), 1]"),
+				expr("content", "[try(something.val, null), 1]"),
 			),
 			want: hcldoc(
-				expr("list", "[try(something.val, null), 1]"),
+				expr("content", "[try(something.val, null), 1]"),
 			),
 		},
 		{
-			name: "try with unknown reference on object is not evaluated",
-			config: hcldoc(
-				expr("obj", `{
-					a = try(something.val, null),	
-					b = "val",
-				}`),
-			),
-			want: hcldoc(
-				expr("obj", `{
-					a = try(something.val, null),	
-					b = "val",
-				}`),
-			),
-		},
-		{
-			name: "function call on attr with mixed references is partially evaluated",
+			name: "function call on attr with mixed references is partially evaluated - global",
 			globals: hcldoc(
 				globals(
 					attr("list", "[1, 2, 3]"),
 				),
 			),
 			config: hcldoc(
-				expr("a", "merge(something.val, global.list)"),
-				expr("b", "merge(global.list, local.list)"),
+				expr("content", "merge(something.val, global.list)"),
 			),
 			want: hcldoc(
-				expr("a", "merge(something.val, [1, 2, 3])"),
-				expr("b", "merge([1, 2, 3], local.list)"),
+				expr("content", "merge(something.val, [1, 2, 3])"),
 			),
 		},
 		{
-			name: "function call on obj with mixed references is partially evaluated",
+			name: "function call on attr with mixed references is partially evaluated - local",
 			globals: hcldoc(
 				globals(
 					attr("list", "[1, 2, 3]"),
 				),
 			),
 			config: hcldoc(
-				expr("obj", `{
-					a = merge(something.val, global.list)
-				}`),
+				expr("content", "merge(global.list, local.list)"),
 			),
 			want: hcldoc(
-				expr("obj", `{
-					a = merge(something.val, [1, 2, 3])
-				}`),
+				expr("content", "merge([1, 2, 3], local.list)"),
 			),
 		},
 		{
@@ -432,10 +425,10 @@ func TestPartialEval(t *testing.T) {
 				),
 			),
 			config: hcldoc(
-				str("num", `test-${global.num}`),
+				str("content", `test-${global.num}`),
 			),
 			want: hcldoc(
-				str("num", "test-1337"),
+				str("content", "test-1337"),
 			),
 		},
 		{
@@ -446,10 +439,10 @@ func TestPartialEval(t *testing.T) {
 				),
 			),
 			config: hcldoc(
-				str("flag", `test-${global.flag}`),
+				str("content", `test-${global.flag}`),
 			),
 			want: hcldoc(
-				str("flag", "test-true"),
+				str("content", "test-true"),
 			),
 		},
 		{
@@ -460,10 +453,10 @@ func TestPartialEval(t *testing.T) {
 				),
 			),
 			config: hcldoc(
-				str("string", `${global.string}`),
+				str("content", `${global.string}`),
 			),
 			want: hcldoc(
-				str("string", "hello"),
+				str("content", "hello"),
 			),
 		},
 		{
@@ -474,10 +467,10 @@ func TestPartialEval(t *testing.T) {
 				),
 			),
 			config: hcldoc(
-				str("string", `test-${global.string}`),
+				str("content", `test-${global.string}`),
 			),
 			want: hcldoc(
-				str("string", "test-hello"),
+				str("content", "test-hello"),
 			),
 		},
 		{
@@ -488,10 +481,10 @@ func TestPartialEval(t *testing.T) {
 				),
 			),
 			config: hcldoc(
-				str("string", `${global.string}-test`),
+				str("content", `${global.string}-test`),
 			),
 			want: hcldoc(
-				str("string", "hello-test"),
+				str("content", "hello-test"),
 			),
 		},
 		{
@@ -501,10 +494,10 @@ func TestPartialEval(t *testing.T) {
 				str("string2", "hello2"),
 			),
 			config: hcldoc(
-				str("string", `something ${global.string1} and ${global.string2}`),
+				str("content", `something ${global.string1} and ${global.string2}`),
 			),
 			want: hcldoc(
-				str("string", "something hello1 and hello2"),
+				str("content", "something hello1 and hello2"),
 			),
 		},
 		{
@@ -516,37 +509,10 @@ func TestPartialEval(t *testing.T) {
 				),
 			),
 			config: hcldoc(
-				str("string", `${global.string1}${global.string2}`),
+				str("content", `${global.string1}${global.string2}`),
 			),
 			want: hcldoc(
-				str("string", "hello1hello2"),
-			),
-		},
-		{
-			// Here we check that an interpolated object results on the object itself, not a string.
-			name: "object interpolation/serialization",
-			globals: globals(
-				expr("obj", `{
-					string = "hello"
-					number = 1337
-					bool = false
-				}`),
-			),
-			config: hcldoc(
-				expr("obj", "global.obj"),
-				str("obj_interpolated", "${global.obj}"),
-			),
-			want: hcldoc(
-				expr("obj", `{
-					bool = false
-					number = 1337
-					string = "hello"
-				}`),
-				expr("obj_interpolated", `{
-					bool = false
-					number = 1337
-					string = "hello"
-				}`),
+				str("content", "hello1hello2"),
 			),
 		},
 		{
@@ -555,7 +521,7 @@ func TestPartialEval(t *testing.T) {
 				expr("obj", `{ string = "hello" }`),
 			),
 			config: hcldoc(
-				str("a", "${global.obj}-${global.obj}"),
+				str("content", "${global.obj}-${global.obj}"),
 			),
 			wantErr: eval.ErrInterpolationEval,
 		},
@@ -565,7 +531,7 @@ func TestPartialEval(t *testing.T) {
 				expr("obj", `{ string = "hello" }`),
 			),
 			config: hcldoc(
-				str("a", " ${global.obj}"),
+				str("content", " ${global.obj}"),
 			),
 			wantErr: eval.ErrInterpolationEval,
 		},
@@ -575,7 +541,7 @@ func TestPartialEval(t *testing.T) {
 				expr("obj", `{ string = "hello" }`),
 			),
 			config: hcldoc(
-				str("a", "${global.obj} "),
+				str("content", "${global.obj} "),
 			),
 			wantErr: eval.ErrInterpolationEval,
 		},
@@ -585,7 +551,7 @@ func TestPartialEval(t *testing.T) {
 				expr("list", `["hello"]`),
 			),
 			config: hcldoc(
-				str("a", "${global.list}-${global.list}"),
+				str("content", "${global.list}-${global.list}"),
 			),
 			wantErr: eval.ErrInterpolationEval,
 		},
@@ -595,7 +561,7 @@ func TestPartialEval(t *testing.T) {
 				expr("list", `["hello"]`),
 			),
 			config: hcldoc(
-				str("a", " ${global.list}"),
+				str("content", " ${global.list}"),
 			),
 			wantErr: eval.ErrInterpolationEval,
 		},
@@ -605,7 +571,7 @@ func TestPartialEval(t *testing.T) {
 				expr("list", `["hello"]`),
 			),
 			config: hcldoc(
-				str("a", "${global.list} "),
+				str("content", "${global.list} "),
 			),
 			wantErr: eval.ErrInterpolationEval,
 		},
@@ -616,12 +582,10 @@ func TestPartialEval(t *testing.T) {
 				expr("list", `["hi"]`),
 			),
 			config: hcldoc(
-				expr("list", "global.list"),
-				str("list_interpolated", "${global.list}"),
+				str("content", "${global.list}"),
 			),
 			want: hcldoc(
-				expr("list", `["hi"]`),
-				expr("list_interpolated", `["hi"]`),
+				expr("content", `["hi"]`),
 			),
 		},
 		{
@@ -631,12 +595,10 @@ func TestPartialEval(t *testing.T) {
 				number("number", 666),
 			),
 			config: hcldoc(
-				expr("number", "global.number"),
-				str("number_interpolated", "${global.number}"),
+				str("content", "${global.number}"),
 			),
 			want: hcldoc(
-				number("number", 666),
-				number("number_interpolated", 666),
+				number("content", 666),
 			),
 		},
 		{
@@ -646,12 +608,10 @@ func TestPartialEval(t *testing.T) {
 				number("number", 666),
 			),
 			config: hcldoc(
-				expr("number", "global.number"),
-				str("number_interpolated", "${global.number}-${global.number}"),
+				str("content", "${global.number}-${global.number}"),
 			),
 			want: hcldoc(
-				number("number", 666),
-				str("number_interpolated", "666-666"),
+				str("content", "666-666"),
 			),
 		},
 		{
@@ -661,12 +621,10 @@ func TestPartialEval(t *testing.T) {
 				boolean("bool", true),
 			),
 			config: hcldoc(
-				expr("bool", "global.bool"),
-				str("bool_interpolated", "${global.bool}"),
+				str("content", "${global.bool}"),
 			),
 			want: hcldoc(
-				boolean("bool", true),
-				boolean("bool_interpolated", true),
+				boolean("content", true),
 			),
 		},
 		{
@@ -676,12 +634,10 @@ func TestPartialEval(t *testing.T) {
 				boolean("bool", true),
 			),
 			config: hcldoc(
-				expr("bool", "global.bool"),
-				str("bool_interpolated", "${global.bool}-${global.bool}"),
+				str("content", "${global.bool}-${global.bool}"),
 			),
 			want: hcldoc(
-				boolean("bool", true),
-				str("bool_interpolated", "true-true"),
+				str("content", "true-true"),
 			),
 		},
 		{
@@ -693,10 +649,10 @@ func TestPartialEval(t *testing.T) {
 				),
 			),
 			config: hcldoc(
-				str("var", "${global.interp}"),
+				str("content", "${global.interp}"),
 			),
 			want: hcldoc(
-				expr("var", "[1, 2, 3]"),
+				expr("content", "[1, 2, 3]"),
 			),
 		},
 		{
@@ -707,28 +663,28 @@ func TestPartialEval(t *testing.T) {
 				),
 			),
 			config: hcldoc(
-				str("var", "${global.list}"),
+				str("content", "${global.list}"),
 			),
 			want: hcldoc(
-				expr("var", "[1, 2, 3]"),
+				expr("content", "[1, 2, 3]"),
 			),
 		},
 		{
 			name: "basic plus expression",
 			config: hcldoc(
-				expr("var", `1 + 1`),
+				expr("content", `1 + 1`),
 			),
 			want: hcldoc(
-				expr("var", `1 + 1`),
+				expr("content", `1 + 1`),
 			),
 		},
 		{
 			name: "plus expression funcall",
 			config: hcldoc(
-				expr("var", `len(a.b) + len2(c.d)`),
+				expr("content", `len(a.b) + len2(c.d)`),
 			),
 			want: hcldoc(
-				expr("var", `len(a.b) + len2(c.d)`),
+				expr("content", `len(a.b) + len2(c.d)`),
 			),
 		},
 		{
@@ -740,10 +696,10 @@ func TestPartialEval(t *testing.T) {
 				),
 			),
 			config: hcldoc(
-				expr("var", `tm_upper(global.a) + tm_upper(global.b)`),
+				expr("content", `tm_upper(global.a) + tm_upper(global.b)`),
 			),
 			want: hcldoc(
-				expr("var", `"HELLO" + "WORLD"`),
+				expr("content", `"HELLO" + "WORLD"`),
 			),
 		},
 		{
@@ -755,28 +711,28 @@ func TestPartialEval(t *testing.T) {
 				),
 			),
 			config: hcldoc(
-				expr("var", `tm_lower(tm_upper(global.a)) + tm_lower(tm_upper(global.b))`),
+				expr("content", `tm_lower(tm_upper(global.a)) + tm_lower(tm_upper(global.b))`),
 			),
 			want: hcldoc(
-				expr("var", `"hello" + "world"`),
+				expr("content", `"hello" + "world"`),
 			),
 		},
 		{
 			name: "basic minus expression",
 			config: hcldoc(
-				expr("var", `1 + 1`),
+				expr("content", `1 + 1`),
 			),
 			want: hcldoc(
-				expr("var", `1 + 1`),
+				expr("content", `1 + 1`),
 			),
 		},
 		{
 			name: "conditional expression",
 			config: hcldoc(
-				expr("var", `1 == 1 ? 0 : 1`),
+				expr("content", `1 == 1 ? 0 : 1`),
 			),
 			want: hcldoc(
-				expr("var", `1 == 1 ? 0 : 1`),
+				expr("content", `1 == 1 ? 0 : 1`),
 			),
 		},
 		{
@@ -787,10 +743,10 @@ func TestPartialEval(t *testing.T) {
 				),
 			),
 			config: hcldoc(
-				expr("var", `1 >= global.num ? local.x : [for x in local.a : x]`),
+				expr("content", `1 >= global.num ? local.x : [for x in local.a : x]`),
 			),
 			want: hcldoc(
-				expr("var", `1 >= 10 ? local.x : [for x in local.a : x]`),
+				expr("content", `1 >= 10 ? local.x : [for x in local.a : x]`),
 			),
 		},
 		{
@@ -801,10 +757,10 @@ func TestPartialEval(t *testing.T) {
 				),
 			),
 			config: hcldoc(
-				expr("var", `local.x + 1 >= global.num ? local.x : [for x in local.a : x]`),
+				expr("content", `local.x + 1 >= global.num ? local.x : [for x in local.a : x]`),
 			),
 			want: hcldoc(
-				expr("var", `local.x + 1 >= 10 ? local.x : [for x in local.a : x]`),
+				expr("content", `local.x + 1 >= 10 ? local.x : [for x in local.a : x]`),
 			),
 		},
 		{
@@ -826,10 +782,10 @@ func TestPartialEval(t *testing.T) {
 				),
 			),
 			config: hcldoc(
-				str("var", "${global.obj.string} ${global.obj.obj2.obj3.number}"),
+				str("content", "${global.obj.string} ${global.obj.obj2.obj3.number}"),
 			),
 			want: hcldoc(
-				str("var", "hello 1337"),
+				str("content", "hello 1337"),
 			),
 		},
 		{
@@ -851,7 +807,7 @@ func TestPartialEval(t *testing.T) {
 				),
 			),
 			config: hcldoc(
-				str("var", "${global.obj.string} ${global.obj.obj2.obj3}"),
+				str("content", "${global.obj.string} ${global.obj.obj2.obj3}"),
 			),
 			wantErr: eval.ErrInterpolationEval,
 		},
@@ -863,10 +819,10 @@ func TestPartialEval(t *testing.T) {
 				),
 			),
 			config: hcldoc(
-				expr("string", `global.list[0]`),
+				expr("content", `global.list[0]`),
 			),
 			want: hcldoc(
-				str("string", "a"),
+				str("content", "a"),
 			),
 		},
 		{
@@ -878,10 +834,10 @@ func TestPartialEval(t *testing.T) {
 				),
 			),
 			config: hcldoc(
-				expr("num", `global.list[1][1]`),
+				expr("content", `global.list[1][1]`),
 			),
 			want: hcldoc(
-				number("num", 5),
+				number("content", 5),
 			),
 		},
 		{
@@ -893,10 +849,10 @@ func TestPartialEval(t *testing.T) {
 				),
 			),
 			config: hcldoc(
-				expr("num", `global.list[1+1][1-1]`),
+				expr("content", `global.list[1+1][1-1]`),
 			),
 			want: hcldoc(
-				number("num", 7),
+				number("content", 7),
 			),
 		},
 		{
@@ -908,10 +864,10 @@ func TestPartialEval(t *testing.T) {
 				),
 			),
 			config: hcldoc(
-				expr("string", `global.list[tm_upper("a")][tm_upper("b)]`),
+				expr("content", `global.list[tm_upper("a")][tm_upper("b)]`),
 			),
 			want: hcldoc(
-				str("string", "test"),
+				str("content", "test"),
 			),
 		},
 		{
@@ -922,91 +878,91 @@ func TestPartialEval(t *testing.T) {
 				),
 			),
 			config: hcldoc(
-				expr("string", `global.obj["a"]`),
+				expr("content", `global.obj["a"]`),
 			),
 			want: hcldoc(
-				str("string", "b"),
+				str("content", "b"),
 			),
 		},
 		{
 			name: "obj for loop without eval references",
 			config: hcldoc(
-				expr("obj", `{for k in local.list : k => k}`),
+				expr("content", `{for k in local.list : k => k}`),
 			),
 			want: hcldoc(
-				expr("obj", `{for k in local.list : k => k}`),
+				expr("content", `{for k in local.list : k => k}`),
 			),
 		},
 		{
 			name: "list for loop without eval references",
 			config: hcldoc(
-				expr("obj", `[for k in local.list : k]`),
+				expr("content", `[for k in local.list : k]`),
 			),
 			want: hcldoc(
-				expr("obj", `[for k in local.list : k]`),
+				expr("content", `[for k in local.list : k]`),
 			),
 		},
 		{
 			name: "{for loop from map and funcall",
 			config: hcldoc(
-				expr("obj", `{for s in var.list : s => upper(s)}`),
+				expr("content", `{for s in var.list : s => upper(s)}`),
 			),
 			want: hcldoc(
-				expr("obj", `{for s in var.list : s => upper(s)}`),
+				expr("content", `{for s in var.list : s => upper(s)}`),
 			),
 		},
 		{
 			name: "{for in from {for map",
 			config: hcldoc(
-				expr("obj", `{for k, v in {for k,v in a.b : k=>v} : k => v}`),
+				expr("content", `{for k, v in {for k,v in a.b : k=>v} : k => v}`),
 			),
 			want: hcldoc(
-				expr("obj", `{for k, v in {for k,v in a.b : k=>v} : k => v}`),
+				expr("content", `{for k, v in {for k,v in a.b : k=>v} : k => v}`),
 			),
 		},
 		{
 			name: "[for with funcall",
 			config: hcldoc(
-				expr("obj", `[for s in var.list : upper(s)]`),
+				expr("content", `[for s in var.list : upper(s)]`),
 			),
 			want: hcldoc(
-				expr("obj", `[for s in var.list : upper(s)]`),
+				expr("content", `[for s in var.list : upper(s)]`),
 			),
 		},
 		{
 			name: "[for in from map and Operation body",
 			config: hcldoc(
-				expr("obj", `[for k, v in var.map : length(k) + length(v)]`),
+				expr("content", `[for k, v in var.map : length(k) + length(v)]`),
 			),
 			want: hcldoc(
-				expr("obj", `[for k, v in var.map : length(k) + length(v)]`),
+				expr("content", `[for k, v in var.map : length(k) + length(v)]`),
 			),
 		},
 		{
 			name: "[for in from map and interpolation body",
 			config: hcldoc(
-				expr("obj", `[for i, v in var.list : "${i} is ${v}"]`),
+				expr("content", `[for i, v in var.list : "${i} is ${v}"]`),
 			),
 			want: hcldoc(
-				expr("obj", `[for i, v in var.list : "${i} is ${v}"]`),
+				expr("content", `[for i, v in var.list : "${i} is ${v}"]`),
 			),
 		},
 		{
 			name: "[for in from map with conditional body",
 			config: hcldoc(
-				expr("obj", `[for s in var.list : upper(s) if s != ""]`),
+				expr("content", `[for s in var.list : upper(s) if s != ""]`),
 			),
 			want: hcldoc(
-				expr("obj", `[for s in var.list : upper(s) if s != ""]`),
+				expr("content", `[for s in var.list : upper(s) if s != ""]`),
 			),
 		},
 		{
 			name: "[for in from [for list",
 			config: hcldoc(
-				expr("obj", `[for s in [for s in a.b : s] : s]`),
+				expr("content", `[for s in [for s in a.b : s] : s]`),
 			),
 			want: hcldoc(
-				expr("obj", `[for s in [for s in a.b : s] : s]`),
+				expr("content", `[for s in [for s in a.b : s] : s]`),
 			),
 		},
 		{
@@ -1015,7 +971,7 @@ func TestPartialEval(t *testing.T) {
 				expr("list", `["a", "b", "c"]`),
 			),
 			config: hcldoc(
-				expr("list", `[for k in global.list : k]`),
+				expr("content", `[for k in global.list : k]`),
 			),
 			wantErr: eval.ErrForExprDisallowEval,
 		},
@@ -1025,7 +981,7 @@ func TestPartialEval(t *testing.T) {
 				expr("obj", `{ a = 1}`),
 			),
 			config: hcldoc(
-				expr("obj", `[for k in global.obj : k]`),
+				expr("content", `[for k in global.obj : k]`),
 			),
 			wantErr: eval.ErrForExprDisallowEval,
 		},
@@ -1035,107 +991,107 @@ func TestPartialEval(t *testing.T) {
 				expr("list", `["a", "b", "c"]`),
 			),
 			config: hcldoc(
-				expr("obj", `[for s in [for s in global.list : s] : s]`),
+				expr("content", `[for s in [for s in global.list : s] : s]`),
 			),
 			wantErr: eval.ErrForExprDisallowEval,
 		},
 		{
 			name: "mixing {for and [for",
 			config: hcldoc(
-				expr("obj", `{for k, v in [for k in a.b : k] : k => v}`),
+				expr("content", `{for k, v in [for k in a.b : k] : k => v}`),
 			),
 			want: hcldoc(
-				expr("obj", `{for k, v in [for k in a.b : k] : k => v}`),
+				expr("content", `{for k, v in [for k in a.b : k] : k => v}`),
 			),
 		},
 		{
 			name: "unary operation !",
 			config: hcldoc(
-				expr("num", "!0"),
+				expr("content", "!0"),
 			),
 			want: hcldoc(
-				expr("num", "!0"),
+				expr("content", "!0"),
 			),
 		},
 		{
 			name: "unary operation -",
 			config: hcldoc(
-				expr("num", "-0"),
+				expr("content", "-0"),
 			),
 			want: hcldoc(
-				expr("num", "-0"),
+				expr("content", "-0"),
 			),
 		},
 		{
 			name: "number indexing",
 			config: hcldoc(
-				expr("a", "b.1000"),
+				expr("content", "b.1000"),
 			),
 			want: hcldoc(
-				expr("a", "b.1000"),
+				expr("content", "b.1000"),
 			),
 		},
 		{
 			name: "advanced number literal",
 			config: hcldoc(
-				expr("a", "10.1200"),
+				expr("content", "10.1200"),
 			),
 			want: hcldoc(
-				expr("a", "10.1200"),
+				expr("content", "10.1200"),
 			),
 		},
 		{
 			name: "advanced number literal",
 			config: hcldoc(
-				expr("a", "0.0.A.0"),
+				expr("content", "0.0.A.0"),
 			),
 			want: hcldoc(
-				expr("a", "0.0.A.0"),
+				expr("content", "0.0.A.0"),
 			),
 		},
 		{
 			name: "parenthesis and splat with newlines",
 			config: hcldoc(
-				expr("a", "(A(). \n*)"),
+				expr("content", "(A(). \n*)"),
 			),
 			want: hcldoc(
-				expr("a", "(A(). \n*)"),
+				expr("content", "(A(). \n*)"),
 			),
 		},
 		{
 			name: "funcall and newlines/comments",
 			config: hcldoc(
-				expr("a", "funcall(\n/**/a\n/**/,/**/b/**/\n/**/)"),
+				expr("content", "funcall(\n/**/a\n/**/,/**/b/**/\n/**/)"),
 			),
 			want: hcldoc(
-				expr("a", "funcall(\n/**/a\n/**/,/**/b/**/\n/**/)"),
+				expr("content", "funcall(\n/**/a\n/**/,/**/b/**/\n/**/)"),
 			),
 		},
 		{
 			name: "tm_ funcall and newlines/comments",
 			config: hcldoc(
-				expr("a", "tm_try(\n/**/a\n/**/,/**/b, null/**/\n/**/)"),
+				expr("content", "tm_try(\n/**/a\n/**/,/**/b, null/**/\n/**/)"),
 			),
 			want: hcldoc(
-				expr("a", "null"),
+				expr("content", "null"),
 			),
 		},
 		{
 			name: "objects and newlines/comments",
 			config: hcldoc(
-				expr("a", "{/**/\n/**/a/**/=/**/\"a\"/**/\n}"),
+				expr("content", "{/**/\n/**/a/**/=/**/\"a\"/**/\n}"),
 			),
 			want: hcldoc(
-				expr("a", "{/**/\n/**/a/**/=/**/\"a\"/**/\n}"),
+				expr("content", "{/**/\n/**/a/**/=/**/\"a\"/**/\n}"),
 			),
 		},
 		{
 			name: "lists and newlines/comments",
 			config: hcldoc(
-				expr("a", "[/**/\n/**/a/**/\n,\"a\"/**/\n]"),
+				expr("content", "[/**/\n/**/a/**/\n,\"a\"/**/\n]"),
 			),
 			want: hcldoc(
-				expr("a", "[/**/\n/**/a/**/\n,\"a\"/**/\n]"),
+				expr("content", "[/**/\n/**/a/**/\n,\"a\"/**/\n]"),
 			),
 		},
 		{
@@ -1145,55 +1101,55 @@ func TestPartialEval(t *testing.T) {
 				boolean("exists", true),
 			),
 			config: hcldoc(
-				expr("a", `global.exists ? global.domain : "example.com"`),
+				expr("content", `global.exists ? global.domain : "example.com"`),
 			),
 			want: hcldoc(
-				expr("a", `true ? "mineiros.io" : "example.com"`),
+				expr("content", `true ? "mineiros.io" : "example.com"`),
 			),
 		},
 		{
 			name: "evaluated empty string in the prefix",
 			config: hcldoc(
-				expr("a", "\"${tm_replace(0,\"0\",\"\")}0\""),
+				expr("content", "\"${tm_replace(0,\"0\",\"\")}0\""),
 			),
 			want: hcldoc(
-				expr("a", "\"0\""),
+				expr("content", "\"0\""),
 			),
 		},
 		{
 			name: "evaluated empty string in the suffix",
 			config: hcldoc(
-				expr("a", "\"0${tm_replace(0,\"0\",\"\")}\""),
+				expr("content", "\"0${tm_replace(0,\"0\",\"\")}\""),
 			),
 			want: hcldoc(
-				expr("a", "\"0\""),
+				expr("content", "\"0\""),
 			),
 		},
 		{
 			name: "evaluated funcall with newlines prefix",
 			config: hcldoc(
-				expr("a", "\"${\ntm_replace(0,0,\"\")}0\""),
+				expr("content", "\"${\ntm_replace(0,0,\"\")}0\""),
 			),
 			want: hcldoc(
-				expr("a", "\"0\""),
+				expr("content", "\"0\""),
 			),
 		},
 		{
 			name: "evaluated funcall with newlines suffix",
 			config: hcldoc(
-				expr("a", "\"${tm_replace(0,0,\"\")\n}0\""),
+				expr("content", "\"${tm_replace(0,0,\"\")\n}0\""),
 			),
 			want: hcldoc(
-				expr("a", "\"0\""),
+				expr("content", "\"0\""),
 			),
 		},
 		{
 			name: "lists and newlines/comments",
 			config: hcldoc(
-				expr("a", "[/**/\n/**/1/**/\n/**/,/**/\n/**/2/**/\n]"),
+				expr("content", "[/**/\n/**/1/**/\n/**/,/**/\n/**/2/**/\n]"),
 			),
 			want: hcldoc(
-				expr("a", "[/**/\n/**/1/**/\n/**/,/**/\n/**/2/**/\n]"),
+				expr("content", "[/**/\n/**/1/**/\n/**/,/**/\n/**/2/**/\n]"),
 			),
 		},
 		{
@@ -1202,82 +1158,82 @@ func TestPartialEval(t *testing.T) {
 				str("a", "1"),
 			),
 			config: hcldoc(
-				str("a", "0${tm_try(global.a)}2"),
+				str("content", "0${tm_try(global.a)}2"),
 			),
 			want: hcldoc(
-				str("a", "012"),
+				str("content", "012"),
 			),
 		},
 		{
 			name: "escaped interpolation with global reference",
 			config: hcldoc(
-				str("string", `$${global.string}`),
+				str("content", `$${global.string}`),
 			),
 			want: hcldoc(
-				str("string", "$${global.string}"),
+				str("content", "$${global.string}"),
 			),
 		},
 		{
 			name: "escaped interpolation with attr",
 			config: hcldoc(
-				str("string", `$${hi}`),
+				str("content", `$${hi}`),
 			),
 			want: hcldoc(
-				str("string", "$${hi}"),
+				str("content", "$${hi}"),
 			),
 		},
 		{
 			name: "escaped interpolation with number",
 			config: hcldoc(
-				str("string", `$${5}`),
+				str("content", `$${5}`),
 			),
 			want: hcldoc(
-				str("string", "$${5}"),
+				str("content", "$${5}"),
 			),
 		},
 		{
 			name: "empty escaped interpolation",
 			config: hcldoc(
-				str("string", `$${}`),
+				str("content", `$${}`),
 			),
 			want: hcldoc(
-				str("string", "$${}"),
+				str("content", "$${}"),
 			),
 		},
 		{
 			name: "escaped interpolation with prefix",
 			config: hcldoc(
-				str("string", `something-$${hi}`),
+				str("content", `something-$${hi}`),
 			),
 			want: hcldoc(
-				str("string", "something-$${hi}"),
+				str("content", "something-$${hi}"),
 			),
 		},
 		{
 			name: "escaped interpolation with suffix",
 			config: hcldoc(
-				str("string", `$${hi}-suffix`),
+				str("content", `$${hi}-suffix`),
 			),
 			want: hcldoc(
-				str("string", "$${hi}-suffix"),
+				str("content", "$${hi}-suffix"),
 			),
 		},
 		{
 			name: "nested escaped interpolation",
 			config: hcldoc(
-				str("string", `$${hi$${again}}`),
+				str("content", `$${hi$${again}}`),
 			),
 			want: hcldoc(
-				str("string", `$${hi$${again}}`),
+				str("content", `$${hi$${again}}`),
 			),
 		},
 		{
 			name: "interpolation inside escaped interpolation",
 			config: hcldoc(
-				str("string", `$${hi${attr}}`),
+				str("content", `$${hi${attr}}`),
 			),
 			want: hcldoc(
-				str("string", `$${hi${attr}}`),
+				str("content", `$${hi${attr}}`),
 			),
 		},
 		{
@@ -1286,28 +1242,28 @@ func TestPartialEval(t *testing.T) {
 				number("a", 666),
 			),
 			config: hcldoc(
-				str("string", `$${hi-${global.a}}`),
+				str("content", `$${hi-${global.a}}`),
 			),
 			want: hcldoc(
-				str("string", `$${hi-666}`),
+				str("content", `$${hi-666}`),
 			),
 		},
 		{
 			name: "for inside escaped interpolation",
 			config: hcldoc(
-				str("string", `$${[for k in local.a : k]}`),
+				str("content", `$${[for k in local.a : k]}`),
 			),
 			want: hcldoc(
-				str("string", `$${[for k in local.a : k]}`),
+				str("content", `$${[for k in local.a : k]}`),
 			),
 		},
 		{
 			name: "for inside escaped interpolation referencing global",
 			config: hcldoc(
-				str("string", `$${[for k in global.a : k]}`),
+				str("content", `$${[for k in global.a : k]}`),
 			),
 			want: hcldoc(
-				str("string", `$${[for k in global.a : k]}`),
+				str("content", `$${[for k in global.a : k]}`),
 			),
 		},
 		/*
@@ -1350,9 +1306,7 @@ func TestPartialEval(t *testing.T) {
 				tcase.globals,
 				generateHCL(
 					labels(genname),
-					content(
-						tcase.config,
-					),
+					tcase.config,
 				),
 			)
 

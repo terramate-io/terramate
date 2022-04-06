@@ -15,6 +15,7 @@
 package genhcl
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -187,7 +188,41 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 		return nil, nil
 	}
 
-	hclblocks, err := hcl.ParseGenerateHCLBlocks(cfgdir)
+	bodySchema := hcl.BodySchema{
+		Attributes: []hcl.AttributeSchema{},
+		Blocks: []hcl.BlockSchema{
+			{
+				Type:       "content",
+				LableNames: []string{},
+			},
+		},
+	}
+
+	schema := hcl.MakeBodySchema(bodySchema)
+
+	hclblocks, err := hcl.ParseGenerateBlocks(cfgdir, "generate_hcl", func(block *hclsyntax.Block) error {
+		// Don't seem like I can use hcl.BodySchema to check for any non-empty
+		// label, only specific label values.
+
+		if len(block.Labels) != 1 {
+			return fmt.Errorf(
+				"generate_hcl must have single label instead got %v",
+				block.Labels,
+			)
+		}
+		if block.Labels[0] == "" {
+			return errors.New("generate_hcl label can't be empty")
+		}
+		// Schema check passes if no block is present, so check for amount of blocks
+		if len(block.Body.Blocks) != 1 {
+			return fmt.Errorf("generate_hcl must have one 'content' block, got %d blocks", len(block.Body.Blocks))
+		}
+		_, diags := block.Body.Content(&schema)
+		if diags.HasErrors() {
+			return diags
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, fmt.Errorf("%w: cfgdir %q: %v", ErrParsing, cfgdir, err)
 	}

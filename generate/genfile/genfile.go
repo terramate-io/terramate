@@ -15,6 +15,7 @@
 package genfile
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -30,24 +31,24 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// // StackHCLs represents all generated HCL code for a stack,
-// // mapping the generated code filename to the actual HCL code.
+// StackHCLs represents all generated HCL code for a stack,
+// mapping the generated code filename to the actual HCL code.
 type StackHCLs struct {
 	hcls map[string]HCL
 }
 
-// // HCL represents generated HCL code from a single block.
-// // Is contains parsed and evaluated code on it and information
-// // about the origin of the generated code.
+// HCL represents generated HCL code from a single block.
+// Is contains parsed and evaluated code on it and information
+// about the origin of the generated code.
 type HCL struct {
 	origin string
 	body   []byte
 }
 
 const (
-	ErrMultiLevelConflict errutil.Error = "conflicting generate_hcl blocks"
-	ErrParsing            errutil.Error = "parsing generate_hcl block"
-	ErrEval               errutil.Error = "evaluating generate_hcl block"
+	ErrMultiLevelConflict errutil.Error = "conflicting generate_file blocks"
+	ErrParsing            errutil.Error = "parsing generate_file block"
+	ErrEval               errutil.Error = "evaluating generate_file block"
 )
 
 // GeneratedHCLs returns all generated code, mapping the name to its
@@ -94,7 +95,7 @@ func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackHC
 
 	logger.Trace().Msg("loading generate_file blocks.")
 
-	loadedHCLs, err := loadGenFileBlocks(rootdir, stackpath)
+	loadedFileBlocks, err := loadGenFileBlocks(rootdir, stackpath)
 	if err != nil {
 		return StackHCLs{}, fmt.Errorf("loading generate_file: %w", err)
 	}
@@ -110,15 +111,15 @@ func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackHC
 		hcls: map[string]HCL{},
 	}
 
-	for name, loadedHCL := range loadedHCLs {
+	for name, loadedHCL := range loadedFileBlocks {
 		logger := logger.With().
-			Str("attribute", name).
+			Str("block", name).
 			Logger()
 
 		logger.Trace().Msg("evaluating block.")
 
 		gen := hclwrite.NewEmptyFile()
-		if err := hcl.CopyAttribute(gen.Body(), loadedHCL.attr, evalctx); err != nil {
+		if err := hcl.CopyAttribute(gen.Body(), loadedHCL.attribute, evalctx); err != nil {
 			evalErr := fmt.Errorf(
 				"%w: stack %q block %q",
 				ErrEval,
@@ -165,17 +166,17 @@ func newEvalCtx(stackpath string, sm stack.Metadata, globals terramate.Globals) 
 }
 
 type loadedHCL struct {
-	origin string
-	attr   *hclsyntax.Attribute
+	origin    string
+	attribute *hclsyntax.Attribute
 }
 
-// loadGenHCLBlocks will load all generate_hcl blocks.
+// loadGenFileBlocks will load all generate_file blocks.
 // The returned map maps the name of the block (its label)
 // to the original block and the path (relative to project root) of the config
 // from where it was parsed.
 func loadGenFileBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, error) {
 	logger := log.With().
-		Str("action", "genfile.loadGenHCLBlocks()").
+		Str("action", "genfile.loadGenFileBlocks()").
 		Str("root", rootdir).
 		Str("configDir", cfgdir).
 		Logger()
@@ -187,7 +188,41 @@ func loadGenFileBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, err
 		return nil, nil
 	}
 
-	hclblocks, err := hcl.ParseGenerateFileBlocks(cfgdir)
+	bodySchema := hcl.BodySchema{
+		Attributes: []hcl.AttributeSchema{
+			{
+				Name:     "content",
+				Required: true,
+			},
+		},
+		Blocks: []hcl.BlockSchema{},
+	}
+
+	schema := hcl.MakeBodySchema(bodySchema)
+
+	hclblocks, err := hcl.ParseGenerateBlocks(cfgdir, "generate_file", func(block *hclsyntax.Block) error {
+		// Don't seem like I can use hcl.BodySchema to check for any non-empty
+		// label, only specific label values.
+
+		if len(block.Labels) != 1 {
+			return fmt.Errorf(
+				"generate_file must have single label instead got %v",
+				block.Labels,
+			)
+		}
+		if block.Labels[0] == "" {
+			return errors.New("generate_file label can't be empty")
+		}
+		// Schema check passes if no block is present, so check for amount of blocks
+		if len(block.Body.Attributes) != 1 {
+			return fmt.Errorf("generate_file must have one 'content' attribute, got %d attributes", len(block.Body.Attributes))
+		}
+		_, diags := block.Body.Content(&schema)
+		if diags.HasErrors() {
+			return diags
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, fmt.Errorf("%w: cfgdir %q: %v", ErrParsing, cfgdir, err)
 	}
@@ -209,8 +244,8 @@ func loadGenFileBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, err
 
 			contentAttr := genhclBlock.Body.Attributes["content"]
 			res[name] = loadedHCL{
-				origin: project.PrjAbsPath(rootdir, filename),
-				attr:   contentAttr,
+				origin:    project.PrjAbsPath(rootdir, filename),
+				attribute: contentAttr,
 			}
 
 			logger.Trace().Msg("loaded generate_file block.")
