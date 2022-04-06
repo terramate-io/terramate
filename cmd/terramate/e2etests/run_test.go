@@ -32,9 +32,10 @@ import (
 
 func TestCLIRunOrder(t *testing.T) {
 	type testcase struct {
-		name   string
-		layout []string
-		want   runExpected
+		name       string
+		layout     []string
+		workingDir string
+		want       runExpected
 	}
 
 	for _, tc := range []testcase{
@@ -435,12 +436,31 @@ stack-z
 `,
 			},
 		},
+		{
+			name: `run order selects only stacks inside working dir`,
+			layout: []string{
+				`s:stacks/stack-a:after=["/stacks/stack-b", "/parent-stack"]`,
+				`s:stacks/stack-b:before=["/parent-stack"]`,
+				`s:parent-stack`,
+			},
+			workingDir: "stacks",
+			want: runExpected{
+				Stdout: `stack-b
+stack-a
+`,
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 
-			cli := newCLI(t, s.RootDir())
+			wd := s.RootDir()
+			if tc.workingDir != "" {
+				wd = filepath.Join(wd, tc.workingDir)
+			}
+
+			cli := newCLI(t, wd)
 			assertRunResult(t, cli.stacksRunOrder(), tc.want)
 		})
 	}
@@ -638,7 +658,6 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 	// stack must run after stack2 but stack2 didn't change.
 
 	stack2 := s.CreateStack("stack2")
-
 	stack := s.CreateStack("stack")
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
 	stackConfig, err := hcl.NewConfig(stack.Path())
@@ -671,8 +690,6 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 		mainTfFileName,
 	), runExpected{Stdout: wantRun})
 
-	wantRun = mainTfContents
-
 	cli = newCLI(t, stack.Path())
 	assertRunResult(t, cli.run(
 		"run",
@@ -688,6 +705,47 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 		cat,
 		mainTfFileName,
 	), runExpected{})
+}
+
+func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDir(t *testing.T) {
+	const testfile = "testfile"
+
+	s := sandbox.New(t)
+
+	s.BuildTree([]string{
+		"s:parent-stack",
+		`s:stacks/stack-1:before=["/parent-stack"]`,
+		`s:stacks/stack-2:after=["/parent-stack"]`,
+		fmt.Sprintf("f:parent-stack/%s:parent-stack\n", testfile),
+		fmt.Sprintf("f:stacks/stack-1/%s:stack-1\n", testfile),
+		fmt.Sprintf("f:stacks/stack-2/%s:stack-2\n", testfile),
+	})
+
+	git := s.Git()
+	git.CommitAll("first commit")
+
+	cat := test.LookPath(t, "cat")
+	assertRun := func(wd string, want string) {
+		cli := newCLI(t, filepath.Join(s.RootDir(), wd))
+
+		assertRunResult(t, cli.run(
+			"run",
+			cat,
+			testfile,
+		), runExpected{Stdout: want})
+
+		assertRunResult(t, cli.run(
+			"run",
+			"--changed",
+			cat,
+			testfile,
+		), runExpected{Stdout: want})
+	}
+
+	assertRun(".", "stack-1\nparent-stack\nstack-2\n")
+	assertRun("stacks", "stack-1\nstack-2\n")
+	assertRun("stacks/stack-1", "stack-1\n")
+	assertRun("stacks/stack-2", "stack-2\n")
 }
 
 func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
