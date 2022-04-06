@@ -159,11 +159,6 @@ func E(args ...interface{}) error {
 		e.Err = prev.Err
 	}
 
-	// If this error has Kind unset or Other, pull up the inner one.
-	if e.Kind == "" {
-		e.Kind = prev.Kind
-		prev.Kind = ""
-	}
 	return e
 }
 
