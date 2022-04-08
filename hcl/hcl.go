@@ -522,8 +522,11 @@ func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
 
 	logger.Trace().Msg("Range over block attributes.")
 
-	for name := range block.Body.Attributes {
-		return errors.E(sprintf("unrecognized attribute terramate.config.%s", name))
+	for name, nameVal := range block.Body.Attributes {
+		return errors.E(
+			sprintf("unrecognized attribute terramate.config.%s", name),
+			nameVal.NameRange,
+		)
 	}
 
 	logger.Trace().Msg("Range over blocks.")
