@@ -103,7 +103,7 @@ type cliSpec struct {
 
 		RunGraph struct {
 			Outfile string `short:"o" default:"" help:"Output .dot file"`
-			Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\"`
+			Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\""`
 		} `cmd:"" help:"Generate a graph of the execution order"`
 
 		RunOrder struct {
@@ -842,7 +842,10 @@ func (c *cli) runOnStacks() {
 		}
 	}
 
-	// TODO(katcipis): ADD REVERSE OF ORDERED STACKS
+	if c.parsedArgs.Run.Reverse {
+		logger.Trace().Msg("Reversing stacks order.")
+		stack.Reverse(orderedStacks)
+	}
 
 	if c.parsedArgs.Run.DryRun {
 		logger.Trace().

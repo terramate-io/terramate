@@ -715,18 +715,23 @@ func TestRunReverseExecution(t *testing.T) {
 	cat := test.LookPath(t, "cat")
 	cli := newCLI(t, s.RootDir())
 	assertRun := func(stacks ...string) {
+		t.Helper()
+
 		want := strings.Join(stacks, "\n")
+		if want != "" {
+			want += "\n"
+		}
 
 		assertRunResult(t, cli.run(
 			"run",
-			"--reversed",
+			"--reverse",
 			cat,
 			testfile,
 		), runExpected{Stdout: want})
 
 		assertRunResult(t, cli.run(
 			"run",
-			"--reversed",
+			"--reverse",
 			"--changed",
 			cat,
 			testfile,
@@ -739,10 +744,12 @@ func TestRunReverseExecution(t *testing.T) {
 		})
 	}
 
+	git := s.Git()
+	git.CheckoutNew("changes")
+
 	assertRun()
 
 	addStack("stack-1")
-	git := s.Git()
 	git.CommitAll("commit")
 	assertRun("stack-1")
 
