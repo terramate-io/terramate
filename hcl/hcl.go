@@ -108,7 +108,7 @@ type TerramateParser struct {
 	hclparser *hclparse.Parser
 }
 
-// NewParser creates a Terramate parser for the directory dir.
+// NewTerramateParser creates a Terramate parser for the directory dir.
 func NewTerramateParser(dir string) *TerramateParser {
 	return &TerramateParser{
 		dir:       dir,
@@ -179,6 +179,7 @@ func (p *TerramateParser) AddFile(name string, data []byte) error {
 	return nil
 }
 
+// Parse the previously added files and return either a Config or an error.
 func (p *TerramateParser) Parse() (Config, error) {
 	for name, data := range p.files {
 		_, diags := p.hclparser.ParseHCL(data, name)

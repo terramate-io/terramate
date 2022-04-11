@@ -48,7 +48,7 @@ type Error struct {
 type (
 	// Kind defines the kind of error.
 	Kind string
-	// Stack represents the stack metadata in an error.
+	// StackMeta has the metadata of the stack which originated the error.
 	// Same interface as stack.Metadata.
 	StackMeta interface {
 		Name() string
@@ -240,6 +240,7 @@ func (e *Error) Error() string {
 	return e.error(false)
 }
 
+// Detailed returns a detailed error message.
 func (e *Error) Detailed() string {
 	return e.error(true)
 }
