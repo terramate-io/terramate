@@ -714,7 +714,7 @@ func TestRunReverseExecution(t *testing.T) {
 	s := sandbox.New(t)
 	cat := test.LookPath(t, "cat")
 	cli := newCLI(t, s.RootDir())
-	assertRun := func(stacks ...string) {
+	assertRunOrder := func(stacks ...string) {
 		t.Helper()
 
 		want := strings.Join(stacks, "\n")
@@ -747,19 +747,19 @@ func TestRunReverseExecution(t *testing.T) {
 	git := s.Git()
 	git.CheckoutNew("changes")
 
-	assertRun()
+	assertRunOrder()
 
 	addStack("stack-1")
 	git.CommitAll("commit")
-	assertRun("stack-1")
+	assertRunOrder("stack-1")
 
 	addStack("stack-2")
 	git.CommitAll("commit")
-	assertRun("stack-2", "stack-1")
+	assertRunOrder("stack-2", "stack-1")
 
 	addStack("stack-3")
 	git.CommitAll("commit")
-	assertRun("stack-3", "stack-2", "stack-1")
+	assertRunOrder("stack-3", "stack-2", "stack-1")
 }
 
 func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDir(t *testing.T) {
