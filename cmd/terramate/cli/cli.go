@@ -349,16 +349,15 @@ func (c *cli) run() {
 			Msg("Print list of stacks.")
 		c.printStacks()
 	case "run":
-		logger.Debug().
-			Msg("Handle `run` command.")
+		logger.Debug().Msg("Handle `run` command.")
+
 		if len(c.parsedArgs.Run.Command) == 0 {
-			log.Fatal().
-				Msg("no command specified")
+			log.Fatal().Msg("no command specified")
 		}
 		fallthrough
 	case "run <cmd>":
-		logger.Debug().
-			Msg("Handle `run <cmd>` command.")
+		logger.Debug().Msg("Handle `run <cmd>` command.")
+
 		c.runOnStacks()
 	case "generate":
 		report := generate.Do(c.root(), c.wd())
@@ -841,6 +840,8 @@ func (c *cli) runOnStacks() {
 				Msg("failed to plan execution")
 		}
 	}
+
+	// TODO(katcipis): ADD REVERSE OF ORDERED STACKS
 
 	if c.parsedArgs.Run.DryRun {
 		logger.Trace().
