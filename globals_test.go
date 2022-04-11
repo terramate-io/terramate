@@ -1069,19 +1069,18 @@ func TestLoadGlobals(t *testing.T) {
 
 			stacks := s.LoadStacks()
 			for _, stack := range stacks {
-				stackMeta := stack.Meta()
-				got, err := terramate.LoadStackGlobals(s.RootDir(), stackMeta)
+				got, err := terramate.LoadStackGlobals(s.RootDir(), stack)
 
 				errors.Assert(t, err, tcase.wantErr)
 				if tcase.wantErr != nil {
 					continue
 				}
 
-				want, ok := wantGlobals[stackMeta.Path]
+				want, ok := wantGlobals[stack.Path()]
 				if !ok {
 					want = globals()
 				}
-				delete(wantGlobals, stackMeta.Path)
+				delete(wantGlobals, stack.Path())
 
 				// Could have one type for globals configs and another type
 				// for wanted evaluated globals, but that would make
@@ -1262,8 +1261,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 			}
 
 			for _, entry := range stackEntries {
-				stack := entry.Stack
-				_, err := terramate.LoadStackGlobals(s.RootDir(), stack.Meta())
+				_, err := terramate.LoadStackGlobals(s.RootDir(), entry.Stack)
 				errors.Assert(t, err, tcase.want)
 			}
 		})
@@ -1279,6 +1277,6 @@ func TestLoadGlobalsErrorOnRelativeDir(t *testing.T) {
 
 	stacks := s.LoadStacks()
 	assert.EqualInts(t, 1, len(stacks))
-	globals, err := terramate.LoadStackGlobals(rel, stacks[0].Meta())
+	globals, err := terramate.LoadStackGlobals(rel, stacks[0])
 	assert.Error(t, err, "got %v instead of error", globals)
 }

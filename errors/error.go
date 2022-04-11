@@ -19,7 +19,7 @@ package errors
 
 import (
 	"errors"
-	"fmt"
+	stdfmt "fmt"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -39,7 +39,7 @@ type Error struct {
 	FileRange hcl.Range
 
 	// Stack which originated the error.
-	Stack Stack
+	Stack StackMeta
 
 	// Err represents the underlying error.
 	Err error
@@ -48,8 +48,13 @@ type Error struct {
 type (
 	// Kind defines the kind of error.
 	Kind string
-	// Stack represents the stack info in an error.
-	Stack string
+	// Stack represents the stack metadata in an error.
+	// Same interface as stack.Metadata.
+	StackMeta interface {
+		Name() string
+		Desc() string
+		Path() string
+	}
 )
 
 const separator = ": "
@@ -118,15 +123,14 @@ func E(args ...interface{}) error {
 					e.Err = diags
 				}
 			}
-
-		case Stack:
+		case StackMeta:
 			e.Stack = arg
 		case string:
 			e.Description = arg
 		case error:
 			e.Err = arg
 		default:
-			panic(fmt.Errorf("called with unknown type %T", arg))
+			panic(stdfmt.Errorf("called with unknown type %T", arg))
 		}
 	}
 	if e.isEmpty() {
@@ -150,7 +154,7 @@ func E(args ...interface{}) error {
 		prev.FileRange = hcl.Range{}
 	}
 	if prev.Stack == e.Stack {
-		prev.Stack = ""
+		prev.Stack = nil
 	}
 	if prev.Description == e.Description {
 		prev.Description = ""
@@ -165,11 +169,10 @@ func E(args ...interface{}) error {
 // isEmpty tells if all fields of this error are empty.
 // Note that e.Err is the underlying error hence not checked.
 func (e *Error) isEmpty() bool {
-	return e.FileRange.Empty() && e.Kind == "" && e.Description == "" && e.Stack == ""
+	return e.FileRange.Empty() && e.Kind == "" && e.Description == "" && e.Stack == nil
 }
 
-// Error returns the error message.
-func (e *Error) Error() string {
+func (e *Error) error(verbose bool) string {
 	if e.isEmpty() {
 		if e.Err != nil {
 			return e.Err.Error()
@@ -188,7 +191,16 @@ func (e *Error) Error() string {
 		switch v := arg.(type) {
 		case hcl.Range:
 			if !v.Empty() {
-				errParts = append(errParts, v.String())
+				if verbose {
+					errParts = append(errParts, fmt(
+						"filename=%q,start line=%d,start col=%d,start byte=%d,end line=%d,end col=%d,end byte=%d",
+						v.Filename,
+						v.Start.Line, v.Start.Column, v.Start.Byte,
+						v.End.Line, v.End.Column, v.End.Byte),
+					)
+				} else {
+					errParts = append(errParts, v.String())
+				}
 			}
 		case Kind:
 			if v != "" {
@@ -198,9 +210,16 @@ func (e *Error) Error() string {
 			if v != "" {
 				errParts = append(errParts, v)
 			}
-		case Stack:
-			if v != "" {
-				errParts = append(errParts, string(v))
+		case StackMeta:
+			if v != nil {
+				if verbose {
+					errParts = append(errParts,
+						fmt("at stack (name=%q,path=%q,desc=%q)",
+							v.Name(), v.Path(), v.Desc(),
+						))
+				} else {
+					errParts = append(errParts, fmt("at stack %q", v.Path()))
+				}
 			}
 		case error:
 			if v != nil {
@@ -209,11 +228,20 @@ func (e *Error) Error() string {
 		case nil:
 			// ignore nil values
 		default:
-			panic(fmt.Sprintf("unexpected case: %+v", arg))
+			panic(fmt("unexpected case: %+v", arg))
 		}
 	}
 
 	return strings.Join(errParts, separator)
+}
+
+// Error returns the error message.
+func (e *Error) Error() string {
+	return e.error(false)
+}
+
+func (e *Error) Detailed() string {
+	return e.error(true)
 }
 
 // IsKind tells if err is of kind k.
@@ -227,8 +255,8 @@ func IsKind(err error, k Kind) bool {
 	if !ok {
 		return false
 	}
-	if e.Kind != "" {
-		return e.Kind == k
+	if e.Kind != "" && e.Kind == k {
+		return true
 	}
 	return IsKind(e.Err, k)
 }
@@ -240,7 +268,6 @@ func Is(err, target error) bool {
 	if (err == nil) != (target == nil) {
 		return false
 	}
-
 	e, ok := err.(*Error)
 	if !ok {
 		return errors.Is(err, target)
@@ -256,11 +283,63 @@ func Is(err, target error) bool {
 	}
 
 	// both are *Error
-	if IsKind(e, t.Kind) {
+
+	if t.Kind != "" && !IsKind(e, t.Kind) {
+		return false
+	}
+
+	if t.Description != "" && !hasDesc(e, t.Description) {
+		return false
+	}
+
+	if t.Stack != nil && !hasSameStack(e, t.Stack) {
+		return false
+	}
+
+	if !t.FileRange.Empty() && e.FileRange != t.FileRange {
+		return false
+	}
+
+	if t.Err != nil {
+		return Is(e.Err, t.Err)
+	}
+
+	return true
+}
+
+func hasDesc(err error, desc string) bool {
+	e, ok := err.(*Error)
+	if !ok {
+		return false
+	}
+
+	if e.Description == desc {
 		return true
 	}
 	if e.Err != nil {
-		return Is(e.Err, t)
+		return hasDesc(e.Err, desc)
 	}
 	return false
+}
+
+// hasSameStack recursively check if err or any of its underlying errors has the
+// provided stack set.
+func hasSameStack(err error, stack StackMeta) bool {
+	e, ok := err.(*Error)
+	if !ok {
+		return false
+	}
+	if e.Stack.Name() == stack.Name() &&
+		e.Stack.Desc() == stack.Desc() &&
+		e.Stack.Path() == stack.Path() {
+		return true
+	}
+	if e.Err != nil {
+		return hasSameStack(e.Err, stack)
+	}
+	return false
+}
+
+func fmt(format string, args ...interface{}) string {
+	return stdfmt.Sprintf(format, args...)
 }

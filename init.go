@@ -75,7 +75,7 @@ func Init(root, dir string) error {
 		return errors.E(
 			errInit,
 			fmt("directory %q is inside stack %q but nested stacks are disallowed",
-				dir, parentStack.PrjAbsPath()),
+				dir, parentStack.Path()),
 		)
 	}
 

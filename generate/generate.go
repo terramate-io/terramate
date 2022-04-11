@@ -81,12 +81,11 @@ func Do(root string, workingDir string) Report {
 			Logger()
 
 		genfiles := []genfile{}
-		stackMeta := stack.Meta()
 		report := stackReport{}
 
 		logger.Trace().Msg("Generate stack terraform.")
 
-		stackHCLsCode, err := generateStackHCLCode(root, stackpath, stackMeta, globals)
+		stackHCLsCode, err := generateStackHCLCode(root, stackpath, stack, globals)
 		if err != nil {
 			report.err = err
 			return report
@@ -226,7 +225,7 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 
 	logger.Trace().Msg("Loading globals for stack.")
 
-	globals, err := terramate.LoadStackGlobals(root, stack.Meta())
+	globals, err := terramate.LoadStackGlobals(root, stack)
 	if err != nil {
 		return nil, fmt.Errorf("checking for outdated code: %v", err)
 	}
@@ -243,12 +242,11 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 	currentFiles := newStringSet(g...)
 
 	stackpath := stack.AbsPath()
-	stackMeta := stack.Meta()
 
 	outdatedGenHCLFiles, err := generatedHCLOutdatedFiles(
 		root,
 		stackpath,
-		stackMeta,
+		stack,
 		globals,
 		currentFiles,
 	)
@@ -467,7 +465,7 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 
 		logger.Trace().Msg("Load stack globals.")
 
-		globals, err := terramate.LoadStackGlobals(root, stack.Meta())
+		globals, err := terramate.LoadStackGlobals(root, stack)
 		if err != nil {
 			report.addFailure(stack, fmt.Errorf("%w: %v", ErrLoadingGlobals, err))
 			continue

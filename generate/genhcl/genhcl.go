@@ -93,7 +93,7 @@ func (b HCL) Origin() string {
 //
 // The rootdir MUST be an absolute path.
 func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackHCLs, error) {
-	stackpath := filepath.Join(rootdir, sm.Path)
+	stackpath := filepath.Join(rootdir, sm.Path())
 	logger := log.With().
 		Str("action", "genhcl.Load()").
 		Str("path", stackpath).
@@ -128,9 +128,7 @@ func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackHC
 		if err := hcl.CopyBody(gen.Body(), loadedHCL.block.Body, evalctx); err != nil {
 			return StackHCLs{}, errors.E(
 				ErrEval,
-				fmt.Sprintf("failed to generate block %q", name),
-				errors.Stack(stackpath),
-				err,
+				fmt.Sprintf("failed to generate block %q", name), sm, err,
 			)
 		}
 		res.hcls[name] = HCL{
@@ -153,22 +151,15 @@ func newEvalCtx(stackpath string, sm stack.Metadata, globals terramate.Globals) 
 
 	logger.Trace().Msg("Add stack metadata evaluation namespace.")
 
-	err := evalctx.SetNamespace("terramate", sm.ToCtyMap())
+	err := evalctx.SetNamespace("terramate", stack.MetaToCtyMap(sm))
 	if err != nil {
-		return nil, errors.E(
-			"setting terramate namespace on eval context",
-			errors.Stack(stackpath),
-			err,
-		)
+		return nil, errors.E("setting terramate namespace on eval context", sm, err)
 	}
 
 	logger.Trace().Msg("Add global evaluation namespace.")
 
 	if err := evalctx.SetNamespace("global", globals.Attributes()); err != nil {
-		return nil, errors.E("setting global namespace on eval context",
-			errors.Stack(stackpath),
-			err,
-		)
+		return nil, errors.E("setting global namespace on eval context", sm, err)
 	}
 
 	return evalctx, nil

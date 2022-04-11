@@ -186,7 +186,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 			}
 		}
 
-		stackSet[s.PrjAbsPath()] = Entry{
+		stackSet[s.Path()] = Entry{
 			Stack:  s,
 			Reason: "stack has unmerged changes",
 		}
@@ -203,7 +203,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 
 	for _, stackEntry := range allstacks {
 		stack := stackEntry.Stack
-		if _, ok := stackSet[stack.PrjAbsPath()]; ok {
+		if _, ok := stackSet[stack.Path()]; ok {
 			continue
 		}
 
@@ -255,7 +255,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 						Msg("Module changed.")
 
 					stack.SetChanged(true)
-					stackSet[stack.PrjAbsPath()] = Entry{
+					stackSet[stack.Path()] = Entry{
 						Stack:  stack,
 						Reason: fmt("stack changed because %q changed because %s", mod.Source, why),
 					}
@@ -433,7 +433,7 @@ func (m *Manager) AddWantedOf(stacks []stack.S) ([]stack.S, error) {
 	wanted := []stack.S{}
 
 	for _, s := range stacks {
-		wantedBy[s.PrjAbsPath()] = s
+		wantedBy[s.Path()] = s
 		wanted = append(wanted, s)
 	}
 
@@ -464,14 +464,14 @@ func (m *Manager) AddWantedOf(stacks []stack.S) ([]stack.S, error) {
 					continue
 				}
 
-				if _, ok := visited[wantedStack.PrjAbsPath()]; !ok {
+				if _, ok := visited[wantedStack.Path()]; !ok {
 					wanted = append(wanted, wantedStack)
-					visited[wantedStack.PrjAbsPath()] = struct{}{}
-					wantedBy[wantedStack.PrjAbsPath()] = wantedStack
+					visited[wantedStack.Path()] = struct{}{}
+					wantedBy[wantedStack.Path()] = wantedStack
 				}
 			}
 
-			delete(wantedBy, s.PrjAbsPath())
+			delete(wantedBy, s.Path())
 		}
 	}
 
@@ -571,5 +571,5 @@ func checkRepoIsClean(g *git.Git) (RepoChecks, error) {
 type EntrySlice []Entry
 
 func (x EntrySlice) Len() int           { return len(x) }
-func (x EntrySlice) Less(i, j int) bool { return x[i].Stack.PrjAbsPath() < x[j].Stack.PrjAbsPath() }
+func (x EntrySlice) Less(i, j int) bool { return x[i].Stack.Path() < x[j].Stack.Path() }
 func (x EntrySlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }

@@ -1108,9 +1108,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				test.AppendFile(t, path, filename, cfg.add.String())
 			}
 
-			meta := stack.Meta()
-			globals := s.LoadStackGlobals(meta)
-			res, err := genhcl.Load(s.RootDir(), meta, globals)
+			globals := s.LoadStackGlobals(stack)
+			res, err := genhcl.Load(s.RootDir(), stack, globals)
 			errors.Assert(t, err, tcase.wantErr)
 
 			got := res.GeneratedHCLs()
@@ -2249,9 +2248,8 @@ func TestPartialEval(t *testing.T) {
 			t.Logf("input: %s", cfg.String())
 			test.AppendFile(t, path, config.DefaultFilename, cfg.String())
 
-			meta := stack.Meta()
-			globals := s.LoadStackGlobals(meta)
-			res, err := genhcl.Load(s.RootDir(), meta, globals)
+			globals := s.LoadStackGlobals(stack)
+			res, err := genhcl.Load(s.RootDir(), stack, globals)
 			errors.Assert(t, err, tcase.wantErr)
 
 			if err != nil {

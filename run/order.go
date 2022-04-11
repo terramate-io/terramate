@@ -32,7 +32,7 @@ func Sort(root string, stacks []stack.S) ([]stack.S, string, error) {
 	loader := stack.NewLoader(root)
 
 	for _, stack := range stacks {
-		loader.Set(stack.PrjAbsPath(), stack)
+		loader.Set(stack.Path(), stack)
 	}
 
 	visited := visited{}
@@ -45,12 +45,12 @@ func Sort(root string, stacks []stack.S) ([]stack.S, string, error) {
 	logger.Trace().Msg("Sorting stacks.")
 
 	for _, stack := range stacks {
-		if _, ok := visited[stack.PrjAbsPath()]; ok {
+		if _, ok := visited[stack.Path()]; ok {
 			continue
 		}
 
 		logger.Debug().
-			Str("stack", stack.PrjAbsPath()).
+			Str("stack", stack.Path()).
 			Msg("Build DAG.")
 		err := BuildDAG(d, root, stack, loader, visited)
 		if err != nil {
@@ -80,7 +80,7 @@ func Sort(root string, stacks []stack.S) ([]stack.S, string, error) {
 		// This is important for change detection to work on ordering and
 		// also for filtering by working dir.
 		for _, stack := range stacks {
-			if s.PrjAbsPath() == stack.PrjAbsPath() {
+			if s.Path() == stack.Path() {
 				return true
 			}
 		}
@@ -95,7 +95,7 @@ func Sort(root string, stacks []stack.S) ([]stack.S, string, error) {
 		s := val.(stack.S)
 		if !isSelectedStack(s) {
 			logger.Trace().
-				Str("stack", s.PrjAbsPath()).
+				Str("stack", s.Path()).
 				Msg("ignoring since not part of selected stacks")
 			continue
 		}
@@ -116,10 +116,10 @@ func BuildDAG(
 	logger := log.With().
 		Str("action", "BuildDAG()").
 		Str("path", root).
-		Str("stack", s.PrjAbsPath()).
+		Str("stack", s.Path()).
 		Logger()
 
-	visited[s.PrjAbsPath()] = struct{}{}
+	visited[s.Path()] = struct{}{}
 
 	logger.Trace().
 		Msg("Load all stacks in dir after current stack.")
@@ -137,7 +137,7 @@ func BuildDAG(
 
 	logger.Debug().
 		Msg("Add new node to DAG.")
-	err = d.AddNode(dag.ID(s.PrjAbsPath()), s, toids(beforeStacks), toids(afterStacks))
+	err = d.AddNode(dag.ID(s.Path()), s, toids(beforeStacks), toids(afterStacks))
 	if err != nil {
 		return fmt.Errorf("stack %q: failed to build DAG: %w", s, err)
 	}
@@ -152,10 +152,10 @@ func BuildDAG(
 		logger = log.With().
 			Str("action", "BuildDAG()").
 			Str("path", root).
-			Str("stack", s.PrjAbsPath()).
+			Str("stack", s.Path()).
 			Logger()
 
-		if _, ok := visited[s.PrjAbsPath()]; ok {
+		if _, ok := visited[s.Path()]; ok {
 			continue
 		}
 
@@ -172,7 +172,7 @@ func BuildDAG(
 func toids(values []stack.S) []dag.ID {
 	ids := make([]dag.ID, 0, len(values))
 	for _, v := range values {
-		ids = append(ids, dag.ID(v.PrjAbsPath()))
+		ids = append(ids, dag.ID(v.Path()))
 	}
 	return ids
 }

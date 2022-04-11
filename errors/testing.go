@@ -50,6 +50,13 @@ func AssertIsKind(t *testing.T, err error, k Kind) {
 func Assert(t *testing.T, err, target error) {
 	t.Helper()
 	if !Is(err, target) {
-		t.Fatalf("error[%v] is not target[%v]", err, target)
+		t.Fatalf("error[%s] is not target[%s]", errstr(err), errstr(target))
 	}
+}
+
+func errstr(err error) string {
+	if e, ok := err.(*Error); ok {
+		return e.Detailed()
+	}
+	return err.Error()
 }

@@ -498,7 +498,7 @@ func (c *cli) printStacks() {
 
 	for _, entry := range report.Stacks {
 		stack := entry.Stack
-		stackRepr, ok := c.friendlyFmtDir(stack.PrjAbsPath())
+		stackRepr, ok := c.friendlyFmtDir(stack.Path())
 		if !ok {
 			continue
 		}
@@ -533,7 +533,7 @@ func (c *cli) generateGraph() {
 	case "stack.dir":
 		logger.Debug().Msg("Set label stack directory.")
 
-		getLabel = func(s stack.S) string { return s.PrjAbsPath() }
+		getLabel = func(s stack.S) string { return s.Path() }
 	default:
 		logger.Fatal().
 			Msg("-label expects the values \"stack.name\" or \"stack.dir\"")
@@ -554,7 +554,7 @@ func (c *cli) generateGraph() {
 
 	visited := map[string]struct{}{}
 	for _, e := range c.filterStacksByWorkingDir(entries) {
-		if _, ok := visited[e.Stack.PrjAbsPath()]; ok {
+		if _, ok := visited[e.Stack.Path()]; ok {
 			continue
 		}
 
@@ -707,13 +707,12 @@ func (c *cli) printStacksGlobals() {
 	}
 
 	for _, stackEntry := range c.filterStacksByWorkingDir(report.Stacks) {
-		stack := stackEntry.Stack
-		stackMeta := stack.Meta()
-		globals, err := terramate.LoadStackGlobals(c.root(), stackMeta)
+		meta := stack.Metadata(stackEntry.Stack)
+		globals, err := terramate.LoadStackGlobals(c.root(), meta)
 		if err != nil {
 			log.Fatal().
 				Err(err).
-				Str("stack", stackMeta.Path).
+				Str("stack", meta.Path()).
 				Msg("listing stacks globals: loading stack")
 		}
 
@@ -722,7 +721,7 @@ func (c *cli) printStacksGlobals() {
 			continue
 		}
 
-		c.log("\nstack %q:", stackMeta.Path)
+		c.log("\nstack %q:", meta.Path())
 		for _, line := range strings.Split(globalsStrRepr, "\n") {
 			c.log("\t%s", line)
 		}
@@ -754,17 +753,16 @@ func (c *cli) printMetadata() {
 	c.log("Available metadata:")
 
 	for _, stackEntry := range stackEntries {
-		stack := stackEntry.Stack
-		stackMeta := stack.Meta()
+		stackMeta := stack.Metadata(stackEntry.Stack)
 
 		logger.Debug().
-			Stringer("stack", stack).
+			Stringer("stack", stackEntry.Stack).
 			Msg("Print metadata for individual stack.")
 
-		c.log("\nstack %q:", stack.PrjAbsPath())
-		c.log("\tterramate.name=%q", stackMeta.Name)
-		c.log("\tterramate.path=%q", stackMeta.Path)
-		c.log("\tterramate.description=%q", stackMeta.Description)
+		c.log("\nstack %q:", stackMeta.Path())
+		c.log("\tterramate.name=%q", stackMeta.Name())
+		c.log("\tterramate.path=%q", stackMeta.Path())
+		c.log("\tterramate.description=%q", stackMeta.Desc())
 	}
 }
 
@@ -849,7 +847,7 @@ func (c *cli) runOnStacks() {
 			c.log("The stacks will be executed using order below:")
 
 			for i, s := range orderedStacks {
-				stackdir, _ := c.friendlyFmtDir(s.PrjAbsPath())
+				stackdir, _ := c.friendlyFmtDir(s.Path())
 				c.log("\t%d. %s (%s)", i, s.Name(), stackdir)
 			}
 		} else {
@@ -965,7 +963,7 @@ func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Ent
 		Msg("Get filtered stacks.")
 	filtered := []terramate.Entry{}
 	for _, e := range stacks {
-		if strings.HasPrefix(e.Stack.PrjAbsPath(), relwd) {
+		if strings.HasPrefix(e.Stack.Path(), relwd) {
 			filtered = append(filtered, e)
 		}
 	}

@@ -76,7 +76,7 @@ func (l Loader) TryLoad(dir string) (stack S, found bool, err error) {
 		return S{}, found, err
 	}
 
-	l.stacks[stack.PrjAbsPath()] = stack
+	l.stacks[stack.Path()] = stack
 	return stack, true, nil
 }
 

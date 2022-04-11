@@ -49,12 +49,12 @@ const (
 // More specific globals (closer or at the stack) have precedence over
 // less specific globals (closer or at the root dir).
 //
-// Metadata for the stack is used on the evaluation of globals, defined on stackmeta.
+// Metadata for the stack is used on the evaluation of globals.
 // The rootdir MUST be an absolute path.
 func LoadStackGlobals(rootdir string, meta stack.Metadata) (Globals, error) {
 	logger := log.With().
 		Str("action", "LoadStackGlobals()").
-		Str("stack", meta.Path).
+		Str("stack", meta.Path()).
 		Logger()
 
 	if !filepath.IsAbs(rootdir) {
@@ -63,7 +63,7 @@ func LoadStackGlobals(rootdir string, meta stack.Metadata) (Globals, error) {
 
 	logger.Debug().Msg("Load stack globals.")
 
-	globalsExprs, err := loadStackGlobalsExprs(rootdir, meta.Path)
+	globalsExprs, err := loadStackGlobalsExprs(rootdir, meta.Path())
 	if err != nil {
 		return Globals{}, err
 	}
@@ -117,16 +117,16 @@ func (ge *globalsExpr) eval(meta stack.Metadata) (Globals, error) {
 	// like: /some/path/relative/project/root
 	logger := log.With().
 		Str("action", "eval()").
-		Str("stack", meta.Path).
+		Str("stack", meta.Path()).
 		Logger()
 
 	logger.Trace().Msg("Create new evaluation context.")
 
-	evalctx := eval.NewContext("." + meta.Path)
+	evalctx := eval.NewContext("." + meta.Path())
 
 	logger.Trace().Msg("Add proper name space for stack metadata evaluation.")
 
-	if err := evalctx.SetNamespace("terramate", meta.ToCtyMap()); err != nil {
+	if err := evalctx.SetNamespace("terramate", stack.MetaToCtyMap(meta)); err != nil {
 		return Globals{}, err
 	}
 

@@ -131,9 +131,10 @@ func TestErrorIs(t *testing.T) {
 			target: stderrors.New("any error"),
 		},
 		{
-			name:   "kind Any are never comparable",
-			err:    E("any error"),
-			target: E("any error"),
+			name:    "same description",
+			err:     E("any error"),
+			target:  E("any error"),
+			areSame: true,
 		},
 		{
 			name:    "same kind",
@@ -157,6 +158,12 @@ func TestErrorIs(t *testing.T) {
 			name:    "underlying error is of the provided stderror",
 			err:     E("some error wrapping a stderror", os.ErrNotExist),
 			target:  os.ErrNotExist,
+			areSame: true,
+		},
+		{
+			name:    "same file range",
+			err:     E("error", hcl.Range{Filename: "test.hcl"}),
+			target:  E("error", hcl.Range{Filename: "test.hcl"}),
 			areSame: true,
 		},
 	} {

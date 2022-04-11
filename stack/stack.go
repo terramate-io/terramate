@@ -30,17 +30,17 @@ import (
 type (
 	// S represents a stack
 	S struct {
-		// abspath is the file system absolute path of the stack.
-		abspath string
+		// hostpath is the file system absolute path of the stack.
+		hostpath string
 
-		// prjAbsPath is the absolute path of the stack relative to project's root.
-		prjAbsPath string
+		// path is the absolute path of the stack relative to project's root.
+		path string
 
 		// name of the stack.
 		name string
 
-		// description of the stack.
-		description string
+		// desc is the description of the stack.
+		desc string
 
 		// after is a list of stack paths that must run before this stack.
 		after []string
@@ -57,10 +57,10 @@ type (
 	}
 
 	// Metadata has all metadata loaded per stack
-	Metadata struct {
-		Name        string
-		Path        string
-		Description string
+	Metadata interface {
+		Name() string
+		Path() string
+		Desc() string
 	}
 )
 
@@ -72,13 +72,13 @@ func New(root string, cfg hcl.Config) S {
 	}
 
 	return S{
-		name:        name,
-		description: cfg.Stack.Description,
-		after:       cfg.Stack.After,
-		before:      cfg.Stack.Before,
-		wants:       cfg.Stack.Wants,
-		abspath:     cfg.AbsDir(),
-		prjAbsPath:  project.PrjAbsPath(root, cfg.AbsDir()),
+		name:     name,
+		desc:     cfg.Stack.Description,
+		after:    cfg.Stack.After,
+		before:   cfg.Stack.Before,
+		wants:    cfg.Stack.Wants,
+		hostpath: cfg.AbsDir(),
+		path:     project.PrjAbsPath(root, cfg.AbsDir()),
 	}
 }
 
@@ -87,11 +87,11 @@ func (s S) Name() string {
 	if s.name != "" {
 		return s.name
 	}
-	return s.PrjAbsPath()
+	return s.Path()
 }
 
-// Description of stack.
-func (s S) Description() string { return s.description }
+// Desc is the description of the stack.
+func (s S) Desc() string { return s.desc }
 
 // After specifies the list of stacks that must run before this stack.
 func (s S) After() []string { return s.after }
@@ -109,29 +109,20 @@ func (s S) IsChanged() bool { return s.changed }
 func (s *S) SetChanged(b bool) { s.changed = b }
 
 // String representation of the stack.
-func (s S) String() string { return s.PrjAbsPath() }
+func (s S) String() string { return s.Path() }
 
-// PrjAbsPath returns the project's absolute path of stack.
-func (s S) PrjAbsPath() string { return s.prjAbsPath }
+// Path returns the project's absolute path of stack.
+func (s S) Path() string { return s.path }
 
 // AbsPath returns the file system absolute path of stack.
-func (s S) AbsPath() string { return s.abspath }
-
-// Meta returns the stack metadata.
-func (s S) Meta() Metadata {
-	return Metadata{
-		Name:        s.Name(),
-		Path:        s.PrjAbsPath(),
-		Description: s.Description(),
-	}
-}
+func (s S) AbsPath() string { return s.hostpath }
 
 // ToCtyMap returns metadata as a cty values map.
-func (m Metadata) ToCtyMap() map[string]cty.Value {
+func MetaToCtyMap(m Metadata) map[string]cty.Value {
 	return map[string]cty.Value{
-		"name":        cty.StringVal(m.Name),
-		"path":        cty.StringVal(m.Path),
-		"description": cty.StringVal(m.Description),
+		"name":        cty.StringVal(m.Name()),
+		"path":        cty.StringVal(m.Path()),
+		"description": cty.StringVal(m.Desc()),
 	}
 }
 
@@ -199,5 +190,5 @@ func Sort(stacks []S) {
 type stackSlice []S
 
 func (l stackSlice) Len() int           { return len(l) }
-func (l stackSlice) Less(i, j int) bool { return l[i].PrjAbsPath() < l[j].PrjAbsPath() }
+func (l stackSlice) Less(i, j int) bool { return l[i].Path() < l[j].Path() }
 func (l stackSlice) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }

@@ -142,7 +142,7 @@ func (r *Report) sortFilenames() {
 func (r *Report) addFailure(s stack.S, err error) {
 	r.Failures = append(r.Failures, FailureResult{
 		Result: Result{
-			StackPath: s.PrjAbsPath(),
+			StackPath: s.Path(),
 		},
 		Error: err,
 	})
@@ -154,7 +154,7 @@ func (r *Report) addStackReport(s stack.S, sr stackReport) {
 	}
 
 	res := Result{
-		StackPath: s.PrjAbsPath(),
+		StackPath: s.Path(),
 		Created:   sr.created,
 		Changed:   sr.changed,
 		Deleted:   sr.deleted,
