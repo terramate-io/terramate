@@ -17,6 +17,7 @@ package e2etest
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -705,6 +706,60 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 		cat,
 		mainTfFileName,
 	), runExpected{})
+}
+
+func TestRunReverseExecution(t *testing.T) {
+	const testfile = "testfile"
+
+	s := sandbox.New(t)
+	cat := test.LookPath(t, "cat")
+	cli := newCLI(t, s.RootDir())
+	assertRunOrder := func(stacks ...string) {
+		t.Helper()
+
+		want := strings.Join(stacks, "\n")
+		if want != "" {
+			want += "\n"
+		}
+
+		assertRunResult(t, cli.run(
+			"run",
+			"--reverse",
+			cat,
+			testfile,
+		), runExpected{Stdout: want})
+
+		assertRunResult(t, cli.run(
+			"run",
+			"--reverse",
+			"--changed",
+			cat,
+			testfile,
+		), runExpected{Stdout: want})
+	}
+	addStack := func(stack string) {
+		s.BuildTree([]string{
+			"s:" + stack,
+			fmt.Sprintf("f:%s/%s:%s\n", stack, testfile, stack),
+		})
+	}
+
+	git := s.Git()
+	git.CheckoutNew("changes")
+
+	assertRunOrder()
+
+	addStack("stack-1")
+	git.CommitAll("commit")
+	assertRunOrder("stack-1")
+
+	addStack("stack-2")
+	git.CommitAll("commit")
+	assertRunOrder("stack-2", "stack-1")
+
+	addStack("stack-3")
+	git.CommitAll("commit")
+	assertRunOrder("stack-3", "stack-2", "stack-1")
 }
 
 func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDir(t *testing.T) {
