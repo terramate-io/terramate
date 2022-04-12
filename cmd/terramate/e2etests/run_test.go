@@ -740,7 +740,7 @@ func TestRunReverseExecution(t *testing.T) {
 	addStack := func(stack string) {
 		s.BuildTree([]string{
 			"s:" + stack,
-			fmt.Sprintf("f:%s/%s:%[1]s\n", stack, testfile),
+			fmt.Sprintf("f:%s/%s:%s\n", stack, testfile, stack),
 		})
 	}
 

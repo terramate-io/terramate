@@ -197,9 +197,6 @@ func Sort(stacks []S) {
 }
 
 // Reverse reverses the given stacks slice.
-// It will not do a reverse sort, like what you get
-// by calling sort.Sort(sort.Reverse(slice)), it will just
-// reverse the current stacks slice in place.
 func Reverse(stacks []S) {
 	i, j := 0, len(stacks)-1
 	for i < j {
