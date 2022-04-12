@@ -245,6 +245,11 @@ func (e *Error) Detailed() string {
 	return e.error(true)
 }
 
+// Is implements errors.Is interface.
+func (e *Error) Is(target error) bool {
+	return Is(e, target)
+}
+
 // IsKind tells if err is of kind k.
 // It returns false if err is nil or not an *errors.Error.
 // It also recursively checks if any underlying error is of kind k.

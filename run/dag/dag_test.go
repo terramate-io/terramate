@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
+	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/run/dag"
 
@@ -298,23 +299,7 @@ func TestDAG(t *testing.T) {
 				assertOrder(t, tc.order, order)
 			}
 
-			// TODO(i4k): we need a similar errutil.Chain() function.
-
-			found := false
-			for _, err := range errs {
-				if err == nil {
-					// ignore success runs
-					continue
-				}
-				if errors.Is(err, tc.err) {
-					found = true
-					break
-				}
-			}
-
-			if tc.err != nil && !found {
-				t.Fatalf("none of errors [%+v] matches want [%v]", errs, tc.err)
-			}
+			assert.IsError(t, errutil.Chain(errs...), tc.err, "failed to add node")
 		})
 	}
 }
