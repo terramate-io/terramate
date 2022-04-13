@@ -31,7 +31,6 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/emicklei/dot"
-	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/git"
@@ -45,11 +44,11 @@ import (
 
 const (
 	// ErrOutdatedLocalRev indicates the local revision is outdated.
-	ErrOutdatedLocalRev errutil.Error = "outdated local revision"
+	ErrOutdatedLocalRev errors.Kind = "outdated local revision"
 	// ErrInit indicates a failure to initialize stacks.
-	ErrInit errutil.Error = "failed to initialize all stacks"
+	ErrInit errors.Kind = "failed to initialize all stacks"
 	// ErrOutdatedGenCodeDetected indicates outdated generated code detected.
-	ErrOutdatedGenCodeDetected errutil.Error = "outdated generated code detected"
+	ErrOutdatedGenCodeDetected errors.Kind = "outdated generated code detected"
 )
 
 const (
@@ -414,7 +413,7 @@ func (c *cli) initStack(dirs []string) {
 
 	if len(errmsgs) > 0 {
 		log.Fatal().
-			Err(ErrInit).
+			Err(errors.E(ErrInit)).
 			Send()
 	}
 }
@@ -804,7 +803,7 @@ func (c *cli) checkOutdatedGeneratedCode(stacks []stack.S) {
 
 	if hasOutdated {
 		logger.Fatal().
-			Err(ErrOutdatedGenCodeDetected).
+			Err(errors.E(ErrOutdatedGenCodeDetected)).
 			Msg("please run: 'terramate generate' to update generated code")
 	}
 }
@@ -935,7 +934,6 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) ([]stack.S, error) {
 	logger.Trace().Msg("Filter stacks by working directory.")
 
 	entries := c.filterStacksByWorkingDir(report.Stacks)
-
 	stacks := make([]stack.S, len(entries))
 	for i, e := range entries {
 		stacks[i] = e.Stack

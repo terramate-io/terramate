@@ -17,6 +17,7 @@ package cli
 import (
 	"fmt"
 
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/git"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/rs/zerolog/log"
@@ -255,9 +256,9 @@ func (p *project) checkLocalDefaultIsUpdated(g *git.Git) error {
 	}
 
 	if mergeBaseCommitID != p.git.headCommitID {
-		return fmt.Errorf(
-			"%w: remote %s/%s != HEAD",
+		return errors.E(
 			ErrOutdatedLocalRev,
+			"remote %s/%s != HEAD",
 			gitcfg.DefaultRemote,
 			gitcfg.DefaultBranch,
 		)
