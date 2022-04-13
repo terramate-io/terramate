@@ -15,7 +15,6 @@
 package genhcl
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -108,7 +107,7 @@ func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackHC
 
 	evalctx, err := newEvalCtx(stackpath, sm, globals)
 	if err != nil {
-		return StackHCLs{}, errors.E(ErrEval, "creating eval context", err)
+		return StackHCLs{}, errors.E(ErrEval, err, "creating eval context")
 	}
 
 	logger.Trace().Msg("generating HCL code.")
@@ -128,7 +127,9 @@ func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackHC
 		if err := hcl.CopyBody(gen.Body(), loadedHCL.block.Body, evalctx); err != nil {
 			return StackHCLs{}, errors.E(
 				ErrEval,
-				fmt.Sprintf("failed to generate block %q", name), sm, err,
+				sm,
+				err,
+				"failed to generate block %q", name,
 			)
 		}
 		res.hcls[name] = HCL{
@@ -153,13 +154,13 @@ func newEvalCtx(stackpath string, sm stack.Metadata, globals terramate.Globals) 
 
 	err := evalctx.SetNamespace("terramate", stack.MetaToCtyMap(sm))
 	if err != nil {
-		return nil, errors.E("setting terramate namespace on eval context", sm, err)
+		return nil, errors.E(sm, err, "setting terramate namespace on eval context")
 	}
 
 	logger.Trace().Msg("Add global evaluation namespace.")
 
 	if err := evalctx.SetNamespace("global", globals.Attributes()); err != nil {
-		return nil, errors.E("setting global namespace on eval context", sm, err)
+		return nil, errors.E(sm, err, "setting global namespace on eval context")
 	}
 
 	return evalctx, nil
@@ -190,7 +191,7 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 
 	hclblocks, err := hcl.ParseGenerateHCLBlocks(cfgdir)
 	if err != nil {
-		return nil, errors.E(ErrParsing, fmt.Sprintf("cfgdir %q", cfgdir), err)
+		return nil, errors.E(ErrParsing, err, "cfgdir %q", cfgdir)
 	}
 
 	logger.Trace().Msg("Parsed generate_hcl blocks.")
@@ -202,8 +203,8 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 			if _, ok := res[name]; ok {
 				return nil, errors.E(
 					ErrParsing,
-					fmt.Sprintf("found two blocks with same label %q", name),
 					genhclBlock.LabelRanges[0],
+					"found two blocks with same label %q", name,
 				)
 			}
 
@@ -233,10 +234,10 @@ func join(target, src map[string]loadedHCL) error {
 	for blockLabel, srcHCL := range src {
 		if targetHCL, ok := target[blockLabel]; ok {
 			return errors.E(
-				fmt.Sprintf("found label %q at %q and %q",
-					blockLabel,
-					srcHCL.origin,
-					targetHCL.origin),
+				"found label %q at %q and %q",
+				blockLabel,
+				srcHCL.origin,
+				targetHCL.origin,
 			)
 		}
 		target[blockLabel] = srcHCL

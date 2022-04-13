@@ -61,9 +61,9 @@ func CheckVersion(vconstraint string) error {
 	if !constraint.Check(semver) {
 		return errors.E(
 			ErrVersion,
-			fmt("version constraint %q not satisfied by terramate version %q",
-				vconstraint,
-				Version()),
+			"version constraint %q not satisfied by terramate version %q",
+			vconstraint,
+			Version(),
 		)
 	}
 	return nil

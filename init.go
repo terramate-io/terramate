@@ -51,7 +51,7 @@ func Init(root, dir string) error {
 			return errors.E(errInit, "init requires an existing directory")
 		}
 
-		return errors.E(errInit, fmt("stat failed on %q", dir), err)
+		return errors.E(errInit, err, "stat failed on %q", dir)
 	}
 
 	logger.Trace().Msg("Check if stack is leaf.")
@@ -62,7 +62,7 @@ func Init(root, dir string) error {
 	}
 
 	if !ok {
-		return errors.E(errInit, fmt("directory %q is not a leaf stack", dir))
+		return errors.E(errInit, "directory %q is not a leaf stack", dir)
 	}
 
 	logger.Trace().Msg("Lookup parent stack.")
@@ -72,10 +72,9 @@ func Init(root, dir string) error {
 	}
 
 	if found {
-		return errors.E(
-			errInit,
-			fmt("directory %q is inside stack %q but nested stacks are disallowed",
-				dir, parentStack.Path()),
+		return errors.E(errInit,
+			"directory %q is inside stack %q but nested stacks are disallowed",
+			dir, parentStack.Path(),
 		)
 	}
 
@@ -83,7 +82,7 @@ func Init(root, dir string) error {
 
 	parsedCfg, err := hcl.ParseDir(dir)
 	if err != nil {
-		return errors.E(errInit, fmt("checking config in %q", dir), err)
+		return errors.E(errInit, err, "checking config in %q", dir)
 	}
 
 	if parsedCfg.Stack != nil {
@@ -99,7 +98,7 @@ func Init(root, dir string) error {
 
 	cfg, err := hcl.NewConfig(dir)
 	if err != nil {
-		return errors.E(errInit, "failed to create new stack config", err)
+		return errors.E(errInit, err, "failed to create new stack config")
 	}
 
 	cfg.Stack = &hcl.Stack{
@@ -110,11 +109,9 @@ func Init(root, dir string) error {
 
 	err = cfg.Save(config.DefaultFilename)
 	if err != nil {
-		return errors.E(errInit,
-			fmt("failed to write %q on stack %q",
-				config.DefaultFilename,
-				dir),
-			err,
+		return errors.E(errInit, err, "failed to write %q on stack %q",
+			config.DefaultFilename,
+			dir,
 		)
 	}
 

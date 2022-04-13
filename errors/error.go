@@ -19,7 +19,7 @@ package errors
 
 import (
 	"errors"
-	stdfmt "fmt"
+	"fmt"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -69,9 +69,6 @@ const separator = ": "
 //		The kind of error (eg.: HCLSyntax, TerramateSchema, etc).
 //	hcl.Range
 //		The file range where the error originated.
-//	string
-//		Treated as an error description and assigned to the Description field if
-//		not empty.
 //  errors.Stack
 //		The stack which the error originated.
 //	error
@@ -82,6 +79,9 @@ const separator = ": "
 //		pulled.
 //		If this error's Description is not set, the diagnostic detail field is
 //		pulled.
+//	string
+//		The error description. It supports formatting using the Go's fmt verbs
+//      as long as the arguments are not of the defined types.
 //
 // If the error is printed, only those items that have been
 // set to non-zero values will appear in the result. For the `hcl.Range` type,
@@ -103,6 +103,13 @@ func E(args ...interface{}) error {
 		panic("called with no args")
 	}
 
+	var (
+		diags  hcl.Diagnostics
+		format *string
+	)
+
+	fmtargs := []interface{}{}
+
 	e := &Error{}
 	for _, arg := range args {
 		switch arg := arg.(type) {
@@ -111,28 +118,43 @@ func E(args ...interface{}) error {
 		case hcl.Range:
 			e.FileRange = arg
 		case hcl.Diagnostics:
-			diags := arg
+			diags = arg
 			if len(diags) > 0 {
 				diag := diags[0]
 				if diag.Subject != nil {
 					e.FileRange = *diag.Subject
 				}
-				if e.Description == "" {
-					e.Description = diag.Detail
-				} else {
-					e.Err = diags
-				}
 			}
 		case StackMeta:
 			e.Stack = arg
-		case string:
-			e.Description = arg
 		case error:
 			e.Err = arg
+		case string:
+			val := arg
+			if format == nil {
+				format = &val
+			} else {
+				fmtargs = append(fmtargs, val)
+			}
 		default:
-			panic(stdfmt.Errorf("called with unknown type %T", arg))
+			fmtargs = append(fmtargs, arg)
 		}
 	}
+
+	if format != nil {
+		e.Description = fmt.Sprintf(*format, fmtargs...)
+	}
+
+	if diags.HasErrors() {
+		if e.Description == "" {
+			e.Description = diags[0].Detail
+		}
+
+		if e.Err == nil {
+			e.Err = diags
+		}
+	}
+
 	if e.isEmpty() {
 		panic(errors.New("empty error"))
 	}
@@ -192,11 +214,12 @@ func (e *Error) error(verbose bool) string {
 		case hcl.Range:
 			if !v.Empty() {
 				if verbose {
-					errParts = append(errParts, fmt(
-						"filename=%q,start line=%d,start col=%d,start byte=%d,end line=%d,end col=%d,end byte=%d",
-						v.Filename,
-						v.Start.Line, v.Start.Column, v.Start.Byte,
-						v.End.Line, v.End.Column, v.End.Byte),
+					errParts = append(errParts,
+						fmt.Sprintf("filename=%q, start line=%d, start col=%d, "+
+							"start byte=%d, end line=%d, end col=%d, end byte=%d",
+							v.Filename,
+							v.Start.Line, v.Start.Column, v.Start.Byte,
+							v.End.Line, v.End.Column, v.End.Byte),
 					)
 				} else {
 					errParts = append(errParts, v.String())
@@ -214,11 +237,11 @@ func (e *Error) error(verbose bool) string {
 			if v != nil {
 				if verbose {
 					errParts = append(errParts,
-						fmt("at stack (name=%q,path=%q,desc=%q)",
+						fmt.Sprintf("at stack (name=%q, path=%q, desc=%q)",
 							v.Name(), v.Path(), v.Desc(),
 						))
 				} else {
-					errParts = append(errParts, fmt("at stack %q", v.Path()))
+					errParts = append(errParts, fmt.Sprintf("at stack %q", v.Path()))
 				}
 			}
 		case error:
@@ -228,7 +251,7 @@ func (e *Error) error(verbose bool) string {
 		case nil:
 			// ignore nil values
 		default:
-			panic(fmt("unexpected case: %+v", arg))
+			panic(fmt.Errorf("unexpected errors.E type: %+v", arg))
 		}
 	}
 
@@ -344,8 +367,4 @@ func hasSameStack(err error, stack StackMeta) bool {
 		return hasSameStack(e.Err, stack)
 	}
 	return false
-}
-
-func fmt(format string, args ...interface{}) string {
-	return stdfmt.Sprintf(format, args...)
 }

@@ -57,6 +57,11 @@ func TestErrorString(t *testing.T) {
 			want: "error",
 		},
 		{
+			name: "simple formatted message",
+			err:  E("fmted %s %t %d%d", "string", true, 13, 37),
+			want: "fmted string true 1337",
+		},
+		{
 			name: "simple message with kind",
 			err:  E(syntaxError, "failed to parse config"),
 			want: fmt("%s: failed to parse config", syntaxError),
@@ -80,11 +85,11 @@ func TestErrorString(t *testing.T) {
 		{
 			name: "the file range gets promoted if current error lacks the file context",
 			err: E("failed to parse config",
-				E(tmSchemaError, "unexpected attribute name", hcl.Range{
+				E(tmSchemaError, hcl.Range{
 					Filename: "test.tm",
 					Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},
 					End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},
-				}),
+				}, "unexpected attribute name"),
 			),
 			want: fmt("test.tm:1,5-10: %s: failed to parse config: unexpected attribute name",
 				tmSchemaError),

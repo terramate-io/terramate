@@ -98,14 +98,14 @@ func (c *Context) PartialEval(expr hclsyntax.Expression) (hclwrite.Tokens, error
 	exprFname := expr.Range().Filename
 	filedata, err := ioutil.ReadFile(exprFname)
 	if err != nil {
-		return nil, errors.E("reading expression from file", err)
+		return nil, errors.E(err, "reading expression from file")
 	}
 
 	exprRange := expr.Range()
 	exprBytes := filedata[exprRange.Start.Byte:exprRange.End.Byte]
 	tokens, diags := hclsyntax.LexExpression(exprBytes, exprFname, hcl.Pos{})
 	if diags.HasErrors() {
-		return nil, errors.E("failed to scan expression", diags)
+		return nil, errors.E(diags, "failed to scan expression")
 	}
 
 	engine := newPartialEvalEngine(toWriteTokens(tokens), c)
