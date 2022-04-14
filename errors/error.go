@@ -119,7 +119,7 @@ func E(args ...interface{}) error {
 			e.FileRange = arg
 		case hcl.Diagnostics:
 			diags = arg
-			if len(diags) > 0 {
+			if diags.HasErrors() {
 				diag := diags[0]
 				if diag.Subject != nil {
 					e.FileRange = *diag.Subject
@@ -148,9 +148,7 @@ func E(args ...interface{}) error {
 	if diags.HasErrors() {
 		if e.Description == "" {
 			e.Description = diags[0].Detail
-		}
-
-		if e.Err == nil {
+		} else if e.Err == nil {
 			e.Err = diags
 		}
 	}
@@ -191,7 +189,7 @@ func E(args ...interface{}) error {
 // isEmpty tells if all fields of this error are empty.
 // Note that e.Err is the underlying error hence not checked.
 func (e *Error) isEmpty() bool {
-	return e.FileRange.Empty() && e.Kind == "" && e.Description == "" && e.Stack == nil
+	return e.FileRange == hcl.Range{} && e.Kind == "" && e.Description == "" && e.Stack == nil
 }
 
 func (e *Error) error(verbose bool) string {
@@ -210,9 +208,10 @@ func (e *Error) error(verbose bool) string {
 		e.Stack,
 		e.Err,
 	} {
+		empty := hcl.Range{}
 		switch v := arg.(type) {
 		case hcl.Range:
-			if !v.Empty() {
+			if v != empty {
 				if verbose {
 					errParts = append(errParts,
 						fmt.Sprintf("filename=%q, start line=%d, start col=%d, "+

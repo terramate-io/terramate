@@ -332,19 +332,21 @@ func ParseGlobalsBlocks(dir string) (Blocks, error) {
 
 	logger.Trace().Msg("loading config")
 
-	return parseBlocks(dir, "globals", func(block *hclsyntax.Block) error {
-		// Not validated with schema because cant find a way to validate
-		// N arbitrary attributes (defined by user/dynamic).
-		if len(block.Body.Blocks) > 0 {
-			return errors.E(ErrTerramateSchema, block.Body.Blocks[0].Range(),
-				"blocks inside globals are not allowed")
-		}
-		if len(block.Labels) > 0 {
-			return errors.E(ErrTerramateSchema, block.OpenBraceRange,
-				"labels on globals block are not allowed, found %v", block.Labels)
-		}
-		return nil
-	})
+	return parseBlocks(dir, "globals", validateGlobalsBlock)
+}
+
+func validateGlobalsBlock(block *hclsyntax.Block) error {
+	// Not validated with schema because cant find a way to validate
+	// N arbitrary attributes (defined by user/dynamic).
+	if len(block.Body.Blocks) > 0 {
+		return errors.E(ErrTerramateSchema, block.Body.Blocks[0].Range(),
+			"blocks inside globals are not allowed")
+	}
+	if len(block.Labels) > 0 {
+		return errors.E(ErrTerramateSchema, block.OpenBraceRange,
+			"labels on globals block are not allowed, found %v", block.Labels)
+	}
+	return nil
 }
 
 // ParseGenerateHCLBlocks parses all Terramate files on the given dir, returning
@@ -358,6 +360,35 @@ func ParseGenerateHCLBlocks(dir string) (Blocks, error) {
 
 	logger.Trace().Msg("loading config")
 
+	return parseBlocks(dir, "generate_hcl", func(block *hclsyntax.Block) error {
+		return validateGenerateHCLBlock(block)
+	})
+}
+
+func validateGenerateHCLBlock(block *hclsyntax.Block) error {
+	// Don't seem like we can use hcl.BodySchema to check for any non-empty
+	// label, only specific label values.
+	if len(block.Labels) != 1 {
+		return errors.E(ErrTerramateSchema, block.OpenBraceRange,
+			"generate_hcl must have single label instead got %v",
+			block.Labels,
+		)
+	}
+	if block.Labels[0] == "" {
+		return errors.E(ErrTerramateSchema, block.OpenBraceRange,
+			"generate_hcl label can't be empty")
+	}
+	// Schema check passes if no block is present, so check for amount of blocks
+	if len(block.Body.Blocks) == 0 {
+		return errors.E(ErrTerramateSchema, block.Body.Range(),
+			"generate_hcl must have one 'content' block")
+	}
+	if len(block.Body.Blocks) != 1 {
+		return errors.E(ErrTerramateSchema, block.Body.Range(),
+			"generate_hcl must have one block of type 'content', found %d blocks",
+			len(block.Body.Blocks))
+	}
+
 	schema := &hcl.BodySchema{
 		Attributes: []hcl.AttributeSchema{},
 		Blocks: []hcl.BlockHeaderSchema{
@@ -368,35 +399,11 @@ func ParseGenerateHCLBlocks(dir string) (Blocks, error) {
 		},
 	}
 
-	return parseBlocks(dir, "generate_hcl", func(block *hclsyntax.Block) error {
-		// Don't seem like I can use hcl.BodySchema to check for any non-empty
-		// label, only specific label values.
-		if len(block.Labels) != 1 {
-			return errors.E(ErrTerramateSchema, block.OpenBraceRange,
-				"generate_hcl must have single label instead got %v",
-				block.Labels,
-			)
-		}
-		if block.Labels[0] == "" {
-			return errors.E(ErrTerramateSchema, block.OpenBraceRange,
-				"generate_hcl label can't be empty")
-		}
-		// Schema check passes if no block is present, so check for amount of blocks
-		if len(block.Body.Blocks) == 0 {
-			return errors.E(ErrTerramateSchema, block.Body.Range(),
-				"generate_hcl must have one 'content' block")
-		}
-		if len(block.Body.Blocks) != 1 {
-			return errors.E(ErrTerramateSchema, block.Body.Range(),
-				"generate_hcl must have one block of type 'content', found %d blocks",
-				len(block.Body.Blocks))
-		}
-		_, diags := block.Body.Content(schema)
-		if diags.HasErrors() {
-			return errors.E(ErrHCLSyntax, diags)
-		}
-		return nil
-	})
+	_, diags := block.Body.Content(schema)
+	if diags.HasErrors() {
+		return errors.E(ErrHCLSyntax, diags)
+	}
+	return nil
 }
 
 // CopyBody will copy the src body to the given target, evaluating attributes using the
@@ -851,6 +858,27 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 				foundstack = true
 				stackblock = block
+			}
+
+			if block.Type == "generate_hcl" {
+				logger.Trace().Msg("Found \"generate_hcl\" block")
+
+				err := validateGenerateHCLBlock(block)
+				if err != nil {
+					return Config{}, errors.E(errKind, err)
+				}
+
+				// TODO(i4k): generate_hcl must be part of the whole Config.
+				// ignoring the block for now.
+			}
+
+			if block.Type == "globals" {
+				logger.Trace().Msg("Found \"globals\" block.")
+
+				err := validateGlobalsBlock(block)
+				if err != nil {
+					return Config{}, errors.E(errKind, err)
+				}
 			}
 		}
 
