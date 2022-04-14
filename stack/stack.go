@@ -114,8 +114,8 @@ func (s S) String() string { return s.Path() }
 // Path returns the project's absolute path of stack.
 func (s S) Path() string { return s.path }
 
-// AbsPath returns the file system absolute path of stack.
-func (s S) AbsPath() string { return s.hostpath }
+// HostPath returns the file system absolute path of stack.
+func (s S) HostPath() string { return s.hostpath }
 
 // MetaToCtyMap returns metadata as a cty values map.
 func MetaToCtyMap(m Metadata) map[string]cty.Value {

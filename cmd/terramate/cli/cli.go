@@ -867,7 +867,7 @@ func (c *cli) runOnStacks() {
 
 	for _, stack := range orderedStacks {
 		cmd := exec.Command(c.parsedArgs.Run.Command[0], c.parsedArgs.Run.Command[1:]...)
-		cmd.Dir = stack.AbsPath()
+		cmd.Dir = stack.HostPath()
 		cmd.Env = os.Environ()
 		cmd.Stdin = c.stdin
 		cmd.Stdout = c.stdout

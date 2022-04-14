@@ -212,7 +212,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 			Stringer("stack", stack).
 			Msg("Apply function to stack.")
 
-		err := m.filesApply(stack.AbsPath(), func(file fs.DirEntry) error {
+		err := m.filesApply(stack.HostPath(), func(file fs.DirEntry) error {
 			if path.Ext(file.Name()) != ".tf" {
 				return nil
 			}
@@ -221,7 +221,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 				Stringer("stack", stack).
 				Msg("Get tf file path.")
 
-			tfpath := filepath.Join(stack.AbsPath(), file.Name())
+			tfpath := filepath.Join(stack.HostPath(), file.Name())
 
 			logger.Trace().
 				Stringer("stack", stack).
@@ -244,7 +244,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 					Str("configFile", tfpath).
 					Msg("Check if module changed.")
 
-				changed, why, err := m.moduleChanged(mod, stack.AbsPath(), make(map[string]bool))
+				changed, why, err := m.moduleChanged(mod, stack.HostPath(), make(map[string]bool))
 				if err != nil {
 					return errors.E(errListChanged, err, "checking module %q", mod.Source)
 				}
@@ -451,7 +451,7 @@ func (m *Manager) AddWantedOf(stacks []stack.S) ([]stack.S, error) {
 
 			logger.Debug().Msg("Loading \"wanted\" stacks.")
 
-			wantedStacks, err := m.stackLoader.LoadAll(m.root, s.AbsPath(), s.Wants()...)
+			wantedStacks, err := m.stackLoader.LoadAll(m.root, s.HostPath(), s.Wants()...)
 			if err != nil {
 				return nil, errors.E(err, "calculating wanted stacks")
 			}
@@ -459,7 +459,7 @@ func (m *Manager) AddWantedOf(stacks []stack.S) ([]stack.S, error) {
 			logger.Debug().Msg("The \"wanted\" stacks were loaded successfully.")
 
 			for _, wantedStack := range wantedStacks {
-				if wantedStack.AbsPath() == s.AbsPath() {
+				if wantedStack.HostPath() == s.HostPath() {
 					logger.Warn().
 						Stringer("stack", s).
 						Msg("stack wants itself.")

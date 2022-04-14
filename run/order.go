@@ -123,14 +123,14 @@ func BuildDAG(
 
 	logger.Trace().
 		Msg("Load all stacks in dir after current stack.")
-	afterStacks, err := loader.LoadAll(root, s.AbsPath(), s.After()...)
+	afterStacks, err := loader.LoadAll(root, s.HostPath(), s.After()...)
 	if err != nil {
 		return fmt.Errorf("stack %q: failed to load the \"after\" stacks: %w", s, err)
 	}
 
 	logger.Trace().
 		Msg("Load all stacks in dir before current stack.")
-	beforeStacks, err := loader.LoadAll(root, s.AbsPath(), s.Before()...)
+	beforeStacks, err := loader.LoadAll(root, s.HostPath(), s.Before()...)
 	if err != nil {
 		return fmt.Errorf("stack %q: failed to load the \"before\" stacks: %w", s, err)
 	}
