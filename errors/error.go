@@ -143,6 +143,8 @@ func E(args ...interface{}) error {
 
 	if format != nil {
 		e.Description = fmt.Sprintf(*format, fmtargs...)
+	} else if len(fmtargs) > 0 {
+		panic(errors.New("errors.E called with arbitraty types and no format"))
 	}
 
 	if diags.HasErrors() {

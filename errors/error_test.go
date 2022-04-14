@@ -43,6 +43,26 @@ func TestNoArgs(t *testing.T) {
 	_ = E()
 }
 
+func TestEmptyTopLevelError(t *testing.T) {
+	defer func() {
+		err := recover()
+		if err == nil {
+			t.Fatal("E() did not panic")
+		}
+	}()
+	_ = E(stderrors.New("test"))
+}
+
+func TestUnknownTypesWithNoFormat(t *testing.T) {
+	defer func() {
+		err := recover()
+		if err == nil {
+			t.Fatal("E() did not panic")
+		}
+	}()
+	_ = E(10, true, 2.5)
+}
+
 func TestErrorString(t *testing.T) {
 	type testcase struct {
 		name string
@@ -60,6 +80,16 @@ func TestErrorString(t *testing.T) {
 			name: "simple formatted message",
 			err:  E("fmted %s %t %d%d", "string", true, 13, 37),
 			want: "fmted string true 1337",
+		},
+		{
+			name: "error aware types are not use in the format",
+			err:  E("fmted %s %t %d%d", "string", errors.Kind("test"), true, 13, 37),
+			want: "test: fmted string true 1337",
+		},
+		{
+			name: "all non recognized types are format args",
+			err:  E(errors.Kind("test"), true, 13, 37, "fmted %t %d%d"),
+			want: "test: fmted true 1337",
 		},
 		{
 			name: "simple message with kind",
