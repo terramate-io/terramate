@@ -861,9 +861,7 @@ func (c *cli) runOnStacks() {
 		return
 	}
 
-	log.Info().
-		Str("cmd", strings.Join(c.parsedArgs.Run.Command, " ")).
-		Msg("Running on selected stacks")
+	logger.Info().Msg("Running on selected stacks")
 
 	failed := false
 
@@ -876,6 +874,7 @@ func (c *cli) runOnStacks() {
 		cmd.Stderr = c.stderr
 
 		logger := log.With().
+			Str("cmd", strings.Join(c.parsedArgs.Run.Command, " ")).
 			Stringer("stack", stack).
 			Logger()
 
