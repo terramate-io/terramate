@@ -36,7 +36,6 @@ type Globals struct {
 // Errors returned when parsing and evaluating globals.
 const (
 	ErrGlobalEval      errors.Kind = "globals eval failed"
-	ErrGlobalParse     errors.Kind = "globals parsing failed"
 	ErrGlobalRedefined errors.Kind = "global redefined"
 )
 
@@ -252,7 +251,7 @@ func loadStackGlobalsExprs(rootdir string, cfgdir string) (*globalsExpr, error) 
 
 	blocks, err := hcl.ParseGlobalsBlocks(filepath.Join(rootdir, cfgdir))
 	if err != nil {
-		return nil, errors.E(ErrGlobalParse, err)
+		return nil, errors.E("parsing globals block", err)
 	}
 
 	globals := newGlobalsExpr()

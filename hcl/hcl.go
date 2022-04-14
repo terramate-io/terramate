@@ -339,11 +339,11 @@ func validateGlobalsBlock(block *hclsyntax.Block) error {
 	// Not validated with schema because cant find a way to validate
 	// N arbitrary attributes (defined by user/dynamic).
 	if len(block.Body.Blocks) > 0 {
-		return errors.E(ErrTerramateSchema, block.Body.Blocks[0].Range(),
+		return errors.E(block.Body.Blocks[0].Range(),
 			"blocks inside globals are not allowed")
 	}
 	if len(block.Labels) > 0 {
-		return errors.E(ErrTerramateSchema, block.OpenBraceRange,
+		return errors.E(block.OpenBraceRange,
 			"labels on globals block are not allowed, found %v", block.Labels)
 	}
 	return nil

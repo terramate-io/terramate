@@ -167,7 +167,9 @@ func E(args ...interface{}) error {
 		e.Kind = prev.Kind
 		prev.Kind = ""
 	}
-	if e.FileRange.Empty() {
+
+	emptyRange := hcl.Range{}
+	if e.FileRange == emptyRange {
 		e.FileRange = prev.FileRange
 	}
 	if prev.FileRange == e.FileRange {
@@ -208,10 +210,10 @@ func (e *Error) error(verbose bool) string {
 		e.Stack,
 		e.Err,
 	} {
-		empty := hcl.Range{}
+		emptyRange := hcl.Range{}
 		switch v := arg.(type) {
 		case hcl.Range:
-			if v != empty {
+			if v != emptyRange {
 				if verbose {
 					errParts = append(errParts,
 						fmt.Sprintf("filename=%q, start line=%d, start col=%d, "+

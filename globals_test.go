@@ -23,6 +23,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -940,7 +941,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(terramate.ErrGlobalParse),
+			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
 			name:   "globals cant have labels",
@@ -954,7 +955,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(terramate.ErrGlobalParse),
+			wantErr: errors.E(hcl.ErrTerraformSchema),
 		},
 		{
 			name:   "global undefined reference on root",
@@ -1067,8 +1068,16 @@ func TestLoadGlobals(t *testing.T) {
 
 			wantGlobals := tcase.want
 
-			stacks := s.LoadStacks()
-			for _, stack := range stacks {
+			stackEntries, err := terramate.ListStacks(s.RootDir())
+			if errors.IsKind(tcase.wantErr, hcl.ErrTerramateSchema) {
+				errors.AssertKind(t, err, tcase.wantErr)
+			}
+
+			var stacks []stack.S
+			for _, entry := range stackEntries {
+				stack := entry.Stack
+				stacks = append(stacks, stack)
+
 				got, err := terramate.LoadStackGlobals(s.RootDir(), stack)
 
 				errors.Assert(t, err, tcase.wantErr)
