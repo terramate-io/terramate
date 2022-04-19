@@ -4,4 +4,3 @@ coverage:
       default:
         target: 0%
         threshold: null
-        branches: null
