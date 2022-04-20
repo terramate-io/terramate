@@ -75,7 +75,7 @@ const separator = ": "
 //		The underlying error that triggered this one.
 //	hcl.Diagnostics
 //		The underlying hcl error that triggered this one.
-//		If this error's FileRange is not set, the diagnostic subject range is
+//		If hcl.Range is not set, the diagnostic subject range is
 //		pulled.
 //		If this error's Description is not set, the diagnostic detail field is
 //		pulled.
