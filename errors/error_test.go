@@ -27,7 +27,7 @@ import (
 
 var E = errors.E
 
-var (
+const (
 	syntaxError   errors.Kind = "syntax error"
 	tmSchemaError errors.Kind = "terramate schema error"
 	tfSchemaError errors.Kind = "terraform schema error"
