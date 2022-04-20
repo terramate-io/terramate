@@ -75,8 +75,7 @@ const separator = ": "
 //		The underlying error that triggered this one.
 //	hcl.Diagnostics
 //		The underlying hcl error that triggered this one.
-//		If hcl.Range is not set, the diagnostic subject range is
-//		pulled.
+//		If hcl.Range is not set, the diagnostic subject range is pulled.
 //		If the string Description is not set, the diagnostic detail field is
 //		pulled.
 //	string
@@ -175,7 +174,7 @@ func E(args ...interface{}) error {
 	if prev.FileRange == e.FileRange {
 		prev.FileRange = hcl.Range{}
 	}
-	if prev.Stack == e.Stack {
+	if equalStack(e.Stack, prev.Stack) {
 		prev.Stack = nil
 	}
 	if prev.Description == e.Description {
@@ -195,13 +194,6 @@ func (e *Error) isEmpty() bool {
 }
 
 func (e *Error) error(verbose bool) string {
-	if e.isEmpty() {
-		if e.Err != nil {
-			return e.Err.Error()
-		}
-		return ""
-	}
-
 	var errParts []string
 	for _, arg := range []interface{}{
 		e.FileRange,
@@ -365,13 +357,25 @@ func hasSameStack(err error, stack StackMeta) bool {
 	if !ok {
 		return false
 	}
-	if e.Stack.Name() == stack.Name() &&
-		e.Stack.Desc() == stack.Desc() &&
-		e.Stack.Path() == stack.Path() {
+	if equalStack(e.Stack, stack) {
 		return true
 	}
 	if e.Err != nil {
 		return hasSameStack(e.Err, stack)
 	}
 	return false
+}
+
+func equalStack(s1, s2 StackMeta) bool {
+	if (s1 == nil) != (s2 == nil) {
+		return false
+	}
+
+	if s1 == nil { // s2 is also nil
+		return true
+	}
+
+	return s1.Name() == s2.Name() &&
+		s1.Desc() == s2.Desc() &&
+		s1.Path() == s2.Path()
 }
