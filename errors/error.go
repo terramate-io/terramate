@@ -81,7 +81,7 @@ const separator = ": "
 //		pulled.
 //	string
 //		The error description. It supports formatting using the Go's fmt verbs
-//      as long as the arguments are not of the defined types.
+//		as long as the arguments are not one of the defined types.
 //
 // If the error is printed, only those items that have been
 // set to non-zero values will appear in the result. For the `hcl.Range` type,
