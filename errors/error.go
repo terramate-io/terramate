@@ -292,8 +292,14 @@ func IsKind(err error, k Kind) bool {
 }
 
 // Is tells if err (or any of its underlying errors) matches target.
-// It works with any error but if comparing *Error type it uses the Kind field,
-// otherwise it fallback to standard errors.Is().
+// It works with any error but when comparing with an errors.Error type it will try to match the following fields:
+// - Kind
+// - Description
+// - Stack
+// - FileRange
+// - Err
+// Any fields absent (empty) on the target error are ignored even if they exist on err (partial match).
+// If the target error is no an error.Error it fallbacks to standard errors.Is().
 func Is(err, target error) bool {
 	if (err == nil) != (target == nil) {
 		return false
