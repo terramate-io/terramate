@@ -279,5 +279,5 @@ func compareErrors(err, err2 error) bool {
 	}
 
 	// We can't use errors.Is from stdlib either, it is also non-symmetric
-	return err == err2
+	return err.Error() == err2.Error()
 }
