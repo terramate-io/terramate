@@ -139,6 +139,11 @@ func TestErrorString(t *testing.T) {
 			),
 			want: "test.tm:1,5-10: 1: 2: 3",
 		},
+		{
+			name: "simple message with stack",
+			err:  E(syntaxError, "failed to parse config", stackmeta{}),
+			want: fmt("%s: failed to parse config: at stack \"/test\"", syntaxError),
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.EqualStrings(t, tc.want, tc.err.Error())
@@ -215,3 +220,9 @@ func TestErrorIs(t *testing.T) {
 func fmt(format string, args ...interface{}) string {
 	return stdfmt.Sprintf(format, args...)
 }
+
+type stackmeta struct{}
+
+func (s stackmeta) Name() string { return "test" }
+func (s stackmeta) Path() string { return "/test" }
+func (s stackmeta) Desc() string { return "test stack" }
