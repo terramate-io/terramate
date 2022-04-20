@@ -250,7 +250,7 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 	// are outdated and then update the outdated files set as we go.
 	outdatedFiles := newStringSet(generatedFiles...)
 	stackpath := stack.HostPath()
-	err = generatedHCLOutdatedFiles(
+	err = updateGenHCLOutdatedFiles(
 		root,
 		stackpath,
 		stack,
@@ -272,14 +272,14 @@ type genfile struct {
 	body string
 }
 
-func generatedHCLOutdatedFiles(
+func updateGenHCLOutdatedFiles(
 	root, stackpath string,
 	stackMeta stack.Metadata,
 	globals terramate.Globals,
 	outdatedFiles *stringSet,
 ) error {
 	logger := log.With().
-		Str("action", "generate.generateHCLOutdatedFiles()").
+		Str("action", "generate.updateGenHCLOutdatedFiles()").
 		Str("root", root).
 		Str("stackpath", stackpath).
 		Logger()
