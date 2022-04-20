@@ -241,32 +241,29 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 
 	logger.Trace().Msg("Listing current generated files.")
 
-	g, err := ListStackGenFiles(stack)
+	generatedFiles, err := ListStackGenFiles(stack)
 	if err != nil {
 		return nil, errors.E(err, "checking for outdated code")
 	}
 
-	// TODO(katcipis): currentFiles/string set logic seems overcomplicated
-	// for the current code.
-	currentFiles := newStringSet(g...)
-
+	// We start with the assumption that all gen files on the stack
+	// are outdated and then update the outdated files set as we go.
+	outdatedFiles := newStringSet(generatedFiles...)
 	stackpath := stack.HostPath()
-
-	outdatedGenHCLFiles, err := generatedHCLOutdatedFiles(
+	err = generatedHCLOutdatedFiles(
 		root,
 		stackpath,
 		stack,
 		globals,
-		currentFiles,
+		outdatedFiles,
 	)
+
 	if err != nil {
 		return nil, errors.E(err, "checking for outdated exported terraform")
 	}
-	outdated := outdatedGenHCLFiles
-	outdated = append(outdated, currentFiles.slice()...)
 
+	outdated := outdatedFiles.slice()
 	sort.Strings(outdated)
-
 	return outdated, nil
 }
 
@@ -279,8 +276,8 @@ func generatedHCLOutdatedFiles(
 	root, stackpath string,
 	stackMeta stack.Metadata,
 	globals terramate.Globals,
-	currentGenFiles *stringSet,
-) ([]string, error) {
+	outdatedFiles *stringSet,
+) error {
 	logger := log.With().
 		Str("action", "generate.generateHCLOutdatedFiles()").
 		Str("root", root).
@@ -291,12 +288,10 @@ func generatedHCLOutdatedFiles(
 
 	stackHCLs, err := genhcl.Load(root, stackMeta, globals)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	logger.Trace().Msg("Loaded generated_hcl code, checking")
-
-	outdated := []string{}
 
 	for filename, genHCL := range stackHCLs.GeneratedHCLs() {
 		targetpath := filepath.Join(stackpath, filename)
@@ -309,22 +304,24 @@ func generatedHCLOutdatedFiles(
 
 		currentHCLcode, codeFound, err := loadGeneratedCode(targetpath)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if !codeFound && genHCL.String() == "" {
 			logger.Trace().Msg("Not outdated since file not found and generated_hcl is empty")
 			continue
 		}
-		currentGenFiles.remove(filename)
 
 		genHCLCode := prependGenHCLHeader(genHCL.Origin(), genHCL.String())
 		if genHCLCode != currentHCLcode {
-			logger.Trace().Msg("Outdated HCL code detected.")
-			outdated = append(outdated, filename)
+			logger.Trace().Msg("generate_hcl code is outdated")
+			outdatedFiles.add(filename)
+		} else {
+			logger.Trace().Msg("generate_hcl code is updated")
+			outdatedFiles.remove(filename)
 		}
 	}
 
-	return outdated, nil
+	return nil
 }
 
 func generateStackHCLCode(
