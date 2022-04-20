@@ -161,11 +161,10 @@ func E(args ...interface{}) error {
 	if !ok {
 		return e
 	}
-	if prev.Kind == e.Kind {
-		prev.Kind = ""
-	}
 	if e.Kind == "" {
 		e.Kind = prev.Kind
+	}
+	if prev.Kind == e.Kind {
 		prev.Kind = ""
 	}
 
