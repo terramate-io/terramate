@@ -87,12 +87,11 @@ const separator = ": "
 // set to non-zero values will appear in the result. For the `hcl.Range` type,
 // the `range.Empty()` method is used.
 //
-// Error promotions:
+// The following fields are promoted from underlying errors when absent:
 //
-// If Kind is not specified or Any, we set it to the Kind of
-// the underlying error.
-// If FileRange is not specified, we set it to the FileRange of the underlying
-// error (if set).
+// - errors.Kind
+// - errors.StackMeta
+// - hcl.Range
 //
 // Minimization:
 //
