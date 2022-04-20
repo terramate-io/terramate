@@ -303,6 +303,93 @@ func TestHCLGeneration(t *testing.T) {
 				},
 			},
 		},
+		{
+			// TODO(katcipis): define a proper behavior where
+			// directories are allowed but in a constrained fashion.
+			// This is a quick fix to avoid creating files on arbitrary
+			// places around the file system.
+			name: "generate HCL with / on label name fails",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+				"s:stacks/stack-3",
+				"s:stacks/stack-4",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack-1",
+					add: hcldoc(
+						generateHCL(
+							labels("/name.tf"),
+							content(
+								block("something"),
+							),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack-2",
+					add: hcldoc(
+						generateHCL(
+							labels("./name.tf"),
+							content(
+								block("something"),
+							),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack-3",
+					add: hcldoc(
+						generateHCL(
+							labels("./dir/name.tf"),
+							content(
+								block("something"),
+							),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack-4",
+					add: hcldoc(
+						generateHCL(
+							labels("dir/name.tf"),
+							content(
+								block("something"),
+							),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							StackPath: "/stacks/stack-1",
+						},
+						Error: errors.E(generate.ErrInvalidFilePath),
+					},
+					{
+						Result: generate.Result{
+							StackPath: "/stacks/stack-2",
+						},
+						Error: errors.E(generate.ErrInvalidFilePath),
+					},
+					{
+						Result: generate.Result{
+							StackPath: "/stacks/stack-3",
+						},
+						Error: errors.E(generate.ErrInvalidFilePath),
+					},
+					{
+						Result: generate.Result{
+							StackPath: "/stacks/stack-4",
+						},
+						Error: errors.E(generate.ErrInvalidFilePath),
+					},
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {

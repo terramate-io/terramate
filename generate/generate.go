@@ -41,6 +41,10 @@ const (
 	// are conflicting, like both generates a file with the same name
 	// and would overwrite each other.
 	ErrConflictingConfig errors.Kind = "conflicting config detected"
+
+	// ErrInvalidFilePath indicates that code generation configuration
+	// has an invalid filepath as the target to save the generated code.
+	ErrInvalidFilePath errors.Kind = "invalid filepath"
 )
 
 const (
