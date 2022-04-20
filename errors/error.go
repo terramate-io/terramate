@@ -69,8 +69,8 @@ const separator = ": "
 //		The kind of error (eg.: HCLSyntax, TerramateSchema, etc).
 //	hcl.Range
 //		The file range where the error originated.
-//  errors.Stack
-//		The stack which the error originated.
+//		errors.StackMeta
+//		The stack that originated the error.
 //	error
 //		The underlying error that triggered this one.
 //	hcl.Diagnostics
