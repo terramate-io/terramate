@@ -77,7 +77,7 @@ const separator = ": "
 //		The underlying hcl error that triggered this one.
 //		If hcl.Range is not set, the diagnostic subject range is
 //		pulled.
-//		If this error's Description is not set, the diagnostic detail field is
+//		If the string Description is not set, the diagnostic detail field is
 //		pulled.
 //	string
 //		The error description. It supports formatting using the Go's fmt verbs
