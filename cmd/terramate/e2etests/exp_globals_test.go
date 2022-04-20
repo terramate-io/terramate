@@ -40,6 +40,8 @@ func TestStacksGlobals(t *testing.T) {
 		}
 	)
 
+	t.Parallel()
+
 	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("globals", builders...)
 	}

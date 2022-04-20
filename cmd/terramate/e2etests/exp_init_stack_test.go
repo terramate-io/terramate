@@ -33,6 +33,8 @@ func TestStacksInit(t *testing.T) {
 		want   runExpected
 	}
 
+	t.Parallel()
+
 	for _, tc := range []testcase{
 		{
 			name:   "init basedir",
@@ -53,6 +55,8 @@ func TestStacksInit(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 
@@ -82,6 +86,8 @@ func TestStacksInit(t *testing.T) {
 }
 
 func TestInitNonExistingDir(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 	c := newCLI(t, s.RootDir())
 	assertRunResult(t, c.initStack(test.NonExistingDir(t)), runExpected{
@@ -91,6 +97,8 @@ func TestInitNonExistingDir(t *testing.T) {
 }
 
 func TestInitFailInitializeChildOfStack(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 	c := newCLI(t, s.RootDir())
 	parent := test.Mkdir(t, s.RootDir(), "parent-stack")
@@ -103,6 +111,8 @@ func TestInitFailInitializeChildOfStack(t *testing.T) {
 }
 
 func TestInitFailInitializeParentOfChildStack(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 	c := newCLI(t, s.RootDir())
 	parent := test.Mkdir(t, s.RootDir(), "parent-stack")

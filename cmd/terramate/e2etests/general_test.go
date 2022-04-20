@@ -30,6 +30,8 @@ func TestBug25(t *testing.T) {
 		modname2 = "2"
 	)
 
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	mod1 := s.CreateModule(modname1)
@@ -74,6 +76,8 @@ func TestBugModuleMultipleFilesSameDir(t *testing.T) {
 		modname2 = "2"
 		modname3 = "3"
 	)
+
+	t.Parallel()
 
 	s := sandbox.New(t)
 
@@ -132,6 +136,8 @@ func TestListAndRunChangedStack(t *testing.T) {
 		mainTfFileName = "main.tf"
 		mainTfContents = "# change is the eternal truth of the universe"
 	)
+
+	t.Parallel()
 
 	s := sandbox.New(t)
 
@@ -207,6 +213,8 @@ func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
 }
 
 func TestDefaultBaseRefInOtherThanMain(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack-1")
@@ -231,6 +239,8 @@ func TestDefaultBaseRefInOtherThanMain(t *testing.T) {
 }
 
 func TestDefaultBaseRefInMain(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack-1")
@@ -251,6 +261,8 @@ func TestDefaultBaseRefInMain(t *testing.T) {
 }
 
 func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack-1")
@@ -271,6 +283,8 @@ func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
 }
 
 func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack-1")
@@ -314,6 +328,8 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 }
 
 func TestMainAfterOriginMainMustUseDefaultBaseRef(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 	ts := newCLI(t, s.RootDir())
 
@@ -345,6 +361,8 @@ func TestMainAfterOriginMainMustUseDefaultBaseRef(t *testing.T) {
 }
 
 func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
+	t.Parallel()
+
 	rootdir := t.TempDir()
 	assertFails := func(stderrRegex string) {
 		t.Helper()
@@ -385,12 +403,16 @@ func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
 }
 
 func TestNoArgsProvidesBasicHelp(t *testing.T) {
+	t.Parallel()
+
 	cli := newCLI(t, "")
 	help := cli.run("--help")
 	assertRunResult(t, cli.run(), runExpected{Stdout: help.Stdout})
 }
 
 func TestFailsIfDefaultRemoteDoesntHaveDefaultBranch(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.NewWithGitConfig(t, sandbox.GitConfig{
 		LocalBranchName:         "main",
 		DefaultRemoteName:       "origin",
@@ -420,6 +442,8 @@ terramate {
 }
 
 func TestLoadGitRootConfig(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.NewWithGitConfig(t, sandbox.GitConfig{
 		DefaultRemoteName:       "mineiros",
 		DefaultRemoteBranchName: "default",

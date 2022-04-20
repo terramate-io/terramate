@@ -28,6 +28,8 @@ func TestOrderGraphAfter(t *testing.T) {
 		want   runExpected
 	}
 
+	t.Parallel()
+
 	for _, tc := range []testcase{
 		{
 			name: "one stack, no order",
@@ -328,6 +330,8 @@ func TestOrderGraphAfter(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 			cli := newCLI(t, s.RootDir())

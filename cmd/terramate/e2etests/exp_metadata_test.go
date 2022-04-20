@@ -29,6 +29,8 @@ func TestCliMetadata(t *testing.T) {
 		want   runExpected
 	}
 
+	t.Parallel()
+
 	for _, tc := range []testcase{
 		{
 			name: "no stacks",
@@ -126,6 +128,8 @@ stack "/somedir/stack4":
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 
