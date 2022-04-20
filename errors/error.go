@@ -46,7 +46,7 @@ type Error struct {
 }
 
 type (
-	// Kind defines the kind of error.
+	// Kind defines the kind of an error.
 	Kind string
 	// StackMeta has the metadata of the stack which originated the error.
 	// Same interface as stack.Metadata.
