@@ -41,7 +41,7 @@ type Error struct {
 	// Stack which originated the error.
 	Stack StackMeta
 
-	// Err represents the underlying error.
+	// Err holds the underlying error.
 	Err error
 }
 
