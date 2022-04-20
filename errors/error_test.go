@@ -140,6 +140,21 @@ func TestErrorString(t *testing.T) {
 			want: "test.tm:1,5-10: 1: 2: 3",
 		},
 		{
+			name: "just diags sets range and description",
+			err: E(hcl.Diagnostics{
+				&hcl.Diagnostic{
+					Detail:   "some error",
+					Severity: hcl.DiagError,
+					Subject: &hcl.Range{
+						Filename: "test.tm",
+						Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},
+						End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},
+					},
+				},
+			}),
+			want: "test.tm:1,5-10: some error",
+		},
+		{
 			name: "simple message with stack",
 			err:  E(syntaxError, "failed to parse config", stackmeta{}),
 			want: fmt("%s: failed to parse config: at stack \"/test\"", syntaxError),
@@ -159,7 +174,13 @@ func TestErrorIs(t *testing.T) {
 		areSame bool
 	}
 
+	stderr := stderrors.New("other")
+
 	for _, tc := range []testcase{
+		{
+			name:    "both nil",
+			areSame: true,
+		},
 		{
 			name:   "nil target is not equal",
 			err:    E("any error"),
@@ -204,6 +225,12 @@ func TestErrorIs(t *testing.T) {
 			name:    "same file range",
 			err:     E("error", hcl.Range{Filename: "test.hcl"}),
 			target:  E("error", hcl.Range{Filename: "test.hcl"}),
+			areSame: true,
+		},
+		{
+			name:    "std error comparison works",
+			err:     stdfmt.Errorf("test: %w", stderr),
+			target:  stderr,
 			areSame: true,
 		},
 	} {

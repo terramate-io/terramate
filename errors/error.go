@@ -296,6 +296,9 @@ func Is(err, target error) bool {
 	if (err == nil) != (target == nil) {
 		return false
 	}
+	if target == nil {
+		return err == target
+	}
 	e, ok := err.(*Error)
 	if !ok {
 		return errors.Is(err, target)
