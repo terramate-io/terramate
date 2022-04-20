@@ -427,8 +427,11 @@ func TestHCLGeneration(t *testing.T) {
 			// delete files or fail and has identical results.
 			t.Run("regenerate", func(t *testing.T) {
 				report := generate.Do(s.RootDir(), workingDir)
-				// since we just generated everything, report should be empty
-				assertEqualReports(t, report, generate.Report{})
+				// since we just generated everything, report should only contain
+				// the same failures as previous code generation.
+				assertEqualReports(t, report, generate.Report{
+					Failures: tcase.wantReport.Failures,
+				})
 				assertGeneratedHCLs(t)
 			})
 

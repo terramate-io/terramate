@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	tmerrors "github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
 )
 
@@ -251,10 +252,32 @@ func assertReportHasError(t *testing.T, report generate.Report, err error) {
 func assertEqualReports(t *testing.T, got, want generate.Report) {
 	t.Helper()
 
-	if diff := cmp.Diff(got, want, cmp.Comparer(errors.Is)); diff != "" {
+	if diff := cmp.Diff(got, want, cmp.Comparer(compareErrors)); diff != "" {
 		t.Errorf("got %s", got)
 		t.Errorf("want %s", want)
 		t.Errorf("got(-) want(+)")
 		t.Fatal(diff)
 	}
+}
+
+func compareErrors(err, err2 error) bool {
+	// we can't use our errors.Is directly since cmp requires a symmetric
+	// comparison function, and errors.Is isn't (we get a panic if we use it:
+	// panic: non-deterministic or non-symmetric function detected: errors.Is [recovered]
+	if (err == nil) != (err2 == nil) {
+		return false
+	}
+	if err == nil {
+		return err == err2
+	}
+
+	e1, ok1 := err.(*tmerrors.Error)
+	e2, ok2 := err2.(*tmerrors.Error)
+	if ok1 && ok2 {
+		// For now we only care about the kind
+		return e1.Kind == e2.Kind
+	}
+
+	// We can't use errors.Is from stdlib either, it is also non-symmetric
+	return err == err2
 }

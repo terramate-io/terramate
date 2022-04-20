@@ -95,6 +95,12 @@ func Do(root string, workingDir string) Report {
 		}
 		genfiles = append(genfiles, stackHCLsCode...)
 
+		logger.Trace().Msg("Checking for invalid paths on generated files.")
+		if err := checkGeneratedFilesPaths(genfiles); err != nil {
+			report.err = errors.E(ErrInvalidFilePath, err)
+			return report
+		}
+
 		logger.Trace().Msg("Checking for conflicts on generated files.")
 
 		if err := checkGeneratedFilesConflicts(genfiles); err != nil {
@@ -543,6 +549,16 @@ func checkGeneratedFilesConflicts(genfiles []genfile) error {
 			return errors.E("two configurations produce same file %q", genf.name)
 		}
 		observed.add(genf.name)
+	}
+	return nil
+}
+
+func checkGeneratedFilesPaths(genfiles []genfile) error {
+	for _, gen := range genfiles {
+		if strings.Contains(gen.name, "/") {
+			// TODO(katcipis): improve error with origin info
+			return errors.E("'/' not allowed but found on %q", gen.name)
+		}
 	}
 	return nil
 }
