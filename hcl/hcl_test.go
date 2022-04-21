@@ -62,14 +62,14 @@ func TestHCLParserModules(t *testing.T) {
 			name:  "module must have 1 label",
 			input: `module {}`,
 			want: want{
-				err: errors.E(hcl.ErrTerraformSchema, mkrange(start(1, 7, 7), end(1, 8, 8))),
+				err: errors.E(hcl.ErrTerraformSchema, mkrange(start(1, 8, 7), end(1, 9, 8))),
 			},
 		},
 		{
 			name:  "module must have a source attribute",
 			input: `module "test" {}`,
 			want: want{
-				err: errors.E(hcl.ErrTerraformSchema, mkrange(start(1, 14, 14), end(1, 16, 16))),
+				err: errors.E(hcl.ErrTerraformSchema, mkrange(start(1, 15, 14), end(1, 17, 16))),
 			},
 		},
 		{
@@ -142,14 +142,14 @@ module "test" {
 }
 `,
 			want: want{
-				err: errors.E(hcl.ErrTerraformSchema, mkrange(start(3, 10, 27), end(3, 13, 29))),
+				err: errors.E(hcl.ErrTerraformSchema, mkrange(start(3, 11, 27), end(3, 13, 29))),
 			},
 		},
 		{
 			name:  "variable interpolation in the source string - fails",
 			input: "module \"test\" {\nsource = \"${var.test}\"\n}\n",
 			want: want{
-				err: errors.E(hcl.ErrTerraformSchema, mkrange(start(2, 9, 28), end(2, 23, 31))),
+				err: errors.E(hcl.ErrTerraformSchema, mkrange(start(2, 13, 28), end(2, 16, 31))),
 			},
 		},
 	} {
@@ -159,14 +159,12 @@ module "test" {
 
 			if tc.want.err != nil {
 				if e, ok := tc.want.err.(*errors.Error); ok {
-					if e.FileRange.Filename != "" {
-						e.FileRange.Filename = tfpath
-					}
+					e.FileRange.Filename = tfpath
 				}
 			}
 
 			modules, err := hcl.ParseModules(tfpath)
-			errtest.AssertKind(t, err, tc.want.err)
+			errtest.Assert(t, err, tc.want.err)
 			assert.EqualInts(t, len(tc.want.modules), len(modules), "modules len mismatch")
 
 			for i := 0; i < len(tc.want.modules); i++ {
