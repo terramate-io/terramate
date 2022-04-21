@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
+	errtest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/zclconf/go-cty-debug/ctydebug"
@@ -1070,7 +1071,7 @@ func TestLoadGlobals(t *testing.T) {
 
 			stackEntries, err := terramate.ListStacks(s.RootDir())
 			if errors.IsKind(tcase.wantErr, hcl.ErrTerramateSchema) {
-				errors.AssertKind(t, err, tcase.wantErr)
+				errtest.AssertKind(t, err, tcase.wantErr)
 			}
 
 			var stacks []stack.S
@@ -1080,7 +1081,7 @@ func TestLoadGlobals(t *testing.T) {
 
 				got, err := terramate.LoadStackGlobals(s.RootDir(), stack)
 
-				errors.Assert(t, err, tcase.wantErr)
+				errtest.Assert(t, err, tcase.wantErr)
 				if tcase.wantErr != nil {
 					continue
 				}
@@ -1266,12 +1267,12 @@ func TestLoadGlobalsErrors(t *testing.T) {
 			stackEntries, err := terramate.ListStacks(s.RootDir())
 			// TODO(i4k): this better not be tested here.
 			if errors.IsKind(tcase.want, hcl.ErrHCLSyntax) {
-				errors.AssertKind(t, err, tcase.want)
+				errtest.AssertKind(t, err, tcase.want)
 			}
 
 			for _, entry := range stackEntries {
 				_, err := terramate.LoadStackGlobals(s.RootDir(), entry.Stack)
-				errors.Assert(t, err, tcase.want)
+				errtest.Assert(t, err, tcase.want)
 			}
 		})
 	}

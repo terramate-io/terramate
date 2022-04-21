@@ -27,6 +27,7 @@ import (
 	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/test"
+	errtest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
@@ -1110,7 +1111,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 
 			globals := s.LoadStackGlobals(stack)
 			res, err := genhcl.Load(s.RootDir(), stack, globals)
-			errors.Assert(t, err, tcase.wantErr)
+			errtest.Assert(t, err, tcase.wantErr)
 
 			got := res.GeneratedHCLs()
 
@@ -2250,7 +2251,7 @@ func TestPartialEval(t *testing.T) {
 
 			globals := s.LoadStackGlobals(stack)
 			res, err := genhcl.Load(s.RootDir(), stack, globals)
-			errors.Assert(t, err, tcase.wantErr)
+			errtest.Assert(t, err, tcase.wantErr)
 
 			if err != nil {
 				return

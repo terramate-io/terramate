@@ -24,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
+	errtest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/rs/zerolog"
 )
 
@@ -165,7 +166,7 @@ module "test" {
 			}
 
 			modules, err := hcl.ParseModules(tfpath)
-			errors.AssertKind(t, err, tc.want.err)
+			errtest.AssertKind(t, err, tc.want.err)
 			assert.EqualInts(t, len(tc.want.modules), len(modules), "modules len mismatch")
 
 			for i := 0; i < len(tc.want.modules); i++ {
@@ -1007,7 +1008,7 @@ func testParser(t *testing.T, tc testcase) {
 			}
 		}
 		got, err := hcl.ParseDir(configsDir)
-		errors.Assert(t, err, tc.want.err)
+		errtest.Assert(t, err, tc.want.err)
 
 		if tc.want.err == nil {
 			test.AssertTerramateConfig(t, got, tc.want.config)

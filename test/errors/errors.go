@@ -14,7 +14,11 @@
 
 package errors
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/mineiros-io/terramate/errors"
+)
 
 // AssertKind asserts that got is of same error kind as want.
 func AssertKind(t *testing.T, got, want error) {
@@ -25,12 +29,12 @@ func AssertKind(t *testing.T, got, want error) {
 	if want == nil {
 		return
 	}
-	e1, ok := got.(*Error)
+	e1, ok := got.(*errors.Error)
 	if !ok {
 		t.Fatal("got is not an *errors.Error")
 	}
 
-	e2, ok := want.(*Error)
+	e2, ok := want.(*errors.Error)
 	if !ok {
 		t.Fatal("want is not an *errors.Error")
 	}
@@ -39,9 +43,9 @@ func AssertKind(t *testing.T, got, want error) {
 }
 
 // AssertIsKind asserts err is of kind k.
-func AssertIsKind(t *testing.T, err error, k Kind) {
+func AssertIsKind(t *testing.T, err error, k errors.Kind) {
 	t.Helper()
-	if !IsKind(err, k) {
+	if !errors.IsKind(err, k) {
 		t.Fatalf("error[%v] is not of kind %q", err, k)
 	}
 }
@@ -49,13 +53,13 @@ func AssertIsKind(t *testing.T, err error, k Kind) {
 // Assert err is (contains, wraps, etc) target.
 func Assert(t *testing.T, err, target error) {
 	t.Helper()
-	if !Is(err, target) {
+	if !errors.Is(err, target) {
 		t.Fatalf("error[%s] is not target[%s]", errstr(err), errstr(target))
 	}
 }
 
 func errstr(err error) string {
-	if e, ok := err.(*Error); ok {
+	if e, ok := err.(*errors.Error); ok {
 		return e.Detailed()
 	}
 	return err.Error()
