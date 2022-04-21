@@ -26,7 +26,7 @@ import (
 )
 
 // Error is the default Terramate error type.
-// It may contains some fields unset, but not all.
+// At least one of the error fields must be set.
 // See E() for its usage.
 type Error struct {
 	// Kind is the kind of error.

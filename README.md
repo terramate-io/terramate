@@ -1,3 +1,4 @@
+<img src="https://raw.githubusercontent.com/mineiros-io/brand/16aa786a3cd6d0ae2fb89ed756f96c695d0f88e1/terramate-logo.svg" width="140"/>
 <!-- mdtocstart -->
 
 # Table of Contents
