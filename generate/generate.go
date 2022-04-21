@@ -554,18 +554,9 @@ func checkGeneratedFilesConflicts(genfiles []genfile) error {
 }
 
 func checkGeneratedFilesPaths(genfiles []genfile) error {
-	// We never allow chars that can be used as dirs separators
-	// on macos/linux/win. We do this independently of which OS terramate
-	// was built, so we get consistent behavior and any code that
-	// works on one OS will also work no any other OS.
-	const (
-		unixSeparator = "/"
-		winSeparator  = `\\`
-	)
-
 	for _, gen := range genfiles {
-		if strings.Contains(gen.name, unixSeparator) ||
-			strings.Contains(gen.name, winSeparator) {
+		filename := filepath.ToSlash(gen.name)
+		if strings.Contains(filename, `/`) {
 			// TODO(katcipis): improve error with origin info
 			return errors.E("dir separator not allowed but found on %q", gen.name)
 		}

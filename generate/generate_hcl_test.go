@@ -314,7 +314,6 @@ func TestHCLGeneration(t *testing.T) {
 				"s:stacks/stack-2",
 				"s:stacks/stack-3",
 				"s:stacks/stack-4",
-				"s:stacks/stack-5",
 			},
 			configs: []hclconfig{
 				{
@@ -361,18 +360,6 @@ func TestHCLGeneration(t *testing.T) {
 						),
 					),
 				},
-				{
-					path: "/stacks/stack-5",
-					add: hcldoc(
-						generateHCL(
-							// because windows
-							labels(`\\dir\\name.tf`),
-							content(
-								block("something"),
-							),
-						),
-					),
-				},
 			},
 			wantReport: generate.Report{
 				Failures: []generate.FailureResult{
@@ -397,12 +384,6 @@ func TestHCLGeneration(t *testing.T) {
 					{
 						Result: generate.Result{
 							StackPath: "/stacks/stack-4",
-						},
-						Error: errors.E(generate.ErrInvalidFilePath),
-					},
-					{
-						Result: generate.Result{
-							StackPath: "/stacks/stack-5",
 						},
 						Error: errors.E(generate.ErrInvalidFilePath),
 					},
