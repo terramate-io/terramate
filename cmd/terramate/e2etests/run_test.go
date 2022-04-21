@@ -363,7 +363,7 @@ stack-z
 			},
 			want: runExpected{
 				Status:      defaultErrExitStatus,
-				StderrRegex: dag.ErrCycleDetected.Error(),
+				StderrRegex: string(dag.ErrCycleDetected),
 			},
 		},
 		{
@@ -373,7 +373,7 @@ stack-z
 			},
 			want: runExpected{
 				Status:      defaultErrExitStatus,
-				StderrRegex: dag.ErrCycleDetected.Error(),
+				StderrRegex: string(dag.ErrCycleDetected),
 			},
 		},
 		{
@@ -385,7 +385,7 @@ stack-z
 			},
 			want: runExpected{
 				Status:      defaultErrExitStatus,
-				StderrRegex: dag.ErrCycleDetected.Error(),
+				StderrRegex: string(dag.ErrCycleDetected),
 			},
 		},
 		{
@@ -414,7 +414,7 @@ stack-z
 			},
 			want: runExpected{
 				Status:      defaultErrExitStatus,
-				StderrRegex: dag.ErrCycleDetected.Error(),
+				StderrRegex: string(dag.ErrCycleDetected),
 			},
 		},
 		{
@@ -961,7 +961,7 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 		generateFile,
 	), runExpected{
 		Status:      defaultErrExitStatus,
-		StderrRegex: cli.ErrOutdatedGenCodeDetected.Error(),
+		StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
 	})
 
 	// check without --changed
@@ -971,7 +971,7 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 		generateFile,
 	), runExpected{
 		Status:      defaultErrExitStatus,
-		StderrRegex: cli.ErrOutdatedGenCodeDetected.Error(),
+		StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
 	})
 
 	// disabling the check must work for both with and without --changed
@@ -1119,12 +1119,12 @@ func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
 
 	assertRunResult(t, tmcli.run("run", cat, testFilename), runExpected{
 		Status:      defaultErrExitStatus,
-		StderrRegex: cli.ErrOutdatedGenCodeDetected.Error(),
+		StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
 	})
 
 	assertRunResult(t, tmcli.run("run", "--changed", cat, testFilename), runExpected{
 		Status:      defaultErrExitStatus,
-		StderrRegex: cli.ErrOutdatedGenCodeDetected.Error(),
+		StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
 	})
 
 	// Check that if inside cwd it should work

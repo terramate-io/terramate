@@ -23,6 +23,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -405,7 +406,7 @@ func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
 	report := generate.Do(s.RootDir(), s.RootDir())
 	assert.EqualInts(t, 0, len(report.Successes), "want no success")
 	assert.EqualInts(t, 1, len(report.Failures), "want single failure")
-	assertReportHasError(t, report, generate.ErrManualCodeExists)
+	assertReportHasError(t, report, errors.E(generate.ErrManualCodeExists))
 
 	stack := s.StackEntry("stack")
 	actualTfCode := stack.ReadGeneratedHCL(genFilename)

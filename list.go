@@ -15,10 +15,10 @@
 package terramate
 
 import (
-	"fmt"
 	"io/fs"
 	"path/filepath"
 
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 )
@@ -33,8 +33,7 @@ func ListStacks(root string) ([]Entry, error) {
 
 	entries := []Entry{}
 
-	logger.Trace().
-		Msg("Walk path.")
+	logger.Trace().Msg("Walk path.")
 	err := filepath.Walk(
 		root,
 		func(path string, info fs.FileInfo, err error) error {
@@ -50,18 +49,14 @@ func ListStacks(root string) ([]Entry, error) {
 				return filepath.SkipDir
 			}
 
-			logger.Trace().
-				Str("stack", path).
-				Msg("Try load stack.")
+			logger.Trace().Str("stack", path).Msg("Try load stack.")
 			stack, found, err := stack.TryLoad(root, path)
 			if err != nil {
-				return fmt.Errorf("listing stacks: %w", err)
+				return err
 			}
 
 			if found {
-				logger.Debug().
-					Stringer("stack", stack).
-					Msg("Found stack.")
+				logger.Debug().Stringer("stack", stack).Msg("Found stack.")
 				entries = append(entries, Entry{Stack: stack})
 			}
 
@@ -70,7 +65,7 @@ func ListStacks(root string) ([]Entry, error) {
 	)
 
 	if err != nil {
-		return nil, err
+		return nil, errors.E("listing stacks", err)
 	}
 
 	return entries, nil

@@ -18,7 +18,9 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/hcl"
 	tmstack "github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -191,6 +193,22 @@ func TestCheckFailsWithInvalidConfig(t *testing.T) {
 			),
 			stack(),
 		).String(),
+
+		hcldoc(
+			generateHCL(
+				labels("test.tf"),
+			),
+			stack(),
+		).String(),
+
+		hcldoc(
+			generateHCL(
+				labels("test.tf"),
+				block("content"),
+				expr("unrecognized", `"value"`),
+			),
+			stack(),
+		).String(),
 	}
 
 	for _, invalidConfig := range invalidConfigs {
@@ -199,10 +217,7 @@ func TestCheckFailsWithInvalidConfig(t *testing.T) {
 		stackEntry := s.CreateStack("stack")
 		stackEntry.CreateConfig(invalidConfig)
 
-		stack, err := tmstack.Load(s.RootDir(), stackEntry.Path())
-		assert.NoError(t, err)
-
-		_, err = generate.CheckStack(s.RootDir(), stack)
-		assert.Error(t, err, "should fail for configuration:\n%s", invalidConfig)
+		_, err := tmstack.Load(s.RootDir(), stackEntry.Path())
+		assert.IsError(t, err, errors.E(hcl.ErrTerramateSchema))
 	}
 }
