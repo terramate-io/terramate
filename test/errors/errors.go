@@ -31,12 +31,12 @@ func AssertKind(t *testing.T, got, want error) {
 	}
 	e1, ok := got.(*errors.Error)
 	if !ok {
-		t.Fatal("got is not an *errors.Error")
+		t.Fatalf("got %v is not an *errors.Error", got)
 	}
 
 	e2, ok := want.(*errors.Error)
 	if !ok {
-		t.Fatal("want is not an *errors.Error")
+		t.Fatalf("want %v is not an *errors.Error", want)
 	}
 
 	AssertIsKind(t, e1, e2.Kind)
