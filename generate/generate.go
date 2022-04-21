@@ -556,7 +556,7 @@ func checkGeneratedFilesConflicts(genfiles []genfile) error {
 func checkGeneratedFilesPaths(genfiles []genfile) error {
 	for _, gen := range genfiles {
 		filename := filepath.ToSlash(gen.name)
-		if strings.Contains(filename, `/`) {
+		if strings.Contains(filename, "/") {
 			// TODO(katcipis): improve error with origin info
 			return errors.E("dir separator not allowed but found on %q", gen.name)
 		}
