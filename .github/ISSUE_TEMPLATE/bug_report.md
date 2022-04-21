@@ -26,7 +26,8 @@ Add logs from Terramate to help debug your problem.
 **Environment (please complete the following information):**
  - OS: [e.g. Linux]
  - OS Version [e.g. Ubuntu 20.04]
- - Terramate Version [e.g. 0.1.0]
+ - Git Version [e.g. 2.35.1] (git --version)
+ - Terramate Version [e.g. 0.1.0] (terramate --version)
 
 **Additional context**
 Add any other context about the problem here.
