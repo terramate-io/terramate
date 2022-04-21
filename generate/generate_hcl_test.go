@@ -365,7 +365,8 @@ func TestHCLGeneration(t *testing.T) {
 					path: "/stacks/stack-5",
 					add: hcldoc(
 						generateHCL(
-							labels(`\dir\name.tf`),
+							// because windows
+							labels(`\\dir\\name.tf`),
 							content(
 								block("something"),
 							),
