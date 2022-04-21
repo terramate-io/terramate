@@ -15,6 +15,7 @@
 package generate_test
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"path/filepath"
@@ -24,6 +25,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/generate/genfilehcl"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -615,4 +617,344 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 	assertEqualStringList(t, got, []string{})
 
 	assertEqualReports(t, s.Generate(), generate.Report{})
+}
+
+func TestFileGeneration(t *testing.T) {
+	type (
+		generatedContent struct {
+			stack string
+			files map[string]string
+		}
+		testcase struct {
+			name        string
+			layout      []string
+			configs     []hclconfig
+			workingDir  string
+			wantContent []generatedContent
+			wantReport  generate.Report
+		}
+	)
+
+	// attr := func(name, expr string) hclwrite.BlockBuilder {
+	// 	t.Helper()
+	// 	return hclwrite.AttributeValue(t, name, expr)
+	// }
+
+	tcases := []testcase{
+		// {
+		// 	name: "no generated file",
+		// 	layout: []string{
+		// 		"s:stacks/stack-1",
+		// 		"s:stacks/stack-2",
+		// 	},
+		// },
+		// {
+		// 	name: "empty generate_file block generates nothing",
+		// 	layout: []string{
+		// 		"s:stacks/stack-1",
+		// 		"s:stacks/stack-2",
+		// 	},
+		// 	configs: []hclconfig{
+		// 		{
+		// 			path: "/stacks",
+		// 			add: generateFile(
+		// 				labels("empty"),
+		// 				str("content", ""),
+		// 			),
+		// 		},
+		// 	},
+		// },
+		// {
+		// 	name: "different file extensions create files with different file extensions",
+		// 	layout: []string{
+		// 		"s:stacks/stack-1",
+		// 		"s:stacks/stack-2",
+		// 	},
+		// 	configs: []hclconfig{
+		// 		{
+		// 			path: "/stacks",
+		// 			add: hcldoc(
+		// 				generateFile(
+		// 					labels("file_1.txt"),
+		// 					str("content", "something"),
+		// 				),
+		// 				generateFile(
+		// 					labels("file_2.csv"),
+		// 					str("content", "something"),
+		// 				),
+		// 				generateFile(
+		// 					labels("file_3.json"),
+		// 					str("content", "something"),
+		// 				),
+		// 				generateFile(
+		// 					labels("file_4.yaml"),
+		// 					str("content", "something"),
+		// 				),
+		// 				generateFile(
+		// 					labels("file_5.anything"),
+		// 					str("content", "something"),
+		// 				),
+		// 				generateFile(
+		// 					labels("file_6"),
+		// 					str("content", "something"),
+		// 				),
+		// 			),
+		// 		},
+		// 	},
+		// 	wantContent: []generatedContent{
+		// 		{
+		// 			stack: "/stacks/stack-1",
+		// 			files: map[string]string{
+		// 				"file_1.txt":      "something",
+		// 				"file_2.csv":      "something",
+		// 				"file_3.json":     "something",
+		// 				"file_4.yaml":     "something",
+		// 				"file_5.anything": "something",
+		// 				"file_6":          "something",
+		// 			},
+		// 		},
+		// 		{
+		// 			stack: "/stacks/stack-2",
+		// 			files: map[string]string{
+		// 				"file_1.txt":      "something",
+		// 				"file_2.csv":      "something",
+		// 				"file_3.json":     "something",
+		// 				"file_4.yaml":     "something",
+		// 				"file_5.anything": "something",
+		// 				"file_6":          "something",
+		// 			},
+		// 		},
+		// 	},
+		// 	wantReport: generate.Report{
+		// 		Successes: []generate.Result{
+		// 			{
+		// 				StackPath: "/stacks/stack-1",
+		// 				Created: []string{
+		// 					"file_1.txt",
+		// 					"file_2.csv",
+		// 					"file_3.json",
+		// 					"file_4.yaml",
+		// 					"file_5.anything",
+		// 					"file_6",
+		// 				},
+		// 			},
+		// 			{
+		// 				StackPath: "/stacks/stack-2",
+		// 				Created: []string{
+		// 					"file_1.txt",
+		// 					"file_2.csv",
+		// 					"file_3.json",
+		// 					"file_4.yaml",
+		// 					"file_5.anything",
+		// 					"file_6",
+		// 				},
+		// 			},
+		// 		},
+		// 	},
+		// },
+		{
+			name: "cannot use same file name in parent and child, or in same stack.",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: hcldoc(
+						generateFile(
+							labels("file_1.txt"),
+							str("content", "something"),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack-1",
+					add: hcldoc(
+						generateFile(
+							labels("file_1.txt"),
+							str("content", "something"),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack-2",
+					add: hcldoc(
+						generateFile(
+							labels("file_2.txt"),
+							str("content", "something"),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack-2",
+					add: hcldoc(
+						generateFile(
+							labels("file_2.txt"),
+							str("content", "something"),
+						),
+					),
+				},
+			},
+			wantContent: []generatedContent{
+				{
+					stack: "/stacks/stack-1",
+					files: map[string]string{},
+				},
+				{
+					stack: "/stacks/stack-2",
+					files: map[string]string{},
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{StackPath: "/stacks/stack-1"},
+						Error:  fmt.Errorf(`loading generate_file: %w`, fmt.Errorf(`%w: %v`, genfilehcl.ErrMultiLevelConflict, errors.New(`found label "file_1.txt" at "/stacks/terramate.tm.hcl" and "/stacks/stack-1/terramate.tm.hcl"`))),
+					},
+					{
+						Result: generate.Result{StackPath: "/stacks/stack-2"},
+						Error:  fmt.Errorf(`loading generate_file: %w`, fmt.Errorf(`%w: %v`, genfilehcl.ErrParsing, errors.New(`found two blocks with same label "file_2.txt"`))),
+					},
+				},
+			},
+		},
+		// {
+		// 	name: "generate file content for all stacks on parent",
+		// 	layout: []string{
+		// 		"s:stacks/stack-1",
+		// 		"s:stacks/stack-2",
+		// 	},
+		// 	configs: []hclconfig{
+		// 		{
+		// 			path: "/stacks",
+		// 			add: hcldoc(
+		// 				generateFile(
+		// 					labels("file_1.txt"),
+		// 					expr("content", "global.backend_prefix"),
+		// 				),
+		// 				generateFile(
+		// 					labels("file_2.txt"),
+		// 					expr("content", "tm_try(global.local_d.field, null)"),
+		// 				),
+		// 			),
+		// 		},
+		// 		{
+		// 			path: "/stacks/stack-1",
+		// 			add: globals(
+		// 				attr("local_d", `{ field = "local_d_field"}`),
+		// 				str("backend_prefix", "stack-1-backend"),
+		// 			),
+		// 		},
+		// 		{
+		// 			path: "/stacks/stack-2",
+		// 			add: globals(
+		// 				attr("local_d", `{ oopsie = "local_d_field"}`),
+		// 				str("backend_prefix", "stack-2-backend"),
+		// 			),
+		// 		},
+		// 	},
+		// 	wantContent: []generatedContent{
+		// 		{
+		// 			stack: "/stacks/stack-1",
+		// 			files: map[string]string{
+		// 				"file_1.txt": "stack-1-backend",
+		// 				"file_2.txt": "local_d_field",
+		// 			},
+		// 		},
+		// 		{
+		// 			stack: "/stacks/stack-2",
+		// 			files: map[string]string{
+		// 				"file_1.txt": "stack-2-backend",
+		// 			},
+		// 		},
+		// 	},
+		// 	wantReport: generate.Report{
+		// 		Successes: []generate.Result{
+		// 			{
+		// 				StackPath: "/stacks/stack-1",
+		// 				Created:   []string{"file_1.txt", "file_2.txt"},
+		// 			},
+		// 			{
+		// 				StackPath: "/stacks/stack-2",
+		// 				Created:   []string{"file_1.txt"},
+		// 			},
+		// 		},
+		// 	},
+		// },
+	}
+
+	for _, tcase := range tcases {
+		t.Run(tcase.name, func(t *testing.T) {
+			s := sandbox.New(t)
+			s.BuildTree(tcase.layout)
+
+			for _, cfg := range tcase.configs {
+				cfg.append(t, s.RootDir())
+			}
+
+			assertGeneratedFiles := func(t *testing.T) {
+				t.Helper()
+
+				for _, wantDesc := range tcase.wantContent {
+					stackRelPath := wantDesc.stack[1:]
+					stack := s.StackEntry(stackRelPath)
+
+					for name, want := range wantDesc.files {
+						got := stack.ReadGeneratedHCL(name)
+
+						assertHCLEquals(t, got, want)
+					}
+				}
+			}
+
+			workingDir := filepath.Join(s.RootDir(), tcase.workingDir)
+			report := generate.Do(s.RootDir(), workingDir)
+			assertEqualReports(t, report, tcase.wantReport)
+
+			assertGeneratedFiles(t)
+
+			// piggyback on the tests to validate that regeneration doesnt
+			// delete files or fail and has identical results.
+			t.Run("regenerate", func(t *testing.T) {
+				report := generate.Do(s.RootDir(), workingDir)
+				// since we just generated everything, report should be empty
+				assertEqualReports(t, report, generate.Report{})
+				assertGeneratedFiles(t)
+			})
+
+			// Check we don't have extraneous/unwanted files
+			// We remove wanted/expected generated code
+			// So we should have only basic terramate configs left
+			// There is potential to extract this for other code generation tests.
+			for _, wantDesc := range tcase.wantContent {
+				stackRelPath := wantDesc.stack[1:]
+				stack := s.StackEntry(stackRelPath)
+				for name := range wantDesc.files {
+					stack.RemoveGeneratedHCL(name)
+				}
+			}
+			err := filepath.WalkDir(s.RootDir(), func(path string, d fs.DirEntry, err error) error {
+				t.Helper()
+
+				assert.NoError(t, err, "checking for unwanted generated files")
+				if d.IsDir() {
+					if d.Name() == ".git" {
+						return filepath.SkipDir
+					}
+					return nil
+				}
+
+				// sandbox create README.md inside test dirs
+				if d.Name() == config.DefaultFilename || d.Name() == "README.md" {
+					return nil
+				}
+
+				t.Errorf("unwanted file %q", path)
+				return nil
+			})
+
+			assert.NoError(t, err)
+		})
+	}
 }

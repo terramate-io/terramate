@@ -361,29 +361,6 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context)
 	return nil
 }
 
-func CopyAttribute(target *hclwrite.Body, attr *hclsyntax.Attribute, evalctx *eval.Context) error {
-	logger := log.With().
-		Str("action", "CopyAttribute()").
-		Str("attrName", attr.Name).
-		Logger()
-
-	logger.Trace().Msg("evaluating.")
-
-	tokens, err := evalctx.PartialEval(attr.Expr)
-	if err != nil {
-		return fmt.Errorf("failed to evaluate expression: %w", err)
-	}
-
-	logger.Trace().
-		Msg("Setting evaluated attribute.")
-
-	target.SetAttributeRaw(attr.Name, tokens)
-
-	logger.Trace().Msg("Append blocks.")
-
-	return nil
-}
-
 func sortedAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {
 	names := make([]string, 0, len(attrs))
 
@@ -665,7 +642,7 @@ func blockIsAllowed(name string) bool {
 		Logger()
 
 	switch name {
-	case "terramate", "stack", "globals", "generate_hcl":
+	case "terramate", "stack", "globals", "generate_hcl", "generate_file":
 		logger.Trace().Msg("Block name was allowed.")
 		return true
 	default:

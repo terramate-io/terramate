@@ -34,6 +34,10 @@ func generateHCL(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("generate_hcl", builders...)
 }
 
+func generateFile(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return hclwrite.BuildBlock("generate_file", builders...)
+}
+
 func content(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("content", builders...)
 }

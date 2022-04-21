@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genfile
+package genfilehcl
 
 import (
 	"errors"
@@ -118,8 +118,8 @@ func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackHC
 
 		logger.Trace().Msg("evaluating block.")
 
-		gen := hclwrite.NewEmptyFile()
-		if err := hcl.CopyAttribute(gen.Body(), loadedFileBlock.attribute, evalctx); err != nil {
+		value, err := evalctx.Eval(loadedFileBlock.content.Expr)
+		if err != nil {
 			evalErr := fmt.Errorf(
 				"%w: stack %q block %q",
 				ErrEval,
@@ -128,9 +128,16 @@ func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackHC
 			)
 			return StackHCLs{}, errutil.Chain(evalErr, err)
 		}
+
+		val := ""
+
+		if !value.IsNull() {
+			val = value.AsString()
+		}
+
 		res.hcls[name] = HCL{
 			origin: loadedFileBlock.origin,
-			body:   hclwrite.Format(gen.Bytes()),
+			body:   hclwrite.Format([]byte(val)),
 		}
 	}
 
@@ -166,8 +173,8 @@ func newEvalCtx(stackpath string, sm stack.Metadata, globals terramate.Globals) 
 }
 
 type loadedFile struct {
-	origin    string
-	attribute *hclsyntax.Attribute
+	origin  string
+	content *hclsyntax.Attribute
 }
 
 // loadGenFileBlocks will load all generate_file blocks.
@@ -244,8 +251,8 @@ func loadGenFileBlocks(rootdir string, cfgdir string) (map[string]loadedFile, er
 
 			contentAttr := genhFileBlock.Body.Attributes["content"]
 			res[name] = loadedFile{
-				origin:    project.PrjAbsPath(rootdir, filename),
-				attribute: contentAttr,
+				origin:  project.PrjAbsPath(rootdir, filename),
+				content: contentAttr,
 			}
 
 			logger.Trace().Msg("loaded generate_file block.")

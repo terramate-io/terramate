@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genfile_test
+package genfilehcl_test
 
 import (
 	"fmt"
@@ -23,7 +23,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/generate/genfile"
+	"github.com/mineiros-io/terramate/generate/genfilehcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
@@ -246,7 +246,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 
 			meta := stack.Meta()
 			globals := s.LoadStackGlobals(meta)
-			res, err := genfile.Load(s.RootDir(), meta, globals)
+			res, err := genfilehcl.Load(s.RootDir(), meta, globals)
 			assert.IsError(t, err, tcase.wantErr)
 
 			got := res.GeneratedHCLs()
@@ -1315,7 +1315,7 @@ func TestPartialEval(t *testing.T) {
 
 			meta := stack.Meta()
 			globals := s.LoadStackGlobals(meta)
-			res, err := genfile.Load(s.RootDir(), meta, globals)
+			res, err := genfilehcl.Load(s.RootDir(), meta, globals)
 			assert.IsError(t, err, tcase.wantErr)
 
 			if err != nil {

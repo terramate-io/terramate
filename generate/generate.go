@@ -25,6 +25,7 @@ import (
 
 	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/generate/genfilehcl"
 	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
@@ -85,7 +86,15 @@ func Do(root string, workingDir string) Report {
 			report.err = err
 			return report
 		}
+
+		generateFileContent, err := generateFileContent(root, stackpath, stackMeta, globals)
+		if err != nil {
+			report.err = err
+			return report
+		}
+
 		genfiles = append(genfiles, stackHCLsCode...)
+		genfiles = append(genfiles, generateFileContent...)
 
 		logger.Trace().Msg("Checking for conflicts on generated files.")
 
@@ -359,9 +368,63 @@ func generateStackHCLCode(
 	return files, nil
 }
 
+func generateFileContent(
+	root string,
+	stackpath string,
+	meta stack.Metadata,
+	globals terramate.Globals,
+) ([]genfile, error) {
+	logger := log.With().
+		Str("action", "generateFileContent()").
+		Str("root", root).
+		Str("stackpath", stackpath).
+		Logger()
+
+	logger.Trace().Msg("generating file content.")
+
+	stackGeneratedContent, err := genfilehcl.Load(root, meta, globals)
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Trace().Msg("generated file content.")
+
+	files := []genfile{}
+
+	for name, generatedContent := range stackGeneratedContent.GeneratedHCLs() {
+		targetpath := filepath.Join(stackpath, name)
+		logger := logger.With().
+			Str("blockName", name).
+			Str("targetpath", targetpath).
+			Logger()
+
+		hclCode := generatedContent.String()
+		if hclCode == "" {
+			files = append(files, genfile{name: name, body: hclCode})
+			continue
+		}
+
+		hclCode = prependGenHCLHeader(generatedContent.Origin(), hclCode)
+		files = append(files, genfile{name: name, body: hclCode})
+
+		logger.Debug().Msg("stack HCL code loaded.")
+	}
+
+	return files, nil
+}
+
 func prependGenHCLHeader(origin, code string) string {
 	return fmt.Sprintf(
 		"%s\n// TERRAMATE: originated from generate_hcl block on %s\n\n%s",
+		Header,
+		origin,
+		code,
+	)
+}
+
+func prependGenFileHeader(origin, code string) string {
+	return fmt.Sprintf(
+		"%s\n// TERRAMATE: originated from generate_file block on %s\n\n%s",
 		Header,
 		origin,
 		code,
