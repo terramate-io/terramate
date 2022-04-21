@@ -308,12 +308,13 @@ func TestHCLGeneration(t *testing.T) {
 			// directories are allowed but in a constrained fashion.
 			// This is a quick fix to avoid creating files on arbitrary
 			// places around the file system.
-			name: "generate HCL with / on label name fails",
+			name: "generate HCL with dir separators on label name fails",
 			layout: []string{
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
 				"s:stacks/stack-3",
 				"s:stacks/stack-4",
+				"s:stacks/stack-5",
 			},
 			configs: []hclconfig{
 				{
@@ -360,6 +361,17 @@ func TestHCLGeneration(t *testing.T) {
 						),
 					),
 				},
+				{
+					path: "/stacks/stack-5",
+					add: hcldoc(
+						generateHCL(
+							labels(`\dir\name.tf`),
+							content(
+								block("something"),
+							),
+						),
+					),
+				},
 			},
 			wantReport: generate.Report{
 				Failures: []generate.FailureResult{
@@ -384,6 +396,12 @@ func TestHCLGeneration(t *testing.T) {
 					{
 						Result: generate.Result{
 							StackPath: "/stacks/stack-4",
+						},
+						Error: errors.E(generate.ErrInvalidFilePath),
+					},
+					{
+						Result: generate.Result{
+							StackPath: "/stacks/stack-5",
 						},
 						Error: errors.E(generate.ErrInvalidFilePath),
 					},

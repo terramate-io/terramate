@@ -554,10 +554,14 @@ func checkGeneratedFilesConflicts(genfiles []genfile) error {
 }
 
 func checkGeneratedFilesPaths(genfiles []genfile) error {
+	// We never allow chars that can be used as dirs separators
+	// on macos/linux/win.
+	const dirSeparators = `/\`
+
 	for _, gen := range genfiles {
-		if strings.Contains(gen.name, "/") {
+		if strings.ContainsAny(gen.name, dirSeparators) {
 			// TODO(katcipis): improve error with origin info
-			return errors.E("'/' not allowed but found on %q", gen.name)
+			return errors.E("dir separator not allowed but found on %q", gen.name)
 		}
 	}
 	return nil
