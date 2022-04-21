@@ -19,8 +19,9 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	tmerrors "github.com/mineiros-io/terramate/errors"
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/generate"
+	errtest "github.com/mineiros-io/terramate/test/errors"
 )
 
 func TestReportRepresentation(t *testing.T) {
@@ -252,32 +253,26 @@ func assertReportHasError(t *testing.T, report generate.Report, err error) {
 func assertEqualReports(t *testing.T, got, want generate.Report) {
 	t.Helper()
 
-	if diff := cmp.Diff(got, want, cmp.Comparer(compareErrors)); diff != "" {
-		t.Errorf("got %s", got)
-		t.Errorf("want %s", want)
-		t.Errorf("got(-) want(+)")
+	// WHY: we can't just use cmp.Diff since the errors included on the Report
+	// are not comparable and may contain unexported fields (depending on how errors are built)
+
+	errtest.Assert(t, got.BootstrapErr, want.BootstrapErr)
+
+	if diff := cmp.Diff(got.Successes, want.Successes); diff != "" {
+		t.Errorf("success results differs: got(-) want(+)")
 		t.Fatal(diff)
 	}
-}
 
-func compareErrors(err, err2 error) bool {
-	// we can't use our errors.Is directly since cmp requires a symmetric
-	// comparison function, and errors.Is isn't (we get a panic if we use it:
-	// panic: non-deterministic or non-symmetric function detected: errors.Is [recovered]
-	if (err == nil) != (err2 == nil) {
-		return false
-	}
-	if err == nil {
-		return err == err2
-	}
+	assert.EqualInts(t, len(want.Failures), len(got.Failures), "checking report failures")
 
-	e1, ok1 := err.(*tmerrors.Error)
-	e2, ok2 := err2.(*tmerrors.Error)
-	if ok1 && ok2 {
-		// For now we only care about the kind
-		return e1.Kind == e2.Kind
-	}
+	for i, gotFailure := range got.Failures {
+		wantFailure := want.Failures[i]
 
-	// We can't use errors.Is from stdlib either, it is also non-symmetric
-	return err.Error() == err2.Error()
+		if diff := cmp.Diff(gotFailure.Result, wantFailure.Result); diff != "" {
+			t.Errorf("failure result differs: got(-) want(+)")
+			t.Fatal(diff)
+		}
+
+		errtest.Assert(t, gotFailure.Error, wantFailure.Error)
+	}
 }
