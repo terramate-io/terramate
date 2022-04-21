@@ -557,7 +557,7 @@ func checkGeneratedFilesPaths(genfiles []genfile) error {
 	// We never allow chars that can be used as dirs separators
 	// on macos/linux/win. We do this independently of which OS terramate
 	// was built, so we get consistent behavior and any code that
-	// works on one OS will also work no any other OS.
+	// works on one OS will also work on any other OS.
 	const (
 		unixSeparator = "/"
 		winSeparator  = `\\`
