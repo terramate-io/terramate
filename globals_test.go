@@ -956,7 +956,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerraformSchema),
+			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
 			name:   "global undefined reference on root",
@@ -1070,7 +1070,7 @@ func TestLoadGlobals(t *testing.T) {
 			wantGlobals := tcase.want
 
 			stackEntries, err := terramate.ListStacks(s.RootDir())
-			if errors.IsKind(tcase.wantErr, hcl.ErrTerramateSchema) {
+			if err != nil {
 				errtest.AssertKind(t, err, tcase.wantErr)
 			}
 
