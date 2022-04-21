@@ -1111,7 +1111,6 @@ func TestLoadGeneratedHCL(t *testing.T) {
 
 			globals := s.LoadStackGlobals(stack)
 			res, err := genhcl.Load(s.RootDir(), stack, globals)
-
 			errtest.Assert(t, err, tcase.wantErr)
 
 			got := res.GeneratedHCLs()
@@ -2252,7 +2251,6 @@ func TestPartialEval(t *testing.T) {
 
 			globals := s.LoadStackGlobals(stack)
 			res, err := genhcl.Load(s.RootDir(), stack, globals)
-
 			errtest.Assert(t, err, tcase.wantErr)
 
 			if err != nil {
