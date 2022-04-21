@@ -19,7 +19,9 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/generate"
+	errtest "github.com/mineiros-io/terramate/test/errors"
 )
 
 func TestReportRepresentation(t *testing.T) {
@@ -250,10 +252,27 @@ func assertReportHasError(t *testing.T, report generate.Report, err error) {
 
 func assertEqualReports(t *testing.T, got, want generate.Report) {
 	t.Helper()
-	if diff := cmp.Diff(got, want); diff != "" {
-		t.Errorf("got %s", got)
-		t.Errorf("want %s", want)
-		t.Errorf("got(-) want(+)")
+
+	// WHY: we can't just use cmp.Diff since the errors included on the Report
+	// are not comparable and may contain unexported fields (depending on how errors are built)
+
+	errtest.Assert(t, got.BootstrapErr, want.BootstrapErr)
+
+	if diff := cmp.Diff(got.Successes, want.Successes); diff != "" {
+		t.Errorf("success results differs: got(-) want(+)")
 		t.Fatal(diff)
+	}
+
+	assert.EqualInts(t, len(want.Failures), len(got.Failures), "checking report failures")
+
+	for i, gotFailure := range got.Failures {
+		wantFailure := want.Failures[i]
+
+		if diff := cmp.Diff(gotFailure.Result, wantFailure.Result); diff != "" {
+			t.Errorf("failure result differs: got(-) want(+)")
+			t.Fatal(diff)
+		}
+
+		errtest.Assert(t, gotFailure.Error, wantFailure.Error)
 	}
 }

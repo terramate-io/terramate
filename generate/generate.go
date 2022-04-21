@@ -41,6 +41,10 @@ const (
 	// are conflicting, like both generates a file with the same name
 	// and would overwrite each other.
 	ErrConflictingConfig errors.Kind = "conflicting config detected"
+
+	// ErrInvalidFilePath indicates that code generation configuration
+	// has an invalid filepath as the target to save the generated code.
+	ErrInvalidFilePath errors.Kind = "invalid filepath"
 )
 
 const (
@@ -90,6 +94,12 @@ func Do(root string, workingDir string) Report {
 			return report
 		}
 		genfiles = append(genfiles, stackHCLsCode...)
+
+		logger.Trace().Msg("Checking for invalid paths on generated files.")
+		if err := checkGeneratedFilesPaths(genfiles); err != nil {
+			report.err = errors.E(ErrInvalidFilePath, err)
+			return report
+		}
 
 		logger.Trace().Msg("Checking for conflicts on generated files.")
 
@@ -536,6 +546,17 @@ func checkGeneratedFilesConflicts(genfiles []genfile) error {
 			return errors.E("two configurations produce same file %q", genf.name)
 		}
 		observed.add(genf.name)
+	}
+	return nil
+}
+
+func checkGeneratedFilesPaths(genfiles []genfile) error {
+	for _, gen := range genfiles {
+		filename := filepath.ToSlash(gen.name)
+		if strings.Contains(filename, "/") {
+			// TODO(katcipis): improve error with origin info
+			return errors.E("dir separator not allowed but found on %q", gen.name)
+		}
 	}
 	return nil
 }
