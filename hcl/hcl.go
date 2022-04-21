@@ -97,7 +97,7 @@ type Stack struct {
 // Blocks maps a filename to a slice of HCL blocks associated with it
 type Blocks map[string][]*hclsyntax.Block
 
-// TerramateParser is an HCL parser tailored for Terramate configurion schema.
+// TerramateParser is an HCL parser tailored for Terramate configuration schema.
 // As the Terramate configuration can span multiple files in the same directory,
 // this API allows you to define the exact set of files (and contents) that are
 // going to be included in the final configuration.

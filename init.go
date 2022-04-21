@@ -72,9 +72,9 @@ func Init(root, dir string) error {
 	}
 
 	if found {
-		return errors.E(errInit,
-			"directory %q is inside stack %q but nested stacks are disallowed",
-			dir, parentStack.Path(),
+		return errors.E(errInit, parentStack,
+			"directory %q is inside stack but nested stacks are disallowed",
+			dir,
 		)
 	}
 
