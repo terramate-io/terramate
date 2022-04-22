@@ -269,12 +269,6 @@ func (e *Error) Detailed() string {
 // - FileRange
 // Any fields absent (empty) on the target error are ignored even if they exist on err (partial match).
 func (e *Error) Is(target error) bool {
-	if (e == nil) != (target == nil) {
-		return false
-	}
-	if target == nil {
-		return e == target
-	}
 	t, ok := target.(*Error)
 	if !ok {
 		return false
