@@ -178,7 +178,6 @@ func TestErrorIs(t *testing.T) {
 		areSame bool
 	}
 
-	stderr := stderrors.New("other")
 	stack := stackmeta{
 		name: "stack",
 		desc: "desc",
@@ -291,12 +290,6 @@ func TestErrorIs(t *testing.T) {
 			name:    "same file range",
 			err:     E("error", hcl.Range{Filename: "test.hcl"}),
 			target:  E("error", hcl.Range{Filename: "test.hcl"}),
-			areSame: true,
-		},
-		{
-			name:    "std error comparison works",
-			err:     stdfmt.Errorf("test: %w", stderr),
-			target:  stderr,
 			areSame: true,
 		},
 	} {
