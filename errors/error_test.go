@@ -216,7 +216,7 @@ func TestErrorIs(t *testing.T) {
 			areSame: true,
 		},
 		{
-			name:    "underlying error is of the provided stderror",
+			name:    "underlying error is a stderror",
 			err:     E("some error wrapping a stderror", os.ErrNotExist),
 			target:  os.ErrNotExist,
 			areSame: true,

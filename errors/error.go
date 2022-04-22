@@ -261,9 +261,48 @@ func (e *Error) Detailed() string {
 	return e.error(true)
 }
 
-// Is implements errors.Is interface.
+// Is tells if err matches the target error.
+// The target error must be of errors.Error type and it will try to match the following fields:
+// - Kind
+// - Description
+// - Stack
+// - FileRange
+// Any fields absent (empty) on the target error are ignored even if they exist on err (partial match).
 func (e *Error) Is(target error) bool {
-	return Is(e, target)
+	if (e == nil) != (target == nil) {
+		return false
+	}
+	if target == nil {
+		return e == target
+	}
+	t, ok := target.(*Error)
+	if !ok {
+		return false
+	}
+
+	if t.Kind != "" && !IsKind(e, t.Kind) {
+		return false
+	}
+
+	if t.Description != "" && !hasDesc(e, t.Description) {
+		return false
+	}
+
+	if t.Stack != nil && !hasSameStack(e, t.Stack) {
+		return false
+	}
+
+	if !t.FileRange.Empty() && e.FileRange != t.FileRange {
+		return false
+	}
+
+	return true
+}
+
+// Unwrap returns the wrapped error, if there is any.
+// Returns nil if there is no wrapped error.
+func (e *Error) Unwrap() error {
+	return e.Err
 }
 
 // IsKind tells if err is of kind k.
@@ -283,59 +322,14 @@ func IsKind(err error, k Kind) bool {
 	return IsKind(e.Err, k)
 }
 
-// Is tells if err (or any of its underlying errors) matches target.
-// It works with any error but when comparing with an errors.Error type it will try to match the following fields:
-// - Kind
-// - Description
-// - Stack
-// - FileRange
-// - Err
-// Any fields absent (empty) on the target error are ignored even if they exist on err (partial match).
-// If the target error is no an error.Error it fallbacks to standard errors.Is().
+// Is is just an alias to Go stdlib errors.Is
 func Is(err, target error) bool {
-	if (err == nil) != (target == nil) {
-		return false
-	}
-	if target == nil {
-		return err == target
-	}
-	e, ok := err.(*Error)
-	if !ok {
-		return errors.Is(err, target)
-	}
-	t, ok := target.(*Error)
-	if !ok {
-		// target is not *Error so it's already different.
-		// Let's check the underlying error.
-		if e.Err != nil {
-			return Is(e.Err, target)
-		}
-		return false
-	}
+	return errors.Is(err, target)
+}
 
-	// both are *Error
-
-	if t.Kind != "" && !IsKind(e, t.Kind) {
-		return false
-	}
-
-	if t.Description != "" && !hasDesc(e, t.Description) {
-		return false
-	}
-
-	if t.Stack != nil && !hasSameStack(e, t.Stack) {
-		return false
-	}
-
-	if !t.FileRange.Empty() && e.FileRange != t.FileRange {
-		return false
-	}
-
-	if t.Err != nil {
-		return Is(e.Err, t.Err)
-	}
-
-	return true
+// As is just an alias to Go stdlib errors.As
+func As(err error, target interface{}) bool {
+	return errors.As(err, target)
 }
 
 func hasDesc(err error, desc string) bool {
