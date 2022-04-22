@@ -45,16 +45,6 @@ type Error struct {
 	Err error
 }
 
-// List represents a list of error instances that also
-// implements Go's error interface.
-//
-// List implements Go's errors.Is protocol matching the
-// target error with all the errors inside it, returning
-// true if any of the errors is a match.
-type List struct {
-	errs []error
-}
-
 type (
 	// Kind defines the kind of an error.
 	Kind string
@@ -68,76 +58,6 @@ type (
 )
 
 const separator = ": "
-
-// L builds a List instance with all errs provided as arguments.
-// Any nil errors on errs will be discarded.
-func L(errs ...error) *List {
-	e := &List{}
-	for _, err := range errs {
-		e.Append(err)
-	}
-	return e
-}
-
-// Error returns the string representation of the error list.
-// Only the first error message is returned, all other errors are elided.
-// For a full representation of all errors use the List.Detailed method.
-func (e *List) Error() string {
-	if len(e.errs) == 0 {
-		return ""
-	}
-	errmsg := e.errs[0].Error()
-	if len(e.errs) == 1 {
-		return errmsg
-	}
-	return fmt.Sprintf("%s (and %d elided errors)", errmsg, len(e.errs)-1)
-}
-
-// Detailed returns a detailed string representation of the error list.
-// It will return all errors contained on the list as a single string.
-// One error per line.
-func (e *List) Detailed() string {
-	if len(e.errs) == 0 {
-		return ""
-	}
-	details := []string{"error list:"}
-	for _, err := range e.errs {
-		details = append(details, "\t-"+err.Error())
-	}
-	return strings.Join(details, "\n")
-}
-
-// Append appends a new error on the error list.
-// If the error is nil it will not be added on the error list.
-func (e *List) Append(err error) {
-	if err == nil {
-		return
-	}
-	e.errs = append(e.errs, err)
-}
-
-// AsError returns an error instance if the errors list is non-empty.
-// If the list is empty it will return nil.
-func (e *List) AsError() error {
-	if len(e.errs) == 0 {
-		return nil
-	}
-	return e
-}
-
-// Is will call errors.Is for each of the errors on its list
-// returning true on the first match it finds or false if no
-// error inside the list matches the given target.
-//
-// If the target error is nil and the error list is empty returns true.
-func (e *List) Is(target error) bool {
-	for _, err := range e.errs {
-		if errors.Is(err, target) {
-			return true
-		}
-	}
-	return false
-}
 
 // E builds an error value from its arguments.
 // There must be at least one argument or E panics.
