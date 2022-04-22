@@ -54,6 +54,20 @@ func (l *List) Error() string {
 	return fmt.Sprintf("%s (and %d elided errors)", errmsg, len(l.errs)-1)
 }
 
+// Errors returns all errors contained on the list that are of the type Error
+// or that have an error of type Error wrapped inside them.
+// Any other errors will be ignored.
+func (l *List) Errors() []*Error {
+	var errs []*Error
+	for _, err := range l.errs {
+		var e *Error
+		if errors.As(err, &e) {
+			errs = append(errs, e)
+		}
+	}
+	return errs
+}
+
 // Detailed returns a detailed string representation of the error list.
 // It will return all errors contained on the list as a single string.
 // One error per line.

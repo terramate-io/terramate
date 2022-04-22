@@ -369,37 +369,6 @@ func TestDetailedRepresentation(t *testing.T) {
 	}
 }
 
-func TestEmptyErrorListStringRepresentationIsEmpty(t *testing.T) {
-	errs := errors.L()
-	assert.EqualStrings(t, "", errs.Error())
-	assert.EqualStrings(t, "", errs.Detailed())
-}
-
-func TestEmptyErrorListAsErrorIsNil(t *testing.T) {
-	errs := errors.L()
-	err := errs.AsError()
-	if err != nil {
-		t.Fatalf("got error %v but want nil", err)
-	}
-}
-
-func TestErrorListIgnoresNilErrors(t *testing.T) {
-	errs := errors.L(nil, nil)
-	errs.Append(nil)
-	err := errs.AsError()
-	if err != nil {
-		t.Fatalf("got error %v but want nil", err)
-	}
-}
-
-func TestErrorListStringDetailedPresentation(t *testing.T) {
-	errs := errors.L(E("one"))
-	assert.EqualStrings(t, "error list:\n\t-one", errs.Detailed())
-
-	errs.Append(E("two"))
-	assert.EqualStrings(t, "error list:\n\t-one\n\t-two", errs.Detailed())
-}
-
 func fmt(format string, args ...interface{}) string {
 	return stdfmt.Sprintf(format, args...)
 }
