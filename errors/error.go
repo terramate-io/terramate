@@ -45,12 +45,13 @@ type Error struct {
 	Err error
 }
 
-// Errors represents a list of error instances that also
+// List represents a list of error instances that also
 // implements Go's error interface.
-// Errors implements Go's errors.Is protocol matching the
+//
+// List implements Go's errors.Is protocol matching the
 // target error with all the errors inside it, returning
 // true if any of the errors is a match.
-type Errors struct {
+type List struct {
 	errs []error
 }
 
@@ -68,10 +69,10 @@ type (
 
 const separator = ": "
 
-// List builds an Errors instance with all errs provided as arguments.
+// L builds a List instance with all errs provided as arguments.
 // Any nil errors on errs will be discarded.
-func List(errs ...error) *Errors {
-	e := &Errors{}
+func L(errs ...error) *List {
+	e := &List{}
 	for _, err := range errs {
 		e.Append(err)
 	}
@@ -80,8 +81,8 @@ func List(errs ...error) *Errors {
 
 // Error returns the string representation of the error list.
 // Only the first error message is returned, all other errors are elided.
-// For a full representation of all errors use the Errors.Detailed method.
-func (e *Errors) Error() string {
+// For a full representation of all errors use the List.Detailed method.
+func (e *List) Error() string {
 	if len(e.errs) == 0 {
 		return ""
 	}
@@ -95,7 +96,7 @@ func (e *Errors) Error() string {
 // Detailed returns a detailed string representation of the error list.
 // It will return all errors contained on the list as a single string.
 // One error per line.
-func (e *Errors) Detailed() string {
+func (e *List) Detailed() string {
 	if len(e.errs) == 0 {
 		return ""
 	}
@@ -108,7 +109,7 @@ func (e *Errors) Detailed() string {
 
 // Append appends a new error on the error list.
 // If the error is nil it will not be added on the error list.
-func (e *Errors) Append(err error) {
+func (e *List) Append(err error) {
 	if err == nil {
 		return
 	}
@@ -117,7 +118,7 @@ func (e *Errors) Append(err error) {
 
 // AsError returns an error instance if the errors list is non-empty.
 // If the list is empty it will return nil.
-func (e *Errors) AsError() error {
+func (e *List) AsError() error {
 	if len(e.errs) == 0 {
 		return nil
 	}
@@ -129,7 +130,7 @@ func (e *Errors) AsError() error {
 // error inside the list matches the given target.
 //
 // If the target error is nil and the error list is empty returns true.
-func (e *Errors) Is(target error) bool {
+func (e *List) Is(target error) bool {
 	for _, err := range e.errs {
 		if errors.Is(err, target) {
 			return true

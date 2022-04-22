@@ -172,13 +172,13 @@ func TestErrorString(t *testing.T) {
 		// piggyback on Error formatting tests for Errors list testing
 
 		t.Run("errors list with single error/"+tc.name, func(t *testing.T) {
-			errs := errors.List(tc.err)
+			errs := errors.L(tc.err)
 
 			assert.EqualStrings(t, tc.want, errs.Error())
 			assert.EqualStrings(t, tc.want, errs.AsError().Error())
 		})
 		t.Run("errors list with multiple errors/"+tc.name, func(t *testing.T) {
-			errs := errors.List(tc.err, E("will be elided"))
+			errs := errors.L(tc.err, E("will be elided"))
 			errs.Append(E("will also be elided"))
 			want := fmt("%s (and 2 elided errors)", tc.err.Error())
 
@@ -331,17 +331,17 @@ func TestErrorIs(t *testing.T) {
 		//piggyback on errors.Error tests
 
 		t.Run("errors list with single err/"+tc.name, func(t *testing.T) {
-			errs := errors.List(tc.err)
+			errs := errors.L(tc.err)
 			assertErrorIsTarget(t, errs)
 		})
 
 		t.Run("errors list match is first/"+tc.name, func(t *testing.T) {
-			errs := errors.List(tc.err, stderrors.New("not match"))
+			errs := errors.L(tc.err, stderrors.New("not match"))
 			assertErrorIsTarget(t, errs)
 		})
 
 		t.Run("errors list match is last/"+tc.name, func(t *testing.T) {
-			errs := errors.List(stderrors.New("not match"), tc.err)
+			errs := errors.L(stderrors.New("not match"), tc.err)
 			assertErrorIsTarget(t, errs)
 		})
 	}
@@ -370,13 +370,13 @@ func TestDetailedRepresentation(t *testing.T) {
 }
 
 func TestEmptyErrorListStringRepresentationIsEmpty(t *testing.T) {
-	errs := errors.List()
+	errs := errors.L()
 	assert.EqualStrings(t, "", errs.Error())
 	assert.EqualStrings(t, "", errs.Detailed())
 }
 
 func TestEmptyErrorListAsErrorIsNil(t *testing.T) {
-	errs := errors.List()
+	errs := errors.L()
 	err := errs.AsError()
 	if err != nil {
 		t.Fatalf("got error %v but want nil", err)
@@ -384,7 +384,7 @@ func TestEmptyErrorListAsErrorIsNil(t *testing.T) {
 }
 
 func TestErrorListIgnoresNilErrors(t *testing.T) {
-	errs := errors.List(nil, nil)
+	errs := errors.L(nil, nil)
 	errs.Append(nil)
 	err := errs.AsError()
 	if err != nil {
@@ -393,7 +393,7 @@ func TestErrorListIgnoresNilErrors(t *testing.T) {
 }
 
 func TestErrorListStringDetailedPresentation(t *testing.T) {
-	errs := errors.List(E("one"))
+	errs := errors.L(E("one"))
 	assert.EqualStrings(t, "error list:\n\t-one", errs.Detailed())
 
 	errs.Append(E("two"))
