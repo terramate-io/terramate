@@ -77,7 +77,8 @@ func (l *List) Append(err error) {
 	l.errs = append(l.errs, err)
 }
 
-// AsError returns an error instance if the errors list is non-empty.
+// AsError returns the error list as an error instance if the errors
+// list is non-empty.
 // If the list is empty it will return nil.
 func (l *List) AsError() error {
 	if len(l.errs) == 0 {
