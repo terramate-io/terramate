@@ -292,6 +292,12 @@ func TestErrorIs(t *testing.T) {
 			target:  E("error", hcl.Range{Filename: "test.hcl"}),
 			areSame: true,
 		},
+		{
+			name:    "error match wrapped on stderr",
+			err:     stdfmt.Errorf("stderr : %w", E(syntaxError)),
+			target:  E(syntaxError),
+			areSame: true,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			res := errors.Is(tc.err, tc.target)
