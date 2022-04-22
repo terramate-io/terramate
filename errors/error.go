@@ -278,7 +278,7 @@ func (e *Error) Is(target error) bool {
 		return false
 	}
 
-	if t.Description != "" && !hasDesc(e, t.Description) {
+	if t.Description != "" && e.Description != t.Description {
 		return false
 	}
 
