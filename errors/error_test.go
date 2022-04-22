@@ -166,6 +166,18 @@ func TestErrorString(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.EqualStrings(t, tc.want, tc.err.Error())
+
+			// piggyback on Error formatting tests for Errors list testing
+			t.Run("errors list with single error/"+tc.name, func(t *testing.T) {
+				errs := errors.List(tc.err)
+				assert.EqualStrings(t, tc.want, errs.Error())
+			})
+			t.Run("errors list with multiple errors/"+tc.name, func(t *testing.T) {
+				errs := errors.List(tc.err, E("will be elided"))
+				errs.Append(E("will also be elided"))
+				want := fmt("%s (and 2 elided errors)", tc.err.Error())
+				assert.EqualStrings(t, want, errs.Error())
+			})
 		})
 	}
 }
@@ -329,6 +341,20 @@ func TestDetailedRepresentation(t *testing.T) {
 		t.Error("detailed error should be different than default")
 		t.Fatalf("instead both are: %s", e.Error())
 	}
+}
+
+func TestEmptyErrorListStringRepresentationIsEmpty(t *testing.T) {
+	errs := errors.List()
+	assert.EqualStrings(t, "", errs.Error())
+	assert.EqualStrings(t, "", errs.Detailed())
+}
+
+func TestErrorListStringDetailedPresentation(t *testing.T) {
+	errs := errors.List(E("one"))
+	assert.EqualStrings(t, "error list:\n\t-one", errs.Detailed())
+
+	errs.Append(E("two"))
+	assert.EqualStrings(t, "error list:\n\t-one\n\t-two", errs.Detailed())
 }
 
 func fmt(format string, args ...interface{}) string {

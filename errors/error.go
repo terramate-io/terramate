@@ -45,6 +45,15 @@ type Error struct {
 	Err error
 }
 
+// Errors represents a list of error instances that also
+// implements Go's error interface.
+// Errors implements Go's errors.Is protocol matching the
+// target error with all the errors inside it, returning
+// true if any of the errors is a match.
+type Errors struct {
+	errs []error
+}
+
 type (
 	// Kind defines the kind of an error.
 	Kind string
@@ -58,6 +67,46 @@ type (
 )
 
 const separator = ": "
+
+// List builds an Errors instance with all errs provided as arguments.
+func List(errs ...error) *Errors {
+	return &Errors{
+		errs: errs,
+	}
+}
+
+// Error returns the string representation of the error list.
+// Only the first error message is returned, all other errors are elided.
+// For a full representation of all errors use the Errors.Detailed method.
+func (e *Errors) Error() string {
+	if len(e.errs) == 0 {
+		return ""
+	}
+	errmsg := e.errs[0].Error()
+	if len(e.errs) == 1 {
+		return errmsg
+	}
+	return fmt.Sprintf("%s (and %d elided errors)", errmsg, len(e.errs)-1)
+}
+
+// Detailed returns a detailed string representation of the error list.
+// It will return all errors contained on the list as a single string.
+// One error per line.
+func (e *Errors) Detailed() string {
+	if len(e.errs) == 0 {
+		return ""
+	}
+	details := []string{"error list:"}
+	for _, err := range e.errs {
+		details = append(details, "\t-"+err.Error())
+	}
+	return strings.Join(details, "\n")
+}
+
+// Append appends a new error on the error list.
+func (e *Errors) Append(err error) {
+	e.errs = append(e.errs, err)
+}
 
 // E builds an error value from its arguments.
 // There must be at least one argument or E panics.
