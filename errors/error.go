@@ -69,10 +69,13 @@ type (
 const separator = ": "
 
 // List builds an Errors instance with all errs provided as arguments.
+// Any nil errors on errs will be discarded.
 func List(errs ...error) *Errors {
-	return &Errors{
-		errs: errs,
+	e := &Errors{}
+	for _, err := range errs {
+		e.Append(err)
 	}
+	return e
 }
 
 // Error returns the string representation of the error list.
@@ -104,8 +107,21 @@ func (e *Errors) Detailed() string {
 }
 
 // Append appends a new error on the error list.
+// If the error is nil it will not be added on the error list.
 func (e *Errors) Append(err error) {
+	if err == nil {
+		return
+	}
 	e.errs = append(e.errs, err)
+}
+
+// AsError returns an error instance if the errors list is non-empty.
+// If the list is empty it will return nil.
+func (e *Errors) AsError() error {
+	if len(e.errs) == 0 {
+		return nil
+	}
+	return e
 }
 
 // E builds an error value from its arguments.

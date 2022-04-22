@@ -170,13 +170,17 @@ func TestErrorString(t *testing.T) {
 			// piggyback on Error formatting tests for Errors list testing
 			t.Run("errors list with single error/"+tc.name, func(t *testing.T) {
 				errs := errors.List(tc.err)
+
 				assert.EqualStrings(t, tc.want, errs.Error())
+				assert.EqualStrings(t, tc.want, errs.AsError().Error())
 			})
 			t.Run("errors list with multiple errors/"+tc.name, func(t *testing.T) {
 				errs := errors.List(tc.err, E("will be elided"))
 				errs.Append(E("will also be elided"))
 				want := fmt("%s (and 2 elided errors)", tc.err.Error())
+
 				assert.EqualStrings(t, want, errs.Error())
+				assert.EqualStrings(t, want, errs.AsError().Error())
 			})
 		})
 	}
@@ -347,6 +351,23 @@ func TestEmptyErrorListStringRepresentationIsEmpty(t *testing.T) {
 	errs := errors.List()
 	assert.EqualStrings(t, "", errs.Error())
 	assert.EqualStrings(t, "", errs.Detailed())
+}
+
+func TestEmptyErrorListAsErrorIsNil(t *testing.T) {
+	errs := errors.List()
+	err := errs.AsError()
+	if err != nil {
+		t.Fatalf("got error %v but want nil", err)
+	}
+}
+
+func TestErrorListIgnoresNilErrors(t *testing.T) {
+	errs := errors.List(nil, nil)
+	errs.Append(nil)
+	err := errs.AsError()
+	if err != nil {
+		t.Fatalf("got error %v but want nil", err)
+	}
 }
 
 func TestErrorListStringDetailedPresentation(t *testing.T) {
