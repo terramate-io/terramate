@@ -274,7 +274,7 @@ func (e *Error) Is(target error) bool {
 		return false
 	}
 
-	if t.Kind != "" && !IsKind(e, t.Kind) {
+	if t.Kind != "" && e.Kind != t.Kind {
 		return false
 	}
 
@@ -282,7 +282,7 @@ func (e *Error) Is(target error) bool {
 		return false
 	}
 
-	if t.Stack != nil && !hasSameStack(e, t.Stack) {
+	if t.Stack != nil && !equalStack(e.Stack, t.Stack) {
 		return false
 	}
 
@@ -300,20 +300,9 @@ func (e *Error) Unwrap() error {
 }
 
 // IsKind tells if err is of kind k.
-// It returns false if err is nil or not an *errors.Error.
-// It also recursively checks if any underlying error is of kind k.
+// It is a small wrapper around calling errors.Is(err, errors.Kind(k)).
 func IsKind(err error, k Kind) bool {
-	if err == nil {
-		return false
-	}
-	e, ok := err.(*Error)
-	if !ok {
-		return false
-	}
-	if e.Kind != "" && e.Kind == k {
-		return true
-	}
-	return IsKind(e.Err, k)
+	return Is(err, E(k))
 }
 
 // Is is just an alias to Go stdlib errors.Is
@@ -324,22 +313,6 @@ func Is(err, target error) bool {
 // As is just an alias to Go stdlib errors.As
 func As(err error, target interface{}) bool {
 	return errors.As(err, target)
-}
-
-// hasSameStack recursively check if err or any of its underlying errors has the
-// provided stack set.
-func hasSameStack(err error, stack StackMeta) bool {
-	e, ok := err.(*Error)
-	if !ok {
-		return false
-	}
-	if equalStack(e.Stack, stack) {
-		return true
-	}
-	if e.Err != nil {
-		return hasSameStack(e.Err, stack)
-	}
-	return false
 }
 
 func equalStack(s1, s2 StackMeta) bool {

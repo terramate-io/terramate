@@ -156,7 +156,11 @@ func TestErrorString(t *testing.T) {
 		},
 		{
 			name: "simple message with stack",
-			err:  E(syntaxError, "failed to parse config", stackmeta{}),
+			err: E(syntaxError, "failed to parse config", stackmeta{
+				name: "test",
+				path: "/test",
+				desc: "test desc",
+			}),
 			want: fmt("%s: failed to parse config: at stack \"/test\"", syntaxError),
 		},
 	} {
@@ -175,6 +179,26 @@ func TestErrorIs(t *testing.T) {
 	}
 
 	stderr := stderrors.New("other")
+	stack := stackmeta{
+		name: "stack",
+		desc: "desc",
+		path: "/stack",
+	}
+	otherStack := stackmeta{
+		name: "otherstack",
+		desc: "other desc",
+		path: "/otherstack",
+	}
+	filerange := hcl.Range{
+		Filename: "test.tm",
+		Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},
+		End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},
+	}
+	otherFileRange := hcl.Range{
+		Filename: "other.tm",
+		Start:    hcl.Pos{Line: 6, Column: 3, Byte: 4},
+		End:      hcl.Pos{Line: 7, Column: 1, Byte: 10},
+	}
 
 	for _, tc := range []testcase{
 		{
@@ -198,6 +222,12 @@ func TestErrorIs(t *testing.T) {
 			areSame: true,
 		},
 		{
+			name:    "same wrapped description",
+			err:     E("msg", E("any error")),
+			target:  E("any error"),
+			areSame: true,
+		},
+		{
 			name:    "same kind",
 			err:     E(syntaxError, "error"),
 			target:  E(syntaxError),
@@ -213,6 +243,42 @@ func TestErrorIs(t *testing.T) {
 			name:    "same underlying kind (deep nested)",
 			err:     E("error", E(tfSchemaError, E(tmSchemaError, E(syntaxError)))),
 			target:  E(syntaxError),
+			areSame: true,
+		},
+		{
+			name:    "same stack",
+			err:     E("error", stack),
+			target:  E(stack),
+			areSame: true,
+		},
+		{
+			name:    "same underlying stack",
+			err:     E("error", E(stack)),
+			target:  E(stack),
+			areSame: true,
+		},
+		{
+			name:    "same underlying stack (deep nested)",
+			err:     E("error", E(otherStack, E("msg", E(stack)))),
+			target:  E(stack),
+			areSame: true,
+		},
+		{
+			name:    "same file range",
+			err:     E("error", filerange),
+			target:  E(filerange),
+			areSame: true,
+		},
+		{
+			name:    "same underlying stack",
+			err:     E("error", E(filerange)),
+			target:  E(filerange),
+			areSame: true,
+		},
+		{
+			name:    "same underlying stack (deep nested)",
+			err:     E("error", E(otherFileRange, E("msg", E(filerange)))),
+			target:  E(filerange),
 			areSame: true,
 		},
 		{
@@ -248,8 +314,12 @@ func fmt(format string, args ...interface{}) string {
 	return stdfmt.Sprintf(format, args...)
 }
 
-type stackmeta struct{}
+type stackmeta struct {
+	name string
+	desc string
+	path string
+}
 
-func (s stackmeta) Name() string { return "test" }
-func (s stackmeta) Path() string { return "/test" }
-func (s stackmeta) Desc() string { return "test stack" }
+func (s stackmeta) Name() string { return s.name }
+func (s stackmeta) Path() string { return s.path }
+func (s stackmeta) Desc() string { return s.desc }
