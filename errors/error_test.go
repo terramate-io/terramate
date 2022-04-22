@@ -309,6 +309,28 @@ func TestErrorIs(t *testing.T) {
 	}
 }
 
+func TestDetailedRepresentation(t *testing.T) {
+	stack := stackmeta{
+		name: "stack",
+		desc: "desc",
+		path: "/stack",
+	}
+	filerange := hcl.Range{
+		Filename: "test.tm",
+		Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},
+		End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},
+	}
+
+	var e *errors.Error
+	err := E("error", stack, filerange)
+	errors.As(err, &e)
+
+	if e.Error() == e.Detailed() {
+		t.Error("detailed error representation should be different then default")
+		t.Fatalf("instead both are: %s", e.Error())
+	}
+}
+
 func fmt(format string, args ...interface{}) string {
 	return stdfmt.Sprintf(format, args...)
 }
