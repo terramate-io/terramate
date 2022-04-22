@@ -326,21 +326,6 @@ func As(err error, target interface{}) bool {
 	return errors.As(err, target)
 }
 
-func hasDesc(err error, desc string) bool {
-	e, ok := err.(*Error)
-	if !ok {
-		return false
-	}
-
-	if e.Description == desc {
-		return true
-	}
-	if e.Err != nil {
-		return hasDesc(e.Err, desc)
-	}
-	return false
-}
-
 // hasSameStack recursively check if err or any of its underlying errors has the
 // provided stack set.
 func hasSameStack(err error, stack StackMeta) bool {
