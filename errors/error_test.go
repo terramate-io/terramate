@@ -326,7 +326,7 @@ func TestDetailedRepresentation(t *testing.T) {
 	errors.As(err, &e)
 
 	if e.Error() == e.Detailed() {
-		t.Error("detailed error representation should be different then default")
+		t.Error("detailed error should be different than default")
 		t.Fatalf("instead both are: %s", e.Error())
 	}
 }
