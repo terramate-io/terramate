@@ -124,6 +124,20 @@ func (e *Errors) AsError() error {
 	return e
 }
 
+// Is will call errors.Is for each of the errors on its list
+// returning true on the first match it finds or false if no
+// error inside the list matches the given target.
+//
+// If the target error is nil and the error list is empty returns true.
+func (e *Errors) Is(target error) bool {
+	for _, err := range e.errs {
+		if errors.Is(err, target) {
+			return true
+		}
+	}
+	return false
+}
+
 // E builds an error value from its arguments.
 // There must be at least one argument or E panics.
 // The type of each argument determines its meaning. If more than one argument
