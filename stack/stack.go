@@ -20,6 +20,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
@@ -29,17 +30,17 @@ import (
 type (
 	// S represents a stack
 	S struct {
-		// abspath is the file system absolute path of the stack.
-		abspath string
+		// hostpath is the file system absolute path of the stack.
+		hostpath string
 
-		// prjAbsPath is the absolute path of the stack relative to project's root.
-		prjAbsPath string
+		// path is the absolute path of the stack relative to project's root.
+		path string
 
 		// name of the stack.
 		name string
 
-		// description of the stack.
-		description string
+		// desc is the description of the stack.
+		desc string
 
 		// after is a list of stack paths that must run before this stack.
 		after []string
@@ -56,10 +57,10 @@ type (
 	}
 
 	// Metadata has all metadata loaded per stack
-	Metadata struct {
-		Name        string
-		Path        string
-		Description string
+	Metadata interface {
+		Name() string
+		Path() string
+		Desc() string
 	}
 )
 
@@ -71,13 +72,13 @@ func New(root string, cfg hcl.Config) S {
 	}
 
 	return S{
-		name:        name,
-		description: cfg.Stack.Description,
-		after:       cfg.Stack.After,
-		before:      cfg.Stack.Before,
-		wants:       cfg.Stack.Wants,
-		abspath:     cfg.AbsDir(),
-		prjAbsPath:  project.PrjAbsPath(root, cfg.AbsDir()),
+		name:     name,
+		desc:     cfg.Stack.Description,
+		after:    cfg.Stack.After,
+		before:   cfg.Stack.Before,
+		wants:    cfg.Stack.Wants,
+		hostpath: cfg.AbsDir(),
+		path:     project.PrjAbsPath(root, cfg.AbsDir()),
 	}
 }
 
@@ -86,11 +87,11 @@ func (s S) Name() string {
 	if s.name != "" {
 		return s.name
 	}
-	return s.PrjAbsPath()
+	return s.Path()
 }
 
-// Description of stack.
-func (s S) Description() string { return s.description }
+// Desc is the description of the stack.
+func (s S) Desc() string { return s.desc }
 
 // After specifies the list of stacks that must run before this stack.
 func (s S) After() []string { return s.after }
@@ -98,6 +99,7 @@ func (s S) After() []string { return s.after }
 // Before specifies the list of stacks that must run after this stack.
 func (s S) Before() []string { return s.before }
 
+// Wants specifies the list of wanted stacks.
 func (s S) Wants() []string { return s.wants }
 
 // IsChanged tells if the stack is marked as changed.
@@ -107,36 +109,31 @@ func (s S) IsChanged() bool { return s.changed }
 func (s *S) SetChanged(b bool) { s.changed = b }
 
 // String representation of the stack.
-func (s S) String() string { return s.PrjAbsPath() }
+func (s S) String() string { return s.Path() }
 
-// PrjAbsPath returns the project's absolute path of stack.
-func (s S) PrjAbsPath() string { return s.prjAbsPath }
+// Path returns the project's absolute path of stack.
+func (s S) Path() string { return s.path }
 
-// AbsPath returns the file system absolute path of stack.
-func (s S) AbsPath() string { return s.abspath }
+// HostPath returns the file system absolute path of stack.
+func (s S) HostPath() string { return s.hostpath }
 
-// Meta returns the stack metadata.
-func (s S) Meta() Metadata {
-	return Metadata{
-		Name:        s.Name(),
-		Path:        s.PrjAbsPath(),
-		Description: s.Description(),
-	}
-}
-
-func (m Metadata) ToCtyMap() map[string]cty.Value {
+// MetaToCtyMap returns metadata as a cty values map.
+func MetaToCtyMap(m Metadata) map[string]cty.Value {
 	return map[string]cty.Value{
-		"name":        cty.StringVal(m.Name),
-		"path":        cty.StringVal(m.Path),
-		"description": cty.StringVal(m.Description),
+		"name":        cty.StringVal(m.Name()),
+		"path":        cty.StringVal(m.Path()),
+		"description": cty.StringVal(m.Desc()),
 	}
 }
 
+// IsLeaf returns true if dir is a leaf stack.
 func IsLeaf(root, dir string) (bool, error) {
 	l := NewLoader(root)
 	return l.IsLeafStack(dir)
 }
 
+// LookupParent checks parent stack of given dir.
+// Returns false, nil if the given dir has no parent stack.
 func LookupParent(root, dir string) (S, bool, error) {
 	l := NewLoader(root)
 	return l.lookupParentStack(dir)
@@ -157,12 +154,11 @@ func TryLoad(root, absdir string) (stack S, found bool, err error) {
 		Logger()
 
 	if !strings.HasPrefix(absdir, root) {
-		return S{}, false, fmt.Errorf("directory %q is not inside project root %q",
-			absdir, root)
+		return S{}, false, errors.E(fmt.Sprintf("directory %q is not inside project root %q",
+			absdir, root))
 	}
 
 	logger.Debug().Msg("Parsing configuration.")
-
 	cfg, err := hcl.ParseDir(absdir)
 	if err != nil {
 		return S{}, false, err
@@ -178,21 +174,31 @@ func TryLoad(root, absdir string) (stack S, found bool, err error) {
 	}
 
 	if !ok {
-		return S{}, false, fmt.Errorf("stack %q is not a leaf stack", absdir)
+		return S{}, false, errors.E(fmt.Sprintf("stack %q is not a leaf stack", absdir))
 	}
 
 	logger.Debug().Msg("Create a new stack")
-
 	return New(root, cfg), true, nil
 }
 
+// Sort sorts the given stacks.
 func Sort(stacks []S) {
 	sort.Sort(stackSlice(stacks))
+}
+
+// Reverse reverses the given stacks slice.
+func Reverse(stacks []S) {
+	i, j := 0, len(stacks)-1
+	for i < j {
+		stacks[i], stacks[j] = stacks[j], stacks[i]
+		i++
+		j--
+	}
 }
 
 // stackSlice implements the Sort interface.
 type stackSlice []S
 
 func (l stackSlice) Len() int           { return len(l) }
-func (l stackSlice) Less(i, j int) bool { return l[i].PrjAbsPath() < l[j].PrjAbsPath() }
+func (l stackSlice) Less(i, j int) bool { return l[i].Path() < l[j].Path() }
 func (l stackSlice) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }

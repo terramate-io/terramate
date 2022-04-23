@@ -3,7 +3,7 @@ SHELL := /bin/bash -o pipefail -o errexit -o nounset
 
 COVERAGE_REPORT ?= coverage.txt
 
-addlicense=go run github.com/google/addlicense@v1.0.0
+addlicense=go run github.com/google/addlicense@v1.0.0 -ignore **/*.yml
 
 .PHONY: default
 default: help

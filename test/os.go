@@ -108,6 +108,8 @@ func Getwd(t *testing.T) string {
 	return wd
 }
 
+// RelPath does the same as filepath.Rel but failing the test
+// if an error is found.
 func RelPath(t *testing.T, basepath, targetpath string) string {
 	t.Helper()
 
@@ -135,7 +137,11 @@ func NonExistingDir(t *testing.T) string {
 	return tmp2
 }
 
+// CanonPath returns a canonical absolute path for the given path.
+// Fails the test if any error is found.
 func CanonPath(t *testing.T, path string) string {
+	t.Helper()
+
 	p, err := filepath.EvalSymlinks(path)
 	assert.NoError(t, err)
 	p, err = filepath.Abs(p)

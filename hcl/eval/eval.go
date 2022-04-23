@@ -21,7 +21,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
-	"github.com/madlambda/spells/errutil"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -31,7 +31,8 @@ import (
 	tflang "github.com/hashicorp/terraform/lang"
 )
 
-const ErrEval errutil.Error = "failed to evaluate expression"
+// ErrEval indicates a failure during the evaluation process
+const ErrEval errors.Kind = "failed to evaluate expression"
 
 // Context is used to evaluate HCL code.
 type Context struct {
@@ -52,6 +53,7 @@ func NewContext(basedir string) *Context {
 	}
 }
 
+// GetHCLContext gets the evaluation context.
 func (c *Context) GetHCLContext() *hhcl.EvalContext {
 	return c.hclctx
 }
@@ -83,7 +85,7 @@ func (c *Context) HasNamespace(name string) bool {
 func (c *Context) Eval(expr hclsyntax.Expression) (cty.Value, error) {
 	val, diag := expr.Value(c.hclctx)
 	if diag.HasErrors() {
-		return cty.NilVal, errutil.Chain(ErrEval, diag)
+		return cty.NilVal, errors.E(ErrEval, diag)
 	}
 	return val, nil
 }
@@ -96,14 +98,14 @@ func (c *Context) PartialEval(expr hclsyntax.Expression) (hclwrite.Tokens, error
 	exprFname := expr.Range().Filename
 	filedata, err := ioutil.ReadFile(exprFname)
 	if err != nil {
-		return nil, fmt.Errorf("reading expression from file: %v", err)
+		return nil, errors.E(err, "reading expression from file")
 	}
 
 	exprRange := expr.Range()
 	exprBytes := filedata[exprRange.Start.Byte:exprRange.End.Byte]
 	tokens, diags := hclsyntax.LexExpression(exprBytes, exprFname, hcl.Pos{})
 	if diags.HasErrors() {
-		return nil, fmt.Errorf("failed to scan expression: %w", diags)
+		return nil, errors.E(diags, "failed to scan expression")
 	}
 
 	engine := newPartialEvalEngine(toWriteTokens(tokens), c)

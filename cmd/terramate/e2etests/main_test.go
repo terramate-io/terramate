@@ -33,12 +33,17 @@ func TestMain(m *testing.M) {
 }
 
 func setupAndRunTests(m *testing.M) (status int) {
-	binTmpdir, err := os.MkdirTemp("", "cmd-terramate-test-")
+	binTmpDir, err := os.MkdirTemp("", "cmd-terramate-test-")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	defer os.RemoveAll(binTmpdir)
+	defer func() {
+		if err := os.RemoveAll(binTmpDir); err != nil {
+			fmt.Fprintf(os.Stderr, "cleaning up: failed to remove tmp bin dir %q: %v\n", binTmpDir, err)
+			status = 1
+		}
+	}()
 
 	goBin, err := lookupGoBin()
 	if err != nil {
@@ -55,7 +60,7 @@ func setupAndRunTests(m *testing.M) (status int) {
 	// this file is inside cmd/terramate/cli
 	// change code below if it's not the case anymore.
 	projectRoot := filepath.Join(packageDir, "../../..")
-	terramateTestBin, err = buildTerramate(goBin, projectRoot, binTmpdir)
+	terramateTestBin, err = buildTerramate(goBin, projectRoot, binTmpDir)
 	if err != nil {
 		log.Printf("failed to setup e2e tests: %v", err)
 		return 1

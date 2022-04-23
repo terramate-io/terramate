@@ -18,11 +18,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/hcl/v2/hclsyntax"
+	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
+	errtest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/rs/zerolog"
 )
 
@@ -60,14 +62,14 @@ func TestHCLParserModules(t *testing.T) {
 			name:  "module must have 1 label",
 			input: `module {}`,
 			want: want{
-				err: hcl.ErrMalformedTerraform,
+				err: errors.E(hcl.ErrTerraformSchema, mkrange(start(1, 8, 7), end(1, 9, 8))),
 			},
 		},
 		{
 			name:  "module must have a source attribute",
 			input: `module "test" {}`,
 			want: want{
-				err: hcl.ErrMalformedTerraform,
+				err: errors.E(hcl.ErrTerraformSchema, mkrange(start(1, 15, 14), end(1, 17, 16))),
 			},
 		},
 		{
@@ -133,30 +135,36 @@ module "bleh" {
 			},
 		},
 		{
-			name: "ignore if source is not a string",
+			name: "fails if source is not a string",
 			input: `
 module "test" {
 	source = -1
 }
 `,
 			want: want{
-				err: hcl.ErrMalformedTerraform,
+				err: errors.E(hcl.ErrTerraformSchema, mkrange(start(3, 11, 27), end(3, 13, 29))),
 			},
 		},
 		{
 			name:  "variable interpolation in the source string - fails",
 			input: "module \"test\" {\nsource = \"${var.test}\"\n}\n",
 			want: want{
-				err: hcl.ErrMalformedTerraform,
+				err: errors.E(hcl.ErrTerraformSchema, mkrange(start(2, 13, 28), end(2, 16, 31))),
 			},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			path := test.WriteFile(t, "", "main.tf", tc.input)
+			configdir := t.TempDir()
+			tfpath := test.WriteFile(t, configdir, "main.tf", tc.input)
 
-			modules, err := hcl.ParseModules(path)
-			assert.IsError(t, err, tc.want.err)
+			if tc.want.err != nil {
+				if e, ok := tc.want.err.(*errors.Error); ok {
+					e.FileRange.Filename = tfpath
+				}
+			}
 
+			modules, err := hcl.ParseModules(tfpath)
+			errtest.Assert(t, err, tc.want.err)
 			assert.EqualInts(t, len(tc.want.modules), len(modules), "modules len mismatch")
 
 			for i := 0; i < len(tc.want.modules); i++ {
@@ -177,7 +185,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(hcl.ErrTerramateSchema, mkrange(start(1, 0, 0), end(1, 0, 0))),
 			},
 		},
 		{
@@ -191,7 +199,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(hcl.ErrTerramateSchema, mkrange(start(3, 7, 25), end(3, 16, 34))),
 			},
 		},
 		{
@@ -206,7 +214,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(hcl.ErrTerramateSchema, mkrange(start(3, 8, 25), end(3, 17, 34))),
 			},
 		},
 		{
@@ -220,7 +228,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(hcl.ErrTerramateSchema, mkrange(start(2, 8, 29), end(2, 17, 29))),
 			},
 		},
 		{
@@ -255,7 +263,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(hcl.ErrTerramateSchema, mkrange(start(3, 27, 45), end(3, 28, 46))),
 			},
 		},
 		{
@@ -270,7 +278,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(hcl.ErrTerramateSchema),
 			},
 		},
 		{
@@ -285,7 +293,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(hcl.ErrTerramateSchema),
 			},
 		},
 		{
@@ -303,139 +311,6 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						RequiredVersion: "> 0.0.0",
-					},
-				},
-			},
-		},
-	} {
-		testParser(t, tc)
-	}
-}
-
-func TestHCLParserBackend(t *testing.T) {
-	for _, tc := range []testcase{
-		{
-			name: "backend with attributes",
-			input: []cfgfile{
-				{
-					body: `
-						terramate {
-							backend "something" {
-								something = "something else"
-							}
-						}
-					`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Terramate: &hcl.Terramate{
-						Backend: &hclsyntax.Block{
-							Type:   "backend",
-							Labels: []string{"something"},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "multiple backend blocks - fails",
-			input: []cfgfile{
-				{
-					body: `
-						terramate {
-							backend "ah" {}
-							backend "something" {
-								something = "something else"
-							}
-						}
-					`,
-				},
-			},
-			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
-			},
-		},
-		{
-			name: "backend with nested blocks",
-			input: []cfgfile{
-				{
-					body: `
-						terramate {
-							backend "my-label" {
-								something = "something else"
-								other {
-									test = 1
-								}
-							}
-						}
-					`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Terramate: &hcl.Terramate{
-						Backend: &hclsyntax.Block{
-							Type:   "backend",
-							Labels: []string{"my-label"},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "backend with no labels - fails",
-			input: []cfgfile{
-				{
-					body: `
-						terramate {
-							backend {
-								something = "something else"
-							}
-						}
-					`,
-				},
-			},
-			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
-			},
-		},
-		{
-			name: "backend with more than 1 label - fails",
-			input: []cfgfile{
-				{
-					body: `
-						terramate {
-							backend "1" "2" {
-								something = "something else"
-							}
-						}
-					`,
-				},
-			},
-			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
-			},
-		},
-		{
-			name: "empty backend",
-			input: []cfgfile{
-				{
-					body: `
-						terramate {
-							   backend "something" {
-							   }
-						}
-					`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Terramate: &hcl.Terramate{
-						Backend: &hclsyntax.Block{
-							Type:   "backend",
-							Labels: []string{"something"},
-						},
 					},
 				},
 			},
@@ -493,7 +368,26 @@ func TestHCLParserRootConfig(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(hcl.ErrTerramateSchema),
+			},
+		},
+		{
+			name: "unrecognized config.git field",
+			input: []cfgfile{
+				{
+					body: `
+					terramate {
+						config {
+							git {
+								test = 1
+							}
+						}
+					}
+				`,
+				},
+			},
+			want: want{
+				err: errors.E(hcl.ErrTerramateSchema, mkrange(start(5, 9, 54), end(5, 13, 58))),
 			},
 		},
 		{
@@ -540,43 +434,6 @@ func TestHCLParserRootConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "multiple config.generate blocks",
-			input: []cfgfile{
-				{
-					body: `
-						terramate {
-						  config {
-						    generate {}
-						    generate {}
-						  }
-						}
-					`,
-				},
-			},
-			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
-			},
-		},
-		{
-			name: "config.generate block with unknown attribute",
-			input: []cfgfile{
-				{
-					body: `
-						terramate {
-						  config {
-						    generate {
-						      very_unknown_attribute = "oopsie"
-						    }
-						  }
-						}
-					`,
-				},
-			},
-			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
-			},
-		},
-		{
 			name: "basic config.git block",
 			input: []cfgfile{
 				{
@@ -601,99 +458,6 @@ func TestHCLParserRootConfig(t *testing.T) {
 						},
 					},
 				},
-			},
-		},
-		{
-			name: "empty config.generate block",
-			input: []cfgfile{
-				{
-					body: `
-						terramate {
-						  config {
-						    generate {
-						    }
-						  }
-						}
-					`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Terramate: &hcl.Terramate{
-						RootConfig: &hcl.RootConfig{
-							Generate: &hcl.GenerateConfig{},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "full config.generate block",
-			input: []cfgfile{
-				{
-					body: `
-						terramate {
-						  config {
-						    generate {
-						      backend_config_filename = "backend.tf"
-						      locals_filename = "locals.tf"
-						    }
-						  }
-						}
-					`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Terramate: &hcl.Terramate{
-						RootConfig: &hcl.RootConfig{
-							Generate: &hcl.GenerateConfig{
-								BackendCfgFilename: "backend.tf",
-								LocalsFilename:     "locals.tf",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "config.generate with conflicting config fails",
-			input: []cfgfile{
-				{
-					body: `
-						terramate {
-						  config {
-						    generate {
-						      backend_config_filename = "file.tf"
-						      locals_filename = "file.tf"
-						    }
-						  }
-						}
-					`,
-				},
-			},
-			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
-			},
-		},
-		{
-			name: "config.generate block with invalid cfg",
-			input: []cfgfile{
-				{
-					body: `
-						terramate {
-						  config {
-						    generate {
-						      backend_config_filename = true
-						      locals_filename = 666
-						    }
-						  }
-						}
-					`,
-				},
-			},
-			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
 			},
 		},
 		{
@@ -765,7 +529,7 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(hcl.ErrTerramateSchema),
 			},
 		},
 		{
@@ -804,7 +568,7 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(hcl.ErrTerramateSchema),
 			},
 		},
 		{
@@ -822,7 +586,7 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(hcl.ErrTerramateSchema),
 			},
 		},
 		{
@@ -840,7 +604,7 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(hcl.ErrTerramateSchema),
 			},
 		},
 		{
@@ -898,7 +662,7 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(hcl.ErrTerramateSchema),
 			},
 		},
 		{
@@ -913,7 +677,7 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(hcl.ErrTerramateSchema),
 			},
 		},
 		{
@@ -929,7 +693,7 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrHCLSyntax,
+				err: errors.E(hcl.ErrHCLSyntax),
 			},
 		},
 		{
@@ -945,7 +709,7 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrHCLSyntax,
+				err: errors.E(hcl.ErrHCLSyntax),
 			},
 		},
 		{
@@ -1107,99 +871,6 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 			},
 		},
 		{
-			name: "terramate.generate and terramate.config on different files",
-			input: []cfgfile{
-				{
-					filename: "generate.tm.hcl",
-					body: `
-						terramate {
-							config {
-								generate {
-									locals_filename = "locals.tf"
-									backend_config_filename = "backend.tf"
-								}
-							}
-						}
-					`,
-				},
-				{
-					filename: "git.tm.hcl",
-					body: `
-						terramate {
-							config {
-								git {
-									default_branch = "trunk"
-									default_remote = "upstream"
-									default_branch_base_ref = "HEAD~2"
-								}
-							}
-						}
-					`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Terramate: &hcl.Terramate{
-						RootConfig: &hcl.RootConfig{
-							Git: &hcl.GitConfig{
-								DefaultBranch:        "trunk",
-								DefaultRemote:        "upstream",
-								DefaultBranchBaseRef: "HEAD~2",
-							},
-							Generate: &hcl.GenerateConfig{
-								LocalsFilename:     "locals.tf",
-								BackendCfgFilename: "backend.tf",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "different terramate.generate and terramate.config on same file",
-			input: []cfgfile{
-				{
-					filename: "config.tm",
-					body: `
-						terramate {
-							config {
-								generate {
-									locals_filename = "locals.tf"
-									backend_config_filename = "backend.tf"
-								}
-							}
-						}
-						terramate {
-							config {
-								git {
-									default_branch = "trunk"
-									default_remote = "upstream"
-									default_branch_base_ref = "HEAD~2"
-								}
-							}
-						}
-					`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Terramate: &hcl.Terramate{
-						RootConfig: &hcl.RootConfig{
-							Git: &hcl.GitConfig{
-								DefaultBranch:        "trunk",
-								DefaultRemote:        "upstream",
-								DefaultBranchBaseRef: "HEAD~2",
-							},
-							Generate: &hcl.GenerateConfig{
-								LocalsFilename:     "locals.tf",
-								BackendCfgFilename: "backend.tf",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
 			name: "three config files with terramate and stack blocks",
 			input: []cfgfile{
 				{
@@ -1276,7 +947,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(hcl.ErrTerramateSchema),
 			},
 		},
 		{
@@ -1308,39 +979,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 				},
 			},
 			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
-			},
-		},
-		{
-			name: "multiple files with terramate.config.generate blocks fail",
-			input: []cfgfile{
-				{
-					filename: "locals.tm",
-					body: `
-						terramate {
-							config {
-								generate {
-									locals_filename = "test.tf"
-								}
-							}
-						}
-					`,
-				},
-				{
-					filename: "backend.tm",
-					body: `
-						terramate {
-							config {
-								generate {
-									backend_config_filename = "backend.tf"
-								}
-							}
-						}
-					`,
-				},
-			},
-			want: want{
-				err: hcl.ErrMalformedTerramateConfig,
+				err: errors.E(hcl.ErrTerramateSchema),
 			},
 		},
 	}
@@ -1358,10 +997,16 @@ func testParser(t *testing.T, tc testcase) {
 			if filename == "" {
 				filename = config.DefaultFilename
 			}
-			test.WriteFile(t, configsDir, filename, inputConfigFile.body)
+			cfgfile := test.WriteFile(t, configsDir, filename, inputConfigFile.body)
+			if tc.want.err != nil {
+				e, ok := tc.want.err.(*errors.Error)
+				if ok && !e.FileRange.Empty() {
+					e.FileRange.Filename = cfgfile
+				}
+			}
 		}
 		got, err := hcl.ParseDir(configsDir)
-		assert.IsError(t, err, tc.want.err)
+		errtest.Assert(t, err, tc.want.err)
 
 		if tc.want.err == nil {
 			test.AssertTerramateConfig(t, got, tc.want.config)
@@ -1397,6 +1042,24 @@ func testParser(t *testing.T, tc testcase) {
 		testParser(t, newtc)
 	}
 }
+
+// some helpers to easy build file ranges.
+func mkrange(start, end hhcl.Pos) hhcl.Range {
+	return hhcl.Range{
+		Start: start,
+		End:   end,
+	}
+}
+
+func start(line, column, char int) hhcl.Pos {
+	return hhcl.Pos{
+		Line:   line,
+		Column: column,
+		Byte:   char,
+	}
+}
+
+var end = start
 
 func init() {
 	zerolog.SetGlobalLevel(zerolog.Disabled)

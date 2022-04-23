@@ -16,25 +16,25 @@ package terramate
 
 import (
 	_ "embed"
-	"fmt"
 	"strings"
 
 	hclversion "github.com/hashicorp/go-version"
-	tfversion "github.com/hashicorp/go-version"
-	"github.com/madlambda/spells/errutil"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/rs/zerolog/log"
 )
 
 //go:embed VERSION
 var version string
 
-const ErrVersion errutil.Error = "version check error"
+// ErrVersion indicates failure when checking Terramate version.
+const ErrVersion errors.Kind = "version check error"
 
 // Version of terramate.
 func Version() string {
 	return strings.TrimSpace(version)
 }
 
+// CheckVersion checks Terramate version against the given constraint.
 func CheckVersion(vconstraint string) error {
 	version := Version()
 	logger := log.With().
@@ -46,22 +46,22 @@ func CheckVersion(vconstraint string) error {
 
 	constraint, err := hclversion.NewConstraint(vconstraint)
 	if err != nil {
-		return fmt.Errorf("%w: invalid constraint: %v", ErrVersion, err)
+		return errors.E(ErrVersion, "invalid constraint", err)
 	}
 
 	logger.Trace().Msg("parsing terramate version")
 
-	semver, err := tfversion.NewSemver(version)
+	semver, err := hclversion.NewSemver(version)
 	if err != nil {
-		return fmt.Errorf("%w: terramate built with invalid version: %b", ErrVersion, err)
+		return errors.E(ErrVersion, "terramate built with invalid version", err)
 	}
 
 	logger.Trace().Msg("checking version constraint")
 
 	if !constraint.Check(semver) {
-		return fmt.Errorf(
-			"%w: version constraint %q not satisfied by terramate version %q",
+		return errors.E(
 			ErrVersion,
+			"version constraint %q not satisfied by terramate version %q",
 			vconstraint,
 			Version(),
 		)

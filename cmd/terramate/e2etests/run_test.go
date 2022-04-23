@@ -17,6 +17,7 @@ package e2etest
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -32,9 +33,10 @@ import (
 
 func TestCLIRunOrder(t *testing.T) {
 	type testcase struct {
-		name   string
-		layout []string
-		want   runExpected
+		name       string
+		layout     []string
+		workingDir string
+		want       runExpected
 	}
 
 	for _, tc := range []testcase{
@@ -361,7 +363,7 @@ stack-z
 			},
 			want: runExpected{
 				Status:      defaultErrExitStatus,
-				StderrRegex: dag.ErrCycleDetected.Error(),
+				StderrRegex: string(dag.ErrCycleDetected),
 			},
 		},
 		{
@@ -371,7 +373,7 @@ stack-z
 			},
 			want: runExpected{
 				Status:      defaultErrExitStatus,
-				StderrRegex: dag.ErrCycleDetected.Error(),
+				StderrRegex: string(dag.ErrCycleDetected),
 			},
 		},
 		{
@@ -383,7 +385,7 @@ stack-z
 			},
 			want: runExpected{
 				Status:      defaultErrExitStatus,
-				StderrRegex: dag.ErrCycleDetected.Error(),
+				StderrRegex: string(dag.ErrCycleDetected),
 			},
 		},
 		{
@@ -412,7 +414,7 @@ stack-z
 			},
 			want: runExpected{
 				Status:      defaultErrExitStatus,
-				StderrRegex: dag.ErrCycleDetected.Error(),
+				StderrRegex: string(dag.ErrCycleDetected),
 			},
 		},
 		{
@@ -435,12 +437,31 @@ stack-z
 `,
 			},
 		},
+		{
+			name: `run order selects only stacks inside working dir`,
+			layout: []string{
+				`s:stacks/stack-a:after=["/stacks/stack-b", "/parent-stack"]`,
+				`s:stacks/stack-b:before=["/parent-stack"]`,
+				`s:parent-stack`,
+			},
+			workingDir: "stacks",
+			want: runExpected{
+				Stdout: `stack-b
+stack-a
+`,
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 
-			cli := newCLI(t, s.RootDir())
+			wd := s.RootDir()
+			if tc.workingDir != "" {
+				wd = filepath.Join(wd, tc.workingDir)
+			}
+
+			cli := newCLI(t, wd)
 			assertRunResult(t, cli.stacksRunOrder(), tc.want)
 		})
 	}
@@ -638,7 +659,6 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 	// stack must run after stack2 but stack2 didn't change.
 
 	stack2 := s.CreateStack("stack2")
-
 	stack := s.CreateStack("stack")
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
 	stackConfig, err := hcl.NewConfig(stack.Path())
@@ -671,8 +691,6 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 		mainTfFileName,
 	), runExpected{Stdout: wantRun})
 
-	wantRun = mainTfContents
-
 	cli = newCLI(t, stack.Path())
 	assertRunResult(t, cli.run(
 		"run",
@@ -688,6 +706,101 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 		cat,
 		mainTfFileName,
 	), runExpected{})
+}
+
+func TestRunReverseExecution(t *testing.T) {
+	const testfile = "testfile"
+
+	s := sandbox.New(t)
+	cat := test.LookPath(t, "cat")
+	cli := newCLI(t, s.RootDir())
+	assertRunOrder := func(stacks ...string) {
+		t.Helper()
+
+		want := strings.Join(stacks, "\n")
+		if want != "" {
+			want += "\n"
+		}
+
+		assertRunResult(t, cli.run(
+			"run",
+			"--reverse",
+			cat,
+			testfile,
+		), runExpected{Stdout: want})
+
+		assertRunResult(t, cli.run(
+			"run",
+			"--reverse",
+			"--changed",
+			cat,
+			testfile,
+		), runExpected{Stdout: want})
+	}
+	addStack := func(stack string) {
+		s.BuildTree([]string{
+			"s:" + stack,
+			fmt.Sprintf("f:%s/%s:%s\n", stack, testfile, stack),
+		})
+	}
+
+	git := s.Git()
+	git.CheckoutNew("changes")
+
+	assertRunOrder()
+
+	addStack("stack-1")
+	git.CommitAll("commit")
+	assertRunOrder("stack-1")
+
+	addStack("stack-2")
+	git.CommitAll("commit")
+	assertRunOrder("stack-2", "stack-1")
+
+	addStack("stack-3")
+	git.CommitAll("commit")
+	assertRunOrder("stack-3", "stack-2", "stack-1")
+}
+
+func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDir(t *testing.T) {
+	const testfile = "testfile"
+
+	s := sandbox.New(t)
+
+	s.BuildTree([]string{
+		"s:parent-stack",
+		`s:stacks/stack-1:before=["/parent-stack"]`,
+		`s:stacks/stack-2:after=["/parent-stack"]`,
+		fmt.Sprintf("f:parent-stack/%s:parent-stack\n", testfile),
+		fmt.Sprintf("f:stacks/stack-1/%s:stack-1\n", testfile),
+		fmt.Sprintf("f:stacks/stack-2/%s:stack-2\n", testfile),
+	})
+
+	git := s.Git()
+	git.CommitAll("first commit")
+
+	cat := test.LookPath(t, "cat")
+	assertRun := func(wd string, want string) {
+		cli := newCLI(t, filepath.Join(s.RootDir(), wd))
+
+		assertRunResult(t, cli.run(
+			"run",
+			cat,
+			testfile,
+		), runExpected{Stdout: want})
+
+		assertRunResult(t, cli.run(
+			"run",
+			"--changed",
+			cat,
+			testfile,
+		), runExpected{Stdout: want})
+	}
+
+	assertRun(".", "stack-1\nparent-stack\nstack-2\n")
+	assertRun("stacks", "stack-1\nstack-2\n")
+	assertRun("stacks/stack-1", "stack-1\n")
+	assertRun("stacks/stack-2", "stack-2\n")
 }
 
 func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
@@ -848,7 +961,7 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 		generateFile,
 	), runExpected{
 		Status:      defaultErrExitStatus,
-		StderrRegex: cli.ErrOutdatedGenCodeDetected.Error(),
+		StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
 	})
 
 	// check without --changed
@@ -858,7 +971,7 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 		generateFile,
 	), runExpected{
 		Status:      defaultErrExitStatus,
-		StderrRegex: cli.ErrOutdatedGenCodeDetected.Error(),
+		StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
 	})
 
 	// disabling the check must work for both with and without --changed
@@ -900,7 +1013,7 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 	cli := newCLI(t, s.RootDir())
 	cat := test.LookPath(t, "cat")
 
-	// everything commited, repo is clean
+	// everything committed, repo is clean
 	assertRunResult(t, cli.run(
 		"run",
 		cat,
@@ -944,6 +1057,16 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 		mainTfFileName,
 	), runExpected{
 		Stdout: mainTfAlteredContents,
+	})
+
+	// --dry-run ignore safeguards
+	assertRunResult(t, cli.run(
+		"run",
+		"--dry-run",
+		cat,
+		mainTfFileName,
+	), runExpected{
+		IgnoreStdout: true,
 	})
 
 	assertRunResult(t, cli.run(
@@ -996,12 +1119,12 @@ func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
 
 	assertRunResult(t, tmcli.run("run", cat, testFilename), runExpected{
 		Status:      defaultErrExitStatus,
-		StderrRegex: cli.ErrOutdatedGenCodeDetected.Error(),
+		StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
 	})
 
 	assertRunResult(t, tmcli.run("run", "--changed", cat, testFilename), runExpected{
 		Status:      defaultErrExitStatus,
-		StderrRegex: cli.ErrOutdatedGenCodeDetected.Error(),
+		StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
 	})
 
 	// Check that if inside cwd it should work

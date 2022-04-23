@@ -15,6 +15,7 @@
 package e2etest
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/mineiros-io/terramate/config"
@@ -148,8 +149,7 @@ func TestListDetectChangesInSubDirOfStack(t *testing.T) {
 	cli := newCLI(t, s.RootDir())
 
 	git := s.Git()
-	git.Add(".")
-	git.Commit("all")
+	git.CommitAll("all")
 	git.Push("main")
 	git.CheckoutNew("change-the-stack")
 
@@ -180,8 +180,7 @@ terramate {
 	cli := newCLI(t, s.RootDir())
 
 	git := s.Git()
-	git.Add(".")
-	git.Commit("all")
+	git.CommitAll("all")
 	git.Push("main")
 	git.CheckoutNew("change-the-stack")
 
@@ -193,6 +192,90 @@ terramate {
 		Stdout: stack.RelPath() + "\n",
 	}
 	assertRunResult(t, cli.listChangedStacks(), want)
+}
+
+func TestListChangedIgnoreDeletedStackDirectory(t *testing.T) {
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack-old")
+	cli := newCLI(t, s.RootDir())
+
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+	git.CheckoutNew("deleted-stack")
+
+	test.RemoveAll(t, stack.Path())
+
+	git.CommitAll("removed stack")
+
+	assertRun(t, cli.listChangedStacks())
+}
+
+func TestListChangedIgnoreDeletedNonStackDirectory(t *testing.T) {
+	s := sandbox.New(t)
+
+	s.CreateStack("stack")
+	toBeDeletedDir := filepath.Join(s.RootDir(), "to-be-deleted")
+	test.MkdirAll(t, toBeDeletedDir)
+	test.WriteFile(t, toBeDeletedDir, "test.txt", "")
+	cli := newCLI(t, s.RootDir())
+
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+
+	git.CheckoutNew("deleted-diretory")
+
+	test.RemoveAll(t, toBeDeletedDir)
+	git.CommitAll("removed directory")
+
+	assertRun(t, cli.listChangedStacks())
+}
+
+func TestListChangedDontIgnoreStackDeletedFiles(t *testing.T) {
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack")
+	testDir := stack.CreateDir("test")
+	file := testDir.CreateFile("testfile", "")
+	cli := newCLI(t, s.RootDir())
+
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+	git.CheckoutNew("deleted-file")
+
+	test.RemoveAll(t, file.Path())
+
+	git.CommitAll("removed file")
+
+	assertRunResult(t, cli.listChangedStacks(), runExpected{
+		Stdout: stack.RelPath() + "\n",
+	})
+}
+
+func TestListChangedDontIgnoreStackDeletedDirectories(t *testing.T) {
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack")
+	testDir := stack.CreateDir("test")
+	testDir.CreateFile("testfile1", "")
+	testDir.CreateFile("testfile2", "")
+	cli := newCLI(t, s.RootDir())
+
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+	git.CheckoutNew("deleted-dir")
+
+	test.RemoveAll(t, testDir.Path())
+
+	git.CommitAll("removed directory")
+
+	assertRunResult(t, cli.listChangedStacks(), runExpected{
+		Stdout: stack.RelPath() + "\n",
+	})
 }
 
 func TestListTwiceBug(t *testing.T) {

@@ -15,7 +15,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -24,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
 	prj "github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/run"
@@ -31,7 +31,6 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/emicklei/dot"
-	"github.com/madlambda/spells/errutil"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/git"
@@ -44,9 +43,12 @@ import (
 )
 
 const (
-	ErrOutdatedLocalRev        errutil.Error = "outdated local revision"
-	ErrInit                    errutil.Error = "failed to initialize all stacks"
-	ErrOutdatedGenCodeDetected errutil.Error = "outdated generated code detected"
+	// ErrOutdatedLocalRev indicates the local revision is outdated.
+	ErrOutdatedLocalRev errors.Kind = "outdated local revision"
+	// ErrInit indicates a failure to initialize stacks.
+	ErrInit errors.Kind = "failed to initialize all stacks"
+	// ErrOutdatedGenCodeDetected indicates outdated generated code detected.
+	ErrOutdatedGenCodeDetected errors.Kind = "outdated generated code detected"
 )
 
 const (
@@ -56,61 +58,62 @@ const (
 )
 
 const (
-	defaultLogLevel = "info"
+	defaultLogLevel = "warn"
 	defaultLogFmt   = "console"
 )
 
 type cliSpec struct {
-	Version       struct{} `cmd:"" help:"Terramate version."`
-	VersionFlag   bool     `name:"version" help:"Terramate version."`
-	Chdir         string   `short:"C" optional:"true" help:"Sets working directory."`
-	GitChangeBase string   `short:"B" optional:"true" help:"Git base ref for computing changes."`
+	Version       struct{} `cmd:"" help:"Terramate version"`
+	VersionFlag   bool     `name:"version" help:"Terramate version"`
+	Chdir         string   `short:"C" optional:"true" help:"Sets working directory"`
+	GitChangeBase string   `short:"B" optional:"true" help:"Git base ref for computing changes"`
 	Changed       bool     `short:"c" optional:"true" help:"Filter by changed infrastructure"`
-	LogLevel      string   `optional:"true" default:"info" enum:"trace,debug,info,warn,error,fatal" help:"Log level to use: 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
-	LogFmt        string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'."`
+	LogLevel      string   `optional:"true" default:"warn" enum:"trace,debug,info,warn,error,fatal" help:"Log level to use: 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
+	LogFmt        string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'"`
 
-	DisableCheckGitUntracked   bool `optional:"true" default:"false" help:"Disable git check for untracked files."`
-	DisableCheckGitUncommitted bool `optional:"true" default:"false" help:"Disable git check for uncommitted files."`
+	DisableCheckGitUntracked   bool `optional:"true" default:"false" help:"Disable git check for untracked files"`
+	DisableCheckGitUncommitted bool `optional:"true" default:"false" help:"Disable git check for uncommitted files"`
 
 	List struct {
-		Why bool `help:"Shows the reason why the stack has changed."`
-	} `cmd:"" help:"List stacks."`
+		Why bool `help:"Shows the reason why the stack has changed"`
+	} `cmd:"" help:"List stacks"`
 
 	Run struct {
-		DisableCheckGenCode bool     `optional:"true" default:"false" help:"Disable outdated generated code check."`
-		ContinueOnError     bool     `default:"false" help:"Continue executing in other stacks in case of error."`
+		DisableCheckGenCode bool     `optional:"true" default:"false" help:"Disable outdated generated code check"`
+		ContinueOnError     bool     `default:"false" help:"Continue executing in other stacks in case of error"`
 		DryRun              bool     `default:"false" help:"Plan the execution but do not execute it"`
-		Command             []string `arg:"" name:"cmd" passthrough:"" help:"Command to execute."`
-	} `cmd:"" help:"Run command in the stacks."`
+		Reverse             bool     `default:"false" help:"Reverse the order of execution"`
+		Command             []string `arg:"" name:"cmd" passthrough:"" help:"Command to execute"`
+	} `cmd:"" help:"Run command in the stacks"`
 
-	Generate struct{} `cmd:"" help:"Generate terraform code for stacks."`
+	Generate struct{} `cmd:"" help:"Generate terraform code for stacks"`
 
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"Install shell completions"`
 
 	Experimental struct {
 		InitStack struct {
-			StackDirs []string `arg:"" name:"paths" optional:"true" help:"The stack directory (current directory if not set)."`
-		} `cmd:"" help:"Initialize a stack, does nothing if stack already initialized."`
+			StackDirs []string `arg:"" name:"paths" optional:"true" help:"The stack directory (current directory if not set)"`
+		} `cmd:"" help:"Initialize a stack, does nothing if stack already initialized"`
 
 		Metadata struct{} `cmd:"" help:"Shows metadata available on the project"`
 
 		Globals struct {
-		} `cmd:"" help:"List globals for all stacks."`
+		} `cmd:"" help:"List globals for all stacks"`
 
 		RunGraph struct {
-			Outfile string `short:"o" default:"" help:"Output .dot file."`
-			Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\"."`
-		} `cmd:"" help:"Generate a graph of the execution order."`
+			Outfile string `short:"o" default:"" help:"Output .dot file"`
+			Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\""`
+		} `cmd:"" help:"Generate a graph of the execution order"`
 
 		RunOrder struct {
-			Basedir string `arg:"" optional:"true" help:"Base directory to search stacks."`
+			Basedir string `arg:"" optional:"true" help:"Base directory to search stacks"`
 		} `cmd:"" help:"Show the topological ordering of the stacks"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
 
 // Exec will execute terramate with the provided flags defined on args.
 // Only flags should be on the args slice.
-
+//
 // Results will be written on stdout, according to the command flags and
 // errors/warnings written on stderr. Exec will abort the process with a status
 // code different than zero in the case of fatal errors.
@@ -346,16 +349,15 @@ func (c *cli) run() {
 			Msg("Print list of stacks.")
 		c.printStacks()
 	case "run":
-		logger.Debug().
-			Msg("Handle `run` command.")
+		logger.Debug().Msg("Handle `run` command.")
+
 		if len(c.parsedArgs.Run.Command) == 0 {
-			log.Fatal().
-				Msg("no command specified")
+			log.Fatal().Msg("no command specified")
 		}
 		fallthrough
 	case "run <cmd>":
-		logger.Debug().
-			Msg("Handle `run <cmd>` command.")
+		logger.Debug().Msg("Handle `run <cmd>` command.")
+
 		c.runOnStacks()
 	case "generate":
 		report := generate.Do(c.root(), c.wd())
@@ -411,7 +413,7 @@ func (c *cli) initStack(dirs []string) {
 
 	if len(errmsgs) > 0 {
 		log.Fatal().
-			Err(ErrInit).
+			Err(errors.E(ErrInit)).
 			Send()
 	}
 }
@@ -420,6 +422,10 @@ func (c *cli) gitSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
 	logger := log.With().
 		Str("action", "gitSafeguards()").
 		Logger()
+
+	if c.parsedArgs.Run.DryRun {
+		return
+	}
 
 	if !c.parsedArgs.DisableCheckGitUntracked && len(checks.UntrackedFiles) > 0 {
 		if shouldAbort {
@@ -463,6 +469,11 @@ func (c *cli) printStacks() {
 		Str("action", "printStacks()").
 		Logger()
 
+	if c.parsedArgs.List.Why && !c.parsedArgs.Changed {
+		logger.Fatal().
+			Msg("the --why flag must be used together with --changed")
+	}
+
 	logger.Trace().
 		Str("workingDir", c.wd()).
 		Msg("Create a new stack manager.")
@@ -486,7 +497,7 @@ func (c *cli) printStacks() {
 
 	for _, entry := range report.Stacks {
 		stack := entry.Stack
-		stackRepr, ok := c.friendlyFmtDir(stack.PrjAbsPath())
+		stackRepr, ok := c.friendlyFmtDir(stack.Path())
 		if !ok {
 			continue
 		}
@@ -521,7 +532,7 @@ func (c *cli) generateGraph() {
 	case "stack.dir":
 		logger.Debug().Msg("Set label stack directory.")
 
-		getLabel = func(s stack.S) string { return s.PrjAbsPath() }
+		getLabel = func(s stack.S) string { return s.Path() }
 	default:
 		logger.Fatal().
 			Msg("-label expects the values \"stack.name\" or \"stack.dir\"")
@@ -542,7 +553,7 @@ func (c *cli) generateGraph() {
 
 	visited := map[string]struct{}{}
 	for _, e := range c.filterStacksByWorkingDir(entries) {
-		if _, ok := visited[e.Stack.PrjAbsPath()]; ok {
+		if _, ok := visited[e.Stack.Path()]; ok {
 			continue
 		}
 
@@ -584,7 +595,13 @@ func (c *cli) generateGraph() {
 				Msg("opening file")
 		}
 
-		defer f.Close()
+		defer func() {
+			if err := f.Close(); err != nil {
+				log.Fatal().
+					Err(err).
+					Msg("closing output graph file")
+			}
+		}()
 
 		out = f
 	}
@@ -653,9 +670,9 @@ func (c *cli) printRunOrder() {
 	}
 
 	logger.Debug().Msg("Get run order.")
-	order, reason, err := run.Sort(c.root(), stacks, c.parsedArgs.Changed)
+	orderedStacks, reason, err := run.Sort(c.root(), stacks)
 	if err != nil {
-		if errors.Is(err, dag.ErrCycleDetected) {
+		if errors.IsKind(err, dag.ErrCycleDetected) {
 			log.Fatal().
 				Err(err).
 				Str("reason", reason).
@@ -667,7 +684,7 @@ func (c *cli) printRunOrder() {
 		}
 	}
 
-	for _, s := range order {
+	for _, s := range orderedStacks {
 		c.log(s.Name())
 	}
 }
@@ -689,13 +706,12 @@ func (c *cli) printStacksGlobals() {
 	}
 
 	for _, stackEntry := range c.filterStacksByWorkingDir(report.Stacks) {
-		stack := stackEntry.Stack
-		stackMeta := stack.Meta()
-		globals, err := terramate.LoadStackGlobals(c.root(), stackMeta)
+		meta := stack.Metadata(stackEntry.Stack)
+		globals, err := terramate.LoadStackGlobals(c.root(), meta)
 		if err != nil {
 			log.Fatal().
 				Err(err).
-				Str("stack", stackMeta.Path).
+				Str("stack", meta.Path()).
 				Msg("listing stacks globals: loading stack")
 		}
 
@@ -704,7 +720,7 @@ func (c *cli) printStacksGlobals() {
 			continue
 		}
 
-		c.log("\nstack %q:", stackMeta.Path)
+		c.log("\nstack %q:", meta.Path())
 		for _, line := range strings.Split(globalsStrRepr, "\n") {
 			c.log("\t%s", line)
 		}
@@ -736,17 +752,16 @@ func (c *cli) printMetadata() {
 	c.log("Available metadata:")
 
 	for _, stackEntry := range stackEntries {
-		stack := stackEntry.Stack
-		stackMeta := stack.Meta()
+		stackMeta := stack.Metadata(stackEntry.Stack)
 
 		logger.Debug().
-			Stringer("stack", stack).
+			Stringer("stack", stackEntry.Stack).
 			Msg("Print metadata for individual stack.")
 
-		c.log("\nstack %q:", stack.PrjAbsPath())
-		c.log("\tterramate.name=%q", stackMeta.Name)
-		c.log("\tterramate.path=%q", stackMeta.Path)
-		c.log("\tterramate.description=%q", stackMeta.Description)
+		c.log("\nstack %q:", stackMeta.Path())
+		c.log("\tterramate.name=%q", stackMeta.Name())
+		c.log("\tterramate.path=%q", stackMeta.Path())
+		c.log("\tterramate.description=%q", stackMeta.Desc())
 	}
 }
 
@@ -788,7 +803,7 @@ func (c *cli) checkOutdatedGeneratedCode(stacks []stack.S) {
 
 	if hasOutdated {
 		logger.Fatal().
-			Err(ErrOutdatedGenCodeDetected).
+			Err(errors.E(ErrOutdatedGenCodeDetected)).
 			Msg("please run: 'terramate generate' to update generated code")
 	}
 }
@@ -810,9 +825,9 @@ func (c *cli) runOnStacks() {
 
 	logger.Trace().Msg("Get order of stacks to run command on.")
 
-	orderedStacks, reason, err := run.Sort(c.root(), stacks, c.parsedArgs.Changed)
+	orderedStacks, reason, err := run.Sort(c.root(), stacks)
 	if err != nil {
-		if errors.Is(err, dag.ErrCycleDetected) {
+		if errors.IsKind(err, dag.ErrCycleDetected) {
 			logger.Fatal().
 				Str("reason", reason).
 				Err(err).
@@ -824,6 +839,11 @@ func (c *cli) runOnStacks() {
 		}
 	}
 
+	if c.parsedArgs.Run.Reverse {
+		logger.Trace().Msg("Reversing stacks order.")
+		stack.Reverse(orderedStacks)
+	}
+
 	if c.parsedArgs.Run.DryRun {
 		logger.Trace().
 			Msg("Do a dry run - get order without actually running command.")
@@ -831,7 +851,7 @@ func (c *cli) runOnStacks() {
 			c.log("The stacks will be executed using order below:")
 
 			for i, s := range orderedStacks {
-				stackdir, _ := c.friendlyFmtDir(s.PrjAbsPath())
+				stackdir, _ := c.friendlyFmtDir(s.Path())
 				c.log("\t%d. %s (%s)", i, s.Name(), stackdir)
 			}
 		} else {
@@ -841,26 +861,24 @@ func (c *cli) runOnStacks() {
 		return
 	}
 
-	logger.Info().
-		Bool("changed", c.parsedArgs.Changed).
-		Msg("Running command in stacks reachable from working directory")
+	logger.Info().Msg("Running on selected stacks")
 
 	failed := false
 
 	for _, stack := range orderedStacks {
 		cmd := exec.Command(c.parsedArgs.Run.Command[0], c.parsedArgs.Run.Command[1:]...)
-		cmd.Dir = stack.AbsPath()
+		cmd.Dir = stack.HostPath()
 		cmd.Env = os.Environ()
 		cmd.Stdin = c.stdin
 		cmd.Stdout = c.stdout
 		cmd.Stderr = c.stderr
 
-		logger := logger.With().
-			Stringer("stack", stack).
+		logger := log.With().
 			Str("cmd", strings.Join(c.parsedArgs.Run.Command, " ")).
+			Stringer("stack", stack).
 			Logger()
 
-		logger.Info().Msg("Running command in stack")
+		logger.Info().Msg("Running")
 
 		err = cmd.Run()
 		if err != nil {
@@ -920,7 +938,6 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) ([]stack.S, error) {
 	logger.Trace().Msg("Filter stacks by working directory.")
 
 	entries := c.filterStacksByWorkingDir(report.Stacks)
-
 	stacks := make([]stack.S, len(entries))
 	for i, e := range entries {
 		stacks[i] = e.Stack
@@ -948,7 +965,7 @@ func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Ent
 		Msg("Get filtered stacks.")
 	filtered := []terramate.Entry{}
 	for _, e := range stacks {
-		if strings.HasPrefix(e.Stack.PrjAbsPath(), relwd) {
+		if strings.HasPrefix(e.Stack.Path(), relwd) {
 			filtered = append(filtered, e)
 		}
 	}
@@ -967,12 +984,12 @@ func (c cli) checkVersion() {
 	rootcfg := c.prj.rootcfg
 
 	if rootcfg.Terramate == nil {
-		logger.Info().Msg("project root has no config, skipping version check")
+		logger.Debug().Msg("project root has no config, skipping version check")
 		return
 	}
 
 	if rootcfg.Terramate.RequiredVersion == "" {
-		logger.Info().Msg("project root config has no required_version, skipping version check")
+		logger.Debug().Msg("project root config has no required_version, skipping version check")
 		return
 	}
 

@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/alecthomas/kong v0.2.17
 	github.com/emicklei/dot v0.16.0
-	github.com/google/go-cmp v0.5.2
+	github.com/google/go-cmp v0.5.6
 	github.com/hashicorp/go-version v1.3.0
 	github.com/hashicorp/hcl/v2 v2.10.1
 	github.com/hashicorp/terraform v0.15.3
@@ -33,7 +33,6 @@ require (
 	github.com/zclconf/go-cty-yaml v1.0.2 // indirect
 	golang.org/x/crypto v0.0.0-20211215165025-cf75a172585e // indirect
 	golang.org/x/net v0.0.0-20210805182204-aaa1db679c0d // indirect
-	golang.org/x/sys v0.0.0-20210809222454-d867a43fc93e // indirect
+	golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8 // indirect
 	golang.org/x/text v0.3.6 // indirect
-	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 )

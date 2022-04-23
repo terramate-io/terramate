@@ -21,6 +21,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 )
 
+// AssertTerramateConfig checks if two given Terramate configs are equal.
 func AssertTerramateConfig(t *testing.T, got, want hcl.Config) {
 	t.Helper()
 
@@ -42,21 +43,6 @@ func assertTerramateBlock(t *testing.T, got, want *hcl.Terramate) {
 
 	assert.EqualStrings(t, want.RequiredVersion, got.RequiredVersion,
 		"required_version mismatch")
-
-	if (want.Backend == nil) != (got.Backend == nil) {
-		t.Fatalf("want.Backend[%+v] != got.Backend[%+v]",
-			want.Backend, got.Backend)
-	}
-
-	if want.Backend != nil {
-		assert.EqualStrings(t, want.Backend.Type, got.Backend.Type, "type differs")
-		assert.EqualInts(t, len(want.Backend.Labels), len(got.Backend.Labels), "labels length")
-		for i, wl := range want.Backend.Labels {
-			assert.EqualStrings(t, wl, got.Backend.Labels[i], "label differ")
-		}
-
-		// TODO(i4k): compare the rest?
-	}
 
 	if (want.RootConfig == nil) != (got.RootConfig == nil) {
 		t.Fatalf("want.RootConfig[%+v] != got.RootConfig[%+v]",
@@ -88,23 +74,6 @@ func assertTerramateConfigBlock(t *testing.T, got, want *hcl.RootConfig) {
 	if want.Git != nil {
 		if *want.Git != *got.Git {
 			t.Fatalf("want.Git[%+v] != got.Git[%+v]", want.Git, got.Git)
-		}
-	}
-
-	if (want.Generate == nil) != (got.Generate == nil) {
-		t.Fatalf(
-			"want.Generate[%+v] != got.Generate[%+v]",
-			want.Generate,
-			got.Generate,
-		)
-	}
-
-	if want.Generate != nil {
-		wantgen := *want.Generate
-		gotgen := *got.Generate
-
-		if wantgen != gotgen {
-			t.Fatalf("want.Generate[%+v] != got.Generate[%+v]", wantgen, gotgen)
 		}
 	}
 }

@@ -19,6 +19,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/madlambda/spells/errutil"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/run/dag"
 
 	"github.com/rs/zerolog"
@@ -47,7 +48,7 @@ var cycleTests = []testcase{
 				after: []dag.ID{"A"},
 			},
 		},
-		err:    dag.ErrCycleDetected,
+		err:    errors.E(dag.ErrCycleDetected),
 		reason: "A -> A",
 	},
 	{
@@ -60,7 +61,7 @@ var cycleTests = []testcase{
 				after: []dag.ID{"A"},
 			},
 		},
-		err:    dag.ErrCycleDetected,
+		err:    errors.E(dag.ErrCycleDetected),
 		reason: "A -> B -> A",
 	},
 	{
@@ -76,7 +77,7 @@ var cycleTests = []testcase{
 				after: []dag.ID{"A"},
 			},
 		},
-		err:    dag.ErrCycleDetected,
+		err:    errors.E(dag.ErrCycleDetected),
 		reason: "A -> B -> C -> A",
 	},
 	{
@@ -90,7 +91,7 @@ var cycleTests = []testcase{
 				before: []dag.ID{"B"},
 			},
 		},
-		err:    dag.ErrCycleDetected,
+		err:    errors.E(dag.ErrCycleDetected),
 		reason: "A -> B -> C -> A",
 	},
 	{
@@ -104,7 +105,7 @@ var cycleTests = []testcase{
 				before: []dag.ID{"B"},
 			},
 		},
-		err:    dag.ErrCycleDetected,
+		err:    errors.E(dag.ErrCycleDetected),
 		reason: "A -> B -> C -> A",
 	},
 	{
@@ -124,7 +125,7 @@ var cycleTests = []testcase{
 				after:  []dag.ID{"A"},
 			},
 		},
-		err:    dag.ErrCycleDetected,
+		err:    errors.E(dag.ErrCycleDetected),
 		reason: "A -> B -> D -> A",
 	},
 	{
@@ -146,7 +147,7 @@ var cycleTests = []testcase{
 				after: []dag.ID{"A"},
 			},
 		},
-		err:    dag.ErrCycleDetected,
+		err:    errors.E(dag.ErrCycleDetected),
 		reason: "A -> B -> C -> D -> F -> A",
 	},
 	{
@@ -168,7 +169,7 @@ var cycleTests = []testcase{
 				after: []dag.ID{"A"},
 			},
 		},
-		err:    dag.ErrCycleDetected,
+		err:    errors.E(dag.ErrCycleDetected),
 		reason: "A -> B -> C -> D -> A",
 	},
 	{
@@ -190,7 +191,7 @@ var cycleTests = []testcase{
 				after: []dag.ID{"A"},
 			},
 		},
-		err:    dag.ErrCycleDetected,
+		err:    errors.E(dag.ErrCycleDetected),
 		reason: "A -> B -> C -> D -> B",
 	},
 	{
@@ -203,7 +204,7 @@ var cycleTests = []testcase{
 				before: []dag.ID{"A"},
 			},
 		},
-		err:    dag.ErrCycleDetected,
+		err:    errors.E(dag.ErrCycleDetected),
 		reason: "A -> B -> A",
 	},
 }

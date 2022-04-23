@@ -1,3 +1,4 @@
+<img src="https://raw.githubusercontent.com/mineiros-io/brand/16aa786a3cd6d0ae2fb89ed756f96c695d0f88e1/terramate-logo.svg" width="140"/>
 <!-- mdtocstart -->
 
 # Table of Contents
@@ -19,6 +20,7 @@
 ![CI Status](https://github.com/mineiros-io/terramate/actions/workflows/ci.yml/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/mineiros-io/terramate)](https://goreportcard.com/report/github.com/mineiros-io/terramate)
 [![codecov](https://codecov.io/gh/mineiros-io/terramate/branch/main/graph/badge.svg?token=gMRUkVUAQ4)](https://codecov.io/gh/mineiros-io/terramate)
+[![Join Slack](https://img.shields.io/badge/slack-@mineiros--community-f32752.svg?logo=slack)](https://mineiros.io/slack)
 
 Terramate is a tool for managing multiple Terraform stacks.
 
@@ -64,7 +66,7 @@ To install using Go just run:
 go install github.com/mineiros-io/terramate/cmd/terramate@<version>
 ```
 
-Where **<version>** is any terramate [version tag](https://github.com/mineiros-io/terramate/tags),
+Where `<version>` is any terramate [version tag](https://github.com/mineiros-io/terramate/tags),
 or you can just install the **latest** release:
 
 ```sh
@@ -73,7 +75,17 @@ go install github.com/mineiros-io/terramate/cmd/terramate@latest
 
 #### Using Release Binaries
 
-TODO
+To install Terramate using a release binary, find the
+[appropriate package](https://github.com/mineiros-io/terramate/releases) for
+your system and download it.
+
+After downloading Terramate, unzip the package. Terramate runs as a single
+binary named `terramate`. Any other files in the package can be safely removed
+and Terramate will still function.
+
+Finally, make sure that the `terramate` binary is available on your PATH.
+This process will differ depending on your operating system.
+
 
 #### Using Docker
 
@@ -89,6 +101,7 @@ Container images tagged with release versions are also provided.
 Click [here](https://github.com/mineiros-io/terramate/pkgs/container/terramate/versions)
 for a list of the available container image tags.
 
+
 #### Auto Completion
 
 Terramate supports autocompletion of commands for *bash*, *zsh* and *fish*. To
@@ -100,4 +113,57 @@ terramate install-completions
 
 ### Project Setup
 
-TODO: More details on the basics to setup a project
+If you already have a project versioned on Git setting up
+Terramate is as easy as just [installing Terramate](#installing).
+Terramate comes with sensible defaults so just using it inside a pre existent
+Git repository should not require any configurations.
+
+The exception being repositories that have a default remote branch
+other than `origin/main`, in that case to make change detection work you will
+need to set a customized [project configuration](docs/project-config.md).
+
+If you want to play around with Terramate from scratch locally you can also
+setup a local git repository:
+
+```sh
+playground=$(mktemp -d)
+local_origin=$(mktemp -d)
+
+git init "${playground}"
+git init "${local_origin}"  --bare
+
+cd "${playground}"
+git remote add origin "${local_origin}"
+
+echo "My Terramate Playground" > README.md
+
+git add README.md
+git commit -m "first commit"
+git push --set-upstream origin main
+
+# Start using terramate
+```
+
+Terramate can also work without any VCS setup, it will only require
+a Terramate configuration at the top level directory of the project
+
+```sh
+playground=$(mktemp -d)
+cd "${playground}"
+
+cat > terramate.tm.hcl <<- EOM
+terramate {
+  config {
+  }
+}
+EOM
+
+# Start using terramate
+```
+
+In a setup with no VCS change detection features will not be available.
+
+We also provide a few example projects:
+
+* [Orchestrating stacks](https://github.com/mineiros-io/terramate-example-orchestration)
+* [Sharing data across stacks](https://github.com/mineiros-io/terramate-example-code-generation)

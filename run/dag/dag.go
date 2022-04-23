@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/madlambda/spells/errutil"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -36,10 +36,11 @@ type (
 	}
 )
 
+// Errors returned by operations on the DAG.
 const (
-	ErrDuplicateNode errutil.Error = "duplicate node"
-	ErrNodeNotFound  errutil.Error = "node not found"
-	ErrCycleDetected errutil.Error = "cycle detected"
+	ErrDuplicateNode errors.Kind = "duplicate node"
+	ErrNodeNotFound  errors.Kind = "node not found"
+	ErrCycleDetected errors.Kind = "cycle detected"
 )
 
 // New creates a new empty Directed-Acyclic-Graph.
@@ -58,9 +59,8 @@ func (d *DAG) AddNode(id ID, value interface{}, before, after []ID) error {
 		Logger()
 
 	if _, ok := d.values[id]; ok {
-		return errutil.Chain(
-			ErrDuplicateNode,
-			fmt.Errorf("adding node id %q", id),
+		return errors.E(ErrDuplicateNode,
+			fmt.Sprintf("adding node id %q", id),
 		)
 	}
 
@@ -106,7 +106,7 @@ func (d *DAG) addEdge(from, to ID) {
 		panic("internal error: empty list of edges must exist at this point")
 	}
 
-	if !IDList(fromEdges).contains(to) {
+	if !idList(fromEdges).contains(to) {
 		log.Trace().
 			Str("action", "addEdge()").
 			Str("from", string(from)).
@@ -144,9 +144,9 @@ func (d *DAG) validateNode(id ID, children []ID) (string, error) {
 	found, reason := d.hasCycle([]ID{id}, children, fmt.Sprintf("%s ->", id))
 	if found {
 		d.cycles[id] = true
-		return reason, errutil.Chain(
+		return reason, errors.E(
 			ErrCycleDetected,
-			fmt.Errorf("checking node id %q", id),
+			fmt.Sprintf("checking node id %q", id),
 		)
 	}
 
@@ -159,7 +159,7 @@ func (d *DAG) hasCycle(branch []ID, children []ID, reason string) (bool, string)
 			Str("action", "hasCycle()").
 			Str("id", string(id)).
 			Msg("Check if id is present in children.")
-		if IDList(children).contains(id) {
+		if idList(children).contains(id) {
 			d.cycles[id] = true
 			return true, fmt.Sprintf("%s %s", reason, id)
 		}
@@ -182,7 +182,7 @@ func (d *DAG) hasCycle(branch []ID, children []ID, reason string) (bool, string)
 
 // IDs returns the sorted list of node ids.
 func (d *DAG) IDs() []ID {
-	idlist := make(IDList, 0, len(d.dag))
+	idlist := make(idList, 0, len(d.dag))
 	for id := range d.dag {
 		idlist = append(idlist, id)
 	}
@@ -198,7 +198,7 @@ func (d *DAG) IDs() []ID {
 func (d *DAG) Node(id ID) (interface{}, error) {
 	v, ok := d.values[id]
 	if !ok {
-		return nil, ErrNodeNotFound
+		return nil, errors.E(ErrNodeNotFound)
 	}
 	return v, nil
 }
@@ -208,6 +208,7 @@ func (d *DAG) ChildrenOf(id ID) []ID {
 	return d.dag[id]
 }
 
+// HasCycle returns true if the DAG has a cycle.
 func (d *DAG) HasCycle(id ID) bool {
 	if !d.validated {
 		log.Trace().
@@ -266,8 +267,8 @@ func (d *DAG) walkFrom(id ID, do func(id ID)) {
 	do(id)
 }
 
-func sortedIds(ids []ID) IDList {
-	idlist := make(IDList, 0, len(ids))
+func sortedIds(ids []ID) idList {
+	idlist := make(idList, 0, len(ids))
 	for _, id := range ids {
 		idlist = append(idlist, id)
 	}
@@ -279,9 +280,9 @@ func sortedIds(ids []ID) IDList {
 	return idlist
 }
 
-type IDList []ID
+type idList []ID
 
-func (ids IDList) contains(other ID) bool {
+func (ids idList) contains(other ID) bool {
 	for _, id := range ids {
 		if id == other {
 			return true
@@ -291,6 +292,6 @@ func (ids IDList) contains(other ID) bool {
 	return false
 }
 
-func (ids IDList) Len() int           { return len(ids) }
-func (ids IDList) Swap(i, j int)      { ids[i], ids[j] = ids[j], ids[i] }
-func (ids IDList) Less(i, j int) bool { return ids[i] < ids[j] }
+func (ids idList) Len() int           { return len(ids) }
+func (ids idList) Swap(i, j int)      { ids[i], ids[j] = ids[j], ids[i] }
+func (ids idList) Less(i, j int) bool { return ids[i] < ids[j] }
