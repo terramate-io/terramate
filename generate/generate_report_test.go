@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/mineiros-io/terramate/generate"
 )
 
@@ -252,7 +251,7 @@ func assertReportHasError(t *testing.T, report generate.Report, err error) {
 func assertEqualReports(t *testing.T, got, want generate.Report) {
 	t.Helper()
 
-	if diff := cmp.Diff(got, want, cmpopts.EquateErrors()); diff != "" {
+	if diff := cmp.Diff(got, want); diff != "" {
 		t.Errorf("got %s", got)
 		t.Errorf("want %s", want)
 		t.Errorf("got(-) want(+)")
