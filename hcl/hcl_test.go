@@ -167,15 +167,19 @@ module "test" {
 				module {
 					source = "test"
 				}
+
+				module "test3" {}
 			`,
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerraformSchema, mkrange(start(3, 15, 35), end(3, 17, 37))),
 					errors.E(hcl.ErrTerraformSchema, mkrange(start(7, 18, 83), end(7, 21, 86))),
 					errors.E(hcl.ErrTerraformSchema, mkrange(start(10, 12, 112), end(10, 13, 113))),
+					errors.E(hcl.ErrTerraformSchema, mkrange(start(14, 20, 161), end(14, 22, 163))),
 				},
 			},
 		},
+		// TODO(katcipis): multiple syntax errors get reported
 		{
 			name:  "variable interpolation in the source string - fails",
 			input: "module \"test\" {\nsource = \"${var.test}\"\n}\n",
