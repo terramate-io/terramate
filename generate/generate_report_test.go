@@ -21,7 +21,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/generate"
-	errtest "github.com/mineiros-io/terramate/test/errors"
 )
 
 func TestReportRepresentation(t *testing.T) {
@@ -256,7 +255,7 @@ func assertEqualReports(t *testing.T, got, want generate.Report) {
 	// WHY: we can't just use cmp.Diff since the errors included on the Report
 	// are not comparable and may contain unexported fields (depending on how errors are built)
 
-	errtest.Assert(t, got.BootstrapErr, want.BootstrapErr)
+	assert.IsError(t, got.BootstrapErr, want.BootstrapErr)
 
 	if diff := cmp.Diff(got.Successes, want.Successes); diff != "" {
 		t.Errorf("success results differs: got(-) want(+)")
@@ -273,6 +272,6 @@ func assertEqualReports(t *testing.T, got, want generate.Report) {
 			t.Fatal(diff)
 		}
 
-		errtest.Assert(t, gotFailure.Error, wantFailure.Error)
+		assert.IsError(t, gotFailure.Error, wantFailure.Error)
 	}
 }
