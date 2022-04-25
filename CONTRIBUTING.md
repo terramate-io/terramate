@@ -20,8 +20,11 @@ Thanks!
 
 ## Contribution Workflow
 
-Terramate uses the “fork-and-pull” development model. Follow these steps if
-you want to merge your changes to Terramate:
+For bug reports or requests, please submit your issue in the appropriate repository.
+
+We advise that you open an issue and ask the [CODEOWNERS](https://help.github.com/en/github/creating-cloning-and-archiving-repositories/about-code-owners) and community prior to starting a contribution. This is your chance to ask questions and receive feedback before writing (potentially wrong) code. We value the direct contact with our community a lot, so don't hesitate to ask any questions.
+
+For contributing to Terramate, please follow these steps:
 
 1. Within your fork of
    [Terramate](https://github.com/mineiros-io/terramate), create a
