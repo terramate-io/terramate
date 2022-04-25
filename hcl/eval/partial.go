@@ -901,10 +901,12 @@ func (e *engine) evalInterp() error {
 			return true
 		}
 
-		for i := 0; i < len(n.evaluated)-2; i++ {
-			tok1 := n.evaluated[i]
-			tok2 := n.evaluated[i+1]
-			tok3 := n.evaluated[i+2]
+		evaluated := ignorenlc(n.evaluated)
+
+		for i := 0; i < len(evaluated)-2; i++ {
+			tok1 := evaluated[i]
+			tok2 := evaluated[i+1]
+			tok3 := evaluated[i+2]
 
 			if (tok1.Type == hclsyntax.TokenIdent &&
 				tok2.Type == hclsyntax.TokenDot &&
@@ -1029,7 +1031,7 @@ func (e *engine) evalString() error {
 			rewritten.pushfrom(elem)
 		case hclsyntax.TokenNumberLit, hclsyntax.TokenIdent:
 			if len(elem.evaluated) > 1 {
-				panic("expects one part")
+				panic(fmt.Errorf("expects one part: %s", elem.evaluated.Bytes()))
 			}
 
 			if last == nil {
@@ -1326,6 +1328,16 @@ func trimIgnored(tokens hclwrite.Tokens) hclwrite.Tokens {
 	}
 
 	return tokens[:ignorePos]
+}
+
+func ignorenlc(tokens hclwrite.Tokens) hclwrite.Tokens {
+	rest := hclwrite.Tokens{}
+	for _, tok := range tokens {
+		if tok.Type != hclsyntax.TokenNewline && tok.Type != hclsyntax.TokenComment {
+			rest = append(rest, tok)
+		}
+	}
+	return rest
 }
 
 // variable is a low-level representation of a variable in terms of tokens.

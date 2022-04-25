@@ -166,6 +166,24 @@ func TestErrorString(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.EqualStrings(t, tc.want, tc.err.Error())
+
+		})
+
+		// piggyback on Error formatting tests for Errors list testing
+
+		t.Run("errors list with single error/"+tc.name, func(t *testing.T) {
+			errs := errors.L(tc.err)
+
+			assert.EqualStrings(t, tc.want, errs.Error())
+			assert.EqualStrings(t, tc.want, errs.AsError().Error())
+		})
+		t.Run("errors list with multiple errors/"+tc.name, func(t *testing.T) {
+			errs := errors.L(tc.err, E("will be elided"))
+			errs.Append(E("will also be elided"))
+			want := fmt("%s (and 2 elided errors)", tc.err.Error())
+
+			assert.EqualStrings(t, want, errs.Error())
+			assert.EqualStrings(t, want, errs.AsError().Error())
 		})
 	}
 }
@@ -200,10 +218,6 @@ func TestErrorIs(t *testing.T) {
 	}
 
 	for _, tc := range []testcase{
-		{
-			name:    "both nil",
-			areSame: true,
-		},
 		{
 			name:   "nil target is not equal",
 			err:    E("any error"),
@@ -299,12 +313,36 @@ func TestErrorIs(t *testing.T) {
 			areSame: true,
 		},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			res := errors.Is(tc.err, tc.target)
+
+		assertErrorIsTarget := func(t *testing.T, err error) {
+			t.Helper()
+
+			res := errors.Is(err, tc.target)
 			if res != tc.areSame {
 				t.Fatalf("error[%v] == target[%v] = %t but want %t",
-					tc.err, tc.target, res, tc.areSame)
+					err, tc.target, res, tc.areSame)
 			}
+		}
+
+		t.Run(tc.name, func(t *testing.T) {
+			assertErrorIsTarget(t, tc.err)
+		})
+
+		//piggyback on errors.Error tests
+
+		t.Run("errors list with single err/"+tc.name, func(t *testing.T) {
+			errs := errors.L(tc.err)
+			assertErrorIsTarget(t, errs)
+		})
+
+		t.Run("errors list match is first/"+tc.name, func(t *testing.T) {
+			errs := errors.L(tc.err, stderrors.New("not match"))
+			assertErrorIsTarget(t, errs)
+		})
+
+		t.Run("errors list match is last/"+tc.name, func(t *testing.T) {
+			errs := errors.L(stderrors.New("not match"), tc.err)
+			assertErrorIsTarget(t, errs)
 		})
 	}
 }
