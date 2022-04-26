@@ -109,6 +109,10 @@ func (l *List) Append(err error) {
 				l.errs = append(l.errs, E(*diag))
 			}
 		}
+	case *List:
+		{
+			l.errs = append(l.errs, e.errs...)
+		}
 	default:
 		l.errs = append(l.errs, err)
 	}

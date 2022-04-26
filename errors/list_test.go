@@ -73,7 +73,7 @@ func TestErrorListIgnoresNilErrors(t *testing.T) {
 	}
 }
 
-func TestErrorListAppendAllDiagnostics(t *testing.T) {
+func TestErrorListFlattensAllDiagnostics(t *testing.T) {
 	const (
 		detail1 = "error 1"
 		detail2 = "error 2"
@@ -117,6 +117,28 @@ func TestErrorListAppendAllDiagnostics(t *testing.T) {
 			FileRange:   *range2,
 		},
 	}
+	gotErrs := errs.Errors()
+
+	if diff := cmp.Diff(gotErrs, wantErrs); diff != "" {
+		t.Fatalf("-(got) +(want):\n%s", diff)
+	}
+}
+
+func TestErrorListFlattensOtherErrorList(t *testing.T) {
+	const (
+		kind1 errors.Kind = "kind1"
+		kind2 errors.Kind = "kind2"
+		kind3 errors.Kind = "kind3"
+	)
+
+	error1 := &errors.Error{Kind: kind1}
+	error2 := &errors.Error{Kind: kind2}
+	error3 := &errors.Error{Kind: kind3}
+
+	errs := errors.L(error1)
+	errs.Append(errors.L(error2, error3))
+
+	wantErrs := []*errors.Error{error1, error2, error3}
 	gotErrs := errs.Errors()
 
 	if diff := cmp.Diff(gotErrs, wantErrs); diff != "" {
