@@ -74,15 +74,13 @@ func AssertIsErrors(t *testing.T, err error, targets []error) {
 // AssertAsErrorsList will check if the given error can be handled
 // as an *errors.List by calling errors.As. It fails if the error fails
 // to be an *errors.List.
-func AssertAsErrorsList(t *testing.T, err error) *errors.List {
+func AssertAsErrorsList(t *testing.T, err error) {
 	t.Helper()
 
 	var errs *errors.List
 	if !errors.As(err, &errs) {
 		t.Fatalf("error %v doesn't match type %T", err, errs)
 	}
-
-	return errs
 }
 
 func errstr(err error) string {
