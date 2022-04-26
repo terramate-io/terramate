@@ -189,6 +189,7 @@ module "test" {
 			`,
 			want: want{
 				errs: []error{
+					errors.E(hcl.ErrHCLSyntax),
 					errors.E(mkrange(start(2, 17, 17), end(3, 1, 18))),
 					errors.E(mkrange(start(3, 17, 34), end(4, 1, 35))),
 					errors.E(mkrange(start(4, 15, 49), end(5, 1, 50))),
