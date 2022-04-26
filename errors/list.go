@@ -18,6 +18,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/hashicorp/hcl/v2"
 )
 
 // List represents a list of error instances that also
@@ -32,6 +34,12 @@ type List struct {
 
 // L builds a List instance with all errs provided as arguments.
 // Any nil errors on errs will be discarded.
+//
+// Any error of type hcl.Diagnostics will be flattened inside
+// the error list, each hcl.Diagnostic will become an error.Error.
+//
+// Any error of type errors.List will be flattened inside
+// the error list, each  will become an error.Error.
 func L(errs ...error) *List {
 	e := &List{}
 	for _, err := range errs {
@@ -90,11 +98,30 @@ func (l *List) Detailed() string {
 
 // Append appends a new error on the error list.
 // If the error is nil it will not be added on the error list.
+//
+// Any error of type hcl.Diagnostics will be flattened inside
+// the error list, each hcl.Diagnostic will become an error.Error.
+//
+// Any error of type errors.List will be flattened inside
+// the error list.
 func (l *List) Append(err error) {
 	if err == nil {
 		return
 	}
-	l.errs = append(l.errs, err)
+	switch e := err.(type) {
+	case hcl.Diagnostics:
+		{
+			for _, diag := range e {
+				l.errs = append(l.errs, E(diag))
+			}
+		}
+	case *List:
+		{
+			l.errs = append(l.errs, e.errs...)
+		}
+	default:
+		l.errs = append(l.errs, err)
+	}
 }
 
 // AsError returns the error list as an error instance if the errors
