@@ -55,10 +55,6 @@ func TestLoadGeneratedHCL(t *testing.T) {
 		}
 	)
 
-	// attr := func(name, expr string) hclwrite.BlockBuilder {
-	// 	t.Helper()
-	// 	return hclwrite.AttributeValue(t, name, expr)
-	// }
 	defaultCfg := func(dir string) string {
 		return filepath.Join(dir, config.DefaultFilename)
 	}
@@ -72,7 +68,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					path: "/stack",
 					add: generateHCL(
 						labels("test.txt"),
-						str("content", "hello world"),
+						str("content", "something = \"hello world\""),
 					),
 				},
 			},
@@ -82,7 +78,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					hcl: genFile{
 						origin: defaultCfg("/stack"),
 						body: hcldoc(
-							str("content", "hello world"),
+							str("something", "hello world"),
 						),
 					},
 				},
@@ -106,31 +102,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					hcl: genFile{
 						origin: defaultCfg("/stack"),
 						body: hcldoc(
-							str("content", "something = \"something\""),
-						),
-					},
-				},
-			},
-		},
-		{
-			name:  "generate file with line break",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack",
-					add: generateHCL(
-						labels("test.txt"),
-						str("content", "something = \"something\"\nsomething = \"something\""),
-					),
-				},
-			},
-			want: []result{
-				{
-					name: "test.txt",
-					hcl: genFile{
-						origin: defaultCfg("/stack"),
-						body: hcldoc(
-							str("content", "something = \"something\"\nsomething = \"something\""),
+							str("something", "something"),
 						),
 					},
 				},
@@ -144,7 +116,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					path: "/stack",
 					add: generateHCL(
 						labels("test.json"),
-						expr("content", "jsonencode({hello = \"world\"})"),
+						expr("content", "\"something = tm_max(5, 12, 9)\""),
 					),
 				},
 			},
@@ -154,79 +126,79 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					hcl: genFile{
 						origin: defaultCfg("/stack"),
 						body: hcldoc(
-							expr("content", "jsonencode({hello = \"world\"})"),
+							expr("something", "tm_max(5, 12, 9)"),
 						),
 					},
 				},
 			},
 		},
-		{
-			name:  "generate file in stack with multiple files",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack",
-					add: globals(
-						str("some_string", "string"),
-						number("some_number", 777),
-						boolean("some_bool", true),
-					),
-				},
-				{
-					path:     "/stack",
-					filename: "test.tm.hcl",
-					add: generateHCL(
-						labels("test.txt"),
-						expr("content", "global.some_string"),
-					),
-				},
-				{
-					path:     "/stack",
-					filename: "test2.tm.hcl",
-					add: generateHCL(
-						labels("test2.txt"),
-						expr("content", "global.some_number"),
-					),
-				},
-				{
-					path:     "/stack",
-					filename: "test3.tm.hcl",
-					add: generateHCL(
-						labels("test3.txt"),
-						expr("content", "global.some_bool"),
-					),
-				},
-			},
-			want: []result{
-				{
-					name: "test.txt",
-					hcl: genFile{
-						origin: "/stack/test.tm.hcl",
-						body: hcldoc(
-							str("content", "string"),
-						),
-					},
-				},
-				{
-					name: "test2.txt",
-					hcl: genFile{
-						origin: "/stack/test2.tm.hcl",
-						body: hcldoc(
-							number("content", 777),
-						),
-					},
-				},
-				{
-					name: "test3.txt",
-					hcl: genFile{
-						origin: "/stack/test3.tm.hcl",
-						body: hcldoc(
-							boolean("content", true),
-						),
-					},
-				},
-			},
-		},
+		// {
+		// 	name:  "generate file in stack with multiple files",
+		// 	stack: "/stack",
+		// 	configs: []hclconfig{
+		// 		{
+		// 			path: "/stack",
+		// 			add: globals(
+		// 				str("some_string", "string"),
+		// 				number("some_number", 777),
+		// 				boolean("some_bool", true),
+		// 			),
+		// 		},
+		// 		{
+		// 			path:     "/stack",
+		// 			filename: "test.tm.hcl",
+		// 			add: generateHCL(
+		// 				labels("test.txt"),
+		// 				expr("content", "\"something = global.some_string\""),
+		// 			),
+		// 		},
+		// 		{
+		// 			path:     "/stack",
+		// 			filename: "test2.tm.hcl",
+		// 			add: generateHCL(
+		// 				labels("test2.txt"),
+		// 				expr("content", "\"something = global.some_number\""),
+		// 			),
+		// 		},
+		// 		{
+		// 			path:     "/stack",
+		// 			filename: "test3.tm.hcl",
+		// 			add: generateHCL(
+		// 				labels("test3.txt"),
+		// 				expr("content", "\"something = global.some_bool\""),
+		// 			),
+		// 		},
+		// 	},
+		// 	want: []result{
+		// 		{
+		// 			name: "test.txt",
+		// 			hcl: genFile{
+		// 				origin: "/stack/test.tm.hcl",
+		// 				body: hcldoc(
+		// 					str("something", "string"),
+		// 				),
+		// 			},
+		// 		},
+		// 		{
+		// 			name: "test2.txt",
+		// 			hcl: genFile{
+		// 				origin: "/stack/test2.tm.hcl",
+		// 				body: hcldoc(
+		// 					number("something", 777),
+		// 				),
+		// 			},
+		// 		},
+		// 		{
+		// 			name: "test3.txt",
+		// 			hcl: genFile{
+		// 				origin: "/stack/test3.tm.hcl",
+		// 				body: hcldoc(
+		// 					boolean("something", true),
+		// 				),
+		// 			},
+		// 		},
+		// 	},
+		// },
 	}
 
 	for _, tcase := range tcases {

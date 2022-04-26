@@ -85,7 +85,6 @@ func Do(root string, workingDir string) Report {
 			report.err = err
 			return report
 		}
-
 		genfiles = append(genfiles, stackHCLsCode...)
 
 		logger.Trace().Msg("Checking for conflicts on generated files.")
