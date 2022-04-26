@@ -131,6 +131,11 @@ func E(args ...interface{}) *Error {
 			if diag.Subject != nil {
 				e.FileRange = *diag.Subject
 			}
+		case *hcl.Diagnostic:
+			diag = arg
+			if diag.Subject != nil {
+				e.FileRange = *diag.Subject
+			}
 		case StackMeta:
 			e.Stack = arg
 		case error:
