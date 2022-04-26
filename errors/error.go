@@ -133,7 +133,7 @@ func E(args ...interface{}) *Error {
 			}
 		case *hcl.Diagnostic:
 			diag = arg
-			if diag.Subject != nil {
+			if diag != nil && diag.Subject != nil {
 				e.FileRange = *diag.Subject
 			}
 		case StackMeta:

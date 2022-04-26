@@ -106,7 +106,7 @@ func (l *List) Append(err error) {
 	case hcl.Diagnostics:
 		{
 			for _, diag := range e {
-				l.errs = append(l.errs, E(*diag))
+				l.errs = append(l.errs, E(diag))
 			}
 		}
 	case *List:

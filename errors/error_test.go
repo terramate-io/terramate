@@ -70,6 +70,8 @@ func TestErrorString(t *testing.T) {
 		want string
 	}
 
+	var nildiagnostic *hcl.Diagnostic
+
 	for _, tc := range []testcase{
 		{
 			name: "simple message",
@@ -181,6 +183,11 @@ func TestErrorString(t *testing.T) {
 			},
 			),
 			want: "test.tm:1,5-10: some error",
+		},
+		{
+			name: "nil diag pointer is ignored",
+			err:  E("error", nildiagnostic),
+			want: "error",
 		},
 		{
 			name: "simple message with stack",
