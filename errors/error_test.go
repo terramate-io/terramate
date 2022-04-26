@@ -155,6 +155,20 @@ func TestErrorString(t *testing.T) {
 			want: "test.tm:1,5-10: some error",
 		},
 		{
+			name: "single diag sets range and description",
+			err: E(hcl.Diagnostic{
+				Detail:   "some error",
+				Severity: hcl.DiagError,
+				Subject: &hcl.Range{
+					Filename: "test.tm",
+					Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},
+					End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},
+				},
+			},
+			),
+			want: "test.tm:1,5-10: some error",
+		},
+		{
 			name: "simple message with stack",
 			err: E(syntaxError, "failed to parse config", stackmeta{
 				name: "test",
@@ -279,6 +293,16 @@ func TestErrorIs(t *testing.T) {
 		{
 			name:    "same file range",
 			err:     E("error", filerange),
+			target:  E(filerange),
+			areSame: true,
+		},
+		{
+			name: "same file range built from hcl.Diagnostic",
+			err: E("error", hcl.Diagnostic{
+				Detail:   "some error",
+				Severity: hcl.DiagError,
+				Subject:  &filerange,
+			}),
 			target:  E(filerange),
 			areSame: true,
 		},
