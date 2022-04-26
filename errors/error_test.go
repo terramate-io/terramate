@@ -410,7 +410,7 @@ func TestDetailedRepresentation(t *testing.T) {
 	}
 
 	var e *errors.Error
-	err := E("error", stack, filerange)
+	err := E("error", stack, filerange, errors.L(E("error")))
 	errors.As(err, &e)
 
 	if e.Error() == e.Detailed() {
