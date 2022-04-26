@@ -2,19 +2,9 @@
 
 ## A Word Before We Begin
 
-You're welcome to send PRs! If we have time, or if the PRs are very small or fix
-bugs, we may even integrate them in the near future. But be aware that we might
-not get to it for a while, by which time it might no longer be relevant.
+First and foremost, we'd like to express our gratitude to you for taking the time to contribute. We don't accept feature contributions by the community as we are currently sticking to an internal roadmap. This may change in the future.
 
-Also we will not be able to review and integrate PRs for
-new features from the community, since those tend to be larger.
-This will change in time.
-
-If you want to ask about whether a PR is consistent with our short-term plan
-_before_ you put in the work -- and you should! -- Create an issue on the project
-so we can discuss it together.
-
-Feature requests and bug reports in form of issues are also welcomed.
+We welcome and appreciate all bug fix contributions via [Pull Requests](https://github.com/mineiros-io/terramate/pulls) along the [GitHub Flow](https://guides.github.com/introduction/flow/).
 
 Thanks!
 
