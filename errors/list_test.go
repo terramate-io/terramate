@@ -131,9 +131,9 @@ func TestErrorListFlattensOtherErrorList(t *testing.T) {
 		kind3 errors.Kind = "kind3"
 	)
 
-	error1 := &errors.Error{Kind: kind1}
-	error2 := &errors.Error{Kind: kind2}
-	error3 := &errors.Error{Kind: kind3}
+	error1 := errors.E(kind1)
+	error2 := errors.E(kind2)
+	error3 := errors.E(kind3)
 
 	errs := errors.L(error1)
 	errs.Append(errors.L(error2, error3))

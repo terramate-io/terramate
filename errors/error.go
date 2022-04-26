@@ -99,7 +99,7 @@ const separator = ": "
 //
 // In order to avoid duplicated messages, we erase the fields present in the
 // underlying error if already set with same value in this error.
-func E(args ...interface{}) error {
+func E(args ...interface{}) *Error {
 	if len(args) == 0 {
 		panic("called with no args")
 	}
