@@ -179,7 +179,24 @@ module "test" {
 				},
 			},
 		},
-		// TODO(katcipis): multiple syntax errors get reported
+		{
+			name: "multiple syntax errors on same file get reported",
+			input: `
+				string = hi"
+				bool   = rue
+				list   = [
+				obj    = {
+			`,
+			want: want{
+				errs: []error{
+					errors.E(mkrange(start(2, 17, 17), end(3, 1, 18))),
+					errors.E(mkrange(start(3, 17, 34), end(4, 1, 35))),
+					errors.E(mkrange(start(4, 15, 49), end(5, 1, 50))),
+					errors.E(mkrange(start(5, 15, 64), end(6, 1, 65))),
+					errors.E(mkrange(start(2, 16, 16), end(2, 17, 17))),
+				},
+			},
+		},
 		{
 			name:  "variable interpolation in the source string - fails",
 			input: "module \"test\" {\nsource = \"${var.test}\"\n}\n",

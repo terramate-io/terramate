@@ -265,9 +265,10 @@ func ParseModules(path string) ([]Module, error) {
 	errs := errors.L()
 
 	f, diags := p.ParseHCLFile(path)
-	if diags.HasErrors() {
-		// TODO: add diags on error list
-		return nil, errors.E(ErrHCLSyntax, diags)
+	errs.Append(diags)
+
+	if err := errs.AsError(); err != nil {
+		return nil, errors.E(ErrHCLSyntax, err)
 	}
 
 	body := f.Body.(*hclsyntax.Body)
@@ -281,12 +282,10 @@ func ParseModules(path string) ([]Module, error) {
 		}
 
 		var moduleName string
-		hasErrs := false
 
 		if len(block.Labels) == 1 {
 			moduleName = block.Labels[0]
 		} else {
-			hasErrs = true
 			errs.Append(errors.E(ErrTerraformSchema, block.OpenBraceRange,
 				"\"module\" block must have 1 label"))
 		}
@@ -294,24 +293,23 @@ func ParseModules(path string) ([]Module, error) {
 		logger.Trace().Msg("Get source attribute.")
 		source, ok, err := findStringAttr(block, "source")
 		if err != nil {
-			hasErrs = true
 			errs.Append(errors.E(ErrTerraformSchema, err,
 				"looking for module.%q.source attribute", moduleName))
 		}
 		if !ok {
-			hasErrs = true
 			errs.Append(errors.E(ErrTerraformSchema,
 				hcl.RangeBetween(block.OpenBraceRange, block.CloseBraceRange),
 				"module must have a \"source\" attribute",
 			))
 		}
-
-		if !hasErrs {
-			modules = append(modules, Module{Source: source})
-		}
+		modules = append(modules, Module{Source: source})
 	}
 
-	return modules, errs.AsError()
+	if err := errs.AsError(); err != nil {
+		return nil, err
+	}
+
+	return modules, nil
 }
 
 // ParseDir will parse Terramate configuration from a given directory,
