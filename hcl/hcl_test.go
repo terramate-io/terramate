@@ -219,6 +219,9 @@ module "test" {
 
 			modules, err := hcl.ParseModules(tfpath)
 			errtest.AssertIsErrors(t, err, wantErrs)
+			if err != nil {
+				errtest.AssertAsErrorsList(t, err)
+			}
 			assert.EqualInts(t,
 				len(tc.want.modules),
 				len(modules),
