@@ -17,6 +17,8 @@ The definition of the **content** attribute may include:
 * Terramate function calls
 * Expressions using string interpolation
 
+The final evaluated **content** attribute **must** be a string.
+
 Multiple `generate_file` blocks with the same label/filename will
 result in an error.
 
