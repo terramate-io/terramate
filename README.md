@@ -16,9 +16,9 @@ The stack concept is not defined by Hashicorp's Terraform tooling but just a con
 Terramate provides ways to keep your Terrform code [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) and allows to define relationships between stacks and supports you to orchestrate Terraform commands in those stacks with minimal effort to get started in a non-intrusive way.
 
 - **Keep you code DRY**: Avoid duplication by easily sharing data across your project.
-- **Code Generation**: Generate valid Terraform Code to ensures that you can always enter a stack to run plain Terraform commands.
+- **Code Generation**: Generate valid Terraform Code to ensure that you can always enter a stack to run plain Terraform commands.
 - **Stack Change detection**: Only execute commands in stacks that have been changed in the current branch or since the last merge.
-- **Module Change detection**: Enhanced Change Detection allows to identify stacks that have changes in local modules.
+- **Module Change detection**: Enhanced Change Detection allows to identifying stacks that have changes in local modules.
 - **Execute Any Command**: Terramate is not a wrapper of Terraform but can execute any commands in (changed) stacks.
 - **Execution Order**: Explicitly define an order of execution of stacks.
 - **Forced Stack Execution**: Ensure specific stacks are run alongside other stacks.
