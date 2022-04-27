@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package terramate_test
+package stack_test
 
 import (
 	"path/filepath"
@@ -750,7 +750,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(terramate.ErrGlobalEval),
+			wantErr: errors.E(stack.ErrGlobalEval),
 		},
 		{
 			name:   "global interpolating list with space fails",
@@ -764,7 +764,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(terramate.ErrGlobalEval),
+			wantErr: errors.E(stack.ErrGlobalEval),
 		},
 		{
 			// This tests double check that interpolation on a single object/map
@@ -800,7 +800,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(terramate.ErrGlobalEval),
+			wantErr: errors.E(stack.ErrGlobalEval),
 		},
 		{
 			name:   "global interpolating object with space fails",
@@ -814,7 +814,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(terramate.ErrGlobalEval),
+			wantErr: errors.E(stack.ErrGlobalEval),
 		},
 		{
 			// This tests double check that interpolation on a single number
@@ -971,7 +971,7 @@ func TestLoadGlobals(t *testing.T) {
 					add:  globals(str("stack", "whatever")),
 				},
 			},
-			wantErr: errors.E(terramate.ErrGlobalEval),
+			wantErr: errors.E(stack.ErrGlobalEval),
 		},
 		{
 			name:   "global undefined reference on stack",
@@ -982,7 +982,7 @@ func TestLoadGlobals(t *testing.T) {
 					add:  globals(expr("field", "global.unknown")),
 				},
 			},
-			wantErr: errors.E(terramate.ErrGlobalEval),
+			wantErr: errors.E(stack.ErrGlobalEval),
 		},
 		{
 			name:   "global undefined references mixed on stack",
@@ -998,7 +998,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(terramate.ErrGlobalEval),
+			wantErr: errors.E(stack.ErrGlobalEval),
 		},
 		{
 			name:   "global cyclic reference on stack",
@@ -1013,7 +1013,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(terramate.ErrGlobalEval),
+			wantErr: errors.E(stack.ErrGlobalEval),
 		},
 		{
 			name:   "global cyclic references across hierarchy",
@@ -1032,7 +1032,7 @@ func TestLoadGlobals(t *testing.T) {
 					add:  globals(expr("c", "global.a")),
 				},
 			},
-			wantErr: errors.E(terramate.ErrGlobalEval),
+			wantErr: errors.E(stack.ErrGlobalEval),
 		},
 		{
 			name:   "global redefined on different file on stack",
@@ -1049,7 +1049,7 @@ func TestLoadGlobals(t *testing.T) {
 					add:      globals(str("a", "b")),
 				},
 			},
-			wantErr: errors.E(terramate.ErrGlobalRedefined),
+			wantErr: errors.E(stack.ErrGlobalRedefined),
 		},
 	}
 
@@ -1076,21 +1076,21 @@ func TestLoadGlobals(t *testing.T) {
 
 			var stacks []stack.S
 			for _, entry := range stackEntries {
-				stack := entry.Stack
-				stacks = append(stacks, stack)
+				st := entry.Stack
+				stacks = append(stacks, st)
 
-				got, err := terramate.LoadStackGlobals(s.RootDir(), stack)
+				got, err := stack.LoadStackGlobals(s.RootDir(), st)
 
 				errtest.Assert(t, err, tcase.wantErr)
 				if tcase.wantErr != nil {
 					continue
 				}
 
-				want, ok := wantGlobals[stack.Path()]
+				want, ok := wantGlobals[st.Path()]
 				if !ok {
 					want = globals()
 				}
-				delete(wantGlobals, stack.Path())
+				delete(wantGlobals, st.Path())
 
 				// Could have one type for globals configs and another type
 				// for wanted evaluated globals, but that would make
@@ -1232,7 +1232,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 					`,
 				},
 			},
-			want: errors.E(terramate.ErrGlobalRedefined),
+			want: errors.E(stack.ErrGlobalRedefined),
 		},
 		{
 			name:   "root config has global redefinition on multiple blocks",
@@ -1250,7 +1250,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 					`,
 				},
 			},
-			want: errors.E(terramate.ErrGlobalRedefined),
+			want: errors.E(stack.ErrGlobalRedefined),
 		},
 	}
 
@@ -1271,7 +1271,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 			}
 
 			for _, entry := range stackEntries {
-				_, err := terramate.LoadStackGlobals(s.RootDir(), entry.Stack)
+				_, err := stack.LoadStackGlobals(s.RootDir(), entry.Stack)
 				errtest.Assert(t, err, tcase.want)
 			}
 		})
@@ -1287,6 +1287,6 @@ func TestLoadGlobalsErrorOnRelativeDir(t *testing.T) {
 
 	stacks := s.LoadStacks()
 	assert.EqualInts(t, 1, len(stacks))
-	globals, err := terramate.LoadStackGlobals(rel, stacks[0])
+	globals, err := stack.LoadStackGlobals(rel, stacks[0])
 	assert.Error(t, err, "got %v instead of error", globals)
 }

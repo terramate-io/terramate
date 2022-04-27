@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package terramate
+package stack
 
 import (
 	"path/filepath"
@@ -23,7 +23,6 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -48,7 +47,7 @@ const (
 //
 // Metadata for the stack is used on the evaluation of globals.
 // The rootdir MUST be an absolute path.
-func LoadStackGlobals(rootdir string, meta stack.Metadata) (Globals, error) {
+func LoadStackGlobals(rootdir string, meta Metadata) (Globals, error) {
 	logger := log.With().
 		Str("action", "LoadStackGlobals()").
 		Str("stack", meta.Path()).
@@ -108,7 +107,7 @@ func (ge *globalsExpr) has(name string) bool {
 	return ok
 }
 
-func (ge *globalsExpr) eval(meta stack.Metadata) (Globals, error) {
+func (ge *globalsExpr) eval(meta Metadata) (Globals, error) {
 	// FIXME(katcipis): get abs path for stack.
 	// This is relative only to root since meta.Path will look
 	// like: /some/path/relative/project/root
@@ -123,7 +122,7 @@ func (ge *globalsExpr) eval(meta stack.Metadata) (Globals, error) {
 
 	logger.Trace().Msg("Add proper name space for stack metadata evaluation.")
 
-	if err := evalctx.SetNamespace("terramate", stack.MetaToCtyMap(meta)); err != nil {
+	if err := evalctx.SetNamespace("terramate", MetaToCtyMap(meta)); err != nil {
 		return Globals{}, err
 	}
 
