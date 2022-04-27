@@ -25,7 +25,7 @@ For contributing to Terramate, please follow these steps:
    against the main branch of the Terramate repository.
 4. Work with your reviewers to address any comments and obtain a
    minimum of 1 approval.
-1. Once the pull request is approved, one of the maintainers will merge it.
+5. Once the pull request is approved, one of the maintainers will merge it.
 
 ## Contribution Quality Standards
 
