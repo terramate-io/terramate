@@ -19,6 +19,8 @@ import (
 	stdfmt "fmt"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/hcl/v2"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 )
@@ -68,6 +70,79 @@ func TestErrorListIgnoresNilErrors(t *testing.T) {
 	err := errs.AsError()
 	if err != nil {
 		t.Fatalf("got error %v but want nil", err)
+	}
+}
+
+func TestErrorListFlattensAllDiagnostics(t *testing.T) {
+	const (
+		detail1 = "error 1"
+		detail2 = "error 2"
+	)
+	var (
+		range1 = &hcl.Range{
+			Filename: "file1.tm",
+			Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},
+			End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},
+		}
+
+		range2 = &hcl.Range{
+			Filename: "file2.tm",
+			Start:    hcl.Pos{Line: 2, Column: 6, Byte: 4},
+			End:      hcl.Pos{Line: 2, Column: 11, Byte: 14},
+		}
+	)
+	diags := hcl.Diagnostics{
+		&hcl.Diagnostic{
+			Detail:   detail1,
+			Severity: hcl.DiagError,
+			Subject:  range1,
+		},
+		&hcl.Diagnostic{
+			Detail:   detail2,
+			Severity: hcl.DiagError,
+			Subject:  range2,
+		},
+	}
+
+	errs := errors.L()
+	errs.Append(diags)
+
+	wantErrs := []*errors.Error{
+		{
+			Description: detail1,
+			FileRange:   *range1,
+		},
+		{
+			Description: detail2,
+			FileRange:   *range2,
+		},
+	}
+	gotErrs := errs.Errors()
+
+	if diff := cmp.Diff(gotErrs, wantErrs); diff != "" {
+		t.Fatalf("-(got) +(want):\n%s", diff)
+	}
+}
+
+func TestErrorListFlattensOtherErrorList(t *testing.T) {
+	const (
+		kind1 errors.Kind = "kind1"
+		kind2 errors.Kind = "kind2"
+		kind3 errors.Kind = "kind3"
+	)
+
+	error1 := errors.E(kind1)
+	error2 := errors.E(kind2)
+	error3 := errors.E(kind3)
+
+	errs := errors.L(error1)
+	errs.Append(errors.L(error2, error3))
+
+	wantErrs := []*errors.Error{error1, error2, error3}
+	gotErrs := errs.Errors()
+
+	if diff := cmp.Diff(gotErrs, wantErrs); diff != "" {
+		t.Fatalf("-(got) +(want):\n%s", diff)
 	}
 }
 

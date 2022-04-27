@@ -75,9 +75,12 @@ const separator = ": "
 //		The underlying error that triggered this one.
 //	hcl.Diagnostics
 //		The underlying hcl error that triggered this one.
+//		Only the first hcl.Diagnostic will be used.
 //		If hcl.Range is not set, the diagnostic subject range is pulled.
 //		If the string Description is not set, the diagnostic detail field is
 //		pulled.
+//	hcl.Diagnostic
+//		Same behavior as hcl.Diagnostics but for a single diagnostic.
 //	string
 //		The error description. It supports formatting using the Go's fmt verbs
 //		as long as the arguments are not one of the defined types.
@@ -96,13 +99,13 @@ const separator = ": "
 //
 // In order to avoid duplicated messages, we erase the fields present in the
 // underlying error if already set with same value in this error.
-func E(args ...interface{}) error {
+func E(args ...interface{}) *Error {
 	if len(args) == 0 {
 		panic("called with no args")
 	}
 
 	var (
-		diags  hcl.Diagnostics
+		diag   *hcl.Diagnostic
 		format *string
 	)
 
@@ -116,12 +119,22 @@ func E(args ...interface{}) error {
 		case hcl.Range:
 			e.FileRange = arg
 		case hcl.Diagnostics:
-			diags = arg
+			diags := arg
 			if diags.HasErrors() {
-				diag := diags[0]
+				diag = diags[0]
 				if diag.Subject != nil {
 					e.FileRange = *diag.Subject
 				}
+			}
+		case hcl.Diagnostic:
+			diag = &arg
+			if diag.Subject != nil {
+				e.FileRange = *diag.Subject
+			}
+		case *hcl.Diagnostic:
+			diag = arg
+			if diag != nil && diag.Subject != nil {
+				e.FileRange = *diag.Subject
 			}
 		case StackMeta:
 			e.Stack = arg
@@ -142,14 +155,14 @@ func E(args ...interface{}) error {
 	if format != nil {
 		e.Description = fmt.Sprintf(*format, fmtargs...)
 	} else if len(fmtargs) > 0 {
-		panic(errors.New("errors.E called with arbitraty types and no format"))
+		panic(errors.New("errors.E called with arbitrary types and no format"))
 	}
 
-	if diags.HasErrors() {
+	if diag != nil {
 		if e.Description == "" {
-			e.Description = diags[0].Detail
+			e.Description = diag.Detail
 		} else if e.Err == nil {
-			e.Err = diags
+			e.Err = diag
 		}
 	}
 
