@@ -48,7 +48,7 @@ whatever text format you want, here is a global reference:
 
 a = ${global.reference}
 
-and now a metadata reference:
+and a metadata reference:
 
 b = ${terramate.path}
 EOT
