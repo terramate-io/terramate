@@ -1,6 +1,7 @@
 package genfile
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"github.com/mineiros-io/terramate"
@@ -23,11 +24,6 @@ type File struct {
 	origin string
 	body   string
 }
-
-const (
-	// ErrEval indicates the failure to evaluate the generate_file block.
-	ErrEval errors.Kind = "evaluating generate_file block"
-)
 
 // Body returns the file body.
 func (f File) Body() string {
@@ -78,7 +74,7 @@ func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackFi
 
 	evalctx, err := newEvalCtx(stackpath, sm, globals)
 	if err != nil {
-		return StackFiles{}, errors.E(ErrEval, err, "creating eval context")
+		return StackFiles{}, errors.E(err, "creating eval context")
 	}
 
 	logger.Trace().Msg("generating files")
@@ -94,12 +90,13 @@ func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackFi
 
 		logger.Trace().Msg("evaluating contents")
 
-		value, err := evalctx.Eval(loadedGenFileBlock.block.Content)
+		value, err := evalctx.Eval(loadedGenFileBlock.block.Content.Expr)
 		if err != nil {
 			return StackFiles{}, errors.E(sm, "origin: %s: evaluating block %s", loadedGenFileBlock.origin, name)
 		}
 
 		// TODO(katcipis): check for value underlying type (or not, still discussing)
+		fmt.Printf("KMLO: %q\n", value.AsString())
 
 		res.files[name] = File{
 			origin: loadedGenFileBlock.origin,

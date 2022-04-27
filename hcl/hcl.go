@@ -105,7 +105,7 @@ type GenFileBlock struct {
 	// Label of the block
 	Label string
 	// Content attribute of the block
-	Content hclsyntax.Expression
+	Content *hclsyntax.Attribute
 }
 
 // TerramateParser is an HCL parser tailored for Terramate configuration schema.
@@ -379,12 +379,28 @@ func ParseGenerateHCLBlocks(dir string) (Blocks, error) {
 // ParseGenerateFileBlocks parses all Terramate files on the given dir, returning
 // parsed generate_file blocks.
 func ParseGenerateFileBlocks(dir string) (GenFileBlocks, error) {
-	//logger := log.With().
-	//Str("action", "hcl.ParseGenerateFileBlocks").
-	//Str("configdir", dir).
-	//Logger()
+	blocks, err := parseBlocks(dir, "generate_file", func(block *hclsyntax.Block) error {
+		return validateGenerateFileBlock(block)
+	})
+	if err != nil {
+		return nil, err
+	}
 
-	return nil, nil
+	res := GenFileBlocks{}
+
+	for filename, fileBlocks := range blocks {
+		genFileBlocks := make([]GenFileBlock, len(fileBlocks))
+		for i, fileBlock := range fileBlocks {
+			genFileBlocks[i] = GenFileBlock{
+				Label:   fileBlock.Labels[0],
+				Content: fileBlock.Body.Attributes["content"],
+			}
+		}
+
+		res[filename] = genFileBlocks
+	}
+
+	return res, nil
 }
 
 func validateGenerateHCLBlock(block *hclsyntax.Block) error {
@@ -417,6 +433,33 @@ func validateGenerateHCLBlock(block *hclsyntax.Block) error {
 			{
 				Type:       "content",
 				LabelNames: []string{},
+			},
+		},
+	}
+
+	_, diags := block.Body.Content(schema)
+	if diags.HasErrors() {
+		return errors.E(ErrHCLSyntax, diags)
+	}
+	return nil
+}
+
+func validateGenerateFileBlock(block *hclsyntax.Block) error {
+	if len(block.Labels) != 1 {
+		return errors.E(ErrTerramateSchema, block.OpenBraceRange,
+			"generate_file must have single label instead got %v",
+			block.Labels,
+		)
+	}
+	if block.Labels[0] == "" {
+		return errors.E(ErrTerramateSchema, block.OpenBraceRange,
+			"generate_file label can't be empty")
+	}
+	schema := &hcl.BodySchema{
+		Attributes: []hcl.AttributeSchema{
+			{
+				Name:     "content",
+				Required: true,
 			},
 		},
 	}

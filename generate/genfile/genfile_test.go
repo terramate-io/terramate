@@ -180,7 +180,7 @@ func TestLoadGenerateFiles(t *testing.T) {
 					name: "test.yml",
 					file: genFile{
 						origin: "/stack/yaml.tm",
-						body:   `TODO`,
+						body:   "\"field\": \"/stack\"\n",
 					},
 				},
 			},
