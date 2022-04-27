@@ -141,6 +141,8 @@ func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackHC
 }
 
 func newEvalCtx(stackpath string, sm stack.Metadata, globals terramate.Globals) (*eval.Context, error) {
+	// TODO(katcipis): duplicated on genhcl, extract soon
+
 	logger := log.With().
 		Str("action", "genhcl.newEvalCtx()").
 		Str("path", stackpath).

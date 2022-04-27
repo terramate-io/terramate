@@ -97,6 +97,17 @@ type Stack struct {
 // Blocks maps a filename to a slice of HCL blocks associated with it
 type Blocks map[string][]*hclsyntax.Block
 
+// GenFileBlocks maps a filenames to slices of parsed generated_file blocks.
+type GenFileBlocks map[string][]GenFileBlock
+
+// GenFileBlock represents a parsed generate_file block
+type GenFileBlock struct {
+	// Label of the block
+	Label string
+	// Content attribute of the block
+	Content hclsyntax.Expression
+}
+
 // TerramateParser is an HCL parser tailored for Terramate configuration schema.
 // As the Terramate configuration can span multiple files in the same directory,
 // this API allows you to define the exact set of files (and contents) that are
@@ -363,6 +374,17 @@ func ParseGenerateHCLBlocks(dir string) (Blocks, error) {
 	return parseBlocks(dir, "generate_hcl", func(block *hclsyntax.Block) error {
 		return validateGenerateHCLBlock(block)
 	})
+}
+
+// ParseGenerateFileBlocks parses all Terramate files on the given dir, returning
+// parsed generate_file blocks.
+func ParseGenerateFileBlocks(dir string) (GenFileBlocks, error) {
+	//logger := log.With().
+	//Str("action", "hcl.ParseGenerateFileBlocks").
+	//Str("configdir", dir).
+	//Logger()
+
+	return nil, nil
 }
 
 func validateGenerateHCLBlock(block *hclsyntax.Block) error {

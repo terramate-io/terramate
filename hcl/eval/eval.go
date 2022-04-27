@@ -75,6 +75,32 @@ func (c *Context) SetNamespace(name string, vals map[string]cty.Value) error {
 	return nil
 }
 
+// TODO(katcipis): we need to extract globals from root terramate.
+// Then this can be used to extract duplication from genfile/genhcl newEvalCtx functions.
+
+// SetTerramateNamespaces will set Terrramate default namespaces according to the
+// provided globals and stack metadata.
+//func (c *Context) SetTerramateNamespaces(sm stack.Metadata, globals stack.Globals) error {
+//logger := log.With().
+//Str("action", "Context.SetTerramateNamespaces()").
+//Logger()
+
+//logger.Trace().Msg("Add terramate namespace")
+
+//err := c.SetNamespace("terramate", stack.MetaToCtyMap(sm))
+//if err != nil {
+//return errors.E(sm, err, "setting terramate namespace on eval context")
+//}
+
+//logger.Trace().Msg("Add global evaluation namespace.")
+
+//if err := c.SetNamespace("global", globals.Attributes()); err != nil {
+//return errors.E(sm, err, "setting global namespace on eval context")
+//}
+
+//return nil
+//}
+
 // HasNamespace returns true the evaluation context knows this namespace, false otherwise.
 func (c *Context) HasNamespace(name string) bool {
 	_, has := c.hclctx.Variables[name]
