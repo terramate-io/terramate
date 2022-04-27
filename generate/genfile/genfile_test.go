@@ -50,6 +50,9 @@ func TestLoadGenerateFiles(t *testing.T) {
 		}
 	)
 
+	hcldoc := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildHCL(builders...)
+	}
 	generateFile := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("generate_file", builders...)
 	}
@@ -139,6 +142,58 @@ func TestLoadGenerateFiles(t *testing.T) {
 					file: genFile{
 						origin: "/stack/test.tm",
 						body:   "global-data-/stack",
+					},
+				},
+			},
+		},
+		{
+			name:  "multiple generate_file blocks on same file",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/globals.tm",
+					add: globals(
+						str("data", "global-data"),
+					),
+				},
+				{
+					path: "/stack/test.tm",
+					add: hcldoc(
+						generateFile(
+							labels("test1"),
+							expr("content", "global.data"),
+						),
+						generateFile(
+							labels("test2"),
+							expr("content", "terramate.path"),
+						),
+						generateFile(
+							labels("test3"),
+							str("content", "terramate!"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test1",
+					file: genFile{
+						origin: "/stack/test.tm",
+						body:   "global-data",
+					},
+				},
+				{
+					name: "test2",
+					file: genFile{
+						origin: "/stack/test.tm",
+						body:   "/stack",
+					},
+				},
+				{
+					name: "test3",
+					file: genFile{
+						origin: "/stack/test.tm",
+						body:   "terramate!",
 					},
 				},
 			},

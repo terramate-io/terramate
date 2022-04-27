@@ -164,7 +164,7 @@ func loadGenFileBlocks(rootdir string, cfgdir string) (map[string]genFileBlock, 
 		return nil, err
 	}
 
-	join(res, parentRes)
+	_ = join(res, parentRes)
 
 	// TODO(katcipis): test error handling
 	//if err := join(res, parentRes); err != nil {
