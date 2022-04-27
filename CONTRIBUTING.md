@@ -21,7 +21,7 @@ For contributing to Terramate, please follow these steps:
    branch for your contribution. Use a meaningful name.
 2. Create your contribution, meeting all
    [contribution quality standards](#contribution-quality-standards)
-1. [Create a pull request](https://help.github.com/articles/creating-a-pull-request-from-a-fork/)
+3. [Create a pull request](https://help.github.com/articles/creating-a-pull-request-from-a-fork/)
    against the main branch of the Terramate repository.
 1. Work with your reviewers to address any comments and obtain a
    minimum of 1 approval.
