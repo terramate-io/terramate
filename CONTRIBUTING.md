@@ -23,7 +23,7 @@ For contributing to Terramate, please follow these steps:
    [contribution quality standards](#contribution-quality-standards)
 3. [Create a pull request](https://help.github.com/articles/creating-a-pull-request-from-a-fork/)
    against the main branch of the Terramate repository.
-1. Work with your reviewers to address any comments and obtain a
+4. Work with your reviewers to address any comments and obtain a
    minimum of 1 approval.
 1. Once the pull request is approved, one of the maintainers will merge it.
 
