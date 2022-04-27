@@ -7,7 +7,7 @@ File generation is done using `generate_file`
 blocks in [Terramate configuration files](../config-overview.md).
 
 The block **must** have a single label, that will be used to determine the
-name of the generated file. Inside the block the **content** attributes defines
+name of the generated file. Inside the block, the **content** attributes define
 the string that will be written on the file.
 
 The definition of the **content** attribute may include:
@@ -22,7 +22,7 @@ The final evaluated **content** attribute **must** be a string.
 Multiple `generate_file` blocks with the same label/filename will
 result in an error.
 
-Here is an example on how a JSON file can be created:
+Here is an example of how a JSON file can be created:
 
 ```hcl
 generate_file "hello_world.json" {
