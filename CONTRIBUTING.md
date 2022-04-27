@@ -19,7 +19,7 @@ For contributing to Terramate, please follow these steps:
 1. Within your fork of
    [Terramate](https://github.com/mineiros-io/terramate), create a
    branch for your contribution. Use a meaningful name.
-1. Create your contribution, meeting all
+2. Create your contribution, meeting all
    [contribution quality standards](#contribution-quality-standards)
 1. [Create a pull request](https://help.github.com/articles/creating-a-pull-request-from-a-fork/)
    against the main branch of the Terramate repository.
