@@ -185,6 +185,62 @@ func TestLoadGenerateFiles(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:  "hierarchical load",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
+				{
+					path: "/root.tm",
+					add: generateFile(
+						labels("root"),
+						str("content", "root-${global.data}-${terramate.path}"),
+					),
+				},
+				{
+					path: "/stacks/globals.tm",
+					add: globals(
+						str("data", "global-data"),
+					),
+				},
+				{
+					path: "/stacks/stacks.tm",
+					add: generateFile(
+						labels("stacks"),
+						str("content", "stacks-${global.data}-${terramate.path}"),
+					),
+				},
+				{
+					path: "/stacks/stack/stack.tm",
+					add: generateFile(
+						labels("stack"),
+						str("content", "stack-${global.data}-${terramate.path}"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "root",
+					file: genFile{
+						origin: "/root.tm",
+						body:   "root-global-data-/stacks/stack",
+					},
+				},
+				{
+					name: "stacks",
+					file: genFile{
+						origin: "/stacks/stacks.tm",
+						body:   "stacks-global-data-/stacks/stack",
+					},
+				},
+				{
+					name: "stack",
+					file: genFile{
+						origin: "/stacks/stack/stack.tm",
+						body:   "stack-global-data-/stacks/stack",
+					},
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {

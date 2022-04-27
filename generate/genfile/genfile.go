@@ -1,8 +1,8 @@
 package genfile
 
 import (
-	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/errors"
@@ -96,8 +96,6 @@ func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackFi
 		}
 
 		// TODO(katcipis): check for value underlying type (or not, still discussing)
-		fmt.Printf("KMLO: %q\n", value.AsString())
-
 		res.files[name] = File{
 			origin: loadedGenFileBlock.origin,
 			body:   value.AsString(),
@@ -127,11 +125,10 @@ func loadGenFileBlocks(rootdir string, cfgdir string) (map[string]genFileBlock, 
 
 	logger.Trace().Msg("Parsing generate_hcl blocks.")
 
-	// TODO(katcipis): test fs navigation
-	//if !strings.HasPrefix(cfgdir, rootdir) {
-	//logger.Trace().Msg("config dir outside root, nothing to do")
-	//return nil, nil
-	//}
+	if !strings.HasPrefix(cfgdir, rootdir) {
+		logger.Trace().Msg("config dir outside root, nothing to do")
+		return nil, nil
+	}
 
 	genFileBlocks, err := hcl.ParseGenerateFileBlocks(cfgdir)
 	if err != nil {
@@ -162,11 +159,14 @@ func loadGenFileBlocks(rootdir string, cfgdir string) (map[string]genFileBlock, 
 		}
 	}
 
-	// TODO(katcipis): introduce multi dir tests
-	//parentRes, err := loadGenHCLBlocks(rootdir, filepath.Dir(cfgdir))
-	//if err != nil {
-	//return nil, err
-	//}
+	parentRes, err := loadGenFileBlocks(rootdir, filepath.Dir(cfgdir))
+	if err != nil {
+		return nil, err
+	}
+
+	join(res, parentRes)
+
+	// TODO(katcipis): test error handling
 	//if err := join(res, parentRes); err != nil {
 	//return nil, errors.E(ErrMultiLevelConflict, err)
 	//}
@@ -198,4 +198,19 @@ func newEvalCtx(stackpath string, sm stack.Metadata, globals terramate.Globals) 
 	}
 
 	return evalctx, nil
+}
+
+func join(target, src map[string]genFileBlock) error {
+	for blockLabel, srcHCL := range src {
+		if targetHCL, ok := target[blockLabel]; ok {
+			return errors.E(
+				"found label %q at %q and %q",
+				blockLabel,
+				srcHCL.origin,
+				targetHCL.origin,
+			)
+		}
+		target[blockLabel] = srcHCL
+	}
+	return nil
 }

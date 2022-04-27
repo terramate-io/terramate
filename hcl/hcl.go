@@ -97,7 +97,8 @@ type Stack struct {
 // Blocks maps a filename to a slice of HCL blocks associated with it
 type Blocks map[string][]*hclsyntax.Block
 
-// GenFileBlocks maps a filenames to slices of parsed generated_file blocks.
+// GenFileBlocks maps filenames to slices of parsed generated_file blocks
+// found on the file.
 type GenFileBlocks map[string][]GenFileBlock
 
 // GenFileBlock represents a parsed generate_file block
