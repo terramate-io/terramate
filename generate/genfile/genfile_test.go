@@ -53,15 +53,15 @@ func TestLoadGenerateFiles(t *testing.T) {
 	generateFile := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("generate_file", builders...)
 	}
-
 	labels := func(labels ...string) hclwrite.BlockBuilder {
 		return hclwrite.Labels(labels...)
 	}
-
-	//expr := func(name string, expr string) hclwrite.BlockBuilder {
-	//return hclwrite.Expression(name, expr)
-	//}
-
+	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("globals", builders...)
+	}
+	expr := func(name string, expr string) hclwrite.BlockBuilder {
+		return hclwrite.Expression(name, expr)
+	}
 	str := func(name string, val string) hclwrite.BlockBuilder {
 		return hclwrite.String(name, val)
 	}
@@ -89,6 +89,98 @@ func TestLoadGenerateFiles(t *testing.T) {
 					file: genFile{
 						origin: "/stack/empty.tm",
 						body:   "",
+					},
+				},
+			},
+		},
+		{
+			name:  "simple plain string",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: generateFile(
+						labels("test"),
+						str("content", "test"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test",
+					file: genFile{
+						origin: "/stack/test.tm",
+						body:   "test",
+					},
+				},
+			},
+		},
+		{
+			name:  "using globals and metadata with interpolation",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/globals.tm",
+					add: globals(
+						str("data", "global-data"),
+					),
+				},
+				{
+					path: "/stack/test.tm",
+					add: generateFile(
+						labels("test"),
+						str("content", "${global.data}-${terramate.path}"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test",
+					file: genFile{
+						origin: "/stack/test.tm",
+						body:   "global-data-/stack",
+					},
+				},
+			},
+		},
+		{
+			name:  "using globals and metadata with functions",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/globals.tm",
+					add: globals(
+						str("data", "global-data"),
+					),
+				},
+				{
+					path: "/stack/json.tm",
+					add: generateFile(
+						labels("test.json"),
+						expr("content", "tm_jsonencode({field = global.data})"),
+					),
+				},
+				{
+					path: "/stack/yaml.tm",
+					add: generateFile(
+						labels("test.yml"),
+						expr("content", "tm_yamlencode({field = terramate.path})"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test.json",
+					file: genFile{
+						origin: "/stack/json.tm",
+						body:   `{"field":"global-data"}`,
+					},
+				},
+				{
+					name: "test.yml",
+					file: genFile{
+						origin: "/stack/yaml.tm",
+						body:   `TODO`,
 					},
 				},
 			},
