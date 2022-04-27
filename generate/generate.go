@@ -234,7 +234,7 @@ func CheckStack(root string, st stack.S) ([]string, error) {
 
 	logger.Trace().Msg("Loading globals for stack.")
 
-	globals, err := stack.LoadStackGlobals(root, st)
+	globals, err := stack.LoadGlobals(root, st)
 	if err != nil {
 		return nil, errors.E(err, "checking for outdated code")
 	}
@@ -471,7 +471,7 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 
 		logger.Trace().Msg("Load stack globals.")
 
-		globals, err := stack.LoadStackGlobals(root, st)
+		globals, err := stack.LoadGlobals(root, st)
 		if err != nil {
 			report.addFailure(st, errors.E(ErrLoadingGlobals, err))
 			continue

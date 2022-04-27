@@ -1079,7 +1079,7 @@ func TestLoadGlobals(t *testing.T) {
 				st := entry.Stack
 				stacks = append(stacks, st)
 
-				got, err := stack.LoadStackGlobals(s.RootDir(), st)
+				got, err := stack.LoadGlobals(s.RootDir(), st)
 
 				errtest.Assert(t, err, tcase.wantErr)
 				if tcase.wantErr != nil {
@@ -1271,7 +1271,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 			}
 
 			for _, entry := range stackEntries {
-				_, err := stack.LoadStackGlobals(s.RootDir(), entry.Stack)
+				_, err := stack.LoadGlobals(s.RootDir(), entry.Stack)
 				errtest.Assert(t, err, tcase.want)
 			}
 		})
@@ -1287,6 +1287,6 @@ func TestLoadGlobalsErrorOnRelativeDir(t *testing.T) {
 
 	stacks := s.LoadStacks()
 	assert.EqualInts(t, 1, len(stacks))
-	globals, err := stack.LoadStackGlobals(rel, stacks[0])
+	globals, err := stack.LoadGlobals(rel, stacks[0])
 	assert.Error(t, err, "got %v instead of error", globals)
 }

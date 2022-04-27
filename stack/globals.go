@@ -38,7 +38,7 @@ const (
 	ErrGlobalRedefined errors.Kind = "global redefined"
 )
 
-// LoadStackGlobals loads from the file system all globals defined for
+// LoadGlobals loads from the file system all globals defined for
 // a given stack. It will navigate the file system from the stack dir until
 // it reaches rootdir, loading globals and merging them appropriately.
 //
@@ -47,7 +47,7 @@ const (
 //
 // Metadata for the stack is used on the evaluation of globals.
 // The rootdir MUST be an absolute path.
-func LoadStackGlobals(rootdir string, meta Metadata) (Globals, error) {
+func LoadGlobals(rootdir string, meta Metadata) (Globals, error) {
 	logger := log.With().
 		Str("action", "LoadStackGlobals()").
 		Str("stack", meta.Path()).

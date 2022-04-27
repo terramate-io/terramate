@@ -707,7 +707,7 @@ func (c *cli) printStacksGlobals() {
 
 	for _, stackEntry := range c.filterStacksByWorkingDir(report.Stacks) {
 		meta := stack.Metadata(stackEntry.Stack)
-		globals, err := stack.LoadStackGlobals(c.root(), meta)
+		globals, err := stack.LoadGlobals(c.root(), meta)
 		if err != nil {
 			log.Fatal().
 				Err(err).

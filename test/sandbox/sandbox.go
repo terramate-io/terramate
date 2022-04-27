@@ -251,7 +251,7 @@ func (s S) LoadStacks() []stack.S {
 func (s S) LoadStackGlobals(sm stack.Metadata) stack.Globals {
 	s.t.Helper()
 
-	g, err := stack.LoadStackGlobals(s.RootDir(), sm)
+	g, err := stack.LoadGlobals(s.RootDir(), sm)
 	assert.NoError(s.t, err)
 	return g
 }
