@@ -63,4 +63,4 @@ or even the project root, which then generates the file for multiple stacks.
 
 There is no overriding or merging behavior for `generate_file` blocks.
 Blocks defined at different levels with the same label aren't allowed, resulting
-in failure for the overall code generation process.
+in failure of the overall code generation process.
