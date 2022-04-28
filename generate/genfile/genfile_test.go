@@ -398,7 +398,7 @@ func TestLoadGenerateFiles(t *testing.T) {
 			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
-			name:  "generate_file two labels",
+			name:  "generate_file with two labels",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
@@ -406,6 +406,22 @@ func TestLoadGenerateFiles(t *testing.T) {
 					add: hcldoc(
 						generateFile(
 							labels("test.yml", "test"),
+							str("content", "root"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:  "generate_file with empty label",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/test.tm",
+					add: hcldoc(
+						generateFile(
+							labels(""),
 							str("content", "root"),
 						),
 					),

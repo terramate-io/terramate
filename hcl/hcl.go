@@ -461,10 +461,10 @@ func validateGenerateFileBlock(block *hclsyntax.Block) error {
 			block.Labels,
 		)
 	}
-	//if block.Labels[0] == "" {
-	//return errors.E(ErrTerramateSchema, block.OpenBraceRange,
-	//"generate_file label can't be empty")
-	//}
+	if block.Labels[0] == "" {
+		return errors.E(ErrTerramateSchema, block.OpenBraceRange,
+			"generate_file label can't be empty")
+	}
 	//schema := &hcl.BodySchema{
 	//Attributes: []hcl.AttributeSchema{
 	//{
