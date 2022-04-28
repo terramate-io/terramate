@@ -21,6 +21,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genfile"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/mineiros-io/terramate/test/hclwrite"
@@ -380,6 +381,37 @@ func TestLoadGenerateFiles(t *testing.T) {
 				},
 			},
 			wantErr: errors.E(genfile.ErrLabelConflict),
+		},
+		{
+			name:  "generate_file missing label",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/test.tm",
+					add: hcldoc(
+						generateFile(
+							str("content", "root"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:  "generate_file two labels",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/test.tm",
+					add: hcldoc(
+						generateFile(
+							labels("test.yml", "test"),
+							str("content", "root"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 	}
 

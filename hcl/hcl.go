@@ -455,14 +455,12 @@ func validateGenerateHCLBlock(block *hclsyntax.Block) error {
 }
 
 func validateGenerateFileBlock(block *hclsyntax.Block) error {
-	// TODO(katcipis): test error handling
-
-	//if len(block.Labels) != 1 {
-	//return errors.E(ErrTerramateSchema, block.OpenBraceRange,
-	//"generate_file must have single label instead got %v",
-	//block.Labels,
-	//)
-	//}
+	if len(block.Labels) != 1 {
+		return errors.E(ErrTerramateSchema, block.OpenBraceRange,
+			"generate_file must have single label instead got %v",
+			block.Labels,
+		)
+	}
 	//if block.Labels[0] == "" {
 	//return errors.E(ErrTerramateSchema, block.OpenBraceRange,
 	//"generate_file label can't be empty")
