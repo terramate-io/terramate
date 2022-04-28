@@ -50,6 +50,7 @@ func TestHCLParserModules(t *testing.T) {
 	type want struct {
 		modules []hcl.Module
 		err     error
+		errs    []error
 	}
 	type testcase struct {
 		name  string
@@ -152,20 +153,79 @@ module "test" {
 				err: errors.E(hcl.ErrTerraformSchema, mkrange(start(2, 13, 28), end(2, 16, 31))),
 			},
 		},
+		{
+			name: "multiple schema errors on same file get reported",
+			input: `
+				module "test" {
+					source = -1
+				}
+
+				module "test2" {
+					source = "${var.test}"
+				}
+
+				module {
+					source = "test"
+				}
+
+				module "test3" {}
+			`,
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerraformSchema, mkrange(start(3, 15, 35), end(3, 17, 37))),
+					errors.E(hcl.ErrTerraformSchema, mkrange(start(7, 18, 83), end(7, 21, 86))),
+					errors.E(hcl.ErrTerraformSchema, mkrange(start(10, 12, 112), end(10, 13, 113))),
+					errors.E(hcl.ErrTerraformSchema, mkrange(start(14, 20, 161), end(14, 22, 163))),
+				},
+			},
+		},
+		{
+			name: "multiple syntax errors on same file get reported",
+			input: `
+				string = hi"
+				bool   = rue
+				list   = [
+				obj    = {
+			`,
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrHCLSyntax),
+					errors.E(mkrange(start(2, 17, 17), end(3, 1, 18))),
+					errors.E(mkrange(start(3, 17, 34), end(4, 1, 35))),
+					errors.E(mkrange(start(4, 15, 49), end(5, 1, 50))),
+					errors.E(mkrange(start(5, 15, 64), end(6, 1, 65))),
+					errors.E(mkrange(start(2, 16, 16), end(2, 17, 17))),
+				},
+			},
+		},
+		{
+			name:  "variable interpolation in the source string - fails",
+			input: "module \"test\" {\nsource = \"${var.test}\"\n}\n",
+			want: want{
+				err: errors.E(hcl.ErrTerraformSchema, mkrange(start(2, 13, 28), end(2, 16, 31))),
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			wantErrs := tc.want.errs
+			if tc.want.err != nil {
+				wantErrs = append(wantErrs, tc.want.err)
+			}
+
 			configdir := t.TempDir()
 			tfpath := test.WriteFile(t, configdir, "main.tf", tc.input)
 
-			if tc.want.err != nil {
-				if e, ok := tc.want.err.(*errors.Error); ok {
-					e.FileRange.Filename = tfpath
-				}
-			}
+			addFilenameToErrorsFileRanges(wantErrs, tfpath)
 
 			modules, err := hcl.ParseModules(tfpath)
-			errtest.Assert(t, err, tc.want.err)
-			assert.EqualInts(t, len(tc.want.modules), len(modules), "modules len mismatch")
+			errtest.AssertIsErrors(t, err, wantErrs)
+			if err != nil {
+				errtest.AssertAsErrorsList(t, err)
+			}
+			assert.EqualInts(t,
+				len(tc.want.modules),
+				len(modules),
+				"got: %v, want: %v", modules, tc.want.modules)
 
 			for i := 0; i < len(tc.want.modules); i++ {
 				assert.EqualStrings(t, tc.want.modules[i].Source, modules[i].Source,
@@ -1056,6 +1116,14 @@ func start(line, column, char int) hhcl.Pos {
 		Line:   line,
 		Column: column,
 		Byte:   char,
+	}
+}
+
+func addFilenameToErrorsFileRanges(errs []error, filename string) {
+	for _, err := range errs {
+		if e, ok := err.(*errors.Error); ok {
+			e.FileRange.Filename = filename
+		}
 	}
 }
 

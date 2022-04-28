@@ -58,8 +58,33 @@ func Assert(t *testing.T, err, target error) {
 	}
 }
 
+// AssertIsErrors will check that all target errors are contained
+// within the given err. Usually err underlying implementation is
+// an errors.List, but that is not enforced, it is enough that for
+// all the target errors errors.Is returns true, so this function also
+// works for long chains of errors.
+func AssertIsErrors(t *testing.T, err error, targets []error) {
+	t.Helper()
+
+	for _, target := range targets {
+		Assert(t, err, target)
+	}
+}
+
+// AssertAsErrorsList will check if the given error can be handled
+// as an *errors.List by calling errors.As. It fails if the error fails
+// to be an *errors.List.
+func AssertAsErrorsList(t *testing.T, err error) {
+	t.Helper()
+
+	var errs *errors.List
+	if !errors.As(err, &errs) {
+		t.Fatalf("error %v doesn't match type %T", err, errs)
+	}
+}
+
 func errstr(err error) string {
-	if e, ok := err.(*errors.Error); ok {
+	if e, ok := err.(interface{ Detailed() string }); ok {
 		return e.Detailed()
 	}
 	return err.Error()

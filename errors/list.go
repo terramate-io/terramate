@@ -85,7 +85,13 @@ func (l *List) Detailed() string {
 	}
 	details := []string{"error list:"}
 	for _, err := range l.errs {
-		details = append(details, "\t-"+err.Error())
+		var errmsg string
+		if e, ok := err.(interface{ Detailed() string }); ok {
+			errmsg = e.Detailed()
+		} else {
+			errmsg = err.Error()
+		}
+		details = append(details, "\t-"+errmsg)
 	}
 	return strings.Join(details, "\n")
 }
