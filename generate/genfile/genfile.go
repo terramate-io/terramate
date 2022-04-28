@@ -41,7 +41,7 @@ const (
 )
 
 // StackFiles represents all generated files for a stack,
-// mapping the generated file filename to the actual file body.
+// mapping the generated file path to the actual file body.
 type StackFiles struct {
 	files map[string]File
 }
@@ -63,8 +63,8 @@ func (f File) Origin() string {
 	return f.origin
 }
 
-// GeneratedFiles returns all generated files, mapping the name to
-// the file description.
+// GeneratedFiles returns all generated files, mapping the file path to
+// the file description. The path is absolute relative to the project root.
 func (s StackFiles) GeneratedFiles() map[string]File {
 	cp := map[string]File{}
 	for k, v := range s.files {
