@@ -32,6 +32,9 @@ const (
 	// generate_file has a invalid type.
 	ErrInvalidContentType errors.Kind = "invalid content type"
 
+	// ErrContentEval indicates an error when evaluating the content attribute.
+	ErrContentEval errors.Kind = "evaluating content"
+
 	// ErrLabelConflict indicates the two generate_file blocks
 	// have the same label.
 	ErrLabelConflict errors.Kind = "label conflict detected"
@@ -116,7 +119,7 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles,
 
 		value, err := evalctx.Eval(loadedGenFileBlock.block.Content.Expr)
 		if err != nil {
-			return StackFiles{}, errors.E("origin: %s: evaluating block %s", loadedGenFileBlock.origin, name)
+			return StackFiles{}, errors.E(ErrContentEval, err)
 		}
 
 		if value.Type() != cty.String {

@@ -461,6 +461,22 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
+		{
+			name:  "generate_file fails to evaluate content",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/test.tm",
+					add: hcldoc(
+						generateFile(
+							labels("name"),
+							expr("content", "global.unknown"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(genfile.ErrContentEval),
+		},
 	}
 
 	for _, tcase := range tcases {
