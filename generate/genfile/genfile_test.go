@@ -429,6 +429,21 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
+		{
+			name:  "generate_file missing content attribute",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/test.tm",
+					add: hcldoc(
+						generateFile(
+							labels("name"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
 	}
 
 	for _, tcase := range tcases {
