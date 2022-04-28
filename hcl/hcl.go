@@ -455,29 +455,31 @@ func validateGenerateHCLBlock(block *hclsyntax.Block) error {
 }
 
 func validateGenerateFileBlock(block *hclsyntax.Block) error {
-	if len(block.Labels) != 1 {
-		return errors.E(ErrTerramateSchema, block.OpenBraceRange,
-			"generate_file must have single label instead got %v",
-			block.Labels,
-		)
-	}
-	if block.Labels[0] == "" {
-		return errors.E(ErrTerramateSchema, block.OpenBraceRange,
-			"generate_file label can't be empty")
-	}
-	schema := &hcl.BodySchema{
-		Attributes: []hcl.AttributeSchema{
-			{
-				Name:     "content",
-				Required: true,
-			},
-		},
-	}
+	// TODO(katcipis): test error handling
 
-	_, diags := block.Body.Content(schema)
-	if diags.HasErrors() {
-		return errors.E(ErrHCLSyntax, diags)
-	}
+	//if len(block.Labels) != 1 {
+	//return errors.E(ErrTerramateSchema, block.OpenBraceRange,
+	//"generate_file must have single label instead got %v",
+	//block.Labels,
+	//)
+	//}
+	//if block.Labels[0] == "" {
+	//return errors.E(ErrTerramateSchema, block.OpenBraceRange,
+	//"generate_file label can't be empty")
+	//}
+	//schema := &hcl.BodySchema{
+	//Attributes: []hcl.AttributeSchema{
+	//{
+	//Name:     "content",
+	//Required: true,
+	//},
+	//},
+	//}
+
+	//_, diags := block.Body.Content(schema)
+	//if diags.HasErrors() {
+	//return errors.E(ErrHCLSyntax, diags)
+	//}
 	return nil
 }
 

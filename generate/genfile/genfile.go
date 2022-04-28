@@ -31,6 +31,10 @@ const (
 	// ErrInvalidContentType indicates the content attribute on
 	// generate_file has a invalid type.
 	ErrInvalidContentType errors.Kind = "invalid content type"
+
+	// ErrLabelConflict indicates the two generate_file blocks
+	// have the same label.
+	ErrLabelConflict errors.Kind = "label conflict detected"
 )
 
 // StackFiles represents all generated files for a stack,
@@ -168,17 +172,28 @@ func loadGenFileBlocks(rootdir string, cfgdir string) (map[string]genFileBlock, 
 	for filename, blocks := range genFileBlocks {
 		for _, block := range blocks {
 			name := block.Label
-			// TODO(katcipis): test name conflict, doesn't look like parse error
-			//if _, ok := res[name]; ok {
-			//return nil, errors.E(
-			//ErrParsing,
-			//genhclBlock.LabelRanges[0],
-			//"found two blocks with same label %q", name,
-			//)
-			//}
+			origin := project.PrjAbsPath(rootdir, filename)
+
+			if other, ok := res[name]; ok {
+				if other.origin == origin {
+					return nil, errors.E(
+						ErrLabelConflict,
+						"%s has blocks with same label %q",
+						origin,
+						name,
+					)
+				}
+				return nil, errors.E(
+					ErrLabelConflict,
+					"%s and %s have blocks with same label %q",
+					origin,
+					other.origin,
+					name,
+				)
+			}
 
 			res[name] = genFileBlock{
-				origin: project.PrjAbsPath(rootdir, filename),
+				origin: origin,
 				block:  block,
 			}
 

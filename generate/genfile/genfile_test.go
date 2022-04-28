@@ -311,6 +311,51 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 			wantErr: errors.E(genfile.ErrInvalidContentType),
 		},
+		{
+			name:  "conflicting blocks on same file",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: hcldoc(
+						generateFile(
+							labels("test.yml"),
+							str("content", "test"),
+						),
+						generateFile(
+							labels("test.yml"),
+							str("content", "test2"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(genfile.ErrLabelConflict),
+		},
+		{
+			name:  "conflicting blocks on same dir",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: hcldoc(
+						generateFile(
+							labels("test.yml"),
+							str("content", "test"),
+						),
+					),
+				},
+				{
+					path: "/stack/test2.tm",
+					add: hcldoc(
+						generateFile(
+							labels("test.yml"),
+							str("content", "test2"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(genfile.ErrLabelConflict),
+		},
 	}
 
 	for _, tcase := range tcases {
