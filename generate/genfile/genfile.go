@@ -206,12 +206,9 @@ func loadGenFileBlocks(rootdir string, cfgdir string) (map[string]genFileBlock, 
 		return nil, err
 	}
 
-	_ = join(res, parentRes)
-
-	// TODO(katcipis): test error handling
-	//if err := join(res, parentRes); err != nil {
-	//return nil, errors.E(ErrMultiLevelConflict, err)
-	//}
+	if err := merge(res, parentRes); err != nil {
+		return nil, err
+	}
 
 	logger.Trace().Msg("loaded generate_file blocks with success.")
 	return res, nil
@@ -242,17 +239,30 @@ func newEvalCtx(stackpath string, sm stack.Metadata, globals stack.Globals) (*ev
 	return evalctx, nil
 }
 
-func join(target, src map[string]genFileBlock) error {
-	for blockLabel, srcHCL := range src {
-		if targetHCL, ok := target[blockLabel]; ok {
-			return errors.E(
-				"found label %q at %q and %q",
-				blockLabel,
-				srcHCL.origin,
-				targetHCL.origin,
-			)
+func merge(target, src map[string]genFileBlock) error {
+	for blockLabel, srcFile := range src {
+		if targetFile, ok := target[blockLabel]; ok {
+			return conflictErr(blockLabel, srcFile.origin, targetFile.origin)
 		}
-		target[blockLabel] = srcHCL
+		target[blockLabel] = srcFile
 	}
 	return nil
+}
+
+func conflictErr(label, origin, otherOrigin string) error {
+	if origin == otherOrigin {
+		return errors.E(
+			ErrLabelConflict,
+			"%s has blocks with same label %q",
+			origin,
+			label,
+		)
+	}
+	return errors.E(
+		ErrLabelConflict,
+		"%s and %s have blocks with same label %q",
+		origin,
+		otherOrigin,
+		label,
+	)
 }

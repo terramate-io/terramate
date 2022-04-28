@@ -356,6 +356,31 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 			wantErr: errors.E(genfile.ErrLabelConflict),
 		},
+		{
+			name:  "conflicting blocks on different dirs",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/test.tm",
+					add: hcldoc(
+						generateFile(
+							labels("test.yml"),
+							str("content", "root"),
+						),
+					),
+				},
+				{
+					path: "/stack/test.tm",
+					add: hcldoc(
+						generateFile(
+							labels("test.yml"),
+							str("content", "test"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(genfile.ErrLabelConflict),
+		},
 	}
 
 	for _, tcase := range tcases {
