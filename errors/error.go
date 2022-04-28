@@ -252,7 +252,13 @@ func (e *Error) error(verbose bool) string {
 			}
 		case error:
 			if v != nil {
-				errParts = append(errParts, v.Error())
+				errmsg := ""
+				if e, ok := v.(interface{ Detailed() string }); ok && verbose {
+					errmsg = e.Detailed()
+				} else {
+					errmsg = v.Error()
+				}
+				errParts = append(errParts, errmsg)
 			}
 		case nil:
 			// ignore nil values

@@ -347,9 +347,14 @@ func TestErrorIs(t *testing.T) {
 		},
 		{
 			name:    "same file range",
-			err:     E("error", hcl.Range{Filename: "test.hcl"}),
-			target:  E("error", hcl.Range{Filename: "test.hcl"}),
+			err:     E("error", filerange),
+			target:  E("error", filerange),
 			areSame: true,
+		},
+		{
+			name:   "different file ranges",
+			err:    E("error", filerange),
+			target: E("error", otherFileRange),
 		},
 		{
 			name:    "error match wrapped on stderr",
@@ -405,7 +410,7 @@ func TestDetailedRepresentation(t *testing.T) {
 	}
 
 	var e *errors.Error
-	err := E("error", stack, filerange)
+	err := E("error", stack, filerange, errors.L(E("error")))
 	errors.As(err, &e)
 
 	if e.Error() == e.Detailed() {

@@ -261,27 +261,31 @@ func ParseModules(path string) ([]Module, error) {
 		Str("path", path).
 		Logger()
 
-	logger.Trace().
-		Msg("Get path information.")
+	logger.Trace().Msg("Get path information.")
+
 	_, err := os.Stat(path)
 	if err != nil {
 		return nil, errors.E(err, "stat failed on %q", path)
 	}
 
-	logger.Trace().
-		Msg("Create new parser.")
+	logger.Trace().Msg("Create new parser")
+
 	p := hclparse.NewParser()
 
-	logger.Debug().
-		Msg("Parse HCL file.")
+	logger.Debug().Msg("Parse HCL file")
+
+	errs := errors.L()
+
 	f, diags := p.ParseHCLFile(path)
-	if diags.HasErrors() {
-		return nil, errors.E(ErrHCLSyntax, diags)
+	errs.Append(diags)
+
+	if err := errs.AsError(); err != nil {
+		return nil, errors.E(ErrHCLSyntax, err)
 	}
 
-	body, _ := f.Body.(*hclsyntax.Body)
+	body := f.Body.(*hclsyntax.Body)
 
-	logger.Trace().Msg("Parse modules.")
+	logger.Trace().Msg("Parse modules")
 
 	var modules []Module
 	for _, block := range body.Blocks {
@@ -289,27 +293,32 @@ func ParseModules(path string) ([]Module, error) {
 			continue
 		}
 
-		if len(block.Labels) != 1 {
-			return nil, errors.E(ErrTerraformSchema, block.OpenBraceRange,
-				"\"module\" block must have 1 label")
-		}
+		var moduleName string
 
-		moduleName := block.Labels[0]
+		if len(block.Labels) == 1 {
+			moduleName = block.Labels[0]
+		} else {
+			errs.Append(errors.E(ErrTerraformSchema, block.OpenBraceRange,
+				"\"module\" block must have 1 label"))
+		}
 
 		logger.Trace().Msg("Get source attribute.")
 		source, ok, err := findStringAttr(block, "source")
 		if err != nil {
-			return nil, errors.E(ErrTerraformSchema, err,
-				"looking for module.%q.source attribute", moduleName)
+			errs.Append(errors.E(ErrTerraformSchema, err,
+				"looking for module.%q.source attribute", moduleName))
 		}
 		if !ok {
-			return nil, errors.E(ErrTerraformSchema,
+			errs.Append(errors.E(ErrTerraformSchema,
 				hcl.RangeBetween(block.OpenBraceRange, block.CloseBraceRange),
 				"module must have a \"source\" attribute",
-			)
+			))
 		}
-
 		modules = append(modules, Module{Source: source})
+	}
+
+	if err := errs.AsError(); err != nil {
+		return nil, err
 	}
 
 	return modules, nil

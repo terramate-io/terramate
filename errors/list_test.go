@@ -150,6 +150,6 @@ func TestErrorListStringDetailedPresentation(t *testing.T) {
 	errs := errors.L(E("one"))
 	assert.EqualStrings(t, "error list:\n\t-one", errs.Detailed())
 
-	errs.Append(E("two"))
+	errs.Append(stderrors.New("two"))
 	assert.EqualStrings(t, "error list:\n\t-one\n\t-two", errs.Detailed())
 }
