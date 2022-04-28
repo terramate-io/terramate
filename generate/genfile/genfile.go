@@ -94,7 +94,7 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles,
 
 	logger.Trace().Msg("loading generate_file blocks")
 
-	loadedGenFileBlocks, err := loadGenFileBlocks(rootdir, stackpath)
+	genFileBlocks, err := loadGenFileBlocks(rootdir, stackpath)
 	if err != nil {
 		return StackFiles{}, errors.E("loading generate_file", err)
 	}
@@ -110,14 +110,14 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles,
 		files: map[string]File{},
 	}
 
-	for name, loadedGenFileBlock := range loadedGenFileBlocks {
+	for name, genFileBlock := range genFileBlocks {
 		logger := logger.With().
 			Str("block", name).
 			Logger()
 
 		logger.Trace().Msg("evaluating contents")
 
-		value, err := evalctx.Eval(loadedGenFileBlock.block.Content.Expr)
+		value, err := evalctx.Eval(genFileBlock.block.Content.Expr)
 		if err != nil {
 			return StackFiles{}, errors.E(ErrContentEval, err)
 		}
@@ -125,13 +125,13 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles,
 		if value.Type() != cty.String {
 			return StackFiles{}, errors.E(
 				ErrInvalidContentType,
-				"content has type %s",
+				"content has type %s but must be string",
 				value.Type().FriendlyName(),
 			)
 		}
 
 		res.files[name] = File{
-			origin: loadedGenFileBlock.origin,
+			origin: genFileBlock.origin,
 			body:   value.AsString(),
 		}
 	}
