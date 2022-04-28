@@ -74,7 +74,7 @@ const (
 func Do(root string, workingDir string) Report {
 	return forEachStack(root, workingDir, func(
 		stack stack.S,
-		globals terramate.Globals,
+		globals stack.Globals,
 	) stackReport {
 		stackpath := stack.HostPath()
 		logger := log.With().
@@ -223,25 +223,25 @@ func ListStackGenFiles(stack stack.S) ([]string, error) {
 // If the stack has an invalid configuration it will return an error.
 //
 // The provided root must be the project's root directory as an absolute path.
-func CheckStack(root string, stack stack.S) ([]string, error) {
+func CheckStack(root string, st stack.S) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.CheckStack()").
 		Str("path", root).
-		Stringer("stack", stack).
+		Stringer("stack", st).
 		Logger()
 
 	logger.Trace().Msg("Load stack code generation config.")
 
 	logger.Trace().Msg("Loading globals for stack.")
 
-	globals, err := terramate.LoadStackGlobals(root, stack)
+	globals, err := stack.LoadGlobals(root, st)
 	if err != nil {
 		return nil, errors.E(err, "checking for outdated code")
 	}
 
 	logger.Trace().Msg("Listing current generated files.")
 
-	generatedFiles, err := ListStackGenFiles(stack)
+	generatedFiles, err := ListStackGenFiles(st)
 	if err != nil {
 		return nil, errors.E(err, "checking for outdated code")
 	}
@@ -249,11 +249,11 @@ func CheckStack(root string, stack stack.S) ([]string, error) {
 	// We start with the assumption that all gen files on the stack
 	// are outdated and then update the outdated files set as we go.
 	outdatedFiles := newStringSet(generatedFiles...)
-	stackpath := stack.HostPath()
+	stackpath := st.HostPath()
 	err = updateGenHCLOutdatedFiles(
 		root,
 		stackpath,
-		stack,
+		st,
 		globals,
 		outdatedFiles,
 	)
@@ -275,7 +275,7 @@ type genfile struct {
 func updateGenHCLOutdatedFiles(
 	root, stackpath string,
 	stackMeta stack.Metadata,
-	globals terramate.Globals,
+	globals stack.Globals,
 	outdatedFiles *stringSet,
 ) error {
 	logger := log.With().
@@ -328,7 +328,7 @@ func generateStackHCLCode(
 	root string,
 	stackpath string,
 	meta stack.Metadata,
-	globals terramate.Globals,
+	globals stack.Globals,
 ) ([]genfile, error) {
 	logger := log.With().
 		Str("action", "generateStackHCLCode()").
@@ -438,7 +438,7 @@ func loadGeneratedCode(path string) (string, bool, error) {
 	return "", false, errors.E(ErrManualCodeExists, "check file %q", path)
 }
 
-type forEachStackFunc func(stack.S, terramate.Globals) stackReport
+type forEachStackFunc func(stack.S, stack.Globals) stackReport
 
 func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 	logger := log.With().
@@ -458,28 +458,28 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 	}
 
 	for _, entry := range stackEntries {
-		stack := entry.Stack
+		st := entry.Stack
 
 		logger := logger.With().
-			Stringer("stack", stack).
+			Stringer("stack", st).
 			Logger()
 
-		if !strings.HasPrefix(stack.HostPath(), workingDir) {
+		if !strings.HasPrefix(st.HostPath(), workingDir) {
 			logger.Trace().Msg("discarding stack outside working dir")
 			continue
 		}
 
 		logger.Trace().Msg("Load stack globals.")
 
-		globals, err := terramate.LoadStackGlobals(root, stack)
+		globals, err := stack.LoadGlobals(root, st)
 		if err != nil {
-			report.addFailure(stack, errors.E(ErrLoadingGlobals, err))
+			report.addFailure(st, errors.E(ErrLoadingGlobals, err))
 			continue
 		}
 
 		logger.Trace().Msg("Calling stack callback.")
 
-		report.addStackReport(stack, fn(stack, globals))
+		report.addStackReport(st, fn(st, globals))
 	}
 	report.sortFilenames()
 	return report
