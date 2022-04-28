@@ -175,21 +175,7 @@ func loadGenFileBlocks(rootdir string, cfgdir string) (map[string]genFileBlock, 
 			origin := project.PrjAbsPath(rootdir, filename)
 
 			if other, ok := res[name]; ok {
-				if other.origin == origin {
-					return nil, errors.E(
-						ErrLabelConflict,
-						"%s has blocks with same label %q",
-						origin,
-						name,
-					)
-				}
-				return nil, errors.E(
-					ErrLabelConflict,
-					"%s and %s have blocks with same label %q",
-					origin,
-					other.origin,
-					name,
-				)
+				return nil, conflictErr(name, origin, other.origin)
 			}
 
 			res[name] = genFileBlock{
