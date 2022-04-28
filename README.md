@@ -1,20 +1,5 @@
-<img src="https://raw.githubusercontent.com/mineiros-io/brand/16aa786a3cd6d0ae2fb89ed756f96c695d0f88e1/terramate-logo.svg" width="140"/>
-<!-- mdtocstart -->
+# [<img src="https://github.com/mineiros-io/brand/blob/38f6e5c20a176c62dc673f707a3987c9ec3691cd/terramate-vertical-logo-black-font.svg" height="120"/>](https://mineiros.io/?ref=terramate)[<img align="right" src="https://raw.githubusercontent.com/mineiros-io/brand/3bffd30e8bdbbde32c143e2650b2faa55f1df3ea/mineiros-primary-logo.svg" height="23" alt="Mineiros"/>](https://mineiros.io/?ref=terramate)
 
-# Table of Contents
-
-- [Terramate](#terramate)
-    - [Getting Started](#getting-started)
-        - [Installing](#installing)
-            - [Using Go](#using-go)
-            - [Using Release Binaries](#using-release-binaries)
-            - [Using Docker](#using-docker)
-            - [Auto Completion](#auto-completion)
-        - [Project Setup](#project-setup)
-
-<!-- mdtocend -->
-
-# Terramate
 
 [![GoDoc](https://pkg.go.dev/badge/github.com/mineiros-io/terramate)](https://pkg.go.dev/github.com/mineiros-io/terramate)
 ![CI Status](https://github.com/mineiros-io/terramate/actions/workflows/ci.yml/badge.svg)
@@ -22,27 +7,22 @@
 [![codecov](https://codecov.io/gh/mineiros-io/terramate/branch/main/graph/badge.svg?token=gMRUkVUAQ4)](https://codecov.io/gh/mineiros-io/terramate)
 [![Join Slack](https://img.shields.io/badge/slack-@mineiros--community-f32752.svg?logo=slack)](https://mineiros.io/slack)
 
-Terramate is a tool for managing multiple Terraform stacks.
+Terramate is a tool for managing multiple Stacks containing Terraform code.
 
-The stack concept is not defined by Hashicorp's Terraform tooling but just a
-convention used by the _Terraform community_, so a stack can be loosely defined
-as:
+The stack concept is not defined by Hashicorp's Terraform tooling but just a convention used by the _Terraform community_, so a stack can be loosely defined as:
 
-```
-A terraform stack is a runnable terraform module that operates on a subset of
-the infrastructure's resource.
-```
+> A stack is a runnable Terraform Root Module that operates on a subset of the infrastructure's resource and has its own state.
 
-It provides ways to keep your code [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself)
-and also manage dependencies between stacks with minimal effort to get
-started in a non-intrusive way.
+Terramate provides ways to keep your Terrform code [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) and allows to define relationships between stacks and supports you to orchestrate Terraform commands in those stacks with minimal effort to get started in a non-intrusive way.
 
-* Avoid duplication by easily sharing data across your project.
-* Explicitly define order of execution of stacks.
-* Code generation ensures that plan/apply is always done with plain Terraform commands.
-* Change detection, including for local modules used by stacks.
-* Not a wrapper, you keep using Terraform or any other of your tools.
-* All done with [HCL](https://github.com/hashicorp/hcl).
+- **Keep you code DRY**: Avoid duplication by easily sharing data across your project.
+- **Code Generation**: Generate valid Terraform Code to ensure that you can always enter a stack to run plain Terraform commands.
+- **Stack Change detection**: Only execute commands in stacks that have been changed in the current branch or since the last merge.
+- **Module Change detection**: Enhanced Change Detection allows to identifying stacks that have changes in local modules.
+- **Execute Any Command**: Terramate is not a wrapper of Terraform but can execute any commands in (changed) stacks.
+- **Execution Order**: Explicitly define an order of execution of stacks.
+- **Forced Stack Execution**: Ensure specific stacks are run alongside other stacks.
+- **Pure HCL**: All configuration of Terramate can be supplied in the well-known [Hashicorp Configuraltion Language (HCL)](https://github.com/hashicorp/hcl).
 
 For more details on how this is achieved, please consider:
 

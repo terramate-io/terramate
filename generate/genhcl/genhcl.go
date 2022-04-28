@@ -20,7 +20,6 @@ import (
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
-	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
@@ -89,7 +88,7 @@ func (b HCL) Origin() string {
 // generate_hcl blocks.
 //
 // The rootdir MUST be an absolute path.
-func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackHCLs, error) {
+func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackHCLs, error) {
 	stackpath := filepath.Join(rootdir, sm.Path())
 	logger := log.With().
 		Str("action", "genhcl.Load()").
@@ -140,9 +139,8 @@ func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackHC
 	return res, nil
 }
 
-func newEvalCtx(stackpath string, sm stack.Metadata, globals terramate.Globals) (*eval.Context, error) {
+func newEvalCtx(stackpath string, sm stack.Metadata, globals stack.Globals) (*eval.Context, error) {
 	// TODO(katcipis): duplicated on genhcl, extract soon
-
 	logger := log.With().
 		Str("action", "genhcl.newEvalCtx()").
 		Str("path", stackpath).
