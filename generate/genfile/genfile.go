@@ -24,6 +24,13 @@ import (
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
+	"github.com/zclconf/go-cty/cty"
+)
+
+const (
+	// ErrInvalidContentType indicates the content attribute on
+	// generate_file has a invalid type.
+	ErrInvalidContentType errors.Kind = "invalid content type"
 )
 
 // StackFiles represents all generated files for a stack,
@@ -105,10 +112,17 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles,
 
 		value, err := evalctx.Eval(loadedGenFileBlock.block.Content.Expr)
 		if err != nil {
-			return StackFiles{}, errors.E(sm, "origin: %s: evaluating block %s", loadedGenFileBlock.origin, name)
+			return StackFiles{}, errors.E("origin: %s: evaluating block %s", loadedGenFileBlock.origin, name)
 		}
 
-		// TODO(katcipis): check for value underlying type (or not, still discussing)
+		if value.Type() != cty.String {
+			return StackFiles{}, errors.E(
+				ErrInvalidContentType,
+				"content has type %s",
+				value.Type().FriendlyName(),
+			)
+		}
+
 		res.files[name] = File{
 			origin: loadedGenFileBlock.origin,
 			body:   value.AsString(),

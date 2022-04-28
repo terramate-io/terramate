@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
@@ -295,6 +296,20 @@ func TestLoadGenerateFiles(t *testing.T) {
 					},
 				},
 			},
+		},
+		{
+			name:  "content must be string",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: generateFile(
+						labels("test.yml"),
+						expr("content", "5"),
+					),
+				},
+			},
+			wantErr: errors.E(genfile.ErrInvalidContentType),
 		},
 	}
 
