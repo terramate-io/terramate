@@ -444,6 +444,23 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
+		{
+			name:  "generate_file with unknown attribute",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/test.tm",
+					add: hcldoc(
+						generateFile(
+							labels("name"),
+							str("content", "data"),
+							str("unknown", "data"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
 	}
 
 	for _, tcase := range tcases {
