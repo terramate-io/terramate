@@ -18,7 +18,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
@@ -72,7 +71,7 @@ func (s StackFiles) GeneratedFiles() map[string]File {
 // generate_file blocks.
 //
 // The rootdir MUST be an absolute path.
-func Load(rootdir string, sm stack.Metadata, globals terramate.Globals) (StackFiles, error) {
+func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles, error) {
 	stackpath := filepath.Join(rootdir, sm.Path())
 	logger := log.With().
 		Str("action", "genfile.Load()").
@@ -189,7 +188,7 @@ func loadGenFileBlocks(rootdir string, cfgdir string) (map[string]genFileBlock, 
 	return res, nil
 }
 
-func newEvalCtx(stackpath string, sm stack.Metadata, globals terramate.Globals) (*eval.Context, error) {
+func newEvalCtx(stackpath string, sm stack.Metadata, globals stack.Globals) (*eval.Context, error) {
 	// TODO(katcipis): duplicated on genhcl, extract soon
 	logger := log.With().
 		Str("action", "genfile.newEvalCtx()").
