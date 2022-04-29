@@ -49,7 +49,6 @@ type (
 func TestHCLParserModules(t *testing.T) {
 	type want struct {
 		modules []hcl.Module
-		err     error
 		errs    []error
 	}
 	type testcase struct {
@@ -63,14 +62,14 @@ func TestHCLParserModules(t *testing.T) {
 			name:  "module must have 1 label",
 			input: `module {}`,
 			want: want{
-				err: errors.E(hcl.ErrTerraformSchema, mkrange(start(1, 8, 7), end(1, 9, 8))),
+				errs: []error{errors.E(hcl.ErrTerraformSchema, mkrange(start(1, 8, 7), end(1, 9, 8)))},
 			},
 		},
 		{
 			name:  "module must have a source attribute",
 			input: `module "test" {}`,
 			want: want{
-				err: errors.E(hcl.ErrTerraformSchema, mkrange(start(1, 15, 14), end(1, 17, 16))),
+				errs: []error{errors.E(hcl.ErrTerraformSchema, mkrange(start(1, 15, 14), end(1, 17, 16)))},
 			},
 		},
 		{
@@ -143,14 +142,14 @@ module "test" {
 }
 `,
 			want: want{
-				err: errors.E(hcl.ErrTerraformSchema, mkrange(start(3, 11, 27), end(3, 13, 29))),
+				errs: []error{errors.E(hcl.ErrTerraformSchema, mkrange(start(3, 11, 27), end(3, 13, 29)))},
 			},
 		},
 		{
 			name:  "variable interpolation in the source string - fails",
 			input: "module \"test\" {\nsource = \"${var.test}\"\n}\n",
 			want: want{
-				err: errors.E(hcl.ErrTerraformSchema, mkrange(start(2, 13, 28), end(2, 16, 31))),
+				errs: []error{errors.E(hcl.ErrTerraformSchema, mkrange(start(2, 13, 28), end(2, 16, 31)))},
 			},
 		},
 		{
@@ -202,23 +201,18 @@ module "test" {
 			name:  "variable interpolation in the source string - fails",
 			input: "module \"test\" {\nsource = \"${var.test}\"\n}\n",
 			want: want{
-				err: errors.E(hcl.ErrTerraformSchema, mkrange(start(2, 13, 28), end(2, 16, 31))),
+				errs: []error{errors.E(hcl.ErrTerraformSchema, mkrange(start(2, 13, 28), end(2, 16, 31)))},
 			},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			wantErrs := tc.want.errs
-			if tc.want.err != nil {
-				wantErrs = append(wantErrs, tc.want.err)
-			}
-
 			configdir := t.TempDir()
 			tfpath := test.WriteFile(t, configdir, "main.tf", tc.input)
 
-			addFilenameToErrorsFileRanges(wantErrs, tfpath)
+			addFilenameToErrorsFileRanges(tc.want.errs, tfpath)
 
 			modules, err := hcl.ParseModules(tfpath)
-			errtest.AssertIsErrors(t, err, wantErrs)
+			errtest.AssertIsErrors(t, err, tc.want.errs)
 			if err != nil {
 				errtest.AssertAsErrorsList(t, err)
 			}
