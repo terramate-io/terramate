@@ -84,6 +84,9 @@ func AssertAsErrorsList(t *testing.T, err error) {
 }
 
 func errstr(err error) string {
+	if err == nil {
+		return "<nil>"
+	}
 	if e, ok := err.(interface{ Detailed() string }); ok {
 		return e.Detailed()
 	}

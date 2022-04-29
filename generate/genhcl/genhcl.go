@@ -81,13 +81,11 @@ func (b HCL) Origin() string {
 // a given stack. It will navigate the file system from the stack dir until
 // it reaches rootdir, loading generate_hcl and merging them appropriately.
 //
-// More specific definitions (closer or at the stack) have precedence over
-// less specific ones (closer or at the root dir).
+// All generate_file blocks must have unique labels, even ones at different
+// directories. Any conflicts will be reported as an error.
 //
 // Metadata and globals for the stack are used on the evaluation of the
 // generate_hcl blocks.
-//
-// The returned result only contains evaluated values.
 //
 // The rootdir MUST be an absolute path.
 func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackHCLs, error) {
@@ -142,6 +140,7 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackHCLs, 
 }
 
 func newEvalCtx(stackpath string, sm stack.Metadata, globals stack.Globals) (*eval.Context, error) {
+	// TODO(katcipis): duplicated on genhcl, extract soon
 	logger := log.With().
 		Str("action", "genhcl.newEvalCtx()").
 		Str("path", stackpath).

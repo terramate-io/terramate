@@ -97,6 +97,18 @@ type Stack struct {
 // Blocks maps a filename to a slice of HCL blocks associated with it
 type Blocks map[string][]*hclsyntax.Block
 
+// GenFileBlocks maps filenames to slices of parsed generated_file blocks
+// found on the file.
+type GenFileBlocks map[string][]GenFileBlock
+
+// GenFileBlock represents a parsed generate_file block
+type GenFileBlock struct {
+	// Label of the block
+	Label string
+	// Content attribute of the block
+	Content *hclsyntax.Attribute
+}
+
 // TerramateParser is an HCL parser tailored for Terramate configuration schema.
 // As the Terramate configuration can span multiple files in the same directory,
 // this API allows you to define the exact set of files (and contents) that are
@@ -374,6 +386,33 @@ func ParseGenerateHCLBlocks(dir string) (Blocks, error) {
 	})
 }
 
+// ParseGenerateFileBlocks parses all Terramate files on the given dir, returning
+// parsed generate_file blocks.
+func ParseGenerateFileBlocks(dir string) (GenFileBlocks, error) {
+	blocks, err := parseBlocks(dir, "generate_file", func(block *hclsyntax.Block) error {
+		return validateGenerateFileBlock(block)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	res := GenFileBlocks{}
+
+	for filename, fileBlocks := range blocks {
+		genFileBlocks := make([]GenFileBlock, len(fileBlocks))
+		for i, fileBlock := range fileBlocks {
+			genFileBlocks[i] = GenFileBlock{
+				Label:   fileBlock.Labels[0],
+				Content: fileBlock.Body.Attributes["content"],
+			}
+		}
+
+		res[filename] = genFileBlocks
+	}
+
+	return res, nil
+}
+
 func validateGenerateHCLBlock(block *hclsyntax.Block) error {
 	// Don't seem like we can use hcl.BodySchema to check for any non-empty
 	// label, only specific label values.
@@ -411,6 +450,33 @@ func validateGenerateHCLBlock(block *hclsyntax.Block) error {
 	_, diags := block.Body.Content(schema)
 	if diags.HasErrors() {
 		return errors.E(ErrHCLSyntax, diags)
+	}
+	return nil
+}
+
+func validateGenerateFileBlock(block *hclsyntax.Block) error {
+	if len(block.Labels) != 1 {
+		return errors.E(ErrTerramateSchema, block.OpenBraceRange,
+			"generate_file must have single label instead got %v",
+			block.Labels,
+		)
+	}
+	if block.Labels[0] == "" {
+		return errors.E(ErrTerramateSchema, block.OpenBraceRange,
+			"generate_file label can't be empty")
+	}
+	schema := &hcl.BodySchema{
+		Attributes: []hcl.AttributeSchema{
+			{
+				Name:     "content",
+				Required: true,
+			},
+		},
+	}
+
+	_, diags := block.Body.Content(schema)
+	if diags.HasErrors() {
+		return errors.E(ErrTerramateSchema, diags)
 	}
 	return nil
 }
