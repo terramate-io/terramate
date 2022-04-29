@@ -25,11 +25,12 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
-func TestHCLGeneration(t *testing.T) {
+func TestGenerateHCL(t *testing.T) {
 	type (
 		generatedHCL struct {
 			stack string
@@ -398,7 +399,8 @@ func TestHCLGeneration(t *testing.T) {
 			s.BuildTree(tcase.layout)
 
 			for _, cfg := range tcase.configs {
-				cfg.append(t, s.RootDir())
+				path := filepath.Join(s.RootDir(), cfg.path)
+				test.AppendFile(t, path, config.DefaultFilename, cfg.add.String())
 			}
 
 			assertGeneratedHCLs := func(t *testing.T) {
@@ -410,9 +412,9 @@ func TestHCLGeneration(t *testing.T) {
 
 					for name, wantHCL := range wantDesc.hcls {
 						want := wantHCL.String()
-						got := stack.ReadGeneratedHCL(name)
+						got := stack.ReadFile(name)
 
-						assertHCLEquals(t, got, want)
+						assertGenCodeEquals(t, got, want)
 					}
 				}
 			}
@@ -442,8 +444,8 @@ func TestHCLGeneration(t *testing.T) {
 			for _, wantDesc := range tcase.wantHCL {
 				stackRelPath := wantDesc.stack[1:]
 				stack := s.StackEntry(stackRelPath)
-				for name := range wantDesc.hcls {
-					stack.RemoveGeneratedHCL(name)
+				for filename := range wantDesc.hcls {
+					stack.RemoveFile(filename)
 				}
 			}
 			err := filepath.WalkDir(s.RootDir(), func(path string, d fs.DirEntry, err error) error {
@@ -499,7 +501,7 @@ func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
 	assertReportHasError(t, report, errors.E(generate.ErrManualCodeExists))
 
 	stack := s.StackEntry("stack")
-	actualTfCode := stack.ReadGeneratedHCL(genFilename)
+	actualTfCode := stack.ReadFile(genFilename)
 	assert.EqualStrings(t, manualTfCode, actualTfCode, "tf code altered by generate")
 }
 
@@ -533,8 +535,8 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 		},
 	})
 
-	got := stack.ReadGeneratedHCL(genFilename)
-	assertHCLEquals(t, got, firstWant.String())
+	got := stack.ReadFile(genFilename)
+	assertGenCodeEquals(t, got, firstWant.String())
 
 	secondConfig := generateHCL(
 		labels(genFilename),
@@ -560,8 +562,8 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 		},
 	})
 
-	got = stack.ReadGeneratedHCL(genFilename)
-	assertHCLEquals(t, got, secondWant.String())
+	got = stack.ReadFile(genFilename)
+	assertGenCodeEquals(t, got, secondWant.String())
 	assertEqualReports(t, s.Generate(), generate.Report{})
 }
 
@@ -603,13 +605,13 @@ func TestGeneratedHCLHeaders(t *testing.T) {
 
 	s.Generate()
 
-	stackGen := stackEntry.ReadGeneratedHCL(stackFilename)
+	stackGen := stackEntry.ReadFile(stackFilename)
 	stackHeader := fmt.Sprintf(traceHeaderTemplate, filepath.Join("/stack", config.DefaultFilename))
 	if !strings.Contains(stackGen, stackHeader) {
 		t.Errorf("wanted header %q\n\ngenerated file:\n%s\n", stackHeader, stackGen)
 	}
 
-	rootGen := stackEntry.ReadGeneratedHCL(rootFilename)
+	rootGen := stackEntry.ReadFile(rootFilename)
 	rootHeader := fmt.Sprintf(traceHeaderTemplate, "/"+config.DefaultFilename)
 	if !strings.Contains(rootGen, rootHeader) {
 		t.Errorf("wanted header %q\n\ngenerated file:\n%s\n", rootHeader, rootGen)
