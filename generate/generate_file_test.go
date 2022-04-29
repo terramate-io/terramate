@@ -9,6 +9,7 @@ import (
 )
 
 func TestGenerateFile(t *testing.T) {
+	t.Skip()
 
 	testCodeGeneration(t, []testcase{
 		{

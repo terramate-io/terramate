@@ -83,28 +83,20 @@ func Do(root string, workingDir string) Report {
 			Str("stackpath", stackpath).
 			Logger()
 
-		genfiles := []genfile{}
+		genfiles := generatedFiles{}
 		report := stackReport{}
 
-		logger.Trace().Msg("Generate stack terraform.")
+		logger.Trace().Msg("Generate code from generate_hcl blocks")
 
-		stackHCLsCode, err := generateStackHCLCode(root, stackpath, stack, globals)
+		err := generateStackHCLCode(root, stackpath, stack, globals, genfiles)
 		if err != nil {
 			report.err = err
 			return report
 		}
-		genfiles = append(genfiles, stackHCLsCode...)
 
 		logger.Trace().Msg("Checking for invalid paths on generated files.")
 		if err := checkGeneratedFilesPaths(genfiles); err != nil {
 			report.err = errors.E(ErrInvalidFilePath, err)
-			return report
-		}
-
-		logger.Trace().Msg("Checking for conflicts on generated files.")
-
-		if err := checkGeneratedFilesConflicts(genfiles); err != nil {
-			report.err = errors.E(ErrConflictingConfig, err)
 			return report
 		}
 
@@ -130,38 +122,40 @@ func Do(root string, workingDir string) Report {
 
 		logger.Trace().Msg("Saving generated files.")
 
-		for _, genfile := range genfiles {
-			path := filepath.Join(stackpath, genfile.name)
+		for filename, genfile := range genfiles {
+			path := filepath.Join(stackpath, filename)
 			logger := logger.With().
-				Str("filename", genfile.name).
+				Str("filename", filename).
 				Logger()
 
 			// We don't want to generate files just with a header inside.
-			if genfile.body == "" {
+			if genfile.Body() == "" {
 				logger.Trace().Msg("ignoring empty code")
 				continue
 			}
 
+			body := prependGenHCLHeader(genfile.Origin(), genfile.Body())
+
 			logger.Trace().Msg("saving generated file")
 
-			err := writeGeneratedCode(path, genfile.body)
+			err := writeGeneratedCode(path, body)
 			if err != nil {
 				return failureReport(
 					report,
-					errors.E(err, "saving file %q", genfile.name),
+					errors.E(err, "saving file %q", filename),
 				)
 			}
 
 			// Change detection + remove code that got deleted but
 			// was re-generated from the removed files map
-			removedFileBody, ok := removedFiles[genfile.name]
+			removedFileBody, ok := removedFiles[filename]
 			if !ok {
-				report.addCreatedFile(genfile.name)
+				report.addCreatedFile(filename)
 			} else {
-				if genfile.body != removedFileBody {
-					report.addChangedFile(genfile.name)
+				if body != removedFileBody {
+					report.addChangedFile(filename)
 				}
-				delete(removedFiles, genfile.name)
+				delete(removedFiles, filename)
 			}
 			logger.Trace().Msg("saved generated file")
 		}
@@ -267,9 +261,26 @@ func CheckStack(root string, st stack.S) ([]string, error) {
 	return outdated, nil
 }
 
-type genfile struct {
-	name string
-	body string
+// TODO: rename to fileInfo
+type generatedFile interface {
+	Origin() string
+	Body() string
+}
+
+// generatedFiles maps filenames to generated files
+type generatedFiles map[string]generatedFile
+
+func (g generatedFiles) add(filename string, genfile generatedFile) error {
+	if other, ok := g[filename]; ok {
+		return errors.E(ErrConflictingConfig,
+			"configs from %q and %q generate a file with same name %q",
+			genfile.Origin(),
+			other.Origin(),
+			filename,
+		)
+	}
+	g[filename] = genfile
+	return nil
 }
 
 func updateGenHCLOutdatedFiles(
@@ -306,12 +317,12 @@ func updateGenHCLOutdatedFiles(
 		if err != nil {
 			return err
 		}
-		if !codeFound && genHCL.String() == "" {
+		if !codeFound && genHCL.Body() == "" {
 			logger.Trace().Msg("Not outdated since file not found and generated_hcl is empty")
 			continue
 		}
 
-		genHCLCode := prependGenHCLHeader(genHCL.Origin(), genHCL.String())
+		genHCLCode := prependGenHCLHeader(genHCL.Origin(), genHCL.Body())
 		if genHCLCode != currentHCLcode {
 			logger.Trace().Msg("generate_hcl code is outdated")
 			outdatedFiles.add(filename)
@@ -329,44 +340,30 @@ func generateStackHCLCode(
 	stackpath string,
 	meta stack.Metadata,
 	globals stack.Globals,
-) ([]genfile, error) {
+	genfiles generatedFiles,
+) error {
 	logger := log.With().
 		Str("action", "generateStackHCLCode()").
 		Str("root", root).
 		Str("stackpath", stackpath).
 		Logger()
 
-	logger.Trace().Msg("generating HCL code.")
+	logger.Trace().Msg("generating HCL code")
 
 	stackGeneratedHCL, err := genhcl.Load(root, meta, globals)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	logger.Trace().Msg("generated HCL code.")
-
-	files := []genfile{}
+	logger.Trace().Msg("generated HCL code")
 
 	for name, generatedHCL := range stackGeneratedHCL.GeneratedHCLs() {
-		targetpath := filepath.Join(stackpath, name)
-		logger := logger.With().
-			Str("blockName", name).
-			Str("targetpath", targetpath).
-			Logger()
-
-		hclCode := generatedHCL.String()
-		if hclCode == "" {
-			files = append(files, genfile{name: name, body: hclCode})
-			continue
+		if err := genfiles.add(name, generatedHCL); err != nil {
+			return err
 		}
-
-		hclCode = prependGenHCLHeader(generatedHCL.Origin(), hclCode)
-		files = append(files, genfile{name: name, body: hclCode})
-
-		logger.Debug().Msg("stack HCL code loaded.")
 	}
 
-	return files, nil
+	return nil
 }
 
 func prependGenHCLHeader(origin, code string) string {
@@ -537,25 +534,12 @@ func hasTerramateHeader(code []byte) bool {
 	return false
 }
 
-func checkGeneratedFilesConflicts(genfiles []genfile) error {
-	observed := newStringSet()
-	for _, genf := range genfiles {
-		if observed.has(genf.name) {
+func checkGeneratedFilesPaths(genfiles generatedFiles) error {
+	for filename := range genfiles {
+		fname := filepath.ToSlash(filename)
+		if strings.Contains(fname, "/") {
 			// TODO(katcipis): improve error with origin info
-			// Right now it is not as nice/easy as I would like :-(.
-			return errors.E("two configurations produce same file %q", genf.name)
-		}
-		observed.add(genf.name)
-	}
-	return nil
-}
-
-func checkGeneratedFilesPaths(genfiles []genfile) error {
-	for _, gen := range genfiles {
-		filename := filepath.ToSlash(gen.name)
-		if strings.Contains(filename, "/") {
-			// TODO(katcipis): improve error with origin info
-			return errors.E("dir separator not allowed but found on %q", gen.name)
+			return errors.E("dir separator not allowed but found on %q", filename)
 		}
 	}
 	return nil
@@ -577,11 +561,6 @@ func newStringSet(vals ...string) *stringSet {
 
 func (ss *stringSet) remove(val string) {
 	delete(ss.vals, val)
-}
-
-func (ss *stringSet) has(val string) bool {
-	_, ok := ss.vals[val]
-	return ok
 }
 
 func (ss *stringSet) add(val string) {

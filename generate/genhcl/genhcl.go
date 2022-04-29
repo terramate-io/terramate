@@ -64,9 +64,9 @@ func (s StackHCLs) GeneratedHCLs() map[string]HCL {
 	return cp
 }
 
-// String returns a string representation of the HCL code
+// Body returns a string representation of the HCL code
 // or an empty string if the config itself is empty.
-func (b HCL) String() string {
+func (b HCL) Body() string {
 	return string(b.body)
 }
 
