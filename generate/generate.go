@@ -527,7 +527,7 @@ func removeStackGeneratedFiles(stack stack.S, genfiles generatedFiles) (map[stri
 	// so we use the list of files to be generated to check for these
 	// They may or not exist.
 	for filename, genfile := range genfiles {
-		// Files that have proper header can be detected by ListStackGenFiles
+		// Files that have header can be detected by ListStackGenFiles
 		if genfile.Header() == "" {
 			files = append(files, filename)
 		}
