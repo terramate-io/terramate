@@ -93,7 +93,7 @@ func testCodeGeneration(t *testing.T, checkGenFile genFileChecker, tcases []test
 
 			assertGeneratedFiles(t)
 
-			// piggyback on the tests to validate that regeneration doesnt
+			// piggyback on the tests to validate that regeneration doesn't
 			// delete files or fail and has identical results.
 			t.Run("regenerate", func(t *testing.T) {
 				report := generate.Do(s.RootDir(), workingDir)

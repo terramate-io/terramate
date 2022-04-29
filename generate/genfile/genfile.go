@@ -62,6 +62,12 @@ func (f File) Origin() string {
 	return f.origin
 }
 
+// Header returns the header of this file.
+func (f File) Header() string {
+	// For now we don't support headers for arbitrary files
+	return ""
+}
+
 // GeneratedFiles returns all generated files, mapping the file path to
 // the file description. The path is absolute relative to the project root.
 func (s StackFiles) GeneratedFiles() map[string]File {

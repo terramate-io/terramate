@@ -26,11 +26,8 @@ import (
 func TestGenerateFile(t *testing.T) {
 	checkGenFiles := func(t *testing.T, got string, want string) {
 		t.Helper()
-		// Terramate header validation is done separately, here we check only code.
-		// So headers are removed.
-		got = removeTerramateHCLHeader(got)
 		if diff := cmp.Diff(want, got); diff != "" {
-			t.Error("generated code doesn't match expectation")
+			t.Error("generated file doesn't match expectation")
 			t.Errorf("want:\n%q", want)
 			t.Errorf("got:\n%q", got)
 			t.Fatalf("diff:\n%s", diff)
