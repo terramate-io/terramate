@@ -20,7 +20,6 @@ import (
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
@@ -99,7 +98,7 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles,
 		return StackFiles{}, errors.E("loading generate_file", err)
 	}
 
-	evalctx, err := newEvalCtx(stackpath, sm, globals)
+	evalctx, err := stack.NewEvalCtx(stackpath, sm, globals)
 	if err != nil {
 		return StackFiles{}, errors.E(err, "creating eval context")
 	}
@@ -201,31 +200,6 @@ func loadGenFileBlocks(rootdir string, cfgdir string) (map[string]genFileBlock, 
 
 	logger.Trace().Msg("loaded generate_file blocks with success.")
 	return res, nil
-}
-
-func newEvalCtx(stackpath string, sm stack.Metadata, globals stack.Globals) (*eval.Context, error) {
-	// TODO(katcipis): duplicated on genhcl, extract soon
-	logger := log.With().
-		Str("action", "genfile.newEvalCtx()").
-		Str("path", stackpath).
-		Logger()
-
-	evalctx := eval.NewContext(stackpath)
-
-	logger.Trace().Msg("Add stack metadata evaluation namespace.")
-
-	err := evalctx.SetNamespace("terramate", stack.MetaToCtyMap(sm))
-	if err != nil {
-		return nil, errors.E(sm, err, "setting terramate namespace on eval context")
-	}
-
-	logger.Trace().Msg("Add global evaluation namespace.")
-
-	if err := evalctx.SetNamespace("global", globals.Attributes()); err != nil {
-		return nil, errors.E(sm, err, "setting global namespace on eval context")
-	}
-
-	return evalctx, nil
 }
 
 func merge(target, src map[string]genFileBlock) error {
