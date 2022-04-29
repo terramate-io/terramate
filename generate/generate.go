@@ -24,6 +24,7 @@ import (
 
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
@@ -88,7 +89,13 @@ func Do(root string, workingDir string) Report {
 
 		logger.Trace().Msg("Generate code from generate_hcl blocks")
 
-		err := generateStackHCLCode(root, stackpath, stack, globals, genfiles)
+		err := loadGenerateHCLFiles(root, stackpath, stack, globals, genfiles)
+		if err != nil {
+			report.err = err
+			return report
+		}
+
+		err = loadGenerateFileFiles(root, stackpath, stack, globals, genfiles)
 		if err != nil {
 			report.err = err
 			return report
@@ -313,7 +320,7 @@ func updateGenHCLOutdatedFiles(
 
 		logger.Trace().Msg("Checking if code is updated.")
 
-		currentHCLcode, codeFound, err := loadGeneratedCode(targetpath)
+		currentHCLcode, codeFound, err := loadGeneratedFile(targetpath)
 		if err != nil {
 			return err
 		}
@@ -335,7 +342,7 @@ func updateGenHCLOutdatedFiles(
 	return nil
 }
 
-func generateStackHCLCode(
+func loadGenerateHCLFiles(
 	root string,
 	stackpath string,
 	meta stack.Metadata,
@@ -343,7 +350,7 @@ func generateStackHCLCode(
 	genfiles generatedFiles,
 ) error {
 	logger := log.With().
-		Str("action", "generateStackHCLCode()").
+		Str("action", "generate.loadGenerateHCLFiles()").
 		Str("root", root).
 		Str("stackpath", stackpath).
 		Logger()
@@ -359,6 +366,37 @@ func generateStackHCLCode(
 
 	for name, generatedHCL := range stackGeneratedHCL.GeneratedHCLs() {
 		if err := genfiles.add(name, generatedHCL); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func loadGenerateFileFiles(
+	root string,
+	stackpath string,
+	meta stack.Metadata,
+	globals stack.Globals,
+	genfiles generatedFiles,
+) error {
+	logger := log.With().
+		Str("action", "generate.loadGenerateFileFiles()").
+		Str("root", root).
+		Str("stackpath", stackpath).
+		Logger()
+
+	logger.Trace().Msg("loading generate_file code")
+
+	stackGeneratedFiles, err := genfile.Load(root, meta, globals)
+	if err != nil {
+		return err
+	}
+
+	logger.Trace().Msg("loaded generate_file code")
+
+	for name, generatedFile := range stackGeneratedFiles.GeneratedFiles() {
+		if err := genfiles.add(name, generatedFile); err != nil {
 			return err
 		}
 	}
@@ -392,18 +430,18 @@ func writeGeneratedCode(target string, code string) error {
 }
 
 func checkFileCanBeOverwritten(path string) error {
-	_, _, err := loadGeneratedCode(path)
+	_, _, err := loadGeneratedFile(path)
 	return err
 }
 
-// loadGeneratedCode will load the generated code at the given path.
+// loadGeneratedFile will load the generated code at the given path.
 // It returns an error if it can't read the file or if the file is not
 // a Terramate generated file.
 //
 // The returned boolean indicates if the file exists, so the contents of
 // the file + true is returned if a file is found, but if no file is found
 // it will return an empty string and false indicating that the file doesn't exist.
-func loadGeneratedCode(path string) (string, bool, error) {
+func loadGeneratedFile(path string) (string, bool, error) {
 	logger := log.With().
 		Str("action", "loadGeneratedCode()").
 		Str("path", path).

@@ -9,8 +9,6 @@ import (
 )
 
 func TestGenerateFile(t *testing.T) {
-	t.Skip()
-
 	testCodeGeneration(t, []testcase{
 		{
 			name: "empty generate_file content generates nothing",
@@ -53,15 +51,15 @@ func TestGenerateFile(t *testing.T) {
 				{
 					stack: "/stacks/stack-1",
 					files: map[string]fmt.Stringer{
-						"file1.tf": str("/stacks/stack-1"),
-						"file2.tf": str("stack-1"),
+						"file1.txt": str("/stacks/stack-1"),
+						"file2.txt": str("stack-1"),
 					},
 				},
 				{
 					stack: "/stacks/stack-2",
 					files: map[string]fmt.Stringer{
-						"file1.tf": str("/stacks/stack-2"),
-						"file2.tf": str("stack-2"),
+						"file1.txt": str("/stacks/stack-2"),
+						"file2.txt": str("stack-2"),
 					},
 				},
 			},
@@ -103,8 +101,8 @@ func TestGenerateFile(t *testing.T) {
 				{
 					stack: "/stacks/stack-2",
 					files: map[string]fmt.Stringer{
-						"file1.tf": str("/stacks/stack-2"),
-						"file2.tf": str("stack-2"),
+						"file1.txt": str("/stacks/stack-2"),
+						"file2.txt": str("stack-2"),
 					},
 				},
 			},
@@ -133,28 +131,28 @@ func TestGenerateFile(t *testing.T) {
 				{
 					path: "/stacks/stack-1",
 					add: generateFile(
-						labels("/name.tf"),
+						labels("/name"),
 						strAttr("content", "something"),
 					),
 				},
 				{
 					path: "/stacks/stack-2",
 					add: generateFile(
-						labels("./name.tf"),
+						labels("./name"),
 						strAttr("content", "something"),
 					),
 				},
 				{
 					path: "/stacks/stack-3",
 					add: generateFile(
-						labels("./dir/name.tf"),
+						labels("./dir/name"),
 						strAttr("content", "something"),
 					),
 				},
 				{
 					path: "/stacks/stack-4",
 					add: generateFile(
-						labels("dir/name.tf"),
+						labels("dir/name"),
 						strAttr("content", "something"),
 					),
 				},
