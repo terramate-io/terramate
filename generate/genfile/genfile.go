@@ -73,7 +73,7 @@ func (s StackFiles) GeneratedFiles() map[string]File {
 	return cp
 }
 
-// Load loads and parse from the file system all generate_file blocks for
+// Load loads and parses from the file system all generate_file blocks for
 // a given stack. It will navigate the file system from the stack dir until
 // it reaches rootdir, loading generate_file blocks found on Terramate
 // configuration files.
