@@ -50,6 +50,12 @@ type hclconfig struct {
 	add  fmt.Stringer
 }
 
+type str string
+
+func (s str) String() string {
+	return string(s)
+}
+
 func testCodeGeneration(t *testing.T, tcases []testcase) {
 
 	for _, tcase := range tcases {

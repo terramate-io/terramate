@@ -47,7 +47,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 				labels("test.tf"),
 				content(
 					terraform(
-						str("required_version", "1.10"),
+						strAttr("required_version", "1.10"),
 					),
 				),
 			),
@@ -65,7 +65,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 				labels("test.tf"),
 				content(
 					terraform(
-						str("required_version", "1.11"),
+						strAttr("required_version", "1.11"),
 					),
 				),
 			),
@@ -83,7 +83,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 				labels("testnew.tf"),
 				content(
 					terraform(
-						str("required_version", "1.11"),
+						strAttr("required_version", "1.11"),
 					),
 				),
 			),
@@ -98,7 +98,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 				labels("testnew.tf"),
 				content(
 					terraform(
-						str("required_version", "1.11"),
+						strAttr("required_version", "1.11"),
 					),
 				),
 			),
@@ -189,7 +189,7 @@ func TestCheckFailsWithInvalidConfig(t *testing.T) {
 	invalidConfigs := []string{
 		hcldoc(
 			generateHCL(
-				expr("undefined", "terramate.undefined"),
+				exprAttr("undefined", "terramate.undefined"),
 			),
 			stack(),
 		).String(),
@@ -205,7 +205,7 @@ func TestCheckFailsWithInvalidConfig(t *testing.T) {
 			generateHCL(
 				labels("test.tf"),
 				block("content"),
-				expr("unrecognized", `"value"`),
+				exprAttr("unrecognized", `"value"`),
 			),
 			stack(),
 		).String(),

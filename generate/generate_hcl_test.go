@@ -96,7 +96,7 @@ func TestGenerateHCL(t *testing.T) {
 							content(
 								backend(
 									labels("test"),
-									expr("prefix", "global.backend_prefix"),
+									exprAttr("prefix", "global.backend_prefix"),
 								),
 							),
 						),
@@ -104,11 +104,11 @@ func TestGenerateHCL(t *testing.T) {
 							labels("locals.tf"),
 							content(
 								locals(
-									expr("stackpath", "terramate.path"),
-									expr("local_a", "global.local_a"),
-									expr("local_b", "global.local_b"),
-									expr("local_c", "global.local_c"),
-									expr("local_d", "tm_try(global.local_d.field, null)"),
+									exprAttr("stackpath", "terramate.path"),
+									exprAttr("local_a", "global.local_a"),
+									exprAttr("local_b", "global.local_b"),
+									exprAttr("local_c", "global.local_c"),
+									exprAttr("local_d", "tm_try(global.local_d.field, null)"),
 								),
 							),
 						),
@@ -117,18 +117,18 @@ func TestGenerateHCL(t *testing.T) {
 							content(
 								provider(
 									labels("name"),
-									expr("data", "global.provider_data"),
+									exprAttr("data", "global.provider_data"),
 								),
 								terraform(
 									requiredProviders(
-										expr("name", `{
+										exprAttr("name", `{
 										source  = "integrations/name"
 										version = global.provider_version
 									}`),
 									),
 								),
 								terraform(
-									expr("required_version", "global.terraform_version"),
+									exprAttr("required_version", "global.terraform_version"),
 								),
 							),
 						),
@@ -137,27 +137,27 @@ func TestGenerateHCL(t *testing.T) {
 				{
 					path: "/stacks/stack-1",
 					add: globals(
-						str("local_a", "stack-1-local"),
-						boolean("local_b", true),
-						number("local_c", 666),
+						strAttr("local_a", "stack-1-local"),
+						boolAttr("local_b", true),
+						numberAttr("local_c", 666),
 						attr("local_d", `{ field = "local_d_field"}`),
-						str("backend_prefix", "stack-1-backend"),
-						str("provider_data", "stack-1-provider-data"),
-						str("provider_version", "stack-1-provider-version"),
-						str("terraform_version", "stack-1-terraform-version"),
+						strAttr("backend_prefix", "stack-1-backend"),
+						strAttr("provider_data", "stack-1-provider-data"),
+						strAttr("provider_version", "stack-1-provider-version"),
+						strAttr("terraform_version", "stack-1-terraform-version"),
 					),
 				},
 				{
 					path: "/stacks/stack-2",
 					add: globals(
-						str("local_a", "stack-2-local"),
-						boolean("local_b", false),
-						number("local_c", 777),
+						strAttr("local_a", "stack-2-local"),
+						boolAttr("local_b", false),
+						numberAttr("local_c", 777),
 						attr("local_d", `{ oopsie = "local_d_field"}`),
-						str("backend_prefix", "stack-2-backend"),
-						str("provider_data", "stack-2-provider-data"),
-						str("provider_version", "stack-2-provider-version"),
-						str("terraform_version", "stack-2-terraform-version"),
+						strAttr("backend_prefix", "stack-2-backend"),
+						strAttr("provider_data", "stack-2-provider-data"),
+						strAttr("provider_version", "stack-2-provider-version"),
+						strAttr("terraform_version", "stack-2-terraform-version"),
 					),
 				},
 			},
@@ -167,19 +167,19 @@ func TestGenerateHCL(t *testing.T) {
 					hcls: map[string]fmt.Stringer{
 						"backend.tf": backend(
 							labels("test"),
-							str("prefix", "stack-1-backend"),
+							strAttr("prefix", "stack-1-backend"),
 						),
 						"locals.tf": locals(
-							str("local_a", "stack-1-local"),
-							boolean("local_b", true),
-							number("local_c", 666),
-							str("local_d", "local_d_field"),
-							str("stackpath", "/stacks/stack-1"),
+							strAttr("local_a", "stack-1-local"),
+							boolAttr("local_b", true),
+							numberAttr("local_c", 666),
+							strAttr("local_d", "local_d_field"),
+							strAttr("stackpath", "/stacks/stack-1"),
 						),
 						"provider.tf": hcldoc(
 							provider(
 								labels("name"),
-								str("data", "stack-1-provider-data"),
+								strAttr("data", "stack-1-provider-data"),
 							),
 							terraform(
 								requiredProviders(
@@ -190,7 +190,7 @@ func TestGenerateHCL(t *testing.T) {
 								),
 							),
 							terraform(
-								str("required_version", "stack-1-terraform-version"),
+								strAttr("required_version", "stack-1-terraform-version"),
 							),
 						),
 					},
@@ -200,19 +200,19 @@ func TestGenerateHCL(t *testing.T) {
 					hcls: map[string]fmt.Stringer{
 						"backend.tf": backend(
 							labels("test"),
-							str("prefix", "stack-2-backend"),
+							strAttr("prefix", "stack-2-backend"),
 						),
 						"locals.tf": locals(
-							str("local_a", "stack-2-local"),
-							boolean("local_b", false),
-							number("local_c", 777),
+							strAttr("local_a", "stack-2-local"),
+							boolAttr("local_b", false),
+							numberAttr("local_c", 777),
 							attr("local_d", "null"),
-							str("stackpath", "/stacks/stack-2"),
+							strAttr("stackpath", "/stacks/stack-2"),
 						),
 						"provider.tf": hcldoc(
 							provider(
 								labels("name"),
-								str("data", "stack-2-provider-data"),
+								strAttr("data", "stack-2-provider-data"),
 							),
 							terraform(
 								requiredProviders(
@@ -223,7 +223,7 @@ func TestGenerateHCL(t *testing.T) {
 								),
 							),
 							terraform(
-								str("required_version", "stack-2-terraform-version"),
+								strAttr("required_version", "stack-2-terraform-version"),
 							),
 						),
 					},
@@ -256,9 +256,9 @@ func TestGenerateHCL(t *testing.T) {
 							labels("traversal.tf"),
 							content(
 								block("traversal",
-									expr("locals", "local.hi"),
-									expr("some_anything", "something.should_work"),
-									expr("multiple_traversal", "one.two.three.four.five"),
+									exprAttr("locals", "local.hi"),
+									exprAttr("some_anything", "something.should_work"),
+									exprAttr("multiple_traversal", "one.two.three.four.five"),
 								),
 							),
 						),
@@ -271,9 +271,9 @@ func TestGenerateHCL(t *testing.T) {
 					hcls: map[string]fmt.Stringer{
 						"traversal.tf": hcldoc(
 							block("traversal",
-								expr("locals", "local.hi"),
-								expr("multiple_traversal", "one.two.three.four.five"),
-								expr("some_anything", "something.should_work"),
+								exprAttr("locals", "local.hi"),
+								exprAttr("multiple_traversal", "one.two.three.four.five"),
+								exprAttr("some_anything", "something.should_work"),
 							),
 						),
 					},
@@ -283,9 +283,9 @@ func TestGenerateHCL(t *testing.T) {
 					hcls: map[string]fmt.Stringer{
 						"traversal.tf": hcldoc(
 							block("traversal",
-								expr("locals", "local.hi"),
-								expr("multiple_traversal", "one.two.three.four.five"),
-								expr("some_anything", "something.should_work"),
+								exprAttr("locals", "local.hi"),
+								exprAttr("multiple_traversal", "one.two.three.four.five"),
+								exprAttr("some_anything", "something.should_work"),
 							),
 						),
 					},
@@ -483,7 +483,7 @@ func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
 		labels(genFilename),
 		content(
 			terraform(
-				str("required_version", "1.11"),
+				strAttr("required_version", "1.11"),
 			),
 		),
 	)
@@ -512,12 +512,12 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 		labels(genFilename),
 		content(
 			terraform(
-				str("required_version", "1.11"),
+				strAttr("required_version", "1.11"),
 			),
 		),
 	)
 	firstWant := terraform(
-		str("required_version", "1.11"),
+		strAttr("required_version", "1.11"),
 	)
 
 	s := sandbox.New(t)
@@ -542,12 +542,12 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 		labels(genFilename),
 		content(
 			terraform(
-				str("required_version", "2.0"),
+				strAttr("required_version", "2.0"),
 			),
 		),
 	)
 	secondWant := terraform(
-		str("required_version", "2.0"),
+		strAttr("required_version", "2.0"),
 	)
 
 	rootConfig.Write(secondConfig.String())
@@ -583,7 +583,7 @@ func TestGeneratedHCLHeaders(t *testing.T) {
 			labels(rootFilename),
 			content(
 				block("root",
-					str("attr", "root"),
+					strAttr("attr", "root"),
 				),
 			),
 		).String(),
@@ -596,7 +596,7 @@ func TestGeneratedHCLHeaders(t *testing.T) {
 				labels(stackFilename),
 				content(
 					block("stack",
-						str("attr", "stack"),
+						strAttr("attr", "stack"),
 					),
 				),
 			),
@@ -628,7 +628,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 				labels("file1.tf"),
 				content(
 					block("block1",
-						boolean("whatever", true),
+						boolAttr("whatever", true),
 					),
 				),
 			),
@@ -636,7 +636,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 				labels("file2.tf"),
 				content(
 					block("block2",
-						boolean("whatever", true),
+						boolAttr("whatever", true),
 					),
 				),
 			),
@@ -663,7 +663,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 				labels("file1.tf"),
 				content(
 					block("changed",
-						boolean("newstuff", true),
+						boolAttr("newstuff", true),
 					),
 				),
 			),

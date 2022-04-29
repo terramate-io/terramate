@@ -817,7 +817,7 @@ func blockIsAllowed(name string) bool {
 		Logger()
 
 	switch name {
-	case "terramate", "stack", "globals", "generate_hcl":
+	case "terramate", "stack", "globals", "generate_hcl", "generate_file":
 		logger.Trace().Msg("Block name was allowed.")
 		return true
 	default:
