@@ -535,11 +535,13 @@ func hasTerramateHeader(code []byte) bool {
 }
 
 func checkGeneratedFilesPaths(genfiles generatedFiles) error {
-	for filename := range genfiles {
+	for filename, genfile := range genfiles {
 		fname := filepath.ToSlash(filename)
 		if strings.Contains(fname, "/") {
-			// TODO(katcipis): improve error with origin info
-			return errors.E("dir separator not allowed but found on %q", filename)
+			return errors.E(
+				"filenames with dirs are disallowed, config %q provided filename %q",
+				genfile.Origin(),
+				filename)
 		}
 	}
 	return nil
