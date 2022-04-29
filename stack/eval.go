@@ -18,6 +18,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/rs/zerolog/log"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // NewEvalCtx creates a new evaluation context for a stack
@@ -31,7 +32,7 @@ func NewEvalCtx(stackpath string, sm Metadata, globals Globals) (*eval.Context, 
 
 	logger.Trace().Msg("Add stack metadata evaluation namespace.")
 
-	err := evalctx.SetNamespace("terramate", MetaToCtyMap(sm))
+	err := evalctx.SetNamespace("terramate", metaToCtyMap(sm))
 	if err != nil {
 		return nil, errors.E(sm, err, "setting terramate namespace on eval context")
 	}
@@ -43,4 +44,12 @@ func NewEvalCtx(stackpath string, sm Metadata, globals Globals) (*eval.Context, 
 	}
 
 	return evalctx, nil
+}
+
+func metaToCtyMap(m Metadata) map[string]cty.Value {
+	return map[string]cty.Value{
+		"name":        cty.StringVal(m.Name()),
+		"path":        cty.StringVal(m.Path()),
+		"description": cty.StringVal(m.Desc()),
+	}
 }
