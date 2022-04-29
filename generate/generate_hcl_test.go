@@ -16,7 +16,6 @@ package generate_test
 
 import (
 	"fmt"
-	"io/fs"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -25,27 +24,11 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
-	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
 func TestGenerateHCL(t *testing.T) {
-	type (
-		generatedHCL struct {
-			stack string
-			hcls  map[string]fmt.Stringer
-		}
-		testcase struct {
-			name       string
-			layout     []string
-			configs    []hclconfig
-			workingDir string
-			wantHCL    []generatedHCL
-			wantReport generate.Report
-		}
-	)
-
 	provider := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("provider", builders...)
 	}
@@ -57,7 +40,7 @@ func TestGenerateHCL(t *testing.T) {
 		return hclwrite.AttributeValue(t, name, expr)
 	}
 
-	tcases := []testcase{
+	testCodeGeneration(t, []testcase{
 		{
 			name: "no generated HCL",
 			layout: []string{
@@ -161,10 +144,10 @@ func TestGenerateHCL(t *testing.T) {
 					),
 				},
 			},
-			wantHCL: []generatedHCL{
+			want: []generatedFile{
 				{
 					stack: "/stacks/stack-1",
-					hcls: map[string]fmt.Stringer{
+					files: map[string]fmt.Stringer{
 						"backend.tf": backend(
 							labels("test"),
 							strAttr("prefix", "stack-1-backend"),
@@ -197,7 +180,7 @@ func TestGenerateHCL(t *testing.T) {
 				},
 				{
 					stack: "/stacks/stack-2",
-					hcls: map[string]fmt.Stringer{
+					files: map[string]fmt.Stringer{
 						"backend.tf": backend(
 							labels("test"),
 							strAttr("prefix", "stack-2-backend"),
@@ -265,10 +248,10 @@ func TestGenerateHCL(t *testing.T) {
 					),
 				},
 			},
-			wantHCL: []generatedHCL{
+			want: []generatedFile{
 				{
 					stack: "/stacks/stack-1",
-					hcls: map[string]fmt.Stringer{
+					files: map[string]fmt.Stringer{
 						"traversal.tf": hcldoc(
 							block("traversal",
 								exprAttr("locals", "local.hi"),
@@ -280,7 +263,7 @@ func TestGenerateHCL(t *testing.T) {
 				},
 				{
 					stack: "/stacks/stack-2",
-					hcls: map[string]fmt.Stringer{
+					files: map[string]fmt.Stringer{
 						"traversal.tf": hcldoc(
 							block("traversal",
 								exprAttr("locals", "local.hi"),
@@ -391,86 +374,7 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 		},
-	}
-
-	for _, tcase := range tcases {
-		t.Run(tcase.name, func(t *testing.T) {
-			s := sandbox.New(t)
-			s.BuildTree(tcase.layout)
-
-			for _, cfg := range tcase.configs {
-				path := filepath.Join(s.RootDir(), cfg.path)
-				test.AppendFile(t, path, config.DefaultFilename, cfg.add.String())
-			}
-
-			assertGeneratedHCLs := func(t *testing.T) {
-				t.Helper()
-
-				for _, wantDesc := range tcase.wantHCL {
-					stackRelPath := wantDesc.stack[1:]
-					stack := s.StackEntry(stackRelPath)
-
-					for name, wantHCL := range wantDesc.hcls {
-						want := wantHCL.String()
-						got := stack.ReadFile(name)
-
-						assertGenCodeEquals(t, got, want)
-					}
-				}
-			}
-
-			workingDir := filepath.Join(s.RootDir(), tcase.workingDir)
-			report := generate.Do(s.RootDir(), workingDir)
-			assertEqualReports(t, report, tcase.wantReport)
-
-			assertGeneratedHCLs(t)
-
-			// piggyback on the tests to validate that regeneration doesnt
-			// delete files or fail and has identical results.
-			t.Run("regenerate", func(t *testing.T) {
-				report := generate.Do(s.RootDir(), workingDir)
-				// since we just generated everything, report should only contain
-				// the same failures as previous code generation.
-				assertEqualReports(t, report, generate.Report{
-					Failures: tcase.wantReport.Failures,
-				})
-				assertGeneratedHCLs(t)
-			})
-
-			// Check we don't have extraneous/unwanted files
-			// We remove wanted/expected generated code
-			// So we should have only basic terramate configs left
-			// There is potential to extract this for other code generation tests.
-			for _, wantDesc := range tcase.wantHCL {
-				stackRelPath := wantDesc.stack[1:]
-				stack := s.StackEntry(stackRelPath)
-				for filename := range wantDesc.hcls {
-					stack.RemoveFile(filename)
-				}
-			}
-			err := filepath.WalkDir(s.RootDir(), func(path string, d fs.DirEntry, err error) error {
-				t.Helper()
-
-				assert.NoError(t, err, "checking for unwanted generated files")
-				if d.IsDir() {
-					if d.Name() == ".git" {
-						return filepath.SkipDir
-					}
-					return nil
-				}
-
-				// sandbox create README.md inside test dirs
-				if d.Name() == config.DefaultFilename || d.Name() == "README.md" {
-					return nil
-				}
-
-				t.Errorf("unwanted file %q", path)
-				return nil
-			})
-
-			assert.NoError(t, err)
-		})
-	}
+	})
 }
 
 func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {

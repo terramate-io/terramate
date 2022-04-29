@@ -57,6 +57,7 @@ func (s str) String() string {
 }
 
 func testCodeGeneration(t *testing.T, tcases []testcase) {
+	t.Helper()
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
