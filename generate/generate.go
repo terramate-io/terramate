@@ -89,13 +89,13 @@ func Do(root string, workingDir string) Report {
 
 		logger.Trace().Msg("Generate code from generate_hcl blocks")
 
-		err := loadGenerateHCLFiles(root, stackpath, stack, globals, genfiles)
+		err := loadGenerateHCL(root, stackpath, stack, globals, genfiles)
 		if err != nil {
 			report.err = err
 			return report
 		}
 
-		err = loadGenerateFileFiles(root, stackpath, stack, globals, genfiles)
+		err = loadGenerateFile(root, stackpath, stack, globals, genfiles)
 		if err != nil {
 			report.err = err
 			return report
@@ -342,7 +342,7 @@ func updateGenHCLOutdatedFiles(
 	return nil
 }
 
-func loadGenerateHCLFiles(
+func loadGenerateHCL(
 	root string,
 	stackpath string,
 	meta stack.Metadata,
@@ -373,7 +373,7 @@ func loadGenerateHCLFiles(
 	return nil
 }
 
-func loadGenerateFileFiles(
+func loadGenerateFile(
 	root string,
 	stackpath string,
 	meta stack.Metadata,

@@ -31,6 +31,10 @@ import (
 )
 
 type (
+	str string
+
+	genFileChecker func(*testing.T, string, string)
+
 	generatedFile struct {
 		stack string
 		files map[string]fmt.Stringer
@@ -43,20 +47,18 @@ type (
 		want       []generatedFile
 		wantReport generate.Report
 	}
+
+	hclconfig struct {
+		path string
+		add  fmt.Stringer
+	}
 )
-
-type hclconfig struct {
-	path string
-	add  fmt.Stringer
-}
-
-type str string
 
 func (s str) String() string {
 	return string(s)
 }
 
-func testCodeGeneration(t *testing.T, tcases []testcase) {
+func testCodeGeneration(t *testing.T, checkGenFile genFileChecker, tcases []testcase) {
 	t.Helper()
 
 	for _, tcase := range tcases {
@@ -80,7 +82,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 						want := wantFiles.String()
 						got := stack.ReadFile(name)
 
-						assertGenCodeEquals(t, got, want)
+						checkGenFile(t, got, want)
 					}
 				}
 			}
@@ -139,14 +141,14 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 	}
 }
 
-func assertGenCodeEquals(t *testing.T, got string, want string) {
+func assertHCLEquals(t *testing.T, got string, want string) {
 	t.Helper()
 
 	const trimmedChars = "\n "
 
 	// Terramate header validation is done separately, here we check only code.
 	// So headers are removed.
-	got = removeTerramateHeader(got)
+	got = removeTerramateHCLHeader(got)
 	got = strings.Trim(got, trimmedChars)
 	want = strings.Trim(want, trimmedChars)
 
@@ -158,7 +160,7 @@ func assertGenCodeEquals(t *testing.T, got string, want string) {
 	}
 }
 
-func removeTerramateHeader(code string) string {
+func removeTerramateHCLHeader(code string) string {
 	lines := []string{}
 
 	for _, line := range strings.Split(code, "\n") {
