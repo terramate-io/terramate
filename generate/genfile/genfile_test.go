@@ -52,23 +52,15 @@ func TestLoadGenerateFiles(t *testing.T) {
 		}
 	)
 
-	hcldoc := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildHCL(builders...)
-	}
 	generateFile := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("generate_file", builders...)
 	}
-	labels := func(labels ...string) hclwrite.BlockBuilder {
-		return hclwrite.Labels(labels...)
-	}
+	hcldoc := hclwrite.BuildHCL
+	labels := hclwrite.Labels
+	expr := hclwrite.Expression
+	str := hclwrite.String
 	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("globals", builders...)
-	}
-	expr := func(name string, expr string) hclwrite.BlockBuilder {
-		return hclwrite.Expression(name, expr)
-	}
-	str := func(name string, val string) hclwrite.BlockBuilder {
-		return hclwrite.String(name, val)
 	}
 
 	tcases := []testcase{
