@@ -228,7 +228,7 @@ func (p project) checkDefaultRemote(g *git.Git) error {
 	)
 }
 
-func (p *project) checkLocalDefaultIsUpdated(g *git.Git) error {
+func (p *project) checkLocalDefaultIsUpdated() error {
 	logger := log.With().
 		Str("action", "checkLocalDefaultIsUpdated()").
 		Str("workingDir", p.wd).
@@ -248,12 +248,12 @@ func (p *project) checkLocalDefaultIsUpdated(g *git.Git) error {
 	gitcfg := p.gitcfg()
 
 	logger.Trace().Msg("Fetch remote reference.")
-	remoteDefaultBranchCommitID, err := p.parseRemoteDefaultBranchCommitID(g)
+	remoteDefaultBranchCommitID, err := p.parseRemoteDefaultBranchCommitID(gw)
 	if err != nil {
 		return fmt.Errorf("parsing remote default branch commit id: %w", err)
 	}
 
-	mergeBaseCommitID, err := g.MergeBase(p.git.headCommitID, remoteDefaultBranchCommitID)
+	mergeBaseCommitID, err := gw.MergeBase(p.git.headCommitID, remoteDefaultBranchCommitID)
 	if err != nil {
 		return fmt.Errorf(
 			"the reference %s/%s is not reachable from HEAD: %w",

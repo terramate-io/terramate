@@ -319,28 +319,6 @@ func (c *cli) run() {
 
 	c.checkVersion()
 
-	if c.parsedArgs.Changed {
-		logger.Trace().Msg("`Changed` flag was set.")
-
-		logger.Trace().Msg("Create new git wrapper.")
-
-		git, err := newGit(c.root(), true)
-		if err != nil {
-			log.Fatal().
-				Err(err).
-				Msg("creating git wrapper.")
-		}
-
-		logger.Trace().Msg("Check git default branch was updated.")
-
-		// FIXME(katcipis): git checks should be done also on run with no --changed
-		if err := c.prj.checkLocalDefaultIsUpdated(git); err != nil {
-			log.Fatal().
-				Err(err).
-				Msg("checking git default branch was updated.")
-		}
-	}
-
 	logger.Debug().Msg("Handle command.")
 
 	switch c.ctx.Command() {
