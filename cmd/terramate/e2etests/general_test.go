@@ -445,6 +445,8 @@ terramate {
 }
 
 func TestCommandsNotRequiringGitSafeguards(t *testing.T) {
+	t.Skip()
+
 	// Regression test to guarantee that all git checks
 	// are disabled and no git operation will be performed for certain commands.
 	// Some people like to get some coding done on airplanes :-)

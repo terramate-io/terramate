@@ -135,37 +135,49 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 		gitOpt.DefaultRemote = defaultRemote
 	}
 
-	if p.isRepo {
-		logger.Trace().Msg("Create new git wrapper.")
+	return nil
+}
 
-		gw, err := newGit(p.wd, false)
-		if err != nil {
-			return err
-		}
+func (p *project) configureGit(parsedArgs *cliSpec) error {
+	logger := log.With().
+		Str("action", "setDefaults()").
+		Str("workingDir", p.wd).
+		Logger()
 
-		logger.Trace().Msg("Check git default remote.")
+	if !p.isRepo {
+		logger.Trace().Msg("Project is not a git repo, nothing to do")
+		return nil
+	}
 
-		if err := p.checkDefaultRemote(gw); err != nil {
-			log.Fatal().
-				Err(err).
-				Msg("Checking git default remote.")
-		}
+	logger.Trace().Msg("Create new git wrapper.")
 
-		err = p.parseLocalDefaultBranch(gw)
-		if err != nil {
-			return err
-		}
+	gw, err := newGit(p.wd, false)
+	if err != nil {
+		return err
+	}
 
-		err = p.parseHead(gw)
-		if err != nil {
-			return err
-		}
+	logger.Trace().Msg("Check git default remote.")
 
-		if parsedArgs.GitChangeBase != "" {
-			p.baseRef = parsedArgs.GitChangeBase
-		} else {
-			p.baseRef = p.defaultBaseRef(gw)
-		}
+	if err := p.checkDefaultRemote(gw); err != nil {
+		log.Fatal().
+			Err(err).
+			Msg("Checking git default remote.")
+	}
+
+	err = p.parseLocalDefaultBranch(gw)
+	if err != nil {
+		return err
+	}
+
+	err = p.parseHead(gw)
+	if err != nil {
+		return err
+	}
+
+	if parsedArgs.GitChangeBase != "" {
+		p.baseRef = parsedArgs.GitChangeBase
+	} else {
+		p.baseRef = p.defaultBaseRef(gw)
 	}
 
 	return nil

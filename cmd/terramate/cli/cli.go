@@ -333,6 +333,7 @@ func (c *cli) run() {
 
 		logger.Trace().Msg("Check git default branch was updated.")
 
+		// FIXME(katcipis): git checks should be done also on run with no --changed
 		if err := c.prj.checkLocalDefaultIsUpdated(git); err != nil {
 			log.Fatal().
 				Err(err).
@@ -459,7 +460,14 @@ func (c *cli) listStacks(mgr *terramate.Manager, isChanged bool) (*terramate.Sta
 			Str("action", "listStacks()").
 			Str("workingDir", c.wd()).
 			Msg("`Changed` flag was set. List changed stacks.")
-		return mgr.ListChanged()
+
+		if err := c.prj.configureGit(c.parsedArgs); err != nil {
+			log.Fatal().
+				Str("action", "listStacks()").
+				Err(err).
+				Msgf("configuring git")
+		}
+		return mgr.ListChanged(c.prj.baseRef)
 	}
 	return mgr.List()
 }
@@ -477,7 +485,7 @@ func (c *cli) printStacks() {
 	logger.Trace().
 		Str("workingDir", c.wd()).
 		Msg("Create a new stack manager.")
-	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+	mgr := terramate.NewManager(c.root())
 
 	logger.Trace().
 		Str("workingDir", c.wd()).
@@ -697,7 +705,7 @@ func (c *cli) printStacksGlobals() {
 	logger.Trace().
 		Msg("Create new terramate manager.")
 
-	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+	mgr := terramate.NewManager(c.root())
 	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		logger.Fatal().
@@ -735,7 +743,7 @@ func (c *cli) printMetadata() {
 	logger.Trace().
 		Msg("Create new terramate manager.")
 
-	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+	mgr := terramate.NewManager(c.root())
 	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		logger.Fatal().
@@ -813,6 +821,12 @@ func (c *cli) runOnStacks() {
 		Str("action", "runOnStacks()").
 		Str("workingDir", c.wd()).
 		Logger()
+
+	if err := c.prj.configureGit(c.parsedArgs); err != nil {
+		logger.Fatal().
+			Err(err).
+			Msgf("configuring git")
+	}
 
 	stacks, err := c.computeSelectedStacks(true)
 	if err != nil {
@@ -924,7 +938,7 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) ([]stack.S, error) {
 
 	logger.Trace().Msg("Create new terramate manager.")
 
-	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+	mgr := terramate.NewManager(c.root())
 
 	logger.Trace().Msg("Get list of stacks.")
 

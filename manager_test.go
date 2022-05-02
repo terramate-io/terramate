@@ -145,9 +145,9 @@ func TestListChangedStacks(t *testing.T) {
 			}
 
 			repo := tc.repobuilder(t)
-			m := terramate.NewManager(repo.Dir, tc.baseRef)
+			m := terramate.NewManager(repo.Dir)
 
-			report, err := m.ListChanged()
+			report, err := m.ListChanged(tc.baseRef)
 			assert.EqualErrs(t, tc.want.err, err, "ListChanged() error")
 
 			changedStacks := report.Stacks
@@ -166,7 +166,7 @@ func TestListChangedStackReason(t *testing.T) {
 	repo := singleNotMergedCommitBranch(t)
 
 	m := newManager(repo.Dir)
-	report, err := m.ListChanged()
+	report, err := m.ListChanged(defaultBranch)
 	assert.NoError(t, err, "unexpected error")
 
 	changed := report.Stacks
@@ -177,7 +177,7 @@ func TestListChangedStackReason(t *testing.T) {
 	repo = singleStackDependentModuleChangedRepo(t)
 
 	m = newManager(repo.Dir)
-	report, err = m.ListChanged()
+	report, err = m.ListChanged(defaultBranch)
 	assert.NoError(t, err, "unexpected error")
 
 	changed = report.Stacks
@@ -518,5 +518,5 @@ module "module2" {
 }
 
 func newManager(basedir string) *terramate.Manager {
-	return terramate.NewManager(basedir, defaultBranch)
+	return terramate.NewManager(basedir)
 }

@@ -33,9 +33,7 @@ import (
 type (
 	// Manager is the terramate stacks manager.
 	Manager struct {
-		root       string // root is the project's root directory
-		gitBaseRef string // gitBaseRef is the git ref where we compare changes.
-
+		root        string // root is the project's root directory
 		stackLoader stack.Loader
 	}
 
@@ -65,11 +63,10 @@ const errList errors.Kind = "listing stacks error"
 const errListChanged errors.Kind = "listing changed stacks error"
 
 // NewManager creates a new stack manager. The rootdir is the project's
-// directory and gitBaseRef is the git reference to compare against for changes.
-func NewManager(rootdir string, gitBaseRef string) *Manager {
+// directory.
+func NewManager(rootdir string) *Manager {
 	return &Manager{
 		root:        rootdir,
-		gitBaseRef:  gitBaseRef,
 		stackLoader: stack.NewLoader(rootdir),
 	}
 }
@@ -119,7 +116,7 @@ func (m *Manager) List() (*StacksReport, error) {
 // system in place and that you are working on a branch that is not main.
 // It's an error to call this method in a directory that's not
 // inside a repository or a repository with no commits in it.
-func (m *Manager) ListChanged() (*StacksReport, error) {
+func (m *Manager) ListChanged(gitBaseRef string) (*StacksReport, error) {
 	logger := log.With().
 		Str("action", "ListChanged()").
 		Logger()
@@ -147,7 +144,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 
 	logger.Debug().Msg("List changed files.")
 
-	files, err := listChangedFiles(m.root, m.gitBaseRef)
+	files, err := listChangedFiles(m.root, gitBaseRef)
 	if err != nil {
 		return nil, errors.E(errListChanged, err)
 	}
@@ -244,7 +241,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 					Str("configFile", tfpath).
 					Msg("Check if module changed.")
 
-				changed, why, err := m.moduleChanged(mod, stack.HostPath(), make(map[string]bool))
+				changed, why, err := m.moduleChanged(mod, stack.HostPath(), gitBaseRef, make(map[string]bool))
 				if err != nil {
 					return errors.E(errListChanged, err, "checking module %q", mod.Source)
 				}
@@ -327,7 +324,7 @@ func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) err
 // called recursively. The visited keep track of the modules already parsed to
 // avoid infinite loops.
 func (m *Manager) moduleChanged(
-	mod hcl.Module, basedir string, visited map[string]bool,
+	mod hcl.Module, basedir, gitBaseRef string, visited map[string]bool,
 ) (changed bool, why string, err error) {
 	logger := log.With().
 		Str("action", "moduleChanged()").
@@ -365,7 +362,7 @@ func (m *Manager) moduleChanged(
 	logger.Debug().
 		Str("path", modPath).
 		Msg("Get list of changed files.")
-	changedFiles, err := listChangedFiles(modPath, m.gitBaseRef)
+	changedFiles, err := listChangedFiles(modPath, gitBaseRef)
 	if err != nil {
 		return false, "", errors.E(err,
 			"listing changes in the module %q",
@@ -406,7 +403,7 @@ func (m *Manager) moduleChanged(
 			logger.Trace().
 				Str("path", modPath).
 				Msg("Get if module is changed.")
-			changed, reason, err = m.moduleChanged(mod2, modPath, visited)
+			changed, reason, err = m.moduleChanged(mod2, modPath, gitBaseRef, visited)
 			if err != nil {
 				return err
 			}
