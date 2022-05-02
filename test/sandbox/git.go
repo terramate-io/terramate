@@ -52,15 +52,6 @@ func NewGit(t *testing.T, repodir string) *Git {
 	}
 }
 
-// NewGitWithConfig creates a new git wrapper with the provided GitConfig.
-func NewGitWithConfig(t *testing.T, cfg GitConfig) *Git {
-	return &Git{
-		t:   t,
-		cfg: cfg,
-		g:   test.NewGitWrapper(t, cfg.repoDir, []string{}),
-	}
-}
-
 // Init will initialize the local git repo with a default remote.
 // After calling Init(), the methods Push() and Pull() pushes and pulls changes
 // from/to the configured default remote.
@@ -248,5 +239,13 @@ func defaultGitConfig() GitConfig {
 		LocalBranchName:         "main",
 		DefaultRemoteName:       "origin",
 		DefaultRemoteBranchName: "main",
+	}
+}
+
+func newGitWithConfig(t *testing.T, cfg GitConfig) *Git {
+	return &Git{
+		t:   t,
+		cfg: cfg,
+		g:   test.NewGitWrapper(t, cfg.repoDir, []string{}),
 	}
 }

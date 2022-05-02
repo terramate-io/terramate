@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -440,4 +441,54 @@ terramate {
 `)
 
 	assertRun(t, cli.listChangedStacks())
+}
+
+func TestRunGitRemoteNotCheckedIfGitChecksAreDisabled(t *testing.T) {
+	// Regression test to guarantee that all git checks
+	// are disabled no git operation will be performed.
+	// Some people like to get some coding done on airplanes :-)
+	const (
+		mainTfFileName = "main.tf"
+		mainTfContents = "# some code"
+	)
+
+	s := sandbox.NoGit(t)
+	// Here we set a customized git setup that will never work on any Terramate checks.
+	// So we ensure that if a git repo exists it is ignored when checks are disabled.
+	git := test.NewGitWrapper(t, s.RootDir(), []string{})
+
+	err := git.Init(s.RootDir(), "main", true)
+	assert.NoError(t, err, "git init")
+
+	stack := s.CreateStack("stack")
+	stack.CreateFile(mainTfFileName, mainTfContents)
+
+	cli := newCLI(t, s.RootDir())
+	cat := test.LookPath(t, "cat")
+
+	assertRunResult(t, cli.run(
+		"run",
+		"--disable-check-git-untracked",
+		"--disable-check-git-uncommitted",
+		cat,
+		mainTfFileName,
+	), runExpected{
+		Stdout: mainTfContents,
+	})
+
+	assertRunResult(t, cli.run(
+		"list",
+		"--disable-check-git-untracked",
+		"--disable-check-git-uncommitted",
+	), runExpected{
+		Stdout: "stack\n",
+	})
+
+	assertRunResult(t, cli.run(
+		"generate",
+		"--disable-check-git-untracked",
+		"--disable-check-git-uncommitted",
+	), runExpected{
+		IgnoreStdout: true,
+	})
 }

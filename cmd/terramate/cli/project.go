@@ -139,6 +139,12 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 	}
 
 	if p.isRepo {
+
+		if parsedArgs.DisableCheckGitUntracked && parsedArgs.DisableCheckGitUncommitted {
+			logger.Trace().Msg("Git checks disabled, ignoring git repo")
+			return nil
+		}
+
 		logger.Trace().Msg("Create new git wrapper.")
 
 		gw, err := newGit(p.wd, false)

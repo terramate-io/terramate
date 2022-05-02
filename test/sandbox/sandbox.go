@@ -93,7 +93,7 @@ func NewWithGitConfig(t *testing.T, cfg GitConfig) S {
 
 	cfg.repoDir = s.RootDir()
 
-	s.git = NewGitWithConfig(t, cfg)
+	s.git = newGitWithConfig(t, cfg)
 	s.git.Init()
 	return s
 }
