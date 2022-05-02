@@ -16,6 +16,7 @@ package e2etest
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -443,16 +444,13 @@ terramate {
 	assertRun(t, cli.listChangedStacks())
 }
 
-func TestRunGitRemoteNotCheckedIfGitChecksAreDisabled(t *testing.T) {
+func TestCommandsNotRequiringGitSafeguards(t *testing.T) {
 	// Regression test to guarantee that all git checks
-	// are disabled no git operation will be performed.
+	// are disabled and no git operation will be performed for certain commands.
 	// Some people like to get some coding done on airplanes :-)
-	const (
-		mainTfFileName = "main.tf"
-		mainTfContents = "# some code"
-	)
-
 	s := sandbox.NoGit(t)
+
+	// We have alternative behavior when a project is not a git repo.
 	// Here we set a customized git setup that will never work on any Terramate checks.
 	// So we ensure that if a git repo exists it is ignored when checks are disabled.
 	git := test.NewGitWrapper(t, s.RootDir(), []string{})
@@ -460,35 +458,25 @@ func TestRunGitRemoteNotCheckedIfGitChecksAreDisabled(t *testing.T) {
 	err := git.Init(s.RootDir(), "main", true)
 	assert.NoError(t, err, "git init")
 
-	stack := s.CreateStack("stack")
-	stack.CreateFile(mainTfFileName, mainTfContents)
+	s.CreateStack("stack")
 
 	cli := newCLI(t, s.RootDir())
-	cat := test.LookPath(t, "cat")
 
-	assertRunResult(t, cli.run(
-		"run",
-		"--disable-check-git-untracked",
-		"--disable-check-git-uncommitted",
-		cat,
-		mainTfFileName,
-	), runExpected{
-		Stdout: mainTfContents,
-	})
-
-	assertRunResult(t, cli.run(
-		"list",
-		"--disable-check-git-untracked",
-		"--disable-check-git-uncommitted",
-	), runExpected{
-		Stdout: "stack\n",
-	})
-
-	assertRunResult(t, cli.run(
+	cmds := []string{
+		"experimental metadata",
+		"experimental globals",
+		"experimental init-stack stack",
+		"experimental run-order",
+		"experimental run-graph",
 		"generate",
-		"--disable-check-git-untracked",
-		"--disable-check-git-uncommitted",
-	), runExpected{
-		IgnoreStdout: true,
-	})
+		"list",
+	}
+	for _, cmd := range cmds {
+		t.Run(cmd, func(t *testing.T) {
+			args := strings.Split(cmd, " ")
+			assertRunResult(t, cli.run(args...), runExpected{
+				IgnoreStdout: true,
+			})
+		})
+	}
 }

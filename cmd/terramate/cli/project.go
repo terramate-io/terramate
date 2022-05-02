@@ -31,9 +31,8 @@ type project struct {
 	baseRef string
 
 	git struct {
-		headCommitID                string
-		localDefaultBranchCommitID  string
-		remoteDefaultBranchCommitID string
+		headCommitID               string
+		localDefaultBranchCommitID string
 	}
 }
 
@@ -63,18 +62,16 @@ func (p *project) parseHead(g *git.Git) error {
 	return nil
 }
 
-func (p *project) parseRemoteDefaultBranch(g *git.Git) error {
+func (p *project) parseRemoteDefaultBranchCommitID(g *git.Git) (string, error) {
 	gitcfg := p.gitcfg()
 	remoteRef, err := g.FetchRemoteRev(gitcfg.DefaultRemote, gitcfg.DefaultBranch)
 	if err != nil {
-		return fmt.Errorf("fetching remote commit of %s/%s: %v",
+		return "", fmt.Errorf("fetching remote commit of %s/%s: %v",
 			gitcfg.DefaultRemote, gitcfg.DefaultBranch,
 			err,
 		)
 	}
-
-	p.git.remoteDefaultBranchCommitID = remoteRef.CommitID
-	return nil
+	return remoteRef.CommitID, nil
 }
 
 func (p *project) isDefaultBranch(g *git.Git) bool {
@@ -139,12 +136,6 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 	}
 
 	if p.isRepo {
-
-		if parsedArgs.DisableCheckGitUntracked && parsedArgs.DisableCheckGitUncommitted {
-			logger.Trace().Msg("Git checks disabled, ignoring git repo")
-			return nil
-		}
-
 		logger.Trace().Msg("Create new git wrapper.")
 
 		gw, err := newGit(p.wd, false)
@@ -161,11 +152,6 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 		}
 
 		err = p.parseLocalDefaultBranch(gw)
-		if err != nil {
-			return err
-		}
-
-		err = p.parseRemoteDefaultBranch(gw)
 		if err != nil {
 			return err
 		}
@@ -250,8 +236,12 @@ func (p *project) checkLocalDefaultIsUpdated(g *git.Git) error {
 	gitcfg := p.gitcfg()
 
 	logger.Trace().Msg("Fetch remote reference.")
+	remoteDefaultBranchCommitID, err := p.parseRemoteDefaultBranchCommitID(g)
+	if err != nil {
+		return fmt.Errorf("parsing remote default branch commit id: %w", err)
+	}
 
-	mergeBaseCommitID, err := g.MergeBase(p.git.headCommitID, p.git.remoteDefaultBranchCommitID)
+	mergeBaseCommitID, err := g.MergeBase(p.git.headCommitID, remoteDefaultBranchCommitID)
 	if err != nil {
 		return fmt.Errorf(
 			"the reference %s/%s is not reachable from HEAD: %w",
