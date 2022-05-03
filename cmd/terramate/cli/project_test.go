@@ -11,6 +11,11 @@ import (
 )
 
 func TestLocalDefaultIsOutdated(t *testing.T) {
+	// This is a regression test for some internal issues on local default
+	// is outdated checking. Validating this behavior is important but
+	// the way it is done here is non-ideal, it tests private things in
+	// a very clumsy way. When we get better modeled git functions this
+	// can be improved drastically.
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack-1")
