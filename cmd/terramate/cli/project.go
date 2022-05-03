@@ -31,8 +31,7 @@ type project struct {
 	baseRef string
 
 	git struct {
-		headCommitID               string
-		localDefaultBranchCommitID string
+		headCommitID string
 	}
 }
 
@@ -40,16 +39,10 @@ func (p project) gitcfg() *hcl.GitConfig {
 	return p.rootcfg.Terramate.RootConfig.Git
 }
 
-func (p *project) parseLocalDefaultBranch(g *git.Git) error {
+func (p *project) parseLocalDefaultBranch(g *git.Git) (string, error) {
 	gitcfg := p.gitcfg()
 	refName := gitcfg.DefaultRemote + "/" + gitcfg.DefaultBranch
-	val, err := g.RevParse(refName)
-	if err != nil {
-		return err
-	}
-
-	p.git.localDefaultBranchCommitID = val
-	return nil
+	return g.RevParse(refName)
 }
 
 func (p *project) parseHead(g *git.Git) error {
@@ -74,7 +67,7 @@ func (p *project) parseRemoteDefaultBranchCommitID(g *git.Git) (string, error) {
 	return remoteRef.CommitID, nil
 }
 
-func (p *project) isDefaultBranch(g *git.Git) bool {
+func (p *project) isDefaultBranch(g *git.Git) (bool, error) {
 	git := p.gitcfg()
 	branch, err := g.CurrentBranch()
 	if err != nil {
@@ -82,10 +75,15 @@ func (p *project) isDefaultBranch(g *git.Git) bool {
 		// The current branch name (the symbolic-ref of the HEAD) is not always
 		// available, in this case we naively check if HEAD == local origin/main.
 		// This case usually happens in the git setup of CIs.
-		return p.git.localDefaultBranchCommitID == p.git.headCommitID
+
+		localDefaultBranchCommitID, err := p.parseLocalDefaultBranch(g)
+		if err != nil {
+			return false, err
+		}
+		return localDefaultBranchCommitID == p.git.headCommitID, nil
 	}
 
-	return branch == git.DefaultBranch
+	return branch == git.DefaultBranch, nil
 }
 
 // defaultBaseRef returns the baseRef for the current git environment.
@@ -96,7 +94,12 @@ func (p *project) defaultBaseRef(g *git.Git) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("parsing remote default branch commit id: %w", err)
 	}
-	if p.isDefaultBranch(g) &&
+
+	isDefaultBranch, err := p.isDefaultBranch(g)
+	if err != nil {
+		return "", nil
+	}
+	if isDefaultBranch &&
 		remoteDefaultBranchCommitID == p.git.headCommitID {
 		_, err := g.RevParse(git.DefaultBranchBaseRef)
 		if err == nil {
@@ -177,11 +180,6 @@ func (p *project) configureGit(parsedArgs *cliSpec) error {
 			Msg("Checking git default remote.")
 	}
 
-	err = p.parseLocalDefaultBranch(gw)
-	if err != nil {
-		return err
-	}
-
 	err = p.parseHead(gw)
 	if err != nil {
 		return err
@@ -258,7 +256,12 @@ func (p *project) checkLocalDefaultIsUpdated() error {
 		return err
 	}
 
-	if !p.isDefaultBranch(gw) {
+	isDefaultBranch, err := p.isDefaultBranch(gw)
+	if err != nil {
+		return err
+	}
+
+	if !isDefaultBranch {
 		return nil
 	}
 
