@@ -42,18 +42,22 @@ func TestLeafDetectionIgnoresGitIgnoredDirs(t *testing.T) {
 
 	stackAbsPath := filepath.Join(s.RootDir(), "/stacks/stack")
 
-	assertStackIsLeafErr := func(want error) {
+	assertStackIsLeaf := func(wantIsLeaf bool, wantErr error) {
 		t.Helper()
 
-		_, err := stack.IsLeaf(s.RootDir(), stackAbsPath)
-		assert.IsError(t, err, want)
+		got, err := stack.IsLeaf(s.RootDir(), stackAbsPath)
+		assert.IsError(t, err, wantErr)
+
+		if got != wantIsLeaf {
+			t.Fatalf("got isLeaf %t != want %t", got, wantIsLeaf)
+		}
 	}
 
-	assertStackIsLeafErr(errors.E(stack.ErrHasSubstacks))
+	assertStackIsLeaf(false, errors.E(stack.ErrHasSubstacks))
 
 	s.RootEntry().CreateFile(".gitignore", "**/substack/*")
 
-	assertStackIsLeafErr(nil)
+	assertStackIsLeaf(true, nil)
 }
 
 func init() {
