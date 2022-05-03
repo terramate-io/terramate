@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/cmd/terramate/cli"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -301,7 +302,7 @@ func TestFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
 
 	wantRes := runExpected{
 		Status:      1,
-		StderrRegex: "main branch is not reachable",
+		StderrRegex: string(cli.ErrOutdatedLocalRev),
 	}
 
 	t.Run("list changed", func(t *testing.T) {

@@ -1034,10 +1034,15 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 		logger.Trace().Msg("Get root of git repo.")
 
 		gitdir, err := gw.Root()
+
 		if err == nil {
 			logger.Trace().Msg("Get absolute path of git directory.")
 
-			gitabs, err := filepath.Abs(gitdir)
+			gitabs := gitdir
+			if !filepath.IsAbs(gitabs) {
+				gitabs = filepath.Join(wd, gitdir)
+			}
+
 			if err != nil {
 				return project{}, false, fmt.Errorf("getting absolute path of %q: %w", gitdir, err)
 			}

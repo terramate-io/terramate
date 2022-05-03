@@ -75,26 +75,36 @@ func (p *project) parseRemoteDefaultBranchCommitID(g *git.Git) (string, error) {
 }
 
 func (p *project) isDefaultBranch(g *git.Git) bool {
-	// TODO(katcipis): this is not isDefaultBranch logic.
-	// required only by defaultBaseRef
-
-	//if p.git.localDefaultBranchCommitID != p.git.headCommitID {
-	//return false
-	//}
-
 	git := p.gitcfg()
 	branch, err := g.CurrentBranch()
-
-	return err != nil || branch == git.DefaultBranch
-}
-
-func (p *project) defaultBaseRef(g *git.Git) string {
-	git := p.gitcfg()
-	if p.isDefaultBranch(g) {
-		return git.DefaultBranchBaseRef
+	if err != nil {
+		// WHY?
+		// The current branch name (the symbolic-ref of the HEAD) is not always
+		// available, in this case we naively check if HEAD == local origin/main.
+		// This case usually happens in the git setup of CIs.
+		return p.git.localDefaultBranchCommitID == p.git.headCommitID
 	}
 
-	return p.defaultBranchRef()
+	return branch == git.DefaultBranch
+}
+
+// defaultBaseRef returns the baseRef for the current git environment.
+func (p *project) defaultBaseRef(g *git.Git) (string, error) {
+	git := p.gitcfg()
+
+	remoteDefaultBranchCommitID, err := p.parseRemoteDefaultBranchCommitID(g)
+	if err != nil {
+		return "", fmt.Errorf("parsing remote default branch commit id: %w", err)
+	}
+	if p.isDefaultBranch(g) &&
+		remoteDefaultBranchCommitID == p.git.headCommitID {
+		_, err := g.RevParse(git.DefaultBranchBaseRef)
+		if err == nil {
+			return git.DefaultBranchBaseRef, nil
+		}
+	}
+
+	return p.defaultBranchRef(), nil
 }
 
 func (p project) defaultBranchRef() string {
@@ -180,7 +190,11 @@ func (p *project) configureGit(parsedArgs *cliSpec) error {
 	if parsedArgs.GitChangeBase != "" {
 		p.baseRef = parsedArgs.GitChangeBase
 	} else {
-		p.baseRef = p.defaultBaseRef(gw)
+		baseRef, err := p.defaultBaseRef(gw)
+		if err != nil {
+			return err
+		}
+		p.baseRef = baseRef
 	}
 
 	return nil
@@ -266,7 +280,7 @@ func (p *project) checkLocalDefaultIsUpdated() error {
 		)
 	}
 
-	if mergeBaseCommitID != p.git.headCommitID {
+	if mergeBaseCommitID != remoteDefaultBranchCommitID {
 		return errors.E(
 			ErrOutdatedLocalRev,
 			"remote %s/%s != HEAD",
