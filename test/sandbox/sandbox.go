@@ -283,6 +283,22 @@ func (s S) CreateModule(relpath string) DirEntry {
 	return newDirEntry(s.t, s.rootdir, relpath)
 }
 
+// CreateDir will create a dir with the given relative path and returns the dir
+// entry for it.
+//
+// If the path is absolute, it will be considered in relation to the sandbox
+// root dir.
+func (s S) CreateDir(relpath string) DirEntry {
+	t := s.t
+	t.Helper()
+
+	if filepath.IsAbs(relpath) {
+		relpath = relpath[1:]
+	}
+
+	return newDirEntry(t, s.RootDir(), relpath)
+}
+
 // CreateStack will create a stack dir with the given relative path and
 // initializes the stack, returning a stack entry that can be used
 // to create files inside the stack dir.

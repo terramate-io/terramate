@@ -64,6 +64,11 @@ type (
 	}
 )
 
+const (
+	// ErrHasSubstacks indicates that a stack has a sub-stack (not leaf)
+	ErrHasSubstacks errors.Kind = "stack has substacks"
+)
+
 // New creates a new stack from configuration cfg.
 func New(root string, cfg hcl.Config) S {
 	name := cfg.Stack.Name
@@ -174,7 +179,7 @@ func TryLoad(root, absdir string) (stack S, found bool, err error) {
 	}
 
 	if !ok {
-		return S{}, false, errors.E(fmt.Sprintf("stack %q is not a leaf stack", absdir))
+		return S{}, false, errors.E(ErrHasSubstacks, fmt.Sprintf("dir %q", absdir))
 	}
 
 	logger.Debug().Msg("Create a new stack")
