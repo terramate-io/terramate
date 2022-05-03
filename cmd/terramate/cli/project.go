@@ -75,9 +75,12 @@ func (p *project) parseRemoteDefaultBranchCommitID(g *git.Git) (string, error) {
 }
 
 func (p *project) isDefaultBranch(g *git.Git) bool {
-	if p.git.localDefaultBranchCommitID != p.git.headCommitID {
-		return false
-	}
+	// TODO(katcipis): this is not isDefaultBranch logic.
+	// required only by defaultBaseRef
+
+	//if p.git.localDefaultBranchCommitID != p.git.headCommitID {
+	//return false
+	//}
 
 	git := p.gitcfg()
 	branch, err := g.CurrentBranch()
@@ -140,7 +143,7 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 
 func (p *project) configureGit(parsedArgs *cliSpec) error {
 	logger := log.With().
-		Str("action", "setDefaults()").
+		Str("action", "configureGit()").
 		Str("workingDir", p.wd).
 		Logger()
 

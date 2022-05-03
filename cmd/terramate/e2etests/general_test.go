@@ -272,7 +272,7 @@ func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
 	)
 }
 
-func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
+func TestFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack-1")
@@ -304,15 +304,23 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 		StderrRegex: "main branch is not reachable",
 	}
 
-	assertRunResult(t, ts.listChangedStacks(), wantRes)
+	t.Run("list changed", func(t *testing.T) {
+		assertRunResult(t, ts.listChangedStacks(), wantRes)
+	})
 
 	cat := test.LookPath(t, "cat")
-	assertRunResult(t, ts.run(
-		"run",
-		"--changed",
-		cat,
-		mainTfFile.Path(),
-	), wantRes)
+	t.Run("run changed", func(t *testing.T) {
+		assertRunResult(t, ts.run(
+			"run",
+			"--changed",
+			cat,
+			mainTfFile.Path(),
+		), wantRes)
+	})
+
+	t.Run("run", func(t *testing.T) {
+		assertRunResult(t, ts.run("run", cat, mainTfFile.Path()), wantRes)
+	})
 }
 
 func TestMainAfterOriginMainMustUseDefaultBaseRef(t *testing.T) {

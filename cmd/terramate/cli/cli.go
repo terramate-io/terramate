@@ -652,7 +652,7 @@ func (c *cli) printRunOrder() {
 	if err != nil {
 		logger.Fatal().
 			Err(err).
-			Msgf("computing selected stacks")
+			Msg("computing selected stacks")
 	}
 
 	logger.Debug().Msg("Get run order.")
@@ -801,9 +801,16 @@ func (c *cli) runOnStacks() {
 		Logger()
 
 	if err := c.prj.configureGit(c.parsedArgs); err != nil {
-		logger.Fatal().
+		log.Fatal().
+			Str("action", "runOnStacks()").
 			Err(err).
 			Msgf("configuring git")
+	}
+
+	if err := c.prj.checkLocalDefaultIsUpdated(); err != nil {
+		logger.Fatal().
+			Err(err).
+			Msg("checking local default branch is updated")
 	}
 
 	stacks, err := c.computeSelectedStacks(true)
