@@ -272,7 +272,7 @@ func (p *project) checkLocalDefaultIsUpdated() error {
 
 	mergeBaseCommitID, err := gw.MergeBase(p.git.headCommitID, remoteDefaultBranchCommitID)
 	if err != nil {
-		return fmt.Errorf(
+		return errors.E(ErrOutdatedLocalRev,
 			"the reference %s/%s is not reachable from HEAD: %w",
 			gitcfg.DefaultRemote,
 			gitcfg.DefaultBranch,

@@ -445,6 +445,12 @@ func (c *cli) listStacks(mgr *terramate.Manager, isChanged bool) (*terramate.Sta
 				Err(err).
 				Msgf("configuring git")
 		}
+		if err := c.prj.checkLocalDefaultIsUpdated(); err != nil {
+			log.Fatal().
+				Str("action", "listStacks()").
+				Err(err).
+				Msg("checking local default branch is updated")
+		}
 		return mgr.ListChanged(c.prj.baseRef)
 	}
 	return mgr.List()

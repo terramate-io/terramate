@@ -486,20 +486,20 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 		Str("path", dir).
 		Logger()
 
-	logger.Trace().Msg("Get dir info.")
+	logger.Trace().Msg("Get dir info")
 
 	st, err := os.Stat(dir)
 	if err != nil {
 		return nil, errors.E(err, "stat failed on %q", dir)
 	}
 
-	logger.Trace().Msg("Check if path is dir.")
+	logger.Trace().Msg("Check if path is dir")
 
 	if !st.IsDir() {
 		return nil, errors.E("is not a directory")
 	}
 
-	logger.Trace().Msg("Create git wrapper with dir.")
+	logger.Trace().Msg("Create git wrapper with dir")
 
 	g, err := git.WithConfig(git.Config{
 		WorkingDir: dir,
@@ -508,15 +508,15 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 		return nil, err
 	}
 
-	logger.Trace().
-		Msg("Get commit id of git base ref.")
+	logger.Trace().Msg("Get commit id of git base ref")
+
 	baseRef, err := g.RevParse(gitBaseRef)
 	if err != nil {
 		return nil, errors.E(err, "getting revision %q", gitBaseRef)
 	}
 
-	logger.Trace().
-		Msg("Get commit id of HEAD.")
+	logger.Trace().Msg("Get commit id of HEAD.")
+
 	headRef, err := g.RevParse("HEAD")
 	if err != nil {
 		return nil, errors.E(err, "getting HEAD revision")
@@ -526,8 +526,8 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 		return []string{}, nil
 	}
 
-	logger.Trace().
-		Msg("Find common commit ancestor of HEAd and base ref.")
+	logger.Trace().Msg("Find common commit ancestor of HEAD and base ref")
+
 	mergeBaseRef, err := g.MergeBase("HEAD", baseRef)
 	if err != nil {
 		return nil, errors.E(err, "getting merge-base HEAD main")
