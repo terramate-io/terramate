@@ -78,20 +78,28 @@ func (p *project) parseRemoteDefaultBranch(g *git.Git) error {
 }
 
 func (p *project) isDefaultBranch(g *git.Git) bool {
-	if p.git.localDefaultBranchCommitID != p.git.headCommitID {
-		return false
-	}
-
 	git := p.gitcfg()
 	branch, err := g.CurrentBranch()
+	if err != nil {
+		// WHY?
+		// The current branch name (the symbolic-ref of the HEAD) is not always
+		// available, in this case we naively check if HEAD == local origin/main.
+		// This case usually happens in the git setup of CIs.
+		return p.git.localDefaultBranchCommitID == p.git.headCommitID
+	}
 
-	return err != nil || branch == git.DefaultBranch
+	return branch == git.DefaultBranch
 }
 
+// defaultBaseRef returns the baseRef for the current git environment.
 func (p *project) defaultBaseRef(g *git.Git) string {
 	git := p.gitcfg()
-	if p.isDefaultBranch(g) {
-		return git.DefaultBranchBaseRef
+	if p.isDefaultBranch(g) &&
+		p.git.remoteDefaultBranchCommitID == p.git.headCommitID {
+		_, err := g.RevParse(git.DefaultBranchBaseRef)
+		if err == nil {
+			return git.DefaultBranchBaseRef
+		}
 	}
 
 	return p.defaultBranchRef()
@@ -255,7 +263,7 @@ func (p *project) checkLocalDefaultIsUpdated(g *git.Git) error {
 		)
 	}
 
-	if mergeBaseCommitID != p.git.headCommitID {
+	if mergeBaseCommitID != p.git.remoteDefaultBranchCommitID {
 		return errors.E(
 			ErrOutdatedLocalRev,
 			"remote %s/%s != HEAD",
