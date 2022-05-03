@@ -810,7 +810,7 @@ func (c *cli) runOnStacks() {
 		log.Fatal().
 			Str("action", "runOnStacks()").
 			Err(err).
-			Msgf("configuring git")
+			Msg("configuring git")
 	}
 
 	if err := c.prj.checkLocalDefaultIsUpdated(); err != nil {
