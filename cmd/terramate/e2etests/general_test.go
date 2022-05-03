@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/mineiros-io/terramate/cmd/terramate/cli"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -299,7 +300,7 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 
 	wantRes := runExpected{
 		Status:      1,
-		StderrRegex: "main branch is not reachable",
+		StderrRegex: string(cli.ErrOutdatedLocalRev),
 	}
 
 	assertRunResult(t, ts.listChangedStacks(), wantRes)
