@@ -794,6 +794,15 @@ func (git *Git) CurrentBranch() (string, error) {
 	return git.exec("symbolic-ref", "--short", "HEAD")
 }
 
+// SetRemoteURL sets the remote url.
+func (git *Git) SetRemoteURL(remote, url string) error {
+	if !git.config.AllowPorcelain {
+		return fmt.Errorf("SetRemoteURL: %w", ErrDenyPorcelain)
+	}
+	_, err := git.exec("remote", "set-url", remote, url)
+	return err
+}
+
 func (git *Git) exec(command string, args ...string) (string, error) {
 	logger := log.With().
 		Str("action", "exec()").
