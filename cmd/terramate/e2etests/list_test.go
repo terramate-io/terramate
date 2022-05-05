@@ -36,9 +36,25 @@ func TestCLIList(t *testing.T) {
 			name: "no stack",
 		},
 		{
-			name: "dotfiles ignored",
+			name: "dot directories ignored",
 			layout: []string{
 				"f:.stack/stack.tm:stack {}",
+			},
+		},
+		{
+			name: "dot files ignored",
+			layout: []string{
+				"f:stack/.stack.tm:stack {}",
+			},
+		},
+		{
+			name: "dot directories ignored in isLeaf check",
+			layout: []string{
+				"s:stack",
+				"f:stack/.substack/stack.tm:stack {}",
+			},
+			want: runExpected{
+				Stdout: "stack\n",
 			},
 		},
 		{
