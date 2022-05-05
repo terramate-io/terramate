@@ -22,8 +22,18 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
 		assertEqualStringList(t, got, want)
 	}
 
-	// Checking detection when there is no config generated yet
+	// Checking detection when content is empty
+	stackEntry.CreateConfig(
+		stackConfig(
+			generateFile(
+				labels("test.txt"),
+				strAttr("content", ""),
+			),
+		).String())
+
 	assertOutdatedFiles([]string{})
+
+	// Checking detection when there is no config generated yet
 	stackEntry.CreateConfig(
 		stackConfig(
 			generateFile(
