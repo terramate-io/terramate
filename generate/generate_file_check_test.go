@@ -60,7 +60,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
 			),
 		).String())
 
-	assertOutdatedFiles([]string{"testnew.tf"})
+	assertOutdatedFiles([]string{"testnew.txt"})
 
 	// Adding new filename to generation trigger detection
 	stackEntry.CreateConfig(
@@ -75,7 +75,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
 			),
 		).String())
 
-	assertOutdatedFiles([]string{"another.tf", "testnew.tf"})
+	assertOutdatedFiles([]string{"another.txt", "testnew.txt"})
 
 	s.Generate()
 
