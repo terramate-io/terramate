@@ -18,10 +18,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
-	"github.com/mineiros-io/terramate/hcl"
-	tmstack "github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -183,41 +180,4 @@ func TestCheckOutdatedIgnoresEmptyGenerateHCLBlocks(t *testing.T) {
 	s.Generate()
 
 	assertOutdatedFiles([]string{})
-}
-
-func TestCheckFailsWithInvalidConfig(t *testing.T) {
-	invalidConfigs := []string{
-		hcldoc(
-			generateHCL(
-				exprAttr("undefined", "terramate.undefined"),
-			),
-			stack(),
-		).String(),
-
-		hcldoc(
-			generateHCL(
-				labels("test.tf"),
-			),
-			stack(),
-		).String(),
-
-		hcldoc(
-			generateHCL(
-				labels("test.tf"),
-				block("content"),
-				exprAttr("unrecognized", `"value"`),
-			),
-			stack(),
-		).String(),
-	}
-
-	for _, invalidConfig := range invalidConfigs {
-		s := sandbox.New(t)
-
-		stackEntry := s.CreateStack("stack")
-		stackEntry.CreateConfig(invalidConfig)
-
-		_, err := tmstack.Load(s.RootDir(), stackEntry.Path())
-		assert.IsError(t, err, errors.E(hcl.ErrTerramateSchema))
-	}
 }
