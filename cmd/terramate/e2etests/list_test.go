@@ -36,6 +36,12 @@ func TestCLIList(t *testing.T) {
 			name: "no stack",
 		},
 		{
+			name: "dotfiles ignored",
+			layout: []string{
+				"f:.stack/stack.tm:stack {}",
+			},
+		},
+		{
 			name: "no stack, lots of dirs",
 			layout: []string{
 				"d:dir1/a/b/c",

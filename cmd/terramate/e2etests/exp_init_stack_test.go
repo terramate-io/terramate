@@ -51,6 +51,15 @@ func TestStacksInit(t *testing.T) {
 			layout: []string{"s:stack"},
 			input:  []string{"stack"},
 		},
+		{
+			name:   "dot directories are not allowed",
+			layout: []string{"d:.stack"},
+			input:  []string{".stack"},
+			want: runExpected{
+				StderrRegex: "dot directories are not allowed",
+				Status:      1,
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s := sandbox.New(t)
