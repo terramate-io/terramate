@@ -1,6 +1,7 @@
 package stack_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -27,61 +28,52 @@ func TestLoadFailsWithInvalidConfig(t *testing.T) {
 	exprAttr := hclwrite.Expression
 	strAttr := hclwrite.String
 
-	invalidConfigs := []string{
-		hcldoc(
+	tcases := map[string]fmt.Stringer{
+		"generate_hcl no label": hcldoc(
 			generateHCL(
-				exprAttr("undefined", "terramate.undefined"),
+				block("content"),
 			),
-			stack(),
-		).String(),
-
-		hcldoc(
+		),
+		"generate_hcl no content block": hcldoc(
 			generateHCL(
 				labels("test.tf"),
 			),
-			stack(),
-		).String(),
-
-		hcldoc(
+		),
+		"generate_hcl extra unknown attr": hcldoc(
 			generateHCL(
 				labels("test.tf"),
 				block("content"),
 				exprAttr("unrecognized", `"value"`),
 			),
-			stack(),
-		).String(),
-
-		hcldoc(
+		),
+		"generate_file no label": hcldoc(
 			generateFile(
 				strAttr("content", "test"),
 			),
-			stack(),
-		).String(),
-
-		hcldoc(
+		),
+		"generate_file no content": hcldoc(
 			generateFile(
 				labels("test.tf"),
 			),
-			stack(),
-		).String(),
-
-		hcldoc(
+		),
+		"generate_file extra unknown attr": hcldoc(
 			generateFile(
 				labels("test.tf"),
 				strAttr("content", "value"),
 				strAttr("unrecognized", "value"),
 			),
-			stack(),
-		).String(),
+		),
 	}
 
-	for _, invalidConfig := range invalidConfigs {
-		s := sandbox.New(t)
+	for testname, invalidConfig := range tcases {
+		t.Run(testname, func(t *testing.T) {
+			s := sandbox.New(t)
 
-		stackEntry := s.CreateStack("stack")
-		stackEntry.CreateConfig(invalidConfig)
+			stackEntry := s.CreateStack("stack")
+			stackEntry.CreateConfig(invalidConfig.String() + "\n" + stack().String())
 
-		_, err := tmstack.Load(s.RootDir(), stackEntry.Path())
-		assert.IsError(t, err, errors.E(hcl.ErrTerramateSchema))
+			_, err := tmstack.Load(s.RootDir(), stackEntry.Path())
+			assert.IsError(t, err, errors.E(hcl.ErrTerramateSchema))
+		})
 	}
 }

@@ -947,6 +947,18 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 				// ignoring the block for now.
 			}
 
+			if block.Type == "generate_file" {
+				logger.Trace().Msg("Found \"generate_file\" block")
+
+				err := validateGenerateFileBlock(block)
+				if err != nil {
+					return Config{}, errors.E(errKind, err)
+				}
+
+				// TODO(katcipis): generate_file must be part of the whole Config.
+				// ignoring the block for now.
+			}
+
 			if block.Type == "globals" {
 				logger.Trace().Msg("Found \"globals\" block.")
 
