@@ -7,7 +7,6 @@
 [![codecov](https://codecov.io/gh/mineiros-io/terramate/branch/main/graph/badge.svg?token=gMRUkVUAQ4)](https://codecov.io/gh/mineiros-io/terramate)
 [![Join Slack](https://img.shields.io/badge/slack-@mineiros--community-f32752.svg?logo=slack)](https://mineiros.io/slack)
 
-Terramate is a tool for managing multiple Stacks containing Terraform code.
 
 The stack concept is not defined by Hashicorp's Terraform tooling but just a convention used by the _Terraform community_, so a stack can be loosely defined as:
 
@@ -33,6 +32,9 @@ For more details on how this is achieved, please consider:
 * [Sharing Data](docs/sharing-data.md)
 * [Code Generation](docs/codegen/overview.md)
 * [Orchestrating Stacks Execution](docs/orchestration.md)
+
+If you're interested to know why we decided to build Terramate please consider our blog post:
+[Introducing Terramate — An Orchestrator and Code Generator for Terraform](https://medium.com/p/5e538c9ee055).
 
 ## Getting Started
 
