@@ -154,6 +154,10 @@ func (p *TerramateParser) addDir(dir string) error {
 		}
 
 		filename := dirEntry.Name()
+		if strings.HasPrefix(filename, ".") {
+			logger.Trace().Msg("ignoring dotfile")
+			continue
+		}
 		if strings.HasSuffix(filename, ".tm") || strings.HasSuffix(filename, ".tm.hcl") {
 			path := filepath.Join(dir, filename)
 

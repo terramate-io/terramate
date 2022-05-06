@@ -11,9 +11,9 @@ have the suffixes:
 * `tm`
 * `tm.hcl`
 
-Terramate files can be found in any directory of a Terramate project and
-all the files in a single directory will be handled as the concatenation
-of all of them in a single file, forming a single **configuration**.
+Terramate files can be found in any non-hidden directory of a Terramate project 
+and all non-hidden files in a single directory will be handled as the 
+concatenation of all of them in a single file, forming a single **configuration**.
 
 A Terramate project is essentially a collection of Terraform code
 organized into stacks.
