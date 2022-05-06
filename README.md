@@ -10,7 +10,7 @@
 
 The stack concept is not defined by Hashicorp's Terraform tooling but just a convention used by the _Terraform community_, so a stack can be loosely defined as:
 
-> A stack is a runnable Terraform Root Module that operates on a subset of the infrastructure's resource and has its own state.
+> A stack is a runnable Terraform Root Module that operates on a subset of the infrastructure's resources and has its own state.
 
 Terramate provides ways to keep your Terrform code [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) and allows to define relationships between stacks and supports you to orchestrate Terraform commands in those stacks with minimal effort to get started in a non-intrusive way.
 
