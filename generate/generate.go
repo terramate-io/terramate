@@ -505,7 +505,7 @@ func readGeneratedFile(path string) (string, bool, error) {
 		return "", false, nil
 	}
 
-	logger.Trace().Msg("Check if code has terramate header.")
+	logger.Trace().Msg("Check if file has terramate header.")
 
 	if hasGenHCLHeader(data) {
 		return data, true, nil
