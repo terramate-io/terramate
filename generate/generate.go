@@ -319,16 +319,16 @@ func updateGenFileOutdatedFiles(
 
 		logger.Trace().Msg("Checking if file content is updated.")
 
-		currentFile, codeFound, err := readFile(targetpath)
+		fileContents, found, err := readFile(targetpath)
 		if err != nil {
 			return err
 		}
-		if !codeFound && genFile.Body() == "" {
+		if !found && genFile.Body() == "" {
 			logger.Trace().Msg("Not outdated since file not found and generated_file is empty")
 			continue
 		}
 
-		if genFile.Body() != currentFile {
+		if genFile.Body() != fileContents {
 			logger.Trace().Msg("generate_file code is outdated")
 			outdatedFiles.add(filename)
 		} else {
