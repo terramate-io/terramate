@@ -317,7 +317,7 @@ func updateGenFileOutdatedFiles(
 			Str("targetpath", targetpath).
 			Logger()
 
-		logger.Trace().Msg("Checking if code is updated.")
+		logger.Trace().Msg("Checking if file content is updated.")
 
 		currentFile, codeFound, err := readFile(targetpath)
 		if err != nil {
