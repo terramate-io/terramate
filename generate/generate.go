@@ -431,7 +431,7 @@ func loadGenerateFile(
 	genfiles generatedFiles,
 ) error {
 	logger := log.With().
-		Str("action", "generate.loadGenerateFileFiles()").
+		Str("action", "generate.loadGenerateFile()").
 		Str("root", root).
 		Str("stackpath", stackpath).
 		Logger()
