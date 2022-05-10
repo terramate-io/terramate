@@ -12,7 +12,7 @@ The stack concept is not defined by Hashicorp's Terraform tooling but just a con
 
 > A stack is a runnable Terraform Root Module that operates on a subset of the infrastructure's resources and has its own state.
 
-Terramate provides ways to keep your Terrform code [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) and allows to define relationships between stacks and supports you to orchestrate Terraform commands in those stacks with minimal effort to get started in a non-intrusive way.
+Terramate provides ways to keep your Terraform code [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) and allows to define relationships between stacks and supports you to orchestrate Terraform commands in those stacks with minimal effort to get started in a non-intrusive way.
 
 - **Keep you code DRY**: Avoid duplication by easily sharing data across your project.
 - **Code Generation**: Generate valid Terraform Code to ensure that you can always enter a stack to run plain Terraform commands.
