@@ -7,6 +7,7 @@
 [![Join Slack](https://img.shields.io/badge/slack-@mineiros--community-f32752.svg?logo=slack)](https://mineiros.io/slack)
 
 Terramate is a tool for managing multiple Terraform stacks.
+
 The stack concept is not defined by Hashicorp's Terraform tooling but just a convention used by the _Terraform community_, so a stack can be loosely defined as:
 
 > A stack is a runnable Terraform Root Module that operates on a subset of the infrastructure's resources and has its own state.
