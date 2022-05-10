@@ -1,13 +1,12 @@
 # [<img src="https://github.com/mineiros-io/brand/blob/38f6e5c20a176c62dc673f707a3987c9ec3691cd/terramate-vertical-logo-black-font.svg" height="120"/>](https://mineiros.io/?ref=terramate)[<img align="right" src="https://raw.githubusercontent.com/mineiros-io/brand/3bffd30e8bdbbde32c143e2650b2faa55f1df3ea/mineiros-primary-logo.svg" height="23" alt="Mineiros"/>](https://mineiros.io/?ref=terramate)
 
-
 [![GoDoc](https://pkg.go.dev/badge/github.com/mineiros-io/terramate)](https://pkg.go.dev/github.com/mineiros-io/terramate)
 ![CI Status](https://github.com/mineiros-io/terramate/actions/workflows/ci.yml/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/mineiros-io/terramate)](https://goreportcard.com/report/github.com/mineiros-io/terramate)
 [![codecov](https://codecov.io/gh/mineiros-io/terramate/branch/main/graph/badge.svg?token=gMRUkVUAQ4)](https://codecov.io/gh/mineiros-io/terramate)
 [![Join Slack](https://img.shields.io/badge/slack-@mineiros--community-f32752.svg?logo=slack)](https://mineiros.io/slack)
 
-
+Terramate is a tool for managing multiple Terraform stacks.
 The stack concept is not defined by Hashicorp's Terraform tooling but just a convention used by the _Terraform community_, so a stack can be loosely defined as:
 
 > A stack is a runnable Terraform Root Module that operates on a subset of the infrastructure's resources and has its own state.
