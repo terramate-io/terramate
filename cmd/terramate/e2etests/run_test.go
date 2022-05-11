@@ -1215,3 +1215,77 @@ func TestRunDisableGitCheckRemote(t *testing.T) {
 		someFile.Path(),
 	), wantRes)
 }
+
+func TestRunFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack-1")
+	mainTfFile := stack.CreateFile("main.tf", "# no code")
+
+	ts := newCLI(t, s.RootDir())
+
+	git := s.Git()
+
+	git.Add(".")
+	git.Commit("all")
+
+	setupLocalMainBranchBehindOriginMain(git, func() {
+		stack.CreateFile("tempfile", "any content")
+	})
+
+	wantRes := runExpected{
+		Status:      1,
+		StderrRegex: string(cli.ErrOutdatedLocalRev),
+	}
+
+	cat := test.LookPath(t, "cat")
+	// terramate run should also check if local default branch is updated with remote
+	assertRunResult(t, ts.run(
+		"run",
+		cat,
+		mainTfFile.Path(),
+	), wantRes)
+}
+
+func TestRunWithoutGitRemoteCheckWorksWithoutNetworking(t *testing.T) {
+	// Regression test to guarantee that all git checks
+	// are disabled and no git operation will be performed on this case.
+	// So running terramate run --disable-check-git-remote will
+	// not fail if there is no networking.
+	// Some people like to get some coding done on airplanes :-)
+	const (
+		fileContents   = "body"
+		nonExistentGit = "http://non-existent/terramate.git"
+	)
+
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack-1")
+	stackFile := stack.CreateFile("main.tf", fileContents)
+
+	git := s.Git()
+	git.Add(".")
+	git.CommitAll("first commit")
+
+	git.SetRemoteURL("origin", nonExistentGit)
+
+	tm := newCLI(t, s.RootDir())
+
+	cat := test.LookPath(t, "cat")
+	assertRunResult(t, tm.run(
+		"run",
+		cat,
+		stackFile.Path(),
+	), runExpected{
+		Status:      1,
+		StderrRegex: "Could not resolve host: non-existent",
+	})
+	assertRunResult(t, tm.run(
+		"run",
+		"--disable-check-git-remote",
+		cat,
+		stackFile.Path(),
+	), runExpected{
+		Stdout: fileContents,
+	})
+}
