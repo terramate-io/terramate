@@ -1214,12 +1214,4 @@ func TestRunDisableGitCheckRemote(t *testing.T) {
 		cat,
 		someFile.Path(),
 	), wantRes)
-
-	assertRunResult(t, ts.run(
-		"run",
-		"--changed",
-		"--disable-check-git-remote",
-		cat,
-		someFile.Path(),
-	), wantRes)
 }

@@ -297,6 +297,7 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 	assertRunResult(t, ts.listChangedStacks(), wantRes)
 
 	cat := test.LookPath(t, "cat")
+	// terramate run should also check if local default branch is updated with remote
 	assertRunResult(t, ts.run(
 		"run",
 		cat,
