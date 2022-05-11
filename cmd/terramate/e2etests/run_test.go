@@ -1181,3 +1181,47 @@ func TestRunContinueOnError(t *testing.T) {
 		Status:       1,
 	})
 }
+
+func TestRunDisableGitCheckRemote(t *testing.T) {
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack")
+	fileContents := "# whatever"
+	someFile := stack.CreateFile("main.tf", fileContents)
+
+	ts := newCLI(t, s.RootDir())
+
+	git := s.Git()
+
+	git.Add(".")
+	git.Commit("all")
+
+	setupLocalMainBranchBehindOriginMain(git, func() {
+		stack.CreateFile("some-new-file", "testing")
+	})
+
+	// Setup some changes on our outdated local main
+	stack.CreateFile("some-new-file.txt", "testing")
+	git.Add(".")
+	git.Commit("all")
+
+	wantRes := runExpected{
+		Stdout: fileContents,
+	}
+
+	cat := test.LookPath(t, "cat")
+	assertRunResult(t, ts.run(
+		"run",
+		"--disable-check-git-remote",
+		cat,
+		someFile.Path(),
+	), wantRes)
+
+	assertRunResult(t, ts.run(
+		"run",
+		"--changed",
+		"--disable-check-git-remote",
+		cat,
+		someFile.Path(),
+	), wantRes)
+}

@@ -79,11 +79,12 @@ type cliSpec struct {
 	} `cmd:"" help:"List stacks"`
 
 	Run struct {
-		DisableCheckGenCode bool     `optional:"true" default:"false" help:"Disable outdated generated code check"`
-		ContinueOnError     bool     `default:"false" help:"Continue executing in other stacks in case of error"`
-		DryRun              bool     `default:"false" help:"Plan the execution but do not execute it"`
-		Reverse             bool     `default:"false" help:"Reverse the order of execution"`
-		Command             []string `arg:"" name:"cmd" passthrough:"" help:"Command to execute"`
+		DisableCheckGenCode   bool     `optional:"true" default:"false" help:"Disable outdated generated code check"`
+		DisableCheckGitRemote bool     `optional:"true" default:"false" help:"Disable checking if local default branch is updated with remote"`
+		ContinueOnError       bool     `default:"false" help:"Continue executing in other stacks in case of error"`
+		DryRun                bool     `default:"false" help:"Plan the execution but do not execute it"`
+		Reverse               bool     `default:"false" help:"Reverse the order of execution"`
+		Command               []string `arg:"" name:"cmd" passthrough:"" help:"Command to execute"`
 	} `cmd:"" help:"Run command in the stacks"`
 
 	Generate struct{} `cmd:"" help:"Generate terraform code for stacks"`
