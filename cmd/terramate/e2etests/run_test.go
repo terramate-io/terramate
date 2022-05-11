@@ -1200,20 +1200,13 @@ func TestRunDisableGitCheckRemote(t *testing.T) {
 		stack.CreateFile("some-new-file", "testing")
 	})
 
-	// Setup some changes on our outdated local main
-	stack.CreateFile("another-new-file.txt", "testing")
-	git.Add(".")
-	git.Commit("all")
-
-	wantRes := runExpected{Stdout: fileContents}
-
 	cat := test.LookPath(t, "cat")
 	assertRunResult(t, ts.run(
 		"run",
 		"--disable-check-git-remote",
 		cat,
 		someFile.Path(),
-	), wantRes)
+	), runExpected{Stdout: fileContents})
 }
 
 func TestRunFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
