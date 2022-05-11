@@ -821,7 +821,7 @@ func blockIsAllowed(name string) bool {
 		Logger()
 
 	switch name {
-	case "terramate", "stack", "globals", "generate_hcl":
+	case "terramate", "stack", "globals", "generate_hcl", "generate_file":
 		logger.Trace().Msg("Block name was allowed.")
 		return true
 	default:
@@ -948,6 +948,18 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 				}
 
 				// TODO(i4k): generate_hcl must be part of the whole Config.
+				// ignoring the block for now.
+			}
+
+			if block.Type == "generate_file" {
+				logger.Trace().Msg("Found \"generate_file\" block")
+
+				err := validateGenerateFileBlock(block)
+				if err != nil {
+					return Config{}, errors.E(errKind, err)
+				}
+
+				// TODO(katcipis): generate_file must be part of the whole Config.
 				// ignoring the block for now.
 			}
 

@@ -21,7 +21,6 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
@@ -63,7 +62,7 @@ func LoadGlobals(rootdir string, meta Metadata) (Globals, error) {
 	if err != nil {
 		return Globals{}, err
 	}
-	return globalsExprs.eval(meta)
+	return globalsExprs.eval(rootdir, meta)
 }
 
 // Attributes returns all the global attributes, the key in the map
@@ -107,7 +106,7 @@ func (ge *globalsExpr) has(name string) bool {
 	return ok
 }
 
-func (ge *globalsExpr) eval(meta Metadata) (Globals, error) {
+func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 	// FIXME(katcipis): get abs path for stack.
 	// This is relative only to root since meta.Path will look
 	// like: /some/path/relative/project/root
@@ -118,22 +117,15 @@ func (ge *globalsExpr) eval(meta Metadata) (Globals, error) {
 
 	logger.Trace().Msg("Create new evaluation context.")
 
-	evalctx := eval.NewContext("." + meta.Path())
-
-	logger.Trace().Msg("Add proper name space for stack metadata evaluation.")
-
-	if err := evalctx.SetNamespace("terramate", MetaToCtyMap(meta)); err != nil {
-		return Globals{}, err
-	}
-
-	logger.Trace().Msg("Add proper name space for globals evaluation.")
-
 	// error messages improve if globals is empty instead of undefined
+	// so we always start with an empty globals define on eval ctx.
 	globals := Globals{
 		attributes: map[string]cty.Value{},
 	}
-	if err := evalctx.SetNamespace("global", globals.Attributes()); err != nil {
-		return Globals{}, errors.E(err, "initializing global eval")
+
+	evalctx, err := NewEvalCtx(filepath.Join(rootdir, meta.Path()), meta, globals)
+	if err != nil {
+		return Globals{}, err
 	}
 
 	pendingExprsErrs := map[string]error{}

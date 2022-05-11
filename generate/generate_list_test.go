@@ -19,6 +19,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -79,7 +80,7 @@ func TestStackGeneratedFilesListing(t *testing.T) {
 			files: []file{
 				{
 					name: "generated.tf",
-					body: generate.Header,
+					body: genhcl.Header,
 				},
 			},
 			want: []string{"generated.tf"},
@@ -89,7 +90,7 @@ func TestStackGeneratedFilesListing(t *testing.T) {
 			files: []file{
 				{
 					name: "generated.tf",
-					body: generate.HeaderV0,
+					body: genhcl.HeaderV0,
 				},
 			},
 			want: []string{"generated.tf"},
@@ -99,7 +100,7 @@ func TestStackGeneratedFilesListing(t *testing.T) {
 			files: []file{
 				{
 					name: "generated.tf",
-					body: generate.Header + "\ndoesnt matter",
+					body: genhcl.Header + "\ndoesnt matter",
 				},
 			},
 			want: []string{"generated.tf"},
@@ -109,15 +110,15 @@ func TestStackGeneratedFilesListing(t *testing.T) {
 			files: []file{
 				{
 					name: "generated1.tf",
-					body: generate.Header,
+					body: genhcl.Header,
 				},
 				{
 					name: "generated2.hcl",
-					body: generate.Header,
+					body: genhcl.Header,
 				},
 				{
 					name: "somename",
-					body: generate.Header,
+					body: genhcl.Header,
 				},
 			},
 			want: []string{"generated1.tf", "generated2.hcl", "somename"},
@@ -127,11 +128,11 @@ func TestStackGeneratedFilesListing(t *testing.T) {
 			files: []file{
 				{
 					name: "old.tf",
-					body: generate.HeaderV0,
+					body: genhcl.HeaderV0,
 				},
 				{
 					name: "current.hcl",
-					body: generate.Header,
+					body: genhcl.Header,
 				},
 			},
 			want: []string{"current.hcl", "old.tf"},
@@ -141,7 +142,7 @@ func TestStackGeneratedFilesListing(t *testing.T) {
 			files: []file{
 				{
 					name: "gen.tf",
-					body: generate.Header,
+					body: genhcl.Header,
 				},
 				{
 					name: "manual.tf",
@@ -149,7 +150,7 @@ func TestStackGeneratedFilesListing(t *testing.T) {
 				},
 				{
 					name: "gen2.tf",
-					body: generate.Header,
+					body: genhcl.Header,
 				},
 				{
 					name: "manual2.tf",

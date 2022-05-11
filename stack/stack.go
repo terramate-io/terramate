@@ -24,7 +24,6 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
-	"github.com/zclconf/go-cty/cty"
 )
 
 type (
@@ -116,15 +115,6 @@ func (s S) Path() string { return s.path }
 
 // HostPath returns the file system absolute path of stack.
 func (s S) HostPath() string { return s.hostpath }
-
-// MetaToCtyMap returns metadata as a cty values map.
-func MetaToCtyMap(m Metadata) map[string]cty.Value {
-	return map[string]cty.Value{
-		"name":        cty.StringVal(m.Name()),
-		"path":        cty.StringVal(m.Path()),
-		"description": cty.StringVal(m.Desc()),
-	}
-}
 
 // IsLeaf returns true if dir is a leaf stack.
 func IsLeaf(root, dir string) (bool, error) {
