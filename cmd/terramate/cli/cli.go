@@ -367,9 +367,7 @@ func (c *cli) checkGit() {
 	}
 
 	if c.parsedArgs.Changed {
-		logger.Trace().Msg("`Changed` flag was set.")
-
-		logger.Trace().Msg("Check git default branch was updated.")
+		logger.Trace().Msg("Change detection is on: check git default branch was updated")
 
 		if err := c.prj.checkLocalDefaultIsUpdated(); err != nil {
 			log.Fatal().
