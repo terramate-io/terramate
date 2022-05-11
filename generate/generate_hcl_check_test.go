@@ -18,10 +18,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
-	"github.com/mineiros-io/terramate/hcl"
-	tmstack "github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -47,7 +44,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 				labels("test.tf"),
 				content(
 					terraform(
-						str("required_version", "1.10"),
+						strAttr("required_version", "1.10"),
 					),
 				),
 			),
@@ -65,7 +62,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 				labels("test.tf"),
 				content(
 					terraform(
-						str("required_version", "1.11"),
+						strAttr("required_version", "1.11"),
 					),
 				),
 			),
@@ -83,7 +80,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 				labels("testnew.tf"),
 				content(
 					terraform(
-						str("required_version", "1.11"),
+						strAttr("required_version", "1.11"),
 					),
 				),
 			),
@@ -98,7 +95,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 				labels("testnew.tf"),
 				content(
 					terraform(
-						str("required_version", "1.11"),
+						strAttr("required_version", "1.11"),
 					),
 				),
 			),
@@ -183,41 +180,4 @@ func TestCheckOutdatedIgnoresEmptyGenerateHCLBlocks(t *testing.T) {
 	s.Generate()
 
 	assertOutdatedFiles([]string{})
-}
-
-func TestCheckFailsWithInvalidConfig(t *testing.T) {
-	invalidConfigs := []string{
-		hcldoc(
-			generateHCL(
-				expr("undefined", "terramate.undefined"),
-			),
-			stack(),
-		).String(),
-
-		hcldoc(
-			generateHCL(
-				labels("test.tf"),
-			),
-			stack(),
-		).String(),
-
-		hcldoc(
-			generateHCL(
-				labels("test.tf"),
-				block("content"),
-				expr("unrecognized", `"value"`),
-			),
-			stack(),
-		).String(),
-	}
-
-	for _, invalidConfig := range invalidConfigs {
-		s := sandbox.New(t)
-
-		stackEntry := s.CreateStack("stack")
-		stackEntry.CreateConfig(invalidConfig)
-
-		_, err := tmstack.Load(s.RootDir(), stackEntry.Path())
-		assert.IsError(t, err, errors.E(hcl.ErrTerramateSchema))
-	}
 }
