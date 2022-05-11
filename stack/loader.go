@@ -157,7 +157,14 @@ func (l Loader) IsLeafStack(dir string) (bool, error) {
 			if path == dir {
 				return nil
 			}
+
+			base := filepath.Base(path)
+
 			if info.IsDir() {
+				if strings.HasPrefix(base, ".") {
+					return filepath.SkipDir
+				}
+
 				if strings.HasSuffix(path, "/.git") {
 					return filepath.SkipDir
 				}
@@ -175,6 +182,11 @@ func (l Loader) IsLeafStack(dir string) (bool, error) {
 				isValid = !found
 				return nil
 			}
+
+			if strings.HasPrefix(base, ".") {
+				return nil
+			}
+
 			return nil
 		},
 	)

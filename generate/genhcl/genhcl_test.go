@@ -1120,7 +1120,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				if !ok {
 					t.Fatalf("want hcl code to be generated for %q but no code was generated for it", res.name)
 				}
-				gotcode := gothcl.String()
+				gotcode := gothcl.Body()
 				wantcode := res.hcl.body.String()
 
 				assertHCLEquals(t, gotcode, wantcode)
@@ -2262,7 +2262,7 @@ func TestPartialEval(t *testing.T) {
 			assert.EqualInts(t, len(got), 1, "want single generated HCL")
 
 			gothcl := got[genname]
-			gotcode := gothcl.String()
+			gotcode := gothcl.Body()
 			wantcode := tcase.want.String()
 			assertHCLEquals(t, gotcode, wantcode)
 		})

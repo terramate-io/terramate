@@ -21,6 +21,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/git"
@@ -157,6 +158,10 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 	logger.Trace().
 		Msg("Range over files.")
 	for _, path := range files {
+		if strings.HasPrefix(path, ".") {
+			continue
+		}
+
 		logger.Trace().
 			Msg("Get dir name.")
 		dirname := filepath.Dir(filepath.Join(m.root, path))

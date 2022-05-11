@@ -17,6 +17,7 @@ package terramate
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 
@@ -41,6 +42,10 @@ func Init(root, dir string) error {
 	if !filepath.IsAbs(dir) {
 		// TODO(i4k): this needs to go away soon.
 		return errors.E(errInit, "init requires an absolute path")
+	}
+
+	if strings.HasPrefix(filepath.Base(dir), ".") {
+		return errors.E(errInit, "dot directories are not allowed")
 	}
 
 	logger.Trace().Msg("Get directory info.")

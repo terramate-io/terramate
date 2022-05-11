@@ -34,23 +34,27 @@ func generateHCL(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("generate_hcl", builders...)
 }
 
+func generateFile(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return hclwrite.BuildBlock("generate_file", builders...)
+}
+
 func content(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("content", builders...)
 }
 
-func expr(name string, expr string) hclwrite.BlockBuilder {
+func exprAttr(name string, expr string) hclwrite.BlockBuilder {
 	return hclwrite.Expression(name, expr)
 }
 
-func str(name string, val string) hclwrite.BlockBuilder {
+func strAttr(name string, val string) hclwrite.BlockBuilder {
 	return hclwrite.String(name, val)
 }
 
-func number(name string, val int64) hclwrite.BlockBuilder {
+func numberAttr(name string, val int64) hclwrite.BlockBuilder {
 	return hclwrite.NumberInt(name, val)
 }
 
-func boolean(name string, val bool) hclwrite.BlockBuilder {
+func boolAttr(name string, val bool) hclwrite.BlockBuilder {
 	return hclwrite.Boolean(name, val)
 }
 

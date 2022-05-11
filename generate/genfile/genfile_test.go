@@ -52,13 +52,13 @@ func TestLoadGenerateFiles(t *testing.T) {
 		}
 	)
 
+	generateFile := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("generate_file", builders...)
+	}
 	hcldoc := hclwrite.BuildHCL
 	labels := hclwrite.Labels
 	expr := hclwrite.Expression
 	str := hclwrite.String
-	generateFile := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("generate_file", builders...)
-	}
 	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("globals", builders...)
 	}

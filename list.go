@@ -17,6 +17,7 @@ package terramate
 import (
 	"io/fs"
 	"path/filepath"
+	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/stack"
@@ -46,6 +47,10 @@ func ListStacks(root string) ([]Entry, error) {
 			}
 
 			if info.IsDir() && info.Name() == ".git" {
+				return filepath.SkipDir
+			}
+
+			if strings.HasPrefix(info.Name(), ".") {
 				return filepath.SkipDir
 			}
 
