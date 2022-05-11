@@ -1201,13 +1201,11 @@ func TestRunDisableGitCheckRemote(t *testing.T) {
 	})
 
 	// Setup some changes on our outdated local main
-	stack.CreateFile("some-new-file.txt", "testing")
+	stack.CreateFile("another-new-file.txt", "testing")
 	git.Add(".")
 	git.Commit("all")
 
-	wantRes := runExpected{
-		Stdout: fileContents,
-	}
+	wantRes := runExpected{Stdout: fileContents}
 
 	cat := test.LookPath(t, "cat")
 	assertRunResult(t, ts.run(

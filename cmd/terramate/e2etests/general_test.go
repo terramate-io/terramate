@@ -299,6 +299,12 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 	cat := test.LookPath(t, "cat")
 	assertRunResult(t, ts.run(
 		"run",
+		cat,
+		mainTfFile.Path(),
+	), wantRes)
+
+	assertRunResult(t, ts.run(
+		"run",
 		"--changed",
 		cat,
 		mainTfFile.Path(),
