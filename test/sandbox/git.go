@@ -238,6 +238,12 @@ func (git Git) Merge(branch string) {
 	}
 }
 
+// SetRemoteURL sets the URL of the remote.
+func (git Git) SetRemoteURL(remote, url string) {
+	git.t.Helper()
+	assert.NoError(git.t, git.g.SetRemoteURL(remote, url))
+}
+
 // BaseDir the repository base dir
 func (git Git) BaseDir() string {
 	return git.cfg.repoDir

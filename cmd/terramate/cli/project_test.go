@@ -19,7 +19,6 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
 )
@@ -54,16 +53,14 @@ func TestLocalDefaultIsOutdated(t *testing.T) {
 	git.CheckoutNew("main")
 
 	prj, foundRoot, err := lookupProject(s.RootDir())
-
 	assert.NoError(t, err)
+
 	if !foundRoot {
 		t.Fatal("unable to find root")
 	}
 
 	assert.NoError(t, prj.setDefaults(&cliSpec{}))
-
-	g := test.NewGitWrapper(t, s.RootDir(), []string{})
-	assert.IsError(t, prj.checkLocalDefaultIsUpdated(g), errors.E(ErrOutdatedLocalRev))
+	assert.IsError(t, prj.checkLocalDefaultIsUpdated(), errors.E(ErrOutdatedLocalRev))
 }
 
 func init() {

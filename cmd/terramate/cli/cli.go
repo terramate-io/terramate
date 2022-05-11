@@ -319,53 +319,17 @@ func (c *cli) run() {
 
 	c.checkVersion()
 
-	if c.parsedArgs.Changed {
-		logger.Trace().Msg("`Changed` flag was set.")
-
-		logger.Trace().Msg("Create new git wrapper.")
-
-		git, err := newGit(c.root(), true)
-		if err != nil {
-			log.Fatal().
-				Err(err).
-				Msg("creating git wrapper.")
-		}
-
-		logger.Trace().Msg("Check git default branch was updated.")
-
-		if err := c.prj.checkLocalDefaultIsUpdated(git); err != nil {
-			log.Fatal().
-				Err(err).
-				Msg("checking git default branch was updated.")
-		}
-	}
-
 	logger.Debug().Msg("Handle command.")
 
 	switch c.ctx.Command() {
 	case "list":
-		log.Trace().
-			Str("actionContext", "cli()").
-			Msg("Print list of stacks.")
 		c.printStacks()
 	case "run":
-		logger.Debug().Msg("Handle `run` command.")
-
-		if len(c.parsedArgs.Run.Command) == 0 {
-			log.Fatal().Msg("no command specified")
-		}
-		fallthrough
+		log.Fatal().Msg("no command specified")
 	case "run <cmd>":
-		logger.Debug().Msg("Handle `run <cmd>` command.")
-
 		c.runOnStacks()
 	case "generate":
-		report := generate.Do(c.root(), c.wd())
-		c.log(report.String())
-
-		if report.HasFailures() {
-			os.Exit(1)
-		}
+		c.generate()
 	case "experimental globals":
 		c.printStacksGlobals()
 	case "experimental metadata":
@@ -380,6 +344,45 @@ func (c *cli) run() {
 		c.printRunOrder()
 	default:
 		log.Fatal().Msg("unexpected command sequence")
+	}
+}
+
+func (c *cli) checkGit() {
+	logger := log.With().
+		Str("action", "checkGit()").
+		Logger()
+
+	logger.Trace().Msg("Check git default remote.")
+
+	if err := c.prj.checkDefaultRemote(); err != nil {
+		log.Fatal().
+			Err(err).
+			Msg("Checking git default remote.")
+	}
+
+	if c.parsedArgs.GitChangeBase != "" {
+		c.prj.baseRef = c.parsedArgs.GitChangeBase
+	} else {
+		c.prj.baseRef = c.prj.defaultBaseRef()
+	}
+
+	if c.parsedArgs.Changed {
+		logger.Trace().Msg("Change detection is on: check git default branch was updated")
+
+		if err := c.prj.checkLocalDefaultIsUpdated(); err != nil {
+			log.Fatal().
+				Err(err).
+				Msg("checking git default branch was updated.")
+		}
+	}
+}
+
+func (c *cli) generate() {
+	report := generate.Do(c.root(), c.wd())
+	c.log(report.String())
+
+	if report.HasFailures() {
+		os.Exit(1)
 	}
 }
 
@@ -468,6 +471,10 @@ func (c *cli) printStacks() {
 	logger := log.With().
 		Str("action", "printStacks()").
 		Logger()
+
+	if c.parsedArgs.Changed {
+		c.checkGit()
+	}
 
 	if c.parsedArgs.List.Why && !c.parsedArgs.Changed {
 		logger.Fatal().
@@ -814,6 +821,12 @@ func (c *cli) runOnStacks() {
 		Str("workingDir", c.wd()).
 		Logger()
 
+	c.checkGit()
+
+	if len(c.parsedArgs.Run.Command) == 0 {
+		logger.Fatal().Msgf("run expects a cmd")
+	}
+
 	stacks, err := c.computeSelectedStacks(true)
 	if err != nil {
 		logger.Fatal().
@@ -1035,7 +1048,6 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 		logger.Trace().Msg("Get root of git repo.")
 
 		gitdir, err := gw.Root()
-
 		if err == nil {
 			logger.Trace().Msg("Get absolute path of git directory.")
 
@@ -1068,6 +1080,7 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 			prj.isRepo = true
 			prj.rootcfg = cfg
 			prj.root = root
+			prj.git.wrapper = gw
 
 			return prj, true, nil
 		}

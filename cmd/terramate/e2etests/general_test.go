@@ -16,6 +16,7 @@ package e2etest
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/mineiros-io/terramate/cmd/terramate/cli"
@@ -441,4 +442,35 @@ terramate {
 `)
 
 	assertRun(t, cli.listChangedStacks())
+}
+
+func TestCommandsNotRequiringGitSafeguards(t *testing.T) {
+	// Regression test to guarantee that all git checks
+	// are disabled and no git operation will be performed for certain commands.
+	// Some people like to get some coding done on airplanes :-)
+	s := sandbox.New(t)
+	git := s.Git()
+	git.SetRemoteURL("origin", "http://non-existant/terramate.git")
+
+	s.CreateStack("stack")
+
+	cli := newCLI(t, s.RootDir())
+
+	cmds := []string{
+		"experimental metadata",
+		"experimental globals",
+		"experimental init-stack stack",
+		"experimental run-order",
+		"experimental run-graph",
+		"generate",
+		"list",
+	}
+	for _, cmd := range cmds {
+		t.Run(cmd, func(t *testing.T) {
+			args := strings.Split(cmd, " ")
+			assertRunResult(t, cli.run(args...), runExpected{
+				IgnoreStdout: true,
+			})
+		})
+	}
 }
