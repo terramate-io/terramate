@@ -158,7 +158,7 @@ func (p *TerramateParser) addDir(dir string) error {
 			logger.Trace().Msg("ignoring dotfile")
 			continue
 		}
-		if strings.HasSuffix(filename, ".tm") || strings.HasSuffix(filename, ".tm.hcl") {
+		if isTerramateFile(filename) {
 			path := filepath.Join(dir, filename)
 
 			logger.Trace().
@@ -857,7 +857,7 @@ func loadCfgBlocks(dir string) (*hclparse.Parser, error) {
 		}
 
 		filename := dirEntry.Name()
-		if strings.HasSuffix(filename, ".tm") || strings.HasSuffix(filename, ".tm.hcl") {
+		if isTerramateFile(filename) {
 			path := filepath.Join(dir, filename)
 
 			logger.Trace().Msg("Reading config file.")
@@ -1112,4 +1112,8 @@ func parseBlocks(dir, blocktype string, validate blockValidator) (Blocks, error)
 func (m Module) IsLocal() bool {
 	// As specified here: https://www.terraform.io/docs/language/modules/sources.html#local-paths
 	return m.Source[0:2] == "./" || m.Source[0:3] == "../"
+}
+
+func isTerramateFile(filename string) bool {
+	return strings.HasSuffix(filename, ".tm") || strings.HasSuffix(filename, ".tm.hcl")
 }
