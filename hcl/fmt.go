@@ -16,10 +16,21 @@ package hcl
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/rs/zerolog/log"
 )
+
+// FmtRes represents the result of a formatting operation.
+type FmtRes struct {
+	// Path is the absolute path of the file.
+	Path string
+
+	// Formatted is the formatted file contents.
+	Formatted string
+}
 
 // Format will format the given hcl.
 func Format(hcl string) string {
@@ -32,7 +43,76 @@ func Format(hcl string) string {
 func FormatFile(filepath string) (string, error) {
 	body, err := os.ReadFile(filepath)
 	if err != nil {
-		return "", errors.E("formatting file", err)
+		return "", errors.E(errFormatFile, err)
 	}
 	return Format(string(body)), nil
 }
+
+// FormatTree will format all Terramate configuration files
+// in the given tree starting at the given dir. It will recursively
+// navigate on sub directories. Directories starting with "." are ignored.
+//
+// Only Terramate configuration files will be formatted.
+//
+// Files that are already formatted are ignored. If all files are formatted
+// this function returns an empty result.
+//
+// All files will be left untouched.
+func FormatTree(dir string) ([]FmtRes, error) {
+	logger := log.With().
+		Str("action", "hcl.FormatTree()").
+		Str("dir", dir).
+		Logger()
+
+	logger.Trace().Msg("listing terramate files")
+
+	files, err := listTerramateFiles(dir)
+	if err != nil {
+		return nil, errors.E(errFormatTree, err)
+	}
+
+	results := []FmtRes{}
+
+	for _, f := range files {
+		logger := log.With().
+			Str("file", f).
+			Logger()
+
+		logger.Trace().Msg("formatting file")
+		file := filepath.Join(dir, f)
+		formatted, err := FormatFile(file)
+		if err != nil {
+			return nil, errors.E(errFormatTree, err)
+		}
+
+		results = append(results, FmtRes{
+			Path:      file,
+			Formatted: formatted,
+		})
+	}
+
+	dirs, err := listTerramateDirs(dir)
+	if err != nil {
+		return nil, errors.E(errFormatTree, err)
+	}
+
+	for _, d := range dirs {
+		logger := log.With().
+			Str("subdir", d).
+			Logger()
+
+		logger.Trace().Msg("recursively formatting")
+		subres, err := FormatTree(filepath.Join(dir, d))
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, subres...)
+	}
+
+	return results, nil
+}
+
+const (
+	errFormatTree errors.Kind = "formatting tree"
+	errFormatFile errors.Kind = "formatting file"
+)

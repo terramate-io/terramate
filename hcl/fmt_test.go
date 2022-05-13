@@ -54,15 +54,42 @@ d = []
 			assert.EqualStrings(t, tcase.want, got)
 		})
 
-		const filename = "file.tm"
-
-		tmpdir := t.TempDir()
-		test.WriteFile(t, tmpdir, filename, tcase.input)
-
 		t.Run("File/"+tcase.name, func(t *testing.T) {
+			const filename = "file.tm"
+
+			tmpdir := t.TempDir()
+			test.WriteFile(t, tmpdir, filename, tcase.input)
 			got, err := hcl.FormatFile(filepath.Join(tmpdir, filename))
 			assert.NoError(t, err)
 			assert.EqualStrings(t, tcase.want, got)
+		})
+
+		t.Run("Tree/"+tcase.name, func(t *testing.T) {
+			const (
+				filename   = "file.tm"
+				subdirName = "subdir"
+			)
+
+			rootdir := t.TempDir()
+			test.Mkdir(t, rootdir, subdirName)
+			subdir := filepath.Join(rootdir, subdirName)
+
+			test.WriteFile(t, rootdir, filename, tcase.input)
+			test.WriteFile(t, subdir, filename, tcase.input)
+
+			got, err := hcl.FormatTree(rootdir)
+			assert.NoError(t, err)
+			assert.EqualInts(t, 2, len(got), "want 2 formatted files, got: %v", got)
+
+			for _, res := range got {
+				assert.EqualStrings(t, tcase.want, res.Formatted)
+			}
+
+			wantFilepath := filepath.Join(rootdir, filename)
+			wantSubdirFilepath := filepath.Join(subdir, filename)
+
+			assert.EqualStrings(t, wantFilepath, got[0].Path)
+			assert.EqualStrings(t, wantSubdirFilepath, got[1].Path)
 		})
 	}
 }
