@@ -15,10 +15,12 @@
 package hcl_test
 
 import (
+	"path/filepath"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/test"
 )
 
 func TestFormatHCL(t *testing.T) {
@@ -49,9 +51,24 @@ d = []
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
 			got := hcl.Format(tcase.input)
-			if diff := cmp.Diff(got, tcase.want); diff != "" {
-				t.Fatalf("-(got) +(want):\n%s", diff)
-			}
+			assert.EqualStrings(t, tcase.want, got)
+		})
+
+		const filename = "file.tm"
+
+		tmpdir := t.TempDir()
+		test.WriteFile(t, tmpdir, filename, tcase.input)
+
+		t.Run("File/"+tcase.name, func(t *testing.T) {
+			got, err := hcl.FormatFile(filepath.Join(tmpdir, filename))
+			assert.NoError(t, err)
+			assert.EqualStrings(t, tcase.want, got)
 		})
 	}
+}
+
+func TestFormatFileDoesntExist(t *testing.T) {
+	tmpdir := t.TempDir()
+	_, err := hcl.FormatFile(filepath.Join(tmpdir, "dontexist.tm"))
+	assert.Error(t, err)
 }

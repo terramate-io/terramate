@@ -14,11 +14,25 @@
 
 package hcl
 
-import "github.com/hashicorp/hcl/v2/hclwrite"
+import (
+	"os"
+
+	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/mineiros-io/terramate/errors"
+)
 
 // Format will format the given hcl.
 func Format(hcl string) string {
 	// For now we just use plain hclwrite.Format
 	// but we plan on customizing formatting in the near future.
 	return string(hclwrite.Format([]byte(hcl)))
+}
+
+// FormatFile will format the given HCL file.
+func FormatFile(filepath string) (string, error) {
+	body, err := os.ReadFile(filepath)
+	if err != nil {
+		return "", errors.E("formatting file", err)
+	}
+	return Format(string(body)), nil
 }
