@@ -23,6 +23,10 @@ import (
 	"github.com/mineiros-io/terramate/test"
 )
 
+// TODO(katcipis)
+// hcl.FormatTreeInPlace
+// hcl.FormatTreeDiff ? (for the diff)
+
 func TestFormatHCL(t *testing.T) {
 	type testcase struct {
 		name  string
