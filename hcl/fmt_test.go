@@ -99,3 +99,29 @@ func TestFormatFileDoesntExist(t *testing.T) {
 	_, err := hcl.FormatFile(filepath.Join(tmpdir, "dontexist.tm"))
 	assert.Error(t, err)
 }
+
+func TestFormatTreeIgnoresNonTerramateFiles(t *testing.T) {
+	const (
+		subdirName      = ".dotdir"
+		unformattedCode = `
+a = 1
+ b = "la"
+	c = 666
+  d = []
+`
+	)
+
+	tmpdir := t.TempDir()
+	test.WriteFile(t, tmpdir, ".file.tm", unformattedCode)
+	test.WriteFile(t, tmpdir, "file.tf", unformattedCode)
+	test.WriteFile(t, tmpdir, "file.hcl", unformattedCode)
+
+	test.Mkdir(t, tmpdir, subdirName)
+	subdir := filepath.Join(tmpdir, subdirName)
+	test.WriteFile(t, subdir, ".file.tm", unformattedCode)
+	test.WriteFile(t, subdir, "file.tm", unformattedCode)
+
+	got, err := hcl.FormatTree(tmpdir)
+	assert.NoError(t, err)
+	assert.EqualInts(t, 0, len(got), "want no results, got: %v", got)
+}

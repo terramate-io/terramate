@@ -1151,14 +1151,13 @@ func listTerramateDirs(dir string) ([]string, error) {
 			Str("entryName", dirEntry.Name()).
 			Logger()
 
-		// TODO(katcipis): test this
-		//if strings.HasPrefix(dirEntry.Name(), ".") {
-		//logger.Trace().Msg("ignoring dotdir")
-		//continue
-		//}
-
 		if !dirEntry.IsDir() {
 			logger.Trace().Msg("ignoring non-dir")
+			continue
+		}
+
+		if strings.HasPrefix(dirEntry.Name(), ".") {
+			logger.Trace().Msg("ignoring dotdir")
 			continue
 		}
 
