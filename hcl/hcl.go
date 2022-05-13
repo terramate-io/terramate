@@ -818,45 +818,35 @@ func loadCfgBlocks(dir string) (*hclparse.Parser, error) {
 
 	logger.Trace().Msg("listing files")
 
-	dirEntries, err := os.ReadDir(dir)
+	filenames, err := listTerramateFiles(dir)
 	if err != nil {
 		return nil, errors.E(err, "reading dir to load config files")
 	}
 
-	logger.Trace().Msg("looking for Terramate files")
-
 	parser := hclparse.NewParser()
 
-	for _, dirEntry := range dirEntries {
+	for _, filename := range filenames {
 		logger := logger.With().
-			Str("entryName", dirEntry.Name()).
+			Str("entryName", filename).
 			Logger()
 
-		if dirEntry.IsDir() {
-			logger.Trace().Msg("ignoring dir")
-			continue
+		path := filepath.Join(dir, filename)
+
+		logger.Trace().Msg("Reading config file.")
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, errors.E(err, "reading config file %q", path)
 		}
 
-		filename := dirEntry.Name()
-		if isTerramateFile(filename) {
-			path := filepath.Join(dir, filename)
+		logger.Trace().Msg("Parsing config.")
 
-			logger.Trace().Msg("Reading config file.")
-
-			data, err := os.ReadFile(path)
-			if err != nil {
-				return nil, errors.E(err, "reading config file %q", path)
-			}
-
-			logger.Trace().Msg("Parsing config.")
-
-			_, diags := parser.ParseHCL(data, path)
-			if diags.HasErrors() {
-				return nil, errors.E(ErrHCLSyntax, diags)
-			}
-
-			logger.Trace().Msg("Config file parsed successfully")
+		_, diags := parser.ParseHCL(data, path)
+		if diags.HasErrors() {
+			return nil, errors.E(ErrHCLSyntax, diags)
 		}
+
+		logger.Trace().Msg("Config file parsed successfully")
 	}
 
 	return parser, nil
