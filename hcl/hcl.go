@@ -136,46 +136,27 @@ func (p *TerramateParser) addDir(dir string) error {
 		Str("dir", dir).
 		Logger()
 
-	dirEntries, err := os.ReadDir(dir)
+	tmFiles, err := listTerramateFiles(dir)
 	if err != nil {
 		return errors.E(err, "adding directory to terramate parser")
 	}
 
-	logger.Trace().Msg("looking for Terramate files")
+	for _, filename := range tmFiles {
+		path := filepath.Join(dir, filename)
+		logger.Trace().
+			Str("file", path).
+			Msg("Reading config file.")
 
-	for _, dirEntry := range dirEntries {
-		logger := logger.With().
-			Str("entryName", dirEntry.Name()).
-			Logger()
-
-		if dirEntry.IsDir() {
-			logger.Trace().Msg("ignoring dir")
-			continue
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return errors.E(err, "reading config file %q", path)
 		}
 
-		filename := dirEntry.Name()
-		if strings.HasPrefix(filename, ".") {
-			logger.Trace().Msg("ignoring dotfile")
-			continue
+		if err := p.AddFile(path, data); err != nil {
+			return err
 		}
-		if isTerramateFile(filename) {
-			path := filepath.Join(dir, filename)
 
-			logger.Trace().
-				Str("file", path).
-				Msg("Reading config file.")
-
-			data, err := os.ReadFile(path)
-			if err != nil {
-				return errors.E(err, "reading config file %q", path)
-			}
-
-			if err := p.AddFile(path, data); err != nil {
-				return err
-			}
-
-			logger.Trace().Msg("file added")
-		}
+		logger.Trace().Msg("file added")
 	}
 
 	return nil
@@ -1112,6 +1093,48 @@ func parseBlocks(dir, blocktype string, validate blockValidator) (Blocks, error)
 func (m Module) IsLocal() bool {
 	// As specified here: https://www.terraform.io/docs/language/modules/sources.html#local-paths
 	return m.Source[0:2] == "./" || m.Source[0:3] == "../"
+}
+
+func listTerramateFiles(dir string) ([]string, error) {
+	logger := log.With().
+		Str("action", "listTerramateFiles()").
+		Str("dir", dir).
+		Logger()
+
+	logger.Trace().Msg("listing files")
+
+	dirEntries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, errors.E(err, "reading dir to list Terramate files")
+	}
+
+	logger.Trace().Msg("looking for Terramate files")
+
+	files := []string{}
+
+	for _, dirEntry := range dirEntries {
+		logger := logger.With().
+			Str("entryName", dirEntry.Name()).
+			Logger()
+
+		if strings.HasPrefix(dirEntry.Name(), ".") {
+			logger.Trace().Msg("ignoring dotfile")
+			continue
+		}
+
+		if dirEntry.IsDir() {
+			logger.Trace().Msg("ignoring dir")
+			continue
+		}
+
+		filename := dirEntry.Name()
+		if isTerramateFile(filename) {
+			logger.Trace().Msg("Found Terramate file")
+			files = append(files, filename)
+		}
+	}
+
+	return files, nil
 }
 
 func isTerramateFile(filename string) bool {
