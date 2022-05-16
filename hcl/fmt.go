@@ -24,8 +24,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// FmtRes represents the result of a formatting operation.
-type FmtRes struct {
+// FormatResult represents the result of a formatting operation.
+type FormatResult struct {
 	// Path is the absolute path of the file.
 	Path string
 
@@ -65,7 +65,7 @@ func FormatFile(filepath string) (string, error) {
 // this function returns an empty result.
 //
 // All files will be left untouched.
-func FormatTree(dir string) ([]FmtRes, error) {
+func FormatTree(dir string) ([]FormatResult, error) {
 	logger := log.With().
 		Str("action", "hcl.FormatTree()").
 		Str("dir", dir).
@@ -78,7 +78,7 @@ func FormatTree(dir string) ([]FmtRes, error) {
 		return nil, errors.E(errFormatTree, err)
 	}
 
-	results := []FmtRes{}
+	results := []FormatResult{}
 
 	for _, f := range files {
 		logger := log.With().
@@ -92,7 +92,7 @@ func FormatTree(dir string) ([]FmtRes, error) {
 			return nil, errors.E(errFormatTree, err)
 		}
 
-		results = append(results, FmtRes{
+		results = append(results, FormatResult{
 			Path:      file,
 			Formatted: formatted,
 		})
@@ -121,7 +121,7 @@ func FormatTree(dir string) ([]FmtRes, error) {
 
 // Save will save the formatted result on the original file, replacing
 // its original contents.
-func (f FmtRes) Save() error {
+func (f FormatResult) Save() error {
 	return os.WriteFile(f.Path, []byte(f.Formatted), 0644)
 }
 
