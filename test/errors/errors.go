@@ -71,6 +71,18 @@ func AssertIsErrors(t *testing.T, err error, targets []error) {
 	}
 }
 
+// AssertErrorList will check that the given err is an *errors.List
+// and that all given errors on targets are contained on it
+// using errors.Is.
+func AssertErrorList(t *testing.T, err error, targets []error) {
+	t.Helper()
+
+	if err != nil {
+		AssertAsErrorsList(t, err)
+	}
+	AssertIsErrors(t, err, targets)
+}
+
 // AssertAsErrorsList will check if the given error can be handled
 // as an *errors.List by calling errors.As. It fails if the error fails
 // to be an *errors.List.
