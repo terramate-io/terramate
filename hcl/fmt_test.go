@@ -75,8 +75,10 @@ d = []
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			got, err := hcl.Format(tcase.input, "test-input.hcl")
+			const filename = "test-input.hcl"
+			got, err := hcl.Format(tcase.input, filename)
 
+			addFilenameToErrorsFileRanges(tcase.wantErrs, filename)
 			errtest.AssertErrorList(t, err, tcase.wantErrs)
 			assert.EqualStrings(t, tcase.want, got)
 		})
@@ -86,8 +88,10 @@ d = []
 
 			tmpdir := t.TempDir()
 			test.WriteFile(t, tmpdir, filename, tcase.input)
-			got, err := hcl.FormatFile(filepath.Join(tmpdir, filename))
+			path := filepath.Join(tmpdir, filename)
+			got, err := hcl.FormatFile(path)
 
+			addFilenameToErrorsFileRanges(tcase.wantErrs, path)
 			errtest.AssertErrorList(t, err, tcase.wantErrs)
 			assert.EqualStrings(t, tcase.want, got, "checking formatted code")
 			assertFileContains(t, filepath.Join(tmpdir, filename), tcase.input)
@@ -107,7 +111,27 @@ d = []
 			test.WriteFile(t, subdir, filename, tcase.input)
 
 			got, err := hcl.FormatTree(rootdir)
-			errtest.AssertErrorList(t, err, tcase.wantErrs)
+
+			// Since we have identical files we expect the same
+			// set of errors for each filepath to be present.
+			wantFilepath := filepath.Join(rootdir, filename)
+			wantSubdirFilepath := filepath.Join(subdir, filename)
+			wantErrs := []error{}
+
+			for _, path := range []string{wantFilepath, wantSubdirFilepath} {
+				for _, wantErr := range tcase.wantErrs {
+					if e, ok := wantErr.(*errors.Error); ok {
+						err := *e
+						err.FileRange.Filename = path
+						wantErrs = append(wantErrs, &err)
+						continue
+					}
+
+					wantErrs = append(wantErrs, wantErr)
+				}
+
+			}
+			errtest.AssertErrorList(t, err, wantErrs)
 			if err != nil {
 				return
 			}
@@ -117,9 +141,6 @@ d = []
 				assert.EqualStrings(t, tcase.want, res.Formatted)
 				assertFileContains(t, res.Path, tcase.input)
 			}
-
-			wantFilepath := filepath.Join(rootdir, filename)
-			wantSubdirFilepath := filepath.Join(subdir, filename)
 
 			assert.EqualStrings(t, wantFilepath, got[0].Path)
 			assert.EqualStrings(t, wantSubdirFilepath, got[1].Path)

@@ -37,7 +37,7 @@ type FormatResult struct {
 // source is invalid HCL.
 func Format(src, filename string) (string, error) {
 	p := hclparse.NewParser()
-	_, diags := p.ParseHCL([]byte(src), "")
+	_, diags := p.ParseHCL([]byte(src), filename)
 	if err := errors.L(diags).AsError(); err != nil {
 		return "", errors.E(ErrHCLSyntax, err)
 	}
