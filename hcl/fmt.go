@@ -79,6 +79,7 @@ func FormatTree(dir string) ([]FormatResult, error) {
 	}
 
 	results := []FormatResult{}
+	errs := errors.L()
 
 	for _, f := range files {
 		logger := log.With().
@@ -89,7 +90,8 @@ func FormatTree(dir string) ([]FormatResult, error) {
 		file := filepath.Join(dir, f)
 		formatted, err := FormatFile(file)
 		if err != nil {
-			return nil, errors.E(errFormatTree, err)
+			errs.Append(err)
+			continue
 		}
 
 		results = append(results, FormatResult{
@@ -100,7 +102,8 @@ func FormatTree(dir string) ([]FormatResult, error) {
 
 	dirs, err := listTerramateDirs(dir)
 	if err != nil {
-		return nil, errors.E(errFormatTree, err)
+		errs.Append(err)
+		return nil, errors.E(errFormatTree, errs)
 	}
 
 	for _, d := range dirs {
@@ -111,11 +114,15 @@ func FormatTree(dir string) ([]FormatResult, error) {
 		logger.Trace().Msg("recursively formatting")
 		subres, err := FormatTree(filepath.Join(dir, d))
 		if err != nil {
-			return nil, err
+			errs.Append(err)
+			continue
 		}
 		results = append(results, subres...)
 	}
 
+	if err := errs.AsError(); err != nil {
+		return nil, err
+	}
 	return results, nil
 }
 
