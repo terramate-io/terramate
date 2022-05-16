@@ -119,6 +119,12 @@ func FormatTree(dir string) ([]FmtRes, error) {
 	return results, nil
 }
 
+// Save will save the formatted result on the original file, replacing
+// its original contents.
+func (f FmtRes) Save() error {
+	return os.WriteFile(f.Path, []byte(f.Formatted), 0644)
+}
+
 const (
 	errFormatTree errors.Kind = "formatting tree"
 	errFormatFile errors.Kind = "formatting file"

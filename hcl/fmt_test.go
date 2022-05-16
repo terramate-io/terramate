@@ -28,7 +28,6 @@ import (
 )
 
 // TODO(katcipis)
-// hcl.FormatTreeInPlace
 // hcl.FormatTreeDiff ? (for the diff)
 
 func TestFormatHCL(t *testing.T) {
@@ -124,6 +123,13 @@ d = []
 
 			assert.EqualStrings(t, wantFilepath, got[0].Path)
 			assert.EqualStrings(t, wantSubdirFilepath, got[1].Path)
+
+			t.Run("saving format results", func(t *testing.T) {
+				for _, res := range got {
+					assert.NoError(t, res.Save())
+					assertFileContains(t, res.Path, res.Formatted)
+				}
+			})
 		})
 	}
 }
