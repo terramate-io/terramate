@@ -19,8 +19,11 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
+
+	errtest "github.com/mineiros-io/terramate/test/errors"
 )
 
 // TODO(katcipis)
@@ -29,9 +32,10 @@ import (
 
 func TestFormatHCL(t *testing.T) {
 	type testcase struct {
-		name  string
-		input string
-		want  string
+		name     string
+		input    string
+		want     string
+		wantErrs []error
 	}
 
 	tcases := []testcase{
@@ -50,11 +54,30 @@ c = 666
 d = []
 `,
 		},
+		{
+			name: "fails on syntax errors",
+			input: `
+				string = hi"
+				bool   = rue
+				list   = [
+				obj    = {
+			`,
+			wantErrs: []error{
+				errors.E(hcl.ErrHCLSyntax),
+				errors.E(mkrange(start(2, 17, 17), end(3, 1, 18))),
+				errors.E(mkrange(start(3, 17, 34), end(4, 1, 35))),
+				errors.E(mkrange(start(4, 15, 49), end(5, 1, 50))),
+				errors.E(mkrange(start(5, 15, 64), end(6, 1, 65))),
+				errors.E(mkrange(start(2, 16, 16), end(2, 17, 17))),
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			got := hcl.Format(tcase.input)
+			got, err := hcl.Format(tcase.input, "test-input.hcl")
+
+			errtest.AssertErrorList(t, err, tcase.wantErrs)
 			assert.EqualStrings(t, tcase.want, got)
 		})
 
@@ -64,7 +87,8 @@ d = []
 			tmpdir := t.TempDir()
 			test.WriteFile(t, tmpdir, filename, tcase.input)
 			got, err := hcl.FormatFile(filepath.Join(tmpdir, filename))
-			assert.NoError(t, err)
+
+			errtest.AssertErrorList(t, err, tcase.wantErrs)
 			assert.EqualStrings(t, tcase.want, got)
 		})
 
@@ -82,7 +106,10 @@ d = []
 			test.WriteFile(t, subdir, filename, tcase.input)
 
 			got, err := hcl.FormatTree(rootdir)
-			assert.NoError(t, err)
+			errtest.AssertErrorList(t, err, tcase.wantErrs)
+			if err != nil {
+				return
+			}
 			assert.EqualInts(t, 2, len(got), "want 2 formatted files, got: %v", got)
 
 			for _, res := range got {

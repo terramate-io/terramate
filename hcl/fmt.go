@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/rs/zerolog/log"
@@ -32,11 +33,17 @@ type FmtRes struct {
 	Formatted string
 }
 
-// Format will format the given hcl.
-func Format(hcl string) string {
+// Format will format the given source code. It returns an error if the given
+// source is invalid HCL.
+func Format(src, filename string) (string, error) {
+	p := hclparse.NewParser()
+	_, diags := p.ParseHCL([]byte(src), "")
+	if err := errors.L(diags).AsError(); err != nil {
+		return "", errors.E(ErrHCLSyntax, err)
+	}
 	// For now we just use plain hclwrite.Format
 	// but we plan on customizing formatting in the near future.
-	return string(hclwrite.Format([]byte(hcl)))
+	return string(hclwrite.Format([]byte(src))), nil
 }
 
 // FormatFile will format the given HCL file.
@@ -45,7 +52,7 @@ func FormatFile(filepath string) (string, error) {
 	if err != nil {
 		return "", errors.E(errFormatFile, err)
 	}
-	return Format(string(body)), nil
+	return Format(string(body), filepath)
 }
 
 // FormatTree will format all Terramate configuration files
