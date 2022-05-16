@@ -71,6 +71,22 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			stack: "/stack",
 		},
 		{
+			name:  "dotfile is ignored",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: ".config.tm",
+					add: generateHCL(
+						labels("config"),
+						content(
+							block("empty"),
+						),
+					),
+				},
+			},
+		},
+		{
 			name:  "empty content block generates empty code",
 			stack: "/stack",
 			configs: []hclconfig{

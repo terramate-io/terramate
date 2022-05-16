@@ -69,6 +69,19 @@ func TestLoadGenerateFiles(t *testing.T) {
 			stack: "/stack",
 		},
 		{
+			name:  "dotfile is ignored",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/.test.tm",
+					add: generateFile(
+						labels("test"),
+						str("content", "test"),
+					),
+				},
+			},
+		},
+		{
 			name:  "empty content attribute generates empty body",
 			stack: "/stack",
 			configs: []hclconfig{
