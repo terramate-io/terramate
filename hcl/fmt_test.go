@@ -15,6 +15,7 @@
 package hcl_test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -89,7 +90,8 @@ d = []
 			got, err := hcl.FormatFile(filepath.Join(tmpdir, filename))
 
 			errtest.AssertErrorList(t, err, tcase.wantErrs)
-			assert.EqualStrings(t, tcase.want, got)
+			assert.EqualStrings(t, tcase.want, got, "checking formatted code")
+			assertFileContains(t, filepath.Join(tmpdir, filename), tcase.input)
 		})
 
 		t.Run("Tree/"+tcase.name, func(t *testing.T) {
@@ -114,6 +116,7 @@ d = []
 
 			for _, res := range got {
 				assert.EqualStrings(t, tcase.want, res.Formatted)
+				assertFileContains(t, res.Path, tcase.input)
 			}
 
 			wantFilepath := filepath.Join(rootdir, filename)
@@ -155,4 +158,14 @@ a = 1
 	got, err := hcl.FormatTree(tmpdir)
 	assert.NoError(t, err)
 	assert.EqualInts(t, 0, len(got), "want no results, got: %v", got)
+}
+
+func assertFileContains(t *testing.T, filepath, got string) {
+	t.Helper()
+
+	data, err := os.ReadFile(filepath)
+	assert.NoError(t, err, "reading file")
+
+	want := string(data)
+	assert.EqualStrings(t, want, got, "file %q contents don't match", filepath)
 }
