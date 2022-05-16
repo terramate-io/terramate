@@ -281,23 +281,13 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 	ts := newCLI(t, s.RootDir())
 
 	git := s.Git()
+
 	git.Add(".")
 	git.Commit("all")
 
-	// dance below makes makes local main branch behind origin/main by 1 commit.
-	//   - a "temp" branch is created to record current commit.
-	//   - go back to main and create 1 additional commit and push to origin/main.
-	//   - switch to "temp" and delete "main" reference.
-	//   - create "main" branch again based on temp.
-
-	git.CheckoutNew("temp")
-	git.Checkout("main")
-	stack.CreateFile("tempfile", "any content")
-	git.CommitAll("additional commit")
-	git.Push("main")
-	git.Checkout("temp")
-	git.DeleteBranch("main")
-	git.CheckoutNew("main")
+	setupLocalMainBranchBehindOriginMain(git, func() {
+		stack.CreateFile("tempfile", "any content")
+	})
 
 	wantRes := runExpected{
 		Status:      1,
@@ -307,6 +297,7 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 	assertRunResult(t, ts.listChangedStacks(), wantRes)
 
 	cat := test.LookPath(t, "cat")
+
 	assertRunResult(t, ts.run(
 		"run",
 		"--changed",
@@ -473,4 +464,21 @@ func TestCommandsNotRequiringGitSafeguards(t *testing.T) {
 			})
 		})
 	}
+}
+
+func setupLocalMainBranchBehindOriginMain(git *sandbox.Git, changeFiles func()) {
+	// dance below makes local main branch behind origin/main by 1 commit.
+	//   - a "temp" branch is created to record current commit.
+	//   - go back to main and create 1 additional commit and push to origin/main.
+	//   - switch to "temp" and delete "main" reference.
+	//   - create "main" branch again based on temp.
+
+	git.CheckoutNew("temp")
+	git.Checkout("main")
+	changeFiles()
+	git.CommitAll("additional commit")
+	git.Push("main")
+	git.Checkout("temp")
+	git.DeleteBranch("main")
+	git.CheckoutNew("main")
 }

@@ -79,11 +79,12 @@ type cliSpec struct {
 	} `cmd:"" help:"List stacks"`
 
 	Run struct {
-		DisableCheckGenCode bool     `optional:"true" default:"false" help:"Disable outdated generated code check"`
-		ContinueOnError     bool     `default:"false" help:"Continue executing in other stacks in case of error"`
-		DryRun              bool     `default:"false" help:"Plan the execution but do not execute it"`
-		Reverse             bool     `default:"false" help:"Reverse the order of execution"`
-		Command             []string `arg:"" name:"cmd" passthrough:"" help:"Command to execute"`
+		DisableCheckGenCode   bool     `optional:"true" default:"false" help:"Disable outdated generated code check"`
+		DisableCheckGitRemote bool     `optional:"true" default:"false" help:"Disable checking if local default branch is updated with remote"`
+		ContinueOnError       bool     `default:"false" help:"Continue executing in other stacks in case of error"`
+		DryRun                bool     `default:"false" help:"Plan the execution but do not execute it"`
+		Reverse               bool     `default:"false" help:"Reverse the order of execution"`
+		Command               []string `arg:"" name:"cmd" passthrough:"" help:"Command to execute"`
 	} `cmd:"" help:"Run command in the stacks"`
 
 	Generate struct{} `cmd:"" help:"Generate terraform code for stacks"`
@@ -266,8 +267,7 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 			Msg("EvalSymlinks() failed")
 	}
 
-	logger.Trace().
-		Msg("Running in directory")
+	logger.Trace().Msg("Running in directory")
 
 	prj, foundRoot, err := lookupProject(wd)
 	if err != nil {
@@ -366,14 +366,12 @@ func (c *cli) checkGit() {
 		c.prj.baseRef = c.prj.defaultBaseRef()
 	}
 
-	if c.parsedArgs.Changed {
-		logger.Trace().Msg("Change detection is on: check git default branch was updated")
+	logger.Trace().Msg("check git default branch is updated")
 
-		if err := c.prj.checkLocalDefaultIsUpdated(); err != nil {
-			log.Fatal().
-				Err(err).
-				Msg("checking git default branch was updated.")
-		}
+	if err := c.prj.checkLocalDefaultIsUpdated(); err != nil {
+		log.Fatal().
+			Err(err).
+			Msg("checking git default branch was updated.")
 	}
 }
 
@@ -821,7 +819,9 @@ func (c *cli) runOnStacks() {
 		Str("workingDir", c.wd()).
 		Logger()
 
-	c.checkGit()
+	if !c.parsedArgs.Run.DisableCheckGitRemote {
+		c.checkGit()
+	}
 
 	if len(c.parsedArgs.Run.Command) == 0 {
 		logger.Fatal().Msgf("run expects a cmd")
