@@ -26,35 +26,42 @@ import (
 
 func TestFormatRecursivelly(t *testing.T) {
 	const unformattedHCL = `
-stack {
+globals {
 name = "name"
 		description = "desc"
+	test = true
 	}
 	`
-
 	formattedHCL, err := hcl.Format(unformattedHCL, "")
 	assert.NoError(t, err)
 
 	s := sandbox.New(t)
 	sprintf := fmt.Sprintf
 	s.BuildTree([]string{
-		sprintf("f:another-stacks/stack-1/stack.tm.hcl:%s", unformattedHCL),
-		sprintf("f:another-stacks/stack-2/stack.tm.hcl:%s", unformattedHCL),
-		sprintf("f:stacks/stack-1/stack.tm:%s", unformattedHCL),
-		sprintf("f:stacks/stack-2/stack.tm:%s", unformattedHCL),
+		sprintf("f:globals.tm:%s", unformattedHCL),
+		sprintf("f:another-stacks/globals.tm.hcl:%s", unformattedHCL),
+		sprintf("f:another-stacks/stack-1/globals.tm.hcl:%s", unformattedHCL),
+		sprintf("f:another-stacks/stack-2/globals.tm.hcl:%s", unformattedHCL),
+		sprintf("f:stacks/globals.tm:%s", unformattedHCL),
+		sprintf("f:stacks/stack-1/globals.tm:%s", unformattedHCL),
+		sprintf("f:stacks/stack-2/globals.tm:%s", unformattedHCL),
 	})
 
 	wantedFiles := []string{
-		"another-stacks/stack-1/stack.tm.hcl",
-		"another-stacks/stack-2/stack.tm.hcl",
-		"stacks/stack-1/stack.tm",
-		"stacks/stack-2/stack.tm",
+		"globals.tm",
+		"another-stacks/globals.tm.hcl",
+		"another-stacks/stack-1/globals.tm.hcl",
+		"another-stacks/stack-2/globals.tm.hcl",
+		"stacks/globals.tm",
+		"stacks/stack-1/globals.tm",
+		"stacks/stack-2/globals.tm",
 	}
+	wantedFilesStr := strings.Join(wantedFiles, "\n") + "\n"
 
-	assertWantedFilesContents := func(t *testing.T, files []string, want string) {
+	assertWantedFilesContents := func(t *testing.T, want string) {
 		t.Helper()
 
-		for _, file := range files {
+		for _, file := range wantedFiles {
 			got := s.RootEntry().ReadFile(file)
 			assert.EqualStrings(t, want, string(got))
 		}
@@ -64,15 +71,15 @@ name = "name"
 
 	t.Run("Checking", func(t *testing.T) {
 		assertRunResult(t, cli.run("fmt", "--check"), runExpected{
-			Stdout: strings.Join(wantedFiles, "\n"),
+			Stdout: wantedFilesStr,
 		})
-		assertWantedFilesContents(t, wantedFiles, unformattedHCL)
+		assertWantedFilesContents(t, unformattedHCL)
 	})
 
-	t.Run("ChangingInPlace", func(t *testing.T) {
+	t.Run("UpdateInPlace", func(t *testing.T) {
 		assertRunResult(t, cli.run("fmt"), runExpected{
-			Stdout: strings.Join(wantedFiles, "\n"),
+			Stdout: wantedFilesStr,
 		})
-		assertWantedFilesContents(t, wantedFiles, formattedHCL)
+		assertWantedFilesContents(t, formattedHCL)
 	})
 }
