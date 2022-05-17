@@ -147,6 +147,19 @@ d = []
 	}
 }
 
+func TestFormatReturnsEmptyResultsForEmptyDir(t *testing.T) {
+	tmpdir := t.TempDir()
+	got, err := hcl.FormatTree(tmpdir)
+	assert.NoError(t, err)
+	assert.EqualInts(t, 0, len(got), "want no results, got: %v", got)
+}
+
+func TestFormatTreeFailsOnNonExistentDir(t *testing.T) {
+	tmpdir := t.TempDir()
+	_, err := hcl.FormatTree(filepath.Join(tmpdir, "non-existent"))
+	assert.Error(t, err)
+}
+
 func TestFormatTreeIgnoresNonTerramateFiles(t *testing.T) {
 	const (
 		subdirName      = ".dotdir"
