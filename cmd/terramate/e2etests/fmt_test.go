@@ -24,7 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
-func TestFormatRecursivelly(t *testing.T) {
+func TestFormatRecursively(t *testing.T) {
 	const unformattedHCL = `
 globals {
 name = "name"
