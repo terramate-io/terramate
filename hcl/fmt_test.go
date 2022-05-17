@@ -147,7 +147,7 @@ d = []
 	}
 }
 
-func TestFormatReturnsEmptyResultsForEmptyDir(t *testing.T) {
+func TestFormatTreeReturnsEmptyResultsForEmptyDir(t *testing.T) {
 	tmpdir := t.TempDir()
 	got, err := hcl.FormatTree(tmpdir)
 	assert.NoError(t, err)
