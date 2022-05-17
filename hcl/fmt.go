@@ -61,7 +61,8 @@ func FormatFile(filepath string) (string, error) {
 // Files that are already formatted are ignored. If all files are formatted
 // this function returns an empty result.
 //
-// All files will be left untouched.
+// All files will be left untouched. To save the formatted result on disk you
+// can use FormatResult.Save for each FormatResult.
 func FormatTree(dir string) ([]FormatResult, error) {
 	logger := log.With().
 		Str("action", "hcl.FormatTree()").
