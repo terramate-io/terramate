@@ -150,5 +150,4 @@ func (f FormatResult) Formatted() string {
 
 const (
 	errFormatTree errors.Kind = "formatting tree"
-	errFormatFile errors.Kind = "formatting file"
 )
