@@ -36,6 +36,16 @@ name = "name"
 	assert.NoError(t, err)
 
 	s := sandbox.New(t)
+	cli := newCLI(t, s.RootDir())
+
+	t.Run("checking succeeds when there is no Terramate files", func(t *testing.T) {
+		assertRunResult(t, cli.run("fmt", "--check"), runExpected{})
+	})
+
+	t.Run("formatting succeeds when there is no Terramate files", func(t *testing.T) {
+		assertRunResult(t, cli.run("fmt"), runExpected{})
+	})
+
 	sprintf := fmt.Sprintf
 	s.BuildTree([]string{
 		sprintf("f:globals.tm:%s", unformattedHCL),
@@ -67,19 +77,28 @@ name = "name"
 		}
 	}
 
-	cli := newCLI(t, s.RootDir())
-
-	t.Run("Checking", func(t *testing.T) {
+	t.Run("checking fails with unformatted files", func(t *testing.T) {
 		assertRunResult(t, cli.run("fmt", "--check"), runExpected{
+			Status: 1,
 			Stdout: wantedFilesStr,
 		})
 		assertWantedFilesContents(t, unformattedHCL)
 	})
 
-	t.Run("UpdateInPlace", func(t *testing.T) {
+	t.Run("update unformatted files in place", func(t *testing.T) {
 		assertRunResult(t, cli.run("fmt"), runExpected{
 			Stdout: wantedFilesStr,
 		})
+		assertWantedFilesContents(t, formattedHCL)
+	})
+
+	t.Run("checking succeeds when all files are formatted", func(t *testing.T) {
+		assertRunResult(t, cli.run("fmt", "--check"), runExpected{})
+		assertWantedFilesContents(t, formattedHCL)
+	})
+
+	t.Run("formatting succeeds when all files are formatted", func(t *testing.T) {
+		assertRunResult(t, cli.run("fmt"), runExpected{})
 		assertWantedFilesContents(t, formattedHCL)
 	})
 }

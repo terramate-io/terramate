@@ -490,7 +490,12 @@ func (c *cli) format() {
 	}
 
 	if c.parsedArgs.Fmt.Check {
-		logger.Trace().Msg("only checking, nothing else to do")
+		logger.Trace().Msg("checking if we have unformatted files")
+		if len(results) > 0 {
+			logger.Trace().Msg("we have unformatted files")
+			os.Exit(1)
+		}
+		logger.Trace().Msg("all files formatted, nothing else to do")
 		return
 	}
 
