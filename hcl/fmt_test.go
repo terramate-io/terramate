@@ -27,9 +27,6 @@ import (
 	errtest "github.com/mineiros-io/terramate/test/errors"
 )
 
-// TODO(katcipis)
-// hcl.FormatTreeDiff ? (for the diff)
-
 func TestFormatHCL(t *testing.T) {
 	type testcase struct {
 		name     string
@@ -83,20 +80,8 @@ d = []
 			assert.EqualStrings(t, tcase.want, got)
 		})
 
-		t.Run("File/"+tcase.name, func(t *testing.T) {
-			const filename = "file.tm"
-
-			tmpdir := t.TempDir()
-			test.WriteFile(t, tmpdir, filename, tcase.input)
-			path := filepath.Join(tmpdir, filename)
-			got, err := hcl.FormatFile(path)
-
-			addFilenameToErrorsFileRanges(tcase.wantErrs, path)
-			errtest.AssertErrorList(t, err, tcase.wantErrs)
-			assert.EqualStrings(t, tcase.want, got, "checking formatted code")
-			assertFileContains(t, filepath.Join(tmpdir, filename), tcase.input)
-		})
-
+		// piggyback on the overall formatting scenarios to check
+		// for hcl.FormatTree behavior.
 		t.Run("Tree/"+tcase.name, func(t *testing.T) {
 			const (
 				filename   = "file.tm"
@@ -150,15 +135,16 @@ d = []
 					assert.NoError(t, res.Save())
 					assertFileContains(t, res.Path(), res.Formatted())
 				}
+
+				got, err := hcl.FormatTree(rootdir)
+				assert.NoError(t, err)
+
+				if len(got) > 0 {
+					t.Fatalf("after formatting want 0 fmt results, got: %v", got)
+				}
 			})
 		})
 	}
-}
-
-func TestFormatFileDoesntExist(t *testing.T) {
-	tmpdir := t.TempDir()
-	_, err := hcl.FormatFile(filepath.Join(tmpdir, "dontexist.tm"))
-	assert.Error(t, err)
 }
 
 func TestFormatTreeIgnoresNonTerramateFiles(t *testing.T) {
@@ -181,6 +167,7 @@ a = 1
 	subdir := filepath.Join(tmpdir, subdirName)
 	test.WriteFile(t, subdir, ".file.tm", unformattedCode)
 	test.WriteFile(t, subdir, "file.tm", unformattedCode)
+	test.WriteFile(t, subdir, "file.tm.hcl", unformattedCode)
 
 	got, err := hcl.FormatTree(tmpdir)
 	assert.NoError(t, err)

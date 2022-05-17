@@ -43,15 +43,6 @@ func Format(src, filename string) (string, error) {
 	return string(hclwrite.Format([]byte(src))), nil
 }
 
-// FormatFile will format the given HCL file.
-func FormatFile(filepath string) (string, error) {
-	body, err := os.ReadFile(filepath)
-	if err != nil {
-		return "", errors.E(errFormatFile, err)
-	}
-	return Format(string(body), filepath)
-}
-
 // FormatTree will format all Terramate configuration files
 // in the given tree starting at the given dir. It will recursively
 // navigate on sub directories. Directories starting with "." are ignored.
@@ -84,16 +75,33 @@ func FormatTree(dir string) ([]FormatResult, error) {
 			Str("file", f).
 			Logger()
 
-		logger.Trace().Msg("formatting file")
-		file := filepath.Join(dir, f)
-		formatted, err := FormatFile(file)
+		logger.Trace().Msg("reading file")
+
+		path := filepath.Join(dir, f)
+		fileContents, err := os.ReadFile(path)
 		if err != nil {
 			errs.Append(err)
 			continue
 		}
 
+		logger.Trace().Msg("formatting file")
+
+		currentCode := string(fileContents)
+		formatted, err := Format(currentCode, path)
+		if err != nil {
+			errs.Append(err)
+			continue
+		}
+
+		if currentCode == formatted {
+			logger.Trace().Msg("file already formatted")
+			continue
+		}
+
+		logger.Trace().Msg("file needs formatting, adding to results")
+
 		results = append(results, FormatResult{
-			path:      file,
+			path:      path,
 			formatted: formatted,
 		})
 	}
