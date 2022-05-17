@@ -138,17 +138,17 @@ d = []
 			assert.EqualInts(t, 2, len(got), "want 2 formatted files, got: %v", got)
 
 			for _, res := range got {
-				assert.EqualStrings(t, tcase.want, res.Formatted)
-				assertFileContains(t, res.Path, tcase.input)
+				assert.EqualStrings(t, tcase.want, res.Formatted())
+				assertFileContains(t, res.Path(), tcase.input)
 			}
 
-			assert.EqualStrings(t, wantFilepath, got[0].Path)
-			assert.EqualStrings(t, wantSubdirFilepath, got[1].Path)
+			assert.EqualStrings(t, wantFilepath, got[0].Path())
+			assert.EqualStrings(t, wantSubdirFilepath, got[1].Path())
 
 			t.Run("saving format results", func(t *testing.T) {
 				for _, res := range got {
 					assert.NoError(t, res.Save())
-					assertFileContains(t, res.Path, res.Formatted)
+					assertFileContains(t, res.Path(), res.Formatted())
 				}
 			})
 		})

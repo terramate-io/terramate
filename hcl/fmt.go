@@ -26,11 +26,8 @@ import (
 
 // FormatResult represents the result of a formatting operation.
 type FormatResult struct {
-	// Path is the absolute path of the file.
-	Path string
-
-	// Formatted is the formatted file contents.
-	Formatted string
+	path      string
+	formatted string
 }
 
 // Format will format the given source code. It returns an error if the given
@@ -95,8 +92,8 @@ func FormatTree(dir string) ([]FormatResult, error) {
 		}
 
 		results = append(results, FormatResult{
-			Path:      file,
-			Formatted: formatted,
+			path:      file,
+			formatted: formatted,
 		})
 	}
 
@@ -129,7 +126,17 @@ func FormatTree(dir string) ([]FormatResult, error) {
 // Save will save the formatted result on the original file, replacing
 // its original contents.
 func (f FormatResult) Save() error {
-	return os.WriteFile(f.Path, []byte(f.Formatted), 0644)
+	return os.WriteFile(f.path, []byte(f.formatted), 0644)
+}
+
+// Path is the absolute path of the original file.
+func (f FormatResult) Path() string {
+	return f.path
+}
+
+// Formatted is the contents of the original file after formatting.
+func (f FormatResult) Formatted() string {
+	return f.formatted
 }
 
 const (
