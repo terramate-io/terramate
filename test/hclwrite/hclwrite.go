@@ -35,7 +35,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -222,7 +222,11 @@ func NumberInt(name string, val int64) BlockBuilder {
 
 // Format formats the given HCL code.
 func Format(code string) string {
-	return strings.Trim(string(hclwrite.Format([]byte(code))), "\n ")
+	formatted, err := hcl.Format(code, "gen.hcl")
+	if err != nil {
+		panic(fmt.Errorf("invalid code:\n%s\ncan't be formatted: %v", code, err))
+	}
+	return strings.Trim(formatted, "\n ")
 }
 
 // Build calls the underlying builder function to build the given block.
