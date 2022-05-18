@@ -52,6 +52,33 @@ d = []
 `,
 		},
 		{
+			name: "ternary with list comprehension",
+			input: `
+var = 1 >= global.num ? local.x : [   for x in    local.a : x  ]
+`,
+			want: `
+var = 1 >= global.num ? local.x : [for x in local.a : x]
+`,
+		},
+		{
+			name: "assignment with list comprehension",
+			input: `
+var = [   for x in    local.a : x  ]
+`,
+			want: `
+var = [for x in local.a : x]
+`,
+		},
+		{
+			name: "assignment with map comprehension",
+			input: `
+var = {  for s    in var.list : s =>     upper(s)    }
+`,
+			want: `
+var = { for s in var.list : s => upper(s) }
+`,
+		},
+		{
 			name: "fails on syntax errors",
 			input: `
 				string = hi"
