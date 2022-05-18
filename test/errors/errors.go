@@ -66,6 +66,10 @@ func Assert(t *testing.T, err, target error) {
 func AssertIsErrors(t *testing.T, err error, targets []error) {
 	t.Helper()
 
+	if err != nil && len(targets) == 0 {
+		t.Fatalf("wanted no errors but got: %v", err)
+	}
+
 	for _, target := range targets {
 		Assert(t, err, target)
 	}
