@@ -79,6 +79,52 @@ var = { for s in var.list : s => upper(s) }
 `,
 		},
 		{
+			name: "empty list",
+			input: `
+var = []
+`,
+			want: `
+var = [
+]
+`,
+		},
+		{
+			name: "single item list",
+			input: `
+var = [ "item" ]
+`,
+			want: `
+var = [
+  "item",
+]
+`,
+		},
+		{
+			name: "multiple item list",
+			input: `
+var = [ true, false, true ]
+`,
+			want: `
+var = [
+  true,
+  false,
+  true,
+]
+`,
+		},
+		{
+			name: "multiple item list with objects",
+			input: `
+var = [ {name="test1"}, {name="test2"} ]
+`,
+			want: `
+var = [
+  { name = "test1" },
+  { name = "test2" },
+]
+`,
+		},
+		{
 			name: "fails on syntax errors",
 			input: `
 				string = hi"
