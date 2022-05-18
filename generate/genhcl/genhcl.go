@@ -39,7 +39,7 @@ type StackHCLs struct {
 // about the origin of the generated code.
 type HCL struct {
 	origin string
-	body   []byte
+	body   string
 }
 
 const (
@@ -139,16 +139,19 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackHCLs, 
 
 		gen := hclwrite.NewEmptyFile()
 		if err := hcl.CopyBody(gen.Body(), loadedHCL.block.Body, evalctx); err != nil {
-			return StackHCLs{}, errors.E(
-				ErrEval,
-				sm,
-				err,
+			return StackHCLs{}, errors.E(ErrEval, sm, err,
 				"failed to generate block %q", name,
+			)
+		}
+		formatted, err := hcl.Format(string(gen.Bytes()), loadedHCL.origin)
+		if err != nil {
+			return StackHCLs{}, errors.E(sm, err,
+				"failed to format generated code for block %q", name,
 			)
 		}
 		res.hcls[name] = HCL{
 			origin: loadedHCL.origin,
-			body:   hclwrite.Format(gen.Bytes()),
+			body:   formatted,
 		}
 	}
 
