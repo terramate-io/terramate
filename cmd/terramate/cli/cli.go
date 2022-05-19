@@ -76,7 +76,7 @@ type cliSpec struct {
 
 	Fmt struct {
 		Check bool `help:"Lists unformatted files, exit with 0 if all is formatted, 1 otherwise"`
-	} `cmd:"" help:"List stacks"`
+	} `cmd:"" help:"Format all files inside dir recursively"`
 
 	List struct {
 		Why bool `help:"Shows the reason why the stack has changed"`
@@ -485,7 +485,7 @@ func (c *cli) format() {
 
 	logger.Trace().Msg("listing formatted files")
 	for _, res := range results {
-		path := strings.TrimPrefix(res.Path(), c.wd()+"/")
+		path := strings.TrimPrefix(res.Path(), c.wd()+string(filepath.Separator))
 		c.log(path)
 	}
 
