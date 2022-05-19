@@ -30,6 +30,7 @@ import (
 // TODO(katcipis):
 // - List comprehension with newlines
 // - List with lists inside
+// - List of objects with lists inside
 // - Blocks and subblocks with lists inside
 
 func TestFormatHCL(t *testing.T) {
