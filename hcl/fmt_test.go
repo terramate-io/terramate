@@ -49,6 +49,11 @@ func TestFormatHCL(t *testing.T) {
 			want:  "\n\n\n",
 		},
 		{
+			name:  "only spaces are preserved",
+			input: "  ",
+			want:  "  ",
+		},
+		{
 			name: "attributes alignment",
 			input: `
 a = 1
