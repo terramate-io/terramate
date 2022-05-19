@@ -27,6 +27,10 @@ import (
 	errtest "github.com/mineiros-io/terramate/test/errors"
 )
 
+// TODO(katcipis):
+// - Test list comprehension with newlines
+// - Test list with lists inside
+
 func TestFormatHCL(t *testing.T) {
 	type testcase struct {
 		name     string
