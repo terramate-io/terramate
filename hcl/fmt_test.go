@@ -41,6 +41,14 @@ func TestFormatHCL(t *testing.T) {
 
 	tcases := []testcase{
 		{
+			name: "empty",
+		},
+		{
+			name:  "only newlines are preserved",
+			input: "\n\n\n",
+			want:  "\n\n\n",
+		},
+		{
 			name: "attributes alignment",
 			input: `
 a = 1
@@ -169,6 +177,12 @@ var = [
 			errtest.AssertErrorList(t, err, tcase.wantErrs)
 			assert.EqualStrings(t, tcase.want, got)
 		})
+
+		if tcase.input == tcase.want {
+			// We dont test FormatTree for no formatting changes here.
+			// Only scenarios where changes will be detected.
+			continue
+		}
 
 		// piggyback on the overall formatting scenarios to check
 		// for hcl.FormatTree behavior.
