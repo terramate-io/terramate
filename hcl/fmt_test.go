@@ -132,6 +132,23 @@ var = [
 `,
 		},
 		{
+			name: "adds comma on last element",
+			input: `
+var = [
+  true,
+  false,
+  true
+]
+`,
+			want: `
+var = [
+  true,
+  false,
+  true,
+]
+`,
+		},
+		{
 			name: "multiple item list with objects",
 			input: `
 var = [ {name="test1"}, {name="test2"} ]
