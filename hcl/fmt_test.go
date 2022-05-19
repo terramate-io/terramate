@@ -48,7 +48,8 @@ a = 1
 a = 1
 b = "la"
 c = 666
-d = []
+d = [
+]
 `,
 		},
 		{
@@ -121,6 +122,18 @@ var = [ {name="test1"}, {name="test2"} ]
 var = [
   { name = "test1" },
   { name = "test2" },
+]
+`,
+		},
+		{
+			name: "multiple item list with string templates with commas",
+			input: `
+var = [ {name="${hi},${comma}"}, {name="${hi} [${hello}]"} ]
+`,
+			want: `
+var = [
+  { name = "${hi},${comma}" },
+  { name = "${hi} [${hello}]" },
 ]
 `,
 		},

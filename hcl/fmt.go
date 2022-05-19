@@ -15,10 +15,12 @@
 package hcl
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/hashicorp/hcl/v2/hclparse"
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/rs/zerolog/log"
@@ -33,14 +35,15 @@ type FormatResult struct {
 // Format will format the given source code. It returns an error if the given
 // source is invalid HCL.
 func Format(src, filename string) (string, error) {
-	p := hclparse.NewParser()
-	_, diags := p.ParseHCL([]byte(src), filename)
+	parsed, diags := hclwrite.ParseConfig([]byte(src), filename, hcl.InitialPos)
 	if err := errors.L(diags).AsError(); err != nil {
 		return "", errors.E(ErrHCLSyntax, err)
 	}
+
+	adjustBody(parsed.Body())
 	// For now we just use plain hclwrite.Format
 	// but we plan on customizing formatting in the near future.
-	return string(hclwrite.Format([]byte(src))), nil
+	return string(hclwrite.Format(parsed.Bytes())), nil
 }
 
 // FormatTree will format all Terramate configuration files
@@ -151,3 +154,130 @@ func (f FormatResult) Formatted() string {
 const (
 	errFormatTree errors.Kind = "formatting tree"
 )
+
+func adjustBody(body *hclwrite.Body) {
+	// We don't actually format the body, we just adjust it, adding
+	// newlines in a way that hclwrite.Format will format things the way we want.
+	// This is a quick/nasty hack.
+	logger := log.With().
+		Str("action", "hcl.adjustBody()").
+		Logger()
+
+	attrs := body.Attributes()
+	for name, attr := range attrs {
+		logger.Trace().
+			Str("name", name).
+			Msg("adjusting attribute")
+		body.SetAttributeRaw(name, addNewlines(attr.Expr().BuildTokens(nil)))
+	}
+
+	blocks := body.Blocks()
+	for _, block := range blocks {
+		adjustBody(block.Body())
+	}
+}
+
+func addNewlines(tokens hclwrite.Tokens) hclwrite.Tokens {
+	logger := log.With().
+		Str("action", "hcl.addNewlines()").
+		Str("tokens", tokensStr(tokens)).
+		Logger()
+
+	logger.Trace().Msg("trimming newlines")
+
+	trimmed := trimNewlines(tokens)
+	if len(trimmed) == 0 {
+		return tokens
+	}
+
+	logger = logger.With().
+		Str("trimmedTokens", tokensStr(trimmed)).
+		Logger()
+
+	// We are interested on lists, ignore the rest
+	if trimmed[0].Type != hclsyntax.TokenOBrack {
+		logger.Trace().Msg("not a list, ignoring")
+		return tokens
+	}
+
+	logger.Trace().Msg("it is a list, adjusting")
+
+	newTokens := hclwrite.Tokens{trimmed[0], newlineToken()}
+	trimmed = trimmed[1:]
+
+	for len(trimmed) > 0 {
+		element, elemEndPos := getElement(trimmed)
+		trimmed = trimmed[elemEndPos:]
+
+		if len(element) == 0 {
+			continue
+		}
+
+		newTokens = append(newTokens, element...)
+		newTokens = append(newTokens, commaToken(), newlineToken())
+	}
+
+	newTokens = append(newTokens, closeBracketToken())
+
+	return newTokens
+}
+
+func getElement(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
+	for i, token := range tokens {
+		if token.Type == hclsyntax.TokenComma || token.Type == hclsyntax.TokenCBrack {
+			return trimNewlines(tokens[0:i]), i + 1
+		}
+	}
+	panic(fmt.Errorf("list tokens %q expected to end with , or ]", tokensStr(tokens)))
+}
+
+func closeBracketToken() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenCBrack,
+		Bytes: []byte("]"),
+	}
+}
+
+func commaToken() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenComma,
+		Bytes: []byte(","),
+	}
+}
+
+func newlineToken() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenNewline,
+		Bytes: []byte("\n"),
+	}
+}
+
+func trimNewlines(tokens hclwrite.Tokens) hclwrite.Tokens {
+	if len(tokens) == 0 {
+		return nil
+	}
+
+	var start int
+	for start = 0; start < len(tokens); start++ {
+		if tokens[start].Type != hclsyntax.TokenNewline {
+			break
+		}
+	}
+
+	var end int
+	for end = len(tokens); end > 0; end-- {
+		if tokens[end-1].Type != hclsyntax.TokenNewline {
+			break
+		}
+	}
+
+	if end < start {
+		return nil
+	}
+
+	return tokens[start:end]
+}
+
+func tokensStr(tokens hclwrite.Tokens) string {
+	return string(tokens.Bytes())
+}
