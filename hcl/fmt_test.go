@@ -28,8 +28,9 @@ import (
 )
 
 // TODO(katcipis):
-// - Test list comprehension with newlines
-// - Test list with lists inside
+// - List comprehension with newlines
+// - List with lists inside
+// - Blocks and subblocks with lists inside
 
 func TestFormatHCL(t *testing.T) {
 	type testcase struct {
