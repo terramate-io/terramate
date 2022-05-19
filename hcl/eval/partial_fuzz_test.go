@@ -31,8 +31,6 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/rs/zerolog"
 	"github.com/zclconf/go-cty/cty"
-
-	tmhclwrite "github.com/mineiros-io/terramate/test/hclwrite"
 )
 
 func FuzzPartialEval(f *testing.F) {
@@ -92,13 +90,9 @@ func FuzzPartialEval(f *testing.F) {
 
 		const testattr = "attr"
 
-		cfg := hcldoc(
-			expr(testattr, str),
-		)
-
-		cfgString := cfg.String()
+		cfg := fmt.Sprintf("%s = %s", testattr, str)
 		parser := hclparse.NewParser()
-		file, diags := parser.ParseHCL([]byte(cfgString), "fuzz")
+		file, diags := parser.ParseHCL([]byte(cfg), "fuzz")
 		if diags.HasErrors() {
 			return
 		}
@@ -108,7 +102,7 @@ func FuzzPartialEval(f *testing.F) {
 		parsedExpr := attr.Expr
 
 		exprRange := parsedExpr.Range()
-		exprBytes := cfgString[exprRange.Start.Byte:exprRange.End.Byte]
+		exprBytes := cfg[exprRange.Start.Byte:exprRange.End.Byte]
 
 		parsedTokens, diags := hclsyntax.LexExpression([]byte(exprBytes), "fuzz", hcl.Pos{})
 		if diags.HasErrors() {
@@ -123,9 +117,9 @@ func FuzzPartialEval(f *testing.F) {
 		engine := newPartialEvalEngine(want, ctx)
 		got, err := engine.Eval()
 
-		if strings.Contains(cfgString, "global") ||
-			strings.Contains(cfgString, "terramate") ||
-			strings.Contains(cfgString, "tm_") {
+		if strings.Contains(cfg, "global") ||
+			strings.Contains(cfg, "terramate") ||
+			strings.Contains(cfg, "tm_") {
 			// TODO(katcipis): Validate generated code properties when
 			// substitution is in play.
 			return
@@ -154,14 +148,6 @@ func tokensStr(t hclwrite.Tokens) string {
 		tokensStrs[i] = fmt.Sprintf("{Type=%q Bytes=%s}", token.Type, token.Bytes)
 	}
 	return "[" + strings.Join(tokensStrs, ",") + "]"
-}
-
-func hcldoc(builders ...tmhclwrite.BlockBuilder) *tmhclwrite.Block {
-	return tmhclwrite.BuildHCL(builders...)
-}
-
-func expr(name string, expr string) tmhclwrite.BlockBuilder {
-	return tmhclwrite.Expression(name, expr)
 }
 
 func init() {

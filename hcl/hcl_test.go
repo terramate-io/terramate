@@ -212,10 +212,8 @@ module "test" {
 			addFilenameToErrorsFileRanges(tc.want.errs, tfpath)
 
 			modules, err := hcl.ParseModules(tfpath)
-			errtest.AssertIsErrors(t, err, tc.want.errs)
-			if err != nil {
-				errtest.AssertAsErrorsList(t, err)
-			}
+
+			errtest.AssertErrorList(t, err, tc.want.errs)
 			assert.EqualInts(t,
 				len(tc.want.modules),
 				len(modules),

@@ -74,6 +74,10 @@ type cliSpec struct {
 	DisableCheckGitUntracked   bool `optional:"true" default:"false" help:"Disable git check for untracked files"`
 	DisableCheckGitUncommitted bool `optional:"true" default:"false" help:"Disable git check for uncommitted files"`
 
+	Fmt struct {
+		Check bool `help:"Lists unformatted files, exit with 0 if all is formatted, 1 otherwise"`
+	} `cmd:"" help:"List stacks"`
+
 	List struct {
 		Why bool `help:"Shows the reason why the stack has changed"`
 	} `cmd:"" help:"List stacks"`
@@ -322,6 +326,8 @@ func (c *cli) run() {
 	logger.Debug().Msg("Handle command.")
 
 	switch c.ctx.Command() {
+	case "fmt":
+		c.format()
 	case "list":
 		c.printStacks()
 	case "run":
@@ -343,7 +349,7 @@ func (c *cli) run() {
 	case "experimental run-order":
 		c.printRunOrder()
 	default:
-		log.Fatal().Msg("unexpected command sequence")
+		logger.Fatal().Msg("unexpected command sequence")
 	}
 }
 
@@ -463,6 +469,52 @@ func (c *cli) listStacks(mgr *terramate.Manager, isChanged bool) (*terramate.Sta
 		return mgr.ListChanged()
 	}
 	return mgr.List()
+}
+
+func (c *cli) format() {
+	logger := log.With().
+		Str("workingDir", c.wd()).
+		Str("action", "format()").
+		Logger()
+
+	logger.Trace().Msg("formatting all files recursively")
+	results, err := hcl.FormatTree(c.wd())
+	if err != nil {
+		logger.Fatal().Err(err).Msg("formatting files")
+	}
+
+	logger.Trace().Msg("listing formatted files")
+	for _, res := range results {
+		path := strings.TrimPrefix(res.Path(), c.wd()+string(filepath.Separator))
+		c.log(path)
+	}
+
+	if c.parsedArgs.Fmt.Check {
+		logger.Trace().Msg("checking if we have unformatted files")
+		if len(results) > 0 {
+			logger.Trace().Msg("we have unformatted files")
+			os.Exit(1)
+		}
+		logger.Trace().Msg("all files formatted, nothing else to do")
+		return
+	}
+
+	logger.Trace().Msg("saving formatted files")
+
+	errs := errors.L()
+	for _, res := range results {
+		logger := log.With().
+			Str("workingDir", c.wd()).
+			Str("filepath", res.Path()).
+			Str("action", "format()").
+			Logger()
+		logger.Trace().Msg("saving formatted file")
+		errs.Append(res.Save())
+	}
+
+	if err := errs.AsError(); err != nil {
+		logger.Fatal().Err(err).Msg("saving files")
+	}
 }
 
 func (c *cli) printStacks() {
