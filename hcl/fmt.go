@@ -200,6 +200,11 @@ func addNewlines(tokens hclwrite.Tokens) hclwrite.Tokens {
 		return tokens
 	}
 
+	if isListComprehension(trimmed) {
+		logger.Trace().Msg("list comprehension, ignoring")
+		return tokens
+	}
+
 	logger.Trace().Msg("it is a list, adjusting")
 
 	newTokens := hclwrite.Tokens{trimmed[0], newlineToken()}
@@ -280,4 +285,17 @@ func trimNewlines(tokens hclwrite.Tokens) hclwrite.Tokens {
 
 func tokensStr(tokens hclwrite.Tokens) string {
 	return string(tokens.Bytes())
+}
+
+func isListComprehension(tokens hclwrite.Tokens) bool {
+	return tokens[1].Type == hclsyntax.TokenIdent &&
+		string(tokens[1].Bytes) == "for"
+
+	// Handle comprehensions with newlines
+	//var i int
+	//for i = 0; i < len(tokens); i++ {
+	//if tokens[i].Type != hclsyntax.TokenNewline {
+	//break
+	//}
+	//}
 }
