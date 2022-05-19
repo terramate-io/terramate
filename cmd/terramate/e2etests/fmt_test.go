@@ -16,6 +16,7 @@ package e2etest
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -66,7 +67,10 @@ name = "name"
 		"stacks/stack-1/globals.tm",
 		"stacks/stack-2/globals.tm",
 	}
-	wantedFilesStr := strings.Join(wantedFiles, "\n") + "\n"
+	filesListOutput := func(files []string) string {
+		return strings.Join(files, "\n") + "\n"
+	}
+	wantedFilesStr := filesListOutput(wantedFiles)
 
 	assertWantedFilesContents := func(t *testing.T, want string) {
 		t.Helper()
@@ -81,6 +85,20 @@ name = "name"
 		assertRunResult(t, cli.run("fmt", "--check"), runExpected{
 			Status: 1,
 			Stdout: wantedFilesStr,
+		})
+		assertWantedFilesContents(t, unformattedHCL)
+	})
+
+	t.Run("checking fails with unformatted files on subdirs", func(t *testing.T) {
+		subdir := filepath.Join(s.RootDir(), "another-stacks")
+		cli := newCLI(t, subdir)
+		assertRunResult(t, cli.run("fmt", "--check"), runExpected{
+			Status: 1,
+			Stdout: filesListOutput([]string{
+				"globals.tm.hcl",
+				"stack-1/globals.tm.hcl",
+				"stack-2/globals.tm.hcl",
+			}),
 		})
 		assertWantedFilesContents(t, unformattedHCL)
 	})
