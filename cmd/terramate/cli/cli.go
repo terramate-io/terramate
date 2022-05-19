@@ -76,7 +76,7 @@ type cliSpec struct {
 
 	Fmt struct {
 		Check bool `help:"Lists unformatted files, exit with 0 if all is formatted, 1 otherwise"`
-	} `cmd:"" help:"List stacks"`
+	} `cmd:"" help:"Format all files inside dir recursively"`
 
 	List struct {
 		Why bool `help:"Shows the reason why the stack has changed"`
