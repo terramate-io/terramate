@@ -485,7 +485,7 @@ func (c *cli) format() {
 
 	logger.Trace().Msg("listing formatted files")
 	for _, res := range results {
-		path := strings.TrimPrefix(res.Path(), c.wd()+"/")
+		path := strings.TrimPrefix(res.Path(), c.wd()+string(filepath.Separator))
 		c.log(path)
 	}
 
