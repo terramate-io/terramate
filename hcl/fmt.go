@@ -168,7 +168,7 @@ func adjustBody(body *hclwrite.Body) {
 		logger.Trace().
 			Str("name", name).
 			Msg("adjusting attribute")
-		body.SetAttributeRaw(name, addNewlines(attr.Expr().BuildTokens(nil)))
+		body.SetAttributeRaw(name, adjustAttrExpr(attr.Expr().BuildTokens(nil)))
 	}
 
 	blocks := body.Blocks()
@@ -177,7 +177,7 @@ func adjustBody(body *hclwrite.Body) {
 	}
 }
 
-func addNewlines(tokens hclwrite.Tokens) hclwrite.Tokens {
+func adjustAttrExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
 	logger := log.With().
 		Str("action", "hcl.addNewlines()").
 		Str("tokens", tokensStr(tokens)).
@@ -287,15 +287,19 @@ func tokensStr(tokens hclwrite.Tokens) string {
 	return string(tokens.Bytes())
 }
 
-func isListComprehension(tokens hclwrite.Tokens) bool {
-	return tokens[1].Type == hclsyntax.TokenIdent &&
-		string(tokens[1].Bytes) == "for"
+func skipNewlines(tokens hclwrite.Tokens) hclwrite.Tokens {
+	for i, token := range tokens {
+		if token.Type != hclsyntax.TokenNewline {
+			return tokens[i:]
+		}
+	}
+	return nil
+}
 
-	// Handle comprehensions with newlines
-	//var i int
-	//for i = 0; i < len(tokens); i++ {
-	//if tokens[i].Type != hclsyntax.TokenNewline {
-	//break
-	//}
-	//}
+func isListComprehension(tokens hclwrite.Tokens) bool {
+	// Here we already assume the first token is [
+	// So we are trying to determine if it is a list comprehension.
+	tokens = skipNewlines(tokens[1:])
+	return tokens[0].Type == hclsyntax.TokenIdent &&
+		string(tokens[0].Bytes) == "for"
 }

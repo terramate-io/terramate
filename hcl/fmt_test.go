@@ -90,6 +90,19 @@ var = [for x in local.a : x]
 `,
 		},
 		{
+			name: "multi line list comprehension",
+			input: `
+var = [
+for x in    local.a : x
+]
+`,
+			want: `
+var = [
+  for x in local.a : x
+]
+`,
+		},
+		{
 			name: "assignment with map comprehension",
 			input: `
 var = {  for s    in var.list : s =>     upper(s)    }
