@@ -198,7 +198,7 @@ func adjustAttrExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
 	if trimmed[0].Type == hclsyntax.TokenOBrack {
 		// We don't need the position of the next token here
 		// since there shouldn't be any next token on this case.
-		adjustedList, _ := adjustListExpr(tokens)
+		adjustedList, _ := adjustListExpr(trimmed)
 		return adjustedList
 	}
 
