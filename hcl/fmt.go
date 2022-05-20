@@ -243,7 +243,14 @@ func adjustListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 
 	newTokens = append(newTokens, closeBracketToken())
 
-	return newTokens, elemNextPos + 1
+	// we need to skip newlines and possible comma, next element starts after
+	// the comma if there is any
+	_, skipped := skipNewlines(tokens[elemNextPos:])
+	elemNextPos += skipped
+	if tokens[elemNextPos].Type == hclsyntax.TokenComma {
+		elemNextPos++
+	}
+	return newTokens, elemNextPos
 }
 
 func getNextListElement(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
