@@ -247,7 +247,7 @@ func adjustListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	// the comma if there is any
 	_, skipped := skipNewlines(tokens[elemNextPos:])
 	elemNextPos += skipped
-	if tokens[elemNextPos].Type == hclsyntax.TokenComma {
+	if elemNextPos < len(tokens) && tokens[elemNextPos].Type == hclsyntax.TokenComma {
 		elemNextPos++
 	}
 	return newTokens, elemNextPos
@@ -322,7 +322,7 @@ func skipNewlines(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			return tokens[i:], i
 		}
 	}
-	return nil, len(tokens) - 1
+	return nil, len(tokens)
 }
 
 func isListComprehension(tokens hclwrite.Tokens) bool {
