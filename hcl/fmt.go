@@ -227,12 +227,9 @@ func adjustListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	elemNextPos := 1 // Skip '['
 
 	for tokens[elemNextPos-1].Type != hclsyntax.TokenCBrack {
-		for _, token := range tokens[elemNextPos:] {
-			if token.Type != hclsyntax.TokenNewline {
-				break
-			}
-			elemNextPos++
-		}
+		_, skipped := skipNewlines(tokens[elemNextPos:])
+		elemNextPos += skipped
+
 		element, nextPos := getNextListElement(tokens[elemNextPos:])
 		elemNextPos += nextPos
 
@@ -315,19 +312,19 @@ func tokensStr(tokens hclwrite.Tokens) string {
 	return string(tokens.Bytes())
 }
 
-func skipNewlines(tokens hclwrite.Tokens) hclwrite.Tokens {
+func skipNewlines(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	for i, token := range tokens {
 		if token.Type != hclsyntax.TokenNewline {
-			return tokens[i:]
+			return tokens[i:], i
 		}
 	}
-	return nil
+	return nil, len(tokens) - 1
 }
 
 func isListComprehension(tokens hclwrite.Tokens) bool {
 	// Here we already assume the first token is [
 	// So we are trying to determine if it is a list comprehension.
-	tokens = skipNewlines(tokens[1:])
+	tokens, _ = skipNewlines(tokens[1:])
 	return tokens[0].Type == hclsyntax.TokenIdent &&
 		string(tokens[0].Bytes) == "for"
 }
