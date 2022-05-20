@@ -243,15 +243,12 @@ func adjustListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 
 	newTokens = append(newTokens, closeBracketToken())
 
-	return newTokens, elemNextPos
+	return newTokens, elemNextPos + 1
 }
 
 func getNextListElement(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	if tokens[0].Type == hclsyntax.TokenOBrack {
-		listTokens, next := adjustListExpr(tokens)
-		// We need to skip the comma, if there is any
-		// If there isn't incrementing will also match with a ]
-		return listTokens, next + 1
+		return adjustListExpr(tokens)
 	}
 	for i, token := range tokens {
 		if token.Type == hclsyntax.TokenComma || token.Type == hclsyntax.TokenCBrack {

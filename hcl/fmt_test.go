@@ -207,11 +207,19 @@ var = [
 [1,
 
 2,3],
+
 [
+
 ["hi",
+
 "nesting",
+
 "is",
-"fun"],
+
+"fun",
+
+
+],
 
 ],
 
@@ -283,6 +291,7 @@ var = [
 			}
 
 			got2, err := hcl.Format(got, "formatted.hcl")
+			assert.NoError(t, err)
 			assert.EqualStrings(t, got, got2, "reformatting should produce identical results")
 		})
 
