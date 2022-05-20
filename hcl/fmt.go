@@ -195,24 +195,46 @@ func adjustAttrExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
 		Logger()
 
 	// We are interested on lists, ignore the rest
-	if trimmed[0].Type != hclsyntax.TokenOBrack {
-		logger.Trace().Msg("not a list, ignoring")
-		return tokens
+	if trimmed[0].Type == hclsyntax.TokenOBrack {
+		// We don't need the position of the next token here
+		// since there shouldn't be any next token on this case.
+		adjustedList, _ := adjustListExpr(tokens)
+		return adjustedList
 	}
 
-	if isListComprehension(trimmed) {
+	logger.Trace().Msg("not a list, returning tokens as is")
+	return trimmed
+}
+
+// adjustListExpr will adjust the given list tokens so they can be formatted
+// properly. It returns the adjusted tokens and the position of the first
+// token after the list ended. If there is no more tokens after the end of
+// the list the returned position will be equal to len(tokens).
+func adjustListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
+	logger := log.With().
+		Str("action", "hcl.adjustListExpr()").
+		Str("tokens", tokensStr(tokens)).
+		Logger()
+
+	if isListComprehension(tokens) {
 		logger.Trace().Msg("list comprehension, ignoring")
-		return tokens
+		return tokens, len(tokens)
 	}
 
 	logger.Trace().Msg("it is a list, adjusting")
 
-	newTokens := hclwrite.Tokens{trimmed[0], newlineToken()}
-	trimmed = trimmed[1:]
+	newTokens := hclwrite.Tokens{tokens[0], newlineToken()}
+	elemNextPos := 1 // Skip '['
 
-	for len(trimmed) > 0 {
-		element, elemEndPos := getElement(trimmed)
-		trimmed = trimmed[elemEndPos:]
+	for tokens[elemNextPos-1].Type != hclsyntax.TokenCBrack {
+		for _, token := range tokens[elemNextPos:] {
+			if token.Type != hclsyntax.TokenNewline {
+				break
+			}
+			elemNextPos++
+		}
+		element, nextPos := getNextListElement(tokens[elemNextPos:])
+		elemNextPos += nextPos
 
 		if len(element) == 0 {
 			continue
@@ -224,16 +246,22 @@ func adjustAttrExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
 
 	newTokens = append(newTokens, closeBracketToken())
 
-	return newTokens
+	return newTokens, elemNextPos
 }
 
-func getElement(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
+func getNextListElement(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
+	if tokens[0].Type == hclsyntax.TokenOBrack {
+		listTokens, next := adjustListExpr(tokens)
+		// We need to skip the comma, if there is any
+		// If there isn't incrementing will also match with a ]
+		return listTokens, next + 1
+	}
 	for i, token := range tokens {
 		if token.Type == hclsyntax.TokenComma || token.Type == hclsyntax.TokenCBrack {
 			return trimNewlines(tokens[0:i]), i + 1
 		}
 	}
-	panic(fmt.Errorf("list tokens %q expected to end with , or ]", tokensStr(tokens)))
+	panic(fmt.Errorf("tokens %q expected to end with , or ]", tokensStr(tokens)))
 }
 
 func closeBracketToken() *hclwrite.Token {

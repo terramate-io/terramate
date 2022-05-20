@@ -28,8 +28,6 @@ import (
 )
 
 // TODO(katcipis):
-// - List comprehension with newlines
-// - List with lists inside
 // - List of objects with lists inside
 // - Blocks and subblocks with lists inside
 
@@ -175,6 +173,72 @@ var = [
 `,
 		},
 		{
+			name: "list of lists",
+			input: `
+var = [[1], [1,2,3], [["hi","nesting","is","fun"]]]
+`,
+			want: `
+var = [
+  [
+    1,
+  ],
+  [
+    1,
+    2,
+    3,
+  ],
+  [
+    [
+      "hi",
+      "nesting",
+      "is",
+      "fun",
+    ],
+  ],
+]
+`,
+		},
+		{
+			name: "list of lists with newlines",
+			input: `
+var = [
+[1],
+
+[1,
+
+2,3],
+[
+["hi",
+"nesting",
+"is",
+"fun"],
+
+],
+
+]
+`,
+			want: `
+var = [
+  [
+    1,
+  ],
+  [
+    1,
+    2,
+    3,
+  ],
+  [
+    [
+      "hi",
+      "nesting",
+      "is",
+      "fun",
+    ],
+  ],
+]
+`,
+		},
+		{
 			name: "multiple item list with string templates with commas",
 			input: `
 var = [ {name="${hi},${comma}"}, {name="${hi} [${hello}]"} ]
@@ -213,6 +277,13 @@ var = [
 			addFilenameToErrorsFileRanges(tcase.wantErrs, filename)
 			errtest.AssertErrorList(t, err, tcase.wantErrs)
 			assert.EqualStrings(t, tcase.want, got)
+
+			if err != nil {
+				return
+			}
+
+			got2, err := hcl.Format(got, "formatted.hcl")
+			assert.EqualStrings(t, got, got2, "reformatting should produce identical results")
 		})
 
 		if tcase.input == tcase.want {
