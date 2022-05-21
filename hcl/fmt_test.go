@@ -120,6 +120,22 @@ var = [
 `,
 		},
 		{
+			name: "empty lists all the way down",
+			input: `
+var = [[[[]]]]
+`,
+			want: `
+var = [
+  [
+    [
+      [
+      ],
+    ],
+  ],
+]
+`,
+		},
+		{
 			name: "single item list",
 			input: `
 var = [ "item" ]
