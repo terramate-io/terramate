@@ -195,7 +195,15 @@ func adjustAttrExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
 	if trimmed[0].Type == hclsyntax.TokenOBrack {
 		// We don't need the position of the next token here
 		// since there shouldn't be any next token on this case.
-		adjustedList, _ := adjustListExpr(trimmed)
+		adjustedList, pos := adjustListExpr(trimmed)
+		if pos != len(trimmed) {
+			panic(fmt.Errorf(
+				"last pos %d != tokens len %d for tokens: %s",
+				pos,
+				len(trimmed),
+				tokensStr(trimmed),
+			))
+		}
 		return adjustedList
 	}
 
@@ -240,11 +248,13 @@ func adjustListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 
 	newTokens = append(newTokens, closeBracketToken())
 
-	// we need to skip newlines and possible comma, next element starts after
-	// the comma if there is any
+	// we need to skip newlines and comma/], possible next element starts
+	// after these.
 	_, skipped := skipNewlines(tokens[elemNextPos:])
 	elemNextPos += skipped
-	if elemNextPos < len(tokens) && tokens[elemNextPos].Type == hclsyntax.TokenComma {
+
+	// Should not increment if we are already on last element
+	if elemNextPos < len(tokens) {
 		elemNextPos++
 	}
 	return newTokens, elemNextPos
