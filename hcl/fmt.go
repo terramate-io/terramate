@@ -186,9 +186,6 @@ func adjustAttrExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
 	logger.Trace().Msg("trimming newlines")
 
 	trimmed := trimNewlines(tokens)
-	if len(trimmed) == 0 {
-		return tokens
-	}
 
 	logger = logger.With().
 		Str("trimmedTokens", tokensStr(trimmed)).
