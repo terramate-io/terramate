@@ -39,10 +39,7 @@ func Format(src, filename string) (string, error) {
 	if err := errors.L(diags).AsError(); err != nil {
 		return "", errors.E(ErrHCLSyntax, err)
 	}
-
 	adjustBody(parsed.Body())
-	// For now we just use plain hclwrite.Format
-	// but we plan on customizing formatting in the near future.
 	return string(hclwrite.Format(parsed.Bytes())), nil
 }
 
