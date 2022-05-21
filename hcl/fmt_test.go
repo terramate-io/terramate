@@ -29,6 +29,7 @@ import (
 
 // TODO(katcipis):
 // - List of objects with lists inside
+// - List of objects with multiple fields on each object (commas inside)
 // - Blocks and subblocks with lists inside
 
 func TestFormatHCL(t *testing.T) {
