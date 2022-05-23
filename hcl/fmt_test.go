@@ -29,7 +29,7 @@ import (
 
 // TODO(katcipis):
 // - List of objects with lists inside
-// - List of objects with multiple fields on each object (commas inside)
+// - Comments inside lists
 // - Blocks and subblocks with lists inside
 
 func TestFormatHCL(t *testing.T) {
@@ -186,6 +186,17 @@ var = [ {name="test1"}, {name="test2"} ]
 var = [
   { name = "test1" },
   { name = "test2" },
+]
+`,
+		},
+		{
+			name: "list with object with multiple keys",
+			input: `
+var = [{name="test1",x="hi"}]
+`,
+			want: `
+var = [
+  { name = "test1", x = "hi" },
 ]
 `,
 		},

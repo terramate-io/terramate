@@ -245,7 +245,7 @@ func adjustListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 
 	newTokens = append(newTokens, closeBracketToken())
 
-	// we need to skip newlines and comma/], possible next element starts
+	// we need to skip newlines and comma ], possible next element starts
 	// after these.
 	_, skipped := skipNewlines(tokens[elemNextPos:])
 	elemNextPos += skipped
@@ -257,9 +257,39 @@ func adjustListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	return newTokens, elemNextPos
 }
 
+func adjustObjExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
+	logger := log.With().
+		Str("action", "hcl.adjustObjExpr()").
+		Str("tokens", tokensStr(tokens)).
+		Logger()
+
+	logger.Trace().Msg("searching for end of object definition")
+	openBraces := 0
+
+	for i, token := range tokens {
+		switch token.Type {
+		case hclsyntax.TokenOBrace:
+			openBraces++
+		case hclsyntax.TokenCBrace:
+			openBraces--
+		}
+		if openBraces == 0 {
+			// We found end of object }.
+			// Now we need to find and skip the , if there is any
+			i++
+			return trimNewlines(tokens[0:i]), i + 1
+		}
+	}
+
+	panic(fmt.Errorf("object tokens %q expected to end with }", tokensStr(tokens)))
+}
+
 func getNextListElement(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	if tokens[0].Type == hclsyntax.TokenOBrack {
 		return adjustListExpr(tokens)
+	}
+	if tokens[0].Type == hclsyntax.TokenOBrace {
+		return adjustObjExpr(tokens)
 	}
 	for i, token := range tokens {
 		if token.Type == hclsyntax.TokenComma || token.Type == hclsyntax.TokenCBrack {
