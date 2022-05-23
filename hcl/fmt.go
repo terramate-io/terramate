@@ -210,7 +210,9 @@ func adjustAttrExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
 
 // adjustListExpr will adjust the given list tokens so they can be formatted
 // properly. It returns the adjusted tokens and the position of the first
-// token after the list ended. If there is no more tokens after the end of
+// token after the list ended.
+//
+// If there is no more tokens after the end of
 // the list the returned position will be equal to len(tokens).
 func adjustListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	logger := log.With().
@@ -228,32 +230,48 @@ func adjustListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	newTokens := hclwrite.Tokens{tokens[0], newlineToken()}
 	elemNextPos := 1 // Skip '['
 
-	for tokens[elemNextPos-1].Type != hclsyntax.TokenCBrack {
+	for {
 		_, skipped := skipNewlines(tokens[elemNextPos:])
 		elemNextPos += skipped
+
+		logger.Trace().
+			Int("skipped", skipped).
+			Msg("skipped newlines")
+
+		if tokens[elemNextPos].Type == hclsyntax.TokenCBrack {
+			logger.Trace().Msg("reached end of list")
+			break
+		}
+
+		if tokens[elemNextPos].Type == hclsyntax.TokenComma {
+			logger.Trace().Msg("comma found, starting new iteration")
+
+			elemNextPos++
+			// restart processing so we eliminate newlines after comma
+			// we don't need to worry about handling multiple commas
+			// as valid since we already validate the code before this.
+			continue
+		}
+
+		logger.Trace().Msg("getting next element of the list")
 
 		element, nextPos := getNextListElement(tokens[elemNextPos:])
 		elemNextPos += nextPos
 
-		if len(element) == 0 {
-			continue
-		}
+		logger.Trace().
+			Str("element", tokensStr(element)).
+			Str("tokens", tokensStr(tokens)).
+			Int("elemNextPos", elemNextPos).
+			Msg("new element got")
 
 		newTokens = append(newTokens, element...)
 		newTokens = append(newTokens, commaToken(), newlineToken())
 	}
 
 	newTokens = append(newTokens, closeBracketToken())
+	elemNextPos++
 
-	// we need to skip newlines and comma ], possible next element starts
-	// after these.
-	_, skipped := skipNewlines(tokens[elemNextPos:])
-	elemNextPos += skipped
-
-	// Should not increment if we are already on last element
-	if elemNextPos < len(tokens) {
-		elemNextPos++
-	}
+	logger.Trace().Msg("returning adjusted list")
 	return newTokens, elemNextPos
 }
 
@@ -262,6 +280,9 @@ func adjustObjExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 		Str("action", "hcl.adjustObjExpr()").
 		Str("tokens", tokensStr(tokens)).
 		Logger()
+
+	// TODO(katcipis): we also want to improve list formatting inside objects
+	// Not doing it for now, but here would be the place to add it.
 
 	logger.Trace().Msg("searching for end of object definition")
 	openBraces := 0
@@ -274,17 +295,8 @@ func adjustObjExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			openBraces--
 		}
 		if openBraces == 0 {
-			// We found end of object }. So lets skip } itself.
 			i++
-			objectEnd := i
-
-			// Now we need to find and skip the , if there is any
-			_, skipped := skipNewlines(tokens[i:])
-			i += skipped
-			if tokens[i].Type == hclsyntax.TokenComma {
-				i++
-			}
-			return trimNewlines(tokens[0:objectEnd]), i
+			return trimNewlines(tokens[0:i]), i
 		}
 	}
 
@@ -300,7 +312,7 @@ func getNextListElement(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	}
 	for i, token := range tokens {
 		if token.Type == hclsyntax.TokenComma || token.Type == hclsyntax.TokenCBrack {
-			return trimNewlines(tokens[0:i]), i + 1
+			return trimNewlines(tokens[0:i]), i
 		}
 	}
 	panic(fmt.Errorf("tokens %q expected to end with , or ]", tokensStr(tokens)))
