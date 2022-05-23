@@ -178,6 +178,31 @@ var = [
 `,
 		},
 		{
+			name: "list with lists and values intertwined",
+			input: `
+var = [
+  true,
+  [1],
+  666,
+  [6],
+  "hi"
+]
+`,
+			want: `
+var = [
+  true,
+  [
+    1,
+  ],
+  666,
+  [
+    6,
+  ],
+  "hi",
+]
+`,
+		},
+		{
 			name: "multiple item list with objects",
 			input: `
 var = [ {name="test1"}, {name="test2"} ]
@@ -190,6 +215,26 @@ var = [
 `,
 		},
 		{
+			name: "multiple item list with objects and newlines/spaces",
+			input: `
+var = [ {name="test1"}     
+,
+{name="test2"}      
+
+,
+
+
+{name="test3"}]
+`,
+			want: `
+var = [
+  { name = "test1" },
+  { name = "test2" },
+  { name = "test3" },
+]
+`,
+		},
+		{
 			name: "list with object with multiple keys",
 			input: `
 var = [{name="test1",x="hi"}]
@@ -197,6 +242,26 @@ var = [{name="test1",x="hi"}]
 			want: `
 var = [
   { name = "test1", x = "hi" },
+]
+`,
+		},
+		{
+			name: "list with lists with object with multiple keys",
+			input: `
+var = [ [{name="test1",x="hi"}],[{name="test2",x="hi"}],[{name="test3",x="hi"}]
+]
+`,
+			want: `
+var = [
+  [
+    { name = "test1", x = "hi" },
+  ],
+  [
+    { name = "test2", x = "hi" },
+  ],
+  [
+    { name = "test3", x = "hi" },
+  ],
 ]
 `,
 		},
