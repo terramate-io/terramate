@@ -148,6 +148,29 @@ var = [
 `,
 		},
 		{
+			name: "single item list with index access",
+			input: `
+var = [ local.a[0] ]
+`,
+			want: `
+var = [
+  local.a[0],
+]
+`,
+		},
+		{
+			name: "multiple item list with index access",
+			input: `
+var = [ local.a[0], local.b[1]]
+`,
+			want: `
+var = [
+  local.a[0],
+  local.b[1],
+]
+`,
+		},
+		{
 			name: "multiple item list",
 			input: `
 var = [ true, false, true ]
