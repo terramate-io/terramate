@@ -274,10 +274,17 @@ func adjustObjExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			openBraces--
 		}
 		if openBraces == 0 {
-			// We found end of object }.
-			// Now we need to find and skip the , if there is any
+			// We found end of object }. So lets skip } itself.
 			i++
-			return trimNewlines(tokens[0:i]), i + 1
+			objectEnd := i
+
+			// Now we need to find and skip the , if there is any
+			_, skipped := skipNewlines(tokens[i:])
+			i += skipped
+			if tokens[i].Type == hclsyntax.TokenComma {
+				i++
+			}
+			return trimNewlines(tokens[0:objectEnd]), i
 		}
 	}
 
