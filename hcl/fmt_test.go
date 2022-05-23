@@ -171,6 +171,22 @@ var = [
 `,
 		},
 		{
+			name: "nested list with index access",
+			input: `
+var = [[local.a[0]],[local.b["name"]]]
+`,
+			want: `
+var = [
+  [
+    local.a[0],
+  ],
+  [
+    local.b["name"],
+  ],
+]
+`,
+		},
+		{
 			name: "multiple item list",
 			input: `
 var = [ true, false, true ]
