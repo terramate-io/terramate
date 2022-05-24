@@ -148,6 +148,50 @@ var = [
 `,
 		},
 		{
+			name: "list with string templates inside",
+			input: `
+var = [ "${hi}-]," , "${something}[,"]
+`,
+			want: `
+var = [
+  "${hi}-],",
+  "${something}[,",
+]
+`,
+		},
+		{
+			name: "list with multiline string templates inside",
+			input: `
+var = [
+  "${[
+    "${
+      {
+         a = [
+           "more list"
+         ]
+      }
+    }"
+]}",
+]
+`,
+			// If you are thinking, OMG this is a bug, because we indented
+			// the string interpolation. Well it is but the hcl.Format does
+			// that today, so we need to push a fix there.
+			want: `
+var = [
+  "${[
+    "${
+      {
+        a = [
+          "more list"
+        ]
+      }
+    }"
+  ]}",
+]
+`,
+		},
+		{
 			name: "list as operands",
 			input: `
 var = [ "item" ] + [ true ]
