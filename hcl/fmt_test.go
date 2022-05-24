@@ -29,7 +29,7 @@ import (
 
 // TODO(katcipis):
 // - Blocks and subblocks with lists inside
-// - comments inside lists
+// - comments after index access stuff
 
 func TestFormatHCL(t *testing.T) {
 	type testcase struct {
@@ -174,9 +174,6 @@ var = [
 ]}",
 ]
 `,
-			// FIXME(katcipis): If you are thinking, OMG this is a bug, because we indented
-			// the string interpolation. Well it is but the hcl.Format does
-			// that today, so we need to push a fix there.
 			want: `
 var = [
   "${[
@@ -292,6 +289,65 @@ var = [
     "nesting",
   ][666],
 ]
+`,
+		},
+		{
+			name: "comments inside list",
+			input: `
+var = [
+// c1
+1, // c2
+2, // c3
+// c4
+]
+`,
+			want: `
+var = [
+  // c1
+  1, // c2
+  2, // c3
+  // c4
+]
+`,
+		},
+		// TODO(katcipis): define behavior for this
+		//{
+		//name: "comments and newlines on list",
+		//input: `
+		//var = [
+		//1 // c1
+		//, // c2
+		//2 // c3
+		//]
+		//`,
+		//want: `
+		//`,
+		//},
+		{
+			name: "comments inside nested lists",
+			input: `
+var = [ // c1
+// c2
+[    // c3
+1, // c4
+],   // c5
+[    // c6
+2, // c7
+],   // c8
+// c9
+] // c10
+`,
+			want: `
+var = [ // c1
+  // c2
+  [    // c3
+    1, // c4
+  ],   // c5
+  [    // c6
+    2, // c7
+  ],   // c8
+  // c9
+] // c10
 `,
 		},
 		{
