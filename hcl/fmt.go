@@ -39,7 +39,7 @@ func Format(src, filename string) (string, error) {
 	if err := errors.L(diags).AsError(); err != nil {
 		return "", errors.E(ErrHCLSyntax, err)
 	}
-	adjustBody(parsed.Body())
+	fmtBody(parsed.Body())
 	return string(hclwrite.Format(parsed.Bytes())), nil
 }
 
@@ -152,31 +152,31 @@ const (
 	errFormatTree errors.Kind = "formatting tree"
 )
 
-func adjustBody(body *hclwrite.Body) {
+func fmtBody(body *hclwrite.Body) {
 	// We don't actually format the body, we just adjust it, adding
 	// newlines in a way that hclwrite.Format will format things the way we want.
 	// This is a quick/nasty hack.
 	logger := log.With().
-		Str("action", "hcl.adjustBody()").
+		Str("action", "hcl.fmtBody()").
 		Logger()
 
 	attrs := body.Attributes()
 	for name, attr := range attrs {
 		logger.Trace().
 			Str("name", name).
-			Msg("adjusting attribute")
-		body.SetAttributeRaw(name, adjustAttrExpr(attr.Expr().BuildTokens(nil)))
+			Msg("formatting attribute")
+		body.SetAttributeRaw(name, fmtAttrExpr(attr.Expr().BuildTokens(nil)))
 	}
 
 	blocks := body.Blocks()
 	for _, block := range blocks {
-		adjustBody(block.Body())
+		fmtBody(block.Body())
 	}
 }
 
-func adjustAttrExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
+func fmtAttrExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
 	logger := log.With().
-		Str("action", "hcl.addNewlines()").
+		Str("action", "hcl.fmtAttrExpr()").
 		Str("tokens", tokensStr(tokens)).
 		Logger()
 
@@ -190,9 +190,15 @@ func adjustAttrExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
 
 	// We are interested on lists, ignore the rest
 	if trimmed[0].Type == hclsyntax.TokenOBrack {
+
+		if isListComprehension(tokens) {
+			logger.Trace().Msg("list comprehension, ignoring")
+			return tokens
+		}
+
 		// We don't need the position of the next token here
 		// since there shouldn't be any next token on this case.
-		adjustedList, pos := adjustListExpr(trimmed)
+		formattedList, pos := fmtListExpr(trimmed)
 		if pos != len(trimmed) {
 			panic(fmt.Errorf(
 				"last pos %d != tokens len %d for tokens: %q",
@@ -201,31 +207,26 @@ func adjustAttrExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
 				tokensStr(trimmed),
 			))
 		}
-		return adjustedList
+		return formattedList
 	}
 
 	logger.Trace().Msg("not a list, returning tokens as is")
 	return trimmed
 }
 
-// adjustListExpr will adjust the given list tokens so they can be formatted
+// fmtListExpr will adjust the given list tokens so they can be formatted
 // properly. It returns the adjusted tokens and the position of the first
 // token after the list ended.
 //
 // If there is no more tokens after the end of
 // the list the returned position will be equal to len(tokens).
-func adjustListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
+func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	logger := log.With().
-		Str("action", "hcl.adjustListExpr()").
+		Str("action", "hcl.fmtListExpr()").
 		Str("tokens", tokensStr(tokens)).
 		Logger()
 
-	if isListComprehension(tokens) {
-		logger.Trace().Msg("list comprehension, ignoring")
-		return tokens, len(tokens)
-	}
-
-	logger.Trace().Msg("it is a list, adjusting")
+	logger.Trace().Msg("formatting list")
 
 	newTokens := hclwrite.Tokens{tokens[0], newlineToken()}
 	elemNextPos := 1 // Skip '['
@@ -255,7 +256,7 @@ func adjustListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 
 		logger.Trace().Msg("getting next element of the list")
 
-		element, nextPos := adjustNextElement(tokens[elemNextPos:])
+		element, nextPos := fmtNextElement(tokens[elemNextPos:])
 		elemNextPos += nextPos
 
 		logger.Trace().
@@ -274,13 +275,13 @@ func adjustListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	// Handling ["one"][0] and things like [[0]%[0]]
 	// We can also have newlines when dealing with operations
 
-	logger.Trace().Msg("checking if adjusted list has operators/index access")
+	logger.Trace().Msg("checking if formatted list has operators/index access")
 
 	_, skipped := skipNewlines(tokens[elemNextPos:])
 	elemNextPos += skipped
 
 	if elemNextPos == len(tokens) {
-		logger.Trace().Msg("no more tokens, returning adjusted list")
+		logger.Trace().Msg("no more tokens, returning formatted list")
 		return newTokens, elemNextPos
 	}
 
@@ -289,19 +290,19 @@ func adjustListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	switch nextTokenType {
 	case hclsyntax.TokenComma, hclsyntax.TokenCBrack:
 		{
-			logger.Trace().Msg("end of list, returning adjusted list")
+			logger.Trace().Msg("end of list, returning formatted list")
 			return newTokens, elemNextPos
 		}
 	case hclsyntax.TokenOBrack:
 		{
 			logger.Trace().Msg("getting tokens for list index access")
 
-			indexAccess, nextPos := getIndexAccess(tokens[elemNextPos:])
+			indexAccess, nextPos := fmtIndexAccess(tokens[elemNextPos:])
 			elemNextPos += nextPos
 
 			newTokens = append(newTokens, indexAccess...)
 
-			logger.Trace().Msg("returning adjusted list with index access")
+			logger.Trace().Msg("returning formatted list with index access")
 			return newTokens, elemNextPos
 		}
 	default:
@@ -311,7 +312,7 @@ func adjustListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			// we just assume the next token is an operator and the rest can be any expression
 			newTokens = append(newTokens, tokens[elemNextPos])
 			elemNextPos++
-			operand, nextPos := adjustNextElement(tokens[elemNextPos:])
+			operand, nextPos := fmtNextElement(tokens[elemNextPos:])
 			elemNextPos += nextPos
 
 			newTokens = append(newTokens, operand...)
@@ -327,7 +328,7 @@ func hasIndexAccess(tokens hclwrite.Tokens) bool {
 	return tokens[0].Type == hclsyntax.TokenOBrack
 }
 
-func getIndexAccess(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
+func fmtIndexAccess(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	openBraces := 0
 
 	for i, token := range tokens {
@@ -342,7 +343,7 @@ func getIndexAccess(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			accessTokens := tokens[:i]
 			// handling multi dimensional access [1][2]
 			if hasIndexAccess(tokens[i:]) {
-				nextAccessTokens, nextPos := getIndexAccess(tokens[i:])
+				nextAccessTokens, nextPos := fmtIndexAccess(tokens[i:])
 				i += nextPos
 				return append(accessTokens, nextAccessTokens...), i
 			}
@@ -353,9 +354,9 @@ func getIndexAccess(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	panic(fmt.Errorf("index access tokens %q expected to end with ]", tokensStr(tokens)))
 }
 
-func adjustObjExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
+func fmtObjExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	logger := log.With().
-		Str("action", "hcl.adjustObjExpr()").
+		Str("action", "hcl.fmtObjExpr()").
 		Str("tokens", tokensStr(tokens)).
 		Logger()
 
@@ -381,18 +382,21 @@ func adjustObjExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	panic(fmt.Errorf("object tokens %q expected to end with }", tokensStr(tokens)))
 }
 
-func adjustNextElement(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
+func fmtNextElement(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	switch tokens[0].Type {
 	case hclsyntax.TokenOBrack:
-		return adjustListExpr(tokens)
+		if isListComprehension(tokens) {
+			return fmtAnyExpr(tokens)
+		}
+		return fmtListExpr(tokens)
 	case hclsyntax.TokenOBrace:
-		return adjustObjExpr(tokens)
+		return fmtObjExpr(tokens)
 	default:
-		return adjustAnyExpr(tokens)
+		return fmtAnyExpr(tokens)
 	}
 }
 
-func adjustAnyExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
+func fmtAnyExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	// We may have brackets inside expr, so closing bracket
 	// may not indicate end of the surrounding list reached.
 	openBrackets := 0

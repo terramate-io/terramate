@@ -28,9 +28,8 @@ import (
 )
 
 // TODO(katcipis):
-// - List of objects with lists inside
-// - Comments inside lists
 // - Blocks and subblocks with lists inside
+// - comments inside lists
 
 func TestFormatHCL(t *testing.T) {
 	type testcase struct {
@@ -137,6 +136,18 @@ var = [
 `,
 		},
 		{
+			name: "list with list comprehension as elements",
+			input: `
+var = [ [for x in local.a : x], [for x in local.a : x] ]
+`,
+			want: `
+var = [
+  [for x in local.a : x],
+  [for x in local.a : x],
+]
+`,
+		},
+		{
 			name: "list as operands",
 			input: `
 var = [ "item" ] + [ true ]
@@ -176,7 +187,7 @@ var = [
 var = [[ "item" ] + [ true ]]
 `,
 			// The want here is non-ideal but it is what we get today
-			// using hcl.Format. Fixing this would take even more work.
+			// using hcl.Format. Fixing this would take more work.
 			want: `
 var = [
   [
