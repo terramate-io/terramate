@@ -137,6 +137,38 @@ var = [
 `,
 		},
 		{
+			name: "list as operands",
+			input: `
+var = [ "item" ] + [ true ]
+`,
+			// The want here is non-ideal but it is what we get today
+			// using hcl.Format. Fixing this would take even more work.
+			want: `
+var = [
+  "item",
+  ] + [
+  true,
+]
+`,
+		},
+		{
+			name: "nested list as operands",
+			input: `
+var = [[ "item" ] + [ true ]]
+`,
+			// The want here is non-ideal but it is what we get today
+			// using hcl.Format. Fixing this would take even more work.
+			want: `
+var = [
+  [
+    "item",
+    ] + [
+    true,
+  ],
+]
+`,
+		},
+		{
 			name: "list indexing",
 			input: `
 var = [ "item" ][0]
