@@ -120,7 +120,9 @@ func (l *List) Append(err error) {
 		}
 	case *List:
 		{
-			l.errs = append(l.errs, e.errs...)
+			for _, err := range e.errs {
+				l.Append(err)
+			}
 		}
 	default:
 		l.errs = append(l.errs, err)

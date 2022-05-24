@@ -169,6 +169,7 @@ func E(args ...interface{}) *Error {
 	if e.isEmpty() {
 		panic(errors.New("empty error"))
 	}
+	// TODO wrap lists
 	prev, ok := e.Err.(*Error)
 	if !ok {
 		return e
