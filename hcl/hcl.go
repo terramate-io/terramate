@@ -178,7 +178,13 @@ func (p *TerramateParser) AddFile(name string, data []byte) error {
 // Parse the previously added files and return either a Config or an error.
 func (p *TerramateParser) Parse() (Config, error) {
 	errs := errors.L()
-	for name, data := range p.files {
+	filenames := []string{}
+	for fname := range p.files {
+		filenames = append(filenames, fname)
+	}
+	sort.Strings(filenames)
+	for _, name := range filenames {
+		data := p.files[name]
 		_, diags := p.hclparser.ParseHCL(data, name)
 		if diags.HasErrors() {
 			errs.Append(errors.E(ErrHCLSyntax, diags))
