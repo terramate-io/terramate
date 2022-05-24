@@ -174,7 +174,7 @@ var = [
 ]}",
 ]
 `,
-			// If you are thinking, OMG this is a bug, because we indented
+			// FIXME(katcipis): If you are thinking, OMG this is a bug, because we indented
 			// the string interpolation. Well it is but the hcl.Format does
 			// that today, so we need to push a fix there.
 			want: `
@@ -196,8 +196,6 @@ var = [
 			input: `
 var = [ "item" ] + [ true ]
 `,
-			// The want here is non-ideal but it is what we get today
-			// using hcl.Format. Fixing this would take even more work.
 			want: `
 var = [
   "item",
