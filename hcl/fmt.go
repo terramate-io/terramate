@@ -321,7 +321,7 @@ func getNextListElement(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			openBrackets++
 		case hclsyntax.TokenCBrack:
 			openBrackets--
-			// openBrackets is -1 when we just reach the end of the outer list
+			// openBrackets is -1 when we reach the end of the outer list
 			if openBrackets == -1 {
 				return trimNewlines(tokens[0:i]), i
 			}

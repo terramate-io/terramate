@@ -30,7 +30,6 @@ import (
 // TODO(katcipis):
 // - List of objects with lists inside
 // - Comments inside lists
-// - Function calls inside lists
 // - Blocks and subblocks with lists inside
 
 func TestFormatHCL(t *testing.T) {
@@ -145,6 +144,49 @@ var = [ "item" ]
 			want: `
 var = [
   "item",
+]
+`,
+		},
+		{
+			name: "function call with list as parameter",
+			input: `
+var = func([1,2,3])
+`,
+			want: `
+var = func([1, 2, 3])
+`,
+		},
+		{
+			name: "single item list with function call",
+			input: `
+var = [ func(local.a) ]
+`,
+			want: `
+var = [
+  func(local.a),
+]
+`,
+		},
+		{
+			name: "single item list with nested function call",
+			input: `
+var = [ func(func(local.a)) ]
+`,
+			want: `
+var = [
+  func(func(local.a)),
+]
+`,
+		},
+		{
+			name: "multiple items with function calls",
+			input: `
+var = [ func(local.a), f(local.a[1][2]) ]
+`,
+			want: `
+var = [
+  func(local.a),
+  f(local.a[1][2]),
 ]
 `,
 		},
