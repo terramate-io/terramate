@@ -255,7 +255,7 @@ func adjustListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 
 		logger.Trace().Msg("getting next element of the list")
 
-		element, nextPos := getNextListElement(tokens[elemNextPos:])
+		element, nextPos := adjustNextElement(tokens[elemNextPos:])
 		elemNextPos += nextPos
 
 		logger.Trace().
@@ -271,16 +271,53 @@ func adjustListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	newTokens = append(newTokens, closeBracketToken())
 	elemNextPos++
 
-	// Handling ["one"][0]
-	if hasIndexAccess(tokens[elemNextPos:]) {
-		indexAccess, nextPos := getIndexAccess(tokens[elemNextPos:])
-		elemNextPos += nextPos
+	// Handling ["one"][0] and things like [[0]%[0]]
+	// We can also have newlines when dealing with operations
 
-		newTokens = append(newTokens, indexAccess...)
+	logger.Trace().Msg("checking if adjusted list has operators/index access")
+
+	_, skipped := skipNewlines(tokens[elemNextPos:])
+	elemNextPos += skipped
+
+	if elemNextPos == len(tokens) {
+		logger.Trace().Msg("no more tokens, returning adjusted list")
+		return newTokens, elemNextPos
 	}
 
-	logger.Trace().Msg("returning adjusted list")
-	return newTokens, elemNextPos
+	nextTokenType := tokens[elemNextPos].Type
+
+	switch nextTokenType {
+	case hclsyntax.TokenComma, hclsyntax.TokenCBrack:
+		{
+			logger.Trace().Msg("end of list, returning adjusted list")
+			return newTokens, elemNextPos
+		}
+	case hclsyntax.TokenOBrack:
+		{
+			logger.Trace().Msg("getting tokens for list index access")
+
+			indexAccess, nextPos := getIndexAccess(tokens[elemNextPos:])
+			elemNextPos += nextPos
+
+			newTokens = append(newTokens, indexAccess...)
+
+			logger.Trace().Msg("returning adjusted list with index access")
+			return newTokens, elemNextPos
+		}
+	default:
+		{
+			logger.Trace().Msg("we have an operator between this list and next element")
+			// HCL allows all sort of crazy things, instead of mapping all of them
+			// we just assume the next token is an operator and the rest can be any expression
+			newTokens = append(newTokens, tokens[elemNextPos])
+			elemNextPos++
+			operand, nextPos := adjustNextElement(tokens[elemNextPos:])
+			elemNextPos += nextPos
+
+			newTokens = append(newTokens, operand...)
+			return newTokens, elemNextPos
+		}
+	}
 }
 
 func hasIndexAccess(tokens hclwrite.Tokens) bool {
@@ -344,14 +381,18 @@ func adjustObjExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	panic(fmt.Errorf("object tokens %q expected to end with }", tokensStr(tokens)))
 }
 
-func getNextListElement(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
-	if tokens[0].Type == hclsyntax.TokenOBrack {
+func adjustNextElement(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
+	switch tokens[0].Type {
+	case hclsyntax.TokenOBrack:
 		return adjustListExpr(tokens)
-	}
-	if tokens[0].Type == hclsyntax.TokenOBrace {
+	case hclsyntax.TokenOBrace:
 		return adjustObjExpr(tokens)
+	default:
+		return adjustAnyExpr(tokens)
 	}
+}
 
+func adjustAnyExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	// We may have brackets inside expr, so closing bracket
 	// may not indicate end of the surrounding list reached.
 	openBrackets := 0

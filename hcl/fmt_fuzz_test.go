@@ -74,6 +74,7 @@ func FuzzFormat(f *testing.F) {
 		}
 
 		got := format(t, cfg)
+		assertIsHCL(t, cfg, got)
 		reformatted := format(t, got)
 
 		if got != reformatted {
@@ -81,6 +82,16 @@ func FuzzFormat(f *testing.F) {
 				"re-formatting should produce same exact result")
 		}
 	})
+}
+
+func assertIsHCL(t *testing.T, orig, code string) {
+	t.Helper()
+
+	parser := hclparse.NewParser()
+	_, diags := parser.ParseHCL([]byte(code), "fuzz")
+	if diags.HasErrors() {
+		t.Fatalf("original code:\n%s\nformatted version:\n%s\nis not valid HCL:%v", orig, code, diags)
+	}
 }
 
 func format(t *testing.T, code string) string {
