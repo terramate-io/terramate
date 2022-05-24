@@ -297,7 +297,7 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 		{
 			logger.Trace().Msg("getting tokens for list index access")
 
-			indexAccess, nextPos := fmtIndexAccess(tokens[elemNextPos:])
+			indexAccess, nextPos := fmtAnyExpr(tokens[elemNextPos:])
 			elemNextPos += nextPos
 
 			newTokens = append(newTokens, indexAccess...)
@@ -319,39 +319,6 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			return newTokens, elemNextPos
 		}
 	}
-}
-
-func hasIndexAccess(tokens hclwrite.Tokens) bool {
-	if len(tokens) == 0 {
-		return false
-	}
-	return tokens[0].Type == hclsyntax.TokenOBrack
-}
-
-func fmtIndexAccess(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
-	openBraces := 0
-
-	for i, token := range tokens {
-		switch token.Type {
-		case hclsyntax.TokenOBrack:
-			openBraces++
-		case hclsyntax.TokenCBrack:
-			openBraces--
-		}
-		if openBraces == 0 {
-			i++
-			accessTokens := tokens[:i]
-			// handling multi dimensional access [1][2]
-			if hasIndexAccess(tokens[i:]) {
-				nextAccessTokens, nextPos := fmtIndexAccess(tokens[i:])
-				i += nextPos
-				return append(accessTokens, nextAccessTokens...), i
-			}
-			return accessTokens, i
-		}
-	}
-
-	panic(fmt.Errorf("index access tokens %q expected to end with ]", tokensStr(tokens)))
 }
 
 func fmtObjExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
@@ -417,7 +384,12 @@ func fmtAnyExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			}
 		}
 	}
-	panic(fmt.Errorf("tokens %q expected to end with , or ]", tokensStr(tokens)))
+	// We could be at the end of the whole attribute expression
+	// For example:
+	// a = ["list"][0]
+	// The index access is formatted here, and it will go all the way
+	// until the end of the attribute expression.
+	return tokens, len(tokens)
 }
 
 func closeBracketToken() *hclwrite.Token {

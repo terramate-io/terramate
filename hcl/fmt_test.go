@@ -252,6 +252,33 @@ var = [
 `,
 		},
 		{
+			name: "list indexing with object mixed",
+			input: `
+var = [ "item" ][0].name.hi[1]
+`,
+			want: `
+var = [
+  "item",
+][0].name.hi[1]
+`,
+		},
+		{
+			name: "nested list indexing with object mixed",
+			input: `
+var = [[ "item" ][0].name.hi[1], [ "item" ][0].name.hi[1]]
+`,
+			want: `
+var = [
+  [
+    "item",
+  ][0].name.hi[1],
+  [
+    "item",
+  ][0].name.hi[1],
+]
+`,
+		},
+		{
 			name: "nested list indexing",
 			input: `
 var = [["item"][0],["nesting"][666]]
