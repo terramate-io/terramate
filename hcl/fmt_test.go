@@ -30,6 +30,7 @@ import (
 // TODO(katcipis):
 // - List of objects with lists inside
 // - Comments inside lists
+// - Function calls inside lists
 // - Blocks and subblocks with lists inside
 
 func TestFormatHCL(t *testing.T) {
@@ -155,6 +156,17 @@ var = [ local.a[0] ]
 			want: `
 var = [
   local.a[0],
+]
+`,
+		},
+		{
+			name: "single item list with two dimension index access",
+			input: `
+var = [ local.a[0][1] ]
+`,
+			want: `
+var = [
+  local.a[0][1],
 ]
 `,
 		},

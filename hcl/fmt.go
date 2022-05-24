@@ -310,9 +310,25 @@ func getNextListElement(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	if tokens[0].Type == hclsyntax.TokenOBrace {
 		return adjustObjExpr(tokens)
 	}
+
+	// We may have brackets inside expr, so closing bracket
+	// may not indicate end of the surrounding list reached.
+	openBrackets := 0
+
 	for i, token := range tokens {
-		if token.Type == hclsyntax.TokenComma || token.Type == hclsyntax.TokenCBrack {
-			return trimNewlines(tokens[0:i]), i
+		switch token.Type {
+		case hclsyntax.TokenOBrack:
+			openBrackets++
+		case hclsyntax.TokenCBrack:
+			openBrackets--
+			// openBrackets is -1 when we just reach the end of the outer list
+			if openBrackets == -1 {
+				return trimNewlines(tokens[0:i]), i
+			}
+		case hclsyntax.TokenComma:
+			if openBrackets == 0 {
+				return trimNewlines(tokens[0:i]), i
+			}
 		}
 	}
 	panic(fmt.Errorf("tokens %q expected to end with , or ]", tokensStr(tokens)))
