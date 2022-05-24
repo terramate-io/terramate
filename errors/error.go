@@ -206,15 +206,9 @@ func (e *Error) isEmpty() bool {
 	return e.FileRange == hcl.Range{} && e.Kind == "" && e.Description == "" && e.Stack == nil
 }
 
-func (e *Error) error(verbose bool) string {
+func (e *Error) error(members []interface{}, verbose bool) string {
 	var errParts []string
-	for _, arg := range []interface{}{
-		e.FileRange,
-		e.Kind,
-		e.Description,
-		e.Stack,
-		e.Err,
-	} {
+	for _, arg := range members {
 		emptyRange := hcl.Range{}
 		switch v := arg.(type) {
 		case hcl.Range:
@@ -253,8 +247,9 @@ func (e *Error) error(verbose bool) string {
 		case error:
 			if v != nil {
 				errmsg := ""
-				if e, ok := v.(interface{ Detailed() string }); ok && verbose {
-					errmsg = e.Detailed()
+				e, ok := v.(*Error)
+				if ok {
+					errmsg = e.error(e.defaultErrorParts(), verbose)
 				} else {
 					errmsg = v.Error()
 				}
@@ -270,14 +265,33 @@ func (e *Error) error(verbose bool) string {
 	return strings.Join(errParts, separator)
 }
 
+func (e *Error) defaultErrorParts() []interface{} {
+	return []interface{}{
+		e.FileRange,
+		e.Kind,
+		e.Description,
+		e.Stack,
+		e.Err,
+	}
+}
+
 // Error returns the error message.
 func (e *Error) Error() string {
-	return e.error(false)
+	return e.error(e.defaultErrorParts(), false)
 }
 
 // Detailed returns a detailed error message.
 func (e *Error) Detailed() string {
-	return e.error(true)
+	return e.error(e.defaultErrorParts(), true)
+}
+
+func (e *Error) Message() string {
+	return e.error([]interface{}{
+		e.Kind,
+		e.Description,
+		e.Stack,
+		e.Err,
+	}, false)
 }
 
 // Is tells if err matches the target error.

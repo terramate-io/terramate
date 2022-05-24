@@ -177,14 +177,22 @@ func (p *TerramateParser) AddFile(name string, data []byte) error {
 
 // Parse the previously added files and return either a Config or an error.
 func (p *TerramateParser) Parse() (Config, error) {
+	errs := errors.L()
 	for name, data := range p.files {
 		_, diags := p.hclparser.ParseHCL(data, name)
 		if diags.HasErrors() {
-			return Config{}, errors.E(ErrHCLSyntax, diags)
+			errs.Append(errors.E(ErrHCLSyntax, diags))
 		}
 	}
 
-	return p.parseTerramateSchema()
+	cfg, err := p.parseTerramateSchema()
+	errs.Append(err)
+
+	if err := errs.AsError(); err != nil {
+		return Config{}, err
+	}
+
+	return cfg, nil
 }
 
 // NewConfig creates a new HCL config with dir as config directory path.
@@ -399,27 +407,29 @@ func ParseGenerateFileBlocks(dir string) (GenFileBlocks, error) {
 }
 
 func validateGenerateHCLBlock(block *hclsyntax.Block) error {
+	errs := errors.L()
+
 	// Don't seem like we can use hcl.BodySchema to check for any non-empty
 	// label, only specific label values.
 	if len(block.Labels) != 1 {
-		return errors.E(ErrTerramateSchema, block.OpenBraceRange,
+		errs.Append(errors.E(ErrTerramateSchema, block.OpenBraceRange,
 			"generate_hcl must have single label instead got %v",
 			block.Labels,
-		)
+		))
 	}
 	if block.Labels[0] == "" {
-		return errors.E(ErrTerramateSchema, block.OpenBraceRange,
-			"generate_hcl label can't be empty")
+		errs.Append(errors.E(ErrTerramateSchema, block.OpenBraceRange,
+			"generate_hcl label can't be empty"))
 	}
 	// Schema check passes if no block is present, so check for amount of blocks
 	if len(block.Body.Blocks) == 0 {
-		return errors.E(ErrTerramateSchema, block.Body.Range(),
-			"generate_hcl must have one 'content' block")
+		errs.Append(errors.E(ErrTerramateSchema, block.Body.Range(),
+			"generate_hcl must have one 'content' block"))
 	}
 	if len(block.Body.Blocks) != 1 {
-		return errors.E(ErrTerramateSchema, block.Body.Range(),
+		errs.Append(errors.E(ErrTerramateSchema, block.Body.Range(),
 			"generate_hcl must have one block of type 'content', found %d blocks",
-			len(block.Body.Blocks))
+			len(block.Body.Blocks)))
 	}
 
 	schema := &hcl.BodySchema{
@@ -434,9 +444,9 @@ func validateGenerateHCLBlock(block *hclsyntax.Block) error {
 
 	_, diags := block.Body.Content(schema)
 	if diags.HasErrors() {
-		return errors.E(ErrHCLSyntax, diags)
+		errs.Append(errors.E(ErrHCLSyntax, diags))
 	}
-	return nil
+	return errs.AsError()
 }
 
 func validateGenerateFileBlock(block *hclsyntax.Block) error {
@@ -531,20 +541,20 @@ func sortedAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {
 	return sorted
 }
 
-func findStringAttr(block *hclsyntax.Block, attr string) (string, bool, error) {
+func findStringAttr(block *hclsyntax.Block, attrName string) (string, bool, error) {
 	logger := log.With().
 		Str("action", "findStringAttr()").
 		Logger()
 
 	logger.Trace().Msg("Range over attributes.")
-	for name, value := range block.Body.Attributes {
-		if name != attr {
+	for _, attr := range sortedAttributes(block.Body.Attributes) {
+		if attrName != attr.Name {
 			continue
 		}
 
 		logger.Trace().Msg("Found attribute that we were looking for.")
 		logger.Trace().Msg("Get attribute value.")
-		attrVal, diags := value.Expr.Value(nil)
+		attrVal, diags := attr.Expr.Value(nil)
 		if diags.HasErrors() {
 			return "", false, errors.E(diags)
 		}
@@ -552,7 +562,7 @@ func findStringAttr(block *hclsyntax.Block, attr string) (string, bool, error) {
 		logger.Trace().Msg("Check value type is correct.")
 		if attrVal.Type() != cty.String {
 			return "", false, errors.E(
-				"attribute %q is not a string", attr, value.Expr.Range(),
+				"attribute %q is not a string", attr.Name, attr.Expr.Range(),
 			)
 		}
 
@@ -617,39 +627,41 @@ func parseStack(stack *Stack, stackblock *hclsyntax.Block) error {
 
 	logger.Debug().Msg("Get stack attributes.")
 
-	for name, value := range stackblock.Body.Attributes {
+	for _, attr := range sortedAttributes(stackblock.Body.Attributes) {
 		logger.Trace().Msg("Get attribute value.")
 
-		attrVal, diags := value.Expr.Value(nil)
+		attrVal, diags := attr.Expr.Value(nil)
 		if diags.HasErrors() {
-			return errors.E(diags, "failed to evaluate %q attribute", name)
+			return errors.E(diags, "failed to evaluate %q attribute", attr.Name)
 		}
 
-		logger.Trace().Str("attribute", name).Msg("Setting attribute on configuration.")
+		logger.Trace().
+			Str("attribute", attr.Name).
+			Msg("Setting attribute on configuration.")
 
-		switch name {
+		switch attr.Name {
 		case "name":
 			if attrVal.Type() != cty.String {
-				return errors.E(value.NameRange,
+				return errors.E(attr.NameRange,
 					"field stack.\"name\" must be a \"string\" but given %q",
 					attrVal.Type().FriendlyName())
 			}
 			stack.Name = attrVal.AsString()
 
 		case "after":
-			err := assignSet(name, &stack.After, attrVal)
+			err := assignSet(attr.Name, &stack.After, attrVal)
 			if err != nil {
 				return err
 			}
 
 		case "before":
-			err := assignSet(name, &stack.Before, attrVal)
+			err := assignSet(attr.Name, &stack.Before, attrVal)
 			if err != nil {
 				return err
 			}
 
 		case "wants":
-			err := assignSet(name, &stack.Wants, attrVal)
+			err := assignSet(attr.Name, &stack.Wants, attrVal)
 			if err != nil {
 				return err
 			}
@@ -657,7 +669,7 @@ func parseStack(stack *Stack, stackblock *hclsyntax.Block) error {
 		case "description":
 			logger.Trace().Msg("parsing stack description.")
 			if attrVal.Type() != cty.String {
-				return errors.E(value.Expr.Range(),
+				return errors.E(attr.Expr.Range(),
 					"field stack.\"description\" must be a \"string\" but given %q",
 					attrVal.Type().FriendlyName(),
 				)
@@ -665,7 +677,9 @@ func parseStack(stack *Stack, stackblock *hclsyntax.Block) error {
 			stack.Description = attrVal.AsString()
 
 		default:
-			return errors.E(value.NameRange, "unrecognized attribute stack.%q", name)
+			return errors.E(
+				attr.NameRange, "unrecognized attribute stack.%q", attr.Name,
+			)
 		}
 	}
 
@@ -685,9 +699,9 @@ func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
 
 	logger.Trace().Msg("Range over block attributes.")
 
-	for name, nameVal := range block.Body.Attributes {
-		return errors.E(nameVal.NameRange,
-			"unrecognized attribute terramate.config.%s", name,
+	for _, attr := range sortedAttributes(block.Body.Attributes) {
+		return errors.E(attr.NameRange,
+			"unrecognized attribute terramate.config.%s", attr.Name,
 		)
 	}
 
@@ -726,19 +740,19 @@ func parseGitConfig(git *GitConfig, block *hclsyntax.Block) error {
 
 	logger.Trace().Msg("Range over block attributes.")
 
-	for name, value := range block.Body.Attributes {
-		attrVal, diags := value.Expr.Value(nil)
+	for _, attr := range sortedAttributes(block.Body.Attributes) {
+		attrVal, diags := attr.Expr.Value(nil)
 		if diags.HasErrors() {
 			return errors.E(diags,
-				"failed to evaluate terramate.config.%s attribute", name,
+				"failed to evaluate terramate.config.%s attribute", attr.Name,
 			)
 		}
-		switch name {
+		switch attr.Name {
 		case "default_branch":
 			logger.Trace().Msg("Attribute name was 'default_branch'.")
 
 			if attrVal.Type() != cty.String {
-				return errors.E(value.Expr.Range(),
+				return errors.E(attr.Expr.Range(),
 					"terramate.config.git.branch is not a string but %q",
 					attrVal.Type().FriendlyName(),
 				)
@@ -749,7 +763,7 @@ func parseGitConfig(git *GitConfig, block *hclsyntax.Block) error {
 			logger.Trace().Msg("Attribute name was 'default_remote'.")
 
 			if attrVal.Type() != cty.String {
-				return errors.E(value.NameRange,
+				return errors.E(attr.NameRange,
 					"terramate.config.git.remote is not a string but %q",
 					attrVal.Type().FriendlyName(),
 				)
@@ -761,7 +775,7 @@ func parseGitConfig(git *GitConfig, block *hclsyntax.Block) error {
 			logger.Trace().Msg("Attribute name was 'default_branch_base_ref.")
 
 			if attrVal.Type() != cty.String {
-				return errors.E(value.NameRange,
+				return errors.E(attr.NameRange,
 					"terramate.config.git.defaultBranchBaseRef is not a string but %q",
 					attrVal.Type().FriendlyName(),
 				)
@@ -770,7 +784,11 @@ func parseGitConfig(git *GitConfig, block *hclsyntax.Block) error {
 			git.DefaultBranchBaseRef = attrVal.AsString()
 
 		default:
-			return errors.E(value.NameRange, "unrecognized attribute terramate.config.git.%s", name)
+			return errors.E(
+				attr.NameRange,
+				"unrecognized attribute terramate.config.git.%s",
+				attr.Name,
+			)
 		}
 	}
 	return nil
@@ -784,12 +802,10 @@ func filterBlocksByType(blocktype string, blocks []*hclsyntax.Block) []*hclsynta
 	var filtered []*hclsyntax.Block
 
 	logger.Trace().Msg("Range over blocks.")
-
 	for _, block := range blocks {
 		if block.Type != blocktype {
 			continue
 		}
-
 		filtered = append(filtered, block)
 	}
 
@@ -824,6 +840,7 @@ func loadCfgBlocks(dir string) (*hclparse.Parser, error) {
 	}
 
 	parser := hclparse.NewParser()
+	errs := errors.L()
 
 	for _, filename := range filenames {
 		logger := logger.With().
@@ -836,17 +853,23 @@ func loadCfgBlocks(dir string) (*hclparse.Parser, error) {
 
 		data, err := os.ReadFile(path)
 		if err != nil {
-			return nil, errors.E(err, "reading config file %q", path)
+			errs.Append(errors.E(err, "reading config file %q", path))
+			continue
 		}
 
 		logger.Trace().Msg("Parsing config.")
 
 		_, diags := parser.ParseHCL(data, path)
 		if diags.HasErrors() {
-			return nil, errors.E(ErrHCLSyntax, diags)
+			errs.Append(errors.E(ErrHCLSyntax, diags))
+			continue
 		}
 
 		logger.Trace().Msg("Config file parsed successfully")
+	}
+
+	if err := errs.AsError(); err != nil {
+		return nil, err
 	}
 
 	return parser, nil
@@ -862,7 +885,19 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 		absdir: p.dir,
 	}
 
-	for fname, hclfile := range p.hclparser.Files() {
+	errs := errors.L()
+
+	var files []string
+	fileMap := p.hclparser.Files()
+	for fname, _ := range fileMap {
+		files = append(files, fname)
+	}
+
+	sort.Strings(files)
+
+	for _, fname := range files {
+		hclfile := fileMap[fname]
+
 		logger := logger.With().
 			Str("filename", fname).
 			Logger()
@@ -873,9 +908,9 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 		logger.Trace().Msg("checking for attributes.")
 
-		for name, val := range body.Attributes {
-			return Config{}, errors.E(ErrTerramateSchema, val.NameRange,
-				"unrecognized attribute %q", name)
+		for _, attr := range sortedAttributes(body.Attributes) {
+			errs.Append(errors.E(ErrTerramateSchema, attr.NameRange,
+				"unrecognized attribute %q", attr.Name))
 		}
 
 		var stackblock *hclsyntax.Block
@@ -887,8 +922,8 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 		errKind := ErrTerramateSchema
 		for _, block := range body.Blocks {
 			if !blockIsAllowed(block.Type) {
-				return Config{}, errors.E(errKind, block.DefRange(),
-					"block type %q is not supported", block.Type)
+				errs.Append(errors.E(errKind, block.DefRange(),
+					"block type %q is not supported", block.Type))
 			}
 
 			if block.Type == "terramate" {
@@ -902,8 +937,8 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 				logger.Trace().Msg("Found stack block type.")
 
 				if foundstack {
-					return Config{}, errors.E(errKind, block.DefRange(),
-						"duplicated stack block")
+					errs.Append(errors.E(errKind, block.DefRange(),
+						"duplicated stack block"))
 				}
 
 				foundstack = true
@@ -915,7 +950,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 				err := validateGenerateHCLBlock(block)
 				if err != nil {
-					return Config{}, errors.E(errKind, err)
+					errs.Append(errors.E(errKind, err))
 				}
 
 				// TODO(i4k): generate_hcl must be part of the whole Config.
@@ -927,7 +962,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 				err := validateGenerateFileBlock(block)
 				if err != nil {
-					return Config{}, errors.E(errKind, err)
+					errs.Append(errors.E(errKind, err))
 				}
 
 				// TODO(katcipis): generate_file must be part of the whole Config.
@@ -939,15 +974,15 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 				err := validateGlobalsBlock(block)
 				if err != nil {
-					return Config{}, errors.E(errKind, err)
+					errs.Append(errors.E(errKind, err))
 				}
 			}
 		}
 
 		for _, tmblock := range tmblocks {
 			if len(tmblock.Labels) > 0 {
-				return Config{}, errors.E(errKind, tmblock.LabelRanges,
-					"terramate block should not have labels")
+				errs.Append(errors.E(errKind, tmblock.LabelRanges,
+					"terramate block should not have labels"))
 			}
 
 			if tmconfig.Terramate == nil {
@@ -958,28 +993,28 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 			logger.Trace().Msg("Range over terramate block attributes.")
 
-			for name, value := range tmblock.Body.Attributes {
-				attrVal, diags := value.Expr.Value(nil)
+			for _, attr := range sortedAttributes(tmblock.Body.Attributes) {
+				attrVal, diags := attr.Expr.Value(nil)
 				if diags.HasErrors() {
-					return Config{}, errors.E(errKind, diags)
+					errs.Append(errors.E(errKind, diags))
 				}
-				switch name {
+				switch attr.Name {
 				case "required_version":
 					logger.Trace().Msg("Parsing  attribute 'required_version'.")
 
 					if attrVal.Type() != cty.String {
-						return Config{}, errors.E(errKind, value.Expr.Range(),
-							"attribute is not a string")
+						errs.Append(errors.E(errKind, attr.Expr.Range(),
+							"attribute is not a string"))
 					}
 					if tm.RequiredVersion != "" {
-						return Config{}, errors.E(errKind, value.NameRange,
-							"duplicated attribute")
+						errs.Append(errors.E(errKind, attr.NameRange,
+							"duplicated attribute"))
 					}
 					tm.RequiredVersion = attrVal.AsString()
 
 				default:
-					return Config{}, errors.E(errKind, value.NameRange,
-						"unsupported attribute")
+					errs.Append(errors.E(errKind, attr.NameRange,
+						"unsupported attribute"))
 				}
 			}
 
@@ -998,11 +1033,11 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 					err := parseRootConfig(tm.RootConfig, block)
 					if err != nil {
-						return Config{}, errors.E(errKind, err)
+						errs.Append(errors.E(errKind, err))
 					}
 				default:
-					return Config{}, errors.E(errKind, block.DefRange(),
-						"block not supported")
+					errs.Append(errors.E(errKind, block.DefRange(),
+						"block not supported"))
 				}
 
 			}
@@ -1015,15 +1050,19 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 		logger.Debug().Msg("Parsing stack cfg.")
 
 		if tmconfig.Stack != nil {
-			return Config{}, errors.E(errKind, stackblock.DefRange(),
-				"duplicated stack blocks across configs")
+			errs.Append(errors.E(errKind, stackblock.DefRange(),
+				"duplicated stack blocks across configs"))
 		}
 
 		tmconfig.Stack = &Stack{}
 		err := parseStack(tmconfig.Stack, stackblock)
 		if err != nil {
-			return Config{}, errors.E(errKind, err)
+			errs.Append(errors.E(errKind, err))
 		}
+	}
+
+	if err := errs.AsError(); err != nil {
+		return Config{}, err
 	}
 
 	return tmconfig, nil
@@ -1040,10 +1079,10 @@ func parseBlocks(dir, blocktype string, validate blockValidator) (Blocks, error)
 
 	logger.Trace().Msg("loading config")
 
+	errs := errors.L()
+
 	parser, err := loadCfgBlocks(dir)
-	if err != nil {
-		return Blocks{}, errors.E(err, "parsing %q", blocktype)
-	}
+	errs.Append(errors.E(err, "parsing %q", blocktype))
 
 	logger.Trace().Msg("Validating and filtering blocks")
 

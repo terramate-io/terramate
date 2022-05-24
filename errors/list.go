@@ -69,8 +69,11 @@ func (l *List) Errors() []*Error {
 	var errs []*Error
 	for _, err := range l.errs {
 		var e *Error
+		var el *List
 		if errors.As(err, &e) {
 			errs = append(errs, e)
+		} else if errors.As(err, &el) {
+			errs = append(errs, el.Errors()...)
 		}
 	}
 	return errs
