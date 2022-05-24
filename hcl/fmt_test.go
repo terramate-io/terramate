@@ -152,6 +152,25 @@ var = [
 `,
 		},
 		{
+			name: "list operated with other things",
+			input: `
+var = [ [ "item" ] + 1, [ "item" ] + true, [ "item" ] + {"test":true, "hi": "test"} ]
+`,
+			want: `
+var = [
+  [
+    "item",
+  ] + 1,
+  [
+    "item",
+  ] + true,
+  [
+    "item",
+  ] + { "test" : true, "hi" : "test" },
+]
+`,
+		},
+		{
 			name: "nested list as operands",
 			input: `
 var = [[ "item" ] + [ true ]]
