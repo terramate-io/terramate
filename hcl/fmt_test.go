@@ -137,6 +137,33 @@ var = [
 `,
 		},
 		{
+			name: "list indexing",
+			input: `
+var = [ "item" ][0]
+`,
+			want: `
+var = [
+  "item",
+][0]
+`,
+		},
+		{
+			name: "nested list indexing",
+			input: `
+var = [["item"][0],["nesting"][666]]
+`,
+			want: `
+var = [
+  [
+    "item",
+  ][0],
+  [
+    "nesting",
+  ][666],
+]
+`,
+		},
+		{
 			name: "single item list",
 			input: `
 var = [ "item" ]

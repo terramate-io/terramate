@@ -195,7 +195,7 @@ func adjustAttrExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
 		adjustedList, pos := adjustListExpr(trimmed)
 		if pos != len(trimmed) {
 			panic(fmt.Errorf(
-				"last pos %d != tokens len %d for tokens: %s",
+				"last pos %d != tokens len %d for tokens: %q",
 				pos,
 				len(trimmed),
 				tokensStr(trimmed),
@@ -249,7 +249,7 @@ func adjustListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			elemNextPos++
 			// restart processing so we eliminate newlines after comma
 			// we don't need to worry about handling multiple commas
-			// as valid since we already validate the code before this.
+			// since we already validate the HCL before this.
 			continue
 		}
 
@@ -271,8 +271,49 @@ func adjustListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	newTokens = append(newTokens, closeBracketToken())
 	elemNextPos++
 
+	// Handling ["one"][0]
+	if hasIndexAccess(tokens[elemNextPos:]) {
+		indexAccess, nextPos := getIndexAccess(tokens[elemNextPos:])
+		elemNextPos += nextPos
+
+		newTokens = append(newTokens, indexAccess...)
+	}
+
 	logger.Trace().Msg("returning adjusted list")
 	return newTokens, elemNextPos
+}
+
+func hasIndexAccess(tokens hclwrite.Tokens) bool {
+	if len(tokens) == 0 {
+		return false
+	}
+	return tokens[0].Type == hclsyntax.TokenOBrack
+}
+
+func getIndexAccess(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
+	openBraces := 0
+
+	for i, token := range tokens {
+		switch token.Type {
+		case hclsyntax.TokenOBrack:
+			openBraces++
+		case hclsyntax.TokenCBrack:
+			openBraces--
+		}
+		if openBraces == 0 {
+			i++
+			accessTokens := tokens[:i]
+			// handling multi dimensional access [1][2]
+			if hasIndexAccess(tokens[i:]) {
+				nextAccessTokens, nextPos := getIndexAccess(tokens[i:])
+				i += nextPos
+				return append(accessTokens, nextAccessTokens...), i
+			}
+			return accessTokens, i
+		}
+	}
+
+	panic(fmt.Errorf("index access tokens %q expected to end with ]", tokensStr(tokens)))
 }
 
 func adjustObjExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
