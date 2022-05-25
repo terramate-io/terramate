@@ -178,12 +178,7 @@ func (p *TerramateParser) AddFile(name string, data []byte) error {
 // Parse the previously added files and return either a Config or an error.
 func (p *TerramateParser) Parse() (Config, error) {
 	errs := errors.L()
-	filenames := []string{}
-	for fname := range p.files {
-		filenames = append(filenames, fname)
-	}
-	sort.Strings(filenames)
-	for _, name := range filenames {
+	for _, name := range p.sortedFilenames() {
 		data := p.files[name]
 		_, diags := p.hclparser.ParseHCL(data, name)
 		if diags.HasErrors() {
@@ -199,6 +194,15 @@ func (p *TerramateParser) Parse() (Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func (p *TerramateParser) sortedFilenames() []string {
+	filenames := []string{}
+	for fname := range p.files {
+		filenames = append(filenames, fname)
+	}
+	sort.Strings(filenames)
+	return filenames
 }
 
 // NewConfig creates a new HCL config with dir as config directory path.
