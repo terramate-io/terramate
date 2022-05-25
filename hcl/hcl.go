@@ -760,7 +760,7 @@ func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
 	return errs.AsError()
 }
 
-func parseGitConfig(git *GitConfig, block *hclsyntax.Block) error {
+func parseGitConfig(git *GitConfig, gitBlock *hclsyntax.Block) error {
 	logger := log.With().
 		Str("action", "parseGitConfig()").
 		Logger()
@@ -768,7 +768,12 @@ func parseGitConfig(git *GitConfig, block *hclsyntax.Block) error {
 	logger.Trace().Msg("Range over block attributes.")
 
 	errs := errors.L()
-	for _, attr := range sortedAttributes(block.Body.Attributes) {
+
+	for _, block := range gitBlock.Body.Blocks {
+		errs.Append(errors.E(block.TypeRange, "unrecognized block %q", block.Type))
+	}
+
+	for _, attr := range sortedAttributes(gitBlock.Body.Attributes) {
 		attrVal, diags := attr.Expr.Value(nil)
 		if diags.HasErrors() {
 			errs.Append(errors.E(diags,
