@@ -29,7 +29,6 @@ import (
 
 // TODO(katcipis):
 // - Blocks and subblocks with lists inside
-// - comments after index access stuff
 
 func TestFormatHCL(t *testing.T) {
 	type testcase struct {
@@ -249,17 +248,6 @@ var = [
 `,
 		},
 		{
-			name: "list indexing with comment",
-			input: `
-var = [ "item" ][0] // c
-`,
-			want: `
-var = [
-  "item",
-][0] // c
-`,
-		},
-		{
 			name: "list indexing with object mixed",
 			input: `
 var = [ "item" ][0].name.hi[1]
@@ -268,17 +256,6 @@ var = [ "item" ][0].name.hi[1]
 var = [
   "item",
 ][0].name.hi[1]
-`,
-		},
-		{
-			name: "list indexing with object mixed with comment",
-			input: `
-var = [ "item" ][0].name.hi[1] // c
-`,
-			want: `
-var = [
-  "item",
-][0].name.hi[1] // c
 `,
 		},
 		{
@@ -310,121 +287,6 @@ var = [
   [
     "nesting",
   ][666],
-]
-`,
-		},
-		{
-			name: "comments inside list with no comma",
-			input: `
-var = [
-1 // c
-]
-`,
-			want: `
-var = [
-  1, // c
-]
-`,
-		},
-		{
-			name: "comment blocks intertwined on everything on a list",
-			input: `
-var = [ /*c1*/ 1 /*c2*/ , /*c3*/ 2 /*c4*/ ]
-`,
-			want: `
-var = [ 
-  /*c1*/ 1 /*c2*/,
-  /*c3*/ 2 /*c4*/,
-]
-`,
-		},
-		{
-			name: "comments inside list",
-			input: `
-var = [
-// c1
-1, // c2
-2, // c3
-// c4
-]
-`,
-			want: `
-var = [
-  // c1
-  1, // c2
-  2, // c3
-  // c4
-]
-`,
-		},
-		// TODO(katcipis): define behavior for this
-		//{
-		//name: "comments and newlines on list",
-		//input: `
-		//var = [
-		//1 // c1
-		//, // c2
-		//2 // c3
-		//]
-		//`,
-		//want: `
-		//`,
-		//},
-		{
-			name: "comments inside nested lists",
-			input: `
-var = [ // c1
-// c2
-[    // c3
-1, // c4
-],   // c5
-[    // c6
-2, // c7
-],   // c8
-// c9
-] // c10
-`,
-			want: `
-var = [ // c1
-  // c2
-  [    // c3
-    1, // c4
-  ],   // c5
-  [    // c6
-    2, // c7
-  ],   // c8
-  // c9
-] // c10
-`,
-		},
-		{
-			name: "comments after commas with newlines around",
-			input: `
-var = [ 
-[
-1
-
-, // c1
-
-
-2
-
-
-,// c2
-
-
-// c3
-
-], // c4
-] 
-`,
-			want: `
-var = [
-  [
-    1, // c1
-    2, // c2
-    // c3
-  ], // c4
 ]
 `,
 		},

@@ -231,18 +231,8 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	// We need to preserve comments like this: [ // comment
 	elemNextPos := 0
 
-	newTokens := hclwrite.Tokens{tokens[elemNextPos]}
+	newTokens := hclwrite.Tokens{tokens[elemNextPos], newlineToken()}
 	elemNextPos++
-
-	// No need to skip newlines in this case, this is handled inside
-	// the loop, so just check for next token being comment
-	if tokens[elemNextPos].Type == hclsyntax.TokenComment {
-		newTokens = append(newTokens, tokens[elemNextPos])
-		elemNextPos++
-	} else {
-		// Comments have newline embedded on them, because why not ?
-		newTokens = append(newTokens, newlineToken())
-	}
 
 	skipNls := func() {
 		_, skipped := skipNewlines(tokens[elemNextPos:])
@@ -254,16 +244,14 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 
 		nextTokenType := tokens[elemNextPos].Type
 
+		if nextTokenType == hclsyntax.TokenComma {
+			elemNextPos++
+			continue
+		}
+
 		if nextTokenType == hclsyntax.TokenCBrack {
 			logger.Trace().Msg("reached end of list")
 			break
-		}
-
-		if nextTokenType == hclsyntax.TokenComment {
-			logger.Trace().Msg("comment found, starting new iteration")
-			newTokens = append(newTokens, tokens[elemNextPos])
-			elemNextPos++
-			continue
 		}
 
 		logger.Trace().Msg("getting next element of the list")
@@ -278,29 +266,7 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			Msg("new element got")
 
 		newTokens = append(newTokens, element...)
-		newTokens = append(newTokens, commaToken())
-		needNewline := true
-
-		// We need to add any possible comments before the newline
-		// Preserving the comment on the same place when we have commas after an
-		// element on the original tokens.
-		skipNls()
-
-		if elemNextPos < len(tokens) && tokens[elemNextPos].Type == hclsyntax.TokenComma {
-			elemNextPos++
-			token := tokens[elemNextPos]
-			if token.Type == hclsyntax.TokenComment {
-				newTokens = append(newTokens, token)
-				elemNextPos++
-				// Comment tokens include a newline embedded on their
-				// byes, so we need this to avoid adding double newlines.
-				needNewline = false
-			}
-		}
-
-		if needNewline {
-			newTokens = append(newTokens, newlineToken())
-		}
+		newTokens = append(newTokens, commaToken(), newlineToken())
 	}
 
 	newTokens = append(newTokens, closeBracketToken())
