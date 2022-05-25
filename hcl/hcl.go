@@ -1052,8 +1052,9 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 					err := parseRootConfig(tm.RootConfig, block)
 					if err != nil {
-						errs.Append(errors.E(errKind, err))
+						errs.Append(errors.E(errKind, err).AsList().Errors()...)
 					}
+
 				default:
 					errs.Append(errors.E(errKind, block.DefRange(),
 						"block not supported"))
@@ -1076,7 +1077,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 		tmconfig.Stack = &Stack{}
 		err := parseStack(tmconfig.Stack, stackblock)
 		if err != nil {
-			errs.Append(errors.E(errKind, err))
+			errs.Append(errors.E(errKind, err).AsList().Errors()...)
 		}
 	}
 

@@ -62,16 +62,19 @@ func (l *List) Error() string {
 	return fmt.Sprintf("%s (and %d elided errors)", errmsg, len(l.errs)-1)
 }
 
-// Errors returns all errors contained on the list that are of the type Error
-// or that have an error of type Error wrapped inside them.
-// Any other errors will be ignored.
-func (l *List) Errors() []*Error {
-	var errs []*Error
+// Errors returns all errors contained on the list.
+// It flattens out the wrapped error lists inside *error.Error.
+func (l *List) Errors() []error {
+	var errs []error
 	for _, err := range l.errs {
 		var e *Error
 		var el *List
 		if errors.As(err, &e) {
-			errs = append(errs, e)
+			if el, ok := e.Err.(*List); ok {
+				errs = append(errs, el.Errors()...)
+			} else {
+				errs = append(errs, e)
+			}
 		} else if errors.As(err, &el) {
 			errs = append(errs, el.Errors()...)
 		}
@@ -107,25 +110,32 @@ func (l *List) Detailed() string {
 //
 // Any error of type errors.List will be flattened inside
 // the error list.
-func (l *List) Append(err error) {
-	if err == nil {
+func (l *List) Append(errs ...error) {
+	if len(errs) == 0 {
 		return
 	}
-	switch e := err.(type) {
-	case hcl.Diagnostics:
-		{
-			for _, diag := range e {
-				l.errs = append(l.errs, E(diag))
-			}
+
+	for _, err := range errs {
+		if err == nil {
+			continue
 		}
-	case *List:
-		{
-			for _, err := range e.errs {
-				l.Append(err)
+
+		switch e := err.(type) {
+		case hcl.Diagnostics:
+			{
+				for _, diag := range e {
+					l.errs = append(l.errs, E(diag))
+				}
 			}
+		case *List:
+			{
+				for _, err := range e.errs {
+					l.Append(err)
+				}
+			}
+		default:
+			l.errs = append(l.errs, err)
 		}
-	default:
-		l.errs = append(l.errs, err)
 	}
 }
 

@@ -169,7 +169,24 @@ func E(args ...interface{}) *Error {
 	if e.isEmpty() {
 		panic(errors.New("empty error"))
 	}
-	// TODO wrap lists
+
+	errs, ok := e.Err.(*List)
+	if ok {
+		newargs := []interface{}{}
+		for _, arg := range args {
+			_, ok := arg.(*List)
+			if !ok {
+				newargs = append(newargs, arg)
+			}
+		}
+
+		for i, el := range errs.errs {
+			errs.errs[i] = E(append(newargs, el)...)
+		}
+
+		return e
+	}
+
 	prev, ok := e.Err.(*Error)
 	if !ok {
 		return e
@@ -286,6 +303,20 @@ func (e *Error) Detailed() string {
 	return e.error(e.defaultErrorParts(), true)
 }
 
+// AsList returns the error as a list.
+// If it's underlying error is a *List, then it just returns it because
+// they're already explictly wrapped.
+func (e *Error) AsList() *List {
+	if errs, ok := e.Err.(*List); ok {
+		return errs
+	}
+
+	return L(e)
+}
+
+// Message returns the error message without some metadata.
+// This method is suitable for editor extensions that needs to handle the
+// metadata themselves.
 func (e *Error) Message() string {
 	return e.error([]interface{}{
 		e.Kind,
