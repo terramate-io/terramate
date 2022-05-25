@@ -351,6 +351,37 @@ var = [ // c1
 `,
 		},
 		{
+			name: "comments after commas with newlines around",
+			input: `
+var = [ 
+[
+1
+
+, // c1
+
+
+2
+
+
+,// c2
+
+
+// c3
+
+], // c4
+] 
+`,
+			want: `
+var = [
+  [
+    1, // c1
+    2, // c2
+    // c3
+  ], // c4
+]
+`,
+		},
+		{
 			name: "single item list",
 			input: `
 var = [ "item" ]
