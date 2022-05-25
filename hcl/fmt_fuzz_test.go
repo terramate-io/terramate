@@ -19,6 +19,7 @@ package hcl_test
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2/hclparse"
@@ -61,6 +62,12 @@ func FuzzFormat(f *testing.F) {
 		const bigNumRegex = "[\\d]+[\\s]*[.]?[\\s]*[\\d]*[EepP]{1}[\\s]*[+-]?[\\s]*[\\d]+"
 		hasBigNumbers, _ := regexp.MatchString(bigNumRegex, str)
 		if hasBigNumbers {
+			return
+		}
+
+		if strings.Contains(str, "/*") || strings.Contains(str, "//") {
+			// The formatting tested here does not support comments
+			// Since it is used only for generated code (that has no comments)
 			return
 		}
 
