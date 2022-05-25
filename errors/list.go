@@ -134,6 +134,12 @@ func (l *List) Append(errs ...error) {
 					l.Append(err)
 				}
 			}
+		case *Error:
+			if el, ok := e.Err.(*List); ok {
+				l.errs = append(l.errs, el.errs...)
+			} else {
+				l.errs = append(l.errs, e)
+			}
 		default:
 			l.errs = append(l.errs, err)
 		}
