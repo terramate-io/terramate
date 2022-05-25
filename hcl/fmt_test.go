@@ -249,6 +249,17 @@ var = [
 `,
 		},
 		{
+			name: "list indexing with comment",
+			input: `
+var = [ "item" ][0] // c
+`,
+			want: `
+var = [
+  "item",
+][0] // c
+`,
+		},
+		{
 			name: "list indexing with object mixed",
 			input: `
 var = [ "item" ][0].name.hi[1]
@@ -257,6 +268,17 @@ var = [ "item" ][0].name.hi[1]
 var = [
   "item",
 ][0].name.hi[1]
+`,
+		},
+		{
+			name: "list indexing with object mixed with comment",
+			input: `
+var = [ "item" ][0].name.hi[1] // c
+`,
+			want: `
+var = [
+  "item",
+][0].name.hi[1] // c
 `,
 		},
 		{
@@ -288,6 +310,31 @@ var = [
   [
     "nesting",
   ][666],
+]
+`,
+		},
+		{
+			name: "comments inside list with no comma",
+			input: `
+var = [
+1 // c
+]
+`,
+			want: `
+var = [
+  1, // c
+]
+`,
+		},
+		{
+			name: "comment blocks intertwined on everything on a list",
+			input: `
+var = [ /*c1*/ 1 /*c2*/ , /*c3*/ 2 /*c4*/ ]
+`,
+			want: `
+var = [ 
+  /*c1*/ 1 /*c2*/,
+  /*c3*/ 2 /*c4*/,
 ]
 `,
 		},
