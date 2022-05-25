@@ -33,21 +33,26 @@ func TestEmptyErrorListReturnsEmptyErrors(t *testing.T) {
 }
 
 func TestErrorListReturnsAllErrors(t *testing.T) {
+	// This test was updated to reflect the changed API of errors.List.Errors().
+	// Now it doesn't ignore errors anymore.
+
 	e := errors.L()
 
 	assert.EqualInts(t, 0, len(e.Errors()))
 
+	notIgnored := stderrors.New("ignored")
 	e.Append(E("one"))
 	e.Append(stdfmt.Errorf("wrapped: %w", E("two")))
-	e.Append(stderrors.New("ignored"))
+	e.Append(notIgnored)
 	e.Append(E("three"))
 
 	errs := e.Errors()
 
-	assert.EqualInts(t, 3, len(errs))
+	assert.EqualInts(t, 4, len(errs))
 	assert.IsError(t, errs[0], E("one"))
 	assert.IsError(t, errs[1], E("two"))
-	assert.IsError(t, errs[2], E("three"))
+	assert.IsError(t, errs[2], notIgnored)
+	assert.IsError(t, errs[3], E("three"))
 }
 
 func TestEmptyErrorListStringRepresentationIsEmpty(t *testing.T) {

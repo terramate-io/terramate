@@ -67,16 +67,17 @@ func (l *List) Error() string {
 func (l *List) Errors() []error {
 	var errs []error
 	for _, err := range l.errs {
-		var e *Error
-		var el *List
-		if errors.As(err, &e) {
+		switch e := err.(type) {
+		case *Error:
 			if el, ok := e.Err.(*List); ok {
 				errs = append(errs, el.Errors()...)
 			} else {
 				errs = append(errs, e)
 			}
-		} else if errors.As(err, &el) {
-			errs = append(errs, el.Errors()...)
+		case *List:
+			errs = append(errs, e.Errors()...)
+		default:
+			errs = append(errs, e)
 		}
 	}
 	return errs
