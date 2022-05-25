@@ -175,16 +175,30 @@ func E(args ...interface{}) *Error {
 
 	errs, ok := e.Err.(*List)
 	if ok {
-		newargs := []interface{}{}
+		// if the underlying error is a *List we wrap all of its elements so they
+		// carry all the context needed to print them individually.
+		// Eg.:
+		//   errs := errors.L()
+		//   obj, err := something.Do()
+		//   if err != nil {
+		// 	 	errs.Append(errors.E(ErrSomethingBadHappened, err))
+		//   }
+		//
+		//   if `err` is an *errors.List, the code above means that all of their
+		//   error items have the kind `ErrSomethingBadHappened`.
+		//
+
+		// code below captures all arguments but the *List
+		wrappingArgs := []interface{}{}
 		for _, arg := range args {
 			_, ok := arg.(*List)
 			if !ok {
-				newargs = append(newargs, arg)
+				wrappingArgs = append(wrappingArgs, arg)
 			}
 		}
 
 		for i, el := range errs.errs {
-			errs.errs[i] = E(append(newargs, el)...)
+			errs.errs[i] = E(append(wrappingArgs, el)...)
 		}
 
 		return e
