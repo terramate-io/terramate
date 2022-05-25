@@ -73,7 +73,7 @@ const separator = ": "
 //		The stack that originated the error.
 //  *List
 //		The underlying error list. By wrapping an error list, you also wrap all
-//		of its error items.//
+//		of its error items.
 //	error
 //		The underlying error that triggered this one.
 //	hcl.Diagnostics
