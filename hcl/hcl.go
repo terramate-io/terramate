@@ -651,7 +651,7 @@ func parseStack(stack *Stack, stackblock *hclsyntax.Block) error {
 
 	for _, block := range stackblock.Body.Blocks {
 		errs.Append(
-			errors.E("unrecognized block %q", block.Type, block.TypeRange),
+			errors.E(block.TypeRange, "unrecognized block %q", block.Type),
 		)
 	}
 

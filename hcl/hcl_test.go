@@ -467,6 +467,31 @@ func TestHCLParserRootConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "unrecognized config.git blocks",
+			input: []cfgfile{
+				{
+					body: `
+					terramate {
+						config {
+							git {
+								block1 {}
+								block2 {}
+							}
+						}
+					}
+				`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange(start(5, 9, 72), end(5, 13, 58))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange(start(5, 9, 54), end(5, 13, 58))),
+				},
+			},
+		},
+		{
 			name: "empty config.git block",
 			input: []cfgfile{
 				{
