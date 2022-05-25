@@ -188,7 +188,8 @@ func E(args ...interface{}) *Error {
 		//   error items have the kind `ErrSomethingBadHappened`.
 		//
 
-		// code below captures all arguments but the *List
+		// code below captures all arguments but the *List so we can wrap the
+		// elements of the list with same semantics intended by the caller of E.
 		wrappingArgs := []interface{}{}
 		for _, arg := range args {
 			_, ok := arg.(*List)
