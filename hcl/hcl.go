@@ -550,7 +550,7 @@ func sortedAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {
 
 func sortedFiles(fmap map[string]*hcl.File) []string {
 	var files []string
-	for fname, _ := range fmap {
+	for fname := range fmap {
 		files = append(files, fname)
 	}
 
