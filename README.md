@@ -117,8 +117,8 @@ setup a local git repository:
 playground=$(mktemp -d)
 local_origin=$(mktemp -d)
 
-git init "${playground}"
-git init "${local_origin}"  --bare
+git init -b main "${playground}"
+git init -b main "${local_origin}"  --bare
 
 cd "${playground}"
 git remote add origin "${local_origin}"
