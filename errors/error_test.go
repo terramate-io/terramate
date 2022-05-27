@@ -142,7 +142,7 @@ func TestErrorString(t *testing.T) {
 			want: "test.tm:1,5-10: 1: 2: 3",
 		},
 		{
-			name: "just diags sets range and description",
+			name: "single element diags sets range and description",
 			err: E(hcl.Diagnostics{
 				&hcl.Diagnostic{
 					Detail:   "some error",
@@ -198,10 +198,72 @@ func TestErrorString(t *testing.T) {
 			}),
 			want: fmt("%s: failed to parse config: at stack \"/test\"", syntaxError),
 		},
+		{
+			name: "underlying error list with single element",
+			err:  E(syntaxError, errors.L(stderrors.New("err"))),
+			want: fmt("%s: err", syntaxError),
+		},
+		{
+			name: "underlying error list with multiple elements",
+			err:  E(syntaxError, errors.L(stderrors.New("err1"), stderrors.New("err2"))),
+			want: fmt("%s: err1 (and 1 elided errors)", syntaxError),
+		},
+		{
+			name: "multiple underlying error builds a list",
+			err:  E(syntaxError, stderrors.New("err1"), stderrors.New("err2")),
+			want: fmt("%s: err1 (and 1 elided errors)", syntaxError),
+		},
+		{
+			name: "hcl.Diagnostics builds a list of hcl.Diagnostic errors",
+			err: E(syntaxError, hcl.Diagnostics{
+				&hcl.Diagnostic{
+					Detail:   "err 1",
+					Severity: hcl.DiagError,
+					Subject: &hcl.Range{
+						Filename: "test.tm",
+						Start:    hcl.Pos{Line: 1, Column: 3, Byte: 3},
+						End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},
+					},
+				},
+				&hcl.Diagnostic{
+					Detail:   "err 2",
+					Severity: hcl.DiagError,
+					Subject: &hcl.Range{
+						Filename: "test2.tm",
+						Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},
+						End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},
+					},
+				},
+			}),
+			want: fmt("test.tm:1,3-10: %s: err 1 (and 1 elided errors)", syntaxError),
+		},
+		{
+			name: "non-error hcl.Diagnostic is ignored",
+			err: E(syntaxError, hcl.Diagnostics{
+				&hcl.Diagnostic{
+					Detail:   "err 1",
+					Severity: hcl.DiagWarning,
+					Subject: &hcl.Range{
+						Filename: "test.tm",
+						Start:    hcl.Pos{Line: 1, Column: 3, Byte: 3},
+						End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},
+					},
+				},
+				&hcl.Diagnostic{
+					Detail:   "err 2",
+					Severity: hcl.DiagError,
+					Subject: &hcl.Range{
+						Filename: "test2.tm",
+						Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},
+						End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},
+					},
+				},
+			}),
+			want: fmt("test2.tm:1,5-10: %s: err 2", syntaxError),
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.EqualStrings(t, tc.want, tc.err.Error())
-
 		})
 
 		// piggyback on Error formatting tests for Errors list testing
@@ -215,7 +277,8 @@ func TestErrorString(t *testing.T) {
 		t.Run("errors list with multiple errors/"+tc.name, func(t *testing.T) {
 			errs := errors.L(tc.err, E("will be elided"))
 			errs.Append(E("will also be elided"))
-			want := fmt("%s (and 2 elided errors)", tc.err.Error())
+			want := fmt("%s (and %d elided errors)",
+				errs.Errors()[0].Error(), len(errs.Errors())-1)
 
 			assert.EqualStrings(t, want, errs.Error())
 			assert.EqualStrings(t, want, errs.AsError().Error())
