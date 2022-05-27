@@ -325,8 +325,9 @@ func (e *Error) Detailed() string {
 // If it's underlying error is a *List, then it just returns it because
 // they're already explicitly wrapped.
 func (e *Error) AsList() *List {
-	if errs, ok := e.Err.(*List); ok {
-		return errs
+	var el *List
+	if errors.As(e, &el) {
+		return el
 	}
 
 	return L(e)
