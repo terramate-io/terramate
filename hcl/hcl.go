@@ -841,9 +841,9 @@ func filterBlocksByType(blocktype string, blocks []*hclsyntax.Block) []*hclsynta
 	return filtered
 }
 
-func blockIsAllowed(name string) bool {
+func isValidTopLevelBlock(name string) bool {
 	logger := log.With().
-		Str("action", "blockIsAllowed()").
+		Str("action", "isValidTopLevelBlock()").
 		Logger()
 
 	switch name {
@@ -942,7 +942,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 		errKind := ErrTerramateSchema
 		for _, block := range body.Blocks {
-			if !blockIsAllowed(block.Type) {
+			if !isValidTopLevelBlock(block.Type) {
 				errs.Append(errors.E(errKind, block.DefRange(),
 					"block type %q is not supported", block.Type))
 				continue
