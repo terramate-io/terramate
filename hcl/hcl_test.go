@@ -946,7 +946,7 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema, mkrange(start(1, 1, 0), end(1, 2, 1))),
 					errors.E(hcl.ErrHCLSyntax, mkrange(start(2, 1, 4), end(2, 2, 5))),
-					errors.E(hcl.ErrHCLSyntax, mkrange(start(1, 1, 3), end(1, 2, 6))),
+					errors.E(hcl.ErrHCLSyntax, mkrange(start(3, 1, 8), end(3, 2, 9))),
 				},
 			},
 		},
