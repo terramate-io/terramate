@@ -33,14 +33,11 @@ func TestEmptyErrorListReturnsEmptyErrors(t *testing.T) {
 }
 
 func TestErrorListReturnsAllErrors(t *testing.T) {
-	// This test was updated to reflect the changed API of errors.List.Errors().
-	// Now it doesn't ignore errors anymore.
-
 	e := errors.L()
 
 	assert.EqualInts(t, 0, len(e.Errors()))
 
-	notIgnored := stderrors.New("ignored")
+	notIgnored := stderrors.New("not ignored")
 	e.Append(E("one"))
 	e.Append(stdfmt.Errorf("wrapped: %w", E("two")))
 	e.Append(notIgnored)
