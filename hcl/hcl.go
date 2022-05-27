@@ -945,6 +945,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 			if !blockIsAllowed(block.Type) {
 				errs.Append(errors.E(errKind, block.DefRange(),
 					"block type %q is not supported", block.Type))
+				continue
 			}
 
 			if block.Type == "terramate" {
