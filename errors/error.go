@@ -72,8 +72,8 @@ const separator = ": "
 //	errors.StackMeta
 //		The stack that originated the error.
 //  *List
-//		The underlying error list. By wrapping an error list, you also wrap all
-//		of its error items.
+//		The underlying error list. In this case we wrap all of its individual
+//		errors so they carry all the context to print them individually.
 //	error
 //		The underlying error that triggered this one.
 //	hcl.Diagnostics
