@@ -398,7 +398,10 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			},
 			want: want{
 				errs: []error{
-					errors.E(hcl.ErrTerramateSchema),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("cfg.tm", start(3, 30, 48), end(3, 34, 52))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("cfg.tm", start(3, 27, 45), end(3, 44, 62))),
 				},
 			},
 		},
@@ -740,7 +743,10 @@ func TestHCLParserStack(t *testing.T) {
 			},
 			want: want{
 				errs: []error{
-					errors.E(hcl.ErrTerramateSchema),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("stack.tm", start(6, 18, 87), end(6, 22, 91))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("stack.tm", start(6, 8, 77), end(6, 12, 81))),
 				},
 			},
 		},
@@ -1288,6 +1294,15 @@ func testParser(t *testing.T, tc testcase) {
 		fixupFiledirOnErrorsFileRanges(configsDir, tc.want.errs)
 		got, err := hcl.ParseDir(configsDir)
 		errtest.AssertErrorList(t, err, tc.want.errs)
+
+		var gotErrs *errors.List
+		if errors.As(err, &gotErrs) {
+			if len(gotErrs.Errors()) != len(tc.want.errs) {
+				t.Logf("got errors: %s", gotErrs.Detailed())
+				t.Fatalf("got %d errors but want %d",
+					len(gotErrs.Errors()), len(tc.want.errs))
+			}
+		}
 
 		if tc.want.errs == nil {
 			test.AssertTerramateConfig(t, got, tc.want.config)
