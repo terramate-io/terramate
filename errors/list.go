@@ -102,14 +102,13 @@ func (l *List) Detailed() string {
 	return strings.Join(details, "\n")
 }
 
-// Append appends a new error on the error list.
-// If the error is nil it will not be added on the error list.
+// Append appends the provided errs on the error list, ignoring nil values.
 //
-// Any error of type hcl.Diagnostics will be flattened inside
-// the error list, each hcl.Diagnostic will become an error.Error.
+// Any error of type hcl.Diagnostics will have its hcl.Diagnostic elements added
+// to the error list.
 //
-// Any error of type errors.List will be flattened inside
-// the error list.
+// Any error of type *List will have its error elements added to the
+// error list.
 func (l *List) Append(errs ...error) {
 	if len(errs) == 0 {
 		return
