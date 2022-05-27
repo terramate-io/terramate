@@ -286,6 +286,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				{
 					body: `terramate{
 							something {}
+							other {}
 						}
 					`,
 				},
@@ -294,6 +295,8 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange(start(2, 8, 18), end(2, 19, 29))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange(start(3, 8, 38), end(3, 15, 45))),
 				},
 			},
 		},
@@ -353,19 +356,23 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			},
 		},
 		{
-			name: "invalid attribute",
+			name: "invalid attributes",
 			input: []cfgfile{
 				{
 					body: `
 						terramate {
 							version = 1
+							invalid = 2
 						}
 					`,
 				},
 			},
 			want: want{
 				errs: []error{
-					errors.E(hcl.ErrTerramateSchema),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange(start(3, 8, 26), end(3, 15, 33))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange(start(4, 8, 45), end(4, 15, 52))),
 				},
 			},
 		},
