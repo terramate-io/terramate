@@ -37,7 +37,7 @@ func TestErrorListReturnsAllErrors(t *testing.T) {
 
 	assert.EqualInts(t, 0, len(e.Errors()))
 
-	notIgnored := stderrors.New("ignored")
+	notIgnored := stderrors.New("not ignored")
 	e.Append(E("one"))
 	e.Append(stdfmt.Errorf("wrapped: %w", E("two")))
 	e.Append(notIgnored)
