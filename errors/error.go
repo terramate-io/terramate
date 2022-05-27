@@ -242,9 +242,9 @@ func (e *Error) isEmpty() bool {
 	return e.FileRange == hcl.Range{} && e.Kind == "" && e.Description == "" && e.Stack == nil
 }
 
-func (e *Error) error(members []interface{}, verbose bool) string {
+func (e *Error) error(fields []interface{}, verbose bool) string {
 	var errParts []string
-	for _, arg := range members {
+	for _, arg := range fields {
 		emptyRange := hcl.Range{}
 		switch v := arg.(type) {
 		case hcl.Range:
@@ -285,7 +285,7 @@ func (e *Error) error(members []interface{}, verbose bool) string {
 				errmsg := ""
 				e, ok := v.(*Error)
 				if ok {
-					errmsg = e.error(e.defaultErrorParts(), verbose)
+					errmsg = e.error(e.defaultErrorFields(), verbose)
 				} else {
 					errmsg = v.Error()
 				}
@@ -301,7 +301,7 @@ func (e *Error) error(members []interface{}, verbose bool) string {
 	return strings.Join(errParts, separator)
 }
 
-func (e *Error) defaultErrorParts() []interface{} {
+func (e *Error) defaultErrorFields() []interface{} {
 	return []interface{}{
 		e.FileRange,
 		e.Kind,
@@ -313,12 +313,12 @@ func (e *Error) defaultErrorParts() []interface{} {
 
 // Error returns the error message.
 func (e *Error) Error() string {
-	return e.error(e.defaultErrorParts(), false)
+	return e.error(e.defaultErrorFields(), false)
 }
 
 // Detailed returns a detailed error message.
 func (e *Error) Detailed() string {
-	return e.error(e.defaultErrorParts(), true)
+	return e.error(e.defaultErrorFields(), true)
 }
 
 // AsList returns the error as a list.
