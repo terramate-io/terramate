@@ -932,6 +932,29 @@ func TestHCLParserStack(t *testing.T) {
 	}
 }
 
+func TestHCLParserMultipleErrors(t *testing.T) {
+	for _, tc := range []testcase{
+		{
+			name: "multiple syntax errors",
+			input: []cfgfile{
+				{
+					filename: "file.tm",
+					body:     "a=1\na=2\na=3",
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema, mkrange(start(1, 1, 0), end(1, 2, 1))),
+					errors.E(hcl.ErrHCLSyntax, mkrange(start(2, 1, 4), end(2, 2, 5))),
+					errors.E(hcl.ErrHCLSyntax, mkrange(start(1, 1, 3), end(1, 2, 6))),
+				},
+			},
+		},
+	} {
+		testParser(t, tc)
+	}
+}
+
 func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 	tcases := []testcase{
 		{
