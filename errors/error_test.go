@@ -218,19 +218,19 @@ func TestErrorString(t *testing.T) {
 			want: fmt("%s: err1 (and 1 elided errors)", syntaxError),
 		},
 		{
-			name: "hcl.Diagnostics builds a list of hcl.Diagnostic",
+			name: "hcl.Diagnostics builds a list of hcl.Diagnostic errors",
 			err: E(syntaxError, hcl.Diagnostics{
 				&hcl.Diagnostic{
 					Detail:   "err 1",
 					Severity: hcl.DiagError,
 					Subject: &hcl.Range{
 						Filename: "test.tm",
-						Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},
+						Start:    hcl.Pos{Line: 1, Column: 3, Byte: 3},
 						End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},
 					},
 				},
 				&hcl.Diagnostic{
-					Detail:   "errr 2",
+					Detail:   "err 2",
 					Severity: hcl.DiagError,
 					Subject: &hcl.Range{
 						Filename: "test2.tm",
@@ -239,7 +239,31 @@ func TestErrorString(t *testing.T) {
 					},
 				},
 			}),
-			want: fmt("test.tm:1,5-10: %s: err 1 (and 1 elided errors)", syntaxError),
+			want: fmt("test.tm:1,3-10: %s: err 1 (and 1 elided errors)", syntaxError),
+		},
+		{
+			name: "non-error hcl.Diagnostic is ignored",
+			err: E(syntaxError, hcl.Diagnostics{
+				&hcl.Diagnostic{
+					Detail:   "err 1",
+					Severity: hcl.DiagWarning,
+					Subject: &hcl.Range{
+						Filename: "test.tm",
+						Start:    hcl.Pos{Line: 1, Column: 3, Byte: 3},
+						End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},
+					},
+				},
+				&hcl.Diagnostic{
+					Detail:   "err 2",
+					Severity: hcl.DiagError,
+					Subject: &hcl.Range{
+						Filename: "test2.tm",
+						Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},
+						End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},
+					},
+				},
+			}),
+			want: fmt("test2.tm:1,5-10: %s: err 2", syntaxError),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

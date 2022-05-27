@@ -264,6 +264,8 @@ func (e *Error) error(fields []interface{}, verbose bool) string {
 		emptyRange := hcl.Range{}
 		switch v := arg.(type) {
 		case *List:
+			// if the underlying error is a *List, all the elements are wrapped
+			// with the parent error fields.
 			return v.Error()
 		case hcl.Range:
 			if v != emptyRange {
