@@ -63,6 +63,10 @@ func TestUnknownTypesWithNoFormat(t *testing.T) {
 	_ = E(10, true, 2.5)
 }
 
+func TestMultipleUnderlyingErrorBuildsAList(t *testing.T) {
+
+}
+
 func TestErrorString(t *testing.T) {
 	type testcase struct {
 		name string
@@ -198,10 +202,19 @@ func TestErrorString(t *testing.T) {
 			}),
 			want: fmt("%s: failed to parse config: at stack \"/test\"", syntaxError),
 		},
+		{
+			name: "underlying error list with single element",
+			err:  E(syntaxError, errors.L(stderrors.New("err"))),
+			want: fmt("%s: err", syntaxError),
+		},
+		{
+			name: "underlying error list with multiple elements",
+			err:  E(syntaxError, errors.L(stderrors.New("err1"), stderrors.New("err2"))),
+			want: fmt("%s: err", syntaxError),
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.EqualStrings(t, tc.want, tc.err.Error())
-
 		})
 
 		// piggyback on Error formatting tests for Errors list testing

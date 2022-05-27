@@ -61,38 +61,48 @@ const separator = ": "
 
 // E builds an error value from its arguments.
 // There must be at least one argument or E panics.
-// The type of each argument determines its meaning. If more than one argument
-// of a given type is presented, only the last one is recorded.
+// The type of each argument determines its meaning.
+// Multiple underlying errors can be provided and in such case E() builds a *List
+// of errors as its underlying error.
+// If multiple arguments of same type is presented (and it's not an
+// underlying error type), only the last one is recorded.
 //
-// The types are:
+// The supported types are:
+//
 // 	errors.Kind
 //		The kind of error (eg.: HCLSyntax, TerramateSchema, etc).
 //	hcl.Range
 //		The file range where the error originated.
 //	errors.StackMeta
 //		The stack that originated the error.
-//  *List
-//		The underlying error list. In this case we wrap all of its individual
-//		errors so they carry all the context to print them individually.
-//	error
-//		The underlying error that triggered this one.
-//	hcl.Diagnostics
-//		The underlying hcl error that triggered this one.
-//		Only the first hcl.Diagnostic will be used.
-//		If hcl.Range is not set, the diagnostic subject range is pulled.
-//		If the string Description is not set, the diagnostic detail field is
-//		pulled.
-//	hcl.Diagnostic
-//		Same behavior as hcl.Diagnostics but for a single diagnostic.
 //	string
 //		The error description. It supports formatting using the Go's fmt verbs
 //		as long as the arguments are not one of the defined types.
+//
+//  The underlying error types are:
+//
+//  *List
+//		The underlying error list wrapped by this one.
+// 		This error wraps all of its individual errors so they carry all the
+//      context to print them individually.
+//	hcl.Diagnostics
+//		The underlying list of hcl errors wrapped by this one.
+//		This type is converted to a *List containing only the hcl.DiagError values.
+//	hcl.Diagnostic
+//		The underlying hcl error wrapped by this one.
+//		It's ignored if its type is not hcl.DiagError.
+//		If hcl.Range is not already set, the diagnostic subject range is pulled.
+//		If the string Description is not set, the diagnostic detail field is
+//		pulled.
+//	error
+//		The underlying error that triggered this one.
 //
 // If the error is printed, only those items that have been
 // set to non-zero values will appear in the result. For the `hcl.Range` type,
 // the `range.Empty()` method is used.
 //
-// The following fields are promoted from underlying errors when absent:
+// When the underlying error is a single error, then the fields below are
+// promoted from the underlying error when absent:
 //
 // - errors.Kind
 // - errors.StackMeta
@@ -100,49 +110,44 @@ const separator = ": "
 //
 // Minimization:
 //
-// In order to avoid duplicated messages, we erase the fields present in the
-// underlying error if already set with same value in this error.
+// In order to avoid duplicated messages, if the underlying error is an *Error,
+// we erase the fields present in it if already set with same value in this
+// error.
 func E(args ...interface{}) *Error {
 	if len(args) == 0 {
 		panic("called with no args")
 	}
 
-	var (
-		diag   *hcl.Diagnostic
-		format *string
-	)
+	var format *string
 
 	fmtargs := []interface{}{}
 
 	e := &Error{}
+	defer func() {
+		if e.isEmpty() {
+			panic(errors.New("empty error"))
+		}
+	}()
+
+	errs := L()
 	for _, arg := range args {
 		switch arg := arg.(type) {
 		case Kind:
 			e.Kind = arg
 		case hcl.Range:
 			e.FileRange = arg
-		case hcl.Diagnostics:
-			diags := arg
-			if diags.HasErrors() {
-				diag = diags[0]
-				if diag.Subject != nil {
-					e.FileRange = *diag.Subject
-				}
-			}
-		case hcl.Diagnostic:
-			diag = &arg
-			if diag.Subject != nil {
-				e.FileRange = *diag.Subject
-			}
-		case *hcl.Diagnostic:
-			diag = arg
-			if diag != nil && diag.Subject != nil {
-				e.FileRange = *diag.Subject
-			}
 		case StackMeta:
 			e.Stack = arg
+		case hcl.Diagnostics:
+			errs.Append(arg)
+		case hcl.Diagnostic:
+			errs.Append(&arg)
+		case *hcl.Diagnostic:
+			errs.Append(arg)
+		case *List:
+			errs.Append(arg)
 		case error:
-			e.Err = arg
+			errs.Append(arg)
 		case string:
 			val := arg
 			if format == nil {
@@ -161,20 +166,11 @@ func E(args ...interface{}) *Error {
 		panic(errors.New("errors.E called with arbitrary types and no format"))
 	}
 
-	if diag != nil {
-		if e.Description == "" {
-			e.Description = diag.Detail
-		} else if e.Err == nil {
-			e.Err = diag
-		}
+	if errs.len() == 0 {
+		return e
 	}
 
-	if e.isEmpty() {
-		panic(errors.New("empty error"))
-	}
-
-	errs, ok := e.Err.(*List)
-	if ok {
+	if errs.len() > 1 {
 		// if the underlying error is a *List we wrap all of its elements so they
 		// carry all the context needed to print them individually.
 		// Eg.:
@@ -188,49 +184,69 @@ func E(args ...interface{}) *Error {
 		//   error items have the kind `ErrSomethingBadHappened`.
 		//
 
-		// code below captures all arguments but the *List so we can wrap the
-		// elements of the list with same semantics intended by the caller of E.
+		// code below captures all arguments but the underlying errors
+		// so we can wrap the elements of the list with same semantics intended
+		// by the caller of E.
 		wrappingArgs := []interface{}{}
 		for _, arg := range args {
-			_, ok := arg.(*List)
-			if !ok {
+			switch arg.(type) {
+			case error, *Error, *List, hcl.Diagnostic, *hcl.Diagnostic,
+				hcl.Diagnostics:
+				// do nothing
+			default:
 				wrappingArgs = append(wrappingArgs, arg)
 			}
 		}
 
 		for i, el := range errs.errs {
-			errs.errs[i] = E(append(wrappingArgs, el)...)
+			args := make([]interface{}, len(wrappingArgs))
+			copy(args, wrappingArgs)
+			args = append(args, el)
+			errs.errs[i] = E(args...)
 		}
 
+		e.Err = errs
 		return e
 	}
 
-	prev, ok := e.Err.(*Error)
-	if !ok {
-		return e
-	}
-	if e.Kind == "" {
-		e.Kind = prev.Kind
-	}
-	if prev.Kind == e.Kind {
-		prev.Kind = ""
-	}
+	// errs.len == 1
+	e.Err = errs.errs[0]
 
-	emptyRange := hcl.Range{}
-	if e.FileRange == emptyRange {
-		e.FileRange = prev.FileRange
-	}
-	if prev.FileRange == e.FileRange {
-		prev.FileRange = hcl.Range{}
-	}
-	if equalStack(e.Stack, prev.Stack) {
-		prev.Stack = nil
-	}
-	if prev.Description == e.Description {
-		prev.Description = ""
-	}
-	if prev.isEmpty() {
-		e.Err = prev.Err
+	switch prev := e.Err.(type) {
+	case *hcl.Diagnostic:
+		if prev.Subject != nil && e.FileRange.Empty() {
+			e.FileRange = *prev.Subject
+		}
+
+		if e.Description == "" {
+			e.Description = prev.Detail
+		}
+
+		e.Err = nil
+	case *Error:
+		if e.Kind == "" {
+			e.Kind = prev.Kind
+		}
+		if prev.Kind == e.Kind {
+			prev.Kind = ""
+		}
+
+		emptyRange := hcl.Range{}
+		if e.FileRange == emptyRange {
+			e.FileRange = prev.FileRange
+		}
+		if prev.FileRange == e.FileRange {
+			prev.FileRange = hcl.Range{}
+		}
+		if equalStack(e.Stack, prev.Stack) {
+			prev.Stack = nil
+		}
+		if prev.Description == e.Description {
+			prev.Description = ""
+		}
+		if prev.isEmpty() {
+			e.Err = prev.Err
+		}
 	}
 
 	return e
@@ -247,6 +263,8 @@ func (e *Error) error(fields []interface{}, verbose bool) string {
 	for _, arg := range fields {
 		emptyRange := hcl.Range{}
 		switch v := arg.(type) {
+		case *List:
+			return v.Error()
 		case hcl.Range:
 			if v != emptyRange {
 				if verbose {
