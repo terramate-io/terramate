@@ -1059,7 +1059,7 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 			},
 		},
 		{
-			name: "conflicting config files",
+			name: "conflicting stack files",
 			input: []cfgfile{
 				{
 					filename: "stack1.tm",
@@ -1074,6 +1074,37 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("stack2.tm", start(1, 1, 0), end(1, 8, 7))),
+				},
+			},
+		},
+		{
+			name: "conflicting terramate config and other errors",
+			input: []cfgfile{
+				{
+					filename: "cfg1.tm",
+					body: `terramate {
+						config {
+							git {
+								default_branch = "trunk"
+							}
+						}
+					}`,
+				},
+				{
+					filename: "cfg2.tm",
+					body: `terramate {
+						config {
+							git {
+								default_remote = "test"
+							}
+						}
+					}`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("cfg2.tm", start(3, 8, 34), end(3, 13, 39))),
 				},
 			},
 		},
