@@ -63,10 +63,6 @@ func TestUnknownTypesWithNoFormat(t *testing.T) {
 	_ = E(10, true, 2.5)
 }
 
-func TestMultipleUnderlyingErrorBuildsAList(t *testing.T) {
-
-}
-
 func TestErrorString(t *testing.T) {
 	type testcase struct {
 		name string
