@@ -257,7 +257,8 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 
 		nextTokenType := tokens[elemNextPos].Type
 
-		if nextTokenType == hclsyntax.TokenComma {
+		if nextTokenType == hclsyntax.TokenComma ||
+			nextTokenType == hclsyntax.TokenComment {
 			elemNextPos++
 			continue
 		}
