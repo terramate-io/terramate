@@ -442,6 +442,10 @@ func trimNewlines(tokens hclwrite.Tokens) hclwrite.Tokens {
 		}
 	}
 
+	if end < start {
+		return nil
+	}
+
 	return tokens[start:end]
 }
 
