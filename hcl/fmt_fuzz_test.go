@@ -109,10 +109,7 @@ func assertIsHCL(t *testing.T, orig, code string) {
 func isValidHCL(code string) bool {
 	parser := hclparse.NewParser()
 	_, diags := parser.ParseHCL([]byte(code), "fuzz")
-	if diags.HasErrors() {
-		return false
-	}
-	return true
+	return !diags.HasErrors()
 }
 
 func formatMultiline(t *testing.T, code string) string {
