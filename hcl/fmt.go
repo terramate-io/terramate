@@ -312,6 +312,8 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 		elemNextPos++
 	}
 
+	skipNls()
+
 	nextTokenType := tokens[elemNextPos].Type
 
 	switch nextTokenType {
