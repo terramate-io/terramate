@@ -55,6 +55,12 @@ or you can just install the **latest** release:
 go install github.com/mineiros-io/terramate/cmd/terramate@latest
 ```
 
+#### Using a package manager
+
+- macOS: You can install Terramate on macOS using
+  [Homebrew](https://formulae.brew.sh/formula/terramate): `brew install terramate`
+
+
 #### Using Release Binaries
 
 To install Terramate using a release binary, find the
@@ -111,8 +117,8 @@ setup a local git repository:
 playground=$(mktemp -d)
 local_origin=$(mktemp -d)
 
-git init "${playground}"
-git init "${local_origin}"  --bare
+git init -b main "${playground}"
+git init -b main "${local_origin}"  --bare
 
 cd "${playground}"
 git remote add origin "${local_origin}"
