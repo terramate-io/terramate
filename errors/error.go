@@ -75,6 +75,14 @@ const separator = ": "
 //		The file range where the error originated.
 //	errors.StackMeta
 //		The stack that originated the error.
+//	hcl.Diagnostics
+//		The underlying hcl error that triggered this one.
+//		Only the first hcl.Diagnostic will be used.
+//		If hcl.Range is not set, the diagnostic subject range is pulled.
+//		If the string Description is not set, the diagnostic detail field is
+//		pulled.
+//	hcl.Diagnostic
+//		Same behavior as hcl.Diagnostics but for a single diagnostic.
 //	string
 //		The error description. It supports formatting using the Go's fmt verbs
 //		as long as the arguments are not one of the defined types.
@@ -84,7 +92,7 @@ const separator = ": "
 //  *List
 //		The underlying error list wrapped by this one.
 // 		This error wraps all of its individual errors so they carry all the
-//      context to print them individually.
+//		context to print them individually.
 //	hcl.Diagnostics
 //		The underlying list of hcl errors wrapped by this one.
 //		This type is converted to a *List containing only the hcl.DiagError values.

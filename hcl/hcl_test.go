@@ -664,6 +664,26 @@ func TestHCLParserStack(t *testing.T) {
 			},
 		},
 		{
+			name: "stack with unrecognized blocks",
+			input: []cfgfile{
+				{
+					filename: "stack.tm",
+					body: `
+						stack{
+							block1 {}
+							block2 {}
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
 			name: "multiple stack blocks",
 			input: []cfgfile{
 				{

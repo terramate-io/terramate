@@ -107,8 +107,8 @@ func (l *List) Detailed() string {
 // Any error of type hcl.Diagnostics will have its hcl.Diagnostic elements added
 // to the error list.
 //
-// Any error of type *List will have its error elements added to the
-// error list.
+// Any error of type errors.List will be flattened inside
+// the error list.
 func (l *List) Append(errs ...error) {
 	if len(errs) == 0 {
 		return
