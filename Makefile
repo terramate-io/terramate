@@ -66,7 +66,7 @@ test/fuzz/eval:
 ## start fuzzying to generate some new corpus/find errors on formatting
 .PHONY: test/fuzz/fmt
 test/fuzz/fmt:
-	go test ./hcl -fuzz=FuzzFormat
+	go test ./hcl -fuzz=FuzzFormatMultiline
 
 ## Build terramate into bin directory
 .PHONY: build
