@@ -257,8 +257,13 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 
 		nextTokenType := tokens[elemNextPos].Type
 
-		if nextTokenType == hclsyntax.TokenComma ||
-			nextTokenType == hclsyntax.TokenComment {
+		if nextTokenType == hclsyntax.TokenComma {
+			elemNextPos++
+			continue
+		}
+
+		if nextTokenType == hclsyntax.TokenComment {
+			newTokens = append(newTokens, tokens[elemNextPos])
 			elemNextPos++
 			continue
 		}
@@ -304,6 +309,13 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	case hclsyntax.TokenComma, hclsyntax.TokenCBrack:
 		{
 			logger.Trace().Msg("end of list, returning formatted list")
+			return newTokens, elemNextPos
+		}
+	case hclsyntax.TokenComment:
+		{
+			logger.Trace().Msg("found comment after end of list, adding token")
+			newTokens = append(newTokens, tokens[elemNextPos])
+			elemNextPos++
 			return newTokens, elemNextPos
 		}
 	case hclsyntax.TokenOBrack:
