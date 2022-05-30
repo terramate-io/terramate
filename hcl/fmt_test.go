@@ -27,9 +27,6 @@ import (
 	errtest "github.com/mineiros-io/terramate/test/errors"
 )
 
-// TODO(katcipis):
-// - Blocks and subblocks with lists inside
-
 func TestFormatMultiline(t *testing.T) {
 	type testcase struct {
 		name     string
