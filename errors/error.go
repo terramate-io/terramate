@@ -69,8 +69,11 @@ const separator = ": "
 //		The kind of error (eg.: HCLSyntax, TerramateSchema, etc).
 //	hcl.Range
 //		The file range where the error originated.
-//		errors.StackMeta
+//	errors.StackMeta
 //		The stack that originated the error.
+//  *List
+//		The underlying error list. In this case we wrap all of its individual
+//		errors so they carry all the context to print them individually.
 //	error
 //		The underlying error that triggered this one.
 //	hcl.Diagnostics
@@ -169,6 +172,39 @@ func E(args ...interface{}) *Error {
 	if e.isEmpty() {
 		panic(errors.New("empty error"))
 	}
+
+	errs, ok := e.Err.(*List)
+	if ok {
+		// if the underlying error is a *List we wrap all of its elements so they
+		// carry all the context needed to print them individually.
+		// Eg.:
+		//   errs := errors.L()
+		//   obj, err := something.Do()
+		//   if err != nil {
+		// 	 	errs.Append(errors.E(ErrSomethingBadHappened, err))
+		//   }
+		//
+		//   if `err` is an *errors.List, the code above means that all of their
+		//   error items have the kind `ErrSomethingBadHappened`.
+		//
+
+		// code below captures all arguments but the *List so we can wrap the
+		// elements of the list with same semantics intended by the caller of E.
+		wrappingArgs := []interface{}{}
+		for _, arg := range args {
+			_, ok := arg.(*List)
+			if !ok {
+				wrappingArgs = append(wrappingArgs, arg)
+			}
+		}
+
+		for i, el := range errs.errs {
+			errs.errs[i] = E(append(wrappingArgs, el)...)
+		}
+
+		return e
+	}
+
 	prev, ok := e.Err.(*Error)
 	if !ok {
 		return e
@@ -206,15 +242,9 @@ func (e *Error) isEmpty() bool {
 	return e.FileRange == hcl.Range{} && e.Kind == "" && e.Description == "" && e.Stack == nil
 }
 
-func (e *Error) error(verbose bool) string {
+func (e *Error) error(fields []interface{}, verbose bool) string {
 	var errParts []string
-	for _, arg := range []interface{}{
-		e.FileRange,
-		e.Kind,
-		e.Description,
-		e.Stack,
-		e.Err,
-	} {
+	for _, arg := range fields {
 		emptyRange := hcl.Range{}
 		switch v := arg.(type) {
 		case hcl.Range:
@@ -253,8 +283,9 @@ func (e *Error) error(verbose bool) string {
 		case error:
 			if v != nil {
 				errmsg := ""
-				if e, ok := v.(interface{ Detailed() string }); ok && verbose {
-					errmsg = e.Detailed()
+				e, ok := v.(*Error)
+				if ok {
+					errmsg = e.error(e.defaultErrorFields(), verbose)
 				} else {
 					errmsg = v.Error()
 				}
@@ -270,14 +301,48 @@ func (e *Error) error(verbose bool) string {
 	return strings.Join(errParts, separator)
 }
 
+func (e *Error) defaultErrorFields() []interface{} {
+	return []interface{}{
+		e.FileRange,
+		e.Kind,
+		e.Description,
+		e.Stack,
+		e.Err,
+	}
+}
+
 // Error returns the error message.
 func (e *Error) Error() string {
-	return e.error(false)
+	return e.error(e.defaultErrorFields(), false)
 }
 
 // Detailed returns a detailed error message.
 func (e *Error) Detailed() string {
-	return e.error(true)
+	return e.error(e.defaultErrorFields(), true)
+}
+
+// AsList returns the error as a list.
+// If it's underlying error is a *List, then it just returns it because
+// they're already explicitly wrapped.
+func (e *Error) AsList() *List {
+	var el *List
+	if errors.As(e, &el) {
+		return el
+	}
+
+	return L(e)
+}
+
+// Message returns the error message without some metadata.
+// This method is suitable for editor extensions that needs to handle the
+// metadata themselves.
+func (e *Error) Message() string {
+	return e.error([]interface{}{
+		e.Kind,
+		e.Description,
+		e.Stack,
+		e.Err,
+	}, false)
 }
 
 // Is tells if err matches the target error.
