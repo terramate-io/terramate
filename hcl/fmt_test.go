@@ -198,6 +198,22 @@ var = [
 `,
 		},
 		{
+			name: "nested empty lists as operands with newlines",
+			input: `
+var = [[]%
+[]]
+`,
+			// The extra indentation when using operators is introduced
+			// by hashicorp's hcl.Format function.
+			want: `
+var = [
+  [
+    ] % [
+  ],
+]
+`,
+		},
+		{
 			name: "list operated with other things",
 			input: `
 var = [ [ "item" ] + 1, [ "item" ] + true, [ "item" ] + {"test":true, "hi": "test"} ]

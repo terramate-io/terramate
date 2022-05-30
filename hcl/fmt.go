@@ -326,6 +326,8 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			// we just assume the next token is an operator and the rest can be any expression
 			newTokens = append(newTokens, tokens[elemNextPos])
 			elemNextPos++
+
+			skipNls()
 			operand, nextPos := fmtNextElement(tokens[elemNextPos:])
 			elemNextPos += nextPos
 
