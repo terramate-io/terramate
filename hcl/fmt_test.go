@@ -30,7 +30,7 @@ import (
 // TODO(katcipis):
 // - Blocks and subblocks with lists inside
 
-func TestFormatHCL(t *testing.T) {
+func TestFormatMultiline(t *testing.T) {
 	type testcase struct {
 		name     string
 		input    string
@@ -596,6 +596,82 @@ var = [
   { name = "${hi},${comma}" },
   { name = "${hi} [${hello}]" },
 ]
+`,
+		},
+		{
+			name: "fails on syntax errors",
+			input: `
+				string = hi"
+				bool   = rue
+				list   = [
+				obj    = {
+			`,
+			wantErrs: []error{
+				errors.E(hcl.ErrHCLSyntax),
+				errors.E(mkrange(start(2, 17, 17), end(3, 1, 18))),
+				errors.E(mkrange(start(3, 17, 34), end(4, 1, 35))),
+				errors.E(mkrange(start(4, 15, 49), end(5, 1, 50))),
+				errors.E(mkrange(start(5, 15, 64), end(6, 1, 65))),
+				errors.E(mkrange(start(2, 16, 16), end(2, 17, 17))),
+			},
+		},
+	}
+
+	for _, tcase := range tcases {
+		t.Run(tcase.name, func(t *testing.T) {
+			const filename = "test-input.hcl"
+			got, err := hcl.FormatMultiline(tcase.input, filename)
+
+			addFilenameToErrorsFileRanges(tcase.wantErrs, filename)
+			errtest.AssertErrorList(t, err, tcase.wantErrs)
+			assert.EqualStrings(t, tcase.want, got)
+
+			if err != nil {
+				return
+			}
+
+			got2, err := hcl.FormatMultiline(got, "formatted.hcl")
+			assert.NoError(t, err)
+			assert.EqualStrings(t, got, got2, "reformatting should produce identical results")
+		})
+	}
+}
+
+func TestFormatHCL(t *testing.T) {
+	type testcase struct {
+		name     string
+		input    string
+		want     string
+		wantErrs []error
+	}
+
+	tcases := []testcase{
+		{
+			name: "empty",
+		},
+		{
+			name:  "only newlines are preserved",
+			input: "\n\n\n",
+			want:  "\n\n\n",
+		},
+		{
+			name:  "only spaces are preserved",
+			input: "  ",
+			want:  "  ",
+		},
+		{
+			name: "attributes alignment",
+			input: `
+a = 1
+ b = "la"
+	c = 666
+  d = []
+`,
+			want: `
+a = 1
+b = "la"
+c = 666
+d = []
 `,
 		},
 		{

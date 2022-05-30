@@ -104,7 +104,7 @@ func assertIsHCL(t *testing.T, orig, code string) {
 func format(t *testing.T, code string) string {
 	t.Helper()
 
-	got, err := hcl.Format(code, "fuzz.hcl")
+	got, err := hcl.FormatMultiline(code, "fuzz.hcl")
 	assert.NoError(t, err)
 
 	return got

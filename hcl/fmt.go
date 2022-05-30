@@ -32,14 +32,27 @@ type FormatResult struct {
 	formatted string
 }
 
-// Format will format the given source code. It returns an error if the given
-// source is invalid HCL.
-func Format(src, filename string) (string, error) {
+// FormatMultiline will format the given source code.
+// It enforces lists to be formatted as multiline, where each
+// element on the list resides on its own line followed by a comma.
+//
+// It returns an error if the given source is invalid HCL.
+func FormatMultiline(src, filename string) (string, error) {
 	parsed, diags := hclwrite.ParseConfig([]byte(src), filename, hcl.InitialPos)
 	if err := errors.L(diags).AsError(); err != nil {
 		return "", errors.E(ErrHCLSyntax, err)
 	}
 	fmtBody(parsed.Body())
+	return string(hclwrite.Format(parsed.Bytes())), nil
+}
+
+// Format will format the given source code using hcl.Format.
+// It returns an error if the given source is invalid HCL.
+func Format(src, filename string) (string, error) {
+	parsed, diags := hclwrite.ParseConfig([]byte(src), filename, hcl.InitialPos)
+	if err := errors.L(diags).AsError(); err != nil {
+		return "", errors.E(ErrHCLSyntax, err)
+	}
 	return string(hclwrite.Format(parsed.Bytes())), nil
 }
 
