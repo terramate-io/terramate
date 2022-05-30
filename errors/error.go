@@ -75,11 +75,6 @@ const separator = ": "
 //		The file range where the error originated.
 //	errors.StackMeta
 //		The stack that originated the error.
-//  *List
-//		The underlying error list. In this case we wrap all of its individual
-//		errors so they carry all the context to print them individually.
-//	error
-//		The underlying error that triggered this one.
 //	hcl.Diagnostics
 //		The underlying hcl error that triggered this one.
 //		Only the first hcl.Diagnostic will be used.
@@ -97,7 +92,7 @@ const separator = ": "
 //  *List
 //		The underlying error list wrapped by this one.
 // 		This error wraps all of its individual errors so they carry all the
-//      context to print them individually.
+//		context to print them individually.
 //	hcl.Diagnostics
 //		The underlying list of hcl errors wrapped by this one.
 //		This type is converted to a *List containing only the hcl.DiagError values.
