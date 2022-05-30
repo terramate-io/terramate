@@ -325,6 +325,33 @@ var = [
 `,
 		},
 		{
+			name: "lists inside blocks",
+			input: `
+block1 {
+  var = [ "item" ]
+}
+block2 {
+  block3 {
+    var = [ "item" ]
+  }
+}
+`,
+			want: `
+block1 {
+  var = [
+    "item",
+  ]
+}
+block2 {
+  block3 {
+    var = [
+      "item",
+    ]
+  }
+}
+`,
+		},
+		{
 			name: "function call with list as parameter",
 			input: `
 var = func([1,2,3])
