@@ -37,17 +37,19 @@ func TestErrorListReturnsAllErrors(t *testing.T) {
 
 	assert.EqualInts(t, 0, len(e.Errors()))
 
+	notIgnored := stderrors.New("not ignored")
 	e.Append(E("one"))
 	e.Append(stdfmt.Errorf("wrapped: %w", E("two")))
-	e.Append(stderrors.New("ignored"))
+	e.Append(notIgnored)
 	e.Append(E("three"))
 
 	errs := e.Errors()
 
-	assert.EqualInts(t, 3, len(errs))
+	assert.EqualInts(t, 4, len(errs))
 	assert.IsError(t, errs[0], E("one"))
 	assert.IsError(t, errs[1], E("two"))
-	assert.IsError(t, errs[2], E("three"))
+	assert.IsError(t, errs[2], notIgnored)
+	assert.IsError(t, errs[3], E("three"))
 }
 
 func TestEmptyErrorListStringRepresentationIsEmpty(t *testing.T) {
@@ -79,13 +81,13 @@ func TestErrorListFlattensAllDiagnostics(t *testing.T) {
 		detail2 = "error 2"
 	)
 	var (
-		range1 = &hcl.Range{
+		range1 = hcl.Range{
 			Filename: "file1.tm",
 			Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},
 			End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},
 		}
 
-		range2 = &hcl.Range{
+		range2 = hcl.Range{
 			Filename: "file2.tm",
 			Start:    hcl.Pos{Line: 2, Column: 6, Byte: 4},
 			End:      hcl.Pos{Line: 2, Column: 11, Byte: 14},
@@ -95,27 +97,21 @@ func TestErrorListFlattensAllDiagnostics(t *testing.T) {
 		&hcl.Diagnostic{
 			Detail:   detail1,
 			Severity: hcl.DiagError,
-			Subject:  range1,
+			Subject:  &range1,
 		},
 		&hcl.Diagnostic{
 			Detail:   detail2,
 			Severity: hcl.DiagError,
-			Subject:  range2,
+			Subject:  &range2,
 		},
 	}
 
 	errs := errors.L()
 	errs.Append(diags)
 
-	wantErrs := []*errors.Error{
-		{
-			Description: detail1,
-			FileRange:   *range1,
-		},
-		{
-			Description: detail2,
-			FileRange:   *range2,
-		},
+	wantErrs := []error{
+		errors.E(detail1, range1),
+		errors.E(detail2, range2),
 	}
 	gotErrs := errs.Errors()
 
@@ -138,7 +134,7 @@ func TestErrorListFlattensOtherErrorList(t *testing.T) {
 	errs := errors.L(error1)
 	errs.Append(errors.L(error2, error3))
 
-	wantErrs := []*errors.Error{error1, error2, error3}
+	wantErrs := []error{error1, error2, error3}
 	gotErrs := errs.Errors()
 
 	if diff := cmp.Diff(gotErrs, wantErrs); diff != "" {

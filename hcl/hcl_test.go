@@ -30,7 +30,7 @@ import (
 
 type (
 	want struct {
-		err    error
+		errs   []error
 		config hcl.Config
 	}
 
@@ -230,14 +230,19 @@ module "test" {
 func TestHCLParserTerramateBlock(t *testing.T) {
 	for _, tc := range []testcase{
 		{
-			name: "unrecognized block",
+			name: "unrecognized blocks",
 			input: []cfgfile{
 				{
-					body: `something {}`,
+					body: "something {}\nsomething_else {}",
 				},
 			},
 			want: want{
-				err: errors.E(hcl.ErrTerramateSchema, mkrange(start(1, 0, 0), end(1, 0, 0))),
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange(start(1, 1, 0), end(1, 12, 11))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange(start(2, 1, 13), end(2, 17, 29))),
+				},
 			},
 		},
 		{
@@ -251,7 +256,10 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.E(hcl.ErrTerramateSchema, mkrange(start(3, 7, 25), end(3, 16, 34))),
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange(start(3, 7, 25), end(3, 16, 34))),
+				},
 			},
 		},
 		{
@@ -266,21 +274,30 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.E(hcl.ErrTerramateSchema, mkrange(start(3, 8, 25), end(3, 17, 34))),
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange(start(3, 8, 25), end(3, 17, 34))),
+				},
 			},
 		},
 		{
-			name: "unrecognized block",
+			name: "unrecognized terramate block",
 			input: []cfgfile{
 				{
 					body: `terramate{
 							something {}
+							other {}
 						}
 					`,
 				},
 			},
 			want: want{
-				err: errors.E(hcl.ErrTerramateSchema, mkrange(start(2, 8, 29), end(2, 17, 29))),
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange(start(2, 8, 18), end(2, 19, 29))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange(start(3, 8, 38), end(3, 15, 45))),
+				},
 			},
 		},
 		{
@@ -315,7 +332,10 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.E(hcl.ErrTerramateSchema, mkrange(start(3, 27, 45), end(3, 28, 46))),
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange(start(3, 27, 45), end(3, 28, 46))),
+				},
 			},
 		},
 		{
@@ -330,22 +350,30 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.E(hcl.ErrTerramateSchema),
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
 			},
 		},
 		{
-			name: "invalid attribute",
+			name: "invalid attributes",
 			input: []cfgfile{
 				{
 					body: `
 						terramate {
 							version = 1
+							invalid = 2
 						}
 					`,
 				},
 			},
 			want: want{
-				err: errors.E(hcl.ErrTerramateSchema),
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange(start(3, 8, 26), end(3, 15, 33))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange(start(4, 8, 45), end(4, 15, 52))),
+				},
 			},
 		},
 		{
@@ -420,7 +448,9 @@ func TestHCLParserRootConfig(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.E(hcl.ErrTerramateSchema),
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
 			},
 		},
 		{
@@ -439,7 +469,10 @@ func TestHCLParserRootConfig(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.E(hcl.ErrTerramateSchema, mkrange(start(5, 9, 54), end(5, 13, 58))),
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange(start(5, 9, 54), end(5, 13, 58))),
+				},
 			},
 		},
 		{
@@ -581,7 +614,9 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.E(hcl.ErrTerramateSchema),
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
 			},
 		},
 		{
@@ -620,7 +655,9 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.E(hcl.ErrTerramateSchema),
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
 			},
 		},
 		{
@@ -638,7 +675,9 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.E(hcl.ErrTerramateSchema),
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
 			},
 		},
 		{
@@ -656,7 +695,9 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.E(hcl.ErrTerramateSchema),
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
 			},
 		},
 		{
@@ -714,7 +755,9 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.E(hcl.ErrTerramateSchema),
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
 			},
 		},
 		{
@@ -729,7 +772,9 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.E(hcl.ErrTerramateSchema),
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
 			},
 		},
 		{
@@ -745,7 +790,9 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.E(hcl.ErrHCLSyntax),
+				errs: []error{
+					errors.E(hcl.ErrHCLSyntax),
+				},
 			},
 		},
 		{
@@ -761,7 +808,9 @@ func TestHCLParserStack(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.E(hcl.ErrHCLSyntax),
+				errs: []error{
+					errors.E(hcl.ErrHCLSyntax),
+				},
 			},
 		},
 		{
@@ -999,7 +1048,9 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.E(hcl.ErrTerramateSchema),
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
 			},
 		},
 		{
@@ -1031,7 +1082,9 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.E(hcl.ErrTerramateSchema),
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
 			},
 		},
 	}
@@ -1050,17 +1103,12 @@ func testParser(t *testing.T, tc testcase) {
 				filename = config.DefaultFilename
 			}
 			cfgfile := test.WriteFile(t, configsDir, filename, inputConfigFile.body)
-			if tc.want.err != nil {
-				e, ok := tc.want.err.(*errors.Error)
-				if ok && !e.FileRange.Empty() {
-					e.FileRange.Filename = cfgfile
-				}
-			}
+			addFilenameToErrorsFileRanges(tc.want.errs, cfgfile)
 		}
 		got, err := hcl.ParseDir(configsDir)
-		errtest.Assert(t, err, tc.want.err)
+		errtest.AssertErrorList(t, err, tc.want.errs)
 
-		if tc.want.err == nil {
+		if tc.want.errs == nil {
 			test.AssertTerramateConfig(t, got, tc.want.config)
 		}
 	})
@@ -1097,6 +1145,9 @@ func testParser(t *testing.T, tc testcase) {
 
 // some helpers to easy build file ranges.
 func mkrange(start, end hhcl.Pos) hhcl.Range {
+	if start.Byte == end.Byte {
+		panic("empty file range")
+	}
 	return hhcl.Range{
 		Start: start,
 		End:   end,
