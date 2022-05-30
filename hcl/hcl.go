@@ -647,9 +647,16 @@ func parseStack(stack *Stack, stackblock *hclsyntax.Block) error {
 		Str("stack", stack.Name).
 		Logger()
 
+	errs := errors.L()
+
+	for _, block := range stackblock.Body.Blocks {
+		errs.Append(
+			errors.E(block.TypeRange, "unrecognized block %q", block.Type),
+		)
+	}
+
 	logger.Debug().Msg("Get stack attributes.")
 
-	errs := errors.L()
 	for _, attr := range sortedAttributes(stackblock.Body.Attributes) {
 		logger.Trace().Msg("Get attribute value.")
 
