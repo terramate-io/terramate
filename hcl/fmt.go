@@ -428,10 +428,6 @@ func newlineToken() *hclwrite.Token {
 }
 
 func trimNewlines(tokens hclwrite.Tokens) hclwrite.Tokens {
-	if len(tokens) == 0 {
-		return nil
-	}
-
 	var start int
 	for start = 0; start < len(tokens); start++ {
 		if tokens[start].Type != hclsyntax.TokenNewline {
@@ -444,10 +440,6 @@ func trimNewlines(tokens hclwrite.Tokens) hclwrite.Tokens {
 		if tokens[end-1].Type != hclsyntax.TokenNewline {
 			break
 		}
-	}
-
-	if end < start {
-		return nil
 	}
 
 	return tokens[start:end]
