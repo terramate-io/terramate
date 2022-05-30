@@ -132,6 +132,16 @@ var = [
 `,
 		},
 		{
+			name: "list with comments in the end",
+			input: `
+var = [] // hi
+`,
+			want: `
+var = [
+] // hi
+`,
+		},
+		{
 			name: "list with list comprehension as elements",
 			input: `
 var = [ [for x in local.a : x], [for x in local.a : x] ]
