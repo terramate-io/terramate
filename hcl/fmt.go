@@ -304,15 +304,23 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	}
 
 	// We are handling things like this:
-	// var = [[] # c1\n [*]]
+	// var = [[] # c1\n\n #c\n [*]]
 	// We need to keep any comments after the immediate end of the list
-	for tokens[elemNextPos].Type == hclsyntax.TokenComment {
-		logger.Trace().Msg("found comment after end of list, adding token")
-		newTokens = append(newTokens, tokens[elemNextPos])
-		elemNextPos++
+	// We don't keep the extra newlines, only newlines belonging to comments themselves.
+	hasCommentOrNl := true
+	for hasCommentOrNl {
+		switch tokens[elemNextPos].Type {
+		case hclsyntax.TokenComment:
+			logger.Trace().Msg("found comment after end of list, adding token")
+			newTokens = append(newTokens, tokens[elemNextPos])
+			elemNextPos++
+		case hclsyntax.TokenNewline:
+			logger.Trace().Msg("found newline after end of list, ignoring")
+			elemNextPos++
+		default:
+			hasCommentOrNl = false
+		}
 	}
-
-	skipNls()
 
 	nextTokenType := tokens[elemNextPos].Type
 
