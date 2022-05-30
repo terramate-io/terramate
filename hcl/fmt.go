@@ -291,8 +291,7 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 
 	logger.Trace().Msg("checking if formatted list has operators/index access")
 
-	_, skipped := skipNewlines(tokens[elemNextPos:])
-	elemNextPos += skipped
+	skipNls()
 
 	if elemNextPos == len(tokens) {
 		logger.Trace().Msg("no more tokens, returning formatted list")
