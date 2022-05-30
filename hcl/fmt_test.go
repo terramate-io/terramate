@@ -335,6 +335,17 @@ var = [
 `,
 		},
 		{
+			name: "single item list with function call and multiple params",
+			input: `
+var = [ func(local.a, local.b, 666, "hi") ]
+`,
+			want: `
+var = [
+  func(local.a, local.b, 666, "hi"),
+]
+`,
+		},
+		{
 			name: "single item list with nested function call",
 			input: `
 var = [ func(func(local.a)) ]

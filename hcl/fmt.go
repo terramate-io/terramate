@@ -352,65 +352,47 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	}
 }
 
-func fmtObjExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
-	logger := log.With().
-		Str("action", "hcl.fmtObjExpr()").
-		Str("tokens", tokensStr(tokens)).
-		Logger()
-
-	// TODO(katcipis): we also want to improve list formatting inside objects
-	// Not doing it for now, but here would be the place to add it.
-
-	logger.Trace().Msg("searching for end of object definition")
-	openBraces := 0
-
-	for i, token := range tokens {
-		switch token.Type {
-		case hclsyntax.TokenOBrace:
-			openBraces++
-		case hclsyntax.TokenCBrace:
-			openBraces--
-		}
-		if openBraces == 0 {
-			i++
-			return trimNewlines(tokens[0:i]), i
-		}
-	}
-
-	panic(fmt.Errorf("object tokens %q expected to end with }", tokensStr(tokens)))
-}
-
 func fmtNextElement(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
-	switch tokens[0].Type {
-	case hclsyntax.TokenOBrack:
+	if tokens[0].Type == hclsyntax.TokenOBrack {
 		if isListComprehension(tokens) {
 			return fmtAnyExpr(tokens)
 		}
 		return fmtListExpr(tokens)
-	case hclsyntax.TokenOBrace:
-		return fmtObjExpr(tokens)
-	default:
-		return fmtAnyExpr(tokens)
 	}
+
+	return fmtAnyExpr(tokens)
 }
 
 func fmtAnyExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	// We may have brackets inside expr, so closing bracket
 	// may not indicate end of the surrounding list reached.
 	openBrackets := 0
+	openBraces := 0
+	openParens := 0
 
 	for i, token := range tokens {
 		switch token.Type {
+		case hclsyntax.TokenOParen:
+			openParens++
+		case hclsyntax.TokenCParen:
+			openParens--
+		case hclsyntax.TokenOBrace:
+			openBraces++
+		case hclsyntax.TokenCBrace:
+			openBraces--
 		case hclsyntax.TokenOBrack:
 			openBrackets++
 		case hclsyntax.TokenCBrack:
 			openBrackets--
 			// openBrackets is -1 when we reach the end of the outer list
+			// Don't need to check other open delimiters in this case
+			// unless the code was originally malformed, but that should not
+			// be possible here.
 			if openBrackets == -1 {
 				return trimNewlines(tokens[0:i]), i
 			}
 		case hclsyntax.TokenComma:
-			if openBrackets == 0 {
+			if openBrackets == 0 && openParens == 0 && openBraces == 0 {
 				return trimNewlines(tokens[0:i]), i
 			}
 		}
