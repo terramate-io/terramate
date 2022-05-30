@@ -369,6 +369,20 @@ var = [
 `,
 		},
 		{
+			name: "nested list with newline and comment before index",
+			input: `
+var = [[] # c1
+[*]]
+`,
+			want: `
+var = [
+  [
+  ] # c1
+  [*],
+]
+`,
+		},
+		{
 			name: "single item list with two dimension index access",
 			input: `
 var = [ local.a[0][1] ]
