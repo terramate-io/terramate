@@ -102,11 +102,10 @@ func (l *List) Detailed() string {
 	return strings.Join(details, "\n")
 }
 
-// Append appends a new error on the error list.
-// If the error is nil it will not be added on the error list.
+// Append appends the provided errs on the error list, ignoring nil values.
 //
-// Any error of type hcl.Diagnostics will be flattened inside
-// the error list, each hcl.Diagnostic will become an error.Error.
+// Any error of type hcl.Diagnostics will have its hcl.Diagnostic elements added
+// to the error list.
 //
 // Any error of type errors.List will be flattened inside
 // the error list.
@@ -122,18 +121,28 @@ func (l *List) Append(errs ...error) {
 
 		switch e := err.(type) {
 		case hcl.Diagnostics:
-			for _, diag := range e {
-				l.errs = append(l.errs, E(diag))
+			if e != nil {
+				for _, diag := range e.Errs() {
+					l.Append(E(diag))
+				}
 			}
 		case *List:
-			for _, err := range e.errs {
-				l.Append(err)
+			if e != nil {
+				for _, err := range e.errs {
+					l.Append(err)
+				}
 			}
 		case *Error:
-			if el, ok := e.Err.(*List); ok {
-				l.errs = append(l.errs, el.errs...)
-			} else {
-				l.errs = append(l.errs, e)
+			if e != nil {
+				if el, ok := e.Err.(*List); ok {
+					l.errs = append(l.errs, el.errs...)
+				} else {
+					l.errs = append(l.errs, e)
+				}
+			}
+		case *hcl.Diagnostic:
+			if e != nil {
+				l.errs = append(l.errs, err)
 			}
 		default:
 			l.errs = append(l.errs, err)
@@ -150,6 +159,8 @@ func (l *List) AsError() error {
 	}
 	return l
 }
+
+func (l *List) len() int { return len(l.errs) }
 
 // Is will call errors.Is for each of the errors on its list
 // returning true on the first match it finds or false if no
