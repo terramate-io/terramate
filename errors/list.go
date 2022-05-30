@@ -67,17 +67,16 @@ func (l *List) Error() string {
 func (l *List) Errors() []error {
 	var errs []error
 	for _, err := range l.errs {
-		switch e := err.(type) {
-		case *Error:
-			if el, ok := e.Err.(*List); ok {
-				errs = append(errs, el.Errors()...)
-			} else {
-				errs = append(errs, e)
-			}
-		case *List:
-			errs = append(errs, e.Errors()...)
-		default:
+		var (
+			e  *Error
+			el *List
+		)
+		if errors.As(err, &el) {
+			errs = append(errs, el.Errors()...)
+		} else if errors.As(err, &e) {
 			errs = append(errs, e)
+		} else {
+			errs = append(errs, err)
 		}
 	}
 	return errs
@@ -123,16 +122,18 @@ func (l *List) Append(errs ...error) {
 
 		switch e := err.(type) {
 		case hcl.Diagnostics:
-			{
-				for _, diag := range e {
-					l.errs = append(l.errs, E(diag))
-				}
+			for _, diag := range e {
+				l.errs = append(l.errs, E(diag))
 			}
 		case *List:
-			{
-				for _, err := range e.errs {
-					l.Append(err)
-				}
+			for _, err := range e.errs {
+				l.Append(err)
+			}
+		case *Error:
+			if el, ok := e.Err.(*List); ok {
+				l.errs = append(l.errs, el.errs...)
+			} else {
+				l.errs = append(l.errs, e)
 			}
 		default:
 			l.errs = append(l.errs, err)

@@ -230,16 +230,18 @@ module "test" {
 func TestHCLParserTerramateBlock(t *testing.T) {
 	for _, tc := range []testcase{
 		{
-			name: "unrecognized block",
+			name: "unrecognized blocks",
 			input: []cfgfile{
 				{
-					body: `something {}`,
+					body: "something {}\nsomething_else {}",
 				},
 			},
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange(start(1, 0, 0), end(1, 0, 0))),
+						mkrange(start(1, 1, 0), end(1, 12, 11))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange(start(2, 1, 13), end(2, 17, 29))),
 				},
 			},
 		},
@@ -279,11 +281,12 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			},
 		},
 		{
-			name: "unrecognized block",
+			name: "unrecognized terramate block",
 			input: []cfgfile{
 				{
 					body: `terramate{
 							something {}
+							other {}
 						}
 					`,
 				},
@@ -291,7 +294,9 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange(start(2, 8, 29), end(2, 17, 29))),
+						mkrange(start(2, 8, 18), end(2, 19, 29))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange(start(3, 8, 38), end(3, 15, 45))),
 				},
 			},
 		},
@@ -351,19 +356,23 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			},
 		},
 		{
-			name: "invalid attribute",
+			name: "invalid attributes",
 			input: []cfgfile{
 				{
 					body: `
 						terramate {
 							version = 1
+							invalid = 2
 						}
 					`,
 				},
 			},
 			want: want{
 				errs: []error{
-					errors.E(hcl.ErrTerramateSchema),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange(start(3, 8, 26), end(3, 15, 33))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange(start(4, 8, 45), end(4, 15, 52))),
 				},
 			},
 		},
@@ -1155,6 +1164,9 @@ func testParser(t *testing.T, tc testcase) {
 
 // some helpers to easy build file ranges.
 func mkrange(start, end hhcl.Pos) hhcl.Range {
+	if start.Byte == end.Byte {
+		panic("empty file range")
+	}
 	return hhcl.Range{
 		Start: start,
 		End:   end,
