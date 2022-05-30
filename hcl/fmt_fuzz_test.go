@@ -74,15 +74,20 @@ func FuzzFormat(f *testing.F) {
 		const testattr = "attr"
 
 		cfg := fmt.Sprintf("%s = %s", testattr, str)
-		parser := hclparse.NewParser()
-		_, diags := parser.ParseHCL([]byte(cfg), "fuzz")
-		if diags.HasErrors() {
+
+		// WHY: When we try to format "attr = 0.0 .0" it will format to
+		// attr = 0.0.0 which then is NOT valid HCL =P.
+		// Since hashicorp's hcl.Format is the one doing this we filter
+		// out hcl.Format mistakes here to focus on our own mistakes
+		// on hcl.FormatMultiline.
+		defaultFmt, err := hcl.Format(cfg, "default-fmt.hcl")
+		if err != nil || !isValidHCL(defaultFmt) {
 			return
 		}
 
-		got := format(t, cfg)
+		got := formatMultiline(t, cfg)
 		assertIsHCL(t, cfg, got)
-		reformatted := format(t, got)
+		reformatted := formatMultiline(t, got)
 
 		if got != reformatted {
 			assert.EqualStrings(t, got, reformatted,
@@ -101,7 +106,16 @@ func assertIsHCL(t *testing.T, orig, code string) {
 	}
 }
 
-func format(t *testing.T, code string) string {
+func isValidHCL(code string) bool {
+	parser := hclparse.NewParser()
+	_, diags := parser.ParseHCL([]byte(code), "fuzz")
+	if diags.HasErrors() {
+		return false
+	}
+	return true
+}
+
+func formatMultiline(t *testing.T, code string) string {
 	t.Helper()
 
 	got, err := hcl.FormatMultiline(code, "fuzz.hcl")
