@@ -28,7 +28,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func FuzzFormat(f *testing.F) {
+func FuzzFormatMultiline(f *testing.F) {
 	seedCorpus := []string{
 		"attr",
 		"attr.value",
