@@ -147,7 +147,7 @@ var = [
 hello
 world
 EOT
-,
+  ,
 ]
 `,
 		},
@@ -172,12 +172,12 @@ var = [
 hello
 world
 EOT
-,
-<<-EOT
+  ,
+  <<-EOT
 hello
 world2
 EOT
-,
+  ,
 ]
 `,
 		},
@@ -202,14 +202,14 @@ var = [
 hello
 world
 EOT
-,
+  ,
   666,
   "test",
-<<-EOT
+  <<-EOT
 hello
 world2
 EOT
-,
+  ,
 ]
 `,
 		},

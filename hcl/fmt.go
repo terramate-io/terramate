@@ -285,6 +285,11 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			Msg("new element got")
 
 		newTokens = append(newTokens, element...)
+		// Heredocs need to be handled differently, the comma must
+		// be on the next line in this case
+		if isHeredoc(element) {
+			newTokens = append(newTokens, newlineToken())
+		}
 		newTokens = append(newTokens, commaToken(), newlineToken())
 	}
 
@@ -475,4 +480,9 @@ func isListComprehension(tokens hclwrite.Tokens) bool {
 	tokens, _ = skipNewlines(tokens[1:])
 	return tokens[0].Type == hclsyntax.TokenIdent &&
 		string(tokens[0].Bytes) == "for"
+}
+
+func isHeredoc(tokens hclwrite.Tokens) bool {
+	lastToken := tokens[len(tokens)-1]
+	return lastToken.Type == hclsyntax.TokenCHeredoc
 }
