@@ -359,6 +359,12 @@ func fmtNextElement(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 }
 
 func fmtAnyExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
+    // this function expects that `tokens` are inside a `[` token.
+    // It works for either list elements or indexing.
+    // eg.:
+    //   list = [<tokens>
+    //   list = [1, 2, <tokens>
+    //   value = ["foo", "bar"][<tokens
 	// We may have brackets inside expr, so closing bracket
 	// may not indicate end of the surrounding list reached.
 	openBrackets := 0
