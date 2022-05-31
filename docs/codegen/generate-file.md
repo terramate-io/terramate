@@ -69,9 +69,8 @@ in failure of the overall code generation process.
 ## Conditional Code Generation
 
 Conditional code generation is achieved by the use of the `condition` attribute.
-The `condition` attribute should always evaluate to a boolean. If `condition` 
-is true, the code will be generated for the given stack. If `condition` is false,
-the code will **not** be generated for the given stack.
+The `condition` attribute should always evaluate to a boolean. The code will
+be generated only if it evaluates to **true**.
 
 Any expression that produces a boolean can be used, including references
 to globals and function calls. For example:
