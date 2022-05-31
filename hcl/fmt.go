@@ -190,36 +190,27 @@ func fmtAttrExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
 		Str("tokens", tokensStr(tokens)).
 		Logger()
 
-	logger.Trace().Msg("trimming newlines")
-
-	trimmed := trimNewlines(tokens)
-
-	logger = logger.With().
-		Str("trimmedTokens", tokensStr(trimmed)).
-		Logger()
-
 	// We are interested on lists, ignore the rest
-	if trimmed[0].Type == hclsyntax.TokenOBrack {
-
-		if isListComprehension(tokens) {
-			logger.Trace().Msg("list comprehension, ignoring")
-			return tokens
-		}
-
-		formattedList, pos := fmtListExpr(trimmed)
-		if pos != len(trimmed) {
-			panic(fmt.Errorf(
-				"last pos %d != tokens len %d for tokens: %q",
-				pos,
-				len(trimmed),
-				tokensStr(trimmed),
-			))
-		}
-		return formattedList
+	if tokens[0].Type != hclsyntax.TokenOBrack {
+		logger.Trace().Msg("not a list, returning tokens as is")
+		return tokens
 	}
 
-	logger.Trace().Msg("not a list, returning tokens as is")
-	return trimmed
+	if isListComprehension(tokens) {
+		logger.Trace().Msg("list comprehension, ignoring")
+		return tokens
+	}
+
+	formattedList, pos := fmtListExpr(tokens)
+	if pos != len(tokens) {
+		panic(fmt.Errorf(
+			"last pos %d != tokens len %d for tokens: %q",
+			pos,
+			len(tokens),
+			tokensStr(tokens),
+		))
+	}
+	return formattedList
 }
 
 // fmtListExpr will adjust the given list tokens so they can be formatted
