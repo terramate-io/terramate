@@ -350,10 +350,8 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 }
 
 func fmtNextElement(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
-	if tokens[0].Type == hclsyntax.TokenOBrack {
-		if isListComprehension(tokens) {
-			return fmtAnyExpr(tokens)
-		}
+	if tokens[0].Type == hclsyntax.TokenOBrack &&
+	    !isListComprehension(tokens) {
 		return fmtListExpr(tokens)
 	}
 
