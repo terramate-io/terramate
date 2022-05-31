@@ -59,8 +59,11 @@ const (
 	// ErrParsing indicates the failure of parsing the generate_hcl block.
 	ErrParsing errors.Kind = "parsing generate_hcl block"
 
-	// ErrEvalContent indicates the failure to evaluate the generate_hcl block.
+	// ErrEvalContent indicates the failure to evaluate the content block.
 	ErrEvalContent errors.Kind = "evaluating content block"
+
+	// ErrEvalCondition indicates the failure to evaluate the condition attribute.
+	ErrEvalCondition errors.Kind = "evaluating condition attribute"
 )
 
 // GeneratedHCLs returns all generated code, mapping the name to its
@@ -74,24 +77,30 @@ func (s StackHCLs) GeneratedHCLs() map[string]HCL {
 }
 
 // Header returns the header of the generated HCL file.
-func (b HCL) Header() string {
+func (h HCL) Header() string {
 	return fmt.Sprintf(
 		"%s\n// TERRAMATE: originated from generate_hcl block on %s\n\n",
 		Header,
-		b.origin,
+		h.origin,
 	)
 }
 
 // Body returns a string representation of the HCL code
 // or an empty string if the config itself is empty.
-func (b HCL) Body() string {
-	return string(b.body)
+func (h HCL) Body() string {
+	return string(h.body)
 }
 
 // Origin returns the path, relative to the project root,
 // of the configuration that originated the code.
-func (b HCL) Origin() string {
-	return b.origin
+func (h HCL) Origin() string {
+	return h.origin
+}
+
+// Condition returns the result of the evaluation of the
+// condition attribute for the generated code.
+func (h HCL) Condition() bool {
+	return true
 }
 
 // Load loads from the file system all generate_hcl for

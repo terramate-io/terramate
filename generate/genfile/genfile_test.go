@@ -667,7 +667,7 @@ func TestLoadGenerateFiles(t *testing.T) {
 				wantBody := res.file.body
 
 				if gotFile.Condition() != res.condition {
-					t.Fatalf("got %t != wanted %t", gotFile.Condition(), res.condition)
+					t.Fatalf("got condition %t != wanted %t", gotFile.Condition(), res.condition)
 				}
 
 				assert.EqualStrings(t,

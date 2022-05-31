@@ -136,6 +136,127 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 		},
 		{
+			name:  "condition set to false",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("condition"),
+						boolean("condition", false),
+						content(
+							block("block"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "condition",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: false,
+						body:      block("block"),
+					},
+				},
+			},
+		},
+		{
+			name:  "condition evaluated from global",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "globals.tm",
+					add: globals(
+						boolean("condition", false),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "generate.tm",
+					add: generateHCL(
+						labels("condition"),
+						expr("condition", "global.condition"),
+						content(
+							block("block"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "condition",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: false,
+						body:      block("block"),
+					},
+				},
+			},
+		},
+		{
+			name:  "condition evaluated using try",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "generate.tm",
+					add: generateHCL(
+						labels("condition"),
+						expr("condition", "tm_try(global.undef, false)"),
+						content(
+							block("block"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "condition",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: false,
+						body:      block("block"),
+					},
+				},
+			},
+		},
+		{
+			name:  "condition evaluated using functions",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "globals.tm",
+					add: globals(
+						attr("list", "[666]"),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "generate.tm",
+					add: generateHCL(
+						labels("condition"),
+						expr("condition", "tm_length(global.list) > 0"),
+						content(
+							block("block"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "condition",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body:      block("block"),
+					},
+				},
+			},
+		},
+		{
 			name:  "generate hcl with only attributes on root body",
 			stack: "/stack",
 			configs: []hclconfig{
@@ -1042,7 +1163,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
-			name:  "global evaluation failure",
+			name:  "global evaluation failure on content",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
@@ -1060,6 +1181,44 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				},
 			},
 			wantErr: errors.E(genhcl.ErrEvalContent),
+		},
+		{
+			name:  "global evaluation failure on condition",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack",
+					add: hcldoc(
+						generateHCL(
+							labels("test"),
+							expr("condition", "global.undef"),
+							content(
+								terraform(),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(genhcl.ErrEvalCondition),
+		},
+		{
+			name:  "condition attribute wont evaluate to boolean",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack",
+					add: hcldoc(
+						generateHCL(
+							labels("test"),
+							str("condition", "not a boolean"),
+							content(
+								terraform(),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(genhcl.ErrEvalCondition),
 		},
 		{
 			name:  "metadata evaluation failure",
@@ -1158,6 +1317,13 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				if !ok {
 					t.Fatalf("want hcl code to be generated for %q but no code was generated for it", res.name)
 				}
+				gotCondition := gothcl.Condition()
+				wantCondition := res.hcl.condition
+
+				if gotCondition != wantCondition {
+					t.Fatalf("got condition %t != want %t", gotCondition, wantCondition)
+				}
+
 				gotcode := gothcl.Body()
 				wantcode := res.hcl.body.String()
 
