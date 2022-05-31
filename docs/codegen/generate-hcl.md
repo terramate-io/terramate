@@ -137,7 +137,7 @@ to globals and function calls. For example:
 
 ```hcl
 generate_hcl "file" {
-   condition = global.generate_file
+   condition = tm_length(global.list) > 0
    content {
        locals {
           list = global.list
