@@ -206,8 +206,6 @@ func fmtAttrExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
 			return tokens
 		}
 
-		// We don't need the position of the next token here
-		// since there shouldn't be any next token on this case.
 		formattedList, pos := fmtListExpr(trimmed)
 		if pos != len(trimmed) {
 			panic(fmt.Errorf(
