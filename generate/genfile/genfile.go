@@ -15,7 +15,6 @@
 package genfile
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -34,6 +33,9 @@ const (
 
 	// ErrContentEval indicates an error when evaluating the content attribute.
 	ErrContentEval errors.Kind = "evaluating content"
+
+	// ErrConditionEval indicates an error when evaluating the condition attribute.
+	ErrConditionEval errors.Kind = "evaluating condition"
 
 	// ErrLabelConflict indicates the two generate_file blocks
 	// have the same label.
@@ -138,9 +140,11 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles,
 		condition := true
 		if genFileBlock.block.Condition != nil {
 			logger.Trace().Msg("has condition attribute, evaluating it")
-			value, _ := evalctx.Eval(genFileBlock.block.Condition.Expr)
-			// TODO(katcipis): test error handling and type checking
-			fmt.Println("KMLO", value.Type())
+			value, err := evalctx.Eval(genFileBlock.block.Condition.Expr)
+			if err != nil {
+				return StackFiles{}, errors.E(ErrConditionEval, err)
+			}
+			// TODO(katcipis): test type checking
 			condition = value.True()
 		}
 

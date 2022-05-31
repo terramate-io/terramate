@@ -606,6 +606,23 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 			wantErr: errors.E(genfile.ErrContentEval),
 		},
+		{
+			name:  "generate_file fails to evaluate condition",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/test.tm",
+					add: hcldoc(
+						generateFile(
+							labels("name"),
+							expr("condition", "global.unknown"),
+							str("content", "data"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(genfile.ErrConditionEval),
+		},
 	}
 
 	for _, tcase := range tcases {
