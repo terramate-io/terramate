@@ -51,10 +51,9 @@ const (
 )
 
 const (
-	// ErrMultiLevelConflict indicates that generate_hcl blocks on different
-	// hierarchical levels have a conflict, like having the same filename
-	// as its output.
-	ErrMultiLevelConflict errors.Kind = "conflicting generate_hcl blocks"
+	// ErrLabelConflict indicates the two generate_hcl blocks
+	// have the same label.
+	ErrLabelConflict errors.Kind = "label conflict detected"
 
 	// ErrParsing indicates the failure of parsing the generate_hcl block.
 	ErrParsing errors.Kind = "parsing generate_hcl block"
@@ -201,19 +200,16 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 
 	for filename, genhclBlocks := range hclblocks {
 		for _, genhclBlock := range genhclBlocks {
-			name := genhclBlock.Labels[0]
-			if _, ok := res[name]; ok {
-				return nil, errors.E(
-					ErrParsing,
-					genhclBlock.LabelRanges[0],
-					"found two blocks with same label %q", name,
-				)
+			name := genhclBlock.Label
+			origin := project.PrjAbsPath(rootdir, filename)
+
+			if other, ok := res[name]; ok {
+				return nil, conflictErr(name, origin, other.origin)
 			}
 
-			contentBlock := genhclBlock.Body.Blocks[0]
 			res[name] = loadedHCL{
 				origin: project.PrjAbsPath(rootdir, filename),
-				block:  contentBlock,
+				block:  genhclBlock.Content,
 			}
 
 			logger.Trace().Msg("loaded generate_hcl block.")
@@ -225,7 +221,7 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 		return nil, err
 	}
 	if err := join(res, parentRes); err != nil {
-		return nil, errors.E(ErrMultiLevelConflict, err)
+		return nil, errors.E(ErrLabelConflict, err)
 	}
 
 	logger.Trace().Msg("loaded generate_hcl blocks with success.")
@@ -245,4 +241,22 @@ func join(target, src map[string]loadedHCL) error {
 		target[blockLabel] = srcHCL
 	}
 	return nil
+}
+
+func conflictErr(label, origin, otherOrigin string) error {
+	if origin == otherOrigin {
+		return errors.E(
+			ErrLabelConflict,
+			"%s has blocks with same label %q",
+			origin,
+			label,
+		)
+	}
+	return errors.E(
+		ErrLabelConflict,
+		"%s and %s have blocks with same label %q",
+		origin,
+		otherOrigin,
+		label,
+	)
 }

@@ -140,7 +140,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			stack: "/stack",
 			configs: []hclconfig{
 				{
-					path: "/stack",
+					path:     "/stack",
+					filename: "generate.tm",
 					add: generateHCL(
 						labels("condition"),
 						boolean("condition", false),
@@ -154,7 +155,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "condition",
 					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
+						origin:    "/stack/generate.tm",
 						condition: false,
 						body:      block("block"),
 					},
@@ -188,7 +189,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "condition",
 					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
+						origin:    "/stack/generate.tm",
 						condition: false,
 						body:      block("block"),
 					},
@@ -215,7 +216,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "condition",
 					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
+						origin:    "/stack/generate.tm",
 						condition: false,
 						body:      block("block"),
 					},
@@ -249,7 +250,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "condition",
 					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
+						origin:    "/stack/generate.tm",
 						condition: true,
 						body:      block("block"),
 					},
@@ -951,7 +952,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrMultiLevelConflict),
+			wantErr: errors.E(genhcl.ErrLabelConflict),
 		},
 		{
 			name:  "stack parents with block with same label is an error",
@@ -980,7 +981,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrMultiLevelConflict),
+			wantErr: errors.E(genhcl.ErrLabelConflict),
 		},
 		{
 			name:  "block with no label fails",
@@ -1125,7 +1126,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrParsing),
+			wantErr: errors.E(genhcl.ErrLabelConflict),
 		},
 		{
 			name:  "blocks with same label on multiple config files fails",
@@ -1160,7 +1161,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrParsing),
+			wantErr: errors.E(genhcl.ErrLabelConflict),
 		},
 		{
 			name:  "global evaluation failure on content",

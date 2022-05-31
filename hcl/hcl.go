@@ -101,6 +101,20 @@ type Blocks map[string][]*hclsyntax.Block
 // found on the file.
 type GenFileBlocks map[string][]GenFileBlock
 
+// GenHCLBlocks maps filenames to slices of parsed generated_hcl blocks
+// found on the file.
+type GenHCLBlocks map[string][]GenHCLBlock
+
+// GenHCLBlock represents a parsed generate_hcl block.
+type GenHCLBlock struct {
+	// Label of the block.
+	Label string
+	// Content block.
+	Content *hclsyntax.Block
+	// Condition attribute of the block, if any.
+	Condition *hclsyntax.Attribute
+}
+
 // GenFileBlock represents a parsed generate_file block
 type GenFileBlock struct {
 	// Label of the block
@@ -381,7 +395,7 @@ func validateGlobalsBlock(block *hclsyntax.Block) error {
 // ParseGenerateHCLBlocks parses all Terramate files on the given dir, returning
 // only generate_hcl blocks (other blocks are discarded).
 // generate_hcl blocks are validated, so the caller can expect valid blocks only or an error.
-func ParseGenerateHCLBlocks(dir string) (Blocks, error) {
+func ParseGenerateHCLBlocks(dir string) (GenHCLBlocks, error) {
 	logger := log.With().
 		Str("action", "hcl.ParseGenerateHCLBlocks").
 		Str("configdir", dir).
@@ -389,9 +403,28 @@ func ParseGenerateHCLBlocks(dir string) (Blocks, error) {
 
 	logger.Trace().Msg("loading config")
 
-	return parseBlocks(dir, "generate_hcl", func(block *hclsyntax.Block) error {
+	blocks, err := parseBlocks(dir, "generate_hcl", func(block *hclsyntax.Block) error {
 		return validateGenerateHCLBlock(block)
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	res := GenHCLBlocks{}
+
+	for filename, hclBlocks := range blocks {
+		genHCLBlocks := make([]GenHCLBlock, len(hclBlocks))
+		for i, hclBlock := range hclBlocks {
+			genHCLBlocks[i] = GenHCLBlock{
+				Label:     hclBlock.Labels[0],
+				Content:   hclBlock.Body.Blocks[0],
+				Condition: hclBlock.Body.Attributes["condition"],
+			}
+		}
+		res[filename] = genHCLBlocks
+	}
+
+	return res, nil
 }
 
 // ParseGenerateFileBlocks parses all Terramate files on the given dir, returning
@@ -447,7 +480,12 @@ func validateGenerateHCLBlock(block *hclsyntax.Block) error {
 	}
 
 	schema := &hcl.BodySchema{
-		Attributes: []hcl.AttributeSchema{},
+		Attributes: []hcl.AttributeSchema{
+			{
+				Name:     "condition",
+				Required: false,
+			},
+		},
 		Blocks: []hcl.BlockHeaderSchema{
 			{
 				Type:       "content",
