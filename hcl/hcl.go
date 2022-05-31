@@ -107,6 +107,8 @@ type GenFileBlock struct {
 	Label string
 	// Content attribute of the block
 	Content *hclsyntax.Attribute
+	// Condition attribute of the block, if any.
+	Condition *hclsyntax.Attribute
 }
 
 // TerramateParser is an HCL parser tailored for Terramate configuration schema.
@@ -408,8 +410,9 @@ func ParseGenerateFileBlocks(dir string) (GenFileBlocks, error) {
 		genFileBlocks := make([]GenFileBlock, len(fileBlocks))
 		for i, fileBlock := range fileBlocks {
 			genFileBlocks[i] = GenFileBlock{
-				Label:   fileBlock.Labels[0],
-				Content: fileBlock.Body.Attributes["content"],
+				Label:     fileBlock.Labels[0],
+				Content:   fileBlock.Body.Attributes["content"],
+				Condition: fileBlock.Body.Attributes["condition"],
 			}
 		}
 
@@ -476,6 +479,10 @@ func validateGenerateFileBlock(block *hclsyntax.Block) error {
 			{
 				Name:     "content",
 				Required: true,
+			},
+			{
+				Name:     "condition",
+				Required: false,
 			},
 		},
 	}

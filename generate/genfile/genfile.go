@@ -15,6 +15,7 @@
 package genfile
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -47,8 +48,9 @@ type StackFiles struct {
 
 // File represents generated file from a single generate_file block.
 type File struct {
-	origin string
-	body   string
+	origin    string
+	body      string
+	condition bool
 }
 
 // Body returns the file body.
@@ -65,7 +67,7 @@ func (f File) Origin() string {
 // Condition returns the result of the evaluation of the
 // condition attribute for the generated code.
 func (f File) Condition() bool {
-	return true
+	return f.condition
 }
 
 // Header returns the header of this file.
@@ -133,6 +135,15 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles,
 			return StackFiles{}, errors.E(ErrContentEval, err)
 		}
 
+		condition := true
+		if genFileBlock.block.Condition != nil {
+			logger.Trace().Msg("has condition attribute, evaluating it")
+			value, _ := evalctx.Eval(genFileBlock.block.Condition.Expr)
+			// TODO(katcipis): test error handling and type checking
+			fmt.Println("KMLO", value.Type())
+			condition = value.True()
+		}
+
 		if value.Type() != cty.String {
 			return StackFiles{}, errors.E(
 				ErrInvalidContentType,
@@ -142,8 +153,9 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles,
 		}
 
 		res.files[name] = File{
-			origin: genFileBlock.origin,
-			body:   value.AsString(),
+			origin:    genFileBlock.origin,
+			body:      value.AsString(),
+			condition: condition,
 		}
 	}
 
