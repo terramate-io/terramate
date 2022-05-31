@@ -241,9 +241,7 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 
 	logger.Trace().Msg("formatting list")
 
-	// We need to preserve comments like this: [ // comment
 	elemNextPos := 0
-
 	newTokens := hclwrite.Tokens{tokens[elemNextPos], newlineToken()}
 	elemNextPos++
 
