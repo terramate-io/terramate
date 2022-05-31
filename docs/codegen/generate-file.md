@@ -72,6 +72,8 @@ Conditional code generation is achieved by the use of the `condition` attribute.
 The `condition` attribute should always evaluate to a boolean. The code will
 be generated only if it evaluates to **true**.
 
+If the `condition` attribute is absent then it is assumed to be always true.
+
 Any expression that produces a boolean can be used, including references
 to globals and function calls. For example:
 

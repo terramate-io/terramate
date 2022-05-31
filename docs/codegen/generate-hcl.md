@@ -132,6 +132,8 @@ The `condition` attribute should always evaluate to a boolean. If `condition`
 is true, the code will be generated for the given stack. If `condition` is false,
 the code will **not** be generated for the given stack.
 
+If the `condition` attribute is absent then it is assumed to be always true.
+
 Any expression that produces a boolean can be used, including references
 to globals and function calls. For example:
 
