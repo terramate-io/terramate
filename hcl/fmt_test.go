@@ -152,6 +152,28 @@ EOT
 `,
 		},
 		{
+			name: "heredoc with commas and []",
+			input: `
+var = [
+<<EOT
+hello,
+world,
+seems like a list [1,2,3]
+EOT
+]
+`,
+			want: `
+var = [
+  <<EOT
+hello,
+world,
+seems like a list [1,2,3]
+EOT
+  ,
+]
+`,
+		},
+		{
 			name: "list with multiple heredocs",
 			input: `
 var = [
