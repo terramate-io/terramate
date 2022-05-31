@@ -166,9 +166,6 @@ const (
 )
 
 func fmtBody(body *hclwrite.Body) {
-	// We don't actually format the body, we just adjust it, adding
-	// newlines in a way that hclwrite.Format will format things the way we want.
-	// This is a quick/nasty hack.
 	logger := log.With().
 		Str("action", "hcl.fmtBody()").
 		Logger()
