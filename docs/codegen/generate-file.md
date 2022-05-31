@@ -64,3 +64,24 @@ or even the project root, which then generates the file for multiple stacks.
 There is no overriding or merging behavior for `generate_file` blocks.
 Blocks defined at different levels with the same label aren't allowed, resulting
 in failure of the overall code generation process.
+
+
+## Conditional Code Generation
+
+Conditional code generation is achieved by the use of the `condition` attribute.
+The `condition` attribute should always evaluate to a boolean. If `condition` 
+is true, the code will be generated for the given stack. If `condition` is false,
+the code will **not** be generated for the given stack.
+
+Any expression that produces a boolean can be used, including references
+to globals and function calls. For example:
+
+```hcl
+generate_file "file" {
+  condition = global.generate_file
+
+  content = "file contents"
+}
+```
+
+Will only generate the file for stacks that define the global `generate_file` to true.
