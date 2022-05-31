@@ -166,9 +166,6 @@ const (
 )
 
 func fmtBody(body *hclwrite.Body) {
-	// We don't actually format the body, we just adjust it, adding
-	// newlines in a way that hclwrite.Format will format things the way we want.
-	// This is a quick/nasty hack.
 	logger := log.With().
 		Str("action", "hcl.fmtBody()").
 		Logger()
@@ -209,8 +206,6 @@ func fmtAttrExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
 			return tokens
 		}
 
-		// We don't need the position of the next token here
-		// since there shouldn't be any next token on this case.
 		formattedList, pos := fmtListExpr(trimmed)
 		if pos != len(trimmed) {
 			panic(fmt.Errorf(
