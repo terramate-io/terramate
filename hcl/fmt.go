@@ -351,7 +351,7 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 
 func fmtNextElement(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	if tokens[0].Type == hclsyntax.TokenOBrack &&
-	    !isListComprehension(tokens) {
+		!isListComprehension(tokens) {
 		return fmtListExpr(tokens)
 	}
 
@@ -448,8 +448,19 @@ func tokensStr(tokens hclwrite.Tokens) string {
 }
 
 func skipNewlines(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
+	return skipTokens(tokens, hclsyntax.TokenNewline)
+}
+
+func skipTokens(tokens hclwrite.Tokens, skipTypes ...hclsyntax.TokenType) (hclwrite.Tokens, int) {
 	for i, token := range tokens {
-		if token.Type != hclsyntax.TokenNewline {
+		skip := false
+		for _, skipType := range skipTypes {
+			if token.Type == skipType {
+				skip = true
+				break
+			}
+		}
+		if !skip {
 			return tokens[i:], i
 		}
 	}
@@ -459,7 +470,7 @@ func skipNewlines(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 func isListComprehension(tokens hclwrite.Tokens) bool {
 	// Here we already assume the first token is [
 	// So we are trying to determine if it is a list comprehension.
-	tokens, _ = skipNewlines(tokens[1:])
+	tokens, _ = skipTokens(tokens[1:], hclsyntax.TokenNewline, hclsyntax.TokenComment)
 	return tokens[0].Type == hclsyntax.TokenIdent &&
 		string(tokens[0].Bytes) == "for"
 }

@@ -246,6 +246,33 @@ var = [
 `,
 		},
 		{
+			name: "list with list comprehension with multiline comments",
+			input: `
+var = [ [
+// c1
+/* c2 */
+# c3
+for x in local.a : x
+// c4
+/* c5 */
+# c6
+] ]
+`,
+			want: `
+var = [
+  [
+    // c1
+    /* c2 */
+    # c3
+    for x in local.a : x
+    // c4
+    /* c5 */
+    # c6
+  ],
+]
+`,
+		},
+		{
 			name: "list with list comprehension as elements",
 			input: `
 var = [ [for x in local.a : x], [for x in local.a : x] ]
