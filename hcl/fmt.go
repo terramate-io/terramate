@@ -50,8 +50,8 @@ func FormatMultiline(src, filename string) (string, error) {
 // It returns an error if the given source is invalid HCL.
 func Format(src, filename string) (string, error) {
 	parsed, diags := hclwrite.ParseConfig([]byte(src), filename, hcl.InitialPos)
-	if err := errors.L(diags).AsError(); err != nil {
-		return "", errors.E(ErrHCLSyntax, err)
+	if diags.HasErrors() {
+		return "", errors.E(ErrHCLSyntax, diags)
 	}
 	return string(hclwrite.Format(parsed.Bytes())), nil
 }
