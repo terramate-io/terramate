@@ -40,8 +40,9 @@ func TestLoadGenerateFiles(t *testing.T) {
 			origin string
 		}
 		result struct {
-			name string
-			file genFile
+			name      string
+			condition bool
+			file      genFile
 		}
 		testcase struct {
 			name    string
@@ -95,7 +96,8 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 			want: []result{
 				{
-					name: "empty",
+					name:      "empty",
+					condition: true,
 					file: genFile{
 						origin: "/stack/empty.tm",
 						body:   "",
@@ -117,7 +119,8 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 			want: []result{
 				{
-					name: "test",
+					name:      "test",
+					condition: true,
 					file: genFile{
 						origin: "/stack/test.tm",
 						body:   "test",
@@ -145,7 +148,8 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 			want: []result{
 				{
-					name: "test",
+					name:      "test",
+					condition: true,
 					file: genFile{
 						origin: "/stack/test.tm",
 						body:   "global-data-/stack",
@@ -183,21 +187,24 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 			want: []result{
 				{
-					name: "test1",
+					name:      "test1",
+					condition: true,
 					file: genFile{
 						origin: "/stack/test.tm",
 						body:   "global-data",
 					},
 				},
 				{
-					name: "test2",
+					name:      "test2",
+					condition: true,
 					file: genFile{
 						origin: "/stack/test.tm",
 						body:   "/stack",
 					},
 				},
 				{
-					name: "test3",
+					name:      "test3",
+					condition: true,
 					file: genFile{
 						origin: "/stack/test.tm",
 						body:   "terramate!",
@@ -232,14 +239,16 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 			want: []result{
 				{
-					name: "test.json",
+					name:      "test.json",
+					condition: true,
 					file: genFile{
 						origin: "/stack/json.tm",
 						body:   `{"field":"global-data"}`,
 					},
 				},
 				{
-					name: "test.yml",
+					name:      "test.yml",
+					condition: true,
 					file: genFile{
 						origin: "/stack/yaml.tm",
 						body:   "\"field\": \"/stack\"\n",
@@ -281,21 +290,24 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 			want: []result{
 				{
-					name: "root",
+					name:      "root",
+					condition: true,
 					file: genFile{
 						origin: "/root.tm",
 						body:   "root-global-data-/stacks/stack",
 					},
 				},
 				{
-					name: "stacks",
+					name:      "stacks",
+					condition: true,
 					file: genFile{
 						origin: "/stacks/stacks.tm",
 						body:   "stacks-global-data-/stacks/stack",
 					},
 				},
 				{
-					name: "stack",
+					name:      "stack",
+					condition: true,
 					file: genFile{
 						origin: "/stacks/stack/stack.tm",
 						body:   "stack-global-data-/stacks/stack",
@@ -507,6 +519,10 @@ func TestLoadGenerateFiles(t *testing.T) {
 				}
 				gotBody := gotFile.Body()
 				wantBody := res.file.body
+
+				if gotFile.Condition() != res.condition {
+					t.Fatalf("got condition %t != %t", gotFile.Condition(), res.condition)
+				}
 
 				assert.EqualStrings(t,
 					res.file.origin,

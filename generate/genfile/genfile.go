@@ -62,6 +62,12 @@ func (f File) Origin() string {
 	return f.origin
 }
 
+// Condition returns the result of the evaluation of the
+// condition attribute for the generated code.
+func (f File) Condition() bool {
+	return true
+}
+
 // Header returns the header of this file.
 func (f File) Header() string {
 	// For now we don't support headers for arbitrary files
