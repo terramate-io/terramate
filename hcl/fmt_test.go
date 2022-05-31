@@ -132,6 +132,88 @@ var = [
 `,
 		},
 		{
+			name: "list with single heredoc",
+			input: `
+var = [
+<<EOT
+hello
+world
+EOT
+]
+`,
+			want: `
+var = [
+  <<EOT
+hello
+world
+EOT
+,
+]
+`,
+		},
+		{
+			name: "list with multiple heredocs",
+			input: `
+var = [
+<<EOT
+hello
+world
+EOT
+,
+<<-EOT
+hello
+world2
+EOT
+]
+`,
+			want: `
+var = [
+  <<EOT
+hello
+world
+EOT
+,
+<<-EOT
+hello
+world2
+EOT
+,
+]
+`,
+		},
+		{
+			name: "list with heredocs mixed with other types",
+			input: `
+var = [
+<<-EOT
+hello
+world
+EOT
+, 666, "test",
+<<-EOT
+hello
+world2
+EOT
+]
+`,
+			want: `
+var = [
+  <<-EOT
+hello
+world
+EOT
+,
+  666,
+  "test",
+<<-EOT
+hello
+world2
+EOT
+,
+]
+`,
+		},
+		{
 			name: "list with comments in the end",
 			input: `
 var = [] // hi
