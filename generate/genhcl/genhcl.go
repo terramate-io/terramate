@@ -26,6 +26,7 @@ import (
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // StackHCLs represents all generated HCL code for a stack,
@@ -38,8 +39,9 @@ type StackHCLs struct {
 // Is contains parsed and evaluated code on it and information
 // about the origin of the generated code.
 type HCL struct {
-	origin string
-	body   string
+	origin    string
+	body      string
+	condition bool
 }
 
 const (
@@ -58,11 +60,15 @@ const (
 	// ErrParsing indicates the failure of parsing the generate_hcl block.
 	ErrParsing errors.Kind = "parsing generate_hcl block"
 
-	// ErrEvalContent indicates the failure to evaluate the content block.
-	ErrEvalContent errors.Kind = "evaluating content block"
+	// ErrContentEval indicates the failure to evaluate the content block.
+	ErrContentEval errors.Kind = "evaluating content block"
 
-	// ErrEvalCondition indicates the failure to evaluate the condition attribute.
-	ErrEvalCondition errors.Kind = "evaluating condition attribute"
+	// ErrConditionEval indicates the failure to evaluate the condition attribute.
+	ErrConditionEval errors.Kind = "evaluating condition attribute"
+
+	// ErrInvalidConditionType indicates the condition attribute on
+	// has a invalid type.
+	ErrInvalidConditionType errors.Kind = "invalid condition type"
 )
 
 // GeneratedHCLs returns all generated code, mapping the name to its
@@ -99,7 +105,7 @@ func (h HCL) Origin() string {
 // Condition returns the result of the evaluation of the
 // condition attribute for the generated code.
 func (h HCL) Condition() bool {
-	return true
+	return h.condition
 }
 
 // Load loads from the file system all generate_hcl for
@@ -143,11 +149,28 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackHCLs, 
 			Str("block", name).
 			Logger()
 
-		logger.Trace().Msg("evaluating block.")
+		condition := true
+		if loadedHCL.condition != nil {
+			logger.Trace().Msg("has condition attribute, evaluating it")
+			value, err := evalctx.Eval(loadedHCL.condition.Expr)
+			if err != nil {
+				return StackHCLs{}, errors.E(ErrConditionEval, err)
+			}
+			if value.Type() != cty.Bool {
+				return StackHCLs{}, errors.E(
+					ErrInvalidConditionType,
+					"condition has type %s but must be boolean",
+					value.Type().FriendlyName(),
+				)
+			}
+			condition = value.True()
+		}
+
+		logger.Trace().Msg("evaluating block")
 
 		gen := hclwrite.NewEmptyFile()
 		if err := hcl.CopyBody(gen.Body(), loadedHCL.block.Body, evalctx); err != nil {
-			return StackHCLs{}, errors.E(ErrEvalContent, sm, err,
+			return StackHCLs{}, errors.E(ErrContentEval, sm, err,
 				"failed to generate block %q", name,
 			)
 		}
@@ -158,18 +181,20 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackHCLs, 
 			)
 		}
 		res.hcls[name] = HCL{
-			origin: loadedHCL.origin,
-			body:   formatted,
+			origin:    loadedHCL.origin,
+			body:      formatted,
+			condition: condition,
 		}
 	}
 
-	logger.Trace().Msg("evaluated all blocks with success.")
+	logger.Trace().Msg("evaluated all blocks with success")
 	return res, nil
 }
 
 type loadedHCL struct {
-	origin string
-	block  *hclsyntax.Block
+	origin    string
+	block     *hclsyntax.Block
+	condition *hclsyntax.Attribute
 }
 
 // loadGenHCLBlocks will load all generate_hcl blocks.
@@ -208,8 +233,9 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 			}
 
 			res[name] = loadedHCL{
-				origin: project.PrjAbsPath(rootdir, filename),
-				block:  genhclBlock.Content,
+				origin:    project.PrjAbsPath(rootdir, filename),
+				block:     genhclBlock.Content,
+				condition: genhclBlock.Condition,
 			}
 
 			logger.Trace().Msg("loaded generate_hcl block.")

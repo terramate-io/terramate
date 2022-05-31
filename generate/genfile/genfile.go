@@ -28,11 +28,11 @@ import (
 
 const (
 	// ErrInvalidContentType indicates the content attribute on
-	// generate_file has a invalid type.
+	// has a invalid type.
 	ErrInvalidContentType errors.Kind = "invalid content type"
 
 	// ErrInvalidConditionType indicates the condition attribute on
-	// generate_file has a invalid type.
+	// has a invalid type.
 	ErrInvalidConditionType errors.Kind = "invalid condition type"
 
 	// ErrContentEval indicates an error when evaluating the content attribute.

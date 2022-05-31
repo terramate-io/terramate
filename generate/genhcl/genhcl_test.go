@@ -1181,7 +1181,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrEvalContent),
+			wantErr: errors.E(genhcl.ErrContentEval),
 		},
 		{
 			name:  "global evaluation failure on condition",
@@ -1200,7 +1200,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrEvalCondition),
+			wantErr: errors.E(genhcl.ErrConditionEval),
 		},
 		{
 			name:  "condition attribute wont evaluate to boolean",
@@ -1219,7 +1219,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrEvalCondition),
+			wantErr: errors.E(genhcl.ErrInvalidConditionType),
 		},
 		{
 			name:  "metadata evaluation failure",
@@ -1239,7 +1239,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrEvalContent),
+			wantErr: errors.E(genhcl.ErrContentEval),
 		},
 		{
 			name:  "valid config on stack but invalid on parent fails",
