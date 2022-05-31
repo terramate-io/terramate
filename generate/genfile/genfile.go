@@ -31,6 +31,10 @@ const (
 	// generate_file has a invalid type.
 	ErrInvalidContentType errors.Kind = "invalid content type"
 
+	// ErrInvalidConditionType indicates the condition attribute on
+	// generate_file has a invalid type.
+	ErrInvalidConditionType errors.Kind = "invalid condition type"
+
 	// ErrContentEval indicates an error when evaluating the content attribute.
 	ErrContentEval errors.Kind = "evaluating content"
 
@@ -144,7 +148,13 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles,
 			if err != nil {
 				return StackFiles{}, errors.E(ErrConditionEval, err)
 			}
-			// TODO(katcipis): test type checking
+			if value.Type() != cty.Bool {
+				return StackFiles{}, errors.E(
+					ErrInvalidConditionType,
+					"condition has type %s but must be boolean",
+					value.Type().FriendlyName(),
+				)
+			}
 			condition = value.True()
 		}
 

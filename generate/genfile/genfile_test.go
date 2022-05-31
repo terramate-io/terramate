@@ -623,6 +623,23 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 			wantErr: errors.E(genfile.ErrConditionEval),
 		},
+		{
+			name:  "generate_file fails condition dont evaluate to boolean",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/test.tm",
+					add: hcldoc(
+						generateFile(
+							labels("name"),
+							str("condition", "not boolean"),
+							str("content", "data"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(genfile.ErrInvalidConditionType),
+		},
 	}
 
 	for _, tcase := range tcases {
