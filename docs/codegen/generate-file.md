@@ -79,7 +79,7 @@ to globals and function calls. For example:
 
 ```hcl
 generate_file "file" {
-  condition = global.generate_file
+  condition = tm_length(global.list) > 0
 
   content = "file contents"
 }

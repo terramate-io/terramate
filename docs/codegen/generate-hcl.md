@@ -139,12 +139,12 @@ to globals and function calls. For example:
 
 ```hcl
 generate_hcl "file" {
-   condition = tm_length(global.list) > 0
-   content {
-       locals {
-          list = global.list
-       }
-   }
+  condition = tm_length(global.list) > 0
+  content {
+    locals {
+      list = global.list
+    }
+  }
 }
 ```
 
