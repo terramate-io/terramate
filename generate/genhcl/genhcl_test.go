@@ -41,8 +41,9 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			add      fmt.Stringer
 		}
 		genHCL struct {
-			body   fmt.Stringer
-			origin string
+			body      fmt.Stringer
+			origin    string
+			condition bool
 		}
 		result struct {
 			name string
@@ -102,8 +103,9 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "empty",
 					hcl: genHCL{
-						origin: defaultCfg("/stack"),
-						body:   hcldoc(),
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body:      hcldoc(),
 					},
 				},
 			},
@@ -126,8 +128,9 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "emptytest",
 					hcl: genHCL{
-						origin: defaultCfg("/stack"),
-						body:   block("empty"),
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body:      block("empty"),
 					},
 				},
 			},
@@ -151,7 +154,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "attrs",
 					hcl: genHCL{
-						origin: defaultCfg("/stack"),
+						origin:    defaultCfg("/stack"),
+						condition: true,
 						body: hcldoc(
 							number("num", 666),
 							str("str", "hi"),
@@ -179,7 +183,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "attrs",
 					hcl: genHCL{
-						origin: defaultCfg("/stack"),
+						origin:    defaultCfg("/stack"),
+						condition: true,
 						body: hcldoc(
 							number("a", 666),
 							expr("b", "a"),
@@ -208,7 +213,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "attrs",
 					hcl: genHCL{
-						origin: defaultCfg("/stack"),
+						origin:    defaultCfg("/stack"),
+						condition: true,
 						body: hcldoc(
 							number("num", 666),
 							str("str", "hi"),
@@ -241,7 +247,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "scope_traversal",
 					hcl: genHCL{
-						origin: defaultCfg("/stack"),
+						origin:    defaultCfg("/stack"),
+						condition: true,
 						body: block("traversals",
 							expr("local", "local.something"),
 							expr("mul", "omg.wat.something"),
@@ -287,7 +294,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "test",
 					hcl: genHCL{
-						origin: defaultCfg("/stack"),
+						origin:    defaultCfg("/stack"),
+						condition: true,
 						body: block("testblock",
 							boolean("bool", true),
 							number("number", 777),
@@ -349,7 +357,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "test",
 					hcl: genHCL{
-						origin: "/root.tm.hcl",
+						origin:    "/root.tm.hcl",
+						condition: true,
 						body: block("testblock",
 							boolean("bool", true),
 							number("number", 777),
@@ -360,7 +369,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "test2",
 					hcl: genHCL{
-						origin: "/root2.tm.hcl",
+						origin:    "/root2.tm.hcl",
+						condition: true,
 						body: block("testblock2",
 							attr("obj", `{
 								string = "string"
@@ -419,7 +429,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "test",
 					hcl: genHCL{
-						origin: "/stack/test.tm.hcl",
+						origin:    "/stack/test.tm.hcl",
+						condition: true,
 						body: block("testblock",
 							boolean("bool", true),
 							number("number", 777),
@@ -430,7 +441,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "test2",
 					hcl: genHCL{
-						origin: "/stack/test2.tm.hcl",
+						origin:    "/stack/test2.tm.hcl",
+						condition: true,
 						body: block("testblock2",
 							attr("obj", `{
 								string = "string"
@@ -476,7 +488,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "test",
 					hcl: genHCL{
-						origin: defaultCfg("/stack"),
+						origin:    defaultCfg("/stack"),
+						condition: true,
 						body: block("labeled",
 							labels("label1", "label2"),
 							expr("field_a", `try("a", null)`),
@@ -528,7 +541,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "nesting",
 					hcl: genHCL{
-						origin: "/stack/genhcl.tm.hcl",
+						origin:    "/stack/genhcl.tm.hcl",
+						condition: true,
 						body: block("block1",
 							boolean("bool", true),
 							block("block2",
@@ -593,7 +607,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "exported_one",
 					hcl: genHCL{
-						origin: defaultCfg("/stack"),
+						origin:    defaultCfg("/stack"),
+						condition: true,
 						body: block("block1",
 							boolean("bool", true),
 							block("block2",
@@ -605,7 +620,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "exported_two",
 					hcl: genHCL{
-						origin: defaultCfg("/stack"),
+						origin:    defaultCfg("/stack"),
+						condition: true,
 						body: block("yay",
 							str("data", "string"),
 						),
@@ -614,7 +630,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "exported_three",
 					hcl: genHCL{
-						origin: defaultCfg("/stack"),
+						origin:    defaultCfg("/stack"),
+						condition: true,
 						body: block("something",
 							number("number", 666),
 						),
@@ -654,7 +671,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "on_parent",
 					hcl: genHCL{
-						origin: defaultCfg("/stacks"),
+						origin:    defaultCfg("/stacks"),
+						condition: true,
 						body: block("on_parent_block",
 							attr("obj", `{
 								string = "string"
@@ -686,7 +704,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "root",
 					hcl: genHCL{
-						origin: defaultCfg("/"),
+						origin:    defaultCfg("/"),
+						condition: true,
 						body: block("root",
 							str("test", "/stacks/stack"),
 						),
@@ -749,7 +768,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "on_root",
 					hcl: genHCL{
-						origin: defaultCfg("/"),
+						origin:    defaultCfg("/"),
+						condition: true,
 						body: block("on_root_block",
 							attr("obj", `{
 								string = "string"
@@ -760,7 +780,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "on_parent",
 					hcl: genHCL{
-						origin: defaultCfg("/stacks"),
+						origin:    defaultCfg("/stacks"),
+						condition: true,
 						body: block("on_parent_block",
 							attr("obj", `{
 								number = 777
@@ -771,7 +792,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				{
 					name: "on_stack",
 					hcl: genHCL{
-						origin: defaultCfg("/stacks/stack"),
+						origin:    defaultCfg("/stacks/stack"),
+						condition: true,
 						body: block("on_stack_block",
 							attr("obj", `{
 								bool   = true
@@ -1037,7 +1059,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrEval),
+			wantErr: errors.E(genhcl.ErrEvalContent),
 		},
 		{
 			name:  "metadata evaluation failure",
@@ -1057,7 +1079,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrEval),
+			wantErr: errors.E(genhcl.ErrEvalContent),
 		},
 		{
 			name:  "valid config on stack but invalid on parent fails",

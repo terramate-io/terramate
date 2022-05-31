@@ -59,8 +59,8 @@ const (
 	// ErrParsing indicates the failure of parsing the generate_hcl block.
 	ErrParsing errors.Kind = "parsing generate_hcl block"
 
-	// ErrEval indicates the failure to evaluate the generate_hcl block.
-	ErrEval errors.Kind = "evaluating generate_hcl block"
+	// ErrEvalContent indicates the failure to evaluate the generate_hcl block.
+	ErrEvalContent errors.Kind = "evaluating content block"
 )
 
 // GeneratedHCLs returns all generated code, mapping the name to its
@@ -121,7 +121,7 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackHCLs, 
 
 	evalctx, err := stack.NewEvalCtx(stackpath, sm, globals)
 	if err != nil {
-		return StackHCLs{}, errors.E(ErrEval, err, "creating eval context")
+		return StackHCLs{}, errors.E(err, "creating eval context")
 	}
 
 	logger.Trace().Msg("generating HCL code.")
@@ -139,7 +139,7 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackHCLs, 
 
 		gen := hclwrite.NewEmptyFile()
 		if err := hcl.CopyBody(gen.Body(), loadedHCL.block.Body, evalctx); err != nil {
-			return StackHCLs{}, errors.E(ErrEval, sm, err,
+			return StackHCLs{}, errors.E(ErrEvalContent, sm, err,
 				"failed to generate block %q", name,
 			)
 		}
