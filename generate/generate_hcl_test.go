@@ -629,8 +629,64 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		},
 	})
 
+	// Block with condition = false will be ignored
+	rootConfig.Write(
+		hcldoc(
+			generateHCL(
+				labels("file1.tf"),
+				boolean("condition", false),
+				content(
+					block("test",
+						boolean("test", true),
+					),
+				),
+			),
+			generateHCL(
+				labels("file2.tf"),
+				boolean("condition", true),
+				content(
+					block("test",
+						boolean("test", true),
+					),
+				),
+			),
+		).String(),
+	)
+
+	assertEqualReports(t, s.Generate(), generate.Report{
+		Successes: []generate.Result{
+			{
+				StackPath: "/stack",
+				Created:   []string{"file2.tf"},
+			},
+		},
+	})
+	got = stackEntry.ListGenFiles()
+	assertEqualStringList(t, got, []string{"file2.tf"})
+
+	// Block changed to condition = false will be deleted
+	rootConfig.Write(
+		hcldoc(
+			generateHCL(
+				labels("file2.tf"),
+				boolean("condition", false),
+				content(
+					block("test",
+						boolean("test", true),
+					),
+				),
+			),
+		).String(),
+	)
+
+	assertEqualReports(t, s.Generate(), generate.Report{
+		Successes: []generate.Result{
+			{
+				StackPath: "/stack",
+				Deleted:   []string{"file2.tf"},
+			},
+		},
+	})
 	got = stackEntry.ListGenFiles()
 	assertEqualStringList(t, got, []string{})
-
-	assertEqualReports(t, s.Generate(), generate.Report{})
 }

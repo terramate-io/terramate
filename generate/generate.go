@@ -93,6 +93,7 @@ func Do(root string, workingDir string) Report {
 		}
 
 		logger.Trace().Msg("Checking for invalid paths on generated files.")
+
 		if err := checkGeneratedFilesPaths(genfiles); err != nil {
 			report.err = errors.E(ErrInvalidFilePath, err)
 			return report
