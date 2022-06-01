@@ -155,3 +155,51 @@ func TestCheckOutdatedIgnoresEmptyGenerateFileContent(t *testing.T) {
 
 	assertOutdatedFiles([]string{})
 }
+
+func TestCheckOutdatedIgnoresWhenConditionIsFalse(t *testing.T) {
+	const filename = "test.txt"
+
+	s := sandbox.New(t)
+
+	stackEntry := s.CreateStack("stacks/stack")
+	stack := stackEntry.Load()
+
+	assertOutdatedFiles := func(want []string) {
+		t.Helper()
+
+		got, err := generate.CheckStack(s.RootDir(), stack)
+		assert.NoError(t, err)
+		assertEqualStringList(t, got, want)
+	}
+
+	createConfig := func(condition bool) {
+		stackEntry.CreateConfig(
+			stackConfig(
+				generateFile(
+					labels(filename),
+					boolean("condition", condition),
+					str("content", "some content"),
+				),
+			).String())
+	}
+
+	// Checking detection when the config has condition = false
+	createConfig(false)
+	assertOutdatedFiles([]string{})
+
+	// Checking detection when the condition is set to true
+	createConfig(true)
+	assertOutdatedFiles([]string{filename})
+
+	s.Generate()
+	assertOutdatedFiles([]string{})
+
+	// Setting it back to false is detected as change since it should be deleted
+	createConfig(false)
+
+	assertOutdatedFiles([]string{"test.txt"})
+
+	s.Generate()
+
+	assertOutdatedFiles([]string{})
+}
