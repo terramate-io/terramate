@@ -147,7 +147,8 @@ generate_hcl "file" {
 }
 ```
 
-Will only generate code for stacks that define the global `generate_file` to true.
+Will only generate the file for stacks that define the expression
+`tm_length(global.list) > 0` evaluates to true.
 
 
 ## Partial Evaluation
