@@ -172,7 +172,7 @@ func TestCheckOutdatedIgnoresWhenGenFileConditionIsFalse(t *testing.T) {
 		assertEqualStringList(t, got, want)
 	}
 
-	createConfig := func(condition bool) {
+	createConfig := func(filename string, condition bool) {
 		stackEntry.CreateConfig(
 			stackConfig(
 				generateFile(
@@ -184,19 +184,18 @@ func TestCheckOutdatedIgnoresWhenGenFileConditionIsFalse(t *testing.T) {
 	}
 
 	// Checking detection when the config has condition = false
-	createConfig(false)
+	createConfig(filename, false)
 	assertOutdatedFiles([]string{})
 
 	// Checking detection when the condition is set to true
-	createConfig(true)
+	createConfig(filename, true)
 	assertOutdatedFiles([]string{filename})
 
 	s.Generate()
 	assertOutdatedFiles([]string{})
 
 	// Setting it back to false is detected as change since it should be deleted
-	createConfig(false)
-
+	createConfig(filename, false)
 	assertOutdatedFiles([]string{"test.txt"})
 
 	s.Generate()
