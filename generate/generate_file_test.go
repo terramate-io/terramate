@@ -16,6 +16,8 @@ package generate_test
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -237,7 +239,28 @@ func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
 	s := sandbox.New(t)
 	stackEntry := s.CreateStack("stack")
 
-	createConfig := func(condition bool) {
+	assertFileExist := func(file string) {
+		t.Helper()
+
+		path := filepath.Join(stackEntry.Path(), file)
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("want file %q to exist, instead got: %v", path, err)
+		}
+	}
+	assertFileDontExist := func(file string) {
+		t.Helper()
+
+		path := filepath.Join(stackEntry.Path(), file)
+		_, err := os.Stat(path)
+
+		if errors.Is(err, os.ErrNotExist) {
+			return
+		}
+
+		t.Fatalf("want file %q to not exist, instead got: %v", path, err)
+	}
+
+	createConfig := func(filename string, condition bool) {
 		stackEntry.CreateConfig(
 			stackConfig(
 				generateFile(
@@ -248,11 +271,12 @@ func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
 			).String())
 	}
 
-	createConfig(false)
+	createConfig(filename, false)
 	report := s.Generate()
 	assertEqualReports(t, report, generate.Report{})
+	assertFileDontExist(filename)
 
-	createConfig(true)
+	createConfig(filename, true)
 	report = s.Generate()
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
@@ -262,8 +286,9 @@ func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
 			},
 		},
 	})
+	assertFileExist(filename)
 
-	createConfig(false)
+	createConfig(filename, false)
 	report = s.Generate()
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
@@ -273,4 +298,5 @@ func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
 			},
 		},
 	})
+	assertFileDontExist(filename)
 }

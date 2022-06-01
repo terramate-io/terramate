@@ -123,22 +123,16 @@ func Do(root string, workingDir string) Report {
 
 		for filename, genfile := range genfiles {
 			path := filepath.Join(stackpath, filename)
+			emptyBody := genfile.Body() == ""
 			logger := logger.With().
 				Str("filename", filename).
+				Bool("condition", genfile.Condition()).
+				Bool("emptyBody", emptyBody).
 				Logger()
 
 			// We don't want to generate files just with a header inside.
-			if genfile.Body() == "" {
-				logger.Trace().Msg("ignoring empty code")
-				continue
-			}
-
-			if !genfile.Condition() {
-				logger.Trace().Msg("ignoring code that has condition = false")
-				// TODO(katcipis): we need to ensure the file is removed
-				// We can't list all kinds of generated files, so we
-				// need to handle when the config references a file
-				// that was not listed.
+			if emptyBody || !genfile.Condition() {
+				logger.Debug().Msg("ignoring")
 				continue
 			}
 
@@ -295,10 +289,6 @@ func (g generatedFiles) add(filename string, genfile fileInfo) error {
 	}
 	g[filename] = genfile
 	return nil
-}
-
-func (g generatedFiles) remove(filename string) {
-	delete(g, filename)
 }
 
 func updateOutdatedFiles(
