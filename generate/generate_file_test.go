@@ -45,7 +45,7 @@ func TestGenerateFile(t *testing.T) {
 					path: "/stacks",
 					add: generateFile(
 						labels("empty"),
-						strAttr("content", ""),
+						str("content", ""),
 					),
 				},
 			},
@@ -61,8 +61,8 @@ func TestGenerateFile(t *testing.T) {
 					path: "/stacks",
 					add: generateFile(
 						labels("test"),
-						boolAttr("condition", false),
-						strAttr("content", "content"),
+						boolean("condition", false),
+						str("content", "content"),
 					),
 				},
 			},
@@ -79,11 +79,11 @@ func TestGenerateFile(t *testing.T) {
 					add: hcldoc(
 						generateFile(
 							labels("file1.txt"),
-							exprAttr("content", "terramate.path"),
+							expr("content", "terramate.path"),
 						),
 						generateFile(
 							labels("file2.txt"),
-							exprAttr("content", "terramate.name"),
+							expr("content", "terramate.name"),
 						),
 					),
 				},
@@ -92,15 +92,15 @@ func TestGenerateFile(t *testing.T) {
 				{
 					stack: "/stacks/stack-1",
 					files: map[string]fmt.Stringer{
-						"file1.txt": str("/stacks/stack-1"),
-						"file2.txt": str("stack-1"),
+						"file1.txt": stringer("/stacks/stack-1"),
+						"file2.txt": stringer("stack-1"),
 					},
 				},
 				{
 					stack: "/stacks/stack-2",
 					files: map[string]fmt.Stringer{
-						"file1.txt": str("/stacks/stack-2"),
-						"file2.txt": str("stack-2"),
+						"file1.txt": stringer("/stacks/stack-2"),
+						"file2.txt": stringer("stack-2"),
 					},
 				},
 			},
@@ -129,11 +129,11 @@ func TestGenerateFile(t *testing.T) {
 					add: hcldoc(
 						generateFile(
 							labels("file1.txt"),
-							exprAttr("content", "terramate.path"),
+							expr("content", "terramate.path"),
 						),
 						generateFile(
 							labels("file2.txt"),
-							exprAttr("content", "terramate.name"),
+							expr("content", "terramate.name"),
 						),
 					),
 				},
@@ -142,8 +142,8 @@ func TestGenerateFile(t *testing.T) {
 				{
 					stack: "/stacks/stack-2",
 					files: map[string]fmt.Stringer{
-						"file1.txt": str("/stacks/stack-2"),
-						"file2.txt": str("stack-2"),
+						"file1.txt": stringer("/stacks/stack-2"),
+						"file2.txt": stringer("stack-2"),
 					},
 				},
 			},
@@ -173,28 +173,28 @@ func TestGenerateFile(t *testing.T) {
 					path: "/stacks/stack-1",
 					add: generateFile(
 						labels("/name"),
-						strAttr("content", "something"),
+						str("content", "something"),
 					),
 				},
 				{
 					path: "/stacks/stack-2",
 					add: generateFile(
 						labels("./name"),
-						strAttr("content", "something"),
+						str("content", "something"),
 					),
 				},
 				{
 					path: "/stacks/stack-3",
 					add: generateFile(
 						labels("./dir/name"),
-						strAttr("content", "something"),
+						str("content", "something"),
 					),
 				},
 				{
 					path: "/stacks/stack-4",
 					add: generateFile(
 						labels("dir/name"),
-						strAttr("content", "something"),
+						str("content", "something"),
 					),
 				},
 			},

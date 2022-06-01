@@ -41,7 +41,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
 		stackConfig(
 			generateFile(
 				labels("test.txt"),
-				strAttr("content", "test"),
+				str("content", "test"),
 			),
 		).String())
 	assertOutdatedFiles([]string{"test.txt"})
@@ -55,7 +55,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
 		stackConfig(
 			generateFile(
 				labels("test.txt"),
-				strAttr("content", "changed"),
+				str("content", "changed"),
 			),
 		).String())
 
@@ -69,7 +69,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
 		stackConfig(
 			generateFile(
 				labels("testnew.txt"),
-				strAttr("content", "changed"),
+				str("content", "changed"),
 			),
 		).String())
 
@@ -80,11 +80,11 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
 		stackConfig(
 			generateFile(
 				labels("testnew.txt"),
-				strAttr("content", "changed"),
+				str("content", "changed"),
 			),
 			generateFile(
 				labels("another.txt"),
-				strAttr("content", "changed"),
+				str("content", "changed"),
 			),
 		).String())
 
@@ -120,7 +120,7 @@ func TestCheckOutdatedIgnoresEmptyGenerateFileContent(t *testing.T) {
 		stackConfig(
 			generateFile(
 				labels("test.txt"),
-				strAttr("content", ""),
+				str("content", ""),
 			),
 		).String())
 
@@ -131,7 +131,7 @@ func TestCheckOutdatedIgnoresEmptyGenerateFileContent(t *testing.T) {
 		stackConfig(
 			generateFile(
 				labels("test.txt"),
-				strAttr("content", "test"),
+				str("content", "test"),
 			),
 		).String())
 
@@ -145,7 +145,7 @@ func TestCheckOutdatedIgnoresEmptyGenerateFileContent(t *testing.T) {
 		stackConfig(
 			generateFile(
 				labels("test.txt"),
-				strAttr("content", ""),
+				str("content", ""),
 			),
 		).String())
 

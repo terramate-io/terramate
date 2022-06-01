@@ -44,7 +44,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 				labels("test.tf"),
 				content(
 					terraform(
-						strAttr("required_version", "1.10"),
+						str("required_version", "1.10"),
 					),
 				),
 			),
@@ -62,7 +62,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 				labels("test.tf"),
 				content(
 					terraform(
-						strAttr("required_version", "1.11"),
+						str("required_version", "1.11"),
 					),
 				),
 			),
@@ -80,7 +80,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 				labels("testnew.tf"),
 				content(
 					terraform(
-						strAttr("required_version", "1.11"),
+						str("required_version", "1.11"),
 					),
 				),
 			),
@@ -95,7 +95,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 				labels("testnew.tf"),
 				content(
 					terraform(
-						strAttr("required_version", "1.11"),
+						str("required_version", "1.11"),
 					),
 				),
 			),

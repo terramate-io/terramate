@@ -31,7 +31,7 @@ import (
 )
 
 type (
-	str string
+	stringer string
 
 	genFileChecker func(*testing.T, string, string)
 
@@ -54,7 +54,7 @@ type (
 	}
 )
 
-func (s str) String() string {
+func (s stringer) String() string {
 	return string(s)
 }
 
