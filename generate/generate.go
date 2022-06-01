@@ -266,17 +266,16 @@ func CheckStack(root string, st stack.S) ([]string, error) {
 	return outdated, nil
 }
 
-// TODO: rename to fileInfo
-type generatedFile interface {
+type fileInfo interface {
 	Origin() string
 	Header() string
 	Body() string
 }
 
 // generatedFiles maps filenames to generated files
-type generatedFiles map[string]generatedFile
+type generatedFiles map[string]fileInfo
 
-func (g generatedFiles) add(filename string, genfile generatedFile) error {
+func (g generatedFiles) add(filename string, genfile fileInfo) error {
 	if other, ok := g[filename]; ok {
 		return errors.E(ErrConflictingConfig,
 			"configs from %q and %q generate a file with same name %q",
@@ -454,7 +453,7 @@ func loadGenerateFile(
 	return nil
 }
 
-func writeGeneratedCode(target string, genfile generatedFile) error {
+func writeGeneratedCode(target string, genfile fileInfo) error {
 	logger := log.With().
 		Str("action", "writeGeneratedCode()").
 		Str("file", target).
