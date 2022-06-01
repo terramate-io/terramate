@@ -125,6 +125,32 @@ Blocks defined at different levels with the same label aren't allowed, resulting
 in failure for the overall code generation process.
 
 
+## Conditional Code Generation
+
+Conditional code generation is achieved by the use of the `condition` attribute.
+The `condition` attribute should always evaluate to a boolean. The file will
+be generated only if it evaluates to **true**.
+
+If the `condition` attribute is absent then it is assumed to be always true.
+
+Any expression that produces a boolean can be used, including references
+to globals and function calls. For example:
+
+```hcl
+generate_hcl "file" {
+  condition = tm_length(global.list) > 0
+  content {
+    locals {
+      list = global.list
+    }
+  }
+}
+```
+
+Will only generate the file for stacks that the expression
+`tm_length(global.list) > 0` evaluates to true.
+
+
 ## Partial Evaluation
 
 A partial evaluation strategy is used when generating HCL code.
