@@ -21,6 +21,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
 func TestGenerateFile(t *testing.T) {
@@ -225,6 +226,50 @@ func TestGenerateFile(t *testing.T) {
 						Error: errors.E(generate.ErrInvalidFilePath),
 					},
 				},
+			},
+		},
+	})
+}
+
+func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
+	const filename = "file.txt"
+
+	s := sandbox.New(t)
+	stackEntry := s.CreateStack("stack")
+
+	createConfig := func(condition bool) {
+		stackEntry.CreateConfig(
+			stackConfig(
+				generateFile(
+					labels(filename),
+					boolean("condition", condition),
+					str("content", "some content"),
+				),
+			).String())
+	}
+
+	createConfig(false)
+	report := s.Generate()
+	assertEqualReports(t, report, generate.Report{})
+
+	createConfig(true)
+	report = s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				StackPath: "/stack",
+				Created:   []string{filename},
+			},
+		},
+	})
+
+	createConfig(false)
+	report = s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				StackPath: "/stack",
+				Deleted:   []string{filename},
 			},
 		},
 	})
