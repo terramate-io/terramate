@@ -98,6 +98,8 @@ func Do(root string, workingDir string) Report {
 			return report
 		}
 
+		removeFalseConditionFiles(genfiles)
+
 		logger.Trace().Msg("Removing outdated generated files.")
 
 		var removedFiles map[string]string
@@ -270,6 +272,7 @@ type fileInfo interface {
 	Origin() string
 	Header() string
 	Body() string
+	Condition() bool
 }
 
 // generatedFiles maps filenames to generated files
@@ -286,6 +289,10 @@ func (g generatedFiles) add(filename string, genfile fileInfo) error {
 	}
 	g[filename] = genfile
 	return nil
+}
+
+func (g generatedFiles) remove(filename string) {
+	delete(g, filename)
 }
 
 func updateGenFileOutdatedFiles(
@@ -420,6 +427,25 @@ func loadGenerateHCL(
 	}
 
 	return nil
+}
+
+func removeFalseConditionFiles(genfiles generatedFiles) {
+	logger := log.With().
+		Str("action", "generate.removeFalseConditionFiles()").
+		Logger()
+
+	logger.Trace().Msg("removing files that have condition = false")
+
+	for filename, genfile := range genfiles {
+		logger := logger.With().
+			Str("origin", genfile.Origin()).
+			Logger()
+
+		if !genfile.Condition() {
+			logger.Trace().Msg("removing gen file that has condition = false")
+			genfiles.remove(filename)
+		}
+	}
 }
 
 func loadGenerateFile(
