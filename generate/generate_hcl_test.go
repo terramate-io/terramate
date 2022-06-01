@@ -65,6 +65,27 @@ func TestGenerateHCL(t *testing.T) {
 			},
 		},
 		{
+			name: "generate_hcl with false condition generates nothing",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: generateHCL(
+						labels("test"),
+						boolAttr("condition", false),
+						content(
+							backend(
+								labels("test"),
+							),
+						),
+					),
+				},
+			},
+		},
+		{
 			name: "generate HCL for all stacks on parent",
 			layout: []string{
 				"s:stacks/stack-1",

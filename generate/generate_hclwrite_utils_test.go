@@ -42,6 +42,7 @@ func content(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("content", builders...)
 }
 
+// TODO(katcipis): rename it back to just expr/str/number/bool
 func exprAttr(name string, expr string) hclwrite.BlockBuilder {
 	return hclwrite.Expression(name, expr)
 }

@@ -51,6 +51,23 @@ func TestGenerateFile(t *testing.T) {
 			},
 		},
 		{
+			name: "generate_file with false condition generates nothing",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: generateFile(
+						labels("test"),
+						boolAttr("condition", false),
+						strAttr("content", "content"),
+					),
+				},
+			},
+		},
+		{
 			name: "generate files for all stacks from parent",
 			layout: []string{
 				"s:stacks/stack-1",
