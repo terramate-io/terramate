@@ -156,7 +156,7 @@ func TestCheckOutdatedIgnoresEmptyGenerateFileContent(t *testing.T) {
 	assertOutdatedFiles([]string{})
 }
 
-func TestCheckOutdatedIgnoresWhenConditionIsFalse(t *testing.T) {
+func TestCheckOutdatedIgnoresWhenGenFileConditionIsFalse(t *testing.T) {
 	const filename = "test.txt"
 
 	s := sandbox.New(t)

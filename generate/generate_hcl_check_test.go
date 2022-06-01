@@ -181,3 +181,53 @@ func TestCheckOutdatedIgnoresEmptyGenerateHCLBlocks(t *testing.T) {
 
 	assertOutdatedFiles([]string{})
 }
+
+func TestCheckOutdatedIgnoresWhenGenHCLConditionIsFalse(t *testing.T) {
+	const filename = "test.tf"
+
+	s := sandbox.New(t)
+
+	stackEntry := s.CreateStack("stacks/stack")
+	stack := stackEntry.Load()
+
+	assertOutdatedFiles := func(want []string) {
+		t.Helper()
+
+		got, err := generate.CheckStack(s.RootDir(), stack)
+		assert.NoError(t, err)
+		assertEqualStringList(t, got, want)
+	}
+
+	createConfig := func(condition bool) {
+		stackEntry.CreateConfig(
+			stackConfig(
+				generateHCL(
+					labels(filename),
+					boolean("condition", condition),
+					content(
+						block("whatever"),
+					),
+				),
+			).String())
+	}
+
+	// Checking detection when the condition is false
+	createConfig(false)
+	assertOutdatedFiles([]string{})
+
+	// Checking detection when the condition is true
+	createConfig(true)
+	assertOutdatedFiles([]string{filename})
+
+	s.Generate()
+
+	assertOutdatedFiles([]string{})
+
+	// Checking the condition back to false triggers detection
+	createConfig(false)
+	assertOutdatedFiles([]string{filename})
+
+	s.Generate()
+
+	assertOutdatedFiles([]string{})
+}
