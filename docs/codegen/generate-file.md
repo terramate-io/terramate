@@ -85,5 +85,5 @@ generate_file "file" {
 }
 ```
 
-Will only generate the file for stacks that define the expression
+Will only generate the file for stacks that the expression
 `tm_length(global.list) > 0` evaluates to true.
