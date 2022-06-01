@@ -222,7 +222,7 @@ func NumberInt(name string, val int64) BlockBuilder {
 
 // Format formats the given HCL code.
 func Format(code string) string {
-	formatted, err := hcl.Format(code, "gen.hcl")
+	formatted, err := hcl.FormatMultiline(code, "gen.hcl")
 	if err != nil {
 		panic(fmt.Errorf("invalid code:\n%s\ncan't be formatted: %v", code, err))
 	}
