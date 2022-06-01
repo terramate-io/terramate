@@ -99,8 +99,6 @@ func Do(root string, workingDir string) Report {
 			return report
 		}
 
-		removeFalseConditionFiles(genfiles)
-
 		logger.Trace().Msg("Removing outdated generated files.")
 
 		var removedFiles map[string]string
@@ -135,6 +133,15 @@ func Do(root string, workingDir string) Report {
 				continue
 			}
 
+			if !genfile.Condition() {
+				logger.Trace().Msg("ignoring code that has condition = false")
+				// TODO(katcipis): we need to ensure the file is removed
+				// We can't list all kinds of generated files, so we
+				// need to handle when the config references a file
+				// that was not listed.
+				continue
+			}
+
 			logger.Trace().Msg("saving generated file")
 
 			err := writeGeneratedCode(path, genfile)
@@ -145,8 +152,7 @@ func Do(root string, workingDir string) Report {
 				)
 			}
 
-			// Change detection + remove code that got deleted but
-			// was re-generated from the removed files map
+			// Change detection + remove entries that got re-generated
 			removedFileBody, ok := removedFiles[filename]
 			if !ok {
 				report.addCreatedFile(filename)
@@ -379,25 +385,6 @@ func loadGenerateHCL(
 	}
 
 	return nil
-}
-
-func removeFalseConditionFiles(genfiles generatedFiles) {
-	logger := log.With().
-		Str("action", "generate.removeFalseConditionFiles()").
-		Logger()
-
-	logger.Trace().Msg("removing files that have condition = false")
-
-	for filename, genfile := range genfiles {
-		logger := logger.With().
-			Str("origin", genfile.Origin()).
-			Logger()
-
-		if !genfile.Condition() {
-			logger.Trace().Msg("removing gen file that has condition = false")
-			genfiles.remove(filename)
-		}
-	}
 }
 
 func loadGenerateFile(
