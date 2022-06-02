@@ -102,8 +102,7 @@ func (h HCL) Origin() string {
 	return h.origin
 }
 
-// Condition returns the result of the evaluation of the
-// condition attribute for the generated code.
+// Condition returns the evaluated condition attribute for the generated code.
 func (h HCL) Condition() bool {
 	return h.condition
 }
