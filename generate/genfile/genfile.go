@@ -27,12 +27,19 @@ import (
 )
 
 const (
-	// ErrInvalidContentType indicates the content attribute on
-	// generate_file has a invalid type.
+	// ErrInvalidContentType indicates the content attribute
+	// has an invalid type.
 	ErrInvalidContentType errors.Kind = "invalid content type"
+
+	// ErrInvalidConditionType indicates the condition attribute
+	// has an invalid type.
+	ErrInvalidConditionType errors.Kind = "invalid condition type"
 
 	// ErrContentEval indicates an error when evaluating the content attribute.
 	ErrContentEval errors.Kind = "evaluating content"
+
+	// ErrConditionEval indicates an error when evaluating the condition attribute.
+	ErrConditionEval errors.Kind = "evaluating condition"
 
 	// ErrLabelConflict indicates the two generate_file blocks
 	// have the same label.
@@ -47,8 +54,9 @@ type StackFiles struct {
 
 // File represents generated file from a single generate_file block.
 type File struct {
-	origin string
-	body   string
+	origin    string
+	body      string
+	condition bool
 }
 
 // Body returns the file body.
@@ -60,6 +68,12 @@ func (f File) Body() string {
 // of the configuration that originated the file.
 func (f File) Origin() string {
 	return f.origin
+}
+
+// Condition returns the result of the evaluation of the
+// condition attribute for the generated code.
+func (f File) Condition() bool {
+	return f.condition
 }
 
 // Header returns the header of this file.
@@ -120,6 +134,34 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles,
 			Str("block", name).
 			Logger()
 
+		logger.Trace().Msg("evaluating condition")
+
+		condition := true
+		if genFileBlock.block.Condition != nil {
+			logger.Trace().Msg("has condition attribute, evaluating it")
+			value, err := evalctx.Eval(genFileBlock.block.Condition.Expr)
+			if err != nil {
+				return StackFiles{}, errors.E(ErrConditionEval, err)
+			}
+			if value.Type() != cty.Bool {
+				return StackFiles{}, errors.E(
+					ErrInvalidConditionType,
+					"condition has type %s but must be boolean",
+					value.Type().FriendlyName(),
+				)
+			}
+			condition = value.True()
+		}
+
+		if !condition {
+			logger.Trace().Msg("condition=false, content wont be evaluated")
+			res.files[name] = File{
+				origin:    genFileBlock.origin,
+				condition: condition,
+			}
+			continue
+		}
+
 		logger.Trace().Msg("evaluating contents")
 
 		value, err := evalctx.Eval(genFileBlock.block.Content.Expr)
@@ -136,8 +178,9 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles,
 		}
 
 		res.files[name] = File{
-			origin: genFileBlock.origin,
-			body:   value.AsString(),
+			origin:    genFileBlock.origin,
+			body:      value.AsString(),
+			condition: condition,
 		}
 	}
 

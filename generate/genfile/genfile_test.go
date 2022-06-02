@@ -40,8 +40,9 @@ func TestLoadGenerateFiles(t *testing.T) {
 			origin string
 		}
 		result struct {
-			name string
-			file genFile
+			name      string
+			condition bool
+			file      genFile
 		}
 		testcase struct {
 			name    string
@@ -59,6 +60,10 @@ func TestLoadGenerateFiles(t *testing.T) {
 	labels := hclwrite.Labels
 	expr := hclwrite.Expression
 	str := hclwrite.String
+	boolean := hclwrite.Boolean
+	attr := func(name string, expr string) hclwrite.BlockBuilder {
+		return hclwrite.AttributeValue(t, name, expr)
+	}
 	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("globals", builders...)
 	}
@@ -95,7 +100,8 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 			want: []result{
 				{
-					name: "empty",
+					name:      "empty",
+					condition: true,
 					file: genFile{
 						origin: "/stack/empty.tm",
 						body:   "",
@@ -117,7 +123,8 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 			want: []result{
 				{
-					name: "test",
+					name:      "test",
+					condition: true,
 					file: genFile{
 						origin: "/stack/test.tm",
 						body:   "test",
@@ -145,10 +152,158 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 			want: []result{
 				{
-					name: "test",
+					name:      "test",
+					condition: true,
 					file: genFile{
 						origin: "/stack/test.tm",
 						body:   "global-data-/stack",
+					},
+				},
+			},
+		},
+		{
+			name:  "condition set to false",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: generateFile(
+						labels("test"),
+						boolean("condition", false),
+						str("content", "data"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name:      "test",
+					condition: false,
+					file: genFile{
+						origin: "/stack/test.tm",
+						body:   "",
+					},
+				},
+			},
+		},
+		{
+			name:  "mixed conditions on different blocks",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: hcldoc(
+						generateFile(
+							labels("test"),
+							boolean("condition", false),
+							str("content", "data"),
+						),
+						generateFile(
+							labels("test2"),
+							boolean("condition", true),
+							str("content", "data"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name:      "test",
+					condition: false,
+					file: genFile{
+						origin: "/stack/test.tm",
+						body:   "",
+					},
+				},
+				{
+					name:      "test2",
+					condition: true,
+					file: genFile{
+						origin: "/stack/test.tm",
+						body:   "data",
+					},
+				},
+			},
+		},
+		{
+			name:  "condition evaluated from global",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/globals.tm",
+					add: globals(
+						boolean("condition", false),
+					),
+				},
+				{
+					path: "/stack/test.tm",
+					add: generateFile(
+						labels("test"),
+						expr("condition", "global.condition"),
+						str("content", "cond=${global.condition}"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name:      "test",
+					condition: false,
+					file: genFile{
+						origin: "/stack/test.tm",
+						body:   "",
+					},
+				},
+			},
+		},
+		{
+			name:  "condition evaluated using try",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: generateFile(
+						labels("test"),
+						expr("condition", "tm_try(global.condition, false)"),
+						str("content", "whatever"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name:      "test",
+					condition: false,
+					file: genFile{
+						origin: "/stack/test.tm",
+						body:   "",
+					},
+				},
+			},
+		},
+		{
+			name:  "condition evaluated using functions",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/globals.tm",
+					add: globals(
+						attr("list", "[1]"),
+					),
+				},
+				{
+					path: "/stack/test.tm",
+					add: generateFile(
+						labels("test"),
+						expr("condition", "tm_length(global.list) > 0"),
+						str("content", "data"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name:      "test",
+					condition: true,
+					file: genFile{
+						origin: "/stack/test.tm",
+						body:   "data",
 					},
 				},
 			},
@@ -183,21 +338,24 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 			want: []result{
 				{
-					name: "test1",
+					name:      "test1",
+					condition: true,
 					file: genFile{
 						origin: "/stack/test.tm",
 						body:   "global-data",
 					},
 				},
 				{
-					name: "test2",
+					name:      "test2",
+					condition: true,
 					file: genFile{
 						origin: "/stack/test.tm",
 						body:   "/stack",
 					},
 				},
 				{
-					name: "test3",
+					name:      "test3",
+					condition: true,
 					file: genFile{
 						origin: "/stack/test.tm",
 						body:   "terramate!",
@@ -232,14 +390,16 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 			want: []result{
 				{
-					name: "test.json",
+					name:      "test.json",
+					condition: true,
 					file: genFile{
 						origin: "/stack/json.tm",
 						body:   `{"field":"global-data"}`,
 					},
 				},
 				{
-					name: "test.yml",
+					name:      "test.yml",
+					condition: true,
 					file: genFile{
 						origin: "/stack/yaml.tm",
 						body:   "\"field\": \"/stack\"\n",
@@ -281,21 +441,24 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 			want: []result{
 				{
-					name: "root",
+					name:      "root",
+					condition: true,
 					file: genFile{
 						origin: "/root.tm",
 						body:   "root-global-data-/stacks/stack",
 					},
 				},
 				{
-					name: "stacks",
+					name:      "stacks",
+					condition: true,
 					file: genFile{
 						origin: "/stacks/stacks.tm",
 						body:   "stacks-global-data-/stacks/stack",
 					},
 				},
 				{
-					name: "stack",
+					name:      "stack",
+					condition: true,
 					file: genFile{
 						origin: "/stacks/stack/stack.tm",
 						body:   "stack-global-data-/stacks/stack",
@@ -482,6 +645,40 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 			wantErr: errors.E(genfile.ErrContentEval),
 		},
+		{
+			name:  "generate_file fails to evaluate condition",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/test.tm",
+					add: hcldoc(
+						generateFile(
+							labels("name"),
+							expr("condition", "global.unknown"),
+							str("content", "data"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(genfile.ErrConditionEval),
+		},
+		{
+			name:  "generate_file fails condition dont evaluate to boolean",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/test.tm",
+					add: hcldoc(
+						generateFile(
+							labels("name"),
+							str("condition", "not boolean"),
+							str("content", "data"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(genfile.ErrInvalidConditionType),
+		},
 	}
 
 	for _, tcase := range tcases {
@@ -507,6 +704,10 @@ func TestLoadGenerateFiles(t *testing.T) {
 				}
 				gotBody := gotFile.Body()
 				wantBody := res.file.body
+
+				if gotFile.Condition() != res.condition {
+					t.Fatalf("got condition %t != wanted %t", gotFile.Condition(), res.condition)
+				}
 
 				assert.EqualStrings(t,
 					res.file.origin,
