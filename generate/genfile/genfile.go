@@ -28,7 +28,7 @@ import (
 
 const (
 	// ErrInvalidContentType indicates the content attribute
-	// has a invalid type.
+	// has an invalid type.
 	ErrInvalidContentType errors.Kind = "invalid content type"
 
 	// ErrInvalidConditionType indicates the condition attribute
