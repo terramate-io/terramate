@@ -165,6 +165,15 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackHCLs, 
 			condition = value.True()
 		}
 
+		if !condition {
+			logger.Trace().Msg("condition=false, block wont be evaluated")
+			res.hcls[name] = HCL{
+				origin:    loadedHCL.origin,
+				condition: condition,
+			}
+			continue
+		}
+
 		logger.Trace().Msg("evaluating block")
 
 		gen := hclwrite.NewEmptyFile()

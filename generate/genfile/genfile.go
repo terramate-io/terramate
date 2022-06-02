@@ -157,7 +157,6 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles,
 			logger.Trace().Msg("condition=false, content wont be evaluated")
 			res.files[name] = File{
 				origin:    genFileBlock.origin,
-				body:      "",
 				condition: condition,
 			}
 			continue

@@ -157,6 +157,50 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    "/stack/generate.tm",
 						condition: false,
+						body:      hcldoc(),
+					},
+				},
+			},
+		},
+		{
+			name:  "mixed conditions on different blocks",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "generate.tm",
+					add: hcldoc(
+						generateHCL(
+							labels("condition"),
+							boolean("condition", false),
+							content(
+								block("block"),
+							),
+						),
+						generateHCL(
+							labels("condition2"),
+							boolean("condition", true),
+							content(
+								block("block"),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "condition",
+					hcl: genHCL{
+						origin:    "/stack/generate.tm",
+						condition: false,
+						body:      hcldoc(),
+					},
+				},
+				{
+					name: "condition2",
+					hcl: genHCL{
+						origin:    "/stack/generate.tm",
+						condition: true,
 						body:      block("block"),
 					},
 				},
@@ -191,7 +235,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    "/stack/generate.tm",
 						condition: false,
-						body:      block("block"),
+						body:      hcldoc(),
 					},
 				},
 			},
@@ -218,7 +262,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    "/stack/generate.tm",
 						condition: false,
-						body:      block("block"),
+						body:      hcldoc(),
 					},
 				},
 			},
