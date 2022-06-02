@@ -27,12 +27,12 @@ import (
 )
 
 const (
-	// ErrInvalidContentType indicates the content attribute on
-	// has a invalid type.
+	// ErrInvalidContentType indicates the content attribute
+	// has an invalid type.
 	ErrInvalidContentType errors.Kind = "invalid content type"
 
-	// ErrInvalidConditionType indicates the condition attribute on
-	// has a invalid type.
+	// ErrInvalidConditionType indicates the condition attribute
+	// has an invalid type.
 	ErrInvalidConditionType errors.Kind = "invalid condition type"
 
 	// ErrContentEval indicates an error when evaluating the content attribute.
@@ -134,12 +134,7 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles,
 			Str("block", name).
 			Logger()
 
-		logger.Trace().Msg("evaluating contents")
-
-		value, err := evalctx.Eval(genFileBlock.block.Content.Expr)
-		if err != nil {
-			return StackFiles{}, errors.E(ErrContentEval, err)
-		}
+		logger.Trace().Msg("evaluating condition")
 
 		condition := true
 		if genFileBlock.block.Condition != nil {
@@ -156,6 +151,22 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles,
 				)
 			}
 			condition = value.True()
+		}
+
+		if !condition {
+			logger.Trace().Msg("condition=false, content wont be evaluated")
+			res.files[name] = File{
+				origin:    genFileBlock.origin,
+				condition: condition,
+			}
+			continue
+		}
+
+		logger.Trace().Msg("evaluating contents")
+
+		value, err := evalctx.Eval(genFileBlock.block.Content.Expr)
+		if err != nil {
+			return StackFiles{}, errors.E(ErrContentEval, err)
 		}
 
 		if value.Type() != cty.String {

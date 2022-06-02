@@ -66,8 +66,8 @@ const (
 	// ErrConditionEval indicates the failure to evaluate the condition attribute.
 	ErrConditionEval errors.Kind = "evaluating condition attribute"
 
-	// ErrInvalidConditionType indicates the condition attribute on
-	// has a invalid type.
+	// ErrInvalidConditionType indicates the condition attribute
+	// has an invalid type.
 	ErrInvalidConditionType errors.Kind = "invalid condition type"
 )
 
@@ -102,8 +102,7 @@ func (h HCL) Origin() string {
 	return h.origin
 }
 
-// Condition returns the result of the evaluation of the
-// condition attribute for the generated code.
+// Condition returns the evaluated condition attribute for the generated code.
 func (h HCL) Condition() bool {
 	return h.condition
 }
@@ -164,6 +163,15 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackHCLs, 
 				)
 			}
 			condition = value.True()
+		}
+
+		if !condition {
+			logger.Trace().Msg("condition=false, block wont be evaluated")
+			res.hcls[name] = HCL{
+				origin:    loadedHCL.origin,
+				condition: condition,
+			}
+			continue
 		}
 
 		logger.Trace().Msg("evaluating block")
