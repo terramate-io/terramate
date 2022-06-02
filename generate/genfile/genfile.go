@@ -134,12 +134,7 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles,
 			Str("block", name).
 			Logger()
 
-		logger.Trace().Msg("evaluating contents")
-
-		value, err := evalctx.Eval(genFileBlock.block.Content.Expr)
-		if err != nil {
-			return StackFiles{}, errors.E(ErrContentEval, err)
-		}
+		logger.Trace().Msg("evaluating condition")
 
 		condition := true
 		if genFileBlock.block.Condition != nil {
@@ -156,6 +151,23 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles,
 				)
 			}
 			condition = value.True()
+		}
+
+		if !condition {
+			logger.Trace().Msg("condition=false, content wont be evaluated")
+			res.files[name] = File{
+				origin:    genFileBlock.origin,
+				body:      "",
+				condition: condition,
+			}
+			continue
+		}
+
+		logger.Trace().Msg("evaluating contents")
+
+		value, err := evalctx.Eval(genFileBlock.block.Content.Expr)
+		if err != nil {
+			return StackFiles{}, errors.E(ErrContentEval, err)
 		}
 
 		if value.Type() != cty.String {

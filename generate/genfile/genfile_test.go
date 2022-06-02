@@ -180,6 +180,45 @@ func TestLoadGenerateFiles(t *testing.T) {
 					condition: false,
 					file: genFile{
 						origin: "/stack/test.tm",
+						body:   "",
+					},
+				},
+			},
+		},
+		{
+			name:  "mixed conditions on different blocks",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: hcldoc(
+						generateFile(
+							labels("test"),
+							boolean("condition", false),
+							str("content", "data"),
+						),
+						generateFile(
+							labels("test2"),
+							boolean("condition", true),
+							str("content", "data"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name:      "test",
+					condition: false,
+					file: genFile{
+						origin: "/stack/test.tm",
+						body:   "",
+					},
+				},
+				{
+					name:      "test2",
+					condition: true,
+					file: genFile{
+						origin: "/stack/test.tm",
 						body:   "data",
 					},
 				},
@@ -210,7 +249,7 @@ func TestLoadGenerateFiles(t *testing.T) {
 					condition: false,
 					file: genFile{
 						origin: "/stack/test.tm",
-						body:   "cond=false",
+						body:   "",
 					},
 				},
 			},
@@ -234,7 +273,7 @@ func TestLoadGenerateFiles(t *testing.T) {
 					condition: false,
 					file: genFile{
 						origin: "/stack/test.tm",
-						body:   "whatever",
+						body:   "",
 					},
 				},
 			},
