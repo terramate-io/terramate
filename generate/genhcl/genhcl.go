@@ -26,6 +26,7 @@ import (
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // StackHCLs represents all generated HCL code for a stack,
@@ -38,8 +39,9 @@ type StackHCLs struct {
 // Is contains parsed and evaluated code on it and information
 // about the origin of the generated code.
 type HCL struct {
-	origin string
-	body   string
+	origin    string
+	body      string
+	condition bool
 }
 
 const (
@@ -51,16 +53,22 @@ const (
 )
 
 const (
-	// ErrMultiLevelConflict indicates that generate_hcl blocks on different
-	// hierarchical levels have a conflict, like having the same filename
-	// as its output.
-	ErrMultiLevelConflict errors.Kind = "conflicting generate_hcl blocks"
+	// ErrLabelConflict indicates the two generate_hcl blocks
+	// have the same label.
+	ErrLabelConflict errors.Kind = "label conflict detected"
 
 	// ErrParsing indicates the failure of parsing the generate_hcl block.
 	ErrParsing errors.Kind = "parsing generate_hcl block"
 
-	// ErrEval indicates the failure to evaluate the generate_hcl block.
-	ErrEval errors.Kind = "evaluating generate_hcl block"
+	// ErrContentEval indicates the failure to evaluate the content block.
+	ErrContentEval errors.Kind = "evaluating content block"
+
+	// ErrConditionEval indicates the failure to evaluate the condition attribute.
+	ErrConditionEval errors.Kind = "evaluating condition attribute"
+
+	// ErrInvalidConditionType indicates the condition attribute
+	// has an invalid type.
+	ErrInvalidConditionType errors.Kind = "invalid condition type"
 )
 
 // GeneratedHCLs returns all generated code, mapping the name to its
@@ -74,24 +82,29 @@ func (s StackHCLs) GeneratedHCLs() map[string]HCL {
 }
 
 // Header returns the header of the generated HCL file.
-func (b HCL) Header() string {
+func (h HCL) Header() string {
 	return fmt.Sprintf(
 		"%s\n// TERRAMATE: originated from generate_hcl block on %s\n\n",
 		Header,
-		b.origin,
+		h.origin,
 	)
 }
 
 // Body returns a string representation of the HCL code
 // or an empty string if the config itself is empty.
-func (b HCL) Body() string {
-	return string(b.body)
+func (h HCL) Body() string {
+	return string(h.body)
 }
 
 // Origin returns the path, relative to the project root,
 // of the configuration that originated the code.
-func (b HCL) Origin() string {
-	return b.origin
+func (h HCL) Origin() string {
+	return h.origin
+}
+
+// Condition returns the evaluated condition attribute for the generated code.
+func (h HCL) Condition() bool {
+	return h.condition
 }
 
 // Load loads from the file system all generate_hcl for
@@ -121,7 +134,7 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackHCLs, 
 
 	evalctx, err := stack.NewEvalCtx(stackpath, sm, globals)
 	if err != nil {
-		return StackHCLs{}, errors.E(ErrEval, err, "creating eval context")
+		return StackHCLs{}, errors.E(err, "creating eval context")
 	}
 
 	logger.Trace().Msg("generating HCL code.")
@@ -135,11 +148,37 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackHCLs, 
 			Str("block", name).
 			Logger()
 
-		logger.Trace().Msg("evaluating block.")
+		condition := true
+		if loadedHCL.condition != nil {
+			logger.Trace().Msg("has condition attribute, evaluating it")
+			value, err := evalctx.Eval(loadedHCL.condition.Expr)
+			if err != nil {
+				return StackHCLs{}, errors.E(ErrConditionEval, err)
+			}
+			if value.Type() != cty.Bool {
+				return StackHCLs{}, errors.E(
+					ErrInvalidConditionType,
+					"condition has type %s but must be boolean",
+					value.Type().FriendlyName(),
+				)
+			}
+			condition = value.True()
+		}
+
+		if !condition {
+			logger.Trace().Msg("condition=false, block wont be evaluated")
+			res.hcls[name] = HCL{
+				origin:    loadedHCL.origin,
+				condition: condition,
+			}
+			continue
+		}
+
+		logger.Trace().Msg("evaluating block")
 
 		gen := hclwrite.NewEmptyFile()
 		if err := hcl.CopyBody(gen.Body(), loadedHCL.block.Body, evalctx); err != nil {
-			return StackHCLs{}, errors.E(ErrEval, sm, err,
+			return StackHCLs{}, errors.E(ErrContentEval, sm, err,
 				"failed to generate block %q", name,
 			)
 		}
@@ -150,18 +189,20 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackHCLs, 
 			)
 		}
 		res.hcls[name] = HCL{
-			origin: loadedHCL.origin,
-			body:   formatted,
+			origin:    loadedHCL.origin,
+			body:      formatted,
+			condition: condition,
 		}
 	}
 
-	logger.Trace().Msg("evaluated all blocks with success.")
+	logger.Trace().Msg("evaluated all blocks with success")
 	return res, nil
 }
 
 type loadedHCL struct {
-	origin string
-	block  *hclsyntax.Block
+	origin    string
+	block     *hclsyntax.Block
+	condition *hclsyntax.Attribute
 }
 
 // loadGenHCLBlocks will load all generate_hcl blocks.
@@ -192,19 +233,17 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 
 	for filename, genhclBlocks := range hclblocks {
 		for _, genhclBlock := range genhclBlocks {
-			name := genhclBlock.Labels[0]
-			if _, ok := res[name]; ok {
-				return nil, errors.E(
-					ErrParsing,
-					genhclBlock.LabelRanges[0],
-					"found two blocks with same label %q", name,
-				)
+			name := genhclBlock.Label
+			origin := project.PrjAbsPath(rootdir, filename)
+
+			if other, ok := res[name]; ok {
+				return nil, conflictErr(name, origin, other.origin)
 			}
 
-			contentBlock := genhclBlock.Body.Blocks[0]
 			res[name] = loadedHCL{
-				origin: project.PrjAbsPath(rootdir, filename),
-				block:  contentBlock,
+				origin:    project.PrjAbsPath(rootdir, filename),
+				block:     genhclBlock.Content,
+				condition: genhclBlock.Condition,
 			}
 
 			logger.Trace().Msg("loaded generate_hcl block.")
@@ -216,7 +255,7 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 		return nil, err
 	}
 	if err := join(res, parentRes); err != nil {
-		return nil, errors.E(ErrMultiLevelConflict, err)
+		return nil, errors.E(ErrLabelConflict, err)
 	}
 
 	logger.Trace().Msg("loaded generate_hcl blocks with success.")
@@ -236,4 +275,22 @@ func join(target, src map[string]loadedHCL) error {
 		target[blockLabel] = srcHCL
 	}
 	return nil
+}
+
+func conflictErr(label, origin, otherOrigin string) error {
+	if origin == otherOrigin {
+		return errors.E(
+			ErrLabelConflict,
+			"%s has blocks with same label %q",
+			origin,
+			label,
+		)
+	}
+	return errors.E(
+		ErrLabelConflict,
+		"%s and %s have blocks with same label %q",
+		origin,
+		otherOrigin,
+		label,
+	)
 }
