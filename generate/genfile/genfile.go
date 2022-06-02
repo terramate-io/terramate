@@ -32,7 +32,7 @@ const (
 	ErrInvalidContentType errors.Kind = "invalid content type"
 
 	// ErrInvalidConditionType indicates the condition attribute
-	// has a invalid type.
+	// has an invalid type.
 	ErrInvalidConditionType errors.Kind = "invalid condition type"
 
 	// ErrContentEval indicates an error when evaluating the content attribute.
