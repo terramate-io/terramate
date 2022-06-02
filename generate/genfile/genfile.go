@@ -31,7 +31,7 @@ const (
 	// has a invalid type.
 	ErrInvalidContentType errors.Kind = "invalid content type"
 
-	// ErrInvalidConditionType indicates the condition attribute on
+	// ErrInvalidConditionType indicates the condition attribute
 	// has a invalid type.
 	ErrInvalidConditionType errors.Kind = "invalid condition type"
 
