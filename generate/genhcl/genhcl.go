@@ -173,7 +173,7 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackHCLs, 
 				"failed to generate block %q", name,
 			)
 		}
-		formatted, err := hcl.Format(string(gen.Bytes()), loadedHCL.origin)
+		formatted, err := hcl.FormatMultiline(string(gen.Bytes()), loadedHCL.origin)
 		if err != nil {
 			return StackHCLs{}, errors.E(sm, err,
 				"failed to format generated code for block %q", name,
