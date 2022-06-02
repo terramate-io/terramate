@@ -67,7 +67,7 @@ const (
 	ErrConditionEval errors.Kind = "evaluating condition attribute"
 
 	// ErrInvalidConditionType indicates the condition attribute on
-	// has a invalid type.
+	// has an invalid type.
 	ErrInvalidConditionType errors.Kind = "invalid condition type"
 )
 
