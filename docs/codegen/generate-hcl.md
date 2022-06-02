@@ -131,7 +131,7 @@ Conditional code generation is achieved by the use of the `condition` attribute.
 The `condition` attribute should always evaluate to a boolean. The file will
 be generated only if it evaluates to **true**.
 
-If the `condition` attribute is absent then it is assumed to be always true.
+If the `condition` attribute is absent then it is assumed to be true.
 
 Any expression that produces a boolean can be used, including references
 to globals and function calls. For example:
@@ -149,6 +149,8 @@ generate_hcl "file" {
 
 Will only generate the file for stacks that the expression
 `tm_length(global.list) > 0` evaluates to true.
+
+When `condition` is false the `content` block won't be evaluated.
 
 
 ## Partial Evaluation
