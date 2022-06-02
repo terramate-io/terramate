@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	// ErrInvalidContentType indicates the content attribute on
+	// ErrInvalidContentType indicates the content attribute
 	// has a invalid type.
 	ErrInvalidContentType errors.Kind = "invalid content type"
 
