@@ -25,7 +25,6 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -108,6 +107,9 @@ type GenFileBlock struct {
 	// Content attribute of the block
 	Content *hclsyntax.Attribute
 }
+
+// PartialEvaluator represents an HCL partial evaluator
+type PartialEvaluator func(hclsyntax.Expression) (hclwrite.Tokens, error)
 
 // TerramateParser is an HCL parser tailored for Terramate configuration schema.
 // As the Terramate configuration can span multiple files in the same directory,
@@ -494,7 +496,7 @@ func validateGenerateFileBlock(block *hclsyntax.Block) error {
 // as is (original expression form, no evaluation).
 //
 // Returns an error if the evaluation fails.
-func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context) error {
+func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, eval PartialEvaluator) error {
 	logger := log.With().
 		Str("action", "CopyBody()").
 		Logger()
@@ -510,7 +512,7 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context)
 			Logger()
 
 		logger.Trace().Msg("evaluating.")
-		tokens, err := evalctx.PartialEval(attr.Expr)
+		tokens, err := eval(attr.Expr)
 		if err != nil {
 			return errors.E(err, attr.Expr.Range())
 		}
@@ -526,7 +528,7 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, evalctx *eval.Context)
 		if block.Body == nil {
 			continue
 		}
-		if err := CopyBody(targetBlock.Body(), block.Body, evalctx); err != nil {
+		if err := CopyBody(targetBlock.Body(), block.Body, eval); err != nil {
 			return err
 		}
 	}

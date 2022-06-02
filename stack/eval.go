@@ -16,6 +16,7 @@ package stack
 
 import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/rs/zerolog/log"
@@ -65,6 +66,11 @@ func (e *EvalCtx) SetMetadata(sm Metadata) error {
 // Eval will evaluate an expression given its context.
 func (e *EvalCtx) Eval(expr hclsyntax.Expression) (cty.Value, error) {
 	return e.evalctx.Eval(expr)
+}
+
+// PartialEval will partially evaluate an expression given its context.
+func (e *EvalCtx) PartialEval(expr hclsyntax.Expression) (hclwrite.Tokens, error) {
+	return e.evalctx.PartialEval(expr)
 }
 
 // HasNamespace returns true the evaluation context knows this namespace, false otherwise.
