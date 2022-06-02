@@ -198,7 +198,7 @@ func TestCheckOutdatedIgnoresWhenGenHCLConditionIsFalse(t *testing.T) {
 		assertEqualStringList(t, got, want)
 	}
 
-	createConfig := func(condition bool) {
+	createConfig := func(filename string, condition bool) {
 		stackEntry.CreateConfig(
 			stackConfig(
 				generateHCL(
@@ -212,11 +212,11 @@ func TestCheckOutdatedIgnoresWhenGenHCLConditionIsFalse(t *testing.T) {
 	}
 
 	// Checking detection when the condition is false
-	createConfig(false)
+	createConfig(filename, false)
 	assertOutdatedFiles([]string{})
 
 	// Checking detection when the condition is true
-	createConfig(true)
+	createConfig(filename, true)
 	assertOutdatedFiles([]string{filename})
 
 	s.Generate()
@@ -224,7 +224,7 @@ func TestCheckOutdatedIgnoresWhenGenHCLConditionIsFalse(t *testing.T) {
 	assertOutdatedFiles([]string{})
 
 	// Checking the condition back to false triggers detection
-	createConfig(false)
+	createConfig(filename, false)
 	assertOutdatedFiles([]string{filename})
 
 	s.Generate()
