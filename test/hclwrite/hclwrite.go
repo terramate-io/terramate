@@ -71,7 +71,7 @@ func (b *Block) AddNumberInt(name string, v int64) {
 // AddString adds string on block.
 func (b *Block) AddString(name string, v string) {
 	b.ctyvalues[name] = cty.StringVal(v)
-	b.addAttr(name, fmt.Sprintf("%q", v))
+	b.addAttr(name, fmt.Sprintf(`"%s"`, v))
 }
 
 // AddBoolean adds boolean on block.
