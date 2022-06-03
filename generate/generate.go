@@ -312,7 +312,7 @@ func updateOutdatedFiles(
 
 		logger.Trace().Msg("Checking if code is updated.")
 
-		currentHCLcode, codeFound, err := readFile(targetpath)
+		currentCode, codeFound, err := readFile(targetpath)
 		if err != nil {
 			return err
 		}
@@ -333,8 +333,8 @@ func updateOutdatedFiles(
 			continue
 		}
 
-		genHCLCode := genfile.Header() + genfile.Body()
-		if genHCLCode != currentHCLcode {
+		generatedCode := genfile.Header() + genfile.Body()
+		if generatedCode != currentCode {
 			logger.Trace().Msg("Generated code doesn't match file, is outdated")
 			outdatedFiles.add(filename)
 		} else {
