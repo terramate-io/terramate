@@ -43,8 +43,8 @@ func TestCliMetadata(t *testing.T) {
 
 stack "/stack":
 	terramate.stack.name="stack"
-	terramate.stack.path.absolute="/stack"
 	terramate.stack.description=""
+	terramate.stack.path.absolute="/stack"
 `,
 			},
 		},
@@ -61,23 +61,23 @@ stack "/stack":
 
 stack "/somedir/stack3":
 	terramate.stack.name="stack3"
-	terramate.stack.path.absolute="/somedir/stack3"
 	terramate.stack.description=""
+	terramate.stack.path.absolute="/somedir/stack3"
 
 stack "/somedir/stack4":
 	terramate.stack.name="stack4"
-	terramate.stack.path.absolute="/somedir/stack4"
 	terramate.stack.description=""
+	terramate.stack.path.absolute="/somedir/stack4"
 
 stack "/stack1":
 	terramate.stack.name="stack1"
-	terramate.stack.path.absolute="/stack1"
 	terramate.stack.description=""
+	terramate.stack.path.absolute="/stack1"
 
 stack "/stack2":
 	terramate.stack.name="stack2"
-	terramate.stack.path.absolute="/stack2"
 	terramate.stack.description=""
+	terramate.stack.path.absolute="/stack2"
 `,
 			},
 		},
@@ -95,8 +95,8 @@ stack "/stack2":
 
 stack "/stack1":
 	terramate.stack.name="stack1"
-	terramate.stack.path.absolute="/stack1"
 	terramate.stack.description=""
+	terramate.stack.path.absolute="/stack1"
 `,
 			},
 		},
@@ -114,13 +114,13 @@ stack "/stack1":
 
 stack "/somedir/stack3":
 	terramate.stack.name="stack3"
-	terramate.stack.path.absolute="/somedir/stack3"
 	terramate.stack.description=""
+	terramate.stack.path.absolute="/somedir/stack3"
 
 stack "/somedir/stack4":
 	terramate.stack.name="stack4"
-	terramate.stack.path.absolute="/somedir/stack4"
 	terramate.stack.description=""
+	terramate.stack.path.absolute="/somedir/stack4"
 `,
 			},
 		},
