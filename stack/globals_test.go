@@ -255,7 +255,7 @@ func TestLoadGlobals(t *testing.T) {
 				{
 					path: "/stacks/stack-1",
 					add: globals(
-						expr("stack_path", "terramate.stack.path"),
+						expr("stack_path", "terramate.stack.path.absolute"),
 						expr("stack_name", "terramate.stack.name"),
 						expr("stack_description", "terramate.stack.description"),
 					),
@@ -263,7 +263,7 @@ func TestLoadGlobals(t *testing.T) {
 				{
 					path: "/stacks/stack-2",
 					add: globals(
-						expr("stack_path", "terramate.stack.path"),
+						expr("stack_path", "terramate.stack.path.absolute"),
 						expr("stack_name", "terramate.stack.name"),
 						expr("stack_description", "terramate.stack.description"),
 					),
@@ -292,13 +292,13 @@ func TestLoadGlobals(t *testing.T) {
 				{
 					path: "/stacks/stack-1",
 					add: globals(
-						expr("interpolated", `"prefix-${tm_replace(terramate.stack.path, "/", "@")}-suffix"`),
+						expr("interpolated", `"prefix-${tm_replace(terramate.stack.path.absolute, "/", "@")}-suffix"`),
 					),
 				},
 				{
 					path: "/stacks/stack-2",
 					add: globals(
-						expr("stack_path", `tm_replace(terramate.stack.path, "/", "-")`),
+						expr("stack_path", `tm_replace(terramate.stack.path.absolute, "/", "-")`),
 					),
 				},
 			},
@@ -317,7 +317,7 @@ func TestLoadGlobals(t *testing.T) {
 					path: "/stack",
 					add: globals(
 						str("field", "some-string"),
-						expr("stack_path", "terramate.stack.path"),
+						expr("stack_path", "terramate.stack.path.absolute"),
 						expr("ref_field", "global.field"),
 						expr("ref_stack_path", "global.stack_path"),
 						expr("interpolation", `"${global.ref_stack_path}-${global.ref_field}"`),
@@ -345,7 +345,7 @@ func TestLoadGlobals(t *testing.T) {
 					filename: "globals_1.tm.hcl",
 					add: globals(
 						str("field", "some-string"),
-						expr("stack_path", "terramate.stack.path"),
+						expr("stack_path", "terramate.stack.path.absolute"),
 					),
 				},
 				{
@@ -388,7 +388,7 @@ func TestLoadGlobals(t *testing.T) {
 					filename: "globals_1.tm.hcl",
 					add: globals(
 						str("field", "some-string"),
-						expr("stack_path", "terramate.stack.path"),
+						expr("stack_path", "terramate.stack.path.absolute"),
 					),
 				},
 				{
@@ -443,7 +443,7 @@ func TestLoadGlobals(t *testing.T) {
 				{
 					path: "/envs",
 					add: globals(
-						expr("env_metadata", "terramate.stack.path"),
+						expr("env_metadata", "terramate.stack.path.absolute"),
 						expr("env_root_ref", "global.root_field"),
 					),
 				},
