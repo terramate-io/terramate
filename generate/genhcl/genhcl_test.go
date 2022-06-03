@@ -881,7 +881,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 							str("stack_path_abs", "/stacks/stack"),
 							str("stack_path_basename", "stack"),
 							str("stack_path_rel", "stacks/stack"),
-							expr("stack_path_to_root", "../.."),
+							str("stack_path_to_root", "../.."),
 						),
 					},
 				},
