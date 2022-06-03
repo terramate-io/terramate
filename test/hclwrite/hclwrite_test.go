@@ -60,7 +60,7 @@ func TestHCLWrite(t *testing.T) {
 			`,
 		},
 		{
-			name: "complex interpolation",
+			name: "interpolation with `+` operation",
 			hcl: block("test",
 				str("str", `THIS IS ${tm_upper(global.value) + "test"} !!!`),
 			),
