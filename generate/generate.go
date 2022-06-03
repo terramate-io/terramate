@@ -303,7 +303,7 @@ func updateOutdatedFiles(
 
 	logger.Trace().Msg("Checking for outdated generated_hcl code on stack.")
 
-	for filename, genHCL := range genfiles {
+	for filename, genfile := range genfiles {
 		targetpath := filepath.Join(stackpath, filename)
 		logger := logger.With().
 			Str("blockName", filename).
@@ -317,23 +317,23 @@ func updateOutdatedFiles(
 			return err
 		}
 		if !codeFound {
-			if genHCL.Body() == "" {
+			if genfile.Body() == "" {
 				logger.Trace().Msg("Not outdated since file not found and content is empty")
 				continue
 			}
-			if !genHCL.Condition() {
+			if !genfile.Condition() {
 				logger.Trace().Msg("Not outdated since file not found and condition is false")
 				continue
 			}
 		}
 
-		if !genHCL.Condition() {
+		if !genfile.Condition() {
 			logger.Trace().Msg("Outdated since condition is false and file should not exist")
 			outdatedFiles.add(filename)
 			continue
 		}
 
-		genHCLCode := genHCL.Header() + genHCL.Body()
+		genHCLCode := genfile.Header() + genfile.Body()
 		if genHCLCode != currentHCLcode {
 			logger.Trace().Msg("Generated code doesn't match file, is outdated")
 			outdatedFiles.add(filename)
