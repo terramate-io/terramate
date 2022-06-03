@@ -60,6 +60,17 @@ func TestHCLWrite(t *testing.T) {
 			`,
 		},
 		{
+			name: "complex interpolation",
+			hcl: block("test",
+				str("str", `THIS IS ${tm_upper(global.value) + "test"} !!!`),
+			),
+			want: `
+				test {
+					str = "THIS IS ${tm_upper(global.value) + "test"} !!!"
+				}
+			`,
+		},
+		{
 			name: "block with multiple attributes",
 			hcl: block("test",
 				str("str", "test"),
