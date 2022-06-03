@@ -60,7 +60,7 @@ func TestHCLWrite(t *testing.T) {
 			`,
 		},
 		{
-			name: "interpolation with `+` operation",
+			name: "string contents are not quoted",
 			hcl: block("test",
 				str("str", `THIS IS ${tm_upper(global.value) + "test"} !!!`),
 			),
