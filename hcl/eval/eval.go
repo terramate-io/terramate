@@ -53,11 +53,6 @@ func NewContext(basedir string) *Context {
 	}
 }
 
-// GetHCLContext gets the evaluation context.
-func (c *Context) GetHCLContext() *hhcl.EvalContext {
-	return c.hclctx
-}
-
 // SetNamespace will set the given values inside the given namespace on the
 // evaluation context.
 func (c *Context) SetNamespace(name string, vals map[string]cty.Value) error {

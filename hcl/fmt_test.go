@@ -35,6 +35,8 @@ func TestFormatMultiline(t *testing.T) {
 		wantErrs []error
 	}
 
+	const filename = "test-input.hcl"
+
 	tcases := []testcase{
 		{
 			name: "empty",
@@ -814,21 +816,22 @@ var = [
 			`,
 			wantErrs: []error{
 				errors.E(hcl.ErrHCLSyntax),
-				errors.E(mkrange(start(2, 17, 17), end(3, 1, 18))),
-				errors.E(mkrange(start(3, 17, 34), end(4, 1, 35))),
-				errors.E(mkrange(start(4, 15, 49), end(5, 1, 50))),
-				errors.E(mkrange(start(5, 15, 64), end(6, 1, 65))),
-				errors.E(mkrange(start(2, 16, 16), end(2, 17, 17))),
+				errors.E(mkrange(filename, start(2, 17, 17), end(3, 1, 18))),
+				errors.E(mkrange(filename, start(3, 17, 34), end(4, 1, 35))),
+				errors.E(mkrange(filename, start(4, 15, 49), end(5, 1, 50))),
+				errors.E(mkrange(filename, start(5, 15, 64), end(6, 1, 65))),
+				errors.E(mkrange(filename, start(2, 16, 16), end(2, 17, 17))),
 			},
 		},
 	}
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			const filename = "test-input.hcl"
-			got, err := hcl.FormatMultiline(tcase.input, filename)
+			tempdir := t.TempDir()
 
-			addFilenameToErrorsFileRanges(tcase.wantErrs, filename)
+			got, err := hcl.FormatMultiline(tcase.input, filepath.Join(tempdir, filename))
+
+			fixupFiledirOnErrorsFileRanges(tempdir, tcase.wantErrs)
 			errtest.AssertErrorList(t, err, tcase.wantErrs)
 			assert.EqualStrings(t, tcase.want, got)
 
@@ -850,6 +853,8 @@ func TestFormatHCL(t *testing.T) {
 		want     string
 		wantErrs []error
 	}
+
+	const filename = "test-input.hcl"
 
 	tcases := []testcase{
 		{
@@ -890,21 +895,18 @@ d = []
 			`,
 			wantErrs: []error{
 				errors.E(hcl.ErrHCLSyntax),
-				errors.E(mkrange(start(2, 17, 17), end(3, 1, 18))),
-				errors.E(mkrange(start(3, 17, 34), end(4, 1, 35))),
-				errors.E(mkrange(start(4, 15, 49), end(5, 1, 50))),
-				errors.E(mkrange(start(5, 15, 64), end(6, 1, 65))),
-				errors.E(mkrange(start(2, 16, 16), end(2, 17, 17))),
+				errors.E(mkrange(filename, start(2, 17, 17), end(3, 1, 18))),
+				errors.E(mkrange(filename, start(3, 17, 34), end(4, 1, 35))),
+				errors.E(mkrange(filename, start(4, 15, 49), end(5, 1, 50))),
+				errors.E(mkrange(filename, start(5, 15, 64), end(6, 1, 65))),
+				errors.E(mkrange(filename, start(2, 16, 16), end(2, 17, 17))),
 			},
 		},
 	}
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			const filename = "test-input.hcl"
 			got, err := hcl.Format(tcase.input, filename)
-
-			addFilenameToErrorsFileRanges(tcase.wantErrs, filename)
 			errtest.AssertErrorList(t, err, tcase.wantErrs)
 			assert.EqualStrings(t, tcase.want, got)
 

@@ -16,11 +16,11 @@ package hcl_test
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
@@ -53,28 +53,39 @@ func TestHCLParserModules(t *testing.T) {
 	}
 	type testcase struct {
 		name  string
-		input string
+		input cfgfile
 		want  want
 	}
 
 	for _, tc := range []testcase{
 		{
-			name:  "module must have 1 label",
-			input: `module {}`,
+			name: "module must have 1 label",
+			input: cfgfile{
+				filename: "main.tf",
+				body:     `module {}`,
+			},
 			want: want{
-				errs: []error{errors.E(hcl.ErrTerraformSchema, mkrange(start(1, 8, 7), end(1, 9, 8)))},
+				errs: []error{errors.E(hcl.ErrTerraformSchema,
+					mkrange("main.tf", start(1, 8, 7), end(1, 9, 8)))},
 			},
 		},
 		{
-			name:  "module must have a source attribute",
-			input: `module "test" {}`,
+			name: "module must have a source attribute",
+			input: cfgfile{
+				filename: "main.tf",
+				body:     `module "test" {}`,
+			},
 			want: want{
-				errs: []error{errors.E(hcl.ErrTerraformSchema, mkrange(start(1, 15, 14), end(1, 17, 16)))},
+				errs: []error{errors.E(hcl.ErrTerraformSchema,
+					mkrange("main.tf", start(1, 15, 14), end(1, 17, 16)))},
 			},
 		},
 		{
-			name:  "empty source is a valid module",
-			input: `module "test" {source = ""}`,
+			name: "empty source is a valid module",
+			input: cfgfile{
+				filename: "main.tf",
+				body:     `module "test" {source = ""}`,
+			},
 			want: want{
 				modules: []hcl.Module{
 					{
@@ -84,8 +95,11 @@ func TestHCLParserModules(t *testing.T) {
 			},
 		},
 		{
-			name:  "valid module",
-			input: `module "test" {source = "test"}`,
+			name: "valid module",
+			input: cfgfile{
+				filename: "main.tf",
+				body:     `module "test" {source = "test"}`,
+			},
 			want: want{
 				modules: []hcl.Module{
 					{
@@ -96,13 +110,16 @@ func TestHCLParserModules(t *testing.T) {
 		},
 		{
 			name: "mixing modules and attributes, ignore attrs",
-			input: `
+			input: cfgfile{
+				filename: "main.tf",
+				body: `
 				a = 1
 				module "test" {
 					source = "test"
 				}
 				b = 1
 			`,
+			},
 			want: want{
 				modules: []hcl.Module{
 					{
@@ -113,7 +130,9 @@ func TestHCLParserModules(t *testing.T) {
 		},
 		{
 			name: "multiple modules",
-			input: `
+			input: cfgfile{
+				filename: "main.tf",
+				body: `
 a = 1
 module "test" {
 	source = "test"
@@ -123,6 +142,7 @@ module "bleh" {
 	source = "bleh"
 }
 `,
+			},
 			want: want{
 				modules: []hcl.Module{
 					{
@@ -136,25 +156,35 @@ module "bleh" {
 		},
 		{
 			name: "fails if source is not a string",
-			input: `
+			input: cfgfile{
+				filename: "main.tf",
+				body: `
 module "test" {
 	source = -1
 }
 `,
+			},
 			want: want{
-				errs: []error{errors.E(hcl.ErrTerraformSchema, mkrange(start(3, 11, 27), end(3, 13, 29)))},
+				errs: []error{errors.E(hcl.ErrTerraformSchema,
+					mkrange("main.tf", start(3, 11, 27), end(3, 13, 29)))},
 			},
 		},
 		{
-			name:  "variable interpolation in the source string - fails",
-			input: "module \"test\" {\nsource = \"${var.test}\"\n}\n",
+			name: "variable interpolation in the source string - fails",
+			input: cfgfile{
+				filename: "main.tf",
+				body:     "module \"test\" {\nsource = \"${var.test}\"\n}\n",
+			},
 			want: want{
-				errs: []error{errors.E(hcl.ErrTerraformSchema, mkrange(start(2, 13, 28), end(2, 16, 31)))},
+				errs: []error{errors.E(hcl.ErrTerraformSchema,
+					mkrange("main.tf", start(2, 13, 28), end(2, 16, 31)))},
 			},
 		},
 		{
 			name: "multiple schema errors on same file get reported",
-			input: `
+			input: cfgfile{
+				filename: "main.tf",
+				body: `
 				module "test" {
 					source = -1
 				}
@@ -169,50 +199,60 @@ module "test" {
 
 				module "test3" {}
 			`,
+			},
 			want: want{
 				errs: []error{
-					errors.E(hcl.ErrTerraformSchema, mkrange(start(3, 15, 35), end(3, 17, 37))),
-					errors.E(hcl.ErrTerraformSchema, mkrange(start(7, 18, 83), end(7, 21, 86))),
-					errors.E(hcl.ErrTerraformSchema, mkrange(start(10, 12, 112), end(10, 13, 113))),
-					errors.E(hcl.ErrTerraformSchema, mkrange(start(14, 20, 161), end(14, 22, 163))),
+					errors.E(hcl.ErrTerraformSchema,
+						mkrange("main.tf", start(3, 15, 35), end(3, 17, 37))),
+					errors.E(hcl.ErrTerraformSchema,
+						mkrange("main.tf", start(7, 18, 83), end(7, 21, 86))),
+					errors.E(hcl.ErrTerraformSchema,
+						mkrange("main.tf", start(10, 12, 112), end(10, 13, 113))),
+					errors.E(hcl.ErrTerraformSchema,
+						mkrange("main.tf", start(14, 20, 161), end(14, 22, 163))),
 				},
 			},
 		},
 		{
 			name: "multiple syntax errors on same file get reported",
-			input: `
+			input: cfgfile{
+				filename: "main.tf",
+				body: `
 				string = hi"
 				bool   = rue
 				list   = [
 				obj    = {
 			`,
+			},
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrHCLSyntax),
-					errors.E(mkrange(start(2, 17, 17), end(3, 1, 18))),
-					errors.E(mkrange(start(3, 17, 34), end(4, 1, 35))),
-					errors.E(mkrange(start(4, 15, 49), end(5, 1, 50))),
-					errors.E(mkrange(start(5, 15, 64), end(6, 1, 65))),
-					errors.E(mkrange(start(2, 16, 16), end(2, 17, 17))),
+					errors.E(mkrange("main.tf", start(2, 17, 17), end(3, 1, 18))),
+					errors.E(mkrange("main.tf", start(3, 17, 34), end(4, 1, 35))),
+					errors.E(mkrange("main.tf", start(4, 15, 49), end(5, 1, 50))),
+					errors.E(mkrange("main.tf", start(5, 15, 64), end(6, 1, 65))),
+					errors.E(mkrange("main.tf", start(2, 16, 16), end(2, 17, 17))),
 				},
 			},
 		},
 		{
-			name:  "variable interpolation in the source string - fails",
-			input: "module \"test\" {\nsource = \"${var.test}\"\n}\n",
+			name: "variable interpolation in the source string - fails",
+			input: cfgfile{
+				filename: "main.tf",
+				body:     "module \"test\" {\nsource = \"${var.test}\"\n}\n",
+			},
 			want: want{
-				errs: []error{errors.E(hcl.ErrTerraformSchema, mkrange(start(2, 13, 28), end(2, 16, 31)))},
+				errs: []error{errors.E(hcl.ErrTerraformSchema,
+					mkrange("main.tf", start(2, 13, 28), end(2, 16, 31)))},
 			},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			configdir := t.TempDir()
-			tfpath := test.WriteFile(t, configdir, "main.tf", tc.input)
-
-			addFilenameToErrorsFileRanges(tc.want.errs, tfpath)
+			tfpath := test.WriteFile(t, configdir, tc.input.filename, tc.input.body)
+			fixupFiledirOnErrorsFileRanges(configdir, tc.want.errs)
 
 			modules, err := hcl.ParseModules(tfpath)
-
 			errtest.AssertErrorList(t, err, tc.want.errs)
 			assert.EqualInts(t,
 				len(tc.want.modules),
@@ -233,15 +273,16 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			name: "unrecognized blocks",
 			input: []cfgfile{
 				{
-					body: "something {}\nsomething_else {}",
+					filename: "cfg.tm",
+					body:     "something {}\nsomething_else {}",
 				},
 			},
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange(start(1, 1, 0), end(1, 12, 11))),
+						mkrange("cfg.tm", start(1, 1, 0), end(1, 12, 11))),
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange(start(2, 1, 13), end(2, 17, 29))),
+						mkrange("cfg.tm", start(2, 1, 13), end(2, 17, 29))),
 				},
 			},
 		},
@@ -249,6 +290,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			name: "unrecognized attribute",
 			input: []cfgfile{
 				{
+					filename: "cfg.tm",
 					body: `
 						terramate{}
 						something = 1
@@ -258,7 +300,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange(start(3, 7, 25), end(3, 16, 34))),
+						mkrange("cfg.tm", start(3, 7, 25), end(3, 16, 34))),
 				},
 			},
 		},
@@ -266,6 +308,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			name: "unrecognized attribute inside terramate block",
 			input: []cfgfile{
 				{
+					filename: "cfg.tm",
 					body: `
 						terramate{
 							something = 1
@@ -276,7 +319,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange(start(3, 8, 25), end(3, 17, 34))),
+						mkrange("cfg.tm", start(3, 8, 25), end(3, 17, 34))),
 				},
 			},
 		},
@@ -284,6 +327,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			name: "unrecognized terramate block",
 			input: []cfgfile{
 				{
+					filename: "cfg.tm",
 					body: `terramate{
 							something {}
 							other {}
@@ -294,9 +338,9 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange(start(2, 8, 18), end(2, 19, 29))),
+						mkrange("cfg.tm", start(2, 8, 18), end(2, 19, 29))),
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange(start(3, 8, 38), end(3, 15, 45))),
+						mkrange("cfg.tm", start(3, 8, 38), end(3, 15, 45))),
 				},
 			},
 		},
@@ -304,6 +348,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			name: "multiple empty terramate blocks on same file",
 			input: []cfgfile{
 				{
+					filename: "cfg.tm",
 					body: `
 						terramate{}
 						terramate{}
@@ -324,6 +369,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			name: "invalid version",
 			input: []cfgfile{
 				{
+					filename: "cfg.tm",
 					body: `
 						terramate {
 							required_version = 1
@@ -334,7 +380,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange(start(3, 27, 45), end(3, 28, 46))),
+						mkrange("cfg.tm", start(3, 27, 45), end(3, 28, 46))),
 				},
 			},
 		},
@@ -342,6 +388,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			name: "interpolation not allowed at req_version",
 			input: []cfgfile{
 				{
+					filename: "cfg.tm",
 					body: `
 						terramate {
 							required_version = "${test.version}"
@@ -351,7 +398,10 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			},
 			want: want{
 				errs: []error{
-					errors.E(hcl.ErrTerramateSchema),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("cfg.tm", start(3, 30, 48), end(3, 34, 52))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("cfg.tm", start(3, 27, 45), end(3, 44, 62))),
 				},
 			},
 		},
@@ -359,6 +409,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			name: "invalid attributes",
 			input: []cfgfile{
 				{
+					filename: "cfg.tm",
 					body: `
 						terramate {
 							version = 1
@@ -370,9 +421,9 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange(start(3, 8, 26), end(3, 15, 33))),
+						mkrange("cfg.tm", start(3, 8, 26), end(3, 15, 33))),
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange(start(4, 8, 45), end(4, 15, 52))),
+						mkrange("cfg.tm", start(4, 8, 45), end(4, 15, 52))),
 				},
 			},
 		},
@@ -380,6 +431,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			name: "required_version > 0.0.0",
 			input: []cfgfile{
 				{
+					filename: "cfg.tm",
 					body: `
 						terramate {
 						       required_version = "> 0.0.0"
@@ -406,7 +458,8 @@ func TestHCLParserRootConfig(t *testing.T) {
 			name: "no config returns empty config",
 			input: []cfgfile{
 				{
-					body: `terramate {}`,
+					filename: "cfg.tm",
+					body:     `terramate {}`,
 				},
 			},
 			want: want{
@@ -419,6 +472,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 			name: "empty config block returns empty config",
 			input: []cfgfile{
 				{
+					filename: "cfg.tm",
 					body: `
 						terramate {
 							config {}
@@ -438,6 +492,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 			name: "unrecognized config attribute",
 			input: []cfgfile{
 				{
+					filename: "cfg.tm",
 					body: `
 						terramate {
 							config {
@@ -457,6 +512,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 			name: "unrecognized config.git field",
 			input: []cfgfile{
 				{
+					filename: "cfg.tm",
 					body: `
 					terramate {
 						config {
@@ -471,7 +527,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange(start(5, 9, 54), end(5, 13, 58))),
+						mkrange("cfg.tm", start(5, 9, 54), end(5, 13, 58))),
 				},
 			},
 		},
@@ -479,6 +535,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 			name: "empty config.git block",
 			input: []cfgfile{
 				{
+					filename: "cfg.tm",
 					body: `
 						terramate {
 							config {
@@ -502,6 +559,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 			name: "multiple empty config blocks",
 			input: []cfgfile{
 				{
+					filename: "cfg.tm",
 					body: `
 						terramate {
 							config {}
@@ -522,6 +580,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 			name: "basic config.git block",
 			input: []cfgfile{
 				{
+					filename: "cfg.tm",
 					body: `
 						terramate {
 							config {
@@ -549,6 +608,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 			name: "all fields set for config.git",
 			input: []cfgfile{
 				{
+					filename: "cfg.tm",
 					body: `
 						terramate {
 							config {
@@ -587,6 +647,7 @@ func TestHCLParserStack(t *testing.T) {
 			name: "empty stack block",
 			input: []cfgfile{
 				{
+					filename: "stack.tm",
 					body: `
 						terramate {
 							required_version = ""
@@ -606,6 +667,7 @@ func TestHCLParserStack(t *testing.T) {
 			name: "stack with unrecognized blocks",
 			input: []cfgfile{
 				{
+					filename: "stack.tm",
 					body: `
 						stack{
 							block1 {}
@@ -625,6 +687,7 @@ func TestHCLParserStack(t *testing.T) {
 			name: "multiple stack blocks",
 			input: []cfgfile{
 				{
+					filename: "stack.tm",
 					body: `
 						terramate {}
 						stack{}
@@ -642,6 +705,7 @@ func TestHCLParserStack(t *testing.T) {
 			name: "empty name",
 			input: []cfgfile{
 				{
+					filename: "stack.tm",
 					body: `
 						terramate {
 							required_version = ""
@@ -663,6 +727,7 @@ func TestHCLParserStack(t *testing.T) {
 			name: "name is not a string - fails",
 			input: []cfgfile{
 				{
+					filename: "stack.tm",
 					body: `
 						terramate {
 							required_version = ""
@@ -675,7 +740,9 @@ func TestHCLParserStack(t *testing.T) {
 			},
 			want: want{
 				errs: []error{
-					errors.E(hcl.ErrTerramateSchema),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("stack.tm", start(6, 8, 77), end(6, 12, 81)),
+					),
 				},
 			},
 		},
@@ -683,6 +750,7 @@ func TestHCLParserStack(t *testing.T) {
 			name: "name has interpolation - fails",
 			input: []cfgfile{
 				{
+					filename: "stack.tm",
 					body: `
 						terramate {
 							required_version = ""
@@ -695,7 +763,10 @@ func TestHCLParserStack(t *testing.T) {
 			},
 			want: want{
 				errs: []error{
-					errors.E(hcl.ErrTerramateSchema),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("stack.tm", start(6, 18, 87), end(6, 22, 91))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("stack.tm", start(6, 8, 77), end(6, 12, 81))),
 				},
 			},
 		},
@@ -703,6 +774,7 @@ func TestHCLParserStack(t *testing.T) {
 			name: "unrecognized attribute name - fails",
 			input: []cfgfile{
 				{
+					filename: "stack.tm",
 					body: `
 						terramate {
 							required_version = ""
@@ -723,6 +795,7 @@ func TestHCLParserStack(t *testing.T) {
 			name: "after: empty set works",
 			input: []cfgfile{
 				{
+					filename: "stack.tm",
 					body: `
 						terramate {
 							required_version = ""
@@ -742,6 +815,7 @@ func TestHCLParserStack(t *testing.T) {
 			name: "'after' single entry",
 			input: []cfgfile{
 				{
+					filename: "stack.tm",
 					body: `
 						terramate {
 							required_version = ""
@@ -766,6 +840,7 @@ func TestHCLParserStack(t *testing.T) {
 			name: "'after' invalid element entry",
 			input: []cfgfile{
 				{
+					filename: "stack.tm",
 					body: `
 						stack {
 							after = [1]
@@ -783,6 +858,7 @@ func TestHCLParserStack(t *testing.T) {
 			name: "'after' duplicated entry",
 			input: []cfgfile{
 				{
+					filename: "stack.tm",
 					body: `
 						stack {
 							after = ["test", "test"]
@@ -800,6 +876,7 @@ func TestHCLParserStack(t *testing.T) {
 			name: "multiple 'after' fields - fails",
 			input: []cfgfile{
 				{
+					filename: "stack.tm",
 					body: `
 						stack {
 							after = ["test"]
@@ -818,6 +895,7 @@ func TestHCLParserStack(t *testing.T) {
 			name: "multiple 'before' fields - fails",
 			input: []cfgfile{
 				{
+					filename: "stack.tm",
 					body: `
 						stack {
 							before = []
@@ -836,6 +914,7 @@ func TestHCLParserStack(t *testing.T) {
 			name: "'before' single entry",
 			input: []cfgfile{
 				{
+					filename: "stack.tm",
 					body: `
 						terramate {
 							required_version = ""
@@ -860,6 +939,7 @@ func TestHCLParserStack(t *testing.T) {
 			name: "'before' multiple entries",
 			input: []cfgfile{
 				{
+					filename: "stack.tm",
 					body: `
 						terramate {
 							required_version = ""
@@ -884,6 +964,7 @@ func TestHCLParserStack(t *testing.T) {
 			name: "stack with valid description",
 			input: []cfgfile{
 				{
+					filename: "stack.tm",
 					body: `
 						stack {
 							description = "some cool description"
@@ -903,6 +984,7 @@ func TestHCLParserStack(t *testing.T) {
 			name: "stack with multiline description",
 			input: []cfgfile{
 				{
+					filename: "stack.tm",
 					body: `
 					stack {
 						description =  <<-EOD
@@ -924,6 +1006,7 @@ func TestHCLParserStack(t *testing.T) {
 			name: "'before' and 'after'",
 			input: []cfgfile{
 				{
+					filename: "stack.tm",
 					body: `
 						terramate {
 							required_version = ""
@@ -943,6 +1026,115 @@ func TestHCLParserStack(t *testing.T) {
 						Before: []string{"something"},
 						After:  []string{"else"},
 					},
+				},
+			},
+		},
+	} {
+		testParser(t, tc)
+	}
+}
+
+func TestHCLParserMultipleErrors(t *testing.T) {
+	for _, tc := range []testcase{
+		{
+			name: "multiple syntax errors",
+			input: []cfgfile{
+				{
+					filename: "file.tm",
+					body:     "a=1\na=2\na=3",
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("file.tm", start(1, 1, 0), end(1, 2, 1))),
+					errors.E(hcl.ErrHCLSyntax,
+						mkrange("file.tm", start(2, 1, 4), end(2, 2, 5))),
+					errors.E(hcl.ErrHCLSyntax,
+						mkrange("file.tm", start(3, 1, 8), end(3, 2, 9))),
+				},
+			},
+		},
+		{
+			name: "multiple syntax errors in different files",
+			input: []cfgfile{
+				{
+					filename: "file1.tm",
+					body:     "a=1\na=2\na=3",
+				},
+				{
+					filename: "file2.tm",
+					body:     "a=1\na=2\na=3",
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("file1.tm", start(1, 1, 0), end(1, 2, 1))),
+					errors.E(hcl.ErrHCLSyntax,
+						mkrange("file1.tm", start(2, 1, 4), end(2, 2, 5))),
+					errors.E(hcl.ErrHCLSyntax,
+						mkrange("file1.tm", start(3, 1, 8), end(3, 2, 9))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("file2.tm", start(1, 1, 0), end(1, 2, 1))),
+					errors.E(hcl.ErrHCLSyntax,
+						mkrange("file2.tm", start(2, 1, 4), end(2, 2, 5))),
+					errors.E(hcl.ErrHCLSyntax,
+						mkrange("file2.tm", start(3, 1, 8), end(3, 2, 9))),
+				},
+			},
+		},
+		{
+			name: "conflicting stack files",
+			input: []cfgfile{
+				{
+					filename: "stack1.tm",
+					body:     "stack {}",
+				},
+				{
+					filename: "stack2.tm",
+					body:     "stack {}",
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("stack2.tm", start(1, 1, 0), end(1, 8, 7))),
+				},
+			},
+		},
+		{
+			name: "conflicting terramate git config and other errors",
+			input: []cfgfile{
+				{
+					filename: "cfg1.tm",
+					body: `terramate {
+						config {
+							git {
+								default_branch = "trunk"
+							}
+						}
+					}
+					
+					test {}`,
+				},
+				{
+					filename: "cfg2.tm",
+					body: `terramate {
+						config {
+							git {
+								default_remote = "test"
+							}
+						}
+					}`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("cfg2.tm", start(3, 8, 34), end(3, 13, 39))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("cfg1.tm", start(9, 6, 108), end(9, 12, 114))),
 				},
 			},
 		},
@@ -1119,13 +1311,22 @@ func testParser(t *testing.T, tc testcase) {
 		for _, inputConfigFile := range tc.input {
 			filename := inputConfigFile.filename
 			if filename == "" {
-				filename = config.DefaultFilename
+				panic("expect a filename in the input config")
 			}
-			cfgfile := test.WriteFile(t, configsDir, filename, inputConfigFile.body)
-			addFilenameToErrorsFileRanges(tc.want.errs, cfgfile)
+			test.WriteFile(t, configsDir, filename, inputConfigFile.body)
 		}
+		fixupFiledirOnErrorsFileRanges(configsDir, tc.want.errs)
 		got, err := hcl.ParseDir(configsDir)
 		errtest.AssertErrorList(t, err, tc.want.errs)
+
+		var gotErrs *errors.List
+		if errors.As(err, &gotErrs) {
+			if len(gotErrs.Errors()) != len(tc.want.errs) {
+				t.Logf("got errors: %s", gotErrs.Detailed())
+				t.Fatalf("got %d errors but want %d",
+					len(gotErrs.Errors()), len(tc.want.errs))
+			}
+		}
 
 		if tc.want.errs == nil {
 			test.AssertTerramateConfig(t, got, tc.want.config)
@@ -1163,13 +1364,14 @@ func testParser(t *testing.T, tc testcase) {
 }
 
 // some helpers to easy build file ranges.
-func mkrange(start, end hhcl.Pos) hhcl.Range {
+func mkrange(fname string, start, end hhcl.Pos) hhcl.Range {
 	if start.Byte == end.Byte {
 		panic("empty file range")
 	}
 	return hhcl.Range{
-		Start: start,
-		End:   end,
+		Filename: fname,
+		Start:    start,
+		End:      end,
 	}
 }
 
@@ -1181,10 +1383,10 @@ func start(line, column, char int) hhcl.Pos {
 	}
 }
 
-func addFilenameToErrorsFileRanges(errs []error, filename string) {
+func fixupFiledirOnErrorsFileRanges(dir string, errs []error) {
 	for _, err := range errs {
 		if e, ok := err.(*errors.Error); ok {
-			e.FileRange.Filename = filename
+			e.FileRange.Filename = filepath.Join(dir, e.FileRange.Filename)
 		}
 	}
 }
