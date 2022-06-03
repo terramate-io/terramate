@@ -1259,25 +1259,11 @@ func (n *node) push(tok *hclwrite.Token) {
 }
 
 func (n *node) pushEvaluated(toks ...*hclwrite.Token) {
-	for _, tok := range toks {
-		newtok := hclwrite.Token{
-			Type: tok.Type,
-		}
-		newtok.Bytes = make([]byte, len(tok.Bytes))
-		copy(newtok.Bytes, tok.Bytes)
-		n.evaluated = append(n.evaluated, tok)
-	}
+	n.evaluated = append(n.evaluated, toks...)
 }
 
 func (n *node) pushOriginal(toks ...*hclwrite.Token) {
-	for _, tok := range toks {
-		newtok := hclwrite.Token{
-			Type: tok.Type,
-		}
-		newtok.Bytes = make([]byte, len(tok.Bytes))
-		copy(newtok.Bytes, tok.Bytes)
-		n.original = append(n.original, tok)
-	}
+	n.original = append(n.original, toks...)
 }
 
 type nodestack struct {
