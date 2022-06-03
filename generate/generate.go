@@ -93,6 +93,7 @@ func Do(root string, workingDir string) Report {
 		}
 
 		logger.Trace().Msg("Checking for invalid paths on generated files.")
+
 		if err := checkGeneratedFilesPaths(genfiles); err != nil {
 			report.err = errors.E(ErrInvalidFilePath, err)
 			return report
@@ -122,13 +123,16 @@ func Do(root string, workingDir string) Report {
 
 		for filename, genfile := range genfiles {
 			path := filepath.Join(stackpath, filename)
+			emptyBody := genfile.Body() == ""
 			logger := logger.With().
 				Str("filename", filename).
+				Bool("condition", genfile.Condition()).
+				Bool("emptyBody", emptyBody).
 				Logger()
 
 			// We don't want to generate files just with a header inside.
-			if genfile.Body() == "" {
-				logger.Trace().Msg("ignoring empty code")
+			if emptyBody || !genfile.Condition() {
+				logger.Debug().Msg("ignoring")
 				continue
 			}
 
@@ -142,8 +146,7 @@ func Do(root string, workingDir string) Report {
 				)
 			}
 
-			// Change detection + remove code that got deleted but
-			// was re-generated from the removed files map
+			// Change detection + remove entries that got re-generated
 			removedFileBody, ok := removedFiles[filename]
 			if !ok {
 				report.addCreatedFile(filename)
@@ -228,37 +231,36 @@ func CheckStack(root string, st stack.S) ([]string, error) {
 		return nil, errors.E(err, "checking for outdated code")
 	}
 
+	stackpath := st.HostPath()
+	targetGenFiles := generatedFiles{}
+
+	err = loadGenerateHCL(root, stackpath, st, globals, targetGenFiles)
+	if err != nil {
+		return nil, err
+	}
+
+	err = loadGenerateFile(root, stackpath, st, globals, targetGenFiles)
+	if err != nil {
+		return nil, err
+	}
+
 	logger.Trace().Msg("Listing current generated files.")
 
-	generatedFiles, err := ListStackGenFiles(st)
+	actualGenFiles, err := ListStackGenFiles(st)
 	if err != nil {
 		return nil, errors.E(err, "checking for outdated code")
 	}
 
 	// We start with the assumption that all gen files on the stack
 	// are outdated and then update the outdated files set as we go.
-	outdatedFiles := newStringSet(generatedFiles...)
-	stackpath := st.HostPath()
-	err = updateGenHCLOutdatedFiles(
-		root,
+	outdatedFiles := newStringSet(actualGenFiles...)
+	err = updateOutdatedFiles(
 		stackpath,
-		st,
-		globals,
+		targetGenFiles,
 		outdatedFiles,
 	)
 	if err != nil {
-		return nil, errors.E(err, "checking for outdated generate_hcl files")
-	}
-
-	err = updateGenFileOutdatedFiles(
-		root,
-		stackpath,
-		st,
-		globals,
-		outdatedFiles,
-	)
-	if err != nil {
-		return nil, errors.E(err, "checking for outdated generate_hcl files")
+		return nil, errors.E(err, "checking for outdated files")
 	}
 
 	outdated := outdatedFiles.slice()
@@ -266,17 +268,17 @@ func CheckStack(root string, st stack.S) ([]string, error) {
 	return outdated, nil
 }
 
-// TODO: rename to fileInfo
-type generatedFile interface {
+type fileInfo interface {
 	Origin() string
 	Header() string
 	Body() string
+	Condition() bool
 }
 
 // generatedFiles maps filenames to generated files
-type generatedFiles map[string]generatedFile
+type generatedFiles map[string]fileInfo
 
-func (g generatedFiles) add(filename string, genfile generatedFile) error {
+func (g generatedFiles) add(filename string, genfile fileInfo) error {
 	if other, ok := g[filename]; ok {
 		return errors.E(ErrConflictingConfig,
 			"configs from %q and %q generate a file with same name %q",
@@ -289,79 +291,19 @@ func (g generatedFiles) add(filename string, genfile generatedFile) error {
 	return nil
 }
 
-func updateGenFileOutdatedFiles(
-	root, stackpath string,
-	stackMeta stack.Metadata,
-	globals stack.Globals,
+func updateOutdatedFiles(
+	stackpath string,
+	genfiles generatedFiles,
 	outdatedFiles *stringSet,
 ) error {
 	logger := log.With().
-		Str("action", "generate.updateGenFileOutdatedFiles()").
-		Str("root", root).
+		Str("action", "generate.updateOutdatedFiles()").
 		Str("stackpath", stackpath).
 		Logger()
 
-	logger.Trace().Msg("Checking for outdated generated_file code on stack.")
+	logger.Trace().Msg("Checking for outdated generated code on stack.")
 
-	stackFiles, err := genfile.Load(root, stackMeta, globals)
-	if err != nil {
-		return err
-	}
-
-	logger.Trace().Msg("Loaded generated_file code, checking")
-
-	for filename, genFile := range stackFiles.GeneratedFiles() {
-		targetpath := filepath.Join(stackpath, filename)
-		logger := logger.With().
-			Str("blockName", filename).
-			Str("targetpath", targetpath).
-			Logger()
-
-		logger.Trace().Msg("Checking if file content is updated.")
-
-		fileContents, found, err := readFile(targetpath)
-		if err != nil {
-			return err
-		}
-		if !found && genFile.Body() == "" {
-			logger.Trace().Msg("Not outdated since file not found and generated_file is empty")
-			continue
-		}
-
-		if genFile.Body() != fileContents {
-			logger.Trace().Msg("generate_file code is outdated")
-			outdatedFiles.add(filename)
-		} else {
-			logger.Trace().Msg("generate_file code is updated")
-			outdatedFiles.remove(filename)
-		}
-	}
-
-	return nil
-}
-
-func updateGenHCLOutdatedFiles(
-	root, stackpath string,
-	stackMeta stack.Metadata,
-	globals stack.Globals,
-	outdatedFiles *stringSet,
-) error {
-	logger := log.With().
-		Str("action", "generate.updateGenHCLOutdatedFiles()").
-		Str("root", root).
-		Str("stackpath", stackpath).
-		Logger()
-
-	logger.Trace().Msg("Checking for outdated generated_hcl code on stack.")
-
-	stackHCLs, err := genhcl.Load(root, stackMeta, globals)
-	if err != nil {
-		return err
-	}
-
-	logger.Trace().Msg("Loaded generated_hcl code, checking")
-
-	for filename, genHCL := range stackHCLs.GeneratedHCLs() {
+	for filename, genfile := range genfiles {
 		targetpath := filepath.Join(stackpath, filename)
 		logger := logger.With().
 			Str("blockName", filename).
@@ -370,21 +312,33 @@ func updateGenHCLOutdatedFiles(
 
 		logger.Trace().Msg("Checking if code is updated.")
 
-		currentHCLcode, codeFound, err := readGeneratedFile(targetpath)
+		currentCode, codeFound, err := readFile(targetpath)
 		if err != nil {
 			return err
 		}
-		if !codeFound && genHCL.Body() == "" {
-			logger.Trace().Msg("Not outdated since file not found and generated_hcl is empty")
+		if !codeFound {
+			if genfile.Body() == "" {
+				logger.Trace().Msg("Not outdated since file not found and content is empty")
+				continue
+			}
+			if !genfile.Condition() {
+				logger.Trace().Msg("Not outdated since file not found and condition is false")
+				continue
+			}
+		}
+
+		if !genfile.Condition() {
+			logger.Trace().Msg("Outdated since condition is false and file should not exist")
+			outdatedFiles.add(filename)
 			continue
 		}
 
-		genHCLCode := genHCL.Header() + genHCL.Body()
-		if genHCLCode != currentHCLcode {
-			logger.Trace().Msg("generate_hcl code is outdated")
+		generatedCode := genfile.Header() + genfile.Body()
+		if generatedCode != currentCode {
+			logger.Trace().Msg("Generated code doesn't match file, is outdated")
 			outdatedFiles.add(filename)
 		} else {
-			logger.Trace().Msg("generate_hcl code is updated")
+			logger.Trace().Msg("Generated code matches file, it is updated")
 			outdatedFiles.remove(filename)
 		}
 	}
@@ -454,7 +408,7 @@ func loadGenerateFile(
 	return nil
 }
 
-func writeGeneratedCode(target string, genfile generatedFile) error {
+func writeGeneratedCode(target string, genfile fileInfo) error {
 	logger := log.With().
 		Str("action", "writeGeneratedCode()").
 		Str("file", target).

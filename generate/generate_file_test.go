@@ -16,11 +16,14 @@ package generate_test
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
 func TestGenerateFile(t *testing.T) {
@@ -45,7 +48,24 @@ func TestGenerateFile(t *testing.T) {
 					path: "/stacks",
 					add: generateFile(
 						labels("empty"),
-						strAttr("content", ""),
+						str("content", ""),
+					),
+				},
+			},
+		},
+		{
+			name: "generate_file with false condition generates nothing",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: generateFile(
+						labels("test"),
+						boolean("condition", false),
+						str("content", "content"),
 					),
 				},
 			},
@@ -62,11 +82,11 @@ func TestGenerateFile(t *testing.T) {
 					add: hcldoc(
 						generateFile(
 							labels("file1.txt"),
-							exprAttr("content", "terramate.path"),
+							expr("content", "terramate.path"),
 						),
 						generateFile(
 							labels("file2.txt"),
-							exprAttr("content", "terramate.name"),
+							expr("content", "terramate.name"),
 						),
 					),
 				},
@@ -75,15 +95,15 @@ func TestGenerateFile(t *testing.T) {
 				{
 					stack: "/stacks/stack-1",
 					files: map[string]fmt.Stringer{
-						"file1.txt": str("/stacks/stack-1"),
-						"file2.txt": str("stack-1"),
+						"file1.txt": stringer("/stacks/stack-1"),
+						"file2.txt": stringer("stack-1"),
 					},
 				},
 				{
 					stack: "/stacks/stack-2",
 					files: map[string]fmt.Stringer{
-						"file1.txt": str("/stacks/stack-2"),
-						"file2.txt": str("stack-2"),
+						"file1.txt": stringer("/stacks/stack-2"),
+						"file2.txt": stringer("stack-2"),
 					},
 				},
 			},
@@ -112,11 +132,11 @@ func TestGenerateFile(t *testing.T) {
 					add: hcldoc(
 						generateFile(
 							labels("file1.txt"),
-							exprAttr("content", "terramate.path"),
+							expr("content", "terramate.path"),
 						),
 						generateFile(
 							labels("file2.txt"),
-							exprAttr("content", "terramate.name"),
+							expr("content", "terramate.name"),
 						),
 					),
 				},
@@ -125,8 +145,8 @@ func TestGenerateFile(t *testing.T) {
 				{
 					stack: "/stacks/stack-2",
 					files: map[string]fmt.Stringer{
-						"file1.txt": str("/stacks/stack-2"),
-						"file2.txt": str("stack-2"),
+						"file1.txt": stringer("/stacks/stack-2"),
+						"file2.txt": stringer("stack-2"),
 					},
 				},
 			},
@@ -156,28 +176,28 @@ func TestGenerateFile(t *testing.T) {
 					path: "/stacks/stack-1",
 					add: generateFile(
 						labels("/name"),
-						strAttr("content", "something"),
+						str("content", "something"),
 					),
 				},
 				{
 					path: "/stacks/stack-2",
 					add: generateFile(
 						labels("./name"),
-						strAttr("content", "something"),
+						str("content", "something"),
 					),
 				},
 				{
 					path: "/stacks/stack-3",
 					add: generateFile(
 						labels("./dir/name"),
-						strAttr("content", "something"),
+						str("content", "something"),
 					),
 				},
 				{
 					path: "/stacks/stack-4",
 					add: generateFile(
 						labels("dir/name"),
-						strAttr("content", "something"),
+						str("content", "something"),
 					),
 				},
 			},
@@ -211,4 +231,72 @@ func TestGenerateFile(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
+	const filename = "file.txt"
+
+	s := sandbox.New(t)
+	stackEntry := s.CreateStack("stack")
+
+	assertFileExist := func(file string) {
+		t.Helper()
+
+		path := filepath.Join(stackEntry.Path(), file)
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("want file %q to exist, instead got: %v", path, err)
+		}
+	}
+	assertFileDontExist := func(file string) {
+		t.Helper()
+
+		path := filepath.Join(stackEntry.Path(), file)
+		_, err := os.Stat(path)
+
+		if errors.Is(err, os.ErrNotExist) {
+			return
+		}
+
+		t.Fatalf("want file %q to not exist, instead got: %v", path, err)
+	}
+
+	createConfig := func(filename string, condition bool) {
+		stackEntry.CreateConfig(
+			stackConfig(
+				generateFile(
+					labels(filename),
+					boolean("condition", condition),
+					str("content", "some content"),
+				),
+			).String())
+	}
+
+	createConfig(filename, false)
+	report := s.Generate()
+	assertEqualReports(t, report, generate.Report{})
+	assertFileDontExist(filename)
+
+	createConfig(filename, true)
+	report = s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				StackPath: "/stack",
+				Created:   []string{filename},
+			},
+		},
+	})
+	assertFileExist(filename)
+
+	createConfig(filename, false)
+	report = s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				StackPath: "/stack",
+				Deleted:   []string{filename},
+			},
+		},
+	})
+	assertFileDontExist(filename)
 }
