@@ -258,8 +258,8 @@ Given this project layout:
     └── stack-b
 ```
 
-* terramate.path for **stack-a** = /stacks/stack-a
-* terramate.path for **stack-b** = /stacks/stack-b
+* **stack-a** = /stacks/stack-a
+* **stack-b** = /stacks/stack-b
 
 ## terramate.stack.name (string) 
 
@@ -274,8 +274,8 @@ Given this stack layout (from the root of the project):
     └── stack-b
 ```
 
-* terramate.name for **stack-a** = stack-a
-* terramate.name for **stack-b** = stack-b
+* **stack-a** = stack-a
+* **stack-b** = stack-b
 
 Please consider [stack configuration](stack.md) to see how
 you can change the default stack name.
