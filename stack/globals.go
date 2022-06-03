@@ -131,8 +131,6 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 	pendingExprsErrs := map[string]error{}
 	pendingExprs := ge.expressions
 
-	hclctx := evalctx.GetHCLContext()
-
 	for len(pendingExprs) > 0 {
 		amountEvaluated := 0
 
@@ -145,7 +143,7 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 			logger.Trace().Msg("Range vars.")
 
 			for _, namespace := range vars {
-				if _, ok := hclctx.Variables[namespace.RootName()]; !ok {
+				if !evalctx.HasNamespace(namespace.RootName()) {
 					return Globals{}, errors.E(
 						ErrGlobalEval,
 						namespace.SourceRange(),
@@ -173,9 +171,7 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 						)
 					}
 				default:
-					return Globals{}, errors.E(attr.SourceRange(),
-						"unexpected type of traversal - this is a BUG",
-					)
+					panic("unexpected type of traversal - this is a BUG")
 				}
 			}
 
@@ -197,7 +193,7 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 
 			logger.Trace().Msg("Try add proper namespace for globals evaluation context.")
 
-			if err := evalctx.SetNamespace("global", globals.Attributes()); err != nil {
+			if err := evalctx.SetGlobals(globals); err != nil {
 				return Globals{}, errors.E(err, "evaluating globals")
 			}
 		}
