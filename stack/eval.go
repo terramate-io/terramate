@@ -15,35 +15,67 @@
 package stack
 
 import (
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
 
-// NewEvalCtx creates a new evaluation context for a stack
-func NewEvalCtx(stackpath string, sm Metadata, globals Globals) (*eval.Context, error) {
+// EvalCtx represents the evaluation context of a stack.
+type EvalCtx struct {
+	evalctx *eval.Context
+}
+
+// NewEvalCtx creates a new stack evaluation context.
+func NewEvalCtx(stackpath string, sm Metadata, globals Globals) (*EvalCtx, error) {
 	logger := log.With().
 		Str("action", "stack.NewEvalCtx()").
 		Str("path", stackpath).
 		Logger()
 
-	evalctx := eval.NewContext(stackpath)
+	evalctx := &EvalCtx{evalctx: eval.NewContext(stackpath)}
 
 	logger.Trace().Msg("Add stack metadata evaluation namespace.")
 
-	err := evalctx.SetNamespace("terramate", metaToCtyMap(sm))
+	err := evalctx.SetMetadata(sm)
 	if err != nil {
 		return nil, errors.E(sm, err, "setting terramate namespace on eval context")
 	}
 
 	logger.Trace().Msg("Add global evaluation namespace.")
 
-	if err := evalctx.SetNamespace("global", globals.Attributes()); err != nil {
-		return nil, errors.E(sm, err, "setting global namespace on eval context")
+	if err := evalctx.SetGlobals(globals); err != nil {
+		return nil, err
 	}
 
 	return evalctx, nil
+}
+
+// SetGlobals sets the given globals on the stack evaluation context.
+func (e *EvalCtx) SetGlobals(g Globals) error {
+	return e.evalctx.SetNamespace("global", g.Attributes())
+}
+
+// SetMetadata sets the given metadata on the stack evaluation context.
+func (e *EvalCtx) SetMetadata(sm Metadata) error {
+	return e.evalctx.SetNamespace("terramate", metaToCtyMap(sm))
+}
+
+// Eval will evaluate an expression given its context.
+func (e *EvalCtx) Eval(expr hclsyntax.Expression) (cty.Value, error) {
+	return e.evalctx.Eval(expr)
+}
+
+// PartialEval will partially evaluate an expression given its context.
+func (e *EvalCtx) PartialEval(expr hclsyntax.Expression) (hclwrite.Tokens, error) {
+	return e.evalctx.PartialEval(expr)
+}
+
+// HasNamespace returns true the evaluation context knows this namespace, false otherwise.
+func (e *EvalCtx) HasNamespace(name string) bool {
+	return e.evalctx.HasNamespace(name)
 }
 
 func metaToCtyMap(m Metadata) map[string]cty.Value {
