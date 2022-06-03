@@ -1393,12 +1393,13 @@ func TestPartialEval(t *testing.T) {
 	// No support for multiple config files or generating multiple
 	// configurations.
 	type testcase struct {
-		name    string
-		config  hclwrite.BlockBuilder
-		globals hclwrite.BlockBuilder
-		want    fmt.Stringer
-		wantErr error
-		skip    bool
+		name      string
+		stackpath string
+		config    hclwrite.BlockBuilder
+		globals   hclwrite.BlockBuilder
+		want      fmt.Stringer
+		wantErr   error
+		skip      bool
 	}
 
 	attr := func(name, expr string) hclwrite.BlockBuilder {
@@ -2449,6 +2450,16 @@ func TestPartialEval(t *testing.T) {
 				str("string", `/stack test`),
 			),
 		},
+		{
+			name:      "reproduce issue #376 - byte slice corruption",
+			stackpath: "live/production/us-east-1/infrastructure/route53-association",
+			config: hcldoc(
+				str("bucket", "terraform${tm_try(global.state_bucket_key, terramate.path)}/terraform.tfstate"),
+			),
+			want: hcldoc(
+				str("bucket", "terraform/live/production/us-east-1/infrastructure/route53-association/terraform.tfstate"),
+			),
+		},
 		/*
 			 * Hashicorp HCL formats the `wants` wrong.
 			 *
@@ -2469,13 +2480,15 @@ func TestPartialEval(t *testing.T) {
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			const (
-				stackname = "stack"
-				genname   = "test"
-			)
+			const genname = "test"
 
 			if tcase.skip {
 				t.Skip()
+			}
+
+			stackname := tcase.stackpath
+			if stackname == "" {
+				stackname = "stack"
 			}
 
 			s := sandbox.New(t)
