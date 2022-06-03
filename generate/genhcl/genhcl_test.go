@@ -2473,28 +2473,6 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			name:      "reproduce issue #376 - byte slice corruption",
-			stackpath: "live/production/us-east-1/infrastructure/route53-association",
-			config: hcldoc(
-				str("bucket", "terraform${tm_try(global.state_bucket_key, terramate.path)}/terraform.tfstate"),
-			),
-			want: hcldoc(
-				str("bucket", "terraform/live/production/us-east-1/infrastructure/route53-association/terraform.tfstate"),
-			),
-		},
-		{
-			name: "huge string as a result of interpolation",
-			globals: globals(
-				str("value", strings.Repeat("huge ", 1000)),
-			),
-			config: hcldoc(
-				str("big", "THIS IS ${tm_upper(global.value)} !!!"),
-			),
-			want: hcldoc(
-				str("big", fmt.Sprintf("THIS IS %s !!!", strings.ToUpper(strings.Repeat("huge ", 1000)))),
-			),
-		},
-		{
 			name: "interpolation eval is empty",
 			globals: globals(
 				str("value", ""),
