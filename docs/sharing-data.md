@@ -42,7 +42,7 @@ globals {
 }
 ```
 
-Globals can reference [metadata](metadata.md):
+Globals can reference [metadata](#metadata):
 
 ```hcl
 globals {
