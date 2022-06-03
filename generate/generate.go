@@ -301,7 +301,7 @@ func updateOutdatedFiles(
 		Str("stackpath", stackpath).
 		Logger()
 
-	logger.Trace().Msg("Checking for outdated generated_hcl code on stack.")
+	logger.Trace().Msg("Checking for outdated generated code on stack.")
 
 	for filename, genfile := range genfiles {
 		targetpath := filepath.Join(stackpath, filename)
