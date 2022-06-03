@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
@@ -98,7 +97,7 @@ func (c *Context) PartialEval(expr hclsyntax.Expression) (hclwrite.Tokens, error
 
 	exprRange := expr.Range()
 	exprBytes := filedata[exprRange.Start.Byte:exprRange.End.Byte]
-	tokens, diags := hclsyntax.LexExpression(exprBytes, exprFname, hcl.Pos{})
+	tokens, diags := hclsyntax.LexExpression(exprBytes, exprFname, hhcl.Pos{})
 	if diags.HasErrors() {
 		return nil, errors.E(diags, "failed to scan expression")
 	}
