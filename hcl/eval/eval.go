@@ -60,9 +60,9 @@ func (c *Context) SetNamespace(name string, vals map[string]cty.Value) error {
 		Str("action", "SetNamespace()").
 		Logger()
 
-	logger.Trace().
-		Msg("Convert from map to object.")
-	obj, err := fromMapToObject(vals)
+	logger.Trace().Msg("Convert from map to object")
+
+	obj, err := FromMapToObject(vals)
 	if err != nil {
 		return fmt.Errorf("setting namespace %q:%v", name, err)
 	}
@@ -107,6 +107,29 @@ func (c *Context) PartialEval(expr hclsyntax.Expression) (hclwrite.Tokens, error
 	return engine.Eval()
 }
 
+// FromMapToObject converts a map of cty.Value to an object.
+func FromMapToObject(values map[string]cty.Value) (cty.Value, error) {
+	logger := log.With().
+		Str("action", "fromMapToObject()").
+		Logger()
+
+	logger.Trace().Msg("Range over map")
+
+	ctyTypes := map[string]cty.Type{}
+	for key, value := range values {
+		ctyTypes[key] = value.Type()
+	}
+
+	logger.Trace().Msg("Convert type and value to object")
+
+	ctyObject := cty.Object(ctyTypes)
+	ctyVal, err := gocty.ToCtyValue(values, ctyObject)
+	if err != nil {
+		return cty.Value{}, err
+	}
+	return ctyVal, nil
+}
+
 func toWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {
 	tokens := make([]*hclwrite.Token, len(in))
 	for i, st := range in {
@@ -116,28 +139,6 @@ func toWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {
 		}
 	}
 	return tokens
-}
-
-func fromMapToObject(m map[string]cty.Value) (cty.Value, error) {
-	logger := log.With().
-		Str("action", "fromMapToObject()").
-		Logger()
-
-	logger.Trace().
-		Msg("Range over map.")
-	ctyTypes := map[string]cty.Type{}
-	for key, value := range m {
-		ctyTypes[key] = value.Type()
-	}
-
-	logger.Trace().
-		Msg("Convert type and value to object.")
-	ctyObject := cty.Object(ctyTypes)
-	ctyVal, err := gocty.ToCtyValue(m, ctyObject)
-	if err != nil {
-		return cty.Value{}, err
-	}
-	return ctyVal, nil
 }
 
 func newTmFunctions(tffuncs map[string]function.Function) map[string]function.Function {

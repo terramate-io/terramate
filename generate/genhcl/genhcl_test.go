@@ -873,9 +873,9 @@ func TestLoadGeneratedHCL(t *testing.T) {
 						origin:    defaultCfg("/"),
 						condition: true,
 						body: hcldoc(
-							str("stack_path_absolute", "/stacks/stack"),
-							str("stack_name", "stack"),
 							str("stack_description", ""),
+							str("stack_name", "stack"),
+							str("stack_path_absolute", "/stacks/stack"),
 						),
 					},
 				},
