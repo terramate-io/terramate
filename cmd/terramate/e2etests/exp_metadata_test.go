@@ -42,9 +42,9 @@ func TestCliMetadata(t *testing.T) {
 				Stdout: `Available metadata:
 
 stack "/stack":
-	terramate.name="stack"
-	terramate.path="/stack"
-	terramate.description=""
+	terramate.stack.name="stack"
+	terramate.stack.path.absolute="/stack"
+	terramate.stack.description=""
 `,
 			},
 		},
@@ -60,24 +60,24 @@ stack "/stack":
 				Stdout: `Available metadata:
 
 stack "/somedir/stack3":
-	terramate.name="stack3"
-	terramate.path="/somedir/stack3"
-	terramate.description=""
+	terramate.stack.name="stack3"
+	terramate.stack.path.absolute="/somedir/stack3"
+	terramate.stack.description=""
 
 stack "/somedir/stack4":
-	terramate.name="stack4"
-	terramate.path="/somedir/stack4"
-	terramate.description=""
+	terramate.stack.name="stack4"
+	terramate.stack.path.absolute="/somedir/stack4"
+	terramate.stack.description=""
 
 stack "/stack1":
-	terramate.name="stack1"
-	terramate.path="/stack1"
-	terramate.description=""
+	terramate.stack.name="stack1"
+	terramate.stack.path.absolute="/stack1"
+	terramate.stack.description=""
 
 stack "/stack2":
-	terramate.name="stack2"
-	terramate.path="/stack2"
-	terramate.description=""
+	terramate.stack.name="stack2"
+	terramate.stack.path.absolute="/stack2"
+	terramate.stack.description=""
 `,
 			},
 		},
@@ -94,9 +94,9 @@ stack "/stack2":
 				Stdout: `Available metadata:
 
 stack "/stack1":
-	terramate.name="stack1"
-	terramate.path="/stack1"
-	terramate.description=""
+	terramate.stack.name="stack1"
+	terramate.stack.path.absolute="/stack1"
+	terramate.stack.description=""
 `,
 			},
 		},
@@ -113,14 +113,14 @@ stack "/stack1":
 				Stdout: `Available metadata:
 
 stack "/somedir/stack3":
-	terramate.name="stack3"
-	terramate.path="/somedir/stack3"
-	terramate.description=""
+	terramate.stack.name="stack3"
+	terramate.stack.path.absolute="/somedir/stack3"
+	terramate.stack.description=""
 
 stack "/somedir/stack4":
-	terramate.name="stack4"
-	terramate.path="/somedir/stack4"
-	terramate.description=""
+	terramate.stack.name="stack4"
+	terramate.stack.path.absolute="/somedir/stack4"
+	terramate.stack.description=""
 `,
 			},
 		},
