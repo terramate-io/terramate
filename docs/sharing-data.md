@@ -243,7 +243,7 @@ accessed through the variable namespace **terramate**.
 This can be referenced from any Terramate code to reference
 information like the path of the stack or its name.
 
-## terramate.stack.path (string) 
+## terramate.stack.path.absolute (string) 
 
 The absolute path of the stack relative to the project
 root directory, not the host root directory. So it is absolute
@@ -295,7 +295,7 @@ process of deprecation.
 
 ### terramate.path (string) 
 
-Superseded by terramate.stack.path.
+Superseded by terramate.stack.path.absolute.
 
 ### terramate.name (string) 
 
