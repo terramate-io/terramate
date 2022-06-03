@@ -2460,6 +2460,18 @@ func TestPartialEval(t *testing.T) {
 				str("bucket", "terraform/live/production/us-east-1/infrastructure/route53-association/terraform.tfstate"),
 			),
 		},
+		{
+			name: "huge string as a result of interpolation",
+			globals: globals(
+				str("value", strings.Repeat("huge ", 1000)),
+			),
+			config: hcldoc(
+				str("big", "THIS IS ${tm_upper(global.value)} !!!"),
+			),
+			want: hcldoc(
+				str("big", fmt.Sprintf("THIS IS %s !!!", strings.ToUpper(strings.Repeat("huge ", 1000)))),
+			),
+		},
 		/*
 			 * Hashicorp HCL formats the `wants` wrong.
 			 *
