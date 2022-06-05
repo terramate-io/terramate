@@ -44,7 +44,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 				labels("test.tf"),
 				content(
 					terraform(
-						strAttr("required_version", "1.10"),
+						str("required_version", "1.10"),
 					),
 				),
 			),
@@ -62,7 +62,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 				labels("test.tf"),
 				content(
 					terraform(
-						strAttr("required_version", "1.11"),
+						str("required_version", "1.11"),
 					),
 				),
 			),
@@ -80,7 +80,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 				labels("testnew.tf"),
 				content(
 					terraform(
-						strAttr("required_version", "1.11"),
+						str("required_version", "1.11"),
 					),
 				),
 			),
@@ -95,7 +95,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 				labels("testnew.tf"),
 				content(
 					terraform(
-						strAttr("required_version", "1.11"),
+						str("required_version", "1.11"),
 					),
 				),
 			),
@@ -176,6 +176,56 @@ func TestCheckOutdatedIgnoresEmptyGenerateHCLBlocks(t *testing.T) {
 		).String())
 
 	assertOutdatedFiles([]string{"test.tf"})
+
+	s.Generate()
+
+	assertOutdatedFiles([]string{})
+}
+
+func TestCheckOutdatedIgnoresWhenGenHCLConditionIsFalse(t *testing.T) {
+	const filename = "test.tf"
+
+	s := sandbox.New(t)
+
+	stackEntry := s.CreateStack("stacks/stack")
+	stack := stackEntry.Load()
+
+	assertOutdatedFiles := func(want []string) {
+		t.Helper()
+
+		got, err := generate.CheckStack(s.RootDir(), stack)
+		assert.NoError(t, err)
+		assertEqualStringList(t, got, want)
+	}
+
+	createConfig := func(filename string, condition bool) {
+		stackEntry.CreateConfig(
+			stackConfig(
+				generateHCL(
+					labels(filename),
+					boolean("condition", condition),
+					content(
+						block("whatever"),
+					),
+				),
+			).String())
+	}
+
+	// Checking detection when the condition is false
+	createConfig(filename, false)
+	assertOutdatedFiles([]string{})
+
+	// Checking detection when the condition is true
+	createConfig(filename, true)
+	assertOutdatedFiles([]string{filename})
+
+	s.Generate()
+
+	assertOutdatedFiles([]string{})
+
+	// Checking the condition back to false triggers detection
+	createConfig(filename, false)
+	assertOutdatedFiles([]string{filename})
 
 	s.Generate()
 
