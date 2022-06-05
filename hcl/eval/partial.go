@@ -101,8 +101,11 @@ type node struct {
 }
 
 func newPartialEvalEngine(tokens hclwrite.Tokens, ctx *Context) *engine {
+	// we copy the token bytes because the original slice is not safe to
+	// be modified.
+	newtokens := copytokens(tokens)
 	return &engine{
-		tokens: tokens,
+		tokens: newtokens,
 		ctx:    ctx,
 	}
 }
@@ -1269,25 +1272,30 @@ func (n *node) lastEvaluated() *hclwrite.Token {
 	return n.evaluated[len(n.evaluated)-1]
 }
 
+func copytokens(tokens hclwrite.Tokens) hclwrite.Tokens {
+	var newtokens hclwrite.Tokens
+	for _, tok := range tokens {
+		newtokens = append(newtokens, copytoken(tok))
+	}
+	return newtokens
+}
+
 func copytoken(tok *hclwrite.Token) *hclwrite.Token {
 	newtok := &hclwrite.Token{
-		Type:  tok.Type,
-		Bytes: make([]byte, len(tok.Bytes)),
+		Type:         tok.Type,
+		Bytes:        make([]byte, len(tok.Bytes)),
+		SpacesBefore: tok.SpacesBefore,
 	}
 	copy(newtok.Bytes, tok.Bytes)
 	return newtok
 }
 
 func (n *node) pushEvaluated(toks ...*hclwrite.Token) {
-	for _, tok := range toks {
-		n.evaluated = append(n.evaluated, copytoken(tok))
-	}
+	n.evaluated = append(n.evaluated, toks...)
 }
 
 func (n *node) pushOriginal(toks ...*hclwrite.Token) {
-	for _, tok := range toks {
-		n.original = append(n.original, copytoken(tok))
-	}
+	n.original = append(n.original, toks...)
 }
 
 type nodestack struct {
