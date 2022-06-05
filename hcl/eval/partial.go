@@ -1008,7 +1008,7 @@ func (e *engine) evalString() error {
 	// The code below will merge all interpolation parts into this node.
 
 	// we merge subsequent string interpolation into previous (last) TokenQuotedLit.
-	var last []byte
+	var last *hclwrite.Token
 	for i := stacksize; i < e.evalstack.len(); i++ {
 		elem := e.evalstack.peekn(i)
 		elem.evaluated = trimIgnored(elem.evaluated)
@@ -1025,22 +1025,26 @@ func (e *engine) evalString() error {
 					len(elem.evaluated)))
 			}
 
-			last = append(last, elem.evaluated.Bytes()...)
+			rewritten.pushfrom(elem)
+			last = rewritten.lastEvaluated()
 		case hclsyntax.TokenTemplateInterp:
-			if len(last) > 0 {
-				rewritten.pushEvaluated(&hclwrite.Token{
-					Type:  hclsyntax.TokenQuotedLit,
-					Bytes: last,
-				})
-				last = nil
-			}
 			rewritten.pushfrom(elem)
 		case hclsyntax.TokenNumberLit, hclsyntax.TokenIdent:
 			if len(elem.evaluated) > 1 {
 				panic(fmt.Errorf("expects one part: %s", elem.evaluated.Bytes()))
 			}
 
-			last = append(last, elem.evaluated[0].Bytes...)
+			if last == nil {
+				rewritten.pushEvaluated(&hclwrite.Token{
+					Type:  hclsyntax.TokenQuotedLit,
+					Bytes: elem.evaluated[0].Bytes,
+				})
+				rewritten.pushOriginal(elem.original...)
+				last = rewritten.lastEvaluated()
+			} else {
+				last.Bytes = append(last.Bytes, elem.evaluated[0].Bytes...)
+			}
+
 		case hclsyntax.TokenOQuote:
 			if len(elem.evaluated) < 2 {
 				panic(sprintf(
@@ -1050,19 +1054,26 @@ func (e *engine) evalString() error {
 			}
 
 			if len(elem.evaluated) == 2 {
+				tok := &hclwrite.Token{
+					Type: hclsyntax.TokenQuotedLit,
+				}
+				rewritten.pushEvaluated(tok)
+				rewritten.pushOriginal(elem.original...)
+				last = rewritten.lastEvaluated()
 				continue
 			}
 
 			for j := 1; j < len(elem.evaluated)-1; j++ {
 				switch elem.evaluated[j].Type {
 				case hclsyntax.TokenQuotedLit:
-					last = append(last, elem.evaluated[j].Bytes...)
+					if last == nil {
+						rewritten.pushEvaluated(elem.evaluated[j])
+						last = rewritten.lastEvaluated()
+					} else {
+						last.Bytes = append(last.Bytes, elem.evaluated[j].Bytes...)
+					}
 				default:
-					if len(last) > 0 {
-						rewritten.pushEvaluated(&hclwrite.Token{
-							Type:  hclsyntax.TokenQuotedLit,
-							Bytes: last,
-						})
+					if last != nil {
 						last = nil
 					}
 
@@ -1076,13 +1087,6 @@ func (e *engine) evalString() error {
 			panic(sprintf("unexpected interpolation type: %s (%s)",
 				elem.evaluated.Bytes(), elem.evaluated[0].Type))
 		}
-	}
-
-	if len(last) > 0 {
-		rewritten.pushEvaluated(&hclwrite.Token{
-			Type:  hclsyntax.TokenQuotedLit,
-			Bytes: last,
-		})
 	}
 
 	rewritten.push(tokenCQuote())
@@ -1258,12 +1262,32 @@ func (n *node) push(tok *hclwrite.Token) {
 	n.pushEvaluated(tok)
 }
 
+func (n *node) lastEvaluated() *hclwrite.Token {
+	if len(n.evaluated) == 0 {
+		panic("bug: no evaluated token")
+	}
+	return n.evaluated[len(n.evaluated)-1]
+}
+
+func copytoken(tok *hclwrite.Token) *hclwrite.Token {
+	newtok := &hclwrite.Token{
+		Type:  tok.Type,
+		Bytes: make([]byte, len(tok.Bytes)),
+	}
+	copy(newtok.Bytes, tok.Bytes)
+	return newtok
+}
+
 func (n *node) pushEvaluated(toks ...*hclwrite.Token) {
-	n.evaluated = append(n.evaluated, toks...)
+	for _, tok := range toks {
+		n.evaluated = append(n.evaluated, copytoken(tok))
+	}
 }
 
 func (n *node) pushOriginal(toks ...*hclwrite.Token) {
-	n.original = append(n.original, toks...)
+	for _, tok := range toks {
+		n.original = append(n.original, copytoken(tok))
+	}
 }
 
 type nodestack struct {
