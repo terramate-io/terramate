@@ -1272,24 +1272,6 @@ func (n *node) lastEvaluated() *hclwrite.Token {
 	return n.evaluated[len(n.evaluated)-1]
 }
 
-func copytokens(tokens hclwrite.Tokens) hclwrite.Tokens {
-	var newtokens hclwrite.Tokens
-	for _, tok := range tokens {
-		newtokens = append(newtokens, copytoken(tok))
-	}
-	return newtokens
-}
-
-func copytoken(tok *hclwrite.Token) *hclwrite.Token {
-	newtok := &hclwrite.Token{
-		Type:         tok.Type,
-		Bytes:        make([]byte, len(tok.Bytes)),
-		SpacesBefore: tok.SpacesBefore,
-	}
-	copy(newtok.Bytes, tok.Bytes)
-	return newtok
-}
-
 func (n *node) pushEvaluated(toks ...*hclwrite.Token) {
 	n.evaluated = append(n.evaluated, toks...)
 }
@@ -1363,6 +1345,24 @@ func ignorenlc(tokens hclwrite.Tokens) hclwrite.Tokens {
 		}
 	}
 	return rest
+}
+
+func copytokens(tokens hclwrite.Tokens) hclwrite.Tokens {
+	var newtokens hclwrite.Tokens
+	for _, tok := range tokens {
+		newtokens = append(newtokens, copytoken(tok))
+	}
+	return newtokens
+}
+
+func copytoken(tok *hclwrite.Token) *hclwrite.Token {
+	newtok := &hclwrite.Token{
+		Type:         tok.Type,
+		Bytes:        make([]byte, len(tok.Bytes)),
+		SpacesBefore: tok.SpacesBefore,
+	}
+	copy(newtok.Bytes, tok.Bytes)
+	return newtok
 }
 
 // variable is a low-level representation of a variable in terms of tokens.
