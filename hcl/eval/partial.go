@@ -220,12 +220,15 @@ func (e *engine) emitVariable(v variable) error {
 	tos := e.evalstack.peek()
 	if v.hasIndexing() {
 		subengine := newPartialEvalEngine(v.index, e.ctx)
-		newindex, err := subengine.Eval()
-		if err != nil {
-			return err
+		pos := subengine.skip(0)
+		subengine.pos += pos
+		if subengine.peek().Type != hclsyntax.TokenStar {
+			newindex, err := subengine.Eval()
+			if err != nil {
+				return err
+			}
+			v.index = newindex
 		}
-		v.index = newindex
-
 	}
 	tos.pushEvaluated(v.alltokens()...)
 	for _, tok := range v.original {
