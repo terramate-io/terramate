@@ -222,7 +222,8 @@ func (e *engine) emitVariable(v variable) error {
 		subengine := newPartialEvalEngine(v.index, e.ctx)
 		pos := subengine.skip(0)
 		subengine.pos += pos
-		if subengine.peek().Type != hclsyntax.TokenStar {
+		if subengine.hasTokens() &&
+			subengine.peek().Type != hclsyntax.TokenStar {
 			newindex, err := subengine.Eval()
 			if err != nil {
 				return err
@@ -431,6 +432,10 @@ loop:
 
 	e.emitnlparens()
 	e.emitComments()
+
+	if !e.hasTokens() {
+		return nil
+	}
 
 	// operation && conditional
 
