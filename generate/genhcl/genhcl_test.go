@@ -2060,21 +2060,7 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			name: "global eval",
-			globals: hcldoc(
-				globals(
-					number("depth", 1),
-				),
-			),
-			config: hcldoc(
-				str("folder_id", "l${global.depth}"),
-			),
-			want: hcldoc(
-				str("folder_id", "l1"),
-			),
-		},
-		{
-			name: "index with interpolation",
+			name: "indexing of outside variables",
 			globals: hcldoc(
 				globals(
 					number("depth", 1),
@@ -2088,7 +2074,7 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			name: "index with interpolation",
+			name: "indexing of outside variables with interpolation of single var",
 			globals: hcldoc(
 				globals(
 					number("depth", 1),
@@ -2102,7 +2088,7 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			name: "index with interpolation",
+			name: "indexing of outside variables with interpolation",
 			globals: hcldoc(
 				globals(
 					number("depth", 1),
