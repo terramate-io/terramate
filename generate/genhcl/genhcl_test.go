@@ -2060,6 +2060,62 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
+			name: "global eval",
+			globals: hcldoc(
+				globals(
+					number("depth", 1),
+				),
+			),
+			config: hcldoc(
+				str("folder_id", "l${global.depth}"),
+			),
+			want: hcldoc(
+				str("folder_id", "l1"),
+			),
+		},
+		{
+			name: "index with interpolation",
+			globals: hcldoc(
+				globals(
+					number("depth", 1),
+				),
+			),
+			config: hcldoc(
+				expr("folder_id", `data.google_active_folder[global.depth].0.id`),
+			),
+			want: hcldoc(
+				expr("folder_id", `data.google_active_folder[1].0.id`),
+			),
+		},
+		{
+			name: "index with interpolation",
+			globals: hcldoc(
+				globals(
+					number("depth", 1),
+				),
+			),
+			config: hcldoc(
+				expr("folder_id", `data.google_active_folder["${global.depth}"].0.id`),
+			),
+			want: hcldoc(
+				expr("folder_id", `data.google_active_folder[1].0.id`),
+			),
+		},
+		{
+			name: "index with interpolation",
+			globals: hcldoc(
+				globals(
+					number("depth", 1),
+				),
+			),
+			config: hcldoc(
+				expr("folder_id", `data.google_active_folder["l${global.depth}"].0.id`),
+			),
+			want: hcldoc(
+				expr("folder_id", `data.google_active_folder["l1"].0.id`),
+			),
+		},
+		{
 			name: "obj for loop without eval references",
 			config: hcldoc(
 				expr("obj", `{for k in local.list : k => k}`),

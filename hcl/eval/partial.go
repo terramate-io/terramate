@@ -216,13 +216,29 @@ func (e *engine) emitn(n int) {
 	}
 }
 
-func (e *engine) emitVariable(v variable) {
+func (e *engine) emitVariable(v variable) error {
 	tos := e.evalstack.peek()
+	fmt.Printf("variable: %s\n", v.alltokens().Bytes())
+	if v.hasIndexing() {
+		fmt.Printf("indexing: %s\n", v.index.Bytes())
+
+		subengine := newPartialEvalEngine(v.index, e.ctx)
+		newindex, err := subengine.Eval()
+		if err != nil {
+			return err
+		}
+		v.index = newindex
+
+		fmt.Printf("result: %s\n", v.index.Bytes())
+	}
+	fmt.Printf("original: %s\n", v.original.Bytes())
 	tos.pushEvaluated(v.alltokens()...)
-	for i := 0; i < v.size(); i++ {
-		tos.pushOriginal(e.peek())
+	for _, tok := range v.original {
+		tos.pushOriginal(tok)
 		e.pos++
 	}
+
+	return nil
 }
 
 func (e *engine) emitTokens(original hclwrite.Tokens, evaluated hclwrite.Tokens) {
@@ -721,7 +737,10 @@ func (e *engine) evalForExpr(matchOpenType, matchCloseType hclsyntax.TokenType) 
 				)
 			}
 
-			e.emitVariable(v)
+			err := e.emitVariable(v)
+			if err != nil {
+				return err
+			}
 		} else {
 			e.emit()
 		}
@@ -841,8 +860,7 @@ func (e *engine) evalVar() error {
 	}
 
 	if !v.isTerramate {
-		e.emitVariable(v)
-		return nil
+		return e.emitVariable(v)
 	}
 
 	var expr []byte
@@ -1139,13 +1157,16 @@ func (e *engine) parseVariable(tokens hclwrite.Tokens) (v variable, found bool) 
 	v.isTerramate = nsvar == "global" || nsvar == "terramate"
 
 	if pos < len(tokens) && tokens[pos].Type == hclsyntax.TokenOBrack {
-		v.index = parseIndexing(tokens[pos:])
+		var skip int
+		v.index, skip = parseIndexing(tokens[pos:])
+		pos += skip
 	}
 
+	v.original = tokens[0:pos]
 	return v, true
 }
 
-func parseIndexing(tokens hclwrite.Tokens) hclwrite.Tokens {
+func parseIndexing(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	assertToken(tokens[0], hclsyntax.TokenOBrack)
 
 	pos := 1
@@ -1180,7 +1201,7 @@ func parseIndexing(tokens hclwrite.Tokens) hclwrite.Tokens {
 	}
 
 	assertToken(tokens[pos], hclsyntax.TokenCBrack)
-	return tokens[1:pos]
+	return tokens[1:pos], pos + 1
 }
 
 func (e *engine) canEvaluateIdent() bool {
@@ -1370,18 +1391,21 @@ type variable struct {
 	name  hclwrite.Tokens
 	index hclwrite.Tokens
 
+	original    hclwrite.Tokens
 	isTerramate bool
 }
 
 func (v variable) alltokens() hclwrite.Tokens {
 	tokens := v.name
-	if len(v.index) > 0 {
+	if v.hasIndexing() {
 		tokens = append(tokens, tokenOBrack())
 		tokens = append(tokens, v.index...)
 		tokens = append(tokens, tokenCBrack())
 	}
 	return tokens
 }
+
+func (v variable) hasIndexing() bool { return len(v.index) > 0 }
 
 func (v variable) size() int {
 	sz := len(v.name)
