@@ -218,10 +218,7 @@ func (e *engine) emitn(n int) {
 
 func (e *engine) emitVariable(v variable) error {
 	tos := e.evalstack.peek()
-	fmt.Printf("variable: %s\n", v.alltokens().Bytes())
 	if v.hasIndexing() {
-		fmt.Printf("indexing: %s\n", v.index.Bytes())
-
 		subengine := newPartialEvalEngine(v.index, e.ctx)
 		newindex, err := subengine.Eval()
 		if err != nil {
@@ -229,9 +226,7 @@ func (e *engine) emitVariable(v variable) error {
 		}
 		v.index = newindex
 
-		fmt.Printf("result: %s\n", v.index.Bytes())
 	}
-	fmt.Printf("original: %s\n", v.original.Bytes())
 	tos.pushEvaluated(v.alltokens()...)
 	for _, tok := range v.original {
 		tos.pushOriginal(tok)
