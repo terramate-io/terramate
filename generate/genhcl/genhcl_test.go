@@ -2102,6 +2102,15 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
+			name: "outside variable with splat operator",
+			config: hcldoc(
+				expr("folder_id", `data.test[*].0.id`),
+			),
+			want: hcldoc(
+				expr("folder_id", `data.test[*].0.id`),
+			),
+		},
+		{
 			name: "obj for loop without eval references",
 			config: hcldoc(
 				expr("obj", `{for k in local.list : k => k}`),
