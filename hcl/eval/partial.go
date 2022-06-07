@@ -220,6 +220,7 @@ func (e *engine) emitVariable(v variable) error {
 	tos := e.evalstack.peek()
 	if v.hasIndexing() {
 		subengine := newPartialEvalEngine(v.index, e.ctx)
+		subengine.multiline++
 		pos := subengine.skip(0)
 		subengine.pos += pos
 		if subengine.hasTokens() &&
@@ -412,12 +413,12 @@ loop:
 			e.peek().Type, e.tokens[e.pos:].Bytes()))
 	}
 
+	e.emitnlparens()
+	e.emitComments()
+
 	if !e.hasTokens() {
 		return nil
 	}
-
-	e.emitnlparens()
-	e.emitComments()
 
 	// exprTerm INDEX,GETATTR,SPLAT (expression acessors)
 	tok = e.peek()
