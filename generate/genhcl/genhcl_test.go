@@ -2120,6 +2120,43 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
+			name: "multiple indexing",
+			config: hcldoc(
+				expr("a", `data.test[0][0][0]`),
+			),
+			want: hcldoc(
+				expr("a", `data.test[0][0][0]`),
+			),
+		},
+		{
+			name: "multiple indexing with evaluation",
+			globals: hcldoc(
+				globals(
+					number("val", 1),
+				),
+			),
+			config: hcldoc(
+				expr("a", `data.test[global.val][0][0]`),
+			),
+			want: hcldoc(
+				expr("a", `data.test[1][0][0]`),
+			),
+		},
+		{
+			name: "multiple indexing with evaluation 2",
+			globals: hcldoc(
+				globals(
+					number("val", 1),
+				),
+			),
+			config: hcldoc(
+				expr("a", `data.test[0][global.val][global.val+1]`),
+			),
+			want: hcldoc(
+				expr("a", `data.test[0][1][1+1]`),
+			),
+		},
+		{
 			name: "obj for loop without eval references",
 			config: hcldoc(
 				expr("obj", `{for k in local.list : k => k}`),
