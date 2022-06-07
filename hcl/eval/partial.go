@@ -530,6 +530,8 @@ func (e *engine) evalIndex() error {
 	e.newnode()
 	e.multiline++
 
+	defer func() { e.multiline-- }()
+
 	e.assert(hclsyntax.TokenOBrack)
 	e.emit()
 
@@ -554,6 +556,11 @@ func (e *engine) evalIndex() error {
 	e.emit()
 	e.emitnlparens()
 	e.emitComments()
+
+	if !e.hasTokens() {
+		return nil
+	}
+
 	tok := e.peek()
 	switch tok.Type {
 	case hclsyntax.TokenOBrack, hclsyntax.TokenDot:
@@ -563,8 +570,6 @@ func (e *engine) evalIndex() error {
 		}
 		e.commit()
 	}
-
-	e.multiline--
 
 	return nil
 }
