@@ -219,17 +219,21 @@ func (e *engine) emitn(n int) {
 func (e *engine) emitVariable(v variable) error {
 	tos := e.evalstack.peek()
 	if v.hasIndexing() {
-		subengine := newPartialEvalEngine(v.index, e.ctx)
+		// Prepare a subengine to evaluate the indexing tokens.
+		// The partial eval engine expects the token stream to be EOF terminated.
+		index := make(hclwrite.Tokens, len(v.index))
+		copy(index, v.index)
+		index = append(index, tokenEOF())
+		subengine := newPartialEvalEngine(index, e.ctx)
 		subengine.multiline++
-		pos := subengine.skip(0)
-		subengine.pos += pos
-		if subengine.hasTokens() &&
-			subengine.peek().Type != hclsyntax.TokenStar {
+		if subengine.peek().Type != hclsyntax.TokenStar {
 			newindex, err := subengine.Eval()
 			if err != nil {
 				return err
 			}
-			v.index = newindex
+
+			// remove EOF
+			v.index = newindex[0 : len(newindex)-1]
 		}
 	}
 	tos.pushEvaluated(v.alltokens()...)
