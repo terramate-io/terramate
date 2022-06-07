@@ -295,7 +295,7 @@ Given this project layout:
 
 ## terramate.stack.path.to\_root (string)
 
-The relative path from the stack to root.
+The relative path from the stack to the project root.
 
 Given this project layout:
 
