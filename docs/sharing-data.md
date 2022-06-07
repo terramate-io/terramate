@@ -42,7 +42,7 @@ globals {
 }
 ```
 
-Globals can reference [metadata](metadata.md):
+Globals can reference [metadata](#metadata):
 
 ```hcl
 globals {
@@ -243,7 +243,7 @@ accessed through the variable namespace **terramate**.
 This can be referenced from any Terramate code to reference
 information like the path of the stack or its name.
 
-## terramate.path (string) 
+## terramate.stack.path.absolute (string) 
 
 The absolute path of the stack relative to the project
 root directory, not the host root directory. So it is absolute
@@ -258,10 +258,10 @@ Given this project layout:
     └── stack-b
 ```
 
-* terramate.path for **stack-a** = /stacks/stack-a
-* terramate.path for **stack-b** = /stacks/stack-b
+* **stack-a** = /stacks/stack-a
+* **stack-b** = /stacks/stack-b
 
-## terramate.name (string) 
+## terramate.stack.name (string) 
 
 The name of the stack.
 
@@ -274,16 +274,33 @@ Given this stack layout (from the root of the project):
     └── stack-b
 ```
 
-* terramate.name for **stack-a** = stack-a
-* terramate.name for **stack-b** = stack-b
+* **stack-a** = stack-a
+* **stack-b** = stack-b
 
 Please consider [stack configuration](stack.md) to see how
 you can change the default stack name.
 
-## terramate.description (string) 
+## terramate.stack.description (string) 
 
 The description of the stack, if it has any.
 The default value is an empty string.
 
 Please consider [stack configuration](stack.md) to see how
 you can change the default stack description.
+
+## Deprecated
+
+Here is a list of older metadata that still can be used but are in the
+process of deprecation.
+
+### terramate.path (string) 
+
+Superseded by terramate.stack.path.absolute.
+
+### terramate.name (string) 
+
+Superseded by terramate.stack.name.
+
+### terramate.description (string) 
+
+Superseded by terramate.stack.description.

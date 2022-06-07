@@ -816,9 +816,9 @@ func (c *cli) printMetadata() {
 			Msg("Print metadata for individual stack.")
 
 		c.log("\nstack %q:", stackMeta.Path())
-		c.log("\tterramate.name=%q", stackMeta.Name())
-		c.log("\tterramate.path=%q", stackMeta.Path())
-		c.log("\tterramate.description=%q", stackMeta.Desc())
+		c.log("\tterramate.stack.name=%q", stackMeta.Name())
+		c.log("\tterramate.stack.description=%q", stackMeta.Desc())
+		c.log("\tterramate.stack.path.absolute=%q", stackMeta.Path())
 	}
 }
 

@@ -851,6 +851,37 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 		},
 		{
+			name:  "all metadata available",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: generateHCL(
+						labels("root"),
+						content(
+							expr("stack_path_absolute", "terramate.stack.path.absolute"),
+							expr("stack_name", "terramate.stack.name"),
+							expr("stack_description", "terramate.stack.description"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "root",
+					hcl: genHCL{
+						origin:    defaultCfg("/"),
+						condition: true,
+						body: hcldoc(
+							str("stack_description", ""),
+							str("stack_name", "stack"),
+							str("stack_path_absolute", "/stacks/stack"),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "generate HCL on project root dir",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
@@ -860,7 +891,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 						labels("root"),
 						content(
 							block("root",
-								expr("test", "terramate.path"),
+								expr("test", "terramate.stack.path.absolute"),
 							),
 						),
 					),
@@ -2443,7 +2474,7 @@ func TestPartialEval(t *testing.T) {
 		{
 			name: "terramate.path interpolation",
 			config: hcldoc(
-				str("string", `${terramate.path} test`),
+				str("string", `${terramate.stack.path.absolute} test`),
 			),
 			want: hcldoc(
 				str("string", `/stack test`),
