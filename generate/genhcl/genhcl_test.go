@@ -1437,6 +1437,7 @@ func TestPartialEval(t *testing.T) {
 		return hclwrite.AttributeValue(t, name, expr)
 	}
 
+	hugestr := strings.Repeat("huge ", 1000)
 	tcases := []testcase{
 		{
 			name: "unknown references on attributes",
@@ -2480,6 +2481,42 @@ func TestPartialEval(t *testing.T) {
 				str("string", `/stack test`),
 			),
 		},
+		{
+			name: "huge string as a result of interpolation",
+			globals: globals(
+				str("value", hugestr),
+			),
+			config: hcldoc(
+				str("big", "THIS IS ${tm_upper(global.value)} !!!"),
+			),
+			want: hcldoc(
+				str("big", fmt.Sprintf("THIS IS %s !!!", strings.ToUpper(hugestr))),
+			),
+		},
+		{
+			name: "interpolation eval is empty",
+			globals: globals(
+				str("value", ""),
+			),
+			config: hcldoc(
+				str("big", "THIS IS ${tm_upper(global.value)} !!!"),
+			),
+			want: hcldoc(
+				str("big", "THIS IS  !!!"),
+			),
+		},
+		{
+			name: "interpolation eval is partial",
+			globals: globals(
+				str("value", ""),
+			),
+			config: hcldoc(
+				str("test", `THIS IS ${tm_upper(global.value) + "test"} !!!`),
+			),
+			want: hcldoc(
+				str("test", `THIS IS ${"" + "test"} !!!`),
+			),
+		},
 		/*
 			 * Hashicorp HCL formats the `wants` wrong.
 			 *
@@ -2500,10 +2537,8 @@ func TestPartialEval(t *testing.T) {
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			const (
-				stackname = "stack"
-				genname   = "test"
-			)
+			const genname = "test"
+			const stackname = "stack"
 
 			if tcase.skip {
 				t.Skip()
