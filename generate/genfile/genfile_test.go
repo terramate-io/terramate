@@ -133,6 +133,29 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 		},
 		{
+			name:  "all metadata available",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: generateFile(
+						labels("test"),
+						str("content", "${terramate.stack.path.absolute}-${terramate.stack.name}-${terramate.stack.description}"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name:      "test",
+					condition: true,
+					file: genFile{
+						origin: "/stack/test.tm",
+						body:   "/stack-stack-",
+					},
+				},
+			},
+		},
+		{
 			name:  "using globals and metadata with interpolation",
 			stack: "/stack",
 			configs: []hclconfig{
@@ -146,7 +169,7 @@ func TestLoadGenerateFiles(t *testing.T) {
 					path: "/stack/test.tm",
 					add: generateFile(
 						labels("test"),
-						str("content", "${global.data}-${terramate.path}"),
+						str("content", "${global.data}-${terramate.stack.path.absolute}"),
 					),
 				},
 			},
@@ -384,7 +407,7 @@ func TestLoadGenerateFiles(t *testing.T) {
 					path: "/stack/yaml.tm",
 					add: generateFile(
 						labels("test.yml"),
-						expr("content", "tm_yamlencode({field = terramate.path})"),
+						expr("content", "tm_yamlencode({field = terramate.stack.path.absolute})"),
 					),
 				},
 			},
