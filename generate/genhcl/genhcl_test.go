@@ -1429,7 +1429,6 @@ func TestPartialEval(t *testing.T) {
 		globals hclwrite.BlockBuilder
 		want    fmt.Stringer
 		wantErr error
-		skip    bool
 	}
 
 	attr := func(name, expr string) hclwrite.BlockBuilder {
@@ -2033,7 +2032,6 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "advanced list indexing",
-			skip: true,
 			globals: hcldoc(
 				globals(
 					expr("list", `[ [1, 2, 3], [4, 5, 6], [7, 8, 9]]`),
@@ -2048,7 +2046,6 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "advanced list indexing 2",
-			skip: true,
 			globals: hcldoc(
 				globals(
 					expr("list", `[ [1, 2, 3], [4, 5, 6], [7, 8, 9]]`),
@@ -2063,14 +2060,13 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "advanced object indexing",
-			skip: true,
 			globals: hcldoc(
 				globals(
 					expr("obj", `{A = {B = "test"}}`),
 				),
 			),
 			config: hcldoc(
-				expr("string", `global.list[tm_upper("a")][tm_upper("b)]`),
+				expr("string", `global.obj[tm_upper("a")][tm_upper("b")]`),
 			),
 			want: hcldoc(
 				str("string", "test"),
@@ -2539,10 +2535,6 @@ func TestPartialEval(t *testing.T) {
 		t.Run(tcase.name, func(t *testing.T) {
 			const genname = "test"
 			const stackname = "stack"
-
-			if tcase.skip {
-				t.Skip()
-			}
 
 			s := sandbox.New(t)
 			stackEntry := s.CreateStack(stackname)
