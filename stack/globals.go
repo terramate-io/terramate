@@ -193,9 +193,7 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 
 			logger.Trace().Msg("Try add proper namespace for globals evaluation context.")
 
-			if err := evalctx.SetGlobals(globals); err != nil {
-				return Globals{}, errors.E(err, "evaluating globals")
-			}
+			evalctx.SetGlobals(globals)
 		}
 
 		if amountEvaluated == 0 {

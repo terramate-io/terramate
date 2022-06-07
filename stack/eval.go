@@ -17,9 +17,7 @@ package stack
 import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
-	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/eval"
-	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -30,41 +28,20 @@ type EvalCtx struct {
 
 // NewEvalCtx creates a new stack evaluation context.
 func NewEvalCtx(stackpath string, sm Metadata, globals Globals) (*EvalCtx, error) {
-	logger := log.With().
-		Str("action", "stack.NewEvalCtx()").
-		Str("path", stackpath).
-		Logger()
-
 	evalctx := &EvalCtx{evalctx: eval.NewContext(stackpath)}
-
-	logger.Trace().Msg("Add stack metadata evaluation namespace.")
-
-	err := evalctx.SetMetadata(sm)
-	if err != nil {
-		return nil, errors.E(sm, err, "setting terramate namespace on eval context")
-	}
-
-	logger.Trace().Msg("Add global evaluation namespace.")
-
-	if err := evalctx.SetGlobals(globals); err != nil {
-		return nil, err
-	}
-
+	evalctx.SetMetadata(sm)
+	evalctx.SetGlobals(globals)
 	return evalctx, nil
 }
 
 // SetGlobals sets the given globals on the stack evaluation context.
-func (e *EvalCtx) SetGlobals(g Globals) error {
-	return e.evalctx.SetNamespace("global", g.Attributes())
+func (e *EvalCtx) SetGlobals(g Globals) {
+	e.evalctx.SetNamespace("global", g.Attributes())
 }
 
 // SetMetadata sets the given metadata on the stack evaluation context.
-func (e *EvalCtx) SetMetadata(sm Metadata) error {
-	namespaceValues, err := metaToCtyMap(sm)
-	if err != nil {
-		return errors.E(err, "setting metadata on eval ctx")
-	}
-	return e.evalctx.SetNamespace("terramate", namespaceValues)
+func (e *EvalCtx) SetMetadata(sm Metadata) {
+	e.evalctx.SetNamespace("terramate", metaToCtyMap(sm))
 }
 
 // Eval will evaluate an expression given its context.
@@ -82,27 +59,19 @@ func (e *EvalCtx) HasNamespace(name string) bool {
 	return e.evalctx.HasNamespace(name)
 }
 
-func metaToCtyMap(m Metadata) (map[string]cty.Value, error) {
-	path, err := eval.FromMapToObject(map[string]cty.Value{
+func metaToCtyMap(m Metadata) map[string]cty.Value {
+	path := eval.FromMapToObject(map[string]cty.Value{
 		"absolute": cty.StringVal(m.Path()),
 	})
-	if err != nil {
-		return nil, errors.E(err, "creating stack.path obj")
-	}
-
-	stack, err := eval.FromMapToObject(map[string]cty.Value{
+	stack := eval.FromMapToObject(map[string]cty.Value{
 		"name":        cty.StringVal(m.Name()),
 		"description": cty.StringVal(m.Desc()),
 		"path":        path,
 	})
-	if err != nil {
-		return nil, errors.E(err, "creating stack obj")
-	}
-
 	return map[string]cty.Value{
 		"name":        cty.StringVal(m.Name()), // DEPRECATED
 		"path":        cty.StringVal(m.Path()), // DEPRECATED
 		"description": cty.StringVal(m.Desc()), // DEPRECATED
 		"stack":       stack,
-	}, nil
+	}
 }
