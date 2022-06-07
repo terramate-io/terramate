@@ -859,9 +859,12 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					add: generateHCL(
 						labels("root"),
 						content(
-							expr("stack_path_absolute", "terramate.stack.path.absolute"),
-							expr("stack_name", "terramate.stack.name"),
 							expr("stack_description", "terramate.stack.description"),
+							expr("stack_name", "terramate.stack.name"),
+							expr("stack_path_abs", "terramate.stack.path.absolute"),
+							expr("stack_path_basename", "terramate.stack.path.basename"),
+							expr("stack_path_rel", "terramate.stack.path.relative"),
+							expr("stack_path_to_root", "terramate.stack.path.to_root"),
 						),
 					),
 				},
@@ -875,7 +878,10 @@ func TestLoadGeneratedHCL(t *testing.T) {
 						body: hcldoc(
 							str("stack_description", ""),
 							str("stack_name", "stack"),
-							str("stack_path_absolute", "/stacks/stack"),
+							str("stack_path_abs", "/stacks/stack"),
+							str("stack_path_basename", "stack"),
+							str("stack_path_rel", "stacks/stack"),
+							str("stack_path_to_root", "../.."),
 						),
 					},
 				},

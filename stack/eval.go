@@ -85,6 +85,9 @@ func (e *EvalCtx) HasNamespace(name string) bool {
 func metaToCtyMap(m Metadata) (map[string]cty.Value, error) {
 	path, err := eval.FromMapToObject(map[string]cty.Value{
 		"absolute": cty.StringVal(m.Path()),
+		"relative": cty.StringVal(m.RelPath()),
+		"basename": cty.StringVal(m.PathBase()),
+		"to_root":  cty.StringVal(m.RelPathToRoot()),
 	})
 	if err != nil {
 		return nil, errors.E(err, "creating stack.path obj")

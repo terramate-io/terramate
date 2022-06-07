@@ -45,6 +45,9 @@ stack "/stack":
 	terramate.stack.name="stack"
 	terramate.stack.description=""
 	terramate.stack.path.absolute="/stack"
+	terramate.stack.path.basename="stack"
+	terramate.stack.path.relative="stack"
+	terramate.stack.path.to_root=".."
 `,
 			},
 		},
@@ -63,21 +66,33 @@ stack "/somedir/stack3":
 	terramate.stack.name="stack3"
 	terramate.stack.description=""
 	terramate.stack.path.absolute="/somedir/stack3"
+	terramate.stack.path.basename="stack3"
+	terramate.stack.path.relative="somedir/stack3"
+	terramate.stack.path.to_root="../.."
 
 stack "/somedir/stack4":
 	terramate.stack.name="stack4"
 	terramate.stack.description=""
 	terramate.stack.path.absolute="/somedir/stack4"
+	terramate.stack.path.basename="stack4"
+	terramate.stack.path.relative="somedir/stack4"
+	terramate.stack.path.to_root="../.."
 
 stack "/stack1":
 	terramate.stack.name="stack1"
 	terramate.stack.description=""
 	terramate.stack.path.absolute="/stack1"
+	terramate.stack.path.basename="stack1"
+	terramate.stack.path.relative="stack1"
+	terramate.stack.path.to_root=".."
 
 stack "/stack2":
 	terramate.stack.name="stack2"
 	terramate.stack.description=""
 	terramate.stack.path.absolute="/stack2"
+	terramate.stack.path.basename="stack2"
+	terramate.stack.path.relative="stack2"
+	terramate.stack.path.to_root=".."
 `,
 			},
 		},
@@ -97,6 +112,9 @@ stack "/stack1":
 	terramate.stack.name="stack1"
 	terramate.stack.description=""
 	terramate.stack.path.absolute="/stack1"
+	terramate.stack.path.basename="stack1"
+	terramate.stack.path.relative="stack1"
+	terramate.stack.path.to_root=".."
 `,
 			},
 		},
@@ -116,11 +134,17 @@ stack "/somedir/stack3":
 	terramate.stack.name="stack3"
 	terramate.stack.description=""
 	terramate.stack.path.absolute="/somedir/stack3"
+	terramate.stack.path.basename="stack3"
+	terramate.stack.path.relative="somedir/stack3"
+	terramate.stack.path.to_root="../.."
 
 stack "/somedir/stack4":
 	terramate.stack.name="stack4"
 	terramate.stack.description=""
 	terramate.stack.path.absolute="/somedir/stack4"
+	terramate.stack.path.basename="stack4"
+	terramate.stack.path.relative="somedir/stack4"
+	terramate.stack.path.to_root="../.."
 `,
 			},
 		},
