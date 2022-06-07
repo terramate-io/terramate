@@ -1189,14 +1189,6 @@ func parseIndexing(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 		}
 
 		if matchingBracks == 0 {
-			if tokens[pos+1].Type == hclsyntax.TokenOBrack {
-				// beginning of next '[' sequence.
-				// this is for the parsing of a.b[<expr][<expr2]...
-				matchingBracks++
-				pos += 2
-				continue
-			}
-
 			break
 		}
 
