@@ -101,8 +101,11 @@ type node struct {
 }
 
 func newPartialEvalEngine(tokens hclwrite.Tokens, ctx *Context) *engine {
+	// we copy the token bytes because the original slice is not safe to
+	// be modified.
+	newtokens := copytokens(tokens)
 	return &engine{
-		tokens: tokens,
+		tokens: newtokens,
 		ctx:    ctx,
 	}
 }
@@ -1026,7 +1029,7 @@ func (e *engine) evalString() error {
 			}
 
 			rewritten.pushfrom(elem)
-			last = rewritten.evaluated[len(rewritten.evaluated)-1]
+			last = rewritten.lastEvaluated()
 		case hclsyntax.TokenTemplateInterp:
 			rewritten.pushfrom(elem)
 		case hclsyntax.TokenNumberLit, hclsyntax.TokenIdent:
@@ -1040,7 +1043,7 @@ func (e *engine) evalString() error {
 					Bytes: elem.evaluated[0].Bytes,
 				})
 				rewritten.pushOriginal(elem.original...)
-				last = rewritten.evaluated[len(rewritten.evaluated)-1]
+				last = rewritten.lastEvaluated()
 			} else {
 				last.Bytes = append(last.Bytes, elem.evaluated[0].Bytes...)
 			}
@@ -1058,7 +1061,8 @@ func (e *engine) evalString() error {
 					Type: hclsyntax.TokenQuotedLit,
 				}
 				rewritten.pushEvaluated(tok)
-				last = tok
+				rewritten.pushOriginal(elem.original...)
+				last = rewritten.lastEvaluated()
 				continue
 			}
 
@@ -1066,12 +1070,8 @@ func (e *engine) evalString() error {
 				switch elem.evaluated[j].Type {
 				case hclsyntax.TokenQuotedLit:
 					if last == nil {
-						tok := &hclwrite.Token{
-							Type:  hclsyntax.TokenQuotedLit,
-							Bytes: elem.evaluated[j].Bytes,
-						}
-						rewritten.pushEvaluated(tok)
-						last = tok
+						rewritten.pushEvaluated(elem.evaluated[j])
+						last = rewritten.lastEvaluated()
 					} else {
 						last.Bytes = append(last.Bytes, elem.evaluated[j].Bytes...)
 					}
@@ -1265,6 +1265,13 @@ func (n *node) push(tok *hclwrite.Token) {
 	n.pushEvaluated(tok)
 }
 
+func (n *node) lastEvaluated() *hclwrite.Token {
+	if len(n.evaluated) == 0 {
+		panic("bug: no evaluated token")
+	}
+	return n.evaluated[len(n.evaluated)-1]
+}
+
 func (n *node) pushEvaluated(toks ...*hclwrite.Token) {
 	n.evaluated = append(n.evaluated, toks...)
 }
@@ -1338,6 +1345,24 @@ func ignorenlc(tokens hclwrite.Tokens) hclwrite.Tokens {
 		}
 	}
 	return rest
+}
+
+func copytokens(tokens hclwrite.Tokens) hclwrite.Tokens {
+	var newtokens hclwrite.Tokens
+	for _, tok := range tokens {
+		newtokens = append(newtokens, copytoken(tok))
+	}
+	return newtokens
+}
+
+func copytoken(tok *hclwrite.Token) *hclwrite.Token {
+	newtok := &hclwrite.Token{
+		Type:         tok.Type,
+		Bytes:        make([]byte, len(tok.Bytes)),
+		SpacesBefore: tok.SpacesBefore,
+	}
+	copy(newtok.Bytes, tok.Bytes)
+	return newtok
 }
 
 // variable is a low-level representation of a variable in terms of tokens.

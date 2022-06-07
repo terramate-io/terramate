@@ -88,6 +88,12 @@ func FuzzPartialEval(f *testing.F) {
 			return
 		}
 
+		// the hcl library has a bug evaluating funcalls containing variations
+		// of this ternary operation.
+		if strings.Contains(strings.ReplaceAll(str, " ", ""), "!0,0?[]") {
+			return
+		}
+
 		const testattr = "attr"
 
 		cfg := fmt.Sprintf("%s = %s", testattr, str)

@@ -1435,7 +1435,6 @@ func TestPartialEval(t *testing.T) {
 		globals hclwrite.BlockBuilder
 		want    fmt.Stringer
 		wantErr error
-		skip    bool
 	}
 
 	attr := func(name, expr string) hclwrite.BlockBuilder {
@@ -1443,6 +1442,7 @@ func TestPartialEval(t *testing.T) {
 		return hclwrite.AttributeValue(t, name, expr)
 	}
 
+	hugestr := strings.Repeat("huge ", 1000)
 	tcases := []testcase{
 		{
 			name: "unknown references on attributes",
@@ -2038,7 +2038,6 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "advanced list indexing",
-			skip: true,
 			globals: hcldoc(
 				globals(
 					expr("list", `[ [1, 2, 3], [4, 5, 6], [7, 8, 9]]`),
@@ -2053,7 +2052,6 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "advanced list indexing 2",
-			skip: true,
 			globals: hcldoc(
 				globals(
 					expr("list", `[ [1, 2, 3], [4, 5, 6], [7, 8, 9]]`),
@@ -2068,14 +2066,13 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "advanced object indexing",
-			skip: true,
 			globals: hcldoc(
 				globals(
 					expr("obj", `{A = {B = "test"}}`),
 				),
 			),
 			config: hcldoc(
-				expr("string", `global.list[tm_upper("a")][tm_upper("b)]`),
+				expr("string", `global.obj[tm_upper("a")][tm_upper("b")]`),
 			),
 			want: hcldoc(
 				str("string", "test"),
@@ -2486,6 +2483,42 @@ func TestPartialEval(t *testing.T) {
 				str("string", `/stack test`),
 			),
 		},
+		{
+			name: "huge string as a result of interpolation",
+			globals: globals(
+				str("value", hugestr),
+			),
+			config: hcldoc(
+				str("big", "THIS IS ${tm_upper(global.value)} !!!"),
+			),
+			want: hcldoc(
+				str("big", fmt.Sprintf("THIS IS %s !!!", strings.ToUpper(hugestr))),
+			),
+		},
+		{
+			name: "interpolation eval is empty",
+			globals: globals(
+				str("value", ""),
+			),
+			config: hcldoc(
+				str("big", "THIS IS ${tm_upper(global.value)} !!!"),
+			),
+			want: hcldoc(
+				str("big", "THIS IS  !!!"),
+			),
+		},
+		{
+			name: "interpolation eval is partial",
+			globals: globals(
+				str("value", ""),
+			),
+			config: hcldoc(
+				str("test", `THIS IS ${tm_upper(global.value) + "test"} !!!`),
+			),
+			want: hcldoc(
+				str("test", `THIS IS ${"" + "test"} !!!`),
+			),
+		},
 		/*
 			 * Hashicorp HCL formats the `wants` wrong.
 			 *
@@ -2506,14 +2539,8 @@ func TestPartialEval(t *testing.T) {
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			const (
-				stackname = "stack"
-				genname   = "test"
-			)
-
-			if tcase.skip {
-				t.Skip()
-			}
+			const genname = "test"
+			const stackname = "stack"
 
 			s := sandbox.New(t)
 			stackEntry := s.CreateStack(stackname)
