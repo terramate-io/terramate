@@ -243,7 +243,7 @@ accessed through the variable namespace **terramate**.
 This can be referenced from any Terramate code to reference
 information like the path of the stack or its name.
 
-## terramate.stack.path.absolute (string) 
+## terramate.stack.path.absolute (string)
 
 The absolute path of the stack relative to the project
 root directory, not the host root directory. So it is absolute
@@ -261,9 +261,59 @@ Given this project layout:
 * **stack-a** = /stacks/stack-a
 * **stack-b** = /stacks/stack-b
 
-## terramate.stack.name (string) 
+## terramate.stack.path.relative (string)
 
-The name of the stack.
+The stack path relative from the project root directory.
+
+Given this project layout:
+
+```
+.
+└── stacks
+    ├── stack-a
+    └── stack-b
+```
+
+* **stack-a** = stacks/stack-a
+* **stack-b** = stacks/stack-b
+
+## terramate.stack.path.basename (string)
+
+The base name of the stack path.
+
+Given this project layout:
+
+```
+.
+└── stacks
+    ├── stack-a
+    └── stack-b
+```
+
+* **stack-a** = stack-a
+* **stack-b** = stack-b
+
+## terramate.stack.path.to\_root (string)
+
+The relative path from the stack to the project root.
+
+Given this project layout:
+
+```
+.
+└── stacks
+    ├── stack-a
+    └── stack-b
+```
+
+* **stack-a** = ../..
+* **stack-b** = ../..
+
+## terramate.stack.name (string)
+
+The name of the stack as defined on the stack configuration.
+If the stack doesn't have a name defined on its configuration
+the name will default to `terramate.stack.path.basename`.
 
 Given this stack layout (from the root of the project):
 
@@ -280,7 +330,7 @@ Given this stack layout (from the root of the project):
 Please consider [stack configuration](stack.md) to see how
 you can change the default stack name.
 
-## terramate.stack.description (string) 
+## terramate.stack.description (string)
 
 The description of the stack, if it has any.
 The default value is an empty string.
@@ -293,14 +343,14 @@ you can change the default stack description.
 Here is a list of older metadata that still can be used but are in the
 process of deprecation.
 
-### terramate.path (string) 
+### terramate.path (string)
 
 Superseded by terramate.stack.path.absolute.
 
-### terramate.name (string) 
+### terramate.name (string)
 
 Superseded by terramate.stack.name.
 
-### terramate.description (string) 
+### terramate.description (string)
 
 Superseded by terramate.stack.description.

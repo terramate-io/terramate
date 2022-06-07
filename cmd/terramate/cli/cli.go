@@ -819,6 +819,9 @@ func (c *cli) printMetadata() {
 		c.log("\tterramate.stack.name=%q", stackMeta.Name())
 		c.log("\tterramate.stack.description=%q", stackMeta.Desc())
 		c.log("\tterramate.stack.path.absolute=%q", stackMeta.Path())
+		c.log("\tterramate.stack.path.basename=%q", stackMeta.PathBase())
+		c.log("\tterramate.stack.path.relative=%q", stackMeta.RelPath())
+		c.log("\tterramate.stack.path.to_root=%q", stackMeta.RelPathToRoot())
 	}
 }
 
