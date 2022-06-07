@@ -1412,8 +1412,6 @@ func (v variable) alltokens() hclwrite.Tokens {
 	return tokens
 }
 
-func (v variable) hasIndexing() bool { return len(v.index) > 0 }
-
 func (v variable) size() int {
 	sz := len(v.name)
 	for _, index := range v.index {
