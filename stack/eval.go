@@ -60,7 +60,11 @@ func (e *EvalCtx) SetGlobals(g Globals) error {
 
 // SetMetadata sets the given metadata on the stack evaluation context.
 func (e *EvalCtx) SetMetadata(sm Metadata) error {
-	return e.evalctx.SetNamespace("terramate", metaToCtyMap(sm))
+	namespaceValues, err := metaToCtyMap(sm)
+	if err != nil {
+		return errors.E(err, "setting metadata on eval ctx")
+	}
+	return e.evalctx.SetNamespace("terramate", namespaceValues)
 }
 
 // Eval will evaluate an expression given its context.
@@ -78,10 +82,27 @@ func (e *EvalCtx) HasNamespace(name string) bool {
 	return e.evalctx.HasNamespace(name)
 }
 
-func metaToCtyMap(m Metadata) map[string]cty.Value {
-	return map[string]cty.Value{
-		"name":        cty.StringVal(m.Name()),
-		"path":        cty.StringVal(m.Path()),
-		"description": cty.StringVal(m.Desc()),
+func metaToCtyMap(m Metadata) (map[string]cty.Value, error) {
+	path, err := eval.FromMapToObject(map[string]cty.Value{
+		"absolute": cty.StringVal(m.Path()),
+	})
+	if err != nil {
+		return nil, errors.E(err, "creating stack.path obj")
 	}
+
+	stack, err := eval.FromMapToObject(map[string]cty.Value{
+		"name":        cty.StringVal(m.Name()),
+		"description": cty.StringVal(m.Desc()),
+		"path":        path,
+	})
+	if err != nil {
+		return nil, errors.E(err, "creating stack obj")
+	}
+
+	return map[string]cty.Value{
+		"name":        cty.StringVal(m.Name()), // DEPRECATED
+		"path":        cty.StringVal(m.Path()), // DEPRECATED
+		"description": cty.StringVal(m.Desc()), // DEPRECATED
+		"stack":       stack,
+	}, nil
 }
