@@ -505,7 +505,7 @@ func (e *engine) evalAcessors() error {
 				parsed = true
 			}
 
-			if e.peek().Type == hclsyntax.TokenDot {
+			if e.hasTokens() && e.peek().Type == hclsyntax.TokenDot {
 				err := e.evalGetAttr()
 				if err != nil {
 					return err
