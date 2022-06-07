@@ -218,11 +218,11 @@ func (e *engine) emitn(n int) {
 
 func (e *engine) emitVariable(v variable) error {
 	tos := e.evalstack.peek()
-	if v.hasIndexing() {
+	for i, original := range v.index {
 		// Prepare a subengine to evaluate the indexing tokens.
 		// The partial eval engine expects the token stream to be EOF terminated.
-		index := make(hclwrite.Tokens, len(v.index))
-		copy(index, v.index)
+		index := make(hclwrite.Tokens, len(original))
+		copy(index, original)
 		index = append(index, tokenEOF())
 		subengine := newPartialEvalEngine(index, e.ctx)
 		subengine.multiline++
@@ -233,7 +233,7 @@ func (e *engine) emitVariable(v variable) error {
 			}
 
 			// remove EOF
-			v.index = newindex[0 : len(newindex)-1]
+			v.index[i] = newindex[0 : len(newindex)-1]
 		}
 	}
 	tos.pushEvaluated(v.alltokens()...)
@@ -1169,9 +1169,9 @@ func (e *engine) parseVariable(tokens hclwrite.Tokens) (v variable, found bool) 
 	nsvar := string(v.name[0].Bytes)
 	v.isTerramate = nsvar == "global" || nsvar == "terramate"
 
-	if pos < len(tokens) && tokens[pos].Type == hclsyntax.TokenOBrack {
-		var skip int
-		v.index, skip = parseIndexing(tokens[pos:])
+	for pos < len(tokens) && tokens[pos].Type == hclsyntax.TokenOBrack {
+		index, skip := parseIndexing(tokens[pos:])
+		v.index = append(v.index, index)
 		pos += skip
 	}
 
@@ -1393,8 +1393,10 @@ func copytoken(tok *hclwrite.Token) *hclwrite.Token {
 
 // variable is a low-level representation of a variable in terms of tokens.
 type variable struct {
-	name  hclwrite.Tokens
-	index hclwrite.Tokens
+	name hclwrite.Tokens
+
+	// a variable can have nested indexing. eg.: global.a[0][1][global.b][0]
+	index []hclwrite.Tokens
 
 	original    hclwrite.Tokens
 	isTerramate bool
@@ -1402,9 +1404,9 @@ type variable struct {
 
 func (v variable) alltokens() hclwrite.Tokens {
 	tokens := v.name
-	if v.hasIndexing() {
+	for _, index := range v.index {
 		tokens = append(tokens, tokenOBrack())
-		tokens = append(tokens, v.index...)
+		tokens = append(tokens, index...)
 		tokens = append(tokens, tokenCBrack())
 	}
 	return tokens
@@ -1414,8 +1416,8 @@ func (v variable) hasIndexing() bool { return len(v.index) > 0 }
 
 func (v variable) size() int {
 	sz := len(v.name)
-	if len(v.index) > 0 {
-		sz += len(v.index) + 2 // `[` <tokens> `]`
+	for _, index := range v.index {
+		sz += len(index) + 2 // `[` <tokens> `]`
 	}
 	return sz
 }
