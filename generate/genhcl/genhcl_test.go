@@ -851,6 +851,37 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 		},
 		{
+			name:  "all metadata available",
+			stack: "/stacks/stack",
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: generateHCL(
+						labels("root"),
+						content(
+							expr("stack_path_absolute", "terramate.stack.path.absolute"),
+							expr("stack_name", "terramate.stack.name"),
+							expr("stack_description", "terramate.stack.description"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "root",
+					hcl: genHCL{
+						origin:    defaultCfg("/"),
+						condition: true,
+						body: hcldoc(
+							str("stack_description", ""),
+							str("stack_name", "stack"),
+							str("stack_path_absolute", "/stacks/stack"),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "generate HCL on project root dir",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
@@ -860,7 +891,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 						labels("root"),
 						content(
 							block("root",
-								expr("test", "terramate.path"),
+								expr("test", "terramate.stack.path.absolute"),
 							),
 						),
 					),
@@ -1393,12 +1424,11 @@ func TestPartialEval(t *testing.T) {
 	// No support for multiple config files or generating multiple
 	// configurations.
 	type testcase struct {
-		name      string
-		stackpath string
-		config    hclwrite.BlockBuilder
-		globals   hclwrite.BlockBuilder
-		want      fmt.Stringer
-		wantErr   error
+		name    string
+		config  hclwrite.BlockBuilder
+		globals hclwrite.BlockBuilder
+		want    fmt.Stringer
+		wantErr error
 	}
 
 	attr := func(name, expr string) hclwrite.BlockBuilder {
@@ -1406,6 +1436,7 @@ func TestPartialEval(t *testing.T) {
 		return hclwrite.AttributeValue(t, name, expr)
 	}
 
+	hugestr := strings.Repeat("huge ", 1000)
 	tcases := []testcase{
 		{
 			name: "unknown references on attributes",
@@ -2440,32 +2471,22 @@ func TestPartialEval(t *testing.T) {
 		{
 			name: "terramate.path interpolation",
 			config: hcldoc(
-				str("string", `${terramate.path} test`),
+				str("string", `${terramate.stack.path.absolute} test`),
 			),
 			want: hcldoc(
 				str("string", `/stack test`),
 			),
 		},
 		{
-			name:      "reproduce issue #376 - byte slice corruption",
-			stackpath: "live/production/us-east-1/infrastructure/route53-association",
-			config: hcldoc(
-				str("bucket", "terraform${tm_try(global.state_bucket_key, terramate.path)}/terraform.tfstate"),
-			),
-			want: hcldoc(
-				str("bucket", "terraform/live/production/us-east-1/infrastructure/route53-association/terraform.tfstate"),
-			),
-		},
-		{
 			name: "huge string as a result of interpolation",
 			globals: globals(
-				str("value", strings.Repeat("huge ", 1000)),
+				str("value", hugestr),
 			),
 			config: hcldoc(
 				str("big", "THIS IS ${tm_upper(global.value)} !!!"),
 			),
 			want: hcldoc(
-				str("big", fmt.Sprintf("THIS IS %s !!!", strings.ToUpper(strings.Repeat("huge ", 1000)))),
+				str("big", fmt.Sprintf("THIS IS %s !!!", strings.ToUpper(hugestr))),
 			),
 		},
 		{
@@ -2513,11 +2534,7 @@ func TestPartialEval(t *testing.T) {
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
 			const genname = "test"
-
-			stackname := tcase.stackpath
-			if stackname == "" {
-				stackname = "stack"
-			}
+			const stackname = "stack"
 
 			s := sandbox.New(t)
 			stackEntry := s.CreateStack(stackname)
