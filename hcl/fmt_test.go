@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
@@ -196,7 +197,8 @@ var = { a = [] }
 `,
 			want: `
 var = { a = [
-] }
+  ]
+}
 `,
 		},
 		{
@@ -272,7 +274,8 @@ hello
 world
 EOT
   ,
-] }
+  ]
+}
 `,
 		},
 		{
@@ -649,7 +652,31 @@ var = { a = [ "item" ] }
 			want: `
 var = { a = [
   "item",
-] }
+  ]
+}
+`,
+		},
+		{
+			name: "object multiple attributes",
+			input: `
+var = {
+  a = [ "item" ]
+  b = [ "item" ]
+  c = [ "item" ]
+}
+`,
+			want: `
+var = {
+  a = [
+    "item",
+  ]
+  b = [
+    "item",
+  ]
+  c = [
+    "item",
+  ]
+}
 `,
 		},
 		{
@@ -701,7 +728,8 @@ var = {
           1,
           2,
           3,
-      ] },
+        ]
+      },
     ],
     c = [
       6,
@@ -742,7 +770,8 @@ block2 {
     ])
     b = { a = [
       "hi",
-    ] }
+      ]
+    }
   }
 }
 `,
@@ -1134,7 +1163,13 @@ var = [
 
 			fixupFiledirOnErrorsFileRanges(tempdir, tcase.wantErrs)
 			errtest.AssertErrorList(t, err, tcase.wantErrs)
-			assert.EqualStrings(t, tcase.want, got)
+
+			if diff := cmp.Diff(got, tcase.want); diff != "" {
+				t.Errorf("got:\n%s", got)
+				t.Errorf("want:\n%s", tcase.want)
+				t.Error("diff:")
+				t.Fatal(diff)
+			}
 
 			if err != nil {
 				return

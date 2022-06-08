@@ -246,6 +246,8 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 		element, nextPos := fmtExpr(tokens[elemIndex:])
 		elemIndex += nextPos
 
+		element = trimNewlines(element)
+
 		logger.Trace().
 			Str("element", tokensStr(element)).
 			Str("tokens", tokensStr(tokens)).
@@ -298,7 +300,13 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	nextTokenType := tokens[elemIndex].Type
 
 	switch nextTokenType {
-	case hclsyntax.TokenComma, hclsyntax.TokenCBrack, hclsyntax.TokenCParen, hclsyntax.TokenCBrace:
+	case hclsyntax.TokenIdent, hclsyntax.TokenCBrace:
+		{
+			// We are inside an object, add a newline after the list end
+			newTokens = append(newTokens, newlineToken())
+			return newTokens, elemIndex
+		}
+	case hclsyntax.TokenComma, hclsyntax.TokenCBrack, hclsyntax.TokenCParen:
 		{
 			return newTokens, elemIndex
 		}
@@ -359,11 +367,11 @@ func fmtIndexAccess(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			// unless the code was originally malformed, but that should not
 			// be possible here.
 			if openBrackets == -1 {
-				return trimNewlines(tokens[0:i]), i
+				return tokens[0:i], i
 			}
 		case hclsyntax.TokenComma:
 			if openBrackets == 0 && openParens == 0 && openBraces == 0 {
-				return trimNewlines(tokens[0:i]), i
+				return tokens[0:i], i
 			}
 		}
 	}
@@ -458,12 +466,12 @@ func fmtExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			// unless the code was originally malformed, but that should not
 			// be possible here.
 			if openBrackets == -1 {
-				return trimNewlines(newTokens), elemIndex
+				return newTokens, elemIndex
 			}
 			addToken(token)
 		case hclsyntax.TokenComma:
 			if openBrackets == 0 && openParens == 0 && openBraces == 0 && openStrTemplate == 0 {
-				return trimNewlines(newTokens), elemIndex
+				return newTokens, elemIndex
 			}
 			addToken(token)
 		default:
