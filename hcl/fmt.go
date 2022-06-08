@@ -304,9 +304,8 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	nextTokenType := tokens[elemIndex].Type
 
 	switch nextTokenType {
-	case hclsyntax.TokenComma, hclsyntax.TokenCBrack:
+	case hclsyntax.TokenComma, hclsyntax.TokenCBrack, hclsyntax.TokenCParen, hclsyntax.TokenCBrace:
 		{
-			logger.Trace().Msg("end of outer list element, returning formatted list")
 			return newTokens, elemIndex
 		}
 	case hclsyntax.TokenOBrack:
@@ -403,9 +402,32 @@ func fmtAnyExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	openBrackets := 0
 	openBraces := 0
 	openParens := 0
+	openStrTemplate := 0
 
 	curTokenStartsList := func() bool {
-		return false
+		// Current token already == [. Lets do further checking.
+		if openStrTemplate > 0 {
+			// Inside string template, ignore anything that looks like a list
+			return false
+		}
+		if isListComprehension(tokens[elemIndex:]) {
+			return false
+		}
+		if elemIndex == 0 {
+			// Cant backtrack, so assuming a list
+			return true
+		}
+		previousToken := tokens[elemIndex-1]
+		switch previousToken.Type {
+		case hclsyntax.TokenCBrace, hclsyntax.TokenCBrack,
+			hclsyntax.TokenIdent, hclsyntax.TokenQuotedLit,
+			hclsyntax.TokenStringLit, hclsyntax.TokenNumberLit,
+			hclsyntax.TokenCParen:
+			// Indexing, not an actual list
+			return false
+		default:
+			return true
+		}
 	}
 
 	addToken := func(token *hclwrite.Token) {
@@ -420,6 +442,12 @@ func fmtAnyExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 		case hclsyntax.TokenOParen:
 			addToken(token)
 			openParens++
+		case hclsyntax.TokenTemplateInterp:
+			addToken(token)
+			openStrTemplate++
+		case hclsyntax.TokenTemplateSeqEnd:
+			addToken(token)
+			openStrTemplate--
 		case hclsyntax.TokenCParen:
 			addToken(token)
 			openParens--
@@ -431,8 +459,6 @@ func fmtAnyExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			openBraces--
 		case hclsyntax.TokenOBrack:
 			if curTokenStartsList() {
-				// Pop [ from the new tokens since it will be formatted
-				newTokens = newTokens[:len(newTokens)-1]
 				listTokens, pos := fmtListExpr(tokens[elemIndex:])
 				newTokens = append(newTokens, listTokens...)
 				elemIndex += pos
@@ -451,6 +477,7 @@ func fmtAnyExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			}
 			addToken(token)
 		case hclsyntax.TokenComma:
+			// TODO(katcipis): test come inside string template here
 			if openBrackets == 0 && openParens == 0 && openBraces == 0 {
 				return trimNewlines(newTokens), elemIndex
 			}

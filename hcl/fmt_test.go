@@ -490,7 +490,11 @@ block2 {
 var = func([1,2,3])
 `,
 			want: `
-var = func([1, 2, 3])
+var = func([
+  1,
+  2,
+  3,
+])
 `,
 		},
 		{
