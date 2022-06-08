@@ -509,6 +509,29 @@ var = [
 `,
 		},
 		{
+			name: "list with function that has lists",
+			input: `
+var = [ func([1,2,3]), func([func([]), func([1,2])]) ]
+`,
+			want: `
+var = [
+  func([
+    1,
+    2,
+    3,
+  ]),
+  func([
+    func([
+    ]),
+    func([
+      1,
+      2,
+    ]),
+  ]),
+]
+`,
+		},
+		{
 			name: "single item list with function call and multiple params",
 			input: `
 var = [ func(local.a, local.b, 666, "hi") ]
