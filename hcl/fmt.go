@@ -350,7 +350,7 @@ func fmtNextElement(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 func fmtIndexAccess(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	// This function expects that `tokens` represent a index access.
 	// It will navigate the tokens until if finds the end of the index access chain.
-	//
+	// eg: var = [ "item" ][0].name.hi[1],
 	openBrackets := 0
 	openBraces := 0
 	openParens := 0
