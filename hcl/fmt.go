@@ -185,13 +185,7 @@ func fmtBody(body *hclwrite.Body) {
 }
 
 func fmtAttrExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
-	fmtfunc := fmtAnyExpr
-
-	if isList(tokens) {
-		fmtfunc = fmtListExpr
-	}
-
-	formattedList, pos := fmtfunc(tokens)
+	formatted, pos := fmtAnyExpr(tokens)
 	if pos != len(tokens) {
 		panic(fmt.Errorf(
 			"last pos %d != tokens len %d for tokens: %q",
@@ -200,7 +194,7 @@ func fmtAttrExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
 			tokensStr(tokens),
 		))
 	}
-	return formattedList
+	return formatted
 }
 
 // fmtListExpr will adjust the given list tokens so they can be formatted
