@@ -217,45 +217,45 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 
 	logger.Trace().Msg("formatting list")
 
-	elemNextPos := 0
-	newTokens := hclwrite.Tokens{tokens[elemNextPos], newlineToken()}
-	elemNextPos++
+	elemIndex := 0
+	newTokens := hclwrite.Tokens{tokens[elemIndex], newlineToken()}
+	elemIndex++
 
 	skipNls := func() {
-		_, skipped := skipNewlines(tokens[elemNextPos:])
-		elemNextPos += skipped
+		_, skipped := skipNewlines(tokens[elemIndex:])
+		elemIndex += skipped
 	}
 
 	for {
 		skipNls()
 
-		nextTokenType := tokens[elemNextPos].Type
+		tokenType := tokens[elemIndex].Type
 
-		if nextTokenType == hclsyntax.TokenComma {
-			elemNextPos++
+		if tokenType == hclsyntax.TokenComma {
+			elemIndex++
 			continue
 		}
 
-		if nextTokenType == hclsyntax.TokenComment {
-			newTokens = append(newTokens, tokens[elemNextPos])
-			elemNextPos++
+		if tokenType == hclsyntax.TokenComment {
+			newTokens = append(newTokens, tokens[elemIndex])
+			elemIndex++
 			continue
 		}
 
-		if nextTokenType == hclsyntax.TokenCBrack {
+		if tokenType == hclsyntax.TokenCBrack {
 			logger.Trace().Msg("reached end of list")
 			break
 		}
 
 		logger.Trace().Msg("getting next element of the list")
 
-		element, nextPos := fmtNextElement(tokens[elemNextPos:])
-		elemNextPos += nextPos
+		element, nextPos := fmtNextElement(tokens[elemIndex:])
+		elemIndex += nextPos
 
 		logger.Trace().
 			Str("element", tokensStr(element)).
 			Str("tokens", tokensStr(tokens)).
-			Int("elemNextPos", elemNextPos).
+			Int("elemNextPos", elemIndex).
 			Msg("new element got")
 
 		newTokens = append(newTokens, element...)
@@ -268,7 +268,7 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	}
 
 	newTokens = append(newTokens, closeBracketToken())
-	elemNextPos++
+	elemIndex++
 
 	// Handling ["one"][0] and things like [[0]%[0]]
 	// We can also have newlines when dealing with operations
@@ -277,9 +277,9 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 
 	skipNls()
 
-	if elemNextPos == len(tokens) {
+	if elemIndex == len(tokens) {
 		logger.Trace().Msg("no more tokens, returning formatted list")
-		return newTokens, elemNextPos
+		return newTokens, elemIndex
 	}
 
 	// We are handling things like this:
@@ -288,53 +288,53 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	// We don't keep the extra newlines, only newlines belonging to comments themselves.
 	hasCommentOrNl := true
 	for hasCommentOrNl {
-		switch tokens[elemNextPos].Type {
+		switch tokens[elemIndex].Type {
 		case hclsyntax.TokenComment:
 			logger.Trace().Msg("found comment after end of list, adding token")
-			newTokens = append(newTokens, tokens[elemNextPos])
-			elemNextPos++
+			newTokens = append(newTokens, tokens[elemIndex])
+			elemIndex++
 		case hclsyntax.TokenNewline:
 			logger.Trace().Msg("found newline after end of list, ignoring")
-			elemNextPos++
+			elemIndex++
 		default:
 			hasCommentOrNl = false
 		}
 	}
 
-	nextTokenType := tokens[elemNextPos].Type
+	nextTokenType := tokens[elemIndex].Type
 
 	switch nextTokenType {
 	case hclsyntax.TokenComma, hclsyntax.TokenCBrack:
 		{
 			logger.Trace().Msg("end of outer list element, returning formatted list")
-			return newTokens, elemNextPos
+			return newTokens, elemIndex
 		}
 	case hclsyntax.TokenOBrack:
 		{
 			logger.Trace().Msg("getting tokens for list index access")
 
-			indexAccess, nextPos := fmtIndexAccess(tokens[elemNextPos:])
-			elemNextPos += nextPos
+			indexAccess, nextPos := fmtIndexAccess(tokens[elemIndex:])
+			elemIndex += nextPos
 
 			newTokens = append(newTokens, indexAccess...)
 
 			logger.Trace().Msg("returning formatted list with index access")
-			return newTokens, elemNextPos
+			return newTokens, elemIndex
 		}
 	default:
 		{
 			logger.Trace().Msg("we have an operator between this list and next element")
 			// HCL allows all sort of crazy things, instead of mapping all of them
 			// we just assume the next token is an operator and the rest can be any expression
-			newTokens = append(newTokens, tokens[elemNextPos])
-			elemNextPos++
+			newTokens = append(newTokens, tokens[elemIndex])
+			elemIndex++
 
 			skipNls()
-			operand, nextPos := fmtNextElement(tokens[elemNextPos:])
-			elemNextPos += nextPos
+			operand, nextPos := fmtNextElement(tokens[elemIndex:])
+			elemIndex += nextPos
 
 			newTokens = append(newTokens, operand...)
-			return newTokens, elemNextPos
+			return newTokens, elemIndex
 		}
 	}
 }
@@ -392,23 +392,16 @@ func fmtIndexAccess(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 }
 
 func fmtAnyExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
-	// This function expects any expression that may have a list inside.
-	// It works for either list elements or indexing.
-	// eg.:
-	//   list = [<tokens>
-	//   list = [1, 2, <tokens>
-	//   value = ["foo", "bar"][<tokens
-	// We may have brackets inside expr, so closing bracket
-	// may not indicate end of the surrounding list reached.
+	newTokens := make(hclwrite.Tokens, 0, len(tokens))
+	elemIndex := 0
 	openBrackets := 0
 	openBraces := 0
 	openParens := 0
 
-	newTokens := make(hclwrite.Tokens, 0, len(tokens))
-	elemIndex := 0
-	isList := func() bool {
+	curTokenStartsList := func() bool {
 		return false
 	}
+
 	addToken := func(token *hclwrite.Token) {
 		newTokens = append(newTokens, token)
 		elemIndex++
@@ -431,7 +424,7 @@ func fmtAnyExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			addToken(token)
 			openBraces--
 		case hclsyntax.TokenOBrack:
-			if isList() {
+			if curTokenStartsList() {
 				// Pop [ from the new tokens since it will be formatted
 				newTokens = newTokens[:len(newTokens)-1]
 				listTokens, pos := fmtListExpr(tokens[elemIndex:])
