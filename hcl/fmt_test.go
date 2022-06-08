@@ -865,6 +865,17 @@ var = [
 `,
 		},
 		{
+			name: "function call with single item list with two dimension index access",
+			input: `
+var = func([ local.a[0][1] ])
+`,
+			want: `
+var = func([
+  local.a[0][1],
+])
+`,
+		},
+		{
 			name: "multiple item list with index access",
 			input: `
 var = [ local.a[0], local.b[1]]

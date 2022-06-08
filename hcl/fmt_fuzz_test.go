@@ -39,6 +39,7 @@ func FuzzFormatMultiline(f *testing.F) {
 		`"${global.list} fail`,
 		`{}`,
 		`[{}]`,
+		`[{a=666}]`,
 		`[[]]`,
 		`10`,
 		`"test"`,
