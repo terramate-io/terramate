@@ -226,7 +226,11 @@ func (e *engine) emitVariable(v variable) error {
 		index = append(index, tokenEOF())
 		subengine := newPartialEvalEngine(index, e.ctx)
 		subengine.multiline++
-		if subengine.peek().Type != hclsyntax.TokenStar {
+
+		// this will only fail in the case of `<ident>[]` but this would be a
+		// syntax error (hopeful) caught by hcl lib.
+		tok := subengine.peekn(subengine.skip(0))
+		if tok.Type != hclsyntax.TokenStar {
 			newindex, err := subengine.Eval()
 			if err != nil {
 				return err
@@ -272,7 +276,7 @@ func (e *engine) emitnlparens() {
 
 func (e *engine) skipTokens(from int, tokens ...hclsyntax.TokenType) int {
 	i := from
-	for e.hasTokens() {
+	for i < len(e.tokens) {
 		found := false
 		for _, t := range tokens {
 			if e.peekn(i).Type == t {
