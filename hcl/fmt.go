@@ -477,8 +477,7 @@ func fmtAnyExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			}
 			addToken(token)
 		case hclsyntax.TokenComma:
-			// TODO(katcipis): test come inside string template here
-			if openBrackets == 0 && openParens == 0 && openBraces == 0 {
+			if openBrackets == 0 && openParens == 0 && openBraces == 0 && openStrTemplate == 0 {
 				return trimNewlines(newTokens), elemIndex
 			}
 			addToken(token)

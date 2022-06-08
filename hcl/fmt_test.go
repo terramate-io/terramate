@@ -306,7 +306,7 @@ var = [
     "${
       {
          a = [
-           "more list"
+           "more list",
          ]
       }
     }"
@@ -319,7 +319,7 @@ var = [
     "${
       {
         a = [
-          "more list"
+          "more list",
         ]
       }
     }"
