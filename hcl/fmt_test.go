@@ -677,6 +677,42 @@ var = {
 `,
 		},
 		{
+			name: "nested object with multiple item list",
+			input: `
+var = {
+  nested = {
+    a = [ "item" ],
+    b = [{
+      a=[1,2,3]
+    }],
+    c = [6,6,6],
+  }
+}
+`,
+			want: `
+var = {
+  nested = {
+    a = [
+      "item",
+    ],
+    b = [
+      {
+        a = [
+          1,
+          2,
+          3,
+      ] },
+    ],
+    c = [
+      6,
+      6,
+      6,
+    ],
+  }
+}
+`,
+		},
+		{
 			name: "lists inside blocks",
 			input: `
 block1 {
@@ -685,6 +721,8 @@ block1 {
 block2 {
   block3 {
     var = [ "item" ]
+    a = f([ "item" ])
+    b = { a = ["hi"] }
   }
 }
 `,
@@ -699,6 +737,12 @@ block2 {
     var = [
       "item",
     ]
+    a = f([
+      "item",
+    ])
+    b = { a = [
+      "hi",
+    ] }
   }
 }
 `,
