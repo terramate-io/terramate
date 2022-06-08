@@ -680,6 +680,29 @@ var = {
 `,
 		},
 		{
+			name: "object multiple attributes with commas",
+			input: `
+var = {
+  a = [ "item" ],
+  b = [ "item" ],
+  c = [ "item" ],
+}
+`,
+			want: `
+var = {
+  a = [
+    "item",
+  ],
+  b = [
+    "item",
+  ],
+  c = [
+    "item",
+  ],
+}
+`,
+		},
+		{
 			name: "object with multiple item list",
 			input: `
 var = {
