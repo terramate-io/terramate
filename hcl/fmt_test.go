@@ -152,6 +152,24 @@ var = { for s in var.list : s => upper(s) }
 `,
 		},
 		{
+			name: "function call with map comprehension",
+			input: `
+var = f({  for s    in var.list : s =>     upper(s)    })
+`,
+			want: `
+var = f({ for s in var.list : s => upper(s) })
+`,
+		},
+		{
+			name: "object with map comprehension",
+			input: `
+var = { a = {  for s    in var.list : s =>     upper(s)    } }
+`,
+			want: `
+var = { a = { for s in var.list : s => upper(s) } }
+`,
+		},
+		{
 			name: "empty list",
 			input: `
 var = []
@@ -159,6 +177,26 @@ var = []
 			want: `
 var = [
 ]
+`,
+		},
+		{
+			name: "funcall with empty list",
+			input: `
+var = f([])
+`,
+			want: `
+var = f([
+])
+`,
+		},
+		{
+			name: "object with empty list",
+			input: `
+var = { a = [] }
+`,
+			want: `
+var = { a = [
+] }
 `,
 		},
 		{
@@ -195,6 +233,46 @@ world
 EOT
   ,
 ]
+`,
+		},
+		{
+			name: "function call with single heredoc",
+			input: `
+var = f([
+<<EOT
+hello
+world
+EOT
+])
+`,
+			want: `
+var = f([
+  <<EOT
+hello
+world
+EOT
+  ,
+])
+`,
+		},
+		{
+			name: "object with single heredoc",
+			input: `
+var = { a = [
+<<EOT
+hello
+world
+EOT
+]}
+`,
+			want: `
+var = { a = [
+  <<EOT
+hello
+world
+EOT
+  ,
+] }
 `,
 		},
 		{
@@ -319,6 +397,33 @@ var = [
 `,
 		},
 		{
+			name: "function call with list comprehension with multiline comments",
+			input: `
+var = f([ f([
+// c1
+/* c2 */
+# c3
+for x in local.a : x
+// c4
+/* c5 */
+# c6
+]) ])
+`,
+			want: `
+var = f([
+  f([
+    // c1
+    /* c2 */
+    # c3
+    for x in local.a : x
+    // c4
+    /* c5 */
+    # c6
+  ]),
+])
+`,
+		},
+		{
 			name: "list with list comprehension as elements",
 			input: `
 var = [ [for x in local.a : x], [for x in local.a : x] ]
@@ -382,6 +487,19 @@ var = [
   ] + [
   true,
 ]
+`,
+		},
+		{
+			name: "function with list as operands",
+			input: `
+var = f([ "item" ] + [ true ])
+`,
+			want: `
+var = f([
+  "item",
+  ] + [
+  true,
+])
 `,
 		},
 		{
@@ -456,6 +574,17 @@ var = [ "item" ][0].name.hi[1]
 var = [
   "item",
 ][0].name.hi[1]
+`,
+		},
+		{
+			name: "function call with indexing with object mixed",
+			input: `
+var = f([ "item" ][0].name.hi[1])
+`,
+			want: `
+var = f([
+  "item",
+][0].name.hi[1])
 `,
 		},
 		{
