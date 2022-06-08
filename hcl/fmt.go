@@ -351,6 +351,7 @@ func fmtIndexAccess(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	// This function expects that `tokens` represent a index access.
 	// It will navigate the tokens until if finds the end of the index access chain.
 	// eg: var = [ "item" ][0].name.hi[1],
+	// TODO(katcipis): maybe we can just use fmtAnyExpr, not sure.
 	openBrackets := 0
 	openBraces := 0
 	openParens := 0
@@ -391,8 +392,7 @@ func fmtIndexAccess(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 }
 
 func fmtAnyExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
-	// This function expects that `tokens` are inside a `[` token
-	// or are any expression that may have a list inside.
+	// This function expects any expression that may have a list inside.
 	// It works for either list elements or indexing.
 	// eg.:
 	//   list = [<tokens>
@@ -404,18 +404,43 @@ func fmtAnyExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	openBraces := 0
 	openParens := 0
 
-	for i, token := range tokens {
+	newTokens := make(hclwrite.Tokens, 0, len(tokens))
+	elemIndex := 0
+	isList := func() bool {
+		return false
+	}
+	addToken := func(token *hclwrite.Token) {
+		newTokens = append(newTokens, token)
+		elemIndex++
+	}
+
+	for elemIndex < len(tokens) {
+		token := tokens[elemIndex]
+
 		switch token.Type {
 		case hclsyntax.TokenOParen:
+			addToken(token)
 			openParens++
 		case hclsyntax.TokenCParen:
+			addToken(token)
 			openParens--
 		case hclsyntax.TokenOBrace:
+			addToken(token)
 			openBraces++
 		case hclsyntax.TokenCBrace:
+			addToken(token)
 			openBraces--
 		case hclsyntax.TokenOBrack:
-			openBrackets++
+			if isList() {
+				// Pop [ from the new tokens since it will be formatted
+				newTokens = newTokens[:len(newTokens)-1]
+				listTokens, pos := fmtListExpr(tokens[elemIndex:])
+				newTokens = append(newTokens, listTokens...)
+				elemIndex += pos
+			} else {
+				addToken(token)
+				openBrackets++
+			}
 		case hclsyntax.TokenCBrack:
 			openBrackets--
 			// openBrackets is -1 when we reach the end of the outer list
@@ -423,12 +448,16 @@ func fmtAnyExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			// unless the code was originally malformed, but that should not
 			// be possible here.
 			if openBrackets == -1 {
-				return trimNewlines(tokens[0:i]), i
+				return trimNewlines(newTokens), elemIndex
 			}
+			addToken(token)
 		case hclsyntax.TokenComma:
 			if openBrackets == 0 && openParens == 0 && openBraces == 0 {
-				return trimNewlines(tokens[0:i]), i
+				return trimNewlines(newTokens), elemIndex
 			}
+			addToken(token)
+		default:
+			addToken(token)
 		}
 	}
 	// We could be at the end of the whole attribute expression
@@ -436,7 +465,7 @@ func fmtAnyExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	// a = ["list"][0]
 	// The index access is formatted here, and it will go all the way
 	// until the end of the attribute expression.
-	return tokens, len(tokens)
+	return newTokens, len(tokens)
 }
 
 func closeBracketToken() *hclwrite.Token {
