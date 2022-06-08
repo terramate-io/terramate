@@ -302,12 +302,15 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	switch nextTokenType {
 	case hclsyntax.TokenIdent, hclsyntax.TokenCBrace:
 		{
-			// We are inside an object, add a newline after the list end
+			logger.Trace().Msg("inside object, adding newline after list")
+
 			newTokens = append(newTokens, newlineToken())
 			return newTokens, elemIndex
 		}
 	case hclsyntax.TokenComma, hclsyntax.TokenCBrack, hclsyntax.TokenCParen:
 		{
+			logger.Trace().Msg("finished processing list")
+
 			return newTokens, elemIndex
 		}
 	case hclsyntax.TokenOBrack:
@@ -342,6 +345,7 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 
 func fmtIndexAccess(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	// This function expects that `tokens` represent a index access.
+	// Any possible lists inside an index will not be reformatted.
 	// It will navigate the tokens until if finds the end of the index access chain.
 	// eg: var = [ "item" ][0].name.hi[1],
 	openBrackets := 0
