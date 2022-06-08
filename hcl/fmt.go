@@ -185,18 +185,13 @@ func fmtBody(body *hclwrite.Body) {
 }
 
 func fmtAttrExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
-	logger := log.With().
-		Str("action", "hcl.fmtAttrExpr()").
-		Str("tokens", tokensStr(tokens)).
-		Logger()
+	fmtfunc := fmtAnyExpr
 
-	if !isList(tokens) {
-		logger.Trace().Msg("not a list, it may be an expression with lists inside")
-		newTokens, _ := fmtAnyExpr(tokens)
-		return newTokens
+	if isList(tokens) {
+		fmtfunc = fmtListExpr
 	}
 
-	formattedList, pos := fmtListExpr(tokens)
+	formattedList, pos := fmtfunc(tokens)
 	if pos != len(tokens) {
 		panic(fmt.Errorf(
 			"last pos %d != tokens len %d for tokens: %q",
@@ -475,7 +470,6 @@ func isList(tokens hclwrite.Tokens) bool {
 	if isListComprehension(tokens) {
 		return false
 	}
-	// TODO(katcipis): handle detecting index access
 	return true
 }
 
