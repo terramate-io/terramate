@@ -313,7 +313,7 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 		{
 			logger.Trace().Msg("getting tokens for list index access")
 
-			indexAccess, nextPos := fmtAnyExpr(tokens[elemNextPos:])
+			indexAccess, nextPos := fmtIndexAccess(tokens[elemNextPos:])
 			elemNextPos += nextPos
 
 			newTokens = append(newTokens, indexAccess...)
@@ -345,6 +345,49 @@ func fmtNextElement(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	}
 
 	return fmtAnyExpr(tokens)
+}
+
+func fmtIndexAccess(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
+	// This function expects that `tokens` represent a index access.
+	// It will navigate the tokens until if finds the end of the index access chain.
+	//
+	openBrackets := 0
+	openBraces := 0
+	openParens := 0
+
+	for i, token := range tokens {
+		switch token.Type {
+		case hclsyntax.TokenOParen:
+			openParens++
+		case hclsyntax.TokenCParen:
+			openParens--
+		case hclsyntax.TokenOBrace:
+			openBraces++
+		case hclsyntax.TokenCBrace:
+			openBraces--
+		case hclsyntax.TokenOBrack:
+			openBrackets++
+		case hclsyntax.TokenCBrack:
+			openBrackets--
+			// openBrackets is -1 means we reached the end of an outer list
+			// Don't need to check other open delimiters in this case
+			// unless the code was originally malformed, but that should not
+			// be possible here.
+			if openBrackets == -1 {
+				return trimNewlines(tokens[0:i]), i
+			}
+		case hclsyntax.TokenComma:
+			if openBrackets == 0 && openParens == 0 && openBraces == 0 {
+				return trimNewlines(tokens[0:i]), i
+			}
+		}
+	}
+	// We could be at the end of the whole attribute expression
+	// For example:
+	// a = ["list"][0]
+	// The index access is formatted here, and it will go all the way
+	// until the end of the attribute expression.
+	return tokens, len(tokens)
 }
 
 func fmtAnyExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
