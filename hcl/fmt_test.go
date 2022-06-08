@@ -588,6 +588,17 @@ var = f([
 `,
 		},
 		{
+			name: "object with indexing with object mixed",
+			input: `
+var = { a = [ "item" ][0].name.hi[1] }
+`,
+			want: `
+var = { a = [
+  "item",
+][0].name.hi[1] }
+`,
+		},
+		{
 			name: "nested list indexing with object mixed",
 			input: `
 var = [[ "item" ][0].name.hi[1], [ "item" ][0].name.hi[1]]
@@ -628,6 +639,41 @@ var = [ "item" ]
 var = [
   "item",
 ]
+`,
+		},
+		{
+			name: "object with single item list",
+			input: `
+var = { a = [ "item" ] }
+`,
+			want: `
+var = { a = [
+  "item",
+] }
+`,
+		},
+		{
+			name: "object with multiple item list",
+			input: `
+var = {
+  a = [ "item" ],
+  b = [],
+  c = [6,6,6],
+}
+`,
+			want: `
+var = {
+  a = [
+    "item",
+  ],
+  b = [
+  ],
+  c = [
+    6,
+    6,
+    6,
+  ],
+}
 `,
 		},
 		{
