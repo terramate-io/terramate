@@ -35,6 +35,9 @@ type (
 		// path is the absolute path of the stack relative to project's root.
 		path string
 
+		// relPathToRoot is the relative path from the stack to root.
+		relPathToRoot string
+
 		// name of the stack.
 		name string
 
@@ -57,9 +60,18 @@ type (
 
 	// Metadata has all metadata loaded per stack
 	Metadata interface {
+		// Name of the stack.
 		Name() string
+		// Path is the absolute path of the stack (relative to project root).
 		Path() string
+		// RelPath is the relative path of the from root.
+		RelPath() string
+		// PathBase is the basename of the stack path.
+		PathBase() string
+		// Desc is the description of the stack (relative to project root).
 		Desc() string
+		// RelPathToRoot is the relative path from the stack to root.
+		RelPathToRoot() string
 	}
 )
 
@@ -70,14 +82,24 @@ func New(root string, cfg hcl.Config) S {
 		name = filepath.Base(cfg.AbsDir())
 	}
 
+	rel, err := filepath.Rel(cfg.AbsDir(), root)
+	if err != nil {
+		// This is an invariant on Terramate, stacks must always be
+		// inside the root dir.
+		panic(errors.E(
+			"No relative path from stack %q to root %q",
+			cfg.AbsDir(), root, err))
+	}
+
 	return S{
-		name:     name,
-		desc:     cfg.Stack.Description,
-		after:    cfg.Stack.After,
-		before:   cfg.Stack.Before,
-		wants:    cfg.Stack.Wants,
-		hostpath: cfg.AbsDir(),
-		path:     project.PrjAbsPath(root, cfg.AbsDir()),
+		name:          name,
+		desc:          cfg.Stack.Description,
+		after:         cfg.Stack.After,
+		before:        cfg.Stack.Before,
+		wants:         cfg.Stack.Wants,
+		hostpath:      cfg.AbsDir(),
+		path:          project.PrjAbsPath(root, cfg.AbsDir()),
+		relPathToRoot: rel,
 	}
 }
 
@@ -112,6 +134,15 @@ func (s S) String() string { return s.Path() }
 
 // Path returns the project's absolute path of stack.
 func (s S) Path() string { return s.path }
+
+// PathBase returns the base name of the stack path.
+func (s S) PathBase() string { return filepath.Base(s.path) }
+
+// RelPath returns the project's relative path of stack.
+func (s S) RelPath() string { return s.path[1:] }
+
+// RelPathToRoot returns the relative path from the stack to root.
+func (s S) RelPathToRoot() string { return s.relPathToRoot }
 
 // HostPath returns the file system absolute path of stack.
 func (s S) HostPath() string { return s.hostpath }

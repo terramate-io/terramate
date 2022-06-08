@@ -140,8 +140,16 @@ func TestLoadGenerateFiles(t *testing.T) {
 					path: "/stack/test.tm",
 					add: generateFile(
 						labels("test"),
-						str("content", "${terramate.stack.path.absolute}-${terramate.stack.name}-${terramate.stack.description}"),
-					),
+						expr("content", `<<EOT
+
+stack_path_abs=${terramate.stack.path.absolute}
+stack_path_rel=${terramate.stack.path.relative}
+stack_path_to_root=${terramate.stack.path.to_root}
+stack_path_basename=${terramate.stack.path.basename}
+stack_name=${terramate.stack.name}
+stack_description=${terramate.stack.description}
+EOT`,
+						)),
 				},
 			},
 			want: []result{
@@ -150,7 +158,14 @@ func TestLoadGenerateFiles(t *testing.T) {
 					condition: true,
 					file: genFile{
 						origin: "/stack/test.tm",
-						body:   "/stack-stack-",
+						body: `
+stack_path_abs=/stack
+stack_path_rel=stack
+stack_path_to_root=..
+stack_path_basename=stack
+stack_name=stack
+stack_description=
+`,
 					},
 				},
 			},
