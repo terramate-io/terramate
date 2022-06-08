@@ -2184,6 +2184,33 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
+			name: "nested indexing",
+			globals: hcldoc(
+				globals(
+					expr("obj", `{
+						key = {
+							key2 = {
+								val = "hello"
+							}
+						}
+					}`),
+					expr("obj2", `{
+						keyname = "key"
+					}`),
+					expr("key", `{
+						key2 = "keyname"
+					}`),
+					str("key2", "key2"),
+				),
+			),
+			config: hcldoc(
+				expr("hello", `global.obj[global.obj2[global.key[global.key2]]][global.key2]["val"]`),
+			),
+			want: hcldoc(
+				str("hello", "hello"),
+			),
+		},
+		{
 			name: "obj for loop without eval references",
 			config: hcldoc(
 				expr("obj", `{for k in local.list : k => k}`),
