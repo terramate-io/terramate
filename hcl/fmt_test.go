@@ -580,6 +580,17 @@ var = [
 `,
 		},
 		{
+			name: "list indexing using function calls and objects as indexes",
+			input: `
+var = [ "item" ][func(666)].name.hi[{a=666}]
+`,
+			want: `
+var = [
+  "item",
+][func(666)].name.hi[{ a = 666 }]
+`,
+		},
+		{
 			name: "function call with indexing with object mixed",
 			input: `
 var = f([ "item" ][0].name.hi[1])
