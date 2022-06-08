@@ -391,6 +391,12 @@ func fmtIndexAccess(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	return tokens, len(tokens)
 }
 
+// fmtAnyExpr will try to format overall expressions, handling if
+// there are lists inside.
+//
+// When finding a comma it may stop formatting the expression and return
+// the tokens + position of the comma, since it is use to format expressions
+// inside lists (we need to format each expression before/after commas individually).
 func fmtAnyExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	newTokens := make(hclwrite.Tokens, 0, len(tokens))
 	elemIndex := 0
