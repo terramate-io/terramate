@@ -243,7 +243,7 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 
 		logger.Trace().Msg("getting next element of the list")
 
-		element, nextPos := fmtNextElement(tokens[elemIndex:])
+		element, nextPos := fmtExpr(tokens[elemIndex:])
 		elemIndex += nextPos
 
 		logger.Trace().
@@ -323,21 +323,13 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			elemIndex++
 
 			skipNls()
-			operand, nextPos := fmtNextElement(tokens[elemIndex:])
+			operand, nextPos := fmtExpr(tokens[elemIndex:])
 			elemIndex += nextPos
 
 			newTokens = append(newTokens, operand...)
 			return newTokens, elemIndex
 		}
 	}
-}
-
-func fmtNextElement(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
-	if isList(tokens) {
-		return fmtListExpr(tokens)
-	}
-
-	return fmtExpr(tokens)
 }
 
 func fmtIndexAccess(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
@@ -552,16 +544,6 @@ func skipTokens(tokens hclwrite.Tokens, skipTypes ...hclsyntax.TokenType) (hclwr
 		}
 	}
 	return nil, len(tokens)
-}
-
-func isList(tokens hclwrite.Tokens) bool {
-	if tokens[0].Type != hclsyntax.TokenOBrack {
-		return false
-	}
-	if isListComprehension(tokens) {
-		return false
-	}
-	return true
 }
 
 func isListComprehension(tokens hclwrite.Tokens) bool {
