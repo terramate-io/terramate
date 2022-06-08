@@ -190,15 +190,10 @@ func fmtAttrExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
 		Str("tokens", tokensStr(tokens)).
 		Logger()
 
-	if tokens[0].Type != hclsyntax.TokenOBrack {
+	if !isList(tokens) {
 		logger.Trace().Msg("not a list, it may be an expression with lists inside")
 		newTokens, _ := fmtAnyExpr(tokens)
 		return newTokens
-	}
-
-	if isListComprehension(tokens) {
-		logger.Trace().Msg("list comprehension, ignoring")
-		return tokens
 	}
 
 	formattedList, pos := fmtListExpr(tokens)
@@ -350,8 +345,7 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 }
 
 func fmtNextElement(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
-	if tokens[0].Type == hclsyntax.TokenOBrack &&
-		!isListComprehension(tokens) {
+	if isList(tokens) {
 		return fmtListExpr(tokens)
 	}
 
@@ -472,6 +466,17 @@ func skipTokens(tokens hclwrite.Tokens, skipTypes ...hclsyntax.TokenType) (hclwr
 		}
 	}
 	return nil, len(tokens)
+}
+
+func isList(tokens hclwrite.Tokens) bool {
+	if tokens[0].Type != hclsyntax.TokenOBrack {
+		return false
+	}
+	if isListComprehension(tokens) {
+		return false
+	}
+	// TODO(katcipis): handle detecting index access
+	return true
 }
 
 func isListComprehension(tokens hclwrite.Tokens) bool {
