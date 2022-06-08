@@ -190,10 +190,10 @@ func fmtAttrExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
 		Str("tokens", tokensStr(tokens)).
 		Logger()
 
-	// We are interested on lists, ignore the rest
 	if tokens[0].Type != hclsyntax.TokenOBrack {
-		logger.Trace().Msg("not a list, returning tokens as is")
-		return tokens
+		logger.Trace().Msg("not a list, it may be an expression with lists inside")
+		newTokens, _ := fmtAnyExpr(tokens)
+		return newTokens
 	}
 
 	if isListComprehension(tokens) {
@@ -359,7 +359,8 @@ func fmtNextElement(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 }
 
 func fmtAnyExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
-	// this function expects that `tokens` are inside a `[` token.
+	// This function expects that `tokens` are inside a `[` token
+	// or are any expression that may have a list inside.
 	// It works for either list elements or indexing.
 	// eg.:
 	//   list = [<tokens>
