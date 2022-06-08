@@ -86,6 +86,24 @@ var = [for x in local.a : x]
 `,
 		},
 		{
+			name: "function call with list comprehension",
+			input: `
+var = f([   for x in    local.a : x  ])
+`,
+			want: `
+var = f([for x in local.a : x])
+`,
+		},
+		{
+			name: "object with list comprehension",
+			input: `
+var = { a = [   for x in    local.a : x  ] }
+`,
+			want: `
+var = { a = [for x in local.a : x] }
+`,
+		},
+		{
 			name: "multi line list comprehension",
 			input: `
 var = [
@@ -96,6 +114,32 @@ for x in    local.a : x
 var = [
   for x in local.a : x
 ]
+`,
+		},
+		{
+			name: "function call with multi line list comprehension",
+			input: `
+var = f([
+for x in    local.a : x
+])
+`,
+			want: `
+var = f([
+  for x in local.a : x
+])
+`,
+		},
+		{
+			name: "object with multi line list comprehension",
+			input: `
+var = { a = [
+for x in    local.a : x
+] }
+`,
+			want: `
+var = { a = [
+  for x in local.a : x
+] }
 `,
 		},
 		{
