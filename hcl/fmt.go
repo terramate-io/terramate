@@ -431,7 +431,8 @@ func fmtExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 		case hclsyntax.TokenCBrace, hclsyntax.TokenCBrack,
 			hclsyntax.TokenIdent, hclsyntax.TokenQuotedLit,
 			hclsyntax.TokenStringLit, hclsyntax.TokenNumberLit,
-			hclsyntax.TokenCParen, hclsyntax.TokenCQuote:
+			hclsyntax.TokenCParen, hclsyntax.TokenCQuote,
+			hclsyntax.TokenCHeredoc:
 			// Indexing, not an actual list
 			return false
 		default:
