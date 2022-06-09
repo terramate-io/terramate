@@ -221,8 +221,7 @@ func (e *engine) emitVariable(v variable) error {
 	for i, original := range v.index {
 		// Prepare a subengine to evaluate the indexing tokens.
 		// The partial eval engine expects the token stream to be EOF terminated.
-		index := make(hclwrite.Tokens, len(original))
-		copy(index, original)
+		index := copytokens(original)
 		index = append(index, tokenEOF())
 		subengine := newPartialEvalEngine(index, e.ctx)
 		subengine.multiline++
@@ -231,13 +230,13 @@ func (e *engine) emitVariable(v variable) error {
 		// syntax error (hopeful) caught by hcl lib.
 		tok := subengine.peekn(subengine.skip(0))
 		if tok.Type != hclsyntax.TokenStar {
-			newindex, err := subengine.Eval()
+			evaluatedIndex, err := subengine.Eval()
 			if err != nil {
 				return err
 			}
 
 			// remove EOF
-			v.index[i] = newindex[0 : len(newindex)-1]
+			v.index[i] = evaluatedIndex[0 : len(evaluatedIndex)-1]
 		}
 	}
 	tos.pushEvaluated(v.alltokens()...)
