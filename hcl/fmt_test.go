@@ -144,6 +144,20 @@ var = { a = [
 `,
 		},
 		{
+			name: "list with object with multi line list key",
+			input: `
+var = [ { [
+] = 0 },
+]
+`,
+			want: `
+var = [
+  { [
+  ] = 0 },
+]
+`,
+		},
+		{
 			name: "assignment with map comprehension",
 			input: `
 var = {  for s    in var.list : s =>     upper(s)    }
