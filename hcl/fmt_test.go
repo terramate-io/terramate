@@ -720,29 +720,6 @@ var = {
 			input: `
 var = {
   a = [ "item" ],
-  b = [ "item" ],
-  c = [ "item" ],
-}
-`,
-			want: `
-var = {
-  a = [
-    "item",
-  ],
-  b = [
-    "item",
-  ],
-  c = [
-    "item",
-  ],
-}
-`,
-		},
-		{
-			name: "object with multiple item list",
-			input: `
-var = {
-  a = [ "item" ],
   b = [],
   c = [6,6,6],
 }
