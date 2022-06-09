@@ -216,13 +216,36 @@ func (e *engine) emitn(n int) {
 	}
 }
 
-func (e *engine) emitVariable(v variable) {
+func (e *engine) emitVariable(v variable) error {
 	tos := e.evalstack.peek()
+	for i, original := range v.index {
+		// Prepare a subengine to evaluate the indexing tokens.
+		// The partial eval engine expects the token stream to be EOF terminated.
+		index := copytokens(original)
+		index = append(index, tokenEOF())
+		subengine := newPartialEvalEngine(index, e.ctx)
+		subengine.multiline++
+
+		// this will only fail in the case of `<ident>[]` but this would be a
+		// syntax error (hopeful) caught by hcl lib.
+		tok := subengine.peekn(subengine.skip(0))
+		if tok.Type != hclsyntax.TokenStar {
+			evaluatedIndex, err := subengine.Eval()
+			if err != nil {
+				return err
+			}
+
+			// remove EOF
+			v.index[i] = evaluatedIndex[0 : len(evaluatedIndex)-1]
+		}
+	}
 	tos.pushEvaluated(v.alltokens()...)
-	for i := 0; i < v.size(); i++ {
-		tos.pushOriginal(e.peek())
+	for _, tok := range v.original {
+		tos.pushOriginal(tok)
 		e.pos++
 	}
+
+	return nil
 }
 
 func (e *engine) emitTokens(original hclwrite.Tokens, evaluated hclwrite.Tokens) {
@@ -252,7 +275,7 @@ func (e *engine) emitnlparens() {
 
 func (e *engine) skipTokens(from int, tokens ...hclsyntax.TokenType) int {
 	i := from
-	for e.hasTokens() {
+	for i < len(e.tokens) {
 		found := false
 		for _, t := range tokens {
 			if e.peekn(i).Type == t {
@@ -397,12 +420,12 @@ loop:
 			e.peek().Type, e.tokens[e.pos:].Bytes()))
 	}
 
+	e.emitnlparens()
+	e.emitComments()
+
 	if !e.hasTokens() {
 		return nil
 	}
-
-	e.emitnlparens()
-	e.emitComments()
 
 	// exprTerm INDEX,GETATTR,SPLAT (expression acessors)
 	tok = e.peek()
@@ -417,6 +440,10 @@ loop:
 
 	e.emitnlparens()
 	e.emitComments()
+
+	if !e.hasTokens() {
+		return nil
+	}
 
 	// operation && conditional
 
@@ -486,7 +513,7 @@ func (e *engine) evalAcessors() error {
 				parsed = true
 			}
 
-			if e.peek().Type == hclsyntax.TokenDot {
+			if e.hasTokens() && e.peek().Type == hclsyntax.TokenDot {
 				err := e.evalGetAttr()
 				if err != nil {
 					return err
@@ -510,6 +537,8 @@ func (e *engine) evalAcessors() error {
 func (e *engine) evalIndex() error {
 	e.newnode()
 	e.multiline++
+
+	defer func() { e.multiline-- }()
 
 	e.assert(hclsyntax.TokenOBrack)
 	e.emit()
@@ -535,6 +564,11 @@ func (e *engine) evalIndex() error {
 	e.emit()
 	e.emitnlparens()
 	e.emitComments()
+
+	if !e.hasTokens() {
+		return nil
+	}
+
 	tok := e.peek()
 	switch tok.Type {
 	case hclsyntax.TokenOBrack, hclsyntax.TokenDot:
@@ -544,8 +578,6 @@ func (e *engine) evalIndex() error {
 		}
 		e.commit()
 	}
-
-	e.multiline--
 
 	return nil
 }
@@ -721,7 +753,10 @@ func (e *engine) evalForExpr(matchOpenType, matchCloseType hclsyntax.TokenType) 
 				)
 			}
 
-			e.emitVariable(v)
+			err := e.emitVariable(v)
+			if err != nil {
+				return err
+			}
 		} else {
 			e.emit()
 		}
@@ -841,8 +876,7 @@ func (e *engine) evalVar() error {
 	}
 
 	if !v.isTerramate {
-		e.emitVariable(v)
-		return nil
+		return e.emitVariable(v)
 	}
 
 	var expr []byte
@@ -1138,14 +1172,17 @@ func (e *engine) parseVariable(tokens hclwrite.Tokens) (v variable, found bool) 
 	nsvar := string(v.name[0].Bytes)
 	v.isTerramate = nsvar == "global" || nsvar == "terramate"
 
-	if pos < len(tokens) && tokens[pos].Type == hclsyntax.TokenOBrack {
-		v.index = parseIndexing(tokens[pos:])
+	for pos < len(tokens) && tokens[pos].Type == hclsyntax.TokenOBrack {
+		index, skip := parseIndexing(tokens[pos:])
+		v.index = append(v.index, index)
+		pos += skip
 	}
 
+	v.original = tokens[0:pos]
 	return v, true
 }
 
-func parseIndexing(tokens hclwrite.Tokens) hclwrite.Tokens {
+func parseIndexing(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	assertToken(tokens[0], hclsyntax.TokenOBrack)
 
 	pos := 1
@@ -1165,14 +1202,6 @@ func parseIndexing(tokens hclwrite.Tokens) hclwrite.Tokens {
 		}
 
 		if matchingBracks == 0 {
-			if tokens[pos+1].Type == hclsyntax.TokenOBrack {
-				// beginning of next '[' sequence.
-				// this is for the parsing of a.b[<expr][<expr2]...
-				matchingBracks++
-				pos += 2
-				continue
-			}
-
 			break
 		}
 
@@ -1180,7 +1209,7 @@ func parseIndexing(tokens hclwrite.Tokens) hclwrite.Tokens {
 	}
 
 	assertToken(tokens[pos], hclsyntax.TokenCBrack)
-	return tokens[1:pos]
+	return tokens[1:pos], pos + 1
 }
 
 func (e *engine) canEvaluateIdent() bool {
@@ -1367,17 +1396,20 @@ func copytoken(tok *hclwrite.Token) *hclwrite.Token {
 
 // variable is a low-level representation of a variable in terms of tokens.
 type variable struct {
-	name  hclwrite.Tokens
-	index hclwrite.Tokens
+	name hclwrite.Tokens
 
+	// a variable can have nested indexing. eg.: global.a[0][1][global.b][0]
+	index []hclwrite.Tokens
+
+	original    hclwrite.Tokens
 	isTerramate bool
 }
 
 func (v variable) alltokens() hclwrite.Tokens {
 	tokens := v.name
-	if len(v.index) > 0 {
+	for _, index := range v.index {
 		tokens = append(tokens, tokenOBrack())
-		tokens = append(tokens, v.index...)
+		tokens = append(tokens, index...)
 		tokens = append(tokens, tokenCBrack())
 	}
 	return tokens
@@ -1385,8 +1417,8 @@ func (v variable) alltokens() hclwrite.Tokens {
 
 func (v variable) size() int {
 	sz := len(v.name)
-	if len(v.index) > 0 {
-		sz += len(v.index) + 2 // `[` <tokens> `]`
+	for _, index := range v.index {
+		sz += len(index) + 2 // `[` <tokens> `]`
 	}
 	return sz
 }

@@ -2093,6 +2093,130 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
+			name: "indexing of outside variables",
+			globals: hcldoc(
+				globals(
+					number("depth", 1),
+				),
+			),
+			config: hcldoc(
+				expr("folder_id", `data.google_active_folder[global.depth].0.id`),
+			),
+			want: hcldoc(
+				expr("folder_id", `data.google_active_folder[1].0.id`),
+			),
+		},
+		{
+			name: "indexing of outside variables with interpolation of single var",
+			globals: hcldoc(
+				globals(
+					number("depth", 1),
+				),
+			),
+			config: hcldoc(
+				expr("folder_id", `data.google_active_folder["${global.depth}"].0.id`),
+			),
+			want: hcldoc(
+				expr("folder_id", `data.google_active_folder[1].0.id`),
+			),
+		},
+		{
+			name: "indexing of outside variables with interpolation",
+			globals: hcldoc(
+				globals(
+					number("depth", 1),
+				),
+			),
+			config: hcldoc(
+				expr("folder_id", `data.google_active_folder["l${global.depth}"].0.id`),
+			),
+			want: hcldoc(
+				expr("folder_id", `data.google_active_folder["l1"].0.id`),
+			),
+		},
+		{
+			name: "outside variable with splat operator",
+			config: hcldoc(
+				expr("folder_id", `data.test[*].0.id`),
+			),
+			want: hcldoc(
+				expr("folder_id", `data.test[*].0.id`),
+			),
+		},
+		{
+			name: "outside variable with splat getattr operator",
+			config: hcldoc(
+				expr("folder_id", `data.test.*.0.id`),
+			),
+			want: hcldoc(
+				expr("folder_id", `data.test.*.0.id`),
+			),
+		},
+		{
+			name: "multiple indexing",
+			config: hcldoc(
+				expr("a", `data.test[0][0][0]`),
+			),
+			want: hcldoc(
+				expr("a", `data.test[0][0][0]`),
+			),
+		},
+		{
+			name: "multiple indexing with evaluation",
+			globals: hcldoc(
+				globals(
+					number("val", 1),
+				),
+			),
+			config: hcldoc(
+				expr("a", `data.test[global.val][0][0]`),
+			),
+			want: hcldoc(
+				expr("a", `data.test[1][0][0]`),
+			),
+		},
+		{
+			name: "multiple indexing with evaluation 2",
+			globals: hcldoc(
+				globals(
+					number("val", 1),
+				),
+			),
+			config: hcldoc(
+				expr("a", `data.test[0][global.val][global.val+1]`),
+			),
+			want: hcldoc(
+				expr("a", `data.test[0][1][1+1]`),
+			),
+		},
+		{
+			name: "nested indexing",
+			globals: hcldoc(
+				globals(
+					expr("obj", `{
+						key = {
+							key2 = {
+								val = "hello"
+							}
+						}
+					}`),
+					expr("obj2", `{
+						keyname = "key"
+					}`),
+					expr("key", `{
+						key2 = "keyname"
+					}`),
+					str("key2", "key2"),
+				),
+			),
+			config: hcldoc(
+				expr("hello", `global.obj[global.obj2[global.key[global.key2]]][global.key2]["val"]`),
+			),
+			want: hcldoc(
+				str("hello", "hello"),
+			),
+		},
+		{
 			name: "obj for loop without eval references",
 			config: hcldoc(
 				expr("obj", `{for k in local.list : k => k}`),
