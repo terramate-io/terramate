@@ -307,6 +307,9 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	switch nextTokenType {
 	case hclsyntax.TokenIdent, hclsyntax.TokenCBrace:
 		{
+			// this handle scenarios like:
+			// { a = []\nb = [] }
+			// In this case the next token is the identifier or end of the object
 			logger.Trace().Msg("inside object, adding newline after list")
 
 			newTokens = append(newTokens, newlineToken())
