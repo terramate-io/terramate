@@ -260,7 +260,12 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 		if isHeredoc(element) {
 			newTokens = append(newTokens, newlineToken())
 		}
-		newTokens = append(newTokens, commaToken(), newlineToken())
+
+		// On some scenarios like { [] = etc, ... } we need to avoid double commas
+		if newTokens[len(newTokens)-1].Type != hclsyntax.TokenComma {
+			newTokens = append(newTokens, commaToken())
+		}
+		newTokens = append(newTokens, newlineToken())
 	}
 
 	newTokens = append(newTokens, closeBracketToken())
