@@ -716,6 +716,41 @@ var = {
 `,
 		},
 		{
+			name: "object multiple attributes with different key types",
+			input: `
+var = {
+  {}         = [ "item" ]
+  666        = [ "item" ]
+  "hclisfun" = [ "item" ]
+  true       = [ "item" ]
+  [1]        = [ "item" ]
+  [2]        = [ "item" ]
+}
+`,
+			want: `
+var = {
+  {} = [
+    "item",
+  ]
+  666 = [
+    "item",
+  ]
+  "hclisfun" = [
+    "item",
+  ]
+  true = [
+    "item",
+  ]
+  [1] = [
+    "item",
+  ]
+  [2] = [
+    "item",
+  ]
+}
+`,
+		},
+		{
 			name: "object multiple attributes with commas",
 			input: `
 var = {

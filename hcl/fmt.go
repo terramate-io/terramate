@@ -201,9 +201,12 @@ func fmtAttrExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
 // properly. It returns the adjusted tokens and the position of the first
 // token after the list ended.
 //
+// isInsideObject is necessary to disambiguate between a list indexing operation
+// and lists being used as keys inside an object.
+//
 // If there is no more tokens after the end of
 // the list the returned position will be equal to len(tokens).
-func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
+func fmtListExpr(tokens hclwrite.Tokens, isInsideObject bool) (hclwrite.Tokens, int) {
 	logger := log.With().
 		Str("action", "hcl.fmtListExpr()").
 		Str("tokens", tokensStr(tokens)).
@@ -276,8 +279,6 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 
 	logger.Trace().Msg("checking if formatted list has operators/index access")
 
-	skipNls()
-
 	if elemIndex == len(tokens) {
 		logger.Trace().Msg("no more tokens, returning formatted list")
 		return newTokens, elemIndex
@@ -287,8 +288,10 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 	// var = [[] # c1\n\n #c\n [*]]
 	// We need to keep any comments after the immediate end of the list
 	// We don't keep the extra newlines, only newlines belonging to comments themselves.
-	hasCommentOrNl := true
-	for hasCommentOrNl {
+	searchCommentOrNl := true
+	hasNewlineBeforeToken := false
+
+	for searchCommentOrNl {
 		switch tokens[elemIndex].Type {
 		case hclsyntax.TokenComment:
 			logger.Trace().Msg("found comment after end of list, adding token")
@@ -296,20 +299,21 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			elemIndex++
 		case hclsyntax.TokenNewline:
 			logger.Trace().Msg("found newline after end of list, ignoring")
+			hasNewlineBeforeToken = true
 			elemIndex++
 		default:
-			hasCommentOrNl = false
+			searchCommentOrNl = false
 		}
 	}
 
 	nextTokenType := tokens[elemIndex].Type
 
 	switch nextTokenType {
-	case hclsyntax.TokenIdent, hclsyntax.TokenCBrace:
+	case hclsyntax.TokenIdent, hclsyntax.TokenCBrace,
+		hclsyntax.TokenNumberLit, hclsyntax.TokenOQuote:
 		{
 			// this handle scenarios like:
 			// { a = []\nb = [] }
-			// In this case the next token is the identifier or end of the object
 			logger.Trace().Msg("inside object, adding newline after list")
 
 			newTokens = append(newTokens, newlineToken())
@@ -323,6 +327,17 @@ func fmtListExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 		}
 	case hclsyntax.TokenOBrack:
 		{
+			// We could have a index access []\n[0] or we could be inside
+			// an object, where the newline indicates a new key = value
+			// Also we could be inside an object but still have an indexing operation
+			// so we use newlines to disambiguate.
+			if isInsideObject && hasNewlineBeforeToken {
+				logger.Trace().Msg("inside object, adding newline after list")
+
+				newTokens = append(newTokens, newlineToken())
+				return newTokens, elemIndex
+			}
+
 			logger.Trace().Msg("getting tokens for list index access")
 
 			indexAccess, nextPos := fmtIndexAccess(tokens[elemIndex:])
@@ -477,7 +492,7 @@ func fmtExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			openBraces--
 		case hclsyntax.TokenOBrack:
 			if curTokenStartsList() {
-				listTokens, pos := fmtListExpr(tokens[elemIndex:])
+				listTokens, pos := fmtListExpr(tokens[elemIndex:], openBraces > 0)
 				newTokens = append(newTokens, listTokens...)
 				elemIndex += pos
 			} else {
