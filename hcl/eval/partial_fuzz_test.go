@@ -116,8 +116,8 @@ func FuzzPartialEval(f *testing.F) {
 		}
 
 		ctx := NewContext("")
-		assert.NoError(t, ctx.SetNamespace("globals", globals))
-		assert.NoError(t, ctx.SetNamespace("terramate", terramate))
+		ctx.SetNamespace("globals", globals)
+		ctx.SetNamespace("terramate", terramate)
 
 		want := toWriteTokens(parsedTokens)
 		engine := newPartialEvalEngine(want, ctx)

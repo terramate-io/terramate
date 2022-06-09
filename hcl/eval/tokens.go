@@ -46,3 +46,9 @@ func tokenCBrack() *hclwrite.Token {
 		Bytes: []byte("]"),
 	}
 }
+
+func tokenEOF() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type: hclsyntax.TokenEOF,
+	}
+}

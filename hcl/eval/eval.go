@@ -15,7 +15,6 @@
 package eval
 
 import (
-	"fmt"
 	"io/ioutil"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -54,19 +53,8 @@ func NewContext(basedir string) *Context {
 
 // SetNamespace will set the given values inside the given namespace on the
 // evaluation context.
-func (c *Context) SetNamespace(name string, vals map[string]cty.Value) error {
-	logger := log.With().
-		Str("action", "SetNamespace()").
-		Logger()
-
-	logger.Trace().Msg("Convert from map to object")
-
-	obj, err := FromMapToObject(vals)
-	if err != nil {
-		return fmt.Errorf("setting namespace %q:%v", name, err)
-	}
-	c.hclctx.Variables[name] = obj
-	return nil
+func (c *Context) SetNamespace(name string, vals map[string]cty.Value) {
+	c.hclctx.Variables[name] = FromMapToObject(vals)
 }
 
 // HasNamespace returns true the evaluation context knows this namespace, false otherwise.
@@ -107,7 +95,9 @@ func (c *Context) PartialEval(expr hclsyntax.Expression) (hclwrite.Tokens, error
 }
 
 // FromMapToObject converts a map of cty.Value to an object.
-func FromMapToObject(values map[string]cty.Value) (cty.Value, error) {
+// It is a programming error to pass any cty.Value that can't be
+// converted properly into an object field.
+func FromMapToObject(values map[string]cty.Value) cty.Value {
 	logger := log.With().
 		Str("action", "fromMapToObject()").
 		Logger()
@@ -124,9 +114,9 @@ func FromMapToObject(values map[string]cty.Value) (cty.Value, error) {
 	ctyObject := cty.Object(ctyTypes)
 	ctyVal, err := gocty.ToCtyValue(values, ctyObject)
 	if err != nil {
-		return cty.Value{}, err
+		panic(errors.E("bug: all map values should be convertable", err))
 	}
-	return ctyVal, nil
+	return ctyVal
 }
 
 func toWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {
