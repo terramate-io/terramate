@@ -219,7 +219,6 @@ This will run **terraform** plan on all stacks, but respecting ordering:
 terramate run terraform plan
 ```
 
-
 ### Change Detection And Ordering
 
 When using any terramate command with support to change detection,
@@ -277,6 +276,46 @@ Even though **stack-c** defined that it needs to be run after **stack-b**, since
 **stack-b** has no changes on it, it will be ignored when defining the
 **runtime** order.
 
+
+## Execution Environment
+
+The environment in which stacks are going to be executed can be configured
+using the `export_env` block. This block has no labels and accepts arbitrary
+attributes where each attribute represents an environment variable that will
+be exported when executing the stack. The attributes must always evaluate to
+strings.
+
+Example:
+
+```hcl
+export_env {
+  TF_PLUGIN_CACHE_DIR = "/some/path/etc"
+}
+```
+
+Will export the environment variable `TF_PLUGIN_CACHE_DIR` on the stack
+execution environment with the value `/some/path/etc`.
+
+Inside the `export_env` block the `env` namespace will be available including
+environment variables exported from the host:
+
+```hcl
+export_env {
+  TF_PLUGIN_CACHE_DIR = "${env.HOME}/.terraform-cache-dir"
+}
+```
+
+The `env` namespace is read-only and is only available when evaluating
+`export_env` blocks.
+
+The `export_env` blocks have the same hierarchical behavior as other features
+on Terramate, so an `export_env` defined on the project root is inherited by
+all stacks in the project.
+
+Regarding redefinitions:
+
+* Redefinition on same level is disallowed
+* Redefinition on different levels: more specific definition (closer to stack) is used
 
 ## Failure Modes
 
