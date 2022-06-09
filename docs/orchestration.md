@@ -312,7 +312,10 @@ The `export_env` blocks have the same hierarchical behavior as other features
 on Terramate, so an `export_env` defined on the project root is inherited by
 all stacks in the project.
 
-Regarding redefinitions:
+All `export_env` blocks are merged, so different variables defined on different
+blocks will all be exported on the stack execution environment.
+
+Regarding variables redefinitions:
 
 * Redefinition on same level is disallowed
 * Redefinition on different levels: more specific definition (closer to stack) is used
