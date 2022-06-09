@@ -414,7 +414,18 @@ func fmtExpr(tokens hclwrite.Tokens) (hclwrite.Tokens, int) {
 			// Cant backtrack, so assuming a list
 			return true
 		}
-		previousToken := tokens[elemIndex-1]
+
+		var previousToken *hclwrite.Token
+
+		// Skipping newlines in reverse, HCL is fun !
+		// Handling things like this: "[0\n[[]]]"
+		for i := elemIndex - 1; i >= 0; i-- {
+			previousToken = tokens[i]
+			if previousToken.Type != hclsyntax.TokenNewline {
+				break
+			}
+		}
+
 		switch previousToken.Type {
 		case hclsyntax.TokenCBrace, hclsyntax.TokenCBrack,
 			hclsyntax.TokenIdent, hclsyntax.TokenQuotedLit,
