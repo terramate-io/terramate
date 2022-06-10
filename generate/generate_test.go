@@ -63,6 +63,7 @@ func testCodeGeneration(t *testing.T, checkGenFile genFileChecker, tcases []test
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
+			t.Helper()
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
 

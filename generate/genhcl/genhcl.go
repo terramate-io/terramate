@@ -17,6 +17,7 @@ package genhcl
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -29,16 +30,11 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-// StackHCLs represents all generated HCL code for a stack,
-// mapping the generated code filename to the actual HCL code.
-type StackHCLs struct {
-	hcls map[string]HCL
-}
-
 // HCL represents generated HCL code from a single block.
 // Is contains parsed and evaluated code on it and information
 // about the origin of the generated code.
 type HCL struct {
+	name      string
 	origin    string
 	body      string
 	condition bool
@@ -71,14 +67,9 @@ const (
 	ErrInvalidConditionType errors.Kind = "invalid condition type"
 )
 
-// GeneratedHCLs returns all generated code, mapping the name to its
-// equivalent generated code.
-func (s StackHCLs) GeneratedHCLs() map[string]HCL {
-	cp := map[string]HCL{}
-	for k, v := range s.hcls {
-		cp[k] = v
-	}
-	return cp
+// Name of the HCL code.
+func (s HCL) Name() string {
+	return s.name
 }
 
 // Header returns the header of the generated HCL file.
@@ -107,6 +98,11 @@ func (h HCL) Condition() bool {
 	return h.condition
 }
 
+func (h HCL) String() string {
+	return fmt.Sprintf("Generating file %q (condition %t) (body %q) (origin %q)",
+		h.Name(), h.Condition(), h.Body(), h.Origin())
+}
+
 // Load loads from the file system all generate_hcl for
 // a given stack. It will navigate the file system from the stack dir until
 // it reaches rootdir, loading generate_hcl and merging them appropriately.
@@ -118,7 +114,7 @@ func (h HCL) Condition() bool {
 // generate_hcl blocks.
 //
 // The rootdir MUST be an absolute path.
-func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackHCLs, error) {
+func Load(rootdir string, sm stack.Metadata, globals stack.Globals) ([]HCL, error) {
 	stackpath := filepath.Join(rootdir, sm.Path())
 	logger := log.With().
 		Str("action", "genhcl.Load()").
@@ -129,21 +125,20 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackHCLs, 
 
 	loadedHCLs, err := loadGenHCLBlocks(rootdir, stackpath)
 	if err != nil {
-		return StackHCLs{}, errors.E("loading generate_hcl", err)
+		return nil, errors.E("loading generate_hcl", err)
 	}
 
 	evalctx, err := stack.NewEvalCtx(stackpath, sm, globals)
 	if err != nil {
-		return StackHCLs{}, errors.E(err, "creating eval context")
+		return nil, errors.E(err, "creating eval context")
 	}
 
 	logger.Trace().Msg("generating HCL code.")
 
-	res := StackHCLs{
-		hcls: map[string]HCL{},
-	}
+	var hcls []HCL
+	for _, loadedHCL := range loadedHCLs {
+		name := loadedHCL.name
 
-	for name, loadedHCL := range loadedHCLs {
 		logger := logger.With().
 			Str("block", name).
 			Logger()
@@ -153,10 +148,10 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackHCLs, 
 			logger.Trace().Msg("has condition attribute, evaluating it")
 			value, err := evalctx.Eval(loadedHCL.condition.Expr)
 			if err != nil {
-				return StackHCLs{}, errors.E(ErrConditionEval, err)
+				return nil, errors.E(ErrConditionEval, err)
 			}
 			if value.Type() != cty.Bool {
-				return StackHCLs{}, errors.E(
+				return nil, errors.E(
 					ErrInvalidConditionType,
 					"condition has type %s but must be boolean",
 					value.Type().FriendlyName(),
@@ -167,10 +162,13 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackHCLs, 
 
 		if !condition {
 			logger.Trace().Msg("condition=false, block wont be evaluated")
-			res.hcls[name] = HCL{
+
+			hcls = append(hcls, HCL{
+				name:      name,
 				origin:    loadedHCL.origin,
 				condition: condition,
-			}
+			})
+
 			continue
 		}
 
@@ -178,28 +176,34 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackHCLs, 
 
 		gen := hclwrite.NewEmptyFile()
 		if err := hcl.CopyBody(gen.Body(), loadedHCL.block.Body, evalctx.PartialEval); err != nil {
-			return StackHCLs{}, errors.E(ErrContentEval, sm, err,
+			return nil, errors.E(ErrContentEval, sm, err,
 				"failed to generate block %q", name,
 			)
 		}
 		formatted, err := hcl.FormatMultiline(string(gen.Bytes()), loadedHCL.origin)
 		if err != nil {
-			return StackHCLs{}, errors.E(sm, err,
+			return nil, errors.E(sm, err,
 				"failed to format generated code for block %q", name,
 			)
 		}
-		res.hcls[name] = HCL{
+		hcls = append(hcls, HCL{
+			name:      name,
 			origin:    loadedHCL.origin,
 			body:      formatted,
 			condition: condition,
-		}
+		})
 	}
 
+	sort.Slice(hcls, func(i, j int) bool {
+		return hcls[i].String() < hcls[j].String()
+	})
+
 	logger.Trace().Msg("evaluated all blocks with success")
-	return res, nil
+	return hcls, nil
 }
 
 type loadedHCL struct {
+	name      string
 	origin    string
 	block     *hclsyntax.Block
 	condition *hclsyntax.Attribute
@@ -209,7 +213,7 @@ type loadedHCL struct {
 // The returned map maps the name of the block (its label)
 // to the original block and the path (relative to project root) of the config
 // from where it was parsed.
-func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, error) {
+func loadGenHCLBlocks(rootdir string, cfgdir string) ([]loadedHCL, error) {
 	logger := log.With().
 		Str("action", "genhcl.loadGenHCLBlocks()").
 		Str("root", rootdir).
@@ -229,22 +233,19 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 	}
 
 	logger.Trace().Msg("Parsed generate_hcl blocks.")
-	res := map[string]loadedHCL{}
+	res := []loadedHCL{}
 
 	for filename, genhclBlocks := range hclblocks {
 		for _, genhclBlock := range genhclBlocks {
 			name := genhclBlock.Label
 			origin := project.PrjAbsPath(rootdir, filename)
 
-			if other, ok := res[name]; ok {
-				return nil, conflictErr(name, origin, other.origin)
-			}
-
-			res[name] = loadedHCL{
-				origin:    project.PrjAbsPath(rootdir, filename),
+			res = append(res, loadedHCL{
+				name:      name,
+				origin:    origin,
 				block:     genhclBlock.Content,
 				condition: genhclBlock.Condition,
-			}
+			})
 
 			logger.Trace().Msg("loaded generate_hcl block.")
 		}
@@ -254,43 +255,9 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) (map[string]loadedHCL, erro
 	if err != nil {
 		return nil, err
 	}
-	if err := join(res, parentRes); err != nil {
-		return nil, errors.E(ErrLabelConflict, err)
-	}
+
+	res = append(res, parentRes...)
 
 	logger.Trace().Msg("loaded generate_hcl blocks with success.")
 	return res, nil
-}
-
-func join(target, src map[string]loadedHCL) error {
-	for blockLabel, srcHCL := range src {
-		if targetHCL, ok := target[blockLabel]; ok {
-			return errors.E(
-				"found label %q at %q and %q",
-				blockLabel,
-				srcHCL.origin,
-				targetHCL.origin,
-			)
-		}
-		target[blockLabel] = srcHCL
-	}
-	return nil
-}
-
-func conflictErr(label, origin, otherOrigin string) error {
-	if origin == otherOrigin {
-		return errors.E(
-			ErrLabelConflict,
-			"%s has blocks with same label %q",
-			origin,
-			label,
-		)
-	}
-	return errors.E(
-		ErrLabelConflict,
-		"%s and %s have blocks with same label %q",
-		origin,
-		otherOrigin,
-		label,
-	)
 }

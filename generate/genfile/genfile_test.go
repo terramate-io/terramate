@@ -487,19 +487,19 @@ stack_description=
 					},
 				},
 				{
-					name:      "stacks",
-					condition: true,
-					file: genFile{
-						origin: "/stacks/stacks.tm",
-						body:   "stacks-global-data-/stacks/stack",
-					},
-				},
-				{
 					name:      "stack",
 					condition: true,
 					file: genFile{
 						origin: "/stacks/stack/stack.tm",
 						body:   "stack-global-data-/stacks/stack",
+					},
+				},
+				{
+					name:      "stacks",
+					condition: true,
+					file: genFile{
+						origin: "/stacks/stacks.tm",
+						body:   "stacks-global-data-/stacks/stack",
 					},
 				},
 			},
@@ -519,7 +519,7 @@ stack_description=
 			wantErr: errors.E(genfile.ErrInvalidContentType),
 		},
 		{
-			name:  "conflicting blocks on same file",
+			name:  "conflicting blocks on same file do not validate",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
@@ -536,7 +536,63 @@ stack_description=
 					),
 				},
 			},
-			wantErr: errors.E(genfile.ErrLabelConflict),
+			want: []result{
+				{
+					name:      "test.yml",
+					condition: true,
+					file: genFile{
+						origin: "/stack/test.tm",
+						body:   "test",
+					},
+				},
+				{
+					name:      "test.yml",
+					condition: true,
+					file: genFile{
+						origin: "/stack/test.tm",
+						body:   "test2",
+					},
+				},
+			},
+		},
+		{
+			name:  "same labels but different condition",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: generateFile(
+						labels("test"),
+						str("content", "test"),
+						boolean("condition", true),
+					),
+				},
+				{
+					path: "/stack/test.tm",
+					add: generateFile(
+						labels("test"),
+						str("content", "test"),
+						boolean("condition", false),
+					),
+				},
+			},
+			want: []result{
+				{
+					name:      "test",
+					condition: false,
+					file: genFile{
+						origin: "/stack/test.tm",
+					},
+				},
+				{
+					name:      "test",
+					condition: true,
+					file: genFile{
+						origin: "/stack/test.tm",
+						body:   "test",
+					},
+				},
+			},
 		},
 		{
 			name:  "conflicting blocks on same dir",
@@ -561,7 +617,24 @@ stack_description=
 					),
 				},
 			},
-			wantErr: errors.E(genfile.ErrLabelConflict),
+			want: []result{
+				{
+					name:      "test.yml",
+					condition: true,
+					file: genFile{
+						origin: "/stack/test.tm",
+						body:   "test",
+					},
+				},
+				{
+					name:      "test2.yml",
+					condition: true,
+					file: genFile{
+						origin: "/stack/test2.tm",
+						body:   "test2",
+					},
+				},
+			},
 		},
 		{
 			name:  "conflicting blocks on different dirs",
@@ -586,7 +659,24 @@ stack_description=
 					),
 				},
 			},
-			wantErr: errors.E(genfile.ErrLabelConflict),
+			want: []result{
+				{
+					name:      "test.yml",
+					condition: true,
+					file: genFile{
+						origin: "/test.tm",
+						body:   "root",
+					},
+				},
+				{
+					name:      "test.yml",
+					condition: true,
+					file: genFile{
+						origin: "/stack/test.tm",
+						body:   "test",
+					},
+				},
+			},
 		},
 		{
 			name:  "generate_file missing label",
@@ -730,25 +820,31 @@ stack_description=
 			}
 
 			globals := s.LoadStackGlobals(stack)
-			res, err := genfile.Load(s.RootDir(), stack, globals)
+			got, err := genfile.Load(s.RootDir(), stack, globals)
 			errtest.Assert(t, err, tcase.wantErr)
 
-			got := res.GeneratedFiles()
-
-			for _, res := range tcase.want {
-				gotFile, ok := got[res.name]
-				if !ok {
-					t.Fatalf("want generated file %q but got none", res.name)
+			if len(got) != len(tcase.want) {
+				for i, file := range got {
+					t.Logf("got[%d] = %v", i, file)
 				}
-				gotBody := gotFile.Body()
-				wantBody := res.file.body
+				for i, file := range tcase.want {
+					t.Logf("want[%d] = %v", i, file)
+				}
+				t.Fatalf("length of got and want mismatch: got %d but want %d",
+					len(got), len(tcase.want))
+			}
 
-				if gotFile.Condition() != res.condition {
-					t.Fatalf("got condition %t != wanted %t", gotFile.Condition(), res.condition)
+			for i, want := range tcase.want {
+				gotFile := got[i]
+				gotBody := gotFile.Body()
+				wantBody := want.file.body
+
+				if gotFile.Condition() != want.condition {
+					t.Fatalf("got condition %t != wanted %t", gotFile.Condition(), want.condition)
 				}
 
 				assert.EqualStrings(t,
-					res.file.origin,
+					want.file.origin,
 					gotFile.Origin(),
 					"wrong origin config path for generated code",
 				)
@@ -756,11 +852,7 @@ stack_description=
 				assert.EqualStrings(t, wantBody, gotBody,
 					"generated file body differs",
 				)
-
-				delete(got, res.name)
 			}
-
-			assert.EqualInts(t, 0, len(got), "got unexpected exported code: %v", got)
 		})
 	}
 }

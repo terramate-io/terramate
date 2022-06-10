@@ -784,22 +784,22 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					},
 				},
 				{
-					name: "exported_two",
-					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
-						condition: true,
-						body: block("yay",
-							str("data", "string"),
-						),
-					},
-				},
-				{
 					name: "exported_three",
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
 						body: block("something",
 							number("number", 666),
+						),
+					},
+				},
+				{
+					name: "exported_two",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body: block("yay",
+							str("data", "string"),
 						),
 					},
 				},
@@ -969,18 +969,6 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 			want: []result{
 				{
-					name: "on_root",
-					hcl: genHCL{
-						origin:    defaultCfg("/"),
-						condition: true,
-						body: block("on_root_block",
-							attr("obj", `{
-								string = "string"
-							}`),
-						),
-					},
-				},
-				{
 					name: "on_parent",
 					hcl: genHCL{
 						origin:    defaultCfg("/stacks"),
@@ -988,6 +976,18 @@ func TestLoadGeneratedHCL(t *testing.T) {
 						body: block("on_parent_block",
 							attr("obj", `{
 								number = 777
+							}`),
+						),
+					},
+				},
+				{
+					name: "on_root",
+					hcl: genHCL{
+						origin:    defaultCfg("/"),
+						condition: true,
+						body: block("on_root_block",
+							attr("obj", `{
+								string = "string"
 							}`),
 						),
 					},
@@ -1007,7 +1007,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 		},
 		{
-			name:  "stack with block with same label as parent is an error",
+			name:  "stack with block with same label as parent is not an error",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
@@ -1033,7 +1033,28 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrLabelConflict),
+			want: []result{
+				{
+					name: "repeated",
+					hcl: genHCL{
+						origin:    defaultCfg("/stacks"),
+						condition: true,
+						body: block("block",
+							str("data", "parent data"),
+						),
+					},
+				},
+				{
+					name: "repeated",
+					hcl: genHCL{
+						origin:    defaultCfg("/stacks/stack"),
+						condition: true,
+						body: block("block",
+							str("data", "stack data"),
+						),
+					},
+				},
+			},
 		},
 		{
 			name:  "stack parents with block with same label is an error",
@@ -1062,7 +1083,28 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrLabelConflict),
+			want: []result{
+				{
+					name: "repeated",
+					hcl: genHCL{
+						origin:    defaultCfg("/stacks"),
+						condition: true,
+						body: block("block",
+							str("data", "parent data"),
+						),
+					},
+				},
+				{
+					name: "repeated",
+					hcl: genHCL{
+						origin:    defaultCfg("/"),
+						condition: true,
+						body: block("block",
+							str("data", "root data"),
+						),
+					},
+				},
+			},
 		},
 		{
 			name:  "block with no label fails",
@@ -1207,10 +1249,31 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrLabelConflict),
+			want: []result{
+				{
+					name: "duplicated",
+					hcl: genHCL{
+						origin:    defaultCfg("/stacks/stack"),
+						condition: true,
+						body: terraform(
+							str("data", "some literal data"),
+						),
+					},
+				},
+				{
+					name: "duplicated",
+					hcl: genHCL{
+						origin:    defaultCfg("/stacks/stack"),
+						condition: true,
+						body: terraform(
+							str("data2", "some literal data2"),
+						),
+					},
+				},
+			},
 		},
 		{
-			name:  "blocks with same label on multiple config files fails",
+			name:  "blocks with same label on multiple config files do not fail",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
@@ -1242,7 +1305,28 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrLabelConflict),
+			want: []result{
+				{
+					name: "duplicated",
+					hcl: genHCL{
+						origin:    "/stacks/stack/test.tm.hcl",
+						condition: true,
+						body: terraform(
+							str("data", "some literal data"),
+						),
+					},
+				},
+				{
+					name: "duplicated",
+					hcl: genHCL{
+						origin:    "/stacks/stack/test2.tm.hcl",
+						condition: true,
+						body: terraform(
+							str("data", "some literal data"),
+						),
+					},
+				},
+			},
 		},
 		{
 			name:  "global evaluation failure on content",
@@ -1389,16 +1473,23 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			}
 
 			globals := s.LoadStackGlobals(stack)
-			res, err := genhcl.Load(s.RootDir(), stack, globals)
+			got, err := genhcl.Load(s.RootDir(), stack, globals)
 			errtest.Assert(t, err, tcase.wantErr)
 
-			got := res.GeneratedHCLs()
-
-			for _, res := range tcase.want {
-				gothcl, ok := got[res.name]
-				if !ok {
-					t.Fatalf("want hcl code to be generated for %q but no code was generated for it", res.name)
+			if len(got) != len(tcase.want) {
+				for i, file := range got {
+					t.Logf("got[%d] = %v", i, file)
 				}
+				for i, file := range tcase.want {
+					t.Logf("want[%d] = %v", i, file)
+				}
+				t.Fatalf("length of got and want mismatch: got %d but want %d",
+					len(got), len(tcase.want))
+			}
+
+			for i, res := range tcase.want {
+				gothcl := got[i]
+
 				gotCondition := gothcl.Condition()
 				wantCondition := res.hcl.condition
 
@@ -1415,11 +1506,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					gothcl.Origin(),
 					"wrong origin config path for generated code",
 				)
-
-				delete(got, res.name)
 			}
-
-			assert.EqualInts(t, 0, len(got), "got unexpected exported code: %v", got)
 		})
 	}
 }
@@ -2687,18 +2774,16 @@ func TestPartialEval(t *testing.T) {
 			test.AppendFile(t, path, config.DefaultFilename, cfg.String())
 
 			globals := s.LoadStackGlobals(stack)
-			res, err := genhcl.Load(s.RootDir(), stack, globals)
+			got, err := genhcl.Load(s.RootDir(), stack, globals)
 			errtest.Assert(t, err, tcase.wantErr)
 
 			if err != nil {
 				return
 			}
 
-			got := res.GeneratedHCLs()
-
 			assert.EqualInts(t, len(got), 1, "want single generated HCL")
 
-			gothcl := got[genname]
+			gothcl := got[0]
 			gotcode := gothcl.Body()
 			wantcode := tcase.want.String()
 			assertHCLEquals(t, gotcode, wantcode)

@@ -15,7 +15,9 @@
 package genfile
 
 import (
+	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
@@ -46,17 +48,17 @@ const (
 	ErrLabelConflict errors.Kind = "label conflict detected"
 )
 
-// StackFiles represents all generated files for a stack,
-// mapping the generated file path to the actual file body.
-type StackFiles struct {
-	files map[string]File
-}
-
 // File represents generated file from a single generate_file block.
 type File struct {
+	name      string
 	origin    string
 	body      string
 	condition bool
+}
+
+// Name of the file.
+func (f File) Name() string {
+	return f.name
 }
 
 // Body returns the file body.
@@ -82,14 +84,9 @@ func (f File) Header() string {
 	return ""
 }
 
-// GeneratedFiles returns all generated files, mapping the file path to
-// the file description. The path is absolute relative to the project root.
-func (s StackFiles) GeneratedFiles() map[string]File {
-	cp := map[string]File{}
-	for k, v := range s.files {
-		cp[k] = v
-	}
-	return cp
+func (f File) String() string {
+	return fmt.Sprintf("Generating file %q (condition %t) (body %q) (origin %q)",
+		f.Name(), f.Condition(), f.Body(), f.Origin())
 }
 
 // Load loads and parses from the file system all generate_file blocks for
@@ -104,7 +101,7 @@ func (s StackFiles) GeneratedFiles() map[string]File {
 // generate_file blocks.
 //
 // The rootdir MUST be an absolute path.
-func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles, error) {
+func Load(rootdir string, sm stack.Metadata, globals stack.Globals) ([]File, error) {
 	stackpath := filepath.Join(rootdir, sm.Path())
 	logger := log.With().
 		Str("action", "genfile.Load()").
@@ -115,23 +112,25 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles,
 
 	genFileBlocks, err := loadGenFileBlocks(rootdir, stackpath)
 	if err != nil {
-		return StackFiles{}, errors.E("loading generate_file", err)
+		return nil, errors.E("loading generate_file", err)
 	}
 
 	evalctx, err := stack.NewEvalCtx(stackpath, sm, globals)
 	if err != nil {
-		return StackFiles{}, errors.E(err, "creating eval context")
+		return nil, errors.E(err, "creating eval context")
 	}
 
 	logger.Trace().Msg("generating files")
 
-	res := StackFiles{
-		files: map[string]File{},
-	}
+	var files []File
 
-	for name, genFileBlock := range genFileBlocks {
+	for _, genFileBlock := range genFileBlocks {
+		name := genFileBlock.label
+		origin := genFileBlock.origin
+
 		logger := logger.With().
 			Str("block", name).
+			Str("origin", origin).
 			Logger()
 
 		logger.Trace().Msg("evaluating condition")
@@ -141,10 +140,10 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles,
 			logger.Trace().Msg("has condition attribute, evaluating it")
 			value, err := evalctx.Eval(genFileBlock.block.Condition.Expr)
 			if err != nil {
-				return StackFiles{}, errors.E(ErrConditionEval, err)
+				return nil, errors.E(ErrConditionEval, err)
 			}
 			if value.Type() != cty.Bool {
-				return StackFiles{}, errors.E(
+				return nil, errors.E(
 					ErrInvalidConditionType,
 					"condition has type %s but must be boolean",
 					value.Type().FriendlyName(),
@@ -155,10 +154,13 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles,
 
 		if !condition {
 			logger.Trace().Msg("condition=false, content wont be evaluated")
-			res.files[name] = File{
+
+			files = append(files, File{
+				name:      name,
 				origin:    genFileBlock.origin,
 				condition: condition,
-			}
+			})
+
 			continue
 		}
 
@@ -166,30 +168,36 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles,
 
 		value, err := evalctx.Eval(genFileBlock.block.Content.Expr)
 		if err != nil {
-			return StackFiles{}, errors.E(ErrContentEval, err)
+			return nil, errors.E(ErrContentEval, err)
 		}
 
 		if value.Type() != cty.String {
-			return StackFiles{}, errors.E(
+			return nil, errors.E(
 				ErrInvalidContentType,
 				"content has type %s but must be string",
 				value.Type().FriendlyName(),
 			)
 		}
 
-		res.files[name] = File{
+		files = append(files, File{
+			name:      name,
 			origin:    genFileBlock.origin,
 			body:      value.AsString(),
 			condition: condition,
-		}
+		})
 	}
+
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].String() < files[j].String()
+	})
 
 	logger.Trace().Msg("evaluated all blocks with success.")
 
-	return res, nil
+	return files, nil
 }
 
 type genFileBlock struct {
+	label  string
 	origin string
 	block  hcl.GenFileBlock
 }
@@ -198,7 +206,7 @@ type genFileBlock struct {
 // The returned map maps the name of the block (its label)
 // to the original block and the path (relative to project root) of the config
 // from where it was parsed.
-func loadGenFileBlocks(rootdir string, cfgdir string) (map[string]genFileBlock, error) {
+func loadGenFileBlocks(rootdir string, cfgdir string) ([]genFileBlock, error) {
 	logger := log.With().
 		Str("action", "genfile.loadGenFileBlocks()").
 		Str("root", rootdir).
@@ -218,21 +226,17 @@ func loadGenFileBlocks(rootdir string, cfgdir string) (map[string]genFileBlock, 
 	}
 
 	logger.Trace().Msg("Parsed generate_file blocks.")
-	res := map[string]genFileBlock{}
+	res := []genFileBlock{}
 
 	for filename, blocks := range genFileBlocks {
 		for _, block := range blocks {
-			name := block.Label
 			origin := project.PrjAbsPath(rootdir, filename)
 
-			if other, ok := res[name]; ok {
-				return nil, conflictErr(name, origin, other.origin)
-			}
-
-			res[name] = genFileBlock{
+			res = append(res, genFileBlock{
+				label:  block.Label,
 				origin: origin,
 				block:  block,
-			}
+			})
 
 			logger.Trace().Msg("loaded generate_file block.")
 		}
@@ -243,22 +247,10 @@ func loadGenFileBlocks(rootdir string, cfgdir string) (map[string]genFileBlock, 
 		return nil, err
 	}
 
-	if err := merge(res, parentRes); err != nil {
-		return nil, err
-	}
+	res = append(res, parentRes...)
 
 	logger.Trace().Msg("loaded generate_file blocks with success.")
 	return res, nil
-}
-
-func merge(target, src map[string]genFileBlock) error {
-	for blockLabel, srcFile := range src {
-		if targetFile, ok := target[blockLabel]; ok {
-			return conflictErr(blockLabel, srcFile.origin, targetFile.origin)
-		}
-		target[blockLabel] = srcFile
-	}
-	return nil
 }
 
 func conflictErr(label, origin, otherOrigin string) error {
