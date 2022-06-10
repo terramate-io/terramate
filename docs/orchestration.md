@@ -280,40 +280,52 @@ Even though **stack-c** defined that it needs to be run after **stack-b**, since
 ## Execution Environment
 
 The environment in which stacks are going to be executed can be configured
-using the `export_env` block. This block has no labels and accepts arbitrary
-attributes where each attribute represents an environment variable that will
-be exported when executing the stack. The attributes must always evaluate to
-strings.
+using the `terramate.config.run.env` block. This block has no labels and
+accepts arbitrary attributes where each attribute represents an environment
+variable that will be exported when executing the stack.
+The attributes must always evaluate to strings.
 
 Example:
 
 ```hcl
-export_env {
-  TF_PLUGIN_CACHE_DIR = "/some/path/etc"
+terramate {
+  config {
+    run {
+      env {
+        TF_PLUGIN_CACHE_DIR = "/some/path/etc"
+      }
+    }
+  }
 }
 ```
 
 Will export the environment variable `TF_PLUGIN_CACHE_DIR` on the stack
 execution environment with the value `/some/path/etc`.
 
-Inside the `export_env` block the `env` namespace will be available including
-environment variables exported from the host:
+Inside the `terramate.config.run.env` block the `env` namespace will be
+available including environment variables exported from the host:
 
 ```hcl
-export_env {
-  TF_PLUGIN_CACHE_DIR = "${env.HOME}/.terraform-cache-dir"
+terramate {
+  config {
+    run {
+      env {
+        TF_PLUGIN_CACHE_DIR = "${env.HOME}/.terraform-cache-dir"
+      }
+    }
+  }
 }
 ```
 
 The `env` namespace is read-only and is only available when evaluating
-`export_env` blocks.
+`terramate.config.run.env` blocks.
 
-The `export_env` blocks have the same hierarchical behavior as other features
-on Terramate, so an `export_env` defined on the project root is inherited by
-all stacks in the project.
+The `terramate.config.run.env` blocks have the same hierarchical behavior
+as other features on Terramate, so an `terramate.config.run.env` defined on
+the project root is inherited by all stacks in the project.
 
-All `export_env` blocks are merged, so different variables defined on different
-blocks will all be exported on the stack execution environment.
+All `terramate.config.run.env` blocks are merged, so different variables
+defined on different blocks will all be exported on the stack execution environment.
 
 Regarding variables redefinitions:
 
