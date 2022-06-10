@@ -252,21 +252,3 @@ func loadGenFileBlocks(rootdir string, cfgdir string) ([]genFileBlock, error) {
 	logger.Trace().Msg("loaded generate_file blocks with success.")
 	return res, nil
 }
-
-func conflictErr(label, origin, otherOrigin string) error {
-	if origin == otherOrigin {
-		return errors.E(
-			ErrLabelConflict,
-			"%s has blocks with same label %q",
-			origin,
-			label,
-		)
-	}
-	return errors.E(
-		ErrLabelConflict,
-		"%s and %s have blocks with same label %q",
-		origin,
-		otherOrigin,
-		label,
-	)
-}

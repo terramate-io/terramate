@@ -68,8 +68,8 @@ const (
 )
 
 // Name of the HCL code.
-func (s HCL) Name() string {
-	return s.name
+func (h HCL) Name() string {
+	return h.name
 }
 
 // Header returns the header of the generated HCL file.
