@@ -337,22 +337,6 @@ type fileInfo interface {
 	Condition() bool
 }
 
-// generatedFiles maps filenames to generated files
-type generatedFiles map[string]fileInfo
-
-func (g generatedFiles) add(filename string, genfile fileInfo) error {
-	if other, ok := g[filename]; ok {
-		return errors.E(ErrConflictingConfig,
-			"configs from %q and %q generate a file with same name %q",
-			genfile.Origin(),
-			other.Origin(),
-			filename,
-		)
-	}
-	g[filename] = genfile
-	return nil
-}
-
 func updateOutdatedFiles(
 	stackpath string,
 	generated []fileInfo,

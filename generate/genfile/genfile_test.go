@@ -627,7 +627,7 @@ stack_description=
 					},
 				},
 				{
-					name:      "test2.yml",
+					name:      "test.yml",
 					condition: true,
 					file: genFile{
 						origin: "/stack/test2.tm",
@@ -842,6 +842,12 @@ stack_description=
 				if gotFile.Condition() != want.condition {
 					t.Fatalf("got condition %t != wanted %t", gotFile.Condition(), want.condition)
 				}
+
+				assert.EqualStrings(t,
+					want.name,
+					gotFile.Name(),
+					"wrong name config path for generated code",
+				)
 
 				assert.EqualStrings(t,
 					want.file.origin,

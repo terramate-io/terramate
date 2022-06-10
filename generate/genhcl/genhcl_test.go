@@ -1502,10 +1502,16 @@ func TestLoadGeneratedHCL(t *testing.T) {
 
 				assertHCLEquals(t, gotcode, wantcode)
 				assert.EqualStrings(t,
+					res.name,
+					gothcl.Name(),
+					"wrong origin config path for generated code",
+				)
+				assert.EqualStrings(t,
 					res.hcl.origin,
 					gothcl.Origin(),
 					"wrong origin config path for generated code",
 				)
+
 			}
 		})
 	}
