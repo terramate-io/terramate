@@ -192,7 +192,7 @@ func validateGeneratedFiles(generated []fileInfo) error {
 
 	genset := map[string]fileInfo{}
 	for _, file := range generated {
-		if other, ok := genset[file.Name()]; ok && other.Condition() && file.Condition() {
+		if other, ok := genset[file.Name()]; ok && file.Condition() {
 			return errors.E(ErrConflictingConfig,
 				"configs from %q and %q generate a file with same name %q have "+
 					"`condition = true`",
