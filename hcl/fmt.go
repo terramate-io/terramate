@@ -562,10 +562,6 @@ func trimNewlines(tokens hclwrite.Tokens) hclwrite.Tokens {
 		}
 	}
 
-	// TODO(katcipis): assess if we really need this check
-	//if end < start {
-	//return nil
-	//}
 
 	return tokens[start:end]
 }
