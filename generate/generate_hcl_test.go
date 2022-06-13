@@ -349,7 +349,7 @@ func TestGenerateHCL(t *testing.T) {
 			},
 		},
 		{
-			name: "stack with block with same label as parent but different condition works",
+			name: "stack with block with same label as parent but different condition",
 			layout: []string{
 				"s:stacks/stack",
 			},
@@ -393,6 +393,60 @@ func TestGenerateHCL(t *testing.T) {
 					{
 						StackPath: "/stacks/stack",
 						Created:   []string{"repeated"},
+					},
+				},
+			},
+		},
+		{
+			name: "stack with block with same label as parent but multiple true conditions",
+			layout: []string{
+				"s:stacks/stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: generateHCL(
+						labels("repeated"),
+						content(
+							block("block",
+								str("data", "parent data"),
+							),
+						),
+						boolean("condition", true),
+					),
+				},
+				{
+					path: "/stacks",
+					add: generateHCL(
+						labels("repeated"),
+						content(
+							block("block",
+								str("data", "parent data"),
+							),
+						),
+						boolean("condition", false),
+					),
+				},
+				{
+					path: "/stacks/stack",
+					add: generateHCL(
+						labels("repeated"),
+						boolean("condition", true),
+						content(
+							block("block",
+								str("data", "stack data"),
+							),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							StackPath: "/stacks/stack",
+						},
+						Error: errors.E(generate.ErrConflictingConfig),
 					},
 				},
 			},
