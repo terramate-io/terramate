@@ -118,10 +118,7 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) (StackFiles,
 		return StackFiles{}, errors.E("loading generate_file", err)
 	}
 
-	evalctx, err := stack.NewEvalCtx(stackpath, sm, globals)
-	if err != nil {
-		return StackFiles{}, errors.E(err, "creating eval context")
-	}
+	evalctx := stack.NewEvalCtx(stackpath, sm, globals)
 
 	logger.Trace().Msg("generating files")
 
