@@ -282,7 +282,7 @@ Even though **stack-c** defined that it needs to be run after **stack-b**, since
 The environment in which stacks are going to be executed can be configured
 using the `terramate.config.run.env` block. This block has no labels and
 accepts arbitrary attributes where each attribute represents an environment
-variable that will be exported when executing the stack.
+variable that will be evaluated and exported when executing the stack.
 The attributes must always evaluate to strings.
 
 Example:
