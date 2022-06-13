@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -56,6 +57,90 @@ type (
 
 func (s stringer) String() string {
 	return string(s)
+}
+
+func TestGenerateConflicts(t *testing.T) {
+	testCodeGeneration(t, assertHCLEquals, []testcase{
+		{
+			name: "stack with different generate blocks but same label",
+			layout: []string{
+				"s:stacks/stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: generateHCL(
+						labels("repeated"),
+						content(
+							block("block",
+								str("data", "parent data"),
+							),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack",
+					add: generateFile(
+						labels("repeated"),
+						str("content", "test"),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							StackPath: "/stacks/stack",
+						},
+						Error: errors.E(generate.ErrConflictingConfig),
+					},
+				},
+			},
+		},
+		{
+			name: "stack with block with same label as parent but different condition",
+			layout: []string{
+				"s:stacks/stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: generateHCL(
+						labels("repeated"),
+						content(
+							block("block",
+								str("data", "parent data"),
+							),
+						),
+						boolean("condition", false),
+					),
+				},
+				{
+					path: "/stacks/stack",
+					add: generateFile(
+						labels("repeated"),
+						str("content", "test"),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stacks/stack",
+					files: map[string]fmt.Stringer{
+						"repeated": stringer("test"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						StackPath: "/stacks/stack",
+						Created:   []string{"repeated"},
+					},
+				},
+			},
+		},
+	})
 }
 
 func testCodeGeneration(t *testing.T, checkGenFile genFileChecker, tcases []testcase) {
