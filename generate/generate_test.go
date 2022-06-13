@@ -59,7 +59,7 @@ func (s stringer) String() string {
 	return string(s)
 }
 
-func TestGenerateConflicts(t *testing.T) {
+func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 	testCodeGeneration(t, assertHCLEquals, []testcase{
 		{
 			name: "stack with different generate blocks but same label",
