@@ -27,11 +27,11 @@ type EvalCtx struct {
 }
 
 // NewEvalCtx creates a new stack evaluation context.
-func NewEvalCtx(stackpath string, sm Metadata, globals Globals) (*EvalCtx, error) {
+func NewEvalCtx(stackpath string, sm Metadata, globals Globals) *EvalCtx {
 	evalctx := &EvalCtx{evalctx: eval.NewContext(stackpath)}
 	evalctx.SetMetadata(sm)
 	evalctx.SetGlobals(globals)
-	return evalctx, nil
+	return evalctx
 }
 
 // SetGlobals sets the given globals on the stack evaluation context.
