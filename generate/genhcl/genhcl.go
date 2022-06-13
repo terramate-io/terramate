@@ -49,10 +49,6 @@ const (
 )
 
 const (
-	// ErrLabelConflict indicates the two generate_hcl blocks
-	// have the same label.
-	ErrLabelConflict errors.Kind = "label conflict detected"
-
 	// ErrParsing indicates the failure of parsing the generate_hcl block.
 	ErrParsing errors.Kind = "parsing generate_hcl block"
 
