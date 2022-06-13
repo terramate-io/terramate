@@ -317,8 +317,25 @@ terramate {
 }
 ```
 
-The `env` namespace is read-only and is only available when evaluating
-`terramate.config.run.env` blocks.
+Globals and Metadata can also be referenced:
+
+```hcl
+terramate {
+  config {
+    run {
+      env {
+        TF_PLUGIN_CACHE_DIR = "${terramate.stack.path.absolute}/${global.cache_dir}"
+      }
+    }
+  }
+}
+```
+
+The `env` namespace is meant to give access to the host environment variables,
+it is read-only, and is only available when evaluating
+`terramate.config.run.env` blocks. This means that any attributes defined
+on `terramate.config.run.env` blocks won't affect the `env` namespace,
+they only affect the stack execution environment.
 
 The `terramate.config.run.env` blocks have the same hierarchical behavior
 as other features on Terramate, so an `terramate.config.run.env` defined on
