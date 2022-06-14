@@ -640,7 +640,6 @@ func assignSet(name string, target *[]string, val cty.Value) error {
 		Logger()
 
 	if val.IsNull() {
-		target = &[]string{}
 		return nil
 	}
 
