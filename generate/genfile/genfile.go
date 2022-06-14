@@ -85,7 +85,7 @@ func (f File) Header() string {
 }
 
 func (f File) String() string {
-	return fmt.Sprintf("Generating file %q (condition %t) (body %q) (origin %q)",
+	return fmt.Sprintf("generate_file %q (condition %t) (body %q) (origin %q)",
 		f.Name(), f.Condition(), f.Body(), f.Origin())
 }
 
