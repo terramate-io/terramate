@@ -140,6 +140,50 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "stack with different generate blocks and same label but different condition",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("repeated"),
+						content(
+							block("block",
+								str("data", "parent data"),
+							),
+						),
+						boolean("condition", false),
+					),
+				},
+				{
+					path: "/stack",
+					add: generateFile(
+						labels("repeated"),
+						str("content", "test"),
+						boolean("condition", true),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stack",
+					files: map[string]fmt.Stringer{
+						"repeated": stringer("test"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						StackPath: "/stack",
+						Created:   []string{"repeated"},
+					},
+				},
+			},
+		},
 	})
 }
 
