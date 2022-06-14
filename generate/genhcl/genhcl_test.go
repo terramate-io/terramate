@@ -1007,7 +1007,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 		},
 		{
-			name:  "stack with block with same label as parent is not an error",
+			name:  "stack with block with same label as parent is allowed",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
