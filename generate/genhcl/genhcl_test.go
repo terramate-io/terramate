@@ -1007,7 +1007,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 		},
 		{
-			name:  "stack with block with same label as parent is not an error",
+			name:  "stack with block with same label as parent is allowed",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
@@ -1273,7 +1273,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 		},
 		{
-			name:  "blocks with same label on multiple config files do not fail",
+			name:  "blocks with same label on multiple config files are allowed",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
@@ -1504,7 +1504,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 				assert.EqualStrings(t,
 					res.name,
 					gothcl.Name(),
-					"wrong origin config path for generated code",
+					"wrong name for generated code",
 				)
 				assert.EqualStrings(t,
 					res.hcl.origin,
