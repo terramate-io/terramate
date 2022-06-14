@@ -664,7 +664,7 @@ func assignSet(name string, target *[]string, val cty.Value) error {
 		logger.Trace().Msg("Check element is of correct type.")
 
 		if elem.Type() != cty.String {
-			errs.Append(errors.E("field %q must be a set(string) but element %s "+
+			errs.Append(errors.E("field %q must be a set(string) but element %d "+
 				"has type %q", name, index, elem.Type().FriendlyName()))
 
 			continue
@@ -674,8 +674,8 @@ func assignSet(name string, target *[]string, val cty.Value) error {
 
 		str := elem.AsString()
 		if _, ok := values[str]; ok {
-			errs.Append(errors.E("duplicated entry %q in field %q of type set(string)",
-				str, name))
+			errs.Append(errors.E("duplicated entry %q in the index %d of field %q"+
+				" of type set(string)", str, name))
 
 			continue
 		}
