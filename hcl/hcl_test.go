@@ -877,6 +877,44 @@ func TestHCLParserStack(t *testing.T) {
 			},
 		},
 		{
+			name: "'after' invalid type",
+			input: []cfgfile{
+				{
+					filename: "stack.tm",
+					body: `
+						stack {
+							after = {}
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "'after' null value",
+			input: []cfgfile{
+				{
+					filename: "stack.tm",
+					body: `
+						stack {
+							after = null
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Stack: &hcl.Stack{
+						After: []string{},
+					},
+				},
+			},
+		},
+		{
 			name: "'after' duplicated entry",
 			input: []cfgfile{
 				{
