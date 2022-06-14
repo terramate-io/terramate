@@ -1273,7 +1273,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 		},
 		{
-			name:  "blocks with same label on multiple config files do not fail",
+			name:  "blocks with same label on multiple config files are allowed",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
