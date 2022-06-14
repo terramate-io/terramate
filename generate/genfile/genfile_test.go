@@ -519,7 +519,7 @@ stack_description=
 			wantErr: errors.E(genfile.ErrInvalidContentType),
 		},
 		{
-			name:  "conflicting blocks on same file do not validate",
+			name:  "blocks with same label are allowed",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
