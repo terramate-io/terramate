@@ -792,6 +792,27 @@ func TestHCLParserStack(t *testing.T) {
 			},
 		},
 		{
+			name: "schema not checked for files with syntax errors",
+			input: []cfgfile{
+				{
+					filename: "stack.tm",
+					body: `
+						terramate {
+							required_version = ""
+						}
+						stack {
+							wants =
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrHCLSyntax),
+				},
+			},
+		},
+		{
 			name: "after: empty set works",
 			input: []cfgfile{
 				{
@@ -1046,8 +1067,6 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 			},
 			want: want{
 				errs: []error{
-					errors.E(hcl.ErrTerramateSchema,
-						mkrange("file.tm", start(1, 1, 0), end(1, 2, 1))),
 					errors.E(hcl.ErrHCLSyntax,
 						mkrange("file.tm", start(2, 1, 4), end(2, 2, 5))),
 					errors.E(hcl.ErrHCLSyntax,
@@ -1069,14 +1088,10 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 			},
 			want: want{
 				errs: []error{
-					errors.E(hcl.ErrTerramateSchema,
-						mkrange("file1.tm", start(1, 1, 0), end(1, 2, 1))),
 					errors.E(hcl.ErrHCLSyntax,
 						mkrange("file1.tm", start(2, 1, 4), end(2, 2, 5))),
 					errors.E(hcl.ErrHCLSyntax,
 						mkrange("file1.tm", start(3, 1, 8), end(3, 2, 9))),
-					errors.E(hcl.ErrTerramateSchema,
-						mkrange("file2.tm", start(1, 1, 0), end(1, 2, 1))),
 					errors.E(hcl.ErrHCLSyntax,
 						mkrange("file2.tm", start(2, 1, 4), end(2, 2, 5))),
 					errors.E(hcl.ErrHCLSyntax,
