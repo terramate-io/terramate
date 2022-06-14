@@ -1224,7 +1224,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
-			name:  "blocks with same label on same config fails",
+			name:  "blocks with same label on same config is allowed",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
