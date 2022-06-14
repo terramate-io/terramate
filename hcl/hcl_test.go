@@ -802,6 +802,7 @@ func TestHCLParserStack(t *testing.T) {
 						}
 						stack {
 							wants =
+							unrecognized = "test"
 						}
 					`,
 				},
