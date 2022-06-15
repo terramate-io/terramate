@@ -132,9 +132,10 @@ type PartialEvaluator func(hclsyntax.Expression) (hclwrite.Tokens, error)
 // this API allows you to define the exact set of files (and contents) that are
 // going to be included in the final configuration.
 type TerramateParser struct {
-	dir       string
-	files     map[string][]byte // path=content
-	hclparser *hclparse.Parser
+	dir         string
+	files       map[string][]byte // path=content
+	parsedFiles []string
+	hclparser   *hclparse.Parser
 }
 
 // NewTerramateParser creates a Terramate parser for the directory dir.
@@ -201,7 +202,10 @@ func (p *TerramateParser) Parse() (Config, error) {
 		_, diags := p.hclparser.ParseHCL(data, name)
 		if diags.HasErrors() {
 			errs.Append(errors.E(ErrHCLSyntax, diags))
+			continue
 		}
+
+		p.parsedFiles = append(p.parsedFiles, name)
 	}
 
 	cfg, err := p.parseTerramateSchema()
@@ -599,16 +603,6 @@ func sortedAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {
 	return sorted
 }
 
-func sortedFiles(fmap map[string]*hcl.File) []string {
-	var files []string
-	for fname := range fmap {
-		files = append(files, fname)
-	}
-
-	sort.Strings(files)
-	return files
-}
-
 func findStringAttr(block *hclsyntax.Block, attrName string) (string, bool, error) {
 	logger := log.With().
 		Str("action", "findStringAttr()").
@@ -975,7 +969,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 	errs := errors.L()
 	fileMap := p.hclparser.Files()
-	for _, fname := range sortedFiles(fileMap) {
+	for _, fname := range p.parsedFiles {
 		hclfile := fileMap[fname]
 
 		logger := logger.With().

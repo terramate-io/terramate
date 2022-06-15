@@ -309,6 +309,189 @@ func TestGenerateHCL(t *testing.T) {
 			},
 		},
 		{
+			name: "stack with block with same label as parent",
+			layout: []string{
+				"s:stacks/stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: generateHCL(
+						labels("repeated"),
+						content(
+							block("block",
+								str("data", "parent data"),
+							),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack",
+					add: generateHCL(
+						labels("repeated"),
+						content(
+							block("block",
+								str("data", "stack data"),
+							),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							StackPath: "/stacks/stack",
+						},
+						Error: errors.E(generate.ErrConflictingConfig),
+					},
+				},
+			},
+		},
+		{
+			name: "stack with block with same label as parent but different condition",
+			layout: []string{
+				"s:stacks/stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: generateHCL(
+						labels("repeated"),
+						content(
+							block("block",
+								str("data", "parent data"),
+							),
+						),
+						boolean("condition", false),
+					),
+				},
+				{
+					path: "/stacks/stack",
+					add: generateHCL(
+						labels("repeated"),
+						content(
+							block("block",
+								str("data", "stack data"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stacks/stack",
+					files: map[string]fmt.Stringer{
+						"repeated": block("block",
+							str("data", "stack data"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						StackPath: "/stacks/stack",
+						Created:   []string{"repeated"},
+					},
+				},
+			},
+		},
+		{
+			name: "stack with block with same label as parent but multiple true conditions",
+			layout: []string{
+				"s:stacks/stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: generateHCL(
+						labels("repeated"),
+						content(
+							block("block",
+								str("data", "parent data"),
+							),
+						),
+						boolean("condition", true),
+					),
+				},
+				{
+					path: "/stacks",
+					add: generateHCL(
+						labels("repeated"),
+						content(
+							block("block",
+								str("data", "parent data"),
+							),
+						),
+						boolean("condition", false),
+					),
+				},
+				{
+					path: "/stacks/stack",
+					add: generateHCL(
+						labels("repeated"),
+						boolean("condition", true),
+						content(
+							block("block",
+								str("data", "stack data"),
+							),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							StackPath: "/stacks/stack",
+						},
+						Error: errors.E(generate.ErrConflictingConfig),
+					},
+				},
+			},
+		},
+		{
+			name: "stack parents with block with same label is an error",
+			layout: []string{
+				"s:stacks/stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: generateHCL(
+						labels("repeated"),
+						content(
+							block("block",
+								str("data", "root data"),
+							),
+						),
+					),
+				},
+				{
+					path: "/stacks",
+					add: generateHCL(
+						labels("repeated"),
+						content(
+							block("block",
+								str("data", "parent data"),
+							),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							StackPath: "/stacks/stack",
+						},
+						Error: errors.E(generate.ErrConflictingConfig),
+					},
+				},
+			},
+		},
+		{
 			// TODO(katcipis): define a proper behavior where
 			// directories are allowed but in a constrained fashion.
 			// This is a quick fix to avoid creating files on arbitrary
