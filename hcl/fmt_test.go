@@ -387,6 +387,32 @@ var = [
 `,
 		},
 		{
+			name: "list with comments and newlines after end inside objects",
+			input: `
+var = {
+  a = []
+
+  // c2
+
+  /* c3 */
+
+  b = 666 // c4
+
+  // c5
+}
+`,
+			want: `
+var = {
+  a = [
+  ] // c2
+  /* c3 */
+  b = 666 // c4
+
+  // c5
+}
+`,
+		},
+		{
 			name: "list with list comprehension with multiline comments",
 			input: `
 var = [ [
