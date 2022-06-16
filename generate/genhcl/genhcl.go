@@ -244,7 +244,12 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) ([]loadedHCL, error) {
 		}
 	}
 
-	parentRes, err := loadGenHCLBlocks(rootdir, filepath.Dir(cfgdir))
+	parentCfgDir := filepath.Dir(cfgdir)
+	if parentCfgDir == cfgdir {
+		return res, nil
+	}
+
+	parentRes, err := loadGenHCLBlocks(rootdir, parentCfgDir)
 	if err != nil {
 		return nil, err
 	}

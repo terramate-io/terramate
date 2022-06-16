@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
@@ -86,6 +87,24 @@ var = [for x in local.a : x]
 `,
 		},
 		{
+			name: "function call with list comprehension",
+			input: `
+var = f([   for x in    local.a : x  ])
+`,
+			want: `
+var = f([for x in local.a : x])
+`,
+		},
+		{
+			name: "object with list comprehension",
+			input: `
+var = { a = [   for x in    local.a : x  ] }
+`,
+			want: `
+var = { a = [for x in local.a : x] }
+`,
+		},
+		{
 			name: "multi line list comprehension",
 			input: `
 var = [
@@ -99,12 +118,70 @@ var = [
 `,
 		},
 		{
+			name: "function call with multi line list comprehension",
+			input: `
+var = f([
+for x in    local.a : x
+])
+`,
+			want: `
+var = f([
+  for x in local.a : x
+])
+`,
+		},
+		{
+			name: "object with multi line list comprehension",
+			input: `
+var = { a = [
+for x in    local.a : x
+] }
+`,
+			want: `
+var = { a = [
+  for x in local.a : x
+] }
+`,
+		},
+		{
+			name: "list with object with multi line list key",
+			input: `
+var = [ { [
+] = 0 },
+]
+`,
+			want: `
+var = [
+  { [
+  ] = 0 },
+]
+`,
+		},
+		{
 			name: "assignment with map comprehension",
 			input: `
 var = {  for s    in var.list : s =>     upper(s)    }
 `,
 			want: `
 var = { for s in var.list : s => upper(s) }
+`,
+		},
+		{
+			name: "function call with map comprehension",
+			input: `
+var = f({  for s    in var.list : s =>     upper(s)    })
+`,
+			want: `
+var = f({ for s in var.list : s => upper(s) })
+`,
+		},
+		{
+			name: "object with map comprehension",
+			input: `
+var = { a = {  for s    in var.list : s =>     upper(s)    } }
+`,
+			want: `
+var = { a = { for s in var.list : s => upper(s) } }
 `,
 		},
 		{
@@ -115,6 +192,27 @@ var = []
 			want: `
 var = [
 ]
+`,
+		},
+		{
+			name: "funcall with empty list",
+			input: `
+var = f([])
+`,
+			want: `
+var = f([
+])
+`,
+		},
+		{
+			name: "object with empty list",
+			input: `
+var = { a = [] }
+`,
+			want: `
+var = { a = [
+  ]
+}
 `,
 		},
 		{
@@ -151,6 +249,47 @@ world
 EOT
   ,
 ]
+`,
+		},
+		{
+			name: "function call with single heredoc",
+			input: `
+var = f([
+<<EOT
+hello
+world
+EOT
+])
+`,
+			want: `
+var = f([
+  <<EOT
+hello
+world
+EOT
+  ,
+])
+`,
+		},
+		{
+			name: "object with single heredoc",
+			input: `
+var = { a = [
+<<EOT
+hello
+world
+EOT
+]}
+`,
+			want: `
+var = { a = [
+  <<EOT
+hello
+world
+EOT
+  ,
+  ]
+}
 `,
 		},
 		{
@@ -248,6 +387,32 @@ var = [
 `,
 		},
 		{
+			name: "list with comments and newlines after end inside objects",
+			input: `
+var = {
+  a = []
+
+  // c2
+
+  /* c3 */
+
+  b = 666 // c4
+
+  // c5
+}
+`,
+			want: `
+var = {
+  a = [
+  ] // c2
+  /* c3 */
+  b = 666 // c4
+
+  // c5
+}
+`,
+		},
+		{
 			name: "list with list comprehension with multiline comments",
 			input: `
 var = [ [
@@ -272,6 +437,33 @@ var = [
     # c6
   ],
 ]
+`,
+		},
+		{
+			name: "function call with list comprehension with multiline comments",
+			input: `
+var = f([ f([
+// c1
+/* c2 */
+# c3
+for x in local.a : x
+// c4
+/* c5 */
+# c6
+]) ])
+`,
+			want: `
+var = f([
+  f([
+    // c1
+    /* c2 */
+    # c3
+    for x in local.a : x
+    // c4
+    /* c5 */
+    # c6
+  ]),
+])
 `,
 		},
 		{
@@ -306,7 +498,7 @@ var = [
     "${
       {
          a = [
-           "more list"
+           "more list",
          ]
       }
     }"
@@ -319,7 +511,7 @@ var = [
     "${
       {
         a = [
-          "more list"
+          "more list",
         ]
       }
     }"
@@ -338,6 +530,19 @@ var = [
   ] + [
   true,
 ]
+`,
+		},
+		{
+			name: "function with list as operands",
+			input: `
+var = f([ "item" ] + [ true ])
+`,
+			want: `
+var = f([
+  "item",
+  ] + [
+  true,
+])
 `,
 		},
 		{
@@ -415,6 +620,50 @@ var = [
 `,
 		},
 		{
+			name: "list indexing using function calls and objects as indexes",
+			input: `
+var = [ "item" ][func(666)].name.hi[{a=666}]
+`,
+			want: `
+var = [
+  "item",
+][func(666)].name.hi[{ a = 666 }]
+`,
+		},
+		{
+			name: "list indexing using function calls and objects with lists as indexes",
+			input: `
+var = [ "item" ][func([666])].name.hi[{a=[666]}]
+`,
+			want: `
+var = [
+  "item",
+][func([666])].name.hi[{ a = [666] }]
+`,
+		},
+		{
+			name: "function call with indexing with object mixed",
+			input: `
+var = f([ "item" ][0].name.hi[1])
+`,
+			want: `
+var = f([
+  "item",
+][0].name.hi[1])
+`,
+		},
+		{
+			name: "object with indexing with object mixed",
+			input: `
+var = { a = [ "item" ][0].name.hi[1] }
+`,
+			want: `
+var = { a = [
+  "item",
+][0].name.hi[1] }
+`,
+		},
+		{
 			name: "nested list indexing with object mixed",
 			input: `
 var = [[ "item" ][0].name.hi[1], [ "item" ][0].name.hi[1]]
@@ -458,6 +707,137 @@ var = [
 `,
 		},
 		{
+			name: "object with single item list",
+			input: `
+var = { a = [ "item" ] }
+`,
+			want: `
+var = { a = [
+  "item",
+  ]
+}
+`,
+		},
+		{
+			name: "object multiple attributes",
+			input: `
+var = {
+  a = [ "item" ]
+  b = [ "item" ]
+  c = [ "item" ]
+}
+`,
+			want: `
+var = {
+  a = [
+    "item",
+  ]
+  b = [
+    "item",
+  ]
+  c = [
+    "item",
+  ]
+}
+`,
+		},
+		{
+			name: "object multiple attributes with different key types",
+			input: `
+var = {
+  {}         = [ "item" ]
+  666        = [ "item" ]
+  "hclisfun" = [ "item" ]
+  true       = [ "item" ]
+  [1]        = [ "item" ]
+  [2]        = [ "item" ]
+}
+`,
+			want: `
+var = {
+  {} = [
+    "item",
+  ]
+  666 = [
+    "item",
+  ]
+  "hclisfun" = [
+    "item",
+  ]
+  true = [
+    "item",
+  ]
+  [1] = [
+    "item",
+  ]
+  [2] = [
+    "item",
+  ]
+}
+`,
+		},
+		{
+			name: "object multiple attributes with commas",
+			input: `
+var = {
+  a = [ "item" ],
+  b = [],
+  c = [6,6,6],
+}
+`,
+			want: `
+var = {
+  a = [
+    "item",
+  ],
+  b = [
+  ],
+  c = [
+    6,
+    6,
+    6,
+  ],
+}
+`,
+		},
+		{
+			name: "nested object with multiple item list",
+			input: `
+var = {
+  nested = {
+    a = [ "item" ],
+    b = [{
+      a=[1,2,3]
+    }],
+    c = [6,6,6],
+  }
+}
+`,
+			want: `
+var = {
+  nested = {
+    a = [
+      "item",
+    ],
+    b = [
+      {
+        a = [
+          1,
+          2,
+          3,
+        ]
+      },
+    ],
+    c = [
+      6,
+      6,
+      6,
+    ],
+  }
+}
+`,
+		},
+		{
 			name: "lists inside blocks",
 			input: `
 block1 {
@@ -466,6 +846,8 @@ block1 {
 block2 {
   block3 {
     var = [ "item" ]
+    a = f([ "item" ])
+    b = { a = ["hi"] }
   }
 }
 `,
@@ -480,6 +862,13 @@ block2 {
     var = [
       "item",
     ]
+    a = f([
+      "item",
+    ])
+    b = { a = [
+      "hi",
+      ]
+    }
   }
 }
 `,
@@ -490,7 +879,11 @@ block2 {
 var = func([1,2,3])
 `,
 			want: `
-var = func([1, 2, 3])
+var = func([
+  1,
+  2,
+  3,
+])
 `,
 		},
 		{
@@ -501,6 +894,29 @@ var = [ func(local.a) ]
 			want: `
 var = [
   func(local.a),
+]
+`,
+		},
+		{
+			name: "list with function that has lists",
+			input: `
+var = [ func([1,2,3]), func([func([]), func([1,2])]) ]
+`,
+			want: `
+var = [
+  func([
+    1,
+    2,
+    3,
+  ]),
+  func([
+    func([
+    ]),
+    func([
+      1,
+      2,
+    ]),
+  ]),
 ]
 `,
 		},
@@ -572,6 +988,17 @@ var = [ local.a[0][1] ]
 var = [
   local.a[0][1],
 ]
+`,
+		},
+		{
+			name: "function call with single item list with two dimension index access",
+			input: `
+var = func([ local.a[0][1] ])
+`,
+			want: `
+var = func([
+  local.a[0][1],
+])
 `,
 		},
 		{
@@ -833,7 +1260,13 @@ var = [
 
 			fixupFiledirOnErrorsFileRanges(tempdir, tcase.wantErrs)
 			errtest.AssertErrorList(t, err, tcase.wantErrs)
-			assert.EqualStrings(t, tcase.want, got)
+
+			if diff := cmp.Diff(got, tcase.want); diff != "" {
+				t.Errorf("got:\n%s", got)
+				t.Errorf("want:\n%s", tcase.want)
+				t.Error("diff:")
+				t.Fatal(diff)
+			}
 
 			if err != nil {
 				return
