@@ -809,7 +809,7 @@ func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
 	for _, b := range block.Body.Blocks {
 		switch b.Type {
 		case "git":
-			logger.Trace().Msg("Type was 'git'.")
+			logger.Trace().Msg("Type is 'git'")
 
 			if cfg.Git != nil {
 				errs.Append(errors.E(ErrTerramateSchema, b.DefRange(),
@@ -822,6 +822,9 @@ func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
 			logger.Trace().Msg("Parse git config.")
 
 			errs.Append(parseGitConfig(cfg.Git, b))
+		case "run":
+			logger.Trace().Msg("Type is 'run'")
+			// TODO(katcipis): implement run block parsing
 		default:
 			errs.Append(errors.E(ErrTerramateSchema, b.DefRange(),
 				"unrecognized block type"))
