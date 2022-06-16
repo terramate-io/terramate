@@ -63,7 +63,7 @@ func assertTerramateBlock(t *testing.T, got, want *hcl.Terramate) {
 			want.RootConfig, got.RootConfig)
 	}
 
-	assertTerramateConfigBlock(t, want.RootConfig, got.RootConfig)
+	assertTerramateConfigBlock(t, got.RootConfig, want.RootConfig)
 }
 
 func assertTerramateConfigBlock(t *testing.T, got, want *hcl.RootConfig) {
