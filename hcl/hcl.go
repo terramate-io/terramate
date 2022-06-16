@@ -59,7 +59,7 @@ type RunConfig struct {
 // RunEnv represents Terramate run environment.
 type RunEnv struct {
 	// Attributes is the collection of attribute definitions within the env block.
-	Attributes hclsyntax.Attributes
+	Attributes Attributes
 }
 
 // GitConfig represents Terramate Git configuration.
@@ -381,26 +381,6 @@ func ParseDir(dir string) (Config, error) {
 	return p.Parse()
 }
 
-// SortAttributes will sort the given attributes by the attributes names
-// lexicographically.
-func SortAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {
-	names := make([]string, 0, len(attrs))
-
-	for name := range attrs {
-		names = append(names, name)
-	}
-
-	log.Trace().Str("action", "sortedAttributes()").Msg("Sort attributes.")
-	sort.Strings(names)
-
-	sorted := make([]*hclsyntax.Attribute, len(names))
-	for i, name := range names {
-		sorted[i] = attrs[name]
-	}
-
-	return sorted
-}
-
 // ParseGlobalsBlocks parses all Terramate files on the given dir, returning
 // only global blocks (other blocks are discarded).
 func ParseGlobalsBlocks(dir string) (Blocks, error) {
@@ -586,7 +566,7 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, eval PartialEvaluator)
 	logger.Trace().Msg("Sorting attributes.")
 
 	// Avoid generating code with random attr order (map iteration is random)
-	attrs := SortAttributes(src.Attributes)
+	attrs := sortAttributes(src.Attributes)
 
 	for _, attr := range attrs {
 		logger := logger.With().
@@ -624,7 +604,7 @@ func findStringAttr(block *hclsyntax.Block, attrName string) (string, bool, erro
 		Logger()
 
 	logger.Trace().Msg("Range over attributes.")
-	for _, attr := range SortAttributes(block.Body.Attributes) {
+	for _, attr := range sortAttributes(block.Body.Attributes) {
 		if attrName != attr.Name {
 			continue
 		}
@@ -728,7 +708,7 @@ func parseStack(stack *Stack, stackblock *hclsyntax.Block) error {
 
 	logger.Debug().Msg("Get stack attributes.")
 
-	for _, attr := range SortAttributes(stackblock.Body.Attributes) {
+	for _, attr := range sortAttributes(stackblock.Body.Attributes) {
 		logger.Trace().Msg("Get attribute value.")
 
 		attrVal, diags := attr.Expr.Value(nil)
@@ -798,7 +778,7 @@ func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
 
 	logger.Trace().Msg("Range over block attributes.")
 
-	for _, attr := range SortAttributes(block.Body.Attributes) {
+	for _, attr := range sortAttributes(block.Body.Attributes) {
 		errs.Append(errors.E(attr.NameRange,
 			"unrecognized attribute terramate.config.%s", attr.Name,
 		))
@@ -847,7 +827,7 @@ func parseGitConfig(git *GitConfig, gitBlock *hclsyntax.Block) error {
 		errs.Append(errors.E(block.TypeRange, "unrecognized block %q", block.Type))
 	}
 
-	for _, attr := range SortAttributes(gitBlock.Body.Attributes) {
+	for _, attr := range sortAttributes(gitBlock.Body.Attributes) {
 		attrVal, diags := attr.Expr.Value(nil)
 		if diags.HasErrors() {
 			errs.Append(errors.E(diags,
@@ -1015,7 +995,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 		logger.Trace().Msg("checking for attributes.")
 
-		for _, attr := range SortAttributes(body.Attributes) {
+		for _, attr := range sortAttributes(body.Attributes) {
 			errs.Append(errors.E(ErrTerramateSchema, attr.NameRange,
 				"unrecognized attribute %q", attr.Name))
 		}
@@ -1101,7 +1081,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 			logger.Trace().Msg("Range over terramate block attributes.")
 
-			for _, attr := range SortAttributes(tmblock.Body.Attributes) {
+			for _, attr := range sortAttributes(tmblock.Body.Attributes) {
 				attrVal, diags := attr.Expr.Value(nil)
 				if diags.HasErrors() {
 					errs.Append(errors.E(errKind, diags))
@@ -1319,4 +1299,22 @@ func listTerramateDirs(dir string) ([]string, error) {
 
 func isTerramateFile(filename string) bool {
 	return strings.HasSuffix(filename, ".tm") || strings.HasSuffix(filename, ".tm.hcl")
+}
+
+func sortAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {
+	names := make([]string, 0, len(attrs))
+
+	for name := range attrs {
+		names = append(names, name)
+	}
+
+	log.Trace().Str("action", "sortedAttributes()").Msg("Sort attributes.")
+	sort.Strings(names)
+
+	sorted := make([]*hclsyntax.Attribute, len(names))
+	for i, name := range names {
+		sorted[i] = attrs[name]
+	}
+
+	return sorted
 }

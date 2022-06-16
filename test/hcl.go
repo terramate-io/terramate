@@ -15,10 +15,11 @@
 package test
 
 import (
+	"os"
+	"sort"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/hcl"
@@ -128,16 +129,37 @@ func assertTerramateRunBlock(t *testing.T, got, want *hcl.RunConfig) {
 	AssertDiff(t, gotHCL, wantHCL)
 }
 
-func hclFromAttributes(t *testing.T, attrs hclsyntax.Attributes) string {
+func hclFromAttributes(t *testing.T, attrs hcl.Attributes) string {
+	t.Helper()
+
 	file := hclwrite.NewEmptyFile()
 	body := file.Body()
-	sorted := hcl.SortAttributes(attrs)
 
-	// TODO(katcipis): we need attributes with origin information
-	for _, attr := range sorted {
-		tokens, err := eval.GetExpressionTokens([]byte{}, "TODO", attr.Expr)
+	sort.Stable(attrs)
+
+	filesRead := map[string][]byte{}
+	readFile := func(filename string) []byte {
+		t.Helper()
+
+		if file, ok := filesRead[filename]; ok {
+			return file
+		}
+
+		file, err := os.ReadFile(filename)
+		assert.NoError(t, err, "reading origin file")
+
+		filesRead[filename] = file
+		return file
+	}
+
+	for _, attr := range attrs {
+		tokens, err := eval.GetExpressionTokens(
+			readFile(attr.Origin()),
+			attr.Origin(),
+			attr.Value().Expr,
+		)
 		assert.NoError(t, err)
-		body.SetAttributeRaw(attr.Name, tokens)
+		body.SetAttributeRaw(attr.Value().Name, tokens)
 	}
 
 	return string(file.Bytes())

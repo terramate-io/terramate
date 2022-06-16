@@ -16,6 +16,7 @@ package hcl_test
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2/hclparse"
@@ -27,12 +28,23 @@ import (
 func TestHCLParserConfigRun(t *testing.T) {
 
 	runEnvCfg := func(attrs hclsyntax.Attributes) hcl.Config {
+		// Comparing attributes/expressions with hcl/hclsyntax is impossible
+		// We build the actual code in order to compare it but for that
+		// we need an origin file to rebuild the tokens, hence this.
+		tmpdir := t.TempDir()
+		filepath := filepath.Join(tmpdir, "test_file.hcl")
+		newAttrs := make(hcl.Attributes, 0, len(attrs))
+
+		for _, attr := range attrs {
+			newAttrs = append(newAttrs, hcl.NewAttribute(filepath, attr))
+		}
+
 		return hcl.Config{
 			Terramate: &hcl.Terramate{
 				RootConfig: &hcl.RootConfig{
 					Run: &hcl.RunConfig{
 						Env: &hcl.RunEnv{
-							Attributes: attrs,
+							Attributes: newAttrs,
 						},
 					},
 				},
