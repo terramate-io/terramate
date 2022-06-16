@@ -44,10 +44,22 @@ type Module struct {
 
 // Config represents a Terramate configuration.
 type Config struct {
-	// absdir is the absolute path to the configuration directory.
-	absdir    string
 	Terramate *Terramate
 	Stack     *Stack
+
+	// absdir is the absolute path to the configuration directory.
+	absdir string
+}
+
+// RunConfig represents Terramate run configuration.
+type RunConfig struct {
+	Env *RunEnv
+}
+
+// RunEnv represents Terramate run environment.
+type RunEnv struct {
+	// Attributes is the collection of attribute definitions within the env block.
+	Attributes hclsyntax.Attributes
 }
 
 // GitConfig represents Terramate Git configuration.
@@ -60,6 +72,7 @@ type GitConfig struct {
 // RootConfig represents the root config block of a Terramate configuration.
 type RootConfig struct {
 	Git *GitConfig
+	Run *RunConfig
 }
 
 // Terramate is the parsed "terramate" HCL block.
