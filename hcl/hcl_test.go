@@ -1360,7 +1360,11 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 }
 
 func testParser(t *testing.T, tc testcase) {
+	t.Helper()
+
 	t.Run(tc.name, func(t *testing.T) {
+		t.Helper()
+
 		configsDir := t.TempDir()
 		for _, inputConfigFile := range tc.input {
 			filename := inputConfigFile.filename

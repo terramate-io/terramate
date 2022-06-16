@@ -764,7 +764,7 @@ func parseStack(stack *Stack, stackblock *hclsyntax.Block) error {
 	return errs.AsError()
 }
 
-func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
+func parseRootConfig(filename string, cfg *RootConfig, block *hclsyntax.Block) error {
 	logger := log.With().
 		Str("action", "parseRootConfig()").
 		Logger()
@@ -786,13 +786,13 @@ func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
 
 	logger.Trace().Msg("Range over blocks.")
 
-	for _, b := range block.Body.Blocks {
-		switch b.Type {
+	for _, block := range block.Body.Blocks {
+		switch block.Type {
 		case "git":
 			logger.Trace().Msg("Type is 'git'")
 
 			if cfg.Git != nil {
-				errs.Append(errors.E(ErrTerramateSchema, b.DefRange(),
+				errs.Append(errors.E(ErrTerramateSchema, block.DefRange(),
 					"multiple terramate.config.git blocks"),
 				)
 			}
@@ -801,17 +801,72 @@ func parseRootConfig(cfg *RootConfig, block *hclsyntax.Block) error {
 
 			logger.Trace().Msg("Parse git config.")
 
-			errs.Append(parseGitConfig(cfg.Git, b))
+			errs.Append(parseGitConfig(cfg.Git, block))
 		case "run":
 			logger.Trace().Msg("Type is 'run'")
-			// TODO(katcipis): implement run block parsing
+
+			// TODO(katcipis): implement multiple run blocks properly
+
+			cfg.Run = &RunConfig{}
+
+			logger.Trace().Msg("Parse run config.")
+
+			errs.Append(parseRunConfig(filename, cfg.Run, block))
 		default:
-			errs.Append(errors.E(ErrTerramateSchema, b.DefRange(),
+			errs.Append(errors.E(ErrTerramateSchema, block.DefRange(),
 				"unrecognized block type"))
 		}
 	}
 
 	return errs.AsError()
+}
+
+func parseRunConfig(filename string, runCfg *RunConfig, runBlock *hclsyntax.Block) error {
+	logger := log.With().
+		Str("action", "parseRunConfig()").
+		Logger()
+
+	logger.Trace().Msg("Checking run.env block")
+
+	errs := errors.L()
+
+	if len(runBlock.Labels) > 0 {
+		errs.Append(errors.E(runBlock.LabelRanges, "run block has unexpected labels: %v", runBlock.Labels))
+	}
+
+	if len(runBlock.Body.Attributes) > 0 {
+		errs.Append(errors.E("run block doesn't support attributes"))
+	}
+
+	for _, block := range runBlock.Body.Blocks {
+		if block.Type != "env" {
+			errs.Append(errors.E(block.TypeRange, "unrecognized block %q", block.Type))
+			continue
+		}
+
+		// TODO(katcipis): deal properly with multiple env blocks
+		runCfg.Env = &RunEnv{}
+		errs.Append(parseRunEnv(filename, runCfg.Env, block))
+	}
+
+	return errs.AsError()
+}
+
+func parseRunEnv(filename string, runEnv *RunEnv, envBlock *hclsyntax.Block) error {
+	attrs := make(Attributes, 0, len(envBlock.Body.Attributes))
+
+	for _, attr := range envBlock.Body.Attributes {
+		attrs = append(attrs, NewAttribute(filename, attr))
+	}
+
+	// TODO: properly handle multiple env blocks aggregated
+	runEnv.Attributes = attrs
+
+	if len(envBlock.Labels) > 0 {
+		return errors.E(envBlock.LabelRanges, "env block has unexpected labels: %v", envBlock.Labels)
+	}
+
+	return nil
 }
 
 func parseGitConfig(git *GitConfig, gitBlock *hclsyntax.Block) error {
@@ -1121,7 +1176,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 					logger.Trace().Msg("Parse root config.")
 
-					err := parseRootConfig(tm.RootConfig, block)
+					err := parseRootConfig(fname, tm.RootConfig, block)
 					if err != nil {
 						errs.Append(errors.E(errKind, err))
 					}

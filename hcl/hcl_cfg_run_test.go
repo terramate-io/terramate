@@ -15,28 +15,39 @@
 package hcl_test
 
 import (
-	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 )
 
 func TestHCLParserConfigRun(t *testing.T) {
 
-	runEnvCfg := func(attrs hclsyntax.Attributes) hcl.Config {
+	runEnvCfg := func(hcldoc string) hcl.Config {
 		// Comparing attributes/expressions with hcl/hclsyntax is impossible
-		// We build the actual code in order to compare it but for that
-		// we need an origin file to rebuild the tokens, hence this.
+		// We generate the code from the expressions in order to compare it but for that
+		// we need an origin file to get the tokens for each expression,
+		// hence all this x_x.
 		tmpdir := t.TempDir()
 		filepath := filepath.Join(tmpdir, "test_file.hcl")
-		newAttrs := make(hcl.Attributes, 0, len(attrs))
+		assert.NoError(t, os.WriteFile(filepath, []byte(hcldoc), 0700))
 
-		for _, attr := range attrs {
-			newAttrs = append(newAttrs, hcl.NewAttribute(filepath, attr))
+		parser := hclparse.NewParser()
+		res, diags := parser.ParseHCLFile(filepath)
+		if diags.HasErrors() {
+			t.Fatalf("test case provided invalid hcl, error: %v hcl:\n%s", diags, hcldoc)
+		}
+
+		body := res.Body.(*hclsyntax.Body)
+		attrs := make(hcl.Attributes, 0, len(body.Attributes))
+
+		for _, attr := range body.Attributes {
+			attrs = append(attrs, hcl.NewAttribute(filepath, attr))
 		}
 
 		return hcl.Config{
@@ -44,32 +55,12 @@ func TestHCLParserConfigRun(t *testing.T) {
 				RootConfig: &hcl.RootConfig{
 					Run: &hcl.RunConfig{
 						Env: &hcl.RunEnv{
-							Attributes: newAttrs,
+							Attributes: attrs,
 						},
 					},
 				},
 			},
 		}
-	}
-
-	attribute := func(expr string) *hclsyntax.Attribute {
-		const attrname = "a"
-
-		cfg := fmt.Sprintf("%s = %s", attrname, expr)
-		parser := hclparse.NewParser()
-		res, diags := parser.ParseHCL([]byte(cfg), "hcl-tests")
-		if diags.HasErrors() {
-			t.Fatalf("test case has invalid expression %q as HCL attribute", expr)
-		}
-
-		body := res.Body.(*hclsyntax.Body)
-		attrs := body.Attributes
-		attr, ok := attrs[attrname]
-		if !ok {
-			t.Fatalf("expected attribute %s to exist, got: %v", attrname, attrs)
-		}
-
-		return attr
 	}
 
 	for _, tc := range []testcase{
@@ -288,13 +279,13 @@ func TestHCLParserConfigRun(t *testing.T) {
 				},
 			},
 			want: want{
-				config: runEnvCfg(hclsyntax.Attributes{
-					"string":    attribute(`"value"`),
-					"number":    attribute("666"),
-					"list":      attribute("[]"),
-					"interp":    attribute(`"${global.a}"`),
-					"traversal": attribute("global.a"),
-				}),
+				config: runEnvCfg(`
+						string = "value"
+						number = 666
+						list = []
+						interp = "${global.a}"
+						traversal = global.a.b
+				`),
 			},
 		},
 	} {
