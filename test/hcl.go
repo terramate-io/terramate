@@ -129,6 +129,8 @@ func assertTerramateRunBlock(t *testing.T, got, want *hcl.RunConfig) {
 	AssertDiff(t, gotHCL, wantHCL)
 }
 
+// hclFromAttributes ensures that we always build the same HCL document
+// given an hcl.Attributes.
 func hclFromAttributes(t *testing.T, attrs hcl.Attributes) string {
 	t.Helper()
 

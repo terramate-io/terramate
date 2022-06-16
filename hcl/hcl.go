@@ -859,7 +859,7 @@ func parseRunEnv(filename string, runEnv *RunEnv, envBlock *hclsyntax.Block) err
 		attrs = append(attrs, NewAttribute(filename, attr))
 	}
 
-	// TODO: properly handle multiple env blocks aggregated
+	// TODO: properly handle multiple env blocks aggregated and conflicts
 	runEnv.Attributes = attrs
 
 	if len(envBlock.Labels) > 0 {

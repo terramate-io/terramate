@@ -26,7 +26,7 @@ type Attribute struct {
 // The attributes can be sorted by lexicographically by their name.
 type Attributes []Attribute
 
-// NewAttribute creates a new attribute given a parsed atribute and its origin.
+// NewAttribute creates a new attribute given a parsed attribute and its origin.
 func NewAttribute(origin string, val *hclsyntax.Attribute) Attribute {
 	return Attribute{origin: origin, val: val}
 }
