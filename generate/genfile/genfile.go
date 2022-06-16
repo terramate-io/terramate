@@ -239,7 +239,12 @@ func loadGenFileBlocks(rootdir string, cfgdir string) ([]genFileBlock, error) {
 		}
 	}
 
-	parentRes, err := loadGenFileBlocks(rootdir, filepath.Dir(cfgdir))
+	parentCfgDir := filepath.Dir(cfgdir)
+	if parentCfgDir == cfgdir {
+		return res, nil
+	}
+
+	parentRes, err := loadGenFileBlocks(rootdir, parentCfgDir)
 	if err != nil {
 		return nil, err
 	}
