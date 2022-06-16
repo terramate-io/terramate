@@ -23,7 +23,7 @@ type Attribute struct {
 }
 
 // Attributes represents multiple parsed attributes.
-// The attributes can be sorted by lexicographically by their name.
+// The attributes can be sorted lexicographically by their name.
 type Attributes []Attribute
 
 // NewAttribute creates a new attribute given a parsed attribute and its origin.
