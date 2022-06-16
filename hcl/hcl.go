@@ -639,19 +639,33 @@ func assignSet(name string, target *[]string, val cty.Value) error {
 		Str("action", "assignSet()").
 		Logger()
 
+	if val.IsNull() {
+		return nil
+	}
+
+	// as the parser is schemaless it only creates tuples (lists of arbitrary types).
+	// we have to check the elements themselves.
+	if !val.Type().IsTupleType() && !val.Type().IsListType() {
+		return errors.E(ErrTerramateSchema, "field %q must be a set(string) but "+
+			"found a %q", name, val.Type().FriendlyName())
+	}
+
 	logger.Trace().Msg("Iterate over values.")
 
 	errs := errors.L()
 	values := map[string]struct{}{}
 	iterator := val.ElementIterator()
+	index := -1
 	for iterator.Next() {
+		index++
 		_, elem := iterator.Element()
 
 		logger.Trace().Msg("Check element is of correct type.")
 
 		if elem.Type() != cty.String {
-			errs.Append(errors.E("field %q is a set(string) but contains %q",
-				name, elem.Type().FriendlyName()))
+			errs.Append(errors.E("field %q must be a set(string) but element %d "+
+				"has type %q", name, index, elem.Type().FriendlyName()))
+
 			continue
 		}
 
@@ -659,8 +673,9 @@ func assignSet(name string, target *[]string, val cty.Value) error {
 
 		str := elem.AsString()
 		if _, ok := values[str]; ok {
-			errs.Append(errors.E("duplicated entry %q in field %q of type set(string)",
-				str, name))
+			errs.Append(errors.E("duplicated entry %q in the index %d of field %q"+
+				" of type set(string)", str, name))
+
 			continue
 		}
 		values[str] = struct{}{}
