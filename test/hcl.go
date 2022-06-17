@@ -93,3 +93,14 @@ func assertStackBlock(t *testing.T, got, want *hcl.Stack) {
 		assert.EqualStrings(t, w, got.After[i], "stack after mismatch")
 	}
 }
+
+// WriteRootConfig writes a basic terramate root config.
+func WriteRootConfig(t *testing.T, rootdir string) {
+	WriteFile(t, rootdir, "root.config.tm", `
+terramate {
+	config {
+
+	}
+}
+			`)
+}

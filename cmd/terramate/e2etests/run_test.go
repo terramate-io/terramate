@@ -453,16 +453,23 @@ stack-a
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			s := sandbox.New(t)
-			s.BuildTree(tc.layout)
-
-			wd := s.RootDir()
-			if tc.workingDir != "" {
-				wd = filepath.Join(wd, tc.workingDir)
+			sandboxes := []sandbox.S{
+				sandbox.New(t),
+				sandbox.NoGit(t),
 			}
 
-			cli := newCLI(t, wd)
-			assertRunResult(t, cli.stacksRunOrder(), tc.want)
+			for _, s := range sandboxes {
+				s.BuildTree(tc.layout)
+				test.WriteRootConfig(t, s.RootDir())
+
+				wd := s.RootDir()
+				if tc.workingDir != "" {
+					wd = filepath.Join(wd, tc.workingDir)
+				}
+
+				cli := newCLI(t, wd)
+				assertRunResult(t, cli.stacksRunOrder(), tc.want)
+			}
 		})
 	}
 }
@@ -632,18 +639,27 @@ func TestRunWants(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			s := sandbox.New(t)
-			s.BuildTree(tc.layout)
+			sandboxes := []sandbox.S{
+				sandbox.New(t),
+				sandbox.NoGit(t),
+			}
 
-			cli := newCLI(t, filepath.Join(s.RootDir(), tc.wd))
-			assertRunResult(t, cli.stacksRunOrder(), tc.want)
+			for _, s := range sandboxes {
+				s.BuildTree(tc.layout)
+				test.WriteRootConfig(t, s.RootDir())
 
-			// required because `terramate run` requires a clean repo.
-			git := s.Git()
-			git.CommitAll("everything")
+				cli := newCLI(t, filepath.Join(s.RootDir(), tc.wd))
+				assertRunResult(t, cli.stacksRunOrder(), tc.want)
 
-			// TODO(i4k): not portable
-			assertRunResult(t, cli.run("run", "sh", "-c", "pwd | xargs basename"), tc.want)
+				if s.IsGit() {
+					// required because `terramate run` requires a clean repo.
+					git := s.Git()
+					git.CommitAll("everything")
+				}
+
+				// TODO(i4k): not portable
+				assertRunResult(t, cli.run("run", "sh", "-c", "pwd | xargs basename"), tc.want)
+			}
 		})
 	}
 }
