@@ -27,7 +27,6 @@ import (
 )
 
 func TestHCLParserConfigRun(t *testing.T) {
-
 	runEnvCfg := func(hcldoc string) hcl.Config {
 		// Comparing attributes/expressions with hcl/hclsyntax is impossible
 		// We generate the code from the expressions in order to compare it but for that
