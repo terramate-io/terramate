@@ -31,7 +31,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 	runEnvCfg := func(hcldoc string) hcl.Config {
 		// Comparing attributes/expressions with hcl/hclsyntax is impossible
 		// We generate the code from the expressions in order to compare it but for that
-		// we need an origin file to get the tokens for each expression,
+		// we need an origin file/data to get the tokens for each expression,
 		// hence all this x_x.
 		tmpdir := t.TempDir()
 		filepath := filepath.Join(tmpdir, "test_file.hcl")
@@ -257,7 +257,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 			},
 		},
 		{
-			name: "one attr on run.env",
+			name: "attrs on run.env in single block/file",
 			input: []cfgfile{
 				{
 					filename: "cfg.tm",
@@ -269,6 +269,134 @@ func TestHCLParserConfigRun(t *testing.T) {
 						        string = "value"
 						        number = 666
 						        list = []
+						        interp = "${global.a}"
+						        traversal = global.a.b
+						      }
+						    }
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				config: runEnvCfg(`
+						string = "value"
+						number = 666
+						list = []
+						interp = "${global.a}"
+						traversal = global.a.b
+				`),
+			},
+		},
+		{
+			name: "multiple run blocks on same file are merged",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						  config {
+						    run {
+						      env {
+						        string = "value"
+						        number = 666
+						      }
+						    }
+						    run {
+						      env {
+						        list = []
+						        interp = "${global.a}"
+						        traversal = global.a.b
+						      }
+						    }
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				config: runEnvCfg(`
+						string = "value"
+						number = 666
+						list = []
+						interp = "${global.a}"
+						traversal = global.a.b
+				`),
+			},
+		},
+		{
+			name: "multiple env blocks on same file are merged",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						  config {
+						    run {
+						      env {
+						        string = "value"
+						        number = 666
+						      }
+						      env {
+						        list = []
+						        interp = "${global.a}"
+						        traversal = global.a.b
+						      }
+						    }
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				config: runEnvCfg(`
+						string = "value"
+						number = 666
+						list = []
+						interp = "${global.a}"
+						traversal = global.a.b
+				`),
+			},
+		},
+		{
+			name: "env defined on multiple files are merged",
+			input: []cfgfile{
+				{
+					filename: "cfg1.tm",
+					body: `
+						terramate {
+						  config {
+						    run {
+						      env {
+						        string = "value"
+						      }
+						    }
+						  }
+						}
+					`,
+				},
+				{
+					filename: "cfg2.tm",
+					body: `
+						terramate {
+						  config {
+						    run {
+						      env {
+						        number = 666
+						        list = []
+						      }
+						    }
+						  }
+						}
+					`,
+				},
+				{
+					filename: "cfg3.tm",
+					body: `
+						terramate {
+						  config {
+						    run {
+						      env {
 						        interp = "${global.a}"
 						        traversal = global.a.b
 						      }

@@ -805,9 +805,9 @@ func parseRootConfig(filename string, cfg *RootConfig, block *hclsyntax.Block) e
 		case "run":
 			logger.Trace().Msg("Type is 'run'")
 
-			// TODO(katcipis): implement multiple run blocks properly
-
-			cfg.Run = &RunConfig{}
+			if cfg.Run == nil {
+				cfg.Run = &RunConfig{}
+			}
 
 			logger.Trace().Msg("Parse run config.")
 
@@ -844,8 +844,9 @@ func parseRunConfig(filename string, runCfg *RunConfig, runBlock *hclsyntax.Bloc
 			continue
 		}
 
-		// TODO(katcipis): deal properly with multiple env blocks
-		runCfg.Env = &RunEnv{}
+		if runCfg.Env == nil {
+			runCfg.Env = &RunEnv{}
+		}
 		errs.Append(parseRunEnv(filename, runCfg.Env, block))
 	}
 
@@ -853,14 +854,9 @@ func parseRunConfig(filename string, runCfg *RunConfig, runBlock *hclsyntax.Bloc
 }
 
 func parseRunEnv(filename string, runEnv *RunEnv, envBlock *hclsyntax.Block) error {
-	attrs := make(Attributes, 0, len(envBlock.Body.Attributes))
-
 	for _, attr := range envBlock.Body.Attributes {
-		attrs = append(attrs, NewAttribute(filename, attr))
+		runEnv.Attributes = append(runEnv.Attributes, NewAttribute(filename, attr))
 	}
-
-	// TODO: properly handle multiple env blocks aggregated and conflicts
-	runEnv.Attributes = attrs
 
 	if len(envBlock.Labels) > 0 {
 		return errors.E(envBlock.LabelRanges, "env block has unexpected labels: %v", envBlock.Labels)
