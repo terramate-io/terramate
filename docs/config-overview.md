@@ -47,7 +47,7 @@ The `terramate` block has no labels and have the structure below:
 | name             |      type      | description |
 |------------------|----------------|-------------|
 | required_version |     string     | [version constraint](https://www.terraform.io/language/expressions/version-constraints) |
-| [config](#terramateconfig-block schema) |     block      | project configuration |
+| [config](#terramateconfig-block-schema) |     block      | project configuration |
 
 # terramate.config block schema
 
