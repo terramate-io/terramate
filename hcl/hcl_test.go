@@ -483,7 +483,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
-						RootConfig: &hcl.RootConfig{},
+						Config: &hcl.RootConfig{},
 					},
 				},
 			},
@@ -548,7 +548,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
-						RootConfig: &hcl.RootConfig{
+						Config: &hcl.RootConfig{
 							Git: &hcl.GitConfig{},
 						},
 					},
@@ -571,7 +571,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
-						RootConfig: &hcl.RootConfig{},
+						Config: &hcl.RootConfig{},
 					},
 				},
 			},
@@ -595,7 +595,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
-						RootConfig: &hcl.RootConfig{
+						Config: &hcl.RootConfig{
 							Git: &hcl.GitConfig{
 								DefaultBranch: "trunk",
 							},
@@ -625,7 +625,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
-						RootConfig: &hcl.RootConfig{
+						Config: &hcl.RootConfig{
 							Git: &hcl.GitConfig{
 								DefaultBranch:        "trunk",
 								DefaultRemote:        "upstream",
@@ -1227,7 +1227,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						RequiredVersion: "0.0.1",
-						RootConfig: &hcl.RootConfig{
+						Config: &hcl.RootConfig{
 							Git: &hcl.GitConfig{
 								DefaultBranch: "trunk",
 							},
@@ -1276,7 +1276,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						RequiredVersion: "6.6.6",
-						RootConfig: &hcl.RootConfig{
+						Config: &hcl.RootConfig{
 							Git: &hcl.GitConfig{
 								DefaultBranch: "trunk",
 							},

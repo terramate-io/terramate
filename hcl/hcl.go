@@ -80,9 +80,8 @@ type Terramate struct {
 	// RequiredVersion contains the terramate version required by the stack.
 	RequiredVersion string
 
-	// RootConfig is the configuration at the project root directory (commonly
-	// the git directory).
-	RootConfig *RootConfig
+	// Config is the parsed config blocks.
+	Config *RootConfig
 }
 
 // Stack is the parsed "stack" HCL block.
@@ -1166,13 +1165,13 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 				case "config":
 					logger.Trace().Msg("Found config block.")
 
-					if tm.RootConfig == nil {
-						tm.RootConfig = &RootConfig{}
+					if tm.Config == nil {
+						tm.Config = &RootConfig{}
 					}
 
 					logger.Trace().Msg("Parse root config.")
 
-					err := parseRootConfig(fname, tm.RootConfig, block)
+					err := parseRootConfig(fname, tm.Config, block)
 					if err != nil {
 						errs.Append(errors.E(errKind, err))
 					}
@@ -1214,16 +1213,16 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 func validateRunEnv(config Config) error {
 	if config.Terramate == nil ||
-		config.Terramate.RootConfig == nil ||
-		config.Terramate.RootConfig.Run == nil ||
-		config.Terramate.RootConfig.Run.Env == nil {
+		config.Terramate.Config == nil ||
+		config.Terramate.Config.Run == nil ||
+		config.Terramate.Config.Run.Env == nil {
 		return nil
 	}
 
 	errs := errors.L()
 	attrs := map[string]Attribute{}
 
-	for _, attr := range config.Terramate.RootConfig.Run.Env.Attributes {
+	for _, attr := range config.Terramate.Config.Run.Env.Attributes {
 		name := attr.Value().Name
 		if _, ok := attrs[name]; ok {
 			errs.Append(errors.E(

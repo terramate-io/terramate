@@ -39,7 +39,7 @@ type project struct {
 }
 
 func (p project) gitcfg() *hcl.GitConfig {
-	return p.rootcfg.Terramate.RootConfig.Git
+	return p.rootcfg.Terramate.Config.Git
 }
 
 func (p *project) localDefaultBranchCommit() string {
@@ -150,14 +150,14 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 	}
 
 	cfg := &p.rootcfg
-	if cfg.Terramate.RootConfig == nil {
-		p.rootcfg.Terramate.RootConfig = &hcl.RootConfig{}
+	if cfg.Terramate.Config == nil {
+		p.rootcfg.Terramate.Config = &hcl.RootConfig{}
 	}
-	if cfg.Terramate.RootConfig.Git == nil {
-		cfg.Terramate.RootConfig.Git = &hcl.GitConfig{}
+	if cfg.Terramate.Config.Git == nil {
+		cfg.Terramate.Config.Git = &hcl.GitConfig{}
 	}
 
-	gitOpt := cfg.Terramate.RootConfig.Git
+	gitOpt := cfg.Terramate.Config.Git
 
 	if gitOpt.DefaultBranchBaseRef == "" {
 		gitOpt.DefaultBranchBaseRef = defaultBranchBaseRef

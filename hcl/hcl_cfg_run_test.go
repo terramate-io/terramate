@@ -52,7 +52,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 
 		return hcl.Config{
 			Terramate: &hcl.Terramate{
-				RootConfig: &hcl.RootConfig{
+				Config: &hcl.RootConfig{
 					Run: &hcl.RunConfig{
 						Env: &hcl.RunEnv{
 							Attributes: attrs,
@@ -80,7 +80,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
-						RootConfig: &hcl.RootConfig{
+						Config: &hcl.RootConfig{
 							Run: &hcl.RunConfig{},
 						},
 					},
@@ -105,7 +105,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
-						RootConfig: &hcl.RootConfig{
+						Config: &hcl.RootConfig{
 							Run: &hcl.RunConfig{
 								Env: &hcl.RunEnv{},
 							},
@@ -222,7 +222,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
-						RootConfig: &hcl.RootConfig{
+						Config: &hcl.RootConfig{
 							Run: &hcl.RunConfig{},
 						},
 					},
@@ -249,7 +249,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
-						RootConfig: &hcl.RootConfig{
+						Config: &hcl.RootConfig{
 							Run: &hcl.RunConfig{},
 						},
 					},
