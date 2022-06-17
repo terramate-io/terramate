@@ -15,10 +15,15 @@
 package test
 
 import (
+	"os"
+	"sort"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/eval"
 )
 
 // AssertTerramateConfig checks if two given Terramate configs are equal.
@@ -27,6 +32,16 @@ func AssertTerramateConfig(t *testing.T, got, want hcl.Config) {
 
 	assertTerramateBlock(t, got.Terramate, want.Terramate)
 	assertStackBlock(t, got.Stack, want.Stack)
+}
+
+// AssertDiff will compare the two values and fail if they are not the same
+// providing a comprehensive textual diff of the differences between them.
+func AssertDiff(t *testing.T, got, want interface{}) {
+	t.Helper()
+
+	if diff := cmp.Diff(got, want); diff != "" {
+		t.Fatalf("-(got) +(want):\n%s", diff)
+	}
 }
 
 func assertTerramateBlock(t *testing.T, got, want *hcl.Terramate) {
@@ -44,12 +59,12 @@ func assertTerramateBlock(t *testing.T, got, want *hcl.Terramate) {
 	assert.EqualStrings(t, want.RequiredVersion, got.RequiredVersion,
 		"required_version mismatch")
 
-	if (want.RootConfig == nil) != (got.RootConfig == nil) {
+	if (want.Config == nil) != (got.Config == nil) {
 		t.Fatalf("want.RootConfig[%+v] != got.RootConfig[%+v]",
-			want.RootConfig, got.RootConfig)
+			want.Config, got.Config)
 	}
 
-	assertTerramateConfigBlock(t, want.RootConfig, got.RootConfig)
+	assertTerramateConfigBlock(t, got.Config, want.Config)
 }
 
 func assertTerramateConfigBlock(t *testing.T, got, want *hcl.RootConfig) {
@@ -76,6 +91,80 @@ func assertTerramateConfigBlock(t *testing.T, got, want *hcl.RootConfig) {
 			t.Fatalf("want.Git[%+v] != got.Git[%+v]", want.Git, got.Git)
 		}
 	}
+
+	assertTerramateRunBlock(t, got.Run, want.Run)
+}
+
+func assertTerramateRunBlock(t *testing.T, got, want *hcl.RunConfig) {
+	t.Helper()
+
+	if (want == nil) != (got == nil) {
+		t.Fatalf("want.Run[%+v] != got.Run[%+v]", want, got)
+	}
+
+	if want == nil {
+		return
+	}
+
+	if (want.Env == nil) != (got.Env == nil) {
+		t.Fatalf(
+			"want.Run.Env[%+v] != got.Run.Env[%+v]",
+			want.Env,
+			got.Env,
+		)
+	}
+
+	if want.Env == nil {
+		return
+	}
+
+	// There is no easy way to compare hclsyntax.Attribute
+	// (or hcl.Attribute, or hclsyntax.Expression, etc).
+	// So we do this hack in an attempt of comparing the attributes
+	// original expressions (no eval involved).
+
+	gotHCL := hclFromAttributes(t, got.Env.Attributes)
+	wantHCL := hclFromAttributes(t, want.Env.Attributes)
+
+	AssertDiff(t, gotHCL, wantHCL)
+}
+
+// hclFromAttributes ensures that we always build the same HCL document
+// given an hcl.Attributes.
+func hclFromAttributes(t *testing.T, attrs hcl.Attributes) string {
+	t.Helper()
+
+	file := hclwrite.NewEmptyFile()
+	body := file.Body()
+
+	sort.Stable(attrs)
+
+	filesRead := map[string][]byte{}
+	readFile := func(filename string) []byte {
+		t.Helper()
+
+		if file, ok := filesRead[filename]; ok {
+			return file
+		}
+
+		file, err := os.ReadFile(filename)
+		assert.NoError(t, err, "reading origin file")
+
+		filesRead[filename] = file
+		return file
+	}
+
+	for _, attr := range attrs {
+		tokens, err := eval.GetExpressionTokens(
+			readFile(attr.Origin()),
+			attr.Origin(),
+			attr.Value().Expr,
+		)
+		assert.NoError(t, err)
+		body.SetAttributeRaw(attr.Value().Name, tokens)
+	}
+
+	return string(file.Bytes())
 }
 
 func assertStackBlock(t *testing.T, got, want *hcl.Stack) {

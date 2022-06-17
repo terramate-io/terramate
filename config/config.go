@@ -39,7 +39,7 @@ func TryLoadRootConfig(dir string) (cfg hcl.Config, found bool, err error) {
 		return hcl.Config{}, false, err
 	}
 
-	if cfg.Terramate != nil && cfg.Terramate.RootConfig != nil {
+	if cfg.Terramate != nil && cfg.Terramate.Config != nil {
 		return cfg, true, nil
 	}
 	return hcl.Config{}, false, nil

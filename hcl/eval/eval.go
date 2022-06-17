@@ -83,15 +83,24 @@ func (c *Context) PartialEval(expr hclsyntax.Expression) (hclwrite.Tokens, error
 		return nil, errors.E(err, "reading expression from file")
 	}
 
+	tokens, err := GetExpressionTokens(filedata, exprFname, expr)
+	if err != nil {
+		return nil, err
+	}
+
+	engine := newPartialEvalEngine(tokens, c)
+	return engine.Eval()
+}
+
+// GetExpressionTokens gets the provided expression as writable tokens.
+func GetExpressionTokens(hcldoc []byte, filename string, expr hclsyntax.Expression) (hclwrite.Tokens, error) {
 	exprRange := expr.Range()
-	exprBytes := filedata[exprRange.Start.Byte:exprRange.End.Byte]
-	tokens, diags := hclsyntax.LexExpression(exprBytes, exprFname, hhcl.Pos{})
+	exprBytes := hcldoc[exprRange.Start.Byte:exprRange.End.Byte]
+	tokens, diags := hclsyntax.LexExpression(exprBytes, filename, hhcl.Pos{})
 	if diags.HasErrors() {
 		return nil, errors.E(diags, "failed to scan expression")
 	}
-
-	engine := newPartialEvalEngine(toWriteTokens(tokens), c)
-	return engine.Eval()
+	return toWriteTokens(tokens), nil
 }
 
 // FromMapToObject converts a map of cty.Value to an object.
