@@ -47,4 +47,5 @@ The `terramate` block has no labels and have the following structure:
 Attributes 
 
 | attribute name   |      type      | description |
+|------------------|----------------|-------------|
 | required_version |     string     | [version constraint](https://www.terraform.io/language/expressions/version-constraints) |
