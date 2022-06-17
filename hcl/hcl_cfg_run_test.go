@@ -442,6 +442,63 @@ func TestHCLParserConfigRun(t *testing.T) {
 					mkrange("cfg.tm", start(9, 15, 147), end(9, 31, 163)))},
 			},
 		},
+		{
+			name: "redefined env attribute on different files fails",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						  config {
+						    run {
+						      env {
+						        string = "value"
+						      }
+						    }
+						  }
+						}
+					`,
+				},
+				{
+					filename: "cfg2.tm",
+					body: `
+						terramate {
+						  config {
+						    run {
+						      env {
+						        string = "value"
+						      }
+						    }
+						  }
+						}
+					`,
+				},
+				{
+					filename: "cfg3.tm",
+					body: `
+						terramate {
+						  config {
+						    run {
+						      env {
+						        string = "value"
+						      }
+						    }
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("cfg2.tm", start(6, 15, 84), end(6, 31, 100)),
+					),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("cfg3.tm", start(6, 15, 84), end(6, 31, 100)),
+					),
+				},
+			},
+		},
 	} {
 		testParser(t, tc)
 	}
