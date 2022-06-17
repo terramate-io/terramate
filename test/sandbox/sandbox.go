@@ -106,10 +106,21 @@ func NewWithGitConfig(t *testing.T, cfg GitConfig) S {
 func NoGit(t *testing.T) S {
 	t.Helper()
 
-	rootdir := test.CanonPath(t, t.TempDir())
+	// here we create some stacks outside the root directory of the
+	// sandbox so we can check if terramate does not ascend to parent
+	// directories.
+
+	outerDir := t.TempDir()
+	buildTree(t, outerDir, []string{
+		"s:this-stack-must-never-be-visible",
+		"s:other-hidden-stack",
+	})
+	rootdir := filepath.Join(outerDir, "sandbox")
+	test.MkdirAll(t, rootdir)
+
 	return S{
 		t:       t,
-		rootdir: rootdir,
+		rootdir: test.CanonPath(t, rootdir),
 	}
 }
 
@@ -136,78 +147,11 @@ func NoGit(t *testing.T) S {
 // This is an internal mini-lang used to simplify testcases, so it expects well
 // formed layout specification.
 func (s S) BuildTree(layout []string) {
-	t := s.t
-	t.Helper()
-
-	parsePathData := func(spec string) (string, string) {
-		tmp := spec[2:]
-		if len(tmp) == 0 {
-			// relative to s.rootdir
-			return ".", ""
-		}
-		index := strings.IndexByte(tmp, ':')
-		if index == -1 {
-			return tmp, ""
-		}
-		path := tmp[0:index]
-		data := tmp[index+1:]
-		return path, data
-	}
-
-	gentmfile := func(relpath, data string) {
-		attrs := strings.Split(data, ";")
-
-		cfgdir := filepath.Join(s.RootDir(), relpath)
-		test.MkdirAll(t, cfgdir)
-		cfg, err := hcl.NewConfig(cfgdir)
-		assert.NoError(t, err)
-
-		cfg.Stack = &hcl.Stack{}
-		cfg.Terramate = &hcl.Terramate{}
-
-		for _, attr := range attrs {
-			parts := strings.Split(attr, "=")
-			name := parts[0]
-			value := parts[1]
-			switch name {
-			case "after":
-				cfg.Stack.After = parseListSpec(t, name, value)
-			case "before":
-				cfg.Stack.Before = parseListSpec(t, name, value)
-			case "wants":
-				cfg.Stack.Wants = parseListSpec(t, name, value)
-			case "description":
-				cfg.Stack.Description = value
-			default:
-				t.Fatalf("attribute " + parts[0] + " not supported.")
-			}
-		}
-
-		assert.NoError(t, cfg.Save(config.DefaultFilename),
-			"BuildTree() failed to generate config file.")
-	}
-
-	for _, spec := range layout {
-		path, data := parsePathData(spec)
-
-		specKind := string(spec[0:2])
-		switch specKind {
-		case "d:":
-			test.MkdirAll(t, filepath.Join(s.rootdir, spec[2:]))
-		case "s:":
-			if data == "" {
-				s.CreateStack(path)
-				continue
-			}
-
-			gentmfile(path, data)
-		case "f:":
-			test.WriteFile(t, s.rootdir, path, data)
-		default:
-			t.Fatalf("unknown spec kind: %q", specKind)
-		}
-	}
+	buildTree(s.t, s.RootDir(), layout)
 }
+
+// IsGit tells if the sandbox is a git repository.
+func (s S) IsGit() bool { return s.git != nil }
 
 // Git returns a git wrapper that is useful to run git commands safely inside
 // the test env repo.
@@ -522,4 +466,79 @@ func parseListSpec(t *testing.T, name, value string) []string {
 	}
 
 	return list
+}
+
+func buildTree(t *testing.T, rootdir string, layout []string) {
+	t.Helper()
+
+	parsePathData := func(spec string) (string, string) {
+		tmp := spec[2:]
+		if len(tmp) == 0 {
+			// relative to s.rootdir
+			return ".", ""
+		}
+		index := strings.IndexByte(tmp, ':')
+		if index == -1 {
+			return tmp, ""
+		}
+		path := tmp[0:index]
+		data := tmp[index+1:]
+		return path, data
+	}
+
+	gentmfile := func(relpath, data string) {
+		attrs := strings.Split(data, ";")
+
+		cfgdir := filepath.Join(rootdir, relpath)
+		test.MkdirAll(t, cfgdir)
+		cfg, err := hcl.NewConfig(cfgdir)
+		assert.NoError(t, err)
+
+		cfg.Stack = &hcl.Stack{}
+		cfg.Terramate = &hcl.Terramate{}
+
+		for _, attr := range attrs {
+			parts := strings.Split(attr, "=")
+			name := parts[0]
+			value := parts[1]
+			switch name {
+			case "after":
+				cfg.Stack.After = parseListSpec(t, name, value)
+			case "before":
+				cfg.Stack.Before = parseListSpec(t, name, value)
+			case "wants":
+				cfg.Stack.Wants = parseListSpec(t, name, value)
+			case "description":
+				cfg.Stack.Description = value
+			default:
+				t.Fatalf("attribute " + parts[0] + " not supported.")
+			}
+		}
+
+		assert.NoError(t, cfg.Save(config.DefaultFilename),
+			"BuildTree() failed to generate config file.")
+	}
+
+	for _, spec := range layout {
+		path, data := parsePathData(spec)
+
+		specKind := string(spec[0:2])
+		switch specKind {
+		case "d:":
+			test.MkdirAll(t, filepath.Join(rootdir, spec[2:]))
+		case "s:":
+			if data == "" {
+				abspath := filepath.Join(rootdir, path)
+				test.MkdirAll(t, abspath)
+				assert.NoError(t, terramate.Init(rootdir, abspath))
+				continue
+			}
+
+			gentmfile(path, data)
+		case "f:":
+			test.WriteFile(t, rootdir, path, data)
+		default:
+			t.Fatalf("unknown spec kind: %q", specKind)
+		}
+	}
 }
