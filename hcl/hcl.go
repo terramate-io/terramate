@@ -1385,7 +1385,7 @@ func sortAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {
 		names = append(names, name)
 	}
 
-	log.Trace().Str("action", "sortedAttributes()").Msg("Sort attributes.")
+	log.Trace().Str("action", "sortAttributes()").Msg("Sort attributes.")
 	sort.Strings(names)
 
 	sorted := make([]*hclsyntax.Attribute, len(names))
