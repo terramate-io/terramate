@@ -42,10 +42,26 @@ The terramate configuration defines the top-level blocks below:
 
 # terramate block schema
 
-The `terramate` block has no labels and have the following structure:
+The `terramate` block has no labels and have the structure below:
 
-Attributes 
-
-| attribute name   |      type      | description |
+| name             |      type      | description |
 |------------------|----------------|-------------|
 | required_version |     string     | [version constraint](https://www.terraform.io/language/expressions/version-constraints) |
+| [config](#terramate.config-block schema) |     block      | project configuration |
+
+# terramate.config block schema
+
+The `terramate.config` block has no labels and have the structure below:
+
+| name             |      type      | description |
+|------------------|----------------|-------------|
+| [git](#terramate.config.git-block-schema) | block | git configuration |
+
+# terramate.config.git block schema
+
+The `terramate.config.git` block has no labels and have the structure below:
+
+| name             |      type      | description |
+|------------------|----------------|-------------|
+| default\_branch | string | The default git branch |
+| default\_remote | string | The default git remote |
