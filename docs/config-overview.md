@@ -46,7 +46,7 @@ The `terramate` block has no labels and have the structure below:
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
-| required_version |     string     | [version constraint](https://www.terraform.io/language/expressions/version-constraints) |
+| required_version |     **string**     | [version constraint](https://www.terraform.io/language/expressions/version-constraints) |
 | [config](#terramateconfig-block-schema) |     block      | project configuration |
 
 ## terramate.config block schema
@@ -55,7 +55,7 @@ The `terramate.config` block has no labels and have the structure below:
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
-| [git](#terramateconfiggit-block-schema) | block | git configuration |
+| [git](#terramateconfiggit-block-schema) | **block** | git configuration |
 
 ## terramate.config.git block schema
 
@@ -63,15 +63,15 @@ The `terramate.config.git` block has no labels and have the structure below:
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
-| default\_branch | string | The default git branch |
-| default\_remote | string | The default git remote |
+| default\_branch | **string** | The default git branch |
+| default\_remote | **string** | The default git remote |
 
 # stack block schema
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
-| name             | string         | The name of the stack |
-| description      | string         | The description of the stack |
+| name             | **string**         | The name of the stack |
+| description      | **string**         | The description of the stack |
 | before           | **list(string)**   | The list of `before` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs. |
-| after            | list(string)   | The list of `after` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs |
-| wants            | list(string)   | The list of `wanted` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs |
+| after            | **list(string)**   | The list of `after` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs |
+| wants            | **list(string)**   | The list of `wanted` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs |
