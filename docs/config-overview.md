@@ -36,9 +36,9 @@ The terramate configuration defines the top-level blocks below:
 
 - [terramate](#terramate-block-schema)
 - [stack](#stack-block-schema)
-- [globals](#globals-schema)
-- [generate_file](#generate_file-schema)
-- [generate_hcl](#generate_hcl-schema)
+- [globals](#globals-block-schema)
+- [generate_file](#generate_file-block-schema)
+- [generate_hcl](#generate_hcl-block-schema)
 
 # terramate block schema
 
