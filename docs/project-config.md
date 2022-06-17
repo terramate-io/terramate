@@ -53,3 +53,120 @@ List of configurations:
 
 * git.default\_remote (default="origin") : changes default remote
 * git.default\_branch (default="main")   : changes default branch
+
+
+## terramate.config.run.env
+
+The environment in which stacks are going to be executed can be configured
+using the `terramate.config.run.env` block. This block has no labels and
+accepts arbitrary attributes where each attribute represents an environment
+variable that will be evaluated and exported when executing the stack.
+The attributes must always evaluate to strings.
+
+Example:
+
+```hcl
+terramate {
+  config {
+    run {
+      env {
+        TF_PLUGIN_CACHE_DIR = "/some/path/etc"
+      }
+    }
+  }
+}
+```
+
+Will export the environment variable `TF_PLUGIN_CACHE_DIR` on the stack
+execution environment with the value `/some/path/etc`.
+
+Inside the `terramate.config.run.env` block the `env` namespace will be
+available including environment variables retrieved from the host:
+
+```hcl
+terramate {
+  config {
+    run {
+      env {
+        TF_PLUGIN_CACHE_DIR = "${env.HOME}/.terraform-cache-dir"
+      }
+    }
+  }
+}
+```
+
+Globals and Metadata can also be referenced:
+
+```hcl
+terramate {
+  config {
+    run {
+      env {
+        TF_PLUGIN_CACHE_DIR = "${terramate.stack.path.absolute}/${global.cache_dir}"
+      }
+    }
+  }
+}
+```
+
+The `env` namespace is meant to give access to the host environment variables,
+it is read-only, and is only available when evaluating
+`terramate.config.run.env` blocks.
+
+This means that any attributes defined
+on `terramate.config.run.env` blocks won't affect the `env` namespace,
+they only affect the stack execution environment.
+
+Given that this is a project wide configuration the environment defined by
+`terramate.config.run.env` will be available to all stacks in the project.
+
+You can have multiple `terramate.config.run.env` blocks defined on different
+files, but no attribute must be redefined on any of them.
+
+This is allowed:
+
+```hcl
+terramate {
+  config {
+    run {
+      env {
+        A = "A"
+      }
+    }
+  }
+}
+
+terramate {
+  config {
+    run {
+      env {
+        B = "B"
+      }
+    }
+  }
+}
+```
+
+But this will fail:
+
+```hcl
+terramate {
+  config {
+    run {
+      env {
+        A = "A"
+      }
+    }
+  }
+}
+
+terramate {
+  config {
+    run {
+      env {
+        A = "A"
+      }
+    }
+  }
+}
+```
