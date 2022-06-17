@@ -32,7 +32,7 @@ In general, a Terramate project looks like this:
 
 # Terramate Configuration Schema
 
-The terramate configuration defines the top-level blocks below:
+The terramate configuration is defined by the top-level blocks below:
 
 - [terramate](#terramate-block-schema)
 - [stack](#stack-block-schema)
@@ -41,6 +41,8 @@ The terramate configuration defines the top-level blocks below:
 - [generate_hcl](#generate_hcl-block-schema)
 
 # terramate block schema
+
+For detailed information about this block, see the [Project Configuration](https://github.com/mineiros-io/terramate/blob/main/docs/project-config.md#project-configuration) docs.
 
 The `terramate` block has no labels and have the structure below:
 
@@ -94,6 +96,9 @@ The `generate_file` block requires one label and have the structure below:
 | condition        | bool           | The condition for generation |
 | content          | string         | The content to be generated |
 
+
+For detailed documentation about this block, see the [File Code Generation](https://github.com/mineiros-io/terramate/blob/main/docs/codegen/generate-file.md) docs.
+
 # generate_hcl block schema
 
 The `generate_hcl` block requires one label and have the structure below:
@@ -103,7 +108,8 @@ The `generate_hcl` block requires one label and have the structure below:
 | condition        | bool           | The condition for generation |
 | [content](#generate_hclcontent-block-schema) | block         | The content to be generated |
 
+For detailed documentation about this block, see the [HCL Code Generation](https://github.com/mineiros-io/terramate/blob/main/docs/codegen/generate-hcl.md) docs.
+
 ## generate_hcl.content block schema
 
 The `generate_hcl.content` block has no labels and accepts any valid HCL.
-
