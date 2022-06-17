@@ -72,6 +72,6 @@ The `terramate.config.git` block has no labels and have the structure below:
 |------------------|----------------|-------------|
 | name             | string         | The name of the stack |
 | description      | string         | The description of the stack |
-| before           | list(string)   | The list of `before` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs. |
+| before           | **list(string)**   | The list of `before` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs. |
 | after            | list(string)   | The list of `after` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs |
 | wants            | list(string)   | The list of `wanted` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs |
