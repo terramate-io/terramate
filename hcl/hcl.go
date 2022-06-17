@@ -1203,11 +1203,38 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 		}
 	}
 
+	errs.Append(validateRunEnv(tmconfig))
+
 	if err := errs.AsError(); err != nil {
 		return Config{}, err
 	}
 
 	return tmconfig, nil
+}
+
+func validateRunEnv(config Config) error {
+	if config.Terramate == nil ||
+		config.Terramate.RootConfig == nil ||
+		config.Terramate.RootConfig.Run == nil ||
+		config.Terramate.RootConfig.Run.Env == nil {
+		return nil
+	}
+
+	errs := errors.L()
+	attrs := map[string]Attribute{}
+
+	for _, attr := range config.Terramate.RootConfig.Run.Env.Attributes {
+		name := attr.Value().Name
+		if _, ok := attrs[name]; ok {
+			errs.Append(errors.E(
+				ErrTerramateSchema,
+				"redefined terramate.config.run.env attribute",
+				attr.Value().Range()))
+		}
+		attrs[name] = attr
+	}
+
+	return errs.AsError()
 }
 
 type blockValidator func(*hclsyntax.Block) error

@@ -416,6 +416,32 @@ func TestHCLParserConfigRun(t *testing.T) {
 				`),
 			},
 		},
+		{
+			name: "redefined env on different env blocks fails",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						  config {
+						    run {
+						      env {
+						        string = "value"
+						      }
+						      env {
+						        string = "value"
+						      }
+						    }
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{errors.E(hcl.ErrTerramateSchema,
+					mkrange("cfg.tm", start(9, 15, 147), end(9, 31, 163)))},
+			},
+		},
 	} {
 		testParser(t, tc)
 	}
