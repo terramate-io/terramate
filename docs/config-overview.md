@@ -30,7 +30,7 @@ In general, a Terramate project looks like this:
 * Stacks are organized as different directories.
 * Configuration may be present on any directory.
 
-# Terramate Configuration schema
+# Terramate Configuration Schema
 
 The terramate configuration defines the top-level blocks below:
 
@@ -47,17 +47,17 @@ The `terramate` block has no labels and have the structure below:
 | name             |      type      | description |
 |------------------|----------------|-------------|
 | required_version |     string     | [version constraint](https://www.terraform.io/language/expressions/version-constraints) |
-| [config](#terramateconfig-block-schema) |     block      | project configuration |
+| [config](##terramateconfig-block-schema) |     block      | project configuration |
 
-# terramate.config block schema
+## terramate.config block schema
 
 The `terramate.config` block has no labels and have the structure below:
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
-| [git](#terramateconfiggit-block-schema) | block | git configuration |
+| [git](##terramateconfiggit-block-schema) | block | git configuration |
 
-# terramate.config.git block schema
+## terramate.config.git block schema
 
 The `terramate.config.git` block has no labels and have the structure below:
 
