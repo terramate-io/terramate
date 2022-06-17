@@ -29,3 +29,22 @@ In general, a Terramate project looks like this:
 * The git top-level dir is the project root dir.
 * Stacks are organized as different directories.
 * Configuration may be present on any directory.
+
+# Terramate Configuration schema
+
+The terramate configuration defines the top-level blocks below:
+
+- [terramate](#terramate-block-schema)
+- [stack](#stack-schema)
+- [globals](#globals-schema)
+- [generate_file](#generate_file-schema)
+- [generate_hcl](#generate_hcl-schema)
+
+# terramate block schema
+
+The `terramate` block has no labels and have the following structure:
+
+Attributes 
+
+| attribute name   |      type      | description |
+| required_version |     string     | [version constraint](https://www.terraform.io/language/expressions/version-constraints) |
