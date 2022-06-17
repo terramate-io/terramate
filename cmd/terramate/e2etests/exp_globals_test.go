@@ -229,16 +229,25 @@ stack "/stacks/stack-2":
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			s := sandbox.New(t)
-			s.BuildTree(tcase.layout)
-
-			for _, globalBlock := range tcase.globals {
-				path := filepath.Join(s.RootDir(), globalBlock.path)
-				test.AppendFile(t, path, config.DefaultFilename, globalBlock.add.String())
+			sandboxes := []sandbox.S{
+				sandbox.New(t),
+				sandbox.NoGit(t),
 			}
 
-			ts := newCLI(t, project.AbsPath(s.RootDir(), tcase.wd))
-			assertRunResult(t, ts.run("experimental", "globals"), tcase.want)
+			for _, s := range sandboxes {
+				s.BuildTree(tcase.layout)
+
+				for _, globalBlock := range tcase.globals {
+					path := filepath.Join(s.RootDir(), globalBlock.path)
+					test.AppendFile(t, path, config.DefaultFilename,
+						globalBlock.add.String())
+				}
+
+				test.WriteRootConfig(t, s.RootDir())
+
+				ts := newCLI(t, project.AbsPath(s.RootDir(), tcase.wd))
+				assertRunResult(t, ts.run("experimental", "globals"), tcase.want)
+			}
 		})
 	}
 }

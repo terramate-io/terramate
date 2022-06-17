@@ -358,6 +358,10 @@ func (c *cli) checkGit() {
 		Str("action", "checkGit()").
 		Logger()
 
+	if !c.prj.isRepo {
+		return
+	}
+
 	logger.Trace().Msg("Check git default remote.")
 
 	if err := c.prj.checkDefaultRemote(); err != nil {
