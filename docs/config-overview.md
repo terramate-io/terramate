@@ -83,6 +83,8 @@ The `stack` block has no labels and have the structure below:
 The `globals` block has no labels, accepts **any** attribute and *disallow* child
 blocks.
 
+For more information about `globals`, see the [Sharing Data](https://github.com/mineiros-io/terramate/blob/main/docs/sharing-data.md#globals) documentation.
+
 # generate_file block schema
 
 The `generate_file` block requires one label and have the structure below:
