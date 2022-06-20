@@ -562,7 +562,6 @@ func trimNewlines(tokens hclwrite.Tokens) hclwrite.Tokens {
 		}
 	}
 
-
 	return tokens[start:end]
 }
 
