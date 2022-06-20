@@ -86,7 +86,8 @@ func Exec(
 
 		logger.Info().Msg("Running")
 
-		// The child process should not get signals directly
+		// The child process should not get signals directly since
+		// we want to handle first interrupt differently.
 		cmd.SysProcAttr = &syscall.SysProcAttr{
 			Setpgid: true,
 		}
