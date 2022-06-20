@@ -71,7 +71,14 @@ func Exec(
 
 		logger.Info().Msg("Running")
 
-		cmd.Start()
+		if err := cmd.Start(); err != nil {
+			errs.Append(errors.E(stack, err, "running %s", cmd))
+			if continueOnError {
+				continue
+			}
+			return errs.AsError()
+		}
+
 		cmds <- cmd
 
 		err := <-results
