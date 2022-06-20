@@ -183,8 +183,8 @@ The `generate_hcl.content` block has no labels and accepts any valid HCL.
 
 # import block schema
 
-The `import` block has no labels, **do not** supports merging and has the 
-following schema:
+The `import` block has no labels, **do not** supports [merging](#config-merging)
+and has the following schema:
 
 
 | name             |      type      | description |
