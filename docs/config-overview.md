@@ -16,9 +16,6 @@ concatenation of all of them in a single file, forming a single **configuration*
 The configuration blocks can be defined multiple times and its values are merged
 whenever possible. See [Config Merging](#config-merging) for details.
 
-For more information about which configuration blocks supports merging, check
-the [Terramate Schema](#terramate-configuration-schema) section.
-
 Each configuration can import other configurations using the `import` block.
 See the example below:
 
@@ -76,7 +73,7 @@ terramate {
 }
 ```
 
-The blocks can also be defined in different files.
+and the blocks can also be defined in different files.
 
 But the following is invalid:
 
@@ -131,7 +128,7 @@ The `terramate.config.git` block has no labels and has the following schema:
 
 # stack block schema
 
-The `stack` block has no labels and has the following schema:
+The `stack` block has no labels, supports merging and has the following schema:
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
@@ -150,7 +147,7 @@ For more information about `globals`, see the [Sharing Data](https://github.com/
 
 # generate_file block schema
 
-The `generate_file` block requires one label and has the following schema:
+The `generate_file` block requires one label, **do not** support [merging](#config-merging) and has the following schema:
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
@@ -162,7 +159,7 @@ For detailed documentation about this block, see the [File Code Generation](http
 
 # generate_hcl block schema
 
-The `generate_hcl` block requires one label and has following schema:
+The `generate_hcl` block requires one label, **do not** support [merging](#config-merging) and has following schema:
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
