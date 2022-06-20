@@ -34,8 +34,8 @@ The *imported* file is handled as if it's in the directory of the *importing*
 file, then the same [merging strategy](#config-merging) applies for the case of
 duplicated blocks being defined.
 
-The `import` block do not support [merging](#config-merging) of its content and
-multiple blocks can be defined in the same file or directory given that their 
+The `import` block do not support [merging](#config-merging) of its attributes
+and multiple blocks can be defined in the same file or directory given that their
 `source` attributes are different. In other words, each file can only be imported
 once into a single configuration set.
 
