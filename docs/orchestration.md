@@ -281,7 +281,7 @@ Even though **stack-c** defined that it needs to be run after **stack-b**, since
 
 It is possible to control the environment variables of commands when they are
 executed on a stack. That is done through the `terramate.config.run.env` block.
-More details on how to use can be find [Project Configuration](project-config.md#terramate.config.run.env)
+More details on how to use can be find [Project Configuration](project-config.md#terramateconfigrunenv)
 documentation.
 
 
