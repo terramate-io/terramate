@@ -4,6 +4,7 @@ SHELL := /bin/bash -o pipefail -o errexit -o nounset
 COVERAGE_REPORT ?= coverage.txt
 
 addlicense=go run github.com/google/addlicense@v1.0.0 -ignore **/*.yml
+buildflags=--ldflags '-extldflags "-static"'
 
 .PHONY: default
 default: help
@@ -71,12 +72,12 @@ test/fuzz/fmt:
 ## Build terramate into bin directory
 .PHONY: build
 build:
-	CGO_ENABLED=0 go build --ldflags '-extldflags "-static"' -o bin/terramate ./cmd/terramate
+	CGO_ENABLED=0 go build $(buildflags) -o bin/terramate ./cmd/terramate
 
 ## Install terramate on the host
 .PHONY: install
 install:
-	go install ./cmd/terramate
+	CGO_ENABLED=0 go install $(buildflags) ./cmd/terramate
 
 ## remove build artifacts
 .PHONY: clean
