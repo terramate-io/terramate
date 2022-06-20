@@ -92,7 +92,7 @@ func Exec(
 		}
 
 		if err := cmd.Start(); err != nil {
-			errs.Append(errors.E(stack, err, "starting %s", cmd))
+			errs.Append(errors.E(stack, err, "running %s", cmd))
 			if continueOnError {
 				continue
 			}

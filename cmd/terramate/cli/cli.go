@@ -950,10 +950,10 @@ func (c *cli) runOnStacks() {
 		var errs *errors.List
 		if errors.As(err, &errs) {
 			for _, err := range errs.Errors() {
-				logger.Warn().Err(err)
+				logger.Warn().Err(err).Send()
 			}
 		} else {
-			logger.Warn().Err(err)
+			logger.Warn().Err(err).Send()
 		}
 
 		os.Exit(1)
