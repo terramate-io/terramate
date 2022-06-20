@@ -32,7 +32,7 @@ In general, a Terramate project looks like this:
 
 # Terramate Configuration Schema
 
-The terramate configuration is defined by the top-level blocks below:
+The terramate configuration is defined by the following top-level blocks:
 
 - [terramate](#terramate-block-schema)
 - [stack](#stack-block-schema)
