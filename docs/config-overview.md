@@ -53,7 +53,7 @@ The `terramate` block has no labels and has the following schema:
 
 ## terramate.config block schema
 
-The `terramate.config` block has no labels and have the structure below:
+The `terramate.config` block has no labels and has the following schema:
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
