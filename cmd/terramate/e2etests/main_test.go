@@ -71,6 +71,8 @@ func setupAndRunTests(m *testing.M) (status int) {
 
 func buildTerramate(goBin string, projectRoot string, binDir string) (string, error) {
 	// We need to build the same way it is built on our Makefile + release process
+	// Invoking make here would assume that someone running go test ./... have
+	// make installed, so we are keeping the duplication to reduce deps when running tests.
 	outBinPath := filepath.Join(binDir, "terramate"+platExeSuffix())
 	cmd := exec.Command(
 		goBin,
