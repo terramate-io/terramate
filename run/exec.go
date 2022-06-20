@@ -54,6 +54,8 @@ func Exec(
 		Logger()
 
 	errs := errors.L()
+	cmds := make(chan *exec.Cmd)
+	results := startCmdRunner(cmds)
 
 	for _, stack := range stacks {
 		cmd := exec.Command(cmd[0], cmd[1:]...)
@@ -69,7 +71,10 @@ func Exec(
 
 		logger.Info().Msg("Running")
 
-		err := cmd.Run()
+		cmd.Start()
+		cmds <- cmd
+
+		err := <-results
 		if err != nil {
 			errs.Append(errors.E(stack, err, "running %s", cmd))
 			if !continueOnError {
@@ -78,5 +83,18 @@ func Exec(
 		}
 	}
 
+	close(cmds)
+
 	return errs.AsError()
+}
+
+func startCmdRunner(cmds <-chan *exec.Cmd) <-chan error {
+	errs := make(chan error)
+	go func() {
+		for cmd := range cmds {
+			errs <- cmd.Wait()
+		}
+		close(errs)
+	}()
+	return errs
 }
