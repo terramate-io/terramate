@@ -101,7 +101,7 @@ For detailed documentation about this block, see the [File Code Generation](http
 
 # generate_hcl block schema
 
-The `generate_hcl` block requires one label and have the structure below:
+The `generate_hcl` block requires one label and has following schema:
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
