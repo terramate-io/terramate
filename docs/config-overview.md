@@ -34,6 +34,13 @@ The *imported* file is handled as if it's in the directory of the *importing*
 file, then the same [merging strategy](#config-merging) applies for the case of
 duplicated blocks being defined.
 
+The `import` block do not support [merging](#config-merging) of its content and
+multiple blocks can be defined in the same file or directory given that their 
+`source` attributes are different. In other words, each file can only be imported
+once into a single configuration set.
+
+An imported file can import other files but cycles are not allowed.
+
 A Terramate project is essentially a collection of Terraform code organized into
 stacks.
 
@@ -55,7 +62,8 @@ The configuration defined in a directory is merged into a single configuration
 where multiple blocks of same type can be defined if their contents do not
 conflict. In other words, the definition of a block can be split into multiple
 blocks where each define a part of the whole definition. The only exception being
-the [generate](https://github.com/mineiros-io/terramate/blob/main/docs/codegen/overview.md) blocks. The [globals](https://github.com/mineiros-io/terramate/blob/main/docs/sharing-data.md) block extend the merging to the hierarchy of globals.
+the [generate](https://github.com/mineiros-io/terramate/blob/main/docs/codegen/overview.md) blocks and the `import` block. 
+The [globals](https://github.com/mineiros-io/terramate/blob/main/docs/sharing-data.md) block extend the merging to the hierarchy of globals.
 
 For example, the configuration below is valid:
 
@@ -96,6 +104,7 @@ The terramate configuration is defined by the following top-level blocks:
 - [globals](#globals-block-schema)
 - [generate_file](#generate_file-block-schema)
 - [generate_hcl](#generate_hcl-block-schema)
+- [import](#import-block-schema)
 
 # terramate block schema
 
@@ -159,7 +168,7 @@ For detailed documentation about this block, see the [File Code Generation](http
 
 # generate_hcl block schema
 
-The `generate_hcl` block requires one label, **do not** support [merging](#config-merging) and has following schema:
+The `generate_hcl` block requires one label, **do not** support [merging](#config-merging) and has the following schema:
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
@@ -171,3 +180,13 @@ For detailed documentation about this block, see the [HCL Code Generation](https
 ## generate_hcl.content block schema
 
 The `generate_hcl.content` block has no labels and accepts any valid HCL.
+
+# import block schema
+
+The `import` block has no labels, **do not** supports merging and has the 
+following schema:
+
+
+| name             |      type      | description |
+|------------------|----------------|-------------|
+| source           | string         | The file path to be imported |
