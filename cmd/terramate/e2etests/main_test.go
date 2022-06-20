@@ -70,14 +70,18 @@ func setupAndRunTests(m *testing.M) (status int) {
 }
 
 func buildTerramate(goBin string, projectRoot string, binDir string) (string, error) {
+	// We need to build the same way it is built on our Makefile + release process
 	outBinPath := filepath.Join(binDir, "terramate"+platExeSuffix())
 	cmd := exec.Command(
 		goBin,
 		"build",
+		"--ldflags",
+		`-extldflags "-static"`,
 		"-o",
 		outBinPath,
 		filepath.Join(projectRoot, "cmd/terramate"),
 	)
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {

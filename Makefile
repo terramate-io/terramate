@@ -71,7 +71,7 @@ test/fuzz/fmt:
 ## Build terramate into bin directory
 .PHONY: build
 build:
-	go build -o bin/terramate ./cmd/terramate
+	CGO_ENABLED=0 go build --ldflags '-extldflags "-static"' -o bin/terramate ./cmd/terramate
 
 ## Install terramate on the host
 .PHONY: install
