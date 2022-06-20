@@ -277,6 +277,14 @@ Even though **stack-c** defined that it needs to be run after **stack-b**, since
 **runtime** order.
 
 
+## Stack Execution Environment
+
+It is possible to control the environment variables of commands when they are
+executed on a stack. That is done through the `terramate.config.run.env` block.
+More details on how to use can be find [Project Configuration](project-config.md)
+documentation.
+
+
 ## Failure Modes
 
 Currently the behavior when a stack execution fails given a total order of
