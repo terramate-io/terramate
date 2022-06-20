@@ -41,8 +41,7 @@ import (
 // returning a list with a single error inside.
 func Exec(
 	stacks []stack.S,
-	cmd string,
-	args []string,
+	cmd []string,
 	stdin io.Reader,
 	stdout io.Writer,
 	stderr io.Writer,
@@ -51,13 +50,13 @@ func Exec(
 
 	logger := log.With().
 		Str("action", "run.Exec()").
-		Str("cmd", strings.Join(append([]string{cmd}, args...), " ")).
+		Str("cmd", strings.Join(cmd, " ")).
 		Logger()
 
 	errs := errors.L()
 
 	for _, stack := range stacks {
-		cmd := exec.Command(cmd, args...)
+		cmd := exec.Command(cmd[0], cmd[1:]...)
 		cmd.Dir = stack.HostPath()
 		cmd.Env = os.Environ()
 		cmd.Stdin = stdin
@@ -71,8 +70,8 @@ func Exec(
 		logger.Info().Msg("Running")
 
 		err := cmd.Run()
-		errs.Append(err)
 		if err != nil {
+			errs.Append(errors.E(stack, err, "running %s", cmd))
 			if !continueOnError {
 				return errs.AsError()
 			}

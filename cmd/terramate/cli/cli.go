@@ -936,8 +936,7 @@ func (c *cli) runOnStacks() {
 
 	err = run.Exec(
 		orderedStacks,
-		c.parsedArgs.Run.Command[0],
-		c.parsedArgs.Run.Command[1:],
+		c.parsedArgs.Run.Command,
 		c.stdin,
 		c.stdout,
 		c.stderr,
@@ -945,9 +944,17 @@ func (c *cli) runOnStacks() {
 	)
 
 	if err != nil {
-		logger.Warn().
-			Err(err).
-			Msg("failed to execute commands")
+
+		logger.Warn().Msg("one or more commands failed")
+
+		var errs *errors.List
+		if errors.As(err, &errs) {
+			for _, err := range errs.Errors() {
+				logger.Warn().Err(err)
+			}
+		} else {
+			logger.Warn().Err(err)
+		}
 
 		os.Exit(1)
 	}
