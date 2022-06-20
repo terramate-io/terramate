@@ -16,11 +16,12 @@ builds:
   - main: ./cmd/terramate
     env:
       - CGO_ENABLED=0
+    ldflags:
+      - -extldflags "-static"
     goos:
       - linux
       - darwin
       # - windows (when we add win support)
-      #
 archives:
   - replacements:
       darwin: darwin
