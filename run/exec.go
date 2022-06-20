@@ -92,7 +92,7 @@ func Exec(
 		}
 
 		if err := cmd.Start(); err != nil {
-			errs.Append(errors.E(stack, err, "running %s", cmd))
+			errs.Append(errors.E(stack, err, "starting %s", cmd))
 			if continueOnError {
 				continue
 			}
@@ -115,9 +115,14 @@ func Exec(
 					logger.Info().Msg("interruption, no more stacks will be run")
 				case 2, 3:
 					logger.Info().Msg("interrupted more than once, sending signal to child process")
+					if err := cmd.Process.Signal(sig); err != nil {
+						logger.Debug().Err(err).Msg("unable to send signal to child process")
+					}
 				case 4:
 					logger.Info().Msg("interrupted 4x times, killing child process")
-
+					if err := cmd.Process.Kill(); err != nil {
+						logger.Debug().Err(err).Msg("unable to send kill signal to child process")
+					}
 				}
 			case err := <-results:
 				logger.Trace().Msg("got command result")
