@@ -44,7 +44,7 @@ The terramate configuration is defined by the top-level blocks below:
 
 For detailed information about this block, see the [Project Configuration](https://github.com/mineiros-io/terramate/blob/main/docs/project-config.md#project-configuration) docs.
 
-The `terramate` block has no labels and have the structure below:
+The `terramate` block has no labels and has the following schema:
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
