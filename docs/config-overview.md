@@ -89,7 +89,7 @@ For more information about `globals`, see the [Sharing Data](https://github.com/
 
 # generate_file block schema
 
-The `generate_file` block requires one label and have the structure below:
+The `generate_file` block requires one label and has the following schema:
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
