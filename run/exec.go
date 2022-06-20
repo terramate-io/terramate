@@ -29,14 +29,14 @@ import (
 // During the execution of this function the default behavior
 // for signal handling will be changed. The behavior implemented is:
 //
-// 1 x CTRL-C -> graceful shutdown, current stack executes but no other stack is executed.
-// No signal is forwarded to the sub process.
-// 2 x CTRL-C -> forward CTRL-C to running sub process
-// 3 x CTRL-C -> forward CTRL-C to running sub process 2nd time
-// 4 x CTRL-C -> kill running sub process with SIGKILL
+// - 1 x CTRL-C -> graceful shutdown, current stack executes but no other stack is executed.
+//   No signal is forwarded to the sub process.
+// - 2 x CTRL-C -> forward CTRL-C to running sub process
+// - 3 x CTRL-C -> forward CTRL-C to running sub process 2nd time
+// - 4 x CTRL-C -> kill running sub process with SIGKILL
 //
 // If continue on error is true this function will continue to execute
-// commands on stacks even in face of failures, returning an error.L of errors.
+// commands on stacks even in face of failures, returning an error.L with all errors.
 // If continue on error is false it will return as soon as it finds an error,
 // returning a list with a single error inside.
 func Exec(
