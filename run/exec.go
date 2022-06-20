@@ -61,8 +61,8 @@ func Exec(
 	// before starting to run a command.
 	const signalsBuffer = 4
 
-	signals := make(chan os.Signal, signalsBuffer)
-	signal.Notify(signals, os.Interrupt)
+	interruptSignals := make(chan os.Signal, signalsBuffer)
+	signal.Notify(interruptSignals, os.Interrupt)
 	defer signal.Reset(os.Interrupt)
 
 	cmds := make(chan *exec.Cmd)
@@ -105,7 +105,7 @@ func Exec(
 
 		for cmdIsRunning {
 			select {
-			case sig := <-signals:
+			case sig := <-interruptSignals:
 				logger.Trace().
 					Str("signal", sig.String()).
 					Msg("received signal")
@@ -115,11 +115,15 @@ func Exec(
 					logger.Info().Msg("interruption, no more stacks will be run")
 				case 2, 3:
 					logger.Info().Msg("interrupted more than once, sending signal to child process")
+
+					// TODO(katcipis): Sending interrupt signals will fail on windows.
+					// Windows is not supported for now.
 					if err := cmd.Process.Signal(sig); err != nil {
 						logger.Debug().Err(err).Msg("unable to send signal to child process")
 					}
 				case 4:
 					logger.Info().Msg("interrupted 4x times, killing child process")
+
 					if err := cmd.Process.Kill(); err != nil {
 						logger.Debug().Err(err).Msg("unable to send kill signal to child process")
 					}
