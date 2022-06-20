@@ -1,10 +1,11 @@
 # Set default shell to bash
 SHELL := /bin/bash -o pipefail -o errexit -o nounset
 
-COVERAGE_REPORT ?= coverage.txt
+GO_RELEASER_VERSION=v1.2.5
 
-addlicense=go run github.com/google/addlicense@v1.0.0 -ignore **/*.yml
-buildflags=--ldflags '-extldflags "-static"'
+COVERAGE_REPORT ?= coverage.txt
+RUN_ADD_LICENSE=go run github.com/google/addlicense@v1.0.0 -ignore **/*.yml
+GO_BUILD_FLAGS=--ldflags '-extldflags "-static"'
 
 .PHONY: default
 default: help
@@ -22,12 +23,12 @@ lint:
 ## add license to code
 .PHONY: license
 license:
-	$(addlicense) -c "Mineiros GmbH" .
+	$(RUN_ADD_LICENSE) -c "Mineiros GmbH" .
 
 ## check if code is licensed properly
 .PHONY: license/check
 license/check:
-	$(addlicense) --check .
+	$(RUN_ADD_LICENSE) --check .
 
 ## check go modules are tidy
 .PHONY: mod/check
@@ -72,12 +73,12 @@ test/fuzz/fmt:
 ## Build terramate into bin directory
 .PHONY: build
 build:
-	CGO_ENABLED=0 go build $(buildflags) -o bin/terramate ./cmd/terramate
+	CGO_ENABLED=0 go build $(GO_BUILD_FLAGS) -o bin/terramate ./cmd/terramate
 
 ## Install terramate on the host
 .PHONY: install
 install:
-	CGO_ENABLED=0 go install $(buildflags) ./cmd/terramate
+	CGO_ENABLED=0 go install $(GO_BUILD_FLAGS) ./cmd/terramate
 
 ## remove build artifacts
 .PHONY: clean
@@ -90,6 +91,16 @@ release/tag: VERSION?=v$(shell cat VERSION)
 release/tag:
 	git tag -a $(VERSION) -m "Release $(VERSION)"
 	git push origin $(VERSION)
+
+## executes a dry run of the release process
+.PHONY: release/dry-run
+release/dry-run: 
+	go run github.com/goreleaser/goreleaser@$(GO_RELEASER_VERSION) release --snapshot --rm-dist
+
+## generates a terramate release
+.PHONY: release
+release: 
+	go run github.com/goreleaser/goreleaser@$(GO_RELEASER_VERSION) release --rm-dist
 
 ## Display help for all targets
 .PHONY: help
