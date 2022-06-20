@@ -82,7 +82,7 @@ The `stack` block has no labels and has the following schema:
 
 # globals block schema
 
-The `globals` block has no labels, accepts **any** attribute and *disallow* child
+The `globals` block has no labels, accepts **any** attribute and **disallow** child
 blocks.
 
 For more information about `globals`, see the [Sharing Data](https://github.com/mineiros-io/terramate/blob/main/docs/sharing-data.md#globals) documentation.
