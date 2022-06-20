@@ -70,7 +70,7 @@ The `terramate.config.git` block has no labels and has the following schema:
 
 # stack block schema
 
-The `stack` block has no labels and have the structure below:
+The `stack` block has no labels and has the following schema:
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
