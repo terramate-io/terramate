@@ -18,7 +18,9 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/stack"
@@ -53,9 +55,22 @@ func Exec(
 		Str("cmd", strings.Join(cmd, " ")).
 		Logger()
 
-	errs := errors.L()
+	// Should be at least 1 to avoid losing signals
+	// We are using 4 since it is the number of interrupts
+	// that we handle to do a hard kill, which we could receive
+	// before starting to run a command.
+	const signalsBuffer = 4
+
+	signals := make(chan os.Signal, signalsBuffer)
+	signal.Notify(signals, os.Interrupt)
+	defer signal.Reset(os.Interrupt)
+
 	cmds := make(chan *exec.Cmd)
+	defer close(cmds)
+
 	results := startCmdRunner(cmds)
+
+	errs := errors.L()
 
 	for _, stack := range stacks {
 		cmd := exec.Command(cmd[0], cmd[1:]...)
@@ -71,6 +86,11 @@ func Exec(
 
 		logger.Info().Msg("Running")
 
+		// The child process should not get signals directly
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			Setpgid: true,
+		}
+
 		if err := cmd.Start(); err != nil {
 			errs.Append(errors.E(stack, err, "running %s", cmd))
 			if continueOnError {
@@ -80,17 +100,42 @@ func Exec(
 		}
 
 		cmds <- cmd
+		interruptions := 0
+		cmdIsRunning := true
 
-		err := <-results
-		if err != nil {
-			errs.Append(errors.E(stack, err, "running %s", cmd))
-			if !continueOnError {
-				return errs.AsError()
+		for cmdIsRunning {
+			select {
+			case sig := <-signals:
+				logger.Trace().
+					Str("signal", sig.String()).
+					Msg("received signal")
+				interruptions++
+				switch interruptions {
+				case 1:
+					logger.Info().Msg("interruption, no more stacks will be run")
+				case 2, 3:
+					logger.Info().Msg("interrupted more than once, sending signal to child process")
+				case 4:
+					logger.Info().Msg("interrupted 4x times, killing child process")
+
+				}
+			case err := <-results:
+				logger.Trace().Msg("got command result")
+				if err != nil {
+					errs.Append(errors.E(stack, err, "running %s", cmd))
+					if !continueOnError {
+						return errs.AsError()
+					}
+				}
+				cmdIsRunning = false
 			}
 		}
-	}
 
-	close(cmds)
+		if interruptions > 0 {
+			logger.Trace().Msg("interrupting execution of further stacks")
+			return errs.AsError()
+		}
+	}
 
 	return errs.AsError()
 }
