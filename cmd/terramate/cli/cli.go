@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -935,40 +934,21 @@ func (c *cli) runOnStacks() {
 
 	logger.Info().Msg("Running on selected stacks")
 
-	failed := false
+	err = run.Exec(
+		orderedStacks,
+		c.parsedArgs.Run.Command[0],
+		c.parsedArgs.Run.Command[1:],
+		c.stdin,
+		c.stdout,
+		c.stderr,
+		c.parsedArgs.Run.ContinueOnError,
+	)
 
-	for _, stack := range orderedStacks {
-		cmd := exec.Command(c.parsedArgs.Run.Command[0], c.parsedArgs.Run.Command[1:]...)
-		cmd.Dir = stack.HostPath()
-		cmd.Env = os.Environ()
-		cmd.Stdin = c.stdin
-		cmd.Stdout = c.stdout
-		cmd.Stderr = c.stderr
+	if err != nil {
+		logger.Warn().
+			Err(err).
+			Msg("failed to execute commands")
 
-		logger := log.With().
-			Str("cmd", strings.Join(c.parsedArgs.Run.Command, " ")).
-			Stringer("stack", stack).
-			Logger()
-
-		logger.Info().Msg("Running")
-
-		err = cmd.Run()
-		if err != nil {
-			failed = true
-
-			if c.parsedArgs.Run.ContinueOnError {
-				logger.Warn().
-					Err(err).
-					Msg("failed to execute command")
-			} else {
-				logger.Fatal().
-					Err(err).
-					Msg("failed to execute command")
-			}
-		}
-	}
-
-	if failed {
 		os.Exit(1)
 	}
 }
