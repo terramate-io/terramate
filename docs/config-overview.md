@@ -13,7 +13,7 @@ Terramate files can be found in any non-hidden directory of a Terramate project
 and all non-hidden files in a single directory will be handled as the 
 concatenation of all of them in a single file, forming a single **configuration**.
 
-The configuration blocks can be defined multiple times and its values are merged
+The configuration blocks can be defined multiple times and their values are merged
 whenever possible. See [Config Merging](#config-merging) for details.
 
 Each configuration can import other configurations using the `import` block.
