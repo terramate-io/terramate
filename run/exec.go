@@ -94,7 +94,7 @@ func Exec(
 		for cmdIsRunning {
 			select {
 			case sig := <-signals:
-				logger.Trace().
+				logger.Info().
 					Str("signal", sig.String()).
 					Msg("received signal")
 
