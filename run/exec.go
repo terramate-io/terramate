@@ -20,7 +20,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"strings"
-	"syscall"
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/stack"
@@ -29,13 +28,8 @@ import (
 
 // Exec will execute the given command on the given stack list
 // During the execution of this function the default behavior
-// for signal handling will be changed. The behavior implemented is:
-//
-// - 1 x CTRL-C -> graceful shutdown, current stack executes but no other stack is executed.
-//   No signal is forwarded to the sub process.
-// - 2 x CTRL-C -> forward CTRL-C to running sub process
-// - 3 x CTRL-C -> forward CTRL-C to running sub process 2nd time
-// - 4 x CTRL-C -> kill running sub process with SIGKILL
+// for signal handling will be changed so we can wait for the child
+// process to exit before exiting Terramate.
 //
 // If continue on error is true this function will continue to execute
 // commands on stacks even in face of failures, returning an error.L with all errors.
@@ -55,14 +49,14 @@ func Exec(
 		Logger()
 
 	// Should be at least 1 to avoid losing signals
-	// We are using 4 since it is the number of interrupts
+	// We are using 3 since it is the number of interrupts
 	// that we handle to do a hard kill, which we could receive
 	// before starting to run a command.
-	const signalsBuffer = 4
+	const signalsBuffer = 3
 
 	signals := make(chan os.Signal, signalsBuffer)
-	signal.Notify(signals)
-	defer signal.Reset()
+	signal.Notify(signals, os.Interrupt)
+	defer signal.Reset(os.Interrupt)
 
 	cmds := make(chan *exec.Cmd)
 	defer close(cmds)
@@ -85,10 +79,6 @@ func Exec(
 
 		logger.Info().Msg("Running")
 
-		// The child process should not get signals directly since
-		// we want to handle first interrupt differently.
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-
 		if err := cmd.Start(); err != nil {
 			errs.Append(errors.E(stack, err, "running %s", cmd))
 			if continueOnError {
@@ -108,31 +98,9 @@ func Exec(
 					Str("signal", sig.String()).
 					Msg("received signal")
 
-				if sig.String() != os.Interrupt.String() {
-					logger.Trace().Msg("not a interruption signal, relaying")
-
-					if err := cmd.Process.Signal(sig); err != nil {
-						logger.Debug().Err(err).Msg("unable to send signal to child process")
-					}
-					break
-				}
-
-				logger.Trace().Msg("interruption signal, handling")
-
 				interruptions++
-				switch interruptions {
-				case 1:
-					logger.Info().Msg("interruption, no more stacks will be run")
-				case 2, 3:
-					logger.Info().Msg("interrupted more than once, sending signal to child process")
-
-					// TODO(katcipis): Sending interrupt signals will fail on windows.
-					// Windows is not supported for now.
-					if err := cmd.Process.Signal(sig); err != nil {
-						logger.Debug().Err(err).Msg("unable to send signal to child process")
-					}
-				case 4:
-					logger.Info().Msg("interrupted 4x times, killing child process")
+				if interruptions == 3 {
+					logger.Info().Msg("interrupted 3x times, killing child process")
 
 					if err := cmd.Process.Kill(); err != nil {
 						logger.Debug().Err(err).Msg("unable to send kill signal to child process")
