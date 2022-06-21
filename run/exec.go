@@ -60,9 +60,9 @@ func Exec(
 	// before starting to run a command.
 	const signalsBuffer = 4
 
-	interruptSignals := make(chan os.Signal, signalsBuffer)
-	signal.Notify(interruptSignals, os.Interrupt)
-	defer signal.Reset(os.Interrupt)
+	signals := make(chan os.Signal, signalsBuffer)
+	signal.Notify(signals)
+	defer signal.Reset()
 
 	cmds := make(chan *exec.Cmd)
 	defer close(cmds)
@@ -87,9 +87,7 @@ func Exec(
 
 		// The child process should not get signals directly since
 		// we want to handle first interrupt differently.
-		cmd.SysProcAttr = &syscall.SysProcAttr{
-			Setpgid: true,
-		}
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 		if err := cmd.Start(); err != nil {
 			errs.Append(errors.E(stack, err, "running %s", cmd))
@@ -105,10 +103,22 @@ func Exec(
 
 		for cmdIsRunning {
 			select {
-			case sig := <-interruptSignals:
+			case sig := <-signals:
 				logger.Trace().
 					Str("signal", sig.String()).
 					Msg("received signal")
+
+				if sig.String() != os.Interrupt.String() {
+					logger.Trace().Msg("not a interruption signal, relaying")
+
+					if err := cmd.Process.Signal(sig); err != nil {
+						logger.Debug().Err(err).Msg("unable to send signal to child process")
+					}
+					break
+				}
+
+				logger.Trace().Msg("interruption signal, handling")
+
 				interruptions++
 				switch interruptions {
 				case 1:
