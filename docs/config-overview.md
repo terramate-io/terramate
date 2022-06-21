@@ -63,7 +63,7 @@ where multiple blocks of same type can be defined if their contents do not
 conflict. In other words, the definition of a block can be split into multiple
 blocks where each defines a part of the whole definition. The only exception being
 the [generate](https://github.com/mineiros-io/terramate/blob/main/docs/codegen/overview.md) blocks and the `import` block. 
-The [globals](https://github.com/mineiros-io/terramate/blob/main/docs/sharing-data.md) block extend the merging to the hierarchy of globals.
+The [globals](https://github.com/mineiros-io/terramate/blob/main/docs/sharing-data.md) block extends the merging to the hierarchy of globals.
 
 For example, the configuration below is valid:
 
