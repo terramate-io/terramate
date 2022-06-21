@@ -137,7 +137,7 @@ The `terramate.config.git` block has no labels and has the following schema:
 
 # stack block schema
 
-The `stack` block has no labels, supports merging and has the following schema:
+The `stack` block has no labels, supports [merging](#config-merging) and has the following schema:
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
