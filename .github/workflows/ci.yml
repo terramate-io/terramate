@@ -97,8 +97,4 @@ jobs:
           go-version: "1.17"
 
       - name: release dry run
-        uses: goreleaser/goreleaser-action@v2
-        with:
-          distribution: goreleaser
-          version: v1.2.5
-          args: release --snapshot --rm-dist
+        run: make release/dry-run
