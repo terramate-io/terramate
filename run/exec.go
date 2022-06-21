@@ -49,7 +49,6 @@ func Exec(
 	stderr io.Writer,
 	continueOnError bool,
 ) error {
-
 	logger := log.With().
 		Str("action", "run.Exec()").
 		Str("cmd", strings.Join(cmd, " ")).
