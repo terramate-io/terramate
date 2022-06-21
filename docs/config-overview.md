@@ -81,7 +81,7 @@ terramate {
 }
 ```
 
-and the blocks can also be defined in different files.
+And the blocks can also be defined in different files.
 
 But the following is invalid:
 
