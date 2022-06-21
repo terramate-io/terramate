@@ -28,7 +28,7 @@ import {
 ```
 
 The `source` must reference a file using a relative path or an absolute path
-relative to project's root.
+relative to the project's root.
 
 The *imported* file is handled as if it's in the directory of the *importing*
 file, then the same [merging strategy](#config-merging) applies for the case of
