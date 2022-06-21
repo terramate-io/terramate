@@ -67,7 +67,23 @@ func newCLIWithLogLevel(t *testing.T, chdir string, loglevel string) tmcli {
 	}
 }
 
-func (tm tmcli) run(args ...string) runResult {
+type testCmd struct {
+	cmd    *exec.Cmd
+	stdin  *bytes.Buffer
+	stdout *bytes.Buffer
+	stderr *bytes.Buffer
+}
+
+func (t *testCmd) run() error {
+	return t.cmd.Run()
+}
+
+func (t *testCmd) exitCode() int {
+	return t.cmd.ProcessState.ExitCode()
+}
+
+// newCmd creates a new terramate command prepared to executed.
+func (tm tmcli) newCmd(args ...string) *testCmd {
 	t := tm.t
 	t.Helper()
 
@@ -97,13 +113,26 @@ func (tm tmcli) run(args ...string) runResult {
 	cmd.Stderr = stderr
 	cmd.Stdin = stdin
 
-	_ = cmd.Run()
+	return &testCmd{
+		cmd:    cmd,
+		stdin:  stdin,
+		stdout: stdout,
+		stderr: stderr,
+	}
+}
+
+func (tm tmcli) run(args ...string) runResult {
+	t := tm.t
+	t.Helper()
+
+	cmd := tm.newCmd(args...)
+	_ = cmd.run()
 
 	return runResult{
 		Cmd:    strings.Join(args, " "),
-		Stdout: stdout.String(),
-		Stderr: stderr.String(),
-		Status: cmd.ProcessState.ExitCode(),
+		Stdout: cmd.stdout.String(),
+		Stderr: cmd.stderr.String(),
+		Status: cmd.exitCode(),
 	}
 }
 
