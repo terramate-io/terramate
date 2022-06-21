@@ -61,7 +61,7 @@ In general, a Terramate project looks like this:
 The configuration defined in a directory is merged into a single configuration
 where multiple blocks of same type can be defined if their contents do not
 conflict. In other words, the definition of a block can be split into multiple
-blocks where each define a part of the whole definition. The only exception being
+blocks where each defines a part of the whole definition. The only exception being
 the [generate](https://github.com/mineiros-io/terramate/blob/main/docs/codegen/overview.md) blocks and the `import` block. 
 The [globals](https://github.com/mineiros-io/terramate/blob/main/docs/sharing-data.md) block extend the merging to the hierarchy of globals.
 
