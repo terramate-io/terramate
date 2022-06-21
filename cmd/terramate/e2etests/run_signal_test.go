@@ -15,6 +15,7 @@
 package e2etest
 
 import (
+	"os"
 	"testing"
 
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -28,5 +29,18 @@ func TestRunSendsSigkillIfCmdIgnoresInterruptionSignals(t *testing.T) {
 	git.Add(".")
 	git.CommitAll("first commit")
 
-	// tm := newCLI(t, s.RootDir())
+	tm := newCLI(t, s.RootDir())
+	cmd := tm.newCmd("run", testHelperBin)
+	cmd.start()
+
+	cmd.signal(os.Interrupt)
+	// Check it is running
+
+	cmd.signal(os.Interrupt)
+	// Check it is running
+
+	cmd.signal(os.Interrupt)
+	_ = cmd.wait()
+	// err := cmd.wait()
+	// validate nature of error returned + validate stdout with expected signals
 }

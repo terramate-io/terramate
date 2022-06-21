@@ -16,6 +16,7 @@ package e2etest
 
 import (
 	"bytes"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -68,18 +69,38 @@ func newCLIWithLogLevel(t *testing.T, chdir string, loglevel string) tmcli {
 }
 
 type testCmd struct {
+	t      *testing.T
 	cmd    *exec.Cmd
 	stdin  *bytes.Buffer
 	stdout *bytes.Buffer
 	stderr *bytes.Buffer
 }
 
-func (t *testCmd) run() error {
-	return t.cmd.Run()
+func (tc *testCmd) run() error {
+	return tc.cmd.Run()
 }
 
-func (t *testCmd) exitCode() int {
-	return t.cmd.ProcessState.ExitCode()
+func (tc *testCmd) start() {
+	t := tc.t
+	t.Helper()
+
+	assert.NoError(t, tc.cmd.Start())
+}
+
+func (tc *testCmd) wait() error {
+	return tc.cmd.Wait()
+}
+
+func (tc *testCmd) signal(s os.Signal) {
+	t := tc.t
+	t.Helper()
+
+	err := tc.cmd.Process.Signal(s)
+	assert.NoError(t, err)
+}
+
+func (tc *testCmd) exitCode() int {
+	return tc.cmd.ProcessState.ExitCode()
 }
 
 // newCmd creates a new terramate command prepared to executed.
@@ -114,6 +135,7 @@ func (tm tmcli) newCmd(args ...string) *testCmd {
 	cmd.Stdin = stdin
 
 	return &testCmd{
+		t:      t,
 		cmd:    cmd,
 		stdin:  stdin,
 		stdout: stdout,
