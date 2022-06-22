@@ -43,7 +43,7 @@ mod:
 ## generates coverage report
 .PHONY: coverage
 coverage: 
-	go test -timeout=5m -count=1 -coverprofile=$(COVERAGE_REPORT) -coverpkg=./...  ./...
+	go test -count=1 -coverprofile=$(COVERAGE_REPORT) -coverpkg=./...  ./...
 
 ## generates coverage report and shows it on the browser locally
 .PHONY: coverage/show
@@ -53,7 +53,7 @@ coverage/show: coverage
 ## test code
 .PHONY: test
 test: 
-	go test -timeout=5m -count=1 -race ./...
+	go test -count=1 -race ./...
 
 ## test if terramate works with CI git environment.
 .PHONY: test/ci
