@@ -15,8 +15,6 @@
 package e2etest
 
 import (
-	"context"
-	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -43,12 +41,19 @@ func TestRunSendsSigkillIfCmdIgnoresInterruptionSignals(t *testing.T) {
 
 	cmd.start()
 
-	assert.NoError(t, pollBufferForMsgs(cmd.stdout, "ready"))
+	pollBufferForMsgs(t, cmd.stdout, "ready")
 
-	sendUntilMsgIsReceived(t, cmd, os.Interrupt, "ready", "interrupt")
-	sendUntilMsgIsReceived(t, cmd, os.Interrupt, "ready", "interrupt", "interrupt")
-	sendUntilMsgIsReceived(t, cmd, os.Interrupt, "ready", "interrupt", "interrupt", "interrupt")
+	cmd.signalGroup(os.Interrupt)
+	pollBufferForMsgs(t, cmd.stdout, "ready", "interrupt")
 
+	cmd.signalGroup(os.Interrupt)
+	pollBufferForMsgs(t, cmd.stdout, "ready", "interrupt", "interrupt")
+
+	cmd.signalGroup(os.Interrupt)
+
+	// We can't check the last interrupt message since the child process
+	// may be killed by Terramate with SIGKILL before it gets the signal
+	// or it is able to send messages to stdout.
 	err := cmd.wait()
 	assert.Error(t, err)
 }
@@ -58,9 +63,9 @@ func TestRunSendsSigkillIfCmdIgnoresInterruptionSignals(t *testing.T) {
 // like "urgent I/O condition". This function will ignore any unknown messages
 // in between but check that at least all msgs where received in the provided
 // order (but ignoring unknown messages in between).
-func pollBufferForMsgs(buf *buffer, wantMsgs ...string) error {
+func pollBufferForMsgs(t *testing.T, buf *buffer, wantMsgs ...string) {
 	const (
-		timeout      = time.Second
+		timeout      = 10 * time.Second
 		pollInterval = 30 * time.Millisecond
 	)
 
@@ -76,32 +81,14 @@ func pollBufferForMsgs(buf *buffer, wantMsgs ...string) error {
 			}
 
 			if wantIndex == len(wantMsgs) {
-				return nil
+				return
 			}
 		}
 
 		time.Sleep(pollInterval)
 		elapsed += pollInterval
 		if elapsed > timeout {
-			return fmt.Errorf("timeout polling: wanted: %v got: %v", wantMsgs, gotMsgs)
-		}
-	}
-}
-
-func sendUntilMsgIsReceived(t *testing.T, cmd *testCmd, signal os.Signal, msgs ...string) {
-	// For some reason in some environments, specially CI ones,
-	// signals are not being delivered, so we retry sending the signal.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-
-	for {
-		cmd.signalGroup(signal)
-		err := pollBufferForMsgs(cmd.stdout, msgs...)
-		if err == nil {
-			return
-		}
-		if ctx.Err() != nil {
-			t.Fatal(err)
+			t.Fatalf("timeout polling: wanted: %v got: %v", wantMsgs, gotMsgs)
 		}
 	}
 }
