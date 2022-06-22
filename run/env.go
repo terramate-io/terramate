@@ -24,6 +24,6 @@ type EnvVars map[string]string
 
 // Env will load environment variables to be exported when running any command
 // inside the given stack.
-func Env(rootdir string, stack stack.S) EnvVars {
-	return nil
+func Env(rootdir string, stack stack.S) (EnvVars, error) {
+	return nil, nil
 }
