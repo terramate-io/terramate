@@ -89,7 +89,7 @@ sendSignal:
 // order (but ignoring unknown messages in between).
 func pollBufferForMsgs(buf *buffer, wantMsgs ...string) error {
 	const (
-		timeout      = time.Second
+		timeout      = 10 * time.Second
 		pollInterval = 30 * time.Millisecond
 	)
 
