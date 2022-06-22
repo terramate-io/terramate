@@ -67,6 +67,8 @@ func Env(rootdir string, st stack.S) (EnvVars, error) {
 		return nil, nil
 	}
 
+	logger.Trace().Msg("loading globals")
+
 	globals, err := stack.LoadGlobals(rootdir, st)
 	if err != nil {
 		return nil, errors.E(ErrLoadingGlobals, err)
@@ -78,10 +80,18 @@ func Env(rootdir string, st stack.S) (EnvVars, error) {
 	envVars := EnvVars{}
 
 	for _, attribute := range cfg.Terramate.Config.Run.Env.Attributes {
+		logger = logger.With().
+			Str("attribute", attribute.Value().Name).
+			Logger()
+
+		logger.Trace().Msg("evaluating")
+
 		val, err := evalctx.Eval(attribute.Value().Expr)
 		if err != nil {
 			return nil, errors.E(ErrEval, err)
 		}
+
+		logger.Trace().Msg("checking evaluated value type")
 
 		if val.Type() != cty.String {
 			return nil, errors.E(
@@ -91,6 +101,8 @@ func Env(rootdir string, st stack.S) (EnvVars, error) {
 			)
 		}
 		envVars[attribute.Value().Name] = val.AsString()
+
+		logger.Trace().Msg("env var loaded")
 	}
 
 	return envVars, nil
