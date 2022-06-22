@@ -16,6 +16,7 @@ package run
 
 import (
 	"os"
+	"sort"
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
@@ -41,11 +42,13 @@ const (
 )
 
 // EnvVars represents a set of environment variables to be used
-// when running commands
-type EnvVars map[string]string
+// when running commands. Each string follows the same format used
+// on os.Environ and can be used to set env on exec.Cmd.
+type EnvVars []string
 
 // Env will load environment variables to be exported when running any command
-// inside the given stack.
+// inside the given stack. The order of the env vars is guaranteed to be the same
+// and is ordered lexicographically.
 func Env(rootdir string, st stack.S) (EnvVars, error) {
 	logger := log.With().
 		Str("action", "run.Env()").
@@ -79,16 +82,21 @@ func Env(rootdir string, st stack.S) (EnvVars, error) {
 
 	envVars := EnvVars{}
 
-	for _, attribute := range cfg.Terramate.Config.Run.Env.Attributes {
+	attrs := cfg.Terramate.Config.Run.Env.Attributes
+	sort.Stable(attrs)
+
+	for _, attribute := range attrs {
+		hclattr := attribute.Value()
 		logger = logger.With().
-			Str("attribute", attribute.Value().Name).
+			Str("attribute", hclattr.Name).
 			Logger()
 
 		logger.Trace().Msg("evaluating")
 
-		val, err := evalctx.Eval(attribute.Value().Expr)
+		val, err := evalctx.Eval(hclattr.Expr)
 		if err != nil {
-			return nil, errors.E(ErrEval, err)
+			return nil, errors.E(ErrEval, hclattr.NameRange,
+				err, "attribute origin %s", attribute.Origin())
 		}
 
 		logger.Trace().Msg("checking evaluated value type")
@@ -96,11 +104,13 @@ func Env(rootdir string, st stack.S) (EnvVars, error) {
 		if val.Type() != cty.String {
 			return nil, errors.E(
 				ErrInvalidEnvVarType,
-				"env var has type %s but must be string",
+				hclattr.NameRange,
+				"attr has type %s but must be string, attribute origin %s",
 				val.Type().FriendlyName(),
+				attribute.Origin(),
 			)
 		}
-		envVars[attribute.Value().Name] = val.AsString()
+		envVars = append(envVars, hclattr.Name+"="+val.AsString())
 
 		logger.Trace().Msg("env var loaded")
 	}

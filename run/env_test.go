@@ -40,7 +40,7 @@ func TestLoadRunEnv(t *testing.T) {
 		}
 		testcase struct {
 			name    string
-			hostenv run.EnvVars
+			hostenv map[string]string
 			layout  []string
 			configs []hclconfig
 			want    map[string]result
@@ -82,7 +82,7 @@ func TestLoadRunEnv(t *testing.T) {
 		},
 		{
 			name: "stacks with env loaded from host env and literals",
-			hostenv: run.EnvVars{
+			hostenv: map[string]string{
 				"TESTING_RUN_ENV_VAR": "666",
 			},
 			layout: []string{
@@ -101,14 +101,14 @@ func TestLoadRunEnv(t *testing.T) {
 			want: map[string]result{
 				"stacks/stack-1": {
 					env: run.EnvVars{
-						"testenv": "666",
-						"teststr": "plain string",
+						"testenv=666",
+						"teststr=plain string",
 					},
 				},
 				"stacks/stack-2": {
 					env: run.EnvVars{
-						"testenv": "666",
-						"teststr": "plain string",
+						"testenv=666",
+						"teststr=plain string",
 					},
 				},
 			},
@@ -143,14 +143,14 @@ func TestLoadRunEnv(t *testing.T) {
 			want: map[string]result{
 				"stacks/stack-1": {
 					env: run.EnvVars{
-						"env1": "stack-1 global",
-						"env2": "stack-1",
+						"env1=stack-1 global",
+						"env2=stack-1",
 					},
 				},
 				"stacks/stack-2": {
 					env: run.EnvVars{
-						"env1": "stack-2 global",
-						"env2": "stack-2",
+						"env1=stack-2 global",
+						"env2=stack-2",
 					},
 				},
 			},
