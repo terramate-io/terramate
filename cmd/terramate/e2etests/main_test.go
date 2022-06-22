@@ -70,7 +70,7 @@ func setupAndRunTests(m *testing.M) (status int) {
 		return 1
 	}
 
-	testCmdPath := filepath.Join(packageDir, "cmd", "test")
+	testCmdPath := filepath.Join(packageDir, "cmd", "_test")
 	testHelperBin, err = buildTestHelper(goBin, testCmdPath, binTmpDir)
 	if err != nil {
 		log.Printf("failed to setup e2e tests: %v", err)
@@ -83,11 +83,10 @@ func setupAndRunTests(m *testing.M) (status int) {
 func buildTestHelper(goBin, testCmdPath, binDir string) (string, error) {
 	outBinPath := filepath.Join(binDir, "test"+platExeSuffix())
 	cmd := exec.Command(
-		goBin,
-		"build",
+		"gcc",
+		filepath.Join(testCmdPath, "test.c"),
 		"-o",
 		outBinPath,
-		testCmdPath,
 	)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
