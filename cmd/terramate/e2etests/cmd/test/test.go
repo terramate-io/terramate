@@ -42,7 +42,7 @@ func main() {
 // It will print "ready" when it starts to receive the signals.
 // It will print the name of the received signals, which may also be useful in testing.
 func hang() {
-	signals := make(chan os.Signal, 1)
+	signals := make(chan os.Signal, 10)
 	signal.Notify(signals)
 
 	fmt.Println("ready")
