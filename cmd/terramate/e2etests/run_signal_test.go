@@ -63,7 +63,7 @@ func TestRunSendsSigkillIfCmdIgnoresInterruptionSignals(t *testing.T) {
 // order (but ignoring unknown messages in between).
 func pollBufferForMsgs(t *testing.T, buf *buffer, wantMsgs ...string) {
 	const (
-		timeout      = 5 * time.Second
+		timeout      = 10 * time.Second
 		pollInterval = 30 * time.Millisecond
 	)
 
