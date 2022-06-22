@@ -255,6 +255,14 @@ func NewConfig(dir string) (Config, error) {
 	}, nil
 }
 
+// HasRunEnv returns true if the config has a terramate.config.run.env block defined
+func (c Config) HasRunEnv() bool {
+	return c.Terramate != nil &&
+		c.Terramate.Config != nil &&
+		c.Terramate.Config.Run != nil &&
+		c.Terramate.Config.Run.Env != nil
+}
+
 // AbsDir returns the absolute path of the configuration directory.
 func (c Config) AbsDir() string { return c.absdir }
 

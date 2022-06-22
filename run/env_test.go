@@ -33,8 +33,6 @@ func TestLoadRunEnv(t *testing.T) {
 		}
 	)
 
-	t.Skip()
-
 	expr := hclwrite.Expression
 	str := hclwrite.String
 	terramate := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
@@ -114,13 +112,13 @@ func TestLoadRunEnv(t *testing.T) {
 					),
 				},
 				{
-					path: "/stack-1",
+					path: "/stacks/stack-1",
 					add: globals(
 						str("env", "stack-1 global"),
 					),
 				},
 				{
-					path: "/stack-2",
+					path: "/stacks/stack-2",
 					add: globals(
 						str("env", "stack-2 global"),
 					),
@@ -151,7 +149,7 @@ func TestLoadRunEnv(t *testing.T) {
 
 			for _, cfg := range tcase.configs {
 				path := filepath.Join(s.RootDir(), cfg.path)
-				test.AppendFile(t, path, "run_env_test_cfg.hcl", cfg.add.String())
+				test.AppendFile(t, path, "run_env_test_cfg.tm", cfg.add.String())
 			}
 
 			for name, value := range tcase.hostenv {

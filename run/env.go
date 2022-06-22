@@ -15,7 +15,19 @@
 package run
 
 import (
+	"os"
+
+	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/stack"
+	"github.com/rs/zerolog/log"
+	"github.com/zclconf/go-cty/cty"
+)
+
+const (
+	// ErrInvalidEnvVarType indicates the env var attribute
+	// has an invalid type.
+	ErrInvalidEnvVarType errors.Kind = "invalid env var type"
 )
 
 // EnvVars represents a set of environment variables to be used
@@ -25,14 +37,48 @@ type EnvVars map[string]string
 // Env will load environment variables to be exported when running any command
 // inside the given stack.
 func Env(rootdir string, st stack.S) (EnvVars, error) {
-	//parser := hcl.NewTerramateParser(rootdir)
-	//// TODO(katcipis): test parse error handling
-	//cfg, _ := parser.Parse()
+	logger := log.With().
+		Str("action", "run.Env()").
+		Str("root", rootdir).
+		Stringer("stack", st).
+		Logger()
+	// TODO(katcipis): test parse error handling
+	logger.Trace().Msg("parsing configuration")
 
-	//// TODO(katcipis): test global load error handling
-	//globals, _ := stack.LoadGlobals(root, st)
+	cfg, _ := hcl.ParseDir(rootdir)
 
-	//evalctx := stack.NewEvalCtx(stackpath, sm, globals)
+	if !cfg.HasRunEnv() {
+		return nil, nil
+	}
 
-	return nil, nil
+	// TODO(katcipis): test global load error handling
+	globals, err := stack.LoadGlobals(rootdir, st)
+	if err != nil {
+		return nil, err
+	}
+
+	evalctx := stack.NewEvalCtx(st, globals)
+	evalctx.SetEval(os.Environ())
+
+	envVars := EnvVars{}
+
+	for _, attribute := range cfg.Terramate.Config.Run.Env.Attributes {
+		// TODO(katcipis): test eval failure error handling
+		val, err := evalctx.Eval(attribute.Value().Expr)
+		if err != nil {
+			return nil, err
+		}
+
+		// TODO(katcipis): test eval failure wrong type
+		if val.Type() != cty.String {
+			return nil, errors.E(
+				ErrInvalidEnvVarType,
+				"env var has type %s but must be string",
+				val.Type().FriendlyName(),
+			)
+		}
+		envVars[attribute.Value().Name] = val.AsString()
+	}
+
+	return envVars, nil
 }
