@@ -11,19 +11,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-// The signal tests are getting very odd results on CI env for macos
-// We don't have enough time/resources to investigate right now, but sometimes
-// the third signal is not received by Terramate and the CI crashes:
-//  - https://github.com/mineiros-io/terramate/runs/7009605445?check_suite_focus=true#step:4:335
-
-//go:build linux
-// +build linux
-
 package e2etest
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -51,37 +43,43 @@ func TestRunSendsSigkillIfCmdIgnoresInterruptionSignals(t *testing.T) {
 
 	cmd.start()
 
-	pollBufferForMsgs(t, cmd.stdout, "ready")
+	assert.NoError(t, pollBufferForMsgs(cmd.stdout, "ready"))
 
-	cmd.signalGroup(os.Interrupt)
-	pollBufferForMsgs(t, cmd.stdout, "ready", "interrupt")
-
-	cmd.signalGroup(os.Interrupt)
-	pollBufferForMsgs(t, cmd.stdout, "ready", "interrupt", "interrupt")
-
-	cmd.signalGroup(os.Interrupt)
+	// On rare occasions on macos we seen to lose some SIGINT's
+	sendUntilMsgIsReceived(t, cmd, os.Interrupt, "ready", "interrupt")
+	sendUntilMsgIsReceived(t, cmd, os.Interrupt, "ready", "interrupt", "interrupt")
 
 	// We can't check the last interrupt message since the child process
 	// may be killed by Terramate with SIGKILL before it gets the signal
 	// or it is able to send messages to stdout.
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
 	errs := make(chan error)
-
 	go func() {
 		errs <- cmd.wait()
+		close(errs)
 	}()
 
-	select {
-	case err := <-errs:
-		assert.Error(t, err)
-	case <-ctx.Done():
-		t.Error("waiting for terramate to exit for too long")
-		t.Errorf("terramate stdout:\n%s\n", cmd.stdout.String())
-		t.Errorf("terramate stderr:\n%s\n", cmd.stderr.String())
+sendSignal:
+	for ctx.Err() == nil {
+		cmd.signalGroup(os.Interrupt)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		select {
+		case err := <-errs:
+			assert.Error(t, err)
+			return
+		case <-ctx.Done():
+			break sendSignal
+		}
 	}
 
+	t.Error("waiting for terramate to exit for too long")
+	t.Errorf("terramate stdout:\n%s\n", cmd.stdout.String())
+	t.Errorf("terramate stderr:\n%s\n", cmd.stderr.String())
 }
 
 // pollBufferForMsgs will check if each message is present on the buffer
@@ -89,9 +87,9 @@ func TestRunSendsSigkillIfCmdIgnoresInterruptionSignals(t *testing.T) {
 // like "urgent I/O condition". This function will ignore any unknown messages
 // in between but check that at least all msgs where received in the provided
 // order (but ignoring unknown messages in between).
-func pollBufferForMsgs(t *testing.T, buf *buffer, wantMsgs ...string) {
+func pollBufferForMsgs(buf *buffer, wantMsgs ...string) error {
 	const (
-		timeout      = 10 * time.Second
+		timeout      = time.Second
 		pollInterval = 30 * time.Millisecond
 	)
 
@@ -107,14 +105,32 @@ func pollBufferForMsgs(t *testing.T, buf *buffer, wantMsgs ...string) {
 			}
 
 			if wantIndex == len(wantMsgs) {
-				return
+				return nil
 			}
 		}
 
 		time.Sleep(pollInterval)
 		elapsed += pollInterval
 		if elapsed > timeout {
-			t.Fatalf("timeout polling: wanted: %v got: %v", wantMsgs, gotMsgs)
+			return fmt.Errorf("timeout polling: wanted: %v got: %v", wantMsgs, gotMsgs)
+		}
+	}
+}
+
+func sendUntilMsgIsReceived(t *testing.T, cmd *testCmd, signal os.Signal, msgs ...string) {
+	// For some reason in some environments, specially CI ones,
+	// signals are not being delivered, so we retry sending the signal.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	for {
+		cmd.signalGroup(signal)
+		err := pollBufferForMsgs(cmd.stdout, msgs...)
+		if err == nil {
+			return
+		}
+		if ctx.Err() != nil {
+			t.Fatal(err)
 		}
 	}
 }
