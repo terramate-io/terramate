@@ -111,20 +111,19 @@ func (h HCL) String() string {
 //
 // The rootdir MUST be an absolute path.
 func Load(rootdir string, sm stack.Metadata, globals stack.Globals) ([]HCL, error) {
-	stackpath := filepath.Join(rootdir, sm.Path())
 	logger := log.With().
 		Str("action", "genhcl.Load()").
-		Str("path", stackpath).
+		Str("path", sm.HostPath()).
 		Logger()
 
 	logger.Trace().Msg("loading generate_hcl blocks.")
 
-	loadedHCLs, err := loadGenHCLBlocks(rootdir, stackpath)
+	loadedHCLs, err := loadGenHCLBlocks(rootdir, sm.HostPath())
 	if err != nil {
 		return nil, errors.E("loading generate_hcl", err)
 	}
 
-	evalctx := stack.NewEvalCtx(stackpath, sm, globals)
+	evalctx := stack.NewEvalCtx(sm, globals)
 
 	logger.Trace().Msg("generating HCL code.")
 

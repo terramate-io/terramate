@@ -14,7 +14,6 @@ import (
 )
 
 func TestLoadRunEnv(t *testing.T) {
-
 	type (
 		hclconfig struct {
 			path string
@@ -34,7 +33,10 @@ func TestLoadRunEnv(t *testing.T) {
 		}
 	)
 
+	t.Skip()
+
 	expr := hclwrite.Expression
+	str := hclwrite.String
 	terramate := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("terramate", builders...)
 	}
@@ -47,31 +49,94 @@ func TestLoadRunEnv(t *testing.T) {
 	env := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("env", builders...)
 	}
+	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("globals", builders...)
+	}
 	runEnvCfg := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return terramate(config(runblock(env(builders...))))
 	}
 
 	tcases := []testcase{
 		{
-			name: "single stack with env loaded from host env",
+			name: "no env config",
+			layout: []string{
+				"s:stack",
+			},
+			want: map[string]result{
+				"stack": {},
+			},
+		},
+		{
+			name: "stacks with env loaded from host env and literals",
 			hostenv: run.EnvVars{
 				"TESTING_RUN_ENV_VAR": "666",
 			},
 			layout: []string{
-				"s:stack",
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
 			},
 			configs: []hclconfig{
 				{
 					path: "/",
 					add: runEnvCfg(
-						expr("test", "env.TESTING_RUN_ENV_VAR"),
+						expr("testenv", "env.TESTING_RUN_ENV_VAR"),
+						str("teststr", "plain string"),
 					),
 				},
 			},
 			want: map[string]result{
-				"stack": {
+				"stacks/stack-1": {
 					env: run.EnvVars{
-						"test": "666",
+						"testenv": "666",
+						"teststr": "plain string",
+					},
+				},
+				"stacks/stack-2": {
+					env: run.EnvVars{
+						"testenv": "666",
+						"teststr": "plain string",
+					},
+				},
+			},
+		},
+		{
+			name: "stacks with env loaded from globals and metadata",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: runEnvCfg(
+						expr("env1", "global.env"),
+						expr("env2", "terramate.stack.name"),
+					),
+				},
+				{
+					path: "/stack-1",
+					add: globals(
+						str("env", "stack-1 global"),
+					),
+				},
+				{
+					path: "/stack-2",
+					add: globals(
+						str("env", "stack-2 global"),
+					),
+				},
+			},
+			want: map[string]result{
+				"stacks/stack-1": {
+					env: run.EnvVars{
+						"env1": "stack-1 global",
+						"env2": "stack-1",
+					},
+				},
+				"stacks/stack-2": {
+					env: run.EnvVars{
+						"env1": "stack-2 global",
+						"env2": "stack-2",
 					},
 				},
 			},
@@ -87,6 +152,10 @@ func TestLoadRunEnv(t *testing.T) {
 			for _, cfg := range tcase.configs {
 				path := filepath.Join(s.RootDir(), cfg.path)
 				test.AppendFile(t, path, "run_env_test_cfg.hcl", cfg.add.String())
+			}
+
+			for name, value := range tcase.hostenv {
+				t.Setenv(name, value)
 			}
 
 			for stackRelPath, wantres := range tcase.want {

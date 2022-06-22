@@ -24,6 +24,15 @@ type EnvVars map[string]string
 
 // Env will load environment variables to be exported when running any command
 // inside the given stack.
-func Env(rootdir string, stack stack.S) (EnvVars, error) {
+func Env(rootdir string, st stack.S) (EnvVars, error) {
+	//parser := hcl.NewTerramateParser(rootdir)
+	//// TODO(katcipis): test parse error handling
+	//cfg, _ := parser.Parse()
+
+	//// TODO(katcipis): test global load error handling
+	//globals, _ := stack.LoadGlobals(root, st)
+
+	//evalctx := stack.NewEvalCtx(stackpath, sm, globals)
+
 	return nil, nil
 }

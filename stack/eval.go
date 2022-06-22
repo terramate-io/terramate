@@ -27,8 +27,8 @@ type EvalCtx struct {
 }
 
 // NewEvalCtx creates a new stack evaluation context.
-func NewEvalCtx(stackpath string, sm Metadata, globals Globals) *EvalCtx {
-	evalctx := &EvalCtx{evalctx: eval.NewContext(stackpath)}
+func NewEvalCtx(sm Metadata, globals Globals) *EvalCtx {
+	evalctx := &EvalCtx{evalctx: eval.NewContext(sm.HostPath())}
 	evalctx.SetMetadata(sm)
 	evalctx.SetGlobals(globals)
 	return evalctx
