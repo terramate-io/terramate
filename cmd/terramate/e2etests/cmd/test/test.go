@@ -39,10 +39,13 @@ func main() {
 
 // hang will hang the process forever, ignoring any signals.
 // It is useful to validate forced kill behavior.
+// It will print "ready" when it starts to receive the signals.
 // It will print the name of the received signals, which may also be useful in testing.
 func hang() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals)
+
+	fmt.Println("ready")
 
 	for s := range signals {
 		fmt.Println(s)

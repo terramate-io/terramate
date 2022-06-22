@@ -20,6 +20,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -87,15 +88,23 @@ func (tc *testCmd) start() {
 	assert.NoError(t, tc.cmd.Start())
 }
 
+func (tc *testCmd) setpgid() {
+	tc.cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+	}
+}
+
 func (tc *testCmd) wait() error {
 	return tc.cmd.Wait()
 }
 
-func (tc *testCmd) signal(s os.Signal) {
+func (tc *testCmd) signalGroup(s os.Signal) {
 	t := tc.t
 	t.Helper()
 
-	err := tc.cmd.Process.Signal(s)
+	signal := s.(syscall.Signal)
+	// Signalling a group is done by sending the signal to - PID.
+	err := syscall.Kill(-tc.cmd.Process.Pid, signal)
 	assert.NoError(t, err)
 }
 

@@ -15,9 +15,13 @@
 package e2etest
 
 import (
+	"bytes"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -30,17 +34,60 @@ func TestRunSendsSigkillIfCmdIgnoresInterruptionSignals(t *testing.T) {
 	git.CommitAll("first commit")
 
 	tm := newCLI(t, s.RootDir())
-	cmd := tm.newCmd("run", testHelperBin)
+	cmd := tm.newCmd("run", testHelperBin, "hang")
+	// To simulate something similar to a terminal we run
+	// terramate in a separate pgid here and then send a signal to
+	// the whole group. The test process must not be part of this group.
+	cmd.setpgid()
+
 	cmd.start()
 
-	cmd.signal(os.Interrupt)
-	// Check it is running
+	pollBufferForMsgs(t, cmd.stdout, "ready")
 
-	cmd.signal(os.Interrupt)
-	// Check it is running
+	cmd.signalGroup(os.Interrupt)
+	pollBufferForMsgs(t, cmd.stdout, "ready", "interrupt")
 
-	cmd.signal(os.Interrupt)
-	_ = cmd.wait()
-	// err := cmd.wait()
-	// validate nature of error returned + validate stdout with expected signals
+	cmd.signalGroup(os.Interrupt)
+	pollBufferForMsgs(t, cmd.stdout, "ready", "interrupt", "interrupt")
+
+	cmd.signalGroup(os.Interrupt)
+	pollBufferForMsgs(t, cmd.stdout, "ready", "interrupt", "interrupt", "interrupt")
+
+	err := cmd.wait()
+	assert.Error(t, err)
+}
+
+// pollBufferForMsgs will check if each message is present on the buffer
+// on signal handling sometimes we get extraneous signals on the test process
+// like "urgent I/O condition". This function will ignore any unknown messages
+// in between but check that at least all msgs where received in the provided
+// order (but ignoring unknown messages in between).
+func pollBufferForMsgs(t *testing.T, buf *bytes.Buffer, wantMsgs ...string) {
+	const (
+		timeout      = 5 * time.Second
+		pollInterval = 30 * time.Millisecond
+	)
+
+	var elapsed time.Duration
+
+	for {
+		gotMsgs := strings.Split(buf.String(), "\n")
+		wantIndex := 0
+
+		for _, got := range gotMsgs {
+			if got == wantMsgs[wantIndex] {
+				wantIndex++
+			}
+
+			if wantIndex == len(wantMsgs) {
+				return
+			}
+		}
+
+		time.Sleep(pollInterval)
+		elapsed += pollInterval
+		if elapsed > timeout {
+			t.Fatalf("timeout polling: wanted: %v got: %v", wantMsgs, gotMsgs)
+		}
+	}
 }
