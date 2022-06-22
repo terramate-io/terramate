@@ -26,7 +26,14 @@ import (
 
 const (
 	// ErrParsingCfg indicates that an error happened while parsing configuration.
-	ErrParsingCfg errors.Kind = "parsing configuration"
+	ErrParsingCfg errors.Kind = "parsing run env cfg"
+
+	// ErrLoadingGlobals indicates that an error happened while loading globals.
+	ErrLoadingGlobals errors.Kind = "loading globals to evaluate run env cfg"
+
+	// ErrEval indicates that an error happened while evaluating one of the
+	// terramate.config.run.env attributes.
+	ErrEval errors.Kind = "evaluating terramate.config.run.env attribute"
 
 	// ErrInvalidEnvVarType indicates the env var attribute
 	// has an invalid type.
@@ -60,10 +67,9 @@ func Env(rootdir string, st stack.S) (EnvVars, error) {
 		return nil, nil
 	}
 
-	// TODO(katcipis): test global load error handling
 	globals, err := stack.LoadGlobals(rootdir, st)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(ErrLoadingGlobals, err)
 	}
 
 	evalctx := stack.NewEvalCtx(st, globals)
@@ -72,10 +78,9 @@ func Env(rootdir string, st stack.S) (EnvVars, error) {
 	envVars := EnvVars{}
 
 	for _, attribute := range cfg.Terramate.Config.Run.Env.Attributes {
-		// TODO(katcipis): test eval failure error handling
 		val, err := evalctx.Eval(attribute.Value().Expr)
 		if err != nil {
-			return nil, err
+			return nil, errors.E(ErrEval, err)
 		}
 
 		// TODO(katcipis): test eval failure wrong type

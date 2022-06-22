@@ -160,6 +160,50 @@ func TestLoadRunEnv(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "fails on globals loading failure",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: runEnvCfg(
+						expr("env", "global.a"),
+					),
+				},
+				{
+					path: "/stack",
+					add: globals(
+						expr("a", "undefined"),
+					),
+				},
+			},
+			want: map[string]result{
+				"stack": {
+					err: errors.E(run.ErrLoadingGlobals),
+				},
+			},
+		},
+		{
+			name: "fails evaluating undefined attribute",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: runEnvCfg(
+						expr("env", "something.undefined"),
+					),
+				},
+			},
+			want: map[string]result{
+				"stack": {
+					err: errors.E(run.ErrEval),
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
