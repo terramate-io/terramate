@@ -45,9 +45,11 @@ func TestRunSendsSigkillIfCmdIgnoresInterruptionSignals(t *testing.T) {
 
 	cmd.signalGroup(os.Interrupt)
 	pollBufferForMsgs(t, cmd.stdout, "ready", "interrupt")
+	time.Sleep(time.Second)
 
 	cmd.signalGroup(os.Interrupt)
 	pollBufferForMsgs(t, cmd.stdout, "ready", "interrupt", "interrupt")
+	time.Sleep(time.Second)
 
 	cmd.signalGroup(os.Interrupt)
 	pollBufferForMsgs(t, cmd.stdout, "ready", "interrupt", "interrupt", "interrupt")
