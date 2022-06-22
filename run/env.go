@@ -25,6 +25,9 @@ import (
 )
 
 const (
+	// ErrParsingCfg indicates that an error happened while parsing configuration.
+	ErrParsingCfg errors.Kind = "parsing configuration"
+
 	// ErrInvalidEnvVarType indicates the env var attribute
 	// has an invalid type.
 	ErrInvalidEnvVarType errors.Kind = "invalid env var type"
@@ -42,12 +45,18 @@ func Env(rootdir string, st stack.S) (EnvVars, error) {
 		Str("root", rootdir).
 		Stringer("stack", st).
 		Logger()
-	// TODO(katcipis): test parse error handling
+
 	logger.Trace().Msg("parsing configuration")
 
-	cfg, _ := hcl.ParseDir(rootdir)
+	cfg, err := hcl.ParseDir(rootdir)
+	if err != nil {
+		return nil, errors.E(ErrParsingCfg, err)
+	}
+
+	logger.Trace().Msg("checking if we have run env config")
 
 	if !cfg.HasRunEnv() {
+		logger.Trace().Msg("no run env config found, nothing to do")
 		return nil, nil
 	}
 

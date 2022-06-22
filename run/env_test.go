@@ -5,9 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/run"
 	"github.com/mineiros-io/terramate/test"
-	"github.com/mineiros-io/terramate/test/errors"
+	errorstest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
@@ -29,26 +30,27 @@ func TestLoadRunEnv(t *testing.T) {
 			layout  []string
 			configs []hclconfig
 			want    map[string]result
-			wantErr error
 		}
 	)
 
 	expr := hclwrite.Expression
 	str := hclwrite.String
+	hcldoc := hclwrite.BuildHCL
+	block := hclwrite.BuildBlock
 	terramate := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("terramate", builders...)
+		return block("terramate", builders...)
 	}
 	config := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("config", builders...)
+		return block("config", builders...)
 	}
 	runblock := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("run", builders...)
+		return block("run", builders...)
 	}
 	env := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("env", builders...)
+		return block("env", builders...)
 	}
 	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("globals", builders...)
+		return block("globals", builders...)
 	}
 	runEnvCfg := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return terramate(config(runblock(env(builders...))))
@@ -139,6 +141,25 @@ func TestLoadRunEnv(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "fails on invalid root config",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: hcldoc(
+						block("notvalidterramate"),
+					),
+				},
+			},
+			want: map[string]result{
+				"stack": {
+					err: errors.E(run.ErrParsingCfg),
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
@@ -160,7 +181,7 @@ func TestLoadRunEnv(t *testing.T) {
 				stack := s.LoadStack(filepath.Join(s.RootDir(), stackRelPath))
 				gotvars, err := run.Env(s.RootDir(), stack)
 
-				errors.Assert(t, err, wantres.err)
+				errorstest.Assert(t, err, wantres.err)
 				test.AssertDiff(t, gotvars, wantres.env)
 			}
 		})
