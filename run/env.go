@@ -83,7 +83,6 @@ func Env(rootdir string, st stack.S) (EnvVars, error) {
 			return nil, errors.E(ErrEval, err)
 		}
 
-		// TODO(katcipis): test eval failure wrong type
 		if val.Type() != cty.String {
 			return nil, errors.E(
 				ErrInvalidEnvVarType,

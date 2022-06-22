@@ -204,6 +204,25 @@ func TestLoadRunEnv(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "fails if attribute is not string",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: runEnvCfg(
+						expr("env", "[]"),
+					),
+				},
+			},
+			want: map[string]result{
+				"stack": {
+					err: errors.E(run.ErrInvalidEnvVarType),
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
