@@ -15,6 +15,7 @@
 package e2etest
 
 import (
+	"context"
 	"os"
 	"strings"
 	"testing"
@@ -33,6 +34,7 @@ func TestRunSendsSigkillIfCmdIgnoresInterruptionSignals(t *testing.T) {
 	git.CommitAll("first commit")
 
 	tm := newCLI(t, s.RootDir())
+	tm.loglevel = "trace"
 	cmd := tm.newCmd("run", testHelperBin, "hang")
 	// To simulate something similar to a terminal we run
 	// terramate in a separate pgid here and then send a signal to
@@ -54,8 +56,24 @@ func TestRunSendsSigkillIfCmdIgnoresInterruptionSignals(t *testing.T) {
 	// We can't check the last interrupt message since the child process
 	// may be killed by Terramate with SIGKILL before it gets the signal
 	// or it is able to send messages to stdout.
-	err := cmd.wait()
-	assert.Error(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	errs := make(chan error)
+
+	go func() {
+		errs <- cmd.wait()
+	}()
+
+	select {
+	case err := <-errs:
+		assert.Error(t, err)
+	case <-ctx.Done():
+		t.Error("waiting for terramate to exit for too long")
+		t.Errorf("terramate stdout:\n%s\n", cmd.stdout.String())
+		t.Errorf("terramate stderr:\n%s\n", cmd.stderr.String())
+	}
+
 }
 
 // pollBufferForMsgs will check if each message is present on the buffer
