@@ -20,6 +20,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 
@@ -69,12 +70,37 @@ func newCLIWithLogLevel(t *testing.T, chdir string, loglevel string) tmcli {
 	}
 }
 
+// buffer provides a concurrency safe implementation of a bytes.Buffer
+// It is not safe to copy the buffer.
+type buffer struct {
+	b bytes.Buffer
+	m sync.Mutex
+}
+
+func (b *buffer) Read(p []byte) (n int, err error) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.Read(p)
+}
+
+func (b *buffer) Write(p []byte) (n int, err error) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.Write(p)
+}
+
+func (b *buffer) String() string {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.String()
+}
+
 type testCmd struct {
 	t      *testing.T
 	cmd    *exec.Cmd
-	stdin  *bytes.Buffer
-	stdout *bytes.Buffer
-	stderr *bytes.Buffer
+	stdin  *buffer
+	stdout *buffer
+	stderr *buffer
 }
 
 func (tc *testCmd) run() error {
@@ -117,9 +143,9 @@ func (tm tmcli) newCmd(args ...string) *testCmd {
 	t := tm.t
 	t.Helper()
 
-	stdin := &bytes.Buffer{}
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
+	stdin := &buffer{}
+	stdout := &buffer{}
+	stderr := &buffer{}
 
 	allargs := []string{}
 	if tm.chdir != "" {

@@ -15,7 +15,6 @@
 package e2etest
 
 import (
-	"bytes"
 	"os"
 	"strings"
 	"testing"
@@ -62,7 +61,7 @@ func TestRunSendsSigkillIfCmdIgnoresInterruptionSignals(t *testing.T) {
 // like "urgent I/O condition". This function will ignore any unknown messages
 // in between but check that at least all msgs where received in the provided
 // order (but ignoring unknown messages in between).
-func pollBufferForMsgs(t *testing.T, buf *bytes.Buffer, wantMsgs ...string) {
+func pollBufferForMsgs(t *testing.T, buf *buffer, wantMsgs ...string) {
 	const (
 		timeout      = 5 * time.Second
 		pollInterval = 30 * time.Millisecond
