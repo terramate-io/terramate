@@ -16,6 +16,7 @@ package e2etest
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -935,17 +936,6 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 	const generateFile = "generate.tm.hcl"
 
-	generateHCL := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("generate_hcl", builders...)
-	}
-	content := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("content", builders...)
-	}
-	labels := func(labels ...string) hclwrite.BlockBuilder {
-		return hclwrite.Labels(labels...)
-	}
-	str := hclwrite.String
-
 	s := sandbox.New(t)
 	stack := s.CreateStack("stack")
 
@@ -1299,42 +1289,61 @@ func TestRunWithoutGitRemoteCheckWorksWithoutNetworking(t *testing.T) {
 	})
 }
 func TestRunWitCustomizedEnv(t *testing.T) {
+	run := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("run", builders...)
+	}
+	env := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("env", builders...)
+	}
+
+	const (
+		exportedEnvVar = "set on terramate test process"
+		stackGlobal    = "global from stack"
+		newHomeEnvVar  = "/not/the/actual/home"
+	)
+
 	s := sandbox.New(t)
 
 	root := s.RootEntry()
-	stack1 := s.CreateStack("stack-1")
-	stack2 := s.CreateStack("stack-2")
+	stack := s.CreateStack("stack")
 
-	t.Setenv("TERRAMATE_TEST", "set on terramate test")
-
-	root.CreateFile("env.tm", `
-		terramate {
-		  config {
-		    run {
-		      env {
-		        FROM_GLOBAL = global.env
-		        FROM_ENV    = env.TERRAMATE_TEST
-		        FROM_STRING = "string"
-		      }
-		    }
-		  }
-		}
-	`)
-	stack1.CreateFile("globals.tm", `
-		globals {
-		  env = stack-1
-		}
-	`)
-	stack2.CreateFile("globals.tm", `
-		globals {
-		  env = stack-2
-		}
-	`)
+	root.CreateFile("env.tm",
+		terramate(
+			config(
+				run(
+					env(
+						expr("FROM_META", "terramate.stack.name"),
+						expr("FROM_GLOBAL", "global.env"),
+						expr("FROM_ENV", "env.TERRAMATE_TEST"),
+						str("HOME", newHomeEnvVar),
+					),
+				),
+			),
+		).String(),
+	)
+	stack.CreateFile("globals.tm", globals(
+		str("env", stackGlobal),
+	).String())
 
 	git := s.Git()
 	git.Add(".")
 	git.CommitAll("first commit")
 
+	clienv := append(os.Environ(), fmt.Sprintf("TERRAMATE_TEST=%s", exportedEnvVar))
+
 	tm := newCLI(t, s.RootDir())
-	tm.run("run", testHelperBin)
+	tm.env = clienv
+
+	res := tm.run("run", testHelperBin, "env")
+	if res.Status != 0 {
+		t.Errorf("unexpected status code %d", res.Status)
+		t.Logf("stdout:\n%s", res.Stdout)
+		t.Logf("stderr:\n%s", res.Stderr)
+		return
+	}
+
+	wantenv := clienv
+	gotenv := strings.Split(strings.Trim(res.Stdout, "\n"), "\n")
+
+	test.AssertDiff(t, gotenv, wantenv)
 }

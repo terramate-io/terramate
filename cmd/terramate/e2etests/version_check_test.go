@@ -21,7 +21,7 @@ import (
 
 	tfversion "github.com/hashicorp/go-version"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate"
+	tm "github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -67,7 +67,7 @@ func TestVersionCheck(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			assertRunResult(t, run(t, checkedCmd, invalidVersion), runExpected{
 				Status:      1,
-				StderrRegex: string(terramate.ErrVersion),
+				StderrRegex: string(tm.ErrVersion),
 			})
 		})
 	}
@@ -85,7 +85,7 @@ func TestVersionCheck(t *testing.T) {
 	for _, cmd := range cmds {
 		name := fmt.Sprintf("%s works with valid version", cmd)
 		t.Run(name, func(t *testing.T) {
-			assertRunResult(t, run(t, cmd, terramate.Version()), runExpected{
+			assertRunResult(t, run(t, cmd, tm.Version()), runExpected{
 				Status:       0,
 				IgnoreStdout: true,
 			})
@@ -96,7 +96,7 @@ func TestVersionCheck(t *testing.T) {
 func TestProvidesCorrectVersion(t *testing.T) {
 	s := sandbox.New(t)
 	cli := newCLI(t, s.RootDir())
-	want := terramate.Version() + "\n"
+	want := tm.Version() + "\n"
 
 	assertRunResult(t, cli.run("version"), runExpected{
 		Status: 0,
@@ -109,6 +109,6 @@ func TestProvidesCorrectVersion(t *testing.T) {
 }
 
 func TestTerramateHasValidSemver(t *testing.T) {
-	_, err := tfversion.NewSemver(terramate.Version())
+	_, err := tfversion.NewSemver(tm.Version())
 	assert.NoError(t, err, "terramate VERSION file has invalid version")
 }
