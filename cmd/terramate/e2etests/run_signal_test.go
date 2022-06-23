@@ -78,7 +78,7 @@ sendSignal:
 	}
 
 	t.Error("waiting for terramate to exit for too long")
-	t.Errorf("terramate stdout:\n%s\n", cmd.stdout.String())
+	t.Logf("terramate stdout:\n%s\n", cmd.stdout.String())
 	t.Errorf("terramate stderr:\n%s\n", cmd.stderr.String())
 }
 
