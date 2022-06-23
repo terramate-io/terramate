@@ -67,14 +67,15 @@ sendSignal:
 		cmd.signalGroup(os.Interrupt)
 
 		sendctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
 
 		select {
 		case err := <-errs:
 			assert.Error(t, err)
+			cancel()
 			return
 		case <-sendctx.Done():
 			t.Logf("%v: terramate still running, re-sending interrupt", time.Now())
+			cancel()
 			break sendSignal
 		}
 	}
