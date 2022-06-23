@@ -129,7 +129,7 @@ func (tc *testCmd) signalGroup(s os.Signal) {
 	t.Helper()
 
 	signal := s.(syscall.Signal)
-	// Signalling a group is done by sending the signal to - PID.
+	// Signalling a group is done by sending the signal to -PID.
 	err := syscall.Kill(-tc.cmd.Process.Pid, signal)
 	assert.NoError(t, err)
 }
