@@ -1298,3 +1298,43 @@ func TestRunWithoutGitRemoteCheckWorksWithoutNetworking(t *testing.T) {
 		Stdout: fileContents,
 	})
 }
+func TestRunWitCustomizedEnv(t *testing.T) {
+	s := sandbox.New(t)
+
+	root := s.RootEntry()
+	stack1 := s.CreateStack("stack-1")
+	stack2 := s.CreateStack("stack-2")
+
+	t.Setenv("TERRAMATE_TEST", "set on terramate test")
+
+	root.CreateFile("env.tm", `
+		terramate {
+		  config {
+		    run {
+		      env {
+		        FROM_GLOBAL = global.env
+		        FROM_ENV    = env.TERRAMATE_TEST
+		        FROM_STRING = "string"
+		      }
+		    }
+		  }
+		}
+	`)
+	stack1.CreateFile("globals.tm", `
+		globals {
+		  env = stack-1
+		}
+	`)
+	stack2.CreateFile("globals.tm", `
+		globals {
+		  env = stack-2
+		}
+	`)
+
+	git := s.Git()
+	git.Add(".")
+	git.CommitAll("first commit")
+
+	tm := newCLI(t, s.RootDir())
+	tm.run("run", testHelperBin)
+}
