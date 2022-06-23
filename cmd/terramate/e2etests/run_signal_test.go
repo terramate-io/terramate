@@ -63,20 +63,19 @@ func TestRunSendsSigkillIfCmdIgnoresInterruptionSignals(t *testing.T) {
 
 sendSignal:
 	for ctx.Err() == nil {
-		t.Logf("%v: sending last interrupt signal to terramate", time.Now())
+		t.Log("sending last interrupt signal to terramate")
 		cmd.signalGroup(os.Interrupt)
 
 		sendctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
 
 		select {
 		case err := <-errs:
 			assert.Error(t, err)
-			cancel()
 			return
 		case <-sendctx.Done():
-			t.Logf("%v: terramate still running, re-sending interrupt", time.Now())
-			cancel()
-			break sendSignal
+			t.Log("terramate still running, re-sending interrupt")
+			continue sendSignal
 		}
 	}
 
