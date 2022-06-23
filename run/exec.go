@@ -48,11 +48,7 @@ func Exec(
 		Str("cmd", strings.Join(cmd, " ")).
 		Logger()
 
-	// Should be at least 1 to avoid losing signals
-	// We are using 3 since it is the number of interrupts
-	// that we handle to do a hard kill, which we could receive
-	// before starting to run a command.
-	const signalsBuffer = 3
+	const signalsBuffer = 10
 
 	signals := make(chan os.Signal, signalsBuffer)
 	signal.Notify(signals, os.Interrupt)
@@ -94,13 +90,15 @@ func Exec(
 		for cmdIsRunning {
 			select {
 			case sig := <-signals:
+				interruptions++
+
 				logger.Info().
 					Str("signal", sig.String()).
-					Msg("received signal")
+					Int("interruptions", interruptions).
+					Msg("received interruption signal")
 
-				interruptions++
-				if interruptions == 3 {
-					logger.Info().Msg("interrupted 3x times, killing child process")
+				if interruptions >= 3 {
+					logger.Info().Msg("interrupted 3x times or more, killing child process")
 
 					if err := cmd.Process.Kill(); err != nil {
 						logger.Debug().Err(err).Msg("unable to send kill signal to child process")

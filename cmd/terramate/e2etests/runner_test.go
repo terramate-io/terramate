@@ -16,9 +16,12 @@ package e2etest
 
 import (
 	"bytes"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
+	"sync"
+	"syscall"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -68,13 +71,82 @@ func newCLIWithLogLevel(t *testing.T, chdir string, loglevel string) tmcli {
 	}
 }
 
-func (tm tmcli) run(args ...string) runResult {
+// buffer provides a concurrency safe implementation of a bytes.Buffer
+// It is not safe to copy the buffer.
+type buffer struct {
+	b bytes.Buffer
+	m sync.Mutex
+}
+
+func (b *buffer) Read(p []byte) (n int, err error) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.Read(p)
+}
+
+func (b *buffer) Write(p []byte) (n int, err error) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.Write(p)
+}
+
+func (b *buffer) String() string {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.String()
+}
+
+type testCmd struct {
+	t      *testing.T
+	cmd    *exec.Cmd
+	stdin  *buffer
+	stdout *buffer
+	stderr *buffer
+}
+
+func (tc *testCmd) run() error {
+	return tc.cmd.Run()
+}
+
+func (tc *testCmd) start() {
+	t := tc.t
+	t.Helper()
+
+	assert.NoError(t, tc.cmd.Start())
+}
+
+func (tc *testCmd) setpgid() {
+	tc.cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+	}
+}
+
+func (tc *testCmd) wait() error {
+	return tc.cmd.Wait()
+}
+
+func (tc *testCmd) signalGroup(s os.Signal) {
+	t := tc.t
+	t.Helper()
+
+	signal := s.(syscall.Signal)
+	// Signalling a group is done by sending the signal to -PID.
+	err := syscall.Kill(-tc.cmd.Process.Pid, signal)
+	assert.NoError(t, err)
+}
+
+func (tc *testCmd) exitCode() int {
+	return tc.cmd.ProcessState.ExitCode()
+}
+
+// newCmd creates a new terramate command prepared to executed.
+func (tm tmcli) newCmd(args ...string) *testCmd {
 	t := tm.t
 	t.Helper()
 
-	stdin := &bytes.Buffer{}
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
+	stdin := &buffer{}
+	stdout := &buffer{}
+	stderr := &buffer{}
 
 	allargs := []string{}
 	if tm.chdir != "" {
@@ -99,13 +171,27 @@ func (tm tmcli) run(args ...string) runResult {
 	cmd.Stdin = stdin
 	cmd.Env = tm.env
 
-	_ = cmd.Run()
+	return &testCmd{
+		t:      t,
+		cmd:    cmd,
+		stdin:  stdin,
+		stdout: stdout,
+		stderr: stderr,
+	}
+}
+
+func (tm tmcli) run(args ...string) runResult {
+	t := tm.t
+	t.Helper()
+
+	cmd := tm.newCmd(args...)
+	_ = cmd.run()
 
 	return runResult{
 		Cmd:    strings.Join(args, " "),
-		Stdout: stdout.String(),
-		Stderr: stderr.String(),
-		Status: cmd.ProcessState.ExitCode(),
+		Stdout: cmd.stdout.String(),
+		Stderr: cmd.stderr.String(),
+		Status: cmd.exitCode(),
 	}
 }
 
