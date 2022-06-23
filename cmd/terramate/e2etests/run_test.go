@@ -1317,7 +1317,7 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 						expr("FROM_META", "terramate.stack.name"),
 						expr("FROM_GLOBAL", "global.env"),
 						expr("FROM_ENV", "env.TERRAMATE_TEST"),
-						str("TERRAMATE_OVERRIDEN", newTerramateOverriden),
+						str("TERRAMATE_OVERRIDDEN", newTerramateOverriden),
 					),
 				),
 			),
@@ -1333,7 +1333,7 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 
 	hostenv := os.Environ()
 	clienv := append(hostenv,
-		"TERRAMATE_OVERRIDEN=oldValue",
+		"TERRAMATE_OVERRIDDEN=oldValue",
 		fmt.Sprintf("TERRAMATE_TEST=%s", exportedTerramateTest),
 	)
 
@@ -1353,7 +1353,7 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 		fmt.Sprintf("FROM_GLOBAL=%s", stackGlobal),
 		fmt.Sprintf("FROM_ENV=%s", exportedTerramateTest),
 		fmt.Sprintf("TERRAMATE_TEST=%s", exportedTerramateTest),
-		fmt.Sprintf("TERRAMATE_OVERRIDEN=%s", newTerramateOverriden),
+		fmt.Sprintf("TERRAMATE_OVERRIDDEN=%s", newTerramateOverriden),
 	)
 	gotenv := strings.Split(strings.Trim(res.Stdout, "\n"), "\n")
 
