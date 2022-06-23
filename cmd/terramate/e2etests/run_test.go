@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -1297,15 +1298,16 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 	}
 
 	const (
-		exportedEnvVar = "set on terramate test process"
-		stackGlobal    = "global from stack"
-		newHomeEnvVar  = "/not/the/actual/home"
+		stackName             = "stack"
+		stackGlobal           = "global from stack"
+		exportedTerramateTest = "set on terramate test process"
+		newTerramateOverriden = "newValue"
 	)
 
 	s := sandbox.New(t)
 
 	root := s.RootEntry()
-	stack := s.CreateStack("stack")
+	stack := s.CreateStack(stackName)
 
 	root.CreateFile("env.tm",
 		terramate(
@@ -1315,7 +1317,7 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 						expr("FROM_META", "terramate.stack.name"),
 						expr("FROM_GLOBAL", "global.env"),
 						expr("FROM_ENV", "env.TERRAMATE_TEST"),
-						str("HOME", newHomeEnvVar),
+						str("TERRAMATE_OVERRIDEN", newTerramateOverriden),
 					),
 				),
 			),
@@ -1329,7 +1331,11 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 	git.Add(".")
 	git.CommitAll("first commit")
 
-	clienv := append(os.Environ(), fmt.Sprintf("TERRAMATE_TEST=%s", exportedEnvVar))
+	hostenv := os.Environ()
+	clienv := append(hostenv,
+		"TERRAMATE_OVERRIDEN=oldValue",
+		fmt.Sprintf("TERRAMATE_TEST=%s", exportedTerramateTest),
+	)
 
 	tm := newCLI(t, s.RootDir())
 	tm.env = clienv
@@ -1342,8 +1348,17 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 		return
 	}
 
-	wantenv := clienv
+	wantenv := append(hostenv,
+		fmt.Sprintf("FROM_META=%s", stackName),
+		fmt.Sprintf("FROM_GLOBAL=%s", stackGlobal),
+		fmt.Sprintf("FROM_ENV=%s", exportedTerramateTest),
+		fmt.Sprintf("TERRAMATE_TEST=%s", exportedTerramateTest),
+		fmt.Sprintf("TERRAMATE_OVERRIDEN=%s", newTerramateOverriden),
+	)
 	gotenv := strings.Split(strings.Trim(res.Stdout, "\n"), "\n")
+
+	sort.Strings(gotenv)
+	sort.Strings(wantenv)
 
 	test.AssertDiff(t, gotenv, wantenv)
 }
