@@ -79,7 +79,7 @@ sendSignal:
 
 	t.Error("waiting for terramate to exit for too long")
 	t.Logf("terramate stdout:\n%s\n", cmd.stdout.String())
-	t.Errorf("terramate stderr:\n%s\n", cmd.stderr.String())
+	t.Logf("terramate stderr:\n%s\n", cmd.stderr.String())
 }
 
 // pollBufferForMsgs will check if each message is present on the buffer
