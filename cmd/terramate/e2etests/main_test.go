@@ -104,13 +104,11 @@ func buildTerramate(goBin, projectRoot, binDir string) (string, error) {
 	cmd := exec.Command(
 		goBin,
 		"build",
-		"--ldflags",
-		`-extldflags "-static"`,
+		"-race",
 		"-o",
 		outBinPath,
 		filepath.Join(projectRoot, "cmd/terramate"),
 	)
-	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
