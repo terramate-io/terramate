@@ -935,6 +935,7 @@ func (c *cli) runOnStacks() {
 	logger.Info().Msg("Running on selected stacks")
 
 	err = run.Exec(
+		c.root(),
 		orderedStacks,
 		c.parsedArgs.Run.Command,
 		c.stdin,

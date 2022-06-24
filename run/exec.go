@@ -36,6 +36,7 @@ import (
 // If continue on error is false it will return as soon as it finds an error,
 // returning a list with a single error inside.
 func Exec(
+	rootdir string,
 	stacks []stack.S,
 	cmd []string,
 	stdin io.Reader,
@@ -50,6 +51,23 @@ func Exec(
 
 	const signalsBuffer = 10
 
+	errs := errors.L()
+	stackEnvs := map[string]EnvVars{}
+
+	logger.Trace().Msg("loading stacks run environment variables")
+
+	for _, stack := range stacks {
+		env, err := Env(rootdir, stack)
+		errs.Append(err)
+		stackEnvs[stack.Path()] = env
+	}
+
+	if errs.AsError() != nil {
+		return errs.AsError()
+	}
+
+	logger.Trace().Msg("loaded stacks run environment variables, running commands")
+
 	signals := make(chan os.Signal, signalsBuffer)
 	signal.Notify(signals, os.Interrupt)
 	defer signal.Reset(os.Interrupt)
@@ -59,12 +77,10 @@ func Exec(
 
 	results := startCmdRunner(cmds)
 
-	errs := errors.L()
-
 	for _, stack := range stacks {
 		cmd := exec.Command(cmd[0], cmd[1:]...)
 		cmd.Dir = stack.HostPath()
-		cmd.Env = os.Environ()
+		cmd.Env = append(os.Environ(), stackEnvs[stack.Path()]...)
 		cmd.Stdin = stdin
 		cmd.Stdout = stdout
 		cmd.Stderr = stderr
