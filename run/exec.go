@@ -57,7 +57,7 @@ func Exec(
 	logger.Trace().Msg("loading stacks run environment variables")
 
 	for _, stack := range stacks {
-		env, err := Env(rootdir, stack)
+		env, err := LoadEnv(rootdir, stack)
 		errs.Append(err)
 		stackEnvs[stack.Path()] = env
 	}
