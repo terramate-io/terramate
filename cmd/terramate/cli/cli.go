@@ -112,6 +112,9 @@ type cliSpec struct {
 		RunOrder struct {
 			Basedir string `arg:"" optional:"true" help:"Base directory to search stacks"`
 		} `cmd:"" help:"Show the topological ordering of the stacks"`
+
+		RunEnv struct {
+		} `cmd:"" help:"List run environment variables for all stacks"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
 
@@ -347,6 +350,8 @@ func (c *cli) run() {
 		c.generateGraph()
 	case "experimental run-order":
 		c.printRunOrder()
+	case "experimental run-env":
+		c.printRunEnv()
 	default:
 		logger.Fatal().Msg("unexpected command sequence")
 	}
@@ -570,6 +575,34 @@ func (c *cli) printStacks() {
 			c.log("%s - %s", stackRepr, entry.Reason)
 		} else {
 			c.log(stackRepr)
+		}
+	}
+}
+
+func (c *cli) printRunEnv() {
+	logger := log.With().
+		Str("action", "cli.printRunEnv()").
+		Str("workingDir", c.wd()).
+		Logger()
+
+	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
+	if err != nil {
+		logger.Fatal().
+			Err(err).
+			Msg("listing stacks")
+	}
+
+	for _, stackEntry := range c.filterStacksByWorkingDir(report.Stacks) {
+		envVars, err := run.LoadEnv(c.root(), stackEntry.Stack)
+		if err != nil {
+			log.Fatal().Err(err).Msg("loading stack run environment")
+		}
+
+		c.log("\nstack %q:", stackEntry.Stack.Path())
+
+		for _, envVar := range envVars {
+			c.log("\t%s", envVar)
 		}
 	}
 }

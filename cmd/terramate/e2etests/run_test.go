@@ -1361,4 +1361,17 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 	sort.Strings(wantenv)
 
 	test.AssertDiff(t, gotenv, wantenv)
+
+	t.Run("ExperimentalRunEnv", func(t *testing.T) {
+		want := fmt.Sprintf(`
+stack "/stack":
+	FROM_ENV=%s
+	FROM_GLOBAL=%s
+	FROM_META=%s
+	TERRAMATE_OVERRIDDEN=%s
+`, exportedTerramateTest, stackGlobal, stackName, newTerramateOverriden)
+
+		assertRunResult(t, tm.run("experimental", "run-env"), runExpected{
+			Stdout: want})
+	})
 }
