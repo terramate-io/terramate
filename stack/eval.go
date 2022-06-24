@@ -46,9 +46,9 @@ func (e *EvalCtx) SetMetadata(sm Metadata) {
 	e.evalctx.SetNamespace("terramate", metaToCtyMap(sm))
 }
 
-// SetEval sets the given environment on the env namespace of the evaluation context.
+// SetEnv sets the given environment on the env namespace of the evaluation context.
 // environ must be on the same format as os.Environ().
-func (e *EvalCtx) SetEval(environ []string) {
+func (e *EvalCtx) SetEnv(environ []string) {
 	env := map[string]cty.Value{}
 	for _, v := range environ {
 		parsed := strings.Split(v, "=")

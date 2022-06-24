@@ -78,7 +78,7 @@ func Env(rootdir string, st stack.S) (EnvVars, error) {
 	}
 
 	evalctx := stack.NewEvalCtx(st, globals)
-	evalctx.SetEval(os.Environ())
+	evalctx.SetEnv(os.Environ())
 
 	envVars := EnvVars{}
 
