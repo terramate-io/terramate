@@ -30,7 +30,7 @@ const (
 	ErrParsingCfg errors.Kind = "parsing terramate.config.run.env configuration"
 
 	// ErrLoadingGlobals indicates that an error happened while loading globals.
-	ErrLoadingGlobals errors.Kind = "loading globals to evaluate run env cfg"
+	ErrLoadingGlobals errors.Kind = "loading globals to evaluate terramate.config.run.env configuration"
 
 	// ErrEval indicates that an error happened while evaluating one of the
 	// terramate.config.run.env attributes.
