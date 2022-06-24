@@ -102,20 +102,19 @@ func (f File) String() string {
 //
 // The rootdir MUST be an absolute path.
 func Load(rootdir string, sm stack.Metadata, globals stack.Globals) ([]File, error) {
-	stackpath := filepath.Join(rootdir, sm.Path())
 	logger := log.With().
 		Str("action", "genfile.Load()").
-		Str("path", stackpath).
+		Str("path", sm.HostPath()).
 		Logger()
 
 	logger.Trace().Msg("loading generate_file blocks")
 
-	genFileBlocks, err := loadGenFileBlocks(rootdir, stackpath)
+	genFileBlocks, err := loadGenFileBlocks(rootdir, sm.HostPath())
 	if err != nil {
 		return nil, errors.E("loading generate_file", err)
 	}
 
-	evalctx := stack.NewEvalCtx(stackpath, sm, globals)
+	evalctx := stack.NewEvalCtx(sm, globals)
 
 	logger.Trace().Msg("generating files")
 

@@ -15,6 +15,8 @@
 package stack
 
 import (
+	"strings"
+
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/hcl/eval"
@@ -27,8 +29,8 @@ type EvalCtx struct {
 }
 
 // NewEvalCtx creates a new stack evaluation context.
-func NewEvalCtx(stackpath string, sm Metadata, globals Globals) *EvalCtx {
-	evalctx := &EvalCtx{evalctx: eval.NewContext(stackpath)}
+func NewEvalCtx(sm Metadata, globals Globals) *EvalCtx {
+	evalctx := &EvalCtx{evalctx: eval.NewContext(sm.HostPath())}
 	evalctx.SetMetadata(sm)
 	evalctx.SetGlobals(globals)
 	return evalctx
@@ -42,6 +44,17 @@ func (e *EvalCtx) SetGlobals(g Globals) {
 // SetMetadata sets the given metadata on the stack evaluation context.
 func (e *EvalCtx) SetMetadata(sm Metadata) {
 	e.evalctx.SetNamespace("terramate", metaToCtyMap(sm))
+}
+
+// SetEnv sets the given environment on the env namespace of the evaluation context.
+// environ must be on the same format as os.Environ().
+func (e *EvalCtx) SetEnv(environ []string) {
+	env := map[string]cty.Value{}
+	for _, v := range environ {
+		parsed := strings.Split(v, "=")
+		env[parsed[0]] = cty.StringVal(parsed[1])
+	}
+	e.evalctx.SetNamespace("env", env)
 }
 
 // Eval will evaluate an expression given its context.

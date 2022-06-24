@@ -62,6 +62,8 @@ type (
 	Metadata interface {
 		// Name of the stack.
 		Name() string
+		// HostPath is the absolute path of the stack on the host file system.
+		HostPath() string
 		// Path is the absolute path of the stack (relative to project root).
 		Path() string
 		// RelPath is the relative path of the from root.
