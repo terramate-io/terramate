@@ -38,7 +38,7 @@ const (
 
 	// ErrInvalidEnvVarType indicates the env var attribute
 	// has an invalid type.
-	ErrInvalidEnvVarType errors.Kind = "invalid env var type"
+	ErrInvalidEnvVarType errors.Kind = "invalid environment variable type"
 )
 
 // EnvVars represents a set of environment variables to be used
