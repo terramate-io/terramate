@@ -1,17 +1,18 @@
 # Project Configuration
 
 Terramate does not depend on user configuration and comes with a set of sensible defaults.
-But when defaults doesn't work Terramate allows some project wide configurations
-to be changed.
 
-Configurations that are project wide can be defined only once, and they **MUST**
-be defined at the project root.
+Configurations are valid projec-wide and can be defined only once at the project root.
 
-## terramate.required_version
+All project configurations are defined within the `terramate` block.
 
-Required version is defined by the attribute `terramate.required_version`
+## The `terramate.required_version` Attribute
+
+Required version is defined by the attribute `terramate.required_version` attribute
 where `required_version` accepts a version constraint string,
-which specifies which versions of Terramate can be inside a Terramate project.
+which specifies which versions of Terramate can be used inside a Terramate project.
+
+We recommend to pin the exact version to use and update the config, when updating Terramate.
 
 The version constraint string uses the same notation as the one used on
 [Terraform](https://www.terraform.io/language/expressions/version-constraints).
@@ -20,23 +21,29 @@ Valid examples:
 
 ```hcl
 terramate {
-    required_version = "~> 0.0.11"
+  # allow any Terramate v0.1.x version starting at v0.1.8
+  required_version = "~> 0.1.8"
 }
 ```
 
 ```hcl
 terramate {
-    required_version = ">= 1.2.0, < 2.0.0"
+  # allow any Terramate v0.1.x version starting at v0.1.8
+  required_version = ">= 0.1.8, < 0.2.0"
 }
 ```
 
-If no `terramate.required_version` is defined on a project, no versioning
-check will be performed. If one is defined, running `terramate` with a
-incompatible version will result in an error for any Terramate command.
+If no `terramate.required_version` is defined on a project, no versioningss
+check will be performed. If a version constraint is defined, running `terramate` with an
+incompatible version will result in a fatal error.
 
-## terramate.config.git
+## The `terramate.config` Block
 
-Git related configurations are defined inside the **git** block, like this:
+Project-wide configuration can be defined in this block. All possible settings are described inthe following subsections.
+
+### The `terramate.config.git` Block
+
+Git related configurations are defined inside the `terramate.config.git` block, like this:
 
 ```hcl
 terramate {
@@ -51,19 +58,18 @@ terramate {
 
 List of configurations:
 
-* git.default\_remote (default="origin") : changes default remote
-* git.default\_branch (default="main")   : changes default branch
+- `terramate.config.git.default_remote` - Set a default remote origin to use for git related actions. The default is `"origin"`.
+- `terramate.config.git.default_branch` - Set a default branch to use for git related actions. The default is `"main"`.
 
+### The `terramate.config.run` Block
 
-## terramate.config.run.env
+Configuration for the `terramate run` command can be set in the `terramate.config.run` block.
 
-The environment in which stacks are going to be executed can be configured
-using the `terramate.config.run.env` block. This block has no labels and
-accepts arbitrary attributes where each attribute represents an environment
-variable that will be evaluated and exported when executing the stack.
-The attributes must always evaluate to strings.
+#### The `terramate.config.run.env` Block
 
-Example:
+In `terramate.config.run.env` block a map of environment variables can be defined that will be set when running command using `terramate run`.
+
+The following example exports the `TF_PLUGIN_CACHE_DIR` environment variable to enable [Terraform Provider Plugin Caching](https://www.terraform.io/cli/config/config-file#provider-plugin-cache).
 
 ```hcl
 terramate {
@@ -76,9 +82,6 @@ terramate {
   }
 }
 ```
-
-Will export the environment variable `TF_PLUGIN_CACHE_DIR` on the stack
-execution environment with the value `/some/path/etc`.
 
 Inside the `terramate.config.run.env` block the `env` namespace will be
 available including environment variables retrieved from the host:
@@ -95,78 +98,14 @@ terramate {
 }
 ```
 
-Globals and Metadata can also be referenced:
-
-```hcl
-terramate {
-  config {
-    run {
-      env {
-        TF_PLUGIN_CACHE_DIR = "${terramate.stack.path.absolute}/${global.cache_dir}"
-      }
-    }
-  }
-}
-```
+In addition Globals (`global.*`) and Metadata (`terramate.*`) are available and are evaluated lazy withing the stack context the commands are executed in.
 
 The `env` namespace is meant to give access to the host environment variables,
 it is read-only, and is only available when evaluating
 `terramate.config.run.env` blocks.
 
 This means that any attributes defined
-on `terramate.config.run.env` blocks won't affect the `env` namespace,
-they only affect the stack execution environment.
-
-Given that this is a project wide configuration the environment defined by
-`terramate.config.run.env` will be available to all stacks in the project.
+on `terramate.config.run.env` blocks won't affect the `env` namespace.
 
 You can have multiple `terramate.config.run.env` blocks defined on different
-files, but no attribute must be redefined on any of them.
-
-This is allowed:
-
-```hcl
-terramate {
-  config {
-    run {
-      env {
-        A = "A"
-      }
-    }
-  }
-}
-
-terramate {
-  config {
-    run {
-      env {
-        B = "B"
-      }
-    }
-  }
-}
-```
-
-But this will fail:
-
-```hcl
-terramate {
-  config {
-    run {
-      env {
-        A = "A"
-      }
-    }
-  }
-}
-
-terramate {
-  config {
-    run {
-      env {
-        A = "A"
-      }
-    }
-  }
-}
-```
+files, but variable names can NOT be defined twice.
