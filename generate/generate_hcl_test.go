@@ -885,7 +885,7 @@ func TestGenerateHCLTerramateMetadata(t *testing.T) {
 			generateHCL(
 				labels(generatedFile),
 				content(
-					expr("terramate_root", "terramate.root"),
+					expr("terramate_root", "terramate.root.path.absolute"),
 				),
 			),
 		).String(),
