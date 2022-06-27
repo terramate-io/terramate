@@ -33,6 +33,7 @@ type tmcli struct {
 	t        *testing.T
 	chdir    string
 	loglevel string
+	env      []string
 }
 
 type runResult struct {
@@ -168,6 +169,7 @@ func (tm tmcli) newCmd(args ...string) *testCmd {
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	cmd.Stdin = stdin
+	cmd.Env = tm.env
 
 	return &testCmd{
 		t:      t,

@@ -256,7 +256,7 @@ func TestLoadRunEnv(t *testing.T) {
 
 			for stackRelPath, wantres := range tcase.want {
 				stack := s.LoadStack(filepath.Join(s.RootDir(), stackRelPath))
-				gotvars, err := run.Env(s.RootDir(), stack)
+				gotvars, err := run.LoadEnv(s.RootDir(), stack)
 
 				errorstest.Assert(t, err, wantres.err)
 				test.AssertDiff(t, gotvars, wantres.env)
