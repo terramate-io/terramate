@@ -32,6 +32,8 @@ func main() {
 	switch os.Args[1] {
 	case "hang":
 		hang()
+	case "env":
+		env()
 	default:
 		log.Fatalf("unknown command %s", os.Args[1])
 	}
@@ -49,5 +51,12 @@ func hang() {
 
 	for s := range signals {
 		fmt.Println(s)
+	}
+}
+
+// env sends os.Environ() on stdout and exits.
+func env() {
+	for _, env := range os.Environ() {
+		fmt.Println(env)
 	}
 }

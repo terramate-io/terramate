@@ -16,7 +16,9 @@ package e2etest
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -935,17 +937,6 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 	const generateFile = "generate.tm.hcl"
 
-	generateHCL := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("generate_hcl", builders...)
-	}
-	content := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("content", builders...)
-	}
-	labels := func(labels ...string) hclwrite.BlockBuilder {
-		return hclwrite.Labels(labels...)
-	}
-	str := hclwrite.String
-
 	s := sandbox.New(t)
 	stack := s.CreateStack("stack")
 
@@ -1296,5 +1287,91 @@ func TestRunWithoutGitRemoteCheckWorksWithoutNetworking(t *testing.T) {
 		stackFile.Path(),
 	), runExpected{
 		Stdout: fileContents,
+	})
+}
+func TestRunWitCustomizedEnv(t *testing.T) {
+	run := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("run", builders...)
+	}
+	env := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock("env", builders...)
+	}
+
+	const (
+		stackName             = "stack"
+		stackGlobal           = "global from stack"
+		exportedTerramateTest = "set on terramate test process"
+		newTerramateOverriden = "newValue"
+	)
+
+	s := sandbox.New(t)
+
+	root := s.RootEntry()
+	stack := s.CreateStack(stackName)
+
+	root.CreateFile("env.tm",
+		terramate(
+			config(
+				run(
+					env(
+						expr("FROM_META", "terramate.stack.name"),
+						expr("FROM_GLOBAL", "global.env"),
+						expr("FROM_ENV", "env.TERRAMATE_TEST"),
+						str("TERRAMATE_OVERRIDDEN", newTerramateOverriden),
+					),
+				),
+			),
+		).String(),
+	)
+	stack.CreateFile("globals.tm", globals(
+		str("env", stackGlobal),
+	).String())
+
+	git := s.Git()
+	git.Add(".")
+	git.CommitAll("first commit")
+
+	hostenv := os.Environ()
+	clienv := append(hostenv,
+		"TERRAMATE_OVERRIDDEN=oldValue",
+		fmt.Sprintf("TERRAMATE_TEST=%s", exportedTerramateTest),
+	)
+
+	tm := newCLI(t, s.RootDir())
+	tm.env = clienv
+
+	res := tm.run("run", testHelperBin, "env")
+	if res.Status != 0 {
+		t.Errorf("unexpected status code %d", res.Status)
+		t.Logf("stdout:\n%s", res.Stdout)
+		t.Logf("stderr:\n%s", res.Stderr)
+		return
+	}
+
+	wantenv := append(hostenv,
+		fmt.Sprintf("FROM_META=%s", stackName),
+		fmt.Sprintf("FROM_GLOBAL=%s", stackGlobal),
+		fmt.Sprintf("FROM_ENV=%s", exportedTerramateTest),
+		fmt.Sprintf("TERRAMATE_TEST=%s", exportedTerramateTest),
+		fmt.Sprintf("TERRAMATE_OVERRIDDEN=%s", newTerramateOverriden),
+	)
+	gotenv := strings.Split(strings.Trim(res.Stdout, "\n"), "\n")
+
+	sort.Strings(gotenv)
+	sort.Strings(wantenv)
+
+	test.AssertDiff(t, gotenv, wantenv)
+
+	t.Run("ExperimentalRunEnv", func(t *testing.T) {
+		want := fmt.Sprintf(`
+stack "/stack":
+	FROM_ENV=%s
+	FROM_GLOBAL=%s
+	FROM_META=%s
+	TERRAMATE_OVERRIDDEN=%s
+`, exportedTerramateTest, stackGlobal, stackName, newTerramateOverriden)
+
+		assertRunResult(t, tm.run("experimental", "run-env"), runExpected{
+			Stdout: want})
 	})
 }

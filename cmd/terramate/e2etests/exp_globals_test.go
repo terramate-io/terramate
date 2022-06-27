@@ -18,7 +18,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
@@ -39,13 +38,6 @@ func TestStacksGlobals(t *testing.T) {
 			want    runExpected
 		}
 	)
-
-	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("globals", builders...)
-	}
-	str := hclwrite.String
-	number := hclwrite.NumberInt
-	boolean := hclwrite.Boolean
 
 	tcases := []testcase{
 		{
@@ -239,7 +231,7 @@ stack "/stacks/stack-2":
 
 				for _, globalBlock := range tcase.globals {
 					path := filepath.Join(s.RootDir(), globalBlock.path)
-					test.AppendFile(t, path, config.DefaultFilename,
+					test.AppendFile(t, path, "globals.tm",
 						globalBlock.add.String())
 				}
 

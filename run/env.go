@@ -46,10 +46,10 @@ const (
 // on os.Environ and can be used to set env on exec.Cmd.
 type EnvVars []string
 
-// Env will load environment variables to be exported when running any command
+// LoadEnv will load environment variables to be exported when running any command
 // inside the given stack. The order of the env vars is guaranteed to be the same
 // and is ordered lexicographically.
-func Env(rootdir string, st stack.S) (EnvVars, error) {
+func LoadEnv(rootdir string, st stack.S) (EnvVars, error) {
 	logger := log.With().
 		Str("action", "run.Env()").
 		Str("root", rootdir).
