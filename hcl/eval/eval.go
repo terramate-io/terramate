@@ -115,6 +115,11 @@ func FromMapToObject(values map[string]cty.Value) cty.Value {
 
 	ctyTypes := map[string]cty.Type{}
 	for key, value := range values {
+		logger.Trace().
+			Str("name", key).
+			Str("type", value.Type().FriendlyName()).
+			Msg("building key to type map")
+
 		ctyTypes[key] = value.Type()
 	}
 

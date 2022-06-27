@@ -135,9 +135,14 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 
 	pendingExpression:
 		for name, expr := range pendingExprs {
+			logger := logger.With().
+				Str("origin", expr.origin).
+				Str("global", name).
+				Logger()
+
 			vars := hclsyntax.Variables(expr.value)
 
-			logger.Trace().Msg("Range vars.")
+			logger.Trace().Msg("checking var access inside expression")
 
 			for _, namespace := range vars {
 				if !evalctx.HasNamespace(namespace.RootName()) {
@@ -172,7 +177,7 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 				}
 			}
 
-			logger.Trace().Msg("Evaluate expression.")
+			logger.Trace().Msg("evaluating expression")
 
 			val, err := evalctx.Eval(expr.value)
 			if err != nil {
