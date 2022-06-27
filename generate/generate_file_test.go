@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -299,4 +300,35 @@ func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
 		},
 	})
 	assertFileDontExist(filename)
+}
+
+func TestGenerateFileTerramateMetadata(t *testing.T) {
+	// We need to know the sandbox abspath to test terramate.root properly
+	const generatedFile = "file.hcl"
+
+	s := sandbox.New(t)
+	stackEntry := s.CreateStack("stack")
+	s.RootEntry().CreateConfig(
+		hcldoc(
+			generateFile(
+				labels(generatedFile),
+				expr("content", "terramate.root"),
+			),
+		).String(),
+	)
+
+	report := s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				StackPath: "/stack",
+				Created:   []string{generatedFile},
+			},
+		},
+	})
+
+	want := s.RootDir()
+	got := stackEntry.ReadFile(generatedFile)
+
+	assert.EqualStrings(t, want, got)
 }

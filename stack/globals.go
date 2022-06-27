@@ -123,7 +123,7 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 		attributes: map[string]cty.Value{},
 	}
 
-	evalctx := NewEvalCtx(meta, globals)
+	evalctx := NewEvalCtx(rootdir, meta, globals)
 
 	pendingExprsErrs := map[string]error{}
 	pendingExprs := ge.expressions
