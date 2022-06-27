@@ -2,7 +2,7 @@
 
 Terramate does not depend on user configuration and comes with a set of sensible defaults.
 
-Configurations are valid projec-wide and can be defined only once at the project root.
+Configurations are valid project-wide and can be defined only once at the project root.
 
 All project configurations are defined within the `terramate` block.
 
@@ -12,7 +12,7 @@ Required version is defined by the attribute `terramate.required_version` attrib
 where `required_version` accepts a version constraint string,
 which specifies which versions of Terramate can be used inside a Terramate project.
 
-We recommend to pin the exact version to use and update the config, when updating Terramate.
+We recommend pinning the exact version to use and updating the config when updating Terramate.
 
 The version constraint string uses the same notation as the one used on
 [Terraform](https://www.terraform.io/language/expressions/version-constraints).
@@ -33,13 +33,11 @@ terramate {
 }
 ```
 
-If no `terramate.required_version` is defined on a project, no versioningss
-check will be performed. If a version constraint is defined, running `terramate` with an
-incompatible version will result in a fatal error.
+No versioning check will be performed if no `terramate.required_version` is defined on a project. If a version constraint is defined, running `terramate` with an incompatible version will result in a fatal error.
 
 ## The `terramate.config` Block
 
-Project-wide configuration can be defined in this block. All possible settings are described inthe following subsections.
+Project-wide configuration can be defined in this block. All possible settings are described in the following subsections.
 
 ### The `terramate.config.git` Block
 
@@ -67,7 +65,7 @@ Configuration for the `terramate run` command can be set in the `terramate.confi
 
 #### The `terramate.config.run.env` Block
 
-In `terramate.config.run.env` block a map of environment variables can be defined that will be set when running command using `terramate run`.
+In `terramate.config.run.env` block a map of environment variables can be defined that will be set when running a command using `terramate run`.
 
 The following example exports the `TF_PLUGIN_CACHE_DIR` environment variable to enable [Terraform Provider Plugin Caching](https://www.terraform.io/cli/config/config-file#provider-plugin-cache).
 
@@ -104,8 +102,8 @@ The `env` namespace is meant to give access to the host environment variables,
 it is read-only, and is only available when evaluating
 `terramate.config.run.env` blocks.
 
-This means that any attributes defined
+Any attributes defined
 on `terramate.config.run.env` blocks won't affect the `env` namespace.
 
 You can have multiple `terramate.config.run.env` blocks defined on different
-files, but variable names can NOT be defined twice.
+files, but variable names can **not** be defined twice.
