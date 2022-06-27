@@ -312,7 +312,7 @@ func TestGenerateFileTerramateMetadata(t *testing.T) {
 		hcldoc(
 			generateFile(
 				labels(generatedFile),
-				expr("content", "terramate.root"),
+				expr("content", "terramate.root.path.absolute"),
 			),
 		).String(),
 	)

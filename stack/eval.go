@@ -73,7 +73,7 @@ func (e *EvalCtx) HasNamespace(name string) bool {
 }
 
 func metaToCtyMap(rootdir string, m Metadata) map[string]cty.Value {
-	path := eval.FromMapToObject(map[string]cty.Value{
+	stackpath := eval.FromMapToObject(map[string]cty.Value{
 		"absolute": cty.StringVal(m.Path()),
 		"relative": cty.StringVal(m.RelPath()),
 		"basename": cty.StringVal(m.PathBase()),
@@ -82,13 +82,19 @@ func metaToCtyMap(rootdir string, m Metadata) map[string]cty.Value {
 	stack := eval.FromMapToObject(map[string]cty.Value{
 		"name":        cty.StringVal(m.Name()),
 		"description": cty.StringVal(m.Desc()),
-		"path":        path,
+		"path":        stackpath,
+	})
+	rootpath := eval.FromMapToObject(map[string]cty.Value{
+		"absolute": cty.StringVal(rootdir),
+	})
+	root := eval.FromMapToObject(map[string]cty.Value{
+		"path": rootpath,
 	})
 	return map[string]cty.Value{
 		"name":        cty.StringVal(m.Name()), // DEPRECATED
 		"path":        cty.StringVal(m.Path()), // DEPRECATED
 		"description": cty.StringVal(m.Desc()), // DEPRECATED
-		"root":        cty.StringVal(rootdir),
+		"root":        root,
 		"stack":       stack,
 	}
 }
