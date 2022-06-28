@@ -117,12 +117,9 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 
 	logger.Trace().Msg("Create new evaluation context.")
 
-	// error messages improve if globals is empty instead of undefined
-	// so we always start with an empty globals define on eval ctx.
 	globals := Globals{
 		attributes: map[string]cty.Value{},
 	}
-
 	evalctx := NewEvalCtx(rootdir, meta, globals)
 
 	pendingExprsErrs := map[string]error{}
