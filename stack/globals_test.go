@@ -852,6 +852,19 @@ func TestLoadGlobals(t *testing.T) {
 			wantErr: errors.E(stack.ErrGlobalEval),
 		},
 		{
+			name:   "global interpolating undefined reference fails",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						str("a_interpolated", "${global.undefined}-something"),
+					),
+				},
+			},
+			wantErr: errors.E(stack.ErrGlobalEval),
+		},
+		{
 			// This tests double check that interpolation on a single number
 			// produces an actual number on hcl eval, not a string.
 			// Which is bizarre...but why not ?
