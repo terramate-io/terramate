@@ -111,7 +111,7 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 	// This is relative only to root since meta.Path will look
 	// like: /some/path/relative/project/root
 	logger := log.With().
-		Str("action", "eval()").
+		Str("action", "globals.eval()").
 		Str("stack", meta.Path()).
 		Logger()
 
@@ -192,7 +192,11 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 		// TODO(katcipis): model proper error list and return that
 		// Caller can decide how to format/log things (like code generation report).
 		for name, expr := range pendingExprs {
-			logger.Err(pendingExprsErrs[name]).
+			err, ok := pendingExprsErrs[name]
+			if !ok {
+				err = errors.E("undefined global")
+			}
+			logger.Err(err).
 				Str("name", name).
 				Str("origin", expr.origin).
 				Msg("evaluating global")
