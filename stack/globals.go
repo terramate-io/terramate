@@ -131,7 +131,7 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 	for len(pendingExprs) > 0 {
 		amountEvaluated := 0
 
-		logger.Trace().Msg("Range pending expressions.")
+		logger.Trace().Msg("evaluating pending expressions")
 
 	pendingExpression:
 		for name, expr := range pendingExprs {
@@ -188,12 +188,10 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 			globals.attributes[name] = val
 			amountEvaluated++
 
-			logger.Trace().Msg("Delete pending expression.")
-
 			delete(pendingExprs, name)
 			delete(pendingExprsErrs, name)
 
-			logger.Trace().Msg("Try add proper namespace for globals evaluation context.")
+			logger.Trace().Msg("updating globals eval context with evaluated attribute")
 
 			evalctx.SetGlobals(globals)
 		}
