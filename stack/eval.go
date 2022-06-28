@@ -15,6 +15,7 @@
 package stack
 
 import (
+	"path/filepath"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -84,8 +85,12 @@ func metaToCtyMap(rootdir string, m Metadata) map[string]cty.Value {
 		"description": cty.StringVal(m.Desc()),
 		"path":        stackpath,
 	})
-	rootpath := eval.FromMapToObject(map[string]cty.Value{
+	rootfs := eval.FromMapToObject(map[string]cty.Value{
 		"absolute": cty.StringVal(rootdir),
+		"basename": cty.StringVal(filepath.Base(rootdir)),
+	})
+	rootpath := eval.FromMapToObject(map[string]cty.Value{
+		"fs": rootfs,
 	})
 	root := eval.FromMapToObject(map[string]cty.Value{
 		"path": rootpath,
