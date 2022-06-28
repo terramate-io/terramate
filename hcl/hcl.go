@@ -212,7 +212,6 @@ func (p *TerramateParser) Parse() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-
 	return p.parseTerramateSchema()
 }
 
