@@ -208,6 +208,15 @@ func (p *TerramateParser) AddFile(name string, data []byte) error {
 
 // Parse the previously added files and return either a Config or an error.
 func (p *TerramateParser) Parse() (Config, error) {
+	err := p.parseSyntax()
+	if err != nil {
+		return Config{}, err
+	}
+
+	return p.parseTerramateSchema()
+}
+
+func (p *TerramateParser) parseSyntax() error {
 	errs := errors.L()
 	for _, name := range p.sortedFilenames() {
 		data := p.files[name]
@@ -220,14 +229,17 @@ func (p *TerramateParser) Parse() (Config, error) {
 		p.parsedFiles = append(p.parsedFiles, name)
 	}
 
-	cfg, err := p.parseTerramateSchema()
-	errs.Append(err)
+	return errs.AsError()
+}
 
-	if err := errs.AsError(); err != nil {
-		return Config{}, err
+func (p *TerramateParser) ParsedFiles() map[string]*hclsyntax.Body {
+	parsed := make(map[string]*hclsyntax.Body)
+	for filename, hclfile := range p.hclparser.Files() {
+		// A cast error here would be a severe programming error on Terramate
+		// side, so we are by design allowing the cast to panic
+		parsed[filename] = hclfile.Body.(*hclsyntax.Body)
 	}
-
-	return cfg, nil
+	return parsed
 }
 
 func (p *TerramateParser) sortedFilenames() []string {
@@ -979,55 +991,6 @@ func isValidTopLevelBlock(name string) bool {
 	}
 }
 
-func loadCfgBlocks(dir string) (*hclparse.Parser, error) {
-	logger := log.With().
-		Str("action", "loadCfgBlocks()").
-		Str("dir", dir).
-		Logger()
-
-	logger.Trace().Msg("listing files")
-
-	filenames, err := listTerramateFiles(dir)
-	if err != nil {
-		return nil, errors.E(err, "reading dir to load config files")
-	}
-
-	parser := hclparse.NewParser()
-	errs := errors.L()
-
-	for _, filename := range filenames {
-		logger := logger.With().
-			Str("entryName", filename).
-			Logger()
-
-		path := filepath.Join(dir, filename)
-
-		logger.Trace().Msg("Reading config file.")
-
-		data, err := os.ReadFile(path)
-		if err != nil {
-			errs.Append(errors.E(err, "reading config file %q", path))
-			continue
-		}
-
-		logger.Trace().Msg("Parsing config.")
-
-		_, diags := parser.ParseHCL(data, path)
-		if diags.HasErrors() {
-			errs.Append(errors.E(ErrHCLSyntax, diags))
-			continue
-		}
-
-		logger.Trace().Msg("Config file parsed successfully")
-	}
-
-	if err := errs.AsError(); err != nil {
-		return nil, err
-	}
-
-	return parser, nil
-}
-
 func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 	logger := log.With().
 		Str("action", "parseTerramateSchema()").
@@ -1255,23 +1218,27 @@ func parseBlocks(dir, blocktype string, validate blockValidator) (Blocks, error)
 
 	logger.Trace().Msg("loading config")
 
-	errs := errors.L()
+	parser := NewTerramateParser(dir)
+	err := parser.addDir(dir)
+	if err != nil {
+		return nil, errors.E("adding files to parser", err)
+	}
 
-	parser, err := loadCfgBlocks(dir)
-	errs.Append(errors.E(err, "parsing %q", blocktype))
+	err = parser.parseSyntax()
+	if err != nil {
+		return nil, err
+	}
 
 	logger.Trace().Msg("Validating and filtering blocks")
 
 	hclblocks := Blocks{}
-	for fname, hclfile := range parser.Files() {
+	for fname, body := range parser.ParsedFiles() {
 		logger := logger.With().
 			Str("filename", fname).
 			Logger()
 
 		logger.Trace().Msg("filtering blocks")
-		// A cast error here would be a severe programming error on Terramate
-		// side, so we are by design allowing the cast to panic
-		body := hclfile.Body.(*hclsyntax.Body)
+
 		blocks := filterBlocksByType(blocktype, body.Blocks)
 
 		if len(blocks) == 0 {
