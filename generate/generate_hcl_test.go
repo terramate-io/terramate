@@ -873,3 +873,40 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 	got = stackEntry.ListGenFiles()
 	assertEqualStringList(t, got, []string{})
 }
+
+func TestGenerateHCLTerramateRootMetadata(t *testing.T) {
+	// We need to know the sandbox abspath to test terramate.root properly
+	const generatedFile = "file.hcl"
+
+	s := sandbox.New(t)
+	stackEntry := s.CreateStack("stack")
+	s.RootEntry().CreateConfig(
+		hcldoc(
+			generateHCL(
+				labels(generatedFile),
+				content(
+					expr("terramate_root_path_abs", "terramate.root.path.fs.absolute"),
+					expr("terramate_root_path_basename", "terramate.root.path.fs.basename"),
+				),
+			),
+		).String(),
+	)
+
+	report := s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				StackPath: "/stack",
+				Created:   []string{generatedFile},
+			},
+		},
+	})
+
+	want := hcldoc(
+		str("terramate_root_path_abs", s.RootDir()),
+		str("terramate_root_path_basename", filepath.Base(s.RootDir())),
+	).String()
+	got := stackEntry.ReadFile(generatedFile)
+
+	assertHCLEquals(t, got, want)
+}

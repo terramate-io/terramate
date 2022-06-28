@@ -15,6 +15,7 @@
 package stack
 
 import (
+	"path/filepath"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -29,9 +30,9 @@ type EvalCtx struct {
 }
 
 // NewEvalCtx creates a new stack evaluation context.
-func NewEvalCtx(sm Metadata, globals Globals) *EvalCtx {
+func NewEvalCtx(rootdir string, sm Metadata, globals Globals) *EvalCtx {
 	evalctx := &EvalCtx{evalctx: eval.NewContext(sm.HostPath())}
-	evalctx.SetMetadata(sm)
+	evalctx.SetMetadata(rootdir, sm)
 	evalctx.SetGlobals(globals)
 	return evalctx
 }
@@ -42,8 +43,8 @@ func (e *EvalCtx) SetGlobals(g Globals) {
 }
 
 // SetMetadata sets the given metadata on the stack evaluation context.
-func (e *EvalCtx) SetMetadata(sm Metadata) {
-	e.evalctx.SetNamespace("terramate", metaToCtyMap(sm))
+func (e *EvalCtx) SetMetadata(rootdir string, sm Metadata) {
+	e.evalctx.SetNamespace("terramate", metaToCtyMap(rootdir, sm))
 }
 
 // SetEnv sets the given environment on the env namespace of the evaluation context.
@@ -72,8 +73,8 @@ func (e *EvalCtx) HasNamespace(name string) bool {
 	return e.evalctx.HasNamespace(name)
 }
 
-func metaToCtyMap(m Metadata) map[string]cty.Value {
-	path := eval.FromMapToObject(map[string]cty.Value{
+func metaToCtyMap(rootdir string, m Metadata) map[string]cty.Value {
+	stackpath := eval.FromMapToObject(map[string]cty.Value{
 		"absolute": cty.StringVal(m.Path()),
 		"relative": cty.StringVal(m.RelPath()),
 		"basename": cty.StringVal(m.PathBase()),
@@ -82,12 +83,23 @@ func metaToCtyMap(m Metadata) map[string]cty.Value {
 	stack := eval.FromMapToObject(map[string]cty.Value{
 		"name":        cty.StringVal(m.Name()),
 		"description": cty.StringVal(m.Desc()),
-		"path":        path,
+		"path":        stackpath,
+	})
+	rootfs := eval.FromMapToObject(map[string]cty.Value{
+		"absolute": cty.StringVal(rootdir),
+		"basename": cty.StringVal(filepath.Base(rootdir)),
+	})
+	rootpath := eval.FromMapToObject(map[string]cty.Value{
+		"fs": rootfs,
+	})
+	root := eval.FromMapToObject(map[string]cty.Value{
+		"path": rootpath,
 	})
 	return map[string]cty.Value{
 		"name":        cty.StringVal(m.Name()), // DEPRECATED
 		"path":        cty.StringVal(m.Path()), // DEPRECATED
 		"description": cty.StringVal(m.Desc()), // DEPRECATED
+		"root":        root,
 		"stack":       stack,
 	}
 }
