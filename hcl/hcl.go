@@ -232,6 +232,7 @@ func (p *TerramateParser) parseSyntax() error {
 	return errs.AsError()
 }
 
+// ParsedFiles returns a map of filename to the parsed hclsyntax.Body.
 func (p *TerramateParser) ParsedFiles() map[string]*hclsyntax.Body {
 	parsed := make(map[string]*hclsyntax.Body)
 	for filename, hclfile := range p.hclparser.Files() {
