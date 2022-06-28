@@ -302,7 +302,7 @@ func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
 	assertFileDontExist(filename)
 }
 
-func TestGenerateFileTerramateMetadata(t *testing.T) {
+func TestGenerateFileTerramateRootMetadata(t *testing.T) {
 	// We need to know the sandbox abspath to test terramate.root properly
 	const generatedFile = "file.hcl"
 
@@ -312,7 +312,7 @@ func TestGenerateFileTerramateMetadata(t *testing.T) {
 		hcldoc(
 			generateFile(
 				labels(generatedFile),
-				expr("content", "terramate.root.path.absolute"),
+				expr("content", `"${terramate.root.path.fs.absolute}-${terramate.root.path.fs.basename}"`),
 			),
 		).String(),
 	)
@@ -327,7 +327,7 @@ func TestGenerateFileTerramateMetadata(t *testing.T) {
 		},
 	})
 
-	want := s.RootDir()
+	want := s.RootDir() + "-" + filepath.Base(s.RootDir())
 	got := stackEntry.ReadFile(generatedFile)
 
 	assert.EqualStrings(t, want, got)
