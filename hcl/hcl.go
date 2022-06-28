@@ -1240,7 +1240,6 @@ func parseBlocks(dir, blocktype string, validate blockValidator) (Blocks, error)
 		logger.Trace().Msg("filtering blocks")
 
 		blocks := filterBlocksByType(blocktype, body.Blocks)
-
 		if len(blocks) == 0 {
 			continue
 		}
