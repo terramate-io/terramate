@@ -157,16 +157,6 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 					if _, isPending := pendingExprs[attr.Name]; isPending {
 						continue pendingExpression
 					}
-
-					if _, isEvaluated := globals.attributes[attr.Name]; !isEvaluated {
-						return Globals{}, errors.E(
-							ErrGlobalEval,
-							attr.SourceRange(),
-							"unknown variable %s.%s",
-							namespace.RootName(),
-							attr.Name,
-						)
-					}
 				default:
 					panic("unexpected type of traversal - this is a BUG")
 				}
