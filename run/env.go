@@ -83,18 +83,17 @@ func LoadEnv(rootdir string, st stack.S) (EnvVars, error) {
 
 	attrs := cfg.Terramate.Config.Run.Env.Attributes.SortedList()
 
-	for _, attribute := range attrs {
-		hclattr := attribute.Value()
+	for _, attr := range attrs {
 		logger = logger.With().
-			Str("attribute", hclattr.Name).
+			Str("attribute", attr.Name).
 			Logger()
 
 		logger.Trace().Msg("evaluating")
 
-		val, err := evalctx.Eval(hclattr.Expr)
+		val, err := evalctx.Eval(attr.Expr)
 		if err != nil {
-			return nil, errors.E(ErrEval, hclattr.NameRange,
-				err, "attribute origin %s", attribute.Origin())
+			return nil, errors.E(ErrEval, attr.NameRange,
+				err, "attribute origin %s", attr.Origin())
 		}
 
 		logger.Trace().Msg("checking evaluated value type")
@@ -102,13 +101,13 @@ func LoadEnv(rootdir string, st stack.S) (EnvVars, error) {
 		if val.Type() != cty.String {
 			return nil, errors.E(
 				ErrInvalidEnvVarType,
-				hclattr.NameRange,
+				attr.NameRange,
 				"attr has type %s but must be string, attribute origin %s",
 				val.Type().FriendlyName(),
-				attribute.Origin(),
+				attr.Origin(),
 			)
 		}
-		envVars = append(envVars, hclattr.Name+"="+val.AsString())
+		envVars = append(envVars, attr.Name+"="+val.AsString())
 
 		logger.Trace().Msg("env var loaded")
 	}

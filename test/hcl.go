@@ -157,10 +157,10 @@ func hclFromAttributes(t *testing.T, attrs hcl.Attributes) string {
 		tokens, err := eval.GetExpressionTokens(
 			readFile(attr.Origin()),
 			attr.Origin(),
-			attr.Value().Expr,
+			attr.Expr,
 		)
 		assert.NoError(t, err)
-		body.SetAttributeRaw(attr.Value().Name, tokens)
+		body.SetAttributeRaw(attr.Name, tokens)
 	}
 
 	return string(file.Bytes())

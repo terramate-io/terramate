@@ -840,9 +840,8 @@ func parseRootConfig(cfg *RootConfig, block *MergedBlock) error {
 	logger.Trace().Msg("Range over block attributes.")
 
 	for _, attr := range block.Attributes.SortedList() {
-		attrVal := attr.Value()
-		errs.Append(errors.E(attrVal.NameRange,
-			"unrecognized attribute terramate.config.%s", attrVal.Name,
+		errs.Append(errors.E(attr.NameRange,
+			"unrecognized attribute terramate.config.%s", attr.Name,
 		))
 	}
 
@@ -883,9 +882,8 @@ func parseRunConfig(runCfg *RunConfig, runBlock *MergedBlock) error {
 	errs := errors.L()
 
 	for _, attr := range runBlock.Attributes.SortedList() {
-		attrVal := attr.Value()
 		errs.Append(errors.E("unrecognized attribute terramate.config.run.env.%s",
-			attrVal.Name))
+			attr.Name))
 	}
 
 	errs.Append(runBlock.validateSubBlocks("env"))
@@ -919,21 +917,20 @@ func parseGitConfig(git *GitConfig, gitBlock *MergedBlock) error {
 	errs.Append(gitBlock.validateSubBlocks())
 
 	for _, attr := range gitBlock.Attributes.SortedList() {
-		attrVal := attr.Value()
-		value, diags := attrVal.Expr.Value(nil)
+		value, diags := attr.Expr.Value(nil)
 		if diags.HasErrors() {
 			errs.Append(errors.E(diags,
-				"failed to evaluate terramate.config.%s attribute", attrVal.Name,
+				"failed to evaluate terramate.config.%s attribute", attr.Name,
 			))
 
 			continue
 		}
-		switch attrVal.Name {
+		switch attr.Name {
 		case "default_branch":
 			logger.Trace().Msg("Attribute name was 'default_branch'.")
 
 			if value.Type() != cty.String {
-				errs.Append(errors.E(attrVal.Expr.Range(),
+				errs.Append(errors.E(attr.Expr.Range(),
 					"terramate.config.git.branch is not a string but %q",
 					value.Type().FriendlyName(),
 				))
@@ -946,7 +943,7 @@ func parseGitConfig(git *GitConfig, gitBlock *MergedBlock) error {
 			logger.Trace().Msg("Attribute name was 'default_remote'.")
 
 			if value.Type() != cty.String {
-				errs.Append(errors.E(attrVal.NameRange,
+				errs.Append(errors.E(attr.NameRange,
 					"terramate.config.git.remote is not a string but %q",
 					value.Type().FriendlyName(),
 				))
@@ -960,7 +957,7 @@ func parseGitConfig(git *GitConfig, gitBlock *MergedBlock) error {
 			logger.Trace().Msg("Attribute name was 'default_branch_base_ref.")
 
 			if value.Type() != cty.String {
-				errs.Append(errors.E(attrVal.NameRange,
+				errs.Append(errors.E(attr.NameRange,
 					"terramate.config.git.defaultBranchBaseRef is not a string but %q",
 					value.Type().FriendlyName(),
 				))
@@ -972,9 +969,9 @@ func parseGitConfig(git *GitConfig, gitBlock *MergedBlock) error {
 
 		default:
 			errs.Append(errors.E(
-				attrVal.NameRange,
+				attr.NameRange,
 				"unrecognized attribute terramate.config.git.%s",
-				attrVal.Name,
+				attr.Name,
 			))
 		}
 	}
@@ -1015,9 +1012,8 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 	logger.Trace().Msg("checking for top-level attributes.")
 
 	for _, attr := range p.MergedAttributes.SortedList() {
-		attrVal := attr.Value()
-		errs.Append(errors.E(errKind, attrVal.NameRange,
-			"unrecognized attribute %q", attrVal.Name))
+		errs.Append(errors.E(errKind, attr.NameRange,
+			"unrecognized attribute %q", attr.Name))
 	}
 
 	logger.Trace().Msg("Range over unmerged blocks.")
@@ -1102,8 +1098,6 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 		}
 	}
 
-	errs.Append(validateRunEnv(config))
-
 	if err := errs.AsError(); err != nil {
 		return Config{}, err
 	}
@@ -1123,29 +1117,28 @@ func parseTerramateBlock(block *MergedBlock) (Terramate, error) {
 	errKind := ErrTerramateSchema
 	errs := errors.L()
 	for _, attr := range block.Attributes.SortedList() {
-		attrVal := attr.Value()
-		value, diags := attrVal.Expr.Value(nil)
+		value, diags := attr.Expr.Value(nil)
 		if diags.HasErrors() {
 			errs.Append(errors.E(errKind, diags))
 		}
-		switch attrVal.Name {
+		switch attr.Name {
 		case "required_version":
 			logger.Trace().Msg("Parsing  attribute 'required_version'.")
 
 			if value.Type() != cty.String {
-				errs.Append(errors.E(errKind, attrVal.Expr.Range(),
+				errs.Append(errors.E(errKind, attr.Expr.Range(),
 					"attribute is not a string"))
 
 				continue
 			}
 			if tm.RequiredVersion != "" {
-				errs.Append(errors.E(errKind, attrVal.NameRange,
+				errs.Append(errors.E(errKind, attr.NameRange,
 					"duplicated attribute"))
 			}
 			tm.RequiredVersion = value.AsString()
 
 		default:
-			errs.Append(errors.E(errKind, attrVal.NameRange,
+			errs.Append(errors.E(errKind, attr.NameRange,
 				"unsupported attribute"))
 		}
 	}
@@ -1173,31 +1166,6 @@ func parseTerramateBlock(block *MergedBlock) (Terramate, error) {
 		return Terramate{}, err
 	}
 	return tm, nil
-}
-
-func validateRunEnv(config Config) error {
-	if config.Terramate == nil ||
-		config.Terramate.Config == nil ||
-		config.Terramate.Config.Run == nil ||
-		config.Terramate.Config.Run.Env == nil {
-		return nil
-	}
-
-	errs := errors.L()
-	attrs := map[string]Attribute{}
-
-	for _, attr := range config.Terramate.Config.Run.Env.Attributes {
-		name := attr.Value().Name
-		if _, ok := attrs[name]; ok {
-			errs.Append(errors.E(
-				ErrTerramateSchema,
-				"redefined terramate.config.run.env attribute",
-				attr.Value().Range()))
-		}
-		attrs[name] = attr
-	}
-
-	return errs.AsError()
 }
 
 type blockValidator func(*Block) error

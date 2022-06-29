@@ -252,10 +252,9 @@ func loadStackGlobalsExprs(rootdir string, cfgdir string) (*globalsExpr, error) 
 		for _, attr := range globalsBlock.Attributes.SortedList() {
 			logger.Trace().Msg("Add attribute to globals.")
 
-			attrVal := attr.Value()
-			globals.add(attrVal.Name, expression{
+			globals.add(attr.Name, expression{
 				origin: project.PrjAbsPath(rootdir, attr.Origin()),
-				value:  attrVal.Expr,
+				value:  attr.Expr,
 			})
 		}
 	}
