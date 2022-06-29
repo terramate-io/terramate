@@ -111,18 +111,15 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 	// This is relative only to root since meta.Path will look
 	// like: /some/path/relative/project/root
 	logger := log.With().
-		Str("action", "eval()").
+		Str("action", "globals.eval()").
 		Str("stack", meta.Path()).
 		Logger()
 
 	logger.Trace().Msg("Create new evaluation context.")
 
-	// error messages improve if globals is empty instead of undefined
-	// so we always start with an empty globals define on eval ctx.
 	globals := Globals{
 		attributes: map[string]cty.Value{},
 	}
-
 	evalctx := NewEvalCtx(rootdir, meta, globals)
 
 	pendingExprsErrs := map[string]error{}
@@ -156,16 +153,6 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 				case hhcl.TraverseAttr:
 					if _, isPending := pendingExprs[attr.Name]; isPending {
 						continue pendingExpression
-					}
-
-					if _, isEvaluated := globals.attributes[attr.Name]; !isEvaluated {
-						return Globals{}, errors.E(
-							ErrGlobalEval,
-							attr.SourceRange(),
-							"unknown variable %s.%s",
-							namespace.RootName(),
-							attr.Name,
-						)
 					}
 				default:
 					panic("unexpected type of traversal - this is a BUG")
@@ -202,7 +189,11 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 		// TODO(katcipis): model proper error list and return that
 		// Caller can decide how to format/log things (like code generation report).
 		for name, expr := range pendingExprs {
-			logger.Err(pendingExprsErrs[name]).
+			err, ok := pendingExprsErrs[name]
+			if !ok {
+				err = errors.E("undefined global")
+			}
+			logger.Err(err).
 				Str("name", name).
 				Str("origin", expr.origin).
 				Msg("evaluating global")
