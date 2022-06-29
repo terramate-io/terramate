@@ -111,20 +111,26 @@ func FromMapToObject(values map[string]cty.Value) cty.Value {
 		Str("action", "fromMapToObject()").
 		Logger()
 
-	logger.Trace().Msg("Range over map")
+	logger.Trace().Msg("converting map to object")
 
 	ctyTypes := map[string]cty.Type{}
 	for key, value := range values {
+		logger.Trace().
+			Str("name", key).
+			Str("type", value.Type().FriendlyName()).
+			Msg("building key to type map")
+
 		ctyTypes[key] = value.Type()
 	}
-
-	logger.Trace().Msg("Convert type and value to object")
 
 	ctyObject := cty.Object(ctyTypes)
 	ctyVal, err := gocty.ToCtyValue(values, ctyObject)
 	if err != nil {
 		panic(errors.E("bug: all map values should be convertable", err))
 	}
+
+	logger.Trace().Msg("converted values map to cty object")
+
 	return ctyVal
 }
 

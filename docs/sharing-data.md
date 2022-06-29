@@ -243,6 +243,14 @@ accessed through the variable namespace **terramate**.
 This can be referenced from any Terramate code to reference
 information like the path of the stack or its name.
 
+## terramate.root.path.fs.absolute (string)
+
+The absolute path of the project root directory. Will be the same for all stacks.
+
+## terramate.root.path.fs.basename (string)
+
+The base name of the project root directory. Will be the same for all stacks.
+
 ## terramate.stack.path.absolute (string)
 
 The absolute path of the stack relative to the project
