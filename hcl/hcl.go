@@ -1217,13 +1217,7 @@ func parseUnmergedBlocks(dir, blocktype string, validate blockValidator) (Blocks
 		return nil, errors.E("adding files to parser", err)
 	}
 
-	err = parser.parseSyntax()
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO(i4k): improve API
-	err = parser.mergeConfig()
+	err = parser.MinimalParse()
 	if err != nil {
 		return nil, err
 	}
@@ -1231,7 +1225,6 @@ func parseUnmergedBlocks(dir, blocktype string, validate blockValidator) (Blocks
 	logger.Trace().Msg("Validating and filtering blocks")
 
 	blocks := filterBlocksByType(blocktype, parser.Blocks)
-
 	for _, block := range blocks {
 		if err := validate(block); err != nil {
 			return nil, errors.E(err, "validation failed")
