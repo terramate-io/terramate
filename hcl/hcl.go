@@ -258,7 +258,10 @@ func (p *TerramateParser) mergeConfig() error {
 		"generate_hcl":  unmerged,
 	}
 
-	for origin, body := range p.ParsedFiles() {
+	fileMap := p.ParsedFiles()
+	for _, origin := range p.sortedFilenames() {
+		body := fileMap[origin]
+
 		errs.Append(p.mergeAttrs(origin, body.Attributes))
 
 		for _, block := range body.Blocks {
@@ -317,9 +320,7 @@ func copyAndSort(in []string) []string {
 // ParsedFiles returns a map of filename to the parsed hclsyntax.Body.
 func (p *TerramateParser) ParsedFiles() map[string]*hclsyntax.Body {
 	parsed := make(map[string]*hclsyntax.Body)
-	fileMap := p.hclparser.Files()
-	for _, filename := range copyAndSort(p.parsedFiles) {
-		hclfile := fileMap[filename]
+	for filename, hclfile := range p.hclparser.Files() {
 		// A cast error here would be a severe programming error on Terramate
 		// side, so we are by design allowing the cast to panic
 		parsed[filename] = hclfile.Body.(*hclsyntax.Body)
