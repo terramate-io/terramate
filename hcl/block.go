@@ -16,6 +16,8 @@ package hcl
 
 import "github.com/hashicorp/hcl/v2/hclsyntax"
 
+// Block is a wrapper to the hclsyntax.Block but with the file origin.
+// The hclsyntax.Block.Attributes are converted to hcl.Attributes.
 type Block struct {
 	Origin     string
 	Attributes Attributes
