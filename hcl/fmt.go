@@ -19,7 +19,7 @@ import (
 	"os"
 	"path/filepath"
 
-	hhcl "github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
@@ -38,7 +38,7 @@ type FormatResult struct {
 //
 // It returns an error if the given source is invalid HCL.
 func FormatMultiline(src, filename string) (string, error) {
-	parsed, diags := hclwrite.ParseConfig([]byte(src), filename, hhcl.InitialPos)
+	parsed, diags := hclwrite.ParseConfig([]byte(src), filename, hcl.InitialPos)
 	if diags.HasErrors() {
 		return "", errors.E(ErrHCLSyntax, diags)
 	}
@@ -49,7 +49,7 @@ func FormatMultiline(src, filename string) (string, error) {
 // Format will format the given source code using hcl.Format.
 // It returns an error if the given source is invalid HCL.
 func Format(src, filename string) (string, error) {
-	parsed, diags := hclwrite.ParseConfig([]byte(src), filename, hhcl.InitialPos)
+	parsed, diags := hclwrite.ParseConfig([]byte(src), filename, hcl.InitialPos)
 	if diags.HasErrors() {
 		return "", errors.E(ErrHCLSyntax, diags)
 	}
