@@ -16,7 +16,6 @@ package test
 
 import (
 	"os"
-	"sort"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -137,7 +136,7 @@ func hclFromAttributes(t *testing.T, attrs hcl.Attributes) string {
 	file := hclwrite.NewEmptyFile()
 	body := file.Body()
 
-	sort.Stable(attrs)
+	attrList := attrs.SortedList()
 
 	filesRead := map[string][]byte{}
 	readFile := func(filename string) []byte {
@@ -154,7 +153,7 @@ func hclFromAttributes(t *testing.T, attrs hcl.Attributes) string {
 		return file
 	}
 
-	for _, attr := range attrs {
+	for _, attr := range attrList {
 		tokens, err := eval.GetExpressionTokens(
 			readFile(attr.Origin()),
 			attr.Origin(),

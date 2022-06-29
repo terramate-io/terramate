@@ -14,7 +14,11 @@
 
 package hcl
 
-import "github.com/hashicorp/hcl/v2/hclsyntax"
+import (
+	"sort"
+
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+)
 
 // Attribute represents a parsed attribute.
 type Attribute struct {
@@ -24,7 +28,7 @@ type Attribute struct {
 
 // Attributes represents multiple parsed attributes.
 // The attributes can be sorted lexicographically by their name.
-type Attributes []Attribute
+type Attributes map[string]Attribute
 
 // NewAttribute creates a new attribute given a parsed attribute and its origin.
 func NewAttribute(origin string, val *hclsyntax.Attribute) Attribute {
@@ -42,17 +46,28 @@ func (a Attribute) Value() *hclsyntax.Attribute {
 	return a.val
 }
 
+func (a Attributes) SortedList() AttributeSlice {
+	var attrs AttributeSlice
+	for _, val := range a {
+		attrs = append(attrs, val)
+	}
+	sort.Sort(attrs)
+	return attrs
+}
+
+type AttributeSlice []Attribute
+
 // Len returns the size of the attributes slice.
-func (a Attributes) Len() int {
+func (a AttributeSlice) Len() int {
 	return len(a)
 }
 
 // Less returns true if i < j, false otherwise.
-func (a Attributes) Less(i, j int) bool {
+func (a AttributeSlice) Less(i, j int) bool {
 	return a[i].val.Name < a[j].val.Name
 }
 
 // Swap swaps i and j.
-func (a Attributes) Swap(i, j int) {
+func (a AttributeSlice) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }

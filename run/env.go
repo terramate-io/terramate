@@ -16,7 +16,6 @@ package run
 
 import (
 	"os"
-	"sort"
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
@@ -82,8 +81,7 @@ func LoadEnv(rootdir string, st stack.S) (EnvVars, error) {
 
 	envVars := EnvVars{}
 
-	attrs := cfg.Terramate.Config.Run.Env.Attributes
-	sort.Stable(attrs)
+	attrs := cfg.Terramate.Config.Run.Env.Attributes.SortedList()
 
 	for _, attribute := range attrs {
 		hclattr := attribute.Value()

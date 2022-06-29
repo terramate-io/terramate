@@ -1177,7 +1177,7 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 					body: `terramate {
 						config {
 							git {
-								default_remote = "test"
+								default_branch = "test"
 							}
 						}
 					}`,
@@ -1186,9 +1186,9 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg2.tm", start(3, 8, 34), end(3, 13, 39))),
-					errors.E(hcl.ErrTerramateSchema,
 						mkrange("cfg1.tm", start(9, 6, 108), end(9, 12, 114))),
+					errors.E(hcl.ErrHCLSyntax,
+						mkrange("cfg2.tm", start(4, 9, 48), end(4, 23, 62))),
 				},
 			},
 		},
@@ -1319,7 +1319,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 			},
 		},
 		{
-			name: "multiple files with terramate.config.git blocks fail",
+			name: "multiple files with conflicting terramate.config.git attributes fail",
 			input: []cfgfile{
 				{
 					filename: "git.tm",
@@ -1339,7 +1339,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 						terramate {
 							config {
 								git {
-									default_remote = "upstream"
+									default_branch = "other"
 								}
 							}
 						}
@@ -1348,7 +1348,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 			},
 			want: want{
 				errs: []error{
-					errors.E(hcl.ErrTerramateSchema),
+					errors.E(hcl.ErrHCLSyntax),
 				},
 			},
 		},
