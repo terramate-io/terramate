@@ -490,7 +490,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrHCLSyntax,
-						mkrange("cfg.tm", start(6, 15, 84), end(6, 21, 90)),
+						mkrange("cfg2.tm", start(6, 15, 84), end(6, 21, 90)),
 					),
 					errors.E(hcl.ErrHCLSyntax,
 						mkrange("cfg3.tm", start(6, 15, 84), end(6, 21, 90)),
