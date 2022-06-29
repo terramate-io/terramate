@@ -222,6 +222,8 @@ func (p *TerramateParser) Parse() (Config, error) {
 	return p.parseTerramateSchema()
 }
 
+// MinimalParse does the syntax parsing and merging of configurations but do not
+// validate if it's valid terramate configuration.
 func (p *TerramateParser) MinimalParse() error {
 	err := p.parseSyntax()
 	if err != nil {
@@ -308,13 +310,6 @@ func (p *TerramateParser) parseSyntax() error {
 		p.parsedFiles = append(p.parsedFiles, name)
 	}
 	return errs.AsError()
-}
-
-func copyAndSort(in []string) []string {
-	out := make([]string, len(in))
-	copy(out, in)
-	sort.Strings(out)
-	return out
 }
 
 // ParsedFiles returns a map of filename to the parsed hclsyntax.Body.
