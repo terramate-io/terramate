@@ -876,7 +876,6 @@ func parseRunConfig(runCfg *RunConfig, runBlock *MergedBlock) error {
 	logger.Trace().Msg("Checking run.env block")
 
 	errs := errors.L()
-
 	for _, attr := range runBlock.Attributes.SortedList() {
 		errs.Append(errors.E("unrecognized attribute terramate.config.run.env.%s",
 			attr.Name))
@@ -884,9 +883,9 @@ func parseRunConfig(runCfg *RunConfig, runBlock *MergedBlock) error {
 
 	errs.Append(runBlock.validateSubBlocks("env"))
 
-	runCfg.Env = &RunEnv{}
 	block, ok := runBlock.SubBlocks["env"]
 	if ok {
+		runCfg.Env = &RunEnv{}
 		errs.Append(parseRunEnv(runCfg.Env, block))
 	}
 
