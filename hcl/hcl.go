@@ -20,7 +20,7 @@ import (
 	"sort"
 	"strings"
 
-	hhcl "github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
@@ -452,7 +452,7 @@ func ParseModules(path string) ([]Module, error) {
 		}
 		if !ok {
 			errs.Append(errors.E(ErrTerraformSchema,
-				hhcl.RangeBetween(block.OpenBraceRange, block.CloseBraceRange),
+				hcl.RangeBetween(block.OpenBraceRange, block.CloseBraceRange),
 				"module must have a \"source\" attribute",
 			))
 		}
@@ -563,14 +563,14 @@ func validateGenerateHCLBlock(block *Block) error {
 			len(block.Body.Blocks)))
 	}
 
-	schema := &hhcl.BodySchema{
-		Attributes: []hhcl.AttributeSchema{
+	schema := &hcl.BodySchema{
+		Attributes: []hcl.AttributeSchema{
 			{
 				Name:     "condition",
 				Required: false,
 			},
 		},
-		Blocks: []hhcl.BlockHeaderSchema{
+		Blocks: []hcl.BlockHeaderSchema{
 			{
 				Type:       "content",
 				LabelNames: []string{},
@@ -596,8 +596,8 @@ func validateGenerateFileBlock(block *Block) error {
 		errs.Append(errors.E(ErrTerramateSchema, block.OpenBraceRange,
 			"generate_file label can't be empty"))
 	}
-	schema := &hhcl.BodySchema{
-		Attributes: []hhcl.AttributeSchema{
+	schema := &hcl.BodySchema{
+		Attributes: []hcl.AttributeSchema{
 			{
 				Name:     "content",
 				Required: true,
