@@ -26,8 +26,10 @@ type Block struct {
 	*hclsyntax.Block
 }
 
+// Blocks is a list of block.
 type Blocks []*Block
 
+// NewBlock creates a new block wrapper.
 func NewBlock(origin string, block *hclsyntax.Block) *Block {
 	attrs := make(Attributes)
 	for name, val := range block.Body.Attributes {

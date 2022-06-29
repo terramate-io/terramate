@@ -44,6 +44,7 @@ func (a Attribute) Origin() string {
 	return a.origin
 }
 
+// SortedList returns a sorted list of attributes from the map.
 func (a Attributes) SortedList() AttributeSlice {
 	var attrs AttributeSlice
 	for _, val := range a {
@@ -53,6 +54,7 @@ func (a Attributes) SortedList() AttributeSlice {
 	return attrs
 }
 
+// AttributeSlice is an sortable Attribute slice.
 type AttributeSlice []Attribute
 
 // Len returns the size of the attributes slice.

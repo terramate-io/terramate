@@ -25,20 +25,20 @@ import (
 type MergedBlock struct {
 	Type string
 
-	// Origins is the list of filenames that contributed to this block.
-	Origins []string
-
+	// Attributes are the block's attributes.
 	Attributes Attributes
 
 	// Raw is the list of original blocks that contributed to this block.
 	Raw hclsyntax.Blocks
 
+	// SubBlocks are the block's sub blocks.
 	SubBlocks map[string]*MergedBlock
 
 	// RawSubBlocks keep the original list of sub blocks.
 	RawSubBlocks map[string]hclsyntax.Blocks
 }
 
+// MergedBlocks maps the block name to the MergedBlock.
 type MergedBlocks map[string]*MergedBlock
 
 // NewMergedBlock creates a new MergedBlock of type typ.
@@ -51,6 +51,7 @@ func NewMergedBlock(typ string) *MergedBlock {
 	}
 }
 
+// MergeBlock recursively merges the other block into this one.
 func (mb *MergedBlock) MergeBlock(fname string, other *hclsyntax.Block) error {
 	errs := errors.L()
 
