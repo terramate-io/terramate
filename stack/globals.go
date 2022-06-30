@@ -247,7 +247,7 @@ func loadStackGlobalsExprs(rootdir string, cfgdir string) (*globalsExpr, error) 
 			logger.Trace().Msg("Add attribute to globals.")
 
 			globals.add(attr.Name, expression{
-				origin: project.PrjAbsPath(rootdir, attr.Origin()),
+				origin: project.PrjAbsPath(rootdir, attr.Origin),
 				value:  attr.Expr,
 			})
 		}
