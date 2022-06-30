@@ -24,11 +24,11 @@ used to describe the `stack`.
 
 ## stack.id (string)(optional)
 
-The stack id **must** be a string composed of alphanumeric chars + `-` + `_`.
-The id can't be bigger than 64 bytes. The id **must** be unique on the
+The stack ID **must** be a string composed of alphanumeric chars + `-` + `_`.
+The ID can't be bigger than 64 bytes. The ID **must** be unique on the
 whole project.
 
-There is no default value determined for the stack id.
+There is no default value determined for the stack ID.
 
 Eg:
 
