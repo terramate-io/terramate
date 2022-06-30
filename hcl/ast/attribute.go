@@ -22,7 +22,7 @@ import (
 
 // Attribute represents a parsed attribute.
 type Attribute struct {
-	origin string
+	Origin string
 	*hclsyntax.Attribute
 }
 
@@ -33,15 +33,9 @@ type Attributes map[string]Attribute
 // NewAttribute creates a new attribute given a parsed attribute and its origin.
 func NewAttribute(origin string, val *hclsyntax.Attribute) Attribute {
 	return Attribute{
-		origin:    origin,
+		Origin:    origin,
 		Attribute: val,
 	}
-}
-
-// Origin is the path of the file from where the attribute was parsed
-// It is always an absolute path.
-func (a Attribute) Origin() string {
-	return a.origin
 }
 
 // SortedList returns a sorted list of attributes from the map.

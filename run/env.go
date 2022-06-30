@@ -93,7 +93,7 @@ func LoadEnv(rootdir string, st stack.S) (EnvVars, error) {
 		val, err := evalctx.Eval(attr.Expr)
 		if err != nil {
 			return nil, errors.E(ErrEval, attr.NameRange,
-				err, "attribute origin %s", attr.Origin())
+				err, "attribute origin %s", attr.Origin)
 		}
 
 		logger.Trace().Msg("checking evaluated value type")
@@ -104,7 +104,7 @@ func LoadEnv(rootdir string, st stack.S) (EnvVars, error) {
 				attr.NameRange,
 				"attr has type %s but must be string, attribute origin %s",
 				val.Type().FriendlyName(),
-				attr.Origin(),
+				attr.Origin,
 			)
 		}
 		envVars = append(envVars, attr.Name+"="+val.AsString())
