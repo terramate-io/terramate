@@ -29,14 +29,14 @@ type MergedBlock struct {
 	// Attributes are the block's attributes.
 	Attributes Attributes
 
-	// Raw is the list of original blocks that contributed to this block.
-	Raw hclsyntax.Blocks
+	// RawOrigins is the list of original blocks that contributed to this block.
+	RawOrigins hclsyntax.Blocks
 
-	// SubBlocks are the block's sub blocks.
-	SubBlocks map[string]*MergedBlock
+	// Blocks maps block types to merged blocks.
+	Blocks map[string]*MergedBlock
 
-	// RawSubBlocks keep the original list of sub blocks.
-	RawSubBlocks map[string]hclsyntax.Blocks
+	// RawBlocks keep the original list of sub blocks.
+	RawBlocks map[string]hclsyntax.Blocks
 }
 
 // MergedBlocks maps the block name to the MergedBlock.
@@ -45,10 +45,10 @@ type MergedBlocks map[string]*MergedBlock
 // NewMergedBlock creates a new MergedBlock of type typ.
 func NewMergedBlock(typ string) *MergedBlock {
 	return &MergedBlock{
-		Type:         typ,
-		Attributes:   make(Attributes),
-		SubBlocks:    make(map[string]*MergedBlock),
-		RawSubBlocks: make(map[string]hclsyntax.Blocks),
+		Type:       typ,
+		Attributes: make(Attributes),
+		Blocks:     make(map[string]*MergedBlock),
+		RawBlocks:  make(map[string]hclsyntax.Blocks),
 	}
 }
 
@@ -66,7 +66,7 @@ func (mb *MergedBlock) MergeBlock(fname string, other *hclsyntax.Block) error {
 	errs.Append(mb.mergeSubBlocks(fname, other.Body.Blocks))
 	err := errs.AsError()
 	if err == nil {
-		mb.Raw = append(mb.Raw, other)
+		mb.RawOrigins = append(mb.RawOrigins, other)
 	}
 	return err
 }
@@ -86,20 +86,20 @@ func (mb *MergedBlock) mergeSubBlocks(origin string, other hclsyntax.Blocks) err
 	errs := errors.L()
 	for _, newblock := range other {
 		var err error
-		if old, ok := mb.SubBlocks[newblock.Type]; ok {
+		if old, ok := mb.Blocks[newblock.Type]; ok {
 			err = old.MergeBlock(origin, newblock)
 		} else {
 			b := NewMergedBlock(newblock.Type)
 			err = b.MergeBlock(origin, newblock)
 			if err == nil {
-				mb.SubBlocks[newblock.Type] = b
+				mb.Blocks[newblock.Type] = b
 			}
 		}
 
 		if err == nil {
-			rawBlocks := mb.RawSubBlocks[newblock.Type]
+			rawBlocks := mb.RawBlocks[newblock.Type]
 			rawBlocks = append(rawBlocks, newblock)
-			mb.RawSubBlocks[newblock.Type] = rawBlocks
+			mb.RawBlocks[newblock.Type] = rawBlocks
 		}
 
 		errs.Append(err)
@@ -111,14 +111,14 @@ func (mb *MergedBlock) ValidateSubBlocks(allowed ...string) error {
 	errs := errors.L()
 
 	var keys []string
-	for key := range mb.RawSubBlocks {
+	for key := range mb.RawBlocks {
 		keys = append(keys, key)
 	}
 
 	sort.Strings(keys)
 
 	for _, key := range keys {
-		rawBlocks := mb.RawSubBlocks[key]
+		rawBlocks := mb.RawBlocks[key]
 
 		for _, rawblock := range rawBlocks {
 			found := false
