@@ -136,7 +136,7 @@ type TerramateParser struct {
 	root        string
 	dir         string
 	files       map[string][]byte // path=content
-	parsedFiles []string
+	parsedFiles map[string]parsedFile
 	hclparser   *hclparse.Parser
 
 	// MergedAttributes are the top-level attributes of all files.
@@ -148,6 +148,19 @@ type TerramateParser struct {
 	// Blocks are the unmerged blocks from all files.
 	Blocks ast.Blocks
 }
+
+type parsedFile struct {
+	kind   parsedKind
+	origin string
+}
+
+type parsedKind int
+
+const (
+	_ parsedKind = iota
+	internal
+	external
+)
 
 type mergeHandler func(block *ast.Block) error
 
@@ -165,7 +178,17 @@ func NewTerramateParser(root string, dir string) (*TerramateParser, error) {
 		hclparser:        hclparse.NewParser(),
 		MergedAttributes: make(ast.Attributes),
 		MergedBlocks:     make(map[string]*ast.MergedBlock),
+		parsedFiles:      make(map[string]parsedFile),
 	}, nil
+}
+
+func (p *TerramateParser) addParsedFile(origin string, kind parsedKind, files ...string) {
+	for _, file := range files {
+		p.parsedFiles[file] = parsedFile{
+			kind:   kind,
+			origin: origin,
+		}
+	}
 }
 
 // AddDir walks over all the files in the directory dir and add all .tm and
@@ -352,7 +375,7 @@ func (p *TerramateParser) parseSyntax() error {
 			errs.Append(errors.E(ErrHCLSyntax, diags))
 			continue
 		}
-		p.parsedFiles = append(p.parsedFiles, name)
+		p.addParsedFile(p.dir, internal, name)
 	}
 	return errs.AsError()
 }
@@ -397,6 +420,12 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 	}
 
 	src = filepath.Join(srcDir, srcBase)
+
+	if _, ok := p.parsedFiles[src]; ok {
+		return errors.E(ErrImportCycle, srcAttr.Expr.Range(),
+			"file %q already parsed", src)
+	}
+
 	parser, err := NewTerramateParser(p.root, srcDir)
 	if err != nil {
 		return errors.E(ErrImport, srcAttr.Expr.Range(),
@@ -407,9 +436,10 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 		return errors.E(ErrImport, srcAttr.Expr.Range(),
 			err)
 	}
+	parser.addParsedFile(p.dir, external, p.internalParsedFiles()...)
 	err = parser.MinimalParse()
 	if err != nil {
-		return errors.E(ErrImport, err)
+		return err
 	}
 	err = p.mergeParsers(parser)
 	if err != nil {
@@ -421,7 +451,9 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 // ParsedFiles returns a map of filename to the parsed hclsyntax.Body.
 func (p *TerramateParser) ParsedFiles() map[string]*hclsyntax.Body {
 	parsed := make(map[string]*hclsyntax.Body)
-	for filename, hclfile := range p.hclparser.Files() {
+	bodyMap := p.hclparser.Files()
+	for _, filename := range p.internalParsedFiles() {
+		hclfile := bodyMap[filename]
 		// A cast error here would be a severe programming error on Terramate
 		// side, so we are by design allowing the cast to panic
 		parsed[filename] = hclfile.Body.(*hclsyntax.Body)
@@ -433,6 +465,17 @@ func (p *TerramateParser) sortedFilenames() []string {
 	filenames := []string{}
 	for fname := range p.files {
 		filenames = append(filenames, fname)
+	}
+	sort.Strings(filenames)
+	return filenames
+}
+
+func (p *TerramateParser) internalParsedFiles() []string {
+	filenames := []string{}
+	for fname, parsed := range p.parsedFiles {
+		if parsed.kind == internal {
+			filenames = append(filenames, fname)
+		}
 	}
 	sort.Strings(filenames)
 	return filenames

@@ -96,6 +96,30 @@ func TestHCLImport(t *testing.T) {
 			},
 		},
 		{
+			name: "import cycle - fails",
+			dir:  "stack",
+			input: []cfgfile{
+				{
+					filename: "stack/cfg.tm",
+					body: `import {
+						source = "/other/cfg.tm"
+				}`,
+				},
+				{
+					filename: "other/cfg.tm",
+					body: `import {
+						source = "/stack/cfg.tm"
+				}`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrImportCycle,
+						mkrange("other/cfg.tm", start(2, 16, 24), end(2, 31, 39))),
+				},
+			},
+		},
+		{
 			name: "import disjoint directory",
 			dir:  "stack",
 			input: []cfgfile{
