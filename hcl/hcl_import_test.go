@@ -155,6 +155,111 @@ func TestHCLImport(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "import with conflicting top-level attributes",
+			dir:  "stack",
+			input: []cfgfile{
+				{
+					filename: "stack/cfg.tm",
+					body: `import {
+						source = "/other/imported.tm"
+				}
+				A = "test"
+				`,
+				},
+				{
+					filename: "other/imported.tm",
+					body: `A = "test"
+				`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrImport,
+						mkrange("other/imported.tm", start(1, 1, 0), end(1, 2, 1))),
+				},
+			},
+		},
+		{
+			name: "import with conflicting terramate blocks - fails",
+			dir:  "stack",
+			input: []cfgfile{
+				{
+					filename: "stack/cfg.tm",
+					body: `import {
+						source = "/other/imported.tm"
+				}
+				terramate {
+					config {
+						git {
+							default_branch = "main"
+						}
+					}
+				}
+				`,
+				},
+				{
+					filename: "other/imported.tm",
+					body: `terramate {
+						config {
+							git {
+								default_branch = "main"
+							}
+						}
+					}
+				`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrImport,
+						mkrange("other/imported.tm", start(4, 9, 48), end(4, 23, 62))),
+				},
+			},
+		},
+		{
+			name: "import with merged terramate config",
+			dir:  "stack",
+			input: []cfgfile{
+				{
+					filename: "stack/cfg.tm",
+					body: `import {
+						source = "/other/imported.tm"
+				}
+				terramate {
+					config {
+						git {
+							default_branch = "main"
+						}
+					}
+				}
+				`,
+				},
+				{
+					filename: "other/imported.tm",
+					body: `terramate {
+						config {
+							git {
+								default_remote = "origin"
+							}
+						}
+					}
+				`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							Git: &hcl.GitConfig{
+								DefaultBranch: "main",
+								DefaultRemote: "origin",
+							},
+						},
+					},
+				},
+			},
+		},
 	} {
 		testParser(t, tc)
 	}

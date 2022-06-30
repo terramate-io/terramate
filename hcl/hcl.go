@@ -332,7 +332,7 @@ func (p *TerramateParser) mergeAttrs(other ast.Attributes) error {
 	errs := errors.L()
 	for _, attr := range other.SortedList() {
 		if _, ok := p.MergedAttributes[attr.Name]; ok {
-			errs.Append(errors.E(ErrHCLSyntax,
+			errs.Append(errors.E(ErrTerramateSchema,
 				attr.NameRange,
 				"attribute %q redeclared", attr.Name))
 			continue
