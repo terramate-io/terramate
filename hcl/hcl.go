@@ -158,12 +158,26 @@ type TerramateParser struct {
 var stackIDRegex = regexp.MustCompile("^[a-zA-Z0-9_-]{1,64}$")
 
 // NewStackID creates a new StackID with the given string as its id.
-// It guarantees that the id passed is a valid StackID, an error is returned otherwise.
+// It guarantees that the id passed is a valid StackID value,
+// an error is returned otherwise.
 func NewStackID(id string) (StackID, error) {
 	if !stackIDRegex.MatchString(id) {
 		return StackID{}, errors.E("Stack ID %q doesn't match %q", id, stackIDRegex)
 	}
 	return StackID{id: &id}, nil
+}
+
+// Value returns the ID string value and true if this StackID is defined,
+// it returns "" and false otherwise.
+func (s StackID) Value() (string, bool) {
+	// This is like a poor's man option type.
+	// The idea is to force (as much as possible in Go) that the user
+	// check if the StackID actually has a valid value or if it is an
+	// undefined StackID (the 0 value).
+	if s.id == nil {
+		return "", false
+	}
+	return *s.id, true
 }
 
 // NewTerramateParser creates a Terramate parser for the directory dir.
