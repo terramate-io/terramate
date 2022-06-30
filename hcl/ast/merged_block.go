@@ -23,6 +23,7 @@ import (
 
 // MergedBlock represents a block that spans multiple files.
 type MergedBlock struct {
+	// Type is the block type (or name).
 	Type string
 
 	// Attributes are the block's attributes.

@@ -278,15 +278,15 @@ func (p *TerramateParser) mergeConfig() error {
 
 func (p *TerramateParser) mergeAttrs(origin string, other hclsyntax.Attributes) error {
 	errs := errors.L()
-	for _, attrVal := range ast.SortRawAttributes(other) {
-		if _, ok := p.MergedAttributes[attrVal.Name]; ok {
+	for _, attr := range ast.SortRawAttributes(other) {
+		if _, ok := p.MergedAttributes[attr.Name]; ok {
 			errs.Append(errors.E(ErrHCLSyntax,
-				attrVal.NameRange,
-				"attribute %q redeclared", attrVal.Name))
+				attr.NameRange,
+				"attribute %q redeclared", attr.Name))
 			continue
 		}
 
-		p.MergedAttributes[attrVal.Name] = ast.NewAttribute(origin, attrVal)
+		p.MergedAttributes[attr.Name] = ast.NewAttribute(origin, attr)
 	}
 	return errs.AsError()
 }
@@ -1021,9 +1021,7 @@ func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
 	if ok {
 		logger.Trace().Msg("Found config block.")
 
-		if tm.Config == nil {
-			tm.Config = &RootConfig{}
-		}
+		tm.Config = &RootConfig{}
 
 		logger.Trace().Msg("Parse root config.")
 
