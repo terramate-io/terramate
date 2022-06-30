@@ -108,6 +108,7 @@ func (mb *MergedBlock) mergeBlocks(origin string, other hclsyntax.Blocks) error 
 	return errs.AsError()
 }
 
+// ValidateSubBlocks checks if the block only has the allowed block types.
 func (mb *MergedBlock) ValidateSubBlocks(allowed ...string) error {
 	errs := errors.L()
 

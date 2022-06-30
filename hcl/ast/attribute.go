@@ -66,6 +66,7 @@ func (a AttributeSlice) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
+// SortRawAttributes sorts the raw attributes (hclsyntax.Attributes)
 func SortRawAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {
 	names := make([]string, 0, len(attrs))
 	for name := range attrs {

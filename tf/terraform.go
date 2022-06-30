@@ -32,6 +32,7 @@ type Module struct {
 	Source string // Source is the module source path (eg.: directory, git path, etc).
 }
 
+// Errors returned during the terraform parsing.
 const (
 	ErrHCLSyntax       errors.Kind = "HCL syntax error"
 	ErrTerraformSchema errors.Kind = "terraform schema error"
