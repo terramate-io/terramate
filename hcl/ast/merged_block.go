@@ -111,15 +111,15 @@ func (mb *MergedBlock) mergeBlocks(origin string, other hclsyntax.Blocks) error 
 func (mb *MergedBlock) ValidateSubBlocks(allowed ...string) error {
 	errs := errors.L()
 
-	var keys []string
-	for key := range mb.RawBlocks {
-		keys = append(keys, key)
+	var blockTypes []string
+	for blockType := range mb.RawBlocks {
+		blockTypes = append(blockTypes, blockType)
 	}
 
-	sort.Strings(keys)
+	sort.Strings(blockTypes)
 
-	for _, key := range keys {
-		rawBlocks := mb.RawBlocks[key]
+	for _, blockType := range blockTypes {
+		rawBlocks := mb.RawBlocks[blockType]
 
 		for _, rawblock := range rawBlocks {
 			found := false
