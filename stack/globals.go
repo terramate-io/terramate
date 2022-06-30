@@ -231,7 +231,7 @@ func loadStackGlobalsExprs(rootdir string, cfgdir string) (*globalsExpr, error) 
 	p := hcl.NewTerramateParser(absdir)
 	err := p.AddDir(absdir)
 	if err != nil {
-		return nil, errors.E("adding files to parser", err)
+		return nil, errors.E("adding dir to parser", err)
 	}
 
 	err = p.MinimalParse()
