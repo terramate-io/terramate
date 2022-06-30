@@ -68,13 +68,11 @@ func (a AttributeSlice) Swap(i, j int) {
 
 func SortRawAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {
 	names := make([]string, 0, len(attrs))
-
 	for name := range attrs {
 		names = append(names, name)
 	}
 
 	sort.Strings(names)
-
 	sorted := make([]*hclsyntax.Attribute, len(names))
 	for i, name := range names {
 		sorted[i] = attrs[name]
