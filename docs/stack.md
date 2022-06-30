@@ -47,7 +47,7 @@ Eg:
 
 ```hcl
 stack {
-  name = "My Awesome Stack"
+  name = "My Awesome Stack Name"
 }
 ```
 
@@ -59,6 +59,6 @@ Eg:
 
 ```hcl
 stack {
-  description = "My Awesome Stack"
+  description = "My Awesome Stack Description"
 }
 ```
