@@ -40,6 +40,7 @@ type (
 
 	testcase struct {
 		name  string
+		dir   string
 		input []cfgfile
 		want  want
 	}
@@ -1145,14 +1146,22 @@ func testParser(t *testing.T, tc testcase) {
 
 		configsDir := t.TempDir()
 		for _, inputConfigFile := range tc.input {
-			filename := inputConfigFile.filename
-			if filename == "" {
+			if inputConfigFile.filename == "" {
 				panic("expect a filename in the input config")
 			}
-			test.WriteFile(t, configsDir, filename, inputConfigFile.body)
+			path := filepath.Join(configsDir, inputConfigFile.filename)
+			dir := filepath.Dir(path)
+			filename := filepath.Base(path)
+			test.WriteFile(t, dir, filename, inputConfigFile.body)
 		}
 		fixupFiledirOnErrorsFileRanges(configsDir, tc.want.errs)
-		got, err := hcl.ParseDir(configsDir)
+
+		if tc.dir == "" {
+			tc.dir = configsDir
+		} else {
+			tc.dir = filepath.Join(configsDir, tc.dir)
+		}
+		got, err := hcl.ParseDir(configsDir, tc.dir)
 		errtest.AssertErrorList(t, err, tc.want.errs)
 
 		var gotErrs *errors.List

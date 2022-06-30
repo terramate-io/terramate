@@ -228,8 +228,11 @@ func loadStackGlobalsExprs(rootdir string, cfgdir string) (*globalsExpr, error) 
 	logger.Debug().Msg("Parse globals blocks.")
 
 	absdir := filepath.Join(rootdir, cfgdir)
-	p := hcl.NewTerramateParser(absdir)
-	err := p.AddDir(absdir)
+	p, err := hcl.NewTerramateParser(rootdir, absdir)
+	if err != nil {
+		return nil, err
+	}
+	err = p.AddDir(absdir)
 	if err != nil {
 		return nil, errors.E("adding dir to parser", err)
 	}

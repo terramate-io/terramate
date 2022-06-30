@@ -35,9 +35,22 @@ func NewBlock(origin string, block *hclsyntax.Block) *Block {
 	for name, val := range block.Body.Attributes {
 		attrs[name] = NewAttribute(origin, val)
 	}
+	var blocks Blocks
+	for _, block := range block.Body.Blocks {
+		blocks = append(blocks, NewBlock(origin, block))
+	}
 	return &Block{
 		Origin:     origin,
 		Attributes: attrs,
+		Blocks:     blocks,
 		Block:      block,
 	}
+}
+
+func NewBlocks(origin string, rawblocks hclsyntax.Blocks) Blocks {
+	var blocks Blocks
+	for _, rawblock := range rawblocks {
+		blocks = append(blocks, NewBlock(origin, rawblock))
+	}
+	return blocks
 }

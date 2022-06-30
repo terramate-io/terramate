@@ -34,6 +34,8 @@ import (
 const (
 	ErrHCLSyntax       errors.Kind = "HCL syntax error"
 	ErrTerramateSchema errors.Kind = "terramate schema error"
+	ErrImport          errors.Kind = "import error"
+	ErrImportCycle     errors.Kind = "import cycle detected"
 )
 
 // Config represents a Terramate configuration.
@@ -131,6 +133,7 @@ type PartialEvaluator func(hclsyntax.Expression) (hclwrite.Tokens, error)
 // this API allows you to define the exact set of files (and contents) that are
 // going to be included in the final configuration.
 type TerramateParser struct {
+	root        string
 	dir         string
 	files       map[string][]byte // path=content
 	parsedFiles []string
@@ -140,21 +143,29 @@ type TerramateParser struct {
 	MergedAttributes ast.Attributes
 
 	// MergedBlocks are the merged blocks from all files.
-	MergedBlocks map[string]*ast.MergedBlock
+	MergedBlocks ast.MergedBlocks
 
 	// Blocks are the unmerged blocks from all files.
 	Blocks ast.Blocks
 }
 
-// NewTerramateParser creates a Terramate parser for the directory dir.
-func NewTerramateParser(dir string) *TerramateParser {
+type mergeHandler func(block *ast.Block) error
+
+// NewTerramateParser creates a Terramate parser for the directory dir inside
+// the root directory.
+func NewTerramateParser(root string, dir string) (*TerramateParser, error) {
+	if !strings.HasPrefix(dir, root) {
+		return nil, errors.E("directory %q is not inside root %q", dir, root)
+	}
+
 	return &TerramateParser{
+		root:             root,
 		dir:              dir,
 		files:            map[string][]byte{},
 		hclparser:        hclparse.NewParser(),
 		MergedAttributes: make(ast.Attributes),
 		MergedBlocks:     make(map[string]*ast.MergedBlock),
-	}
+	}, nil
 }
 
 // AddDir walks over all the files in the directory dir and add all .tm and
@@ -181,7 +192,7 @@ func (p *TerramateParser) AddDir(dir string) error {
 			return errors.E(err, "reading config file %q", path)
 		}
 
-		if err := p.AddFile(path, data); err != nil {
+		if err := p.AddFileContent(path, data); err != nil {
 			return err
 		}
 
@@ -191,8 +202,20 @@ func (p *TerramateParser) AddDir(dir string) error {
 	return nil
 }
 
-// AddFile adds a file to the set of files to be parsed.
-func (p *TerramateParser) AddFile(name string, data []byte) error {
+// AddFile adds a file path to be parsed.
+func (p *TerramateParser) AddFile(path string) error {
+	if !strings.HasPrefix(path, p.dir) {
+		return errors.E("parser only allow files from directory %q", p.dir)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return errors.E("adding file %q to parser", path, err)
+	}
+	return p.AddFileContent(path, data)
+}
+
+// AddFileContent adds a file to the set of files to be parsed.
+func (p *TerramateParser) AddFileContent(name string, data []byte) error {
 	if !strings.HasPrefix(name, p.dir) {
 		return errors.E("parser only allow files from directory %q", p.dir)
 	}
@@ -224,61 +247,90 @@ func (p *TerramateParser) MinimalParse() error {
 		return err
 	}
 
-	return p.mergeConfig()
+	errs := errors.L()
+	errs.Append(p.mergeConfig())
+	errs.Append(p.applyImports())
+	return errs.AsError()
+}
+
+func (p *TerramateParser) mergeHandlers() map[string]mergeHandler {
+	return map[string]mergeHandler{
+		"terramate":     p.mergeBlock,
+		"globals":       p.mergeBlock,
+		"stack":         p.addBlock,
+		"generate_file": p.addBlock,
+		"generate_hcl":  p.addBlock,
+		"import":        p.addBlock,
+	}
+}
+
+func (p *TerramateParser) mergeParsers(other *TerramateParser) error {
+	errs := errors.L()
+	errs.Append(p.mergeAttrs(other.MergedAttributes))
+	errs.Append(p.mergeBlocks(other.MergedBlocks.AsBlocks()))
+	p.Blocks = append(p.Blocks, other.Blocks...)
+	return errs.AsError()
+}
+
+func (p *TerramateParser) mergeBlocks(blocks ast.Blocks) error {
+	handlers := p.mergeHandlers()
+
+	errs := errors.L()
+	for _, block := range blocks {
+		handler, ok := handlers[block.Type]
+		if !ok {
+			errs.Append(
+				errors.E(ErrTerramateSchema, block.DefRange(),
+					"unrecognized block %q", block.Type),
+			)
+
+			continue
+		}
+
+		errs.Append(handler(block))
+	}
+	return errs.AsError()
+}
+
+func (p *TerramateParser) addBlock(block *ast.Block) error {
+	p.Blocks = append(p.Blocks, block)
+	return nil
+}
+
+func (p *TerramateParser) mergeBlock(block *ast.Block) error {
+	if other, ok := p.MergedBlocks[block.Type]; ok {
+		err := other.MergeBlock(block)
+		if err != nil {
+			return errors.E(ErrTerramateSchema, err)
+		}
+		return nil
+	}
+
+	merged := ast.NewMergedBlock(block.Type)
+	p.MergedBlocks[block.Type] = merged
+	err := merged.MergeBlock(block)
+	if err != nil {
+		return errors.E(ErrTerramateSchema, err)
+	}
+	return nil
 }
 
 func (p *TerramateParser) mergeConfig() error {
 	errs := errors.L()
 
-	unmerged := func(origin string, block *hclsyntax.Block) {
-		p.Blocks = append(p.Blocks, ast.NewBlock(origin, block))
-	}
-
-	merged := func(origin string, block *hclsyntax.Block) {
-		if other, ok := p.MergedBlocks[block.Type]; ok {
-			errs.AppendWrap(ErrTerramateSchema, other.MergeBlock(origin, block))
-		} else {
-			merged := ast.NewMergedBlock(block.Type)
-			p.MergedBlocks[block.Type] = merged
-			errs.AppendWrap(ErrTerramateSchema, merged.MergeBlock(origin, block))
-		}
-	}
-
-	type mergeHandler func(origin string, block *hclsyntax.Block)
-	mergeHandlers := map[string]mergeHandler{
-		"terramate":     merged,
-		"globals":       merged,
-		"stack":         unmerged,
-		"generate_file": unmerged,
-		"generate_hcl":  unmerged,
-	}
-
 	bodies := p.ParsedFiles()
 	for _, origin := range p.sortedFilenames() {
 		body := bodies[origin]
 
-		errs.Append(p.mergeAttrs(origin, body.Attributes))
-
-		for _, block := range body.Blocks {
-			handler, ok := mergeHandlers[block.Type]
-			if !ok {
-				errs.Append(
-					errors.E(ErrTerramateSchema, block.DefRange(),
-						"unrecognized block %q", block.Type),
-				)
-
-				continue
-			}
-
-			handler(origin, block)
-		}
+		errs.Append(p.mergeAttrs(ast.NewAttributes(origin, body.Attributes)))
+		errs.Append(p.mergeBlocks(ast.NewBlocks(origin, body.Blocks)))
 	}
 	return errs.AsError()
 }
 
-func (p *TerramateParser) mergeAttrs(origin string, other hclsyntax.Attributes) error {
+func (p *TerramateParser) mergeAttrs(other ast.Attributes) error {
 	errs := errors.L()
-	for _, attr := range ast.SortRawAttributes(other) {
+	for _, attr := range other.SortedList() {
 		if _, ok := p.MergedAttributes[attr.Name]; ok {
 			errs.Append(errors.E(ErrHCLSyntax,
 				attr.NameRange,
@@ -286,7 +338,7 @@ func (p *TerramateParser) mergeAttrs(origin string, other hclsyntax.Attributes) 
 			continue
 		}
 
-		p.MergedAttributes[attr.Name] = ast.NewAttribute(origin, attr)
+		p.MergedAttributes[attr.Name] = attr
 	}
 	return errs.AsError()
 }
@@ -303,6 +355,67 @@ func (p *TerramateParser) parseSyntax() error {
 		p.parsedFiles = append(p.parsedFiles, name)
 	}
 	return errs.AsError()
+}
+
+func (p *TerramateParser) applyImports() error {
+	errs := errors.L()
+	for _, importBlock := range filterBlocksByType("import", p.Blocks) {
+		err := validateImportBlock(importBlock)
+		errs.Append(err)
+		if err == nil {
+			errs.Append(p.handleImport(importBlock))
+		}
+	}
+	return errs.AsError()
+}
+
+func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
+	srcAttr := importBlock.Attributes["source"]
+	srcVal, diags := srcAttr.Expr.Value(nil)
+	if diags.HasErrors() {
+		return errors.E(ErrTerramateSchema, srcAttr.Expr.Range(),
+			"failed to evaluate import.source")
+	}
+
+	if srcVal.Type() != cty.String {
+		return errors.E(ErrTerramateSchema, srcAttr.Expr.Range(),
+			"import.source must be a string")
+	}
+
+	src := srcVal.AsString()
+	srcBase := filepath.Base(src)
+	srcDir := filepath.Dir(src)
+	if filepath.IsAbs(srcDir) { // project-path
+		srcDir = filepath.Join(p.root, srcDir)
+	} else {
+		srcDir = filepath.Join(p.dir, srcDir)
+	}
+
+	if srcDir == p.dir {
+		return errors.E(ErrImportCycle, srcAttr.Expr.Range(),
+			"importing files in the same directory are not permitted")
+	}
+
+	src = filepath.Join(srcDir, srcBase)
+	parser, err := NewTerramateParser(p.root, srcDir)
+	if err != nil {
+		return errors.E(ErrImport, srcAttr.Expr.Range(),
+			err, "failed to create sub parser")
+	}
+	err = parser.AddFile(src)
+	if err != nil {
+		return errors.E(ErrImport, srcAttr.Expr.Range(),
+			err)
+	}
+	err = parser.MinimalParse()
+	if err != nil {
+		return errors.E(ErrImport, err)
+	}
+	err = p.mergeParsers(parser)
+	if err != nil {
+		return errors.E(ErrImport, err)
+	}
+	return nil
 }
 
 // ParsedFiles returns a map of filename to the parsed hclsyntax.Body.
@@ -386,9 +499,10 @@ func NewTerramate(reqversion string) *Terramate {
 }
 
 // ParseDir will parse Terramate configuration from a given directory,
-// parsing all files with the suffixes .tm and .tm.hcl.
+// using root as project workspace, parsing all files with the suffixes .tm and
+// .tm.hcl.
 // Note: it does not recurse into child directories.
-func ParseDir(dir string) (Config, error) {
+func ParseDir(root string, dir string) (Config, error) {
 	logger := log.With().
 		Str("action", "ParseDir()").
 		Str("dir", dir).
@@ -396,8 +510,11 @@ func ParseDir(dir string) (Config, error) {
 
 	logger.Trace().Msg("Parsing configuration files")
 
-	p := NewTerramateParser(dir)
-	err := p.AddDir(dir)
+	p, err := NewTerramateParser(root, dir)
+	if err != nil {
+		return Config{}, err
+	}
+	err = p.AddDir(dir)
 	if err != nil {
 		return Config{}, errors.E("adding files to parser", err)
 	}
@@ -407,7 +524,7 @@ func ParseDir(dir string) (Config, error) {
 // ParseGenerateHCLBlocks parses all Terramate files on the given dir, returning
 // only generate_hcl blocks (other blocks are discarded).
 // generate_hcl blocks are validated, so the caller can expect valid blocks only or an error.
-func ParseGenerateHCLBlocks(dir string) ([]GenHCLBlock, error) {
+func ParseGenerateHCLBlocks(root, dir string) ([]GenHCLBlock, error) {
 	logger := log.With().
 		Str("action", "hcl.ParseGenerateHCLBlocks").
 		Str("configdir", dir).
@@ -415,7 +532,7 @@ func ParseGenerateHCLBlocks(dir string) ([]GenHCLBlock, error) {
 
 	logger.Trace().Msg("loading config")
 
-	blocks, err := parseUnmergedBlocks(dir, "generate_hcl", func(block *ast.Block) error {
+	blocks, err := parseUnmergedBlocks(root, dir, "generate_hcl", func(block *ast.Block) error {
 		return validateGenerateHCLBlock(block)
 	})
 	if err != nil {
@@ -437,8 +554,8 @@ func ParseGenerateHCLBlocks(dir string) ([]GenHCLBlock, error) {
 
 // ParseGenerateFileBlocks parses all Terramate files on the given dir, returning
 // parsed generate_file blocks.
-func ParseGenerateFileBlocks(dir string) ([]GenFileBlock, error) {
-	blocks, err := parseUnmergedBlocks(dir, "generate_file", func(block *ast.Block) error {
+func ParseGenerateFileBlocks(root, dir string) ([]GenFileBlock, error) {
+	blocks, err := parseUnmergedBlocks(root, dir, "generate_file", func(block *ast.Block) error {
 		return validateGenerateFileBlock(block)
 	})
 	if err != nil {
@@ -456,6 +573,30 @@ func ParseGenerateFileBlocks(dir string) ([]GenFileBlock, error) {
 	}
 
 	return genfileBlocks, nil
+}
+
+func validateImportBlock(block *ast.Block) error {
+	errs := errors.L()
+	if len(block.Labels) != 0 {
+		errs.Append(errors.E(ErrTerramateSchema, block.LabelRanges[0],
+			"import must have no labels but got %v",
+			block.Labels,
+		))
+	}
+	schema := &hcl.BodySchema{
+		Attributes: []hcl.AttributeSchema{
+			{
+				Name:     "source",
+				Required: true,
+			},
+		},
+	}
+
+	_, diags := block.Body.Content(schema)
+	if diags.HasErrors() {
+		errs.Append(errors.E(ErrTerramateSchema, diags))
+	}
+	return errs.AsError()
 }
 
 func validateGenerateHCLBlock(block *ast.Block) error {
@@ -1038,7 +1179,7 @@ func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
 
 type blockValidator func(*ast.Block) error
 
-func parseUnmergedBlocks(dir, blocktype string, validate blockValidator) (ast.Blocks, error) {
+func parseUnmergedBlocks(root, dir, blocktype string, validate blockValidator) (ast.Blocks, error) {
 	logger := log.With().
 		Str("action", "hcl.parseBlocks").
 		Str("configdir", dir).
@@ -1047,8 +1188,11 @@ func parseUnmergedBlocks(dir, blocktype string, validate blockValidator) (ast.Bl
 
 	logger.Trace().Msg("loading config")
 
-	parser := NewTerramateParser(dir)
-	err := parser.AddDir(dir)
+	parser, err := NewTerramateParser(root, dir)
+	if err != nil {
+		return nil, err
+	}
+	err = parser.AddDir(dir)
 	if err != nil {
 		return nil, errors.E("adding files to parser", err)
 	}
