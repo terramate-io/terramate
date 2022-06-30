@@ -63,7 +63,7 @@ func (mb *MergedBlock) MergeBlock(fname string, other *hclsyntax.Block) error {
 	}
 
 	errs.Append(mb.mergeAttrs(fname, other.Body.Attributes))
-	errs.Append(mb.mergeSubBlocks(fname, other.Body.Blocks))
+	errs.Append(mb.mergeBlocks(fname, other.Body.Blocks))
 	err := errs.AsError()
 	if err == nil {
 		mb.RawOrigins = append(mb.RawOrigins, other)
@@ -84,7 +84,7 @@ func (mb *MergedBlock) mergeAttrs(origin string, other hclsyntax.Attributes) err
 	return errs.AsError()
 }
 
-func (mb *MergedBlock) mergeSubBlocks(origin string, other hclsyntax.Blocks) error {
+func (mb *MergedBlock) mergeBlocks(origin string, other hclsyntax.Blocks) error {
 	errs := errors.L()
 	for _, newblock := range other {
 		var err error
@@ -100,8 +100,7 @@ func (mb *MergedBlock) mergeSubBlocks(origin string, other hclsyntax.Blocks) err
 
 		if err == nil {
 			rawBlocks := mb.RawBlocks[newblock.Type]
-			rawBlocks = append(rawBlocks, newblock)
-			mb.RawBlocks[newblock.Type] = rawBlocks
+			mb.RawBlocks[newblock.Type] = append(rawBlocks, newblock)
 		}
 
 		errs.Append(err)
