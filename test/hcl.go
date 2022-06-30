@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 )
 
@@ -130,7 +131,7 @@ func assertTerramateRunBlock(t *testing.T, got, want *hcl.RunConfig) {
 
 // hclFromAttributes ensures that we always build the same HCL document
 // given an hcl.Attributes.
-func hclFromAttributes(t *testing.T, attrs hcl.Attributes) string {
+func hclFromAttributes(t *testing.T, attrs ast.Attributes) string {
 	t.Helper()
 
 	file := hclwrite.NewEmptyFile()

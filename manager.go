@@ -25,9 +25,9 @@ import (
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/git"
-	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
+	"github.com/mineiros-io/terramate/tf"
 	"github.com/rs/zerolog/log"
 )
 
@@ -233,7 +233,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 				Str("configFile", tfpath).
 				Msg("Parse modules.")
 
-			modules, err := hcl.ParseModules(tfpath)
+			modules, err := tf.ParseModules(tfpath)
 			if err != nil {
 				return errors.E(errListChanged, "parsing modules", err)
 			}
@@ -332,7 +332,7 @@ func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) err
 // called recursively. The visited keep track of the modules already parsed to
 // avoid infinite loops.
 func (m *Manager) moduleChanged(
-	mod hcl.Module, basedir string, visited map[string]bool,
+	mod tf.Module, basedir string, visited map[string]bool,
 ) (changed bool, why string, err error) {
 	logger := log.With().
 		Str("action", "moduleChanged()").
@@ -397,7 +397,7 @@ func (m *Manager) moduleChanged(
 		logger.Trace().
 			Str("path", modPath).
 			Msg("Parse modules.")
-		modules, err := hcl.ParseModules(filepath.Join(modPath, file.Name()))
+		modules, err := tf.ParseModules(filepath.Join(modPath, file.Name()))
 		if err != nil {
 			return errors.E(err, "parsing module %q", mod.Source)
 		}

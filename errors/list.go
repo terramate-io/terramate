@@ -150,6 +150,15 @@ func (l *List) Append(errs ...error) {
 	}
 }
 
+// AppendWrap is like Append() but wrap all errors with the provided kind.
+func (l *List) AppendWrap(kind Kind, errs ...error) {
+	for _, err := range errs {
+		if err != nil {
+			l.Append(E(kind, err))
+		}
+	}
+}
+
 // AsError returns the error list as an error instance if the errors
 // list is non-empty.
 // If the list is empty it will return nil.

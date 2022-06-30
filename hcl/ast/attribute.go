@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package hcl
+package ast
 
 import (
 	"sort"
@@ -70,4 +70,21 @@ func (a AttributeSlice) Less(i, j int) bool {
 // Swap swaps i and j.
 func (a AttributeSlice) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
+}
+
+func SortRawAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {
+	names := make([]string, 0, len(attrs))
+
+	for name := range attrs {
+		names = append(names, name)
+	}
+
+	sort.Strings(names)
+
+	sorted := make([]*hclsyntax.Attribute, len(names))
+	for i, name := range names {
+		sorted[i] = attrs[name]
+	}
+
+	return sorted
 }

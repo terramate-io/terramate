@@ -1097,7 +1097,7 @@ func TestLoadGlobals(t *testing.T) {
 					add:      globals(str("a", "b")),
 				},
 			},
-			wantErr: errors.E(hcl.ErrHCLSyntax),
+			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 	}
 

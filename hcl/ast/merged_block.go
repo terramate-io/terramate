@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package hcl
+package ast
 
 import (
 	"sort"
@@ -58,8 +58,7 @@ func (mb *MergedBlock) MergeBlock(fname string, other *hclsyntax.Block) error {
 	// Currently all merged blocks do not support labels.
 	// This should not be handled here if changed in the future.
 	if len(other.Labels) > 0 {
-		errs.Append(errors.E(ErrTerramateSchema, other.LabelRanges,
-			"block type %q does not support labels"))
+		errs.Append(errors.E(other.LabelRanges, "block type %q does not support labels"))
 	}
 
 	errs.Append(mb.mergeAttrs(fname, other.Body.Attributes))
@@ -72,9 +71,9 @@ func (mb *MergedBlock) MergeBlock(fname string, other *hclsyntax.Block) error {
 }
 
 func (mb *MergedBlock) mergeAttrs(origin string, other hclsyntax.Attributes) error {
-	for _, newval := range sortAttributes(other) {
+	for _, newval := range SortRawAttributes(other) {
 		if _, ok := mb.Attributes[newval.Name]; ok {
-			return errors.E(ErrHCLSyntax, newval.NameRange,
+			return errors.E(newval.NameRange,
 				"attribute %q redeclared", newval.Name)
 		}
 		mb.Attributes[newval.Name] = NewAttribute(origin, newval)
@@ -107,7 +106,7 @@ func (mb *MergedBlock) mergeSubBlocks(origin string, other hclsyntax.Blocks) err
 	return errs.AsError()
 }
 
-func (mb *MergedBlock) validateSubBlocks(allowed ...string) error {
+func (mb *MergedBlock) ValidateSubBlocks(allowed ...string) error {
 	errs := errors.L()
 
 	var keys []string
@@ -130,8 +129,7 @@ func (mb *MergedBlock) validateSubBlocks(allowed ...string) error {
 			}
 
 			if !found {
-				errs.Append(errors.E(ErrTerramateSchema,
-					rawblock.DefRange(), "unrecognized block %q",
+				errs.Append(errors.E(rawblock.DefRange(), "unrecognized block %q",
 					rawblock.Type))
 			}
 		}
