@@ -47,6 +47,7 @@ func NewBlock(origin string, block *hclsyntax.Block) *Block {
 	}
 }
 
+// NewBlocks creates a Block slice from the raw hclsyntax.Block.
 func NewBlocks(origin string, rawblocks hclsyntax.Blocks) Blocks {
 	var blocks Blocks
 	for _, rawblock := range rawblocks {

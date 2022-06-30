@@ -140,6 +140,7 @@ func (mb *MergedBlock) ValidateSubBlocks(allowed ...string) error {
 	return errs.AsError()
 }
 
+// AsBlocks returns a Block list from a MergedBlocks.
 func (mergedBlocks MergedBlocks) AsBlocks() Blocks {
 	var all Blocks
 	for _, m := range mergedBlocks {
