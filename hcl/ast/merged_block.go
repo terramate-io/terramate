@@ -35,7 +35,7 @@ type MergedBlock struct {
 	// Blocks maps block types to merged blocks.
 	Blocks map[string]*MergedBlock
 
-	// RawBlocks keep the original list of sub blocks.
+	// RawBlocks keeps a map of block type to original blocks.
 	RawBlocks map[string]hclsyntax.Blocks
 }
 
@@ -72,14 +72,16 @@ func (mb *MergedBlock) MergeBlock(fname string, other *hclsyntax.Block) error {
 }
 
 func (mb *MergedBlock) mergeAttrs(origin string, other hclsyntax.Attributes) error {
+	errs := errors.L()
 	for _, newval := range SortRawAttributes(other) {
 		if _, ok := mb.Attributes[newval.Name]; ok {
-			return errors.E(newval.NameRange,
-				"attribute %q redeclared", newval.Name)
+			errs.Append(errors.E(newval.NameRange,
+				"attribute %q redeclared", newval.Name))
+			continue
 		}
 		mb.Attributes[newval.Name] = NewAttribute(origin, newval)
 	}
-	return nil
+	return errs.AsError()
 }
 
 func (mb *MergedBlock) mergeSubBlocks(origin string, other hclsyntax.Blocks) error {
