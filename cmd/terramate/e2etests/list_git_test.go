@@ -18,7 +18,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -67,7 +66,7 @@ func TestListDetectChangesInSubDirOfStackWithOtherConfigs(t *testing.T) {
 	subsubdir := subdir.CreateDir("dir")
 	subsubfile := subsubdir.CreateFile("something.sh", "# nothing")
 
-	subdir.CreateFile(config.DefaultFilename, `
+	subdir.CreateFile("config.tm", `
 terramate {
 	
 }	

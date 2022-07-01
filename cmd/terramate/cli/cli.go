@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -113,6 +112,9 @@ type cliSpec struct {
 		RunOrder struct {
 			Basedir string `arg:"" optional:"true" help:"Base directory to search stacks"`
 		} `cmd:"" help:"Show the topological ordering of the stacks"`
+
+		RunEnv struct {
+		} `cmd:"" help:"List run environment variables for all stacks"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
 
@@ -348,6 +350,8 @@ func (c *cli) run() {
 		c.generateGraph()
 	case "experimental run-order":
 		c.printRunOrder()
+	case "experimental run-env":
+		c.printRunEnv()
 	default:
 		logger.Fatal().Msg("unexpected command sequence")
 	}
@@ -571,6 +575,34 @@ func (c *cli) printStacks() {
 			c.log("%s - %s", stackRepr, entry.Reason)
 		} else {
 			c.log(stackRepr)
+		}
+	}
+}
+
+func (c *cli) printRunEnv() {
+	logger := log.With().
+		Str("action", "cli.printRunEnv()").
+		Str("workingDir", c.wd()).
+		Logger()
+
+	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
+	if err != nil {
+		logger.Fatal().
+			Err(err).
+			Msg("listing stacks")
+	}
+
+	for _, stackEntry := range c.filterStacksByWorkingDir(report.Stacks) {
+		envVars, err := run.LoadEnv(c.root(), stackEntry.Stack)
+		if err != nil {
+			log.Fatal().Err(err).Msg("loading stack run environment")
+		}
+
+		c.log("\nstack %q:", stackEntry.Stack.Path())
+
+		for _, envVar := range envVars {
+			c.log("\t%s", envVar)
 		}
 	}
 }
@@ -935,40 +967,29 @@ func (c *cli) runOnStacks() {
 
 	logger.Info().Msg("Running on selected stacks")
 
-	failed := false
+	err = run.Exec(
+		c.root(),
+		orderedStacks,
+		c.parsedArgs.Run.Command,
+		c.stdin,
+		c.stdout,
+		c.stderr,
+		c.parsedArgs.Run.ContinueOnError,
+	)
 
-	for _, stack := range orderedStacks {
-		cmd := exec.Command(c.parsedArgs.Run.Command[0], c.parsedArgs.Run.Command[1:]...)
-		cmd.Dir = stack.HostPath()
-		cmd.Env = os.Environ()
-		cmd.Stdin = c.stdin
-		cmd.Stdout = c.stdout
-		cmd.Stderr = c.stderr
+	if err != nil {
 
-		logger := log.With().
-			Str("cmd", strings.Join(c.parsedArgs.Run.Command, " ")).
-			Stringer("stack", stack).
-			Logger()
+		logger.Warn().Msg("one or more commands failed")
 
-		logger.Info().Msg("Running")
-
-		err = cmd.Run()
-		if err != nil {
-			failed = true
-
-			if c.parsedArgs.Run.ContinueOnError {
-				logger.Warn().
-					Err(err).
-					Msg("failed to execute command")
-			} else {
-				logger.Fatal().
-					Err(err).
-					Msg("failed to execute command")
+		var errs *errors.List
+		if errors.As(err, &errs) {
+			for _, err := range errs.Errors() {
+				logger.Warn().Err(err).Send()
 			}
+		} else {
+			logger.Warn().Err(err).Send()
 		}
-	}
 
-	if failed {
 		os.Exit(1)
 	}
 }
@@ -1131,7 +1152,7 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 			logger.Trace().Msg("Load root config.")
 
-			cfg, err := hcl.ParseDir(root)
+			cfg, err := hcl.ParseDir(root, root)
 			if err != nil {
 				return project{}, false, err
 			}

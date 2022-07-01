@@ -16,13 +16,13 @@ package test
 
 import (
 	"os"
-	"sort"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 )
 
@@ -131,13 +131,13 @@ func assertTerramateRunBlock(t *testing.T, got, want *hcl.RunConfig) {
 
 // hclFromAttributes ensures that we always build the same HCL document
 // given an hcl.Attributes.
-func hclFromAttributes(t *testing.T, attrs hcl.Attributes) string {
+func hclFromAttributes(t *testing.T, attrs ast.Attributes) string {
 	t.Helper()
 
 	file := hclwrite.NewEmptyFile()
 	body := file.Body()
 
-	sort.Stable(attrs)
+	attrList := attrs.SortedList()
 
 	filesRead := map[string][]byte{}
 	readFile := func(filename string) []byte {
@@ -154,14 +154,14 @@ func hclFromAttributes(t *testing.T, attrs hcl.Attributes) string {
 		return file
 	}
 
-	for _, attr := range attrs {
+	for _, attr := range attrList {
 		tokens, err := eval.GetExpressionTokens(
-			readFile(attr.Origin()),
-			attr.Origin(),
-			attr.Value().Expr,
+			readFile(attr.Origin),
+			attr.Origin,
+			attr.Expr,
 		)
 		assert.NoError(t, err)
-		body.SetAttributeRaw(attr.Value().Name, tokens)
+		body.SetAttributeRaw(attr.Name, tokens)
 	}
 
 	return string(file.Bytes())

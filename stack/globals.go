@@ -111,19 +111,16 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 	// This is relative only to root since meta.Path will look
 	// like: /some/path/relative/project/root
 	logger := log.With().
-		Str("action", "eval()").
+		Str("action", "globals.eval()").
 		Str("stack", meta.Path()).
 		Logger()
 
 	logger.Trace().Msg("Create new evaluation context.")
 
-	// error messages improve if globals is empty instead of undefined
-	// so we always start with an empty globals define on eval ctx.
 	globals := Globals{
 		attributes: map[string]cty.Value{},
 	}
-
-	evalctx := NewEvalCtx(filepath.Join(rootdir, meta.Path()), meta, globals)
+	evalctx := NewEvalCtx(rootdir, meta, globals)
 
 	pendingExprsErrs := map[string]error{}
 	pendingExprs := ge.expressions
@@ -131,13 +128,18 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 	for len(pendingExprs) > 0 {
 		amountEvaluated := 0
 
-		logger.Trace().Msg("Range pending expressions.")
+		logger.Trace().Msg("evaluating pending expressions")
 
 	pendingExpression:
 		for name, expr := range pendingExprs {
+			logger := logger.With().
+				Str("origin", expr.origin).
+				Str("global", name).
+				Logger()
+
 			vars := hclsyntax.Variables(expr.value)
 
-			logger.Trace().Msg("Range vars.")
+			logger.Trace().Msg("checking var access inside expression")
 
 			for _, namespace := range vars {
 				if !evalctx.HasNamespace(namespace.RootName()) {
@@ -157,22 +159,12 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 					if _, isPending := pendingExprs[attr.Name]; isPending {
 						continue pendingExpression
 					}
-
-					if _, isEvaluated := globals.attributes[attr.Name]; !isEvaluated {
-						return Globals{}, errors.E(
-							ErrGlobalEval,
-							attr.SourceRange(),
-							"unknown variable %s.%s",
-							namespace.RootName(),
-							attr.Name,
-						)
-					}
 				default:
 					panic("unexpected type of traversal - this is a BUG")
 				}
 			}
 
-			logger.Trace().Msg("Evaluate expression.")
+			logger.Trace().Msg("evaluating expression")
 
 			val, err := evalctx.Eval(expr.value)
 			if err != nil {
@@ -183,12 +175,10 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 			globals.attributes[name] = val
 			amountEvaluated++
 
-			logger.Trace().Msg("Delete pending expression.")
-
 			delete(pendingExprs, name)
 			delete(pendingExprsErrs, name)
 
-			logger.Trace().Msg("Try add proper namespace for globals evaluation context.")
+			logger.Trace().Msg("updating globals eval context with evaluated attribute")
 
 			evalctx.SetGlobals(globals)
 		}
@@ -202,7 +192,11 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 		// TODO(katcipis): model proper error list and return that
 		// Caller can decide how to format/log things (like code generation report).
 		for name, expr := range pendingExprs {
-			logger.Err(pendingExprsErrs[name]).
+			err, ok := pendingExprsErrs[name]
+			if !ok {
+				err = errors.E("undefined global")
+			}
+			logger.Err(err).
 				Str("name", name).
 				Str("origin", expr.origin).
 				Msg("evaluating global")
@@ -229,36 +223,36 @@ func loadStackGlobalsExprs(rootdir string, cfgdir string) (*globalsExpr, error) 
 		Str("cfgdir", cfgdir).
 		Logger()
 
-	logger.Debug().Msg("Parse globals blocks.")
-
-	blocks, err := hcl.ParseGlobalsBlocks(filepath.Join(rootdir, cfgdir))
-	if err != nil {
-		return nil, errors.E("parsing globals block", err)
-	}
-
 	globals := newGlobalsExpr()
 
-	logger.Trace().Msg("Range over blocks.")
+	logger.Debug().Msg("Parse globals blocks.")
 
-	for filename, fileblocks := range blocks {
-		logger.Trace().Msg("Range over block attributes.")
+	absdir := filepath.Join(rootdir, cfgdir)
+	p, err := hcl.NewTerramateParser(rootdir, absdir)
+	if err != nil {
+		return nil, err
+	}
+	err = p.AddDir(absdir)
+	if err != nil {
+		return nil, errors.E("adding dir to parser", err)
+	}
 
-		for _, fileblock := range fileblocks {
-			for name, attr := range fileblock.Body.Attributes {
-				if globals.has(name) {
-					return nil, errors.E(
-						ErrGlobalRedefined,
-						"%q redefined in %q", name, filename,
-					)
-				}
+	err = p.MinimalParse()
+	if err != nil {
+		return nil, errors.E("parsing config", err)
+	}
 
-				logger.Trace().Msg("Add attribute to globals.")
+	globalsBlock, ok := p.MergedBlocks["globals"]
+	if ok {
+		logger.Trace().Msg("Range over attributes.")
 
-				globals.add(name, expression{
-					origin: project.PrjAbsPath(rootdir, filename),
-					value:  attr.Expr,
-				})
-			}
+		for _, attr := range globalsBlock.Attributes.SortedList() {
+			logger.Trace().Msg("Add attribute to globals.")
+
+			globals.add(attr.Name, expression{
+				origin: project.PrjAbsPath(rootdir, attr.Origin),
+				value:  attr.Expr,
+			})
 		}
 	}
 

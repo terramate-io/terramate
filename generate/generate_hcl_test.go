@@ -247,6 +247,177 @@ func TestGenerateHCL(t *testing.T) {
 			},
 		},
 		{
+			name: "generate HCL for all stacks importing common",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/common",
+					add: hcldoc(
+						generateHCL(
+							labels("backend.tf"),
+							content(
+								backend(
+									labels("test"),
+									expr("prefix", "global.backend_prefix"),
+								),
+							),
+						),
+						generateHCL(
+							labels("locals.tf"),
+							content(
+								locals(
+									expr("stackpath", "terramate.path"),
+									expr("local_a", "global.local_a"),
+									expr("local_b", "global.local_b"),
+									expr("local_c", "global.local_c"),
+									expr("local_d", "tm_try(global.local_d.field, null)"),
+								),
+							),
+						),
+						generateHCL(
+							labels("provider.tf"),
+							content(
+								provider(
+									labels("name"),
+									expr("data", "global.provider_data"),
+								),
+								terraform(
+									requiredProviders(
+										expr("name", `{
+										source  = "integrations/name"
+										version = global.provider_version
+									}`),
+									),
+								),
+								terraform(
+									expr("required_version", "global.terraform_version"),
+								),
+							),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack-1",
+					add: hcldoc(
+						importy(
+							str("source", fmt.Sprintf("/common/%s", config.DefaultFilename)),
+						),
+						globals(
+							str("local_a", "stack-1-local"),
+							boolean("local_b", true),
+							number("local_c", 666),
+							attr("local_d", `{ field = "local_d_field"}`),
+							str("backend_prefix", "stack-1-backend"),
+							str("provider_data", "stack-1-provider-data"),
+							str("provider_version", "stack-1-provider-version"),
+							str("terraform_version", "stack-1-terraform-version"),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack-2",
+					add: hcldoc(
+						importy(
+							str("source", fmt.Sprintf("/common/%s", config.DefaultFilename)),
+						),
+						globals(
+							str("local_a", "stack-2-local"),
+							boolean("local_b", false),
+							number("local_c", 777),
+							attr("local_d", `{ oopsie = "local_d_field"}`),
+							str("backend_prefix", "stack-2-backend"),
+							str("provider_data", "stack-2-provider-data"),
+							str("provider_version", "stack-2-provider-version"),
+							str("terraform_version", "stack-2-terraform-version"),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stacks/stack-1",
+					files: map[string]fmt.Stringer{
+						"backend.tf": backend(
+							labels("test"),
+							str("prefix", "stack-1-backend"),
+						),
+						"locals.tf": locals(
+							str("local_a", "stack-1-local"),
+							boolean("local_b", true),
+							number("local_c", 666),
+							str("local_d", "local_d_field"),
+							str("stackpath", "/stacks/stack-1"),
+						),
+						"provider.tf": hcldoc(
+							provider(
+								labels("name"),
+								str("data", "stack-1-provider-data"),
+							),
+							terraform(
+								requiredProviders(
+									attr("name", `{
+										source  = "integrations/name"
+										version = "stack-1-provider-version"
+									}`),
+								),
+							),
+							terraform(
+								str("required_version", "stack-1-terraform-version"),
+							),
+						),
+					},
+				},
+				{
+					stack: "/stacks/stack-2",
+					files: map[string]fmt.Stringer{
+						"backend.tf": backend(
+							labels("test"),
+							str("prefix", "stack-2-backend"),
+						),
+						"locals.tf": locals(
+							str("local_a", "stack-2-local"),
+							boolean("local_b", false),
+							number("local_c", 777),
+							attr("local_d", "null"),
+							str("stackpath", "/stacks/stack-2"),
+						),
+						"provider.tf": hcldoc(
+							provider(
+								labels("name"),
+								str("data", "stack-2-provider-data"),
+							),
+							terraform(
+								requiredProviders(
+									attr("name", `{
+										source  = "integrations/name"
+										version = "stack-2-provider-version"
+									}`),
+								),
+							),
+							terraform(
+								str("required_version", "stack-2-terraform-version"),
+							),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						StackPath: "/stacks/stack-1",
+						Created:   []string{"backend.tf", "locals.tf", "provider.tf"},
+					},
+					{
+						StackPath: "/stacks/stack-2",
+						Created:   []string{"backend.tf", "locals.tf", "provider.tf"},
+					},
+				},
+			},
+		},
+		{
 			name: "generate HCL with traversal of unknown namespaces",
 			layout: []string{
 				"s:stacks/stack-1",
@@ -334,6 +505,53 @@ func TestGenerateHCL(t *testing.T) {
 								str("data", "stack data"),
 							),
 						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							StackPath: "/stacks/stack",
+						},
+						Error: errors.E(generate.ErrConflictingConfig),
+					},
+				},
+			},
+		},
+		{
+			name: "stack imports config with block with same label as parent",
+			layout: []string{
+				"s:stacks/stack",
+				"d:other",
+			},
+			configs: []hclconfig{
+				{
+					path: "/other",
+					add: generateHCL(
+						labels("repeated"),
+						content(
+							block("block",
+								str("data", "imported data"),
+							),
+						),
+					),
+				},
+				{
+					path: "/stacks",
+					add: generateHCL(
+						labels("repeated"),
+						content(
+							block("block",
+								str("data", "stacks data"),
+							),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack",
+					add: importy(
+						str("source", fmt.Sprintf("/other/%s", config.DefaultFilename)),
 					),
 				},
 			},
@@ -872,4 +1090,41 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 	})
 	got = stackEntry.ListGenFiles()
 	assertEqualStringList(t, got, []string{})
+}
+
+func TestGenerateHCLTerramateRootMetadata(t *testing.T) {
+	// We need to know the sandbox abspath to test terramate.root properly
+	const generatedFile = "file.hcl"
+
+	s := sandbox.New(t)
+	stackEntry := s.CreateStack("stack")
+	s.RootEntry().CreateConfig(
+		hcldoc(
+			generateHCL(
+				labels(generatedFile),
+				content(
+					expr("terramate_root_path_abs", "terramate.root.path.fs.absolute"),
+					expr("terramate_root_path_basename", "terramate.root.path.fs.basename"),
+				),
+			),
+		).String(),
+	)
+
+	report := s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				StackPath: "/stack",
+				Created:   []string{generatedFile},
+			},
+		},
+	})
+
+	want := hcldoc(
+		str("terramate_root_path_abs", s.RootDir()),
+		str("terramate_root_path_basename", filepath.Base(s.RootDir())),
+	).String()
+	got := stackEntry.ReadFile(generatedFile)
+
+	assertHCLEquals(t, got, want)
 }

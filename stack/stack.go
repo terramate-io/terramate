@@ -62,6 +62,8 @@ type (
 	Metadata interface {
 		// Name of the stack.
 		Name() string
+		// HostPath is the absolute path of the stack on the host file system.
+		HostPath() string
 		// Path is the absolute path of the stack (relative to project root).
 		Path() string
 		// RelPath is the relative path of the from root.
@@ -180,7 +182,7 @@ func TryLoad(root, absdir string) (stack S, found bool, err error) {
 	}
 
 	logger.Debug().Msg("Parsing configuration.")
-	cfg, err := hcl.ParseDir(absdir)
+	cfg, err := hcl.ParseDir(root, absdir)
 	if err != nil {
 		return S{}, false, err
 	}

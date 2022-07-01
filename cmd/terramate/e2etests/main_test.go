@@ -24,7 +24,11 @@ import (
 	"testing"
 )
 
+// terramateTestBin is the path to the terramate binary we compiled for test purposes
 var terramateTestBin string
+
+// testHelperBin is the path to the test binary we compiled for test purposes
+var testHelperBin string
 
 // The TestMain function creates a terramate binary for testing purposes and
 // deletes it after the tests have been run.
@@ -66,10 +70,33 @@ func setupAndRunTests(m *testing.M) (status int) {
 		return 1
 	}
 
+	testCmdPath := filepath.Join(packageDir, "cmd", "test")
+	testHelperBin, err = buildTestHelper(goBin, testCmdPath, binTmpDir)
+	if err != nil {
+		log.Printf("failed to setup e2e tests: %v", err)
+		return 1
+	}
+
 	return m.Run()
 }
 
-func buildTerramate(goBin string, projectRoot string, binDir string) (string, error) {
+func buildTestHelper(goBin, testCmdPath, binDir string) (string, error) {
+	outBinPath := filepath.Join(binDir, "test"+platExeSuffix())
+	cmd := exec.Command(
+		goBin,
+		"build",
+		"-o",
+		outBinPath,
+		testCmdPath,
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("failed to build test helper: %v (output: %s)", err, string(out))
+	}
+	return outBinPath, nil
+}
+
+func buildTerramate(goBin, projectRoot, binDir string) (string, error) {
 	// We need to build the same way it is built on our Makefile + release process
 	// Invoking make here would assume that someone running go test ./... have
 	// make installed, so we are keeping the duplication to reduce deps when running tests.
@@ -77,13 +104,11 @@ func buildTerramate(goBin string, projectRoot string, binDir string) (string, er
 	cmd := exec.Command(
 		goBin,
 		"build",
-		"--ldflags",
-		`-extldflags "-static"`,
+		"-race",
 		"-o",
 		outBinPath,
 		filepath.Join(projectRoot, "cmd/terramate"),
 	)
-	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {

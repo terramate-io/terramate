@@ -805,12 +805,12 @@ func (git *Git) SetRemoteURL(remote, url string) error {
 
 func (git *Git) exec(command string, args ...string) (string, error) {
 	logger := log.With().
-		Str("action", "exec()").
+		Str("action", "Git.exec()").
 		Str("workingDir", git.config.WorkingDir).
 		Logger()
 
-	logger.Trace().
-		Msg("Create cmd to execute.")
+	logger.Trace().Msg("Create cmd to execute")
+
 	cmd := exec.Cmd{
 		Path: git.config.ProgramPath,
 		Args: []string{git.config.ProgramPath, command},
@@ -818,8 +818,8 @@ func (git *Git) exec(command string, args ...string) (string, error) {
 		Env:  []string{},
 	}
 
-	logger.Trace().
-		Msg("Append arguments.")
+	logger.Trace().Msg("Append arguments")
+
 	cmd.Args = append(cmd.Args, args...)
 
 	// nil and empty slice behave differently on exec.Cmd.
@@ -839,8 +839,8 @@ func (git *Git) exec(command string, args ...string) (string, error) {
 		cmd.Env = append(cmd.Env, "GIT_ATTR_NOSYSTEM=1")
 	}
 
-	logger.Debug().
-		Msg("Run command.")
+	logger.Trace().Msg("Running git command")
+
 	stdout, err := cmd.Output()
 	if err != nil {
 		stderr := []byte{}
@@ -851,6 +851,8 @@ func (git *Git) exec(command string, args ...string) (string, error) {
 
 		return "", NewCmdError(cmd.String(), stdout, stderr)
 	}
+
+	logger.Trace().Msg("git command executed with success")
 
 	out := strings.TrimSpace(string(stdout))
 	return out, nil

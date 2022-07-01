@@ -632,7 +632,7 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
-			name:   "global reference with successful try on stack",
+			name:   "global reference with successful tm_try on stack",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
 				{
@@ -653,7 +653,28 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
-			name:   "global reference with failed try on stack",
+			name:   "undefined references to globals on tm_try",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						str("a", "value"),
+						expr("b", `tm_try(global.undefined, global.a)`),
+						expr("c", `tm_try(global.a, global.undefined)`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					str("a", "value"),
+					str("b", "value"),
+					str("c", "value"),
+				),
+			},
+		},
+		{
+			name:   "global reference with failed tm_try on stack",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
 				{
@@ -825,6 +846,19 @@ func TestLoadGlobals(t *testing.T) {
 					add: globals(
 						attr("a", `{ members = ["aaa"] }`),
 						str("a_interpolated", "${global.a} "),
+					),
+				},
+			},
+			wantErr: errors.E(stack.ErrGlobalEval),
+		},
+		{
+			name:   "global interpolating undefined reference fails",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						str("a_interpolated", "${global.undefined}-something"),
 					),
 				},
 			},
@@ -1063,7 +1097,7 @@ func TestLoadGlobals(t *testing.T) {
 					add:      globals(str("a", "b")),
 				},
 			},
-			wantErr: errors.E(stack.ErrGlobalRedefined),
+			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 	}
 

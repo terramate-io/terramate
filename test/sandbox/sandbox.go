@@ -175,6 +175,16 @@ func (s S) Generate() generate.Report {
 	return report
 }
 
+// LoadStack load the stack given its relative path.
+func (s S) LoadStack(relpath string) stack.S {
+	s.t.Helper()
+
+	st, err := stack.Load(s.rootdir, relpath)
+	assert.NoError(s.t, err)
+
+	return st
+}
+
 // LoadStacks load all stacks from sandbox rootdir.
 func (s S) LoadStacks() []stack.S {
 	s.t.Helper()
