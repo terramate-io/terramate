@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	hhcl "github.com/hashicorp/hcl/v2"
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
@@ -1213,6 +1214,22 @@ func testParser(t *testing.T, tc testcase) {
 		}
 		testParser(t, newtc)
 	}
+}
+
+func TestHCLParseInvalidState(t *testing.T) {
+	temp := t.TempDir()
+	p, err := hcl.NewTerramateParser(temp, temp)
+	assert.NoError(t, err)
+	test.WriteFile(t, temp, "test.tm", `terramate {}`)
+	err = p.AddDir(temp)
+	assert.NoError(t, err)
+	_, err = p.Parse()
+	assert.NoError(t, err)
+
+	_, err = p.Parse()
+	assert.Error(t, err)
+	err = p.MinimalParse()
+	assert.Error(t, err)
 }
 
 // some helpers to easy build file ranges.

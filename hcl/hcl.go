@@ -132,11 +132,10 @@ type PartialEvaluator func(hclsyntax.Expression) (hclwrite.Tokens, error)
 // this API allows you to define the exact set of files (and contents) that are
 // going to be included in the final configuration.
 type TerramateParser struct {
-	rootdir     string
-	dir         string
-	files       map[string][]byte // path=content
-	parsedFiles map[string]parsedFile
-	hclparser   *hclparse.Parser
+	rootdir   string
+	dir       string
+	files     map[string][]byte // path=content
+	hclparser *hclparse.Parser
 
 	// MergedAttributes are the top-level attributes of all files.
 	MergedAttributes ast.Attributes
@@ -146,8 +145,17 @@ type TerramateParser struct {
 
 	// Blocks are the unmerged blocks from all files.
 	Blocks ast.Blocks
+
+	// parsedFiles stores a map of all parsed files
+	parsedFiles map[string]parsedFile
+
+	// if true, calling Parse() or MinimalParse() will fail.
+	executed bool
 }
 
+// parsedFile tells the origin and kind of the parsedFile.
+// The kind can be either internal or external, meaning the file was parsed
+// by this parser or by another parser instance, respectively.
 type parsedFile struct {
 	kind   parsedKind
 	origin string
@@ -165,6 +173,9 @@ type mergeHandler func(block *ast.Block) error
 
 // NewTerramateParser creates a Terramate parser for the directory dir inside
 // the root directory.
+// The parser creates sub-parsers for parsing imports but keeps a list of all
+// parsed files of all sub-parsers for detecting cycles and import duplications.
+// Calling Parse() or MinimalParse() multiple times is an error.
 func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
 	if !strings.HasPrefix(dir, rootdir) {
 		return nil, errors.E("directory %q is not inside root %q", dir, rootdir)
@@ -249,6 +260,14 @@ func (p *TerramateParser) AddFileContent(name string, data []byte) error {
 	return nil
 }
 
+func (p *TerramateParser) hasInvalidState() bool {
+	return p.executed
+}
+
+func (p *TerramateParser) setInvalidState() {
+	p.executed = true
+}
+
 // Parse the previously added files and return either a Config or an error.
 func (p *TerramateParser) Parse() (Config, error) {
 	err := p.MinimalParse()
@@ -264,6 +283,11 @@ func (p *TerramateParser) Parse() (Config, error) {
 // MinimalParse does the syntax parsing and merging of configurations but do not
 // validate if it's valid terramate configuration.
 func (p *TerramateParser) MinimalParse() error {
+	if p.hasInvalidState() {
+		return errors.E("files already parsed")
+	}
+	defer p.setInvalidState()
+
 	err := p.parseSyntax()
 	if err != nil {
 		return err
