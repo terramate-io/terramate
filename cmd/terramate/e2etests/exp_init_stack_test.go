@@ -78,7 +78,7 @@ func TestStacksInit(t *testing.T) {
 
 			for _, path := range tc.input {
 				dir := filepath.Join(s.RootDir(), path)
-				got, err := hcl.ParseDir(dir)
+				got, err := hcl.ParseDir(s.RootDir(), dir)
 				assert.NoError(t, err, "parsing terramate file")
 
 				want := hcl.Config{

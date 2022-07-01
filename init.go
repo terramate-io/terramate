@@ -85,7 +85,7 @@ func Init(root, dir string) error {
 
 	logger.Trace().Msg("Get stack info.")
 
-	parsedCfg, err := hcl.ParseDir(dir)
+	parsedCfg, err := hcl.ParseDir(root, dir)
 	if err != nil {
 		return errors.E(errInit, err, "checking config in %q", dir)
 	}

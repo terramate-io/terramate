@@ -85,3 +85,7 @@ func locals(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 func terraform(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("terraform", builders...)
 }
+
+func importy(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return hclwrite.BuildBlock("import", builders...)
+}
