@@ -1216,7 +1216,7 @@ func testParser(t *testing.T, tc testcase) {
 	}
 }
 
-func TestHCLParseInvalidState(t *testing.T) {
+func TestHCLParseReParsingFails(t *testing.T) {
 	temp := t.TempDir()
 	p, err := hcl.NewTerramateParser(temp, temp)
 	assert.NoError(t, err)
