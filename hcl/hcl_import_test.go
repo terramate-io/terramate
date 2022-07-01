@@ -162,13 +162,15 @@ func TestHCLImport(t *testing.T) {
 			input: []cfgfile{
 				{
 					filename: "stack/cfg.tm",
-					body: `import {
-						source = "/other/cfg.tm"
-				}
+					body: `
+						import {
+							source = "/other/cfg.tm"
+						}
 				
-				import {
-					source = "/other/cfg.tm"
-			}`,
+						import {
+							source = "/other/cfg.tm"
+						}
+					`,
 				},
 				{
 					filename: "other/cfg.tm",
@@ -178,7 +180,7 @@ func TestHCLImport(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrImport,
-						mkrange("stack/cfg.tm", start(6, 15, 78), end(6, 30, 93))),
+						mkrange("stack/cfg.tm", start(7, 17, 92), end(7, 32, 107))),
 				},
 			},
 		},
