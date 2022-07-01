@@ -28,7 +28,9 @@ import {
 ```
 
 The `source` must reference a file using a relative path or an absolute path
-relative to the project's root.
+relative to the project's root. Only files inside the project can be imported
+and they must be from disjoint directories, which means you cannot import files
+from parent directories as they're already visible in the child configuration.
 
 The *imported* file is handled as if it's in the directory of the *importing*
 file, then the same [merging strategy](#config-merging) applies for the case of
