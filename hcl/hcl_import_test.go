@@ -275,7 +275,7 @@ func TestHCLImport(t *testing.T) {
 					filename: "/project/stack/cfg.tm",
 					body: `import {
 						source = "../../outside/cfg.tm"
-				}`,
+					}`,
 				},
 				{
 					filename: "/outside/cfg.tm",
