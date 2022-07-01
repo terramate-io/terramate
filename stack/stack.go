@@ -38,6 +38,9 @@ type (
 		// relPathToRoot is the relative path from the stack to root.
 		relPathToRoot string
 
+		// id of the stack.
+		id hcl.StackID
+
 		// name of the stack.
 		name string
 
@@ -60,6 +63,8 @@ type (
 
 	// Metadata has all metadata loaded per stack
 	Metadata interface {
+		// ID of the stack if it has any. Empty string and false otherwise.
+		ID() (string, bool)
 		// Name of the stack.
 		Name() string
 		// HostPath is the absolute path of the stack on the host file system.
@@ -95,6 +100,7 @@ func New(root string, cfg hcl.Config) S {
 
 	return S{
 		name:          name,
+		id:            cfg.Stack.ID,
 		desc:          cfg.Stack.Description,
 		after:         cfg.Stack.After,
 		before:        cfg.Stack.Before,
@@ -103,6 +109,11 @@ func New(root string, cfg hcl.Config) S {
 		path:          project.PrjAbsPath(root, cfg.AbsDir()),
 		relPathToRoot: rel,
 	}
+}
+
+// ID of the stack if it has one, or empty string and false otherwise.
+func (s S) ID() (string, bool) {
+	return s.id.Value()
 }
 
 // Name of the stack.

@@ -890,6 +890,33 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 		},
 		{
+			name:  "stack.id metadata available",
+			stack: "/stacks/stack:id=stack-id",
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: generateHCL(
+						labels("root"),
+						content(
+							expr("stack_id", "terramate.stack.id"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "root",
+					hcl: genHCL{
+						origin:    defaultCfg("/"),
+						condition: true,
+						body: hcldoc(
+							str("stack_id", "stack-id"),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "generate HCL on project root dir",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
@@ -1462,8 +1489,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
 			s := sandbox.New(t)
-			stackEntry := s.CreateStack(tcase.stack)
-			stack := stackEntry.Load()
+			s.BuildTree([]string{"s:" + tcase.stack})
+			stack := s.LoadStacks()[0]
 
 			for _, cfg := range tcase.configs {
 				filename := cfg.filename

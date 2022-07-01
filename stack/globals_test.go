@@ -249,7 +249,7 @@ func TestLoadGlobals(t *testing.T) {
 			name: "stacks referencing all metadata",
 			layout: []string{
 				"s:stacks/stack-1",
-				"s:stacks/stack-2:description=someDescriptionStack2",
+				"s:stacks/stack-2:id=stack-2-id;description=someDescriptionStack2",
 			},
 			configs: []hclconfig{
 				{
@@ -259,6 +259,7 @@ func TestLoadGlobals(t *testing.T) {
 						expr("stack_path_rel", "terramate.stack.path.relative"),
 						expr("stack_path_to_root", "terramate.stack.path.to_root"),
 						expr("stack_path_basename", "terramate.stack.path.basename"),
+						expr("stack_id", `tm_try(terramate.stack.id, "no-id")`),
 						expr("stack_name", "terramate.stack.name"),
 						expr("stack_description", "terramate.stack.description"),
 					),
@@ -270,6 +271,7 @@ func TestLoadGlobals(t *testing.T) {
 						expr("stack_path_rel", "terramate.stack.path.relative"),
 						expr("stack_path_to_root", "terramate.stack.path.to_root"),
 						expr("stack_path_basename", "terramate.stack.path.basename"),
+						expr("stack_id", "terramate.stack.id"),
 						expr("stack_name", "terramate.stack.name"),
 						expr("stack_description", "terramate.stack.description"),
 					),
@@ -281,6 +283,7 @@ func TestLoadGlobals(t *testing.T) {
 					str("stack_path_rel", "stacks/stack-1"),
 					str("stack_path_to_root", "../.."),
 					str("stack_path_basename", "stack-1"),
+					str("stack_id", "no-id"),
 					str("stack_name", "stack-1"),
 					str("stack_description", ""),
 				),
@@ -289,6 +292,7 @@ func TestLoadGlobals(t *testing.T) {
 					str("stack_path_rel", "stacks/stack-2"),
 					str("stack_path_to_root", "../.."),
 					str("stack_path_basename", "stack-2"),
+					str("stack_id", "stack-2-id"),
 					str("stack_name", "stack-2"),
 					str("stack_description", "someDescriptionStack2"),
 				),

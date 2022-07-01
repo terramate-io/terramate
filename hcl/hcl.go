@@ -721,6 +721,9 @@ func parseStack(stack *Stack, stackblock *ast.Block) error {
 				errs.Append(errors.E(attr.NameRange, err))
 				continue
 			}
+			logger.Trace().
+				Str("id", attrVal.AsString()).
+				Msg("found valid stack ID definition")
 			stack.ID = id
 		case "name":
 			if attrVal.Type() != cty.String {

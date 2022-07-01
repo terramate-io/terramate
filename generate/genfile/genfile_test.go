@@ -133,7 +133,7 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 		},
 		{
-			name:  "all metadata available",
+			name:  "all metadata available by default",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
@@ -167,6 +167,34 @@ stack_path_basename=stack
 stack_id=no-id
 stack_name=stack
 stack_description=
+`,
+					},
+				},
+			},
+		},
+		{
+			name:  "stack.id metadata available",
+			stack: "/stack:id=stack-id",
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: generateFile(
+						labels("test"),
+						expr("content", `<<EOT
+
+stack_id=${terramate.stack.id}
+EOT`,
+						)),
+				},
+			},
+			want: []result{
+				{
+					name:      "test",
+					condition: true,
+					file: genFile{
+						origin: "/stack/test.tm",
+						body: `
+stack_id=stack-id
 `,
 					},
 				},
@@ -814,8 +842,8 @@ stack_description=
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
 			s := sandbox.New(t)
-			stackEntry := s.CreateStack(tcase.stack)
-			stack := stackEntry.Load()
+			s.BuildTree([]string{"s:" + tcase.stack})
+			stack := s.LoadStacks()[0]
 
 			for _, cfg := range tcase.configs {
 				test.AppendFile(t, s.RootDir(), cfg.path, cfg.add.String())
@@ -827,10 +855,10 @@ stack_description=
 
 			if len(got) != len(tcase.want) {
 				for i, file := range got {
-					t.Logf("got[%d] = %v", i, file)
+					t.Logf("got[%d] = %+v", i, file)
 				}
 				for i, file := range tcase.want {
-					t.Logf("want[%d] = %v", i, file)
+					t.Logf("want[%d] = %+v", i, file)
 				}
 				t.Fatalf("length of got and want mismatch: got %d but want %d",
 					len(got), len(tcase.want))
