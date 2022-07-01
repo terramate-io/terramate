@@ -414,7 +414,7 @@ func TestHCLImport(t *testing.T) {
 							}
 						}
 					}
-				`,
+					`,
 				},
 			},
 			want: want{
