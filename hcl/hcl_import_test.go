@@ -183,6 +183,38 @@ func TestHCLImport(t *testing.T) {
 			},
 		},
 		{
+			name: "imported file imports same file multiple times - fails",
+			dir:  "stack",
+			input: []cfgfile{
+				{
+					filename: "stack/cfg.tm",
+					body: `import {
+						source = "/other/cfg.tm"
+				}`,
+				},
+				{
+					filename: "other/cfg.tm",
+					body: `import {
+						source = "/other2/cfg.tm"	
+					}
+					
+					import {
+						source = "/other2/cfg.tm"	
+					}`,
+				},
+				{
+					filename: "other2/cfg.tm",
+					body:     `globals {}`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrImport,
+						mkrange("other/cfg.tm", start(6, 16, 84), end(6, 32, 100))),
+				},
+			},
+		},
+		{
 			name: "import disjoint directory",
 			dir:  "stack",
 			input: []cfgfile{
