@@ -27,7 +27,6 @@ type Attribute struct {
 }
 
 // Attributes represents multiple parsed attributes.
-// The attributes can be sorted lexicographically by their name.
 type Attributes map[string]Attribute
 
 // NewAttribute creates a new attribute given a parsed attribute and its origin.
@@ -45,6 +44,15 @@ func (a Attributes) SortedList() AttributeSlice {
 		attrs = append(attrs, val)
 	}
 	sort.Sort(attrs)
+	return attrs
+}
+
+// NewAttributes creates a map of Attributes from the raw hclsyntax.Attributes.
+func NewAttributes(origin string, rawAttrs hclsyntax.Attributes) Attributes {
+	attrs := make(Attributes)
+	for _, rawAttr := range rawAttrs {
+		attrs[rawAttr.Name] = NewAttribute(origin, rawAttr)
+	}
 	return attrs
 }
 
