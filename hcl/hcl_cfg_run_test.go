@@ -417,7 +417,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 			},
 		},
 		{
-			name: "imported env are merged",
+			name: "imported env is merged",
 			input: []cfgfile{
 				{
 					filename: "other/cfg.tm",
