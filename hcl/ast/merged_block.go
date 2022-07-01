@@ -17,7 +17,6 @@ package ast
 import (
 	"sort"
 
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mineiros-io/terramate/errors"
 )
 
@@ -30,13 +29,13 @@ type MergedBlock struct {
 	Attributes Attributes
 
 	// RawOrigins is the list of original blocks that contributed to this block.
-	RawOrigins hclsyntax.Blocks
+	RawOrigins Blocks
 
 	// Blocks maps block types to merged blocks.
 	Blocks map[string]*MergedBlock
 
 	// RawBlocks keeps a map of block type to original blocks.
-	RawBlocks map[string]hclsyntax.Blocks
+	RawBlocks map[string]Blocks
 }
 
 // MergedBlocks maps the block name to the MergedBlock.
@@ -48,12 +47,12 @@ func NewMergedBlock(typ string) *MergedBlock {
 		Type:       typ,
 		Attributes: make(Attributes),
 		Blocks:     make(map[string]*MergedBlock),
-		RawBlocks:  make(map[string]hclsyntax.Blocks),
+		RawBlocks:  make(map[string]Blocks),
 	}
 }
 
 // MergeBlock recursively merges the other block into this one.
-func (mb *MergedBlock) MergeBlock(fname string, other *hclsyntax.Block) error {
+func (mb *MergedBlock) MergeBlock(other *Block) error {
 	errs := errors.L()
 
 	// Currently all merged blocks do not support labels.
@@ -62,8 +61,8 @@ func (mb *MergedBlock) MergeBlock(fname string, other *hclsyntax.Block) error {
 		errs.Append(errors.E(other.LabelRanges, "block type %q does not support labels"))
 	}
 
-	errs.Append(mb.mergeAttrs(fname, other.Body.Attributes))
-	errs.Append(mb.mergeBlocks(fname, other.Body.Blocks))
+	errs.Append(mb.mergeAttrs(other.Attributes))
+	errs.Append(mb.mergeBlocks(other.Blocks))
 	err := errs.AsError()
 	if err == nil {
 		mb.RawOrigins = append(mb.RawOrigins, other)
@@ -71,28 +70,28 @@ func (mb *MergedBlock) MergeBlock(fname string, other *hclsyntax.Block) error {
 	return err
 }
 
-func (mb *MergedBlock) mergeAttrs(origin string, other hclsyntax.Attributes) error {
+func (mb *MergedBlock) mergeAttrs(other Attributes) error {
 	errs := errors.L()
-	for _, newval := range SortRawAttributes(other) {
+	for _, newval := range other.SortedList() {
 		if _, ok := mb.Attributes[newval.Name]; ok {
 			errs.Append(errors.E(newval.NameRange,
 				"attribute %q redeclared", newval.Name))
 			continue
 		}
-		mb.Attributes[newval.Name] = NewAttribute(origin, newval)
+		mb.Attributes[newval.Name] = newval
 	}
 	return errs.AsError()
 }
 
-func (mb *MergedBlock) mergeBlocks(origin string, other hclsyntax.Blocks) error {
+func (mb *MergedBlock) mergeBlocks(other Blocks) error {
 	errs := errors.L()
 	for _, newblock := range other {
 		var err error
 		if old, ok := mb.Blocks[newblock.Type]; ok {
-			err = old.MergeBlock(origin, newblock)
+			err = old.MergeBlock(newblock)
 		} else {
 			b := NewMergedBlock(newblock.Type)
-			err = b.MergeBlock(origin, newblock)
+			err = b.MergeBlock(newblock)
 			if err == nil {
 				mb.Blocks[newblock.Type] = b
 			}
@@ -139,4 +138,13 @@ func (mb *MergedBlock) ValidateSubBlocks(allowed ...string) error {
 	}
 
 	return errs.AsError()
+}
+
+// AsBlocks returns a Block list from a MergedBlocks.
+func (mergedBlocks MergedBlocks) AsBlocks() Blocks {
+	var all Blocks
+	for _, m := range mergedBlocks {
+		all = append(all, m.RawOrigins...)
+	}
+	return all
 }

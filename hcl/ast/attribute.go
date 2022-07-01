@@ -48,6 +48,15 @@ func (a Attributes) SortedList() AttributeSlice {
 	return attrs
 }
 
+// NewAttributes creates a map of Attributes from the raw hclsyntax.Attributes.
+func NewAttributes(origin string, rawAttrs hclsyntax.Attributes) Attributes {
+	attrs := make(Attributes)
+	for _, rawAttr := range rawAttrs {
+		attrs[rawAttr.Name] = NewAttribute(origin, rawAttr)
+	}
+	return attrs
+}
+
 // AttributeSlice is an sortable Attribute slice.
 type AttributeSlice []Attribute
 
