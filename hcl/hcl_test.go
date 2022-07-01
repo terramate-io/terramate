@@ -1234,9 +1234,6 @@ func TestHCLParseInvalidState(t *testing.T) {
 
 // some helpers to easy build file ranges.
 func mkrange(fname string, start, end hhcl.Pos) hhcl.Range {
-	if start.Byte == end.Byte {
-		panic("empty file range")
-	}
 	return hhcl.Range{
 		Filename: fname,
 		Start:    start,

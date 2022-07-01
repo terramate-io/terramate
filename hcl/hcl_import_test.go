@@ -40,8 +40,8 @@ func TestHCLImport(t *testing.T) {
 				},
 			},
 		},
-		/*{
-			name: "import missing source - fails",
+		{
+			name: "import missing source attribute - fails",
 			input: []cfgfile{
 				{
 					filename: "cfg.tm",
@@ -53,10 +53,10 @@ func TestHCLImport(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(1, 8, 7), end(1, 8, 18))),
+						mkrange("cfg.tm", start(1, 8, 7), end(1, 8, 7))),
 				},
 			},
-		},*/
+		},
 		{
 			name:     "import with non-existent file - fails",
 			parsedir: "stack",
