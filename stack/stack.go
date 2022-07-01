@@ -189,7 +189,7 @@ func LoadAll(rootdir string) ([]S, error) {
 	stacks := []S{}
 	stacksIDs := map[string]S{}
 
-	logger.Trace().Msg("Walk path.")
+	logger.Trace().Msg("Walk project root directory.")
 	err := filepath.Walk(rootdir,
 		func(path string, info fs.FileInfo, err error) error {
 			if err != nil {
