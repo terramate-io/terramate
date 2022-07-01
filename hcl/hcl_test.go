@@ -39,10 +39,11 @@ type (
 	}
 
 	testcase struct {
-		name  string
-		dir   string
-		input []cfgfile
-		want  want
+		name     string
+		parsedir string
+		rootdir  string
+		input    []cfgfile
+		want     want
 	}
 )
 
@@ -1156,12 +1157,18 @@ func testParser(t *testing.T, tc testcase) {
 		}
 		fixupFiledirOnErrorsFileRanges(configsDir, tc.want.errs)
 
-		if tc.dir == "" {
-			tc.dir = configsDir
+		if tc.parsedir == "" {
+			tc.parsedir = configsDir
 		} else {
-			tc.dir = filepath.Join(configsDir, tc.dir)
+			tc.parsedir = filepath.Join(configsDir, tc.parsedir)
 		}
-		got, err := hcl.ParseDir(configsDir, tc.dir)
+
+		if tc.rootdir == "" {
+			tc.rootdir = configsDir
+		} else {
+			tc.rootdir = filepath.Join(configsDir, tc.rootdir)
+		}
+		got, err := hcl.ParseDir(tc.rootdir, tc.parsedir)
 		errtest.AssertErrorList(t, err, tc.want.errs)
 
 		var gotErrs *errors.List

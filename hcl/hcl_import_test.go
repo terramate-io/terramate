@@ -58,8 +58,8 @@ func TestHCLImport(t *testing.T) {
 			},
 		},*/
 		{
-			name: "import with non-existent file - fails",
-			dir:  "stack",
+			name:     "import with non-existent file - fails",
+			parsedir: "stack",
 			input: []cfgfile{
 				{
 					filename: "stack/cfg.tm",
@@ -110,8 +110,8 @@ func TestHCLImport(t *testing.T) {
 			},
 		},
 		{
-			name: "import cycle - fails",
-			dir:  "stack",
+			name:     "import cycle - fails",
+			parsedir: "stack",
 			input: []cfgfile{
 				{
 					filename: "stack/cfg.tm",
@@ -134,8 +134,8 @@ func TestHCLImport(t *testing.T) {
 			},
 		},
 		{
-			name: "import same tree - fails",
-			dir:  "stack",
+			name:     "import same tree - fails",
+			parsedir: "stack",
 			input: []cfgfile{
 				{
 					filename: "stack/cfg.tm",
@@ -157,8 +157,8 @@ func TestHCLImport(t *testing.T) {
 			},
 		},
 		{
-			name: "import same file multiple times - fails",
-			dir:  "stack",
+			name:     "import same file multiple times - fails",
+			parsedir: "stack",
 			input: []cfgfile{
 				{
 					filename: "stack/cfg.tm",
@@ -183,8 +183,8 @@ func TestHCLImport(t *testing.T) {
 			},
 		},
 		{
-			name: "imported file imports same file multiple times - fails",
-			dir:  "stack",
+			name:     "imported file imports same file multiple times - fails",
+			parsedir: "stack",
 			input: []cfgfile{
 				{
 					filename: "stack/cfg.tm",
@@ -215,8 +215,8 @@ func TestHCLImport(t *testing.T) {
 			},
 		},
 		{
-			name: "import disjoint directory",
-			dir:  "stack",
+			name:     "import disjoint directory",
+			parsedir: "stack",
 			input: []cfgfile{
 				{
 					filename: "/stack/cfg.tm",
@@ -240,8 +240,8 @@ func TestHCLImport(t *testing.T) {
 			},
 		},
 		{
-			name: "import relative directory",
-			dir:  "stack",
+			name:     "import relative directory",
+			parsedir: "stack",
 			input: []cfgfile{
 				{
 					filename: "/stack/cfg.tm",
@@ -265,8 +265,33 @@ func TestHCLImport(t *testing.T) {
 			},
 		},
 		{
-			name: "import disjoint directory with config sub blocks",
-			dir:  "stack",
+			name:     "import relative directory outside terramate root",
+			parsedir: "project/stack",
+			rootdir:  "project",
+			input: []cfgfile{
+				{
+					filename: "/project/stack/cfg.tm",
+					body: `import {
+						source = "../../outside/cfg.tm"
+				}`,
+				},
+				{
+					filename: "/outside/cfg.tm",
+					body: `terramate {
+							required_version = "1.0"
+						}`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrImport,
+						mkrange("project/stack/cfg.tm", start(2, 16, 24), end(2, 38, 46))),
+				},
+			},
+		},
+		{
+			name:     "import disjoint directory with config sub blocks",
+			parsedir: "stack",
 			input: []cfgfile{
 				{
 					filename: "/stack/cfg.tm",
@@ -300,8 +325,8 @@ func TestHCLImport(t *testing.T) {
 			},
 		},
 		{
-			name: "import with conflicting top-level attributes",
-			dir:  "stack",
+			name:     "import with conflicting top-level attributes",
+			parsedir: "stack",
 			input: []cfgfile{
 				{
 					filename: "stack/cfg.tm",
@@ -325,8 +350,8 @@ func TestHCLImport(t *testing.T) {
 			},
 		},
 		{
-			name: "import with conflicting terramate blocks - fails",
-			dir:  "stack",
+			name:     "import with conflicting terramate blocks - fails",
+			parsedir: "stack",
 			input: []cfgfile{
 				{
 					filename: "stack/cfg.tm",
@@ -362,8 +387,8 @@ func TestHCLImport(t *testing.T) {
 			},
 		},
 		{
-			name: "import with merged terramate config",
-			dir:  "stack",
+			name:     "import with merged terramate config",
+			parsedir: "stack",
 			input: []cfgfile{
 				{
 					filename: "stack/cfg.tm",

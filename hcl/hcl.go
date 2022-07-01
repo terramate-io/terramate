@@ -430,22 +430,22 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 			"file %q already parsed", src)
 	}
 
-	parser, err := NewTerramateParser(p.root, srcDir)
+	importParser, err := NewTerramateParser(p.root, srcDir)
 	if err != nil {
 		return errors.E(ErrImport, srcAttr.Expr.Range(),
 			err, "failed to create sub parser")
 	}
-	err = parser.AddFile(src)
+	err = importParser.AddFile(src)
 	if err != nil {
 		return errors.E(ErrImport, srcAttr.Expr.Range(),
 			err)
 	}
-	parser.addParsedFile(p.dir, external, p.internalParsedFiles()...)
-	err = parser.MinimalParse()
+	importParser.addParsedFile(p.dir, external, p.internalParsedFiles()...)
+	err = importParser.MinimalParse()
 	if err != nil {
 		return err
 	}
-	err = p.mergeParsers(parser)
+	err = p.mergeParsers(importParser)
 	if err != nil {
 		return errors.E(ErrImport, err)
 	}
