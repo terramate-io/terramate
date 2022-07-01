@@ -348,6 +348,54 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 		},
+
+		{
+			name: "stack imports config with block with same label as parent",
+			layout: []string{
+				"s:stacks/stack",
+				"d:other",
+			},
+			configs: []hclconfig{
+				{
+					path: "/other",
+					add: generateHCL(
+						labels("repeated"),
+						content(
+							block("block",
+								str("data", "imported data"),
+							),
+						),
+					),
+				},
+				{
+					path: "/stacks",
+					add: generateHCL(
+						labels("repeated"),
+						content(
+							block("block",
+								str("data", "stacks data"),
+							),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack",
+					add: importy(
+						str("source", fmt.Sprintf("/other/%s", config.DefaultFilename)),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							StackPath: "/stacks/stack",
+						},
+						Error: errors.E(generate.ErrConflictingConfig),
+					},
+				},
+			},
+		},
 		{
 			name: "stack with block with same label as parent but different condition",
 			layout: []string{
