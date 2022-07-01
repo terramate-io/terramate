@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	hhcl "github.com/hashicorp/hcl/v2"
-	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
@@ -45,227 +44,6 @@ type (
 		want  want
 	}
 )
-
-func TestHCLParserModules(t *testing.T) {
-	type want struct {
-		modules []hcl.Module
-		errs    []error
-	}
-	type testcase struct {
-		name  string
-		input cfgfile
-		want  want
-	}
-
-	for _, tc := range []testcase{
-		{
-			name: "module must have 1 label",
-			input: cfgfile{
-				filename: "main.tf",
-				body:     `module {}`,
-			},
-			want: want{
-				errs: []error{errors.E(hcl.ErrTerraformSchema,
-					mkrange("main.tf", start(1, 8, 7), end(1, 9, 8)))},
-			},
-		},
-		{
-			name: "module must have a source attribute",
-			input: cfgfile{
-				filename: "main.tf",
-				body:     `module "test" {}`,
-			},
-			want: want{
-				errs: []error{errors.E(hcl.ErrTerraformSchema,
-					mkrange("main.tf", start(1, 15, 14), end(1, 17, 16)))},
-			},
-		},
-		{
-			name: "empty source is a valid module",
-			input: cfgfile{
-				filename: "main.tf",
-				body:     `module "test" {source = ""}`,
-			},
-			want: want{
-				modules: []hcl.Module{
-					{
-						Source: "",
-					},
-				},
-			},
-		},
-		{
-			name: "valid module",
-			input: cfgfile{
-				filename: "main.tf",
-				body:     `module "test" {source = "test"}`,
-			},
-			want: want{
-				modules: []hcl.Module{
-					{
-						Source: "test",
-					},
-				},
-			},
-		},
-		{
-			name: "mixing modules and attributes, ignore attrs",
-			input: cfgfile{
-				filename: "main.tf",
-				body: `
-				a = 1
-				module "test" {
-					source = "test"
-				}
-				b = 1
-			`,
-			},
-			want: want{
-				modules: []hcl.Module{
-					{
-						Source: "test",
-					},
-				},
-			},
-		},
-		{
-			name: "multiple modules",
-			input: cfgfile{
-				filename: "main.tf",
-				body: `
-a = 1
-module "test" {
-	source = "test"
-}
-b = 1
-module "bleh" {
-	source = "bleh"
-}
-`,
-			},
-			want: want{
-				modules: []hcl.Module{
-					{
-						Source: "test",
-					},
-					{
-						Source: "bleh",
-					},
-				},
-			},
-		},
-		{
-			name: "fails if source is not a string",
-			input: cfgfile{
-				filename: "main.tf",
-				body: `
-module "test" {
-	source = -1
-}
-`,
-			},
-			want: want{
-				errs: []error{errors.E(hcl.ErrTerraformSchema,
-					mkrange("main.tf", start(3, 11, 27), end(3, 13, 29)))},
-			},
-		},
-		{
-			name: "variable interpolation in the source string - fails",
-			input: cfgfile{
-				filename: "main.tf",
-				body:     "module \"test\" {\nsource = \"${var.test}\"\n}\n",
-			},
-			want: want{
-				errs: []error{errors.E(hcl.ErrTerraformSchema,
-					mkrange("main.tf", start(2, 13, 28), end(2, 16, 31)))},
-			},
-		},
-		{
-			name: "multiple schema errors on same file get reported",
-			input: cfgfile{
-				filename: "main.tf",
-				body: `
-				module "test" {
-					source = -1
-				}
-
-				module "test2" {
-					source = "${var.test}"
-				}
-
-				module {
-					source = "test"
-				}
-
-				module "test3" {}
-			`,
-			},
-			want: want{
-				errs: []error{
-					errors.E(hcl.ErrTerraformSchema,
-						mkrange("main.tf", start(3, 15, 35), end(3, 17, 37))),
-					errors.E(hcl.ErrTerraformSchema,
-						mkrange("main.tf", start(7, 18, 83), end(7, 21, 86))),
-					errors.E(hcl.ErrTerraformSchema,
-						mkrange("main.tf", start(10, 12, 112), end(10, 13, 113))),
-					errors.E(hcl.ErrTerraformSchema,
-						mkrange("main.tf", start(14, 20, 161), end(14, 22, 163))),
-				},
-			},
-		},
-		{
-			name: "multiple syntax errors on same file get reported",
-			input: cfgfile{
-				filename: "main.tf",
-				body: `
-				string = hi"
-				bool   = rue
-				list   = [
-				obj    = {
-			`,
-			},
-			want: want{
-				errs: []error{
-					errors.E(hcl.ErrHCLSyntax),
-					errors.E(mkrange("main.tf", start(2, 17, 17), end(3, 1, 18))),
-					errors.E(mkrange("main.tf", start(3, 17, 34), end(4, 1, 35))),
-					errors.E(mkrange("main.tf", start(4, 15, 49), end(5, 1, 50))),
-					errors.E(mkrange("main.tf", start(5, 15, 64), end(6, 1, 65))),
-					errors.E(mkrange("main.tf", start(2, 16, 16), end(2, 17, 17))),
-				},
-			},
-		},
-		{
-			name: "variable interpolation in the source string - fails",
-			input: cfgfile{
-				filename: "main.tf",
-				body:     "module \"test\" {\nsource = \"${var.test}\"\n}\n",
-			},
-			want: want{
-				errs: []error{errors.E(hcl.ErrTerraformSchema,
-					mkrange("main.tf", start(2, 13, 28), end(2, 16, 31)))},
-			},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			configdir := t.TempDir()
-			tfpath := test.WriteFile(t, configdir, tc.input.filename, tc.input.body)
-			fixupFiledirOnErrorsFileRanges(configdir, tc.want.errs)
-
-			modules, err := hcl.ParseModules(tfpath)
-			errtest.AssertErrorList(t, err, tc.want.errs)
-			assert.EqualInts(t,
-				len(tc.want.modules),
-				len(modules),
-				"got: %v, want: %v", modules, tc.want.modules)
-
-			for i := 0; i < len(tc.want.modules); i++ {
-				assert.EqualStrings(t, tc.want.modules[i].Source, modules[i].Source,
-					"module source mismatch")
-			}
-		})
-	}
-}
 
 func TestHCLParserTerramateBlock(t *testing.T) {
 	for _, tc := range []testcase{
@@ -1177,7 +955,7 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 					body: `terramate {
 						config {
 							git {
-								default_remote = "test"
+								default_branch = "test"
 							}
 						}
 					}`,
@@ -1186,9 +964,9 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg2.tm", start(3, 8, 34), end(3, 13, 39))),
-					errors.E(hcl.ErrTerramateSchema,
 						mkrange("cfg1.tm", start(9, 6, 108), end(9, 12, 114))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("cfg2.tm", start(4, 9, 48), end(4, 23, 62))),
 				},
 			},
 		},
@@ -1319,7 +1097,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 			},
 		},
 		{
-			name: "multiple files with terramate.config.git blocks fail",
+			name: "multiple files with conflicting terramate.config.git attributes fail",
 			input: []cfgfile{
 				{
 					filename: "git.tm",
@@ -1339,7 +1117,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 						terramate {
 							config {
 								git {
-									default_remote = "upstream"
+									default_branch = "other"
 								}
 							}
 						}

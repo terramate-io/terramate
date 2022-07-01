@@ -223,36 +223,33 @@ func loadStackGlobalsExprs(rootdir string, cfgdir string) (*globalsExpr, error) 
 		Str("cfgdir", cfgdir).
 		Logger()
 
-	logger.Debug().Msg("Parse globals blocks.")
-
-	blocks, err := hcl.ParseGlobalsBlocks(filepath.Join(rootdir, cfgdir))
-	if err != nil {
-		return nil, errors.E("parsing globals block", err)
-	}
-
 	globals := newGlobalsExpr()
 
-	logger.Trace().Msg("Range over blocks.")
+	logger.Debug().Msg("Parse globals blocks.")
 
-	for filename, fileblocks := range blocks {
-		logger.Trace().Msg("Range over block attributes.")
+	absdir := filepath.Join(rootdir, cfgdir)
+	p := hcl.NewTerramateParser(absdir)
+	err := p.AddDir(absdir)
+	if err != nil {
+		return nil, errors.E("adding dir to parser", err)
+	}
 
-		for _, fileblock := range fileblocks {
-			for name, attr := range fileblock.Body.Attributes {
-				if globals.has(name) {
-					return nil, errors.E(
-						ErrGlobalRedefined,
-						"%q redefined in %q", name, filename,
-					)
-				}
+	err = p.MinimalParse()
+	if err != nil {
+		return nil, errors.E("parsing config", err)
+	}
 
-				logger.Trace().Msg("Add attribute to globals.")
+	globalsBlock, ok := p.MergedBlocks["globals"]
+	if ok {
+		logger.Trace().Msg("Range over attributes.")
 
-				globals.add(name, expression{
-					origin: project.PrjAbsPath(rootdir, filename),
-					value:  attr.Expr,
-				})
-			}
+		for _, attr := range globalsBlock.Attributes.SortedList() {
+			logger.Trace().Msg("Add attribute to globals.")
+
+			globals.add(attr.Name, expression{
+				origin: project.PrjAbsPath(rootdir, attr.Origin),
+				value:  attr.Expr,
+			})
 		}
 	}
 

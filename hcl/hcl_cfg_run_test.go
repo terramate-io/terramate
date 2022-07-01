@@ -24,6 +24,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/ast"
 )
 
 func TestHCLParserConfigRun(t *testing.T) {
@@ -43,10 +44,10 @@ func TestHCLParserConfigRun(t *testing.T) {
 		}
 
 		body := res.Body.(*hclsyntax.Body)
-		attrs := make(hcl.Attributes, 0, len(body.Attributes))
+		attrs := make(ast.Attributes)
 
-		for _, attr := range body.Attributes {
-			attrs = append(attrs, hcl.NewAttribute(filepath, attr))
+		for name, attr := range body.Attributes {
+			attrs[name] = ast.NewAttribute(filepath, attr)
 		}
 
 		return hcl.Config{
@@ -438,7 +439,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 			},
 			want: want{
 				errs: []error{errors.E(hcl.ErrTerramateSchema,
-					mkrange("cfg.tm", start(9, 15, 147), end(9, 31, 163)))},
+					mkrange("cfg.tm", start(9, 15, 147), end(9, 21, 153)))},
 			},
 		},
 		{
@@ -490,10 +491,10 @@ func TestHCLParserConfigRun(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg2.tm", start(6, 15, 84), end(6, 31, 100)),
+						mkrange("cfg2.tm", start(6, 15, 84), end(6, 21, 90)),
 					),
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg3.tm", start(6, 15, 84), end(6, 31, 100)),
+						mkrange("cfg3.tm", start(6, 15, 84), end(6, 21, 90)),
 					),
 				},
 			},

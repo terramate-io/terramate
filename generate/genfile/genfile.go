@@ -216,7 +216,7 @@ func loadGenFileBlocks(rootdir string, cfgdir string) ([]genFileBlock, error) {
 		return nil, nil
 	}
 
-	genFileBlocks, err := hcl.ParseGenerateFileBlocks(cfgdir)
+	blocks, err := hcl.ParseGenerateFileBlocks(cfgdir)
 	if err != nil {
 		return nil, errors.E(err, "cfgdir %q", cfgdir)
 	}
@@ -224,18 +224,16 @@ func loadGenFileBlocks(rootdir string, cfgdir string) ([]genFileBlock, error) {
 	logger.Trace().Msg("Parsed generate_file blocks.")
 	res := []genFileBlock{}
 
-	for filename, blocks := range genFileBlocks {
-		for _, block := range blocks {
-			origin := project.PrjAbsPath(rootdir, filename)
+	for _, block := range blocks {
+		origin := project.PrjAbsPath(rootdir, block.Origin)
 
-			res = append(res, genFileBlock{
-				label:  block.Label,
-				origin: origin,
-				block:  block,
-			})
+		res = append(res, genFileBlock{
+			label:  block.Label,
+			origin: origin,
+			block:  block,
+		})
 
-			logger.Trace().Msg("loaded generate_file block.")
-		}
+		logger.Trace().Msg("loaded generate_file block.")
 	}
 
 	parentCfgDir := filepath.Dir(cfgdir)
