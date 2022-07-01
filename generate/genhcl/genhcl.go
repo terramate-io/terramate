@@ -219,7 +219,7 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) ([]loadedHCL, error) {
 		return nil, nil
 	}
 
-	blocks, err := hcl.ParseGenerateHCLBlocks(cfgdir)
+	blocks, err := hcl.ParseGenerateHCLBlocks(rootdir, cfgdir)
 	if err != nil {
 		return nil, errors.E(ErrParsing, err, "cfgdir %q", cfgdir)
 	}

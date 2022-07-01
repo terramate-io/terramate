@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	hhcl "github.com/hashicorp/hcl/v2"
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
@@ -39,9 +40,11 @@ type (
 	}
 
 	testcase struct {
-		name  string
-		input []cfgfile
-		want  want
+		name     string
+		parsedir string
+		rootdir  string
+		input    []cfgfile
+		want     want
 	}
 )
 
@@ -1145,14 +1148,28 @@ func testParser(t *testing.T, tc testcase) {
 
 		configsDir := t.TempDir()
 		for _, inputConfigFile := range tc.input {
-			filename := inputConfigFile.filename
-			if filename == "" {
+			if inputConfigFile.filename == "" {
 				panic("expect a filename in the input config")
 			}
-			test.WriteFile(t, configsDir, filename, inputConfigFile.body)
+			path := filepath.Join(configsDir, inputConfigFile.filename)
+			dir := filepath.Dir(path)
+			filename := filepath.Base(path)
+			test.WriteFile(t, dir, filename, inputConfigFile.body)
 		}
 		fixupFiledirOnErrorsFileRanges(configsDir, tc.want.errs)
-		got, err := hcl.ParseDir(configsDir)
+
+		if tc.parsedir == "" {
+			tc.parsedir = configsDir
+		} else {
+			tc.parsedir = filepath.Join(configsDir, tc.parsedir)
+		}
+
+		if tc.rootdir == "" {
+			tc.rootdir = configsDir
+		} else {
+			tc.rootdir = filepath.Join(configsDir, tc.rootdir)
+		}
+		got, err := hcl.ParseDir(tc.rootdir, tc.parsedir)
 		errtest.AssertErrorList(t, err, tc.want.errs)
 
 		var gotErrs *errors.List
@@ -1199,11 +1216,24 @@ func testParser(t *testing.T, tc testcase) {
 	}
 }
 
+func TestHCLParseReParsingFails(t *testing.T) {
+	temp := t.TempDir()
+	p, err := hcl.NewTerramateParser(temp, temp)
+	assert.NoError(t, err)
+	test.WriteFile(t, temp, "test.tm", `terramate {}`)
+	err = p.AddDir(temp)
+	assert.NoError(t, err)
+	_, err = p.Parse()
+	assert.NoError(t, err)
+
+	_, err = p.Parse()
+	assert.Error(t, err)
+	err = p.MinimalParse()
+	assert.Error(t, err)
+}
+
 // some helpers to easy build file ranges.
 func mkrange(fname string, start, end hhcl.Pos) hhcl.Range {
-	if start.Byte == end.Byte {
-		panic("empty file range")
-	}
 	return hhcl.Range{
 		Filename: fname,
 		Start:    start,

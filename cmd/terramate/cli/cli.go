@@ -1152,7 +1152,7 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 			logger.Trace().Msg("Load root config.")
 
-			cfg, err := hcl.ParseDir(root)
+			cfg, err := hcl.ParseDir(root, root)
 			if err != nil {
 				return project{}, false, err
 			}
