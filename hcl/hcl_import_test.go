@@ -358,15 +358,15 @@ func TestHCLImport(t *testing.T) {
 					filename: "stack/cfg.tm",
 					body: `import {
 						source = "/other/imported.tm"
-				}
-				terramate {
-					config {
-						git {
-							default_branch = "main"
+					}
+					terramate {
+						config {
+							git {
+								default_branch = "main"
+							}
 						}
 					}
-				}
-				`,
+					`,
 				},
 				{
 					filename: "other/imported.tm",
