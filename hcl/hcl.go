@@ -150,7 +150,7 @@ type TerramateParser struct {
 	parsedFiles map[string]parsedFile
 
 	// if true, calling Parse() or MinimalParse() will fail.
-	executed bool
+	parsed bool
 }
 
 // parsedFile tells the origin and kind of the parsedFile.
@@ -260,14 +260,6 @@ func (p *TerramateParser) AddFileContent(name string, data []byte) error {
 	return nil
 }
 
-func (p *TerramateParser) hasInvalidState() bool {
-	return p.executed
-}
-
-func (p *TerramateParser) setInvalidState() {
-	p.executed = true
-}
-
 // Parse the previously added files and return either a Config or an error.
 func (p *TerramateParser) Parse() (Config, error) {
 	err := p.MinimalParse()
@@ -283,10 +275,10 @@ func (p *TerramateParser) Parse() (Config, error) {
 // MinimalParse does the syntax parsing and merging of configurations but do not
 // validate if it's valid terramate configuration.
 func (p *TerramateParser) MinimalParse() error {
-	if p.hasInvalidState() {
+	if p.parsed {
 		return errors.E("files already parsed")
 	}
-	defer p.setInvalidState()
+	defer func() { p.parsed = true }()
 
 	err := p.parseSyntax()
 	if err != nil {
