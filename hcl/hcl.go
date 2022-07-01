@@ -17,6 +17,7 @@ package hcl
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -34,6 +35,7 @@ import (
 const (
 	ErrHCLSyntax       errors.Kind = "HCL syntax error"
 	ErrTerramateSchema errors.Kind = "terramate schema error"
+	ErrImport          errors.Kind = "import error"
 )
 
 // Config represents a Terramate configuration.
@@ -78,8 +80,16 @@ type Terramate struct {
 	Config *RootConfig
 }
 
+// StackID represents the stack ID. Its zero value represents an undefined ID.
+type StackID struct {
+	id *string
+}
+
 // Stack is the parsed "stack" HCL block.
 type Stack struct {
+	// ID of the stack. If the ID is nil it indicates this stack has no ID.
+	ID StackID
+
 	// Name of the stack
 	Name string
 
@@ -131,31 +141,93 @@ type PartialEvaluator func(hclsyntax.Expression) (hclwrite.Tokens, error)
 // this API allows you to define the exact set of files (and contents) that are
 // going to be included in the final configuration.
 type TerramateParser struct {
-	dir         string
-	files       map[string][]byte // path=content
-	parsedFiles []string
-	hclparser   *hclparse.Parser
+	rootdir   string
+	dir       string
+	files     map[string][]byte // path=content
+	hclparser *hclparse.Parser
 
 	// MergedAttributes are the top-level attributes of all files.
 	MergedAttributes ast.Attributes
 
 	// MergedBlocks are the merged blocks from all files.
-	MergedBlocks map[string]*ast.MergedBlock
+	MergedBlocks ast.MergedBlocks
 
 	// Blocks are the unmerged blocks from all files.
 	Blocks ast.Blocks
+
+	// parsedFiles stores a map of all parsed files
+	parsedFiles map[string]parsedFile
+
+	// if true, calling Parse() or MinimalParse() will fail.
+	parsed bool
 }
+
+var stackIDRegex = regexp.MustCompile("^[a-zA-Z0-9_-]{1,64}$")
+
+// NewStackID creates a new StackID with the given string as its id.
+// It guarantees that the id passed is a valid StackID value,
+// an error is returned otherwise.
+func NewStackID(id string) (StackID, error) {
+	if !stackIDRegex.MatchString(id) {
+		return StackID{}, errors.E("Stack ID %q doesn't match %q", id, stackIDRegex)
+	}
+	return StackID{id: &id}, nil
+}
+
+// Value returns the ID string value and true if this StackID is defined,
+// it returns "" and false otherwise.
+func (s StackID) Value() (string, bool) {
+	if s.id == nil {
+		return "", false
+	}
+	return *s.id, true
+}
+
+// parsedFile tells the origin and kind of the parsedFile.
+// The kind can be either internal or external, meaning the file was parsed
+// by this parser or by another parser instance, respectively.
+type parsedFile struct {
+	kind   parsedKind
+	origin string
+}
+
+type parsedKind int
+
+const (
+	_ parsedKind = iota
+	internal
+	external
+)
 
 type mergeHandler func(block *ast.Block) error
 
-// NewTerramateParser creates a Terramate parser for the directory dir.
-func NewTerramateParser(dir string) *TerramateParser {
+// NewTerramateParser creates a Terramate parser for the directory dir inside
+// the root directory.
+// The parser creates sub-parsers for parsing imports but keeps a list of all
+// parsed files of all sub-parsers for detecting cycles and import duplications.
+// Calling Parse() or MinimalParse() multiple times is an error.
+func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
+	if !strings.HasPrefix(dir, rootdir) {
+		return nil, errors.E("directory %q is not inside root %q", dir, rootdir)
+	}
+
 	return &TerramateParser{
+		rootdir:          rootdir,
 		dir:              dir,
 		files:            map[string][]byte{},
 		hclparser:        hclparse.NewParser(),
 		MergedAttributes: make(ast.Attributes),
 		MergedBlocks:     make(ast.MergedBlocks),
+		parsedFiles:      make(map[string]parsedFile),
+	}, nil
+}
+
+func (p *TerramateParser) addParsedFile(origin string, kind parsedKind, files ...string) {
+	for _, file := range files {
+		p.parsedFiles[file] = parsedFile{
+			kind:   kind,
+			origin: origin,
+		}
 	}
 }
 
@@ -183,7 +255,7 @@ func (p *TerramateParser) AddDir(dir string) error {
 			return errors.E(err, "reading config file %q", path)
 		}
 
-		if err := p.AddFile(path, data); err != nil {
+		if err := p.AddFileContent(path, data); err != nil {
 			return err
 		}
 
@@ -193,8 +265,20 @@ func (p *TerramateParser) AddDir(dir string) error {
 	return nil
 }
 
-// AddFile adds a file to the set of files to be parsed.
-func (p *TerramateParser) AddFile(name string, data []byte) error {
+// AddFile adds a file path to be parsed.
+func (p *TerramateParser) AddFile(path string) error {
+	if !strings.HasPrefix(path, p.dir) {
+		return errors.E("parser only allow files from directory %q", p.dir)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return errors.E("adding file %q to parser", path, err)
+	}
+	return p.AddFileContent(path, data)
+}
+
+// AddFileContent adds a file to the set of files to be parsed.
+func (p *TerramateParser) AddFileContent(name string, data []byte) error {
 	if !strings.HasPrefix(name, p.dir) {
 		return errors.E("parser only allow files from directory %q", p.dir)
 	}
@@ -221,12 +305,20 @@ func (p *TerramateParser) Parse() (Config, error) {
 // MinimalParse does the syntax parsing and merging of configurations but do not
 // validate if it's valid terramate configuration.
 func (p *TerramateParser) MinimalParse() error {
+	if p.parsed {
+		return errors.E("files already parsed")
+	}
+	defer func() { p.parsed = true }()
+
 	err := p.parseSyntax()
 	if err != nil {
 		return err
 	}
 
-	return p.mergeConfig()
+	errs := errors.L()
+	errs.Append(p.mergeConfig())
+	errs.Append(p.applyImports())
+	return errs.AsError()
 }
 
 func (p *TerramateParser) mergeHandlers() map[string]mergeHandler {
@@ -320,15 +412,102 @@ func (p *TerramateParser) parseSyntax() error {
 			errs.Append(errors.E(ErrHCLSyntax, diags))
 			continue
 		}
-		p.parsedFiles = append(p.parsedFiles, name)
+		p.addParsedFile(p.dir, internal, name)
 	}
 	return errs.AsError()
+}
+
+func (p *TerramateParser) applyImports() error {
+	errs := errors.L()
+	for _, importBlock := range filterBlocksByType("import", p.Blocks) {
+		err := validateImportBlock(importBlock)
+		errs.Append(err)
+		if err == nil {
+			errs.Append(p.handleImport(importBlock))
+		}
+	}
+	return errs.AsError()
+}
+
+func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
+	srcAttr := importBlock.Attributes["source"]
+	srcVal, diags := srcAttr.Expr.Value(nil)
+	if diags.HasErrors() {
+		return errors.E(ErrTerramateSchema, srcAttr.Expr.Range(),
+			"failed to evaluate import.source")
+	}
+
+	if srcVal.Type() != cty.String {
+		return errors.E(ErrTerramateSchema, srcAttr.Expr.Range(),
+			"import.source must be a string")
+	}
+
+	src := srcVal.AsString()
+	srcBase := filepath.Base(src)
+	srcDir := filepath.Dir(src)
+	if filepath.IsAbs(srcDir) { // project-path
+		srcDir = filepath.Join(p.rootdir, srcDir)
+	} else {
+		srcDir = filepath.Join(p.dir, srcDir)
+	}
+
+	if srcDir == p.dir {
+		return errors.E(ErrImport, srcAttr.Expr.Range(),
+			"importing files in the same directory are not permitted")
+	}
+
+	if strings.HasPrefix(p.dir, srcDir) {
+		return errors.E(ErrImport, srcAttr.Expr.Range(),
+			"importing files in the same tree are not permitted")
+	}
+
+	src = filepath.Join(srcDir, srcBase)
+
+	if _, ok := p.parsedFiles[src]; ok {
+		return errors.E(ErrImport, srcAttr.Expr.Range(),
+			"file %q already parsed", src)
+	}
+
+	importParser, err := NewTerramateParser(p.rootdir, srcDir)
+	if err != nil {
+		return errors.E(ErrImport, srcAttr.Expr.Range(),
+			err, "failed to create sub parser")
+	}
+	err = importParser.AddFile(src)
+	if err != nil {
+		return errors.E(ErrImport, srcAttr.Expr.Range(),
+			err)
+	}
+	importParser.addParsedFile(p.dir, external, p.internalParsedFiles()...)
+	err = importParser.MinimalParse()
+	if err != nil {
+		return err
+	}
+	errs := errors.L()
+	for _, block := range importParser.Blocks {
+		if block.Type == "stack" {
+			errs.Append(
+				errors.E(ErrImport, srcAttr.Expr.Range(),
+					"import of stack block is not permitted"))
+		}
+	}
+	errs.Append(p.mergeAttrs(importParser.MergedAttributes))
+	errs.Append(p.mergeBlocks(importParser.MergedBlocks.AsBlocks()))
+	errs.Append(p.mergeBlocks(importParser.Blocks))
+	if err := errs.AsError(); err != nil {
+		return errors.E(ErrImport, err, "failed to merge imported configuration")
+	}
+
+	p.addParsedFile(p.dir, external, src)
+	return nil
 }
 
 // ParsedBodies returns a map of filename to the parsed hclsyntax.Body.
 func (p *TerramateParser) ParsedBodies() map[string]*hclsyntax.Body {
 	parsed := make(map[string]*hclsyntax.Body)
-	for filename, hclfile := range p.hclparser.Files() {
+	bodyMap := p.hclparser.Files()
+	for _, filename := range p.internalParsedFiles() {
+		hclfile := bodyMap[filename]
 		// A cast error here would be a severe programming error on Terramate
 		// side, so we are by design allowing the cast to panic
 		parsed[filename] = hclfile.Body.(*hclsyntax.Body)
@@ -346,7 +525,18 @@ func (p *TerramateParser) sortedFilenames() []string {
 }
 
 func (p *TerramateParser) sortedParsedFilenames() []string {
-	filenames := append([]string{}, p.parsedFiles...)
+	filenames := append([]string{}, p.internalParsedFiles()...)
+	sort.Strings(filenames)
+	return filenames
+}
+
+func (p *TerramateParser) internalParsedFiles() []string {
+	filenames := []string{}
+	for fname, parsed := range p.parsedFiles {
+		if parsed.kind == internal {
+			filenames = append(filenames, fname)
+		}
+	}
 	sort.Strings(filenames)
 	return filenames
 }
@@ -412,9 +602,10 @@ func NewTerramate(reqversion string) *Terramate {
 }
 
 // ParseDir will parse Terramate configuration from a given directory,
-// parsing all files with the suffixes .tm and .tm.hcl.
+// using root as project workspace, parsing all files with the suffixes .tm and
+// .tm.hcl.
 // Note: it does not recurse into child directories.
-func ParseDir(dir string) (Config, error) {
+func ParseDir(root string, dir string) (Config, error) {
 	logger := log.With().
 		Str("action", "ParseDir()").
 		Str("dir", dir).
@@ -422,8 +613,11 @@ func ParseDir(dir string) (Config, error) {
 
 	logger.Trace().Msg("Parsing configuration files")
 
-	p := NewTerramateParser(dir)
-	err := p.AddDir(dir)
+	p, err := NewTerramateParser(root, dir)
+	if err != nil {
+		return Config{}, err
+	}
+	err = p.AddDir(dir)
 	if err != nil {
 		return Config{}, errors.E("adding files to parser", err)
 	}
@@ -433,7 +627,7 @@ func ParseDir(dir string) (Config, error) {
 // ParseGenerateHCLBlocks parses all Terramate files on the given dir, returning
 // only generate_hcl blocks (other blocks are discarded).
 // generate_hcl blocks are validated, so the caller can expect valid blocks only or an error.
-func ParseGenerateHCLBlocks(dir string) ([]GenHCLBlock, error) {
+func ParseGenerateHCLBlocks(root, dir string) ([]GenHCLBlock, error) {
 	logger := log.With().
 		Str("action", "hcl.ParseGenerateHCLBlocks").
 		Str("configdir", dir).
@@ -441,7 +635,7 @@ func ParseGenerateHCLBlocks(dir string) ([]GenHCLBlock, error) {
 
 	logger.Trace().Msg("loading config")
 
-	blocks, err := parseUnmergedBlocks(dir, "generate_hcl", func(block *ast.Block) error {
+	blocks, err := parseUnmergedBlocks(root, dir, "generate_hcl", func(block *ast.Block) error {
 		return validateGenerateHCLBlock(block)
 	})
 	if err != nil {
@@ -463,8 +657,8 @@ func ParseGenerateHCLBlocks(dir string) ([]GenHCLBlock, error) {
 
 // ParseGenerateFileBlocks parses all Terramate files on the given dir, returning
 // parsed generate_file blocks.
-func ParseGenerateFileBlocks(dir string) ([]GenFileBlock, error) {
-	blocks, err := parseUnmergedBlocks(dir, "generate_file", func(block *ast.Block) error {
+func ParseGenerateFileBlocks(root, dir string) ([]GenFileBlock, error) {
+	blocks, err := parseUnmergedBlocks(root, dir, "generate_file", func(block *ast.Block) error {
 		return validateGenerateFileBlock(block)
 	})
 	if err != nil {
@@ -482,6 +676,30 @@ func ParseGenerateFileBlocks(dir string) ([]GenFileBlock, error) {
 	}
 
 	return genfileBlocks, nil
+}
+
+func validateImportBlock(block *ast.Block) error {
+	errs := errors.L()
+	if len(block.Labels) != 0 {
+		errs.Append(errors.E(ErrTerramateSchema, block.LabelRanges[0],
+			"import must have no labels but got %v",
+			block.Labels,
+		))
+	}
+	schema := &hcl.BodySchema{
+		Attributes: []hcl.AttributeSchema{
+			{
+				Name:     "source",
+				Required: true,
+			},
+		},
+	}
+
+	_, diags := block.Body.Content(schema)
+	if diags.HasErrors() {
+		errs.Append(errors.E(ErrTerramateSchema, diags))
+	}
+	return errs.AsError()
 }
 
 func validateGenerateHCLBlock(block *ast.Block) error {
@@ -700,6 +918,23 @@ func parseStack(stack *Stack, stackblock *ast.Block) error {
 			Msg("Setting attribute on configuration.")
 
 		switch attr.Name {
+		case "id":
+			if attrVal.Type() != cty.String {
+				errs.Append(errors.E(attr.NameRange,
+					"field stack.\"id\" must be a \"string\" but is %q",
+					attrVal.Type().FriendlyName()),
+				)
+				continue
+			}
+			id, err := NewStackID(attrVal.AsString())
+			if err != nil {
+				errs.Append(errors.E(attr.NameRange, err))
+				continue
+			}
+			logger.Trace().
+				Str("id", attrVal.AsString()).
+				Msg("found valid stack ID definition")
+			stack.ID = id
 		case "name":
 			if attrVal.Type() != cty.String {
 				errs.Append(errors.E(attr.NameRange,
@@ -1064,7 +1299,7 @@ func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
 
 type blockValidator func(*ast.Block) error
 
-func parseUnmergedBlocks(dir, blocktype string, validate blockValidator) (ast.Blocks, error) {
+func parseUnmergedBlocks(root, dir, blocktype string, validate blockValidator) (ast.Blocks, error) {
 	logger := log.With().
 		Str("action", "hcl.parseBlocks").
 		Str("configdir", dir).
@@ -1073,8 +1308,11 @@ func parseUnmergedBlocks(dir, blocktype string, validate blockValidator) (ast.Bl
 
 	logger.Trace().Msg("loading config")
 
-	parser := NewTerramateParser(dir)
-	err := parser.AddDir(dir)
+	parser, err := NewTerramateParser(root, dir)
+	if err != nil {
+		return nil, err
+	}
+	err = parser.AddDir(dir)
 	if err != nil {
 		return nil, errors.E("adding files to parser", err)
 	}

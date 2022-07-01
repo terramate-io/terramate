@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	hhcl "github.com/hashicorp/hcl/v2"
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
@@ -39,9 +40,11 @@ type (
 	}
 
 	testcase struct {
-		name  string
-		input []cfgfile
-		want  want
+		name     string
+		parsedir string
+		rootdir  string
+		input    []cfgfile
+		want     want
 	}
 )
 
@@ -419,459 +422,6 @@ func TestHCLParserRootConfig(t *testing.T) {
 	}
 }
 
-func TestHCLParserStack(t *testing.T) {
-	for _, tc := range []testcase{
-		{
-			name: "empty stack block",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						terramate {
-							required_version = ""
-						}
-						stack {}
-					`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Terramate: &hcl.Terramate{},
-					Stack:     &hcl.Stack{},
-				},
-			},
-		},
-		{
-			name: "stack with unrecognized blocks",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						stack{
-							block1 {}
-							block2 {}
-						}
-					`,
-				},
-			},
-			want: want{
-				errs: []error{
-					errors.E(hcl.ErrTerramateSchema),
-					errors.E(hcl.ErrTerramateSchema),
-				},
-			},
-		},
-		{
-			name: "multiple stack blocks",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						terramate {}
-						stack{}
-						stack{}
-					`,
-				},
-			},
-			want: want{
-				errs: []error{
-					errors.E(hcl.ErrTerramateSchema),
-				},
-			},
-		},
-		{
-			name: "empty name",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						terramate {
-							required_version = ""
-						}
-						stack {
-							name = ""
-						}
-					`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Terramate: &hcl.Terramate{},
-					Stack:     &hcl.Stack{},
-				},
-			},
-		},
-		{
-			name: "name is not a string - fails",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						terramate {
-							required_version = ""
-						}
-						stack {
-							name = 1
-						}
-					`,
-				},
-			},
-			want: want{
-				errs: []error{
-					errors.E(hcl.ErrTerramateSchema,
-						mkrange("stack.tm", start(6, 8, 77), end(6, 12, 81)),
-					),
-				},
-			},
-		},
-		{
-			name: "name has interpolation - fails",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						terramate {
-							required_version = ""
-						}
-						stack {
-							name = "${test}"
-						}
-					`,
-				},
-			},
-			want: want{
-				errs: []error{
-					errors.E(hcl.ErrTerramateSchema,
-						mkrange("stack.tm", start(6, 18, 87), end(6, 22, 91))),
-					errors.E(hcl.ErrTerramateSchema,
-						mkrange("stack.tm", start(6, 8, 77), end(6, 12, 81))),
-				},
-			},
-		},
-		{
-			name: "unrecognized attribute name - fails",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						terramate {
-							required_version = ""
-						}
-						stack {
-							bleh = "a"
-						}
-					`,
-				},
-			},
-			want: want{
-				errs: []error{
-					errors.E(hcl.ErrTerramateSchema),
-				},
-			},
-		},
-		{
-			name: "schema not checked for files with syntax errors",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						terramate {
-							required_version = ""
-						}
-						stack {
-							wants =
-							unrecognized = "test"
-						}
-					`,
-				},
-			},
-			want: want{
-				errs: []error{
-					errors.E(hcl.ErrHCLSyntax),
-				},
-			},
-		},
-		{
-			name: "after: empty set works",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						terramate {
-							required_version = ""
-						}
-						stack {}
-					`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Terramate: &hcl.Terramate{},
-					Stack:     &hcl.Stack{},
-				},
-			},
-		},
-		{
-			name: "'after' single entry",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						terramate {
-							required_version = ""
-						}
-
-						stack {
-							after = ["test"]
-						}
-					`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Terramate: &hcl.Terramate{},
-					Stack: &hcl.Stack{
-						After: []string{"test"},
-					},
-				},
-			},
-		},
-		{
-			name: "'after' invalid element entry",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						stack {
-							after = [1]
-						}
-					`,
-				},
-			},
-			want: want{
-				errs: []error{
-					errors.E(hcl.ErrTerramateSchema),
-				},
-			},
-		},
-		{
-			name: "'after' invalid type",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						stack {
-							after = {}
-						}
-					`,
-				},
-			},
-			want: want{
-				errs: []error{
-					errors.E(hcl.ErrTerramateSchema),
-				},
-			},
-		},
-		{
-			name: "'after' null value",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						stack {
-							after = null
-						}
-					`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Stack: &hcl.Stack{
-						After: []string{},
-					},
-				},
-			},
-		},
-		{
-			name: "'after' duplicated entry",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						stack {
-							after = ["test", "test"]
-						}
-					`,
-				},
-			},
-			want: want{
-				errs: []error{
-					errors.E(hcl.ErrTerramateSchema),
-				},
-			},
-		},
-		{
-			name: "multiple 'after' fields - fails",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						stack {
-							after = ["test"]
-							after = []
-						}
-					`,
-				},
-			},
-			want: want{
-				errs: []error{
-					errors.E(hcl.ErrHCLSyntax),
-				},
-			},
-		},
-		{
-			name: "multiple 'before' fields - fails",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						stack {
-							before = []
-							before = []
-						}
-					`,
-				},
-			},
-			want: want{
-				errs: []error{
-					errors.E(hcl.ErrHCLSyntax),
-				},
-			},
-		},
-		{
-			name: "'before' single entry",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						terramate {
-							required_version = ""
-						}
-
-						stack {
-							before = ["something"]
-						}
-					`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Terramate: &hcl.Terramate{},
-					Stack: &hcl.Stack{
-						Before: []string{"something"},
-					},
-				},
-			},
-		},
-		{
-			name: "'before' multiple entries",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						terramate {
-							required_version = ""
-						}
-
-						stack {
-							before = ["something", "something-else", "test"]
-						}
-					`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Terramate: &hcl.Terramate{},
-					Stack: &hcl.Stack{
-						Before: []string{"something", "something-else", "test"},
-					},
-				},
-			},
-		},
-		{
-			name: "stack with valid description",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						stack {
-							description = "some cool description"
-						}
-					`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Stack: &hcl.Stack{
-						Description: "some cool description",
-					},
-				},
-			},
-		},
-		{
-			name: "stack with multiline description",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-					stack {
-						description =  <<-EOD
-	line1
-	line2
-	EOD
-					}`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Stack: &hcl.Stack{
-						Description: "line1\nline2",
-					},
-				},
-			},
-		},
-		{
-			name: "'before' and 'after'",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						terramate {
-							required_version = ""
-						}
-
-						stack {
-							before = ["something"]
-							after = ["else"]
-						}
-					`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Terramate: &hcl.Terramate{},
-					Stack: &hcl.Stack{
-						Before: []string{"something"},
-						After:  []string{"else"},
-					},
-				},
-			},
-		},
-	} {
-		testParser(t, tc)
-	}
-}
-
 func TestHCLParserMultipleErrors(t *testing.T) {
 	for _, tc := range []testcase{
 		{
@@ -1145,14 +695,28 @@ func testParser(t *testing.T, tc testcase) {
 
 		configsDir := t.TempDir()
 		for _, inputConfigFile := range tc.input {
-			filename := inputConfigFile.filename
-			if filename == "" {
+			if inputConfigFile.filename == "" {
 				panic("expect a filename in the input config")
 			}
-			test.WriteFile(t, configsDir, filename, inputConfigFile.body)
+			path := filepath.Join(configsDir, inputConfigFile.filename)
+			dir := filepath.Dir(path)
+			filename := filepath.Base(path)
+			test.WriteFile(t, dir, filename, inputConfigFile.body)
 		}
 		fixupFiledirOnErrorsFileRanges(configsDir, tc.want.errs)
-		got, err := hcl.ParseDir(configsDir)
+
+		if tc.parsedir == "" {
+			tc.parsedir = configsDir
+		} else {
+			tc.parsedir = filepath.Join(configsDir, tc.parsedir)
+		}
+
+		if tc.rootdir == "" {
+			tc.rootdir = configsDir
+		} else {
+			tc.rootdir = filepath.Join(configsDir, tc.rootdir)
+		}
+		got, err := hcl.ParseDir(tc.rootdir, tc.parsedir)
 		errtest.AssertErrorList(t, err, tc.want.errs)
 
 		var gotErrs *errors.List
@@ -1199,11 +763,24 @@ func testParser(t *testing.T, tc testcase) {
 	}
 }
 
+func TestHCLParseReParsingFails(t *testing.T) {
+	temp := t.TempDir()
+	p, err := hcl.NewTerramateParser(temp, temp)
+	assert.NoError(t, err)
+	test.WriteFile(t, temp, "test.tm", `terramate {}`)
+	err = p.AddDir(temp)
+	assert.NoError(t, err)
+	_, err = p.Parse()
+	assert.NoError(t, err)
+
+	_, err = p.Parse()
+	assert.Error(t, err)
+	err = p.MinimalParse()
+	assert.Error(t, err)
+}
+
 // some helpers to easy build file ranges.
 func mkrange(fname string, start, end hhcl.Pos) hhcl.Range {
-	if start.Byte == end.Byte {
-		panic("empty file range")
-	}
 	return hhcl.Range{
 		Filename: fname,
 		Start:    start,

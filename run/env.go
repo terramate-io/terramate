@@ -57,7 +57,7 @@ func LoadEnv(rootdir string, st stack.S) (EnvVars, error) {
 
 	logger.Trace().Msg("parsing configuration")
 
-	cfg, err := hcl.ParseDir(rootdir)
+	cfg, err := hcl.ParseDir(rootdir, rootdir)
 	if err != nil {
 		return nil, errors.E(ErrParsingCfg, err)
 	}

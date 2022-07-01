@@ -216,7 +216,7 @@ func loadGenFileBlocks(rootdir string, cfgdir string) ([]genFileBlock, error) {
 		return nil, nil
 	}
 
-	blocks, err := hcl.ParseGenerateFileBlocks(cfgdir)
+	blocks, err := hcl.ParseGenerateFileBlocks(rootdir, cfgdir)
 	if err != nil {
 		return nil, errors.E(err, "cfgdir %q", cfgdir)
 	}

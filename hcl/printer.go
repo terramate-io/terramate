@@ -29,14 +29,14 @@ func PrintConfig(w io.Writer, cfg Config) error {
 		Str("stack", cfg.Stack.Name).
 		Logger()
 
-	logger.Trace().
-		Msg("Create empty hcl file.")
+	logger.Trace().Msg("Create empty hcl file")
+
 	f := hclwrite.NewEmptyFile()
 	rootBody := f.Body()
 
 	if cfg.Terramate != nil {
-		logger.Trace().
-			Msg("Append terramate block.")
+		logger.Trace().Msg("Append terramate block")
+
 		tm := cfg.Terramate
 		tmBlock := rootBody.AppendNewBlock("terramate", nil)
 		tmBody := tmBlock.Body()
@@ -48,8 +48,8 @@ func PrintConfig(w io.Writer, cfg Config) error {
 	}
 
 	if cfg.Stack != nil {
-		logger.Trace().
-			Msg("Append 'stack' block.")
+		logger.Trace().Msg("Append 'stack' block")
+
 		stack := cfg.Stack
 		stackBlock := rootBody.AppendNewBlock("stack", nil)
 		stackBody := stackBlock.Body()
@@ -68,6 +68,10 @@ func PrintConfig(w io.Writer, cfg Config) error {
 
 		if stack.Description != "" {
 			stackBody.SetAttributeValue("description", cty.StringVal(stack.Description))
+		}
+
+		if id, ok := stack.ID.Value(); ok {
+			stackBody.SetAttributeValue("id", cty.StringVal(id))
 		}
 	}
 

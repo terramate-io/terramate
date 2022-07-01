@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -74,17 +75,31 @@ func (e *EvalCtx) HasNamespace(name string) bool {
 }
 
 func metaToCtyMap(rootdir string, m Metadata) map[string]cty.Value {
+	logger := log.With().
+		Str("action", "stack.metaToCtyMap()").
+		Str("root", rootdir).
+		Logger()
+
+	logger.Trace().Msg("creating stack metadata")
+
 	stackpath := eval.FromMapToObject(map[string]cty.Value{
 		"absolute": cty.StringVal(m.Path()),
 		"relative": cty.StringVal(m.RelPath()),
 		"basename": cty.StringVal(m.PathBase()),
 		"to_root":  cty.StringVal(m.RelPathToRoot()),
 	})
-	stack := eval.FromMapToObject(map[string]cty.Value{
+	stackMapVals := map[string]cty.Value{
 		"name":        cty.StringVal(m.Name()),
 		"description": cty.StringVal(m.Desc()),
 		"path":        stackpath,
-	})
+	}
+	if id, ok := m.ID(); ok {
+		logger.Trace().
+			Str("id", id).
+			Msg("adding stack ID to metadata")
+		stackMapVals["id"] = cty.StringVal(id)
+	}
+	stack := eval.FromMapToObject(stackMapVals)
 	rootfs := eval.FromMapToObject(map[string]cty.Value{
 		"absolute": cty.StringVal(rootdir),
 		"basename": cty.StringVal(filepath.Base(rootdir)),
