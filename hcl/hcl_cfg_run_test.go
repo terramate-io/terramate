@@ -417,6 +417,70 @@ func TestHCLParserConfigRun(t *testing.T) {
 			},
 		},
 		{
+			name: "imported env are merged",
+			input: []cfgfile{
+				{
+					filename: "other/cfg.tm",
+					body: `terramate {
+						config {
+						  run {
+							env {
+							  string = "value"
+							}
+						  }
+						}
+					  }`,
+				},
+				{
+					filename: "cfg1.tm",
+					body: `
+						import {
+							source = "/other/cfg.tm"
+						}
+					`,
+				},
+				{
+					filename: "cfg2.tm",
+					body: `
+						terramate {
+						  config {
+						    run {
+						      env {
+						        number = 666
+						        list = []
+						      }
+						    }
+						  }
+						}
+					`,
+				},
+				{
+					filename: "cfg3.tm",
+					body: `
+						terramate {
+						  config {
+						    run {
+						      env {
+						        interp = "${global.a}"
+						        traversal = global.a.b
+						      }
+						    }
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				config: runEnvCfg(`
+						string = "value"
+						number = 666
+						list = []
+						interp = "${global.a}"
+						traversal = global.a.b
+				`),
+			},
+		},
+		{
 			name: "redefined env on different env blocks fails",
 			input: []cfgfile{
 				{

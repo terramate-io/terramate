@@ -429,6 +429,28 @@ func TestHCLImport(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:     "import stacks - fails",
+			parsedir: "stack",
+			input: []cfgfile{
+				{
+					filename: "stack/cfg.tm",
+					body: `import {
+						source = "/other/cfg.tm"
+				}`,
+				},
+				{
+					filename: "other/cfg.tm",
+					body:     `stack {}`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrImport,
+						mkrange("stack/cfg.tm", start(2, 16, 24), end(2, 31, 39))),
+				},
+			},
+		},
 	} {
 		testParser(t, tc)
 	}

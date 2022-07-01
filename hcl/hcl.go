@@ -438,6 +438,13 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 		return err
 	}
 	errs := errors.L()
+	for _, block := range importParser.Blocks {
+		if block.Type == "stack" {
+			errs.Append(
+				errors.E(ErrImport, srcAttr.Expr.Range(),
+					"import of stack block is not permitted"))
+		}
+	}
 	errs.Append(p.mergeAttrs(importParser.MergedAttributes))
 	errs.Append(p.mergeBlocks(importParser.MergedBlocks.AsBlocks()))
 	errs.Append(p.mergeBlocks(importParser.Blocks))
