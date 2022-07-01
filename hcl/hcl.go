@@ -286,8 +286,8 @@ func (p *TerramateParser) mergeBlock(block *ast.Block) error {
 func (p *TerramateParser) mergeConfig() error {
 	errs := errors.L()
 
-	bodies := p.ParsedFiles()
-	for _, origin := range p.sortedFilenames() {
+	bodies := p.ParsedBodies()
+	for _, origin := range p.sortedParsedFilenames() {
 		body := bodies[origin]
 
 		errs.Append(p.mergeAttrs(ast.NewAttributes(origin, body.Attributes)))
@@ -325,8 +325,8 @@ func (p *TerramateParser) parseSyntax() error {
 	return errs.AsError()
 }
 
-// ParsedFiles returns a map of filename to the parsed hclsyntax.Body.
-func (p *TerramateParser) ParsedFiles() map[string]*hclsyntax.Body {
+// ParsedBodies returns a map of filename to the parsed hclsyntax.Body.
+func (p *TerramateParser) ParsedBodies() map[string]*hclsyntax.Body {
 	parsed := make(map[string]*hclsyntax.Body)
 	for filename, hclfile := range p.hclparser.Files() {
 		// A cast error here would be a severe programming error on Terramate
@@ -341,6 +341,12 @@ func (p *TerramateParser) sortedFilenames() []string {
 	for fname := range p.files {
 		filenames = append(filenames, fname)
 	}
+	sort.Strings(filenames)
+	return filenames
+}
+
+func (p *TerramateParser) sortedParsedFilenames() []string {
+	filenames := append([]string{}, p.parsedFiles...)
 	sort.Strings(filenames)
 	return filenames
 }
