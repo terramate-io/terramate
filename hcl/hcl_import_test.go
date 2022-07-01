@@ -299,7 +299,7 @@ func TestHCLImport(t *testing.T) {
 					filename: "/stack/cfg.tm",
 					body: `import {
 						source = "/other/cfg.tm"
-				}`,
+					}`,
 				},
 				{
 					filename: "/other/cfg.tm",
