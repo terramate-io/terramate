@@ -176,7 +176,7 @@ func NewTerramateParser(root string, dir string) (*TerramateParser, error) {
 		files:            map[string][]byte{},
 		hclparser:        hclparse.NewParser(),
 		MergedAttributes: make(ast.Attributes),
-		MergedBlocks:     make(map[string]*ast.MergedBlock),
+		MergedBlocks:     make(ast.MergedBlocks),
 		parsedFiles:      make(map[string]parsedFile),
 	}, nil
 }
@@ -284,14 +284,6 @@ func (p *TerramateParser) mergeHandlers() map[string]mergeHandler {
 		"generate_hcl":  p.addBlock,
 		"import":        p.addBlock,
 	}
-}
-
-func (p *TerramateParser) mergeParsers(other *TerramateParser) error {
-	errs := errors.L()
-	errs.Append(p.mergeAttrs(other.MergedAttributes))
-	errs.Append(p.mergeBlocks(other.MergedBlocks.AsBlocks()))
-	p.Blocks = append(p.Blocks, other.Blocks...)
-	return errs.AsError()
 }
 
 func (p *TerramateParser) mergeBlocks(blocks ast.Blocks) error {
@@ -445,10 +437,13 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 	if err != nil {
 		return err
 	}
-	err = p.mergeParsers(importParser)
-	if err != nil {
-		return errors.E(ErrImport, err)
+	errs := errors.L()
+	errs.Append(p.mergeAttrs(importParser.MergedAttributes))
+	errs.Append(p.mergeBlocks(importParser.MergedBlocks.AsBlocks()))
+	if err := errs.AsError(); err != nil {
+		return errors.E(ErrImport, err, "failed to merge imported configuration")
 	}
+
 	p.addParsedFile(p.dir, external, src)
 	return nil
 }
