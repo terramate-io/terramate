@@ -340,8 +340,7 @@ func TestHCLImport(t *testing.T) {
 				},
 				{
 					filename: "other/imported.tm",
-					body: `A = "test"
-				`,
+					body: `A = "test"`,
 				},
 			},
 			want: want{
