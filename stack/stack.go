@@ -16,6 +16,7 @@ package stack
 
 import (
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -80,6 +81,11 @@ type (
 		// RelPathToRoot is the relative path from the stack to root.
 		RelPathToRoot() string
 	}
+)
+
+const (
+	// ErrDuplicatedID indicates that two or more stacks have the same ID.
+	ErrDuplicatedID errors.Kind = "duplicated ID found on stacks"
 )
 
 // New creates a new stack from configuration cfg.
@@ -171,6 +177,76 @@ func IsLeaf(root, dir string) (bool, error) {
 func LookupParent(root, dir string) (S, bool, error) {
 	l := NewLoader(root)
 	return l.lookupParentStack(dir)
+}
+
+// LoadAll loads all stacks inside the given rootdir.
+func LoadAll(rootdir string) ([]S, error) {
+	logger := log.With().
+		Str("action", "stack.LoadAll()").
+		Str("root", rootdir).
+		Logger()
+
+	stacks := []S{}
+	stacksIDs := map[string]S{}
+
+	logger.Trace().Msg("Walk path.")
+	err := filepath.Walk(rootdir,
+		func(path string, info fs.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			if !info.IsDir() {
+				return nil
+			}
+
+			if info.IsDir() && info.Name() == ".git" {
+				return filepath.SkipDir
+			}
+
+			if strings.HasPrefix(info.Name(), ".") {
+				return filepath.SkipDir
+			}
+
+			logger.Trace().Str("stack", path).Msg("Try load stack")
+			stack, found, err := TryLoad(rootdir, path)
+			if err != nil {
+				return err
+			}
+
+			if !found {
+				return nil
+			}
+
+			logger := logger.With().
+				Stringer("stack", stack).
+				Logger()
+
+			logger.Debug().Msg("Found stack")
+			stacks = append(stacks, stack)
+
+			if id, ok := stack.ID(); ok {
+				logger.Trace().Msg("stack has ID, checking for duplicate")
+				if otherStack, ok := stacksIDs[id]; ok {
+					return errors.E(ErrDuplicatedID,
+						"stack %q and %q have same ID %q",
+						stack.Path(),
+						otherStack.Path(),
+						id,
+					)
+				}
+				stacksIDs[id] = stack
+			}
+
+			return nil
+		},
+	)
+
+	if err != nil {
+		return nil, errors.E("listing stacks", err)
+	}
+
+	return stacks, nil
 }
 
 // Load a single stack from dir.
