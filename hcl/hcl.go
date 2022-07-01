@@ -382,6 +382,8 @@ func (p *TerramateParser) parseSyntax() error {
 
 func (p *TerramateParser) applyImports() error {
 	errs := errors.L()
+	// TODO(i4k): validate unique source attrs of all imports...
+
 	for _, importBlock := range filterBlocksByType("import", p.Blocks) {
 		err := validateImportBlock(importBlock)
 		errs.Append(err)
@@ -415,8 +417,13 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 	}
 
 	if srcDir == p.dir {
-		return errors.E(ErrImportCycle, srcAttr.Expr.Range(),
+		return errors.E(ErrImport, srcAttr.Expr.Range(),
 			"importing files in the same directory are not permitted")
+	}
+
+	if strings.HasPrefix(p.dir, srcDir) {
+		return errors.E(ErrImport, srcAttr.Expr.Range(),
+			"importing files in the same tree are not permitted")
 	}
 
 	src = filepath.Join(srcDir, srcBase)

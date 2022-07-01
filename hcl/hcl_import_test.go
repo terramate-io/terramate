@@ -87,7 +87,7 @@ func TestHCLImport(t *testing.T) {
 			},
 			want: want{
 				errs: []error{
-					errors.E(hcl.ErrImportCycle,
+					errors.E(hcl.ErrImport,
 						mkrange("cfg.tm", start(2, 16, 24), end(2, 24, 32))),
 				},
 			},
@@ -104,7 +104,7 @@ func TestHCLImport(t *testing.T) {
 			},
 			want: want{
 				errs: []error{
-					errors.E(hcl.ErrImportCycle,
+					errors.E(hcl.ErrImport,
 						mkrange("cfg.tm", start(2, 16, 24), end(2, 26, 34))),
 				},
 			},
@@ -134,6 +134,29 @@ func TestHCLImport(t *testing.T) {
 			},
 		},
 		{
+			name: "import same tree - fails",
+			dir:  "stack",
+			input: []cfgfile{
+				{
+					filename: "stack/cfg.tm",
+					body: `import {
+						source = "/cfg.tm"
+				}`,
+				},
+				{
+					filename: "cfg.tm",
+					body: `terramate {
+					}`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrImport,
+						mkrange("stack/cfg.tm", start(2, 16, 24), end(2, 25, 33))),
+				},
+			},
+		},
+		{
 			name: "import disjoint directory",
 			dir:  "stack",
 			input: []cfgfile{
@@ -159,7 +182,7 @@ func TestHCLImport(t *testing.T) {
 			},
 		},
 		{
-			name: "import disjoint directory with sub blocks",
+			name: "import disjoint directory with config sub blocks",
 			dir:  "stack",
 			input: []cfgfile{
 				{
