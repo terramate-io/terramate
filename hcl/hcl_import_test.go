@@ -334,9 +334,9 @@ func TestHCLImport(t *testing.T) {
 					filename: "stack/cfg.tm",
 					body: `import {
 						source = "/other/imported.tm"
-				}
-				A = "test"
-				`,
+					}
+					A = "test"
+					`,
 				},
 				{
 					filename: "other/imported.tm",
