@@ -38,7 +38,7 @@ type (
 		// relPathToRoot is the relative path from the stack to root.
 		relPathToRoot string
 
-		// id of the stack.
+		// ID of the stack.
 		id hcl.StackID
 
 		// name of the stack.
