@@ -1,4 +1,4 @@
-// Copyright 2021 Mineiros GmbH
+// Copyright 2022 Mineiros GmbH
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,23 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package terramate
+package stack_test
 
 import (
+	"testing"
+
+	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/stack"
+	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
-// ListStacks walks the project's root directory looking for terraform stacks.
-// It returns a lexicographic sorted list of stack directories.
-func ListStacks(rootdir string) ([]Entry, error) {
-	stacks, err := stack.LoadAll(rootdir)
-	if err != nil {
-		return nil, err
-	}
-
-	entries := make([]Entry, len(stacks))
-	for i, s := range stacks {
-		entries[i] = Entry{Stack: s}
-	}
-	return entries, nil
+func TestLoadAllFailsIfStacksIDIsNotUnique(t *testing.T) {
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		"s:stacks/stack-1:id=id",
+		"s:stacks/stack-2:id=id",
+	})
+	_, err := stack.LoadAll(s.RootDir())
+	assert.IsError(t, err, errors.E(stack.ErrDuplicatedID))
 }

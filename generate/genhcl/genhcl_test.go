@@ -851,7 +851,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 		},
 		{
-			name:  "all metadata available",
+			name:  "all metadata available by default",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
@@ -860,6 +860,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 						labels("root"),
 						content(
 							expr("stack_description", "terramate.stack.description"),
+							expr("stack_id", `tm_try(terramate.stack.id, "no-id")`),
 							expr("stack_name", "terramate.stack.name"),
 							expr("stack_path_abs", "terramate.stack.path.absolute"),
 							expr("stack_path_basename", "terramate.stack.path.basename"),
@@ -877,11 +878,39 @@ func TestLoadGeneratedHCL(t *testing.T) {
 						condition: true,
 						body: hcldoc(
 							str("stack_description", ""),
+							str("stack_id", "no-id"),
 							str("stack_name", "stack"),
 							str("stack_path_abs", "/stacks/stack"),
 							str("stack_path_basename", "stack"),
 							str("stack_path_rel", "stacks/stack"),
 							str("stack_path_to_root", "../.."),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "stack.id metadata available",
+			stack: "/stacks/stack:id=stack-id",
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: generateHCL(
+						labels("root"),
+						content(
+							expr("stack_id", "terramate.stack.id"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "root",
+					hcl: genHCL{
+						origin:    defaultCfg("/"),
+						condition: true,
+						body: hcldoc(
+							str("stack_id", "stack-id"),
 						),
 					},
 				},
@@ -1460,8 +1489,8 @@ func TestLoadGeneratedHCL(t *testing.T) {
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
 			s := sandbox.New(t)
-			stackEntry := s.CreateStack(tcase.stack)
-			stack := stackEntry.Load()
+			s.BuildTree([]string{"s:" + tcase.stack})
+			stack := s.LoadStacks()[0]
 
 			for _, cfg := range tcase.configs {
 				filename := cfg.filename
