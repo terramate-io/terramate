@@ -240,6 +240,31 @@ func TestHCLImport(t *testing.T) {
 			},
 		},
 		{
+			name: "import relative directory",
+			dir:  "stack",
+			input: []cfgfile{
+				{
+					filename: "/stack/cfg.tm",
+					body: `import {
+						source = "../other/cfg.tm"
+				}`,
+				},
+				{
+					filename: "/other/cfg.tm",
+					body: `terramate {
+							required_version = "1.0"
+						}`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						RequiredVersion: "1.0",
+					},
+				},
+			},
+		},
+		{
 			name: "import disjoint directory with config sub blocks",
 			dir:  "stack",
 			input: []cfgfile{
