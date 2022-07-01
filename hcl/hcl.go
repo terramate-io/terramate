@@ -132,7 +132,7 @@ type PartialEvaluator func(hclsyntax.Expression) (hclwrite.Tokens, error)
 // this API allows you to define the exact set of files (and contents) that are
 // going to be included in the final configuration.
 type TerramateParser struct {
-	root        string
+	rootdir     string
 	dir         string
 	files       map[string][]byte // path=content
 	parsedFiles map[string]parsedFile
@@ -165,13 +165,13 @@ type mergeHandler func(block *ast.Block) error
 
 // NewTerramateParser creates a Terramate parser for the directory dir inside
 // the root directory.
-func NewTerramateParser(root string, dir string) (*TerramateParser, error) {
-	if !strings.HasPrefix(dir, root) {
-		return nil, errors.E("directory %q is not inside root %q", dir, root)
+func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
+	if !strings.HasPrefix(dir, rootdir) {
+		return nil, errors.E("directory %q is not inside root %q", dir, rootdir)
 	}
 
 	return &TerramateParser{
-		root:             root,
+		rootdir:          rootdir,
 		dir:              dir,
 		files:            map[string][]byte{},
 		hclparser:        hclparse.NewParser(),
@@ -400,7 +400,7 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 	srcBase := filepath.Base(src)
 	srcDir := filepath.Dir(src)
 	if filepath.IsAbs(srcDir) { // project-path
-		srcDir = filepath.Join(p.root, srcDir)
+		srcDir = filepath.Join(p.rootdir, srcDir)
 	} else {
 		srcDir = filepath.Join(p.dir, srcDir)
 	}
@@ -422,7 +422,7 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 			"file %q already parsed", src)
 	}
 
-	importParser, err := NewTerramateParser(p.root, srcDir)
+	importParser, err := NewTerramateParser(p.rootdir, srcDir)
 	if err != nil {
 		return errors.E(ErrImport, srcAttr.Expr.Range(),
 			err, "failed to create sub parser")
