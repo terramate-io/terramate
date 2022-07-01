@@ -317,6 +317,15 @@ Given this project layout:
 * **stack-a** = ../..
 * **stack-b** = ../..
 
+## terramate.stack.id (string)
+
+The ID of the stack as defined on the stack configuration.
+If the stack doesn't have a ID defined on its configuration
+this metadata will be undefined (no default value provided).
+
+Please consider [stack configuration](stack.md) to see how
+you can define the stack ID.
+
 ## terramate.stack.name (string)
 
 The name of the stack as defined on the stack configuration.

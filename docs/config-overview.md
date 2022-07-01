@@ -74,6 +74,7 @@ The `stack` block has no labels and has the following schema:
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
+| id               | string         | The id of the stack |
 | name             | string         | The name of the stack |
 | description      | string         | The description of the stack |
 | before           | list(string)   | The list of `before` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs. |

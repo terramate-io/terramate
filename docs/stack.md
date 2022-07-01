@@ -17,15 +17,48 @@ What separates a stack from any other directory is the `stack{}` block.
 It doesn't require any attributes by default, but it can be used
 to describe stacks and orchestrate their execution.
 
-You can change a stack name and provide a description to it by using
-the attributes `name` and `description`:
+Stack configurations related to orchestration can be found [here](orchestration.md).
+
+Besides orchestration the `stack` block also define attributes that are
+used to describe the `stack`.
+
+## stack.id (string)(optional)
+
+The stack ID **must** be a string composed of alphanumeric chars + `-` + `_`.
+The ID can't be bigger than 64 bytes and **must** be unique on the
+whole project.
+
+There is no default value determined for the stack ID.
+
+Eg:
 
 ```hcl
 stack {
-  name        = "My Awesome Stack"
-  description = "Such Awesome Much Stack"
+  id = "some_id_that_must_be_unique"
 }
 ```
 
-Details on further stack configurations related to orchestration
-can be found [here](orchestration.md).
+## stack.name (string)(optional)
+
+The stack name can be any string and it defaults to the stack directory
+base name.
+
+Eg:
+
+```hcl
+stack {
+  name = "My Awesome Stack Name"
+}
+```
+
+## stack.description (string)(optional)
+
+The stack description can be any string and it defaults to an empty string.
+
+Eg:
+
+```hcl
+stack {
+  description = "My Awesome Stack Description"
+}
+```
