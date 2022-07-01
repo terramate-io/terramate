@@ -449,7 +449,7 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 	return nil
 }
 
-// ParsedFiles returns a map of filename to the parsed hclsyntax.Body.
+// ParsedBodies returns a map of filename to the parsed hclsyntax.Body.
 func (p *TerramateParser) ParsedBodies() map[string]*hclsyntax.Body {
 	parsed := make(map[string]*hclsyntax.Body)
 	bodyMap := p.hclparser.Files()
