@@ -128,7 +128,7 @@ func TestHCLImport(t *testing.T) {
 			},
 			want: want{
 				errs: []error{
-					errors.E(hcl.ErrImportCycle,
+					errors.E(hcl.ErrImport,
 						mkrange("other/cfg.tm", start(2, 16, 24), end(2, 31, 39))),
 				},
 			},
@@ -153,6 +153,32 @@ func TestHCLImport(t *testing.T) {
 				errs: []error{
 					errors.E(hcl.ErrImport,
 						mkrange("stack/cfg.tm", start(2, 16, 24), end(2, 25, 33))),
+				},
+			},
+		},
+		{
+			name: "import same file multiple times - fails",
+			dir:  "stack",
+			input: []cfgfile{
+				{
+					filename: "stack/cfg.tm",
+					body: `import {
+						source = "/other/cfg.tm"
+				}
+				
+				import {
+					source = "/other/cfg.tm"
+			}`,
+				},
+				{
+					filename: "other/cfg.tm",
+					body:     `globals {}`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrImport,
+						mkrange("stack/cfg.tm", start(6, 15, 78), end(6, 30, 93))),
 				},
 			},
 		},

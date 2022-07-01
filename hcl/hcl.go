@@ -35,7 +35,6 @@ const (
 	ErrHCLSyntax       errors.Kind = "HCL syntax error"
 	ErrTerramateSchema errors.Kind = "terramate schema error"
 	ErrImport          errors.Kind = "import error"
-	ErrImportCycle     errors.Kind = "import cycle detected"
 )
 
 // Config represents a Terramate configuration.
@@ -382,8 +381,6 @@ func (p *TerramateParser) parseSyntax() error {
 
 func (p *TerramateParser) applyImports() error {
 	errs := errors.L()
-	// TODO(i4k): validate unique source attrs of all imports...
-
 	for _, importBlock := range filterBlocksByType("import", p.Blocks) {
 		err := validateImportBlock(importBlock)
 		errs.Append(err)
@@ -429,7 +426,7 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 	src = filepath.Join(srcDir, srcBase)
 
 	if _, ok := p.parsedFiles[src]; ok {
-		return errors.E(ErrImportCycle, srcAttr.Expr.Range(),
+		return errors.E(ErrImport, srcAttr.Expr.Range(),
 			"file %q already parsed", src)
 	}
 
@@ -452,6 +449,7 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 	if err != nil {
 		return errors.E(ErrImport, err)
 	}
+	p.addParsedFile(p.dir, external, src)
 	return nil
 }
 
