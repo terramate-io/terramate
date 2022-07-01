@@ -142,7 +142,7 @@ func NoGit(t *testing.T) S {
 // TODO(i4k): document empty data field.
 //
 // Example:
-//   s:name-of-the-stack:version=1.0;after=["other-stack"]
+//   s:name-of-the-stack:id=stack-id;after=["other-stack"]
 //
 // This is an internal mini-lang used to simplify testcases, so it expects well
 // formed layout specification.
@@ -512,6 +512,10 @@ func buildTree(t *testing.T, rootdir string, layout []string) {
 			name := parts[0]
 			value := parts[1]
 			switch name {
+			case "id":
+				id, err := hcl.NewStackID(value)
+				assert.NoError(t, err, "invalid stack ID on stack descriptor")
+				cfg.Stack.ID = id
 			case "after":
 				cfg.Stack.After = parseListSpec(t, name, value)
 			case "before":

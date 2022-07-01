@@ -17,6 +17,7 @@ package hcl
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -79,8 +80,16 @@ type Terramate struct {
 	Config *RootConfig
 }
 
+// StackID represents the stack ID. Its zero value represents an undefined ID.
+type StackID struct {
+	id *string
+}
+
 // Stack is the parsed "stack" HCL block.
 type Stack struct {
+	// ID of the stack. If the ID is nil it indicates this stack has no ID.
+	ID StackID
+
 	// Name of the stack
 	Name string
 
@@ -151,6 +160,27 @@ type TerramateParser struct {
 
 	// if true, calling Parse() or MinimalParse() will fail.
 	parsed bool
+}
+
+var stackIDRegex = regexp.MustCompile("^[a-zA-Z0-9_-]{1,64}$")
+
+// NewStackID creates a new StackID with the given string as its id.
+// It guarantees that the id passed is a valid StackID value,
+// an error is returned otherwise.
+func NewStackID(id string) (StackID, error) {
+	if !stackIDRegex.MatchString(id) {
+		return StackID{}, errors.E("Stack ID %q doesn't match %q", id, stackIDRegex)
+	}
+	return StackID{id: &id}, nil
+}
+
+// Value returns the ID string value and true if this StackID is defined,
+// it returns "" and false otherwise.
+func (s StackID) Value() (string, bool) {
+	if s.id == nil {
+		return "", false
+	}
+	return *s.id, true
 }
 
 // parsedFile tells the origin and kind of the parsedFile.
@@ -888,6 +918,23 @@ func parseStack(stack *Stack, stackblock *ast.Block) error {
 			Msg("Setting attribute on configuration.")
 
 		switch attr.Name {
+		case "id":
+			if attrVal.Type() != cty.String {
+				errs.Append(errors.E(attr.NameRange,
+					"field stack.\"id\" must be a \"string\" but is %q",
+					attrVal.Type().FriendlyName()),
+				)
+				continue
+			}
+			id, err := NewStackID(attrVal.AsString())
+			if err != nil {
+				errs.Append(errors.E(attr.NameRange, err))
+				continue
+			}
+			logger.Trace().
+				Str("id", attrVal.AsString()).
+				Msg("found valid stack ID definition")
+			stack.ID = id
 		case "name":
 			if attrVal.Type() != cty.String {
 				errs.Append(errors.E(attr.NameRange,
