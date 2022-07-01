@@ -851,7 +851,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 		},
 		{
-			name:  "all metadata available",
+			name:  "all metadata available by default",
 			stack: "/stacks/stack",
 			configs: []hclconfig{
 				{
@@ -860,6 +860,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 						labels("root"),
 						content(
 							expr("stack_description", "terramate.stack.description"),
+							expr("stack_id", `tm_try(terramate.stack.id, "no-id")`),
 							expr("stack_name", "terramate.stack.name"),
 							expr("stack_path_abs", "terramate.stack.path.absolute"),
 							expr("stack_path_basename", "terramate.stack.path.basename"),
@@ -877,6 +878,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 						condition: true,
 						body: hcldoc(
 							str("stack_description", ""),
+							str("stack_id", "no-id"),
 							str("stack_name", "stack"),
 							str("stack_path_abs", "/stacks/stack"),
 							str("stack_path_basename", "stack"),

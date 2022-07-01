@@ -146,6 +146,7 @@ stack_path_abs=${terramate.stack.path.absolute}
 stack_path_rel=${terramate.stack.path.relative}
 stack_path_to_root=${terramate.stack.path.to_root}
 stack_path_basename=${terramate.stack.path.basename}
+stack_id=${tm_try(terramate.stack.id, "no-id")}
 stack_name=${terramate.stack.name}
 stack_description=${terramate.stack.description}
 EOT`,
@@ -163,6 +164,7 @@ stack_path_abs=/stack
 stack_path_rel=stack
 stack_path_to_root=..
 stack_path_basename=stack
+stack_id=no-id
 stack_name=stack
 stack_description=
 `,
