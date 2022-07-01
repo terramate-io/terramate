@@ -149,6 +149,7 @@ type TerramateParser struct {
 	Blocks ast.Blocks
 }
 
+<<<<<<< HEAD
 type parsedFile struct {
 	kind   parsedKind
 	origin string
@@ -171,12 +172,19 @@ func NewTerramateParser(root string, dir string) (*TerramateParser, error) {
 		return nil, errors.E("directory %q is not inside root %q", dir, root)
 	}
 
+=======
+type mergeHandler func(block *ast.Block) error
+
+// NewTerramateParser creates a Terramate parser for the directory dir.
+func NewTerramateParser(dir string) *TerramateParser {
+>>>>>>> 99b55bb0eccf4c8f40ca5a07451c36f9276e631b
 	return &TerramateParser{
 		root:             root,
 		dir:              dir,
 		files:            map[string][]byte{},
 		hclparser:        hclparse.NewParser(),
 		MergedAttributes: make(ast.Attributes),
+<<<<<<< HEAD
 		MergedBlocks:     make(map[string]*ast.MergedBlock),
 		parsedFiles:      make(map[string]parsedFile),
 	}, nil
@@ -188,6 +196,9 @@ func (p *TerramateParser) addParsedFile(origin string, kind parsedKind, files ..
 			kind:   kind,
 			origin: origin,
 		}
+=======
+		MergedBlocks:     make(ast.MergedBlocks),
+>>>>>>> 99b55bb0eccf4c8f40ca5a07451c36f9276e631b
 	}
 }
 
@@ -338,6 +349,73 @@ func (p *TerramateParser) mergeBlock(block *ast.Block) error {
 	return nil
 }
 
+func (p *TerramateParser) mergeHandlers() map[string]mergeHandler {
+	return map[string]mergeHandler{
+		"terramate":     p.mergeBlock,
+		"globals":       p.mergeBlock,
+		"stack":         p.addBlock,
+		"generate_file": p.addBlock,
+		"generate_hcl":  p.addBlock,
+		"import":        p.addBlock,
+	}
+}
+
+func (p *TerramateParser) mergeBlocks(blocks ast.Blocks) error {
+	handlers := p.mergeHandlers()
+
+	errs := errors.L()
+	for _, block := range blocks {
+		handler, ok := handlers[block.Type]
+		if !ok {
+			errs.Append(
+				errors.E(ErrTerramateSchema, block.DefRange(),
+					"unrecognized block %q", block.Type),
+			)
+
+<<<<<<< HEAD
+	bodies := p.ParsedFiles()
+	for _, origin := range p.sortedFilenames() {
+		body := bodies[origin]
+
+		errs.Append(p.mergeAttrs(ast.NewAttributes(origin, body.Attributes)))
+		errs.Append(p.mergeBlocks(ast.NewBlocks(origin, body.Blocks)))
+=======
+			continue
+		}
+
+		errs.Append(handler(block))
+>>>>>>> 99b55bb0eccf4c8f40ca5a07451c36f9276e631b
+	}
+	return errs.AsError()
+}
+
+<<<<<<< HEAD
+func (p *TerramateParser) mergeAttrs(other ast.Attributes) error {
+	errs := errors.L()
+=======
+func (p *TerramateParser) addBlock(block *ast.Block) error {
+	p.Blocks = append(p.Blocks, block)
+	return nil
+}
+
+func (p *TerramateParser) mergeBlock(block *ast.Block) error {
+	if other, ok := p.MergedBlocks[block.Type]; ok {
+		err := other.MergeBlock(block)
+		if err != nil {
+			return errors.E(ErrTerramateSchema, err)
+		}
+		return nil
+	}
+
+	merged := ast.NewMergedBlock(block.Type)
+	p.MergedBlocks[block.Type] = merged
+	err := merged.MergeBlock(block)
+	if err != nil {
+		return errors.E(ErrTerramateSchema, err)
+	}
+	return nil
+}
+
 func (p *TerramateParser) mergeConfig() error {
 	errs := errors.L()
 
@@ -353,6 +431,7 @@ func (p *TerramateParser) mergeConfig() error {
 
 func (p *TerramateParser) mergeAttrs(other ast.Attributes) error {
 	errs := errors.L()
+>>>>>>> 99b55bb0eccf4c8f40ca5a07451c36f9276e631b
 	for _, attr := range other.SortedList() {
 		if _, ok := p.MergedAttributes[attr.Name]; ok {
 			errs.Append(errors.E(ErrTerramateSchema,
@@ -380,6 +459,7 @@ func (p *TerramateParser) parseSyntax() error {
 	return errs.AsError()
 }
 
+<<<<<<< HEAD
 func (p *TerramateParser) applyImports() error {
 	errs := errors.L()
 	for _, importBlock := range filterBlocksByType("import", p.Blocks) {
@@ -449,7 +529,11 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 }
 
 // ParsedFiles returns a map of filename to the parsed hclsyntax.Body.
+func (p *TerramateParser) ParsedFiles() map[string]*hclsyntax.Body {
+=======
+// ParsedBodies returns a map of filename to the parsed hclsyntax.Body.
 func (p *TerramateParser) ParsedBodies() map[string]*hclsyntax.Body {
+>>>>>>> 99b55bb0eccf4c8f40ca5a07451c36f9276e631b
 	parsed := make(map[string]*hclsyntax.Body)
 	bodyMap := p.hclparser.Files()
 	for _, filename := range p.internalParsedFiles() {
@@ -470,12 +554,7 @@ func (p *TerramateParser) sortedFilenames() []string {
 	return filenames
 }
 
-func (p *TerramateParser) sortedParsedFilenames() []string {
-	filenames := append([]string{}, p.internalParsedFiles()...)
-	sort.Strings(filenames)
-	return filenames
-}
-
+<<<<<<< HEAD
 func (p *TerramateParser) internalParsedFiles() []string {
 	filenames := []string{}
 	for fname, parsed := range p.parsedFiles {
@@ -483,6 +562,10 @@ func (p *TerramateParser) internalParsedFiles() []string {
 			filenames = append(filenames, fname)
 		}
 	}
+=======
+func (p *TerramateParser) sortedParsedFilenames() []string {
+	filenames := append([]string{}, p.parsedFiles...)
+>>>>>>> 99b55bb0eccf4c8f40ca5a07451c36f9276e631b
 	sort.Strings(filenames)
 	return filenames
 }
