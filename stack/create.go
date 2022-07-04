@@ -1,10 +1,94 @@
+// Copyright 2022 Mineiros GmbH
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package stack
 
-// Create creates a stack on the provided stackdir.
-// Any dirs on the path provided by stackdir that doesn't exist will be created.
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/hcl"
+	"github.com/rs/zerolog/log"
+)
+
+// CreateCfg represents stack creation configuration.
+type CreateCfg struct {
+	// Dir is the relative path of the directory, inside the project root,
+	// where the stack will be created. It must be non-empty.
+	Dir string
+
+	// Name of the stack, defaults to Dir basename if empty.
+	Name string
+
+	// Description of the stack, defaults to Name if empty.
+	Description string
+}
+
+// Create creates a stack according to the given configuration.
+// Any dirs on the path provided on the configuration that doesn't exist
+// will be created.
 //
 // If the stack already exists it will return with no error and no changes
 // will be performed on the stack.
-func Create(root, stackdir string) error {
+func Create(rootdir string, cfg CreateCfg) error {
+	const stackFilename = "stack.tm.hcl"
+
+	logger := log.With().
+		Str("action", "stack.Create()").
+		Stringer("cfg", cfg).
+		Logger()
+
+	logger.Trace().Msg("creating stack dir if absent")
+
+	absdir := filepath.Join(rootdir, cfg.Dir)
+	err := os.MkdirAll(absdir, 0755)
+	if err != nil {
+		return errors.E(err, "failed to create new stack directories")
+	}
+
+	hclCfg, err := hcl.NewConfig(absdir)
+	if err != nil {
+		return errors.E(err, "failed to create new stack config")
+	}
+
+	if cfg.Name == "" {
+		cfg.Name = filepath.Base(cfg.Dir)
+	}
+
+	if cfg.Description == "" {
+		cfg.Description = cfg.Name
+	}
+
+	hclCfg.Stack = &hcl.Stack{
+		Name:        cfg.Name,
+		Description: cfg.Description,
+	}
+
+	logger.Trace().Msg("creating stack file")
+
+	err = hclCfg.Save(stackFilename)
+	if err != nil {
+		return errors.E(err, "failed to create stack file %q on stack dir %q",
+			stackFilename,
+			cfg.Dir,
+		)
+	}
 	return nil
+}
+
+func (cfg CreateCfg) String() string {
+	return fmt.Sprintf("dir:%s, name:%s, desc:%s", cfg.Dir, cfg.Name, cfg.Description)
 }
