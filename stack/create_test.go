@@ -17,7 +17,9 @@ package stack_test
 import (
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -34,6 +36,7 @@ import (
 
 func TestStackCreation(t *testing.T) {
 	type wantedStack struct {
+		id   hcl.StackID
 		name string
 		desc string
 	}
@@ -79,6 +82,13 @@ func TestStackCreation(t *testing.T) {
 			want := tc.want.stack
 			got := s.LoadStack(tc.create.Dir)
 
+			gotID, _ := got.ID()
+			if wantID, ok := want.id.Value(); ok {
+				assert.EqualStrings(t, wantID, gotID)
+			} else {
+				_, err := uuid.Parse(gotID)
+				assert.NoError(t, err)
+			}
 			assert.EqualStrings(t, want.name, got.Name())
 			assert.EqualStrings(t, want.desc, got.Desc())
 		})

@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/google/uuid"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/rs/zerolog/log"
@@ -29,6 +30,9 @@ type CreateCfg struct {
 	// Dir is the relative path of the directory, inside the project root,
 	// where the stack will be created. It must be non-empty.
 	Dir string
+
+	// ID of the stack, defaults to an UUID V4 if empty.
+	ID string
 
 	// Name of the stack, defaults to Dir basename if empty.
 	Name string
@@ -64,6 +68,16 @@ func Create(rootdir string, cfg CreateCfg) error {
 		return errors.E(err, "failed to create new stack config")
 	}
 
+	if cfg.ID == "" {
+		logger.Trace().Msg("no ID provided, generating one")
+
+		id, err := uuid.NewRandom()
+		if err != nil {
+			return errors.E(err, "failed to create stack UUID")
+		}
+		cfg.ID = id.String()
+	}
+
 	if cfg.Name == "" {
 		cfg.Name = filepath.Base(cfg.Dir)
 	}
@@ -72,7 +86,13 @@ func Create(rootdir string, cfg CreateCfg) error {
 		cfg.Description = cfg.Name
 	}
 
+	hclID, err := hcl.NewStackID(cfg.ID)
+	if err != nil {
+		return errors.E(err, "new stack ID is invalid")
+	}
+
 	hclCfg.Stack = &hcl.Stack{
+		ID:          hclID,
 		Name:        cfg.Name,
 		Description: cfg.Description,
 	}
