@@ -19,7 +19,6 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/stack"
-	"github.com/mineiros-io/terramate/test/errors"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -39,7 +38,7 @@ func TestStackCreation(t *testing.T) {
 		desc string
 	}
 	type want struct {
-		err   error
+		err   bool
 		stack wantedStack
 	}
 	type testcase struct {
@@ -69,11 +68,13 @@ func TestStackCreation(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 			err := stack.Create(s.RootDir(), tc.create)
-			errors.Assert(t, err, tc.want.err)
 
-			if tc.want.err != nil {
+			if tc.want.err {
+				assert.Error(t, err)
 				return
 			}
+
+			assert.NoError(t, err)
 
 			want := tc.want.stack
 			got := s.LoadStack(tc.create.Dir)
