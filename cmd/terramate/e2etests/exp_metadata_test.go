@@ -52,6 +52,25 @@ stack "/stack":
 			},
 		},
 		{
+			name: "one stack with ID",
+			layout: []string{
+				"s:stack:id=unique-id",
+			},
+			want: runExpected{
+				Stdout: `Available metadata:
+
+stack "/stack":
+	terramate.stack.id="unique-id"
+	terramate.stack.name="stack"
+	terramate.stack.description=""
+	terramate.stack.path.absolute="/stack"
+	terramate.stack.path.basename="stack"
+	terramate.stack.path.relative="stack"
+	terramate.stack.path.to_root=".."
+`,
+			},
+		},
+		{
 			name: "multiple stacks, wd = root",
 			layout: []string{
 				"s:stack1",
