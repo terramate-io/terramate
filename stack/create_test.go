@@ -51,6 +51,12 @@ func TestStackCreation(t *testing.T) {
 		want   want
 	}
 
+	newID := func(id string) hcl.StackID {
+		sid, err := hcl.NewStackID(id)
+		assert.NoError(t, err)
+		return sid
+	}
+
 	testcases := []testcase{
 		{
 			name: "default create configuration",
@@ -74,6 +80,35 @@ func TestStackCreation(t *testing.T) {
 				stack: wantedStack{
 					name: "The Name Of The Stack",
 					desc: "The Name Of The Stack",
+				},
+			},
+		},
+		{
+			name: "defining only description",
+			create: stack.CreateCfg{
+				Dir:         "cool-stack",
+				Description: "Stack Description",
+			},
+			want: want{
+				stack: wantedStack{
+					name: "cool-stack",
+					desc: "Stack Description",
+				},
+			},
+		},
+		{
+			name: "defining ID/name/description",
+			create: stack.CreateCfg{
+				Dir:         "stack",
+				ID:          "stack-id",
+				Name:        "Stack Name",
+				Description: "Stack Description",
+			},
+			want: want{
+				stack: wantedStack{
+					id:   newID("stack-id"),
+					name: "Stack Name",
+					desc: "Stack Description",
 				},
 			},
 		},
