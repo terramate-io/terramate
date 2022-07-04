@@ -64,6 +64,19 @@ func TestStackCreation(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "defining only name",
+			create: stack.CreateCfg{
+				Dir:  "another-stack",
+				Name: "The Name Of The Stack",
+			},
+			want: want{
+				stack: wantedStack{
+					name: "The Name Of The Stack",
+					desc: "The Name Of The Stack",
+				},
+			},
+		},
 	}
 
 	for _, tc := range testcases {
@@ -89,8 +102,8 @@ func TestStackCreation(t *testing.T) {
 				_, err := uuid.Parse(gotID)
 				assert.NoError(t, err)
 			}
-			assert.EqualStrings(t, want.name, got.Name())
-			assert.EqualStrings(t, want.desc, got.Desc())
+			assert.EqualStrings(t, want.name, got.Name(), "checking stack name")
+			assert.EqualStrings(t, want.desc, got.Desc(), "checking stack description")
 		})
 	}
 }
