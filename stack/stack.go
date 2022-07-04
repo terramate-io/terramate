@@ -39,6 +39,8 @@ type (
 		// relPathToRoot is the relative path from the stack to root.
 		relPathToRoot string
 
+		root string
+
 		// ID of the stack.
 		id hcl.StackID
 
@@ -114,6 +116,7 @@ func New(root string, cfg hcl.Config) S {
 		hostpath:      cfg.AbsDir(),
 		path:          project.PrjAbsPath(root, cfg.AbsDir()),
 		relPathToRoot: rel,
+		root:          root,
 	}
 }
 
@@ -165,6 +168,36 @@ func (s S) RelPathToRoot() string { return s.relPathToRoot }
 
 // HostPath returns the file system absolute path of stack.
 func (s S) HostPath() string { return s.hostpath }
+
+// Watch returns the list of files to be watched by the stack.
+func (s S) Watch() ([]string, error) {
+	// the TF modules are implicitly watched.
+	visited := map[string]struct{}{}
+	tfmodules, err := scanTfModules(s.hostpath, visited)
+	if err != nil {
+		return nil, errors.E(err,
+			"loading watch files", s)
+	}
+	var watch []string
+	for _, tfmod := range tfmodules {
+		if !tfmod.IsLocal() {
+			continue
+		}
+
+		sourcePath := filepath.Join(s.hostpath, tfmod.Source)
+		tffiles, err := listTfFiles(sourcePath)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, file := range tffiles {
+			watch = append(watch,
+				project.PrjAbsPath(s.root, file))
+		}
+
+	}
+	return watch, nil
+}
 
 // IsLeaf returns true if dir is a leaf stack.
 func IsLeaf(root, dir string) (bool, error) {

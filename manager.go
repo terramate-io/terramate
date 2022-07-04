@@ -36,6 +36,7 @@ type (
 	Manager struct {
 		root       string // root is the project's root directory
 		gitBaseRef string // gitBaseRef is the git ref where we compare changes.
+		watchFiles []string
 
 		stackLoader stack.Loader
 	}
