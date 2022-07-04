@@ -178,25 +178,29 @@ func (s S) Watch() ([]string, error) {
 		return nil, errors.E(err,
 			"loading watch files", s)
 	}
-	var watch []string
+	watch := map[string]struct{}{}
 	for _, tfmod := range tfmodules {
 		if !tfmod.IsLocal() {
 			continue
 		}
 
-		sourcePath := filepath.Join(s.hostpath, tfmod.Source)
+		sourcePath := filepath.Join(tfmod.OriginDir(), tfmod.Source)
 		tffiles, err := listTfFiles(sourcePath)
 		if err != nil {
 			return nil, err
 		}
 
 		for _, file := range tffiles {
-			watch = append(watch,
-				project.PrjAbsPath(s.root, file))
+			watch[project.PrjAbsPath(s.root, file)] = struct{}{}
 		}
-
 	}
-	return watch, nil
+
+	var files []string
+	for file := range watch {
+		files = append(files, file)
+	}
+	sort.Strings(files)
+	return files, nil
 }
 
 // IsLeaf returns true if dir is a leaf stack.

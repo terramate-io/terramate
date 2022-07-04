@@ -16,6 +16,7 @@ package tf
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
@@ -29,7 +30,10 @@ import (
 // Module represents a terraform module.
 // Note that only the fields relevant for terramate are declared here.
 type Module struct {
-	Source string // Source is the module source path (eg.: directory, git path, etc).
+	// Origin is the file which has this module definition.
+	Origin string
+	// Source is the module source path (eg.: directory, git path, etc).
+	Source string
 }
 
 // Errors returned during the terraform parsing.
@@ -43,6 +47,8 @@ func (m Module) IsLocal() bool {
 	// As specified here: https://www.terraform.io/docs/language/modules/sources.html#local-paths
 	return m.Source[0:2] == "./" || m.Source[0:3] == "../"
 }
+
+func (m Module) OriginDir() string { return filepath.Dir(m.Origin) }
 
 // ParseModules parses blocks of type "module" containing a single label.
 func ParseModules(path string) ([]Module, error) {
@@ -101,7 +107,10 @@ func ParseModules(path string) ([]Module, error) {
 				"module must have a \"source\" attribute",
 			))
 		}
-		modules = append(modules, Module{Source: source})
+		modules = append(modules, Module{
+			Origin: path,
+			Source: source,
+		})
 	}
 
 	if err := errs.AsError(); err != nil {

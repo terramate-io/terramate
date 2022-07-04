@@ -63,7 +63,7 @@ func scanTfModules(dir string, visited map[string]struct{}) ([]tf.Module, error)
 
 		logger.Trace().Msg("scanning module's dependencies")
 
-		absSource := filepath.Join(dir, mod.Source)
+		absSource := filepath.Join(mod.OriginDir(), mod.Source)
 		modules, err := scanTfModules(absSource, visited)
 		if err != nil {
 			return nil, errors.E(err, "scanning tf files in %q", absSource)

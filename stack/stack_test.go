@@ -132,6 +132,147 @@ func TestStackImplicitTFWatchFiles(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "unique module dependencies",
+			layout: []string{
+				"s:stack",
+			},
+			stackpath: "stack",
+			tfFiles: []tffile{
+				{
+					path:    "modules/mod1/1.tf",
+					content: `# empty module`,
+				},
+				{
+					path:    "modules/mod2/2.tf",
+					content: `# empty module`,
+				},
+				{
+					path:    "modules/mod3/3.tf",
+					content: `# empty module`,
+				},
+				{
+					path: "stack/main.tf",
+					modules: []tf.Module{
+						{
+							Source: "../modules/mod1",
+						},
+						{
+							Source: "../modules/mod2",
+						},
+						{
+							Source: "../modules/mod3",
+						},
+						{
+							Source: "../modules/mod1",
+						},
+						{
+							Source: "../modules/mod2",
+						},
+						{
+							Source: "../modules/mod3",
+						},
+					},
+				},
+			},
+			want: want{
+				watch: []string{
+					"/modules/mod1/1.tf",
+					"/modules/mod2/2.tf",
+					"/modules/mod3/3.tf",
+				},
+			},
+		},
+		{
+			name: "1 dependency depending on 3 others",
+			layout: []string{
+				"s:stack",
+			},
+			stackpath: "stack",
+			tfFiles: []tffile{
+				{
+					path:    "modules/mod1/1.tf",
+					content: `# module 1`,
+					modules: []tf.Module{
+						{
+							Source: "../mod2",
+						},
+						{
+							Source: "../mod3",
+						},
+					},
+				},
+				{
+					path:    "modules/mod2/2.tf",
+					content: `# empty module`,
+				},
+				{
+					path:    "modules/mod3/3.tf",
+					content: `# empty module`,
+				},
+				{
+					path: "stack/main.tf",
+					modules: []tf.Module{
+						{
+							Source: "../modules/mod1",
+						},
+					},
+				},
+			},
+			want: want{
+				watch: []string{
+					"/modules/mod1/1.tf",
+					"/modules/mod2/2.tf",
+					"/modules/mod3/3.tf",
+				},
+			},
+		},
+		{
+			name: "3 level dependency tree",
+			layout: []string{
+				"s:stack",
+			},
+			stackpath: "stack",
+			tfFiles: []tffile{
+				{
+					path:    "modules/mod1/1.tf",
+					content: `# module 1`,
+					modules: []tf.Module{
+						{
+							Source: "../mod2",
+						},
+					},
+				},
+				{
+					path:    "modules/mod2/2.tf",
+					content: `# module 2`,
+					modules: []tf.Module{
+						{
+							Source: "../mod3",
+						},
+					},
+				},
+				{
+					path:    "modules/mod3/3.tf",
+					content: `# empty module`,
+				},
+				{
+					path: "stack/main.tf",
+					modules: []tf.Module{
+						{
+							Source: "../modules/mod1",
+						},
+					},
+				},
+			},
+			want: want{
+				watch: []string{
+					"/modules/mod1/1.tf",
+					"/modules/mod2/2.tf",
+					"/modules/mod3/3.tf",
+				},
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s := sandbox.New(t)
@@ -158,7 +299,7 @@ func TestStackImplicitTFWatchFiles(t *testing.T) {
 
 			watch, err := st.Watch()
 			assert.NoError(t, err)
-			assertSameWatchFiles(t, watch, tc.want.watch)
+			assertSameWatchFiles(t, tc.want.watch, watch)
 		})
 	}
 }
