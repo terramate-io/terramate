@@ -453,12 +453,12 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 
 	if srcDir == p.dir {
 		return errors.E(ErrImport, srcAttr.Expr.Range(),
-			"importing files in the same directory are not permitted")
+			"importing files in the same directory is not permitted")
 	}
 
 	if strings.HasPrefix(p.dir, srcDir) {
 		return errors.E(ErrImport, srcAttr.Expr.Range(),
-			"importing files in the same tree are not permitted")
+			"importing files in the same tree is not permitted")
 	}
 
 	src = filepath.Join(srcDir, srcBase)
