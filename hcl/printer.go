@@ -66,6 +66,10 @@ func PrintConfig(w io.Writer, cfg Config) error {
 			stackBody.SetAttributeValue("wants", cty.SetVal(listToValue(stack.Wants)))
 		}
 
+		if stack.Name != "" {
+			stackBody.SetAttributeValue("name", cty.StringVal(stack.Name))
+		}
+
 		if stack.Description != "" {
 			stackBody.SetAttributeValue("description", cty.StringVal(stack.Description))
 		}
