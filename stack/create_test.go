@@ -65,6 +65,18 @@ func TestStackCreation(t *testing.T) {
 			},
 		},
 		{
+			name: "creates all dirs no stack path",
+			create: stack.CreateCfg{
+				Dir: "dir1/dir2/dir3/stack",
+			},
+			want: want{
+				stack: wantedStack{
+					name: "stack",
+					desc: "stack",
+				},
+			},
+		},
+		{
 			name:   "creates configuration when dir already exists",
 			layout: []string{"d:stack"},
 			create: stack.CreateCfg{
