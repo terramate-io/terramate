@@ -20,6 +20,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
@@ -28,9 +29,7 @@ import (
 
 // TODO(katcipis)
 //
-// - Dot dir is not allowed
 // - Dir outside project
-// - Dir exists
 // - Dir + stack.tm.hcl exists (no stack config, only file)
 // - Dir already exists and dirs inside are not stack
 // - Dir with stack already exists (file is not stack.tm.hcl)
@@ -44,7 +43,7 @@ func TestStackCreation(t *testing.T) {
 		imports []string
 	}
 	type want struct {
-		err   bool
+		err   error
 		stack wantedStack
 	}
 	type testcase struct {
@@ -63,6 +62,19 @@ func TestStackCreation(t *testing.T) {
 	testcases := []testcase{
 		{
 			name: "default create configuration",
+			create: stack.CreateCfg{
+				Dir: "stack",
+			},
+			want: want{
+				stack: wantedStack{
+					name: "stack",
+					desc: "stack",
+				},
+			},
+		},
+		{
+			name:   "creates configuration when dir already exists",
+			layout: []string{"d:stack"},
 			create: stack.CreateCfg{
 				Dir: "stack",
 			},
@@ -128,7 +140,21 @@ func TestStackCreation(t *testing.T) {
 			},
 		},
 		{
-			name: "defining imports",
+			name: "defining single import",
+			create: stack.CreateCfg{
+				Dir:     "stack-imports",
+				Imports: []string{"/common/something.tm.hcl"},
+			},
+			want: want{
+				stack: wantedStack{
+					name:    "stack-imports",
+					desc:    "stack-imports",
+					imports: []string{"/common/something.tm.hcl"},
+				},
+			},
+		},
+		{
+			name: "defining multiple imports",
 			create: stack.CreateCfg{
 				Dir: "stack-imports",
 				Imports: []string{
@@ -145,6 +171,16 @@ func TestStackCreation(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:   "dotdir is not allowed as stack dir",
+			create: stack.CreateCfg{Dir: ".stack"},
+			want:   want{err: errors.E(stack.ErrInvalidStackDir)},
+		},
+		{
+			name:   "dotdir is not allowed as stack dir as subdir",
+			create: stack.CreateCfg{Dir: "/stacks/.stack"},
+			want:   want{err: errors.E(stack.ErrInvalidStackDir)},
+		},
 	}
 
 	for _, tc := range testcases {
@@ -154,13 +190,11 @@ func TestStackCreation(t *testing.T) {
 			buildImportedFiles(t, s.RootDir(), tc.create.Imports)
 
 			err := stack.Create(s.RootDir(), tc.create)
+			assert.IsError(t, err, tc.want.err)
 
-			if tc.want.err {
-				assert.Error(t, err)
+			if tc.want.err != nil {
 				return
 			}
-
-			assert.NoError(t, err)
 
 			want := tc.want.stack
 			got := s.LoadStack(tc.create.Dir)

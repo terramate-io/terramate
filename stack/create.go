@@ -18,11 +18,17 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/rs/zerolog/log"
+)
+
+const (
+	// ErrInvalidStackDir indicates that the given stack dir is invalid
+	ErrInvalidStackDir errors.Kind = "invalid stack directory"
 )
 
 // CreateCfg represents stack creation configuration.
@@ -57,6 +63,12 @@ func Create(rootdir string, cfg CreateCfg) error {
 		Str("action", "stack.Create()").
 		Stringer("cfg", cfg).
 		Logger()
+
+	logger.Trace().Msg("validating create configuration")
+
+	if strings.HasPrefix(filepath.Base(cfg.Dir), ".") {
+		return errors.E(ErrInvalidStackDir, "dot directories not allowed")
+	}
 
 	logger.Trace().Msg("creating stack dir if absent")
 
