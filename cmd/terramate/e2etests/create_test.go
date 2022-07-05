@@ -31,7 +31,6 @@ func TestCreateStack(t *testing.T) {
 	cli := newCLI(t, s.RootDir())
 
 	const (
-		stackPath        = "stack"
 		stackID          = "stack-id"
 		stackName        = "stack name"
 		stackDescription = "stack description"
@@ -47,23 +46,32 @@ func TestCreateStack(t *testing.T) {
 	createFile(stackImport1)
 	createFile(stackImport2)
 
-	cli.run("create", stackPath,
-		"--id", stackID,
-		"--name", stackName,
-		"--description", stackDescription,
-		"--import", stackImport1,
-		"--import", stackImport2,
-	)
+	stackPaths := []string{
+		"stack-1",
+		"/stack-2",
+		"/stacks/stack-a",
+		"stacks/stack-b",
+	}
 
-	got := s.LoadStack(stackPath)
+	for _, stackPath := range stackPaths {
+		cli.run("create", stackPath,
+			"--id", stackID,
+			"--name", stackName,
+			"--description", stackDescription,
+			"--import", stackImport1,
+			"--import", stackImport2,
+		)
 
-	gotID, _ := got.ID()
-	assert.EqualStrings(t, stackID, gotID)
-	assert.EqualStrings(t, stackName, got.Name(), "checking stack name")
-	assert.EqualStrings(t, stackDescription, got.Desc(), "checking stack description")
+		got := s.LoadStack(stackPath)
 
-	// TODO(katcipis): extract this to avoid duplication with stack.Create tests
-	assertStackImports(t, s.RootDir(), got, []string{stackImport1, stackImport2})
+		gotID, _ := got.ID()
+		assert.EqualStrings(t, stackID, gotID)
+		assert.EqualStrings(t, stackName, got.Name(), "checking stack name")
+		assert.EqualStrings(t, stackDescription, got.Desc(), "checking stack description")
+
+		// TODO(katcipis): extract this to avoid duplication with stack.Create tests
+		assertStackImports(t, s.RootDir(), got, []string{stackImport1, stackImport2})
+	}
 }
 
 func assertStackImports(t *testing.T, rootdir string, got stack.S, want []string) {
