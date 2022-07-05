@@ -496,6 +496,7 @@ func (c *cli) createStack() {
 		Logger()
 
 	logger.Trace().Msg("creating stack")
+	// TODO(katcipis): implement stack creation
 }
 
 func (c *cli) format() {
