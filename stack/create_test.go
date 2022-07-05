@@ -30,9 +30,6 @@ import (
 // TODO(katcipis)
 //
 // - Dir outside project
-// - Dir + stack.tm.hcl exists (no stack config, only file)
-// - Dir with stack already exists (file is not stack.tm.hcl)
-// - Dir with other configs but no stack definition and no stack.tm.hcl
 
 func TestStackCreation(t *testing.T) {
 	type wantedStack struct {
@@ -196,6 +193,12 @@ func TestStackCreation(t *testing.T) {
 		{
 			name:   "stack already exists",
 			layout: []string{"s:stack"},
+			create: stack.CreateCfg{Dir: "stack"},
+			want:   want{err: errors.E(stack.ErrStackAlreadyExists)},
+		},
+		{
+			name:   "stack already exists is there is a stack.tm.hcl file",
+			layout: []string{"f:stack/stack.tm.hcl"},
 			create: stack.CreateCfg{Dir: "stack"},
 			want:   want{err: errors.E(stack.ErrStackAlreadyExists)},
 		},

@@ -78,13 +78,21 @@ func Create(rootdir string, cfg CreateCfg) error {
 		return errors.E(err, "failed to create new stack directories")
 	}
 
+	_, err := os.Stat(filepath.Join(absdir, stackFilename))
+	if err == nil {
+		// Even if there is no stack inside the file, we can't overwrite
+		// the user file anyway.
+		return errors.E(ErrStackAlreadyExists, "%q already exists", stackFilename)
+	}
+
+	// We could have a stack definition somewhere else.
 	parsedCfg, err := hcl.ParseDir(rootdir, absdir)
 	if err != nil {
 		return errors.E("invalid configuration on stack create dir %s", cfg.Dir)
 	}
 
 	if parsedCfg.Stack != nil {
-		return errors.E(ErrStackAlreadyExists)
+		return errors.E(ErrStackAlreadyExists, "name %q", parsedCfg.Stack.Name)
 	}
 
 	logger.Trace().Msg("creating stack dir if absent")
