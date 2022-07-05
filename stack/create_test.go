@@ -165,6 +165,14 @@ func TestStackCreation(t *testing.T) {
 			},
 		},
 		{
+			name: "fails on invalid stack ID",
+			create: stack.CreateCfg{
+				Dir: "stack",
+				ID:  "not valid ID",
+			},
+			want: want{err: errors.E(stack.ErrInvalidStackID)},
+		},
+		{
 			name:   "dotdir is not allowed as stack dir",
 			create: stack.CreateCfg{Dir: ".stack"},
 			want:   want{err: errors.E(stack.ErrInvalidStackDir)},
@@ -175,13 +183,13 @@ func TestStackCreation(t *testing.T) {
 			want:   want{err: errors.E(stack.ErrInvalidStackDir)},
 		},
 		{
-			name:   "stack already exists",
+			name:   "fails if stack already exists",
 			layout: []string{"s:stack"},
 			create: stack.CreateCfg{Dir: "stack"},
 			want:   want{err: errors.E(stack.ErrStackAlreadyExists)},
 		},
 		{
-			name:   "stack already exists if there is a stack.tm.hcl file",
+			name:   "fails if stack already exists and there is a stack.tm.hcl file",
 			layout: []string{"f:stack/stack.tm.hcl"},
 			create: stack.CreateCfg{Dir: "stack"},
 			want:   want{err: errors.E(stack.ErrStackAlreadyExists)},

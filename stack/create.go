@@ -27,8 +27,11 @@ import (
 )
 
 const (
-	// ErrInvalidStackDir indicates that the given stack dir is invalid
+	// ErrInvalidStackDir indicates that the given stack dir is invalid.
 	ErrInvalidStackDir errors.Kind = "invalid stack directory"
+
+	// ErrInvalidStackID indicates that the given stack ID is invalid.
+	ErrInvalidStackID errors.Kind = "invalid stack ID"
 
 	// ErrStackAlreadyExists indicates that the stack already exists and cant be created.
 	ErrStackAlreadyExists errors.Kind = "stack already exists"
@@ -129,7 +132,7 @@ func Create(rootdir string, cfg CreateCfg) error {
 
 	hclID, err := hcl.NewStackID(cfg.ID)
 	if err != nil {
-		return errors.E(err, "new stack ID is invalid")
+		return errors.E(ErrInvalidStackID, err)
 	}
 
 	hclCfg.Stack = &hcl.Stack{
@@ -152,7 +155,7 @@ func Create(rootdir string, cfg CreateCfg) error {
 	}()
 
 	if err := hcl.PrintConfig(stackFile, hclCfg); err != nil {
-		return errors.E(err, "writing stack config to stack file")
+		return errors.E(err, "writing stack imports to stack file")
 	}
 
 	return hcl.PrintImports(stackFile, cfg.Imports)
