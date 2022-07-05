@@ -74,6 +74,20 @@ func TestCreateStack(t *testing.T) {
 	}
 }
 
+func TestCreateStackDefaults(t *testing.T) {
+	s := sandbox.New(t)
+	cli := newCLI(t, s.RootDir())
+	cli.run("create", "stack")
+
+	got := s.LoadStack("stack")
+
+	assert.EqualStrings(t, "stack", got.Name(), "checking stack name")
+	assert.EqualStrings(t, "stack", got.Desc(), "checking stack description")
+
+	// TODO(katcipis): extract this to avoid duplication with stack.Create tests
+	assertStackImports(t, s.RootDir(), got, []string{})
+}
+
 func assertStackImports(t *testing.T, rootdir string, got stack.S, want []string) {
 	// TODO(katcipis): extract this to avoid duplication with stack.Create tests
 	t.Helper()
