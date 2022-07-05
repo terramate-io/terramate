@@ -39,6 +39,9 @@ type CreateCfg struct {
 
 	// Description of the stack, defaults to Name if empty.
 	Description string
+
+	// Imports represents a set of import paths.
+	Imports []string
 }
 
 // Create creates a stack according to the given configuration.
@@ -99,16 +102,25 @@ func Create(rootdir string, cfg CreateCfg) error {
 
 	logger.Trace().Msg("creating stack file")
 
-	err = hclCfg.Save(stackFilename)
+	stackFile, err := os.Create(filepath.Join(absdir, stackFilename))
 	if err != nil {
-		return errors.E(err, "failed to create stack file %q on stack dir %q",
-			stackFilename,
-			cfg.Dir,
-		)
+		return errors.E(err, "opening stack file")
 	}
-	return nil
+	defer func() {
+		err := stackFile.Close()
+		if err != nil {
+			logger.Error().Err(err).Msg("closing stack file")
+		}
+	}()
+
+	if err := hcl.PrintConfig(stackFile, hclCfg); err != nil {
+		return errors.E(err, "writing stack config to stack file")
+	}
+
+	return hcl.PrintImports(stackFile, cfg.Imports)
 }
 
 func (cfg CreateCfg) String() string {
-	return fmt.Sprintf("dir:%s, name:%s, desc:%s", cfg.Dir, cfg.Name, cfg.Description)
+	return fmt.Sprintf("dir:%s, name:%s, desc:%s, imports:%v",
+		cfg.Dir, cfg.Name, cfg.Description, cfg.Imports)
 }

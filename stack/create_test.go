@@ -15,12 +15,14 @@
 package stack_test
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/stack"
+	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -36,9 +38,10 @@ import (
 
 func TestStackCreation(t *testing.T) {
 	type wantedStack struct {
-		id   hcl.StackID
-		name string
-		desc string
+		id      hcl.StackID
+		name    string
+		desc    string
+		imports []string
 	}
 	type want struct {
 		err   bool
@@ -67,6 +70,18 @@ func TestStackCreation(t *testing.T) {
 				stack: wantedStack{
 					name: "stack",
 					desc: "stack",
+				},
+			},
+		},
+		{
+			name: "absolute stack dir is relative to project root",
+			create: stack.CreateCfg{
+				Dir: "/stacks/stack-1",
+			},
+			want: want{
+				stack: wantedStack{
+					name: "stack-1",
+					desc: "stack-1",
 				},
 			},
 		},
@@ -112,12 +127,32 @@ func TestStackCreation(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "defining imports",
+			create: stack.CreateCfg{
+				Dir: "stack-imports",
+				Imports: []string{
+					"/common/1.tm.hcl", "/common/2.tm.hcl"},
+			},
+			want: want{
+				stack: wantedStack{
+					name: "stack-imports",
+					desc: "stack-imports",
+					imports: []string{
+						"/common/1.tm.hcl",
+						"/common/2.tm.hcl",
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
+			buildImportedFiles(t, s.RootDir(), tc.create.Imports)
+
 			err := stack.Create(s.RootDir(), tc.create)
 
 			if tc.want.err {
@@ -139,6 +174,51 @@ func TestStackCreation(t *testing.T) {
 			}
 			assert.EqualStrings(t, want.name, got.Name(), "checking stack name")
 			assert.EqualStrings(t, want.desc, got.Desc(), "checking stack description")
+
+			assertStackImports(t, s.RootDir(), got, want.imports)
 		})
+	}
+}
+
+func buildImportedFiles(t *testing.T, rootdir string, imports []string) {
+	t.Helper()
+
+	for _, importPath := range imports {
+		abspath := filepath.Join(rootdir, importPath)
+		test.WriteFile(t, filepath.Dir(abspath), filepath.Base(abspath), "")
+	}
+}
+
+func assertStackImports(t *testing.T, rootdir string, got stack.S, want []string) {
+	t.Helper()
+
+	parser, err := hcl.NewTerramateParser(rootdir, got.HostPath())
+	assert.NoError(t, err)
+
+	err = parser.AddDir(got.HostPath())
+	assert.NoError(t, err)
+
+	err = parser.MinimalParse()
+	assert.NoError(t, err)
+
+	imports, err := parser.Imports()
+	assert.NoError(t, err)
+
+	if len(imports) != len(want) {
+		t.Fatalf("got %d imports, wanted %v", len(imports), want)
+	}
+
+checkImports:
+	for _, wantImport := range want {
+		for _, gotImportBlock := range imports {
+			sourceVal, diags := gotImportBlock.Attributes["source"].Expr.Value(nil)
+			if diags.HasErrors() {
+				t.Fatalf("error %v evaluating import source attribute", diags)
+			}
+			if sourceVal.AsString() == wantImport {
+				continue checkImports
+			}
+		}
+		t.Errorf("wanted import %s not found", wantImport)
 	}
 }

@@ -15,12 +15,36 @@
 package hcl
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
+
+// PrintImports will print the given imports list as import blocks.
+func PrintImports(w io.Writer, imports []string) error {
+	logger := log.With().
+		Str("action", "PrintModules()").
+		Str("imports", fmt.Sprint(imports)).
+		Logger()
+
+	logger.Trace().Msg("Create empty hcl file")
+
+	f := hclwrite.NewEmptyFile()
+	rootBody := f.Body()
+
+	for _, source := range imports {
+		block := rootBody.AppendNewBlock("import", nil)
+		body := block.Body()
+		body.SetAttributeValue("source", cty.StringVal(source))
+		rootBody.AppendNewline()
+	}
+
+	_, err := w.Write(f.Bytes())
+	return err
+}
 
 // PrintConfig will print the given config as HCL on the given writer.
 func PrintConfig(w io.Writer, cfg Config) error {
@@ -79,8 +103,7 @@ func PrintConfig(w io.Writer, cfg Config) error {
 		}
 	}
 
-	logger.Debug().
-		Msg("Write to output.")
+	logger.Debug().Msg("write to output")
 	_, err := w.Write(f.Bytes())
 	return err
 }
