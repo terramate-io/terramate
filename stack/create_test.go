@@ -91,18 +91,6 @@ func TestStackCreation(t *testing.T) {
 			},
 		},
 		{
-			name: "absolute stack dir is relative to project root",
-			create: stack.CreateCfg{
-				Dir: "/stacks/stack-1",
-			},
-			want: want{
-				stack: wantedStack{
-					name: "stack-1",
-					desc: "stack-1",
-				},
-			},
-		},
-		{
 			name: "defining only name",
 			create: stack.CreateCfg{
 				Dir:  "another-stack",
