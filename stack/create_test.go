@@ -193,7 +193,7 @@ func TestStackCreation(t *testing.T) {
 			want:   want{err: errors.E(stack.ErrStackAlreadyExists)},
 		},
 		{
-			name:   "stack already exists is there is a stack.tm.hcl file",
+			name:   "stack already exists if there is a stack.tm.hcl file",
 			layout: []string{"f:stack/stack.tm.hcl"},
 			create: stack.CreateCfg{Dir: "stack"},
 			want:   want{err: errors.E(stack.ErrStackAlreadyExists)},
