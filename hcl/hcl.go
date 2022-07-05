@@ -321,6 +321,21 @@ func (p *TerramateParser) MinimalParse() error {
 	return errs.AsError()
 }
 
+// Imports returns all import blocks parsed.
+func (p *TerramateParser) Imports() (ast.Blocks, error) {
+	errs := errors.L()
+	imports := ast.Blocks{}
+
+	for _, importBlock := range filterBlocksByType("import", p.Blocks) {
+		err := validateImportBlock(importBlock)
+		errs.Append(err)
+		if err == nil {
+			imports = append(imports, importBlock)
+		}
+	}
+	return imports, errs.AsError()
+}
+
 func (p *TerramateParser) mergeHandlers() map[string]mergeHandler {
 	return map[string]mergeHandler{
 		"terramate":     p.mergeBlock,
@@ -418,13 +433,14 @@ func (p *TerramateParser) parseSyntax() error {
 }
 
 func (p *TerramateParser) applyImports() error {
+	importBlocks, err := p.Imports()
+	if err != nil {
+		return err
+	}
+
 	errs := errors.L()
-	for _, importBlock := range filterBlocksByType("import", p.Blocks) {
-		err := validateImportBlock(importBlock)
-		errs.Append(err)
-		if err == nil {
-			errs.Append(p.handleImport(importBlock))
-		}
+	for _, importBlock := range importBlocks {
+		errs.Append(p.handleImport(importBlock))
 	}
 	return errs.AsError()
 }
