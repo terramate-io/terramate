@@ -27,10 +27,6 @@ import (
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
-// TODO(katcipis)
-//
-// - Dir outside project
-
 func TestStackCreation(t *testing.T) {
 	type wantedStack struct {
 		id      hcl.StackID
@@ -210,6 +206,8 @@ func TestStackCreation(t *testing.T) {
 			s.BuildTree(tc.layout)
 			buildImportedFiles(t, s.RootDir(), tc.create.Imports)
 
+			stackPath := tc.create.Dir
+			tc.create.Dir = filepath.Join(s.RootDir(), stackPath)
 			err := stack.Create(s.RootDir(), tc.create)
 			assert.IsError(t, err, tc.want.err)
 
@@ -218,7 +216,7 @@ func TestStackCreation(t *testing.T) {
 			}
 
 			want := tc.want.stack
-			got := s.LoadStack(tc.create.Dir)
+			got := s.LoadStack(stackPath)
 
 			gotID, _ := got.ID()
 			if wantID, ok := want.id.Value(); ok {
@@ -276,4 +274,22 @@ checkImports:
 		}
 		t.Errorf("wanted import %s not found", wantImport)
 	}
+}
+
+func TestStackCreationFailsOnRelativePath(t *testing.T) {
+	s := sandbox.New(t)
+
+	err := stack.Create(s.RootDir(), stack.CreateCfg{Dir: "./relative"})
+	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
+
+	err = stack.Create(s.RootDir(), stack.CreateCfg{Dir: "relative"})
+	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
+}
+
+func TestStackCreationFailsOnPathOutsideProjectRoot(t *testing.T) {
+	s := sandbox.New(t)
+	someOtherDir := t.TempDir()
+
+	err := stack.Create(s.RootDir(), stack.CreateCfg{Dir: someOtherDir})
+	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
 }

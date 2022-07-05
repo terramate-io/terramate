@@ -36,7 +36,7 @@ const (
 
 // CreateCfg represents stack creation configuration.
 type CreateCfg struct {
-	// Dir is the relative path of the directory, inside the project root,
+	// Dir is the absolute path of the directory, inside the project root,
 	// where the stack will be created. It must be non-empty.
 	Dir string
 
@@ -67,18 +67,27 @@ func Create(rootdir string, cfg CreateCfg) error {
 		Stringer("cfg", cfg).
 		Logger()
 
-	logger.Trace().Msg("validating create configuration")
+	if !filepath.IsAbs(cfg.Dir) {
+		return errors.E(ErrInvalidStackDir, "relative paths not allowed")
+	}
+
+	if !strings.HasPrefix(cfg.Dir, rootdir) {
+		return errors.E(ErrInvalidStackDir, "stack %q must be inside project root %q", cfg.Dir, rootdir)
+	}
 
 	if strings.HasPrefix(filepath.Base(cfg.Dir), ".") {
 		return errors.E(ErrInvalidStackDir, "dot directories not allowed")
 	}
 
-	absdir := filepath.Join(rootdir, cfg.Dir)
-	if err := os.MkdirAll(absdir, 0755); err != nil {
+	logger.Trace().Msg("creating stack dir if absent")
+
+	if err := os.MkdirAll(cfg.Dir, 0755); err != nil {
 		return errors.E(err, "failed to create new stack directories")
 	}
 
-	_, err := os.Stat(filepath.Join(absdir, stackFilename))
+	logger.Trace().Msg("validating create configuration")
+
+	_, err := os.Stat(filepath.Join(cfg.Dir, stackFilename))
 	if err == nil {
 		// Even if there is no stack inside the file, we can't overwrite
 		// the user file anyway.
@@ -86,18 +95,16 @@ func Create(rootdir string, cfg CreateCfg) error {
 	}
 
 	// We could have a stack definition somewhere else.
-	parsedCfg, err := hcl.ParseDir(rootdir, absdir)
+	parsedCfg, err := hcl.ParseDir(rootdir, cfg.Dir)
 	if err != nil {
-		return errors.E("invalid configuration on stack create dir %s", cfg.Dir)
+		return errors.E(err, "invalid config creating stack dir %s", cfg.Dir)
 	}
 
 	if parsedCfg.Stack != nil {
 		return errors.E(ErrStackAlreadyExists, "name %q", parsedCfg.Stack.Name)
 	}
 
-	logger.Trace().Msg("creating stack dir if absent")
-
-	hclCfg, err := hcl.NewConfig(absdir)
+	hclCfg, err := hcl.NewConfig(cfg.Dir)
 	if err != nil {
 		return errors.E(err, "failed to create new stack config")
 	}
@@ -133,7 +140,7 @@ func Create(rootdir string, cfg CreateCfg) error {
 
 	logger.Trace().Msg("creating stack file")
 
-	stackFile, err := os.Create(filepath.Join(absdir, stackFilename))
+	stackFile, err := os.Create(filepath.Join(cfg.Dir, stackFilename))
 	if err != nil {
 		return errors.E(err, "opening stack file")
 	}
