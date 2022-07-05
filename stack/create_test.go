@@ -31,7 +31,6 @@ import (
 //
 // - Dir outside project
 // - Dir + stack.tm.hcl exists (no stack config, only file)
-// - Dir already exists and dirs inside are not stack
 // - Dir with stack already exists (file is not stack.tm.hcl)
 // - Dir with other configs but no stack definition and no stack.tm.hcl
 
@@ -75,6 +74,19 @@ func TestStackCreation(t *testing.T) {
 		{
 			name:   "creates configuration when dir already exists",
 			layout: []string{"d:stack"},
+			create: stack.CreateCfg{
+				Dir: "stack",
+			},
+			want: want{
+				stack: wantedStack{
+					name: "stack",
+					desc: "stack",
+				},
+			},
+		},
+		{
+			name:   "creates configuration when dir already exists and has subdirs",
+			layout: []string{"d:stack/subdir"},
 			create: stack.CreateCfg{
 				Dir: "stack",
 			},
@@ -180,6 +192,12 @@ func TestStackCreation(t *testing.T) {
 			name:   "dotdir is not allowed as stack dir as subdir",
 			create: stack.CreateCfg{Dir: "/stacks/.stack"},
 			want:   want{err: errors.E(stack.ErrInvalidStackDir)},
+		},
+		{
+			name:   "stack already exists",
+			layout: []string{"s:stack"},
+			create: stack.CreateCfg{Dir: "stack"},
+			want:   want{err: errors.E(stack.ErrStackAlreadyExists)},
 		},
 	}
 

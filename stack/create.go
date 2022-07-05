@@ -29,6 +29,9 @@ import (
 const (
 	// ErrInvalidStackDir indicates that the given stack dir is invalid
 	ErrInvalidStackDir errors.Kind = "invalid stack directory"
+
+	// ErrStackAlreadyExists indicates that the stack already exists and cant be created.
+	ErrStackAlreadyExists errors.Kind = "stack already exists"
 )
 
 // CreateCfg represents stack creation configuration.
@@ -54,8 +57,8 @@ type CreateCfg struct {
 // Any dirs on the path provided on the configuration that doesn't exist
 // will be created.
 //
-// If the stack already exists it will return with no error and no changes
-// will be performed on the stack.
+// If the stack already exists it will return an error and no changes will be
+// made to the stack.
 func Create(rootdir string, cfg CreateCfg) error {
 	const stackFilename = "stack.tm.hcl"
 
@@ -70,13 +73,21 @@ func Create(rootdir string, cfg CreateCfg) error {
 		return errors.E(ErrInvalidStackDir, "dot directories not allowed")
 	}
 
-	logger.Trace().Msg("creating stack dir if absent")
-
 	absdir := filepath.Join(rootdir, cfg.Dir)
-	err := os.MkdirAll(absdir, 0755)
-	if err != nil {
+	if err := os.MkdirAll(absdir, 0755); err != nil {
 		return errors.E(err, "failed to create new stack directories")
 	}
+
+	parsedCfg, err := hcl.ParseDir(rootdir, absdir)
+	if err != nil {
+		return errors.E("invalid configuration on stack create dir %s", cfg.Dir)
+	}
+
+	if parsedCfg.Stack != nil {
+		return errors.E(ErrStackAlreadyExists)
+	}
+
+	logger.Trace().Msg("creating stack dir if absent")
 
 	hclCfg, err := hcl.NewConfig(absdir)
 	if err != nil {
