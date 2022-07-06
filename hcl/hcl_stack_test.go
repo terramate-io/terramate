@@ -231,7 +231,7 @@ func TestHCLParserStack(t *testing.T) {
 					filename: "stack.tm",
 					body: `
 						stack {
-							name = tm_concat([], "test")
+							name = tm_concat(["a", ""], ["b", "c"])
 						}
 					`,
 				},
@@ -239,7 +239,7 @@ func TestHCLParserStack(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("stack.tm", start(6, 30, 99), end(6, 34, 103)),
+						mkrange("stack.tm", start(3, 8, 22), end(3, 12, 26)),
 					),
 				},
 			},
