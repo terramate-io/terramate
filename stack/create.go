@@ -107,7 +107,7 @@ func Create(rootdir string, cfg CreateCfg) error {
 		return errors.E(ErrStackAlreadyExists, "name %q", parsedCfg.Stack.Name)
 	}
 
-	hclCfg, err := hcl.NewConfig(cfg.Dir)
+	tmCfg, err := hcl.NewConfig(cfg.Dir)
 	if err != nil {
 		return errors.E(err, "failed to create new stack config")
 	}
@@ -135,7 +135,7 @@ func Create(rootdir string, cfg CreateCfg) error {
 		return errors.E(ErrInvalidStackID, err)
 	}
 
-	hclCfg.Stack = &hcl.Stack{
+	tmCfg.Stack = &hcl.Stack{
 		ID:          hclID,
 		Name:        cfg.Name,
 		Description: cfg.Description,
@@ -154,7 +154,7 @@ func Create(rootdir string, cfg CreateCfg) error {
 		}
 	}()
 
-	if err := hcl.PrintConfig(stackFile, hclCfg); err != nil {
+	if err := hcl.PrintConfig(stackFile, tmCfg); err != nil {
 		return errors.E(err, "writing stack imports to stack file")
 	}
 
