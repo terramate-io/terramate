@@ -130,13 +130,13 @@ func Create(rootdir string, cfg CreateCfg) error {
 		cfg.Description = cfg.Name
 	}
 
-	hclID, err := hcl.NewStackID(cfg.ID)
+	stackID, err := hcl.NewStackID(cfg.ID)
 	if err != nil {
 		return errors.E(ErrInvalidStackID, err)
 	}
 
 	tmCfg.Stack = &hcl.Stack{
-		ID:          hclID,
+		ID:          stackID,
 		Name:        cfg.Name,
 		Description: cfg.Description,
 	}
