@@ -54,13 +54,15 @@ func TestCreateStack(t *testing.T) {
 	}
 
 	for _, stackPath := range stackPaths {
-		cli.run("create", stackPath,
+		res := cli.run("create", stackPath,
 			"--id", stackID,
 			"--name", stackName,
 			"--description", stackDescription,
 			"--import", stackImport1,
 			"--import", stackImport2,
 		)
+
+		assertRun(t, res)
 
 		got := s.LoadStack(stackPath)
 

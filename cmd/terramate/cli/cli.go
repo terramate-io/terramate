@@ -74,6 +74,7 @@ type cliSpec struct {
 	DisableCheckGitUncommitted bool `optional:"true" default:"false" help:"Disable git check for uncommitted files"`
 
 	Create struct {
+		Path        string   `arg:"" name:"path" passthrough:"" help:"Path of the new stack"`
 		ID          string   `help:"ID of the stack, defaults to UUID"`
 		Name        string   `help:"Name of the stack, defaults to stack dir base name"`
 		Description string   `help:"Description of the stack, defaults to the stack name"`
@@ -337,7 +338,7 @@ func (c *cli) run() {
 	switch c.ctx.Command() {
 	case "fmt":
 		c.format()
-	case "create":
+	case "create <path>":
 		c.createStack()
 	case "list":
 		c.printStacks()
@@ -496,7 +497,19 @@ func (c *cli) createStack() {
 		Logger()
 
 	logger.Trace().Msg("creating stack")
-	// TODO(katcipis): implement stack creation
+
+	stackDir := filepath.Join(c.wd(), c.parsedArgs.Create.Path)
+	err := stack.Create(c.root(), stack.CreateCfg{
+		Dir:         stackDir,
+		ID:          c.parsedArgs.Create.ID,
+		Name:        c.parsedArgs.Create.Name,
+		Description: c.parsedArgs.Create.Description,
+		Imports:     c.parsedArgs.Create.Import,
+	})
+
+	if err != nil {
+		logger.Fatal().Err(err).Msg("creating stack")
+	}
 }
 
 func (c *cli) format() {
