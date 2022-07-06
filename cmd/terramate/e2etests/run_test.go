@@ -1113,7 +1113,6 @@ func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
 	})
 
 	stack1.CreateConfig(`
-		stack {}
 		generate_hcl "test.tf" {
 		  content {
 		    test = terramate.path
