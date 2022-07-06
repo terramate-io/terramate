@@ -195,10 +195,6 @@ func (tm tmcli) run(args ...string) runResult {
 	}
 }
 
-func (tm tmcli) initStack(args ...string) runResult {
-	return tm.run(append([]string{"experimental", "init-stack"}, args...)...)
-}
-
 func (tm tmcli) stacksRunOrder(args ...string) runResult {
 	return tm.run(append([]string{"experimental", "run-order"}, args...)...)
 }

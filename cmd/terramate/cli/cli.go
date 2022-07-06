@@ -1024,10 +1024,6 @@ func (c *cli) log(format string, args ...interface{}) {
 	fmt.Fprintln(c.stdout, fmt.Sprintf(format, args...))
 }
 
-func (c *cli) logerr(format string, args ...interface{}) {
-	fmt.Fprintln(c.stderr, fmt.Sprintf(format, args...))
-}
-
 func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.root(), c.wd(), dir)
 }

@@ -54,10 +54,6 @@ func labels(labels ...string) hclwrite.BlockBuilder {
 	return hclwrite.Labels(labels...)
 }
 
-func stack(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-	return hclwrite.BuildBlock("stack", builders...)
-}
-
 func backend(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("backend", builders...)
 }
