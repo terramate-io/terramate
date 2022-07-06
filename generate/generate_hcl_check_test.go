@@ -39,16 +39,15 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 	// Checking detection when there is no config generated yet
 	assertOutdatedFiles([]string{})
 	stackEntry.CreateConfig(
-		stackConfig(
-			generateHCL(
-				labels("test.tf"),
-				content(
-					terraform(
-						str("required_version", "1.10"),
-					),
+		generateHCL(
+			labels("test.tf"),
+			content(
+				terraform(
+					str("required_version", "1.10"),
 				),
 			),
 		).String())
+
 	assertOutdatedFiles([]string{"test.tf"})
 
 	s.Generate()
@@ -57,13 +56,11 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 
 	// Now checking when we have code + it gets outdated.
 	stackEntry.CreateConfig(
-		stackConfig(
-			generateHCL(
-				labels("test.tf"),
-				content(
-					terraform(
-						str("required_version", "1.11"),
-					),
+		generateHCL(
+			labels("test.tf"),
+			content(
+				terraform(
+					str("required_version", "1.11"),
 				),
 			),
 		).String())
@@ -75,13 +72,11 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 	// Changing generated filenames will trigger detection,
 	// with new + old filenames.
 	stackEntry.CreateConfig(
-		stackConfig(
-			generateHCL(
-				labels("testnew.tf"),
-				content(
-					terraform(
-						str("required_version", "1.11"),
-					),
+		generateHCL(
+			labels("testnew.tf"),
+			content(
+				terraform(
+					str("required_version", "1.11"),
 				),
 			),
 		).String())
@@ -90,7 +85,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 
 	// Adding new filename to generation trigger detection
 	stackEntry.CreateConfig(
-		stackConfig(
+		hcldoc(
 			generateHCL(
 				labels("testnew.tf"),
 				content(
@@ -116,7 +111,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 	assertOutdatedFiles([]string{})
 
 	// Detects configurations that have been removed.
-	stackEntry.CreateConfig(stackConfig().String())
+	stackEntry.DeleteConfig()
 
 	assertOutdatedFiles([]string{"another.tf", "testnew.tf"})
 
@@ -141,23 +136,19 @@ func TestCheckOutdatedIgnoresEmptyGenerateHCLBlocks(t *testing.T) {
 
 	// Checking detection when the config is empty at first
 	stackEntry.CreateConfig(
-		stackConfig(
-			generateHCL(
-				labels("test.tf"),
-				content(),
-			),
+		generateHCL(
+			labels("test.tf"),
+			content(),
 		).String())
 
 	assertOutdatedFiles([]string{})
 
 	// Checking detection when the config isnt empty, is generated and then becomes empty
 	stackEntry.CreateConfig(
-		stackConfig(
-			generateHCL(
-				labels("test.tf"),
-				content(
-					block("whatever"),
-				),
+		generateHCL(
+			labels("test.tf"),
+			content(
+				block("whatever"),
 			),
 		).String())
 
@@ -168,11 +159,9 @@ func TestCheckOutdatedIgnoresEmptyGenerateHCLBlocks(t *testing.T) {
 	assertOutdatedFiles([]string{})
 
 	stackEntry.CreateConfig(
-		stackConfig(
-			generateHCL(
-				labels("test.tf"),
-				content(),
-			),
+		generateHCL(
+			labels("test.tf"),
+			content(),
 		).String())
 
 	assertOutdatedFiles([]string{"test.tf"})
@@ -200,13 +189,11 @@ func TestCheckOutdatedIgnoresWhenGenHCLConditionIsFalse(t *testing.T) {
 
 	createConfig := func(filename string, condition bool) {
 		stackEntry.CreateConfig(
-			stackConfig(
-				generateHCL(
-					labels(filename),
-					boolean("condition", condition),
-					content(
-						block("whatever"),
-					),
+			generateHCL(
+				labels(filename),
+				boolean("condition", condition),
+				content(
+					block("whatever"),
 				),
 			).String())
 	}

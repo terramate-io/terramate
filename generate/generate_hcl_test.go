@@ -916,14 +916,11 @@ func TestGeneratedHCLHeaders(t *testing.T) {
 	)
 
 	stackEntry.CreateConfig(
-		hcldoc(
-			stack(),
-			generateHCL(
-				labels(stackFilename),
-				content(
-					block("stack",
-						str("attr", "stack"),
-					),
+		generateHCL(
+			labels(stackFilename),
+			content(
+				block("stack",
+					str("attr", "stack"),
 				),
 			),
 		).String(),
