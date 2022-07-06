@@ -230,9 +230,6 @@ func TestHCLParserStack(t *testing.T) {
 				{
 					filename: "stack.tm",
 					body: `
-						terramate {
-							required_version = ""
-						}
 						stack {
 							name = tm_concat([], "test")
 						}
