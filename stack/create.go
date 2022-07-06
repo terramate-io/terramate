@@ -37,6 +37,9 @@ const (
 	ErrStackAlreadyExists errors.Kind = "stack already exists"
 )
 
+// DefaultFilename is the default file name for created stacks.
+const DefaultFilename = "stack.tm.hcl"
+
 // CreateCfg represents stack creation configuration.
 type CreateCfg struct {
 	// Dir is the absolute path of the directory, inside the project root,
@@ -63,8 +66,6 @@ type CreateCfg struct {
 // If the stack already exists it will return an error and no changes will be
 // made to the stack.
 func Create(rootdir string, cfg CreateCfg) (err error) {
-	const stackFilename = "stack.tm.hcl"
-
 	logger := log.With().
 		Str("action", "stack.Create()").
 		Stringer("cfg", cfg).
@@ -90,11 +91,11 @@ func Create(rootdir string, cfg CreateCfg) (err error) {
 
 	logger.Trace().Msg("validating create configuration")
 
-	_, err = os.Stat(filepath.Join(cfg.Dir, stackFilename))
+	_, err = os.Stat(filepath.Join(cfg.Dir, DefaultFilename))
 	if err == nil {
 		// Even if there is no stack inside the file, we can't overwrite
 		// the user file anyway.
-		return errors.E(ErrStackAlreadyExists, "%q already exists", stackFilename)
+		return errors.E(ErrStackAlreadyExists, "%q already exists", DefaultFilename)
 	}
 
 	// We could have a stack definition somewhere else.
@@ -143,7 +144,7 @@ func Create(rootdir string, cfg CreateCfg) (err error) {
 
 	logger.Trace().Msg("creating stack file")
 
-	stackFile, err := os.Create(filepath.Join(cfg.Dir, stackFilename))
+	stackFile, err := os.Create(filepath.Join(cfg.Dir, DefaultFilename))
 	if err != nil {
 		return errors.E(err, "opening stack file")
 	}
