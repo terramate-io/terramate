@@ -20,7 +20,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/rs/zerolog/log"
@@ -108,39 +107,30 @@ func Create(rootdir string, cfg CreateCfg) (err error) {
 		return errors.E(ErrStackAlreadyExists, "name %q", parsedCfg.Stack.Name)
 	}
 
+	stackCfg := hcl.Stack{}
+
+	if cfg.Name != "" {
+		stackCfg.Name = cfg.Name
+	}
+
+	if cfg.Description != "" {
+		stackCfg.Description = cfg.Description
+	}
+
+	if cfg.ID != "" {
+		stackID, err := hcl.NewStackID(cfg.ID)
+		if err != nil {
+			return errors.E(ErrInvalidStackID, err)
+		}
+		stackCfg.ID = stackID
+	}
+
 	tmCfg, err := hcl.NewConfig(cfg.Dir)
 	if err != nil {
 		return errors.E(err, "failed to create new stack config")
 	}
 
-	if cfg.ID == "" {
-		logger.Trace().Msg("no ID provided, generating one")
-
-		id, err := uuid.NewRandom()
-		if err != nil {
-			return errors.E(err, "failed to create stack UUID")
-		}
-		cfg.ID = id.String()
-	}
-
-	if cfg.Name == "" {
-		cfg.Name = filepath.Base(cfg.Dir)
-	}
-
-	if cfg.Description == "" {
-		cfg.Description = cfg.Name
-	}
-
-	stackID, err := hcl.NewStackID(cfg.ID)
-	if err != nil {
-		return errors.E(ErrInvalidStackID, err)
-	}
-
-	tmCfg.Stack = &hcl.Stack{
-		ID:          stackID,
-		Name:        cfg.Name,
-		Description: cfg.Description,
-	}
+	tmCfg.Stack = &stackCfg
 
 	logger.Trace().Msg("creating stack file")
 
