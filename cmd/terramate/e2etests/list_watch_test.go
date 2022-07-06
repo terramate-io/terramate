@@ -61,7 +61,6 @@ func TestListWatchRelativeChangedFile(t *testing.T) {
 	})
 
 	stack := s.LoadStack(filepath.Join(s.RootDir(), "stack"))
-	t.Logf("paths: %v", stack.Watch())
 
 	cli := newCLI(t, s.RootDir())
 
