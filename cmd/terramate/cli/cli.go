@@ -79,7 +79,7 @@ type cliSpec struct {
 		Name        string   `help:"Name of the stack, defaults to stack dir base name"`
 		Description string   `help:"Description of the stack, defaults to the stack name"`
 		Import      []string `help:"Add import block for the given path on the stack"`
-	} `cmd:"" help:"Creates a stack"`
+	} `cmd:"" help:"Creates a stack on the project"`
 
 	Fmt struct {
 		Check bool `help:"Lists unformatted files, exit with 0 if all is formatted, 1 otherwise"`
