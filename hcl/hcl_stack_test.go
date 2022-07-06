@@ -229,6 +229,29 @@ func TestHCLParserStack(t *testing.T) {
 			},
 		},
 		{
+			name: "name is not a string after evaluating function - fails",
+			input: []cfgfile{
+				{
+					filename: "stack.tm",
+					body: `
+						terramate {
+							required_version = ""
+						}
+						stack {
+							name = tm_concat([], "test")
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("stack.tm", start(6, 30, 99), end(6, 34, 103)),
+					),
+				},
+			},
+		},
+		{
 			name: "id is not a string - fails",
 			input: []cfgfile{
 				{
