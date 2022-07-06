@@ -62,7 +62,7 @@ type CreateCfg struct {
 //
 // If the stack already exists it will return an error and no changes will be
 // made to the stack.
-func Create(rootdir string, cfg CreateCfg) error {
+func Create(rootdir string, cfg CreateCfg) (err error) {
 	const stackFilename = "stack.tm.hcl"
 
 	logger := log.With().
@@ -90,7 +90,7 @@ func Create(rootdir string, cfg CreateCfg) error {
 
 	logger.Trace().Msg("validating create configuration")
 
-	_, err := os.Stat(filepath.Join(cfg.Dir, stackFilename))
+	_, err = os.Stat(filepath.Join(cfg.Dir, stackFilename))
 	if err == nil {
 		// Even if there is no stack inside the file, we can't overwrite
 		// the user file anyway.
@@ -147,15 +147,24 @@ func Create(rootdir string, cfg CreateCfg) error {
 	if err != nil {
 		return errors.E(err, "opening stack file")
 	}
+
 	defer func() {
-		err := stackFile.Close()
-		if err != nil {
-			logger.Error().Err(err).Msg("closing stack file")
+		errClose := stackFile.Close()
+		if errClose != nil {
+			if err != nil {
+				err = errors.L(err, errClose)
+			} else {
+				err = errClose
+			}
 		}
 	}()
 
 	if err := hcl.PrintConfig(stackFile, tmCfg); err != nil {
 		return errors.E(err, "writing stack imports to stack file")
+	}
+
+	if len(cfg.Imports) > 0 {
+		fmt.Fprint(stackFile, "\n")
 	}
 
 	return hcl.PrintImports(stackFile, cfg.Imports)
