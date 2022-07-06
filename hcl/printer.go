@@ -15,12 +15,36 @@
 package hcl
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
+
+// PrintImports will print the given imports list as import blocks.
+func PrintImports(w io.Writer, imports []string) error {
+	logger := log.With().
+		Str("action", "PrintImports()").
+		Str("imports", fmt.Sprint(imports)).
+		Logger()
+
+	logger.Trace().Msg("Create empty hcl file")
+
+	f := hclwrite.NewEmptyFile()
+	rootBody := f.Body()
+
+	for _, source := range imports {
+		block := rootBody.AppendNewBlock("import", nil)
+		body := block.Body()
+		body.SetAttributeValue("source", cty.StringVal(source))
+		rootBody.AppendNewline()
+	}
+
+	_, err := w.Write(f.Bytes())
+	return err
+}
 
 // PrintConfig will print the given config as HCL on the given writer.
 func PrintConfig(w io.Writer, cfg Config) error {
@@ -54,6 +78,14 @@ func PrintConfig(w io.Writer, cfg Config) error {
 		stackBlock := rootBody.AppendNewBlock("stack", nil)
 		stackBody := stackBlock.Body()
 
+		if stack.Name != "" {
+			stackBody.SetAttributeValue("name", cty.StringVal(stack.Name))
+		}
+
+		if stack.Description != "" {
+			stackBody.SetAttributeValue("description", cty.StringVal(stack.Description))
+		}
+
 		if len(stack.After) > 0 {
 			stackBody.SetAttributeValue("after", cty.SetVal(listToValue(stack.After)))
 		}
@@ -70,17 +102,12 @@ func PrintConfig(w io.Writer, cfg Config) error {
 			stackBody.SetAttributeValue("watch", cty.SetVal(listToValue(stack.Watch)))
 		}
 
-		if stack.Description != "" {
-			stackBody.SetAttributeValue("description", cty.StringVal(stack.Description))
-		}
-
 		if id, ok := stack.ID.Value(); ok {
 			stackBody.SetAttributeValue("id", cty.StringVal(id))
 		}
 	}
 
-	logger.Debug().
-		Msg("Write to output.")
+	logger.Debug().Msg("write to output")
 	_, err := w.Write(f.Bytes())
 	return err
 }

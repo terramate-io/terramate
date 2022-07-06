@@ -15,7 +15,6 @@
 package e2etest
 
 import (
-	"path/filepath"
 	"testing"
 
 	"github.com/mineiros-io/terramate/stack"
@@ -32,7 +31,7 @@ func TestListWatchChangedFile(t *testing.T) {
 		`s:stack:watch=["/external/file.txt"]`,
 	})
 
-	stack := s.LoadStack(filepath.Join(s.RootDir(), "stack"))
+	stack := s.LoadStack("stack")
 
 	cli := newCLI(t, s.RootDir())
 
@@ -60,7 +59,7 @@ func TestListWatchRelativeChangedFile(t *testing.T) {
 		`s:stack:watch=["../external/file.txt"]`,
 	})
 
-	stack := s.LoadStack(filepath.Join(s.RootDir(), "stack"))
+	stack := s.LoadStack("stack")
 
 	cli := newCLI(t, s.RootDir())
 
@@ -88,7 +87,7 @@ func TestListWatchFileOutsideProject(t *testing.T) {
 		`s:stack:watch=["../../this-stack-must-never-be-visible/terramate.tm.hcl"]`,
 	})
 
-	s.LoadStack(filepath.Join(s.RootDir(), "stack"))
+	s.LoadStack("stack")
 
 	cli := newCLI(t, s.RootDir())
 
