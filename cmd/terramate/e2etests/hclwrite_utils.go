@@ -43,3 +43,7 @@ func content(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 func globals(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("globals", builders...)
 }
+
+func stackblock(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return hclwrite.BuildBlock("stack", builders...)
+}
