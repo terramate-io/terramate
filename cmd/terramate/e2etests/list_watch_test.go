@@ -26,9 +26,10 @@ func TestListWatchChangedFile(t *testing.T) {
 
 	extDir := s.RootEntry().CreateDir("external")
 	extFile := extDir.CreateFile("file.txt", "anything")
+	_ = extDir.CreateFile("not-changed.txt", "anything")
 
 	s.BuildTree([]string{
-		`s:stack:watch=["/external/file.txt"]`,
+		`s:stack:watch=["/external/file.txt", "/external/not-changed.txt"]`,
 	})
 
 	stack := s.LoadStack("stack")
