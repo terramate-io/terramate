@@ -62,3 +62,8 @@ stack {
   description = "My Awesome Stack Description"
 }
 ```
+
+## stack.watch (list)(optional)
+
+The list of files that must be watched for changes in the
+[change detection](change-detection.md).
