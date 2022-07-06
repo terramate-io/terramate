@@ -179,7 +179,7 @@ func (s S) Generate() generate.Report {
 func (s S) LoadStack(relpath string) stack.S {
 	s.t.Helper()
 
-	st, err := stack.Load(s.rootdir, relpath)
+	st, err := stack.Load(s.rootdir, filepath.Join(s.rootdir, relpath))
 	assert.NoError(s.t, err)
 
 	return st
