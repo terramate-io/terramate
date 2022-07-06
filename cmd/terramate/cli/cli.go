@@ -74,7 +74,7 @@ type cliSpec struct {
 	DisableCheckGitUncommitted bool `optional:"true" default:"false" help:"Disable git check for uncommitted files"`
 
 	Create struct {
-		Path        string   `arg:"" name:"path" passthrough:"" help:"Path of the new stack"`
+		Path        string   `arg:"" name:"path" help:"Path of the new stack"`
 		ID          string   `help:"ID of the stack, defaults to UUID"`
 		Name        string   `help:"Name of the stack, defaults to stack dir base name"`
 		Description string   `help:"Description of the stack, defaults to the stack name"`
