@@ -334,7 +334,7 @@ func (p *TerramateParser) Imports() (ast.Blocks, error) {
 		}
 	}
 	if err := errs.AsError(); err != nil {
-		return err
+		return nil, err
 	}
 	return imports, nil
 }
