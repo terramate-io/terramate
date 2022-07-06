@@ -15,6 +15,7 @@
 package e2etest
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -59,7 +60,9 @@ func TestCreateStack(t *testing.T) {
 			"--import", stackImport2,
 		)
 
-		assertRun(t, res)
+		assertRunResult(t, res, runExpected{
+			Stdout: fmt.Sprintf("Created stack %s with success\n", stackPath),
+		})
 
 		got := s.LoadStack(stackPath)
 

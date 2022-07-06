@@ -510,6 +510,8 @@ func (c *cli) createStack() {
 	if err != nil {
 		logger.Fatal().Err(err).Msg("creating stack")
 	}
+
+	c.log("Created stack %s with success", c.parsedArgs.Create.Path)
 }
 
 func (c *cli) format() {
