@@ -158,6 +158,10 @@ func Create(rootdir string, cfg CreateCfg) error {
 		return errors.E(err, "writing stack imports to stack file")
 	}
 
+	if len(cfg.Imports) > 0 {
+		stackFile.Write([]byte("\n"))
+	}
+
 	return hcl.PrintImports(stackFile, cfg.Imports)
 }
 
