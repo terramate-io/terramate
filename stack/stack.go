@@ -111,7 +111,7 @@ func New(root string, cfg hcl.Config) (S, error) {
 			cfg.AbsDir(), root, err))
 	}
 
-	watchFiles, err := toProjectPaths(root, cfg.AbsDir(), cfg.Stack.Watch)
+	watchFiles, err := validateWatchPaths(root, cfg.AbsDir(), cfg.Stack.Watch)
 	if err != nil {
 		return S{}, errors.E(err, ErrInvalidWatch)
 	}
@@ -188,7 +188,7 @@ func IsLeaf(root, dir string) (bool, error) {
 	return l.IsLeafStack(dir)
 }
 
-func toProjectPaths(rootdir string, stackpath string, paths []string) ([]string, error) {
+func validateWatchPaths(rootdir string, stackpath string, paths []string) ([]string, error) {
 	var projectPaths []string
 	for _, path := range paths {
 		var abspath string
@@ -196,6 +196,9 @@ func toProjectPaths(rootdir string, stackpath string, paths []string) ([]string,
 			abspath = filepath.Join(rootdir, path)
 		} else {
 			abspath = filepath.Join(stackpath, path)
+		}
+		if !strings.HasPrefix(abspath, rootdir) {
+			return nil, errors.E("path %q is outside project root", path)
 		}
 		st, err := os.Stat(abspath)
 		if err == nil {

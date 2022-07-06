@@ -78,6 +78,35 @@ func TestListWatchRelativeChangedFile(t *testing.T) {
 	assertRunResult(t, cli.listChangedStacks(), want)
 }
 
+func TestListWatchFileOutsideProject(t *testing.T) {
+	s := sandbox.New(t)
+
+	extDir := s.RootEntry().CreateDir("external")
+	extFile := extDir.CreateFile("file.txt", "anything")
+
+	s.BuildTree([]string{
+		`s:stack:watch=["../../this-stack-must-never-be-visible/terramate.tm.hcl"]`,
+	})
+
+	s.LoadStack(filepath.Join(s.RootDir(), "stack"))
+
+	cli := newCLI(t, s.RootDir())
+
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+	git.CheckoutNew("change-the-external")
+
+	extFile.Write("changed")
+	git.CommitAll("external file changed")
+
+	want := runExpected{
+		Status:      1,
+		StderrRegex: string(stack.ErrInvalidWatch),
+	}
+	assertRunResult(t, cli.listChangedStacks(), want)
+}
+
 func TestListWatchNonExistentFile(t *testing.T) {
 	s := sandbox.New(t)
 
