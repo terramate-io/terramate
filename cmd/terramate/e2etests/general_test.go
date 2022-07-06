@@ -302,7 +302,7 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 		"run",
 		"--changed",
 		cat,
-		mainTfFile.Path(),
+		mainTfFile.HostPath(),
 	), wantRes)
 }
 

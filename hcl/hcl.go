@@ -27,6 +27,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/ast"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -149,6 +150,8 @@ type TerramateParser struct {
 	files     map[string][]byte // path=content
 	hclparser *hclparse.Parser
 
+	evalctx *eval.Context
+
 	// MergedAttributes are the top-level attributes of all files.
 	MergedAttributes ast.Attributes
 
@@ -222,6 +225,7 @@ func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
 		MergedAttributes: make(ast.Attributes),
 		MergedBlocks:     make(ast.MergedBlocks),
 		parsedFiles:      make(map[string]parsedFile),
+		evalctx:          eval.NewContext(dir),
 	}, nil
 }
 
@@ -909,7 +913,7 @@ func assignSet(name string, target *[]string, val cty.Value) error {
 	return nil
 }
 
-func parseStack(stack *Stack, stackblock *ast.Block) error {
+func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) error {
 	logger := log.With().
 		Str("action", "parseStack()").
 		Str("stack", stack.Name).
@@ -928,11 +932,12 @@ func parseStack(stack *Stack, stackblock *ast.Block) error {
 	for _, attr := range ast.SortRawAttributes(stackblock.Body.Attributes) {
 		logger.Trace().Msg("Get attribute value.")
 
-		attrVal, diags := attr.Expr.Value(nil)
-		if diags.HasErrors() {
+		attrVal, err := evalctx.Eval(attr.Expr)
+		if err != nil {
 			errs.Append(
-				errors.E(diags, "failed to evaluate %q attribute", attr.Name),
+				errors.E(err, "failed to evaluate %q attribute", attr.Name),
 			)
+			continue
 		}
 
 		logger.Trace().
@@ -1251,7 +1256,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 		}
 
 		config.Stack = &Stack{}
-		errs.AppendWrap(errKind, parseStack(config.Stack, stackblock))
+		errs.AppendWrap(errKind, parseStack(p.evalctx, config.Stack, stackblock))
 	}
 
 	if err := errs.AsError(); err != nil {
