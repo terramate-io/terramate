@@ -148,7 +148,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 
 	logger.Debug().Msg("List changed files.")
 
-	files, err := listChangedFiles(m.root, m.gitBaseRef)
+	changedFiles, err := listChangedFiles(m.root, m.gitBaseRef)
 	if err != nil {
 		return nil, errors.E(errListChanged, err)
 	}
@@ -157,7 +157,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 
 	logger.Trace().
 		Msg("Range over files.")
-	for _, path := range files {
+	for _, path := range changedFiles {
 		if strings.HasPrefix(path, ".") {
 			continue
 		}
@@ -207,10 +207,32 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 
 	logger.Trace().Msg("Range over all stacks.")
 
+rangeStacks:
 	for _, stackEntry := range allstacks {
 		stack := stackEntry.Stack
 		if _, ok := stackSet[stack.Path()]; ok {
 			continue
+		}
+
+		logger.Debug().
+			Stringer("stack", stack).
+			Msg("Check for changed watch files.")
+
+		if changed, ok := hasChangedWatchedFiles(stack, changedFiles); ok {
+			logger.Debug().
+				Stringer("stack", stack).
+				Str("watchfile", changed).
+				Msg("changed.")
+
+			stack.SetChanged(true)
+			stackSet[stack.Path()] = Entry{
+				Stack: stack,
+				Reason: fmt.Sprintf(
+					"stack changed because watched file %q changed",
+					changed,
+				),
+			}
+			continue rangeStacks
 		}
 
 		logger.Debug().
@@ -548,6 +570,17 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 	}
 
 	return g.DiffNames(baseRef, headRef)
+}
+
+func hasChangedWatchedFiles(stack stack.S, changedFiles []string) (string, bool) {
+	for _, watchFile := range stack.Watch() {
+		for _, file := range changedFiles {
+			if file == watchFile[1:] { // project paths
+				return watchFile, true
+			}
+		}
+	}
+	return "", false
 }
 
 func checkRepoIsClean(g *git.Git) (RepoChecks, error) {

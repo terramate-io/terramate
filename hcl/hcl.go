@@ -107,6 +107,9 @@ type Stack struct {
 	// Wants is a list of non-duplicated stack entries that must be selected
 	// whenever the current stack is selected.
 	Wants []string
+
+	// Watch is a list of files to be watched for changes.
+	Watch []string
 }
 
 // GenHCLBlock represents a parsed generate_hcl block.
@@ -972,6 +975,9 @@ func parseStack(stack *Stack, stackblock *ast.Block) error {
 
 		case "wants":
 			errs.Append(assignSet(attr.Name, &stack.Wants, attrVal))
+
+		case "watch":
+			errs.Append(assignSet(attr.Name, &stack.Watch, attrVal))
 
 		case "description":
 			logger.Trace().Msg("parsing stack description.")
