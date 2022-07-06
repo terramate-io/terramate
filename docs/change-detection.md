@@ -105,6 +105,6 @@ stack {
 Then even if the stack code didn't change but any of the watched files changed,
 then the stack will be marked as changed.
 
-This feature is useful if you need to integrate terramate with other tools
+This feature is useful if you need to integrate Terramate with other tools
 (eg.: terragrunt) so you can detect when dependent code outside the scope of
 terramate changed.
