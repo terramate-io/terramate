@@ -16,6 +16,7 @@ package eval
 
 import (
 	"io/ioutil"
+	"path/filepath"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
@@ -41,9 +42,8 @@ type Context struct {
 // basedir is the base directory used by any interpolation functions that
 // accept filesystem paths as arguments.
 func NewContext(basedir string) *Context {
-	scope := &tflang.Scope{BaseDir: basedir}
 	hclctx := &hhcl.EvalContext{
-		Functions: newTmFunctions(scope.Functions()),
+		Functions: newTmFunctions(basedir),
 		Variables: map[string]cty.Value{},
 	}
 	return &Context{
@@ -145,10 +145,39 @@ func toWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {
 	return tokens
 }
 
-func newTmFunctions(tffuncs map[string]function.Function) map[string]function.Function {
+func newTmFunctions(basedir string) map[string]function.Function {
+	scope := &tflang.Scope{BaseDir: basedir}
+	tffuncs := scope.Functions()
+
 	tmfuncs := map[string]function.Function{}
 	for name, function := range tffuncs {
 		tmfuncs["tm_"+name] = function
 	}
+
+	// fix terraform broken abspath()
+	tmfuncs["tm_abspath"] = tmAbspath(basedir)
 	return tmfuncs
+}
+
+func tmAbspath(basedir string) function.Function {
+	return function.New(&function.Spec{
+		Params: []function.Parameter{
+			{
+				Name: "path",
+				Type: cty.String,
+			},
+		},
+		Type: function.StaticReturnType(cty.String),
+		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+			path := args[0].AsString()
+			var abspath string
+			if filepath.IsAbs(path) {
+				abspath = path
+			} else {
+				abspath = filepath.Join(basedir, abspath)
+			}
+
+			return cty.StringVal(filepath.ToSlash(filepath.Clean(abspath))), nil
+		},
+	})
 }
