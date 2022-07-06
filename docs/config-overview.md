@@ -149,6 +149,7 @@ The `stack` block has no labels, supports [merging](#config-merging) and has the
 | before           | list(string)   | The list of `before` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs. |
 | after            | list(string)   | The list of `after` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs |
 | wants            | list(string)   | The list of `wanted` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs |
+| watch            | list(string)   | The list of `watch` files. See [change detection](change-detection.md) for details |
 
 # globals block schema
 
