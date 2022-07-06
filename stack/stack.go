@@ -17,6 +17,7 @@ package stack
 import (
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -89,10 +90,13 @@ type (
 const (
 	// ErrDuplicatedID indicates that two or more stacks have the same ID.
 	ErrDuplicatedID errors.Kind = "duplicated ID found on stacks"
+
+	// ErrInvalidWatch indicates the stack.watch attribute contains invalid values.
+	ErrInvalidWatch errors.Kind = "invalid stack.watch attribute"
 )
 
 // New creates a new stack from configuration cfg.
-func New(root string, cfg hcl.Config) S {
+func New(root string, cfg hcl.Config) (S, error) {
 	name := cfg.Stack.Name
 	if name == "" {
 		name = filepath.Base(cfg.AbsDir())
@@ -107,6 +111,11 @@ func New(root string, cfg hcl.Config) S {
 			cfg.AbsDir(), root, err))
 	}
 
+	watchFiles, err := toProjectPaths(root, cfg.AbsDir(), cfg.Stack.Watch)
+	if err != nil {
+		return S{}, errors.E(err, ErrInvalidWatch)
+	}
+
 	return S{
 		name:          name,
 		id:            cfg.Stack.ID,
@@ -114,11 +123,11 @@ func New(root string, cfg hcl.Config) S {
 		after:         cfg.Stack.After,
 		before:        cfg.Stack.Before,
 		wants:         cfg.Stack.Wants,
-		watch:         toProjectPaths(root, cfg.AbsDir(), cfg.Stack.Watch),
+		watch:         watchFiles,
 		hostpath:      cfg.AbsDir(),
 		path:          project.PrjAbsPath(root, cfg.AbsDir()),
 		relPathToRoot: rel,
-	}
+	}, nil
 }
 
 // ID of the stack if it has one, or empty string and false otherwise.
@@ -179,15 +188,30 @@ func IsLeaf(root, dir string) (bool, error) {
 	return l.IsLeafStack(dir)
 }
 
-func toProjectPaths(rootdir string, stackpath string, paths []string) []string {
+func toProjectPaths(rootdir string, stackpath string, paths []string) ([]string, error) {
 	var projectPaths []string
 	for _, path := range paths {
-		if !filepath.IsAbs(path) {
-			path = filepath.Join(stackpath, path)
+		var abspath string
+		if filepath.IsAbs(path) {
+			abspath = filepath.Join(rootdir, path)
+		} else {
+			abspath = filepath.Join(stackpath, path)
 		}
-		projectPaths = append(projectPaths, project.PrjAbsPath(rootdir, path))
+		st, err := os.Stat(abspath)
+		if err == nil {
+			if st.IsDir() {
+				return nil, errors.E("stack.watch must be a list of regular files "+
+					"but directory %q was provided", path)
+			}
+
+			if !st.Mode().IsRegular() {
+				return nil, errors.E("stack.watch must be a list of regular files "+
+					"but file %q has mode %s", path, st.Mode())
+			}
+		}
+		projectPaths = append(projectPaths, project.PrjAbsPath(rootdir, abspath))
 	}
-	return projectPaths
+	return projectPaths, nil
 }
 
 // LookupParent checks parent stack of given dir.
@@ -306,7 +330,11 @@ func TryLoad(root, absdir string) (stack S, found bool, err error) {
 	}
 
 	logger.Debug().Msg("Create a new stack")
-	return New(root, cfg), true, nil
+	s, err := New(root, cfg)
+	if err != nil {
+		return S{}, true, err
+	}
+	return s, true, nil
 }
 
 // Sort sorts the given stacks.

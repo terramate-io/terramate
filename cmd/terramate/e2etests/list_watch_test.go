@@ -18,10 +18,11 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
-func TestListWatchFile(t *testing.T) {
+func TestListWatchChangedFile(t *testing.T) {
 	s := sandbox.New(t)
 
 	extDir := s.RootEntry().CreateDir("external")
@@ -45,6 +46,82 @@ func TestListWatchFile(t *testing.T) {
 
 	want := runExpected{
 		Stdout: stack.RelPath() + "\n",
+	}
+	assertRunResult(t, cli.listChangedStacks(), want)
+}
+
+func TestListWatchRelativeChangedFile(t *testing.T) {
+	s := sandbox.New(t)
+
+	extDir := s.RootEntry().CreateDir("external")
+	extFile := extDir.CreateFile("file.txt", "anything")
+
+	s.BuildTree([]string{
+		`s:stack:watch=["../external/file.txt"]`,
+	})
+
+	stack := s.LoadStack(filepath.Join(s.RootDir(), "stack"))
+	t.Logf("paths: %v", stack.Watch())
+
+	cli := newCLI(t, s.RootDir())
+
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+	git.CheckoutNew("change-the-external")
+
+	extFile.Write("changed")
+	git.CommitAll("external file changed")
+
+	want := runExpected{
+		Stdout: stack.RelPath() + "\n",
+	}
+	assertRunResult(t, cli.listChangedStacks(), want)
+}
+
+func TestListWatchNonExistentFile(t *testing.T) {
+	s := sandbox.New(t)
+
+	s.BuildTree([]string{
+		`s:stack:watch=["/external/non-existent.txt"]`,
+	})
+
+	cli := newCLI(t, s.RootDir())
+
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+	git.CheckoutNew("change-the-external")
+
+	s.RootEntry().CreateFile("test.txt", "anything")
+	git.CommitAll("any change")
+
+	assertRun(t, cli.listChangedStacks())
+}
+
+func TestListWatchDirectoryFails(t *testing.T) {
+	s := sandbox.New(t)
+
+	extDir := s.RootEntry().CreateDir("external")
+	extFile := extDir.CreateFile("file.txt", "anything")
+
+	s.BuildTree([]string{
+		`s:stack:watch=["/external"]`,
+	})
+
+	cli := newCLI(t, s.RootDir())
+
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+	git.CheckoutNew("change-the-external")
+
+	extFile.Write("changed")
+	git.CommitAll("external file changed")
+
+	want := runExpected{
+		Status:      1,
+		StderrRegex: string(stack.ErrInvalidWatch),
 	}
 	assertRunResult(t, cli.listChangedStacks(), want)
 }
