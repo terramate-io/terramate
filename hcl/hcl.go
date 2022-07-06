@@ -333,7 +333,10 @@ func (p *TerramateParser) Imports() (ast.Blocks, error) {
 			imports = append(imports, importBlock)
 		}
 	}
-	return imports, errs.AsError()
+	if err := errs.AsError(); err != nil {
+		return err
+	}
+	return imports, nil
 }
 
 func (p *TerramateParser) mergeHandlers() map[string]mergeHandler {
