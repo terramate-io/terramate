@@ -85,3 +85,26 @@ For more details see the example below:
 
 In order to do that, Terramate will parse all `.tf` files inside the stack and
 check if the local modules it depends on have changed.
+
+# Arbitrary files change detection
+
+The stack can specify a list of files which will mark the stack as changed if
+they change.
+
+Example:
+
+```
+stack {
+   watch = [
+      "/external/file1.txt",
+      "/external/file2.txt"
+   ]
+}
+```
+
+Then even if the stack code didn't change but any of the watched files changed,
+then the stack will be marked as changed.
+
+This feature is useful if you need to integrate Terramate with other tools
+(eg.: Terragrunt) so you can detect when dependent code outside the scope of
+Terramate changed.
