@@ -596,6 +596,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 							after = ["after"]
 							before = ["before"]
 							wants = ["wants"]
+							watch = ["watch"]
 						}
 					`,
 				},
@@ -616,6 +617,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 						After:       []string{"after"},
 						Before:      []string{"before"},
 						Wants:       []string{"wants"},
+						Watch:       []string{"watch"},
 					},
 				},
 			},

@@ -58,6 +58,9 @@ type (
 		// is selected.
 		wants []string
 
+		// watch is the list of files to be watched for changes.
+		watch []string
+
 		// changed tells if this is a changed stack.
 		changed bool
 	}
@@ -111,6 +114,7 @@ func New(root string, cfg hcl.Config) S {
 		after:         cfg.Stack.After,
 		before:        cfg.Stack.Before,
 		wants:         cfg.Stack.Wants,
+		watch:         toProjectPaths(root, cfg.AbsDir(), cfg.Stack.Watch),
 		hostpath:      cfg.AbsDir(),
 		path:          project.PrjAbsPath(root, cfg.AbsDir()),
 		relPathToRoot: rel,
@@ -142,6 +146,9 @@ func (s S) Before() []string { return s.before }
 // Wants specifies the list of wanted stacks.
 func (s S) Wants() []string { return s.wants }
 
+// Watch returns the list of watched files.
+func (s S) Watch() []string { return s.watch }
+
 // IsChanged tells if the stack is marked as changed.
 func (s S) IsChanged() bool { return s.changed }
 
@@ -170,6 +177,17 @@ func (s S) HostPath() string { return s.hostpath }
 func IsLeaf(root, dir string) (bool, error) {
 	l := NewLoader(root)
 	return l.IsLeafStack(dir)
+}
+
+func toProjectPaths(rootdir string, stackpath string, paths []string) []string {
+	var projectPaths []string
+	for _, path := range paths {
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(stackpath, path)
+		}
+		projectPaths = append(projectPaths, project.PrjAbsPath(rootdir, path))
+	}
+	return projectPaths
 }
 
 // LookupParent checks parent stack of given dir.
