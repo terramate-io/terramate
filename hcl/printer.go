@@ -26,7 +26,7 @@ import (
 // PrintImports will print the given imports list as import blocks.
 func PrintImports(w io.Writer, imports []string) error {
 	logger := log.With().
-		Str("action", "PrintModules()").
+		Str("action", "PrintImports()").
 		Str("imports", fmt.Sprint(imports)).
 		Logger()
 
