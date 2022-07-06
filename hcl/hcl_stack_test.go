@@ -187,9 +187,6 @@ func TestHCLParserStack(t *testing.T) {
 				{
 					filename: "stack.tm",
 					body: `
-						terramate {
-							required_version = ""
-						}
 						stack {
 							name = tm_upper("stack-name")
 						}
@@ -198,7 +195,6 @@ func TestHCLParserStack(t *testing.T) {
 			},
 			want: want{
 				config: hcl.Config{
-					Terramate: &hcl.Terramate{},
 					Stack: &hcl.Stack{
 						Name: "STACK-NAME",
 					},
