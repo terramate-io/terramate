@@ -19,9 +19,6 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/ast"
-	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -71,8 +68,7 @@ func TestCreateStack(t *testing.T) {
 		assert.EqualStrings(t, stackName, got.Name(), "checking stack name")
 		assert.EqualStrings(t, stackDescription, got.Desc(), "checking stack description")
 
-		// TODO(katcipis): extract this to avoid duplication with stack.Create tests
-		assertStackImports(t, s.RootDir(), got, []string{stackImport1, stackImport2})
+		test.AssertStackImports(t, s.RootDir(), got, []string{stackImport1, stackImport2})
 	}
 }
 
@@ -86,43 +82,5 @@ func TestCreateStackDefaults(t *testing.T) {
 	assert.EqualStrings(t, "stack", got.Name(), "checking stack name")
 	assert.EqualStrings(t, "stack", got.Desc(), "checking stack description")
 
-	// TODO(katcipis): extract this to avoid duplication with stack.Create tests
-	assertStackImports(t, s.RootDir(), got, []string{})
-}
-
-func assertStackImports(t *testing.T, rootdir string, got stack.S, want []string) {
-	// TODO(katcipis): extract this to avoid duplication with stack.Create tests
-	t.Helper()
-
-	parser, err := hcl.NewTerramateParser(rootdir, got.HostPath())
-	assert.NoError(t, err)
-
-	err = parser.AddDir(got.HostPath())
-	assert.NoError(t, err)
-
-	err = parser.MinimalParse()
-	assert.NoError(t, err)
-
-	// TODO(katcipis): extract this to avoid duplication with stack.Create tests
-	imports := ast.Blocks{}
-	//imports, err := parser.Imports()
-	//assert.NoError(t, err)
-
-	if len(imports) != len(want) {
-		t.Fatalf("got %d imports, wanted %v", len(imports), want)
-	}
-
-checkImports:
-	for _, wantImport := range want {
-		for _, gotImportBlock := range imports {
-			sourceVal, diags := gotImportBlock.Attributes["source"].Expr.Value(nil)
-			if diags.HasErrors() {
-				t.Fatalf("error %v evaluating import source attribute", diags)
-			}
-			if sourceVal.AsString() == wantImport {
-				continue checkImports
-			}
-		}
-		t.Errorf("wanted import %s not found", wantImport)
-	}
+	test.AssertStackImports(t, s.RootDir(), got, []string{})
 }
