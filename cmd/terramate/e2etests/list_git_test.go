@@ -141,7 +141,7 @@ func TestListChangedDontIgnoreStackDeletedFiles(t *testing.T) {
 	git.Push("main")
 	git.CheckoutNew("deleted-file")
 
-	test.RemoveAll(t, file.Path())
+	test.RemoveAll(t, file.HostPath())
 
 	git.CommitAll("removed file")
 

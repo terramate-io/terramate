@@ -36,6 +36,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 )
@@ -68,8 +69,9 @@ type StackEntry struct {
 // (io.Reader/io.Writer).
 // It has limited usefulness but it is easier to work with for testing.
 type FileEntry struct {
-	t    *testing.T
-	path string
+	t        *testing.T
+	hostpath string
+	rootpath string
 }
 
 // New creates a new complete test sandbox.
@@ -303,8 +305,9 @@ func (de DirEntry) CreateFile(name, body string, args ...interface{}) FileEntry 
 	de.t.Helper()
 
 	fe := FileEntry{
-		t:    de.t,
-		path: filepath.Join(de.abspath, name),
+		t:        de.t,
+		rootpath: de.rootpath,
+		hostpath: filepath.Join(de.abspath, name),
 	}
 	fe.Write(body, args...)
 
@@ -324,8 +327,8 @@ func (de DirEntry) CreateConfig(body string) FileEntry {
 	de.t.Helper()
 
 	fe := FileEntry{
-		t:    de.t,
-		path: filepath.Join(de.abspath, config.DefaultFilename),
+		t:        de.t,
+		hostpath: filepath.Join(de.abspath, config.DefaultFilename),
 	}
 	fe.Write(body)
 	return fe
@@ -372,14 +375,19 @@ func (fe FileEntry) Write(body string, args ...interface{}) {
 
 	body = fmt.Sprintf(body, args...)
 
-	if err := os.WriteFile(fe.path, []byte(body), 0700); err != nil {
-		fe.t.Fatalf("os.WriteFile(%q) = %v", fe.path, err)
+	if err := os.WriteFile(fe.hostpath, []byte(body), 0700); err != nil {
+		fe.t.Fatalf("os.WriteFile(%q) = %v", fe.hostpath, err)
 	}
 }
 
-// Path returns the absolute path of the file.
+// HostPath returns the absolute path of the file.
+func (fe FileEntry) HostPath() string {
+	return fe.hostpath
+}
+
+// Path returns the absolute project path of the file.
 func (fe FileEntry) Path() string {
-	return fe.path
+	return project.PrjAbsPath(fe.rootpath, fe.hostpath)
 }
 
 // ModSource returns the relative import path for the module with the given

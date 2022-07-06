@@ -15,6 +15,7 @@
 package e2etest
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/mineiros-io/terramate/stack"
@@ -125,6 +126,72 @@ func TestListWatchNonExistentFile(t *testing.T) {
 	git.CommitAll("any change")
 
 	assertRun(t, cli.listChangedStacks())
+}
+
+func TestListWatchElementsWithFuncalls(t *testing.T) {
+	s := sandbox.New(t)
+
+	extDir := s.RootEntry().CreateDir("EXTERNAL")
+	extFile := extDir.CreateFile("FILE.TXT", "anything")
+	extDir.CreateFile("not-changed.txt", "anything")
+
+	stackConfig := stackblock(
+		expr("watch", `[tm_upper("/external/file.txt")]`),
+	)
+
+	s.RootEntry().CreateDir("stack").CreateConfig(stackConfig.String())
+	stack := s.LoadStack("stack")
+
+	cli := newCLI(t, s.RootDir())
+
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+	git.CheckoutNew("change-the-external")
+
+	extFile.Write("changed")
+	git.CommitAll("external file changed")
+
+	want := runExpected{
+		Stdout: stack.RelPath() + "\n",
+	}
+	assertRunResult(t, cli.listChangedStacks(), want)
+}
+
+func TestListWatchExprWithFuncalls(t *testing.T) {
+	s := sandbox.New(t)
+
+	extDir := s.RootEntry().CreateDir("external")
+	extFile1 := extDir.CreateFile("file1.txt", "anything")
+	extFile2 := extDir.CreateFile("file2.txt", "anything")
+	extDir.CreateFile("unrelated.txt", "anything")
+	extDir.CreateFile("deps.txt",
+		fmt.Sprintf("%s\n%s", extFile1.Path(), extFile2.Path()))
+
+	// the `watch` list comes from the `deps.txt` file.
+	stackConfig := stackblock(
+		expr("watch", `tm_concat(tm_split("\n", tm_file("../external/deps.txt")), [
+			"/external/unrelated.txt",
+	  ])`),
+	)
+
+	s.RootEntry().CreateDir("stack").CreateConfig(stackConfig.String())
+	stack := s.LoadStack("stack")
+
+	cli := newCLI(t, s.RootDir())
+
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+	git.CheckoutNew("change-the-external")
+
+	extFile1.Write("changed")
+	git.CommitAll("external file changed")
+
+	want := runExpected{
+		Stdout: stack.RelPath() + "\n",
+	}
+	assertRunResult(t, cli.listChangedStacks(), want)
 }
 
 func TestListWatchDirectoryFails(t *testing.T) {

@@ -182,6 +182,26 @@ func TestHCLParserStack(t *testing.T) {
 			},
 		},
 		{
+			name: "stack attributes supports tm_ funcalls",
+			input: []cfgfile{
+				{
+					filename: "stack.tm",
+					body: `
+						stack {
+							name = tm_upper("stack-name")
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Stack: &hcl.Stack{
+						Name: "STACK-NAME",
+					},
+				},
+			},
+		},
+		{
 			name: "name is not a string - fails",
 			input: []cfgfile{
 				{
@@ -200,6 +220,26 @@ func TestHCLParserStack(t *testing.T) {
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("stack.tm", start(6, 8, 77), end(6, 12, 81)),
+					),
+				},
+			},
+		},
+		{
+			name: "name is not a string after evaluating function - fails",
+			input: []cfgfile{
+				{
+					filename: "stack.tm",
+					body: `
+						stack {
+							name = tm_concat(["a", ""], ["b", "c"])
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("stack.tm", start(3, 8, 22), end(3, 12, 26)),
 					),
 				},
 			},
@@ -243,8 +283,6 @@ func TestHCLParserStack(t *testing.T) {
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("stack.tm", start(6, 18, 87), end(6, 22, 91))),
-					errors.E(hcl.ErrTerramateSchema,
-						mkrange("stack.tm", start(6, 8, 77), end(6, 12, 81))),
 				},
 			},
 		},

@@ -1154,7 +1154,7 @@ func TestRunLogsUserCommand(t *testing.T) {
 	git.Push("main")
 
 	cli := newCLIWithLogLevel(t, s.RootDir(), "info")
-	assertRunResult(t, cli.run("run", "cat", testfile.Path()), runExpected{
+	assertRunResult(t, cli.run("run", "cat", testfile.HostPath()), runExpected{
 		StderrRegex: `cmd="cat /`,
 	})
 }
@@ -1212,7 +1212,7 @@ func TestRunDisableGitCheckRemote(t *testing.T) {
 		"run",
 		"--disable-check-git-remote",
 		cat,
-		someFile.Path(),
+		someFile.HostPath(),
 	), runExpected{Stdout: fileContents})
 }
 
@@ -1243,7 +1243,7 @@ func TestRunFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
 	assertRunResult(t, ts.run(
 		"run",
 		cat,
-		mainTfFile.Path(),
+		mainTfFile.HostPath(),
 	), wantRes)
 }
 
@@ -1275,7 +1275,7 @@ func TestRunWithoutGitRemoteCheckWorksWithoutNetworking(t *testing.T) {
 	assertRunResult(t, tm.run(
 		"run",
 		cat,
-		stackFile.Path(),
+		stackFile.HostPath(),
 	), runExpected{
 		Status:      1,
 		StderrRegex: "Could not resolve host: non-existent",
@@ -1284,7 +1284,7 @@ func TestRunWithoutGitRemoteCheckWorksWithoutNetworking(t *testing.T) {
 		"run",
 		"--disable-check-git-remote",
 		cat,
-		stackFile.Path(),
+		stackFile.HostPath(),
 	), runExpected{
 		Stdout: fileContents,
 	})
