@@ -78,6 +78,14 @@ func PrintConfig(w io.Writer, cfg Config) error {
 		stackBlock := rootBody.AppendNewBlock("stack", nil)
 		stackBody := stackBlock.Body()
 
+		if stack.Name != "" {
+			stackBody.SetAttributeValue("name", cty.StringVal(stack.Name))
+		}
+
+		if stack.Description != "" {
+			stackBody.SetAttributeValue("description", cty.StringVal(stack.Description))
+		}
+
 		if len(stack.After) > 0 {
 			stackBody.SetAttributeValue("after", cty.SetVal(listToValue(stack.After)))
 		}
@@ -90,12 +98,8 @@ func PrintConfig(w io.Writer, cfg Config) error {
 			stackBody.SetAttributeValue("wants", cty.SetVal(listToValue(stack.Wants)))
 		}
 
-		if stack.Name != "" {
-			stackBody.SetAttributeValue("name", cty.StringVal(stack.Name))
-		}
-
-		if stack.Description != "" {
-			stackBody.SetAttributeValue("description", cty.StringVal(stack.Description))
+		if len(stack.Watch) > 0 {
+			stackBody.SetAttributeValue("watch", cty.SetVal(listToValue(stack.Watch)))
 		}
 
 		if id, ok := stack.ID.Value(); ok {
