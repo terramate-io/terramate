@@ -236,7 +236,7 @@ func TestStackCreation(t *testing.T) {
 			assert.EqualStrings(t, want.name, got.Name(), "checking stack name")
 			assert.EqualStrings(t, want.desc, got.Desc(), "checking stack description")
 
-			assertStackImports(t, s.RootDir(), got, want.imports)
+			test.AssertStackImports(t, s.RootDir(), got, want.imports)
 		})
 	}
 }
@@ -247,40 +247,6 @@ func buildImportedFiles(t *testing.T, rootdir string, imports []string) {
 	for _, importPath := range imports {
 		abspath := filepath.Join(rootdir, importPath)
 		test.WriteFile(t, filepath.Dir(abspath), filepath.Base(abspath), "")
-	}
-}
-
-func assertStackImports(t *testing.T, rootdir string, got stack.S, want []string) {
-	t.Helper()
-
-	parser, err := hcl.NewTerramateParser(rootdir, got.HostPath())
-	assert.NoError(t, err)
-
-	err = parser.AddDir(got.HostPath())
-	assert.NoError(t, err)
-
-	err = parser.MinimalParse()
-	assert.NoError(t, err)
-
-	imports, err := parser.Imports()
-	assert.NoError(t, err)
-
-	if len(imports) != len(want) {
-		t.Fatalf("got %d imports, wanted %v", len(imports), want)
-	}
-
-checkImports:
-	for _, wantImport := range want {
-		for _, gotImportBlock := range imports {
-			sourceVal, diags := gotImportBlock.Attributes["source"].Expr.Value(nil)
-			if diags.HasErrors() {
-				t.Fatalf("error %v evaluating import source attribute", diags)
-			}
-			if sourceVal.AsString() == wantImport {
-				continue checkImports
-			}
-		}
-		t.Errorf("wanted import %s not found", wantImport)
 	}
 }
 

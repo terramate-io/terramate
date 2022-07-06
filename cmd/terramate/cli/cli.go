@@ -73,6 +73,14 @@ type cliSpec struct {
 	DisableCheckGitUntracked   bool `optional:"true" default:"false" help:"Disable git check for untracked files"`
 	DisableCheckGitUncommitted bool `optional:"true" default:"false" help:"Disable git check for uncommitted files"`
 
+	Create struct {
+		Path        string   `arg:"" name:"path" help:"Path of the new stack relative to the working dir"`
+		ID          string   `help:"ID of the stack, defaults to UUID"`
+		Name        string   `help:"Name of the stack, defaults to stack dir base name"`
+		Description string   `help:"Description of the stack, defaults to the stack name"`
+		Import      []string `help:"Add import block for the given path on the stack"`
+	} `cmd:"" help:"Creates a stack on the project"`
+
 	Fmt struct {
 		Check bool `help:"Lists unformatted files, exit with 0 if all is formatted, 1 otherwise"`
 	} `cmd:"" help:"Format all files inside dir recursively"`
@@ -330,6 +338,8 @@ func (c *cli) run() {
 	switch c.ctx.Command() {
 	case "fmt":
 		c.format()
+	case "create <path>":
+		c.createStack()
 	case "list":
 		c.printStacks()
 	case "run":
@@ -477,6 +487,31 @@ func (c *cli) listStacks(mgr *terramate.Manager, isChanged bool) (*terramate.Sta
 		return mgr.ListChanged()
 	}
 	return mgr.List()
+}
+
+func (c *cli) createStack() {
+	logger := log.With().
+		Str("workingDir", c.wd()).
+		Str("action", "cli.createStack()").
+		Str("imports", fmt.Sprint(c.parsedArgs.Create.Import)).
+		Logger()
+
+	logger.Trace().Msg("creating stack")
+
+	stackDir := filepath.Join(c.wd(), c.parsedArgs.Create.Path)
+	err := stack.Create(c.root(), stack.CreateCfg{
+		Dir:         stackDir,
+		ID:          c.parsedArgs.Create.ID,
+		Name:        c.parsedArgs.Create.Name,
+		Description: c.parsedArgs.Create.Description,
+		Imports:     c.parsedArgs.Create.Import,
+	})
+
+	if err != nil {
+		logger.Fatal().Err(err).Msg("creating stack")
+	}
+
+	c.log("Created stack %s with success", c.parsedArgs.Create.Path)
 }
 
 func (c *cli) format() {
