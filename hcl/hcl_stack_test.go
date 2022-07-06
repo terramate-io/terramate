@@ -182,6 +182,30 @@ func TestHCLParserStack(t *testing.T) {
 			},
 		},
 		{
+			name: "stack attributes supports tm_ funcalls",
+			input: []cfgfile{
+				{
+					filename: "stack.tm",
+					body: `
+						terramate {
+							required_version = ""
+						}
+						stack {
+							name = tm_upper("stack-name")
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{},
+					Stack: &hcl.Stack{
+						Name: "STACK-NAME",
+					},
+				},
+			},
+		},
+		{
 			name: "name is not a string - fails",
 			input: []cfgfile{
 				{
