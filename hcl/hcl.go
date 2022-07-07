@@ -962,7 +962,7 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 		case "id":
 			if attrVal.Type() != cty.String {
 				errs.Append(hclAttrEvalErr(attr,
-					"field stack.\"id\" must be a \"string\" but is %q",
+					"field stack.id must be a string but is %q",
 					attrVal.Type().FriendlyName()),
 				)
 				continue
@@ -978,8 +978,8 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 			stack.ID = id
 		case "name":
 			if attrVal.Type() != cty.String {
-				errs.Append(errors.E(attr.NameRange,
-					"field stack.\"name\" must be a \"string\" but given %q",
+				errs.Append(hclAttrEvalErr(attr,
+					"field stack.name must be a string but given %q",
 					attrVal.Type().FriendlyName()),
 				)
 				continue
@@ -1001,7 +1001,7 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 		case "description":
 			logger.Trace().Msg("parsing stack description.")
 			if attrVal.Type() != cty.String {
-				errs.Append(errors.E(attr.Expr.Range(),
+				errs.Append(hclAttrEvalErr(attr,
 					"field stack.\"description\" must be a \"string\" but given %q",
 					attrVal.Type().FriendlyName(),
 				))

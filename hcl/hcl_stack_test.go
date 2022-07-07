@@ -219,7 +219,7 @@ func TestHCLParserStack(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("stack.tm", start(6, 8, 77), end(6, 12, 81)),
+						mkrange("stack.tm", start(6, 15, 85), end(6, 16, 85)),
 					),
 				},
 			},
@@ -239,7 +239,7 @@ func TestHCLParserStack(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("stack.tm", start(3, 8, 22), end(3, 12, 26)),
+						mkrange("stack.tm", start(3, 15, 29), end(3, 47, 61)),
 					),
 				},
 			},
