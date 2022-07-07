@@ -272,6 +272,34 @@ func TestHCLParserConfigRun(t *testing.T) {
 			},
 		},
 		{
+			name: "run.check_gen_code defined",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						  config {
+						    run {
+							check_gen_code = false
+						    }
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							Run: &hcl.RunConfig{
+								CheckGenCode: false,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "attrs on run.env in single block/file",
 			input: []cfgfile{
 				{
@@ -574,6 +602,66 @@ func TestHCLParserConfigRun(t *testing.T) {
 					),
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("cfg3.tm", start(6, 15, 84), end(6, 21, 90)),
+					),
+				},
+			},
+		},
+		{
+			name: "redefined run.check_gen_code attribute on different files fails",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						  config {
+						    run {
+						      check_gen_code = true
+						    }
+						  }
+						}
+					`,
+				},
+				{
+					filename: "cfg2.tm",
+					body: `
+						terramate {
+						  config {
+						    run {
+						      check_gen_code = false
+						    }
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("cfg2.tm", start(5, 13, 64), end(5, 27, 78)),
+					),
+				},
+			},
+		},
+		{
+			name: "run.check_gen_code attribute must be a boolean",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						  config {
+						    run {
+						      check_gen_code = "not a boolean"
+						    }
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("cfg.tm", start(5, 30, 81), end(5, 45, 96)),
 					),
 				},
 			},
