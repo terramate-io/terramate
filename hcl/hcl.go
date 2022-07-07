@@ -50,6 +50,10 @@ type Config struct {
 
 // RunConfig represents Terramate run configuration.
 type RunConfig struct {
+	// CheckGenCode enables generated code is up-to-date check on run.
+	CheckGenCode bool
+
+	// Env contains environment definitions for run.
 	Env *RunEnv
 }
 
@@ -1043,7 +1047,9 @@ func parseRootConfig(cfg *RootConfig, block *ast.MergedBlock) error {
 	if ok {
 		logger.Trace().Msg("Type is 'run'")
 
-		cfg.Run = &RunConfig{}
+		cfg.Run = &RunConfig{
+			CheckGenCode: true,
+		}
 
 		logger.Trace().Msg("Parse run config.")
 
