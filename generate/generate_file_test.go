@@ -263,13 +263,12 @@ func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
 
 	createConfig := func(filename string, condition bool) {
 		stackEntry.CreateConfig(
-			stackConfig(
-				generateFile(
-					labels(filename),
-					boolean("condition", condition),
-					str("content", "some content"),
-				),
-			).String())
+			generateFile(
+				labels(filename),
+				boolean("condition", condition),
+				str("content", "some content"),
+			).String(),
+		)
 	}
 
 	createConfig(filename, false)

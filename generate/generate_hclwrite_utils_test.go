@@ -22,14 +22,6 @@ func hcldoc(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildHCL(builders...)
 }
 
-// stackConfig wraps the blocks built by the given builders in a valid stack
-// configuration
-func stackConfig(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-	b := []hclwrite.BlockBuilder{stack()}
-	b = append(b, builders...)
-	return hcldoc(b...)
-}
-
 func generateHCL(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("generate_hcl", builders...)
 }
@@ -60,10 +52,6 @@ func boolean(name string, val bool) hclwrite.BlockBuilder {
 
 func labels(labels ...string) hclwrite.BlockBuilder {
 	return hclwrite.Labels(labels...)
-}
-
-func stack(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-	return hclwrite.BuildBlock("stack", builders...)
 }
 
 func backend(builders ...hclwrite.BlockBuilder) *hclwrite.Block {

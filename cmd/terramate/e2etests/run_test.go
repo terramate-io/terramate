@@ -22,11 +22,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/madlambda/spells/assert"
-
 	"github.com/mineiros-io/terramate/cmd/terramate/cli"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/run/dag"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
@@ -675,16 +671,13 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 	s := sandbox.New(t)
 
 	// stack must run after stack2 but stack2 didn't change.
+	s.BuildTree([]string{
+		`s:stack:after=["/stack2"]`,
+		"s:stack2",
+	})
 
-	stack2 := s.CreateStack("stack2")
-	stack := s.CreateStack("stack")
+	stack := s.DirEntry("stack")
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
-	stackConfig, err := hcl.NewConfig(stack.Path())
-	assert.NoError(t, err)
-	stackConfig.Stack = &hcl.Stack{
-		After: []string{project.PrjAbsPath(s.RootDir(), stack2.Path())},
-	}
-	stack.WriteConfig(stackConfig)
 
 	git := s.Git()
 	git.CommitAll("first commit")
@@ -717,7 +710,7 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 		mainTfFileName,
 	), runExpected{Stdout: wantRun})
 
-	cli = newCLI(t, stack2.Path())
+	cli = newCLI(t, filepath.Join(s.RootDir(), "stack2"))
 	assertRunResult(t, cli.run(
 		"run",
 		"--changed",
@@ -827,22 +820,19 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 		mainTfContents = "# change is the eternal truth of the universe"
 	)
 
-	// stack2 must run after stack and both changed.
-
 	s := sandbox.New(t)
 
-	stack2 := s.CreateStack("stack2")
+	// stack2 must run after stack and both changed.
+	s.BuildTree([]string{
+		`s:stack:after=["/stack2"]`,
+		"s:stack2",
+	})
+
+	stack2 := s.DirEntry("stack2")
 	stack2MainTf := stack2.CreateFile(mainTfFileName, "# some code")
 
-	stack := s.CreateStack("stack")
+	stack := s.DirEntry("stack")
 	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
-	stackConfig, err := hcl.NewConfig(stack.Path())
-	assert.NoError(t, err)
-
-	stackConfig.Stack = &hcl.Stack{
-		After: []string{project.PrjAbsPath(s.RootDir(), stack2.Path())},
-	}
-	stack.WriteConfig(stackConfig)
 
 	git := s.Git()
 	git.CommitAll("first commit")
@@ -1113,7 +1103,6 @@ func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
 	})
 
 	stack1.CreateConfig(`
-		stack {}
 		generate_hcl "test.tf" {
 		  content {
 		    test = terramate.path

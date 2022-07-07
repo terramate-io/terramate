@@ -17,7 +17,6 @@ package e2etest
 import (
 	"testing"
 
-	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -132,10 +131,6 @@ func TestListStackWithDefinitionOnNonDefaultFilename(t *testing.T) {
 func TestListStackWithNoTerramateBlock(t *testing.T) {
 	s := sandbox.New(t)
 	s.BuildTree([]string{"s:stack"})
-	stack := s.StackEntry("stack")
-	stack.WriteConfig(hcl.Config{
-		Stack: &hcl.Stack{},
-	})
 	cli := newCLI(t, s.RootDir())
 	assertRunResult(t, cli.listStacks(), runExpected{Stdout: "stack\n"})
 }
