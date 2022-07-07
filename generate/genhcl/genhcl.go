@@ -123,10 +123,7 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) ([]HCL, erro
 		return nil, errors.E("loading generate_hcl", err)
 	}
 
-	evalctx, err := stack.NewEvalCtx(rootdir, sm, globals)
-	if err != nil {
-		return nil, err
-	}
+	evalctx := stack.NewEvalCtx(rootdir, sm, globals)
 
 	logger.Trace().Msg("generating HCL code.")
 
