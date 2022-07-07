@@ -16,6 +16,7 @@ package e2etest
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -464,6 +465,22 @@ func TestCommandsNotRequiringGitSafeguards(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestE2ETerramateFailIfRootConfigIsNotAtProjectRoot(t *testing.T) {
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		"s:stacks/stack",
+	})
+
+	stacksDir := filepath.Join(s.RootDir(), "stacks")
+	test.WriteRootConfig(t, stacksDir)
+
+	cli := newCLI(t, stacksDir)
+	assertRunResult(t, cli.listStacks(), runExpected{
+		Status:      1,
+		StderrRegex: "terramate root config found at",
+	})
 }
 
 func setupLocalMainBranchBehindOriginMain(git *sandbox.Git, changeFiles func()) {
