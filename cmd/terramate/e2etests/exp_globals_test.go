@@ -184,6 +184,27 @@ stack "/stacks/stack-2":
 			},
 		},
 		{
+			name: "abspath() do not use wd but stack dir as base, wd = stacks",
+			layout: []string{
+				"s:stacks/stack-name",
+			},
+			wd: "/stacks",
+			globals: []globalsBlock{
+				{
+					path: "/stacks",
+					add: globals(
+						expr("stack-dir-name", `tm_basename(tm_abspath("."))`),
+					),
+				},
+			},
+			want: runExpected{
+				Stdout: `
+stack "/stacks/stack-name":
+	stack-dir-name = "stack-name"
+`,
+			},
+		},
+		{
 			name: "two stacks with globals and one without, wd = stack3",
 			layout: []string{
 				"s:stacks/stack-1",
