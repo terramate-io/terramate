@@ -1158,10 +1158,31 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 			git.DefaultBranchBaseRef = value.AsString()
 
 		case "disable_check_untracked":
+			if value.Type() != cty.Bool {
+				errs.Append(errors.E(attr.NameRange,
+					"terramate.config.git.disable_check_untracked is not a boolean but %q",
+					value.Type().FriendlyName(),
+				))
+				continue
+			}
 			git.DisableCheckUntracked = value.True()
 		case "disable_check_uncommitted":
+			if value.Type() != cty.Bool {
+				errs.Append(errors.E(attr.NameRange,
+					"terramate.config.git.disable_check_uncommitted is not a boolean but %q",
+					value.Type().FriendlyName(),
+				))
+				continue
+			}
 			git.DisableCheckUncommitted = value.True()
 		case "disable_check_remote":
+			if value.Type() != cty.Bool {
+				errs.Append(errors.E(attr.NameRange,
+					"terramate.config.git.disable_check_remote is not a boolean but %q",
+					value.Type().FriendlyName(),
+				))
+				continue
+			}
 			git.DisableCheckRemote = value.True()
 
 		default:

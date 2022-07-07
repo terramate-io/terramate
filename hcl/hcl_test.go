@@ -423,6 +423,35 @@ func TestHCLParserRootConfig(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "git.disable fields must be boolean",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+							config {
+								git {
+									disable_check_untracked   = "hi"
+									disable_check_uncommitted = 666
+									disable_check_remote      = []
+								}
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("cfg.tm", start(5, 10, 58), end(5, 33, 81))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("cfg.tm", start(6, 10, 100), end(6, 35, 125))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("cfg.tm", start(7, 10, 141), end(7, 30, 161))),
+				},
+			},
+		},
 	} {
 		testParser(t, tc)
 	}
