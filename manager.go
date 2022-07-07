@@ -342,7 +342,7 @@ func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) err
 			Msg("Apply function to file.")
 		err := apply(file)
 		if err != nil {
-			return errors.E(err, "applying operation to file %q", file)
+			return errors.E(err, "applying operation to file %q", file.Name())
 		}
 	}
 
