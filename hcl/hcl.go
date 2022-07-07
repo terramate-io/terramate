@@ -15,6 +15,7 @@
 package hcl
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -1125,7 +1126,7 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 		switch attr.Name {
 		case "default_branch":
 			if value.Type() != cty.String {
-				errs.Append(errors.E(attr.Expr.Range(),
+				errs.Append(attrEvalErr(attr,
 					"terramate.config.git.branch is not a string but %q",
 					value.Type().FriendlyName(),
 				))
@@ -1136,7 +1137,7 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 			git.DefaultBranch = value.AsString()
 		case "default_remote":
 			if value.Type() != cty.String {
-				errs.Append(errors.E(attr.NameRange,
+				errs.Append(attrEvalErr(attr,
 					"terramate.config.git.remote is not a string but %q",
 					value.Type().FriendlyName(),
 				))
@@ -1148,7 +1149,7 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 
 		case "default_branch_base_ref":
 			if value.Type() != cty.String {
-				errs.Append(errors.E(attr.NameRange,
+				errs.Append(attrEvalErr(attr,
 					"terramate.config.git.defaultBranchBaseRef is not a string but %q",
 					value.Type().FriendlyName(),
 				))
@@ -1159,7 +1160,7 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 
 		case "disable_check_untracked":
 			if value.Type() != cty.Bool {
-				errs.Append(errors.E(attr.NameRange,
+				errs.Append(attrEvalErr(attr,
 					"terramate.config.git.disable_check_untracked is not a boolean but %q",
 					value.Type().FriendlyName(),
 				))
@@ -1168,7 +1169,7 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 			git.DisableCheckUntracked = value.True()
 		case "disable_check_uncommitted":
 			if value.Type() != cty.Bool {
-				errs.Append(errors.E(attr.NameRange,
+				errs.Append(attrEvalErr(attr,
 					"terramate.config.git.disable_check_uncommitted is not a boolean but %q",
 					value.Type().FriendlyName(),
 				))
@@ -1177,7 +1178,7 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 			git.DisableCheckUncommitted = value.True()
 		case "disable_check_remote":
 			if value.Type() != cty.Bool {
-				errs.Append(errors.E(attr.NameRange,
+				errs.Append(attrEvalErr(attr,
 					"terramate.config.git.disable_check_remote is not a boolean but %q",
 					value.Type().FriendlyName(),
 				))
@@ -1491,4 +1492,8 @@ func listTerramateDirs(dir string) ([]string, error) {
 
 func isTerramateFile(filename string) bool {
 	return strings.HasSuffix(filename, ".tm") || strings.HasSuffix(filename, ".tm.hcl")
+}
+
+func attrEvalErr(attr ast.Attribute, msg string, args ...interface{}) error {
+	return errors.E(attr.Expr.Range(), fmt.Sprintf(msg, args...))
 }

@@ -444,11 +444,11 @@ func TestHCLParserRootConfig(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(5, 10, 58), end(5, 33, 81))),
+						mkrange("cfg.tm", start(5, 38, 86), end(5, 42, 90))),
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(6, 10, 100), end(6, 35, 125))),
+						mkrange("cfg.tm", start(6, 38, 128), end(6, 41, 131))),
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(7, 10, 141), end(7, 30, 161))),
+						mkrange("cfg.tm", start(7, 38, 169), end(7, 40, 171))),
 				},
 			},
 		},
