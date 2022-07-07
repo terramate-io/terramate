@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
 	prj "github.com/mineiros-io/terramate/project"
@@ -499,11 +500,34 @@ func (c *cli) createStack() {
 	logger.Trace().Msg("creating stack")
 
 	stackDir := filepath.Join(c.wd(), c.parsedArgs.Create.Path)
+
+	stackID := c.parsedArgs.Create.ID
+	if stackID == "" {
+
+		logger.Trace().Msg("no ID provided, generating one")
+
+		id, err := uuid.NewRandom()
+		if err != nil {
+			logger.Fatal().Err(err)
+		}
+		stackID = id.String()
+	}
+
+	stackName := c.parsedArgs.Create.Name
+	if stackName == "" {
+		stackName = filepath.Base(stackDir)
+	}
+
+	stackDescription := c.parsedArgs.Create.Description
+	if stackDescription == "" {
+		stackDescription = stackName
+	}
+
 	err := stack.Create(c.root(), stack.CreateCfg{
 		Dir:         stackDir,
-		ID:          c.parsedArgs.Create.ID,
-		Name:        c.parsedArgs.Create.Name,
-		Description: c.parsedArgs.Create.Description,
+		ID:          stackID,
+		Name:        stackName,
+		Description: stackDescription,
 		Imports:     c.parsedArgs.Create.Import,
 	})
 

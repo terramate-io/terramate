@@ -18,7 +18,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
@@ -58,10 +57,7 @@ func TestStackCreation(t *testing.T) {
 				Dir: "stack",
 			},
 			want: want{
-				stack: wantedStack{
-					name: "stack",
-					desc: "stack",
-				},
+				stack: wantedStack{name: "stack"},
 			},
 		},
 		{
@@ -70,10 +66,7 @@ func TestStackCreation(t *testing.T) {
 				Dir: "dir1/dir2/dir3/stack",
 			},
 			want: want{
-				stack: wantedStack{
-					name: "stack",
-					desc: "stack",
-				},
+				stack: wantedStack{name: "stack"},
 			},
 		},
 		{
@@ -83,10 +76,7 @@ func TestStackCreation(t *testing.T) {
 				Dir: "stack",
 			},
 			want: want{
-				stack: wantedStack{
-					name: "stack",
-					desc: "stack",
-				},
+				stack: wantedStack{name: "stack"},
 			},
 		},
 		{
@@ -96,10 +86,7 @@ func TestStackCreation(t *testing.T) {
 				Dir: "stack",
 			},
 			want: want{
-				stack: wantedStack{
-					name: "stack",
-					desc: "stack",
-				},
+				stack: wantedStack{name: "stack"},
 			},
 		},
 		{
@@ -111,7 +98,6 @@ func TestStackCreation(t *testing.T) {
 			want: want{
 				stack: wantedStack{
 					name: "The Name Of The Stack",
-					desc: "The Name Of The Stack",
 				},
 			},
 		},
@@ -153,7 +139,6 @@ func TestStackCreation(t *testing.T) {
 			want: want{
 				stack: wantedStack{
 					name:    "stack-imports",
-					desc:    "stack-imports",
 					imports: []string{"/common/something.tm.hcl"},
 				},
 			},
@@ -168,7 +153,6 @@ func TestStackCreation(t *testing.T) {
 			want: want{
 				stack: wantedStack{
 					name: "stack-imports",
-					desc: "stack-imports",
 					imports: []string{
 						"/common/1.tm.hcl",
 						"/common/2.tm.hcl",
@@ -201,7 +185,7 @@ func TestStackCreation(t *testing.T) {
 			want:   want{err: errors.E(stack.ErrStackAlreadyExists)},
 		},
 		{
-			name:   "fails if stack already exists and there is a stack.tm.hcl file",
+			name:   "fails if there is a stack.tm.hcl file on dir",
 			layout: []string{"f:stack/stack.tm.hcl"},
 			create: stack.CreateCfg{Dir: "stack"},
 			want:   want{err: errors.E(stack.ErrStackAlreadyExists)},
@@ -226,12 +210,14 @@ func TestStackCreation(t *testing.T) {
 			want := tc.want.stack
 			got := s.LoadStack(stackPath)
 
-			gotID, _ := got.ID()
 			if wantID, ok := want.id.Value(); ok {
+				gotID, _ := got.ID()
 				assert.EqualStrings(t, wantID, gotID)
 			} else {
-				_, err := uuid.Parse(gotID)
-				assert.NoError(t, err)
+				gotID, ok := got.ID()
+				if ok {
+					t.Fatalf("got unwanted ID %q", gotID)
+				}
 			}
 			assert.EqualStrings(t, want.name, got.Name(), "checking stack name")
 			assert.EqualStrings(t, want.desc, got.Desc(), "checking stack description")

@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -84,6 +85,11 @@ func TestCreateStackDefaults(t *testing.T) {
 
 	assert.EqualStrings(t, "stack", got.Name(), "checking stack name")
 	assert.EqualStrings(t, "stack", got.Desc(), "checking stack description")
+
+	// By default the CLI generates an id with an UUID
+	gotID, _ := got.ID()
+	_, err := uuid.Parse(gotID)
+	assert.NoError(t, err, "validating default UUID")
 
 	test.AssertStackImports(t, s.RootDir(), got, []string{})
 }
