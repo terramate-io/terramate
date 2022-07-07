@@ -71,14 +71,14 @@ type GitConfig struct {
 	// DefaultRemote is the default remote.
 	DefaultRemote string
 
-	// DisableCheckUntracked disables untracked files checking.
-	DisableCheckUntracked bool
+	// CheckUntracked enables untracked files checking.
+	CheckUntracked bool
 
-	// DisableCheckUncommitted disables uncommitted files checking.
-	DisableCheckUncommitted bool
+	// CheckUncommitted enables uncommitted files checking.
+	CheckUncommitted bool
 
-	// DisableCheckRemote disables checking if local default branch is updated with remote.
-	DisableCheckRemote bool
+	// CheckRemote enables checking if local default branch is updated with remote.
+	CheckRemote bool
 }
 
 // RootConfig represents the root config block of a Terramate configuration.
@@ -1046,7 +1046,11 @@ func parseRootConfig(cfg *RootConfig, block *ast.MergedBlock) error {
 	if ok {
 		logger.Trace().Msg("Type is 'git'")
 
-		cfg.Git = &GitConfig{}
+		cfg.Git = &GitConfig{
+			CheckUntracked:   true,
+			CheckUncommitted: true,
+			CheckRemote:      true,
+		}
 
 		logger.Trace().Msg("Parse git config.")
 
@@ -1162,33 +1166,33 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 			}
 			git.DefaultBranchBaseRef = value.AsString()
 
-		case "disable_check_untracked":
+		case "check_untracked":
 			if value.Type() != cty.Bool {
 				errs.Append(attrEvalErr(attr,
-					"terramate.config.git.disable_check_untracked is not a boolean but %q",
+					"terramate.config.git.check_untracked is not a boolean but %q",
 					value.Type().FriendlyName(),
 				))
 				continue
 			}
-			git.DisableCheckUntracked = value.True()
-		case "disable_check_uncommitted":
+			git.CheckUntracked = value.True()
+		case "check_uncommitted":
 			if value.Type() != cty.Bool {
 				errs.Append(attrEvalErr(attr,
-					"terramate.config.git.disable_check_uncommitted is not a boolean but %q",
+					"terramate.config.git.check_uncommitted is not a boolean but %q",
 					value.Type().FriendlyName(),
 				))
 				continue
 			}
-			git.DisableCheckUncommitted = value.True()
-		case "disable_check_remote":
+			git.CheckUncommitted = value.True()
+		case "check_remote":
 			if value.Type() != cty.Bool {
 				errs.Append(attrEvalErr(attr,
-					"terramate.config.git.disable_check_remote is not a boolean but %q",
+					"terramate.config.git.check_remote is not a boolean but %q",
 					value.Type().FriendlyName(),
 				))
 				continue
 			}
-			git.DisableCheckRemote = value.True()
+			git.CheckRemote = value.True()
 
 		default:
 			errs.Append(errors.E(
