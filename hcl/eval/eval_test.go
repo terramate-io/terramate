@@ -64,6 +64,13 @@ func TestEvalTmAbspath(t *testing.T) {
 			},
 		},
 		{
+			name: "relative path is cleaned",
+			expr: `tm_abspath("something//")`,
+			want: want{
+				value: cty.StringVal("/something"),
+			},
+		},
+		{
 			name: "relative path with multiple levels is appended to basedir",
 			expr: `tm_abspath("a/b/c/d/e")`,
 			want: want{
