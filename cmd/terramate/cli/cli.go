@@ -1174,13 +1174,11 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 			root := filepath.Dir(gitabs)
 
-			if rootfound {
-				if strings.HasPrefix(rootpath, root) && rootpath != root {
-					return project{}, false, errors.E(
-						"terramate root config found at %q but it must be at the root dir %q",
-						rootpath, root,
-					)
-				}
+			if rootfound && strings.HasPrefix(rootpath, root) && rootpath != root {
+				return project{}, false, errors.E(
+					"terramate root config found at %q but it must be at the root dir %q",
+					rootpath, root,
+				)
 			}
 
 			logger.Trace().Msg("Load root config.")
