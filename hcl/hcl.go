@@ -232,6 +232,11 @@ func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
 		return nil, errors.E("directory %q is not inside root %q", dir, rootdir)
 	}
 
+	evalctx, err := eval.NewContext(dir)
+	if err != nil {
+		return nil, err
+	}
+
 	return &TerramateParser{
 		rootdir:          rootdir,
 		dir:              dir,
@@ -240,7 +245,7 @@ func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
 		MergedAttributes: make(ast.Attributes),
 		MergedBlocks:     make(ast.MergedBlocks),
 		parsedFiles:      make(map[string]parsedFile),
-		evalctx:          eval.NewContext(dir),
+		evalctx:          evalctx,
 	}, nil
 }
 

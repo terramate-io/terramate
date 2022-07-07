@@ -115,7 +115,8 @@ func FuzzPartialEval(f *testing.F) {
 			return
 		}
 
-		ctx := NewContext("")
+		ctx, err := NewContext("/")
+		assert.NoError(t, err)
 		ctx.SetNamespace("globals", globals)
 		ctx.SetNamespace("terramate", terramate)
 
