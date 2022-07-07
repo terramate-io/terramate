@@ -479,8 +479,7 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 	}
 
 	if srcVal.Type() != cty.String {
-		return errors.E(ErrTerramateSchema, srcAttr.Expr.Range(),
-			"import.source must be a string")
+		return attrEvalErr(srcAttr, "import.source must be a string")
 	}
 
 	src := srcVal.AsString()
@@ -962,7 +961,7 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 		switch attr.Name {
 		case "id":
 			if attrVal.Type() != cty.String {
-				errs.Append(errors.E(attr.NameRange,
+				errs.Append(hclAttrEvalErr(attr,
 					"field stack.\"id\" must be a \"string\" but is %q",
 					attrVal.Type().FriendlyName()),
 				)
@@ -1494,6 +1493,10 @@ func isTerramateFile(filename string) bool {
 	return strings.HasSuffix(filename, ".tm") || strings.HasSuffix(filename, ".tm.hcl")
 }
 
+func hclAttrEvalErr(attr *hclsyntax.Attribute, msg string, args ...interface{}) error {
+	return errors.E(ErrTerramateSchema, attr.Expr.Range(), fmt.Sprintf(msg, args...))
+}
+
 func attrEvalErr(attr ast.Attribute, msg string, args ...interface{}) error {
-	return errors.E(attr.Expr.Range(), fmt.Sprintf(msg, args...))
+	return hclAttrEvalErr(attr.Attribute, msg, args...)
 }
