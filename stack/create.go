@@ -20,7 +20,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/rs/zerolog/log"
@@ -36,6 +35,9 @@ const (
 	// ErrStackAlreadyExists indicates that the stack already exists and cant be created.
 	ErrStackAlreadyExists errors.Kind = "stack already exists"
 )
+
+// DefaultFilename is the default file name for created stacks.
+const DefaultFilename = "stack.tm.hcl"
 
 // CreateCfg represents stack creation configuration.
 type CreateCfg struct {
@@ -63,8 +65,6 @@ type CreateCfg struct {
 // If the stack already exists it will return an error and no changes will be
 // made to the stack.
 func Create(rootdir string, cfg CreateCfg) (err error) {
-	const stackFilename = "stack.tm.hcl"
-
 	logger := log.With().
 		Str("action", "stack.Create()").
 		Stringer("cfg", cfg).
@@ -90,11 +90,11 @@ func Create(rootdir string, cfg CreateCfg) (err error) {
 
 	logger.Trace().Msg("validating create configuration")
 
-	_, err = os.Stat(filepath.Join(cfg.Dir, stackFilename))
+	_, err = os.Stat(filepath.Join(cfg.Dir, DefaultFilename))
 	if err == nil {
 		// Even if there is no stack inside the file, we can't overwrite
 		// the user file anyway.
-		return errors.E(ErrStackAlreadyExists, "%q already exists", stackFilename)
+		return errors.E(ErrStackAlreadyExists, "%q already exists", DefaultFilename)
 	}
 
 	// We could have a stack definition somewhere else.
@@ -107,43 +107,34 @@ func Create(rootdir string, cfg CreateCfg) (err error) {
 		return errors.E(ErrStackAlreadyExists, "name %q", parsedCfg.Stack.Name)
 	}
 
+	stackCfg := hcl.Stack{}
+
+	if cfg.Name != "" {
+		stackCfg.Name = cfg.Name
+	}
+
+	if cfg.Description != "" {
+		stackCfg.Description = cfg.Description
+	}
+
+	if cfg.ID != "" {
+		stackID, err := hcl.NewStackID(cfg.ID)
+		if err != nil {
+			return errors.E(ErrInvalidStackID, err)
+		}
+		stackCfg.ID = stackID
+	}
+
 	tmCfg, err := hcl.NewConfig(cfg.Dir)
 	if err != nil {
 		return errors.E(err, "failed to create new stack config")
 	}
 
-	if cfg.ID == "" {
-		logger.Trace().Msg("no ID provided, generating one")
-
-		id, err := uuid.NewRandom()
-		if err != nil {
-			return errors.E(err, "failed to create stack UUID")
-		}
-		cfg.ID = id.String()
-	}
-
-	if cfg.Name == "" {
-		cfg.Name = filepath.Base(cfg.Dir)
-	}
-
-	if cfg.Description == "" {
-		cfg.Description = cfg.Name
-	}
-
-	stackID, err := hcl.NewStackID(cfg.ID)
-	if err != nil {
-		return errors.E(ErrInvalidStackID, err)
-	}
-
-	tmCfg.Stack = &hcl.Stack{
-		ID:          stackID,
-		Name:        cfg.Name,
-		Description: cfg.Description,
-	}
+	tmCfg.Stack = &stackCfg
 
 	logger.Trace().Msg("creating stack file")
 
-	stackFile, err := os.Create(filepath.Join(cfg.Dir, stackFilename))
+	stackFile, err := os.Create(filepath.Join(cfg.Dir, DefaultFilename))
 	if err != nil {
 		return errors.E(err, "opening stack file")
 	}

@@ -450,9 +450,9 @@ func TestCommandsNotRequiringGitSafeguards(t *testing.T) {
 	cmds := []string{
 		"experimental metadata",
 		"experimental globals",
-		"experimental init-stack stack",
 		"experimental run-order",
 		"experimental run-graph",
+		"create stack-2",
 		"generate",
 		"list",
 	}

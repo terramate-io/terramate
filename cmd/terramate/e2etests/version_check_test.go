@@ -22,6 +22,7 @@ import (
 	tfversion "github.com/hashicorp/go-version"
 	"github.com/madlambda/spells/assert"
 	tm "github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -29,12 +30,11 @@ func TestVersionCheck(t *testing.T) {
 	checkedCmds := []string{
 		"experimental metadata",
 		"experimental globals",
-		"experimental init-stack stack",
 		"experimental run-order",
 		"experimental run-graph",
 		"generate",
 		"list",
-		"run cat terramate.tm.hcl",
+		fmt.Sprintf("run cat %s", stack.DefaultFilename),
 	}
 	uncheckedCmds := []string{
 		"--help",

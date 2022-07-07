@@ -26,6 +26,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
+	stackpkg "github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
@@ -257,8 +258,10 @@ func testCodeGeneration(t *testing.T, checkGenFile genFileChecker, tcases []test
 					return nil
 				}
 
-				// sandbox create README.md inside test dirs
-				if d.Name() == config.DefaultFilename || d.Name() == "README.md" {
+				// sandbox creates README.md inside test dirs
+				if d.Name() == config.DefaultFilename ||
+					d.Name() == stackpkg.DefaultFilename ||
+					d.Name() == "README.md" {
 					return nil
 				}
 

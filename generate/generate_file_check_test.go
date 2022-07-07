@@ -38,12 +38,11 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
 
 	// Checking detection when there is no config generated yet
 	stackEntry.CreateConfig(
-		stackConfig(
-			generateFile(
-				labels("test.txt"),
-				str("content", "test"),
-			),
-		).String())
+		generateFile(
+			labels("test.txt"),
+			str("content", "test"),
+		).String(),
+	)
 	assertOutdatedFiles([]string{"test.txt"})
 
 	s.Generate()
@@ -52,12 +51,11 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
 
 	// Now checking when we have code + it gets outdated.
 	stackEntry.CreateConfig(
-		stackConfig(
-			generateFile(
-				labels("test.txt"),
-				str("content", "changed"),
-			),
-		).String())
+		generateFile(
+			labels("test.txt"),
+			str("content", "changed"),
+		).String(),
+	)
 
 	assertOutdatedFiles([]string{"test.txt"})
 
@@ -66,18 +64,17 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
 	// Changing generated filenames will NOT trigger detection for the old file
 	// since there is no way to automatically track the files for now
 	stackEntry.CreateConfig(
-		stackConfig(
-			generateFile(
-				labels("testnew.txt"),
-				str("content", "changed"),
-			),
-		).String())
+		generateFile(
+			labels("testnew.txt"),
+			str("content", "changed"),
+		).String(),
+	)
 
 	assertOutdatedFiles([]string{"testnew.txt"})
 
 	// Adding new filename to generation trigger detection
 	stackEntry.CreateConfig(
-		stackConfig(
+		hcldoc(
 			generateFile(
 				labels("testnew.txt"),
 				str("content", "changed"),
@@ -96,7 +93,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
 
 	// Removed configurations will not be detected by default since there
 	// is no way to track the files for now.
-	stackEntry.CreateConfig(stackConfig().String())
+	stackEntry.DeleteConfig()
 
 	assertOutdatedFiles([]string{})
 }
@@ -117,23 +114,21 @@ func TestCheckOutdatedIgnoresEmptyGenerateFileContent(t *testing.T) {
 
 	// Checking detection when the config is empty at first
 	stackEntry.CreateConfig(
-		stackConfig(
-			generateFile(
-				labels("test.txt"),
-				str("content", ""),
-			),
-		).String())
+		generateFile(
+			labels("test.txt"),
+			str("content", ""),
+		).String(),
+	)
 
 	assertOutdatedFiles([]string{})
 
 	// Checking detection when the config isnt empty, is generated and then becomes empty
 	stackEntry.CreateConfig(
-		stackConfig(
-			generateFile(
-				labels("test.txt"),
-				str("content", "test"),
-			),
-		).String())
+		generateFile(
+			labels("test.txt"),
+			str("content", "test"),
+		).String(),
+	)
 
 	assertOutdatedFiles([]string{"test.txt"})
 
@@ -142,12 +137,11 @@ func TestCheckOutdatedIgnoresEmptyGenerateFileContent(t *testing.T) {
 	assertOutdatedFiles([]string{})
 
 	stackEntry.CreateConfig(
-		stackConfig(
-			generateFile(
-				labels("test.txt"),
-				str("content", ""),
-			),
-		).String())
+		generateFile(
+			labels("test.txt"),
+			str("content", ""),
+		).String(),
+	)
 
 	assertOutdatedFiles([]string{"test.txt"})
 
@@ -174,13 +168,12 @@ func TestCheckOutdatedIgnoresWhenGenFileConditionIsFalse(t *testing.T) {
 
 	createConfig := func(filename string, condition bool) {
 		stackEntry.CreateConfig(
-			stackConfig(
-				generateFile(
-					labels(filename),
-					boolean("condition", condition),
-					str("content", "some content"),
-				),
-			).String())
+			generateFile(
+				labels(filename),
+				boolean("condition", condition),
+				str("content", "some content"),
+			).String(),
+		)
 	}
 
 	// Checking detection when the config has condition = false

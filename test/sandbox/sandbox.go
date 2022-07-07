@@ -253,9 +253,9 @@ func (s S) CreateStack(relpath string) StackEntry {
 		relpath = relpath[1:]
 	}
 
-	stack := newStackEntry(t, s.RootDir(), relpath)
-	assert.NoError(t, terramate.Init(s.RootDir(), stack.Path()))
-	return stack
+	st := newStackEntry(t, s.RootDir(), relpath)
+	assert.NoError(t, stack.Create(s.RootDir(), stack.CreateCfg{Dir: st.Path()}))
+	return st
 }
 
 // StackEntry gets the stack entry of the stack identified by relpath.
@@ -314,8 +314,8 @@ func (de DirEntry) CreateFile(name, body string, args ...interface{}) FileEntry 
 	return fe
 }
 
-// CreateConfig will create a terramate config file inside this dir entry with
-// the given body.
+// CreateConfig will create a Terramate config file inside this dir entry with
+// the given body using the default Terramate config filename.
 //
 // It returns a file entry that can be used to further manipulate the created
 // file, like replacing its contents. The file entry is optimized for always
@@ -332,6 +332,15 @@ func (de DirEntry) CreateConfig(body string) FileEntry {
 	}
 	fe.Write(body)
 	return fe
+}
+
+// DeleteConfig deletes the default Terramate config file.
+func (de DirEntry) DeleteConfig() {
+	de.t.Helper()
+
+	assert.NoError(de.t,
+		os.Remove(filepath.Join(de.abspath, config.DefaultFilename)),
+		"removing default configuration file")
 }
 
 // CreateDir creates a directory inside the dir entry directory. The relpath
@@ -554,7 +563,10 @@ func buildTree(t *testing.T, rootdir string, layout []string) {
 			if data == "" {
 				abspath := filepath.Join(rootdir, path)
 				test.MkdirAll(t, abspath)
-				assert.NoError(t, terramate.Init(rootdir, abspath))
+				assert.NoError(t, stack.Create(
+					rootdir,
+					stack.CreateCfg{Dir: abspath}),
+				)
 				continue
 			}
 

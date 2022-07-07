@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
 	prj "github.com/mineiros-io/terramate/project"
@@ -352,10 +353,6 @@ func (c *cli) run() {
 		c.printStacksGlobals()
 	case "experimental metadata":
 		c.printMetadata()
-	case "experimental init-stack <paths>":
-		c.initStack(c.parsedArgs.Experimental.InitStack.StackDirs)
-	case "experimental init-stack":
-		c.initStack([]string{c.wd()})
 	case "experimental run-graph":
 		c.generateGraph()
 	case "experimental run-order":
@@ -405,41 +402,6 @@ func (c *cli) generate() {
 
 	if report.HasFailures() {
 		os.Exit(1)
-	}
-}
-
-func (c *cli) initStack(dirs []string) {
-	var errmsgs []string
-
-	logger := log.With().
-		Str("action", "initStack()").
-		Logger()
-
-	logger.Debug().
-		Msg("Init stacks.")
-	for _, d := range dirs {
-		if !filepath.IsAbs(d) {
-			log.Trace().
-				Str("stack", fmt.Sprintf("%s%s", c.wd(), strings.Trim(d, "."))).
-				Msg("Make file path absolute.")
-			d = filepath.Join(c.wd(), d)
-		}
-
-		log.Debug().
-			Str("stack", fmt.Sprintf("%s%s", c.wd(), strings.Trim(d, "."))).
-			Msg("Init stack.")
-
-		err := terramate.Init(c.root(), d)
-		if err != nil {
-			c.logerr("warn: failed to initialize stack: %v", err)
-			errmsgs = append(errmsgs, err.Error())
-		}
-	}
-
-	if len(errmsgs) > 0 {
-		log.Fatal().
-			Err(errors.E(ErrInit)).
-			Send()
 	}
 }
 
@@ -499,11 +461,34 @@ func (c *cli) createStack() {
 	logger.Trace().Msg("creating stack")
 
 	stackDir := filepath.Join(c.wd(), c.parsedArgs.Create.Path)
+
+	stackID := c.parsedArgs.Create.ID
+	if stackID == "" {
+
+		logger.Trace().Msg("no ID provided, generating one")
+
+		id, err := uuid.NewRandom()
+		if err != nil {
+			logger.Fatal().Err(err)
+		}
+		stackID = id.String()
+	}
+
+	stackName := c.parsedArgs.Create.Name
+	if stackName == "" {
+		stackName = filepath.Base(stackDir)
+	}
+
+	stackDescription := c.parsedArgs.Create.Description
+	if stackDescription == "" {
+		stackDescription = stackName
+	}
+
 	err := stack.Create(c.root(), stack.CreateCfg{
 		Dir:         stackDir,
-		ID:          c.parsedArgs.Create.ID,
-		Name:        c.parsedArgs.Create.Name,
-		Description: c.parsedArgs.Create.Description,
+		ID:          stackID,
+		Name:        stackName,
+		Description: stackDescription,
 		Imports:     c.parsedArgs.Create.Import,
 	})
 
@@ -1037,10 +1022,6 @@ func (c *cli) root() string { return c.prj.root }
 
 func (c *cli) log(format string, args ...interface{}) {
 	fmt.Fprintln(c.stdout, fmt.Sprintf(format, args...))
-}
-
-func (c *cli) logerr(format string, args ...interface{}) {
-	fmt.Fprintln(c.stderr, fmt.Sprintf(format, args...))
 }
 
 func (c *cli) friendlyFmtDir(dir string) (string, bool) {
