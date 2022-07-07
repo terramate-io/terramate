@@ -31,11 +31,15 @@ type EvalCtx struct {
 }
 
 // NewEvalCtx creates a new stack evaluation context.
-func NewEvalCtx(rootdir string, sm Metadata, globals Globals) *EvalCtx {
-	evalctx := &EvalCtx{evalctx: eval.NewContext(sm.HostPath())}
-	evalctx.SetMetadata(rootdir, sm)
-	evalctx.SetGlobals(globals)
-	return evalctx
+func NewEvalCtx(rootdir string, sm Metadata, globals Globals) (*EvalCtx, error) {
+	evalctx, err := eval.NewContext(sm.HostPath())
+	if err != nil {
+		return nil, err
+	}
+	evalwrapper := &EvalCtx{evalctx: evalctx}
+	evalwrapper.SetMetadata(rootdir, sm)
+	evalwrapper.SetGlobals(globals)
+	return evalwrapper, nil
 }
 
 // SetGlobals sets the given globals on the stack evaluation context.

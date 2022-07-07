@@ -76,7 +76,11 @@ func LoadEnv(rootdir string, st stack.S) (EnvVars, error) {
 		return nil, errors.E(ErrLoadingGlobals, err)
 	}
 
-	evalctx := stack.NewEvalCtx(rootdir, st, globals)
+	evalctx, err := stack.NewEvalCtx(rootdir, st, globals)
+	if err != nil {
+		return nil, errors.E(ErrEval, err)
+	}
+
 	evalctx.SetEnv(os.Environ())
 
 	envVars := EnvVars{}

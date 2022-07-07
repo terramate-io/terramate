@@ -15,7 +15,9 @@
 package eval
 
 import (
+	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -39,16 +41,29 @@ type Context struct {
 }
 
 // NewContext creates a new HCL evaluation context.
-// basedir is the base directory used by any interpolation functions that
+// The basedir is the base directory used by any interpolation functions that
 // accept filesystem paths as arguments.
-func NewContext(basedir string) *Context {
+// The basedir must be an absolute path to a directory.
+func NewContext(basedir string) (*Context, error) {
+	if !filepath.IsAbs(basedir) {
+		panic(fmt.Errorf("context created with relative path: %q", basedir))
+	}
+
+	st, err := os.Stat(basedir)
+	if err != nil {
+		return nil, errors.E(err, "failed to stat context basedir %q", basedir)
+	}
+	if !st.IsDir() {
+		return nil, errors.E("context basedir (%s) must be a directory", basedir)
+	}
+
 	hclctx := &hhcl.EvalContext{
 		Functions: newTmFunctions(basedir),
 		Variables: map[string]cty.Value{},
 	}
 	return &Context{
 		hclctx: hclctx,
-	}
+	}, nil
 }
 
 // SetNamespace will set the given values inside the given namespace on the
@@ -159,6 +174,7 @@ func newTmFunctions(basedir string) map[string]function.Function {
 	return tmfuncs
 }
 
+// tmAbspath returns the `tm_abspath()` hcl function.
 func tmAbspath(basedir string) function.Function {
 	return function.New(&function.Spec{
 		Params: []function.Parameter{
@@ -174,7 +190,7 @@ func tmAbspath(basedir string) function.Function {
 			if filepath.IsAbs(path) {
 				abspath = path
 			} else {
-				abspath = filepath.Join(basedir, abspath)
+				abspath = filepath.Join(basedir, path)
 			}
 
 			return cty.StringVal(filepath.ToSlash(filepath.Clean(abspath))), nil
