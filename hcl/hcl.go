@@ -61,9 +61,23 @@ type RunEnv struct {
 
 // GitConfig represents Terramate Git configuration.
 type GitConfig struct {
-	DefaultBranchBaseRef string // DefaultBranchBaseRef is the baseRef when in default branch.
-	DefaultBranch        string // DefaultBranch is the default branch.
-	DefaultRemote        string // DefaultRemote is the default remote.
+	// DefaultBranchBaseRef is the baseRef when in default branch.
+	DefaultBranchBaseRef string
+
+	// DefaultBranch is the default branch.
+	DefaultBranch string
+
+	// DefaultRemote is the default remote.
+	DefaultRemote string
+
+	// DisableCheckUntracked disables untracked files checking.
+	DisableCheckUntracked bool
+
+	// DisableCheckUncommitted disables uncommitted files checking.
+	DisableCheckUncommitted bool
+
+	// DisableCheckRemote disables checking if local default branch is updated with remote.
+	DisableCheckRemote bool
 }
 
 // RootConfig represents the root config block of a Terramate configuration.
@@ -1094,18 +1108,22 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 	errs.AppendWrap(ErrTerramateSchema, gitBlock.ValidateSubBlocks())
 
 	for _, attr := range gitBlock.Attributes.SortedList() {
+		logger := logger.With().
+			Str("attribute", attr.Name).
+			Logger()
+
 		value, diags := attr.Expr.Value(nil)
 		if diags.HasErrors() {
 			errs.Append(errors.E(diags,
 				"failed to evaluate terramate.config.%s attribute", attr.Name,
 			))
-
 			continue
 		}
+
+		logger.Trace().Msg("setting attribute on config")
+
 		switch attr.Name {
 		case "default_branch":
-			logger.Trace().Msg("Attribute name was 'default_branch'.")
-
 			if value.Type() != cty.String {
 				errs.Append(errors.E(attr.Expr.Range(),
 					"terramate.config.git.branch is not a string but %q",
@@ -1117,8 +1135,6 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 
 			git.DefaultBranch = value.AsString()
 		case "default_remote":
-			logger.Trace().Msg("Attribute name was 'default_remote'.")
-
 			if value.Type() != cty.String {
 				errs.Append(errors.E(attr.NameRange,
 					"terramate.config.git.remote is not a string but %q",
@@ -1131,8 +1147,6 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 			git.DefaultRemote = value.AsString()
 
 		case "default_branch_base_ref":
-			logger.Trace().Msg("Attribute name was 'default_branch_base_ref.")
-
 			if value.Type() != cty.String {
 				errs.Append(errors.E(attr.NameRange,
 					"terramate.config.git.defaultBranchBaseRef is not a string but %q",
@@ -1141,8 +1155,14 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 
 				continue
 			}
-
 			git.DefaultBranchBaseRef = value.AsString()
+
+		case "disable_check_untracked":
+			git.DisableCheckUntracked = value.True()
+		case "disable_check_uncommitted":
+			git.DisableCheckUncommitted = value.True()
+		case "disable_check_remote":
+			git.DisableCheckRemote = value.True()
 
 		default:
 			errs.Append(errors.E(
