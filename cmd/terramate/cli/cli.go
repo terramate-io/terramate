@@ -411,7 +411,7 @@ func (c *cli) checkGitUntracked() bool {
 	}
 
 	if disableCheck, ok := os.LookupEnv("TM_DISABLE_CHECK_GIT_UNTRACKED"); ok {
-		if disableCheck != "0" && disableCheck != "false" {
+		if envVarIsSet(disableCheck) {
 			return false
 		}
 	}
@@ -433,7 +433,7 @@ func (c *cli) checkGitUncommited() bool {
 	}
 
 	if disableCheck, ok := os.LookupEnv("TM_DISABLE_CHECK_GIT_UNCOMMITTED"); ok {
-		if disableCheck != "0" && disableCheck != "false" {
+		if envVarIsSet(disableCheck) {
 			return false
 		}
 	}
@@ -934,12 +934,16 @@ func (c *cli) checkGenCode() bool {
 	}
 
 	if disableCheck, ok := os.LookupEnv("TM_DISABLE_CHECK_GEN_CODE"); ok {
-		if disableCheck != "0" && disableCheck != "false" {
+		if envVarIsSet(disableCheck) {
 			return false
 		}
 	}
 
 	return true
+}
+
+func envVarIsSet(val string) bool {
+	return val != "0" && val != "false"
 }
 
 func (c *cli) checkOutdatedGeneratedCode(stacks []stack.S) {
