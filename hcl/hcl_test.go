@@ -330,7 +330,11 @@ func TestHCLParserRootConfig(t *testing.T) {
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
-							Git: &hcl.GitConfig{},
+							Git: &hcl.GitConfig{
+								CheckUntracked:   true,
+								CheckUncommitted: true,
+								CheckRemote:      true,
+							},
 						},
 					},
 				},
@@ -378,7 +382,10 @@ func TestHCLParserRootConfig(t *testing.T) {
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
 							Git: &hcl.GitConfig{
-								DefaultBranch: "trunk",
+								DefaultBranch:    "trunk",
+								CheckUntracked:   true,
+								CheckUncommitted: true,
+								CheckRemote:      true,
 							},
 						},
 					},
@@ -394,9 +401,12 @@ func TestHCLParserRootConfig(t *testing.T) {
 						terramate {
 							config {
 								git {
-									default_branch = "trunk"
-									default_remote = "upstream"
+									default_branch          = "trunk"
+									default_remote          = "upstream"
 									default_branch_base_ref = "HEAD~2"
+									check_untracked         = false
+									check_uncommitted       = false
+									check_remote            = false
 								}
 							}
 						}
@@ -411,9 +421,69 @@ func TestHCLParserRootConfig(t *testing.T) {
 								DefaultBranch:        "trunk",
 								DefaultRemote:        "upstream",
 								DefaultBranchBaseRef: "HEAD~2",
+								CheckUntracked:       false,
+								CheckUncommitted:     false,
+								CheckRemote:          false,
 							},
 						},
 					},
+				},
+			},
+		},
+		{
+			name: "git.check fields default to true if git block is present",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+							config {
+								git {}
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							Git: &hcl.GitConfig{
+								CheckUntracked:   true,
+								CheckUncommitted: true,
+								CheckRemote:      true,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "git.check fields must be boolean",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+							config {
+								git {
+									check_untracked   = "hi"
+									check_uncommitted = 666
+									check_remote      = []
+								}
+							}
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("cfg.tm", start(5, 30, 78), end(5, 34, 82))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("cfg.tm", start(6, 30, 112), end(6, 33, 115))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("cfg.tm", start(7, 30, 145), end(7, 32, 147))),
 				},
 			},
 		},
@@ -557,7 +627,10 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 						RequiredVersion: "0.0.1",
 						Config: &hcl.RootConfig{
 							Git: &hcl.GitConfig{
-								DefaultBranch: "trunk",
+								DefaultBranch:    "trunk",
+								CheckUntracked:   true,
+								CheckUncommitted: true,
+								CheckRemote:      true,
 							},
 						},
 					},
@@ -607,7 +680,10 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 						RequiredVersion: "6.6.6",
 						Config: &hcl.RootConfig{
 							Git: &hcl.GitConfig{
-								DefaultBranch: "trunk",
+								DefaultBranch:    "trunk",
+								CheckUntracked:   true,
+								CheckUncommitted: true,
+								CheckRemote:      true,
 							},
 						},
 					},
