@@ -906,21 +906,45 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 	})
 
 	// disabling the check must work for both with and without --changed
-	assertRun(t, cli.run(
-		"run",
-		"--changed",
-		"--disable-check-git-untracked",
-		cat,
-		mainTfFileName,
-	))
 
-	assertRunResult(t, cli.run(
-		"run",
-		"--disable-check-git-untracked",
-		cat,
-		mainTfFileName,
-	), runExpected{
-		Stdout: mainTfContents,
+	t.Run("disable untracked using cmd args", func(t *testing.T) {
+		assertRun(t, cli.run(
+			"run",
+			"--changed",
+			"--disable-check-git-untracked",
+			cat,
+			mainTfFileName,
+		))
+
+		assertRunResult(t, cli.run(
+			"run",
+			"--disable-check-git-untracked",
+			cat,
+			mainTfFileName,
+		), runExpected{
+			Stdout: mainTfContents,
+		})
+	})
+
+	t.Run("disable untracked using env vars", func(t *testing.T) {
+		cli := newCLI(t, s.RootDir())
+		cli.env = append([]string{
+			"TM_DISABLE_CHECK_GIT_UNTRACKED=true",
+		}, os.Environ()...)
+		assertRun(t, cli.run(
+			"run",
+			"--changed",
+			cat,
+			mainTfFileName,
+		))
+
+		assertRunResult(t, cli.run(
+			"run",
+			cat,
+			mainTfFileName,
+		), runExpected{
+			Stdout: mainTfContents,
+		})
 	})
 }
 

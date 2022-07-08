@@ -405,6 +405,19 @@ func (c *cli) generate() {
 	}
 }
 
+func (c *cli) checkGitUntracked() bool {
+	if c.parsedArgs.DisableCheckGitUntracked {
+		return false
+	}
+
+	if disableCheck, ok := os.LookupEnv("TM_DISABLE_CHECK_GIT_UNTRACKED"); ok {
+		if disableCheck != "0" && disableCheck != "false" {
+			return false
+		}
+	}
+	return true
+}
+
 func (c *cli) gitSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
 	logger := log.With().
 		Str("action", "gitSafeguards()").
@@ -414,7 +427,7 @@ func (c *cli) gitSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
 		return
 	}
 
-	if !c.parsedArgs.DisableCheckGitUntracked && len(checks.UntrackedFiles) > 0 {
+	if c.checkGitUntracked() && len(checks.UntrackedFiles) > 0 {
 		if shouldAbort {
 			logger.Fatal().
 				Strs("files", checks.UntrackedFiles).
