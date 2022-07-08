@@ -51,6 +51,10 @@ type Config struct {
 
 // RunConfig represents Terramate run configuration.
 type RunConfig struct {
+	// CheckGenCode enables generated code is up-to-date check on run.
+	CheckGenCode bool
+
+	// Env contains environment definitions for run.
 	Env *RunEnv
 }
 
@@ -1061,7 +1065,9 @@ func parseRootConfig(cfg *RootConfig, block *ast.MergedBlock) error {
 	if ok {
 		logger.Trace().Msg("Type is 'run'")
 
-		cfg.Run = &RunConfig{}
+		cfg.Run = &RunConfig{
+			CheckGenCode: true,
+		}
 
 		logger.Trace().Msg("Parse run config.")
 
@@ -1080,8 +1086,30 @@ func parseRunConfig(runCfg *RunConfig, runBlock *ast.MergedBlock) error {
 
 	errs := errors.L()
 	for _, attr := range runBlock.Attributes.SortedList() {
-		errs.Append(errors.E("unrecognized attribute terramate.config.run.env.%s",
-			attr.Name))
+		value, diags := attr.Expr.Value(nil)
+		if diags.HasErrors() {
+			errs.Append(errors.E(diags,
+				"failed to evaluate terramate.config.run.%s attribute", attr.Name,
+			))
+
+			continue
+		}
+
+		switch attr.Name {
+		case "check_gen_code":
+			if value.Type() != cty.Bool {
+				errs.Append(errors.E(attr.Expr.Range(),
+					"terramate.config.run.check_gen_code is not a bool but %q",
+					value.Type().FriendlyName(),
+				))
+
+				continue
+			}
+			runCfg.CheckGenCode = value.True()
+		default:
+			errs.Append(errors.E("unrecognized attribute terramate.config.run.env.%s",
+				attr.Name))
+		}
 	}
 
 	errs.AppendWrap(ErrTerramateSchema, runBlock.ValidateSubBlocks("env"))
