@@ -939,6 +939,14 @@ func (c *cli) checkGenCode() bool {
 		}
 	}
 
+	cfg := c.prj.rootcfg
+
+	if cfg.Terramate != nil &&
+		cfg.Terramate.Config != nil &&
+		cfg.Terramate.Config.Run != nil {
+		return cfg.Terramate.Config.Run.CheckGenCode
+	}
+
 	return true
 }
 

@@ -1063,7 +1063,27 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 	})
 
 	t.Run("disable check using hcl config", func(t *testing.T) {
-		t.Skip("TODO:KATCIPIS")
+		const rootConfig = "terramate.tm.hcl"
+
+		s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    run {
+			      check_gen_code = false
+			    }
+			  }
+			}
+		`)
+
+		git.Add(rootConfig)
+		git.Commit("commit root config")
+
+		assertRunResult(t, tmcli.run("run", "--changed", cat, generateFile), runExpected{
+			Stdout: generateFileBody,
+		})
+		assertRunResult(t, tmcli.run("run", cat, generateFile), runExpected{
+			Stdout: generateFileBody,
+		})
 	})
 
 }
