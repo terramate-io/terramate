@@ -1049,7 +1049,17 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 	})
 
 	t.Run("disable check using env vars", func(t *testing.T) {
-		t.Skip("TODO:KATCIPIS")
+		tmcli := newCLI(t, s.RootDir())
+		tmcli.env = append([]string{
+			"TM_DISABLE_CHECK_GEN_CODE=true",
+		}, os.Environ()...)
+
+		assertRunResult(t, tmcli.run("run", "--changed", cat, generateFile), runExpected{
+			Stdout: generateFileBody,
+		})
+		assertRunResult(t, tmcli.run("run", cat, generateFile), runExpected{
+			Stdout: generateFileBody,
+		})
 	})
 
 	t.Run("disable check using hcl config", func(t *testing.T) {

@@ -153,8 +153,13 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 	if cfg.Terramate.Config == nil {
 		p.rootcfg.Terramate.Config = &hcl.RootConfig{}
 	}
+	// Now some defaults are defined on the NewGitConfig but others here.
+	// To define all defaults here we would need boolean pointers to
+	// check if the config is defined or not, the zero value for booleans
+	// is valid (simpler with strings). Maybe we could move all defaults
+	// to NewGitConfig.
 	if cfg.Terramate.Config.Git == nil {
-		cfg.Terramate.Config.Git = &hcl.GitConfig{}
+		cfg.Terramate.Config.Git = hcl.NewGitConfig()
 	}
 
 	gitOpt := cfg.Terramate.Config.Git

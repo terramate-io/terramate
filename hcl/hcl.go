@@ -208,6 +208,15 @@ func (s StackID) Value() (string, bool) {
 	return *s.id, true
 }
 
+// NewGitConfig creates a git configuration with proper default values.
+func NewGitConfig() *GitConfig {
+	return &GitConfig{
+		CheckUntracked:   true,
+		CheckUncommitted: true,
+		CheckRemote:      true,
+	}
+}
+
 // parsedFile tells the origin and kind of the parsedFile.
 // The kind can be either internal or external, meaning the file was parsed
 // by this parser or by another parser instance, respectively.
@@ -1050,11 +1059,7 @@ func parseRootConfig(cfg *RootConfig, block *ast.MergedBlock) error {
 	if ok {
 		logger.Trace().Msg("Type is 'git'")
 
-		cfg.Git = &GitConfig{
-			CheckUntracked:   true,
-			CheckUncommitted: true,
-			CheckRemote:      true,
-		}
+		cfg.Git = NewGitConfig()
 
 		logger.Trace().Msg("Parse git config.")
 

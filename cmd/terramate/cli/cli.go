@@ -405,7 +405,7 @@ func (c *cli) generate() {
 	}
 }
 
-func (c *cli) checkGitUntracked(cfg hcl.Config) bool {
+func (c *cli) checkGitUntracked() bool {
 	if c.parsedArgs.DisableCheckGitUntracked {
 		return false
 	}
@@ -416,6 +416,8 @@ func (c *cli) checkGitUntracked(cfg hcl.Config) bool {
 		}
 	}
 
+	cfg := c.prj.rootcfg
+
 	if cfg.Terramate != nil &&
 		cfg.Terramate.Config != nil &&
 		cfg.Terramate.Config.Git != nil {
@@ -425,7 +427,7 @@ func (c *cli) checkGitUntracked(cfg hcl.Config) bool {
 	return true
 }
 
-func (c *cli) checkGitUncommited(cfg hcl.Config) bool {
+func (c *cli) checkGitUncommited() bool {
 	if c.parsedArgs.DisableCheckGitUncommitted {
 		return false
 	}
@@ -435,6 +437,8 @@ func (c *cli) checkGitUncommited(cfg hcl.Config) bool {
 			return false
 		}
 	}
+
+	cfg := c.prj.rootcfg
 
 	if cfg.Terramate != nil &&
 		cfg.Terramate.Config != nil &&
@@ -454,14 +458,7 @@ func (c *cli) gitSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
 		return
 	}
 
-	cfg, err := hcl.ParseDir(c.root(), c.root())
-	if err != nil {
-		logger.Fatal().
-			Err(err).
-			Msg("project root config is invalid")
-	}
-
-	if c.checkGitUntracked(cfg) && len(checks.UntrackedFiles) > 0 {
+	if c.checkGitUntracked() && len(checks.UntrackedFiles) > 0 {
 		if shouldAbort {
 			logger.Fatal().
 				Strs("files", checks.UntrackedFiles).
@@ -474,7 +471,7 @@ func (c *cli) gitSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
 
 	}
 
-	if c.checkGitUncommited(cfg) && len(checks.UncommittedFiles) > 0 {
+	if c.checkGitUncommited() && len(checks.UncommittedFiles) > 0 {
 		if shouldAbort {
 			logger.Fatal().
 				Strs("files", checks.UncommittedFiles).
@@ -931,13 +928,27 @@ func (c *cli) printMetadata() {
 	}
 }
 
+func (c *cli) checkGenCode() bool {
+	if c.parsedArgs.Run.DisableCheckGenCode {
+		return false
+	}
+
+	if disableCheck, ok := os.LookupEnv("TM_DISABLE_CHECK_GEN_CODE"); ok {
+		if disableCheck != "0" && disableCheck != "false" {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (c *cli) checkOutdatedGeneratedCode(stacks []stack.S) {
 	logger := log.With().
 		Str("action", "checkOutdatedGeneratedCode()").
 		Logger()
 
-	if c.parsedArgs.Run.DisableCheckGenCode {
-		logger.Trace().Msg("Outdated generated code check is disabled.")
+	if !c.checkGenCode() {
+		logger.Trace().Msg("outdated generated code check is disabled")
 		return
 	}
 
