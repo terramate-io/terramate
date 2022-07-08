@@ -946,6 +946,35 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 			Stdout: mainTfContents,
 		})
 	})
+
+	t.Run("disable untracked using hcl config", func(t *testing.T) {
+		cli := newCLI(t, s.RootDir())
+		s.RootEntry().CreateConfig(`
+			terramate {
+			  config {
+			    git {
+			      check_untracked = false
+			    }
+			  }
+			}
+		`)
+		defer s.RootEntry().DeleteConfig()
+
+		assertRun(t, cli.run(
+			"run",
+			"--changed",
+			cat,
+			mainTfFileName,
+		))
+
+		assertRunResult(t, cli.run(
+			"run",
+			cat,
+			mainTfFileName,
+		), runExpected{
+			Stdout: mainTfContents,
+		})
+	})
 }
 
 func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {

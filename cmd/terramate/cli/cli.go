@@ -405,7 +405,7 @@ func (c *cli) generate() {
 	}
 }
 
-func (c *cli) checkGitUntracked() bool {
+func (c *cli) checkGitUntracked(cfg hcl.Config) bool {
 	if c.parsedArgs.DisableCheckGitUntracked {
 		return false
 	}
@@ -415,6 +415,13 @@ func (c *cli) checkGitUntracked() bool {
 			return false
 		}
 	}
+
+	if cfg.Terramate != nil &&
+		cfg.Terramate.Config != nil &&
+		cfg.Terramate.Config.Git != nil {
+		return cfg.Terramate.Config.Git.CheckUntracked
+	}
+
 	return true
 }
 
@@ -427,7 +434,14 @@ func (c *cli) gitSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
 		return
 	}
 
-	if c.checkGitUntracked() && len(checks.UntrackedFiles) > 0 {
+	cfg, err := hcl.ParseDir(c.root(), c.root())
+	if err != nil {
+		logger.Fatal().
+			Err(err).
+			Msg("project root config is invalid")
+	}
+
+	if c.checkGitUntracked(cfg) && len(checks.UntrackedFiles) > 0 {
 		if shouldAbort {
 			logger.Fatal().
 				Strs("files", checks.UntrackedFiles).
