@@ -106,6 +106,10 @@ func assertTerramateRunBlock(t *testing.T, got, want *hcl.RunConfig) {
 		return
 	}
 
+	assert.IsTrue(t, want.CheckGenCode == got.CheckGenCode,
+		"want.Run.CheckGenCode %v != got.Run.CheckGenCode %v",
+		want.CheckGenCode, got.CheckGenCode)
+
 	if (want.Env == nil) != (got.Env == nil) {
 		t.Fatalf(
 			"want.Run.Env[%+v] != got.Run.Env[%+v]",
