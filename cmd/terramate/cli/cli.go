@@ -425,6 +425,26 @@ func (c *cli) checkGitUntracked(cfg hcl.Config) bool {
 	return true
 }
 
+func (c *cli) checkGitUncommited(cfg hcl.Config) bool {
+	if c.parsedArgs.DisableCheckGitUncommitted {
+		return false
+	}
+
+	if disableCheck, ok := os.LookupEnv("TM_DISABLE_CHECK_GIT_UNCOMMITTED"); ok {
+		if disableCheck != "0" && disableCheck != "false" {
+			return false
+		}
+	}
+
+	if cfg.Terramate != nil &&
+		cfg.Terramate.Config != nil &&
+		cfg.Terramate.Config.Git != nil {
+		return cfg.Terramate.Config.Git.CheckUncommitted
+	}
+
+	return true
+}
+
 func (c *cli) gitSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
 	logger := log.With().
 		Str("action", "gitSafeguards()").
@@ -454,7 +474,7 @@ func (c *cli) gitSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
 
 	}
 
-	if !c.parsedArgs.DisableCheckGitUncommitted && len(checks.UncommittedFiles) > 0 {
+	if c.checkGitUncommited(cfg) && len(checks.UncommittedFiles) > 0 {
 		if shouldAbort {
 			logger.Fatal().
 				Strs("files", checks.UncommittedFiles).
