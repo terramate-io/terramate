@@ -1098,7 +1098,7 @@ func parseRunConfig(runCfg *RunConfig, runBlock *ast.MergedBlock) error {
 		switch attr.Name {
 		case "check_gen_code":
 			if value.Type() != cty.Bool {
-				errs.Append(errors.E(attr.Expr.Range(),
+				errs.Append(attrEvalErr(attr,
 					"terramate.config.run.check_gen_code is not a bool but %q",
 					value.Type().FriendlyName(),
 				))
