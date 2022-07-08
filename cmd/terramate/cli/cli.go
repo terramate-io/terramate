@@ -997,13 +997,35 @@ func (c *cli) checkOutdatedGeneratedCode(stacks []stack.S) {
 	}
 }
 
+func (c *cli) checkGitRemote() bool {
+	if c.parsedArgs.Run.DisableCheckGitRemote {
+		return false
+	}
+
+	if disableCheck, ok := os.LookupEnv("TM_DISABLE_CHECK_GIT_REMOTE"); ok {
+		if envVarIsSet(disableCheck) {
+			return false
+		}
+	}
+
+	cfg := c.prj.rootcfg
+
+	if cfg.Terramate != nil &&
+		cfg.Terramate.Config != nil &&
+		cfg.Terramate.Config.Git != nil {
+		return cfg.Terramate.Config.Git.CheckRemote
+	}
+
+	return true
+}
+
 func (c *cli) runOnStacks() {
 	logger := log.With().
 		Str("action", "runOnStacks()").
 		Str("workingDir", c.wd()).
 		Logger()
 
-	if !c.parsedArgs.Run.DisableCheckGitRemote {
+	if c.checkGitRemote() {
 		c.checkGit()
 	}
 
