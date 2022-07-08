@@ -15,6 +15,7 @@
 package hcl
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -65,9 +66,23 @@ type RunEnv struct {
 
 // GitConfig represents Terramate Git configuration.
 type GitConfig struct {
-	DefaultBranchBaseRef string // DefaultBranchBaseRef is the baseRef when in default branch.
-	DefaultBranch        string // DefaultBranch is the default branch.
-	DefaultRemote        string // DefaultRemote is the default remote.
+	// DefaultBranchBaseRef is the baseRef when in default branch.
+	DefaultBranchBaseRef string
+
+	// DefaultBranch is the default branch.
+	DefaultBranch string
+
+	// DefaultRemote is the default remote.
+	DefaultRemote string
+
+	// CheckUntracked enables untracked files checking.
+	CheckUntracked bool
+
+	// CheckUncommitted enables uncommitted files checking.
+	CheckUncommitted bool
+
+	// CheckRemote enables checking if local default branch is updated with remote.
+	CheckRemote bool
 }
 
 // RootConfig represents the root config block of a Terramate configuration.
@@ -473,8 +488,7 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 	}
 
 	if srcVal.Type() != cty.String {
-		return errors.E(ErrTerramateSchema, srcAttr.Expr.Range(),
-			"import.source must be a string")
+		return attrEvalErr(srcAttr, "import.source must be a string")
 	}
 
 	src := srcVal.AsString()
@@ -956,8 +970,8 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 		switch attr.Name {
 		case "id":
 			if attrVal.Type() != cty.String {
-				errs.Append(errors.E(attr.NameRange,
-					"field stack.\"id\" must be a \"string\" but is %q",
+				errs.Append(hclAttrEvalErr(attr,
+					"field stack.id must be a string but is %q",
 					attrVal.Type().FriendlyName()),
 				)
 				continue
@@ -973,8 +987,8 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 			stack.ID = id
 		case "name":
 			if attrVal.Type() != cty.String {
-				errs.Append(errors.E(attr.NameRange,
-					"field stack.\"name\" must be a \"string\" but given %q",
+				errs.Append(hclAttrEvalErr(attr,
+					"field stack.name must be a string but given %q",
 					attrVal.Type().FriendlyName()),
 				)
 				continue
@@ -996,7 +1010,7 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 		case "description":
 			logger.Trace().Msg("parsing stack description.")
 			if attrVal.Type() != cty.String {
-				errs.Append(errors.E(attr.Expr.Range(),
+				errs.Append(hclAttrEvalErr(attr,
 					"field stack.\"description\" must be a \"string\" but given %q",
 					attrVal.Type().FriendlyName(),
 				))
@@ -1036,7 +1050,11 @@ func parseRootConfig(cfg *RootConfig, block *ast.MergedBlock) error {
 	if ok {
 		logger.Trace().Msg("Type is 'git'")
 
-		cfg.Git = &GitConfig{}
+		cfg.Git = &GitConfig{
+			CheckUntracked:   true,
+			CheckUncommitted: true,
+			CheckRemote:      true,
+		}
 
 		logger.Trace().Msg("Parse git config.")
 
@@ -1127,20 +1145,24 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 	errs.AppendWrap(ErrTerramateSchema, gitBlock.ValidateSubBlocks())
 
 	for _, attr := range gitBlock.Attributes.SortedList() {
+		logger := logger.With().
+			Str("attribute", attr.Name).
+			Logger()
+
 		value, diags := attr.Expr.Value(nil)
 		if diags.HasErrors() {
 			errs.Append(errors.E(diags,
 				"failed to evaluate terramate.config.%s attribute", attr.Name,
 			))
-
 			continue
 		}
+
+		logger.Trace().Msg("setting attribute on config")
+
 		switch attr.Name {
 		case "default_branch":
-			logger.Trace().Msg("Attribute name was 'default_branch'.")
-
 			if value.Type() != cty.String {
-				errs.Append(errors.E(attr.Expr.Range(),
+				errs.Append(attrEvalErr(attr,
 					"terramate.config.git.branch is not a string but %q",
 					value.Type().FriendlyName(),
 				))
@@ -1150,10 +1172,8 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 
 			git.DefaultBranch = value.AsString()
 		case "default_remote":
-			logger.Trace().Msg("Attribute name was 'default_remote'.")
-
 			if value.Type() != cty.String {
-				errs.Append(errors.E(attr.NameRange,
+				errs.Append(attrEvalErr(attr,
 					"terramate.config.git.remote is not a string but %q",
 					value.Type().FriendlyName(),
 				))
@@ -1164,18 +1184,43 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 			git.DefaultRemote = value.AsString()
 
 		case "default_branch_base_ref":
-			logger.Trace().Msg("Attribute name was 'default_branch_base_ref.")
-
 			if value.Type() != cty.String {
-				errs.Append(errors.E(attr.NameRange,
+				errs.Append(attrEvalErr(attr,
 					"terramate.config.git.defaultBranchBaseRef is not a string but %q",
 					value.Type().FriendlyName(),
 				))
 
 				continue
 			}
-
 			git.DefaultBranchBaseRef = value.AsString()
+
+		case "check_untracked":
+			if value.Type() != cty.Bool {
+				errs.Append(attrEvalErr(attr,
+					"terramate.config.git.check_untracked is not a boolean but %q",
+					value.Type().FriendlyName(),
+				))
+				continue
+			}
+			git.CheckUntracked = value.True()
+		case "check_uncommitted":
+			if value.Type() != cty.Bool {
+				errs.Append(attrEvalErr(attr,
+					"terramate.config.git.check_uncommitted is not a boolean but %q",
+					value.Type().FriendlyName(),
+				))
+				continue
+			}
+			git.CheckUncommitted = value.True()
+		case "check_remote":
+			if value.Type() != cty.Bool {
+				errs.Append(attrEvalErr(attr,
+					"terramate.config.git.check_remote is not a boolean but %q",
+					value.Type().FriendlyName(),
+				))
+				continue
+			}
+			git.CheckRemote = value.True()
 
 		default:
 			errs.Append(errors.E(
@@ -1483,4 +1528,12 @@ func listTerramateDirs(dir string) ([]string, error) {
 
 func isTerramateFile(filename string) bool {
 	return strings.HasSuffix(filename, ".tm") || strings.HasSuffix(filename, ".tm.hcl")
+}
+
+func hclAttrEvalErr(attr *hclsyntax.Attribute, msg string, args ...interface{}) error {
+	return errors.E(ErrTerramateSchema, attr.Expr.Range(), fmt.Sprintf(msg, args...))
+}
+
+func attrEvalErr(attr ast.Attribute, msg string, args ...interface{}) error {
+	return hclAttrEvalErr(attr.Attribute, msg, args...)
 }
