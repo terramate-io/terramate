@@ -30,7 +30,7 @@ const (
 // the config in fromdir and all parent directories until / is reached.
 // If the configuration is found, it returns configpath != "" and found as true.
 func TryLoadRootConfig(fromdir string) (cfg hcl.Config, configpath string, found bool, err error) {
-	for fromdir != "/" {
+	for {
 		logger := log.With().
 			Str("action", "TryLoadRootConfig()").
 			Str("path", fromdir).
@@ -47,7 +47,16 @@ func TryLoadRootConfig(fromdir string) (cfg hcl.Config, configpath string, found
 			return cfg, fromdir, true, nil
 		}
 
-		fromdir = filepath.Dir(fromdir)
+		parent, ok := parentDir(fromdir)
+		if !ok {
+			break
+		}
+		fromdir = parent
 	}
 	return hcl.Config{}, "", false, nil
+}
+
+func parentDir(dir string) (string, bool) {
+	parent := filepath.Dir(dir)
+	return parent, parent != dir
 }
