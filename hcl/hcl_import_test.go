@@ -319,7 +319,10 @@ func TestHCLImport(t *testing.T) {
 						RequiredVersion: "1.0",
 						Config: &hcl.RootConfig{
 							Git: &hcl.GitConfig{
-								DefaultBranch: "main",
+								DefaultBranch:    "main",
+								CheckUntracked:   true,
+								CheckUncommitted: true,
+								CheckRemote:      true,
 							},
 						},
 					},
@@ -422,8 +425,11 @@ func TestHCLImport(t *testing.T) {
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
 							Git: &hcl.GitConfig{
-								DefaultBranch: "main",
-								DefaultRemote: "origin",
+								DefaultBranch:    "main",
+								DefaultRemote:    "origin",
+								CheckUntracked:   true,
+								CheckUncommitted: true,
+								CheckRemote:      true,
 							},
 						},
 					},
