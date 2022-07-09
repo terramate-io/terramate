@@ -15,6 +15,8 @@
 package config
 
 import (
+	"path/filepath"
+
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/rs/zerolog/log"
 )
@@ -24,23 +26,37 @@ const (
 	DefaultFilename = "terramate.tm.hcl"
 )
 
-// TryLoadRootConfig loads Terramate root config. If no configuration is found
-// it returns false, nil.
-func TryLoadRootConfig(dir string) (cfg hcl.Config, found bool, err error) {
-	logger := log.With().
-		Str("action", "TryLoadRootConfig()").
-		Str("path", dir).
-		Logger()
+// TryLoadRootConfig try to load the Terramate root config. It looks for the
+// the config in fromdir and all parent directories until / is reached.
+// If the configuration is found, it returns configpath != "" and found as true.
+func TryLoadRootConfig(fromdir string) (cfg hcl.Config, configpath string, found bool, err error) {
+	for {
+		logger := log.With().
+			Str("action", "TryLoadRootConfig()").
+			Str("path", fromdir).
+			Logger()
 
-	logger.Trace().Msg("Parse Terramate config.")
+		logger.Trace().Msg("Parse Terramate config.")
 
-	cfg, err = hcl.ParseDir(dir, dir)
-	if err != nil {
-		return hcl.Config{}, false, err
+		cfg, err = hcl.ParseDir(fromdir, fromdir)
+		if err != nil {
+			return hcl.Config{}, "", false, err
+		}
+
+		if cfg.Terramate != nil && cfg.Terramate.Config != nil {
+			return cfg, fromdir, true, nil
+		}
+
+		parent, ok := parentDir(fromdir)
+		if !ok {
+			break
+		}
+		fromdir = parent
 	}
+	return hcl.Config{}, "", false, nil
+}
 
-	if cfg.Terramate != nil && cfg.Terramate.Config != nil {
-		return cfg, true, nil
-	}
-	return hcl.Config{}, false, nil
+func parentDir(dir string) (string, bool) {
+	parent := filepath.Dir(dir)
+	return parent, parent != dir
 }

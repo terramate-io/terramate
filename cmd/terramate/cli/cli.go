@@ -1142,6 +1142,11 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 	logger.Trace().Msg("Create new git wrapper.")
 
+	rootcfg, rootpath, rootfound, err := config.TryLoadRootConfig(wd)
+	if err != nil {
+		return project{}, false, err
+	}
+
 	gw, err := newGit(wd, false)
 	if err == nil {
 		logger.Trace().Msg("Get root of git repo.")
@@ -1169,6 +1174,13 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 			root := filepath.Dir(gitabs)
 
+			if rootfound && strings.HasPrefix(rootpath, root) && rootpath != root {
+				return project{}, false, errors.E(
+					"terramate root config found at %q but it must be at the root dir %q",
+					rootpath, root,
+				)
+			}
+
 			logger.Trace().Msg("Load root config.")
 
 			cfg, err := hcl.ParseDir(root, root)
@@ -1185,31 +1197,14 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 		}
 	}
 
-	dir := wd
-
-	for {
-		logger.Trace().Msg("Load root config.")
-
-		cfg, ok, err := config.TryLoadRootConfig(dir)
-		if err != nil {
-			return project{}, false, err
-		}
-
-		if ok {
-			prj.root = dir
-			prj.rootcfg = cfg
-
-			return prj, true, nil
-		}
-
-		if dir == "/" {
-			break
-		}
-
-		dir = filepath.Dir(dir)
+	if !rootfound {
+		return project{}, false, nil
 	}
 
-	return project{}, false, nil
+	prj.root = rootpath
+	prj.rootcfg = rootcfg
+	return prj, true, nil
+
 }
 
 func configureLogging(logLevel string, logFmt string, output io.Writer) {
