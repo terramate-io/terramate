@@ -65,7 +65,7 @@ const (
 type cliSpec struct {
 	Version       struct{} `cmd:"" help:"Terramate version"`
 	VersionFlag   bool     `name:"version" help:"Terramate version"`
-	Chdir         string   `short:"C" optional:"true" help:"Sets working directory"`
+	Chdir         string   `short:"C" optional:"true" predictor:"file" help:"Sets working directory"`
 	GitChangeBase string   `short:"B" optional:"true" help:"Git base ref for computing changes"`
 	Changed       bool     `short:"c" optional:"true" help:"Filter by changed infrastructure"`
 	LogLevel      string   `optional:"true" default:"warn" enum:"trace,debug,info,warn,error,fatal" help:"Log level to use: 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
@@ -75,7 +75,7 @@ type cliSpec struct {
 	DisableCheckGitUncommitted bool `optional:"true" default:"false" help:"Disable git check for uncommitted files"`
 
 	Create struct {
-		Path        string   `arg:"" name:"path" help:"Path of the new stack relative to the working dir"`
+		Path        string   `arg:"" name:"path" predictor:"file" help:"Path of the new stack relative to the working dir"`
 		ID          string   `help:"ID of the stack, defaults to UUID"`
 		Name        string   `help:"Name of the stack, defaults to stack dir base name"`
 		Description string   `help:"Description of the stack, defaults to the stack name"`
@@ -196,7 +196,7 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 	}
 
 	kongplete.Complete(parser,
-		kongplete.WithPredictor("cli", complete.PredictAnything),
+		kongplete.WithPredictor("file", complete.PredictFiles("*")),
 	)
 
 	ctx, err := parser.Parse(args)
