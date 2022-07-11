@@ -96,7 +96,7 @@ type cliSpec struct {
 		ContinueOnError       bool     `default:"false" help:"Continue executing in other stacks in case of error"`
 		DryRun                bool     `default:"false" help:"Plan the execution but do not execute it"`
 		Reverse               bool     `default:"false" help:"Reverse the order of execution"`
-		Command               []string `arg:"" name:"cmd" passthrough:"" help:"Command to execute"`
+		Command               []string `arg:"" name:"cmd" predictor:"file" passthrough:"" help:"Command to execute"`
 	} `cmd:"" help:"Run command in the stacks"`
 
 	Generate struct{} `cmd:"" help:"Generate terraform code for stacks"`
@@ -114,7 +114,7 @@ type cliSpec struct {
 		} `cmd:"" help:"List globals for all stacks"`
 
 		RunGraph struct {
-			Outfile string `short:"o" default:"" help:"Output .dot file"`
+			Outfile string `short:"o" predictor:"file" default:"" help:"Output .dot file"`
 			Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\""`
 		} `cmd:"" help:"Generate a graph of the execution order"`
 
