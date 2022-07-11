@@ -65,7 +65,7 @@ const (
 type cliSpec struct {
 	Version       struct{} `cmd:"" help:"Terramate version"`
 	VersionFlag   bool     `name:"version" help:"Terramate version"`
-	Chdir         string   `short:"C" optional:"true" help:"Sets working directory"`
+	Chdir         string   `short:"C" optional:"true" predictor:"file" help:"Sets working directory"`
 	GitChangeBase string   `short:"B" optional:"true" help:"Git base ref for computing changes"`
 	Changed       bool     `short:"c" optional:"true" help:"Filter by changed infrastructure"`
 	LogLevel      string   `optional:"true" default:"warn" enum:"trace,debug,info,warn,error,fatal" help:"Log level to use: 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
@@ -75,7 +75,7 @@ type cliSpec struct {
 	DisableCheckGitUncommitted bool `optional:"true" default:"false" help:"Disable git check for uncommitted files"`
 
 	Create struct {
-		Path        string   `arg:"" name:"path" help:"Path of the new stack relative to the working dir"`
+		Path        string   `arg:"" name:"path" predictor:"file" help:"Path of the new stack relative to the working dir"`
 		ID          string   `help:"ID of the stack, defaults to UUID"`
 		Name        string   `help:"Name of the stack, defaults to stack dir base name"`
 		Description string   `help:"Description of the stack, defaults to the stack name"`
@@ -96,7 +96,7 @@ type cliSpec struct {
 		ContinueOnError       bool     `default:"false" help:"Continue executing in other stacks in case of error"`
 		DryRun                bool     `default:"false" help:"Plan the execution but do not execute it"`
 		Reverse               bool     `default:"false" help:"Reverse the order of execution"`
-		Command               []string `arg:"" name:"cmd" passthrough:"" help:"Command to execute"`
+		Command               []string `arg:"" name:"cmd" predictor:"file" passthrough:"" help:"Command to execute"`
 	} `cmd:"" help:"Run command in the stacks"`
 
 	Generate struct{} `cmd:"" help:"Generate terraform code for stacks"`
@@ -114,7 +114,7 @@ type cliSpec struct {
 		} `cmd:"" help:"List globals for all stacks"`
 
 		RunGraph struct {
-			Outfile string `short:"o" default:"" help:"Output .dot file"`
+			Outfile string `short:"o" predictor:"file" default:"" help:"Output .dot file"`
 			Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\""`
 		} `cmd:"" help:"Generate a graph of the execution order"`
 
@@ -196,7 +196,7 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 	}
 
 	kongplete.Complete(parser,
-		kongplete.WithPredictor("cli", complete.PredictAnything),
+		kongplete.WithPredictor("file", complete.PredictFiles("*")),
 	)
 
 	ctx, err := parser.Parse(args)
