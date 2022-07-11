@@ -104,10 +104,6 @@ type cliSpec struct {
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"Install shell completions"`
 
 	Experimental struct {
-		InitStack struct {
-			StackDirs []string `arg:"" name:"paths" optional:"true" help:"The stack directory (current directory if not set)"`
-		} `cmd:"" help:"Initialize a stack, does nothing if stack already initialized"`
-
 		Metadata struct{} `cmd:"" help:"Shows metadata available on the project"`
 
 		Globals struct {
