@@ -906,21 +906,75 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 	})
 
 	// disabling the check must work for both with and without --changed
-	assertRun(t, cli.run(
-		"run",
-		"--changed",
-		"--disable-check-git-untracked",
-		cat,
-		mainTfFileName,
-	))
 
-	assertRunResult(t, cli.run(
-		"run",
-		"--disable-check-git-untracked",
-		cat,
-		mainTfFileName,
-	), runExpected{
-		Stdout: mainTfContents,
+	t.Run("disable check using cmd args", func(t *testing.T) {
+		assertRun(t, cli.run(
+			"run",
+			"--changed",
+			"--disable-check-git-untracked",
+			cat,
+			mainTfFileName,
+		))
+
+		assertRunResult(t, cli.run(
+			"run",
+			"--disable-check-git-untracked",
+			cat,
+			mainTfFileName,
+		), runExpected{
+			Stdout: mainTfContents,
+		})
+	})
+
+	t.Run("disable check using env vars", func(t *testing.T) {
+		cli := newCLI(t, s.RootDir())
+		cli.env = append([]string{
+			"TM_DISABLE_CHECK_GIT_UNTRACKED=true",
+		}, os.Environ()...)
+		assertRun(t, cli.run(
+			"run",
+			"--changed",
+			cat,
+			mainTfFileName,
+		))
+
+		assertRunResult(t, cli.run(
+			"run",
+			cat,
+			mainTfFileName,
+		), runExpected{
+			Stdout: mainTfContents,
+		})
+	})
+
+	t.Run("disable check using hcl config", func(t *testing.T) {
+		const rootConfig = "terramate.tm.hcl"
+
+		s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    git {
+			      check_untracked = false
+			    }
+			  }
+			}
+		`)
+		defer s.RootEntry().RemoveFile(rootConfig)
+
+		assertRun(t, cli.run(
+			"run",
+			"--changed",
+			cat,
+			mainTfFileName,
+		))
+
+		assertRunResult(t, cli.run(
+			"run",
+			cat,
+			mainTfFileName,
+		), runExpected{
+			Stdout: mainTfContents,
+		})
 	})
 }
 
@@ -972,24 +1026,66 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 	})
 
 	// disabling the check must work for both with and without --changed
-	assertRunResult(t, tmcli.run(
-		"run",
-		"--changed",
-		"--disable-check-gen-code",
-		cat,
-		generateFile,
-	), runExpected{
-		Stdout: generateFileBody,
+
+	t.Run("disable check using cmd args", func(t *testing.T) {
+		assertRunResult(t, tmcli.run(
+			"run",
+			"--changed",
+			"--disable-check-gen-code",
+			cat,
+			generateFile,
+		), runExpected{
+			Stdout: generateFileBody,
+		})
+
+		assertRunResult(t, tmcli.run(
+			"run",
+			"--disable-check-gen-code",
+			cat,
+			generateFile,
+		), runExpected{
+			Stdout: generateFileBody,
+		})
 	})
 
-	assertRunResult(t, tmcli.run(
-		"run",
-		"--disable-check-gen-code",
-		cat,
-		generateFile,
-	), runExpected{
-		Stdout: generateFileBody,
+	t.Run("disable check using env vars", func(t *testing.T) {
+		tmcli := newCLI(t, s.RootDir())
+		tmcli.env = append([]string{
+			"TM_DISABLE_CHECK_GEN_CODE=true",
+		}, os.Environ()...)
+
+		assertRunResult(t, tmcli.run("run", "--changed", cat, generateFile), runExpected{
+			Stdout: generateFileBody,
+		})
+		assertRunResult(t, tmcli.run("run", cat, generateFile), runExpected{
+			Stdout: generateFileBody,
+		})
 	})
+
+	t.Run("disable check using hcl config", func(t *testing.T) {
+		const rootConfig = "terramate.tm.hcl"
+
+		s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    run {
+			      check_gen_code = false
+			    }
+			  }
+			}
+		`)
+
+		git.Add(rootConfig)
+		git.Commit("commit root config")
+
+		assertRunResult(t, tmcli.run("run", "--changed", cat, generateFile), runExpected{
+			Stdout: generateFileBody,
+		})
+		assertRunResult(t, tmcli.run("run", cat, generateFile), runExpected{
+			Stdout: generateFileBody,
+		})
+	})
+
 }
 
 func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
@@ -1046,16 +1142,6 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 		StderrRegex: "repository has uncommitted files",
 	})
 
-	// disable uncommitted check
-	assertRunResult(t, cli.run(
-		"--disable-check-git-uncommitted",
-		"run",
-		cat,
-		mainTfFileName,
-	), runExpected{
-		Stdout: mainTfAlteredContents,
-	})
-
 	// --dry-run ignore safeguards
 	assertRunResult(t, cli.run(
 		"run",
@@ -1066,14 +1152,65 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 		IgnoreStdout: true,
 	})
 
-	assertRunResult(t, cli.run(
-		"--disable-check-git-uncommitted",
-		"--changed",
-		"run",
-		cat,
-		mainTfFileName,
-	), runExpected{
-		Stdout: mainTfAlteredContents,
+	// disable uncommitted check
+
+	t.Run("disable check using cmd args", func(t *testing.T) {
+		assertRunResult(t, cli.run(
+			"--disable-check-git-uncommitted",
+			"run",
+			cat,
+			mainTfFileName,
+		), runExpected{
+			Stdout: mainTfAlteredContents,
+		})
+
+		assertRunResult(t, cli.run(
+			"--disable-check-git-uncommitted",
+			"--changed",
+			"run",
+			cat,
+			mainTfFileName,
+		), runExpected{
+			Stdout: mainTfAlteredContents,
+		})
+	})
+
+	t.Run("disable check using env vars", func(t *testing.T) {
+		cli := newCLI(t, s.RootDir())
+		cli.env = append([]string{
+			"TM_DISABLE_CHECK_GIT_UNCOMMITTED=true",
+		}, os.Environ()...)
+
+		assertRunResult(t, cli.run("run", cat, mainTfFileName), runExpected{
+			Stdout: mainTfAlteredContents,
+		})
+		assertRunResult(t, cli.run("--changed", "run", cat, mainTfFileName), runExpected{
+			Stdout: mainTfAlteredContents,
+		})
+	})
+
+	t.Run("disable check using hcl config", func(t *testing.T) {
+		const rootConfig = "terramate.tm.hcl"
+
+		s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    git {
+			      check_uncommitted = false
+			    }
+			  }
+			}
+		`)
+
+		git.Add(rootConfig)
+		git.Commit("commit root config")
+
+		assertRunResult(t, cli.run("run", cat, mainTfFileName), runExpected{
+			Stdout: mainTfAlteredContents,
+		})
+		assertRunResult(t, cli.run("--changed", "run", cat, mainTfFileName), runExpected{
+			Stdout: mainTfAlteredContents,
+		})
 	})
 }
 
@@ -1185,7 +1322,7 @@ func TestRunDisableGitCheckRemote(t *testing.T) {
 	fileContents := "# whatever"
 	someFile := stack.CreateFile("main.tf", fileContents)
 
-	ts := newCLI(t, s.RootDir())
+	tmcli := newCLI(t, s.RootDir())
 
 	git := s.Git()
 
@@ -1197,12 +1334,48 @@ func TestRunDisableGitCheckRemote(t *testing.T) {
 	})
 
 	cat := test.LookPath(t, "cat")
-	assertRunResult(t, ts.run(
-		"run",
-		"--disable-check-git-remote",
-		cat,
-		someFile.HostPath(),
-	), runExpected{Stdout: fileContents})
+
+	t.Run("disable check using cmd args", func(t *testing.T) {
+		assertRunResult(t, tmcli.run(
+			"run",
+			"--disable-check-git-remote",
+			cat,
+			someFile.HostPath(),
+		), runExpected{Stdout: fileContents})
+	})
+
+	t.Run("disable check using env vars", func(t *testing.T) {
+		ts := newCLI(t, s.RootDir())
+		ts.env = append([]string{
+			"TM_DISABLE_CHECK_GIT_REMOTE=true",
+		}, os.Environ()...)
+
+		assertRunResult(t, ts.run("run", cat, someFile.HostPath()), runExpected{
+			Stdout: fileContents,
+		})
+	})
+
+	t.Run("disable check using hcl config", func(t *testing.T) {
+		const rootConfig = "terramate.tm.hcl"
+
+		s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    git {
+			      check_remote = false
+			    }
+			  }
+			}
+		`)
+		defer s.RootEntry().RemoveFile(rootConfig)
+
+		git.Add(rootConfig)
+		git.Commit("commit root config")
+
+		assertRunResult(t, tmcli.run("run", cat, someFile.HostPath()), runExpected{
+			Stdout: fileContents,
+		})
+	})
 }
 
 func TestRunFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {

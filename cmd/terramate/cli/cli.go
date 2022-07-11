@@ -405,6 +405,50 @@ func (c *cli) generate() {
 	}
 }
 
+func (c *cli) checkGitUntracked() bool {
+	if c.parsedArgs.DisableCheckGitUntracked {
+		return false
+	}
+
+	if disableCheck, ok := os.LookupEnv("TM_DISABLE_CHECK_GIT_UNTRACKED"); ok {
+		if envVarIsSet(disableCheck) {
+			return false
+		}
+	}
+
+	cfg := c.prj.rootcfg
+
+	if cfg.Terramate != nil &&
+		cfg.Terramate.Config != nil &&
+		cfg.Terramate.Config.Git != nil {
+		return cfg.Terramate.Config.Git.CheckUntracked
+	}
+
+	return true
+}
+
+func (c *cli) checkGitUncommited() bool {
+	if c.parsedArgs.DisableCheckGitUncommitted {
+		return false
+	}
+
+	if disableCheck, ok := os.LookupEnv("TM_DISABLE_CHECK_GIT_UNCOMMITTED"); ok {
+		if envVarIsSet(disableCheck) {
+			return false
+		}
+	}
+
+	cfg := c.prj.rootcfg
+
+	if cfg.Terramate != nil &&
+		cfg.Terramate.Config != nil &&
+		cfg.Terramate.Config.Git != nil {
+		return cfg.Terramate.Config.Git.CheckUncommitted
+	}
+
+	return true
+}
+
 func (c *cli) gitSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
 	logger := log.With().
 		Str("action", "gitSafeguards()").
@@ -414,7 +458,7 @@ func (c *cli) gitSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
 		return
 	}
 
-	if !c.parsedArgs.DisableCheckGitUntracked && len(checks.UntrackedFiles) > 0 {
+	if c.checkGitUntracked() && len(checks.UntrackedFiles) > 0 {
 		if shouldAbort {
 			logger.Fatal().
 				Strs("files", checks.UntrackedFiles).
@@ -427,7 +471,7 @@ func (c *cli) gitSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
 
 	}
 
-	if !c.parsedArgs.DisableCheckGitUncommitted && len(checks.UncommittedFiles) > 0 {
+	if c.checkGitUncommited() && len(checks.UncommittedFiles) > 0 {
 		if shouldAbort {
 			logger.Fatal().
 				Strs("files", checks.UncommittedFiles).
@@ -884,13 +928,39 @@ func (c *cli) printMetadata() {
 	}
 }
 
+func (c *cli) checkGenCode() bool {
+	if c.parsedArgs.Run.DisableCheckGenCode {
+		return false
+	}
+
+	if disableCheck, ok := os.LookupEnv("TM_DISABLE_CHECK_GEN_CODE"); ok {
+		if envVarIsSet(disableCheck) {
+			return false
+		}
+	}
+
+	cfg := c.prj.rootcfg
+
+	if cfg.Terramate != nil &&
+		cfg.Terramate.Config != nil &&
+		cfg.Terramate.Config.Run != nil {
+		return cfg.Terramate.Config.Run.CheckGenCode
+	}
+
+	return true
+}
+
+func envVarIsSet(val string) bool {
+	return val != "0" && val != "false"
+}
+
 func (c *cli) checkOutdatedGeneratedCode(stacks []stack.S) {
 	logger := log.With().
 		Str("action", "checkOutdatedGeneratedCode()").
 		Logger()
 
-	if c.parsedArgs.Run.DisableCheckGenCode {
-		logger.Trace().Msg("Outdated generated code check is disabled.")
+	if !c.checkGenCode() {
+		logger.Trace().Msg("outdated generated code check is disabled")
 		return
 	}
 
@@ -927,13 +997,35 @@ func (c *cli) checkOutdatedGeneratedCode(stacks []stack.S) {
 	}
 }
 
+func (c *cli) checkGitRemote() bool {
+	if c.parsedArgs.Run.DisableCheckGitRemote {
+		return false
+	}
+
+	if disableCheck, ok := os.LookupEnv("TM_DISABLE_CHECK_GIT_REMOTE"); ok {
+		if envVarIsSet(disableCheck) {
+			return false
+		}
+	}
+
+	cfg := c.prj.rootcfg
+
+	if cfg.Terramate != nil &&
+		cfg.Terramate.Config != nil &&
+		cfg.Terramate.Config.Git != nil {
+		return cfg.Terramate.Config.Git.CheckRemote
+	}
+
+	return true
+}
+
 func (c *cli) runOnStacks() {
 	logger := log.With().
 		Str("action", "runOnStacks()").
 		Str("workingDir", c.wd()).
 		Logger()
 
-	if !c.parsedArgs.Run.DisableCheckGitRemote {
+	if c.checkGitRemote() {
 		c.checkGit()
 	}
 
