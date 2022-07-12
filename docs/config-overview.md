@@ -154,6 +154,8 @@ The `terramate.config.run` block has no labels and has the following schema:
 The `terramate.config.run.env` block has no labels and it allows arbitrary
 attributes. Each attribute **must** evaluate to a string.
 
+More details can be found [here](project-config.md#the-terramateconfigrunenv-block).
+
 # stack block schema
 
 The `stack` block has no labels, supports [merging](#config-merging) and has the following schema:

@@ -60,10 +60,13 @@ terramate {
 For a list of all configurations and their full schema check the
 [configuration overview](config-overview.md#terramateconfiggit-block-schema).
 
-
 ### The `terramate.config.run` Block
 
-Configuration for the `terramate run` command can be set in the `terramate.config.run` block.
+Configuration for the `terramate run` command can be set in the
+`terramate.config.run` block.
+
+For a list of all configurations and their full schema check the
+[configuration overview](config-overview.md#terramateconfigrun-block-schema).
 
 #### The `terramate.config.run.env` Block
 
