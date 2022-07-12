@@ -49,6 +49,8 @@ const (
 	ErrInit errors.Kind = "failed to initialize all stacks"
 	// ErrOutdatedGenCodeDetected indicates outdated generated code detected.
 	ErrOutdatedGenCodeDetected errors.Kind = "outdated generated code detected"
+	// ErrRootCfgInvalidDir indicates that a root configuration was found outside root
+	ErrRootCfgInvalidDir errors.Kind = "root config found outside root dir"
 )
 
 const (
@@ -1266,7 +1268,8 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 				logger.Warn().
 					Str("rootConfig", rootCfgPath).
 					Str("projectRoot", rootdir).
-					Msg("terramate root config found in a non root dir, the config will be ignored")
+					Err(errors.E(ErrRootCfgInvalidDir)).
+					Msg("the config will be ignored")
 			}
 
 			logger.Trace().Msg("Load root config.")

@@ -476,11 +476,11 @@ func TestE2ETerramateLogsWarningIfRootConfigIsNotAtProjectRoot(t *testing.T) {
 	stacksDir := filepath.Join(s.RootDir(), "stacks")
 	test.WriteRootConfig(t, stacksDir)
 
-	cli := newCLI(t, stacksDir)
-	cli.loglevel = "warn"
-	assertRunResult(t, cli.listStacks(), runExpected{
+	tmcli := newCLI(t, stacksDir)
+	tmcli.loglevel = "warn"
+	assertRunResult(t, tmcli.listStacks(), runExpected{
 		Stdout:      "stack\n",
-		StderrRegex: "terramate root config found in a non root dir",
+		StderrRegex: string(cli.ErrRootCfgInvalidDir),
 	})
 }
 
