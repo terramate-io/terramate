@@ -132,14 +132,14 @@ The `terramate.config` block has no labels and has the following schema:
 
 The `terramate.config.git` block has no labels and has the following schema:
 
-| name             |      type      | description |
-|------------------|----------------|-------------|
+| name             |      type      | description | default |
+|------------------|----------------|-------------|---------|
 | default\_branch | string | The default git branch |
 | default\_remote | string | The default git remote |
 | default\_branch\_base\_ref| string | The default git branch base reference |
-| check\_untracked | boolean | Enable check of untracked files |
-| check\_uncommitted | boolean | Enable check of uncommitted files |
-| check\_remote | boolean | Enable checking if local main is updated with remote |
+| check\_untracked | boolean | Enable check of untracked files | true
+| check\_uncommitted | boolean | Enable check of uncommitted files | true
+| check\_remote | boolean | Enable checking if local main is updated with remote | true
 
 # stack block schema
 
