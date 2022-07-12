@@ -467,7 +467,7 @@ func TestCommandsNotRequiringGitSafeguards(t *testing.T) {
 	}
 }
 
-func TestE2ETerramateFailIfRootConfigIsNotAtProjectRoot(t *testing.T) {
+func TestE2ETerramateLogsWarningIfRootConfigIsNotAtProjectRoot(t *testing.T) {
 	s := sandbox.New(t)
 	s.BuildTree([]string{
 		"s:stacks/stack",
@@ -477,9 +477,10 @@ func TestE2ETerramateFailIfRootConfigIsNotAtProjectRoot(t *testing.T) {
 	test.WriteRootConfig(t, stacksDir)
 
 	cli := newCLI(t, stacksDir)
+	cli.loglevel = "warn"
 	assertRunResult(t, cli.listStacks(), runExpected{
-		Status:      1,
-		StderrRegex: "terramate root config found at",
+		Stdout:      "stack\n",
+		StderrRegex: "terramate root config found in a non root dir",
 	})
 }
 
