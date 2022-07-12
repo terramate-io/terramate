@@ -141,6 +141,19 @@ The `terramate.config.git` block has no labels and has the following schema:
 | check\_uncommitted | boolean | Enable check of uncommitted files | true
 | check\_remote | boolean | Enable checking if local main is updated with remote | true
 
+## terramate.config.run block schema
+
+The `terramate.config.run` block has no labels and has the following schema:
+
+| name             |      type      | description | default |
+|------------------|----------------|-------------|---------|
+| check\_gen_\_code | boolean | Enable generated code is updated | true
+
+## terramate.config.run.env block schema
+
+The `terramate.config.run.env` block has no labels and it allows arbitrary
+attributes. Each attribute **must** evaluate to a string.
+
 # stack block schema
 
 The `stack` block has no labels, supports [merging](#config-merging) and has the following schema:
