@@ -31,5 +31,8 @@ func Clone(rootdir, targetdir, srcdir string) error {
 	if !strings.HasPrefix(srcdir, rootdir) {
 		return errors.E(ErrInvalidStackDir, "src dir %q must be inside project root %q", srcdir, rootdir)
 	}
+	if !strings.HasPrefix(targetdir, rootdir) {
+		return errors.E(ErrInvalidStackDir, "target dir %q must be inside project root %q", targetdir, rootdir)
+	}
 	return nil
 }

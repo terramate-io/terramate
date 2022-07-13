@@ -60,3 +60,11 @@ func TestStackCloneSrcDirMustBeInsideRootdir(t *testing.T) {
 	err := stack.Clone(s.RootDir(), targetdir, srcdir)
 	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
 }
+
+func TestStackCloneTargetDirMustBeInsideRootdir(t *testing.T) {
+	s := sandbox.New(t)
+	srcdir := filepath.Join(s.RootDir(), "src-stack")
+	targetdir := t.TempDir()
+	err := stack.Clone(s.RootDir(), targetdir, srcdir)
+	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
+}
