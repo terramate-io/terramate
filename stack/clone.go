@@ -15,6 +15,9 @@
 package stack
 
 import (
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
@@ -40,5 +43,44 @@ func Clone(rootdir, targetdir, srcdir string) error {
 	if err != nil {
 		return errors.E(ErrInvalidStackDir, err, "src dir %q must be a valid stack", srcdir)
 	}
+
+	return copyDir(targetdir, srcdir)
+}
+
+func copyDir(targetdir, srcdir string) error {
+	entries, _ := os.ReadDir(srcdir)
+	// TODO(katcipis): test error handling
+
+	if err := os.MkdirAll(targetdir, createDirMode); err != nil {
+		return errors.E(err, "creating target dir")
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			// TODO(katcipis): test subdir handling
+			continue
+		}
+
+		srcfile := filepath.Join(srcdir, entry.Name())
+		targetfile := filepath.Join(targetdir, entry.Name())
+
+		if err := copyFile(targetfile, srcfile); err != nil {
+			return errors.E(err, "copying src to target file")
+		}
+	}
+
 	return nil
+}
+
+func copyFile(targetfile, srcfile string) error {
+	src, err := os.Open(srcfile)
+	if err != nil {
+		return errors.E(err, "opening source file")
+	}
+	target, err := os.Create(targetfile)
+	if err != nil {
+		return errors.E(err, "creating target file")
+	}
+	_, err = io.Copy(target, src)
+	return err
 }

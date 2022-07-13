@@ -31,9 +31,12 @@ import (
 func AssertTreeEquals(t *testing.T, dir1, dir2 string) {
 	t.Helper()
 
-	entries1 := filterDotFiles(ReadDir(t, dir1))
+	entries1 := ReadDir(t, dir1)
 
 	for _, entry1 := range entries1 {
+		if strings.HasPrefix(entry1.Name(), ".") {
+			continue
+		}
 		if entry1.IsDir() {
 			subdir1 := filepath.Join(dir1, entry1.Name())
 			subdir2 := filepath.Join(dir2, entry1.Name())
@@ -62,15 +65,4 @@ func AssertFileEquals(t *testing.T, filepath1, filepath2 string) {
 	if diff := cmp.Diff(string(file1), string(file2)); diff != "" {
 		t.Fatalf("-(%s) +(%s):\n%s", filepath1, filepath2, diff)
 	}
-}
-
-func filterDotFiles(entries []os.DirEntry) []os.DirEntry {
-	filtered := make([]os.DirEntry, 0, len(entries))
-	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), ".") {
-			continue
-		}
-		filtered = append(filtered, entry)
-	}
-	return filtered
 }
