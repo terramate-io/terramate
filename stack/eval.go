@@ -94,7 +94,7 @@ func metaToCtyMap(rootdir string, m Metadata) map[string]cty.Value {
 
 	logger.Trace().Msg("creating stack metadata")
 
-	stackpath := eval.FromMapToObject(map[string]cty.Value{
+	stackpath := cty.ObjectVal(map[string]cty.Value{
 		"absolute": cty.StringVal(m.Path()),
 		"relative": cty.StringVal(m.RelPath()),
 		"basename": cty.StringVal(m.PathBase()),
@@ -111,15 +111,15 @@ func metaToCtyMap(rootdir string, m Metadata) map[string]cty.Value {
 			Msg("adding stack ID to metadata")
 		stackMapVals["id"] = cty.StringVal(id)
 	}
-	stack := eval.FromMapToObject(stackMapVals)
-	rootfs := eval.FromMapToObject(map[string]cty.Value{
+	stack := cty.ObjectVal(stackMapVals)
+	rootfs := cty.ObjectVal(map[string]cty.Value{
 		"absolute": cty.StringVal(rootdir),
 		"basename": cty.StringVal(filepath.Base(rootdir)),
 	})
-	rootpath := eval.FromMapToObject(map[string]cty.Value{
+	rootpath := cty.ObjectVal(map[string]cty.Value{
 		"fs": rootfs,
 	})
-	root := eval.FromMapToObject(map[string]cty.Value{
+	root := cty.ObjectVal(map[string]cty.Value{
 		"path": rootpath,
 	})
 	return map[string]cty.Value{
