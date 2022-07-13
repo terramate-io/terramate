@@ -33,7 +33,15 @@ func TestStackClone(t *testing.T) {
 		wantErr error
 	}
 
-	testcases := []testcase{}
+	testcases := []testcase{
+		{
+			name:    "src dir must be stack",
+			layout:  []string{"d:/not-stack"},
+			src:     "/not-stack",
+			target:  "/new-stack",
+			wantErr: errors.E(stack.ErrInvalidStackDir),
+		},
+	}
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
