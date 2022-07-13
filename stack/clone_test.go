@@ -51,3 +51,11 @@ func TestStackClone(t *testing.T) {
 		})
 	}
 }
+
+func TestStackCloneSrcDirMustBeInsideRootdir(t *testing.T) {
+	//s := sandbox.New(t)
+
+	//srcdir := "/not/inside/root"
+	//targetdir := filepath.Join(s.RootDir(), "new-stack")
+	//err := stack.Clone(s.RootDir(), targetdir, srcdir)
+}
