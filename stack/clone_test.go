@@ -21,6 +21,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/stack"
+	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -56,7 +57,8 @@ func TestStackClone(t *testing.T) {
 			if tc.wantErr != nil {
 				return
 			}
-			// Validate cloning process
+
+			test.AssertTreeEquals(t, srcdir, targetdir)
 		})
 	}
 }

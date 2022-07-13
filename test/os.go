@@ -36,6 +36,15 @@ func TempDir(t *testing.T, base string) string {
 	return CanonPath(t, dir)
 }
 
+// ReadDir calls os.Readir asserting the success of the operation.
+func ReadDir(t *testing.T, dir string) []os.DirEntry {
+	t.Helper()
+
+	entries, err := os.ReadDir(dir)
+	assert.NoError(t, err)
+	return entries
+}
+
 // WriteFile writes content to a filename inside dir directory.
 // If dir is empty string then the file is created inside a temporary directory.
 func WriteFile(t *testing.T, dir string, filename string, content string) string {
