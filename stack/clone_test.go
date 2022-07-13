@@ -36,6 +36,35 @@ func TestStackClone(t *testing.T) {
 
 	testcases := []testcase{
 		{
+			name:   "clone simple stack",
+			layout: []string{"s:/stack"},
+			src:    "/stack",
+			target: "/stack-cloned",
+		},
+		{
+			name: "clone stack with subdirs",
+			layout: []string{
+				"s:/stack",
+				"f:/stack/somestackfile:test",
+				"f:/stack/subdir/file:test",
+				"f:/stack/subdir2/file2:test",
+				"f:/stack/subdir2/subdir3/file3:test",
+			},
+			src:    "/stack",
+			target: "/stack-cloned",
+		},
+		{
+			name: "clone stack to target with subdirs",
+			layout: []string{
+				"s:/stack",
+				"f:/stack/subdir/file:test",
+				"f:/stack/subdir2/file2:test",
+				"f:/stack/subdir2/subdir3/file3:test",
+			},
+			src:    "/stack",
+			target: "/dir/subdir/cloned-stack",
+		},
+		{
 			name:    "src dir must be stack",
 			layout:  []string{"d:/not-stack"},
 			src:     "/not-stack",
@@ -43,10 +72,10 @@ func TestStackClone(t *testing.T) {
 			wantErr: errors.E(stack.ErrInvalidStackDir),
 		},
 		{
-			name:   "clone simple stack",
-			layout: []string{"s:/stack"},
-			src:    "/stack",
-			target: "/stack-cloned",
+			name:    "src dir must exist",
+			src:     "/non-existent-stack",
+			target:  "/new-stack",
+			wantErr: errors.E(stack.ErrInvalidStackDir),
 		},
 	}
 

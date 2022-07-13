@@ -48,8 +48,10 @@ func Clone(rootdir, targetdir, srcdir string) error {
 }
 
 func copyDir(targetdir, srcdir string) error {
-	entries, _ := os.ReadDir(srcdir)
-	// TODO(katcipis): test error handling
+	entries, err := os.ReadDir(srcdir)
+	if err != nil {
+		return errors.E(err, "reading src dir")
+	}
 
 	if err := os.MkdirAll(targetdir, createDirMode); err != nil {
 		return errors.E(err, "creating target dir")
@@ -57,7 +59,9 @@ func copyDir(targetdir, srcdir string) error {
 
 	for _, entry := range entries {
 		if entry.IsDir() {
-			// TODO(katcipis): test subdir handling
+			srcdir := filepath.Join(srcdir, entry.Name())
+			targetdir := filepath.Join(targetdir, entry.Name())
+			copyDir(targetdir, srcdir)
 			continue
 		}
 

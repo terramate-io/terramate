@@ -17,7 +17,6 @@ package test
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -34,9 +33,6 @@ func AssertTreeEquals(t *testing.T, dir1, dir2 string) {
 	entries1 := ReadDir(t, dir1)
 
 	for _, entry1 := range entries1 {
-		if strings.HasPrefix(entry1.Name(), ".") {
-			continue
-		}
 		if entry1.IsDir() {
 			subdir1 := filepath.Join(dir1, entry1.Name())
 			subdir2 := filepath.Join(dir2, entry1.Name())
