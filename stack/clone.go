@@ -24,29 +24,29 @@ import (
 )
 
 const (
-	// ErrCloneTargetDirExists indicates that the target dir on a clone
+	// ErrCloneTargetDirExists indicates that the dest dir on a clone
 	// operation already exists.
-	ErrCloneTargetDirExists errors.Kind = "clone target dir exists"
+	ErrCloneTargetDirExists errors.Kind = "clone dest dir exists"
 )
 
-// Clone will clone the stack at srcdir into targetdir.
+// Clone will clone the stack at srcdir into destdir.
 //
 // - srcdir must be a stack (fail otherwise)
-// - targetdir must not exist (fail otherwise)
+// - destdir must not exist (fail otherwise)
 // - All files and directories are copied  (except dotfiles/dirs)
 // - If cloned stack has an ID it will be adjusted to a generated UUID.
 // - If cloned stack has no ID the cloned stack also won't have an ID.
-func Clone(rootdir, targetdir, srcdir string) error {
+func Clone(rootdir, destdir, srcdir string) error {
 	if !strings.HasPrefix(srcdir, rootdir) {
 		return errors.E(ErrInvalidStackDir, "src dir %q must be inside project root %q", srcdir, rootdir)
 	}
 
-	if !strings.HasPrefix(targetdir, rootdir) {
-		return errors.E(ErrInvalidStackDir, "target dir %q must be inside project root %q", targetdir, rootdir)
+	if !strings.HasPrefix(destdir, rootdir) {
+		return errors.E(ErrInvalidStackDir, "dest dir %q must be inside project root %q", destdir, rootdir)
 	}
 
-	if _, err := os.Stat(targetdir); err == nil {
-		return errors.E(ErrCloneTargetDirExists, targetdir)
+	if _, err := os.Stat(destdir); err == nil {
+		return errors.E(ErrCloneTargetDirExists, destdir)
 	}
 
 	_, err := Load(rootdir, srcdir)
@@ -54,52 +54,50 @@ func Clone(rootdir, targetdir, srcdir string) error {
 		return errors.E(ErrInvalidStackDir, err, "src dir %q must be a valid stack", srcdir)
 	}
 
-	return copyDir(targetdir, srcdir)
+	return copyDir(destdir, srcdir)
 }
 
-func copyDir(targetdir, srcdir string) error {
+func copyDir(destdir, srcdir string) error {
 	entries, err := os.ReadDir(srcdir)
 	if err != nil {
 		return errors.E(err, "reading src dir")
 	}
 
-	if err := os.MkdirAll(targetdir, createDirMode); err != nil {
-		return errors.E(err, "creating target dir")
+	if err := os.MkdirAll(destdir, createDirMode); err != nil {
+		return errors.E(err, "creating dest dir")
 	}
 
 	for _, entry := range entries {
 		if strings.HasPrefix(entry.Name(), ".") {
 			continue
 		}
+		srcpath := filepath.Join(srcdir, entry.Name())
+		destpath := filepath.Join(destdir, entry.Name())
+
 		if entry.IsDir() {
-			srcdir := filepath.Join(srcdir, entry.Name())
-			targetdir := filepath.Join(targetdir, entry.Name())
-			if err := copyDir(targetdir, srcdir); err != nil {
-				return errors.E(err, "copying src to target dir")
+			if err := copyDir(destpath, srcpath); err != nil {
+				return errors.E(err, "copying src to dest dir")
 			}
 			continue
 		}
 
-		srcfile := filepath.Join(srcdir, entry.Name())
-		targetfile := filepath.Join(targetdir, entry.Name())
-
-		if err := copyFile(targetfile, srcfile); err != nil {
-			return errors.E(err, "copying src to target file")
+		if err := copyFile(destpath, srcpath); err != nil {
+			return errors.E(err, "copying src to dest file")
 		}
 	}
 
 	return nil
 }
 
-func copyFile(targetfile, srcfile string) error {
+func copyFile(destfile, srcfile string) error {
 	src, err := os.Open(srcfile)
 	if err != nil {
 		return errors.E(err, "opening source file")
 	}
-	target, err := os.Create(targetfile)
+	dest, err := os.Create(destfile)
 	if err != nil {
-		return errors.E(err, "creating target file")
+		return errors.E(err, "creating dest file")
 	}
-	_, err = io.Copy(target, src)
+	_, err = io.Copy(dest, src)
 	return err
 }
