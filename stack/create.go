@@ -70,10 +70,6 @@ func Create(rootdir string, cfg CreateCfg) (err error) {
 		Stringer("cfg", cfg).
 		Logger()
 
-	if !filepath.IsAbs(cfg.Dir) {
-		return errors.E(ErrInvalidStackDir, "relative paths not allowed")
-	}
-
 	if !strings.HasPrefix(cfg.Dir, rootdir) {
 		return errors.E(ErrInvalidStackDir, "stack %q must be inside project root %q", cfg.Dir, rootdir)
 	}
