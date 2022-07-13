@@ -64,7 +64,9 @@ func copyDir(targetdir, srcdir string) error {
 		if entry.IsDir() {
 			srcdir := filepath.Join(srcdir, entry.Name())
 			targetdir := filepath.Join(targetdir, entry.Name())
-			copyDir(targetdir, srcdir)
+			if err := copyDir(targetdir, srcdir); err != nil {
+				return errors.E(err, "copying src to target dir")
+			}
 			continue
 		}
 
