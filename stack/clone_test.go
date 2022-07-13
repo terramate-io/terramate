@@ -15,6 +15,7 @@
 package stack_test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -112,4 +113,29 @@ func TestStackCloneTargetDirMustBeInsideRootdir(t *testing.T) {
 	targetdir := t.TempDir()
 	err := stack.Clone(s.RootDir(), targetdir, srcdir)
 	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
+}
+
+func TestStackCloneIgnoresDotDirsAndFiles(t *testing.T) {
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		"s:stack",
+		"f:stack/.dotfile",
+		"f:stack/.dotdir/file",
+	})
+	srcdir := filepath.Join(s.RootDir(), "stack")
+	targetdir := filepath.Join(s.RootDir(), "cloned-stack")
+	err := stack.Clone(s.RootDir(), targetdir, srcdir)
+	assert.NoError(t, err)
+
+	entries := test.ReadDir(t, targetdir)
+	assert.EqualInts(t, 1, len(entries), "expected only stack config file to be copied, got: %v", entriesNames(entries))
+	assert.EqualStrings(t, stack.DefaultFilename, entries[0].Name())
+}
+
+func entriesNames(entries []os.DirEntry) []string {
+	names := make([]string, len(entries))
+	for i, v := range entries {
+		names[i] = v.Name()
+	}
+	return names
 }

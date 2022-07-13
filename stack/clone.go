@@ -58,6 +58,9 @@ func copyDir(targetdir, srcdir string) error {
 	}
 
 	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
 		if entry.IsDir() {
 			srcdir := filepath.Join(srcdir, entry.Name())
 			targetdir := filepath.Join(targetdir, entry.Name())

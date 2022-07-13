@@ -26,7 +26,6 @@ import (
 // AssertTreeEquals asserts that the two given directories
 // are the same. This means they must have the same files and
 // also same subdirs with same files inside recursively.
-// It ignores any dotfiles/dirs from the comparison.
 func AssertTreeEquals(t *testing.T, dir1, dir2 string) {
 	t.Helper()
 
