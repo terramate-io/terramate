@@ -136,7 +136,7 @@ generate_hcl "file.tf" {
       iterator = value
 
       content {
-        attr = value
+        attr = "index: ${value.key}, value: ${value.value}" 
         attr2 = not_evaluated.attr
       }
     }
@@ -148,17 +148,17 @@ The config above is going to generate the `file.tf` with code below:
 
 ```hcl
 block {
-  attr = "a"
+  attr = "index: 0, value: a"
   attr2 = not_evaluated.attr
 }
 
 block {
-  attr = "b"
+  attr = "index: 1, value: b"
   attr2 = not_evaluated.attr
 }
 
 block {
-  attr = "c"
+  attr = "index: 2, value: c"
   attr2 = not_evaluated.attr
 }
 ```
