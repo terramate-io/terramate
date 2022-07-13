@@ -31,7 +31,7 @@ func TestStackClone(t *testing.T) {
 		name    string
 		layout  []string
 		src     string
-		target  string
+		dest    string
 		wantErr error
 	}
 
@@ -40,7 +40,7 @@ func TestStackClone(t *testing.T) {
 			name:   "clone simple stack",
 			layout: []string{"s:/stack"},
 			src:    "/stack",
-			target: "/stack-cloned",
+			dest:   "/stack-cloned",
 		},
 		{
 			name: "clone stack with subdirs",
@@ -51,42 +51,42 @@ func TestStackClone(t *testing.T) {
 				"f:/stack/subdir2/file2:test",
 				"f:/stack/subdir2/subdir3/file3:test",
 			},
-			src:    "/stack",
-			target: "/stack-cloned",
+			src:  "/stack",
+			dest: "/stack-cloned",
 		},
 		{
-			name: "clone stack to target with subdirs",
+			name: "clone stack to dest with subdirs",
 			layout: []string{
 				"s:/stack",
 				"f:/stack/subdir/file:test",
 				"f:/stack/subdir2/file2:test",
 				"f:/stack/subdir2/subdir3/file3:test",
 			},
-			src:    "/stack",
-			target: "/dir/subdir/cloned-stack",
+			src:  "/stack",
+			dest: "/dir/subdir/cloned-stack",
 		},
 		{
 			name:    "src dir must be stack",
 			layout:  []string{"d:/not-stack"},
 			src:     "/not-stack",
-			target:  "/new-stack",
+			dest:    "/new-stack",
 			wantErr: errors.E(stack.ErrInvalidStackDir),
 		},
 		{
 			name:    "src dir must exist",
 			src:     "/non-existent-stack",
-			target:  "/new-stack",
+			dest:    "/new-stack",
 			wantErr: errors.E(stack.ErrInvalidStackDir),
 		},
 		{
-			name: "target dir must not exist",
+			name: "dest dir must not exist",
 			layout: []string{
 				"s:/stack",
 				"d:/cloned-stack",
 			},
 			src:     "/stack",
-			target:  "/cloned-stack",
-			wantErr: errors.E(stack.ErrCloneTargetDirExists),
+			dest:    "/cloned-stack",
+			wantErr: errors.E(stack.ErrCloneDestDirExists),
 		},
 	}
 
@@ -96,15 +96,15 @@ func TestStackClone(t *testing.T) {
 			s.BuildTree(tc.layout)
 
 			srcdir := filepath.Join(s.RootDir(), tc.src)
-			targetdir := filepath.Join(s.RootDir(), tc.target)
-			err := stack.Clone(s.RootDir(), targetdir, srcdir)
+			destdir := filepath.Join(s.RootDir(), tc.dest)
+			err := stack.Clone(s.RootDir(), destdir, srcdir)
 			assert.IsError(t, err, tc.wantErr)
 
 			if tc.wantErr != nil {
 				return
 			}
 
-			test.AssertTreeEquals(t, srcdir, targetdir)
+			test.AssertTreeEquals(t, srcdir, destdir)
 		})
 	}
 }
@@ -112,16 +112,16 @@ func TestStackClone(t *testing.T) {
 func TestStackCloneSrcDirMustBeInsideRootdir(t *testing.T) {
 	s := sandbox.New(t)
 	srcdir := t.TempDir()
-	targetdir := filepath.Join(s.RootDir(), "new-stack")
-	err := stack.Clone(s.RootDir(), targetdir, srcdir)
+	destdir := filepath.Join(s.RootDir(), "new-stack")
+	err := stack.Clone(s.RootDir(), destdir, srcdir)
 	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
 }
 
 func TestStackCloneTargetDirMustBeInsideRootdir(t *testing.T) {
 	s := sandbox.New(t)
 	srcdir := filepath.Join(s.RootDir(), "src-stack")
-	targetdir := t.TempDir()
-	err := stack.Clone(s.RootDir(), targetdir, srcdir)
+	destdir := t.TempDir()
+	err := stack.Clone(s.RootDir(), destdir, srcdir)
 	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
 }
 
@@ -133,11 +133,11 @@ func TestStackCloneIgnoresDotDirsAndFiles(t *testing.T) {
 		"f:stack/.dotdir/file",
 	})
 	srcdir := filepath.Join(s.RootDir(), "stack")
-	targetdir := filepath.Join(s.RootDir(), "cloned-stack")
-	err := stack.Clone(s.RootDir(), targetdir, srcdir)
+	destdir := filepath.Join(s.RootDir(), "cloned-stack")
+	err := stack.Clone(s.RootDir(), destdir, srcdir)
 	assert.NoError(t, err)
 
-	entries := test.ReadDir(t, targetdir)
+	entries := test.ReadDir(t, destdir)
 	assert.EqualInts(t, 1, len(entries), "expected only stack config file to be copied, got: %v", entriesNames(entries))
 	assert.EqualStrings(t, stack.DefaultFilename, entries[0].Name())
 }

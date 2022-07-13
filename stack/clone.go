@@ -24,9 +24,9 @@ import (
 )
 
 const (
-	// ErrCloneTargetDirExists indicates that the dest dir on a clone
+	// ErrCloneDestDirExists indicates that the dest dir on a clone
 	// operation already exists.
-	ErrCloneTargetDirExists errors.Kind = "clone dest dir exists"
+	ErrCloneDestDirExists errors.Kind = "clone dest dir exists"
 )
 
 // Clone will clone the stack at srcdir into destdir.
@@ -46,7 +46,7 @@ func Clone(rootdir, destdir, srcdir string) error {
 	}
 
 	if _, err := os.Stat(destdir); err == nil {
-		return errors.E(ErrCloneTargetDirExists, destdir)
+		return errors.E(ErrCloneDestDirExists, destdir)
 	}
 
 	_, err := Load(rootdir, srcdir)
