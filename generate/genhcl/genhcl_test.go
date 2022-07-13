@@ -1484,6 +1484,80 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 			wantErr: errors.E(genhcl.ErrParsing),
 		},
+		{
+			name:  "tm_dynamic with empty content block",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							block("tm_dynamic",
+								labels("my_block"),
+								expr("for_each", `["a", "b", "c"]`),
+								block("content"),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "tm_dynamic_test.tf",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body: hcldoc(
+							block("my_block"),
+							block("my_block"),
+							block("my_block"),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "tm_dynamic with content fully evaluated",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							block("tm_dynamic",
+								labels("my_block"),
+								expr("for_each", `["a", "b", "c"]`),
+								block("content",
+									expr("value", "my_block.value"),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "tm_dynamic_test.tf",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body: hcldoc(
+							block("my_block",
+								str("value", "a"),
+							),
+							block("my_block",
+								str("value", "b"),
+							),
+							block("my_block",
+								str("value", "c"),
+							),
+						),
+					},
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {

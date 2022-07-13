@@ -42,6 +42,14 @@ func NewEvalCtx(rootdir string, sm Metadata, globals Globals) *EvalCtx {
 	return evalwrapper
 }
 
+func (e *EvalCtx) SetVariable(name string, value cty.Value) {
+	e.evalctx.SetVariable(name, value)
+}
+
+func (e *EvalCtx) DeleteVariable(name string) {
+	e.evalctx.DeleteVariable(name)
+}
+
 // SetGlobals sets the given globals on the stack evaluation context.
 func (e *EvalCtx) SetGlobals(g Globals) {
 	e.evalctx.SetNamespace("global", g.Attributes())
@@ -75,7 +83,7 @@ func (e *EvalCtx) PartialEval(expr hclsyntax.Expression) (hclwrite.Tokens, error
 
 // HasNamespace returns true the evaluation context knows this namespace, false otherwise.
 func (e *EvalCtx) HasNamespace(name string) bool {
-	return e.evalctx.HasNamespace(name)
+	return e.evalctx.HasVariable(name)
 }
 
 func metaToCtyMap(rootdir string, m Metadata) map[string]cty.Value {

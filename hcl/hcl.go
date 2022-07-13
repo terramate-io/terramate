@@ -156,8 +156,13 @@ type GenFileBlock struct {
 	Condition *hclsyntax.Attribute
 }
 
-// PartialEvaluator represents an HCL partial evaluator
-type PartialEvaluator func(hclsyntax.Expression) (hclwrite.Tokens, error)
+// Evaluator represents a Terramate evaluator
+type Evaluator interface {
+	Eval(hclsyntax.Expression) (cty.Value, error)
+	PartialEval(hclsyntax.Expression) (hclwrite.Tokens, error)
+	SetVariable(name string, value cty.Value)
+	DeleteVariable(name string)
+}
 
 // TerramateParser is an HCL parser tailored for Terramate configuration schema.
 // As the Terramate configuration can span multiple files in the same directory,
@@ -837,14 +842,14 @@ func validateGenerateFileBlock(block *ast.Block) error {
 	return errs.AsError()
 }
 
-// CopyBody will copy the src body to the given target, evaluating attributes using the
-// given evaluation context.
+// CopyBody will copy the src body to the given target, evaluating attributes
+// using the given evaluation context.
 //
 // Scoped traversals, like name.traverse, for unknown namespaces will be copied
 // as is (original expression form, no evaluation).
 //
 // Returns an error if the evaluation fails.
-func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, eval PartialEvaluator) error {
+func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, eval Evaluator) error {
 	logger := log.With().
 		Str("action", "CopyBody()").
 		Logger()
@@ -858,7 +863,7 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, eval PartialEvaluator)
 			Logger()
 
 		logger.Trace().Msg("evaluating.")
-		tokens, err := eval(attr.Expr)
+		tokens, err := eval.PartialEval(attr.Expr)
 		if err != nil {
 			return errors.E(err, attr.Expr.Range())
 		}
@@ -870,16 +875,99 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, eval PartialEvaluator)
 	logger.Trace().Msg("Append blocks.")
 
 	for _, block := range src.Blocks {
-		targetBlock := target.AppendNewBlock(block.Type, block.Labels)
-		if block.Body == nil {
-			continue
-		}
-		if err := CopyBody(targetBlock.Body(), block.Body, eval); err != nil {
+		err := AppendBlock(target, block, eval)
+		if err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func AppendBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Evaluator) error {
+	if block.Type == "tm_dynamic" {
+		return AppendDynamicBlock(target, block, eval)
+	}
+
+	targetBlock := target.AppendNewBlock(block.Type, block.Labels)
+	if block.Body != nil {
+		err := CopyBody(targetBlock.Body(), block.Body, eval)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func AppendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Evaluator) error {
+	attrs := block.Body.Attributes
+
+	errs := errors.L()
+	if len(block.Labels) != 1 {
+		errs.Append(errors.E(block.LabelRanges, "tm_dynamic requires a label"))
+	}
+	genBlockType := block.Labels[0]
+	var genContentBlock *hclsyntax.Block
+
+	for _, b := range block.Body.Blocks {
+		if b.Type != "content" {
+			errs.Append(errors.E(b.TypeRange, "unrecognized block %s", b.Type))
+			continue
+		}
+
+		if genContentBlock != nil {
+			errs.Append(errors.E(b.TypeRange,
+				"multiple definitions of the `content` block"))
+			continue
+		}
+
+		genContentBlock = b
+	}
+
+	// if genContentBlock == nil {
+	// 	errs.Append(errors.E(block.Body.Range(), "`content` block not defined"))
+	// }
+
+	if err := errs.AsError(); err != nil {
+		return err
+	}
+
+	forEachAttr, ok := attrs["for_each"]
+	if !ok {
+		return errors.E(block.Body.Range(),
+			"tm_dynamic requires a `for_each` attribute")
+	}
+
+	forEachVal, err := eval.Eval(forEachAttr.Expr)
+	if err != nil {
+		return errors.E(forEachAttr.Expr.Range(),
+			"evaluting `for_each` expression")
+	}
+
+	if !forEachVal.CanIterateElements() {
+		return errors.E(forEachAttr.Expr.Range(),
+			"expression value of type %s cannot be iterated",
+			forEachVal.Type().FriendlyName())
+	}
+
+	var tmDynamicErr error
+	forEachVal.ForEachElement(func(key, value cty.Value) (stop bool) {
+		newblock := target.AppendBlock(hclwrite.NewBlock(genBlockType, nil))
+		if genContentBlock != nil {
+			eval.SetVariable(genBlockType, cty.ObjectVal(map[string]cty.Value{
+				"key":   key,
+				"value": value,
+			}))
+
+			err := CopyBody(newblock.Body(), genContentBlock.Body, eval)
+			if err != nil {
+				tmDynamicErr = err
+				return true
+			}
+		}
+		return false
+	})
+	return tmDynamicErr
 }
 
 func assignSet(name string, target *[]string, val cty.Value) error {

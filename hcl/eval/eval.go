@@ -72,8 +72,17 @@ func (c *Context) SetNamespace(name string, vals map[string]cty.Value) {
 	c.hclctx.Variables[name] = FromMapToObject(vals)
 }
 
-// HasNamespace returns true the evaluation context knows this namespace, false otherwise.
-func (c *Context) HasNamespace(name string) bool {
+// SetVariable will set the given variable.
+func (c *Context) SetVariable(name string, val cty.Value) {
+	c.hclctx.Variables[name] = val
+}
+
+func (c *Context) DeleteVariable(name string) {
+	delete(c.hclctx.Variables, name)
+}
+
+// HasVariable returns true the evaluation context knows this variable, false otherwise.
+func (c *Context) HasVariable(name string) bool {
 	_, has := c.hclctx.Variables[name]
 	return has
 }

@@ -16,6 +16,7 @@ The code may include:
 * Terramate Global references
 * Terramate Metadata references
 * Expressions using interpolation, functions, etc
+* Dynamic blocks using the `tm_dynamic` block type
 
 Anything you can do in Terraform can be generated using a `generate_hcl`
 block. References to Terramate globals and metadata are evaluated, but any
@@ -27,6 +28,8 @@ with the same label/filename will result in an error.
 
 Inside the `generate_hcl` block a `content` block is required.
 All code inside `content` is going to be used to generate the final HCL code.
+Any [tm_dynamic](##tm-dynamic) block inside the `content` block is going to be evaluated and
+expanded in the final HCL code.
 
 Now lets jump to some examples. Lets generate backend and provider configurations
 for all stacks inside a project.
@@ -112,6 +115,56 @@ terraform {
   required_version = "1.1.3"
 }
 ```
+
+## tm_dynamic block
+
+The `tm_dynamic` is a special block type that can only be used inside the
+`content` block of the `generate_hcl` block.
+It's similar to [Terraform dynamic blocks](https://www.terraform.io/language/expressions/dynamic-blocks) but supports partial evaluation of the expanded code.
+
+Example:
+
+```hcl
+globals {
+  values = ["a", "b", "c"]
+}
+
+generate_hcl "file.tf" {
+  content {
+    tm_dynamic "block" {
+      for_each = global.values
+      iterator = value
+
+      content {
+        attr = value
+        attr2 = not_evaluated.attr
+      }
+    }
+  }
+}
+```
+
+The config above is going to generate the `file.tf` with code below:
+
+```hcl
+block {
+  attr = "a"
+  attr2 = not_evaluated.attr
+}
+
+block {
+  attr = "b"
+  attr2 = not_evaluated.attr
+}
+
+block {
+  attr = "c"
+  attr2 = not_evaluated.attr
+}
+```
+
+The `tm_dynamic` only evaluates the Terramate variables, everything else is just
+copied as is to the final generated code.
 
 ## Hierarchical Code Generation
 
