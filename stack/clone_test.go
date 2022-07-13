@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -53,9 +54,9 @@ func TestStackClone(t *testing.T) {
 }
 
 func TestStackCloneSrcDirMustBeInsideRootdir(t *testing.T) {
-	//s := sandbox.New(t)
-
-	//srcdir := "/not/inside/root"
-	//targetdir := filepath.Join(s.RootDir(), "new-stack")
-	//err := stack.Clone(s.RootDir(), targetdir, srcdir)
+	s := sandbox.New(t)
+	srcdir := t.TempDir()
+	targetdir := filepath.Join(s.RootDir(), "new-stack")
+	err := stack.Clone(s.RootDir(), targetdir, srcdir)
+	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
 }

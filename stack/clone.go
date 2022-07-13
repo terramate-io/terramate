@@ -14,6 +14,12 @@
 
 package stack
 
+import (
+	"strings"
+
+	"github.com/mineiros-io/terramate/errors"
+)
+
 // Clone will clone the stack at srcdir into targetdir.
 //
 // - srcdir must be a stack (fail otherwise)
@@ -22,5 +28,8 @@ package stack
 // - If cloned stack has an ID it will be adjusted to a generated UUID.
 // - If cloned stack has no ID the cloned stack also won't have an ID.
 func Clone(rootdir, targetdir, srcdir string) error {
+	if !strings.HasPrefix(srcdir, rootdir) {
+		return errors.E(ErrInvalidStackDir, "src dir %q must be inside project root %q", srcdir, rootdir)
+	}
 	return nil
 }
