@@ -32,17 +32,15 @@ func AssertTreeEquals(t *testing.T, dir1, dir2 string) {
 	entries1 := ReadDir(t, dir1)
 
 	for _, entry1 := range entries1 {
+		path1 := filepath.Join(dir1, entry1.Name())
+		path2 := filepath.Join(dir2, entry1.Name())
+
 		if entry1.IsDir() {
-			subdir1 := filepath.Join(dir1, entry1.Name())
-			subdir2 := filepath.Join(dir2, entry1.Name())
-			AssertTreeEquals(t, subdir1, subdir2)
+			AssertTreeEquals(t, path1, path2)
 			continue
 		}
 
-		file1 := filepath.Join(dir1, entry1.Name())
-		file2 := filepath.Join(dir2, entry1.Name())
-
-		AssertFileEquals(t, file1, file2)
+		AssertFileEquals(t, path1, path2)
 	}
 }
 
