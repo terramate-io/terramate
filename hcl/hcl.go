@@ -875,7 +875,7 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, eval Evaluator) error 
 	logger.Trace().Msg("Append blocks.")
 
 	for _, block := range src.Blocks {
-		err := AppendBlock(target, block, eval)
+		err := appendBlock(target, block, eval)
 		if err != nil {
 			return err
 		}
@@ -884,9 +884,9 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, eval Evaluator) error 
 	return nil
 }
 
-func AppendBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Evaluator) error {
+func appendBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Evaluator) error {
 	if block.Type == "tm_dynamic" {
-		return AppendDynamicBlock(target, block, eval)
+		return appendDynamicBlock(target, block, eval)
 	}
 
 	targetBlock := target.AppendNewBlock(block.Type, block.Labels)
@@ -899,7 +899,7 @@ func AppendBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Evaluator) 
 	return nil
 }
 
-func AppendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Evaluator) error {
+func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Evaluator) error {
 	attrs := block.Body.Attributes
 
 	errs := errors.L()
