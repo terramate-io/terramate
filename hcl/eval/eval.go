@@ -23,10 +23,8 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
-	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
-	"github.com/zclconf/go-cty/cty/gocty"
 
 	hhcl "github.com/hashicorp/hcl/v2"
 	tflang "github.com/hashicorp/terraform/lang"
@@ -69,7 +67,7 @@ func NewContext(basedir string) (*Context, error) {
 // SetNamespace will set the given values inside the given namespace on the
 // evaluation context.
 func (c *Context) SetNamespace(name string, vals map[string]cty.Value) {
-	c.hclctx.Variables[name] = FromMapToObject(vals)
+	c.hclctx.Variables[name] = cty.ObjectVal(vals)
 }
 
 // HasNamespace returns true the evaluation context knows this namespace, false otherwise.
@@ -116,37 +114,6 @@ func GetExpressionTokens(hcldoc []byte, filename string, expr hclsyntax.Expressi
 		return nil, errors.E(diags, "failed to scan expression")
 	}
 	return toWriteTokens(tokens), nil
-}
-
-// FromMapToObject converts a map of cty.Value to an object.
-// It is a programming error to pass any cty.Value that can't be
-// converted properly into an object field.
-func FromMapToObject(values map[string]cty.Value) cty.Value {
-	logger := log.With().
-		Str("action", "fromMapToObject()").
-		Logger()
-
-	logger.Trace().Msg("converting map to object")
-
-	ctyTypes := map[string]cty.Type{}
-	for key, value := range values {
-		logger.Trace().
-			Str("name", key).
-			Str("type", value.Type().FriendlyName()).
-			Msg("building key to type map")
-
-		ctyTypes[key] = value.Type()
-	}
-
-	ctyObject := cty.Object(ctyTypes)
-	ctyVal, err := gocty.ToCtyValue(values, ctyObject)
-	if err != nil {
-		panic(errors.E("bug: all map values should be convertable", err))
-	}
-
-	logger.Trace().Msg("converted values map to cty object")
-
-	return ctyVal
 }
 
 func toWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {
