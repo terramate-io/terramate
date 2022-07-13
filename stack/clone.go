@@ -33,7 +33,7 @@ const (
 //
 // - srcdir must be a stack (fail otherwise)
 // - targetdir must not exist (fail otherwise)
-// - All files and directories are copied  (except dotfiles/dirs)
+// - All files and directories are copied  (except dotfiles/dotdirs)
 // - If cloned stack has an ID it will be adjusted to a generated UUID.
 // - If cloned stack has no ID the cloned stack also won't have an ID.
 func Clone(rootdir, targetdir, srcdir string) error {
