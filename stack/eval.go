@@ -18,8 +18,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
@@ -27,7 +25,7 @@ import (
 
 // EvalCtx represents the evaluation context of a stack.
 type EvalCtx struct {
-	evalctx *eval.Context
+	*eval.Context
 }
 
 // NewEvalCtx creates a new stack evaluation context.
@@ -36,28 +34,22 @@ func NewEvalCtx(rootdir string, sm Metadata, globals Globals) *EvalCtx {
 	if err != nil {
 		panic(err)
 	}
-	evalwrapper := &EvalCtx{evalctx: evalctx}
+	evalwrapper := &EvalCtx{
+		Context: evalctx,
+	}
 	evalwrapper.SetMetadata(rootdir, sm)
 	evalwrapper.SetGlobals(globals)
 	return evalwrapper
 }
 
-func (e *EvalCtx) SetVariable(name string, value cty.Value) {
-	e.evalctx.SetVariable(name, value)
-}
-
-func (e *EvalCtx) DeleteVariable(name string) {
-	e.evalctx.DeleteVariable(name)
-}
-
 // SetGlobals sets the given globals on the stack evaluation context.
 func (e *EvalCtx) SetGlobals(g Globals) {
-	e.evalctx.SetNamespace("global", g.Attributes())
+	e.SetNamespace("global", g.Attributes())
 }
 
 // SetMetadata sets the given metadata on the stack evaluation context.
 func (e *EvalCtx) SetMetadata(rootdir string, sm Metadata) {
-	e.evalctx.SetNamespace("terramate", metaToCtyMap(rootdir, sm))
+	e.SetNamespace("terramate", metaToCtyMap(rootdir, sm))
 }
 
 // SetEnv sets the given environment on the env namespace of the evaluation context.
@@ -68,22 +60,7 @@ func (e *EvalCtx) SetEnv(environ []string) {
 		parsed := strings.Split(v, "=")
 		env[parsed[0]] = cty.StringVal(parsed[1])
 	}
-	e.evalctx.SetNamespace("env", env)
-}
-
-// Eval will evaluate an expression given its context.
-func (e *EvalCtx) Eval(expr hclsyntax.Expression) (cty.Value, error) {
-	return e.evalctx.Eval(expr)
-}
-
-// PartialEval will partially evaluate an expression given its context.
-func (e *EvalCtx) PartialEval(expr hclsyntax.Expression) (hclwrite.Tokens, error) {
-	return e.evalctx.PartialEval(expr)
-}
-
-// HasNamespace returns true the evaluation context knows this namespace, false otherwise.
-func (e *EvalCtx) HasNamespace(name string) bool {
-	return e.evalctx.HasVariable(name)
+	e.SetNamespace("env", env)
 }
 
 func metaToCtyMap(rootdir string, m Metadata) map[string]cty.Value {

@@ -1170,7 +1170,7 @@ func (e *engine) parseVariable(tokens hclwrite.Tokens) (v variable, found bool) 
 
 	v.name = tokens[:pos]
 	nsvar := string(v.name[0].Bytes)
-	v.isTerramate = e.ctx.HasVariable(nsvar)
+	v.isTerramate = e.ctx.HasNamespace(nsvar)
 
 	for pos < len(tokens) && tokens[pos].Type == hclsyntax.TokenOBrack {
 		index, skip := parseIndexing(tokens[pos:])

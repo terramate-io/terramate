@@ -160,8 +160,8 @@ type GenFileBlock struct {
 type Evaluator interface {
 	Eval(hclsyntax.Expression) (cty.Value, error)
 	PartialEval(hclsyntax.Expression) (hclwrite.Tokens, error)
-	SetVariable(name string, value cty.Value)
-	DeleteVariable(name string)
+	SetNamespace(name string, values map[string]cty.Value)
+	DeleteNamespace(name string)
 }
 
 // TerramateParser is an HCL parser tailored for Terramate configuration schema.
@@ -954,10 +954,10 @@ func AppendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 	forEachVal.ForEachElement(func(key, value cty.Value) (stop bool) {
 		newblock := target.AppendBlock(hclwrite.NewBlock(genBlockType, nil))
 		if genContentBlock != nil {
-			eval.SetVariable(genBlockType, cty.ObjectVal(map[string]cty.Value{
+			eval.SetNamespace(genBlockType, map[string]cty.Value{
 				"key":   key,
 				"value": value,
-			}))
+			})
 
 			err := CopyBody(newblock.Body(), genContentBlock.Body, eval)
 			if err != nil {
