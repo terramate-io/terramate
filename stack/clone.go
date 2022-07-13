@@ -23,6 +23,12 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 )
 
+const (
+	// ErrCloneTargetDirExists indicates that the target dir on a clone
+	// operation already exists.
+	ErrCloneTargetDirExists errors.Kind = "clone target dir exists"
+)
+
 // Clone will clone the stack at srcdir into targetdir.
 //
 // - srcdir must be a stack (fail otherwise)
@@ -37,6 +43,10 @@ func Clone(rootdir, targetdir, srcdir string) error {
 
 	if !strings.HasPrefix(targetdir, rootdir) {
 		return errors.E(ErrInvalidStackDir, "target dir %q must be inside project root %q", targetdir, rootdir)
+	}
+
+	if _, err := os.Stat(targetdir); err == nil {
+		return errors.E(ErrCloneTargetDirExists, targetdir)
 	}
 
 	_, err := Load(rootdir, srcdir)

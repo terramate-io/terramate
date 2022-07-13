@@ -78,6 +78,16 @@ func TestStackClone(t *testing.T) {
 			target:  "/new-stack",
 			wantErr: errors.E(stack.ErrInvalidStackDir),
 		},
+		{
+			name: "target dir must not exist",
+			layout: []string{
+				"s:/stack",
+				"d:/cloned-stack",
+			},
+			src:     "/stack",
+			target:  "/cloned-stack",
+			wantErr: errors.E(stack.ErrCloneTargetDirExists),
+		},
 	}
 
 	for _, tc := range testcases {
