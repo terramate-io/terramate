@@ -164,21 +164,23 @@ type PartialEvaluator func(hclsyntax.Expression) (hclwrite.Tokens, error)
 // this API allows you to define the exact set of files (and contents) that are
 // going to be included in the final configuration.
 type TerramateParser struct {
+	// MergedAttributes are the top-level attributes of all files.
+	// This will be available after calling Parse or ParseConfig
+	MergedAttributes ast.Attributes
+
+	// MergedBlocks are the merged blocks from all files.
+	// This will be available after calling Parse or ParseConfig
+	MergedBlocks ast.MergedBlocks
+
+	// UnmergedBlocks are the unmerged blocks from all files.
+	// This will be available after calling Parse or ParseConfig
+	UnmergedBlocks ast.Blocks
+
 	rootdir   string
 	dir       string
 	files     map[string][]byte // path=content
 	hclparser *hclparse.Parser
-
-	evalctx *eval.Context
-
-	// MergedAttributes are the top-level attributes of all files.
-	MergedAttributes ast.Attributes
-
-	// MergedBlocks are the merged blocks from all files.
-	MergedBlocks ast.MergedBlocks
-
-	// UnmergedBlocks are the unmerged blocks from all files.
-	UnmergedBlocks ast.Blocks
+	evalctx   *eval.Context
 
 	// parsedFiles stores a map of all parsed files
 	parsedFiles map[string]parsedFile
@@ -330,9 +332,10 @@ func (p *TerramateParser) AddFileContent(name string, data []byte) error {
 	return nil
 }
 
-// Parse the previously added files and return either a Config or an error.
-func (p *TerramateParser) Parse() (Config, error) {
-	err := p.MinimalParse()
+// ParseConfig parses and checks the schema of previously added files and
+// return either a Config or an error.
+func (p *TerramateParser) ParseConfig() (Config, error) {
+	err := p.Parse()
 	if err != nil {
 		return Config{}, err
 	}
@@ -342,9 +345,9 @@ func (p *TerramateParser) Parse() (Config, error) {
 	return p.parseTerramateSchema()
 }
 
-// MinimalParse does the syntax parsing and merging of configurations but do not
-// validate if it's valid terramate configuration.
-func (p *TerramateParser) MinimalParse() error {
+// Parse does the syntax parsing and merging of configurations but do not
+// validate if the HCL schema is a valid Terramate configuration.
+func (p *TerramateParser) Parse() error {
 	if p.parsed {
 		return errors.E("files already parsed")
 	}
@@ -359,6 +362,19 @@ func (p *TerramateParser) MinimalParse() error {
 	errs.Append(p.mergeConfig())
 	errs.Append(p.applyImports())
 	return errs.AsError()
+}
+
+// ParsedBodies returns a map of filename to the parsed hclsyntax.Body.
+func (p *TerramateParser) ParsedBodies() map[string]*hclsyntax.Body {
+	parsed := make(map[string]*hclsyntax.Body)
+	bodyMap := p.hclparser.Files()
+	for _, filename := range p.internalParsedFiles() {
+		hclfile := bodyMap[filename]
+		// A cast error here would be a severe programming error on Terramate
+		// side, so we are by design allowing the cast to panic
+		parsed[filename] = hclfile.Body.(*hclsyntax.Body)
+	}
+	return parsed
 }
 
 // Imports returns all import blocks parsed.
@@ -537,7 +553,7 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 			err)
 	}
 	importParser.addParsedFile(p.dir, external, p.internalParsedFiles()...)
-	err = importParser.MinimalParse()
+	err = importParser.Parse()
 	if err != nil {
 		return err
 	}
@@ -558,19 +574,6 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 
 	p.addParsedFile(p.dir, external, src)
 	return nil
-}
-
-// ParsedBodies returns a map of filename to the parsed hclsyntax.Body.
-func (p *TerramateParser) ParsedBodies() map[string]*hclsyntax.Body {
-	parsed := make(map[string]*hclsyntax.Body)
-	bodyMap := p.hclparser.Files()
-	for _, filename := range p.internalParsedFiles() {
-		hclfile := bodyMap[filename]
-		// A cast error here would be a severe programming error on Terramate
-		// side, so we are by design allowing the cast to panic
-		parsed[filename] = hclfile.Body.(*hclsyntax.Body)
-	}
-	return parsed
 }
 
 func (p *TerramateParser) sortedFilenames() []string {
@@ -679,7 +682,7 @@ func ParseDir(root string, dir string) (Config, error) {
 	if err != nil {
 		return Config{}, errors.E("adding files to parser", err)
 	}
-	return p.Parse()
+	return p.ParseConfig()
 }
 
 // ParseGenerateHCLBlocks parses all Terramate files on the given dir, returning
@@ -1430,7 +1433,7 @@ func parseUnmergedBlocks(root, dir, blocktype string, validate blockValidator) (
 		return nil, errors.E("adding files to parser", err)
 	}
 
-	err = parser.MinimalParse()
+	err = parser.Parse()
 	if err != nil {
 		return nil, err
 	}
