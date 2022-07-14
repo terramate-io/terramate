@@ -177,8 +177,8 @@ type TerramateParser struct {
 	// MergedBlocks are the merged blocks from all files.
 	MergedBlocks ast.MergedBlocks
 
-	// Blocks are the unmerged blocks from all files.
-	Blocks ast.Blocks
+	// UnmergedBlocks are the unmerged blocks from all files.
+	UnmergedBlocks ast.Blocks
 
 	// parsedFiles stores a map of all parsed files
 	parsedFiles map[string]parsedFile
@@ -366,7 +366,7 @@ func (p *TerramateParser) Imports() (ast.Blocks, error) {
 	errs := errors.L()
 	imports := ast.Blocks{}
 
-	for _, importBlock := range filterBlocksByType("import", p.Blocks) {
+	for _, importBlock := range filterBlocksByType("import", p.UnmergedBlocks) {
 		err := validateImportBlock(importBlock)
 		errs.Append(err)
 		if err == nil {
@@ -411,7 +411,7 @@ func (p *TerramateParser) mergeBlocks(blocks ast.Blocks) error {
 }
 
 func (p *TerramateParser) addBlock(block *ast.Block) error {
-	p.Blocks = append(p.Blocks, block)
+	p.UnmergedBlocks = append(p.UnmergedBlocks, block)
 	return nil
 }
 
@@ -542,7 +542,7 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 		return err
 	}
 	errs := errors.L()
-	for _, block := range importParser.Blocks {
+	for _, block := range importParser.UnmergedBlocks {
 		if block.Type == "stack" {
 			errs.Append(
 				errors.E(ErrImport, srcAttr.Expr.Range(),
@@ -551,7 +551,7 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 	}
 	errs.Append(p.mergeAttrs(importParser.MergedAttributes))
 	errs.Append(p.mergeBlocks(importParser.MergedBlocks.AsBlocks()))
-	errs.Append(p.mergeBlocks(importParser.Blocks))
+	errs.Append(p.mergeBlocks(importParser.UnmergedBlocks))
 	if err := errs.AsError(); err != nil {
 		return errors.E(ErrImport, err, "failed to merge imported configuration")
 	}
@@ -1280,7 +1280,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 	var foundstack bool
 	var stackblock *ast.Block
-	for _, block := range p.Blocks {
+	for _, block := range p.UnmergedBlocks {
 		// unmerged blocks
 
 		logger := logger.With().
@@ -1437,7 +1437,7 @@ func parseUnmergedBlocks(root, dir, blocktype string, validate blockValidator) (
 
 	logger.Trace().Msg("Validating and filtering blocks")
 
-	blocks := filterBlocksByType(blocktype, parser.Blocks)
+	blocks := filterBlocksByType(blocktype, parser.UnmergedBlocks)
 	for _, block := range blocks {
 		if err := validate(block); err != nil {
 			return nil, errors.E(err, "validation failed")
