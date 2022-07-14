@@ -164,7 +164,10 @@ func updateStackID(stackdir string) error {
 	// Since we don't want to eval anything here, tokens it is.
 	// Then you may ask... is it possible to get the tokens of an expression
 	// easily ? The answer, to your dismay, will be no. Hence this wonderful
-	// hack, enjoy.
+	// hack, enjoy. A nicer generalization of config changes on the hcl
+	// package would be cool, but no time now and we are not sure this is
+	// a common problem.
+	//
 	// - https://raw.githubusercontent.com/katcipis/memes/master/satan.jpg
 
 	stackContents, err := os.ReadFile(stackFilePath)
@@ -181,11 +184,8 @@ func updateStackID(stackdir string) error {
 	}
 
 	newStackFile := hclwrite.NewEmptyFile()
-
 	newBody := newStackFile.Body()
 
-	// Today we don't have attributes on the root body, but if we add any
-	// someday then the code will just keep working.
 	copyBodyAttributes(newBody, body, getExprTokens)
 
 	for _, block := range body.Blocks {
@@ -214,11 +214,7 @@ func updateStackID(stackdir string) error {
 				continue
 			}
 
-			tokens, err := getExprTokens(attr.Expr)
-			if err != nil {
-				panic(errors.E(err, "internal error getting expression tokens"))
-			}
-			newBody.SetAttributeRaw(attr.Name, tokens)
+			copyBodyAttribute(newBody, attr, getExprTokens)
 		}
 	}
 
@@ -234,12 +230,20 @@ func copyBodyAttributes(
 ) {
 	attrs := ast.SortRawAttributes(src.Attributes)
 	for _, attr := range attrs {
-		tokens, err := getExprTokens(attr.Expr)
-		if err != nil {
-			panic(errors.E(err, "internal error getting expression tokens"))
-		}
-		dest.SetAttributeRaw(attr.Name, tokens)
+		copyBodyAttribute(dest, attr, getExprTokens)
 	}
+}
+
+func copyBodyAttribute(
+	dest *hclwrite.Body,
+	src *hclsyntax.Attribute,
+	getExprTokens func(hclsyntax.Expression) (hclwrite.Tokens, error),
+) {
+	tokens, err := getExprTokens(src.Expr)
+	if err != nil {
+		panic(errors.E(err, "internal error getting expression tokens"))
+	}
+	dest.SetAttributeRaw(src.Name, tokens)
 }
 
 func getStackBody(parser *hcl.TerramateParser) (string, *hclsyntax.Body) {

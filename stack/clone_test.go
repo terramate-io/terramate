@@ -147,6 +147,7 @@ func TestStackCloneIfStackHasIDClonedStackHasNewUUID(t *testing.T) {
 	const (
 		stackID   = "stack-id"
 		stackName = "stack name"
+		stackDesc = "stack description"
 	)
 
 	hcldoc := hclwrite.BuildHCL
@@ -173,6 +174,7 @@ func TestStackCloneIfStackHasIDClonedStackHasNewUUID(t *testing.T) {
 		stackBlock(
 			str("id", stackID),
 			str("name", stackName),
+			str("description", stackDesc),
 		),
 		generateHCL(
 			labels("test.hcl"),
@@ -203,6 +205,7 @@ func TestStackCloneIfStackHasIDClonedStackHasNewUUID(t *testing.T) {
 	}
 
 	assert.EqualStrings(t, stackName, cfg.Stack.Name)
+	assert.EqualStrings(t, stackDesc, cfg.Stack.Description)
 
 	// TODO(katcipis): test generate_hcl is present
 }
