@@ -26,6 +26,23 @@ import (
 	"github.com/mineiros-io/terramate/hcl/eval"
 )
 
+// ParseTerramateConfig parses the Terramate configuration found
+// on the given dir, returning the parsed configuration.
+func ParseTerramateConfig(t *testing.T, dir string) hcl.Config {
+	t.Helper()
+
+	p, err := hcl.NewTerramateParser(dir, dir)
+	assert.NoError(t, err)
+
+	err = p.AddDir(dir)
+	assert.NoError(t, err)
+
+	cfg, err := p.Parse()
+	assert.NoError(t, err)
+
+	return cfg
+}
+
 // AssertTerramateConfig checks if two given Terramate configs are equal.
 func AssertTerramateConfig(t *testing.T, got, want hcl.Config) {
 	t.Helper()

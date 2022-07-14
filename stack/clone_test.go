@@ -15,6 +15,7 @@
 package stack_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -140,6 +141,32 @@ func TestStackCloneIgnoresDotDirsAndFiles(t *testing.T) {
 	entries := test.ReadDir(t, destdir)
 	assert.EqualInts(t, 1, len(entries), "expected only stack config file to be copied, got: %v", entriesNames(entries))
 	assert.EqualStrings(t, stack.DefaultFilename, entries[0].Name())
+}
+
+func TestStackCloneIfStackHasIDClonedStackHasNewUUID(t *testing.T) {
+	const stackID = "stack-id"
+
+	s := sandbox.New(t)
+	s.BuildTree([]string{fmt.Sprintf("s:stack:id=%s", stackID)})
+
+	srcdir := filepath.Join(s.RootDir(), "stack")
+	destdir := filepath.Join(s.RootDir(), "cloned-stack")
+	err := stack.Clone(s.RootDir(), destdir, srcdir)
+	assert.NoError(t, err)
+
+	cfg := test.ParseTerramateConfig(t, destdir)
+	if cfg.Stack == nil {
+		t.Fatalf("cloned stack has no stack block: %v", cfg)
+	}
+
+	clonedStackID, ok := cfg.Stack.ID.Value()
+	if !ok {
+		t.Fatalf("cloned stack has no ID: %v", cfg.Stack)
+	}
+
+	if clonedStackID == stackID {
+		t.Fatalf("want cloned stack to have different ID, got %s == %s", clonedStackID, stackID)
+	}
 }
 
 func entriesNames(entries []os.DirEntry) []string {
