@@ -1563,6 +1563,55 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 		},
 		{
+			name:  "tm_dynamic with labels",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							block("tm_dynamic",
+								labels("my_block"),
+								expr("for_each", `["a", "b", "c"]`),
+								expr("labels", `["label1", "label2"]`),
+								block("content",
+									expr("value", "my_block.value"),
+									expr("key", "my_block.key"),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "tm_dynamic_test.tf",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body: hcldoc(
+							block("my_block",
+								labels("label1", "label2"),
+								number("key", 0),
+								str("value", "a"),
+							),
+							block("my_block",
+								labels("label1", "label2"),
+								number("key", 1),
+								str("value", "b"),
+							),
+							block("my_block",
+								labels("label1", "label2"),
+								number("key", 2),
+								str("value", "c"),
+							),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "tm_dynamic partially evaluated",
 			stack: "/stack",
 			configs: []hclconfig{

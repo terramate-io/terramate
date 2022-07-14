@@ -948,6 +948,20 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 		iterator = iteratorTraversal.RootName()
 	}
 
+	var labels []string
+	labelsAttr, ok := attrs["labels"]
+	if ok {
+		labelsVal, err := eval.Eval(labelsAttr.Expr)
+		if err != nil {
+			return errors.E(err, "failed to evaluate the `labels` attribute")
+		}
+
+		err = assignSet("labels", &labels, labelsVal)
+		if err != nil {
+			return err
+		}
+	}
+
 	forEachAttr, ok := attrs["for_each"]
 	if !ok {
 		return errors.E(block.Body.Range(),
@@ -968,7 +982,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 
 	var tmDynamicErr error
 	forEachVal.ForEachElement(func(key, value cty.Value) (stop bool) {
-		newblock := target.AppendBlock(hclwrite.NewBlock(genBlockType, nil))
+		newblock := target.AppendBlock(hclwrite.NewBlock(genBlockType, labels))
 		if genContentBlock != nil {
 			eval.SetNamespace(iterator, map[string]cty.Value{
 				"key":   key,
