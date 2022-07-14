@@ -15,7 +15,6 @@
 package stack_test
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -24,6 +23,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
+	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -144,13 +144,47 @@ func TestStackCloneIgnoresDotDirsAndFiles(t *testing.T) {
 }
 
 func TestStackCloneIfStackHasIDClonedStackHasNewUUID(t *testing.T) {
-	const stackID = "stack-id"
+	const (
+		stackID   = "stack-id"
+		stackName = "stack name"
+	)
+
+	hcldoc := hclwrite.BuildHCL
+	block := hclwrite.BuildBlock
+	labels := func(labels ...string) hclwrite.BlockBuilder {
+		return hclwrite.Labels(labels...)
+	}
+	stackBlock := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return block("stack", builders...)
+	}
+	generateHCL := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return block("generate_hcl", builders...)
+	}
+	content := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return block("content", builders...)
+	}
+	str := hclwrite.String
 
 	s := sandbox.New(t)
-	s.BuildTree([]string{fmt.Sprintf("s:stack:id=%s", stackID)})
+	s.BuildTree([]string{"d:stack"})
+
+	stackEntry := s.DirEntry("stack")
+	stackEntry.CreateFile("stack.tm.hcl", hcldoc(
+		stackBlock(
+			str("id", stackID),
+			str("name", stackName),
+		),
+		generateHCL(
+			labels("test.hcl"),
+			content(
+				str("something", "content"),
+			),
+		),
+	).String())
 
 	srcdir := filepath.Join(s.RootDir(), "stack")
 	destdir := filepath.Join(s.RootDir(), "cloned-stack")
+
 	err := stack.Clone(s.RootDir(), destdir, srcdir)
 	assert.NoError(t, err)
 
@@ -167,6 +201,10 @@ func TestStackCloneIfStackHasIDClonedStackHasNewUUID(t *testing.T) {
 	if clonedStackID == stackID {
 		t.Fatalf("want cloned stack to have different ID, got %s == %s", clonedStackID, stackID)
 	}
+
+	assert.EqualStrings(t, stackName, cfg.Stack.Name)
+
+	// TODO(katcipis): test generate_hcl is present
 }
 
 func entriesNames(entries []os.DirEntry) []string {

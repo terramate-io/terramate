@@ -31,13 +31,13 @@ import (
 func ParseTerramateConfig(t *testing.T, dir string) hcl.Config {
 	t.Helper()
 
-	p, err := hcl.NewTerramateParser(dir, dir)
+	parser, err := hcl.NewTerramateParser(dir, dir)
 	assert.NoError(t, err)
 
-	err = p.AddDir(dir)
+	err = parser.AddDir(dir)
 	assert.NoError(t, err)
 
-	cfg, err := p.Parse()
+	cfg, err := parser.Parse()
 	assert.NoError(t, err)
 
 	return cfg

@@ -20,8 +20,15 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/google/uuid"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/ast"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/rs/zerolog/log"
+	"github.com/zclconf/go-cty/cty"
 )
 
 const (
@@ -76,8 +83,7 @@ func Clone(rootdir, destdir, srcdir string) error {
 	}
 
 	logger.Trace().Msg("stack has ID, updating ID of the cloned stack")
-	// TODO(katcipis): handle stack ID change
-	return nil
+	return updateStackID(destdir)
 }
 
 func copyDir(destdir, srcdir string) error {
@@ -123,4 +129,126 @@ func copyFile(destfile, srcfile string) error {
 	}
 	_, err = io.Copy(dest, src)
 	return err
+}
+
+func updateStackID(stackdir string) error {
+	logger := log.With().
+		Str("action", "stack.updateStackID()").
+		Str("stack", stackdir).
+		Logger()
+
+	logger.Trace().Msg("parsing stack")
+
+	parser, err := hcl.NewTerramateParser(stackdir, stackdir)
+	if err != nil {
+		return err
+	}
+
+	if err := parser.AddDir(stackdir); err != nil {
+		return err
+	}
+
+	if err := parser.MinimalParse(); err != nil {
+		return err
+	}
+
+	logger.Trace().Msg("finding file containing stack definition")
+
+	stackFilePath, body := getStackBody(parser)
+	if body == nil {
+		return errors.E("updating stack ID: stack block not found")
+	}
+
+	// WHY oh WHY do you ask ? Integrating hcl/hclsyntax types on the
+	// hclwrite is remarkably hard, it only works with cty.Values or tokens.
+	// Since we don't want to eval anything here, tokens it is.
+	// Then you may ask... is it possible to get the tokens of an expression
+	// easily ? The answer, to your dismay, will be no. Hence this wonderful
+	// hack, enjoy.
+	// - https://raw.githubusercontent.com/katcipis/memes/master/satan.jpg
+
+	stackContents, err := os.ReadFile(stackFilePath)
+	if err != nil {
+		return errors.E(err, "reading cloned stack definition file")
+	}
+
+	getExprTokens := func(expr hclsyntax.Expression) (hclwrite.Tokens, error) {
+		tokens, err := eval.GetExpressionTokens(stackContents, stackFilePath, expr)
+		if err != nil {
+			return nil, errors.E(err, "internal error converting expression to tokens")
+		}
+		return tokens, nil
+	}
+
+	newStackFile := hclwrite.NewEmptyFile()
+
+	newBody := newStackFile.Body()
+
+	// Today we don't have attributes on the root body, but if we add any
+	// someday then the code will just keep working.
+	copyBodyAttributes(newBody, body, getExprTokens)
+
+	for _, block := range body.Blocks {
+		newBlock := newBody.AppendNewBlock(block.Type, block.Labels)
+		if block.Body == nil {
+			continue
+		}
+
+		newBody := newBlock.Body()
+
+		if block.Type != hcl.StackBlockType {
+			if err := hcl.CopyBody(newBody, block.Body, getExprTokens); err != nil {
+				return err
+			}
+			continue
+		}
+
+		attrs := ast.SortRawAttributes(block.Body.Attributes)
+		for _, attr := range attrs {
+			if attr.Name == hcl.StackIDField {
+				id, err := uuid.NewRandom()
+				if err != nil {
+					return errors.E(err, "creating new UUID for cloned stack")
+				}
+				newBody.SetAttributeValue(attr.Name, cty.StringVal(id.String()))
+				continue
+			}
+
+			tokens, err := getExprTokens(attr.Expr)
+			if err != nil {
+				panic(errors.E(err, "internal error getting expression tokens"))
+			}
+			newBody.SetAttributeRaw(attr.Name, tokens)
+		}
+	}
+
+	// Since we just created the clones stack files they have the default
+	// permissions given by Go on os.Create, 0666.
+	return os.WriteFile(stackFilePath, newStackFile.Bytes(), 0666)
+}
+
+func copyBodyAttributes(
+	dest *hclwrite.Body,
+	src *hclsyntax.Body,
+	getExprTokens func(hclsyntax.Expression) (hclwrite.Tokens, error),
+) {
+	attrs := ast.SortRawAttributes(src.Attributes)
+	for _, attr := range attrs {
+		tokens, err := getExprTokens(attr.Expr)
+		if err != nil {
+			panic(errors.E(err, "internal error getting expression tokens"))
+		}
+		dest.SetAttributeRaw(attr.Name, tokens)
+	}
+}
+
+func getStackBody(parser *hcl.TerramateParser) (string, *hclsyntax.Body) {
+	for filepath, body := range parser.ParsedBodies() {
+		for _, block := range body.Blocks {
+			if block.Type == hcl.StackBlockType {
+				return filepath, body
+			}
+		}
+	}
+	return "", nil
 }

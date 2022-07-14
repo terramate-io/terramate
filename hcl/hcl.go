@@ -40,6 +40,14 @@ const (
 	ErrImport          errors.Kind = "import error"
 )
 
+const (
+	// StackBlockType name of the stack block type
+	StackBlockType = "stack"
+
+	// StackIDField name of the stack id field
+	StackIDField = "id"
+)
+
 // Config represents a Terramate configuration.
 type Config struct {
 	Terramate *Terramate
@@ -977,7 +985,7 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 			Msg("Setting attribute on configuration.")
 
 		switch attr.Name {
-		case "id":
+		case StackIDField:
 			if attrVal.Type() != cty.String {
 				errs.Append(hclAttrEvalErr(attr,
 					"field stack.id must be a string but is %q",
@@ -991,7 +999,7 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 				continue
 			}
 			logger.Trace().
-				Str("id", attrVal.AsString()).
+				Str(StackIDField, attrVal.AsString()).
 				Msg("found valid stack ID definition")
 			stack.ID = id
 		case "name":
@@ -1287,7 +1295,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 			Str("block", block.Type).
 			Logger()
 
-		if block.Type == "stack" {
+		if block.Type == StackBlockType {
 			logger.Trace().Msg("Found stack block type.")
 
 			if foundstack {
