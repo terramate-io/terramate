@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -37,6 +38,15 @@ const (
 // - If cloned stack has an ID it will be adjusted to a generated UUID.
 // - If cloned stack has no ID the cloned stack also won't have an ID.
 func Clone(rootdir, destdir, srcdir string) error {
+	logger := log.With().
+		Str("action", "stack.Clone()").
+		Str("rootdir", rootdir).
+		Str("destdir", destdir).
+		Str("srcdir", srcdir).
+		Logger()
+
+	logger.Trace().Msg("cloning stack, checking invariants")
+
 	if !strings.HasPrefix(srcdir, rootdir) {
 		return errors.E(ErrInvalidStackDir, "src dir %q must be inside project root %q", srcdir, rootdir)
 	}
@@ -49,12 +59,25 @@ func Clone(rootdir, destdir, srcdir string) error {
 		return errors.E(ErrCloneDestDirExists, destdir)
 	}
 
-	_, err := Load(rootdir, srcdir)
+	srcStack, err := Load(rootdir, srcdir)
 	if err != nil {
 		return errors.E(ErrInvalidStackDir, err, "src dir %q must be a valid stack", srcdir)
 	}
 
-	return copyDir(destdir, srcdir)
+	logger.Trace().Msg("copying stack files")
+
+	if err := copyDir(destdir, srcdir); err != nil {
+		return err
+	}
+
+	if _, ok := srcStack.ID(); !ok {
+		logger.Trace().Msg("stack has no ID, nothing else to do")
+		return nil
+	}
+
+	logger.Trace().Msg("stack has ID, updating ID of the cloned stack")
+	// TODO(katcipis): handle stack ID change
+	return nil
 }
 
 func copyDir(destdir, srcdir string) error {
