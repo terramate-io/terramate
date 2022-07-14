@@ -35,9 +35,10 @@ import (
 
 // Errors returned during the HCL parsing.
 const (
-	ErrHCLSyntax       errors.Kind = "HCL syntax error"
-	ErrTerramateSchema errors.Kind = "terramate schema error"
-	ErrImport          errors.Kind = "import error"
+	ErrHCLSyntax              errors.Kind = "HCL syntax error"
+	ErrTerramateSchema        errors.Kind = "terramate schema error"
+	ErrImport                 errors.Kind = "import error"
+	ErrInvalidDynamicIterator errors.Kind = "invalid dynamic iterator"
 )
 
 // Config represents a Terramate configuration.
@@ -932,6 +933,21 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 		return err
 	}
 
+	iterator := genBlockType
+	iteratorAttr, ok := attrs["iterator"]
+	if ok {
+		iteratorTraversal, diags := hcl.AbsTraversalForExpr(iteratorAttr.Expr)
+		if diags.HasErrors() {
+			return errors.E(diags, "failed to traverse expression")
+		}
+		if len(iteratorTraversal) != 1 {
+			return errors.E(iteratorAttr.Expr.Range(),
+				ErrInvalidDynamicIterator,
+				"dynamic iterator must be a single variable name.")
+		}
+		iterator = iteratorTraversal.RootName()
+	}
+
 	forEachAttr, ok := attrs["for_each"]
 	if !ok {
 		return errors.E(block.Body.Range(),
@@ -954,7 +970,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 	forEachVal.ForEachElement(func(key, value cty.Value) (stop bool) {
 		newblock := target.AppendBlock(hclwrite.NewBlock(genBlockType, nil))
 		if genContentBlock != nil {
-			eval.SetNamespace(genBlockType, map[string]cty.Value{
+			eval.SetNamespace(iterator, map[string]cty.Value{
 				"key":   key,
 				"value": value,
 			})
@@ -967,6 +983,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 		}
 		return false
 	})
+	eval.DeleteNamespace(iterator)
 	return tmDynamicErr
 }
 

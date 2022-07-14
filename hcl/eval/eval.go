@@ -71,6 +71,7 @@ func (c *Context) SetNamespace(name string, vals map[string]cty.Value) {
 }
 
 // DeleteNamespace deletes the namespace name from the context.
+// If name is not in the context, it's a no-op.
 func (c *Context) DeleteNamespace(name string) {
 	delete(c.hclctx.Variables, name)
 }
