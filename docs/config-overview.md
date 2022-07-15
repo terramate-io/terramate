@@ -147,7 +147,7 @@ The `terramate.config.run` block has no labels and has the following schema:
 
 | name             |      type      | description | default |
 |------------------|----------------|-------------|---------|
-| check\_gen_\_code | boolean | Enable generated code is updated | true
+| check\_gen_\_code | boolean | Enable check for up to date generated code | true
 
 ## terramate.config.run.env block schema
 
