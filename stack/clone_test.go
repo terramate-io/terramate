@@ -15,6 +15,7 @@
 package stack_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -140,6 +141,83 @@ func TestStackCloneIgnoresDotDirsAndFiles(t *testing.T) {
 	entries := test.ReadDir(t, destdir)
 	assert.EqualInts(t, 1, len(entries), "expected only stack config file to be copied, got: %v", entriesNames(entries))
 	assert.EqualStrings(t, stack.DefaultFilename, entries[0].Name())
+}
+
+func TestStackCloneIfStackHasIDClonedStackHasNewUUID(t *testing.T) {
+	const (
+		stackID          = "stack-id"
+		stackName        = "stack name"
+		stackDesc        = "stack description"
+		stackCfgFilename = "stack.tm.hcl"
+		stackCfgTemplate = `
+// Commenting generate_hcl 1
+generate_hcl "test.hcl" {
+  content {
+    // Commenting literal
+    a = "literal"
+    // Commenting expression
+    b = tm_try(global.expression, null)
+  }
+}
+
+// Some comments
+/*
+  Commenting is fun
+*/
+
+stack{
+  // Commenting stack ID
+  id = %q // comment after ID expression
+  // Commenting stack name
+  name = %q // More comments !!
+  // Commenting stack description
+  description = %q
+}
+
+generate_hcl "test2.hcl" {
+  content {
+    b = tm_try(global.expression, null)
+    a = "literal"
+  }
+}
+`
+	)
+	s := sandbox.New(t)
+	s.BuildTree([]string{"d:stack"})
+
+	stackEntry := s.DirEntry("stack")
+	stackEntry.CreateFile(stackCfgFilename, fmt.Sprintf(stackCfgTemplate,
+		stackID, stackName, stackDesc))
+
+	srcdir := filepath.Join(s.RootDir(), "stack")
+	destdir := filepath.Join(s.RootDir(), "cloned-stack")
+
+	err := stack.Clone(s.RootDir(), destdir, srcdir)
+	assert.NoError(t, err)
+
+	cfg := test.ParseTerramateConfig(t, destdir)
+	if cfg.Stack == nil {
+		t.Fatalf("cloned stack has no stack block: %v", cfg)
+	}
+
+	clonedStackID, ok := cfg.Stack.ID.Value()
+	if !ok {
+		t.Fatalf("cloned stack has no ID: %v", cfg.Stack)
+	}
+
+	if clonedStackID == stackID {
+		t.Fatalf("want cloned stack to have different ID, got %s == %s", clonedStackID, stackID)
+	}
+
+	assert.EqualStrings(t, stackName, cfg.Stack.Name)
+	assert.EqualStrings(t, stackDesc, cfg.Stack.Description)
+
+	want := fmt.Sprintf(stackCfgTemplate, clonedStackID, stackName, stackDesc)
+
+	clonedStackEntry := s.DirEntry("cloned-stack")
+	got := string(clonedStackEntry.ReadFile(stackCfgFilename))
+
+	assert.EqualStrings(t, want, got, "want:\n%s\ngot:\n%s\n", want, got)
 }
 
 func entriesNames(entries []os.DirEntry) []string {
