@@ -180,6 +180,7 @@ func TestStackCloneIfStackHasIDClonedStackHasNewUUID(t *testing.T) {
 			labels("test.hcl"),
 			content(
 				str("something", "content"),
+				// TODO: add some expressions here
 			),
 		),
 	).String())
@@ -208,6 +209,8 @@ func TestStackCloneIfStackHasIDClonedStackHasNewUUID(t *testing.T) {
 	assert.EqualStrings(t, stackDesc, cfg.Stack.Description)
 
 	// TODO(katcipis): test generate_hcl is present
+	// Maybe test the whole generated code with the new ID like we
+	// test genhcl,etc.
 }
 
 func entriesNames(entries []os.DirEntry) []string {
