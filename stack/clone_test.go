@@ -145,46 +145,47 @@ func TestStackCloneIgnoresDotDirsAndFiles(t *testing.T) {
 
 func TestStackCloneIfStackHasIDClonedStackHasNewUUID(t *testing.T) {
 	const (
-		stackID   = "stack-id"
-		stackName = "stack name"
-		stackDesc = "stack description"
+		stackID          = "stack-id"
+		stackName        = "stack name"
+		stackDesc        = "stack description"
+		stackCfgFilename = "stack.tm.hcl"
 	)
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{"d:stack"})
 
 	stackEntry := s.DirEntry("stack")
-	stackEntry.CreateFile("stack.tm.hcl", fmt.Sprintf(`
-		// Commenting generate_hcl 1
-		generate_hcl "test.hcl" {
-		  content {
-		    // Commenting literal
-		    a = "literal"
-		    // Commenting expression
-		    b = tm_try(global.expression, null)
-		  }
-		}
+	stackEntry.CreateFile(stackCfgFilename, fmt.Sprintf(`
+// Commenting generate_hcl 1
+generate_hcl "test.hcl" {
+  content {
+    // Commenting literal
+    a = "literal"
+    // Commenting expression
+    b = tm_try(global.expression, null)
+  }
+}
 
-		// Some comments
-		/*
-		  Commenting is fun
-		*/
+// Some comments
+/*
+  Commenting is fun
+*/
 
-		stack{
-		  // Commenting stack ID
-		  id = %q
-		  // Commenting stack name
-		  name = %q // More comments !!
-		  // Commenting stack description
-		  description = %q
-		}
+stack{
+  // Commenting stack ID
+  id = %q
+  // Commenting stack name
+  name = %q // More comments !!
+  // Commenting stack description
+  description = %q
+}
 
-		generate_hcl "test2.hcl" {
-		  content {
-		    b = tm_try(global.expression, null)
-		    a = "literal"
-		  }
-		}
+generate_hcl "test2.hcl" {
+  content {
+    b = tm_try(global.expression, null)
+    a = "literal"
+  }
+}
 	`, stackID, stackName, stackDesc))
 
 	srcdir := filepath.Join(s.RootDir(), "stack")
@@ -210,9 +211,43 @@ func TestStackCloneIfStackHasIDClonedStackHasNewUUID(t *testing.T) {
 	assert.EqualStrings(t, stackName, cfg.Stack.Name)
 	assert.EqualStrings(t, stackDesc, cfg.Stack.Description)
 
-	// TODO(katcipis): test generate_hcl is present
-	// Maybe test the whole generated code with the new ID like we
-	// test genhcl,etc.
+	want := fmt.Sprintf(`
+// Commenting generate_hcl 1
+generate_hcl "test.hcl" {
+  content {
+    // Commenting literal
+    a = "literal"
+    // Commenting expression
+    b = tm_try(global.expression, null)
+  }
+}
+
+// Some comments
+/*
+  Commenting is fun
+*/
+
+stack{
+  // Commenting stack ID
+  id = %q
+  // Commenting stack name
+  name = %q // More comments !!
+  // Commenting stack description
+  description = %q
+}
+
+generate_hcl "test2.hcl" {
+  content {
+    b = tm_try(global.expression, null)
+    a = "literal"
+  }
+}
+	`, clonedStackID, stackName, stackDesc)
+
+	clonedStackEntry := s.DirEntry("cloned-stack")
+	got := string(clonedStackEntry.ReadFile(stackCfgFilename))
+
+	assert.EqualStrings(t, want, got, "want:\n%s\ngot:\n%s\n", want, got)
 }
 
 func entriesNames(entries []os.DirEntry) []string {
