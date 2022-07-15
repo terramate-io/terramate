@@ -76,7 +76,7 @@ func (c *Context) DeleteNamespace(name string) {
 	delete(c.hclctx.Variables, name)
 }
 
-// HasNamespace returns true the evaluation context knows this variable, false otherwise.
+// HasNamespace returns true the evaluation context knows this namespace, false otherwise.
 func (c *Context) HasNamespace(name string) bool {
 	_, has := c.hclctx.Variables[name]
 	return has
