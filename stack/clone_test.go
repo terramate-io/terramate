@@ -15,6 +15,7 @@
 package stack_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -23,7 +24,6 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
-	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -150,40 +150,42 @@ func TestStackCloneIfStackHasIDClonedStackHasNewUUID(t *testing.T) {
 		stackDesc = "stack description"
 	)
 
-	hcldoc := hclwrite.BuildHCL
-	block := hclwrite.BuildBlock
-	labels := func(labels ...string) hclwrite.BlockBuilder {
-		return hclwrite.Labels(labels...)
-	}
-	stackBlock := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return block("stack", builders...)
-	}
-	generateHCL := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return block("generate_hcl", builders...)
-	}
-	content := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return block("content", builders...)
-	}
-	str := hclwrite.String
-
 	s := sandbox.New(t)
 	s.BuildTree([]string{"d:stack"})
 
 	stackEntry := s.DirEntry("stack")
-	stackEntry.CreateFile("stack.tm.hcl", hcldoc(
-		stackBlock(
-			str("id", stackID),
-			str("name", stackName),
-			str("description", stackDesc),
-		),
-		generateHCL(
-			labels("test.hcl"),
-			content(
-				str("something", "content"),
-				// TODO: add some expressions here
-			),
-		),
-	).String())
+	stackEntry.CreateFile("stack.tm.hcl", fmt.Sprintf(`
+		// Commenting generate_hcl 1
+		generate_hcl "test.hcl" {
+		  content {
+		    // Commenting literal
+		    a = "literal"
+		    // Commenting expression
+		    b = tm_try(global.expression, null)
+		  }
+		}
+
+		// Some comments
+		/*
+		  Commenting is fun
+		*/
+
+		stack{
+		  // Commenting stack ID
+		  id = %q
+		  // Commenting stack name
+		  name = %q // More comments !!
+		  // Commenting stack description
+		  description = %q
+		}
+
+		generate_hcl "test2.hcl" {
+		  content {
+		    b = tm_try(global.expression, null)
+		    a = "literal"
+		  }
+		}
+	`, stackID, stackName, stackDesc))
 
 	srcdir := filepath.Join(s.RootDir(), "stack")
 	destdir := filepath.Join(s.RootDir(), "cloned-stack")
