@@ -70,6 +70,12 @@ func (c *Context) SetNamespace(name string, vals map[string]cty.Value) {
 	c.hclctx.Variables[name] = cty.ObjectVal(vals)
 }
 
+// DeleteNamespace deletes the namespace name from the context.
+// If name is not in the context, it's a no-op.
+func (c *Context) DeleteNamespace(name string) {
+	delete(c.hclctx.Variables, name)
+}
+
 // HasNamespace returns true the evaluation context knows this namespace, false otherwise.
 func (c *Context) HasNamespace(name string) bool {
 	_, has := c.hclctx.Variables[name]
