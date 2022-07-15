@@ -204,7 +204,7 @@ func updateStackID(stackdir string) error {
 	// id = "id"
 	// Id's are very constrained and are always strings, so we expect
 	// the tokens: TokenOQuote + TokenQuotedLit + TokenCQuote
-	idQuotedLiteral := tokens[blockStart+idAttributeOffset+2]
+	idQuotedLiteral := tokens[blockStart+idAttributeOffset+3]
 	id, err := uuid.NewRandom()
 	if err != nil {
 		return errors.E(err, "creating new ID for cloned stack")

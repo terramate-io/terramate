@@ -52,39 +52,27 @@ func TokenEquals(token1, token2 *hclwrite.Token) bool {
 }
 
 // FindTokenSequence finds the first match of the given token sequence
-// on the given tokens, returning the position of the last token of the
-// matched sequence, so the next token (if any) would be what is after the
-// given sequence. The contents of the tokens are also matched, not only their type.
+// on the given tokens, returning the position of the first token of the
+// matched sequence. The contents of the tokens are also matched, not only their type.
 func FindTokenSequence(tokens hclwrite.Tokens, seq ...*hclwrite.Token) (int, bool) {
 	if len(seq) == 0 {
 		return 0, false
 	}
-	matchHead := seq[0]
-
 searchMatch:
-	for i, token := range tokens {
-		if !TokenEquals(token, matchHead) {
-			continue
-		}
+	for i := 0; i < len(tokens); i++ {
+		for j := 0; j < len(seq); j++ {
+			pos := i + j
 
-		pendingMatches := seq[1:]
-		position := i + len(pendingMatches)
-
-		for _, token := range tokens[i+1:] {
-			if len(pendingMatches) == 0 {
-				break
+			if pos >= len(tokens) {
+				break searchMatch
 			}
-			if !TokenEquals(token, pendingMatches[0]) {
+
+			if !TokenEquals(tokens[pos], seq[j]) {
 				continue searchMatch
 			}
-			pendingMatches = pendingMatches[1:]
 		}
-
-		if len(pendingMatches) == 0 {
-			return position, true
-		}
+		return i, true
 	}
-
 	return 0, false
 }
 
