@@ -113,7 +113,6 @@ func GetExpressionTokens(hcldoc []byte, filename string, expr hclsyntax.Expressi
 	if diags.HasErrors() {
 		return nil, errors.E(diags, "failed to scan expression")
 	}
-	// TODO(katcipis): use the new lex function
 	return toWriteTokens(tokens), nil
 }
 
