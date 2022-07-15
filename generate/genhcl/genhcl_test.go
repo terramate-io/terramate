@@ -1564,21 +1564,26 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 		},
 		{
-			name:  "tm_dynamic with labels",
+			name:  "tm_dynamic with labels from globals",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							block("tm_dynamic",
-								labels("my_block"),
-								expr("for_each", `["a", "b", "c"]`),
-								expr("labels", `["label1", "label2"]`),
-								block("content",
-									expr("value", "my_block.value"),
-									expr("key", "my_block.key"),
+					add: hcldoc(
+						globals(
+							expr("labels", `["label1", "label2"]`),
+						),
+						generateHCL(
+							labels("tm_dynamic_test.tf"),
+							content(
+								block("tm_dynamic",
+									labels("my_block"),
+									expr("for_each", `["a", "b", "c"]`),
+									expr("labels", `global.labels`),
+									block("content",
+										expr("value", "my_block.value"),
+										expr("key", "my_block.key"),
+									),
 								),
 							),
 						),

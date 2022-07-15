@@ -911,7 +911,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 		errs.Append(errors.E(ErrTerramateSchema,
 			block.LabelRanges, "tm_dynamic requires a label"))
 	}
-	genBlockType := block.Labels[0]
+
 	var genContentBlock *hclsyntax.Block
 
 	for _, b := range block.Body.Blocks {
@@ -941,6 +941,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 		return err
 	}
 
+	genBlockType := block.Labels[0]
 	iterator := genBlockType
 	iteratorAttr, ok := attrs["iterator"]
 	if ok {
@@ -950,8 +951,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 				"failed to traverse expression")
 		}
 		if len(iteratorTraversal) != 1 {
-			return errors.E(iteratorAttr.Expr.Range(),
-				ErrInvalidDynamicIterator,
+			return hclAttrEvalErr(iteratorAttr,
 				"dynamic iterator must be a single variable name.")
 		}
 		iterator = iteratorTraversal.RootName()
@@ -962,7 +962,8 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 	if ok {
 		labelsVal, err := eval.Eval(labelsAttr.Expr)
 		if err != nil {
-			return errors.E(err, "failed to evaluate the `labels` attribute")
+			return hclAttrEvalErr(labelsAttr,
+				"failed to evaluate the `labels` attribute")
 		}
 
 		err = assignSet("labels", &labels, labelsVal)
@@ -980,12 +981,11 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 
 	forEachVal, err := eval.Eval(forEachAttr.Expr)
 	if err != nil {
-		return errors.E(forEachAttr.Expr.Range(),
-			"evaluting `for_each` expression")
+		return hclAttrEvalErr(forEachAttr, "evaluting `for_each` expression")
 	}
 
 	if !forEachVal.CanIterateElements() {
-		return errors.E(forEachAttr.Expr.Range(),
+		return hclAttrEvalErr(forEachAttr,
 			"expression value of type %s cannot be iterated",
 			forEachVal.Type().FriendlyName())
 	}
