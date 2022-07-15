@@ -132,10 +132,29 @@ The `terramate.config` block has no labels and has the following schema:
 
 The `terramate.config.git` block has no labels and has the following schema:
 
-| name             |      type      | description |
-|------------------|----------------|-------------|
+| name             |      type      | description | default |
+|------------------|----------------|-------------|---------|
 | default\_branch | string | The default git branch |
 | default\_remote | string | The default git remote |
+| default\_branch\_base\_ref| string | The default git branch base reference |
+| check\_untracked | boolean | Enable check of untracked files | true
+| check\_uncommitted | boolean | Enable check of uncommitted files | true
+| check\_remote | boolean | Enable checking if local main is updated with remote | true
+
+## terramate.config.run block schema
+
+The `terramate.config.run` block has no labels and has the following schema:
+
+| name             |      type      | description | default |
+|------------------|----------------|-------------|---------|
+| check\_gen_\_code | boolean | Enable check for up to date generated code | true
+
+## terramate.config.run.env block schema
+
+The `terramate.config.run.env` block has no labels and it allows arbitrary
+attributes. Each attribute **must** evaluate to a string.
+
+More details can be found [here](project-config.md#the-terramateconfigrunenv-block).
 
 # stack block schema
 
