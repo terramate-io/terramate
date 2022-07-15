@@ -58,6 +58,10 @@ type CreateCfg struct {
 	Imports []string
 }
 
+const (
+	createDirMode = 0755
+)
+
 // Create creates a stack according to the given configuration.
 // Any dirs on the path provided on the configuration that doesn't exist
 // will be created.
@@ -70,10 +74,6 @@ func Create(rootdir string, cfg CreateCfg) (err error) {
 		Stringer("cfg", cfg).
 		Logger()
 
-	if !filepath.IsAbs(cfg.Dir) {
-		return errors.E(ErrInvalidStackDir, "relative paths not allowed")
-	}
-
 	if !strings.HasPrefix(cfg.Dir, rootdir) {
 		return errors.E(ErrInvalidStackDir, "stack %q must be inside project root %q", cfg.Dir, rootdir)
 	}
@@ -84,7 +84,7 @@ func Create(rootdir string, cfg CreateCfg) (err error) {
 
 	logger.Trace().Msg("creating stack dir if absent")
 
-	if err := os.MkdirAll(cfg.Dir, 0755); err != nil {
+	if err := os.MkdirAll(cfg.Dir, createDirMode); err != nil {
 		return errors.E(err, "failed to create new stack directories")
 	}
 

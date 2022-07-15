@@ -34,7 +34,7 @@ func AssertStackImports(t *testing.T, rootdir string, got stack.S, want []string
 	err = parser.AddDir(got.HostPath())
 	assert.NoError(t, err)
 
-	err = parser.MinimalParse()
+	err = parser.Parse()
 	assert.NoError(t, err)
 
 	imports, err := parser.Imports()

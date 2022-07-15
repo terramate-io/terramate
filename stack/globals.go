@@ -237,7 +237,7 @@ func loadStackGlobalsExprs(rootdir string, cfgdir string) (*globalsExpr, error) 
 		return nil, errors.E("adding dir to parser", err)
 	}
 
-	err = p.MinimalParse()
+	err = p.Parse()
 	if err != nil {
 		return nil, errors.E("parsing config", err)
 	}
