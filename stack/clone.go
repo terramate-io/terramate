@@ -20,15 +20,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/ast"
-	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/hcl/lex"
 	"github.com/rs/zerolog/log"
-	"github.com/zclconf/go-cty/cty"
 )
 
 const (
@@ -159,14 +157,9 @@ func updateStackID(stackdir string) error {
 		return errors.E("updating stack ID: stack block not found")
 	}
 
-	// WHY oh WHY do you ask ? Integrating hcl/hclsyntax types on the
-	// hclwrite is remarkably hard, it only works with cty.Values or tokens.
-	// Since we don't want to eval anything here, tokens it is.
-	// Then you may ask... is it possible to get the tokens of an expression
-	// easily ? The answer, to your dismay, will be no. Hence this wonderful
-	// hack, enjoy. A nicer generalization of config changes on the hcl
-	// package would be cool, but no time now and we are not sure this is
-	// a common problem.
+	// WHY oh WHY do you ask ? Parsing HCL always delivers an AST that
+	// has no comments on it, so building a new HCL file from the parsed
+	// AST will lose all comments from the original code.
 	//
 	// - https://raw.githubusercontent.com/katcipis/memes/master/satan.jpg
 
@@ -175,52 +168,17 @@ func updateStackID(stackdir string) error {
 		return errors.E(err, "reading cloned stack definition file")
 	}
 
-	getExprTokens := func(expr hclsyntax.Expression) (hclwrite.Tokens, error) {
-		tokens, err := eval.GetExpressionTokens(stackContents, stackFilePath, expr)
-		if err != nil {
-			return nil, errors.E(err, "internal error converting expression to tokens")
-		}
-		return tokens, nil
+	roTokens, err := lex.Config(stackContents, stackFilePath)
+	if err != nil {
+		return errors.E(err, "critical error, cloned stack is invalid HCL")
 	}
 
-	newStackFile := hclwrite.NewEmptyFile()
-	newBody := newStackFile.Body()
-
-	copyBodyAttributes(newBody, body, getExprTokens)
-
-	for _, block := range body.Blocks {
-		newBlock := newBody.AppendNewBlock(block.Type, block.Labels)
-		if block.Body == nil {
-			continue
-		}
-
-		newBody := newBlock.Body()
-
-		if block.Type != hcl.StackBlockType {
-			if err := hcl.CopyBody(newBody, block.Body, getExprTokens); err != nil {
-				return err
-			}
-			continue
-		}
-
-		attrs := ast.SortRawAttributes(block.Body.Attributes)
-		for _, attr := range attrs {
-			if attr.Name == hcl.StackIDField {
-				id, err := uuid.NewRandom()
-				if err != nil {
-					return errors.E(err, "creating new UUID for cloned stack")
-				}
-				newBody.SetAttributeValue(attr.Name, cty.StringVal(id.String()))
-				continue
-			}
-
-			copyBodyAttribute(newBody, attr, getExprTokens)
-		}
-	}
+	tokens := lex.WriterTokens(roTokens)
+	//blockStart, ok := lex.FindTokenSequence(tokens, lex.TokenIdent("stack"), lex.TokenOBrace())
 
 	// Since we just created the clones stack files they have the default
 	// permissions given by Go on os.Create, 0666.
-	return os.WriteFile(stackFilePath, newStackFile.Bytes(), 0666)
+	return os.WriteFile(stackFilePath, tokens.Bytes(), 0666)
 }
 
 func copyBodyAttributes(

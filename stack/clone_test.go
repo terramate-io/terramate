@@ -149,13 +149,7 @@ func TestStackCloneIfStackHasIDClonedStackHasNewUUID(t *testing.T) {
 		stackName        = "stack name"
 		stackDesc        = "stack description"
 		stackCfgFilename = "stack.tm.hcl"
-	)
-
-	s := sandbox.New(t)
-	s.BuildTree([]string{"d:stack"})
-
-	stackEntry := s.DirEntry("stack")
-	stackEntry.CreateFile(stackCfgFilename, fmt.Sprintf(`
+		stackCfgTemplate = `
 // Commenting generate_hcl 1
 generate_hcl "test.hcl" {
   content {
@@ -173,7 +167,7 @@ generate_hcl "test.hcl" {
 
 stack{
   // Commenting stack ID
-  id = %q
+  id = %q // comment after ID expression
   // Commenting stack name
   name = %q // More comments !!
   // Commenting stack description
@@ -186,7 +180,14 @@ generate_hcl "test2.hcl" {
     a = "literal"
   }
 }
-	`, stackID, stackName, stackDesc))
+`
+	)
+	s := sandbox.New(t)
+	s.BuildTree([]string{"d:stack"})
+
+	stackEntry := s.DirEntry("stack")
+	stackEntry.CreateFile(stackCfgFilename, fmt.Sprintf(stackCfgTemplate,
+		stackID, stackName, stackDesc))
 
 	srcdir := filepath.Join(s.RootDir(), "stack")
 	destdir := filepath.Join(s.RootDir(), "cloned-stack")
@@ -211,38 +212,7 @@ generate_hcl "test2.hcl" {
 	assert.EqualStrings(t, stackName, cfg.Stack.Name)
 	assert.EqualStrings(t, stackDesc, cfg.Stack.Description)
 
-	want := fmt.Sprintf(`
-// Commenting generate_hcl 1
-generate_hcl "test.hcl" {
-  content {
-    // Commenting literal
-    a = "literal"
-    // Commenting expression
-    b = tm_try(global.expression, null)
-  }
-}
-
-// Some comments
-/*
-  Commenting is fun
-*/
-
-stack{
-  // Commenting stack ID
-  id = %q
-  // Commenting stack name
-  name = %q // More comments !!
-  // Commenting stack description
-  description = %q
-}
-
-generate_hcl "test2.hcl" {
-  content {
-    b = tm_try(global.expression, null)
-    a = "literal"
-  }
-}
-	`, clonedStackID, stackName, stackDesc)
+	want := fmt.Sprintf(stackCfgTemplate, clonedStackID, stackName, stackDesc)
 
 	clonedStackEntry := s.DirEntry("cloned-stack")
 	got := string(clonedStackEntry.ReadFile(stackCfgFilename))
