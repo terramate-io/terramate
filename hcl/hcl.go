@@ -35,9 +35,10 @@ import (
 
 // Errors returned during the HCL parsing.
 const (
-	ErrHCLSyntax       errors.Kind = "HCL syntax error"
-	ErrTerramateSchema errors.Kind = "terramate schema error"
-	ErrImport          errors.Kind = "import error"
+	ErrHCLSyntax              errors.Kind = "HCL syntax error"
+	ErrTerramateSchema        errors.Kind = "terramate schema error"
+	ErrImport                 errors.Kind = "import error"
+	ErrInvalidDynamicIterator errors.Kind = "invalid dynamic iterator"
 )
 
 const (
@@ -164,8 +165,13 @@ type GenFileBlock struct {
 	Condition *hclsyntax.Attribute
 }
 
-// PartialEvaluator represents an HCL partial evaluator
-type PartialEvaluator func(hclsyntax.Expression) (hclwrite.Tokens, error)
+// Evaluator represents a Terramate evaluator
+type Evaluator interface {
+	Eval(hclsyntax.Expression) (cty.Value, error)
+	PartialEval(hclsyntax.Expression) (hclwrite.Tokens, error)
+	SetNamespace(name string, values map[string]cty.Value)
+	DeleteNamespace(name string)
+}
 
 // TerramateParser is an HCL parser tailored for Terramate configuration schema.
 // As the Terramate configuration can span multiple files in the same directory,
@@ -848,14 +854,14 @@ func validateGenerateFileBlock(block *ast.Block) error {
 	return errs.AsError()
 }
 
-// CopyBody will copy the src body to the given target, evaluating attributes using the
-// given evaluation context.
+// CopyBody will copy the src body to the given target, evaluating attributes
+// using the given evaluation context.
 //
 // Scoped traversals, like name.traverse, for unknown namespaces will be copied
 // as is (original expression form, no evaluation).
 //
 // Returns an error if the evaluation fails.
-func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, eval PartialEvaluator) error {
+func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, eval Evaluator) error {
 	logger := log.With().
 		Str("action", "CopyBody()").
 		Logger()
@@ -869,7 +875,7 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, eval PartialEvaluator)
 			Logger()
 
 		logger.Trace().Msg("evaluating.")
-		tokens, err := eval(attr.Expr)
+		tokens, err := eval.PartialEval(attr.Expr)
 		if err != nil {
 			return errors.E(err, attr.Expr.Range())
 		}
@@ -881,16 +887,135 @@ func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, eval PartialEvaluator)
 	logger.Trace().Msg("Append blocks.")
 
 	for _, block := range src.Blocks {
-		targetBlock := target.AppendNewBlock(block.Type, block.Labels)
-		if block.Body == nil {
-			continue
-		}
-		if err := CopyBody(targetBlock.Body(), block.Body, eval); err != nil {
+		err := appendBlock(target, block, eval)
+		if err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func appendBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Evaluator) error {
+	if block.Type == "tm_dynamic" {
+		return appendDynamicBlock(target, block, eval)
+	}
+
+	targetBlock := target.AppendNewBlock(block.Type, block.Labels)
+	if block.Body != nil {
+		err := CopyBody(targetBlock.Body(), block.Body, eval)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Evaluator) error {
+	attrs := block.Body.Attributes
+
+	errs := errors.L()
+	if len(block.Labels) != 1 {
+		errs.Append(errors.E(ErrTerramateSchema,
+			block.LabelRanges, "tm_dynamic requires a label"))
+	}
+
+	var genContentBlock *hclsyntax.Block
+
+	for _, b := range block.Body.Blocks {
+		if b.Type != "content" {
+			errs.Append(errors.E(ErrTerramateSchema,
+				b.TypeRange, "unrecognized block %s", b.Type))
+
+			continue
+		}
+
+		if genContentBlock != nil {
+			errs.Append(errors.E(ErrTerramateSchema, b.TypeRange,
+				"multiple definitions of the `content` block"))
+
+			continue
+		}
+
+		genContentBlock = b
+	}
+
+	if genContentBlock == nil {
+		errs.Append(errors.E(ErrTerramateSchema, block.Body.Range(),
+			"`content` block not defined"))
+	}
+
+	if err := errs.AsError(); err != nil {
+		return err
+	}
+
+	genBlockType := block.Labels[0]
+	iterator := genBlockType
+	iteratorAttr, ok := attrs["iterator"]
+	if ok {
+		iteratorTraversal, diags := hcl.AbsTraversalForExpr(iteratorAttr.Expr)
+		if diags.HasErrors() {
+			return errors.E(diags, ErrInvalidDynamicIterator,
+				"failed to traverse expression")
+		}
+		if len(iteratorTraversal) != 1 {
+			return hclAttrEvalErr(iteratorAttr,
+				"dynamic iterator must be a single variable name.")
+		}
+		iterator = iteratorTraversal.RootName()
+	}
+
+	var labels []string
+	labelsAttr, ok := attrs["labels"]
+	if ok {
+		labelsVal, err := eval.Eval(labelsAttr.Expr)
+		if err != nil {
+			return hclAttrEvalErr(labelsAttr,
+				"failed to evaluate the `labels` attribute")
+		}
+
+		err = assignSet("labels", &labels, labelsVal)
+		if err != nil {
+			return err
+		}
+	}
+
+	forEachAttr, ok := attrs["for_each"]
+	if !ok {
+		return errors.E(block.Body.Range(),
+			ErrTerramateSchema,
+			"tm_dynamic requires a `for_each` attribute")
+	}
+
+	forEachVal, err := eval.Eval(forEachAttr.Expr)
+	if err != nil {
+		return hclAttrEvalErr(forEachAttr, "evaluting `for_each` expression")
+	}
+
+	if !forEachVal.CanIterateElements() {
+		return hclAttrEvalErr(forEachAttr,
+			"expression value of type %s cannot be iterated",
+			forEachVal.Type().FriendlyName())
+	}
+
+	var tmDynamicErr error
+	forEachVal.ForEachElement(func(key, value cty.Value) (stop bool) {
+		newblock := target.AppendBlock(hclwrite.NewBlock(genBlockType, labels))
+		eval.SetNamespace(iterator, map[string]cty.Value{
+			"key":   key,
+			"value": value,
+		})
+
+		err := CopyBody(newblock.Body(), genContentBlock.Body, eval)
+		if err != nil {
+			tmDynamicErr = err
+			return true
+		}
+
+		return false
+	})
+	eval.DeleteNamespace(iterator)
+	return tmDynamicErr
 }
 
 func assignSet(name string, target *[]string, val cty.Value) error {
@@ -912,6 +1037,7 @@ func assignSet(name string, target *[]string, val cty.Value) error {
 	logger.Trace().Msg("Iterate over values.")
 
 	errs := errors.L()
+	var elems []string
 	values := map[string]struct{}{}
 	iterator := val.ElementIterator()
 	index := -1
@@ -938,20 +1064,13 @@ func assignSet(name string, target *[]string, val cty.Value) error {
 			continue
 		}
 		values[str] = struct{}{}
+		elems = append(elems, str)
 	}
 
 	if err := errs.AsError(); err != nil {
 		return err
 	}
 
-	var elems []string
-	for v := range values {
-		elems = append(elems, v)
-	}
-
-	logger.Trace().Msg("Sort elements.")
-
-	sort.Strings(elems)
 	*target = elems
 	return nil
 }
