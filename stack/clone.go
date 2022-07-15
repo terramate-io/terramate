@@ -179,7 +179,7 @@ func updateStackID(stackdir string) error {
 	logger.Trace().Msg("finding stack block on tokens")
 
 	tokens := lex.WriterTokens(roTokens)
-	blockStart, ok := lex.FindTokenSequence(tokens, lex.TokenIdent("stack"), lex.TokenOBrace())
+	blockStart, ok := lex.FindTokenSequence(tokens, lex.TokenIdent(hcl.StackBlockType), lex.TokenOBrace())
 	if !ok {
 		return errors.E(err, "cloned stack doesn't have stack block")
 	}
@@ -193,7 +193,7 @@ func updateStackID(stackdir string) error {
 	// For now we are assuming stack blocks are constrained, for something safer we need
 	// a more proper parser instead of YOLO lexing.
 
-	idAttributeOffset, ok := lex.FindTokenSequence(tokens[blockStart:], lex.TokenIdent("id"), lex.TokenEqual())
+	idAttributeOffset, ok := lex.FindTokenSequence(tokens[blockStart:], lex.TokenIdent(hcl.StackIDField), lex.TokenEqual())
 	if !ok {
 		return errors.E(err, "cloned stack doesn't have stack ID")
 	}
