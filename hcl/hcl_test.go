@@ -848,13 +848,57 @@ func TestHCLParseReParsingFails(t *testing.T) {
 	test.WriteFile(t, temp, "test.tm", `terramate {}`)
 	err = p.AddDir(temp)
 	assert.NoError(t, err)
-	_, err = p.Parse()
+	_, err = p.ParseConfig()
 	assert.NoError(t, err)
 
-	_, err = p.Parse()
+	_, err = p.ParseConfig()
 	assert.Error(t, err)
-	err = p.MinimalParse()
+	err = p.Parse()
 	assert.Error(t, err)
+}
+
+func TestHCLParseProvidesAllParsedBodies(t *testing.T) {
+	cfgdir := t.TempDir()
+	parser, err := hcl.NewTerramateParser(cfgdir, cfgdir)
+	assert.NoError(t, err)
+
+	const filename = "stack.tm"
+
+	test.WriteFile(t, cfgdir, filename, `
+		stack {}
+
+		generate_hcl "file.tf" {
+			content {}
+		}
+
+		generate_file "file.txt" {
+			content = ""
+		}
+
+		globals {
+			a = "hi"
+		}
+	`)
+
+	err = parser.AddDir(cfgdir)
+	assert.NoError(t, err)
+
+	_, err = parser.ParseConfig()
+	assert.NoError(t, err)
+
+	cfgpath := filepath.Join(cfgdir, filename)
+	bodies := parser.ParsedBodies()
+	body, ok := bodies[cfgpath]
+
+	assert.IsTrue(t, ok, "unable to find body for cfg %q on bodies: %v", cfgpath, bodies)
+	assert.EqualInts(t, 0, len(body.Attributes), "want 0 parsed attributes, got: %d", len(body.Attributes))
+	assert.EqualInts(t, 4, len(body.Blocks), "want 4 parsed blocks, got: %d", len(body.Blocks))
+
+	blocks := body.Blocks
+	assert.EqualStrings(t, "stack", blocks[0].Type)
+	assert.EqualStrings(t, "generate_hcl", blocks[1].Type)
+	assert.EqualStrings(t, "generate_file", blocks[2].Type)
+	assert.EqualStrings(t, "globals", blocks[3].Type)
 }
 
 // some helpers to easy build file ranges.

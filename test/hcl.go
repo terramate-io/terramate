@@ -37,7 +37,7 @@ func ParseTerramateConfig(t *testing.T, dir string) hcl.Config {
 	err = parser.AddDir(dir)
 	assert.NoError(t, err)
 
-	cfg, err := parser.Parse()
+	cfg, err := parser.ParseConfig()
 	assert.NoError(t, err)
 
 	return cfg

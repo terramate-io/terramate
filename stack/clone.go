@@ -148,7 +148,7 @@ func updateStackID(stackdir string) error {
 		return err
 	}
 
-	if err := parser.MinimalParse(); err != nil {
+	if err := parser.Parse(); err != nil {
 		return err
 	}
 
