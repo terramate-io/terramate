@@ -20,11 +20,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/lex"
 	"github.com/rs/zerolog/log"
 )
@@ -170,38 +169,41 @@ func updateStackID(stackdir string) error {
 
 	roTokens, err := lex.Config(stackContents, stackFilePath)
 	if err != nil {
-		return errors.E(err, "critical error, cloned stack is invalid HCL")
+		return errors.E(err, "cloned stack is invalid HCL")
 	}
 
 	tokens := lex.WriterTokens(roTokens)
-	//blockStart, ok := lex.FindTokenSequence(tokens, lex.TokenIdent("stack"), lex.TokenOBrace())
+	blockStart, ok := lex.FindTokenSequence(tokens, lex.TokenIdent("stack"), lex.TokenOBrace())
+	if !ok {
+		return errors.E(err, "cloned stack doesn't have stack block")
+	}
+
+	// We can assume at this point that the stack has an ID, since previous parsing checked that.
+	// This is not generally safe, if we allow the stack block to have attributes that
+	// have objects as values and those objects can have an "id" field this will fail.
+	// If we allow multiple stack blocks, this will also fail.
+	// For now we are assuming stack blocks are constrained, for something safer we need
+	// a more proper parser instead of YOLO lexing.
+
+	idAttributeOffset, ok := lex.FindTokenSequence(tokens[blockStart:], lex.TokenIdent("id"), lex.TokenEqual())
+	if !ok {
+		return errors.E(err, "cloned stack doesn't have stack ID")
+	}
+
+	// Here we assume that stack IDs are also on the form:
+	// id = "id"
+	// Id's are very constrained and are always strings, so we expect
+	// the tokens: TokenOQuote + TokenQuotedLit + TokenCQuote
+	idQuotedLiteral := tokens[blockStart+idAttributeOffset+2]
+	id, err := uuid.NewRandom()
+	if err != nil {
+		return errors.E(err, "creating new ID for cloned stack")
+	}
+	idQuotedLiteral.Bytes = []byte(id.String())
 
 	// Since we just created the clones stack files they have the default
 	// permissions given by Go on os.Create, 0666.
 	return os.WriteFile(stackFilePath, tokens.Bytes(), 0666)
-}
-
-func copyBodyAttributes(
-	dest *hclwrite.Body,
-	src *hclsyntax.Body,
-	getExprTokens func(hclsyntax.Expression) (hclwrite.Tokens, error),
-) {
-	attrs := ast.SortRawAttributes(src.Attributes)
-	for _, attr := range attrs {
-		copyBodyAttribute(dest, attr, getExprTokens)
-	}
-}
-
-func copyBodyAttribute(
-	dest *hclwrite.Body,
-	src *hclsyntax.Attribute,
-	getExprTokens func(hclsyntax.Expression) (hclwrite.Tokens, error),
-) {
-	tokens, err := getExprTokens(src.Expr)
-	if err != nil {
-		panic(errors.E(err, "internal error getting expression tokens"))
-	}
-	dest.SetAttributeRaw(src.Name, tokens)
 }
 
 func getStackBody(parser *hcl.TerramateParser) (string, *hclsyntax.Body) {

@@ -1,3 +1,17 @@
+// Copyright 2022 Mineiros GmbH
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package lex
 
 import (
@@ -9,17 +23,32 @@ import (
 
 // TokenIdent creates a new identifier token
 func TokenIdent(name string) *hclwrite.Token {
-	return &hclwrite.Token{}
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenIdent,
+		Bytes: []byte(name),
+	}
 }
 
 // TokenOBrace creates a new { token.
 func TokenOBrace() *hclwrite.Token {
-	return &hclwrite.Token{}
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenOBrace,
+		Bytes: []byte{byte(hclsyntax.TokenOBrace)},
+	}
+}
+
+// TokenEqual creates a new = token.
+func TokenEqual() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenEqual,
+		Bytes: []byte{byte(hclsyntax.TokenEqual)},
+	}
 }
 
 // TokenEquals compare if two tokens have the same type and bytes.
 func TokenEquals(token1, token2 *hclwrite.Token) bool {
-	return false
+	return token1.Type == token2.Type &&
+		string(token1.Bytes) == string(token2.Bytes)
 }
 
 // FindTokenSequence finds the first match of the given token sequence
