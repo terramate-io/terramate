@@ -162,21 +162,29 @@ func updateStackID(stackdir string) error {
 	//
 	// - https://raw.githubusercontent.com/katcipis/memes/master/satan.jpg
 
+	logger.Trace().Msg("reading cloned stack file")
+
 	stackContents, err := os.ReadFile(stackFilePath)
 	if err != nil {
 		return errors.E(err, "reading cloned stack definition file")
 	}
+
+	logger.Trace().Msg("lexing cloned stack file")
 
 	roTokens, err := lex.Config(stackContents, stackFilePath)
 	if err != nil {
 		return errors.E(err, "cloned stack is invalid HCL")
 	}
 
+	logger.Trace().Msg("finding stack block on tokens")
+
 	tokens := lex.WriterTokens(roTokens)
 	blockStart, ok := lex.FindTokenSequence(tokens, lex.TokenIdent("stack"), lex.TokenOBrace())
 	if !ok {
 		return errors.E(err, "cloned stack doesn't have stack block")
 	}
+
+	logger.Trace().Msg("finding id attribute")
 
 	// We can assume at this point that the stack has an ID, since previous parsing checked that.
 	// This is not generally safe, if we allow the stack block to have attributes that
@@ -190,6 +198,8 @@ func updateStackID(stackdir string) error {
 		return errors.E(err, "cloned stack doesn't have stack ID")
 	}
 
+	logger.Trace().Msg("updating id attribute")
+
 	// Here we assume that stack IDs are also on the form:
 	// id = "id"
 	// Id's are very constrained and are always strings, so we expect
@@ -200,6 +210,8 @@ func updateStackID(stackdir string) error {
 		return errors.E(err, "creating new ID for cloned stack")
 	}
 	idQuotedLiteral.Bytes = []byte(id.String())
+
+	logger.Trace().Msg("saving updated tokens")
 
 	// Since we just created the clones stack files they have the default
 	// permissions given by Go on os.Create, 0666.
