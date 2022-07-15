@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genhcl"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
@@ -1789,6 +1790,120 @@ func TestLoadGeneratedHCL(t *testing.T) {
 								block("child",
 									str("value", "2-c-2"),
 								),
+							),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "tm_dynamic with invalid iterator",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							block("tm_dynamic",
+								labels("my_block"),
+								expr("for_each", `["a", "b", "c"]`),
+								expr("iterator", "[]"),
+								block("content",
+									expr("value", "b.value"),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrInvalidDynamicIterator),
+		},
+		{
+			name:  "tm_dynamic with no content block",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							block("tm_dynamic",
+								labels("my_block"),
+								expr("for_each", `["a", "b", "c"]`),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:  "tm_dynamic with no for_each",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							block("tm_dynamic",
+								labels("my_block"),
+								block("content",
+									expr("value", "b.value"),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:  "tm_dynamic using globals in for_each and content",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: hcldoc(
+						globals(
+							str("msg", "hello"),
+							expr("values", `["a", "b", "c"]`),
+						),
+						generateHCL(
+							labels("tm_dynamic_test.tf"),
+							content(
+								block("tm_dynamic",
+									labels("my_block"),
+									expr("for_each", `global.values`),
+									block("content",
+										expr("msg", `global.msg`),
+										expr("val", `global.values[my_block.key]`),
+									),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "tm_dynamic_test.tf",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body: hcldoc(
+							block("my_block",
+								str("msg", "hello"),
+								str("val", "a"),
+							),
+							block("my_block",
+								str("msg", "hello"),
+								str("val", "b"),
+							),
+							block("my_block",
+								str("msg", "hello"),
+								str("val", "c"),
 							),
 						),
 					},

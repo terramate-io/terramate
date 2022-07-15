@@ -905,29 +905,34 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 
 	errs := errors.L()
 	if len(block.Labels) != 1 {
-		errs.Append(errors.E(block.LabelRanges, "tm_dynamic requires a label"))
+		errs.Append(errors.E(ErrTerramateSchema,
+			block.LabelRanges, "tm_dynamic requires a label"))
 	}
 	genBlockType := block.Labels[0]
 	var genContentBlock *hclsyntax.Block
 
 	for _, b := range block.Body.Blocks {
 		if b.Type != "content" {
-			errs.Append(errors.E(b.TypeRange, "unrecognized block %s", b.Type))
+			errs.Append(errors.E(ErrTerramateSchema,
+				b.TypeRange, "unrecognized block %s", b.Type))
+
 			continue
 		}
 
 		if genContentBlock != nil {
-			errs.Append(errors.E(b.TypeRange,
+			errs.Append(errors.E(ErrTerramateSchema, b.TypeRange,
 				"multiple definitions of the `content` block"))
+
 			continue
 		}
 
 		genContentBlock = b
 	}
 
-	// if genContentBlock == nil {
-	// 	errs.Append(errors.E(block.Body.Range(), "`content` block not defined"))
-	// }
+	if genContentBlock == nil {
+		errs.Append(errors.E(ErrTerramateSchema, block.Body.Range(),
+			"`content` block not defined"))
+	}
 
 	if err := errs.AsError(); err != nil {
 		return err
@@ -938,7 +943,8 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 	if ok {
 		iteratorTraversal, diags := hcl.AbsTraversalForExpr(iteratorAttr.Expr)
 		if diags.HasErrors() {
-			return errors.E(diags, "failed to traverse expression")
+			return errors.E(diags, ErrInvalidDynamicIterator,
+				"failed to traverse expression")
 		}
 		if len(iteratorTraversal) != 1 {
 			return errors.E(iteratorAttr.Expr.Range(),
@@ -965,6 +971,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 	forEachAttr, ok := attrs["for_each"]
 	if !ok {
 		return errors.E(block.Body.Range(),
+			ErrTerramateSchema,
 			"tm_dynamic requires a `for_each` attribute")
 	}
 
@@ -983,18 +990,17 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 	var tmDynamicErr error
 	forEachVal.ForEachElement(func(key, value cty.Value) (stop bool) {
 		newblock := target.AppendBlock(hclwrite.NewBlock(genBlockType, labels))
-		if genContentBlock != nil {
-			eval.SetNamespace(iterator, map[string]cty.Value{
-				"key":   key,
-				"value": value,
-			})
+		eval.SetNamespace(iterator, map[string]cty.Value{
+			"key":   key,
+			"value": value,
+		})
 
-			err := CopyBody(newblock.Body(), genContentBlock.Body, eval)
-			if err != nil {
-				tmDynamicErr = err
-				return true
-			}
+		err := CopyBody(newblock.Body(), genContentBlock.Body, eval)
+		if err != nil {
+			tmDynamicErr = err
+			return true
 		}
+
 		return false
 	})
 	eval.DeleteNamespace(iterator)
@@ -1020,6 +1026,7 @@ func assignSet(name string, target *[]string, val cty.Value) error {
 	logger.Trace().Msg("Iterate over values.")
 
 	errs := errors.L()
+	var elems []string
 	values := map[string]struct{}{}
 	iterator := val.ElementIterator()
 	index := -1
@@ -1046,20 +1053,13 @@ func assignSet(name string, target *[]string, val cty.Value) error {
 			continue
 		}
 		values[str] = struct{}{}
+		elems = append(elems, str)
 	}
 
 	if err := errs.AsError(); err != nil {
 		return err
 	}
 
-	var elems []string
-	for v := range values {
-		elems = append(elems, v)
-	}
-
-	logger.Trace().Msg("Sort elements.")
-
-	sort.Strings(elems)
 	*target = elems
 	return nil
 }
