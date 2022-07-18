@@ -21,6 +21,24 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 )
 
+// StringLiteralTokens creates all tokens to represent the given string as an hcl
+// literal string.
+func StringLiteralTokens(literal string) hclwrite.Tokens {
+	return hclwrite.Tokens{
+		TokenOQuote(),
+		TokenQuotedLit(literal),
+		TokenCQuote(),
+	}
+}
+
+// TokenQuotedLit creates a new quoted literal token
+func TokenQuotedLit(name string) *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenQuotedLit,
+		Bytes: []byte(`"` + name + `"`),
+	}
+}
+
 // TokenIdent creates a new identifier token
 func TokenIdent(name string) *hclwrite.Token {
 	return &hclwrite.Token{
@@ -34,6 +52,20 @@ func TokenOBrace() *hclwrite.Token {
 	return &hclwrite.Token{
 		Type:  hclsyntax.TokenOBrace,
 		Bytes: []byte{byte(hclsyntax.TokenOBrace)},
+	}
+}
+
+// TokenOQuote creates a new open quote " token.
+func TokenOQuote() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type: hclsyntax.TokenOQuote,
+	}
+}
+
+// TokenCQuote creates a new close quote " token.
+func TokenCQuote() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type: hclsyntax.TokenCQuote,
 	}
 }
 
