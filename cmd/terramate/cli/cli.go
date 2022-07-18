@@ -106,6 +106,11 @@ type cliSpec struct {
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"Install shell completions"`
 
 	Experimental struct {
+		Clone struct {
+			SrcDir  string `arg:"" name:"srcdir" predictor:"file" help:"Path of the stack being cloned"`
+			DestDir string `arg:"" name:"destdir" predictor:"file" help:"Path of the new stack"`
+		} `cmd:"" help:"Clones a stack"`
+
 		Metadata struct{} `cmd:"" help:"Shows metadata available on the project"`
 
 		Globals struct {
@@ -347,6 +352,8 @@ func (c *cli) run() {
 		c.runOnStacks()
 	case "generate":
 		c.generate()
+	case "experimental clone <srcdir> <destdir>":
+		c.cloneStack()
 	case "experimental globals":
 		c.printStacksGlobals()
 	case "experimental metadata":
@@ -391,6 +398,36 @@ func (c *cli) checkGit() {
 		log.Fatal().
 			Err(err).
 			Msg("checking git default branch was updated.")
+	}
+}
+
+func (c *cli) cloneStack() {
+	srcstack := c.parsedArgs.Experimental.Clone.SrcDir
+	deststack := c.parsedArgs.Experimental.Clone.DestDir
+	logger := log.With().
+		Str("workingDir", c.wd()).
+		Str("action", "cli.cloneStack()").
+		Str("src", srcstack).
+		Str("dest", deststack).
+		Logger()
+
+	logger.Trace().Msg("cloning stack")
+
+	srcdir := filepath.Join(c.wd(), srcstack)
+	destdir := filepath.Join(c.wd(), deststack)
+
+	if err := stack.Clone(c.root(), destdir, srcdir); err != nil {
+		logger.Fatal().Err(err).Msg("cloning stack")
+	}
+
+	c.log("Cloned stack %s to %s with success", srcstack, deststack)
+	c.log("Generating code on the new cloned stack")
+
+	report := generate.Do(c.root(), destdir)
+	c.log(report.String())
+
+	if report.HasFailures() {
+		os.Exit(1)
 	}
 }
 

@@ -18,10 +18,8 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
-	"strings"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
@@ -61,7 +59,7 @@ func (s stringer) String() string {
 }
 
 func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
-	testCodeGeneration(t, assertHCLEquals, []testcase{
+	testCodeGeneration(t, test.AssertGenHCLEquals, []testcase{
 		{
 			name: "stack with different generate blocks but same label",
 			layout: []string{
@@ -272,38 +270,6 @@ func testCodeGeneration(t *testing.T, checkGenFile genFileChecker, tcases []test
 			assert.NoError(t, err)
 		})
 	}
-}
-
-func assertHCLEquals(t *testing.T, got string, want string) {
-	t.Helper()
-
-	const trimmedChars = "\n "
-
-	// Terramate header validation is done separately, here we check only code.
-	// So headers are removed.
-	got = removeTerramateHCLHeader(got)
-	got = strings.Trim(got, trimmedChars)
-	want = strings.Trim(want, trimmedChars)
-
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Error("generated code doesn't match expectation")
-		t.Errorf("want:\n%q", want)
-		t.Errorf("got:\n%q", got)
-		t.Fatalf("diff:\n%s", diff)
-	}
-}
-
-func removeTerramateHCLHeader(code string) string {
-	lines := []string{}
-
-	for _, line := range strings.Split(code, "\n") {
-		if strings.HasPrefix(line, "//") && strings.Contains(line, "TERRAMATE") {
-			continue
-		}
-		lines = append(lines, line)
-	}
-
-	return strings.Join(lines, "\n")
 }
 
 func assertEqualStringList(t *testing.T, got []string, want []string) {
