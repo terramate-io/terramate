@@ -167,7 +167,7 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) ([]HCL, erro
 		logger.Trace().Msg("evaluating block")
 
 		gen := hclwrite.NewEmptyFile()
-		if err := hcl.CopyBody(gen.Body(), loadedHCL.block.Body, evalctx.PartialEval); err != nil {
+		if err := hcl.CopyBody(gen.Body(), loadedHCL.block.Body, evalctx); err != nil {
 			return nil, errors.E(ErrContentEval, sm, err,
 				"failed to generate block %q", name,
 			)

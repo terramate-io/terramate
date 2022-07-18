@@ -49,25 +49,32 @@ terramate {
     git {
       default_remote = "origin"
       default_branch = "main"
+      check_untracked = false
+      check_uncommitted = false
+      check_remote = false
     }
   }
 }
 ```
 
-List of configurations:
-
-- `terramate.config.git.default_remote` - Set a default remote origin to use for git related actions. The default is `"origin"`.
-- `terramate.config.git.default_branch` - Set a default branch to use for git related actions. The default is `"main"`.
+For a list of all configurations and their full schema check the
+[configuration overview](config-overview.md#terramateconfiggit-block-schema).
 
 ### The `terramate.config.run` Block
 
-Configuration for the `terramate run` command can be set in the `terramate.config.run` block.
+Configuration for the `terramate run` command can be set in the
+`terramate.config.run` block.
+
+For a list of all configurations and their full schema check the
+[configuration overview](config-overview.md#terramateconfigrun-block-schema).
 
 #### The `terramate.config.run.env` Block
 
-In `terramate.config.run.env` block a map of environment variables can be defined that will be set when running a command using `terramate run`.
+In `terramate.config.run.env` block a map of environment variables can be defined
+that will be set when running a command using `terramate run`.
 
-The following example exports the `TF_PLUGIN_CACHE_DIR` environment variable to enable [Terraform Provider Plugin Caching](https://www.terraform.io/cli/config/config-file#provider-plugin-cache).
+The following example exports the `TF_PLUGIN_CACHE_DIR` environment variable to
+enable [Terraform Provider Plugin Caching](https://www.terraform.io/cli/config/config-file#provider-plugin-cache).
 
 ```hcl
 terramate {
@@ -96,7 +103,8 @@ terramate {
 }
 ```
 
-In addition Globals (`global.*`) and Metadata (`terramate.*`) are available and are evaluated lazy withing the stack context the commands are executed in.
+In addition Globals (`global.*`) and Metadata (`terramate.*`) are available and
+are evaluated lazy withing the stack context the commands are executed in.
 
 The `env` namespace is meant to give access to the host environment variables,
 it is read-only, and is only available when evaluating
