@@ -171,7 +171,7 @@ func updateStackID(stackdir string) error {
 		return errors.E(err, "reading cloned stack definition file")
 	}
 
-	logger.Trace().Msg("lexing cloned stack file")
+	logger.Trace().Msg("parsing cloned stack file")
 
 	parsed, diags := hclwrite.ParseConfig([]byte(stackContents), stackFilePath, hhcl.InitialPos)
 	if diags.HasErrors() {
@@ -179,6 +179,8 @@ func updateStackID(stackdir string) error {
 	}
 
 	blocks := parsed.Body().Blocks()
+
+	logger.Trace().Msg("searching for stack ID attribute")
 
 updateStackID:
 	for _, block := range blocks {
