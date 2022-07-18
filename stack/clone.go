@@ -32,6 +32,10 @@ const (
 	// ErrCloneDestDirExists indicates that the dest dir on a clone
 	// operation already exists.
 	ErrCloneDestDirExists errors.Kind = "clone dest dir exists"
+
+	// ErrCloneSrcStackIDNotSupported indicates that the source stack ID
+	// is not supported by clone.
+	ErrCloneSrcStackIDNotSupported errors.Kind = "src stack ID not supported"
 )
 
 // Clone will clone the stack at srcdir into destdir.
@@ -207,6 +211,13 @@ func updateStackID(stackdir string) error {
 	// Id's are very constrained and are always strings, so we expect
 	// the tokens: TokenOQuote + TokenQuotedLit + TokenCQuote
 	idQuotedLiteral := tokens[blockStart+idAttributeOffset+1]
+	if idQuotedLiteral.Type != hclsyntax.TokenQuotedLit {
+		// Ideally we should support anything that evaluates to a string
+		// on HCL, but for now to avoid too much parsing effort we assume
+		// simple plain strings like "id".
+		return errors.E(ErrCloneSrcStackIDNotSupported, "ID must be a simple string literal")
+	}
+
 	id, err := uuid.NewRandom()
 	if err != nil {
 		return errors.E(err, "creating new ID for cloned stack")

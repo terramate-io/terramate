@@ -89,6 +89,17 @@ func TestStackClone(t *testing.T) {
 			dest:    "/cloned-stack",
 			wantErr: errors.E(stack.ErrCloneDestDirExists),
 		},
+		{
+			name: "src stack ID must be a string literal",
+			layout: []string{
+				`f:/stack/stack.tm.hcl:stack {
+				  id = ("id")
+				}`,
+			},
+			src:     "/stack",
+			dest:    "/cloned-stack",
+			wantErr: errors.E(stack.ErrCloneSrcStackIDNotSupported),
+		},
 	}
 
 	for _, tc := range testcases {
