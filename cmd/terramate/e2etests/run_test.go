@@ -89,13 +89,14 @@ frita
 				"s:stacks/A/AA/AAA",
 			},
 			want: runExpected{
-				Stdout: `stacks
-A
-AA
-AAA
-B
-BA
-`,
+				Stdout: strings.Join([]string{
+					"stacks",
+					"A",
+					"AA",
+					"AAA",
+					"B",
+					"BA",
+				}, "\n") + "\n",
 			},
 		},
 		{
