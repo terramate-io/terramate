@@ -79,6 +79,26 @@ frita
 			},
 		},
 		{
+			name: "independent stacks inside other stacks gives consistent ordering (lexicographic)",
+			layout: []string{
+				"s:stacks",
+				"s:stacks/A",
+				"s:stacks/B",
+				"s:stacks/A/AA",
+				"s:stacks/B/BA",
+				"s:stacks/A/AA/AAA",
+			},
+			want: runExpected{
+				Stdout: `stacks
+A
+AA
+AAA
+B
+BA
+`,
+			},
+		},
+		{
 			name: "stack-b after stack-a (relpaths)",
 			layout: []string{
 				"s:stack-a",

@@ -182,12 +182,6 @@ func (s S) RelPathToRoot() string { return s.relPathToRoot }
 // HostPath returns the file system absolute path of stack.
 func (s S) HostPath() string { return s.hostpath }
 
-// IsLeaf returns true if dir is a leaf stack.
-func IsLeaf(root, dir string) (bool, error) {
-	l := NewLoader(root)
-	return l.IsLeafStack(dir)
-}
-
 func validateWatchPaths(rootdir string, stackpath string, paths []string) ([]string, error) {
 	var projectPaths []string
 	for _, path := range paths {
@@ -321,15 +315,6 @@ func TryLoad(root, absdir string) (stack S, found bool, err error) {
 
 	if cfg.Stack == nil {
 		return S{}, false, nil
-	}
-
-	ok, err := IsLeaf(root, absdir)
-	if err != nil {
-		return S{}, false, err
-	}
-
-	if !ok {
-		return S{}, false, errors.E(fmt.Sprintf("stack %q is not a leaf stack", absdir))
 	}
 
 	logger.Debug().Msg("Create a new stack")
