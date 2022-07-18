@@ -24,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -40,7 +41,7 @@ func TestGenerateHCL(t *testing.T) {
 		return hclwrite.AttributeValue(t, name, expr)
 	}
 
-	testCodeGeneration(t, assertHCLEquals, []testcase{
+	testCodeGeneration(t, test.AssertGenHCLEquals, []testcase{
 		{
 			name: "no generated HCL",
 			layout: []string{
@@ -862,7 +863,7 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 	})
 
 	got := stack.ReadFile(genFilename)
-	assertHCLEquals(t, got, firstWant.String())
+	test.AssertGenHCLEquals(t, got, firstWant.String())
 
 	secondConfig := generateHCL(
 		labels(genFilename),
@@ -889,7 +890,7 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 	})
 
 	got = stack.ReadFile(genFilename)
-	assertHCLEquals(t, got, secondWant.String())
+	test.AssertGenHCLEquals(t, got, secondWant.String())
 	assertEqualReports(t, s.Generate(), generate.Report{})
 }
 
@@ -1123,5 +1124,5 @@ func TestGenerateHCLTerramateRootMetadata(t *testing.T) {
 	).String()
 	got := stackEntry.ReadFile(generatedFile)
 
-	assertHCLEquals(t, got, want)
+	test.AssertGenHCLEquals(t, got, want)
 }

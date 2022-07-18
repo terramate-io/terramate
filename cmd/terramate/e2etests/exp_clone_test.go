@@ -38,8 +38,6 @@ generate_hcl "test.hcl" {
   content {
     // Commenting literal
     a = "literal"
-    // Commenting expression
-    b = tm_try(global.expression, null)
   }
 }
 // Some comments
@@ -57,7 +55,6 @@ stack{
 generate_hcl "test2.hcl" {
   content {
     b = tm_try(global.expression, null)
-    a = "literal"
   }
 }
 `
@@ -73,7 +70,7 @@ generate_hcl "test2.hcl" {
 	res := tmcli.run("experimental", "clone", srcStack, destStack)
 
 	assertRunResult(t, res, runExpected{
-		Stdout: fmt.Sprintf("Cloned stack %s to %s with success\n", srcStack, destStack),
+		StdoutRegex: fmt.Sprintf("Cloned stack %s to %s with success\n", srcStack, destStack),
 	})
 
 	destdir := filepath.Join(s.RootDir(), destStack)
@@ -103,4 +100,9 @@ generate_hcl "test2.hcl" {
 	assert.EqualStrings(t, want, got, "want:\n%s\ngot:\n%s\n", want, got)
 
 	// Checking that code was also generated already
+	genHCL := string(clonedStackEntry.ReadFile("test.hcl"))
+	genHCL2 := string(clonedStackEntry.ReadFile("test2.hcl"))
+
+	test.AssertGenHCLEquals(t, genHCL, `a = "literal"`)
+	test.AssertGenHCLEquals(t, genHCL2, `b = null`)
 }
