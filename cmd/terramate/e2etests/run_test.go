@@ -79,7 +79,7 @@ frita
 			},
 		},
 		{
-			name: "independent stacks inside other stacks gives consistent ordering (lexicographic)",
+			name: "independent stacks inside other stacks gives consistent ordering (lexicographic by path)",
 			layout: []string{
 				"s:stacks",
 				"s:stacks/A",
