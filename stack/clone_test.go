@@ -165,7 +165,7 @@ generate_hcl "test.hcl" {
   Commenting is fun
 */
 
-stack{
+stack {
   // Commenting stack ID
   id = %q // comment after ID expression
   // Commenting stack name
