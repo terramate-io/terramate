@@ -55,6 +55,10 @@ type (
 		// before is a list of stack paths that must run after this stack.
 		before []string
 
+		// implicitBefore is a map of paths that must run before this stack but
+		// they were implicitly computed from the project hierarchy.
+		implicitBefore map[string]struct{}
+
 		// wants is the list of stacks that must be selected whenever this stack
 		// is selected.
 		wants []string
@@ -85,6 +89,9 @@ type (
 		// RelPathToRoot is the relative path from the stack to root.
 		RelPathToRoot() string
 	}
+
+	// List of stacks.
+	List []S
 )
 
 const (
@@ -117,16 +124,17 @@ func New(root string, cfg hcl.Config) (S, error) {
 	}
 
 	return S{
-		name:          name,
-		id:            cfg.Stack.ID,
-		desc:          cfg.Stack.Description,
-		after:         cfg.Stack.After,
-		before:        cfg.Stack.Before,
-		wants:         cfg.Stack.Wants,
-		watch:         watchFiles,
-		hostpath:      cfg.AbsDir(),
-		path:          project.PrjAbsPath(root, cfg.AbsDir()),
-		relPathToRoot: rel,
+		name:           name,
+		id:             cfg.Stack.ID,
+		desc:           cfg.Stack.Description,
+		after:          cfg.Stack.After,
+		before:         cfg.Stack.Before,
+		implicitBefore: make(map[string]struct{}),
+		wants:          cfg.Stack.Wants,
+		watch:          watchFiles,
+		hostpath:       cfg.AbsDir(),
+		path:           project.PrjAbsPath(root, cfg.AbsDir()),
+		relPathToRoot:  rel,
 	}, nil
 }
 
@@ -150,7 +158,19 @@ func (s S) Desc() string { return s.desc }
 func (s S) After() []string { return s.after }
 
 // Before specifies the list of stacks that must run after this stack.
-func (s S) Before() []string { return s.before }
+// It includes the list of implicit before computed by terramate itself.
+func (s S) Before() []string {
+	before := []string{}
+	before = append(before, s.before...)
+	for p := range s.implicitBefore {
+		before = append(before, p)
+	}
+	return before
+}
+
+func (s S) SetImplicitBeforePath(path string) {
+	s.implicitBefore[path] = struct{}{}
+}
 
 // Wants specifies the list of wanted stacks.
 func (s S) Wants() []string { return s.wants }
@@ -327,7 +347,7 @@ func TryLoad(root, absdir string) (stack S, found bool, err error) {
 
 // Sort sorts the given stacks.
 func Sort(stacks []S) {
-	sort.Sort(stackSlice(stacks))
+	sort.Sort(List(stacks))
 }
 
 // Reverse reverses the given stacks slice.
@@ -340,9 +360,6 @@ func Reverse(stacks []S) {
 	}
 }
 
-// stackSlice implements the Sort interface.
-type stackSlice []S
-
-func (l stackSlice) Len() int           { return len(l) }
-func (l stackSlice) Less(i, j int) bool { return l[i].Path() < l[j].Path() }
-func (l stackSlice) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
+func (l List) Len() int           { return len(l) }
+func (l List) Less(i, j int) bool { return l[i].Path() < l[j].Path() }
+func (l List) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }

@@ -79,7 +79,7 @@ frita
 			},
 		},
 		{
-			name: "independent stacks inside other stacks gives consistent ordering (lexicographic by path)",
+			name: "independent stacks inside other stacks follows hierarchical ordering",
 			layout: []string{
 				"s:stacks",
 				"s:stacks/A",
@@ -107,6 +107,20 @@ frita
 			},
 			want: runExpected{
 				Stdout: `stack-a
+stack-b
+`,
+			},
+		},
+		{
+			name: "stack-b after stack-a after parent (implicit)",
+			layout: []string{
+				`s:parent`,
+				`s:parent/stack-a`,
+				`s:parent/stack-b:after=["/parent/stack-a"]`,
+			},
+			want: runExpected{
+				Stdout: `parent
+stack-a
 stack-b
 `,
 			},
@@ -379,6 +393,40 @@ stack-z
 			name: "stack-a after stack-a - fails",
 			layout: []string{
 				`s:stack-a:after=["../stack-a"]`,
+			},
+			want: runExpected{
+				Status:      defaultErrExitStatus,
+				StderrRegex: string(dag.ErrCycleDetected),
+			},
+		},
+		{
+			name: "child stack can have explicit after clause to parent",
+			layout: []string{
+				`s:stacks`,
+				`s:stacks/child:after=["../"]`,
+			},
+			want: runExpected{
+				Stdout: `stacks
+child
+`,
+			},
+		},
+		{
+			name: "child stack can never run before the parent - cycle",
+			layout: []string{
+				`s:stacks`,
+				`s:stacks/child:before=["/stacks"]`,
+			},
+			want: runExpected{
+				Status:      defaultErrExitStatus,
+				StderrRegex: string(dag.ErrCycleDetected),
+			},
+		},
+		{
+			name: "parent stack can never run after the child - cycle",
+			layout: []string{
+				`s:stacks:after=["/stacks/child"]`,
+				`s:stacks/child`,
 			},
 			want: runExpected{
 				Status:      defaultErrExitStatus,

@@ -16,6 +16,9 @@ package run
 
 import (
 	"fmt"
+	"os"
+	"sort"
+	"strings"
 
 	"github.com/mineiros-io/terramate/run/dag"
 	"github.com/mineiros-io/terramate/stack"
@@ -27,7 +30,7 @@ type visited map[string]struct{}
 // Sort computes the final execution order for the given list of stacks.
 // In the case of multiple possible orders, it returns the lexicographic sorted
 // path.
-func Sort(root string, stacks []stack.S) ([]stack.S, string, error) {
+func Sort(root string, stacks stack.List) ([]stack.S, string, error) {
 	d := dag.New()
 	loader := stack.NewLoader(root)
 
@@ -41,6 +44,21 @@ func Sort(root string, stacks []stack.S) ([]stack.S, string, error) {
 		Str("action", "run.Sort()").
 		Str("root", root).
 		Logger()
+
+	logger.Trace().Msg("Computes implicit hierarchical order.")
+
+	sort.Sort(stacks)
+	for _, stack := range stacks {
+		for _, other := range stacks {
+			if stack.Path() == other.Path() {
+				continue
+			}
+
+			if strings.HasPrefix(stack.Path(), other.Path()+string(os.PathSeparator)) {
+				other.SetImplicitBeforePath(stack.Path())
+			}
+		}
+	}
 
 	logger.Trace().Msg("Sorting stacks.")
 
