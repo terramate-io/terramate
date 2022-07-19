@@ -71,7 +71,7 @@ parent stacks before their children.
 This is a double-edged sword because it allows you to move stacks around to
 better resemble the cloud infrastructure and the order of which things must
 be executed with zero code change but in counterpart beware that moving stacks 
-just for cosmetic purposes can potentially change order and break stuff.
+just for cosmetic purposes can potentially change the execution order and break things.
 
 ### Explicit Order Of Execution
 
