@@ -16,10 +16,8 @@ package stack
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
@@ -136,65 +134,6 @@ func (l Loader) LoadAll(root string, wd string, dirs ...string) ([]S, error) {
 		stacks = append(stacks, stack)
 	}
 	return stacks, nil
-}
-
-// IsLeafStack returns true if dir is a leaf stack.
-func (l Loader) IsLeafStack(dir string) (bool, error) {
-	isValid := true
-	log.Trace().
-		Str("action", "IsLeafStack()").
-		Str("stack", dir).
-		Msg("Walk directory.")
-	err := filepath.Walk(
-		dir,
-		func(path string, info fs.FileInfo, err error) error {
-			if !isValid {
-				return filepath.SkipDir
-			}
-			if err != nil {
-				return err
-			}
-			if path == dir {
-				return nil
-			}
-
-			base := filepath.Base(path)
-
-			if info.IsDir() {
-				if strings.HasPrefix(base, ".") {
-					return filepath.SkipDir
-				}
-
-				if strings.HasSuffix(path, "/.git") {
-					return filepath.SkipDir
-				}
-
-				log.Trace().
-					Str("action", "IsLeafStack()").
-					Str("stack", dir).
-					Str("path", path).
-					Msg("Try load.")
-				_, found, err := l.TryLoad(path)
-				if err != nil {
-					return err
-				}
-
-				isValid = !found
-				return nil
-			}
-
-			if strings.HasPrefix(base, ".") {
-				return nil
-			}
-
-			return nil
-		},
-	)
-	if err != nil {
-		return false, err
-	}
-
-	return isValid, nil
 }
 
 func (l Loader) lookupParentStack(dir string) (stack S, found bool, err error) {
