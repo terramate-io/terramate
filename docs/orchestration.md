@@ -65,8 +65,8 @@ execution between stacks.
 
 ### Filesystem hierarchical order
 
-By creating an hierarchy of stacks in the filesystem will make Terramate execute
-the parent stacks before the children ones.
+Creating an hierarchy of stacks in the filesystem will make Terramate execute
+parent stacks before their children.
 
 This is a double-edged sword because it allows you to move stacks around to
 better resemble the cloud infrastructure and the order of which things must
