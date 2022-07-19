@@ -89,17 +89,6 @@ func TestStackClone(t *testing.T) {
 			dest:    "/cloned-stack",
 			wantErr: errors.E(stack.ErrCloneDestDirExists),
 		},
-		{
-			name: "src stack ID must be a string literal",
-			layout: []string{
-				`f:/stack/stack.tm.hcl:stack {
-				  id = ("id")
-				}`,
-			},
-			src:     "/stack",
-			dest:    "/cloned-stack",
-			wantErr: errors.E(stack.ErrCloneSrcStackIDNotSupported),
-		},
 	}
 
 	for _, tc := range testcases {
@@ -176,7 +165,7 @@ generate_hcl "test.hcl" {
   Commenting is fun
 */
 
-stack{
+stack {
   // Commenting stack ID
   id = %q // comment after ID expression
   // Commenting stack name
