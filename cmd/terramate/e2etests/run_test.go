@@ -403,7 +403,7 @@ stack-z
 			name: "child stack can have explicit after clause to parent",
 			layout: []string{
 				`s:stacks`,
-				`s:stacks/child:after=["../"]`,
+				`s:stacks/child:after=["/stacks"]`,
 			},
 			want: runExpected{
 				Stdout: `stacks
