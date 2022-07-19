@@ -76,7 +76,7 @@ just for cosmetic purposes can potentially change the execution order and break 
 ### Explicit Order Of Execution
 
 Order of execution can be explicitly declared inside the **stack** block using
-the field **before** and **after**. 
+the fields **before** and **after**. 
 
 Each field is a set of strings (**set(string)**), where each string is a 
 reference to another stack.
