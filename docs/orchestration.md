@@ -60,17 +60,31 @@ selected for execution, should always be:
 * 1 - **stack A**
 * 2 - **stack B**
 
-To help with that terramate provides a way to explicit declare
-the desired order of execution between stacks.
+To help with that terramate provides two ways to define the desired order of
+execution between stacks.
 
+### Filesystem hierarchical order
 
-### Defining Order Of Execution
+By creating an hierarchy of stacks in the filesystem will make Terramate execute
+the parent stacks before the children ones.
 
-Order of execution is declared inside the **stack** block using the
-field **before** and **after**. 
+This is a double-edged sword because it allows you to move stacks around to
+better resemble the cloud infrastructure and the order of which things must
+be executed with zero code change but in counterpart beware that moving stacks 
+just for cosmetic purposes can potentially change order and break stuff.
 
-Each field is a set of strings (**set(string)**),
-where each string is a reference to another stack.
+### Explicit Order Of Execution
+
+Order of execution can be explicitly declared inside the **stack** block using
+the field **before** and **after**. 
+
+Each field is a set of strings (**set(string)**), where each string is a 
+reference to another stack.
+
+The explicit order can be used in conjunction with the implicit filesystem order
+but have in mind that a parent stack in the filesystem can never execute after a
+child one, and trying to make this using explicit **before** and **after** clauses
+will lead to a cycle error.
 
 References to stacks can be relative to the stack being configured in the form:
 

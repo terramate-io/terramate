@@ -168,6 +168,10 @@ func (s S) Before() []string {
 	return before
 }
 
+// SetImplicitBeforePath sets the path as an implicit "before", which means the
+// path stack will execute before the current stack even though the user didn't
+// explicitly set this order.
+// This method is intended to be used by the tooling.
 func (s S) SetImplicitBeforePath(path string) {
 	s.implicitBefore[path] = struct{}{}
 }
