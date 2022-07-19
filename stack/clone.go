@@ -21,7 +21,9 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/lex"
@@ -32,10 +34,6 @@ const (
 	// ErrCloneDestDirExists indicates that the dest dir on a clone
 	// operation already exists.
 	ErrCloneDestDirExists errors.Kind = "clone dest dir exists"
-
-	// ErrCloneSrcStackIDNotSupported indicates that the source stack ID
-	// is not supported by clone.
-	ErrCloneSrcStackIDNotSupported errors.Kind = "src stack ID not supported"
 )
 
 // Clone will clone the stack at srcdir into destdir.
@@ -173,62 +171,45 @@ func updateStackID(stackdir string) error {
 		return errors.E(err, "reading cloned stack definition file")
 	}
 
-	logger.Trace().Msg("lexing cloned stack file")
+	logger.Trace().Msg("parsing cloned stack file")
 
-	roTokens, err := lex.Config(stackContents, stackFilePath)
-	if err != nil {
-		return errors.E(err, "cloned stack is invalid HCL")
+	parsed, diags := hclwrite.ParseConfig([]byte(stackContents), stackFilePath, hhcl.InitialPos)
+	if diags.HasErrors() {
+		return errors.E(diags, "parsing cloned stack configuration")
 	}
 
-	logger.Trace().Msg("finding stack block on tokens")
+	blocks := parsed.Body().Blocks()
 
-	tokens := lex.WriterTokens(roTokens)
-	blockStart, ok := lex.FindTokenSequence(tokens, lex.TokenIdent(hcl.StackBlockType), lex.TokenOBrace())
-	if !ok {
-		return errors.E(err, "cloned stack doesn't have stack block")
-	}
-	blockStart += 2
+	logger.Trace().Msg("searching for stack ID attribute")
 
-	logger.Trace().Msg("finding id attribute")
+updateStackID:
+	for _, block := range blocks {
+		if block.Type() != hcl.StackBlockType {
+			continue
+		}
 
-	// We can assume at this point that the stack has an ID, since previous parsing checked that.
-	// This is not generally safe, if we allow the stack block to have attributes that
-	// have objects as values and those objects can have an "id" field this will fail.
-	// If we allow multiple stack blocks, this will also fail.
-	// For now we are assuming stack blocks are constrained, for something safer we need
-	// a more proper parser instead of YOLO lexing.
+		body := block.Body()
+		attrs := body.Attributes()
+		for name := range attrs {
+			if name != hcl.StackIDField {
+				continue
+			}
 
-	idAttributeOffset, ok := lex.FindTokenSequence(tokens[blockStart:], lex.TokenIdent(hcl.StackIDField), lex.TokenEqual())
-	if !ok {
-		return errors.E(err, "cloned stack doesn't have stack ID")
-	}
-	idAttributeOffset += 2
+			id, err := uuid.NewRandom()
+			if err != nil {
+				return errors.E(err, "creating new ID for cloned stack")
+			}
 
-	logger.Trace().Msg("updating id attribute")
-
-	// Here we assume that stack IDs are also on the form:
-	// id = "id"
-	// Id's are very constrained and are always strings, so we expect
-	// the tokens: TokenOQuote + TokenQuotedLit + TokenCQuote
-	idQuotedLiteral := tokens[blockStart+idAttributeOffset+1]
-	if idQuotedLiteral.Type != hclsyntax.TokenQuotedLit {
-		// Ideally we should support anything that evaluates to a string
-		// on HCL, but for now to avoid too much parsing effort we assume
-		// simple plain strings like "id".
-		return errors.E(ErrCloneSrcStackIDNotSupported, "ID must be a simple string literal")
+			body.SetAttributeRaw(name, lex.StringLiteralTokens(id.String()))
+			break updateStackID
+		}
 	}
 
-	id, err := uuid.NewRandom()
-	if err != nil {
-		return errors.E(err, "creating new ID for cloned stack")
-	}
-	idQuotedLiteral.Bytes = []byte(id.String())
-
-	logger.Trace().Msg("saving updated tokens")
+	logger.Trace().Msg("saving updated file")
 
 	// Since we just created the clones stack files they have the default
 	// permissions given by Go on os.Create, 0666.
-	return os.WriteFile(stackFilePath, tokens.Bytes(), 0666)
+	return os.WriteFile(stackFilePath, parsed.Bytes(), 0666)
 }
 
 func getStackBody(parser *hcl.TerramateParser) (string, *hclsyntax.Body) {
