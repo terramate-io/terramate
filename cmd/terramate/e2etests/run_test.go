@@ -445,9 +445,7 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 			workingDir: "stacks",
 			want: runExpected{
-				Stdout: `stack-b
-stack-a
-`,
+				Stdout: listStacks("stack-b", "stack-a"),
 			},
 		},
 		{
@@ -458,10 +456,7 @@ stack-a
 				`s:parent/stack-b:after=["/parent/stack-a"]`,
 			},
 			want: runExpected{
-				Stdout: `parent
-stack-a
-stack-b
-`,
+				Stdout: listStacks("parent", "stack-a", "stack-b"),
 			},
 		},
 		{
@@ -471,9 +466,7 @@ stack-b
 				`s:stacks/child:after=["/stacks"]`,
 			},
 			want: runExpected{
-				Stdout: `stacks
-child
-`,
+				Stdout: listStacks("stacks", "child"),
 			},
 		},
 		{
