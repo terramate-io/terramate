@@ -1392,6 +1392,57 @@ func TestRunContinueOnError(t *testing.T) {
 	})
 }
 
+func TestRunNoRecursive(t *testing.T) {
+	s := sandbox.New(t)
+
+	s.BuildTree([]string{
+		`f:file.txt:root`,
+		`s:parent`,
+		`s:parent/child1`,
+		`s:parent/child2`,
+	})
+
+	parent := s.StackEntry("parent")
+	parent.CreateFile("file.txt", "parent")
+
+	child1 := s.StackEntry("parent/child1")
+	child1.CreateFile("file.txt", "child1")
+
+	child2 := s.StackEntry("parent/child2")
+	child2.CreateFile("file.txt", "child2")
+
+	git := s.Git()
+	git.CommitAll("first commit")
+	git.Push("main")
+
+	cli := newCLI(t, s.RootDir())
+	assertRunResult(t, cli.run("run", "cat", "file.txt"), runExpected{
+		Stdout: `parentchild1child2`,
+	})
+
+	cli = newCLI(t, parent.Path())
+	assertRunResult(t, cli.run("run", "--no-recursive", "cat", "file.txt"),
+		runExpected{
+			Stdout: `parent`,
+		},
+	)
+
+	cli = newCLI(t, child1.Path())
+	assertRunResult(t, cli.run("run", "--no-recursive", "cat", "file.txt"),
+		runExpected{
+			Stdout: `child1`,
+		},
+	)
+
+	cli = newCLI(t, s.RootDir())
+	assertRunResult(t, cli.run("run", "--no-recursive", "cat", "file.txt"),
+		runExpected{
+			Status:       1,
+			IgnoreStderr: true,
+		},
+	)
+}
+
 func TestRunDisableGitCheckRemote(t *testing.T) {
 	s := sandbox.New(t)
 

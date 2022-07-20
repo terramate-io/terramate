@@ -93,9 +93,10 @@ type cliSpec struct {
 	} `cmd:"" help:"List stacks"`
 
 	Run struct {
-		DisableCheckGenCode   bool     `optional:"true" default:"false" help:"Disable outdated generated code check"`
-		DisableCheckGitRemote bool     `optional:"true" default:"false" help:"Disable checking if local default branch is updated with remote"`
+		DisableCheckGenCode   bool     `default:"false" help:"Disable outdated generated code check"`
+		DisableCheckGitRemote bool     `default:"false" help:"Disable checking if local default branch is updated with remote"`
 		ContinueOnError       bool     `default:"false" help:"Continue executing in other stacks in case of error"`
+		NoRecursive           bool     `default:"false" help:"Do not recurse into child stacks"`
 		DryRun                bool     `default:"false" help:"Plan the execution but do not execute it"`
 		Reverse               bool     `default:"false" help:"Reverse the order of execution"`
 		Command               []string `arg:"" name:"cmd" predictor:"file" passthrough:"" help:"Command to execute"`
@@ -1068,11 +1069,30 @@ func (c *cli) runOnStacks() {
 		logger.Fatal().Msgf("run expects a cmd")
 	}
 
-	stacks, err := c.computeSelectedStacks(true)
-	if err != nil {
-		logger.Fatal().
-			Err(err).
-			Msgf("computing selected stacks")
+	var stacks stack.List
+
+	if c.parsedArgs.Run.NoRecursive {
+		st, found, err := stack.TryLoad(c.root(), c.wd())
+		if err != nil {
+			logger.Fatal().
+				Err(err).
+				Msg("loading stack in current directory")
+		}
+
+		if !found {
+			logger.Fatal().
+				Msg("--no-recursive provided but no stack found in the current directory")
+		}
+
+		stacks = append(stacks, st)
+	} else {
+		var err error
+		stacks, err = c.computeSelectedStacks(true)
+		if err != nil {
+			logger.Fatal().
+				Err(err).
+				Msg("computing selected stacks")
+		}
 	}
 
 	c.checkOutdatedGeneratedCode(stacks)
