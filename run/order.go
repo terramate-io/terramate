@@ -27,7 +27,7 @@ type visited map[string]struct{}
 // Sort computes the final execution order for the given list of stacks.
 // In the case of multiple possible orders, it returns the lexicographic sorted
 // path.
-func Sort(root string, stacks []stack.S) ([]stack.S, string, error) {
+func Sort(root string, stacks stack.List) (stack.List, string, error) {
 	d := dag.New()
 	loader := stack.NewLoader(root)
 
@@ -69,11 +69,11 @@ func Sort(root string, stacks []stack.S) ([]stack.S, string, error) {
 
 	order := d.Order()
 
-	orderedStacks := make([]stack.S, 0, len(order))
+	orderedStacks := make(stack.List, 0, len(order))
 
 	logger.Trace().Msg("Get ordered stacks.")
 
-	isSelectedStack := func(s stack.S) bool {
+	isSelectedStack := func(s *stack.S) bool {
 		// Stacks may be added on the DAG from after/before references
 		// but they should not be on the final order if they are not part
 		// of the previously selected stacks passed as a parameter.
@@ -92,7 +92,7 @@ func Sort(root string, stacks []stack.S) ([]stack.S, string, error) {
 		if err != nil {
 			return nil, "", fmt.Errorf("calculating run-order: %w", err)
 		}
-		s := val.(stack.S)
+		s := val.(*stack.S)
 		if !isSelectedStack(s) {
 			logger.Trace().
 				Str("stack", s.Path()).
@@ -109,7 +109,7 @@ func Sort(root string, stacks []stack.S) ([]stack.S, string, error) {
 func BuildDAG(
 	d *dag.DAG,
 	root string,
-	s stack.S,
+	s *stack.S,
 	loader stack.Loader,
 	visited visited,
 ) error {
@@ -142,7 +142,7 @@ func BuildDAG(
 		return fmt.Errorf("stack %q: failed to build DAG: %w", s, err)
 	}
 
-	stacks := []stack.S{}
+	stacks := stack.List{}
 	stacks = append(stacks, afterStacks...)
 	stacks = append(stacks, beforeStacks...)
 
@@ -169,7 +169,7 @@ func BuildDAG(
 	return nil
 }
 
-func toids(values []stack.S) []dag.ID {
+func toids(values stack.List) []dag.ID {
 	ids := make([]dag.ID, 0, len(values))
 	for _, v := range values {
 		ids = append(ids, dag.ID(v.Path()))

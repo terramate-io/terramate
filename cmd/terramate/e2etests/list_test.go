@@ -15,6 +15,7 @@
 package e2etest
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/mineiros-io/terramate/test"
@@ -45,7 +46,7 @@ func listTestcases() []testcase {
 			},
 		},
 		{
-			name: "dot directories ignored in isLeaf check",
+			name: "dot directories ignored",
 			layout: []string{
 				"s:stack",
 				"f:stack/.substack/stack.tm:stack {}",
@@ -93,6 +94,41 @@ func listTestcases() []testcase {
 			},
 			want: runExpected{
 				Stdout: "1\n2\n3\n",
+			},
+		},
+		{
+			name: "stack inside other stack",
+			layout: []string{
+				"s:stack",
+				"s:stack/child-stack",
+			},
+			want: runExpected{
+				Stdout: "stack\nstack/child-stack\n",
+			},
+		},
+		{
+			name: "multiple levels of stacks inside stacks",
+			layout: []string{
+				"s:mineiros.io",
+				"s:mineiros.io/departments",
+				"s:mineiros.io/departments/engineering",
+				"s:mineiros.io/departments/accounting",
+				"s:mineiros.io/departments/engineering/terramate",
+				"s:mineiros.io/departments/engineering/terraform-modules",
+				"d:mineiros.io/departments/engineering/docs",
+				"d:mineiros.io/departments/engineering/tests",
+				"s:mineiros.io/departments/engineering/tests/e2e",
+			},
+			want: runExpected{
+				Stdout: strings.Join([]string{
+					"mineiros.io",
+					"mineiros.io/departments",
+					"mineiros.io/departments/accounting",
+					"mineiros.io/departments/engineering",
+					"mineiros.io/departments/engineering/terraform-modules",
+					"mineiros.io/departments/engineering/terramate",
+					"mineiros.io/departments/engineering/tests/e2e",
+				}, "\n") + "\n",
 			},
 		},
 		{

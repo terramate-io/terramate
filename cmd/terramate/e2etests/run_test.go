@@ -79,6 +79,27 @@ frita
 			},
 		},
 		{
+			name: "independent stacks inside other stacks gives consistent ordering (lexicographic by path)",
+			layout: []string{
+				"s:stacks",
+				"s:stacks/A",
+				"s:stacks/B",
+				"s:stacks/A/AA",
+				"s:stacks/B/BA",
+				"s:stacks/A/AA/AAA",
+			},
+			want: runExpected{
+				Stdout: strings.Join([]string{
+					"stacks",
+					"A",
+					"AA",
+					"AAA",
+					"B",
+					"BA",
+				}, "\n") + "\n",
+			},
+		},
+		{
 			name: "stack-b after stack-a (relpaths)",
 			layout: []string{
 				"s:stack-a",

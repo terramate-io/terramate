@@ -19,19 +19,18 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/stack"
 )
 
 // AssertStackImports checks that the given stack has all the wanted import
 // definitions. The wanted imports is a slice of the sources that are imported
-// on each block.
-func AssertStackImports(t *testing.T, rootdir string, got stack.S, want []string) {
+// on each block. The got stack must be not nil.
+func AssertStackImports(t *testing.T, rootdir string, stackHostPath string, want []string) {
 	t.Helper()
 
-	parser, err := hcl.NewTerramateParser(rootdir, got.HostPath())
+	parser, err := hcl.NewTerramateParser(rootdir, stackHostPath)
 	assert.NoError(t, err)
 
-	err = parser.AddDir(got.HostPath())
+	err = parser.AddDir(stackHostPath)
 	assert.NoError(t, err)
 
 	err = parser.Parse()

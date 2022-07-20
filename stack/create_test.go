@@ -222,7 +222,7 @@ func TestStackCreation(t *testing.T) {
 			assert.EqualStrings(t, want.name, got.Name(), "checking stack name")
 			assert.EqualStrings(t, want.desc, got.Desc(), "checking stack description")
 
-			test.AssertStackImports(t, s.RootDir(), got, want.imports)
+			test.AssertStackImports(t, s.RootDir(), got.HostPath(), want.imports)
 		})
 	}
 }

@@ -11,7 +11,6 @@ A Terramate stack is:
 * A directory inside your project.
 * Has at least one or more Terramate configuration files.
 * One of the configuration files has a `stack {}` block on it.
-* It has no stacks on any of its subdirs (stacks can't have stacks inside them).
 
 What separates a stack from any other directory is the `stack{}` block.
 It doesn't require any attributes by default, but it can be used
