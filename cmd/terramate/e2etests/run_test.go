@@ -44,8 +44,7 @@ func TestCLIRunOrder(t *testing.T) {
 				"s:stack-a",
 			},
 			want: runExpected{
-				Stdout: `stack-a
-`,
+				Stdout: listStacks("stack-a"),
 			},
 		},
 		{
@@ -54,8 +53,7 @@ func TestCLIRunOrder(t *testing.T) {
 				"s:stack:after=[]",
 			},
 			want: runExpected{
-				Stdout: `stack
-`,
+				Stdout: listStacks(`stack`),
 			},
 		},
 		{
@@ -69,17 +67,11 @@ func TestCLIRunOrder(t *testing.T) {
 				"s:boom",
 			},
 			want: runExpected{
-				Stdout: `1
-2
-3
-batatinha
-boom
-frita
-`,
+				Stdout: listStacks("1", "2", "3", "batatinha", "boom", "frita"),
 			},
 		},
 		{
-			name: "independent stacks inside other stacks gives consistent ordering (lexicographic by path)",
+			name: "independent stacks inside other stacks follows hierarchical ordering",
 			layout: []string{
 				"s:stacks",
 				"s:stacks/A",
@@ -89,14 +81,14 @@ frita
 				"s:stacks/A/AA/AAA",
 			},
 			want: runExpected{
-				Stdout: strings.Join([]string{
+				Stdout: listStacks(
 					"stacks",
 					"A",
 					"AA",
 					"AAA",
 					"B",
 					"BA",
-				}, "\n") + "\n",
+				),
 			},
 		},
 		{
@@ -106,9 +98,18 @@ frita
 				`s:stack-b:after=["../stack-a"]`,
 			},
 			want: runExpected{
-				Stdout: `stack-a
-stack-b
-`,
+				Stdout: listStacks("stack-a", "stack-b"),
+			},
+		},
+		{
+			name: "stack-b after stack-a after parent (implicit)",
+			layout: []string{
+				`s:parent`,
+				`s:parent/stack-a`,
+				`s:parent/stack-b:after=["/parent/stack-a"]`,
+			},
+			want: runExpected{
+				Stdout: listStacks("parent", "stack-a", "stack-b"),
 			},
 		},
 		{
@@ -118,9 +119,7 @@ stack-b
 				`s:stack-b:after=["/stack-a"]`,
 			},
 			want: runExpected{
-				Stdout: `stack-a
-stack-b
-`,
+				Stdout: listStacks("stack-a", "stack-b"),
 			},
 		},
 		{
@@ -131,10 +130,7 @@ stack-b
 				`s:stack-c:after=["../stack-b"]`,
 			},
 			want: runExpected{
-				Stdout: `stack-a
-stack-b
-stack-c
-`,
+				Stdout: listStacks("stack-a", "stack-b", "stack-c"),
 			},
 		},
 		{
@@ -145,10 +141,7 @@ stack-c
 				`s:stack-c:after=["/stack-b"]`,
 			},
 			want: runExpected{
-				Stdout: `stack-a
-stack-b
-stack-c
-`,
+				Stdout: listStacks("stack-a", "stack-b", "stack-c"),
 			},
 		},
 		{
@@ -159,10 +152,7 @@ stack-c
 				`s:stack-a:after=["../stack-b"]`,
 			},
 			want: runExpected{
-				Stdout: `stack-c
-stack-b
-stack-a
-`,
+				Stdout: listStacks("stack-c", "stack-b", "stack-a"),
 			},
 		},
 		{
@@ -173,10 +163,7 @@ stack-a
 				`s:stack-a:after=["/stack-b"]`,
 			},
 			want: runExpected{
-				Stdout: `stack-c
-stack-b
-stack-a
-`,
+				Stdout: listStacks("stack-c", "stack-b", "stack-a"),
 			},
 		},
 		{
@@ -186,9 +173,7 @@ stack-a
 				`s:stack-b`,
 			},
 			want: runExpected{
-				Stdout: `stack-b
-stack-a
-`,
+				Stdout: listStacks("stack-b", "stack-a"),
 			},
 		},
 		{
@@ -200,11 +185,7 @@ stack-a
 				`s:stack-d`,
 			},
 			want: runExpected{
-				Stdout: `stack-b
-stack-c
-stack-d
-stack-a
-`,
+				Stdout: listStacks("stack-b", "stack-c", "stack-d", "stack-a"),
 			},
 		},
 		{
@@ -216,11 +197,12 @@ stack-a
 				`s:stack-d`,
 			},
 			want: runExpected{
-				Stdout: `stack-b
-stack-c
-stack-d
-stack-a
-`,
+				Stdout: listStacks(
+					"stack-b",
+					"stack-c",
+					"stack-d",
+					"stack-a",
+				),
 			},
 		},
 		{
@@ -233,12 +215,13 @@ stack-a
 				`s:stack-z`,
 			},
 			want: runExpected{
-				Stdout: `stack-a
-stack-b
-stack-c
-stack-z
-stack-d
-`,
+				Stdout: listStacks(
+					"stack-a",
+					"stack-b",
+					"stack-c",
+					"stack-z",
+					"stack-d",
+				),
 			},
 		},
 		{
@@ -251,12 +234,13 @@ stack-d
 				`s:stack-z`,
 			},
 			want: runExpected{
-				Stdout: `stack-a
-stack-b
-stack-c
-stack-z
-stack-d
-`,
+				Stdout: listStacks(
+					"stack-a",
+					"stack-b",
+					"stack-c",
+					"stack-z",
+					"stack-d",
+				),
 			},
 		},
 		{
@@ -268,11 +252,12 @@ stack-d
 				`s:stack-d:after=["../stack-b"]`,
 			},
 			want: runExpected{
-				Stdout: `stack-a
-stack-b
-stack-c
-stack-d
-`,
+				Stdout: listStacks(
+					"stack-a",
+					"stack-b",
+					"stack-c",
+					"stack-d",
+				),
 			},
 		},
 		{
@@ -285,12 +270,13 @@ stack-d
 				`s:stack-d:after=["../stack-b"]`,
 			},
 			want: runExpected{
-				Stdout: `stack-a
-stack-b
-stack-c
-stack-d
-stack-z
-`,
+				Stdout: listStacks(
+					"stack-a",
+					"stack-b",
+					"stack-c",
+					"stack-d",
+					"stack-z",
+				),
 			},
 		},
 		{
@@ -304,13 +290,14 @@ stack-z
 				`s:stack-d:after=["../stack-b"]`,
 			},
 			want: runExpected{
-				Stdout: `stack-a
-stack-b
-stack-c
-stack-d
-stack-g
-stack-z
-`,
+				Stdout: listStacks(
+					"stack-a",
+					"stack-b",
+					"stack-c",
+					"stack-d",
+					"stack-g",
+					"stack-z",
+				),
 			},
 		},
 		{
@@ -325,14 +312,15 @@ stack-z
 				`s:stack-h`,
 			},
 			want: runExpected{
-				Stdout: `stack-d
-stack-f
-stack-b
-stack-g
-stack-h
-stack-c
-stack-a
-`,
+				Stdout: listStacks(
+					"stack-d",
+					"stack-f",
+					"stack-b",
+					"stack-g",
+					"stack-h",
+					"stack-c",
+					"stack-a",
+				),
 			},
 		},
 		{
@@ -345,12 +333,13 @@ stack-a
 				`s:stack-d`,
 			},
 			want: runExpected{
-				Stdout: `stack-b
-stack-c
-stack-a
-stack-d
-stack-z
-`,
+				Stdout: listStacks(
+					"stack-b",
+					"stack-c",
+					"stack-a",
+					"stack-d",
+					"stack-z",
+				),
 			},
 		},
 		{
@@ -365,20 +354,53 @@ stack-z
 				`s:stack-y`,
 			},
 			want: runExpected{
-				Stdout: `stack-x
-stack-y
-stack-a
-stack-b
-stack-c
-stack-d
-stack-z
-`,
+				Stdout: listStacks(
+					"stack-x",
+					"stack-y",
+					"stack-a",
+					"stack-b",
+					"stack-c",
+					"stack-d",
+					"stack-z",
+				),
 			},
 		},
 		{
 			name: "stack-a after stack-a - fails",
 			layout: []string{
 				`s:stack-a:after=["../stack-a"]`,
+			},
+			want: runExpected{
+				Status:      defaultErrExitStatus,
+				StderrRegex: string(dag.ErrCycleDetected),
+			},
+		},
+		{
+			name: "child stack can have explicit after clause to parent",
+			layout: []string{
+				`s:stacks`,
+				`s:stacks/child:after=["../"]`,
+			},
+			want: runExpected{
+				Stdout: listStacks("stacks", "child"),
+			},
+		},
+		{
+			name: "child stack can never run before the parent - cycle",
+			layout: []string{
+				`s:stacks`,
+				`s:stacks/child:before=["/stacks"]`,
+			},
+			want: runExpected{
+				Status:      defaultErrExitStatus,
+				StderrRegex: string(dag.ErrCycleDetected),
+			},
+		},
+		{
+			name: "parent stack can never run after the child - cycle",
+			layout: []string{
+				`s:stacks:after=["/stacks/child"]`,
+				`s:stacks/child`,
 			},
 			want: runExpected{
 				Status:      defaultErrExitStatus,
@@ -448,12 +470,13 @@ stack-z
 				`s:stack-d`,
 			},
 			want: runExpected{
-				Stdout: `stack-b
-stack-c
-stack-a
-stack-d
-stack-z
-`,
+				Stdout: listStacks(
+					"stack-b",
+					"stack-c",
+					"stack-a",
+					"stack-d",
+					"stack-z",
+				),
 			},
 		},
 		{
@@ -509,7 +532,7 @@ func TestRunWants(t *testing.T) {
 				`s:stack-a:wants=["/stack-a"]`,
 			},
 			want: runExpected{
-				Stdout: "stack-a\n",
+				Stdout: listStacks("stack-a"),
 			},
 		},
 		{
@@ -519,7 +542,7 @@ func TestRunWants(t *testing.T) {
 				`s:stack-b`,
 			},
 			want: runExpected{
-				Stdout: "stack-a\nstack-b\n",
+				Stdout: listStacks("stack-a", "stack-b"),
 			},
 		},
 		{
@@ -529,7 +552,7 @@ func TestRunWants(t *testing.T) {
 				`s:stack-a`,
 			},
 			want: runExpected{
-				Stdout: "stack-a\nstack-b\n",
+				Stdout: listStacks("stack-a", "stack-b"),
 			},
 		},
 		{
@@ -540,7 +563,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-a",
 			want: runExpected{
-				Stdout: "stack-a\nstack-b\n",
+				Stdout: listStacks("stack-a", "stack-b"),
 			},
 		},
 		{
@@ -551,7 +574,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: runExpected{
-				Stdout: "stack-b\n",
+				Stdout: listStacks("stack-b"),
 			},
 		},
 		{
@@ -562,7 +585,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: runExpected{
-				Stdout: "stack-a\nstack-b\n",
+				Stdout: listStacks("stack-a", "stack-b"),
 			},
 		},
 		{
@@ -574,7 +597,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: runExpected{
-				Stdout: "stack-a\nstack-b\nstack-c\n",
+				Stdout: listStacks("stack-a", "stack-b", "stack-c"),
 			},
 		},
 		{
@@ -586,7 +609,7 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: runExpected{
-				Stdout: "stack-a\nstack-b\nstack-c\n",
+				Stdout: listStacks("stack-a", "stack-b", "stack-c"),
 			},
 		},
 		{
@@ -601,7 +624,13 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-a",
 			want: runExpected{
-				Stdout: "stack-a\nstack-b\nstack-c\nstack-d\nstack-e\n",
+				Stdout: listStacks(
+					"stack-a",
+					"stack-b",
+					"stack-c",
+					"stack-d",
+					"stack-e",
+				),
 			},
 		},
 		{
@@ -616,7 +645,11 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: runExpected{
-				Stdout: "stack-b\nstack-d\nstack-e\n",
+				Stdout: listStacks(
+					"stack-b",
+					"stack-d",
+					"stack-e",
+				),
 			},
 		},
 		{
@@ -635,7 +668,14 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: runExpected{
-				Stdout: "stack-a\nstack-b\nstack-c\nstack-d\nstack-e\nstack-z\n",
+				Stdout: listStacks(
+					"stack-a",
+					"stack-b",
+					"stack-c",
+					"stack-d",
+					"stack-e",
+					"stack-z",
+				),
 			},
 		},
 		{
@@ -653,7 +693,14 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: runExpected{
-				Stdout: "stack-b\nstack-d\nstack-a\nstack-c\nstack-e\nstack-z\n",
+				Stdout: listStacks(
+					"stack-b",
+					"stack-d",
+					"stack-a",
+					"stack-c",
+					"stack-e",
+					"stack-z",
+				),
 			},
 		},
 	} {
@@ -829,10 +876,10 @@ func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDir(t *testing.T) {
 		), runExpected{Stdout: want})
 	}
 
-	assertRun(".", "stack-1\nparent-stack\nstack-2\n")
-	assertRun("stacks", "stack-1\nstack-2\n")
-	assertRun("stacks/stack-1", "stack-1\n")
-	assertRun("stacks/stack-2", "stack-2\n")
+	assertRun(".", listStacks("stack-1", "parent-stack", "stack-2"))
+	assertRun("stacks", listStacks("stack-1", "stack-2"))
+	assertRun("stacks/stack-1", listStacks("stack-1"))
+	assertRun("stacks/stack-2", listStacks("stack-2"))
 }
 
 func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
@@ -1557,4 +1604,8 @@ stack "/stack":
 		assertRunResult(t, tm.run("experimental", "run-env"), runExpected{
 			Stdout: want})
 	})
+}
+
+func listStacks(stacks ...string) string {
+	return strings.Join(stacks, "\n") + "\n"
 }
