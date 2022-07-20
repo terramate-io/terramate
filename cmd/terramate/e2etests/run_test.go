@@ -460,6 +460,17 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
+			name: "grand parent before parent before child (implicit)",
+			layout: []string{
+				`s:grand-parent`,
+				`s:grand-parent/parent`,
+				`s:grand-parent/parent/child`,
+			},
+			want: runExpected{
+				Stdout: listStacks("grand-parent", "parent", "child"),
+			},
+		},
+		{
 			name: "child stack can have explicit after clause to parent",
 			layout: []string{
 				`s:stacks`,
