@@ -23,7 +23,7 @@ import (
 
 // AssertStackImports checks that the given stack has all the wanted import
 // definitions. The wanted imports is a slice of the sources that are imported
-// on each block. The got stack must be not nil.
+// on each block.
 func AssertStackImports(t *testing.T, rootdir string, stackHostPath string, want []string) {
 	t.Helper()
 
