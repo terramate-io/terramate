@@ -89,8 +89,6 @@ func TestListWatchFileOutsideProject(t *testing.T) {
 		`s:stack:watch=["../../this-stack-must-never-be-visible/terramate.tm.hcl"]`,
 	})
 
-	s.LoadStack("stack")
-
 	cli := newCLI(t, s.RootDir())
 
 	git := s.Git()

@@ -178,7 +178,7 @@ func (s S) Generate() generate.Report {
 }
 
 // LoadStack load the stack given its relative path.
-func (s S) LoadStack(relpath string) stack.S {
+func (s S) LoadStack(relpath string) *stack.S {
 	s.t.Helper()
 
 	st, err := stack.Load(s.rootdir, filepath.Join(s.rootdir, relpath))
@@ -188,13 +188,13 @@ func (s S) LoadStack(relpath string) stack.S {
 }
 
 // LoadStacks load all stacks from sandbox rootdir.
-func (s S) LoadStacks() []stack.S {
+func (s S) LoadStacks() stack.List {
 	s.t.Helper()
 
 	entries, err := terramate.ListStacks(s.rootdir)
 	assert.NoError(s.t, err)
 
-	var stacks []stack.S
+	var stacks stack.List
 	for _, entry := range entries {
 		stacks = append(stacks, entry.Stack)
 	}
@@ -431,7 +431,7 @@ func (se StackEntry) ReadFile(filename string) string {
 }
 
 // Load loads the terramate stack instance for this stack dir entry.
-func (se StackEntry) Load() stack.S {
+func (se StackEntry) Load() *stack.S {
 	se.t.Helper()
 
 	loadedStack, err := stack.Load(se.rootpath, se.Path())

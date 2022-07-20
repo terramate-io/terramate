@@ -57,7 +57,7 @@ type (
 
 	// Entry is a stack entry result.
 	Entry struct {
-		Stack  stack.S
+		Stack  *stack.S
 		Reason string // Reason why this entry was returned.
 	}
 )
@@ -458,9 +458,9 @@ func (m *Manager) moduleChanged(
 }
 
 // AddWantedOf returns all wanted stacks from the given stacks.
-func (m *Manager) AddWantedOf(stacks []stack.S) ([]stack.S, error) {
-	wantedBy := map[string]stack.S{}
-	wanted := []stack.S{}
+func (m *Manager) AddWantedOf(stacks stack.List) (stack.List, error) {
+	wantedBy := map[string]*stack.S{}
+	wanted := stack.List{}
 
 	for _, s := range stacks {
 		wantedBy[s.Path()] = s
@@ -572,7 +572,7 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 	return g.DiffNames(baseRef, headRef)
 }
 
-func hasChangedWatchedFiles(stack stack.S, changedFiles []string) (string, bool) {
+func hasChangedWatchedFiles(stack *stack.S, changedFiles []string) (string, bool) {
 	for _, watchFile := range stack.Watch() {
 		for _, file := range changedFiles {
 			if file == watchFile[1:] { // project paths
