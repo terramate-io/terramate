@@ -155,6 +155,12 @@ func (s *S) After() []string { return s.after }
 // Before specifies the list of stacks that must run after this stack.
 func (s *S) Before() []string { return s.before }
 
+// AppendBefore appends the path to the list of stacks that must run after this
+// stack.
+func (s *S) AppendBefore(path string) {
+	s.before = append(s.before, path)
+}
+
 // Wants specifies the list of wanted stacks.
 func (s *S) Wants() []string { return s.wants }
 

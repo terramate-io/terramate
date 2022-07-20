@@ -16,6 +16,9 @@ package run
 
 import (
 	"fmt"
+	"os"
+	"sort"
+	"strings"
 
 	"github.com/mineiros-io/terramate/run/dag"
 	"github.com/mineiros-io/terramate/stack"
@@ -41,6 +44,28 @@ func Sort(root string, stacks stack.List) (stack.List, string, error) {
 		Str("action", "run.Sort()").
 		Str("root", root).
 		Logger()
+
+	logger.Trace().Msg("Computes implicit hierarchical order.")
+
+	isParentStack := func(s1, s2 *stack.S) bool {
+		return strings.HasPrefix(s1.Path(), s2.Path()+string(os.PathSeparator))
+	}
+
+	sort.Sort(stacks)
+	for _, stack := range stacks {
+		for _, other := range stacks {
+			if stack.Path() == other.Path() {
+				continue
+			}
+
+			if isParentStack(stack, other) {
+				logger.Trace().Msgf("The stack %q is parent of %q", other, stack)
+				logger.Debug().Msgf("Ensuring %q runs before %q", other, stack)
+
+				other.AppendBefore(stack.Path())
+			}
+		}
+	}
 
 	logger.Trace().Msg("Sorting stacks.")
 

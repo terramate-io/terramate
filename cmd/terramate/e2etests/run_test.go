@@ -450,6 +450,54 @@ stack-a
 `,
 			},
 		},
+		{
+			name: "stack-b after stack-a after parent (implicit)",
+			layout: []string{
+				`s:parent`,
+				`s:parent/stack-a`,
+				`s:parent/stack-b:after=["/parent/stack-a"]`,
+			},
+			want: runExpected{
+				Stdout: `parent
+stack-a
+stack-b
+`,
+			},
+		},
+		{
+			name: "child stack can have explicit after clause to parent",
+			layout: []string{
+				`s:stacks`,
+				`s:stacks/child:after=["/stacks"]`,
+			},
+			want: runExpected{
+				Stdout: `stacks
+child
+`,
+			},
+		},
+		{
+			name: "child stack can never run before the parent - cycle",
+			layout: []string{
+				`s:stacks`,
+				`s:stacks/child:before=["/stacks"]`,
+			},
+			want: runExpected{
+				Status:      defaultErrExitStatus,
+				StderrRegex: string(dag.ErrCycleDetected),
+			},
+		},
+		{
+			name: "parent stack can never run after the child - cycle",
+			layout: []string{
+				`s:stacks:after=["/stacks/child"]`,
+				`s:stacks/child`,
+			},
+			want: runExpected{
+				Status:      defaultErrExitStatus,
+				StderrRegex: string(dag.ErrCycleDetected),
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			sandboxes := []sandbox.S{
