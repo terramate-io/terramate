@@ -71,7 +71,7 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
-			name: "independent stacks inside other stacks follows hierarchical ordering",
+			name: "independent stacks inside other stacks gives consistent ordering (lexicographic by path)",
 			layout: []string{
 				"s:stacks",
 				"s:stacks/A",
