@@ -529,6 +529,41 @@ func TestCLIRunOrder(t *testing.T) {
 				Stdout: listStacks("stack", "s1", "s2", "s3"),
 			},
 		},
+		{
+			name: "before directory containing stacks in deep directories",
+			layout: []string{
+				`d:dir`,
+				`s:dir/A/B/C/D/A-stack`,
+				`s:Z-stack:before=["/dir"]`,
+			},
+			want: runExpected{
+				Stdout: listStacks("Z-stack", "A-stack"),
+			},
+		},
+		{
+			name: "before directory containing no stacks",
+			layout: []string{
+				`d:dir`,
+				`d:dir/dir2`,
+				`s:stack:before=["/dir"]`,
+				`s:stack2`,
+			},
+			want: runExpected{
+				Stdout: listStacks("stack", "stack2"),
+			},
+		},
+		{
+			name: "after directory containing no stacks",
+			layout: []string{
+				`d:dir`,
+				`d:dir/dir2`,
+				`s:stack:after=["/dir"]`,
+				`s:stack2`,
+			},
+			want: runExpected{
+				Stdout: listStacks("stack", "stack2"),
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			sandboxes := []sandbox.S{
