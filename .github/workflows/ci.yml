@@ -45,7 +45,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-20.04", "macos-10.15", "macos-11"] # maybe in the future: windows-2019, windows-2022
+        # removed "macos-10.15" because of failures on GHA
+        # maybe in the future: windows-2019, windows-2022
+        os: ["ubuntu-20.04", "macos-11"] 
         go: ["1.17", "1.18"]
 
     steps:
