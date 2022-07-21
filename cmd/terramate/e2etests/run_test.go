@@ -445,9 +445,61 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 			workingDir: "stacks",
 			want: runExpected{
-				Stdout: `stack-b
-stack-a
-`,
+				Stdout: listStacks("stack-b", "stack-a"),
+			},
+		},
+		{
+			name: "stack-b after stack-a after parent (implicit)",
+			layout: []string{
+				`s:parent`,
+				`s:parent/stack-a`,
+				`s:parent/stack-b:after=["/parent/stack-a"]`,
+			},
+			want: runExpected{
+				Stdout: listStacks("parent", "stack-a", "stack-b"),
+			},
+		},
+		{
+			name: "grand parent before parent before child (implicit)",
+			layout: []string{
+				`s:grand-parent`,
+				`s:grand-parent/parent`,
+				`s:grand-parent/parent/child`,
+			},
+			want: runExpected{
+				Stdout: listStacks("grand-parent", "parent", "child"),
+			},
+		},
+		{
+			name: "child stack can have explicit after clause to parent",
+			layout: []string{
+				`s:stacks`,
+				`s:stacks/child:after=["/stacks"]`,
+			},
+			want: runExpected{
+				Stdout: listStacks("stacks", "child"),
+			},
+		},
+		{
+			name: "child stack can never run before the parent - cycle",
+			layout: []string{
+				`s:stacks`,
+				`s:stacks/child:before=["/stacks"]`,
+			},
+			want: runExpected{
+				Status:      defaultErrExitStatus,
+				StderrRegex: string(dag.ErrCycleDetected),
+			},
+		},
+		{
+			name: "parent stack can never run after the child - cycle",
+			layout: []string{
+				`s:stacks:after=["/stacks/child"]`,
+				`s:stacks/child`,
+			},
+			want: runExpected{
+				Status:      defaultErrExitStatus,
+				StderrRegex: string(dag.ErrCycleDetected),
 			},
 		},
 	} {
