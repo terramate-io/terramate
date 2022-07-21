@@ -704,7 +704,7 @@ func (c *cli) printRunEnv() {
 }
 
 func (c *cli) generateGraph() {
-	var getLabel func(s stack.S) string
+	var getLabel func(s *stack.S) string
 
 	logger := log.With().
 		Str("action", "generateGraph()").
@@ -717,11 +717,11 @@ func (c *cli) generateGraph() {
 	case "stack.name":
 		logger.Debug().Msg("Set label to stack name.")
 
-		getLabel = func(s stack.S) string { return s.Name() }
+		getLabel = func(s *stack.S) string { return s.Name() }
 	case "stack.dir":
 		logger.Debug().Msg("Set label stack directory.")
 
-		getLabel = func(s stack.S) string { return s.Path() }
+		getLabel = func(s *stack.S) string { return s.Path() }
 	default:
 		logger.Fatal().
 			Msg("-label expects the values \"stack.name\" or \"stack.dir\"")
@@ -762,7 +762,7 @@ func (c *cli) generateGraph() {
 				Msg("generating graph")
 		}
 
-		generateDot(dotGraph, graph, id, val.(stack.S), getLabel)
+		generateDot(dotGraph, graph, id, val.(*stack.S), getLabel)
 	}
 
 	logger.Debug().
@@ -810,8 +810,8 @@ func generateDot(
 	dotGraph *dot.Graph,
 	graph *dag.DAG,
 	id dag.ID,
-	stackval stack.S,
-	getLabel func(s stack.S) string,
+	stackval *stack.S,
+	getLabel func(s *stack.S) string,
 ) {
 	logger := log.With().
 		Str("action", "generateDot()").
@@ -825,7 +825,7 @@ func generateDot(
 				Err(err).
 				Msg("generating dot file")
 		}
-		s := val.(stack.S)
+		s := val.(*stack.S)
 		n := dotGraph.Node(getLabel(s))
 
 		edges := dotGraph.FindEdges(parent, n)
@@ -986,7 +986,7 @@ func envVarIsSet(val string) bool {
 	return val != "0" && val != "false"
 }
 
-func (c *cli) checkOutdatedGeneratedCode(stacks []stack.S) {
+func (c *cli) checkOutdatedGeneratedCode(stacks stack.List) {
 	logger := log.With().
 		Str("action", "checkOutdatedGeneratedCode()").
 		Logger()
@@ -1152,7 +1152,7 @@ func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.root(), c.wd(), dir)
 }
 
-func (c *cli) computeSelectedStacks(ensureCleanRepo bool) ([]stack.S, error) {
+func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (stack.List, error) {
 	logger := log.With().
 		Str("action", "computeSelectedStacks()").
 		Str("workingDir", c.wd()).
@@ -1174,7 +1174,7 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) ([]stack.S, error) {
 	logger.Trace().Msg("Filter stacks by working directory.")
 
 	entries := c.filterStacksByWorkingDir(report.Stacks)
-	stacks := make([]stack.S, len(entries))
+	stacks := make(stack.List, len(entries))
 	for i, e := range entries {
 		stacks[i] = e.Stack
 	}

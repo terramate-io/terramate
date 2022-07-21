@@ -37,7 +37,7 @@ import (
 // returning a list with a single error inside.
 func Exec(
 	rootdir string,
-	stacks []stack.S,
+	stacks stack.List,
 	cmd []string,
 	stdin io.Reader,
 	stdout io.Writer,

@@ -84,7 +84,7 @@ func TestCreateStack(t *testing.T) {
 		assert.EqualStrings(t, stackName, got.Name(), "checking stack name")
 		assert.EqualStrings(t, stackDescription, got.Desc(), "checking stack description")
 
-		test.AssertStackImports(t, s.RootDir(), got, []string{stackImport1, stackImport2})
+		test.AssertStackImports(t, s.RootDir(), got.HostPath(), []string{stackImport1, stackImport2})
 
 		stackEntry := s.StackEntry(stackPath)
 		gotGenCode := stackEntry.ReadFile(genFilename)
@@ -108,7 +108,7 @@ func TestCreateStackDefaults(t *testing.T) {
 	_, err := uuid.Parse(gotID)
 	assert.NoError(t, err, "validating default UUID")
 
-	test.AssertStackImports(t, s.RootDir(), got, []string{})
+	test.AssertStackImports(t, s.RootDir(), got.HostPath(), []string{})
 }
 
 func newStackID(t *testing.T) string {

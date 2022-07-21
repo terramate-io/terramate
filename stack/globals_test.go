@@ -1126,7 +1126,7 @@ func TestLoadGlobals(t *testing.T) {
 				errtest.AssertKind(t, err, tcase.wantErr)
 			}
 
-			var stacks []stack.S
+			var stacks stack.List
 			for _, entry := range stackEntries {
 				st := entry.Stack
 				stacks = append(stacks, st)

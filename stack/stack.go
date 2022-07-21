@@ -85,6 +85,9 @@ type (
 		// RelPathToRoot is the relative path from the stack to root.
 		RelPathToRoot() string
 	}
+
+	// List of stacks.
+	List []*S
 )
 
 const (
@@ -96,7 +99,7 @@ const (
 )
 
 // New creates a new stack from configuration cfg.
-func New(root string, cfg hcl.Config) (S, error) {
+func New(root string, cfg hcl.Config) (*S, error) {
 	name := cfg.Stack.Name
 	if name == "" {
 		name = filepath.Base(cfg.AbsDir())
@@ -113,10 +116,10 @@ func New(root string, cfg hcl.Config) (S, error) {
 
 	watchFiles, err := validateWatchPaths(root, cfg.AbsDir(), cfg.Stack.Watch)
 	if err != nil {
-		return S{}, errors.E(err, ErrInvalidWatch)
+		return nil, errors.E(err, ErrInvalidWatch)
 	}
 
-	return S{
+	return &S{
 		name:          name,
 		id:            cfg.Stack.ID,
 		desc:          cfg.Stack.Description,
@@ -131,12 +134,12 @@ func New(root string, cfg hcl.Config) (S, error) {
 }
 
 // ID of the stack if it has one, or empty string and false otherwise.
-func (s S) ID() (string, bool) {
+func (s *S) ID() (string, bool) {
 	return s.id.Value()
 }
 
 // Name of the stack.
-func (s S) Name() string {
+func (s *S) Name() string {
 	if s.name != "" {
 		return s.name
 	}
@@ -144,43 +147,43 @@ func (s S) Name() string {
 }
 
 // Desc is the description of the stack.
-func (s S) Desc() string { return s.desc }
+func (s *S) Desc() string { return s.desc }
 
 // After specifies the list of stacks that must run before this stack.
-func (s S) After() []string { return s.after }
+func (s *S) After() []string { return s.after }
 
 // Before specifies the list of stacks that must run after this stack.
-func (s S) Before() []string { return s.before }
+func (s *S) Before() []string { return s.before }
 
 // Wants specifies the list of wanted stacks.
-func (s S) Wants() []string { return s.wants }
+func (s *S) Wants() []string { return s.wants }
 
 // Watch returns the list of watched files.
-func (s S) Watch() []string { return s.watch }
+func (s *S) Watch() []string { return s.watch }
 
 // IsChanged tells if the stack is marked as changed.
-func (s S) IsChanged() bool { return s.changed }
+func (s *S) IsChanged() bool { return s.changed }
 
 // SetChanged sets the changed flag of the stack.
 func (s *S) SetChanged(b bool) { s.changed = b }
 
 // String representation of the stack.
-func (s S) String() string { return s.Path() }
+func (s *S) String() string { return s.Path() }
 
 // Path returns the project's absolute path of stack.
-func (s S) Path() string { return s.path }
+func (s *S) Path() string { return s.path }
 
 // PathBase returns the base name of the stack path.
-func (s S) PathBase() string { return filepath.Base(s.path) }
+func (s *S) PathBase() string { return filepath.Base(s.path) }
 
 // RelPath returns the project's relative path of stack.
-func (s S) RelPath() string { return s.path[1:] }
+func (s *S) RelPath() string { return s.path[1:] }
 
 // RelPathToRoot returns the relative path from the stack to root.
-func (s S) RelPathToRoot() string { return s.relPathToRoot }
+func (s *S) RelPathToRoot() string { return s.relPathToRoot }
 
 // HostPath returns the file system absolute path of stack.
-func (s S) HostPath() string { return s.hostpath }
+func (s *S) HostPath() string { return s.hostpath }
 
 func validateWatchPaths(rootdir string, stackpath string, paths []string) ([]string, error) {
 	var projectPaths []string
@@ -213,20 +216,20 @@ func validateWatchPaths(rootdir string, stackpath string, paths []string) ([]str
 
 // LookupParent checks parent stack of given dir.
 // Returns false, nil if the given dir has no parent stack.
-func LookupParent(root, dir string) (S, bool, error) {
+func LookupParent(root, dir string) (*S, bool, error) {
 	l := NewLoader(root)
 	return l.lookupParentStack(dir)
 }
 
 // LoadAll loads all stacks inside the given rootdir.
-func LoadAll(rootdir string) ([]S, error) {
+func LoadAll(rootdir string) (List, error) {
 	logger := log.With().
 		Str("action", "stack.LoadAll()").
 		Str("root", rootdir).
 		Logger()
 
-	stacks := []S{}
-	stacksIDs := map[string]S{}
+	stacks := List{}
+	stacksIDs := map[string]*S{}
 
 	logger.Trace().Msg("Walk project root directory.")
 	err := filepath.Walk(rootdir,
@@ -289,49 +292,49 @@ func LoadAll(rootdir string) ([]S, error) {
 }
 
 // Load a single stack from dir.
-func Load(root, dir string) (S, error) {
+func Load(root, dir string) (*S, error) {
 	l := NewLoader(root)
 	return l.Load(dir)
 }
 
 // TryLoad tries to load a single stack from dir. It sets found as true in case
 // the stack was successfully loaded.
-func TryLoad(root, absdir string) (stack S, found bool, err error) {
+func TryLoad(root, absdir string) (stack *S, found bool, err error) {
 	logger := log.With().
 		Str("action", "TryLoad()").
 		Str("dir", absdir).
 		Logger()
 
 	if !strings.HasPrefix(absdir, root) {
-		return S{}, false, errors.E(fmt.Sprintf("directory %q is not inside project root %q",
+		return nil, false, errors.E(fmt.Sprintf("directory %q is not inside project root %q",
 			absdir, root))
 	}
 
 	logger.Debug().Msg("Parsing configuration.")
 	cfg, err := hcl.ParseDir(root, absdir)
 	if err != nil {
-		return S{}, false, err
+		return nil, false, err
 	}
 
 	if cfg.Stack == nil {
-		return S{}, false, nil
+		return nil, false, nil
 	}
 
 	logger.Debug().Msg("Create a new stack")
 	s, err := New(root, cfg)
 	if err != nil {
-		return S{}, true, err
+		return nil, true, err
 	}
 	return s, true, nil
 }
 
 // Sort sorts the given stacks.
-func Sort(stacks []S) {
-	sort.Sort(stackSlice(stacks))
+func Sort(stacks []*S) {
+	sort.Sort(List(stacks))
 }
 
 // Reverse reverses the given stacks slice.
-func Reverse(stacks []S) {
+func Reverse(stacks List) {
 	i, j := 0, len(stacks)-1
 	for i < j {
 		stacks[i], stacks[j] = stacks[j], stacks[i]
@@ -340,9 +343,6 @@ func Reverse(stacks []S) {
 	}
 }
 
-// stackSlice implements the Sort interface.
-type stackSlice []S
-
-func (l stackSlice) Len() int           { return len(l) }
-func (l stackSlice) Less(i, j int) bool { return l[i].Path() < l[j].Path() }
-func (l stackSlice) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
+func (l List) Len() int           { return len(l) }
+func (l List) Less(i, j int) bool { return l[i].Path() < l[j].Path() }
+func (l List) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }

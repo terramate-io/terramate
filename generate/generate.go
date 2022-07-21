@@ -65,7 +65,7 @@ const (
 // report needs to be inspected to check.
 func Do(root string, workingDir string) Report {
 	return forEachStack(root, workingDir, func(
-		stack stack.S,
+		stack *stack.S,
 		globals stack.Globals,
 	) stackReport {
 		stackpath := stack.HostPath()
@@ -220,7 +220,7 @@ func validateGeneratedFiles(generated []fileInfo) error {
 
 // ListStackGenFiles will list the filenames of all generated code inside
 // a stack.  The filenames are ordered lexicographically.
-func ListStackGenFiles(stack stack.S) ([]string, error) {
+func ListStackGenFiles(stack *stack.S) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.ListStackGenFiles()").
 		Stringer("stack", stack).
@@ -268,7 +268,7 @@ func ListStackGenFiles(stack stack.S) ([]string, error) {
 // If the stack has an invalid configuration it will return an error.
 //
 // The provided root must be the project's root directory as an absolute path.
-func CheckStack(root string, st stack.S) ([]string, error) {
+func CheckStack(root string, st *stack.S) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.CheckStack()").
 		Str("path", root).
@@ -488,7 +488,7 @@ func readFile(path string) (string, bool, error) {
 	return string(data), true, nil
 }
 
-type forEachStackFunc func(stack.S, stack.Globals) stackReport
+type forEachStackFunc func(*stack.S, stack.Globals) stackReport
 
 func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 	logger := log.With().
@@ -535,7 +535,7 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 	return report
 }
 
-func removeStackGeneratedFiles(stack stack.S, genfiles []fileInfo) (map[string]string, error) {
+func removeStackGeneratedFiles(stack *stack.S, genfiles []fileInfo) (map[string]string, error) {
 	logger := log.With().
 		Str("action", "generate.removeStackGeneratedFiles()").
 		Stringer("stack", stack).
