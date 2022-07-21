@@ -30,11 +30,12 @@ func TestCreateStack(t *testing.T) {
 	cli := newCLI(t, s.RootDir())
 
 	const (
-		stackID          = "stack-id"
 		stackName        = "stack name"
 		stackDescription = "stack description"
 		stackImport1     = "/core/file1.tm.hcl"
 		stackImport2     = "/core/file2.tm.hcl"
+		genFilename      = "file.txt"
+		genFileContent   = "testing is fun"
 	)
 
 	createFile := func(path string) {
@@ -45,6 +46,12 @@ func TestCreateStack(t *testing.T) {
 	createFile(stackImport1)
 	createFile(stackImport2)
 
+	s.RootEntry().CreateFile("generate.tm.hcl", `
+		generate_file "%s" {
+		  content = "%s"
+		}
+	`, genFilename, genFileContent)
+
 	stackPaths := []string{
 		"stack-1",
 		"/stack-2",
@@ -53,6 +60,7 @@ func TestCreateStack(t *testing.T) {
 	}
 
 	for _, stackPath := range stackPaths {
+		stackID := newStackID(t)
 		res := cli.run("create", stackPath,
 			"--id", stackID,
 			"--name", stackName,
@@ -61,8 +69,12 @@ func TestCreateStack(t *testing.T) {
 			"--import", stackImport2,
 		)
 
+		t.Logf("run create stack %s", stackPath)
+		t.Logf("stdout: %s", res.Stdout)
+		t.Logf("stderr: %s", res.Stderr)
+
 		assertRunResult(t, res, runExpected{
-			Stdout: fmt.Sprintf("Created stack %s with success\n", stackPath),
+			StdoutRegex: fmt.Sprintf("Created stack %s with success\n", stackPath),
 		})
 
 		got := s.LoadStack(stackPath)
@@ -73,6 +85,11 @@ func TestCreateStack(t *testing.T) {
 		assert.EqualStrings(t, stackDescription, got.Desc(), "checking stack description")
 
 		test.AssertStackImports(t, s.RootDir(), got.HostPath(), []string{stackImport1, stackImport2})
+
+		stackEntry := s.StackEntry(stackPath)
+		gotGenCode := stackEntry.ReadFile(genFilename)
+
+		assert.EqualStrings(t, genFileContent, gotGenCode, "checking stack generated code")
 	}
 }
 
@@ -92,4 +109,14 @@ func TestCreateStackDefaults(t *testing.T) {
 	assert.NoError(t, err, "validating default UUID")
 
 	test.AssertStackImports(t, s.RootDir(), got.HostPath(), []string{})
+}
+
+func newStackID(t *testing.T) string {
+	t.Helper()
+
+	id, err := uuid.NewRandom()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return id.String()
 }
