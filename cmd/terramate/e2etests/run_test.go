@@ -471,13 +471,14 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
-			name: "child stack can have explicit after clause to parent",
+			name: "child stack CANNOT have explicit after clause to parent",
 			layout: []string{
 				`s:stacks`,
 				`s:stacks/child:after=["/stacks"]`,
 			},
 			want: runExpected{
-				Stdout: listStacks("stacks", "child"),
+				Status:      defaultErrExitStatus,
+				StderrRegex: string(dag.ErrCycleDetected),
 			},
 		},
 		{
@@ -500,6 +501,32 @@ func TestCLIRunOrder(t *testing.T) {
 			want: runExpected{
 				Status:      defaultErrExitStatus,
 				StderrRegex: string(dag.ErrCycleDetected),
+			},
+		},
+		{
+			name: "after directory containing stacks",
+			layout: []string{
+				`d:dir`,
+				`s:dir/s1`,
+				`s:dir/s2`,
+				`s:dir/s3`,
+				`s:stack:after=["/dir"]`,
+			},
+			want: runExpected{
+				Stdout: listStacks("s1", "s2", "s3", "stack"),
+			},
+		},
+		{
+			name: "before directory containing stacks",
+			layout: []string{
+				`d:dir`,
+				`s:dir/s1`,
+				`s:dir/s2`,
+				`s:dir/s3`,
+				`s:stack:before=["/dir"]`,
+			},
+			want: runExpected{
+				Stdout: listStacks("stack", "s1", "s2", "s3"),
 			},
 		},
 	} {
