@@ -352,7 +352,7 @@ func (c *cli) run() {
 	case "run <cmd>":
 		c.runOnStacks()
 	case "generate":
-		c.generate()
+		c.generate(c.wd())
 	case "experimental clone <srcdir> <destdir>":
 		c.cloneStack()
 	case "experimental globals":
@@ -424,16 +424,11 @@ func (c *cli) cloneStack() {
 	c.log("Cloned stack %s to %s with success", srcstack, deststack)
 	c.log("Generating code on the new cloned stack")
 
-	report := generate.Do(c.root(), destdir)
-	c.log(report.String())
-
-	if report.HasFailures() {
-		os.Exit(1)
-	}
+	c.generate(destdir)
 }
 
-func (c *cli) generate() {
-	report := generate.Do(c.root(), c.wd())
+func (c *cli) generate(workdir string) {
+	report := generate.Do(c.root(), workdir)
 	c.log(report.String())
 
 	if report.HasFailures() {
@@ -577,6 +572,8 @@ func (c *cli) createStack() {
 	}
 
 	c.log("Created stack %s with success", c.parsedArgs.Create.Path)
+	c.log("Generating code on the stack")
+	c.generate(stackDir)
 }
 
 func (c *cli) format() {

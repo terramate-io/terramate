@@ -59,8 +59,7 @@ func Sort(root string, stacks stack.List) (stack.List, string, error) {
 			}
 
 			if isParentStack(stack, other) {
-				logger.Trace().Msgf("The stack %q is parent of %q", other, stack)
-				logger.Debug().Msgf("Ensuring %q runs before %q", other, stack)
+				logger.Debug().Msgf("stack %q runs before %q since it is its parent", other, stack)
 
 				other.AppendBefore(stack.Path())
 			}
