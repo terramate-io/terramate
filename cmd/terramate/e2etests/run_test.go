@@ -530,11 +530,11 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
-			name: "before directory containing stacks in deep directories",
+			name: "after directory containing stacks in deep directories",
 			layout: []string{
 				`d:dir`,
-				`s:dir/A/B/C/D/A-stack`,
-				`s:Z-stack:before=["/dir"]`,
+				`s:dir/A/B/C/D/Z-stack`,
+				`s:A-stack:after=["/dir"]`,
 			},
 			want: runExpected{
 				Stdout: listStacks("Z-stack", "A-stack"),
