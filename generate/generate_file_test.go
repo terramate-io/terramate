@@ -39,7 +39,7 @@ func TestGenerateFile(t *testing.T) {
 	}
 	testCodeGeneration(t, checkGenFiles, []testcase{
 		{
-			name: "empty generate_file content generates nothing",
+			name: "empty generate_file content generates empty file",
 			layout: []string{
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
@@ -51,6 +51,20 @@ func TestGenerateFile(t *testing.T) {
 						labels("empty"),
 						str("content", ""),
 					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stacks/stack-1",
+					files: map[string]fmt.Stringer{
+						"empty": stringer(""),
+					},
+				},
+				{
+					stack: "/stacks/stack-2",
+					files: map[string]fmt.Stringer{
+						"empty": stringer(""),
+					},
 				},
 			},
 		},

@@ -50,7 +50,7 @@ func TestGenerateHCL(t *testing.T) {
 			},
 		},
 		{
-			name: "empty generate_hcl block generates nothing",
+			name: "empty generate_hcl block generates empty file",
 			layout: []string{
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
@@ -62,6 +62,20 @@ func TestGenerateHCL(t *testing.T) {
 						labels("empty"),
 						content(),
 					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stacks/stack-1",
+					files: map[string]fmt.Stringer{
+						"empty": hcldoc(),
+					},
+				},
+				{
+					stack: "/stacks/stack-2",
+					files: map[string]fmt.Stringer{
+						"empty": hcldoc(),
+					},
 				},
 			},
 		},
