@@ -141,9 +141,30 @@ func TestCheckOutdatedDetectsEmptyGenerateHCLBlocks(t *testing.T) {
 		).String())
 
 	assertOutdatedFiles([]string{"test.tf"})
-
 	s.Generate()
+	assertOutdatedFiles([]string{})
 
+	// Check having generated code and switch to no code
+	stackEntry.CreateConfig(
+		generateHCL(
+			labels("test.tf"),
+			content(
+				str("test", "test"),
+			),
+		).String())
+
+	assertOutdatedFiles([]string{"test.tf"})
+	s.Generate()
+	assertOutdatedFiles([]string{})
+
+	stackEntry.CreateConfig(
+		generateHCL(
+			labels("test.tf"),
+			content(),
+		).String())
+
+	assertOutdatedFiles([]string{"test.tf"})
+	s.Generate()
 	assertOutdatedFiles([]string{})
 }
 

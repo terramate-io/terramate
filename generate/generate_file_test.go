@@ -67,6 +67,18 @@ func TestGenerateFile(t *testing.T) {
 					},
 				},
 			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						StackPath: "/stacks/stack-1",
+						Created:   []string{"empty"},
+					},
+					{
+						StackPath: "/stacks/stack-2",
+						Created:   []string{"empty"},
+					},
+				},
+			},
 		},
 		{
 			name: "generate_file with false condition generates nothing",

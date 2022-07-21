@@ -78,6 +78,18 @@ func TestGenerateHCL(t *testing.T) {
 					},
 				},
 			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						StackPath: "/stacks/stack-1",
+						Created:   []string{"empty"},
+					},
+					{
+						StackPath: "/stacks/stack-2",
+						Created:   []string{"empty"},
+					},
+				},
+			},
 		},
 		{
 			name: "generate_hcl with false condition generates nothing",
@@ -1022,11 +1034,12 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 	got = stackEntry.ListGenFiles()
 	assertEqualStringList(t, got, []string{"file1.tf"})
 
-	// Empty block generates no code, so it gets deleted
+	// condition = false gets deleted
 	rootConfig.Write(
 		hcldoc(
 			generateHCL(
 				labels("file1.tf"),
+				boolean("condition", false),
 				content(),
 			),
 		).String(),

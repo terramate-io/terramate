@@ -121,9 +121,30 @@ func TestCheckOutdatedDetectsEmptyGenerateFileContent(t *testing.T) {
 	)
 
 	assertOutdatedFiles([]string{"test.txt"})
-
 	s.Generate()
+	assertOutdatedFiles([]string{})
 
+	// Check having generated code and switch to no code
+	stackEntry.CreateConfig(
+		generateFile(
+			labels("test.txt"),
+			str("content", "code"),
+		).String(),
+	)
+
+	assertOutdatedFiles([]string{"test.txt"})
+	s.Generate()
+	assertOutdatedFiles([]string{})
+
+	stackEntry.CreateConfig(
+		generateFile(
+			labels("test.txt"),
+			str("content", ""),
+		).String(),
+	)
+
+	assertOutdatedFiles([]string{"test.txt"})
+	s.Generate()
 	assertOutdatedFiles([]string{})
 }
 
