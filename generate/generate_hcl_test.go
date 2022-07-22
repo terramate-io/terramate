@@ -50,7 +50,7 @@ func TestGenerateHCL(t *testing.T) {
 			},
 		},
 		{
-			name: "empty generate_hcl block generates nothing",
+			name: "empty generate_hcl block generates empty file",
 			layout: []string{
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
@@ -62,6 +62,32 @@ func TestGenerateHCL(t *testing.T) {
 						labels("empty"),
 						content(),
 					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stacks/stack-1",
+					files: map[string]fmt.Stringer{
+						"empty": hcldoc(),
+					},
+				},
+				{
+					stack: "/stacks/stack-2",
+					files: map[string]fmt.Stringer{
+						"empty": hcldoc(),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						StackPath: "/stacks/stack-1",
+						Created:   []string{"empty"},
+					},
+					{
+						StackPath: "/stacks/stack-2",
+						Created:   []string{"empty"},
+					},
 				},
 			},
 		},
@@ -1008,11 +1034,12 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 	got = stackEntry.ListGenFiles()
 	assertEqualStringList(t, got, []string{"file1.tf"})
 
-	// Empty block generates no code, so it gets deleted
+	// condition = false gets deleted
 	rootConfig.Write(
 		hcldoc(
 			generateHCL(
 				labels("file1.tf"),
+				boolean("condition", false),
 				content(),
 			),
 		).String(),
