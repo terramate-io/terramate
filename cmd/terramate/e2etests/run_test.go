@@ -535,6 +535,32 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
+			name: "after stack containing sub-stacks",
+			layout: []string{
+				`s:parent`,
+				`s:parent/s1`,
+				`s:parent/s2`,
+				`s:parent/s3`,
+				`s:stack:after=["/parent"]`,
+			},
+			want: runExpected{
+				Stdout: listStacks("parent", "s1", "s2", "s3", "stack"),
+			},
+		},
+		{
+			name: "after sub-stack of parent",
+			layout: []string{
+				`s:parent`,
+				`s:parent/s1`,
+				`s:parent/s2`,
+				`s:parent/s3`,
+				`s:stack:after=["/parent/s2"]`,
+			},
+			want: runExpected{
+				Stdout: listStacks("parent", "s1", "s2", "s3", "stack"),
+			},
+		},
+		{
 			name: "before directory containing stacks",
 			layout: []string{
 				`d:dir`,
