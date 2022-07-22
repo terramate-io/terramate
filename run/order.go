@@ -146,7 +146,7 @@ func BuildDAG(
 
 	visited[s.Path()] = struct{}{}
 
-	cleanOrderPaths := func(fieldname string, paths []string) []string {
+	removeWrongPaths := func(fieldname string, paths []string) []string {
 		cleanpaths := []string{}
 		for _, path := range paths {
 			var abspath string
@@ -171,8 +171,8 @@ func BuildDAG(
 		return cleanpaths
 	}
 
-	afterPaths := cleanOrderPaths("after", s.After())
-	beforePaths := cleanOrderPaths("before", s.Before())
+	afterPaths := removeWrongPaths("after", s.After())
+	beforePaths := removeWrongPaths("before", s.Before())
 
 	logger.Trace().Msg("Load all stacks in dir after current stack.")
 
