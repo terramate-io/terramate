@@ -99,8 +99,8 @@ Or they can be relative to the project root, starting with "/":
 ```
 
 **before** ensures that the configured stack is executed before the
-stacks contained in the directory entries. As the stack you are saying: 
-"I execute before these stacks".
+stacks contained in the directory paths. As the stack you are saying: 
+"I execute before all stacks inside these directories".
 
 **after** ensures the opposite, that the stacks contained in the provided 
 directories are executed before the current stack. As the stack, you are saying:
