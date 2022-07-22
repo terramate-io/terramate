@@ -21,7 +21,7 @@ Terramate provides ways to keep your Terraform code [DRY](https://en.wikipedia.o
 - **Execute Any Command**: Terramate is not a wrapper of Terraform but can execute any commands in (changed) stacks.
 - **Execution Order**: Explicitly define an order of execution of stacks.
 - **Forced Stack Execution**: Ensure specific stacks are run alongside other stacks.
-- **Pure HCL**: All configuration of Terramate can be supplied in the well-known [Hashicorp Configuraltion Language (HCL)](https://github.com/hashicorp/hcl).
+- **Pure HCL**: All configuration of Terramate can be supplied in the well-known [Hashicorp Configuration Language (HCL)](https://github.com/hashicorp/hcl).
 
 For more details on how this is achieved, please consider:
 
