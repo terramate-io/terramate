@@ -17,6 +17,7 @@ package run
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -145,16 +146,40 @@ func BuildDAG(
 
 	visited[s.Path()] = struct{}{}
 
-	logger.Trace().
-		Msg("Load all stacks in dir after current stack.")
-	afterStacks, err := loader.LoadAll(root, s.HostPath(), s.After()...)
+	checkOrderPaths := func(fieldname string, paths []string) []string {
+		newpaths := []string{}
+		for _, path := range paths {
+			var abspath string
+			if filepath.IsAbs(path) {
+				abspath = filepath.Join(root, path)
+			} else {
+				abspath = filepath.Join(s.HostPath(), path)
+			}
+			_, err := os.Stat(abspath)
+			if err != nil {
+				logger.Warn().
+					Err(err).
+					Msgf(`failed to stat "%s" path %q`, fieldname, abspath)
+			} else {
+				newpaths = append(newpaths, path)
+			}
+		}
+		return newpaths
+	}
+
+	afterPaths := checkOrderPaths("after", s.After())
+	beforePaths := checkOrderPaths("before", s.Before())
+
+	logger.Trace().Msg("Load all stacks in dir after current stack.")
+
+	afterStacks, err := loader.LoadAll(root, s.HostPath(), afterPaths...)
 	if err != nil {
 		return fmt.Errorf("stack %q: failed to load the \"after\" stacks: %w", s, err)
 	}
 
-	logger.Trace().
-		Msg("Load all stacks in dir before current stack.")
-	beforeStacks, err := loader.LoadAll(root, s.HostPath(), s.Before()...)
+	logger.Trace().Msg("Load all stacks in dir before current stack.")
+
+	beforeStacks, err := loader.LoadAll(root, s.HostPath(), beforePaths...)
 	if err != nil {
 		return fmt.Errorf("stack %q: failed to load the \"before\" stacks: %w", s, err)
 	}

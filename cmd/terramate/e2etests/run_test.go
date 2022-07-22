@@ -57,6 +57,15 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
+			name: "after non-existent path",
+			layout: []string{
+				fmt.Sprintf("s:stack:after=[%q]", test.NonExistingDir(t)),
+			},
+			want: runExpected{
+				Stdout: listStacks(`stack`),
+			},
+		},
+		{
 			name: "independent stacks, consistent ordering (lexicographic)",
 			layout: []string{
 				"s:batatinha",
@@ -541,7 +550,7 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
-			name: "before directory containing no stacks",
+			name: "before directory containing no stacks does nothing",
 			layout: []string{
 				`d:dir`,
 				`d:dir/dir2`,
@@ -553,7 +562,7 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
-			name: "after directory containing no stacks",
+			name: "after directory containing no stacks does nothing",
 			layout: []string{
 				`d:dir`,
 				`d:dir/dir2`,
