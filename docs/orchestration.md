@@ -104,7 +104,7 @@ stacks contained in the directory paths. As the stack you are saying:
 
 **after** ensures the opposite, that the stacks contained in the provided 
 directories are executed before the current stack. As the stack, you are saying:
-"I execute after these stacks".
+"I execute after all stacks inside these directories".
 
 For example, let's assume we have a project organized like this:
 
