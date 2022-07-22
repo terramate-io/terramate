@@ -66,6 +66,15 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
+			name: "after regular file",
+			layout: []string{
+				fmt.Sprintf("s:stack:after=[%q]", test.WriteFile(t, "", "test.txt", `bleh`)),
+			},
+			want: runExpected{
+				Stdout: listStacks(`stack`),
+			},
+		},
+		{
 			name: "independent stacks, consistent ordering (lexicographic)",
 			layout: []string{
 				"s:batatinha",

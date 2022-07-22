@@ -155,11 +155,15 @@ func BuildDAG(
 			} else {
 				abspath = filepath.Join(s.HostPath(), path)
 			}
-			_, err := os.Stat(abspath)
+			st, err := os.Stat(abspath)
 			if err != nil {
 				logger.Warn().
 					Err(err).
-					Msgf(`failed to stat "%s" path %q - ignoring`, fieldname, abspath)
+					Msgf("failed to stat %q path %q - ignoring", fieldname, abspath)
+			} else if !st.IsDir() {
+				logger.Warn().
+					Msgf("stack.%s path %q is not a directory - ignoring",
+						fieldname, path)
 			} else {
 				cleanpaths = append(cleanpaths, path)
 			}
