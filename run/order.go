@@ -146,8 +146,8 @@ func BuildDAG(
 
 	visited[s.Path()] = struct{}{}
 
-	checkOrderPaths := func(fieldname string, paths []string) []string {
-		newpaths := []string{}
+	cleanOrderPaths := func(fieldname string, paths []string) []string {
+		cleanpaths := []string{}
 		for _, path := range paths {
 			var abspath string
 			if filepath.IsAbs(path) {
@@ -159,16 +159,16 @@ func BuildDAG(
 			if err != nil {
 				logger.Warn().
 					Err(err).
-					Msgf(`failed to stat "%s" path %q`, fieldname, abspath)
+					Msgf(`failed to stat "%s" path %q - ignoring`, fieldname, abspath)
 			} else {
-				newpaths = append(newpaths, path)
+				cleanpaths = append(cleanpaths, path)
 			}
 		}
-		return newpaths
+		return cleanpaths
 	}
 
-	afterPaths := checkOrderPaths("after", s.After())
-	beforePaths := checkOrderPaths("before", s.Before())
+	afterPaths := cleanOrderPaths("after", s.After())
+	beforePaths := cleanOrderPaths("before", s.Before())
 
 	logger.Trace().Msg("Load all stacks in dir after current stack.")
 
@@ -184,8 +184,8 @@ func BuildDAG(
 		return fmt.Errorf("stack %q: failed to load the \"before\" stacks: %w", s, err)
 	}
 
-	logger.Debug().
-		Msg("Add new node to DAG.")
+	logger.Debug().Msg("Add new node to DAG.")
+
 	err = d.AddNode(dag.ID(s.Path()), s, toids(beforeStacks), toids(afterStacks))
 	if err != nil {
 		return fmt.Errorf("stack %q: failed to build DAG: %w", s, err)
@@ -195,8 +195,8 @@ func BuildDAG(
 	stacks = append(stacks, afterStacks...)
 	stacks = append(stacks, beforeStacks...)
 
-	logger.Trace().
-		Msg("Range over stacks.")
+	logger.Trace().Msg("Range over stacks.")
+
 	for _, s := range stacks {
 		logger = log.With().
 			Str("action", "BuildDAG()").
@@ -208,8 +208,8 @@ func BuildDAG(
 			continue
 		}
 
-		logger.Trace().
-			Msg("Build DAG.")
+		logger.Trace().Msg("Build DAG.")
+
 		err = BuildDAG(d, root, s, loader, visited)
 		if err != nil {
 			return fmt.Errorf("stack %q: failed to build DAG: %w", s, err)
