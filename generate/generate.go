@@ -78,13 +78,15 @@ func Do(root string, workingDir string) Report {
 		var generated []fileInfo
 		report := stackReport{}
 
-		logger.Trace().Msg("Generate code from generate_hcl blocks")
+		logger.Trace().Msg("generate code from generate_file blocks")
 
 		genfiles, err := genfile.Load(root, stack, globals)
 		if err != nil {
 			report.err = err
 			return report
 		}
+
+		logger.Trace().Msg("generate code from generate_hcl blocks")
 
 		genhcls, err := genhcl.Load(root, stack, globals)
 		if err != nil {
@@ -139,15 +141,13 @@ func Do(root string, workingDir string) Report {
 
 			filename := file.Name()
 			path := filepath.Join(stackpath, filename)
-			emptyBody := file.Body() == ""
 			logger := logger.With().
 				Str("filename", filename).
 				Bool("condition", file.Condition()).
-				Bool("emptyBody", emptyBody).
 				Logger()
 
 			// We don't want to generate files just with a header inside.
-			if emptyBody || !file.Condition() {
+			if !file.Condition() {
 				logger.Debug().Msg("ignoring")
 				continue
 			}
@@ -367,18 +367,19 @@ func updateOutdatedFiles(
 			return err
 		}
 		if !codeFound {
-			if genfile.Body() == "" {
-				logger.Trace().Msg("Not outdated since file not found and content is empty")
-				continue
-			}
 			if !genfile.Condition() {
 				logger.Trace().Msg("Not outdated since file not found and condition is false")
+				outdatedFiles.remove(filename)
 				continue
 			}
+
+			logger.Trace().Msg("outdated since file not found and condition for generation is true")
+			outdatedFiles.add(filename)
+			continue
 		}
 
 		if !genfile.Condition() {
-			logger.Trace().Msg("Outdated since condition is false and file should not exist")
+			logger.Trace().Msg("outdated since file exists but condition for generation is false")
 			outdatedFiles.add(filename)
 			continue
 		}
