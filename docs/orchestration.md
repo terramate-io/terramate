@@ -78,8 +78,8 @@ just for cosmetic purposes can potentially change the execution order and break 
 Order of execution can be explicitly declared inside the **stack** block using
 the fields **before** and **after**. 
 
-Each field is a set of string paths (**set(string)**), where each string is a 
-reference to another directory, which can be a stack or contain stacks inside.
+Each field is a set of string (**set(string)**), where each string is a path that
+references another directory, which can be a stack or contain stacks inside.
 
 The explicit order can be used in conjunction with the implicit filesystem order
 but have in mind that a parent stack in the filesystem can never execute after a
