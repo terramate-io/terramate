@@ -174,7 +174,7 @@ func BuildDAG(
 	afterPaths := removeWrongPaths("after", s.After())
 	beforePaths := removeWrongPaths("before", s.Before())
 
-	logger.Trace().Msg("Load all stacks in dir after current stack.")
+	logger.Trace().Msg("load all stacks in dir after current stack")
 
 	afterStacks, err := loader.LoadAll(root, s.HostPath(), afterPaths...)
 	if err != nil {
