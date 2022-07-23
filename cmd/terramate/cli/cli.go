@@ -1065,7 +1065,7 @@ func (c *cli) runOnStacks() {
 		c.checkGit()
 	}
 
-	// If the Terramate configuration for the repository don't allow for determining a git base reference and the user
+	// If the Terramate configuration for the repository doesn't allow for determining a git base reference and the user
 	// has specified to automatically detect changes then report a fatal error back to the user.
 	if c.prj.baseRef == "" && c.parsedArgs.Changed {
 		log.Fatal().Msg("could not determine git base ref for automatic change detection")
