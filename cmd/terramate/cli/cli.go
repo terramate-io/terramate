@@ -1058,8 +1058,17 @@ func (c *cli) runOnStacks() {
 		Str("workingDir", c.wd()).
 		Logger()
 
+	// Default the project's base reference to the git change base argument.
+	c.prj.baseRef = c.parsedArgs.GitChangeBase
+
 	if c.checkGitRemote() {
 		c.checkGit()
+	}
+
+	// If the Terramate configuration for the repository don't allow for determining a git base reference and the user
+	// has specified to automatically detect changes then report a fatal error back to the user.
+	if c.prj.baseRef == "" && c.parsedArgs.Changed {
+		log.Fatal().Msg("could not determine git base ref for automatic change detection")
 	}
 
 	if len(c.parsedArgs.Run.Command) == 0 {
