@@ -1612,6 +1612,40 @@ func TestRunDisableGitCheckRemote(t *testing.T) {
 	})
 }
 
+func TestRunWorksWithDisabledCheckRemote(t *testing.T) {
+	const rootConfig = "terramate.tm.hcl"
+
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack")
+	fileContents := "# whatever"
+	someFile := stack.CreateFile("main.tf", fileContents)
+
+	cat := test.LookPath(t, "cat")
+
+	s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    git {
+			      check_remote = false
+			    }
+			  }
+			}
+		`)
+
+	git := s.Git()
+
+	git.Add(".")
+	git.Commit("all")
+
+	tmcli := newCLI(t, s.RootDir())
+	assertRunResult(t, tmcli.run("run", "--changed",
+		cat, someFile.HostPath()), runExpected{
+		Stdout: fileContents,
+	})
+
+}
+
 func TestRunFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
 	s := sandbox.New(t)
 
