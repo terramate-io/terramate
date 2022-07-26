@@ -22,12 +22,11 @@ import (
 
 	"github.com/google/uuid"
 	hhcl "github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/lex"
 	"github.com/rs/zerolog/log"
+	"github.com/zclconf/go-cty/cty"
 )
 
 const (
@@ -153,16 +152,14 @@ func updateStackID(stackdir string) error {
 
 	logger.Trace().Msg("finding file containing stack definition")
 
-	stackFilePath, body := getStackBody(parser)
-	if body == nil {
-		return errors.E("updating stack ID: stack block not found")
+	stackFilePath := getStackFilepath(parser)
+	if stackFilePath == "" {
+		return errors.E("cloned stack does not have a stack block")
 	}
 
-	// WHY oh WHY do you ask ? Parsing HCL always delivers an AST that
+	// Parsing HCL always delivers an AST that
 	// has no comments on it, so building a new HCL file from the parsed
 	// AST will lose all comments from the original code.
-	//
-	// - https://raw.githubusercontent.com/katcipis/memes/master/satan.jpg
 
 	logger.Trace().Msg("reading cloned stack file")
 
@@ -200,7 +197,11 @@ updateStackID:
 				return errors.E(err, "creating new ID for cloned stack")
 			}
 
-			body.SetAttributeRaw(name, lex.StringLiteralTokens(id.String()))
+			logger.Trace().
+				Str("newID", id.String()).
+				Msg("found stack ID attribute, updating")
+
+			body.SetAttributeValue(name, cty.StringVal(id.String()))
 			break updateStackID
 		}
 	}
@@ -212,13 +213,13 @@ updateStackID:
 	return os.WriteFile(stackFilePath, parsed.Bytes(), 0666)
 }
 
-func getStackBody(parser *hcl.TerramateParser) (string, *hclsyntax.Body) {
+func getStackFilepath(parser *hcl.TerramateParser) string {
 	for filepath, body := range parser.ParsedBodies() {
 		for _, block := range body.Blocks {
 			if block.Type == hcl.StackBlockType {
-				return filepath, body
+				return filepath
 			}
 		}
 	}
-	return "", nil
+	return ""
 }
