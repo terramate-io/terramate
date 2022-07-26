@@ -346,10 +346,12 @@ func (c *cli) run() {
 	case "create <path>":
 		c.createStack()
 	case "list":
+		c.setupGit()
 		c.printStacks()
 	case "run":
 		log.Fatal().Msg("no command specified")
 	case "run <cmd>":
+		c.setupGit()
 		c.runOnStacks()
 	case "generate":
 		c.generate(c.wd())
@@ -370,27 +372,36 @@ func (c *cli) run() {
 	}
 }
 
-func (c *cli) checkGit() {
+func (c *cli) setupGit() {
+	logger := log.With().
+		Str("action", "setupGit()").
+		Str("workingDir", c.wd()).
+		Logger()
+
+	if c.prj.isRepo && c.parsedArgs.Changed {
+		logger.Trace().Msg("Check git default remote.")
+
+		if err := c.prj.checkDefaultRemote(); err != nil {
+			log.Fatal().
+				Err(err).
+				Msg("Checking git default remote.")
+		}
+
+		if c.parsedArgs.GitChangeBase != "" {
+			c.prj.baseRef = c.parsedArgs.GitChangeBase
+		} else {
+			c.prj.baseRef = c.prj.defaultBaseRef()
+		}
+	}
+}
+
+func (c *cli) checkGitLocalBranchIsUpdated() {
 	logger := log.With().
 		Str("action", "checkGit()").
 		Logger()
 
 	if !c.prj.isRepo {
 		return
-	}
-
-	logger.Trace().Msg("Check git default remote.")
-
-	if err := c.prj.checkDefaultRemote(); err != nil {
-		log.Fatal().
-			Err(err).
-			Msg("Checking git default remote.")
-	}
-
-	if c.parsedArgs.GitChangeBase != "" {
-		c.prj.baseRef = c.parsedArgs.GitChangeBase
-	} else {
-		c.prj.baseRef = c.prj.defaultBaseRef()
 	}
 
 	logger.Trace().Msg("check git default branch is updated")
@@ -628,7 +639,7 @@ func (c *cli) printStacks() {
 		Logger()
 
 	if c.parsedArgs.Changed {
-		c.checkGit()
+		c.checkGitLocalBranchIsUpdated()
 	}
 
 	if c.parsedArgs.List.Why && !c.parsedArgs.Changed {
@@ -1059,7 +1070,7 @@ func (c *cli) runOnStacks() {
 		Logger()
 
 	if c.checkGitRemote() {
-		c.checkGit()
+		c.checkGitLocalBranchIsUpdated()
 	}
 
 	if len(c.parsedArgs.Run.Command) == 0 {
