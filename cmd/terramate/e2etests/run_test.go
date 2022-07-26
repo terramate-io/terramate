@@ -1639,11 +1639,29 @@ func TestRunWorksWithDisabledCheckRemote(t *testing.T) {
 	git.Commit("all")
 
 	tmcli := newCLI(t, s.RootDir())
+	assertRunResult(t, tmcli.run("run",
+		cat, someFile.HostPath()), runExpected{
+		Stdout: fileContents,
+	})
 	assertRunResult(t, tmcli.run("run", "--changed",
 		cat, someFile.HostPath()), runExpected{
 		Stdout: fileContents,
 	})
 
+	git.Push("main")
+	assertRunResult(t, tmcli.run("run",
+		cat, someFile.HostPath()), runExpected{
+		Stdout: fileContents,
+	})
+	// baseref=HEAD^
+	assertRunResult(t, tmcli.run("run", "--changed",
+		cat, someFile.HostPath()), runExpected{
+		Stdout: fileContents,
+	})
+
+	git.CheckoutNew("test")
+	assertRun(t, tmcli.run("run", "--changed",
+		cat, someFile.HostPath()))
 }
 
 func TestRunFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
