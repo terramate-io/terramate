@@ -515,8 +515,8 @@ func TestHCLParserConfigRun(t *testing.T) {
 			},
 			want: want{
 				config: runEnvCfg(`
-						string = "value"
 						number = 666
+						string = "value"
 						list = []
 						interp = "${global.a}"
 						traversal = global.a.b

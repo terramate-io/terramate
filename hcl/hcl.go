@@ -373,8 +373,8 @@ func (p *TerramateParser) Parse() error {
 	}
 
 	errs := errors.L()
-	errs.Append(p.mergeConfig())
 	errs.Append(p.applyImports())
+	errs.Append(p.mergeConfig())
 	return errs.AsError()
 }
 
