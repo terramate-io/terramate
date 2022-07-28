@@ -394,13 +394,21 @@ func (p *TerramateParser) ParsedBodies() map[string]*hclsyntax.Body {
 // Imports returns all import blocks parsed.
 func (p *TerramateParser) Imports() (ast.Blocks, error) {
 	errs := errors.L()
-	imports := ast.Blocks{}
 
-	for _, importBlock := range filterBlocksByType("import", p.UnmergedBlocks) {
-		err := validateImportBlock(importBlock)
-		errs.Append(err)
-		if err == nil {
-			imports = append(imports, importBlock)
+	var imports ast.Blocks
+	bodies := p.ParsedBodies()
+	for _, origin := range p.sortedParsedFilenames() {
+		body := bodies[origin]
+		for _, rawBlock := range body.Blocks {
+			if rawBlock.Type != "import" {
+				continue
+			}
+			importBlock := ast.NewBlock(origin, rawBlock)
+			err := validateImportBlock(importBlock)
+			errs.Append(err)
+			if err == nil {
+				imports = append(imports, importBlock)
+			}
 		}
 	}
 	if err := errs.AsError(); err != nil {
@@ -416,7 +424,7 @@ func (p *TerramateParser) mergeHandlers() map[string]mergeHandler {
 		"stack":         p.addBlock,
 		"generate_file": p.addBlock,
 		"generate_hcl":  p.addBlock,
-		"import":        p.addBlock,
+		"import":        func(b *ast.Block) error { return nil },
 	}
 }
 
@@ -561,6 +569,7 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 		return errors.E(ErrImport, srcAttr.Expr.Range(),
 			err, "failed to create sub parser")
 	}
+
 	err = importParser.AddFile(src)
 	if err != nil {
 		return errors.E(ErrImport, srcAttr.Expr.Range(),
