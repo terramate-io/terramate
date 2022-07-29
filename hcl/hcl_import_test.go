@@ -22,7 +22,7 @@ import (
 )
 
 func TestHCLImport(t *testing.T) {
-	for _, tc := range []testcase{
+	for _, tc := range []cfgTestcase{
 		{
 			name: "import with label - fails",
 			input: []cfgfile{
@@ -33,7 +33,7 @@ func TestHCLImport(t *testing.T) {
 				}`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("cfg.tm", start(1, 8, 7), end(1, 19, 18))),
@@ -50,7 +50,7 @@ func TestHCLImport(t *testing.T) {
 				}`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("cfg.tm", start(1, 8, 7), end(1, 8, 7))),
@@ -68,7 +68,7 @@ func TestHCLImport(t *testing.T) {
 				}`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrImport,
 						mkrange("stack/cfg.tm", start(2, 16, 24), end(2, 42, 50))),
@@ -85,7 +85,7 @@ func TestHCLImport(t *testing.T) {
 				}`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrImport,
 						mkrange("cfg.tm", start(2, 16, 24), end(2, 24, 32))),
@@ -102,7 +102,7 @@ func TestHCLImport(t *testing.T) {
 				}`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrImport,
 						mkrange("cfg.tm", start(2, 16, 24), end(2, 26, 34))),
@@ -126,7 +126,7 @@ func TestHCLImport(t *testing.T) {
 				}`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrImport,
 						mkrange("other/cfg.tm", start(2, 16, 24), end(2, 31, 39))),
@@ -149,7 +149,7 @@ func TestHCLImport(t *testing.T) {
 					}`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrImport,
 						mkrange("stack/cfg.tm", start(2, 16, 24), end(2, 25, 33))),
@@ -177,7 +177,7 @@ func TestHCLImport(t *testing.T) {
 					body:     `globals {}`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrImport,
 						mkrange("stack/cfg.tm", start(7, 17, 92), end(7, 32, 107))),
@@ -209,7 +209,7 @@ func TestHCLImport(t *testing.T) {
 					body:     `globals {}`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrImport,
 						mkrange("other/cfg.tm", start(6, 16, 84), end(6, 32, 100))),
@@ -233,7 +233,7 @@ func TestHCLImport(t *testing.T) {
 					}`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						RequiredVersion: "1.0",
@@ -258,7 +258,7 @@ func TestHCLImport(t *testing.T) {
 					}`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						RequiredVersion: "1.0",
@@ -284,7 +284,7 @@ func TestHCLImport(t *testing.T) {
 					}`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrImport,
 						mkrange("project/stack/cfg.tm", start(2, 16, 24), end(2, 38, 46))),
@@ -313,7 +313,7 @@ func TestHCLImport(t *testing.T) {
 						}`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						RequiredVersion: "1.0",
@@ -346,10 +346,11 @@ func TestHCLImport(t *testing.T) {
 					body:     `A = "test"`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrImport,
 						mkrange("other/imported.tm", start(1, 1, 0), end(1, 2, 1))),
+					errors.E(hcl.ErrTerramateSchema),
 				},
 			},
 		},
@@ -383,7 +384,7 @@ func TestHCLImport(t *testing.T) {
 				`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrImport,
 						mkrange("other/imported.tm", start(4, 9, 48), end(4, 23, 62))),
@@ -420,7 +421,7 @@ func TestHCLImport(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
@@ -451,7 +452,7 @@ func TestHCLImport(t *testing.T) {
 					body:     `stack {}`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrImport,
 						mkrange("stack/cfg.tm", start(2, 16, 24), end(2, 31, 39))),

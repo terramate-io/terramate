@@ -56,8 +56,12 @@ func TestLoadGlobals(t *testing.T) {
 	block := func(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock(name, builders...)
 	}
+	hcldoc := hclwrite.BuildHCL
 	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return block("globals", builders...)
+	}
+	importy := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return block("import", builders...)
 	}
 	expr := hclwrite.Expression
 	attr := func(name, expr string) hclwrite.BlockBuilder {
@@ -1099,6 +1103,97 @@ func TestLoadGlobals(t *testing.T) {
 					path:     "/stack",
 					filename: "globals2.tm.hcl",
 					add:      globals(str("a", "b")),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name: "globals from imported file",
+			layout: []string{
+				"d:other",
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "globals.tm",
+					add: importy(
+						attr("source", `"/other/globals.tm"`),
+					),
+				},
+				{
+					path:     "/other",
+					filename: "globals.tm",
+					add: globals(
+						attr("team", `{ def = { name = "awesome" } }`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					attr("team", `{ def = { name = "awesome" } }`),
+				),
+			},
+		},
+		{
+			name: "globals from imported file and merging",
+			layout: []string{
+				"d:other",
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "globals.tm",
+					add: hcldoc(
+						importy(
+							attr("source", `"/other/globals.tm"`),
+						),
+						globals(
+							attr("team2", `"test"`),
+						),
+					),
+				},
+				{
+					path:     "/other",
+					filename: "globals.tm",
+					add: globals(
+						attr("team", `{ def = { name = "awesome" } }`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					attr("team", `{ def = { name = "awesome" } }`),
+					attr("team2", `"test"`),
+				),
+			},
+		},
+		{
+			name: "redefined globals from imported file - fails",
+			layout: []string{
+				"d:other",
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "globals.tm",
+					add: hcldoc(
+						importy(
+							attr("source", `"/other/globals.tm"`),
+						),
+						globals(
+							attr("team", `{ def = { name = "redefined" } }`),
+						),
+					),
+				},
+				{
+					path:     "/other",
+					filename: "globals.tm",
+					add: globals(
+						attr("team", `{ def = { name = "defined" } }`),
+					),
 				},
 			},
 			wantErr: errors.E(hcl.ErrTerramateSchema),

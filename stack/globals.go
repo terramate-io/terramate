@@ -58,11 +58,11 @@ func LoadGlobals(rootdir string, meta Metadata) (Globals, error) {
 
 	logger.Debug().Msg("Load stack globals.")
 
-	globalsExprs, err := loadStackGlobalsExprs(rootdir, meta.Path())
+	globals, err := loadStackGlobalsExprs(rootdir, meta.Path())
 	if err != nil {
 		return Globals{}, err
 	}
-	return globalsExprs.eval(rootdir, meta)
+	return globals.eval(rootdir, meta)
 }
 
 // Attributes returns all the global attributes, the key in the map
@@ -218,12 +218,10 @@ func newGlobalsExpr() *globalsExpr {
 
 func loadStackGlobalsExprs(rootdir string, cfgdir string) (*globalsExpr, error) {
 	logger := log.With().
-		Str("action", "loadStackGlobalsExpr()").
+		Str("action", "loadStackGlobalsExprs()").
 		Str("root", rootdir).
 		Str("cfgdir", cfgdir).
 		Logger()
-
-	globals := newGlobalsExpr()
 
 	logger.Debug().Msg("Parse globals blocks.")
 
@@ -242,23 +240,43 @@ func loadStackGlobalsExprs(rootdir string, cfgdir string) (*globalsExpr, error) 
 		return nil, errors.E("parsing config", err)
 	}
 
-	globalsBlock, ok := p.MergedBlocks["globals"]
+	globalsExpr := newGlobalsExpr()
+
+	globalsBlock, ok := p.Config.MergedBlocks["globals"]
 	if ok {
 		logger.Trace().Msg("Range over attributes.")
 
 		for _, attr := range globalsBlock.Attributes.SortedList() {
 			logger.Trace().Msg("Add attribute to globals.")
 
-			globals.add(attr.Name, expression{
+			globalsExpr.add(attr.Name, expression{
 				origin: project.PrjAbsPath(rootdir, attr.Origin),
 				value:  attr.Expr,
 			})
 		}
 	}
 
+	importedGlobals, ok := p.Imported.MergedBlocks["globals"]
+	if ok {
+		logger.Trace().Msg("Range over imported attributes.")
+
+		importedGlobalExprs := newGlobalsExpr()
+
+		for _, attr := range importedGlobals.Attributes.SortedList() {
+			logger.Trace().Msg("Add imported attribute to globals.")
+
+			importedGlobalExprs.add(attr.Name, expression{
+				origin: project.PrjAbsPath(rootdir, attr.Origin),
+				value:  attr.Expr,
+			})
+		}
+
+		globalsExpr.merge(importedGlobalExprs)
+	}
+
 	parentcfg, ok := parentDir(cfgdir)
 	if !ok {
-		return globals, nil
+		return globalsExpr, nil
 	}
 
 	logger.Trace().Msg("Loading stack globals from parent dir.")
@@ -270,8 +288,8 @@ func loadStackGlobalsExprs(rootdir string, cfgdir string) (*globalsExpr, error) 
 
 	logger.Trace().Msg("Merging globals with parent.")
 
-	globals.merge(parentGlobals)
-	return globals, nil
+	globalsExpr.merge(parentGlobals)
+	return globalsExpr, nil
 }
 
 func parentDir(dir string) (string, bool) {

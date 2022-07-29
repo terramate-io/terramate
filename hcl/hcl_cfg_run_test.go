@@ -71,7 +71,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 		}
 	}
 
-	for _, tc := range []testcase{
+	for _, tc := range []cfgTestcase{
 		{
 			name: "empty run",
 			input: []cfgfile{
@@ -85,7 +85,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 					}`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
@@ -112,7 +112,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 					}`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
@@ -141,7 +141,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema),
 				},
@@ -164,7 +164,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema),
 				},
@@ -185,7 +185,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema),
 				},
@@ -209,7 +209,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema),
 				},
@@ -230,7 +230,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
@@ -259,7 +259,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
@@ -287,7 +287,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
@@ -321,7 +321,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: runEnvCfg(`
 						string = "value"
 						number = 666
@@ -357,7 +357,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: runEnvCfg(`
 						string = "value"
 						number = 666
@@ -391,7 +391,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: runEnvCfg(`
 						string = "value"
 						number = 666
@@ -449,7 +449,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: runEnvCfg(`
 						string = "value"
 						number = 666
@@ -513,10 +513,10 @@ func TestHCLParserConfigRun(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: runEnvCfg(`
-						string = "value"
 						number = 666
+						string = "value"
 						list = []
 						interp = "${global.a}"
 						traversal = global.a.b
@@ -544,7 +544,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{errors.E(hcl.ErrTerramateSchema,
 					mkrange("cfg.tm", start(9, 15, 147), end(9, 21, 153)))},
 			},
@@ -595,7 +595,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("cfg2.tm", start(6, 15, 84), end(6, 21, 90)),
@@ -634,7 +634,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("cfg2.tm", start(5, 13, 64), end(5, 27, 78)),
@@ -658,7 +658,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("cfg.tm", start(5, 30, 81), end(5, 45, 96)),

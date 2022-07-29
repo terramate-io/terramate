@@ -42,7 +42,7 @@ func TestHCLParserStackID(t *testing.T) {
 		"maxsize_id_test_should_be_64_bytes_and_now_running_out_of_id-aaac",
 	}
 
-	testcases := []testcase{}
+	testcases := []cfgTestcase{}
 
 	stackBlock := func(id string) string {
 		return fmt.Sprintf(`
@@ -59,7 +59,7 @@ func TestHCLParserStackID(t *testing.T) {
 	}
 
 	for _, validID := range validIDs {
-		testcases = append(testcases, testcase{
+		testcases = append(testcases, cfgTestcase{
 			name: fmt.Sprintf("stack ID %s is valid", validID),
 			input: []cfgfile{
 				{
@@ -67,7 +67,7 @@ func TestHCLParserStackID(t *testing.T) {
 					body:     stackBlock(validID),
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Stack: &hcl.Stack{
 						ID: newStackID(validID),
@@ -78,7 +78,7 @@ func TestHCLParserStackID(t *testing.T) {
 	}
 
 	for _, invalidID := range invalidIDs {
-		testcases = append(testcases, testcase{
+		testcases = append(testcases, cfgTestcase{
 			name: fmt.Sprintf("stack ID %s is invalid", invalidID),
 			input: []cfgfile{
 				{
@@ -86,7 +86,7 @@ func TestHCLParserStackID(t *testing.T) {
 					body:     stackBlock(invalidID),
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema),
 				},
@@ -100,7 +100,7 @@ func TestHCLParserStackID(t *testing.T) {
 }
 
 func TestHCLParserStack(t *testing.T) {
-	for _, tc := range []testcase{
+	for _, tc := range []cfgTestcase{
 		{
 			name: "empty stack block",
 			input: []cfgfile{
@@ -114,7 +114,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{},
 					Stack:     &hcl.Stack{},
@@ -134,7 +134,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema),
 					errors.E(hcl.ErrTerramateSchema),
@@ -153,7 +153,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema),
 				},
@@ -174,7 +174,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{},
 					Stack:     &hcl.Stack{},
@@ -193,7 +193,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Stack: &hcl.Stack{
 						Name: "STACK-NAME",
@@ -216,7 +216,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("stack.tm", start(6, 15, 85), end(6, 16, 85)),
@@ -236,7 +236,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("stack.tm", start(3, 15, 29), end(3, 47, 61)),
@@ -256,7 +256,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("stack.tm", start(3, 13, 27), end(3, 14, 28)),
@@ -279,7 +279,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("stack.tm", start(6, 18, 87), end(6, 22, 91))),
@@ -301,7 +301,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema),
 				},
@@ -323,7 +323,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrHCLSyntax),
 				},
@@ -342,7 +342,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{},
 					Stack:     &hcl.Stack{},
@@ -365,7 +365,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{},
 					Stack: &hcl.Stack{
@@ -386,7 +386,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema),
 				},
@@ -404,7 +404,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema),
 				},
@@ -422,7 +422,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Stack: &hcl.Stack{
 						After: []string{},
@@ -442,7 +442,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema),
 				},
@@ -461,7 +461,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrHCLSyntax),
 				},
@@ -480,7 +480,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrHCLSyntax),
 				},
@@ -502,7 +502,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{},
 					Stack: &hcl.Stack{
@@ -527,7 +527,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{},
 					Stack: &hcl.Stack{
@@ -548,7 +548,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Stack: &hcl.Stack{
 						Description: "some cool description",
@@ -570,7 +570,7 @@ func TestHCLParserStack(t *testing.T) {
 					}`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Stack: &hcl.Stack{
 						Description: "line1\nline2",
@@ -595,7 +595,7 @@ func TestHCLParserStack(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{},
 					Stack: &hcl.Stack{

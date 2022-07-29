@@ -23,15 +23,23 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
+	"github.com/mineiros-io/terramate/test/hclwrite"
 	"github.com/rs/zerolog"
+	"github.com/zclconf/go-cty-debug/ctydebug"
 )
 
 type (
-	want struct {
+	cfgWant struct {
 		errs   []error
 		config hcl.Config
+	}
+
+	globalsWant struct {
+		errs    []error
+		globals *hclwrite.Block
 	}
 
 	cfgfile struct {
@@ -39,17 +47,25 @@ type (
 		body     string
 	}
 
-	testcase struct {
+	cfgTestcase struct {
 		name     string
 		parsedir string
 		rootdir  string
 		input    []cfgfile
-		want     want
+		want     cfgWant
+	}
+
+	globalsTestcase struct {
+		name     string
+		parsedir string
+		rootdir  string
+		input    []cfgfile
+		want     globalsWant
 	}
 )
 
 func TestHCLParserTerramateBlock(t *testing.T) {
-	for _, tc := range []testcase{
+	for _, tc := range []cfgTestcase{
 		{
 			name: "unrecognized blocks",
 			input: []cfgfile{
@@ -58,7 +74,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 					body:     "something {}\nsomething_else {}",
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("cfg.tm", start(1, 1, 0), end(1, 12, 11))),
@@ -78,7 +94,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("cfg.tm", start(3, 7, 25), end(3, 16, 34))),
@@ -97,7 +113,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("cfg.tm", start(3, 8, 25), end(3, 17, 34))),
@@ -116,7 +132,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("cfg.tm", start(2, 8, 18), end(2, 19, 29))),
@@ -136,13 +152,35 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{Terramate: &hcl.Terramate{}},
 			},
 		},
 		{
+			name: "conflicting terramate.required_version attributes",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate{
+							required_version = "= 1.0"
+						}
+						terramate{
+							required_version = "= 2.0"
+						}
+					`,
+				},
+			},
+			want: cfgWant{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("cfg.tm", start(6, 8, 84), end(6, 24, 100))),
+				},
+			},
+		},
+		{
 			name: "empty config",
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{},
 			},
 		},
@@ -158,7 +196,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("cfg.tm", start(3, 27, 45), end(3, 28, 46))),
@@ -177,7 +215,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("cfg.tm", start(3, 30, 48), end(3, 34, 52))),
@@ -199,7 +237,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("cfg.tm", start(3, 8, 26), end(3, 15, 33))),
@@ -220,7 +258,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						RequiredVersion: "> 0.0.0",
@@ -234,7 +272,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 }
 
 func TestHCLParserRootConfig(t *testing.T) {
-	for _, tc := range []testcase{
+	for _, tc := range []cfgTestcase{
 		{
 			name: "no config returns empty config",
 			input: []cfgfile{
@@ -243,7 +281,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 					body:     `terramate {}`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{},
 				},
@@ -261,7 +299,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{},
@@ -283,7 +321,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema),
 				},
@@ -305,7 +343,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 				`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("cfg.tm", start(5, 9, 54), end(5, 13, 58))),
@@ -326,7 +364,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
@@ -353,7 +391,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{},
@@ -377,7 +415,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
@@ -413,7 +451,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
@@ -444,7 +482,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						Config: &hcl.RootConfig{
@@ -476,7 +514,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("cfg.tm", start(5, 30, 78), end(5, 34, 82))),
@@ -493,7 +531,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 }
 
 func TestHCLParserMultipleErrors(t *testing.T) {
-	for _, tc := range []testcase{
+	for _, tc := range []cfgTestcase{
 		{
 			name: "multiple syntax errors",
 			input: []cfgfile{
@@ -502,7 +540,7 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 					body:     "a=1\na=2\na=3",
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrHCLSyntax,
 						mkrange("file.tm", start(2, 1, 4), end(2, 2, 5))),
@@ -523,7 +561,7 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 					body:     "a=1\na=2\na=3",
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrHCLSyntax,
 						mkrange("file1.tm", start(2, 1, 4), end(2, 2, 5))),
@@ -548,7 +586,7 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 					body:     "stack {}",
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("stack2.tm", start(1, 1, 0), end(1, 8, 7))),
@@ -581,7 +619,7 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 					}`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("cfg1.tm", start(9, 6, 108), end(9, 12, 114))),
@@ -596,7 +634,7 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 }
 
 func TestHCLParserTerramateBlocksMerging(t *testing.T) {
-	tcases := []testcase{
+	tcases := []cfgTestcase{
 		{
 			name: "two config file with terramate blocks",
 			input: []cfgfile{
@@ -621,7 +659,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						RequiredVersion: "0.0.1",
@@ -674,7 +712,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
 						RequiredVersion: "6.6.6",
@@ -718,7 +756,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema),
 				},
@@ -752,7 +790,7 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 					`,
 				},
 			},
-			want: want{
+			want: cfgWant{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema),
 				},
@@ -765,36 +803,47 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 	}
 }
 
-func testParser(t *testing.T, tc testcase) {
+func prepareParserTests(
+	t *testing.T,
+	wantErrs []error,
+	files []cfgfile,
+	rootdir string,
+	parsedir string,
+) (string, string) {
 	t.Helper()
 
+	configsDir := t.TempDir()
+	for _, inputConfigFile := range files {
+		if inputConfigFile.filename == "" {
+			panic("expect a filename in the input config")
+		}
+		path := filepath.Join(configsDir, inputConfigFile.filename)
+		dir := filepath.Dir(path)
+		filename := filepath.Base(path)
+		test.WriteFile(t, dir, filename, inputConfigFile.body)
+	}
+	fixupFiledirOnErrorsFileRanges(configsDir, wantErrs)
+
+	if parsedir == "" {
+		parsedir = configsDir
+	} else {
+		parsedir = filepath.Join(configsDir, parsedir)
+	}
+
+	if rootdir == "" {
+		rootdir = configsDir
+	} else {
+		rootdir = filepath.Join(configsDir, rootdir)
+	}
+	return rootdir, parsedir
+}
+
+func testParser(t *testing.T, tc cfgTestcase) {
 	t.Run(tc.name, func(t *testing.T) {
-		t.Helper()
-
-		configsDir := t.TempDir()
-		for _, inputConfigFile := range tc.input {
-			if inputConfigFile.filename == "" {
-				panic("expect a filename in the input config")
-			}
-			path := filepath.Join(configsDir, inputConfigFile.filename)
-			dir := filepath.Dir(path)
-			filename := filepath.Base(path)
-			test.WriteFile(t, dir, filename, inputConfigFile.body)
-		}
-		fixupFiledirOnErrorsFileRanges(configsDir, tc.want.errs)
-
-		if tc.parsedir == "" {
-			tc.parsedir = configsDir
-		} else {
-			tc.parsedir = filepath.Join(configsDir, tc.parsedir)
-		}
-
-		if tc.rootdir == "" {
-			tc.rootdir = configsDir
-		} else {
-			tc.rootdir = filepath.Join(configsDir, tc.rootdir)
-		}
-		got, err := hcl.ParseDir(tc.rootdir, tc.parsedir)
+		rootdir, parsedir := prepareParserTests(
+			t, tc.want.errs, tc.input, tc.rootdir, tc.parsedir,
+		)
+		got, err := hcl.ParseDir(rootdir, parsedir)
 		errtest.AssertErrorList(t, err, tc.want.errs)
 
 		var gotErrs *errors.List
@@ -827,7 +876,7 @@ func testParser(t *testing.T, tc testcase) {
 	}
 
 	for _, filename := range validConfigFilenames {
-		newtc := testcase{
+		newtc := cfgTestcase{
 			name: fmt.Sprintf("%s with filename %s", tc.name, filename),
 			input: []cfgfile{
 				{
@@ -838,6 +887,222 @@ func testParser(t *testing.T, tc testcase) {
 			want: tc.want,
 		}
 		testParser(t, newtc)
+	}
+}
+
+func TestParserLoadGlobals(t *testing.T) {
+	block := func(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return hclwrite.BuildBlock(name, builders...)
+	}
+	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return block("globals", builders...)
+	}
+	attr := func(name, expr string) hclwrite.BlockBuilder {
+		return hclwrite.AttributeValue(t, name, expr)
+	}
+
+	for _, tc := range []globalsTestcase{
+		{
+			name:     "globals can reference imported values",
+			parsedir: "stack",
+			input: []cfgfile{
+				{
+					filename: "stack/cfg.tm",
+					body: `import {
+						source = "/other/imported.tm"
+					}
+					globals {
+						B = "redefined from ${global.A}"
+					}
+					`,
+				},
+				{
+					filename: "other/imported.tm",
+					body: `
+						globals {
+							A = "imported"
+						}
+					`,
+				},
+			},
+			want: globalsWant{
+				globals: globals(
+					attr("B", `"redefined from imported"`),
+					attr("A", `"imported"`),
+				),
+			},
+		},
+		{
+			name:     "imported files are handled before importing file",
+			parsedir: "stack",
+			input: []cfgfile{
+				{
+					filename: "stack/cfg.tm",
+					body: `
+					globals {
+						B = "redefined from ${global.A}"
+					}
+
+					import {
+						source = "/other/imported.tm"
+					}
+					`,
+				},
+				{
+					filename: "other/imported.tm",
+					body: `
+						globals {
+							A = "other/imported.tm"
+						}
+					`,
+				},
+			},
+			want: globalsWant{
+				globals: globals(
+					attr("B", `"redefined from other/imported.tm"`),
+					attr("A", `"other/imported.tm"`),
+				),
+			},
+		},
+		{
+			name:     "imported file has redefinition of own imports",
+			parsedir: "stack",
+			input: []cfgfile{
+				{
+					filename: "stack/cfg.tm",
+					body: `
+					import {
+						source = "/other/imported.tm"
+					}
+					`,
+				},
+				{
+					filename: "other/imported.tm",
+					body: `
+						globals {
+							A = "${global.B}"
+						}
+
+						import {
+							source = "/other2/imported.tm"
+						}
+					`,
+				},
+				{
+					filename: "other2/imported.tm",
+					body: `
+						globals {
+							B = "other2/imported.tm"
+						}
+					`,
+				},
+			},
+			want: globalsWant{
+				globals: globals(
+					attr("A", `"other2/imported.tm"`),
+					attr("B", `"other2/imported.tm"`),
+				),
+			},
+		},
+		{
+			name:     "multiple level redefinition",
+			parsedir: "stack",
+			input: []cfgfile{
+				{
+					filename: "stack/cfg.tm",
+					body: `
+					globals {
+						A = global.B
+					}
+					import {
+						source = "/other/imported.tm"
+					}
+					`,
+				},
+				{
+					filename: "other/imported.tm",
+					body: `
+						globals {
+							B = global.C
+						}
+
+						import {
+							source = "/other2/imported.tm"
+						}
+					`,
+				},
+				{
+					filename: "other2/imported.tm",
+					body: `
+						globals {
+							C = "defined at other2/imported.tm"
+						}
+					`,
+				},
+			},
+			want: globalsWant{
+				globals: globals(
+					attr("A", `"defined at other2/imported.tm"`),
+					attr("B", `"defined at other2/imported.tm"`),
+					attr("C", `"defined at other2/imported.tm"`),
+				),
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rootdir, stackdir := prepareParserTests(
+				t, tc.want.errs, tc.input, tc.rootdir, tc.parsedir,
+			)
+
+			test.WriteFile(t, stackdir, "stack.tm", `stack {}`)
+
+			st, err := stack.Load(rootdir, stackdir)
+			assert.NoError(t, err)
+
+			gotGlobals, err := stack.LoadGlobals(rootdir, st)
+			errtest.AssertErrorList(t, err, tc.want.errs)
+
+			var gotErrs *errors.List
+			if errors.As(err, &gotErrs) {
+				if len(gotErrs.Errors()) != len(tc.want.errs) {
+					t.Logf("got errors: %s", gotErrs.Detailed())
+					t.Fatalf("got %d errors but want %d",
+						len(gotErrs.Errors()), len(tc.want.errs))
+				}
+			}
+
+			if tc.want.errs != nil {
+				return
+			}
+
+			if tc.want.globals.HasExpressions() {
+				t.Fatal("wanted globals definition contains expressions, they should be defined only by evaluated values")
+				t.Errorf("wanted globals definition:\n%s\n", tc.want.globals)
+			}
+
+			want := tc.want.globals
+
+			gotAttrs := gotGlobals.Attributes()
+			wantAttrs := want.AttributesValues()
+
+			if len(gotAttrs) != len(wantAttrs) {
+				t.Errorf("got %d global attributes; wanted %d", len(gotAttrs), len(wantAttrs))
+			}
+
+			for name, wantVal := range wantAttrs {
+				gotVal, ok := gotAttrs[name]
+				if !ok {
+					t.Errorf("wanted global.%s is missing", name)
+					continue
+				}
+				if diff := ctydebug.DiffValues(wantVal, gotVal); diff != "" {
+					t.Errorf("global.%s doesn't match expectation", name)
+					t.Errorf("want: %s", ctydebug.ValueString(wantVal))
+					t.Errorf("got: %s", ctydebug.ValueString(gotVal))
+					t.Errorf("diff:\n%s", diff)
+				}
+			}
+		})
 	}
 }
 
