@@ -414,6 +414,7 @@ func TestHCLImport(t *testing.T) {
 						config {
 							git {
 								default_remote = "origin"
+								check_remote = false
 							}
 						}
 					}
@@ -429,7 +430,7 @@ func TestHCLImport(t *testing.T) {
 								DefaultRemote:    "origin",
 								CheckUntracked:   true,
 								CheckUncommitted: true,
-								CheckRemote:      true,
+								CheckRemote:      false,
 							},
 						},
 					},
