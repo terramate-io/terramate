@@ -511,13 +511,8 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 		}
 	}
 
-	errs.Append(p.Imported.mergeAttrs(importParser.Imported.MergedAttributes))
-	errs.Append(p.Imported.mergeBlocks(importParser.Imported.MergedBlocks.AsBlocks()))
-	errs.Append(p.Imported.mergeBlocks(importParser.Imported.UnmergedBlocks))
-
-	errs.Append(p.Imported.mergeAttrs(importParser.Config.MergedAttributes))
-	errs.Append(p.Imported.mergeBlocks(importParser.Config.MergedBlocks.AsBlocks()))
-	errs.Append(p.Imported.mergeBlocks(importParser.Config.UnmergedBlocks))
+	errs.Append(p.Imported.Merge(importParser.Imported))
+	errs.Append(p.Imported.Merge(importParser.Config))
 	if err := errs.AsError(); err != nil {
 		return errors.E(ErrImport, err, "failed to merge imported configuration")
 	}

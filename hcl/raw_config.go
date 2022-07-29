@@ -62,6 +62,7 @@ func (cfg *RawConfig) Merge(other RawConfig) error {
 	errs := errors.L()
 	errs.Append(cfg.mergeAttrs(other.MergedAttributes))
 	errs.Append(cfg.mergeBlocks(other.MergedBlocks.AsBlocks()))
+	errs.Append(cfg.mergeBlocks(other.UnmergedBlocks))
 	return errs.AsError()
 }
 
