@@ -15,6 +15,8 @@
 package hcl
 
 import (
+	"path/filepath"
+
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/rs/zerolog/log"
@@ -109,7 +111,8 @@ func (cfg *RawConfig) mergeBlock(block *ast.Block) error {
 func (cfg *RawConfig) mergeAttrs(other ast.Attributes) error {
 	errs := errors.L()
 	for _, attr := range other.SortedList() {
-		if _, ok := cfg.MergedAttributes[attr.Name]; ok {
+		if attrVal, ok := cfg.MergedAttributes[attr.Name]; ok &&
+			sameDir(attrVal.Origin, attr.Origin) {
 			errs.Append(errors.E(ErrTerramateSchema,
 				attr.NameRange,
 				"attribute %q redeclared", attr.Name))
@@ -137,4 +140,8 @@ func (cfg RawConfig) filterUnmergedBlocksByType(blocktype string) ast.Blocks {
 	}
 
 	return filtered
+}
+
+func sameDir(file1, file2 string) bool {
+	return filepath.Dir(file1) == filepath.Dir(file2)
 }

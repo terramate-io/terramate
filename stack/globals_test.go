@@ -1198,6 +1198,163 @@ func TestLoadGlobals(t *testing.T) {
 			},
 			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
+		{
+			name: "globals can reference imported values",
+			layout: []string{
+				"d:other",
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "cfg.tm",
+					add: hcldoc(
+						importy(
+							attr("source", `"/other/imported.tm"`),
+						),
+						globals(
+							expr("B", `"redefined from ${global.A}"`),
+						),
+					),
+				},
+				{
+					path:     "other",
+					filename: "imported.tm",
+					add: globals(
+						attr("A", `"imported"`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					attr("B", `"redefined from imported"`),
+					attr("A", `"imported"`),
+				),
+			},
+		},
+		{
+			name: "imported files are handled before importing file",
+			layout: []string{
+				"d:other",
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "cfg.tm",
+					add: hcldoc(
+						globals(
+							expr("B", `"redefined from ${global.A}"`),
+						),
+						importy(
+							attr("source", `"/other/imported.tm"`),
+						),
+					),
+				},
+				{
+					path:     "other",
+					filename: "imported.tm",
+					add: globals(
+						attr("A", `"other/imported.tm"`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					attr("B", `"redefined from other/imported.tm"`),
+					attr("A", `"other/imported.tm"`),
+				),
+			},
+		},
+
+		{
+			name: "imported file has redefinition of own imports",
+			layout: []string{
+				"d:other",
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "cfg.tm",
+					add: importy(
+						attr("source", `"/other/imported.tm"`),
+					),
+				},
+				{
+					path:     "other",
+					filename: "imported.tm",
+					add: hcldoc(
+						globals(
+							expr("A", `"${global.B}"`),
+						),
+						importy(
+							attr("source", `"/other2/imported.tm"`),
+						),
+					),
+				},
+				{
+					path:     "other2",
+					filename: "imported.tm",
+					add: globals(
+						attr("B", `"other2/imported.tm"`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					attr("A", `"other2/imported.tm"`),
+					attr("B", `"other2/imported.tm"`),
+				),
+			},
+		},
+		{
+			name: "multiple level redefinition",
+			layout: []string{
+				"d:other",
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "cfg.tm",
+					add: hcldoc(
+						globals(
+							expr("A", "global.B"),
+						),
+						importy(
+							attr("source", `"/other/imported.tm"`),
+						),
+					),
+				},
+				{
+					path:     "other",
+					filename: "imported.tm",
+					add: hcldoc(
+						globals(
+							expr("B", "global.C"),
+						),
+						importy(
+							attr("source", `"/other2/imported.tm"`),
+						),
+					),
+				},
+				{
+					path:     "other2",
+					filename: "imported.tm",
+					add: globals(
+						attr("C", `"defined at other2/imported.tm"`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					attr("A", `"defined at other2/imported.tm"`),
+					attr("B", `"defined at other2/imported.tm"`),
+					attr("C", `"defined at other2/imported.tm"`),
+				),
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
