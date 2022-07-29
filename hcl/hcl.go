@@ -1314,13 +1314,14 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 	logger.Trace().Msg("checking for top-level attributes.")
 
-	err := p.Config.Merge(p.Imported)
+	rawconfig := p.Imported
+	err := rawconfig.Merge(p.Config)
 	if err != nil {
 		err = errors.E(err, ErrImport)
 		errs.Append(err)
 	}
 
-	for _, attr := range p.Config.MergedAttributes.SortedList() {
+	for _, attr := range rawconfig.MergedAttributes.SortedList() {
 		errs.Append(errors.E(errKind, attr.NameRange,
 			"unrecognized attribute %q", attr.Name))
 	}
@@ -1329,7 +1330,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 	var foundstack bool
 	var stackblock *ast.Block
-	for _, block := range p.Config.UnmergedBlocks {
+	for _, block := range rawconfig.UnmergedBlocks {
 		// unmerged blocks
 
 		logger := logger.With().
@@ -1362,7 +1363,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 		}
 	}
 
-	tmBlock, ok := p.Config.MergedBlocks["terramate"]
+	tmBlock, ok := rawconfig.MergedBlocks["terramate"]
 	if ok {
 		var tmconfig Terramate
 		tmconfig, err := parseTerramateBlock(tmBlock)
@@ -1372,7 +1373,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 		}
 	}
 
-	globalsBlock, ok := p.Config.MergedBlocks["globals"]
+	globalsBlock, ok := rawconfig.MergedBlocks["globals"]
 	if ok {
 		errs.AppendWrap(ErrTerramateSchema, globalsBlock.ValidateSubBlocks())
 
@@ -1486,10 +1487,11 @@ func parseUnmergedBlocks(root, dir, blocktype string, validate blockValidator) (
 
 	logger.Trace().Msg("Validating and filtering blocks")
 
-	importedBlocks := parser.Imported.filterUnmergedBlocksByType(blocktype)
-	currentBlocks := parser.Config.filterUnmergedBlocksByType(blocktype)
-	blocks := append(ast.Blocks{}, importedBlocks...)
-	blocks = append(blocks, currentBlocks...)
+	var blocks ast.Blocks
+	blocks = append(blocks,
+		parser.Imported.filterUnmergedBlocksByType(blocktype)...)
+	blocks = append(blocks,
+		parser.Config.filterUnmergedBlocksByType(blocktype)...)
 	for _, block := range blocks {
 		if err := validate(block); err != nil {
 			return nil, errors.E(err, "validation failed")

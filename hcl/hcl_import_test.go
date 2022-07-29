@@ -349,7 +349,7 @@ func TestHCLImport(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("other/imported.tm", start(1, 1, 0), end(1, 2, 1))),
+						mkrange("stack/cfg.tm", start(4, 6, 57), end(4, 7, 58))),
 				},
 			},
 		},
@@ -386,7 +386,7 @@ func TestHCLImport(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrImport,
-						mkrange("other/imported.tm", start(4, 9, 48), end(4, 23, 62))),
+						mkrange("stack/cfg.tm", start(7, 9, 105), end(7, 23, 119))),
 				},
 			},
 		},
