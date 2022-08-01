@@ -905,7 +905,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 
 	forEachVal, err := eval.Eval(forEachAttr.Expr)
 	if err != nil {
-		return hclAttrEvalErr(forEachAttr, "evaluting `for_each` expression")
+		return hclAttrEvalErr(forEachAttr, "evaluating `for_each` expression")
 	}
 
 	if !forEachVal.CanIterateElements() {
