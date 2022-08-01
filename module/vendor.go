@@ -34,5 +34,7 @@ func Vendor(vendordir, modsource string) error {
 	// go-getter can also download for us but it will update things if the dir
 	// already exists, so we need to make sure that we don't call it if the dir
 	// already exists.
+	//
+	// More details: https://github.com/hashicorp/terraform/blob/main/internal/getmodules/getter.go#L14
 	return nil
 }
