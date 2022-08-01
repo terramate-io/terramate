@@ -1217,7 +1217,7 @@ func TestLoadGlobals(t *testing.T) {
 							attr("source", `"/other/imported.tm"`),
 						),
 						globals(
-							expr("B", `"redefined from ${global.A}"`),
+							expr("B", `"defined from ${global.A}"`),
 						),
 					),
 				},
@@ -1231,7 +1231,7 @@ func TestLoadGlobals(t *testing.T) {
 			},
 			want: map[string]*hclwrite.Block{
 				"/stack": globals(
-					attr("B", `"redefined from imported"`),
+					attr("B", `"defined from imported"`),
 					attr("A", `"imported"`),
 				),
 			},
@@ -1248,7 +1248,7 @@ func TestLoadGlobals(t *testing.T) {
 					filename: "cfg.tm",
 					add: hcldoc(
 						globals(
-							expr("B", `"redefined from ${global.A}"`),
+							expr("B", `"defined from ${global.A}"`),
 						),
 						importy(
 							attr("source", `"/other/imported.tm"`),
@@ -1265,7 +1265,7 @@ func TestLoadGlobals(t *testing.T) {
 			},
 			want: map[string]*hclwrite.Block{
 				"/stack": globals(
-					attr("B", `"redefined from other/imported.tm"`),
+					attr("B", `"defined from other/imported.tm"`),
 					attr("A", `"other/imported.tm"`),
 				),
 			},
