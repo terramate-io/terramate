@@ -330,7 +330,7 @@ func TestHCLImport(t *testing.T) {
 			},
 		},
 		{
-			name:     "import with conflicting top-level attributes",
+			name:     "import with redefinition of top-level attributes",
 			parsedir: "stack",
 			input: []cfgfile{
 				{
@@ -348,8 +348,8 @@ func TestHCLImport(t *testing.T) {
 			},
 			want: want{
 				errs: []error{
-					errors.E(hcl.ErrImport,
-						mkrange("other/imported.tm", start(1, 1, 0), end(1, 2, 1))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("stack/cfg.tm", start(4, 6, 57), end(4, 7, 58))),
 				},
 			},
 		},
@@ -376,7 +376,7 @@ func TestHCLImport(t *testing.T) {
 					body: `terramate {
 						config {
 							git {
-								default_branch = "main"
+								default_branch = "trunk"
 							}
 						}
 					}
@@ -384,9 +384,17 @@ func TestHCLImport(t *testing.T) {
 				},
 			},
 			want: want{
-				errs: []error{
-					errors.E(hcl.ErrImport,
-						mkrange("other/imported.tm", start(4, 9, 48), end(4, 23, 62))),
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							Git: &hcl.GitConfig{
+								DefaultBranch:    "main",
+								CheckUntracked:   true,
+								CheckUncommitted: true,
+								CheckRemote:      true,
+							},
+						},
+					},
 				},
 			},
 		},
@@ -414,6 +422,7 @@ func TestHCLImport(t *testing.T) {
 						config {
 							git {
 								default_remote = "origin"
+								check_remote = false
 							}
 						}
 					}
@@ -429,7 +438,7 @@ func TestHCLImport(t *testing.T) {
 								DefaultRemote:    "origin",
 								CheckUntracked:   true,
 								CheckUncommitted: true,
-								CheckRemote:      true,
+								CheckRemote:      false,
 							},
 						},
 					},

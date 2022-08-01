@@ -92,6 +92,10 @@ func assertTerramateBlock(t *testing.T, got, want *hcl.Terramate) {
 		return
 	}
 
+	if (want == nil) != (got == nil) {
+		t.Fatalf("want[%v] != got[%v]", want, got)
+	}
+
 	if want == nil {
 		t.Fatalf("want[nil] but got[%+v]", got)
 	}

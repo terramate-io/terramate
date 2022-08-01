@@ -56,8 +56,12 @@ func TestLoadGlobals(t *testing.T) {
 	block := func(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock(name, builders...)
 	}
+	hcldoc := hclwrite.BuildHCL
 	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return block("globals", builders...)
+	}
+	importy := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+		return block("import", builders...)
 	}
 	expr := hclwrite.Expression
 	attr := func(name, expr string) hclwrite.BlockBuilder {
@@ -1102,6 +1106,256 @@ func TestLoadGlobals(t *testing.T) {
 				},
 			},
 			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name: "globals from imported file",
+			layout: []string{
+				"d:other",
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "globals.tm",
+					add: importy(
+						attr("source", `"/other/globals.tm"`),
+					),
+				},
+				{
+					path:     "/other",
+					filename: "globals.tm",
+					add: globals(
+						attr("team", `{ def = { name = "awesome" } }`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					attr("team", `{ def = { name = "awesome" } }`),
+				),
+			},
+		},
+		{
+			name: "globals from imported file and merging",
+			layout: []string{
+				"d:other",
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "globals.tm",
+					add: hcldoc(
+						importy(
+							attr("source", `"/other/globals.tm"`),
+						),
+						globals(
+							attr("team2", `"test"`),
+						),
+					),
+				},
+				{
+					path:     "/other",
+					filename: "globals.tm",
+					add: globals(
+						attr("team", `{ def = { name = "awesome" } }`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					attr("team", `{ def = { name = "awesome" } }`),
+					attr("team2", `"test"`),
+				),
+			},
+		},
+		{
+			name: "redefined globals from imported file",
+			layout: []string{
+				"d:other",
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "globals.tm",
+					add: hcldoc(
+						importy(
+							attr("source", `"/other/globals.tm"`),
+						),
+						globals(
+							attr("team", `{ def = { name = "redefined" } }`),
+						),
+					),
+				},
+				{
+					path:     "/other",
+					filename: "globals.tm",
+					add: globals(
+						attr("team", `{ def = { name = "defined" } }`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					attr("team", `{ def = { name = "redefined" } }`),
+				),
+			},
+		},
+		{
+			name: "globals can reference imported values",
+			layout: []string{
+				"d:other",
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "cfg.tm",
+					add: hcldoc(
+						importy(
+							attr("source", `"/other/imported.tm"`),
+						),
+						globals(
+							expr("B", `"defined from ${global.A}"`),
+						),
+					),
+				},
+				{
+					path:     "other",
+					filename: "imported.tm",
+					add: globals(
+						attr("A", `"imported"`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					attr("B", `"defined from imported"`),
+					attr("A", `"imported"`),
+				),
+			},
+		},
+		{
+			name: "imported files are handled before importing file",
+			layout: []string{
+				"d:other",
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "cfg.tm",
+					add: hcldoc(
+						globals(
+							expr("B", `"defined from ${global.A}"`),
+						),
+						importy(
+							attr("source", `"/other/imported.tm"`),
+						),
+					),
+				},
+				{
+					path:     "other",
+					filename: "imported.tm",
+					add: globals(
+						attr("A", `"other/imported.tm"`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					attr("B", `"defined from other/imported.tm"`),
+					attr("A", `"other/imported.tm"`),
+				),
+			},
+		},
+		{
+			name: "imported file has redefinition of own imports",
+			layout: []string{
+				"d:other",
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "cfg.tm",
+					add: importy(
+						attr("source", `"/other/imported.tm"`),
+					),
+				},
+				{
+					path:     "other",
+					filename: "imported.tm",
+					add: hcldoc(
+						globals(
+							expr("A", `"defined by other/imported.tm"`),
+						),
+						importy(
+							attr("source", `"/other2/imported.tm"`),
+						),
+					),
+				},
+				{
+					path:     "other2",
+					filename: "imported.tm",
+					add: globals(
+						attr("A", `"defined by other2/imported.tm"`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					attr("A", `"defined by other/imported.tm"`),
+				),
+			},
+		},
+		{
+			name: "multiple imports references",
+			layout: []string{
+				"d:other",
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "cfg.tm",
+					add: hcldoc(
+						globals(
+							expr("A", "global.B"),
+						),
+						importy(
+							attr("source", `"/other/imported.tm"`),
+						),
+					),
+				},
+				{
+					path:     "other",
+					filename: "imported.tm",
+					add: hcldoc(
+						globals(
+							expr("B", "global.C"),
+						),
+						importy(
+							attr("source", `"/other2/imported.tm"`),
+						),
+					),
+				},
+				{
+					path:     "other2",
+					filename: "imported.tm",
+					add: globals(
+						attr("C", `"defined at other2/imported.tm"`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					attr("A", `"defined at other2/imported.tm"`),
+					attr("B", `"defined at other2/imported.tm"`),
+					attr("C", `"defined at other2/imported.tm"`),
+				),
+			},
 		},
 	}
 

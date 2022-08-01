@@ -178,17 +178,8 @@ type Evaluator interface {
 // this API allows you to define the exact set of files (and contents) that are
 // going to be included in the final configuration.
 type TerramateParser struct {
-	// MergedAttributes are the top-level attributes of all files.
-	// This will be available after calling Parse or ParseConfig
-	MergedAttributes ast.Attributes
-
-	// MergedBlocks are the merged blocks from all files.
-	// This will be available after calling Parse or ParseConfig
-	MergedBlocks ast.MergedBlocks
-
-	// UnmergedBlocks are the unmerged blocks from all files.
-	// This will be available after calling Parse or ParseConfig
-	UnmergedBlocks ast.Blocks
+	Config   RawConfig
+	Imported RawConfig
 
 	rootdir   string
 	dir       string
@@ -267,14 +258,14 @@ func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
 	}
 
 	return &TerramateParser{
-		rootdir:          rootdir,
-		dir:              dir,
-		files:            map[string][]byte{},
-		hclparser:        hclparse.NewParser(),
-		MergedAttributes: make(ast.Attributes),
-		MergedBlocks:     make(ast.MergedBlocks),
-		parsedFiles:      make(map[string]parsedFile),
-		evalctx:          evalctx,
+		rootdir:     rootdir,
+		dir:         dir,
+		files:       map[string][]byte{},
+		hclparser:   hclparse.NewParser(),
+		Config:      NewRawConfig(),
+		Imported:    NewRawConfig(),
+		parsedFiles: make(map[string]parsedFile),
+		evalctx:     evalctx,
 	}, nil
 }
 
@@ -373,8 +364,8 @@ func (p *TerramateParser) Parse() error {
 	}
 
 	errs := errors.L()
-	errs.Append(p.mergeConfig())
 	errs.Append(p.applyImports())
+	errs.Append(p.mergeConfig())
 	return errs.AsError()
 }
 
@@ -391,76 +382,30 @@ func (p *TerramateParser) ParsedBodies() map[string]*hclsyntax.Body {
 	return parsed
 }
 
-// Imports returns all import blocks parsed.
+// Imports returns all import blocks.
 func (p *TerramateParser) Imports() (ast.Blocks, error) {
 	errs := errors.L()
-	imports := ast.Blocks{}
 
-	for _, importBlock := range filterBlocksByType("import", p.UnmergedBlocks) {
-		err := validateImportBlock(importBlock)
-		errs.Append(err)
-		if err == nil {
-			imports = append(imports, importBlock)
+	var imports ast.Blocks
+	bodies := p.ParsedBodies()
+	for _, origin := range p.sortedParsedFilenames() {
+		body := bodies[origin]
+		for _, rawBlock := range body.Blocks {
+			if rawBlock.Type != "import" {
+				continue
+			}
+			importBlock := ast.NewBlock(origin, rawBlock)
+			err := validateImportBlock(importBlock)
+			errs.Append(err)
+			if err == nil {
+				imports = append(imports, importBlock)
+			}
 		}
 	}
 	if err := errs.AsError(); err != nil {
 		return nil, err
 	}
 	return imports, nil
-}
-
-func (p *TerramateParser) mergeHandlers() map[string]mergeHandler {
-	return map[string]mergeHandler{
-		"terramate":     p.mergeBlock,
-		"globals":       p.mergeBlock,
-		"stack":         p.addBlock,
-		"generate_file": p.addBlock,
-		"generate_hcl":  p.addBlock,
-		"import":        p.addBlock,
-	}
-}
-
-func (p *TerramateParser) mergeBlocks(blocks ast.Blocks) error {
-	handlers := p.mergeHandlers()
-
-	errs := errors.L()
-	for _, block := range blocks {
-		handler, ok := handlers[block.Type]
-		if !ok {
-			errs.Append(
-				errors.E(ErrTerramateSchema, block.DefRange(),
-					"unrecognized block %q", block.Type),
-			)
-
-			continue
-		}
-
-		errs.Append(handler(block))
-	}
-	return errs.AsError()
-}
-
-func (p *TerramateParser) addBlock(block *ast.Block) error {
-	p.UnmergedBlocks = append(p.UnmergedBlocks, block)
-	return nil
-}
-
-func (p *TerramateParser) mergeBlock(block *ast.Block) error {
-	if other, ok := p.MergedBlocks[block.Type]; ok {
-		err := other.MergeBlock(block)
-		if err != nil {
-			return errors.E(ErrTerramateSchema, err)
-		}
-		return nil
-	}
-
-	merged := ast.NewMergedBlock(block.Type)
-	p.MergedBlocks[block.Type] = merged
-	err := merged.MergeBlock(block)
-	if err != nil {
-		return errors.E(ErrTerramateSchema, err)
-	}
-	return nil
 }
 
 func (p *TerramateParser) mergeConfig() error {
@@ -470,23 +415,8 @@ func (p *TerramateParser) mergeConfig() error {
 	for _, origin := range p.sortedParsedFilenames() {
 		body := bodies[origin]
 
-		errs.Append(p.mergeAttrs(ast.NewAttributes(origin, body.Attributes)))
-		errs.Append(p.mergeBlocks(ast.NewBlocks(origin, body.Blocks)))
-	}
-	return errs.AsError()
-}
-
-func (p *TerramateParser) mergeAttrs(other ast.Attributes) error {
-	errs := errors.L()
-	for _, attr := range other.SortedList() {
-		if _, ok := p.MergedAttributes[attr.Name]; ok {
-			errs.Append(errors.E(ErrTerramateSchema,
-				attr.NameRange,
-				"attribute %q redeclared", attr.Name))
-			continue
-		}
-
-		p.MergedAttributes[attr.Name] = attr
+		errs.Append(p.Config.mergeAttrs(ast.NewAttributes(origin, body.Attributes)))
+		errs.Append(p.Config.mergeBlocks(ast.NewBlocks(origin, body.Blocks)))
 	}
 	return errs.AsError()
 }
@@ -561,6 +491,7 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 		return errors.E(ErrImport, srcAttr.Expr.Range(),
 			err, "failed to create sub parser")
 	}
+
 	err = importParser.AddFile(src)
 	if err != nil {
 		return errors.E(ErrImport, srcAttr.Expr.Range(),
@@ -572,16 +503,16 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 		return err
 	}
 	errs := errors.L()
-	for _, block := range importParser.UnmergedBlocks {
+	for _, block := range importParser.Config.UnmergedBlocks {
 		if block.Type == "stack" {
 			errs.Append(
 				errors.E(ErrImport, srcAttr.Expr.Range(),
 					"import of stack block is not permitted"))
 		}
 	}
-	errs.Append(p.mergeAttrs(importParser.MergedAttributes))
-	errs.Append(p.mergeBlocks(importParser.MergedBlocks.AsBlocks()))
-	errs.Append(p.mergeBlocks(importParser.UnmergedBlocks))
+
+	errs.Append(p.Imported.Merge(importParser.Imported))
+	errs.Append(p.Imported.Merge(importParser.Config))
 	if err := errs.AsError(); err != nil {
 		return errors.E(ErrImport, err, "failed to merge imported configuration")
 	}
@@ -1368,24 +1299,6 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 	return errs.AsError()
 }
 
-func filterBlocksByType(blocktype string, blocks ast.Blocks) ast.Blocks {
-	logger := log.With().
-		Str("action", "filterBlocksByType()").
-		Logger()
-
-	logger.Trace().Msg("Range over blocks.")
-
-	var filtered ast.Blocks
-	for _, block := range blocks {
-		if block.Type != blocktype {
-			continue
-		}
-		filtered = append(filtered, block)
-	}
-
-	return filtered
-}
-
 func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 	logger := log.With().
 		Str("action", "parseTerramateSchema()").
@@ -1401,7 +1314,14 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 	logger.Trace().Msg("checking for top-level attributes.")
 
-	for _, attr := range p.MergedAttributes.SortedList() {
+	rawconfig := p.Imported
+	err := rawconfig.Merge(p.Config)
+	if err != nil {
+		err = errors.E(err, ErrImport)
+		errs.Append(err)
+	}
+
+	for _, attr := range rawconfig.MergedAttributes.SortedList() {
 		errs.Append(errors.E(errKind, attr.NameRange,
 			"unrecognized attribute %q", attr.Name))
 	}
@@ -1410,7 +1330,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 	var foundstack bool
 	var stackblock *ast.Block
-	for _, block := range p.UnmergedBlocks {
+	for _, block := range rawconfig.UnmergedBlocks {
 		// unmerged blocks
 
 		logger := logger.With().
@@ -1443,7 +1363,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 		}
 	}
 
-	tmBlock, ok := p.MergedBlocks["terramate"]
+	tmBlock, ok := rawconfig.MergedBlocks["terramate"]
 	if ok {
 		var tmconfig Terramate
 		tmconfig, err := parseTerramateBlock(tmBlock)
@@ -1453,7 +1373,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 		}
 	}
 
-	globalsBlock, ok := p.MergedBlocks["globals"]
+	globalsBlock, ok := rawconfig.MergedBlocks["globals"]
 	if ok {
 		errs.AppendWrap(ErrTerramateSchema, globalsBlock.ValidateSubBlocks())
 
@@ -1567,7 +1487,11 @@ func parseUnmergedBlocks(root, dir, blocktype string, validate blockValidator) (
 
 	logger.Trace().Msg("Validating and filtering blocks")
 
-	blocks := filterBlocksByType(blocktype, parser.UnmergedBlocks)
+	var blocks ast.Blocks
+	blocks = append(blocks,
+		parser.Imported.filterUnmergedBlocksByType(blocktype)...)
+	blocks = append(blocks,
+		parser.Config.filterUnmergedBlocksByType(blocktype)...)
 	for _, block := range blocks {
 		if err := validate(block); err != nil {
 			return nil, errors.E(err, "validation failed")
