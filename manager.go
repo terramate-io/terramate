@@ -183,7 +183,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 				Str("path", dirname).
 				Msg("Lookup parent stack.")
 			s, found, err = stack.LookupParent(m.root, dirname)
-			if err != nil && !errors.Is(err, os.ErrNotExist) {
+			if err != nil {
 				return nil, errors.E(errListChanged, err)
 			}
 

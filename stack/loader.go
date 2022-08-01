@@ -167,7 +167,7 @@ func (l Loader) lookupParentStack(dir string) (stack *S, found bool, err error) 
 			Str("path", d).
 			Msg("Try load directory.")
 		stack, ok, err := l.TryLoad(d)
-		if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			return nil, false, fmt.Errorf("looking for parent stacks: %w", err)
 		}
 
