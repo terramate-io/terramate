@@ -1170,7 +1170,7 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
-			name: "redefined globals from imported file - fails",
+			name: "redefined globals from imported file",
 			layout: []string{
 				"d:other",
 				"s:stack",
@@ -1196,7 +1196,11 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					attr("team", `{ def = { name = "redefined" } }`),
+				),
+			},
 		},
 		{
 			name: "globals can reference imported values",
@@ -1266,7 +1270,6 @@ func TestLoadGlobals(t *testing.T) {
 				),
 			},
 		},
-
 		{
 			name: "imported file has redefinition of own imports",
 			layout: []string{
@@ -1286,7 +1289,7 @@ func TestLoadGlobals(t *testing.T) {
 					filename: "imported.tm",
 					add: hcldoc(
 						globals(
-							expr("A", `"${global.B}"`),
+							expr("A", `"defined by other/imported.tm"`),
 						),
 						importy(
 							attr("source", `"/other2/imported.tm"`),
@@ -1297,14 +1300,13 @@ func TestLoadGlobals(t *testing.T) {
 					path:     "other2",
 					filename: "imported.tm",
 					add: globals(
-						attr("B", `"other2/imported.tm"`),
+						attr("A", `"defined by other2/imported.tm"`),
 					),
 				},
 			},
 			want: map[string]*hclwrite.Block{
 				"/stack": globals(
-					attr("A", `"other2/imported.tm"`),
-					attr("B", `"other2/imported.tm"`),
+					attr("A", `"defined by other/imported.tm"`),
 				),
 			},
 		},

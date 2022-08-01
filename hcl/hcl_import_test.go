@@ -376,7 +376,7 @@ func TestHCLImport(t *testing.T) {
 					body: `terramate {
 						config {
 							git {
-								default_branch = "main"
+								default_branch = "trunk"
 							}
 						}
 					}
@@ -384,9 +384,17 @@ func TestHCLImport(t *testing.T) {
 				},
 			},
 			want: want{
-				errs: []error{
-					errors.E(hcl.ErrImport,
-						mkrange("stack/cfg.tm", start(7, 9, 105), end(7, 23, 119))),
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Config: &hcl.RootConfig{
+							Git: &hcl.GitConfig{
+								DefaultBranch:    "main",
+								CheckUntracked:   true,
+								CheckUncommitted: true,
+								CheckRemote:      true,
+							},
+						},
+					},
 				},
 			},
 		},

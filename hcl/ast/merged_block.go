@@ -15,6 +15,7 @@
 package ast
 
 import (
+	"path/filepath"
 	"sort"
 
 	"github.com/mineiros-io/terramate/errors"
@@ -72,13 +73,17 @@ func (mb *MergedBlock) MergeBlock(other *Block) error {
 
 func (mb *MergedBlock) mergeAttrs(other Attributes) error {
 	errs := errors.L()
-	for _, newval := range other.SortedList() {
-		if _, ok := mb.Attributes[newval.Name]; ok {
-			errs.Append(errors.E(newval.NameRange,
-				"attribute %q redeclared", newval.Name))
+	for _, attr := range other.SortedList() {
+		if attrVal, ok := mb.Attributes[attr.Name]; ok &&
+			sameDir(attrVal.Origin, attr.Origin) {
+			errs.Append(errors.E(attr.NameRange,
+				"attribute %q redeclared in file %q (first defined in %q)",
+				attr.Name,
+				attr.Origin, attrVal.Origin))
 			continue
 		}
-		mb.Attributes[newval.Name] = newval
+
+		mb.Attributes[attr.Name] = attr
 	}
 	return errs.AsError()
 }
@@ -147,4 +152,8 @@ func (mergedBlocks MergedBlocks) AsBlocks() Blocks {
 		all = append(all, m.RawOrigins...)
 	}
 	return all
+}
+
+func sameDir(file1, file2 string) bool {
+	return filepath.Dir(file1) == filepath.Dir(file2)
 }

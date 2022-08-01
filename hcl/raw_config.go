@@ -116,7 +116,9 @@ func (cfg *RawConfig) mergeAttrs(other ast.Attributes) error {
 			sameDir(attrVal.Origin, attr.Origin) {
 			errs.Append(errors.E(ErrTerramateSchema,
 				attr.NameRange,
-				"attribute %q redeclared", attr.Name))
+				"attribute %q redeclared in file %q (frist defined in %q)",
+				attr.Name,
+				attr.Origin, attrVal.Origin))
 			continue
 		}
 
