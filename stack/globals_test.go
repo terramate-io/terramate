@@ -1311,7 +1311,7 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
-			name: "multiple level redefinition",
+			name: "multiple imports references",
 			layout: []string{
 				"d:other",
 				"s:stack",
