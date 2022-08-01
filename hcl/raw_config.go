@@ -129,7 +129,7 @@ func (cfg *RawConfig) mergeAttrs(other ast.Attributes) error {
 
 func (cfg RawConfig) filterUnmergedBlocksByType(blocktype string) ast.Blocks {
 	logger := log.With().
-		Str("action", "filterUnmergedBlocksByType()").
+		Str("action", "RawConfig.filterUnmergedBlocksByType()").
 		Logger()
 
 	logger.Trace().Msg("Range over blocks.")

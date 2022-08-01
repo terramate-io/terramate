@@ -258,7 +258,7 @@ func loadStackGlobalsExprs(rootdir string, cfgdir string) (*globalsExpr, error) 
 
 	importedGlobals, ok := p.Imported.MergedBlocks["globals"]
 	if ok {
-		logger.Trace().Msg("Range over imported attributes.")
+		logger.Trace().Msg("Range over imported globals")
 
 		importedGlobalExprs := newGlobalsExpr()
 
