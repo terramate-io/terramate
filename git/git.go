@@ -103,20 +103,6 @@ const (
 
 type remoteSorter []Remote
 
-// NewConfig creates a new configuration. The username and email are the only
-// required config fields.
-func NewConfig(username, email string) Config {
-	return Config{
-		Username: username,
-		Email:    email,
-	}
-}
-
-// NewWrapper creates a new wrapper.
-func NewWrapper(user, email string) (*Git, error) {
-	return WithConfig(NewConfig(user, email))
-}
-
 // WithConfig creates a new git wrapper by providing the config.
 func WithConfig(cfg Config) (*Git, error) {
 	logger := log.With().

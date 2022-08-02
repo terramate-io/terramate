@@ -29,7 +29,10 @@ import (
 const CookedCommitID = "4e991b55e3d58b9c3137a791a9986ed9c5069697"
 
 func TestGit(t *testing.T) {
-	git, err := git.NewWrapper(test.Username, test.Email)
+	git, err := git.WithConfig(git.Config{
+		Username: test.Username,
+		Email:    test.Email,
+	})
 	assert.NoError(t, err, "new git wrapper")
 
 	version, err := git.Version()
