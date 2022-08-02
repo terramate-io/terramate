@@ -17,10 +17,12 @@ package modvendor
 import (
 	"fmt"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/git"
 )
 
 // Source represents a module source
@@ -28,10 +30,8 @@ type Source struct {
 	// URL is the Git URL of the source.
 	URL string
 
-	// Path is a relative path representation of the source remote
-	// independent from any specific reference. It includes the
-	// domain of the remote as the root dir.
-	// Eg.  github.com/mineiros-io/example
+	// Path is the path of the source URL. It includes the domain of the URL on it.
+	// Eg. github.com/mineiros-io/example
 	Path string
 
 	// Ref is the specific reference of this source, if any.
@@ -52,25 +52,50 @@ const (
 //
 // Vendored modules will be located at:
 //
-// - <vendordir>/<domain>/<dir>/<subdir>/<ref>
+// - <vendordir>/<Source.Path>/<Source.Ref>
+//
+// If the provided source has no reference the provided Source.URL will be
+// used to retrieve the default remote branch to be used as reference.
 //
 // The whole path inside the vendor dir will be created if it not exists.
 // Vendoring is not recursive, so dependencies won't have their dependencies vendored.
-// Vendoring will also not download git submodules, if any.
+// Vendoring will also not download any git submodules.
 //
-// The module source must be a valid Terraform Git/Github source reference as documented in:
+// It returns the absolute path where the code has been vendored, which will be inside
+// the given vendordir.
+func Vendor(vendordir string, src Source) (string, error) {
+	if src.Ref == "" {
+		// TODO(katcipis): handle default references.
+		// for now always explicit is fine.
+		return "", errors.E("src %v reference must be non-empty", src)
+	}
+	workdir, err := os.MkdirTemp("", "terramate-vendor")
+	if err != nil {
+		return "", errors.E(err, "creating workdir")
+	}
+
+	cloneDir := filepath.Join(vendordir, src.Path, src.Ref)
+
+	g, err := git.WithConfig(git.Config{
+		WorkingDir: workdir,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	if err := g.Clone(src.URL, cloneDir); err != nil {
+		// TODO(katcipis): delete cloneDir
+		return "", err
+	}
+	return cloneDir, nil
+}
+
+// ParseSource parses the given modsource string.
+// The modsource must be a valid Terraform Git/Github source reference as documented in:
 //
 // - https://www.terraform.io/language/modules/sources
 //
 // Source references that are not Git/Github are not supported.
-// It returns the absolute path where the code has been vendored, which will be inside
-// the given vendordir.
-func Vendor(vendordir string, src Source) (string, error) {
-	return filepath.Join(vendordir, src.Path, src.Ref), nil
-}
-
-// ParseSource parses the given modsource string. It returns an error if the modsource
-// string is unsupported.
 func ParseSource(modsource string) (Source, error) {
 	ref := ""
 	splitParams := strings.Split(modsource, "?")

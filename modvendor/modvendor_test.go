@@ -28,11 +28,19 @@ import (
 
 func TestModVendorWithRef(t *testing.T) {
 	const (
-		path = "github.com/mineiros-io/example"
-		ref  = "main"
+		path     = "github.com/mineiros-io/example"
+		ref      = "main"
+		filename = "test.txt"
+		content  = "test"
 	)
 
 	s := sandbox.New(t)
+
+	s.RootEntry().CreateFile(filename, content)
+
+	g := s.Git()
+	g.CommitAll("add file")
+
 	gitURL := "file://" + s.RootDir()
 	vendorDir := t.TempDir()
 
@@ -48,13 +56,28 @@ func TestModVendorWithRef(t *testing.T) {
 
 	assert.EqualStrings(t, wantCloneDir, cloneDir)
 
-	// TODO(katcipis): validate cloning
+	got := test.ReadFile(t, cloneDir, filename)
+	assert.EqualStrings(t, content, string(got))
 }
 
 func TestModVendorNoRefFails(t *testing.T) {
 	// TODO(katcipis): when we start parsing modules for sources
-	// we need to address default remote references. for now it is
+	// we need to address default remote references. For now it is
 	// always explicit.
+	const (
+		path = "github.com/mineiros-io/example"
+	)
+
+	s := sandbox.New(t)
+	gitURL := "file://" + s.RootDir()
+	vendorDir := t.TempDir()
+
+	_, err := modvendor.Vendor(vendorDir, modvendor.Source{
+		URL:  gitURL,
+		Path: path,
+	})
+
+	assert.Error(t, err)
 }
 
 func TestParseGitSources(t *testing.T) {
