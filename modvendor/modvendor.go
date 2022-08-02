@@ -116,18 +116,17 @@ func Vendor(vendordir string, src Source) (string, error) {
 		return "", err
 	}
 
-	// This may leave intermediary created dirs hanging on vendordir
-	// since we just create all and then delete clone dir.
-	// If we get a lot of errors from os.Rename we may need to handle this
-	// more gracefully, assuming that os.Rename errors are rare since both
-	// dirs where just created.
-
 	if err := os.MkdirAll(filepath.Dir(clonedir), 0775); err != nil {
 		return "", errors.E(err, "creating mod dir inside vendor")
 	}
 
 	logger.Trace().Msg("moving cloned mod from workdir to clonedir")
 	if err := os.Rename(workdir, clonedir); err != nil {
+		// This may leave intermediary created dirs hanging on vendordir
+		// since we just create all and then delete clone dir on a failure to move.
+		// If we get a lot of errors from os.Rename we may need to handle this
+		// more gracefully, here we assume that os.Rename errors are rare since both
+		// dirs where just created.
 		errs := errors.L()
 		errs.Append(errors.E(err, "moving cloned module"))
 		errs.Append(os.Remove(clonedir))
