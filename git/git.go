@@ -445,6 +445,12 @@ func (git *Git) Add(files ...string) error {
 	return err
 }
 
+// Clone will clone the given repo inside the given dir.
+func (git *Git) Clone(repoURL string, dir string) error {
+	_, err := git.exec("clone", repoURL, dir)
+	return err
+}
+
 // Commit the current staged changes.
 // The args are extra flags and/or arguments to git commit command line.
 // Beware: Commit is a porcelain method.

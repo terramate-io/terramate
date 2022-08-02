@@ -140,6 +140,21 @@ func TestRevParse(t *testing.T) {
 	assert.EqualStrings(t, CookedCommitID, out, "commit mismatch")
 }
 
+func TestClone(t *testing.T) {
+	s := sandbox.New(t)
+	s.RootEntry().CreateFile("test.txt", "test")
+	git := s.Git()
+
+	git.CommitAll("added file")
+
+	repoURL := "file://" + s.RootDir()
+	cloneDir := t.TempDir()
+	git.Clone(repoURL, cloneDir)
+
+	got := test.ReadFile(t, cloneDir, "test.txt")
+	assert.EqualStrings(t, "test", string(got))
+}
+
 func TestCurrentBranch(t *testing.T) {
 	s := sandbox.New(t)
 	git := s.Git()
