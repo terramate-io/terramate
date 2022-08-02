@@ -112,17 +112,6 @@ func NewConfig(username, email string) Config {
 	}
 }
 
-// NewConfigWithPath calls NewConfig but also sets the git program path.
-func NewConfigWithPath(username, email, programPath string) Config {
-	log.Debug().
-		Str("action", "NewConfigWithPath()").
-		Str("path", programPath).
-		Msg("Make new config.")
-	config := NewConfig(username, email)
-	config.ProgramPath = programPath
-	return config
-}
-
 // NewWrapper creates a new wrapper.
 func NewWrapper(user, email string) (*Git, error) {
 	return WithConfig(NewConfig(user, email))
