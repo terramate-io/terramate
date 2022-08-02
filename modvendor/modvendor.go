@@ -68,7 +68,7 @@ func Vendor(vendordir string, src Source) (string, error) {
 	logger := log.With().
 		Str("action", "modvendor.Vendor()").
 		Str("vendordir", vendordir).
-		Str("URL", src.URL).
+		Str("url", src.URL).
 		Str("path", src.Path).
 		Str("ref", src.Ref).
 		Logger()
