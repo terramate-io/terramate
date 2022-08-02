@@ -248,13 +248,17 @@ type mergeHandler func(block *ast.Block) error
 // parsed files of all sub-parsers for detecting cycles and import duplications.
 // Calling Parse() or MinimalParse() multiple times is an error.
 func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
+	_, err := os.Stat(dir)
+	if err != nil {
+		return nil, errors.E(err, "failed to stat directory %q", dir)
+	}
 	if !strings.HasPrefix(dir, rootdir) {
 		return nil, errors.E("directory %q is not inside root %q", dir, rootdir)
 	}
 
 	evalctx, err := eval.NewContext(dir)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(err, "failed to initialize the evaluation context")
 	}
 
 	return &TerramateParser{
@@ -896,21 +900,6 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 		iterator = iteratorTraversal.RootName()
 	}
 
-	var labels []string
-	labelsAttr, ok := attrs["labels"]
-	if ok {
-		labelsVal, err := eval.Eval(labelsAttr.Expr)
-		if err != nil {
-			return hclAttrEvalErr(labelsAttr,
-				"failed to evaluate the `labels` attribute")
-		}
-
-		err = assignSet("labels", &labels, labelsVal)
-		if err != nil {
-			return err
-		}
-	}
-
 	forEachAttr, ok := attrs["for_each"]
 	if !ok {
 		return errors.E(block.Body.Range(),
@@ -920,7 +909,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 
 	forEachVal, err := eval.Eval(forEachAttr.Expr)
 	if err != nil {
-		return hclAttrEvalErr(forEachAttr, "evaluting `for_each` expression")
+		return hclAttrEvalErr(forEachAttr, "evaluating `for_each` expression")
 	}
 
 	if !forEachVal.CanIterateElements() {
@@ -929,14 +918,32 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 			forEachVal.Type().FriendlyName())
 	}
 
+	labelsAttr, hasLabels := attrs["labels"]
+
 	var tmDynamicErr error
 	forEachVal.ForEachElement(func(key, value cty.Value) (stop bool) {
-		newblock := target.AppendBlock(hclwrite.NewBlock(genBlockType, labels))
 		eval.SetNamespace(iterator, map[string]cty.Value{
 			"key":   key,
 			"value": value,
 		})
 
+		var labels []string
+		if hasLabels {
+			labelsVal, err := eval.Eval(labelsAttr.Expr)
+			if err != nil {
+				tmDynamicErr = hclAttrEvalErr(labelsAttr,
+					"failed to evaluate the `labels` attribute")
+				return true
+			}
+
+			err = assignSet("labels", &labels, labelsVal)
+			if err != nil {
+				tmDynamicErr = err
+				return true
+			}
+		}
+
+		newblock := target.AppendBlock(hclwrite.NewBlock(genBlockType, labels))
 		err := CopyBody(newblock.Body(), genContentBlock.Body, eval)
 		if err != nil {
 			tmDynamicErr = err
