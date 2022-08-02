@@ -319,7 +319,7 @@ func TryLoad(root, absdir string) (stack *S, found bool, err error) {
 	logger.Debug().Msg("Parsing configuration.")
 	cfg, err := hcl.ParseDir(root, absdir)
 	if err != nil {
-		return nil, false, err
+		return nil, false, errors.E(err, "failed to parse directory %q", absdir)
 	}
 
 	if cfg.Stack == nil {

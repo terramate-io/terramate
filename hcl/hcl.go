@@ -248,13 +248,17 @@ type mergeHandler func(block *ast.Block) error
 // parsed files of all sub-parsers for detecting cycles and import duplications.
 // Calling Parse() or MinimalParse() multiple times is an error.
 func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
+	_, err := os.Stat(dir)
+	if err != nil {
+		return nil, errors.E(err, "failed to stat directory %q", dir)
+	}
 	if !strings.HasPrefix(dir, rootdir) {
 		return nil, errors.E("directory %q is not inside root %q", dir, rootdir)
 	}
 
 	evalctx, err := eval.NewContext(dir)
 	if err != nil {
-		return nil, errors.E(err, "failed to initialize the Terramate parser")
+		return nil, errors.E(err, "failed to initialize the evaluation context")
 	}
 
 	return &TerramateParser{
