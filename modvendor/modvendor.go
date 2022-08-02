@@ -116,6 +116,8 @@ func Vendor(vendordir string, src Source) (string, error) {
 		return "", err
 	}
 
+	// TODO(katcipis): remove .git before moving.
+
 	if err := os.MkdirAll(filepath.Dir(clonedir), 0775); err != nil {
 		return "", errors.E(err, "creating mod dir inside vendor")
 	}
