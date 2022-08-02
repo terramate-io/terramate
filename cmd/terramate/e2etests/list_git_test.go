@@ -150,6 +150,29 @@ func TestListChangedDontIgnoreStackDeletedFiles(t *testing.T) {
 	})
 }
 
+func TestListChangedDontIgnoreStackDeletedDirs(t *testing.T) {
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack")
+	toBeDeletedDir := stack.CreateDir("test1")
+	deepNestedDir := toBeDeletedDir.CreateDir("test2").CreateDir("test3")
+	deepNestedDir.CreateFile("testfile", "")
+	cli := newCLI(t, s.RootDir())
+
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+	git.CheckoutNew("deleted-dir")
+
+	test.RemoveAll(t, toBeDeletedDir.Path())
+
+	git.CommitAll("removed dir")
+
+	assertRunResult(t, cli.listChangedStacks(), runExpected{
+		Stdout: stack.RelPath() + "\n",
+	})
+}
+
 func TestListChangedDontIgnoreStackDeletedDirectories(t *testing.T) {
 	s := sandbox.New(t)
 
