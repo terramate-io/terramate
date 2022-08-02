@@ -141,8 +141,12 @@ func TestRevParse(t *testing.T) {
 }
 
 func TestClone(t *testing.T) {
+	const (
+		filename = "test.txt"
+		content  = "test"
+	)
 	s := sandbox.New(t)
-	s.RootEntry().CreateFile("test.txt", "test")
+	s.RootEntry().CreateFile(filename, content)
 	git := s.Git()
 
 	git.CommitAll("added file")
@@ -151,8 +155,8 @@ func TestClone(t *testing.T) {
 	cloneDir := t.TempDir()
 	git.Clone(repoURL, cloneDir)
 
-	got := test.ReadFile(t, cloneDir, "test.txt")
-	assert.EqualStrings(t, "test", string(got))
+	got := test.ReadFile(t, cloneDir, filename)
+	assert.EqualStrings(t, content, string(got))
 }
 
 func TestCurrentBranch(t *testing.T) {
