@@ -16,6 +16,8 @@ package modvendor
 
 import (
 	"fmt"
+	"net/url"
+	"path/filepath"
 	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
@@ -26,6 +28,12 @@ type Source struct {
 	// Remote is the remote of the source that will be referenced
 	// directly when downloading a source.
 	Remote string
+
+	// Path is a relative path representation of the source remote
+	// independent from any specific reference. It includes the
+	// domain of the remote as the root dir.
+	// Eg.  github.com/mineiros-io/example
+	Path string
 
 	// Ref is the specific reference of this source, if any.
 	Ref string
@@ -93,20 +101,50 @@ func ParseSource(modsource string) (Source, error) {
 	case strings.HasPrefix(modsource, "github.com"):
 		return Source{
 			Remote: fmt.Sprintf("https://%s.git", modsource),
+			Path:   modsource,
 			Ref:    ref,
 		}, nil
 	case strings.HasPrefix(modsource, "git@"):
+		// In git it could be any user@host, but here we are supporting
+		// the specific options allowed by Terraform on module.source:
+		// - https://www.terraform.io/language/modules/sources#github
+		// In this case being Github ssh access.
 		return Source{
 			Remote: modsource,
+			Path:   parseGithubAtPath(modsource),
 			Ref:    ref,
 		}, nil
 	case strings.HasPrefix(modsource, "git::"):
+		// Generic git: https://www.terraform.io/language/modules/sources#generic-git-repository
+		path, err := parseGitColonPath(modsource)
+		if err != nil {
+			return Source{}, err
+		}
 		return Source{
 			Remote: strings.TrimPrefix(modsource, "git::"),
+			Path:   path,
 			Ref:    ref,
 		}, nil
 
 	default:
 		return Source{}, errors.E(ErrUnsupportedModSrc)
 	}
+}
+
+func parseGithubAtPath(modsource string) string {
+	path := strings.TrimPrefix(modsource, "git@")
+	path = strings.TrimSuffix(path, ".git")
+	// This is GH specific, so we don't need to handle specific ports
+	// and we can assume it is always git@github.com:org/path.git.
+	return strings.Replace(path, ":", "/", 1)
+}
+
+func parseGitColonPath(modsource string) (string, error) {
+	rawURL := strings.TrimPrefix(modsource, "git::")
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return "", errors.E(ErrInvalidModSrc, "invalid URL inside git::")
+	}
+	path := filepath.Join(u.Host, u.Path)
+	return strings.TrimSuffix(path, ".git"), nil
 }

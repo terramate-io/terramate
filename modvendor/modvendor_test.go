@@ -20,9 +20,16 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/modvendor"
+	"github.com/mineiros-io/terramate/test"
 )
 
-func TestModVendor(t *testing.T) {
+func TestModVendorWithRef(t *testing.T) {
+}
+
+func TestModVendorNoRefFails(t *testing.T) {
+	// TODO(katcipis): when we start parsing modules for sources
+	// we need to address default remote references. for now it is
+	// always explicit.
 }
 
 func TestParseGitSources(t *testing.T) {
@@ -44,6 +51,7 @@ func TestParseGitSources(t *testing.T) {
 			want: want{
 				parsed: modvendor.Source{
 					Remote: "https://github.com/mineiros-io/example.git",
+					Path:   "github.com/mineiros-io/example",
 				},
 			},
 		},
@@ -53,6 +61,7 @@ func TestParseGitSources(t *testing.T) {
 			want: want{
 				parsed: modvendor.Source{
 					Remote: "https://github.com/mineiros-io/example.git",
+					Path:   "github.com/mineiros-io/example",
 					Ref:    "v1",
 				},
 			},
@@ -63,6 +72,7 @@ func TestParseGitSources(t *testing.T) {
 			want: want{
 				parsed: modvendor.Source{
 					Remote: "git@github.com:mineiros-io/example.git",
+					Path:   "github.com/mineiros-io/example",
 				},
 			},
 		},
@@ -72,6 +82,7 @@ func TestParseGitSources(t *testing.T) {
 			want: want{
 				parsed: modvendor.Source{
 					Remote: "git@github.com:mineiros-io/example.git",
+					Path:   "github.com/mineiros-io/example",
 					Ref:    "v2",
 				},
 			},
@@ -82,6 +93,7 @@ func TestParseGitSources(t *testing.T) {
 			want: want{
 				parsed: modvendor.Source{
 					Remote: "https://example.com/vpc.git",
+					Path:   "example.com/vpc",
 				},
 			},
 		},
@@ -91,6 +103,7 @@ func TestParseGitSources(t *testing.T) {
 			want: want{
 				parsed: modvendor.Source{
 					Remote: "https://example.com/vpc.git",
+					Path:   "example.com/vpc",
 					Ref:    "v3",
 				},
 			},
@@ -101,6 +114,7 @@ func TestParseGitSources(t *testing.T) {
 			want: want{
 				parsed: modvendor.Source{
 					Remote: "ssh://username@example.com/storage.git",
+					Path:   "example.com/storage",
 				},
 			},
 		},
@@ -110,6 +124,7 @@ func TestParseGitSources(t *testing.T) {
 			want: want{
 				parsed: modvendor.Source{
 					Remote: "ssh://username@example.com/storage.git",
+					Path:   "example.com/storage",
 					Ref:    "v4",
 				},
 			},
@@ -202,12 +217,12 @@ func TestParseGitSources(t *testing.T) {
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			parsed, err := modvendor.ParseSource(tcase.source)
+			got, err := modvendor.ParseSource(tcase.source)
 			assert.IsError(t, err, tcase.want.err)
 			if tcase.want.err != nil {
 				return
 			}
-			assert.Partial(t, parsed, tcase.want.parsed)
+			test.AssertDiff(t, got, tcase.want.parsed)
 		})
 	}
 }
