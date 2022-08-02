@@ -25,9 +25,8 @@ import (
 
 // Source represents a module source
 type Source struct {
-	// Remote is the remote of the source that will be referenced
-	// directly when downloading a source.
-	Remote string
+	// URL is the Git URL of the source.
+	URL string
 
 	// Path is a relative path representation of the source remote
 	// independent from any specific reference. It includes the
@@ -48,8 +47,8 @@ const (
 )
 
 // Vendor will vendor the given module inside the provided vendor
-// dir. If the project is already vendored it will do nothing and return
-// as a success.
+// dir. The vendor dir must be an absolute path.
+/// If the project is already vendored it will do nothing and return as a success.
 //
 // Vendored modules will be located at:
 //
@@ -64,8 +63,10 @@ const (
 // - https://www.terraform.io/language/modules/sources
 //
 // Source references that are not Git/Github are not supported.
-func Vendor(vendordir, src Source) error {
-	return nil
+// It returns the absolute path where the code has been vendored, which will be inside
+// the given vendordir.
+func Vendor(vendordir string, src Source) (string, error) {
+	return filepath.Join(vendordir, src.Path, src.Ref), nil
 }
 
 // ParseSource parses the given modsource string. It returns an error if the modsource
@@ -100,9 +101,9 @@ func ParseSource(modsource string) (Source, error) {
 	switch {
 	case strings.HasPrefix(modsource, "github.com"):
 		return Source{
-			Remote: fmt.Sprintf("https://%s.git", modsource),
-			Path:   modsource,
-			Ref:    ref,
+			URL:  fmt.Sprintf("https://%s.git", modsource),
+			Path: modsource,
+			Ref:  ref,
 		}, nil
 	case strings.HasPrefix(modsource, "git@"):
 		// In git it could be any user@host, but here we are supporting
@@ -110,9 +111,9 @@ func ParseSource(modsource string) (Source, error) {
 		// - https://www.terraform.io/language/modules/sources#github
 		// In this case being Github ssh access.
 		return Source{
-			Remote: modsource,
-			Path:   parseGithubAtPath(modsource),
-			Ref:    ref,
+			URL:  modsource,
+			Path: parseGithubAtPath(modsource),
+			Ref:  ref,
 		}, nil
 	case strings.HasPrefix(modsource, "git::"):
 		// Generic git: https://www.terraform.io/language/modules/sources#generic-git-repository
@@ -121,9 +122,9 @@ func ParseSource(modsource string) (Source, error) {
 			return Source{}, err
 		}
 		return Source{
-			Remote: strings.TrimPrefix(modsource, "git::"),
-			Path:   path,
-			Ref:    ref,
+			URL:  strings.TrimPrefix(modsource, "git::"),
+			Path: path,
+			Ref:  ref,
 		}, nil
 
 	default:

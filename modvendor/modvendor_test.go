@@ -15,15 +15,40 @@
 package modvendor_test
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/test"
+	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/rs/zerolog"
 )
 
 func TestModVendorWithRef(t *testing.T) {
+	const (
+		path = "github.com/mineiros-io/example"
+		ref  = "main"
+	)
+
+	s := sandbox.New(t)
+	gitURL := "file://" + s.RootDir()
+	vendorDir := t.TempDir()
+
+	cloneDir, err := modvendor.Vendor(vendorDir, modvendor.Source{
+		URL:  gitURL,
+		Ref:  ref,
+		Path: path,
+	})
+
+	assert.NoError(t, err)
+
+	wantCloneDir := filepath.Join(vendorDir, path, ref)
+
+	assert.EqualStrings(t, wantCloneDir, cloneDir)
+
+	// TODO(katcipis): validate cloning
 }
 
 func TestModVendorNoRefFails(t *testing.T) {
@@ -50,8 +75,8 @@ func TestParseGitSources(t *testing.T) {
 			source: "github.com/mineiros-io/example",
 			want: want{
 				parsed: modvendor.Source{
-					Remote: "https://github.com/mineiros-io/example.git",
-					Path:   "github.com/mineiros-io/example",
+					URL:  "https://github.com/mineiros-io/example.git",
+					Path: "github.com/mineiros-io/example",
 				},
 			},
 		},
@@ -60,9 +85,9 @@ func TestParseGitSources(t *testing.T) {
 			source: "github.com/mineiros-io/example?ref=v1",
 			want: want{
 				parsed: modvendor.Source{
-					Remote: "https://github.com/mineiros-io/example.git",
-					Path:   "github.com/mineiros-io/example",
-					Ref:    "v1",
+					URL:  "https://github.com/mineiros-io/example.git",
+					Path: "github.com/mineiros-io/example",
+					Ref:  "v1",
 				},
 			},
 		},
@@ -71,8 +96,8 @@ func TestParseGitSources(t *testing.T) {
 			source: "git@github.com:mineiros-io/example.git",
 			want: want{
 				parsed: modvendor.Source{
-					Remote: "git@github.com:mineiros-io/example.git",
-					Path:   "github.com/mineiros-io/example",
+					URL:  "git@github.com:mineiros-io/example.git",
+					Path: "github.com/mineiros-io/example",
 				},
 			},
 		},
@@ -81,9 +106,9 @@ func TestParseGitSources(t *testing.T) {
 			source: "git@github.com:mineiros-io/example.git?ref=v2",
 			want: want{
 				parsed: modvendor.Source{
-					Remote: "git@github.com:mineiros-io/example.git",
-					Path:   "github.com/mineiros-io/example",
-					Ref:    "v2",
+					URL:  "git@github.com:mineiros-io/example.git",
+					Path: "github.com/mineiros-io/example",
+					Ref:  "v2",
 				},
 			},
 		},
@@ -92,8 +117,8 @@ func TestParseGitSources(t *testing.T) {
 			source: "git::https://example.com/vpc.git",
 			want: want{
 				parsed: modvendor.Source{
-					Remote: "https://example.com/vpc.git",
-					Path:   "example.com/vpc",
+					URL:  "https://example.com/vpc.git",
+					Path: "example.com/vpc",
 				},
 			},
 		},
@@ -102,9 +127,9 @@ func TestParseGitSources(t *testing.T) {
 			source: "git::https://example.com/vpc.git?ref=v3",
 			want: want{
 				parsed: modvendor.Source{
-					Remote: "https://example.com/vpc.git",
-					Path:   "example.com/vpc",
-					Ref:    "v3",
+					URL:  "https://example.com/vpc.git",
+					Path: "example.com/vpc",
+					Ref:  "v3",
 				},
 			},
 		},
@@ -113,8 +138,8 @@ func TestParseGitSources(t *testing.T) {
 			source: "git::ssh://username@example.com/storage.git",
 			want: want{
 				parsed: modvendor.Source{
-					Remote: "ssh://username@example.com/storage.git",
-					Path:   "example.com/storage",
+					URL:  "ssh://username@example.com/storage.git",
+					Path: "example.com/storage",
 				},
 			},
 		},
@@ -123,9 +148,9 @@ func TestParseGitSources(t *testing.T) {
 			source: "git::ssh://username@example.com/storage.git?ref=v4",
 			want: want{
 				parsed: modvendor.Source{
-					Remote: "ssh://username@example.com/storage.git",
-					Path:   "example.com/storage",
-					Ref:    "v4",
+					URL:  "ssh://username@example.com/storage.git",
+					Path: "example.com/storage",
+					Ref:  "v4",
 				},
 			},
 		},
@@ -225,4 +250,8 @@ func TestParseGitSources(t *testing.T) {
 			test.AssertDiff(t, got, tcase.want.parsed)
 		})
 	}
+}
+
+func init() {
+	zerolog.SetGlobalLevel(zerolog.Disabled)
 }
