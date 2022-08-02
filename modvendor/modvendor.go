@@ -88,9 +88,11 @@ func Vendor(vendordir string, src Source) (string, error) {
 	if err != nil {
 		return "", errors.E(err, "creating workdir")
 	}
-	// We ignore the error here since after the final os.Rename
-	// the workdir will be moved and won't exist.
-	defer os.Remove(workdir)
+	defer func() {
+		// We ignore the error here since after the final os.Rename
+		// the workdir will be moved and won't exist.
+		_ = os.Remove(workdir)
+	}()
 
 	clonedir := filepath.Join(vendordir, src.Path, src.Ref)
 
