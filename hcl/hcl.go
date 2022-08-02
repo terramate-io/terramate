@@ -344,14 +344,18 @@ func (p *TerramateParser) AddFileContent(name string, data []byte) error {
 // ParseConfig parses and checks the schema of previously added files and
 // return either a Config or an error.
 func (p *TerramateParser) ParseConfig() (Config, error) {
-	err := p.Parse()
-	if err != nil {
-		return Config{}, err
-	}
+	errs := errors.L()
+	errs.Append(p.Parse())
 
 	// TODO(i4k): don't validate schema here.
 	// Changing this requires changes to the editor extensions / linters / etc.
-	return p.parseTerramateSchema()
+	cfg, err := p.parseTerramateSchema()
+	errs.Append(err)
+
+	if err := errs.AsError(); err != nil {
+		return Config{}, err
+	}
+	return cfg, nil
 }
 
 // Parse does the syntax parsing and merging of configurations but do not
@@ -362,12 +366,8 @@ func (p *TerramateParser) Parse() error {
 	}
 	defer func() { p.parsed = true }()
 
-	err := p.parseSyntax()
-	if err != nil {
-		return err
-	}
-
 	errs := errors.L()
+	errs.Append(p.parseSyntax())
 	errs.Append(p.applyImports())
 	errs.Append(p.mergeConfig())
 	return errs.AsError()
