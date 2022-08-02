@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package module
+package modvendor
 
 import (
 	"fmt"
@@ -34,6 +34,9 @@ type Source struct {
 const (
 	// ErrUnsupportedModSrc indicates that a module source string is invalid.
 	ErrUnsupportedModSrc errors.Kind = "unsupported module source"
+
+	// ErrInvalidModSrc indicates that a module source string is invalid.
+	ErrInvalidModSrc errors.Kind = "invalid module source"
 )
 
 // Vendor will vendor the given module inside the provided vendor
@@ -54,14 +57,6 @@ const (
 //
 // Source references that are not Git/Github are not supported.
 func Vendor(vendordir, src Source) error {
-	// Use: https://pkg.go.dev/github.com/hashicorp/go-getter#Detect
-	// To detect modsource to a valid URL and then extract the path/reference
-	// from the URL, so we can define the final path inside vendor.
-	// go-getter can also download for us but it will update things if the dir
-	// already exists, so we need to make sure that we don't call it if the dir
-	// already exists.
-	//
-	// More details: https://github.com/hashicorp/terraform/blob/main/internal/getmodules/getter.go#L14
 	return nil
 }
 
@@ -70,13 +65,29 @@ func Vendor(vendordir, src Source) error {
 func ParseSource(modsource string) (Source, error) {
 	ref := ""
 	splitParams := strings.Split(modsource, "?")
-	if len(splitParams) > 1 {
-		// TODO(katcipis): handle invalid multiple ??
-		// TODO(katcipis): handle missing ref
-		// TODO(katcipis): handle extra params
-		ref = strings.Split(splitParams[1], "=")[1]
-	}
 	modsource = splitParams[0]
+
+	if len(splitParams) > 1 {
+		if len(splitParams) != 2 {
+			return Source{}, errors.E(ErrInvalidModSrc, "unexpected extra '?' on source")
+		}
+
+		refParam := splitParams[1]
+		splitRefParam := strings.Split(refParam, "=")
+
+		if len(splitRefParam) != 2 {
+			return Source{}, errors.E(ErrInvalidModSrc, "parsing ref param %q", refParam)
+		}
+
+		if splitRefParam[0] != "ref" {
+			return Source{}, errors.E(ErrInvalidModSrc, "unknown param %q", splitRefParam[0])
+		}
+
+		ref = splitRefParam[1]
+		if ref == "" {
+			return Source{}, errors.E(ErrInvalidModSrc, "ref param %q is empty", refParam)
+		}
+	}
 
 	switch {
 	case strings.HasPrefix(modsource, "github.com"):
