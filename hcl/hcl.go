@@ -254,7 +254,7 @@ func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
 
 	evalctx, err := eval.NewContext(dir)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(err, "failed to initialize the Terramate parser")
 	}
 
 	return &TerramateParser{
