@@ -49,15 +49,39 @@ func TestModVendorWithRef(t *testing.T) {
 		Ref:  ref,
 		Path: path,
 	})
-
 	assert.NoError(t, err)
 
 	wantCloneDir := filepath.Join(vendorDir, path, ref)
-
 	assert.EqualStrings(t, wantCloneDir, cloneDir)
 
 	got := test.ReadFile(t, cloneDir, filename)
 	assert.EqualStrings(t, content, string(got))
+
+	const (
+		newRef      = "branch"
+		newFilename = "new.txt"
+		newContent  = "new"
+	)
+
+	g.CheckoutNew(newRef)
+	s.RootEntry().CreateFile(newFilename, newContent)
+	g.CommitAll("add new file")
+
+	newCloneDir, err := modvendor.Vendor(vendorDir, modvendor.Source{
+		URL:  gitURL,
+		Ref:  newRef,
+		Path: path,
+	})
+	assert.NoError(t, err)
+
+	wantCloneDir = filepath.Join(vendorDir, path, newRef)
+	assert.EqualStrings(t, wantCloneDir, newCloneDir)
+
+	got = test.ReadFile(t, newCloneDir, filename)
+	assert.EqualStrings(t, content, string(got))
+
+	got = test.ReadFile(t, newCloneDir, newFilename)
+	assert.EqualStrings(t, newContent, string(got))
 }
 
 func TestModVendorNoRefFails(t *testing.T) {

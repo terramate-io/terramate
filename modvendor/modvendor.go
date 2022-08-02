@@ -23,6 +23,7 @@ import (
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/git"
+	"github.com/rs/zerolog/log"
 )
 
 // Source represents a module source
@@ -64,17 +65,41 @@ const (
 // It returns the absolute path where the code has been vendored, which will be inside
 // the given vendordir.
 func Vendor(vendordir string, src Source) (string, error) {
+	logger := log.With().
+		Str("action", "modvendor.Vendor()").
+		Str("vendordir", vendordir).
+		Str("URL", src.URL).
+		Str("path", src.Path).
+		Str("ref", src.Ref).
+		Logger()
+
 	if src.Ref == "" {
 		// TODO(katcipis): handle default references.
 		// for now always explicit is fine.
 		return "", errors.E("src %v reference must be non-empty", src)
 	}
+
+	// TODO(katcipis): test that if vendor contains path with matching ref
+	// it will do nothing.
+
+	logger.Trace().Msg("setting up tmp workdir")
+
 	workdir, err := os.MkdirTemp("", "terramate-vendor")
 	if err != nil {
 		return "", errors.E(err, "creating workdir")
 	}
+	// We ignore the error here since after the final os.Rename
+	// the workdir will be moved and won't exist.
+	defer os.Remove(workdir)
 
-	cloneDir := filepath.Join(vendordir, src.Path, src.Ref)
+	clonedir := filepath.Join(vendordir, src.Path, src.Ref)
+
+	logger = logger.With().
+		Str("workdir", workdir).
+		Str("clonedir", clonedir).
+		Logger()
+
+	logger.Trace().Msg("setting up git wrapper")
 
 	g, err := git.WithConfig(git.Config{
 		WorkingDir: workdir,
@@ -83,11 +108,30 @@ func Vendor(vendordir string, src Source) (string, error) {
 		return "", err
 	}
 
-	if err := g.Clone(src.URL, cloneDir); err != nil {
-		// TODO(katcipis): delete cloneDir
+	logger.Trace().Msg("cloning to workdir")
+
+	if err := g.Clone(src.URL, workdir); err != nil {
 		return "", err
 	}
-	return cloneDir, nil
+
+	// This may leave intermediary created dirs hanging on vendordir
+	// since we just create all and then delete clone dir.
+	// If we get a lot of errors from os.Rename we may need to handle this
+	// more gracefully, assuming that os.Rename errors are rare since both
+	// dirs where just created.
+
+	if err := os.MkdirAll(filepath.Dir(clonedir), 0775); err != nil {
+		return "", errors.E(err, "creating mod dir inside vendor")
+	}
+
+	logger.Trace().Msg("moving cloned mod from workdir to clonedir")
+	if err := os.Rename(workdir, clonedir); err != nil {
+		errs := errors.L()
+		errs.Append(errors.E(err, "moving cloned module"))
+		errs.Append(os.Remove(clonedir))
+		return "", errs.AsError()
+	}
+	return clonedir, nil
 }
 
 // ParseSource parses the given modsource string.
