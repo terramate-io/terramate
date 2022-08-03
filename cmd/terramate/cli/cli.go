@@ -132,7 +132,7 @@ type cliSpec struct {
 		} `cmd:"" help:"List run environment variables for all stacks"`
 
 		Vendor struct {
-			Source    string `arg:"" name:"source" help:"Terraform module source URL, must be Git/Github"`
+			Source    string `arg:"" name:"source" help:"Terraform module source URL, must be Git/Github and should not contain a reference"`
 			Reference string `arg:"" name:"ref" help:"Reference of the Terraform module to vendor"`
 		} `cmd:"" help:"Vendor a Terraform module inside the project"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
@@ -441,6 +441,9 @@ func (c *cli) vendor() {
 	parsedSource, err := tf.ParseSource(source)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("parsing module source")
+	}
+	if parsedSource.Ref != "" {
+		logger.Fatal().Msg("module source should not contain a reference")
 	}
 	parsedSource.Ref = ref
 
