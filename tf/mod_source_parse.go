@@ -76,16 +76,17 @@ func ParseSource(modsource string) (Source, error) {
 
 		// This is not a valid URL given the nature of scp strings
 		// But it is enough for us to parse the query parameters
+		// and form a path that makes sense.
 		u, err := url.Parse(rawURL)
 		if err != nil {
 			return Source{}, errors.E(ErrInvalidModSrc, err,
 				"invalid URL inside %s", modsource)
 		}
+
 		ref := u.Query().Get("ref")
 		u.RawQuery = ""
+		path := strings.TrimSuffix(filepath.Join(u.Scheme, u.Opaque), ".git")
 
-		path := strings.TrimSuffix(u.String(), ".git")
-		path = strings.Replace(path, ":", "/", 1)
 		return Source{
 			URL:  "git@" + u.String(),
 			Path: path,
