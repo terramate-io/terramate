@@ -630,7 +630,7 @@ func NewTerramate(reqversion string) *Terramate {
 
 // ParseDir will parse Terramate configuration from a given directory,
 // using root as project workspace, parsing all files with the suffixes .tm and
-// .tm.hcl. It's parses in non-strict mode for compatibility with older versions.
+// .tm.hcl. It parses in non-strict mode for compatibility with older versions.
 // Note: it does not recurse into child directories.
 func ParseDir(root string, dir string) (Config, error) {
 	logger := log.With().
