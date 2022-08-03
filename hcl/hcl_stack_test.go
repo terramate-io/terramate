@@ -102,7 +102,7 @@ func TestHCLParserStackID(t *testing.T) {
 func TestHCLParserStack(t *testing.T) {
 	for _, tc := range []testcase{
 		{
-			name:      "empty stack block",
+			name:      "empty stack block with terramate block works in nonStrict mode",
 			nonStrict: true,
 			input: []cfgfile{
 				{
@@ -119,6 +119,26 @@ func TestHCLParserStack(t *testing.T) {
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{},
 					Stack:     &hcl.Stack{},
+				},
+			},
+		},
+		{
+			name: "empty stack block with terramate block fails in strict mode",
+			input: []cfgfile{
+				{
+					filename: "stack.tm",
+					body: `
+						terramate {
+							required_version = ""
+						}
+						stack {}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrConfigConflict),
+					errors.E(hcl.ErrConfigConflict),
 				},
 			},
 		},

@@ -18,6 +18,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -169,6 +170,21 @@ func TestListStackWithNoTerramateBlock(t *testing.T) {
 	s.BuildTree([]string{"s:stack"})
 	cli := newCLI(t, s.RootDir())
 	assertRunResult(t, cli.listStacks(), runExpected{Stdout: "stack\n"})
+}
+
+func TestListLogsWarningIfConfigHasConflicts(t *testing.T) {
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		"s:stack",
+		`f:stack/terramate.tm:terramate {}`,
+	})
+
+	tmcli := newCLI(t, s.RootDir())
+	tmcli.loglevel = "warn"
+	assertRunResult(t, tmcli.listStacks(), runExpected{
+		Stdout:      "stack\n",
+		StderrRegex: string(hcl.ErrConfigConflict),
+	})
 }
 
 func TestListNoSuchFile(t *testing.T) {
