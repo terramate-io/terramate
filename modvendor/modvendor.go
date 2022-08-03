@@ -101,7 +101,9 @@ func Vendor(vendordir string, src tf.Source) (string, error) {
 		return "", err
 	}
 
-	// TODO(katcipis): remove .git before moving.
+	if err := os.RemoveAll(filepath.Join(workdir, ".git")); err != nil {
+		return "", errors.E(err, "removing .git dir from cloned repo")
+	}
 
 	if err := os.MkdirAll(filepath.Dir(clonedir), 0775); err != nil {
 		return "", errors.E(err, "creating mod dir inside vendor")

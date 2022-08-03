@@ -15,7 +15,6 @@
 package modvendor_test
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -58,6 +57,7 @@ func TestModVendorWithRef(t *testing.T) {
 
 	got := test.ReadFile(t, cloneDir, filename)
 	assert.EqualStrings(t, content, string(got))
+	assertNoGitDir(t, cloneDir)
 
 	const (
 		newRef      = "branch"
@@ -78,6 +78,8 @@ func TestModVendorWithRef(t *testing.T) {
 
 	wantCloneDir = filepath.Join(vendorDir, path, newRef)
 	assert.EqualStrings(t, wantCloneDir, newCloneDir)
+
+	assertNoGitDir(t, newCloneDir)
 
 	got = test.ReadFile(t, newCloneDir, filename)
 	assert.EqualStrings(t, content, string(got))
@@ -111,9 +113,7 @@ func TestModVendorDoesNothingIfRefExists(t *testing.T) {
 	})
 	assert.IsError(t, err, errors.E(modvendor.ErrAlreadyVendored))
 
-	entries, err := os.ReadDir(clonedir)
-	assert.NoError(t, err)
-
+	entries := test.ReadDir(t, clonedir)
 	if len(entries) > 0 {
 		t.Fatalf("wanted clone dir to be empty, got: %v", entries)
 	}
@@ -137,6 +137,17 @@ func TestModVendorNoRefFails(t *testing.T) {
 	})
 
 	assert.Error(t, err)
+}
+
+func assertNoGitDir(t *testing.T, dir string) {
+	t.Helper()
+
+	entries := test.ReadDir(t, dir)
+	for _, entry := range entries {
+		if entry.Name() == ".git" {
+			t.Fatalf("found unwanted .git inside %q", dir)
+		}
+	}
 }
 
 func init() {
