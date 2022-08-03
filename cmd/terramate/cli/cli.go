@@ -132,9 +132,11 @@ type cliSpec struct {
 		} `cmd:"" help:"List run environment variables for all stacks"`
 
 		Vendor struct {
-			Source    string `arg:"" name:"source" help:"Terraform module source URL, must be Git/Github and should not contain a reference"`
-			Reference string `arg:"" name:"ref" help:"Reference of the Terraform module to vendor"`
-		} `cmd:"" help:"Vendor a Terraform module inside the project"`
+			Download struct {
+				Source    string `arg:"" name:"source" help:"Terraform module source URL, must be Git/Github and should not contain a reference"`
+				Reference string `arg:"" name:"ref" help:"Reference of the Terraform module to vendor"`
+			} `cmd:"" help:"Downloads a Terraform module and stores it on the project vendor dir"`
+		} `cmd:"" help:"Manages vendored Terraform modules"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
 
@@ -364,8 +366,8 @@ func (c *cli) run() {
 		c.generate(c.wd())
 	case "experimental clone <srcdir> <destdir>":
 		c.cloneStack()
-	case "experimental vendor <source> <ref>":
-		c.vendor()
+	case "experimental vendor download <source> <ref>":
+		c.vendorDownload()
 	case "experimental globals":
 		c.printStacksGlobals()
 	case "experimental metadata":
@@ -422,9 +424,9 @@ func (c *cli) checkGitLocalBranchIsUpdated() {
 	}
 }
 
-func (c *cli) vendor() {
-	source := c.parsedArgs.Experimental.Vendor.Source
-	ref := c.parsedArgs.Experimental.Vendor.Reference
+func (c *cli) vendorDownload() {
+	source := c.parsedArgs.Experimental.Vendor.Download.Source
+	ref := c.parsedArgs.Experimental.Vendor.Download.Reference
 	vendordir := filepath.Join(c.root(), "vendor")
 
 	logger := log.With().

@@ -42,7 +42,7 @@ func TestVendorModule(t *testing.T) {
 	s := sandbox.New(t)
 
 	tmcli := newCLI(t, s.RootDir())
-	res := tmcli.run("experimental", "vendor", gitSource, "main")
+	res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
 
 	assertRunResult(t, res, runExpected{IgnoreStdout: true})
 
