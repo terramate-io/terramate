@@ -15,7 +15,6 @@
 package tf
 
 import (
-	"fmt"
 	"net/url"
 	"path/filepath"
 	"strings"
@@ -51,57 +50,66 @@ const (
 //
 // Source references that are not Git/Github are not supported.
 func ParseSource(modsource string) (Source, error) {
-	ref := ""
-	splitParams := strings.Split(modsource, "?")
-	modsource = splitParams[0]
-
-	if len(splitParams) > 1 {
-		if len(splitParams) != 2 {
-			return Source{}, errors.E(ErrInvalidModSrc, "unexpected extra '?' on source")
-		}
-
-		refParam := splitParams[1]
-		splitRefParam := strings.Split(refParam, "=")
-
-		if len(splitRefParam) != 2 {
-			return Source{}, errors.E(ErrInvalidModSrc, "parsing ref param %q", refParam)
-		}
-
-		if splitRefParam[0] != "ref" {
-			return Source{}, errors.E(ErrInvalidModSrc, "unknown param %q", splitRefParam[0])
-		}
-
-		ref = splitRefParam[1]
-		if ref == "" {
-			return Source{}, errors.E(ErrInvalidModSrc, "ref param %q is empty", refParam)
-		}
-	}
-
 	switch {
 	case strings.HasPrefix(modsource, "github.com"):
+		u, err := url.Parse(modsource)
+		if err != nil {
+			return Source{}, errors.E(ErrInvalidModSrc, err,
+				"%s is not a URL", modsource)
+		}
+		ref := u.Query().Get("ref")
+		u.RawQuery = ""
+		u.Scheme = "https"
 		return Source{
-			URL:  fmt.Sprintf("https://%s.git", modsource),
-			Path: modsource,
+			URL:  u.String() + ".git",
+			Path: filepath.Join(u.Host, u.Path),
 			Ref:  ref,
 		}, nil
+
 	case strings.HasPrefix(modsource, "git@"):
-		// In git it could be any user@host, but here we are supporting
+		// In a git scp like url it could be any user@host, but here we are supporting
 		// the specific options allowed by Terraform on module.source:
 		// - https://www.terraform.io/language/modules/sources#github
-		// In this case being Github ssh access.
+		// In this case being Github ssh access, which is always git@.
+
+		rawURL := strings.TrimPrefix(modsource, "git@")
+
+		// This is not a valid URL given the nature of scp strings
+		// But it is enough for us to parse the query parameters
+		u, err := url.Parse(rawURL)
+		if err != nil {
+			return Source{}, errors.E(ErrInvalidModSrc, err,
+				"invalid URL inside %s", modsource)
+		}
+		ref := u.Query().Get("ref")
+		u.RawQuery = ""
+
+		path := strings.TrimSuffix(u.String(), ".git")
+		path = strings.Replace(path, ":", "/", 1)
 		return Source{
-			URL:  modsource,
-			Path: parseGithubAtPath(modsource),
+			URL:  "git@" + u.String(),
+			Path: path,
 			Ref:  ref,
 		}, nil
+
 	case strings.HasPrefix(modsource, "git::"):
 		// Generic git: https://www.terraform.io/language/modules/sources#generic-git-repository
-		path, err := parseGitColonPath(modsource)
+		rawURL := strings.TrimPrefix(modsource, "git::")
+		u, err := url.Parse(rawURL)
+		if err != nil {
+			return Source{}, errors.E(ErrInvalidModSrc, "invalid URL inside %s", modsource)
+		}
+
+		path := filepath.Join(u.Host, u.Path)
+		path = strings.TrimSuffix(path, ".git")
+
 		if err != nil {
 			return Source{}, err
 		}
+		ref := u.Query().Get("ref")
+		u.RawQuery = ""
 		return Source{
-			URL:  strings.TrimPrefix(modsource, "git::"),
+			URL:  u.String(),
 			Path: path,
 			Ref:  ref,
 		}, nil
@@ -109,22 +117,4 @@ func ParseSource(modsource string) (Source, error) {
 	default:
 		return Source{}, errors.E(ErrUnsupportedModSrc)
 	}
-}
-
-func parseGithubAtPath(modsource string) string {
-	path := strings.TrimPrefix(modsource, "git@")
-	path = strings.TrimSuffix(path, ".git")
-	// This is GH specific, so we don't need to handle specific ports
-	// and we can assume it is always git@github.com:org/path.git.
-	return strings.Replace(path, ":", "/", 1)
-}
-
-func parseGitColonPath(modsource string) (string, error) {
-	rawURL := strings.TrimPrefix(modsource, "git::")
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return "", errors.E(ErrInvalidModSrc, "invalid URL inside git::")
-	}
-	path := filepath.Join(u.Host, u.Path)
-	return strings.TrimSuffix(path, ".git"), nil
 }

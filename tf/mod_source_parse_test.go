@@ -58,6 +58,16 @@ func TestParseGitSources(t *testing.T) {
 			},
 		},
 		{
+			name:   "github source with unknown query param ignored",
+			source: "github.com/mineiros-io/example?key=v1",
+			want: want{
+				parsed: tf.Source{
+					URL:  "https://github.com/mineiros-io/example.git",
+					Path: "github.com/mineiros-io/example",
+				},
+			},
+		},
+		{
 			name:   "git@ source",
 			source: "git@github.com:mineiros-io/example.git",
 			want: want{
@@ -75,6 +85,16 @@ func TestParseGitSources(t *testing.T) {
 					URL:  "git@github.com:mineiros-io/example.git",
 					Path: "github.com/mineiros-io/example",
 					Ref:  "v2",
+				},
+			},
+		},
+		{
+			name:   "git@ source with unknown query param ignored",
+			source: "git@github.com:mineiros-io/example.git?key=v2",
+			want: want{
+				parsed: tf.Source{
+					URL:  "git@github.com:mineiros-io/example.git",
+					Path: "github.com/mineiros-io/example",
 				},
 			},
 		},
@@ -100,6 +120,16 @@ func TestParseGitSources(t *testing.T) {
 			},
 		},
 		{
+			name:   "git::https source with unknown query param ignored",
+			source: "git::https://example.com/vpc.git?key=v3",
+			want: want{
+				parsed: tf.Source{
+					URL:  "https://example.com/vpc.git",
+					Path: "example.com/vpc",
+				},
+			},
+		},
+		{
 			name:   "git::ssh source",
 			source: "git::ssh://username@example.com/storage.git",
 			want: want{
@@ -121,38 +151,13 @@ func TestParseGitSources(t *testing.T) {
 			},
 		},
 		{
-			name:   "fails on missing reference",
-			source: "github.com/mineiros-io/example?ref",
+			name:   "git::ssh source with unknown query param ignored",
+			source: "git::ssh://username@example.com/storage.git?key=v4",
 			want: want{
-				err: errors.E(tf.ErrInvalidModSrc),
-			},
-		},
-		{
-			name:   "fails on wrong reference",
-			source: "github.com/mineiros-io/example?wrong=v1",
-			want: want{
-				err: errors.E(tf.ErrInvalidModSrc),
-			},
-		},
-		{
-			name:   "fails on extra unknown params",
-			source: "github.com/mineiros-io/example?wrong=v1,ref=v2",
-			want: want{
-				err: errors.E(tf.ErrInvalidModSrc),
-			},
-		},
-		{
-			name:   "fails on ? inside ref",
-			source: "github.com/mineiros-io/example?ref=v?2",
-			want: want{
-				err: errors.E(tf.ErrInvalidModSrc),
-			},
-		},
-		{
-			name:   "fails on empty reference",
-			source: "github.com/mineiros-io/example?ref=",
-			want: want{
-				err: errors.E(tf.ErrInvalidModSrc),
+				parsed: tf.Source{
+					URL:  "ssh://username@example.com/storage.git",
+					Path: "example.com/storage",
+				},
 			},
 		},
 		{
