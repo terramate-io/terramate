@@ -24,9 +24,16 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const (
+	// ErrAlreadyVendored indicates that a module is already vendored.
+	ErrAlreadyVendored errors.Kind = "module is already vendored"
+)
+
 // Vendor will vendor the given module inside the provided vendor
 // dir. The vendor dir must be an absolute path.
-/// If the project is already vendored it will do nothing and return as a success.
+//
+// If the project is already vendored an error of kind ErrAlreadyVendored will
+// be returned, vendored projects are never updated.
 //
 // Vendored modules will be located at:
 //
@@ -56,8 +63,10 @@ func Vendor(vendordir string, src tf.Source) (string, error) {
 		return "", errors.E("src %v reference must be non-empty", src)
 	}
 
-	// TODO(katcipis): test that if vendor contains path with matching ref
-	// it will do nothing.
+	clonedir := filepath.Join(vendordir, src.Path, src.Ref)
+	if _, err := os.Stat(clonedir); err == nil {
+		return "", errors.E(ErrAlreadyVendored, "dir %q exists", clonedir)
+	}
 
 	logger.Trace().Msg("setting up tmp workdir")
 
@@ -70,8 +79,6 @@ func Vendor(vendordir string, src tf.Source) (string, error) {
 		// the workdir will be moved and won't exist.
 		_ = os.Remove(workdir)
 	}()
-
-	clonedir := filepath.Join(vendordir, src.Path, src.Ref)
 
 	logger = logger.With().
 		Str("workdir", workdir).

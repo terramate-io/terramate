@@ -15,10 +15,12 @@
 package modvendor_test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -82,6 +84,39 @@ func TestModVendorWithRef(t *testing.T) {
 
 	got = test.ReadFile(t, newCloneDir, newFilename)
 	assert.EqualStrings(t, newContent, string(got))
+}
+
+func TestModVendorDoesNothingIfRefExists(t *testing.T) {
+	const (
+		path = "github.com/mineiros-io/example"
+		ref  = "main"
+	)
+
+	s := sandbox.New(t)
+
+	s.RootEntry().CreateFile("file.txt", "data")
+
+	g := s.Git()
+	g.CommitAll("add file")
+
+	gitURL := "file://" + s.RootDir()
+	vendordir := t.TempDir()
+	clonedir := filepath.Join(vendordir, path, ref)
+	test.MkdirAll(t, clonedir)
+
+	_, err := modvendor.Vendor(vendordir, tf.Source{
+		URL:  gitURL,
+		Ref:  ref,
+		Path: path,
+	})
+	assert.IsError(t, err, errors.E(modvendor.ErrAlreadyVendored))
+
+	entries, err := os.ReadDir(clonedir)
+	assert.NoError(t, err)
+
+	if len(entries) > 0 {
+		t.Fatalf("wanted clone dir to be empty, got: %v", entries)
+	}
 }
 
 func TestModVendorNoRefFails(t *testing.T) {
