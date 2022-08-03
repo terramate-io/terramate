@@ -1448,7 +1448,6 @@ func (p *TerramateParser) checkConflicts(cfg Config) error {
 				"`stack` block conflicts with `terramate` block defined at %s",
 				tmblock.RawOrigins[0].TypeRange.String(),
 			),
-
 			errors.E(ErrConfigConflict, tmblock.RawOrigins[0].TypeRange,
 				"`terramate` block conflicts with `stack` block defined at %s",
 				stackblock.TypeRange.String(),
