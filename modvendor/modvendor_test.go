@@ -35,14 +35,14 @@ func TestModVendorWithRef(t *testing.T) {
 		content  = "test"
 	)
 
-	s := sandbox.New(t)
+	repoSandbox := sandbox.New(t)
 
-	s.RootEntry().CreateFile(filename, content)
+	repoSandbox.RootEntry().CreateFile(filename, content)
 
-	g := s.Git()
-	g.CommitAll("add file")
+	repogit := repoSandbox.Git()
+	repogit.CommitAll("add file")
 
-	gitURL := "file://" + s.RootDir()
+	gitURL := "file://" + repoSandbox.RootDir()
 	vendorDir := t.TempDir()
 
 	cloneDir, err := modvendor.Vendor(vendorDir, tf.Source{
@@ -65,9 +65,12 @@ func TestModVendorWithRef(t *testing.T) {
 		newContent  = "new"
 	)
 
-	g.CheckoutNew(newRef)
-	s.RootEntry().CreateFile(newFilename, newContent)
-	g.CommitAll("add new file")
+	repogit.CheckoutNew(newRef)
+	repoSandbox.RootEntry().CreateFile(newFilename, newContent)
+	repogit.CommitAll("add new file")
+	// We need to checkout back to the initial branch
+	// or else the test passes even if the ref is not used when cloning.
+	repogit.Checkout(ref)
 
 	newCloneDir, err := modvendor.Vendor(vendorDir, tf.Source{
 		URL:  gitURL,
