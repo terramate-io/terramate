@@ -120,6 +120,17 @@ func TestParseGitSources(t *testing.T) {
 			},
 		},
 		{
+			name:   "git::https source with port",
+			source: "git::https://example.com:443/vpc.git?ref=v3",
+			want: want{
+				parsed: tf.Source{
+					URL:  "https://example.com:443/vpc.git",
+					Path: "example.com-443/vpc",
+					Ref:  "v3",
+				},
+			},
+		},
+		{
 			name:   "git::https source with unknown query param ignored",
 			source: "git::https://example.com/vpc.git?key=v3",
 			want: want{
@@ -136,6 +147,16 @@ func TestParseGitSources(t *testing.T) {
 				parsed: tf.Source{
 					URL:  "ssh://username@example.com/storage.git",
 					Path: "example.com/storage",
+				},
+			},
+		},
+		{
+			name:   "git::ssh source with port",
+			source: "git::ssh://username@example.com:666/storage.git",
+			want: want{
+				parsed: tf.Source{
+					URL:  "ssh://username@example.com:666/storage.git",
+					Path: "example.com-666/storage",
 				},
 			},
 		},
