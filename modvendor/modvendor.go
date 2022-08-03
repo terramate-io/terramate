@@ -81,7 +81,8 @@ func Vendor(vendordir string, src tf.Source) (string, error) {
 	logger.Trace().Msg("setting up git wrapper")
 
 	g, err := git.WithConfig(git.Config{
-		WorkingDir: workdir,
+		WorkingDir:     workdir,
+		AllowPorcelain: true,
 	})
 	if err != nil {
 		return "", err

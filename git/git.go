@@ -421,7 +421,11 @@ func (git *Git) Add(files ...string) error {
 }
 
 // Clone will clone the given repo inside the given dir.
+// Beware: Clone is a porcelain method.
 func (git *Git) Clone(repoURL string, dir string) error {
+	if !git.config.AllowPorcelain {
+		return fmt.Errorf("Clone: %w", ErrDenyPorcelain)
+	}
 	_, err := git.exec("clone", repoURL, dir)
 	return err
 }
