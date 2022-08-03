@@ -25,9 +25,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/modvendor"
 	prj "github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/run"
 	"github.com/mineiros-io/terramate/run/dag"
+	"github.com/mineiros-io/terramate/tf"
 
 	"github.com/alecthomas/kong"
 	"github.com/emicklei/dot"
@@ -128,6 +130,11 @@ type cliSpec struct {
 
 		RunEnv struct {
 		} `cmd:"" help:"List run environment variables for all stacks"`
+
+		Vendor struct {
+			Source    string `arg:"" name:"source" help:"Terraform module source URL, must be Git/Github"`
+			Reference string `arg:"" name:"ref" help:"Reference of the Terraform module to vendor"`
+		} `cmd:"" help:"Vendor a Terraform module inside the project"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
 
@@ -357,6 +364,8 @@ func (c *cli) run() {
 		c.generate(c.wd())
 	case "experimental clone <srcdir> <destdir>":
 		c.cloneStack()
+	case "experimental vendor <source> <ref>":
+		c.vendor()
 	case "experimental globals":
 		c.printStacksGlobals()
 	case "experimental metadata":
@@ -411,6 +420,37 @@ func (c *cli) checkGitLocalBranchIsUpdated() {
 			Err(err).
 			Msg("checking git default branch was updated.")
 	}
+}
+
+func (c *cli) vendor() {
+	source := c.parsedArgs.Experimental.Vendor.Source
+	ref := c.parsedArgs.Experimental.Vendor.Reference
+	vendordir := filepath.Join(c.root(), "vendor")
+
+	logger := log.With().
+		Str("workingDir", c.wd()).
+		Str("rootdir", c.root()).
+		Str("vendordir", vendordir).
+		Str("action", "cli.vendor()").
+		Str("source", source).
+		Str("ref", ref).
+		Logger()
+
+	logger.Trace().Msg("parsing source")
+
+	parsedSource, err := tf.ParseSource(source)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("parsing module source")
+	}
+	parsedSource.Ref = ref
+
+	logger.Trace().Msgf("module path is: %s", parsedSource.Path)
+	modVendorDir, err := modvendor.Vendor(vendordir, parsedSource)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("vendoring module")
+	}
+
+	c.log("Vendored module at: %s", modVendorDir)
 }
 
 func (c *cli) cloneStack() {
