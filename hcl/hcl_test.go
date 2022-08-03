@@ -86,6 +86,55 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			},
 		},
 		{
+			name: "syntax error + unrecognized attribute",
+			input: []cfgfile{
+				{
+					filename: "bug.tm",
+					body:     `bug`,
+				},
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate{}
+						something = 1
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrHCLSyntax,
+						mkrange("bug.tm", start(1, 1, 0), end(1, 4, 3))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("cfg.tm", start(3, 7, 25), end(3, 16, 34))),
+				},
+			},
+		},
+		{
+			name: "syntax error + invalid import",
+			input: []cfgfile{
+				{
+					filename: "bug.tm",
+					body:     `bug`,
+				},
+				{
+					filename: "cfg.tm",
+					body: `
+						import {
+							source = tm_invalid()
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrHCLSyntax,
+						mkrange("bug.tm", start(1, 1, 0), end(1, 4, 3))),
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("cfg.tm", start(3, 17, 32), end(3, 29, 44))),
+				},
+			},
+		},
+		{
 			name: "unrecognized attribute inside terramate block",
 			input: []cfgfile{
 				{
