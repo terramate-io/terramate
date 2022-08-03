@@ -175,12 +175,12 @@ func (git Git) Commit(msg string, args ...string) {
 	}
 }
 
-// Clone will clone a repository into the given dir.
-func (git Git) Clone(repoURL string, dir string) {
+// CloneBranch will clone a repository into the given dir.
+func (git Git) CloneBranch(repoURL, branch, dir string) {
 	git.t.Helper()
 
-	if err := git.g.Clone(repoURL, dir); err != nil {
-		git.t.Fatalf("Git.Clone(%q, %q) = %v", repoURL, dir, err)
+	if err := git.g.CloneBranch(repoURL, branch, dir); err != nil {
+		git.t.Fatalf("Git.CloneBranch(%q, %q, %q) = %v", repoURL, branch, dir, err)
 	}
 }
 

@@ -48,22 +48,22 @@ const (
 //
 // It returns the absolute path where the code has been vendored, which will be inside
 // the given vendordir.
-func Vendor(vendordir string, src tf.Source) (string, error) {
+func Vendor(vendordir string, modsrc tf.Source) (string, error) {
 	logger := log.With().
 		Str("action", "modvendor.Vendor()").
 		Str("vendordir", vendordir).
-		Str("url", src.URL).
-		Str("path", src.Path).
-		Str("ref", src.Ref).
+		Str("url", modsrc.URL).
+		Str("path", modsrc.Path).
+		Str("ref", modsrc.Ref).
 		Logger()
 
-	if src.Ref == "" {
+	if modsrc.Ref == "" {
 		// TODO(katcipis): handle default references.
 		// for now always explicit is fine.
-		return "", errors.E("src %v reference must be non-empty", src)
+		return "", errors.E("src %v reference must be non-empty", modsrc)
 	}
 
-	clonedir := filepath.Join(vendordir, src.Path, src.Ref)
+	clonedir := filepath.Join(vendordir, modsrc.Path, modsrc.Ref)
 	if _, err := os.Stat(clonedir); err == nil {
 		return "", errors.E(ErrAlreadyVendored, "dir %q exists", clonedir)
 	}
@@ -97,7 +97,7 @@ func Vendor(vendordir string, src tf.Source) (string, error) {
 
 	logger.Trace().Msg("cloning to workdir")
 
-	if err := g.Clone(src.URL, workdir); err != nil {
+	if err := g.CloneBranch(modsrc.URL, modsrc.Ref, workdir); err != nil {
 		return "", err
 	}
 

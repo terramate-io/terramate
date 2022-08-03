@@ -420,13 +420,13 @@ func (git *Git) Add(files ...string) error {
 	return err
 }
 
-// Clone will clone the given repo inside the given dir.
-// Beware: Clone is a porcelain method.
-func (git *Git) Clone(repoURL string, dir string) error {
+// CloneBranch will clone a single branch of the given repo inside the given dir.
+// Beware: CloneBranch is a porcelain method.
+func (git *Git) CloneBranch(repoURL, branch, dir string) error {
 	if !git.config.AllowPorcelain {
 		return fmt.Errorf("Clone: %w", ErrDenyPorcelain)
 	}
-	_, err := git.exec("clone", repoURL, dir)
+	_, err := git.exec("clone", "--single-branch", "--branch", branch, repoURL, dir)
 	return err
 }
 

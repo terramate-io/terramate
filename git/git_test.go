@@ -140,7 +140,7 @@ func TestRevParse(t *testing.T) {
 	assert.EqualStrings(t, CookedCommitID, out, "commit mismatch")
 }
 
-func TestClone(t *testing.T) {
+func TestCloneBranch(t *testing.T) {
 	const (
 		filename = "test.txt"
 		content  = "test"
@@ -152,11 +152,27 @@ func TestClone(t *testing.T) {
 	git.CommitAll("add file")
 
 	repoURL := "file://" + s.RootDir()
-	cloneDir := t.TempDir()
-	git.Clone(repoURL, cloneDir)
+	mainCloneDir := t.TempDir()
+	git.CloneBranch(repoURL, "main", mainCloneDir)
 
-	got := test.ReadFile(t, cloneDir, filename)
+	got := test.ReadFile(t, mainCloneDir, filename)
 	assert.EqualStrings(t, content, string(got))
+
+	const (
+		newFilename = "new.txt"
+		newContent  = "new"
+	)
+
+	git.CheckoutNew("branch")
+	s.RootEntry().CreateFile(newFilename, newContent)
+	git.CommitAll("add new file on branch")
+	git.Checkout("main")
+
+	branchCloneDir := t.TempDir()
+	git.CloneBranch(repoURL, "branch", branchCloneDir)
+
+	assert.EqualStrings(t, content, string(test.ReadFile(t, branchCloneDir, filename)))
+	assert.EqualStrings(t, newContent, string(test.ReadFile(t, branchCloneDir, newFilename)))
 }
 
 func TestCurrentBranch(t *testing.T) {
