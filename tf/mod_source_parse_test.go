@@ -161,6 +161,13 @@ func TestParseGitSources(t *testing.T) {
 			},
 		},
 		{
+			name:   "local is not supported",
+			source: "./vpc-module.zip",
+			want: want{
+				err: errors.E(tf.ErrUnsupportedModSrc),
+			},
+		},
+		{
 			name:   "https is not supported",
 			source: "https://example.com/vpc-module.zip",
 			want: want{
