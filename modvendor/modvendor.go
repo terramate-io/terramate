@@ -115,7 +115,7 @@ func Vendor(vendordir string, modsrc tf.Source) (string, error) {
 		// since we just create all and then delete clone dir on a failure to move.
 		// If we get a lot of errors from os.Rename we may need to handle this
 		// more gracefully, here we assume that os.Rename errors are rare since both
-		// dirs where just created.
+		// dirs were just created.
 		errs := errors.L()
 		errs.Append(errors.E(err, "moving cloned module"))
 		errs.Append(os.Remove(clonedir))
