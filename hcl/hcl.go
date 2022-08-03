@@ -39,6 +39,7 @@ const (
 	ErrTerramateSchema        errors.Kind = "terramate schema error"
 	ErrImport                 errors.Kind = "import error"
 	ErrInvalidDynamicIterator errors.Kind = "invalid dynamic iterator"
+	ErrConfigConflict         errors.Kind = "conflict error"
 )
 
 const (
@@ -190,6 +191,7 @@ type TerramateParser struct {
 	// parsedFiles stores a map of all parsed files
 	parsedFiles map[string]parsedFile
 
+	strict bool
 	// if true, calling Parse() or MinimalParse() will fail.
 	parsed bool
 }
@@ -273,6 +275,17 @@ func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
 	}, nil
 }
 
+// NewStrictTerramateParser is like NewTerramateParser but will fail instead of
+// warn for harmless configuration mistakes.
+func NewStrictTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
+	parser, err := NewTerramateParser(rootdir, dir)
+	if err != nil {
+		return nil, err
+	}
+	parser.strict = true
+	return parser, nil
+}
+
 func (p *TerramateParser) addParsedFile(origin string, kind parsedKind, files ...string) {
 	for _, file := range files {
 		p.parsedFiles[file] = parsedFile{
@@ -351,6 +364,10 @@ func (p *TerramateParser) ParseConfig() (Config, error) {
 	// Changing this requires changes to the editor extensions / linters / etc.
 	cfg, err := p.parseTerramateSchema()
 	errs.Append(err)
+
+	if err == nil {
+		errs.Append(p.checkConflicts(cfg))
+	}
 
 	if err := errs.AsError(); err != nil {
 		return Config{}, err
@@ -613,7 +630,7 @@ func NewTerramate(reqversion string) *Terramate {
 
 // ParseDir will parse Terramate configuration from a given directory,
 // using root as project workspace, parsing all files with the suffixes .tm and
-// .tm.hcl.
+// .tm.hcl. It's parses in non-strict mode for compatibility with older versions.
 // Note: it does not recurse into child directories.
 func ParseDir(root string, dir string) (Config, error) {
 	logger := log.With().
@@ -1404,6 +1421,48 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 	}
 
 	return config, nil
+}
+
+func (p *TerramateParser) checkConflicts(cfg Config) error {
+	logger := log.With().
+		Str("action", "checkConflicts()").
+		Logger()
+
+	errs := errors.L()
+	if cfg.Stack != nil && cfg.Terramate != nil {
+		stackblocks := p.Config.filterUnmergedBlocksByType("stack")
+		tmblock := p.Config.MergedBlocks["terramate"]
+
+		if len(stackblocks) != 1 {
+			panic("invalid number of parsed stack blocks found")
+		}
+
+		stackblock := stackblocks[0]
+
+		if tmblock == nil {
+			panic("parsed terramate block not found")
+		}
+
+		errs.Append(
+			errors.E(ErrConfigConflict, stackblock.TypeRange,
+				"`stack` block conflicts with `terramate` block defined at %s",
+				tmblock.RawOrigins[0].TypeRange.String(),
+			),
+
+			errors.E(ErrConfigConflict, tmblock.RawOrigins[0].TypeRange,
+				"`terramate` block conflicts with `stack` block defined at %s",
+				stackblock.TypeRange.String(),
+			),
+		)
+	}
+	if p.strict {
+		return errs.AsError()
+	}
+
+	for _, err := range errs.Errors() {
+		logger.Warn().Err(err).Send()
+	}
+	return nil
 }
 
 func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
