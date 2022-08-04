@@ -39,6 +39,7 @@ const (
 	ErrTerramateSchema        errors.Kind = "terramate schema error"
 	ErrImport                 errors.Kind = "import error"
 	ErrInvalidDynamicIterator errors.Kind = "invalid dynamic iterator"
+	ErrUnexpectedTerramate    errors.Kind = "`terramate` block is only allowed at the project root directory"
 )
 
 const (
@@ -190,6 +191,7 @@ type TerramateParser struct {
 	// parsedFiles stores a map of all parsed files
 	parsedFiles map[string]parsedFile
 
+	strict bool
 	// if true, calling Parse() or MinimalParse() will fail.
 	parsed bool
 }
@@ -273,6 +275,17 @@ func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
 	}, nil
 }
 
+// NewStrictTerramateParser is like NewTerramateParser but will fail instead of
+// warn for harmless configuration mistakes.
+func NewStrictTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
+	parser, err := NewTerramateParser(rootdir, dir)
+	if err != nil {
+		return nil, err
+	}
+	parser.strict = true
+	return parser, nil
+}
+
 func (p *TerramateParser) addParsedFile(origin string, kind parsedKind, files ...string) {
 	for _, file := range files {
 		p.parsedFiles[file] = parsedFile{
@@ -351,6 +364,10 @@ func (p *TerramateParser) ParseConfig() (Config, error) {
 	// Changing this requires changes to the editor extensions / linters / etc.
 	cfg, err := p.parseTerramateSchema()
 	errs.Append(err)
+
+	if err == nil {
+		errs.Append(p.checkConfigSanity(cfg))
+	}
 
 	if err := errs.AsError(); err != nil {
 		return Config{}, err
@@ -613,7 +630,7 @@ func NewTerramate(reqversion string) *Terramate {
 
 // ParseDir will parse Terramate configuration from a given directory,
 // using root as project workspace, parsing all files with the suffixes .tm and
-// .tm.hcl.
+// .tm.hcl. It parses in non-strict mode for compatibility with older versions.
 // Note: it does not recurse into child directories.
 func ParseDir(root string, dir string) (Config, error) {
 	logger := log.With().
@@ -1321,7 +1338,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 	logger.Trace().Msg("checking for top-level attributes.")
 
-	rawconfig := p.Imported
+	rawconfig := p.Imported.Copy()
 	err := rawconfig.Merge(p.Config)
 	if err != nil {
 		err = errors.E(err, ErrImport)
@@ -1404,6 +1421,39 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 	}
 
 	return config, nil
+}
+
+func (p *TerramateParser) checkConfigSanity(cfg Config) error {
+	logger := log.With().
+		Str("action", "TerramateParser.checkConfigSanity()").
+		Logger()
+
+	rawconfig := p.Imported.Copy()
+	_ = rawconfig.Merge(p.Config)
+
+	errs := errors.L()
+	tmblock := rawconfig.MergedBlocks["terramate"]
+	if tmblock != nil && p.dir != p.rootdir {
+		for _, raworigin := range tmblock.RawOrigins {
+			if filepath.Dir(raworigin.Origin) != p.dir {
+				errs.Append(
+					errors.E(ErrUnexpectedTerramate, raworigin.TypeRange,
+						"imported from directory %q", p.dir),
+				)
+			} else {
+				errs.Append(
+					errors.E(ErrUnexpectedTerramate, raworigin.TypeRange),
+				)
+			}
+		}
+	}
+	if p.strict {
+		return errs.AsError()
+	}
+	for _, err := range errs.Errors() {
+		logger.Warn().Err(err).Send()
+	}
+	return nil
 }
 
 func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {

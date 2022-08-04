@@ -102,7 +102,29 @@ func TestHCLParserStackID(t *testing.T) {
 func TestHCLParserStack(t *testing.T) {
 	for _, tc := range []testcase{
 		{
-			name: "empty stack block",
+			name:      "empty stack block with terramate block not in root works in nonStrict mode",
+			nonStrict: true,
+			parsedir:  "stack",
+			input: []cfgfile{
+				{
+					filename: "stack/stack.tm",
+					body: `
+						terramate {
+							required_version = ""
+						}
+						stack {}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{},
+					Stack:     &hcl.Stack{},
+				},
+			},
+		},
+		{
+			name: "empty stack block with terramate block in root works in strict mode",
 			input: []cfgfile{
 				{
 					filename: "stack.tm",
@@ -160,7 +182,8 @@ func TestHCLParserStack(t *testing.T) {
 			},
 		},
 		{
-			name: "empty name",
+			name:      "empty name",
+			nonStrict: true,
 			input: []cfgfile{
 				{
 					filename: "stack.tm",
@@ -330,7 +353,8 @@ func TestHCLParserStack(t *testing.T) {
 			},
 		},
 		{
-			name: "after: empty set works",
+			name:      "after: empty set works",
+			nonStrict: true,
 			input: []cfgfile{
 				{
 					filename: "stack.tm",
@@ -350,7 +374,8 @@ func TestHCLParserStack(t *testing.T) {
 			},
 		},
 		{
-			name: "'after' single entry",
+			name:      "'after' single entry",
+			nonStrict: true,
 			input: []cfgfile{
 				{
 					filename: "stack.tm",
@@ -487,7 +512,8 @@ func TestHCLParserStack(t *testing.T) {
 			},
 		},
 		{
-			name: "'before' single entry",
+			name:      "'before' single entry",
+			nonStrict: true,
 			input: []cfgfile{
 				{
 					filename: "stack.tm",
@@ -512,7 +538,8 @@ func TestHCLParserStack(t *testing.T) {
 			},
 		},
 		{
-			name: "'before' multiple entries",
+			name:      "'before' multiple entries",
+			nonStrict: true,
 			input: []cfgfile{
 				{
 					filename: "stack.tm",
@@ -579,7 +606,8 @@ func TestHCLParserStack(t *testing.T) {
 			},
 		},
 		{
-			name: "'before' and 'after'",
+			name:      "'before' and 'after'",
+			nonStrict: true,
 			input: []cfgfile{
 				{
 					filename: "stack.tm",

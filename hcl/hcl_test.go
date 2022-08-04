@@ -40,11 +40,12 @@ type (
 	}
 
 	testcase struct {
-		name     string
-		parsedir string
-		rootdir  string
-		input    []cfgfile
-		want     want
+		name      string
+		nonStrict bool
+		parsedir  string
+		rootdir   string
+		input     []cfgfile
+		want      want
 	}
 )
 
@@ -687,7 +688,8 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 			},
 		},
 		{
-			name: "three config files with terramate and stack blocks",
+			name:      "three config files with terramate and stack blocks",
+			nonStrict: true,
 			input: []cfgfile{
 				{
 					filename: "version.tm",
@@ -774,6 +776,33 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 			},
 		},
 		{
+			name:     "terramate in non-root directory fails",
+			parsedir: "stack",
+			input: []cfgfile{
+				{
+					filename: "stack/stack.tm",
+					body: `
+						stack {
+							name = "stack"
+						}
+					`,
+				},
+				{
+					filename: "stack/terramate.tm",
+					body: `
+						terramate {
+
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrUnexpectedTerramate),
+				},
+			},
+		},
+		{
 			name: "multiple files with conflicting terramate.config.git attributes fail",
 			input: []cfgfile{
 				{
@@ -843,7 +872,8 @@ func testParser(t *testing.T, tc testcase) {
 		} else {
 			tc.rootdir = filepath.Join(configsDir, tc.rootdir)
 		}
-		got, err := hcl.ParseDir(tc.rootdir, tc.parsedir)
+
+		got, err := parse(t, tc)
 		errtest.AssertErrorList(t, err, tc.want.errs)
 
 		var gotErrs *errors.List
@@ -888,6 +918,29 @@ func testParser(t *testing.T, tc testcase) {
 		}
 		testParser(t, newtc)
 	}
+}
+
+func parse(t *testing.T, tc testcase) (hcl.Config, error) {
+	var (
+		parser *hcl.TerramateParser
+		err    error
+	)
+
+	if tc.nonStrict {
+		parser, err = hcl.NewTerramateParser(tc.rootdir, tc.parsedir)
+	} else {
+		parser, err = hcl.NewStrictTerramateParser(tc.rootdir, tc.parsedir)
+	}
+
+	if err != nil {
+		return hcl.Config{}, err
+	}
+
+	err = parser.AddDir(tc.parsedir)
+	if err != nil {
+		return hcl.Config{}, errors.E("adding files to parser", err)
+	}
+	return parser.ParseConfig()
 }
 
 func TestHCLParseReParsingFails(t *testing.T) {
