@@ -29,7 +29,7 @@ import (
 const CookedCommitID = "4e991b55e3d58b9c3137a791a9986ed9c5069697"
 
 func TestGit(t *testing.T) {
-	git, err := git.NewWrapper(test.Username, test.Email)
+	git, err := git.WithConfig(git.Config{})
 	assert.NoError(t, err, "new git wrapper")
 
 	version, err := git.Version()
@@ -138,6 +138,41 @@ func TestRevParse(t *testing.T) {
 	out, err := git.RevParse("main")
 	assert.NoError(t, err, "rev-parse failed")
 	assert.EqualStrings(t, CookedCommitID, out, "commit mismatch")
+}
+
+func TestCloneBranch(t *testing.T) {
+	const (
+		filename = "test.txt"
+		content  = "test"
+	)
+	s := sandbox.New(t)
+	s.RootEntry().CreateFile(filename, content)
+	git := s.Git()
+
+	git.CommitAll("add file")
+
+	repoURL := "file://" + s.RootDir()
+	mainCloneDir := t.TempDir()
+	git.CloneBranch(repoURL, "main", mainCloneDir)
+
+	got := test.ReadFile(t, mainCloneDir, filename)
+	assert.EqualStrings(t, content, string(got))
+
+	const (
+		newFilename = "new.txt"
+		newContent  = "new"
+	)
+
+	git.CheckoutNew("branch")
+	s.RootEntry().CreateFile(newFilename, newContent)
+	git.CommitAll("add new file on branch")
+	git.Checkout("main")
+
+	branchCloneDir := t.TempDir()
+	git.CloneBranch(repoURL, "branch", branchCloneDir)
+
+	assert.EqualStrings(t, content, string(test.ReadFile(t, branchCloneDir, filename)))
+	assert.EqualStrings(t, newContent, string(test.ReadFile(t, branchCloneDir, newFilename)))
 }
 
 func TestCurrentBranch(t *testing.T) {
