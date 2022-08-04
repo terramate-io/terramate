@@ -49,7 +49,7 @@ func NewRawConfig() RawConfig {
 // Copy cfg into a new RawConfig
 func (cfg RawConfig) Copy() RawConfig {
 	n := NewRawConfig()
-	n.Merge(cfg)
+	_ = n.Merge(cfg)
 	return n
 }
 
