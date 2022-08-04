@@ -97,9 +97,11 @@ func Vendor(vendordir string, modsrc tf.Source) (string, error) {
 
 	logger.Trace().Msg("cloning to workdir")
 
-	if err := g.CloneBranch(modsrc.URL, modsrc.Ref, workdir); err != nil {
+	if err := g.Clone(modsrc.URL, workdir); err != nil {
 		return "", err
 	}
+
+	// TODO(katcipis): now we need to checkout the correct branch/commitID
 
 	if err := os.RemoveAll(filepath.Join(workdir, ".git")); err != nil {
 		return "", errors.E(err, "removing .git dir from cloned repo")
