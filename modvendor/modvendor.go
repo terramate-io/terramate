@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/fs"
 	"github.com/mineiros-io/terramate/git"
 	"github.com/mineiros-io/terramate/tf"
 	"github.com/rs/zerolog/log"
@@ -75,9 +76,9 @@ func Vendor(vendordir string, modsrc tf.Source) (string, error) {
 		return "", errors.E(err, "creating workdir")
 	}
 	defer func() {
-		// We ignore the error here since after the final os.Rename
-		// the workdir will be moved and won't exist.
-		_ = os.Remove(workdir)
+		if err := os.Remove(workdir); err != nil {
+			logger.Warn().Err(err).Msg("deleting tmp workdir")
+		}
 	}()
 
 	logger = logger.With().
@@ -110,14 +111,14 @@ func Vendor(vendordir string, modsrc tf.Source) (string, error) {
 	}
 
 	logger.Trace().Msg("moving cloned mod from workdir to clonedir")
-	if err := os.Rename(workdir, clonedir); err != nil {
+	if err := fs.CopyTree(clonedir, workdir,
+		func(os.DirEntry) bool { return true }); err != nil {
 		// This may leave intermediary created dirs hanging on vendordir
 		// since we just create all and then delete clone dir on a failure to move.
-		// If we get a lot of errors from os.Rename we may need to handle this
-		// more gracefully, here we assume that os.Rename errors are rare since both
-		// dirs were just created.
+		// We may need to handle this more gracefully in the future,
+		// here we assume that copy errors are rare since both dirs were just created.
 		errs := errors.L()
-		errs.Append(errors.E(err, "moving cloned module"))
+		errs.Append(errors.E(err, "copying cloned module"))
 		errs.Append(os.Remove(clonedir))
 		return "", errs.AsError()
 	}
