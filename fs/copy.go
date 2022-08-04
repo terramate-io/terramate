@@ -32,8 +32,7 @@ type CopyFilterFunc func(os.DirEntry) bool
 // CopyTree will copy the whole tree from srcdir to destdir.
 // This means copying all dirs and files recursively.
 // The destdir provided does not need to exist, will be created.
-// The provided filter function allows to filter which files/directories
-// get copied.
+// The provided filter function allows to filter which files/directories get copied.
 func CopyTree(destdir, srcdir string, filter CopyFilterFunc) error {
 	const (
 		createDirMode = 0755
