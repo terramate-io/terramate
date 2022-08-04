@@ -175,6 +175,15 @@ func (git Git) Commit(msg string, args ...string) {
 	}
 }
 
+// CloneBranch will clone a repository into the given dir.
+func (git Git) CloneBranch(repoURL, branch, dir string) {
+	git.t.Helper()
+
+	if err := git.g.CloneBranch(repoURL, branch, dir); err != nil {
+		git.t.Fatalf("Git.CloneBranch(%q, %q, %q) = %v", repoURL, branch, dir, err)
+	}
+}
+
 // Push pushes changes from branch onto default remote and same remote branch name.
 func (git Git) Push(branch string) {
 	git.t.Helper()
