@@ -484,6 +484,36 @@ func TestE2ETerramateLogsWarningIfRootConfigIsNotAtProjectRoot(t *testing.T) {
 	})
 }
 
+func TestBug515(t *testing.T) {
+	// bug: https://github.com/mineiros-io/terramate/issues/515
+
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		"s:stacks/stack",
+		"f:common/file.tm",
+	})
+
+	stackEntry := s.DirEntry("stacks/stack")
+	stackEntry.CreateFile("import.tm", `
+		import {
+		  source = "/common/file.tm"
+		}
+	`)
+
+	assertListStacks := func(workdir, want string) {
+		t.Helper()
+
+		tmcli := newCLI(t, workdir)
+		assertRunResult(t, tmcli.listStacks(), runExpected{
+			Stdout: want,
+		})
+	}
+
+	assertListStacks(s.RootDir(), "stacks/stack\n")
+	assertListStacks(filepath.Join(s.RootDir(), "stacks"), "stack\n")
+	assertListStacks(filepath.Join(s.RootDir(), "stacks", "stack"), ".\n")
+}
+
 func setupLocalMainBranchBehindOriginMain(git *sandbox.Git, changeFiles func()) {
 	// dance below makes local main branch behind origin/main by 1 commit.
 	//   - a "temp" branch is created to record current commit.
