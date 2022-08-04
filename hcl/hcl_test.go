@@ -776,6 +776,33 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 			},
 		},
 		{
+			name:     "terramate in non-root directory fails",
+			parsedir: "stack",
+			input: []cfgfile{
+				{
+					filename: "stack/stack.tm",
+					body: `
+						stack {
+							name = "stack"
+						}
+					`,
+				},
+				{
+					filename: "stack/terramate.tm",
+					body: `
+						terramate {
+
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrUnexpectedTerramate),
+				},
+			},
+		},
+		{
 			name: "multiple files with conflicting terramate.config.git attributes fail",
 			input: []cfgfile{
 				{

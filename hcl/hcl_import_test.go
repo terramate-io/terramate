@@ -217,7 +217,7 @@ func TestHCLImport(t *testing.T) {
 			},
 		},
 		{
-			name:     "import disjoint directory",
+			name:     "import disjoint directory with unexpected terramate block",
 			parsedir: "stack",
 			input: []cfgfile{
 				{
@@ -234,11 +234,30 @@ func TestHCLImport(t *testing.T) {
 				},
 			},
 			want: want{
-				config: hcl.Config{
-					Terramate: &hcl.Terramate{
-						RequiredVersion: "1.0",
-					},
+				errs: []error{
+					errors.E(hcl.ErrUnexpectedTerramate),
 				},
+			},
+		},
+		{
+			name:     "import disjoint directory",
+			parsedir: "stack",
+			input: []cfgfile{
+				{
+					filename: "/stack/cfg.tm",
+					body: `import {
+						source = "/other/cfg.tm"
+					}`,
+				},
+				{
+					filename: "/other/cfg.tm",
+					body: `globals {
+						A = 1
+					}`,
+				},
+			},
+			want: want{
+				config: hcl.Config{},
 			},
 		},
 		{
@@ -253,17 +272,11 @@ func TestHCLImport(t *testing.T) {
 				},
 				{
 					filename: "/other/cfg.tm",
-					body: `terramate {
-						required_version = "1.0"
-					}`,
+					body:     `globals {}`,
 				},
 			},
 			want: want{
-				config: hcl.Config{
-					Terramate: &hcl.Terramate{
-						RequiredVersion: "1.0",
-					},
-				},
+				config: hcl.Config{},
 			},
 		},
 		{
@@ -279,53 +292,13 @@ func TestHCLImport(t *testing.T) {
 				},
 				{
 					filename: "/outside/cfg.tm",
-					body: `terramate {
-						required_version = "1.0"
-					}`,
+					body:     `globals {}`,
 				},
 			},
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrImport,
 						mkrange("project/stack/cfg.tm", start(2, 16, 24), end(2, 38, 46))),
-				},
-			},
-		},
-		{
-			name:     "import disjoint directory with config sub blocks",
-			parsedir: "stack",
-			input: []cfgfile{
-				{
-					filename: "/stack/cfg.tm",
-					body: `import {
-						source = "/other/cfg.tm"
-					}`,
-				},
-				{
-					filename: "/other/cfg.tm",
-					body: `terramate {
-							required_version = "1.0"
-							config {
-								git {
-									default_branch = "main"
-								}
-							}
-						}`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Terramate: &hcl.Terramate{
-						RequiredVersion: "1.0",
-						Config: &hcl.RootConfig{
-							Git: &hcl.GitConfig{
-								DefaultBranch:    "main",
-								CheckUntracked:   true,
-								CheckUncommitted: true,
-								CheckRemote:      true,
-							},
-						},
-					},
 				},
 			},
 		},
@@ -350,98 +323,6 @@ func TestHCLImport(t *testing.T) {
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("stack/cfg.tm", start(4, 6, 57), end(4, 7, 58))),
-				},
-			},
-		},
-		{
-			name:     "import with conflicting terramate blocks - fails",
-			parsedir: "stack",
-			input: []cfgfile{
-				{
-					filename: "stack/cfg.tm",
-					body: `import {
-						source = "/other/imported.tm"
-					}
-					terramate {
-						config {
-							git {
-								default_branch = "main"
-							}
-						}
-					}
-					`,
-				},
-				{
-					filename: "other/imported.tm",
-					body: `terramate {
-						config {
-							git {
-								default_branch = "trunk"
-							}
-						}
-					}
-				`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Terramate: &hcl.Terramate{
-						Config: &hcl.RootConfig{
-							Git: &hcl.GitConfig{
-								DefaultBranch:    "main",
-								CheckUntracked:   true,
-								CheckUncommitted: true,
-								CheckRemote:      true,
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name:     "import with merged terramate config",
-			parsedir: "stack",
-			input: []cfgfile{
-				{
-					filename: "stack/cfg.tm",
-					body: `import {
-						source = "/other/imported.tm"
-					}
-					terramate {
-						config {
-							git {
-								default_branch = "main"
-							}
-						}
-					}
-					`,
-				},
-				{
-					filename: "other/imported.tm",
-					body: `terramate {
-						config {
-							git {
-								default_remote = "origin"
-								check_remote = false
-							}
-						}
-					}
-					`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Terramate: &hcl.Terramate{
-						Config: &hcl.RootConfig{
-							Git: &hcl.GitConfig{
-								DefaultBranch:    "main",
-								DefaultRemote:    "origin",
-								CheckUntracked:   true,
-								CheckUncommitted: true,
-								CheckRemote:      false,
-							},
-						},
-					},
 				},
 			},
 		},

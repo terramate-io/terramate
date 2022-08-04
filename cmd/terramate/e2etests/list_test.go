@@ -183,7 +183,7 @@ func TestListLogsWarningIfConfigHasConflicts(t *testing.T) {
 	tmcli.loglevel = "warn"
 	assertRunResult(t, tmcli.listStacks(), runExpected{
 		Stdout:      "stack\n",
-		StderrRegex: string(hcl.ErrConfigConflict),
+		StderrRegex: string(hcl.ErrUnexpectedTerramate),
 	})
 }
 

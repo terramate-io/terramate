@@ -39,7 +39,7 @@ const (
 	ErrTerramateSchema        errors.Kind = "terramate schema error"
 	ErrImport                 errors.Kind = "import error"
 	ErrInvalidDynamicIterator errors.Kind = "invalid dynamic iterator"
-	ErrConfigConflict         errors.Kind = "conflict error"
+	ErrUnexpectedTerramate    errors.Kind = "`terramate` block is only allowed at the project root directory"
 )
 
 const (
@@ -1338,7 +1338,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 	logger.Trace().Msg("checking for top-level attributes.")
 
-	rawconfig := p.Imported
+	rawconfig := p.Imported.Copy()
 	err := rawconfig.Merge(p.Config)
 	if err != nil {
 		err = errors.E(err, ErrImport)
@@ -1428,36 +1428,28 @@ func (p *TerramateParser) checkConflicts(cfg Config) error {
 		Str("action", "checkConflicts()").
 		Logger()
 
+	rawconfig := p.Imported.Copy()
+	_ = rawconfig.Merge(p.Config)
+
 	errs := errors.L()
-	if cfg.Stack != nil && cfg.Terramate != nil {
-		stackblocks := p.Config.filterUnmergedBlocksByType("stack")
-		tmblock := p.Config.MergedBlocks["terramate"]
-
-		if len(stackblocks) != 1 {
-			panic("invalid number of parsed stack blocks found")
+	tmblock := rawconfig.MergedBlocks["terramate"]
+	if tmblock != nil && p.dir != p.rootdir {
+		for _, raworigin := range tmblock.RawOrigins {
+			if filepath.Dir(raworigin.Origin) != p.dir {
+				errs.Append(
+					errors.E(ErrUnexpectedTerramate, raworigin.TypeRange,
+						"imported from directory %q", p.dir),
+				)
+			} else {
+				errs.Append(
+					errors.E(ErrUnexpectedTerramate, raworigin.TypeRange),
+				)
+			}
 		}
-
-		stackblock := stackblocks[0]
-
-		if tmblock == nil {
-			panic("parsed terramate block not found")
-		}
-
-		errs.Append(
-			errors.E(ErrConfigConflict, stackblock.TypeRange,
-				"`stack` block conflicts with `terramate` block defined at %s",
-				tmblock.RawOrigins[0].TypeRange.String(),
-			),
-			errors.E(ErrConfigConflict, tmblock.RawOrigins[0].TypeRange,
-				"`terramate` block conflicts with `stack` block defined at %s",
-				stackblock.TypeRange.String(),
-			),
-		)
 	}
 	if p.strict {
 		return errs.AsError()
 	}
-
 	for _, err := range errs.Errors() {
 		logger.Warn().Err(err).Send()
 	}

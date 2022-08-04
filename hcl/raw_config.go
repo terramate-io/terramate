@@ -46,6 +46,13 @@ func NewRawConfig() RawConfig {
 	}
 }
 
+// Copy cfg into a new RawConfig
+func (cfg RawConfig) Copy() RawConfig {
+	n := NewRawConfig()
+	n.Merge(cfg)
+	return n
+}
+
 func (cfg *RawConfig) mergeHandlers() map[string]mergeHandler {
 	return map[string]mergeHandler{
 		"terramate":     cfg.mergeBlock,
