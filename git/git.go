@@ -103,31 +103,6 @@ const (
 
 type remoteSorter []Remote
 
-// NewConfig creates a new configuration. The username and email are the only
-// required config fields.
-func NewConfig(username, email string) Config {
-	return Config{
-		Username: username,
-		Email:    email,
-	}
-}
-
-// NewConfigWithPath calls NewConfig but also sets the git program path.
-func NewConfigWithPath(username, email, programPath string) Config {
-	log.Debug().
-		Str("action", "NewConfigWithPath()").
-		Str("path", programPath).
-		Msg("Make new config.")
-	config := NewConfig(username, email)
-	config.ProgramPath = programPath
-	return config
-}
-
-// NewWrapper creates a new wrapper.
-func NewWrapper(user, email string) (*Git, error) {
-	return WithConfig(NewConfig(user, email))
-}
-
 // WithConfig creates a new git wrapper by providing the config.
 func WithConfig(cfg Config) (*Git, error) {
 	logger := log.With().
@@ -442,6 +417,16 @@ func (git *Git) Add(files ...string) error {
 		Str("workingDir", git.config.WorkingDir).
 		Msg("Add file to current staged index.")
 	_, err := git.exec("add", files...)
+	return err
+}
+
+// CloneBranch will clone a single branch of the given repo inside the given dir.
+// Beware: CloneBranch is a porcelain method.
+func (git *Git) CloneBranch(repoURL, branch, dir string) error {
+	if !git.config.AllowPorcelain {
+		return fmt.Errorf("Clone: %w", ErrDenyPorcelain)
+	}
+	_, err := git.exec("clone", "--single-branch", "--branch", branch, repoURL, dir)
 	return err
 }
 
