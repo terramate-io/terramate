@@ -102,11 +102,12 @@ func TestHCLParserStackID(t *testing.T) {
 func TestHCLParserStack(t *testing.T) {
 	for _, tc := range []testcase{
 		{
-			name:      "empty stack block with terramate block works in nonStrict mode",
+			name:      "empty stack block with terramate block not in root works in nonStrict mode",
 			nonStrict: true,
+			parsedir:  "stack",
 			input: []cfgfile{
 				{
-					filename: "stack.tm",
+					filename: "stack/stack.tm",
 					body: `
 						terramate {
 							required_version = ""
