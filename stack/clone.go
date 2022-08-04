@@ -15,15 +15,14 @@
 package stack
 
 import (
-	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/google/uuid"
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/fs"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
@@ -71,7 +70,7 @@ func Clone(rootdir, destdir, srcdir string) error {
 
 	logger.Trace().Msg("copying stack files")
 
-	if err := copyDir(destdir, srcdir); err != nil {
+	if err := fs.CopyTree(destdir, srcdir, filterDotFiles); err != nil {
 		return err
 	}
 
@@ -84,49 +83,8 @@ func Clone(rootdir, destdir, srcdir string) error {
 	return updateStackID(destdir)
 }
 
-func copyDir(destdir, srcdir string) error {
-	entries, err := os.ReadDir(srcdir)
-	if err != nil {
-		return errors.E(err, "reading src dir")
-	}
-
-	if err := os.MkdirAll(destdir, createDirMode); err != nil {
-		return errors.E(err, "creating dest dir")
-	}
-
-	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), ".") {
-			continue
-		}
-		srcpath := filepath.Join(srcdir, entry.Name())
-		destpath := filepath.Join(destdir, entry.Name())
-
-		if entry.IsDir() {
-			if err := copyDir(destpath, srcpath); err != nil {
-				return errors.E(err, "copying src to dest dir")
-			}
-			continue
-		}
-
-		if err := copyFile(destpath, srcpath); err != nil {
-			return errors.E(err, "copying src to dest file")
-		}
-	}
-
-	return nil
-}
-
-func copyFile(destfile, srcfile string) error {
-	src, err := os.Open(srcfile)
-	if err != nil {
-		return errors.E(err, "opening source file")
-	}
-	dest, err := os.Create(destfile)
-	if err != nil {
-		return errors.E(err, "creating dest file")
-	}
-	_, err = io.Copy(dest, src)
-	return err
+func filterDotFiles(entry os.DirEntry) bool {
+	return !strings.HasPrefix(entry.Name(), ".")
 }
 
 func updateStackID(stackdir string) error {
