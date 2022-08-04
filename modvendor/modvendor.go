@@ -76,7 +76,7 @@ func Vendor(vendordir string, modsrc tf.Source) (string, error) {
 		return "", errors.E(err, "creating workdir")
 	}
 	defer func() {
-		if err := os.Remove(workdir); err != nil {
+		if err := os.RemoveAll(workdir); err != nil {
 			logger.Warn().Err(err).Msg("deleting tmp workdir")
 		}
 	}()
