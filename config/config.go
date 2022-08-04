@@ -17,6 +17,7 @@ package config
 import (
 	"path/filepath"
 
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/rs/zerolog/log"
 )
@@ -40,10 +41,13 @@ func TryLoadRootConfig(fromdir string) (cfg hcl.Config, configpath string, found
 
 		cfg, err = hcl.ParseDir(fromdir, fromdir)
 		if err != nil {
-			return hcl.Config{}, "", false, err
-		}
-
-		if cfg.Terramate != nil && cfg.Terramate.Config != nil {
+			// the imports only works for the correct rootdir.
+			// As we are looking for the rootdir, we should ignore ErrImport
+			// errors.
+			if !errors.IsKind(err, hcl.ErrImport) {
+				return hcl.Config{}, "", false, err
+			}
+		} else if cfg.Terramate != nil && cfg.Terramate.Config != nil {
 			return cfg, fromdir, true, nil
 		}
 
