@@ -366,7 +366,7 @@ func (p *TerramateParser) ParseConfig() (Config, error) {
 	errs.Append(err)
 
 	if err == nil {
-		errs.Append(p.checkConflicts(cfg))
+		errs.Append(p.checkConfigSanity(cfg))
 	}
 
 	if err := errs.AsError(); err != nil {
@@ -1423,9 +1423,9 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 	return config, nil
 }
 
-func (p *TerramateParser) checkConflicts(cfg Config) error {
+func (p *TerramateParser) checkConfigSanity(cfg Config) error {
 	logger := log.With().
-		Str("action", "checkConflicts()").
+		Str("action", "TerramateParser.checkConfigSanity()").
 		Logger()
 
 	rawconfig := p.Imported.Copy()
