@@ -101,7 +101,11 @@ func Vendor(vendordir string, modsrc tf.Source) (string, error) {
 		return "", err
 	}
 
-	// TODO(katcipis): now we need to checkout the correct branch/commitID
+	const create = false
+
+	if err := g.Checkout(modsrc.Ref, create); err != nil {
+		return "", errors.E(err, "checking revision %s", modsrc.Ref)
+	}
 
 	if err := os.RemoveAll(filepath.Join(workdir, ".git")); err != nil {
 		return "", errors.E(err, "removing .git dir from cloned repo")
