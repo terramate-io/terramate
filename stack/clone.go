@@ -70,7 +70,7 @@ func Clone(rootdir, destdir, srcdir string) error {
 
 	logger.Trace().Msg("copying stack files")
 
-	if err := fs.CopyTree(destdir, srcdir, filterDotFiles); err != nil {
+	if err := fs.CopyDir(destdir, srcdir, filterDotFiles); err != nil {
 		return err
 	}
 

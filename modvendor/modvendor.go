@@ -111,7 +111,7 @@ func Vendor(vendordir string, modsrc tf.Source) (string, error) {
 	}
 
 	logger.Trace().Msg("moving cloned mod from workdir to clonedir")
-	if err := fs.CopyTree(clonedir, workdir,
+	if err := fs.CopyDir(clonedir, workdir,
 		func(os.DirEntry) bool { return true }); err != nil {
 		// This may leave intermediary created dirs hanging on vendordir
 		// since we just create all and then delete clone dir on a failure to move.

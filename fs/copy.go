@@ -29,11 +29,11 @@ import (
 // and its files and subdirs will not be copied.
 type CopyFilterFunc func(os.DirEntry) bool
 
-// CopyTree will copy the whole tree from srcdir to destdir.
+// CopyDir will copy the whole tree from srcdir to destdir.
 // This means copying all dirs and files recursively.
 // The destdir provided does not need to exist, will be created.
 // The provided filter function allows to filter which files/directories get copied.
-func CopyTree(destdir, srcdir string, filter CopyFilterFunc) error {
+func CopyDir(destdir, srcdir string, filter CopyFilterFunc) error {
 	const (
 		createDirMode = 0755
 	)
@@ -56,7 +56,7 @@ func CopyTree(destdir, srcdir string, filter CopyFilterFunc) error {
 		destpath := filepath.Join(destdir, entry.Name())
 
 		if entry.IsDir() {
-			if err := CopyTree(destpath, srcpath, filter); err != nil {
+			if err := CopyDir(destpath, srcpath, filter); err != nil {
 				return errors.E(err, "copying src to dest dir")
 			}
 			continue
