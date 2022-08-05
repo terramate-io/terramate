@@ -22,16 +22,14 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 )
 
-// CopyFilterFunc filters which files/dirs will be copied by CopyTree.
+// CopyFilterFunc filters which files/dirs will be copied by CopyDir.
 // If the function returns true, the file/dir is copied.
 // If it returns false, the file/dir is ignored.
-// In the case of directories this indicates that the whole dir
-// and its files and subdirs will not be copied.
 type CopyFilterFunc func(os.DirEntry) bool
 
-// CopyDir will copy the whole tree from srcdir to destdir.
-// This means copying all dirs and files recursively.
-// The destdir provided does not need to exist, will be created.
+// CopyDir will copy srcdir to destdir.
+// It will copy all dirs and files recursively.
+// The destdir provided does not need to exist, it will be created.
 // The provided filter function allows to filter which files/directories get copied.
 func CopyDir(destdir, srcdir string, filter CopyFilterFunc) error {
 	const (
