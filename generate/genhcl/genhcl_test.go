@@ -2162,7 +2162,7 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			name: "variable definition optionals",
+			name: "variable definition with optionals",
 			config: hcldoc(
 				variable(
 					labels("with_optional_attribute"),
