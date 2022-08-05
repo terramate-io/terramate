@@ -90,6 +90,7 @@ func Vendor(vendordir string, modsrc tf.Source) (string, error) {
 	g, err := git.WithConfig(git.Config{
 		WorkingDir:     workdir,
 		AllowPorcelain: true,
+		Env:            os.Environ(),
 	})
 	if err != nil {
 		return "", err
