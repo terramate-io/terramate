@@ -2162,6 +2162,57 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
+			name: "variable definition with optionals",
+			config: hcldoc(
+				variable(
+					labels("with_optional_attribute"),
+					expr("type", `object({
+					    a = string
+					    b = optional(string)
+					    c = optional(number, 1)
+					})`),
+				),
+			),
+			want: hcldoc(
+				variable(
+					labels("with_optional_attribute"),
+					expr("type", `object({
+					    a = string
+					    b = optional(string)
+					    c = optional(number, 1)
+					})`),
+				),
+			),
+		},
+		{
+			name: "variable definition with optional default from global",
+			globals: hcldoc(
+				globals(
+					number("default", 666),
+				),
+			),
+			config: hcldoc(
+				variable(
+					labels("with_optional_attribute"),
+					expr("type", `object({
+					    a = string
+					    b = optional(string)
+					    c = optional(number, global.default)
+					})`),
+				),
+			),
+			want: hcldoc(
+				variable(
+					labels("with_optional_attribute"),
+					expr("type", `object({
+					    a = string
+					    b = optional(string)
+					    c = optional(number, 666)
+					})`),
+				),
+			),
+		},
+		{
 			name: "function call on attr with mixed references is partially evaluated",
 			globals: hcldoc(
 				globals(

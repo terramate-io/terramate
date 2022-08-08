@@ -30,6 +30,10 @@ func block(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock(name, builders...)
 }
 
+func variable(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return hclwrite.BuildBlock("variable", builders...)
+}
+
 func terraform(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("terraform", builders...)
 }

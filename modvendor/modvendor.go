@@ -99,8 +99,14 @@ func Vendor(vendordir string, modsrc tf.Source) (string, error) {
 
 	logger.Trace().Msg("cloning to workdir")
 
-	if err := g.CloneBranch(modsrc.URL, modsrc.Ref, workdir); err != nil {
+	if err := g.Clone(modsrc.URL, workdir); err != nil {
 		return "", err
+	}
+
+	const create = false
+
+	if err := g.Checkout(modsrc.Ref, create); err != nil {
+		return "", errors.E(err, "checking ref %s", modsrc.Ref)
 	}
 
 	if err := os.RemoveAll(filepath.Join(workdir, ".git")); err != nil {

@@ -227,3 +227,46 @@ source = "%s"
 	wantList := stack.RelPath() + "\n"
 	assertRunResult(t, cli.listChangedStacks(), runExpected{Stdout: wantList})
 }
+
+func TestListChangedParsingVariablesWithOptionals(t *testing.T) {
+	// This test is to ensure we can parse Terraform code that uses
+	// new features from 1.3, like variables with optionals.
+	// In this case, change detection is unaffected by the new optionals feature.
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack")
+	mod1 := s.CreateModule("mod1")
+	mod1MainTf := mod1.CreateFile("main.tf", "# module 1")
+
+	stack.CreateFile("main.tf", `
+variable "with_optional_attribute" {
+  type = object({
+    a = string                # a required attribute
+    b = optional(string)      # an optional attribute
+    c = optional(number, 127) # an optional attribute with a default value
+  })
+}
+
+module "mod1" {
+  source = "%s"
+}
+
+variable "with_optional_attribute2" {
+  type = object({
+    b = optional(string)
+  })
+}`, stack.ModSource(mod1))
+
+	git := s.Git()
+	git.CommitAll("first commit")
+	git.Push("main")
+	git.CheckoutNew("change-module")
+
+	mod1MainTf.Write("# something else, changed!")
+	git.CommitAll("module changed")
+
+	cli := newCLI(t, s.RootDir())
+
+	wantList := stack.RelPath() + "\n"
+	assertRunResult(t, cli.listChangedStacks(), runExpected{Stdout: wantList})
+}
