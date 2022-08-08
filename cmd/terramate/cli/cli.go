@@ -427,12 +427,10 @@ func (c *cli) checkGitLocalBranchIsUpdated() {
 func (c *cli) vendorDownload() {
 	source := c.parsedArgs.Experimental.Vendor.Download.Source
 	ref := c.parsedArgs.Experimental.Vendor.Download.Reference
-	vendordir := filepath.Join(c.root(), "vendor")
 
 	logger := log.With().
 		Str("workingDir", c.wd()).
 		Str("rootdir", c.root()).
-		Str("vendordir", vendordir).
 		Str("action", "cli.vendor()").
 		Str("source", source).
 		Str("ref", ref).
@@ -450,7 +448,7 @@ func (c *cli) vendorDownload() {
 	parsedSource.Ref = ref
 
 	logger.Trace().Msgf("module path is: %s", parsedSource.Path)
-	modVendorDir, err := modvendor.Vendor(vendordir, parsedSource)
+	modVendorDir, err := modvendor.Vendor(c.root(), parsedSource)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("vendoring module")
 	}

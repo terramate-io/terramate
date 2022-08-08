@@ -30,29 +30,25 @@ const (
 	ErrAlreadyVendored errors.Kind = "module is already vendored"
 )
 
-// Vendor will vendor the given module inside the provided vendor
-// dir. The vendor dir must be an absolute path.
-//
-// If the project is already vendored an error of kind ErrAlreadyVendored will
-// be returned, vendored projects are never updated.
+// Vendor will vendor the given module inside the provided root dir.
+// The root dir must be an absolute path.
 //
 // Vendored modules will be located at:
 //
-// - <vendordir>/<Source.Path>/<Source.Ref>
+// - <rootdir>/vendor/<Source.Path>/<Source.Ref>
 //
-// If the provided source has no reference the provided Source.URL will be
-// used to retrieve the default remote branch to be used as reference.
+// If the project is already vendored an error of kind ErrAlreadyVendored will
+// be returned, vendored projects are never updated.
 //
 // The whole path inside the vendor dir will be created if it not exists.
 // Vendoring is not recursive, so dependencies won't have their dependencies vendored.
 // Vendoring will also not download any git submodules.
 //
-// It returns the absolute path where the code has been vendored, which will be inside
-// the given vendordir.
-func Vendor(vendordir string, modsrc tf.Source) (string, error) {
+// It returns the absolute path where the module has been vendored.
+func Vendor(rootdir string, modsrc tf.Source) (string, error) {
 	logger := log.With().
 		Str("action", "modvendor.Vendor()").
-		Str("vendordir", vendordir).
+		Str("rootdir", rootdir).
 		Str("url", modsrc.URL).
 		Str("path", modsrc.Path).
 		Str("ref", modsrc.Ref).
@@ -64,32 +60,44 @@ func Vendor(vendordir string, modsrc tf.Source) (string, error) {
 		return "", errors.E("src %v reference must be non-empty", modsrc)
 	}
 
-	clonedir := filepath.Join(vendordir, modsrc.Path, modsrc.Ref)
+	clonedir := filepath.Join(rootdir, "vendor", modsrc.Path, modsrc.Ref)
 	if _, err := os.Stat(clonedir); err == nil {
 		return "", errors.E(ErrAlreadyVendored, "dir %q exists", clonedir)
 	}
 
 	logger.Trace().Msg("setting up tmp workdir")
 
-	workdir, err := os.MkdirTemp("", "terramate-vendor")
+	// We want an initial temporary dir outside of the Terramate project
+	// to do the clone since some git setups will assume that any
+	// git clone inside a repo is a submodule.
+	systmpdir, err := os.MkdirTemp("", "terramate-vendor")
 	if err != nil {
-		return "", errors.E(err, "creating workdir")
+		return "", errors.E(err, "creating system tmp dir")
 	}
 	defer func() {
-		if err := os.RemoveAll(workdir); err != nil {
+		if err := os.RemoveAll(systmpdir); err != nil {
 			logger.Warn().Err(err).Msg("deleting tmp workdir")
 		}
 	}()
 
+	// We want a temporary dir inside the project to where we are going to copy
+	// the vendored module first. The idea is that if the copying fails we won't
+	// leave any changes on the project vendor dir. The final step that changes
+	// the vendor dir then will be atomic using rename, which probably wont
+	// fail since the tmpdir is inside the project and the whole project is most
+	// likely on the same fs/device.
+
+	// TODO(katcipis): create tmtmpdir
+
 	logger = logger.With().
-		Str("workdir", workdir).
+		Str("workdir", systmpdir).
 		Str("clonedir", clonedir).
 		Logger()
 
 	logger.Trace().Msg("setting up git wrapper")
 
 	g, err := git.WithConfig(git.Config{
-		WorkingDir:     workdir,
+		WorkingDir:     systmpdir,
 		AllowPorcelain: true,
 		Env:            os.Environ(),
 	})
@@ -99,7 +107,7 @@ func Vendor(vendordir string, modsrc tf.Source) (string, error) {
 
 	logger.Trace().Msg("cloning to workdir")
 
-	if err := g.Clone(modsrc.URL, workdir); err != nil {
+	if err := g.Clone(modsrc.URL, systmpdir); err != nil {
 		return "", err
 	}
 
@@ -109,7 +117,7 @@ func Vendor(vendordir string, modsrc tf.Source) (string, error) {
 		return "", errors.E(err, "checking ref %s", modsrc.Ref)
 	}
 
-	if err := os.RemoveAll(filepath.Join(workdir, ".git")); err != nil {
+	if err := os.RemoveAll(filepath.Join(systmpdir, ".git")); err != nil {
 		return "", errors.E(err, "removing .git dir from cloned repo")
 	}
 
@@ -118,7 +126,7 @@ func Vendor(vendordir string, modsrc tf.Source) (string, error) {
 	}
 
 	logger.Trace().Msg("moving cloned mod from workdir to clonedir")
-	if err := fs.CopyDir(clonedir, workdir,
+	if err := fs.CopyDir(clonedir, systmpdir,
 		func(os.DirEntry) bool { return true }); err != nil {
 		// This may leave intermediary created dirs hanging on vendordir
 		// since we just create all and then delete clone dir on a failure to move.
