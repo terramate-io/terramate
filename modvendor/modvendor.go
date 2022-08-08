@@ -65,26 +65,26 @@ func Vendor(rootdir string, modsrc tf.Source) (string, error) {
 		return "", errors.E(ErrAlreadyVendored, "dir %q exists", modVendorDir)
 	}
 
-	logger.Trace().Msg("setting up tmp workdir where module will be cloned")
+	logger.Trace().Msg("setting up temp dir where module will be cloned")
 
 	// We want an initial temporary dir outside of the Terramate project
 	// to do the clone since some git setups will assume that any
 	// git clone inside a repo is a submodule.
-	clonedRepoDir, err := os.MkdirTemp("", "terramate-vendor")
+	clonedRepoDir, err := os.MkdirTemp("", ".tmvendor")
 	if err != nil {
-		return "", errors.E(err, "creating default tmp dir on host")
+		return "", errors.E(err, "creating tmp clone dir")
 	}
 	defer func() {
 		if err := os.RemoveAll(clonedRepoDir); err != nil {
 			log.Warn().Err(err).
-				Msg("deleting tmp cloned repo dir")
+				Msg("deleting tmp clone dir")
 		}
 	}()
 
 	// We want a temporary dir inside the project to where we are going to copy
 	// the cloned module first. The idea is that if the copying fails we won't
 	// leave any changes on the project vendor dir. The final step then will
-	// be atomic using rename, which probably wont fail since the tmpdir is
+	// be an atomic op using rename, which probably wont fail since the temp dir is
 	// inside the project and the whole project is most likely on the same fs/device.
 	tmTempDir, err := os.MkdirTemp(rootdir, ".tmvendor")
 	if err != nil {
@@ -93,7 +93,7 @@ func Vendor(rootdir string, modsrc tf.Source) (string, error) {
 	defer func() {
 		if err := os.RemoveAll(tmTempDir); err != nil {
 			log.Warn().Err(err).
-				Msg("deleting base tmp dir inside project")
+				Msg("deleting temp dir inside terramate project")
 		}
 	}()
 
@@ -130,7 +130,7 @@ func Vendor(rootdir string, modsrc tf.Source) (string, error) {
 		return "", errors.E(err, "removing .git dir from cloned repo")
 	}
 
-	logger.Trace().Msg("moving cloned mod terramate tmp dir")
+	logger.Trace().Msg("copying cloned mod to terramate temp vendor dir")
 	if err := fs.CopyDir(tmTempDir, clonedRepoDir,
 		func(os.DirEntry) bool { return true }); err != nil {
 		return "", errors.E(err, "copying cloned module")
@@ -140,7 +140,7 @@ func Vendor(rootdir string, modsrc tf.Source) (string, error) {
 		return "", errors.E(err, "creating mod dir inside vendor")
 	}
 
-	logger.Trace().Msg("moving cloned mod from workdir to clonedir")
+	logger.Trace().Msg("moving cloned mod from terramate temp vendor to final vendor")
 	if err := os.Rename(tmTempDir, modVendorDir); err != nil {
 		// Assuming that the whole Terramate project is inside the
 		// same fs/mount/dev.
