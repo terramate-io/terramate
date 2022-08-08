@@ -1494,7 +1494,7 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					add: generateHCL(
 						labels("tm_dynamic_test.tf"),
 						content(
-							block("tm_dynamic",
+							tmdynamic(
 								labels("my_block"),
 								expr("for_each", `["a", "b", "c"]`),
 								block("content"),
@@ -1527,10 +1527,10 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					add: generateHCL(
 						labels("tm_dynamic_test.tf"),
 						content(
-							block("tm_dynamic",
+							tmdynamic(
 								labels("my_block"),
 								expr("for_each", `["a", "b", "c"]`),
-								block("content",
+								content(
 									expr("value", "my_block.value"),
 									expr("key", "my_block.key"),
 								),
@@ -1576,11 +1576,11 @@ func TestLoadGeneratedHCL(t *testing.T) {
 						generateHCL(
 							labels("tm_dynamic_test.tf"),
 							content(
-								block("tm_dynamic",
+								tmdynamic(
 									labels("my_block"),
 									expr("for_each", `["a", "b", "c"]`),
 									expr("labels", `global.labels`),
-									block("content",
+									content(
 										expr("value", "my_block.value"),
 										expr("key", "my_block.key"),
 									),
@@ -1627,11 +1627,11 @@ func TestLoadGeneratedHCL(t *testing.T) {
 						generateHCL(
 							labels("tm_dynamic_test.tf"),
 							content(
-								block("tm_dynamic",
+								tmdynamic(
 									labels("my_block"),
 									expr("for_each", `["a", "b", "c"]`),
 									expr("labels", `[my_block.value]`),
-									block("content",
+									content(
 										expr("value", "my_block.value"),
 										expr("key", "my_block.key"),
 									),
@@ -1677,10 +1677,10 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					add: generateHCL(
 						labels("tm_dynamic_test.tf"),
 						content(
-							block("tm_dynamic",
+							tmdynamic(
 								labels("my_block"),
 								expr("for_each", `["a", "b", "c"]`),
-								block("content",
+								content(
 									expr("value", "my_block.value"),
 									expr("key", "my_block.key"),
 									expr("other", "something.other"),
@@ -1726,11 +1726,11 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					add: generateHCL(
 						labels("tm_dynamic_test.tf"),
 						content(
-							block("tm_dynamic",
+							tmdynamic(
 								labels("my_block"),
 								expr("for_each", `["a", "b", "c"]`),
 								expr("iterator", "b"),
-								block("content",
+								content(
 									expr("value", "b.value"),
 									expr("key", "b.key"),
 									expr("other", "something.other"),
@@ -1776,19 +1776,19 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					add: generateHCL(
 						labels("tm_dynamic_test.tf"),
 						content(
-							block("tm_dynamic",
+							tmdynamic(
 								labels("my_block"),
 								expr("for_each", `["a", "b", "c"]`),
 								expr("iterator", "b"),
-								block("content",
+								content(
 									expr("value", "b.value"),
 									expr("key", "b.key"),
 									expr("other", "something.other"),
-									block("tm_dynamic",
+									tmdynamic(
 										labels("child"),
 										expr("for_each", `[0, 1, 2]`),
 										expr("iterator", "i"),
-										block("content",
+										content(
 											str("value", "${b.key}-${b.value}-${i.value}"),
 										),
 									),
@@ -1861,11 +1861,11 @@ func TestLoadGeneratedHCL(t *testing.T) {
 					add: generateHCL(
 						labels("tm_dynamic_test.tf"),
 						content(
-							block("tm_dynamic",
+							tmdynamic(
 								labels("my_block"),
 								expr("for_each", `["a", "b", "c"]`),
 								expr("iterator", "[]"),
-								block("content",
+								content(
 									expr("value", "b.value"),
 								),
 							),
