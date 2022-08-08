@@ -77,30 +77,25 @@ func Vendor(rootdir string, modsrc tf.Source) (string, error) {
 	defer func() {
 		if err := os.RemoveAll(clonedRepoDir); err != nil {
 			log.Warn().Err(err).
-				Msg("deleting cloned repo dir")
+				Msg("deleting tmp cloned repo dir")
 		}
 	}()
 
 	// We want a temporary dir inside the project to where we are going to copy
-	// the vendored module first. The idea is that if the copying fails we won't
+	// the cloned module first. The idea is that if the copying fails we won't
 	// leave any changes on the project vendor dir. The final step then will
 	// be atomic using rename, which probably wont fail since the tmpdir is
 	// inside the project and the whole project is most likely on the same fs/device.
-	tmBaseTemp := filepath.Join(rootdir, ".tmtemp")
-	if err := os.MkdirAll(tmBaseTemp, 0775); err != nil {
-		return "", errors.E(err, "creating base tmp dir inside project")
+	tmTempDir, err := os.MkdirTemp(rootdir, ".tmvendor")
+	if err != nil {
+		return "", errors.E(err, "creating tmp dir inside project")
 	}
 	defer func() {
-		if err := os.RemoveAll(tmBaseTemp); err != nil {
+		if err := os.RemoveAll(tmTempDir); err != nil {
 			log.Warn().Err(err).
 				Msg("deleting base tmp dir inside project")
 		}
 	}()
-
-	tmTempDir, err := os.MkdirTemp(tmBaseTemp, "vendor")
-	if err != nil {
-		return "", errors.E(err, "creating tmp dir inside project")
-	}
 
 	logger = logger.With().
 		Str("clonedRepoDir", clonedRepoDir).
