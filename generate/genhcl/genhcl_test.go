@@ -25,7 +25,6 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genhcl"
-	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/mineiros-io/terramate/test/hclwrite"
@@ -33,37 +32,10 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func TestLoadGeneratedHCL(t *testing.T) {
-	type (
-		hclconfig struct {
-			path     string
-			filename string
-			add      fmt.Stringer
-		}
-		genHCL struct {
-			body      fmt.Stringer
-			origin    string
-			condition bool
-		}
-		result struct {
-			name string
-			hcl  genHCL
-		}
-		testcase struct {
-			name    string
-			stack   string
-			configs []hclconfig
-			want    []result
-			wantErr error
-		}
-	)
-
+func TestGenerateHCL(t *testing.T) {
 	attr := func(name, expr string) hclwrite.BlockBuilder {
 		t.Helper()
 		return hclwrite.AttributeValue(t, name, expr)
-	}
-	defaultCfg := func(dir string) string {
-		return filepath.Join(dir, config.DefaultFilename)
 	}
 
 	tcases := []testcase{
@@ -1484,547 +1456,94 @@ func TestLoadGeneratedHCL(t *testing.T) {
 			},
 			wantErr: errors.E(genhcl.ErrParsing),
 		},
-		{
-			name:  "tm_dynamic with empty content block",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a", "b", "c"]`),
-								block("content"),
-							),
-						),
-					),
-				},
-			},
-			want: []result{
-				{
-					name: "tm_dynamic_test.tf",
-					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
-						condition: true,
-						body: hcldoc(
-							block("my_block"),
-							block("my_block"),
-							block("my_block"),
-						),
-					},
-				},
-			},
-		},
-		{
-			name:  "tm_dynamic with content fully evaluated",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a", "b", "c"]`),
-								content(
-									expr("value", "my_block.value"),
-									expr("key", "my_block.key"),
-								),
-							),
-						),
-					),
-				},
-			},
-			want: []result{
-				{
-					name: "tm_dynamic_test.tf",
-					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
-						condition: true,
-						body: hcldoc(
-							block("my_block",
-								number("key", 0),
-								str("value", "a"),
-							),
-							block("my_block",
-								number("key", 1),
-								str("value", "b"),
-							),
-							block("my_block",
-								number("key", 2),
-								str("value", "c"),
-							),
-						),
-					},
-				},
-			},
-		},
-		{
-			name:  "tm_dynamic with labels from globals",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack",
-					add: hcldoc(
-						globals(
-							expr("labels", `["label1", "label2"]`),
-						),
-						generateHCL(
-							labels("tm_dynamic_test.tf"),
-							content(
-								tmdynamic(
-									labels("my_block"),
-									expr("for_each", `["a", "b", "c"]`),
-									expr("labels", `global.labels`),
-									content(
-										expr("value", "my_block.value"),
-										expr("key", "my_block.key"),
-									),
-								),
-							),
-						),
-					),
-				},
-			},
-			want: []result{
-				{
-					name: "tm_dynamic_test.tf",
-					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
-						condition: true,
-						body: hcldoc(
-							block("my_block",
-								labels("label1", "label2"),
-								number("key", 0),
-								str("value", "a"),
-							),
-							block("my_block",
-								labels("label1", "label2"),
-								number("key", 1),
-								str("value", "b"),
-							),
-							block("my_block",
-								labels("label1", "label2"),
-								number("key", 2),
-								str("value", "c"),
-							),
-						),
-					},
-				},
-			},
-		},
-		{
-			name:  "tm_dynamic with labels from iterator variable",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack",
-					add: hcldoc(
-						generateHCL(
-							labels("tm_dynamic_test.tf"),
-							content(
-								tmdynamic(
-									labels("my_block"),
-									expr("for_each", `["a", "b", "c"]`),
-									expr("labels", `[my_block.value]`),
-									content(
-										expr("value", "my_block.value"),
-										expr("key", "my_block.key"),
-									),
-								),
-							),
-						),
-					),
-				},
-			},
-			want: []result{
-				{
-					name: "tm_dynamic_test.tf",
-					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
-						condition: true,
-						body: hcldoc(
-							block("my_block",
-								labels("a"),
-								number("key", 0),
-								str("value", "a"),
-							),
-							block("my_block",
-								labels("b"),
-								number("key", 1),
-								str("value", "b"),
-							),
-							block("my_block",
-								labels("c"),
-								number("key", 2),
-								str("value", "c"),
-							),
-						),
-					},
-				},
-			},
-		},
-		{
-			name:  "tm_dynamic partially evaluated",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a", "b", "c"]`),
-								content(
-									expr("value", "my_block.value"),
-									expr("key", "my_block.key"),
-									expr("other", "something.other"),
-								),
-							),
-						),
-					),
-				},
-			},
-			want: []result{
-				{
-					name: "tm_dynamic_test.tf",
-					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
-						condition: true,
-						body: hcldoc(
-							block("my_block",
-								number("key", 0),
-								expr("other", "something.other"),
-								str("value", "a"),
-							),
-							block("my_block",
-								number("key", 1),
-								expr("other", "something.other"),
-								str("value", "b"),
-							),
-							block("my_block",
-								number("key", 2),
-								expr("other", "something.other"),
-								str("value", "c"),
-							),
-						),
-					},
-				},
-			},
-		},
-		{
-			name:  "tm_dynamic with different iterator",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a", "b", "c"]`),
-								expr("iterator", "b"),
-								content(
-									expr("value", "b.value"),
-									expr("key", "b.key"),
-									expr("other", "something.other"),
-								),
-							),
-						),
-					),
-				},
-			},
-			want: []result{
-				{
-					name: "tm_dynamic_test.tf",
-					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
-						condition: true,
-						body: hcldoc(
-							block("my_block",
-								number("key", 0),
-								expr("other", "something.other"),
-								str("value", "a"),
-							),
-							block("my_block",
-								number("key", 1),
-								expr("other", "something.other"),
-								str("value", "b"),
-							),
-							block("my_block",
-								number("key", 2),
-								expr("other", "something.other"),
-								str("value", "c"),
-							),
-						),
-					},
-				},
-			},
-		},
-		{
-			name:  "tm_dynamic inside tm_dynamic",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a", "b", "c"]`),
-								expr("iterator", "b"),
-								content(
-									expr("value", "b.value"),
-									expr("key", "b.key"),
-									expr("other", "something.other"),
-									tmdynamic(
-										labels("child"),
-										expr("for_each", `[0, 1, 2]`),
-										expr("iterator", "i"),
-										content(
-											str("value", "${b.key}-${b.value}-${i.value}"),
-										),
-									),
-								),
-							),
-						),
-					),
-				},
-			},
-			want: []result{
-				{
-					name: "tm_dynamic_test.tf",
-					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
-						condition: true,
-						body: hcldoc(
-							block("my_block",
-								number("key", 0),
-								expr("other", "something.other"),
-								str("value", "a"),
-								block("child",
-									str("value", "0-a-0"),
-								),
-								block("child",
-									str("value", "0-a-1"),
-								),
-								block("child",
-									str("value", "0-a-2"),
-								),
-							),
-							block("my_block",
-								number("key", 1),
-								expr("other", "something.other"),
-								str("value", "b"),
-								block("child",
-									str("value", "1-b-0"),
-								),
-								block("child",
-									str("value", "1-b-1"),
-								),
-								block("child",
-									str("value", "1-b-2"),
-								),
-							),
-							block("my_block",
-								number("key", 2),
-								expr("other", "something.other"),
-								str("value", "c"),
-								block("child",
-									str("value", "2-c-0"),
-								),
-								block("child",
-									str("value", "2-c-1"),
-								),
-								block("child",
-									str("value", "2-c-2"),
-								),
-							),
-						),
-					},
-				},
-			},
-		},
-		{
-			name:  "tm_dynamic with invalid iterator",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a", "b", "c"]`),
-								expr("iterator", "[]"),
-								content(
-									expr("value", "b.value"),
-								),
-							),
-						),
-					),
-				},
-			},
-			wantErr: errors.E(hcl.ErrInvalidDynamicIterator),
-		},
-		{
-			name:  "tm_dynamic with no content block",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a", "b", "c"]`),
-							),
-						),
-					),
-				},
-			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
-		},
-		{
-			name:  "tm_dynamic with no for_each",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								content(
-									expr("value", "b.value"),
-								),
-							),
-						),
-					),
-				},
-			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
-		},
-		{
-			name:  "tm_dynamic using globals in for_each and content",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack",
-					add: hcldoc(
-						globals(
-							str("msg", "hello"),
-							expr("values", `["a", "b", "c"]`),
-						),
-						generateHCL(
-							labels("tm_dynamic_test.tf"),
-							content(
-								tmdynamic(
-									labels("my_block"),
-									expr("for_each", `global.values`),
-									content(
-										expr("msg", `global.msg`),
-										expr("val", `global.values[my_block.key]`),
-									),
-								),
-							),
-						),
-					),
-				},
-			},
-			want: []result{
-				{
-					name: "tm_dynamic_test.tf",
-					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
-						condition: true,
-						body: hcldoc(
-							block("my_block",
-								str("msg", "hello"),
-								str("val", "a"),
-							),
-							block("my_block",
-								str("msg", "hello"),
-								str("val", "b"),
-							),
-							block("my_block",
-								str("msg", "hello"),
-								str("val", "c"),
-							),
-						),
-					},
-				},
-			},
-		},
 	}
 
 	for _, tcase := range tcases {
-		t.Run(tcase.name, func(t *testing.T) {
-			s := sandbox.New(t)
-			s.BuildTree([]string{"s:" + tcase.stack})
-			stack := s.LoadStacks()[0]
-
-			for _, cfg := range tcase.configs {
-				filename := cfg.filename
-				if filename == "" {
-					filename = config.DefaultFilename
-				}
-				path := filepath.Join(s.RootDir(), cfg.path)
-				test.AppendFile(t, path, filename, cfg.add.String())
-			}
-
-			globals := s.LoadStackGlobals(stack)
-			got, err := genhcl.Load(s.RootDir(), stack, globals)
-			errtest.Assert(t, err, tcase.wantErr)
-
-			if len(got) != len(tcase.want) {
-				for i, file := range got {
-					t.Logf("got[%d] = %v", i, file)
-				}
-				for i, file := range tcase.want {
-					t.Logf("want[%d] = %v", i, file)
-				}
-				t.Fatalf("length of got and want mismatch: got %d but want %d",
-					len(got), len(tcase.want))
-			}
-
-			for i, res := range tcase.want {
-				gothcl := got[i]
-
-				gotCondition := gothcl.Condition()
-				wantCondition := res.hcl.condition
-
-				if gotCondition != wantCondition {
-					t.Fatalf("got condition %t != want %t", gotCondition, wantCondition)
-				}
-
-				gotcode := gothcl.Body()
-				wantcode := res.hcl.body.String()
-
-				assertHCLEquals(t, gotcode, wantcode)
-				assert.EqualStrings(t,
-					res.name,
-					gothcl.Name(),
-					"wrong name for generated code",
-				)
-				assert.EqualStrings(t,
-					res.hcl.origin,
-					gothcl.Origin(),
-					"wrong origin config path for generated code",
-				)
-
-			}
-		})
+		tcase.run(t)
 	}
+}
+
+type (
+	hclconfig struct {
+		path     string
+		filename string
+		add      fmt.Stringer
+	}
+	genHCL struct {
+		body      fmt.Stringer
+		origin    string
+		condition bool
+	}
+	result struct {
+		name string
+		hcl  genHCL
+	}
+	testcase struct {
+		name    string
+		stack   string
+		configs []hclconfig
+		want    []result
+		wantErr error
+	}
+)
+
+func (tcase testcase) run(t *testing.T) {
+	t.Run(tcase.name, func(t *testing.T) {
+		s := sandbox.New(t)
+		s.BuildTree([]string{"s:" + tcase.stack})
+		stack := s.LoadStacks()[0]
+
+		for _, cfg := range tcase.configs {
+			filename := cfg.filename
+			if filename == "" {
+				filename = config.DefaultFilename
+			}
+			path := filepath.Join(s.RootDir(), cfg.path)
+			test.AppendFile(t, path, filename, cfg.add.String())
+		}
+
+		globals := s.LoadStackGlobals(stack)
+		got, err := genhcl.Load(s.RootDir(), stack, globals)
+		errtest.Assert(t, err, tcase.wantErr)
+
+		if len(got) != len(tcase.want) {
+			for i, file := range got {
+				t.Logf("got[%d] = %v", i, file)
+			}
+			for i, file := range tcase.want {
+				t.Logf("want[%d] = %v", i, file)
+			}
+			t.Fatalf("length of got and want mismatch: got %d but want %d",
+				len(got), len(tcase.want))
+		}
+
+		for i, res := range tcase.want {
+			gothcl := got[i]
+
+			gotCondition := gothcl.Condition()
+			wantCondition := res.hcl.condition
+
+			if gotCondition != wantCondition {
+				t.Fatalf("got condition %t != want %t", gotCondition, wantCondition)
+			}
+
+			gotcode := gothcl.Body()
+			wantcode := res.hcl.body.String()
+
+			assertHCLEquals(t, gotcode, wantcode)
+			assert.EqualStrings(t,
+				res.name,
+				gothcl.Name(),
+				"wrong name for generated code",
+			)
+			assert.EqualStrings(t,
+				res.hcl.origin,
+				gothcl.Origin(),
+				"wrong origin config path for generated code",
+			)
+
+		}
+	})
 }
 
 func assertHCLEquals(t *testing.T, got string, want string) {
@@ -2041,6 +1560,10 @@ func assertHCLEquals(t *testing.T, got string, want string) {
 		t.Errorf("got:\n%q", got)
 		t.Fatalf("diff:\n%s", diff)
 	}
+}
+
+func defaultCfg(dir string) string {
+	return filepath.Join(dir, config.DefaultFilename)
 }
 
 func init() {
