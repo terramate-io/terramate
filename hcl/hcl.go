@@ -813,7 +813,7 @@ func validateGenerateFileBlock(block *ast.Block) error {
 // as is (original expression form, no evaluation).
 //
 // Returns an error if the evaluation fails.
-func CopyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval Evaluator) error {
+func CopyBody(target *hclwrite.Body, src *hclsyntax.Body, eval Evaluator) error {
 	logger := log.With().
 		Str("action", "CopyBody()").
 		Logger()
@@ -833,13 +833,13 @@ func CopyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval Evaluator) error {
 		}
 
 		logger.Trace().Str("attribute", attr.Name).Msg("Setting evaluated attribute.")
-		dest.SetAttributeRaw(attr.Name, tokens)
+		target.SetAttributeRaw(attr.Name, tokens)
 	}
 
 	logger.Trace().Msg("Append blocks.")
 
 	for _, block := range src.Blocks {
-		err := appendBlock(dest, block, eval)
+		err := appendBlock(target, block, eval)
 		if err != nil {
 			return err
 		}
@@ -912,7 +912,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 		}
 		if len(iteratorTraversal) != 1 {
 			return hclAttrEvalErr(iteratorAttr,
-				"dynamic iterator must be a single variable name")
+				"dynamic iterator must be a single variable name.")
 		}
 		iterator = iteratorTraversal.RootName()
 	}
