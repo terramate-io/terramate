@@ -27,6 +27,43 @@ import (
 	"github.com/rs/zerolog"
 )
 
+func TestModVendorWithCommitIDRef(t *testing.T) {
+	const (
+		path     = "github.com/mineiros-io/example"
+		filename = "test.txt"
+		content  = "test"
+	)
+
+	repoSandbox := sandbox.New(t)
+
+	repogit := repoSandbox.Git()
+
+	repogit.CheckoutNew("branch")
+	repoSandbox.RootEntry().CreateFile(filename, content)
+	repogit.CommitAll("add file")
+
+	ref := repogit.RevParse("branch")
+	// So the initial clone gets the repo pointing at main as "default"
+	repogit.Checkout("main")
+
+	gitURL := "file://" + repoSandbox.RootDir()
+	vendorDir := t.TempDir()
+
+	cloneDir, err := modvendor.Vendor(vendorDir, tf.Source{
+		URL:  gitURL,
+		Ref:  ref,
+		Path: path,
+	})
+	assert.NoError(t, err)
+
+	wantCloneDir := filepath.Join(vendorDir, path, ref)
+	assert.EqualStrings(t, wantCloneDir, cloneDir)
+
+	got := test.ReadFile(t, cloneDir, filename)
+	assert.EqualStrings(t, content, string(got))
+	assertNoGitDir(t, cloneDir)
+}
+
 func TestModVendorWithRef(t *testing.T) {
 	const (
 		path     = "github.com/mineiros-io/example"
@@ -69,7 +106,7 @@ func TestModVendorWithRef(t *testing.T) {
 	repoSandbox.RootEntry().CreateFile(newFilename, newContent)
 	repogit.CommitAll("add new file")
 	// We need to checkout back to the initial branch
-	// or else the test passes even if the ref is not used when cloning.
+	// or else the test passes even if the correct ref is not used.
 	repogit.Checkout(ref)
 
 	newCloneDir, err := modvendor.Vendor(vendorDir, tf.Source{
