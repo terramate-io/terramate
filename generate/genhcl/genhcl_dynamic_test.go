@@ -360,7 +360,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			},
 		},
 		{
-			name:  "generated block has attributes on same order as attributes object",
+			name:  "generated blocks have attributes on same order as attributes object",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
@@ -370,7 +370,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 						content(
 							tmdynamic(
 								labels("attributes_order"),
-								expr("for_each", `["test"]`),
+								expr("for_each", `["test", "test2"]`),
 								expr("iterator", "iter"),
 								expr("attributes", `{
 								  b = iter.value,
@@ -393,6 +393,66 @@ func TestGenerateHCLDynamic(t *testing.T) {
 								str("b", "test"),
 								number("z", 0),
 								expr("a", "something.other"),
+							),
+							block("attributes_order",
+								str("b", "test2"),
+								number("z", 1),
+								expr("a", "something.other"),
+							),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "attributes referencing globals and metadata with functions",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/",
+					filename: "globals.tm",
+					add: globals(
+						str("data", "global string"),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "generate.tm",
+					add: generateHCL(
+						labels("tm_dynamic.tf"),
+						content(
+							tmdynamic(
+								labels("references"),
+								expr("for_each", `["test"]`),
+								expr("attributes", `{
+								  global  = global.data,
+								  meta    = terramate.stack.path.absolute,
+								  interp  = tm_upper("${global.data} interp"),
+								  partial = local.data,
+								  iter    = references.value
+								  partialfunc = upper(global.data)
+								  ternary = local.cond ? local.val : global.data
+								}`),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "tm_dynamic.tf",
+					hcl: genHCL{
+						origin:    "/stack/generate.tm",
+						condition: true,
+						body: hcldoc(
+							block("references",
+								str("global", "global string"),
+								str("meta", "/stack"),
+								str("interp", "GLOBAL STRING INTERP"),
+								expr("partial", "local.data"),
+								str("iter", "test"),
+								expr("partialfunc", `upper("global string")`),
+								expr("ternary", `local.cond ? local.val : "global string"`),
 							),
 						),
 					},
