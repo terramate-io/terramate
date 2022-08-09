@@ -24,6 +24,8 @@ import (
 // TODO(katcipis)
 // - Test maps with keys that are expressions like (global.a) (https://www.terraform.io/language/expressions/types#maps-objects)
 // - Test maps with keys that are expressions to undefined references
+// - Test maps with keys that are expressions that evaluates to something that is not string
+// - Test dynamic inside dynamic with attributes
 
 func TestGenerateHCLDynamic(t *testing.T) {
 	tcases := []testcase{
