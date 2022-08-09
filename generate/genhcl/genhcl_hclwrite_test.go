@@ -46,6 +46,10 @@ func content(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("content", builders...)
 }
 
+func tmdynamic(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return hclwrite.BuildBlock("tm_dynamic", builders...)
+}
+
 func labels(labels ...string) hclwrite.BlockBuilder {
 	return hclwrite.Labels(labels...)
 }
