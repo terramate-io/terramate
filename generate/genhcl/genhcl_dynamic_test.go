@@ -21,6 +21,10 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 )
 
+// TODO(katcipis)
+// - Test maps with keys that are expressions like (global.a) (https://www.terraform.io/language/expressions/types#maps-objects)
+// - Test maps with keys that are expressions to undefined references
+
 func TestGenerateHCLDynamic(t *testing.T) {
 	tcases := []testcase{
 		{
@@ -319,9 +323,9 @@ func TestGenerateHCLDynamic(t *testing.T) {
 								expr("for_each", `["a", "b", "c"]`),
 								expr("iterator", "iter"),
 								expr("attributes", `{
-								  value : iter.value,
-								  key: iter.key,
-								  other: something.other,
+								  value = iter.value,
+								  key = iter.key,
+								  other = something.other,
 								}`),
 							),
 						),
@@ -336,19 +340,59 @@ func TestGenerateHCLDynamic(t *testing.T) {
 						condition: true,
 						body: hcldoc(
 							block("attributes",
+								str("value", "a"),
 								number("key", 0),
 								expr("other", "something.other"),
-								str("value", "a"),
 							),
 							block("attributes",
+								str("value", "b"),
 								number("key", 1),
 								expr("other", "something.other"),
-								str("value", "b"),
 							),
 							block("attributes",
+								str("value", "c"),
 								number("key", 2),
 								expr("other", "something.other"),
-								str("value", "c"),
+							),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "generated block has attributes on same order as attributes object",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_attributes_order.tf"),
+						content(
+							tmdynamic(
+								labels("attributes_order"),
+								expr("for_each", `["test"]`),
+								expr("iterator", "iter"),
+								expr("attributes", `{
+								  b = iter.value,
+								  z = iter.key,
+								  a = something.other,
+								}`),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "tm_dynamic_attributes_order.tf",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body: hcldoc(
+							block("attributes_order",
+								str("b", "test"),
+								number("z", 0),
+								expr("a", "something.other"),
 							),
 						),
 					},

@@ -168,9 +168,19 @@ type GenFileBlock struct {
 
 // Evaluator represents a Terramate evaluator
 type Evaluator interface {
+	// Eval evaluates the given expression returning a value.
 	Eval(hclsyntax.Expression) (cty.Value, error)
+
+	// PartialEval partially evaluates the given expression returning the
+	// tokens that form the result of the partial evaluation. Any unknown
+	// namespace access are ignored and left as is, while known namespaces
+	// are substituted by its value.
 	PartialEval(hclsyntax.Expression) (hclwrite.Tokens, error)
+
+	// SetNamespace adds a new namespace, replacing any with the same name.
 	SetNamespace(name string, values map[string]cty.Value)
+
+	// DeleteNamespace removes a namespace.
 	DeleteNamespace(name string)
 }
 
@@ -931,7 +941,7 @@ func getDynamicBlockAttrs(block *hclsyntax.Block) (dynBlockAttributes, error) {
 	return dynAttrs, errs.AsError()
 }
 
-func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Evaluator) error {
+func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator Evaluator) error {
 	errs := errors.L()
 
 	if len(block.Labels) != 1 {
@@ -994,7 +1004,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 
 	logger.Trace().Msg("evaluating for_each attribute")
 
-	forEachVal, err := eval.Eval(attrs.foreach.Expr)
+	forEachVal, err := evaluator.Eval(attrs.foreach.Expr)
 	if err != nil {
 		return hclAttrErr(attrs.foreach, "evaluating `for_each` expression")
 	}
@@ -1009,14 +1019,14 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 
 	var tmDynamicErr error
 	forEachVal.ForEachElement(func(key, value cty.Value) (stop bool) {
-		eval.SetNamespace(iterator, map[string]cty.Value{
+		evaluator.SetNamespace(iterator, map[string]cty.Value{
 			"key":   key,
 			"value": value,
 		})
 
 		var labels []string
 		if attrs.labels != nil {
-			labelsVal, err := eval.Eval(attrs.labels.Expr)
+			labelsVal, err := evaluator.Eval(attrs.labels.Expr)
 			if err != nil {
 				tmDynamicErr = hclAttrErr(attrs.labels,
 					"failed to evaluate the `labels` attribute")
@@ -1033,17 +1043,83 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 		newblock := target.AppendBlock(hclwrite.NewBlock(genBlockType, labels))
 
 		if contentBlock != nil {
-			logger.Trace().Msg("using content block for new block body")
-			err := CopyBody(newblock.Body(), contentBlock.Body, eval)
+			logger.Trace().Msg("using content block to define new block body")
+
+			err := CopyBody(newblock.Body(), contentBlock.Body, evaluator)
 			if err != nil {
 				tmDynamicErr = err
 				return true
 			}
+
+			return false
+		}
+
+		logger.Trace().Msg("using attributes to define new block body")
+		partialEvalTokens, err := evaluator.PartialEval(attrs.attributes.Expr)
+		if err != nil {
+			tmDynamicErr = hclAttrErr(attrs.attributes,
+				"failed to partially evaluate attributes")
+			return true
+		}
+
+		// Sadly hclsyntax doens't export an easy way to build an expression from tokens,
+		// even though it would be easy to do so:
+		//
+		// - https://github.com/hashicorp/hcl2/blob/fb75b3253c80b3bc7ca99c4bfa2ad6743841b1af/hcl/hclsyntax/public.go#L41
+		//
+		// So here we need to convert the tokens to []byte so it can be
+		// converted again to tokens :-).
+		parsedAttrs, diags := hclsyntax.ParseExpression(partialEvalTokens.Bytes(), "", hcl.InitialPos)
+		if diags.HasErrors() {
+			// Panic here since Terramate generated an invalid expression after
+			// partial evaluation and it is a guaranteed invariant that partial
+			// evaluation only produces valid expressions.
+			log.Error().
+				Err(diags).
+				Str("partiallyEvaluated", string(partialEvalTokens.Bytes())).
+				Msg("partially evaluated `attributes` should be a valid expression")
+			panic(hclAttrErr(attrs.attributes,
+				"internal error: partially evaluated `attributes` produced invalid expression: %v", diags))
+		}
+		objectExpr, ok := parsedAttrs.(*hclsyntax.ObjectConsExpr)
+		if !ok {
+			tmDynamicErr = hclAttrErr(attrs.attributes,
+				"tm_dynamic attributes must be an object, got %T instead", objectExpr)
+			return true
+		}
+
+		newbody := newblock.Body()
+
+		for _, item := range objectExpr.Items {
+			// TODO(katcipis): test invalid key expressions
+			keyVal, _ := evaluator.Eval(item.KeyExpr)
+			field := keyVal.AsString()
+
+			valExpr, err := eval.GetExpressionTokens(partialEvalTokens.Bytes(), item.ValueExpr)
+			if err != nil {
+				// Panic here since Terramate generated an invalid expression after
+				// partial evaluation and it is a guaranteed invariant that partial
+				// evaluation only produces valid expressions.
+				log.Error().
+					Err(diags).
+					Str("field", field).
+					Str("partiallyEvaluated", string(partialEvalTokens.Bytes())).
+					Msg("partially evaluated `attributes` has invalid value expression inside object")
+				panic(hclAttrErr(attrs.attributes,
+					"internal error: partially evaluated `attributes` has invalid value expressions inside object: %v", err))
+			}
+
+			logger.Trace().
+				Str("attribute", field).
+				Str("value", string(valExpr.Bytes())).
+				Msg("adding attribute on generated block")
+
+			newbody.SetAttributeRaw(field, valExpr)
 		}
 
 		return false
 	})
-	eval.DeleteNamespace(iterator)
+	evaluator.DeleteNamespace(iterator)
 	return tmDynamicErr
 }
 
