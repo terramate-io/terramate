@@ -934,12 +934,19 @@ func getDynamicBlockAttrs(block *hclsyntax.Block) (dynBlockAttributes, error) {
 func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Evaluator) error {
 	errs := errors.L()
 
-	fmt.Println("KMLO MAIN", block)
-
 	if len(block.Labels) != 1 {
 		errs.Append(errors.E(ErrTerramateSchema,
 			block.LabelRanges, "tm_dynamic requires a label"))
 	}
+
+	genBlockType := block.Labels[0]
+
+	logger := log.With().
+		Str("action", "hcl.appendDynamicBlock").
+		Str("tm_dynamic", genBlockType).
+		Logger()
+
+	logger.Trace().Msg("parsing tm_dynamic block attributes")
 
 	attrs, err := getDynamicBlockAttrs(block)
 	if err != nil {
@@ -965,7 +972,8 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 		return err
 	}
 
-	genBlockType := block.Labels[0]
+	logger.Trace().Msg("defining iterator name")
+
 	iterator := genBlockType
 	if attrs.iterator != nil {
 		iteratorTraversal, diags := hcl.AbsTraversalForExpr(attrs.iterator.Expr)
@@ -980,6 +988,12 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 		iterator = iteratorTraversal.RootName()
 	}
 
+	logger = logger.With().
+		Str("iterator", iterator).
+		Logger()
+
+	logger.Trace().Msg("evaluating for_each attribute")
+
 	forEachVal, err := eval.Eval(attrs.foreach.Expr)
 	if err != nil {
 		return hclAttrErr(attrs.foreach, "evaluating `for_each` expression")
@@ -990,6 +1004,8 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 			"expression value of type %s cannot be iterated",
 			forEachVal.Type().FriendlyName())
 	}
+
+	logger.Trace().Msg("generating blocks")
 
 	var tmDynamicErr error
 	forEachVal.ForEachElement(func(key, value cty.Value) (stop bool) {
@@ -1015,10 +1031,13 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 		}
 
 		newblock := target.AppendBlock(hclwrite.NewBlock(genBlockType, labels))
-		err := CopyBody(newblock.Body(), contentBlock.Body, eval)
-		if err != nil {
-			tmDynamicErr = err
-			return true
+
+		if contentBlock != nil {
+			err := CopyBody(newblock.Body(), contentBlock.Body, eval)
+			if err != nil {
+				tmDynamicErr = err
+				return true
+			}
 		}
 
 		return false

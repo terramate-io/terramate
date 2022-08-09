@@ -306,7 +306,57 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			},
 		},
 		{
-			name:  "tm_dynamic inside tm_dynamic",
+			name:  "using partially evaluated attributes",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							tmdynamic(
+								labels("attributes"),
+								expr("for_each", `["a", "b", "c"]`),
+								expr("iterator", "iter"),
+								expr("attributes", `{
+								  value : iter.value,
+								  key: iter.key,
+								  other: something.other,
+								}`),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "tm_dynamic_test.tf",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body: hcldoc(
+							block("attributes",
+								number("key", 0),
+								expr("other", "something.other"),
+								str("value", "a"),
+							),
+							block("attributes",
+								number("key", 1),
+								expr("other", "something.other"),
+								str("value", "b"),
+							),
+							block("attributes",
+								number("key", 2),
+								expr("other", "something.other"),
+								str("value", "c"),
+							),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "tm_dynamic inside tm_dynamic using content",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
