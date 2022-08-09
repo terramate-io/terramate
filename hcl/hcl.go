@@ -1033,6 +1033,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 		newblock := target.AppendBlock(hclwrite.NewBlock(genBlockType, labels))
 
 		if contentBlock != nil {
+			logger.Trace().Msg("using content block for new block body")
 			err := CopyBody(newblock.Body(), contentBlock.Body, eval)
 			if err != nil {
 				tmDynamicErr = err
