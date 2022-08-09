@@ -22,10 +22,13 @@ import (
 )
 
 // TODO(katcipis)
-// - Test maps with keys that are expressions like (global.a) (https://www.terraform.io/language/expressions/types#maps-objects)
-// - Test maps with keys that are expressions to undefined references
-// - Test maps with keys that are expressions that evaluates to something that is not string
-// - Test dynamic inside dynamic with attributes
+// - maps with keys that are expressions like (global.a) (https://www.terraform.io/language/expressions/types#maps-objects)
+// - maps with keys that are expressions to undefined references
+// - maps with keys that are expressions that evaluates to something that is not string
+// - dynamic inside dynamic with attributes
+// - attributes is null fails
+// - attributes is empty generates empty block
+// - attributes defined with a tm_merge with another object (global + in place)
 
 func TestGenerateHCLDynamic(t *testing.T) {
 	tcases := []testcase{
