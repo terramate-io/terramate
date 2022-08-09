@@ -478,7 +478,7 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 	}
 
 	if srcVal.Type() != cty.String {
-		return attrEvalErr(srcAttr, "import.source must be a string")
+		return attrErr(srcAttr, "import.source must be a string")
 	}
 
 	src := srcVal.AsString()
@@ -863,18 +863,12 @@ func appendBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Evaluator) 
 	return nil
 }
 
-func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Evaluator) error {
-	attrs := block.Body.Attributes
+func getContentBlock(blocks hclsyntax.Blocks) (*hclsyntax.Block, error) {
+	var contentBlock *hclsyntax.Block
 
 	errs := errors.L()
-	if len(block.Labels) != 1 {
-		errs.Append(errors.E(ErrTerramateSchema,
-			block.LabelRanges, "tm_dynamic requires a label"))
-	}
 
-	var genContentBlock *hclsyntax.Block
-
-	for _, b := range block.Body.Blocks {
+	for _, b := range blocks {
 		if b.Type != "content" {
 			errs.Append(errors.E(ErrTerramateSchema,
 				b.TypeRange, "unrecognized block %s", b.Type))
@@ -882,19 +876,89 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 			continue
 		}
 
-		if genContentBlock != nil {
+		if contentBlock != nil {
 			errs.Append(errors.E(ErrTerramateSchema, b.TypeRange,
 				"multiple definitions of the `content` block"))
 
 			continue
 		}
 
-		genContentBlock = b
+		contentBlock = b
 	}
 
-	if genContentBlock == nil {
+	if err := errs.AsError(); err != nil {
+		return nil, err
+	}
+
+	return contentBlock, nil
+}
+
+type dynBlockAttributes struct {
+	attributes *hclsyntax.Attribute
+	iterator   *hclsyntax.Attribute
+	foreach    *hclsyntax.Attribute
+	labels     *hclsyntax.Attribute
+}
+
+func getDynamicBlockAttrs(block *hclsyntax.Block) (dynBlockAttributes, error) {
+	dynAttrs := dynBlockAttributes{}
+	errs := errors.L()
+
+	for name, attr := range block.Body.Attributes {
+		switch name {
+		case "attributes":
+			dynAttrs.attributes = attr
+		case "for_each":
+			dynAttrs.foreach = attr
+		case "labels":
+			dynAttrs.labels = attr
+		case "iterator":
+			dynAttrs.iterator = attr
+		default:
+			errs.Append(hclAttrErr(
+				attr, "tm_dynamic unsupported attribute %q", name))
+		}
+	}
+
+	if dynAttrs.foreach == nil {
+		errs.Append(errors.E(block.Body.Range(),
+			ErrTerramateSchema,
+			"tm_dynamic requires a `for_each` attribute"))
+	}
+
+	// Unusual but we return the value so further errors can still be added
+	// based on properties of the attributes that are valid.
+	return dynAttrs, errs.AsError()
+}
+
+func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Evaluator) error {
+	errs := errors.L()
+
+	fmt.Println("KMLO MAIN", block)
+
+	if len(block.Labels) != 1 {
+		errs.Append(errors.E(ErrTerramateSchema,
+			block.LabelRanges, "tm_dynamic requires a label"))
+	}
+
+	attrs, err := getDynamicBlockAttrs(block)
+	if err != nil {
+		errs.Append(err)
+	}
+
+	contentBlock, err := getContentBlock(block.Body.Blocks)
+	if err != nil {
+		errs.Append(err)
+	}
+
+	if contentBlock == nil && attrs.attributes == nil {
 		errs.Append(errors.E(ErrTerramateSchema, block.Body.Range(),
-			"`content` block not defined"))
+			"`content` block or `attributes` must be defined"))
+	}
+
+	if contentBlock != nil && attrs.attributes != nil {
+		errs.Append(errors.E(ErrTerramateSchema, block.Body.Range(),
+			"`content` block and `attributes` are not allowed together"))
 	}
 
 	if err := errs.AsError(); err != nil {
@@ -903,39 +967,29 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 
 	genBlockType := block.Labels[0]
 	iterator := genBlockType
-	iteratorAttr, ok := attrs["iterator"]
-	if ok {
-		iteratorTraversal, diags := hcl.AbsTraversalForExpr(iteratorAttr.Expr)
+	if attrs.iterator != nil {
+		iteratorTraversal, diags := hcl.AbsTraversalForExpr(attrs.iterator.Expr)
 		if diags.HasErrors() {
 			return errors.E(diags, ErrInvalidDynamicIterator,
 				"failed to traverse expression")
 		}
 		if len(iteratorTraversal) != 1 {
-			return hclAttrEvalErr(iteratorAttr,
+			return hclAttrErr(attrs.iterator,
 				"dynamic iterator must be a single variable name")
 		}
 		iterator = iteratorTraversal.RootName()
 	}
 
-	forEachAttr, ok := attrs["for_each"]
-	if !ok {
-		return errors.E(block.Body.Range(),
-			ErrTerramateSchema,
-			"tm_dynamic requires a `for_each` attribute")
-	}
-
-	forEachVal, err := eval.Eval(forEachAttr.Expr)
+	forEachVal, err := eval.Eval(attrs.foreach.Expr)
 	if err != nil {
-		return hclAttrEvalErr(forEachAttr, "evaluating `for_each` expression")
+		return hclAttrErr(attrs.foreach, "evaluating `for_each` expression")
 	}
 
 	if !forEachVal.CanIterateElements() {
-		return hclAttrEvalErr(forEachAttr,
+		return hclAttrErr(attrs.foreach,
 			"expression value of type %s cannot be iterated",
 			forEachVal.Type().FriendlyName())
 	}
-
-	labelsAttr, hasLabels := attrs["labels"]
 
 	var tmDynamicErr error
 	forEachVal.ForEachElement(func(key, value cty.Value) (stop bool) {
@@ -945,10 +999,10 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 		})
 
 		var labels []string
-		if hasLabels {
-			labelsVal, err := eval.Eval(labelsAttr.Expr)
+		if attrs.labels != nil {
+			labelsVal, err := eval.Eval(attrs.labels.Expr)
 			if err != nil {
-				tmDynamicErr = hclAttrEvalErr(labelsAttr,
+				tmDynamicErr = hclAttrErr(attrs.labels,
 					"failed to evaluate the `labels` attribute")
 				return true
 			}
@@ -961,7 +1015,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, eval Eval
 		}
 
 		newblock := target.AppendBlock(hclwrite.NewBlock(genBlockType, labels))
-		err := CopyBody(newblock.Body(), genContentBlock.Body, eval)
+		err := CopyBody(newblock.Body(), contentBlock.Body, eval)
 		if err != nil {
 			tmDynamicErr = err
 			return true
@@ -1064,7 +1118,7 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 		switch attr.Name {
 		case StackIDField:
 			if attrVal.Type() != cty.String {
-				errs.Append(hclAttrEvalErr(attr,
+				errs.Append(hclAttrErr(attr,
 					"field stack.id must be a string but is %q",
 					attrVal.Type().FriendlyName()),
 				)
@@ -1081,7 +1135,7 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 			stack.ID = id
 		case "name":
 			if attrVal.Type() != cty.String {
-				errs.Append(hclAttrEvalErr(attr,
+				errs.Append(hclAttrErr(attr,
 					"field stack.name must be a string but given %q",
 					attrVal.Type().FriendlyName()),
 				)
@@ -1104,7 +1158,7 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 		case "description":
 			logger.Trace().Msg("parsing stack description.")
 			if attrVal.Type() != cty.String {
-				errs.Append(hclAttrEvalErr(attr,
+				errs.Append(hclAttrErr(attr,
 					"field stack.\"description\" must be a \"string\" but given %q",
 					attrVal.Type().FriendlyName(),
 				))
@@ -1188,7 +1242,7 @@ func parseRunConfig(runCfg *RunConfig, runBlock *ast.MergedBlock) error {
 		switch attr.Name {
 		case "check_gen_code":
 			if value.Type() != cty.Bool {
-				errs.Append(attrEvalErr(attr,
+				errs.Append(attrErr(attr,
 					"terramate.config.run.check_gen_code is not a bool but %q",
 					value.Type().FriendlyName(),
 				))
@@ -1252,7 +1306,7 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 		switch attr.Name {
 		case "default_branch":
 			if value.Type() != cty.String {
-				errs.Append(attrEvalErr(attr,
+				errs.Append(attrErr(attr,
 					"terramate.config.git.branch is not a string but %q",
 					value.Type().FriendlyName(),
 				))
@@ -1263,7 +1317,7 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 			git.DefaultBranch = value.AsString()
 		case "default_remote":
 			if value.Type() != cty.String {
-				errs.Append(attrEvalErr(attr,
+				errs.Append(attrErr(attr,
 					"terramate.config.git.remote is not a string but %q",
 					value.Type().FriendlyName(),
 				))
@@ -1275,7 +1329,7 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 
 		case "default_branch_base_ref":
 			if value.Type() != cty.String {
-				errs.Append(attrEvalErr(attr,
+				errs.Append(attrErr(attr,
 					"terramate.config.git.defaultBranchBaseRef is not a string but %q",
 					value.Type().FriendlyName(),
 				))
@@ -1286,7 +1340,7 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 
 		case "check_untracked":
 			if value.Type() != cty.Bool {
-				errs.Append(attrEvalErr(attr,
+				errs.Append(attrErr(attr,
 					"terramate.config.git.check_untracked is not a boolean but %q",
 					value.Type().FriendlyName(),
 				))
@@ -1295,7 +1349,7 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 			git.CheckUntracked = value.True()
 		case "check_uncommitted":
 			if value.Type() != cty.Bool {
-				errs.Append(attrEvalErr(attr,
+				errs.Append(attrErr(attr,
 					"terramate.config.git.check_uncommitted is not a boolean but %q",
 					value.Type().FriendlyName(),
 				))
@@ -1304,7 +1358,7 @@ func parseGitConfig(git *GitConfig, gitBlock *ast.MergedBlock) error {
 			git.CheckUncommitted = value.True()
 		case "check_remote":
 			if value.Type() != cty.Bool {
-				errs.Append(attrEvalErr(attr,
+				errs.Append(attrErr(attr,
 					"terramate.config.git.check_remote is not a boolean but %q",
 					value.Type().FriendlyName(),
 				))
@@ -1646,10 +1700,10 @@ func isTerramateFile(filename string) bool {
 	return strings.HasSuffix(filename, ".tm") || strings.HasSuffix(filename, ".tm.hcl")
 }
 
-func hclAttrEvalErr(attr *hclsyntax.Attribute, msg string, args ...interface{}) error {
+func hclAttrErr(attr *hclsyntax.Attribute, msg string, args ...interface{}) error {
 	return errors.E(ErrTerramateSchema, attr.Expr.Range(), fmt.Sprintf(msg, args...))
 }
 
-func attrEvalErr(attr ast.Attribute, msg string, args ...interface{}) error {
-	return hclAttrEvalErr(attr.Attribute, msg, args...)
+func attrErr(attr ast.Attribute, msg string, args ...interface{}) error {
+	return hclAttrErr(attr.Attribute, msg, args...)
 }

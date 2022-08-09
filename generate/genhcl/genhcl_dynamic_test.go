@@ -414,7 +414,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			wantErr: errors.E(hcl.ErrInvalidDynamicIterator),
 		},
 		{
-			name:  "tm_dynamic with no content block",
+			name:  "no content block and no attributes fails",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
@@ -425,6 +425,73 @@ func TestGenerateHCLDynamic(t *testing.T) {
 							tmdynamic(
 								labels("my_block"),
 								expr("for_each", `["a", "b", "c"]`),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:  "attributes and unknown attribute fails",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							tmdynamic(
+								labels("my_block"),
+								expr("for_each", `["a", "b", "c"]`),
+								expr("attributes", `{ b : 666 }`),
+								str("something", "val"),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:  "content and unknown attribute fails",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							tmdynamic(
+								labels("my_block"),
+								expr("for_each", `["a", "b", "c"]`),
+								str("something", "val"),
+								content(
+									str("a", "val"),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:  "content block and attributes fails",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							tmdynamic(
+								labels("my_block"),
+								expr("for_each", `["a", "b", "c"]`),
+								expr("attributes", `{ b : 666 }`),
+								content(
+									str("a", "val"),
+								),
 							),
 						),
 					),
