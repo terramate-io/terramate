@@ -1006,7 +1006,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 
 	forEachVal, err := evaluator.Eval(attrs.foreach.Expr)
 	if err != nil {
-		return hclAttrErr(attrs.foreach, "evaluating `for_each` expression")
+		return wrapHclAttrErr(err, attrs.foreach, "evaluating `for_each` expression")
 	}
 
 	if !forEachVal.CanIterateElements() {
@@ -1028,7 +1028,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 		if attrs.labels != nil {
 			labelsVal, err := evaluator.Eval(attrs.labels.Expr)
 			if err != nil {
-				tmDynamicErr = hclAttrErr(attrs.labels,
+				tmDynamicErr = wrapHclAttrErr(err, attrs.labels,
 					"failed to evaluate the `labels` attribute")
 				return true
 			}
@@ -1057,8 +1057,8 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 		logger.Trace().Msg("using attributes to define new block body")
 		partialEvalTokens, err := evaluator.PartialEval(attrs.attributes.Expr)
 		if err != nil {
-			tmDynamicErr = hclAttrErr(attrs.attributes,
-				"failed to partially evaluate attributes")
+			tmDynamicErr = wrapHclAttrErr(err, attrs.attributes,
+				" partially evaluating tm_dynamic attributes")
 			return true
 		}
 
@@ -1078,7 +1078,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 				Err(diags).
 				Str("partiallyEvaluated", string(partialEvalTokens.Bytes())).
 				Msg("partially evaluated `attributes` should be a valid expression")
-			panic(hclAttrErr(attrs.attributes,
+			panic(wrapHclAttrErr(err, attrs.attributes,
 				"internal error: partially evaluated `attributes` produced invalid expression: %v", diags))
 		}
 		objectExpr, ok := parsedAttrs.(*hclsyntax.ObjectConsExpr)
@@ -1105,7 +1105,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 					Str("field", field).
 					Str("partiallyEvaluated", string(partialEvalTokens.Bytes())).
 					Msg("partially evaluated `attributes` has invalid value expression inside object")
-				panic(hclAttrErr(attrs.attributes,
+				panic(wrapHclAttrErr(err, attrs.attributes,
 					"internal error: partially evaluated `attributes` has invalid value expressions inside object: %v", err))
 			}
 
@@ -1798,6 +1798,10 @@ func isTerramateFile(filename string) bool {
 
 func hclAttrErr(attr *hclsyntax.Attribute, msg string, args ...interface{}) error {
 	return errors.E(ErrTerramateSchema, attr.Expr.Range(), fmt.Sprintf(msg, args...))
+}
+
+func wrapHclAttrErr(err error, attr *hclsyntax.Attribute, msg string, args ...interface{}) error {
+	return errors.E(ErrTerramateSchema, err, attr.Expr.Range(), fmt.Sprintf(msg, args...))
 }
 
 func attrErr(attr ast.Attribute, msg string, args ...interface{}) error {

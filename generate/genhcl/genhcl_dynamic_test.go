@@ -26,9 +26,6 @@ import (
 // - maps with keys that are expressions to undefined references
 // - maps with keys that are expressions that evaluates to something that is not string
 // - dynamic inside dynamic with attributes
-// - attributes is null fails
-// - attributes is empty generates empty block
-// - attributes defined with a tm_merge with another object (global + in place)
 
 func TestGenerateHCLDynamic(t *testing.T) {
 	tcases := []testcase{
@@ -315,6 +312,38 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			},
 		},
 		{
+			name:  "empty attributes generates empty blocks",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("empty.tf"),
+						content(
+							tmdynamic(
+								labels("empty"),
+								expr("for_each", `["a", "b"]`),
+								expr("attributes", `{}`),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "empty.tf",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body: hcldoc(
+							block("empty"),
+							block("empty"),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "using partially evaluated attributes",
 			stack: "/stack",
 			configs: []hclconfig{
@@ -358,6 +387,53 @@ func TestGenerateHCLDynamic(t *testing.T) {
 								str("value", "c"),
 								number("key", 2),
 								expr("other", "something.other"),
+							),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "attributes is result of tm function",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "globals.tm",
+					add: globals(
+						expr("obj", `{
+						  a = "global data"
+						}`),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "gen.tm",
+					add: generateHCL(
+						labels("test.tf"),
+						content(
+							tmdynamic(
+								labels("test"),
+								expr("for_each", `["a"]`),
+								expr("iterator", "iter"),
+								expr("attributes", `tm_merge(global.obj, {
+								  b = 666,
+								})`),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test.tf",
+					hcl: genHCL{
+						origin:    "/stack/gen.tm",
+						condition: true,
+						body: hcldoc(
+							block("test",
+								str("a", "global data"),
+								number("b", 666),
 							),
 						),
 					},
@@ -584,6 +660,46 @@ func TestGenerateHCLDynamic(t *testing.T) {
 							tmdynamic(
 								labels("my_block"),
 								expr("for_each", `["a", "b", "c"]`),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:  "attributes is null fails",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							tmdynamic(
+								labels("my_block"),
+								expr("for_each", `["a"]`),
+								expr("attributes", "null"),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:  "attributes is not object fails",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							tmdynamic(
+								labels("my_block"),
+								expr("for_each", `["a"]`),
+								expr("attributes", "[]"),
 							),
 						),
 					),
