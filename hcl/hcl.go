@@ -945,8 +945,8 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 	errs := errors.L()
 
 	if len(block.Labels) != 1 {
-		errs.Append(errors.E(ErrTerramateSchema,
-			block.LabelRanges, "tm_dynamic requires a label"))
+		return errors.E(ErrTerramateSchema,
+			block.LabelRanges, "tm_dynamic requires a single label")
 	}
 
 	genBlockType := block.Labels[0]

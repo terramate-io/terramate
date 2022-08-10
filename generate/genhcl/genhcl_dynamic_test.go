@@ -880,6 +880,99 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
+			name:  "tm_dynamic with more than one label fails",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							tmdynamic(
+								labels("my_block", "nope"),
+								expr("for_each", `["a"]`),
+								content(
+									str("a", "val"),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:  "tm_dynamic with multiple content blocks fail",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							tmdynamic(
+								labels("my_block"),
+								expr("for_each", `["a"]`),
+								content(
+									str("a", "val"),
+								),
+								content(
+									str("a", "val"),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:  "tm_dynamic with unknown block fail",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							tmdynamic(
+								labels("my_block"),
+								expr("for_each", `["a"]`),
+								content(
+									str("a", "val"),
+								),
+								block("unsupported",
+									str("a", "val"),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:  "tm_dynamic with no label fails",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							tmdynamic(
+								expr("for_each", `["a"]`),
+								content(
+									str("a", "val"),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
 			name:  "content and unknown attribute fails",
 			stack: "/stack",
 			configs: []hclconfig{
