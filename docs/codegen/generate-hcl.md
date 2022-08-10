@@ -120,7 +120,17 @@ terraform {
 
 The `tm_dynamic` is a special block type that can only be used inside the
 `content` block of the `generate_hcl` block.
-It's similar to [Terraform dynamic blocks](https://www.terraform.io/language/expressions/dynamic-blocks) but supports partial evaluation of the expanded code.
+It's similar to [Terraform dynamic blocks](https://www.terraform.io/language/expressions/dynamic-blocks)
+but supports partial evaluation of the expanded code.
+
+There are two ways to use a `tm_dynamic` block, one is using a block `content` inside
+it to define how to generate the blocks dynamically.
+
+Another one is to define an `attributes` object, where each field inside the object
+will become an attribute inside the dynamically generated blocks.
+
+A `tm_dynamic` block may have only one `content` block **OR** one `attributes` object,
+having both defined is not allowed.
 
 Example:
 
@@ -163,8 +173,30 @@ block {
 }
 ```
 
-The `tm_dynamic` only evaluates the Terramate variables, everything else is just
-copied as is to the final generated code.
+The `tm_dynamic` content block only evaluates the Terramate variables/functions,
+everything else is just copied as is to the final generated code.
+
+The same goes when using `attributes`:
+
+```hcl
+globals {
+  values = ["a", "b", "c"]
+}
+
+generate_hcl "file.tf" {
+  content {
+    tm_dynamic "block" {
+      for_each = global.values
+      iterator = value
+
+      attributes = {
+        attr = "index: ${value.key}, value: ${value.value}" 
+        attr2 = not_evaluated.attr
+      }
+    }
+  }
+}
+```
 
 ## Hierarchical Code Generation
 
