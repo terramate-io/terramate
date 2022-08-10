@@ -123,8 +123,8 @@ The `tm_dynamic` is a special block type that can only be used inside the
 It's similar to [Terraform dynamic blocks](https://www.terraform.io/language/expressions/dynamic-blocks)
 but supports partial evaluation of the expanded code.
 
-There are two ways to use a `tm_dynamic` block, one is using a block `content` inside
-it to define how to generate the blocks dynamically.
+There are two ways to define a `tm_dynamic` block. One is using a `content` block that
+will define how to generate the blocks dynamically.
 
 Another one is to define an `attributes` object, where each field inside the object
 will become an attribute inside the dynamically generated blocks.
@@ -132,7 +132,7 @@ will become an attribute inside the dynamically generated blocks.
 A `tm_dynamic` block may have only one `content` block **OR** one `attributes` object,
 having both defined is not allowed.
 
-Example:
+Example using the `content` block:
 
 ```hcl
 globals {
@@ -154,7 +154,7 @@ generate_hcl "file.tf" {
 }
 ```
 
-The config above is going to generate the `file.tf` with code below:
+Which generates a `file.tf` file like this:
 
 ```hcl
 block {
@@ -195,6 +195,25 @@ generate_hcl "file.tf" {
       }
     }
   }
+}
+```
+
+Also generates a `file.tf` file like this:
+
+```hcl
+block {
+  attr = "index: 0, value: a"
+  attr2 = not_evaluated.attr
+}
+
+block {
+  attr = "index: 1, value: b"
+  attr2 = not_evaluated.attr
+}
+
+block {
+  attr = "index: 2, value: c"
+  attr2 = not_evaluated.attr
 }
 ```
 
