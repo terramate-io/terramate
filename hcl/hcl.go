@@ -1010,7 +1010,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 
 	forEachVal, err := evaluator.Eval(attrs.foreach.Expr)
 	if err != nil {
-		return wrapHclAttrErr(err, attrs.foreach, "evaluating `for_each` expression")
+		return wrapHCLAttrErr(err, attrs.foreach, "evaluating `for_each` expression")
 	}
 
 	if !forEachVal.CanIterateElements() {
@@ -1033,7 +1033,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 		if attrs.labels != nil {
 			labelsVal, err := evaluator.Eval(attrs.labels.Expr)
 			if err != nil {
-				tmDynamicErr = wrapHclAttrErr(err, attrs.labels,
+				tmDynamicErr = wrapHCLAttrErr(err, attrs.labels,
 					"failed to evaluate the `labels` attribute")
 				return true
 			}
@@ -1063,7 +1063,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 
 		partialEvalAttributes, err := evaluator.PartialEval(attrs.attributes.Expr)
 		if err != nil {
-			tmDynamicErr = wrapHclAttrErr(err, attrs.attributes,
+			tmDynamicErr = wrapHCLAttrErr(err, attrs.attributes,
 				"partially evaluating tm_dynamic attributes")
 			return true
 		}
@@ -1084,7 +1084,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 				Err(diags).
 				Str("partiallyEvaluated", string(partialEvalAttributes.Bytes())).
 				Msg("partially evaluated `attributes` should be a valid expression")
-			panic(wrapHclAttrErr(err, attrs.attributes,
+			panic(wrapHCLAttrErr(err, attrs.attributes,
 				"internal error: partially evaluated `attributes` produced invalid expression: %v", diags))
 		}
 
@@ -1100,7 +1100,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 		for _, item := range objectExpr.Items {
 			keyVal, err := evaluator.Eval(item.KeyExpr)
 			if err != nil {
-				tmDynamicErr = wrapHclAttrErr(err, attrs.attributes,
+				tmDynamicErr = wrapHCLAttrErr(err, attrs.attributes,
 					"evaluating tm_dynamic.attributes object key")
 				return true
 			}
@@ -1123,7 +1123,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 					Str("attribute", attrName).
 					Str("partiallyEvaluated", string(partialEvalAttributes.Bytes())).
 					Msg("partially evaluated `attributes` has invalid value expression inside object")
-				panic(wrapHclAttrErr(err, attrs.attributes,
+				panic(wrapHCLAttrErr(err, attrs.attributes,
 					"internal error: partially evaluated `attributes` has invalid value expressions inside object: %v", err))
 			}
 
@@ -1819,7 +1819,7 @@ func hclAttrErr(attr *hclsyntax.Attribute, msg string, args ...interface{}) erro
 	return errors.E(ErrTerramateSchema, attr.Expr.Range(), fmt.Sprintf(msg, args...))
 }
 
-func wrapHclAttrErr(err error, attr *hclsyntax.Attribute, msg string, args ...interface{}) error {
+func wrapHCLAttrErr(err error, attr *hclsyntax.Attribute, msg string, args ...interface{}) error {
 	return errors.E(ErrTerramateSchema, err, attr.Expr.Range(), fmt.Sprintf(msg, args...))
 }
 
