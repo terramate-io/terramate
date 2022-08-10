@@ -19,6 +19,7 @@ import (
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/eval"
 )
 
 func TestGenerateHCLDynamic(t *testing.T) {
@@ -1092,6 +1093,48 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				},
 			},
 			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:  "tm_dynamic with undefined global on attributes fails",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							tmdynamic(
+								labels("my_block"),
+								expr("for_each", `["a"]`),
+								expr("attributes", `{ a = global.undefined }`),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(eval.ErrPartial),
+		},
+		{
+			name:  "tm_dynamic with undefined global on content fails",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							tmdynamic(
+								labels("my_block"),
+								expr("for_each", `["a"]`),
+								content(
+									expr("a", `{ a = global.undefined }`),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(eval.ErrPartial),
 		},
 		{
 			name:  "tm_dynamic with non-iterable for_each fail",
