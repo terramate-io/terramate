@@ -732,6 +732,57 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			},
 		},
 		{
+			name:  "tm_dynamic using globals in for_each and content",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: hcldoc(
+						globals(
+							str("msg", "hello"),
+							expr("values", `["a", "b", "c"]`),
+						),
+						generateHCL(
+							labels("tm_dynamic_test.tf"),
+							content(
+								tmdynamic(
+									labels("my_block"),
+									expr("for_each", `global.values`),
+									content(
+										expr("msg", `global.msg`),
+										expr("val", `global.values[my_block.key]`),
+									),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "tm_dynamic_test.tf",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body: hcldoc(
+							block("my_block",
+								str("msg", "hello"),
+								str("val", "a"),
+							),
+							block("my_block",
+								str("msg", "hello"),
+								str("val", "b"),
+							),
+							block("my_block",
+								str("msg", "hello"),
+								str("val", "c"),
+							),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "tm_dynamic with invalid iterator",
 			stack: "/stack",
 			configs: []hclconfig{
@@ -952,6 +1003,119 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
+			name:  "tm_dynamic with undefined for_each fail",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							tmdynamic(
+								labels("my_block"),
+								expr("for_each", `[local.a]`),
+								content(
+									str("a", "val"),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:  "tm_dynamic with labels with undefined references fails",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							tmdynamic(
+								labels("my_block"),
+								expr("for_each", `["a"]`),
+								expr("labels", "[local.a]"),
+								content(
+									str("a", "val"),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:  "tm_dynamic with labels that is not a list fails",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							tmdynamic(
+								labels("my_block"),
+								expr("for_each", `["a"]`),
+								expr("labels", "{}"),
+								content(
+									str("a", "val"),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:  "tm_dynamic with iterator with traversal fails",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							tmdynamic(
+								labels("my_block"),
+								expr("for_each", `["a"]`),
+								expr("iterator", "name.traverse"),
+								content(
+									str("a", "val"),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:  "tm_dynamic with non-iterable for_each fail",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							tmdynamic(
+								labels("my_block"),
+								number("for_each", 666),
+								content(
+									str("a", "val"),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
 			name:  "tm_dynamic with no label fails",
 			stack: "/stack",
 			configs: []hclconfig{
@@ -1019,7 +1183,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
-			name:  "tm_dynamic with no for_each",
+			name:  "tm_dynamic with no for_each fails",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
@@ -1038,57 +1202,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				},
 			},
 			wantErr: errors.E(hcl.ErrTerramateSchema),
-		},
-		{
-			name:  "tm_dynamic using globals in for_each and content",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack",
-					add: hcldoc(
-						globals(
-							str("msg", "hello"),
-							expr("values", `["a", "b", "c"]`),
-						),
-						generateHCL(
-							labels("tm_dynamic_test.tf"),
-							content(
-								tmdynamic(
-									labels("my_block"),
-									expr("for_each", `global.values`),
-									content(
-										expr("msg", `global.msg`),
-										expr("val", `global.values[my_block.key]`),
-									),
-								),
-							),
-						),
-					),
-				},
-			},
-			want: []result{
-				{
-					name: "tm_dynamic_test.tf",
-					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
-						condition: true,
-						body: hcldoc(
-							block("my_block",
-								str("msg", "hello"),
-								str("val", "a"),
-							),
-							block("my_block",
-								str("msg", "hello"),
-								str("val", "b"),
-							),
-							block("my_block",
-								str("msg", "hello"),
-								str("val", "c"),
-							),
-						),
-					},
-				},
-			},
 		},
 	}
 
