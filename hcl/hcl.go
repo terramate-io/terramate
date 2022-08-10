@@ -180,7 +180,7 @@ type Evaluator interface {
 	// SetNamespace adds a new namespace, replacing any with the same name.
 	SetNamespace(name string, values map[string]cty.Value)
 
-	// DeleteNamespace removes a namespace.
+	// DeleteNamespace deletes a namespace.
 	DeleteNamespace(name string)
 }
 
@@ -945,15 +945,12 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 	errs := errors.L()
 
 	if len(block.Labels) != 1 {
-		return errors.E(ErrTerramateSchema,
-			block.LabelRanges, "tm_dynamic requires a single label")
+		errs.Append(errors.E(ErrTerramateSchema,
+			block.LabelRanges, "tm_dynamic requires a single label"))
 	}
-
-	genBlockType := block.Labels[0]
 
 	logger := log.With().
 		Str("action", "hcl.appendDynamicBlock").
-		Str("tm_dynamic", genBlockType).
 		Logger()
 
 	logger.Trace().Msg("parsing tm_dynamic block attributes")
@@ -981,6 +978,12 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 	if err := errs.AsError(); err != nil {
 		return err
 	}
+
+	genBlockType := block.Labels[0]
+
+	logger = logger.With().
+		Str("tm_dynamic", genBlockType).
+		Logger()
 
 	logger.Trace().Msg("defining iterator name")
 
