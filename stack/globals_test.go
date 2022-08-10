@@ -1357,6 +1357,69 @@ func TestLoadGlobals(t *testing.T) {
 				),
 			},
 		},
+		{
+			name: "unset globals",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+				"s:stacks/stack-3",
+				"s:stacks/stack-4",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: globals(
+						str("a", "a"),
+						str("b", "b"),
+						str("c", "c"),
+					),
+				},
+				{
+					path: "/stacks",
+					add: globals(
+						str("d", "d"),
+						expr("b", "unset"),
+					),
+				},
+				{
+					path: "/stacks/stack-1",
+					add: globals(
+						expr("c", "unset"),
+						expr("d", "unset"),
+					),
+				},
+				{
+					path: "/stacks/stack-3",
+					add: globals(
+						str("b", "redefined"),
+					),
+				},
+				{
+					path: "/stacks/stack-4",
+					add: globals(
+						expr("a", "unset"),
+						expr("c", "unset"),
+						expr("d", "unset"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-1": globals(
+					str("a", "a"),
+				),
+				"/stacks/stack-2": globals(
+					str("a", "a"),
+					str("c", "c"),
+					str("d", "d"),
+				),
+				"/stacks/stack-3": globals(
+					str("a", "a"),
+					str("b", "redefined"),
+					str("c", "c"),
+					str("d", "d"),
+				),
+			},
+		},
 	}
 
 	for _, tcase := range tcases {

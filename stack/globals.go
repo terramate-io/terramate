@@ -106,6 +106,27 @@ func (ge *globalsExpr) has(name string) bool {
 	return ok
 }
 
+func removeUnset(globals map[string]expression) map[string]expression {
+	res := map[string]expression{}
+
+	for name, expr := range globals {
+		traversal, diags := hhcl.AbsTraversalForExpr(expr.value)
+		if diags.HasErrors() {
+			res[name] = expr
+			continue
+		}
+		if len(traversal) != 1 {
+			res[name] = expr
+			continue
+		}
+		if traversal.RootName() != "unset" {
+			res[name] = expr
+		}
+	}
+
+	return res
+}
+
 func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 	// FIXME(katcipis): get abs path for stack.
 	// This is relative only to root since meta.Path will look
@@ -123,7 +144,7 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 	evalctx := NewEvalCtx(rootdir, meta, globals)
 
 	pendingExprsErrs := map[string]error{}
-	pendingExprs := ge.expressions
+	pendingExprs := removeUnset(ge.expressions)
 
 	for len(pendingExprs) > 0 {
 		amountEvaluated := 0
