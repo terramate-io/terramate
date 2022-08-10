@@ -21,12 +21,6 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 )
 
-// TODO(katcipis)
-// - maps with keys that are expressions like (global.a) (https://www.terraform.io/language/expressions/types#maps-objects)
-// - maps with keys that are expressions to undefined references
-// - maps with keys that are expressions that evaluates to something that is not string
-// - dynamic inside dynamic with attributes
-
 func TestGenerateHCLDynamic(t *testing.T) {
 	tcases := []testcase{
 		{
@@ -541,6 +535,55 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			},
 		},
 		{
+			name:  "attributes keys referencing globals and metadata with functions",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/",
+					filename: "globals.tm",
+					add: globals(
+						str("key", "globalkey"),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "generate.tm",
+					add: generateHCL(
+						labels("tm_dynamic.tf"),
+						content(
+							tmdynamic(
+								labels("references"),
+								expr("for_each", `["test"]`),
+								expr("attributes", `{
+								  (global.key) = true,
+								  (terramate.stack.name) = true,
+								  (tm_upper(global.key)) = true,
+								  (references.value) = true,
+								}`),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "tm_dynamic.tf",
+					hcl: genHCL{
+						origin:    "/stack/generate.tm",
+						condition: true,
+						body: hcldoc(
+							block("references",
+								boolean("globalkey", true),
+								boolean("stack", true),
+								boolean("GLOBALKEY", true),
+								boolean("test", true),
+							),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "tm_dynamic inside tm_dynamic using attributes",
 			stack: "/stack",
 			configs: []hclconfig{
@@ -763,6 +806,51 @@ func TestGenerateHCLDynamic(t *testing.T) {
 								labels("my_block"),
 								expr("for_each", `["a"]`),
 								expr("attributes", "[]"),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:  "attributes key is undefined fails",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("fail.tf"),
+						content(
+							tmdynamic(
+								labels("my_block"),
+								expr("for_each", `["a"]`),
+								expr("attributes", `{ (local.a) : 666 }`),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:  "attributes key is not a string fails",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: hcldoc(
+						globals(
+							number("a", 666),
+						),
+						generateHCL(
+							labels("fail.tf"),
+							content(
+								tmdynamic(
+									labels("my_block"),
+									expr("for_each", `["a"]`),
+									expr("attributes", `{ (global.a) : 666 }`),
+								),
 							),
 						),
 					),

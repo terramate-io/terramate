@@ -1091,8 +1091,19 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 		newbody := newblock.Body()
 
 		for _, item := range objectExpr.Items {
-			// TODO(katcipis): test invalid key expressions
-			keyVal, _ := evaluator.Eval(item.KeyExpr)
+			keyVal, err := evaluator.Eval(item.KeyExpr)
+			if err != nil {
+				tmDynamicErr = wrapHclAttrErr(err, attrs.attributes,
+					"evaluating tm_dynamic attributes object key")
+				return true
+			}
+			if keyVal.Type() != cty.String {
+				tmDynamicErr = hclAttrErr(attrs.attributes,
+					"tm_dynamic attributes object key %q has type %q, keys must be a string",
+					keyVal.GoString(),
+					keyVal.Type().FriendlyName())
+				return true
+			}
 			field := keyVal.AsString()
 
 			valExpr, err := eval.GetExpressionTokens(partialEvalTokens.Bytes(), item.ValueExpr)
