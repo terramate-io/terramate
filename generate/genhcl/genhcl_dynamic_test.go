@@ -541,6 +541,69 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			},
 		},
 		{
+			name:  "tm_dynamic inside tm_dynamic using attributes",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: generateHCL(
+						labels("tm_dynamic_test.tf"),
+						content(
+							tmdynamic(
+								labels("parent"),
+								expr("for_each", `["a", "b"]`),
+								content(
+									expr("value", "parent.value"),
+									expr("key", "parent.key"),
+									expr("other", "something.other"),
+									tmdynamic(
+										labels("child"),
+										expr("for_each", `[0, 1]`),
+										expr("attributes", `{
+											value = "${parent.key}-${parent.value}-${child.value}",
+										}`),
+									),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "tm_dynamic_test.tf",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body: hcldoc(
+							block("parent",
+								number("key", 0),
+								expr("other", "something.other"),
+								str("value", "a"),
+								block("child",
+									str("value", "0-a-0"),
+								),
+								block("child",
+									str("value", "0-a-1"),
+								),
+							),
+							block("parent",
+								number("key", 1),
+								expr("other", "something.other"),
+								str("value", "b"),
+								block("child",
+									str("value", "1-b-0"),
+								),
+								block("child",
+									str("value", "1-b-1"),
+								),
+							),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "tm_dynamic inside tm_dynamic using content",
 			stack: "/stack",
 			configs: []hclconfig{
