@@ -942,18 +942,18 @@ func getDynamicBlockAttrs(block *hclsyntax.Block) (dynBlockAttributes, error) {
 }
 
 func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator Evaluator) error {
+	logger := log.With().
+		Str("action", "hcl.appendDynamicBlock").
+		Logger()
+
+	logger.Trace().Msg("parsing tm_dynamic block")
+
 	errs := errors.L()
 
 	if len(block.Labels) != 1 {
 		errs.Append(errors.E(ErrTerramateSchema,
 			block.LabelRanges, "tm_dynamic requires a single label"))
 	}
-
-	logger := log.With().
-		Str("action", "hcl.appendDynamicBlock").
-		Logger()
-
-	logger.Trace().Msg("parsing tm_dynamic block attributes")
 
 	attrs, err := getDynamicBlockAttrs(block)
 	if err != nil {
@@ -967,12 +967,12 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 
 	if contentBlock == nil && attrs.attributes == nil {
 		errs.Append(errors.E(ErrTerramateSchema, block.Body.Range(),
-			"`content` block or `attributes` must be defined"))
+			"`content` block or `attributes` obj must be defined"))
 	}
 
 	if contentBlock != nil && attrs.attributes != nil {
 		errs.Append(errors.E(ErrTerramateSchema, block.Body.Range(),
-			"`content` block and `attributes` are not allowed together"))
+			"`content` block and `attributes` obj are not allowed together"))
 	}
 
 	if err := errs.AsError(); err != nil {
@@ -982,17 +982,18 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 	genBlockType := block.Labels[0]
 
 	logger = logger.With().
-		Str("tm_dynamic", genBlockType).
+		Str("genBlockType", genBlockType).
 		Logger()
 
 	logger.Trace().Msg("defining iterator name")
 
 	iterator := genBlockType
+
 	if attrs.iterator != nil {
 		iteratorTraversal, diags := hcl.AbsTraversalForExpr(attrs.iterator.Expr)
 		if diags.HasErrors() {
 			return errors.E(diags, ErrInvalidDynamicIterator,
-				"failed to traverse expression")
+				"failed to parse iterator expression")
 		}
 		if len(iteratorTraversal) != 1 {
 			return hclAttrErr(attrs.iterator,
@@ -1014,13 +1015,14 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 
 	if !forEachVal.CanIterateElements() {
 		return hclAttrErr(attrs.foreach,
-			"expression value of type %s cannot be iterated",
+			"`for_each` expression of type %s cannot be iterated",
 			forEachVal.Type().FriendlyName())
 	}
 
 	logger.Trace().Msg("generating blocks")
 
 	var tmDynamicErr error
+
 	forEachVal.ForEachElement(func(key, value cty.Value) (stop bool) {
 		evaluator.SetNamespace(iterator, map[string]cty.Value{
 			"key":   key,
@@ -1058,33 +1060,35 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 		}
 
 		logger.Trace().Msg("using attributes to define new block body")
-		partialEvalTokens, err := evaluator.PartialEval(attrs.attributes.Expr)
+
+		partialEvalAttributes, err := evaluator.PartialEval(attrs.attributes.Expr)
 		if err != nil {
 			tmDynamicErr = wrapHclAttrErr(err, attrs.attributes,
-				" partially evaluating tm_dynamic attributes")
+				"partially evaluating tm_dynamic attributes")
 			return true
 		}
 
-		// Sadly hclsyntax doens't export an easy way to build an expression from tokens,
+		// Sadly hclsyntax doesn't export an easy way to build an expression from tokens,
 		// even though it would be easy to do so:
 		//
 		// - https://github.com/hashicorp/hcl2/blob/fb75b3253c80b3bc7ca99c4bfa2ad6743841b1af/hcl/hclsyntax/public.go#L41
 		//
 		// So here we need to convert the tokens to []byte so it can be
 		// converted again to tokens :-).
-		parsedAttrs, diags := hclsyntax.ParseExpression(partialEvalTokens.Bytes(), "", hcl.InitialPos)
+		attrsExpr, diags := hclsyntax.ParseExpression(partialEvalAttributes.Bytes(), "", hcl.InitialPos)
 		if diags.HasErrors() {
 			// Panic here since Terramate generated an invalid expression after
 			// partial evaluation and it is a guaranteed invariant that partial
 			// evaluation only produces valid expressions.
 			log.Error().
 				Err(diags).
-				Str("partiallyEvaluated", string(partialEvalTokens.Bytes())).
+				Str("partiallyEvaluated", string(partialEvalAttributes.Bytes())).
 				Msg("partially evaluated `attributes` should be a valid expression")
 			panic(wrapHclAttrErr(err, attrs.attributes,
 				"internal error: partially evaluated `attributes` produced invalid expression: %v", diags))
 		}
-		objectExpr, ok := parsedAttrs.(*hclsyntax.ObjectConsExpr)
+
+		objectExpr, ok := attrsExpr.(*hclsyntax.ObjectConsExpr)
 		if !ok {
 			tmDynamicErr = hclAttrErr(attrs.attributes,
 				"tm_dynamic attributes must be an object, got %T instead", objectExpr)
@@ -1097,42 +1101,43 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 			keyVal, err := evaluator.Eval(item.KeyExpr)
 			if err != nil {
 				tmDynamicErr = wrapHclAttrErr(err, attrs.attributes,
-					"evaluating tm_dynamic attributes object key")
+					"evaluating tm_dynamic.attributes object key")
 				return true
 			}
 			if keyVal.Type() != cty.String {
 				tmDynamicErr = hclAttrErr(attrs.attributes,
-					"tm_dynamic attributes object key %q has type %q, keys must be a string",
+					"tm_dynamic.attributes key %q has type %q, must be a string",
 					keyVal.GoString(),
 					keyVal.Type().FriendlyName())
 				return true
 			}
-			field := keyVal.AsString()
 
-			valExpr, err := eval.GetExpressionTokens(partialEvalTokens.Bytes(), item.ValueExpr)
+			attrName := keyVal.AsString()
+			valExpr, err := eval.GetExpressionTokens(partialEvalAttributes.Bytes(), item.ValueExpr)
 			if err != nil {
 				// Panic here since Terramate generated an invalid expression after
 				// partial evaluation and it is a guaranteed invariant that partial
 				// evaluation only produces valid expressions.
 				log.Error().
 					Err(diags).
-					Str("field", field).
-					Str("partiallyEvaluated", string(partialEvalTokens.Bytes())).
+					Str("attribute", attrName).
+					Str("partiallyEvaluated", string(partialEvalAttributes.Bytes())).
 					Msg("partially evaluated `attributes` has invalid value expression inside object")
 				panic(wrapHclAttrErr(err, attrs.attributes,
 					"internal error: partially evaluated `attributes` has invalid value expressions inside object: %v", err))
 			}
 
 			logger.Trace().
-				Str("attribute", field).
+				Str("attribute", attrName).
 				Str("value", string(valExpr.Bytes())).
 				Msg("adding attribute on generated block")
 
-			newbody.SetAttributeRaw(field, valExpr)
+			newbody.SetAttributeRaw(attrName, valExpr)
 		}
 
 		return false
 	})
+
 	evaluator.DeleteNamespace(iterator)
 	return tmDynamicErr
 }
