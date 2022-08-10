@@ -200,6 +200,18 @@ useful       = "useful"
 object       = { field_a = "field_a", field_b = "field_b" }
 ```
 
+It is also possible to **unset** a global by setting it to the value `unset`:
+
+```
+globals {
+  a = unset
+}
+```
+
+After a global is unset any access to it will fail just like if the global was
+never defined. This affects the global on the whole hierarchy, after unset
+the global will be undefined for all child configurations.
+
 ## Lazy Evaluation
 
 So far, we've described how globals on different configurations are merged.
