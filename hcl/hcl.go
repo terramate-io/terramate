@@ -101,6 +101,10 @@ type RootConfig struct {
 	Run *RunConfig
 }
 
+// ManifestConfig represents the manifest config block of a Terramate configuration.
+type ManifestConfig struct {
+}
+
 // Terramate is the parsed "terramate" HCL block.
 type Terramate struct {
 	// RequiredVersion contains the terramate version required by the stack.
@@ -108,6 +112,9 @@ type Terramate struct {
 
 	// Config is the parsed config blocks.
 	Config *RootConfig
+
+	// Manifest is the parsed manifest block, if any.
+	Manifest *ManifestConfig
 }
 
 // StackID represents the stack ID. Its zero value represents an undefined ID.
