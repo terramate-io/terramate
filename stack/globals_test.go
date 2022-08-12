@@ -33,13 +33,6 @@ import (
 
 // TODO(katcipis): add tests related to tf functions that depend on filesystem
 // (BaseDir parameter passed on Scope when creating eval context).
-
-// Tests:
-// - unset as value:
-// - can be used on try
-// - can be used on ternary
-// - can be stored on lists/objs
-
 func TestLoadGlobals(t *testing.T) {
 	type (
 		hclconfig struct {
@@ -1460,6 +1453,32 @@ func TestLoadGlobals(t *testing.T) {
 					path: "/stack",
 					add: globals(
 						str("a", "${unset}"),
+					),
+				},
+			},
+			wantErr: errors.E(stack.ErrGlobalEval),
+		},
+		{
+			name:   "unset on list fails",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						expr("a", "[unset]"),
+					),
+				},
+			},
+			wantErr: errors.E(stack.ErrGlobalEval),
+		},
+		{
+			name:   "unset on obj fails",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						expr("a", "{ a = unset }"),
 					),
 				},
 			},

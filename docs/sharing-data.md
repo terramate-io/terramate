@@ -212,6 +212,9 @@ After a global is unset any access to it will fail just like if the global was
 never defined. This affects the global on the whole hierarchy, after unset
 the global will be undefined for all child configurations.
 
+It is not allowed to use `unset` in any other context except a direct assignment
+to a global.
+
 ## Lazy Evaluation
 
 So far, we've described how globals on different configurations are merged.
