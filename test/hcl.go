@@ -104,7 +104,7 @@ func assertTerramateBlock(t *testing.T, got, want *hcl.Terramate) {
 		"required_version mismatch")
 
 	if (want.Config == nil) != (got.Config == nil) {
-		t.Fatalf("want.RootConfig[%+v] != got.RootConfig[%+v]",
+		t.Fatalf("want.Config[%+v] != got.Config[%+v]",
 			want.Config, got.Config)
 	}
 
@@ -113,10 +113,6 @@ func assertTerramateBlock(t *testing.T, got, want *hcl.Terramate) {
 
 func assertTerramateConfigBlock(t *testing.T, got, want *hcl.RootConfig) {
 	t.Helper()
-
-	if (want == nil) != (got == nil) {
-		t.Fatalf("want.Git[%+v] != got.Git[%+v]", want, got)
-	}
 
 	if want == nil {
 		return
