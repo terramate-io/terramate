@@ -122,6 +122,69 @@ func TestHCLParserManifest(t *testing.T) {
 			},
 		},
 		{
+			name: "redefined on same file fails",
+			input: []cfgfile{
+				{
+					filename: "manifest.tm",
+					body: `
+						terramate {
+						  manifest {
+						    default {
+						      files = []
+						    }
+						  }
+						}
+						terramate {
+						  manifest {
+						    default {
+						      excludes = []
+						    }
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "redefined on different file fails",
+			input: []cfgfile{
+				{
+					filename: "manifest.tm",
+					body: `
+						terramate {
+						  manifest {
+						    default {
+						      files = []
+						    }
+						  }
+						}
+					`,
+				},
+				{
+					filename: "manifest2.tm",
+					body: `
+						terramate {
+						  manifest {
+						    default {
+						      excludes = []
+						    }
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
 			name: "files is not string list fails",
 			input: []cfgfile{
 				{
@@ -130,7 +193,7 @@ func TestHCLParserManifest(t *testing.T) {
 						terramate {
 						  manifest {
 						    default {
-						      files = ["ok", 666, true ]
+						      files = ["ok", 666]
 						    }
 						  }
 						}
@@ -174,7 +237,7 @@ func TestHCLParserManifest(t *testing.T) {
 						terramate {
 						  manifest {
 						    default {
-						      excludes = ["ok", 666, true ]
+						      excludes = ["ok", true]
 						    }
 						  }
 						}

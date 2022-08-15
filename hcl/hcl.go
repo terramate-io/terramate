@@ -1140,6 +1140,51 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 	return errs.AsError()
 }
 
+func parseManifestConfig(cfg *ManifestConfig, block *ast.MergedBlock) error {
+	logger := log.With().
+		Str("action", "hcl.parseManifestConfig()").
+		Logger()
+
+	errs := errors.L()
+
+	for _, attr := range block.Attributes.SortedList() {
+		errs.Append(errors.E(attr.NameRange,
+			"unrecognized attribute terramate.manifest.%s", attr.Name,
+		))
+	}
+
+	defaultBlock, ok := block.Blocks["default"]
+	if ok {
+		logger.Trace().Msg("parsing manifest.default block")
+
+		desc := &ManifestDesc{}
+
+		for _, attr := range defaultBlock.Attributes.SortedList() {
+
+			attrVal, err := attr.Expr.Value(nil)
+			if err != nil {
+				errs.Append(err)
+				continue
+			}
+
+			switch attr.Name {
+			case "files":
+				errs.Append(assignSet(attr.Name, &desc.Files, attrVal))
+			case "excludes":
+				errs.Append(assignSet(attr.Name, &desc.Excludes, attrVal))
+			default:
+				errs.Append(errors.E(attr.NameRange,
+					"unrecognized attribute terramate.manifest.%s", attr.Name,
+				))
+			}
+		}
+
+		cfg.Default = desc
+	}
+
+	return errs.AsError()
+}
+
 func parseRootConfig(cfg *RootConfig, block *ast.MergedBlock) error {
 	logger := log.With().
 		Str("action", "parseRootConfig()").
@@ -1511,7 +1556,7 @@ func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
 		}
 	}
 
-	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("config"))
+	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("config", "manifest"))
 
 	logger.Trace().Msg("Parse terramate sub blocks")
 
@@ -1528,6 +1573,19 @@ func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
 			errs.Append(errors.E(errKind, err))
 		}
 	}
+
+	manifestBlock, ok := block.Blocks["manifest"]
+	if ok {
+		logger.Trace().Msg("found manifest block")
+
+		tm.Manifest = &ManifestConfig{}
+
+		err := parseManifestConfig(tm.Manifest, manifestBlock)
+		if err != nil {
+			errs.Append(errors.E(errKind, err))
+		}
+	}
+
 	if err := errs.AsError(); err != nil {
 		return Terramate{}, err
 	}
