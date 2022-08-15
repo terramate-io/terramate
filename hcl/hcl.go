@@ -1153,8 +1153,13 @@ func parseManifestConfig(cfg *ManifestConfig, block *ast.MergedBlock) error {
 		))
 	}
 
+	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("default"))
+
 	defaultBlock, ok := block.Blocks["default"]
+
 	if ok {
+		errs.AppendWrap(ErrTerramateSchema, defaultBlock.ValidateSubBlocks())
+
 		logger.Trace().Msg("parsing manifest.default block")
 
 		desc := &ManifestDesc{}
