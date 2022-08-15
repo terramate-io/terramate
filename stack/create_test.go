@@ -32,6 +32,8 @@ func TestStackCreation(t *testing.T) {
 		name    string
 		desc    string
 		imports []string
+		after   []string
+		before  []string
 	}
 	type want struct {
 		err   error
@@ -148,7 +150,9 @@ func TestStackCreation(t *testing.T) {
 			create: stack.CreateCfg{
 				Dir: "stack-imports",
 				Imports: []string{
-					"/common/1.tm.hcl", "/common/2.tm.hcl"},
+					"/common/1.tm.hcl",
+					"/common/2.tm.hcl",
+				},
 			},
 			want: want{
 				stack: wantedStack{
@@ -157,6 +161,36 @@ func TestStackCreation(t *testing.T) {
 						"/common/1.tm.hcl",
 						"/common/2.tm.hcl",
 					},
+				},
+			},
+		},
+		{
+			name: "defining single after/before",
+			create: stack.CreateCfg{
+				Dir:    "stack-after-before",
+				After:  []string{"stack-after"},
+				Before: []string{"stack-before"},
+			},
+			want: want{
+				stack: wantedStack{
+					name:   "stack-after-before",
+					after:  []string{"stack-after"},
+					before: []string{"stack-before"},
+				},
+			},
+		},
+		{
+			name: "defining multiple after/before",
+			create: stack.CreateCfg{
+				Dir:    "stack-after-before",
+				After:  []string{"stack-1", "stack-2"},
+				Before: []string{"stack-3", "stack-4"},
+			},
+			want: want{
+				stack: wantedStack{
+					name:   "stack-after-before",
+					after:  []string{"stack-1", "stack-2"},
+					before: []string{"stack-3", "stack-4"},
 				},
 			},
 		},
@@ -223,6 +257,8 @@ func TestStackCreation(t *testing.T) {
 			assert.EqualStrings(t, want.desc, got.Desc(), "checking stack description")
 
 			test.AssertStackImports(t, s.RootDir(), got.HostPath(), want.imports)
+			test.AssertDiff(t, got.After(), want.after, "created stack has invalid after")
+			test.AssertDiff(t, got.Before(), want.before, "created stack has invalid before")
 		})
 	}
 }
