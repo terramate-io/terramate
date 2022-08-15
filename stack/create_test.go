@@ -165,22 +165,7 @@ func TestStackCreation(t *testing.T) {
 			},
 		},
 		{
-			name: "defining single after/before",
-			create: stack.CreateCfg{
-				Dir:    "stack-after-before",
-				After:  []string{"stack-after"},
-				Before: []string{"stack-before"},
-			},
-			want: want{
-				stack: wantedStack{
-					name:   "stack-after-before",
-					after:  []string{"stack-after"},
-					before: []string{"stack-before"},
-				},
-			},
-		},
-		{
-			name: "defining multiple after/before",
+			name: "defining after/before",
 			create: stack.CreateCfg{
 				Dir:    "stack-after-before",
 				After:  []string{"stack-1", "stack-2"},
