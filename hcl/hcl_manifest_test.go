@@ -70,6 +70,36 @@ func TestHCLParserManifest(t *testing.T) {
 			},
 		},
 		{
+			name: "default has files and excludes",
+			input: []cfgfile{
+				{
+					filename: "manifest.tm",
+					body: `
+						terramate {
+						  manifest {
+						    default {
+						      files = ["/", "/test"]
+						      excludes = ["/test2"]
+						    }
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Manifest: &hcl.ManifestConfig{
+							Default: &hcl.ManifestDesc{
+								Files:    []string{"/", "/test"},
+								Excludes: []string{"/test2"},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "files is not list fails",
 			input: []cfgfile{
 				{

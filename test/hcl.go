@@ -110,20 +110,7 @@ func assertTerramateBlock(t *testing.T, got, want *hcl.Terramate) {
 
 	assertTerramateConfig(t, got.Config, want.Config)
 
-	if (want.Manifest == nil) != (got.Manifest == nil) {
-		t.Fatalf("want.Manifest[%+v] != got.Manifest[%+v]",
-			want.Manifest, got.Manifest)
-	}
-
-	assertTerramateManifest(t, got.Manifest, want.Manifest)
-}
-
-func assertTerramateManifest(t *testing.T, got, want *hcl.ManifestConfig) {
-	t.Helper()
-
-	if want == nil {
-		return
-	}
+	AssertDiff(t, got.Manifest, want.Manifest)
 }
 
 func assertTerramateConfig(t *testing.T, got, want *hcl.RootConfig) {

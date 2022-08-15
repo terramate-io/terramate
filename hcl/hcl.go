@@ -106,8 +106,8 @@ type ManifestDesc struct {
 	// Files is a list of patterns that specify which files the manifest wants to include.
 	Files []string
 
-	// Exclude is a list of patterns that specify which files the manifest wants to exclude.
-	Exclude []string
+	// Excludes is a list of patterns that specify which files the manifest wants to exclude.
+	Excludes []string
 }
 
 // ManifestConfig represents the manifest config block of a Terramate configuration.
