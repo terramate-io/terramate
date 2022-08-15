@@ -61,6 +61,8 @@ func (cfg *RawConfig) mergeHandlers() map[string]mergeHandler {
 		"generate_file": cfg.addBlock,
 		"generate_hcl":  cfg.addBlock,
 		"import":        func(b *ast.Block) error { return nil },
+		// terramate.manifest, which is an unmergeable block.
+		"manifest": func(b *ast.Block) error { return nil },
 	}
 }
 
@@ -102,23 +104,29 @@ func (cfg *RawConfig) mergeTerramate(block *ast.Block) error {
 	// terramate.manifest do not support merging + it will have
 	// blocks with labels on the future, which are not mergeable with the
 	// general purpose mergeBlocks method.
+	allBlocks := block.Blocks
+	defer func() {
+		// We are not supposed to mutate the block parameter
+		// So we restore it to its original value.
+		block.Blocks = allBlocks
+	}()
+	mergeableBlocks := []*ast.Block{}
+	unmergeableBlocks := []*ast.Block{}
 
-	// TODO(katcipis): implement
-	if other, ok := cfg.MergedBlocks[block.Type]; ok {
-		err := other.MergeBlock(block)
-		if err != nil {
-			return errors.E(ErrTerramateSchema, err)
+	for _, b := range allBlocks {
+		if b.Type == "manifest" {
+			unmergeableBlocks = append(unmergeableBlocks, b)
+		} else {
+			mergeableBlocks = append(mergeableBlocks, b)
 		}
-		return nil
 	}
 
-	merged := ast.NewMergedBlock(block.Type)
-	cfg.MergedBlocks[block.Type] = merged
-	err := merged.MergeBlock(block)
-	if err != nil {
-		return errors.E(ErrTerramateSchema, err)
+	for _, block := range unmergeableBlocks {
+		cfg.addBlock(block)
 	}
-	return nil
+
+	block.Blocks = mergeableBlocks
+	return cfg.mergeBlock(block)
 }
 
 func (cfg *RawConfig) mergeBlock(block *ast.Block) error {

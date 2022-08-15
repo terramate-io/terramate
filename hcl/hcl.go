@@ -1140,7 +1140,7 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 	return errs.AsError()
 }
 
-func parseManifestConfig(cfg *ManifestConfig, block *ast.MergedBlock) error {
+func parseManifestConfig(cfg *ManifestConfig, block *ast.Block) error {
 	logger := log.With().
 		Str("action", "hcl.parseManifestConfig()").
 		Logger()
@@ -1153,39 +1153,62 @@ func parseManifestConfig(cfg *ManifestConfig, block *ast.MergedBlock) error {
 		))
 	}
 
-	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("default"))
+	if len(block.Labels) > 0 {
+		errs.Append(errors.E(ErrTerramateSchema,
+			"terramate.manifest does not support labels, got: %v",
+			len(block.Labels)))
+	}
 
-	defaultBlock, ok := block.Blocks["default"]
+	if len(block.Blocks) == 0 {
+		logger.Trace().Msg("terramate.manifest has no blocks, nothing to do")
+		return errs.AsError()
+	}
 
-	if ok {
-		errs.AppendWrap(ErrTerramateSchema, defaultBlock.ValidateSubBlocks())
+	if len(block.Blocks) > 1 {
+		errs.Append(errors.E(ErrTerramateSchema,
+			"terramate.manifest has %d blocks, only default block is supported",
+			len(block.Blocks)))
+	}
 
-		logger.Trace().Msg("parsing manifest.default block")
+	if err := errs.AsError(); err != nil {
+		return err
+	}
 
-		desc := &ManifestDesc{}
+	defaultBlock := block.Blocks[0]
 
-		for _, attr := range defaultBlock.Attributes.SortedList() {
+	if defaultBlock.Type != "default" {
+		return errors.E(ErrTerramateSchema, "block terramate.manifest.%s is not supported", defaultBlock.Type)
+	}
 
-			attrVal, err := attr.Expr.Value(nil)
-			if err != nil {
-				errs.Append(err)
-				continue
-			}
+	if len(defaultBlock.Blocks) > 0 {
+		return errors.E(ErrTerramateSchema, "terramate.manifest.default does not support blocks")
+	}
 
-			switch attr.Name {
-			case "files":
-				errs.Append(assignSet(attr.Name, &desc.Files, attrVal))
-			case "excludes":
-				errs.Append(assignSet(attr.Name, &desc.Excludes, attrVal))
-			default:
-				errs.Append(errors.E(attr.NameRange,
-					"unrecognized attribute terramate.manifest.%s", attr.Name,
-				))
-			}
+	logger.Trace().Msg("parsing terramate.manifest.default block")
+
+	desc := &ManifestDesc{}
+
+	for _, attr := range defaultBlock.Attributes.SortedList() {
+
+		attrVal, err := attr.Expr.Value(nil)
+		if err != nil {
+			errs.Append(err)
+			continue
 		}
 
-		cfg.Default = desc
+		switch attr.Name {
+		case "files":
+			errs.Append(assignSet(attr.Name, &desc.Files, attrVal))
+		case "excludes":
+			errs.Append(assignSet(attr.Name, &desc.Excludes, attrVal))
+		default:
+			errs.Append(errors.E(attr.NameRange,
+				"unrecognized attribute terramate.manifest.%s", attr.Name,
+			))
+		}
 	}
+
+	cfg.Default = desc
 
 	return errs.AsError()
 }
@@ -1419,8 +1442,9 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 	logger.Trace().Msg("Range over unmerged blocks.")
 
-	var foundstack bool
-	var stackblock *ast.Block
+	var foundstack, foundManifest bool
+	var stackblock, manifestBlock *ast.Block
+
 	for _, block := range rawconfig.UnmergedBlocks {
 		// unmerged blocks
 
@@ -1428,7 +1452,8 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 			Str("block", block.Type).
 			Logger()
 
-		if block.Type == StackBlockType {
+		switch block.Type {
+		case StackBlockType:
 			logger.Trace().Msg("Found stack block type.")
 
 			if foundstack {
@@ -1439,17 +1464,24 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 			foundstack = true
 			stackblock = block
-		}
+		case "manifest":
+			logger.Trace().Msg("found terramate.manifest block")
 
-		if block.Type == "generate_hcl" {
+			if foundManifest {
+				errs.Append(errors.E(errKind, block.DefRange(),
+					"duplicated terramate.manifest block"))
+				continue
+			}
+
+			foundManifest = true
+			manifestBlock = block
+
+		case "generate_hcl":
 			logger.Trace().Msg("Found \"generate_hcl\" block")
-
 			errs.Append(validateGenerateHCLBlock(block))
-		}
 
-		if block.Type == "generate_file" {
+		case "generate_file":
 			logger.Trace().Msg("Found \"generate_file\" block")
-
 			errs.Append(validateGenerateFileBlock(block))
 		}
 	}
@@ -1461,6 +1493,20 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 		errs.Append(err)
 		if err == nil {
 			config.Terramate = &tmconfig
+		}
+	}
+
+	if foundManifest {
+		logger.Debug().Msg("parsing manifest")
+
+		if config.Terramate.Manifest != nil {
+			errs.Append(errors.E(errKind, manifestBlock.DefRange(),
+				"duplicated terramate.manifest blocks across configs"))
+		}
+		config.Terramate.Manifest = &ManifestConfig{}
+		err := parseManifestConfig(config.Terramate.Manifest, manifestBlock)
+		if err != nil {
+			errs.Append(errors.E(errKind, err))
 		}
 	}
 
@@ -1561,7 +1607,7 @@ func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
 		}
 	}
 
-	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("config", "manifest"))
+	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("config"))
 
 	logger.Trace().Msg("Parse terramate sub blocks")
 
@@ -1574,18 +1620,6 @@ func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
 		logger.Trace().Msg("Parse root config.")
 
 		err := parseRootConfig(tm.Config, configBlock)
-		if err != nil {
-			errs.Append(errors.E(errKind, err))
-		}
-	}
-
-	manifestBlock, ok := block.Blocks["manifest"]
-	if ok {
-		logger.Trace().Msg("found manifest block")
-
-		tm.Manifest = &ManifestConfig{}
-
-		err := parseManifestConfig(tm.Manifest, manifestBlock)
 		if err != nil {
 			errs.Append(errors.E(errKind, err))
 		}
