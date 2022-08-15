@@ -70,6 +70,94 @@ func TestHCLParserManifest(t *testing.T) {
 			},
 		},
 		{
+			name: "files is not list fails",
+			input: []cfgfile{
+				{
+					filename: "manifest.tm",
+					body: `
+						terramate {
+						  manifest {
+						    default {
+						      files = "not list"
+						    }
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "files is not string list fails",
+			input: []cfgfile{
+				{
+					filename: "manifest.tm",
+					body: `
+						terramate {
+						  manifest {
+						    default {
+						      files = ["ok", 666, true ]
+						    }
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "excludes is not list fails",
+			input: []cfgfile{
+				{
+					filename: "manifest.tm",
+					body: `
+						terramate {
+						  manifest {
+						    default {
+						      excludes = "not list"
+						    }
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "excludes is not string list fails",
+			input: []cfgfile{
+				{
+					filename: "manifest.tm",
+					body: `
+						terramate {
+						  manifest {
+						    default {
+						      excludes = ["ok", 666, true ]
+						    }
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
 			name: "unrecognized attribute on manifest fails",
 			input: []cfgfile{
 				{
