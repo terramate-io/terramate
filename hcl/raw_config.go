@@ -55,7 +55,7 @@ func (cfg RawConfig) Copy() RawConfig {
 
 func (cfg *RawConfig) mergeHandlers() map[string]mergeHandler {
 	return map[string]mergeHandler{
-		"terramate":     cfg.mergeBlock,
+		"terramate":     cfg.mergeTerramate,
 		"globals":       cfg.mergeBlock,
 		"stack":         cfg.addBlock,
 		"generate_file": cfg.addBlock,
@@ -95,6 +95,29 @@ func (cfg *RawConfig) mergeBlocks(blocks ast.Blocks) error {
 
 func (cfg *RawConfig) addBlock(block *ast.Block) error {
 	cfg.UnmergedBlocks = append(cfg.UnmergedBlocks, block)
+	return nil
+}
+
+func (cfg *RawConfig) mergeTerramate(block *ast.Block) error {
+	// terramate.manifest do not support merging + it will have
+	// blocks with labels on the future, which are not mergeable with the
+	// general purpose mergeBlocks method.
+
+	// TODO(katcipis): implement
+	if other, ok := cfg.MergedBlocks[block.Type]; ok {
+		err := other.MergeBlock(block)
+		if err != nil {
+			return errors.E(ErrTerramateSchema, err)
+		}
+		return nil
+	}
+
+	merged := ast.NewMergedBlock(block.Type)
+	cfg.MergedBlocks[block.Type] = merged
+	err := merged.MergeBlock(block)
+	if err != nil {
+		return errors.E(ErrTerramateSchema, err)
+	}
 	return nil
 }
 
