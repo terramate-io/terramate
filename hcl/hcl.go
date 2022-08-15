@@ -101,8 +101,18 @@ type RootConfig struct {
 	Run *RunConfig
 }
 
+// ManifestDesc represents a parsed manifest description.
+type ManifestDesc struct {
+	// Files is a list of patterns that specify which files the manifest wants to include.
+	Files []string
+
+	// Exclude is a list of patterns that specify which files the manifest wants to exclude.
+	Exclude []string
+}
+
 // ManifestConfig represents the manifest config block of a Terramate configuration.
 type ManifestConfig struct {
+	Default *ManifestDesc
 }
 
 // Terramate is the parsed "terramate" HCL block.

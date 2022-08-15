@@ -22,8 +22,6 @@ import (
 )
 
 func TestHCLParserManifest(t *testing.T) {
-	t.Skip()
-
 	for _, tc := range []testcase{
 		{
 			name: "empty manifest",
@@ -47,6 +45,31 @@ func TestHCLParserManifest(t *testing.T) {
 			},
 		},
 		{
+			name: "empty manifest.default",
+			input: []cfgfile{
+				{
+					filename: "manifest.tm",
+					body: `
+						terramate {
+						  manifest {
+						    default {
+						    }
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						Manifest: &hcl.ManifestConfig{
+							Default: &hcl.ManifestDesc{},
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "unrecognized attribute on manifest fails",
 			input: []cfgfile{
 				{
@@ -54,7 +77,92 @@ func TestHCLParserManifest(t *testing.T) {
 					body: `
 						terramate {
 						  manifest {
-							unknown = true
+						    unknown = true
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "label on manifest fails",
+			input: []cfgfile{
+				{
+					filename: "manifest.tm",
+					body: `
+						terramate {
+						  manifest "label" {
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "unrecognized block on manifest fails",
+			input: []cfgfile{
+				{
+					filename: "manifest.tm",
+					body: `
+						terramate {
+						  manifest {
+						    unknown {
+						    }
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "unrecognized attribute on default fails",
+			input: []cfgfile{
+				{
+					filename: "manifest.tm",
+					body: `
+						terramate {
+						  manifest {
+						    default {
+						      unknown = true
+						    }
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "unrecognized block on default fails",
+			input: []cfgfile{
+				{
+					filename: "manifest.tm",
+					body: `
+						terramate {
+						  manifest {
+						    default {
+						      unknown {
+						      }
+						    }
 						  }
 						}
 					`,
