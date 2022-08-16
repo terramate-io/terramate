@@ -1112,7 +1112,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 			// allowing it to generate invalid HCL code, so here we check if
 			// the attribute is a proper HCL identifier.
 			attrName := keyVal.AsString()
-			if !ast.IsIdentifier(attrName) {
+			if !hclsyntax.ValidIdentifier(attrName) {
 				tmDynamicErr = hclAttrErr(attrs.attributes,
 					"tm_dynamic.attributes key %q is not a valid HCL identifier",
 					attrName)
