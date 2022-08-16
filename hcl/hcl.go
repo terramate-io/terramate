@@ -959,9 +959,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 	errs.Append(err)
 
 	contentBlock, err := getContentBlock(block.Body.Blocks)
-	if err != nil {
-		errs.Append(err)
-	}
+	errs.Append(err)
 
 	if contentBlock == nil && attrs.attributes == nil {
 		errs.Append(errors.E(ErrTerramateSchema, block.Body.Range(),
