@@ -84,6 +84,8 @@ type cliSpec struct {
 		Name        string   `help:"Name of the stack, defaults to stack dir base name"`
 		Description string   `help:"Description of the stack, defaults to the stack name"`
 		Import      []string `help:"Add import block for the given path on the stack"`
+		After       []string `help:"Add a stack as after"`
+		Before      []string `help:"Add a stack as before"`
 	} `cmd:"" help:"Creates a stack on the project"`
 
 	Fmt struct {
@@ -585,6 +587,8 @@ func (c *cli) createStack() {
 		Str("workingDir", c.wd()).
 		Str("action", "cli.createStack()").
 		Str("imports", fmt.Sprint(c.parsedArgs.Create.Import)).
+		Str("after", fmt.Sprint(c.parsedArgs.Create.After)).
+		Str("before", fmt.Sprint(c.parsedArgs.Create.Before)).
 		Logger()
 
 	logger.Trace().Msg("creating stack")
@@ -618,6 +622,8 @@ func (c *cli) createStack() {
 		ID:          stackID,
 		Name:        stackName,
 		Description: stackDescription,
+		After:       c.parsedArgs.Create.After,
+		Before:      c.parsedArgs.Create.Before,
 		Imports:     c.parsedArgs.Create.Import,
 	})
 
