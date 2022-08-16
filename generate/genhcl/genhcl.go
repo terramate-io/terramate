@@ -174,9 +174,18 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) ([]HCL, erro
 		}
 		formatted, err := hcl.FormatMultiline(string(gen.Bytes()), loadedHCL.origin)
 		if err != nil {
-			return nil, errors.E(sm, err,
-				"failed to format generated code for block %q", name,
-			)
+			// genhcl must always generate valid code that is formatable
+			// this is a severe internal error
+			logger.Error().
+				Err(err).
+				Str("origin", loadedHCL.origin).
+				Str("code", string(gen.Bytes())).
+				Str("label", name).
+				Msg("internal error formatting generated code")
+
+			panic(errors.E(sm, err,
+				"internal error: formatting generated code for generate_hcl %q", name,
+			))
 		}
 		hcls = append(hcls, HCL{
 			name:      name,
