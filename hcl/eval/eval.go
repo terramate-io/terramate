@@ -102,7 +102,7 @@ func (c *Context) PartialEval(expr hclsyntax.Expression) (hclwrite.Tokens, error
 		return nil, errors.E(err, "reading expression from file")
 	}
 
-	tokens, err := GetExpressionTokens(filedata, exprFname, expr)
+	tokens, err := GetExpressionTokens(filedata, expr)
 	if err != nil {
 		return nil, err
 	}
@@ -111,9 +111,10 @@ func (c *Context) PartialEval(expr hclsyntax.Expression) (hclwrite.Tokens, error
 	return engine.Eval()
 }
 
-// GetExpressionTokens gets the provided expression as writable tokens.
-func GetExpressionTokens(hcldoc []byte, filename string, expr hclsyntax.Expression) (hclwrite.Tokens, error) {
+// GetExpressionTokens gets the provided expression writable tokens.
+func GetExpressionTokens(hcldoc []byte, expr hclsyntax.Expression) (hclwrite.Tokens, error) {
 	exprRange := expr.Range()
+	filename := expr.Range().Filename
 	exprBytes := hcldoc[exprRange.Start.Byte:exprRange.End.Byte]
 	tokens, diags := hclsyntax.LexExpression(exprBytes, filename, hhcl.Pos{})
 	if diags.HasErrors() {

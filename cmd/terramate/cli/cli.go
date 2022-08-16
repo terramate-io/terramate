@@ -84,6 +84,8 @@ type cliSpec struct {
 		Name        string   `help:"Name of the stack, defaults to stack dir base name"`
 		Description string   `help:"Description of the stack, defaults to the stack name"`
 		Import      []string `help:"Add import block for the given path on the stack"`
+		After       []string `help:"Add a stack as after"`
+		Before      []string `help:"Add a stack as before"`
 	} `cmd:"" help:"Creates a stack on the project"`
 
 	Fmt struct {
@@ -427,12 +429,10 @@ func (c *cli) checkGitLocalBranchIsUpdated() {
 func (c *cli) vendorDownload() {
 	source := c.parsedArgs.Experimental.Vendor.Download.Source
 	ref := c.parsedArgs.Experimental.Vendor.Download.Reference
-	vendordir := filepath.Join(c.root(), "vendor")
 
 	logger := log.With().
 		Str("workingDir", c.wd()).
 		Str("rootdir", c.root()).
-		Str("vendordir", vendordir).
 		Str("action", "cli.vendor()").
 		Str("source", source).
 		Str("ref", ref).
@@ -450,7 +450,7 @@ func (c *cli) vendorDownload() {
 	parsedSource.Ref = ref
 
 	logger.Trace().Msgf("module path is: %s", parsedSource.Path)
-	modVendorDir, err := modvendor.Vendor(vendordir, parsedSource)
+	modVendorDir, err := modvendor.Vendor(c.root(), parsedSource)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("vendoring module")
 	}
@@ -587,6 +587,8 @@ func (c *cli) createStack() {
 		Str("workingDir", c.wd()).
 		Str("action", "cli.createStack()").
 		Str("imports", fmt.Sprint(c.parsedArgs.Create.Import)).
+		Str("after", fmt.Sprint(c.parsedArgs.Create.After)).
+		Str("before", fmt.Sprint(c.parsedArgs.Create.Before)).
 		Logger()
 
 	logger.Trace().Msg("creating stack")
@@ -620,6 +622,8 @@ func (c *cli) createStack() {
 		ID:          stackID,
 		Name:        stackName,
 		Description: stackDescription,
+		After:       c.parsedArgs.Create.After,
+		Before:      c.parsedArgs.Create.Before,
 		Imports:     c.parsedArgs.Create.Import,
 	})
 

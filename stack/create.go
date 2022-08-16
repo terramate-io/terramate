@@ -56,6 +56,12 @@ type CreateCfg struct {
 
 	// Imports represents a set of import paths.
 	Imports []string
+
+	// After is the set of after stacks.
+	After []string
+
+	// Before is the set of before stacks.
+	Before []string
 }
 
 const (
@@ -107,7 +113,10 @@ func Create(rootdir string, cfg CreateCfg) (err error) {
 		return errors.E(ErrStackAlreadyExists, "name %q", parsedCfg.Stack.Name)
 	}
 
-	stackCfg := hcl.Stack{}
+	stackCfg := hcl.Stack{
+		After:  cfg.After,
+		Before: cfg.Before,
+	}
 
 	if cfg.Name != "" {
 		stackCfg.Name = cfg.Name
@@ -151,14 +160,18 @@ func Create(rootdir string, cfg CreateCfg) (err error) {
 	}()
 
 	if err := hcl.PrintConfig(stackFile, tmCfg); err != nil {
-		return errors.E(err, "writing stack imports to stack file")
+		return errors.E(err, "writing stack config to stack file")
 	}
 
 	if len(cfg.Imports) > 0 {
 		fmt.Fprint(stackFile, "\n")
 	}
 
-	return hcl.PrintImports(stackFile, cfg.Imports)
+	if err := hcl.PrintImports(stackFile, cfg.Imports); err != nil {
+		return errors.E(err, "writing stack imports to stack file")
+	}
+
+	return nil
 }
 
 func (cfg CreateCfg) String() string {
