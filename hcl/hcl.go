@@ -1115,7 +1115,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 				// partial evaluation and it is a guaranteed invariant that partial
 				// evaluation only produces valid expressions.
 				log.Error().
-					Err(diags).
+					Err(err).
 					Str("attribute", attrName).
 					Str("partiallyEvaluated", string(partialEvalAttributes.Bytes())).
 					Msg("partially evaluated `attributes` has invalid value expression inside object")
