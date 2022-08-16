@@ -1108,7 +1108,17 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 				return true
 			}
 
+			// hclwrite lib will accept any arbitrary string as attr name
+			// allowing it to generate invalid HCL code, so here we check if
+			// the attribute is a proper HCL identifier.
 			attrName := keyVal.AsString()
+			if !ast.IsIdentifier(attrName) {
+				tmDynamicErr = hclAttrErr(attrs.attributes,
+					"tm_dynamic.attributes key %q is not a valid HCL identifier",
+					attrName)
+				return true
+			}
+
 			valExpr, err := eval.GetExpressionTokens(partialEvalAttributes.Bytes(), item.ValueExpr)
 			if err != nil {
 				// Panic here since Terramate generated an invalid expression after

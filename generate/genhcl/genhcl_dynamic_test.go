@@ -911,6 +911,72 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
+			name:  "attributes key has space fails",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: hcldoc(
+						generateHCL(
+							labels("fail.tf"),
+							content(
+								tmdynamic(
+									labels("my_block"),
+									expr("for_each", `["a"]`),
+									expr("attributes", `{ "spaces not allowed" : 666 }`),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:  "attributes key is empty string fails",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: hcldoc(
+						generateHCL(
+							labels("fail.tf"),
+							content(
+								tmdynamic(
+									labels("my_block"),
+									expr("for_each", `["a"]`),
+									expr("attributes", `{ "" : 666 }`),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:  "attributes key starts with '-' fails",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: hcldoc(
+						generateHCL(
+							labels("fail.tf"),
+							content(
+								tmdynamic(
+									labels("my_block"),
+									expr("for_each", `["a"]`),
+									expr("attributes", `{ "-name" : 666 }`),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
 			name:  "attributes and unknown attribute fails",
 			stack: "/stack",
 			configs: []hclconfig{
