@@ -169,7 +169,7 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) ([]HCL, erro
 		gen := hclwrite.NewEmptyFile()
 		if err := hcl.CopyBody(gen.Body(), loadedHCL.block.Body, evalctx); err != nil {
 			return nil, errors.E(ErrContentEval, sm, err,
-				"failed to generate block %q", name,
+				"generate_hcl %q", name,
 			)
 		}
 		formatted, err := hcl.FormatMultiline(string(gen.Bytes()), loadedHCL.origin)
