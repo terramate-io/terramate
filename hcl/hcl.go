@@ -956,9 +956,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 	}
 
 	attrs, err := getDynamicBlockAttrs(block)
-	if err != nil {
-		errs.Append(err)
-	}
+	errs.Append(err)
 
 	contentBlock, err := getContentBlock(block.Body.Blocks)
 	if err != nil {
