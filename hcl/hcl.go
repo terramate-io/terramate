@@ -1069,7 +1069,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 		//
 		// - https://github.com/hashicorp/hcl2/blob/fb75b3253c80b3bc7ca99c4bfa2ad6743841b1af/hcl/hclsyntax/public.go#L41
 		//
-		// So here we need to convert the tokens to []byte so it can be
+		// So here we need to convert the parsed attributes to []byte so it can be
 		// converted again to tokens :-).
 		attrsExpr, diags := hclsyntax.ParseExpression(partialEvalAttributes.Bytes(), "", hcl.InitialPos)
 		if diags.HasErrors() {
