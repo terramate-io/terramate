@@ -1151,7 +1151,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrParsing),
+			wantErr: errors.E(genhcl.ErrInvalidDynamicLabels),
 		},
 		{
 			name:  "tm_dynamic with labels that is not a list fails",
@@ -1174,7 +1174,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrParsing),
+			wantErr: errors.E(genhcl.ErrInvalidDynamicLabels),
 		},
 		{
 			name:  "tm_dynamic with iterator with traversal fails",
