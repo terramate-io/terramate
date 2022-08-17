@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 )
@@ -804,7 +805,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrInvalidDynamicIterator),
+			wantErr: errors.E(genhcl.ErrInvalidDynamicIterator),
 		},
 		{
 			name:  "no content block and no attributes fails",
