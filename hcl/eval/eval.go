@@ -145,6 +145,9 @@ func newTmFunctions(basedir string) map[string]function.Function {
 
 	// fix terraform broken abspath()
 	tmfuncs["tm_abspath"] = tmAbspath(basedir)
+
+	// sane ternary
+	tmfuncs["tm_ternary"] = tmTernary()
 	return tmfuncs
 }
 

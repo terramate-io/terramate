@@ -45,6 +45,20 @@ func TestEvalTmAbspath(t *testing.T) {
 
 	for _, tc := range []testcase{
 		{
+			name: "tm_ternary - basic",
+			expr: `tm_ternary(true, "hello", "world")`,
+			want: want{
+				value: cty.StringVal("hello"),
+			},
+		},
+		{
+			name: "tm_ternary - basic",
+			expr: `tm_ternary(false, "hello", "world")`,
+			want: want{
+				value: cty.StringVal("world"),
+			},
+		},
+		{
 			name: "no args - fails",
 			expr: `tm_abspath()`,
 			want: want{
