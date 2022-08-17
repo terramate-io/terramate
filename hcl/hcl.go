@@ -815,21 +815,19 @@ func validateGenerateFileBlock(block *ast.Block) error {
 	return errs.AsError()
 }
 
-// ParseStringList will parse the given val, with the given name, as a
-// string list.
-func ParseStringList(name string, val cty.Value) ([]string, error) {
+func assignSet(name string, target *[]string, val cty.Value) error {
 	logger := log.With().
-		Str("action", "hcl.ParseStringList()").
+		Str("action", "hcl.assignSet()").
 		Logger()
 
 	if val.IsNull() {
-		return nil, nil
+		return nil
 	}
 
 	// as the parser is schemaless it only creates tuples (lists of arbitrary types).
 	// we have to check the elements themselves.
 	if !val.Type().IsTupleType() && !val.Type().IsListType() {
-		return nil, errors.E(ErrTerramateSchema, "field %q must be a set(string) but "+
+		return errors.E(ErrTerramateSchema, "field %q must be a set(string) but "+
 			"found a %q", name, val.Type().FriendlyName())
 	}
 
@@ -864,6 +862,44 @@ func ParseStringList(name string, val cty.Value) ([]string, error) {
 		}
 		values[str] = struct{}{}
 		elems = append(elems, str)
+	}
+
+	if err := errs.AsError(); err != nil {
+		return err
+	}
+
+	*target = elems
+	return nil
+}
+
+// ValueAsStringList will convert the given cty.Value to a string list.
+func ValueAsStringList(val cty.Value) ([]string, error) {
+	if val.IsNull() {
+		return nil, nil
+	}
+
+	// as the parser is schemaless it only creates tuples (lists of arbitrary types).
+	// we have to check the elements themselves.
+	if !val.Type().IsTupleType() && !val.Type().IsListType() {
+		return nil, errors.E("value must be a set(string), got %q",
+			val.Type().FriendlyName())
+	}
+
+	errs := errors.L()
+	var elems []string
+	iterator := val.ElementIterator()
+	index := -1
+	for iterator.Next() {
+		index++
+		_, elem := iterator.Element()
+
+		if elem.Type() != cty.String {
+			errs.Append(errors.E("value must be a set(string) but val[%d] = %q",
+				index, elem.Type().FriendlyName()))
+			continue
+		}
+
+		elems = append(elems, elem.AsString())
 	}
 
 	if err := errs.AsError(); err != nil {
@@ -933,20 +969,16 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 			stack.Name = attrVal.AsString()
 
 		case "after":
-			stack.After, err = ParseStringList(attr.Name, attrVal)
-			errs.Append(err)
+			errs.Append(assignSet(attr.Name, &stack.After, attrVal))
 
 		case "before":
-			stack.Before, err = ParseStringList(attr.Name, attrVal)
-			errs.Append(err)
+			errs.Append(assignSet(attr.Name, &stack.Before, attrVal))
 
 		case "wants":
-			stack.Wants, err = ParseStringList(attr.Name, attrVal)
-			errs.Append(err)
+			errs.Append(assignSet(attr.Name, &stack.Wants, attrVal))
 
 		case "watch":
-			stack.Watch, err = ParseStringList(attr.Name, attrVal)
-			errs.Append(err)
+			errs.Append(assignSet(attr.Name, &stack.Watch, attrVal))
 
 		case "description":
 			logger.Trace().Msg("parsing stack description.")

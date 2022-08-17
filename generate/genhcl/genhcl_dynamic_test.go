@@ -222,8 +222,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 									expr("for_each", `["val"]`),
 									expr("labels", `["a", "a"]`),
 									content(
-										expr("value", "my_block.value"),
-										expr("key", "my_block.key"),
+										str("value", "str"),
 									),
 								),
 							),
@@ -240,8 +239,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 						body: hcldoc(
 							block("duplicated_labels",
 								labels("a", "a"),
-								number("key", 0),
-								str("value", "val"),
+								str("value", "str"),
 							),
 						),
 					},

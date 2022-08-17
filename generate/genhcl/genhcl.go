@@ -430,7 +430,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 				return true
 			}
 
-			labels, err = hcl.ParseStringList("labels", labelsVal)
+			labels, err = hcl.ValueAsStringList(labelsVal)
 			if err != nil {
 				tmDynamicErr = wrapHCLAttrErr(err, attrs.labels,
 					"parsing tm_dynamic.labels")
