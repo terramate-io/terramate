@@ -20,10 +20,13 @@ import (
 	"sort"
 	"strings"
 
+	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/ast"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
@@ -61,6 +64,16 @@ const (
 	// ErrInvalidConditionType indicates the condition attribute
 	// has an invalid type.
 	ErrInvalidConditionType errors.Kind = "invalid condition type"
+
+	// ErrInvalidDynamicIterator indicates that the iterator of a tm_dynamic block
+	// is invalid.
+	ErrInvalidDynamicIterator errors.Kind = "invalid tm_dynamic.iterator"
+
+	// ErrInvalidDynamicLabels indicates that the labels of a tm_dynamic block is invalid.
+	ErrInvalidDynamicLabels errors.Kind = "invalid tm_dynamic.labels"
+
+	// ErrDynamicAttrsEval indicates that the attributes of a tm_dynamic cant be evaluated.
+	ErrDynamicAttrsEval errors.Kind = "evaluating tm_dynamic.attributes"
 )
 
 // Name of the HCL code.
@@ -167,7 +180,7 @@ func Load(rootdir string, sm stack.Metadata, globals stack.Globals) ([]HCL, erro
 		logger.Trace().Msg("evaluating block")
 
 		gen := hclwrite.NewEmptyFile()
-		if err := hcl.CopyBody(gen.Body(), loadedHCL.block.Body, evalctx); err != nil {
+		if err := copyBody(gen.Body(), loadedHCL.block.Body, evalctx); err != nil {
 			return nil, errors.E(ErrContentEval, sm, err,
 				"generate_hcl %q", name,
 			)
@@ -208,6 +221,13 @@ type loadedHCL struct {
 	origin    string
 	block     *hclsyntax.Block
 	condition *hclsyntax.Attribute
+}
+
+type dynBlockAttributes struct {
+	attributes *hclsyntax.Attribute
+	iterator   *hclsyntax.Attribute
+	foreach    *hclsyntax.Attribute
+	labels     *hclsyntax.Attribute
 }
 
 // loadGenHCLBlocks will load all generate_hcl blocks.
@@ -264,4 +284,343 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) ([]loadedHCL, error) {
 
 	logger.Trace().Msg("loaded generate_hcl blocks with success.")
 	return res, nil
+}
+
+// copyBody will copy the src body to the given target, evaluating attributes
+// using the given evaluation context.
+//
+// Scoped traversals, like name.traverse, for unknown namespaces will be copied
+// as is (original expression form, no evaluation).
+//
+// Returns an error if the evaluation fails.
+func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval hcl.Evaluator) error {
+	logger := log.With().
+		Str("action", "genhcl.copyBody()").
+		Logger()
+
+	logger.Trace().Msg("sorting attributes")
+
+	attrs := ast.SortRawAttributes(src.Attributes)
+	for _, attr := range attrs {
+		logger := logger.With().
+			Str("attrName", attr.Name).
+			Logger()
+
+		logger.Trace().Msg("evaluating.")
+		tokens, err := eval.PartialEval(attr.Expr)
+		if err != nil {
+			return errors.E(err, attr.Expr.Range())
+		}
+
+		logger.Trace().Str("attribute", attr.Name).Msg("Setting evaluated attribute.")
+		dest.SetAttributeRaw(attr.Name, tokens)
+	}
+
+	logger.Trace().Msg("appending blocks")
+
+	for _, block := range src.Blocks {
+		err := appendBlock(dest, block, eval)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func appendBlock(target *hclwrite.Body, block *hclsyntax.Block, eval hcl.Evaluator) error {
+	if block.Type == "tm_dynamic" {
+		return appendDynamicBlock(target, block, eval)
+	}
+
+	targetBlock := target.AppendNewBlock(block.Type, block.Labels)
+	if block.Body != nil {
+		err := copyBody(targetBlock.Body(), block.Body, eval)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator hcl.Evaluator) error {
+	logger := log.With().
+		Str("action", "genhcl.appendDynamicBlock").
+		Logger()
+
+	logger.Trace().Msg("appending tm_dynamic block")
+
+	errs := errors.L()
+
+	if len(block.Labels) != 1 {
+		errs.Append(errors.E(ErrParsing,
+			block.LabelRanges, "tm_dynamic requires a single label"))
+	}
+
+	attrs, err := getDynamicBlockAttrs(block)
+	errs.Append(err)
+
+	contentBlock, err := getContentBlock(block.Body.Blocks)
+	errs.Append(err)
+
+	if contentBlock == nil && attrs.attributes == nil {
+		errs.Append(errors.E(ErrParsing, block.Body.Range(),
+			"`content` block or `attributes` obj must be defined"))
+	}
+
+	if contentBlock != nil && attrs.attributes != nil {
+		errs.Append(errors.E(ErrParsing, block.Body.Range(),
+			"`content` block and `attributes` obj are not allowed together"))
+	}
+
+	if err := errs.AsError(); err != nil {
+		return err
+	}
+
+	genBlockType := block.Labels[0]
+
+	logger = logger.With().
+		Str("genBlockType", genBlockType).
+		Logger()
+
+	logger.Trace().Msg("defining iterator name")
+
+	iterator := genBlockType
+
+	if attrs.iterator != nil {
+		iteratorTraversal, diags := hhcl.AbsTraversalForExpr(attrs.iterator.Expr)
+		if diags.HasErrors() {
+			return errors.E(ErrInvalidDynamicIterator,
+				attrs.iterator.Range(),
+				"dynamic iterator must be a single variable name")
+		}
+		if len(iteratorTraversal) != 1 {
+			return errors.E(ErrInvalidDynamicIterator,
+				attrs.iterator.Range(),
+				"dynamic iterator must be a single variable name")
+		}
+		iterator = iteratorTraversal.RootName()
+	}
+
+	logger = logger.With().
+		Str("iterator", iterator).
+		Logger()
+
+	logger.Trace().Msg("evaluating for_each attribute")
+
+	forEachVal, err := evaluator.Eval(attrs.foreach.Expr)
+	if err != nil {
+		return wrapAttrErr(err, attrs.foreach, "evaluating `for_each` expression")
+	}
+
+	if !forEachVal.CanIterateElements() {
+		return attrErr(attrs.foreach,
+			"`for_each` expression of type %s cannot be iterated",
+			forEachVal.Type().FriendlyName())
+	}
+
+	logger.Trace().Msg("generating blocks")
+
+	var tmDynamicErr error
+
+	forEachVal.ForEachElement(func(key, value cty.Value) (stop bool) {
+		evaluator.SetNamespace(iterator, map[string]cty.Value{
+			"key":   key,
+			"value": value,
+		})
+
+		var labels []string
+		if attrs.labels != nil {
+			labelsVal, err := evaluator.Eval(attrs.labels.Expr)
+			if err != nil {
+				tmDynamicErr = errors.E(ErrInvalidDynamicLabels,
+					err, attrs.labels.Range(),
+					"failed to evaluate tm_dynamic.labels")
+				return true
+			}
+
+			labels, err = hcl.ValueAsStringList(labelsVal)
+			if err != nil {
+				tmDynamicErr = errors.E(ErrInvalidDynamicLabels,
+					err, attrs.labels.Range(),
+					"tm_dynamic.labels is not a string list")
+				return true
+			}
+		}
+
+		newblock := target.AppendBlock(hclwrite.NewBlock(genBlockType, labels))
+
+		if contentBlock != nil {
+			logger.Trace().Msg("using content block to define new block body")
+
+			err := copyBody(newblock.Body(), contentBlock.Body, evaluator)
+			if err != nil {
+				tmDynamicErr = err
+				return true
+			}
+
+			return false
+		}
+
+		logger.Trace().Msg("using attributes to define new block body")
+
+		partialEvalAttributes, err := evaluator.PartialEval(attrs.attributes.Expr)
+		if err != nil {
+			tmDynamicErr = errors.E(ErrDynamicAttrsEval, err,
+				attrs.attributes.Range())
+			return true
+		}
+
+		// Sadly hclsyntax doesn't export an easy way to build an expression from tokens,
+		// even though it would be easy to do so:
+		//
+		// - https://github.com/hashicorp/hcl2/blob/fb75b3253c80b3bc7ca99c4bfa2ad6743841b1af/hcl/hclsyntax/public.go#L41
+		//
+		// So here we need to convert the parsed attributes to []byte so it can be
+		// converted again to tokens :-).
+		attrsExpr, diags := hclsyntax.ParseExpression(partialEvalAttributes.Bytes(), "", hhcl.InitialPos)
+		if diags.HasErrors() {
+			// Panic here since Terramate generated an invalid expression after
+			// partial evaluation and it is a guaranteed invariant that partial
+			// evaluation only produces valid expressions.
+			log.Error().
+				Err(diags).
+				Str("partiallyEvaluated", string(partialEvalAttributes.Bytes())).
+				Msg("partially evaluated `attributes` should be a valid expression")
+			panic(wrapAttrErr(err, attrs.attributes,
+				"internal error: partially evaluated `attributes` produced invalid expression: %v", diags))
+		}
+
+		objectExpr, ok := attrsExpr.(*hclsyntax.ObjectConsExpr)
+		if !ok {
+			tmDynamicErr = attrErr(attrs.attributes,
+				"tm_dynamic attributes must be an object, got %T instead", objectExpr)
+			return true
+		}
+
+		newbody := newblock.Body()
+
+		for _, item := range objectExpr.Items {
+			keyVal, err := evaluator.Eval(item.KeyExpr)
+			if err != nil {
+				tmDynamicErr = errors.E(ErrDynamicAttrsEval, err,
+					attrs.attributes.Range(),
+					"evaluating tm_dynamic.attributes key")
+				return true
+			}
+			if keyVal.Type() != cty.String {
+				tmDynamicErr = attrErr(attrs.attributes,
+					"tm_dynamic.attributes key %q has type %q, must be a string",
+					keyVal.GoString(),
+					keyVal.Type().FriendlyName())
+				return true
+			}
+
+			// hclwrite lib will accept any arbitrary string as attr name
+			// allowing it to generate invalid HCL code, so here we check if
+			// the attribute is a proper HCL identifier.
+			attrName := keyVal.AsString()
+			if !hclsyntax.ValidIdentifier(attrName) {
+				tmDynamicErr = attrErr(attrs.attributes,
+					"tm_dynamic.attributes key %q is not a valid HCL identifier",
+					attrName)
+				return true
+			}
+
+			valExpr, err := eval.GetExpressionTokens(partialEvalAttributes.Bytes(), item.ValueExpr)
+			if err != nil {
+				// Panic here since Terramate generated an invalid expression after
+				// partial evaluation and it is a guaranteed invariant that partial
+				// evaluation only produces valid expressions.
+				log.Error().
+					Err(err).
+					Str("attribute", attrName).
+					Str("partiallyEvaluated", string(partialEvalAttributes.Bytes())).
+					Msg("partially evaluated `attributes` has invalid value expression inside object")
+				panic(wrapAttrErr(err, attrs.attributes,
+					"internal error: partially evaluated `attributes` has invalid value expressions inside object: %v", err))
+			}
+
+			logger.Trace().
+				Str("attribute", attrName).
+				Str("value", string(valExpr.Bytes())).
+				Msg("adding attribute on generated block")
+
+			newbody.SetAttributeRaw(attrName, valExpr)
+		}
+
+		return false
+	})
+
+	evaluator.DeleteNamespace(iterator)
+	return tmDynamicErr
+}
+
+func getDynamicBlockAttrs(block *hclsyntax.Block) (dynBlockAttributes, error) {
+	dynAttrs := dynBlockAttributes{}
+	errs := errors.L()
+
+	for name, attr := range block.Body.Attributes {
+		switch name {
+		case "attributes":
+			dynAttrs.attributes = attr
+		case "for_each":
+			dynAttrs.foreach = attr
+		case "labels":
+			dynAttrs.labels = attr
+		case "iterator":
+			dynAttrs.iterator = attr
+		default:
+			errs.Append(attrErr(
+				attr, "tm_dynamic unsupported attribute %q", name))
+		}
+	}
+
+	if dynAttrs.foreach == nil {
+		errs.Append(errors.E(block.Body.Range(),
+			ErrParsing,
+			"tm_dynamic requires a `for_each` attribute"))
+	}
+
+	// Unusual but we return the value so further errors can still be added
+	// based on properties of the attributes that are valid.
+	return dynAttrs, errs.AsError()
+}
+
+func getContentBlock(blocks hclsyntax.Blocks) (*hclsyntax.Block, error) {
+	var contentBlock *hclsyntax.Block
+
+	errs := errors.L()
+
+	for _, b := range blocks {
+		if b.Type != "content" {
+			errs.Append(errors.E(ErrParsing,
+				b.TypeRange, "unrecognized block %s", b.Type))
+
+			continue
+		}
+
+		if contentBlock != nil {
+			errs.Append(errors.E(ErrParsing, b.TypeRange,
+				"multiple definitions of the `content` block"))
+
+			continue
+		}
+
+		contentBlock = b
+	}
+
+	if err := errs.AsError(); err != nil {
+		return nil, err
+	}
+
+	return contentBlock, nil
+}
+
+func attrErr(attr *hclsyntax.Attribute, msg string, args ...interface{}) error {
+	return errors.E(ErrParsing, attr.Expr.Range(), fmt.Sprintf(msg, args...))
+}
+
+func wrapAttrErr(err error, attr *hclsyntax.Attribute, msg string, args ...interface{}) error {
+	return errors.E(ErrParsing, err, attr.Expr.Range(), fmt.Sprintf(msg, args...))
 }
