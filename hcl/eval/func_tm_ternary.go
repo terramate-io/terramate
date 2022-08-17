@@ -1,8 +1,6 @@
 package eval
 
 import (
-	"errors"
-
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/customdecode"
 	"github.com/zclconf/go-cty/cty"
@@ -33,10 +31,6 @@ func tmTernary() function.Function {
 			return v.Type(), nil
 		},
 		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
-			if len(args) != 3 {
-				return cty.NilVal, errors.New("expected 3 arguments")
-			}
-
 			return ternary(args[0], args[1], args[2])
 		},
 	})
