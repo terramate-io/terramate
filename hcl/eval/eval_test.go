@@ -19,6 +19,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	hhcl "github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/ext/customdecode"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/madlambda/spells/assert"
@@ -43,19 +45,37 @@ func TestEvalTmAbspath(t *testing.T) {
 
 	tempDir := t.TempDir()
 
+	localVarExpr, _ := hclsyntax.ParseExpression([]byte(`local.var`), "gen.hcl", hhcl.Pos{})
+
 	for _, tc := range []testcase{
 		{
-			name: "tm_ternary - basic",
+			name: "tm_ternary - cond is true, with primitive values",
 			expr: `tm_ternary(true, "hello", "world")`,
 			want: want{
 				value: cty.StringVal("hello"),
 			},
 		},
 		{
-			name: "tm_ternary - basic",
+			name: "tm_ternary - cond is false, with primitive values",
 			expr: `tm_ternary(false, "hello", "world")`,
 			want: want{
 				value: cty.StringVal("world"),
+			},
+		},
+		{
+			name: "tm_ternary - cond is false, with partial not evaluated",
+			expr: `tm_ternary(false, local.var, "world")`,
+			want: want{
+				value: cty.StringVal("world"),
+			},
+		},
+		{
+			name: "tm_ternary - cond is true, with partial returning",
+			expr: `tm_ternary(true, local.var, "world")`,
+			want: want{
+				value: customdecode.ExpressionClosureVal(&customdecode.ExpressionClosure{
+					Expression: localVarExpr,
+				}),
 			},
 		},
 		{
@@ -137,6 +157,15 @@ func TestEvalTmAbspath(t *testing.T) {
 			attr := body.Attributes[attrname]
 
 			got, err := ctx.Eval(attr.Expr)
+
+			// hack to provide the same context to both closures.
+			if tc.want.value.Type() == customdecode.ExpressionClosureType {
+				underData := tc.want.value.EncapsulatedValue()
+				if underData != nil {
+					closure := underData.(*customdecode.ExpressionClosure)
+					closure.EvalContext = ctx.Hclctx
+				}
+			}
 			errtest.Assert(t, err, tc.want.err)
 			if tc.want.err == nil {
 				if !got.RawEquals(tc.want.value) {

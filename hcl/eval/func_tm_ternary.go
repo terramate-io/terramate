@@ -54,10 +54,7 @@ func ternary(cond cty.Value, val1, val2 cty.Value) (cty.Value, error) {
 	evalExprVal := func(arg cty.Value) (cty.Value, error) {
 		closure := customdecode.ExpressionClosureFromVal(arg)
 		if dependsOnUnknowns(closure.Expression, closure.EvalContext) {
-			// We can't safely decide if this expression will succeed yet,
-			// and so our entire result must be unknown until we have
-			// more information.
-			return cty.DynamicVal, nil
+			return arg, nil
 		}
 
 		v, diags := closure.Value()
@@ -84,9 +81,7 @@ func dependsOnUnknowns(expr hcl.Expression, ctx *hcl.EvalContext) bool {
 	for _, traversal := range expr.Variables() {
 		val, diags := traversal.TraverseAbs(ctx)
 		if diags.HasErrors() {
-			// If the traversal returned a definitive error then it must
-			// not traverse through any unknowns.
-			continue
+			return true
 		}
 		if !val.IsWhollyKnown() {
 			// The value will be unknown if either it refers directly to

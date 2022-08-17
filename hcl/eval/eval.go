@@ -35,7 +35,7 @@ const ErrEval errors.Kind = "failed to evaluate expression"
 
 // Context is used to evaluate HCL code.
 type Context struct {
-	hclctx *hhcl.EvalContext
+	Hclctx *hhcl.EvalContext
 }
 
 // NewContext creates a new HCL evaluation context.
@@ -60,31 +60,31 @@ func NewContext(basedir string) (*Context, error) {
 		Variables: map[string]cty.Value{},
 	}
 	return &Context{
-		hclctx: hclctx,
+		Hclctx: hclctx,
 	}, nil
 }
 
 // SetNamespace will set the given values inside the given namespace on the
 // evaluation context.
 func (c *Context) SetNamespace(name string, vals map[string]cty.Value) {
-	c.hclctx.Variables[name] = cty.ObjectVal(vals)
+	c.Hclctx.Variables[name] = cty.ObjectVal(vals)
 }
 
 // DeleteNamespace deletes the namespace name from the context.
 // If name is not in the context, it's a no-op.
 func (c *Context) DeleteNamespace(name string) {
-	delete(c.hclctx.Variables, name)
+	delete(c.Hclctx.Variables, name)
 }
 
 // HasNamespace returns true the evaluation context knows this namespace, false otherwise.
 func (c *Context) HasNamespace(name string) bool {
-	_, has := c.hclctx.Variables[name]
+	_, has := c.Hclctx.Variables[name]
 	return has
 }
 
 // Eval will evaluate an expression given its context.
 func (c *Context) Eval(expr hclsyntax.Expression) (cty.Value, error) {
-	val, diag := expr.Value(c.hclctx)
+	val, diag := expr.Value(c.Hclctx)
 	if diag.HasErrors() {
 		return cty.NilVal, errors.E(ErrEval, diag)
 	}
