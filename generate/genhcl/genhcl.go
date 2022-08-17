@@ -67,10 +67,13 @@ const (
 
 	// ErrInvalidDynamicIterator indicates that the iterator of a tm_dynamic block
 	// is invalid.
-	ErrInvalidDynamicIterator errors.Kind = "invalid tm_dynamic iterator"
+	ErrInvalidDynamicIterator errors.Kind = "invalid tm_dynamic.iterator"
 
 	// ErrInvalidDynamicLabels indicates that the labels of a tm_dynamic block is invalid.
-	ErrInvalidDynamicLabels errors.Kind = "invalid tm_dynamic labels"
+	ErrInvalidDynamicLabels errors.Kind = "invalid tm_dynamic.labels"
+
+	// ErrDynamicAttrsEval indicates that the attributes of a tm_dynamic cant be evaluated.
+	ErrDynamicAttrsEval errors.Kind = "evaluating tm_dynamic.attributes"
 )
 
 // Name of the HCL code.
@@ -431,7 +434,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 			labelsVal, err := evaluator.Eval(attrs.labels.Expr)
 			if err != nil {
 				tmDynamicErr = errors.E(ErrInvalidDynamicLabels,
-					attrs.labels.Range(),
+					err, attrs.labels.Range(),
 					"failed to evaluate tm_dynamic.labels")
 				return true
 			}
@@ -439,7 +442,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 			labels, err = hcl.ValueAsStringList(labelsVal)
 			if err != nil {
 				tmDynamicErr = errors.E(ErrInvalidDynamicLabels,
-					attrs.labels.Range(),
+					err, attrs.labels.Range(),
 					"tm_dynamic.labels is not a string list")
 				return true
 			}
@@ -463,8 +466,8 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 
 		partialEvalAttributes, err := evaluator.PartialEval(attrs.attributes.Expr)
 		if err != nil {
-			tmDynamicErr = wrapAttrErr(err, attrs.attributes,
-				"partially evaluating tm_dynamic attributes")
+			tmDynamicErr = errors.E(ErrDynamicAttrsEval, err,
+				attrs.attributes.Range())
 			return true
 		}
 
@@ -500,8 +503,9 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 		for _, item := range objectExpr.Items {
 			keyVal, err := evaluator.Eval(item.KeyExpr)
 			if err != nil {
-				tmDynamicErr = wrapAttrErr(err, attrs.attributes,
-					"evaluating tm_dynamic.attributes object key")
+				tmDynamicErr = errors.E(ErrDynamicAttrsEval, err,
+					attrs.attributes.Range(),
+					"evaluating tm_dynamic.attributes key")
 				return true
 			}
 			if keyVal.Type() != cty.String {

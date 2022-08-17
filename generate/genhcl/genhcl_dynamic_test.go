@@ -922,7 +922,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrParsing),
+			wantErr: errors.E(genhcl.ErrDynamicAttrsEval),
 		},
 		{
 			name:  "attributes key is not a string fails",
@@ -1217,7 +1217,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(eval.ErrPartial),
+			wantErr: errors.E(genhcl.ErrDynamicAttrsEval),
 		},
 		{
 			name:  "tm_dynamic with undefined global on content fails",
