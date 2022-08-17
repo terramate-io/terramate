@@ -1197,7 +1197,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrParsing),
+			wantErr: errors.E(genhcl.ErrInvalidDynamicIterator),
 		},
 		{
 			name:  "tm_dynamic with undefined global on attributes fails",

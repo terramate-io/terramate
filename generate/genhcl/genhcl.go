@@ -292,7 +292,7 @@ func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval hcl.Evaluator) erro
 		Str("action", "genhcl.copyBody()").
 		Logger()
 
-	logger.Trace().Msg("Sorting attributes.")
+	logger.Trace().Msg("sorting attributes")
 
 	attrs := ast.SortRawAttributes(src.Attributes)
 	for _, attr := range attrs {
@@ -310,7 +310,7 @@ func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval hcl.Evaluator) erro
 		dest.SetAttributeRaw(attr.Name, tokens)
 	}
 
-	logger.Trace().Msg("Append blocks.")
+	logger.Trace().Msg("appending blocks")
 
 	for _, block := range src.Blocks {
 		err := appendBlock(dest, block, eval)
@@ -342,7 +342,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 		Str("action", "genhcl.appendDynamicBlock").
 		Logger()
 
-	logger.Trace().Msg("parsing tm_dynamic block")
+	logger.Trace().Msg("appending tm_dynamic block")
 
 	errs := errors.L()
 
@@ -384,11 +384,13 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 	if attrs.iterator != nil {
 		iteratorTraversal, diags := hhcl.AbsTraversalForExpr(attrs.iterator.Expr)
 		if diags.HasErrors() {
-			return errors.E(diags, ErrInvalidDynamicIterator,
-				"failed to parse iterator expression")
+			return errors.E(ErrInvalidDynamicIterator,
+				attrs.iterator.Range(),
+				"dynamic iterator must be a single variable name")
 		}
 		if len(iteratorTraversal) != 1 {
-			return hclAttrErr(attrs.iterator,
+			return errors.E(ErrInvalidDynamicIterator,
+				attrs.iterator.Range(),
 				"dynamic iterator must be a single variable name")
 		}
 		iterator = iteratorTraversal.RootName()
