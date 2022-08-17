@@ -19,7 +19,6 @@ import (
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genhcl"
-	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 )
 
@@ -202,6 +201,47 @@ func TestGenerateHCLDynamic(t *testing.T) {
 								labels("c"),
 								number("key", 2),
 								str("value", "c"),
+							),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "tm_dynamic with duplicated labels",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: hcldoc(
+						generateHCL(
+							labels("tm_dynamic_test.tf"),
+							content(
+								tmdynamic(
+									labels("duplicated_labels"),
+									expr("for_each", `["val"]`),
+									expr("labels", `["a", "a"]`),
+									content(
+										expr("value", "my_block.value"),
+										expr("key", "my_block.key"),
+									),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "tm_dynamic_test.tf",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body: hcldoc(
+							block("duplicated_labels",
+								labels("a", "a"),
+								number("key", 0),
+								str("value", "val"),
 							),
 						),
 					},
@@ -824,7 +864,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "attributes is null fails",
@@ -844,7 +884,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "attributes is not object fails",
@@ -864,7 +904,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "attributes key is undefined fails",
@@ -884,7 +924,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "attributes key is not a string fails",
@@ -909,7 +949,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "attributes key has space fails",
@@ -931,7 +971,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "attributes key is empty string fails",
@@ -953,7 +993,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "attributes key starts with '-' fails",
@@ -975,7 +1015,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "attributes and unknown attribute fails",
@@ -996,7 +1036,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "tm_dynamic with more than one label fails",
@@ -1018,7 +1058,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "tm_dynamic with multiple content blocks fail",
@@ -1043,7 +1083,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "tm_dynamic with unknown block fail",
@@ -1068,7 +1108,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "tm_dynamic with undefined for_each fail",
@@ -1090,7 +1130,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "tm_dynamic with labels with undefined references fails",
@@ -1113,7 +1153,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "tm_dynamic with labels that is not a list fails",
@@ -1136,7 +1176,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "tm_dynamic with iterator with traversal fails",
@@ -1159,7 +1199,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "tm_dynamic with undefined global on attributes fails",
@@ -1223,7 +1263,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "tm_dynamic with no label fails",
@@ -1244,7 +1284,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "content and unknown attribute fails",
@@ -1267,7 +1307,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "content block and attributes fails",
@@ -1290,7 +1330,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
 			name:  "tm_dynamic with no for_each fails",
@@ -1311,7 +1351,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
+			wantErr: errors.E(genhcl.ErrParsing),
 		},
 	}
 

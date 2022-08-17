@@ -347,7 +347,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 	errs := errors.L()
 
 	if len(block.Labels) != 1 {
-		errs.Append(errors.E(hcl.ErrTerramateSchema,
+		errs.Append(errors.E(ErrParsing,
 			block.LabelRanges, "tm_dynamic requires a single label"))
 	}
 
@@ -358,12 +358,12 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 	errs.Append(err)
 
 	if contentBlock == nil && attrs.attributes == nil {
-		errs.Append(errors.E(hcl.ErrTerramateSchema, block.Body.Range(),
+		errs.Append(errors.E(ErrParsing, block.Body.Range(),
 			"`content` block or `attributes` obj must be defined"))
 	}
 
 	if contentBlock != nil && attrs.attributes != nil {
-		errs.Append(errors.E(hcl.ErrTerramateSchema, block.Body.Range(),
+		errs.Append(errors.E(ErrParsing, block.Body.Range(),
 			"`content` block and `attributes` obj are not allowed together"))
 	}
 
@@ -432,7 +432,8 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 
 			labels, err = hcl.ParseStringList("labels", labelsVal)
 			if err != nil {
-				tmDynamicErr = err
+				tmDynamicErr = wrapHCLAttrErr(err, attrs.labels,
+					"parsing tm_dynamic.labels")
 				return true
 			}
 		}
@@ -566,7 +567,7 @@ func getDynamicBlockAttrs(block *hclsyntax.Block) (dynBlockAttributes, error) {
 
 	if dynAttrs.foreach == nil {
 		errs.Append(errors.E(block.Body.Range(),
-			hcl.ErrTerramateSchema,
+			ErrParsing,
 			"tm_dynamic requires a `for_each` attribute"))
 	}
 
@@ -582,14 +583,14 @@ func getContentBlock(blocks hclsyntax.Blocks) (*hclsyntax.Block, error) {
 
 	for _, b := range blocks {
 		if b.Type != "content" {
-			errs.Append(errors.E(hcl.ErrTerramateSchema,
+			errs.Append(errors.E(ErrParsing,
 				b.TypeRange, "unrecognized block %s", b.Type))
 
 			continue
 		}
 
 		if contentBlock != nil {
-			errs.Append(errors.E(hcl.ErrTerramateSchema, b.TypeRange,
+			errs.Append(errors.E(ErrParsing, b.TypeRange,
 				"multiple definitions of the `content` block"))
 
 			continue
@@ -606,9 +607,9 @@ func getContentBlock(blocks hclsyntax.Blocks) (*hclsyntax.Block, error) {
 }
 
 func hclAttrErr(attr *hclsyntax.Attribute, msg string, args ...interface{}) error {
-	return errors.E(hcl.ErrTerramateSchema, attr.Expr.Range(), fmt.Sprintf(msg, args...))
+	return errors.E(ErrParsing, attr.Expr.Range(), fmt.Sprintf(msg, args...))
 }
 
 func wrapHCLAttrErr(err error, attr *hclsyntax.Attribute, msg string, args ...interface{}) error {
-	return errors.E(hcl.ErrTerramateSchema, err, attr.Expr.Range(), fmt.Sprintf(msg, args...))
+	return errors.E(ErrParsing, err, attr.Expr.Range(), fmt.Sprintf(msg, args...))
 }
