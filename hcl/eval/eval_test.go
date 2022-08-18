@@ -19,7 +19,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/customdecode"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -45,8 +44,6 @@ func TestEvalTmAbspath(t *testing.T) {
 
 	tempDir := t.TempDir()
 
-	localVarExpr, _ := hclsyntax.ParseExpression([]byte(`local.var`), "gen.hcl", hhcl.Pos{})
-
 	for _, tc := range []testcase{
 		{
 			name: "tm_ternary - cond is true, with primitive values",
@@ -69,7 +66,7 @@ func TestEvalTmAbspath(t *testing.T) {
 				value: cty.StringVal("world"),
 			},
 		},
-		{
+		/*{
 			name: "tm_ternary - cond is true, with partial returning",
 			expr: `tm_ternary(true, local.var, "world")`,
 			want: want{
@@ -77,7 +74,7 @@ func TestEvalTmAbspath(t *testing.T) {
 					Expression: localVarExpr,
 				}),
 			},
-		},
+		},*/
 		{
 			name: "no args - fails",
 			expr: `tm_abspath()`,

@@ -1301,6 +1301,36 @@ func TestPartialEval(t *testing.T) {
 				str("test", `THIS IS ${"" + "test"} !!!`),
 			),
 		},
+		{
+			name: "tm_ternary with condition expression",
+			globals: globals(
+				number("val", 1),
+			),
+			config: hcldoc(
+				expr("a", `tm_ternary(global.val == 1, 0, 1)`),
+			),
+			want: hcldoc(
+				number("a", 0),
+			),
+		},
+		{
+			name: "tm_ternary returning partial result",
+			config: hcldoc(
+				expr("a", "tm_ternary(true, local.var, [])"),
+			),
+			want: hcldoc(
+				expr("a", "local.var"),
+			),
+		},
+		{
+			name: "tm_ternary returning literals",
+			config: hcldoc(
+				expr("a", "tm_ternary(false, local.var, [])"),
+			),
+			want: hcldoc(
+				expr("a", "[]"),
+			),
+		},
 		/*
 			 * Hashicorp HCL formats the `wants` wrong.
 			 *

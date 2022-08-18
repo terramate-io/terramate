@@ -15,11 +15,55 @@
 package eval
 
 import (
+	"path/filepath"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/customdecode"
+	tflang "github.com/hashicorp/terraform/lang"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 )
+
+func newTmFunctions(basedir string) map[string]function.Function {
+	scope := &tflang.Scope{BaseDir: basedir}
+	tffuncs := scope.Functions()
+
+	tmfuncs := map[string]function.Function{}
+	for name, function := range tffuncs {
+		tmfuncs["tm_"+name] = function
+	}
+
+	// fix terraform broken abspath()
+	tmfuncs["tm_abspath"] = tmAbspath(basedir)
+
+	// sane ternary
+	tmfuncs["tm_ternary"] = tmTernary()
+	return tmfuncs
+}
+
+// tmAbspath returns the `tm_abspath()` hcl function.
+func tmAbspath(basedir string) function.Function {
+	return function.New(&function.Spec{
+		Params: []function.Parameter{
+			{
+				Name: "path",
+				Type: cty.String,
+			},
+		},
+		Type: function.StaticReturnType(cty.String),
+		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+			path := args[0].AsString()
+			var abspath string
+			if filepath.IsAbs(path) {
+				abspath = path
+			} else {
+				abspath = filepath.Join(basedir, path)
+			}
+
+			return cty.StringVal(filepath.ToSlash(filepath.Clean(abspath))), nil
+		},
+	})
+}
 
 func tmTernary() function.Function {
 	return function.New(&function.Spec{
@@ -54,6 +98,7 @@ func ternary(cond cty.Value, val1, val2 cty.Value) (cty.Value, error) {
 	evalExprVal := func(arg cty.Value) (cty.Value, error) {
 		closure := customdecode.ExpressionClosureFromVal(arg)
 		if dependsOnUnknowns(closure.Expression, closure.EvalContext) {
+			// partial
 			return arg, nil
 		}
 
