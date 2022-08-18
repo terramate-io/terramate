@@ -19,7 +19,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/hashicorp/hcl/v2/ext/customdecode"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/madlambda/spells/assert"
@@ -155,14 +154,6 @@ func TestEvalTmAbspath(t *testing.T) {
 
 			got, err := ctx.Eval(attr.Expr)
 
-			// hack to provide the same context to both closures.
-			if tc.want.value.Type() == customdecode.ExpressionClosureType {
-				underData := tc.want.value.EncapsulatedValue()
-				if underData != nil {
-					closure := underData.(*customdecode.ExpressionClosure)
-					closure.EvalContext = ctx.Hclctx
-				}
-			}
 			errtest.Assert(t, err, tc.want.err)
 			if tc.want.err == nil {
 				if !got.RawEquals(tc.want.value) {
