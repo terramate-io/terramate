@@ -1350,6 +1350,31 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
+			name: "tm_ternary inside deep structures",
+			config: hcldoc(
+				expr("a", `{
+					some = {
+						deep = {
+							structure = {
+								value = tm_ternary(true, [local.var], 0)
+							}
+						}
+					}	
+				}`),
+			),
+			want: hcldoc(
+				expr("a", `{
+					some = {
+						deep = {
+							structure = {
+								value = [local.var]
+							}
+						}
+					}	
+				}`),
+			),
+		},
+		{
 			name: "tm_ternary fails with partials in the conditions",
 			config: hcldoc(
 				expr("a", "tm_ternary(local.a, true, false)"),
