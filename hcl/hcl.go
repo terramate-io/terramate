@@ -1058,11 +1058,11 @@ checkBlocks:
 			}
 		}
 
-		// TODO: add range
 		errs.Append(errors.E(ErrTerramateSchema,
-			"unexpected block %s.%s",
-			block.Type,
-			got.Type),
+			got.DefRange(),
+			"unexpected block %s inside %s",
+			got.Type,
+			block.Type),
 		)
 	}
 
@@ -1100,11 +1100,13 @@ func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 
 	errs := errors.L()
 
-	if len(defaultBlock.Blocks) > 0 {
-		// TODO: add range
+	for _, block := range defaultBlock.Blocks {
 		errs.Append(errors.E(ErrTerramateSchema,
-			"vendor.manifest.default should not have any blocks",
-		))
+			block.DefRange(),
+			"unexpected block %s inside %s",
+			block.Type,
+			defaultBlock.Type),
+		)
 	}
 
 	cfg.Manifest.Default = &ManifestDesc{}
@@ -1123,7 +1125,7 @@ func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 			}
 		default:
 			errs.Append(errors.E(ErrTerramateSchema, attr.NameRange,
-				"unrecognized attribute vendor.manifest.default.%s", attr.Name,
+				"unrecognized attribute %s.%s", defaultBlock.Type, attr.Name,
 			))
 		}
 	}
