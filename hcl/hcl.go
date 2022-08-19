@@ -1104,11 +1104,12 @@ func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 	for _, attr := range defaultBlock.Attributes.SortedList() {
 		switch attr.Name {
 		case "files":
-			attrVal, err := attr.Expr.Value(nil)
-			if err != nil {
-				errs.Append(err)
-				continue
-			}
+			attrVal, _ := attr.Expr.Value(nil)
+			// TODO: check evaluation error
+			//if err != nil {
+			//errs.Append(err)
+			//continue
+			//}
 			errs.Append(assignSet(attr.Name, &cfg.Manifest.Default.Files, attrVal))
 		default:
 			errs.Append(errors.E(ErrTerramateSchema, attr.NameRange,
