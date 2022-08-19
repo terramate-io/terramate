@@ -1323,15 +1323,6 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			name: "tm_ternary with different result types in branches",
-			config: hcldoc(
-				expr("a", `tm_ternary(true, true, 0)`),
-			),
-			want: hcldoc(
-				boolean("a", true),
-			),
-		},
-		{
 			name: "tm_ternary returning partial result",
 			config: hcldoc(
 				expr("a", "tm_ternary(true, local.var, [])"),
