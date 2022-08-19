@@ -232,6 +232,54 @@ func TestHCLParserVendor(t *testing.T) {
 			},
 		},
 		{
+			name: "files has undefined element fails",
+			input: []cfgfile{
+				{
+					filename: "manifest.tm",
+					body: `
+						vendor {
+						  manifest {
+						    default {
+						      files = ["ok", ns.undefined]
+						    }
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("manifest.tm", start(5, 28, 82), end(5, 30, 84)),
+					),
+				},
+			},
+		},
+		{
+			name: "files is undefined fails",
+			input: []cfgfile{
+				{
+					filename: "manifest.tm",
+					body: `
+						vendor {
+						  manifest {
+						    default {
+						      files = local.files
+						    }
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("manifest.tm", start(5, 21, 75), end(5, 26, 80)),
+					),
+				},
+			},
+		},
+		{
 			name: "unrecognized attribute on vendor fails",
 			input: []cfgfile{
 				{
