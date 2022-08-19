@@ -72,6 +72,7 @@ func AssertTerramateConfig(t *testing.T, got, want hcl.Config) {
 
 	assertTerramateBlock(t, got.Terramate, want.Terramate)
 	assertStackBlock(t, got.Stack, want.Stack)
+	AssertDiff(t, got.Vendor, want.Vendor)
 }
 
 // AssertDiff will compare the two values and fail if they are not the same
@@ -107,10 +108,6 @@ func assertTerramateBlock(t *testing.T, got, want *hcl.Terramate) {
 		t.Fatalf("want.Config[%+v] != got.Config[%+v]",
 			want.Config, got.Config)
 	}
-
-	assertTerramateConfig(t, got.Config, want.Config)
-
-	AssertDiff(t, got.Manifest, want.Manifest)
 }
 
 func assertTerramateConfig(t *testing.T, got, want *hcl.RootConfig) {

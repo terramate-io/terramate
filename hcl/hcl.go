@@ -54,7 +54,7 @@ const (
 type Config struct {
 	Terramate *Terramate
 	Stack     *Stack
-	Vendor    *Vendor
+	Vendor    *VendorConfig
 
 	// absdir is the absolute path to the configuration directory.
 	absdir string
@@ -116,8 +116,8 @@ type ManifestConfig struct {
 	Default *ManifestDesc
 }
 
-// Vendor is the parsed "vendor" HCL block.
-type Vendor struct {
+// VendorConfig is the parsed "vendor" HCL block.
+type VendorConfig struct {
 	// Manifest is the parsed manifest block, if any.
 	Manifest *ManifestConfig
 }
@@ -1144,9 +1144,9 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 	return errs.AsError()
 }
 
-func parseManifestConfig(cfg *ManifestConfig, block *ast.Block) error {
+func parseVendorConfig(cfg *VendorConfig, block *ast.Block) error {
 	logger := log.With().
-		Str("action", "hcl.parseManifestConfig()").
+		Str("action", "hcl.parseVendorConfig()").
 		Logger()
 
 	errs := errors.L()
@@ -1212,7 +1212,7 @@ func parseManifestConfig(cfg *ManifestConfig, block *ast.Block) error {
 		}
 	}
 
-	cfg.Default = desc
+	cfg.Manifest.Default = desc
 
 	return errs.AsError()
 }
@@ -1446,8 +1446,8 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 	logger.Trace().Msg("Range over unmerged blocks.")
 
-	var foundstack, foundManifest bool
-	var stackblock, manifestBlock *ast.Block
+	var foundstack, foundVendor bool
+	var stackblock, vendorBlock *ast.Block
 
 	for _, block := range rawconfig.UnmergedBlocks {
 		// unmerged blocks
@@ -1468,17 +1468,17 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 			foundstack = true
 			stackblock = block
-		case "manifest":
-			logger.Trace().Msg("found terramate.manifest block")
+		case "vendor":
+			logger.Trace().Msg("found vendor block")
 
-			if foundManifest {
+			if foundVendor {
 				errs.Append(errors.E(errKind, block.DefRange(),
-					"duplicated terramate.manifest block"))
+					"duplicated vendor block"))
 				continue
 			}
 
-			foundManifest = true
-			manifestBlock = block
+			foundVendor = true
+			vendorBlock = block
 
 		case "generate_hcl":
 			logger.Trace().Msg("Found \"generate_hcl\" block")
@@ -1500,15 +1500,15 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 		}
 	}
 
-	if foundManifest {
+	if foundVendor {
 		logger.Debug().Msg("parsing manifest")
 
-		if config.Terramate.Manifest != nil {
-			errs.Append(errors.E(errKind, manifestBlock.DefRange(),
-				"duplicated terramate.manifest blocks across configs"))
+		if config.Vendor != nil {
+			errs.Append(errors.E(errKind, vendorBlock.DefRange(),
+				"duplicated vendor blocks across configs"))
 		}
-		config.Terramate.Manifest = &ManifestConfig{}
-		err := parseManifestConfig(config.Terramate.Manifest, manifestBlock)
+		config.Vendor = &VendorConfig{}
+		err := parseVendorConfig(config.Vendor, vendorBlock)
 		if err != nil {
 			errs.Append(errors.E(errKind, err))
 		}

@@ -55,14 +55,13 @@ func (cfg RawConfig) Copy() RawConfig {
 
 func (cfg *RawConfig) mergeHandlers() map[string]mergeHandler {
 	return map[string]mergeHandler{
-		"terramate":     cfg.mergeTerramate,
+		"terramate":     cfg.mergeBlock,
 		"globals":       cfg.mergeBlock,
 		"stack":         cfg.addBlock,
+		"vendor":        cfg.addBlock,
 		"generate_file": cfg.addBlock,
 		"generate_hcl":  cfg.addBlock,
 		"import":        func(b *ast.Block) error { return nil },
-		// terramate.manifest, which is an unmergeable block.
-		"manifest": func(b *ast.Block) error { return nil },
 	}
 }
 
@@ -98,35 +97,6 @@ func (cfg *RawConfig) mergeBlocks(blocks ast.Blocks) error {
 func (cfg *RawConfig) addBlock(block *ast.Block) error {
 	cfg.UnmergedBlocks = append(cfg.UnmergedBlocks, block)
 	return nil
-}
-
-func (cfg *RawConfig) mergeTerramate(block *ast.Block) error {
-	// terramate.manifest do not support merging + it will have
-	// blocks with labels on the future, which are not mergeable with the
-	// general purpose mergeBlocks method.
-	allBlocks := block.Blocks
-	defer func() {
-		// We are not supposed to mutate the block parameter
-		// So we restore it to its original value.
-		block.Blocks = allBlocks
-	}()
-	mergeableBlocks := []*ast.Block{}
-	unmergeableBlocks := []*ast.Block{}
-
-	for _, b := range allBlocks {
-		if b.Type == "manifest" {
-			unmergeableBlocks = append(unmergeableBlocks, b)
-		} else {
-			mergeableBlocks = append(mergeableBlocks, b)
-		}
-	}
-
-	for _, block := range unmergeableBlocks {
-		cfg.addBlock(block)
-	}
-
-	block.Blocks = mergeableBlocks
-	return cfg.mergeBlock(block)
 }
 
 func (cfg *RawConfig) mergeBlock(block *ast.Block) error {

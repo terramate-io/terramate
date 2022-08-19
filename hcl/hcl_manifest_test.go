@@ -38,7 +38,7 @@ func TestHCLParserManifest(t *testing.T) {
 			},
 			want: want{
 				config: hcl.Config{
-					Vendor: &hcl.Vendor{
+					Vendor: &hcl.VendorConfig{
 						Manifest: &hcl.ManifestConfig{},
 					},
 				},
@@ -61,7 +61,7 @@ func TestHCLParserManifest(t *testing.T) {
 			},
 			want: want{
 				config: hcl.Config{
-					Vendor: &hcl.Vendor{
+					Vendor: &hcl.VendorConfig{
 						Manifest: &hcl.ManifestConfig{
 							Default: &hcl.ManifestDesc{},
 						},
@@ -87,7 +87,7 @@ func TestHCLParserManifest(t *testing.T) {
 			},
 			want: want{
 				config: hcl.Config{
-					Vendor: &hcl.Vendor{
+					Vendor: &hcl.VendorConfig{
 						Manifest: &hcl.ManifestConfig{
 							Default: &hcl.ManifestDesc{
 								Files: []string{"/", "/test"},
