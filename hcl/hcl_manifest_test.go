@@ -29,7 +29,7 @@ func TestHCLParserManifest(t *testing.T) {
 				{
 					filename: "manifest.tm",
 					body: `
-						terramate {
+						vendor {
 						  manifest {
 						  }
 						}
@@ -38,7 +38,7 @@ func TestHCLParserManifest(t *testing.T) {
 			},
 			want: want{
 				config: hcl.Config{
-					Terramate: &hcl.Terramate{
+					Vendor: &hcl.Vendor{
 						Manifest: &hcl.ManifestConfig{},
 					},
 				},
@@ -50,7 +50,7 @@ func TestHCLParserManifest(t *testing.T) {
 				{
 					filename: "manifest.tm",
 					body: `
-						terramate {
+						vendor {
 						  manifest {
 						    default {
 						    }
@@ -61,7 +61,7 @@ func TestHCLParserManifest(t *testing.T) {
 			},
 			want: want{
 				config: hcl.Config{
-					Terramate: &hcl.Terramate{
+					Vendor: &hcl.Vendor{
 						Manifest: &hcl.ManifestConfig{
 							Default: &hcl.ManifestDesc{},
 						},
@@ -70,16 +70,15 @@ func TestHCLParserManifest(t *testing.T) {
 			},
 		},
 		{
-			name: "default has files and excludes",
+			name: "default has files",
 			input: []cfgfile{
 				{
 					filename: "manifest.tm",
 					body: `
-						terramate {
+						vendor {
 						  manifest {
 						    default {
 						      files = ["/", "/test"]
-						      excludes = ["/test2"]
 						    }
 						  }
 						}
@@ -88,11 +87,10 @@ func TestHCLParserManifest(t *testing.T) {
 			},
 			want: want{
 				config: hcl.Config{
-					Terramate: &hcl.Terramate{
+					Vendor: &hcl.Vendor{
 						Manifest: &hcl.ManifestConfig{
 							Default: &hcl.ManifestDesc{
-								Files:    []string{"/", "/test"},
-								Excludes: []string{"/test2"},
+								Files: []string{"/", "/test"},
 							},
 						},
 					},
@@ -105,7 +103,7 @@ func TestHCLParserManifest(t *testing.T) {
 				{
 					filename: "manifest.tm",
 					body: `
-						terramate {
+						vendor {
 						  manifest {
 						    default {
 						      files = "not list"
@@ -127,14 +125,14 @@ func TestHCLParserManifest(t *testing.T) {
 				{
 					filename: "manifest.tm",
 					body: `
-						terramate {
+						vendor {
 						  manifest {
 						    default {
 						      files = []
 						    }
 						  }
 						}
-						terramate {
+						vendor {
 						  manifest {
 						    default {
 						      excludes = []
@@ -156,7 +154,7 @@ func TestHCLParserManifest(t *testing.T) {
 				{
 					filename: "manifest.tm",
 					body: `
-						terramate {
+						vendor {
 						  manifest {
 						    default {
 						      files = []
@@ -168,7 +166,7 @@ func TestHCLParserManifest(t *testing.T) {
 				{
 					filename: "manifest2.tm",
 					body: `
-						terramate {
+						vendor {
 						  manifest {
 						    default {
 						      excludes = []
@@ -190,7 +188,7 @@ func TestHCLParserManifest(t *testing.T) {
 				{
 					filename: "manifest.tm",
 					body: `
-						terramate {
+						vendor {
 						  manifest {
 						    default {
 						      files = ["ok", 666]
@@ -212,7 +210,7 @@ func TestHCLParserManifest(t *testing.T) {
 				{
 					filename: "manifest.tm",
 					body: `
-						terramate {
+						vendor {
 						  manifest {
 						    default {
 						      excludes = "not list"
@@ -234,7 +232,7 @@ func TestHCLParserManifest(t *testing.T) {
 				{
 					filename: "manifest.tm",
 					body: `
-						terramate {
+						vendor {
 						  manifest {
 						    default {
 						      excludes = ["ok", true]
@@ -256,7 +254,7 @@ func TestHCLParserManifest(t *testing.T) {
 				{
 					filename: "manifest.tm",
 					body: `
-						terramate {
+						vendor {
 						  manifest {
 						    unknown = true
 						  }
@@ -276,7 +274,7 @@ func TestHCLParserManifest(t *testing.T) {
 				{
 					filename: "manifest.tm",
 					body: `
-						terramate {
+						vendor {
 						  manifest "label" {
 						  }
 						}
@@ -295,7 +293,7 @@ func TestHCLParserManifest(t *testing.T) {
 				{
 					filename: "manifest.tm",
 					body: `
-						terramate {
+						vendor {
 						  manifest {
 						    unknown {
 						    }
@@ -316,7 +314,7 @@ func TestHCLParserManifest(t *testing.T) {
 				{
 					filename: "manifest.tm",
 					body: `
-						terramate {
+						vendor {
 						  manifest {
 						    default {
 						      unknown = true
@@ -338,7 +336,7 @@ func TestHCLParserManifest(t *testing.T) {
 				{
 					filename: "manifest.tm",
 					body: `
-						terramate {
+						vendor {
 						  manifest {
 						    default {
 						      unknown {

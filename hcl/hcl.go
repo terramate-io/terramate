@@ -54,6 +54,7 @@ const (
 type Config struct {
 	Terramate *Terramate
 	Stack     *Stack
+	Vendor    *Vendor
 
 	// absdir is the absolute path to the configuration directory.
 	absdir string
@@ -115,6 +116,12 @@ type ManifestConfig struct {
 	Default *ManifestDesc
 }
 
+// Vendor is the parsed "vendor" HCL block.
+type Vendor struct {
+	// Manifest is the parsed manifest block, if any.
+	Manifest *ManifestConfig
+}
+
 // Terramate is the parsed "terramate" HCL block.
 type Terramate struct {
 	// RequiredVersion contains the terramate version required by the stack.
@@ -122,9 +129,6 @@ type Terramate struct {
 
 	// Config is the parsed config blocks.
 	Config *RootConfig
-
-	// Manifest is the parsed manifest block, if any.
-	Manifest *ManifestConfig
 }
 
 // StackID represents the stack ID. Its zero value represents an undefined ID.
