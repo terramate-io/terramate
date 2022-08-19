@@ -135,7 +135,7 @@ func TestHCLParserManifest(t *testing.T) {
 						vendor {
 						  manifest {
 						    default {
-						      excludes = []
+						      files = ["/a"]
 						    }
 						  }
 						}
@@ -169,7 +169,7 @@ func TestHCLParserManifest(t *testing.T) {
 						vendor {
 						  manifest {
 						    default {
-						      excludes = []
+						      files = ["/a"]
 						    }
 						  }
 						}
@@ -192,50 +192,6 @@ func TestHCLParserManifest(t *testing.T) {
 						  manifest {
 						    default {
 						      files = ["ok", 666]
-						    }
-						  }
-						}
-					`,
-				},
-			},
-			want: want{
-				errs: []error{
-					errors.E(hcl.ErrTerramateSchema),
-				},
-			},
-		},
-		{
-			name: "excludes is not list fails",
-			input: []cfgfile{
-				{
-					filename: "manifest.tm",
-					body: `
-						vendor {
-						  manifest {
-						    default {
-						      excludes = "not list"
-						    }
-						  }
-						}
-					`,
-				},
-			},
-			want: want{
-				errs: []error{
-					errors.E(hcl.ErrTerramateSchema),
-				},
-			},
-		},
-		{
-			name: "excludes is not string list fails",
-			input: []cfgfile{
-				{
-					filename: "manifest.tm",
-					body: `
-						vendor {
-						  manifest {
-						    default {
-						      excludes = ["ok", true]
 						    }
 						  }
 						}

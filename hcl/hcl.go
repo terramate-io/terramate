@@ -1023,75 +1023,102 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 	return errs.AsError()
 }
 
-func parseVendorConfig(cfg *VendorConfig, block *ast.Block) error {
+// checkOnlyHasSubBlocks performs a basic schema check on expected labels/blocks
+// inside a block. The block should have no attributes inside it.
+func checkOnlyHasSubBlocks(block *ast.Block, blocks ...string) error {
+
+	errs := errors.L()
+
+	for _, got := range block.Attributes.SortedList() {
+		errs.Append(errors.E(got.NameRange,
+			"unrecognized attribute %s.%s", block.Type, got.Name,
+		))
+	}
+
+	if len(block.Labels) > 0 {
+		// TODO: add range
+		errs.Append(errors.E(ErrTerramateSchema,
+			"%s want no labels but got %v",
+			block.Type,
+			block.Labels))
+	}
+
+checkBlocks:
+	for _, got := range block.Blocks {
+		for _, want := range blocks {
+			if want == got.Type {
+				continue checkBlocks
+			}
+		}
+
+		// TODO: add range
+		errs.Append(errors.E(ErrTerramateSchema,
+			"unexpected block %s.%s",
+			block.Type,
+			got.Type),
+		)
+	}
+
+	return errs.AsError()
+}
+
+func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 	logger := log.With().
 		Str("action", "hcl.parseVendorConfig()").
 		Logger()
 
 	errs := errors.L()
 
-	for _, attr := range block.Attributes.SortedList() {
-		errs.Append(errors.E(attr.NameRange,
-			"unrecognized attribute terramate.manifest.%s", attr.Name,
-		))
-	}
-
-	if len(block.Labels) > 0 {
-		errs.Append(errors.E(ErrTerramateSchema,
-			"terramate.manifest does not support labels, got: %v",
-			len(block.Labels)))
-	}
-
-	if len(block.Blocks) == 0 {
-		logger.Trace().Msg("terramate.manifest has no blocks, nothing to do")
-		return errs.AsError()
-	}
-
-	if len(block.Blocks) > 1 {
-		errs.Append(errors.E(ErrTerramateSchema,
-			"terramate.manifest has %d blocks, only default block is supported",
-			len(block.Blocks)))
-	}
+	errs.Append(checkOnlyHasSubBlocks(vendor, "manifest"))
+	// TODO: check for more than one manifest
 
 	if err := errs.AsError(); err != nil {
 		return err
 	}
 
-	defaultBlock := block.Blocks[0]
+	manifestBlock := vendor.Blocks[0]
 
-	if defaultBlock.Type != "default" {
-		return errors.E(ErrTerramateSchema, "block terramate.manifest.%s is not supported", defaultBlock.Type)
+	errs.Append(checkOnlyHasSubBlocks(manifestBlock, "default"))
+	// TODO: check for more than one default
+
+	if err := errs.AsError(); err != nil {
+		return err
 	}
+
+	logger.Trace().Msg("parsing vendor.manifest.default block")
+
+	cfg.Manifest = &ManifestConfig{}
+
+	if len(manifestBlock.Blocks) == 0 {
+		return nil
+	}
+
+	defaultBlock := manifestBlock.Blocks[0]
 
 	if len(defaultBlock.Blocks) > 0 {
-		return errors.E(ErrTerramateSchema, "terramate.manifest.default does not support blocks")
+		// TODO: add range
+		errs.Append(errors.E(ErrTerramateSchema,
+			"vendor.manifest.default should not have any blocks",
+		))
 	}
 
-	logger.Trace().Msg("parsing terramate.manifest.default block")
-
-	desc := &ManifestDesc{}
+	cfg.Manifest.Default = &ManifestDesc{}
 
 	for _, attr := range defaultBlock.Attributes.SortedList() {
-
-		attrVal, err := attr.Expr.Value(nil)
-		if err != nil {
-			errs.Append(err)
-			continue
-		}
-
 		switch attr.Name {
 		case "files":
-			errs.Append(assignSet(attr.Name, &desc.Files, attrVal))
-		case "excludes":
-			errs.Append(assignSet(attr.Name, &desc.Excludes, attrVal))
+			attrVal, err := attr.Expr.Value(nil)
+			if err != nil {
+				errs.Append(err)
+				continue
+			}
+			errs.Append(assignSet(attr.Name, &cfg.Manifest.Default.Files, attrVal))
 		default:
-			errs.Append(errors.E(attr.NameRange,
-				"unrecognized attribute terramate.manifest.%s", attr.Name,
+			errs.Append(errors.E(ErrTerramateSchema, attr.NameRange,
+				"unrecognized attribute vendor.manifest.default.%s", attr.Name,
 			))
 		}
 	}
-
-	cfg.Manifest.Default = desc
 
 	return errs.AsError()
 }
