@@ -4,6 +4,7 @@
 ![CI Status](https://github.com/mineiros-io/terramate/actions/workflows/ci.yml/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/mineiros-io/terramate)](https://goreportcard.com/report/github.com/mineiros-io/terramate)
 [![codecov](https://codecov.io/gh/mineiros-io/terramate/branch/main/graph/badge.svg?token=gMRUkVUAQ4)](https://codecov.io/gh/mineiros-io/terramate)
+[![Star History Chart](https://api.star-history.com/svg?repos=mineiros-io/terramate&type=Timeline)](https://star-history.com/#mineiros-io/terramate&Timeline)
 [![Join Slack](https://img.shields.io/badge/slack-@mineiros--community-f32752.svg?logo=slack)](https://mineiros.io/slack)
 
 Terramate is a tool for managing multiple Terraform stacks.
