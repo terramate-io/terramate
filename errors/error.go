@@ -171,7 +171,7 @@ func E(args ...interface{}) *Error {
 	if format != nil {
 		e.Description = fmt.Sprintf(*format, fmtargs...)
 	} else if len(fmtargs) > 0 {
-		panic(errors.New("errors.E called with arbitrary types and no format"))
+		panic(fmt.Errorf("errors.E called with arbitrary types %#v and no format", fmtargs))
 	}
 
 	if errs.len() == 0 {

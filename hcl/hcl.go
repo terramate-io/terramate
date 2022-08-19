@@ -1032,12 +1032,12 @@ func checkHasSubBlocks(block *ast.Block, blocks ...string) error {
 		))
 	}
 
-	if len(block.Labels) > 0 {
-		// TODO: add range
+	for i, label := range block.Labels {
 		errs.Append(errors.E(ErrTerramateSchema,
-			"%s want no labels but got %v",
+			"block %s has unexpected label %s",
 			block.Type,
-			block.Labels))
+			block.LabelRanges[i],
+			label))
 	}
 
 	found := false
@@ -1046,10 +1046,9 @@ checkBlocks:
 		for _, want := range blocks {
 			if want == got.Type {
 				if found {
-					// TODO: add range
 					errs.Append(errors.E(ErrTerramateSchema,
-						"duplicated block %s.%s",
-						block.Type,
+						got.DefRange(),
+						"duplicated block %s",
 						got.Type),
 					)
 					continue checkBlocks
@@ -1119,7 +1118,9 @@ func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 			//errs.Append(err)
 			//continue
 			//}
-			errs.Append(assignSet(attr.Name, &cfg.Manifest.Default.Files, attrVal))
+			if err := assignSet(attr.Name, &cfg.Manifest.Default.Files, attrVal); err != nil {
+				errs.Append(errors.E(err, attr.NameRange))
+			}
 		default:
 			errs.Append(errors.E(ErrTerramateSchema, attr.NameRange,
 				"unrecognized attribute vendor.manifest.default.%s", attr.Name,
