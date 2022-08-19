@@ -1040,10 +1040,21 @@ func checkHasSubBlocks(block *ast.Block, blocks ...string) error {
 			block.Labels))
 	}
 
+	found := false
 checkBlocks:
 	for _, got := range block.Blocks {
 		for _, want := range blocks {
 			if want == got.Type {
+				if found {
+					// TODO: add range
+					errs.Append(errors.E(ErrTerramateSchema,
+						"duplicated block %s.%s",
+						block.Type,
+						got.Type),
+					)
+					continue checkBlocks
+				}
+				found = true
 				continue checkBlocks
 			}
 		}
@@ -1064,21 +1075,17 @@ func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 		Str("action", "hcl.parseVendorConfig()").
 		Logger()
 
-	errs := errors.L()
-
-	errs.Append(checkHasSubBlocks(vendor, "manifest"))
-	// TODO: check for more than one manifest
-
-	if err := errs.AsError(); err != nil {
+	if err := checkHasSubBlocks(vendor, "manifest"); err != nil {
 		return err
+	}
+
+	if len(vendor.Blocks) == 0 {
+		return nil
 	}
 
 	manifestBlock := vendor.Blocks[0]
 
-	errs.Append(checkHasSubBlocks(manifestBlock, "default"))
-	// TODO: check for more than one default
-
-	if err := errs.AsError(); err != nil {
+	if err := checkHasSubBlocks(manifestBlock, "default"); err != nil {
 		return err
 	}
 
@@ -1091,6 +1098,8 @@ func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 	}
 
 	defaultBlock := manifestBlock.Blocks[0]
+
+	errs := errors.L()
 
 	if len(defaultBlock.Blocks) > 0 {
 		// TODO: add range

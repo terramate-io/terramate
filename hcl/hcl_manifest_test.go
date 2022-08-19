@@ -21,8 +21,25 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 )
 
-func TestHCLParserManifest(t *testing.T) {
+func TestHCLParserVendor(t *testing.T) {
 	for _, tc := range []testcase{
+		{
+			name: "empty vendor",
+			input: []cfgfile{
+				{
+					filename: "manifest.tm",
+					body: `
+						vendor {
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Vendor: &hcl.VendorConfig{},
+				},
+			},
+		},
 		{
 			name: "empty manifest",
 			input: []cfgfile{
@@ -120,23 +137,34 @@ func TestHCLParserManifest(t *testing.T) {
 			},
 		},
 		{
-			name: "redefined on same file fails",
+			name: "redefined vendor fails",
+			input: []cfgfile{
+				{
+					filename: "manifest.tm",
+					body: `
+						vendor {
+						}
+						vendor {
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "redefined manifest fails",
 			input: []cfgfile{
 				{
 					filename: "manifest.tm",
 					body: `
 						vendor {
 						  manifest {
-						    default {
-						      files = []
-						    }
 						  }
-						}
-						vendor {
 						  manifest {
-						    default {
-						      files = ["/a"]
-						    }
 						  }
 						}
 					`,
@@ -149,7 +177,7 @@ func TestHCLParserManifest(t *testing.T) {
 			},
 		},
 		{
-			name: "redefined on different file fails",
+			name: "redefined default fails",
 			input: []cfgfile{
 				{
 					filename: "manifest.tm",
@@ -157,19 +185,8 @@ func TestHCLParserManifest(t *testing.T) {
 						vendor {
 						  manifest {
 						    default {
-						      files = []
 						    }
-						  }
-						}
-					`,
-				},
-				{
-					filename: "manifest2.tm",
-					body: `
-						vendor {
-						  manifest {
 						    default {
-						      files = ["/a"]
 						    }
 						  }
 						}
@@ -205,6 +222,24 @@ func TestHCLParserManifest(t *testing.T) {
 			},
 		},
 		{
+			name: "unrecognized attribute on vendor fails",
+			input: []cfgfile{
+				{
+					filename: "manifest.tm",
+					body: `
+						vendor {
+						    unknown = true
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
 			name: "unrecognized attribute on manifest fails",
 			input: []cfgfile{
 				{
@@ -225,6 +260,23 @@ func TestHCLParserManifest(t *testing.T) {
 			},
 		},
 		{
+			name: "label on vendor fails",
+			input: []cfgfile{
+				{
+					filename: "manifest.tm",
+					body: `
+						vendor "label" {
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
 			name: "label on manifest fails",
 			input: []cfgfile{
 				{
@@ -232,6 +284,25 @@ func TestHCLParserManifest(t *testing.T) {
 					body: `
 						vendor {
 						  manifest "label" {
+						  }
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "unrecognized block on vendor fails",
+			input: []cfgfile{
+				{
+					filename: "manifest.tm",
+					body: `
+						vendor {
+						  unknown {
 						  }
 						}
 					`,
