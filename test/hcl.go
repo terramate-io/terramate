@@ -116,10 +116,10 @@ func assertTerramateBlock(t *testing.T, got, want *hcl.Terramate) {
 			want.Config, got.Config)
 	}
 
-	assertTerramateConfig(t, got.Config, want.Config)
+	assertTerramateConfigBlock(t, got.Config, want.Config)
 }
 
-func assertTerramateConfig(t *testing.T, got, want *hcl.RootConfig) {
+func assertTerramateConfigBlock(t *testing.T, got, want *hcl.RootConfig) {
 	t.Helper()
 
 	if want == nil {
