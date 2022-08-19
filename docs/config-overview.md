@@ -241,4 +241,4 @@ and has the following schema:
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
-| files            | list(string)   | The list of gitignore patterns to match selected files |
+| files            | list(string)   | The list of [gitignore patterns](https://git-scm.com/docs/gitignore) to match selected files |
