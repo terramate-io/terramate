@@ -15,6 +15,7 @@
 package test
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -77,11 +78,17 @@ func AssertTerramateConfig(t *testing.T, got, want hcl.Config) {
 
 // AssertDiff will compare the two values and fail if they are not the same
 // providing a comprehensive textual diff of the differences between them.
-func AssertDiff(t *testing.T, got, want interface{}) {
+// If provided msg must be a string + any formatting parameters. The msg will be
+// added if the assertion fails.
+func AssertDiff(t *testing.T, got, want interface{}, msg ...interface{}) {
 	t.Helper()
 
 	if diff := cmp.Diff(got, want); diff != "" {
-		t.Fatalf("-(got) +(want):\n%s", diff)
+		errmsg := fmt.Sprintf("-(got) +(want):\n%s", diff)
+		if len(msg) > 0 {
+			errmsg = fmt.Sprintf(msg[0].(string), msg[1:]...) + ": " + errmsg
+		}
+		t.Fatalf(errmsg)
 	}
 }
 
@@ -200,7 +207,6 @@ func hclFromAttributes(t *testing.T, attrs ast.Attributes) string {
 	for _, attr := range attrList {
 		tokens, err := eval.GetExpressionTokens(
 			readFile(attr.Origin),
-			attr.Origin,
 			attr.Expr,
 		)
 		assert.NoError(t, err)

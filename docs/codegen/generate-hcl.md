@@ -120,9 +120,19 @@ terraform {
 
 The `tm_dynamic` is a special block type that can only be used inside the
 `content` block of the `generate_hcl` block.
-It's similar to [Terraform dynamic blocks](https://www.terraform.io/language/expressions/dynamic-blocks) but supports partial evaluation of the expanded code.
+It's similar to [Terraform dynamic blocks](https://www.terraform.io/language/expressions/dynamic-blocks)
+but supports partial evaluation of the expanded code.
 
-Example:
+There are two ways to define a `tm_dynamic` block. One is using a `content` block that
+will define how to generate the blocks dynamically.
+
+Another one is to define an `attributes` object, where each field inside the object
+will become an attribute inside the dynamically generated blocks.
+
+A `tm_dynamic` block may have only one `content` block **OR** one `attributes` object,
+having both defined is not allowed.
+
+Example using the `content` block:
 
 ```hcl
 globals {
@@ -144,7 +154,7 @@ generate_hcl "file.tf" {
 }
 ```
 
-The config above is going to generate the `file.tf` with code below:
+Which generates a `file.tf` file like this:
 
 ```hcl
 block {
@@ -163,8 +173,49 @@ block {
 }
 ```
 
-The `tm_dynamic` only evaluates the Terramate variables, everything else is just
-copied as is to the final generated code.
+The `tm_dynamic` content block only evaluates the Terramate variables/functions,
+everything else is just copied as is to the final generated code.
+
+The same goes when using `attributes`:
+
+```hcl
+globals {
+  values = ["a", "b", "c"]
+}
+
+generate_hcl "file.tf" {
+  content {
+    tm_dynamic "block" {
+      for_each = global.values
+      iterator = value
+
+      attributes = {
+        attr = "index: ${value.key}, value: ${value.value}" 
+        attr2 = not_evaluated.attr
+      }
+    }
+  }
+}
+```
+
+Also generates a `file.tf` file like this:
+
+```hcl
+block {
+  attr = "index: 0, value: a"
+  attr2 = not_evaluated.attr
+}
+
+block {
+  attr = "index: 1, value: b"
+  attr2 = not_evaluated.attr
+}
+
+block {
+  attr = "index: 2, value: c"
+  attr2 = not_evaluated.attr
+}
+```
 
 ## Hierarchical Code Generation
 

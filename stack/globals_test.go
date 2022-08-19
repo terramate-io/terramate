@@ -33,7 +33,6 @@ import (
 
 // TODO(katcipis): add tests related to tf functions that depend on filesystem
 // (BaseDir parameter passed on Scope when creating eval context).
-
 func TestLoadGlobals(t *testing.T) {
 	type (
 		hclconfig struct {
@@ -1356,6 +1355,134 @@ func TestLoadGlobals(t *testing.T) {
 					attr("C", `"defined at other2/imported.tm"`),
 				),
 			},
+		},
+		{
+			name: "unset globals",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+				"s:stacks/stack-3",
+				"s:stacks/stack-4",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: globals(
+						str("a", "a"),
+						str("b", "b"),
+						str("c", "c"),
+					),
+				},
+				{
+					path: "/stacks",
+					add: globals(
+						str("d", "d"),
+						expr("b", "unset"),
+					),
+				},
+				{
+					path: "/stacks/stack-1",
+					add: globals(
+						expr("c", "unset"),
+						expr("d", "unset"),
+					),
+				},
+				{
+					path: "/stacks/stack-3",
+					add: globals(
+						str("b", "redefined"),
+					),
+				},
+				{
+					path: "/stacks/stack-4",
+					add: globals(
+						expr("a", "unset"),
+						expr("c", "unset"),
+						expr("d", "unset"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-1": globals(
+					str("a", "a"),
+				),
+				"/stacks/stack-2": globals(
+					str("a", "a"),
+					str("c", "c"),
+					str("d", "d"),
+				),
+				"/stacks/stack-3": globals(
+					str("a", "a"),
+					str("b", "redefined"),
+					str("c", "c"),
+					str("d", "d"),
+				),
+			},
+		},
+		{
+			name:   "operating two unset fails",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						expr("a", "unset + unset"),
+					),
+				},
+			},
+			wantErr: errors.E(stack.ErrGlobalEval),
+		},
+		{
+			name:   "operating unset and other type fails",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						expr("a", "unset + 666"),
+					),
+				},
+			},
+			wantErr: errors.E(stack.ErrGlobalEval),
+		},
+		{
+			name:   "interpolating unset fails",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						str("a", "${unset}"),
+					),
+				},
+			},
+			wantErr: errors.E(stack.ErrGlobalEval),
+		},
+		{
+			name:   "unset on list fails",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						expr("a", "[unset]"),
+					),
+				},
+			},
+			wantErr: errors.E(stack.ErrGlobalEval),
+		},
+		{
+			name:   "unset on obj fails",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						expr("a", "{ a = unset }"),
+					),
+				},
+			},
+			wantErr: errors.E(stack.ErrGlobalEval),
 		},
 	}
 

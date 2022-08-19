@@ -34,6 +34,10 @@ func TestCreateStack(t *testing.T) {
 		stackDescription = "stack description"
 		stackImport1     = "/core/file1.tm.hcl"
 		stackImport2     = "/core/file2.tm.hcl"
+		stackAfter1      = "stack-after-1"
+		stackAfter2      = "stack-after-2"
+		stackBefore1     = "stack-before-1"
+		stackBefore2     = "stack-before-2"
 		genFilename      = "file.txt"
 		genFileContent   = "testing is fun"
 	)
@@ -67,6 +71,10 @@ func TestCreateStack(t *testing.T) {
 			"--description", stackDescription,
 			"--import", stackImport1,
 			"--import", stackImport2,
+			"--after", stackAfter1,
+			"--after", stackAfter2,
+			"--before", stackBefore1,
+			"--before", stackBefore2,
 		)
 
 		t.Logf("run create stack %s", stackPath)
@@ -83,6 +91,8 @@ func TestCreateStack(t *testing.T) {
 		assert.EqualStrings(t, stackID, gotID)
 		assert.EqualStrings(t, stackName, got.Name(), "checking stack name")
 		assert.EqualStrings(t, stackDescription, got.Desc(), "checking stack description")
+		test.AssertDiff(t, got.After(), []string{stackAfter1, stackAfter2}, "created stack has invalid after")
+		test.AssertDiff(t, got.Before(), []string{stackBefore1, stackBefore2}, "created stack has invalid before")
 
 		test.AssertStackImports(t, s.RootDir(), got.HostPath(), []string{stackImport1, stackImport2})
 
@@ -102,6 +112,14 @@ func TestCreateStackDefaults(t *testing.T) {
 
 	assert.EqualStrings(t, "stack", got.Name(), "checking stack name")
 	assert.EqualStrings(t, "stack", got.Desc(), "checking stack description")
+
+	if len(got.After()) > 0 {
+		t.Fatalf("want no after, got: %v", got.After())
+	}
+
+	if len(got.Before()) > 0 {
+		t.Fatalf("want no before, got: %v", got.Before())
+	}
 
 	// By default the CLI generates an id with an UUID
 	gotID, _ := got.ID()
