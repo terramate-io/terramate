@@ -159,7 +159,8 @@ More details can be found [here](project-config.md#the-terramateconfigrunenv-blo
 
 # stack block schema
 
-The `stack` block has no labels, supports [merging](#config-merging) and has the following schema:
+The `stack` block has no labels, **does not** support [merging](#config-merging)
+and has the following schema:
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
