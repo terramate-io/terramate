@@ -114,8 +114,7 @@ func TokensForValue(value cty.Value) (hclwrite.Tokens, error) {
 	if value.Type() == customdecode.ExpressionClosureType {
 		closureExpr := value.EncapsulatedValue().(*customdecode.ExpressionClosure)
 		for m := range marks {
-			switch v := m.(type) {
-			case ExpressionStringMark:
+			if v, ok := m.(ExpressionStringMark); ok {
 				exprRange := closureExpr.Expression.Range()
 				exprData := []byte(v)[exprRange.Start.Byte:exprRange.End.Byte]
 				return TokensForExpressionBytes(exprData)
