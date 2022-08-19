@@ -107,6 +107,7 @@ The terramate configuration is defined by the following top-level blocks:
 - [generate_file](#generate_file-block-schema)
 - [generate_hcl](#generate_hcl-block-schema)
 - [import](#import-block-schema)
+- [vendor](#vendor-block-schema)
 
 # terramate block schema
 
@@ -213,3 +214,31 @@ and has the following schema:
 | name             |      type      | description |
 |------------------|----------------|-------------|
 | source           | string         | The file path to be imported |
+
+
+# vendor block schema
+
+The `vendor` block has no labels, **do not** support [merging](#config-merging)
+and has the following schema:
+
+| name             |      type      | description |
+|------------------|----------------|-------------|
+| [manifest](#vendormanifest--block-schema) | block | The manifest for which files to vendor |
+
+# vendor.manifest block schema
+
+The `vendor.manifest` block has no labels, **do not** support [merging](#config-merging)
+and has the following schema:
+
+| name             |      type      | description |
+|------------------|----------------|-------------|
+| [default](#vendormanifestdefault--block-schema) | block | The default manifest |
+
+# vendor.manifest.default block schema
+
+The `vendor.manifest.default` block has no labels, **do not** support [merging](#config-merging)
+and has the following schema:
+
+| name             |      type      | description |
+|------------------|----------------|-------------|
+| files            | list(string)   | The list of gitignore patterns to match selected files |
