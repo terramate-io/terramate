@@ -95,33 +95,30 @@ func tmTernary() function.Function {
 }
 
 func ternary(cond cty.Value, val1, val2 cty.Value) (cty.Value, error) {
-	evalExprVal := func(arg cty.Value) (cty.Value, error) {
-		closure := customdecode.ExpressionClosureFromVal(arg)
-		if dependsOnUnknowns(closure.Expression, closure.EvalContext) {
-			// partial
-			return arg, nil
-		}
-
-		v, diags := closure.Value()
-		if diags.HasErrors() {
-			return cty.NilVal, diags
-		}
-		return v, nil
-	}
-
 	if cond.True() {
-		return evalExprVal(val1)
+		return evalTernaryBranch(val1)
 	}
-	return evalExprVal(val2)
+	return evalTernaryBranch(val2)
+}
+
+func evalTernaryBranch(arg cty.Value) (cty.Value, error) {
+	closure := customdecode.ExpressionClosureFromVal(arg)
+
+	// TODO(i4k): partial evaluate the closure.Expression
+
+	if dependsOnUnknowns(closure.Expression, closure.EvalContext) {
+		return arg, nil
+	}
+
+	v, diags := closure.Value()
+	if diags.HasErrors() {
+		return cty.NilVal, diags
+	}
+	return v, nil
 }
 
 // dependsOnUnknowns returns true if any of the variables that the given
 // expression might access are unknown values or contain unknown values.
-//
-// This is a conservative result that prefers to return true if there's any
-// chance that the expression might derive from an unknown value during its
-// evaluation; it is likely to produce false-positives for more complex
-// expressions involving deep data structures.
 func dependsOnUnknowns(expr hcl.Expression, ctx *hcl.EvalContext) bool {
 	for _, traversal := range expr.Variables() {
 		val, diags := traversal.TraverseAbs(ctx)
@@ -129,13 +126,6 @@ func dependsOnUnknowns(expr hcl.Expression, ctx *hcl.EvalContext) bool {
 			return true
 		}
 		if !val.IsWhollyKnown() {
-			// The value will be unknown if either it refers directly to
-			// an unknown value or if the traversal moves through an unknown
-			// collection. We're using IsWhollyKnown, so this also catches
-			// situations where the traversal refers to a compound data
-			// structure that contains any unknown values. That's important,
-			// because during evaluation the expression might evaluate more
-			// deeply into this structure and encounter the unknowns.
 			return true
 		}
 	}
