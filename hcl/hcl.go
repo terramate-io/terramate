@@ -1023,10 +1023,7 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 	return errs.AsError()
 }
 
-// checkOnlyHasSubBlocks performs a basic schema check on expected labels/blocks
-// inside a block. The block should have no attributes inside it.
-func checkOnlyHasSubBlocks(block *ast.Block, blocks ...string) error {
-
+func checkHasSubBlocks(block *ast.Block, blocks ...string) error {
 	errs := errors.L()
 
 	for _, got := range block.Attributes.SortedList() {
@@ -1069,7 +1066,7 @@ func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 
 	errs := errors.L()
 
-	errs.Append(checkOnlyHasSubBlocks(vendor, "manifest"))
+	errs.Append(checkHasSubBlocks(vendor, "manifest"))
 	// TODO: check for more than one manifest
 
 	if err := errs.AsError(); err != nil {
@@ -1078,7 +1075,7 @@ func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 
 	manifestBlock := vendor.Blocks[0]
 
-	errs.Append(checkOnlyHasSubBlocks(manifestBlock, "default"))
+	errs.Append(checkHasSubBlocks(manifestBlock, "default"))
 	// TODO: check for more than one default
 
 	if err := errs.AsError(); err != nil {
