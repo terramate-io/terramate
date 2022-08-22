@@ -19,7 +19,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
@@ -52,11 +51,9 @@ func (e *EvalCtx) SetGlobals(g Globals) {
 // SetMetadata sets the given metadata on the stack evaluation context.
 func (e *EvalCtx) SetMetadata(rootdir string, sm Metadata) {
 	// TODO (KATCIPIS): this is just an initial implementation to get
-	// this working and test it. But non-ideal.
-	entries, err := LoadAll(rootdir)
-	if err != nil {
-		panic(errors.E(err, "internal error: project must have valid stacks"))
-	}
+	// this working and test it. But non-ideal. We need to handle errors
+	// and the design should be different (probably).
+	entries, _ := LoadAll(rootdir)
 	e.SetNamespace("terramate", metaToCtyMap(rootdir, entries, sm))
 }
 
