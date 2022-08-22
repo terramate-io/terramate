@@ -1023,7 +1023,7 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 	return errs.AsError()
 }
 
-func checkHasSubBlocks(block *ast.Block, blocks ...string) error {
+func checkNoAttributes(block *ast.Block) error {
 	errs := errors.L()
 
 	for _, got := range block.Attributes.SortedList() {
@@ -1032,6 +1032,12 @@ func checkHasSubBlocks(block *ast.Block, blocks ...string) error {
 		))
 	}
 
+	return errs.AsError()
+}
+
+func checkNoLabels(block *ast.Block) error {
+	errs := errors.L()
+
 	for i, label := range block.Labels {
 		errs.Append(errors.E(ErrTerramateSchema,
 			"block %s has unexpected label %s",
@@ -1039,6 +1045,12 @@ func checkHasSubBlocks(block *ast.Block, blocks ...string) error {
 			block.LabelRanges[i],
 			label))
 	}
+
+	return errs.AsError()
+}
+
+func checkHasSubBlocks(block *ast.Block, blocks ...string) error {
+	errs := errors.L()
 
 	found := false
 checkBlocks:
@@ -1074,7 +1086,13 @@ func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 		Str("action", "hcl.parseVendorConfig()").
 		Logger()
 
-	if err := checkHasSubBlocks(vendor, "manifest"); err != nil {
+	errs := errors.L()
+
+	errs.Append(checkNoAttributes(vendor))
+	errs.Append(checkNoLabels(vendor))
+	errs.Append(checkHasSubBlocks(vendor, "manifest"))
+
+	if err := errs.AsError(); err != nil {
 		return err
 	}
 
@@ -1084,7 +1102,11 @@ func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 
 	manifestBlock := vendor.Blocks[0]
 
-	if err := checkHasSubBlocks(manifestBlock, "default"); err != nil {
+	errs.Append(checkNoAttributes(manifestBlock))
+	errs.Append(checkNoLabels(manifestBlock))
+	errs.Append(checkHasSubBlocks(manifestBlock, "default"))
+
+	if err := errs.AsError(); err != nil {
 		return err
 	}
 
@@ -1097,8 +1119,6 @@ func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 	}
 
 	defaultBlock := manifestBlock.Blocks[0]
-
-	errs := errors.L()
 
 	for _, block := range defaultBlock.Blocks {
 		errs.Append(errors.E(ErrTerramateSchema,
