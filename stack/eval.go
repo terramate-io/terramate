@@ -15,9 +15,11 @@
 package stack
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
@@ -49,7 +51,13 @@ func (e *EvalCtx) SetGlobals(g Globals) {
 
 // SetMetadata sets the given metadata on the stack evaluation context.
 func (e *EvalCtx) SetMetadata(rootdir string, sm Metadata) {
-	e.SetNamespace("terramate", metaToCtyMap(rootdir, sm))
+	// TODO (KATCIPIS): this is just an initial implementation to get
+	// this working and test it. But non-ideal.
+	entries, err := LoadAll(rootdir)
+	if err != nil {
+		panic(errors.E(err, "internal error: project must have valid stacks"))
+	}
+	e.SetNamespace("terramate", metaToCtyMap(rootdir, entries, sm))
 }
 
 // SetEnv sets the given environment on the env namespace of the evaluation context.
@@ -63,9 +71,10 @@ func (e *EvalCtx) SetEnv(environ []string) {
 	e.SetNamespace("env", env)
 }
 
-func metaToCtyMap(rootdir string, m Metadata) map[string]cty.Value {
+func metaToCtyMap(rootdir string, stacks List, m Metadata) map[string]cty.Value {
 	logger := log.With().
 		Str("action", "stack.metaToCtyMap()").
+		Str("stacks", fmt.Sprintf("%v", stacks)).
 		Str("root", rootdir).
 		Logger()
 
@@ -89,6 +98,7 @@ func metaToCtyMap(rootdir string, m Metadata) map[string]cty.Value {
 		stackMapVals["id"] = cty.StringVal(id)
 	}
 	stack := cty.ObjectVal(stackMapVals)
+
 	rootfs := cty.ObjectVal(map[string]cty.Value{
 		"absolute": cty.StringVal(rootdir),
 		"basename": cty.StringVal(filepath.Base(rootdir)),
@@ -99,11 +109,24 @@ func metaToCtyMap(rootdir string, m Metadata) map[string]cty.Value {
 	root := cty.ObjectVal(map[string]cty.Value{
 		"path": rootpath,
 	})
+
+	stacksNs := cty.ObjectVal(map[string]cty.Value{
+		"list": stacksPathsList(stacks),
+	})
 	return map[string]cty.Value{
+		"root":        root,
+		"stacks":      stacksNs,
 		"name":        cty.StringVal(m.Name()), // DEPRECATED
 		"path":        cty.StringVal(m.Path()), // DEPRECATED
 		"description": cty.StringVal(m.Desc()), // DEPRECATED
-		"root":        root,
 		"stack":       stack,
 	}
+}
+
+func stacksPathsList(stacks List) cty.Value {
+	res := make([]cty.Value, len(stacks))
+	for i, stack := range stacks {
+		res[i] = cty.StringVal(stack.Path())
+	}
+	return cty.TupleVal(res)
 }
