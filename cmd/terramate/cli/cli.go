@@ -1126,6 +1126,17 @@ func (c *cli) runOnStacks() {
 		logger.Fatal().Msgf("run expects a cmd")
 	}
 
+	allStackEntries, err := terramate.ListStacks(c.root())
+	if err != nil {
+		logger.Fatal().Err(err).Msg("failed to list all stacks")
+	}
+	allstacks := make(stack.List, len(allStackEntries))
+	for i, e := range allStackEntries {
+		allstacks[i] = e.Stack
+	}
+
+	c.checkOutdatedGeneratedCode(allstacks)
+
 	var stacks stack.List
 
 	if c.parsedArgs.Run.NoRecursive {
@@ -1151,8 +1162,6 @@ func (c *cli) runOnStacks() {
 				Msg("computing selected stacks")
 		}
 	}
-
-	c.checkOutdatedGeneratedCode(stacks)
 
 	logger.Trace().Msg("Get order of stacks to run command on.")
 
