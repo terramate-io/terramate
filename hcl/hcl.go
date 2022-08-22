@@ -53,6 +53,7 @@ const (
 type Config struct {
 	Terramate *Terramate
 	Stack     *Stack
+	Vendor    *VendorConfig
 
 	// absdir is the absolute path to the configuration directory.
 	absdir string
@@ -98,6 +99,26 @@ type GitConfig struct {
 type RootConfig struct {
 	Git *GitConfig
 	Run *RunConfig
+}
+
+// ManifestDesc represents a parsed manifest description.
+type ManifestDesc struct {
+	// Files is a list of patterns that specify which files the manifest wants to include.
+	Files []string
+
+	// Excludes is a list of patterns that specify which files the manifest wants to exclude.
+	Excludes []string
+}
+
+// ManifestConfig represents the manifest config block of a Terramate configuration.
+type ManifestConfig struct {
+	Default *ManifestDesc
+}
+
+// VendorConfig is the parsed "vendor" HCL block.
+type VendorConfig struct {
+	// Manifest is the parsed manifest block, if any.
+	Manifest *ManifestConfig
 }
 
 // Terramate is the parsed "terramate" HCL block.
@@ -1002,6 +1023,143 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 	return errs.AsError()
 }
 
+func checkNoAttributes(block *ast.Block) error {
+	errs := errors.L()
+
+	for _, got := range block.Attributes.SortedList() {
+		errs.Append(errors.E(got.NameRange,
+			"unrecognized attribute %s.%s", block.Type, got.Name,
+		))
+	}
+
+	return errs.AsError()
+}
+
+func checkNoLabels(block *ast.Block) error {
+	errs := errors.L()
+
+	for i, label := range block.Labels {
+		errs.Append(errors.E(ErrTerramateSchema,
+			"block %s has unexpected label %s",
+			block.Type,
+			block.LabelRanges[i],
+			label))
+	}
+
+	return errs.AsError()
+}
+
+func checkNoBlocks(block *ast.Block) error {
+	errs := errors.L()
+
+	for _, childBlock := range block.Blocks {
+		errs.Append(errors.E(ErrTerramateSchema,
+			childBlock.DefRange(),
+			"unexpected block %s inside %s",
+			childBlock.Type,
+			block.Type),
+		)
+	}
+
+	return errs.AsError()
+}
+
+func checkHasSubBlocks(block *ast.Block, blocks ...string) error {
+	errs := errors.L()
+
+	found := false
+checkBlocks:
+	for _, got := range block.Blocks {
+		for _, want := range blocks {
+			if want == got.Type {
+				if found {
+					errs.Append(errors.E(ErrTerramateSchema,
+						got.DefRange(),
+						"duplicated block %s",
+						got.Type),
+					)
+					continue checkBlocks
+				}
+				found = true
+				continue checkBlocks
+			}
+		}
+
+		errs.Append(errors.E(ErrTerramateSchema,
+			got.DefRange(),
+			"unexpected block %s inside %s",
+			got.Type,
+			block.Type),
+		)
+	}
+
+	return errs.AsError()
+}
+
+func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
+	logger := log.With().
+		Str("action", "hcl.parseVendorConfig()").
+		Logger()
+
+	errs := errors.L()
+
+	errs.Append(checkNoAttributes(vendor))
+	errs.Append(checkNoLabels(vendor))
+	errs.Append(checkHasSubBlocks(vendor, "manifest"))
+
+	if err := errs.AsError(); err != nil {
+		return err
+	}
+
+	if len(vendor.Blocks) == 0 {
+		return nil
+	}
+
+	manifestBlock := vendor.Blocks[0]
+
+	errs.Append(checkNoAttributes(manifestBlock))
+	errs.Append(checkNoLabels(manifestBlock))
+	errs.Append(checkHasSubBlocks(manifestBlock, "default"))
+
+	if err := errs.AsError(); err != nil {
+		return err
+	}
+
+	logger.Trace().Msg("parsing vendor.manifest.default block")
+
+	cfg.Manifest = &ManifestConfig{}
+
+	if len(manifestBlock.Blocks) == 0 {
+		return nil
+	}
+
+	defaultBlock := manifestBlock.Blocks[0]
+
+	errs.Append(checkNoBlocks(defaultBlock))
+
+	cfg.Manifest.Default = &ManifestDesc{}
+
+	for _, attr := range defaultBlock.Attributes.SortedList() {
+		switch attr.Name {
+		case "files":
+			attrVal, err := attr.Expr.Value(nil)
+			if err != nil {
+				errs.Append(err)
+				continue
+			}
+			if err := assignSet(attr.Name, &cfg.Manifest.Default.Files, attrVal); err != nil {
+				errs.Append(errors.E(err, attr.NameRange))
+			}
+		default:
+			errs.Append(errors.E(ErrTerramateSchema, attr.NameRange,
+				"unrecognized attribute %s.%s", defaultBlock.Type, attr.Name,
+			))
+		}
+	}
+
+	return errs.AsError()
+}
+
 func parseRootConfig(cfg *RootConfig, block *ast.MergedBlock) error {
 	logger := log.With().
 		Str("action", "parseRootConfig()").
@@ -1231,8 +1389,9 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 	logger.Trace().Msg("Range over unmerged blocks.")
 
-	var foundstack bool
-	var stackblock *ast.Block
+	var foundstack, foundVendor bool
+	var stackblock, vendorBlock *ast.Block
+
 	for _, block := range rawconfig.UnmergedBlocks {
 		// unmerged blocks
 
@@ -1240,7 +1399,8 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 			Str("block", block.Type).
 			Logger()
 
-		if block.Type == StackBlockType {
+		switch block.Type {
+		case StackBlockType:
 			logger.Trace().Msg("Found stack block type.")
 
 			if foundstack {
@@ -1251,17 +1411,24 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 			foundstack = true
 			stackblock = block
-		}
+		case "vendor":
+			logger.Trace().Msg("found vendor block")
 
-		if block.Type == "generate_hcl" {
+			if foundVendor {
+				errs.Append(errors.E(errKind, block.DefRange(),
+					"duplicated vendor block"))
+				continue
+			}
+
+			foundVendor = true
+			vendorBlock = block
+
+		case "generate_hcl":
 			logger.Trace().Msg("Found \"generate_hcl\" block")
-
 			errs.Append(validateGenerateHCLBlock(block))
-		}
 
-		if block.Type == "generate_file" {
+		case "generate_file":
 			logger.Trace().Msg("Found \"generate_file\" block")
-
 			errs.Append(validateGenerateFileBlock(block))
 		}
 	}
@@ -1273,6 +1440,20 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 		errs.Append(err)
 		if err == nil {
 			config.Terramate = &tmconfig
+		}
+	}
+
+	if foundVendor {
+		logger.Debug().Msg("parsing manifest")
+
+		if config.Vendor != nil {
+			errs.Append(errors.E(errKind, vendorBlock.DefRange(),
+				"duplicated vendor blocks across configs"))
+		}
+		config.Vendor = &VendorConfig{}
+		err := parseVendorConfig(config.Vendor, vendorBlock)
+		if err != nil {
+			errs.Append(errors.E(errKind, err))
 		}
 	}
 
@@ -1390,6 +1571,7 @@ func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
 			errs.Append(errors.E(errKind, err))
 		}
 	}
+
 	if err := errs.AsError(); err != nil {
 		return Terramate{}, err
 	}

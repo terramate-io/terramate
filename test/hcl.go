@@ -73,6 +73,7 @@ func AssertTerramateConfig(t *testing.T, got, want hcl.Config) {
 
 	assertTerramateBlock(t, got.Terramate, want.Terramate)
 	assertStackBlock(t, got.Stack, want.Stack)
+	AssertDiff(t, got.Vendor, want.Vendor, "checking vendor config")
 }
 
 // AssertDiff will compare the two values and fail if they are not the same
@@ -111,7 +112,7 @@ func assertTerramateBlock(t *testing.T, got, want *hcl.Terramate) {
 		"required_version mismatch")
 
 	if (want.Config == nil) != (got.Config == nil) {
-		t.Fatalf("want.RootConfig[%+v] != got.RootConfig[%+v]",
+		t.Fatalf("want.Config[%+v] != got.Config[%+v]",
 			want.Config, got.Config)
 	}
 
@@ -120,10 +121,6 @@ func assertTerramateBlock(t *testing.T, got, want *hcl.Terramate) {
 
 func assertTerramateConfigBlock(t *testing.T, got, want *hcl.RootConfig) {
 	t.Helper()
-
-	if (want == nil) != (got == nil) {
-		t.Fatalf("want.Git[%+v] != got.Git[%+v]", want, got)
-	}
 
 	if want == nil {
 		return

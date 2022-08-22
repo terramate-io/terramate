@@ -58,6 +58,7 @@ func (cfg *RawConfig) mergeHandlers() map[string]mergeHandler {
 		"terramate":     cfg.mergeBlock,
 		"globals":       cfg.mergeBlock,
 		"stack":         cfg.addBlock,
+		"vendor":        cfg.addBlock,
 		"generate_file": cfg.addBlock,
 		"generate_hcl":  cfg.addBlock,
 		"import":        func(b *ast.Block) error { return nil },
@@ -123,7 +124,7 @@ func (cfg *RawConfig) mergeAttrs(other ast.Attributes) error {
 			sameDir(attrVal.Origin, attr.Origin) {
 			errs.Append(errors.E(ErrTerramateSchema,
 				attr.NameRange,
-				"attribute %q redeclared in file %q (frist defined in %q)",
+				"attribute %q redeclared in file %q (first defined in %q)",
 				attr.Name,
 				attr.Origin, attrVal.Origin))
 			continue
