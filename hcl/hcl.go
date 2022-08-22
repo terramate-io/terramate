@@ -1049,6 +1049,21 @@ func checkNoLabels(block *ast.Block) error {
 	return errs.AsError()
 }
 
+func checkNoBlocks(block *ast.Block) error {
+	errs := errors.L()
+
+	for _, childBlock := range block.Blocks {
+		errs.Append(errors.E(ErrTerramateSchema,
+			childBlock.DefRange(),
+			"unexpected block %s inside %s",
+			childBlock.Type,
+			block.Type),
+		)
+	}
+
+	return errs.AsError()
+}
+
 func checkHasSubBlocks(block *ast.Block, blocks ...string) error {
 	errs := errors.L()
 
@@ -1120,14 +1135,7 @@ func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 
 	defaultBlock := manifestBlock.Blocks[0]
 
-	for _, block := range defaultBlock.Blocks {
-		errs.Append(errors.E(ErrTerramateSchema,
-			block.DefRange(),
-			"unexpected block %s inside %s",
-			block.Type,
-			defaultBlock.Type),
-		)
-	}
+	errs.Append(checkNoBlocks(defaultBlock))
 
 	cfg.Manifest.Default = &ManifestDesc{}
 
