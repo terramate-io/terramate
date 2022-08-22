@@ -142,6 +142,8 @@ func TestLoadGenerateFiles(t *testing.T) {
 						labels("test"),
 						expr("content", `<<EOT
 
+stacks_list_len=${tm_length(terramate.stacks.list)}
+stacks_list_0=${terramate.stacks.list[0]}
 stack_path_abs=${terramate.stack.path.absolute}
 stack_path_rel=${terramate.stack.path.relative}
 stack_path_to_root=${terramate.stack.path.to_root}
@@ -160,6 +162,8 @@ EOT`,
 					file: genFile{
 						origin: "/stack/test.tm",
 						body: `
+stacks_list_len=1
+stacks_list_0=/stack
 stack_path_abs=/stack
 stack_path_rel=stack
 stack_path_to_root=..

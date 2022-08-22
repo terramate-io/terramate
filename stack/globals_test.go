@@ -284,7 +284,7 @@ func TestLoadGlobals(t *testing.T) {
 			},
 			want: map[string]*hclwrite.Block{
 				"/stacks/stack-1": globals(
-					attr("stacks_list", `["/stacks/stack-1", "/stacks/stack-2"]`),
+					attr("stacks_list", `tolist(["/stacks/stack-1", "/stacks/stack-2"])`),
 					str("stack_path_abs", "/stacks/stack-1"),
 					str("stack_path_rel", "stacks/stack-1"),
 					str("stack_path_to_root", "../.."),
@@ -294,7 +294,7 @@ func TestLoadGlobals(t *testing.T) {
 					str("stack_description", ""),
 				),
 				"/stacks/stack-2": globals(
-					attr("stacks_list", `["/stacks/stack-1", "/stacks/stack-2"]`),
+					attr("stacks_list", `tolist(["/stacks/stack-1", "/stacks/stack-2"])`),
 					str("stack_path_abs", "/stacks/stack-2"),
 					str("stack_path_rel", "stacks/stack-2"),
 					str("stack_path_to_root", "../.."),

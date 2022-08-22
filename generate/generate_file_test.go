@@ -27,6 +27,8 @@ import (
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
+// TODO(katcipis): test terramate.stacks.list with different working dirs
+
 func TestGenerateFile(t *testing.T) {
 	checkGenFiles := func(t *testing.T, got string, want string) {
 		t.Helper()

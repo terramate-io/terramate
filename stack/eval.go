@@ -121,9 +121,13 @@ func metaToCtyMap(rootdir string, stacks List, m Metadata) map[string]cty.Value 
 }
 
 func stacksPathsList(stacks List) cty.Value {
+	if len(stacks) == 0 {
+		// cty panics if the list is empty
+		return cty.ListValEmpty(cty.String)
+	}
 	res := make([]cty.Value, len(stacks))
 	for i, stack := range stacks {
 		res[i] = cty.StringVal(stack.Path())
 	}
-	return cty.TupleVal(res)
+	return cty.ListVal(res)
 }

@@ -29,6 +29,8 @@ import (
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
+// TODO(katcipis): test terramate.stacks.list with different working dirs
+
 func TestGenerateHCL(t *testing.T) {
 	provider := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("provider", builders...)

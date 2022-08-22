@@ -831,6 +831,7 @@ func TestGenerateHCL(t *testing.T) {
 					add: generateHCL(
 						labels("root"),
 						content(
+							expr("stacks_list", "terramate.stacks.list"),
 							expr("stack_description", "terramate.stack.description"),
 							expr("stack_id", `tm_try(terramate.stack.id, "no-id")`),
 							expr("stack_name", "terramate.stack.name"),
@@ -856,6 +857,7 @@ func TestGenerateHCL(t *testing.T) {
 							str("stack_path_basename", "stack"),
 							str("stack_path_rel", "stacks/stack"),
 							str("stack_path_to_root", "../.."),
+							attr("stacks_list", `["/stacks/stack"]`),
 						),
 					},
 				},
