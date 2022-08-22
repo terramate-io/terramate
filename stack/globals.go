@@ -210,20 +210,19 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 	if len(pendingExprs) > 0 {
 		// TODO(katcipis): model proper error list and return that
 		// Caller can decide how to format/log things (like code generation report).
+		pendingGlobalNames := make([]string, 0, len(pendingExprs))
 		for name, expr := range pendingExprs {
 			err, ok := pendingExprsErrs[name]
 			if !ok {
 				err = errors.E("undefined global")
 			}
+			pendingGlobalNames = append(pendingGlobalNames, name)
 			logger.Err(err).
 				Str("name", name).
 				Str("origin", expr.origin).
 				Msg("evaluating global")
 		}
-		return Globals{}, errors.E(
-			ErrGlobalEval,
-			"unable to evaluate %d globals", len(pendingExprs),
-		)
+		return Globals{}, errors.E(ErrGlobalEval, "%v", pendingGlobalNames)
 	}
 
 	return globals, nil

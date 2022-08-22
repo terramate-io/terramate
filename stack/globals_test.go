@@ -258,6 +258,7 @@ func TestLoadGlobals(t *testing.T) {
 				{
 					path: "/stacks/stack-1",
 					add: globals(
+						expr("stacks_list", "terramate.stacks.list"),
 						expr("stack_path_abs", "terramate.stack.path.absolute"),
 						expr("stack_path_rel", "terramate.stack.path.relative"),
 						expr("stack_path_to_root", "terramate.stack.path.to_root"),
@@ -270,6 +271,7 @@ func TestLoadGlobals(t *testing.T) {
 				{
 					path: "/stacks/stack-2",
 					add: globals(
+						expr("stacks_list", "terramate.stacks.list"),
 						expr("stack_path_abs", "terramate.stack.path.absolute"),
 						expr("stack_path_rel", "terramate.stack.path.relative"),
 						expr("stack_path_to_root", "terramate.stack.path.to_root"),
@@ -282,6 +284,7 @@ func TestLoadGlobals(t *testing.T) {
 			},
 			want: map[string]*hclwrite.Block{
 				"/stacks/stack-1": globals(
+					attr("stacks_list", `["/stacks/stack-1", "/stacks/stack-2"]`),
 					str("stack_path_abs", "/stacks/stack-1"),
 					str("stack_path_rel", "stacks/stack-1"),
 					str("stack_path_to_root", "../.."),
@@ -291,6 +294,7 @@ func TestLoadGlobals(t *testing.T) {
 					str("stack_description", ""),
 				),
 				"/stacks/stack-2": globals(
+					attr("stacks_list", `["/stacks/stack-1", "/stacks/stack-2"]`),
 					str("stack_path_abs", "/stacks/stack-2"),
 					str("stack_path_rel", "stacks/stack-2"),
 					str("stack_path_to_root", "../.."),
