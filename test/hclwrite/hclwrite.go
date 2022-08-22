@@ -179,9 +179,8 @@ func AttributeValue(t *testing.T, name string, expr string) BlockBuilder {
 	body := res.Body.(*hclsyntax.Body)
 
 	scope := &tflang.Scope{}
-	tffuncs := scope.Functions()
 	ctx := &hhcl.EvalContext{
-		Functions: tffuncs,
+		Functions: scope.Functions(),
 		Variables: map[string]cty.Value{},
 	}
 
