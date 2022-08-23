@@ -49,6 +49,7 @@ func TestLoadRunEnv(t *testing.T) {
 
 	expr := hclwrite.Expression
 	str := hclwrite.String
+	hcldoc := hclwrite.BuildHCL
 	block := hclwrite.BuildBlock
 	terramate := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return block("terramate", builders...)
@@ -155,6 +156,25 @@ func TestLoadRunEnv(t *testing.T) {
 			},
 		},
 		{
+			name: "fails on invalid root config",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: hcldoc(
+						block("notvalidterramate"),
+					),
+				},
+			},
+			want: map[string]result{
+				"stack": {
+					err: errors.E(run.ErrParsingCfg),
+				},
+			},
+		},
+		{
 			name: "fails on globals loading failure",
 			layout: []string{
 				"s:stack",
@@ -225,6 +245,8 @@ func TestLoadRunEnv(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
 
+			projmeta := s.LoadProjectMetadata()
+
 			for _, cfg := range tcase.configs {
 				path := filepath.Join(s.RootDir(), cfg.path)
 				test.AppendFile(t, path, "run_env_test_cfg.tm", cfg.add.String())
@@ -233,8 +255,6 @@ func TestLoadRunEnv(t *testing.T) {
 			for name, value := range tcase.hostenv {
 				t.Setenv(name, value)
 			}
-
-			projmeta := s.LoadProjectMetadata()
 
 			for stackRelPath, wantres := range tcase.want {
 				stack := s.LoadStack(stackRelPath)
