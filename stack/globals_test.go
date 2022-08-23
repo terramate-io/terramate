@@ -1314,7 +1314,7 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
-			name: "multiple imports references",
+			name: "chained imports references",
 			layout: []string{
 				"d:other",
 				"s:stack",
