@@ -266,8 +266,8 @@ Project metadata is the same independent of stack.
 ### terramate.stacks.list (string)
 
 List of all stacks inside the project. Each stack is represented by its
-absolute path relative to the project root.
-Will be the same for all stacks.
+absolute path relative to the project root. The list will be ordered
+lexicographically.
 
 ### terramate.root.path.fs.absolute (string)
 
