@@ -1301,6 +1301,77 @@ func TestPartialEval(t *testing.T) {
 				str("test", `THIS IS ${"" + "test"} !!!`),
 			),
 		},
+		{
+			name: "tm_ternary with condition with expression",
+			globals: globals(
+				number("val", 1),
+			),
+			config: hcldoc(
+				expr("a", `tm_ternary(global.val == 1, 0, 1)`),
+			),
+			want: hcldoc(
+				number("a", 0),
+			),
+		},
+		{
+			name: "tm_ternary with different result types in branches",
+			config: hcldoc(
+				expr("a", `tm_ternary(true, true, 0)`),
+			),
+			want: hcldoc(
+				boolean("a", true),
+			),
+		},
+		{
+			name: "tm_ternary returning partial result",
+			config: hcldoc(
+				expr("a", "tm_ternary(true, local.var, [])"),
+			),
+			want: hcldoc(
+				expr("a", "local.var"),
+			),
+		},
+		{
+			name: "tm_ternary returning literals",
+			config: hcldoc(
+				expr("a", "tm_ternary(false, local.var, [])"),
+			),
+			want: hcldoc(
+				expr("a", "[]"),
+			),
+		},
+		{
+			name: "tm_ternary inside deep structures",
+			config: hcldoc(
+				expr("a", `{
+					some = {
+						deep = {
+							structure = {
+								value = tm_ternary(true, [local.var], 0)
+							}
+						}
+					}	
+				}`),
+			),
+			want: hcldoc(
+				expr("a", `{
+					some = {
+						deep = {
+							structure = {
+								value = [local.var]
+							}
+						}
+					}	
+				}`),
+			),
+		},
+		{
+			name: "tm_ternary fails with partials in the conditions",
+			config: hcldoc(
+				expr("a", "tm_ternary(local.a, true, false)"),
+			),
+			wantErr: errors.E(eval.ErrPartial),
+		},
 		/*
 			 * Hashicorp HCL formats the `wants` wrong.
 			 *

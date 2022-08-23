@@ -45,6 +45,36 @@ func TestEvalTmAbspath(t *testing.T) {
 
 	for _, tc := range []testcase{
 		{
+			name: "tm_ternary - cond is true, with primitive values",
+			expr: `tm_ternary(true, "hello", "world")`,
+			want: want{
+				value: cty.StringVal("hello"),
+			},
+		},
+		{
+			name: "tm_ternary - cond is false, with primitive values",
+			expr: `tm_ternary(false, "hello", "world")`,
+			want: want{
+				value: cty.StringVal("world"),
+			},
+		},
+		{
+			name: "tm_ternary - cond is false, with partial not evaluated",
+			expr: `tm_ternary(false, local.var, "world")`,
+			want: want{
+				value: cty.StringVal("world"),
+			},
+		},
+		/*{
+			name: "tm_ternary - cond is true, with partial returning",
+			expr: `tm_ternary(true, local.var, "world")`,
+			want: want{
+				value: customdecode.ExpressionClosureVal(&customdecode.ExpressionClosure{
+					Expression: localVarExpr,
+				}),
+			},
+		},*/
+		{
 			name: "no args - fails",
 			expr: `tm_abspath()`,
 			want: want{
@@ -123,6 +153,7 @@ func TestEvalTmAbspath(t *testing.T) {
 			attr := body.Attributes[attrname]
 
 			got, err := ctx.Eval(attr.Expr)
+
 			errtest.Assert(t, err, tc.want.err)
 			if tc.want.err == nil {
 				if !got.RawEquals(tc.want.value) {

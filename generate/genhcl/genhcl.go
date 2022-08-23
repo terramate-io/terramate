@@ -527,7 +527,9 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 				return true
 			}
 
-			valExpr, err := eval.GetExpressionTokens(partialEvalAttributes.Bytes(), item.ValueExpr)
+			exprRange := item.ValueExpr.Range()
+			exprBytes := partialEvalAttributes.Bytes()[exprRange.Start.Byte:exprRange.End.Byte]
+			valExpr, err := eval.TokensForExpressionBytes(exprBytes)
 			if err != nil {
 				// Panic here since Terramate generated an invalid expression after
 				// partial evaluation and it is a guaranteed invariant that partial

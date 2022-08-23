@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/hcl"
@@ -192,25 +193,22 @@ func hclFromAttributes(t *testing.T, attrs ast.Attributes) string {
 	attrList := attrs.SortedList()
 
 	filesRead := map[string][]byte{}
-	readFile := func(filename string) []byte {
+	readFileRange := func(filename string, frange hhcl.Range) []byte {
 		t.Helper()
 
 		if file, ok := filesRead[filename]; ok {
-			return file
+			return file[frange.Start.Byte:frange.End.Byte]
 		}
 
 		file, err := os.ReadFile(filename)
 		assert.NoError(t, err, "reading origin file")
 
 		filesRead[filename] = file
-		return file
+		return file[frange.Start.Byte:frange.End.Byte]
 	}
 
 	for _, attr := range attrList {
-		tokens, err := eval.GetExpressionTokens(
-			readFile(attr.Origin),
-			attr.Expr,
-		)
+		tokens, err := eval.TokensForExpressionBytes(readFileRange(attr.Origin, attr.Range()))
 		assert.NoError(t, err)
 		body.SetAttributeRaw(attr.Name, tokens)
 	}

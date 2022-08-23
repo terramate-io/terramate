@@ -1484,6 +1484,58 @@ func TestLoadGlobals(t *testing.T) {
 			},
 			wantErr: errors.E(stack.ErrGlobalEval),
 		},
+		{
+			name:   "global with tm_ternary returning literals",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						boolean("a", true),
+						expr("val", "tm_ternary(global.a, 1, 2)"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					boolean("a", true),
+					number("val", 1),
+				),
+			},
+		},
+		{
+			name:   "global with tm_ternary with different branch types",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						boolean("a", true),
+						expr("val", "tm_ternary(!global.a, [], {})"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": globals(
+					boolean("a", true),
+					attr("val", `{}`),
+				),
+			},
+		},
+		{
+			name:   "global with tm_ternary returning partials",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: globals(
+						boolean("a", true),
+						expr("val", "tm_ternary(global.a, [local.a], 2)"),
+					),
+				},
+			},
+			wantErr: errors.E(stack.ErrGlobalEval),
+		},
 	}
 
 	for _, tcase := range tcases {

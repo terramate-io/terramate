@@ -818,7 +818,14 @@ func (e *engine) evalTmFuncall() error {
 		return err
 	}
 
-	e.emitTokens(e.tokens[begin:e.pos], hclwrite.TokensForValue(val))
+	val = val.Mark(ExpressionStringMark(expr)) // wrong
+
+	evaluated, err := TokensForValue(val)
+	if err != nil {
+		return err
+	}
+
+	e.emitTokens(e.tokens[begin:e.pos], evaluated)
 	return nil
 }
 
