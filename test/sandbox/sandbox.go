@@ -211,10 +211,10 @@ func (s S) LoadProjectMetadata() project.Metadata {
 
 // LoadStackGlobals loads globals for specific stack on the sandbox.
 // Fails the caller test if an error is found.
-func (s S) LoadStackGlobals(sm stack.Metadata) stack.Globals {
+func (s S) LoadStackGlobals(projmeta project.Metadata, sm stack.Metadata) stack.Globals {
 	s.t.Helper()
 
-	g, err := stack.LoadGlobals(s.LoadProjectMetadata(), sm)
+	g, err := stack.LoadGlobals(projmeta, sm)
 	assert.NoError(s.t, err)
 	return g
 }

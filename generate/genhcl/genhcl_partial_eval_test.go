@@ -1344,8 +1344,9 @@ func TestPartialEval(t *testing.T) {
 			t.Logf("input: %s", cfg.String())
 			test.AppendFile(t, path, config.DefaultFilename, cfg.String())
 
-			globals := s.LoadStackGlobals(stack)
-			got, err := genhcl.Load(s.RootDir(), stack, globals)
+			projmeta := s.LoadProjectMetadata()
+			globals := s.LoadStackGlobals(projmeta, stack)
+			got, err := genhcl.Load(projmeta, stack, globals)
 			errtest.Assert(t, err, tcase.wantErr)
 
 			if err != nil {
