@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genhcl"
+	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/mineiros-io/terramate/test/hclwrite"
@@ -831,6 +832,7 @@ func TestGenerateHCL(t *testing.T) {
 					add: generateHCL(
 						labels("root"),
 						content(
+							expr("stacks_list", "terramate.stacks.list"),
 							expr("stack_description", "terramate.stack.description"),
 							expr("stack_id", `tm_try(terramate.stack.id, "no-id")`),
 							expr("stack_name", "terramate.stack.name"),
@@ -856,6 +858,7 @@ func TestGenerateHCL(t *testing.T) {
 							str("stack_path_basename", "stack"),
 							str("stack_path_rel", "stacks/stack"),
 							str("stack_path_to_root", "../.."),
+							attr("stacks_list", `["/stacks/stack"]`),
 						),
 					},
 				},
@@ -1491,7 +1494,9 @@ func (tcase testcase) run(t *testing.T) {
 	t.Run(tcase.name, func(t *testing.T) {
 		s := sandbox.New(t)
 		s.BuildTree([]string{"s:" + tcase.stack})
-		stack := s.LoadStacks()[0]
+		stacks := s.LoadStacks()
+		projmeta := stack.NewProjectMetadata(s.RootDir(), stacks)
+		stack := stacks[0]
 
 		for _, cfg := range tcase.configs {
 			filename := cfg.filename
@@ -1502,8 +1507,8 @@ func (tcase testcase) run(t *testing.T) {
 			test.AppendFile(t, path, filename, cfg.add.String())
 		}
 
-		globals := s.LoadStackGlobals(stack)
-		got, err := genhcl.Load(s.RootDir(), stack, globals)
+		globals := s.LoadStackGlobals(projmeta, stack)
+		got, err := genhcl.Load(projmeta, stack, globals)
 		errtest.Assert(t, err, tcase.wantErr)
 
 		if len(got) != len(tcase.want) {

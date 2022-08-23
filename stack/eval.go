@@ -15,10 +15,12 @@
 package stack
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -29,7 +31,7 @@ type EvalCtx struct {
 }
 
 // NewEvalCtx creates a new stack evaluation context.
-func NewEvalCtx(rootdir string, sm Metadata, globals Globals) *EvalCtx {
+func NewEvalCtx(projmeta project.Metadata, sm Metadata, globals Globals) *EvalCtx {
 	evalctx, err := eval.NewContext(sm.HostPath())
 	if err != nil {
 		panic(err)
@@ -37,7 +39,7 @@ func NewEvalCtx(rootdir string, sm Metadata, globals Globals) *EvalCtx {
 	evalwrapper := &EvalCtx{
 		Context: evalctx,
 	}
-	evalwrapper.SetMetadata(rootdir, sm)
+	evalwrapper.SetMetadata(projmeta, sm)
 	evalwrapper.SetGlobals(globals)
 	return evalwrapper
 }
@@ -48,8 +50,8 @@ func (e *EvalCtx) SetGlobals(g Globals) {
 }
 
 // SetMetadata sets the given metadata on the stack evaluation context.
-func (e *EvalCtx) SetMetadata(rootdir string, sm Metadata) {
-	e.SetNamespace("terramate", metaToCtyMap(rootdir, sm))
+func (e *EvalCtx) SetMetadata(projmeta project.Metadata, sm Metadata) {
+	e.SetNamespace("terramate", metaToCtyMap(projmeta, sm))
 }
 
 // SetEnv sets the given environment on the env namespace of the evaluation context.
@@ -63,10 +65,11 @@ func (e *EvalCtx) SetEnv(environ []string) {
 	e.SetNamespace("env", env)
 }
 
-func metaToCtyMap(rootdir string, m Metadata) map[string]cty.Value {
+func metaToCtyMap(projmeta project.Metadata, m Metadata) map[string]cty.Value {
 	logger := log.With().
 		Str("action", "stack.metaToCtyMap()").
-		Str("root", rootdir).
+		Str("stacks", fmt.Sprintf("%v", projmeta.Stacks)).
+		Str("root", projmeta.Rootdir).
 		Logger()
 
 	logger.Trace().Msg("creating stack metadata")
@@ -89,9 +92,10 @@ func metaToCtyMap(rootdir string, m Metadata) map[string]cty.Value {
 		stackMapVals["id"] = cty.StringVal(id)
 	}
 	stack := cty.ObjectVal(stackMapVals)
+
 	rootfs := cty.ObjectVal(map[string]cty.Value{
-		"absolute": cty.StringVal(rootdir),
-		"basename": cty.StringVal(filepath.Base(rootdir)),
+		"absolute": cty.StringVal(projmeta.Rootdir),
+		"basename": cty.StringVal(filepath.Base(projmeta.Rootdir)),
 	})
 	rootpath := cty.ObjectVal(map[string]cty.Value{
 		"fs": rootfs,
@@ -99,11 +103,28 @@ func metaToCtyMap(rootdir string, m Metadata) map[string]cty.Value {
 	root := cty.ObjectVal(map[string]cty.Value{
 		"path": rootpath,
 	})
+
+	stacksNs := cty.ObjectVal(map[string]cty.Value{
+		"list": toCtyStringList(projmeta.Stacks),
+	})
 	return map[string]cty.Value{
+		"root":        root,
+		"stacks":      stacksNs,
 		"name":        cty.StringVal(m.Name()), // DEPRECATED
 		"path":        cty.StringVal(m.Path()), // DEPRECATED
 		"description": cty.StringVal(m.Desc()), // DEPRECATED
-		"root":        root,
 		"stack":       stack,
 	}
+}
+
+func toCtyStringList(stacks []string) cty.Value {
+	if len(stacks) == 0 {
+		// cty panics if the list is empty
+		return cty.ListValEmpty(cty.String)
+	}
+	res := make([]cty.Value, len(stacks))
+	for i, stack := range stacks {
+		res[i] = cty.StringVal(stack)
+	}
+	return cty.ListVal(res)
 }

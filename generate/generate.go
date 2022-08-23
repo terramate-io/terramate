@@ -21,10 +21,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/generate/genhcl"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 )
@@ -65,6 +65,7 @@ const (
 // report needs to be inspected to check.
 func Do(root string, workingDir string) Report {
 	return forEachStack(root, workingDir, func(
+		projmeta project.Metadata,
 		stack *stack.S,
 		globals stack.Globals,
 	) stackReport {
@@ -80,7 +81,7 @@ func Do(root string, workingDir string) Report {
 
 		logger.Trace().Msg("generate code from generate_file blocks")
 
-		genfiles, err := genfile.Load(root, stack, globals)
+		genfiles, err := genfile.Load(projmeta, stack, globals)
 		if err != nil {
 			report.err = err
 			return report
@@ -88,7 +89,7 @@ func Do(root string, workingDir string) Report {
 
 		logger.Trace().Msg("generate code from generate_hcl blocks")
 
-		genhcls, err := genhcl.Load(root, stack, globals)
+		genhcls, err := genhcl.Load(projmeta, stack, globals)
 		if err != nil {
 			report.err = err
 			return report
@@ -268,16 +269,16 @@ func ListStackGenFiles(stack *stack.S) ([]string, error) {
 // If the stack has an invalid configuration it will return an error.
 //
 // The provided root must be the project's root directory as an absolute path.
-func CheckStack(root string, st *stack.S) ([]string, error) {
+func CheckStack(projmeta project.Metadata, st *stack.S) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.CheckStack()").
-		Str("path", root).
+		Str("root", projmeta.Rootdir).
 		Stringer("stack", st).
 		Logger()
 
 	logger.Trace().Msg("Loading globals for stack.")
 
-	globals, err := stack.LoadGlobals(root, st)
+	globals, err := stack.LoadGlobals(projmeta, st)
 	if err != nil {
 		return nil, errors.E(err, "checking for outdated code")
 	}
@@ -285,12 +286,12 @@ func CheckStack(root string, st *stack.S) ([]string, error) {
 	stackpath := st.HostPath()
 	var generated []fileInfo
 
-	genfiles, err := genfile.Load(root, st, globals)
+	genfiles, err := genfile.Load(projmeta, st, globals)
 	if err != nil {
 		return nil, err
 	}
 
-	genhcls, err := genhcl.Load(root, st, globals)
+	genhcls, err := genhcl.Load(projmeta, st, globals)
 	if err != nil {
 		return nil, err
 	}
@@ -489,7 +490,7 @@ func readFile(path string) (string, bool, error) {
 	return string(data), true, nil
 }
 
-type forEachStackFunc func(*stack.S, stack.Globals) stackReport
+type forEachStackFunc func(project.Metadata, *stack.S, stack.Globals) stackReport
 
 func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 	logger := log.With().
@@ -502,15 +503,15 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 
 	logger.Trace().Msg("List stacks.")
 
-	stackEntries, err := terramate.ListStacks(root)
+	stacks, err := stack.LoadAll(root)
 	if err != nil {
 		report.BootstrapErr = err
 		return report
 	}
 
-	for _, entry := range stackEntries {
-		st := entry.Stack
+	projmeta := stack.NewProjectMetadata(root, stacks)
 
+	for _, st := range stacks {
 		logger := logger.With().
 			Stringer("stack", st).
 			Logger()
@@ -522,7 +523,7 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 
 		logger.Trace().Msg("Load stack globals.")
 
-		globals, err := stack.LoadGlobals(root, st)
+		globals, err := stack.LoadGlobals(projmeta, st)
 		if err != nil {
 			report.addFailure(st, errors.E(ErrLoadingGlobals, err))
 			continue
@@ -530,7 +531,7 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 
 		logger.Trace().Msg("Calling stack callback.")
 
-		report.addStackReport(st, fn(st, globals))
+		report.addStackReport(st, fn(projmeta, st, globals))
 	}
 	report.sortFilenames()
 	return report

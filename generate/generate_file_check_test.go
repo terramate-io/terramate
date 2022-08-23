@@ -31,7 +31,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
 	assertOutdatedFiles := func(want []string) {
 		t.Helper()
 
-		got, err := generate.CheckStack(s.RootDir(), stack)
+		got, err := generate.CheckStack(s.LoadProjectMetadata(), stack)
 		assert.NoError(t, err)
 		assertEqualStringList(t, got, want)
 	}
@@ -107,7 +107,7 @@ func TestCheckOutdatedDetectsEmptyGenerateFileContent(t *testing.T) {
 	assertOutdatedFiles := func(want []string) {
 		t.Helper()
 
-		got, err := generate.CheckStack(s.RootDir(), stack)
+		got, err := generate.CheckStack(s.LoadProjectMetadata(), stack)
 		assert.NoError(t, err)
 		assertEqualStringList(t, got, want)
 	}
@@ -159,7 +159,7 @@ func TestCheckOutdatedIgnoresWhenGenFileConditionIsFalse(t *testing.T) {
 	assertOutdatedFiles := func(want []string) {
 		t.Helper()
 
-		got, err := generate.CheckStack(s.RootDir(), stack)
+		got, err := generate.CheckStack(s.LoadProjectMetadata(), stack)
 		assert.NoError(t, err)
 		assertEqualStringList(t, got, want)
 	}

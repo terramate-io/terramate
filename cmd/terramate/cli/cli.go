@@ -736,6 +736,14 @@ func (c *cli) printStacks() {
 	}
 }
 
+func (c *cli) newProjectMetadata(report *terramate.StacksReport) prj.Metadata {
+	stacks := make(stack.List, len(report.Stacks))
+	for i, stackEntry := range report.Stacks {
+		stacks[i] = stackEntry.Stack
+	}
+	return stack.NewProjectMetadata(c.root(), stacks)
+}
+
 func (c *cli) printRunEnv() {
 	logger := log.With().
 		Str("action", "cli.printRunEnv()").
@@ -750,8 +758,10 @@ func (c *cli) printRunEnv() {
 			Msg("listing stacks")
 	}
 
+	projmeta := c.newProjectMetadata(report)
+
 	for _, stackEntry := range c.filterStacksByWorkingDir(report.Stacks) {
-		envVars, err := run.LoadEnv(c.root(), stackEntry.Stack)
+		envVars, err := run.LoadEnv(projmeta, stackEntry.Stack)
 		if err != nil {
 			log.Fatal().Err(err).Msg("loading stack run environment")
 		}
@@ -955,9 +965,11 @@ func (c *cli) printStacksGlobals() {
 			Msg("listing stacks")
 	}
 
+	projmeta := c.newProjectMetadata(report)
+
 	for _, stackEntry := range c.filterStacksByWorkingDir(report.Stacks) {
 		meta := stack.Metadata(stackEntry.Stack)
-		globals, err := stack.LoadGlobals(c.root(), meta)
+		globals, err := stack.LoadGlobals(projmeta, meta)
 		if err != nil {
 			log.Fatal().
 				Err(err).
@@ -999,7 +1011,13 @@ func (c *cli) printMetadata() {
 		return
 	}
 
+	projmeta := c.newProjectMetadata(report)
+
 	c.log("Available metadata:")
+
+	// TODO(katcipis): we need to print other project metadata too.
+	c.log("\nproject metadata:")
+	c.log("\tterramate.stacks.all=%v", projmeta.Stacks)
 
 	for _, stackEntry := range stackEntries {
 		stackMeta := stack.Metadata(stackEntry.Stack)
@@ -1058,6 +1076,7 @@ func (c *cli) checkOutdatedGeneratedCode(stacks stack.List) {
 	}
 
 	logger.Trace().Msg("Checking if any stack has outdated code.")
+	projmeta := stack.NewProjectMetadata(c.root(), stacks)
 
 	hasOutdated := false
 	for _, stack := range stacks {
@@ -1067,7 +1086,7 @@ func (c *cli) checkOutdatedGeneratedCode(stacks stack.List) {
 
 		logger.Trace().Msg("checking stack for outdated code")
 
-		outdated, err := generate.CheckStack(c.root(), stack)
+		outdated, err := generate.CheckStack(projmeta, stack)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("checking stack for outdated code")
 		}

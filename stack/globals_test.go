@@ -258,6 +258,7 @@ func TestLoadGlobals(t *testing.T) {
 				{
 					path: "/stacks/stack-1",
 					add: globals(
+						expr("stacks_list", "terramate.stacks.list"),
 						expr("stack_path_abs", "terramate.stack.path.absolute"),
 						expr("stack_path_rel", "terramate.stack.path.relative"),
 						expr("stack_path_to_root", "terramate.stack.path.to_root"),
@@ -270,6 +271,7 @@ func TestLoadGlobals(t *testing.T) {
 				{
 					path: "/stacks/stack-2",
 					add: globals(
+						expr("stacks_list", "terramate.stacks.list"),
 						expr("stack_path_abs", "terramate.stack.path.absolute"),
 						expr("stack_path_rel", "terramate.stack.path.relative"),
 						expr("stack_path_to_root", "terramate.stack.path.to_root"),
@@ -282,6 +284,7 @@ func TestLoadGlobals(t *testing.T) {
 			},
 			want: map[string]*hclwrite.Block{
 				"/stacks/stack-1": globals(
+					attr("stacks_list", `tolist(["/stacks/stack-1", "/stacks/stack-2"])`),
 					str("stack_path_abs", "/stacks/stack-1"),
 					str("stack_path_rel", "stacks/stack-1"),
 					str("stack_path_to_root", "../.."),
@@ -291,6 +294,7 @@ func TestLoadGlobals(t *testing.T) {
 					str("stack_description", ""),
 				),
 				"/stacks/stack-2": globals(
+					attr("stacks_list", `tolist(["/stacks/stack-1", "/stacks/stack-2"])`),
 					str("stack_path_abs", "/stacks/stack-2"),
 					str("stack_path_rel", "stacks/stack-2"),
 					str("stack_path_to_root", "../.."),
@@ -1310,7 +1314,7 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
-			name: "multiple imports references",
+			name: "chained imports references",
 			layout: []string{
 				"d:other",
 				"s:stack",
@@ -1542,6 +1546,7 @@ func TestLoadGlobals(t *testing.T) {
 		t.Run(tcase.name, func(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
+			projmeta := s.LoadProjectMetadata()
 
 			for _, globalBlock := range tcase.configs {
 				path := filepath.Join(s.RootDir(), globalBlock.path)
@@ -1560,11 +1565,12 @@ func TestLoadGlobals(t *testing.T) {
 			}
 
 			var stacks stack.List
+
 			for _, entry := range stackEntries {
 				st := entry.Stack
 				stacks = append(stacks, st)
 
-				got, err := stack.LoadGlobals(s.RootDir(), st)
+				got, err := stack.LoadGlobals(projmeta, st)
 
 				errtest.Assert(t, err, tcase.wantErr)
 				if tcase.wantErr != nil {
@@ -1749,14 +1755,15 @@ func TestLoadGlobalsErrors(t *testing.T) {
 				test.AppendFile(t, path, config.DefaultFilename, c.body)
 			}
 
-			stackEntries, err := terramate.ListStacks(s.RootDir())
+			stacks, err := stack.LoadAll(s.RootDir())
 			// TODO(i4k): this better not be tested here.
 			if errors.IsKind(tcase.want, hcl.ErrHCLSyntax) {
 				errtest.AssertKind(t, err, tcase.want)
 			}
+			projmeta := stack.NewProjectMetadata(s.RootDir(), stacks)
 
-			for _, entry := range stackEntries {
-				_, err := stack.LoadGlobals(s.RootDir(), entry.Stack)
+			for _, st := range stacks {
+				_, err := stack.LoadGlobals(projmeta, st)
 				errtest.Assert(t, err, tcase.want)
 			}
 		})
@@ -1772,6 +1779,9 @@ func TestLoadGlobalsErrorOnRelativeDir(t *testing.T) {
 
 	stacks := s.LoadStacks()
 	assert.EqualInts(t, 1, len(stacks))
-	globals, err := stack.LoadGlobals(rel, stacks[0])
+
+	projmeta := s.LoadProjectMetadata()
+	projmeta.Rootdir = rel
+	globals, err := stack.LoadGlobals(projmeta, stacks[0])
 	assert.Error(t, err, "got %v instead of error", globals)
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/mineiros-io/terramate/test/hclwrite"
@@ -142,6 +143,7 @@ func TestLoadGenerateFiles(t *testing.T) {
 						labels("test"),
 						expr("content", `<<EOT
 
+stacks_list=${tm_jsonencode(terramate.stacks.list)}
 stack_path_abs=${terramate.stack.path.absolute}
 stack_path_rel=${terramate.stack.path.relative}
 stack_path_to_root=${terramate.stack.path.to_root}
@@ -160,6 +162,7 @@ EOT`,
 					file: genFile{
 						origin: "/stack/test.tm",
 						body: `
+stacks_list=["/stack"]
 stack_path_abs=/stack
 stack_path_rel=stack
 stack_path_to_root=..
@@ -843,14 +846,16 @@ stack_id=stack-id
 		t.Run(tcase.name, func(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree([]string{"s:" + tcase.stack})
+			stacks := s.LoadStacks()
+			projmeta := stack.NewProjectMetadata(s.RootDir(), stacks)
 			stack := s.LoadStacks()[0]
 
 			for _, cfg := range tcase.configs {
 				test.AppendFile(t, s.RootDir(), cfg.path, cfg.add.String())
 			}
 
-			globals := s.LoadStackGlobals(stack)
-			got, err := genfile.Load(s.RootDir(), stack, globals)
+			globals := s.LoadStackGlobals(projmeta, stack)
+			got, err := genfile.Load(projmeta, stack, globals)
 			errtest.Assert(t, err, tcase.wantErr)
 
 			if len(got) != len(tcase.want) {

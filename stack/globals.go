@@ -46,23 +46,23 @@ const (
 //
 // Metadata for the stack is used on the evaluation of globals.
 // The rootdir MUST be an absolute path.
-func LoadGlobals(rootdir string, meta Metadata) (Globals, error) {
+func LoadGlobals(projmeta project.Metadata, stackmeta Metadata) (Globals, error) {
 	logger := log.With().
-		Str("action", "LoadStackGlobals()").
-		Str("stack", meta.Path()).
+		Str("action", "stack.LoadStackGlobals()").
+		Str("stack", stackmeta.Path()).
 		Logger()
 
-	if !filepath.IsAbs(rootdir) {
-		return Globals{}, errors.E("%q is not absolute path", rootdir)
+	if !filepath.IsAbs(projmeta.Rootdir) {
+		return Globals{}, errors.E("%q is not absolute path", projmeta.Rootdir)
 	}
 
 	logger.Debug().Msg("Load stack globals.")
 
-	globals, err := loadStackGlobalsExprs(rootdir, meta.Path())
+	globals, err := loadStackGlobalsExprs(projmeta.Rootdir, stackmeta.Path())
 	if err != nil {
 		return Globals{}, err
 	}
-	return globals.eval(rootdir, meta)
+	return globals.eval(projmeta, stackmeta)
 }
 
 // Attributes returns all the global attributes, the key in the map
@@ -123,7 +123,7 @@ func removeUnset(globals map[string]expression) {
 
 // eval will evaluate all globals. Expressions will be consumed so calling
 // this method a second time results in an empty set of Globals.
-func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
+func (ge *globalsExpr) eval(projmeta project.Metadata, meta Metadata) (Globals, error) {
 	// FIXME(katcipis): get abs path for stack.
 	// This is relative only to root since meta.Path will look
 	// like: /some/path/relative/project/root
@@ -137,7 +137,7 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 	globals := Globals{
 		attributes: map[string]cty.Value{},
 	}
-	evalctx := NewEvalCtx(rootdir, meta, globals)
+	evalctx := NewEvalCtx(projmeta, meta, globals)
 
 	pendingExprsErrs := map[string]error{}
 	pendingExprs := ge.expressions
@@ -210,20 +210,19 @@ func (ge *globalsExpr) eval(rootdir string, meta Metadata) (Globals, error) {
 	if len(pendingExprs) > 0 {
 		// TODO(katcipis): model proper error list and return that
 		// Caller can decide how to format/log things (like code generation report).
+		pendingGlobalNames := make([]string, 0, len(pendingExprs))
 		for name, expr := range pendingExprs {
 			err, ok := pendingExprsErrs[name]
 			if !ok {
 				err = errors.E("undefined global")
 			}
+			pendingGlobalNames = append(pendingGlobalNames, name)
 			logger.Err(err).
 				Str("name", name).
 				Str("origin", expr.origin).
 				Msg("evaluating global")
 		}
-		return Globals{}, errors.E(
-			ErrGlobalEval,
-			"unable to evaluate %d globals", len(pendingExprs),
-		)
+		return Globals{}, errors.E(ErrGlobalEval, "%v", pendingGlobalNames)
 	}
 
 	return globals, nil

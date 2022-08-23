@@ -37,6 +37,9 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/zclconf/go-cty/cty"
+
+	hhcl "github.com/hashicorp/hcl/v2"
+	tflang "github.com/hashicorp/terraform/lang"
 )
 
 // Block represents an HCL block.
@@ -163,7 +166,7 @@ func Labels(labels ...string) BlockBuilder {
 //
 // The evaluation is quite limited, only suitable for evaluating
 // objects/lists/etc, but won't work with any references to
-// namespaces of function calls (context for evaluation is always empty).
+// namespaces except default Terraform function calls.
 func AttributeValue(t *testing.T, name string, expr string) BlockBuilder {
 	t.Helper()
 
@@ -175,7 +178,13 @@ func AttributeValue(t *testing.T, name string, expr string) BlockBuilder {
 	}
 	body := res.Body.(*hclsyntax.Body)
 
-	val, diags := body.Attributes[name].Expr.Value(nil)
+	scope := &tflang.Scope{}
+	ctx := &hhcl.EvalContext{
+		Functions: scope.Functions(),
+		Variables: map[string]cty.Value{},
+	}
+
+	val, diags := body.Attributes[name].Expr.Value(ctx)
 	if diags.HasErrors() {
 		t.Fatalf("hclwrite.Eval: cant eval %s: %v", rawbody, diags)
 	}
