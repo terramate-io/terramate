@@ -258,15 +258,31 @@ accessed through the variable namespace **terramate**.
 This can be referenced from any Terramate code to reference
 information like the path of the stack or its name.
 
-## terramate.root.path.fs.absolute (string)
+
+## Project Metadata
+
+Project metadata is the same independent of stack.
+
+### terramate.stacks.list (string)
+
+List of all stacks inside the project. Each stack is represented by its
+absolute path relative to the project root.
+Will be the same for all stacks.
+
+### terramate.root.path.fs.absolute (string)
 
 The absolute path of the project root directory. Will be the same for all stacks.
 
-## terramate.root.path.fs.basename (string)
+### terramate.root.path.fs.basename (string)
 
 The base name of the project root directory. Will be the same for all stacks.
 
-## terramate.stack.path.absolute (string)
+
+## Stack Metadata
+
+Stack metadata is specific per stack, so each stack will have different values.
+
+### terramate.stack.path.absolute (string)
 
 The absolute path of the stack relative to the project
 root directory, not the host root directory. So it is absolute
@@ -284,7 +300,7 @@ Given this project layout:
 * **stack-a** = /stacks/stack-a
 * **stack-b** = /stacks/stack-b
 
-## terramate.stack.path.relative (string)
+### terramate.stack.path.relative (string)
 
 The stack path relative from the project root directory.
 
@@ -300,7 +316,7 @@ Given this project layout:
 * **stack-a** = stacks/stack-a
 * **stack-b** = stacks/stack-b
 
-## terramate.stack.path.basename (string)
+### terramate.stack.path.basename (string)
 
 The base name of the stack path.
 
@@ -316,7 +332,7 @@ Given this project layout:
 * **stack-a** = stack-a
 * **stack-b** = stack-b
 
-## terramate.stack.path.to\_root (string)
+### terramate.stack.path.to\_root (string)
 
 The relative path from the stack to the project root.
 
@@ -332,7 +348,7 @@ Given this project layout:
 * **stack-a** = ../..
 * **stack-b** = ../..
 
-## terramate.stack.id (string)
+### terramate.stack.id (string)
 
 The ID of the stack as defined on the stack configuration.
 If the stack doesn't have a ID defined on its configuration
@@ -341,7 +357,7 @@ this metadata will be undefined (no default value provided).
 Please consider [stack configuration](stack.md) to see how
 you can define the stack ID.
 
-## terramate.stack.name (string)
+### terramate.stack.name (string)
 
 The name of the stack as defined on the stack configuration.
 If the stack doesn't have a name defined on its configuration
@@ -362,7 +378,7 @@ Given this stack layout (from the root of the project):
 Please consider [stack configuration](stack.md) to see how
 you can change the default stack name.
 
-## terramate.stack.description (string)
+### terramate.stack.description (string)
 
 The description of the stack, if it has any.
 The default value is an empty string.
