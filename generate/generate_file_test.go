@@ -27,8 +27,6 @@ import (
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
-// TODO(katcipis): test terramate.stacks.list with different working dirs
-
 func TestGenerateFile(t *testing.T) {
 	checkGenFiles := func(t *testing.T, got string, want string) {
 		t.Helper()
@@ -96,6 +94,85 @@ func TestGenerateFile(t *testing.T) {
 						boolean("condition", false),
 						str("content", "content"),
 					),
+				},
+			},
+		},
+		{
+			name: "terramate.stacks.list with root workdir",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: hcldoc(
+						generateFile(
+							labels("stacks.txt"),
+							expr("content", `"${tm_jsonencode(terramate.stacks.list)}"`),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stacks/stack-1",
+					files: map[string]fmt.Stringer{
+						"stacks.txt": stringer(`["/stacks/stack-1","/stacks/stack-2"]`),
+					},
+				},
+				{
+					stack: "/stacks/stack-2",
+					files: map[string]fmt.Stringer{
+						"stacks.txt": stringer(`["/stacks/stack-1","/stacks/stack-2"]`),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						StackPath: "/stacks/stack-1",
+						Created:   []string{"stacks.txt"},
+					},
+					{
+						StackPath: "/stacks/stack-2",
+						Created:   []string{"stacks.txt"},
+					},
+				},
+			},
+		},
+		{
+			name: "terramate.stacks.list with stack workdir",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			workingDir: "stacks/stack-1",
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: hcldoc(
+						generateFile(
+							labels("stacks.txt"),
+							expr("content", `"${tm_jsonencode(terramate.stacks.list)}"`),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stacks/stack-1",
+					files: map[string]fmt.Stringer{
+						"stacks.txt": stringer(`["/stacks/stack-1","/stacks/stack-2"]`),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						StackPath: "/stacks/stack-1",
+						Created:   []string{"stacks.txt"},
+					},
 				},
 			},
 		},
