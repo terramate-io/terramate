@@ -1494,6 +1494,7 @@ func TestLoadGlobals(t *testing.T) {
 		t.Run(tcase.name, func(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
+			projmeta := s.LoadProjectMetadata()
 
 			for _, globalBlock := range tcase.configs {
 				path := filepath.Join(s.RootDir(), globalBlock.path)
@@ -1517,17 +1518,7 @@ func TestLoadGlobals(t *testing.T) {
 				st := entry.Stack
 				stacks = append(stacks, st)
 
-				// Some errors will happen when listing stacks to
-				// build the project metadata, even though they
-				// are global specific errors. So we test them here.
-				// In the future this should be improved.
-				stacks, err := stack.LoadAll(s.RootDir())
-				if err != nil {
-					errtest.Assert(t, err, tcase.wantErr)
-					continue
-				}
-
-				got, err := stack.LoadGlobals(stack.NewProjectMetadata(s.RootDir(), stacks), st)
+				got, err := stack.LoadGlobals(projmeta, st)
 
 				errtest.Assert(t, err, tcase.wantErr)
 				if tcase.wantErr != nil {
@@ -1717,7 +1708,6 @@ func TestLoadGlobalsErrors(t *testing.T) {
 			if errors.IsKind(tcase.want, hcl.ErrHCLSyntax) {
 				errtest.AssertKind(t, err, tcase.want)
 			}
-
 			projmeta := stack.NewProjectMetadata(s.RootDir(), stacks)
 
 			for _, st := range stacks {
