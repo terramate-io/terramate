@@ -20,14 +20,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/hashicorp/hcl/v2/ext/customdecode"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/function"
 
 	hhcl "github.com/hashicorp/hcl/v2"
-	tflang "github.com/hashicorp/terraform/lang"
 )
 
 // ErrEval indicates a failure during the evaluation process
@@ -37,6 +36,10 @@ const ErrEval errors.Kind = "failed to evaluate expression"
 type Context struct {
 	hclctx *hhcl.EvalContext
 }
+
+// ExpressionStringMark is the type used for marking expression values with the
+// expression string.
+type ExpressionStringMark string
 
 // NewContext creates a new HCL evaluation context.
 // The basedir is the base directory used by any interpolation functions that
@@ -96,13 +99,7 @@ func (c *Context) Eval(expr hclsyntax.Expression) (cty.Value, error) {
 // with  no reference to terramate namespaced variables (globals and terramate)
 // and functions (tm_ prefixed functions).
 func (c *Context) PartialEval(expr hclsyntax.Expression) (hclwrite.Tokens, error) {
-	exprFname := expr.Range().Filename
-	filedata, err := ioutil.ReadFile(exprFname)
-	if err != nil {
-		return nil, errors.E(err, "reading expression from file")
-	}
-
-	tokens, err := GetExpressionTokens(filedata, expr)
+	tokens, err := TokensForExpression(expr)
 	if err != nil {
 		return nil, err
 	}
@@ -111,12 +108,43 @@ func (c *Context) PartialEval(expr hclsyntax.Expression) (hclwrite.Tokens, error
 	return engine.Eval()
 }
 
-// GetExpressionTokens gets the provided expression writable tokens.
-func GetExpressionTokens(hcldoc []byte, expr hclsyntax.Expression) (hclwrite.Tokens, error) {
-	exprRange := expr.Range()
+// TokensForValue returns the tokens for the provided value.
+func TokensForValue(value cty.Value) (hclwrite.Tokens, error) {
+	value, marks := value.Unmark()
+	if value.Type() == customdecode.ExpressionClosureType {
+		closureExpr := value.EncapsulatedValue().(*customdecode.ExpressionClosure)
+		for m := range marks {
+			if v, ok := m.(ExpressionStringMark); ok {
+				exprRange := closureExpr.Expression.Range()
+				exprData := []byte(v)[exprRange.Start.Byte:exprRange.End.Byte]
+				return TokensForExpressionBytes(exprData)
+			}
+		}
+
+		return TokensForExpression(closureExpr.Expression)
+	}
+	return hclwrite.TokensForValue(value), nil
+}
+
+// TokensForExpression gets the provided expression writable tokens.
+// Beware: This function requires a valid expr.Range(), which means that
+// expr.Range().Filename must be the real file used to parse this expression
+// and the ranges (start and end) points to correct positions.
+// The expression must be an expression parsed from a real file.
+func TokensForExpression(expr hhcl.Expression) (hclwrite.Tokens, error) {
 	filename := expr.Range().Filename
-	exprBytes := hcldoc[exprRange.Start.Byte:exprRange.End.Byte]
-	tokens, diags := hclsyntax.LexExpression(exprBytes, filename, hhcl.Pos{})
+	filedata, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, errors.E(err, "reading expression from file")
+	}
+	exprRange := expr.Range()
+	exprBytes := filedata[exprRange.Start.Byte:exprRange.End.Byte]
+	return TokensForExpressionBytes(exprBytes)
+}
+
+// TokensForExpressionBytes returns the tokens for the provided expression bytes.
+func TokensForExpressionBytes(exprBytes []byte) (hclwrite.Tokens, error) {
+	tokens, diags := hclsyntax.LexExpression(exprBytes, "", hhcl.Pos{})
 	if diags.HasErrors() {
 		return nil, errors.E(diags, "failed to scan expression")
 	}
@@ -132,42 +160,4 @@ func toWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {
 		}
 	}
 	return tokens
-}
-
-func newTmFunctions(basedir string) map[string]function.Function {
-	scope := &tflang.Scope{BaseDir: basedir}
-	tffuncs := scope.Functions()
-
-	tmfuncs := map[string]function.Function{}
-	for name, function := range tffuncs {
-		tmfuncs["tm_"+name] = function
-	}
-
-	// fix terraform broken abspath()
-	tmfuncs["tm_abspath"] = tmAbspath(basedir)
-	return tmfuncs
-}
-
-// tmAbspath returns the `tm_abspath()` hcl function.
-func tmAbspath(basedir string) function.Function {
-	return function.New(&function.Spec{
-		Params: []function.Parameter{
-			{
-				Name: "path",
-				Type: cty.String,
-			},
-		},
-		Type: function.StaticReturnType(cty.String),
-		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
-			path := args[0].AsString()
-			var abspath string
-			if filepath.IsAbs(path) {
-				abspath = path
-			} else {
-				abspath = filepath.Join(basedir, path)
-			}
-
-			return cty.StringVal(filepath.ToSlash(filepath.Clean(abspath))), nil
-		},
-	})
 }
