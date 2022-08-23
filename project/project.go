@@ -21,6 +21,16 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// Metadata represents project wide metadata.
+type Metadata struct {
+	// Rootdir is the root dir of the project
+	Rootdir string
+
+	// Stacks contains the absolute path relative to the project root
+	// of all stacks inside the project.
+	Stacks []string
+}
+
 // PrjAbsPath converts the file system absolute path absdir into an absolute
 // project path on the form /path/on/project relative to the given root.
 func PrjAbsPath(root, absdir string) string {

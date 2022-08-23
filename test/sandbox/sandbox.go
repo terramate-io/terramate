@@ -207,7 +207,8 @@ func (s S) LoadStacks() stack.List {
 func (s S) LoadStackGlobals(sm stack.Metadata) stack.Globals {
 	s.t.Helper()
 
-	g, err := stack.LoadGlobals(s.RootDir(), sm)
+	projmeta := stack.NewProjectMetadata(s.RootDir(), s.LoadStacks())
+	g, err := stack.LoadGlobals(projmeta, sm)
 	assert.NoError(s.t, err)
 	return g
 }

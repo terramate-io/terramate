@@ -227,6 +227,18 @@ func LookupParent(root, dir string) (*S, bool, error) {
 	return l.lookupParentStack(dir)
 }
 
+// NewProjectMetadata creates project metadata from a given rootdir and a list of stacks.
+func NewProjectMetadata(rootdir string, stacks List) project.Metadata {
+	stackPaths := make([]string, len(stacks))
+	for i, st := range stacks {
+		stackPaths[i] = st.Path()
+	}
+	return project.Metadata{
+		Rootdir: rootdir,
+		Stacks:  stackPaths,
+	}
+}
+
 // LoadAll loads all stacks inside the given rootdir.
 func LoadAll(rootdir string) (List, error) {
 	logger := log.With().
