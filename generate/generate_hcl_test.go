@@ -29,8 +29,6 @@ import (
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
-// TODO(katcipis): test terramate.stacks.list with different working dirs
-
 func TestGenerateHCL(t *testing.T) {
 	provider := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("provider", builders...)
@@ -111,6 +109,95 @@ func TestGenerateHCL(t *testing.T) {
 							),
 						),
 					),
+				},
+			},
+		},
+		{
+			name: "generate HCL with terramate.stacks.list with workdir on root",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: hcldoc(
+						generateHCL(
+							labels("stacks.hcl"),
+							content(
+								expr("stacks", "terramate.stacks.list"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stacks/stack-1",
+					files: map[string]fmt.Stringer{
+						"stacks.hcl": hcldoc(
+							attr("stacks", `["/stacks/stack-1", "/stacks/stack-2"]`),
+						),
+					},
+				},
+				{
+					stack: "/stacks/stack-2",
+					files: map[string]fmt.Stringer{
+						"stacks.hcl": hcldoc(
+							attr("stacks", `["/stacks/stack-1", "/stacks/stack-2"]`),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						StackPath: "/stacks/stack-1",
+						Created:   []string{"stacks.hcl"},
+					},
+					{
+						StackPath: "/stacks/stack-2",
+						Created:   []string{"stacks.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate HCL with terramate.stacks.list with workdir on stack",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			workingDir: "stacks/stack-1",
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: hcldoc(
+						generateHCL(
+							labels("stacks.hcl"),
+							content(
+								expr("stacks", "terramate.stacks.list"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stacks/stack-1",
+					files: map[string]fmt.Stringer{
+						"stacks.hcl": hcldoc(
+							attr("stacks", `["/stacks/stack-1", "/stacks/stack-2"]`),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						StackPath: "/stacks/stack-1",
+						Created:   []string{"stacks.hcl"},
+					},
 				},
 			},
 		},
