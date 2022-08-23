@@ -202,13 +202,19 @@ func (s S) LoadStacks() stack.List {
 	return stacks
 }
 
+// LoadProjectMetadata loads the project metadata.
+func (s S) LoadProjectMetadata() project.Metadata {
+	s.t.Helper()
+
+	return stack.NewProjectMetadata(s.RootDir(), s.LoadStacks())
+}
+
 // LoadStackGlobals loads globals for specific stack on the sandbox.
 // Fails the caller test if an error is found.
 func (s S) LoadStackGlobals(sm stack.Metadata) stack.Globals {
 	s.t.Helper()
 
-	projmeta := stack.NewProjectMetadata(s.RootDir(), s.LoadStacks())
-	g, err := stack.LoadGlobals(projmeta, sm)
+	g, err := stack.LoadGlobals(s.LoadProjectMetadata(), sm)
 	assert.NoError(s.t, err)
 	return g
 }

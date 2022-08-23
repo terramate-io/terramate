@@ -49,7 +49,6 @@ func TestLoadRunEnv(t *testing.T) {
 
 	expr := hclwrite.Expression
 	str := hclwrite.String
-	hcldoc := hclwrite.BuildHCL
 	block := hclwrite.BuildBlock
 	terramate := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return block("terramate", builders...)
@@ -156,25 +155,6 @@ func TestLoadRunEnv(t *testing.T) {
 			},
 		},
 		{
-			name: "fails on invalid root config",
-			layout: []string{
-				"s:stack",
-			},
-			configs: []hclconfig{
-				{
-					path: "/",
-					add: hcldoc(
-						block("notvalidterramate"),
-					),
-				},
-			},
-			want: map[string]result{
-				"stack": {
-					err: errors.E(run.ErrParsingCfg),
-				},
-			},
-		},
-		{
 			name: "fails on globals loading failure",
 			layout: []string{
 				"s:stack",
@@ -254,9 +234,11 @@ func TestLoadRunEnv(t *testing.T) {
 				t.Setenv(name, value)
 			}
 
+			projmeta := s.LoadProjectMetadata()
+
 			for stackRelPath, wantres := range tcase.want {
 				stack := s.LoadStack(stackRelPath)
-				gotvars, err := run.LoadEnv(s.RootDir(), stack)
+				gotvars, err := run.LoadEnv(projmeta, stack)
 
 				errorstest.Assert(t, err, wantres.err)
 				test.AssertDiff(t, gotvars, wantres.env)

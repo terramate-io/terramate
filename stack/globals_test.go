@@ -1512,11 +1512,22 @@ func TestLoadGlobals(t *testing.T) {
 			}
 
 			var stacks stack.List
+
 			for _, entry := range stackEntries {
 				st := entry.Stack
 				stacks = append(stacks, st)
 
-				got, err := stack.LoadGlobals(s.RootDir(), st)
+				// Some errors will happen when listing stacks to
+				// build the project metadata, even though they
+				// are global specific errors. So we test them here.
+				// In the future this should be improved.
+				stacks, err := stack.LoadAll(s.RootDir())
+				if err != nil {
+					errtest.Assert(t, err, tcase.wantErr)
+					continue
+				}
+
+				got, err := stack.LoadGlobals(stack.NewProjectMetadata(s.RootDir(), stacks), st)
 
 				errtest.Assert(t, err, tcase.wantErr)
 				if tcase.wantErr != nil {
@@ -1701,14 +1712,16 @@ func TestLoadGlobalsErrors(t *testing.T) {
 				test.AppendFile(t, path, config.DefaultFilename, c.body)
 			}
 
-			stackEntries, err := terramate.ListStacks(s.RootDir())
+			stacks, err := stack.LoadAll(s.RootDir())
 			// TODO(i4k): this better not be tested here.
 			if errors.IsKind(tcase.want, hcl.ErrHCLSyntax) {
 				errtest.AssertKind(t, err, tcase.want)
 			}
 
-			for _, entry := range stackEntries {
-				_, err := stack.LoadGlobals(s.RootDir(), entry.Stack)
+			projmeta := stack.NewProjectMetadata(s.RootDir(), stacks)
+
+			for _, st := range stacks {
+				_, err := stack.LoadGlobals(projmeta, st)
 				errtest.Assert(t, err, tcase.want)
 			}
 		})
@@ -1724,6 +1737,9 @@ func TestLoadGlobalsErrorOnRelativeDir(t *testing.T) {
 
 	stacks := s.LoadStacks()
 	assert.EqualInts(t, 1, len(stacks))
-	globals, err := stack.LoadGlobals(rel, stacks[0])
+
+	projmeta := s.LoadProjectMetadata()
+	projmeta.Rootdir = rel
+	globals, err := stack.LoadGlobals(projmeta, stacks[0])
 	assert.Error(t, err, "got %v instead of error", globals)
 }
