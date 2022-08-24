@@ -49,14 +49,15 @@ func TestModVendorWithCommitIDRef(t *testing.T) {
 	gitURL := "file://" + repoSandbox.RootDir()
 	rootdir := t.TempDir()
 
-	cloneDir, err := modvendor.Vendor(rootdir, tf.Source{
+	vendordir := filepath.Join(rootdir, "dir/reftest/vendor")
+	cloneDir, err := modvendor.Vendor(rootdir, vendordir, tf.Source{
 		URL:  gitURL,
 		Ref:  ref,
 		Path: path,
 	})
 	assert.NoError(t, err)
 
-	wantCloneDir := vendordir(rootdir, path, ref)
+	wantCloneDir := vendoredDir(vendordir, path, ref)
 	assert.EqualStrings(t, wantCloneDir, cloneDir)
 
 	got := test.ReadFile(t, cloneDir, filename)
@@ -82,14 +83,15 @@ func TestModVendorWithRef(t *testing.T) {
 	gitURL := "file://" + repoSandbox.RootDir()
 	rootdir := t.TempDir()
 
-	cloneDir, err := modvendor.Vendor(rootdir, tf.Source{
+	vendordir := filepath.Join(rootdir, "vendor")
+	cloneDir, err := modvendor.Vendor(rootdir, vendordir, tf.Source{
 		URL:  gitURL,
 		Ref:  ref,
 		Path: path,
 	})
 	assert.NoError(t, err)
 
-	wantCloneDir := vendordir(rootdir, path, ref)
+	wantCloneDir := vendoredDir(vendordir, path, ref)
 	assert.EqualStrings(t, wantCloneDir, cloneDir)
 
 	got := test.ReadFile(t, cloneDir, filename)
@@ -109,14 +111,14 @@ func TestModVendorWithRef(t *testing.T) {
 	// or else the test passes even if the correct ref is not used.
 	repogit.Checkout(ref)
 
-	newCloneDir, err := modvendor.Vendor(rootdir, tf.Source{
+	newCloneDir, err := modvendor.Vendor(rootdir, vendordir, tf.Source{
 		URL:  gitURL,
 		Ref:  newRef,
 		Path: path,
 	})
 	assert.NoError(t, err)
 
-	wantCloneDir = vendordir(rootdir, path, newRef)
+	wantCloneDir = vendoredDir(vendordir, path, newRef)
 	assert.EqualStrings(t, wantCloneDir, newCloneDir)
 
 	assertNoGitDir(t, newCloneDir)
@@ -143,10 +145,11 @@ func TestModVendorDoesNothingIfRefExists(t *testing.T) {
 
 	gitURL := "file://" + s.RootDir()
 	rootdir := t.TempDir()
-	clonedir := vendordir(rootdir, path, ref)
+	vendordir := filepath.Join(rootdir, "vendor/fun")
+	clonedir := vendoredDir(vendordir, path, ref)
 	test.MkdirAll(t, clonedir)
 
-	_, err := modvendor.Vendor(rootdir, tf.Source{
+	_, err := modvendor.Vendor(rootdir, vendordir, tf.Source{
 		URL:  gitURL,
 		Ref:  ref,
 		Path: path,
@@ -170,8 +173,9 @@ func TestModVendorNoRefFails(t *testing.T) {
 	s := sandbox.New(t)
 	gitURL := "file://" + s.RootDir()
 	rootdir := t.TempDir()
+	vendordir := filepath.Join(rootdir, "vendor")
 
-	_, err := modvendor.Vendor(rootdir, tf.Source{
+	_, err := modvendor.Vendor(rootdir, vendordir, tf.Source{
 		URL:  gitURL,
 		Path: path,
 	})
@@ -190,8 +194,8 @@ func assertNoGitDir(t *testing.T, dir string) {
 	}
 }
 
-func vendordir(rootdir, path, ref string) string {
-	return filepath.Join(rootdir, "vendor", path, ref)
+func vendoredDir(vendordir, path, ref string) string {
+	return filepath.Join(vendordir, path, ref)
 }
 
 func init() {

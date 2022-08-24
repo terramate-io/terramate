@@ -450,7 +450,8 @@ func (c *cli) vendorDownload() {
 	parsedSource.Ref = ref
 
 	logger.Trace().Msgf("module path is: %s", parsedSource.Path)
-	modVendorDir, err := modvendor.Vendor(c.root(), parsedSource)
+	vendordir := filepath.Join(c.root(), "vendor")
+	modVendorDir, err := modvendor.Vendor(c.root(), vendordir, parsedSource)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("vendoring module")
 	}

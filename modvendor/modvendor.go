@@ -45,10 +45,11 @@ const (
 // Vendoring will also not download any git submodules.
 //
 // It returns the absolute path where the module has been vendored.
-func Vendor(rootdir string, modsrc tf.Source) (string, error) {
+func Vendor(rootdir, vendordir string, modsrc tf.Source) (string, error) {
 	logger := log.With().
 		Str("action", "modvendor.Vendor()").
 		Str("rootdir", rootdir).
+		Str("vendordir", vendordir).
 		Str("url", modsrc.URL).
 		Str("path", modsrc.Path).
 		Str("ref", modsrc.Ref).
@@ -60,7 +61,7 @@ func Vendor(rootdir string, modsrc tf.Source) (string, error) {
 		return "", errors.E("src %v reference must be non-empty", modsrc)
 	}
 
-	modVendorDir := filepath.Join(rootdir, "vendor", modsrc.Path, modsrc.Ref)
+	modVendorDir := filepath.Join(vendordir, modsrc.Path, modsrc.Ref)
 	if _, err := os.Stat(modVendorDir); err == nil {
 		return "", errors.E(ErrAlreadyVendored, "dir %q exists", modVendorDir)
 	}
