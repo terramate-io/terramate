@@ -17,6 +17,7 @@ package modvendor
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/fs"
@@ -30,8 +31,8 @@ const (
 	ErrAlreadyVendored errors.Kind = "module is already vendored"
 )
 
-// Vendor will vendor the given module inside the provided root dir.
-// The root dir must be an absolute path.
+// Vendor will vendor the given module inside the provided vendor dir.
+// The vendor dir must be an absolute path that is inside the given root dir.
 //
 // Vendored modules will be located at:
 //
@@ -54,6 +55,10 @@ func Vendor(rootdir, vendordir string, modsrc tf.Source) (string, error) {
 		Str("path", modsrc.Path).
 		Str("ref", modsrc.Ref).
 		Logger()
+
+	if !strings.HasPrefix(vendordir, rootdir) {
+		return "", errors.E("vendor dir %q must be inside root dir %q", vendordir, rootdir)
+	}
 
 	if modsrc.Ref == "" {
 		// TODO(katcipis): handle default references.

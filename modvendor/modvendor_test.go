@@ -183,6 +183,25 @@ func TestModVendorNoRefFails(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestModVendorVendorDirOutsideRootFails(t *testing.T) {
+	const (
+		path = "github.com/mineiros-io/example"
+	)
+
+	s := sandbox.New(t)
+	gitURL := "file://" + s.RootDir()
+	rootdir := t.TempDir()
+	vendordir := t.TempDir()
+
+	_, err := modvendor.Vendor(rootdir, vendordir, tf.Source{
+		URL:  gitURL,
+		Path: path,
+		Ref:  "main",
+	})
+
+	assert.Error(t, err)
+}
+
 func assertNoGitDir(t *testing.T, dir string) {
 	t.Helper()
 
