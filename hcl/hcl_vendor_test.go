@@ -179,6 +179,26 @@ func TestHCLParserVendor(t *testing.T) {
 			},
 		},
 		{
+			name: "vendor.dir is undefined fails",
+			input: []cfgfile{
+				{
+					filename: "vendor.tm",
+					body: `
+						vendor {
+						  dir = undefined
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("vendor.tm", start(3, 9, 24), end(3, 12, 27)),
+					),
+				},
+			},
+		},
+		{
 			name: "redefined vendor fails",
 			input: []cfgfile{
 				{

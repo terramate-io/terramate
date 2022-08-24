@@ -1109,12 +1109,12 @@ func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 	for _, attr := range vendor.Attributes {
 		switch attr.Name {
 		case "dir":
-			// TODO (katcipis)
-			attrVal, _ := attr.Expr.Value(nil)
-			/*if err != nil {*/
-			/*errs.Append(err)*/
-			/*continue*/
-			/*}*/
+			attrVal, err := attr.Expr.Value(nil)
+			if err != nil {
+				errs.Append(errors.E(ErrTerramateSchema, err, attr.NameRange,
+					"evaluating %s.%s", vendor.Type, attr.Name))
+				continue
+			}
 			if attrVal.Type() != cty.String {
 				errs.Append(errors.E(ErrTerramateSchema, attr.NameRange,
 					"%s.%s must be string, got %s", vendor.Type, attr.Name, attrVal.Type,
