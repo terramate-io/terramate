@@ -39,8 +39,6 @@ func TestVendorModule(t *testing.T) {
 
 	gitSource := "git::file://" + repoSandbox.RootDir()
 
-	s := sandbox.New(t)
-
 	checkVendoredFiles := func(res runResult, vendordir string) {
 		t.Helper()
 
@@ -52,7 +50,11 @@ func TestVendorModule(t *testing.T) {
 		assert.EqualStrings(t, content, string(got))
 	}
 
-	tmcli := newCLI(t, s.RootDir())
-	res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
-	checkVendoredFiles(res, filepath.Join(s.RootDir(), "vendor"))
+	t.Run("default configuration", func(t *testing.T) {
+		s := sandbox.New(t)
+
+		tmcli := newCLI(t, s.RootDir())
+		res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
+		checkVendoredFiles(res, filepath.Join(s.RootDir(), "vendor"))
+	})
 }
