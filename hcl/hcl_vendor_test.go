@@ -41,6 +41,26 @@ func TestHCLParserVendor(t *testing.T) {
 			},
 		},
 		{
+			name: "vendor.basedir",
+			input: []cfgfile{
+				{
+					filename: "manifest.tm",
+					body: `
+						vendor {
+						  basedir = "/dir"
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Vendor: &hcl.VendorConfig{
+						Basedir: "/dir",
+					},
+				},
+			},
+		},
+		{
 			name: "empty manifest",
 			input: []cfgfile{
 				{
