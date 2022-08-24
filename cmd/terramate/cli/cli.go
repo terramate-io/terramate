@@ -135,6 +135,7 @@ type cliSpec struct {
 
 		Vendor struct {
 			Download struct {
+				Dir       string `short:"d" predictor:"file" default:"" help:"dir to vendor downloaded project"`
 				Source    string `arg:"" name:"source" help:"Terraform module source URL, must be Git/Github and should not contain a reference"`
 				Reference string `arg:"" name:"ref" help:"Reference of the Terraform module to vendor"`
 			} `cmd:"" help:"Downloads a Terraform module and stores it on the project vendor dir"`
@@ -450,13 +451,19 @@ func (c *cli) vendorDownload() {
 	parsedSource.Ref = ref
 
 	logger.Trace().Msgf("module path is: %s", parsedSource.Path)
-	vendordir := filepath.Join(c.root(), "vendor")
-	modVendorDir, err := modvendor.Vendor(c.root(), vendordir, parsedSource)
+	modVendorDir, err := modvendor.Vendor(c.root(), c.vendorDir(), parsedSource)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("vendoring module")
 	}
 
 	c.log("Vendored module at: %s", modVendorDir)
+}
+
+func (c *cli) vendorDir() string {
+	if c.parsedArgs.Experimental.Vendor.Download.Dir != "" {
+		return c.parsedArgs.Experimental.Vendor.Download.Dir
+	}
+	return "/vendor"
 }
 
 func (c *cli) cloneStack() {

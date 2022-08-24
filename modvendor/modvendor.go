@@ -17,7 +17,6 @@ package modvendor
 import (
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/fs"
@@ -32,11 +31,12 @@ const (
 )
 
 // Vendor will vendor the given module inside the provided vendor dir.
-// The vendor dir must be an absolute path that is inside the given root dir.
+// The vendor dir must be an absolute path that will be considered as relative
+// to the given rootdir.
 //
 // Vendored modules will be located at:
 //
-// - <rootdir>/vendor/<Source.Path>/<Source.Ref>
+// - <rootdir>/<vendordir>/<Source.Path>/<Source.Ref>
 //
 // If the project is already vendored an error of kind ErrAlreadyVendored will
 // be returned, vendored projects are never updated.
@@ -56,9 +56,10 @@ func Vendor(rootdir, vendordir string, modsrc tf.Source) (string, error) {
 		Str("ref", modsrc.Ref).
 		Logger()
 
-	if !strings.HasPrefix(vendordir, rootdir) {
-		return "", errors.E("vendor dir %q must be inside root dir %q", vendordir, rootdir)
+	if !filepath.IsAbs(vendordir) {
+		return "", errors.E("vendor dir %q must be absolute path", vendordir)
 	}
+	vendordir = filepath.Join(rootdir, vendordir)
 
 	if modsrc.Ref == "" {
 		// TODO(katcipis): handle default references.
