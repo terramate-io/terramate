@@ -41,14 +41,18 @@ func TestVendorModule(t *testing.T) {
 
 	s := sandbox.New(t)
 
+	checkVendoredFiles := func(res runResult, vendordir string) {
+		t.Helper()
+
+		assertRunResult(t, res, runExpected{IgnoreStdout: true})
+
+		clonedir := filepath.Join(vendordir, repoSandbox.RootDir(), "main")
+
+		got := test.ReadFile(t, clonedir, filename)
+		assert.EqualStrings(t, content, string(got))
+	}
+
 	tmcli := newCLI(t, s.RootDir())
 	res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
-
-	assertRunResult(t, res, runExpected{IgnoreStdout: true})
-
-	vendordir := filepath.Join(s.RootDir(), "vendor")
-	clonedir := filepath.Join(vendordir, repoSandbox.RootDir(), "main")
-
-	got := test.ReadFile(t, clonedir, filename)
-	assert.EqualStrings(t, content, string(got))
+	checkVendoredFiles(res, filepath.Join(s.RootDir(), "vendor"))
 }
