@@ -475,9 +475,9 @@ func (c *cli) vendorDir() string {
 	}
 
 	dotTerramate := filepath.Join(c.root(), ".terramate")
-	dotTerramateStat, err := os.Stat(dotTerramate)
+	dotTerramateInfo, err := os.Stat(dotTerramate)
 
-	if err == nil && dotTerramateStat.IsDir() {
+	if err == nil && dotTerramateInfo.IsDir() {
 		logger.Trace().Msg("no CLI config, checking .terramate")
 
 		cfg, err := hcl.ParseDir(c.root(), filepath.Join(c.root(), ".terramate"))
