@@ -120,8 +120,8 @@ type VendorConfig struct {
 	// Manifest is the parsed manifest block, if any.
 	Manifest *ManifestConfig
 
-	// Basedir is the path where vendored projects will be stored.
-	Basedir string
+	// Dir is the path where vendored projects will be stored.
+	Dir string
 }
 
 // Terramate is the parsed "terramate" HCL block.
@@ -1108,14 +1108,20 @@ func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 
 	for _, attr := range vendor.Attributes {
 		switch attr.Name {
-		case "basedir":
+		case "dir":
 			// TODO (katcipis)
 			attrVal, _ := attr.Expr.Value(nil)
 			/*if err != nil {*/
 			/*errs.Append(err)*/
 			/*continue*/
 			/*}*/
-			cfg.Basedir = attrVal.AsString()
+			if attrVal.Type() != cty.String {
+				errs.Append(errors.E(ErrTerramateSchema, attr.NameRange,
+					"%s.%s must be string, got %s", vendor.Type, attr.Name, attrVal.Type,
+				))
+				continue
+			}
+			cfg.Dir = attrVal.AsString()
 		default:
 			errs.Append(errors.E(ErrTerramateSchema, attr.NameRange,
 				"unrecognized attribute %s.%s", vendor.Type, attr.Name,
