@@ -460,10 +460,53 @@ func (c *cli) vendorDownload() {
 }
 
 func (c *cli) vendorDir() string {
+	logger := log.With().
+		Str("workingDir", c.wd()).
+		Str("rootdir", c.root()).
+		Str("action", "cli.vendorDir()").
+		Logger()
+
+	logger.Trace().Msg("checking vendor dir configuration")
+
 	if c.parsedArgs.Experimental.Vendor.Download.Dir != "" {
+		logger.Trace().Msg("using CLI config")
+
 		return c.parsedArgs.Experimental.Vendor.Download.Dir
 	}
+
+	dotTerramate := filepath.Join(c.root(), ".terramate")
+	dotTerramateStat, err := os.Stat(dotTerramate)
+
+	if err == nil && dotTerramateStat.IsDir() {
+		logger.Trace().Msg("no CLI config, checking .terramate")
+
+		cfg, err := hcl.ParseDir(c.root(), filepath.Join(c.root(), ".terramate"))
+		if err != nil {
+			logger.Fatal().Err(err).Msg("parsing vendor dir configuration on .terramate")
+		}
+
+		if hasVendorDirConfig(cfg) {
+			logger.Trace().Msg("using .terramate config")
+
+			return cfg.Vendor.Dir
+		}
+	}
+
+	logger.Trace().Msg("no .terramate config, checking root")
+
+	if hasVendorDirConfig(c.prj.rootcfg) {
+		logger.Trace().Msg("using root config")
+
+		return c.prj.rootcfg.Vendor.Dir
+	}
+
+	logger.Trace().Msg("no configuration provided, fallback to default")
+
 	return "/vendor"
+}
+
+func hasVendorDirConfig(cfg hcl.Config) bool {
+	return cfg.Vendor != nil && cfg.Vendor.Dir != ""
 }
 
 func (c *cli) cloneStack() {
