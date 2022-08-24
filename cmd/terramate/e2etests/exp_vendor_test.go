@@ -15,6 +15,7 @@
 package e2etest
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -39,7 +40,7 @@ func TestVendorModule(t *testing.T) {
 
 	gitSource := "git::file://" + repoSandbox.RootDir()
 
-	checkVendoredFiles := func(res runResult, vendordir string) {
+	checkVendoredFiles := func(t *testing.T, res runResult, vendordir string) {
 		t.Helper()
 
 		assertRunResult(t, res, runExpected{IgnoreStdout: true})
@@ -50,11 +51,45 @@ func TestVendorModule(t *testing.T) {
 		assert.EqualStrings(t, content, string(got))
 	}
 
-	t.Run("default configuration", func(t *testing.T) {
-		s := sandbox.New(t)
+	// Check default config and then different configuration precedences
+	s := sandbox.New(t)
 
+	t.Run("default configuration", func(t *testing.T) {
 		tmcli := newCLI(t, s.RootDir())
 		res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
-		checkVendoredFiles(res, filepath.Join(s.RootDir(), "vendor"))
+		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), "vendor"))
 	})
+
+	t.Run("root configuration", func(t *testing.T) {
+		rootcfg := "/from/root/cfg"
+		s.RootEntry().CreateFile("vendor.tm", vendorHCLConfig(rootcfg))
+		tmcli := newCLI(t, s.RootDir())
+		res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
+		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), rootcfg))
+	})
+
+	t.Run(".terramate configuration", func(t *testing.T) {
+		dotTerramateCfg := "/from/dottm/cfg"
+		dotTerramateDir := s.RootEntry().CreateDir(".terramate")
+
+		dotTerramateDir.CreateFile("vendor.tm", vendorHCLConfig(dotTerramateCfg))
+		tmcli := newCLI(t, s.RootDir())
+		res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
+		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), dotTerramateCfg))
+	})
+
+	t.Run("CLI configuration", func(t *testing.T) {
+		cliCfg := "/from/cli/cfg"
+		tmcli := newCLI(t, s.RootDir())
+		res := tmcli.run("experimental", "vendor", "download", "--dir", cliCfg, gitSource, "main")
+		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), cliCfg))
+	})
+}
+
+func vendorHCLConfig(dir string) string {
+	return fmt.Sprintf(`
+		vendor {
+		  dir = %q
+		}
+	`, dir)
 }
