@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/test/hclwrite"
+	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/rs/zerolog"
 	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
@@ -35,25 +36,10 @@ func TestHCLWrite(t *testing.T) {
 		want string
 	}
 
-	block := func(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock(name, builders...)
-	}
-	hcl := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildHCL(builders...)
-	}
-	labels := hclwrite.Labels
-	expr := hclwrite.Expression
-	attr := func(name, expr string) hclwrite.BlockBuilder {
-		return hclwrite.AttributeValue(t, name, expr)
-	}
-	str := hclwrite.String
-	number := hclwrite.NumberInt
-	boolean := hclwrite.Boolean
-
 	tcases := []testcase{
 		{
 			name: "empty block",
-			hcl:  block("test"),
+			hcl:  Block("test"),
 			want: `
 			  test {
 			  }
@@ -61,8 +47,8 @@ func TestHCLWrite(t *testing.T) {
 		},
 		{
 			name: "string contents are not quoted",
-			hcl: block("test",
-				str("str", `THIS IS ${tm_upper(global.value) + "test"} !!!`),
+			hcl: Block("test",
+				Str("str", `THIS IS ${tm_upper(global.value) + "test"} !!!`),
 			),
 			want: `
 				test {
@@ -72,12 +58,12 @@ func TestHCLWrite(t *testing.T) {
 		},
 		{
 			name: "block with multiple attributes",
-			hcl: block("test",
-				str("str", "test"),
-				number("num", 666),
-				boolean("bool", true),
-				expr("expr_a", "local.name"),
-				expr("expr_b", "local.name"),
+			hcl: Block("test",
+				Str("str", "test"),
+				Number("num", 666),
+				Bool("bool", true),
+				Expr("expr_a", "local.name"),
+				Expr("expr_b", "local.name"),
 			),
 			want: `
 			  test {
@@ -91,10 +77,10 @@ func TestHCLWrite(t *testing.T) {
 		},
 		{
 			name: "block with complex attributes",
-			hcl: block("test",
-				attr("team", `{ members = ["aaa"] }`),
-				attr("nesting", `{ first = { second = { "hi": 666 } } }`),
-				attr("list", `[1, 2, 3]`),
+			hcl: Block("test",
+				EvalExpr(t, "team", `{ members = ["aaa"] }`),
+				EvalExpr(t, "nesting", `{ first = { second = { "hi": 666 } } }`),
+				EvalExpr(t, "list", `[1, 2, 3]`),
 			),
 			want: `
 			  test {
@@ -106,9 +92,9 @@ func TestHCLWrite(t *testing.T) {
 		},
 		{
 			name: "block with one label",
-			hcl: block("test",
-				labels("label"),
-				str("str", "labeltest"),
+			hcl: Block("test",
+				Labels("label"),
+				Str("str", "labeltest"),
 			),
 			want: `
 			  test "label" {
@@ -118,8 +104,8 @@ func TestHCLWrite(t *testing.T) {
 		},
 		{
 			name: "empty block with one label",
-			hcl: block("test",
-				labels("label"),
+			hcl: Block("test",
+				Labels("label"),
 			),
 			want: `
 			  test "label" {
@@ -128,9 +114,9 @@ func TestHCLWrite(t *testing.T) {
 		},
 		{
 			name: "block multiple labels",
-			hcl: block("test",
-				labels("label", "label2"),
-				str("str", "labelstest"),
+			hcl: Block("test",
+				Labels("label", "label2"),
+				Str("str", "labelstest"),
 			),
 			want: `
 			  test "label" "label2" {
@@ -140,12 +126,12 @@ func TestHCLWrite(t *testing.T) {
 		},
 		{
 			name: "block nesting",
-			hcl: block("test",
-				str("str", "level1"),
-				block("nested",
-					str("str", "level2"),
-					block("yet_more_nesting",
-						str("str", "level3"),
+			hcl: Block("test",
+				Str("str", "level1"),
+				Block("nested",
+					Str("str", "level2"),
+					Block("yet_more_nesting",
+						Str("str", "level3"),
 					),
 				),
 			),
@@ -163,15 +149,15 @@ func TestHCLWrite(t *testing.T) {
 		},
 		{
 			name: "block nesting with labels",
-			hcl: block("test",
-				labels("label"),
-				str("str", "level1"),
-				block("nested",
-					labels("label1", "label2"),
-					str("str", "level2"),
-					block("yet_more_nesting",
-						labels("label1", "label2", "label3"),
-						str("str", "level3"),
+			hcl: Block("test",
+				Labels("label"),
+				Str("str", "level1"),
+				Block("nested",
+					Labels("label1", "label2"),
+					Str("str", "level2"),
+					Block("yet_more_nesting",
+						Labels("label1", "label2", "label3"),
+						Str("str", "level3"),
 					),
 				),
 			),
@@ -189,14 +175,14 @@ func TestHCLWrite(t *testing.T) {
 		},
 		{
 			name: "multiple blocks on root doc follow order of insertion",
-			hcl: hcl(
-				block("b",
-					labels("label1", "label2"),
-					str("str", "level2"),
+			hcl: Doc(
+				Block("b",
+					Labels("label1", "label2"),
+					Str("str", "level2"),
 				),
-				block("a",
-					labels("label"),
-					str("str", "level1"),
+				Block("a",
+					Labels("label"),
+					Str("str", "level1"),
 				),
 			),
 			want: `
@@ -210,17 +196,17 @@ func TestHCLWrite(t *testing.T) {
 		},
 		{
 			name: "attributes on root doc with blocks",
-			hcl: hcl(
-				boolean("rootbool", true),
-				number("rootnum", 666),
-				str("rootstr", "hi"),
-				block("b",
-					labels("label1", "label2"),
-					str("str", "level2"),
+			hcl: Doc(
+				Bool("rootbool", true),
+				Number("rootnum", 666),
+				Str("rootstr", "hi"),
+				Block("b",
+					Labels("label1", "label2"),
+					Str("str", "level2"),
 				),
-				block("a",
-					labels("label"),
-					str("str", "level1"),
+				Block("a",
+					Labels("label"),
+					Str("str", "level1"),
 				),
 			),
 			want: `
@@ -237,14 +223,14 @@ func TestHCLWrite(t *testing.T) {
 		},
 		{
 			name: "attributes can be added after blocks",
-			hcl: hcl(
-				block("a",
-					labels("label"),
-					str("str", "level1"),
+			hcl: Doc(
+				Block("a",
+					Labels("label"),
+					Str("str", "level1"),
 				),
-				boolean("rootbool", true),
-				number("rootnum", 666),
-				str("rootstr", "hi"),
+				Bool("rootbool", true),
+				Number("rootnum", 666),
+				Str("rootstr", "hi"),
 			),
 			want: `
 			  a "label" {
@@ -257,10 +243,10 @@ func TestHCLWrite(t *testing.T) {
 		},
 		{
 			name: "terramate stack example",
-			hcl: hcl(
-				block("stack",
-					expr("before", `["/stack/a", "/stack/b"]`),
-					expr("after", `["/stack/c"]`),
+			hcl: Doc(
+				Block("stack",
+					Expr("before", `["/stack/a", "/stack/b"]`),
+					Expr("after", `["/stack/c"]`),
 				),
 			),
 			want: `

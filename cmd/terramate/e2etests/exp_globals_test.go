@@ -21,6 +21,7 @@ import (
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
+	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -61,10 +62,10 @@ func TestStacksGlobals(t *testing.T) {
 			globals: []globalsBlock{
 				{
 					path: "/stack",
-					add: globals(
-						str("str", "string"),
-						number("number", 777),
-						boolean("bool", true),
+					add: Globals(
+						Str("str", "string"),
+						Number("number", 777),
+						Bool("bool", true),
 					),
 				},
 			},
@@ -86,8 +87,8 @@ stack "/stack":
 			globals: []globalsBlock{
 				{
 					path: "/stacks/stack-1",
-					add: globals(
-						str("str", "string"),
+					add: Globals(
+						Str("str", "string"),
 					),
 				},
 			},
@@ -107,8 +108,8 @@ stack "/stacks/stack-1":
 			globals: []globalsBlock{
 				{
 					path: "/stacks",
-					add: globals(
-						str("str", "string"),
+					add: Globals(
+						Str("str", "string"),
 					),
 				},
 			},
@@ -133,14 +134,14 @@ stack "/stacks/stack-2":
 			globals: []globalsBlock{
 				{
 					path: "/stacks/stack-1",
-					add: globals(
-						str("str", "string"),
+					add: Globals(
+						Str("str", "string"),
 					),
 				},
 				{
 					path: "/stack3",
-					add: globals(
-						str("str", "stack3-string"),
+					add: Globals(
+						Str("str", "stack3-string"),
 					),
 				},
 			},
@@ -162,14 +163,14 @@ stack "/stack3":
 			globals: []globalsBlock{
 				{
 					path: "/stacks",
-					add: globals(
-						str("str", "stacks-string"),
+					add: Globals(
+						Str("str", "stacks-string"),
 					),
 				},
 				{
 					path: "/stack3",
-					add: globals(
-						str("str", "stack3-string"),
+					add: Globals(
+						Str("str", "stack3-string"),
 					),
 				},
 			},
@@ -192,8 +193,8 @@ stack "/stacks/stack-2":
 			globals: []globalsBlock{
 				{
 					path: "/stacks",
-					add: globals(
-						expr("stack-dir-name", `tm_basename(tm_abspath("."))`),
+					add: Globals(
+						Expr("stack-dir-name", `tm_basename(tm_abspath("."))`),
 					),
 				},
 			},
@@ -215,8 +216,8 @@ stack "/stacks/stack-name":
 			globals: []globalsBlock{
 				{
 					path: "/stacks",
-					add: globals(
-						str("str", "string"),
+					add: Globals(
+						Str("str", "string"),
 					),
 				},
 			},
@@ -232,8 +233,8 @@ stack "/stacks/stack-name":
 			globals: []globalsBlock{
 				{
 					path: "/stacks",
-					add: globals(
-						str("str", "string"),
+					add: Globals(
+						Str("str", "string"),
 					),
 				},
 			},
