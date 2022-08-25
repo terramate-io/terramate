@@ -26,6 +26,7 @@ import (
 	"github.com/mineiros-io/terramate/generate"
 	stackpkg "github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
+	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
 )
@@ -68,20 +69,20 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks",
-					add: generateHCL(
-						labels("repeated"),
-						content(
-							block("block",
-								str("data", "parent data"),
+					add: GenerateHCL(
+						Labels("repeated"),
+						Content(
+							Block("block",
+								Str("data", "parent data"),
 							),
 						),
 					),
 				},
 				{
 					path: "/stacks/stack",
-					add: generateFile(
-						labels("repeated"),
-						str("content", "test"),
+					add: GenerateFile(
+						Labels("repeated"),
+						Str("content", "test"),
 					),
 				},
 			},
@@ -104,21 +105,21 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks",
-					add: generateHCL(
-						labels("repeated"),
-						content(
-							block("block",
-								str("data", "parent data"),
+					add: GenerateHCL(
+						Labels("repeated"),
+						Content(
+							Block("block",
+								Str("data", "parent data"),
 							),
 						),
-						boolean("condition", false),
+						Boolean("condition", false),
 					),
 				},
 				{
 					path: "/stacks/stack",
-					add: generateFile(
-						labels("repeated"),
-						str("content", "test"),
+					add: GenerateFile(
+						Labels("repeated"),
+						Str("content", "test"),
 					),
 				},
 			},
@@ -147,22 +148,22 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("repeated"),
-						content(
-							block("block",
-								str("data", "parent data"),
+					add: GenerateHCL(
+						Labels("repeated"),
+						Content(
+							Block("block",
+								Str("data", "parent data"),
 							),
 						),
-						boolean("condition", false),
+						Boolean("condition", false),
 					),
 				},
 				{
 					path: "/stack",
-					add: generateFile(
-						labels("repeated"),
-						str("content", "test"),
-						boolean("condition", true),
+					add: GenerateFile(
+						Labels("repeated"),
+						Str("content", "test"),
+						Boolean("condition", true),
 					),
 				},
 			},

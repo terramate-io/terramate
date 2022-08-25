@@ -24,6 +24,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
+	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -47,9 +48,9 @@ func TestGenerateFile(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks",
-					add: generateFile(
-						labels("empty"),
-						str("content", ""),
+					add: GenerateFile(
+						Labels("empty"),
+						Str("content", ""),
 					),
 				},
 			},
@@ -89,10 +90,10 @@ func TestGenerateFile(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks",
-					add: generateFile(
-						labels("test"),
-						boolean("condition", false),
-						str("content", "content"),
+					add: GenerateFile(
+						Labels("test"),
+						Boolean("condition", false),
+						Str("content", "content"),
 					),
 				},
 			},
@@ -185,14 +186,14 @@ func TestGenerateFile(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks",
-					add: hcldoc(
-						generateFile(
-							labels("file1.txt"),
-							expr("content", "terramate.path"),
+					add: Doc(
+						GenerateFile(
+							Labels("file1.txt"),
+							Expr("content", "terramate.path"),
 						),
-						generateFile(
-							labels("file2.txt"),
-							expr("content", "terramate.name"),
+						GenerateFile(
+							Labels("file2.txt"),
+							Expr("content", "terramate.name"),
 						),
 					),
 				},
@@ -235,14 +236,14 @@ func TestGenerateFile(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks/stack-2",
-					add: hcldoc(
-						generateFile(
-							labels("file1.txt"),
-							expr("content", "terramate.path"),
+					add: Doc(
+						GenerateFile(
+							Labels("file1.txt"),
+							Expr("content", "terramate.path"),
 						),
-						generateFile(
-							labels("file2.txt"),
-							expr("content", "terramate.name"),
+						GenerateFile(
+							Labels("file2.txt"),
+							Expr("content", "terramate.name"),
 						),
 					),
 				},
@@ -280,30 +281,30 @@ func TestGenerateFile(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks/stack-1",
-					add: generateFile(
-						labels("/name"),
-						str("content", "something"),
+					add: GenerateFile(
+						Labels("/name"),
+						Str("content", "something"),
 					),
 				},
 				{
 					path: "/stacks/stack-2",
-					add: generateFile(
-						labels("./name"),
-						str("content", "something"),
+					add: GenerateFile(
+						Labels("./name"),
+						Str("content", "something"),
 					),
 				},
 				{
 					path: "/stacks/stack-3",
-					add: generateFile(
-						labels("./dir/name"),
-						str("content", "something"),
+					add: GenerateFile(
+						Labels("./dir/name"),
+						Str("content", "something"),
 					),
 				},
 				{
 					path: "/stacks/stack-4",
-					add: generateFile(
-						labels("dir/name"),
-						str("content", "something"),
+					add: GenerateFile(
+						Labels("dir/name"),
+						Str("content", "something"),
 					),
 				},
 			},
@@ -368,10 +369,10 @@ func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
 
 	createConfig := func(filename string, condition bool) {
 		stackEntry.CreateConfig(
-			generateFile(
-				labels(filename),
-				boolean("condition", condition),
-				str("content", "some content"),
+			GenerateFile(
+				Labels(filename),
+				Boolean("condition", condition),
+				Str("content", "some content"),
 			).String(),
 		)
 	}
@@ -413,10 +414,10 @@ func TestGenerateFileTerramateRootMetadata(t *testing.T) {
 	s := sandbox.New(t)
 	stackEntry := s.CreateStack("stack")
 	s.RootEntry().CreateConfig(
-		hcldoc(
-			generateFile(
-				labels(generatedFile),
-				expr("content", `"${terramate.root.path.fs.absolute}-${terramate.root.path.fs.basename}"`),
+		Doc(
+			GenerateFile(
+				Labels(generatedFile),
+				Expr("content", `"${terramate.root.path.fs.absolute}-${terramate.root.path.fs.basename}"`),
 			),
 		).String(),
 	)

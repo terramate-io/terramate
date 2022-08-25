@@ -12,68 +12,80 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package generate_test
+package hclutils
 
-import "github.com/mineiros-io/terramate/test/hclwrite"
+import (
+	"testing"
+
+	"github.com/mineiros-io/terramate/test/hclwrite"
+)
 
 // useful function aliases to build HCL documents
 
-func hcldoc(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+func Doc(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildHCL(builders...)
 }
 
-func generateHCL(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+func GenerateHCL(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("generate_hcl", builders...)
 }
 
-func generateFile(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+func GenerateFile(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("generate_file", builders...)
 }
 
-func content(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+func Content(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("content", builders...)
 }
 
-func expr(name string, expr string) hclwrite.BlockBuilder {
+func Expr(name string, expr string) hclwrite.BlockBuilder {
 	return hclwrite.Expression(name, expr)
 }
 
-func str(name string, val string) hclwrite.BlockBuilder {
+func Str(name string, val string) hclwrite.BlockBuilder {
 	return hclwrite.String(name, val)
 }
 
-func number(name string, val int64) hclwrite.BlockBuilder {
+func Number(name string, val int64) hclwrite.BlockBuilder {
 	return hclwrite.NumberInt(name, val)
 }
 
-func boolean(name string, val bool) hclwrite.BlockBuilder {
+func Boolean(name string, val bool) hclwrite.BlockBuilder {
 	return hclwrite.Boolean(name, val)
 }
 
-func labels(labels ...string) hclwrite.BlockBuilder {
+func Labels(labels ...string) hclwrite.BlockBuilder {
 	return hclwrite.Labels(labels...)
 }
 
-func backend(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+func Backend(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("backend", builders...)
 }
 
-func block(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+func Block(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock(name, builders...)
 }
 
-func globals(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+func Globals(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("globals", builders...)
 }
 
-func locals(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+func Locals(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("locals", builders...)
 }
 
-func terraform(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+func Terraform(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("terraform", builders...)
 }
 
-func importy(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+func Module(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return hclwrite.BuildBlock("module", builders...)
+}
+
+func Import(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("import", builders...)
+}
+
+func Attr(t *testing.T, name string, expr string) hclwrite.BlockBuilder {
+	return hclwrite.AttributeValue(t, name, expr)
 }
