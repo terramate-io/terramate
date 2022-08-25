@@ -122,11 +122,11 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks",
-					add: hcldoc(
-						generateHCL(
-							labels("stacks.hcl"),
-							content(
-								expr("stacks", "terramate.stacks.list"),
+					add: Doc(
+						GenerateHCL(
+							Labels("stacks.hcl"),
+							Content(
+								Expr("stacks", "terramate.stacks.list"),
 							),
 						),
 					),
@@ -136,7 +136,7 @@ func TestGenerateHCL(t *testing.T) {
 				{
 					stack: "/stacks/stack-1",
 					files: map[string]fmt.Stringer{
-						"stacks.hcl": hcldoc(
+						"stacks.hcl": Doc(
 							attr("stacks", `["/stacks/stack-1", "/stacks/stack-2"]`),
 						),
 					},
@@ -144,7 +144,7 @@ func TestGenerateHCL(t *testing.T) {
 				{
 					stack: "/stacks/stack-2",
 					files: map[string]fmt.Stringer{
-						"stacks.hcl": hcldoc(
+						"stacks.hcl": Doc(
 							attr("stacks", `["/stacks/stack-1", "/stacks/stack-2"]`),
 						),
 					},
@@ -173,11 +173,11 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks",
-					add: hcldoc(
-						generateHCL(
-							labels("stacks.hcl"),
-							content(
-								expr("stacks", "terramate.stacks.list"),
+					add: Doc(
+						GenerateHCL(
+							Labels("stacks.hcl"),
+							Content(
+								Expr("stacks", "terramate.stacks.list"),
 							),
 						),
 					),
@@ -187,7 +187,7 @@ func TestGenerateHCL(t *testing.T) {
 				{
 					stack: "/stacks/stack-1",
 					files: map[string]fmt.Stringer{
-						"stacks.hcl": hcldoc(
+						"stacks.hcl": Doc(
 							attr("stacks", `["/stacks/stack-1", "/stacks/stack-2"]`),
 						),
 					},

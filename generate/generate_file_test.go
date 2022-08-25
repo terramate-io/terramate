@@ -107,10 +107,10 @@ func TestGenerateFile(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks",
-					add: hcldoc(
-						generateFile(
-							labels("stacks.txt"),
-							expr("content", `"${tm_jsonencode(terramate.stacks.list)}"`),
+					add: Doc(
+						GenerateFile(
+							Labels("stacks.txt"),
+							Expr("content", `"${tm_jsonencode(terramate.stacks.list)}"`),
 						),
 					),
 				},
@@ -152,10 +152,10 @@ func TestGenerateFile(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks",
-					add: hcldoc(
-						generateFile(
-							labels("stacks.txt"),
-							expr("content", `"${tm_jsonencode(terramate.stacks.list)}"`),
+					add: Doc(
+						GenerateFile(
+							Labels("stacks.txt"),
+							Expr("content", `"${tm_jsonencode(terramate.stacks.list)}"`),
 						),
 					),
 				},
