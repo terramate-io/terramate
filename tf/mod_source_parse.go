@@ -33,6 +33,9 @@ type Source struct {
 
 	// Ref is the specific reference of this source, if any.
 	Ref string
+
+	// Raw source
+	Raw string
 }
 
 const (
@@ -61,6 +64,7 @@ func ParseSource(modsource string) (Source, error) {
 		u.RawQuery = ""
 		u.Scheme = "https"
 		return Source{
+			Raw:  modsource,
 			URL:  u.String() + ".git",
 			Path: filepath.Join(u.Host, u.Path),
 			Ref:  ref,
@@ -88,6 +92,7 @@ func ParseSource(modsource string) (Source, error) {
 		path := strings.TrimSuffix(filepath.Join(u.Scheme, u.Opaque), ".git")
 
 		return Source{
+			Raw:  modsource,
 			URL:  "git@" + u.String(),
 			Path: path,
 			Ref:  ref,
@@ -112,6 +117,7 @@ func ParseSource(modsource string) (Source, error) {
 		ref := u.Query().Get("ref")
 		u.RawQuery = ""
 		return Source{
+			Raw:  modsource,
 			URL:  u.String(),
 			Path: path,
 			Ref:  ref,

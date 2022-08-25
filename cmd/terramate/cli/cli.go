@@ -450,12 +450,8 @@ func (c *cli) vendorDownload() {
 	parsedSource.Ref = ref
 
 	logger.Trace().Msgf("module path is: %s", parsedSource.Path)
-	modVendorDir, err := modvendor.Vendor(c.root(), parsedSource)
-	if err != nil {
-		logger.Fatal().Err(err).Msg("vendoring module")
-	}
-
-	c.log("Vendored module at: %s", modVendorDir)
+	report := modvendor.Vendor(c.root(), parsedSource)
+	c.log(report.String())
 }
 
 func (c *cli) cloneStack() {

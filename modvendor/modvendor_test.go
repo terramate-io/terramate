@@ -15,17 +15,418 @@
 package modvendor_test
 
 import (
+	"bytes"
+	"fmt"
+	"io/fs"
+	"io/ioutil"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
+	"text/template"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/test"
+	"github.com/mineiros-io/terramate/test/errors"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/mineiros-io/terramate/tf"
 	"github.com/rs/zerolog"
+
+	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
+
+type A string
+
+type testcase struct {
+	name          string
+	source        string
+	layout        []string
+	configs       []hclconfig
+	wantRewritten map[A]fmt.Stringer
+	wantVendored  []string
+	wantIgnored   []wantIgnoredVendor
+	wantError     error
+}
+
+type hclconfig struct {
+	repo string
+	path string
+	data fmt.Stringer
+}
+
+type wantIgnoredVendor struct {
+	RawSource string
+	Reason    string
+}
+
+type wantReport struct {
+	Vendored []string
+	Ignored  []wantIgnoredVendor
+	Error    error
+}
+
+func TestModVendorAllRecursive(t *testing.T) {
+	tcases := []testcase{
+		{
+			name: "module with no remote deps",
+			layout: []string{
+				"g:module-test",
+			},
+			source: "git::file://{{.}}/module-test?ref=main",
+			configs: []hclconfig{
+				{
+					repo: "module-test",
+					path: "module-test/main.tf",
+					data: Module(
+						Labels("test"),
+						Str("source", "./modules/non-existent"),
+					),
+				},
+			},
+			wantVendored: []string{
+				"git::file://{{.}}/module-test?ref=main",
+			},
+		},
+		{
+			name: "module with 1 remote dependency",
+			layout: []string{
+				"g:module-test",
+				"g:another-module",
+			},
+			source: "git::file://{{.}}/module-test?ref=main",
+			configs: []hclconfig{
+				{
+					repo: "module-test",
+					path: "module-test/main.tf",
+					data: Module(
+						Labels("test"),
+						Str("source", "git::file://{{.}}/another-module?ref=main"),
+					),
+				},
+			},
+			wantRewritten: map[A]fmt.Stringer{
+				"git::file://{{.}}/module-test?ref=main#main.tf": Module(
+					Labels("test"),
+					Str("source", "{{index . 1}}"),
+				),
+			},
+			wantVendored: []string{
+				"git::file://{{.}}/module-test?ref=main",
+				"git::file://{{.}}/another-module?ref=main",
+			},
+		},
+		{
+			name: "module with 1 remote dependency referenced multiple times in same file",
+			layout: []string{
+				"g:module-test",
+				"g:another-module",
+			},
+			source: "git::file://{{.}}/module-test?ref=main",
+			configs: []hclconfig{
+				{
+					repo: "module-test",
+					path: "module-test/main.tf",
+					data: Doc(
+						Module(
+							Labels("test"),
+							Str("source", "git::file://{{.}}/another-module?ref=main"),
+						),
+						Module(
+							Labels("test"),
+							Str("source", "git::file://{{.}}/another-module?ref=main"),
+						),
+						Module(
+							Labels("test"),
+							Str("source", "git::file://{{.}}/another-module?ref=main"),
+						),
+						Module(
+							Labels("test"),
+							Str("source", "git::file://{{.}}/another-module?ref=main"),
+						),
+					),
+				},
+			},
+			wantRewritten: map[A]fmt.Stringer{
+				"git::file://{{.}}/module-test?ref=main#main.tf": Doc(
+					Module(
+						Labels("test"),
+						Str("source", "{{index . 1}}"),
+					),
+					Module(
+						Labels("test"),
+						Str("source", "{{index . 1}}"),
+					),
+					Module(
+						Labels("test"),
+						Str("source", "{{index . 1}}"),
+					),
+					Module(
+						Labels("test"),
+						Str("source", "{{index . 1}}"),
+					),
+				),
+			},
+			wantVendored: []string{
+				"git::file://{{.}}/module-test?ref=main",
+				"git::file://{{.}}/another-module?ref=main",
+			},
+		},
+		{
+			name: "module with 1 remote dependency referenced multiple times in different files",
+			layout: []string{
+				"g:module-test",
+				"g:another-module",
+			},
+			source: "git::file://{{.}}/module-test?ref=main",
+			configs: []hclconfig{
+				{
+					repo: "module-test",
+					path: "module-test/1.tf",
+					data: Doc(
+						Module(
+							Labels("test"),
+							Str("source", "git::file://{{.}}/another-module?ref=main"),
+						),
+					),
+				},
+				{
+					repo: "module-test",
+					path: "module-test/2.tf",
+					data: Doc(
+						Module(
+							Labels("test"),
+							Str("source", "git::file://{{.}}/another-module?ref=main"),
+							Str("other", "value"),
+						),
+						Module(
+							Labels("test2"),
+							Str("source", "git::file://{{.}}/another-module?ref=main"),
+						),
+					),
+				},
+			},
+			wantVendored: []string{
+				"git::file://{{.}}/module-test?ref=main",
+				"git::file://{{.}}/another-module?ref=main",
+			},
+			wantRewritten: map[A]fmt.Stringer{
+				"git::file://{{.}}/module-test?ref=main#1.tf": Module(
+					Labels("test"),
+					Str("source", "{{index . 1}}"),
+				),
+				"git::file://{{.}}/module-test?ref=main#2.tf": Doc(
+					Module(
+						Labels("test"),
+						Str("source", "{{index . 1}}"),
+						Str("other", "value"),
+					),
+					Module(
+						Labels("test2"),
+						Str("source", "{{index . 1}}"),
+					),
+				),
+			},
+		},
+		{
+			name: "my-module with 2 direct remote dependencies and 1 indirect",
+			layout: []string{
+				"g:my-module",
+				"g:awesome-module",
+				"g:best-module",
+				"g:cool-module",
+			},
+			source: "git::file://{{.}}/my-module?ref=main",
+			configs: []hclconfig{
+				{
+					repo: "my-module",
+					path: "my-module/main.tf",
+					data: Doc(
+						Module(
+							Labels("test"),
+							Str("source", "git::file://{{.}}/awesome-module?ref=main"),
+						),
+					),
+				},
+				{
+					repo: "my-module",
+					path: "my-module/other.tf",
+					data: Doc(
+						Module(
+							Labels("test"),
+							Str("source", "git::file://{{.}}/best-module?ref=main"),
+							Str("other", "value"),
+						),
+						Module(
+							Labels("test2"),
+							Str("source", "git::file://{{.}}/awesome-module?ref=main"),
+						),
+					),
+				},
+				{
+					repo: "awesome-module",
+					path: "awesome-module/main.tf",
+					data: Doc(
+						Module(
+							Labels("test"),
+							Str("source", "git::file://{{.}}/cool-module?ref=main"),
+						),
+					),
+				},
+			},
+			wantVendored: []string{
+				"git::file://{{.}}/my-module?ref=main",
+				"git::file://{{.}}/awesome-module?ref=main",
+				"git::file://{{.}}/cool-module?ref=main",
+				"git::file://{{.}}/best-module?ref=main",
+			},
+			wantRewritten: map[A]fmt.Stringer{
+				"git::file://{{.}}/my-module?ref=main#main.tf": Module(
+					Labels("test"),
+					Str("source", "{{index . 1}}"),
+				),
+				"git::file://{{.}}/my-module?ref=main#other.tf": Doc(
+					Module(
+						Labels("test"),
+						Str("source", "{{index . 3}}"),
+						Str("other", "value"),
+					),
+					Module(
+						Labels("test2"),
+						Str("source", "{{index . 1}}"),
+					),
+				),
+				"git::file://{{.}}/awesome-module?ref=main#main.tf": Doc(
+					Module(
+						Labels("test"),
+						Str("source", "{{index . 2}}"),
+					),
+				),
+			},
+		},
+	}
+
+	for _, tc := range tcases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := sandbox.New(t)
+			s.BuildTree(tc.layout)
+
+			rootdir := t.TempDir()
+			for _, cfg := range tc.configs {
+				test.WriteFile(t, s.RootDir(), cfg.path,
+					fixupString(t, cfg.data.String(), s.RootDir()))
+
+				git := sandbox.NewGit(t, filepath.Join(s.RootDir(), cfg.repo))
+				git.CommitAll("files updated")
+			}
+			source := fixupString(t, tc.source, s.RootDir())
+			modsrc, err := tf.ParseSource(source)
+			assert.NoError(t, err)
+			got := modvendor.Vendor(rootdir, modsrc)
+			want := fixupReport(t, wantReport{
+				Vendored: tc.wantVendored,
+				Ignored:  tc.wantIgnored,
+				Error:    tc.wantError,
+			}, s.RootDir())
+			assertVendorReport(t, want, got)
+
+			renderedPaths := map[string]fmt.Stringer{}
+			for pathSpec, rewrittenString := range tc.wantRewritten {
+				pathSpecParts := strings.Split(string(pathSpec), "#")
+				assert.EqualInts(t, len(pathSpecParts), 2)
+				source := pathSpecParts[0]
+				path := pathSpecParts[1]
+
+				modsrc, err := tf.ParseSource(fixupString(t, source, s.RootDir()))
+				assert.NoError(t, err)
+				absVendorDir := modvendor.AbsVendorDir(rootdir, modsrc)
+				renderedPath := filepath.Join(absVendorDir, path)
+				renderedPaths[renderedPath] = rewrittenString
+			}
+
+			err = filepath.Walk(filepath.Join(rootdir, "vendor"),
+				func(path string, info fs.FileInfo, err error) error {
+					if err != nil {
+						return err
+					}
+
+					if filepath.Ext(path) != ".tf" {
+						return nil
+					}
+
+					rewrittenSpec, ok := renderedPaths[path]
+					if ok {
+						vendorAbsPath := filepath.Dir(path)
+						relVendoredPaths := []string{}
+						for _, vendored := range tc.wantVendored {
+							rawSource := fixupString(t, vendored, s.RootDir())
+							modsrc, err := tf.ParseSource(rawSource)
+							assert.NoError(t, err)
+							relPath, err := filepath.Rel(vendorAbsPath,
+								modvendor.AbsVendorDir(rootdir, modsrc))
+							assert.NoError(t, err)
+							relVendoredPaths = append(relVendoredPaths, relPath)
+						}
+						want := fixupString(t, rewrittenSpec.String(), relVendoredPaths)
+						got := string(test.ReadFile(t, filepath.Dir(path), filepath.Base(path)))
+						assert.EqualStrings(t, want, got, "file %q mismatch", path)
+					} else {
+						originalPath := strings.TrimPrefix(path, filepath.Join(rootdir, "vendor"))
+						pathEnd := strings.TrimPrefix(originalPath, s.RootDir())
+						originalPath = strings.TrimSuffix(originalPath, pathEnd)
+						pathParts := strings.Split(pathEnd, "/")
+						moduleName := pathParts[1]
+
+						originalPath = filepath.Join(originalPath, moduleName, strings.Join(pathParts[3:], "/"))
+
+						originalBytes, err := ioutil.ReadFile(originalPath)
+						assert.NoError(t, err)
+
+						gotBytes, err := ioutil.ReadFile(path)
+						assert.NoError(t, err)
+						assert.EqualStrings(t, string(originalBytes), string(gotBytes),
+							"files %q and %q mismatch", originalPath, path)
+					}
+					return nil
+				})
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func fixupString(t *testing.T, input string, value interface{}) string {
+	srctpl, err := template.New("template").Parse(input)
+	assert.NoError(t, err)
+	var buf bytes.Buffer
+	err = srctpl.Execute(&buf, value)
+	assert.NoError(t, err)
+	return buf.String()
+}
+
+func fixupReport(t *testing.T, r wantReport, value string) modvendor.Report {
+	out := modvendor.Report{
+		Vendored: make(map[string]modvendor.Vendored),
+		Error:    r.Error,
+	}
+	for _, vendored := range r.Vendored {
+		rawSource := fixupString(t, vendored, value)
+		modsrc, err := tf.ParseSource(rawSource)
+		assert.NoError(t, err)
+		out.Vendored[rawSource] = modvendor.Vendored{
+			Source: modsrc,
+			Dir:    modvendor.Dir(modsrc),
+		}
+	}
+	for _, ignored := range r.Ignored {
+		rawSource := fixupString(t, ignored.RawSource, value)
+		reason := fixupString(t, ignored.Reason, value)
+		out.Ignored = append(out.Ignored, modvendor.IgnoredVendor{
+			RawSource: rawSource,
+			Reason:    reason,
+		})
+	}
+	return out
+}
 
 func TestModVendorWithCommitIDRef(t *testing.T) {
 	const (
@@ -49,18 +450,22 @@ func TestModVendorWithCommitIDRef(t *testing.T) {
 	gitURL := "file://" + repoSandbox.RootDir()
 	rootdir := t.TempDir()
 
-	cloneDir, err := modvendor.Vendor(rootdir, tf.Source{
-		URL:  gitURL,
-		Ref:  ref,
-		Path: path,
-	})
+	source, err := tf.ParseSource(fmt.Sprintf("git::%s?ref=%s", gitURL, ref))
 	assert.NoError(t, err)
 
-	wantCloneDir := vendordir(rootdir, path, ref)
-	assert.EqualStrings(t, wantCloneDir, cloneDir)
+	got := modvendor.Vendor(rootdir, source)
+	assertVendorReport(t, modvendor.Report{
+		Vendored: map[string]modvendor.Vendored{
+			source.Raw: {
+				Source: source,
+				Dir:    modvendor.Dir(source),
+			},
+		},
+	}, got)
 
-	got := test.ReadFile(t, cloneDir, filename)
-	assert.EqualStrings(t, content, string(got))
+	cloneDir := modvendor.AbsVendorDir(rootdir, got.Vendored[source.Raw].Source)
+	gotContent := test.ReadFile(t, cloneDir, filename)
+	assert.EqualStrings(t, content, string(gotContent))
 	assertNoGitDir(t, cloneDir)
 }
 
@@ -82,19 +487,27 @@ func TestModVendorWithRef(t *testing.T) {
 	gitURL := "file://" + repoSandbox.RootDir()
 	rootdir := t.TempDir()
 
-	cloneDir, err := modvendor.Vendor(rootdir, tf.Source{
-		URL:  gitURL,
-		Ref:  ref,
-		Path: path,
-	})
+	source, err := tf.ParseSource(fmt.Sprintf("git::%s?ref=%s", gitURL, ref))
 	assert.NoError(t, err)
 
-	wantCloneDir := vendordir(rootdir, path, ref)
+	got := modvendor.Vendor(rootdir, source)
+	assertVendorReport(t, modvendor.Report{
+		Vendored: map[string]modvendor.Vendored{
+			source.Raw: {
+				Source: source,
+				Dir:    modvendor.Dir(source),
+			},
+		},
+	}, got)
+
+	cloneDir := got.Vendored[source.Raw].Dir
+	wantCloneDir := modvendor.Dir(source)
 	assert.EqualStrings(t, wantCloneDir, cloneDir)
 
-	got := test.ReadFile(t, cloneDir, filename)
-	assert.EqualStrings(t, content, string(got))
-	assertNoGitDir(t, cloneDir)
+	absCloneDir := modvendor.AbsVendorDir(rootdir, got.Vendored[source.Raw].Source)
+	gotContent := test.ReadFile(t, absCloneDir, filename)
+	assert.EqualStrings(t, content, string(gotContent))
+	assertNoGitDir(t, absCloneDir)
 
 	const (
 		newRef      = "branch"
@@ -109,31 +522,28 @@ func TestModVendorWithRef(t *testing.T) {
 	// or else the test passes even if the correct ref is not used.
 	repogit.Checkout(ref)
 
-	newCloneDir, err := modvendor.Vendor(rootdir, tf.Source{
+	source = tf.Source{
 		URL:  gitURL,
 		Ref:  newRef,
 		Path: path,
-	})
-	assert.NoError(t, err)
+	}
+	got = modvendor.Vendor(rootdir, source)
 
-	wantCloneDir = vendordir(rootdir, path, newRef)
+	wantCloneDir = modvendor.Dir(source)
+	newCloneDir := got.Vendored[source.Raw].Dir
 	assert.EqualStrings(t, wantCloneDir, newCloneDir)
 
-	assertNoGitDir(t, newCloneDir)
+	absCloneDir = modvendor.AbsVendorDir(rootdir, got.Vendored[source.Raw].Source)
+	assertNoGitDir(t, absCloneDir)
 
-	got = test.ReadFile(t, newCloneDir, filename)
-	assert.EqualStrings(t, content, string(got))
+	gotContent = test.ReadFile(t, absCloneDir, filename)
+	assert.EqualStrings(t, content, string(gotContent))
 
-	got = test.ReadFile(t, newCloneDir, newFilename)
-	assert.EqualStrings(t, newContent, string(got))
+	gotContent = test.ReadFile(t, absCloneDir, newFilename)
+	assert.EqualStrings(t, newContent, string(gotContent))
 }
 
 func TestModVendorDoesNothingIfRefExists(t *testing.T) {
-	const (
-		path = "github.com/mineiros-io/example"
-		ref  = "main"
-	)
-
 	s := sandbox.New(t)
 
 	s.RootEntry().CreateFile("file.txt", "data")
@@ -143,15 +553,22 @@ func TestModVendorDoesNothingIfRefExists(t *testing.T) {
 
 	gitURL := "file://" + s.RootDir()
 	rootdir := t.TempDir()
-	clonedir := vendordir(rootdir, path, ref)
-	test.MkdirAll(t, clonedir)
 
-	_, err := modvendor.Vendor(rootdir, tf.Source{
-		URL:  gitURL,
-		Ref:  ref,
-		Path: path,
-	})
-	assert.IsError(t, err, errors.E(modvendor.ErrAlreadyVendored))
+	source, err := tf.ParseSource(fmt.Sprintf("git::%s?ref=main", gitURL))
+	assert.NoError(t, err)
+
+	clonedir := modvendor.AbsVendorDir(rootdir, source)
+	test.MkdirAll(t, clonedir)
+	got := modvendor.Vendor(rootdir, source)
+	want := modvendor.Report{
+		Ignored: []modvendor.IgnoredVendor{
+			{
+				RawSource: source.Raw,
+				Reason:    string(modvendor.ErrAlreadyVendored),
+			},
+		},
+	}
+	assertVendorReport(t, want, got)
 
 	entries := test.ReadDir(t, clonedir)
 	if len(entries) > 0 {
@@ -160,23 +577,22 @@ func TestModVendorDoesNothingIfRefExists(t *testing.T) {
 }
 
 func TestModVendorNoRefFails(t *testing.T) {
-	// TODO(katcipis): when we start parsing modules for sources
-	// we need to address default remote references. For now it is
-	// always explicit.
-	const (
-		path = "github.com/mineiros-io/example"
-	)
-
 	s := sandbox.New(t)
 	gitURL := "file://" + s.RootDir()
 	rootdir := t.TempDir()
 
-	_, err := modvendor.Vendor(rootdir, tf.Source{
-		URL:  gitURL,
-		Path: path,
-	})
+	source, err := tf.ParseSource(fmt.Sprintf("git::%s", gitURL))
+	assert.NoError(t, err)
+	report := modvendor.Vendor(rootdir, source)
 
-	assert.Error(t, err)
+	assertVendorReport(t, modvendor.Report{
+		Ignored: []modvendor.IgnoredVendor{
+			{
+				RawSource: source.Raw,
+				Reason:    "reference must be non-empty",
+			},
+		},
+	}, report)
 }
 
 func assertNoGitDir(t *testing.T, dir string) {
@@ -190,8 +606,31 @@ func assertNoGitDir(t *testing.T, dir string) {
 	}
 }
 
-func vendordir(rootdir, path, ref string) string {
-	return filepath.Join(rootdir, "vendor", path, ref)
+func assertVendorReport(t *testing.T, want, got modvendor.Report) {
+	assert.EqualInts(t, len(want.Vendored), len(got.Vendored),
+		"number of vendored is different: want %s != got %s",
+		want.Verbose(), got.Verbose())
+	assert.EqualInts(t, len(want.Ignored), len(got.Ignored),
+		"number of ignored is different: want %s != got %s",
+		want.Verbose(), got.Verbose())
+	for i, wantVendor := range want.Vendored {
+		if wantVendor != got.Vendored[i] {
+			t.Errorf("want %v is different than %v",
+				want.Verbose(), got.Verbose())
+		}
+	}
+	for i, wantIgnored := range want.Ignored {
+		if wantIgnored.RawSource != got.Ignored[i].RawSource {
+			t.Errorf("want.RawSource %v is different than %v",
+				wantIgnored.RawSource, got.Ignored[i].RawSource)
+		}
+		if ok, _ := regexp.Match(wantIgnored.Reason, []byte(got.Ignored[i].Reason)); !ok {
+			t.Errorf("want.Reason %v is different than %v",
+				wantIgnored.Reason, got.Ignored[i].Reason)
+		}
+	}
+
+	errors.Assert(t, got.Error, want.Error)
 }
 
 func init() {

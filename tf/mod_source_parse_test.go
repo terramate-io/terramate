@@ -246,6 +246,7 @@ func TestParseGitSources(t *testing.T) {
 			if tcase.want.err != nil {
 				return
 			}
+			tcase.want.parsed.Raw = tcase.source
 			test.AssertDiff(t, got, tcase.want.parsed)
 		})
 	}
