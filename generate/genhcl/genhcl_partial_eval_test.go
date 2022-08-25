@@ -1368,22 +1368,6 @@ func TestPartialEval(t *testing.T) {
 			),
 			wantErr: errors.E(eval.ErrPartial),
 		},
-		/*
-			 * Hashicorp HCL formats the `wants` wrong.
-			 *
-			{
-				name: "interpolation advanced 2",
-				globals: globals(
-					str("a", "1"),
-				),
-				config: hcldoc(
-					str("a", "0${!tm_try(global.a)}2"),
-				),
-				want: hcldoc(
-					str("a", `0${!"1"}2`),
-				),
-			},
-		*/
 	}
 
 	for _, tcase := range tcases {

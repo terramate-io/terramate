@@ -37,6 +37,16 @@ func Config(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("config", builders...)
 }
 
+// Run is a helper for a "run" block.
+func Run(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return hclwrite.BuildBlock("run", builders...)
+}
+
+// Env is a helper for a "env" block.
+func Env(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return hclwrite.BuildBlock("env", builders...)
+}
+
 // GenerateHCL is a helper for a "generate_hcl" block.
 func GenerateHCL(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("generate_hcl", builders...)

@@ -24,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/test"
 	errorstest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/mineiros-io/terramate/test/hclwrite"
+	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
 )
@@ -47,27 +48,8 @@ func TestLoadRunEnv(t *testing.T) {
 		}
 	)
 
-	expr := hclwrite.Expression
-	str := hclwrite.String
-	hcldoc := hclwrite.BuildHCL
-	block := hclwrite.BuildBlock
-	terramate := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return block("terramate", builders...)
-	}
-	config := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return block("config", builders...)
-	}
-	runblock := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return block("run", builders...)
-	}
-	env := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return block("env", builders...)
-	}
-	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return block("globals", builders...)
-	}
 	runEnvCfg := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return terramate(config(runblock(env(builders...))))
+		return Terramate(Config(Run(Env(builders...))))
 	}
 
 	tcases := []testcase{
@@ -93,8 +75,8 @@ func TestLoadRunEnv(t *testing.T) {
 				{
 					path: "/",
 					add: runEnvCfg(
-						expr("testenv", "env.TESTING_RUN_ENV_VAR"),
-						str("teststr", "plain string"),
+						Expr("testenv", "env.TESTING_RUN_ENV_VAR"),
+						Str("teststr", "plain string"),
 					),
 				},
 			},
@@ -123,20 +105,20 @@ func TestLoadRunEnv(t *testing.T) {
 				{
 					path: "/",
 					add: runEnvCfg(
-						expr("env1", "global.env"),
-						expr("env2", "terramate.stack.name"),
+						Expr("env1", "global.env"),
+						Expr("env2", "terramate.stack.name"),
 					),
 				},
 				{
 					path: "/stacks/stack-1",
-					add: globals(
-						str("env", "stack-1 global"),
+					add: Globals(
+						Str("env", "stack-1 global"),
 					),
 				},
 				{
 					path: "/stacks/stack-2",
-					add: globals(
-						str("env", "stack-2 global"),
+					add: Globals(
+						Str("env", "stack-2 global"),
 					),
 				},
 			},
@@ -163,8 +145,8 @@ func TestLoadRunEnv(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/",
-					add: hcldoc(
-						block("notvalidterramate"),
+					add: Doc(
+						Block("notvalidterramate"),
 					),
 				},
 			},
@@ -183,13 +165,13 @@ func TestLoadRunEnv(t *testing.T) {
 				{
 					path: "/",
 					add: runEnvCfg(
-						expr("env", "global.a"),
+						Expr("env", "global.a"),
 					),
 				},
 				{
 					path: "/stack",
-					add: globals(
-						expr("a", "undefined"),
+					add: Globals(
+						Expr("a", "undefined"),
 					),
 				},
 			},
@@ -208,7 +190,7 @@ func TestLoadRunEnv(t *testing.T) {
 				{
 					path: "/",
 					add: runEnvCfg(
-						expr("env", "something.undefined"),
+						Expr("env", "something.undefined"),
 					),
 				},
 			},
@@ -227,7 +209,7 @@ func TestLoadRunEnv(t *testing.T) {
 				{
 					path: "/",
 					add: runEnvCfg(
-						expr("env", "[]"),
+						Expr("env", "[]"),
 					),
 				},
 			},
