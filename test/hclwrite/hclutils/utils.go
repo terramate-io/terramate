@@ -32,6 +32,16 @@ func GenerateHCL(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("generate_hcl", builders...)
 }
 
+// Variable is a helper for a "generate_hcl" block.
+func Variable(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return hclwrite.BuildBlock("variable", builders...)
+}
+
+// TmDynamic is a helper for a "generate_hcl" block.
+func TmDynamic(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return hclwrite.BuildBlock("tm_dynamic", builders...)
+}
+
 // GenerateFile is a helper for a "generate_file" block.
 func GenerateFile(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("generate_file", builders...)
