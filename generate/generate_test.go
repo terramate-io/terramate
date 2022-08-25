@@ -112,7 +112,7 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 								Str("data", "parent data"),
 							),
 						),
-						Boolean("condition", false),
+						Bool("condition", false),
 					),
 				},
 				{
@@ -155,7 +155,7 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 								Str("data", "parent data"),
 							),
 						),
-						Boolean("condition", false),
+						Bool("condition", false),
 					),
 				},
 				{
@@ -163,7 +163,7 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 					add: GenerateFile(
 						Labels("repeated"),
 						Str("content", "test"),
-						Boolean("condition", true),
+						Bool("condition", true),
 					),
 				},
 			},

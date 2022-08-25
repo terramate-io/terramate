@@ -22,70 +22,87 @@ import (
 
 // useful function aliases to build HCL documents
 
+// Doc is a helper for a HCL document.
 func Doc(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildHCL(builders...)
 }
 
+// GenerateHCL is a helper for a "generate_hcl" block.
 func GenerateHCL(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("generate_hcl", builders...)
 }
 
+// GenerateFile is a helper for a "generate_file" block.
 func GenerateFile(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("generate_file", builders...)
 }
 
+// Content is a helper for a "content" block.
 func Content(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("content", builders...)
 }
 
+// Expr is a helper for a HCL expression.
 func Expr(name string, expr string) hclwrite.BlockBuilder {
 	return hclwrite.Expression(name, expr)
 }
 
+// Str is a helper for a string attribute.
 func Str(name string, val string) hclwrite.BlockBuilder {
 	return hclwrite.String(name, val)
 }
 
+// Number is a helper for a number attribute.
 func Number(name string, val int64) hclwrite.BlockBuilder {
 	return hclwrite.NumberInt(name, val)
 }
 
-func Boolean(name string, val bool) hclwrite.BlockBuilder {
+// Bool is a helper for a boolean attribute.
+func Bool(name string, val bool) hclwrite.BlockBuilder {
 	return hclwrite.Boolean(name, val)
 }
 
+// Labels is a helper for adding labels to a block.
 func Labels(labels ...string) hclwrite.BlockBuilder {
 	return hclwrite.Labels(labels...)
 }
 
+// Backend is a helper for a "backend" block.
 func Backend(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("backend", builders...)
 }
 
+// Block is a helper for creating arbitrary blocks of specified name/type.
 func Block(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock(name, builders...)
 }
 
+// Globals is a helper for a "globals" block.
 func Globals(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("globals", builders...)
 }
 
+// Locals is a helper for a "locals" block.
 func Locals(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("locals", builders...)
 }
 
+// Terraform is a helper for a "terraform" block.
 func Terraform(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("terraform", builders...)
 }
 
+// Module is a helper for a "module" block.
 func Module(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("module", builders...)
 }
 
+// Import is a helper for an "import" block.
 func Import(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("import", builders...)
 }
 
-func Attr(t *testing.T, name string, expr string) hclwrite.BlockBuilder {
+// EvalExpr is a helper for an evaluated expression attribute.
+func EvalExpr(t *testing.T, name string, expr string) hclwrite.BlockBuilder {
 	return hclwrite.AttributeValue(t, name, expr)
 }

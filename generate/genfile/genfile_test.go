@@ -225,7 +225,7 @@ stack_id=stack-id
 					path: "/stack/test.tm",
 					add: GenerateFile(
 						Labels("test"),
-						Boolean("condition", false),
+						Bool("condition", false),
 						Str("content", "data"),
 					),
 				},
@@ -250,12 +250,12 @@ stack_id=stack-id
 					add: Doc(
 						GenerateFile(
 							Labels("test"),
-							Boolean("condition", false),
+							Bool("condition", false),
 							Str("content", "data"),
 						),
 						GenerateFile(
 							Labels("test2"),
-							Boolean("condition", true),
+							Bool("condition", true),
 							Str("content", "data"),
 						),
 					),
@@ -287,7 +287,7 @@ stack_id=stack-id
 				{
 					path: "/stack/globals.tm",
 					add: Globals(
-						Boolean("condition", false),
+						Bool("condition", false),
 					),
 				},
 				{
@@ -341,7 +341,7 @@ stack_id=stack-id
 				{
 					path: "/stack/globals.tm",
 					add: Globals(
-						Attr(t, "list", "[1]"),
+						EvalExpr(t, "list", "[1]"),
 					),
 				},
 				{
@@ -582,7 +582,7 @@ stack_id=stack-id
 					add: GenerateFile(
 						Labels("test"),
 						Str("content", "test"),
-						Boolean("condition", true),
+						Bool("condition", true),
 					),
 				},
 				{
@@ -590,7 +590,7 @@ stack_id=stack-id
 					add: GenerateFile(
 						Labels("test"),
 						Str("content", "test"),
-						Boolean("condition", false),
+						Bool("condition", false),
 					),
 				},
 			},

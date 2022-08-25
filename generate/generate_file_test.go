@@ -92,7 +92,7 @@ func TestGenerateFile(t *testing.T) {
 					path: "/stacks",
 					add: GenerateFile(
 						Labels("test"),
-						Boolean("condition", false),
+						Bool("condition", false),
 						Str("content", "content"),
 					),
 				},
@@ -371,7 +371,7 @@ func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
 		stackEntry.CreateConfig(
 			GenerateFile(
 				Labels(filename),
-				Boolean("condition", condition),
+				Bool("condition", condition),
 				Str("content", "some content"),
 			).String(),
 		)

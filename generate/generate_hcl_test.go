@@ -103,7 +103,7 @@ func TestGenerateHCL(t *testing.T) {
 					path: "/stacks",
 					add: GenerateHCL(
 						Labels("test"),
-						Boolean("condition", false),
+						Bool("condition", false),
 						Content(
 							Backend(
 								Labels("test"),
@@ -259,7 +259,7 @@ func TestGenerateHCL(t *testing.T) {
 					path: "/stacks/stack-1",
 					add: Globals(
 						Str("local_a", "stack-1-local"),
-						Boolean("local_b", true),
+						Bool("local_b", true),
 						Number("local_c", 666),
 						attr("local_d", `{ field = "local_d_field"}`),
 						Str("backend_prefix", "stack-1-backend"),
@@ -272,7 +272,7 @@ func TestGenerateHCL(t *testing.T) {
 					path: "/stacks/stack-2",
 					add: Globals(
 						Str("local_a", "stack-2-local"),
-						Boolean("local_b", false),
+						Bool("local_b", false),
 						Number("local_c", 777),
 						attr("local_d", `{ oopsie = "local_d_field"}`),
 						Str("backend_prefix", "stack-2-backend"),
@@ -292,7 +292,7 @@ func TestGenerateHCL(t *testing.T) {
 						),
 						"locals.tf": Locals(
 							Str("local_a", "stack-1-local"),
-							Boolean("local_b", true),
+							Bool("local_b", true),
 							Number("local_c", 666),
 							Str("local_d", "local_d_field"),
 							Str("stackpath", "/stacks/stack-1"),
@@ -325,7 +325,7 @@ func TestGenerateHCL(t *testing.T) {
 						),
 						"locals.tf": Locals(
 							Str("local_a", "stack-2-local"),
-							Boolean("local_b", false),
+							Bool("local_b", false),
 							Number("local_c", 777),
 							attr("local_d", "null"),
 							Str("stackpath", "/stacks/stack-2"),
@@ -424,7 +424,7 @@ func TestGenerateHCL(t *testing.T) {
 						),
 						Globals(
 							Str("local_a", "stack-1-local"),
-							Boolean("local_b", true),
+							Bool("local_b", true),
 							Number("local_c", 666),
 							attr("local_d", `{ field = "local_d_field"}`),
 							Str("backend_prefix", "stack-1-backend"),
@@ -442,7 +442,7 @@ func TestGenerateHCL(t *testing.T) {
 						),
 						Globals(
 							Str("local_a", "stack-2-local"),
-							Boolean("local_b", false),
+							Bool("local_b", false),
 							Number("local_c", 777),
 							attr("local_d", `{ oopsie = "local_d_field"}`),
 							Str("backend_prefix", "stack-2-backend"),
@@ -463,7 +463,7 @@ func TestGenerateHCL(t *testing.T) {
 						),
 						"locals.tf": Locals(
 							Str("local_a", "stack-1-local"),
-							Boolean("local_b", true),
+							Bool("local_b", true),
 							Number("local_c", 666),
 							Str("local_d", "local_d_field"),
 							Str("stackpath", "/stacks/stack-1"),
@@ -496,7 +496,7 @@ func TestGenerateHCL(t *testing.T) {
 						),
 						"locals.tf": Locals(
 							Str("local_a", "stack-2-local"),
-							Boolean("local_b", false),
+							Bool("local_b", false),
 							Number("local_c", 777),
 							attr("local_d", "null"),
 							Str("stackpath", "/stacks/stack-2"),
@@ -698,7 +698,7 @@ func TestGenerateHCL(t *testing.T) {
 								Str("data", "parent data"),
 							),
 						),
-						Boolean("condition", false),
+						Bool("condition", false),
 					),
 				},
 				{
@@ -747,7 +747,7 @@ func TestGenerateHCL(t *testing.T) {
 								Str("data", "parent data"),
 							),
 						),
-						Boolean("condition", true),
+						Bool("condition", true),
 					),
 				},
 				{
@@ -759,14 +759,14 @@ func TestGenerateHCL(t *testing.T) {
 								Str("data", "parent data"),
 							),
 						),
-						Boolean("condition", false),
+						Bool("condition", false),
 					),
 				},
 				{
 					path: "/stacks/stack",
 					add: GenerateHCL(
 						Labels("repeated"),
-						Boolean("condition", true),
+						Bool("condition", true),
 						Content(
 							Block("block",
 								Str("data", "stack data"),
@@ -1068,7 +1068,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 				Labels("file1.tf"),
 				Content(
 					Block("block1",
-						Boolean("whatever", true),
+						Bool("whatever", true),
 					),
 				),
 			),
@@ -1076,7 +1076,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 				Labels("file2.tf"),
 				Content(
 					Block("block2",
-						Boolean("whatever", true),
+						Bool("whatever", true),
 					),
 				),
 			),
@@ -1103,7 +1103,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 				Labels("file1.tf"),
 				Content(
 					Block("changed",
-						Boolean("newstuff", true),
+						Bool("newstuff", true),
 					),
 				),
 			),
@@ -1129,7 +1129,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		Doc(
 			GenerateHCL(
 				Labels("file1.tf"),
-				Boolean("condition", false),
+				Bool("condition", false),
 				Content(),
 			),
 		).String(),
@@ -1150,19 +1150,19 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		Doc(
 			GenerateHCL(
 				Labels("file1.tf"),
-				Boolean("condition", false),
+				Bool("condition", false),
 				Content(
 					Block("test",
-						Boolean("test", true),
+						Bool("test", true),
 					),
 				),
 			),
 			GenerateHCL(
 				Labels("file2.tf"),
-				Boolean("condition", true),
+				Bool("condition", true),
 				Content(
 					Block("test",
-						Boolean("test", true),
+						Bool("test", true),
 					),
 				),
 			),
@@ -1185,10 +1185,10 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		Doc(
 			GenerateHCL(
 				Labels("file2.tf"),
-				Boolean("condition", false),
+				Bool("condition", false),
 				Content(
 					Block("test",
-						Boolean("test", true),
+						Bool("test", true),
 					),
 				),
 			),

@@ -189,7 +189,7 @@ func TestCheckOutdatedIgnoresWhenGenHCLConditionIsFalse(t *testing.T) {
 		stackEntry.CreateConfig(
 			GenerateHCL(
 				Labels(filename),
-				Boolean("condition", condition),
+				Bool("condition", condition),
 				Content(
 					Block("whatever"),
 				),

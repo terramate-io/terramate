@@ -170,7 +170,7 @@ func TestCheckOutdatedIgnoresWhenGenFileConditionIsFalse(t *testing.T) {
 		stackEntry.CreateConfig(
 			GenerateFile(
 				Labels(filename),
-				Boolean("condition", condition),
+				Bool("condition", condition),
 				Str("content", "some content"),
 			).String(),
 		)
