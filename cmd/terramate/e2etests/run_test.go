@@ -26,6 +26,7 @@ import (
 	"github.com/mineiros-io/terramate/run/dag"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
+	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -1174,10 +1175,10 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 	git.Push("main")
 	git.CheckoutNew("generate-code")
 
-	generateFileBody := generateHCL(
-		labels("test.tf"),
-		content(
-			str("test", "test"),
+	generateFileBody := GenerateHCL(
+		Labels("test.tf"),
+		Content(
+			Str("test", "test"),
 		),
 	).String()
 	stack.CreateFile(generateFile, generateFileBody)
@@ -1758,21 +1759,21 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 	stack := s.CreateStack(stackName)
 
 	root.CreateFile("env.tm",
-		terramate(
-			config(
+		Terramate(
+			Config(
 				run(
 					env(
-						expr("FROM_META", "terramate.stack.name"),
-						expr("FROM_GLOBAL", "global.env"),
-						expr("FROM_ENV", "env.TERRAMATE_TEST"),
-						str("TERRAMATE_OVERRIDDEN", newTerramateOverriden),
+						Expr("FROM_META", "terramate.stack.name"),
+						Expr("FROM_GLOBAL", "global.env"),
+						Expr("FROM_ENV", "env.TERRAMATE_TEST"),
+						Str("TERRAMATE_OVERRIDDEN", newTerramateOverriden),
 					),
 				),
 			),
 		).String(),
 	)
-	stack.CreateFile("globals.tm", globals(
-		str("env", stackGlobal),
+	stack.CreateFile("globals.tm", Globals(
+		Str("env", stackGlobal),
 	).String())
 
 	git := s.Git()

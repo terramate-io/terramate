@@ -27,6 +27,16 @@ func Doc(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildHCL(builders...)
 }
 
+// Terramate is a helper for a "terramate" block.
+func Terramate(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return hclwrite.BuildBlock("terramate", builders...)
+}
+
+// Config is a helper for a "config" block.
+func Config(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return hclwrite.BuildBlock("config", builders...)
+}
+
 // GenerateHCL is a helper for a "generate_hcl" block.
 func GenerateHCL(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("generate_hcl", builders...)
@@ -92,6 +102,11 @@ func Globals(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("globals", builders...)
 }
 
+// Stack is a helper for a "stack" block.
+func Stack(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return hclwrite.BuildBlock("stack", builders...)
+}
+
 // Locals is a helper for a "locals" block.
 func Locals(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return hclwrite.BuildBlock("locals", builders...)
@@ -114,5 +129,6 @@ func Import(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 
 // EvalExpr is a helper for an evaluated expression attribute.
 func EvalExpr(t *testing.T, name string, expr string) hclwrite.BlockBuilder {
+	t.Helper()
 	return hclwrite.AttributeValue(t, name, expr)
 }
