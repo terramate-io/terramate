@@ -83,6 +83,14 @@ func TestVendorModule(t *testing.T) {
 		res := tmcli.run("experimental", "vendor", "download", "--dir", cliCfg, gitSource, "main")
 		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), cliCfg))
 	})
+
+	t.Run("CLI configuration with subdir", func(t *testing.T) {
+		cliCfg := "/with/subdir"
+		gitSource := gitSource + "//subdir"
+		tmcli := newCLI(t, s.RootDir())
+		res := tmcli.run("experimental", "vendor", "download", "--dir", cliCfg, gitSource, "main")
+		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), cliCfg))
+	})
 }
 
 func TestVendorModuleRecursive1DependencyIsPatched(t *testing.T) {
