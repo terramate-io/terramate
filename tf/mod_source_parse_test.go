@@ -47,8 +47,29 @@ func TestParseGitSources(t *testing.T) {
 			},
 		},
 		{
+			name:   "github source with .git suffix",
+			source: "github.com/mineiros-io/example.git",
+			want: want{
+				parsed: tf.Source{
+					URL:  "https://github.com/mineiros-io/example.git",
+					Path: "github.com/mineiros-io/example",
+				},
+			},
+		},
+		{
 			name:   "github source with ref",
 			source: "github.com/mineiros-io/example?ref=v1",
+			want: want{
+				parsed: tf.Source{
+					URL:  "https://github.com/mineiros-io/example.git",
+					Path: "github.com/mineiros-io/example",
+					Ref:  "v1",
+				},
+			},
+		},
+		{
+			name:   "github source with ref and .git suffix",
+			source: "github.com/mineiros-io/example.git?ref=v1",
 			want: want{
 				parsed: tf.Source{
 					URL:  "https://github.com/mineiros-io/example.git",
