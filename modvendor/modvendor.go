@@ -150,7 +150,7 @@ func vendorAll(rootdir string, vendorDir string, tfdir string, report Report) Re
 				Str("module.source", mod.Source).
 				Logger()
 
-			if mod.IsLocal() {
+			if mod.IsLocal() || mod.Source == "" {
 				logger.Trace().Msg("ignoring local module")
 				continue
 			}

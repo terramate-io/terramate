@@ -253,12 +253,6 @@ func TestModVendorAllRecursive(t *testing.T) {
 			wantVendored: []string{
 				"git::file://{{.}}/module-test?ref=main",
 			},
-			wantIgnored: []wantIgnoredVendor{
-				{
-					RawSource:     "git::",
-					ReasonPattern: "reference must be non-empty",
-				},
-			},
 		},
 		{
 			name: "module with 1 remote dependency referenced multiple times in same file",
