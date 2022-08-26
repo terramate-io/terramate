@@ -133,6 +133,7 @@ func NoGit(t *testing.T) S {
 //   <kind>:<relative path>[:data]
 // Where kind is one of the below:
 //   "d" for directory creation.
+//   "g" for local git directory creation.
 //   "s" for initialized stacks.
 //   "f" for file creation.
 //   "t" for terramate block.
@@ -566,6 +567,11 @@ func buildTree(t *testing.T, rootdir string, layout []string) {
 		switch specKind {
 		case "d:":
 			test.MkdirAll(t, filepath.Join(rootdir, spec[2:]))
+		case "g:":
+			repodir := filepath.Join(rootdir, spec[2:])
+			test.MkdirAll(t, repodir)
+			git := NewGit(t, repodir)
+			git.Init()
 		case "s:":
 			if data == "" {
 				abspath := filepath.Join(rootdir, path)

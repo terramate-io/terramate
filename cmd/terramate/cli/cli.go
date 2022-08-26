@@ -451,12 +451,18 @@ func (c *cli) vendorDownload() {
 	parsedSource.Ref = ref
 
 	logger.Trace().Msgf("module path is: %s", parsedSource.Path)
-	modVendorDir, err := modvendor.Vendor(c.root(), c.vendorDir(), parsedSource)
-	if err != nil {
-		logger.Fatal().Err(err).Msg("vendoring module")
+	report := modvendor.Vendor(c.root(), c.vendorDir(), parsedSource)
+	if report.Error != nil {
+		if errs, ok := report.Error.(*errors.List); ok {
+			for _, err := range errs.Errors() {
+				logger.Error().Err(err).Send()
+			}
+		} else {
+			logger.Error().Err(report.Error).Send()
+		}
 	}
 
-	c.log("Vendored module at: %s", modVendorDir)
+	c.log(report.String())
 }
 
 func (c *cli) vendorDir() string {

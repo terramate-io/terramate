@@ -15,14 +15,22 @@
 package modvendor
 
 import (
+	"fmt"
+	iofs "io/fs"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/fs"
 	"github.com/mineiros-io/terramate/git"
 	"github.com/mineiros-io/terramate/tf"
 	"github.com/rs/zerolog/log"
+	"github.com/zclconf/go-cty/cty"
 )
 
 const (
@@ -30,7 +38,15 @@ const (
 	ErrAlreadyVendored errors.Kind = "module is already vendored"
 )
 
-// Vendor will vendor the given module inside the provided vendor dir.
+type modinfo struct {
+	source     string
+	vendoredAt string
+	origin     string
+}
+
+// Vendor will vendor the given module and its dependencies inside the provided
+// root dir.
+// The root dir must be an absolute path.
 // The vendor dir must be an absolute path that will be considered as relative
 // to the given rootdir.
 //
@@ -38,28 +54,174 @@ const (
 //
 // - <rootdir>/<vendordir>/<Source.Path>/<Source.Ref>
 //
-// If the project is already vendored an error of kind ErrAlreadyVendored will
-// be returned, vendored projects are never updated.
 //
 // The whole path inside the vendor dir will be created if it not exists.
-// Vendoring is not recursive, so dependencies won't have their dependencies vendored.
-// Vendoring will also not download any git submodules.
+// Vendoring will not download any git submodules.
 //
-// It returns the absolute path where the module has been vendored.
-func Vendor(rootdir, vendordir string, modsrc tf.Source) (string, error) {
+// The remote git module dependencies will also be vendored and each
+// module.source declaration for those dependencies will be rewritten to
+// reference them inside the vendor directory.
+//
+// It returns a report of everything vendored and ignored (with a reason).
+func Vendor(rootdir string, vendorDir string, modsrc tf.Source) Report {
+	report := NewReport()
+	if !filepath.IsAbs(vendorDir) {
+		report.Error = errors.E("vendor dir %q must be absolute path", vendorDir)
+		return report
+	}
+
+	return vendor(rootdir, vendorDir, modsrc, report, nil)
+}
+
+// VendorAll will vendor all dependencies of the tfdir into rootdir.
+// It will scan all .tf files in the directory and vendor each module declaration
+// containing the supported remote source URLs.
+func VendorAll(rootdir string, vendorDir string, tfdir string) Report {
+	return vendorAll(rootdir, vendorDir, tfdir, NewReport())
+}
+
+func vendor(rootdir string, vendorDir string, modsrc tf.Source, report Report, info *modinfo) Report {
 	logger := log.With().
-		Str("action", "modvendor.Vendor()").
+		Str("action", "modvendor.vendor()").
+		Str("module.source", modsrc.Raw).
+		Logger()
+
+	moddir, err := downloadVendor(rootdir, vendorDir, modsrc)
+	if err != nil {
+		if errors.IsKind(err, ErrAlreadyVendored) {
+			// it's not an error in the case it's an indirect vendoring
+			if info == nil {
+				report.addIgnored(modsrc.Raw, string(ErrAlreadyVendored))
+			}
+			return report
+		}
+
+		reason := errors.E(err, "failed to vendor %q with ref %q",
+			modsrc.URL, modsrc.Ref).Error()
+
+		if info != nil {
+			reason += fmt.Sprintf(" found in %s", info.origin)
+		}
+
+		report.addIgnored(modsrc.Raw, reason)
+		return report
+	}
+
+	logger.Trace().Msg("successfully downloaded")
+
+	report.addVendored(modsrc.Raw, modsrc, Dir(vendorDir, modsrc))
+	return vendorAll(rootdir, vendorDir, moddir, report)
+}
+
+func vendorAll(rootdir string, vendorDir string, tfdir string, report Report) Report {
+	logger := log.With().
+		Str("action", "modvendor.vendorAll()").
+		Str("dir", tfdir).
+		Logger()
+
+	logger.Trace().Msg("scanning .tf files for additional dependencies")
+
+	sourcemap := map[string]*modinfo{}
+	originMap := map[string]struct{}{}
+	errs := errors.L(report.Error)
+	err := filepath.WalkDir(tfdir, func(path string, d iofs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if d.IsDir() && filepath.Base(path) == ".git" {
+			return filepath.SkipDir
+		}
+
+		if !d.Type().IsRegular() || !strings.HasSuffix(path, ".tf") {
+			return nil
+		}
+
+		logger.Trace().Str("path", path).Msg("found Terraform file")
+
+		modules, err := tf.ParseModules(path)
+		if err != nil {
+			errs.Append(err)
+			return nil
+		}
+
+		for _, mod := range modules {
+			logger = logger.With().
+				Str("module.source", mod.Source).
+				Logger()
+
+			if mod.IsLocal() || mod.Source == "" {
+				logger.Trace().Msg("ignoring local module")
+				continue
+			}
+
+			logger.Trace().Msg("found remote module")
+
+			originMap[path] = struct{}{}
+			sourcemap[mod.Source] = &modinfo{
+				source: mod.Source,
+				origin: path,
+			}
+		}
+		return nil
+	})
+
+	errs.Append(err)
+
+	for source, info := range sourcemap {
+		logger := logger.With().
+			Str("module.source", source).
+			Str("origin", info.origin).
+			Logger()
+
+		if v, ok := report.Vendored[source]; ok {
+			logger.Trace().Msg("already vendored")
+			info.vendoredAt = v.Dir
+			continue
+		}
+
+		modsrc, err := tf.ParseSource(source)
+		if err != nil {
+			report.addIgnored(source, err.Error())
+			delete(sourcemap, source)
+			continue
+		}
+		report = vendor(rootdir, vendorDir, modsrc, report, info)
+		if _, ok := report.Vendored[source]; ok {
+			info.vendoredAt = Dir(vendorDir, modsrc)
+
+			logger.Trace().Msg("vendored successfully")
+		}
+	}
+
+	files := []string{}
+	for fname := range originMap {
+		files = append(files, fname)
+	}
+	sort.Strings(files)
+	errs.Append(patchFiles(rootdir, files, sourcemap))
+	report.Error = errs.AsError()
+	return report
+}
+
+// downloadVendor will download the provided modsrc into the rootdir.
+// If the project is already vendored an error of kind ErrAlreadyVendored will
+// be returned, vendored projects are never updated.
+// This function is not recursive, so dependencies won't have their dependencies
+// vendored. See Vendor() for a recursive vendoring function.
+func downloadVendor(rootdir string, vendorDir string, modsrc tf.Source) (string, error) {
+	logger := log.With().
+		Str("action", "modvendor.downloadVendor()").
 		Str("rootdir", rootdir).
-		Str("vendordir", vendordir).
+		Str("vendordir", vendorDir).
 		Str("url", modsrc.URL).
 		Str("path", modsrc.Path).
 		Str("ref", modsrc.Ref).
 		Logger()
 
-	if !filepath.IsAbs(vendordir) {
-		return "", errors.E("vendor dir %q must be absolute path", vendordir)
+	if !filepath.IsAbs(vendorDir) {
+		return "", errors.E("vendor dir %q must be absolute path", vendorDir)
 	}
-	vendordir = filepath.Join(rootdir, vendordir)
 
 	if modsrc.Ref == "" {
 		// TODO(katcipis): handle default references.
@@ -67,7 +229,7 @@ func Vendor(rootdir, vendordir string, modsrc tf.Source) (string, error) {
 		return "", errors.E("src %v reference must be non-empty", modsrc)
 	}
 
-	modVendorDir := filepath.Join(vendordir, modsrc.Path, modsrc.Ref)
+	modVendorDir := AbsVendorDir(rootdir, vendorDir, modsrc)
 	if _, err := os.Stat(modVendorDir); err == nil {
 		return "", errors.E(ErrAlreadyVendored, "dir %q exists", modVendorDir)
 	}
@@ -154,4 +316,84 @@ func Vendor(rootdir, vendordir string, modsrc tf.Source) (string, error) {
 		return "", errors.E(err, "moving module from tmp dir to vendor")
 	}
 	return modVendorDir, nil
+}
+
+func patchFiles(rootdir string, files []string, sourcemap map[string]*modinfo) error {
+	logger := log.With().
+		Str("action", "modvendor.patchFiles").
+		Logger()
+
+	logger.Trace().Msg("patching vendored files")
+
+	errs := errors.L()
+	for _, fname := range files {
+		logger := logger.With().
+			Str("filename", fname).
+			Logger()
+
+		bytes, err := ioutil.ReadFile(fname)
+		if err != nil {
+			errs.Append(err)
+			continue
+		}
+		parsedFile, diags := hclwrite.ParseConfig(bytes, fname, hcl.Pos{})
+		if diags.HasErrors() {
+			errs.Append(errors.E(diags))
+			continue
+		}
+
+		logger.Trace().Msg("successfully parsed for patching")
+
+		blocks := parsedFile.Body().Blocks()
+		for _, block := range blocks {
+			if block.Type() != "module" {
+				continue
+			}
+			if len(block.Labels()) != 1 {
+				continue
+			}
+			source := block.Body().GetAttribute("source")
+			if source == nil {
+				continue
+			}
+
+			sourceString := string(source.Expr().BuildTokens(nil).Bytes())
+			sourceString = strings.TrimSpace(sourceString)
+			sourceString = sourceString[1 : len(sourceString)-1] // unquote
+			// TODO(i4k): improve to support parenthesis.
+
+			if info, ok := sourcemap[sourceString]; ok && info.vendoredAt != "" {
+				logger.Trace().
+					Str("module.source", sourceString).
+					Msg("found relevant module")
+
+				relPath, err := filepath.Rel(
+					filepath.Dir(fname), filepath.Join(rootdir, info.vendoredAt),
+				)
+				if err != nil {
+					errs.Append(err)
+				} else {
+					block.Body().SetAttributeValue("source", cty.StringVal(relPath))
+				}
+			}
+		}
+
+		st, err := os.Stat(fname)
+		errs.Append(err)
+		if err == nil {
+			errs.Append(ioutil.WriteFile(fname, parsedFile.Bytes(), st.Mode()))
+		}
+	}
+	return errs.AsError()
+}
+
+// Dir returns the directory for the vendored module source, relative to project
+// root.
+func Dir(vendorDir string, modsrc tf.Source) string {
+	return filepath.Join(vendorDir, modsrc.Path, modsrc.Ref)
+}
+
+// AbsVendorDir returns the absolute host path of the vendored module source.
+func AbsVendorDir(rootdir string, vendorDir string, modsrc tf.Source) string {
+	return filepath.Join(rootdir, Dir(vendorDir, modsrc))
 }

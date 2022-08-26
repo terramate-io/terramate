@@ -133,7 +133,10 @@ func WithConfig(cfg Config) (*Git, error) {
 	logger.Trace().
 		Msg("Get git version.")
 	_, err = git.Version()
-	return git, err
+	if err != nil {
+		return nil, err
+	}
+	return git, nil
 }
 
 func (git *Git) applyDefaults() error {
@@ -865,7 +868,8 @@ func (e *CmdError) Is(err error) bool {
 
 // Error string representation.
 func (e *CmdError) Error() string {
-	return fmt.Sprintf("failed to exec: %s : stderr=%q", e.cmd, string(e.stderr))
+	return fmt.Sprintf("failed to exec: %s : stderr=%q, stdout=%q",
+		e.cmd, string(e.stderr), string(e.stdout))
 }
 
 // ShortCommitID returns the short version of the commit ID.
