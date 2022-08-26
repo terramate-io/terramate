@@ -691,7 +691,6 @@ func TestModVendorAllRecursive(t *testing.T) {
 			}
 
 			modulesDir := s.RootDir()
-			rootdir := t.TempDir()
 			for _, cfg := range tc.configs {
 				test.WriteFile(t, s.RootDir(), cfg.path,
 					fixupString(t, cfg.data.String(), modulesDir))
@@ -702,6 +701,7 @@ func TestModVendorAllRecursive(t *testing.T) {
 			source := fixupString(t, tc.source, modulesDir)
 			modsrc, err := tf.ParseSource(source)
 			assert.NoError(t, err)
+			rootdir := t.TempDir()
 			got := modvendor.Vendor(rootdir, tc.vendordir, modsrc)
 			want := fixupReport(t, wantReport{
 				Vendored: tc.wantVendored,
