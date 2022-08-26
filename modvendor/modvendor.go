@@ -82,7 +82,7 @@ func VendorAll(rootdir string, vendorDir string, tfdir string) Report {
 
 func vendor(rootdir string, vendorDir string, modsrc tf.Source, report Report, info *modinfo) Report {
 	logger := log.With().
-		Str("action", "modvendor.recVendor()").
+		Str("action", "modvendor.vendor()").
 		Str("module.source", modsrc.Raw).
 		Logger()
 
@@ -210,7 +210,7 @@ func vendorAll(rootdir string, vendorDir string, tfdir string, report Report) Re
 // vendored. See Vendor() for a recursive vendoring function.
 func downloadVendor(rootdir string, vendorDir string, modsrc tf.Source) (string, error) {
 	logger := log.With().
-		Str("action", "modvendor.doVendor()").
+		Str("action", "modvendor.downloadVendor()").
 		Str("rootdir", rootdir).
 		Str("vendordir", vendorDir).
 		Str("url", modsrc.URL).
