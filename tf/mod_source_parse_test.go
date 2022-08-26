@@ -47,12 +47,34 @@ func TestParseGitSources(t *testing.T) {
 			},
 		},
 		{
+			name:   "github source with subdir",
+			source: "github.com/mineiros-io/example//subdir",
+			want: want{
+				parsed: tf.Source{
+					URL:    "https://github.com/mineiros-io/example.git",
+					Path:   "github.com/mineiros-io/example",
+					Subdir: "/subdir",
+				},
+			},
+		},
+		{
 			name:   "github source with .git suffix",
 			source: "github.com/mineiros-io/example.git",
 			want: want{
 				parsed: tf.Source{
 					URL:  "https://github.com/mineiros-io/example.git",
 					Path: "github.com/mineiros-io/example",
+				},
+			},
+		},
+		{
+			name:   "github source with .git suffix and subdir",
+			source: "github.com/mineiros-io/example.git//subdir/dir",
+			want: want{
+				parsed: tf.Source{
+					URL:    "https://github.com/mineiros-io/example.git",
+					Path:   "github.com/mineiros-io/example",
+					Subdir: "/subdir/dir",
 				},
 			},
 		},
@@ -68,6 +90,18 @@ func TestParseGitSources(t *testing.T) {
 			},
 		},
 		{
+			name:   "github source with ref and subdir",
+			source: "github.com/mineiros-io/example//sub/ref?ref=v1",
+			want: want{
+				parsed: tf.Source{
+					URL:    "https://github.com/mineiros-io/example.git",
+					Path:   "github.com/mineiros-io/example",
+					Subdir: "/sub/ref",
+					Ref:    "v1",
+				},
+			},
+		},
+		{
 			name:   "github source with ref and .git suffix",
 			source: "github.com/mineiros-io/example.git?ref=v1",
 			want: want{
@@ -75,6 +109,18 @@ func TestParseGitSources(t *testing.T) {
 					URL:  "https://github.com/mineiros-io/example.git",
 					Path: "github.com/mineiros-io/example",
 					Ref:  "v1",
+				},
+			},
+		},
+		{
+			name:   "github source with ref .git suffix and subdir",
+			source: "github.com/mineiros-io/example.git//dir?ref=v1",
+			want: want{
+				parsed: tf.Source{
+					URL:    "https://github.com/mineiros-io/example.git",
+					Path:   "github.com/mineiros-io/example",
+					Subdir: "/dir",
+					Ref:    "v1",
 				},
 			},
 		},
@@ -99,6 +145,17 @@ func TestParseGitSources(t *testing.T) {
 			},
 		},
 		{
+			name:   "git@ source with subdir",
+			source: "git@github.com:mineiros-io/example.git//subdir",
+			want: want{
+				parsed: tf.Source{
+					URL:    "git@github.com:mineiros-io/example.git",
+					Path:   "github.com/mineiros-io/example",
+					Subdir: "/subdir",
+				},
+			},
+		},
+		{
 			name:   "git@ source with ref",
 			source: "git@github.com:mineiros-io/example.git?ref=v2",
 			want: want{
@@ -106,6 +163,18 @@ func TestParseGitSources(t *testing.T) {
 					URL:  "git@github.com:mineiros-io/example.git",
 					Path: "github.com/mineiros-io/example",
 					Ref:  "v2",
+				},
+			},
+		},
+		{
+			name:   "git@ source with ref and subdir",
+			source: "git@github.com:mineiros-io/example.git//sub/dir?ref=v2",
+			want: want{
+				parsed: tf.Source{
+					URL:    "git@github.com:mineiros-io/example.git",
+					Path:   "github.com/mineiros-io/example",
+					Subdir: "/sub/dir",
+					Ref:    "v2",
 				},
 			},
 		},

@@ -31,6 +31,10 @@ type Source struct {
 	// Eg. github.com/mineiros-io/example
 	Path string
 
+	// Subdir is the subdir component of the source path, if any, as defined
+	// here: https://www.terraform.io/language/modules/sources#modules-in-package-sub-directories
+	Subdir string
+
 	// Ref is the specific reference of this source, if any.
 	Ref string
 
@@ -61,15 +65,18 @@ func ParseSource(modsource string) (Source, error) {
 				"%s is not a URL", modsource)
 		}
 		ref := u.Query().Get("ref")
+		subdir := parseURLSubdir(u)
 		u.RawQuery = ""
 		u.Scheme = "https"
 		u.Path = strings.TrimSuffix(u.Path, ".git")
+
 		path := filepath.Join(u.Host, u.Path)
 		return Source{
-			Raw:  modsource,
-			URL:  u.String() + ".git",
-			Path: path,
-			Ref:  ref,
+			Raw:    modsource,
+			URL:    u.String() + ".git",
+			Path:   path,
+			Subdir: subdir,
+			Ref:    ref,
 		}, nil
 
 	case strings.HasPrefix(modsource, "git@"):
@@ -91,13 +98,16 @@ func ParseSource(modsource string) (Source, error) {
 
 		ref := u.Query().Get("ref")
 		u.RawQuery = ""
-		path := strings.TrimSuffix(filepath.Join(u.Scheme, u.Opaque), ".git")
+		path, subdir := parseSubdir(u.Opaque)
+		u.Opaque = path
+		path = strings.TrimSuffix(filepath.Join(u.Scheme, u.Opaque), ".git")
 
 		return Source{
-			Raw:  modsource,
-			URL:  "git@" + u.String(),
-			Path: path,
-			Ref:  ref,
+			Raw:    modsource,
+			URL:    "git@" + u.String(),
+			Path:   path,
+			Subdir: subdir,
+			Ref:    ref,
 		}, nil
 
 	case strings.HasPrefix(modsource, "git::"):
@@ -128,4 +138,21 @@ func ParseSource(modsource string) (Source, error) {
 	default:
 		return Source{}, errors.E(ErrUnsupportedModSrc)
 	}
+}
+
+func parseSubdir(s string) (string, string) {
+	if !strings.Contains(s, "//") {
+		return s, ""
+	}
+
+	// From the specs we should have a single // on the path:
+	// https://www.terraform.io/language/modules/sources#modules-in-package-sub-directories
+	parsed := strings.Split(s, "//")
+	return parsed[0], "/" + parsed[1]
+}
+
+func parseURLSubdir(u *url.URL) string {
+	path, subdir := parseSubdir(u.Path)
+	u.Path = path
+	return subdir
 }
