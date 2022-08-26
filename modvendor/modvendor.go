@@ -70,7 +70,7 @@ func Vendor(rootdir string, vendorDir string, modsrc tf.Source) Report {
 		return report
 	}
 
-	return recVendor(rootdir, vendorDir, modsrc, report, nil)
+	return vendor(rootdir, vendorDir, modsrc, report, nil)
 }
 
 // VendorAll will vendor all dependencies of the tfdir into rootdir.
@@ -80,13 +80,13 @@ func VendorAll(rootdir string, vendorDir string, tfdir string) Report {
 	return vendorAll(rootdir, vendorDir, tfdir, NewReport())
 }
 
-func recVendor(rootdir string, vendorDir string, modsrc tf.Source, report Report, info *modinfo) Report {
+func vendor(rootdir string, vendorDir string, modsrc tf.Source, report Report, info *modinfo) Report {
 	logger := log.With().
 		Str("action", "modvendor.recVendor()").
 		Str("module.source", modsrc.Raw).
 		Logger()
 
-	moddir, err := doVendor(rootdir, vendorDir, modsrc)
+	moddir, err := downloadVendor(rootdir, vendorDir, modsrc)
 	if err != nil {
 		if errors.IsKind(err, ErrAlreadyVendored) {
 			// it's not an error in the case it's an indirect vendoring
@@ -185,7 +185,7 @@ func vendorAll(rootdir string, vendorDir string, tfdir string, report Report) Re
 			delete(sourcemap, source)
 			continue
 		}
-		report = recVendor(rootdir, vendorDir, modsrc, report, info)
+		report = vendor(rootdir, vendorDir, modsrc, report, info)
 		if _, ok := report.Vendored[source]; ok {
 			info.vendoredAt = Dir(vendorDir, modsrc)
 
@@ -203,12 +203,12 @@ func vendorAll(rootdir string, vendorDir string, tfdir string, report Report) Re
 	return report
 }
 
-// doVendor will doVendor the provided modsrc into the rootdir.
+// downloadVendor will download the provided modsrc into the rootdir.
 // If the project is already vendored an error of kind ErrAlreadyVendored will
 // be returned, vendored projects are never updated.
 // This function is not recursive, so dependencies won't have their dependencies
 // vendored. See Vendor() for a recursive vendoring function.
-func doVendor(rootdir string, vendorDir string, modsrc tf.Source) (string, error) {
+func downloadVendor(rootdir string, vendorDir string, modsrc tf.Source) (string, error) {
 	logger := log.With().
 		Str("action", "modvendor.doVendor()").
 		Str("rootdir", rootdir).
