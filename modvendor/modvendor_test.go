@@ -1063,6 +1063,7 @@ func assertNoGitDir(t *testing.T, dir string) {
 }
 
 func assertVendorReport(t *testing.T, want, got modvendor.Report) {
+	t.Helper()
 	assert.EqualInts(t, len(want.Vendored), len(got.Vendored),
 		"number of vendored is different: want %s != got %s",
 		want.Verbose(), got.Verbose())
