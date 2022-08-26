@@ -53,6 +53,7 @@ type testcase struct {
 	name         string
 	source       string
 	layout       []string
+	vendordir    string
 	configs      []hclconfig
 	wantVendored []string
 	wantIgnored  []wantIgnoredVendor
@@ -240,6 +241,63 @@ func TestModVendorAllRecursive(t *testing.T) {
 				"g:another-module",
 			},
 			source: "git::file://{{.}}/module-test?ref=main",
+			configs: []hclconfig{
+				{
+					repo: "module-test",
+					path: "module-test/main.tf",
+					data: Doc(
+						Module(
+							Labels("test"),
+							Str("source", "git::file://{{.}}/another-module?ref=main"),
+						),
+						Module(
+							Labels("test"),
+							Str("source", "git::file://{{.}}/another-module?ref=main"),
+						),
+						Module(
+							Labels("test"),
+							Str("source", "git::file://{{.}}/another-module?ref=main"),
+						),
+						Module(
+							Labels("test"),
+							Str("source", "git::file://{{.}}/another-module?ref=main"),
+						),
+					),
+				},
+			},
+			wantFiles: map[vendorPathSpec]fmt.Stringer{
+				"git::file://{{.}}/module-test?ref=main#main.tf": Doc(
+					Module(
+						Labels("test"),
+						Str("source", "{{index . 1}}"),
+					),
+					Module(
+						Labels("test"),
+						Str("source", "{{index . 1}}"),
+					),
+					Module(
+						Labels("test"),
+						Str("source", "{{index . 1}}"),
+					),
+					Module(
+						Labels("test"),
+						Str("source", "{{index . 1}}"),
+					),
+				),
+			},
+			wantVendored: []string{
+				"git::file://{{.}}/module-test?ref=main",
+				"git::file://{{.}}/another-module?ref=main",
+			},
+		},
+		{
+			name: "module with 1 remote dependency referenced multiple times using an alternate vendordir",
+			layout: []string{
+				"g:module-test",
+				"g:another-module",
+			},
+			vendordir: "/strange/path",
+			source:    "git::file://{{.}}/module-test?ref=main",
 			configs: []hclconfig{
 				{
 					repo: "module-test",
@@ -608,6 +666,10 @@ func TestModVendorAllRecursive(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 
+			if tc.vendordir == "" {
+				tc.vendordir = "/vendor"
+			}
+
 			modulesDir := s.RootDir()
 			rootdir := t.TempDir()
 			for _, cfg := range tc.configs {
@@ -620,15 +682,15 @@ func TestModVendorAllRecursive(t *testing.T) {
 			source := fixupString(t, tc.source, modulesDir)
 			modsrc, err := tf.ParseSource(source)
 			assert.NoError(t, err)
-			got := modvendor.Vendor(rootdir, "/vendor", modsrc)
+			got := modvendor.Vendor(rootdir, tc.vendordir, modsrc)
 			want := fixupReport(t, wantReport{
 				Vendored: tc.wantVendored,
 				Ignored:  tc.wantIgnored,
 				Error:    tc.wantError,
-			}, modulesDir)
+			}, modulesDir, tc.vendordir)
 
 			assertVendorReport(t, want, got)
-			checkWantedFiles(t, tc, modulesDir, rootdir)
+			checkWantedFiles(t, tc, modulesDir, rootdir, tc.vendordir)
 		})
 	}
 }
@@ -642,7 +704,7 @@ func fixupString(t *testing.T, input string, value interface{}) string {
 	return buf.String()
 }
 
-func fixupReport(t *testing.T, r wantReport, value string) modvendor.Report {
+func fixupReport(t *testing.T, r wantReport, value string, vendordir string) modvendor.Report {
 	out := modvendor.Report{
 		Vendored: make(map[string]modvendor.Vendored),
 		Error:    r.Error,
@@ -653,7 +715,7 @@ func fixupReport(t *testing.T, r wantReport, value string) modvendor.Report {
 		assert.NoError(t, err)
 		out.Vendored[rawSource] = modvendor.Vendored{
 			Source: modsrc,
-			Dir:    modvendor.Dir("/vendor", modsrc),
+			Dir:    modvendor.Dir(vendordir, modsrc),
 		}
 	}
 	for _, ignored := range r.Ignored {
@@ -672,6 +734,7 @@ func evaluateWantedFiles(
 	wantFiles map[vendorPathSpec]fmt.Stringer,
 	modulesDir string,
 	rootdir string,
+	vendordir string,
 ) map[string]fmt.Stringer {
 	evaluated := map[string]fmt.Stringer{}
 	for pathSpec, expectedStringer := range wantFiles {
@@ -682,7 +745,7 @@ func evaluateWantedFiles(
 
 		modsrc, err := tf.ParseSource(fixupString(t, source, modulesDir))
 		assert.NoError(t, err)
-		absVendorDir := modvendor.AbsVendorDir(rootdir, "/vendor", modsrc)
+		absVendorDir := modvendor.AbsVendorDir(rootdir, vendordir, modsrc)
 		evaluatedPath := filepath.Join(absVendorDir, path)
 		evaluated[evaluatedPath] = expectedStringer
 	}
@@ -694,9 +757,10 @@ func checkWantedFiles(
 	tc testcase,
 	modulesDir string,
 	rootdir string,
+	vendordir string,
 ) {
-	wantFiles := evaluateWantedFiles(t, tc.wantFiles, modulesDir, rootdir)
-	vendorDir := filepath.Join(rootdir, "vendor")
+	wantFiles := evaluateWantedFiles(t, tc.wantFiles, modulesDir, rootdir, vendordir)
+	vendorDir := filepath.Join(rootdir, tc.vendordir)
 
 	if _, err := os.Stat(vendorDir); err != nil {
 		if os.IsNotExist(err) {
@@ -718,7 +782,7 @@ func checkWantedFiles(
 		if ok {
 			// file must be rewritten
 			relVendoredPaths := computeRelativePaths(
-				t, filepath.Dir(path), tc.wantVendored, modulesDir, rootdir,
+				t, filepath.Dir(path), tc.wantVendored, modulesDir, rootdir, tc.vendordir,
 			)
 			want := fixupString(t, expectedStringTemplate.String(), relVendoredPaths)
 			got := string(test.ReadFile(t, filepath.Dir(path), filepath.Base(path)))
@@ -752,6 +816,7 @@ func computeRelativePaths(
 	wantVendored []string,
 	modulesDir string,
 	rootdir string,
+	vendordir string,
 ) []string {
 	// TODO(i4k): assumes files are always at the root of the module.
 	relVendoredPaths := []string{}
@@ -760,7 +825,7 @@ func computeRelativePaths(
 		modsrc, err := tf.ParseSource(rawSource)
 		assert.NoError(t, err)
 		relPath, err := filepath.Rel(relativeToDir,
-			modvendor.AbsVendorDir(rootdir, "/vendor", modsrc))
+			modvendor.AbsVendorDir(rootdir, vendordir, modsrc))
 		assert.NoError(t, err)
 		relVendoredPaths = append(relVendoredPaths, relPath)
 	}
@@ -836,13 +901,13 @@ func TestModVendorWithRef(t *testing.T) {
 		Vendored: map[string]modvendor.Vendored{
 			source.Raw: {
 				Source: source,
-				Dir:    modvendor.Dir("/vendor", source),
+				Dir:    modvendor.Dir(vendordir, source),
 			},
 		},
 	}, got)
 
 	cloneDir := got.Vendored[source.Raw].Dir
-	wantCloneDir := modvendor.Dir("/vendor", source)
+	wantCloneDir := modvendor.Dir(vendordir, source)
 	assert.EqualStrings(t, wantCloneDir, cloneDir)
 
 	absCloneDir := modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[source.Raw].Source)
@@ -874,7 +939,7 @@ func TestModVendorWithRef(t *testing.T) {
 	newCloneDir := got.Vendored[source.Raw].Dir
 	assert.EqualStrings(t, wantCloneDir, newCloneDir)
 
-	absCloneDir = modvendor.AbsVendorDir(rootdir, "/vendor", got.Vendored[source.Raw].Source)
+	absCloneDir = modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[source.Raw].Source)
 	assertNoGitDir(t, absCloneDir)
 
 	gotContent = test.ReadFile(t, absCloneDir, filename)
