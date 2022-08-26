@@ -63,10 +63,12 @@ func ParseSource(modsource string) (Source, error) {
 		ref := u.Query().Get("ref")
 		u.RawQuery = ""
 		u.Scheme = "https"
+		u.Path = strings.TrimSuffix(u.Path, ".git")
+		path := filepath.Join(u.Host, u.Path)
 		return Source{
 			Raw:  modsource,
 			URL:  u.String() + ".git",
-			Path: filepath.Join(u.Host, u.Path),
+			Path: path,
 			Ref:  ref,
 		}, nil
 
