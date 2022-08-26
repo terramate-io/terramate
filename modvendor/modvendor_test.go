@@ -1086,7 +1086,7 @@ func assertVendorReport(t *testing.T, want, got modvendor.Report) {
 					wantIgnored.Reason, got.Ignored[i].Reason)
 			}
 		} else if got.Ignored[i].Reason != "" {
-			t.Fatalf("unexpected reason %q", got.Ignored[i].Reason)
+			t.Errorf("unexpected reason %q", got.Ignored[i].Reason)
 		}
 	}
 
