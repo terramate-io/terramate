@@ -48,11 +48,15 @@ const (
 //
 //
 // The whole path inside the vendor dir will be created if it not exists.
-// Vendoring will also not download any git submodules.
+// Vendoring will not download any git submodules.
+//
+// The remote git module dependencies will also be vendored and each
+// module.source declaration for those dependencies will be rewritten to
+// reference them inside the vendor directory.
 //
 // It returns a report of everything vendored and ignored (with a reason).
-func Vendor(rootdir string, modsrc tf.Source) (report Report) {
-	report.Vendored = make(map[string]Vendored)
+func Vendor(rootdir string, modsrc tf.Source) Report {
+	report := NewEmptyReport()
 
 	moddir, err := vendor(rootdir, modsrc)
 	if err != nil {
@@ -66,24 +70,21 @@ func Vendor(rootdir string, modsrc tf.Source) (report Report) {
 	}
 
 	report.addVendored(modsrc.Raw, modsrc)
-
-	depsReport := VendorAll(rootdir, moddir)
-	report = mergeReports(report, depsReport)
+	report.mergeReport(VendorAll(rootdir, moddir))
 	return report
 }
 
 // VendorAll will vendor all dependencies of the tfdir into rootdir.
 // It will scan all .tf files in the directory and vendor each module declaration
 // containing the supported remote source URLs.
-func VendorAll(rootdir string, tfdir string) (report Report) {
+func VendorAll(rootdir string, tfdir string) Report {
 	type modinfo struct {
 		source     string
 		vendoredAt string
 		origin     string
 	}
 
-	report.Vendored = make(map[string]Vendored)
-
+	report := NewEmptyReport()
 	sourcemap := map[string]*modinfo{}
 	originMap := map[string]struct{}{}
 	errs := errors.L()
@@ -301,22 +302,6 @@ func vendor(rootdir string, modsrc tf.Source) (string, error) {
 		return "", errors.E(err, "moving module from tmp dir to vendor")
 	}
 	return modVendorDir, nil
-}
-
-func mergeReports(r1, r2 Report) (out Report) {
-	out.Vendored = make(map[string]Vendored)
-	for k, v := range r1.Vendored {
-		out.Vendored[k] = v
-	}
-	for k, v := range r2.Vendored {
-		out.Vendored[k] = v
-	}
-	out.Ignored = append(out.Ignored, r1.Ignored...)
-	out.Ignored = append(out.Ignored, r2.Ignored...)
-	errs := errors.L()
-	errs.Append(r1.Error, r2.Error)
-	out.Error = errs.AsError()
-	return out
 }
 
 // Dir returns the directory for the vendored module source, relative to project

@@ -30,6 +30,13 @@ type Report struct {
 	Error    error
 }
 
+// NewEmptyReport returns a new empty report.
+func NewEmptyReport() Report {
+	return Report{
+		Vendored: make(map[string]Vendored),
+	}
+}
+
 func (r Report) String() string {
 	report := []string{
 		"Vendor report:",
@@ -92,4 +99,15 @@ func (r *Report) addIgnored(rawSource string, reason string) {
 		RawSource: rawSource,
 		Reason:    reason,
 	})
+}
+
+func (r *Report) mergeReport(other Report) (out Report) {
+	for k, v := range other.Vendored {
+		r.Vendored[k] = v
+	}
+	out.Ignored = append(out.Ignored, other.Ignored...)
+	errs := errors.L()
+	errs.Append(r.Error, other.Error)
+	r.Error = errs.AsError()
+	return out
 }
