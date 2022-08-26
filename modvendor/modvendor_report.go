@@ -44,8 +44,8 @@ type Report struct {
 	Error    error
 }
 
-// NewEmptyReport returns a new empty report.
-func NewEmptyReport() Report {
+// NewReport returns a new empty report.
+func NewReport() Report {
 	return Report{
 		Vendored: make(map[string]Vendored),
 	}
