@@ -27,9 +27,11 @@ import (
 	"text/template"
 
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/test"
-	"github.com/mineiros-io/terramate/test/errors"
+	errtest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/mineiros-io/terramate/tf"
 	"github.com/rs/zerolog"
@@ -108,6 +110,24 @@ func TestModVendorAllRecursive(t *testing.T) {
 			},
 		},
 		{
+			name: "module with HCL errors",
+			layout: []string{
+				"g:module-test",
+			},
+			source: "git::file://{{.}}/module-test?ref=main",
+			configs: []hclconfig{
+				{
+					repo: "module-test",
+					path: "module-test/main.tf",
+					data: bytes.NewBufferString("this is not a valid HCL file"),
+				},
+			},
+			wantVendored: []string{
+				"git::file://{{.}}/module-test?ref=main",
+			},
+			wantError: errors.E(hcl.ErrHCLSyntax),
+		},
+		{
 			name: "module with ignored remote deps",
 			layout: []string{
 				"g:module-test",
@@ -169,6 +189,48 @@ func TestModVendorAllRecursive(t *testing.T) {
 			wantVendored: []string{
 				"git::file://{{.}}/module-test?ref=main",
 				"git::file://{{.}}/another-module?ref=main",
+			},
+		},
+		{
+			name: "module with 1 remote dependency that contains bogus module.source",
+			layout: []string{
+				"g:module-test",
+				"g:another-module",
+			},
+			source: "git::file://{{.}}/module-test?ref=main",
+			configs: []hclconfig{
+				{
+					repo: "module-test",
+					path: "module-test/main.tf",
+					data: Module(
+						Labels("test"),
+						Str("source", "git::file://{{.}}/another-module?ref=main"),
+					),
+				},
+				{
+					repo: "another-module",
+					path: "another-module/main.tf",
+					data: Module(
+						Labels("test"),
+						Str("source", "git::"),
+					),
+				},
+			},
+			wantFiles: map[vendorPathSpec]fmt.Stringer{
+				"git::file://{{.}}/module-test?ref=main#main.tf": Module(
+					Labels("test"),
+					Str("source", "{{index . 1}}"),
+				),
+			},
+			wantVendored: []string{
+				"git::file://{{.}}/module-test?ref=main",
+				"git::file://{{.}}/another-module?ref=main",
+			},
+			wantIgnored: []wantIgnoredVendor{
+				{
+					RawSource:     "git::",
+					ReasonPattern: "reference must be non-empty",
+				},
 			},
 		},
 		{
@@ -911,7 +973,7 @@ func assertVendorReport(t *testing.T, want, got modvendor.Report) {
 		}
 	}
 
-	errors.Assert(t, got.Error, want.Error)
+	errtest.Assert(t, got.Error, want.Error)
 }
 
 func init() {

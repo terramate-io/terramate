@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -72,6 +73,11 @@ func VendorAll(rootdir string, tfdir string) Report {
 }
 
 func recVendor(rootdir string, modsrc tf.Source, report Report, info *modinfo) Report {
+	logger := log.With().
+		Str("action", "modvendor.recVendor()").
+		Str("module.source", modsrc.Raw).
+		Logger()
+
 	moddir, err := doVendor(rootdir, modsrc)
 	if err != nil {
 		if errors.IsKind(err, ErrAlreadyVendored) {
@@ -93,11 +99,20 @@ func recVendor(rootdir string, modsrc tf.Source, report Report, info *modinfo) R
 		return report
 	}
 
+	logger.Trace().Msg("successfully downloaded")
+
 	report.addVendored(modsrc.Raw, modsrc)
 	return vendorAll(rootdir, moddir, report)
 }
 
 func vendorAll(rootdir string, tfdir string, report Report) Report {
+	logger := log.With().
+		Str("action", "modvendor.vendorAll()").
+		Str("dir", tfdir).
+		Logger()
+
+	logger.Trace().Msg("scanning .tf files for additional dependencies")
+
 	sourcemap := map[string]*modinfo{}
 	originMap := map[string]struct{}{}
 	errs := errors.L(report.Error)
@@ -113,6 +128,9 @@ func vendorAll(rootdir string, tfdir string, report Report) Report {
 		if !d.Type().IsRegular() || !strings.HasSuffix(path, ".tf") {
 			return nil
 		}
+
+		logger.Trace().Str("path", path).Msg("found Terraform file")
+
 		modules, err := tf.ParseModules(path)
 		if err != nil {
 			errs.Append(err)
@@ -120,22 +138,36 @@ func vendorAll(rootdir string, tfdir string, report Report) Report {
 		}
 
 		for _, mod := range modules {
-			if !mod.IsLocal() {
-				sourcemap[mod.Source] = &modinfo{
-					source: mod.Source,
-					origin: path,
-				}
-				originMap[path] = struct{}{}
+			logger = logger.With().
+				Str("module.source", mod.Source).
+				Logger()
+
+			if mod.IsLocal() {
+				logger.Trace().Msg("ignoring local module")
+				continue
+			}
+
+			logger.Trace().Msg("found remote module")
+
+			originMap[path] = struct{}{}
+			sourcemap[mod.Source] = &modinfo{
+				source: mod.Source,
+				origin: path,
 			}
 		}
-
 		return nil
 	})
 
 	errs.Append(err)
 
 	for source, info := range sourcemap {
+		logger := logger.With().
+			Str("module.source", source).
+			Str("origin", info.origin).
+			Logger()
+
 		if _, ok := report.Vendored[source]; ok {
+			logger.Trace().Msg("already vendored")
 			continue
 		}
 
@@ -145,58 +177,20 @@ func vendorAll(rootdir string, tfdir string, report Report) Report {
 			delete(sourcemap, source)
 			continue
 		}
-		recVendor(rootdir, modsrc, report, info)
+		report = recVendor(rootdir, modsrc, report, info)
 		if _, ok := report.Vendored[source]; ok {
 			info.vendoredAt = Dir(modsrc)
+
+			logger.Trace().Msg("vendored successfully")
 		}
 	}
 
+	files := []string{}
 	for fname := range originMap {
-		bytes, err := ioutil.ReadFile(fname)
-		if err != nil {
-			errs.Append(err)
-			continue
-		}
-		parsedFile, diags := hclwrite.ParseConfig(bytes, fname, hcl.Pos{})
-		if diags.HasErrors() {
-			errs.Append(err)
-			continue
-		}
-
-		blocks := parsedFile.Body().Blocks()
-		for _, block := range blocks {
-			if block.Type() != "module" {
-				continue
-			}
-			if len(block.Labels()) != 1 {
-				continue
-			}
-			source := block.Body().GetAttribute("source")
-			if source == nil {
-				continue
-			}
-			sourceString := string(source.Expr().BuildTokens(nil).Bytes())
-			sourceString = strings.TrimSpace(sourceString)
-			sourceString = sourceString[1 : len(sourceString)-1] // unquote
-			// TODO(i4k): improve to support parenthesis.
-
-			if info, ok := sourcemap[sourceString]; ok && info.vendoredAt != "" {
-				relPath, err := filepath.Rel(
-					filepath.Dir(fname), filepath.Join(rootdir, info.vendoredAt),
-				)
-				if err != nil {
-					errs.Append(err)
-				} else {
-					newexpr := hclwrite.NewExpressionLiteral(cty.StringVal(relPath))
-					block.Body().SetAttributeRaw("source", newexpr.BuildTokens(nil))
-				}
-			}
-		}
-
-		newcontent := parsedFile.Bytes()
-		errs.Append(ioutil.WriteFile(fname, newcontent, 0644))
+		files = append(files, fname)
 	}
-
+	sort.Strings(files)
+	errs.Append(patchFiles(rootdir, files, sourcemap))
 	report.Error = errs.AsError()
 	return report
 }
@@ -208,7 +202,7 @@ func vendorAll(rootdir string, tfdir string, report Report) Report {
 // vendored. See Vendor() for a recursive vendoring function.
 func doVendor(rootdir string, modsrc tf.Source) (string, error) {
 	logger := log.With().
-		Str("action", "modvendor.Vendor()").
+		Str("action", "modvendor.doVendor()").
 		Str("rootdir", rootdir).
 		Str("url", modsrc.URL).
 		Str("path", modsrc.Path).
@@ -308,6 +302,73 @@ func doVendor(rootdir string, modsrc tf.Source) (string, error) {
 		return "", errors.E(err, "moving module from tmp dir to vendor")
 	}
 	return modVendorDir, nil
+}
+
+func patchFiles(rootdir string, files []string, sourcemap map[string]*modinfo) error {
+	logger := log.With().
+		Str("action", "modvendor.patchFiles").
+		Logger()
+
+	logger.Trace().Msg("patching vendored files")
+
+	errs := errors.L()
+	for _, fname := range files {
+		logger := logger.With().
+			Str("filename", fname).
+			Logger()
+
+		bytes, err := ioutil.ReadFile(fname)
+		if err != nil {
+			errs.Append(err)
+			continue
+		}
+		parsedFile, diags := hclwrite.ParseConfig(bytes, fname, hcl.Pos{})
+		if diags.HasErrors() {
+			errs.Append(errors.E(diags))
+			continue
+		}
+
+		logger.Trace().Msg("successfully parsed for patching")
+
+		blocks := parsedFile.Body().Blocks()
+		for _, block := range blocks {
+			if block.Type() != "module" {
+				continue
+			}
+			if len(block.Labels()) != 1 {
+				continue
+			}
+			source := block.Body().GetAttribute("source")
+			if source == nil {
+				continue
+			}
+
+			sourceString := string(source.Expr().BuildTokens(nil).Bytes())
+			sourceString = strings.TrimSpace(sourceString)
+			sourceString = sourceString[1 : len(sourceString)-1] // unquote
+			// TODO(i4k): improve to support parenthesis.
+
+			if info, ok := sourcemap[sourceString]; ok && info.vendoredAt != "" {
+				logger.Trace().
+					Str("module.source", sourceString).
+					Msg("found relevant module")
+
+				relPath, err := filepath.Rel(
+					filepath.Dir(fname), filepath.Join(rootdir, info.vendoredAt),
+				)
+				if err != nil {
+					errs.Append(err)
+				} else {
+					newexpr := hclwrite.NewExpressionLiteral(cty.StringVal(relPath))
+					block.Body().SetAttributeRaw("source", newexpr.BuildTokens(nil))
+				}
+			}
+		}
+
+		newcontent := parsedFile.Bytes()
+		errs.Append(ioutil.WriteFile(fname, newcontent, 0644))
+	}
+	return errs.AsError()
 }
 
 // Dir returns the directory for the vendored module source, relative to project
