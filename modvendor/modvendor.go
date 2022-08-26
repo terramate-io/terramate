@@ -42,6 +42,7 @@ type modinfo struct {
 	source     string
 	vendoredAt string
 	origin     string
+	subdir     string
 }
 
 // Vendor will vendor the given module and its dependencies inside the provided
@@ -177,6 +178,7 @@ func vendorAll(rootdir string, vendorDir string, tfdir string, report Report) Re
 		if v, ok := report.Vendored[source]; ok {
 			logger.Trace().Msg("already vendored")
 			info.vendoredAt = v.Dir
+			info.subdir = v.Source.Subdir
 			continue
 		}
 
@@ -187,8 +189,9 @@ func vendorAll(rootdir string, vendorDir string, tfdir string, report Report) Re
 			continue
 		}
 		report = vendor(rootdir, vendorDir, modsrc, report, info)
-		if _, ok := report.Vendored[source]; ok {
+		if v, ok := report.Vendored[source]; ok {
 			info.vendoredAt = Dir(vendorDir, modsrc)
+			info.subdir = v.Source.Subdir
 
 			logger.Trace().Msg("vendored successfully")
 		}
@@ -372,9 +375,11 @@ func patchFiles(rootdir string, files []string, sourcemap map[string]*modinfo) e
 				)
 				if err != nil {
 					errs.Append(err)
-				} else {
-					block.Body().SetAttributeValue("source", cty.StringVal(relPath))
+					continue
 				}
+
+				relPath = filepath.Join(relPath, info.subdir)
+				block.Body().SetAttributeValue("source", cty.StringVal(relPath))
 			}
 		}
 
