@@ -235,6 +235,32 @@ func TestModVendorAllRecursive(t *testing.T) {
 			},
 		},
 		{
+			name: "module with empty module.source",
+			layout: []string{
+				"g:module-test",
+			},
+			source: "git::file://{{.}}/module-test?ref=main",
+			configs: []hclconfig{
+				{
+					repo: "module-test",
+					path: "module-test/main.tf",
+					data: Module(
+						Labels("test"),
+						Str("source", ""),
+					),
+				},
+			},
+			wantVendored: []string{
+				"git::file://{{.}}/module-test?ref=main",
+			},
+			wantIgnored: []wantIgnoredVendor{
+				{
+					RawSource:     "git::",
+					ReasonPattern: "reference must be non-empty",
+				},
+			},
+		},
+		{
 			name: "module with 1 remote dependency referenced multiple times in same file",
 			layout: []string{
 				"g:module-test",
