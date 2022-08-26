@@ -28,6 +28,7 @@ import (
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/mineiros-io/terramate/test/hclwrite"
+	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -44,38 +45,33 @@ func TestPartialEval(t *testing.T) {
 		wantErr error
 	}
 
-	attr := func(name, expr string) hclwrite.BlockBuilder {
-		t.Helper()
-		return hclwrite.AttributeValue(t, name, expr)
-	}
-
 	hugestr := strings.Repeat("huge ", 1000)
 	tcases := []testcase{
 		{
 			name: "unknown references on attributes",
-			config: hcldoc(
-				expr("count", "count.index"),
-				expr("data", "data.ref"),
-				expr("local", "local.ref"),
-				expr("module", "module.ref"),
-				expr("path", "path.ref"),
-				expr("resource", "resource.name.etc"),
-				expr("terraform", "terraform.ref"),
+			config: Doc(
+				Expr("count", "count.index"),
+				Expr("data", "data.ref"),
+				Expr("local", "local.ref"),
+				Expr("module", "module.ref"),
+				Expr("path", "path.ref"),
+				Expr("resource", "resource.name.etc"),
+				Expr("terraform", "terraform.ref"),
 			),
-			want: hcldoc(
-				expr("count", "count.index"),
-				expr("data", "data.ref"),
-				expr("local", "local.ref"),
-				expr("module", "module.ref"),
-				expr("path", "path.ref"),
-				expr("resource", "resource.name.etc"),
-				expr("terraform", "terraform.ref"),
+			want: Doc(
+				Expr("count", "count.index"),
+				Expr("data", "data.ref"),
+				Expr("local", "local.ref"),
+				Expr("module", "module.ref"),
+				Expr("path", "path.ref"),
+				Expr("resource", "resource.name.etc"),
+				Expr("terraform", "terraform.ref"),
 			),
 		},
 		{
 			name: "unknown references on object",
-			config: hcldoc(
-				expr("obj", `{
+			config: Doc(
+				Expr("obj", `{
 					count     = count.index,
 					data      = data.ref,
 					local     = local.ref,
@@ -85,8 +81,8 @@ func TestPartialEval(t *testing.T) {
 					terraform = terraform.ref,
 				 }`),
 			),
-			want: hcldoc(
-				expr("obj", `{
+			want: Doc(
+				Expr("obj", `{
 					count     = count.index,
 					data      = data.ref,
 					local     = local.ref,
@@ -99,19 +95,19 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "mixed references on same object",
-			globals: hcldoc(
-				globals(
-					number("ref", 666),
+			globals: Doc(
+				Globals(
+					Number("ref", 666),
 				),
 			),
-			config: hcldoc(
-				expr("obj", `{
+			config: Doc(
+				Expr("obj", `{
 					local     = local.ref,
 					global    = global.ref,
 				 }`),
 			),
-			want: hcldoc(
-				expr("obj", `{
+			want: Doc(
+				Expr("obj", `{
 					local   = local.ref,
 					global  = 666,
 				 }`),
@@ -119,46 +115,46 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "mixed references on list",
-			globals: hcldoc(
-				globals(
-					number("ref", 666),
+			globals: Doc(
+				Globals(
+					Number("ref", 666),
 				),
 			),
-			config: hcldoc(
-				expr("list", `[ local.ref, global.ref ]`),
+			config: Doc(
+				Expr("list", `[ local.ref, global.ref ]`),
 			),
-			want: hcldoc(
-				expr("list", `[ local.ref, 666 ]`),
+			want: Doc(
+				Expr("list", `[ local.ref, 666 ]`),
 			),
 		},
 		{
 			name: "try with unknown reference on attribute is not evaluated",
-			config: hcldoc(
-				expr("attr", "try(something.val, null)"),
+			config: Doc(
+				Expr("attr", "try(something.val, null)"),
 			),
-			want: hcldoc(
-				expr("attr", "try(something.val, null)"),
+			want: Doc(
+				Expr("attr", "try(something.val, null)"),
 			),
 		},
 		{
 			name: "try with unknown reference on list is not evaluated",
-			config: hcldoc(
-				expr("list", "[try(something.val, null), 1]"),
+			config: Doc(
+				Expr("list", "[try(something.val, null), 1]"),
 			),
-			want: hcldoc(
-				expr("list", "[try(something.val, null), 1]"),
+			want: Doc(
+				Expr("list", "[try(something.val, null), 1]"),
 			),
 		},
 		{
 			name: "try with unknown reference on object is not evaluated",
-			config: hcldoc(
-				expr("obj", `{
+			config: Doc(
+				Expr("obj", `{
 					a = try(something.val, null),	
 					b = "val",
 				}`),
 			),
-			want: hcldoc(
-				expr("obj", `{
+			want: Doc(
+				Expr("obj", `{
 					a = try(something.val, null),	
 					b = "val",
 				}`),
@@ -166,20 +162,20 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "variable definition with optionals",
-			config: hcldoc(
-				variable(
-					labels("with_optional_attribute"),
-					expr("type", `object({
+			config: Doc(
+				Variable(
+					Labels("with_optional_attribute"),
+					Expr("type", `object({
 					    a = string
 					    b = optional(string)
 					    c = optional(number, 1)
 					})`),
 				),
 			),
-			want: hcldoc(
-				variable(
-					labels("with_optional_attribute"),
-					expr("type", `object({
+			want: Doc(
+				Variable(
+					Labels("with_optional_attribute"),
+					Expr("type", `object({
 					    a = string
 					    b = optional(string)
 					    c = optional(number, 1)
@@ -189,25 +185,25 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "variable definition with optional default from global",
-			globals: hcldoc(
-				globals(
-					number("default", 666),
+			globals: Doc(
+				Globals(
+					Number("default", 666),
 				),
 			),
-			config: hcldoc(
-				variable(
-					labels("with_optional_attribute"),
-					expr("type", `object({
+			config: Doc(
+				Variable(
+					Labels("with_optional_attribute"),
+					Expr("type", `object({
 					    a = string
 					    b = optional(string)
 					    c = optional(number, global.default)
 					})`),
 				),
 			),
-			want: hcldoc(
-				variable(
-					labels("with_optional_attribute"),
-					expr("type", `object({
+			want: Doc(
+				Variable(
+					Labels("with_optional_attribute"),
+					Expr("type", `object({
 					    a = string
 					    b = optional(string)
 					    c = optional(number, 666)
@@ -217,157 +213,157 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "function call on attr with mixed references is partially evaluated",
-			globals: hcldoc(
-				globals(
-					attr("list", "[1, 2, 3]"),
+			globals: Doc(
+				Globals(
+					EvalExpr(t, "list", "[1, 2, 3]"),
 				),
 			),
-			config: hcldoc(
-				expr("a", "merge(something.val, global.list)"),
-				expr("b", "merge(global.list, local.list)"),
+			config: Doc(
+				Expr("a", "merge(something.val, global.list)"),
+				Expr("b", "merge(global.list, local.list)"),
 			),
-			want: hcldoc(
-				expr("a", "merge(something.val, [1, 2, 3])"),
-				expr("b", "merge([1, 2, 3], local.list)"),
+			want: Doc(
+				Expr("a", "merge(something.val, [1, 2, 3])"),
+				Expr("b", "merge([1, 2, 3], local.list)"),
 			),
 		},
 		{
 			name: "function call on obj with mixed references is partially evaluated",
-			globals: hcldoc(
-				globals(
-					attr("list", "[1, 2, 3]"),
+			globals: Doc(
+				Globals(
+					EvalExpr(t, "list", "[1, 2, 3]"),
 				),
 			),
-			config: hcldoc(
-				expr("obj", `{
+			config: Doc(
+				Expr("obj", `{
 					a = merge(something.val, global.list)
 				}`),
 			),
-			want: hcldoc(
-				expr("obj", `{
+			want: Doc(
+				Expr("obj", `{
 					a = merge(something.val, [1, 2, 3])
 				}`),
 			),
 		},
 		{
 			name: "variable interpolation of number with prefix str",
-			globals: hcldoc(
-				globals(
-					number("num", 1337),
+			globals: Doc(
+				Globals(
+					Number("num", 1337),
 				),
 			),
-			config: hcldoc(
-				str("num", `test-${global.num}`),
+			config: Doc(
+				Str("num", `test-${global.num}`),
 			),
-			want: hcldoc(
-				str("num", "test-1337"),
+			want: Doc(
+				Str("num", "test-1337"),
 			),
 		},
 		{
 			name: "variable interpolation of bool with prefixed str",
-			globals: hcldoc(
-				globals(
-					boolean("flag", true),
+			globals: Doc(
+				Globals(
+					Bool("flag", true),
 				),
 			),
-			config: hcldoc(
-				str("flag", `test-${global.flag}`),
+			config: Doc(
+				Str("flag", `test-${global.flag}`),
 			),
-			want: hcldoc(
-				str("flag", "test-true"),
+			want: Doc(
+				Str("flag", "test-true"),
 			),
 		},
 		{
 			name: "variable interpolation without prefixed string",
-			globals: hcldoc(
-				globals(
-					str("string", "hello"),
+			globals: Doc(
+				Globals(
+					Str("string", "hello"),
 				),
 			),
-			config: hcldoc(
-				str("string", `${global.string}`),
+			config: Doc(
+				Str("string", `${global.string}`),
 			),
-			want: hcldoc(
-				str("string", "hello"),
+			want: Doc(
+				Str("string", "hello"),
 			),
 		},
 		{
 			name: "variable interpolation with prefixed string",
-			globals: hcldoc(
-				globals(
-					str("string", "hello"),
+			globals: Doc(
+				Globals(
+					Str("string", "hello"),
 				),
 			),
-			config: hcldoc(
-				str("string", `test-${global.string}`),
+			config: Doc(
+				Str("string", `test-${global.string}`),
 			),
-			want: hcldoc(
-				str("string", "test-hello"),
+			want: Doc(
+				Str("string", "test-hello"),
 			),
 		},
 		{
 			name: "variable interpolation with suffixed string",
-			globals: hcldoc(
-				globals(
-					str("string", "hello"),
+			globals: Doc(
+				Globals(
+					Str("string", "hello"),
 				),
 			),
-			config: hcldoc(
-				str("string", `${global.string}-test`),
+			config: Doc(
+				Str("string", `${global.string}-test`),
 			),
-			want: hcldoc(
-				str("string", "hello-test"),
+			want: Doc(
+				Str("string", "hello-test"),
 			),
 		},
 		{
 			name: "multiple variable interpolation with prefixed string",
-			globals: globals(
-				str("string1", "hello1"),
-				str("string2", "hello2"),
+			globals: Globals(
+				Str("string1", "hello1"),
+				Str("string2", "hello2"),
 			),
-			config: hcldoc(
-				str("string", `something ${global.string1} and ${global.string2}`),
+			config: Doc(
+				Str("string", `something ${global.string1} and ${global.string2}`),
 			),
-			want: hcldoc(
-				str("string", "something hello1 and hello2"),
+			want: Doc(
+				Str("string", "something hello1 and hello2"),
 			),
 		},
 		{
 			name: "multiple variable interpolation without prefixed string",
-			globals: hcldoc(
-				globals(
-					str("string1", "hello1"),
-					str("string2", "hello2"),
+			globals: Doc(
+				Globals(
+					Str("string1", "hello1"),
+					Str("string2", "hello2"),
 				),
 			),
-			config: hcldoc(
-				str("string", `${global.string1}${global.string2}`),
+			config: Doc(
+				Str("string", `${global.string1}${global.string2}`),
 			),
-			want: hcldoc(
-				str("string", "hello1hello2"),
+			want: Doc(
+				Str("string", "hello1hello2"),
 			),
 		},
 		{
 			// Here we check that an interpolated object results on the object itself, not a string.
 			name: "object interpolation/serialization",
-			globals: globals(
-				expr("obj", `{
+			globals: Globals(
+				Expr("obj", `{
 					string = "hello"
 					number = 1337
 					bool = false
 				}`),
 			),
-			config: hcldoc(
-				expr("obj", "global.obj"),
-				str("obj_interpolated", "${global.obj}"),
+			config: Doc(
+				Expr("obj", "global.obj"),
+				Str("obj_interpolated", "${global.obj}"),
 			),
-			want: hcldoc(
-				expr("obj", `{
+			want: Doc(
+				Expr("obj", `{
 					bool = false
 					number = 1337
 					string = "hello"
 				}`),
-				expr("obj_interpolated", `{
+				Expr("obj_interpolated", `{
 					bool = false
 					number = 1337
 					string = "hello"
@@ -376,267 +372,267 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "interpolating multiple objects fails",
-			globals: globals(
-				expr("obj", `{ string = "hello" }`),
+			globals: Globals(
+				Expr("obj", `{ string = "hello" }`),
 			),
-			config: hcldoc(
-				str("a", "${global.obj}-${global.obj}"),
+			config: Doc(
+				Str("a", "${global.obj}-${global.obj}"),
 			),
 			wantErr: errors.E(eval.ErrInterpolation),
 		},
 		{
 			name: "interpolating object with prefix space fails",
-			globals: globals(
-				expr("obj", `{ string = "hello" }`),
+			globals: Globals(
+				Expr("obj", `{ string = "hello" }`),
 			),
-			config: hcldoc(
-				str("a", " ${global.obj}"),
+			config: Doc(
+				Str("a", " ${global.obj}"),
 			),
 			wantErr: errors.E(eval.ErrInterpolation),
 		},
 		{
 			name: "interpolating object with suffix space fails",
-			globals: globals(
-				expr("obj", `{ string = "hello" }`),
+			globals: Globals(
+				Expr("obj", `{ string = "hello" }`),
 			),
-			config: hcldoc(
-				str("a", "${global.obj} "),
+			config: Doc(
+				Str("a", "${global.obj} "),
 			),
 			wantErr: errors.E(eval.ErrInterpolation),
 		},
 		{
 			name: "interpolating multiple lists fails",
-			globals: globals(
-				expr("list", `["hello"]`),
+			globals: Globals(
+				Expr("list", `["hello"]`),
 			),
-			config: hcldoc(
-				str("a", "${global.list}-${global.list}"),
+			config: Doc(
+				Str("a", "${global.list}-${global.list}"),
 			),
 			wantErr: errors.E(eval.ErrInterpolation),
 		},
 		{
 			name: "interpolating list with prefix space fails",
-			globals: globals(
-				expr("list", `["hello"]`),
+			globals: Globals(
+				Expr("list", `["hello"]`),
 			),
-			config: hcldoc(
-				str("a", " ${global.list}"),
+			config: Doc(
+				Str("a", " ${global.list}"),
 			),
 			wantErr: errors.E(eval.ErrInterpolation),
 		},
 		{
 			name: "interpolating list with suffix space fails",
-			globals: globals(
-				expr("list", `["hello"]`),
+			globals: Globals(
+				Expr("list", `["hello"]`),
 			),
-			config: hcldoc(
-				str("a", "${global.list} "),
+			config: Doc(
+				Str("a", "${global.list} "),
 			),
 			wantErr: errors.E(eval.ErrInterpolation),
 		},
 		{
 			// Here we check that a interpolated lists results on the list itself, not a string.
 			name: "list interpolation/serialization",
-			globals: globals(
-				expr("list", `["hi"]`),
+			globals: Globals(
+				Expr("list", `["hi"]`),
 			),
-			config: hcldoc(
-				expr("list", "global.list"),
-				str("list_interpolated", "${global.list}"),
+			config: Doc(
+				Expr("list", "global.list"),
+				Str("list_interpolated", "${global.list}"),
 			),
-			want: hcldoc(
-				expr("list", `["hi"]`),
-				expr("list_interpolated", `["hi"]`),
+			want: Doc(
+				Expr("list", `["hi"]`),
+				Expr("list_interpolated", `["hi"]`),
 			),
 		},
 		{
 			// Here we check that a interpolated number results on the number itself, not a string.
 			name: "number interpolation/serialization",
-			globals: globals(
-				number("number", 666),
+			globals: Globals(
+				Number("number", 666),
 			),
-			config: hcldoc(
-				expr("number", "global.number"),
-				str("number_interpolated", "${global.number}"),
+			config: Doc(
+				Expr("number", "global.number"),
+				Str("number_interpolated", "${global.number}"),
 			),
-			want: hcldoc(
-				number("number", 666),
-				number("number_interpolated", 666),
+			want: Doc(
+				Number("number", 666),
+				Number("number_interpolated", 666),
 			),
 		},
 		{
 			// Here we check that multiple interpolated numbers results on a string.
 			name: "multiple numbers interpolation/serialization",
-			globals: globals(
-				number("number", 666),
+			globals: Globals(
+				Number("number", 666),
 			),
-			config: hcldoc(
-				expr("number", "global.number"),
-				str("number_interpolated", "${global.number}-${global.number}"),
+			config: Doc(
+				Expr("number", "global.number"),
+				Str("number_interpolated", "${global.number}-${global.number}"),
 			),
-			want: hcldoc(
-				number("number", 666),
-				str("number_interpolated", "666-666"),
+			want: Doc(
+				Number("number", 666),
+				Str("number_interpolated", "666-666"),
 			),
 		},
 		{
 			// Here we check that a interpolated booleans results on the boolean itself, not a string.
 			name: "boolean interpolation/serialization",
-			globals: globals(
-				boolean("bool", true),
+			globals: Globals(
+				Bool("bool", true),
 			),
-			config: hcldoc(
-				expr("bool", "global.bool"),
-				str("bool_interpolated", "${global.bool}"),
+			config: Doc(
+				Expr("bool", "global.bool"),
+				Str("bool_interpolated", "${global.bool}"),
 			),
-			want: hcldoc(
-				boolean("bool", true),
-				boolean("bool_interpolated", true),
+			want: Doc(
+				Bool("bool", true),
+				Bool("bool_interpolated", true),
 			),
 		},
 		{
 			// Here we check that multiple interpolated booleans results on a string.
 			name: "multiple booleans interpolation/serialization",
-			globals: globals(
-				boolean("bool", true),
+			globals: Globals(
+				Bool("bool", true),
 			),
-			config: hcldoc(
-				expr("bool", "global.bool"),
-				str("bool_interpolated", "${global.bool}-${global.bool}"),
+			config: Doc(
+				Expr("bool", "global.bool"),
+				Str("bool_interpolated", "${global.bool}-${global.bool}"),
 			),
-			want: hcldoc(
-				boolean("bool", true),
-				str("bool_interpolated", "true-true"),
+			want: Doc(
+				Bool("bool", true),
+				Str("bool_interpolated", "true-true"),
 			),
 		},
 		{
 			name: "test list - just to see how hcl lib serializes a list // remove me",
-			globals: hcldoc(
-				globals(
-					expr("list", `[1, 2, 3]`),
-					str("interp", "${global.list}"),
+			globals: Doc(
+				Globals(
+					Expr("list", `[1, 2, 3]`),
+					Str("interp", "${global.list}"),
 				),
 			),
-			config: hcldoc(
-				str("var", "${global.interp}"),
+			config: Doc(
+				Str("var", "${global.interp}"),
 			),
-			want: hcldoc(
-				expr("var", "[1, 2, 3]"),
+			want: Doc(
+				Expr("var", "[1, 2, 3]"),
 			),
 		},
 		{
 			name: "variable list interpolation/serialization in a string",
-			globals: hcldoc(
-				globals(
-					expr("list", `[1, 2, 3]`),
+			globals: Doc(
+				Globals(
+					Expr("list", `[1, 2, 3]`),
 				),
 			),
-			config: hcldoc(
-				str("var", "${global.list}"),
+			config: Doc(
+				Str("var", "${global.list}"),
 			),
-			want: hcldoc(
-				expr("var", "[1, 2, 3]"),
+			want: Doc(
+				Expr("var", "[1, 2, 3]"),
 			),
 		},
 		{
 			name: "basic plus expression",
-			config: hcldoc(
-				expr("var", `1 + 1`),
+			config: Doc(
+				Expr("var", `1 + 1`),
 			),
-			want: hcldoc(
-				expr("var", `1 + 1`),
+			want: Doc(
+				Expr("var", `1 + 1`),
 			),
 		},
 		{
 			name: "plus expression funcall",
-			config: hcldoc(
-				expr("var", `len(a.b) + len2(c.d)`),
+			config: Doc(
+				Expr("var", `len(a.b) + len2(c.d)`),
 			),
-			want: hcldoc(
-				expr("var", `len(a.b) + len2(c.d)`),
+			want: Doc(
+				Expr("var", `len(a.b) + len2(c.d)`),
 			),
 		},
 		{
 			name: "plus expression evaluated",
-			globals: hcldoc(
-				globals(
-					str("a", "hello"),
-					str("b", "world"),
+			globals: Doc(
+				Globals(
+					Str("a", "hello"),
+					Str("b", "world"),
 				),
 			),
-			config: hcldoc(
-				expr("var", `tm_upper(global.a) + tm_upper(global.b)`),
+			config: Doc(
+				Expr("var", `tm_upper(global.a) + tm_upper(global.b)`),
 			),
-			want: hcldoc(
-				expr("var", `"HELLO" + "WORLD"`),
+			want: Doc(
+				Expr("var", `"HELLO" + "WORLD"`),
 			),
 		},
 		{
 			name: "plus expression evaluated advanced",
-			globals: hcldoc(
-				globals(
-					str("a", "hello"),
-					str("b", "world"),
+			globals: Doc(
+				Globals(
+					Str("a", "hello"),
+					Str("b", "world"),
 				),
 			),
-			config: hcldoc(
-				expr("var", `tm_lower(tm_upper(global.a)) + tm_lower(tm_upper(global.b))`),
+			config: Doc(
+				Expr("var", `tm_lower(tm_upper(global.a)) + tm_lower(tm_upper(global.b))`),
 			),
-			want: hcldoc(
-				expr("var", `"hello" + "world"`),
+			want: Doc(
+				Expr("var", `"hello" + "world"`),
 			),
 		},
 		{
 			name: "basic minus expression",
-			config: hcldoc(
-				expr("var", `1 + 1`),
+			config: Doc(
+				Expr("var", `1 + 1`),
 			),
-			want: hcldoc(
-				expr("var", `1 + 1`),
+			want: Doc(
+				Expr("var", `1 + 1`),
 			),
 		},
 		{
 			name: "conditional expression",
-			config: hcldoc(
-				expr("var", `1 == 1 ? 0 : 1`),
+			config: Doc(
+				Expr("var", `1 == 1 ? 0 : 1`),
 			),
-			want: hcldoc(
-				expr("var", `1 == 1 ? 0 : 1`),
+			want: Doc(
+				Expr("var", `1 == 1 ? 0 : 1`),
 			),
 		},
 		{
 			name: "conditional expression 2",
-			globals: hcldoc(
-				globals(
-					number("num", 10),
+			globals: Doc(
+				Globals(
+					Number("num", 10),
 				),
 			),
-			config: hcldoc(
-				expr("var", `1 >= global.num ? local.x : [for x in local.a : x]`),
+			config: Doc(
+				Expr("var", `1 >= global.num ? local.x : [for x in local.a : x]`),
 			),
-			want: hcldoc(
-				expr("var", `1 >= 10 ? local.x : [for x in local.a : x]`),
+			want: Doc(
+				Expr("var", `1 >= 10 ? local.x : [for x in local.a : x]`),
 			),
 		},
 		{
 			name: "operation + conditional expression",
-			globals: hcldoc(
-				globals(
-					number("num", 10),
+			globals: Doc(
+				Globals(
+					Number("num", 10),
 				),
 			),
-			config: hcldoc(
-				expr("var", `local.x + 1 >= global.num ? local.x : [for x in local.a : x]`),
+			config: Doc(
+				Expr("var", `local.x + 1 >= global.num ? local.x : [for x in local.a : x]`),
 			),
-			want: hcldoc(
-				expr("var", `local.x + 1 >= 10 ? local.x : [for x in local.a : x]`),
+			want: Doc(
+				Expr("var", `local.x + 1 >= 10 ? local.x : [for x in local.a : x]`),
 			),
 		},
 		{
 			name: "deep object interpolation",
-			globals: hcldoc(
-				globals(
-					expr("obj", `{
+			globals: Doc(
+				Globals(
+					Expr("obj", `{
 						obj2 = {
 							obj3 = {
 								string = "hello"
@@ -650,18 +646,18 @@ func TestPartialEval(t *testing.T) {
 					}`),
 				),
 			),
-			config: hcldoc(
-				str("var", "${global.obj.string} ${global.obj.obj2.obj3.number}"),
+			config: Doc(
+				Str("var", "${global.obj.string} ${global.obj.obj2.obj3.number}"),
 			),
-			want: hcldoc(
-				str("var", "hello 1337"),
+			want: Doc(
+				Str("var", "hello 1337"),
 			),
 		},
 		{
 			name: "deep object interpolation of object field and str field fails",
-			globals: hcldoc(
-				globals(
-					expr("obj", `{
+			globals: Doc(
+				Globals(
+					Expr("obj", `{
 						obj2 = {
 							obj3 = {
 								string = "hello"
@@ -675,675 +671,675 @@ func TestPartialEval(t *testing.T) {
 					}`),
 				),
 			),
-			config: hcldoc(
-				str("var", "${global.obj.string} ${global.obj.obj2.obj3}"),
+			config: Doc(
+				Str("var", "${global.obj.string} ${global.obj.obj2.obj3}"),
 			),
 			wantErr: errors.E(eval.ErrInterpolation),
 		},
 		{
 			name: "basic list indexing",
-			globals: hcldoc(
-				globals(
-					expr("list", `["a", "b", "c"]`),
+			globals: Doc(
+				Globals(
+					Expr("list", `["a", "b", "c"]`),
 				),
 			),
-			config: hcldoc(
-				expr("string", `global.list[0]`),
+			config: Doc(
+				Expr("string", `global.list[0]`),
 			),
-			want: hcldoc(
-				str("string", "a"),
+			want: Doc(
+				Str("string", "a"),
 			),
 		},
 		{
 			name: "advanced list indexing",
-			globals: hcldoc(
-				globals(
-					expr("list", `[ [1, 2, 3], [4, 5, 6], [7, 8, 9]]`),
+			globals: Doc(
+				Globals(
+					Expr("list", `[ [1, 2, 3], [4, 5, 6], [7, 8, 9]]`),
 				),
 			),
-			config: hcldoc(
-				expr("num", `global.list[1][1]`),
+			config: Doc(
+				Expr("num", `global.list[1][1]`),
 			),
-			want: hcldoc(
-				number("num", 5),
+			want: Doc(
+				Number("num", 5),
 			),
 		},
 		{
 			name: "advanced list indexing 2",
-			globals: hcldoc(
-				globals(
-					expr("list", `[ [1, 2, 3], [4, 5, 6], [7, 8, 9]]`),
+			globals: Doc(
+				Globals(
+					Expr("list", `[ [1, 2, 3], [4, 5, 6], [7, 8, 9]]`),
 				),
 			),
-			config: hcldoc(
-				expr("num", `global.list[1+1][1-1]`),
+			config: Doc(
+				Expr("num", `global.list[1+1][1-1]`),
 			),
-			want: hcldoc(
-				number("num", 7),
+			want: Doc(
+				Number("num", 7),
 			),
 		},
 		{
 			name: "advanced object indexing",
-			globals: hcldoc(
-				globals(
-					expr("obj", `{A = {B = "test"}}`),
+			globals: Doc(
+				Globals(
+					Expr("obj", `{A = {B = "test"}}`),
 				),
 			),
-			config: hcldoc(
-				expr("string", `global.obj[tm_upper("a")][tm_upper("b")]`),
+			config: Doc(
+				Expr("string", `global.obj[tm_upper("a")][tm_upper("b")]`),
 			),
-			want: hcldoc(
-				str("string", "test"),
+			want: Doc(
+				Str("string", "test"),
 			),
 		},
 		{
 			name: "basic object indexing",
-			globals: hcldoc(
-				globals(
-					expr("obj", `{"a" = "b"}`),
+			globals: Doc(
+				Globals(
+					Expr("obj", `{"a" = "b"}`),
 				),
 			),
-			config: hcldoc(
-				expr("string", `global.obj["a"]`),
+			config: Doc(
+				Expr("string", `global.obj["a"]`),
 			),
-			want: hcldoc(
-				str("string", "b"),
+			want: Doc(
+				Str("string", "b"),
 			),
 		},
 		{
 			name: "indexing of outside variables",
-			globals: hcldoc(
-				globals(
-					number("depth", 1),
+			globals: Doc(
+				Globals(
+					Number("depth", 1),
 				),
 			),
-			config: hcldoc(
-				expr("folder_id", `data.google_active_folder[global.depth].0.id`),
+			config: Doc(
+				Expr("folder_id", `data.google_active_folder[global.depth].0.id`),
 			),
-			want: hcldoc(
-				expr("folder_id", `data.google_active_folder[1].0.id`),
+			want: Doc(
+				Expr("folder_id", `data.google_active_folder[1].0.id`),
 			),
 		},
 		{
 			name: "indexing of outside variables with interpolation of single var",
-			globals: hcldoc(
-				globals(
-					number("depth", 1),
+			globals: Doc(
+				Globals(
+					Number("depth", 1),
 				),
 			),
-			config: hcldoc(
-				expr("folder_id", `data.google_active_folder["${global.depth}"].0.id`),
+			config: Doc(
+				Expr("folder_id", `data.google_active_folder["${global.depth}"].0.id`),
 			),
-			want: hcldoc(
-				expr("folder_id", `data.google_active_folder[1].0.id`),
+			want: Doc(
+				Expr("folder_id", `data.google_active_folder[1].0.id`),
 			),
 		},
 		{
 			name: "indexing of outside variables with interpolation",
-			globals: hcldoc(
-				globals(
-					number("depth", 1),
+			globals: Doc(
+				Globals(
+					Number("depth", 1),
 				),
 			),
-			config: hcldoc(
-				expr("folder_id", `data.google_active_folder["l${global.depth}"].0.id`),
+			config: Doc(
+				Expr("folder_id", `data.google_active_folder["l${global.depth}"].0.id`),
 			),
-			want: hcldoc(
-				expr("folder_id", `data.google_active_folder["l1"].0.id`),
+			want: Doc(
+				Expr("folder_id", `data.google_active_folder["l1"].0.id`),
 			),
 		},
 		{
 			name: "outside variable with splat operator",
-			config: hcldoc(
-				expr("folder_id", `data.test[*].0.id`),
+			config: Doc(
+				Expr("folder_id", `data.test[*].0.id`),
 			),
-			want: hcldoc(
-				expr("folder_id", `data.test[*].0.id`),
+			want: Doc(
+				Expr("folder_id", `data.test[*].0.id`),
 			),
 		},
 		{
 			name: "outside variable with splat getattr operator",
-			config: hcldoc(
-				expr("folder_id", `data.test.*.0.id`),
+			config: Doc(
+				Expr("folder_id", `data.test.*.0.id`),
 			),
-			want: hcldoc(
-				expr("folder_id", `data.test.*.0.id`),
+			want: Doc(
+				Expr("folder_id", `data.test.*.0.id`),
 			),
 		},
 		{
 			name: "multiple indexing",
-			config: hcldoc(
-				expr("a", `data.test[0][0][0]`),
+			config: Doc(
+				Expr("a", `data.test[0][0][0]`),
 			),
-			want: hcldoc(
-				expr("a", `data.test[0][0][0]`),
+			want: Doc(
+				Expr("a", `data.test[0][0][0]`),
 			),
 		},
 		{
 			name: "multiple indexing with evaluation",
-			globals: hcldoc(
-				globals(
-					number("val", 1),
+			globals: Doc(
+				Globals(
+					Number("val", 1),
 				),
 			),
-			config: hcldoc(
-				expr("a", `data.test[global.val][0][0]`),
+			config: Doc(
+				Expr("a", `data.test[global.val][0][0]`),
 			),
-			want: hcldoc(
-				expr("a", `data.test[1][0][0]`),
+			want: Doc(
+				Expr("a", `data.test[1][0][0]`),
 			),
 		},
 		{
 			name: "multiple indexing with evaluation 2",
-			globals: hcldoc(
-				globals(
-					number("val", 1),
+			globals: Doc(
+				Globals(
+					Number("val", 1),
 				),
 			),
-			config: hcldoc(
-				expr("a", `data.test[0][global.val][global.val+1]`),
+			config: Doc(
+				Expr("a", `data.test[0][global.val][global.val+1]`),
 			),
-			want: hcldoc(
-				expr("a", `data.test[0][1][1+1]`),
+			want: Doc(
+				Expr("a", `data.test[0][1][1+1]`),
 			),
 		},
 		{
 			name: "nested indexing",
-			globals: hcldoc(
-				globals(
-					expr("obj", `{
+			globals: Doc(
+				Globals(
+					Expr("obj", `{
 						key = {
 							key2 = {
 								val = "hello"
 							}
 						}
 					}`),
-					expr("obj2", `{
+					Expr("obj2", `{
 						keyname = "key"
 					}`),
-					expr("key", `{
+					Expr("key", `{
 						key2 = "keyname"
 					}`),
-					str("key2", "key2"),
+					Str("key2", "key2"),
 				),
 			),
-			config: hcldoc(
-				expr("hello", `global.obj[global.obj2[global.key[global.key2]]][global.key2]["val"]`),
+			config: Doc(
+				Expr("hello", `global.obj[global.obj2[global.key[global.key2]]][global.key2]["val"]`),
 			),
-			want: hcldoc(
-				str("hello", "hello"),
+			want: Doc(
+				Str("hello", "hello"),
 			),
 		},
 		{
 			name: "obj for loop without eval references",
-			config: hcldoc(
-				expr("obj", `{for k in local.list : k => k}`),
+			config: Doc(
+				Expr("obj", `{for k in local.list : k => k}`),
 			),
-			want: hcldoc(
-				expr("obj", `{for k in local.list : k => k}`),
+			want: Doc(
+				Expr("obj", `{for k in local.list : k => k}`),
 			),
 		},
 		{
 			name: "list for loop without eval references",
-			config: hcldoc(
-				expr("obj", `[for k in local.list : k]`),
+			config: Doc(
+				Expr("obj", `[for k in local.list : k]`),
 			),
-			want: hcldoc(
-				expr("obj", `[for k in local.list : k]`),
+			want: Doc(
+				Expr("obj", `[for k in local.list : k]`),
 			),
 		},
 		{
 			name: "{for loop from map and funcall",
-			config: hcldoc(
-				expr("obj", `{for s in var.list : s => upper(s)}`),
+			config: Doc(
+				Expr("obj", `{for s in var.list : s => upper(s)}`),
 			),
-			want: hcldoc(
-				expr("obj", `{for s in var.list : s => upper(s)}`),
+			want: Doc(
+				Expr("obj", `{for s in var.list : s => upper(s)}`),
 			),
 		},
 		{
 			name: "{for in from {for map",
-			config: hcldoc(
-				expr("obj", `{for k, v in {for k,v in a.b : k=>v} : k => v}`),
+			config: Doc(
+				Expr("obj", `{for k, v in {for k,v in a.b : k=>v} : k => v}`),
 			),
-			want: hcldoc(
-				expr("obj", `{for k, v in {for k,v in a.b : k=>v} : k => v}`),
+			want: Doc(
+				Expr("obj", `{for k, v in {for k,v in a.b : k=>v} : k => v}`),
 			),
 		},
 		{
 			name: "[for with funcall",
-			config: hcldoc(
-				expr("obj", `[for s in var.list : upper(s)]`),
+			config: Doc(
+				Expr("obj", `[for s in var.list : upper(s)]`),
 			),
-			want: hcldoc(
-				expr("obj", `[for s in var.list : upper(s)]`),
+			want: Doc(
+				Expr("obj", `[for s in var.list : upper(s)]`),
 			),
 		},
 		{
 			name: "[for in from map and Operation body",
-			config: hcldoc(
-				expr("obj", `[for k, v in var.map : length(k) + length(v)]`),
+			config: Doc(
+				Expr("obj", `[for k, v in var.map : length(k) + length(v)]`),
 			),
-			want: hcldoc(
-				expr("obj", `[for k, v in var.map : length(k) + length(v)]`),
+			want: Doc(
+				Expr("obj", `[for k, v in var.map : length(k) + length(v)]`),
 			),
 		},
 		{
 			name: "[for in from map and interpolation body",
-			config: hcldoc(
-				expr("obj", `[for i, v in var.list : "${i} is ${v}"]`),
+			config: Doc(
+				Expr("obj", `[for i, v in var.list : "${i} is ${v}"]`),
 			),
-			want: hcldoc(
-				expr("obj", `[for i, v in var.list : "${i} is ${v}"]`),
+			want: Doc(
+				Expr("obj", `[for i, v in var.list : "${i} is ${v}"]`),
 			),
 		},
 		{
 			name: "[for in from map with conditional body",
-			config: hcldoc(
-				expr("obj", `[for s in var.list : upper(s) if s != ""]`),
+			config: Doc(
+				Expr("obj", `[for s in var.list : upper(s) if s != ""]`),
 			),
-			want: hcldoc(
-				expr("obj", `[for s in var.list : upper(s) if s != ""]`),
+			want: Doc(
+				Expr("obj", `[for s in var.list : upper(s) if s != ""]`),
 			),
 		},
 		{
 			name: "[for in from [for list",
-			config: hcldoc(
-				expr("obj", `[for s in [for s in a.b : s] : s]`),
+			config: Doc(
+				Expr("obj", `[for s in [for s in a.b : s] : s]`),
 			),
-			want: hcldoc(
-				expr("obj", `[for s in [for s in a.b : s] : s]`),
+			want: Doc(
+				Expr("obj", `[for s in [for s in a.b : s] : s]`),
 			),
 		},
 		{
 			name: "list for loop with global reference fails",
-			globals: globals(
-				expr("list", `["a", "b", "c"]`),
+			globals: Globals(
+				Expr("list", `["a", "b", "c"]`),
 			),
-			config: hcldoc(
-				expr("list", `[for k in global.list : k]`),
+			config: Doc(
+				Expr("list", `[for k in global.list : k]`),
 			),
 			wantErr: errors.E(eval.ErrForExprDisallowEval),
 		},
 		{
 			name: "obj for loop with global reference fails",
-			globals: globals(
-				expr("obj", `{ a = 1}`),
+			globals: Globals(
+				Expr("obj", `{ a = 1}`),
 			),
-			config: hcldoc(
-				expr("obj", `[for k in global.obj : k]`),
+			config: Doc(
+				Expr("obj", `[for k in global.obj : k]`),
 			),
 			wantErr: errors.E(eval.ErrForExprDisallowEval),
 		},
 		{
 			name: "[for in from [for list with global references",
-			globals: globals(
-				expr("list", `["a", "b", "c"]`),
+			globals: Globals(
+				Expr("list", `["a", "b", "c"]`),
 			),
-			config: hcldoc(
-				expr("obj", `[for s in [for s in global.list : s] : s]`),
+			config: Doc(
+				Expr("obj", `[for s in [for s in global.list : s] : s]`),
 			),
 			wantErr: errors.E(eval.ErrForExprDisallowEval),
 		},
 		{
 			name: "mixing {for and [for",
-			config: hcldoc(
-				expr("obj", `{for k, v in [for k in a.b : k] : k => v}`),
+			config: Doc(
+				Expr("obj", `{for k, v in [for k in a.b : k] : k => v}`),
 			),
-			want: hcldoc(
-				expr("obj", `{for k, v in [for k in a.b : k] : k => v}`),
+			want: Doc(
+				Expr("obj", `{for k, v in [for k in a.b : k] : k => v}`),
 			),
 		},
 		{
 			name: "unary operation !",
-			config: hcldoc(
-				expr("num", "!0"),
+			config: Doc(
+				Expr("num", "!0"),
 			),
-			want: hcldoc(
-				expr("num", "!0"),
+			want: Doc(
+				Expr("num", "!0"),
 			),
 		},
 		{
 			name: "unary operation -",
-			config: hcldoc(
-				expr("num", "-0"),
+			config: Doc(
+				Expr("num", "-0"),
 			),
-			want: hcldoc(
-				expr("num", "-0"),
+			want: Doc(
+				Expr("num", "-0"),
 			),
 		},
 		{
 			name: "number indexing",
-			config: hcldoc(
-				expr("a", "b.1000"),
+			config: Doc(
+				Expr("a", "b.1000"),
 			),
-			want: hcldoc(
-				expr("a", "b.1000"),
-			),
-		},
-		{
-			name: "advanced number literal",
-			config: hcldoc(
-				expr("a", "10.1200"),
-			),
-			want: hcldoc(
-				expr("a", "10.1200"),
+			want: Doc(
+				Expr("a", "b.1000"),
 			),
 		},
 		{
 			name: "advanced number literal",
-			config: hcldoc(
-				expr("a", "0.0.A.0"),
+			config: Doc(
+				Expr("a", "10.1200"),
 			),
-			want: hcldoc(
-				expr("a", "0.0.A.0"),
+			want: Doc(
+				Expr("a", "10.1200"),
+			),
+		},
+		{
+			name: "advanced number literal",
+			config: Doc(
+				Expr("a", "0.0.A.0"),
+			),
+			want: Doc(
+				Expr("a", "0.0.A.0"),
 			),
 		},
 		{
 			name: "parenthesis and splat with newlines",
-			config: hcldoc(
-				expr("a", "(A(). \n*)"),
+			config: Doc(
+				Expr("a", "(A(). \n*)"),
 			),
-			want: hcldoc(
-				expr("a", "(A(). \n*)"),
+			want: Doc(
+				Expr("a", "(A(). \n*)"),
 			),
 		},
 		{
 			name: "funcall and newlines/comments",
-			config: hcldoc(
-				expr("a", "funcall(\n/**/a\n/**/,/**/b/**/\n/**/)"),
+			config: Doc(
+				Expr("a", "funcall(\n/**/a\n/**/,/**/b/**/\n/**/)"),
 			),
-			want: hcldoc(
-				expr("a", "funcall(\n/**/a\n/**/,/**/b/**/\n/**/)"),
+			want: Doc(
+				Expr("a", "funcall(\n/**/a\n/**/,/**/b/**/\n/**/)"),
 			),
 		},
 		{
 			name: "tm_ funcall and newlines/comments",
-			config: hcldoc(
-				expr("a", "tm_try(\n/**/a\n/**/,/**/b, null/**/\n/**/)"),
+			config: Doc(
+				Expr("a", "tm_try(\n/**/a\n/**/,/**/b, null/**/\n/**/)"),
 			),
-			want: hcldoc(
-				expr("a", "null"),
+			want: Doc(
+				Expr("a", "null"),
 			),
 		},
 		{
 			name: "objects and newlines/comments",
-			config: hcldoc(
-				expr("a", "{/**/\n/**/a/**/=/**/\"a\"/**/\n}"),
+			config: Doc(
+				Expr("a", "{/**/\n/**/a/**/=/**/\"a\"/**/\n}"),
 			),
-			want: hcldoc(
-				expr("a", "{/**/\n/**/a/**/=/**/\"a\"/**/\n}"),
+			want: Doc(
+				Expr("a", "{/**/\n/**/a/**/=/**/\"a\"/**/\n}"),
 			),
 		},
 		{
 			name: "lists and newlines/comments",
-			config: hcldoc(
-				expr("a", "[/**/\n/**/a/**/\n,\"a\"/**/\n]"),
+			config: Doc(
+				Expr("a", "[/**/\n/**/a/**/\n,\"a\"/**/\n]"),
 			),
-			want: hcldoc(
-				expr("a", "[/**/\n/**/a/**/\n,\"a\"/**/\n]"),
+			want: Doc(
+				Expr("a", "[/**/\n/**/a/**/\n,\"a\"/**/\n]"),
 			),
 		},
 		{
 			name: "conditional globals evaluation",
-			globals: globals(
-				str("domain", "mineiros.io"),
-				boolean("exists", true),
+			globals: Globals(
+				Str("domain", "mineiros.io"),
+				Bool("exists", true),
 			),
-			config: hcldoc(
-				expr("a", `global.exists ? global.domain : "example.com"`),
+			config: Doc(
+				Expr("a", `global.exists ? global.domain : "example.com"`),
 			),
-			want: hcldoc(
-				expr("a", `true ? "mineiros.io" : "example.com"`),
+			want: Doc(
+				Expr("a", `true ? "mineiros.io" : "example.com"`),
 			),
 		},
 		{
 			name: "evaluated empty string in the prefix",
-			config: hcldoc(
-				expr("a", "\"${tm_replace(0,\"0\",\"\")}0\""),
+			config: Doc(
+				Expr("a", "\"${tm_replace(0,\"0\",\"\")}0\""),
 			),
-			want: hcldoc(
-				expr("a", "\"0\""),
+			want: Doc(
+				Expr("a", "\"0\""),
 			),
 		},
 		{
 			name: "evaluated empty string in the suffix",
-			config: hcldoc(
-				expr("a", "\"0${tm_replace(0,\"0\",\"\")}\""),
+			config: Doc(
+				Expr("a", "\"0${tm_replace(0,\"0\",\"\")}\""),
 			),
-			want: hcldoc(
-				expr("a", "\"0\""),
+			want: Doc(
+				Expr("a", "\"0\""),
 			),
 		},
 		{
 			name: "evaluated funcall with newlines prefix",
-			config: hcldoc(
-				expr("a", "\"${\ntm_replace(0,0,\"\")}0\""),
+			config: Doc(
+				Expr("a", "\"${\ntm_replace(0,0,\"\")}0\""),
 			),
-			want: hcldoc(
-				expr("a", "\"0\""),
+			want: Doc(
+				Expr("a", "\"0\""),
 			),
 		},
 		{
 			name: "evaluated funcall with newlines suffix",
-			config: hcldoc(
-				expr("a", "\"${tm_replace(0,0,\"\")\n}0\""),
+			config: Doc(
+				Expr("a", "\"${tm_replace(0,0,\"\")\n}0\""),
 			),
-			want: hcldoc(
-				expr("a", "\"0\""),
+			want: Doc(
+				Expr("a", "\"0\""),
 			),
 		},
 		{
 			name: "lists and newlines/comments",
-			config: hcldoc(
-				expr("a", "[/**/\n/**/1/**/\n/**/,/**/\n/**/2/**/\n]"),
+			config: Doc(
+				Expr("a", "[/**/\n/**/1/**/\n/**/,/**/\n/**/2/**/\n]"),
 			),
-			want: hcldoc(
-				expr("a", "[/**/\n/**/1/**/\n/**/,/**/\n/**/2/**/\n]"),
+			want: Doc(
+				Expr("a", "[/**/\n/**/1/**/\n/**/,/**/\n/**/2/**/\n]"),
 			),
 		},
 		{
 			name: "interpolation advanced 1",
-			globals: globals(
-				str("a", "1"),
+			globals: Globals(
+				Str("a", "1"),
 			),
-			config: hcldoc(
-				str("a", "0${tm_try(global.a)}2"),
+			config: Doc(
+				Str("a", "0${tm_try(global.a)}2"),
 			),
-			want: hcldoc(
-				str("a", "012"),
+			want: Doc(
+				Str("a", "012"),
 			),
 		},
 		{
 			name: "escaped interpolation with global reference",
-			config: hcldoc(
-				str("string", `$${global.string}`),
+			config: Doc(
+				Str("string", `$${global.string}`),
 			),
-			want: hcldoc(
-				str("string", "$${global.string}"),
+			want: Doc(
+				Str("string", "$${global.string}"),
 			),
 		},
 		{
 			name: "escaped interpolation with attr",
-			config: hcldoc(
-				str("string", `$${hi}`),
+			config: Doc(
+				Str("string", `$${hi}`),
 			),
-			want: hcldoc(
-				str("string", "$${hi}"),
+			want: Doc(
+				Str("string", "$${hi}"),
 			),
 		},
 		{
 			name: "escaped interpolation with number",
-			config: hcldoc(
-				str("string", `$${5}`),
+			config: Doc(
+				Str("string", `$${5}`),
 			),
-			want: hcldoc(
-				str("string", "$${5}"),
+			want: Doc(
+				Str("string", "$${5}"),
 			),
 		},
 		{
 			name: "empty escaped interpolation",
-			config: hcldoc(
-				str("string", `$${}`),
+			config: Doc(
+				Str("string", `$${}`),
 			),
-			want: hcldoc(
-				str("string", "$${}"),
+			want: Doc(
+				Str("string", "$${}"),
 			),
 		},
 		{
 			name: "escaped interpolation with prefix",
-			config: hcldoc(
-				str("string", `something-$${hi}`),
+			config: Doc(
+				Str("string", `something-$${hi}`),
 			),
-			want: hcldoc(
-				str("string", "something-$${hi}"),
+			want: Doc(
+				Str("string", "something-$${hi}"),
 			),
 		},
 		{
 			name: "escaped interpolation with suffix",
-			config: hcldoc(
-				str("string", `$${hi}-suffix`),
+			config: Doc(
+				Str("string", `$${hi}-suffix`),
 			),
-			want: hcldoc(
-				str("string", "$${hi}-suffix"),
+			want: Doc(
+				Str("string", "$${hi}-suffix"),
 			),
 		},
 		{
 			name: "nested escaped interpolation",
-			config: hcldoc(
-				str("string", `$${hi$${again}}`),
+			config: Doc(
+				Str("string", `$${hi$${again}}`),
 			),
-			want: hcldoc(
-				str("string", `$${hi$${again}}`),
+			want: Doc(
+				Str("string", `$${hi$${again}}`),
 			),
 		},
 		{
 			name: "interpolation inside escaped interpolation",
-			config: hcldoc(
-				str("string", `$${hi${attr}}`),
+			config: Doc(
+				Str("string", `$${hi${attr}}`),
 			),
-			want: hcldoc(
-				str("string", `$${hi${attr}}`),
+			want: Doc(
+				Str("string", `$${hi${attr}}`),
 			),
 		},
 		{
 			name: "global interpolation inside escaped interpolation",
-			globals: globals(
-				number("a", 666),
+			globals: Globals(
+				Number("a", 666),
 			),
-			config: hcldoc(
-				str("string", `$${hi-${global.a}}`),
+			config: Doc(
+				Str("string", `$${hi-${global.a}}`),
 			),
-			want: hcldoc(
-				str("string", `$${hi-666}`),
+			want: Doc(
+				Str("string", `$${hi-666}`),
 			),
 		},
 		{
 			name: "for inside escaped interpolation",
-			config: hcldoc(
-				str("string", `$${[for k in local.a : k]}`),
+			config: Doc(
+				Str("string", `$${[for k in local.a : k]}`),
 			),
-			want: hcldoc(
-				str("string", `$${[for k in local.a : k]}`),
+			want: Doc(
+				Str("string", `$${[for k in local.a : k]}`),
 			),
 		},
 		{
 			name: "for inside escaped interpolation referencing global",
-			config: hcldoc(
-				str("string", `$${[for k in global.a : k]}`),
+			config: Doc(
+				Str("string", `$${[for k in global.a : k]}`),
 			),
-			want: hcldoc(
-				str("string", `$${[for k in global.a : k]}`),
+			want: Doc(
+				Str("string", `$${[for k in global.a : k]}`),
 			),
 		},
 		{
 			name: "terramate.path interpolation",
-			config: hcldoc(
-				str("string", `${terramate.stack.path.absolute} test`),
+			config: Doc(
+				Str("string", `${terramate.stack.path.absolute} test`),
 			),
-			want: hcldoc(
-				str("string", `/stack test`),
+			want: Doc(
+				Str("string", `/stack test`),
 			),
 		},
 		{
 			name: "huge string as a result of interpolation",
-			globals: globals(
-				str("value", hugestr),
+			globals: Globals(
+				Str("value", hugestr),
 			),
-			config: hcldoc(
-				str("big", "THIS IS ${tm_upper(global.value)} !!!"),
+			config: Doc(
+				Str("big", "THIS IS ${tm_upper(global.value)} !!!"),
 			),
-			want: hcldoc(
-				str("big", fmt.Sprintf("THIS IS %s !!!", strings.ToUpper(hugestr))),
+			want: Doc(
+				Str("big", fmt.Sprintf("THIS IS %s !!!", strings.ToUpper(hugestr))),
 			),
 		},
 		{
 			name: "interpolation eval is empty",
-			globals: globals(
-				str("value", ""),
+			globals: Globals(
+				Str("value", ""),
 			),
-			config: hcldoc(
-				str("big", "THIS IS ${tm_upper(global.value)} !!!"),
+			config: Doc(
+				Str("big", "THIS IS ${tm_upper(global.value)} !!!"),
 			),
-			want: hcldoc(
-				str("big", "THIS IS  !!!"),
+			want: Doc(
+				Str("big", "THIS IS  !!!"),
 			),
 		},
 		{
 			name: "interpolation eval is partial",
-			globals: globals(
-				str("value", ""),
+			globals: Globals(
+				Str("value", ""),
 			),
-			config: hcldoc(
-				str("test", `THIS IS ${tm_upper(global.value) + "test"} !!!`),
+			config: Doc(
+				Str("test", `THIS IS ${tm_upper(global.value) + "test"} !!!`),
 			),
-			want: hcldoc(
-				str("test", `THIS IS ${"" + "test"} !!!`),
+			want: Doc(
+				Str("test", `THIS IS ${"" + "test"} !!!`),
 			),
 		},
 		{
 			name: "tm_ternary with condition with expression",
-			globals: globals(
-				number("val", 1),
+			globals: Globals(
+				Number("val", 1),
 			),
-			config: hcldoc(
-				expr("a", `tm_ternary(global.val == 1, 0, 1)`),
+			config: Doc(
+				Expr("a", `tm_ternary(global.val == 1, 0, 1)`),
 			),
-			want: hcldoc(
-				number("a", 0),
+			want: Doc(
+				Number("a", 0),
 			),
 		},
 		{
 			name: "tm_ternary with different result types in branches",
-			config: hcldoc(
-				expr("a", `tm_ternary(true, true, 0)`),
+			config: Doc(
+				Expr("a", `tm_ternary(true, true, 0)`),
 			),
-			want: hcldoc(
-				boolean("a", true),
+			want: Doc(
+				Bool("a", true),
 			),
 		},
 		{
 			name: "tm_ternary returning partial result",
-			config: hcldoc(
-				expr("a", "tm_ternary(true, local.var, [])"),
+			config: Doc(
+				Expr("a", "tm_ternary(true, local.var, [])"),
 			),
-			want: hcldoc(
-				expr("a", "local.var"),
+			want: Doc(
+				Expr("a", "local.var"),
 			),
 		},
 		{
 			name: "tm_ternary returning literals",
-			config: hcldoc(
-				expr("a", "tm_ternary(false, local.var, [])"),
+			config: Doc(
+				Expr("a", "tm_ternary(false, local.var, [])"),
 			),
-			want: hcldoc(
-				expr("a", "[]"),
+			want: Doc(
+				Expr("a", "[]"),
 			),
 		},
 		{
 			name: "tm_ternary inside deep structures",
-			config: hcldoc(
-				expr("a", `{
+			config: Doc(
+				Expr("a", `{
 					some = {
 						deep = {
 							structure = {
@@ -1353,8 +1349,8 @@ func TestPartialEval(t *testing.T) {
 					}	
 				}`),
 			),
-			want: hcldoc(
-				expr("a", `{
+			want: Doc(
+				Expr("a", `{
 					some = {
 						deep = {
 							structure = {
@@ -1367,27 +1363,11 @@ func TestPartialEval(t *testing.T) {
 		},
 		{
 			name: "tm_ternary fails with partials in the conditions",
-			config: hcldoc(
-				expr("a", "tm_ternary(local.a, true, false)"),
+			config: Doc(
+				Expr("a", "tm_ternary(local.a, true, false)"),
 			),
 			wantErr: errors.E(eval.ErrPartial),
 		},
-		/*
-			 * Hashicorp HCL formats the `wants` wrong.
-			 *
-			{
-				name: "interpolation advanced 2",
-				globals: globals(
-					str("a", "1"),
-				),
-				config: hcldoc(
-					str("a", "0${!tm_try(global.a)}2"),
-				),
-				want: hcldoc(
-					str("a", `0${!"1"}2`),
-				),
-			},
-		*/
 	}
 
 	for _, tcase := range tcases {
@@ -1400,13 +1380,13 @@ func TestPartialEval(t *testing.T) {
 			stack := stackEntry.Load()
 			path := filepath.Join(s.RootDir(), stackname)
 			if tcase.globals == nil {
-				tcase.globals = globals()
+				tcase.globals = Globals()
 			}
-			cfg := hcldoc(
+			cfg := Doc(
 				tcase.globals,
-				generateHCL(
-					labels(genname),
-					content(
+				GenerateHCL(
+					Labels(genname),
+					Content(
 						tcase.config,
 					),
 				),

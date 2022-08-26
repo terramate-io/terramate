@@ -22,59 +22,44 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	tmstack "github.com/mineiros-io/terramate/stack"
-	"github.com/mineiros-io/terramate/test/hclwrite"
+	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
 func TestLoadFailsWithInvalidConfig(t *testing.T) {
-	generateHCL := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("generate_hcl", builders...)
-	}
-	generateFile := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("generate_file", builders...)
-	}
-	stack := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("stack", builders...)
-	}
-	hcldoc := hclwrite.BuildHCL
-	block := hclwrite.BuildBlock
-	labels := hclwrite.Labels
-	exprAttr := hclwrite.Expression
-	strAttr := hclwrite.String
-
 	tcases := map[string]fmt.Stringer{
-		"generate_hcl no label": hcldoc(
-			generateHCL(
-				block("content"),
+		"generate_hcl no label": Doc(
+			GenerateHCL(
+				Block("content"),
 			),
 		),
-		"generate_hcl no content block": hcldoc(
-			generateHCL(
-				labels("test.tf"),
+		"generate_hcl no content block": Doc(
+			GenerateHCL(
+				Labels("test.tf"),
 			),
 		),
-		"generate_hcl extra unknown attr": hcldoc(
-			generateHCL(
-				labels("test.tf"),
-				block("content"),
-				exprAttr("unrecognized", `"value"`),
+		"generate_hcl extra unknown attr": Doc(
+			GenerateHCL(
+				Labels("test.tf"),
+				Block("content"),
+				Expr("unrecognized", `"value"`),
 			),
 		),
-		"generate_file no label": hcldoc(
-			generateFile(
-				strAttr("content", "test"),
+		"generate_file no label": Doc(
+			GenerateFile(
+				Str("content", "test"),
 			),
 		),
-		"generate_file no content": hcldoc(
-			generateFile(
-				labels("test.tf"),
+		"generate_file no content": Doc(
+			GenerateFile(
+				Labels("test.tf"),
 			),
 		),
-		"generate_file extra unknown attr": hcldoc(
-			generateFile(
-				labels("test.tf"),
-				strAttr("content", "value"),
-				strAttr("unrecognized", "value"),
+		"generate_file extra unknown attr": Doc(
+			GenerateFile(
+				Labels("test.tf"),
+				Str("content", "value"),
+				Str("unrecognized", "value"),
 			),
 		),
 	}
@@ -84,7 +69,7 @@ func TestLoadFailsWithInvalidConfig(t *testing.T) {
 			s := sandbox.New(t)
 
 			stackEntry := s.CreateStack("stack")
-			stackEntry.CreateConfig(invalidConfig.String() + "\n" + stack().String())
+			stackEntry.CreateConfig(invalidConfig.String() + "\n" + Stack().String())
 
 			_, err := tmstack.Load(s.RootDir(), stackEntry.Path())
 			assert.IsError(t, err, errors.E(hcl.ErrTerramateSchema))

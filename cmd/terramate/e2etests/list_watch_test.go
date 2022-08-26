@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/mineiros-io/terramate/stack"
+	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -133,8 +134,8 @@ func TestListWatchElementsWithFuncalls(t *testing.T) {
 	extFile := extDir.CreateFile("FILE.TXT", "anything")
 	extDir.CreateFile("not-changed.txt", "anything")
 
-	stackConfig := stackblock(
-		expr("watch", `[tm_upper("/external/file.txt")]`),
+	stackConfig := Stack(
+		Expr("watch", `[tm_upper("/external/file.txt")]`),
 	)
 
 	s.RootEntry().CreateDir("stack").CreateConfig(stackConfig.String())
@@ -167,8 +168,8 @@ func TestListWatchExprWithFuncalls(t *testing.T) {
 		fmt.Sprintf("%s\n%s", extFile1.Path(), extFile2.Path()))
 
 	// the `watch` list comes from the `deps.txt` file.
-	stackConfig := stackblock(
-		expr("watch", `tm_concat(tm_split("\n", tm_file("../external/deps.txt")), [
+	stackConfig := Stack(
+		Expr("watch", `tm_concat(tm_split("\n", tm_file("../external/deps.txt")), [
 			"/external/unrelated.txt",
 	  ])`),
 	)
