@@ -20,6 +20,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
 func TestGenerateHCLDynamic(t *testing.T) {
@@ -30,13 +31,13 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a", "b", "c"]`),
-								block("content"),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Block("content"),
 							),
 						),
 					),
@@ -48,10 +49,10 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body: hcldoc(
-							block("my_block"),
-							block("my_block"),
-							block("my_block"),
+						body: Doc(
+							Block("my_block"),
+							Block("my_block"),
+							Block("my_block"),
 						),
 					},
 				},
@@ -63,15 +64,15 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a", "b", "c"]`),
-								content(
-									expr("value", "my_block.value"),
-									expr("key", "my_block.key"),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Content(
+									Expr("value", "my_block.value"),
+									Expr("key", "my_block.key"),
 								),
 							),
 						),
@@ -84,18 +85,18 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body: hcldoc(
-							block("my_block",
-								number("key", 0),
-								str("value", "a"),
+						body: Doc(
+							Block("my_block",
+								Number("key", 0),
+								Str("value", "a"),
 							),
-							block("my_block",
-								number("key", 1),
-								str("value", "b"),
+							Block("my_block",
+								Number("key", 1),
+								Str("value", "b"),
 							),
-							block("my_block",
-								number("key", 2),
-								str("value", "c"),
+							Block("my_block",
+								Number("key", 2),
+								Str("value", "c"),
 							),
 						),
 					},
@@ -108,20 +109,20 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: hcldoc(
-						globals(
-							expr("labels", `["label1", "label2"]`),
+					add: Doc(
+						Globals(
+							Expr("labels", `["label1", "label2"]`),
 						),
-						generateHCL(
-							labels("tm_dynamic_test.tf"),
-							content(
-								tmdynamic(
-									labels("my_block"),
-									expr("for_each", `["a", "b", "c"]`),
-									expr("labels", `global.labels`),
-									content(
-										expr("value", "my_block.value"),
-										expr("key", "my_block.key"),
+						GenerateHCL(
+							Labels("tm_dynamic_test.tf"),
+							Content(
+								TmDynamic(
+									Labels("my_block"),
+									Expr("for_each", `["a", "b", "c"]`),
+									Expr("labels", `global.labels`),
+									Content(
+										Expr("value", "my_block.value"),
+										Expr("key", "my_block.key"),
 									),
 								),
 							),
@@ -135,21 +136,21 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body: hcldoc(
-							block("my_block",
-								labels("label1", "label2"),
-								number("key", 0),
-								str("value", "a"),
+						body: Doc(
+							Block("my_block",
+								Labels("label1", "label2"),
+								Number("key", 0),
+								Str("value", "a"),
 							),
-							block("my_block",
-								labels("label1", "label2"),
-								number("key", 1),
-								str("value", "b"),
+							Block("my_block",
+								Labels("label1", "label2"),
+								Number("key", 1),
+								Str("value", "b"),
 							),
-							block("my_block",
-								labels("label1", "label2"),
-								number("key", 2),
-								str("value", "c"),
+							Block("my_block",
+								Labels("label1", "label2"),
+								Number("key", 2),
+								Str("value", "c"),
 							),
 						),
 					},
@@ -162,17 +163,17 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: hcldoc(
-						generateHCL(
-							labels("tm_dynamic_test.tf"),
-							content(
-								tmdynamic(
-									labels("my_block"),
-									expr("for_each", `["a", "b", "c"]`),
-									expr("labels", `[my_block.value]`),
-									content(
-										expr("value", "my_block.value"),
-										expr("key", "my_block.key"),
+					add: Doc(
+						GenerateHCL(
+							Labels("tm_dynamic_test.tf"),
+							Content(
+								TmDynamic(
+									Labels("my_block"),
+									Expr("for_each", `["a", "b", "c"]`),
+									Expr("labels", `[my_block.value]`),
+									Content(
+										Expr("value", "my_block.value"),
+										Expr("key", "my_block.key"),
 									),
 								),
 							),
@@ -186,21 +187,21 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body: hcldoc(
-							block("my_block",
-								labels("a"),
-								number("key", 0),
-								str("value", "a"),
+						body: Doc(
+							Block("my_block",
+								Labels("a"),
+								Number("key", 0),
+								Str("value", "a"),
 							),
-							block("my_block",
-								labels("b"),
-								number("key", 1),
-								str("value", "b"),
+							Block("my_block",
+								Labels("b"),
+								Number("key", 1),
+								Str("value", "b"),
 							),
-							block("my_block",
-								labels("c"),
-								number("key", 2),
-								str("value", "c"),
+							Block("my_block",
+								Labels("c"),
+								Number("key", 2),
+								Str("value", "c"),
 							),
 						),
 					},
@@ -213,16 +214,16 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: hcldoc(
-						generateHCL(
-							labels("tm_dynamic_test.tf"),
-							content(
-								tmdynamic(
-									labels("duplicated_labels"),
-									expr("for_each", `["val"]`),
-									expr("labels", `["a", "a"]`),
-									content(
-										str("value", "str"),
+					add: Doc(
+						GenerateHCL(
+							Labels("tm_dynamic_test.tf"),
+							Content(
+								TmDynamic(
+									Labels("duplicated_labels"),
+									Expr("for_each", `["val"]`),
+									Expr("labels", `["a", "a"]`),
+									Content(
+										Str("value", "str"),
 									),
 								),
 							),
@@ -236,10 +237,10 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body: hcldoc(
-							block("duplicated_labels",
-								labels("a", "a"),
-								str("value", "str"),
+						body: Doc(
+							Block("duplicated_labels",
+								Labels("a", "a"),
+								Str("value", "str"),
 							),
 						),
 					},
@@ -252,16 +253,16 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a", "b", "c"]`),
-								content(
-									expr("value", "my_block.value"),
-									expr("key", "my_block.key"),
-									expr("other", "something.other"),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Content(
+									Expr("value", "my_block.value"),
+									Expr("key", "my_block.key"),
+									Expr("other", "something.other"),
 								),
 							),
 						),
@@ -274,21 +275,21 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body: hcldoc(
-							block("my_block",
-								number("key", 0),
-								expr("other", "something.other"),
-								str("value", "a"),
+						body: Doc(
+							Block("my_block",
+								Number("key", 0),
+								Expr("other", "something.other"),
+								Str("value", "a"),
 							),
-							block("my_block",
-								number("key", 1),
-								expr("other", "something.other"),
-								str("value", "b"),
+							Block("my_block",
+								Number("key", 1),
+								Expr("other", "something.other"),
+								Str("value", "b"),
 							),
-							block("my_block",
-								number("key", 2),
-								expr("other", "something.other"),
-								str("value", "c"),
+							Block("my_block",
+								Number("key", 2),
+								Expr("other", "something.other"),
+								Str("value", "c"),
 							),
 						),
 					},
@@ -301,17 +302,17 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a", "b", "c"]`),
-								expr("iterator", "b"),
-								content(
-									expr("value", "b.value"),
-									expr("key", "b.key"),
-									expr("other", "something.other"),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Expr("iterator", "b"),
+								Content(
+									Expr("value", "b.value"),
+									Expr("key", "b.key"),
+									Expr("other", "something.other"),
 								),
 							),
 						),
@@ -324,21 +325,21 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body: hcldoc(
-							block("my_block",
-								number("key", 0),
-								expr("other", "something.other"),
-								str("value", "a"),
+						body: Doc(
+							Block("my_block",
+								Number("key", 0),
+								Expr("other", "something.other"),
+								Str("value", "a"),
 							),
-							block("my_block",
-								number("key", 1),
-								expr("other", "something.other"),
-								str("value", "b"),
+							Block("my_block",
+								Number("key", 1),
+								Expr("other", "something.other"),
+								Str("value", "b"),
 							),
-							block("my_block",
-								number("key", 2),
-								expr("other", "something.other"),
-								str("value", "c"),
+							Block("my_block",
+								Number("key", 2),
+								Expr("other", "something.other"),
+								Str("value", "c"),
 							),
 						),
 					},
@@ -351,13 +352,13 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("empty.tf"),
-						content(
-							tmdynamic(
-								labels("empty"),
-								expr("for_each", `["a", "b"]`),
-								expr("attributes", `{}`),
+					add: GenerateHCL(
+						Labels("empty.tf"),
+						Content(
+							TmDynamic(
+								Labels("empty"),
+								Expr("for_each", `["a", "b"]`),
+								Expr("attributes", `{}`),
 							),
 						),
 					),
@@ -369,9 +370,9 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body: hcldoc(
-							block("empty"),
-							block("empty"),
+						body: Doc(
+							Block("empty"),
+							Block("empty"),
 						),
 					},
 				},
@@ -383,14 +384,14 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("attributes"),
-								expr("for_each", `["a", "b", "c"]`),
-								expr("iterator", "iter"),
-								expr("attributes", `{
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("attributes"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Expr("iterator", "iter"),
+								Expr("attributes", `{
 								  value = iter.value,
 								  key = iter.key,
 								  other = something.other,
@@ -406,21 +407,21 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body: hcldoc(
-							block("attributes",
-								str("value", "a"),
-								number("key", 0),
-								expr("other", "something.other"),
+						body: Doc(
+							Block("attributes",
+								Str("value", "a"),
+								Number("key", 0),
+								Expr("other", "something.other"),
 							),
-							block("attributes",
-								str("value", "b"),
-								number("key", 1),
-								expr("other", "something.other"),
+							Block("attributes",
+								Str("value", "b"),
+								Number("key", 1),
+								Expr("other", "something.other"),
 							),
-							block("attributes",
-								str("value", "c"),
-								number("key", 2),
-								expr("other", "something.other"),
+							Block("attributes",
+								Str("value", "c"),
+								Number("key", 2),
+								Expr("other", "something.other"),
 							),
 						),
 					},
@@ -434,8 +435,8 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					path:     "/stack",
 					filename: "globals.tm",
-					add: globals(
-						expr("obj", `{
+					add: Globals(
+						Expr("obj", `{
 						  a = "global data"
 						}`),
 					),
@@ -443,14 +444,14 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					path:     "/stack",
 					filename: "gen.tm",
-					add: generateHCL(
-						labels("test.tf"),
-						content(
-							tmdynamic(
-								labels("test"),
-								expr("for_each", `["a"]`),
-								expr("iterator", "iter"),
-								expr("attributes", `tm_merge(global.obj, {
+					add: GenerateHCL(
+						Labels("test.tf"),
+						Content(
+							TmDynamic(
+								Labels("test"),
+								Expr("for_each", `["a"]`),
+								Expr("iterator", "iter"),
+								Expr("attributes", `tm_merge(global.obj, {
 								  b = 666,
 								})`),
 							),
@@ -464,10 +465,10 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					hcl: genHCL{
 						origin:    "/stack/gen.tm",
 						condition: true,
-						body: hcldoc(
-							block("test",
-								str("a", "global data"),
-								number("b", 666),
+						body: Doc(
+							Block("test",
+								Str("a", "global data"),
+								Number("b", 666),
 							),
 						),
 					},
@@ -480,14 +481,14 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_attributes_order.tf"),
-						content(
-							tmdynamic(
-								labels("attributes_order"),
-								expr("for_each", `["test", "test2"]`),
-								expr("iterator", "iter"),
-								expr("attributes", `{
+					add: GenerateHCL(
+						Labels("tm_dynamic_attributes_order.tf"),
+						Content(
+							TmDynamic(
+								Labels("attributes_order"),
+								Expr("for_each", `["test", "test2"]`),
+								Expr("iterator", "iter"),
+								Expr("attributes", `{
 								  b = iter.value,
 								  z = iter.key,
 								  a = something.other,
@@ -503,16 +504,16 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body: hcldoc(
-							block("attributes_order",
-								str("b", "test"),
-								number("z", 0),
-								expr("a", "something.other"),
+						body: Doc(
+							Block("attributes_order",
+								Str("b", "test"),
+								Number("z", 0),
+								Expr("a", "something.other"),
 							),
-							block("attributes_order",
-								str("b", "test2"),
-								number("z", 1),
-								expr("a", "something.other"),
+							Block("attributes_order",
+								Str("b", "test2"),
+								Number("z", 1),
+								Expr("a", "something.other"),
 							),
 						),
 					},
@@ -526,20 +527,20 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					path:     "/",
 					filename: "globals.tm",
-					add: globals(
-						str("data", "global string"),
+					add: Globals(
+						Str("data", "global string"),
 					),
 				},
 				{
 					path:     "/stack",
 					filename: "generate.tm",
-					add: generateHCL(
-						labels("tm_dynamic.tf"),
-						content(
-							tmdynamic(
-								labels("references"),
-								expr("for_each", `["test"]`),
-								expr("attributes", `{
+					add: GenerateHCL(
+						Labels("tm_dynamic.tf"),
+						Content(
+							TmDynamic(
+								Labels("references"),
+								Expr("for_each", `["test"]`),
+								Expr("attributes", `{
 								  global  = global.data,
 								  meta    = terramate.stack.path.absolute,
 								  interp  = tm_upper("${global.data} interp"),
@@ -559,15 +560,15 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					hcl: genHCL{
 						origin:    "/stack/generate.tm",
 						condition: true,
-						body: hcldoc(
-							block("references",
-								str("global", "global string"),
-								str("meta", "/stack"),
-								str("interp", "GLOBAL STRING INTERP"),
-								expr("partial", "local.data"),
-								str("iter", "test"),
-								expr("partialfunc", `upper("global string")`),
-								expr("ternary", `local.cond ? local.val : "global string"`),
+						body: Doc(
+							Block("references",
+								Str("global", "global string"),
+								Str("meta", "/stack"),
+								Str("interp", "GLOBAL STRING INTERP"),
+								Expr("partial", "local.data"),
+								Str("iter", "test"),
+								Expr("partialfunc", `upper("global string")`),
+								Expr("ternary", `local.cond ? local.val : "global string"`),
 							),
 						),
 					},
@@ -581,20 +582,20 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					path:     "/",
 					filename: "globals.tm",
-					add: globals(
-						str("key", "globalkey"),
+					add: Globals(
+						Str("key", "globalkey"),
 					),
 				},
 				{
 					path:     "/stack",
 					filename: "generate.tm",
-					add: generateHCL(
-						labels("tm_dynamic.tf"),
-						content(
-							tmdynamic(
-								labels("references"),
-								expr("for_each", `["test"]`),
-								expr("attributes", `{
+					add: GenerateHCL(
+						Labels("tm_dynamic.tf"),
+						Content(
+							TmDynamic(
+								Labels("references"),
+								Expr("for_each", `["test"]`),
+								Expr("attributes", `{
 								  (global.key) = true,
 								  (terramate.stack.name) = true,
 								  (tm_upper(global.key)) = true,
@@ -611,12 +612,12 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					hcl: genHCL{
 						origin:    "/stack/generate.tm",
 						condition: true,
-						body: hcldoc(
-							block("references",
-								boolean("globalkey", true),
-								boolean("stack", true),
-								boolean("GLOBALKEY", true),
-								boolean("test", true),
+						body: Doc(
+							Block("references",
+								Bool("globalkey", true),
+								Bool("stack", true),
+								Bool("GLOBALKEY", true),
+								Bool("test", true),
 							),
 						),
 					},
@@ -629,20 +630,20 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("parent"),
-								expr("for_each", `["a", "b"]`),
-								content(
-									expr("value", "parent.value"),
-									expr("key", "parent.key"),
-									expr("other", "something.other"),
-									tmdynamic(
-										labels("child"),
-										expr("for_each", `[0, 1]`),
-										expr("attributes", `{
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("parent"),
+								Expr("for_each", `["a", "b"]`),
+								Content(
+									Expr("value", "parent.value"),
+									Expr("key", "parent.key"),
+									Expr("other", "something.other"),
+									TmDynamic(
+										Labels("child"),
+										Expr("for_each", `[0, 1]`),
+										Expr("attributes", `{
 											value = "${parent.key}-${parent.value}-${child.value}",
 										}`),
 									),
@@ -658,27 +659,27 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body: hcldoc(
-							block("parent",
-								number("key", 0),
-								expr("other", "something.other"),
-								str("value", "a"),
-								block("child",
-									str("value", "0-a-0"),
+						body: Doc(
+							Block("parent",
+								Number("key", 0),
+								Expr("other", "something.other"),
+								Str("value", "a"),
+								Block("child",
+									Str("value", "0-a-0"),
 								),
-								block("child",
-									str("value", "0-a-1"),
+								Block("child",
+									Str("value", "0-a-1"),
 								),
 							),
-							block("parent",
-								number("key", 1),
-								expr("other", "something.other"),
-								str("value", "b"),
-								block("child",
-									str("value", "1-b-0"),
+							Block("parent",
+								Number("key", 1),
+								Expr("other", "something.other"),
+								Str("value", "b"),
+								Block("child",
+									Str("value", "1-b-0"),
 								),
-								block("child",
-									str("value", "1-b-1"),
+								Block("child",
+									Str("value", "1-b-1"),
 								),
 							),
 						),
@@ -692,23 +693,23 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a", "b", "c"]`),
-								expr("iterator", "b"),
-								content(
-									expr("value", "b.value"),
-									expr("key", "b.key"),
-									expr("other", "something.other"),
-									tmdynamic(
-										labels("child"),
-										expr("for_each", `[0, 1, 2]`),
-										expr("iterator", "i"),
-										content(
-											str("value", "${b.key}-${b.value}-${i.value}"),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Expr("iterator", "b"),
+								Content(
+									Expr("value", "b.value"),
+									Expr("key", "b.key"),
+									Expr("other", "something.other"),
+									TmDynamic(
+										Labels("child"),
+										Expr("for_each", `[0, 1, 2]`),
+										Expr("iterator", "i"),
+										Content(
+											Str("value", "${b.key}-${b.value}-${i.value}"),
 										),
 									),
 								),
@@ -723,47 +724,47 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body: hcldoc(
-							block("my_block",
-								number("key", 0),
-								expr("other", "something.other"),
-								str("value", "a"),
-								block("child",
-									str("value", "0-a-0"),
+						body: Doc(
+							Block("my_block",
+								Number("key", 0),
+								Expr("other", "something.other"),
+								Str("value", "a"),
+								Block("child",
+									Str("value", "0-a-0"),
 								),
-								block("child",
-									str("value", "0-a-1"),
+								Block("child",
+									Str("value", "0-a-1"),
 								),
-								block("child",
-									str("value", "0-a-2"),
-								),
-							),
-							block("my_block",
-								number("key", 1),
-								expr("other", "something.other"),
-								str("value", "b"),
-								block("child",
-									str("value", "1-b-0"),
-								),
-								block("child",
-									str("value", "1-b-1"),
-								),
-								block("child",
-									str("value", "1-b-2"),
+								Block("child",
+									Str("value", "0-a-2"),
 								),
 							),
-							block("my_block",
-								number("key", 2),
-								expr("other", "something.other"),
-								str("value", "c"),
-								block("child",
-									str("value", "2-c-0"),
+							Block("my_block",
+								Number("key", 1),
+								Expr("other", "something.other"),
+								Str("value", "b"),
+								Block("child",
+									Str("value", "1-b-0"),
 								),
-								block("child",
-									str("value", "2-c-1"),
+								Block("child",
+									Str("value", "1-b-1"),
 								),
-								block("child",
-									str("value", "2-c-2"),
+								Block("child",
+									Str("value", "1-b-2"),
+								),
+							),
+							Block("my_block",
+								Number("key", 2),
+								Expr("other", "something.other"),
+								Str("value", "c"),
+								Block("child",
+									Str("value", "2-c-0"),
+								),
+								Block("child",
+									Str("value", "2-c-1"),
+								),
+								Block("child",
+									Str("value", "2-c-2"),
 								),
 							),
 						),
@@ -777,20 +778,20 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: hcldoc(
-						globals(
-							str("msg", "hello"),
-							expr("values", `["a", "b", "c"]`),
+					add: Doc(
+						Globals(
+							Str("msg", "hello"),
+							Expr("values", `["a", "b", "c"]`),
 						),
-						generateHCL(
-							labels("tm_dynamic_test.tf"),
-							content(
-								tmdynamic(
-									labels("my_block"),
-									expr("for_each", `global.values`),
-									content(
-										expr("msg", `global.msg`),
-										expr("val", `global.values[my_block.key]`),
+						GenerateHCL(
+							Labels("tm_dynamic_test.tf"),
+							Content(
+								TmDynamic(
+									Labels("my_block"),
+									Expr("for_each", `global.values`),
+									Content(
+										Expr("msg", `global.msg`),
+										Expr("val", `global.values[my_block.key]`),
 									),
 								),
 							),
@@ -804,18 +805,18 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body: hcldoc(
-							block("my_block",
-								str("msg", "hello"),
-								str("val", "a"),
+						body: Doc(
+							Block("my_block",
+								Str("msg", "hello"),
+								Str("val", "a"),
 							),
-							block("my_block",
-								str("msg", "hello"),
-								str("val", "b"),
+							Block("my_block",
+								Str("msg", "hello"),
+								Str("val", "b"),
 							),
-							block("my_block",
-								str("msg", "hello"),
-								str("val", "c"),
+							Block("my_block",
+								Str("msg", "hello"),
+								Str("val", "c"),
 							),
 						),
 					},
@@ -828,15 +829,15 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a", "b", "c"]`),
-								expr("iterator", "[]"),
-								content(
-									expr("value", "b.value"),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Expr("iterator", "[]"),
+								Content(
+									Expr("value", "b.value"),
 								),
 							),
 						),
@@ -851,12 +852,12 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a", "b", "c"]`),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a", "b", "c"]`),
 							),
 						),
 					),
@@ -870,13 +871,13 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a"]`),
-								expr("attributes", "null"),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a"]`),
+								Expr("attributes", "null"),
 							),
 						),
 					),
@@ -890,13 +891,13 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a"]`),
-								expr("attributes", "[]"),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a"]`),
+								Expr("attributes", "[]"),
 							),
 						),
 					),
@@ -910,13 +911,13 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("fail.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a"]`),
-								expr("attributes", `{ (local.a) : 666 }`),
+					add: GenerateHCL(
+						Labels("fail.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a"]`),
+								Expr("attributes", `{ (local.a) : 666 }`),
 							),
 						),
 					),
@@ -930,17 +931,17 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: hcldoc(
-						globals(
-							number("a", 666),
+					add: Doc(
+						Globals(
+							Number("a", 666),
 						),
-						generateHCL(
-							labels("fail.tf"),
-							content(
-								tmdynamic(
-									labels("my_block"),
-									expr("for_each", `["a"]`),
-									expr("attributes", `{ (global.a) : 666 }`),
+						GenerateHCL(
+							Labels("fail.tf"),
+							Content(
+								TmDynamic(
+									Labels("my_block"),
+									Expr("for_each", `["a"]`),
+									Expr("attributes", `{ (global.a) : 666 }`),
 								),
 							),
 						),
@@ -955,14 +956,14 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: hcldoc(
-						generateHCL(
-							labels("fail.tf"),
-							content(
-								tmdynamic(
-									labels("my_block"),
-									expr("for_each", `["a"]`),
-									expr("attributes", `{ "spaces not allowed" : 666 }`),
+					add: Doc(
+						GenerateHCL(
+							Labels("fail.tf"),
+							Content(
+								TmDynamic(
+									Labels("my_block"),
+									Expr("for_each", `["a"]`),
+									Expr("attributes", `{ "spaces not allowed" : 666 }`),
 								),
 							),
 						),
@@ -977,14 +978,14 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: hcldoc(
-						generateHCL(
-							labels("fail.tf"),
-							content(
-								tmdynamic(
-									labels("my_block"),
-									expr("for_each", `["a"]`),
-									expr("attributes", `{ "" : 666 }`),
+					add: Doc(
+						GenerateHCL(
+							Labels("fail.tf"),
+							Content(
+								TmDynamic(
+									Labels("my_block"),
+									Expr("for_each", `["a"]`),
+									Expr("attributes", `{ "" : 666 }`),
 								),
 							),
 						),
@@ -999,14 +1000,14 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: hcldoc(
-						generateHCL(
-							labels("fail.tf"),
-							content(
-								tmdynamic(
-									labels("my_block"),
-									expr("for_each", `["a"]`),
-									expr("attributes", `{ "-name" : 666 }`),
+					add: Doc(
+						GenerateHCL(
+							Labels("fail.tf"),
+							Content(
+								TmDynamic(
+									Labels("my_block"),
+									Expr("for_each", `["a"]`),
+									Expr("attributes", `{ "-name" : 666 }`),
 								),
 							),
 						),
@@ -1021,14 +1022,14 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a", "b", "c"]`),
-								expr("attributes", `{ b : 666 }`),
-								str("something", "val"),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Expr("attributes", `{ b : 666 }`),
+								Str("something", "val"),
 							),
 						),
 					),
@@ -1042,14 +1043,14 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block", "nope"),
-								expr("for_each", `["a"]`),
-								content(
-									str("a", "val"),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block", "nope"),
+								Expr("for_each", `["a"]`),
+								Content(
+									Str("a", "val"),
 								),
 							),
 						),
@@ -1064,17 +1065,17 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a"]`),
-								content(
-									str("a", "val"),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a"]`),
+								Content(
+									Str("a", "val"),
 								),
-								content(
-									str("a", "val"),
+								Content(
+									Str("a", "val"),
 								),
 							),
 						),
@@ -1089,17 +1090,17 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a"]`),
-								content(
-									str("a", "val"),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a"]`),
+								Content(
+									Str("a", "val"),
 								),
-								block("unsupported",
-									str("a", "val"),
+								Block("unsupported",
+									Str("a", "val"),
 								),
 							),
 						),
@@ -1114,14 +1115,14 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `[local.a]`),
-								content(
-									str("a", "val"),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `[local.a]`),
+								Content(
+									Str("a", "val"),
 								),
 							),
 						),
@@ -1136,15 +1137,15 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a"]`),
-								expr("labels", "[local.a]"),
-								content(
-									str("a", "val"),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a"]`),
+								Expr("labels", "[local.a]"),
+								Content(
+									Str("a", "val"),
 								),
 							),
 						),
@@ -1159,15 +1160,15 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a"]`),
-								expr("labels", "{}"),
-								content(
-									str("a", "val"),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a"]`),
+								Expr("labels", "{}"),
+								Content(
+									Str("a", "val"),
 								),
 							),
 						),
@@ -1182,15 +1183,15 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a"]`),
-								expr("iterator", "name.traverse"),
-								content(
-									str("a", "val"),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a"]`),
+								Expr("iterator", "name.traverse"),
+								Content(
+									Str("a", "val"),
 								),
 							),
 						),
@@ -1205,13 +1206,13 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a"]`),
-								expr("attributes", `{ a = global.undefined }`),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a"]`),
+								Expr("attributes", `{ a = global.undefined }`),
 							),
 						),
 					),
@@ -1225,14 +1226,14 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a"]`),
-								content(
-									expr("a", `{ a = global.undefined }`),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a"]`),
+								Content(
+									Expr("a", `{ a = global.undefined }`),
 								),
 							),
 						),
@@ -1247,14 +1248,14 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								number("for_each", 666),
-								content(
-									str("a", "val"),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Number("for_each", 666),
+								Content(
+									Str("a", "val"),
 								),
 							),
 						),
@@ -1269,13 +1270,13 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								expr("for_each", `["a"]`),
-								content(
-									str("a", "val"),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Expr("for_each", `["a"]`),
+								Content(
+									Str("a", "val"),
 								),
 							),
 						),
@@ -1290,15 +1291,15 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a", "b", "c"]`),
-								str("something", "val"),
-								content(
-									str("a", "val"),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Str("something", "val"),
+								Content(
+									Str("a", "val"),
 								),
 							),
 						),
@@ -1313,15 +1314,15 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								expr("for_each", `["a", "b", "c"]`),
-								expr("attributes", `{ b : 666 }`),
-								content(
-									str("a", "val"),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Expr("attributes", `{ b : 666 }`),
+								Content(
+									Str("a", "val"),
 								),
 							),
 						),
@@ -1336,13 +1337,13 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("tm_dynamic_test.tf"),
-						content(
-							tmdynamic(
-								labels("my_block"),
-								content(
-									expr("value", "b.value"),
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Content(
+									Expr("value", "b.value"),
 								),
 							),
 						),

@@ -25,7 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
-	"github.com/mineiros-io/terramate/test/hclwrite"
+	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
 )
@@ -54,21 +54,6 @@ func TestLoadGenerateFiles(t *testing.T) {
 		}
 	)
 
-	generateFile := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("generate_file", builders...)
-	}
-	hcldoc := hclwrite.BuildHCL
-	labels := hclwrite.Labels
-	expr := hclwrite.Expression
-	str := hclwrite.String
-	boolean := hclwrite.Boolean
-	attr := func(name string, expr string) hclwrite.BlockBuilder {
-		return hclwrite.AttributeValue(t, name, expr)
-	}
-	globals := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-		return hclwrite.BuildBlock("globals", builders...)
-	}
-
 	tcases := []testcase{
 		{
 			name:  "no generation",
@@ -80,9 +65,9 @@ func TestLoadGenerateFiles(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack/.test.tm",
-					add: generateFile(
-						labels("test"),
-						str("content", "test"),
+					add: GenerateFile(
+						Labels("test"),
+						Str("content", "test"),
 					),
 				},
 			},
@@ -93,9 +78,9 @@ func TestLoadGenerateFiles(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack/empty.tm",
-					add: generateFile(
-						labels("empty"),
-						str("content", ""),
+					add: GenerateFile(
+						Labels("empty"),
+						Str("content", ""),
 					),
 				},
 			},
@@ -116,9 +101,9 @@ func TestLoadGenerateFiles(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
-					add: generateFile(
-						labels("test"),
-						str("content", "test"),
+					add: GenerateFile(
+						Labels("test"),
+						Str("content", "test"),
 					),
 				},
 			},
@@ -139,9 +124,9 @@ func TestLoadGenerateFiles(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
-					add: generateFile(
-						labels("test"),
-						expr("content", `<<EOT
+					add: GenerateFile(
+						Labels("test"),
+						Expr("content", `<<EOT
 
 stacks_list=${tm_jsonencode(terramate.stacks.list)}
 stack_path_abs=${terramate.stack.path.absolute}
@@ -181,9 +166,9 @@ stack_description=
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
-					add: generateFile(
-						labels("test"),
-						expr("content", `<<EOT
+					add: GenerateFile(
+						Labels("test"),
+						Expr("content", `<<EOT
 
 stack_id=${terramate.stack.id}
 EOT`,
@@ -209,15 +194,15 @@ stack_id=stack-id
 			configs: []hclconfig{
 				{
 					path: "/stack/globals.tm",
-					add: globals(
-						str("data", "global-data"),
+					add: Globals(
+						Str("data", "global-data"),
 					),
 				},
 				{
 					path: "/stack/test.tm",
-					add: generateFile(
-						labels("test"),
-						str("content", "${global.data}-${terramate.stack.path.absolute}"),
+					add: GenerateFile(
+						Labels("test"),
+						Str("content", "${global.data}-${terramate.stack.path.absolute}"),
 					),
 				},
 			},
@@ -238,10 +223,10 @@ stack_id=stack-id
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
-					add: generateFile(
-						labels("test"),
-						boolean("condition", false),
-						str("content", "data"),
+					add: GenerateFile(
+						Labels("test"),
+						Bool("condition", false),
+						Str("content", "data"),
 					),
 				},
 			},
@@ -262,16 +247,16 @@ stack_id=stack-id
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
-					add: hcldoc(
-						generateFile(
-							labels("test"),
-							boolean("condition", false),
-							str("content", "data"),
+					add: Doc(
+						GenerateFile(
+							Labels("test"),
+							Bool("condition", false),
+							Str("content", "data"),
 						),
-						generateFile(
-							labels("test2"),
-							boolean("condition", true),
-							str("content", "data"),
+						GenerateFile(
+							Labels("test2"),
+							Bool("condition", true),
+							Str("content", "data"),
 						),
 					),
 				},
@@ -301,16 +286,16 @@ stack_id=stack-id
 			configs: []hclconfig{
 				{
 					path: "/stack/globals.tm",
-					add: globals(
-						boolean("condition", false),
+					add: Globals(
+						Bool("condition", false),
 					),
 				},
 				{
 					path: "/stack/test.tm",
-					add: generateFile(
-						labels("test"),
-						expr("condition", "global.condition"),
-						str("content", "cond=${global.condition}"),
+					add: GenerateFile(
+						Labels("test"),
+						Expr("condition", "global.condition"),
+						Str("content", "cond=${global.condition}"),
 					),
 				},
 			},
@@ -331,10 +316,10 @@ stack_id=stack-id
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
-					add: generateFile(
-						labels("test"),
-						expr("condition", "tm_try(global.condition, false)"),
-						str("content", "whatever"),
+					add: GenerateFile(
+						Labels("test"),
+						Expr("condition", "tm_try(global.condition, false)"),
+						Str("content", "whatever"),
 					),
 				},
 			},
@@ -355,16 +340,16 @@ stack_id=stack-id
 			configs: []hclconfig{
 				{
 					path: "/stack/globals.tm",
-					add: globals(
-						attr("list", "[1]"),
+					add: Globals(
+						EvalExpr(t, "list", "[1]"),
 					),
 				},
 				{
 					path: "/stack/test.tm",
-					add: generateFile(
-						labels("test"),
-						expr("condition", "tm_length(global.list) > 0"),
-						str("content", "data"),
+					add: GenerateFile(
+						Labels("test"),
+						Expr("condition", "tm_length(global.list) > 0"),
+						Str("content", "data"),
 					),
 				},
 			},
@@ -385,24 +370,24 @@ stack_id=stack-id
 			configs: []hclconfig{
 				{
 					path: "/stack/globals.tm",
-					add: globals(
-						str("data", "global-data"),
+					add: Globals(
+						Str("data", "global-data"),
 					),
 				},
 				{
 					path: "/stack/test.tm",
-					add: hcldoc(
-						generateFile(
-							labels("test1"),
-							expr("content", "global.data"),
+					add: Doc(
+						GenerateFile(
+							Labels("test1"),
+							Expr("content", "global.data"),
 						),
-						generateFile(
-							labels("test2"),
-							expr("content", "terramate.path"),
+						GenerateFile(
+							Labels("test2"),
+							Expr("content", "terramate.path"),
 						),
-						generateFile(
-							labels("test3"),
-							str("content", "terramate!"),
+						GenerateFile(
+							Labels("test3"),
+							Str("content", "terramate!"),
 						),
 					),
 				},
@@ -440,22 +425,22 @@ stack_id=stack-id
 			configs: []hclconfig{
 				{
 					path: "/stack/globals.tm",
-					add: globals(
-						str("data", "global-data"),
+					add: Globals(
+						Str("data", "global-data"),
 					),
 				},
 				{
 					path: "/stack/json.tm",
-					add: generateFile(
-						labels("test.json"),
-						expr("content", "tm_jsonencode({field = global.data})"),
+					add: GenerateFile(
+						Labels("test.json"),
+						Expr("content", "tm_jsonencode({field = global.data})"),
 					),
 				},
 				{
 					path: "/stack/yaml.tm",
-					add: generateFile(
-						labels("test.yml"),
-						expr("content", "tm_yamlencode({field = terramate.stack.path.absolute})"),
+					add: GenerateFile(
+						Labels("test.yml"),
+						Expr("content", "tm_yamlencode({field = terramate.stack.path.absolute})"),
 					),
 				},
 			},
@@ -484,29 +469,29 @@ stack_id=stack-id
 			configs: []hclconfig{
 				{
 					path: "/root.tm",
-					add: generateFile(
-						labels("root"),
-						str("content", "root-${global.data}-${terramate.path}"),
+					add: GenerateFile(
+						Labels("root"),
+						Str("content", "root-${global.data}-${terramate.path}"),
 					),
 				},
 				{
 					path: "/stacks/globals.tm",
-					add: globals(
-						str("data", "global-data"),
+					add: Globals(
+						Str("data", "global-data"),
 					),
 				},
 				{
 					path: "/stacks/stacks.tm",
-					add: generateFile(
-						labels("stacks"),
-						str("content", "stacks-${global.data}-${terramate.path}"),
+					add: GenerateFile(
+						Labels("stacks"),
+						Str("content", "stacks-${global.data}-${terramate.path}"),
 					),
 				},
 				{
 					path: "/stacks/stack/stack.tm",
-					add: generateFile(
-						labels("stack"),
-						str("content", "stack-${global.data}-${terramate.path}"),
+					add: GenerateFile(
+						Labels("stack"),
+						Str("content", "stack-${global.data}-${terramate.path}"),
 					),
 				},
 			},
@@ -543,9 +528,9 @@ stack_id=stack-id
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
-					add: generateFile(
-						labels("test.yml"),
-						expr("content", "5"),
+					add: GenerateFile(
+						Labels("test.yml"),
+						Expr("content", "5"),
 					),
 				},
 			},
@@ -557,14 +542,14 @@ stack_id=stack-id
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
-					add: hcldoc(
-						generateFile(
-							labels("test.yml"),
-							str("content", "test"),
+					add: Doc(
+						GenerateFile(
+							Labels("test.yml"),
+							Str("content", "test"),
 						),
-						generateFile(
-							labels("test.yml"),
-							str("content", "test2"),
+						GenerateFile(
+							Labels("test.yml"),
+							Str("content", "test2"),
 						),
 					),
 				},
@@ -594,18 +579,18 @@ stack_id=stack-id
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
-					add: generateFile(
-						labels("test"),
-						str("content", "test"),
-						boolean("condition", true),
+					add: GenerateFile(
+						Labels("test"),
+						Str("content", "test"),
+						Bool("condition", true),
 					),
 				},
 				{
 					path: "/stack/test.tm",
-					add: generateFile(
-						labels("test"),
-						str("content", "test"),
-						boolean("condition", false),
+					add: GenerateFile(
+						Labels("test"),
+						Str("content", "test"),
+						Bool("condition", false),
 					),
 				},
 			},
@@ -633,19 +618,19 @@ stack_id=stack-id
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
-					add: hcldoc(
-						generateFile(
-							labels("test.yml"),
-							str("content", "test"),
+					add: Doc(
+						GenerateFile(
+							Labels("test.yml"),
+							Str("content", "test"),
 						),
 					),
 				},
 				{
 					path: "/stack/test2.tm",
-					add: hcldoc(
-						generateFile(
-							labels("test.yml"),
-							str("content", "test2"),
+					add: Doc(
+						GenerateFile(
+							Labels("test.yml"),
+							Str("content", "test2"),
 						),
 					),
 				},
@@ -675,19 +660,19 @@ stack_id=stack-id
 			configs: []hclconfig{
 				{
 					path: "/test.tm",
-					add: hcldoc(
-						generateFile(
-							labels("test.yml"),
-							str("content", "root"),
+					add: Doc(
+						GenerateFile(
+							Labels("test.yml"),
+							Str("content", "root"),
 						),
 					),
 				},
 				{
 					path: "/stack/test.tm",
-					add: hcldoc(
-						generateFile(
-							labels("test.yml"),
-							str("content", "test"),
+					add: Doc(
+						GenerateFile(
+							Labels("test.yml"),
+							Str("content", "test"),
 						),
 					),
 				},
@@ -717,9 +702,9 @@ stack_id=stack-id
 			configs: []hclconfig{
 				{
 					path: "/test.tm",
-					add: hcldoc(
-						generateFile(
-							str("content", "root"),
+					add: Doc(
+						GenerateFile(
+							Str("content", "root"),
 						),
 					),
 				},
@@ -732,10 +717,10 @@ stack_id=stack-id
 			configs: []hclconfig{
 				{
 					path: "/test.tm",
-					add: hcldoc(
-						generateFile(
-							labels("test.yml", "test"),
-							str("content", "root"),
+					add: Doc(
+						GenerateFile(
+							Labels("test.yml", "test"),
+							Str("content", "root"),
 						),
 					),
 				},
@@ -748,10 +733,10 @@ stack_id=stack-id
 			configs: []hclconfig{
 				{
 					path: "/test.tm",
-					add: hcldoc(
-						generateFile(
-							labels(""),
-							str("content", "root"),
+					add: Doc(
+						GenerateFile(
+							Labels(""),
+							Str("content", "root"),
 						),
 					),
 				},
@@ -764,9 +749,9 @@ stack_id=stack-id
 			configs: []hclconfig{
 				{
 					path: "/test.tm",
-					add: hcldoc(
-						generateFile(
-							labels("name"),
+					add: Doc(
+						GenerateFile(
+							Labels("name"),
 						),
 					),
 				},
@@ -779,11 +764,11 @@ stack_id=stack-id
 			configs: []hclconfig{
 				{
 					path: "/test.tm",
-					add: hcldoc(
-						generateFile(
-							labels("name"),
-							str("content", "data"),
-							str("unknown", "data"),
+					add: Doc(
+						GenerateFile(
+							Labels("name"),
+							Str("content", "data"),
+							Str("unknown", "data"),
 						),
 					),
 				},
@@ -796,10 +781,10 @@ stack_id=stack-id
 			configs: []hclconfig{
 				{
 					path: "/test.tm",
-					add: hcldoc(
-						generateFile(
-							labels("name"),
-							expr("content", "global.unknown"),
+					add: Doc(
+						GenerateFile(
+							Labels("name"),
+							Expr("content", "global.unknown"),
 						),
 					),
 				},
@@ -812,11 +797,11 @@ stack_id=stack-id
 			configs: []hclconfig{
 				{
 					path: "/test.tm",
-					add: hcldoc(
-						generateFile(
-							labels("name"),
-							expr("condition", "global.unknown"),
-							str("content", "data"),
+					add: Doc(
+						GenerateFile(
+							Labels("name"),
+							Expr("condition", "global.unknown"),
+							Str("content", "data"),
 						),
 					),
 				},
@@ -829,11 +814,11 @@ stack_id=stack-id
 			configs: []hclconfig{
 				{
 					path: "/test.tm",
-					add: hcldoc(
-						generateFile(
-							labels("name"),
-							str("condition", "not boolean"),
-							str("content", "data"),
+					add: Doc(
+						GenerateFile(
+							Labels("name"),
+							Str("condition", "not boolean"),
+							Str("content", "data"),
 						),
 					),
 				},

@@ -28,17 +28,12 @@ import (
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
-	"github.com/mineiros-io/terramate/test/hclwrite"
+	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
 )
 
 func TestGenerateHCL(t *testing.T) {
-	attr := func(name, expr string) hclwrite.BlockBuilder {
-		t.Helper()
-		return hclwrite.AttributeValue(t, name, expr)
-	}
-
 	tcases := []testcase{
 		{
 			name:  "no generation",
@@ -51,10 +46,10 @@ func TestGenerateHCL(t *testing.T) {
 				{
 					path:     "/stack",
 					filename: ".config.tm",
-					add: generateHCL(
-						labels("config"),
-						content(
-							block("empty"),
+					add: GenerateHCL(
+						Labels("config"),
+						Content(
+							Block("empty"),
 						),
 					),
 				},
@@ -66,9 +61,9 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("empty"),
-						content(),
+					add: GenerateHCL(
+						Labels("empty"),
+						Content(),
 					),
 				},
 			},
@@ -78,7 +73,7 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body:      hcldoc(),
+						body:      Doc(),
 					},
 				},
 			},
@@ -89,10 +84,10 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("emptytest"),
-						content(
-							block("empty"),
+					add: GenerateHCL(
+						Labels("emptytest"),
+						Content(
+							Block("empty"),
 						),
 					),
 				},
@@ -103,7 +98,7 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body:      block("empty"),
+						body:      Block("empty"),
 					},
 				},
 			},
@@ -115,11 +110,11 @@ func TestGenerateHCL(t *testing.T) {
 				{
 					path:     "/stack",
 					filename: "generate.tm",
-					add: generateHCL(
-						labels("condition"),
-						boolean("condition", false),
-						content(
-							block("block"),
+					add: GenerateHCL(
+						Labels("condition"),
+						Bool("condition", false),
+						Content(
+							Block("block"),
 						),
 					),
 				},
@@ -130,7 +125,7 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    "/stack/generate.tm",
 						condition: false,
-						body:      hcldoc(),
+						body:      Doc(),
 					},
 				},
 			},
@@ -142,19 +137,19 @@ func TestGenerateHCL(t *testing.T) {
 				{
 					path:     "/stack",
 					filename: "generate.tm",
-					add: hcldoc(
-						generateHCL(
-							labels("condition"),
-							boolean("condition", false),
-							content(
-								block("block"),
+					add: Doc(
+						GenerateHCL(
+							Labels("condition"),
+							Bool("condition", false),
+							Content(
+								Block("block"),
 							),
 						),
-						generateHCL(
-							labels("condition2"),
-							boolean("condition", true),
-							content(
-								block("block"),
+						GenerateHCL(
+							Labels("condition2"),
+							Bool("condition", true),
+							Content(
+								Block("block"),
 							),
 						),
 					),
@@ -166,7 +161,7 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    "/stack/generate.tm",
 						condition: false,
-						body:      hcldoc(),
+						body:      Doc(),
 					},
 				},
 				{
@@ -174,7 +169,7 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    "/stack/generate.tm",
 						condition: true,
-						body:      block("block"),
+						body:      Block("block"),
 					},
 				},
 			},
@@ -186,18 +181,18 @@ func TestGenerateHCL(t *testing.T) {
 				{
 					path:     "/stack",
 					filename: "globals.tm",
-					add: globals(
-						boolean("condition", false),
+					add: Globals(
+						Bool("condition", false),
 					),
 				},
 				{
 					path:     "/stack",
 					filename: "generate.tm",
-					add: generateHCL(
-						labels("condition"),
-						expr("condition", "global.condition"),
-						content(
-							block("block"),
+					add: GenerateHCL(
+						Labels("condition"),
+						Expr("condition", "global.condition"),
+						Content(
+							Block("block"),
 						),
 					),
 				},
@@ -208,7 +203,7 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    "/stack/generate.tm",
 						condition: false,
-						body:      hcldoc(),
+						body:      Doc(),
 					},
 				},
 			},
@@ -220,11 +215,11 @@ func TestGenerateHCL(t *testing.T) {
 				{
 					path:     "/stack",
 					filename: "generate.tm",
-					add: generateHCL(
-						labels("condition"),
-						expr("condition", "tm_try(global.undef, false)"),
-						content(
-							block("block"),
+					add: GenerateHCL(
+						Labels("condition"),
+						Expr("condition", "tm_try(global.undef, false)"),
+						Content(
+							Block("block"),
 						),
 					),
 				},
@@ -235,7 +230,7 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    "/stack/generate.tm",
 						condition: false,
-						body:      hcldoc(),
+						body:      Doc(),
 					},
 				},
 			},
@@ -247,18 +242,18 @@ func TestGenerateHCL(t *testing.T) {
 				{
 					path:     "/stack",
 					filename: "globals.tm",
-					add: globals(
-						attr("list", "[666]"),
+					add: Globals(
+						EvalExpr(t, "list", "[666]"),
 					),
 				},
 				{
 					path:     "/stack",
 					filename: "generate.tm",
-					add: generateHCL(
-						labels("condition"),
-						expr("condition", "tm_length(global.list) > 0"),
-						content(
-							block("block"),
+					add: GenerateHCL(
+						Labels("condition"),
+						Expr("condition", "tm_length(global.list) > 0"),
+						Content(
+							Block("block"),
 						),
 					),
 				},
@@ -269,7 +264,7 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    "/stack/generate.tm",
 						condition: true,
-						body:      block("block"),
+						body:      Block("block"),
 					},
 				},
 			},
@@ -280,11 +275,11 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("attrs"),
-						content(
-							number("num", 666),
-							str("str", "hi"),
+					add: GenerateHCL(
+						Labels("attrs"),
+						Content(
+							Number("num", 666),
+							Str("str", "hi"),
 						),
 					),
 				},
@@ -295,9 +290,9 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body: hcldoc(
-							number("num", 666),
-							str("str", "hi"),
+						body: Doc(
+							Number("num", 666),
+							Str("str", "hi"),
 						),
 					},
 				},
@@ -309,11 +304,11 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("attrs"),
-						content(
-							number("a", 666),
-							expr("b", "a"),
+					add: GenerateHCL(
+						Labels("attrs"),
+						Content(
+							Number("a", 666),
+							Expr("b", "a"),
 						),
 					),
 				},
@@ -324,9 +319,9 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body: hcldoc(
-							number("a", 666),
-							expr("b", "a"),
+						body: Doc(
+							Number("a", 666),
+							Expr("b", "a"),
 						),
 					},
 				},
@@ -338,12 +333,12 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("attrs"),
-						content(
-							number("num", 666),
-							block("test"),
-							str("str", "hi"),
+					add: GenerateHCL(
+						Labels("attrs"),
+						Content(
+							Number("num", 666),
+							Block("test"),
+							Str("str", "hi"),
 						),
 					),
 				},
@@ -354,10 +349,10 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body: hcldoc(
-							number("num", 666),
-							str("str", "hi"),
-							block("test"),
+						body: Doc(
+							Number("num", 666),
+							Str("str", "hi"),
+							Block("test"),
 						),
 					},
 				},
@@ -369,14 +364,14 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("scope_traversal"),
-						content(
-							block("traversals",
-								expr("local", "local.something"),
-								expr("mul", "omg.wat.something"),
-								expr("res", "resource.something"),
-								expr("val", "omg.something"),
+					add: GenerateHCL(
+						Labels("scope_traversal"),
+						Content(
+							Block("traversals",
+								Expr("local", "local.something"),
+								Expr("mul", "omg.wat.something"),
+								Expr("res", "resource.something"),
+								Expr("val", "omg.something"),
 							),
 						),
 					),
@@ -388,11 +383,11 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body: block("traversals",
-							expr("local", "local.something"),
-							expr("mul", "omg.wat.something"),
-							expr("res", "resource.something"),
-							expr("val", "omg.something"),
+						body: Block("traversals",
+							Expr("local", "local.something"),
+							Expr("mul", "omg.wat.something"),
+							Expr("res", "resource.something"),
+							Expr("val", "omg.something"),
 						),
 					},
 				},
@@ -404,22 +399,22 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: globals(
-						str("some_string", "string"),
-						number("some_number", 777),
-						boolean("some_bool", true),
+					add: Globals(
+						Str("some_string", "string"),
+						Number("some_number", 777),
+						Bool("some_bool", true),
 					),
 				},
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("test"),
-						content(
-							block("testblock",
-								expr("bool", "global.some_bool"),
-								expr("number", "global.some_number"),
-								expr("string", "global.some_string"),
-								expr("obj", `{
+					add: GenerateHCL(
+						Labels("test"),
+						Content(
+							Block("testblock",
+								Expr("bool", "global.some_bool"),
+								Expr("number", "global.some_number"),
+								Expr("string", "global.some_string"),
+								Expr("obj", `{
 									string = global.some_string
 									number = global.some_number
 									bool = global.some_bool
@@ -435,15 +430,15 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body: block("testblock",
-							boolean("bool", true),
-							number("number", 777),
-							attr("obj", `{
+						body: Block("testblock",
+							Bool("bool", true),
+							Number("number", 777),
+							EvalExpr(t, "obj", `{
 								string = "string"
 								number = 777
 								bool   = true
 							}`),
-							str("string", "string"),
+							Str("string", "string"),
 						),
 					},
 				},
@@ -455,22 +450,22 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: globals(
-						str("some_string", "string"),
-						number("some_number", 777),
-						boolean("some_bool", true),
+					add: Globals(
+						Str("some_string", "string"),
+						Number("some_number", 777),
+						Bool("some_bool", true),
 					),
 				},
 				{
 					path:     "/",
 					filename: "root.tm.hcl",
-					add: generateHCL(
-						labels("test"),
-						content(
-							block("testblock",
-								expr("bool", "global.some_bool"),
-								expr("number", "global.some_number"),
-								expr("string", "global.some_string"),
+					add: GenerateHCL(
+						Labels("test"),
+						Content(
+							Block("testblock",
+								Expr("bool", "global.some_bool"),
+								Expr("number", "global.some_number"),
+								Expr("string", "global.some_string"),
 							),
 						),
 					),
@@ -478,11 +473,11 @@ func TestGenerateHCL(t *testing.T) {
 				{
 					path:     "/",
 					filename: "root2.tm.hcl",
-					add: generateHCL(
-						labels("test2"),
-						content(
-							block("testblock2",
-								expr("obj", `{
+					add: GenerateHCL(
+						Labels("test2"),
+						Content(
+							Block("testblock2",
+								Expr("obj", `{
 									string = global.some_string
 									number = global.some_number
 									bool = global.some_bool
@@ -498,10 +493,10 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    "/root.tm.hcl",
 						condition: true,
-						body: block("testblock",
-							boolean("bool", true),
-							number("number", 777),
-							str("string", "string"),
+						body: Block("testblock",
+							Bool("bool", true),
+							Number("number", 777),
+							Str("string", "string"),
 						),
 					},
 				},
@@ -510,8 +505,8 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    "/root2.tm.hcl",
 						condition: true,
-						body: block("testblock2",
-							attr("obj", `{
+						body: Block("testblock2",
+							EvalExpr(t, "obj", `{
 								string = "string"
 								number = 777
 								bool   = true
@@ -527,22 +522,22 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: globals(
-						str("some_string", "string"),
-						number("some_number", 777),
-						boolean("some_bool", true),
+					add: Globals(
+						Str("some_string", "string"),
+						Number("some_number", 777),
+						Bool("some_bool", true),
 					),
 				},
 				{
 					path:     "/stack",
 					filename: "test.tm.hcl",
-					add: generateHCL(
-						labels("test"),
-						content(
-							block("testblock",
-								expr("bool", "global.some_bool"),
-								expr("number", "global.some_number"),
-								expr("string", "global.some_string"),
+					add: GenerateHCL(
+						Labels("test"),
+						Content(
+							Block("testblock",
+								Expr("bool", "global.some_bool"),
+								Expr("number", "global.some_number"),
+								Expr("string", "global.some_string"),
 							),
 						),
 					),
@@ -550,11 +545,11 @@ func TestGenerateHCL(t *testing.T) {
 				{
 					path:     "/stack",
 					filename: "test2.tm.hcl",
-					add: generateHCL(
-						labels("test2"),
-						content(
-							block("testblock2",
-								expr("obj", `{
+					add: GenerateHCL(
+						Labels("test2"),
+						Content(
+							Block("testblock2",
+								Expr("obj", `{
 									string = global.some_string
 									number = global.some_number
 									bool = global.some_bool
@@ -570,10 +565,10 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    "/stack/test.tm.hcl",
 						condition: true,
-						body: block("testblock",
-							boolean("bool", true),
-							number("number", 777),
-							str("string", "string"),
+						body: Block("testblock",
+							Bool("bool", true),
+							Number("number", 777),
+							Str("string", "string"),
 						),
 					},
 				},
@@ -582,8 +577,8 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    "/stack/test2.tm.hcl",
 						condition: true,
-						body: block("testblock2",
-							attr("obj", `{
+						body: Block("testblock2",
+							EvalExpr(t, "obj", `{
 								string = "string"
 								number = 777
 								bool   = true
@@ -599,8 +594,8 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: globals(
-						attr("obj", `{
+					add: Globals(
+						EvalExpr(t, "obj", `{
 							field_a = "a"
 							field_b = "b"
 							field_c = "c"
@@ -609,15 +604,15 @@ func TestGenerateHCL(t *testing.T) {
 				},
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("test"),
-						content(
-							block("labeled",
-								labels("label1", "label2"),
-								expr("field_a", "try(global.obj.field_a, null)"),
-								expr("field_b", "try(global.obj.field_b, null)"),
-								expr("field_c", "try(global.obj.field_c, null)"),
-								expr("field_d", "tm_try(global.obj.field_d, null)"),
+					add: GenerateHCL(
+						Labels("test"),
+						Content(
+							Block("labeled",
+								Labels("label1", "label2"),
+								Expr("field_a", "try(global.obj.field_a, null)"),
+								Expr("field_b", "try(global.obj.field_b, null)"),
+								Expr("field_c", "try(global.obj.field_c, null)"),
+								Expr("field_d", "tm_try(global.obj.field_d, null)"),
 							),
 						),
 					),
@@ -629,12 +624,12 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body: block("labeled",
-							labels("label1", "label2"),
-							expr("field_a", `try("a", null)`),
-							expr("field_b", `try("b", null)`),
-							expr("field_c", `try("c", null)`),
-							attr("field_d", "null"),
+						body: Block("labeled",
+							Labels("label1", "label2"),
+							Expr("field_a", `try("a", null)`),
+							Expr("field_b", `try("b", null)`),
+							Expr("field_c", `try("c", null)`),
+							EvalExpr(t, "field_d", "null"),
 						),
 					},
 				},
@@ -646,25 +641,25 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: globals(
-						str("some_string", "string"),
-						number("some_number", 777),
-						boolean("some_bool", true),
+					add: Globals(
+						Str("some_string", "string"),
+						Number("some_number", 777),
+						Bool("some_bool", true),
 					),
 				},
 				{
 					path:     "/stack",
 					filename: "genhcl.tm.hcl",
-					add: generateHCL(
-						labels("nesting"),
-						content(
-							block("block1",
-								expr("bool", "global.some_bool"),
-								block("block2",
-									expr("number", "global.some_number"),
-									block("block3",
-										expr("string", "global.some_string"),
-										expr("obj", `{
+					add: GenerateHCL(
+						Labels("nesting"),
+						Content(
+							Block("block1",
+								Expr("bool", "global.some_bool"),
+								Block("block2",
+									Expr("number", "global.some_number"),
+									Block("block3",
+										Expr("string", "global.some_string"),
+										Expr("obj", `{
 											string = global.some_string
 											number = global.some_number
 											bool = global.some_bool
@@ -682,17 +677,17 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    "/stack/genhcl.tm.hcl",
 						condition: true,
-						body: block("block1",
-							boolean("bool", true),
-							block("block2",
-								number("number", 777),
-								block("block3",
-									attr("obj", `{
+						body: Block("block1",
+							Bool("bool", true),
+							Block("block2",
+								Number("number", 777),
+								Block("block3",
+									EvalExpr(t, "obj", `{
 										string = "string"
 										number = 777
 										bool   = true
 									}`),
-									str("string", "string"),
+									Str("string", "string"),
 								),
 							),
 						),
@@ -706,36 +701,36 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: hcldoc(
-						globals(
-							str("some_string", "string"),
-							number("some_number", 666),
-							boolean("some_bool", true),
+					add: Doc(
+						Globals(
+							Str("some_string", "string"),
+							Number("some_number", 666),
+							Bool("some_bool", true),
 						),
-						generateHCL(
-							labels("exported_one"),
-							content(
-								block("block1",
-									expr("bool", "global.some_bool"),
-									block("block2",
-										expr("number", "global.some_number"),
+						GenerateHCL(
+							Labels("exported_one"),
+							Content(
+								Block("block1",
+									Expr("bool", "global.some_bool"),
+									Block("block2",
+										Expr("number", "global.some_number"),
 									),
 								),
 							),
 						),
-						generateHCL(
-							labels("exported_two"),
-							content(
-								block("yay",
-									expr("data", "global.some_string"),
+						GenerateHCL(
+							Labels("exported_two"),
+							Content(
+								Block("yay",
+									Expr("data", "global.some_string"),
 								),
 							),
 						),
-						generateHCL(
-							labels("exported_three"),
-							content(
-								block("something",
-									expr("number", "global.some_number"),
+						GenerateHCL(
+							Labels("exported_three"),
+							Content(
+								Block("something",
+									Expr("number", "global.some_number"),
 								),
 							),
 						),
@@ -748,10 +743,10 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body: block("block1",
-							boolean("bool", true),
-							block("block2",
-								number("number", 666),
+						body: Block("block1",
+							Bool("bool", true),
+							Block("block2",
+								Number("number", 666),
 							),
 						),
 					},
@@ -761,8 +756,8 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body: block("something",
-							number("number", 666),
+						body: Block("something",
+							Number("number", 666),
 						),
 					},
 				},
@@ -771,8 +766,8 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stack"),
 						condition: true,
-						body: block("yay",
-							str("data", "string"),
+						body: Block("yay",
+							Str("data", "string"),
 						),
 					},
 				},
@@ -784,19 +779,19 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/",
-					add: globals(
-						str("some_string", "string"),
-						number("some_number", 777),
-						boolean("some_bool", true),
+					add: Globals(
+						Str("some_string", "string"),
+						Number("some_number", 777),
+						Bool("some_bool", true),
 					),
 				},
 				{
 					path: "/stacks",
-					add: generateHCL(
-						labels("on_parent"),
-						content(
-							block("on_parent_block",
-								expr("obj", `{
+					add: GenerateHCL(
+						Labels("on_parent"),
+						Content(
+							Block("on_parent_block",
+								Expr("obj", `{
 									string = global.some_string
 									number = global.some_number
 									bool = global.some_bool
@@ -812,8 +807,8 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stacks"),
 						condition: true,
-						body: block("on_parent_block",
-							attr("obj", `{
+						body: Block("on_parent_block",
+							EvalExpr(t, "obj", `{
 								string = "string"
 								number = 777
 								bool   = true
@@ -829,17 +824,17 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/",
-					add: generateHCL(
-						labels("root"),
-						content(
-							expr("stacks_list", "terramate.stacks.list"),
-							expr("stack_description", "terramate.stack.description"),
-							expr("stack_id", `tm_try(terramate.stack.id, "no-id")`),
-							expr("stack_name", "terramate.stack.name"),
-							expr("stack_path_abs", "terramate.stack.path.absolute"),
-							expr("stack_path_basename", "terramate.stack.path.basename"),
-							expr("stack_path_rel", "terramate.stack.path.relative"),
-							expr("stack_path_to_root", "terramate.stack.path.to_root"),
+					add: GenerateHCL(
+						Labels("root"),
+						Content(
+							Expr("stacks_list", "terramate.stacks.list"),
+							Expr("stack_description", "terramate.stack.description"),
+							Expr("stack_id", `tm_try(terramate.stack.id, "no-id")`),
+							Expr("stack_name", "terramate.stack.name"),
+							Expr("stack_path_abs", "terramate.stack.path.absolute"),
+							Expr("stack_path_basename", "terramate.stack.path.basename"),
+							Expr("stack_path_rel", "terramate.stack.path.relative"),
+							Expr("stack_path_to_root", "terramate.stack.path.to_root"),
 						),
 					),
 				},
@@ -850,15 +845,15 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/"),
 						condition: true,
-						body: hcldoc(
-							str("stack_description", ""),
-							str("stack_id", "no-id"),
-							str("stack_name", "stack"),
-							str("stack_path_abs", "/stacks/stack"),
-							str("stack_path_basename", "stack"),
-							str("stack_path_rel", "stacks/stack"),
-							str("stack_path_to_root", "../.."),
-							attr("stacks_list", `["/stacks/stack"]`),
+						body: Doc(
+							Str("stack_description", ""),
+							Str("stack_id", "no-id"),
+							Str("stack_name", "stack"),
+							Str("stack_path_abs", "/stacks/stack"),
+							Str("stack_path_basename", "stack"),
+							Str("stack_path_rel", "stacks/stack"),
+							Str("stack_path_to_root", "../.."),
+							EvalExpr(t, "stacks_list", `["/stacks/stack"]`),
 						),
 					},
 				},
@@ -870,10 +865,10 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/",
-					add: generateHCL(
-						labels("root"),
-						content(
-							expr("stack_id", "terramate.stack.id"),
+					add: GenerateHCL(
+						Labels("root"),
+						Content(
+							Expr("stack_id", "terramate.stack.id"),
 						),
 					),
 				},
@@ -884,8 +879,8 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/"),
 						condition: true,
-						body: hcldoc(
-							str("stack_id", "stack-id"),
+						body: Doc(
+							Str("stack_id", "stack-id"),
 						),
 					},
 				},
@@ -897,11 +892,11 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/",
-					add: generateHCL(
-						labels("root"),
-						content(
-							block("root",
-								expr("test", "terramate.stack.path.absolute"),
+					add: GenerateHCL(
+						Labels("root"),
+						Content(
+							Block("root",
+								Expr("test", "terramate.stack.path.absolute"),
 							),
 						),
 					),
@@ -913,8 +908,8 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/"),
 						condition: true,
-						body: block("root",
-							str("test", "/stacks/stack"),
+						body: Block("root",
+							Str("test", "/stacks/stack"),
 						),
 					},
 				},
@@ -926,17 +921,17 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/",
-					add: hcldoc(
-						globals(
-							str("some_string", "string"),
-							number("some_number", 777),
-							boolean("some_bool", true),
+					add: Doc(
+						Globals(
+							Str("some_string", "string"),
+							Number("some_number", 777),
+							Bool("some_bool", true),
 						),
-						generateHCL(
-							labels("on_root"),
-							content(
-								block("on_root_block",
-									expr("obj", `{
+						GenerateHCL(
+							Labels("on_root"),
+							Content(
+								Block("on_root_block",
+									Expr("obj", `{
 										string = global.some_string
 									}`),
 								),
@@ -946,11 +941,11 @@ func TestGenerateHCL(t *testing.T) {
 				},
 				{
 					path: "/stacks",
-					add: generateHCL(
-						labels("on_parent"),
-						content(
-							block("on_parent_block",
-								expr("obj", `{
+					add: GenerateHCL(
+						Labels("on_parent"),
+						Content(
+							Block("on_parent_block",
+								Expr("obj", `{
 									number = global.some_number
 								}`),
 							),
@@ -959,11 +954,11 @@ func TestGenerateHCL(t *testing.T) {
 				},
 				{
 					path: "/stacks/stack",
-					add: generateHCL(
-						labels("on_stack"),
-						content(
-							block("on_stack_block",
-								expr("obj", `{
+					add: GenerateHCL(
+						Labels("on_stack"),
+						Content(
+							Block("on_stack_block",
+								Expr("obj", `{
 									bool = global.some_bool
 								}`),
 							),
@@ -977,8 +972,8 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stacks"),
 						condition: true,
-						body: block("on_parent_block",
-							attr("obj", `{
+						body: Block("on_parent_block",
+							EvalExpr(t, "obj", `{
 								number = 777
 							}`),
 						),
@@ -989,8 +984,8 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/"),
 						condition: true,
-						body: block("on_root_block",
-							attr("obj", `{
+						body: Block("on_root_block",
+							EvalExpr(t, "obj", `{
 								string = "string"
 							}`),
 						),
@@ -1001,8 +996,8 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stacks/stack"),
 						condition: true,
-						body: block("on_stack_block",
-							attr("obj", `{
+						body: Block("on_stack_block",
+							EvalExpr(t, "obj", `{
 								bool   = true
 							}`),
 						),
@@ -1016,22 +1011,22 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks",
-					add: generateHCL(
-						labels("repeated"),
-						content(
-							block("block",
-								str("data", "parent data"),
+					add: GenerateHCL(
+						Labels("repeated"),
+						Content(
+							Block("block",
+								Str("data", "parent data"),
 							),
 						),
 					),
 				},
 				{
 					path: "/stacks/stack",
-					add: generateHCL(
-						labels("repeated"),
-						content(
-							block("block",
-								str("data", "stack data"),
+					add: GenerateHCL(
+						Labels("repeated"),
+						Content(
+							Block("block",
+								Str("data", "stack data"),
 							),
 						),
 					),
@@ -1043,8 +1038,8 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stacks"),
 						condition: true,
-						body: block("block",
-							str("data", "parent data"),
+						body: Block("block",
+							Str("data", "parent data"),
 						),
 					},
 				},
@@ -1053,8 +1048,8 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stacks/stack"),
 						condition: true,
-						body: block("block",
-							str("data", "stack data"),
+						body: Block("block",
+							Str("data", "stack data"),
 						),
 					},
 				},
@@ -1066,22 +1061,22 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/",
-					add: generateHCL(
-						labels("repeated"),
-						content(
-							block("block",
-								str("data", "root data"),
+					add: GenerateHCL(
+						Labels("repeated"),
+						Content(
+							Block("block",
+								Str("data", "root data"),
 							),
 						),
 					),
 				},
 				{
 					path: "/stacks",
-					add: generateHCL(
-						labels("repeated"),
-						content(
-							block("block",
-								str("data", "parent data"),
+					add: GenerateHCL(
+						Labels("repeated"),
+						Content(
+							Block("block",
+								Str("data", "parent data"),
 							),
 						),
 					),
@@ -1093,8 +1088,8 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stacks"),
 						condition: true,
-						body: block("block",
-							str("data", "parent data"),
+						body: Block("block",
+							Str("data", "parent data"),
 						),
 					},
 				},
@@ -1103,8 +1098,8 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/"),
 						condition: true,
-						body: block("block",
-							str("data", "root data"),
+						body: Block("block",
+							Str("data", "root data"),
 						),
 					},
 				},
@@ -1116,10 +1111,10 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks/stack",
-					add: generateHCL(
-						content(
-							block("block",
-								str("data", "some literal data"),
+					add: GenerateHCL(
+						Content(
+							Block("block",
+								Str("data", "some literal data"),
 							),
 						),
 					),
@@ -1133,10 +1128,10 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks/stack",
-					add: generateHCL(
-						labels("test"),
-						block("block",
-							str("data", "some literal data"),
+					add: GenerateHCL(
+						Labels("test"),
+						Block("block",
+							Str("data", "some literal data"),
 						),
 					),
 				},
@@ -1149,13 +1144,13 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks/stack",
-					add: generateHCL(
-						labels("test"),
-						content(
-							str("data", "some literal data"),
+					add: GenerateHCL(
+						Labels("test"),
+						Content(
+							Str("data", "some literal data"),
 						),
-						block("block",
-							str("data", "some literal data"),
+						Block("block",
+							Str("data", "some literal data"),
 						),
 					),
 				},
@@ -1168,8 +1163,8 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("empty"),
+					add: GenerateHCL(
+						Labels("empty"),
 					),
 				},
 			},
@@ -1181,10 +1176,10 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stack",
-					add: generateHCL(
-						labels("empty"),
-						content(
-							labels("not allowed"),
+					add: GenerateHCL(
+						Labels("empty"),
+						Content(
+							Labels("not allowed"),
 						),
 					),
 				},
@@ -1197,11 +1192,11 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks/stack",
-					add: block("generate_hcl",
-						labels("one", "two"),
-						content(
-							block("block",
-								str("data", "some literal data"),
+					add: Block("generate_hcl",
+						Labels("one", "two"),
+						Content(
+							Block("block",
+								Str("data", "some literal data"),
 							),
 						),
 					),
@@ -1215,11 +1210,11 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks/stack",
-					add: block("generate_hcl",
-						labels(""),
-						content(
-							block("block",
-								str("data", "some literal data"),
+					add: Block("generate_hcl",
+						Labels(""),
+						Content(
+							Block("block",
+								Str("data", "some literal data"),
 							),
 						),
 					),
@@ -1233,20 +1228,20 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks/stack",
-					add: hcldoc(
-						generateHCL(
-							labels("duplicated"),
-							content(
-								terraform(
-									str("data", "some literal data"),
+					add: Doc(
+						GenerateHCL(
+							Labels("duplicated"),
+							Content(
+								Terraform(
+									Str("data", "some literal data"),
 								),
 							),
 						),
-						generateHCL(
-							labels("duplicated"),
-							content(
-								terraform(
-									str("data2", "some literal data2"),
+						GenerateHCL(
+							Labels("duplicated"),
+							Content(
+								Terraform(
+									Str("data2", "some literal data2"),
 								),
 							),
 						),
@@ -1259,8 +1254,8 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stacks/stack"),
 						condition: true,
-						body: terraform(
-							str("data", "some literal data"),
+						body: Terraform(
+							Str("data", "some literal data"),
 						),
 					},
 				},
@@ -1269,8 +1264,8 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    defaultCfg("/stacks/stack"),
 						condition: true,
-						body: terraform(
-							str("data2", "some literal data2"),
+						body: Terraform(
+							Str("data2", "some literal data2"),
 						),
 					},
 				},
@@ -1283,12 +1278,12 @@ func TestGenerateHCL(t *testing.T) {
 				{
 					path:     "/stacks/stack",
 					filename: "test.tm.hcl",
-					add: hcldoc(
-						generateHCL(
-							labels("duplicated"),
-							content(
-								terraform(
-									str("data", "some literal data"),
+					add: Doc(
+						GenerateHCL(
+							Labels("duplicated"),
+							Content(
+								Terraform(
+									Str("data", "some literal data"),
 								),
 							),
 						),
@@ -1297,12 +1292,12 @@ func TestGenerateHCL(t *testing.T) {
 				{
 					path:     "/stacks/stack",
 					filename: "test2.tm.hcl",
-					add: hcldoc(
-						generateHCL(
-							labels("duplicated"),
-							content(
-								terraform(
-									str("data", "some literal data"),
+					add: Doc(
+						GenerateHCL(
+							Labels("duplicated"),
+							Content(
+								Terraform(
+									Str("data", "some literal data"),
 								),
 							),
 						),
@@ -1315,8 +1310,8 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    "/stacks/stack/test.tm.hcl",
 						condition: true,
-						body: terraform(
-							str("data", "some literal data"),
+						body: Terraform(
+							Str("data", "some literal data"),
 						),
 					},
 				},
@@ -1325,8 +1320,8 @@ func TestGenerateHCL(t *testing.T) {
 					hcl: genHCL{
 						origin:    "/stacks/stack/test2.tm.hcl",
 						condition: true,
-						body: terraform(
-							str("data", "some literal data"),
+						body: Terraform(
+							Str("data", "some literal data"),
 						),
 					},
 				},
@@ -1338,12 +1333,12 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks/stack",
-					add: hcldoc(
-						generateHCL(
-							labels("test"),
-							content(
-								terraform(
-									expr("required_version", "global.undefined"),
+					add: Doc(
+						GenerateHCL(
+							Labels("test"),
+							Content(
+								Terraform(
+									Expr("required_version", "global.undefined"),
 								),
 							),
 						),
@@ -1358,12 +1353,12 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks/stack",
-					add: hcldoc(
-						generateHCL(
-							labels("test"),
-							expr("condition", "global.undef"),
-							content(
-								terraform(),
+					add: Doc(
+						GenerateHCL(
+							Labels("test"),
+							Expr("condition", "global.undef"),
+							Content(
+								Terraform(),
 							),
 						),
 					),
@@ -1377,12 +1372,12 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks/stack",
-					add: hcldoc(
-						generateHCL(
-							labels("test"),
-							str("condition", "not a boolean"),
-							content(
-								terraform(),
+					add: Doc(
+						GenerateHCL(
+							Labels("test"),
+							Str("condition", "not a boolean"),
+							Content(
+								Terraform(),
 							),
 						),
 					),
@@ -1396,12 +1391,12 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks/stack",
-					add: hcldoc(
-						generateHCL(
-							labels("test"),
-							content(
-								terraform(
-									expr("much_wrong", "terramate.undefined"),
+					add: Doc(
+						GenerateHCL(
+							Labels("test"),
+							Content(
+								Terraform(
+									Expr("much_wrong", "terramate.undefined"),
 								),
 							),
 						),
@@ -1416,20 +1411,20 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks",
-					add: generateHCL(
-						block("block",
-							str("data", "some literal data"),
+					add: GenerateHCL(
+						Block("block",
+							Str("data", "some literal data"),
 						),
 					),
 				},
 				{
 					path: "/stacks/stack",
-					add: hcldoc(
-						generateHCL(
-							labels("valid"),
-							content(
-								terraform(
-									str("data", "some literal data"),
+					add: Doc(
+						GenerateHCL(
+							Labels("valid"),
+							Content(
+								Terraform(
+									Str("data", "some literal data"),
 								),
 							),
 						),
@@ -1444,13 +1439,13 @@ func TestGenerateHCL(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path: "/stacks/stack",
-					add: hcldoc(
-						generateHCL(
-							labels("test"),
-							str("some_attribute", "whatever"),
-							content(
-								terraform(
-									str("required_version", "1.11"),
+					add: Doc(
+						GenerateHCL(
+							Labels("test"),
+							Str("some_attribute", "whatever"),
+							Content(
+								Terraform(
+									Str("required_version", "1.11"),
 								),
 							),
 						),

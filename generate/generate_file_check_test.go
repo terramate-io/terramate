@@ -20,6 +20,8 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/test/sandbox"
+
+	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
 func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
@@ -38,9 +40,9 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
 
 	// Checking detection when there is no config generated yet
 	stackEntry.CreateConfig(
-		generateFile(
-			labels("test.txt"),
-			str("content", "test"),
+		GenerateFile(
+			Labels("test.txt"),
+			Str("content", "test"),
 		).String(),
 	)
 	assertOutdatedFiles([]string{"test.txt"})
@@ -51,9 +53,9 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
 
 	// Now checking when we have code + it gets outdated.
 	stackEntry.CreateConfig(
-		generateFile(
-			labels("test.txt"),
-			str("content", "changed"),
+		GenerateFile(
+			Labels("test.txt"),
+			Str("content", "changed"),
 		).String(),
 	)
 
@@ -64,9 +66,9 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
 	// Changing generated filenames will NOT trigger detection for the old file
 	// since there is no way to automatically track the files for now
 	stackEntry.CreateConfig(
-		generateFile(
-			labels("testnew.txt"),
-			str("content", "changed"),
+		GenerateFile(
+			Labels("testnew.txt"),
+			Str("content", "changed"),
 		).String(),
 	)
 
@@ -74,14 +76,14 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
 
 	// Adding new filename to generation trigger detection
 	stackEntry.CreateConfig(
-		hcldoc(
-			generateFile(
-				labels("testnew.txt"),
-				str("content", "changed"),
+		Doc(
+			GenerateFile(
+				Labels("testnew.txt"),
+				Str("content", "changed"),
 			),
-			generateFile(
-				labels("another.txt"),
-				str("content", "changed"),
+			GenerateFile(
+				Labels("another.txt"),
+				Str("content", "changed"),
 			),
 		).String())
 
@@ -114,9 +116,9 @@ func TestCheckOutdatedDetectsEmptyGenerateFileContent(t *testing.T) {
 
 	// Checking detection when the config is empty at first
 	stackEntry.CreateConfig(
-		generateFile(
-			labels("test.txt"),
-			str("content", ""),
+		GenerateFile(
+			Labels("test.txt"),
+			Str("content", ""),
 		).String(),
 	)
 
@@ -126,9 +128,9 @@ func TestCheckOutdatedDetectsEmptyGenerateFileContent(t *testing.T) {
 
 	// Check having generated code and switch to no code
 	stackEntry.CreateConfig(
-		generateFile(
-			labels("test.txt"),
-			str("content", "code"),
+		GenerateFile(
+			Labels("test.txt"),
+			Str("content", "code"),
 		).String(),
 	)
 
@@ -137,9 +139,9 @@ func TestCheckOutdatedDetectsEmptyGenerateFileContent(t *testing.T) {
 	assertOutdatedFiles([]string{})
 
 	stackEntry.CreateConfig(
-		generateFile(
-			labels("test.txt"),
-			str("content", ""),
+		GenerateFile(
+			Labels("test.txt"),
+			Str("content", ""),
 		).String(),
 	)
 
@@ -166,10 +168,10 @@ func TestCheckOutdatedIgnoresWhenGenFileConditionIsFalse(t *testing.T) {
 
 	createConfig := func(filename string, condition bool) {
 		stackEntry.CreateConfig(
-			generateFile(
-				labels(filename),
-				boolean("condition", condition),
-				str("content", "some content"),
+			GenerateFile(
+				Labels(filename),
+				Bool("condition", condition),
+				Str("content", "some content"),
 			).String(),
 		)
 	}
