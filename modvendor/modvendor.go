@@ -372,8 +372,7 @@ func patchFiles(rootdir string, files []string, sourcemap map[string]*modinfo) e
 				if err != nil {
 					errs.Append(err)
 				} else {
-					newexpr := hclwrite.NewExpressionLiteral(cty.StringVal(relPath))
-					block.Body().SetAttributeRaw("source", newexpr.BuildTokens(nil))
+					block.Body().SetAttributeValue("source", cty.StringVal(relPath))
 				}
 			}
 		}
