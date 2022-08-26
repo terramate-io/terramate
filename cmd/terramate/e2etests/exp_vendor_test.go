@@ -15,6 +15,7 @@
 package e2etest
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -25,7 +26,6 @@ import (
 
 func TestVendorModule(t *testing.T) {
 	const (
-		path     = "github.com/mineiros-io/example"
 		ref      = "main"
 		filename = "test.txt"
 		content  = "test"
@@ -42,13 +42,53 @@ func TestVendorModule(t *testing.T) {
 	s := sandbox.New(t)
 
 	tmcli := newCLI(t, s.RootDir())
+	res := tmcli.run("experimental", "vendor", "download", gitSource, ref)
+
+	assertRunResult(t, res, runExpected{IgnoreStdout: true})
+
+	vendordir := filepath.Join(s.RootDir(), "vendor")
+	clonedir := filepath.Join(vendordir, repoSandbox.RootDir(), ref)
+
+	got := test.ReadFile(t, clonedir, filename)
+	assert.EqualStrings(t, content, string(got))
+}
+
+func TestVendorModuleRecursive1DependencyIsPatched(t *testing.T) {
+	const moduleFileTemplate = `module "test" { source = "%s" }`
+	depsSandbox := sandbox.New(t)
+	depsSandbox.RootEntry().CreateFile("main.tf", ``)
+
+	repoGit := depsSandbox.Git()
+	repoGit.CommitAll("add file")
+
+	depsGitSource := "git::file://" + depsSandbox.RootDir() + "?ref=main"
+
+	moduleSandbox := sandbox.New(t)
+
+	moduleSandbox.RootEntry().CreateFile("main.tf",
+		fmt.Sprintf(moduleFileTemplate, depsGitSource))
+
+	repoGit = moduleSandbox.Git()
+	repoGit.CommitAll("add file")
+
+	gitSource := "git::file://" + moduleSandbox.RootDir()
+
+	s := sandbox.New(t)
+
+	tmcli := newCLI(t, s.RootDir())
 	res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
 
 	assertRunResult(t, res, runExpected{IgnoreStdout: true})
 
 	vendordir := filepath.Join(s.RootDir(), "vendor")
-	clonedir := filepath.Join(vendordir, repoSandbox.RootDir(), "main")
+	moduleDir := filepath.Join(vendordir, moduleSandbox.RootDir(), "main")
+	depsDir := filepath.Join(vendordir, depsSandbox.RootDir(), "main")
 
-	got := test.ReadFile(t, clonedir, filename)
-	assert.EqualStrings(t, content, string(got))
+	got := test.ReadFile(t, moduleDir, "main.tf")
+	assert.EqualStrings(t,
+		fmt.Sprintf(moduleFileTemplate, "../../../001/sandbox/main"),
+		string(got))
+
+	got = test.ReadFile(t, depsDir, "main.tf")
+	assert.EqualStrings(t, "", string(got))
 }

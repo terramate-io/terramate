@@ -451,6 +451,16 @@ func (c *cli) vendorDownload() {
 
 	logger.Trace().Msgf("module path is: %s", parsedSource.Path)
 	report := modvendor.Vendor(c.root(), parsedSource)
+	if report.Error != nil {
+		if errs, ok := report.Error.(*errors.List); ok {
+			for _, err := range errs.Errors() {
+				logger.Error().Err(err).Send()
+			}
+		} else {
+			logger.Error().Err(report.Error).Send()
+		}
+	}
+
 	c.log(report.String())
 }
 
