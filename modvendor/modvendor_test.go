@@ -36,17 +36,35 @@ import (
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
-type A string
+// vendorPathSpec describes paths inside a vendor directory when its
+// directory is not yet know. It's format is just:
+//   <module source>#<vendor relative path>
+// Where the module source can use the "text/template" (dot) variable to be
+// substituted at a later time when the final vendor directory is computed.
+//
+// Example:
+//   git::file://{{.}}/module-test?ref=main#main.tf
+type vendorPathSpec string
 
 type testcase struct {
-	name          string
-	source        string
-	layout        []string
-	configs       []hclconfig
-	wantRewritten map[A]fmt.Stringer
-	wantVendored  []string
-	wantIgnored   []wantIgnoredVendor
-	wantError     error
+	name         string
+	source       string
+	layout       []string
+	configs      []hclconfig
+	wantVendored []string
+	wantIgnored  []wantIgnoredVendor
+	wantError    error
+
+	// wantFiles describes file contents that must exist in the vendor directory.
+	// The fmt.Stringer can be a template that gets compiled with text/template
+	// package and having access to the relative paths of the vendored modules.
+	// For example, if `wantVendored` contains [<modsrc1>, <modsrc2>, ...], then
+	// the template will have access to the list [<relative path of modsrc1>,
+	// <relative path of modsrc2>, ...].
+	// Then the template can reference the third element of the list:
+	//   source = {{index 2}}
+	// If this looks like a hack to you, it's because it is.
+	wantFiles map[vendorPathSpec]fmt.Stringer
 }
 
 type hclconfig struct {
@@ -105,7 +123,7 @@ func TestModVendorAllRecursive(t *testing.T) {
 					),
 				},
 			},
-			wantRewritten: map[A]fmt.Stringer{
+			wantFiles: map[vendorPathSpec]fmt.Stringer{
 				"git::file://{{.}}/module-test?ref=main#main.tf": Module(
 					Labels("test"),
 					Str("source", "{{index . 1}}"),
@@ -147,7 +165,7 @@ func TestModVendorAllRecursive(t *testing.T) {
 					),
 				},
 			},
-			wantRewritten: map[A]fmt.Stringer{
+			wantFiles: map[vendorPathSpec]fmt.Stringer{
 				"git::file://{{.}}/module-test?ref=main#main.tf": Doc(
 					Module(
 						Labels("test"),
@@ -210,7 +228,7 @@ func TestModVendorAllRecursive(t *testing.T) {
 				"git::file://{{.}}/module-test?ref=main",
 				"git::file://{{.}}/another-module?ref=main",
 			},
-			wantRewritten: map[A]fmt.Stringer{
+			wantFiles: map[vendorPathSpec]fmt.Stringer{
 				"git::file://{{.}}/module-test?ref=main#1.tf": Module(
 					Labels("test"),
 					Str("source", "{{index . 1}}"),
@@ -280,7 +298,7 @@ func TestModVendorAllRecursive(t *testing.T) {
 				"git::file://{{.}}/cool-module?ref=main",
 				"git::file://{{.}}/best-module?ref=main",
 			},
-			wantRewritten: map[A]fmt.Stringer{
+			wantFiles: map[vendorPathSpec]fmt.Stringer{
 				"git::file://{{.}}/my-module?ref=main#main.tf": Module(
 					Labels("test"),
 					Str("source", "{{index . 1}}"),
@@ -311,15 +329,16 @@ func TestModVendorAllRecursive(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 
+			modulesDir := s.RootDir()
 			rootdir := t.TempDir()
 			for _, cfg := range tc.configs {
 				test.WriteFile(t, s.RootDir(), cfg.path,
-					fixupString(t, cfg.data.String(), s.RootDir()))
+					fixupString(t, cfg.data.String(), modulesDir))
 
-				git := sandbox.NewGit(t, filepath.Join(s.RootDir(), cfg.repo))
+				git := sandbox.NewGit(t, filepath.Join(modulesDir, cfg.repo))
 				git.CommitAll("files updated")
 			}
-			source := fixupString(t, tc.source, s.RootDir())
+			source := fixupString(t, tc.source, modulesDir)
 			modsrc, err := tf.ParseSource(source)
 			assert.NoError(t, err)
 			got := modvendor.Vendor(rootdir, modsrc)
@@ -327,69 +346,10 @@ func TestModVendorAllRecursive(t *testing.T) {
 				Vendored: tc.wantVendored,
 				Ignored:  tc.wantIgnored,
 				Error:    tc.wantError,
-			}, s.RootDir())
+			}, modulesDir)
 			assertVendorReport(t, want, got)
 
-			renderedPaths := map[string]fmt.Stringer{}
-			for pathSpec, rewrittenString := range tc.wantRewritten {
-				pathSpecParts := strings.Split(string(pathSpec), "#")
-				assert.EqualInts(t, len(pathSpecParts), 2)
-				source := pathSpecParts[0]
-				path := pathSpecParts[1]
-
-				modsrc, err := tf.ParseSource(fixupString(t, source, s.RootDir()))
-				assert.NoError(t, err)
-				absVendorDir := modvendor.AbsVendorDir(rootdir, modsrc)
-				renderedPath := filepath.Join(absVendorDir, path)
-				renderedPaths[renderedPath] = rewrittenString
-			}
-
-			err = filepath.Walk(filepath.Join(rootdir, "vendor"),
-				func(path string, info fs.FileInfo, err error) error {
-					if err != nil {
-						return err
-					}
-
-					if filepath.Ext(path) != ".tf" {
-						return nil
-					}
-
-					rewrittenSpec, ok := renderedPaths[path]
-					if ok {
-						vendorAbsPath := filepath.Dir(path)
-						relVendoredPaths := []string{}
-						for _, vendored := range tc.wantVendored {
-							rawSource := fixupString(t, vendored, s.RootDir())
-							modsrc, err := tf.ParseSource(rawSource)
-							assert.NoError(t, err)
-							relPath, err := filepath.Rel(vendorAbsPath,
-								modvendor.AbsVendorDir(rootdir, modsrc))
-							assert.NoError(t, err)
-							relVendoredPaths = append(relVendoredPaths, relPath)
-						}
-						want := fixupString(t, rewrittenSpec.String(), relVendoredPaths)
-						got := string(test.ReadFile(t, filepath.Dir(path), filepath.Base(path)))
-						assert.EqualStrings(t, want, got, "file %q mismatch", path)
-					} else {
-						originalPath := strings.TrimPrefix(path, filepath.Join(rootdir, "vendor"))
-						pathEnd := strings.TrimPrefix(originalPath, s.RootDir())
-						originalPath = strings.TrimSuffix(originalPath, pathEnd)
-						pathParts := strings.Split(pathEnd, "/")
-						moduleName := pathParts[1]
-
-						originalPath = filepath.Join(originalPath, moduleName, strings.Join(pathParts[3:], "/"))
-
-						originalBytes, err := ioutil.ReadFile(originalPath)
-						assert.NoError(t, err)
-
-						gotBytes, err := ioutil.ReadFile(path)
-						assert.NoError(t, err)
-						assert.EqualStrings(t, string(originalBytes), string(gotBytes),
-							"files %q and %q mismatch", originalPath, path)
-					}
-					return nil
-				})
-			assert.NoError(t, err)
+			checkWantedFiles(t, tc, modulesDir, rootdir)
 		})
 	}
 }
@@ -426,6 +386,97 @@ func fixupReport(t *testing.T, r wantReport, value string) modvendor.Report {
 		})
 	}
 	return out
+}
+
+func evaluateWantedFiles(
+	t *testing.T,
+	wantFiles map[vendorPathSpec]fmt.Stringer,
+	modulesDir string,
+	rootdir string,
+) map[string]fmt.Stringer {
+	evaluated := map[string]fmt.Stringer{}
+	for pathSpec, expectedStringer := range wantFiles {
+		pathSpecParts := strings.Split(string(pathSpec), "#")
+		assert.EqualInts(t, len(pathSpecParts), 2)
+		source := pathSpecParts[0]
+		path := pathSpecParts[1]
+
+		modsrc, err := tf.ParseSource(fixupString(t, source, modulesDir))
+		assert.NoError(t, err)
+		absVendorDir := modvendor.AbsVendorDir(rootdir, modsrc)
+		evaluatedPath := filepath.Join(absVendorDir, path)
+		evaluated[evaluatedPath] = expectedStringer
+	}
+	return evaluated
+}
+
+func checkWantedFiles(
+	t *testing.T,
+	tc testcase,
+	modulesDir string,
+	rootdir string,
+) {
+	wantFiles := evaluateWantedFiles(t, tc.wantFiles, modulesDir, rootdir)
+	vendorDir := filepath.Join(rootdir, "vendor")
+
+	err := filepath.Walk(vendorDir, func(path string, _ fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if filepath.Ext(path) != ".tf" {
+			return nil
+		}
+
+		expectedStringTemplate, ok := wantFiles[path]
+		if ok {
+			relVendoredPaths := computeRelativePaths(
+				t, filepath.Dir(path), tc.wantVendored, modulesDir, rootdir,
+			)
+			want := fixupString(t, expectedStringTemplate.String(), relVendoredPaths)
+			got := string(test.ReadFile(t, filepath.Dir(path), filepath.Base(path)))
+			assert.EqualStrings(t, want, got, "file %q mismatch", path)
+		} else {
+			originalPath := strings.TrimPrefix(path, filepath.Join(rootdir, "vendor"))
+			pathEnd := strings.TrimPrefix(originalPath, modulesDir)
+			originalPath = strings.TrimSuffix(originalPath, pathEnd)
+			pathParts := strings.Split(pathEnd, "/")
+			moduleName := pathParts[1]
+
+			originalPath = filepath.Join(originalPath, moduleName, strings.Join(pathParts[3:], "/"))
+
+			originalBytes, err := ioutil.ReadFile(originalPath)
+			assert.NoError(t, err)
+
+			gotBytes, err := ioutil.ReadFile(path)
+			assert.NoError(t, err)
+			assert.EqualStrings(t, string(originalBytes), string(gotBytes),
+				"files %q and %q mismatch", originalPath, path)
+		}
+		return nil
+	})
+	assert.NoError(t, err)
+}
+
+func computeRelativePaths(
+	t *testing.T,
+	relativeToDir string,
+	wantVendored []string,
+	modulesDir string,
+	rootdir string,
+) []string {
+	// TODO(i4k): assumes files are always at the root of the module.
+	relVendoredPaths := []string{}
+	for _, vendored := range wantVendored {
+		rawSource := fixupString(t, vendored, modulesDir)
+		modsrc, err := tf.ParseSource(rawSource)
+		assert.NoError(t, err)
+		relPath, err := filepath.Rel(relativeToDir,
+			modvendor.AbsVendorDir(rootdir, modsrc))
+		assert.NoError(t, err)
+		relVendoredPaths = append(relVendoredPaths, relPath)
+	}
+	return relVendoredPaths
 }
 
 func TestModVendorWithCommitIDRef(t *testing.T) {
