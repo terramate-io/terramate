@@ -119,6 +119,9 @@ type ManifestConfig struct {
 type VendorConfig struct {
 	// Manifest is the parsed manifest block, if any.
 	Manifest *ManifestConfig
+
+	// Dir is the path where vendored projects will be stored.
+	Dir string
 }
 
 // Terramate is the parsed "terramate" HCL block.
@@ -1103,7 +1106,28 @@ func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 
 	errs := errors.L()
 
-	errs.Append(checkNoAttributes(vendor))
+	for _, attr := range vendor.Attributes {
+		switch attr.Name {
+		case "dir":
+			attrVal, err := attr.Expr.Value(nil)
+			if err != nil {
+				errs.Append(errors.E(ErrTerramateSchema, err, attr.NameRange,
+					"evaluating %s.%s", vendor.Type, attr.Name))
+				continue
+			}
+			if attrVal.Type() != cty.String {
+				errs.Append(errors.E(ErrTerramateSchema, attr.NameRange,
+					"%s.%s must be string, got %s", vendor.Type, attr.Name, attrVal.Type,
+				))
+				continue
+			}
+			cfg.Dir = attrVal.AsString()
+		default:
+			errs.Append(errors.E(ErrTerramateSchema, attr.NameRange,
+				"unrecognized attribute %s.%s", vendor.Type, attr.Name,
+			))
+		}
+	}
 	errs.Append(checkNoLabels(vendor))
 	errs.Append(checkHasSubBlocks(vendor, "manifest"))
 
@@ -1139,7 +1163,7 @@ func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 
 	cfg.Manifest.Default = &ManifestDesc{}
 
-	for _, attr := range defaultBlock.Attributes.SortedList() {
+	for _, attr := range defaultBlock.Attributes {
 		switch attr.Name {
 		case "files":
 			attrVal, err := attr.Expr.Value(nil)

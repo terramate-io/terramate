@@ -135,6 +135,7 @@ type cliSpec struct {
 
 		Vendor struct {
 			Download struct {
+				Dir       string `short:"d" predictor:"file" default:"" help:"dir to vendor downloaded project"`
 				Source    string `arg:"" name:"source" help:"Terraform module source URL, must be Git/Github and should not contain a reference"`
 				Reference string `arg:"" name:"ref" help:"Reference of the Terraform module to vendor"`
 			} `cmd:"" help:"Downloads a Terraform module and stores it on the project vendor dir"`
@@ -450,12 +451,62 @@ func (c *cli) vendorDownload() {
 	parsedSource.Ref = ref
 
 	logger.Trace().Msgf("module path is: %s", parsedSource.Path)
-	modVendorDir, err := modvendor.Vendor(c.root(), parsedSource)
+	modVendorDir, err := modvendor.Vendor(c.root(), c.vendorDir(), parsedSource)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("vendoring module")
 	}
 
 	c.log("Vendored module at: %s", modVendorDir)
+}
+
+func (c *cli) vendorDir() string {
+	logger := log.With().
+		Str("workingDir", c.wd()).
+		Str("rootdir", c.root()).
+		Str("action", "cli.vendorDir()").
+		Logger()
+
+	logger.Trace().Msg("checking vendor dir configuration")
+
+	if c.parsedArgs.Experimental.Vendor.Download.Dir != "" {
+		logger.Trace().Msg("using CLI config")
+
+		return c.parsedArgs.Experimental.Vendor.Download.Dir
+	}
+
+	dotTerramate := filepath.Join(c.root(), ".terramate")
+	dotTerramateInfo, err := os.Stat(dotTerramate)
+
+	if err == nil && dotTerramateInfo.IsDir() {
+		logger.Trace().Msg("no CLI config, checking .terramate")
+
+		cfg, err := hcl.ParseDir(c.root(), filepath.Join(c.root(), ".terramate"))
+		if err != nil {
+			logger.Fatal().Err(err).Msg("parsing vendor dir configuration on .terramate")
+		}
+
+		if hasVendorDirConfig(cfg) {
+			logger.Trace().Msg("using .terramate config")
+
+			return cfg.Vendor.Dir
+		}
+	}
+
+	logger.Trace().Msg("no .terramate config, checking root")
+
+	if hasVendorDirConfig(c.prj.rootcfg) {
+		logger.Trace().Msg("using root config")
+
+		return c.prj.rootcfg.Vendor.Dir
+	}
+
+	logger.Trace().Msg("no configuration provided, fallback to default")
+
+	return "/vendor"
+}
+
+func hasVendorDirConfig(cfg hcl.Config) bool {
+	return cfg.Vendor != nil && cfg.Vendor.Dir != ""
 }
 
 func (c *cli) cloneStack() {

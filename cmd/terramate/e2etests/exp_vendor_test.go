@@ -15,6 +15,7 @@
 package e2etest
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -39,16 +40,56 @@ func TestVendorModule(t *testing.T) {
 
 	gitSource := "git::file://" + repoSandbox.RootDir()
 
+	checkVendoredFiles := func(t *testing.T, res runResult, vendordir string) {
+		t.Helper()
+
+		assertRunResult(t, res, runExpected{IgnoreStdout: true})
+
+		clonedir := filepath.Join(vendordir, repoSandbox.RootDir(), "main")
+
+		got := test.ReadFile(t, clonedir, filename)
+		assert.EqualStrings(t, content, string(got))
+	}
+
+	// Check default config and then different configuration precedences
 	s := sandbox.New(t)
 
-	tmcli := newCLI(t, s.RootDir())
-	res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
+	t.Run("default configuration", func(t *testing.T) {
+		tmcli := newCLI(t, s.RootDir())
+		res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
+		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), "vendor"))
+	})
 
-	assertRunResult(t, res, runExpected{IgnoreStdout: true})
+	t.Run("root configuration", func(t *testing.T) {
+		rootcfg := "/from/root/cfg"
+		s.RootEntry().CreateFile("vendor.tm", vendorHCLConfig(rootcfg))
+		tmcli := newCLI(t, s.RootDir())
+		res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
+		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), rootcfg))
+	})
 
-	vendordir := filepath.Join(s.RootDir(), "vendor")
-	clonedir := filepath.Join(vendordir, repoSandbox.RootDir(), "main")
+	t.Run(".terramate configuration", func(t *testing.T) {
+		dotTerramateCfg := "/from/dottm/cfg"
+		dotTerramateDir := s.RootEntry().CreateDir(".terramate")
 
-	got := test.ReadFile(t, clonedir, filename)
-	assert.EqualStrings(t, content, string(got))
+		dotTerramateDir.CreateFile("vendor.tm", vendorHCLConfig(dotTerramateCfg))
+		tmcli := newCLI(t, s.RootDir())
+		res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
+		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), dotTerramateCfg))
+	})
+
+	t.Run("CLI configuration", func(t *testing.T) {
+		cliCfg := "/from/cli/cfg"
+		tmcli := newCLI(t, s.RootDir())
+		res := tmcli.run("experimental", "vendor", "download", "--dir", cliCfg, gitSource, "main")
+		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), cliCfg))
+	})
+}
+
+func vendorHCLConfig(dir string) string {
+	return fmt.Sprintf(`
+		vendor {
+		  dir = %q
+		}
+	`, dir)
 }

@@ -30,12 +30,13 @@ const (
 	ErrAlreadyVendored errors.Kind = "module is already vendored"
 )
 
-// Vendor will vendor the given module inside the provided root dir.
-// The root dir must be an absolute path.
+// Vendor will vendor the given module inside the provided vendor dir.
+// The vendor dir must be an absolute path that will be considered as relative
+// to the given rootdir.
 //
 // Vendored modules will be located at:
 //
-// - <rootdir>/vendor/<Source.Path>/<Source.Ref>
+// - <rootdir>/<vendordir>/<Source.Path>/<Source.Ref>
 //
 // If the project is already vendored an error of kind ErrAlreadyVendored will
 // be returned, vendored projects are never updated.
@@ -45,14 +46,20 @@ const (
 // Vendoring will also not download any git submodules.
 //
 // It returns the absolute path where the module has been vendored.
-func Vendor(rootdir string, modsrc tf.Source) (string, error) {
+func Vendor(rootdir, vendordir string, modsrc tf.Source) (string, error) {
 	logger := log.With().
 		Str("action", "modvendor.Vendor()").
 		Str("rootdir", rootdir).
+		Str("vendordir", vendordir).
 		Str("url", modsrc.URL).
 		Str("path", modsrc.Path).
 		Str("ref", modsrc.Ref).
 		Logger()
+
+	if !filepath.IsAbs(vendordir) {
+		return "", errors.E("vendor dir %q must be absolute path", vendordir)
+	}
+	vendordir = filepath.Join(rootdir, vendordir)
 
 	if modsrc.Ref == "" {
 		// TODO(katcipis): handle default references.
@@ -60,7 +67,7 @@ func Vendor(rootdir string, modsrc tf.Source) (string, error) {
 		return "", errors.E("src %v reference must be non-empty", modsrc)
 	}
 
-	modVendorDir := filepath.Join(rootdir, "vendor", modsrc.Path, modsrc.Ref)
+	modVendorDir := filepath.Join(vendordir, modsrc.Path, modsrc.Ref)
 	if _, err := os.Stat(modVendorDir); err == nil {
 		return "", errors.E(ErrAlreadyVendored, "dir %q exists", modVendorDir)
 	}

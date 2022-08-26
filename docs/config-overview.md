@@ -224,6 +224,7 @@ and has the following schema:
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
+| dir              | string         | Absolute path relative to root where vendored projects will be downloaded |
 | [manifest](#vendormanifest--block-schema) | block | The manifest for which files to vendor |
 
 # vendor.manifest block schema
