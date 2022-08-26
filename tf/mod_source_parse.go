@@ -120,6 +120,7 @@ func ParseSource(modsource string) (Source, error) {
 
 		// We don't want : on the path. So we replace the possible :
 		// that can exist on the host.
+		subdir := parseURLSubdir(u)
 		path := filepath.Join(strings.Replace(u.Host, ":", "-", -1), u.Path)
 		path = strings.TrimSuffix(path, ".git")
 
@@ -129,10 +130,11 @@ func ParseSource(modsource string) (Source, error) {
 		ref := u.Query().Get("ref")
 		u.RawQuery = ""
 		return Source{
-			Raw:  modsource,
-			URL:  u.String(),
-			Path: path,
-			Ref:  ref,
+			Raw:    modsource,
+			URL:    u.String(),
+			Path:   path,
+			Subdir: subdir,
+			Ref:    ref,
 		}, nil
 
 	default:

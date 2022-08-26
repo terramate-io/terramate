@@ -199,6 +199,17 @@ func TestParseGitSources(t *testing.T) {
 			},
 		},
 		{
+			name:   "git::https source with subdir",
+			source: "git::https://example.com/vpc.git//subdir",
+			want: want{
+				parsed: tf.Source{
+					URL:    "https://example.com/vpc.git",
+					Path:   "example.com/vpc",
+					Subdir: "/subdir",
+				},
+			},
+		},
+		{
 			name:   "git::https source with ref",
 			source: "git::https://example.com/vpc.git?ref=v3",
 			want: want{
@@ -210,6 +221,18 @@ func TestParseGitSources(t *testing.T) {
 			},
 		},
 		{
+			name:   "git::https source with ref and subdir",
+			source: "git::https://example.com/vpc.git//sub/dir?ref=v3",
+			want: want{
+				parsed: tf.Source{
+					URL:    "https://example.com/vpc.git",
+					Path:   "example.com/vpc",
+					Subdir: "/sub/dir",
+					Ref:    "v3",
+				},
+			},
+		},
+		{
 			name:   "git::https source with port",
 			source: "git::https://example.com:443/vpc.git?ref=v3",
 			want: want{
@@ -217,6 +240,18 @@ func TestParseGitSources(t *testing.T) {
 					URL:  "https://example.com:443/vpc.git",
 					Path: "example.com-443/vpc",
 					Ref:  "v3",
+				},
+			},
+		},
+		{
+			name:   "git::https source with port and subdir",
+			source: "git::https://example.com:443/vpc.git//port/dir?ref=v3",
+			want: want{
+				parsed: tf.Source{
+					URL:    "https://example.com:443/vpc.git",
+					Path:   "example.com-443/vpc",
+					Subdir: "/port/dir",
+					Ref:    "v3",
 				},
 			},
 		},
@@ -241,12 +276,34 @@ func TestParseGitSources(t *testing.T) {
 			},
 		},
 		{
+			name:   "git::ssh source and subdir",
+			source: "git::ssh://username@example.com/storage.git//subdir",
+			want: want{
+				parsed: tf.Source{
+					URL:    "ssh://username@example.com/storage.git",
+					Path:   "example.com/storage",
+					Subdir: "/subdir",
+				},
+			},
+		},
+		{
 			name:   "git::ssh source with port",
 			source: "git::ssh://username@example.com:666/storage.git",
 			want: want{
 				parsed: tf.Source{
 					URL:  "ssh://username@example.com:666/storage.git",
 					Path: "example.com-666/storage",
+				},
+			},
+		},
+		{
+			name:   "git::ssh source with port and subdir",
+			source: "git::ssh://username@example.com:666/storage.git//ssh/dir",
+			want: want{
+				parsed: tf.Source{
+					URL:    "ssh://username@example.com:666/storage.git",
+					Path:   "example.com-666/storage",
+					Subdir: "/ssh/dir",
 				},
 			},
 		},
@@ -258,6 +315,18 @@ func TestParseGitSources(t *testing.T) {
 					URL:  "ssh://username@example.com/storage.git",
 					Path: "example.com/storage",
 					Ref:  "v4",
+				},
+			},
+		},
+		{
+			name:   "git::ssh source with ref and subdir",
+			source: "git::ssh://username@example.com/storage.git//sub/ref?ref=v4",
+			want: want{
+				parsed: tf.Source{
+					URL:    "ssh://username@example.com/storage.git",
+					Path:   "example.com/storage",
+					Subdir: "/sub/ref",
+					Ref:    "v4",
 				},
 			},
 		},
