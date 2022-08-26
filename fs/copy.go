@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/rs/zerolog/log"
 )
 
 // CopyFilterFunc filters which files/dirs will be copied by CopyDir.
@@ -73,10 +74,22 @@ func copyFile(destfile, srcfile string) error {
 	if err != nil {
 		return errors.E(err, "opening source file")
 	}
+	defer closeFile(src)
 	dest, err := os.Create(destfile)
 	if err != nil {
 		return errors.E(err, "creating dest file")
 	}
+	defer closeFile(dest)
 	_, err = io.Copy(dest, src)
 	return err
+}
+
+func closeFile(file *os.File) {
+	err := file.Close()
+	if err != nil {
+		log.Warn().
+			Str("file", file.Name()).
+			Err(err).
+			Msg("closing file ")
+	}
 }
