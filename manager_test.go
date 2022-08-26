@@ -265,7 +265,7 @@ func singleNotChangedStack(t *testing.T) repository {
 	}
 }
 
-func singleNotChangedStackWithEmptyModule(t *testing.T) repository {
+func singleNotChangedStackWithEmptyModuleSrc(t *testing.T) repository {
 	repo := singleNotChangedStack(t)
 	g := test.NewGitWrapper(t, repo.Dir, []string{})
 	test.WriteFile(t, repo.Dir, "main.tf", `
