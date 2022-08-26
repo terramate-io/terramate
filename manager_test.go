@@ -56,6 +56,13 @@ func TestListChangedStacks(t *testing.T) {
 			},
 		},
 		{
+			name:        "single stack: not changed but with empty module source",
+			repobuilder: singleNotChangedStackWithEmptyModuleSrc,
+			want: listTestResult{
+				list: []string{"/"},
+			},
+		},
+		{
 			name:        "single stack: different base",
 			repobuilder: singleNotChangedStack,
 			baseRef:     "HEAD^",
@@ -256,6 +263,21 @@ func singleNotChangedStack(t *testing.T) repository {
 	return repository{
 		Dir: repo,
 	}
+}
+
+func singleNotChangedStackWithEmptyModuleSrc(t *testing.T) repository {
+	repo := singleNotChangedStack(t)
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
+	test.WriteFile(t, repo.Dir, "main.tf", `
+module "empty" {
+	source = ""
+}
+`)
+
+	assert.NoError(t, g.Add(repo.Dir), "add files")
+	assert.NoError(t, g.Commit("files"), "commit files")
+	assert.NoError(t, g.Push("origin", "main"), "push to origin")
+	return repo
 }
 
 // singleNotChangedStackNewBranch implements the behavior of returning "no
