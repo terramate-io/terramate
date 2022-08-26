@@ -27,7 +27,6 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/fs"
 	"github.com/mineiros-io/terramate/git"
-	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/tf"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
@@ -37,6 +36,12 @@ const (
 	// ErrAlreadyVendored indicates that a module is already vendored.
 	ErrAlreadyVendored errors.Kind = "module is already vendored"
 )
+
+type modinfo struct {
+	source     string
+	vendoredAt string
+	origin     string
+}
 
 // Vendor will vendor the given module and its dependencies inside the provided
 // root dir.
@@ -56,38 +61,46 @@ const (
 //
 // It returns a report of everything vendored and ignored (with a reason).
 func Vendor(rootdir string, modsrc tf.Source) Report {
-	report := NewEmptyReport()
-
-	moddir, err := vendor(rootdir, modsrc)
-	if err != nil {
-		if errors.IsKind(err, ErrAlreadyVendored) {
-			report.addIgnored(modsrc.Raw, string(ErrAlreadyVendored))
-			return report
-		}
-		report.addIgnored(modsrc.Raw, errors.E(err, "vendoring %q with ref %q",
-			modsrc.URL, modsrc.Ref).Error())
-		return report
-	}
-
-	report.addVendored(modsrc.Raw, modsrc)
-	report.mergeReport(VendorAll(rootdir, moddir))
-	return report
+	return recVendor(rootdir, modsrc, NewEmptyReport(), nil)
 }
 
 // VendorAll will vendor all dependencies of the tfdir into rootdir.
 // It will scan all .tf files in the directory and vendor each module declaration
 // containing the supported remote source URLs.
 func VendorAll(rootdir string, tfdir string) Report {
-	type modinfo struct {
-		source     string
-		vendoredAt string
-		origin     string
+	return vendorAll(rootdir, tfdir, NewEmptyReport())
+}
+
+func recVendor(rootdir string, modsrc tf.Source, report Report, info *modinfo) Report {
+	moddir, err := doVendor(rootdir, modsrc)
+	if err != nil {
+		if errors.IsKind(err, ErrAlreadyVendored) {
+			// it's not an error in the case it's an indirect vendoring
+			if info == nil {
+				report.addIgnored(modsrc.Raw, string(ErrAlreadyVendored))
+			}
+			return report
+		}
+
+		reason := errors.E(err, "failed to vendor %q with ref %q",
+			modsrc.URL, modsrc.Ref).Error()
+
+		if info != nil {
+			reason += fmt.Sprintf(" found in %s", info.origin)
+		}
+
+		report.addIgnored(modsrc.Raw, reason)
+		return report
 	}
 
-	report := NewEmptyReport()
+	report.addVendored(modsrc.Raw, modsrc)
+	return vendorAll(rootdir, moddir, report)
+}
+
+func vendorAll(rootdir string, tfdir string, report Report) Report {
 	sourcemap := map[string]*modinfo{}
 	originMap := map[string]struct{}{}
-	errs := errors.L()
+	errs := errors.L(report.Error)
 	err := filepath.WalkDir(tfdir, func(path string, d iofs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -122,26 +135,19 @@ func VendorAll(rootdir string, tfdir string) Report {
 	errs.Append(err)
 
 	for source, info := range sourcemap {
+		if _, ok := report.Vendored[source]; ok {
+			continue
+		}
+
 		modsrc, err := tf.ParseSource(source)
 		if err != nil {
 			report.addIgnored(source, err.Error())
 			delete(sourcemap, source)
 			continue
 		}
-		subreport := Vendor(rootdir, modsrc)
-		for subsource, vendored := range subreport.Vendored {
-			report.Vendored[subsource] = vendored
-			if vendored.Source.Raw == modsrc.Raw {
-				info.vendoredAt = Dir(modsrc)
-			}
-		}
-		for _, ignored := range subreport.Ignored {
-			report.addIgnored(source, errors.E(fmt.Errorf(ignored.Reason),
-				"failed to vendor %q with ref %q found in %s",
-				modsrc.URL, modsrc.Ref, project.PrjAbsPath(rootdir, info.origin)).Error())
-			if ignored.RawSource == source {
-				delete(sourcemap, source)
-			}
+		recVendor(rootdir, modsrc, report, info)
+		if _, ok := report.Vendored[source]; ok {
+			info.vendoredAt = Dir(modsrc)
 		}
 	}
 
@@ -174,7 +180,7 @@ func VendorAll(rootdir string, tfdir string) Report {
 			sourceString = sourceString[1 : len(sourceString)-1] // unquote
 			// TODO(i4k): improve to support parenthesis.
 
-			if info, ok := sourcemap[sourceString]; ok {
+			if info, ok := sourcemap[sourceString]; ok && info.vendoredAt != "" {
 				relPath, err := filepath.Rel(
 					filepath.Dir(fname), filepath.Join(rootdir, info.vendoredAt),
 				)
@@ -195,12 +201,12 @@ func VendorAll(rootdir string, tfdir string) Report {
 	return report
 }
 
-// vendor will vendor the provided modsrc into the rootdir.
+// doVendor will doVendor the provided modsrc into the rootdir.
 // If the project is already vendored an error of kind ErrAlreadyVendored will
 // be returned, vendored projects are never updated.
 // This function is not recursive, so dependencies won't have their dependencies
 // vendored. See Vendor() for a recursive vendoring function.
-func vendor(rootdir string, modsrc tf.Source) (string, error) {
+func doVendor(rootdir string, modsrc tf.Source) (string, error) {
 	logger := log.With().
 		Str("action", "modvendor.Vendor()").
 		Str("rootdir", rootdir).

@@ -247,7 +247,7 @@ func TestModVendorAllRecursive(t *testing.T) {
 			},
 		},
 		{
-			name: "my-module with 2 direct remote dependencies and 1 indirect",
+			name: "my-module -> (awesome-module -> cool-module, best-module)",
 			layout: []string{
 				"g:my-module",
 				"g:awesome-module",
@@ -288,6 +288,186 @@ func TestModVendorAllRecursive(t *testing.T) {
 						Module(
 							Labels("test"),
 							Str("source", "git::file://{{.}}/cool-module?ref=main"),
+						),
+					),
+				},
+			},
+			wantVendored: []string{
+				"git::file://{{.}}/my-module?ref=main",
+				"git::file://{{.}}/awesome-module?ref=main",
+				"git::file://{{.}}/cool-module?ref=main",
+				"git::file://{{.}}/best-module?ref=main",
+			},
+			wantFiles: map[vendorPathSpec]fmt.Stringer{
+				"git::file://{{.}}/my-module?ref=main#main.tf": Module(
+					Labels("test"),
+					Str("source", "{{index . 1}}"),
+				),
+				"git::file://{{.}}/my-module?ref=main#other.tf": Doc(
+					Module(
+						Labels("test"),
+						Str("source", "{{index . 3}}"),
+						Str("other", "value"),
+					),
+					Module(
+						Labels("test2"),
+						Str("source", "{{index . 1}}"),
+					),
+				),
+				"git::file://{{.}}/awesome-module?ref=main#main.tf": Doc(
+					Module(
+						Labels("test"),
+						Str("source", "{{index . 2}}"),
+					),
+				),
+			},
+		},
+		{
+			name: "my-module -> (awesome-module -> cool-module -> forgotten-module, best-module)",
+			layout: []string{
+				"g:my-module",
+				"g:awesome-module",
+				"g:best-module",
+				"g:cool-module",
+				"g:forgotten-module",
+			},
+			source: "git::file://{{.}}/my-module?ref=main",
+			configs: []hclconfig{
+				{
+					repo: "my-module",
+					path: "my-module/main.tf",
+					data: Doc(
+						Module(
+							Labels("test"),
+							Str("source", "git::file://{{.}}/awesome-module?ref=main"),
+						),
+					),
+				},
+				{
+					repo: "my-module",
+					path: "my-module/other.tf",
+					data: Doc(
+						Module(
+							Labels("test"),
+							Str("source", "git::file://{{.}}/best-module?ref=main"),
+							Str("other", "value"),
+						),
+						Module(
+							Labels("test2"),
+							Str("source", "git::file://{{.}}/awesome-module?ref=main"),
+						),
+					),
+				},
+				{
+					repo: "awesome-module",
+					path: "awesome-module/main.tf",
+					data: Doc(
+						Module(
+							Labels("test"),
+							Str("source", "git::file://{{.}}/cool-module?ref=main"),
+						),
+					),
+				},
+				{
+					repo: "cool-module",
+					path: "cool-module/main.tf",
+					data: Doc(
+						Module(
+							Labels("test"),
+							Str("source", "git::file://{{.}}/forgotten-module?ref=main"),
+						),
+					),
+				},
+			},
+			wantVendored: []string{
+				"git::file://{{.}}/my-module?ref=main",
+				"git::file://{{.}}/awesome-module?ref=main",
+				"git::file://{{.}}/cool-module?ref=main",
+				"git::file://{{.}}/best-module?ref=main",
+				"git::file://{{.}}/forgotten-module?ref=main",
+			},
+			wantFiles: map[vendorPathSpec]fmt.Stringer{
+				"git::file://{{.}}/my-module?ref=main#main.tf": Module(
+					Labels("test"),
+					Str("source", "{{index . 1}}"),
+				),
+				"git::file://{{.}}/my-module?ref=main#other.tf": Doc(
+					Module(
+						Labels("test"),
+						Str("source", "{{index . 3}}"),
+						Str("other", "value"),
+					),
+					Module(
+						Labels("test2"),
+						Str("source", "{{index . 1}}"),
+					),
+				),
+				"git::file://{{.}}/awesome-module?ref=main#main.tf": Doc(
+					Module(
+						Labels("test"),
+						Str("source", "{{index . 2}}"),
+					),
+				),
+				"git::file://{{.}}/cool-module?ref=main#main.tf": Doc(
+					Module(
+						Labels("test"),
+						Str("source", "{{index . 4}}"),
+					),
+				),
+			},
+		},
+		{
+			name: "cycle: my-module -> (awesome-module -> cool-module -> my-module, best-module)",
+			layout: []string{
+				"g:my-module",
+				"g:awesome-module",
+				"g:best-module",
+				"g:cool-module",
+			},
+			source: "git::file://{{.}}/my-module?ref=main",
+			configs: []hclconfig{
+				{
+					repo: "my-module",
+					path: "my-module/main.tf",
+					data: Doc(
+						Module(
+							Labels("test"),
+							Str("source", "git::file://{{.}}/awesome-module?ref=main"),
+						),
+					),
+				},
+				{
+					repo: "my-module",
+					path: "my-module/other.tf",
+					data: Doc(
+						Module(
+							Labels("test"),
+							Str("source", "git::file://{{.}}/best-module?ref=main"),
+							Str("other", "value"),
+						),
+						Module(
+							Labels("test2"),
+							Str("source", "git::file://{{.}}/awesome-module?ref=main"),
+						),
+					),
+				},
+				{
+					repo: "awesome-module",
+					path: "awesome-module/main.tf",
+					data: Doc(
+						Module(
+							Labels("test"),
+							Str("source", "git::file://{{.}}/cool-module?ref=main"),
+						),
+					),
+				},
+				{
+					repo: "cool-module",
+					path: "cool-module/main.tf",
+					data: Doc(
+						Module(
+							Labels("test"),
+							Str("source", "git::file://{{.}}/my-module?ref=main"),
 						),
 					),
 				},

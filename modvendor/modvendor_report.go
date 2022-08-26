@@ -100,14 +100,3 @@ func (r *Report) addIgnored(rawSource string, reason string) {
 		Reason:    reason,
 	})
 }
-
-func (r *Report) mergeReport(other Report) (out Report) {
-	for k, v := range other.Vendored {
-		r.Vendored[k] = v
-	}
-	out.Ignored = append(out.Ignored, other.Ignored...)
-	errs := errors.L()
-	errs.Append(r.Error, other.Error)
-	r.Error = errs.AsError()
-	return out
-}
