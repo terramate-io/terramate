@@ -174,8 +174,9 @@ func vendorAll(rootdir string, vendorDir string, tfdir string, report Report) Re
 			Str("origin", info.origin).
 			Logger()
 
-		if _, ok := report.Vendored[source]; ok {
+		if v, ok := report.Vendored[source]; ok {
 			logger.Trace().Msg("already vendored")
+			info.vendoredAt = v.Dir
 			continue
 		}
 

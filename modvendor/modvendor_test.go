@@ -677,6 +677,12 @@ func TestModVendor(t *testing.T) {
 						Str("source", "{{index . 2}}"),
 					),
 				),
+				"git::file://{{.}}/cool-module?ref=main#main.tf": Doc(
+					Module(
+						Labels("test"),
+						Str("source", "{{index . 0}}"),
+					),
+				),
 			},
 		},
 	}
@@ -693,17 +699,17 @@ func TestModVendor(t *testing.T) {
 			modulesDir := s.RootDir()
 			for _, cfg := range tc.configs {
 				test.WriteFile(t, s.RootDir(), cfg.path,
-					fixupString(t, cfg.data.String(), modulesDir))
+					applyConfigTemplate(t, cfg.data.String(), modulesDir))
 
 				git := sandbox.NewGit(t, filepath.Join(modulesDir, cfg.repo))
 				git.CommitAll("files updated")
 			}
-			source := fixupString(t, tc.source, modulesDir)
+			source := applyConfigTemplate(t, tc.source, modulesDir)
 			modsrc, err := tf.ParseSource(source)
 			assert.NoError(t, err)
 			rootdir := t.TempDir()
 			got := modvendor.Vendor(rootdir, tc.vendordir, modsrc)
-			want := fixupReport(t, wantReport{
+			want := applyReportTemplate(t, wantReport{
 				Vendored: tc.wantVendored,
 				Ignored:  tc.wantIgnored,
 				Error:    tc.wantError,
@@ -715,7 +721,8 @@ func TestModVendor(t *testing.T) {
 	}
 }
 
-func fixupString(t *testing.T, input string, value interface{}) string {
+func applyConfigTemplate(t *testing.T, input string, value interface{}) string {
+	t.Helper()
 	srctpl, err := template.New("template").Parse(input)
 	assert.NoError(t, err)
 	var buf bytes.Buffer
@@ -724,13 +731,14 @@ func fixupString(t *testing.T, input string, value interface{}) string {
 	return buf.String()
 }
 
-func fixupReport(t *testing.T, r wantReport, value string, vendordir string) modvendor.Report {
+func applyReportTemplate(t *testing.T, r wantReport, value string, vendordir string) modvendor.Report {
+	t.Helper()
 	out := modvendor.Report{
 		Vendored: make(map[string]modvendor.Vendored),
 		Error:    r.Error,
 	}
 	for _, vendored := range r.Vendored {
-		rawSource := fixupString(t, vendored, value)
+		rawSource := applyConfigTemplate(t, vendored, value)
 		modsrc, err := tf.ParseSource(rawSource)
 		assert.NoError(t, err)
 		out.Vendored[rawSource] = modvendor.Vendored{
@@ -739,8 +747,8 @@ func fixupReport(t *testing.T, r wantReport, value string, vendordir string) mod
 		}
 	}
 	for _, ignored := range r.Ignored {
-		rawSource := fixupString(t, ignored.RawSource, value)
-		reason := fixupString(t, ignored.ReasonPattern, value)
+		rawSource := applyConfigTemplate(t, ignored.RawSource, value)
+		reason := applyConfigTemplate(t, ignored.ReasonPattern, value)
 		out.Ignored = append(out.Ignored, modvendor.IgnoredVendor{
 			RawSource: rawSource,
 			Reason:    reason,
@@ -756,6 +764,7 @@ func evaluateWantedFiles(
 	rootdir string,
 	vendordir string,
 ) map[string]fmt.Stringer {
+	t.Helper()
 	evaluated := map[string]fmt.Stringer{}
 	for pathSpec, expectedStringer := range wantFiles {
 		pathSpecParts := strings.Split(string(pathSpec), "#")
@@ -763,7 +772,7 @@ func evaluateWantedFiles(
 		source := pathSpecParts[0]
 		path := pathSpecParts[1]
 
-		modsrc, err := tf.ParseSource(fixupString(t, source, modulesDir))
+		modsrc, err := tf.ParseSource(applyConfigTemplate(t, source, modulesDir))
 		assert.NoError(t, err)
 		absVendorDir := modvendor.AbsVendorDir(rootdir, vendordir, modsrc)
 		evaluatedPath := filepath.Join(absVendorDir, path)
@@ -779,6 +788,7 @@ func checkWantedFiles(
 	rootdir string,
 	vendordir string,
 ) {
+	t.Helper()
 	wantFiles := evaluateWantedFiles(t, tc.wantFiles, modulesDir, rootdir, vendordir)
 	vendorDir := filepath.Join(rootdir, tc.vendordir)
 
@@ -804,7 +814,7 @@ func checkWantedFiles(
 			relVendoredPaths := computeRelativePaths(
 				t, filepath.Dir(path), tc.wantVendored, modulesDir, rootdir, tc.vendordir,
 			)
-			want := fixupString(t, expectedStringTemplate.String(), relVendoredPaths)
+			want := applyConfigTemplate(t, expectedStringTemplate.String(), relVendoredPaths)
 			got := string(test.ReadFile(t, filepath.Dir(path), filepath.Base(path)))
 			assert.EqualStrings(t, want, got, "file %q mismatch", path)
 		} else {
@@ -838,10 +848,11 @@ func computeRelativePaths(
 	rootdir string,
 	vendordir string,
 ) []string {
+	t.Helper()
 	// TODO(i4k): assumes files are always at the root of the module.
 	relVendoredPaths := []string{}
 	for _, vendored := range wantVendored {
-		rawSource := fixupString(t, vendored, modulesDir)
+		rawSource := applyConfigTemplate(t, vendored, modulesDir)
 		modsrc, err := tf.ParseSource(rawSource)
 		assert.NoError(t, err)
 		relPath, err := filepath.Rel(relativeToDir,
