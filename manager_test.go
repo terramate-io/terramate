@@ -57,7 +57,7 @@ func TestListChangedStacks(t *testing.T) {
 		},
 		{
 			name:        "single stack: not changed but with empty module source",
-			repobuilder: singleNotChangedStackWithEmptyModule,
+			repobuilder: singleNotChangedStackWithEmptyModuleSrc,
 			want: listTestResult{
 				list: []string{"/"},
 			},
