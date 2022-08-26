@@ -347,8 +347,8 @@ func TestModVendorAllRecursive(t *testing.T) {
 				Ignored:  tc.wantIgnored,
 				Error:    tc.wantError,
 			}, modulesDir)
-			assertVendorReport(t, want, got)
 
+			assertVendorReport(t, want, got)
 			checkWantedFiles(t, tc, modulesDir, rootdir)
 		})
 	}
@@ -430,6 +430,7 @@ func checkWantedFiles(
 
 		expectedStringTemplate, ok := wantFiles[path]
 		if ok {
+			// file must be rewritten
 			relVendoredPaths := computeRelativePaths(
 				t, filepath.Dir(path), tc.wantVendored, modulesDir, rootdir,
 			)
@@ -437,7 +438,8 @@ func checkWantedFiles(
 			got := string(test.ReadFile(t, filepath.Dir(path), filepath.Base(path)))
 			assert.EqualStrings(t, want, got, "file %q mismatch", path)
 		} else {
-			originalPath := strings.TrimPrefix(path, filepath.Join(rootdir, "vendor"))
+			// check the vendored file is the same as the one in the module dir.
+			originalPath := strings.TrimPrefix(path, vendorDir)
 			pathEnd := strings.TrimPrefix(originalPath, modulesDir)
 			originalPath = strings.TrimSuffix(originalPath, pathEnd)
 			pathParts := strings.Split(pathEnd, "/")

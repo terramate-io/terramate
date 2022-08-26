@@ -17,11 +17,13 @@ type Vendored struct {
 	Dir string
 }
 
+// IgnoredVendor describes an ignored dependency.
 type IgnoredVendor struct {
 	RawSource string
 	Reason    string
 }
 
+// Report with the result of the vendor related functions.
 type Report struct {
 	Vendored map[string]Vendored
 	Ignored  []IgnoredVendor
@@ -58,6 +60,7 @@ func (r Report) String() string {
 	return strings.Join(report, "\n")
 }
 
+// Verbose is like String but outputs additional fields (like Errors).
 func (r Report) Verbose() string {
 	report := []string{
 		r.String(),

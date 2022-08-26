@@ -319,10 +319,13 @@ func mergeReports(r1, r2 Report) (out Report) {
 	return out
 }
 
+// Dir returns the directory for the vendored module source, relative to project
+// root.
 func Dir(modsrc tf.Source) string {
 	return filepath.Join("/vendor", modsrc.Path, modsrc.Ref)
 }
 
+// AbsVendorDir returns the absolute host path of the vendored module source.
 func AbsVendorDir(rootdir string, modsrc tf.Source) string {
 	return filepath.Join(rootdir, Dir(modsrc))
 }
