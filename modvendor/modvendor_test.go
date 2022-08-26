@@ -193,6 +193,34 @@ func TestModVendor(t *testing.T) {
 			},
 		},
 		{
+			name: "module with 1 remote dependency and subdir",
+			layout: []string{
+				"g:module-test",
+				"g:another-module",
+			},
+			source: "git::file://{{.}}/module-test?ref=main",
+			configs: []hclconfig{
+				{
+					repo: "module-test",
+					path: "module-test/main.tf",
+					data: Module(
+						Labels("test"),
+						Str("source", "git::file://{{.}}/another-module//sub/dir?ref=main"),
+					),
+				},
+			},
+			wantFiles: map[vendorPathSpec]fmt.Stringer{
+				"git::file://{{.}}/module-test?ref=main#main.tf": Module(
+					Labels("test"),
+					Str("source", "{{index . 1}}/sub/dir"),
+				),
+			},
+			wantVendored: []string{
+				"git::file://{{.}}/module-test?ref=main",
+				"git::file://{{.}}/another-module//sub/dir?ref=main",
+			},
+		},
+		{
 			name: "module with 1 remote dependency that contains bogus module.source",
 			layout: []string{
 				"g:module-test",
@@ -789,6 +817,7 @@ func checkWantedFiles(
 	vendordir string,
 ) {
 	t.Helper()
+
 	wantFiles := evaluateWantedFiles(t, tc.wantFiles, modulesDir, rootdir, vendordir)
 	vendorDir := filepath.Join(rootdir, tc.vendordir)
 
@@ -1064,18 +1093,27 @@ func assertNoGitDir(t *testing.T, dir string) {
 
 func assertVendorReport(t *testing.T, want, got modvendor.Report) {
 	t.Helper()
+
 	assert.EqualInts(t, len(want.Vendored), len(got.Vendored),
 		"number of vendored is different: want %s != got %s",
 		want.Verbose(), got.Verbose())
+
 	assert.EqualInts(t, len(want.Ignored), len(got.Ignored),
 		"number of ignored is different: want %s != got %s",
 		want.Verbose(), got.Verbose())
-	for i, wantVendor := range want.Vendored {
-		if wantVendor != got.Vendored[i] {
-			t.Errorf("want %v is different than %v",
-				want.Verbose(), got.Verbose())
+
+	for source, wantVendor := range want.Vendored {
+		gotVendor, ok := got.Vendored[source]
+		if !ok {
+			t.Errorf("want vendor for source %q but got none", source)
+			continue
+		}
+		if wantVendor != gotVendor {
+			t.Errorf("vendored source: %s:\nwant:%#v\ngot:%#v\n",
+				source, wantVendor, gotVendor)
 		}
 	}
+
 	for i, wantIgnored := range want.Ignored {
 		if wantIgnored.RawSource != got.Ignored[i].RawSource {
 			t.Errorf("want.RawSource %v is different than %v",
