@@ -58,6 +58,16 @@ func TestParseGitSources(t *testing.T) {
 			},
 		},
 		{
+			name:   "github source with empty subdir",
+			source: "github.com/mineiros-io/example//",
+			want: want{
+				parsed: tf.Source{
+					URL:  "https://github.com/mineiros-io/example.git",
+					Path: "github.com/mineiros-io/example",
+				},
+			},
+		},
+		{
 			name:   "github source with .git suffix",
 			source: "github.com/mineiros-io/example.git",
 			want: want{
@@ -156,6 +166,16 @@ func TestParseGitSources(t *testing.T) {
 			},
 		},
 		{
+			name:   "git@ source with empty subdir",
+			source: "git@github.com:mineiros-io/example.git//",
+			want: want{
+				parsed: tf.Source{
+					URL:  "git@github.com:mineiros-io/example.git",
+					Path: "github.com/mineiros-io/example",
+				},
+			},
+		},
+		{
 			name:   "git@ source with ref",
 			source: "git@github.com:mineiros-io/example.git?ref=v2",
 			want: want{
@@ -206,6 +226,16 @@ func TestParseGitSources(t *testing.T) {
 					URL:    "https://example.com/vpc.git",
 					Path:   "example.com/vpc",
 					Subdir: "/subdir",
+				},
+			},
+		},
+		{
+			name:   "git::https source with empty subdir",
+			source: "git::https://example.com/vpc.git//",
+			want: want{
+				parsed: tf.Source{
+					URL:  "https://example.com/vpc.git",
+					Path: "example.com/vpc",
 				},
 			},
 		},
@@ -283,6 +313,16 @@ func TestParseGitSources(t *testing.T) {
 					URL:    "ssh://username@example.com/storage.git",
 					Path:   "example.com/storage",
 					Subdir: "/subdir",
+				},
+			},
+		},
+		{
+			name:   "git::ssh source and empty subdir",
+			source: "git::ssh://username@example.com/storage.git//",
+			want: want{
+				parsed: tf.Source{
+					URL:  "ssh://username@example.com/storage.git",
+					Path: "example.com/storage",
 				},
 			},
 		},

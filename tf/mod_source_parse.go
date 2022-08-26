@@ -150,6 +150,9 @@ func parseSubdir(s string) (string, string) {
 	// From the specs we should have a single // on the path:
 	// https://www.terraform.io/language/modules/sources#modules-in-package-sub-directories
 	parsed := strings.Split(s, "//")
+	if len(parsed[1]) == 0 {
+		return parsed[0], ""
+	}
 	return parsed[0], "/" + parsed[1]
 }
 
