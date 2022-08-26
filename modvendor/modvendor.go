@@ -377,8 +377,11 @@ func patchFiles(rootdir string, files []string, sourcemap map[string]*modinfo) e
 			}
 		}
 
-		newcontent := parsedFile.Bytes()
-		errs.Append(ioutil.WriteFile(fname, newcontent, 0644))
+		st, err := os.Stat(fname)
+		errs.Append(err)
+		if err == nil {
+			errs.Append(ioutil.WriteFile(fname, parsedFile.Bytes(), st.Mode()))
+		}
 	}
 	return errs.AsError()
 }
