@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io/fs"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -74,8 +75,8 @@ type hclconfig struct {
 }
 
 type wantIgnoredVendor struct {
-	RawSource string
-	Reason    string
+	RawSource     string
+	ReasonPattern string
 }
 
 type wantReport struct {
@@ -104,6 +105,42 @@ func TestModVendorAllRecursive(t *testing.T) {
 			},
 			wantVendored: []string{
 				"git::file://{{.}}/module-test?ref=main",
+			},
+		},
+		{
+			name: "module with ignored remote deps",
+			layout: []string{
+				"g:module-test",
+			},
+			source: "git::file://{{.}}/module-test?ref=main",
+			configs: []hclconfig{
+				{
+					repo: "module-test",
+					path: "module-test/main.tf",
+					data: Module(
+						Labels("test"),
+						Str("source", "https://example.com/my-module"),
+					),
+				},
+			},
+			wantVendored: []string{
+				"git::file://{{.}}/module-test?ref=main",
+			},
+			wantIgnored: []wantIgnoredVendor{
+				{
+					RawSource:     "https://example.com/my-module",
+					ReasonPattern: "unsupported module source",
+				},
+			},
+		},
+		{
+			name:   "module not found",
+			source: "git::file://{{.}}/module-that-does-not-exists?ref=main",
+			wantIgnored: []wantIgnoredVendor{
+				{
+					RawSource:     "git::file://{{.}}/module-that-does-not-exists?ref=main",
+					ReasonPattern: "failed to vendor",
+				},
 			},
 		},
 		{
@@ -559,7 +596,7 @@ func fixupReport(t *testing.T, r wantReport, value string) modvendor.Report {
 	}
 	for _, ignored := range r.Ignored {
 		rawSource := fixupString(t, ignored.RawSource, value)
-		reason := fixupString(t, ignored.Reason, value)
+		reason := fixupString(t, ignored.ReasonPattern, value)
 		out.Ignored = append(out.Ignored, modvendor.IgnoredVendor{
 			RawSource: rawSource,
 			Reason:    reason,
@@ -598,6 +635,13 @@ func checkWantedFiles(
 ) {
 	wantFiles := evaluateWantedFiles(t, tc.wantFiles, modulesDir, rootdir)
 	vendorDir := filepath.Join(rootdir, "vendor")
+
+	if _, err := os.Stat(vendorDir); err != nil {
+		if os.IsNotExist(err) {
+			return
+		}
+		assert.Error(t, err)
+	}
 
 	err := filepath.Walk(vendorDir, func(path string, _ fs.FileInfo, err error) error {
 		if err != nil {
@@ -857,9 +901,13 @@ func assertVendorReport(t *testing.T, want, got modvendor.Report) {
 			t.Errorf("want.RawSource %v is different than %v",
 				wantIgnored.RawSource, got.Ignored[i].RawSource)
 		}
-		if ok, _ := regexp.Match(wantIgnored.Reason, []byte(got.Ignored[i].Reason)); !ok {
-			t.Errorf("want.Reason %v is different than %v",
-				wantIgnored.Reason, got.Ignored[i].Reason)
+		if wantIgnored.Reason != "" {
+			if ok, _ := regexp.MatchString(wantIgnored.Reason, got.Ignored[i].Reason); !ok {
+				t.Errorf("want.Reason %v is different than %v",
+					wantIgnored.Reason, got.Ignored[i].Reason)
+			}
+		} else if got.Ignored[i].Reason != "" {
+			t.Fatalf("unexpected reason %q", got.Ignored[i].Reason)
 		}
 	}
 
