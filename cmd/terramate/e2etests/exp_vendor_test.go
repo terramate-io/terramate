@@ -39,18 +39,33 @@ func TestVendorModule(t *testing.T) {
 
 	gitSource := "git::file://" + repoSandbox.RootDir()
 
+	checkVendoredFiles := func(t *testing.T, res runResult, vendordir string) {
+		t.Helper()
+
+		assertRunResult(t, res, runExpected{IgnoreStdout: true})
+
+		clonedir := filepath.Join(vendordir, repoSandbox.RootDir(), "main")
+
+		got := test.ReadFile(t, clonedir, filename)
+		assert.EqualStrings(t, content, string(got))
+	}
+
+	// Check default config and then different configuration precedences
 	s := sandbox.New(t)
 
-	tmcli := newCLI(t, s.RootDir())
-	res := tmcli.run("experimental", "vendor", "download", gitSource, ref)
+	t.Run("default configuration", func(t *testing.T) {
+		tmcli := newCLI(t, s.RootDir())
+		res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
+		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), "vendor"))
+	})
 
-	assertRunResult(t, res, runExpected{IgnoreStdout: true})
-
-	vendordir := filepath.Join(s.RootDir(), "vendor")
-	clonedir := filepath.Join(vendordir, repoSandbox.RootDir(), ref)
-
-	got := test.ReadFile(t, clonedir, filename)
-	assert.EqualStrings(t, content, string(got))
+	t.Run("root configuration", func(t *testing.T) {
+		rootcfg := "/from/root/cfg"
+		s.RootEntry().CreateFile("vendor.tm", vendorHCLConfig(rootcfg))
+		tmcli := newCLI(t, s.RootDir())
+		res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
+		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), rootcfg))
+	})
 }
 
 func TestVendorModuleRecursive1DependencyIsPatched(t *testing.T) {
@@ -77,7 +92,6 @@ func TestVendorModuleRecursive1DependencyIsPatched(t *testing.T) {
 
 	tmcli := newCLI(t, s.RootDir())
 	res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
-
 	assertRunResult(t, res, runExpected{IgnoreStdout: true})
 
 	vendordir := filepath.Join(s.RootDir(), "vendor")
@@ -91,4 +105,12 @@ func TestVendorModuleRecursive1DependencyIsPatched(t *testing.T) {
 
 	got = test.ReadFile(t, depsDir, "main.tf")
 	assert.EqualStrings(t, "", string(got))
+}
+
+func vendorHCLConfig(dir string) string {
+	return fmt.Sprintf(`
+		vendor {
+		  dir = %q
+		}
+	`, dir)
 }

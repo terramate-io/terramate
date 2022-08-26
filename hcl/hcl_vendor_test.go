@@ -41,6 +41,26 @@ func TestHCLParserVendor(t *testing.T) {
 			},
 		},
 		{
+			name: "vendor.dir",
+			input: []cfgfile{
+				{
+					filename: "manifest.tm",
+					body: `
+						vendor {
+						  dir = "/dir"
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Vendor: &hcl.VendorConfig{
+						Dir: "/dir",
+					},
+				},
+			},
+		},
+		{
 			name: "empty manifest",
 			input: []cfgfile{
 				{
@@ -134,6 +154,46 @@ func TestHCLParserVendor(t *testing.T) {
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("manifest.tm", start(5, 13, 67), end(5, 18, 72)),
+					),
+				},
+			},
+		},
+		{
+			name: "vendor.dir is not string fails",
+			input: []cfgfile{
+				{
+					filename: "vendor.tm",
+					body: `
+						vendor {
+						  dir = ["/dir"]
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("vendor.tm", start(3, 9, 24), end(3, 12, 27)),
+					),
+				},
+			},
+		},
+		{
+			name: "vendor.dir is undefined fails",
+			input: []cfgfile{
+				{
+					filename: "vendor.tm",
+					body: `
+						vendor {
+						  dir = undefined
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("vendor.tm", start(3, 9, 24), end(3, 12, 27)),
 					),
 				},
 			},
