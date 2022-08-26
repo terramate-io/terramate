@@ -88,7 +88,7 @@ type wantReport struct {
 	Error    error
 }
 
-func TestModVendorAllRecursive(t *testing.T) {
+func TestModVendor(t *testing.T) {
 	tcases := []testcase{
 		{
 			name: "module with no remote deps",
