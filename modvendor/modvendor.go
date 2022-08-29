@@ -114,6 +114,44 @@ func vendor(rootdir string, vendorDir string, modsrc tf.Source, report Report, i
 	return vendorAll(rootdir, vendorDir, moddir, report)
 }
 
+// sourcesInfo represents information about module sources. It retains
+// the original order that sources where appended, like an ordered map.
+// both list and set always have the same modinfo inside, one is used
+// for ordering dependent iteration, the other one for quick access of
+// specific sources.
+type sourcesInfo struct {
+	list []*modinfo          // ordered list of sources
+	set  map[string]*modinfo // set of sources
+}
+
+func newSourcesInfo() *sourcesInfo {
+	return &sourcesInfo{
+		set: make(map[string]*modinfo),
+	}
+}
+
+func (s *sourcesInfo) append(source, path string) {
+	if _, ok := s.set[source]; ok {
+		return
+	}
+	info := &modinfo{
+		source: source,
+		origin: path,
+	}
+	s.set[source] = info
+	s.list = append(s.list, info)
+}
+
+func (s *sourcesInfo) delete(source string) {
+	for i, info := range s.list {
+		if info.source == source {
+			s.list = append(s.list[:i], s.list[i+1:]...)
+			delete(s.set, source)
+			return
+		}
+	}
+}
+
 func vendorAll(rootdir string, vendorDir string, tfdir string, report Report) Report {
 	logger := log.With().
 		Str("action", "modvendor.vendorAll()").
@@ -122,9 +160,10 @@ func vendorAll(rootdir string, vendorDir string, tfdir string, report Report) Re
 
 	logger.Trace().Msg("scanning .tf files for additional dependencies")
 
-	sourcemap := map[string]*modinfo{}
+	sources := newSourcesInfo()
 	originMap := map[string]struct{}{}
 	errs := errors.L(report.Error)
+
 	err := filepath.WalkDir(tfdir, func(path string, d iofs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -159,17 +198,16 @@ func vendorAll(rootdir string, vendorDir string, tfdir string, report Report) Re
 			logger.Trace().Msg("found remote module")
 
 			originMap[path] = struct{}{}
-			sourcemap[mod.Source] = &modinfo{
-				source: mod.Source,
-				origin: path,
-			}
+
+			sources.append(mod.Source, path)
 		}
 		return nil
 	})
 
 	errs.Append(err)
 
-	for source, info := range sourcemap {
+	for _, info := range sources.list {
+		source := info.source
 		logger := logger.With().
 			Str("module.source", source).
 			Str("origin", info.origin).
@@ -178,7 +216,7 @@ func vendorAll(rootdir string, vendorDir string, tfdir string, report Report) Re
 		modsrc, err := tf.ParseSource(source)
 		if err != nil {
 			report.addIgnored(source, err.Error())
-			delete(sourcemap, source)
+			sources.delete(source)
 			continue
 		}
 
@@ -204,7 +242,7 @@ func vendorAll(rootdir string, vendorDir string, tfdir string, report Report) Re
 		files = append(files, fname)
 	}
 	sort.Strings(files)
-	errs.Append(patchFiles(rootdir, files, sourcemap))
+	errs.Append(patchFiles(rootdir, files, sources))
 	report.Error = errs.AsError()
 	return report
 }
@@ -323,7 +361,7 @@ func downloadVendor(rootdir string, vendorDir string, modsrc tf.Source) (string,
 	return modVendorDir, nil
 }
 
-func patchFiles(rootdir string, files []string, sourcemap map[string]*modinfo) error {
+func patchFiles(rootdir string, files []string, sources *sourcesInfo) error {
 	logger := log.With().
 		Str("action", "modvendor.patchFiles").
 		Logger()
@@ -367,7 +405,7 @@ func patchFiles(rootdir string, files []string, sourcemap map[string]*modinfo) e
 			sourceString = sourceString[1 : len(sourceString)-1] // unquote
 			// TODO(i4k): improve to support parenthesis.
 
-			if info, ok := sourcemap[sourceString]; ok && info.vendoredAt != "" {
+			if info, ok := sources.set[sourceString]; ok && info.vendoredAt != "" {
 				logger.Trace().
 					Str("module.source", sourceString).
 					Msg("found relevant module")
