@@ -221,6 +221,56 @@ func TestModVendor(t *testing.T) {
 			},
 		},
 		{
+			name: "module with N remote dependency and subdir",
+			layout: []string{
+				"g:module-test",
+				"g:another-module",
+			},
+			source: "git::file://{{.}}/module-test?ref=main",
+			configs: []hclconfig{
+				{
+					repo: "module-test",
+					path: "module-test/main.tf",
+					data: Doc(
+						Module(
+							Labels("nosubdir"),
+							Str("source", "git::file://{{.}}/another-module?ref=main"),
+						),
+						Module(
+							Labels("subdir1"),
+							Str("source", "git::file://{{.}}/another-module//sub/dir?ref=main"),
+						),
+						Module(
+							Labels("subdir2"),
+							Str("source", "git::file://{{.}}/another-module//sub?ref=main"),
+						),
+					),
+				},
+			},
+			wantFiles: map[vendorPathSpec]fmt.Stringer{
+				"git::file://{{.}}/module-test?ref=main#main.tf": Doc(
+					Module(
+						Labels("nosubdir"),
+						Str("source", "{{index . 1}}"),
+					),
+					Module(
+						Labels("subdir1"),
+						Str("source", "{{index . 1}}/sub/dir"),
+					),
+					Module(
+						Labels("subdir2"),
+						Str("source", "{{index . 1}}/sub"),
+					),
+				),
+			},
+			wantVendored: []string{
+				"git::file://{{.}}/module-test?ref=main",
+				"git::file://{{.}}/another-module?ref=main",
+				"git::file://{{.}}/another-module//sub/dir?ref=main",
+				"git::file://{{.}}/another-module//sub?ref=main",
+			},
+		},
+		{
 			name: "module with 1 remote dependency that contains bogus module.source",
 			layout: []string{
 				"g:module-test",
