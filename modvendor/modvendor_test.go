@@ -266,8 +266,6 @@ func TestModVendor(t *testing.T) {
 			wantVendored: []string{
 				"git::file://{{.}}/module-test?ref=main",
 				"git::file://{{.}}/another-module?ref=main",
-				"git::file://{{.}}/another-module//sub/dir?ref=main",
-				"git::file://{{.}}/another-module//sub?ref=main",
 			},
 		},
 		{
