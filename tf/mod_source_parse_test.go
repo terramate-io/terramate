@@ -240,6 +240,17 @@ func TestParseGitSources(t *testing.T) {
 			},
 		},
 		{
+			name:   "git::file:// source with subdir",
+			source: "git::file:///tmp/test/repo//subdir",
+			want: want{
+				parsed: tf.Source{
+					URL:    "file:///tmp/test/repo",
+					Path:   "/tmp/test/repo",
+					Subdir: "/subdir",
+				},
+			},
+		},
+		{
 			name:   "git::https source with ref",
 			source: "git::https://example.com/vpc.git?ref=v3",
 			want: want{
