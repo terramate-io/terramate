@@ -817,7 +817,7 @@ func applyReportTemplate(t *testing.T, r wantReport, value string, vendordir str
 		rawSource := applyConfigTemplate(t, vendored, value)
 		modsrc, err := tf.ParseSource(rawSource)
 		assert.NoError(t, err)
-		out.Vendored[rawSource] = modvendor.Vendored{
+		out.Vendored[modvendor.Dir(vendordir, modsrc)] = modvendor.Vendored{
 			Source: modsrc,
 			Dir:    modvendor.Dir(vendordir, modsrc),
 		}
@@ -969,14 +969,14 @@ func TestModVendorWithCommitIDRef(t *testing.T) {
 	got := modvendor.Vendor(rootdir, vendordir, source)
 	assertVendorReport(t, modvendor.Report{
 		Vendored: map[string]modvendor.Vendored{
-			source.Raw: {
+			modvendor.Dir(vendordir, source): {
 				Source: source,
 				Dir:    modvendor.Dir(vendordir, source),
 			},
 		},
 	}, got)
 
-	cloneDir := modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[source.Raw].Source)
+	cloneDir := modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[modvendor.Dir(vendordir, source)].Source)
 	gotContent := test.ReadFile(t, cloneDir, filename)
 	assert.EqualStrings(t, content, string(gotContent))
 	assertNoGitDir(t, cloneDir)
@@ -1005,20 +1005,21 @@ func TestModVendorWithRef(t *testing.T) {
 
 	const vendordir = "/vendor"
 	got := modvendor.Vendor(rootdir, vendordir, source)
+	vendoredAt := modvendor.Dir(vendordir, source)
 	assertVendorReport(t, modvendor.Report{
 		Vendored: map[string]modvendor.Vendored{
-			source.Raw: {
+			vendoredAt: {
 				Source: source,
 				Dir:    modvendor.Dir(vendordir, source),
 			},
 		},
 	}, got)
 
-	cloneDir := got.Vendored[source.Raw].Dir
+	cloneDir := got.Vendored[vendoredAt].Dir
 	wantCloneDir := modvendor.Dir(vendordir, source)
 	assert.EqualStrings(t, wantCloneDir, cloneDir)
 
-	absCloneDir := modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[source.Raw].Source)
+	absCloneDir := modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[vendoredAt].Source)
 	gotContent := test.ReadFile(t, absCloneDir, filename)
 	assert.EqualStrings(t, content, string(gotContent))
 	assertNoGitDir(t, absCloneDir)
@@ -1044,10 +1045,10 @@ func TestModVendorWithRef(t *testing.T) {
 	got = modvendor.Vendor(rootdir, vendordir, source)
 
 	wantCloneDir = modvendor.Dir(vendordir, source)
-	newCloneDir := got.Vendored[source.Raw].Dir
+	newCloneDir := got.Vendored[wantCloneDir].Dir
 	assert.EqualStrings(t, wantCloneDir, newCloneDir)
 
-	absCloneDir = modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[source.Raw].Source)
+	absCloneDir = modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[wantCloneDir].Source)
 	assertNoGitDir(t, absCloneDir)
 
 	gotContent = test.ReadFile(t, absCloneDir, filename)

@@ -105,8 +105,8 @@ func (r Report) Verbose() string {
 	return strings.Join(report, "\n")
 }
 
-func (r *Report) addVendored(rawSource string, source tf.Source, dir string) {
-	r.Vendored[rawSource] = Vendored{
+func (r *Report) addVendored(source tf.Source, dir string) {
+	r.Vendored[dir] = Vendored{
 		Source: source,
 		Dir:    dir,
 	}
