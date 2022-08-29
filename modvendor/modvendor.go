@@ -115,7 +115,7 @@ func vendor(rootdir string, vendorDir string, modsrc tf.Source, report Report, i
 }
 
 // sourcesInfo represents information about module sources. It retains
-// the original order that sources where appended, like an ordered map.
+// the original order that sources were appended, like an ordered map.
 // both list and set always have the same modinfo inside, one is used
 // for ordering dependent iteration, the other one for quick access of
 // specific sources.
