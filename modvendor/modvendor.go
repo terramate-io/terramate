@@ -110,7 +110,7 @@ func vendor(rootdir string, vendorDir string, modsrc tf.Source, report Report, i
 
 	logger.Trace().Msg("successfully downloaded")
 
-	report.addVendored(modsrc.Raw, modsrc, Dir(vendorDir, modsrc))
+	report.addVendored(modsrc, Dir(vendorDir, modsrc))
 	return vendorAll(rootdir, vendorDir, moddir, report)
 }
 
@@ -175,21 +175,23 @@ func vendorAll(rootdir string, vendorDir string, tfdir string, report Report) Re
 			Str("origin", info.origin).
 			Logger()
 
-		if v, ok := report.Vendored[source]; ok {
-			logger.Trace().Msg("already vendored")
-			info.vendoredAt = v.Dir
-			info.subdir = v.Source.Subdir
-			continue
-		}
-
 		modsrc, err := tf.ParseSource(source)
 		if err != nil {
 			report.addIgnored(source, err.Error())
 			delete(sourcemap, source)
 			continue
 		}
+
+		info.subdir = modsrc.Subdir
+
+		if v, ok := report.Vendored[Dir(vendorDir, modsrc)]; ok {
+			logger.Trace().Msg("already vendored")
+			info.vendoredAt = v.Dir
+			continue
+		}
+
 		report = vendor(rootdir, vendorDir, modsrc, report, info)
-		if v, ok := report.Vendored[source]; ok {
+		if v, ok := report.Vendored[Dir(vendorDir, modsrc)]; ok {
 			info.vendoredAt = Dir(vendorDir, modsrc)
 			info.subdir = v.Source.Subdir
 
