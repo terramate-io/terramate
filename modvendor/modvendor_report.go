@@ -42,12 +42,15 @@ type Report struct {
 	Vendored map[string]Vendored
 	Ignored  []IgnoredVendor
 	Error    error
+
+	vendorDir string
 }
 
 // NewReport returns a new empty report.
-func NewReport() Report {
+func NewReport(vendordir string) Report {
 	return Report{
-		Vendored: make(map[string]Vendored),
+		Vendored:  make(map[string]Vendored),
+		vendorDir: vendordir,
 	}
 }
 
@@ -105,7 +108,8 @@ func (r Report) Verbose() string {
 	return strings.Join(report, "\n")
 }
 
-func (r *Report) addVendored(source tf.Source, dir string) {
+func (r *Report) addVendored(source tf.Source) {
+	dir := Dir(r.vendorDir, source)
 	r.Vendored[dir] = Vendored{
 		Source: source,
 		Dir:    dir,

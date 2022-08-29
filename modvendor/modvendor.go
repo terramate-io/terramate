@@ -65,7 +65,7 @@ type modinfo struct {
 //
 // It returns a report of everything vendored and ignored (with a reason).
 func Vendor(rootdir string, vendorDir string, modsrc tf.Source) Report {
-	report := NewReport()
+	report := NewReport(vendorDir)
 	if !filepath.IsAbs(vendorDir) {
 		report.Error = errors.E("vendor dir %q must be absolute path", vendorDir)
 		return report
@@ -78,7 +78,7 @@ func Vendor(rootdir string, vendorDir string, modsrc tf.Source) Report {
 // It will scan all .tf files in the directory and vendor each module declaration
 // containing the supported remote source URLs.
 func VendorAll(rootdir string, vendorDir string, tfdir string) Report {
-	return vendorAll(rootdir, vendorDir, tfdir, NewReport())
+	return vendorAll(rootdir, vendorDir, tfdir, NewReport(vendorDir))
 }
 
 func vendor(rootdir string, vendorDir string, modsrc tf.Source, report Report, info *modinfo) Report {
@@ -110,7 +110,7 @@ func vendor(rootdir string, vendorDir string, modsrc tf.Source, report Report, i
 
 	logger.Trace().Msg("successfully downloaded")
 
-	report.addVendored(modsrc, Dir(vendorDir, modsrc))
+	report.addVendored(modsrc)
 	return vendorAll(rootdir, vendorDir, moddir, report)
 }
 
