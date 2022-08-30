@@ -25,13 +25,15 @@ import (
 	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
+
+	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
 func TestVendorManifest(t *testing.T) {
 	type (
 		manifestConfig struct {
-			path string
-			cfg  fmt.Stringer
+			path     string
+			patterns []string
 		}
 		testcase struct {
 			name      string
@@ -54,6 +56,22 @@ func TestVendorManifest(t *testing.T) {
 				"/file",
 			},
 		},
+		{
+			name: "filter single file",
+			files: []string{
+				"/dir/file",
+				"/file",
+			},
+			manifest: manifestConfig{
+				path: "/manifest.tm",
+				patterns: []string{
+					"/file",
+				},
+			},
+			wantFiles: []string{
+				"/dir/file",
+			},
+		},
 	}
 
 	for _, tcase := range testcases {
@@ -62,7 +80,24 @@ func TestVendorManifest(t *testing.T) {
 			repoSandbox := sandbox.New(t)
 			for _, file := range tcase.files {
 				path := filepath.Join(repoSandbox.RootDir(), file)
-				test.WriteFile(t, filepath.Dir(path), filepath.Base(path), "")
+				test.WriteFile(t, filepath.Dir(path), filepath.Base(path), "contents")
+			}
+
+			if tcase.manifest.path != "" {
+				path := filepath.Join(repoSandbox.RootDir(), tcase.manifest.path)
+				patternList := "["
+				for _, pattern := range tcase.manifest.patterns {
+					patternList += fmt.Sprintf("%q,\n", pattern)
+				}
+				patternList += "]"
+				hcldoc := Vendor(
+					Manifest(
+						Default(
+							Expr("files", patternList),
+						),
+					),
+				)
+				test.WriteFile(t, filepath.Dir(path), filepath.Base(path), hcldoc.String())
 			}
 
 			// Remove the default README.md created by the sandbox
