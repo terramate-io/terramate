@@ -861,6 +861,56 @@ func TestRunWantedBy(t *testing.T) {
 				Stdout: listStacks("stack1", "stack2", "stack3"),
 			},
 		},
+		{
+			name: "stack1 wants stack3; stack1 is wantedBy stack2; stack3 wants stack4",
+			layout: []string{
+				`s:stack1:wanted_by=["/stack2"];wants=["/stack3"]`,
+				`s:stack2`,
+				`s:stack3:wants=["/stack4"]`,
+				`s:stack4`,
+			},
+			wd: "/stack2",
+			want: runExpected{
+				Stdout: listStacks("stack1", "stack2", "stack3", "stack4"),
+			},
+		},
+		{
+			name: "stack1 wanted_by stack2 and stack2 wanted_by stack1",
+			layout: []string{
+				`s:stack1:wanted_by=["/stack2"]`,
+				`s:stack2:wanted_by=["/stack1"]`,
+			},
+			wd: "/stack1",
+			want: runExpected{
+				Stdout: listStacks("stack1", "stack2"),
+			},
+		},
+		{
+			name: "stack wantedBy all other stacks - running 1",
+			layout: []string{
+				`s:stack:wanted_by=["/all"]`,
+				`s:all/test/1`,
+				`s:all/test2/2`,
+				`s:all/something/3`,
+			},
+			wd: "/all/test/1",
+			want: runExpected{
+				Stdout: listStacks("1", "stack"),
+			},
+		},
+		{
+			name: "stack wantedBy all other stacks - running 2",
+			layout: []string{
+				`s:stack:wanted_by=["/all"]`,
+				`s:all/1`,
+				`s:all/2`,
+				`s:all/3`,
+			},
+			wd: "/all/2",
+			want: runExpected{
+				Stdout: listStacks("2", "stack"),
+			},
+		},
 	} {
 		testRunSelection(t, tc)
 	}
