@@ -46,7 +46,7 @@ func TestVendorManifest(t *testing.T) {
 
 	testcases := []testcase{
 		{
-			name: "no manifest",
+			name: "no manifest vendor all",
 			files: []string{
 				"/dir/file",
 				"/file",
@@ -54,6 +54,22 @@ func TestVendorManifest(t *testing.T) {
 			wantFiles: []string{
 				"/dir/file",
 				"/file",
+			},
+		},
+		{
+			name: "empty manifest vendor all",
+			files: []string{
+				"/dir/file",
+				"/file",
+			},
+			manifest: manifestConfig{
+				path:     "/manifest.tm",
+				patterns: []string{},
+			},
+			wantFiles: []string{
+				"/dir/file",
+				"/file",
+				"/manifest.tm",
 			},
 		},
 		{
@@ -70,14 +86,15 @@ func TestVendorManifest(t *testing.T) {
 			},
 			wantFiles: []string{
 				"/dir/file",
+				"/manifest.tm",
 			},
 		},
 	}
 
 	for _, tcase := range testcases {
 		t.Run(tcase.name, func(t *testing.T) {
-
 			repoSandbox := sandbox.New(t)
+
 			for _, file := range tcase.files {
 				path := filepath.Join(repoSandbox.RootDir(), file)
 				test.WriteFile(t, filepath.Dir(path), filepath.Base(path), "contents")
@@ -93,7 +110,7 @@ func TestVendorManifest(t *testing.T) {
 				hcldoc := Vendor(
 					Manifest(
 						Default(
-							Expr("files", patternList),
+							EvalExpr(t, "files", patternList),
 						),
 					),
 				)

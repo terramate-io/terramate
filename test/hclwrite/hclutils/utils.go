@@ -152,7 +152,14 @@ func Import(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return Block("import", builders...)
 }
 
-// EvalExpr is a helper for an evaluated expression attribute.
+// EvalExpr accepts an expr as the attribute value, similar to Expr,
+// but will evaluate the expr and store the resulting value so
+// it will be available as an attribute value instead of as an
+// expression. If evaluation fails the test caller will fail.
+//
+// The evaluation is quite limited, only suitable for evaluating
+// objects/lists/etc, but won't work with any references to
+// namespaces except default Terraform function calls.
 func EvalExpr(t *testing.T, name string, expr string) hclwrite.BlockBuilder {
 	t.Helper()
 	return hclwrite.AttributeValue(t, name, expr)

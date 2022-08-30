@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
@@ -342,9 +343,17 @@ func downloadVendor(rootdir string, vendorDir string, modsrc tf.Source) (string,
 		return "", errors.E(err, "removing .git dir from cloned repo")
 	}
 
+	logger.Trace().Msg("checking for manifest")
+	// TODO: KATCIPIS: Handle parse error
+	loadFileMatcher(clonedRepoDir)
+
+	fileFilter := func(os.DirEntry) bool {
+		// TODO: KATCIPIS: Handle parse error
+		return true
+	}
+
 	logger.Trace().Msg("copying cloned mod to terramate temp vendor dir")
-	if err := fs.CopyDir(tmTempDir, clonedRepoDir,
-		func(os.DirEntry) bool { return true }); err != nil {
+	if err := fs.CopyDir(tmTempDir, clonedRepoDir, fileFilter); err != nil {
 		return "", errors.E(err, "copying cloned module")
 	}
 
@@ -430,6 +439,10 @@ func patchFiles(rootdir string, files []string, sources *sourcesInfo) error {
 		}
 	}
 	return errs.AsError()
+}
+
+func loadFileMatcher(dir string) (gitignore.Matcher, error) {
+	return nil, nil
 }
 
 // Dir returns the directory for the vendored module source, relative to project

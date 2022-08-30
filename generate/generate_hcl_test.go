@@ -39,7 +39,7 @@ func TestGenerateHCL(t *testing.T) {
 	}
 	attr := func(name, expr string) hclwrite.BlockBuilder {
 		t.Helper()
-		return hclwrite.AttributeValue(t, name, expr)
+		return EvalExpr(t, name, expr)
 	}
 
 	testCodeGeneration(t, test.AssertGenHCLEquals, []testcase{
