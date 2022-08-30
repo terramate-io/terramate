@@ -66,6 +66,31 @@ func TestVendorModule(t *testing.T) {
 		res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
 		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), rootcfg))
 	})
+
+	t.Run(".terramate configuration", func(t *testing.T) {
+		dotTerramateCfg := "/from/dottm/cfg"
+		dotTerramateDir := s.RootEntry().CreateDir(".terramate")
+
+		dotTerramateDir.CreateFile("vendor.tm", vendorHCLConfig(dotTerramateCfg))
+		tmcli := newCLI(t, s.RootDir())
+		res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
+		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), dotTerramateCfg))
+	})
+
+	t.Run("CLI configuration", func(t *testing.T) {
+		cliCfg := "/from/cli/cfg"
+		tmcli := newCLI(t, s.RootDir())
+		res := tmcli.run("experimental", "vendor", "download", "--dir", cliCfg, gitSource, "main")
+		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), cliCfg))
+	})
+
+	t.Run("CLI configuration with subdir", func(t *testing.T) {
+		cliCfg := "/with/subdir"
+		gitSource := gitSource + "//subdir"
+		tmcli := newCLI(t, s.RootDir())
+		res := tmcli.run("experimental", "vendor", "download", "--dir", cliCfg, gitSource, "main")
+		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), cliCfg))
+	})
 }
 
 func TestVendorModuleRecursive1DependencyIsPatched(t *testing.T) {
