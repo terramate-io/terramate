@@ -547,6 +547,8 @@ func buildTree(t *testing.T, rootdir string, layout []string) {
 				cfg.Stack.Before = parseListSpec(t, name, value)
 			case "wants":
 				cfg.Stack.Wants = parseListSpec(t, name, value)
+			case "wanted_by":
+				cfg.Stack.WantedBy = parseListSpec(t, name, value)
 			case "watch":
 				cfg.Stack.Watch = parseListSpec(t, name, value)
 			case "description":

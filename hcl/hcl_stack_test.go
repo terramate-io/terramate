@@ -564,6 +564,83 @@ func TestHCLParserStack(t *testing.T) {
 			},
 		},
 		{
+			name:      "wanted_by is optional",
+			nonStrict: true,
+			input: []cfgfile{
+				{
+					filename: "stack.tm",
+					body: `
+						stack {}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Stack: &hcl.Stack{},
+				},
+			},
+		},
+		{
+			name:      "wanted_by can be empty",
+			nonStrict: true,
+			input: []cfgfile{
+				{
+					filename: "stack.tm",
+					body: `
+						stack {
+							wanted_by = []
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Stack: &hcl.Stack{
+						WantedBy: []string{},
+					},
+				},
+			},
+		},
+		{
+			name:      "'wanted_by' single entry",
+			nonStrict: true,
+			input: []cfgfile{
+				{
+					filename: "stack.tm",
+					body: `
+						stack {
+							wanted_by = ["test"]
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Stack: &hcl.Stack{
+						WantedBy: []string{"test"},
+					},
+				},
+			},
+		},
+		{
+			name: "'wanted_by' duplicated entry",
+			input: []cfgfile{
+				{
+					filename: "stack.tm",
+					body: `
+						stack {
+							wanted_by = ["test", "test"]
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
 			name: "stack with valid description",
 			input: []cfgfile{
 				{

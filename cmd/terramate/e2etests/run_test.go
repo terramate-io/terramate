@@ -30,6 +30,13 @@ import (
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
+type selectionTestcase struct {
+	name   string
+	layout []string
+	wd     string
+	want   runExpected
+}
+
 func TestCLIRunOrder(t *testing.T) {
 	type testcase struct {
 		name       string
@@ -633,14 +640,7 @@ func TestCLIRunOrder(t *testing.T) {
 }
 
 func TestRunWants(t *testing.T) {
-	type testcase struct {
-		name   string
-		layout []string
-		wd     string
-		want   runExpected
-	}
-
-	for _, tc := range []testcase{
+	for _, tc := range []selectionTestcase{
 		{
 			/* this works but gives a warning */
 			name: "stack-a wants stack-a",
@@ -820,32 +820,77 @@ func TestRunWants(t *testing.T) {
 			},
 		},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			sandboxes := []sandbox.S{
-				sandbox.New(t),
-				sandbox.NoGit(t),
-			}
-
-			for _, s := range sandboxes {
-				s.BuildTree(tc.layout)
-				test.WriteRootConfig(t, s.RootDir())
-
-				cli := newCLI(t, filepath.Join(s.RootDir(), tc.wd))
-				assertRunResult(t, cli.stacksRunOrder(), tc.want)
-
-				if s.IsGit() {
-					// required because `terramate run` requires a clean repo.
-					git := s.Git()
-					git.CommitAll("everything")
-				}
-
-				// TODO(i4k): not portable
-				assertRunResult(t, cli.run("run", "sh", "-c", "pwd | xargs basename"), tc.want)
-			}
-		})
+		testRunSelection(t, tc)
 	}
 }
 
+func TestRunWantedBy(t *testing.T) {
+	for _, tc := range []selectionTestcase{
+		{
+			name: "stack wantedBy other-stack",
+			layout: []string{
+				`s:stack:wanted_by=["/other-stack"]`,
+				`s:other-stack`,
+			},
+			wd: "/other-stack",
+			want: runExpected{
+				Stdout: listStacks("other-stack", "stack"),
+			},
+		},
+		{
+			name: "stack1 wantedBy multiple stacks",
+			layout: []string{
+				`s:stack1:wanted_by=["/stack2", "/stack3"]`,
+				`s:stack2`,
+				`s:stack3`,
+			},
+			wd: "/stack2",
+			want: runExpected{
+				Stdout: listStacks("stack1", "stack2"),
+			},
+		},
+		{
+			name: "stack1 (wants stack3) wantedBy stack2",
+			layout: []string{
+				`s:stack1:wanted_by=["/stack2"];wants=["/stack3"]`,
+				`s:stack2`,
+				`s:stack3`,
+			},
+			wd: "/stack2",
+			want: runExpected{
+				Stdout: listStacks("stack1", "stack2", "stack3"),
+			},
+		},
+	} {
+		testRunSelection(t, tc)
+	}
+}
+
+func testRunSelection(t *testing.T, tc selectionTestcase) {
+	t.Run(tc.name, func(t *testing.T) {
+		sandboxes := []sandbox.S{
+			sandbox.New(t),
+			sandbox.NoGit(t),
+		}
+
+		for _, s := range sandboxes {
+			s.BuildTree(tc.layout)
+			test.WriteRootConfig(t, s.RootDir())
+
+			cli := newCLI(t, filepath.Join(s.RootDir(), tc.wd))
+			assertRunResult(t, cli.stacksRunOrder(), tc.want)
+
+			if s.IsGit() {
+				// required because `terramate run` requires a clean repo.
+				git := s.Git()
+				git.CommitAll("everything")
+			}
+
+			// TODO(i4k): not portable
+			assertRunResult(t, cli.run("run", "sh", "-c", "pwd | xargs basename"), tc.want)
+		}
+	})
+}
 func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 	const (
 		mainTfFileName = "main.tf"

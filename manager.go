@@ -467,6 +467,28 @@ func (m *Manager) AddWantedOf(stacks stack.List) (stack.List, error) {
 		wanted = append(wanted, s)
 	}
 
+	allstacks, err := m.List()
+	if err != nil {
+		return nil, errors.E(err, "computing wanted stacks")
+	}
+
+	for _, s := range allstacks.Stacks {
+		wantedStacks, err := m.stackLoader.LoadAll(
+			m.root, s.Stack.HostPath(),
+			s.Stack.WantedBy()...,
+		)
+		if err != nil {
+			return nil, errors.E(err, "loading \"wanted_by\" stacks")
+		}
+
+		for _, wantedStack := range wantedStacks {
+			if _, ok := wantedBy[wantedStack.Path()]; ok {
+				wantedBy[s.Stack.Path()] = s.Stack
+				wanted = append(wanted, s.Stack)
+			}
+		}
+	}
+
 	visited := map[string]struct{}{}
 
 	for len(wantedBy) > 0 {
@@ -480,7 +502,7 @@ func (m *Manager) AddWantedOf(stacks stack.List) (stack.List, error) {
 
 			wantedStacks, err := m.stackLoader.LoadAll(m.root, s.HostPath(), s.Wants()...)
 			if err != nil {
-				return nil, errors.E(err, "calculating wanted stacks")
+				return nil, errors.E(err, "computing wanted stacks")
 			}
 
 			logger.Debug().Msg("The \"wanted\" stacks were loaded successfully.")
