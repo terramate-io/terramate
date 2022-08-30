@@ -61,7 +61,6 @@ type (
 
 		// wantedBy is the list of stacks that must select this stack
 		// whenever they are selected.
-		// is selected.
 		wantedBy []string
 
 		// watch is the list of files to be watched for changes.
