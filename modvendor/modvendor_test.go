@@ -193,6 +193,82 @@ func TestModVendor(t *testing.T) {
 			},
 		},
 		{
+			name: "module with 1 remote dependency and subdir",
+			layout: []string{
+				"g:module-test",
+				"g:another-module",
+			},
+			source: "git::file://{{.}}/module-test?ref=main",
+			configs: []hclconfig{
+				{
+					repo: "module-test",
+					path: "module-test/main.tf",
+					data: Module(
+						Labels("test"),
+						Str("source", "git::file://{{.}}/another-module//sub/dir?ref=main"),
+					),
+				},
+			},
+			wantFiles: map[vendorPathSpec]fmt.Stringer{
+				"git::file://{{.}}/module-test?ref=main#main.tf": Module(
+					Labels("test"),
+					Str("source", "{{index . 1}}/sub/dir"),
+				),
+			},
+			wantVendored: []string{
+				"git::file://{{.}}/module-test?ref=main",
+				"git::file://{{.}}/another-module//sub/dir?ref=main",
+			},
+		},
+		{
+			name: "module with N remote dependency and subdir",
+			layout: []string{
+				"g:module-test",
+				"g:another-module",
+			},
+			source: "git::file://{{.}}/module-test?ref=main",
+			configs: []hclconfig{
+				{
+					repo: "module-test",
+					path: "module-test/main.tf",
+					data: Doc(
+						Module(
+							Labels("nosubdir"),
+							Str("source", "git::file://{{.}}/another-module?ref=main"),
+						),
+						Module(
+							Labels("subdir1"),
+							Str("source", "git::file://{{.}}/another-module//sub/dir?ref=main"),
+						),
+						Module(
+							Labels("subdir2"),
+							Str("source", "git::file://{{.}}/another-module//sub?ref=main"),
+						),
+					),
+				},
+			},
+			wantFiles: map[vendorPathSpec]fmt.Stringer{
+				"git::file://{{.}}/module-test?ref=main#main.tf": Doc(
+					Module(
+						Labels("nosubdir"),
+						Str("source", "{{index . 1}}"),
+					),
+					Module(
+						Labels("subdir1"),
+						Str("source", "{{index . 1}}/sub/dir"),
+					),
+					Module(
+						Labels("subdir2"),
+						Str("source", "{{index . 1}}/sub"),
+					),
+				),
+			},
+			wantVendored: []string{
+				"git::file://{{.}}/module-test?ref=main",
+				"git::file://{{.}}/another-module?ref=main",
+			},
+		},
+		{
 			name: "module with 1 remote dependency that contains bogus module.source",
 			layout: []string{
 				"g:module-test",
@@ -741,7 +817,7 @@ func applyReportTemplate(t *testing.T, r wantReport, value string, vendordir str
 		rawSource := applyConfigTemplate(t, vendored, value)
 		modsrc, err := tf.ParseSource(rawSource)
 		assert.NoError(t, err)
-		out.Vendored[rawSource] = modvendor.Vendored{
+		out.Vendored[modvendor.Dir(vendordir, modsrc)] = modvendor.Vendored{
 			Source: modsrc,
 			Dir:    modvendor.Dir(vendordir, modsrc),
 		}
@@ -789,6 +865,7 @@ func checkWantedFiles(
 	vendordir string,
 ) {
 	t.Helper()
+
 	wantFiles := evaluateWantedFiles(t, tc.wantFiles, modulesDir, rootdir, vendordir)
 	vendorDir := filepath.Join(rootdir, tc.vendordir)
 
@@ -892,14 +969,14 @@ func TestModVendorWithCommitIDRef(t *testing.T) {
 	got := modvendor.Vendor(rootdir, vendordir, source)
 	assertVendorReport(t, modvendor.Report{
 		Vendored: map[string]modvendor.Vendored{
-			source.Raw: {
+			modvendor.Dir(vendordir, source): {
 				Source: source,
 				Dir:    modvendor.Dir(vendordir, source),
 			},
 		},
 	}, got)
 
-	cloneDir := modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[source.Raw].Source)
+	cloneDir := modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[modvendor.Dir(vendordir, source)].Source)
 	gotContent := test.ReadFile(t, cloneDir, filename)
 	assert.EqualStrings(t, content, string(gotContent))
 	assertNoGitDir(t, cloneDir)
@@ -928,20 +1005,21 @@ func TestModVendorWithRef(t *testing.T) {
 
 	const vendordir = "/vendor"
 	got := modvendor.Vendor(rootdir, vendordir, source)
+	vendoredAt := modvendor.Dir(vendordir, source)
 	assertVendorReport(t, modvendor.Report{
 		Vendored: map[string]modvendor.Vendored{
-			source.Raw: {
+			vendoredAt: {
 				Source: source,
 				Dir:    modvendor.Dir(vendordir, source),
 			},
 		},
 	}, got)
 
-	cloneDir := got.Vendored[source.Raw].Dir
+	cloneDir := got.Vendored[vendoredAt].Dir
 	wantCloneDir := modvendor.Dir(vendordir, source)
 	assert.EqualStrings(t, wantCloneDir, cloneDir)
 
-	absCloneDir := modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[source.Raw].Source)
+	absCloneDir := modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[vendoredAt].Source)
 	gotContent := test.ReadFile(t, absCloneDir, filename)
 	assert.EqualStrings(t, content, string(gotContent))
 	assertNoGitDir(t, absCloneDir)
@@ -967,10 +1045,10 @@ func TestModVendorWithRef(t *testing.T) {
 	got = modvendor.Vendor(rootdir, vendordir, source)
 
 	wantCloneDir = modvendor.Dir(vendordir, source)
-	newCloneDir := got.Vendored[source.Raw].Dir
+	newCloneDir := got.Vendored[wantCloneDir].Dir
 	assert.EqualStrings(t, wantCloneDir, newCloneDir)
 
-	absCloneDir = modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[source.Raw].Source)
+	absCloneDir = modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[wantCloneDir].Source)
 	assertNoGitDir(t, absCloneDir)
 
 	gotContent = test.ReadFile(t, absCloneDir, filename)
@@ -1064,18 +1142,27 @@ func assertNoGitDir(t *testing.T, dir string) {
 
 func assertVendorReport(t *testing.T, want, got modvendor.Report) {
 	t.Helper()
+
 	assert.EqualInts(t, len(want.Vendored), len(got.Vendored),
 		"number of vendored is different: want %s != got %s",
 		want.Verbose(), got.Verbose())
+
 	assert.EqualInts(t, len(want.Ignored), len(got.Ignored),
 		"number of ignored is different: want %s != got %s",
 		want.Verbose(), got.Verbose())
-	for i, wantVendor := range want.Vendored {
-		if wantVendor != got.Vendored[i] {
-			t.Errorf("want %v is different than %v",
-				want.Verbose(), got.Verbose())
+
+	for source, wantVendor := range want.Vendored {
+		gotVendor, ok := got.Vendored[source]
+		if !ok {
+			t.Errorf("want vendor for source %q but got none", source)
+			continue
+		}
+		if wantVendor != gotVendor {
+			t.Errorf("vendored source: %s:\nwant:%#v\ngot:%#v\n",
+				source, wantVendor, gotVendor)
 		}
 	}
+
 	for i, wantIgnored := range want.Ignored {
 		if wantIgnored.RawSource != got.Ignored[i].RawSource {
 			t.Errorf("want.RawSource %v is different than %v",
