@@ -59,6 +59,10 @@ type (
 		// is selected.
 		wants []string
 
+		// wantedBy is the list of stacks that must select this stack
+		// whenever they are selected.
+		wantedBy []string
+
 		// watch is the list of files to be watched for changes.
 		watch []string
 
@@ -126,6 +130,7 @@ func New(root string, cfg hcl.Config) (*S, error) {
 		after:         cfg.Stack.After,
 		before:        cfg.Stack.Before,
 		wants:         cfg.Stack.Wants,
+		wantedBy:      cfg.Stack.WantedBy,
 		watch:         watchFiles,
 		hostpath:      cfg.AbsDir(),
 		path:          project.PrjAbsPath(root, cfg.AbsDir()),
@@ -163,6 +168,9 @@ func (s *S) AppendBefore(path string) {
 
 // Wants specifies the list of wanted stacks.
 func (s *S) Wants() []string { return s.wants }
+
+// WantedBy specifies the list of stacks that wants this stack.
+func (s *S) WantedBy() []string { return s.wantedBy }
 
 // Watch returns the list of watched files.
 func (s *S) Watch() []string { return s.watch }
