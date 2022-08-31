@@ -161,6 +161,10 @@ type Stack struct {
 	// whenever the current stack is selected.
 	Wants []string
 
+	// WantedBy is a list of non-duplicated stack entries that must select
+	// this stack whenever they are selected.
+	WantedBy []string
+
 	// Watch is a list of files to be watched for changes.
 	Watch []string
 }
@@ -1000,6 +1004,9 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 
 		case "wants":
 			errs.Append(assignSet(attr.Name, &stack.Wants, attrVal))
+
+		case "wanted_by":
+			errs.Append(assignSet(attr.Name, &stack.WantedBy, attrVal))
 
 		case "watch":
 			errs.Append(assignSet(attr.Name, &stack.Watch, attrVal))
