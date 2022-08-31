@@ -41,7 +41,6 @@ func TestVendorManifest(t *testing.T) {
 			files     []string
 			manifest  manifestConfig
 			wantFiles []string
-			wantErr   error
 		}
 	)
 
@@ -122,6 +121,39 @@ func TestVendorManifest(t *testing.T) {
 				"/vars.tf",
 			},
 		},
+		{
+			name: "filter config on .terramate",
+			files: []string{
+				"/main.tf",
+				"/vars.tf",
+				"/fun.tf",
+				"/README.md",
+				"/LICENSE",
+				"/examples/1/main.tf",
+				"/examples/2/main.tf",
+				"/test/1/main.tf",
+				"/test/2/main.tf",
+				"/other/ohno.txt",
+			},
+			manifest: manifestConfig{
+				path: ".terramate/manifest.tm",
+				patterns: []string{
+					"/*.tf",
+					"/README.*",
+					"/LICENSE",
+					"examples",
+				},
+			},
+			wantFiles: []string{
+				"/LICENSE",
+				"/README.md",
+				"/examples/1/main.tf",
+				"/examples/2/main.tf",
+				"/fun.tf",
+				"/main.tf",
+				"/vars.tf",
+			},
+		},
 	}
 
 	for _, tcase := range testcases {
@@ -163,11 +195,7 @@ func TestVendorManifest(t *testing.T) {
 
 			const vendordir = "/vendor"
 			got := modvendor.Vendor(rootdir, vendordir, source)
-
-			assert.IsError(t, got.Error, tcase.wantErr)
-			if tcase.wantErr != nil {
-				return
-			}
+			assert.NoError(t, got.Error)
 
 			clonedir := modvendor.AbsVendorDir(rootdir, vendordir, source)
 			gotFiles := listFiles(t, clonedir)

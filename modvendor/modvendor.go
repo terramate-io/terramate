@@ -458,18 +458,44 @@ func patchFiles(rootdir string, files []string, sources *sourcesInfo) error {
 
 func loadFileMatcher(rootdir string) (gitignore.Matcher, error) {
 	// TODO: KATCIPIS Handle error
-	cfg, _ := hcl.ParseDir(rootdir, rootdir)
+	logger := log.With().
+		Str("action", "modvendor.loadFileMatcher").
+		Str("rootdir", rootdir).
+		Logger()
 
+	logger.Trace().Msg("checking for manifest on root")
+
+	cfg, _ := hcl.ParseDir(rootdir, rootdir)
 	if hasVendorManifest(cfg) {
-		files := cfg.Vendor.Manifest.Default.Files
-		patterns := make([]gitignore.Pattern, len(files))
-		for i, rawPattern := range files {
-			patterns[i] = gitignore.ParsePattern(rawPattern, nil)
+		logger.Trace().Msg("found manifest on root")
+		return newMatcher(cfg), nil
+	}
+
+	logger.Trace().Msg("checking for manifest on .terramate")
+
+	// TODO: KATCIPIS test precedence
+	dotTerramate := filepath.Join(rootdir, ".terramate")
+	dotTerramateInfo, err := os.Stat(dotTerramate)
+
+	if err == nil && dotTerramateInfo.IsDir() {
+		// TODO: KATCIPIS Handle error
+		cfg, _ := hcl.ParseDir(rootdir, dotTerramate)
+		if hasVendorManifest(cfg) {
+			logger.Trace().Msg("found manifest on .terramate")
+			return newMatcher(cfg), nil
 		}
-		return gitignore.NewMatcher(patterns), nil
 	}
 
 	return defaultMatcher(), nil
+}
+
+func newMatcher(cfg hcl.Config) gitignore.Matcher {
+	files := cfg.Vendor.Manifest.Default.Files
+	patterns := make([]gitignore.Pattern, len(files))
+	for i, rawPattern := range files {
+		patterns[i] = gitignore.ParsePattern(rawPattern, nil)
+	}
+	return gitignore.NewMatcher(patterns)
 }
 
 func defaultMatcher() gitignore.Matcher {
