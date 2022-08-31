@@ -356,19 +356,22 @@ func downloadVendor(rootdir string, vendorDir string, modsrc tf.Source) (string,
 	}
 
 	logger.Trace().Msg("checking for manifest")
-	// TODO: KATCIPIS: Handle parse error
-	matcher, _ := loadFileMatcher(clonedRepoDir)
+
+	matcher, err := loadFileMatcher(clonedRepoDir)
+	if err != nil {
+		return "", err
+	}
 
 	const pathSeparator string = string(os.PathSeparator)
 
-	filterManifest := func(path string, entry os.DirEntry) bool {
+	fileFilter := func(path string, entry os.DirEntry) bool {
 		abspath := filepath.Join(path, entry.Name())
 		relpath := strings.TrimPrefix(abspath, clonedRepoDir+pathSeparator)
 		return matcher.Match(strings.Split(relpath, pathSeparator), entry.IsDir())
 	}
 
 	logger.Trace().Msg("copying cloned mod to terramate temp vendor dir")
-	if err := fs.CopyDir(tmTempDir, clonedRepoDir, filterManifest); err != nil {
+	if err := fs.CopyDir(tmTempDir, clonedRepoDir, fileFilter); err != nil {
 		return "", errors.E(err, "copying cloned module")
 	}
 
@@ -468,8 +471,10 @@ func loadFileMatcher(rootdir string) (gitignore.Matcher, error) {
 	dotTerramateInfo, err := os.Stat(dotTerramate)
 
 	if err == nil && dotTerramateInfo.IsDir() {
-		// TODO: KATCIPIS Handle error
-		cfg, _ := hcl.ParseDir(rootdir, dotTerramate)
+		cfg, err := hcl.ParseDir(rootdir, dotTerramate)
+		if err != nil {
+			return nil, errors.E(err, "parsing manifest on .terramate")
+		}
 		if hasVendorManifest(cfg) {
 			logger.Trace().Msg("found manifest on .terramate")
 			return newMatcher(cfg), nil
@@ -478,8 +483,11 @@ func loadFileMatcher(rootdir string) (gitignore.Matcher, error) {
 
 	logger.Trace().Msg("checking for manifest on root")
 
-	// TODO: KATCIPIS Handle error
-	cfg, _ := hcl.ParseDir(rootdir, rootdir)
+	cfg, err := hcl.ParseDir(rootdir, rootdir)
+	if err != nil {
+		return nil, errors.E(err, "parsing manifest on project root")
+	}
+
 	if hasVendorManifest(cfg) {
 		logger.Trace().Msg("found manifest on root")
 		return newMatcher(cfg), nil
@@ -498,8 +506,10 @@ func newMatcher(cfg hcl.Config) gitignore.Matcher {
 }
 
 func defaultMatcher() gitignore.Matcher {
-	defaultPattern := gitignore.ParsePattern("**", nil)
-	return gitignore.NewMatcher([]gitignore.Pattern{defaultPattern})
+	return gitignore.NewMatcher([]gitignore.Pattern{
+		gitignore.ParsePattern("**", nil),
+		gitignore.ParsePattern("!/.terramate", nil),
+	})
 }
 
 func hasVendorManifest(cfg hcl.Config) bool {

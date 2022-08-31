@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -57,6 +58,17 @@ func TestVendorManifest(t *testing.T) {
 			},
 		},
 		{
+			name: "no manifest wont vendor .terramate",
+			files: []string{
+				"/file",
+				"/.terramate/ignored_by_default",
+				"/.terramate/subdir/ignored_by_default",
+			},
+			wantFiles: []string{
+				"/file",
+			},
+		},
+		{
 			name: "empty manifest vendor all",
 			files: []string{
 				"/dir/file",
@@ -72,6 +84,24 @@ func TestVendorManifest(t *testing.T) {
 				"/dir/file",
 				"/file",
 				"/manifest.tm",
+			},
+		},
+		{
+			name: "empty manifest wont vendor .terramate",
+			files: []string{
+				"/a/b/c",
+				"/c/d/e",
+				"/.terramate/subdir/ignored_by_default",
+			},
+			manifests: []manifestConfig{
+				{
+					path:     "/.terramate/manifest.tm",
+					patterns: []string{},
+				},
+			},
+			wantFiles: []string{
+				"/a/b/c",
+				"/c/d/e",
 			},
 		},
 		{
@@ -232,6 +262,33 @@ func TestVendorManifest(t *testing.T) {
 			}
 			test.AssertDiff(t, gotFiles, tcase.wantFiles)
 		})
+	}
+}
+
+func TestInvalidManifestFailsOnRoot(t *testing.T) {
+	testInvalidManifestFails(t, "manifest.tm")
+}
+
+func TestInvalidManifestFailsDotTerramate(t *testing.T) {
+	testInvalidManifestFails(t, ".terramate/manifest.tm")
+}
+
+func testInvalidManifestFails(t *testing.T, configpath string) {
+	repoSandbox := sandbox.New(t)
+	test.WriteFile(t, repoSandbox.RootDir(), configpath, "not valid HCL")
+
+	repogit := repoSandbox.Git()
+	repogit.CommitAll("setup vendored repo")
+
+	gitURL := "file://" + repoSandbox.RootDir()
+	source := newSource(t, gitURL, "main")
+
+	got := modvendor.Vendor(t.TempDir(), "/vendor", source)
+
+	assert.EqualInts(t, 0, len(got.Vendored), "vendored should be empty")
+	assert.EqualInts(t, 1, len(got.Ignored), "should have single ignored")
+	if !strings.Contains(got.Ignored[0].Reason, string(hcl.ErrHCLSyntax)) {
+		t.Fatalf("unexpected ignored reason: %s", got.Ignored[0].Reason)
 	}
 }
 
