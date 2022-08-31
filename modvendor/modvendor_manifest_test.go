@@ -39,7 +39,7 @@ func TestVendorManifest(t *testing.T) {
 		testcase struct {
 			name      string
 			files     []string
-			manifest  manifestConfig
+			manifests []manifestConfig
 			wantFiles []string
 		}
 	)
@@ -62,9 +62,11 @@ func TestVendorManifest(t *testing.T) {
 				"/dir/file",
 				"/file",
 			},
-			manifest: manifestConfig{
-				path:     "/manifest.tm",
-				patterns: []string{},
+			manifests: []manifestConfig{
+				{
+					path:     "/manifest.tm",
+					patterns: []string{},
+				},
 			},
 			wantFiles: []string{
 				"/dir/file",
@@ -78,10 +80,12 @@ func TestVendorManifest(t *testing.T) {
 				"/dir/file",
 				"/file",
 			},
-			manifest: manifestConfig{
-				path: "/manifest.tm",
-				patterns: []string{
-					"/file",
+			manifests: []manifestConfig{
+				{
+					path: "/manifest.tm",
+					patterns: []string{
+						"/file",
+					},
 				},
 			},
 			wantFiles: []string{
@@ -102,13 +106,15 @@ func TestVendorManifest(t *testing.T) {
 				"/test/2/main.tf",
 				"/other/ohno.txt",
 			},
-			manifest: manifestConfig{
-				path: "/manifest.tm",
-				patterns: []string{
-					"/*.tf",
-					"/README.*",
-					"/LICENSE",
-					"examples",
+			manifests: []manifestConfig{
+				{
+					path: "/manifest.tm",
+					patterns: []string{
+						"/*.tf",
+						"/README.*",
+						"/LICENSE",
+						"examples",
+					},
 				},
 			},
 			wantFiles: []string{
@@ -135,13 +141,15 @@ func TestVendorManifest(t *testing.T) {
 				"/test/2/main.tf",
 				"/other/ohno.txt",
 			},
-			manifest: manifestConfig{
-				path: ".terramate/manifest.tm",
-				patterns: []string{
-					"/*.tf",
-					"/README.*",
-					"/LICENSE",
-					"examples",
+			manifests: []manifestConfig{
+				{
+					path: ".terramate/manifest.tm",
+					patterns: []string{
+						"/*.tf",
+						"/README.*",
+						"/LICENSE",
+						"examples",
+					},
 				},
 			},
 			wantFiles: []string{
@@ -168,10 +176,10 @@ func TestVendorManifest(t *testing.T) {
 				test.WriteFile(t, filepath.Dir(path), filepath.Base(path), "")
 			}
 
-			if tcase.manifest.path != "" {
-				path := filepath.Join(repoSandbox.RootDir(), tcase.manifest.path)
+			for _, manifest := range tcase.manifests {
+				path := filepath.Join(repoSandbox.RootDir(), manifest.path)
 				patternList := "["
-				for _, pattern := range tcase.manifest.patterns {
+				for _, pattern := range manifest.patterns {
 					patternList += fmt.Sprintf("%q,\n", pattern)
 				}
 				patternList += "]"

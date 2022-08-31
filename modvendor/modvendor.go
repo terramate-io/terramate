@@ -457,7 +457,6 @@ func patchFiles(rootdir string, files []string, sources *sourcesInfo) error {
 }
 
 func loadFileMatcher(rootdir string) (gitignore.Matcher, error) {
-	// TODO: KATCIPIS Handle error
 	logger := log.With().
 		Str("action", "modvendor.loadFileMatcher").
 		Str("rootdir", rootdir).
@@ -465,6 +464,7 @@ func loadFileMatcher(rootdir string) (gitignore.Matcher, error) {
 
 	logger.Trace().Msg("checking for manifest on root")
 
+	// TODO: KATCIPIS Handle error
 	cfg, _ := hcl.ParseDir(rootdir, rootdir)
 	if hasVendorManifest(cfg) {
 		logger.Trace().Msg("found manifest on root")
