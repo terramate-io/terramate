@@ -26,7 +26,7 @@ import (
 // CopyFilterFunc filters which files/dirs will be copied by CopyDir.
 // If the function returns true, the file/dir is copied.
 // If it returns false, the file/dir is ignored.
-type CopyFilterFunc func(os.DirEntry) bool
+type CopyFilterFunc func(path string, entry os.DirEntry) bool
 
 // CopyDir will copy srcdir to destdir.
 // It will copy all dirs and files recursively.
@@ -47,7 +47,7 @@ func CopyDir(destdir, srcdir string, filter CopyFilterFunc) error {
 	}
 
 	for _, entry := range entries {
-		if !filter(entry) {
+		if !filter(srcdir, entry) {
 			continue
 		}
 

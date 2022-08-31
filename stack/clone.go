@@ -83,7 +83,7 @@ func Clone(rootdir, destdir, srcdir string) error {
 	return updateStackID(destdir)
 }
 
-func filterDotFiles(entry os.DirEntry) bool {
+func filterDotFiles(path string, entry os.DirEntry) bool {
 	return !strings.HasPrefix(entry.Name(), ".")
 }
 

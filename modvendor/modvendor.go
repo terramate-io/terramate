@@ -24,11 +24,12 @@ import (
 	"strings"
 
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
-	"github.com/hashicorp/hcl/v2"
+	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/fs"
 	"github.com/mineiros-io/terramate/git"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/tf"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
@@ -80,6 +81,17 @@ func Vendor(rootdir string, vendorDir string, modsrc tf.Source) Report {
 // containing the supported remote source URLs.
 func VendorAll(rootdir string, vendorDir string, tfdir string) Report {
 	return vendorAll(rootdir, vendorDir, tfdir, NewReport(vendorDir))
+}
+
+// Dir returns the directory for the vendored module source, relative to project
+// root.
+func Dir(vendorDir string, modsrc tf.Source) string {
+	return filepath.Join(vendorDir, modsrc.Path, modsrc.Ref)
+}
+
+// AbsVendorDir returns the absolute host path of the vendored module source.
+func AbsVendorDir(rootdir string, vendorDir string, modsrc tf.Source) string {
+	return filepath.Join(rootdir, Dir(vendorDir, modsrc))
 }
 
 func vendor(rootdir string, vendorDir string, modsrc tf.Source, report Report, info *modinfo) Report {
@@ -345,15 +357,18 @@ func downloadVendor(rootdir string, vendorDir string, modsrc tf.Source) (string,
 
 	logger.Trace().Msg("checking for manifest")
 	// TODO: KATCIPIS: Handle parse error
-	loadFileMatcher(clonedRepoDir)
+	matcher, _ := loadFileMatcher(clonedRepoDir)
 
-	fileFilter := func(os.DirEntry) bool {
-		// TODO: KATCIPIS: Handle parse error
-		return true
+	const pathSeparator string = string(os.PathSeparator)
+
+	filterManifest := func(path string, entry os.DirEntry) bool {
+		abspath := filepath.Join(path, entry.Name())
+		relpath := strings.TrimPrefix(abspath, clonedRepoDir+pathSeparator)
+		return matcher.Match(strings.Split(relpath, pathSeparator), entry.IsDir())
 	}
 
 	logger.Trace().Msg("copying cloned mod to terramate temp vendor dir")
-	if err := fs.CopyDir(tmTempDir, clonedRepoDir, fileFilter); err != nil {
+	if err := fs.CopyDir(tmTempDir, clonedRepoDir, filterManifest); err != nil {
 		return "", errors.E(err, "copying cloned module")
 	}
 
@@ -388,7 +403,7 @@ func patchFiles(rootdir string, files []string, sources *sourcesInfo) error {
 			errs.Append(err)
 			continue
 		}
-		parsedFile, diags := hclwrite.ParseConfig(bytes, fname, hcl.Pos{})
+		parsedFile, diags := hclwrite.ParseConfig(bytes, fname, hhcl.Pos{})
 		if diags.HasErrors() {
 			errs.Append(errors.E(diags))
 			continue
@@ -441,17 +456,30 @@ func patchFiles(rootdir string, files []string, sources *sourcesInfo) error {
 	return errs.AsError()
 }
 
-func loadFileMatcher(dir string) (gitignore.Matcher, error) {
-	return nil, nil
+func loadFileMatcher(rootdir string) (gitignore.Matcher, error) {
+	// TODO: KATCIPIS Handle error
+	cfg, _ := hcl.ParseDir(rootdir, rootdir)
+
+	if hasVendorManifest(cfg) {
+		files := cfg.Vendor.Manifest.Default.Files
+		patterns := make([]gitignore.Pattern, len(files))
+		for i, rawPattern := range files {
+			patterns[i] = gitignore.ParsePattern(rawPattern, nil)
+		}
+		return gitignore.NewMatcher(patterns), nil
+	}
+
+	return defaultMatcher(), nil
 }
 
-// Dir returns the directory for the vendored module source, relative to project
-// root.
-func Dir(vendorDir string, modsrc tf.Source) string {
-	return filepath.Join(vendorDir, modsrc.Path, modsrc.Ref)
+func defaultMatcher() gitignore.Matcher {
+	defaultPattern := gitignore.ParsePattern("**", nil)
+	return gitignore.NewMatcher([]gitignore.Pattern{defaultPattern})
 }
 
-// AbsVendorDir returns the absolute host path of the vendored module source.
-func AbsVendorDir(rootdir string, vendorDir string, modsrc tf.Source) string {
-	return filepath.Join(rootdir, Dir(vendorDir, modsrc))
+func hasVendorManifest(cfg hcl.Config) bool {
+	return cfg.Vendor != nil &&
+		cfg.Vendor.Manifest != nil &&
+		cfg.Vendor.Manifest.Default != nil &&
+		len(cfg.Vendor.Manifest.Default.Files) > 0
 }

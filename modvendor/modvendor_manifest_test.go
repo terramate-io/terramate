@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -85,8 +86,7 @@ func TestVendorManifest(t *testing.T) {
 				},
 			},
 			wantFiles: []string{
-				"/dir/file",
-				"/manifest.tm",
+				"/file",
 			},
 		},
 	}
@@ -137,12 +137,11 @@ func TestVendorManifest(t *testing.T) {
 			}
 
 			clonedir := modvendor.AbsVendorDir(rootdir, vendordir, source)
-			wantFiles := make([]string, len(tcase.wantFiles))
-			for i, wantFile := range tcase.wantFiles {
-				wantFiles[i] = filepath.Join(clonedir, wantFile)
-			}
 			gotFiles := listFiles(t, clonedir)
-			test.AssertDiff(t, gotFiles, wantFiles)
+			for i, f := range gotFiles {
+				gotFiles[i] = strings.TrimPrefix(f, clonedir)
+			}
+			test.AssertDiff(t, gotFiles, tcase.wantFiles)
 		})
 	}
 }
