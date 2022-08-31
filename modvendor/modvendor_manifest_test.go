@@ -89,15 +89,51 @@ func TestVendorManifest(t *testing.T) {
 				"/file",
 			},
 		},
+		{
+			name: "filter patterns and dirs and files",
+			files: []string{
+				"/main.tf",
+				"/vars.tf",
+				"/fun.tf",
+				"/README.md",
+				"/LICENSE",
+				"/examples/1/main.tf",
+				"/examples/2/main.tf",
+				"/test/1/main.tf",
+				"/test/2/main.tf",
+				"/other/ohno.txt",
+			},
+			manifest: manifestConfig{
+				path: "/manifest.tm",
+				patterns: []string{
+					"/*.tf",
+					"/README.*",
+					"/LICENSE",
+					"examples",
+				},
+			},
+			wantFiles: []string{
+				"/LICENSE",
+				"/README.md",
+				"/examples/1/main.tf",
+				"/examples/2/main.tf",
+				"/fun.tf",
+				"/main.tf",
+				"/vars.tf",
+			},
+		},
 	}
 
 	for _, tcase := range testcases {
 		t.Run(tcase.name, func(t *testing.T) {
 			repoSandbox := sandbox.New(t)
 
+			// Remove the default README.md created by the sandbox
+			test.RemoveFile(t, repoSandbox.RootDir(), "README.md")
+
 			for _, file := range tcase.files {
 				path := filepath.Join(repoSandbox.RootDir(), file)
-				test.WriteFile(t, filepath.Dir(path), filepath.Base(path), "contents")
+				test.WriteFile(t, filepath.Dir(path), filepath.Base(path), "")
 			}
 
 			if tcase.manifest.path != "" {
@@ -116,9 +152,6 @@ func TestVendorManifest(t *testing.T) {
 				)
 				test.WriteFile(t, filepath.Dir(path), filepath.Base(path), hcldoc.String())
 			}
-
-			// Remove the default README.md created by the sandbox
-			test.RemoveFile(t, repoSandbox.RootDir(), "README.md")
 
 			repogit := repoSandbox.Git()
 			repogit.CommitAll("setup vendored repo")
