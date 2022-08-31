@@ -69,6 +69,15 @@ func TestVendorManifest(t *testing.T) {
 			},
 		},
 		{
+			name: "no manifest will vendor .terramate on subdirs",
+			files: []string{
+				"/file/.terramate",
+			},
+			wantFiles: []string{
+				"/file/.terramate",
+			},
+		},
+		{
 			name: "empty manifest vendor all",
 			files: []string{
 				"/dir/file",
@@ -102,6 +111,21 @@ func TestVendorManifest(t *testing.T) {
 			wantFiles: []string{
 				"/a/b/c",
 				"/c/d/e",
+			},
+		},
+		{
+			name: "empty manifest will vendor .terramate on subdirs",
+			files: []string{
+				"/a/b/c/.terramate",
+			},
+			manifests: []manifestConfig{
+				{
+					path:     "/.terramate/manifest.tm",
+					patterns: []string{},
+				},
+			},
+			wantFiles: []string{
+				"/a/b/c/.terramate",
 			},
 		},
 		{
