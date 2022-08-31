@@ -462,18 +462,8 @@ func loadFileMatcher(rootdir string) (gitignore.Matcher, error) {
 		Str("rootdir", rootdir).
 		Logger()
 
-	logger.Trace().Msg("checking for manifest on root")
-
-	// TODO: KATCIPIS Handle error
-	cfg, _ := hcl.ParseDir(rootdir, rootdir)
-	if hasVendorManifest(cfg) {
-		logger.Trace().Msg("found manifest on root")
-		return newMatcher(cfg), nil
-	}
-
 	logger.Trace().Msg("checking for manifest on .terramate")
 
-	// TODO: KATCIPIS test precedence
 	dotTerramate := filepath.Join(rootdir, ".terramate")
 	dotTerramateInfo, err := os.Stat(dotTerramate)
 
@@ -484,6 +474,15 @@ func loadFileMatcher(rootdir string) (gitignore.Matcher, error) {
 			logger.Trace().Msg("found manifest on .terramate")
 			return newMatcher(cfg), nil
 		}
+	}
+
+	logger.Trace().Msg("checking for manifest on root")
+
+	// TODO: KATCIPIS Handle error
+	cfg, _ := hcl.ParseDir(rootdir, rootdir)
+	if hasVendorManifest(cfg) {
+		logger.Trace().Msg("found manifest on root")
+		return newMatcher(cfg), nil
 	}
 
 	return defaultMatcher(), nil

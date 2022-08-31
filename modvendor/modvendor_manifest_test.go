@@ -162,6 +162,26 @@ func TestVendorManifest(t *testing.T) {
 				"/vars.tf",
 			},
 		},
+		{
+			name: ".terramate has precedence over root for manifest config",
+			files: []string{
+				"/file1",
+				"/file2",
+			},
+			manifests: []manifestConfig{
+				{
+					path:     "manifest.tm",
+					patterns: []string{"/file1"},
+				},
+				{
+					path:     ".terramate/manifest.tm",
+					patterns: []string{"/file2"},
+				},
+			},
+			wantFiles: []string{
+				"/file2",
+			},
+		},
 	}
 
 	for _, tcase := range testcases {
