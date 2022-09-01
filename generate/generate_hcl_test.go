@@ -1058,6 +1058,65 @@ func TestGeneratedHCLHeaders(t *testing.T) {
 	}
 }
 
+func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
+	s := sandbox.New(t)
+	stackEntry := s.CreateStack("stack")
+	rootEntry := s.DirEntry(".")
+	rootEntry.CreateConfig(
+		Doc(
+			GenerateHCL(
+				Labels("file1.tf"),
+				Content(
+					Block("block1",
+						Bool("whatever", true),
+					),
+				),
+			),
+			GenerateHCL(
+				Labels("file2.tf"),
+				Content(
+					Block("block2",
+						Bool("whatever", true),
+					),
+				),
+			),
+		).String(),
+	)
+
+	report := s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				StackPath: "/stack",
+				Created:   []string{"file1.tf", "file2.tf"},
+			},
+		},
+	})
+
+	got := stackEntry.ListGenFiles()
+	assertEqualStringList(t, got, []string{"file1.tf", "file2.tf"})
+
+	stackEntry.DeleteStackConfig()
+
+	// TODO KATCIPIS: we need a way to list gen files without requiring it is a stack
+	//got = stackEntry.ListGenFiles()
+	//assertEqualStringList(t, got, []string{"file1.tf", "file2.tf"})
+
+	report = s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				StackPath: "/stack",
+				Deleted:   []string{"file1.tf", "file2.tf"},
+			},
+		},
+	})
+
+	// TODO KATCIPIS: we need a way to list gen files without requiring it is a stack
+	//got = stackEntry.ListGenFiles()
+	//assertEqualStringList(t, got, []string{})
+}
+
 func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 	s := sandbox.New(t)
 	stackEntry := s.CreateStack("stack")
