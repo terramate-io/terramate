@@ -37,12 +37,19 @@ func TestCopyIfAllFilesAreFilteredDirIsNotCreated(t *testing.T) {
 
 	destdir := t.TempDir()
 	err := fs.CopyDir(destdir, s.RootDir(), func(path string, entry os.DirEntry) bool {
-		return entry.Name() != "notcopy"
+		return entry.Name() != "notcopy" &&
+			entry.Name() != ".git" &&
+			entry.Name() != "README.md"
 	})
 
 	assert.NoError(t, err)
 
-	entries, err := os.ReadDir(filepath.Join(destdir, "test"))
+	entries, err := os.ReadDir(destdir)
+	assert.NoError(t, err)
+	assert.EqualInts(t, 1, len(entries))
+	assert.EqualStrings(t, "test", entries[0].Name())
+
+	entries, err = os.ReadDir(filepath.Join(destdir, "test"))
 	assert.NoError(t, err)
 	assert.EqualInts(t, 3, len(entries))
 
