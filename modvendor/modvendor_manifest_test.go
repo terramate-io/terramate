@@ -168,6 +168,28 @@ func TestVendorManifest(t *testing.T) {
 			},
 		},
 		{
+			name: "double-star match against multiple directory",
+			files: []string{
+				"/b/test/test2/main.tf",
+				"/a/test/test3/main.tf",
+				"/a/b/test/c/main.tf",
+				"excluded.tf",
+			},
+			manifests: []manifestConfig{
+				{
+					path: "/manifest.tm",
+					patterns: []string{
+						"**/test/**/main.tf",
+					},
+				},
+			},
+			wantFiles: []string{
+				"/a/b/test/c/main.tf",
+				"/a/test/test3/main.tf",
+				"/b/test/test2/main.tf",
+			},
+		},
+		{
 			name: "filter patterns and dirs and files",
 			files: []string{
 				"/main.tf",
