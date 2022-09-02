@@ -92,16 +92,16 @@ Error details: ignore`,
 
 Successes:
 
-- stack /test
+- /test
 	[+] test
 
-- stack /test2
+- /test2
 	[~] test
 
-- stack /test3
+- /test3
 	[-] test
 
-- stack /test4
+- /test4
 	[+] created1.tf
 	[+] created2.tf
 	[~] changed.tf
@@ -136,10 +136,10 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 
 Failures:
 
-- stack /test
+- /test
 	error: full error
 
-- stack /test2
+- /test2
 	error: partial error
 	[+] created1.tf
 	[+] created2.tf
@@ -186,22 +186,22 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 
 Successes:
 
-- stack /success
+- /success
 	[+] created.tf
 	[~] changed.tf
 	[-] removed.tf
 
-- stack /success2
+- /success2
 	[+] created.tf
 	[~] changed.tf
 	[-] removed.tf
 
 Failures:
 
-- stack /failed
+- /failed
 	error: error
 
-- stack /failed2
+- /failed2
 	error: error
 
 Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,

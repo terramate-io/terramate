@@ -79,7 +79,7 @@ func (r Report) String() string {
 		addLine("")
 	}
 	addStack := func(stack string) {
-		addLine("- stack %s", stack)
+		addLine("- %s", stack)
 	}
 	addResultChangeset := func(res Result) {
 		for _, created := range res.Created {
