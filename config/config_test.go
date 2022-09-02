@@ -32,14 +32,18 @@ func TestIsStack(t *testing.T) {
 		"d:/stack/subdir",
 	})
 
-	assert.IsTrue(t, !config.IsStack(s.RootDir(),
-		filepath.Join(s.RootDir(), "/dir")))
+	assert.IsTrue(t, !isStack(t, s.RootDir(), "/dir"))
+	assert.IsTrue(t, isStack(t, s.RootDir(), "/stack"))
+	assert.IsTrue(t, !isStack(t, s.RootDir(), "/stack/subdir"))
+}
 
-	assert.IsTrue(t, config.IsStack(s.RootDir(),
-		filepath.Join(s.RootDir(), "/stack")))
+func isStack(t *testing.T, rootdir, dir string) bool {
+	t.Helper()
 
-	assert.IsTrue(t, !config.IsStack(s.RootDir(),
-		filepath.Join(s.RootDir(), "/stack/subdir")))
+	res, err := config.IsStack(rootdir, filepath.Join(rootdir, dir))
+	assert.NoError(t, err)
+
+	return res
 }
 
 func init() {

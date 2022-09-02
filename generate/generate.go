@@ -704,7 +704,11 @@ func listGenFilesOutsideStacks(rootdir, dir string) ([]dirGenFiles, error) {
 
 	dirsFiles := []dirGenFiles{}
 
-	if !config.IsStack(rootdir, dir) {
+	isStack, err := config.IsStack(rootdir, dir)
+	if err != nil {
+		return nil, errors.E(err, "checking if dir is stack")
+	}
+	if !isStack {
 		logger.Trace().Msg("dir is not stack, checking for generated files")
 
 		genfiles, err := ListGenFiles(dir)
