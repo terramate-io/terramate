@@ -23,11 +23,13 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/hashicorp/hcl/v2"
+	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
+	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/fs"
 	"github.com/mineiros-io/terramate/git"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/tf"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
@@ -79,6 +81,17 @@ func Vendor(rootdir string, vendorDir string, modsrc tf.Source) Report {
 // containing the supported remote source URLs.
 func VendorAll(rootdir string, vendorDir string, tfdir string) Report {
 	return vendorAll(rootdir, vendorDir, tfdir, NewReport(vendorDir))
+}
+
+// Dir returns the directory for the vendored module source, relative to project
+// root.
+func Dir(vendorDir string, modsrc tf.Source) string {
+	return filepath.Join(vendorDir, modsrc.Path, modsrc.Ref)
+}
+
+// AbsVendorDir returns the absolute host path of the vendored module source.
+func AbsVendorDir(rootdir string, vendorDir string, modsrc tf.Source) string {
+	return filepath.Join(rootdir, Dir(vendorDir, modsrc))
 }
 
 func vendor(rootdir string, vendorDir string, modsrc tf.Source, report Report, info *modinfo) Report {
@@ -342,9 +355,26 @@ func downloadVendor(rootdir string, vendorDir string, modsrc tf.Source) (string,
 		return "", errors.E(err, "removing .git dir from cloned repo")
 	}
 
+	logger.Trace().Msg("checking for manifest")
+
+	matcher, err := loadFileMatcher(clonedRepoDir)
+	if err != nil {
+		return "", err
+	}
+
+	const pathSeparator string = string(os.PathSeparator)
+
+	fileFilter := func(path string, entry os.DirEntry) bool {
+		if entry.IsDir() {
+			return true
+		}
+		abspath := filepath.Join(path, entry.Name())
+		relpath := strings.TrimPrefix(abspath, clonedRepoDir+pathSeparator)
+		return matcher.Match(strings.Split(relpath, pathSeparator), entry.IsDir())
+	}
+
 	logger.Trace().Msg("copying cloned mod to terramate temp vendor dir")
-	if err := fs.CopyDir(tmTempDir, clonedRepoDir,
-		func(os.DirEntry) bool { return true }); err != nil {
+	if err := fs.CopyDir(tmTempDir, clonedRepoDir, fileFilter); err != nil {
 		return "", errors.E(err, "copying cloned module")
 	}
 
@@ -379,7 +409,7 @@ func patchFiles(rootdir string, files []string, sources *sourcesInfo) error {
 			errs.Append(err)
 			continue
 		}
-		parsedFile, diags := hclwrite.ParseConfig(bytes, fname, hcl.Pos{})
+		parsedFile, diags := hclwrite.ParseConfig(bytes, fname, hhcl.Pos{})
 		if diags.HasErrors() {
 			errs.Append(errors.E(diags))
 			continue
@@ -432,13 +462,62 @@ func patchFiles(rootdir string, files []string, sources *sourcesInfo) error {
 	return errs.AsError()
 }
 
-// Dir returns the directory for the vendored module source, relative to project
-// root.
-func Dir(vendorDir string, modsrc tf.Source) string {
-	return filepath.Join(vendorDir, modsrc.Path, modsrc.Ref)
+func loadFileMatcher(rootdir string) (gitignore.Matcher, error) {
+	logger := log.With().
+		Str("action", "modvendor.loadFileMatcher").
+		Str("rootdir", rootdir).
+		Logger()
+
+	logger.Trace().Msg("checking for manifest on .terramate")
+
+	dotTerramate := filepath.Join(rootdir, ".terramate")
+	dotTerramateInfo, err := os.Stat(dotTerramate)
+
+	if err == nil && dotTerramateInfo.IsDir() {
+		cfg, err := hcl.ParseDir(rootdir, dotTerramate)
+		if err != nil {
+			return nil, errors.E(err, "parsing manifest on .terramate")
+		}
+		if hasVendorManifest(cfg) {
+			logger.Trace().Msg("found manifest on .terramate")
+			return newMatcher(cfg), nil
+		}
+	}
+
+	logger.Trace().Msg("checking for manifest on root")
+
+	cfg, err := hcl.ParseDir(rootdir, rootdir)
+	if err != nil {
+		return nil, errors.E(err, "parsing manifest on project root")
+	}
+
+	if hasVendorManifest(cfg) {
+		logger.Trace().Msg("found manifest on root")
+		return newMatcher(cfg), nil
+	}
+
+	return defaultMatcher(), nil
 }
 
-// AbsVendorDir returns the absolute host path of the vendored module source.
-func AbsVendorDir(rootdir string, vendorDir string, modsrc tf.Source) string {
-	return filepath.Join(rootdir, Dir(vendorDir, modsrc))
+func newMatcher(cfg hcl.Config) gitignore.Matcher {
+	files := cfg.Vendor.Manifest.Default.Files
+	patterns := make([]gitignore.Pattern, len(files))
+	for i, rawPattern := range files {
+		patterns[i] = gitignore.ParsePattern(rawPattern, nil)
+	}
+	return gitignore.NewMatcher(patterns)
+}
+
+func defaultMatcher() gitignore.Matcher {
+	return gitignore.NewMatcher([]gitignore.Pattern{
+		gitignore.ParsePattern("**", nil),
+		gitignore.ParsePattern("!/.terramate", nil),
+	})
+}
+
+func hasVendorManifest(cfg hcl.Config) bool {
+	return cfg.Vendor != nil &&
+		cfg.Vendor.Manifest != nil &&
+		cfg.Vendor.Manifest.Default != nil &&
+		len(cfg.Vendor.Manifest.Default.Files) > 0
 }

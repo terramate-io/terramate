@@ -29,47 +29,62 @@ func Doc(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 
 // Terramate is a helper for a "terramate" block.
 func Terramate(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-	return hclwrite.BuildBlock("terramate", builders...)
+	return Block("terramate", builders...)
 }
 
 // Config is a helper for a "config" block.
 func Config(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-	return hclwrite.BuildBlock("config", builders...)
+	return Block("config", builders...)
 }
 
 // Run is a helper for a "run" block.
 func Run(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-	return hclwrite.BuildBlock("run", builders...)
+	return Block("run", builders...)
+}
+
+// Vendor is a helper for a "vendor" block.
+func Vendor(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return Block("vendor", builders...)
+}
+
+// Manifest is a helper for a "manifest" block.
+func Manifest(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return Block("manifest", builders...)
+}
+
+// Default is a helper for a "default" block.
+func Default(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return Block("default", builders...)
 }
 
 // Env is a helper for a "env" block.
 func Env(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-	return hclwrite.BuildBlock("env", builders...)
+	return Block("env", builders...)
 }
 
 // GenerateHCL is a helper for a "generate_hcl" block.
 func GenerateHCL(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-	return hclwrite.BuildBlock("generate_hcl", builders...)
+	return Block("generate_hcl", builders...)
 }
 
 // Variable is a helper for a "generate_hcl" block.
 func Variable(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-	return hclwrite.BuildBlock("variable", builders...)
+	return Block("variable", builders...)
 }
 
 // TmDynamic is a helper for a "generate_hcl" block.
 func TmDynamic(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-	return hclwrite.BuildBlock("tm_dynamic", builders...)
+	return Block("tm_dynamic", builders...)
 }
 
 // GenerateFile is a helper for a "generate_file" block.
 func GenerateFile(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-	return hclwrite.BuildBlock("generate_file", builders...)
+	return Block("generate_file", builders...)
 }
 
 // Content is a helper for a "content" block.
 func Content(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-	return hclwrite.BuildBlock("content", builders...)
+	return Block("content", builders...)
 }
 
 // Expr is a helper for a HCL expression.
@@ -99,7 +114,7 @@ func Labels(labels ...string) hclwrite.BlockBuilder {
 
 // Backend is a helper for a "backend" block.
 func Backend(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-	return hclwrite.BuildBlock("backend", builders...)
+	return Block("backend", builders...)
 }
 
 // Block is a helper for creating arbitrary blocks of specified name/type.
@@ -109,35 +124,42 @@ func Block(name string, builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 
 // Globals is a helper for a "globals" block.
 func Globals(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-	return hclwrite.BuildBlock("globals", builders...)
+	return Block("globals", builders...)
 }
 
 // Stack is a helper for a "stack" block.
 func Stack(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-	return hclwrite.BuildBlock("stack", builders...)
+	return Block("stack", builders...)
 }
 
 // Locals is a helper for a "locals" block.
 func Locals(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-	return hclwrite.BuildBlock("locals", builders...)
+	return Block("locals", builders...)
 }
 
 // Terraform is a helper for a "terraform" block.
 func Terraform(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-	return hclwrite.BuildBlock("terraform", builders...)
+	return Block("terraform", builders...)
 }
 
 // Module is a helper for a "module" block.
 func Module(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-	return hclwrite.BuildBlock("module", builders...)
+	return Block("module", builders...)
 }
 
 // Import is a helper for an "import" block.
 func Import(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
-	return hclwrite.BuildBlock("import", builders...)
+	return Block("import", builders...)
 }
 
-// EvalExpr is a helper for an evaluated expression attribute.
+// EvalExpr accepts an expr as the attribute value, similar to Expr,
+// but will evaluate the expr and store the resulting value so
+// it will be available as an attribute value instead of as an
+// expression. If evaluation fails the test caller will fail.
+//
+// The evaluation is quite limited, only suitable for evaluating
+// objects/lists/etc, but won't work with any references to
+// namespaces except default Terraform function calls.
 func EvalExpr(t *testing.T, name string, expr string) hclwrite.BlockBuilder {
 	t.Helper()
 	return hclwrite.AttributeValue(t, name, expr)

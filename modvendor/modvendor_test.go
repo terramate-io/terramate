@@ -991,7 +991,6 @@ func TestModVendorWithRef(t *testing.T) {
 	)
 
 	repoSandbox := sandbox.New(t)
-
 	repoSandbox.RootEntry().CreateFile(filename, content)
 
 	repogit := repoSandbox.Git()
@@ -1000,8 +999,7 @@ func TestModVendorWithRef(t *testing.T) {
 	gitURL := "file://" + repoSandbox.RootDir()
 	rootdir := t.TempDir()
 
-	source, err := tf.ParseSource(fmt.Sprintf("git::%s?ref=%s", gitURL, ref))
-	assert.NoError(t, err)
+	source := newSource(t, gitURL, ref)
 
 	const vendordir = "/vendor"
 	got := modvendor.Vendor(rootdir, vendordir, source)
@@ -1179,6 +1177,14 @@ func assertVendorReport(t *testing.T, want, got modvendor.Report) {
 	}
 
 	errtest.Assert(t, got.Error, want.Error)
+}
+
+func newSource(t *testing.T, url, ref string) tf.Source {
+	t.Helper()
+
+	source, err := tf.ParseSource(fmt.Sprintf("git::%s?ref=%s", url, ref))
+	assert.NoError(t, err)
+	return source
 }
 
 func init() {

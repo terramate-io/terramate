@@ -26,7 +26,7 @@ import (
 // CopyFilterFunc filters which files/dirs will be copied by CopyDir.
 // If the function returns true, the file/dir is copied.
 // If it returns false, the file/dir is ignored.
-type CopyFilterFunc func(os.DirEntry) bool
+type CopyFilterFunc func(path string, entry os.DirEntry) bool
 
 // CopyDir will copy srcdir to destdir.
 // It will copy all dirs and files recursively.
@@ -42,13 +42,26 @@ func CopyDir(destdir, srcdir string, filter CopyFilterFunc) error {
 		return errors.E(err, "reading src dir")
 	}
 
-	if err := os.MkdirAll(destdir, createDirMode); err != nil {
-		return errors.E(err, "creating dest dir")
+	createdDir := false
+	createDir := func() error {
+		if createdDir {
+			return nil
+		}
+		if err := os.MkdirAll(destdir, createDirMode); err != nil {
+			return errors.E(err, "creating dest dir")
+		}
+		createdDir = true
+		return nil
 	}
 
 	for _, entry := range entries {
-		if !filter(entry) {
+		if !filter(srcdir, entry) {
 			continue
+		}
+		// Only create dir if we have another dir or file to copy to it
+		// if all files/subdirs are filtered out no dir is created.
+		if err := createDir(); err != nil {
+			return err
 		}
 
 		srcpath := filepath.Join(srcdir, entry.Name())
