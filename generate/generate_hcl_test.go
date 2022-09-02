@@ -1059,6 +1059,8 @@ func TestGeneratedHCLHeaders(t *testing.T) {
 }
 
 func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
+	t.Skip("TODO")
+
 	s := sandbox.New(t)
 	stackEntry := s.CreateStack("stack")
 	rootEntry := s.DirEntry(".")

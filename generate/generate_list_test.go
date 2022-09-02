@@ -171,7 +171,7 @@ func TestStackGeneratedFilesListing(t *testing.T) {
 				stackEntry.CreateFile(file.name, file.body)
 			}
 
-			got, err := generate.ListStackGenFiles(stack)
+			got, err := generate.ListGenFiles(stack.HostPath())
 
 			assert.NoError(t, err)
 			assertEqualStringList(t, tcase.want, got)

@@ -148,13 +148,13 @@ func (r *Report) addFailure(s *stack.S, err error) {
 	})
 }
 
-func (r *Report) addStackReport(s *stack.S, sr stackReport) {
+func (r *Report) addStackReport(path string, sr stackReport) {
 	if sr.empty() {
 		return
 	}
 
 	res := Result{
-		StackPath: s.Path(),
+		StackPath: path,
 		Created:   sr.created,
 		Changed:   sr.changed,
 		Deleted:   sr.deleted,
