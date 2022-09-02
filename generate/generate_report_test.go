@@ -206,6 +206,33 @@ Failures:
 
 Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
 		},
+		{
+			name: "cleanup error result",
+			report: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/success",
+						Created: []string{"created.tf"},
+						Changed: []string{"changed.tf"},
+						Deleted: []string{"removed.tf"},
+					},
+				},
+				CleanupErr: errors.New("cleanup error"),
+			},
+			want: `Code generation report
+
+Successes:
+
+- /success
+	[+] created.tf
+	[~] changed.tf
+	[-] removed.tf
+
+Fatal failure while cleaning up generated code outside stacks:
+	error: cleanup error
+
+Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
+		},
 	}
 
 	for _, tcase := range tcases {

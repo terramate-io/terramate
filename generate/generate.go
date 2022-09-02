@@ -183,7 +183,11 @@ func Do(rootdir string, workingDir string) Report {
 		return report
 	})
 
-	outdatedFiles := listGenFilesOutsideStacks(rootdir)
+	outdatedFiles, err := listGenFilesOutsideStacks(rootdir)
+	if err != nil {
+		report.CleanupErr = err
+		return report
+	}
 	for dir, files := range outdatedFiles {
 		// TODO KATCIPIS: actually remove files, but test first
 		report.Successes = append(report.Successes, Result{
@@ -665,6 +669,7 @@ func validateGeneratedFiles(generated []fileInfo) error {
 	return nil
 }
 
-func listGenFilesOutsideStacks(rootdir string) map[string][]string {
-	return nil
+// listGenFilesOutsideStacks returns a map of dir -> generated files.
+func listGenFilesOutsideStacks(rootdir string) (map[string][]string, error) {
+	return nil, nil
 }

@@ -51,6 +51,10 @@ type Report struct {
 
 	// Failures are stacks that failed without generating any code
 	Failures []FailureResult
+
+	// CleanupErr is an error that happened after code generation
+	// was done while trying to cleanup files outside stacks.
+	CleanupErr error
 }
 
 // HasFailures returns true if this report includes any failures.
@@ -115,6 +119,11 @@ func (r Report) String() string {
 			newline()
 		}
 		needsHint = true
+	}
+
+	if r.CleanupErr != nil {
+		addLine("Fatal failure while cleaning up generated code outside stacks:")
+		addLine("\terror: %s\n", r.CleanupErr)
 	}
 
 	if needsHint {
