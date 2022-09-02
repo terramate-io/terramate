@@ -1063,6 +1063,10 @@ func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
 
 	s := sandbox.New(t)
 	stackEntry := s.CreateStack("stack")
+	childStack := s.CreateStack("stack/child")
+	grandChildStack := s.CreateStack("stack/child/grand")
+	stack2Entry := s.CreateStack("stack-2")
+
 	rootEntry := s.DirEntry(".")
 	rootEntry.CreateConfig(
 		Doc(
@@ -1092,16 +1096,23 @@ func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
 				Dir:     "/stack",
 				Created: []string{"file1.tf", "file2.tf"},
 			},
+			{
+				Dir:     "/stack/child",
+				Created: []string{"file1.tf", "file2.tf"},
+			},
+			{
+				Dir:     "/stack/child/grand",
+				Created: []string{"file1.tf", "file2.tf"},
+			},
+			{
+				Dir:     "/stack-2",
+				Created: []string{"file1.tf", "file2.tf"},
+			},
 		},
 	})
 
-	got := stackEntry.ListGenFiles()
-	assertEqualStringList(t, got, []string{"file1.tf", "file2.tf"})
-
 	stackEntry.DeleteStackConfig()
-
-	got = stackEntry.ListGenFiles()
-	assertEqualStringList(t, got, []string{"file1.tf", "file2.tf"})
+	grandChildStack.DeleteStackConfig()
 
 	report = s.Generate()
 	assertEqualReports(t, report, generate.Report{
@@ -1110,11 +1121,18 @@ func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
 				Dir:     "/stack",
 				Deleted: []string{"file1.tf", "file2.tf"},
 			},
+			{
+				Dir:     "/stack/child/grand",
+				Deleted: []string{"file1.tf", "file2.tf"},
+			},
 		},
 	})
 
-	got = stackEntry.ListGenFiles()
-	assertEqualStringList(t, got, []string{})
+	assertEqualStringList(t, stackEntry.ListGenFiles(), []string{})
+	assertEqualStringList(t, grandChildStack.ListGenFiles(), []string{})
+
+	assertEqualStringList(t, childStack.ListGenFiles(), []string{"file1.tf", "file2.tf"})
+	assertEqualStringList(t, stack2Entry.ListGenFiles(), []string{"file1.tf", "file2.tf"})
 }
 
 func TestGenerateHCLCleanupOldFiles(t *testing.T) {

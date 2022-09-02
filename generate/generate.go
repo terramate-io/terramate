@@ -183,16 +183,16 @@ func Do(rootdir string, workingDir string) Report {
 		return report
 	})
 
-	outdatedFiles, err := listGenFilesOutsideStacks(rootdir)
+	outdatedDirs, err := listGenFilesOutsideStacks(rootdir)
 	if err != nil {
 		report.CleanupErr = err
 		return report
 	}
-	for dir, files := range outdatedFiles {
+	for _, outdatedDir := range outdatedDirs {
 		// TODO KATCIPIS: actually remove files, but test first
 		report.Successes = append(report.Successes, Result{
-			Dir:     dir,
-			Deleted: files,
+			Dir:     outdatedDir.dir,
+			Deleted: outdatedDir.files,
 		})
 	}
 	return report
@@ -669,7 +669,51 @@ func validateGeneratedFiles(generated []fileInfo) error {
 	return nil
 }
 
+type dirGenFiles struct {
+	dir   string
+	files []string
+}
+
 // listGenFilesOutsideStacks returns a map of dir -> generated files.
-func listGenFilesOutsideStacks(rootdir string) (map[string][]string, error) {
-	return nil, nil
+func listGenFilesOutsideStacks(dir string) ([]dirGenFiles, error) {
+	logger := log.With().
+		Str("action", "generate.listGenFilesOutsideStacks()").
+		Str("dir", dir).
+		Logger()
+
+	logger.Trace().Msg("checking if dir is stack")
+
+	dirsFiles := []dirGenFiles{}
+
+	// TODO KATCIPIS
+	//if !stack.IsStack(dir) {
+	logger.Trace().Msg("dir is not stack, checking for generated files")
+
+	//genfiles, err := ListGenFiles(dir)
+	//if err != nil {
+	//return nil, err
+	//}
+
+	//if len(genfiles) > 0 {
+	//dirsFiles = append(dirsFiles, dirGenFiles{dir: dir, files: genfiles})
+	//}
+	//}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, errors.E(err, "reading dir to list generated files")
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			childPath := filepath.Join(dir, entry.Name())
+			childGenFiles, err := listGenFilesOutsideStacks(childPath)
+			if err != nil {
+				return nil, err
+			}
+			dirsFiles = append(dirsFiles, childGenFiles...)
+		}
+	}
+
+	return dirsFiles, nil
 }
