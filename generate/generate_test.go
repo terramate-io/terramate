@@ -90,7 +90,7 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							StackPath: "/stacks/stack",
+							Dir: "/stacks/stack",
 						},
 						Error: errors.E(generate.ErrConflictingConfig),
 					},
@@ -134,8 +134,8 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						StackPath: "/stacks/stack",
-						Created:   []string{"repeated"},
+						Dir:     "/stacks/stack",
+						Created: []string{"repeated"},
 					},
 				},
 			},
@@ -178,8 +178,8 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						StackPath: "/stack",
-						Created:   []string{"repeated"},
+						Dir:     "/stack",
+						Created: []string{"repeated"},
 					},
 				},
 			},

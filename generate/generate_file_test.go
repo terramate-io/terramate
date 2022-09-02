@@ -71,12 +71,12 @@ func TestGenerateFile(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						StackPath: "/stacks/stack-1",
-						Created:   []string{"empty"},
+						Dir:     "/stacks/stack-1",
+						Created: []string{"empty"},
 					},
 					{
-						StackPath: "/stacks/stack-2",
-						Created:   []string{"empty"},
+						Dir:     "/stacks/stack-2",
+						Created: []string{"empty"},
 					},
 				},
 			},
@@ -132,12 +132,12 @@ func TestGenerateFile(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						StackPath: "/stacks/stack-1",
-						Created:   []string{"stacks.txt"},
+						Dir:     "/stacks/stack-1",
+						Created: []string{"stacks.txt"},
 					},
 					{
-						StackPath: "/stacks/stack-2",
-						Created:   []string{"stacks.txt"},
+						Dir:     "/stacks/stack-2",
+						Created: []string{"stacks.txt"},
 					},
 				},
 			},
@@ -171,8 +171,8 @@ func TestGenerateFile(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						StackPath: "/stacks/stack-1",
-						Created:   []string{"stacks.txt"},
+						Dir:     "/stacks/stack-1",
+						Created: []string{"stacks.txt"},
 					},
 				},
 			},
@@ -217,12 +217,12 @@ func TestGenerateFile(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						StackPath: "/stacks/stack-1",
-						Created:   []string{"file1.txt", "file2.txt"},
+						Dir:     "/stacks/stack-1",
+						Created: []string{"file1.txt", "file2.txt"},
 					},
 					{
-						StackPath: "/stacks/stack-2",
-						Created:   []string{"file1.txt", "file2.txt"},
+						Dir:     "/stacks/stack-2",
+						Created: []string{"file1.txt", "file2.txt"},
 					},
 				},
 			},
@@ -260,8 +260,8 @@ func TestGenerateFile(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						StackPath: "/stacks/stack-2",
-						Created:   []string{"file1.txt", "file2.txt"},
+						Dir:     "/stacks/stack-2",
+						Created: []string{"file1.txt", "file2.txt"},
 					},
 				},
 			},
@@ -312,25 +312,25 @@ func TestGenerateFile(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							StackPath: "/stacks/stack-1",
+							Dir: "/stacks/stack-1",
 						},
 						Error: errors.E(generate.ErrInvalidFilePath),
 					},
 					{
 						Result: generate.Result{
-							StackPath: "/stacks/stack-2",
+							Dir: "/stacks/stack-2",
 						},
 						Error: errors.E(generate.ErrInvalidFilePath),
 					},
 					{
 						Result: generate.Result{
-							StackPath: "/stacks/stack-3",
+							Dir: "/stacks/stack-3",
 						},
 						Error: errors.E(generate.ErrInvalidFilePath),
 					},
 					{
 						Result: generate.Result{
-							StackPath: "/stacks/stack-4",
+							Dir: "/stacks/stack-4",
 						},
 						Error: errors.E(generate.ErrInvalidFilePath),
 					},
@@ -387,8 +387,8 @@ func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
-				StackPath: "/stack",
-				Created:   []string{filename},
+				Dir:     "/stack",
+				Created: []string{filename},
 			},
 		},
 	})
@@ -399,8 +399,8 @@ func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
-				StackPath: "/stack",
-				Deleted:   []string{filename},
+				Dir:     "/stack",
+				Deleted: []string{filename},
 			},
 		},
 	})
@@ -426,8 +426,8 @@ func TestGenerateFileTerramateRootMetadata(t *testing.T) {
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
-				StackPath: "/stack",
-				Created:   []string{generatedFile},
+				Dir:     "/stack",
+				Created: []string{generatedFile},
 			},
 		},
 	})

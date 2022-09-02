@@ -82,12 +82,12 @@ func TestGenerateHCL(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						StackPath: "/stacks/stack-1",
-						Created:   []string{"empty"},
+						Dir:     "/stacks/stack-1",
+						Created: []string{"empty"},
 					},
 					{
-						StackPath: "/stacks/stack-2",
-						Created:   []string{"empty"},
+						Dir:     "/stacks/stack-2",
+						Created: []string{"empty"},
 					},
 				},
 			},
@@ -153,12 +153,12 @@ func TestGenerateHCL(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						StackPath: "/stacks/stack-1",
-						Created:   []string{"stacks.hcl"},
+						Dir:     "/stacks/stack-1",
+						Created: []string{"stacks.hcl"},
 					},
 					{
-						StackPath: "/stacks/stack-2",
-						Created:   []string{"stacks.hcl"},
+						Dir:     "/stacks/stack-2",
+						Created: []string{"stacks.hcl"},
 					},
 				},
 			},
@@ -196,8 +196,8 @@ func TestGenerateHCL(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						StackPath: "/stacks/stack-1",
-						Created:   []string{"stacks.hcl"},
+						Dir:     "/stacks/stack-1",
+						Created: []string{"stacks.hcl"},
 					},
 				},
 			},
@@ -353,12 +353,12 @@ func TestGenerateHCL(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						StackPath: "/stacks/stack-1",
-						Created:   []string{"backend.tf", "locals.tf", "provider.tf"},
+						Dir:     "/stacks/stack-1",
+						Created: []string{"backend.tf", "locals.tf", "provider.tf"},
 					},
 					{
-						StackPath: "/stacks/stack-2",
-						Created:   []string{"backend.tf", "locals.tf", "provider.tf"},
+						Dir:     "/stacks/stack-2",
+						Created: []string{"backend.tf", "locals.tf", "provider.tf"},
 					},
 				},
 			},
@@ -524,12 +524,12 @@ func TestGenerateHCL(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						StackPath: "/stacks/stack-1",
-						Created:   []string{"backend.tf", "locals.tf", "provider.tf"},
+						Dir:     "/stacks/stack-1",
+						Created: []string{"backend.tf", "locals.tf", "provider.tf"},
 					},
 					{
-						StackPath: "/stacks/stack-2",
-						Created:   []string{"backend.tf", "locals.tf", "provider.tf"},
+						Dir:     "/stacks/stack-2",
+						Created: []string{"backend.tf", "locals.tf", "provider.tf"},
 					},
 				},
 			},
@@ -586,12 +586,12 @@ func TestGenerateHCL(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						StackPath: "/stacks/stack-1",
-						Created:   []string{"traversal.tf"},
+						Dir:     "/stacks/stack-1",
+						Created: []string{"traversal.tf"},
 					},
 					{
-						StackPath: "/stacks/stack-2",
-						Created:   []string{"traversal.tf"},
+						Dir:     "/stacks/stack-2",
+						Created: []string{"traversal.tf"},
 					},
 				},
 			},
@@ -629,7 +629,7 @@ func TestGenerateHCL(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							StackPath: "/stacks/stack",
+							Dir: "/stacks/stack",
 						},
 						Error: errors.E(generate.ErrConflictingConfig),
 					},
@@ -676,7 +676,7 @@ func TestGenerateHCL(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							StackPath: "/stacks/stack",
+							Dir: "/stacks/stack",
 						},
 						Error: errors.E(generate.ErrConflictingConfig),
 					},
@@ -726,8 +726,8 @@ func TestGenerateHCL(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						StackPath: "/stacks/stack",
-						Created:   []string{"repeated"},
+						Dir:     "/stacks/stack",
+						Created: []string{"repeated"},
 					},
 				},
 			},
@@ -779,7 +779,7 @@ func TestGenerateHCL(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							StackPath: "/stacks/stack",
+							Dir: "/stacks/stack",
 						},
 						Error: errors.E(generate.ErrConflictingConfig),
 					},
@@ -819,7 +819,7 @@ func TestGenerateHCL(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							StackPath: "/stacks/stack",
+							Dir: "/stacks/stack",
 						},
 						Error: errors.E(generate.ErrConflictingConfig),
 					},
@@ -888,25 +888,25 @@ func TestGenerateHCL(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							StackPath: "/stacks/stack-1",
+							Dir: "/stacks/stack-1",
 						},
 						Error: errors.E(generate.ErrInvalidFilePath),
 					},
 					{
 						Result: generate.Result{
-							StackPath: "/stacks/stack-2",
+							Dir: "/stacks/stack-2",
 						},
 						Error: errors.E(generate.ErrInvalidFilePath),
 					},
 					{
 						Result: generate.Result{
-							StackPath: "/stacks/stack-3",
+							Dir: "/stacks/stack-3",
 						},
 						Error: errors.E(generate.ErrInvalidFilePath),
 					},
 					{
 						Result: generate.Result{
-							StackPath: "/stacks/stack-4",
+							Dir: "/stacks/stack-4",
 						},
 						Error: errors.E(generate.ErrInvalidFilePath),
 					},
@@ -972,8 +972,8 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
-				StackPath: "/stack",
-				Created:   []string{genFilename},
+				Dir:     "/stack",
+				Created: []string{genFilename},
 			},
 		},
 	})
@@ -999,8 +999,8 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
-				StackPath: "/stack",
-				Changed:   []string{genFilename},
+				Dir:     "/stack",
+				Changed: []string{genFilename},
 			},
 		},
 	})
@@ -1058,6 +1058,81 @@ func TestGeneratedHCLHeaders(t *testing.T) {
 	}
 }
 
+func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
+	s := sandbox.New(t)
+	stackEntry := s.CreateStack("stack")
+	childStack := s.CreateStack("stack/child")
+	grandChildStack := s.CreateStack("stack/child/grand")
+	stack2Entry := s.CreateStack("stack-2")
+
+	rootEntry := s.DirEntry(".")
+	rootEntry.CreateConfig(
+		Doc(
+			GenerateHCL(
+				Labels("file1.tf"),
+				Content(
+					Block("block1",
+						Bool("whatever", true),
+					),
+				),
+			),
+			GenerateHCL(
+				Labels("file2.tf"),
+				Content(
+					Block("block2",
+						Bool("whatever", true),
+					),
+				),
+			),
+		).String(),
+	)
+
+	report := s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				Dir:     "/stack",
+				Created: []string{"file1.tf", "file2.tf"},
+			},
+			{
+				Dir:     "/stack/child",
+				Created: []string{"file1.tf", "file2.tf"},
+			},
+			{
+				Dir:     "/stack/child/grand",
+				Created: []string{"file1.tf", "file2.tf"},
+			},
+			{
+				Dir:     "/stack-2",
+				Created: []string{"file1.tf", "file2.tf"},
+			},
+		},
+	})
+
+	stackEntry.DeleteStackConfig()
+	grandChildStack.DeleteStackConfig()
+
+	report = s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				Dir:     "/stack",
+				Deleted: []string{"file1.tf", "file2.tf"},
+			},
+			{
+				Dir:     "/stack/child/grand",
+				Deleted: []string{"file1.tf", "file2.tf"},
+			},
+		},
+	})
+
+	assertEqualStringList(t, stackEntry.ListGenFiles(), []string{})
+	assertEqualStringList(t, grandChildStack.ListGenFiles(), []string{})
+
+	assertEqualStringList(t, childStack.ListGenFiles(), []string{"file1.tf", "file2.tf"})
+	assertEqualStringList(t, stack2Entry.ListGenFiles(), []string{"file1.tf", "file2.tf"})
+}
+
 func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 	s := sandbox.New(t)
 	stackEntry := s.CreateStack("stack")
@@ -1087,8 +1162,8 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
-				StackPath: "/stack",
-				Created:   []string{"file1.tf", "file2.tf"},
+				Dir:     "/stack",
+				Created: []string{"file1.tf", "file2.tf"},
 			},
 		},
 	})
@@ -1114,9 +1189,9 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
-				StackPath: "/stack",
-				Changed:   []string{"file1.tf"},
-				Deleted:   []string{"file2.tf"},
+				Dir:     "/stack",
+				Changed: []string{"file1.tf"},
+				Deleted: []string{"file2.tf"},
 			},
 		},
 	})
@@ -1139,8 +1214,8 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
-				StackPath: "/stack",
-				Deleted:   []string{"file1.tf"},
+				Dir:     "/stack",
+				Deleted: []string{"file1.tf"},
 			},
 		},
 	})
@@ -1172,8 +1247,8 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 	assertEqualReports(t, s.Generate(), generate.Report{
 		Successes: []generate.Result{
 			{
-				StackPath: "/stack",
-				Created:   []string{"file2.tf"},
+				Dir:     "/stack",
+				Created: []string{"file2.tf"},
 			},
 		},
 	})
@@ -1198,8 +1273,8 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 	assertEqualReports(t, s.Generate(), generate.Report{
 		Successes: []generate.Result{
 			{
-				StackPath: "/stack",
-				Deleted:   []string{"file2.tf"},
+				Dir:     "/stack",
+				Deleted: []string{"file2.tf"},
 			},
 		},
 	})
@@ -1229,8 +1304,8 @@ func TestGenerateHCLTerramateRootMetadata(t *testing.T) {
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
-				StackPath: "/stack",
-				Created:   []string{generatedFile},
+				Dir:     "/stack",
+				Created: []string{generatedFile},
 			},
 		},
 	})
