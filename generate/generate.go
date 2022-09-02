@@ -21,6 +21,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/generate/genhcl"
@@ -183,16 +184,34 @@ func Do(rootdir string, workingDir string) Report {
 		return report
 	})
 
-	outdatedDirs, err := listGenFilesOutsideStacks(rootdir)
+	outdatedDirs, err := listGenFilesOutsideStacks(rootdir, rootdir)
 	if err != nil {
 		report.CleanupErr = err
 		return report
 	}
+
+outdatedDirsLoop:
 	for _, outdatedDir := range outdatedDirs {
-		// TODO KATCIPIS: actually remove files, but test first
+		relpath := strings.TrimPrefix(outdatedDir.dir, rootdir)
+		deleted := []string{}
+
+		for _, outdatedFile := range outdatedDir.files {
+			if err := os.Remove(filepath.Join(outdatedDir.dir, outdatedFile)); err != nil {
+				report.Failures = append(report.Failures, FailureResult{
+					Result: Result{
+						Dir:     relpath,
+						Deleted: deleted,
+					},
+					Error: err,
+				})
+				continue outdatedDirsLoop
+			}
+			deleted = append(deleted, outdatedFile)
+		}
+
 		report.Successes = append(report.Successes, Result{
-			Dir:     outdatedDir.dir,
-			Deleted: outdatedDir.files,
+			Dir:     relpath,
+			Deleted: deleted,
 		})
 	}
 	return report
@@ -675,7 +694,7 @@ type dirGenFiles struct {
 }
 
 // listGenFilesOutsideStacks returns a map of dir -> generated files.
-func listGenFilesOutsideStacks(dir string) ([]dirGenFiles, error) {
+func listGenFilesOutsideStacks(rootdir, dir string) ([]dirGenFiles, error) {
 	logger := log.With().
 		Str("action", "generate.listGenFilesOutsideStacks()").
 		Str("dir", dir).
@@ -685,19 +704,18 @@ func listGenFilesOutsideStacks(dir string) ([]dirGenFiles, error) {
 
 	dirsFiles := []dirGenFiles{}
 
-	// TODO KATCIPIS
-	//if !stack.IsStack(dir) {
-	logger.Trace().Msg("dir is not stack, checking for generated files")
+	if !config.IsStack(rootdir, dir) {
+		logger.Trace().Msg("dir is not stack, checking for generated files")
 
-	//genfiles, err := ListGenFiles(dir)
-	//if err != nil {
-	//return nil, err
-	//}
+		genfiles, err := ListGenFiles(dir)
+		if err != nil {
+			return nil, err
+		}
 
-	//if len(genfiles) > 0 {
-	//dirsFiles = append(dirsFiles, dirGenFiles{dir: dir, files: genfiles})
-	//}
-	//}
+		if len(genfiles) > 0 {
+			dirsFiles = append(dirsFiles, dirGenFiles{dir: dir, files: genfiles})
+		}
+	}
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -707,7 +725,7 @@ func listGenFilesOutsideStacks(dir string) ([]dirGenFiles, error) {
 	for _, entry := range entries {
 		if entry.IsDir() {
 			childPath := filepath.Join(dir, entry.Name())
-			childGenFiles, err := listGenFilesOutsideStacks(childPath)
+			childGenFiles, err := listGenFilesOutsideStacks(rootdir, childPath)
 			if err != nil {
 				return nil, err
 			}
