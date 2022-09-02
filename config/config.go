@@ -60,6 +60,22 @@ func TryLoadRootConfig(fromdir string) (cfg hcl.Config, configpath string, found
 	return hcl.Config{}, "", false, nil
 }
 
+// IsStack returns true if the given directory is a stack, false otherwise.
+func IsStack(rootdir, dir string) (bool, error) {
+	logger := log.With().
+		Str("action", "config.IsStack()").
+		Str("rootdir", rootdir).
+		Str("dir", rootdir).
+		Logger()
+
+	cfg, err := hcl.ParseDir(rootdir, dir)
+	if err != nil {
+		logger.Trace().Err(err).Msg("unable to parse config, not a stack")
+		return false, err
+	}
+	return cfg.Stack != nil, nil
+}
+
 func parentDir(dir string) (string, bool) {
 	parent := filepath.Dir(dir)
 	return parent, parent != dir

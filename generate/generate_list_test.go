@@ -23,7 +23,7 @@ import (
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
-func TestStackGeneratedFilesListing(t *testing.T) {
+func TestGeneratedFilesListing(t *testing.T) {
 	type (
 		file struct {
 			name string
@@ -164,14 +164,13 @@ func TestStackGeneratedFilesListing(t *testing.T) {
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
 			s := sandbox.New(t)
-			stackEntry := s.CreateStack("stacks/stack")
-			stack := stackEntry.Load()
+			dirEntry := s.RootEntry().CreateDir("gen")
 
 			for _, file := range tcase.files {
-				stackEntry.CreateFile(file.name, file.body)
+				dirEntry.CreateFile(file.name, file.body)
 			}
 
-			got, err := generate.ListStackGenFiles(stack)
+			got, err := generate.ListGenFiles(dirEntry.Path())
 
 			assert.NoError(t, err)
 			assertEqualStringList(t, tcase.want, got)
