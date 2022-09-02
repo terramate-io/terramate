@@ -42,14 +42,25 @@ func CopyDir(destdir, srcdir string, filter CopyFilterFunc) error {
 		return errors.E(err, "reading src dir")
 	}
 
-	if err := os.MkdirAll(destdir, createDirMode); err != nil {
-		return errors.E(err, "creating dest dir")
+	createdDir := false
+	createDir := func() error {
+		if createdDir {
+			return nil
+		}
+		if err := os.MkdirAll(destdir, createDirMode); err != nil {
+			return errors.E(err, "creating dest dir")
+		}
+		createdDir = true
+		return nil
 	}
 
 	for _, entry := range entries {
 		if !filter(srcdir, entry) {
 			continue
 		}
+		// Only create dir if we have another dir or file to copy to it
+		// if all files/subdirs are filtered out no dir is created.
+		createDir()
 
 		srcpath := filepath.Join(srcdir, entry.Name())
 		destpath := filepath.Join(destdir, entry.Name())
