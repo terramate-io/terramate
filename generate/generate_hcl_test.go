@@ -1100,9 +1100,8 @@ func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
 
 	stackEntry.DeleteStackConfig()
 
-	// TODO KATCIPIS: we need a way to list gen files without requiring it is a stack
-	//got = stackEntry.ListGenFiles()
-	//assertEqualStringList(t, got, []string{"file1.tf", "file2.tf"})
+	got = stackEntry.ListGenFiles()
+	assertEqualStringList(t, got, []string{"file1.tf", "file2.tf"})
 
 	report = s.Generate()
 	assertEqualReports(t, report, generate.Report{
@@ -1114,9 +1113,8 @@ func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
 		},
 	})
 
-	// TODO KATCIPIS: we need a way to list gen files without requiring it is a stack
-	//got = stackEntry.ListGenFiles()
-	//assertEqualStringList(t, got, []string{})
+	got = stackEntry.ListGenFiles()
+	assertEqualStringList(t, got, []string{})
 }
 
 func TestGenerateHCLCleanupOldFiles(t *testing.T) {
