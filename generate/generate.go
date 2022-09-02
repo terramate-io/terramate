@@ -68,7 +68,7 @@ func Do(rootdir string, workingDir string) Report {
 		projmeta project.Metadata,
 		stack *stack.S,
 		globals stack.Globals,
-	) stackReport {
+	) dirReport {
 		stackpath := stack.HostPath()
 		logger := log.With().
 			Str("action", "generate.Do()").
@@ -77,7 +77,7 @@ func Do(rootdir string, workingDir string) Report {
 			Logger()
 
 		var generated []fileInfo
-		report := stackReport{}
+		report := dirReport{}
 
 		logger.Trace().Msg("generate code from generate_file blocks")
 
@@ -117,7 +117,7 @@ func Do(rootdir string, workingDir string) Report {
 
 		var removedFiles map[string]string
 
-		failureReport := func(r stackReport, err error) stackReport {
+		failureReport := func(r dirReport, err error) dirReport {
 			r.err = err
 			for filename := range removedFiles {
 				r.addDeletedFile(filename)
@@ -187,8 +187,8 @@ func Do(rootdir string, workingDir string) Report {
 	for dir, files := range outdatedFiles {
 		// TODO KATCIPIS: actually remove files, but test first
 		report.Successes = append(report.Successes, Result{
-			StackPath: dir,
-			Deleted:   files,
+			Dir:     dir,
+			Deleted: files,
 		})
 	}
 	return report
@@ -466,7 +466,7 @@ func readFile(path string) (string, bool, error) {
 	return string(data), true, nil
 }
 
-type forEachStackFunc func(project.Metadata, *stack.S, stack.Globals) stackReport
+type forEachStackFunc func(project.Metadata, *stack.S, stack.Globals) dirReport
 
 func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 	logger := log.With().
@@ -507,7 +507,7 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 
 		logger.Trace().Msg("Calling stack callback.")
 
-		report.addStackReport(st.Path(), fn(projmeta, st, globals))
+		report.addDirReport(st.Path(), fn(projmeta, st, globals))
 	}
 	report.sortFilenames()
 	return report

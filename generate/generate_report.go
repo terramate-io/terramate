@@ -24,8 +24,8 @@ import (
 
 // Result represents code generation result
 type Result struct {
-	// StackPath is the absolute path of the stack relative to the project root.
-	StackPath string
+	// Dir is the absolute path of the dir relative to the project root.
+	Dir string
 	// Created contains filenames of all created files inside the stack
 	Created []string
 	// Changed contains filenames of all changed files inside the stack
@@ -98,7 +98,7 @@ func (r Report) String() string {
 		addLine("Successes:")
 		newline()
 		for _, success := range r.Successes {
-			addStack(success.StackPath)
+			addStack(success.Dir)
 			addResultChangeset(success)
 			newline()
 		}
@@ -109,7 +109,7 @@ func (r Report) String() string {
 		addLine("Failures:")
 		newline()
 		for _, failure := range r.Failures {
-			addStack(failure.StackPath)
+			addStack(failure.Dir)
 			addLine("\terror: %s", failure.Error)
 			addResultChangeset(failure.Result)
 			newline()
@@ -142,22 +142,22 @@ func (r *Report) sortFilenames() {
 func (r *Report) addFailure(s *stack.S, err error) {
 	r.Failures = append(r.Failures, FailureResult{
 		Result: Result{
-			StackPath: s.Path(),
+			Dir: s.Path(),
 		},
 		Error: err,
 	})
 }
 
-func (r *Report) addStackReport(path string, sr stackReport) {
+func (r *Report) addDirReport(path string, sr dirReport) {
 	if sr.empty() {
 		return
 	}
 
 	res := Result{
-		StackPath: path,
-		Created:   sr.created,
-		Changed:   sr.changed,
-		Deleted:   sr.deleted,
+		Dir:     path,
+		Created: sr.created,
+		Changed: sr.changed,
+		Deleted: sr.deleted,
 	}
 
 	if sr.isSuccess() {
@@ -176,30 +176,30 @@ func (r *Result) sortFilenames() {
 	sort.Strings(r.Deleted)
 }
 
-type stackReport struct {
+type dirReport struct {
 	created []string
 	changed []string
 	deleted []string
 	err     error
 }
 
-func (s *stackReport) addCreatedFile(filename string) {
+func (s *dirReport) addCreatedFile(filename string) {
 	s.created = append(s.created, filename)
 }
 
-func (s *stackReport) addDeletedFile(filename string) {
+func (s *dirReport) addDeletedFile(filename string) {
 	s.deleted = append(s.deleted, filename)
 }
 
-func (s *stackReport) addChangedFile(filename string) {
+func (s *dirReport) addChangedFile(filename string) {
 	s.changed = append(s.changed, filename)
 }
 
-func (s stackReport) isSuccess() bool {
+func (s dirReport) isSuccess() bool {
 	return s.err == nil
 }
 
-func (s stackReport) empty() bool {
+func (s dirReport) empty() bool {
 	return len(s.created) == 0 &&
 		len(s.changed) == 0 &&
 		len(s.deleted) == 0 &&

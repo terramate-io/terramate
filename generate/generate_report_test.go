@@ -51,8 +51,8 @@ Error details: such fail, much terrible`,
 				BootstrapErr: errors.New("ignore"),
 				Successes: []generate.Result{
 					{
-						StackPath: "/test",
-						Created:   []string{"test"},
+						Dir:     "/test",
+						Created: []string{"test"},
 					},
 				},
 				Failures: []generate.FailureResult{
@@ -69,22 +69,22 @@ Error details: ignore`,
 			report: generate.Report{
 				Successes: []generate.Result{
 					{
-						StackPath: "/test",
-						Created:   []string{"test"},
+						Dir:     "/test",
+						Created: []string{"test"},
 					},
 					{
-						StackPath: "/test2",
-						Changed:   []string{"test"},
+						Dir:     "/test2",
+						Changed: []string{"test"},
 					},
 					{
-						StackPath: "/test3",
-						Deleted:   []string{"test"},
+						Dir:     "/test3",
+						Deleted: []string{"test"},
 					},
 					{
-						StackPath: "/test4",
-						Created:   []string{"created1.tf", "created2.tf"},
-						Changed:   []string{"changed.tf", "changed2.tf"},
-						Deleted:   []string{"removed1.tf", "removed2.tf"},
+						Dir:     "/test4",
+						Created: []string{"created1.tf", "created2.tf"},
+						Changed: []string{"changed.tf", "changed2.tf"},
+						Deleted: []string{"removed1.tf", "removed2.tf"},
 					},
 				},
 			},
@@ -117,16 +117,16 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							StackPath: "/test",
+							Dir: "/test",
 						},
 						Error: errors.New("full error"),
 					},
 					{
 						Result: generate.Result{
-							StackPath: "/test2",
-							Created:   []string{"created1.tf", "created2.tf"},
-							Changed:   []string{"changed.tf", "changed2.tf"},
-							Deleted:   []string{"removed1.tf", "removed2.tf"},
+							Dir:     "/test2",
+							Created: []string{"created1.tf", "created2.tf"},
+							Changed: []string{"changed.tf", "changed2.tf"},
+							Deleted: []string{"removed1.tf", "removed2.tf"},
 						},
 						Error: errors.New("partial error"),
 					},
@@ -155,28 +155,28 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 			report: generate.Report{
 				Successes: []generate.Result{
 					{
-						StackPath: "/success",
-						Created:   []string{"created.tf"},
-						Changed:   []string{"changed.tf"},
-						Deleted:   []string{"removed.tf"},
+						Dir:     "/success",
+						Created: []string{"created.tf"},
+						Changed: []string{"changed.tf"},
+						Deleted: []string{"removed.tf"},
 					},
 					{
-						StackPath: "/success2",
-						Created:   []string{"created.tf"},
-						Changed:   []string{"changed.tf"},
-						Deleted:   []string{"removed.tf"},
+						Dir:     "/success2",
+						Created: []string{"created.tf"},
+						Changed: []string{"changed.tf"},
+						Deleted: []string{"removed.tf"},
 					},
 				},
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							StackPath: "/failed",
+							Dir: "/failed",
 						},
 						Error: errors.New("error"),
 					},
 					{
 						Result: generate.Result{
-							StackPath: "/failed2",
+							Dir: "/failed2",
 						},
 						Error: errors.New("error"),
 					},
