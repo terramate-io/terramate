@@ -32,6 +32,7 @@ func TestCopyIfAllFilesAreFilteredDirIsNotCreated(t *testing.T) {
 		"f:test/2",
 		"f:test/3",
 		"f:test/sub/notcopy",
+		"f:test3/notcopy",
 	})
 
 	destdir := t.TempDir()
@@ -47,6 +48,12 @@ func TestCopyIfAllFilesAreFilteredDirIsNotCreated(t *testing.T) {
 
 	for _, entry := range entries {
 		assert.IsTrue(t, !entry.IsDir())
+		switch entry.Name() {
+		case "1", "2", "3":
+			continue
+		default:
+			t.Fatalf("unexpected entry: %v", entry.Name())
+		}
 	}
 }
 
