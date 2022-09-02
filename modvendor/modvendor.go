@@ -365,6 +365,9 @@ func downloadVendor(rootdir string, vendorDir string, modsrc tf.Source) (string,
 	const pathSeparator string = string(os.PathSeparator)
 
 	fileFilter := func(path string, entry os.DirEntry) bool {
+		if entry.IsDir() {
+			return true
+		}
 		abspath := filepath.Join(path, entry.Name())
 		relpath := strings.TrimPrefix(abspath, clonedRepoDir+pathSeparator)
 		return matcher.Match(strings.Split(relpath, pathSeparator), entry.IsDir())
