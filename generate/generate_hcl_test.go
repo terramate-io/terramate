@@ -1287,7 +1287,6 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
 	s := sandbox.NoGit(t)
 	rootEntry := s.RootEntry().CreateDir("root")
-	targEntry := s.RootEntry().CreateDir("target")
 	stackEntry := s.CreateStack("root/stack")
 	rootEntry.CreateConfig(
 		Doc(
@@ -1313,12 +1312,13 @@ func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
 		).String(),
 	)
 
+	targEntry := s.RootEntry().CreateDir("target")
 	linkPath := filepath.Join(stackEntry.Path(), "link")
-
 	test.MkdirAll(t, targEntry.Path())
-
 	assert.NoError(t, os.Symlink(targEntry.Path(), linkPath))
 
+	// Creates a file with a generated header inside the symlinked directory.
+	// It should never return in the report.
 	test.WriteFile(t, targEntry.Path(), "test.tf", genhcl.Header)
 
 	report := s.GenerateAt(rootEntry.Path())
