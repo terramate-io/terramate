@@ -514,13 +514,13 @@ func (m *Manager) AddWantedOf(scopeStacks stack.List) (stack.List, error) {
 	}
 
 	var selectedStacks stack.List
-	visitedStacks := map[string]struct{}{}
+	visited = run.Visited{}
 	addStack := func(s *stack.S) {
-		if _, ok := visitedStacks[s.Path()]; ok {
+		if _, ok := visited[s.Path()]; ok {
 			return
 		}
 
-		visitedStacks[s.Path()] = struct{}{}
+		visited[s.Path()] = struct{}{}
 		selectedStacks = append(selectedStacks, s)
 	}
 
@@ -529,13 +529,11 @@ func (m *Manager) AddWantedOf(scopeStacks stack.List) (stack.List, error) {
 		pending = append(pending, dag.ID(s.Path()))
 	}
 
-	visited = run.Visited{}
 	for len(pending) > 0 {
 		id := pending[0]
 		node, _ := wantsDag.Node(id)
 		s := node.(*stack.S)
 		addStack(s)
-		visited[string(id)] = struct{}{}
 		pending = pending[1:]
 
 		ancestors := wantsDag.AncestorsOf(id)
