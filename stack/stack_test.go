@@ -21,6 +21,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/rs/zerolog"
 )
 
 func TestLoadAllFailsIfStacksIDIsNotUnique(t *testing.T) {
@@ -31,4 +32,8 @@ func TestLoadAllFailsIfStacksIDIsNotUnique(t *testing.T) {
 	})
 	_, err := stack.LoadAll(s.RootDir())
 	assert.IsError(t, err, errors.E(stack.ErrDuplicatedID))
+}
+
+func init() {
+	zerolog.SetGlobalLevel(zerolog.Disabled)
 }
