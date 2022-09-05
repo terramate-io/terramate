@@ -473,7 +473,7 @@ func (m *Manager) AddWantedOf(scopeStacks stack.List) (stack.List, error) {
 		return nil, err
 	}
 
-	visited := run.Visited{}
+	visited := dag.Visited{}
 	sort.Sort(allstacks)
 	for _, s := range allstacks {
 		loader.Set(s.Path(), s)
@@ -514,13 +514,13 @@ func (m *Manager) AddWantedOf(scopeStacks stack.List) (stack.List, error) {
 	}
 
 	var selectedStacks stack.List
-	visited = run.Visited{}
+	visited = dag.Visited{}
 	addStack := func(s *stack.S) {
-		if _, ok := visited[s.Path()]; ok {
+		if _, ok := visited[dag.ID(s.Path())]; ok {
 			return
 		}
 
-		visited[s.Path()] = struct{}{}
+		visited[dag.ID(s.Path())] = struct{}{}
 		selectedStacks = append(selectedStacks, s)
 	}
 
@@ -538,7 +538,7 @@ func (m *Manager) AddWantedOf(scopeStacks stack.List) (stack.List, error) {
 
 		ancestors := wantsDag.AncestorsOf(id)
 		for _, id := range ancestors {
-			if _, ok := visited[string(id)]; !ok {
+			if _, ok := visited[id]; !ok {
 				pending = append(pending, id)
 			}
 		}

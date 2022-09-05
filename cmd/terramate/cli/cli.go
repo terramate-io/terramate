@@ -868,9 +868,9 @@ func (c *cli) generateGraph() {
 	dotGraph := dot.NewGraph(dot.Directed)
 	graph := dag.New()
 
-	visited := map[string]struct{}{}
+	visited := dag.Visited{}
 	for _, e := range c.filterStacksByWorkingDir(entries) {
-		if _, ok := visited[e.Stack.Path()]; ok {
+		if _, ok := visited[dag.ID(e.Stack.Path())]; ok {
 			continue
 		}
 

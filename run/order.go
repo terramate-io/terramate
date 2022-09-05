@@ -26,8 +26,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type Visited map[string]struct{}
-
 // Sort computes the final execution order for the given list of stacks.
 // In the case of multiple possible orders, it returns the lexicographic sorted
 // path.
@@ -38,8 +36,6 @@ func Sort(root string, stacks stack.List) (stack.List, string, error) {
 	for _, stack := range stacks {
 		loader.Set(stack.Path(), stack)
 	}
-
-	visited := Visited{}
 
 	logger := log.With().
 		Str("action", "run.Sort()").
@@ -69,8 +65,9 @@ func Sort(root string, stacks stack.List) (stack.List, string, error) {
 
 	logger.Trace().Msg("Sorting stacks.")
 
+	visited := dag.Visited{}
 	for _, s := range stacks {
-		if _, ok := visited[s.Path()]; ok {
+		if _, ok := visited[dag.ID(s.Path())]; ok {
 			continue
 		}
 
@@ -148,7 +145,7 @@ func BuildDAG(
 	loader stack.Loader,
 	getDescendants func(stack.S) []string,
 	getAncestors func(stack.S) []string,
-	visited Visited,
+	visited dag.Visited,
 ) error {
 	logger := log.With().
 		Str("action", "BuildDAG()").
@@ -156,11 +153,11 @@ func BuildDAG(
 		Str("stack", s.Path()).
 		Logger()
 
-	if _, ok := visited[s.Path()]; ok {
+	if _, ok := visited[dag.ID(s.Path())]; ok {
 		return nil
 	}
 
-	visited[s.Path()] = struct{}{}
+	visited[dag.ID(s.Path())] = struct{}{}
 
 	removeWrongPaths := func(fieldname string, paths []string) []string {
 		cleanpaths := []string{}
@@ -224,7 +221,7 @@ func BuildDAG(
 			Str("stack", s.Path()).
 			Logger()
 
-		if _, ok := visited[s.Path()]; ok {
+		if _, ok := visited[dag.ID(s.Path())]; ok {
 			continue
 		}
 
