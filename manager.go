@@ -364,13 +364,13 @@ func (m *Manager) AddWantedOf(scopeStacks stack.List) (stack.List, error) {
 	if err != nil {
 		if errors.IsKind(err, dag.ErrCycleDetected) {
 			logger.Warn().
-				Err(err).
 				Str("reason", reason).
-				Msg(`Ignored cycle while validating the "wants" and "wanted_by" of stacks`)
+				Err(err).
+				Msg("The stack selection clauses (wants/wanted_by) have cycles (ignored).")
 		} else {
 			logger.Warn().
 				Err(err).
-				Msg(`Ignored error while validating "wants" and "wanted_by`)
+				Msg("The stack selection clauses (wants/wanted_by) have errors (ignored)")
 		}
 	}
 
