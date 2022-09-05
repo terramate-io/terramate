@@ -155,10 +155,10 @@ func (s *S) Name() string {
 func (s *S) Desc() string { return s.desc }
 
 // After specifies the list of stacks that must run before this stack.
-func (s *S) After() []string { return s.after }
+func (s S) After() []string { return s.after }
 
 // Before specifies the list of stacks that must run after this stack.
-func (s *S) Before() []string { return s.before }
+func (s S) Before() []string { return s.before }
 
 // AppendBefore appends the path to the list of stacks that must run after this
 // stack.
@@ -167,10 +167,10 @@ func (s *S) AppendBefore(path string) {
 }
 
 // Wants specifies the list of wanted stacks.
-func (s *S) Wants() []string { return s.wants }
+func (s S) Wants() []string { return s.wants }
 
 // WantedBy specifies the list of stacks that wants this stack.
-func (s *S) WantedBy() []string { return s.wantedBy }
+func (s S) WantedBy() []string { return s.wantedBy }
 
 // Watch returns the list of watched files.
 func (s *S) Watch() []string { return s.watch }

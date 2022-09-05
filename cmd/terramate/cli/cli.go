@@ -874,8 +874,15 @@ func (c *cli) generateGraph() {
 			continue
 		}
 
-		err := run.BuildDAG(graph, c.root(), e.Stack, loader, visited)
-		if err != nil {
+		if err := run.BuildDAG(
+			graph,
+			c.root(),
+			e.Stack,
+			loader,
+			stack.S.Before,
+			stack.S.After,
+			visited,
+		); err != nil {
 			log.Fatal().
 				Err(err).
 				Msg("failed to build order tree")
