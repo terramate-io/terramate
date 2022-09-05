@@ -26,8 +26,8 @@ import (
 )
 
 type node struct {
-	after  []dag.ID
-	before []dag.ID
+	ancestors   []dag.ID
+	descendants []dag.ID
 }
 type testcase struct {
 	name   string
@@ -37,249 +37,253 @@ type testcase struct {
 	order  []dag.ID
 }
 
-var cycleTests = []testcase{
-	{
-		name: "empty dag",
-	},
-	{
-		name: "cycle: A after A",
-		nodes: map[string]node{
-			"A": {
-				after: []dag.ID{"A"},
-			},
+func cycleTests() []testcase {
+	return []testcase{
+		{
+			name: "empty dag",
 		},
-		err:    errors.E(dag.ErrCycleDetected),
-		reason: "A -> A",
-	},
-	{
-		name: "cycle: A after B, B after A",
-		nodes: map[string]node{
-			"A": {
-				after: []dag.ID{"B"},
+		{
+			name: "cycle: A after A",
+			nodes: map[string]node{
+				"A": {
+					ancestors: []dag.ID{"A"},
+				},
 			},
-			"B": {
-				after: []dag.ID{"A"},
-			},
+			err:    errors.E(dag.ErrCycleDetected),
+			reason: "A -> A",
 		},
-		err:    errors.E(dag.ErrCycleDetected),
-		reason: "A -> B -> A",
-	},
-	{
-		name: "cycle: A after B, B after C, C after A",
-		nodes: map[string]node{
-			"A": {
-				after: []dag.ID{"B"},
+		{
+			name: "cycle: A after B, B after A",
+			nodes: map[string]node{
+				"A": {
+					ancestors: []dag.ID{"B"},
+				},
+				"B": {
+					ancestors: []dag.ID{"A"},
+				},
 			},
-			"B": {
-				after: []dag.ID{"C"},
-			},
-			"C": {
-				after: []dag.ID{"A"},
-			},
+			err:    errors.E(dag.ErrCycleDetected),
+			reason: "A -> B -> A",
 		},
-		err:    errors.E(dag.ErrCycleDetected),
-		reason: "A -> B -> C -> A",
-	},
-	{
-		name: "cycle: A after B, C before B, C after A",
-		nodes: map[string]node{
-			"A": {
-				after: []dag.ID{"B"},
+		{
+			name: "cycle: A after B, B after C, C after A",
+			nodes: map[string]node{
+				"A": {
+					ancestors: []dag.ID{"B"},
+				},
+				"B": {
+					ancestors: []dag.ID{"C"},
+				},
+				"C": {
+					ancestors: []dag.ID{"A"},
+				},
 			},
-			"C": {
-				after:  []dag.ID{"A"},
-				before: []dag.ID{"B"},
-			},
+			err:    errors.E(dag.ErrCycleDetected),
+			reason: "A -> B -> C -> A",
 		},
-		err:    errors.E(dag.ErrCycleDetected),
-		reason: "A -> B -> C -> A",
-	},
-	{
-		name: "cycle: B before A, C before B, C after A",
-		nodes: map[string]node{
-			"B": {
-				before: []dag.ID{"A"},
+		{
+			name: "cycle: A after B, C before B, C after A",
+			nodes: map[string]node{
+				"A": {
+					ancestors: []dag.ID{"B"},
+				},
+				"C": {
+					ancestors:   []dag.ID{"A"},
+					descendants: []dag.ID{"B"},
+				},
 			},
-			"C": {
-				after:  []dag.ID{"A"},
-				before: []dag.ID{"B"},
-			},
+			err:    errors.E(dag.ErrCycleDetected),
+			reason: "A -> B -> C -> A",
 		},
-		err:    errors.E(dag.ErrCycleDetected),
-		reason: "A -> B -> C -> A",
-	},
-	{
-		name: "cycle: B before A, A after C, C after D, D before B",
-		nodes: map[string]node{
-			"B": {
-				before: []dag.ID{"A"},
+		{
+			name: "cycle: B before A, C before B, C after A",
+			nodes: map[string]node{
+				"B": {
+					descendants: []dag.ID{"A"},
+				},
+				"C": {
+					ancestors:   []dag.ID{"A"},
+					descendants: []dag.ID{"B"},
+				},
 			},
-			"A": {
-				after: []dag.ID{"C"},
-			},
-			"C": {
-				after: []dag.ID{"D"},
-			},
-			"D": {
-				before: []dag.ID{"B"},
-				after:  []dag.ID{"A"},
-			},
+			err:    errors.E(dag.ErrCycleDetected),
+			reason: "A -> B -> C -> A",
 		},
-		err:    errors.E(dag.ErrCycleDetected),
-		reason: "A -> B -> D -> A",
-	},
-	{
-		name: "cycle: A after B, B after C, C after D, D after F, F after A",
-		nodes: map[string]node{
-			"A": {
-				after: []dag.ID{"B"},
+		{
+			name: "cycle: B before A, A after C, C after D, D before B",
+			nodes: map[string]node{
+				"B": {
+					descendants: []dag.ID{"A"},
+				},
+				"A": {
+					ancestors: []dag.ID{"C"},
+				},
+				"C": {
+					ancestors: []dag.ID{"D"},
+				},
+				"D": {
+					descendants: []dag.ID{"B"},
+					ancestors:   []dag.ID{"A"},
+				},
 			},
-			"B": {
-				after: []dag.ID{"C"},
-			},
-			"C": {
-				after: []dag.ID{"D"},
-			},
-			"D": {
-				after: []dag.ID{"F"},
-			},
-			"F": {
-				after: []dag.ID{"A"},
-			},
+			err:    errors.E(dag.ErrCycleDetected),
+			reason: "A -> B -> D -> A",
 		},
-		err:    errors.E(dag.ErrCycleDetected),
-		reason: "A -> B -> C -> D -> F -> A",
-	},
-	{
-		name: "cycle: A after B, B after C, C after D, D after A, F after A",
-		nodes: map[string]node{
-			"A": {
-				after: []dag.ID{"B"},
+		{
+			name: "cycle: A after B, B after C, C after D, D after F, F after A",
+			nodes: map[string]node{
+				"A": {
+					ancestors: []dag.ID{"B"},
+				},
+				"B": {
+					ancestors: []dag.ID{"C"},
+				},
+				"C": {
+					ancestors: []dag.ID{"D"},
+				},
+				"D": {
+					ancestors: []dag.ID{"F"},
+				},
+				"F": {
+					ancestors: []dag.ID{"A"},
+				},
 			},
-			"B": {
-				after: []dag.ID{"C"},
-			},
-			"C": {
-				after: []dag.ID{"D"},
-			},
-			"D": {
-				after: []dag.ID{"A"},
-			},
-			"F": {
-				after: []dag.ID{"A"},
-			},
+			err:    errors.E(dag.ErrCycleDetected),
+			reason: "A -> B -> C -> D -> F -> A",
 		},
-		err:    errors.E(dag.ErrCycleDetected),
-		reason: "A -> B -> C -> D -> A",
-	},
-	{
-		name: "cycle: A after B, B after C, C after D, D after B, F after A",
-		nodes: map[string]node{
-			"A": {
-				after: []dag.ID{"B"},
+		{
+			name: "cycle: A after B, B after C, C after D, D after A, F after A",
+			nodes: map[string]node{
+				"A": {
+					ancestors: []dag.ID{"B"},
+				},
+				"B": {
+					ancestors: []dag.ID{"C"},
+				},
+				"C": {
+					ancestors: []dag.ID{"D"},
+				},
+				"D": {
+					ancestors: []dag.ID{"A"},
+				},
+				"F": {
+					ancestors: []dag.ID{"A"},
+				},
 			},
-			"B": {
-				after: []dag.ID{"C"},
-			},
-			"C": {
-				after: []dag.ID{"D"},
-			},
-			"D": {
-				after: []dag.ID{"B"},
-			},
-			"F": {
-				after: []dag.ID{"A"},
-			},
+			err:    errors.E(dag.ErrCycleDetected),
+			reason: "A -> B -> C -> D -> A",
 		},
-		err:    errors.E(dag.ErrCycleDetected),
-		reason: "A -> B -> C -> D -> B",
-	},
-	{
-		name: "cycle: A before B, B before A",
-		nodes: map[string]node{
-			"A": {
-				before: []dag.ID{"B"},
+		{
+			name: "cycle: A after B, B after C, C after D, D after B, F after A",
+			nodes: map[string]node{
+				"A": {
+					ancestors: []dag.ID{"B"},
+				},
+				"B": {
+					ancestors: []dag.ID{"C"},
+				},
+				"C": {
+					ancestors: []dag.ID{"D"},
+				},
+				"D": {
+					ancestors: []dag.ID{"B"},
+				},
+				"F": {
+					ancestors: []dag.ID{"A"},
+				},
 			},
-			"B": {
-				before: []dag.ID{"A"},
-			},
+			err:    errors.E(dag.ErrCycleDetected),
+			reason: "A -> B -> C -> D -> B",
 		},
-		err:    errors.E(dag.ErrCycleDetected),
-		reason: "A -> B -> A",
-	},
+		{
+			name: "cycle: A before B, B before A",
+			nodes: map[string]node{
+				"A": {
+					descendants: []dag.ID{"B"},
+				},
+				"B": {
+					descendants: []dag.ID{"A"},
+				},
+			},
+			err:    errors.E(dag.ErrCycleDetected),
+			reason: "A -> B -> A",
+		},
+	}
 }
 
-var dagTests = []testcase{
-	{
-		name: "simple dag",
-		nodes: map[string]node{
-			"A": {
-				after: []dag.ID{"B"},
+func dagTests() []testcase {
+	return []testcase{
+		{
+			name: "simple dag",
+			nodes: map[string]node{
+				"A": {
+					ancestors: []dag.ID{"B"},
+				},
+				"B": {},
 			},
-			"B": {},
+			order: []dag.ID{"B", "A"},
 		},
-		order: []dag.ID{"B", "A"},
-	},
-	{
-		name: "A -> (B, E), B -> (C, D), D -> E",
-		nodes: map[string]node{
-			"A": {
-				after: []dag.ID{"B", "E"},
+		{
+			name: "A -> (B, E), B -> (C, D), D -> E",
+			nodes: map[string]node{
+				"A": {
+					ancestors: []dag.ID{"B", "E"},
+				},
+				"B": {
+					ancestors: []dag.ID{"C", "D"},
+				},
+				"D": {
+					ancestors: []dag.ID{"E"},
+				},
+				"E": {},
 			},
-			"B": {
-				after: []dag.ID{"C", "D"},
-			},
-			"D": {
-				after: []dag.ID{"E"},
-			},
-			"E": {},
+			order: []dag.ID{"C", "E", "D", "B", "A"},
 		},
-		order: []dag.ID{"C", "E", "D", "B", "A"},
-	},
-	{
-		name: "simple before: A before B",
-		nodes: map[string]node{
-			"B": {},
-			"A": {
-				before: []dag.ID{"B"},
+		{
+			name: "simple before: A before B",
+			nodes: map[string]node{
+				"B": {},
+				"A": {
+					descendants: []dag.ID{"B"},
+				},
 			},
+			order: []dag.ID{"A", "B"},
 		},
-		order: []dag.ID{"A", "B"},
-	},
-	{
-		name: "A before B, B after C",
-		nodes: map[string]node{
-			"B": {
-				after: []dag.ID{"C"},
+		{
+			name: "A before B, B after C",
+			nodes: map[string]node{
+				"B": {
+					ancestors: []dag.ID{"C"},
+				},
+				"A": {
+					descendants: []dag.ID{"B"},
+				},
+				"C": {},
 			},
-			"A": {
-				before: []dag.ID{"B"},
-			},
-			"C": {},
+			order: []dag.ID{"A", "C", "B"},
 		},
-		order: []dag.ID{"A", "C", "B"},
-	},
-	{
-		name: "A before B, B before D and after C",
-		nodes: map[string]node{
-			"A": {
-				before: []dag.ID{"B"},
+		{
+			name: "A before B, B before D and after C",
+			nodes: map[string]node{
+				"A": {
+					descendants: []dag.ID{"B"},
+				},
+				"B": {
+					descendants: []dag.ID{"D"},
+					ancestors:   []dag.ID{"C"},
+				},
+				"C": {},
+				"D": {},
 			},
-			"B": {
-				before: []dag.ID{"D"},
-				after:  []dag.ID{"C"},
-			},
-			"C": {},
-			"D": {},
+			order: []dag.ID{"A", "C", "B", "D"},
 		},
-		order: []dag.ID{"A", "C", "B", "D"},
-	},
+	}
 }
 
-func TestDAG(t *testing.T) {
+func TestValidatedDAG(t *testing.T) {
 	var testcases []testcase
-	testcases = append(testcases, cycleTests...)
-	testcases = append(testcases, dagTests...)
+	testcases = append(testcases, cycleTests()...)
+	testcases = append(testcases, dagTests()...)
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -287,7 +291,9 @@ func TestDAG(t *testing.T) {
 			var errs []error
 
 			for id, v := range tc.nodes {
-				errs = append(errs, d.AddNode(dag.ID(id), nil, v.before, v.after))
+				errs = append(errs, d.AddNode(
+					dag.ID(id), nil, v.descendants, v.ancestors),
+				)
 			}
 
 			reason, err := d.Validate()
