@@ -171,7 +171,7 @@ func (s S) Generate() generate.Report {
 	return s.GenerateAt(s.RootDir())
 }
 
-// Generate generates code for all stacks inside the provided path.
+// GenerateAt generates code for all stacks inside the provided path.
 func (s S) GenerateAt(path string) generate.Report {
 	t := s.t
 	t.Helper()
