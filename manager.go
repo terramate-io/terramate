@@ -320,6 +320,93 @@ rangeStacks:
 	}, nil
 }
 
+// AddWantedOf returns all wanted stacks from the given stacks.
+func (m *Manager) AddWantedOf(scopeStacks stack.List) (stack.List, error) {
+	logger := log.With().
+		Str("action", "manager.AddWantedOf").
+		Logger()
+
+	wantsDag := dag.New()
+	loader := stack.NewLoader(m.root)
+
+	allstacks, err := stack.LoadAll(m.root)
+	if err != nil {
+		return nil, err
+	}
+
+	visited := dag.Visited{}
+	sort.Sort(allstacks)
+	for _, s := range allstacks {
+		loader.Set(s.Path(), s)
+
+		logger.Trace().
+			Str("stack", s.Path()).
+			Msg("Building dag")
+
+		err := run.BuildDAG(
+			wantsDag,
+			m.root,
+			s,
+			loader,
+			stack.S.WantedBy,
+			stack.S.Wants,
+			visited,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	logger.Trace().Msg("Validating DAG.")
+
+	reason, err := wantsDag.Validate()
+	if err != nil {
+		if errors.IsKind(err, dag.ErrCycleDetected) {
+			logger.Warn().
+				Err(err).
+				Str("reason", reason).
+				Msg(`Ignored cycle while validating the "wants" and "wanted_by" of stacks`)
+		} else {
+			logger.Warn().
+				Err(err).
+				Msg(`Ignored error while validating "wants" and "wanted_by`)
+		}
+	}
+
+	var selectedStacks stack.List
+	visited = dag.Visited{}
+	addStack := func(s *stack.S) {
+		if _, ok := visited[dag.ID(s.Path())]; ok {
+			return
+		}
+
+		visited[dag.ID(s.Path())] = struct{}{}
+		selectedStacks = append(selectedStacks, s)
+	}
+
+	var pending []dag.ID
+	for _, s := range scopeStacks {
+		pending = append(pending, dag.ID(s.Path()))
+	}
+
+	for len(pending) > 0 {
+		id := pending[0]
+		node, _ := wantsDag.Node(id)
+		s := node.(*stack.S)
+		addStack(s)
+		pending = pending[1:]
+
+		ancestors := wantsDag.AncestorsOf(id)
+		for _, id := range ancestors {
+			if _, ok := visited[id]; !ok {
+				pending = append(pending, id)
+			}
+		}
+	}
+	return selectedStacks, nil
+}
+
 func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) error {
 	logger := log.With().
 		Str("action", "filesApply()").
@@ -457,93 +544,6 @@ func (m *Manager) moduleChanged(
 	}
 
 	return changed, fmt.Sprintf("module %q changed because %s", mod.Source, why), nil
-}
-
-// AddWantedOf returns all wanted stacks from the given stacks.
-func (m *Manager) AddWantedOf(scopeStacks stack.List) (stack.List, error) {
-	logger := log.With().
-		Str("action", "manager.AddWantedOf").
-		Logger()
-
-	wantsDag := dag.New()
-	loader := stack.NewLoader(m.root)
-
-	allstacks, err := stack.LoadAll(m.root)
-	if err != nil {
-		return nil, err
-	}
-
-	visited := dag.Visited{}
-	sort.Sort(allstacks)
-	for _, s := range allstacks {
-		loader.Set(s.Path(), s)
-
-		logger.Trace().
-			Str("stack", s.Path()).
-			Msg("Building dag")
-
-		err := run.BuildDAG(
-			wantsDag,
-			m.root,
-			s,
-			loader,
-			stack.S.WantedBy,
-			stack.S.Wants,
-			visited,
-		)
-
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	logger.Trace().Msg("Validating DAG.")
-
-	reason, err := wantsDag.Validate()
-	if err != nil {
-		if errors.IsKind(err, dag.ErrCycleDetected) {
-			logger.Warn().
-				Err(err).
-				Str("reason", reason).
-				Msg(`Ignored cycle while validating the "wants" and "wanted_by" of stacks`)
-		} else {
-			logger.Warn().
-				Err(err).
-				Msg(`Ignored error while validating "wants" and "wanted_by`)
-		}
-	}
-
-	var selectedStacks stack.List
-	visited = dag.Visited{}
-	addStack := func(s *stack.S) {
-		if _, ok := visited[dag.ID(s.Path())]; ok {
-			return
-		}
-
-		visited[dag.ID(s.Path())] = struct{}{}
-		selectedStacks = append(selectedStacks, s)
-	}
-
-	var pending []dag.ID
-	for _, s := range scopeStacks {
-		pending = append(pending, dag.ID(s.Path()))
-	}
-
-	for len(pending) > 0 {
-		id := pending[0]
-		node, _ := wantsDag.Node(id)
-		s := node.(*stack.S)
-		addStack(s)
-		pending = pending[1:]
-
-		ancestors := wantsDag.AncestorsOf(id)
-		for _, id := range ancestors {
-			if _, ok := visited[id]; !ok {
-				pending = append(pending, id)
-			}
-		}
-	}
-	return selectedStacks, nil
 }
 
 // listChangedFiles lists all changed files in the dir directory.
