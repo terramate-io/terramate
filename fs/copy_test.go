@@ -32,6 +32,9 @@ func TestCopyIfAllFilesAreFilteredDirIsNotCreated(t *testing.T) {
 		"f:test/2",
 		"f:test/3",
 		"f:test/sub/notcopy",
+		"f:test/sub/sub2/notcopy",
+		"f:test/sub/sub2/sub3/notcopy",
+		"f:test/anothersub/sub2/sub3/notcopy",
 		"f:test3/notcopy",
 	})
 
