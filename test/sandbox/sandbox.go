@@ -168,10 +168,15 @@ func (s S) Git() *Git {
 
 // Generate generates code for all stacks on the sandbox
 func (s S) Generate() generate.Report {
+	return s.GenerateAt(s.RootDir())
+}
+
+// GenerateAt generates code for all stacks inside the provided path.
+func (s S) GenerateAt(path string) generate.Report {
 	t := s.t
 	t.Helper()
 
-	report := generate.Do(s.RootDir(), s.RootDir())
+	report := generate.Do(path, path)
 	for _, failure := range report.Failures {
 		t.Errorf("Generate unexpected failure: %v", failure)
 	}

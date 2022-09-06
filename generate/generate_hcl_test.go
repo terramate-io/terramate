@@ -16,6 +16,7 @@ package generate_test
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -24,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
@@ -1280,6 +1282,54 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 	})
 	got = stackEntry.ListGenFiles()
 	assertEqualStringList(t, got, []string{})
+}
+
+func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
+	s := sandbox.NoGit(t)
+	rootEntry := s.RootEntry().CreateDir("root")
+	stackEntry := s.CreateStack("root/stack")
+	rootEntry.CreateConfig(
+		Doc(
+			Terramate(
+				Config(),
+			),
+			GenerateHCL(
+				Labels("file1.tf"),
+				Content(
+					Block("block1",
+						Bool("whatever", true),
+					),
+				),
+			),
+			GenerateHCL(
+				Labels("file2.tf"),
+				Content(
+					Block("block2",
+						Bool("whatever", true),
+					),
+				),
+			),
+		).String(),
+	)
+
+	targEntry := s.RootEntry().CreateDir("target")
+	linkPath := filepath.Join(stackEntry.Path(), "link")
+	test.MkdirAll(t, targEntry.Path())
+	assert.NoError(t, os.Symlink(targEntry.Path(), linkPath))
+
+	// Creates a file with a generated header inside the symlinked directory.
+	// It should never return in the report.
+	test.WriteFile(t, targEntry.Path(), "test.tf", genhcl.Header)
+
+	report := s.GenerateAt(rootEntry.Path())
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				Dir:     "/stack",
+				Created: []string{"file1.tf", "file2.tf"},
+			},
+		},
+	})
 }
 
 func TestGenerateHCLTerramateRootMetadata(t *testing.T) {
