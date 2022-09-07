@@ -1340,14 +1340,14 @@ func TestPartialEval(t *testing.T) {
 			name: "tm_ternary inside deep structures",
 			config: Doc(
 				Expr("a", `{
-							some = {
-								deep = {
-									structure = {
-										value = tm_ternary(true, [local.var], 0)
-									}
-								}
+					some = {
+						deep = {
+							structure = {
+								value = tm_ternary(true, [local.var], 0)
 							}
-						}`),
+						}
+					}
+				}`),
 			),
 			want: Doc(
 				Expr("a", `{
