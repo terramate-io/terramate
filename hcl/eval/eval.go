@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2/ext/customdecode"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -36,10 +37,6 @@ const ErrEval errors.Kind = "failed to evaluate expression"
 type Context struct {
 	hclctx *hhcl.EvalContext
 }
-
-// ExpressionStringMark is the type used for marking expression values with the
-// expression string.
-type ExpressionStringMark string
 
 // NewContext creates a new HCL evaluation context.
 // The basedir is the base directory used by any interpolation functions that
@@ -110,18 +107,11 @@ func (c *Context) PartialEval(expr hhcl.Expression) (hclwrite.Tokens, error) {
 
 // TokensForValue returns the tokens for the provided value.
 func TokensForValue(value cty.Value) (hclwrite.Tokens, error) {
-	value, marks := value.Unmark()
 	if value.Type() == customdecode.ExpressionClosureType {
 		closureExpr := value.EncapsulatedValue().(*customdecode.ExpressionClosure)
-		for m := range marks {
-			if v, ok := m.(ExpressionStringMark); ok {
-				exprRange := closureExpr.Expression.Range()
-				exprData := []byte(v)[exprRange.Start.Byte:exprRange.End.Byte]
-				return TokensForExpressionBytes(exprData)
-			}
-		}
-
 		return TokensForExpression(closureExpr.Expression)
+	} else if value.Type() == customdecode.ExpressionType {
+		return TokensForExpression(customdecode.ExpressionFromVal(value))
 	}
 	return hclwrite.TokensForValue(value), nil
 }
@@ -133,18 +123,30 @@ func TokensForValue(value cty.Value) (hclwrite.Tokens, error) {
 // The expression must be an expression parsed from a real file.
 func TokensForExpression(expr hhcl.Expression) (hclwrite.Tokens, error) {
 	filename := expr.Range().Filename
-	filedata, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, errors.E(err, "reading expression from file")
+	var exprdata []byte
+
+	if strings.HasPrefix(filename, injectedTokensPrefix) {
+		exprdata = []byte(filename[len(injectedTokensPrefix):])
+	} else {
+		var err error
+		exprdata, err = ioutil.ReadFile(filename)
+		if err != nil {
+			return nil, errors.E(err, "reading expression from file")
+		}
 	}
 	exprRange := expr.Range()
-	exprBytes := filedata[exprRange.Start.Byte:exprRange.End.Byte]
-	return TokensForExpressionBytes(exprBytes)
+	exprdata = exprdata[exprRange.Start.Byte:exprRange.End.Byte]
+
+	return TokensForExpressionBytes(exprdata)
 }
 
 // TokensForExpressionBytes returns the tokens for the provided expression bytes.
 func TokensForExpressionBytes(exprBytes []byte) (hclwrite.Tokens, error) {
-	tokens, diags := hclsyntax.LexExpression(exprBytes, "", hhcl.Pos{})
+	tokens, diags := hclsyntax.LexExpression(exprBytes, "", hhcl.Pos{
+		Line:   1,
+		Column: 1,
+		Byte:   0,
+	})
 	if diags.HasErrors() {
 		return nil, errors.E(diags, "failed to scan expression")
 	}
@@ -161,3 +163,19 @@ func toWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {
 	}
 	return tokens
 }
+
+func parseExpressionBytes(exprBytes []byte) (hhcl.Expression, error) {
+	data := fmt.Sprintf("%s%s", injectedTokensPrefix, exprBytes)
+	expr, diags := hclsyntax.ParseExpression(exprBytes, data, hhcl.Pos{
+		Line:   1,
+		Column: 1,
+		Byte:   0,
+	})
+
+	if diags.HasErrors() {
+		return nil, errors.E(diags, "parsing expression bytes")
+	}
+	return expr, nil
+}
+
+const injectedTokensPrefix = "<generated-hcl>:"

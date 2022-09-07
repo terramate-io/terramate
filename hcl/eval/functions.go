@@ -16,7 +16,6 @@ package eval
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/hashicorp/hcl/v2"
@@ -122,14 +121,8 @@ func evalTernaryBranch(arg cty.Value) (cty.Value, error) {
 			panic(errors.E(err, "tm_ternary with partial"))
 		}
 
-		fmt.Printf("got tokens: %s\n", newtokens.Bytes())
-
-		path := filepath.Join(os.TempDir(), "gen-ternary.hcl")
-		err = os.WriteFile(path, newtokens.Bytes(), 0644)
-		if err != nil {
-			return cty.NilVal, err
-		}
-		exprParsed, diags := hclsyntax.ParseExpression(newtokens.Bytes(), path, hcl.Pos{
+		data := fmt.Sprintf("%s%s", injectedTokensPrefix, newtokens.Bytes())
+		exprParsed, diags := hclsyntax.ParseExpression(newtokens.Bytes(), data, hcl.Pos{
 			Line:   1,
 			Column: 1,
 			Byte:   0,
@@ -139,10 +132,8 @@ func evalTernaryBranch(arg cty.Value) (cty.Value, error) {
 			return cty.NilVal, errors.E(diags, "tm_ternary parsing expr")
 		}
 
-		closure.Expression = exprParsed
-
 		if dependsOnUnknowns(exprParsed, closure.EvalContext) {
-			return customdecode.ExpressionClosureVal(closure), nil
+			return customdecode.ExpressionVal(exprParsed), nil
 		}
 	}
 
