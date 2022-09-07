@@ -124,7 +124,6 @@ func TokensForValue(value cty.Value) (hclwrite.Tokens, error) {
 func TokensForExpression(expr hhcl.Expression) (hclwrite.Tokens, error) {
 	filename := expr.Range().Filename
 	var exprdata []byte
-
 	if strings.HasPrefix(filename, injectedTokensPrefix) {
 		exprdata = []byte(filename[len(injectedTokensPrefix):])
 	} else {
@@ -136,7 +135,6 @@ func TokensForExpression(expr hhcl.Expression) (hclwrite.Tokens, error) {
 	}
 	exprRange := expr.Range()
 	exprdata = exprdata[exprRange.Start.Byte:exprRange.End.Byte]
-
 	return TokensForExpressionBytes(exprdata)
 }
 
@@ -165,8 +163,8 @@ func toWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {
 }
 
 func parseExpressionBytes(exprBytes []byte) (hhcl.Expression, error) {
-	data := fmt.Sprintf("%s%s", injectedTokensPrefix, exprBytes)
-	expr, diags := hclsyntax.ParseExpression(exprBytes, data, hhcl.Pos{
+	fname := fmt.Sprintf("%s%s", injectedTokensPrefix, exprBytes)
+	expr, diags := hclsyntax.ParseExpression(exprBytes, fname, hhcl.Pos{
 		Line:   1,
 		Column: 1,
 		Byte:   0,

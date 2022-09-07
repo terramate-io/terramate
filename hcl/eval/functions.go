@@ -15,12 +15,10 @@
 package eval
 
 import (
-	"fmt"
 	"path/filepath"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/customdecode"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	tflang "github.com/hashicorp/terraform/lang"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/zclconf/go-cty/cty"
@@ -107,8 +105,6 @@ func ternary(cond cty.Value, val1, val2 cty.Value) (cty.Value, error) {
 func evalTernaryBranch(arg cty.Value) (cty.Value, error) {
 	closure := customdecode.ExpressionClosureFromVal(arg)
 
-	// TODO(i4k): partial evaluate the closure.Expression
-
 	if dependsOnUnknowns(closure.Expression, closure.EvalContext) {
 		evalCtx, err := NewContext("/")
 		if err != nil {
@@ -118,18 +114,12 @@ func evalTernaryBranch(arg cty.Value) (cty.Value, error) {
 		evalCtx.hclctx = closure.EvalContext
 		newtokens, err := evalCtx.PartialEval(closure.Expression)
 		if err != nil {
-			panic(errors.E(err, "tm_ternary with partial"))
+			return cty.NilVal, errors.E(err, "evaluating tm_ternary branch")
 		}
 
-		data := fmt.Sprintf("%s%s", injectedTokensPrefix, newtokens.Bytes())
-		exprParsed, diags := hclsyntax.ParseExpression(newtokens.Bytes(), data, hcl.Pos{
-			Line:   1,
-			Column: 1,
-			Byte:   0,
-		})
-
-		if diags.HasErrors() {
-			return cty.NilVal, errors.E(diags, "tm_ternary parsing expr")
+		exprParsed, err := parseExpressionBytes(newtokens.Bytes())
+		if err != nil {
+			return cty.NilVal, errors.E(err, "parsing partial evaluated bytes")
 		}
 
 		if dependsOnUnknowns(exprParsed, closure.EvalContext) {
