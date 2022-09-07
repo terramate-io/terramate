@@ -1351,14 +1351,14 @@ func TestPartialEval(t *testing.T) {
 			),
 			want: Doc(
 				Expr("a", `{
-							some = {
-								deep = {
-									structure = {
-										value = [local.var]
-									}
-								}
+					some = {
+						deep = {
+							structure = {
+								value = [local.var]
 							}
-						}`),
+						}
+					}
+				}`),
 			),
 		},
 		{
