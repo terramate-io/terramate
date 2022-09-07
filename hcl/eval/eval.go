@@ -86,7 +86,7 @@ func (c *Context) HasNamespace(name string) bool {
 }
 
 // Eval will evaluate an expression given its context.
-func (c *Context) Eval(expr hclsyntax.Expression) (cty.Value, error) {
+func (c *Context) Eval(expr hhcl.Expression) (cty.Value, error) {
 	val, diag := expr.Value(c.hclctx)
 	if diag.HasErrors() {
 		return cty.NilVal, errors.E(ErrEval, diag)
@@ -98,7 +98,7 @@ func (c *Context) Eval(expr hclsyntax.Expression) (cty.Value, error) {
 // of tokens, leaving all the rest as-is. It returns a modified list of tokens
 // with  no reference to terramate namespaced variables (globals and terramate)
 // and functions (tm_ prefixed functions).
-func (c *Context) PartialEval(expr hclsyntax.Expression) (hclwrite.Tokens, error) {
+func (c *Context) PartialEval(expr hhcl.Expression) (hclwrite.Tokens, error) {
 	tokens, err := TokensForExpression(expr)
 	if err != nil {
 		return nil, err

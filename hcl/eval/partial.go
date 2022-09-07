@@ -16,6 +16,8 @@ package eval
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -808,7 +810,12 @@ func (e *engine) evalTmFuncall() error {
 		expr = append(expr, part.Bytes...)
 	}
 
-	exprParsed, diags := hclsyntax.ParseExpression(expr, "gen.hcl", hcl.Pos{})
+	path := filepath.Join(os.TempDir(), "gen-tm-call.hcl")
+	err := os.WriteFile(path, expr, 0644)
+	if err != nil {
+		return err
+	}
+	exprParsed, diags := hclsyntax.ParseExpression(expr, path, hcl.Pos{})
 	if diags.HasErrors() {
 		return errorf("failed to parse expr ('%s'): %v", expr, diags.Error())
 	}
@@ -818,7 +825,7 @@ func (e *engine) evalTmFuncall() error {
 		return err
 	}
 
-	val = val.Mark(ExpressionStringMark(expr)) // wrong
+	//val = val.Mark(ExpressionStringMark(expr)) // wrong
 
 	evaluated, err := TokensForValue(val)
 	if err != nil {
@@ -891,7 +898,12 @@ func (e *engine) evalVar() error {
 		expr = append(expr, part.Bytes...)
 	}
 
-	parsedExpr, diags := hclsyntax.ParseExpression(expr, "gen.hcl", hcl.Pos{})
+	path := filepath.Join(os.TempDir(), "gen-ident.hcl")
+	err := os.WriteFile(path, expr, 0644)
+	if err != nil {
+		return err
+	}
+	parsedExpr, diags := hclsyntax.ParseExpression(expr, path, hcl.Pos{})
 	if diags.HasErrors() {
 		return errorf("failed to parse expr %s: %v", expr, diags.Error())
 	}
