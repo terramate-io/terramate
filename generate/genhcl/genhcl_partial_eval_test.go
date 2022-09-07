@@ -1362,6 +1362,72 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
+			name: "tm_ternary mixing tm_ calls with partials",
+			config: Doc(
+				Expr("a", `tm_ternary(true, {
+					evaluated = tm_upper("a")
+					partial = local.var
+				}, {})`),
+			),
+			want: Doc(
+				Expr("a", `{
+					evaluated = "A"
+					partial = local.var
+				}`),
+			),
+		},
+		{
+			name: "nested tm_ternary calls with fully evaluated branches",
+			config: Doc(
+				Expr("a", `tm_ternary(true, tm_ternary(false, "fail", "works"), tm_ternary(true, "fail", "works"))`),
+			),
+			want: Doc(
+				Expr("a", `"works"`),
+			),
+		},
+		{
+			name: "nested tm_ternary calls with partial evaluated branches",
+			config: Doc(
+				Expr("a", `tm_ternary(true, tm_ternary(false, local.fails, local.works), tm_ternary(true, local.fails, local.works))`),
+			),
+			want: Doc(
+				Expr("a", `local.works`),
+			),
+		},
+		{
+			name: "nested tm_ternary mixing tm_ calls with partials",
+			config: Doc(
+				Expr("a", `tm_ternary(true, tm_ternary(true, {
+					evaluated = tm_upper("a")
+					partial = local.branch1
+				}, {}), {})`),
+			),
+			want: Doc(
+				Expr("a", `{
+					evaluated = "A"
+					partial = local.branch1
+				}`),
+			),
+		},
+		{
+			name: "nested tm_ternary mixing tm_ calls with partials returning branch2",
+			config: Doc(
+				Expr("a", `tm_ternary(false, tm_ternary(true, {
+					evaluated = tm_upper("a")
+					partial = local.branch1
+				}, {
+					evaluated = tm_upper("a")
+					partial = local.branch2
+				}), {})`),
+			),
+			want: Doc(
+				Expr("a", `{
+					evaluated = "A"
+					partial = local.branch2
+				}`),
+			),
+		},
+		{
 			name: "tm_ternary fails with partials in the conditions",
 			config: Doc(
 				Expr("a", "tm_ternary(local.a, true, false)"),
