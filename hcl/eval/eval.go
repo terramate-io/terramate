@@ -62,7 +62,7 @@ func NewContext(basedir string) (*Context, error) {
 	return NewContextFrom(hclctx), nil
 }
 
-// NewContextFromm creates a new Context from an hcl.Context.
+// NewContextFrom creates a new Context from an hcl.Context.
 func NewContextFrom(ctx *hhcl.EvalContext) *Context {
 	return &Context{
 		hclctx: ctx,
@@ -121,7 +121,7 @@ func TokensForValue(value cty.Value) (hclwrite.Tokens, error) {
 	return hclwrite.TokensForValue(value), nil
 }
 
-// TokensForExpression gets the provided expression writable tokens.
+// TokensForExpression returns the tokens for the provided expression.
 //
 // Beware: This function has hacks to circumvent limitations in the hashicorp
 // library when it comes to generating unknown values.
