@@ -106,13 +106,8 @@ func evalTernaryBranch(arg cty.Value) (cty.Value, error) {
 	closure := customdecode.ExpressionClosureFromVal(arg)
 
 	if dependsOnUnknowns(closure.Expression, closure.EvalContext) {
-		evalCtx, err := NewContext("/")
-		if err != nil {
-			return cty.NilVal, err
-		}
-
-		evalCtx.hclctx = closure.EvalContext
-		newtokens, err := evalCtx.PartialEval(closure.Expression)
+		ctx := NewContextFrom(closure.EvalContext)
+		newtokens, err := ctx.PartialEval(closure.Expression)
 		if err != nil {
 			return cty.NilVal, errors.E(err, "evaluating tm_ternary branch")
 		}

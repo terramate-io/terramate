@@ -15,11 +15,11 @@
 package eval
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/hashicorp/hcl/v2/ext/customdecode"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -59,9 +59,13 @@ func NewContext(basedir string) (*Context, error) {
 		Functions: newTmFunctions(basedir),
 		Variables: map[string]cty.Value{},
 	}
+	return NewContextFrom(hclctx), nil
+}
+
+func NewContextFrom(ctx *hhcl.EvalContext) *Context {
 	return &Context{
-		hclctx: hclctx,
-	}, nil
+		hclctx: ctx,
+	}
 }
 
 // SetNamespace will set the given values inside the given namespace on the
@@ -117,18 +121,38 @@ func TokensForValue(value cty.Value) (hclwrite.Tokens, error) {
 }
 
 // TokensForExpression gets the provided expression writable tokens.
-// Beware: This function requires a valid expr.Range(), which means that
-// expr.Range().Filename must be the real file used to parse this expression
-// and the ranges (start and end) points to correct positions.
-// The expression must be an expression parsed from a real file.
+//
+// Beware: This function has hacks to circunvent limitations in the hashicorp
+// library when it comes to generating unknown values.
+// Because we cannot retrieve the tokens that makes an hcl.Expression, we have
+// to read the file bytes again and slice the expression part using the
+// expr.Range() info. This was the first hack.
+// But this is not enough... as in the case of partial evaluating expressions,
+// we rewrite the token stream and once a hcl.Expression is generated, the
+// tokens are lost forever and returned into the hashicorp evaluator. Then, if
+// it composes with functions like tm_ternary(), we end up with expressions
+// that lack information about its own tokens...
+// So the second hack is: in the case of generated expressions, there's no real
+// file, then we store the original bytes inside the expr.Range().Filename
+// string. The expressions with these injected tokens have the filename of the
+// form:
+//   <generated-hcl><NUL BYTE><tokens>
+// See the parseExpressionBytes() function for details of how bytes are injected.
+//
+// At this point you should be wondering: What happens if the user creates a
+// a file with this format? The answer depends on the user's operating system,
+// but for most of them, this is impossible because POSIX systems and Windows
+// prohibits NUL bytes in filesystem paths.
+//
+// I'm sorry.
 func TokensForExpression(expr hhcl.Expression) (hclwrite.Tokens, error) {
-	filename := expr.Range().Filename
+	fnameBytes := []byte(expr.Range().Filename)
 	var exprdata []byte
-	if strings.HasPrefix(filename, injectedTokensPrefix) {
-		exprdata = []byte(filename[len(injectedTokensPrefix):])
+	if bytes.HasPrefix(fnameBytes, injectedTokensPrefix()) {
+		exprdata = []byte(fnameBytes[len(injectedTokensPrefix()):])
 	} else {
 		var err error
-		exprdata, err = ioutil.ReadFile(filename)
+		exprdata, err = ioutil.ReadFile(string(fnameBytes))
 		if err != nil {
 			return nil, errors.E(err, "reading expression from file")
 		}
@@ -136,6 +160,26 @@ func TokensForExpression(expr hhcl.Expression) (hclwrite.Tokens, error) {
 	exprRange := expr.Range()
 	exprdata = exprdata[exprRange.Start.Byte:exprRange.End.Byte]
 	return TokensForExpressionBytes(exprdata)
+}
+
+// parseExpressionBytes parses the exprBytes into a hcl.Expression and stores
+// the original tokens inside the expression.Range().Filename. For details
+// about this craziness, see the TokensForExpression() function.
+func parseExpressionBytes(exprBytes []byte) (hhcl.Expression, error) {
+	fnameBytes := append(injectedTokensPrefix(), exprBytes...)
+	expr, diags := hclsyntax.ParseExpression(
+		exprBytes,
+		string(fnameBytes),
+		hhcl.Pos{
+			Line:   1,
+			Column: 1,
+			Byte:   0,
+		})
+
+	if diags.HasErrors() {
+		return nil, errors.E(diags, "parsing expression bytes")
+	}
+	return expr, nil
 }
 
 // TokensForExpressionBytes returns the tokens for the provided expression bytes.
@@ -162,18 +206,9 @@ func toWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {
 	return tokens
 }
 
-func parseExpressionBytes(exprBytes []byte) (hhcl.Expression, error) {
-	fname := fmt.Sprintf("%s%s", injectedTokensPrefix, exprBytes)
-	expr, diags := hclsyntax.ParseExpression(exprBytes, fname, hhcl.Pos{
-		Line:   1,
-		Column: 1,
-		Byte:   0,
-	})
-
-	if diags.HasErrors() {
-		return nil, errors.E(diags, "parsing expression bytes")
-	}
-	return expr, nil
+func injectedTokensPrefix() []byte {
+	return append(
+		[]byte("<generated-hcl>"),
+		0,
+	)
 }
-
-const injectedTokensPrefix = "<generated-hcl>:"

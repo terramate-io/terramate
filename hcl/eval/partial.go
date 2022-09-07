@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
@@ -889,15 +888,9 @@ func (e *engine) evalVar() error {
 		expr = append(expr, part.Bytes...)
 	}
 
-	data := fmt.Sprintf("%s%s", injectedTokensPrefix, expr)
-	exprParsed, diags := hclsyntax.ParseExpression(expr, data, hcl.Pos{
-		Line:   1,
-		Column: 1,
-		Byte:   0,
-	})
-
-	if diags.HasErrors() {
-		return errorf("failed to parse expr %s: %v", expr, diags.Error())
+	exprParsed, err := parseExpressionBytes(expr)
+	if err != nil {
+		return err
 	}
 
 	val, err := e.ctx.Eval(exprParsed)
