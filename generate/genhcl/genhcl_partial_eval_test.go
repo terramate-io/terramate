@@ -1328,6 +1328,18 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
+			name: "tm_ternary returning complete result",
+			globals: Globals(
+				Str("a", "val"),
+			),
+			config: Doc(
+				Expr("a", `tm_ternary(true, [global.a], [])`),
+			),
+			want: Doc(
+				Expr("a", `["val"]`),
+			),
+		},
+		{
 			name: "tm_ternary returning literals",
 			config: Doc(
 				Expr("a", "tm_ternary(false, local.var, [])"),

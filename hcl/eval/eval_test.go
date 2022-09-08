@@ -65,15 +65,6 @@ func TestEvalTmAbspath(t *testing.T) {
 				value: cty.StringVal("world"),
 			},
 		},
-		/*{
-			name: "tm_ternary - cond is true, with partial returning",
-			expr: `tm_ternary(true, local.var, "world")`,
-			want: want{
-				value: customdecode.ExpressionClosureVal(&customdecode.ExpressionClosure{
-					Expression: localVarExpr,
-				}),
-			},
-		},*/
 		{
 			name: "no args - fails",
 			expr: `tm_abspath()`,
@@ -143,8 +134,9 @@ func TestEvalTmAbspath(t *testing.T) {
 			const attrname = "value"
 
 			cfg := fmt.Sprintf("%s = %s", attrname, tc.expr)
+			fname := test.WriteFile(t, t.TempDir(), "test-tm_ternary.hcl", cfg)
 			parser := hclparse.NewParser()
-			file, diags := parser.ParseHCL([]byte(cfg), "test-tm_abspath.hcl")
+			file, diags := parser.ParseHCL([]byte(cfg), fname)
 			if diags.HasErrors() {
 				t.Fatalf("expr %q is not valid", tc.expr)
 			}

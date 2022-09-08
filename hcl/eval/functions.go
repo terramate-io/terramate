@@ -105,27 +105,26 @@ func ternary(cond cty.Value, val1, val2 cty.Value) (cty.Value, error) {
 func evalTernaryBranch(arg cty.Value) (cty.Value, error) {
 	closure := customdecode.ExpressionClosureFromVal(arg)
 
-	if dependsOnUnknowns(closure.Expression, closure.EvalContext) {
-		ctx := NewContextFrom(closure.EvalContext)
-		newtokens, err := ctx.PartialEval(closure.Expression)
-		if err != nil {
-			return cty.NilVal, errors.E(err, "evaluating tm_ternary branch")
-		}
-
-		exprParsed, err := parseExpressionBytes(newtokens.Bytes())
-		if err != nil {
-			return cty.NilVal, errors.E(err, "parsing partial evaluated bytes")
-		}
-
-		if dependsOnUnknowns(exprParsed, closure.EvalContext) {
-			return customdecode.ExpressionVal(exprParsed), nil
-		}
+	ctx := NewContextFrom(closure.EvalContext)
+	newtokens, err := ctx.PartialEval(closure.Expression)
+	if err != nil {
+		return cty.NilVal, errors.E(err, "evaluating tm_ternary branch")
 	}
 
-	v, diags := closure.Value()
+	exprParsed, err := parseExpressionBytes(newtokens.Bytes())
+	if err != nil {
+		return cty.NilVal, errors.E(err, "parsing partial evaluated bytes")
+	}
+
+	if dependsOnUnknowns(exprParsed, closure.EvalContext) {
+		return customdecode.ExpressionVal(exprParsed), nil
+	}
+
+	v, diags := exprParsed.Value(closure.EvalContext)
 	if diags.HasErrors() {
-		return cty.NilVal, diags
+		return cty.NilVal, errors.E(diags, "evaluating tm_ternary branch")
 	}
+
 	return v, nil
 }
 
