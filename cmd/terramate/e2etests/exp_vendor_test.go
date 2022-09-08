@@ -190,19 +190,19 @@ func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
 	assert.NoError(t, err)
 
 	modFileA := filepath.Join(
-		modvendor.AbsVendorDir(s.RootDir(), "vendor", modsrcA),
+		modvendor.AbsVendorDir(s.RootDir(), "modules", modsrcA),
 		filename,
 	)
 
 	modFileB := filepath.Join(
-		modvendor.AbsVendorDir(s.RootDir(), "vendor", modsrcB),
+		modvendor.AbsVendorDir(s.RootDir(), "modules", modsrcB),
 		filename,
 	)
 
 	wantedFileContent := func(name string, modsrc, modsrcDep tf.Source) string {
 		relPath, err := filepath.Rel(
-			modvendor.AbsVendorDir(s.RootDir(), "vendor", modsrc),
-			modvendor.AbsVendorDir(s.RootDir(), "vendor", modsrcDep))
+			modvendor.AbsVendorDir(s.RootDir(), "modules", modsrc),
+			modvendor.AbsVendorDir(s.RootDir(), "modules", modsrcDep))
 		assert.NoError(t, err)
 		return hclutils.Module(
 			hclutils.Labels(name),
