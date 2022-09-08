@@ -22,7 +22,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/test"
-	"github.com/mineiros-io/terramate/test/hclwrite/hclutils"
+	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/mineiros-io/terramate/tf"
 )
@@ -155,9 +155,9 @@ func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
 				mainContent += "\n"
 			}
 
-			mainContent += hclutils.Module(
-				hclutils.Labels(name),
-				hclutils.Str("source", dep+"?ref=main"),
+			mainContent += Module(
+				Labels(name),
+				Str("source", dep+"?ref=main"),
 			).String()
 		}
 
@@ -173,8 +173,8 @@ func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
 
 	// setup project
 	s := sandbox.NoGit(t)
-	s.RootEntry().CreateConfig(hclutils.Terramate(
-		hclutils.Config(),
+	s.RootEntry().CreateConfig(Terramate(
+		Config(),
 	).String())
 	tmcli := newCLI(t, s.RootDir())
 	res := tmcli.run("experimental", "vendor", "download", modA, "main")
@@ -204,9 +204,9 @@ func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
 			modvendor.AbsVendorDir(s.RootDir(), "modules", modsrc),
 			modvendor.AbsVendorDir(s.RootDir(), "modules", modsrcDep))
 		assert.NoError(t, err)
-		return hclutils.Module(
-			hclutils.Labels(name),
-			hclutils.Str("source", relPath),
+		return Module(
+			Labels(name),
+			Str("source", relPath),
 		).String()
 	}
 
