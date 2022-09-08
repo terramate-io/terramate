@@ -147,7 +147,7 @@ func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
 
 	const filename = "main.tf"
 
-	setupModuleGit := func(name string, deps ...string) string {
+	setupModuleGit := func(name string, ref string, deps ...string) string {
 		moduleRepo := sandbox.New(t)
 		var mainContent string
 		for _, dep := range deps {
@@ -157,19 +157,26 @@ func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
 
 			mainContent += Module(
 				Labels(name),
-				Str("source", dep+"?ref=main"),
+				Str("source", dep+"?ref="+ref),
 			).String()
 		}
 
 		moduleRepo.RootEntry().CreateFile(filename, mainContent)
 		repoGit := moduleRepo.Git()
 		repoGit.CommitAll("add file")
+		repoGit.CheckoutNew("test")
+		repoGit.Push("main")
+		repoGit.Push("test")
 		return "git::file://" + moduleRepo.RootDir()
 	}
 
-	modZ := setupModuleGit("modZ")
-	modA := setupModuleGit("modA", modZ)
-	modB := setupModuleGit("modB", modZ)
+	modZ := setupModuleGit("modZ", "main")
+	modA := setupModuleGit("modA", "main", modZ)
+	modB := setupModuleGit("modB", "main", modZ)
+
+	// modC is used to test of a different ref in the dependency must also vendor
+	// and patch.
+	modC := setupModuleGit("modC", "test", modZ)
 
 	// setup project
 	s := sandbox.NoGit(t)
@@ -181,12 +188,18 @@ func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
 	assertRunResult(t, res, runExpected{IgnoreStdout: true})
 	res = tmcli.run("experimental", "vendor", "download", modB, "main")
 	assertRunResult(t, res, runExpected{IgnoreStdout: true})
+	res = tmcli.run("experimental", "vendor", "download", modC, "main")
+	assertRunResult(t, res, runExpected{IgnoreStdout: true})
 
 	modsrcA, err := tf.ParseSource(modA + "?ref=main")
 	assert.NoError(t, err)
 	modsrcB, err := tf.ParseSource(modB + "?ref=main")
 	assert.NoError(t, err)
-	modsrcZ, err := tf.ParseSource(modZ + "?ref=main")
+	modsrcC, err := tf.ParseSource(modC + "?ref=main")
+	assert.NoError(t, err)
+	modsrcZmain, err := tf.ParseSource(modZ + "?ref=main")
+	assert.NoError(t, err)
+	modsrcZtest, err := tf.ParseSource(modZ + "?ref=test")
 	assert.NoError(t, err)
 
 	modFileA := filepath.Join(
@@ -196,6 +209,11 @@ func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
 
 	modFileB := filepath.Join(
 		modvendor.AbsVendorDir(s.RootDir(), "modules", modsrcB),
+		filename,
+	)
+
+	modFileC := filepath.Join(
+		modvendor.AbsVendorDir(s.RootDir(), "modules", modsrcC),
 		filename,
 	)
 
@@ -210,9 +228,9 @@ func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
 		).String()
 	}
 
-	test.AssertFileContentEquals(t, modFileA, wantedFileContent("modA", modsrcA, modsrcZ))
-	test.AssertFileContentEquals(t, modFileB, wantedFileContent("modB", modsrcB, modsrcZ))
-
+	test.AssertFileContentEquals(t, modFileA, wantedFileContent("modA", modsrcA, modsrcZmain))
+	test.AssertFileContentEquals(t, modFileB, wantedFileContent("modB", modsrcB, modsrcZmain))
+	test.AssertFileContentEquals(t, modFileC, wantedFileContent("modC", modsrcC, modsrcZtest))
 }
 
 func vendorHCLConfig(dir string) string {
