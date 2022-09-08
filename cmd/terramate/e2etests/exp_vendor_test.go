@@ -174,8 +174,8 @@ func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
 	modA := setupModuleGit("modA", "main", modZ)
 	modB := setupModuleGit("modB", "main", modZ)
 
-	// modC is used to test of a different ref in the dependency must also vendor
-	// and patch.
+	// modC is used to test for a different ref in the dependency. In this case,
+	// it must also vendor and patch.
 	modC := setupModuleGit("modC", "test", modZ)
 
 	// setup project
