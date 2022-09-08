@@ -306,7 +306,7 @@ func TestModVendor(t *testing.T) {
 			wantIgnored: []wantIgnoredVendor{
 				{
 					RawSource:     "git::",
-					ReasonPattern: "reference must be non-empty",
+					ReasonPattern: string(tf.ErrInvalidModSrc),
 				},
 			},
 		},
