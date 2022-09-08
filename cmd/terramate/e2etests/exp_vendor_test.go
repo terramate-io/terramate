@@ -59,7 +59,7 @@ func TestVendorModule(t *testing.T) {
 	t.Run("default configuration", func(t *testing.T) {
 		tmcli := newCLI(t, s.RootDir())
 		res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
-		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), "vendor"))
+		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), "modules"))
 	})
 
 	t.Run("root configuration", func(t *testing.T) {
@@ -122,7 +122,7 @@ func TestVendorModuleRecursive1DependencyIsPatched(t *testing.T) {
 	res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
 	assertRunResult(t, res, runExpected{IgnoreStdout: true})
 
-	vendordir := filepath.Join(s.RootDir(), "vendor")
+	vendordir := filepath.Join(s.RootDir(), "modules")
 	moduleDir := filepath.Join(vendordir, moduleSandbox.RootDir(), "main")
 	depsDir := filepath.Join(vendordir, depsSandbox.RootDir(), "main")
 
