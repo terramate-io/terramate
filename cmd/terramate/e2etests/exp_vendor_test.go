@@ -20,8 +20,11 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/test"
+	"github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/mineiros-io/terramate/tf"
 )
 
 func TestVendorModule(t *testing.T) {
@@ -130,6 +133,86 @@ func TestVendorModuleRecursive1DependencyIsPatched(t *testing.T) {
 
 	got = test.ReadFile(t, depsDir, "main.tf")
 	assert.EqualStrings(t, "", string(got))
+}
+
+func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
+	// This reproduces the bug below:
+	//   - ModA depends on ModZ
+	//   - ModB depends on ModZ
+	// executing:
+	//   - tm vendor download ModA <ref>
+	//   - tm vendor download ModB <ref>
+	// will patch the ModA files to use ../modules/ModZ/...
+	// but will not for ModB because ModZ is already vendored.
+
+	const filename = "main.tf"
+
+	setupModuleGit := func(name string, deps ...string) string {
+		moduleRepo := sandbox.New(t)
+		var mainContent string
+		for _, dep := range deps {
+			if mainContent != "" {
+				mainContent += "\n"
+			}
+
+			mainContent += hclutils.Module(
+				hclutils.Labels(name),
+				hclutils.Str("source", dep+"?ref=main"),
+			).String()
+		}
+
+		moduleRepo.RootEntry().CreateFile(filename, mainContent)
+		repoGit := moduleRepo.Git()
+		repoGit.CommitAll("add file")
+		return "git::file://" + moduleRepo.RootDir()
+	}
+
+	modZ := setupModuleGit("modZ")
+	modA := setupModuleGit("modA", modZ)
+	modB := setupModuleGit("modB", modZ)
+
+	// setup project
+	s := sandbox.NoGit(t)
+	s.RootEntry().CreateConfig(hclutils.Terramate(
+		hclutils.Config(),
+	).String())
+	tmcli := newCLI(t, s.RootDir())
+	res := tmcli.run("experimental", "vendor", "download", modA, "main")
+	assertRunResult(t, res, runExpected{IgnoreStdout: true})
+	res = tmcli.run("experimental", "vendor", "download", modB, "main")
+	assertRunResult(t, res, runExpected{IgnoreStdout: true})
+
+	modsrcA, err := tf.ParseSource(modA + "?ref=main")
+	assert.NoError(t, err)
+	modsrcB, err := tf.ParseSource(modB + "?ref=main")
+	assert.NoError(t, err)
+	modsrcZ, err := tf.ParseSource(modZ + "?ref=main")
+	assert.NoError(t, err)
+
+	modFileA := filepath.Join(
+		modvendor.AbsVendorDir(s.RootDir(), "vendor", modsrcA),
+		filename,
+	)
+
+	modFileB := filepath.Join(
+		modvendor.AbsVendorDir(s.RootDir(), "vendor", modsrcB),
+		filename,
+	)
+
+	wantedFileContent := func(name string, modsrc, modsrcDep tf.Source) string {
+		relPath, err := filepath.Rel(
+			modvendor.AbsVendorDir(s.RootDir(), "vendor", modsrc),
+			modvendor.AbsVendorDir(s.RootDir(), "vendor", modsrcDep))
+		assert.NoError(t, err)
+		return hclutils.Module(
+			hclutils.Labels(name),
+			hclutils.Str("source", relPath),
+		).String()
+	}
+
+	test.AssertFileContentEquals(t, modFileA, wantedFileContent("modA", modsrcA, modsrcZ))
+	test.AssertFileContentEquals(t, modFileB, wantedFileContent("modB", modsrcB, modsrcZ))
+
 }
 
 func vendorHCLConfig(dir string) string {

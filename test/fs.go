@@ -59,3 +59,11 @@ func AssertFileEquals(t *testing.T, filepath1, filepath2 string) {
 		t.Fatalf("-(%s) +(%s):\n%s", filepath1, filepath2, diff)
 	}
 }
+
+func AssertFileContentEquals(t *testing.T, fname string, want string) {
+	t.Helper()
+	got := ReadFile(t, filepath.Dir(fname), filepath.Base(fname))
+	if diff := cmp.Diff(string(got), string(want)); diff != "" {
+		t.Fatalf("-(%s) +(%s):\n%s", got, want, diff)
+	}
+}
