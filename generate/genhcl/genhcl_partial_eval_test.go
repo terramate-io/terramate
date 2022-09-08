@@ -1377,6 +1377,26 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
+			name: "tm_ternary mixing globals and unknowns",
+			globals: Globals(
+				Str("provider", "google"),
+			),
+			config: Doc(
+				Expr("a", `tm_ternary(true, {
+							evaluated1 = data.providers[global.provider]
+                            evaluated2 = global.provider
+							partial = local.var
+						}, {})`),
+			),
+			want: Doc(
+				Expr("a", `{
+							evaluated1 = data.providers["google"]
+							evaluated2 = "google"
+							partial = local.var
+						}`),
+			),
+		},
+		{
 			name: "nested tm_ternary calls with fully evaluated branches",
 			config: Doc(
 				Expr("a", `tm_ternary(true, tm_ternary(false, "fail", "works"), tm_ternary(true, "fail", "works"))`),
