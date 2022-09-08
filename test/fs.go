@@ -60,7 +60,7 @@ func AssertFileEquals(t *testing.T, filepath1, filepath2 string) {
 	}
 }
 
-// AssertFileContents asserts that file fname has the content of want.
+// AssertFileContentEquals asserts that file fname has the content of want.
 // It assumes the file content is a unicode string.
 func AssertFileContentEquals(t *testing.T, fname string, want string) {
 	t.Helper()
