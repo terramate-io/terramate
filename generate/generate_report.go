@@ -64,7 +64,7 @@ func (r Report) HasFailures() bool {
 
 func (r Report) String() string {
 	if r.empty() {
-		return "Nothing to do, code generation is updated"
+		return "Nothing to do, generated code is up to date"
 	}
 	if r.BootstrapErr != nil {
 		return fmt.Sprintf(

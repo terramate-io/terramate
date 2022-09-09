@@ -35,7 +35,7 @@ func TestReportRepresentation(t *testing.T) {
 		{
 			name:   "empty report",
 			report: generate.Report{},
-			want:   "Nothing to do, code generation is updated",
+			want:   "Nothing to do, generated code is up to date",
 		},
 		{
 			name: "with bootstrap err",
