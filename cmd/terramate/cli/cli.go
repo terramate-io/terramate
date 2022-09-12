@@ -66,6 +66,8 @@ const (
 	defaultLogFmt   = "console"
 )
 
+const defaultVendorDir = "/modules"
+
 type cliSpec struct {
 	Version       struct{} `cmd:"" help:"Terramate version"`
 	VersionFlag   bool     `name:"version" help:"Terramate version"`
@@ -508,7 +510,7 @@ func (c *cli) vendorDir() string {
 
 	logger.Trace().Msg("no configuration provided, fallback to default")
 
-	return "/vendor"
+	return defaultVendorDir
 }
 
 func hasVendorDirConfig(cfg hcl.Config) bool {
