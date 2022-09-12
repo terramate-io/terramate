@@ -101,13 +101,13 @@ func (d *DAG) AddNode(id ID, value interface{}, descendants, ancestors []ID) err
 }
 
 func (d *DAG) addAncestors(node ID, ancestorIDs []ID) {
-	for _, to := range ancestorIDs {
+	for _, ancestor := range ancestorIDs {
 		log.Trace().
 			Str("action", "addAncestors()").
 			Str("node", string(node)).
-			Str("ancestor", string(to)).
+			Str("ancestor", string(ancestor)).
 			Msg("Add edges.")
-		d.addAncestor(node, to)
+		d.addAncestor(node, ancestor)
 	}
 }
 
