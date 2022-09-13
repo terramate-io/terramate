@@ -948,7 +948,7 @@ func generateDot(
 		Logger()
 
 	parent := dotGraph.Node(getLabel(stackval))
-	for _, childid := range graph.ChildrenOf(id) {
+	for _, childid := range graph.AncestorsOf(id) {
 		val, err := graph.Node(childid)
 		if err != nil {
 			logger.Fatal().
