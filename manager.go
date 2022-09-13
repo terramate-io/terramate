@@ -26,6 +26,8 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/git"
 	"github.com/mineiros-io/terramate/project"
+	"github.com/mineiros-io/terramate/run"
+	"github.com/mineiros-io/terramate/run/dag"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/tf"
 	"github.com/rs/zerolog/log"
@@ -318,6 +320,93 @@ rangeStacks:
 	}, nil
 }
 
+// AddWantedOf returns all wanted stacks from the given stacks.
+func (m *Manager) AddWantedOf(scopeStacks stack.List) (stack.List, error) {
+	logger := log.With().
+		Str("action", "manager.AddWantedOf").
+		Logger()
+
+	wantsDag := dag.New()
+	loader := stack.NewLoader(m.root)
+
+	allstacks, err := stack.LoadAll(m.root)
+	if err != nil {
+		return nil, err
+	}
+
+	visited := dag.Visited{}
+	sort.Sort(allstacks)
+	for _, s := range allstacks {
+		loader.Set(s.Path(), s)
+
+		logger.Trace().
+			Str("stack", s.Path()).
+			Msg("Building dag")
+
+		err := run.BuildDAG(
+			wantsDag,
+			m.root,
+			s,
+			loader,
+			stack.S.WantedBy,
+			stack.S.Wants,
+			visited,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	logger.Trace().Msg("Validating DAG.")
+
+	reason, err := wantsDag.Validate()
+	if err != nil {
+		if errors.IsKind(err, dag.ErrCycleDetected) {
+			logger.Warn().
+				Str("reason", reason).
+				Err(err).
+				Msg("The stack selection clauses (wants/wanted_by) have cycles (ignored).")
+		} else {
+			logger.Warn().
+				Err(err).
+				Msg("The stack selection clauses (wants/wanted_by) have errors (ignored)")
+		}
+	}
+
+	var selectedStacks stack.List
+	visited = dag.Visited{}
+	addStack := func(s *stack.S) {
+		if _, ok := visited[dag.ID(s.Path())]; ok {
+			return
+		}
+
+		visited[dag.ID(s.Path())] = struct{}{}
+		selectedStacks = append(selectedStacks, s)
+	}
+
+	var pending []dag.ID
+	for _, s := range scopeStacks {
+		pending = append(pending, dag.ID(s.Path()))
+	}
+
+	for len(pending) > 0 {
+		id := pending[0]
+		node, _ := wantsDag.Node(id)
+		s := node.(*stack.S)
+		addStack(s)
+		pending = pending[1:]
+
+		ancestors := wantsDag.AncestorsOf(id)
+		for _, id := range ancestors {
+			if _, ok := visited[id]; !ok {
+				pending = append(pending, id)
+			}
+		}
+	}
+	return selectedStacks, nil
+}
+
 func (m *Manager) filesApply(dir string, apply func(file fs.DirEntry) error) error {
 	logger := log.With().
 		Str("action", "filesApply()").
@@ -455,80 +544,6 @@ func (m *Manager) moduleChanged(
 	}
 
 	return changed, fmt.Sprintf("module %q changed because %s", mod.Source, why), nil
-}
-
-// AddWantedOf returns all wanted stacks from the given stacks.
-func (m *Manager) AddWantedOf(stacks stack.List) (stack.List, error) {
-	wantedBy := map[string]*stack.S{}
-	wanted := stack.List{}
-
-	for _, s := range stacks {
-		wantedBy[s.Path()] = s
-		wanted = append(wanted, s)
-	}
-
-	allstacks, err := m.List()
-	if err != nil {
-		return nil, errors.E(err, "computing wanted stacks")
-	}
-
-	for _, s := range allstacks.Stacks {
-		wantedStacks, err := m.stackLoader.LoadAll(
-			m.root, s.Stack.HostPath(),
-			s.Stack.WantedBy()...,
-		)
-		if err != nil {
-			return nil, errors.E(err, "loading \"wanted_by\" stacks")
-		}
-
-		for _, wantedStack := range wantedStacks {
-			if _, ok := wantedBy[wantedStack.Path()]; ok {
-				wantedBy[s.Stack.Path()] = s.Stack
-				wanted = append(wanted, s.Stack)
-			}
-		}
-	}
-
-	visited := map[string]struct{}{}
-
-	for len(wantedBy) > 0 {
-		for _, s := range wantedBy {
-			logger := log.With().
-				Str("action", "AddWantedOf()").
-				Stringer("stack", s).
-				Logger()
-
-			logger.Debug().Msg("Loading \"wanted\" stacks.")
-
-			wantedStacks, err := m.stackLoader.LoadAll(m.root, s.HostPath(), s.Wants()...)
-			if err != nil {
-				return nil, errors.E(err, "computing wanted stacks")
-			}
-
-			logger.Debug().Msg("The \"wanted\" stacks were loaded successfully.")
-
-			for _, wantedStack := range wantedStacks {
-				if wantedStack.HostPath() == s.HostPath() {
-					logger.Warn().
-						Stringer("stack", s).
-						Msg("stack wants itself.")
-
-					continue
-				}
-
-				if _, ok := visited[wantedStack.Path()]; !ok {
-					wanted = append(wanted, wantedStack)
-					visited[wantedStack.Path()] = struct{}{}
-					wantedBy[wantedStack.Path()] = wantedStack
-				}
-			}
-
-			delete(wantedBy, s.Path())
-		}
-	}
-
-	stack.Sort(wanted)
-	return wanted, nil
 }
 
 // listChangedFiles lists all changed files in the dir directory.
