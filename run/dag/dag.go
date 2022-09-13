@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package dag provides the Directed-Acyclic-Graph (DAG) primitives required by
+// Terramate.
+// The nodes can be added by providing both the descendants and ancestors of
+// each node but only the descendant -> ancestors relationship is kept.
 package dag
 
 import (
@@ -28,12 +32,17 @@ type (
 
 	// DAG is a Directed-Acyclic Graph
 	DAG struct {
+		// dag is a map of descendantID -> []ancestorID
 		dag    map[ID][]ID
 		values map[ID]interface{}
 		cycles map[ID]bool
 
 		validated bool
 	}
+
+	// Visited in a map of visited dag nodes by id.
+	// Note: it's not concurrent-safe.
+	Visited map[ID]struct{}
 )
 
 // Errors returned by operations on the DAG.
@@ -51,9 +60,11 @@ func New() *DAG {
 	}
 }
 
-// AddNode adds a new node to the dag. The lists of before and after
-// defines its edge nodes.
-func (d *DAG) AddNode(id ID, value interface{}, before, after []ID) error {
+// AddNode adds a new node to the dag. The lists of descendants and ancestors
+// defines its edge.
+// The value is anything related to the node that needs to be retrieved later
+// when processing the DAG.
+func (d *DAG) AddNode(id ID, value interface{}, descendants, ancestors []ID) error {
 	logger := log.With().
 		Str("action", "AddNode()").
 		Logger()
@@ -64,7 +75,7 @@ func (d *DAG) AddNode(id ID, value interface{}, before, after []ID) error {
 		)
 	}
 
-	for _, bid := range before {
+	for _, bid := range descendants {
 		if _, ok := d.dag[bid]; !ok {
 			d.dag[bid] = []ID{}
 		}
@@ -73,7 +84,7 @@ func (d *DAG) AddNode(id ID, value interface{}, before, after []ID) error {
 			Str("from", string(bid)).
 			Str("to", string(id)).
 			Msg("Add edge.")
-		d.addEdge(bid, id)
+		d.addAncestor(bid, id)
 	}
 
 	if _, ok := d.dag[id]; !ok {
@@ -83,39 +94,39 @@ func (d *DAG) AddNode(id ID, value interface{}, before, after []ID) error {
 	logger.Trace().
 		Str("id", string(id)).
 		Msg("Add edges.")
-	d.addEdges(id, after)
+	d.addAncestors(id, ancestors)
 	d.values[id] = value
 	d.validated = false
 	return nil
 }
 
-func (d *DAG) addEdges(from ID, toids []ID) {
-	for _, to := range toids {
+func (d *DAG) addAncestors(node ID, ancestorIDs []ID) {
+	for _, ancestor := range ancestorIDs {
 		log.Trace().
-			Str("action", "addEdges()").
-			Str("from", string(from)).
-			Str("to", string(to)).
+			Str("action", "addAncestors()").
+			Str("node", string(node)).
+			Str("ancestor", string(ancestor)).
 			Msg("Add edges.")
-		d.addEdge(from, to)
+		d.addAncestor(node, ancestor)
 	}
 }
 
-func (d *DAG) addEdge(from, to ID) {
-	fromEdges, ok := d.dag[from]
+func (d *DAG) addAncestor(node, ancestor ID) {
+	nodeAncestors, ok := d.dag[node]
 	if !ok {
 		panic("internal error: empty list of edges must exist at this point")
 	}
 
-	if !idList(fromEdges).contains(to) {
+	if !idList(nodeAncestors).contains(ancestor) {
 		log.Trace().
-			Str("action", "addEdge()").
-			Str("from", string(from)).
-			Str("to", string(to)).
+			Str("action", "addAncestor()").
+			Str("node", string(node)).
+			Str("ancestor", string(ancestor)).
 			Msg("Append edge.")
-		fromEdges = append(fromEdges, to)
+		nodeAncestors = append(nodeAncestors, ancestor)
 	}
 
-	d.dag[from] = fromEdges
+	d.dag[node] = nodeAncestors
 }
 
 // Validate the DAG looking for cycles.
@@ -203,8 +214,8 @@ func (d *DAG) Node(id ID) (interface{}, error) {
 	return v, nil
 }
 
-// ChildrenOf returns the list of node ids that are children of the given id.
-func (d *DAG) ChildrenOf(id ID) []ID {
+// AncestorsOf returns the list of ancestor node ids of the given id.
+func (d *DAG) AncestorsOf(id ID) []ID {
 	return d.dag[id]
 }
 
@@ -228,7 +239,7 @@ func (d *DAG) HasCycle(id ID) bool {
 // lexicographic sorted whenever possible to give a consistent output.
 func (d *DAG) Order() []ID {
 	order := []ID{}
-	visited := map[ID]struct{}{}
+	visited := Visited{}
 	for _, id := range d.IDs() {
 		if _, ok := visited[id]; ok {
 			continue
