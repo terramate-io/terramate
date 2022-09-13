@@ -26,8 +26,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type visited map[string]struct{}
-
 // Sort computes the final execution order for the given list of stacks.
 // In the case of multiple possible orders, it returns the lexicographic sorted
 // path.
@@ -38,8 +36,6 @@ func Sort(root string, stacks stack.List) (stack.List, string, error) {
 	for _, stack := range stacks {
 		loader.Set(stack.Path(), stack)
 	}
-
-	visited := visited{}
 
 	logger := log.With().
 		Str("action", "run.Sort()").
@@ -69,15 +65,26 @@ func Sort(root string, stacks stack.List) (stack.List, string, error) {
 
 	logger.Trace().Msg("Sorting stacks.")
 
-	for _, stack := range stacks {
-		if _, ok := visited[stack.Path()]; ok {
+	visited := dag.Visited{}
+	for _, s := range stacks {
+		if _, ok := visited[dag.ID(s.Path())]; ok {
 			continue
 		}
 
 		logger.Debug().
-			Str("stack", stack.Path()).
+			Str("stack", s.Path()).
 			Msg("Build DAG.")
-		err := BuildDAG(d, root, stack, loader, visited)
+
+		err := BuildDAG(
+			d,
+			root,
+			s,
+			loader,
+			stack.S.Before,
+			stack.S.After,
+			visited,
+		)
+
 		if err != nil {
 			return nil, "", err
 		}
@@ -136,7 +143,9 @@ func BuildDAG(
 	root string,
 	s *stack.S,
 	loader stack.Loader,
-	visited visited,
+	getDescendants func(stack.S) []string,
+	getAncestors func(stack.S) []string,
+	visited dag.Visited,
 ) error {
 	logger := log.With().
 		Str("action", "BuildDAG()").
@@ -144,7 +153,11 @@ func BuildDAG(
 		Str("stack", s.Path()).
 		Logger()
 
-	visited[s.Path()] = struct{}{}
+	if _, ok := visited[dag.ID(s.Path())]; ok {
+		return nil
+	}
+
+	visited[dag.ID(s.Path())] = struct{}{}
 
 	removeWrongPaths := func(fieldname string, paths []string) []string {
 		cleanpaths := []string{}
@@ -171,8 +184,8 @@ func BuildDAG(
 		return cleanpaths
 	}
 
-	afterPaths := removeWrongPaths("after", s.After())
-	beforePaths := removeWrongPaths("before", s.Before())
+	afterPaths := removeWrongPaths("after", getAncestors(*s))
+	beforePaths := removeWrongPaths("before", getDescendants(*s))
 
 	logger.Trace().Msg("load all stacks in dir after current stack")
 
@@ -208,13 +221,13 @@ func BuildDAG(
 			Str("stack", s.Path()).
 			Logger()
 
-		if _, ok := visited[s.Path()]; ok {
+		if _, ok := visited[dag.ID(s.Path())]; ok {
 			continue
 		}
 
 		logger.Trace().Msg("Build DAG.")
 
-		err = BuildDAG(d, root, s, loader, visited)
+		err = BuildDAG(d, root, s, loader, getDescendants, getAncestors, visited)
 		if err != nil {
 			return fmt.Errorf("stack %q: failed to build DAG: %w", s, err)
 		}

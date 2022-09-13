@@ -39,6 +39,10 @@ type (
 
 		validated bool
 	}
+
+	// Visited in a map of visited dag nodes by id.
+	// Note: it's not concurrent-safe.
+	Visited map[ID]struct{}
 )
 
 // Errors returned by operations on the DAG.
@@ -235,7 +239,7 @@ func (d *DAG) HasCycle(id ID) bool {
 // lexicographic sorted whenever possible to give a consistent output.
 func (d *DAG) Order() []ID {
 	order := []ID{}
-	visited := map[ID]struct{}{}
+	visited := Visited{}
 	for _, id := range d.IDs() {
 		if _, ok := visited[id]; ok {
 			continue

@@ -870,14 +870,21 @@ func (c *cli) generateGraph() {
 	dotGraph := dot.NewGraph(dot.Directed)
 	graph := dag.New()
 
-	visited := map[string]struct{}{}
+	visited := dag.Visited{}
 	for _, e := range c.filterStacksByWorkingDir(entries) {
-		if _, ok := visited[e.Stack.Path()]; ok {
+		if _, ok := visited[dag.ID(e.Stack.Path())]; ok {
 			continue
 		}
 
-		err := run.BuildDAG(graph, c.root(), e.Stack, loader, visited)
-		if err != nil {
+		if err := run.BuildDAG(
+			graph,
+			c.root(),
+			e.Stack,
+			loader,
+			stack.S.Before,
+			stack.S.After,
+			visited,
+		); err != nil {
 			log.Fatal().
 				Err(err).
 				Msg("failed to build order tree")

@@ -911,6 +911,32 @@ func TestRunWantedBy(t *testing.T) {
 				Stdout: listStacks("2", "stack"),
 			},
 		},
+		{
+			name: "wantedBy different stacks already selected",
+			layout: []string{
+				`s:stack1:wanted_by=["/all/1"]`,
+				`s:stack2:wanted_by=["/all/2"]`,
+				`s:all/1`,
+				`s:all/2`,
+			},
+			wd: "/all",
+			want: runExpected{
+				Stdout: listStacks("1", "2", "stack1", "stack2"),
+			},
+		},
+		{
+			name: "wantedBy different stacks already selected with wants",
+			layout: []string{
+				`s:stack1:wanted_by=["/all/1"]`,
+				`s:stack2:wanted_by=["/all/2"]`,
+				`s:all/1:wants=["/all/2"]`,
+				`s:all/2`,
+			},
+			wd: "/all/1",
+			want: runExpected{
+				Stdout: listStacks("1", "2", "stack1", "stack2"),
+			},
+		},
 	} {
 		testRunSelection(t, tc)
 	}
