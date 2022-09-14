@@ -57,7 +57,11 @@ type (
 	G map[string]Value
 )
 
-// LoadExprs loads all expressions visible in the given dir directory.
+// LoadExprs loads from the file system all globals expressions defined for
+// the given directory. It will navigate the file system from dir until it
+// reaches rootdir, loading globals expressions and merging them appropriately.
+// More specific globals (closer or at the dir) have precedence over less
+// specific globals (closer or at the root dir).
 func LoadExprs(rootdir string, cfgdir string) (Exprs, error) {
 	logger := log.With().
 		Str("action", "globals.LoadExprs()").
@@ -241,17 +245,27 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) (G, error) {
 	return globals, nil
 }
 
-// String provides a string representation of the globals
-func (g G) String() string {
-	return hcl.FormatAttributes(g.Attributes())
-}
-
-func (ge Exprs) merge(other Exprs) {
+func (globalExprs Exprs) merge(other Exprs) {
 	for k, v := range other {
-		if _, ok := ge[k]; !ok {
-			ge[k] = v
+		if _, ok := globalExprs[k]; !ok {
+			globalExprs[k] = v
 		}
 	}
+}
+
+// String provides a string representation of the evaluated globals.
+func (globals G) String() string {
+	return hcl.FormatAttributes(globals.Attributes())
+}
+
+// Attributes returns all the global attributes, the key in the map
+// is the attribute name with its corresponding value mapped
+func (globals G) Attributes() map[string]cty.Value {
+	attrcopy := map[string]cty.Value{}
+	for k, v := range globals {
+		attrcopy[k] = v.Value
+	}
+	return attrcopy
 }
 
 func removeUnset(exprs Exprs) {
@@ -278,14 +292,4 @@ func copyexprs(dst, src Exprs) {
 	for k, v := range src {
 		dst[k] = v
 	}
-}
-
-// Attributes returns all the global attributes, the key in the map
-// is the attribute name with its corresponding value mapped
-func (globals G) Attributes() map[string]cty.Value {
-	attrcopy := map[string]cty.Value{}
-	for k, v := range globals {
-		attrcopy[k] = v.Value
-	}
-	return attrcopy
 }

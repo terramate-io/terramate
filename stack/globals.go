@@ -24,7 +24,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// LoadGlobals loads from the file system all globals defined for
+// LoadStackGlobals loads from the file system all globals defined for
 // a given stack. It will navigate the file system from the stack dir until
 // it reaches rootdir, loading globals and merging them appropriately.
 //
