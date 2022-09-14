@@ -155,7 +155,7 @@ func TokensForExpression(expr hhcl.Expression) (hclwrite.Tokens, error) {
 		var err error
 		exprdata, err = ioutil.ReadFile(string(fnameBytes))
 		if err != nil {
-			return hclwrite.Tokens{}, errors.E(err, "reading expression from file")
+			return nil, errors.E(err, "reading expression from file")
 		}
 	}
 	exprRange := expr.Range()
@@ -191,7 +191,7 @@ func TokensForExpressionBytes(exprBytes []byte) (hclwrite.Tokens, error) {
 		Byte:   0,
 	})
 	if diags.HasErrors() {
-		return hclwrite.Tokens{}, errors.E(diags, "failed to scan expression")
+		return nil, errors.E(diags, "failed to scan expression")
 	}
 	return toWriteTokens(tokens), nil
 }
