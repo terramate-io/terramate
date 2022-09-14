@@ -72,7 +72,7 @@ func LoadEnv(projmeta project.Metadata, st *stack.S) (EnvVars, error) {
 
 	logger.Trace().Msg("loading globals")
 
-	globals, err := stack.LoadGlobals(projmeta, st)
+	globals, err := stack.LoadStackGlobals(projmeta, st)
 	if err != nil {
 		return nil, errors.E(ErrLoadingGlobals, err)
 	}

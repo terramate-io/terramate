@@ -35,6 +35,7 @@ import (
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
@@ -217,10 +218,10 @@ func (s S) LoadProjectMetadata() project.Metadata {
 
 // LoadStackGlobals loads globals for specific stack on the sandbox.
 // Fails the caller test if an error is found.
-func (s S) LoadStackGlobals(projmeta project.Metadata, sm stack.Metadata) stack.Globals {
+func (s S) LoadStackGlobals(projmeta project.Metadata, sm stack.Metadata) globals.G {
 	s.t.Helper()
 
-	g, err := stack.LoadGlobals(projmeta, sm)
+	g, err := stack.LoadStackGlobals(projmeta, sm)
 	assert.NoError(s.t, err)
 	return g
 }
