@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
@@ -101,7 +102,7 @@ func (f File) String() string {
 // generate_file blocks.
 //
 // The rootdir MUST be an absolute path.
-func Load(projmeta project.Metadata, sm stack.Metadata, globals stack.Globals) ([]File, error) {
+func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.G) ([]File, error) {
 	logger := log.With().
 		Str("action", "genfile.Load()").
 		Str("path", sm.HostPath()).
@@ -109,7 +110,7 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals stack.Globals) (
 
 	logger.Trace().Msg("loading generate_file blocks")
 
-	genFileBlocks, err := loadGenFileBlocks(projmeta.Rootdir, sm.HostPath())
+	genFileBlocks, err := loadGenFileBlocks(projmeta.Rootdir(), sm.HostPath())
 	if err != nil {
 		return nil, errors.E("loading generate_file", err)
 	}

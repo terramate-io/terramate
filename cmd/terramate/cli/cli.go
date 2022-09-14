@@ -1047,15 +1047,15 @@ func (c *cli) printStacksGlobals() {
 
 	for _, stackEntry := range c.filterStacksByWorkingDir(report.Stacks) {
 		meta := stack.Metadata(stackEntry.Stack)
-		globals, err := stack.LoadGlobals(projmeta, meta)
-		if err != nil {
+		report := stack.LoadStackGlobals(projmeta, meta)
+		if err := report.AsError(); err != nil {
 			log.Fatal().
 				Err(err).
 				Str("stack", meta.Path()).
 				Msg("listing stacks globals: loading stack")
 		}
 
-		globalsStrRepr := globals.String()
+		globalsStrRepr := report.Globals.String()
 		if globalsStrRepr == "" {
 			continue
 		}
@@ -1095,7 +1095,7 @@ func (c *cli) printMetadata() {
 
 	// TODO(katcipis): we need to print other project metadata too.
 	c.log("\nproject metadata:")
-	c.log("\tterramate.stacks.all=%v", projmeta.Stacks)
+	c.log("\tterramate.stacks.all=%v", projmeta.Stacks())
 
 	for _, stackEntry := range stackEntries {
 		stackMeta := stack.Metadata(stackEntry.Stack)

@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/generate/genhcl"
+	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
@@ -68,7 +69,7 @@ func Do(rootdir string, workingDir string) Report {
 	report := forEachStack(rootdir, workingDir, func(
 		projmeta project.Metadata,
 		stack *stack.S,
-		globals stack.Globals,
+		globals globals.G,
 	) dirReport {
 		stackpath := stack.HostPath()
 		logger := log.With().
@@ -275,17 +276,18 @@ func ListGenFiles(dir string) ([]string, error) {
 func CheckStack(projmeta project.Metadata, st *stack.S) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.CheckStack()").
-		Str("root", projmeta.Rootdir).
+		Str("root", projmeta.Rootdir()).
 		Stringer("stack", st).
 		Logger()
 
 	logger.Trace().Msg("Loading globals for stack.")
 
-	globals, err := stack.LoadGlobals(projmeta, st)
-	if err != nil {
+	report := stack.LoadStackGlobals(projmeta, st)
+	if err := report.AsError(); err != nil {
 		return nil, errors.E(err, "checking for outdated code")
 	}
 
+	globals := report.Globals
 	stackpath := st.HostPath()
 	var generated []fileInfo
 
@@ -493,7 +495,7 @@ func readFile(path string) (string, bool, error) {
 	return string(data), true, nil
 }
 
-type forEachStackFunc func(project.Metadata, *stack.S, stack.Globals) dirReport
+type forEachStackFunc func(project.Metadata, *stack.S, globals.G) dirReport
 
 func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 	logger := log.With().
@@ -526,15 +528,15 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 
 		logger.Trace().Msg("Load stack globals.")
 
-		globals, err := stack.LoadGlobals(projmeta, st)
-		if err != nil {
+		globalsReport := stack.LoadStackGlobals(projmeta, st)
+		if err := globalsReport.AsError(); err != nil {
 			report.addFailure(st, errors.E(ErrLoadingGlobals, err))
 			continue
 		}
 
 		logger.Trace().Msg("Calling stack callback.")
 
-		report.addDirReport(st.Path(), fn(projmeta, st, globals))
+		report.addDirReport(st.Path(), fn(projmeta, st, globalsReport.Globals))
 	}
 	report.sortFilenames()
 	return report
