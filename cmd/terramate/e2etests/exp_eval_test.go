@@ -85,6 +85,38 @@ func TestExpConfigGet(t *testing.T) {
 				Stdout: addnl(`"global string"`),
 			},
 		},
+		{
+			name: "expression with multiple globals",
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add: Globals(
+						Number("num1", 10),
+						Number("num2", 10),
+					),
+				},
+			},
+			eval: `global.num1 + global.num2`,
+			want: runExpected{
+				Stdout: addnl(`20`),
+			},
+		},
+		{
+			name: "eval ignores partial globals",
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add: Globals(
+						Str("val", "global string"),
+						Str("unknown", "terramate.stack.name"),
+					),
+				},
+			},
+			eval: `global.val`,
+			want: runExpected{
+				Stdout: addnl(`"global string"`),
+			},
+		},
 	}
 
 	for _, tc := range testcases {
