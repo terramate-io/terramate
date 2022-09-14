@@ -26,6 +26,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/modvendor"
 	prj "github.com/mineiros-io/terramate/project"
@@ -1152,6 +1153,8 @@ func (c *cli) eval() {
 	if err != nil {
 		logger.Fatal().Err(err).Send()
 	}
+
+	globals.Load(c.root(), prj.PrjAbsPath(c.root(), c.wd()), ctx)
 
 	for _, exprStr := range c.parsedArgs.Experimental.Eval.Exprs {
 		expr, err := eval.ParseExpressionBytes([]byte(exprStr))

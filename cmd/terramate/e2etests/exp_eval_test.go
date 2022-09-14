@@ -4,7 +4,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
@@ -61,14 +60,14 @@ func TestExpConfigGet(t *testing.T) {
 			name: "simple funcalls",
 			eval: `tm_upper("a")`,
 			want: runExpected{
-				Stdout: addnl("A"),
+				Stdout: addnl(`"A"`),
 			},
 		},
 		{
 			name: "nested funcalls",
 			eval: `tm_upper(tm_lower("A"))`,
 			want: runExpected{
-				Stdout: addnl("A"),
+				Stdout: addnl(`"A"`),
 			},
 		},
 		{
@@ -83,7 +82,7 @@ func TestExpConfigGet(t *testing.T) {
 			},
 			eval: `global.val`,
 			want: runExpected{
-				Stdout: addnl("global string"),
+				Stdout: addnl(`"global string"`),
 			},
 		},
 	}
@@ -101,8 +100,7 @@ func TestExpConfigGet(t *testing.T) {
 			}
 
 			test.WriteRootConfig(t, s.RootDir())
-
-			ts := newCLI(t, project.AbsPath(s.RootDir(), tc.wd))
+			ts := newCLI(t, filepath.Join(s.RootDir(), tc.wd))
 			assertRunResult(t, ts.run("experimental", "eval", tc.eval), tc.want)
 		})
 	}

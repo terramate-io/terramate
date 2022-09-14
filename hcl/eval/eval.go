@@ -138,7 +138,7 @@ func TokensForValue(value cty.Value) (hclwrite.Tokens, error) {
 // string. The expressions with these injected tokens have the filename of the
 // form:
 //   <generated-hcl><NUL BYTE><tokens>
-// See the parseExpressionBytes() function for details of how bytes are injected.
+// See the ParseExpressionBytes() function for details of how bytes are injected.
 //
 // At this point you should be wondering: What happens if the user creates a
 // a file with this format? The answer depends on the user's operating system,
@@ -163,10 +163,10 @@ func TokensForExpression(expr hhcl.Expression) (hclwrite.Tokens, error) {
 	return TokensForExpressionBytes(exprdata)
 }
 
-// parseExpressionBytes parses the exprBytes into a hcl.Expression and stores
+// ParseExpressionBytes parses the exprBytes into a hcl.Expression and stores
 // the original tokens inside the expression.Range().Filename. For details
 // about this craziness, see the TokensForExpression() function.
-func parseExpressionBytes(exprBytes []byte) (hhcl.Expression, error) {
+func ParseExpressionBytes(exprBytes []byte) (hhcl.Expression, error) {
 	fnameBytes := append(injectedTokensPrefix(), exprBytes...)
 	expr, diags := hclsyntax.ParseExpression(
 		exprBytes,

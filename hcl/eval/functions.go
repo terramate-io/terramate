@@ -111,7 +111,7 @@ func evalTernaryBranch(arg cty.Value) (cty.Value, error) {
 		return cty.NilVal, errors.E(err, "evaluating tm_ternary branch")
 	}
 
-	exprParsed, err := parseExpressionBytes(newtokens.Bytes())
+	exprParsed, err := ParseExpressionBytes(newtokens.Bytes())
 	if err != nil {
 		return cty.NilVal, errors.E(err, "parsing partial evaluated bytes")
 	}
