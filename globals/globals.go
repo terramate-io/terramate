@@ -132,12 +132,8 @@ func LoadExprs(rootdir string, cfgdir string) (Exprs, error) {
 	return exprs, nil
 }
 
-// Eval will evaluate all globals. Expressions will be consumed so calling
-// this method a second time results in an empty set of Globals.
+// Eval will evaluate all globals.
 func (globalExprs Exprs) Eval(ctx *eval.Context) (G, error) {
-	// FIXME(katcipis): get abs path for stack.
-	// This is relative only to root since meta.Path will look
-	// like: /some/path/relative/project/root
 	logger := log.With().
 		Str("action", "Exprs.Eval()").
 		Logger()
@@ -145,7 +141,6 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) (G, error) {
 	logger.Trace().Msg("Create new evaluation context.")
 
 	globals := make(G)
-
 	pendingExprsErrs := map[string]error{}
 	pendingExprs := make(Exprs)
 
