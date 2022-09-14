@@ -23,13 +23,28 @@ import (
 
 // Metadata represents project wide metadata.
 type Metadata struct {
-	// Rootdir is the root dir of the project
-	Rootdir string
-
-	// Stacks contains the absolute path relative to the project root
-	// of all stacks inside the project.
-	Stacks []string
+	rootdir string
+	stacks  []string
 }
+
+func NewMetadata(rootdir string, stackpaths []string) Metadata {
+	if !filepath.IsAbs(rootdir) {
+		panic("rootdir must be an absolute path")
+	}
+	return Metadata{
+		rootdir: rootdir,
+		stacks:  stackpaths,
+	}
+}
+
+// Rootdir is the root dir of the project
+func (m Metadata) Rootdir() string {
+	return m.rootdir
+}
+
+// Stacks contains the absolute path relative to the project root
+// of all stacks inside the project.
+func (m Metadata) Stacks() []string { return m.stacks }
 
 // PrjAbsPath converts the file system absolute path absdir into an absolute
 // project path on the form /path/on/project relative to the given root.

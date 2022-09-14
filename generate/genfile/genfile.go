@@ -110,7 +110,7 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.G) ([]Fi
 
 	logger.Trace().Msg("loading generate_file blocks")
 
-	genFileBlocks, err := loadGenFileBlocks(projmeta.Rootdir, sm.HostPath())
+	genFileBlocks, err := loadGenFileBlocks(projmeta.Rootdir(), sm.HostPath())
 	if err != nil {
 		return nil, errors.E("loading generate_file", err)
 	}

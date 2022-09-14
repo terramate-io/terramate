@@ -132,7 +132,7 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.G) ([]HC
 
 	logger.Trace().Msg("loading generate_hcl blocks.")
 
-	loadedHCLs, err := loadGenHCLBlocks(projmeta.Rootdir, sm.HostPath())
+	loadedHCLs, err := loadGenHCLBlocks(projmeta.Rootdir(), sm.HostPath())
 	if err != nil {
 		return nil, errors.E("loading generate_hcl", err)
 	}

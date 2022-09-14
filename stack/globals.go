@@ -15,9 +15,6 @@
 package stack
 
 import (
-	"path/filepath"
-
-	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
@@ -33,28 +30,21 @@ import (
 //
 // Metadata for the stack is used on the evaluation of globals.
 // The rootdir MUST be an absolute path.
-func LoadStackGlobals(projmeta project.Metadata, stackmeta Metadata) (globals.G, error) {
+func LoadStackGlobals(projmeta project.Metadata, stackmeta Metadata) globals.EvalReport {
 	logger := log.With().
 		Str("action", "stack.LoadStackGlobals()").
 		Str("stack", stackmeta.Path()).
 		Logger()
 
-	if !filepath.IsAbs(projmeta.Rootdir) {
-		return globals.G{}, errors.E("%q is not absolute path", projmeta.Rootdir)
-	}
-
-	logger.Debug().Msg("Load stack globals.")
-
-	globalExprs, err := globals.LoadExprs(projmeta.Rootdir, stackmeta.Path())
-	if err != nil {
-		return globals.G{}, err
-	}
+	logger.Debug().Msg("Creating stack context.")
 
 	ctx, err := eval.NewContext(stackmeta.HostPath())
 	if err != nil {
-		return globals.G{}, err
+		return globals.EvalReport{
+			BootstrapErr: err,
+		}
 	}
 
 	ctx.SetNamespace("terramate", metaToCtyMap(projmeta, stackmeta))
-	return globalExprs.Eval(ctx)
+	return globals.Load(projmeta.Rootdir(), stackmeta.Path(), ctx)
 }

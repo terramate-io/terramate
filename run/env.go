@@ -52,13 +52,13 @@ type EnvVars []string
 func LoadEnv(projmeta project.Metadata, st *stack.S) (EnvVars, error) {
 	logger := log.With().
 		Str("action", "run.Env()").
-		Str("root", projmeta.Rootdir).
+		Str("root", projmeta.Rootdir()).
 		Stringer("stack", st).
 		Logger()
 
 	logger.Trace().Msg("parsing configuration")
 
-	cfg, err := hcl.ParseDir(projmeta.Rootdir, projmeta.Rootdir)
+	cfg, err := hcl.ParseDir(projmeta.Rootdir(), projmeta.Rootdir())
 	if err != nil {
 		return nil, errors.E(ErrParsingCfg, err)
 	}
@@ -72,15 +72,14 @@ func LoadEnv(projmeta project.Metadata, st *stack.S) (EnvVars, error) {
 
 	logger.Trace().Msg("loading globals")
 
-	globals, err := stack.LoadStackGlobals(projmeta, st)
-	if err != nil {
+	globalsReport := stack.LoadStackGlobals(projmeta, st)
+	if err := globalsReport.AsError(); err != nil {
 		return nil, errors.E(ErrLoadingGlobals, err)
 	}
 
-	evalctx := stack.NewEvalCtx(projmeta, st, globals)
+	evalctx := stack.NewEvalCtx(projmeta, st, globalsReport.Evaluated)
 
 	evalctx.SetEnv(os.Environ())
-
 	envVars := EnvVars{}
 
 	attrs := cfg.Terramate.Config.Run.Env.Attributes.SortedList()

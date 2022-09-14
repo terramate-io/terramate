@@ -57,6 +57,25 @@ type (
 	G map[string]Value
 )
 
+func Load(rootdir string, cfgdir string, ctx *eval.Context) EvalReport {
+	logger := log.With().
+		Str("action", "globals.Load()").
+		Str("root", rootdir).
+		Str("cfgdir", cfgdir).
+		Logger()
+
+	logger.Trace().Msg("loading expressions")
+
+	exprs, err := LoadExprs(rootdir, cfgdir)
+	if err != nil {
+		report := NewEvalReport()
+		report.BootstrapErr = err
+		return report
+	}
+
+	return exprs.Eval(ctx)
+}
+
 // LoadExprs loads from the file system all globals expressions defined for
 // the given directory. It will navigate the file system from dir until it
 // reaches rootdir, loading globals expressions and merging them appropriately.
@@ -136,16 +155,17 @@ func LoadExprs(rootdir string, cfgdir string) (Exprs, error) {
 	return exprs, nil
 }
 
-// Eval will evaluate all globals.
-func (globalExprs Exprs) Eval(ctx *eval.Context) (G, error) {
+// Eval evaluates all global expressions and returns an EvalReport..
+func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 	logger := log.With().
 		Str("action", "Exprs.Eval()").
 		Logger()
 
 	logger.Trace().Msg("Create new evaluation context.")
 
-	globals := make(G)
-	pendingExprsErrs := map[string]error{}
+	report := NewEvalReport()
+	globals := report.Evaluated
+	pendingExprsErrs := map[string]*errors.List{}
 	pendingExprs := make(Exprs)
 
 	copyexprs(pendingExprs, globalExprs)
@@ -169,15 +189,19 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) (G, error) {
 
 			vars := hclsyntax.Variables(expr)
 
+			pendingExprsErrs[name] = errors.L()
+
 			logger.Trace().Msg("checking var access inside expression")
 
 			for _, namespace := range vars {
 				if !ctx.HasNamespace(namespace.RootName()) {
-					return G{}, errors.E(
+					pendingExprsErrs[name].Append(errors.E(
 						ErrGlobalEval,
 						namespace.SourceRange(),
 						"unknown variable namespace: %s", namespace.RootName(),
-					)
+					))
+
+					continue
 				}
 
 				if namespace.RootName() != "global" {
@@ -194,11 +218,15 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) (G, error) {
 				}
 			}
 
+			if err := pendingExprsErrs[name].AsError(); err != nil {
+				continue
+			}
+
 			logger.Trace().Msg("evaluating expression")
 
 			val, err := ctx.Eval(expr)
 			if err != nil {
-				pendingExprsErrs[name] = err
+				pendingExprsErrs[name].Append(err)
 				continue
 			}
 
@@ -222,27 +250,18 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) (G, error) {
 		}
 	}
 
-	if len(pendingExprs) > 0 {
-		// TODO(katcipis): model proper error list and return that
-		// Caller can decide how to format/log things (like code generation report).
-		pendingGlobalNames := make([]string, 0, len(pendingExprs))
-		for name, expr := range pendingExprs {
-			err, ok := pendingExprsErrs[name]
-			if !ok {
-				err = errors.E("undefined global")
-			}
-			pendingGlobalNames = append(pendingGlobalNames, name)
-			logger.Err(err).
-				Str("name", name).
-				Str("origin", expr.Origin).
-				Msg("evaluating global")
+	for name, expr := range pendingExprs {
+		err := pendingExprsErrs[name].AsError()
+		if err == nil {
+			err = errors.E(expr.Range(), "undefined global %s", name)
 		}
-		return G{}, errors.E(
-			ErrGlobalEval, "pending unknown globals: %v", pendingGlobalNames,
-		)
+		report.Errors[name] = EvalError{
+			Expr: expr,
+			Err:  errors.E(ErrGlobalEval, err),
+		}
 	}
 
-	return globals, nil
+	return report
 }
 
 func (globalExprs Exprs) merge(other Exprs) {

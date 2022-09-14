@@ -69,8 +69,8 @@ func (e *EvalCtx) SetEnv(environ []string) {
 func metaToCtyMap(projmeta project.Metadata, m Metadata) map[string]cty.Value {
 	logger := log.With().
 		Str("action", "stack.metaToCtyMap()").
-		Str("stacks", fmt.Sprintf("%v", projmeta.Stacks)).
-		Str("root", projmeta.Rootdir).
+		Str("stacks", fmt.Sprintf("%v", projmeta.Stacks())).
+		Str("root", projmeta.Rootdir()).
 		Logger()
 
 	logger.Trace().Msg("creating stack metadata")
@@ -95,8 +95,8 @@ func metaToCtyMap(projmeta project.Metadata, m Metadata) map[string]cty.Value {
 	stack := cty.ObjectVal(stackMapVals)
 
 	rootfs := cty.ObjectVal(map[string]cty.Value{
-		"absolute": cty.StringVal(projmeta.Rootdir),
-		"basename": cty.StringVal(filepath.Base(projmeta.Rootdir)),
+		"absolute": cty.StringVal(projmeta.Rootdir()),
+		"basename": cty.StringVal(filepath.Base(projmeta.Rootdir())),
 	})
 	rootpath := cty.ObjectVal(map[string]cty.Value{
 		"fs": rootfs,
@@ -106,7 +106,7 @@ func metaToCtyMap(projmeta project.Metadata, m Metadata) map[string]cty.Value {
 	})
 
 	stacksNs := cty.ObjectVal(map[string]cty.Value{
-		"list": toCtyStringList(projmeta.Stacks),
+		"list": toCtyStringList(projmeta.Stacks()),
 	})
 	return map[string]cty.Value{
 		"root":        root,

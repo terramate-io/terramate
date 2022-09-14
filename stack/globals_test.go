@@ -18,7 +18,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
@@ -1552,8 +1551,8 @@ func TestLoadGlobals(t *testing.T) {
 				st := entry.Stack
 				stacks = append(stacks, st)
 
-				got, err := stack.LoadStackGlobals(projmeta, st)
-				errtest.Assert(t, err, tcase.wantErr)
+				gotReport := stack.LoadStackGlobals(projmeta, st)
+				errtest.Assert(t, gotReport.AsError(), tcase.wantErr)
 				if tcase.wantErr != nil {
 					continue
 				}
@@ -1572,6 +1571,7 @@ func TestLoadGlobals(t *testing.T) {
 					t.Errorf("wanted globals definition:\n%s\n", want)
 				}
 
+				got := gotReport.Evaluated
 				gotAttrs := got.Attributes()
 				wantAttrs := want.AttributesValues()
 
@@ -1744,25 +1744,9 @@ func TestLoadGlobalsErrors(t *testing.T) {
 			projmeta := stack.NewProjectMetadata(s.RootDir(), stacks)
 
 			for _, st := range stacks {
-				_, err := stack.LoadStackGlobals(projmeta, st)
-				errtest.Assert(t, err, tcase.want)
+				report := stack.LoadStackGlobals(projmeta, st)
+				errtest.Assert(t, report.AsError(), tcase.want)
 			}
 		})
 	}
-}
-
-func TestLoadGlobalsErrorOnRelativeDir(t *testing.T) {
-	s := sandbox.New(t)
-	s.BuildTree([]string{"s:stack"})
-
-	rel, err := filepath.Rel(test.Getwd(t), s.RootDir())
-	assert.NoError(t, err)
-
-	stacks := s.LoadStacks()
-	assert.EqualInts(t, 1, len(stacks))
-
-	projmeta := s.LoadProjectMetadata()
-	projmeta.Rootdir = rel
-	globals, err := stack.LoadStackGlobals(projmeta, stacks[0])
-	assert.Error(t, err, "got %v instead of error", globals)
 }

@@ -221,9 +221,9 @@ func (s S) LoadProjectMetadata() project.Metadata {
 func (s S) LoadStackGlobals(projmeta project.Metadata, sm stack.Metadata) globals.G {
 	s.t.Helper()
 
-	g, err := stack.LoadStackGlobals(projmeta, sm)
-	assert.NoError(s.t, err)
-	return g
+	report := stack.LoadStackGlobals(projmeta, sm)
+	assert.NoError(s.t, report.AsError())
+	return report.Evaluated
 }
 
 // RootDir returns the root directory of the test env. All dirs/files created

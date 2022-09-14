@@ -276,17 +276,18 @@ func ListGenFiles(dir string) ([]string, error) {
 func CheckStack(projmeta project.Metadata, st *stack.S) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.CheckStack()").
-		Str("root", projmeta.Rootdir).
+		Str("root", projmeta.Rootdir()).
 		Stringer("stack", st).
 		Logger()
 
 	logger.Trace().Msg("Loading globals for stack.")
 
-	globals, err := stack.LoadStackGlobals(projmeta, st)
-	if err != nil {
+	report := stack.LoadStackGlobals(projmeta, st)
+	if err := report.AsError(); err != nil {
 		return nil, errors.E(err, "checking for outdated code")
 	}
 
+	globals := report.Evaluated
 	stackpath := st.HostPath()
 	var generated []fileInfo
 
@@ -527,15 +528,15 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 
 		logger.Trace().Msg("Load stack globals.")
 
-		globals, err := stack.LoadStackGlobals(projmeta, st)
-		if err != nil {
+		globalsReport := stack.LoadStackGlobals(projmeta, st)
+		if err := globalsReport.AsError(); err != nil {
 			report.addFailure(st, errors.E(ErrLoadingGlobals, err))
 			continue
 		}
 
 		logger.Trace().Msg("Calling stack callback.")
 
-		report.addDirReport(st.Path(), fn(projmeta, st, globals))
+		report.addDirReport(st.Path(), fn(projmeta, st, globalsReport.Evaluated))
 	}
 	report.sortFilenames()
 	return report
