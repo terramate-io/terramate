@@ -117,6 +117,25 @@ func TestExpConfigGet(t *testing.T) {
 				Stdout: addnl(`"global string"`),
 			},
 		},
+		{
+			name: "eval works with stack values",
+			layout: []string{
+				"s:stack",
+			},
+			wd: "stack",
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add: Globals(
+						Str("val", "global string"),
+					),
+				},
+			},
+			eval: `"stack path: ${terramate.stack.path.absolute}"`,
+			want: runExpected{
+				Stdout: addnl(`"stack path: /stack"`),
+			},
+		},
 	}
 
 	for _, tc := range testcases {

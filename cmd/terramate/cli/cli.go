@@ -1154,6 +1154,27 @@ func (c *cli) eval() {
 		logger.Fatal().Err(err).Send()
 	}
 
+	allStackEntries, err := terramate.ListStacks(c.root())
+	if err != nil {
+		logger.Fatal().Err(err).Msg("listing all stacks")
+	}
+
+	allstacks := make(stack.List, len(allStackEntries))
+	for i, e := range allStackEntries {
+		allstacks[i] = e.Stack
+	}
+
+	projmeta := stack.NewProjectMetadata(c.root(), allstacks)
+	if isStack, _ := config.IsStack(c.root(), c.wd()); isStack {
+		st, err := stack.Load(c.root(), c.wd())
+		if err != nil {
+			logger.Fatal().Err(err).Msg("loading stack config")
+		}
+		ctx.SetNamespace("terramate", stack.MetadataCtyValues(projmeta, st))
+	} else {
+		ctx.SetNamespace("terramate", projmeta.ToCtyMap())
+	}
+
 	globals.Load(c.root(), prj.PrjAbsPath(c.root(), c.wd()), ctx)
 
 	for _, exprStr := range c.parsedArgs.Experimental.Eval.Exprs {

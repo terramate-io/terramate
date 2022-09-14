@@ -45,6 +45,6 @@ func LoadStackGlobals(projmeta project.Metadata, stackmeta Metadata) globals.Eva
 		}
 	}
 
-	ctx.SetNamespace("terramate", metaToCtyMap(projmeta, stackmeta))
+	ctx.SetNamespace("terramate", MetadataCtyValues(projmeta, stackmeta))
 	return globals.Load(projmeta.Rootdir(), stackmeta.Path(), ctx)
 }
