@@ -57,6 +57,7 @@ type (
 	G map[string]Value
 )
 
+// Load loads all the globals from the cfgdir.
 func Load(rootdir string, cfgdir string, ctx *eval.Context) EvalReport {
 	logger := log.With().
 		Str("action", "globals.Load()").
@@ -164,7 +165,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 	logger.Trace().Msg("Create new evaluation context.")
 
 	report := NewEvalReport()
-	globals := report.Evaluated
+	globals := report.Globals
 	pendingExprsErrs := map[string]*errors.List{}
 	pendingExprs := make(Exprs)
 

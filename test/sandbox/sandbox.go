@@ -223,7 +223,7 @@ func (s S) LoadStackGlobals(projmeta project.Metadata, sm stack.Metadata) global
 
 	report := stack.LoadStackGlobals(projmeta, sm)
 	assert.NoError(s.t, report.AsError())
-	return report.Evaluated
+	return report.Globals
 }
 
 // RootDir returns the root directory of the test env. All dirs/files created

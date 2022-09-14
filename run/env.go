@@ -77,7 +77,7 @@ func LoadEnv(projmeta project.Metadata, st *stack.S) (EnvVars, error) {
 		return nil, errors.E(ErrLoadingGlobals, err)
 	}
 
-	evalctx := stack.NewEvalCtx(projmeta, st, globalsReport.Evaluated)
+	evalctx := stack.NewEvalCtx(projmeta, st, globalsReport.Globals)
 
 	evalctx.SetEnv(os.Environ())
 	envVars := EnvVars{}

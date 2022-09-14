@@ -287,7 +287,7 @@ func CheckStack(projmeta project.Metadata, st *stack.S) ([]string, error) {
 		return nil, errors.E(err, "checking for outdated code")
 	}
 
-	globals := report.Evaluated
+	globals := report.Globals
 	stackpath := st.HostPath()
 	var generated []fileInfo
 
@@ -536,7 +536,7 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 
 		logger.Trace().Msg("Calling stack callback.")
 
-		report.addDirReport(st.Path(), fn(projmeta, st, globalsReport.Evaluated))
+		report.addDirReport(st.Path(), fn(projmeta, st, globalsReport.Globals))
 	}
 	report.sortFilenames()
 	return report

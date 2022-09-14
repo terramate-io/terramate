@@ -1571,7 +1571,7 @@ func TestLoadGlobals(t *testing.T) {
 					t.Errorf("wanted globals definition:\n%s\n", want)
 				}
 
-				got := gotReport.Evaluated
+				got := gotReport.Globals
 				gotAttrs := got.Attributes()
 				wantAttrs := want.AttributesValues()
 

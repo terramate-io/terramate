@@ -1043,7 +1043,7 @@ func (c *cli) printStacksGlobals() {
 				Msg("listing stacks globals: loading stack")
 		}
 
-		globalsStrRepr := report.Evaluated.String()
+		globalsStrRepr := report.Globals.String()
 		if globalsStrRepr == "" {
 			continue
 		}

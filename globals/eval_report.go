@@ -5,22 +5,29 @@ import (
 )
 
 type (
+	// EvalReport is the report for the evaluation globals.
 	EvalReport struct {
-		Evaluated    G
+		// Globals are the evaluated globals.
+		Globals G
+		// BootstrapErr is for the case of errors happening before the evaluation.
 		BootstrapErr error
-		Errors       map[string]EvalError // map of global name to its EvalError.
+
+		// Errors is a map of errors for each global.
+		Errors map[string]EvalError // map of global name to its EvalError.
 	}
 
+	// EvalError carries the error and the expression which resulted in it.
 	EvalError struct {
 		Expr Expr
 		Err  error
 	}
 )
 
+// NewEvalReport creates a new globals evaluation report.
 func NewEvalReport() EvalReport {
 	return EvalReport{
-		Evaluated: make(G),
-		Errors:    make(map[string]EvalError),
+		Globals: make(G),
+		Errors:  make(map[string]EvalError),
 	}
 }
 

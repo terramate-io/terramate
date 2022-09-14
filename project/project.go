@@ -27,6 +27,7 @@ type Metadata struct {
 	stacks  []string
 }
 
+// NewMetadata creates a new project metadata.
 func NewMetadata(rootdir string, stackpaths []string) Metadata {
 	if !filepath.IsAbs(rootdir) {
 		panic("rootdir must be an absolute path")
