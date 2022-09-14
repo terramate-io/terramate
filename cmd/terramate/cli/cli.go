@@ -148,7 +148,7 @@ type cliSpec struct {
 		} `cmd:"" help:"Manages vendored Terraform modules"`
 
 		Eval struct {
-			AsJson bool     `help:"Outputs the result as a JSON value"`
+			AsJSON bool     `help:"Outputs the result as a JSON value"`
 			Exprs  []string `arg:"" help:"expressions to be evaluated" name:"expr" passthrough:""`
 		} `cmd:"" help:"Eval expression"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
@@ -1170,7 +1170,7 @@ func (c *cli) eval() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("loading stack config")
 		}
-		ctx.SetNamespace("terramate", stack.MetadataCtyValues(projmeta, st))
+		ctx.SetNamespace("terramate", stack.MetadataToCtyValues(projmeta, st))
 	} else {
 		ctx.SetNamespace("terramate", projmeta.ToCtyMap())
 	}
@@ -1190,7 +1190,7 @@ func (c *cli) eval() {
 		}
 
 		var out []byte
-		if c.parsedArgs.Experimental.Eval.AsJson {
+		if c.parsedArgs.Experimental.Eval.AsJSON {
 			out, err = json.Marshal(val, val.Type())
 			if err != nil {
 				logger.Fatal().

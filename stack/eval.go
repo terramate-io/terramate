@@ -50,7 +50,7 @@ func (e *EvalCtx) SetGlobals(g globals.G) {
 
 // SetMetadata sets the given metadata on the stack evaluation context.
 func (e *EvalCtx) SetMetadata(projmeta project.Metadata, sm Metadata) {
-	e.SetNamespace("terramate", MetadataCtyValues(projmeta, sm))
+	e.SetNamespace("terramate", MetadataToCtyValues(projmeta, sm))
 }
 
 // SetEnv sets the given environment on the env namespace of the evaluation context.
@@ -98,7 +98,8 @@ func stackMetaToCtyMap(m Metadata) map[string]cty.Value {
 	}
 }
 
-func MetadataCtyValues(projmeta project.Metadata, sm Metadata) map[string]cty.Value {
+// MetadataToCtyValues converts the metadatas to a map of cty.Values.
+func MetadataToCtyValues(projmeta project.Metadata, sm Metadata) map[string]cty.Value {
 	projvalues := projmeta.ToCtyMap()
 	stackvalues := stackMetaToCtyMap(sm)
 
