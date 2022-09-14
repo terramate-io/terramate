@@ -20,6 +20,7 @@ package errors
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -281,7 +282,7 @@ func (e *Error) error(fields []interface{}, verbose bool) string {
 					errParts = append(errParts,
 						fmt.Sprintf("filename=%q, start line=%d, start col=%d, "+
 							"start byte=%d, end line=%d, end col=%d, end byte=%d",
-							v.Filename,
+							filename(v.Filename),
 							v.Start.Line, v.Start.Column, v.Start.Byte,
 							v.End.Line, v.End.Column, v.End.Byte),
 					)
@@ -439,4 +440,11 @@ func equalStack(s1, s2 StackMeta) bool {
 	return s1.Name() == s2.Name() &&
 		s1.Desc() == s2.Desc() &&
 		s1.Path() == s2.Path()
+}
+
+func filename(fname string) string {
+	if ext := filepath.Ext(fname); ext == ".tm" || ext == ".tm.hcl" {
+		return fname
+	}
+	return "<generated-code>"
 }

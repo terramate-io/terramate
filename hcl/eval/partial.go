@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
@@ -808,17 +807,15 @@ func (e *engine) evalTmFuncall() error {
 		expr = append(expr, part.Bytes...)
 	}
 
-	exprParsed, diags := hclsyntax.ParseExpression(expr, "gen.hcl", hcl.Pos{})
-	if diags.HasErrors() {
-		return errorf("failed to parse expr ('%s'): %v", expr, diags.Error())
+	exprParsed, err := parseExpressionBytes(expr)
+	if err != nil {
+		return errors.E(err, "evaluating expression: %s", expr)
 	}
 
 	val, err := e.ctx.Eval(exprParsed)
 	if err != nil {
-		return err
+		return errors.E(err, "evaluating expression: %s", expr)
 	}
-
-	val = val.Mark(ExpressionStringMark(expr)) // wrong
 
 	evaluated, err := TokensForValue(val)
 	if err != nil {
@@ -891,12 +888,12 @@ func (e *engine) evalVar() error {
 		expr = append(expr, part.Bytes...)
 	}
 
-	parsedExpr, diags := hclsyntax.ParseExpression(expr, "gen.hcl", hcl.Pos{})
-	if diags.HasErrors() {
-		return errorf("failed to parse expr %s: %v", expr, diags.Error())
+	exprParsed, err := parseExpressionBytes(expr)
+	if err != nil {
+		return err
 	}
 
-	val, err := e.ctx.Eval(parsedExpr)
+	val, err := e.ctx.Eval(exprParsed)
 	if err != nil {
 		return err
 	}

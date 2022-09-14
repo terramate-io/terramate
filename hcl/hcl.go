@@ -196,13 +196,13 @@ type GenFileBlock struct {
 // Evaluator represents a Terramate evaluator
 type Evaluator interface {
 	// Eval evaluates the given expression returning a value.
-	Eval(hclsyntax.Expression) (cty.Value, error)
+	Eval(hcl.Expression) (cty.Value, error)
 
 	// PartialEval partially evaluates the given expression returning the
 	// tokens that form the result of the partial evaluation. Any unknown
 	// namespace access are ignored and left as is, while known namespaces
 	// are substituted by its value.
-	PartialEval(hclsyntax.Expression) (hclwrite.Tokens, error)
+	PartialEval(hcl.Expression) (hclwrite.Tokens, error)
 
 	// SetNamespace adds a new namespace, replacing any with the same name.
 	SetNamespace(name string, values map[string]cty.Value)
