@@ -1328,6 +1328,18 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
+			name: "tm_ternary returning complete result",
+			globals: Globals(
+				Str("a", "val"),
+			),
+			config: Doc(
+				Expr("a", `tm_ternary(true, [global.a], [])`),
+			),
+			want: Doc(
+				Expr("a", `["val"]`),
+			),
+		},
+		{
 			name: "tm_ternary returning literals",
 			config: Doc(
 				Expr("a", "tm_ternary(false, local.var, [])"),
@@ -1346,7 +1358,7 @@ func TestPartialEval(t *testing.T) {
 								value = tm_ternary(true, [local.var], 0)
 							}
 						}
-					}	
+					}
 				}`),
 			),
 			want: Doc(
@@ -1357,8 +1369,116 @@ func TestPartialEval(t *testing.T) {
 								value = [local.var]
 							}
 						}
-					}	
+					}
 				}`),
+			),
+		},
+		{
+			name: "tm_ternary mixing tm_ calls with partials",
+			config: Doc(
+				Expr("a", `tm_ternary(true, {
+							evaluated = tm_upper("a")
+							partial = local.var
+						}, {})`),
+			),
+			want: Doc(
+				Expr("a", `{
+							evaluated = "A"
+							partial = local.var
+						}`),
+			),
+		},
+		{
+			name: "tm_ternary mixing globals and unknowns",
+			globals: Globals(
+				Str("provider", "google"),
+			),
+			config: Doc(
+				Expr("a", `tm_ternary(true, {
+							evaluated1 = data.providers[global.provider]
+                            evaluated2 = global.provider
+							partial = local.var
+						}, {})`),
+			),
+			want: Doc(
+				Expr("a", `{
+							evaluated1 = data.providers["google"]
+							evaluated2 = "google"
+							partial = local.var
+						}`),
+			),
+		},
+		{
+			name: "nested tm_ternary calls with fully evaluated branches",
+			config: Doc(
+				Expr("a", `tm_ternary(true, tm_ternary(false, "fail", "works"), tm_ternary(true, "fail", "works"))`),
+			),
+			want: Doc(
+				Expr("a", `"works"`),
+			),
+		},
+		{
+			name: "nested tm_ternary calls with partial evaluated branches",
+			config: Doc(
+				Expr("a", `tm_ternary(true, tm_ternary(false, local.fails, local.works), tm_ternary(true, local.fails, local.works))`),
+			),
+			want: Doc(
+				Expr("a", `local.works`),
+			),
+		},
+		{
+			name: "nested tm_ternary mixing tm_ calls with partials",
+			config: Doc(
+				Expr("a", `tm_ternary(true, tm_ternary(true, {
+							evaluated = tm_upper("a")
+							partial = local.branch1
+						}, {}), {})`),
+			),
+			want: Doc(
+				Expr("a", `{
+							evaluated = "A"
+							partial = local.branch1
+						}`),
+			),
+		},
+		{
+			name: "nested tm_ternary mixing tm_ calls with partials returning branch2",
+			config: Doc(
+				Expr("a", `tm_ternary(true, tm_ternary(false, {
+							evaluated = tm_upper("a")
+							partial = local.branch1
+						}, {
+							evaluated = tm_upper("a")
+							partial = local.branch2
+						}), {})`),
+			),
+			want: Doc(
+				Expr("a", `{
+							evaluated = "A"
+							partial = local.branch2
+						}`),
+			),
+		},
+		{
+			name: "nested tm_ternary mixing tm_ calls with partials returning branch3",
+			config: Doc(
+				Expr("a", `tm_ternary(false,
+									tm_ternary(false, {
+										evaluated = tm_upper("a")
+										partial = local.branch1
+									}, {
+										evaluated = tm_upper("a")
+										partial = local.branch2
+									}), {
+									evaluated = tm_upper("a")
+									partial = local.branch3
+					})`),
+			),
+			want: Doc(
+				Expr("a", `{
+							evaluated = "A"
+							partial = local.branch3
+						}`),
 			),
 		},
 		{
