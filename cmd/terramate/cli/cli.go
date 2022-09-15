@@ -1240,7 +1240,7 @@ func (c *cli) getConfigValue() {
 
 		iteratorTraversal, diags := hhcl.AbsTraversalForExpr(expr)
 		if diags.HasErrors() {
-			logger.Fatal().Err(diags).Msg("expected a variable accessor")
+			logger.Fatal().Err(errors.E(diags)).Msg("expected a variable accessor")
 		}
 
 		varns := iteratorTraversal.RootName()
@@ -1256,7 +1256,7 @@ func (c *cli) getConfigValue() {
 		}
 
 		var out []byte
-		if c.parsedArgs.Experimental.Eval.AsJSON {
+		if c.parsedArgs.Experimental.GetConfigValue.AsJSON {
 			out, err = json.Marshal(val, val.Type())
 			if err != nil {
 				logger.Fatal().
