@@ -115,7 +115,15 @@ func ParseSource(modsource string) (Source, error) {
 		rawURL := strings.TrimPrefix(modsource, "git::")
 		u, err := url.Parse(rawURL)
 		if err != nil {
-			return Source{}, errors.E(ErrInvalidModSrc, "invalid URL inside %s", modsource)
+			return Source{}, errors.E(ErrInvalidModSrc, modsource)
+		}
+
+		if u.Path == "" {
+			return Source{}, errors.E(
+				ErrInvalidModSrc,
+				"source %q is missing the path component",
+				modsource,
+			)
 		}
 
 		subdir := parseURLSubdir(u)
