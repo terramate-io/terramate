@@ -248,6 +248,50 @@ func TestGetConfigValue(t *testing.T) {
 				StderrRegex: "expected a variable accessor",
 			},
 		},
+		{
+			name: "funcall expression",
+			expr: `tm_upper("a")`,
+			want: runExpected{
+				Status:      1,
+				StderrRegex: "expected a variable accessor",
+			},
+		},
+		{
+			name: "unsupported rootname",
+			expr: `local.value`,
+			want: runExpected{
+				Status:      1,
+				StderrRegex: "only terramate and global variables are supported",
+			},
+		},
+		{
+			name: "terramate.stacks.list works on any directory inside rootdir",
+			layout: []string{
+				`s:stacks/stack1`,
+				`s:stacks/stack2`,
+				`d:dir/outside/stacks/hierarchy`,
+			},
+			wd:   "dir/outside/stacks/hierarchy",
+			expr: `terramate.stacks.list`,
+			want: runExpected{
+				Stdout: addnl(`["/stacks/stack1", "/stacks/stack2"]`),
+			},
+		},
+		{
+			name: "get global.val",
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add: Globals(
+						Number("val", 1000),
+					),
+				},
+			},
+			expr: `global.val`,
+			want: runExpected{
+				Stdout: addnl("1000"),
+			},
+		},
 	}
 
 	for _, tc := range testcases {
