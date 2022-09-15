@@ -4,85 +4,87 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
-func TestExpConfigGet(t *testing.T) {
+func TestExpEval(t *testing.T) {
 	type (
 		globalsBlock struct {
 			path string
 			add  *hclwrite.Block
 		}
 		testcase struct {
-			name    string
-			layout  []string
-			wd      string
-			globals []globalsBlock
-			eval    string
-			want    runExpected
+			name        string
+			layout      []string
+			wd          string
+			globals     []globalsBlock
+			expr        string
+			wantEval    runExpected
+			wantPartial runExpected
 		}
 	)
-
-	addnl := func(s string) string { return s + "\n" }
 
 	testcases := []testcase{
 		{
 			name: "boolean expression",
-			eval: `true`,
-			want: runExpected{
-				Stdout: addnl("true"),
+			expr: `true && false`,
+			wantEval: runExpected{
+				Stdout: addnl("false"),
+			},
+			wantPartial: runExpected{
+				Stdout: addnl("true && false"),
 			},
 		},
 		{
 			name: "list expression",
-			eval: `[1,2,3,4]`,
-			want: runExpected{
-				Stdout: addnl("[1, 2, 3, 4]"),
+			expr: `[1,1+0,1+1,1+2,3+2,5+3]`,
+			wantEval: runExpected{
+				Stdout: addnl("[1, 1, 2, 3, 5, 8]"),
 			},
-		},
-		{
-			name: "tuple expression",
-			eval: addnl(`[true,"test", [1, 2], {
-				a = 1,
-				b = 2,
-			}]`),
-			want: runExpected{
-				Stdout: addnl(`[true, "test", [1, 2], {
-  a = 1
-  b = 2
-}]`),
+			wantPartial: runExpected{
+				Stdout: addnl("[1, 1 + 0, 1 + 1, 1 + 2, 3 + 2, 5 + 3]"),
 			},
 		},
 		{
 			name: "simple funcalls",
-			eval: `tm_upper("a")`,
-			want: runExpected{
+			expr: `tm_upper("a")`,
+			wantEval: runExpected{
+				Stdout: addnl(`"A"`),
+			},
+			wantPartial: runExpected{
 				Stdout: addnl(`"A"`),
 			},
 		},
 		{
 			name: "nested funcalls",
-			eval: `tm_upper(tm_lower("A"))`,
-			want: runExpected{
+			expr: `tm_upper(tm_lower("A"))`,
+			wantEval: runExpected{
+				Stdout: addnl(`"A"`),
+			},
+			wantPartial: runExpected{
 				Stdout: addnl(`"A"`),
 			},
 		},
 		{
-			name: "eval has access to hierarchical globals",
+			name: "hierarchical globals evaluation",
 			globals: []globalsBlock{
 				{
 					path: "/",
 					add: Globals(
-						Str("val", "global string"),
+						Number("val", 49),
 					),
 				},
 			},
-			eval: `global.val`,
-			want: runExpected{
-				Stdout: addnl(`"global string"`),
+			expr: `global.val+1`,
+			wantEval: runExpected{
+				Stdout: addnl(`50`),
+			},
+			wantPartial: runExpected{
+				Stdout: addnl(`49 + 1`),
 			},
 		},
 		{
@@ -96,29 +98,56 @@ func TestExpConfigGet(t *testing.T) {
 					),
 				},
 			},
-			eval: `global.num1 + global.num2`,
-			want: runExpected{
+			expr: `global.num1 + global.num2`,
+			wantEval: runExpected{
 				Stdout: addnl(`20`),
+			},
+			wantPartial: runExpected{
+				Stdout: addnl(`10 + 10`),
 			},
 		},
 		{
-			name: "eval ignores partial globals",
+			name: "partial globals - not a stack, evaluating the global",
 			globals: []globalsBlock{
 				{
 					path: "/",
 					add: Globals(
 						Str("val", "global string"),
-						Str("unknown", "terramate.stack.name"),
+						Expr("unknown", "terramate.stack.name"),
 					),
 				},
 			},
-			eval: `global.val`,
-			want: runExpected{
+			expr: `global.val`,
+			wantEval: runExpected{
+				Stdout: addnl(`"global string"`),
+			},
+			wantPartial: runExpected{
 				Stdout: addnl(`"global string"`),
 			},
 		},
 		{
-			name: "eval works with stack values",
+			name: "partial globals - not a stack, evaluating the global.unknown",
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add: Globals(
+						Str("val", "global string"),
+						Expr("unknown", "terramate.stack.name"),
+					),
+				},
+			},
+			expr: `global.unknown`,
+			wantEval: runExpected{
+				StderrRegex: string(eval.ErrEval),
+				Status:      1,
+			},
+			wantPartial: runExpected{
+				StderrRegex: string(eval.ErrEval),
+				Status:      1,
+			},
+		},
+		{
+			name: "terramate stack metadata",
 			layout: []string{
 				"s:stack",
 			},
@@ -131,9 +160,31 @@ func TestExpConfigGet(t *testing.T) {
 					),
 				},
 			},
-			eval: `"stack path: ${terramate.stack.path.absolute}"`,
-			want: runExpected{
+			expr: `"stack path: ${terramate.stack.path.absolute}"`,
+			wantEval: runExpected{
 				Stdout: addnl(`"stack path: /stack"`),
+			},
+			wantPartial: runExpected{
+				Stdout: addnl(`"stack path: /stack"`),
+			},
+		},
+		{
+			name: "global + unknown",
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add: Globals(
+						Number("val", 1000),
+					),
+				},
+			},
+			expr: `unknown.num + global.val`,
+			wantEval: runExpected{
+				StderrRegex: string(eval.ErrEval),
+				Status:      1,
+			},
+			wantPartial: runExpected{
+				Stdout: addnl(`unknown.num + 1000`),
 			},
 		},
 	}
@@ -152,7 +203,10 @@ func TestExpConfigGet(t *testing.T) {
 
 			test.WriteRootConfig(t, s.RootDir())
 			ts := newCLI(t, filepath.Join(s.RootDir(), tc.wd))
-			assertRunResult(t, ts.run("experimental", "eval", tc.eval), tc.want)
+			assertRunResult(t, ts.run("experimental", "eval", tc.expr), tc.wantEval)
+			assertRunResult(t, ts.run("experimental", "partial-eval", tc.expr), tc.wantPartial)
 		})
 	}
 }
+
+func addnl(s string) string { return s + "\n" }

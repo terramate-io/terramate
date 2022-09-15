@@ -287,7 +287,9 @@ func (e *Error) error(fields []interface{}, verbose bool) string {
 							v.End.Line, v.End.Column, v.End.Byte),
 					)
 				} else {
-					errParts = append(errParts, v.String())
+					copiedRange := v
+					copiedRange.Filename = filename(copiedRange.Filename)
+					errParts = append(errParts, copiedRange.String())
 				}
 			}
 		case Kind:
