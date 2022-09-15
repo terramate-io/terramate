@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genhcl"
+	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
@@ -1609,6 +1610,30 @@ func TestGenerateHCL(t *testing.T) {
 					},
 				},
 			},
+		},
+		{
+			name:  "generate HCL with duplicated lets block",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("test"),
+						Lets(
+							Bool("some_bool", true),
+						),
+						Lets(
+							Bool("some_bool", false),
+						),
+						Content(
+							Block("testblock",
+								Expr("bool", "let.some_bool"),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(lets.ErrLetsRedefined),
 		},
 	}
 
