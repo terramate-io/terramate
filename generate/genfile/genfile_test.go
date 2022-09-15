@@ -22,6 +22,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
@@ -824,6 +825,140 @@ stack_id=stack-id
 				},
 			},
 			wantErr: errors.E(genfile.ErrInvalidConditionType),
+		},
+		{
+			name:  "generate_file with lets",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Lets(
+							Str("string", "let string"),
+						),
+						Expr("content", `let.string`),
+					),
+				},
+			},
+			want: []result{
+				{
+					name:      "test",
+					condition: true,
+					file: genFile{
+						origin: "/stack/test.tm",
+						body:   "let string",
+					},
+				},
+			},
+		},
+		{
+			name:  "generate_file with multiple lets",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Lets(
+							Expr("list1", `["hello", "world"]`),
+						),
+						Lets(
+							Expr("list2", `["lets", "feature"]`),
+						),
+						Expr("content", `tm_join(" ", tm_concat(let.list1, let.list2))`),
+					),
+				},
+			},
+			want: []result{
+				{
+					name:      "test",
+					condition: true,
+					file: genFile{
+						origin: "/stack/test.tm",
+						body:   "hello world lets feature",
+					},
+				},
+			},
+		},
+		{
+			name:  "using lets and metadata with interpolation",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Lets(
+							Str("data", "let-data"),
+						),
+						Str("content", "${let.data}-${terramate.stack.path.absolute}"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name:      "test",
+					condition: true,
+					file: genFile{
+						origin: "/stack/test.tm",
+						body:   "let-data-/stack",
+					},
+				},
+			},
+		},
+		{
+			name:  "using lets, globals and metadata with interpolation",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/globals.tm",
+					add: Globals(
+						Str("string", "global string"),
+					),
+				},
+				{
+					path: "/stack/test.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Lets(
+							Expr("string", `global.string`),
+							Expr("path", `terramate.stack.path.absolute`),
+						),
+						Str("content", "${let.string}-${let.path}"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name:      "test",
+					condition: true,
+					file: genFile{
+						origin: "/stack/test.tm",
+						body:   "global string-/stack",
+					},
+				},
+			},
+		},
+		{
+			name:  "generate_file with duplicated lets attrs",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Lets(
+							Str("string", "let string"),
+						),
+						Lets(
+							Str("string", "dup"),
+						),
+						Expr("content", `let.string`),
+					),
+				},
+			},
+			wantErr: errors.E(lets.ErrLetsRedefined),
 		},
 	}
 

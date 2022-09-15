@@ -28,6 +28,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
@@ -149,6 +150,11 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.G) ([]HC
 			Str("block", name).
 			Logger()
 
+		report := lets.Load(loadedHCL.lets, evalctx.Context)
+		if err := report.AsError(); err != nil {
+			return nil, err
+		}
+
 		condition := true
 		if loadedHCL.condition != nil {
 			logger.Trace().Msg("has condition attribute, evaluating it")
@@ -220,6 +226,7 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.G) ([]HC
 type loadedHCL struct {
 	name      string
 	origin    string
+	lets      hclsyntax.Blocks
 	block     *hclsyntax.Block
 	condition *hclsyntax.Attribute
 }
@@ -264,6 +271,7 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) ([]loadedHCL, error) {
 		res = append(res, loadedHCL{
 			name:      name,
 			origin:    origin,
+			lets:      genhclBlock.Lets,
 			block:     genhclBlock.Content,
 			condition: genhclBlock.Condition,
 		})

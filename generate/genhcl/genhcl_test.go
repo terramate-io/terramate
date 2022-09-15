@@ -1454,6 +1454,162 @@ func TestGenerateHCL(t *testing.T) {
 			},
 			wantErr: errors.E(genhcl.ErrParsing),
 		},
+		{
+			name:  "generate HCL on stack with lets block",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("test"),
+						Lets(
+							Bool("some_bool", true),
+							Number("some_number", 777),
+							Str("some_string", "string"),
+						),
+						Content(
+							Block("testblock",
+								Expr("bool", "let.some_bool"),
+								Expr("number", "let.some_number"),
+								Expr("string", "let.some_string"),
+								Expr("obj", `{
+									string = let.some_string
+									number = let.some_number
+									bool = let.some_bool
+								}`),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body: Block("testblock",
+							Bool("bool", true),
+							Number("number", 777),
+							EvalExpr(t, "obj", `{
+								string = "string"
+								number = 777
+								bool   = true
+							}`),
+							Str("string", "string"),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "generate HCL on stack with lets referencing globals",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Str("some_string", "string"),
+						Number("some_number", 777),
+						Bool("some_bool", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("test"),
+						Lets(
+							Expr("some_bool", `global.some_bool`),
+							Expr("some_number", `global.some_number`),
+							Expr("some_string", `global.some_string`),
+						),
+						Content(
+							Block("testblock",
+								Expr("bool", "let.some_bool"),
+								Expr("number", "let.some_number"),
+								Expr("string", "let.some_string"),
+								Expr("obj", `{
+									string = let.some_string
+									number = let.some_number
+									bool = let.some_bool
+								}`),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body: Block("testblock",
+							Bool("bool", true),
+							Number("number", 777),
+							EvalExpr(t, "obj", `{
+								string = "string"
+								number = 777
+								bool   = true
+							}`),
+							Str("string", "string"),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "generate HCL on stack with multiple lets block",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("test"),
+						Lets(
+							Bool("some_bool", true),
+						),
+						Lets(
+							Number("some_number", 777),
+						),
+						Lets(
+							Str("some_string", "string"),
+						),
+						Content(
+							Block("testblock",
+								Expr("bool", "let.some_bool"),
+								Expr("number", "let.some_number"),
+								Expr("string", "let.some_string"),
+								Expr("obj", `{
+									string = let.some_string
+									number = let.some_number
+									bool = let.some_bool
+								}`),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body: Block("testblock",
+							Bool("bool", true),
+							Number("number", 777),
+							EvalExpr(t, "obj", `{
+								string = "string"
+								number = 777
+								bool   = true
+							}`),
+							Str("string", "string"),
+						),
+					},
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
