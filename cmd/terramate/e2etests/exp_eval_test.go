@@ -223,4 +223,50 @@ func TestExpEval(t *testing.T) {
 	}
 }
 
+func TestGetConfigValue(t *testing.T) {
+	type (
+		globalsBlock struct {
+			path string
+			add  *hclwrite.Block
+		}
+		testcase struct {
+			name    string
+			layout  []string
+			wd      string
+			globals []globalsBlock
+			expr    string
+			want    runExpected
+		}
+	)
+
+	testcases := []testcase{
+		{
+			name: "boolean expression",
+			expr: `true || false`,
+			want: runExpected{
+				Status:      1,
+				StderrRegex: "expected a variable accessor",
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := sandbox.New(t)
+
+			s.BuildTree(tc.layout)
+
+			for _, globalBlock := range tc.globals {
+				path := filepath.Join(s.RootDir(), globalBlock.path)
+				test.AppendFile(t, path, "globals.tm",
+					globalBlock.add.String())
+			}
+
+			test.WriteRootConfig(t, s.RootDir())
+			ts := newCLI(t, filepath.Join(s.RootDir(), tc.wd))
+			assertRunResult(t, ts.run("experimental", "get-config-value", tc.expr), tc.want)
+		})
+	}
+}
+
 func addnl(s string) string { return s + "\n" }

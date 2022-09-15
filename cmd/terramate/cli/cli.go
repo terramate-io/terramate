@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
@@ -155,6 +156,11 @@ type cliSpec struct {
 		PartialEval struct {
 			Exprs []string `arg:"" help:"expressions to be partially evaluated" name:"expr" passthrough:""`
 		} `cmd:"" help:"Partial evaluate the expressions"`
+
+		GetConfigValue struct {
+			AsJSON bool     `help:"Outputs the result as a JSON value"`
+			Vars   []string `arg:"" help:"variable to be retrieved" name:"var" passthrough:""`
+		} `cmd:"" help:"Get configuration value"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
 
@@ -404,6 +410,10 @@ func (c *cli) run() {
 		log.Fatal().Msg("no expression specified")
 	case "experimental partial-eval <expr>":
 		c.partialEval()
+	case "experimental get-config-value":
+		log.Fatal().Msg("no variable specified")
+	case "experimental get-config-value <var>":
+		c.getConfigValue()
 	default:
 		logger.Fatal().Msg("unexpected command sequence")
 	}
@@ -1212,6 +1222,60 @@ func (c *cli) partialEval() {
 		}
 
 		c.log(string(hclwrite.Format(tokens.Bytes())))
+	}
+}
+
+func (c *cli) getConfigValue() {
+	logger := log.With().
+		Str("action", "cli.GetConfigValue()").
+		Logger()
+
+	ctx := c.setupEvalContext()
+	for _, exprStr := range c.parsedArgs.Experimental.GetConfigValue.Vars {
+		expr, err := eval.ParseExpressionBytes([]byte(exprStr))
+		if err != nil {
+			logger.Fatal().Err(err).Send()
+		}
+
+		iteratorTraversal, diags := hhcl.AbsTraversalForExpr(expr)
+		if diags.HasErrors() {
+			logger.Fatal().Err(diags).Msg("expected a variable accessor")
+		}
+
+		varns := iteratorTraversal.RootName()
+		if varns != "terramate" && varns != "global" {
+			logger.Fatal().Msgf("only terramate and global variables are supported")
+		}
+
+		val, err := ctx.Eval(expr)
+		if err != nil {
+			logger.Fatal().Err(err).
+				Str("expr", exprStr).
+				Msg("evaluating expression")
+		}
+
+		var out []byte
+		if c.parsedArgs.Experimental.Eval.AsJSON {
+			out, err = json.Marshal(val, val.Type())
+			if err != nil {
+				logger.Fatal().
+					Str("expr", exprStr).
+					Err(err).
+					Msgf("converting value %s to json", val.GoString())
+			}
+		} else {
+			tokens, err := eval.TokensForValue(val)
+			if err != nil {
+				logger.Fatal().
+					Str("expr", exprStr).
+					Err(err).
+					Msgf("serializing value %s", val.GoString())
+			}
+
+			out = []byte(hclwrite.Format(tokens.Bytes()))
+		}
+
+		c.log(string(out))
 	}
 }
 
