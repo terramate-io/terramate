@@ -292,6 +292,29 @@ func TestGetConfigValue(t *testing.T) {
 				Stdout: addnl("1000"),
 			},
 		},
+		{
+			name: "get deep value in global object",
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add: Globals(
+						Expr("object", `{
+							level1 = {
+								level2 = {
+									level3 = {
+										hello = "hello"
+									}
+								}
+							}
+						}`),
+					),
+				},
+			},
+			expr: `global.object.level1.level2.level3.hello`,
+			want: runExpected{
+				Stdout: addnl(`hello`),
+			},
+		},
 	}
 
 	for _, tc := range testcases {

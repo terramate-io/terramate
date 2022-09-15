@@ -34,6 +34,7 @@ import (
 	"github.com/mineiros-io/terramate/run"
 	"github.com/mineiros-io/terramate/run/dag"
 	"github.com/mineiros-io/terramate/tf"
+	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/json"
 
 	"github.com/alecthomas/kong"
@@ -1264,15 +1265,19 @@ func (c *cli) getConfigValue() {
 					Msgf("converting value %s to json", val.GoString())
 			}
 		} else {
-			tokens, err := eval.TokensForValue(val)
-			if err != nil {
-				logger.Fatal().
-					Str("expr", exprStr).
-					Err(err).
-					Msgf("serializing value %s", val.GoString())
-			}
+			if val.Type() == cty.String {
+				out = []byte(val.AsString())
+			} else {
+				tokens, err := eval.TokensForValue(val)
+				if err != nil {
+					logger.Fatal().
+						Str("expr", exprStr).
+						Err(err).
+						Msgf("serializing value %s", val.GoString())
+				}
 
-			out = []byte(hclwrite.Format(tokens.Bytes()))
+				out = []byte(hclwrite.Format(tokens.Bytes()))
+			}
 		}
 
 		c.log(string(out))
