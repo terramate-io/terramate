@@ -138,8 +138,6 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.G) ([]HC
 		return nil, errors.E("loading generate_hcl", err)
 	}
 
-	evalctx := stack.NewEvalCtx(projmeta, sm, globals)
-
 	logger.Trace().Msg("generating HCL code.")
 
 	var hcls []HCL
@@ -150,6 +148,7 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.G) ([]HC
 			Str("block", name).
 			Logger()
 
+		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
 		err := lets.Load(loadedHCL.lets, evalctx.Context)
 		if err != nil {
 			return nil, err
