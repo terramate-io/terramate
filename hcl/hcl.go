@@ -758,6 +758,14 @@ func ParseGenerateFileBlocks(root, dir string) ([]GenFileBlock, error) {
 
 	var genfileBlocks []GenFileBlock
 	for _, block := range blocks {
+		for _, subBlock := range block.Body.Blocks {
+			if len(subBlock.Body.Blocks) > 0 {
+				return nil, errors.E(
+					subBlock.Body.Blocks[0].Range(), "lets does not support blocks",
+				)
+			}
+		}
+
 		genfileBlocks = append(genfileBlocks, GenFileBlock{
 			Origin:    block.Origin,
 			Label:     block.Labels[0],
@@ -837,6 +845,16 @@ func validateGenerateHCLBlock(block *ast.Block) error {
 	if diags.HasErrors() {
 		errs.Append(errors.E(ErrTerramateSchema, diags))
 	}
+	err := errs.AsError()
+	if err != nil {
+		return err
+	}
+
+	for _, b := range block.Blocks {
+		if b.Type == "lets" {
+			errs.Append(checkHasSubBlocks(b))
+		}
+	}
 	return errs.AsError()
 }
 
@@ -873,6 +891,16 @@ func validateGenerateFileBlock(block *ast.Block) error {
 	_, diags := block.Body.Content(schema)
 	if diags.HasErrors() {
 		errs.Append(errors.E(ErrTerramateSchema, diags))
+	}
+	err := errs.AsError()
+	if err != nil {
+		return err
+	}
+
+	for _, b := range block.Blocks {
+		if b.Type == "lets" {
+			errs.Append(checkHasSubBlocks(b))
+		}
 	}
 	return errs.AsError()
 }

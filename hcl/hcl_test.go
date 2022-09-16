@@ -606,6 +606,56 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 			},
 		},
 		{
+			name: "generate_file with lets with child blocks - fails",
+			input: []cfgfile{
+				{
+					filename: "gen.tm",
+					body: `
+					generate_file "test.tf" {
+						lets {
+							a = 1
+							lets {
+								b = 1
+							}
+						}
+						content = ""
+					}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "generate_hcl with lets with child blocks - fails",
+			input: []cfgfile{
+				{
+					filename: "gen.tm",
+					body: `
+					generate_hcl "test.tf" {
+						lets {
+							a = 1
+							lets {
+								b = 1
+							}
+						}
+						content {
+							a = lets.a
+						}
+					}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
 			name: "conflicting terramate git config and other errors",
 			input: []cfgfile{
 				{
