@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genhcl"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
@@ -1634,6 +1635,37 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 			wantErr: errors.E(lets.ErrLetsRedefined),
+		},
+		{
+			name:  "lets are scoped",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						GenerateHCL(
+							Labels("test"),
+							Lets(
+								Bool("some_bool", true),
+							),
+							Content(
+								Block("testblock",
+									Expr("bool", "let.some_bool"),
+								),
+							),
+						),
+						GenerateHCL(
+							Labels("test2"),
+							Content(
+								Block("testblock",
+									Expr("bool", "let.some_bool"),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(eval.ErrPartial),
 		},
 	}
 
