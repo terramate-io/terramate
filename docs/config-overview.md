@@ -185,6 +185,7 @@ The `generate_file` block requires one label, **do not** support [merging](#conf
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
+| [lets](#lets-block-schema) | block* | lets variables |
 | condition        | bool           | The condition for generation |
 | content          | string         | The content to be generated |
 
@@ -197,10 +198,16 @@ The `generate_hcl` block requires one label, **do not** support [merging](#confi
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
+| [lets](#lets-block-schema) | block* | lets variables |
 | condition        | bool           | The condition for generation |
-| [content](#generate_hclcontent-block-schema) | block         | The content to be generated |
+| [content](#generate_hclcontent-block-schema) | block | The content to be generated |
 
 For detailed documentation about this block, see the [HCL Code Generation](https://github.com/mineiros-io/terramate/blob/main/docs/codegen/generate-hcl.md) docs.
+
+## lets block schema
+
+The `lets` block has no labels, supports [merging](#config-merging) of blocks
+in the same level, accepts **any** attribute and **disallow** child blocks.
 
 ## generate_hcl.content block schema
 
