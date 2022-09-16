@@ -55,7 +55,7 @@ type (
 )
 
 // Load loads all the lets from the hcl blocks.
-func Load(letblocks hclsyntax.Blocks, ctx *eval.Context) EvalReport {
+func Load(letblocks hclsyntax.Blocks, ctx *eval.Context) error {
 	logger := log.With().
 		Str("action", "lets.Load()").
 		Logger()
@@ -64,22 +64,19 @@ func Load(letblocks hclsyntax.Blocks, ctx *eval.Context) EvalReport {
 
 	exprs, err := loadExprs(letblocks)
 	if err != nil {
-		report := NewEvalReport()
-		report.BootstrapErr = err
-		return report
+		return err
 	}
 
 	return exprs.Eval(ctx)
 }
 
 // Eval evaluates all lets expressions and returns an EvalReport..
-func (letExprs Exprs) Eval(ctx *eval.Context) EvalReport {
+func (letExprs Exprs) Eval(ctx *eval.Context) error {
 	logger := log.With().
 		Str("action", "Exprs.Eval()").
 		Logger()
 
-	report := NewEvalReport()
-	lets := report.Lets
+	lets := L{}
 	pendingExprsErrs := map[string]*errors.List{}
 	pendingExprs := make(Exprs)
 
@@ -164,18 +161,16 @@ func (letExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 		}
 	}
 
+	errs := errors.L()
 	for name, expr := range pendingExprs {
 		err := pendingExprsErrs[name].AsError()
 		if err == nil {
 			err = errors.E(expr.Range(), "undefined let %s", name)
 		}
-		report.Errors[name] = EvalError{
-			Expr: expr,
-			Err:  errors.E(ErrLetsEval, err),
-		}
+		errs.AppendWrap(ErrLetsEval, err)
 	}
 
-	return report
+	return errs.AsError()
 }
 
 // String provides a string representation of the evaluated lets.

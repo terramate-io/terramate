@@ -150,8 +150,8 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.G) ([]HC
 			Str("block", name).
 			Logger()
 
-		report := lets.Load(loadedHCL.lets, evalctx.Context)
-		if err := report.AsError(); err != nil {
+		err := lets.Load(loadedHCL.lets, evalctx.Context)
+		if err != nil {
 			return nil, err
 		}
 

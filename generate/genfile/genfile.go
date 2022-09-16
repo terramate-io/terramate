@@ -132,8 +132,8 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.G) ([]Fi
 			Str("origin", origin).
 			Logger()
 
-		report := lets.Load(genFileBlock.lets, evalctx.Context)
-		if err := report.AsError(); err != nil {
+		err := lets.Load(genFileBlock.lets, evalctx.Context)
+		if err != nil {
 			return nil, err
 		}
 
