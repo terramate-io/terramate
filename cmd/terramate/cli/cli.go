@@ -1185,7 +1185,7 @@ func (c *cli) eval() {
 					Msgf("serializing value %s", val.GoString())
 			}
 
-			out = []byte(hclwrite.Format(tokens.Bytes()))
+			out = hclwrite.Format(tokens.Bytes())
 		}
 
 		c.log(string(out))
