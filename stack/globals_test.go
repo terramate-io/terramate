@@ -777,7 +777,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrGlobalEval),
+			wantErr: errors.E(globals.ErrEval),
 		},
 		{
 			name:   "global interpolating list with space fails",
@@ -791,7 +791,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrGlobalEval),
+			wantErr: errors.E(globals.ErrEval),
 		},
 		{
 			// This tests double check that interpolation on a single object/map
@@ -827,7 +827,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrGlobalEval),
+			wantErr: errors.E(globals.ErrEval),
 		},
 		{
 			name:   "global interpolating object with space fails",
@@ -841,7 +841,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrGlobalEval),
+			wantErr: errors.E(globals.ErrEval),
 		},
 		{
 			name:   "global interpolating undefined reference fails",
@@ -854,7 +854,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrGlobalEval),
+			wantErr: errors.E(globals.ErrEval),
 		},
 		{
 			// This tests double check that interpolation on a single number
@@ -1011,7 +1011,7 @@ func TestLoadGlobals(t *testing.T) {
 					add:  Globals(Str("stack", "whatever")),
 				},
 			},
-			wantErr: errors.E(globals.ErrGlobalEval),
+			wantErr: errors.E(globals.ErrEval),
 		},
 		{
 			name:   "global undefined reference on stack",
@@ -1022,7 +1022,7 @@ func TestLoadGlobals(t *testing.T) {
 					add:  Globals(Expr("field", "global.unknown")),
 				},
 			},
-			wantErr: errors.E(globals.ErrGlobalEval),
+			wantErr: errors.E(globals.ErrEval),
 		},
 		{
 			name:   "global undefined references mixed on stack",
@@ -1038,7 +1038,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrGlobalEval),
+			wantErr: errors.E(globals.ErrEval),
 		},
 		{
 			name:   "global cyclic reference on stack",
@@ -1053,7 +1053,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrGlobalEval),
+			wantErr: errors.E(globals.ErrEval),
 		},
 		{
 			name:   "global cyclic references across hierarchy",
@@ -1072,7 +1072,7 @@ func TestLoadGlobals(t *testing.T) {
 					add:  Globals(Expr("c", "global.a")),
 				},
 			},
-			wantErr: errors.E(globals.ErrGlobalEval),
+			wantErr: errors.E(globals.ErrEval),
 		},
 		{
 			name:   "global redefined on different file on stack",
@@ -1415,7 +1415,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrGlobalEval),
+			wantErr: errors.E(globals.ErrEval),
 		},
 		{
 			name:   "operating unset and other type fails",
@@ -1428,7 +1428,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrGlobalEval),
+			wantErr: errors.E(globals.ErrEval),
 		},
 		{
 			name:   "interpolating unset fails",
@@ -1441,7 +1441,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrGlobalEval),
+			wantErr: errors.E(globals.ErrEval),
 		},
 		{
 			name:   "unset on list fails",
@@ -1454,7 +1454,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrGlobalEval),
+			wantErr: errors.E(globals.ErrEval),
 		},
 		{
 			name:   "unset on obj fails",
@@ -1467,7 +1467,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrGlobalEval),
+			wantErr: errors.E(globals.ErrEval),
 		},
 		{
 			name:   "global with tm_ternary returning literals",
@@ -1519,7 +1519,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(globals.ErrGlobalEval),
+			wantErr: errors.E(globals.ErrEval),
 		},
 	}
 
@@ -1704,7 +1704,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 					`,
 				},
 			},
-			want: errors.E(globals.ErrGlobalRedefined),
+			want: errors.E(globals.ErrRedefined),
 		},
 		{
 			name:   "root config has global redefinition on multiple blocks",
@@ -1722,7 +1722,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 					`,
 				},
 			},
-			want: errors.E(globals.ErrGlobalRedefined),
+			want: errors.E(globals.ErrRedefined),
 		},
 	}
 

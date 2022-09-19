@@ -30,7 +30,7 @@ type EvalCtx struct {
 }
 
 // NewEvalCtx creates a new stack evaluation context.
-func NewEvalCtx(projmeta project.Metadata, sm Metadata, globals globals.G) *EvalCtx {
+func NewEvalCtx(projmeta project.Metadata, sm Metadata, globals globals.Map) *EvalCtx {
 	evalctx, err := eval.NewContext(sm.HostPath())
 	if err != nil {
 		panic(err)
@@ -44,7 +44,7 @@ func NewEvalCtx(projmeta project.Metadata, sm Metadata, globals globals.G) *Eval
 }
 
 // SetGlobals sets the given globals on the stack evaluation context.
-func (e *EvalCtx) SetGlobals(g globals.G) {
+func (e *EvalCtx) SetGlobals(g globals.Map) {
 	e.SetNamespace("global", g.Attributes())
 }
 

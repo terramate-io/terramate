@@ -235,9 +235,11 @@ func vendorAll(rootdir string, vendorDir string, tfdir string, report Report) Re
 
 		info.subdir = modsrc.Subdir
 
-		if v, ok := report.Vendored[Dir(vendorDir, modsrc)]; ok {
+		targetVendorDir := AbsVendorDir(rootdir, vendorDir, modsrc)
+		st, err := os.Stat(targetVendorDir)
+		if err == nil && st.IsDir() {
 			logger.Trace().Msg("already vendored")
-			info.vendoredAt = v.Dir
+			info.vendoredAt = Dir(vendorDir, modsrc)
 			continue
 		}
 
