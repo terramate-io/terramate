@@ -1194,7 +1194,7 @@ func (c *cli) eval() {
 
 func (c *cli) partialEval() {
 	logger := log.With().
-		Str("action", "cli.PartialEval()").
+		Str("action", "cli.partialEval()").
 		Logger()
 
 	ctx := c.setupEvalContext()
