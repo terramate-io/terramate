@@ -92,18 +92,18 @@ func TestExpEval(t *testing.T) {
 				{
 					path: "/",
 					add: Globals(
-						Number("val", 0),
+						Number("val", 49),
 					),
 				},
 				{
 					path: "/stack",
 					add: Globals(
-						Number("val", 49),
+						Number("val2", 1),
 					),
 				},
 			},
 			wd:   "stack",
-			expr: `global.val+1`,
+			expr: `global.val+global.val2`,
 			wantEval: runExpected{
 				Stdout: addnl(`50`),
 			},
