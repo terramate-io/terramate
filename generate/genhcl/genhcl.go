@@ -124,7 +124,7 @@ func (h HCL) String() string {
 // generate_hcl blocks.
 //
 // The rootdir MUST be an absolute path.
-func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.G) ([]HCL, error) {
+func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]HCL, error) {
 	logger := log.With().
 		Str("action", "genhcl.Load()").
 		Str("path", sm.HostPath()).

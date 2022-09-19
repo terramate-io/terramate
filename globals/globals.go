@@ -53,8 +53,8 @@ type (
 		cty.Value
 	}
 
-	// G is an evaluated globals map.
-	G map[string]Value
+	// Map is an evaluated globals map.
+	Map map[string]Value
 )
 
 // Load loads all the globals from the cfgdir.
@@ -111,7 +111,7 @@ func LoadExprs(rootdir string, cfgdir string) (Exprs, error) {
 	if ok {
 		logger.Trace().Msg("Range over attributes.")
 
-		for _, attr := range globalsBlock.Attributes.SortedList() {
+		for _, attr := range globalsBlock.Attributes {
 			logger.Trace().Msg("Add attribute to globals.")
 
 			exprs[attr.Name] = Expr{
@@ -274,13 +274,13 @@ func (globalExprs Exprs) merge(other Exprs) {
 }
 
 // String provides a string representation of the evaluated globals.
-func (globals G) String() string {
+func (globals Map) String() string {
 	return hcl.FormatAttributes(globals.Attributes())
 }
 
 // Attributes returns all the global attributes, the key in the map
 // is the attribute name with its corresponding value mapped
-func (globals G) Attributes() map[string]cty.Value {
+func (globals Map) Attributes() map[string]cty.Value {
 	attrcopy := map[string]cty.Value{}
 	for k, v := range globals {
 		attrcopy[k] = v.Value

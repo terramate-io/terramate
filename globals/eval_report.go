@@ -22,7 +22,7 @@ type (
 	// EvalReport is the report for the evaluation globals.
 	EvalReport struct {
 		// Globals are the evaluated globals.
-		Globals G
+		Globals Map
 		// BootstrapErr is for the case of errors happening before the evaluation.
 		BootstrapErr error
 
@@ -40,7 +40,7 @@ type (
 // NewEvalReport creates a new globals evaluation report.
 func NewEvalReport() EvalReport {
 	return EvalReport{
-		Globals: make(G),
+		Globals: make(Map),
 		Errors:  make(map[string]EvalError),
 	}
 }
