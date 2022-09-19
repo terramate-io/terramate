@@ -1225,14 +1225,9 @@ func (c *cli) setupEvalContext() *eval.Context {
 		logger.Fatal().Err(err).Send()
 	}
 
-	allStackEntries, err := terramate.ListStacks(c.root())
+	allstacks, err := stack.LoadAll(c.root())
 	if err != nil {
 		logger.Fatal().Err(err).Msg("listing all stacks")
-	}
-
-	allstacks := make(stack.List, len(allStackEntries))
-	for i, e := range allStackEntries {
-		allstacks[i] = e.Stack
 	}
 
 	projmeta := stack.NewProjectMetadata(c.root(), allstacks)
