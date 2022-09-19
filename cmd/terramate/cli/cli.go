@@ -1150,7 +1150,7 @@ func (c *cli) checkGenCode() bool {
 
 func (c *cli) eval() {
 	logger := log.With().
-		Str("action", "cli.Eval()").
+		Str("action", "cli.eval()").
 		Logger()
 
 	ctx := c.setupEvalContext()
