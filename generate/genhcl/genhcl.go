@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
@@ -123,7 +124,7 @@ func (h HCL) String() string {
 // generate_hcl blocks.
 //
 // The rootdir MUST be an absolute path.
-func Load(projmeta project.Metadata, sm stack.Metadata, globals stack.Globals) ([]HCL, error) {
+func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]HCL, error) {
 	logger := log.With().
 		Str("action", "genhcl.Load()").
 		Str("path", sm.HostPath()).
@@ -131,7 +132,7 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals stack.Globals) (
 
 	logger.Trace().Msg("loading generate_hcl blocks.")
 
-	loadedHCLs, err := loadGenHCLBlocks(projmeta.Rootdir, sm.HostPath())
+	loadedHCLs, err := loadGenHCLBlocks(projmeta.Rootdir(), sm.HostPath())
 	if err != nil {
 		return nil, errors.E("loading generate_hcl", err)
 	}

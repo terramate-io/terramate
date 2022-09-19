@@ -241,10 +241,7 @@ func NewProjectMetadata(rootdir string, stacks List) project.Metadata {
 	for i, st := range stacks {
 		stackPaths[i] = st.Path()
 	}
-	return project.Metadata{
-		Rootdir: rootdir,
-		Stacks:  stackPaths,
-	}
+	return project.NewMetadata(rootdir, stackPaths)
 }
 
 // LoadAll loads all stacks inside the given rootdir.
