@@ -126,7 +126,7 @@ func LoadExprs(rootdir string, cfgdir string) (Exprs, error) {
 		logger.Trace().Msg("Range over imported globals")
 
 		importedExprs := make(Exprs)
-		for _, attr := range importedGlobals.Attributes.SortedList() {
+		for _, attr := range importedGlobals.Attributes {
 			logger.Trace().Msg("Add imported attribute to globals.")
 
 			importedExprs[attr.Name] = Expr{
