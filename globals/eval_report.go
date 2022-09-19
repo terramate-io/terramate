@@ -53,7 +53,7 @@ func (r *EvalReport) AsError() error {
 
 	errs := errors.L(r.BootstrapErr)
 	for _, e := range r.Errors {
-		errs.AppendWrap(ErrGlobalEval, e.Err)
+		errs.AppendWrap(ErrEval, e.Err)
 	}
 	return errs.AsError()
 }

@@ -29,8 +29,8 @@ import (
 
 // Errors returned when parsing and evaluating globals.
 const (
-	ErrGlobalEval      errors.Kind = "global eval failed"
-	ErrGlobalRedefined errors.Kind = "global redefined"
+	ErrEval      errors.Kind = "global eval failed"
+	ErrRedefined errors.Kind = "global redefined"
 )
 
 type (
@@ -197,7 +197,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 			for _, namespace := range vars {
 				if !ctx.HasNamespace(namespace.RootName()) {
 					pendingExprsErrs[name].Append(errors.E(
-						ErrGlobalEval,
+						ErrEval,
 						namespace.SourceRange(),
 						"unknown variable namespace: %s", namespace.RootName(),
 					))
@@ -258,7 +258,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 		}
 		report.Errors[name] = EvalError{
 			Expr: expr,
-			Err:  errors.E(ErrGlobalEval, err),
+			Err:  errors.E(ErrEval, err),
 		}
 	}
 
