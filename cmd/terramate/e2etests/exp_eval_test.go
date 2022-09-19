@@ -131,7 +131,7 @@ func TestExpEval(t *testing.T) {
 			},
 		},
 		{
-			name: "partial globals - not a stack, evaluating the global",
+			name: "partially successfully globals - not a stack, evaluating the defined global",
 			globals: []globalsBlock{
 				{
 					path: "/",
@@ -150,7 +150,7 @@ func TestExpEval(t *testing.T) {
 			},
 		},
 		{
-			name: "partial globals - not a stack, evaluating the global.unknown",
+			name: "partially successfully globals - not a stack, evaluating the undefined global",
 			globals: []globalsBlock{
 				{
 					path: "/",
