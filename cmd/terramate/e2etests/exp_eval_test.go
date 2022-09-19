@@ -85,14 +85,24 @@ func TestExpEval(t *testing.T) {
 		},
 		{
 			name: "hierarchical globals evaluation",
+			layout: []string{
+				"s:stack",
+			},
 			globals: []globalsBlock{
 				{
 					path: "/",
+					add: Globals(
+						Number("val", 0),
+					),
+				},
+				{
+					path: "/stack",
 					add: Globals(
 						Number("val", 49),
 					),
 				},
 			},
+			wd:   "stack",
 			expr: `global.val+1`,
 			wantEval: runExpected{
 				Stdout: addnl(`50`),
