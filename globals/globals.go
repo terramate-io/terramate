@@ -29,7 +29,7 @@ import (
 
 // Errors returned when parsing and evaluating globals.
 const (
-	ErrGlobalEval      errors.Kind = "globals eval failed"
+	ErrGlobalEval      errors.Kind = "global eval failed"
 	ErrGlobalRedefined errors.Kind = "global redefined"
 )
 
