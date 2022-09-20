@@ -87,6 +87,11 @@ func Content(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return Block("content", builders...)
 }
 
+// Lets is a helper for a "lets" block.
+func Lets(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return Block("lets", builders...)
+}
+
 // Expr is a helper for a HCL expression.
 func Expr(name string, expr string) hclwrite.BlockBuilder {
 	return hclwrite.Expression(name, expr)

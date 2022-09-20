@@ -175,10 +175,12 @@ type GenHCLBlock struct {
 	Origin string
 	// Label of the block.
 	Label string
-	// Content block.
-	Content *hclsyntax.Block
+	// Lets is a block of local variables.
+	Lets hclsyntax.Blocks
 	// Condition attribute of the block, if any.
 	Condition *hclsyntax.Attribute
+	// Content block.
+	Content *hclsyntax.Block
 }
 
 // GenFileBlock represents a parsed generate_file block
@@ -187,10 +189,12 @@ type GenFileBlock struct {
 	Origin string
 	// Label of the block
 	Label string
-	// Content attribute of the block
-	Content *hclsyntax.Attribute
+	// Lets is a block of local variables.
+	Lets hclsyntax.Blocks
 	// Condition attribute of the block, if any.
 	Condition *hclsyntax.Attribute
+	// Content attribute of the block
+	Content *hclsyntax.Attribute
 }
 
 // Evaluator represents a Terramate evaluator
@@ -708,10 +712,33 @@ func ParseGenerateHCLBlocks(root, dir string) ([]GenHCLBlock, error) {
 
 	var genhclBlocks []GenHCLBlock
 	for _, block := range blocks {
+		var (
+			lets    hclsyntax.Blocks
+			content *hclsyntax.Block
+		)
+
+		for _, b := range block.Body.Blocks {
+			switch b.Type {
+			case "lets":
+				lets = append(lets, b)
+			case "content":
+				if content != nil {
+					return nil, errors.E(b.Range(),
+						"multiple generate_hcl.content blocks defined",
+					)
+				}
+				content = b
+			default:
+				// already validated but sanity checks...
+				panic("unreachable")
+			}
+		}
+
 		genhclBlocks = append(genhclBlocks, GenHCLBlock{
 			Origin:    block.Origin,
 			Label:     block.Labels[0],
-			Content:   block.Body.Blocks[0],
+			Lets:      lets,
+			Content:   content,
 			Condition: block.Body.Attributes["condition"],
 		})
 	}
@@ -731,9 +758,18 @@ func ParseGenerateFileBlocks(root, dir string) ([]GenFileBlock, error) {
 
 	var genfileBlocks []GenFileBlock
 	for _, block := range blocks {
+		for _, subBlock := range block.Body.Blocks {
+			if len(subBlock.Body.Blocks) > 0 {
+				return nil, errors.E(
+					subBlock.Body.Blocks[0].Range(), "lets does not support blocks",
+				)
+			}
+		}
+
 		genfileBlocks = append(genfileBlocks, GenFileBlock{
 			Origin:    block.Origin,
 			Label:     block.Labels[0],
+			Lets:      block.Body.Blocks,
 			Content:   block.Body.Attributes["content"],
 			Condition: block.Body.Attributes["condition"],
 		})
@@ -783,11 +819,7 @@ func validateGenerateHCLBlock(block *ast.Block) error {
 	// Schema check passes if no block is present, so check for amount of blocks
 	if len(block.Body.Blocks) == 0 {
 		errs.Append(errors.E(ErrTerramateSchema, block.Body.Range(),
-			"generate_hcl must have one 'content' block"))
-	} else if len(block.Body.Blocks) != 1 {
-		errs.Append(errors.E(ErrTerramateSchema, block.Body.Range(),
-			"generate_hcl must have one block of type 'content', found %d blocks",
-			len(block.Body.Blocks)))
+			"generate_hcl must have at least one 'content' block"))
 	}
 
 	schema := &hcl.BodySchema{
@@ -802,12 +834,26 @@ func validateGenerateHCLBlock(block *ast.Block) error {
 				Type:       "content",
 				LabelNames: []string{},
 			},
+			{
+				Type:       "lets",
+				LabelNames: []string{},
+			},
 		},
 	}
 
 	_, diags := block.Body.Content(schema)
 	if diags.HasErrors() {
 		errs.Append(errors.E(ErrTerramateSchema, diags))
+	}
+	err := errs.AsError()
+	if err != nil {
+		return err
+	}
+
+	for _, b := range block.Blocks {
+		if b.Type == "lets" {
+			errs.Append(checkHasSubBlocks(b))
+		}
 	}
 	return errs.AsError()
 }
@@ -834,11 +880,27 @@ func validateGenerateFileBlock(block *ast.Block) error {
 				Required: false,
 			},
 		},
+		Blocks: []hcl.BlockHeaderSchema{
+			{
+				Type:       "lets",
+				LabelNames: []string{},
+			},
+		},
 	}
 
 	_, diags := block.Body.Content(schema)
 	if diags.HasErrors() {
 		errs.Append(errors.E(ErrTerramateSchema, diags))
+	}
+	err := errs.AsError()
+	if err != nil {
+		return err
+	}
+
+	for _, b := range block.Blocks {
+		if b.Type == "lets" {
+			errs.Append(checkHasSubBlocks(b))
+		}
 	}
 	return errs.AsError()
 }
