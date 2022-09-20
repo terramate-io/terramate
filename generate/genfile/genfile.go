@@ -131,7 +131,6 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]
 			Logger()
 
 		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
-
 		err := lets.Load(genFileBlock.lets, evalctx.Context)
 		if err != nil {
 			return nil, err
