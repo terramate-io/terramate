@@ -1332,6 +1332,16 @@ func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
 	})
 }
 
+func TestGenerateHCLCleanupOldFilesIgnoreDotDirs(t *testing.T) {
+	s := sandbox.NoGit(t)
+
+	// Creates a file with a generated header inside dot dirs.
+	test.WriteFile(t, filepath.Join(s.RootDir(), ".terramate"), "test.tf", genhcl.Header)
+	test.WriteFile(t, filepath.Join(s.RootDir(), ".another"), "test.tf", genhcl.Header)
+
+	assertEqualReports(t, s.Generate(), generate.Report{})
+}
+
 func TestGenerateHCLTerramateRootMetadata(t *testing.T) {
 	// We need to know the sandbox abspath to test terramate.root properly
 	const generatedFile = "file.hcl"
