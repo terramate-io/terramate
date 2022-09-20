@@ -960,6 +960,29 @@ stack_id=stack-id
 			},
 			wantErr: errors.E(lets.ErrLetsRedefined),
 		},
+		{
+			name:  "lets are scoped",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: Doc(
+						GenerateFile(
+							Labels("test"),
+							Lets(
+								Str("some_str", "test"),
+							),
+							Expr("content", `let.some_str`),
+						),
+						GenerateFile(
+							Labels("test2"),
+							Expr("content", `let.some_str`),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(genfile.ErrContentEval),
+		},
 	}
 
 	for _, tcase := range tcases {

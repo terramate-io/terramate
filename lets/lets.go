@@ -50,8 +50,8 @@ type (
 		cty.Value
 	}
 
-	// L is an evaluated lets map.
-	L map[string]Value
+	// Map is an evaluated lets map.
+	Map map[string]Value
 )
 
 // Load loads all the lets from the hcl blocks.
@@ -76,7 +76,7 @@ func (letExprs Exprs) Eval(ctx *eval.Context) error {
 		Str("action", "Exprs.Eval()").
 		Logger()
 
-	lets := L{}
+	lets := Map{}
 	pendingExprsErrs := map[string]*errors.List{}
 	pendingExprs := make(Exprs)
 
@@ -174,13 +174,13 @@ func (letExprs Exprs) Eval(ctx *eval.Context) error {
 }
 
 // String provides a string representation of the evaluated lets.
-func (lets L) String() string {
+func (lets Map) String() string {
 	return hcl.FormatAttributes(lets.Attributes())
 }
 
 // Attributes returns all the lets attributes, the key in the map
 // is the attribute name with its corresponding value mapped
-func (lets L) Attributes() map[string]cty.Value {
+func (lets Map) Attributes() map[string]cty.Value {
 	attrcopy := map[string]cty.Value{}
 	for k, v := range lets {
 		attrcopy[k] = v.Value

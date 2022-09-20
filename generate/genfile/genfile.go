@@ -117,8 +117,6 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]
 		return nil, errors.E("loading generate_file", err)
 	}
 
-	evalctx := stack.NewEvalCtx(projmeta, sm, globals)
-
 	logger.Trace().Msg("generating files")
 
 	var files []File
@@ -131,6 +129,8 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]
 			Str("block", name).
 			Str("origin", origin).
 			Logger()
+
+		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
 
 		err := lets.Load(genFileBlock.lets, evalctx.Context)
 		if err != nil {
