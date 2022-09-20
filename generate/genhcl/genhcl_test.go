@@ -1634,7 +1634,7 @@ func TestGenerateHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(lets.ErrLetsRedefined),
+			wantErr: errors.E(lets.ErrRedefined),
 		},
 		{
 			name:  "lets are scoped",

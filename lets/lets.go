@@ -26,8 +26,8 @@ import (
 
 // Errors returned when parsing and evaluating lets.
 const (
-	ErrLetsEval      errors.Kind = "lets eval failed"
-	ErrLetsRedefined errors.Kind = "lets redefined"
+	ErrEval      errors.Kind = "lets eval failed"
+	ErrRedefined errors.Kind = "lets redefined"
 )
 
 type (
@@ -107,7 +107,7 @@ func (letExprs Exprs) Eval(ctx *eval.Context) error {
 			for _, namespace := range vars {
 				if !ctx.HasNamespace(namespace.RootName()) {
 					pendingExprsErrs[name].Append(errors.E(
-						ErrLetsEval,
+						ErrEval,
 						namespace.SourceRange(),
 						"unknown variable namespace: %s", namespace.RootName(),
 					))
@@ -167,7 +167,7 @@ func (letExprs Exprs) Eval(ctx *eval.Context) error {
 		if err == nil {
 			err = errors.E(expr.Range(), "undefined let %s", name)
 		}
-		errs.AppendWrap(ErrLetsEval, err)
+		errs.AppendWrap(ErrEval, err)
 	}
 
 	return errs.AsError()
@@ -215,7 +215,7 @@ func loadExprs(letblocks hclsyntax.Blocks) (Exprs, error) {
 		for name, attr := range block.Body.Attributes {
 			if _, ok := letExprs[name]; ok {
 				return nil, errors.E(
-					ErrLetsRedefined, "lets.%s already loaded", name,
+					ErrRedefined, "lets.%s already loaded", name,
 				)
 			}
 			letExprs[name] = Expr{

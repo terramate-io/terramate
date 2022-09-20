@@ -958,7 +958,7 @@ stack_id=stack-id
 					),
 				},
 			},
-			wantErr: errors.E(lets.ErrLetsRedefined),
+			wantErr: errors.E(lets.ErrRedefined),
 		},
 		{
 			name:  "lets are scoped",
