@@ -1161,7 +1161,7 @@ func (c *cli) checkGenCode() bool {
 
 func (c *cli) eval() {
 	logger := log.With().
-		Str("action", "cli.Eval()").
+		Str("action", "cli.eval()").
 		Logger()
 
 	ctx := c.setupEvalContext()
@@ -1196,7 +1196,7 @@ func (c *cli) eval() {
 					Msgf("serializing value %s", val.GoString())
 			}
 
-			out = []byte(hclwrite.Format(tokens.Bytes()))
+			out = hclwrite.Format(tokens.Bytes())
 		}
 
 		c.log(string(out))
@@ -1205,7 +1205,7 @@ func (c *cli) eval() {
 
 func (c *cli) partialEval() {
 	logger := log.With().
-		Str("action", "cli.PartialEval()").
+		Str("action", "cli.partialEval()").
 		Logger()
 
 	ctx := c.setupEvalContext()
@@ -1294,14 +1294,9 @@ func (c *cli) setupEvalContext() *eval.Context {
 		logger.Fatal().Err(err).Send()
 	}
 
-	allStackEntries, err := terramate.ListStacks(c.root())
+	allstacks, err := stack.LoadAll(c.root())
 	if err != nil {
 		logger.Fatal().Err(err).Msg("listing all stacks")
-	}
-
-	allstacks := make(stack.List, len(allStackEntries))
-	for i, e := range allStackEntries {
-		allstacks[i] = e.Stack
 	}
 
 	projmeta := stack.NewProjectMetadata(c.root(), allstacks)

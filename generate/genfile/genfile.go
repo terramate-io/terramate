@@ -102,7 +102,7 @@ func (f File) String() string {
 // generate_file blocks.
 //
 // The rootdir MUST be an absolute path.
-func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.G) ([]File, error) {
+func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]File, error) {
 	logger := log.With().
 		Str("action", "genfile.Load()").
 		Str("path", sm.HostPath()).
