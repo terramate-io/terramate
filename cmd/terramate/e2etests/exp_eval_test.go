@@ -275,6 +275,14 @@ func TestGetConfigValue(t *testing.T) {
 			},
 		},
 		{
+			name: "undefined global",
+			expr: `global.value`,
+			want: runExpected{
+				StderrRegex: string(eval.ErrEval),
+				Status:      1,
+			},
+		},
+		{
 			name: "terramate.stacks.list works on any directory inside rootdir",
 			layout: []string{
 				`s:stacks/stack1`,
