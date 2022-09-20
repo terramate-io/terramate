@@ -23,13 +23,17 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/globals"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/modvendor"
 	prj "github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/run"
 	"github.com/mineiros-io/terramate/run/dag"
 	"github.com/mineiros-io/terramate/tf"
+	"github.com/zclconf/go-cty/cty/json"
 
 	"github.com/alecthomas/kong"
 	"github.com/emicklei/dot"
@@ -142,6 +146,15 @@ type cliSpec struct {
 				Reference string `arg:"" name:"ref" help:"Reference of the Terraform module to vendor"`
 			} `cmd:"" help:"Downloads a Terraform module and stores it on the project vendor dir"`
 		} `cmd:"" help:"Manages vendored Terraform modules"`
+
+		Eval struct {
+			AsJSON bool     `help:"Outputs the result as a JSON value"`
+			Exprs  []string `arg:"" help:"expressions to be evaluated" name:"expr" passthrough:""`
+		} `cmd:"" help:"Eval expression"`
+
+		PartialEval struct {
+			Exprs []string `arg:"" help:"expressions to be partially evaluated" name:"expr" passthrough:""`
+		} `cmd:"" help:"Partial evaluate the expressions"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
 
@@ -383,6 +396,14 @@ func (c *cli) run() {
 		c.printRunOrder()
 	case "experimental run-env":
 		c.printRunEnv()
+	case "experimental eval":
+		log.Fatal().Msg("no expression specified")
+	case "experimental eval <expr>":
+		c.eval()
+	case "experimental partial-eval":
+		log.Fatal().Msg("no expression specified")
+	case "experimental partial-eval <expr>":
+		c.partialEval()
 	default:
 		logger.Fatal().Msg("unexpected command sequence")
 	}
@@ -1125,6 +1146,103 @@ func (c *cli) checkGenCode() bool {
 	}
 
 	return true
+}
+
+func (c *cli) eval() {
+	logger := log.With().
+		Str("action", "cli.eval()").
+		Logger()
+
+	ctx := c.setupEvalContext()
+	for _, exprStr := range c.parsedArgs.Experimental.Eval.Exprs {
+		expr, err := eval.ParseExpressionBytes([]byte(exprStr))
+		if err != nil {
+			logger.Fatal().Err(err).Send()
+		}
+
+		val, err := ctx.Eval(expr)
+		if err != nil {
+			logger.Fatal().Err(err).
+				Str("expr", exprStr).
+				Msg("evaluating expression")
+		}
+
+		var out []byte
+		if c.parsedArgs.Experimental.Eval.AsJSON {
+			out, err = json.Marshal(val, val.Type())
+			if err != nil {
+				logger.Fatal().
+					Str("expr", exprStr).
+					Err(err).
+					Msgf("converting value %s to json", val.GoString())
+			}
+		} else {
+			tokens, err := eval.TokensForValue(val)
+			if err != nil {
+				logger.Fatal().
+					Str("expr", exprStr).
+					Err(err).
+					Msgf("serializing value %s", val.GoString())
+			}
+
+			out = hclwrite.Format(tokens.Bytes())
+		}
+
+		c.log(string(out))
+	}
+}
+
+func (c *cli) partialEval() {
+	logger := log.With().
+		Str("action", "cli.partialEval()").
+		Logger()
+
+	ctx := c.setupEvalContext()
+	for _, exprStr := range c.parsedArgs.Experimental.PartialEval.Exprs {
+		expr, err := eval.ParseExpressionBytes([]byte(exprStr))
+		if err != nil {
+			logger.Fatal().Err(err).Send()
+		}
+
+		tokens, err := ctx.PartialEval(expr)
+		if err != nil {
+			logger.Fatal().Err(err).
+				Str("expr", exprStr).
+				Msg("partially evaluating expression")
+		}
+
+		c.log(string(hclwrite.Format(tokens.Bytes())))
+	}
+}
+
+func (c *cli) setupEvalContext() *eval.Context {
+	logger := log.With().
+		Str("action", "cli.setupEvalContext()").
+		Logger()
+
+	ctx, err := eval.NewContext(c.wd())
+	if err != nil {
+		logger.Fatal().Err(err).Send()
+	}
+
+	allstacks, err := stack.LoadAll(c.root())
+	if err != nil {
+		logger.Fatal().Err(err).Msg("listing all stacks")
+	}
+
+	projmeta := stack.NewProjectMetadata(c.root(), allstacks)
+	if isStack, _ := config.IsStack(c.root(), c.wd()); isStack {
+		st, err := stack.Load(c.root(), c.wd())
+		if err != nil {
+			logger.Fatal().Err(err).Msg("loading stack config")
+		}
+		ctx.SetNamespace("terramate", stack.MetadataToCtyValues(projmeta, st))
+	} else {
+		ctx.SetNamespace("terramate", projmeta.ToCtyMap())
+	}
+
+	globals.Load(c.root(), prj.PrjAbsPath(c.root(), c.wd()), ctx)
+	return ctx
 }
 
 func envVarIsSet(val string) bool {

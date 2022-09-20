@@ -282,12 +282,14 @@ func (e *Error) error(fields []interface{}, verbose bool) string {
 					errParts = append(errParts,
 						fmt.Sprintf("filename=%q, start line=%d, start col=%d, "+
 							"start byte=%d, end line=%d, end col=%d, end byte=%d",
-							filename(v.Filename),
+							cleanFilename(v.Filename),
 							v.Start.Line, v.Start.Column, v.Start.Byte,
 							v.End.Line, v.End.Column, v.End.Byte),
 					)
 				} else {
-					errParts = append(errParts, v.String())
+					copiedRange := v
+					copiedRange.Filename = cleanFilename(copiedRange.Filename)
+					errParts = append(errParts, copiedRange.String())
 				}
 			}
 		case Kind:
@@ -442,7 +444,7 @@ func equalStack(s1, s2 StackMeta) bool {
 		s1.Path() == s2.Path()
 }
 
-func filename(fname string) string {
+func cleanFilename(fname string) string {
 	if ext := filepath.Ext(fname); ext == ".tm" || ext == ".tm.hcl" {
 		return fname
 	}
