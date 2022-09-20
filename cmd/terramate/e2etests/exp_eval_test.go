@@ -233,4 +233,125 @@ func TestExpEval(t *testing.T) {
 	}
 }
 
+func TestGetConfigValue(t *testing.T) {
+	type (
+		globalsBlock struct {
+			path string
+			add  *hclwrite.Block
+		}
+		testcase struct {
+			name    string
+			layout  []string
+			wd      string
+			globals []globalsBlock
+			expr    string
+			want    runExpected
+		}
+	)
+
+	testcases := []testcase{
+		{
+			name: "boolean expression",
+			expr: `true || false`,
+			want: runExpected{
+				Status:      1,
+				StderrRegex: "expected a variable accessor",
+			},
+		},
+		{
+			name: "funcall expression",
+			expr: `tm_upper("a")`,
+			want: runExpected{
+				Status:      1,
+				StderrRegex: "expected a variable accessor",
+			},
+		},
+		{
+			name: "unsupported rootname",
+			expr: `local.value`,
+			want: runExpected{
+				Status:      1,
+				StderrRegex: "only terramate and global variables are supported",
+			},
+		},
+		{
+			name: "undefined global",
+			expr: `global.value`,
+			want: runExpected{
+				StderrRegex: string(eval.ErrEval),
+				Status:      1,
+			},
+		},
+		{
+			name: "terramate.stacks.list works on any directory inside rootdir",
+			layout: []string{
+				`s:stacks/stack1`,
+				`s:stacks/stack2`,
+				`d:dir/outside/stacks/hierarchy`,
+			},
+			wd:   "dir/outside/stacks/hierarchy",
+			expr: `terramate.stacks.list`,
+			want: runExpected{
+				Stdout: addnl(`["/stacks/stack1", "/stacks/stack2"]`),
+			},
+		},
+		{
+			name: "get global.val",
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add: Globals(
+						Number("val", 1000),
+					),
+				},
+			},
+			expr: `global.val`,
+			want: runExpected{
+				Stdout: addnl("1000"),
+			},
+		},
+		{
+			name: "get deep value in global object",
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add: Globals(
+						Expr("object", `{
+							level1 = {
+								level2 = {
+									level3 = {
+										hello = "hello"
+									}
+								}
+							}
+						}`),
+					),
+				},
+			},
+			expr: `global.object.level1.level2.level3.hello`,
+			want: runExpected{
+				Stdout: addnl(`hello`),
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := sandbox.New(t)
+
+			s.BuildTree(tc.layout)
+
+			for _, globalBlock := range tc.globals {
+				path := filepath.Join(s.RootDir(), globalBlock.path)
+				test.AppendFile(t, path, "globals.tm",
+					globalBlock.add.String())
+			}
+
+			test.WriteRootConfig(t, s.RootDir())
+			ts := newCLI(t, filepath.Join(s.RootDir(), tc.wd))
+			assertRunResult(t, ts.run("experimental", "get-config-value", tc.expr), tc.want)
+		})
+	}
+}
+
 func addnl(s string) string { return s + "\n" }
