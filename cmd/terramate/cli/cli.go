@@ -1228,7 +1228,7 @@ func (c *cli) partialEval() {
 
 func (c *cli) getConfigValue() {
 	logger := log.With().
-		Str("action", "cli.GetConfigValue()").
+		Str("action", "cli.getConfigValue()").
 		Logger()
 
 	ctx := c.setupEvalContext()
