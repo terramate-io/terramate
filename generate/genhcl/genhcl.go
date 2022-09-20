@@ -28,6 +28,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
@@ -137,8 +138,6 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]
 		return nil, errors.E("loading generate_hcl", err)
 	}
 
-	evalctx := stack.NewEvalCtx(projmeta, sm, globals)
-
 	logger.Trace().Msg("generating HCL code.")
 
 	var hcls []HCL
@@ -148,6 +147,12 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]
 		logger := logger.With().
 			Str("block", name).
 			Logger()
+
+		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
+		err := lets.Load(loadedHCL.lets, evalctx.Context)
+		if err != nil {
+			return nil, err
+		}
 
 		condition := true
 		if loadedHCL.condition != nil {
@@ -220,6 +225,7 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]
 type loadedHCL struct {
 	name      string
 	origin    string
+	lets      hclsyntax.Blocks
 	block     *hclsyntax.Block
 	condition *hclsyntax.Attribute
 }
@@ -264,6 +270,7 @@ func loadGenHCLBlocks(rootdir string, cfgdir string) ([]loadedHCL, error) {
 		res = append(res, loadedHCL{
 			name:      name,
 			origin:    origin,
+			lets:      genhclBlock.Lets,
 			block:     genhclBlock.Content,
 			condition: genhclBlock.Condition,
 		})

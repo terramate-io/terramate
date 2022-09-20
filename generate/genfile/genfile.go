@@ -20,9 +20,11 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
@@ -115,8 +117,6 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]
 		return nil, errors.E("loading generate_file", err)
 	}
 
-	evalctx := stack.NewEvalCtx(projmeta, sm, globals)
-
 	logger.Trace().Msg("generating files")
 
 	var files []File
@@ -129,6 +129,12 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]
 			Str("block", name).
 			Str("origin", origin).
 			Logger()
+
+		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
+		err := lets.Load(genFileBlock.lets, evalctx.Context)
+		if err != nil {
+			return nil, err
+		}
 
 		logger.Trace().Msg("evaluating condition")
 
@@ -196,6 +202,7 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]
 type genFileBlock struct {
 	label  string
 	origin string
+	lets   hclsyntax.Blocks
 	block  hcl.GenFileBlock
 }
 
@@ -232,6 +239,7 @@ func loadGenFileBlocks(rootdir string, cfgdir string) ([]genFileBlock, error) {
 			label:  block.Label,
 			origin: origin,
 			block:  block,
+			lets:   block.Lets,
 		})
 
 		logger.Trace().Msg("loaded generate_file block.")
