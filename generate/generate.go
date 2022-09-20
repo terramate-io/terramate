@@ -733,14 +733,20 @@ func listGenFilesOutsideStacks(rootdir, dir string) ([]dirGenFiles, error) {
 	}
 
 	for _, entry := range entries {
-		if entry.IsDir() {
-			childPath := filepath.Join(dir, entry.Name())
-			childGenFiles, err := listGenFilesOutsideStacks(rootdir, childPath)
-			if err != nil {
-				return nil, err
-			}
-			dirsFiles = append(dirsFiles, childGenFiles...)
+		if !entry.IsDir() {
+			continue
 		}
+
+		if strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+
+		childPath := filepath.Join(dir, entry.Name())
+		childGenFiles, err := listGenFilesOutsideStacks(rootdir, childPath)
+		if err != nil {
+			return nil, err
+		}
+		dirsFiles = append(dirsFiles, childGenFiles...)
 	}
 
 	return dirsFiles, nil
