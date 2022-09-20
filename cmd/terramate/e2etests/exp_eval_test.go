@@ -85,6 +85,9 @@ func TestExpEval(t *testing.T) {
 		},
 		{
 			name: "hierarchical globals evaluation",
+			layout: []string{
+				"s:stack",
+			},
 			globals: []globalsBlock{
 				{
 					path: "/",
@@ -92,8 +95,15 @@ func TestExpEval(t *testing.T) {
 						Number("val", 49),
 					),
 				},
+				{
+					path: "/stack",
+					add: Globals(
+						Number("val2", 1),
+					),
+				},
 			},
-			expr: `global.val+1`,
+			wd:   "stack",
+			expr: `global.val+global.val2`,
 			wantEval: runExpected{
 				Stdout: addnl(`50`),
 			},
@@ -121,7 +131,7 @@ func TestExpEval(t *testing.T) {
 			},
 		},
 		{
-			name: "partial globals - not a stack, evaluating the global",
+			name: "partially successfully globals - not a stack, evaluating the defined global",
 			globals: []globalsBlock{
 				{
 					path: "/",
@@ -140,7 +150,7 @@ func TestExpEval(t *testing.T) {
 			},
 		},
 		{
-			name: "partial globals - not a stack, evaluating the global.unknown",
+			name: "partially successfully globals - not a stack, evaluating the undefined global",
 			globals: []globalsBlock{
 				{
 					path: "/",
@@ -262,6 +272,14 @@ func TestGetConfigValue(t *testing.T) {
 			want: runExpected{
 				Status:      1,
 				StderrRegex: "only terramate and global variables are supported",
+			},
+		},
+		{
+			name: "undefined global",
+			expr: `global.value`,
+			want: runExpected{
+				StderrRegex: string(eval.ErrEval),
+				Status:      1,
 			},
 		},
 		{

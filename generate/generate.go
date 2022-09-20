@@ -69,7 +69,7 @@ func Do(rootdir string, workingDir string) Report {
 	report := forEachStack(rootdir, workingDir, func(
 		projmeta project.Metadata,
 		stack *stack.S,
-		globals globals.G,
+		globals globals.Map,
 	) dirReport {
 		stackpath := stack.HostPath()
 		logger := log.With().
@@ -495,7 +495,7 @@ func readFile(path string) (string, bool, error) {
 	return string(data), true, nil
 }
 
-type forEachStackFunc func(project.Metadata, *stack.S, globals.G) dirReport
+type forEachStackFunc func(project.Metadata, *stack.S, globals.Map) dirReport
 
 func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 	logger := log.With().
