@@ -1546,7 +1546,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 			foundstack = true
 			stackblock = block
 		case "assert":
-			logger.Trace().Msg("found assertion block")
+			logger.Trace().Msg("found assert block")
 			assertCfg, err := parseAssertConfig(block)
 			if err != nil {
 				errs.Append(err)
