@@ -54,9 +54,17 @@ type Config struct {
 	Terramate *Terramate
 	Stack     *Stack
 	Vendor    *VendorConfig
+	Asserts   []AssertConfig
 
 	// absdir is the absolute path to the configuration directory.
 	absdir string
+}
+
+// AssertConfig represents Terramate assert configuration block.
+type AssertConfig struct {
+	Warning   ast.Attribute
+	Assertion ast.Attribute
+	Message   ast.Attribute
 }
 
 // RunConfig represents Terramate run configuration.
