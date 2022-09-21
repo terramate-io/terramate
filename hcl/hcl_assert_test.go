@@ -35,6 +35,41 @@ func TestHCLParserAssert(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "multiple asserts on multiple files",
+			input: []cfgfile{
+				{
+					filename: "assert.tm",
+					body: Assert(
+						Expr("assertion", "1 == 1"),
+						Expr("message", "global.message"),
+					).String(),
+				},
+				{
+					filename: "assert2.tm",
+					body: Assert(
+						Expr("assertion", "666 == 1"),
+						Expr("message", "global.another"),
+					).String(),
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Asserts: []hcl.AssertConfig{
+						{
+							Origin:    "assert.tm",
+							Assertion: newExpr(t, "1 == 1"),
+							Message:   newExpr(t, "global.message"),
+						},
+						{
+							Origin:    "assert2.tm",
+							Assertion: newExpr(t, "666 == 1"),
+							Message:   newExpr(t, "global.another"),
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {

@@ -103,8 +103,32 @@ func assertAssertsBlock(t *testing.T, got, want []hcl.AssertConfig) {
 
 	for i, g := range got {
 		w := want[i]
-		assert.EqualStrings(t, w.Origin, g.Origin)
+		assert.EqualStrings(t, w.Origin, g.Origin, "origin mismatch")
+		assert.EqualStrings(t,
+			exprAsStr(t, w.Assertion), exprAsStr(t, g.Assertion),
+			"assertion expr mismatch")
+		assert.EqualStrings(t,
+			exprAsStr(t, w.Message), exprAsStr(t, g.Message),
+			"message expr mismatch")
+		assert.EqualStrings(t,
+			exprAsStr(t, w.Warning), exprAsStr(t, g.Warning),
+			"warning expr mismatch")
 	}
+}
+
+// exprAsStr gets the original expression as a string for an expression built
+// with our
+func exprAsStr(t *testing.T, expr hhcl.Expression) string {
+	t.Helper()
+
+	if expr == nil {
+		return ""
+	}
+
+	tokens, err := eval.TokensForExpression(expr)
+	assert.NoError(t, err, "getting tokens from expression")
+
+	return string(tokens.Bytes())
 }
 
 func assertTerramateBlock(t *testing.T, got, want *hcl.Terramate) {

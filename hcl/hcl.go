@@ -1179,7 +1179,6 @@ checkBlocks:
 }
 
 func parseAssertConfig(assert *ast.Block) (AssertConfig, error) {
-
 	cfg := AssertConfig{}
 	errs := errors.L()
 
@@ -1201,7 +1200,6 @@ func parseAssertConfig(assert *ast.Block) (AssertConfig, error) {
 	}
 
 	if err := errs.AsError(); err != nil {
-		fmt.Println("KMLO", err)
 		return AssertConfig{}, nil
 	}
 
@@ -1546,8 +1544,11 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 			stackblock = block
 		case "assert":
 			logger.Trace().Msg("found assertion block")
-			assertCfg, _ := parseAssertConfig(block)
-			// TODO(katcipis): test error handling
+			assertCfg, err := parseAssertConfig(block)
+			if err != nil {
+				errs.Append(errors.E(errKind, block.DefRange()))
+				continue
+			}
 			config.Asserts = append(config.Asserts, assertCfg)
 
 		case "vendor":
