@@ -36,6 +36,65 @@ func TestHCLParserAssert(t *testing.T) {
 			},
 		},
 		{
+			name: "assert with warning",
+			input: []cfgfile{
+				{
+					filename: "assert.tm",
+					body: Assert(
+						Expr("warning", "true"),
+						Expr("assertion", "1 == 1"),
+						Expr("message", "global.message"),
+					).String(),
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Asserts: []hcl.AssertConfig{
+						{
+							Origin:    "assert.tm",
+							Assertion: newExpr(t, "1 == 1"),
+							Message:   newExpr(t, "global.message"),
+							Warning:   newExpr(t, "true"),
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "multiple asserts on same file",
+			input: []cfgfile{
+				{
+					filename: "assert.tm",
+					body: Doc(
+						Assert(
+							Expr("assertion", "1 == 1"),
+							Expr("message", "global.message"),
+						),
+						Assert(
+							Expr("assertion", "666 == 1"),
+							Expr("message", "global.another"),
+						),
+					).String(),
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Asserts: []hcl.AssertConfig{
+						{
+							Origin:    "assert.tm",
+							Assertion: newExpr(t, "1 == 1"),
+							Message:   newExpr(t, "global.message"),
+						},
+						{
+							Origin:    "assert.tm",
+							Assertion: newExpr(t, "666 == 1"),
+							Message:   newExpr(t, "global.another"),
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "multiple asserts on multiple files",
 			input: []cfgfile{
 				{
