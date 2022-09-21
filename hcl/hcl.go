@@ -291,6 +291,14 @@ type mergeHandler func(block *ast.Block) error
 // parsed files of all sub-parsers for detecting cycles and import duplications.
 // Calling Parse() or MinimalParse() multiple times is an error.
 func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
+	logger := log.With().
+		Str("action", "parser.NewTerramateParser()").
+		Str("rootdir", rootdir).
+		Str("dir", dir).
+		Logger()
+
+	logger.Trace().Msg("Creating parser")
+
 	_, err := os.Stat(dir)
 	if err != nil {
 		return nil, errors.E(err, "failed to stat directory %q", dir)
@@ -511,6 +519,12 @@ func (p *TerramateParser) applyImports() error {
 }
 
 func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
+	logger := log.With().
+		Str("action", "parser.handleImport()").
+		Str("rootdir", p.rootdir).
+		Str("dir", p.dir).
+		Logger()
+
 	srcAttr := importBlock.Attributes["source"]
 	srcVal, diags := srcAttr.Expr.Value(nil)
 	if diags.HasErrors() {
@@ -523,6 +537,9 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 	}
 
 	src := srcVal.AsString()
+
+	logger.Trace().Msgf("handling import.source=%s", src)
+
 	srcBase := filepath.Base(src)
 	srcDir := filepath.Dir(src)
 	if filepath.IsAbs(srcDir) { // project-path
@@ -530,6 +547,8 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 	} else {
 		srcDir = filepath.Join(p.dir, srcDir)
 	}
+
+	logger.Trace().Msgf("import.source directory is %s", srcDir)
 
 	if srcDir == p.dir {
 		return errors.E(ErrImport, srcAttr.Expr.Range(),
