@@ -17,13 +17,14 @@ package ast
 import (
 	"sort"
 
+	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 )
 
 // Attribute represents a parsed attribute.
 type Attribute struct {
 	Origin string
-	*hclsyntax.Attribute
+	*hhcl.Attribute
 }
 
 // Attributes represents multiple parsed attributes.
@@ -33,7 +34,7 @@ type Attributes map[string]Attribute
 func NewAttribute(origin string, val *hclsyntax.Attribute) Attribute {
 	return Attribute{
 		Origin:    origin,
-		Attribute: val,
+		Attribute: val.AsHCLAttribute(),
 	}
 }
 

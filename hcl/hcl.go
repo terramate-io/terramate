@@ -1805,5 +1805,5 @@ func hclAttrErr(attr *hclsyntax.Attribute, msg string, args ...interface{}) erro
 }
 
 func attrErr(attr ast.Attribute, msg string, args ...interface{}) error {
-	return hclAttrErr(attr.Attribute, msg, args...)
+	return errors.E(ErrTerramateSchema, attr.Expr.Range(), fmt.Sprintf(msg, args...))
 }
