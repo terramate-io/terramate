@@ -1184,6 +1184,9 @@ func parseAssertConfig(assert *ast.Block) (AssertConfig, error) {
 
 	cfg.Origin = assert.Origin
 
+	//errs.Append(checkNoLabels(vendor))
+	errs.Append(checkHasSubBlocks(assert))
+
 	for _, attr := range assert.Attributes {
 		switch attr.Name {
 		case "assertion":
@@ -1200,7 +1203,7 @@ func parseAssertConfig(assert *ast.Block) (AssertConfig, error) {
 	}
 
 	if err := errs.AsError(); err != nil {
-		return AssertConfig{}, nil
+		return AssertConfig{}, err
 	}
 
 	return cfg, nil
@@ -1546,7 +1549,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 			logger.Trace().Msg("found assertion block")
 			assertCfg, err := parseAssertConfig(block)
 			if err != nil {
-				errs.Append(errors.E(errKind, block.DefRange()))
+				errs.Append(err)
 				continue
 			}
 			config.Asserts = append(config.Asserts, assertCfg)
