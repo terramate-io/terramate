@@ -54,7 +54,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 		attrs := make(ast.Attributes)
 
 		for name, attr := range body.Attributes {
-			attrs[name] = ast.NewAttribute(filepath, attr)
+			attrs[name] = ast.NewAttribute(filepath, attr.AsHCLAttribute())
 		}
 
 		return hcl.Config{

@@ -308,7 +308,7 @@ func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval hcl.Evaluator) erro
 
 	logger.Trace().Msg("sorting attributes")
 
-	attrs := ast.SortRawAttributes(src.Attributes)
+	attrs := ast.SortRawAttributes(ast.AsHCLAttributes(src.Attributes))
 	for _, attr := range attrs {
 		logger := logger.With().
 			Str("attrName", attr.Name).
