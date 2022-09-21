@@ -74,6 +74,7 @@ func AssertTerramateConfig(t *testing.T, got, want hcl.Config) {
 
 	assertTerramateBlock(t, got.Terramate, want.Terramate)
 	assertStackBlock(t, got.Stack, want.Stack)
+	assertAssertsBlock(t, got.Asserts, want.Asserts)
 	AssertDiff(t, got.Vendor, want.Vendor, "checking vendor config")
 }
 
@@ -90,6 +91,19 @@ func AssertDiff(t *testing.T, got, want interface{}, msg ...interface{}) {
 			errmsg = fmt.Sprintf(msg[0].(string), msg[1:]...) + ": " + errmsg
 		}
 		t.Fatalf(errmsg)
+	}
+}
+
+func assertAssertsBlock(t *testing.T, got, want []hcl.AssertConfig) {
+	t.Helper()
+
+	if len(got) != len(want) {
+		t.Fatalf("got %d assert blocks, want %d", len(got), len(want))
+	}
+
+	for i, g := range got {
+		w := want[i]
+		assert.EqualStrings(t, w.Origin, g.Origin)
 	}
 }
 

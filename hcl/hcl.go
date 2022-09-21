@@ -62,9 +62,10 @@ type Config struct {
 
 // AssertConfig represents Terramate assert configuration block.
 type AssertConfig struct {
-	Warning   ast.Attribute
-	Assertion ast.Attribute
-	Message   ast.Attribute
+	Origin    string
+	Warning   hcl.Expression
+	Assertion hcl.Expression
+	Message   hcl.Expression
 }
 
 // RunConfig represents Terramate run configuration.
@@ -1177,6 +1178,36 @@ checkBlocks:
 	return errs.AsError()
 }
 
+func parseAssertConfig(assert *ast.Block) (AssertConfig, error) {
+
+	cfg := AssertConfig{}
+	errs := errors.L()
+
+	cfg.Origin = assert.Origin
+
+	for _, attr := range assert.Attributes {
+		switch attr.Name {
+		case "assertion":
+			cfg.Assertion = attr.Expr
+		case "message":
+			cfg.Message = attr.Expr
+		case "warning":
+			cfg.Warning = attr.Expr
+		default:
+			errs.Append(errors.E(ErrTerramateSchema, attr.NameRange,
+				"unrecognized attribute %s.%s", assert.Type, attr.Name,
+			))
+		}
+	}
+
+	if err := errs.AsError(); err != nil {
+		fmt.Println("KMLO", err)
+		return AssertConfig{}, nil
+	}
+
+	return cfg, nil
+}
+
 func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 	logger := log.With().
 		Str("action", "hcl.parseVendorConfig()").
@@ -1513,6 +1544,12 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 			foundstack = true
 			stackblock = block
+		case "assert":
+			logger.Trace().Msg("found assertion block")
+			assertCfg, _ := parseAssertConfig(block)
+			// TODO(katcipis): test error handling
+			config.Asserts = append(config.Asserts, assertCfg)
+
 		case "vendor":
 			logger.Trace().Msg("found vendor block")
 
