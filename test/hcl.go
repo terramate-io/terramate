@@ -208,7 +208,7 @@ func hclFromAttributes(t *testing.T, attrs ast.Attributes) string {
 	}
 
 	for _, attr := range attrList {
-		tokens, err := eval.TokensForExpressionBytes(readFileRange(attr.Origin, attr.Range()))
+		tokens, err := eval.TokensForExpressionBytes(readFileRange(attr.Origin, attr.Range))
 		assert.NoError(t, err)
 		body.SetAttributeRaw(attr.Name, tokens)
 	}

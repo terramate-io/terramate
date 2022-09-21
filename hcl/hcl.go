@@ -485,7 +485,7 @@ func (p *TerramateParser) mergeConfig() error {
 	for _, origin := range p.sortedParsedFilenames() {
 		body := bodies[origin]
 
-		errs.Append(p.Config.mergeAttrs(ast.NewAttributes(origin, body.Attributes)))
+		errs.Append(p.Config.mergeAttrs(ast.NewAttributes(origin, ast.AsHCLAttributes(body.Attributes))))
 		errs.Append(p.Config.mergeBlocks(ast.NewBlocks(origin, body.Blocks)))
 	}
 	return errs.AsError()
@@ -1023,7 +1023,8 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 
 	logger.Debug().Msg("Get stack attributes.")
 
-	for _, attr := range ast.SortRawAttributes(stackblock.Body.Attributes) {
+	attrs := ast.AsHCLAttributes(stackblock.Body.Attributes)
+	for _, attr := range ast.SortRawAttributes(attrs) {
 		logger.Trace().Msg("Get attribute value.")
 
 		attrVal, err := evalctx.Eval(attr.Expr)
@@ -1808,10 +1809,10 @@ func isTerramateFile(filename string) bool {
 	return strings.HasSuffix(filename, ".tm") || strings.HasSuffix(filename, ".tm.hcl")
 }
 
-func hclAttrErr(attr *hclsyntax.Attribute, msg string, args ...interface{}) error {
+func hclAttrErr(attr *hcl.Attribute, msg string, args ...interface{}) error {
 	return errors.E(ErrTerramateSchema, attr.Expr.Range(), fmt.Sprintf(msg, args...))
 }
 
 func attrErr(attr ast.Attribute, msg string, args ...interface{}) error {
-	return hclAttrErr(attr.Attribute, msg, args...)
+	return errors.E(ErrTerramateSchema, attr.Expr.Range(), fmt.Sprintf(msg, args...))
 }
