@@ -18,7 +18,6 @@ import (
 	"path/filepath"
 
 	hhcl "github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
@@ -39,7 +38,7 @@ type (
 		// Origin is the filename where this expression can be found.
 		Origin string
 
-		hclsyntax.Expression
+		hhcl.Expression
 	}
 
 	// Exprs is the map of unevaluated global expressions visible in a
@@ -188,7 +187,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 				Str("global", name).
 				Logger()
 
-			vars := hclsyntax.Variables(expr)
+			vars := expr.Variables()
 
 			pendingExprsErrs[name] = errors.L()
 

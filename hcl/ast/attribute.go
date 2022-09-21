@@ -17,20 +17,21 @@ package ast
 import (
 	"sort"
 
+	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 )
 
 // Attribute represents a parsed attribute.
 type Attribute struct {
 	Origin string
-	*hclsyntax.Attribute
+	*hhcl.Attribute
 }
 
 // Attributes represents multiple parsed attributes.
 type Attributes map[string]Attribute
 
 // NewAttribute creates a new attribute given a parsed attribute and its origin.
-func NewAttribute(origin string, val *hclsyntax.Attribute) Attribute {
+func NewAttribute(origin string, val *hhcl.Attribute) Attribute {
 	return Attribute{
 		Origin:    origin,
 		Attribute: val,
@@ -47,11 +48,20 @@ func (a Attributes) SortedList() AttributeSlice {
 	return attrs
 }
 
-// NewAttributes creates a map of Attributes from the raw hclsyntax.Attributes.
-func NewAttributes(origin string, rawAttrs hclsyntax.Attributes) Attributes {
+// NewAttributes creates a map of Attributes from the raw hcl.Attributes.
+func NewAttributes(origin string, rawAttrs hhcl.Attributes) Attributes {
 	attrs := make(Attributes)
 	for _, rawAttr := range rawAttrs {
 		attrs[rawAttr.Name] = NewAttribute(origin, rawAttr)
+	}
+	return attrs
+}
+
+// AsHCLAttributes converts hclsyntax.Attributes to hcl.Attributes.
+func AsHCLAttributes(syntaxAttrs hclsyntax.Attributes) hhcl.Attributes {
+	attrs := make(hhcl.Attributes)
+	for _, synAttr := range syntaxAttrs {
+		attrs[synAttr.Name] = synAttr.AsHCLAttribute()
 	}
 	return attrs
 }
@@ -74,15 +84,15 @@ func (a AttributeSlice) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
-// SortRawAttributes sorts the raw attributes (hclsyntax.Attributes)
-func SortRawAttributes(attrs hclsyntax.Attributes) []*hclsyntax.Attribute {
+// SortRawAttributes sorts the raw attributes.
+func SortRawAttributes(attrs hhcl.Attributes) []*hhcl.Attribute {
 	names := make([]string, 0, len(attrs))
 	for name := range attrs {
 		names = append(names, name)
 	}
 
 	sort.Strings(names)
-	sorted := make([]*hclsyntax.Attribute, len(names))
+	sorted := make([]*hhcl.Attribute, len(names))
 	for i, name := range names {
 		sorted[i] = attrs[name]
 	}
