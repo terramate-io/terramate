@@ -1184,7 +1184,7 @@ func parseAssertConfig(assert *ast.Block) (AssertConfig, error) {
 
 	cfg.Origin = assert.Origin
 
-	//errs.Append(checkNoLabels(vendor))
+	errs.Append(checkNoLabels(assert))
 	errs.Append(checkHasSubBlocks(assert))
 
 	for _, attr := range assert.Attributes {

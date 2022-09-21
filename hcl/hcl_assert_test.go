@@ -164,6 +164,46 @@ func TestHCLParserAssert(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "label fails",
+			input: []cfgfile{
+				{
+					filename: "assert.tm",
+					body: Assert(
+						Labels("ohno"),
+						Expr("assertion", "1 == 1"),
+						Expr("message", "global.message"),
+					).String(),
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("assert.tm", start(1, 8, 7), end(1, 14, 13)),
+					),
+				},
+			},
+		},
+		{
+			name: "unknown attribute fails",
+			input: []cfgfile{
+				{
+					filename: "assert.tm",
+					body: Assert(
+						Expr("assertion", "1 == 1"),
+						Expr("message", "global.message"),
+						Expr("oopsie", "unknown"),
+					).String(),
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("assert.tm", start(4, 3, 61), end(4, 9, 67)),
+					),
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
