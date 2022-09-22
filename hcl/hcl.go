@@ -542,9 +542,14 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 
 	srcBase := filepath.Base(src)
 	srcDir := filepath.Dir(src)
+
+	logger.Trace().Msgf("srcDir = %s", srcDir)
+
 	if filepath.IsAbs(srcDir) { // project-path
+		logger.Trace().Msg("is absolute")
 		srcDir = filepath.Join(p.rootdir, srcDir)
 	} else {
+		logger.Trace().Msg("is relative")
 		srcDir = filepath.Join(p.dir, srcDir)
 	}
 
