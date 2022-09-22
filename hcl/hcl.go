@@ -17,6 +17,7 @@ package hcl
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -532,9 +533,9 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 	}
 
 	src := srcVal.AsString()
-	srcBase := filepath.Base(src)
-	srcDir := filepath.Dir(src)
-	if filepath.IsAbs(srcDir) { // project-path
+	srcBase := path.Base(src)
+	srcDir := path.Dir(src)
+	if path.IsAbs(srcDir) { // project-path
 		srcDir = filepath.Join(p.rootdir, srcDir)
 	} else {
 		srcDir = filepath.Join(p.dir, srcDir)
