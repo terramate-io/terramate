@@ -8,3 +8,31 @@ each integration scenario in the best way possible. Currently, we support:
 
 * [HCL generation](./generate-hcl.md)
 * [File generation](./generate-file.md)
+
+# Assertions
+
+Assertions can be used in order to fail code generation for one or more stacks
+if some pre-condition is not met, helping to catch mistakes in your configuration.
+
+It has the following field:
+
+* **assertion** : Obligatory, must evaluate to boolean
+* **message** : Obligatory, must evaluate to string
+* **warning** : Optional (default=false), must evaluate to boolean
+
+All fields can contain expressions accessing **globals** and **metadata**.
+
+```hcl
+assert {
+  assertion = global.a == global.b
+  message   = "assertion failed, details: ${global.details}"
+}
+```
+
+When the **assertion** is false on the context of a stack, code generation for
+that stack will fail and the reported error will be the one provided on the
+**message** field.
+
+Optionally the **warning** field can be defined and if it is evaluated to true
+then an false **assertion** will **not** generate an error. Code will be generated,
+but a warning output will be shown during code generation.
