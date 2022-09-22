@@ -19,6 +19,8 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/zclconf/go-cty/cty"
+
+	hhcl "github.com/hashicorp/hcl/v2"
 )
 
 // Assert represents evaluated assert block configuration.
@@ -34,19 +36,11 @@ func EvalAssert(evalctx *eval.Context, cfg hcl.AssertConfig) (Assert, error) {
 	res := Assert{}
 	errs := errors.L()
 
-	if cfg.Assertion != nil {
-		assertionVal, err := evalctx.Eval(cfg.Assertion)
-		if err != nil {
-			errs.Append(errors.E(err, "evaluating assert.assertion"))
-		} else {
-			if assertionVal.Type() == cty.Bool {
-				res.Assertion = assertionVal.True()
-			} else {
-				errs.Append(errors.E(ErrSchema, "assert.assertion must be boolean, got %v", assertionVal.Type()))
-			}
-		}
+	assertion, err := evalBool(evalctx, cfg.Assertion, "assert.assertion")
+	if err != nil {
+		errs.Append(err)
 	} else {
-		errs.Append(errors.E(ErrSchema, "assert.assertion must be defined"))
+		res.Assertion = assertion
 	}
 
 	if cfg.Message != nil {
@@ -65,15 +59,11 @@ func EvalAssert(evalctx *eval.Context, cfg hcl.AssertConfig) (Assert, error) {
 	}
 
 	if cfg.Warning != nil {
-		warningVal, err := evalctx.Eval(cfg.Warning)
+		warning, err := evalBool(evalctx, cfg.Warning, "assert.warning")
 		if err != nil {
-			errs.Append(errors.E(err, "evaluating assert.warning"))
+			errs.Append(err)
 		} else {
-			if warningVal.Type() == cty.Bool {
-				res.Warning = warningVal.True()
-			} else {
-				return Assert{}, errors.E(ErrSchema, "assert.warning must be boolean", warningVal.Type())
-			}
+			res.Warning = warning
 		}
 	}
 
@@ -82,4 +72,18 @@ func EvalAssert(evalctx *eval.Context, cfg hcl.AssertConfig) (Assert, error) {
 	}
 
 	return res, nil
+}
+
+func evalBool(evalctx *eval.Context, expr hhcl.Expression, name string) (bool, error) {
+	if expr == nil {
+		return false, errors.E(ErrSchema, "%s must be defined", name)
+	}
+	val, err := evalctx.Eval(expr)
+	if err != nil {
+		return false, errors.E(err, "evaluating %s", name)
+	}
+	if val.Type() != cty.Bool {
+		return false, errors.E(ErrSchema, "%s must be boolean, got %v", name, val.Type())
+	}
+	return val.True(), nil
 }
