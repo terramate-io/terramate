@@ -15,8 +15,10 @@
 package config
 
 import (
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // Assert represents evaluated assert block configuration.
@@ -30,9 +32,24 @@ type Assert struct {
 // evaluated form.
 func EvalAssert(evalctx *eval.Context, cfg hcl.AssertConfig) (Assert, error) {
 	assertionVal, _ := evalctx.Eval(cfg.Assertion)
+	if assertionVal.Type() != cty.Bool {
+		return Assert{}, errors.E(ErrSchema, "assertion must be boolean")
+	}
 	assertion := assertionVal.True()
+
 	messageVal, _ := evalctx.Eval(cfg.Message)
+	if messageVal.Type() != cty.String {
+		return Assert{}, errors.E(ErrSchema, "assert message must be string")
+	}
 	message := messageVal.AsString()
+
+	if cfg.Warning != nil {
+		warningVal, _ := evalctx.Eval(cfg.Warning)
+		if warningVal.Type() != cty.Bool {
+			return Assert{}, errors.E(ErrSchema, "assert warning must be boolean")
+		}
+	}
+
 	return Assert{
 		Assertion: assertion,
 		Message:   message,

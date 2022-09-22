@@ -27,6 +27,11 @@ const (
 	DefaultFilename = "terramate.tm.hcl"
 )
 
+const (
+	// ErrSchema indicates that the configuration has an invalid schema.
+	ErrSchema errors.Kind = "config has invalid schema"
+)
+
 // TryLoadRootConfig try to load the Terramate root config. It looks for the
 // the config in fromdir and all parent directories until / is reached.
 // If the configuration is found, it returns configpath != "" and found as true.

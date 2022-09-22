@@ -21,6 +21,7 @@ import (
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/test"
@@ -42,7 +43,18 @@ func TestAssertConfigEval(t *testing.T) {
 
 	tcases := []testcase{
 		{
-			name: "accessing ctx values",
+			name: "using literals",
+			assert: hcl.AssertConfig{
+				Assertion: expr(`"a" == "terramate"`),
+				Message:   expr(`"something"`),
+			},
+			want: config.Assert{
+				Assertion: false,
+				Message:   "something",
+			},
+		},
+		{
+			name: "accessing namespace values",
 			namespaces: namespaces{
 				"ns": nsvalues{
 					"a": "terramate",
@@ -59,6 +71,31 @@ func TestAssertConfigEval(t *testing.T) {
 				Assertion: true,
 				Message:   "message",
 			},
+		},
+		{
+			name: "assertion is not boolean fails",
+			assert: hcl.AssertConfig{
+				Assertion: expr(`[]`),
+				Message:   expr(`"something"`),
+			},
+			wantErr: errors.E(config.ErrSchema),
+		},
+		{
+			name: "message is not string fails",
+			assert: hcl.AssertConfig{
+				Assertion: expr(`true`),
+				Message:   expr(`false`),
+			},
+			wantErr: errors.E(config.ErrSchema),
+		},
+		{
+			name: "warning is not boolean fails",
+			assert: hcl.AssertConfig{
+				Assertion: expr(`true`),
+				Message:   expr(`"msg"`),
+				Warning:   expr("[]"),
+			},
+			wantErr: errors.E(config.ErrSchema),
 		},
 	}
 
