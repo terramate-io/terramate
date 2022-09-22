@@ -51,8 +51,8 @@ jobs:
         experimental: [false]
         include:
           - os: windows-2022
-          - go: "1.17"
-          - experimental: true
+            go: "1.17"
+            experimental: true
 
     steps:
       - name: checkout repo
