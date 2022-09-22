@@ -24,7 +24,7 @@ import (
 )
 
 func TestHCLParserAssert(t *testing.T) {
-	newExpr := test.NewExpr
+	expr := test.NewExpr
 	tcases := []testcase{
 		{
 			name: "single assert",
@@ -42,8 +42,8 @@ func TestHCLParserAssert(t *testing.T) {
 					Asserts: []hcl.AssertConfig{
 						{
 							Origin:    "assert.tm",
-							Assertion: newExpr(t, "1 == 1"),
-							Message:   newExpr(t, "global.message"),
+							Assertion: expr(t, "1 == 1"),
+							Message:   expr(t, "global.message"),
 						},
 					},
 				},
@@ -66,9 +66,9 @@ func TestHCLParserAssert(t *testing.T) {
 					Asserts: []hcl.AssertConfig{
 						{
 							Origin:    "assert.tm",
-							Assertion: newExpr(t, "1 == 1"),
-							Message:   newExpr(t, "global.message"),
-							Warning:   newExpr(t, "true"),
+							Assertion: expr(t, "1 == 1"),
+							Message:   expr(t, "global.message"),
+							Warning:   expr(t, "true"),
 						},
 					},
 				},
@@ -96,13 +96,13 @@ func TestHCLParserAssert(t *testing.T) {
 					Asserts: []hcl.AssertConfig{
 						{
 							Origin:    "assert.tm",
-							Assertion: newExpr(t, "1 == 1"),
-							Message:   newExpr(t, "global.message"),
+							Assertion: expr(t, "1 == 1"),
+							Message:   expr(t, "global.message"),
 						},
 						{
 							Origin:    "assert.tm",
-							Assertion: newExpr(t, "666 == 1"),
-							Message:   newExpr(t, "global.another"),
+							Assertion: expr(t, "666 == 1"),
+							Message:   expr(t, "global.another"),
 						},
 					},
 				},
@@ -131,13 +131,13 @@ func TestHCLParserAssert(t *testing.T) {
 					Asserts: []hcl.AssertConfig{
 						{
 							Origin:    "assert.tm",
-							Assertion: newExpr(t, "1 == 1"),
-							Message:   newExpr(t, "global.message"),
+							Assertion: expr(t, "1 == 1"),
+							Message:   expr(t, "global.message"),
 						},
 						{
 							Origin:    "assert2.tm",
-							Assertion: newExpr(t, "666 == 1"),
-							Message:   newExpr(t, "global.another"),
+							Assertion: expr(t, "666 == 1"),
+							Message:   expr(t, "global.another"),
 						},
 					},
 				},
