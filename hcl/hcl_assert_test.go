@@ -17,15 +17,14 @@ package hcl_test
 import (
 	"testing"
 
-	hhcl "github.com/hashicorp/hcl/v2"
-	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/test"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
 func TestHCLParserAssert(t *testing.T) {
+	newExpr := test.NewExpr
 	tcases := []testcase{
 		{
 			name: "single assert",
@@ -209,12 +208,4 @@ func TestHCLParserAssert(t *testing.T) {
 	for _, tcase := range tcases {
 		testParser(t, tcase)
 	}
-}
-
-func newExpr(t *testing.T, expr string) hhcl.Expression {
-	t.Helper()
-
-	res, err := eval.ParseExpressionBytes([]byte(expr))
-	assert.NoError(t, err)
-	return res
 }
