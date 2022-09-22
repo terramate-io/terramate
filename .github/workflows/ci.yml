@@ -39,12 +39,11 @@ jobs:
 
   build_test:
     name: Build and Test
-
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
 
     strategy:
       fail-fast: false
-      continue-on-error: ${{ matrix.experimental }}
       matrix:
         # maybe in the future: windows-2019, windows-2022
         os: ["ubuntu-20.04", "macos-11", "macos-12"]
