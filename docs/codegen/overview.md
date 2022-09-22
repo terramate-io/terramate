@@ -36,3 +36,8 @@ that stack will fail and the reported error will be the one provided on the
 Optionally the **warning** field can be defined and if it is evaluated to true
 then an false **assertion** will **not** generate an error. Code will be generated,
 but a warning output will be shown during code generation.
+
+The **assert** block has hierarchical behavior, any assert blocks defined in a
+directory will be applied to all stacks inside this directory. For example, an
+**assert** block defined on the root of a project will be applied to all stacks
+in the project.
