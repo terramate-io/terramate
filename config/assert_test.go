@@ -81,12 +81,28 @@ func TestAssertConfigEval(t *testing.T) {
 			wantErr: errors.E(config.ErrSchema),
 		},
 		{
+			name: "assertion eval fails",
+			assert: hcl.AssertConfig{
+				Assertion: expr(`unknown.access`),
+				Message:   expr(`"something"`),
+			},
+			wantErr: errors.E(eval.ErrEval),
+		},
+		{
 			name: "message is not string fails",
 			assert: hcl.AssertConfig{
 				Assertion: expr(`true`),
 				Message:   expr(`false`),
 			},
 			wantErr: errors.E(config.ErrSchema),
+		},
+		{
+			name: "message eval fails",
+			assert: hcl.AssertConfig{
+				Assertion: expr(`true`),
+				Message:   expr(`access.unknown`),
+			},
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			name: "warning is not boolean fails",
@@ -96,6 +112,15 @@ func TestAssertConfigEval(t *testing.T) {
 				Warning:   expr("[]"),
 			},
 			wantErr: errors.E(config.ErrSchema),
+		},
+		{
+			name: "warning eval fails",
+			assert: hcl.AssertConfig{
+				Assertion: expr(`true`),
+				Message:   expr(`"msg"`),
+				Warning:   expr("access.warning"),
+			},
+			wantErr: errors.E(eval.ErrEval),
 		},
 	}
 

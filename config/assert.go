@@ -31,22 +31,31 @@ type Assert struct {
 // EvalAssert evaluates a given assert configuration and returns its
 // evaluated form.
 func EvalAssert(evalctx *eval.Context, cfg hcl.AssertConfig) (Assert, error) {
-	assertionVal, _ := evalctx.Eval(cfg.Assertion)
+	assertionVal, err := evalctx.Eval(cfg.Assertion)
+	if err != nil {
+		return Assert{}, errors.E(err, "evaluating assert.assertion")
+	}
 	if assertionVal.Type() != cty.Bool {
-		return Assert{}, errors.E(ErrSchema, "assertion must be boolean")
+		return Assert{}, errors.E(ErrSchema, "assert.assertion must be boolean, got %v", assertionVal.Type())
 	}
 	assertion := assertionVal.True()
 
-	messageVal, _ := evalctx.Eval(cfg.Message)
+	messageVal, err := evalctx.Eval(cfg.Message)
+	if err != nil {
+		return Assert{}, errors.E(err, "evaluating assert.message")
+	}
 	if messageVal.Type() != cty.String {
-		return Assert{}, errors.E(ErrSchema, "assert message must be string")
+		return Assert{}, errors.E(ErrSchema, "assert.message must be string, got %v", messageVal.Type())
 	}
 	message := messageVal.AsString()
 
 	if cfg.Warning != nil {
-		warningVal, _ := evalctx.Eval(cfg.Warning)
+		warningVal, err := evalctx.Eval(cfg.Warning)
+		if err != nil {
+			return Assert{}, errors.E(err, "evaluating assert.warning")
+		}
 		if warningVal.Type() != cty.Bool {
-			return Assert{}, errors.E(ErrSchema, "assert warning must be boolean")
+			return Assert{}, errors.E(ErrSchema, "assert.warning must be boolean", warningVal.Type())
 		}
 	}
 
