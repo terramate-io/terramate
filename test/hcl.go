@@ -116,8 +116,6 @@ func assertAssertsBlock(t *testing.T, got, want []hcl.AssertConfig) {
 	}
 }
 
-// exprAsStr gets the original expression as a string for an expression built
-// with our
 func exprAsStr(t *testing.T, expr hhcl.Expression) string {
 	t.Helper()
 
