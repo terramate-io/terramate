@@ -1,10 +1,3 @@
-ifdef ComSpec
-SHELL := $(ComSpec)
-endif
-ifdef COMSPEC
-SHELL := $(COMSPEC)
-endif
-
 ## Build terramate into bin directory
 .PHONY: build
 build:
