@@ -25,7 +25,7 @@ All fields can contain expressions accessing **globals** and **metadata**.
 ```hcl
 assert {
   assertion = global.a == global.b
-  message   = "assertion failed, details: ${global.details}"
+  message   = "assertion failed, details: ${global.a} != ${global.b}"
 }
 ```
 
