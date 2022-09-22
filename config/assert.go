@@ -43,19 +43,11 @@ func EvalAssert(evalctx *eval.Context, cfg hcl.AssertConfig) (Assert, error) {
 		res.Assertion = assertion
 	}
 
-	if cfg.Message != nil {
-		messageVal, err := evalctx.Eval(cfg.Message)
-		if err != nil {
-			errs.Append(errors.E(err, "evaluating assert.message"))
-		} else {
-			if messageVal.Type() == cty.String {
-				res.Message = messageVal.AsString()
-			} else {
-				errs.Append(errors.E(ErrSchema, "assert.message must be string, got %v", messageVal.Type()))
-			}
-		}
+	message, err := evalString(evalctx, cfg.Message, "assert.message")
+	if err != nil {
+		errs.Append(err)
 	} else {
-		errs.Append(errors.E(ErrSchema, "assert.message must be defined"))
+		res.Message = message
 	}
 
 	if cfg.Warning != nil {
@@ -86,4 +78,18 @@ func evalBool(evalctx *eval.Context, expr hhcl.Expression, name string) (bool, e
 		return false, errors.E(ErrSchema, "%s must be boolean, got %v", name, val.Type())
 	}
 	return val.True(), nil
+}
+
+func evalString(evalctx *eval.Context, expr hhcl.Expression, name string) (string, error) {
+	if expr == nil {
+		return "", errors.E(ErrSchema, "%s must be defined", name)
+	}
+	val, err := evalctx.Eval(expr)
+	if err != nil {
+		return "", errors.E(err, "evaluating %s", name)
+	}
+	if val.Type() != cty.String {
+		return "", errors.E(ErrSchema, "%s must be string, got %v", name, val.Type())
+	}
+	return val.AsString(), nil
 }
