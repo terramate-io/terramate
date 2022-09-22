@@ -91,6 +91,20 @@ func TestAssertConfigEval(t *testing.T) {
 			},
 		},
 		{
+			name: "assertion undefined fails",
+			assert: hcl.AssertConfig{
+				Message: expr(`"something"`),
+			},
+			wantErr: errors.E(config.ErrSchema),
+		},
+		{
+			name: "message undefined fails",
+			assert: hcl.AssertConfig{
+				Assertion: expr(`true`),
+			},
+			wantErr: errors.E(config.ErrSchema),
+		},
+		{
 			name: "assertion is not boolean fails",
 			assert: hcl.AssertConfig{
 				Assertion: expr(`[]`),

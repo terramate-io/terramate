@@ -34,26 +34,34 @@ func EvalAssert(evalctx *eval.Context, cfg hcl.AssertConfig) (Assert, error) {
 	res := Assert{}
 	errs := errors.L()
 
-	assertionVal, err := evalctx.Eval(cfg.Assertion)
-	if err != nil {
-		errs.Append(errors.E(err, "evaluating assert.assertion"))
-	} else {
-		if assertionVal.Type() == cty.Bool {
-			res.Assertion = assertionVal.True()
+	if cfg.Assertion != nil {
+		assertionVal, err := evalctx.Eval(cfg.Assertion)
+		if err != nil {
+			errs.Append(errors.E(err, "evaluating assert.assertion"))
 		} else {
-			errs.Append(errors.E(ErrSchema, "assert.assertion must be boolean, got %v", assertionVal.Type()))
+			if assertionVal.Type() == cty.Bool {
+				res.Assertion = assertionVal.True()
+			} else {
+				errs.Append(errors.E(ErrSchema, "assert.assertion must be boolean, got %v", assertionVal.Type()))
+			}
 		}
+	} else {
+		errs.Append(errors.E(ErrSchema, "assert.assertion must be defined"))
 	}
 
-	messageVal, err := evalctx.Eval(cfg.Message)
-	if err != nil {
-		errs.Append(errors.E(err, "evaluating assert.message"))
-	} else {
-		if messageVal.Type() == cty.String {
-			res.Message = messageVal.AsString()
+	if cfg.Message != nil {
+		messageVal, err := evalctx.Eval(cfg.Message)
+		if err != nil {
+			errs.Append(errors.E(err, "evaluating assert.message"))
 		} else {
-			errs.Append(errors.E(ErrSchema, "assert.message must be string, got %v", messageVal.Type()))
+			if messageVal.Type() == cty.String {
+				res.Message = messageVal.AsString()
+			} else {
+				errs.Append(errors.E(ErrSchema, "assert.message must be string, got %v", messageVal.Type()))
+			}
 		}
+	} else {
+		errs.Append(errors.E(ErrSchema, "assert.message must be defined"))
 	}
 
 	if cfg.Warning != nil {
