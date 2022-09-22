@@ -17,6 +17,7 @@ package hcl
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -540,12 +541,12 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 
 	logger.Trace().Msgf("handling import.source=%s", src)
 
-	srcBase := filepath.Base(src)
-	srcDir := filepath.Dir(src)
+	srcBase := path.Base(src)
+	srcDir := path.Dir(src)
 
 	logger.Trace().Msgf("srcDir = %s", srcDir)
 
-	if filepath.IsAbs(srcDir) { // project-path
+	if path.IsAbs(srcDir) { // project-path
 		logger.Trace().Msg("is absolute")
 		srcDir = filepath.Join(p.rootdir, srcDir)
 	} else {
