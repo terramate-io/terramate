@@ -8,12 +8,12 @@ endif
 ## Build terramate into bin directory
 .PHONY: build
 build:
-	go build -o .\bin\terramate.exe .\cmd\terramate
+	go build -o .\bin\terramate.exe ./cmd/terramate
 
 ## Install terramate on the host
 .PHONY: install
 install:
-	go install .\cmd\terramate
+	go install ./cmd/terramate
 
  ## remove build artifacts
 .PHONY: clean
