@@ -31,36 +31,47 @@ type Assert struct {
 // EvalAssert evaluates a given assert configuration and returns its
 // evaluated form.
 func EvalAssert(evalctx *eval.Context, cfg hcl.AssertConfig) (Assert, error) {
+	res := Assert{}
+	errs := errors.L()
+
 	assertionVal, err := evalctx.Eval(cfg.Assertion)
 	if err != nil {
-		return Assert{}, errors.E(err, "evaluating assert.assertion")
+		errs.Append(errors.E(err, "evaluating assert.assertion"))
+	} else {
+		if assertionVal.Type() == cty.Bool {
+			res.Assertion = assertionVal.True()
+		} else {
+			errs.Append(errors.E(ErrSchema, "assert.assertion must be boolean, got %v", assertionVal.Type()))
+		}
 	}
-	if assertionVal.Type() != cty.Bool {
-		return Assert{}, errors.E(ErrSchema, "assert.assertion must be boolean, got %v", assertionVal.Type())
-	}
-	assertion := assertionVal.True()
 
 	messageVal, err := evalctx.Eval(cfg.Message)
 	if err != nil {
-		return Assert{}, errors.E(err, "evaluating assert.message")
+		errs.Append(errors.E(err, "evaluating assert.message"))
+	} else {
+		if messageVal.Type() == cty.String {
+			res.Message = messageVal.AsString()
+		} else {
+			errs.Append(errors.E(ErrSchema, "assert.message must be string, got %v", messageVal.Type()))
+		}
 	}
-	if messageVal.Type() != cty.String {
-		return Assert{}, errors.E(ErrSchema, "assert.message must be string, got %v", messageVal.Type())
-	}
-	message := messageVal.AsString()
 
 	if cfg.Warning != nil {
 		warningVal, err := evalctx.Eval(cfg.Warning)
 		if err != nil {
-			return Assert{}, errors.E(err, "evaluating assert.warning")
-		}
-		if warningVal.Type() != cty.Bool {
-			return Assert{}, errors.E(ErrSchema, "assert.warning must be boolean", warningVal.Type())
+			errs.Append(errors.E(err, "evaluating assert.warning"))
+		} else {
+			if warningVal.Type() == cty.Bool {
+				res.Warning = warningVal.True()
+			} else {
+				return Assert{}, errors.E(ErrSchema, "assert.warning must be boolean", warningVal.Type())
+			}
 		}
 	}
 
-	return Assert{
-		Assertion: assertion,
-		Message:   message,
-	}, nil
+	if err := errs.AsError(); err != nil {
+		return Assert{}, err
+	}
+
+	return res, nil
 }

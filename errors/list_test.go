@@ -145,6 +145,34 @@ func TestErrorListFlattensOtherErrorList(t *testing.T) {
 	}
 }
 
+func TestErrorListsWithMatchingErrors(t *testing.T) {
+	const (
+		kind1 errors.Kind = "kind1"
+		kind2 errors.Kind = "kind2"
+		kind3 errors.Kind = "kind3"
+	)
+
+	t.Run("empty list match", func(t *testing.T) {
+		assert.IsTrue(t, errors.Is(errors.L(), errors.L()))
+	})
+
+	errs1 := errors.L(errors.E(kind1), errors.E(kind2), errors.E(kind3))
+
+	t.Run("exact errors match", func(t *testing.T) {
+		errs2 := errors.L(errors.E(kind1), errors.E(kind2), errors.E(kind3))
+		assert.IsTrue(t, errors.Is(errs1, errs2))
+	})
+
+	t.Run("wrong order doesnt match", func(t *testing.T) {
+		errs2 := errors.L(errors.E(kind2), errors.E(kind1), errors.E(kind3))
+		assert.IsTrue(t, !errors.Is(errs1, errs2))
+	})
+
+	t.Run("partial doesnt match", func(t *testing.T) {
+		assert.IsTrue(t, !errors.Is(errs1, errors.L(errors.E(kind1))))
+	})
+}
+
 func TestErrorListStringDetailedPresentation(t *testing.T) {
 	errs := errors.L(E("one"))
 	assert.EqualStrings(t, "error list:\n\t-one", errs.Detailed())

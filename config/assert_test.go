@@ -73,6 +73,24 @@ func TestAssertConfigEval(t *testing.T) {
 			},
 		},
 		{
+			name: "warning defined",
+			namespaces: namespaces{
+				"warning": nsvalues{
+					"val": true,
+				},
+			},
+			assert: hcl.AssertConfig{
+				Assertion: expr(`true`),
+				Message:   expr(`"msg"`),
+				Warning:   expr("warning.val"),
+			},
+			want: config.Assert{
+				Assertion: true,
+				Message:   "msg",
+				Warning:   true,
+			},
+		},
+		{
 			name: "assertion is not boolean fails",
 			assert: hcl.AssertConfig{
 				Assertion: expr(`[]`),
@@ -122,6 +140,19 @@ func TestAssertConfigEval(t *testing.T) {
 			},
 			wantErr: errors.E(eval.ErrEval),
 		},
+		{
+			name: "multiple errors",
+			assert: hcl.AssertConfig{
+				Assertion: expr(`unknown.val`),
+				Message:   expr(`false`),
+				Warning:   expr("access.warning"),
+			},
+			wantErr: errors.L(
+				errors.E(eval.ErrEval),
+				errors.E(config.ErrSchema),
+				errors.E(eval.ErrEval),
+			),
+		},
 	}
 
 	for _, tcase := range tcases {
@@ -154,6 +185,8 @@ func (e nsvalues) asCtyMap() map[string]cty.Value {
 		switch v := v.(type) {
 		case string:
 			vals[k] = cty.StringVal(v)
+		case bool:
+			vals[k] = cty.BoolVal(v)
 		default:
 			panic(fmt.Errorf("unsupported type %T", v))
 		}
