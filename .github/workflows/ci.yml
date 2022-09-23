@@ -15,7 +15,6 @@
 name: ci
 on: [push]
 jobs:
-
   checks:
     runs-on: ubuntu-20.04
 
@@ -39,7 +38,6 @@ jobs:
 
   build_test:
     name: Build and Test
-
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -99,3 +97,10 @@ jobs:
 
       - name: release dry run
         run: make release/dry-run
+
+  ci:
+    needs: [checks, build_test, gh_integration_test, release_dry_run]
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Required Checks
+        run: echo "All required checks worked"
