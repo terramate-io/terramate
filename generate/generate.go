@@ -47,6 +47,10 @@ const (
 	// ErrInvalidFilePath indicates that code generation configuration
 	// has an invalid filepath as the target to save the generated code.
 	ErrInvalidFilePath errors.Kind = "invalid filepath"
+
+	// ErrAssertion indicates that code generation configuration
+	// has a failed assertion.
+	ErrAssertion errors.Kind = "assertion failed"
 )
 
 // Do will walk all the stacks inside the given working dir
