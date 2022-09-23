@@ -15,9 +15,6 @@
 name: ci
 on: [push]
 jobs:
-  ci:
-    needs: [checks, build_test, gh_integration_test, release_dry_run]
-
   checks:
     runs-on: ubuntu-20.04
 
@@ -100,3 +97,6 @@ jobs:
 
       - name: release dry run
         run: make release/dry-run
+
+  ci:
+    needs: [checks, build_test, gh_integration_test, release_dry_run]
