@@ -15,6 +15,8 @@
 package config
 
 import (
+	"fmt"
+
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
@@ -33,7 +35,7 @@ type Assert struct {
 }
 
 func (a Assert) String() string {
-	return a.assertionRange.String()
+	return fmt.Sprintf("assertion is %t at: %s", a.Assertion, a.assertionRange.String())
 }
 
 // EvalAssert evaluates a given assert configuration and returns its
