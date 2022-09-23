@@ -35,7 +35,7 @@ type Assert struct {
 }
 
 func (a Assert) String() string {
-	return fmt.Sprintf("assertion is %t at: %s", a.Assertion, a.assertionRange.String())
+	return fmt.Sprintf("%s: %s", a.assertionRange.String(), a.Message)
 }
 
 // EvalAssert evaluates a given assert configuration and returns its
