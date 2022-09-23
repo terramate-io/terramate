@@ -24,6 +24,8 @@ import (
 )
 
 func TestGenerateAssert(t *testing.T) {
+	t.Skip()
+
 	testCodeGeneration(t, test.AssertGenHCLEquals, []testcase{
 		{
 			name: "no generate blocks with success assertion",

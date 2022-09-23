@@ -207,6 +207,63 @@ Failures:
 Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
 		},
 		{
+			name: "error result is a list",
+			report: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/success",
+						Created: []string{"created.tf"},
+						Changed: []string{"changed.tf"},
+						Deleted: []string{"removed.tf"},
+					},
+					{
+						Dir:     "/success2",
+						Created: []string{"created.tf"},
+						Changed: []string{"changed.tf"},
+						Deleted: []string{"removed.tf"},
+					},
+				},
+				// TODO(katcipis): define errors list here
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/failed",
+						},
+						Error: errors.New("error"),
+					},
+					{
+						Result: generate.Result{
+							Dir: "/failed2",
+						},
+						Error: errors.New("error"),
+					},
+				},
+			},
+			want: `Code generation report
+
+Successes:
+
+- /success
+	[+] created.tf
+	[~] changed.tf
+	[-] removed.tf
+
+- /success2
+	[+] created.tf
+	[~] changed.tf
+	[-] removed.tf
+
+Failures:
+
+- /failed
+	error: error
+
+- /failed2
+	error: error
+
+Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
+		},
+		{
 			name: "cleanup error result",
 			report: generate.Report{
 				Successes: []generate.Result{
