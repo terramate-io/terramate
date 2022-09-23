@@ -19,6 +19,7 @@ import (
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
@@ -40,6 +41,38 @@ func TestGenerateAssert(t *testing.T) {
 				},
 			},
 			wantReport: generate.Report{},
+		},
+		{
+			name: "assert blocks with eval failures",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: Assert(
+						Expr("assertion", "unknown.ref"),
+						Expr("message", "unknown.ref"),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/stacks/stack-1",
+						},
+						Error: errors.E(eval.ErrEval),
+					},
+					{
+						Result: generate.Result{
+							Dir: "/stacks/stack-2",
+						},
+						Error: errors.E(eval.ErrEval),
+					},
+				},
+			},
 		},
 		{
 			name: "no generate blocks with failed assertion",

@@ -88,12 +88,11 @@ func Do(rootdir string, workingDir string) Report {
 
 		logger.Trace().Msg("loading asserts for stack")
 
-		asserts, _ := loadAsserts(projmeta, stack, globals)
-		// TODO(katcipis): error handling
-		//if err != nil {
-		//report.err = err
-		//return report
-		//}
+		asserts, err := loadAsserts(projmeta, stack, globals)
+		if err != nil {
+			report.err = err
+			return report
+		}
 
 		logger.Trace().Msg("checking stack asserts")
 		errs := errors.L()
@@ -794,6 +793,7 @@ func loadAsserts(meta project.Metadata, sm stack.Metadata, globals globals.Map) 
 
 	curdir := sm.HostPath()
 	asserts := []config.Assert{}
+	errs := errors.L()
 
 	for strings.HasPrefix(curdir, meta.Rootdir()) {
 		logger = logger.With().
@@ -817,13 +817,22 @@ func loadAsserts(meta project.Metadata, sm stack.Metadata, globals globals.Map) 
 		}
 
 		evalctx := stack.NewEvalCtx(meta, sm, globals)
+
 		for _, assertCfg := range cfg.Asserts {
-			assert, _ := config.EvalAssert(evalctx.Context, assertCfg)
-			// TODO(katcipis): test eval error handling
-			asserts = append(asserts, assert)
+			assert, err := config.EvalAssert(evalctx.Context, assertCfg)
+			if err != nil {
+				errs.Append(err)
+			} else {
+				asserts = append(asserts, assert)
+			}
 		}
 
 		curdir = filepath.Dir(curdir)
 	}
+
+	if err := errs.AsError(); err != nil {
+		return nil, err
+	}
+
 	return asserts, nil
 }
