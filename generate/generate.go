@@ -97,9 +97,13 @@ func Do(rootdir string, workingDir string) Report {
 		logger.Trace().Msg("checking stack asserts")
 		errs := errors.L()
 		for _, assert := range asserts {
-			// TODO(katcipis): test warning
 			if !assert.Assertion {
-				errs.Append(errors.E(ErrAssertion, assert.String()))
+				err := errors.E(ErrAssertion, assert.String())
+				if assert.Warning {
+					logger.Warn().Err(err).Send()
+				} else {
+					errs.Append(err)
+				}
 			}
 		}
 		if err := errs.AsError(); err != nil {

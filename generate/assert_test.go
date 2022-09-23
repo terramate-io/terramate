@@ -15,6 +15,7 @@
 package generate_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/mineiros-io/terramate/errors"
@@ -35,8 +36,8 @@ func TestGenerateAssert(t *testing.T) {
 				{
 					path: "/stacks",
 					add: Assert(
-						Expr("assertion", "true"),
-						Expr("message", `"msg"`),
+						Bool("assertion", true),
+						Str("message", "msg"),
 					),
 				},
 			},
@@ -84,8 +85,8 @@ func TestGenerateAssert(t *testing.T) {
 				{
 					path: "/stacks",
 					add: Assert(
-						Expr("assertion", "false"),
-						Expr("message", `"msg"`),
+						Bool("assertion", false),
+						Str("message", "msg"),
 					),
 				},
 			},
@@ -107,6 +108,117 @@ func TestGenerateAssert(t *testing.T) {
 			},
 		},
 		{
+			name: "generate blocks ignored on failed assertion",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateHCL(
+							Labels("test.hcl"),
+							Content(
+								Str("stacks", "test"),
+							),
+						),
+						GenerateFile(
+							Labels("test.txt"),
+							Str("content", "test"),
+						),
+					),
+				},
+				{
+					path: "/stacks",
+					add: Assert(
+						Bool("assertion", false),
+						Str("message", "msg"),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/stacks/stack-1",
+						},
+						Error: errors.E(generate.ErrAssertion),
+					},
+					{
+						Result: generate.Result{
+							Dir: "/stacks/stack-2",
+						},
+						Error: errors.E(generate.ErrAssertion),
+					},
+				},
+			},
+		},
+		{
+			name: "generates code when failed assertion is a warning",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateHCL(
+							Labels("test.hcl"),
+							Content(
+								Str("stacks", "test"),
+							),
+						),
+						GenerateFile(
+							Labels("test.txt"),
+							Str("content", "test"),
+						),
+					),
+				},
+				{
+					path: "/stacks",
+					add: Assert(
+						Bool("assertion", false),
+						Expr("message", `"msg"`),
+						Bool("warning", true),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stacks/stack-1",
+					files: map[string]fmt.Stringer{
+						"test.hcl": Doc(
+							Str("stacks", "test"),
+						),
+						"test.txt": stringer("test"),
+					},
+				},
+				{
+					stack: "/stacks/stack-2",
+					files: map[string]fmt.Stringer{
+						"test.hcl": Doc(
+							Str("stacks", "test"),
+						),
+						"test.txt": stringer("test"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/stacks/stack-1",
+						Created: []string{"test.hcl", "test.txt"},
+					},
+					{
+						Dir:     "/stacks/stack-2",
+						Created: []string{"test.hcl", "test.txt"},
+					},
+				},
+			},
+		},
+		{
 			name: "failed assertions on all levels",
 			layout: []string{
 				"s:stacks/stack-1",
@@ -116,22 +228,22 @@ func TestGenerateAssert(t *testing.T) {
 				{
 					path: "/",
 					add: Assert(
-						Expr("assertion", "false"),
-						Expr("message", `"msg"`),
+						Bool("assertion", false),
+						Str("message", "msg"),
 					),
 				},
 				{
 					path: "/stacks",
 					add: Assert(
-						Expr("assertion", "false"),
-						Expr("message", `"msg"`),
+						Bool("assertion", false),
+						Str("message", "msg"),
 					),
 				},
 				{
 					path: "/stacks/stack-1",
 					add: Assert(
-						Expr("assertion", "false"),
-						Expr("message", `"msg"`),
+						Bool("assertion", false),
+						Str("message", "msg"),
 					),
 				},
 			},
