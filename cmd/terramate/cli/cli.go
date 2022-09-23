@@ -394,14 +394,19 @@ func (c *cli) run() {
 	case "experimental vendor download <source> <ref>":
 		c.vendorDownload()
 	case "experimental globals":
+		c.setupGit()
 		c.printStacksGlobals()
 	case "experimental metadata":
+		c.setupGit()
 		c.printMetadata()
 	case "experimental run-graph":
+		c.setupGit()
 		c.generateGraph()
 	case "experimental run-order":
+		c.setupGit()
 		c.printRunOrder()
 	case "experimental run-env":
+		c.setupGit()
 		c.printRunEnv()
 	case "experimental eval":
 		log.Fatal().Msg("no expression specified")
