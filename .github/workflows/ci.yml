@@ -18,6 +18,7 @@ jobs:
 
   checks:
     runs-on: ubuntu-20.04
+    name: ci
 
     steps:
       - name: checkout repo
