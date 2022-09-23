@@ -102,5 +102,5 @@ jobs:
     needs: [checks, build_test, gh_integration_test, release_dry_run]
     runs-on: ubuntu-20.04
     steps:
-      - name: success
-        run: echo success
+      - name: Required Checks
+        run: echo "All required checks worked"
