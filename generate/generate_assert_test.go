@@ -19,14 +19,13 @@ import (
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
-	"github.com/mineiros-io/terramate/test"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
 func TestGenerateAssert(t *testing.T) {
 	t.Skip()
 
-	testCodeGeneration(t, test.AssertGenHCLEquals, []testcase{
+	testCodeGeneration(t, []testcase{
 		{
 			name: "no generate blocks with success assertion",
 			layout: []string{
