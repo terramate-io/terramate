@@ -1,6 +1,3 @@
-# Set default shell to bash
-SHELL := /bin/bash -o pipefail -o errexit -o nounset
-
 GO_BUILD_FLAGS=--ldflags '-extldflags "-static"'
 
 ## Build terramate into bin directory
