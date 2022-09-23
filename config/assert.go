@@ -28,10 +28,12 @@ type Assert struct {
 	Assertion bool
 	Warning   bool
 	Message   string
+
+	assertionRange hhcl.Range
 }
 
 func (a Assert) String() string {
-	return "TODO: KATCIPIS: ADD ORIGIN + RANGE + MESSAGE"
+	return a.assertionRange.String()
 }
 
 // EvalAssert evaluates a given assert configuration and returns its
@@ -45,6 +47,7 @@ func EvalAssert(evalctx *eval.Context, cfg hcl.AssertConfig) (Assert, error) {
 		errs.Append(err)
 	} else {
 		res.Assertion = assertion
+		res.assertionRange = cfg.Assertion.Range()
 	}
 
 	message, err := evalString(evalctx, cfg.Message, "assert.message")
