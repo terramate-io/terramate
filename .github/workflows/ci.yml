@@ -18,7 +18,6 @@ jobs:
 
   checks:
     runs-on: ubuntu-20.04
-    name: ci
 
     steps:
       - name: checkout repo
@@ -38,9 +37,7 @@ jobs:
       - name: checking license on source code
         run: make license/check
 
-  build_test:
-    name: Build and Test
-
+  ci:
     runs-on: ${{ matrix.os }}
 
     strategy:
