@@ -23,8 +23,6 @@ import (
 )
 
 func TestGenerateAssert(t *testing.T) {
-	t.Skip()
-
 	testCodeGeneration(t, []testcase{
 		{
 			name: "no generate blocks with success assertion",
@@ -71,6 +69,59 @@ func TestGenerateAssert(t *testing.T) {
 							Dir: "/stacks/stack-2",
 						},
 						Error: errors.E(generate.ErrAssertion),
+					},
+				},
+			},
+		},
+		{
+			name: "failed assertions on all levels",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Assert(
+						Expr("assertion", "false"),
+						Expr("message", `"msg"`),
+					),
+				},
+				{
+					path: "/stacks",
+					add: Assert(
+						Expr("assertion", "false"),
+						Expr("message", `"msg"`),
+					),
+				},
+				{
+					path: "/stacks/stack-1",
+					add: Assert(
+						Expr("assertion", "false"),
+						Expr("message", `"msg"`),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/stacks/stack-1",
+						},
+						Error: errors.L(
+							errors.E(generate.ErrAssertion),
+							errors.E(generate.ErrAssertion),
+							errors.E(generate.ErrAssertion),
+						),
+					},
+					{
+						Result: generate.Result{
+							Dir: "/stacks/stack-2",
+						},
+						Error: errors.L(
+							errors.E(generate.ErrAssertion),
+							errors.E(generate.ErrAssertion),
+						),
 					},
 				},
 			},

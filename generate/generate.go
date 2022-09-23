@@ -26,6 +26,7 @@ import (
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/globals"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
@@ -84,6 +85,28 @@ func Do(rootdir string, workingDir string) Report {
 
 		var generated []fileInfo
 		report := dirReport{}
+
+		logger.Trace().Msg("loading asserts for stack")
+
+		asserts, _ := loadAsserts(projmeta, stack, globals)
+		// TODO(katcipis): error handling
+		//if err != nil {
+		//report.err = err
+		//return report
+		//}
+
+		logger.Trace().Msg("checking stack asserts")
+		errs := errors.L()
+		for _, assert := range asserts {
+			// TODO(katcipis): test warning
+			if !assert.Assertion {
+				errs.Append(errors.E(ErrAssertion, assert.String()))
+			}
+		}
+		if err := errs.AsError(); err != nil {
+			report.err = err
+			return report
+		}
 
 		logger.Trace().Msg("generate code from generate_file blocks")
 
@@ -754,4 +777,53 @@ func listGenFilesOutsideStacks(rootdir, dir string) ([]dirGenFiles, error) {
 	}
 
 	return dirsFiles, nil
+}
+
+func loadAsserts(meta project.Metadata, sm stack.Metadata, globals globals.Map) ([]config.Assert, error) {
+	// This is the third place (other than genhcl and genfile) that we navigate
+	// the whole tree and parse configs. This should be refactored soon to
+	// navigate a previously loaded structure already in memory, so different
+	// features can be implemented in isolation from each other but without having
+	// to re-parse/walk the entire project over and over again.
+
+	logger := log.With().
+		Str("action", "generate.loadAsserts").
+		Str("rootdir", meta.Rootdir()).
+		Str("stack", sm.Path()).
+		Logger()
+
+	curdir := sm.HostPath()
+	asserts := []config.Assert{}
+
+	for strings.HasPrefix(curdir, meta.Rootdir()) {
+		logger = logger.With().
+			Str("curdir", curdir).
+			Logger()
+
+		logger.Trace().Msg("parsing config")
+
+		parser, err := hcl.NewTerramateParser(meta.Rootdir(), curdir)
+		if err != nil {
+			return nil, errors.E(err, "load asserts: creating parser")
+		}
+
+		if err := parser.AddDir(curdir); err != nil {
+			return nil, errors.E(err, "load asserts: adding dir to parser")
+		}
+
+		cfg, err := parser.ParseConfig()
+		if err != nil {
+			return nil, errors.E(err, "load asserts: parsing assert blocks")
+		}
+
+		evalctx := stack.NewEvalCtx(meta, sm, globals)
+		for _, assertCfg := range cfg.Asserts {
+			assert, _ := config.EvalAssert(evalctx.Context, assertCfg)
+			// TODO(katcipis): test eval error handling
+			asserts = append(asserts, assert)
+		}
+
+		curdir = filepath.Dir(curdir)
+	}
+	return asserts, nil
 }

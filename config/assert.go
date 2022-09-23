@@ -30,6 +30,10 @@ type Assert struct {
 	Message   string
 }
 
+func (a Assert) String() string {
+	return "TODO: KATCIPIS: ADD ORIGIN + RANGE + MESSAGE"
+}
+
 // EvalAssert evaluates a given assert configuration and returns its
 // evaluated form.
 func EvalAssert(evalctx *eval.Context, cfg hcl.AssertConfig) (Assert, error) {
