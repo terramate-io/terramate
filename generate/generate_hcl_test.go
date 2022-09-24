@@ -17,7 +17,9 @@ package generate_test
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -1048,7 +1050,7 @@ func TestGeneratedHCLHeaders(t *testing.T) {
 	s.Generate()
 
 	stackGen := stackEntry.ReadFile(stackFilename)
-	stackHeader := fmt.Sprintf(traceHeaderTemplate, filepath.Join("/stack", config.DefaultFilename))
+	stackHeader := fmt.Sprintf(traceHeaderTemplate, path.Join("/stack", config.DefaultFilename))
 	if !strings.Contains(stackGen, stackHeader) {
 		t.Errorf("wanted header %q\n\ngenerated file:\n%s\n", stackHeader, stackGen)
 	}
@@ -1285,6 +1287,10 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 }
 
 func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("skipped on windows because it requires privileges")
+	}
+	
 	s := sandbox.NoGit(t)
 	rootEntry := s.RootEntry().CreateDir("root")
 	stackEntry := s.CreateStack("root/stack")
@@ -1371,10 +1377,14 @@ func TestGenerateHCLTerramateRootMetadata(t *testing.T) {
 	})
 
 	want := Doc(
-		Str("terramate_root_path_abs", s.RootDir()),
+		Str("terramate_root_path_abs", escapeBackslash(s.RootDir())),
 		Str("terramate_root_path_basename", filepath.Base(s.RootDir())),
 	).String()
 	got := stackEntry.ReadFile(generatedFile)
 
 	test.AssertGenHCLEquals(t, got, want)
+}
+
+func escapeBackslash(s string) string {
+	return strings.ReplaceAll(s, `\`, `\\`)
 }

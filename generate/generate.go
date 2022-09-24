@@ -193,7 +193,7 @@ func Do(rootdir string, workingDir string) Report {
 
 outdatedDirsLoop:
 	for _, outdatedDir := range outdatedDirs {
-		relpath := project.NewPath(strings.TrimPrefix(outdatedDir.dir, rootdir))
+		relpath := project.NewPath(filepath.ToSlash(strings.TrimPrefix(outdatedDir.dir, rootdir)))
 		deleted := []string{}
 
 		for _, outdatedFile := range outdatedDir.files {

@@ -134,7 +134,7 @@ func New(root string, cfg hcl.Config) (*S, error) {
 		watch:         watchFiles,
 		hostpath:      cfg.AbsDir(),
 		path:          project.PrjAbsPath(root, cfg.AbsDir()),
-		relPathToRoot: rel,
+		relPathToRoot: filepath.ToSlash(rel),
 	}, nil
 }
 
