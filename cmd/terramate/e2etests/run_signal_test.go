@@ -42,7 +42,7 @@ func TestRunSendsSigkillIfCmdIgnoresInterruptionSignals(t *testing.T) {
 
 	cmd.start()
 
-	assert.NoError(t, pollBufferForMsgs(cmd.stdout, "ready"), "got stderr: %s", cmd.stderr.String())
+	assert.NoError(t, pollBufferForMsgs(cmd.stdout, "ready"))
 
 	// On rare occasions on macos we seen to lose some SIGINT's
 	sendUntilMsgIsReceived(t, cmd, os.Interrupt, "ready", "interrupt")
