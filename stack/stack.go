@@ -35,7 +35,7 @@ type (
 		hostpath string
 
 		// path is the absolute path of the stack relative to project's root.
-		path string
+		path project.Path
 
 		// relPathToRoot is the relative path from the stack to root.
 		relPathToRoot string
@@ -64,7 +64,7 @@ type (
 		wantedBy []string
 
 		// watch is the list of files to be watched for changes.
-		watch []string
+		watch []project.Path
 
 		// changed tells if this is a changed stack.
 		changed bool
@@ -79,7 +79,7 @@ type (
 		// HostPath is the absolute path of the stack on the host file system.
 		HostPath() string
 		// Path is the absolute path of the stack (relative to project root).
-		Path() string
+		Path() project.Path
 		// RelPath is the relative path of the from root.
 		RelPath() string
 		// PathBase is the basename of the stack path.
@@ -148,7 +148,7 @@ func (s *S) Name() string {
 	if s.name != "" {
 		return s.name
 	}
-	return s.Path()
+	return s.Path().String()
 }
 
 // Desc is the description of the stack.
@@ -173,7 +173,7 @@ func (s S) Wants() []string { return s.wants }
 func (s S) WantedBy() []string { return s.wantedBy }
 
 // Watch returns the list of watched files.
-func (s *S) Watch() []string { return s.watch }
+func (s *S) Watch() []project.Path { return s.watch }
 
 // IsChanged tells if the stack is marked as changed.
 func (s *S) IsChanged() bool { return s.changed }
@@ -182,16 +182,16 @@ func (s *S) IsChanged() bool { return s.changed }
 func (s *S) SetChanged(b bool) { s.changed = b }
 
 // String representation of the stack.
-func (s *S) String() string { return s.Path() }
+func (s *S) String() string { return s.Path().String() }
 
 // Path returns the project's absolute path of stack.
-func (s *S) Path() string { return s.path }
+func (s *S) Path() project.Path { return s.path }
 
 // PathBase returns the base name of the stack path.
-func (s *S) PathBase() string { return filepath.Base(s.path) }
+func (s *S) PathBase() string { return filepath.Base(s.path.String()) }
 
 // RelPath returns the project's relative path of stack.
-func (s *S) RelPath() string { return s.path[1:] }
+func (s *S) RelPath() string { return s.path.String()[1:] }
 
 // RelPathToRoot returns the relative path from the stack to root.
 func (s *S) RelPathToRoot() string { return s.relPathToRoot }
@@ -199,8 +199,8 @@ func (s *S) RelPathToRoot() string { return s.relPathToRoot }
 // HostPath returns the file system absolute path of stack.
 func (s *S) HostPath() string { return s.hostpath }
 
-func validateWatchPaths(rootdir string, stackpath string, paths []string) ([]string, error) {
-	var projectPaths []string
+func validateWatchPaths(rootdir string, stackpath string, paths []string) (project.Paths, error) {
+	var projectPaths project.Paths
 	for _, path := range paths {
 		var abspath string
 		if filepath.IsAbs(path) {
@@ -237,7 +237,7 @@ func LookupParent(root, dir string) (*S, bool, error) {
 
 // NewProjectMetadata creates project metadata from a given rootdir and a list of stacks.
 func NewProjectMetadata(rootdir string, stacks List) project.Metadata {
-	stackPaths := make([]string, len(stacks))
+	stackPaths := make(project.Paths, len(stacks))
 	for i, st := range stacks {
 		stackPaths[i] = st.Path()
 	}
@@ -364,6 +364,14 @@ func Reverse(stacks List) {
 		i++
 		j--
 	}
+}
+
+func (l List) Paths() project.Paths {
+	strs := make(project.Paths, len(l))
+	for i, s := range l {
+		strs[i] = s.Path()
+	}
+	return strs
 }
 
 func (l List) Len() int           { return len(l) }

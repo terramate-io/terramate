@@ -27,14 +27,14 @@ import (
 // Loader is a stack loader.
 type Loader struct {
 	root   string
-	stacks map[string]*S
+	stacks map[project.Path]*S
 }
 
 // NewLoader creates a new stack loader for project's root directory.
 func NewLoader(root string) Loader {
 	return Loader{
 		root:   root,
-		stacks: make(map[string]*S),
+		stacks: make(map[project.Path]*S),
 	}
 }
 
@@ -103,7 +103,7 @@ func (l Loader) TryLoadChanged(root, dir string) (stack *S, found bool, err erro
 
 // Set stacks in the loader's cache. The dir directory must be relative to
 // project's root.
-func (l Loader) Set(dir string, s *S) {
+func (l Loader) Set(dir project.Path, s *S) {
 	l.stacks[dir] = s
 }
 

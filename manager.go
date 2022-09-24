@@ -155,7 +155,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 		return nil, errors.E(errListChanged, err)
 	}
 
-	stackSet := map[string]Entry{}
+	stackSet := map[project.Path]Entry{}
 
 	logger.Trace().
 		Msg("Range over files.")
@@ -223,7 +223,7 @@ rangeStacks:
 		if changed, ok := hasChangedWatchedFiles(stack, changedFiles); ok {
 			logger.Debug().
 				Stringer("stack", stack).
-				Str("watchfile", changed).
+				Stringer("watchfile", changed).
 				Msg("changed.")
 
 			stack.SetChanged(true)
@@ -340,7 +340,7 @@ func (m *Manager) AddWantedOf(scopeStacks stack.List) (stack.List, error) {
 		loader.Set(s.Path(), s)
 
 		logger.Trace().
-			Str("stack", s.Path()).
+			Stringer("stack", s.Path()).
 			Msg("Building dag")
 
 		err := run.BuildDAG(
@@ -609,10 +609,10 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 	return g.DiffNames(baseRef, headRef)
 }
 
-func hasChangedWatchedFiles(stack *stack.S, changedFiles []string) (string, bool) {
+func hasChangedWatchedFiles(stack *stack.S, changedFiles []string) (project.Path, bool) {
 	for _, watchFile := range stack.Watch() {
 		for _, file := range changedFiles {
-			if file == watchFile[1:] { // project paths
+			if file == watchFile.String()[1:] { // project paths
 				return watchFile, true
 			}
 		}

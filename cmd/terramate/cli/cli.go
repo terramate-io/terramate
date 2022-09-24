@@ -815,7 +815,7 @@ func (c *cli) printStacks() {
 
 	for _, entry := range report.Stacks {
 		stack := entry.Stack
-		stackRepr, ok := c.friendlyFmtDir(stack.Path())
+		stackRepr, ok := c.friendlyFmtDir(stack.Path().String())
 		if !ok {
 			continue
 		}
@@ -888,7 +888,7 @@ func (c *cli) generateGraph() {
 	case "stack.dir":
 		logger.Debug().Msg("Set label stack directory.")
 
-		getLabel = func(s *stack.S) string { return s.Path() }
+		getLabel = func(s *stack.S) string { return s.Path().String() }
 	default:
 		logger.Fatal().
 			Msg("-label expects the values \"stack.name\" or \"stack.dir\"")
@@ -1076,7 +1076,7 @@ func (c *cli) printStacksGlobals() {
 		if err := report.AsError(); err != nil {
 			log.Fatal().
 				Err(err).
-				Str("stack", meta.Path()).
+				Stringer("stack", meta.Path()).
 				Msg("listing stacks globals: loading stack")
 		}
 
@@ -1468,7 +1468,7 @@ func (c *cli) runOnStacks() {
 			c.log("The stacks will be executed using order below:")
 
 			for i, s := range orderedStacks {
-				stackdir, _ := c.friendlyFmtDir(s.Path())
+				stackdir, _ := c.friendlyFmtDir(s.Path().String())
 				c.log("\t%d. %s (%s)", i, s.Name(), stackdir)
 			}
 		} else {
@@ -1491,7 +1491,6 @@ func (c *cli) runOnStacks() {
 	)
 
 	if err != nil {
-
 		logger.Warn().Msg("one or more commands failed")
 
 		var errs *errors.List
@@ -1559,15 +1558,15 @@ func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Ent
 		Str("workingDir", c.wd()).
 		Logger()
 
-	logger.Trace().
-		Msg("Get relative working directory.")
+	logger.Trace().Msg("Get relative working directory.")
+
 	relwd := prj.PrjAbsPath(c.root(), c.wd())
 
-	logger.Trace().
-		Msg("Get filtered stacks.")
+	logger.Trace().Msg("Get filtered stacks.")
+
 	filtered := []terramate.Entry{}
 	for _, e := range stacks {
-		if strings.HasPrefix(e.Stack.Path(), relwd) {
+		if e.Stack.Path().HasPrefix(relwd.String()) {
 			filtered = append(filtered, e)
 		}
 	}

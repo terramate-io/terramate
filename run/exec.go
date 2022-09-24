@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 )
@@ -52,7 +53,7 @@ func Exec(
 	const signalsBuffer = 10
 
 	errs := errors.L()
-	stackEnvs := map[string]EnvVars{}
+	stackEnvs := map[project.Path]EnvVars{}
 
 	logger.Trace().Msg("loading stacks run environment variables")
 
@@ -67,6 +68,10 @@ func Exec(
 	if errs.AsError() != nil {
 		return errs.AsError()
 	}
+
+	logger = logger.With().
+		Strs("stacks", stacks.Paths().Strings()).
+		Logger()
 
 	logger.Trace().Msg("loaded stacks run environment variables, running commands")
 

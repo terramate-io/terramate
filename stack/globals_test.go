@@ -1557,11 +1557,11 @@ func TestLoadGlobals(t *testing.T) {
 					continue
 				}
 
-				want, ok := wantGlobals[st.Path()]
+				want, ok := wantGlobals[st.Path().String()]
 				if !ok {
 					want = Globals()
 				}
-				delete(wantGlobals, st.Path())
+				delete(wantGlobals, st.Path().String())
 
 				// Could have one type for globals configs and another type
 				// for wanted evaluated globals, but that would make

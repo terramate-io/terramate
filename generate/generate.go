@@ -193,7 +193,7 @@ func Do(rootdir string, workingDir string) Report {
 
 outdatedDirsLoop:
 	for _, outdatedDir := range outdatedDirs {
-		relpath := strings.TrimPrefix(outdatedDir.dir, rootdir)
+		relpath := project.NewPath(strings.TrimPrefix(outdatedDir.dir, rootdir))
 		deleted := []string{}
 
 		for _, outdatedFile := range outdatedDir.files {
@@ -340,7 +340,7 @@ func CheckStack(projmeta project.Metadata, st *stack.S) ([]string, error) {
 
 type fileInfo interface {
 	Name() string
-	Origin() string
+	Origin() project.Path
 	Header() string
 	Body() string
 	Condition() bool

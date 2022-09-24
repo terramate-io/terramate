@@ -1751,7 +1751,7 @@ func (tcase testcase) run(t *testing.T) {
 			)
 			assert.EqualStrings(t,
 				res.hcl.origin,
-				gothcl.Origin(),
+				gothcl.Origin().String(),
 				"wrong origin config path for generated code",
 			)
 
