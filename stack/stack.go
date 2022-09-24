@@ -366,6 +366,7 @@ func Reverse(stacks List) {
 	}
 }
 
+// Paths returns the project paths from the stack list.
 func (l List) Paths() project.Paths {
 	strs := make(project.Paths, len(l))
 	for i, s := range l {

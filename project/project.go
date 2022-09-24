@@ -36,6 +36,8 @@ type Path string
 // Paths is a list of project paths.
 type Paths []Path
 
+// NewPath creates a new project path.
+// It panics if a relative path is provided.
 func NewPath(p string) Path {
 	if !path.IsAbs(p) {
 		panic(errors.E("project path must be absolute but got %s", p))
@@ -54,6 +56,7 @@ func (p Path) HasPrefix(s string) bool {
 // String returns the path as a string.
 func (p Path) String() string { return string(p) }
 
+// Strings returns a []string from the []Path.
 func (paths Paths) Strings() []string {
 	vals := []string{}
 	for _, p := range paths {
