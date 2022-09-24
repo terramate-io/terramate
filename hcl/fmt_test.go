@@ -1438,32 +1438,6 @@ func TestFormatTreeFailsOnNonExistentDir(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestFormatTreeFailsOnNonAccessibleSubdir(t *testing.T) {
-	const subdir = "subdir"
-	tmpdir := t.TempDir()
-	test.Mkdir(t, tmpdir, subdir)
-
-	assert.NoError(t, os.Chmod(filepath.Join(tmpdir, subdir), 0))
-
-	_, err := hcl.FormatTree(tmpdir)
-	assert.Error(t, err)
-}
-
-func TestFormatTreeFailsOnNonAccessibleFile(t *testing.T) {
-	const filename = "filename.tm"
-
-	tmpdir := t.TempDir()
-	test.WriteFile(t, tmpdir, filename, `globals{
-	a = 2
-		b = 3
-	}`)
-
-	assert.NoError(t, os.Chmod(filepath.Join(tmpdir, filename), 0))
-
-	_, err := hcl.FormatTree(tmpdir)
-	assert.Error(t, err)
-}
-
 func TestFormatTreeIgnoresNonTerramateFiles(t *testing.T) {
 	const (
 		subdirName      = ".dotdir"
