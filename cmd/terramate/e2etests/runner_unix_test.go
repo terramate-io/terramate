@@ -2,7 +2,12 @@
 
 package e2etest
 
-import "syscall"
+import (
+	"os"
+	"syscall"
+
+	"github.com/madlambda/spells/assert"
+)
 
 // build flags for unix below were taken from:
 // https://github.com/golang/go/blob/master/src/cmd/dist/build.go#L943
