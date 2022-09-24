@@ -37,11 +37,6 @@ coverage:
 coverage/show: coverage
 	go tool cover -html=$(COVERAGE_REPORT)
 
-## test code
-.PHONY: test
-test: 
-	go test -count=1 -race ./...
-
 ## start fuzzying to generate some new corpus/find errors on partial eval
 .PHONY: test/fuzz/eval
 test/fuzz/eval:

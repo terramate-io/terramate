@@ -14,6 +14,11 @@ build:
 install:
 	CGO_ENABLED=0 go install $(GO_BUILD_FLAGS) ./cmd/terramate
 
+## test code
+.PHONY: test
+test: 
+	go test -count=1 -race ./...
+
 ## test if terramate works with CI git environment.
 .PHONY: test/ci
 test/ci: build

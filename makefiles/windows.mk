@@ -23,6 +23,11 @@ build:
 install:
 	go install ./cmd/terramate
 
+## test code
+.PHONY: test
+test: 
+	go test -count=1 -race ./... || echo "windows is not supported yet"
+
  ## remove build artifacts
 .PHONY: clean
 clean:
