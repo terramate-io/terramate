@@ -2,9 +2,9 @@
 default: help
 
 ifeq ($(OS),Windows_NT)
--include makefiles/windows/*.mk
+-include makefiles/windows.mk
 else 
--include makefiles/unix/*.mk
+-include makefiles/unix.mk
 endif
 
--include makefiles/*.mk
+-include makefiles/common.mk
