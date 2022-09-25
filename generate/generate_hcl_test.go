@@ -1290,7 +1290,7 @@ func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("skipped on windows because it requires privileges")
 	}
-	
+
 	s := sandbox.NoGit(t)
 	rootEntry := s.RootEntry().CreateDir("root")
 	stackEntry := s.CreateStack("root/stack")
