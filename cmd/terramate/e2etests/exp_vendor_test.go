@@ -21,6 +21,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/modvendor"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -203,25 +204,27 @@ func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
 	modsrcZtest, err := tf.ParseSource(modZ + "?ref=test")
 	assert.NoError(t, err)
 
+	const vendorDir = project.Path("/modules")
+
 	modFileA := filepath.Join(
-		modvendor.AbsVendorDir(s.RootDir(), "/modules", modsrcA),
+		modvendor.AbsVendorDir(s.RootDir(), vendorDir, modsrcA),
 		filename,
 	)
 
 	modFileB := filepath.Join(
-		modvendor.AbsVendorDir(s.RootDir(), "/modules", modsrcB),
+		modvendor.AbsVendorDir(s.RootDir(), vendorDir, modsrcB),
 		filename,
 	)
 
 	modFileC := filepath.Join(
-		modvendor.AbsVendorDir(s.RootDir(), "/modules", modsrcC),
+		modvendor.AbsVendorDir(s.RootDir(), vendorDir, modsrcC),
 		filename,
 	)
 
 	wantedFileContent := func(name string, modsrc, modsrcDep tf.Source) string {
 		relPath, err := filepath.Rel(
-			modvendor.AbsVendorDir(s.RootDir(), "/modules", modsrc),
-			modvendor.AbsVendorDir(s.RootDir(), "/modules", modsrcDep))
+			modvendor.AbsVendorDir(s.RootDir(), vendorDir, modsrc),
+			modvendor.AbsVendorDir(s.RootDir(), vendorDir, modsrcDep))
 		assert.NoError(t, err)
 		return Module(
 			Labels(name),
