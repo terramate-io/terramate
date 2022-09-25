@@ -72,4 +72,4 @@ func tmAbspathTestcases(t *testing.T) []testcase {
 	}
 }
 
-func root(t *testing.T) string { return "/"}
+func root(t *testing.T) string { return "/" }
