@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/tf"
 )
 
@@ -28,7 +29,7 @@ type Vendored struct {
 	// Source is the remote source.
 	Source tf.Source
 	// Dir is the directory where the dependency have been vendored into.
-	Dir string
+	Dir project.Path
 }
 
 // IgnoredVendor describes an ignored dependency.
@@ -39,17 +40,17 @@ type IgnoredVendor struct {
 
 // Report with the result of the vendor related functions.
 type Report struct {
-	Vendored map[string]Vendored
+	Vendored map[project.Path]Vendored
 	Ignored  []IgnoredVendor
 	Error    error
 
-	vendorDir string
+	vendorDir project.Path
 }
 
 // NewReport returns a new empty report.
-func NewReport(vendordir string) Report {
+func NewReport(vendordir project.Path) Report {
 	return Report{
-		Vendored:  make(map[string]Vendored),
+		Vendored:  make(map[project.Path]Vendored),
 		vendorDir: vendordir,
 	}
 }
@@ -64,12 +65,15 @@ func (r Report) String() string {
 		report = append(report, fmt.Sprintf(msg, args...))
 	}
 
-	sources := []string{}
+	sources := []project.Path{}
 	for source := range r.Vendored {
 		sources = append(sources, source)
 	}
 
-	sort.Strings(sources)
+	sort.Slice(sources, func(i, j int) bool {
+		return string(sources[i]) < string(sources[j])
+	})
+
 	for _, source := range sources {
 		vendored := r.Vendored[source]
 		addLine("[+] %s", vendored.Source.URL)

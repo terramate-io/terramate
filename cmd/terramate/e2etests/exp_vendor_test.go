@@ -25,6 +25,7 @@ import (
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/mineiros-io/terramate/tf"
+	"go.lsp.dev/uri"
 )
 
 func TestVendorModule(t *testing.T) {
@@ -40,7 +41,7 @@ func TestVendorModule(t *testing.T) {
 	repoGit := repoSandbox.Git()
 	repoGit.CommitAll("add file")
 
-	gitSource := "git::file://" + repoSandbox.RootDir()
+	gitSource := "git::" + string(uri.File(repoSandbox.RootDir()))
 
 	checkVendoredFiles := func(t *testing.T, res runResult, vendordir string) {
 		t.Helper()
@@ -104,7 +105,7 @@ func TestVendorModuleRecursive1DependencyIsPatched(t *testing.T) {
 	repoGit := depsSandbox.Git()
 	repoGit.CommitAll("add file")
 
-	depsGitSource := "git::file://" + depsSandbox.RootDir() + "?ref=main"
+	depsGitSource := "git::" + string(uri.File(depsSandbox.RootDir())) + "?ref=main"
 
 	moduleSandbox := sandbox.New(t)
 
@@ -114,7 +115,7 @@ func TestVendorModuleRecursive1DependencyIsPatched(t *testing.T) {
 	repoGit = moduleSandbox.Git()
 	repoGit.CommitAll("add file")
 
-	gitSource := "git::file://" + moduleSandbox.RootDir()
+	gitSource := "git::" + string(uri.File(moduleSandbox.RootDir()))
 
 	s := sandbox.New(t)
 
@@ -167,7 +168,7 @@ func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
 		repoGit.CheckoutNew("test")
 		repoGit.Push("main")
 		repoGit.Push("test")
-		return "git::file://" + moduleRepo.RootDir()
+		return "git::" + string(uri.File(moduleRepo.RootDir()))
 	}
 
 	modZ := setupModuleGit("modZ", "main")
@@ -203,28 +204,28 @@ func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
 	assert.NoError(t, err)
 
 	modFileA := filepath.Join(
-		modvendor.AbsVendorDir(s.RootDir(), "modules", modsrcA),
+		modvendor.AbsVendorDir(s.RootDir(), "/modules", modsrcA),
 		filename,
 	)
 
 	modFileB := filepath.Join(
-		modvendor.AbsVendorDir(s.RootDir(), "modules", modsrcB),
+		modvendor.AbsVendorDir(s.RootDir(), "/modules", modsrcB),
 		filename,
 	)
 
 	modFileC := filepath.Join(
-		modvendor.AbsVendorDir(s.RootDir(), "modules", modsrcC),
+		modvendor.AbsVendorDir(s.RootDir(), "/modules", modsrcC),
 		filename,
 	)
 
 	wantedFileContent := func(name string, modsrc, modsrcDep tf.Source) string {
 		relPath, err := filepath.Rel(
-			modvendor.AbsVendorDir(s.RootDir(), "modules", modsrc),
-			modvendor.AbsVendorDir(s.RootDir(), "modules", modsrcDep))
+			modvendor.AbsVendorDir(s.RootDir(), "/modules", modsrc),
+			modvendor.AbsVendorDir(s.RootDir(), "/modules", modsrcDep))
 		assert.NoError(t, err)
 		return Module(
 			Labels(name),
-			Str("source", relPath),
+			Str("source", filepath.ToSlash(relPath)),
 		).String()
 	}
 
