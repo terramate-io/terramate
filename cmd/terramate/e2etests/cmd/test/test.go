@@ -72,7 +72,7 @@ func cat(fname string) {
 	if err != nil {
 		panic(err)
 	}
-	os.Stdout.Write(bytes)
+	print(string(bytes))
 }
 
 // pwdBasename prints the basename of current directory.
@@ -82,5 +82,5 @@ func pwdBasename() {
 		panic(err)
 	}
 	base := filepath.Base(cwd)
-	os.Stdout.Write(append([]byte(base), '\n'))
+	fmt.Println(base)
 }
