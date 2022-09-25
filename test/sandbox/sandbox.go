@@ -435,7 +435,7 @@ func (fe FileEntry) Path() string {
 func (se StackEntry) ModSource(mod DirEntry) string {
 	relpath, err := filepath.Rel(se.abspath, mod.abspath)
 	assert.NoError(se.t, err)
-	return relpath
+	return filepath.ToSlash(relpath)
 }
 
 // WriteConfig will create a terramate configuration file on the stack

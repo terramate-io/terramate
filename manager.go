@@ -331,7 +331,7 @@ func (m *Manager) AddWantedOf(scopeStacks stack.List) (stack.List, error) {
 
 	allstacks, err := stack.LoadAll(m.root)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(err, "loading all stacks")
 	}
 
 	visited := dag.Visited{}
@@ -354,7 +354,7 @@ func (m *Manager) AddWantedOf(scopeStacks stack.List) (stack.List, error) {
 		)
 
 		if err != nil {
-			return nil, err
+			return nil, errors.E(err, "building wants DAG")
 		}
 	}
 

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -201,26 +202,26 @@ func (s *S) HostPath() string { return s.hostpath }
 
 func validateWatchPaths(rootdir string, stackpath string, paths []string) (project.Paths, error) {
 	var projectPaths project.Paths
-	for _, path := range paths {
+	for _, pathstr := range paths {
 		var abspath string
-		if filepath.IsAbs(path) {
-			abspath = filepath.Join(rootdir, path)
+		if path.IsAbs(pathstr) {
+			abspath = filepath.Join(rootdir, filepath.FromSlash(pathstr))
 		} else {
-			abspath = filepath.Join(stackpath, path)
+			abspath = filepath.Join(stackpath, filepath.FromSlash(pathstr))
 		}
 		if !strings.HasPrefix(abspath, rootdir) {
-			return nil, errors.E("path %q is outside project root", path)
+			return nil, errors.E("path %s is outside project root", pathstr)
 		}
 		st, err := os.Stat(abspath)
 		if err == nil {
 			if st.IsDir() {
 				return nil, errors.E("stack.watch must be a list of regular files "+
-					"but directory %q was provided", path)
+					"but directory %q was provided", pathstr)
 			}
 
 			if !st.Mode().IsRegular() {
 				return nil, errors.E("stack.watch must be a list of regular files "+
-					"but file %q has mode %s", path, st.Mode())
+					"but file %q has mode %s", pathstr, st.Mode())
 			}
 		}
 		projectPaths = append(projectPaths, project.PrjAbsPath(rootdir, abspath))
@@ -329,14 +330,14 @@ func TryLoad(root, absdir string) (stack *S, found bool, err error) {
 		Logger()
 
 	if !strings.HasPrefix(absdir, root) {
-		return nil, false, errors.E(fmt.Sprintf("directory %q is not inside project root %q",
+		return nil, false, errors.E(fmt.Sprintf("directory %s is not inside project root %s",
 			absdir, root))
 	}
 
 	logger.Debug().Msg("Parsing configuration.")
 	cfg, err := hcl.ParseDir(root, absdir)
 	if err != nil {
-		return nil, false, errors.E(err, "failed to parse directory %q", absdir)
+		return nil, false, errors.E(err, "failed to parse directory %s", absdir)
 	}
 
 	if cfg.Stack == nil {
