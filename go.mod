@@ -16,6 +16,7 @@ require (
 	github.com/willabides/kongplete v0.2.0
 	github.com/zclconf/go-cty v1.8.3
 	github.com/zclconf/go-cty-debug v0.0.0-20191215020915-b22d67c1ba0b
+	go.lsp.dev/uri v0.3.0
 )
 
 require (
@@ -23,7 +24,6 @@ require (
 	github.com/go-git/gcfg v1.5.0 // indirect
 	github.com/go-git/go-billy/v5 v5.3.1 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
-	go.lsp.dev/uri v0.3.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
 
