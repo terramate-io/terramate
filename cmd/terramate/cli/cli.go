@@ -527,7 +527,7 @@ func (c *cli) vendorDir() prj.Path {
 
 	checkVendorDir := func(dir string) prj.Path {
 		if !path.IsAbs(dir) {
-			logger.Fatal().Msgf("vendorDir %q defined in .terramate is not an absolute path", dir)
+			logger.Fatal().Msgf("vendorDir %q defined is not an absolute path", dir)
 		}
 		return prj.NewPath(dir)
 	}
