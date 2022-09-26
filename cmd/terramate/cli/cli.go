@@ -519,8 +519,8 @@ func (c *cli) vendorDir() prj.Path {
 		logger.Trace().Msg("using CLI config")
 
 		dir := c.parsedArgs.Experimental.Vendor.Download.Dir
-		if !filepath.IsAbs(dir) {
-			dir = filepath.Join(c.wd(), dir)
+		if !path.IsAbs(dir) {
+			dir = path.Join(string(prj.PrjAbsPath(c.root(), c.wd())), dir)
 		}
 		return prj.NewPath(dir)
 	}

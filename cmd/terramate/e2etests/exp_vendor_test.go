@@ -17,6 +17,7 @@ package e2etest
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -49,7 +50,7 @@ func TestVendorModule(t *testing.T) {
 
 		assertRunResult(t, res, runExpected{IgnoreStdout: true})
 
-		clonedir := filepath.Join(vendordir, repoSandbox.RootDir(), "main")
+		clonedir := filepath.Join(vendordir, strings.ReplaceAll(repoSandbox.RootDir(), ":", "$"), "main")
 
 		got := test.ReadFile(t, clonedir, filename)
 		assert.EqualStrings(t, content, string(got))
@@ -125,8 +126,8 @@ func TestVendorModuleRecursive1DependencyIsPatched(t *testing.T) {
 	assertRunResult(t, res, runExpected{IgnoreStdout: true})
 
 	vendordir := filepath.Join(s.RootDir(), "modules")
-	moduleDir := filepath.Join(vendordir, moduleSandbox.RootDir(), "main")
-	depsDir := filepath.Join(vendordir, depsSandbox.RootDir(), "main")
+	moduleDir := filepath.Join(vendordir, strings.ReplaceAll(moduleSandbox.RootDir(), ":", "$"), "main")
+	depsDir := filepath.Join(vendordir, strings.ReplaceAll(depsSandbox.RootDir(), ":", "$"), "main")
 
 	got := test.ReadFile(t, moduleDir, "main.tf")
 	assert.EqualStrings(t,
