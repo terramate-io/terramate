@@ -1592,8 +1592,8 @@ func TestRunLogsUserCommand(t *testing.T) {
 	git.Push("main")
 
 	cli := newCLIWithLogLevel(t, s.RootDir(), "info")
-	assertRunResult(t, cli.run("run", "cat", testfile.HostPath()), runExpected{
-		StderrRegex: `cmd="cat /`,
+	assertRunResult(t, cli.run("run", testHelperBin, "cat", testfile.HostPath()), runExpected{
+		StderrRegex: `cmd=`,
 	})
 }
 
