@@ -1456,9 +1456,7 @@ func TestFormatTreeFailsOnNonAccessibleFile(t *testing.T) {
 	}`)
 
 	test.Chmod(t, filepath.Join(tmpdir, filename), 0)
-	defer func() {
-		test.Chmod(t, filepath.Join(tmpdir, filename), 0755)
-	}()
+	defer test.Chmod(t, filepath.Join(tmpdir, filename), 0755)
 
 	_, err := hcl.FormatTree(tmpdir)
 	assert.Error(t, err)
