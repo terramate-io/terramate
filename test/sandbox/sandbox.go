@@ -545,7 +545,7 @@ func buildTree(t *testing.T, rootdir string, layout []string) {
 	gentmfile := func(relpath, data string) {
 		attrs := strings.Split(data, ";")
 
-		cfgdir := filepath.Join(rootdir, relpath)
+		cfgdir := filepath.Join(rootdir, filepath.FromSlash(relpath))
 		test.MkdirAll(t, cfgdir)
 		cfg, err := hcl.NewConfig(cfgdir)
 		assert.NoError(t, err)
