@@ -55,7 +55,7 @@ func tmAbspathTestcases(t *testing.T) []testcase {
 			expr:    `tm_abspath("a\b\c\d\e")`,
 			basedir: tempDir,
 			want: want{
-				value: cty.StringVal(s(`%sa\b\c\d\e`, tempDir)),
+				value: cty.StringVal(s(`%s\a\b\c\d\e`, tempDir)),
 			},
 		},
 		{
