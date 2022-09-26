@@ -29,7 +29,7 @@ const (
 
 const (
 	// ErrSchema indicates that the configuration has an invalid schema.
-	ErrSchema errors.Kind = "config has invalid schema"
+	ErrSchema errors.Kind = "config has an invalid schema"
 )
 
 // TryLoadRootConfig try to load the Terramate root config. It looks for the
