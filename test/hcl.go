@@ -94,6 +94,15 @@ func AssertDiff(t *testing.T, got, want interface{}, msg ...interface{}) {
 	}
 }
 
+// NewExpr parses the given string and returns a hcl.Expression.
+func NewExpr(t *testing.T, expr string) hhcl.Expression {
+	t.Helper()
+
+	res, err := eval.ParseExpressionBytes([]byte(expr))
+	assert.NoError(t, err)
+	return res
+}
+
 func assertAssertsBlock(t *testing.T, got, want []hcl.AssertConfig) {
 	t.Helper()
 
@@ -116,8 +125,6 @@ func assertAssertsBlock(t *testing.T, got, want []hcl.AssertConfig) {
 	}
 }
 
-// exprAsStr gets the original expression as a string for an expression built
-// with our
 func exprAsStr(t *testing.T, expr hhcl.Expression) string {
 	t.Helper()
 
