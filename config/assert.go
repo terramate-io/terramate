@@ -77,7 +77,7 @@ func evalBool(evalctx *eval.Context, expr hhcl.Expression, name string) (bool, e
 		return false, errors.E(err, "evaluating %s", name)
 	}
 	if val.Type() != cty.Bool {
-		return false, errors.E(ErrSchema, "%s must be boolean, got %v", name, val.Type())
+		return false, errors.E(ErrSchema, "%s must be boolean, got %v", name, val.Type().FriendlyName())
 	}
 	return val.True(), nil
 }
@@ -91,7 +91,7 @@ func evalString(evalctx *eval.Context, expr hhcl.Expression, name string) (strin
 		return "", errors.E(err, "evaluating %s", name)
 	}
 	if val.Type() != cty.String {
-		return "", errors.E(ErrSchema, "%s must be string, got %v", name, val.Type())
+		return "", errors.E(ErrSchema, "%s must be string, got %v", name, val.Type().FriendlyName())
 	}
 	return val.AsString(), nil
 }
