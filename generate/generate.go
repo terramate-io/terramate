@@ -104,7 +104,8 @@ func Do(rootdir string, workingDir string) Report {
 				if assert.Warning {
 					logger.Warn().
 						Stringer("origin", assertRange).
-						Msg(assert.Message)
+						Str("msg", assert.Message).
+						Msg("assertion failed")
 				} else {
 					msg := fmt.Sprintf("%s: %s", assertRange, assert.Message)
 					err := errors.E(ErrAssertion, msg)
