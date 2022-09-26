@@ -61,7 +61,7 @@ func tmAbspath(basedir string) function.Function {
 				abspath = filepath.Join(basedir, path)
 			}
 
-			return cty.StringVal(filepath.ToSlash(filepath.Clean(abspath))), nil
+			return cty.StringVal(filepath.Clean(abspath)), nil
 		},
 	})
 }

@@ -20,13 +20,14 @@ import (
 	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 )
 
 // Result represents code generation result
 type Result struct {
 	// Dir is the absolute path of the dir relative to the project root.
-	Dir string
+	Dir project.Path
 	// Created contains filenames of all created files inside the stack
 	Created []string
 	// Changed contains filenames of all changed files inside the stack
@@ -83,7 +84,7 @@ func (r Report) String() string {
 	newline := func() {
 		addLine("")
 	}
-	addStack := func(stack string) {
+	addStack := func(stack project.Path) {
 		addLine("- %s", stack)
 	}
 	addResultChangeset := func(res Result) {
@@ -164,7 +165,7 @@ func (r *Report) addFailure(s *stack.S, err error) {
 	})
 }
 
-func (r *Report) addDirReport(path string, sr dirReport) {
+func (r *Report) addDirReport(path project.Path, sr dirReport) {
 	if sr.empty() {
 		return
 	}

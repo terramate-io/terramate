@@ -131,22 +131,29 @@ func NoGit(t *testing.T) S {
 // below:
 // Each string in the slice represents a filesystem operation, and each
 // operation has the format below:
-//   <kind>:<relative path>[:data]
+//
+//	<kind>:<relative path>[:data]
+//
 // Where kind is one of the below:
-//   "d" for directory creation.
-//   "g" for local git directory creation.
-//   "s" for initialized stacks.
-//   "f" for file creation.
-//   "t" for terramate block.
+//
+//	"d" for directory creation.
+//	"g" for local git directory creation.
+//	"s" for initialized stacks.
+//	"f" for file creation.
+//	"t" for terramate block.
+//
 // The data field is required only for operation "f" and "s":
-//   For "f" data is the content of the file to be created.
-//   For "s" data is a key value pair of the form:
-//     <attr1>=<val1>[;<attr2>=<val2>]
+//
+//	For "f" data is the content of the file to be created.
+//	For "s" data is a key value pair of the form:
+//	  <attr1>=<val1>[;<attr2>=<val2>]
+//
 // Where attrN is a string attribute of the terramate block of the stack.
 // TODO(i4k): document empty data field.
 //
 // Example:
-//   s:name-of-the-stack:id=stack-id;after=["other-stack"]
+//
+//	s:name-of-the-stack:id=stack-id;after=["other-stack"]
 //
 // This is an internal mini-lang used to simplify testcases, so it expects well
 // formed layout specification.
@@ -419,7 +426,7 @@ func (fe FileEntry) HostPath() string {
 
 // Path returns the absolute project path of the file.
 func (fe FileEntry) Path() string {
-	return project.PrjAbsPath(fe.rootpath, fe.hostpath)
+	return project.PrjAbsPath(fe.rootpath, fe.hostpath).String()
 }
 
 // ModSource returns the relative import path for the module with the given

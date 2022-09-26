@@ -54,7 +54,7 @@ const (
 // File represents generated file from a single generate_file block.
 type File struct {
 	name      string
-	origin    string
+	origin    project.Path
 	body      string
 	condition bool
 }
@@ -71,7 +71,7 @@ func (f File) Body() string {
 
 // Origin returns the path, relative to the project root,
 // of the configuration that originated the file.
-func (f File) Origin() string {
+func (f File) Origin() project.Path {
 	return f.origin
 }
 
@@ -127,7 +127,7 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]
 
 		logger := logger.With().
 			Str("block", name).
-			Str("origin", origin).
+			Stringer("origin", origin).
 			Logger()
 
 		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
@@ -201,7 +201,7 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]
 
 type genFileBlock struct {
 	label  string
-	origin string
+	origin project.Path
 	lets   hclsyntax.Blocks
 	block  hcl.GenFileBlock
 }
