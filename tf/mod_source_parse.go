@@ -31,6 +31,9 @@ type Source struct {
 	// Eg. github.com/mineiros-io/example
 	Path string
 
+	// PathScheme is the scheme of the path part.
+	PathScheme string
+
 	// Subdir is the subdir component of the source path, if any, as defined
 	// here: https://www.terraform.io/language/modules/sources#modules-in-package-sub-directories
 	Subdir string
@@ -72,11 +75,12 @@ func ParseSource(modsource string) (Source, error) {
 
 		path := path.Join(u.Host, u.Path)
 		return Source{
-			Raw:    modsource,
-			URL:    u.String() + ".git",
-			Path:   path,
-			Subdir: subdir,
-			Ref:    ref,
+			Raw:        modsource,
+			URL:        u.String() + ".git",
+			Path:       path,
+			PathScheme: u.Scheme,
+			Subdir:     subdir,
+			Ref:        ref,
 		}, nil
 
 	case strings.HasPrefix(modsource, "git@"):
@@ -103,11 +107,12 @@ func ParseSource(modsource string) (Source, error) {
 		pathstr = strings.TrimSuffix(path.Join(u.Scheme, u.Opaque), ".git")
 
 		return Source{
-			Raw:    modsource,
-			URL:    "git@" + u.String(),
-			Path:   pathstr,
-			Subdir: subdir,
-			Ref:    ref,
+			Raw:        modsource,
+			URL:        "git@" + u.String(),
+			Path:       pathstr,
+			PathScheme: u.Scheme,
+			Subdir:     subdir,
+			Ref:        ref,
 		}, nil
 
 	case strings.HasPrefix(modsource, "git::"):
@@ -138,11 +143,12 @@ func ParseSource(modsource string) (Source, error) {
 		ref := u.Query().Get("ref")
 		u.RawQuery = ""
 		return Source{
-			Raw:    modsource,
-			URL:    u.String(),
-			Path:   pathstr,
-			Subdir: subdir,
-			Ref:    ref,
+			Raw:        modsource,
+			URL:        u.String(),
+			Path:       pathstr,
+			PathScheme: u.Scheme,
+			Subdir:     subdir,
+			Ref:        ref,
 		}, nil
 
 	default:

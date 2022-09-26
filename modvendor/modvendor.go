@@ -21,7 +21,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 
@@ -84,24 +83,23 @@ func VendorAll(rootdir string, vendorDir project.Path, tfdir string) Report {
 	return vendorAll(rootdir, vendorDir, tfdir, NewReport(vendorDir))
 }
 
-// Dir returns the directory for the vendored module source, relative to project
+// TargetDir returns the directory for the vendored module source, relative to project
 // root.
-func Dir(vendorDir project.Path, modsrc tf.Source) project.Path {
-	var srcPath string
-	if runtime.GOOS == "windows" {
-		// windows does not support : in path names
-		srcPath = strings.ReplaceAll(modsrc.Path, ":", "$")
-	} else {
-		srcPath = modsrc.Path
-	}
-	return project.NewPath(
-		path.Join(vendorDir.String(), srcPath, modsrc.Ref),
-	)
+//
+// On Windows, when modsrc.Scheme is "file" it replaces the volume “:“ by `$` because
+// `:` is disallowed as path component in such system.
+func TargetDir(vendorDir project.Path, modsrc tf.Source) project.Path {
+	return targetPathDir(vendorDir, modsrc)
+}
+
+// SourceDir returns the source directory from a target directory (installed module).
+func SourceDir(path string, rootdir string, vendordir project.Path) string {
+	return sourceDir(path, rootdir, vendordir)
 }
 
 // AbsVendorDir returns the absolute host path of the vendored module source.
 func AbsVendorDir(rootdir string, vendorDir project.Path, modsrc tf.Source) string {
-	return filepath.Join(rootdir, filepath.FromSlash(Dir(vendorDir, modsrc).String()))
+	return filepath.Join(rootdir, filepath.FromSlash(TargetDir(vendorDir, modsrc).String()))
 }
 
 func vendor(rootdir string, vendorDir project.Path, modsrc tf.Source, report Report, info *modinfo) Report {
@@ -249,13 +247,13 @@ func vendorAll(rootdir string, vendorDir project.Path, tfdir string, report Repo
 		st, err := os.Stat(targetVendorDir)
 		if err == nil && st.IsDir() {
 			logger.Trace().Msg("already vendored")
-			info.vendoredAt = Dir(vendorDir, modsrc)
+			info.vendoredAt = TargetDir(vendorDir, modsrc)
 			continue
 		}
 
 		report = vendor(rootdir, vendorDir, modsrc, report, info)
-		if v, ok := report.Vendored[Dir(vendorDir, modsrc)]; ok {
-			info.vendoredAt = Dir(vendorDir, modsrc)
+		if v, ok := report.Vendored[TargetDir(vendorDir, modsrc)]; ok {
+			info.vendoredAt = TargetDir(vendorDir, modsrc)
 			info.subdir = v.Source.Subdir
 
 			logger.Trace().Msg("vendored successfully")
