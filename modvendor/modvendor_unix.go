@@ -18,6 +18,8 @@ package modvendor
 
 import (
 	"path"
+	"path/filepath"
+	"strings"
 
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/tf"
