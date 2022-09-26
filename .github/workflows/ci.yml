@@ -43,8 +43,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # maybe in the future: windows-2019, windows-2022
-        os: ["ubuntu-20.04", "macos-11", "macos-12"]
+        os: ["ubuntu-20.04", "macos-11", "macos-12", "windows-2019", "windows-2022"]
         go: ["1.17", "1.18"]
 
     steps:
