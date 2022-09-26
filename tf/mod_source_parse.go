@@ -110,7 +110,7 @@ func ParseSource(modsource string) (Source, error) {
 			Raw:        modsource,
 			URL:        "git@" + u.String(),
 			Path:       pathstr,
-			PathScheme: u.Scheme,
+			PathScheme: "git",
 			Subdir:     subdir,
 			Ref:        ref,
 		}, nil
