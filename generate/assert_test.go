@@ -155,6 +155,38 @@ func TestGenerateAssert(t *testing.T) {
 			},
 		},
 		{
+			name: "failed assertion message contents",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: Assert(
+						Bool("assertion", false),
+						Str("message", "msg"),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/stacks/stack-1",
+						},
+						Error: errors.E(generate.ErrAssertion, "/stacks/terramate.tm.hcl:3,15-20: msg"),
+					},
+					{
+						Result: generate.Result{
+							Dir: "/stacks/stack-2",
+						},
+						Error: errors.E(generate.ErrAssertion, "/stacks/terramate.tm.hcl:3,15-20: msg"),
+					},
+				},
+			},
+		},
+		{
 			name: "generates code when failed assertion is a warning",
 			layout: []string{
 				"s:stacks/stack-1",

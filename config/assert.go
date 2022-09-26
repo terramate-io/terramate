@@ -15,8 +15,6 @@
 package config
 
 import (
-	"fmt"
-
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
@@ -30,12 +28,7 @@ type Assert struct {
 	Assertion bool
 	Warning   bool
 	Message   string
-
-	assertionRange hhcl.Range
-}
-
-func (a Assert) String() string {
-	return fmt.Sprintf("%s: %s", a.assertionRange.String(), a.Message)
+	Range     hhcl.Range
 }
 
 // EvalAssert evaluates a given assert configuration and returns its
@@ -49,7 +42,7 @@ func EvalAssert(evalctx *eval.Context, cfg hcl.AssertConfig) (Assert, error) {
 		errs.Append(err)
 	} else {
 		res.Assertion = assertion
-		res.assertionRange = cfg.Assertion.Range()
+		res.Range = cfg.Assertion.Range()
 	}
 
 	message, err := evalString(evalctx, cfg.Message, "assert.message")

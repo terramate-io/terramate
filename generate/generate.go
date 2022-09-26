@@ -15,6 +15,7 @@
 package generate
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -98,7 +99,10 @@ func Do(rootdir string, workingDir string) Report {
 		errs := errors.L()
 		for _, assert := range asserts {
 			if !assert.Assertion {
-				err := errors.E(ErrAssertion, assert.String())
+				assertRange := assert.Range
+				assertRange.Filename = strings.TrimPrefix(assert.Range.Filename, rootdir)
+				msg := fmt.Sprintf("%s: %s", assertRange, assert.Message)
+				err := errors.E(ErrAssertion, msg)
 				if assert.Warning {
 					logger.Warn().Err(err).Send()
 				} else {
