@@ -157,6 +157,11 @@ func Import(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return Block("import", builders...)
 }
 
+// Assert is a helper for a "assert" block.
+func Assert(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return Block("assert", builders...)
+}
+
 // EvalExpr accepts an expr as the attribute value, similar to Expr,
 // but will evaluate the expr and store the resulting value so
 // it will be available as an attribute value instead of as an
