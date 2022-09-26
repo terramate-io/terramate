@@ -167,6 +167,17 @@ func TestAssertConfigEval(t *testing.T) {
 				errors.E(eval.ErrEval),
 			),
 		},
+		{
+			name: "using funcalls",
+			assert: hcl.AssertConfig{
+				Assertion: expr(`"A" == tm_upper("a")`),
+				Message:   expr(`tm_upper("func")`),
+			},
+			want: config.Assert{
+				Assertion: true,
+				Message:   "FUNC",
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
