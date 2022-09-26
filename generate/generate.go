@@ -80,7 +80,7 @@ func Do(rootdir string, workingDir string) Report {
 		stackpath := stack.HostPath()
 		logger := log.With().
 			Str("action", "generate.Do()").
-			Str("path", rootdir).
+			Str("rootdir", rootdir).
 			Str("stackpath", stackpath).
 			Logger()
 
@@ -101,11 +101,13 @@ func Do(rootdir string, workingDir string) Report {
 			if !assert.Assertion {
 				assertRange := assert.Range
 				assertRange.Filename = strings.TrimPrefix(assert.Range.Filename, rootdir)
-				msg := fmt.Sprintf("%s: %s", assertRange, assert.Message)
-				err := errors.E(ErrAssertion, msg)
 				if assert.Warning {
-					logger.Warn().Err(err).Send()
+					logger.Warn().
+						Stringer("origin", assertRange).
+						Msg(assert.Message)
 				} else {
+					msg := fmt.Sprintf("%s: %s", assertRange, assert.Message)
+					err := errors.E(ErrAssertion, msg)
 					errs.Append(err)
 				}
 			}
