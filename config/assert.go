@@ -28,6 +28,7 @@ type Assert struct {
 	Assertion bool
 	Warning   bool
 	Message   string
+	Range     hhcl.Range
 }
 
 // EvalAssert evaluates a given assert configuration and returns its
@@ -41,6 +42,7 @@ func EvalAssert(evalctx *eval.Context, cfg hcl.AssertConfig) (Assert, error) {
 		errs.Append(err)
 	} else {
 		res.Assertion = assertion
+		res.Range = cfg.Assertion.Range()
 	}
 
 	message, err := evalString(evalctx, cfg.Message, "assert.message")

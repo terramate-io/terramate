@@ -144,6 +144,42 @@ func TestHCLParserAssert(t *testing.T) {
 			},
 		},
 		{
+			name: "assertion is obligatory",
+			input: []cfgfile{
+				{
+					filename: "assert.tm",
+					body: Assert(
+						Expr("message", "global.message"),
+					).String(),
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("assert.tm", start(1, 1, 0), end(3, 2, 37)),
+					),
+				},
+			},
+		},
+		{
+			name: "message is obligatory",
+			input: []cfgfile{
+				{
+					filename: "assert.tm",
+					body: Assert(
+						Expr("assertion", "true"),
+					).String(),
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						mkrange("assert.tm", start(1, 1, 0), end(3, 2, 29)),
+					),
+				},
+			},
+		},
+		{
 			name: "sub block fails",
 			input: []cfgfile{
 				{

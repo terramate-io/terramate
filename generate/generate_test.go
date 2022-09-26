@@ -34,8 +34,6 @@ import (
 type (
 	stringer string
 
-	genFileChecker func(*testing.T, string, string)
-
 	generatedFile struct {
 		stack string
 		files map[string]fmt.Stringer
@@ -60,7 +58,7 @@ func (s stringer) String() string {
 }
 
 func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
-	testCodeGeneration(t, test.AssertGenHCLEquals, []testcase{
+	testCodeGeneration(t, []testcase{
 		{
 			name: "stack with different generate blocks but same label",
 			layout: []string{
@@ -187,7 +185,7 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 	})
 }
 
-func testCodeGeneration(t *testing.T, checkGenFile genFileChecker, tcases []testcase) {
+func testCodeGeneration(t *testing.T, tcases []testcase) {
 	t.Helper()
 
 	for _, tcase := range tcases {
@@ -212,7 +210,7 @@ func testCodeGeneration(t *testing.T, checkGenFile genFileChecker, tcases []test
 						want := wantFiles.String()
 						got := stack.ReadFile(name)
 
-						checkGenFile(t, got, want)
+						test.AssertGenCodeEquals(t, got, want)
 					}
 				}
 			}

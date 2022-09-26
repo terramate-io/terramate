@@ -191,7 +191,7 @@ func TestAssertConfigEval(t *testing.T) {
 
 			got, err := config.EvalAssert(hclctx, tcase.assert)
 			assert.IsError(t, err, tcase.wantErr)
-			if tcase.want != got {
+			if !equalAsserts(tcase.want, got) {
 				t.Fatalf("got %#v != want %#v", got, tcase.want)
 			}
 		})
@@ -217,4 +217,10 @@ func (e nsvalues) asCtyMap() map[string]cty.Value {
 		}
 	}
 	return vals
+}
+
+func equalAsserts(a config.Assert, o config.Assert) bool {
+	return a.Message == o.Message &&
+		a.Warning == o.Warning &&
+		a.Assertion == o.Assertion
 }

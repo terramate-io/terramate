@@ -1203,6 +1203,16 @@ func parseAssertConfig(assert *ast.Block) (AssertConfig, error) {
 		}
 	}
 
+	if cfg.Assertion == nil {
+		errs.Append(errors.E(ErrTerramateSchema, assert.Range(),
+			"assert.assertion is required"))
+	}
+
+	if cfg.Message == nil {
+		errs.Append(errors.E(ErrTerramateSchema, assert.Range(),
+			"assert.message is required"))
+	}
+
 	if err := errs.AsError(); err != nil {
 		return AssertConfig{}, err
 	}
