@@ -113,7 +113,7 @@ func (r Report) Verbose() string {
 }
 
 func (r *Report) addVendored(source tf.Source) {
-	dir := Dir(r.vendorDir, source)
+	dir := TargetDir(r.vendorDir, source)
 	r.Vendored[dir] = Vendored{
 		Source: source,
 		Dir:    dir,

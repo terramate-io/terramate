@@ -22,7 +22,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 	"testing"
 	"text/template"
@@ -825,9 +824,9 @@ func applyReportTemplate(t *testing.T, r wantReport, value string, vendordir pro
 		rawSource := applyConfigTemplate(t, vendored, value)
 		modsrc, err := tf.ParseSource(rawSource)
 		assert.NoError(t, err)
-		out.Vendored[modvendor.Dir(vendordir, modsrc)] = modvendor.Vendored{
+		out.Vendored[modvendor.TargetDir(vendordir, modsrc)] = modvendor.Vendored{
 			Source: modsrc,
-			Dir:    modvendor.Dir(vendordir, modsrc),
+			Dir:    modvendor.TargetDir(vendordir, modsrc),
 		}
 	}
 	for _, ignored := range r.Ignored {
@@ -904,12 +903,7 @@ func checkWantedFiles(
 			assert.EqualStrings(t, want, got, "file %q mismatch", path)
 		} else {
 			// check the vendored file is the same as the one in the module dir.
-			originalPath := strings.TrimPrefix(path, absVendorDir)
-			if runtime.GOOS == "windows" {
-				// for windows, paths on disk become <vendor-dir>\C$\Users\etc
-				originalPath = strings.ReplaceAll(originalPath, "$", ":")[1:]
-			}
-
+			originalPath := modvendor.SourceDir(path, rootdir, vendordir)
 			pathEnd := filepath.ToSlash(strings.TrimPrefix(originalPath, uriModulesDir.Filename()))
 
 			originalPath = strings.TrimSuffix(filepath.ToSlash(originalPath), pathEnd)
@@ -982,14 +976,14 @@ func TestModVendorWithCommitIDRef(t *testing.T) {
 	got := modvendor.Vendor(rootdir, vendordir, source)
 	assertVendorReport(t, modvendor.Report{
 		Vendored: map[project.Path]modvendor.Vendored{
-			modvendor.Dir(vendordir, source): {
+			modvendor.TargetDir(vendordir, source): {
 				Source: source,
-				Dir:    modvendor.Dir(vendordir, source),
+				Dir:    modvendor.TargetDir(vendordir, source),
 			},
 		},
 	}, got)
 
-	cloneDir := modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[modvendor.Dir(vendordir, source)].Source)
+	cloneDir := modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[modvendor.TargetDir(vendordir, source)].Source)
 	gotContent := test.ReadFile(t, cloneDir, filename)
 	assert.EqualStrings(t, content, string(gotContent))
 	assertNoGitDir(t, cloneDir)
@@ -1016,18 +1010,18 @@ func TestModVendorWithRef(t *testing.T) {
 
 	const vendordir = "/vendor"
 	got := modvendor.Vendor(rootdir, vendordir, source)
-	vendoredAt := modvendor.Dir(vendordir, source)
+	vendoredAt := modvendor.TargetDir(vendordir, source)
 	assertVendorReport(t, modvendor.Report{
 		Vendored: map[project.Path]modvendor.Vendored{
 			vendoredAt: {
 				Source: source,
-				Dir:    modvendor.Dir(vendordir, source),
+				Dir:    modvendor.TargetDir(vendordir, source),
 			},
 		},
 	}, got)
 
 	cloneDir := got.Vendored[vendoredAt].Dir
-	wantCloneDir := modvendor.Dir(vendordir, source)
+	wantCloneDir := modvendor.TargetDir(vendordir, source)
 	assert.EqualStrings(t, wantCloneDir.String(), cloneDir.String())
 
 	absCloneDir := modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[vendoredAt].Source)
@@ -1055,7 +1049,7 @@ func TestModVendorWithRef(t *testing.T) {
 	}
 	got = modvendor.Vendor(rootdir, vendordir, source)
 
-	wantCloneDir = modvendor.Dir(vendordir, source)
+	wantCloneDir = modvendor.TargetDir(vendordir, source)
 	newCloneDir := got.Vendored[wantCloneDir].Dir
 	assert.EqualStrings(t, wantCloneDir.String(), newCloneDir.String())
 
