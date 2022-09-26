@@ -51,10 +51,11 @@ func tmAbspathTestcases(t *testing.T) []testcase {
 			},
 		},
 		{
-			name: "relative path with multiple levels is appended to basedir",
-			expr: s(`tm_abspath("%sa\b\c\d\e")`, root),
+			name:    "relative path with multiple levels is appended to basedir",
+			expr:    `tm_abspath("a\b\c\d\e")`,
+			basedir: tempDir,
 			want: want{
-				value: cty.StringVal(s(`%sa\b\c\d\e`, root)),
+				value: cty.StringVal(s(`%sa\b\c\d\e`, tempDir)),
 			},
 		},
 		{
