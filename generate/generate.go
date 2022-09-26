@@ -15,6 +15,7 @@
 package generate
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -26,6 +27,7 @@ import (
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/globals"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
@@ -47,6 +49,10 @@ const (
 	// ErrInvalidFilePath indicates that code generation configuration
 	// has an invalid filepath as the target to save the generated code.
 	ErrInvalidFilePath errors.Kind = "invalid filepath"
+
+	// ErrAssertion indicates that code generation configuration
+	// has a failed assertion.
+	ErrAssertion errors.Kind = "assertion failed"
 )
 
 // Do will walk all the stacks inside the given working dir
@@ -74,12 +80,43 @@ func Do(rootdir string, workingDir string) Report {
 		stackpath := stack.HostPath()
 		logger := log.With().
 			Str("action", "generate.Do()").
-			Str("path", rootdir).
+			Str("rootdir", rootdir).
 			Str("stackpath", stackpath).
 			Logger()
 
 		var generated []fileInfo
 		report := dirReport{}
+
+		logger.Trace().Msg("loading asserts for stack")
+
+		asserts, err := loadAsserts(projmeta, stack, globals)
+		if err != nil {
+			report.err = err
+			return report
+		}
+
+		logger.Trace().Msg("checking stack asserts")
+		errs := errors.L()
+		for _, assert := range asserts {
+			if !assert.Assertion {
+				assertRange := assert.Range
+				assertRange.Filename = strings.TrimPrefix(assert.Range.Filename, rootdir)
+				if assert.Warning {
+					logger.Warn().
+						Stringer("origin", assertRange).
+						Str("msg", assert.Message).
+						Msg("assertion failed")
+				} else {
+					msg := fmt.Sprintf("%s: %s", assertRange, assert.Message)
+					err := errors.E(ErrAssertion, msg)
+					errs.Append(err)
+				}
+			}
+		}
+		if err := errs.AsError(); err != nil {
+			report.err = err
+			return report
+		}
 
 		logger.Trace().Msg("generate code from generate_file blocks")
 
@@ -750,4 +787,63 @@ func listGenFilesOutsideStacks(rootdir, dir string) ([]dirGenFiles, error) {
 	}
 
 	return dirsFiles, nil
+}
+
+func loadAsserts(meta project.Metadata, sm stack.Metadata, globals globals.Map) ([]config.Assert, error) {
+	// This is the third place (other than genhcl and genfile) that we navigate
+	// the whole tree and parse configs. This should be refactored soon to
+	// navigate a previously loaded structure already in memory, so different
+	// features can be implemented in isolation from each other but without having
+	// to re-parse/walk the entire project over and over again.
+
+	logger := log.With().
+		Str("action", "generate.loadAsserts").
+		Str("rootdir", meta.Rootdir()).
+		Str("stack", sm.Path()).
+		Logger()
+
+	curdir := sm.HostPath()
+	asserts := []config.Assert{}
+	errs := errors.L()
+
+	for strings.HasPrefix(curdir, meta.Rootdir()) {
+		logger = logger.With().
+			Str("curdir", curdir).
+			Logger()
+
+		logger.Trace().Msg("parsing config")
+
+		parser, err := hcl.NewTerramateParser(meta.Rootdir(), curdir)
+		if err != nil {
+			return nil, errors.E(err, "load asserts: creating parser")
+		}
+
+		if err := parser.AddDir(curdir); err != nil {
+			return nil, errors.E(err, "load asserts: adding dir to parser")
+		}
+
+		cfg, err := parser.ParseConfig()
+		if err != nil {
+			return nil, errors.E(err, "load asserts: parsing assert blocks")
+		}
+
+		evalctx := stack.NewEvalCtx(meta, sm, globals)
+
+		for _, assertCfg := range cfg.Asserts {
+			assert, err := config.EvalAssert(evalctx.Context, assertCfg)
+			if err != nil {
+				errs.Append(err)
+			} else {
+				asserts = append(asserts, assert)
+			}
+		}
+
+		curdir = filepath.Dir(curdir)
+	}
+
+	if err := errs.AsError(); err != nil {
+		return nil, err
+	}
+
+	return asserts, nil
 }

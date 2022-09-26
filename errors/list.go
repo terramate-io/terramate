@@ -175,12 +175,29 @@ func (l *List) len() int { return len(l.errs) }
 // returning true on the first match it finds or false if no
 // error inside the list matches the given target.
 //
-// If the target error is nil and the error list is empty returns true.
+// If target is also an *error.List then the target list must have the same
+// errors inside on the same order.
 func (l *List) Is(target error) bool {
+	if targetList, ok := target.(*List); ok {
+		return equalLists(l, targetList)
+	}
 	for _, err := range l.errs {
 		if errors.Is(err, target) {
 			return true
 		}
 	}
 	return false
+}
+
+func equalLists(l, o *List) bool {
+	if len(l.errs) != len(o.errs) {
+		return false
+	}
+	for i, lerr := range l.errs {
+		oerr := o.errs[i]
+		if !errors.Is(lerr, oerr) {
+			return false
+		}
+	}
+	return true
 }
