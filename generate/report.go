@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 )
@@ -115,7 +116,13 @@ func (r Report) String() string {
 		newline()
 		for _, failure := range r.Failures {
 			addStack(failure.Dir)
-			addLine("\terror: %s", failure.Error)
+			if list, ok := failure.Error.(*errors.List); ok {
+				for _, err := range list.Errors() {
+					addLine("\terror: %s", err)
+				}
+			} else {
+				addLine("\terror: %s", failure.Error)
+			}
 			addResultChangeset(failure.Result)
 			newline()
 		}

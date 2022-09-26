@@ -46,7 +46,7 @@ func TestGenerateHCL(t *testing.T) {
 		return EvalExpr(t, name, expr)
 	}
 
-	testCodeGeneration(t, test.AssertGenHCLEquals, []testcase{
+	testCodeGeneration(t, []testcase{
 		{
 			name: "no generated HCL",
 			layout: []string{
@@ -983,7 +983,7 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 	})
 
 	got := stack.ReadFile(genFilename)
-	test.AssertGenHCLEquals(t, got, firstWant.String())
+	test.AssertGenCodeEquals(t, got, firstWant.String())
 
 	secondConfig := GenerateHCL(
 		Labels(genFilename),
@@ -1010,7 +1010,7 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 	})
 
 	got = stack.ReadFile(genFilename)
-	test.AssertGenHCLEquals(t, got, secondWant.String())
+	test.AssertGenCodeEquals(t, got, secondWant.String())
 	assertEqualReports(t, s.Generate(), generate.Report{})
 }
 
@@ -1382,7 +1382,7 @@ func TestGenerateHCLTerramateRootMetadata(t *testing.T) {
 	).String()
 	got := stackEntry.ReadFile(generatedFile)
 
-	test.AssertGenHCLEquals(t, got, want)
+	test.AssertGenCodeEquals(t, got, want)
 }
 
 func escapeBackslash(s string) string {
