@@ -838,11 +838,11 @@ func loadAsserts(meta project.Metadata, sm stack.Metadata, globals globals.Map) 
 			}
 		}
 
-		parent := filepath.Dir(curdir)
-		if parent == curdir {
+		if curdir == meta.Rootdir() {
 			break
 		}
-		curdir = parent
+
+		curdir = filepath.Dir(curdir)
 	}
 
 	if err := errs.AsError(); err != nil {
