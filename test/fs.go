@@ -15,6 +15,7 @@
 package test
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -68,4 +69,9 @@ func AssertFileContentEquals(t *testing.T, fname string, want string) {
 	if diff := cmp.Diff(string(got), string(want)); diff != "" {
 		t.Fatalf("-(%s) +(%s):\n%s", got, want, diff)
 	}
+}
+
+// Chmod is a portable version of the os.Chmod.
+func Chmod(t *testing.T, fname string, mode fs.FileMode) {
+	assert.NoError(t, chmod(fname, mode))
 }

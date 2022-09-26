@@ -61,6 +61,7 @@ func (cfg *RawConfig) mergeHandlers() map[string]mergeHandler {
 		"vendor":        cfg.addBlock,
 		"generate_file": cfg.addBlock,
 		"generate_hcl":  cfg.addBlock,
+		"assert":        cfg.addBlock,
 		"import":        func(b *ast.Block) error { return nil },
 	}
 }

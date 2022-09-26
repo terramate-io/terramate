@@ -912,6 +912,7 @@ func testParser(t *testing.T, tc testcase) {
 			test.WriteFile(t, dir, filename, inputConfigFile.body)
 		}
 		fixupFiledirOnErrorsFileRanges(configsDir, tc.want.errs)
+		fixupFiledirOnConfig(configsDir, tc.want.config)
 
 		if tc.parsedir == "" {
 			tc.parsedir = configsDir
@@ -1077,6 +1078,12 @@ func fixupFiledirOnErrorsFileRanges(dir string, errs []error) {
 		if e, ok := err.(*errors.Error); ok {
 			e.FileRange.Filename = filepath.Join(dir, e.FileRange.Filename)
 		}
+	}
+}
+
+func fixupFiledirOnConfig(dir string, cfg hcl.Config) {
+	for i := range cfg.Asserts {
+		cfg.Asserts[i].Origin = filepath.Join(dir, cfg.Asserts[i].Origin)
 	}
 }
 

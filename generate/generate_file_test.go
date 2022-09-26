@@ -20,7 +20,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
@@ -29,16 +28,7 @@ import (
 )
 
 func TestGenerateFile(t *testing.T) {
-	checkGenFiles := func(t *testing.T, got string, want string) {
-		t.Helper()
-		if diff := cmp.Diff(want, got); diff != "" {
-			t.Error("generated file doesn't match expectation")
-			t.Errorf("want:\n%q", want)
-			t.Errorf("got:\n%q", got)
-			t.Fatalf("diff:\n%s", diff)
-		}
-	}
-	testCodeGeneration(t, checkGenFiles, []testcase{
+	testCodeGeneration(t, []testcase{
 		{
 			name: "empty generate_file content generates empty file",
 			layout: []string{

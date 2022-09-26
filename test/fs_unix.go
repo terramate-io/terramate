@@ -14,40 +14,13 @@
 
 //go:build aix || android || darwin || dragonfly || freebsd || hurd || illumos || ios || linux || netbsd || openbsd || solaris
 
-package hcl_test
+package test
 
 import (
+	"io/fs"
 	"os"
-	"path/filepath"
-	"testing"
-
-	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/test"
 )
 
-func TestFormatTreeFailsOnNonAccessibleSubdir(t *testing.T) {
-	const subdir = "subdir"
-	tmpdir := t.TempDir()
-	test.Mkdir(t, tmpdir, subdir)
-
-	assert.NoError(t, os.Chmod(filepath.Join(tmpdir, subdir), 0))
-
-	_, err := hcl.FormatTree(tmpdir)
-	assert.Error(t, err)
-}
-
-func TestFormatTreeFailsOnNonAccessibleFile(t *testing.T) {
-	const filename = "filename.tm"
-
-	tmpdir := t.TempDir()
-	test.WriteFile(t, tmpdir, filename, `globals{
-	a = 2
-		b = 3
-	}`)
-
-	assert.NoError(t, os.Chmod(filepath.Join(tmpdir, filename), 0))
-
-	_, err := hcl.FormatTree(tmpdir)
-	assert.Error(t, err)
+func chmod(fname string, mode fs.FileMode) error {
+	return os.Chmod(fname, mode)
 }
