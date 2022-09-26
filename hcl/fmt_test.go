@@ -1438,9 +1438,7 @@ func TestFormatTreeFailsOnNonAccessibleSubdir(t *testing.T) {
 	test.Mkdir(t, tmpdir, subdir)
 
 	assert.NoError(t, os.Chmod(filepath.Join(tmpdir, subdir), 0))
-	defer func() {
-		assert.NoError(t, os.Chmod(filepath.Join(tmpdir, subdir), 0755))
-	}()
+	defer test.Chmod(t, filepath.Join(tmpdir, subdir), 0755)
 
 	_, err := hcl.FormatTree(tmpdir)
 	assert.Error(t, err)
