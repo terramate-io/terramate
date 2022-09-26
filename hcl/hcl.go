@@ -55,9 +55,18 @@ type Config struct {
 	Terramate *Terramate
 	Stack     *Stack
 	Vendor    *VendorConfig
+	Asserts   []AssertConfig
 
 	// absdir is the absolute path to the configuration directory.
 	absdir string
+}
+
+// AssertConfig represents Terramate assert configuration block.
+type AssertConfig struct {
+	Origin    string
+	Warning   hcl.Expression
+	Assertion hcl.Expression
+	Message   hcl.Expression
 }
 
 // RunConfig represents Terramate run configuration.
@@ -1170,6 +1179,47 @@ checkBlocks:
 	return errs.AsError()
 }
 
+func parseAssertConfig(assert *ast.Block) (AssertConfig, error) {
+	cfg := AssertConfig{}
+	errs := errors.L()
+
+	cfg.Origin = assert.Origin
+
+	errs.Append(checkNoLabels(assert))
+	errs.Append(checkHasSubBlocks(assert))
+
+	for _, attr := range assert.Attributes {
+		switch attr.Name {
+		case "assertion":
+			cfg.Assertion = attr.Expr
+		case "message":
+			cfg.Message = attr.Expr
+		case "warning":
+			cfg.Warning = attr.Expr
+		default:
+			errs.Append(errors.E(ErrTerramateSchema, attr.NameRange,
+				"unrecognized attribute %s.%s", assert.Type, attr.Name,
+			))
+		}
+	}
+
+	if cfg.Assertion == nil {
+		errs.Append(errors.E(ErrTerramateSchema, assert.Range(),
+			"assert.assertion is required"))
+	}
+
+	if cfg.Message == nil {
+		errs.Append(errors.E(ErrTerramateSchema, assert.Range(),
+			"assert.message is required"))
+	}
+
+	if err := errs.AsError(); err != nil {
+		return AssertConfig{}, err
+	}
+
+	return cfg, nil
+}
+
 func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
 	logger := log.With().
 		Str("action", "hcl.parseVendorConfig()").
@@ -1506,6 +1556,15 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 			foundstack = true
 			stackblock = block
+		case "assert":
+			logger.Trace().Msg("found assert block")
+			assertCfg, err := parseAssertConfig(block)
+			if err != nil {
+				errs.Append(err)
+				continue
+			}
+			config.Asserts = append(config.Asserts, assertCfg)
+
 		case "vendor":
 			logger.Trace().Msg("found vendor block")
 

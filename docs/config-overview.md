@@ -172,6 +172,17 @@ and has the following schema:
 | wants            | list(string)   | The list of `wanted` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs |
 | watch            | list(string)   | The list of `watch` files. See [change detection](change-detection.md) for details |
 
+# assert block schema
+
+The `assert` block has no labels, **does not** support [merging](#config-merging),
+can be defined multiple times and has the following schema:
+
+| name             |      type      | description |
+|------------------|----------------|-------------|
+| assertion        | boolean        | If true assertion passed, fails otherwise |
+| warning          | boolean        | True if the assertion is a warning |
+| message          | string         | Message to show if assertion fails |
+
 # globals block schema
 
 The `globals` block has no labels, supports [merging](#config-merging), accepts 
