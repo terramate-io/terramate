@@ -17,6 +17,7 @@ package eval_test
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2/hclparse"
@@ -29,21 +30,19 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-func TestEvalTmAbspath(t *testing.T) {
-	type want struct {
-		err   error
-		value cty.Value
-	}
-	type testcase struct {
-		name    string
-		basedir string
-		expr    string
-		want    want
-	}
+type want struct {
+	err   error
+	value cty.Value
+}
+type testcase struct {
+	name    string
+	basedir string
+	expr    string
+	want    want
+}
 
-	tempDir := t.TempDir()
-
-	for _, tc := range []testcase{
+func TestEvalTmFuncall(t *testing.T) {
+	tcases := []testcase{
 		{
 			name: "tm_ternary - cond is true, with primitive values",
 			expr: `tm_ternary(true, "hello", "world")`,
@@ -73,67 +72,28 @@ func TestEvalTmAbspath(t *testing.T) {
 			},
 		},
 		{
-			name: "argument is a number - works ... mimicking terraform abspath()",
-			expr: `tm_abspath(1)`,
-			want: want{
-				value: cty.StringVal("/1"),
-			},
-		},
-		{
 			name: "argument is slice - fails",
 			expr: `tm_abspath([1])`,
 			want: want{
 				err: errors.E(eval.ErrEval),
 			},
 		},
-		{
-			name: "absolute path is cleaned",
-			expr: `tm_abspath("/test//something")`,
-			want: want{
-				value: cty.StringVal("/test/something"),
-			},
-		},
-		{
-			name: "relative path is appended to basedir",
-			expr: `tm_abspath("something")`,
-			want: want{
-				value: cty.StringVal("/something"),
-			},
-		},
-		{
-			name: "relative path is cleaned",
-			expr: `tm_abspath("something//")`,
-			want: want{
-				value: cty.StringVal("/something"),
-			},
-		},
-		{
-			name: "relative path with multiple levels is appended to basedir",
-			expr: `tm_abspath("a/b/c/d/e")`,
-			want: want{
-				value: cty.StringVal("/a/b/c/d/e"),
-			},
-		},
-		{
-			name:    "empty path returns the basedir",
-			expr:    `tm_abspath("")`,
-			basedir: tempDir,
-			want: want{
-				value: cty.StringVal(tempDir),
-			},
-		},
-	} {
+	}
+
+	tcases = append(tcases, tmAbspathTestcases(t)...)
+
+	for _, tc := range tcases {
 		t.Run(tc.name, func(t *testing.T) {
 			basedir := tc.basedir
 			if basedir == "" {
-				basedir = "/"
+				basedir = root(t)
 			}
 			ctx, err := eval.NewContext(basedir)
 			assert.NoError(t, err)
 
 			const attrname = "value"
 
-			cfg := fmt.Sprintf("%s = %s", attrname, tc.expr)
+			cfg := fmt.Sprintf("%s = %s", attrname, strings.ReplaceAll(tc.expr, `\`, `\\`))
 			fname := test.WriteFile(t, t.TempDir(), "test-tm_ternary.hcl", cfg)
 			parser := hclparse.NewParser()
 			file, diags := parser.ParseHCL([]byte(cfg), fname)

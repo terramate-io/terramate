@@ -17,9 +17,9 @@ package run
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
-	"strings"
 
 	"github.com/mineiros-io/terramate/run/dag"
 	"github.com/mineiros-io/terramate/stack"
@@ -45,7 +45,7 @@ func Sort(root string, stacks stack.List) (stack.List, string, error) {
 	logger.Trace().Msg("Computes implicit hierarchical order.")
 
 	isParentStack := func(s1, s2 *stack.S) bool {
-		return strings.HasPrefix(s1.Path(), s2.Path()+string(os.PathSeparator))
+		return s1.Path().HasPrefix(s2.Path().String() + "/")
 	}
 
 	sort.Sort(stacks)
@@ -58,7 +58,7 @@ func Sort(root string, stacks stack.List) (stack.List, string, error) {
 			if isParentStack(stack, other) {
 				logger.Debug().Msgf("stack %q runs before %q since it is its parent", other, stack)
 
-				other.AppendBefore(stack.Path())
+				other.AppendBefore(stack.Path().String())
 			}
 		}
 	}
@@ -72,7 +72,7 @@ func Sort(root string, stacks stack.List) (stack.List, string, error) {
 		}
 
 		logger.Debug().
-			Str("stack", s.Path()).
+			Stringer("stack", s.Path()).
 			Msg("Build DAG.")
 
 		err := BuildDAG(
@@ -127,7 +127,7 @@ func Sort(root string, stacks stack.List) (stack.List, string, error) {
 		s := val.(*stack.S)
 		if !isSelectedStack(s) {
 			logger.Trace().
-				Str("stack", s.Path()).
+				Stringer("stack", s.Path()).
 				Msg("ignoring since not part of selected stacks")
 			continue
 		}
@@ -150,7 +150,7 @@ func BuildDAG(
 	logger := log.With().
 		Str("action", "BuildDAG()").
 		Str("path", root).
-		Str("stack", s.Path()).
+		Stringer("stack", s.Path()).
 		Logger()
 
 	if _, ok := visited[dag.ID(s.Path())]; ok {
@@ -161,24 +161,24 @@ func BuildDAG(
 
 	removeWrongPaths := func(fieldname string, paths []string) []string {
 		cleanpaths := []string{}
-		for _, path := range paths {
+		for _, pathstr := range paths {
 			var abspath string
-			if filepath.IsAbs(path) {
-				abspath = filepath.Join(root, path)
+			if path.IsAbs(pathstr) {
+				abspath = filepath.Join(root, filepath.FromSlash(pathstr))
 			} else {
-				abspath = filepath.Join(s.HostPath(), path)
+				abspath = filepath.Join(s.HostPath(), filepath.FromSlash(pathstr))
 			}
 			st, err := os.Stat(abspath)
 			if err != nil {
 				logger.Warn().
 					Err(err).
-					Msgf("failed to stat %q path %q - ignoring", fieldname, abspath)
+					Msgf("failed to stat %s path %s - ignoring", fieldname, abspath)
 			} else if !st.IsDir() {
 				logger.Warn().
-					Msgf("stack.%s path %q is not a directory - ignoring",
-						fieldname, path)
+					Msgf("stack.%s path %s is not a directory - ignoring",
+						fieldname, pathstr)
 			} else {
-				cleanpaths = append(cleanpaths, path)
+				cleanpaths = append(cleanpaths, pathstr)
 			}
 		}
 		return cleanpaths
@@ -218,7 +218,7 @@ func BuildDAG(
 		logger = log.With().
 			Str("action", "BuildDAG()").
 			Str("path", root).
-			Str("stack", s.Path()).
+			Stringer("stack", s.Path()).
 			Logger()
 
 		if _, ok := visited[dag.ID(s.Path())]; ok {

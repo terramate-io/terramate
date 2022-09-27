@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -30,6 +31,7 @@ import (
 	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/modvendor"
+
 	prj "github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/run"
 	"github.com/mineiros-io/terramate/run/dag"
@@ -504,7 +506,7 @@ func (c *cli) vendorDownload() {
 	c.log(report.String())
 }
 
-func (c *cli) vendorDir() string {
+func (c *cli) vendorDir() prj.Path {
 	logger := log.With().
 		Str("workingDir", c.wd()).
 		Str("rootdir", c.root()).
@@ -516,7 +518,18 @@ func (c *cli) vendorDir() string {
 	if c.parsedArgs.Experimental.Vendor.Download.Dir != "" {
 		logger.Trace().Msg("using CLI config")
 
-		return c.parsedArgs.Experimental.Vendor.Download.Dir
+		dir := c.parsedArgs.Experimental.Vendor.Download.Dir
+		if !path.IsAbs(dir) {
+			dir = path.Join(string(prj.PrjAbsPath(c.root(), c.wd())), dir)
+		}
+		return prj.NewPath(dir)
+	}
+
+	checkVendorDir := func(dir string) prj.Path {
+		if !path.IsAbs(dir) {
+			logger.Fatal().Msgf("vendorDir %q defined is not an absolute path", dir)
+		}
+		return prj.NewPath(dir)
 	}
 
 	dotTerramate := filepath.Join(c.root(), ".terramate")
@@ -533,7 +546,7 @@ func (c *cli) vendorDir() string {
 		if hasVendorDirConfig(cfg) {
 			logger.Trace().Msg("using .terramate config")
 
-			return cfg.Vendor.Dir
+			return checkVendorDir(cfg.Vendor.Dir)
 		}
 	}
 
@@ -542,7 +555,7 @@ func (c *cli) vendorDir() string {
 	if hasVendorDirConfig(c.prj.rootcfg) {
 		logger.Trace().Msg("using root config")
 
-		return c.prj.rootcfg.Vendor.Dir
+		return checkVendorDir(c.prj.rootcfg.Vendor.Dir)
 	}
 
 	logger.Trace().Msg("no configuration provided, fallback to default")
@@ -815,7 +828,7 @@ func (c *cli) printStacks() {
 
 	for _, entry := range report.Stacks {
 		stack := entry.Stack
-		stackRepr, ok := c.friendlyFmtDir(stack.Path())
+		stackRepr, ok := c.friendlyFmtDir(stack.Path().String())
 		if !ok {
 			continue
 		}
@@ -888,7 +901,7 @@ func (c *cli) generateGraph() {
 	case "stack.dir":
 		logger.Debug().Msg("Set label stack directory.")
 
-		getLabel = func(s *stack.S) string { return s.Path() }
+		getLabel = func(s *stack.S) string { return s.Path().String() }
 	default:
 		logger.Fatal().
 			Msg("-label expects the values \"stack.name\" or \"stack.dir\"")
@@ -1076,7 +1089,7 @@ func (c *cli) printStacksGlobals() {
 		if err := report.AsError(); err != nil {
 			log.Fatal().
 				Err(err).
-				Str("stack", meta.Path()).
+				Stringer("stack", meta.Path()).
 				Msg("listing stacks globals: loading stack")
 		}
 
@@ -1468,7 +1481,7 @@ func (c *cli) runOnStacks() {
 			c.log("The stacks will be executed using order below:")
 
 			for i, s := range orderedStacks {
-				stackdir, _ := c.friendlyFmtDir(s.Path())
+				stackdir, _ := c.friendlyFmtDir(s.Path().String())
 				c.log("\t%d. %s (%s)", i, s.Name(), stackdir)
 			}
 		} else {
@@ -1491,7 +1504,6 @@ func (c *cli) runOnStacks() {
 	)
 
 	if err != nil {
-
 		logger.Warn().Msg("one or more commands failed")
 
 		var errs *errors.List
@@ -1559,15 +1571,15 @@ func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Ent
 		Str("workingDir", c.wd()).
 		Logger()
 
-	logger.Trace().
-		Msg("Get relative working directory.")
+	logger.Trace().Msg("Get relative working directory.")
+
 	relwd := prj.PrjAbsPath(c.root(), c.wd())
 
-	logger.Trace().
-		Msg("Get filtered stacks.")
+	logger.Trace().Msg("Get filtered stacks.")
+
 	filtered := []terramate.Entry{}
 	for _, e := range stacks {
-		if strings.HasPrefix(e.Stack.Path(), relwd) {
+		if e.Stack.Path().HasPrefix(relwd.String()) {
 			filtered = append(filtered, e)
 		}
 	}

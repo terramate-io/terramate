@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -33,8 +33,7 @@ func TestRunSendsSigkillIfCmdIgnoresInterruptionSignals(t *testing.T) {
 	git.Add(".")
 	git.CommitAll("first commit")
 
-	tm := newCLI(t, s.RootDir())
-	tm.loglevel = "trace"
+	tm := newCLIWithLogLevel(t, s.RootDir(), "trace")
 	cmd := tm.newCmd("run", testHelperBin, "hang")
 	// To simulate something similar to a terminal we run
 	// terramate in a separate pgid here and then send a signal to

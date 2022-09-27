@@ -41,8 +41,9 @@ func TestParseGitSources(t *testing.T) {
 			source: "github.com/mineiros-io/example",
 			want: want{
 				parsed: tf.Source{
-					URL:  "https://github.com/mineiros-io/example.git",
-					Path: "github.com/mineiros-io/example",
+					URL:        "https://github.com/mineiros-io/example.git",
+					Path:       "github.com/mineiros-io/example",
+					PathScheme: "https",
 				},
 			},
 		},
@@ -51,9 +52,10 @@ func TestParseGitSources(t *testing.T) {
 			source: "github.com/mineiros-io/example//subdir",
 			want: want{
 				parsed: tf.Source{
-					URL:    "https://github.com/mineiros-io/example.git",
-					Path:   "github.com/mineiros-io/example",
-					Subdir: "/subdir",
+					URL:        "https://github.com/mineiros-io/example.git",
+					Path:       "github.com/mineiros-io/example",
+					PathScheme: "https",
+					Subdir:     "/subdir",
 				},
 			},
 		},
@@ -62,8 +64,9 @@ func TestParseGitSources(t *testing.T) {
 			source: "github.com/mineiros-io/example//",
 			want: want{
 				parsed: tf.Source{
-					URL:  "https://github.com/mineiros-io/example.git",
-					Path: "github.com/mineiros-io/example",
+					URL:        "https://github.com/mineiros-io/example.git",
+					Path:       "github.com/mineiros-io/example",
+					PathScheme: "https",
 				},
 			},
 		},
@@ -72,8 +75,9 @@ func TestParseGitSources(t *testing.T) {
 			source: "github.com/mineiros-io/example.git",
 			want: want{
 				parsed: tf.Source{
-					URL:  "https://github.com/mineiros-io/example.git",
-					Path: "github.com/mineiros-io/example",
+					URL:        "https://github.com/mineiros-io/example.git",
+					Path:       "github.com/mineiros-io/example",
+					PathScheme: "https",
 				},
 			},
 		},
@@ -82,9 +86,10 @@ func TestParseGitSources(t *testing.T) {
 			source: "github.com/mineiros-io/example.git//subdir/dir",
 			want: want{
 				parsed: tf.Source{
-					URL:    "https://github.com/mineiros-io/example.git",
-					Path:   "github.com/mineiros-io/example",
-					Subdir: "/subdir/dir",
+					URL:        "https://github.com/mineiros-io/example.git",
+					Path:       "github.com/mineiros-io/example",
+					PathScheme: "https",
+					Subdir:     "/subdir/dir",
 				},
 			},
 		},
@@ -93,9 +98,10 @@ func TestParseGitSources(t *testing.T) {
 			source: "github.com/mineiros-io/example?ref=v1",
 			want: want{
 				parsed: tf.Source{
-					URL:  "https://github.com/mineiros-io/example.git",
-					Path: "github.com/mineiros-io/example",
-					Ref:  "v1",
+					URL:        "https://github.com/mineiros-io/example.git",
+					Path:       "github.com/mineiros-io/example",
+					PathScheme: "https",
+					Ref:        "v1",
 				},
 			},
 		},
@@ -104,10 +110,11 @@ func TestParseGitSources(t *testing.T) {
 			source: "github.com/mineiros-io/example//sub/ref?ref=v1",
 			want: want{
 				parsed: tf.Source{
-					URL:    "https://github.com/mineiros-io/example.git",
-					Path:   "github.com/mineiros-io/example",
-					Subdir: "/sub/ref",
-					Ref:    "v1",
+					URL:        "https://github.com/mineiros-io/example.git",
+					Path:       "github.com/mineiros-io/example",
+					PathScheme: "https",
+					Subdir:     "/sub/ref",
+					Ref:        "v1",
 				},
 			},
 		},
@@ -116,9 +123,10 @@ func TestParseGitSources(t *testing.T) {
 			source: "github.com/mineiros-io/example.git?ref=v1",
 			want: want{
 				parsed: tf.Source{
-					URL:  "https://github.com/mineiros-io/example.git",
-					Path: "github.com/mineiros-io/example",
-					Ref:  "v1",
+					URL:        "https://github.com/mineiros-io/example.git",
+					Path:       "github.com/mineiros-io/example",
+					PathScheme: "https",
+					Ref:        "v1",
 				},
 			},
 		},
@@ -127,10 +135,11 @@ func TestParseGitSources(t *testing.T) {
 			source: "github.com/mineiros-io/example.git//dir?ref=v1",
 			want: want{
 				parsed: tf.Source{
-					URL:    "https://github.com/mineiros-io/example.git",
-					Path:   "github.com/mineiros-io/example",
-					Subdir: "/dir",
-					Ref:    "v1",
+					URL:        "https://github.com/mineiros-io/example.git",
+					Path:       "github.com/mineiros-io/example",
+					PathScheme: "https",
+					Subdir:     "/dir",
+					Ref:        "v1",
 				},
 			},
 		},
@@ -139,8 +148,9 @@ func TestParseGitSources(t *testing.T) {
 			source: "github.com/mineiros-io/example?key=v1",
 			want: want{
 				parsed: tf.Source{
-					URL:  "https://github.com/mineiros-io/example.git",
-					Path: "github.com/mineiros-io/example",
+					URL:        "https://github.com/mineiros-io/example.git",
+					Path:       "github.com/mineiros-io/example",
+					PathScheme: "https",
 				},
 			},
 		},
@@ -149,8 +159,9 @@ func TestParseGitSources(t *testing.T) {
 			source: "git@github.com:mineiros-io/example.git",
 			want: want{
 				parsed: tf.Source{
-					URL:  "git@github.com:mineiros-io/example.git",
-					Path: "github.com/mineiros-io/example",
+					URL:        "git@github.com:mineiros-io/example.git",
+					Path:       "github.com/mineiros-io/example",
+					PathScheme: "git",
 				},
 			},
 		},
@@ -159,9 +170,10 @@ func TestParseGitSources(t *testing.T) {
 			source: "git@github.com:mineiros-io/example.git//subdir",
 			want: want{
 				parsed: tf.Source{
-					URL:    "git@github.com:mineiros-io/example.git",
-					Path:   "github.com/mineiros-io/example",
-					Subdir: "/subdir",
+					URL:        "git@github.com:mineiros-io/example.git",
+					Path:       "github.com/mineiros-io/example",
+					PathScheme: "git",
+					Subdir:     "/subdir",
 				},
 			},
 		},
@@ -170,8 +182,9 @@ func TestParseGitSources(t *testing.T) {
 			source: "git@github.com:mineiros-io/example.git//",
 			want: want{
 				parsed: tf.Source{
-					URL:  "git@github.com:mineiros-io/example.git",
-					Path: "github.com/mineiros-io/example",
+					URL:        "git@github.com:mineiros-io/example.git",
+					Path:       "github.com/mineiros-io/example",
+					PathScheme: "git",
 				},
 			},
 		},
@@ -180,9 +193,10 @@ func TestParseGitSources(t *testing.T) {
 			source: "git@github.com:mineiros-io/example.git?ref=v2",
 			want: want{
 				parsed: tf.Source{
-					URL:  "git@github.com:mineiros-io/example.git",
-					Path: "github.com/mineiros-io/example",
-					Ref:  "v2",
+					URL:        "git@github.com:mineiros-io/example.git",
+					Path:       "github.com/mineiros-io/example",
+					PathScheme: "git",
+					Ref:        "v2",
 				},
 			},
 		},
@@ -191,10 +205,11 @@ func TestParseGitSources(t *testing.T) {
 			source: "git@github.com:mineiros-io/example.git//sub/dir?ref=v2",
 			want: want{
 				parsed: tf.Source{
-					URL:    "git@github.com:mineiros-io/example.git",
-					Path:   "github.com/mineiros-io/example",
-					Subdir: "/sub/dir",
-					Ref:    "v2",
+					URL:        "git@github.com:mineiros-io/example.git",
+					Path:       "github.com/mineiros-io/example",
+					PathScheme: "git",
+					Subdir:     "/sub/dir",
+					Ref:        "v2",
 				},
 			},
 		},
@@ -203,8 +218,9 @@ func TestParseGitSources(t *testing.T) {
 			source: "git@github.com:mineiros-io/example.git?key=v2",
 			want: want{
 				parsed: tf.Source{
-					URL:  "git@github.com:mineiros-io/example.git",
-					Path: "github.com/mineiros-io/example",
+					URL:        "git@github.com:mineiros-io/example.git",
+					Path:       "github.com/mineiros-io/example",
+					PathScheme: "git",
 				},
 			},
 		},
@@ -213,8 +229,9 @@ func TestParseGitSources(t *testing.T) {
 			source: "git::https://example.com/vpc.git",
 			want: want{
 				parsed: tf.Source{
-					URL:  "https://example.com/vpc.git",
-					Path: "example.com/vpc",
+					URL:        "https://example.com/vpc.git",
+					Path:       "example.com/vpc",
+					PathScheme: "https",
 				},
 			},
 		},
@@ -223,9 +240,10 @@ func TestParseGitSources(t *testing.T) {
 			source: "git::https://example.com/vpc.git//subdir",
 			want: want{
 				parsed: tf.Source{
-					URL:    "https://example.com/vpc.git",
-					Path:   "example.com/vpc",
-					Subdir: "/subdir",
+					URL:        "https://example.com/vpc.git",
+					Path:       "example.com/vpc",
+					PathScheme: "https",
+					Subdir:     "/subdir",
 				},
 			},
 		},
@@ -234,8 +252,9 @@ func TestParseGitSources(t *testing.T) {
 			source: "git::https://example.com/vpc.git//",
 			want: want{
 				parsed: tf.Source{
-					URL:  "https://example.com/vpc.git",
-					Path: "example.com/vpc",
+					URL:        "https://example.com/vpc.git",
+					Path:       "example.com/vpc",
+					PathScheme: "https",
 				},
 			},
 		},
@@ -244,9 +263,10 @@ func TestParseGitSources(t *testing.T) {
 			source: "git::file:///tmp/test/repo//subdir",
 			want: want{
 				parsed: tf.Source{
-					URL:    "file:///tmp/test/repo",
-					Path:   "/tmp/test/repo",
-					Subdir: "/subdir",
+					URL:        "file:///tmp/test/repo",
+					Path:       "/tmp/test/repo",
+					PathScheme: "file",
+					Subdir:     "/subdir",
 				},
 			},
 		},
@@ -255,9 +275,10 @@ func TestParseGitSources(t *testing.T) {
 			source: "git::https://example.com/vpc.git?ref=v3",
 			want: want{
 				parsed: tf.Source{
-					URL:  "https://example.com/vpc.git",
-					Path: "example.com/vpc",
-					Ref:  "v3",
+					URL:        "https://example.com/vpc.git",
+					Path:       "example.com/vpc",
+					PathScheme: "https",
+					Ref:        "v3",
 				},
 			},
 		},
@@ -266,10 +287,11 @@ func TestParseGitSources(t *testing.T) {
 			source: "git::https://example.com/vpc.git//sub/dir?ref=v3",
 			want: want{
 				parsed: tf.Source{
-					URL:    "https://example.com/vpc.git",
-					Path:   "example.com/vpc",
-					Subdir: "/sub/dir",
-					Ref:    "v3",
+					URL:        "https://example.com/vpc.git",
+					Path:       "example.com/vpc",
+					PathScheme: "https",
+					Subdir:     "/sub/dir",
+					Ref:        "v3",
 				},
 			},
 		},
@@ -278,9 +300,10 @@ func TestParseGitSources(t *testing.T) {
 			source: "git::https://example.com:443/vpc.git?ref=v3",
 			want: want{
 				parsed: tf.Source{
-					URL:  "https://example.com:443/vpc.git",
-					Path: "example.com-443/vpc",
-					Ref:  "v3",
+					URL:        "https://example.com:443/vpc.git",
+					Path:       "example.com-443/vpc",
+					PathScheme: "https",
+					Ref:        "v3",
 				},
 			},
 		},
@@ -289,10 +312,11 @@ func TestParseGitSources(t *testing.T) {
 			source: "git::https://example.com:443/vpc.git//port/dir?ref=v3",
 			want: want{
 				parsed: tf.Source{
-					URL:    "https://example.com:443/vpc.git",
-					Path:   "example.com-443/vpc",
-					Subdir: "/port/dir",
-					Ref:    "v3",
+					URL:        "https://example.com:443/vpc.git",
+					Path:       "example.com-443/vpc",
+					PathScheme: "https",
+					Subdir:     "/port/dir",
+					Ref:        "v3",
 				},
 			},
 		},
@@ -301,8 +325,9 @@ func TestParseGitSources(t *testing.T) {
 			source: "git::https://example.com/vpc.git?key=v3",
 			want: want{
 				parsed: tf.Source{
-					URL:  "https://example.com/vpc.git",
-					Path: "example.com/vpc",
+					URL:        "https://example.com/vpc.git",
+					Path:       "example.com/vpc",
+					PathScheme: "https",
 				},
 			},
 		},
@@ -311,8 +336,9 @@ func TestParseGitSources(t *testing.T) {
 			source: "git::ssh://username@example.com/storage.git",
 			want: want{
 				parsed: tf.Source{
-					URL:  "ssh://username@example.com/storage.git",
-					Path: "example.com/storage",
+					URL:        "ssh://username@example.com/storage.git",
+					Path:       "example.com/storage",
+					PathScheme: "ssh",
 				},
 			},
 		},
@@ -321,9 +347,10 @@ func TestParseGitSources(t *testing.T) {
 			source: "git::ssh://username@example.com/storage.git//subdir",
 			want: want{
 				parsed: tf.Source{
-					URL:    "ssh://username@example.com/storage.git",
-					Path:   "example.com/storage",
-					Subdir: "/subdir",
+					URL:        "ssh://username@example.com/storage.git",
+					Path:       "example.com/storage",
+					PathScheme: "ssh",
+					Subdir:     "/subdir",
 				},
 			},
 		},
@@ -332,8 +359,9 @@ func TestParseGitSources(t *testing.T) {
 			source: "git::ssh://username@example.com/storage.git//",
 			want: want{
 				parsed: tf.Source{
-					URL:  "ssh://username@example.com/storage.git",
-					Path: "example.com/storage",
+					URL:        "ssh://username@example.com/storage.git",
+					Path:       "example.com/storage",
+					PathScheme: "ssh",
 				},
 			},
 		},
@@ -342,8 +370,9 @@ func TestParseGitSources(t *testing.T) {
 			source: "git::ssh://username@example.com:666/storage.git",
 			want: want{
 				parsed: tf.Source{
-					URL:  "ssh://username@example.com:666/storage.git",
-					Path: "example.com-666/storage",
+					URL:        "ssh://username@example.com:666/storage.git",
+					Path:       "example.com-666/storage",
+					PathScheme: "ssh",
 				},
 			},
 		},
@@ -352,9 +381,10 @@ func TestParseGitSources(t *testing.T) {
 			source: "git::ssh://username@example.com:666/storage.git//ssh/dir",
 			want: want{
 				parsed: tf.Source{
-					URL:    "ssh://username@example.com:666/storage.git",
-					Path:   "example.com-666/storage",
-					Subdir: "/ssh/dir",
+					URL:        "ssh://username@example.com:666/storage.git",
+					Path:       "example.com-666/storage",
+					PathScheme: "ssh",
+					Subdir:     "/ssh/dir",
 				},
 			},
 		},
@@ -363,9 +393,10 @@ func TestParseGitSources(t *testing.T) {
 			source: "git::ssh://username@example.com/storage.git?ref=v4",
 			want: want{
 				parsed: tf.Source{
-					URL:  "ssh://username@example.com/storage.git",
-					Path: "example.com/storage",
-					Ref:  "v4",
+					URL:        "ssh://username@example.com/storage.git",
+					Path:       "example.com/storage",
+					PathScheme: "ssh",
+					Ref:        "v4",
 				},
 			},
 		},
@@ -374,10 +405,11 @@ func TestParseGitSources(t *testing.T) {
 			source: "git::ssh://username@example.com/storage.git//sub/ref?ref=v4",
 			want: want{
 				parsed: tf.Source{
-					URL:    "ssh://username@example.com/storage.git",
-					Path:   "example.com/storage",
-					Subdir: "/sub/ref",
-					Ref:    "v4",
+					URL:        "ssh://username@example.com/storage.git",
+					Path:       "example.com/storage",
+					PathScheme: "ssh",
+					Subdir:     "/sub/ref",
+					Ref:        "v4",
 				},
 			},
 		},
@@ -386,8 +418,9 @@ func TestParseGitSources(t *testing.T) {
 			source: "git::ssh://username@example.com/storage.git?key=v4",
 			want: want{
 				parsed: tf.Source{
-					URL:  "ssh://username@example.com/storage.git",
-					Path: "example.com/storage",
+					URL:        "ssh://username@example.com/storage.git",
+					Path:       "example.com/storage",
+					PathScheme: "ssh",
 				},
 			},
 		},

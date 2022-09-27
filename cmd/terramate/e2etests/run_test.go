@@ -769,11 +769,14 @@ func TestRunWants(t *testing.T) {
 			},
 		},
 		{
-			name: `	stack-a wants (stack-b, stack-c)
+			/*
+				stack-a wants (stack-b, stack-c)
 					stack-b wants (stack-d, stack-e)
 					stack-e wants (stack-a, stack-z)
 					(from inside stack-b) - recursive, *circular*
-					must pull all stacks`,
+					must pull all stacks`
+			*/
+			name: `must pull all stacks - recursive and circular`,
 			layout: []string{
 				`s:stack-a:wants=["/stack-b", "/stack-c"]`,
 				`s:stack-b:wants=["/stack-d", "/stack-e"]`,
@@ -795,10 +798,13 @@ func TestRunWants(t *testing.T) {
 			},
 		},
 		{
-			name: `wants+order - stack-a after stack-b / stack-d before stack-a
-	* stack-a wants (stack-b, stack-c)
-	* stack-b wants (stack-d, stack-e)
-	* stack-e wants (stack-a, stack-z) (from inside stack-b) - recursive, *circular*`,
+			/*
+				  	wants+order - stack-a after stack-b / stack-d before stack-a
+					stack-a wants (stack-b, stack-c)
+					stack-b wants (stack-d, stack-e)
+					stack-e wants (stack-a, stack-z) (from inside stack-b) - recursive, *circular*`
+			*/
+			name: `wants+ordering - recursive+circular`,
 			layout: []string{
 				`s:stack-a:wants=["/stack-b", "/stack-c"];after=["/stack-b"]`,
 				`s:stack-b:wants=["/stack-d", "/stack-e"]`,
@@ -962,8 +968,7 @@ func testRunSelection(t *testing.T, tc selectionTestcase) {
 				git.CommitAll("everything")
 			}
 
-			// TODO(i4k): not portable
-			assertRunResult(t, cli.run("run", "sh", "-c", "pwd | xargs basename"), tc.want)
+			assertRunResult(t, cli.run("run", testHelperBin, "pwd-basename"), tc.want)
 		}
 	})
 }
@@ -1095,20 +1100,22 @@ func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDir(t *testing.T) {
 	git := s.Git()
 	git.CommitAll("first commit")
 
-	cat := test.LookPath(t, "cat")
 	assertRun := func(wd string, want string) {
+		t.Helper()
 		cli := newCLI(t, filepath.Join(s.RootDir(), wd))
 
 		assertRunResult(t, cli.run(
 			"run",
-			cat,
+			testHelperBin,
+			"cat",
 			testfile,
 		), runExpected{Stdout: want})
 
 		assertRunResult(t, cli.run(
 			"run",
 			"--changed",
-			cat,
+			testHelperBin,
+			"cat",
 			testfile,
 		), runExpected{Stdout: want})
 	}
@@ -1585,8 +1592,8 @@ func TestRunLogsUserCommand(t *testing.T) {
 	git.Push("main")
 
 	cli := newCLIWithLogLevel(t, s.RootDir(), "info")
-	assertRunResult(t, cli.run("run", "cat", testfile.HostPath()), runExpected{
-		StderrRegex: `cmd="cat /`,
+	assertRunResult(t, cli.run("run", testHelperBin, "cat", testfile.HostPath()), runExpected{
+		StderrRegex: `cmd=`,
 	})
 }
 

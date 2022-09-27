@@ -10,11 +10,13 @@ require (
 	github.com/hashicorp/go-version v1.3.0
 	github.com/hashicorp/hcl/v2 v2.10.1
 	github.com/hashicorp/terraform v0.15.3
+	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
 	github.com/madlambda/spells v0.4.0
 	github.com/posener/complete v1.2.3
 	github.com/willabides/kongplete v0.2.0
 	github.com/zclconf/go-cty v1.8.3
 	github.com/zclconf/go-cty-debug v0.0.0-20191215020915-b22d67c1ba0b
+	go.lsp.dev/uri v0.3.0
 )
 
 require (

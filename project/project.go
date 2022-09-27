@@ -15,21 +15,72 @@
 package project
 
 import (
+	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
 
+// Path is a project path.
+// The project paths are always absolute forward slashed paths with no lexical
+// processing left, which means they must be cleaned paths. See:
+//
+//	https://pkg.go.dev/path#Clean
+//
+// The project path has / as root.
+type Path string
+
+// Paths is a list of project paths.
+type Paths []Path
+
+// NewPath creates a new project path.
+// It panics if a relative path is provided.
+func NewPath(p string) Path {
+	if !path.IsAbs(p) {
+		panic(errors.E("project path must be absolute but got %s", p))
+	}
+	return Path(path.Clean(p))
+}
+
+// Dir returns the path's directory.
+func (p Path) Dir() Path { return Path(path.Dir(p.String())) }
+
+// HasPrefix tests whether p begins with s prefix.
+func (p Path) HasPrefix(s string) bool {
+	return strings.HasPrefix(p.String(), s)
+}
+
+// String returns the path as a string.
+func (p Path) String() string { return string(p) }
+
+// Strings returns a []string from the []Path.
+func (paths Paths) Strings() []string {
+	vals := []string{}
+	for _, p := range paths {
+		vals = append(vals, p.String())
+	}
+	return vals
+}
+
+// Sort paths in-place.
+func (paths Paths) Sort() {
+	sort.Slice(paths, func(i, j int) bool {
+		return string(paths[i]) < string(paths[j])
+	})
+}
+
 // Metadata represents project wide metadata.
 type Metadata struct {
 	rootdir string
-	stacks  []string
+	stacks  Paths
 }
 
 // NewMetadata creates a new project metadata.
-func NewMetadata(rootdir string, stackpaths []string) Metadata {
+func NewMetadata(rootdir string, stackpaths Paths) Metadata {
 	if !filepath.IsAbs(rootdir) {
 		panic("rootdir must be an absolute path")
 	}
@@ -46,7 +97,7 @@ func (m Metadata) Rootdir() string {
 
 // Stacks contains the absolute path relative to the project root
 // of all stacks inside the project.
-func (m Metadata) Stacks() []string { return m.stacks }
+func (m Metadata) Stacks() Paths { return m.stacks }
 
 // ToCtyMap returns the project metadata as a cty.Value map.
 func (m Metadata) ToCtyMap() map[string]cty.Value {
@@ -61,7 +112,7 @@ func (m Metadata) ToCtyMap() map[string]cty.Value {
 		"path": rootpath,
 	})
 	stacksNs := cty.ObjectVal(map[string]cty.Value{
-		"list": toCtyStringList(m.Stacks()),
+		"list": toCtyStringList(m.Stacks().Strings()),
 	})
 	return map[string]cty.Value{
 		"root":   root,
@@ -71,19 +122,19 @@ func (m Metadata) ToCtyMap() map[string]cty.Value {
 
 // PrjAbsPath converts the file system absolute path absdir into an absolute
 // project path on the form /path/on/project relative to the given root.
-func PrjAbsPath(root, absdir string) string {
+func PrjAbsPath(root, abspath string) Path {
 	log.Trace().
 		Str("action", "PrjAbsPath()").
-		Str("dir", absdir).
+		Str("path", abspath).
 		Str("root", root).
 		Msg("Trim path to get relative dir.")
 
-	d := strings.TrimPrefix(absdir, root)
+	d := filepath.ToSlash(strings.TrimPrefix(abspath, root))
 	if d == "" {
 		d = "/"
 	}
 
-	return d
+	return NewPath(d)
 }
 
 // AbsPath takes the root project dir and a project's absolute path prjAbsPath
@@ -104,7 +155,7 @@ func FriendlyFmtDir(root, wd, dir string) (string, bool) {
 		Str("dir", dir).
 		Msg("Get relative path.")
 
-	trimPart := PrjAbsPath(root, wd)
+	trimPart := PrjAbsPath(root, wd).String()
 	if !strings.HasPrefix(dir, trimPart) {
 		return "", false
 	}

@@ -36,7 +36,7 @@ type (
 	// Expr is an unevaluated global expression.
 	Expr struct {
 		// Origin is the filename where this expression can be found.
-		Origin string
+		Origin project.Path
 
 		hhcl.Expression
 	}
@@ -47,7 +47,7 @@ type (
 
 	// Value is an evaluated global.
 	Value struct {
-		Origin string
+		Origin project.Path
 
 		cty.Value
 	}
@@ -57,11 +57,11 @@ type (
 )
 
 // Load loads all the globals from the cfgdir.
-func Load(rootdir string, cfgdir string, ctx *eval.Context) EvalReport {
+func Load(rootdir string, cfgdir project.Path, ctx *eval.Context) EvalReport {
 	logger := log.With().
 		Str("action", "globals.Load()").
 		Str("root", rootdir).
-		Str("cfgdir", cfgdir).
+		Stringer("cfgdir", cfgdir).
 		Logger()
 
 	logger.Trace().Msg("loading expressions")
@@ -81,16 +81,16 @@ func Load(rootdir string, cfgdir string, ctx *eval.Context) EvalReport {
 // reaches rootdir, loading globals expressions and merging them appropriately.
 // More specific globals (closer or at the dir) have precedence over less
 // specific globals (closer or at the root dir).
-func LoadExprs(rootdir string, cfgdir string) (Exprs, error) {
+func LoadExprs(rootdir string, cfgdir project.Path) (Exprs, error) {
 	logger := log.With().
 		Str("action", "globals.LoadExprs()").
 		Str("root", rootdir).
-		Str("cfgdir", cfgdir).
+		Stringer("cfgdir", cfgdir).
 		Logger()
 
 	logger.Debug().Msg("Parse globals blocks.")
 
-	absdir := filepath.Join(rootdir, cfgdir)
+	absdir := filepath.Join(rootdir, cfgdir.String())
 	p, err := hcl.NewTerramateParser(rootdir, absdir)
 	if err != nil {
 		return nil, err
@@ -183,7 +183,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 	pendingExpression:
 		for name, expr := range pendingExprs {
 			logger := logger.With().
-				Str("origin", expr.Origin).
+				Stringer("origin", expr.Origin).
 				Str("global", name).
 				Logger()
 
@@ -302,8 +302,8 @@ func removeUnset(exprs Exprs) {
 	}
 }
 
-func parentDir(dir string) (string, bool) {
-	parent := filepath.Dir(dir)
+func parentDir(dir project.Path) (project.Path, bool) {
+	parent := dir.Dir()
 	return parent, parent != dir
 }
 

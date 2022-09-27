@@ -26,6 +26,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -131,22 +132,29 @@ func NoGit(t *testing.T) S {
 // below:
 // Each string in the slice represents a filesystem operation, and each
 // operation has the format below:
-//   <kind>:<relative path>[:data]
+//
+//	<kind>:<relative path>[:data]
+//
 // Where kind is one of the below:
-//   "d" for directory creation.
-//   "g" for local git directory creation.
-//   "s" for initialized stacks.
-//   "f" for file creation.
-//   "t" for terramate block.
+//
+//	"d" for directory creation.
+//	"g" for local git directory creation.
+//	"s" for initialized stacks.
+//	"f" for file creation.
+//	"t" for terramate block.
+//
 // The data field is required only for operation "f" and "s":
-//   For "f" data is the content of the file to be created.
-//   For "s" data is a key value pair of the form:
-//     <attr1>=<val1>[;<attr2>=<val2>]
+//
+//	For "f" data is the content of the file to be created.
+//	For "s" data is a key value pair of the form:
+//	  <attr1>=<val1>[;<attr2>=<val2>]
+//
 // Where attrN is a string attribute of the terramate block of the stack.
 // TODO(i4k): document empty data field.
 //
 // Example:
-//   s:name-of-the-stack:id=stack-id;after=["other-stack"]
+//
+//	s:name-of-the-stack:id=stack-id;after=["other-stack"]
 //
 // This is an internal mini-lang used to simplify testcases, so it expects well
 // formed layout specification.
@@ -280,15 +288,20 @@ func (s S) StackEntry(relpath string) StackEntry {
 
 // DirEntry gets the dir entry for relpath.
 // The dir must exist and must be a relative path to the sandbox root dir.
+// The relpath must be a forward-slashed path.
 func (s S) DirEntry(relpath string) DirEntry {
 	t := s.t
 	t.Helper()
 
-	if filepath.IsAbs(relpath) {
+	if strings.Contains(relpath, `\`) {
+		panic("relpath requires a forward-slashed path")
+	}
+
+	if path.IsAbs(relpath) {
 		t.Fatalf("DirEntry() needs a relative path but given %q", relpath)
 	}
 
-	abspath := filepath.Join(s.rootdir, relpath)
+	abspath := filepath.Join(s.rootdir, filepath.FromSlash(relpath))
 	stat, err := os.Stat(abspath)
 	if err != nil {
 		t.Fatalf("DirEntry(): dir must exist: %v", err)
@@ -392,9 +405,16 @@ func (de DirEntry) Path() string {
 	return de.abspath
 }
 
-// RelPath returns the relative path of the directory entry.
+// RelPath returns the relative path of the directory entry
+// using the host path separator.
 func (de DirEntry) RelPath() string {
-	return de.relpath
+	return filepath.FromSlash(de.relpath)
+}
+
+// Git returns a Git wrapper for the dir.
+func (de DirEntry) Git() *Git {
+	git := NewGit(de.t, de.abspath)
+	return git
 }
 
 // Write writes the given text body on the file, replacing its contents.
@@ -419,7 +439,7 @@ func (fe FileEntry) HostPath() string {
 
 // Path returns the absolute project path of the file.
 func (fe FileEntry) Path() string {
-	return project.PrjAbsPath(fe.rootpath, fe.hostpath)
+	return project.PrjAbsPath(fe.rootpath, fe.hostpath).String()
 }
 
 // ModSource returns the relative import path for the module with the given
@@ -428,7 +448,7 @@ func (fe FileEntry) Path() string {
 func (se StackEntry) ModSource(mod DirEntry) string {
 	relpath, err := filepath.Rel(se.abspath, mod.abspath)
 	assert.NoError(se.t, err)
-	return relpath
+	return filepath.ToSlash(relpath)
 }
 
 // WriteConfig will create a terramate configuration file on the stack
@@ -538,7 +558,7 @@ func buildTree(t *testing.T, rootdir string, layout []string) {
 	gentmfile := func(relpath, data string) {
 		attrs := strings.Split(data, ";")
 
-		cfgdir := filepath.Join(rootdir, relpath)
+		cfgdir := filepath.Join(rootdir, filepath.FromSlash(relpath))
 		test.MkdirAll(t, cfgdir)
 		cfg, err := hcl.NewConfig(cfgdir)
 		assert.NoError(t, err)
