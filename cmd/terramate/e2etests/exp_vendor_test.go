@@ -42,8 +42,7 @@ func TestVendorModule(t *testing.T) {
 	repoGit := repoSandbox.Git()
 	repoGit.CommitAll("add file")
 
-	gitSource := "git::" + string(uri.File(repoSandbox.RootDir()))
-
+	gitSource := newLocalSource(repoSandbox.RootDir())
 	checkVendoredFiles := func(t *testing.T, res runResult, vendordir string) {
 		t.Helper()
 
@@ -106,7 +105,7 @@ func TestVendorModuleRecursive1DependencyIsPatched(t *testing.T) {
 	repoGit := depsSandbox.Git()
 	repoGit.CommitAll("add file")
 
-	depsGitSource := "git::" + string(uri.File(depsSandbox.RootDir())) + "?ref=main"
+	depsGitSource := newLocalSource(depsSandbox.RootDir()) + "?ref=main"
 
 	moduleSandbox := sandbox.New(t)
 
@@ -116,10 +115,9 @@ func TestVendorModuleRecursive1DependencyIsPatched(t *testing.T) {
 	repoGit = moduleSandbox.Git()
 	repoGit.CommitAll("add file")
 
-	gitSource := "git::" + string(uri.File(moduleSandbox.RootDir()))
+	gitSource := newLocalSource(moduleSandbox.RootDir())
 
 	s := sandbox.New(t)
-
 	tmcli := newCLI(t, s.RootDir())
 	res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
 	assertRunResult(t, res, runExpected{IgnoreStdout: true})
@@ -169,7 +167,7 @@ func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
 		repoGit.CheckoutNew("test")
 		repoGit.Push("main")
 		repoGit.Push("test")
-		return "git::" + string(uri.File(moduleRepo.RootDir()))
+		return newLocalSource(moduleRepo.RootDir())
 	}
 
 	modZ := setupModuleGit("modZ", "main")
@@ -235,6 +233,10 @@ func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
 	test.AssertFileContentEquals(t, modFileA, wantedFileContent("modA", modsrcA, modsrcZmain))
 	test.AssertFileContentEquals(t, modFileB, wantedFileContent("modB", modsrcB, modsrcZmain))
 	test.AssertFileContentEquals(t, modFileC, wantedFileContent("modC", modsrcC, modsrcZtest))
+}
+
+func newLocalSource(path string) string {
+	return "git::" + string(uri.File(path))
 }
 
 func vendorHCLConfig(dir string) string {
