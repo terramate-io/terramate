@@ -17,7 +17,6 @@ package e2etest
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -102,38 +101,50 @@ func TestVendorModule(t *testing.T) {
 }
 
 func TestVendorModuleRecursive1DependencyIsPatched(t *testing.T) {
+	s := sandbox.NoGit(t)
+	s.BuildTree([]string{
+		"g:repos/target",
+		"g:repos/dep",
+		"g:tmroot",
+	})
+
+	depDir := s.DirEntry("repos/dep")
+	depDir.CreateFile("main.tf", ``)
+	depGit := depDir.Git()
+	depGit.CommitAll("add file")
+	depGit.Push("main")
+
+	depGitSource := "git::" + string(uri.File(depDir.Path())) + "?ref=main"
+	depmodsrc, err := tf.ParseSource(depGitSource)
+	assert.NoError(t, err)
+
 	const moduleFileTemplate = `module "test" { source = "%s" }`
-	depsSandbox := sandbox.New(t)
-	depsSandbox.RootEntry().CreateFile("main.tf", ``)
+	targetDir := s.DirEntry("repos/target")
+	targetDir.CreateFile("main.tf",
+		fmt.Sprintf(moduleFileTemplate, depGitSource))
 
-	repoGit := depsSandbox.Git()
-	repoGit.CommitAll("add file")
+	targetGit := targetDir.Git()
+	targetGit.CommitAll("add file")
+	targetGit.Push("main")
 
-	depsGitSource := "git::" + string(uri.File(depsSandbox.RootDir())) + "?ref=main"
+	targetGitSource := "git::" + string(uri.File(targetDir.Path()))
+	targetmodsrc, err := tf.ParseSource(targetGitSource + "?ref=main")
+	assert.NoError(t, err)
 
-	moduleSandbox := sandbox.New(t)
+	tmrootDir := s.DirEntry("tmroot")
+	tmcli := newCLI(t, tmrootDir.Path())
+	res := tmcli.run("experimental", "vendor", "download", targetGitSource, "main")
+	assertRunResult(t, res, runExpected{
+		IgnoreStdout: true,
+	})
 
-	moduleSandbox.RootEntry().CreateFile("main.tf",
-		fmt.Sprintf(moduleFileTemplate, depsGitSource))
-
-	repoGit = moduleSandbox.Git()
-	repoGit.CommitAll("add file")
-
-	gitSource := "git::" + string(uri.File(moduleSandbox.RootDir()))
-
-	s := sandbox.New(t)
-
-	tmcli := newCLI(t, s.RootDir())
-	res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
-	assertRunResult(t, res, runExpected{IgnoreStdout: true})
-
-	vendordir := filepath.Join(s.RootDir(), "modules")
-	moduleDir := filepath.Join(vendordir, strings.ReplaceAll(moduleSandbox.RootDir(), ":", "$"), "main")
-	depsDir := filepath.Join(vendordir, strings.ReplaceAll(depsSandbox.RootDir(), ":", "$"), "main")
+	vendordir := project.NewPath("/modules")
+	moduleDir := modvendor.AbsVendorDir(tmrootDir.Path(), vendordir, targetmodsrc)
+	depsDir := modvendor.AbsVendorDir(tmrootDir.Path(), vendordir, depmodsrc)
 
 	got := test.ReadFile(t, moduleDir, "main.tf")
 	assert.EqualStrings(t,
-		fmt.Sprintf(moduleFileTemplate, "../../../001/sandbox/main"),
+		fmt.Sprintf(moduleFileTemplate, "../../dep/main"),
 		string(got))
 
 	got = test.ReadFile(t, depsDir, "main.tf")
