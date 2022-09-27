@@ -27,7 +27,6 @@ install:
 .PHONY: test
 test:
 	echo disabled
-	#go test -count=1 -timeout=30m ./...
 
  ## remove build artifacts
 .PHONY: clean
