@@ -27,6 +27,7 @@ import (
 	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
+	"go.lsp.dev/uri"
 
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
@@ -313,10 +314,9 @@ func TestVendorManifest(t *testing.T) {
 			repogit := repoSandbox.Git()
 			repogit.CommitAll("setup vendored repo")
 
-			gitURL := "file://" + repoSandbox.RootDir()
-
+			gitURI := uri.File(repoSandbox.RootDir())
 			rootdir := t.TempDir()
-			source := newSource(t, gitURL, "main")
+			source := newSource(t, gitURI, "main")
 
 			const vendordir = "/vendor"
 			got := modvendor.Vendor(rootdir, vendordir, source)
@@ -325,7 +325,7 @@ func TestVendorManifest(t *testing.T) {
 			clonedir := modvendor.AbsVendorDir(rootdir, vendordir, source)
 			gotFiles := listFiles(t, clonedir)
 			for i, f := range gotFiles {
-				gotFiles[i] = strings.TrimPrefix(f, clonedir)
+				gotFiles[i] = filepath.ToSlash(strings.TrimPrefix(f, clonedir))
 			}
 			test.AssertDiff(t, gotFiles, tcase.wantFiles)
 		})
@@ -347,7 +347,7 @@ func testInvalidManifestFails(t *testing.T, configpath string) {
 	repogit := repoSandbox.Git()
 	repogit.CommitAll("setup vendored repo")
 
-	gitURL := "file://" + repoSandbox.RootDir()
+	gitURL := uri.File(repoSandbox.RootDir())
 	source := newSource(t, gitURL, "main")
 
 	got := modvendor.Vendor(t.TempDir(), "/vendor", source)

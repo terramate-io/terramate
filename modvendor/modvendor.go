@@ -19,6 +19,7 @@ import (
 	iofs "io/fs"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -30,6 +31,7 @@ import (
 	"github.com/mineiros-io/terramate/fs"
 	"github.com/mineiros-io/terramate/git"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/tf"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
@@ -42,7 +44,7 @@ const (
 
 type modinfo struct {
 	source     string
-	vendoredAt string
+	vendoredAt project.Path
 	origin     string
 	subdir     string
 }
@@ -57,7 +59,6 @@ type modinfo struct {
 //
 // - <rootdir>/<vendordir>/<Source.Path>/<Source.Ref>
 //
-//
 // The whole path inside the vendor dir will be created if it not exists.
 // Vendoring will not download any git submodules.
 //
@@ -66,35 +67,42 @@ type modinfo struct {
 // reference them inside the vendor directory.
 //
 // It returns a report of everything vendored and ignored (with a reason).
-func Vendor(rootdir string, vendorDir string, modsrc tf.Source) Report {
+func Vendor(rootdir string, vendorDir project.Path, modsrc tf.Source) Report {
 	report := NewReport(vendorDir)
-	if !filepath.IsAbs(vendorDir) {
+	if !path.IsAbs(vendorDir.String()) {
 		report.Error = errors.E("vendor dir %q must be absolute path", vendorDir)
 		return report
 	}
-
 	return vendor(rootdir, vendorDir, modsrc, report, nil)
 }
 
 // VendorAll will vendor all dependencies of the tfdir into rootdir.
 // It will scan all .tf files in the directory and vendor each module declaration
 // containing the supported remote source URLs.
-func VendorAll(rootdir string, vendorDir string, tfdir string) Report {
+func VendorAll(rootdir string, vendorDir project.Path, tfdir string) Report {
 	return vendorAll(rootdir, vendorDir, tfdir, NewReport(vendorDir))
 }
 
-// Dir returns the directory for the vendored module source, relative to project
+// TargetDir returns the directory for the vendored module source, relative to project
 // root.
-func Dir(vendorDir string, modsrc tf.Source) string {
-	return filepath.Join(vendorDir, modsrc.Path, modsrc.Ref)
+//
+// On Windows, when modsrc.Scheme is "file" it replaces the volume “:“ by `$` because
+// `:` is disallowed as path component in such system.
+func TargetDir(vendorDir project.Path, modsrc tf.Source) project.Path {
+	return targetPathDir(vendorDir, modsrc)
+}
+
+// SourceDir returns the source directory from a target directory (installed module).
+func SourceDir(path string, rootdir string, vendordir project.Path) string {
+	return sourceDir(path, rootdir, vendordir)
 }
 
 // AbsVendorDir returns the absolute host path of the vendored module source.
-func AbsVendorDir(rootdir string, vendorDir string, modsrc tf.Source) string {
-	return filepath.Join(rootdir, Dir(vendorDir, modsrc))
+func AbsVendorDir(rootdir string, vendorDir project.Path, modsrc tf.Source) string {
+	return filepath.Join(rootdir, filepath.FromSlash(TargetDir(vendorDir, modsrc).String()))
 }
 
-func vendor(rootdir string, vendorDir string, modsrc tf.Source, report Report, info *modinfo) Report {
+func vendor(rootdir string, vendorDir project.Path, modsrc tf.Source, report Report, info *modinfo) Report {
 	logger := log.With().
 		Str("action", "modvendor.vendor()").
 		Str("module.source", modsrc.Raw).
@@ -165,7 +173,7 @@ func (s *sourcesInfo) delete(source string) {
 	}
 }
 
-func vendorAll(rootdir string, vendorDir string, tfdir string, report Report) Report {
+func vendorAll(rootdir string, vendorDir project.Path, tfdir string, report Report) Report {
 	logger := log.With().
 		Str("action", "modvendor.vendorAll()").
 		Str("dir", tfdir).
@@ -239,13 +247,13 @@ func vendorAll(rootdir string, vendorDir string, tfdir string, report Report) Re
 		st, err := os.Stat(targetVendorDir)
 		if err == nil && st.IsDir() {
 			logger.Trace().Msg("already vendored")
-			info.vendoredAt = Dir(vendorDir, modsrc)
+			info.vendoredAt = TargetDir(vendorDir, modsrc)
 			continue
 		}
 
 		report = vendor(rootdir, vendorDir, modsrc, report, info)
-		if v, ok := report.Vendored[Dir(vendorDir, modsrc)]; ok {
-			info.vendoredAt = Dir(vendorDir, modsrc)
+		if v, ok := report.Vendored[TargetDir(vendorDir, modsrc)]; ok {
+			info.vendoredAt = TargetDir(vendorDir, modsrc)
 			info.subdir = v.Source.Subdir
 
 			logger.Trace().Msg("vendored successfully")
@@ -267,19 +275,15 @@ func vendorAll(rootdir string, vendorDir string, tfdir string, report Report) Re
 // be returned, vendored projects are never updated.
 // This function is not recursive, so dependencies won't have their dependencies
 // vendored. See Vendor() for a recursive vendoring function.
-func downloadVendor(rootdir string, vendorDir string, modsrc tf.Source) (string, error) {
+func downloadVendor(rootdir string, vendorDir project.Path, modsrc tf.Source) (string, error) {
 	logger := log.With().
 		Str("action", "modvendor.downloadVendor()").
 		Str("rootdir", rootdir).
-		Str("vendordir", vendorDir).
+		Stringer("vendordir", vendorDir).
 		Str("url", modsrc.URL).
 		Str("path", modsrc.Path).
 		Str("ref", modsrc.Ref).
 		Logger()
-
-	if !filepath.IsAbs(vendorDir) {
-		return "", errors.E("vendor dir %q must be absolute path", vendorDir)
-	}
 
 	if modsrc.Ref == "" {
 		// TODO(katcipis): handle default references.
@@ -406,7 +410,7 @@ func patchFiles(rootdir string, files []string, sources *sourcesInfo) error {
 			Str("filename", fname).
 			Logger()
 
-		bytes, err := ioutil.ReadFile(fname)
+		bytes, err := os.ReadFile(fname)
 		if err != nil {
 			errs.Append(err)
 			continue
@@ -443,7 +447,7 @@ func patchFiles(rootdir string, files []string, sources *sourcesInfo) error {
 					Msg("found relevant module")
 
 				relPath, err := filepath.Rel(
-					filepath.Dir(fname), filepath.Join(rootdir, info.vendoredAt),
+					filepath.Dir(fname), filepath.Join(rootdir, filepath.FromSlash(info.vendoredAt.String())),
 				)
 				if err != nil {
 					errs.Append(err)
@@ -451,7 +455,7 @@ func patchFiles(rootdir string, files []string, sources *sourcesInfo) error {
 				}
 
 				relPath = filepath.Join(relPath, info.subdir)
-				block.Body().SetAttributeValue("source", cty.StringVal(relPath))
+				block.Body().SetAttributeValue("source", cty.StringVal(filepath.ToSlash(relPath)))
 			}
 		}
 

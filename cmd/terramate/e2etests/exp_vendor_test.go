@@ -21,10 +21,12 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/modvendor"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/mineiros-io/terramate/tf"
+	"go.lsp.dev/uri"
 )
 
 func TestVendorModule(t *testing.T) {
@@ -40,8 +42,7 @@ func TestVendorModule(t *testing.T) {
 	repoGit := repoSandbox.Git()
 	repoGit.CommitAll("add file")
 
-	gitSource := "git::file://" + repoSandbox.RootDir()
-
+	gitSource := newLocalSource(repoSandbox.RootDir())
 	checkVendoredFiles := func(t *testing.T, res runResult, vendordir string) {
 		t.Helper()
 
@@ -104,7 +105,7 @@ func TestVendorModuleRecursive1DependencyIsPatched(t *testing.T) {
 	repoGit := depsSandbox.Git()
 	repoGit.CommitAll("add file")
 
-	depsGitSource := "git::file://" + depsSandbox.RootDir() + "?ref=main"
+	depsGitSource := newLocalSource(depsSandbox.RootDir()) + "?ref=main"
 
 	moduleSandbox := sandbox.New(t)
 
@@ -114,10 +115,9 @@ func TestVendorModuleRecursive1DependencyIsPatched(t *testing.T) {
 	repoGit = moduleSandbox.Git()
 	repoGit.CommitAll("add file")
 
-	gitSource := "git::file://" + moduleSandbox.RootDir()
+	gitSource := newLocalSource(moduleSandbox.RootDir())
 
 	s := sandbox.New(t)
-
 	tmcli := newCLI(t, s.RootDir())
 	res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
 	assertRunResult(t, res, runExpected{IgnoreStdout: true})
@@ -167,7 +167,7 @@ func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
 		repoGit.CheckoutNew("test")
 		repoGit.Push("main")
 		repoGit.Push("test")
-		return "git::file://" + moduleRepo.RootDir()
+		return newLocalSource(moduleRepo.RootDir())
 	}
 
 	modZ := setupModuleGit("modZ", "main")
@@ -202,35 +202,41 @@ func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
 	modsrcZtest, err := tf.ParseSource(modZ + "?ref=test")
 	assert.NoError(t, err)
 
+	const vendorDir = project.Path("/modules")
+
 	modFileA := filepath.Join(
-		modvendor.AbsVendorDir(s.RootDir(), "modules", modsrcA),
+		modvendor.AbsVendorDir(s.RootDir(), vendorDir, modsrcA),
 		filename,
 	)
 
 	modFileB := filepath.Join(
-		modvendor.AbsVendorDir(s.RootDir(), "modules", modsrcB),
+		modvendor.AbsVendorDir(s.RootDir(), vendorDir, modsrcB),
 		filename,
 	)
 
 	modFileC := filepath.Join(
-		modvendor.AbsVendorDir(s.RootDir(), "modules", modsrcC),
+		modvendor.AbsVendorDir(s.RootDir(), vendorDir, modsrcC),
 		filename,
 	)
 
 	wantedFileContent := func(name string, modsrc, modsrcDep tf.Source) string {
 		relPath, err := filepath.Rel(
-			modvendor.AbsVendorDir(s.RootDir(), "modules", modsrc),
-			modvendor.AbsVendorDir(s.RootDir(), "modules", modsrcDep))
+			modvendor.AbsVendorDir(s.RootDir(), vendorDir, modsrc),
+			modvendor.AbsVendorDir(s.RootDir(), vendorDir, modsrcDep))
 		assert.NoError(t, err)
 		return Module(
 			Labels(name),
-			Str("source", relPath),
+			Str("source", filepath.ToSlash(relPath)),
 		).String()
 	}
 
 	test.AssertFileContentEquals(t, modFileA, wantedFileContent("modA", modsrcA, modsrcZmain))
 	test.AssertFileContentEquals(t, modFileB, wantedFileContent("modB", modsrcB, modsrcZmain))
 	test.AssertFileContentEquals(t, modFileC, wantedFileContent("modC", modsrcC, modsrcZtest))
+}
+
+func newLocalSource(path string) string {
+	return "git::" + string(uri.File(path))
 }
 
 func vendorHCLConfig(dir string) string {

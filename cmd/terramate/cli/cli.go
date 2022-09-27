@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -30,6 +31,7 @@ import (
 	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/modvendor"
+
 	prj "github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/run"
 	"github.com/mineiros-io/terramate/run/dag"
@@ -504,7 +506,7 @@ func (c *cli) vendorDownload() {
 	c.log(report.String())
 }
 
-func (c *cli) vendorDir() string {
+func (c *cli) vendorDir() prj.Path {
 	logger := log.With().
 		Str("workingDir", c.wd()).
 		Str("rootdir", c.root()).
@@ -516,7 +518,18 @@ func (c *cli) vendorDir() string {
 	if c.parsedArgs.Experimental.Vendor.Download.Dir != "" {
 		logger.Trace().Msg("using CLI config")
 
-		return c.parsedArgs.Experimental.Vendor.Download.Dir
+		dir := c.parsedArgs.Experimental.Vendor.Download.Dir
+		if !filepath.IsAbs(dir) {
+			dir = filepath.Join(c.wd(), dir)
+		}
+		return prj.NewPath(dir)
+	}
+
+	checkVendorDir := func(dir string) prj.Path {
+		if !path.IsAbs(dir) {
+			logger.Fatal().Msgf("vendorDir %q defined is not an absolute path", dir)
+		}
+		return prj.NewPath(dir)
 	}
 
 	dotTerramate := filepath.Join(c.root(), ".terramate")
@@ -533,7 +546,7 @@ func (c *cli) vendorDir() string {
 		if hasVendorDirConfig(cfg) {
 			logger.Trace().Msg("using .terramate config")
 
-			return cfg.Vendor.Dir
+			return checkVendorDir(cfg.Vendor.Dir)
 		}
 	}
 
@@ -542,7 +555,7 @@ func (c *cli) vendorDir() string {
 	if hasVendorDirConfig(c.prj.rootcfg) {
 		logger.Trace().Msg("using root config")
 
-		return c.prj.rootcfg.Vendor.Dir
+		return checkVendorDir(c.prj.rootcfg.Vendor.Dir)
 	}
 
 	logger.Trace().Msg("no configuration provided, fallback to default")

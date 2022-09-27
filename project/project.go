@@ -17,6 +17,7 @@ package project
 import (
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
@@ -63,6 +64,13 @@ func (paths Paths) Strings() []string {
 		vals = append(vals, p.String())
 	}
 	return vals
+}
+
+// Sort paths in-place.
+func (paths Paths) Sort() {
+	sort.Slice(paths, func(i, j int) bool {
+		return string(paths[i]) < string(paths[j])
+	})
 }
 
 // Metadata represents project wide metadata.
