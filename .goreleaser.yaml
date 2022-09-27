@@ -21,12 +21,12 @@ builds:
     goos:
       - linux
       - darwin
-      # - windows (when we add win support)
+      - windows
 archives:
   - replacements:
       darwin: darwin
       linux: linux
-      #windows: win (when we add win support)
+      windows: win
       386: i386
       amd64: x86_64
 
