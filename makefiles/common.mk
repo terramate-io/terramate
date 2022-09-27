@@ -47,12 +47,6 @@ test/fuzz/eval:
 test/fuzz/fmt:
 	go test ./hcl -fuzz=FuzzFormatMultiline
 
-## creates a new release tag
-.PHONY: release/tag
-release/tag:
-	git tag -a $(VERSION) -m "Release $(VERSION)"
-	git push origin $(VERSION)
-
 ## executes a dry run of the release process
 .PHONY: release/dry-run
 release/dry-run: 
