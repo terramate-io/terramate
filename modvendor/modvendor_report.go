@@ -16,7 +16,6 @@ package modvendor
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
@@ -65,14 +64,11 @@ func (r Report) String() string {
 		report = append(report, fmt.Sprintf(msg, args...))
 	}
 
-	sources := []project.Path{}
+	sources := project.Paths{}
 	for source := range r.Vendored {
 		sources = append(sources, source)
 	}
-
-	sort.Slice(sources, func(i, j int) bool {
-		return string(sources[i]) < string(sources[j])
-	})
+	sources.Sort()
 
 	for _, source := range sources {
 		vendored := r.Vendored[source]
