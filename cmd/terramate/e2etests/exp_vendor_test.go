@@ -46,9 +46,9 @@ func TestVendorModule(t *testing.T) {
 	modsrc, err := tf.ParseSource(gitSource + "?ref=main")
 	assert.NoError(t, err)
 
-	// Check default config and then different configuration precedences
 	s := sandbox.New(t)
 
+	// Check default config and then different configuration precedences
 	checkVendoredFiles := func(t *testing.T, res runResult, vendordir project.Path) {
 		t.Helper()
 
