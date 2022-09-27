@@ -26,7 +26,7 @@ install:
 ## test code
 .PHONY: test
 test:
-	echo disabled
+	go test ./... -timeout=20m
 
  ## remove build artifacts
 .PHONY: clean
