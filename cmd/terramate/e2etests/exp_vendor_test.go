@@ -56,7 +56,6 @@ func TestVendorModule(t *testing.T) {
 		assertRunResult(t, res, runExpected{IgnoreStdout: true})
 
 		clonedir := modvendor.AbsVendorDir(s.RootDir(), vendordir, modsrc)
-		//clonedir := filepath.Join(vendordir, strings.ReplaceAll(repoSandbox.RootDir(), ":", "$"), "main")
 
 		got := test.ReadFile(t, clonedir, filename)
 		assert.EqualStrings(t, content, string(got))
