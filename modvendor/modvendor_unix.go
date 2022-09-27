@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build linux
+//go:build aix || android || darwin || dragonfly || freebsd || hurd || illumos || ios || linux || netbsd || openbsd || solaris
 
 package modvendor
 
@@ -32,6 +32,5 @@ func targetPathDir(vendorDir project.Path, modsrc tf.Source) project.Path {
 }
 
 func sourceDir(path string, rootdir string, vendordir project.Path) string {
-	source := strings.TrimPrefix(path, filepath.Join(rootdir, vendordir.String()))
-	return source[1:] // skip leading backslash
+	return strings.TrimPrefix(path, filepath.Join(rootdir, vendordir.String()))
 }
