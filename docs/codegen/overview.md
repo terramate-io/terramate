@@ -11,8 +11,8 @@ each integration scenario in the best way possible. Currently, we support:
 
 Some features are available to all code generation strategies, like:
 
-* [Globals](docs/sharing-data.md#globals)
-* [Metadata](docs/sharing-data.md#metadata)
+* [Globals](../sharing-data.md#globals)
+* [Metadata](../sharing-data.md#metadata)
 * [Functions](#functions)
 * [Assertions](#assertions)
 
