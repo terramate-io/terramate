@@ -6,7 +6,6 @@ ifdef COMSPEC
 SHELL := $(COMSPEC)
 endif
 
-VERSION ?= v$(shell type VERSION)
 GOLANGCI_LINT_VERSION ?= v1.49.0
 
 DEPS = awk git go gcc
