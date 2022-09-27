@@ -791,7 +791,7 @@ func TestModVendor(t *testing.T) {
 			assert.NoError(t, err)
 			rootdir := t.TempDir()
 			vendorDir := project.NewPath(tc.vendordir)
-			got := modvendor.Vendor(rootdir, project.NewPath(tc.vendordir), modsrc)
+			got := modvendor.Vendor(rootdir, vendorDir, modsrc)
 			want := applyReportTemplate(t, wantReport{
 				Vendored: tc.wantVendored,
 				Ignored:  tc.wantIgnored,
