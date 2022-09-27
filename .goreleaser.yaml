@@ -23,12 +23,17 @@ builds:
       - darwin
       - windows
 archives:
-  - replacements:
+  - 
+    replacements:
       darwin: darwin
       linux: linux
       windows: win
       386: i386
       amd64: x86_64
+
+    format_overrides:
+      - goos: windows
+        format: zip
 
 dockers:
   - dockerfile: hack/release/Dockerfile
