@@ -29,14 +29,13 @@ jobs:
       - name: checkout repo
         uses: actions/checkout@v2
 
-      - run: git config --global core.autocrlf false
+      - name: configure git
+        run: git config --global core.autocrlf false
 
       - name: setup go
         uses: actions/setup-go@v3
         with:
           go-version: ${{ matrix.go }}
-
-      - name: 
 
       - name: make test
         run: make test
