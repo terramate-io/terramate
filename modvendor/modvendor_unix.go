@@ -32,6 +32,5 @@ func targetPathDir(vendorDir project.Path, modsrc tf.Source) project.Path {
 }
 
 func sourceDir(path string, rootdir string, vendordir project.Path) string {
-	source := strings.TrimPrefix(path, filepath.Join(rootdir, vendordir.String()))
-	return source[1:] // skip leading backslash
+	return strings.TrimPrefix(path, filepath.Join(rootdir, vendordir.String()))
 }
