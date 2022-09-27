@@ -17,6 +17,7 @@ package run
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 
@@ -44,7 +45,7 @@ func Sort(root string, stacks stack.List) (stack.List, string, error) {
 	logger.Trace().Msg("Computes implicit hierarchical order.")
 
 	isParentStack := func(s1, s2 *stack.S) bool {
-		return s1.Path().HasPrefix(s2.Path().String() + string(os.PathSeparator))
+		return s1.Path().HasPrefix(s2.Path().String() + "/")
 	}
 
 	sort.Sort(stacks)
@@ -160,24 +161,24 @@ func BuildDAG(
 
 	removeWrongPaths := func(fieldname string, paths []string) []string {
 		cleanpaths := []string{}
-		for _, path := range paths {
+		for _, pathstr := range paths {
 			var abspath string
-			if filepath.IsAbs(path) {
-				abspath = filepath.Join(root, path)
+			if path.IsAbs(pathstr) {
+				abspath = filepath.Join(root, filepath.FromSlash(pathstr))
 			} else {
-				abspath = filepath.Join(s.HostPath(), path)
+				abspath = filepath.Join(s.HostPath(), filepath.FromSlash(pathstr))
 			}
 			st, err := os.Stat(abspath)
 			if err != nil {
 				logger.Warn().
 					Err(err).
-					Msgf("failed to stat %q path %q - ignoring", fieldname, abspath)
+					Msgf("failed to stat %s path %s - ignoring", fieldname, abspath)
 			} else if !st.IsDir() {
 				logger.Warn().
-					Msgf("stack.%s path %q is not a directory - ignoring",
-						fieldname, path)
+					Msgf("stack.%s path %s is not a directory - ignoring",
+						fieldname, pathstr)
 			} else {
-				cleanpaths = append(cleanpaths, path)
+				cleanpaths = append(cleanpaths, pathstr)
 			}
 		}
 		return cleanpaths

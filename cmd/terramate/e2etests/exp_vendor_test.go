@@ -43,24 +43,27 @@ func TestVendorModule(t *testing.T) {
 	repoGit.CommitAll("add file")
 
 	gitSource := newLocalSource(repoSandbox.RootDir())
-	checkVendoredFiles := func(t *testing.T, res runResult, vendordir string) {
+	modsrc, err := tf.ParseSource(gitSource + "?ref=main")
+	assert.NoError(t, err)
+
+	s := sandbox.New(t)
+
+	// Check default config and then different configuration precedences
+	checkVendoredFiles := func(t *testing.T, res runResult, vendordir project.Path) {
 		t.Helper()
 
 		assertRunResult(t, res, runExpected{IgnoreStdout: true})
 
-		clonedir := filepath.Join(vendordir, repoSandbox.RootDir(), "main")
+		clonedir := modvendor.AbsVendorDir(s.RootDir(), vendordir, modsrc)
 
 		got := test.ReadFile(t, clonedir, filename)
 		assert.EqualStrings(t, content, string(got))
 	}
 
-	// Check default config and then different configuration precedences
-	s := sandbox.New(t)
-
 	t.Run("default configuration", func(t *testing.T) {
 		tmcli := newCLI(t, s.RootDir())
 		res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
-		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), "modules"))
+		checkVendoredFiles(t, res, project.NewPath("/modules"))
 	})
 
 	t.Run("root configuration", func(t *testing.T) {
@@ -68,7 +71,7 @@ func TestVendorModule(t *testing.T) {
 		s.RootEntry().CreateFile("vendor.tm", vendorHCLConfig(rootcfg))
 		tmcli := newCLI(t, s.RootDir())
 		res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
-		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), rootcfg))
+		checkVendoredFiles(t, res, project.NewPath(rootcfg))
 	})
 
 	t.Run(".terramate configuration", func(t *testing.T) {
@@ -78,14 +81,14 @@ func TestVendorModule(t *testing.T) {
 		dotTerramateDir.CreateFile("vendor.tm", vendorHCLConfig(dotTerramateCfg))
 		tmcli := newCLI(t, s.RootDir())
 		res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
-		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), dotTerramateCfg))
+		checkVendoredFiles(t, res, project.NewPath(dotTerramateCfg))
 	})
 
 	t.Run("CLI configuration", func(t *testing.T) {
 		cliCfg := "/from/cli/cfg"
 		tmcli := newCLI(t, s.RootDir())
 		res := tmcli.run("experimental", "vendor", "download", "--dir", cliCfg, gitSource, "main")
-		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), cliCfg))
+		checkVendoredFiles(t, res, project.NewPath(cliCfg))
 	})
 
 	t.Run("CLI configuration with subdir", func(t *testing.T) {
@@ -93,42 +96,55 @@ func TestVendorModule(t *testing.T) {
 		gitSource := gitSource + "//subdir"
 		tmcli := newCLI(t, s.RootDir())
 		res := tmcli.run("experimental", "vendor", "download", "--dir", cliCfg, gitSource, "main")
-		checkVendoredFiles(t, res, filepath.Join(s.RootDir(), cliCfg))
+		checkVendoredFiles(t, res, project.NewPath(cliCfg))
 	})
 }
 
 func TestVendorModuleRecursive1DependencyIsPatched(t *testing.T) {
+	s := sandbox.NoGit(t)
+	s.BuildTree([]string{
+		"g:repos/target",
+		"g:repos/dep",
+		"g:tmroot",
+	})
+
+	depDir := s.DirEntry("repos/dep")
+	depDir.CreateFile("main.tf", ``)
+	depGit := depDir.Git()
+	depGit.CommitAll("add file")
+	depGit.Push("main")
+
+	depGitSource := newLocalSource(depDir.Path()) + "?ref=main"
+	depmodsrc, err := tf.ParseSource(depGitSource)
+	assert.NoError(t, err)
+
 	const moduleFileTemplate = `module "test" { source = "%s" }`
-	depsSandbox := sandbox.New(t)
-	depsSandbox.RootEntry().CreateFile("main.tf", ``)
+	targetDir := s.DirEntry("repos/target")
+	targetDir.CreateFile("main.tf",
+		fmt.Sprintf(moduleFileTemplate, depGitSource))
 
-	repoGit := depsSandbox.Git()
-	repoGit.CommitAll("add file")
+	targetGit := targetDir.Git()
+	targetGit.CommitAll("add file")
+	targetGit.Push("main")
 
-	depsGitSource := newLocalSource(depsSandbox.RootDir()) + "?ref=main"
+	targetGitSource := newLocalSource(targetDir.Path())
+	targetmodsrc, err := tf.ParseSource(targetGitSource + "?ref=main")
+	assert.NoError(t, err)
 
-	moduleSandbox := sandbox.New(t)
+	tmrootDir := s.DirEntry("tmroot")
+	tmcli := newCLI(t, tmrootDir.Path())
+	res := tmcli.run("experimental", "vendor", "download", targetGitSource, "main")
+	assertRunResult(t, res, runExpected{
+		IgnoreStdout: true,
+	})
 
-	moduleSandbox.RootEntry().CreateFile("main.tf",
-		fmt.Sprintf(moduleFileTemplate, depsGitSource))
-
-	repoGit = moduleSandbox.Git()
-	repoGit.CommitAll("add file")
-
-	gitSource := newLocalSource(moduleSandbox.RootDir())
-
-	s := sandbox.New(t)
-	tmcli := newCLI(t, s.RootDir())
-	res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
-	assertRunResult(t, res, runExpected{IgnoreStdout: true})
-
-	vendordir := filepath.Join(s.RootDir(), "modules")
-	moduleDir := filepath.Join(vendordir, moduleSandbox.RootDir(), "main")
-	depsDir := filepath.Join(vendordir, depsSandbox.RootDir(), "main")
+	vendordir := project.NewPath("/modules")
+	moduleDir := modvendor.AbsVendorDir(tmrootDir.Path(), vendordir, targetmodsrc)
+	depsDir := modvendor.AbsVendorDir(tmrootDir.Path(), vendordir, depmodsrc)
 
 	got := test.ReadFile(t, moduleDir, "main.tf")
 	assert.EqualStrings(t,
-		fmt.Sprintf(moduleFileTemplate, "../../../001/sandbox/main"),
+		fmt.Sprintf(moduleFileTemplate, "../../dep/main"),
 		string(got))
 
 	got = test.ReadFile(t, depsDir, "main.tf")

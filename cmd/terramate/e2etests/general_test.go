@@ -154,13 +154,13 @@ func TestListAndRunChangedStack(t *testing.T) {
 	wantList := stack.RelPath() + "\n"
 	assertRunResult(t, cli.listChangedStacks(), runExpected{Stdout: wantList})
 
-	cat := test.LookPath(t, "cat")
 	wantRun := mainTfContents
 
 	assertRunResult(t, cli.run(
 		"run",
 		"--changed",
-		cat,
+		testHelperBin,
+		"cat",
 		mainTfFileName,
 	), runExpected{
 		Stdout: wantRun,
@@ -192,11 +192,11 @@ func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
 	wantList := stack.Path() + "\n"
 	assertRunResult(t, cli.listChangedStacks(), runExpected{Stdout: wantList})
 
-	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
-		"Running on changed stacks:\n[%s] running %s %s\n%s\n",
+		"Running on changed stacks:\n[%s] running %s %s %s\n%s\n",
 		stack.Path(),
-		cat,
+		testHelperBin,
+		"cat",
 		mainTfFileName,
 		mainTfContents,
 	)
@@ -204,7 +204,8 @@ func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
 	assertRunResult(t, cli.run(
 		"run",
 		"--changed",
-		cat,
+		testHelperBin,
+		"cat",
 		mainTfFileName,
 	), runExpected{Stdout: wantRun})
 }
@@ -297,12 +298,11 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 
 	assertRunResult(t, ts.listChangedStacks(), wantRes)
 
-	cat := test.LookPath(t, "cat")
-
 	assertRunResult(t, ts.run(
 		"run",
 		"--changed",
-		cat,
+		testHelperBin,
+		"cat",
 		mainTfFile.HostPath(),
 	), wantRes)
 }
@@ -351,11 +351,11 @@ func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
 
 		assertRunResult(t, ts.listChangedStacks(), wantRes)
 
-		cat := test.LookPath(t, "cat")
 		assertRunResult(t, ts.run(
 			"run",
 			"--changed",
-			cat,
+			testHelperBin,
+			"cat",
 			"whatever",
 		), wantRes)
 	}

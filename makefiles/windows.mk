@@ -25,8 +25,9 @@ install:
 
 ## test code
 .PHONY: test
-test: 
-	go test -count=1 -race ./... || echo "windows is not supported yet"
+test:
+	git config --global core.autocrlf false
+	go test -count=1 -timeout=30m ./...
 
  ## remove build artifacts
 .PHONY: clean
