@@ -340,7 +340,7 @@ func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval hcl.Evaluator) erro
 
 func appendBlock(target *hclwrite.Body, block *hclsyntax.Block, eval hcl.Evaluator) error {
 	if block.Type == "tm_dynamic" {
-		return appendDynamicBlock(target, block, eval)
+		return appendDynamicBlocks(target, block, eval)
 	}
 
 	targetBlock := target.AppendNewBlock(block.Type, block.Labels)
@@ -353,7 +353,7 @@ func appendBlock(target *hclwrite.Body, block *hclsyntax.Block, eval hcl.Evaluat
 	return nil
 }
 
-func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator hcl.Evaluator) error {
+func appendDynamicBlocks(target *hclwrite.Body, block *hclsyntax.Block, evaluator hcl.Evaluator) error {
 	logger := log.With().
 		Str("action", "genhcl.appendDynamicBlock").
 		Logger()
@@ -416,24 +416,28 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 		Str("iterator", iterator).
 		Logger()
 
-	logger.Trace().Msg("evaluating for_each attribute")
+	var foreach cty.Value
 
-	forEachVal, err := evaluator.Eval(attrs.foreach.Expr)
-	if err != nil {
-		return wrapAttrErr(err, attrs.foreach, "evaluating `for_each` expression")
-	}
+	if attrs.foreach != nil {
+		logger.Trace().Msg("evaluating for_each attribute")
 
-	if !forEachVal.CanIterateElements() {
-		return attrErr(attrs.foreach,
-			"`for_each` expression of type %s cannot be iterated",
-			forEachVal.Type().FriendlyName())
+		foreach, err = evaluator.Eval(attrs.foreach.Expr)
+		if err != nil {
+			return wrapAttrErr(err, attrs.foreach, "evaluating `for_each` expression")
+		}
+
+		if !foreach.CanIterateElements() {
+			return attrErr(attrs.foreach,
+				"`for_each` expression of type %s cannot be iterated",
+				foreach.Type().FriendlyName())
+		}
 	}
 
 	logger.Trace().Msg("generating blocks")
 
 	var tmDynamicErr error
 
-	forEachVal.ForEachElement(func(key, value cty.Value) (stop bool) {
+	foreach.ForEachElement(func(key, value cty.Value) (stop bool) {
 		evaluator.SetNamespace(iterator, map[string]cty.Value{
 			"key":   key,
 			"value": value,
@@ -586,12 +590,6 @@ func getDynamicBlockAttrs(block *hclsyntax.Block) (dynBlockAttributes, error) {
 			errs.Append(attrErr(
 				attr, "tm_dynamic unsupported attribute %q", name))
 		}
-	}
-
-	if dynAttrs.foreach == nil {
-		errs.Append(errors.E(block.Body.Range(),
-			ErrParsing,
-			"tm_dynamic requires a `for_each` attribute"))
 	}
 
 	// Unusual but we return the value so further errors can still be added

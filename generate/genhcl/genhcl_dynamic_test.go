@@ -347,6 +347,40 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			},
 		},
 		{
+			name:  "content with no for_each",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Content(
+									Expr("other", "something.other"),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "tm_dynamic_test.tf",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body: Doc(
+							Block("my_block",
+								Expr("other", "something.other"),
+							),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "empty attributes generates empty blocks",
 			stack: "/stack",
 			configs: []hclconfig{
@@ -373,6 +407,40 @@ func TestGenerateHCLDynamic(t *testing.T) {
 						body: Doc(
 							Block("empty"),
 							Block("empty"),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "attributes with no for_each defined",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("attributes"),
+								Expr("attributes", `{
+								  other = something.other,
+								}`),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "tm_dynamic_test.tf",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body: Doc(
+							Block("attributes",
+								Expr("other", "something.other"),
+							),
 						),
 					},
 				},
@@ -836,6 +904,28 @@ func TestGenerateHCLDynamic(t *testing.T) {
 								Labels("my_block"),
 								Expr("for_each", `["a", "b", "c"]`),
 								Expr("iterator", "[]"),
+								Content(
+									Expr("value", "b.value"),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(genhcl.ErrInvalidDynamicIterator),
+		},
+		{
+			name:  "no for_each with iterator definiton",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("iterator", "iter"),
 								Content(
 									Expr("value", "b.value"),
 								),
