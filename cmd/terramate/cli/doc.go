@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package modvendor provides Terraform module vendoring support.
-package modvendor
+// Package cli provides cli specific functionality.
+package cli
