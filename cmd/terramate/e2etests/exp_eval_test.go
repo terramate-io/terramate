@@ -26,6 +26,8 @@ import (
 )
 
 func TestExpEval(t *testing.T) {
+	t.Parallel()
+
 	type (
 		globalsBlock struct {
 			path string
@@ -215,6 +217,8 @@ func TestExpEval(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			s := sandbox.New(t)
 
 			s.BuildTree(tc.layout)
@@ -234,6 +238,8 @@ func TestExpEval(t *testing.T) {
 }
 
 func TestGetConfigValue(t *testing.T) {
+	t.Parallel()
+
 	type (
 		globalsBlock struct {
 			path string
@@ -337,6 +343,8 @@ func TestGetConfigValue(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			s := sandbox.New(t)
 
 			s.BuildTree(tc.layout)

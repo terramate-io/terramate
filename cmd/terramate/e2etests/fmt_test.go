@@ -26,6 +26,8 @@ import (
 )
 
 func TestFormatRecursively(t *testing.T) {
+	t.Parallel()
+
 	const unformattedHCL = `
 globals {
 name = "name"

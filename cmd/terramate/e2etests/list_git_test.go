@@ -23,8 +23,13 @@ import (
 )
 
 func TestE2EListWithGit(t *testing.T) {
-	for _, tc := range listTestcases() {
+	t.Parallel()
+
+	for _, tcase := range listTestcases() {
+		tc := tcase
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 
@@ -35,6 +40,8 @@ func TestE2EListWithGit(t *testing.T) {
 }
 
 func TestListDetectChangesInSubDirOfStack(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack")
@@ -59,6 +66,8 @@ func TestListDetectChangesInSubDirOfStack(t *testing.T) {
 }
 
 func TestListDetectChangesInSubDirOfStackWithOtherConfigs(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack")
@@ -90,6 +99,8 @@ terramate {
 }
 
 func TestListChangedIgnoreDeletedStackDirectory(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack-old")
@@ -108,6 +119,8 @@ func TestListChangedIgnoreDeletedStackDirectory(t *testing.T) {
 }
 
 func TestListChangedIgnoreDeletedNonStackDirectory(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	s.CreateStack("stack")
@@ -129,6 +142,8 @@ func TestListChangedIgnoreDeletedNonStackDirectory(t *testing.T) {
 }
 
 func TestListChangedDontIgnoreStackDeletedFiles(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack")
@@ -151,6 +166,8 @@ func TestListChangedDontIgnoreStackDeletedFiles(t *testing.T) {
 }
 
 func TestListChangedDontIgnoreStackDeletedDirs(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack")
@@ -174,6 +191,8 @@ func TestListChangedDontIgnoreStackDeletedDirs(t *testing.T) {
 }
 
 func TestListChangedDontIgnoreStackDeletedDirectories(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack")
@@ -197,6 +216,8 @@ func TestListChangedDontIgnoreStackDeletedDirectories(t *testing.T) {
 }
 
 func TestListTwiceBug(t *testing.T) {
+	t.Parallel()
+
 	const (
 		mainTfFileName = "main.tf"
 		modname        = "modA"
@@ -229,6 +250,8 @@ source = "%s"
 }
 
 func TestListChangedParsingVariablesWithOptionals(t *testing.T) {
+	t.Parallel()
+
 	// This test is to ensure we can parse Terraform code that uses
 	// new features from 1.3, like variables with optionals.
 	// In this case, change detection is unaffected by the new optionals feature.

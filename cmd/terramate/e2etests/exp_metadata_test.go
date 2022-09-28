@@ -22,6 +22,8 @@ import (
 )
 
 func TestCliMetadata(t *testing.T) {
+	t.Parallel()
+
 	type testcase struct {
 		name   string
 		layout []string
@@ -184,6 +186,8 @@ stack "/somedir/stack4":
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 

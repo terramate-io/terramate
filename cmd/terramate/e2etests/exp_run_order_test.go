@@ -22,6 +22,8 @@ import (
 )
 
 func TestOrderGraphAfter(t *testing.T) {
+	t.Parallel()
+
 	type testcase struct {
 		name   string
 		layout []string
@@ -328,6 +330,8 @@ func TestOrderGraphAfter(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 			cli := newCLI(t, s.RootDir())
@@ -337,6 +341,8 @@ func TestOrderGraphAfter(t *testing.T) {
 }
 
 func TestExperimentalRunOrderNotChangedStackIgnored(t *testing.T) {
+	t.Parallel()
+
 	const (
 		mainTfFileName = "main.tf"
 		mainTfContents = "# change is the eternal truth of the universe"
