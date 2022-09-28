@@ -540,6 +540,36 @@ func appendDynamicBlocks(destination *hclwrite.Body, dynblock *hclsyntax.Block, 
 		}
 	}
 
+	var foreach cty.Value
+
+	if attrs.foreach != nil {
+		logger.Trace().Msg("evaluating for_each attribute")
+
+		foreach, err = evaluator.Eval(attrs.foreach.Expr)
+		if err != nil {
+			return wrapAttrErr(err, attrs.foreach, "evaluating `for_each` expression")
+		}
+
+		if !foreach.CanIterateElements() {
+			return attrErr(attrs.foreach,
+				"`for_each` expression of type %s cannot be iterated",
+				foreach.Type().FriendlyName())
+		}
+	}
+
+	if foreach.IsNull() {
+		logger.Trace().Msg("no for_each, generating single block")
+
+		if attrs.iterator != nil {
+			return errors.E(ErrInvalidDynamicIterator,
+				attrs.iterator.Range(),
+				"iterator should not be defined when for_each is omitted")
+		}
+
+		return appendDynamicBlock(destination, evaluator,
+			genBlockType, attrs, contentBlock)
+	}
+
 	logger.Trace().Msg("defining iterator name")
 
 	iterator := genBlockType
@@ -562,23 +592,6 @@ func appendDynamicBlocks(destination *hclwrite.Body, dynblock *hclsyntax.Block, 
 	logger = logger.With().
 		Str("iterator", iterator).
 		Logger()
-
-	var foreach cty.Value
-
-	if attrs.foreach != nil {
-		logger.Trace().Msg("evaluating for_each attribute")
-
-		foreach, err = evaluator.Eval(attrs.foreach.Expr)
-		if err != nil {
-			return wrapAttrErr(err, attrs.foreach, "evaluating `for_each` expression")
-		}
-
-		if !foreach.CanIterateElements() {
-			return attrErr(attrs.foreach,
-				"`for_each` expression of type %s cannot be iterated",
-				foreach.Type().FriendlyName())
-		}
-	}
 
 	logger.Trace().Msg("generating blocks")
 

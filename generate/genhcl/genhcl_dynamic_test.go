@@ -1587,27 +1587,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			},
 			wantErr: errors.E(genhcl.ErrParsing),
 		},
-		{
-			name:  "tm_dynamic with no for_each fails",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack",
-					add: GenerateHCL(
-						Labels("tm_dynamic_test.tf"),
-						Content(
-							TmDynamic(
-								Labels("my_block"),
-								Content(
-									Expr("value", "b.value"),
-								),
-							),
-						),
-					),
-				},
-			},
-			wantErr: errors.E(genhcl.ErrParsing),
-		},
 	}
 
 	for _, tcase := range tcases {
