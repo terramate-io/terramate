@@ -76,6 +76,9 @@ const (
 
 	// ErrDynamicAttrsEval indicates that the attributes of a tm_dynamic cant be evaluated.
 	ErrDynamicAttrsEval errors.Kind = "evaluating tm_dynamic.attributes"
+
+	// ErrDynamicConditionEval indicates that the condition of a tm_dynamic cant be evaluated.
+	ErrDynamicConditionEval errors.Kind = "evaluating tm_dynamic.condition"
 )
 
 // Name of the HCL code.
@@ -237,6 +240,7 @@ type dynBlockAttributes struct {
 	iterator   *hclsyntax.Attribute
 	foreach    *hclsyntax.Attribute
 	labels     *hclsyntax.Attribute
+	condition  *hclsyntax.Attribute
 }
 
 // loadGenHCLBlocks will load all generate_hcl blocks.
@@ -353,7 +357,7 @@ func appendBlock(target *hclwrite.Body, block *hclsyntax.Block, eval hcl.Evaluat
 	return nil
 }
 
-func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator hcl.Evaluator) error {
+func appendDynamicBlock(destination *hclwrite.Body, dynblock *hclsyntax.Block, evaluator hcl.Evaluator) error {
 	logger := log.With().
 		Str("action", "genhcl.appendDynamicBlock").
 		Logger()
@@ -362,24 +366,24 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 
 	errs := errors.L()
 
-	if len(block.Labels) != 1 {
+	if len(dynblock.Labels) != 1 {
 		errs.Append(errors.E(ErrParsing,
-			block.LabelRanges, "tm_dynamic requires a single label"))
+			dynblock.LabelRanges, "tm_dynamic requires a single label"))
 	}
 
-	attrs, err := getDynamicBlockAttrs(block)
+	attrs, err := getDynamicBlockAttrs(dynblock)
 	errs.Append(err)
 
-	contentBlock, err := getContentBlock(block.Body.Blocks)
+	contentBlock, err := getContentBlock(dynblock.Body.Blocks)
 	errs.Append(err)
 
 	if contentBlock == nil && attrs.attributes == nil {
-		errs.Append(errors.E(ErrParsing, block.Body.Range(),
+		errs.Append(errors.E(ErrParsing, dynblock.Body.Range(),
 			"`content` block or `attributes` obj must be defined"))
 	}
 
 	if contentBlock != nil && attrs.attributes != nil {
-		errs.Append(errors.E(ErrParsing, block.Body.Range(),
+		errs.Append(errors.E(ErrParsing, dynblock.Body.Range(),
 			"`content` block and `attributes` obj are not allowed together"))
 	}
 
@@ -387,11 +391,25 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 		return err
 	}
 
-	genBlockType := block.Labels[0]
+	genBlockType := dynblock.Labels[0]
 
 	logger = logger.With().
 		Str("genBlockType", genBlockType).
 		Logger()
+
+	if attrs.condition != nil {
+		condition, err := evaluator.Eval(attrs.condition.Expr)
+		if err != nil {
+			return errors.E(ErrDynamicConditionEval, err)
+		}
+		if condition.Type() != cty.Bool {
+			return errors.E(ErrDynamicConditionEval, "want boolean got %s", condition.Type().FriendlyName())
+		}
+		if !condition.True() {
+			logger.Trace().Msg("condition is false, ignoring block")
+			return nil
+		}
+	}
 
 	logger.Trace().Msg("defining iterator name")
 
@@ -458,7 +476,7 @@ func appendDynamicBlock(target *hclwrite.Body, block *hclsyntax.Block, evaluator
 			}
 		}
 
-		newblock := target.AppendBlock(hclwrite.NewBlock(genBlockType, labels))
+		newblock := destination.AppendBlock(hclwrite.NewBlock(genBlockType, labels))
 
 		if contentBlock != nil {
 			logger.Trace().Msg("using content block to define new block body")
@@ -582,6 +600,8 @@ func getDynamicBlockAttrs(block *hclsyntax.Block) (dynBlockAttributes, error) {
 			dynAttrs.labels = attr
 		case "iterator":
 			dynAttrs.iterator = attr
+		case "condition":
+			dynAttrs.condition = attr
 		default:
 			errs.Append(attrErr(
 				attr, "tm_dynamic unsupported attribute %q", name))
