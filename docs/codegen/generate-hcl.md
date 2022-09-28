@@ -220,6 +220,31 @@ block {
 The `for_each` attribute is optional. If it is not defined then only a single block
 will be generated and no iterator will be available on block generation.
 
+The `tm_dynamic` block also supports an optional `condition` attribute that must
+evaluate to a boolean. When not defined it is assumed to be true. If the `condition`
+is false the `tm_dynamic` block is ignored, including any of its nested `tm_dynamic`
+blocks. No other attribute of the `tm_dynamic` block is evaluated if the `condition`
+is false, so it is safe to use it like this:
+
+```hcl
+generate_hcl "file.tf" {
+  content {
+    tm_dynamic "block" {
+      for_each = global.values
+      condition = tm_can(global.values)
+      iterator = value
+
+      attributes = {
+        attr = "index: ${value.key}, value: ${value.value}"
+        attr2 = not_evaluated.attr
+      }
+    }
+  }
+}
+```
+
+And if `global.values` is undefined the block is just ignored.
+
 ## Hierarchical Code Generation
 
 HCL code generation can be defined anywhere inside a project, from a specific
