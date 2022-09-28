@@ -12,6 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/*
+Terramate is a tool for managing multiple Terraform stacks. Providing stack
+execution orchestration and code generation as a way to share data across
+different stacks.
+
+For details on how to use it just run:
+
+	terramate --help
+*/
 package main
 
 import (
