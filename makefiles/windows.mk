@@ -6,8 +6,6 @@ ifdef COMSPEC
 SHELL := $(COMSPEC)
 endif
 
-GOLANGCI_LINT_VERSION ?= v1.49.0
-
 DEPS = awk git go gcc
 $(foreach dep,$(DEPS),\
     $(if $(shell where $(dep)),,$(error "Program $(dep) not found in PATH")))
