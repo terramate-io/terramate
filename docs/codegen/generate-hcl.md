@@ -217,6 +217,9 @@ block {
 }
 ```
 
+The `for_each` attribute is optional. If it is not defined then only a single block
+will be generated and no iterator will be available on block generation.
+
 ## Hierarchical Code Generation
 
 HCL code generation can be defined anywhere inside a project, from a specific
