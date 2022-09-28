@@ -243,7 +243,8 @@ stack "/stacks/stack-name":
 		},
 	}
 
-	for _, tcase := range tcases {
+	for _, tc := range tcases {
+		tcase := tc
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Parallel()
 

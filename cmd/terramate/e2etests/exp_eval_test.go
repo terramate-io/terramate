@@ -215,7 +215,8 @@ func TestExpEval(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testcases {
+	for _, tcase := range testcases {
+		tc := tcase
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -341,7 +342,8 @@ func TestGetConfigValue(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testcases {
+	for _, tcase := range testcases {
+		tc := tcase
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
