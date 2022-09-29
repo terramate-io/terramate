@@ -82,7 +82,7 @@ func TestGeneratePathOnLabels(t *testing.T) {
 				{
 					path: "/stacks/stack",
 					add: GenerateFile(
-						Labels("./dir/sub/file.txt"),
+						Labels("dir/sub/file.txt"),
 						Str("content", "test"),
 					),
 				},
@@ -118,6 +118,7 @@ func TestGeneratePathOnLabels(t *testing.T) {
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
 				"s:stacks/stack-3",
+				"s:stacks/stack-4",
 			},
 			configs: []hclconfig{
 				{
@@ -166,6 +167,21 @@ func TestGeneratePathOnLabels(t *testing.T) {
 						),
 					),
 				},
+				{
+					path: "/stacks/stack-4",
+					add: Doc(
+						GenerateHCL(
+							Labels("./name.tf"),
+							Content(
+								Block("something"),
+							),
+						),
+						GenerateFile(
+							Labels("./name.txt"),
+							Str("content", "something"),
+						),
+					),
+				},
 			},
 			wantReport: generate.Report{
 				Failures: []generate.FailureResult{
@@ -190,6 +206,15 @@ func TestGeneratePathOnLabels(t *testing.T) {
 					{
 						Result: generate.Result{
 							Dir: "/stacks/stack-3",
+						},
+						Error: errors.L(
+							errors.E(generate.ErrInvalidGenBlockLabel),
+							errors.E(generate.ErrInvalidGenBlockLabel),
+						),
+					},
+					{
+						Result: generate.Result{
+							Dir: "/stacks/stack-4",
 						},
 						Error: errors.L(
 							errors.E(generate.ErrInvalidGenBlockLabel),
