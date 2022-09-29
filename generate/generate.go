@@ -186,7 +186,6 @@ func Do(rootdir string, workingDir string) Report {
 				Bool("condition", file.Condition()).
 				Logger()
 
-			// We don't want to generate files just with a header inside.
 			if !file.Condition() {
 				logger.Debug().Msg("ignoring")
 				continue
