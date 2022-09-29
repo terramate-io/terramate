@@ -40,16 +40,30 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 	// Checking detection when there is no config generated yet
 	assertOutdatedFiles([]string{})
 	stackEntry.CreateConfig(
-		GenerateHCL(
-			Labels("test.tf"),
-			Content(
-				Terraform(
-					Str("required_version", "1.10"),
+		Doc(
+			GenerateHCL(
+				Labels("test.tf"),
+				Content(
+					Terraform(
+						Str("required_version", "1.10"),
+					),
+				),
+			),
+			GenerateHCL(
+				Labels("dir/test.tf"),
+				Content(
+					Str("data", "data"),
+				),
+			),
+			GenerateHCL(
+				Labels("dir/sub/test.tf"),
+				Content(
+					Str("data", "data"),
 				),
 			),
 		).String())
 
-	assertOutdatedFiles([]string{"test.tf"})
+	assertOutdatedFiles([]string{"dir/sub/test.tf", "dir/test.tf", "test.tf"})
 
 	s.Generate()
 
@@ -57,32 +71,62 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 
 	// Now checking when we have code + it gets outdated.
 	stackEntry.CreateConfig(
-		GenerateHCL(
-			Labels("test.tf"),
-			Content(
-				Terraform(
-					Str("required_version", "1.11"),
+		Doc(
+			GenerateHCL(
+				Labels("test.tf"),
+				Content(
+					Terraform(
+						Str("required_version", "1.11"),
+					),
+				),
+			),
+			GenerateHCL(
+				Labels("dir/test.tf"),
+				Content(
+					Str("data", "data"),
+				),
+			),
+			GenerateHCL(
+				Labels("dir/sub/test.tf"),
+				Content(
+					Str("data", "new data"),
 				),
 			),
 		).String())
 
-	assertOutdatedFiles([]string{"test.tf"})
+	assertOutdatedFiles([]string{"dir/sub/test.tf", "test.tf"})
 
 	s.Generate()
 
 	// Changing generated filenames will trigger detection,
 	// with new + old filenames.
 	stackEntry.CreateConfig(
-		GenerateHCL(
-			Labels("testnew.tf"),
-			Content(
-				Terraform(
-					Str("required_version", "1.11"),
+		Doc(
+			GenerateHCL(
+				Labels("testnew.tf"),
+				Content(
+					Terraform(
+						Str("required_version", "1.11"),
+					),
+				),
+			),
+			GenerateHCL(
+				Labels("dir/test.tf"),
+				Content(
+					Str("data", "data"),
+				),
+			),
+			GenerateHCL(
+				Labels("dir/sub/test.tf"),
+				Content(
+					Str("data", "new data"),
 				),
 			),
 		).String())
 
 	assertOutdatedFiles([]string{"test.tf", "testnew.tf"})
+
+	s.Generate()
 
 	// Adding new filename to generation trigger detection
 	stackEntry.CreateConfig(
@@ -96,6 +140,18 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 				),
 			),
 			GenerateHCL(
+				Labels("dir/test.tf"),
+				Content(
+					Str("data", "data"),
+				),
+			),
+			GenerateHCL(
+				Labels("dir/sub/test.tf"),
+				Content(
+					Str("data", "new data"),
+				),
+			),
+			GenerateHCL(
 				Labels("another.tf"),
 				Content(
 					Backend(
@@ -105,7 +161,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 			),
 		).String())
 
-	assertOutdatedFiles([]string{"another.tf", "test.tf", "testnew.tf"})
+	assertOutdatedFiles([]string{"another.tf"})
 
 	s.Generate()
 
@@ -114,6 +170,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 	// Detects configurations that have been removed.
 	stackEntry.DeleteConfig()
 
+	// TODO(katcipis): must detected subdirs generated files too
 	assertOutdatedFiles([]string{"another.tf", "testnew.tf"})
 
 	s.Generate()

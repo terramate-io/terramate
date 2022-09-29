@@ -445,11 +445,18 @@ func assertEqualStringList(t *testing.T, got []string, want []string) {
 	t.Helper()
 
 	assert.EqualInts(t, len(want), len(got), "want %+v != got %+v", want, got)
+	failed := false
+
 	for i, wv := range want {
 		gv := got[i]
 		if gv != wv {
+			failed = true
 			t.Errorf("got[%d][%s] != want[%d][%s]", i, gv, i, wv)
 		}
+	}
+
+	if failed {
+		t.Fatalf("got %v != want %v", got, want)
 	}
 }
 

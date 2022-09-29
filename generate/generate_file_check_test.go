@@ -40,9 +40,11 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
 
 	// Checking detection when there is no config generated yet
 	stackEntry.CreateConfig(
-		GenerateFile(
-			Labels("test.txt"),
-			Str("content", "test"),
+		Doc(
+			GenerateFile(
+				Labels("test.txt"),
+				Str("content", "test"),
+			),
 		).String(),
 	)
 	assertOutdatedFiles([]string{"test.txt"})
