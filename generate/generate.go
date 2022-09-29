@@ -100,7 +100,7 @@ func Do(rootdir string, workingDir string) Report {
 		for _, assert := range asserts {
 			if !assert.Assertion {
 				assertRange := assert.Range
-				assertRange.Filename = strings.TrimPrefix(assert.Range.Filename, rootdir)
+				assertRange.Filename = filepath.ToSlash(strings.TrimPrefix(assert.Range.Filename, rootdir))
 				if assert.Warning {
 					logger.Warn().
 						Stringer("origin", assertRange).
@@ -230,7 +230,7 @@ func Do(rootdir string, workingDir string) Report {
 
 outdatedDirsLoop:
 	for _, outdatedDir := range outdatedDirs {
-		relpath := strings.TrimPrefix(outdatedDir.dir, rootdir)
+		relpath := project.NewPath(filepath.ToSlash(strings.TrimPrefix(outdatedDir.dir, rootdir)))
 		deleted := []string{}
 
 		for _, outdatedFile := range outdatedDir.files {
@@ -377,7 +377,7 @@ func CheckStack(projmeta project.Metadata, st *stack.S) ([]string, error) {
 
 type fileInfo interface {
 	Name() string
-	Origin() string
+	Origin() project.Path
 	Header() string
 	Body() string
 	Condition() bool
@@ -799,7 +799,7 @@ func loadAsserts(meta project.Metadata, sm stack.Metadata, globals globals.Map) 
 	logger := log.With().
 		Str("action", "generate.loadAsserts").
 		Str("rootdir", meta.Rootdir()).
-		Str("stack", sm.Path()).
+		Str("stack", sm.Path().String()).
 		Logger()
 
 	curdir := sm.HostPath()

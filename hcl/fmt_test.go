@@ -1432,18 +1432,13 @@ func TestFormatTreeReturnsEmptyResultsForEmptyDir(t *testing.T) {
 	assert.EqualInts(t, 0, len(got), "want no results, got: %v", got)
 }
 
-func TestFormatTreeFailsOnNonExistentDir(t *testing.T) {
-	tmpdir := t.TempDir()
-	_, err := hcl.FormatTree(filepath.Join(tmpdir, "non-existent"))
-	assert.Error(t, err)
-}
-
 func TestFormatTreeFailsOnNonAccessibleSubdir(t *testing.T) {
 	const subdir = "subdir"
 	tmpdir := t.TempDir()
 	test.Mkdir(t, tmpdir, subdir)
 
-	assert.NoError(t, os.Chmod(filepath.Join(tmpdir, subdir), 0))
+	test.Chmod(t, filepath.Join(tmpdir, subdir), 0)
+	defer test.Chmod(t, filepath.Join(tmpdir, subdir), 0755)
 
 	_, err := hcl.FormatTree(tmpdir)
 	assert.Error(t, err)
@@ -1458,9 +1453,16 @@ func TestFormatTreeFailsOnNonAccessibleFile(t *testing.T) {
 		b = 3
 	}`)
 
-	assert.NoError(t, os.Chmod(filepath.Join(tmpdir, filename), 0))
+	test.Chmod(t, filepath.Join(tmpdir, filename), 0)
+	defer test.Chmod(t, filepath.Join(tmpdir, filename), 0755)
 
 	_, err := hcl.FormatTree(tmpdir)
+	assert.Error(t, err)
+}
+
+func TestFormatTreeFailsOnNonExistentDir(t *testing.T) {
+	tmpdir := t.TempDir()
+	_, err := hcl.FormatTree(filepath.Join(tmpdir, "non-existent"))
 	assert.Error(t, err)
 }
 

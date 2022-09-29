@@ -40,7 +40,7 @@ import (
 // about the origin of the generated code.
 type HCL struct {
 	name      string
-	origin    string
+	origin    project.Path
 	body      string
 	condition bool
 }
@@ -100,7 +100,7 @@ func (h HCL) Body() string {
 
 // Origin returns the path, relative to the project root,
 // of the configuration that originated the code.
-func (h HCL) Origin() string {
+func (h HCL) Origin() project.Path {
 	return h.origin
 }
 
@@ -191,13 +191,15 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]
 				"generate_hcl %q", name,
 			)
 		}
-		formatted, err := hcl.FormatMultiline(string(gen.Bytes()), loadedHCL.origin)
+
+		// TODO(i4k): filename in line below must be an absolute host path.
+		formatted, err := hcl.FormatMultiline(string(gen.Bytes()), loadedHCL.origin.String())
 		if err != nil {
 			// genhcl must always generate valid code that is formatable
 			// this is a severe internal error
 			logger.Error().
 				Err(err).
-				Str("origin", loadedHCL.origin).
+				Stringer("origin", loadedHCL.origin).
 				Str("code", string(gen.Bytes())).
 				Str("label", name).
 				Msg("internal error formatting generated code")
@@ -224,7 +226,7 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]
 
 type loadedHCL struct {
 	name      string
-	origin    string
+	origin    project.Path
 	lets      hclsyntax.Blocks
 	block     *hclsyntax.Block
 	condition *hclsyntax.Attribute

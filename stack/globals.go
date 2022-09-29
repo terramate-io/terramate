@@ -33,7 +33,7 @@ import (
 func LoadStackGlobals(projmeta project.Metadata, stackmeta Metadata) globals.EvalReport {
 	logger := log.With().
 		Str("action", "stack.LoadStackGlobals()").
-		Str("stack", stackmeta.Path()).
+		Stringer("stack", stackmeta.Path()).
 		Logger()
 
 	logger.Debug().Msg("Creating stack context.")

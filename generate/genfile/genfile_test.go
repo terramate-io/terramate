@@ -1029,7 +1029,7 @@ stack_id=stack-id
 
 				assert.EqualStrings(t,
 					want.file.origin,
-					gotFile.Origin(),
+					gotFile.Origin().String(),
 					"wrong origin config path for generated code",
 				)
 

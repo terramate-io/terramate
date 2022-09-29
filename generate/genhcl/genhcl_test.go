@@ -16,6 +16,7 @@ package genhcl_test
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -1751,7 +1752,7 @@ func (tcase testcase) run(t *testing.T) {
 			)
 			assert.EqualStrings(t,
 				res.hcl.origin,
-				gothcl.Origin(),
+				gothcl.Origin().String(),
 				"wrong origin config path for generated code",
 			)
 
@@ -1776,7 +1777,7 @@ func assertHCLEquals(t *testing.T, got string, want string) {
 }
 
 func defaultCfg(dir string) string {
-	return filepath.Join(dir, config.DefaultFilename)
+	return path.Join(dir, config.DefaultFilename)
 }
 
 func init() {

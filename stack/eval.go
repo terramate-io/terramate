@@ -72,7 +72,7 @@ func stackMetaToCtyMap(m Metadata) map[string]cty.Value {
 	logger.Trace().Msg("creating stack metadata")
 
 	stackpath := cty.ObjectVal(map[string]cty.Value{
-		"absolute": cty.StringVal(m.Path()),
+		"absolute": cty.StringVal(m.Path().String()),
 		"relative": cty.StringVal(m.RelPath()),
 		"basename": cty.StringVal(m.PathBase()),
 		"to_root":  cty.StringVal(m.RelPathToRoot()),
@@ -91,9 +91,9 @@ func stackMetaToCtyMap(m Metadata) map[string]cty.Value {
 	}
 	stack := cty.ObjectVal(stackMapVals)
 	return map[string]cty.Value{
-		"name":        cty.StringVal(m.Name()), // DEPRECATED
-		"path":        cty.StringVal(m.Path()), // DEPRECATED
-		"description": cty.StringVal(m.Desc()), // DEPRECATED
+		"name":        cty.StringVal(m.Name()),          // DEPRECATED
+		"path":        cty.StringVal(m.Path().String()), // DEPRECATED
+		"description": cty.StringVal(m.Desc()),          // DEPRECATED
 		"stack":       stack,
 	}
 }

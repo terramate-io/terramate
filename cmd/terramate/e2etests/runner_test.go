@@ -16,12 +16,10 @@ package e2etest
 
 import (
 	"bytes"
-	"os"
 	"os/exec"
 	"regexp"
 	"strings"
 	"sync"
-	"syscall"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -115,24 +113,8 @@ func (tc *testCmd) start() {
 	assert.NoError(t, tc.cmd.Start())
 }
 
-func (tc *testCmd) setpgid() {
-	tc.cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
-	}
-}
-
 func (tc *testCmd) wait() error {
 	return tc.cmd.Wait()
-}
-
-func (tc *testCmd) signalGroup(s os.Signal) {
-	t := tc.t
-	t.Helper()
-
-	signal := s.(syscall.Signal)
-	// Signalling a group is done by sending the signal to -PID.
-	err := syscall.Kill(-tc.cmd.Process.Pid, signal)
-	assert.NoError(t, err)
 }
 
 func (tc *testCmd) exitCode() int {

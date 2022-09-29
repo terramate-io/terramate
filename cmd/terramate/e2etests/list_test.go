@@ -194,6 +194,6 @@ func TestListNoSuchFile(t *testing.T) {
 	// errors from the manager are not logged in stderr
 	assertRunResult(t, cli.listStacks(), runExpected{
 		Status:      1,
-		StderrRegex: "no such file or directory",
+		StderrRegex: "Changing working directory failed error",
 	})
 }

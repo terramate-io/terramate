@@ -137,7 +137,9 @@ func TokensForValue(value cty.Value) (hclwrite.Tokens, error) {
 // file, then we store the original bytes inside the expr.Range().Filename
 // string. The expressions with these injected tokens have the filename of the
 // form:
-//   <generated-hcl><NUL BYTE><tokens>
+//
+//	<generated-hcl><NUL BYTE><tokens>
+//
 // See the ParseExpressionBytes() function for details of how bytes are injected.
 //
 // At this point you should be wondering: What happens if the user creates a
