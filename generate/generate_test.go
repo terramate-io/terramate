@@ -31,6 +31,9 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// TODO(katcipis): if subdir is stack fails
+// TODO(katcipis): if subdir is symlink fails
+
 type (
 	stringer string
 
