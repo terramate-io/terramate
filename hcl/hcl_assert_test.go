@@ -194,7 +194,7 @@ func TestHCLParserAssert(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("assert.tm", start(4, 3, 61), end(4, 14, 72)),
+						mkrange("assert.tm", start(4, 3, 61), end(4, 12, 70)),
 					),
 				},
 			},
