@@ -657,7 +657,7 @@ func checkGeneratedFilesPaths(generated []fileInfo) error {
 
 	for _, file := range generated {
 		fname := filepath.ToSlash(file.Name())
-		if strings.Contains(fname, "/") {
+		if strings.HasPrefix(fname, "/") || strings.Contains(fname, "../") {
 			// TODO(katcipis): Add the range on the origin
 			errs.Append(errors.E(ErrInvalidGenBlockLabel, "%s: %s",
 				file.Origin(), file.Name()))
