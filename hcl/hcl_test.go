@@ -62,9 +62,9 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(1, 1, 0), end(1, 12, 11))),
+						mkrange("cfg.tm", start(1, 1, 0), end(1, 10, 9))),
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(2, 1, 13), end(2, 17, 29))),
+						mkrange("cfg.tm", start(2, 1, 13), end(2, 15, 27))),
 				},
 			},
 		},
@@ -169,9 +169,9 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(2, 8, 18), end(2, 19, 29))),
+						mkrange("cfg.tm", start(2, 8, 18), end(2, 17, 27))),
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(3, 8, 38), end(3, 15, 45))),
+						mkrange("cfg.tm", start(3, 8, 38), end(3, 13, 43))),
 				},
 			},
 		},
@@ -601,7 +601,7 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("stack2.tm", start(1, 1, 0), end(1, 8, 7))),
+						mkrange("stack2.tm", start(1, 1, 0), end(1, 6, 5))),
 				},
 			},
 		},
@@ -684,7 +684,7 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg1.tm", start(9, 6, 108), end(9, 12, 114))),
+						mkrange("cfg1.tm", start(9, 6, 108), end(9, 10, 112))),
 					errors.E(hcl.ErrTerramateSchema,
 						mkrange("cfg2.tm", start(4, 9, 48), end(4, 23, 62))),
 				},

@@ -214,7 +214,7 @@ func TestHCLParserVendor(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("manifest.tm", start(4, 7, 30), end(4, 15, 38)),
+						mkrange("manifest.tm", start(4, 7, 30), end(4, 13, 36)),
 					),
 				},
 			},
@@ -237,7 +237,7 @@ func TestHCLParserVendor(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("manifest.tm", start(5, 9, 53), end(5, 19, 63)),
+						mkrange("manifest.tm", start(5, 9, 53), end(5, 17, 61)),
 					),
 				},
 			},
@@ -262,7 +262,7 @@ func TestHCLParserVendor(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("manifest.tm", start(6, 11, 77), end(6, 20, 86)),
+						mkrange("manifest.tm", start(6, 11, 77), end(6, 18, 84)),
 					),
 				},
 			},
@@ -437,7 +437,7 @@ func TestHCLParserVendor(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("manifest.tm", start(3, 9, 24), end(3, 18, 33)),
+						mkrange("manifest.tm", start(3, 9, 24), end(3, 16, 31)),
 					),
 				},
 			},
@@ -460,7 +460,7 @@ func TestHCLParserVendor(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("manifest.tm", start(4, 11, 45), end(4, 20, 54)),
+						mkrange("manifest.tm", start(4, 11, 45), end(4, 18, 52)),
 					),
 				},
 			},
@@ -509,7 +509,7 @@ func TestHCLParserVendor(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("manifest.tm", start(5, 13, 67), end(5, 22, 76)),
+						mkrange("manifest.tm", start(5, 13, 67), end(5, 20, 74)),
 					),
 				},
 			},
