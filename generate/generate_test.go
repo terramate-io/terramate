@@ -60,10 +60,61 @@ func (s stringer) String() string {
 func TestGeneratePathOnLabels(t *testing.T) {
 	testCodeGeneration(t, []testcase{
 		{
+			name: "subdirs with no relative walk are allowed",
+			layout: []string{
+				"s:stacks/stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: GenerateHCL(
+						Labels("dir/file.hcl"),
+						Content(
+							Block("block",
+								Str("data", "data"),
+							),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack",
+					add: GenerateFile(
+						Labels("./dir/sub/file.txt"),
+						Str("content", "test"),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stacks/stack",
+					files: map[string]fmt.Stringer{
+						"dir/file.hcl": Doc(
+							Block("block",
+								Str("data", "data"),
+							),
+						),
+						"dir/sub/file.txt": stringer("test"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir: "/stacks/stack",
+						Created: []string{
+							"dir/file.hcl",
+							"dir/sub/file.txt",
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "invalid paths fails",
 			layout: []string{
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
+				"s:stacks/stack-3",
 			},
 			configs: []hclconfig{
 				{
@@ -97,6 +148,21 @@ func TestGeneratePathOnLabels(t *testing.T) {
 						),
 					),
 				},
+				{
+					path: "/stacks/stack-3",
+					add: Doc(
+						GenerateHCL(
+							Labels("a/b/../../../name.tf"),
+							Content(
+								Block("something"),
+							),
+						),
+						GenerateFile(
+							Labels("a/b/../../../name.txt"),
+							Str("content", "something"),
+						),
+					),
+				},
 			},
 			wantReport: generate.Report{
 				Failures: []generate.FailureResult{
@@ -112,6 +178,15 @@ func TestGeneratePathOnLabels(t *testing.T) {
 					{
 						Result: generate.Result{
 							Dir: "/stacks/stack-2",
+						},
+						Error: errors.L(
+							errors.E(generate.ErrInvalidGenBlockLabel),
+							errors.E(generate.ErrInvalidGenBlockLabel),
+						),
+					},
+					{
+						Result: generate.Result{
+							Dir: "/stacks/stack-3",
 						},
 						Error: errors.L(
 							errors.E(generate.ErrInvalidGenBlockLabel),
