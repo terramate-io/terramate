@@ -45,9 +45,13 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
 				Labels("test.txt"),
 				Str("content", "test"),
 			),
+			GenerateFile(
+				Labels("dir/test.txt"),
+				Str("content", "test"),
+			),
 		).String(),
 	)
-	assertOutdatedFiles([]string{"test.txt"})
+	assertOutdatedFiles([]string{"dir/test.txt", "test.txt"})
 
 	s.Generate()
 
@@ -55,13 +59,19 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
 
 	// Now checking when we have code + it gets outdated.
 	stackEntry.CreateConfig(
-		GenerateFile(
-			Labels("test.txt"),
-			Str("content", "changed"),
+		Doc(
+			GenerateFile(
+				Labels("test.txt"),
+				Str("content", "changed"),
+			),
+			GenerateFile(
+				Labels("dir/test.txt"),
+				Str("content", "changed"),
+			),
 		).String(),
 	)
 
-	assertOutdatedFiles([]string{"test.txt"})
+	assertOutdatedFiles([]string{"dir/test.txt", "test.txt"})
 
 	s.Generate()
 
