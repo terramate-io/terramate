@@ -329,12 +329,6 @@ func assertEqualReports(t *testing.T, got, want generate.Report) {
 
 	if diff := cmp.Diff(got.Successes, want.Successes); diff != "" {
 		t.Errorf("success results differs: got(-) want(+)")
-		// Don't call fatal to avoid vague errors like
-		// generate_test.go:61: success results differs: got(-) want(+)
-		// generate_test.go:61:   []generate.Result(
-		// -   nil,
-		// +   {{Dir: s"/stacks/stack", Created: []string{"dir/file.hcl", "dir/sub/file.txt"}}},
-		//)
 		t.Error(diff)
 	}
 
