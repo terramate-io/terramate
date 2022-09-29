@@ -23,6 +23,8 @@ import (
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
+// TODO(katcipis): test detection with child stacks
+
 func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 	s := sandbox.New(t)
 
@@ -170,8 +172,9 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 	// Detects configurations that have been removed.
 	stackEntry.DeleteConfig()
 
-	// TODO(katcipis): must detected subdirs generated files too
-	assertOutdatedFiles([]string{"another.tf", "testnew.tf"})
+	assertOutdatedFiles([]string{
+		"another.tf", "dir/test.tf",
+		"dir/sub/test.tf", "testnew.tf"})
 
 	s.Generate()
 

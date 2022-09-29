@@ -341,7 +341,7 @@ func CheckStack(projmeta project.Metadata, st *stack.S) ([]string, error) {
 
 	globals := report.Globals
 	stackpath := st.HostPath()
-	var generated []fileInfo
+	var genfilesOnCode []fileInfo
 
 	genfiles, err := genfile.Load(projmeta, st, globals)
 	if err != nil {
@@ -354,31 +354,35 @@ func CheckStack(projmeta project.Metadata, st *stack.S) ([]string, error) {
 	}
 
 	for _, f := range genfiles {
-		generated = append(generated, f)
+		genfilesOnCode = append(genfilesOnCode, f)
 	}
 
 	for _, f := range genhcls {
-		generated = append(generated, f)
+		genfilesOnCode = append(genfilesOnCode, f)
 	}
 
-	err = validateGeneratedFiles(generated)
+	err = validateGeneratedFiles(genfilesOnCode)
 	if err != nil {
 		return nil, err
 	}
 
 	logger.Trace().Msg("Listing current generated files.")
 
-	actualGenFiles, err := ListGenFiles(st.HostPath())
+	genfilesOnFs, err := ListGenFiles(st.HostPath())
 	if err != nil {
 		return nil, errors.E(err, "checking for outdated code")
 	}
 
+	// Maybe the stack used to generate files on subdirs, so we need to
+	// detect those too.
+	// TODO(katcipis)
+
 	// We start with the assumption that all gen files on the stack
 	// are outdated and then update the outdated files set as we go.
-	outdatedFiles := newStringSet(actualGenFiles...)
+	outdatedFiles := newStringSet(genfilesOnFs...)
 	err = updateOutdatedFiles(
 		stackpath,
-		generated,
+		genfilesOnCode,
 		outdatedFiles,
 	)
 	if err != nil {
