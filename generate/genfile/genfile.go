@@ -53,15 +53,15 @@ const (
 
 // File represents generated file from a single generate_file block.
 type File struct {
-	name      string
+	label     string
 	origin    project.Path
 	body      string
 	condition bool
 }
 
-// Name of the file.
-func (f File) Name() string {
-	return f.name
+// Label of the original generate_file block.
+func (f File) Label() string {
+	return f.label
 }
 
 // Body returns the file body.
@@ -89,7 +89,7 @@ func (f File) Header() string {
 
 func (f File) String() string {
 	return fmt.Sprintf("generate_file %q (condition %t) (body %q) (origin %q)",
-		f.Name(), f.Condition(), f.Body(), f.Origin())
+		f.Label(), f.Condition(), f.Body(), f.Origin())
 }
 
 // Load loads and parses from the file system all generate_file blocks for
@@ -159,7 +159,7 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]
 			logger.Trace().Msg("condition=false, content wont be evaluated")
 
 			files = append(files, File{
-				name:      name,
+				label:     name,
 				origin:    genFileBlock.origin,
 				condition: condition,
 			})
@@ -183,7 +183,7 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]
 		}
 
 		files = append(files, File{
-			name:      name,
+			label:     name,
 			origin:    genFileBlock.origin,
 			body:      value.AsString(),
 			condition: condition,

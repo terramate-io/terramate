@@ -143,7 +143,7 @@ func Do(rootdir string, workingDir string) Report {
 		}
 
 		sort.Slice(generated, func(i, j int) bool {
-			return generated[i].Name() < generated[j].Name()
+			return generated[i].Label() < generated[j].Label()
 		})
 
 		err = validateGeneratedFiles(generated)
@@ -179,7 +179,7 @@ func Do(rootdir string, workingDir string) Report {
 				continue
 			}
 
-			filename := file.Name()
+			filename := file.Label()
 			path := filepath.Join(stackpath, filename)
 			logger := logger.With().
 				Str("filename", filename).
@@ -375,7 +375,7 @@ func CheckStack(projmeta project.Metadata, st *stack.S) ([]string, error) {
 }
 
 type fileInfo interface {
-	Name() string
+	Label() string
 	Origin() project.Path
 	Header() string
 	Body() string
@@ -395,7 +395,7 @@ func updateOutdatedFiles(
 	logger.Trace().Msg("Checking for outdated generated code on stack.")
 
 	for _, genfile := range generated {
-		filename := genfile.Name()
+		filename := genfile.Label()
 		targetpath := filepath.Join(stackpath, filename)
 		logger := logger.With().
 			Str("blockName", filename).
@@ -599,7 +599,7 @@ func removeStackGeneratedFiles(stack *stack.S, genfiles []fileInfo) (map[string]
 	for _, genfile := range genfiles {
 		// Files that have header can be detected by ListStackGenFiles
 		if genfile.Header() == "" {
-			files = append(files, genfile.Name())
+			files = append(files, genfile.Label())
 		}
 	}
 
@@ -655,11 +655,11 @@ func checkGeneratedFilesPaths(generated []fileInfo) error {
 	errs := errors.L()
 
 	for _, file := range generated {
-		fname := filepath.ToSlash(file.Name())
+		fname := filepath.ToSlash(file.Label())
 		if strings.HasPrefix(fname, "/") || strings.Contains(fname, "../") {
 			// TODO(katcipis): Add the range on the origin
 			errs.Append(errors.E(ErrInvalidGenBlockLabel, "%s: %s",
-				file.Origin(), file.Name()))
+				file.Origin(), file.Label()))
 		}
 	}
 
@@ -705,13 +705,13 @@ func validateGeneratedFiles(generated []fileInfo) error {
 
 	genset := map[string]fileInfo{}
 	for _, file := range generated {
-		if other, ok := genset[file.Name()]; ok && file.Condition() {
+		if other, ok := genset[file.Label()]; ok && file.Condition() {
 			return errors.E(ErrConflictingConfig,
 				"configs from %q and %q generate a file with same name %q have "+
 					"`condition = true`",
 				file.Origin(),
 				other.Origin(),
-				file.Name(),
+				file.Label(),
 			)
 		}
 
@@ -719,7 +719,7 @@ func validateGeneratedFiles(generated []fileInfo) error {
 			continue
 		}
 
-		genset[file.Name()] = file
+		genset[file.Label()] = file
 	}
 
 	err := checkGeneratedFilesPaths(generated)

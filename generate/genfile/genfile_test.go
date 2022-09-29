@@ -1023,7 +1023,7 @@ stack_id=stack-id
 
 				assert.EqualStrings(t,
 					want.name,
-					gotFile.Name(),
+					gotFile.Label(),
 					"wrong name config path for generated code",
 				)
 

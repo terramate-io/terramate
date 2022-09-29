@@ -39,7 +39,7 @@ import (
 // Is contains parsed and evaluated code on it and information
 // about the origin of the generated code.
 type HCL struct {
-	name      string
+	label     string
 	origin    project.Path
 	body      string
 	condition bool
@@ -78,9 +78,9 @@ const (
 	ErrDynamicAttrsEval errors.Kind = "evaluating tm_dynamic.attributes"
 )
 
-// Name of the HCL code.
-func (h HCL) Name() string {
-	return h.name
+// Label of the original generate_hcl block.
+func (h HCL) Label() string {
+	return h.label
 }
 
 // Header returns the header of the generated HCL file.
@@ -111,7 +111,7 @@ func (h HCL) Condition() bool {
 
 func (h HCL) String() string {
 	return fmt.Sprintf("Generating file %q (condition %t) (body %q) (origin %q)",
-		h.Name(), h.Condition(), h.Body(), h.Origin())
+		h.Label(), h.Condition(), h.Body(), h.Origin())
 }
 
 // Load loads from the file system all generate_hcl for
@@ -175,7 +175,7 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]
 			logger.Trace().Msg("condition=false, block wont be evaluated")
 
 			hcls = append(hcls, HCL{
-				name:      name,
+				label:     name,
 				origin:    loadedHCL.origin,
 				condition: condition,
 			})
@@ -209,7 +209,7 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]
 			))
 		}
 		hcls = append(hcls, HCL{
-			name:      name,
+			label:     name,
 			origin:    loadedHCL.origin,
 			body:      formatted,
 			condition: condition,
