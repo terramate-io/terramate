@@ -57,6 +57,73 @@ func (s stringer) String() string {
 	return string(s)
 }
 
+func TestGeneratePathOnLabels(t *testing.T) {
+	testCodeGeneration(t, []testcase{
+		{
+			name: "invalid paths fails",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack-1",
+					add: Doc(
+						GenerateHCL(
+							Labels("/name.tf"),
+							Content(
+								Block("something"),
+							),
+						),
+
+						GenerateFile(
+							Labels("/name.txt"),
+							Str("content", "something"),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack-2",
+					add: Doc(
+						GenerateHCL(
+							Labels("../name.tf"),
+							Content(
+								Block("something"),
+							),
+						),
+						GenerateFile(
+							Labels("../name.txt"),
+							Str("content", "something"),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/stacks/stack-1",
+						},
+						Error: errors.L(
+							errors.E(generate.ErrInvalidGenBlockLabel),
+							errors.E(generate.ErrInvalidGenBlockLabel),
+						),
+					},
+					{
+						Result: generate.Result{
+							Dir: "/stacks/stack-2",
+						},
+						Error: errors.L(
+							errors.E(generate.ErrInvalidGenBlockLabel),
+							errors.E(generate.ErrInvalidGenBlockLabel),
+						),
+					},
+				},
+			},
+		},
+	})
+}
+
 func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 	testCodeGeneration(t, []testcase{
 		{

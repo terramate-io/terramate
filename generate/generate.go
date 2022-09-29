@@ -46,9 +46,9 @@ const (
 	// and would overwrite each other.
 	ErrConflictingConfig errors.Kind = "conflicting config detected"
 
-	// ErrInvalidFilePath indicates that code generation configuration
-	// has an invalid filepath as the target to save the generated code.
-	ErrInvalidFilePath errors.Kind = "invalid filepath"
+	// ErrInvalidGenBlockLabel indicates that a generate block
+	// has an invalid label as the target to save the generated code.
+	ErrInvalidGenBlockLabel errors.Kind = "invalid generate block label"
 
 	// ErrAssertion indicates that code generation configuration
 	// has a failed assertion.
@@ -648,22 +648,23 @@ func hasGenHCLHeader(code string) bool {
 
 func checkGeneratedFilesPaths(generated []fileInfo) error {
 	logger := log.With().
-		Str("action", "checkGeneratedFilesPaths()").
+		Str("action", "generate.checkGeneratedFilesPaths()").
 		Logger()
 
 	logger.Trace().Msg("Checking for invalid paths on generated files.")
 
+	errs := errors.L()
+
 	for _, file := range generated {
 		fname := filepath.ToSlash(file.Name())
 		if strings.Contains(fname, "/") {
-			return errors.E(
-				ErrInvalidFilePath,
-				"filenames with dirs are disallowed, config %q provided filename %q",
-				file.Origin(),
-				file.Name())
+			// TODO(katcipis): Add the range on the origin
+			errs.Append(errors.E(ErrInvalidGenBlockLabel, "%s: %s",
+				file.Origin(), file.Name()))
 		}
 	}
-	return nil
+
+	return errs.AsError()
 }
 
 type stringSet struct {
