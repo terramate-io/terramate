@@ -115,6 +115,7 @@ func Do(rootdir string, workingDir string) Report {
 				}
 			}
 		}
+
 		if err := errs.AsError(); err != nil {
 			report.err = err
 			return report
@@ -622,8 +623,10 @@ func removeStackGeneratedFiles(stack *stack.S, genfiles []fileInfo) (map[string]
 	// so we use the list of files to be generated to check for these
 	// They may or not exist.
 	for _, genfile := range genfiles {
-		// Files that have header can be detected by ListGenFiles
-		if genfile.Header() == "" {
+		// Files that have header or that are inside the stack dir
+		// can be detected by ListGenFiles
+		if genfile.Header() == "" ||
+			strings.Contains(genfile.Label(), "/") {
 			files = append(files, genfile.Label())
 		}
 	}
