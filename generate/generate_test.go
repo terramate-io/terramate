@@ -569,6 +569,9 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 
 			createdBySandbox := func(path string) bool {
 				relpath := strings.TrimPrefix(path, s.RootDir())
+				// For windows compatibility, since builder strings
+				// are unix like.
+				relpath = filepath.ToSlash(relpath)
 				relpath = strings.TrimPrefix(relpath, "/")
 				for _, builder := range tcase.layout {
 					switch {
