@@ -233,23 +233,6 @@ This means that globals can reference globals on other configurations
 independent of how specific or general the configuration is since it is all
 merged together into a single globals set before evaluation.
 
-
-## Function Calls
-
-Terramate provides the same built-in functions as
-[Terraform](https://www.terraform.io/language/functions) but
-prefixed with `tm_`. For example, to use the try function
-when evaluating a global:
-
-```hcl
-globals {
-  a = tm_try(global.b, null)
-}
-```
-
-Will work exactly as Terraform's `try` function.
-
-
 # Metadata
 
 Terramate provides a set of metadata that can be

@@ -1,4 +1,5 @@
 GO_RELEASER_VERSION=v1.2.5
+GOLANGCI_LINT_VERSION ?= v1.49.0
 COVERAGE_REPORT ?= coverage.txt
 RUN_ADD_LICENSE=go run github.com/google/addlicense@v1.0.0 -ignore **/*.yml
 

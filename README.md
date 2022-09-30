@@ -29,6 +29,7 @@ For more details on how this is achieved, please consider:
 * [Change Detection](docs/change-detection.md)
 * [Config Overview](docs/config-overview.md)
 * [Configuring A Project](docs/project-config.md)
+* [Functions](docs/functions.md)
 * [Sharing Data](docs/sharing-data.md)
 * [Code Generation](docs/codegen/overview.md)
 * [Orchestrating Stacks Execution](docs/orchestration.md)
