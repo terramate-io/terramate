@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -30,8 +31,6 @@ import (
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
 )
-
-// TODO(katcipis): if subdir is symlink fails
 
 type (
 	stringer string
@@ -112,7 +111,7 @@ func TestGenerateSubDirsOnLabels(t *testing.T) {
 			},
 		},
 		{
-			name: "if path is stack fails",
+			name: "if path is a child stack fails",
 			layout: []string{
 				"s:stacks/stack",
 				"s:stacks/stack/child-stack",
@@ -170,7 +169,7 @@ func TestGenerateSubDirsOnLabels(t *testing.T) {
 			},
 		},
 		{
-			name: "if path is inside another stack fails",
+			name: "if path is inside child stack fails",
 			layout: []string{
 				"s:stacks/stack",
 				"s:stacks/stack/child-stack",
@@ -214,6 +213,44 @@ func TestGenerateSubDirsOnLabels(t *testing.T) {
 						},
 					},
 				},
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/stacks/stack",
+						},
+						Error: errors.L(
+							errors.E(generate.ErrInvalidGenBlockLabel),
+							errors.E(generate.ErrInvalidGenBlockLabel),
+						),
+					},
+				},
+			},
+		},
+		{
+			name: "if path is symlink fails",
+			layout: []string{
+				"s:stacks/stack",
+				"d:somedir",
+				"l:somedir:stacks/stack/symlink",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack",
+					add: Doc(
+						GenerateHCL(
+							Labels("symlink/name.tf"),
+							Content(
+								Block("something"),
+							),
+						),
+						GenerateFile(
+							Labels("symlink/name.txt"),
+							Str("content", "something"),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
@@ -529,6 +566,28 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 					stack.RemoveFile(name)
 				}
 			}
+
+			createdBySandbox := func(path string) bool {
+				relpath := strings.TrimPrefix(path, s.RootDir())
+				relpath = strings.TrimPrefix(relpath, "/")
+				for _, builder := range tcase.layout {
+					switch {
+					case strings.HasPrefix(builder, "f:"):
+						buildPath := builder[2:]
+						if buildPath == relpath {
+							return true
+						}
+					case strings.HasPrefix(builder, "l:"):
+						c := strings.Split(builder, ":")
+						linkPath := c[2]
+						if linkPath == relpath {
+							return true
+						}
+					}
+				}
+				return false
+			}
+
 			err := filepath.WalkDir(s.RootDir(), func(path string, d fs.DirEntry, err error) error {
 				t.Helper()
 
@@ -544,6 +603,10 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 				if d.Name() == config.DefaultFilename ||
 					d.Name() == stackpkg.DefaultFilename ||
 					d.Name() == "README.md" {
+					return nil
+				}
+
+				if createdBySandbox(path) {
 					return nil
 				}
 

@@ -128,12 +128,11 @@ func NoGit(t *testing.T) S {
 	}
 }
 
-// BuildTree builds a tree layout based on the layout specification, defined
-// below:
+// BuildTree builds a tree layout based on the layout specification.
 // Each string in the slice represents a filesystem operation, and each
 // operation has the format below:
 //
-//	<kind>:<relative path>[:data]
+//	<kind>:<relative path>[:param]
 //
 // Where kind is one of the below:
 //
@@ -141,12 +140,15 @@ func NoGit(t *testing.T) S {
 //	"g" for local git directory creation.
 //	"s" for initialized stacks.
 //	"f" for file creation.
+//	"l" for symbolic link creation.
 //	"t" for terramate block.
 //
-// The data field is required only for operation "f" and "s":
+// And [:param] is optional and it depends on the command.
 //
-//	For "f" data is the content of the file to be created.
-//	For "s" data is a key value pair of the form:
+// For the operations "f" and "s" [:param] is defined as:
+//
+//	For "f" it is the content of the file to be created.
+//	For "s" it is a key value pair of the form:
 //	  <attr1>=<val1>[;<attr2>=<val2>]
 //
 // Where attrN is a string attribute of the terramate block of the stack.
@@ -156,9 +158,24 @@ func NoGit(t *testing.T) S {
 //
 //	s:name-of-the-stack:id=stack-id;after=["other-stack"]
 //
+// For the operation "l" the [:param] is the link name, while <relative path>
+// is the target of the symbolic link:
+//
+//	l:<target>:<link name>
+//
+// So this:
+//
+//	l:dir/file:dir/link
+//
+// Is equivalent to:
+//
+//	ln -s dir/file dir/link
+//
 // This is an internal mini-lang used to simplify testcases, so it expects well
 // formed layout specification.
 func (s S) BuildTree(layout []string) {
+	s.t.Helper()
+
 	buildTree(s.t, s.RootDir(), layout)
 }
 
@@ -603,6 +620,10 @@ func buildTree(t *testing.T, rootdir string, layout []string) {
 		switch specKind {
 		case "d:":
 			test.MkdirAll(t, filepath.Join(rootdir, spec[2:]))
+		case "l:":
+			target := filepath.Join(rootdir, path)
+			linkName := filepath.Join(rootdir, data)
+			test.Symlink(t, target, linkName)
 		case "g:":
 			repodir := filepath.Join(rootdir, spec[2:])
 			test.MkdirAll(t, repodir)

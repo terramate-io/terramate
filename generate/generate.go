@@ -691,26 +691,52 @@ func checkGeneratedFilesPaths(rootdir string, stackpath string, generated []file
 		if !strings.Contains(relFilename, "/") {
 			continue
 		}
-		if strings.HasPrefix(relFilename, "/") ||
-			strings.HasPrefix(relFilename, "./") ||
-			strings.Contains(relFilename, "../") {
-			// TODO(katcipis): Add the range on the origin
-			errs.Append(errors.E(ErrInvalidGenBlockLabel, "%s: %s",
-				file.Origin(), file.Label()))
+
+		invalidCharErr := func(char string) error {
+			return errors.E(ErrInvalidGenBlockLabel,
+				"%s: %s: contains invalid %s",
+				file.Origin(), file.Label(), char)
+		}
+
+		abspath := filepath.Join(stackpath, relFilename)
+
+		switch {
+		case strings.HasPrefix(relFilename, "/"):
+			errs.Append(invalidCharErr("/"))
+			continue
+		case strings.HasPrefix(relFilename, "./"):
+			errs.Append(invalidCharErr("./"))
+			continue
+		case strings.Contains(relFilename, "../"):
+			errs.Append(invalidCharErr("../"))
 			continue
 		}
 
-		destdir := filepath.Dir(filepath.Join(stackpath, relFilename))
+		destdir := filepath.Dir(abspath)
 
 		for strings.HasPrefix(destdir, stackpath) && destdir != stackpath {
-			isStack, err := config.IsStack(rootdir, destdir)
+			info, err := os.Lstat(destdir)
 			if err != nil {
 				if errors.Is(err, fs.ErrNotExist) {
 					destdir = filepath.Dir(destdir)
 					continue
 				}
 				errs.Append(errors.E(ErrInvalidGenBlockLabel, err,
-					"%s: %s: checking if gen code is inside child stack",
+					"%s: %s: checking if dest dir is a symlink",
+					file.Origin(), file.Label()))
+				break
+			}
+			if (info.Mode() & fs.ModeSymlink) == fs.ModeSymlink {
+				errs.Append(errors.E(ErrInvalidGenBlockLabel, err,
+					"%s: %s: generates code inside a symlink",
+					file.Origin(), file.Label()))
+				break
+			}
+
+			isStack, err := config.IsStack(rootdir, destdir)
+			if err != nil {
+				errs.Append(errors.E(ErrInvalidGenBlockLabel, err,
+					"%s: %s: checking if dest dir is a child stack",
 					file.Origin(), file.Label()))
 				break
 			}
