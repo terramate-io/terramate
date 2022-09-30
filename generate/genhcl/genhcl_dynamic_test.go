@@ -513,6 +513,74 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			wantErr: errors.E(genhcl.ErrDynamicConditionEval),
 		},
 		{
+			name:  "content with no for_each",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Content(
+									Expr("other", "something.other"),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "tm_dynamic_test.tf",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body: Doc(
+							Block("my_block",
+								Expr("other", "something.other"),
+							),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "attributes with no for_each defined",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("attributes"),
+								Expr("attributes", `{
+								  other = something.other,
+								}`),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "tm_dynamic_test.tf",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body: Doc(
+							Block("attributes",
+								Expr("other", "something.other"),
+							),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "empty attributes generates empty blocks",
 			stack: "/stack",
 			configs: []hclconfig{
@@ -852,6 +920,28 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					},
 				},
 			},
+		},
+		{
+			name:  "no for_each with iterator definition",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("iterator", "iter"),
+								Content(
+									Expr("value", "b.value"),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(genhcl.ErrInvalidDynamicIterator),
 		},
 		{
 			name:  "tm_dynamic inside tm_dynamic using content",
@@ -1489,27 +1579,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 								Expr("attributes", `{ b : 666 }`),
 								Content(
 									Str("a", "val"),
-								),
-							),
-						),
-					),
-				},
-			},
-			wantErr: errors.E(genhcl.ErrParsing),
-		},
-		{
-			name:  "tm_dynamic with no for_each fails",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack",
-					add: GenerateHCL(
-						Labels("tm_dynamic_test.tf"),
-						Content(
-							TmDynamic(
-								Labels("my_block"),
-								Content(
-									Expr("value", "b.value"),
 								),
 							),
 						),

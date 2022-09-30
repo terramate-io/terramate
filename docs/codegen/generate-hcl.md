@@ -217,6 +217,9 @@ block {
 }
 ```
 
+The `for_each` attribute is optional. If it is not defined then only a single block
+will be generated and no iterator will be available on block generation.
+
 The `tm_dynamic` block also supports an optional `condition` attribute that must
 evaluate to a boolean. When not defined it is assumed to be true. If the `condition`
 is false the `tm_dynamic` block is ignored, including any of its nested `tm_dynamic`
