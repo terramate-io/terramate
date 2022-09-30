@@ -1298,6 +1298,41 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
+			name: "tm_hcl_expression from string",
+			config: Doc(
+				Expr("a", `tm_hcl_expression("{ a = b }")`),
+			),
+			want: Doc(
+				Expr("a", "{ a = b }"),
+			),
+		},
+		{
+			name: "tm_hcl_expression accessing global with interpolation",
+			globals: Globals(
+				Number("val", 1),
+			),
+			config: Doc(
+				Expr("a", `tm_hcl_expression("data[${global.val}].yay")`),
+			),
+			want: Doc(
+				Expr("a", "data[1].yay"),
+			),
+		},
+		{
+			name: "tm_hcl_expression fails if arg is not string",
+			config: Doc(
+				Expr("a", `tm_hcl_expression([])`),
+			),
+			wantErr: errors.E(eval.ErrPartial),
+		},
+		{
+			name: "tm_hcl_expression fails if generated expression is invalid",
+			config: Doc(
+				Expr("a", `tm_hcl_expression("not valid expression")`),
+			),
+			wantErr: errors.E(eval.ErrPartial),
+		},
+		{
 			name: "tm_ternary with condition with expression",
 			globals: Globals(
 				Number("val", 1),
