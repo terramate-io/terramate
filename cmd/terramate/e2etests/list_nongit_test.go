@@ -22,8 +22,11 @@ import (
 )
 
 func TestE2EListNonGit(t *testing.T) {
-	for _, tc := range listTestcases() {
+	for _, tcase := range listTestcases() {
+		tc := tcase
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			s := sandbox.NoGit(t)
 			s.BuildTree(tc.layout)
 

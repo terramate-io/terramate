@@ -24,6 +24,8 @@ import (
 )
 
 func TestListWatchChangedFile(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	extDir := s.RootEntry().CreateDir("external")
@@ -53,6 +55,8 @@ func TestListWatchChangedFile(t *testing.T) {
 }
 
 func TestListWatchRelativeChangedFile(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	extDir := s.RootEntry().CreateDir("external")
@@ -81,6 +85,8 @@ func TestListWatchRelativeChangedFile(t *testing.T) {
 }
 
 func TestListWatchFileOutsideProject(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	extDir := s.RootEntry().CreateDir("external")
@@ -108,6 +114,8 @@ func TestListWatchFileOutsideProject(t *testing.T) {
 }
 
 func TestListWatchNonExistentFile(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	s.BuildTree([]string{
@@ -128,6 +136,8 @@ func TestListWatchNonExistentFile(t *testing.T) {
 }
 
 func TestListWatchElementsWithFuncalls(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	extDir := s.RootEntry().CreateDir("EXTERNAL")
@@ -158,6 +168,8 @@ func TestListWatchElementsWithFuncalls(t *testing.T) {
 }
 
 func TestListWatchExprWithFuncalls(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	extDir := s.RootEntry().CreateDir("external")
@@ -194,6 +206,8 @@ func TestListWatchExprWithFuncalls(t *testing.T) {
 }
 
 func TestListWatchDirectoryFails(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	extDir := s.RootEntry().CreateDir("external")
