@@ -692,23 +692,23 @@ func checkGeneratedFilesPaths(rootdir string, stackpath string, generated []file
 			continue
 		}
 
-		invalidCharErr := func(char string) error {
-			return errors.E(ErrInvalidGenBlockLabel,
-				"%s: %s: contains invalid %s",
-				file.Origin(), file.Label(), char)
-		}
-
 		abspath := filepath.Join(stackpath, relFilename)
 
 		switch {
 		case strings.HasPrefix(relFilename, "/"):
-			errs.Append(invalidCharErr("/"))
+			errs.Append(errors.E(ErrInvalidGenBlockLabel,
+				"%s: %s: starts with /",
+				file.Origin(), file.Label()))
 			continue
 		case strings.HasPrefix(relFilename, "./"):
-			errs.Append(invalidCharErr("./"))
+			errs.Append(errors.E(ErrInvalidGenBlockLabel,
+				"%s: %s: starts with ./",
+				file.Origin(), file.Label()))
 			continue
 		case strings.Contains(relFilename, "../"):
-			errs.Append(invalidCharErr("../"))
+			errs.Append(errors.E(ErrInvalidGenBlockLabel,
+				"%s: %s: contains ../",
+				file.Origin(), file.Label()))
 			continue
 		}
 
