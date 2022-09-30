@@ -357,7 +357,7 @@ func appendBlock(target *hclwrite.Body, block *hclsyntax.Block, eval hcl.Evaluat
 	return nil
 }
 
-func appendDynamicBlock(destination *hclwrite.Body, dynblock *hclsyntax.Block, evaluator hcl.Evaluator) error {
+func appendDynamicBlock(target *hclwrite.Body, dynblock *hclsyntax.Block, evaluator hcl.Evaluator) error {
 	logger := log.With().
 		Str("action", "genhcl.appendDynamicBlock").
 		Logger()
@@ -476,7 +476,7 @@ func appendDynamicBlock(destination *hclwrite.Body, dynblock *hclsyntax.Block, e
 			}
 		}
 
-		newblock := destination.AppendBlock(hclwrite.NewBlock(genBlockType, labels))
+		newblock := target.AppendBlock(hclwrite.NewBlock(genBlockType, labels))
 
 		if contentBlock != nil {
 			logger.Trace().Msg("using content block to define new block body")
