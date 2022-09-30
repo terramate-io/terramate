@@ -31,7 +31,6 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// TODO(katcipis): if subdir is stack fails
 // TODO(katcipis): if subdir is symlink fails
 
 type (
@@ -60,7 +59,7 @@ func (s stringer) String() string {
 	return string(s)
 }
 
-func TestGeneratePathOnLabels(t *testing.T) {
+func TestGenerateSubDirsOnLabels(t *testing.T) {
 	testCodeGeneration(t, []testcase{
 		{
 			name: "subdirs with no relative walk are allowed",
@@ -154,6 +153,64 @@ func TestGeneratePathOnLabels(t *testing.T) {
 						Created: []string{
 							"child-stack/name.tf",
 							"child-stack/name.txt",
+						},
+					},
+				},
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/stacks/stack",
+						},
+						Error: errors.L(
+							errors.E(generate.ErrInvalidGenBlockLabel),
+							errors.E(generate.ErrInvalidGenBlockLabel),
+						),
+					},
+				},
+			},
+		},
+		{
+			name: "if path is inside another stack fails",
+			layout: []string{
+				"s:stacks/stack",
+				"s:stacks/stack/child-stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack",
+					add: Doc(
+						GenerateHCL(
+							Labels("child-stack/dir/name.tf"),
+							Content(
+								Block("something"),
+							),
+						),
+
+						GenerateFile(
+							Labels("child-stack/dir/name.txt"),
+							Str("content", "something"),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stacks/stack/child-stack",
+					files: map[string]fmt.Stringer{
+						"child-stack/dir/name.tf": Doc(
+							Block("something"),
+						),
+						"child-stack/dir/name.txt": stringer("something"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir: "/stacks/stack/child-stack",
+						Created: []string{
+							"child-stack/dir/name.tf",
+							"child-stack/dir/name.txt",
 						},
 					},
 				},
