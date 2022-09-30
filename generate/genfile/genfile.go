@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package genfile implements generate_file code generation.
 package genfile
 
 import (
