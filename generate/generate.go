@@ -270,9 +270,25 @@ outdatedDirsLoop:
 	return report
 }
 
-// ListGenFiles will list the filenames of all generated code inside
-// the given dir.  The dir must be an absolute path.
+// TODO(KATCIPIS): implement new behavior.
+
+// ListGenFiles will list the path of all generated code inside the given dir
+// and all its subdirs that are not stacks. The returned paths are relative to
+// the given dir, like:
+//
+//	- filename.hcl
+//	- dir/filename.hcl
+//
 // The filenames are ordered lexicographically.
+//
+// dir must be an absolute path and must be inside the given rootdir.
+//
+// When called with a dir that is not a stack this function will provide a list
+// of all orphaned generated files inside this dir, since it won't search inside any stacks.
+// So calling with dir == rootdir will provide all orphaned files inside a project.
+//
+// When called with a dir that is a stack this function will list all generated
+// files that are owned by the stack, since it won't search inside any child stacks.
 func ListGenFiles(dir string) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.ListGenFiles()").
