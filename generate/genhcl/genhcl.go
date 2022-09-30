@@ -486,7 +486,7 @@ func appendDynamicBlock(
 	return nil
 }
 
-func appendDynamicBlocks(destination *hclwrite.Body, dynblock *hclsyntax.Block, evaluator hcl.Evaluator) error {
+func appendDynamicBlocks(target *hclwrite.Body, dynblock *hclsyntax.Block, evaluator hcl.Evaluator) error {
 	logger := log.With().
 		Str("action", "genhcl.appendDynamicBlock").
 		Logger()
@@ -566,7 +566,7 @@ func appendDynamicBlocks(destination *hclwrite.Body, dynblock *hclsyntax.Block, 
 				"iterator should not be defined when for_each is omitted")
 		}
 
-		return appendDynamicBlock(destination, evaluator,
+		return appendDynamicBlock(target, evaluator,
 			genBlockType, attrs, contentBlock)
 	}
 
@@ -603,7 +603,7 @@ func appendDynamicBlocks(destination *hclwrite.Body, dynblock *hclsyntax.Block, 
 			"value": value,
 		})
 
-		if err := appendDynamicBlock(destination, evaluator,
+		if err := appendDynamicBlock(target, evaluator,
 			genBlockType, attrs, contentBlock); err != nil {
 			tmDynamicErr = err
 			return true
