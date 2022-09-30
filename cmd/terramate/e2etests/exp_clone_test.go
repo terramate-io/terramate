@@ -25,6 +25,8 @@ import (
 )
 
 func TestCloneStack(t *testing.T) {
+	t.Parallel()
+
 	const (
 		srcStack         = "stack"
 		destStack        = "cloned-stack"

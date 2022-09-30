@@ -38,6 +38,8 @@ type selectionTestcase struct {
 }
 
 func TestCLIRunOrder(t *testing.T) {
+	t.Parallel()
+
 	type testcase struct {
 		name       string
 		layout     []string
@@ -640,6 +642,8 @@ func TestCLIRunOrder(t *testing.T) {
 }
 
 func TestRunWants(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range []selectionTestcase{
 		{
 			/* this works but gives a warning */
@@ -831,6 +835,8 @@ func TestRunWants(t *testing.T) {
 }
 
 func TestRunWantedBy(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range []selectionTestcase{
 		{
 			name: "stack wantedBy other-stack",
@@ -950,6 +956,8 @@ func TestRunWantedBy(t *testing.T) {
 
 func testRunSelection(t *testing.T, tc selectionTestcase) {
 	t.Run(tc.name, func(t *testing.T) {
+		t.Parallel()
+
 		sandboxes := []sandbox.S{
 			sandbox.New(t),
 			sandbox.NoGit(t),
@@ -973,6 +981,8 @@ func testRunSelection(t *testing.T, tc selectionTestcase) {
 	})
 }
 func TestRunOrderNotChangedStackIgnored(t *testing.T) {
+	t.Parallel()
+
 	const (
 		mainTfFileName = "main.tf"
 		mainTfContents = "# change is the eternal truth of the universe"
@@ -1030,6 +1040,8 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 }
 
 func TestRunReverseExecution(t *testing.T) {
+	t.Parallel()
+
 	const testfile = "testfile"
 
 	s := sandbox.New(t)
@@ -1084,6 +1096,8 @@ func TestRunReverseExecution(t *testing.T) {
 }
 
 func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDir(t *testing.T) {
+	t.Parallel()
+
 	const testfile = "testfile"
 
 	s := sandbox.New(t)
@@ -1127,6 +1141,8 @@ func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDir(t *testing.T) {
 }
 
 func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
+	t.Parallel()
+
 	const (
 		mainTfFileName = "main.tf"
 		mainTfContents = "# change is the eternal truth of the universe"
@@ -1176,6 +1192,8 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 }
 
 func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
+	t.Parallel()
+
 	const (
 		mainTfFileName = "main.tf"
 		mainTfContents = "# some code"
@@ -1291,6 +1309,8 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 }
 
 func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
+	t.Parallel()
+
 	const generateFile = "generate.tm.hcl"
 
 	s := sandbox.New(t)
@@ -1401,6 +1421,8 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 }
 
 func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
+	t.Parallel()
+
 	const (
 		mainTfFileName        = "main.tf"
 		mainTfInitialContents = "# some code"
@@ -1527,6 +1549,8 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 }
 
 func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
+	t.Parallel()
+
 	const (
 		testFilename   = "test.txt"
 		contentsStack1 = "stack-1 file"
@@ -1582,6 +1606,8 @@ func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
 }
 
 func TestRunLogsUserCommand(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack")
@@ -1598,6 +1624,8 @@ func TestRunLogsUserCommand(t *testing.T) {
 }
 
 func TestRunContinueOnError(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	s.BuildTree([]string{
@@ -1628,6 +1656,8 @@ func TestRunContinueOnError(t *testing.T) {
 }
 
 func TestRunNoRecursive(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	s.BuildTree([]string{
@@ -1679,6 +1709,8 @@ func TestRunNoRecursive(t *testing.T) {
 }
 
 func TestRunDisableGitCheckRemote(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack")
@@ -1742,6 +1774,8 @@ func TestRunDisableGitCheckRemote(t *testing.T) {
 }
 
 func TestRunWorksWithDisabledCheckRemote(t *testing.T) {
+	t.Parallel()
+
 	const rootConfig = "terramate.tm.hcl"
 
 	s := sandbox.New(t)
@@ -1794,6 +1828,8 @@ func TestRunWorksWithDisabledCheckRemote(t *testing.T) {
 }
 
 func TestRunFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack-1")
@@ -1825,6 +1861,8 @@ func TestRunFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
 }
 
 func TestRunWithoutGitRemoteCheckWorksWithoutNetworking(t *testing.T) {
+	t.Parallel()
+
 	// Regression test to guarantee that all git checks
 	// are disabled and no git operation will be performed on this case.
 	// So running terramate run --disable-check-git-remote will
@@ -1867,6 +1905,8 @@ func TestRunWithoutGitRemoteCheckWorksWithoutNetworking(t *testing.T) {
 	})
 }
 func TestRunWitCustomizedEnv(t *testing.T) {
+	t.Parallel()
+
 	run := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("run", builders...)
 	}
