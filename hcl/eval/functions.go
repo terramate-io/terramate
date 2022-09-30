@@ -39,6 +39,7 @@ func newTmFunctions(basedir string) map[string]function.Function {
 
 	// sane ternary
 	tmfuncs["tm_ternary"] = tmTernary()
+	tmfuncs["tm_hcl_expression"] = tmHCLExpression()
 	return tmfuncs
 }
 
@@ -62,6 +63,23 @@ func tmAbspath(basedir string) function.Function {
 			}
 
 			return cty.StringVal(filepath.Clean(abspath)), nil
+		},
+	})
+}
+
+func tmHCLExpression() function.Function {
+	return function.New(&function.Spec{
+		Params: []function.Parameter{
+			{
+				Name: "expr",
+				Type: cty.String,
+			},
+		},
+		Type: func(args []cty.Value) (cty.Type, error) {
+			return customdecode.ExpressionType, nil
+		},
+		Impl: func(args []cty.Value, _ cty.Type) (cty.Value, error) {
+			return hclExpr(args[0])
 		},
 	})
 }
@@ -126,6 +144,14 @@ func evalTernaryBranch(arg cty.Value) (cty.Value, error) {
 	}
 
 	return v, nil
+}
+
+func hclExpr(arg cty.Value) (cty.Value, error) {
+	exprParsed, err := ParseExpressionBytes([]byte(arg.AsString()))
+	if err != nil {
+		return cty.NilVal, errors.E(err, "argument is not valid HCL expression")
+	}
+	return customdecode.ExpressionVal(exprParsed), nil
 }
 
 // dependsOnUnknowns returns true if any of the variables that the given

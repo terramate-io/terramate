@@ -9,6 +9,13 @@ each integration scenario in the best way possible. Currently, we support:
 * [HCL generation](./generate-hcl.md)
 * [File generation](./generate-file.md)
 
+Some features are available to all code generation strategies, like:
+
+* [Globals](../sharing-data.md#globals)
+* [Metadata](../sharing-data.md#metadata)
+* [Functions](../functions.md)
+* [Assertions](#assertions)
+
 # Assertions
 
 Assertions can be used in order to fail code generation for one or more stacks
