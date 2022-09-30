@@ -76,11 +76,7 @@ func tmHCLExpression() function.Function {
 			},
 		},
 		Type: func(args []cty.Value) (cty.Type, error) {
-			v, err := hclExpr(args[0])
-			if err != nil {
-				return cty.NilType, err
-			}
-			return v.Type(), nil
+			return customdecode.ExpressionType, nil
 		},
 		Impl: func(args []cty.Value, _ cty.Type) (cty.Value, error) {
 			return hclExpr(args[0])
