@@ -1,4 +1,4 @@
-// Copyright 2021 Mineiros GmbH
+// Copyright 2022 Mineiros GmbH
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Terramate is a tool for managing multiple Terraform stacks. Providing stack
-// execution orchestration and code generation as a way to share data across
-// different stacks.
-// For details on how to use it just run:
-//	terramate --help
-package main
-
-import (
-	"os"
-
-	"github.com/mineiros-io/terramate/cmd/terramate/cli"
-)
-
-func main() {
-	cli.Exec(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
-}
+// Package run provides facilities to run commands inside Terramate
+// context and ordering.
+package run
