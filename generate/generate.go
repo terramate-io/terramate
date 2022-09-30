@@ -687,32 +687,41 @@ func checkGeneratedFilesPaths(rootdir string, stackpath string, generated []file
 	errs := errors.L()
 
 	for _, file := range generated {
-		fname := filepath.ToSlash(file.Label())
-		if !strings.Contains(fname, "/") {
+		relFilename := file.Label()
+		if !strings.Contains(relFilename, "/") {
 			continue
 		}
-		if strings.HasPrefix(fname, "/") ||
-			strings.HasPrefix(fname, "./") ||
-			strings.Contains(fname, "../") {
+		if strings.HasPrefix(relFilename, "/") ||
+			strings.HasPrefix(relFilename, "./") ||
+			strings.Contains(relFilename, "../") {
 			// TODO(katcipis): Add the range on the origin
 			errs.Append(errors.E(ErrInvalidGenBlockLabel, "%s: %s",
 				file.Origin(), file.Label()))
 			continue
 		}
 
-		destdir := filepath.Dir(filepath.Join(stackpath, fname))
-		isStack, err := config.IsStack(rootdir, destdir)
-		if errors.Is(err, fs.ErrNotExist) {
-			continue
-		}
-		if err != nil {
-			errs.Append(errors.E(ErrInvalidGenBlockLabel, err, "%s: %s",
-				file.Origin(), file.Label()))
-			continue
-		}
-		if isStack {
-			errs.Append(errors.E(ErrInvalidGenBlockLabel, "%s: %s: dest dir %s is a stack",
-				file.Origin(), file.Label(), destdir))
+		destdir := filepath.Dir(filepath.Join(stackpath, relFilename))
+
+		for strings.HasPrefix(destdir, stackpath) && destdir != stackpath {
+			isStack, err := config.IsStack(rootdir, destdir)
+			if err != nil {
+				if errors.Is(err, fs.ErrNotExist) {
+					destdir = filepath.Dir(destdir)
+					continue
+				}
+				errs.Append(errors.E(ErrInvalidGenBlockLabel, err,
+					"%s: %s: checking if gen code is inside child stack",
+					file.Origin(), file.Label()))
+				break
+			}
+			if isStack {
+				errs.Append(errors.E(ErrInvalidGenBlockLabel,
+					"%s: %s: generates code inside another stack %s",
+					file.Origin(), file.Label(),
+					project.PrjAbsPath(rootdir, destdir)))
+				break
+			}
+			destdir = filepath.Dir(destdir)
 		}
 	}
 
