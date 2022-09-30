@@ -113,6 +113,64 @@ func TestGeneratePathOnLabels(t *testing.T) {
 			},
 		},
 		{
+			name: "if path is stack fails",
+			layout: []string{
+				"s:stacks/stack",
+				"s:stacks/stack/child-stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack",
+					add: Doc(
+						GenerateHCL(
+							Labels("child-stack/name.tf"),
+							Content(
+								Block("something"),
+							),
+						),
+
+						GenerateFile(
+							Labels("child-stack/name.txt"),
+							Str("content", "something"),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stacks/stack/child-stack",
+					files: map[string]fmt.Stringer{
+						"child-stack/name.tf": Doc(
+							Block("something"),
+						),
+						"child-stack/name.txt": stringer("something"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir: "/stacks/stack/child-stack",
+						Created: []string{
+							"child-stack/name.tf",
+							"child-stack/name.txt",
+						},
+					},
+				},
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/stacks/stack",
+						},
+						Error: errors.L(
+							errors.E(generate.ErrInvalidGenBlockLabel),
+							errors.E(generate.ErrInvalidGenBlockLabel),
+						),
+					},
+				},
+			},
+		},
+		{
 			name: "invalid paths fails",
 			layout: []string{
 				"s:stacks/stack-1",

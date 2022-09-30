@@ -25,7 +25,9 @@ import (
 
 // TODO(katcipis): test detection with child stacks
 
-func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
+func TestCheckOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
+	t.Skip("TODO")
+
 	s := sandbox.New(t)
 
 	stackEntry := s.CreateStack("stacks/stack")

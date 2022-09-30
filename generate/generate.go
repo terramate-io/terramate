@@ -149,7 +149,7 @@ func Do(rootdir string, workingDir string) Report {
 			return generated[i].Label() < generated[j].Label()
 		})
 
-		err = validateGeneratedFiles(generated)
+		err = validateGeneratedFiles(rootdir, stackpath, generated)
 		if err != nil {
 			report.err = err
 			return report
@@ -361,7 +361,7 @@ func CheckStack(projmeta project.Metadata, st *stack.S) ([]string, error) {
 		genfilesOnCode = append(genfilesOnCode, f)
 	}
 
-	err = validateGeneratedFiles(genfilesOnCode)
+	err = validateGeneratedFiles(projmeta.Rootdir(), st.HostPath(), genfilesOnCode)
 	if err != nil {
 		return nil, err
 	}
@@ -677,7 +677,7 @@ func hasGenHCLHeader(code string) bool {
 	return false
 }
 
-func checkGeneratedFilesPaths(generated []fileInfo) error {
+func checkGeneratedFilesPaths(rootdir string, stackpath string, generated []fileInfo) error {
 	logger := log.With().
 		Str("action", "generate.checkGeneratedFilesPaths()").
 		Logger()
@@ -688,12 +688,31 @@ func checkGeneratedFilesPaths(generated []fileInfo) error {
 
 	for _, file := range generated {
 		fname := filepath.ToSlash(file.Label())
+		if !strings.Contains(fname, "/") {
+			continue
+		}
 		if strings.HasPrefix(fname, "/") ||
 			strings.HasPrefix(fname, "./") ||
 			strings.Contains(fname, "../") {
 			// TODO(katcipis): Add the range on the origin
 			errs.Append(errors.E(ErrInvalidGenBlockLabel, "%s: %s",
 				file.Origin(), file.Label()))
+			continue
+		}
+
+		destdir := filepath.Dir(filepath.Join(stackpath, fname))
+		isStack, err := config.IsStack(rootdir, destdir)
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			errs.Append(errors.E(ErrInvalidGenBlockLabel, err, "%s: %s",
+				file.Origin(), file.Label()))
+			continue
+		}
+		if isStack {
+			errs.Append(errors.E(ErrInvalidGenBlockLabel, "%s: %s: dest dir %s is a stack",
+				file.Origin(), file.Label(), destdir))
 		}
 	}
 
@@ -741,7 +760,7 @@ func (ss *stringSet) slice() []string {
 	return res
 }
 
-func validateGeneratedFiles(generated []fileInfo) error {
+func validateGeneratedFiles(rootdir string, stackpath string, generated []fileInfo) error {
 	logger := log.With().
 		Str("action", "generate.validateGeneratedFiles()").
 		Logger()
@@ -767,7 +786,7 @@ func validateGeneratedFiles(generated []fileInfo) error {
 		genset[file.Label()] = file
 	}
 
-	err := checkGeneratedFilesPaths(generated)
+	err := checkGeneratedFilesPaths(rootdir, stackpath, generated)
 	if err != nil {
 		return err
 	}
