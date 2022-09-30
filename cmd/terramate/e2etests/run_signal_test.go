@@ -26,6 +26,8 @@ import (
 )
 
 func TestRunSendsSigkillIfCmdIgnoresInterruptionSignals(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 	s.CreateStack("stack-1")
 

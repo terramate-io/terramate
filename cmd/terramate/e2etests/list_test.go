@@ -156,6 +156,8 @@ z/a
 }
 
 func TestListStackWithDefinitionOnNonDefaultFilename(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 	s.BuildTree([]string{"d:stack"})
 	stackDir := s.DirEntry("stack")
@@ -166,6 +168,8 @@ func TestListStackWithDefinitionOnNonDefaultFilename(t *testing.T) {
 }
 
 func TestListStackWithNoTerramateBlock(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 	s.BuildTree([]string{"s:stack"})
 	cli := newCLI(t, s.RootDir())
@@ -173,6 +177,8 @@ func TestListStackWithNoTerramateBlock(t *testing.T) {
 }
 
 func TestListLogsWarningIfConfigHasConflicts(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 	s.BuildTree([]string{
 		"s:stack",
@@ -188,6 +194,8 @@ func TestListLogsWarningIfConfigHasConflicts(t *testing.T) {
 }
 
 func TestListNoSuchFile(t *testing.T) {
+	t.Parallel()
+
 	notExists := test.NonExistingDir(t)
 	cli := newCLI(t, notExists)
 
