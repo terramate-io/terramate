@@ -275,7 +275,8 @@ func Do(rootdir string, workingDir string) Report {
 //	- filename.hcl
 //	- dir/filename.hcl
 //
-// The filenames are ordered lexicographically.
+// The filenames are ordered lexicographically. They always use slash (/) as a
+// dir separator (independent on the OS).
 //
 // dir must be an absolute path and must be inside the given rootdir.
 //
@@ -324,18 +325,21 @@ func ListGenFiles(rootdir, dir string) ([]string, error) {
 
 				isStack, err := config.IsStack(rootdir,
 					filepath.Join(absSubdir, entry.Name()))
+
 				if err != nil {
 					return nil, errors.E(err, "checking if subdir is a child stack")
 				}
+
 				if isStack {
 					logger.Trace().Msg("ignoring stack subdir")
 					continue
 				}
 
-				logger.Trace().Msg("not a stack, checking for generated files")
-				// We want to keep relative paths to dir like:
+				logger.Trace().Msg("not a stack, will check for generated files")
+				// We want to keep relative paths to initial dir like:
 				// - dir/name
-				// - dir/dir2/name
+				// - dir/sub/name
+				// - dir/sub/etc/name
 				pendingSubDirs = append(pendingSubDirs,
 					filepath.Join(relSubdir, entry.Name()))
 				continue
@@ -360,7 +364,8 @@ func ListGenFiles(rootdir, dir string) ([]string, error) {
 
 			if hasGenHCLHeader(string(data)) {
 				logger.Trace().Msg("Terramate header detected")
-				genfiles = append(genfiles, filepath.Join(relSubdir, entry.Name()))
+				genfiles = append(genfiles, filepath.ToSlash(
+					filepath.Join(relSubdir, entry.Name())))
 			}
 		}
 	}
