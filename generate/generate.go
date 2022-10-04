@@ -72,8 +72,7 @@ const (
 // the overall code generation process, so partial results can be obtained and the
 // report needs to be inspected to check.
 func Do(rootdir string, workingDir string) Report {
-	// TODO(KATCIPIS): remove generateFiles return here
-	report, _ := forEachStack(rootdir, workingDir, func(
+	report := forEachStack(rootdir, workingDir, func(
 		projmeta project.Metadata,
 		stack *stack.S,
 		globals globals.Map,
@@ -86,9 +85,7 @@ func Do(rootdir string, workingDir string) Report {
 			Logger()
 
 		var generated []fileInfo
-		report := dirReport{
-			generatedFiles: newStringSet(),
-		}
+		report := dirReport{}
 
 		logger.Trace().Msg("loading asserts for stack")
 
@@ -154,11 +151,6 @@ func Do(rootdir string, workingDir string) Report {
 		if err != nil {
 			report.err = err
 			return report
-		}
-
-		for _, genfile := range generated {
-			path := filepath.Join(stackpath, genfile.Label())
-			report.generatedFiles.add(path)
 		}
 
 		logger.Trace().Msg("Removing outdated generated files.")
@@ -430,10 +422,6 @@ func CheckStack(projmeta project.Metadata, st *stack.S) ([]string, error) {
 		return nil, errors.E(err, "checking for outdated code")
 	}
 
-	// Maybe the stack used to generate files on subdirs, so we need to
-	// detect those too.
-	// TODO(katcipis)
-
 	// We start with the assumption that all gen files on the stack
 	// are outdated and then update the outdated files set as we go.
 	outdatedFiles := newStringSet(genfilesOnFs...)
@@ -615,7 +603,7 @@ func readFile(path string) (string, bool, error) {
 
 type forEachStackFunc func(project.Metadata, *stack.S, globals.Map) dirReport
 
-func forEachStack(root, workingDir string, fn forEachStackFunc) (Report, *stringSet) {
+func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 	logger := log.With().
 		Str("action", "generate.forEachStack()").
 		Str("root", root).
@@ -629,11 +617,10 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) (Report, *string
 	stacks, err := stack.LoadAll(root)
 	if err != nil {
 		report.BootstrapErr = err
-		return report, nil
+		return report
 	}
 
 	projmeta := stack.NewProjectMetadata(root, stacks)
-	generatedFiles := newStringSet()
 
 	for _, st := range stacks {
 		logger := logger.With().
@@ -656,12 +643,11 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) (Report, *string
 		logger.Trace().Msg("Calling stack callback.")
 
 		stackReport := fn(projmeta, st, globalsReport.Globals)
-		generatedFiles.merge(stackReport.generatedFiles)
 
 		report.addDirReport(st.Path(), stackReport)
 	}
 
-	return report, generatedFiles
+	return report
 }
 
 func removeStackGeneratedFiles(pm project.Metadata, stack *stack.S, genfiles []fileInfo) (map[string]string, error) {
@@ -825,12 +811,6 @@ func newStringSet(vals ...string) *stringSet {
 
 func (ss *stringSet) remove(val string) {
 	delete(ss.vals, val)
-}
-
-func (ss *stringSet) merge(other *stringSet) {
-	for k := range other.vals {
-		ss.add(k)
-	}
 }
 
 func (ss *stringSet) add(val string) {

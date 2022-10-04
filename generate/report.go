@@ -214,11 +214,10 @@ func (r *Result) sortFilenames() {
 }
 
 type dirReport struct {
-	created        []string
-	changed        []string
-	deleted        []string
-	generatedFiles *stringSet
-	err            error
+	created []string
+	changed []string
+	deleted []string
+	err     error
 }
 
 func (s *dirReport) addCreatedFile(filename string) {
