@@ -427,11 +427,11 @@ func TestGenerateCleanup(t *testing.T) {
 				genfile("stacks/stack-1/a.hcl"),
 				genfile("stacks/stack-1/subdir/b.hcl"),
 				genfile("stacks/stack-1/subdir/dir/c.hcl"),
-				genfile("stacks/stack-2/d.hcl"),
 				genfile("stacks/stack-1/stack-1-a/e.hcl"),
 				genfile("stacks/stack-1/stack-1-a/subdir/f.hcl"),
 				genfile("stacks/stack-1/stack-1-a/subdir/dir/g.hcl"),
 				genfile("stacks/stack-1/stack-1-b/h.hcl"),
+				genfile("stacks/stack-2/d.hcl"),
 			},
 			wantReport: generate.Report{
 				Successes: []generate.Result{
