@@ -417,6 +417,55 @@ func TestGenerateCleanup(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "each stack owns cleanup of all its subdirs",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+				"s:stacks/stack-1/stack-1-a",
+				"s:stacks/stack-1/stack-1-b",
+				genfile("stacks/stack-1/a.hcl"),
+				genfile("stacks/stack-1/subdir/b.hcl"),
+				genfile("stacks/stack-1/subdir/dir/c.hcl"),
+				genfile("stacks/stack-2/d.hcl"),
+				genfile("stacks/stack-1/stack-1-a/e.hcl"),
+				genfile("stacks/stack-1/stack-1-a/subdir/f.hcl"),
+				genfile("stacks/stack-1/stack-1-a/subdir/dir/g.hcl"),
+				genfile("stacks/stack-1/stack-1-b/h.hcl"),
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir: "/stacks/stack-1",
+						Deleted: []string{
+							"a.hcl",
+							"subdir/b.hcl",
+							"subdir/dir/c.hcl",
+						},
+					},
+					{
+						Dir: "/stacks/stack-1/stack-1-a",
+						Deleted: []string{
+							"e.hcl",
+							"subdir/dir/g.hcl",
+							"subdir/f.hcl",
+						},
+					},
+					{
+						Dir: "/stacks/stack-1/stack-1-b",
+						Deleted: []string{
+							"h.hcl",
+						},
+					},
+					{
+						Dir: "/stacks/stack-2",
+						Deleted: []string{
+							"d.hcl",
+						},
+					},
+				},
+			},
+		},
 	})
 }
 
