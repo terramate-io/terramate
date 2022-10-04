@@ -15,6 +15,9 @@
 package generate_test
 
 import (
+	"fmt"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -22,6 +25,8 @@ import (
 	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
+
+// TODO(KATCIPIS): test ignoring dot files/dir
 
 func TestGeneratedFilesListing(t *testing.T) {
 	t.Parallel()
@@ -60,7 +65,7 @@ func TestGeneratedFilesListing(t *testing.T) {
 		{
 			name: "single generated file on root",
 			layout: []string{
-				"f:generated.tf:" + genhcl.Header,
+				genfile("generated.tf"),
 			},
 			want: []string{"generated.tf"},
 		},
@@ -74,16 +79,16 @@ func TestGeneratedFilesListing(t *testing.T) {
 		{
 			name: "single generated file contents after header newline dont matter",
 			layout: []string{
-				"f:generated.tf:" + genhcl.Header + "\ndoesnt matter",
+				genfile("generated.tf", "data"),
 			},
 			want: []string{"generated.tf"},
 		},
 		{
 			name: "multiple generated files",
 			layout: []string{
-				"f:generated1.tf:" + genhcl.Header,
-				"f:generated2.hcl:" + genhcl.Header,
-				"f:somename:" + genhcl.Header,
+				genfile("generated1.tf"),
+				genfile("generated2.hcl"),
+				genfile("somename"),
 			},
 			want: []string{"generated1.tf", "generated2.hcl", "somename"},
 		},
@@ -91,19 +96,71 @@ func TestGeneratedFilesListing(t *testing.T) {
 			name: "multiple generated files mixed versions",
 			layout: []string{
 				"f:old.tf:" + genhcl.HeaderV0,
-				"f:current.hcl:" + genhcl.Header,
+				genfile("current.hcl"),
 			},
 			want: []string{"current.hcl", "old.tf"},
 		},
 		{
 			name: "gen and manual files mixed",
 			layout: []string{
-				"f:gen.tf:" + genhcl.Header,
+				genfile("gen.tf"),
 				"f:manual.tf:some terraform stuff",
-				"f:gen2.tf:" + genhcl.Header,
+				genfile("gen2.tf"),
 				"f:manual2.tf:data",
 			},
 			want: []string{"gen.tf", "gen2.tf"},
+		},
+		{
+			name: "on root lists all generated files except inside stacks",
+			layout: []string{
+				genfile("genfiles/1.tf"),
+				genfile("genfiles/2.tf"),
+				genfile("genfiles2/1.tf"),
+				genfile("dir/sub/genfiles/1.tf"),
+				"s:stack-1",
+				genfile("stack-1/1.tf"),
+				"s:stack-2",
+				genfile("stack-2/1.tf"),
+				"s:stack-1/substack",
+				genfile("stack-1/substack/1.tf"),
+			},
+			want: []string{
+				"genfiles/1.tf",
+				"genfiles/2.tf",
+				"genfiles2/1.tf",
+				"dir/sub/genfiles/1.tf",
+			},
+		},
+		{
+			name: "on stack lists all generated files except inside child stacks",
+			dir:  "stack",
+			layout: []string{
+				"s:stack",
+				genfile("stack/1.tf"),
+				genfile("stack/2.tf"),
+				genfile("stack/subdir/1.tf"),
+				genfile("stack/subdir2/1.tf"),
+				genfile("stack/sub/dir/1.tf"),
+				"s:stack/child",
+				genfile("stack/child/1.tf"),
+				genfile("stack/child/dir/1.tf"),
+			},
+			want: []string{
+				"1.tf",
+				"2.tf",
+				"subdir/1.tf",
+				"subdir2/1.tf",
+				"sub/dir/1.tf",
+			},
+		},
+		{
+			name: "ignores dot dirs and files",
+			layout: []string{
+				genfile(".name.tf"),
+				genfile(".dir/1.tf"),
+				genfile(".dir/2.tf"),
+			},
+			want: []string{},
 		},
 	}
 
@@ -115,15 +172,22 @@ func TestGeneratedFilesListing(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
 
-			listdir := tcase.dir
-			if listdir == "" {
+			var listdir string
+
+			if tcase.dir != "" {
+				listdir = filepath.Join(s.RootDir(), tcase.dir)
+			} else {
 				listdir = s.RootDir()
 			}
 
-			got, err := generate.ListGenFiles(listdir)
+			got, err := generate.ListGenFiles(s.RootDir(), listdir)
 
 			assert.NoError(t, err)
 			assertEqualStringList(t, got, tcase.want)
 		})
 	}
+}
+
+func genfile(path string, body ...string) string {
+	return fmt.Sprintf("f:%s:%s\n%s", path, genhcl.Header, strings.Join(body, ""))
 }

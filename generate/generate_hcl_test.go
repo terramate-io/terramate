@@ -1012,15 +1012,15 @@ func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
 				Created: []string{"file1.tf", "file2.tf"},
 			},
 			{
+				Dir:     "/stack-2",
+				Created: []string{"file1.tf", "file2.tf"},
+			},
+			{
 				Dir:     "/stack/child",
 				Created: []string{"file1.tf", "file2.tf"},
 			},
 			{
 				Dir:     "/stack/child/grand",
-				Created: []string{"file1.tf", "file2.tf"},
-			},
-			{
-				Dir:     "/stack-2",
 				Created: []string{"file1.tf", "file2.tf"},
 			},
 		},
@@ -1037,8 +1037,8 @@ func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
 				Deleted: []string{"file1.tf", "file2.tf"},
 			},
 			{
-				Dir:     "/stack/child/grand",
-				Deleted: []string{"file1.tf", "file2.tf"},
+				Dir:     "/stack/child",
+				Deleted: []string{"grand/file1.tf", "grand/file2.tf"},
 			},
 		},
 	})

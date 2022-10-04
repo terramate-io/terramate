@@ -362,7 +362,7 @@ func (de DirEntry) CreateFile(name, body string, args ...interface{}) FileEntry 
 func (de DirEntry) ListGenFiles() []string {
 	de.t.Helper()
 
-	files, err := generate.ListGenFiles(de.abspath)
+	files, err := generate.ListGenFiles(de.rootpath, de.abspath)
 	assert.NoError(de.t, err, "listing dir generated files")
 	return files
 }
