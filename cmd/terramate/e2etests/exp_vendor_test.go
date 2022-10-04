@@ -30,6 +30,8 @@ import (
 )
 
 func TestVendorModule(t *testing.T) {
+	t.Parallel()
+
 	const (
 		ref      = "main"
 		filename = "test.txt"
@@ -101,6 +103,8 @@ func TestVendorModule(t *testing.T) {
 }
 
 func TestVendorModuleRecursive1DependencyIsPatched(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.NoGit(t)
 	s.BuildTree([]string{
 		"g:repos/target",
@@ -152,6 +156,8 @@ func TestVendorModuleRecursive1DependencyIsPatched(t *testing.T) {
 }
 
 func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
+	t.Parallel()
+
 	// This reproduces the bug below:
 	//   - ModA depends on ModZ
 	//   - ModB depends on ModZ

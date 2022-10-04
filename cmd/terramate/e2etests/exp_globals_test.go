@@ -26,6 +26,8 @@ import (
 )
 
 func TestStacksGlobals(t *testing.T) {
+	t.Parallel()
+
 	type (
 		globalsBlock struct {
 			path string
@@ -241,8 +243,11 @@ stack "/stacks/stack-name":
 		},
 	}
 
-	for _, tcase := range tcases {
+	for _, tc := range tcases {
+		tcase := tc
 		t.Run(tcase.name, func(t *testing.T) {
+			t.Parallel()
+
 			sandboxes := []sandbox.S{
 				sandbox.New(t),
 				sandbox.NoGit(t),
