@@ -379,6 +379,47 @@ func TestGenerateSubDirsOnLabels(t *testing.T) {
 	})
 }
 
+func TestGenerateCleanup(t *testing.T) {
+	testCodeGeneration(t, []testcase{
+		{
+			name: "deletes generated files outside stacks",
+			layout: []string{
+				genfile("dir/a.hcl"),
+				genfile("dir/subdir/b.hcl"),
+				genfile("dir/subdir/again/c.hcl"),
+				genfile("another/d.hcl"),
+				genfile("root.hcl"),
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir: "/",
+						Deleted: []string{
+							"root.hcl",
+						},
+					},
+					{
+						Dir:     "/another",
+						Deleted: []string{"d.hcl"},
+					},
+					{
+						Dir:     "/dir",
+						Deleted: []string{"a.hcl"},
+					},
+					{
+						Dir:     "/dir/subdir",
+						Deleted: []string{"b.hcl"},
+					},
+					{
+						Dir:     "/dir/subdir/again",
+						Deleted: []string{"c.hcl"},
+					},
+				},
+			},
+		},
+	})
+}
+
 func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 	testCodeGeneration(t, []testcase{
 		{
