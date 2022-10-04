@@ -24,17 +24,14 @@ import (
 )
 
 func TestGeneratedFilesListing(t *testing.T) {
-	type (
-		file struct {
-			name string
-			body string
-		}
-		testcase struct {
-			name  string
-			files []file
-			want  []string
-		}
-	)
+	t.Parallel()
+
+	type testcase struct {
+		name   string
+		layout []string
+		dir    string
+		want   []string
+	}
 
 	tcases := []testcase{
 		{
@@ -42,138 +39,91 @@ func TestGeneratedFilesListing(t *testing.T) {
 		},
 		{
 			name: "single file, non-generated equals empty",
-			files: []file{
-				{
-					name: "somefile.tf",
-					body: "whatever",
-				},
+			layout: []string{
+				"f:somefile.tf:whatever",
 			},
 		},
 		{
 			name: "single empty file equals empty",
-			files: []file{
-				{
-					name: "somefile.tf",
-					body: "",
-				},
+			layout: []string{
+				"f:somefile.tf",
 			},
 		},
 		{
 			name: "multiple files, multiple suffixes, non-generated equals empty",
-			files: []file{
-				{
-					name: "file.tf",
-					body: "whatever",
-				},
-				{
-					name: "file.hcl",
-					body: "dont care",
-				},
-				{
-					name: "another.tm.hcl",
-					body: "terramate is awesome",
-				},
+			layout: []string{
+				"f:file.tf:whatever",
+				"f:file.hcl:dont care",
+				"f:another.tm.hcl:terramate is awesome",
 			},
 		},
 		{
-			name: "single generated file, header detection",
-			files: []file{
-				{
-					name: "generated.tf",
-					body: genhcl.Header,
-				},
+			name: "single generated file on root",
+			layout: []string{
+				"f:generated.tf:" + genhcl.Header,
 			},
 			want: []string{"generated.tf"},
 		},
 		{
 			name: "single generated file, v0 header detection",
-			files: []file{
-				{
-					name: "generated.tf",
-					body: genhcl.HeaderV0,
-				},
+			layout: []string{
+				"f:generated.tf:" + genhcl.HeaderV0,
 			},
 			want: []string{"generated.tf"},
 		},
 		{
 			name: "single generated file contents after header newline dont matter",
-			files: []file{
-				{
-					name: "generated.tf",
-					body: genhcl.Header + "\ndoesnt matter",
-				},
+			layout: []string{
+				"f:generated.tf:" + genhcl.Header + "\ndoesnt matter",
 			},
 			want: []string{"generated.tf"},
 		},
 		{
 			name: "multiple generated files",
-			files: []file{
-				{
-					name: "generated1.tf",
-					body: genhcl.Header,
-				},
-				{
-					name: "generated2.hcl",
-					body: genhcl.Header,
-				},
-				{
-					name: "somename",
-					body: genhcl.Header,
-				},
+			layout: []string{
+				"f:generated1.tf:" + genhcl.Header,
+				"f:generated2.hcl:" + genhcl.Header,
+				"f:somename:" + genhcl.Header,
 			},
 			want: []string{"generated1.tf", "generated2.hcl", "somename"},
 		},
 		{
 			name: "multiple generated files mixed versions",
-			files: []file{
-				{
-					name: "old.tf",
-					body: genhcl.HeaderV0,
-				},
-				{
-					name: "current.hcl",
-					body: genhcl.Header,
-				},
+			layout: []string{
+				"f:old.tf:" + genhcl.HeaderV0,
+				"f:current.hcl:" + genhcl.Header,
 			},
 			want: []string{"current.hcl", "old.tf"},
 		},
 		{
 			name: "gen and manual files mixed",
-			files: []file{
-				{
-					name: "gen.tf",
-					body: genhcl.Header,
-				},
-				{
-					name: "manual.tf",
-					body: "some on terramate stuff",
-				},
-				{
-					name: "gen2.tf",
-					body: genhcl.Header,
-				},
-				{
-					name: "manual2.tf",
-					body: "data",
-				},
+			layout: []string{
+				"f:gen.tf:" + genhcl.Header,
+				"f:manual.tf:some terraform stuff",
+				"f:gen2.tf:" + genhcl.Header,
+				"f:manual2.tf:data",
 			},
 			want: []string{"gen.tf", "gen2.tf"},
 		},
 	}
 
-	for _, tcase := range tcases {
+	for _, tc := range tcases {
+		tcase := tc
 		t.Run(tcase.name, func(t *testing.T) {
-			s := sandbox.New(t)
-			dirEntry := s.RootEntry().CreateDir("gen")
+			t.Parallel()
 
-			for _, file := range tcase.files {
-				dirEntry.CreateFile(file.name, file.body)
+			s := sandbox.New(t)
+			s.BuildTree(tcase.layout)
+
+			listdir := tcase.dir
+			if listdir == "" {
+				listdir = s.RootDir()
 			}
 
-			got, err := generate.ListGenFiles(dirEntry.Path())
+			got, err := generate.ListGenFiles(listdir)
 
 			assert.NoError(t, err)
-			assertEqualStringList(t, tcase.want, got)
+			assertEqualStringList(t, got, tcase.want)
 		})
 	}
 }
