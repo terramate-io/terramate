@@ -424,6 +424,7 @@ func TestGenerateCleanup(t *testing.T) {
 				"s:stacks/stack-2",
 				"s:stacks/stack-1/stack-1-a",
 				"s:stacks/stack-1/stack-1-b",
+				genfile("dir/orphan.hcl"),
 				genfile("stacks/stack-1/a.hcl"),
 				genfile("stacks/stack-1/subdir/b.hcl"),
 				genfile("stacks/stack-1/subdir/dir/c.hcl"),
@@ -435,6 +436,12 @@ func TestGenerateCleanup(t *testing.T) {
 			},
 			wantReport: generate.Report{
 				Successes: []generate.Result{
+					{
+						Dir: "/dir",
+						Deleted: []string{
+							"orphan.hcl",
+						},
+					},
 					{
 						Dir: "/stacks/stack-1",
 						Deleted: []string{
