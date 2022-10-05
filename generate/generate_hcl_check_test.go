@@ -23,9 +23,102 @@ import (
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
-// TODO(katcipis): test detection with child stacks
+func TestCheckStackForGenHCLWithChildStacks(t *testing.T) {
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		"s:/stack",
+		"s:/stack/dir/child",
+	})
 
-func TestCheckOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
+	assertEqualStringList(t, s.CheckStack("stack"), []string{})
+	assertEqualStringList(t, s.CheckStack("stack/dir/child"), []string{})
+
+	stackEntry := s.DirEntry("stack")
+	stackEntry.CreateConfig(
+		Doc(
+			GenerateHCL(
+				Labels("test.tf"),
+				Content(
+					Terraform(
+						Str("required_version", "1.10"),
+					),
+				),
+			),
+			GenerateHCL(
+				Labels("dir/test.tf"),
+				Content(
+					Str("data", "data"),
+				),
+			),
+		).String())
+
+	assertEqualStringList(t, s.CheckStack("stack"), []string{
+		"dir/test.tf",
+		"test.tf",
+	})
+	assertEqualStringList(t, s.CheckStack("stack/dir/child"), []string{
+		"dir/test.tf",
+		"test.tf",
+	})
+
+	childEntry := s.DirEntry("stack/dir/child")
+	childEntry.CreateConfig(
+		Doc(
+			GenerateHCL(
+				Labels("another.tf"),
+				Content(
+					Terraform(
+						Str("required_version", "1.10"),
+					),
+				),
+			),
+			GenerateHCL(
+				Labels("another/test.tf"),
+				Content(
+					Str("data", "data"),
+				),
+			),
+		).String())
+
+	assertEqualStringList(t, s.CheckStack("stack"), []string{
+		"dir/test.tf",
+		"test.tf",
+	})
+	assertEqualStringList(t, s.CheckStack("stack/dir/child"), []string{
+		"another.tf",
+		"another/test.tf",
+		"dir/test.tf",
+		"test.tf",
+	})
+
+	s.Generate()
+
+	assertEqualStringList(t, s.CheckStack("stack"), []string{})
+	assertEqualStringList(t, s.CheckStack("stack/dir/child"), []string{})
+
+	// Removing configs makes all generated files outdated.
+	// Then the outdated files are removed by generate.
+	stackEntry.DeleteConfig()
+	childEntry.DeleteConfig()
+
+	assertEqualStringList(t, s.CheckStack("stack"), []string{
+		"dir/test.tf",
+		"test.tf",
+	})
+	assertEqualStringList(t, s.CheckStack("stack/dir/child"), []string{
+		"another.tf",
+		"another/test.tf",
+		"dir/test.tf",
+		"test.tf",
+	})
+
+	s.Generate()
+
+	assertEqualStringList(t, s.CheckStack("stack"), []string{})
+	assertEqualStringList(t, s.CheckStack("stack/dir/child"), []string{})
+}
+
+func TestCheckStackForGenHCL(t *testing.T) {
 	s := sandbox.New(t)
 
 	stackEntry := s.CreateStack("stacks/stack")
