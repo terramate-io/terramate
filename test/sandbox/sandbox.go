@@ -453,9 +453,7 @@ func (fe FileEntry) Write(body string, args ...interface{}) {
 func (fe FileEntry) Chmod(mode os.FileMode) {
 	fe.t.Helper()
 
-	if err := os.Chmod(fe.hostpath, mode); err != nil {
-		fe.t.Fatalf("os.Chmod(%q, %s) = %v", fe.hostpath, mode, err)
-	}
+	test.Chmod(fe.t, fe.hostpath, mode)
 }
 
 // HostPath returns the absolute path of the file.
