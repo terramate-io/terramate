@@ -26,8 +26,6 @@ import (
 // TODO(katcipis): test detection with child stacks
 
 func TestCheckOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
-	t.Skip("TODO")
-
 	s := sandbox.New(t)
 
 	stackEntry := s.CreateStack("stacks/stack")
@@ -175,8 +173,11 @@ func TestCheckOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 	stackEntry.DeleteConfig()
 
 	assertOutdatedFiles([]string{
-		"another.tf", "dir/test.tf",
-		"dir/sub/test.tf", "testnew.tf"})
+		"another.tf",
+		"dir/sub/test.tf",
+		"dir/test.tf",
+		"testnew.tf",
+	})
 
 	s.Generate()
 
