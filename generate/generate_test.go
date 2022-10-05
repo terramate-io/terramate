@@ -619,6 +619,35 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 	})
 }
 
+func TestCheckDetectsFilesOutsideStacks(t *testing.T) {
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		"s:stack-1",
+		"s:stack-2",
+		"s:stack-1/dir/child",
+		genfile("stack-1/a.hcl"),
+		genfile("stack-1/dir/b.hcl"),
+		genfile("stack-1/dir/child/c.hcl"),
+		genfile("stack-2/d.hcl"),
+		genfile("orphans/e.hcl"),
+		genfile("orphans/dir/f.hcl"),
+		genfile("orphans/dir/dir/g.hcl"),
+	})
+
+	outdated, err := generate.Check(s.RootDir())
+	assert.NoError(t, err)
+
+	assertEqualStringList(t, outdated, []string{
+		"orphans/dir/dir/g.hcl",
+		"orphans/dir/f.hcl",
+		"orphans/e.hcl",
+		"stack-1/a.hcl",
+		"stack-1/dir/b.hcl",
+		"stack-1/dir/child/c.hcl",
+		"stack-2/d.hcl",
+	})
+}
+
 func testCodeGeneration(t *testing.T, tcases []testcase) {
 	t.Helper()
 

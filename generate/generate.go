@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -389,12 +390,24 @@ func Check(rootdir string) ([]string, error) {
 			continue
 		}
 
-		outdatedFiles = append(outdatedFiles, outdated...)
+		// We want results relative to root
+		stackRelPath := stack.Path().String()[1:]
+		for _, file := range outdated {
+			file = path.Join(stackRelPath, file)
+			outdatedFiles = append(outdatedFiles, file)
+		}
+	}
+
+	orphanedFiles, err := ListGenFiles(rootdir, rootdir)
+	if err != nil {
+		errs.Append(err)
 	}
 
 	if err := errs.AsError(); err != nil {
 		return nil, err
 	}
+
+	outdatedFiles = append(outdatedFiles, orphanedFiles...)
 
 	sort.Strings(outdatedFiles)
 	return outdatedFiles, nil
