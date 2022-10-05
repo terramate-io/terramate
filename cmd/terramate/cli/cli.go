@@ -1346,13 +1346,11 @@ func (c *cli) checkOutdatedGeneratedCode(stacks stack.List) {
 		return
 	}
 
-	logger.Trace().Msg("Checking if any stack has outdated code.")
+	logger.Trace().Msg("checking if any stack has outdated code")
+
 	outdatedFiles, err := generate.Check(c.root())
 
-	if err != nil {
-		// TODO(katcipis): improve logging for error list
-		logger.Fatal().Err(err).Msg("checking stack for outdated code")
-	}
+	fatalerr(logger, "failed to check outdated code on project", err)
 
 	for _, outdated := range outdatedFiles {
 		logger.Error().
@@ -1710,4 +1708,23 @@ func configureLogging(logLevel string, logFmt string, output io.Writer) {
 	} else { // default: console mode using color
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: output, NoColor: false, TimeFormat: time.RFC3339})
 	}
+}
+
+func fatalerr(logger zerolog.Logger, msg string, err error) {
+	if err == nil {
+		return
+	}
+
+	var list *errors.List
+
+	if errors.As(err, &list) {
+		errs := list.Errors()
+		for _, err := range errs {
+			log.Err(err).Send()
+		}
+	} else {
+		log.Err(err).Send()
+	}
+
+	log.Fatal().Msg(msg)
 }
