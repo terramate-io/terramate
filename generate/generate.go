@@ -760,6 +760,8 @@ func checkGeneratedFilesPaths(rootdir string, stackpath string, generated []file
 
 		destdir := filepath.Dir(abspath)
 
+		// We need to check that destdir, or any of its parents,
+		// are not a symlink or a stack.
 		for strings.HasPrefix(destdir, stackpath) && destdir != stackpath {
 			info, err := os.Lstat(destdir)
 			if err != nil {

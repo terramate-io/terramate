@@ -449,6 +449,15 @@ func (fe FileEntry) Write(body string, args ...interface{}) {
 	}
 }
 
+// Chmod changes the file mod, like os.Chmod.
+func (fe FileEntry) Chmod(mode os.FileMode) {
+	fe.t.Helper()
+
+	if err := os.Chmod(fe.hostpath, mode); err != nil {
+		fe.t.Fatalf("os.Chmod(%q, %s) = %v", fe.hostpath, mode, err)
+	}
+}
+
 // HostPath returns the absolute path of the file.
 func (fe FileEntry) HostPath() string {
 	return fe.hostpath

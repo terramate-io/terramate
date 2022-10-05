@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/generate/genhcl"
 	stackpkg "github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
@@ -474,6 +475,20 @@ func TestGenerateCleanup(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestGenerateCleanupFailsToReadFiles(t *testing.T) {
+	s := sandbox.New(t)
+	dir := s.RootEntry().CreateDir("dir")
+	file := dir.CreateFile("file.hcl", genhcl.Header)
+	file.Chmod(0)
+	defer file.Chmod(0755)
+
+	report := s.Generate()
+	t.Log(report)
+	assert.EqualInts(t, 0, len(report.Successes), "want no successes")
+	assert.EqualInts(t, 0, len(report.Failures), "want no failures")
+	assert.Error(t, report.CleanupErr)
 }
 
 func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
