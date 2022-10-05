@@ -1347,33 +1347,20 @@ func (c *cli) checkOutdatedGeneratedCode(stacks stack.List) {
 	}
 
 	logger.Trace().Msg("Checking if any stack has outdated code.")
-	projmeta := stack.NewProjectMetadata(c.root(), stacks)
+	outdatedFiles, err := generate.Check(c.root())
 
-	hasOutdated := false
-	for _, stack := range stacks {
-		logger := logger.With().
-			Stringer("stack", stack).
-			Logger()
-
-		logger.Trace().Msg("checking stack for outdated code")
-
-		outdated, err := generate.CheckStack(projmeta, stack)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("checking stack for outdated code")
-		}
-
-		if len(outdated) > 0 {
-			hasOutdated = true
-		}
-
-		for _, filename := range outdated {
-			logger.Error().
-				Str("filename", filename).
-				Msg("outdated code found")
-		}
+	if err != nil {
+		// TODO(katcipis): improve logging for error list
+		logger.Fatal().Err(err).Msg("checking stack for outdated code")
 	}
 
-	if hasOutdated {
+	for _, outdated := range outdatedFiles {
+		logger.Error().
+			Str("filename", outdated).
+			Msg("outdated code found")
+	}
+
+	if len(outdatedFiles) > 0 {
 		logger.Fatal().
 			Err(errors.E(ErrOutdatedGenCodeDetected)).
 			Msg("please run: 'terramate generate' to update generated code")
@@ -1416,13 +1403,9 @@ func (c *cli) runOnStacks() {
 		logger.Fatal().Msgf("run expects a cmd")
 	}
 
-	allStackEntries, err := terramate.ListStacks(c.root())
+	allstacks, err := stack.LoadAll(c.root())
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to list all stacks")
-	}
-	allstacks := make(stack.List, len(allStackEntries))
-	for i, e := range allStackEntries {
-		allstacks[i] = e.Stack
 	}
 
 	c.checkOutdatedGeneratedCode(allstacks)

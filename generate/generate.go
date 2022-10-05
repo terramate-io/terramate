@@ -84,7 +84,6 @@ func Do(rootdir string, workingDir string) Report {
 			Str("stackpath", stackpath).
 			Logger()
 
-		var generated []fileInfo
 		report := dirReport{}
 
 		logger.Trace().Msg("loading asserts for stack")
@@ -119,33 +118,11 @@ func Do(rootdir string, workingDir string) Report {
 			return report
 		}
 
-		logger.Trace().Msg("generate code from generate_file blocks")
-
-		genfiles, err := genfile.Load(projmeta, stack, globals)
+		generated, err := loadGenCodeConfigs(projmeta, stack, globals)
 		if err != nil {
 			report.err = err
 			return report
 		}
-
-		logger.Trace().Msg("generate code from generate_hcl blocks")
-
-		genhcls, err := genhcl.Load(projmeta, stack, globals)
-		if err != nil {
-			report.err = err
-			return report
-		}
-
-		for _, f := range genfiles {
-			generated = append(generated, f)
-		}
-
-		for _, f := range genhcls {
-			generated = append(generated, f)
-		}
-
-		sort.Slice(generated, func(i, j int) bool {
-			return generated[i].Label() < generated[j].Label()
-		})
 
 		err = validateGeneratedFiles(rootdir, stackpath, generated)
 		if err != nil {
@@ -374,11 +351,58 @@ func ListGenFiles(rootdir, dir string) ([]string, error) {
 	return genfiles, nil
 }
 
+// Check will verify if the given project located at rootdir has outdated code
+// and return a list of filenames that are outdated, ordered lexicographically.
+// If any directory on the project has an invalid Terramate configuration inside
+// it will return an error.
+//
+// The provided root must be the project's root directory as an absolute path.
+func Check(rootdir string) ([]string, error) {
+	logger := log.With().
+		Str("action", "generate.Check").
+		Str("rootdir", rootdir).
+		Logger()
+
+	logger.Trace().Msg("loading all stacks")
+
+	stacks, err := stack.LoadAll(rootdir)
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Trace().Msg("Checking if any stack has outdated code.")
+	projmeta := stack.NewProjectMetadata(rootdir, stacks)
+
+	outdatedFiles := []string{}
+	errs := errors.L()
+
+	for _, stack := range stacks {
+		logger := logger.With().
+			Stringer("stack", stack).
+			Logger()
+
+		logger.Trace().Msg("checking stack for outdated code")
+
+		outdated, err := CheckStack(projmeta, stack)
+		if err != nil {
+			errs.Append(err)
+			continue
+		}
+
+		outdatedFiles = append(outdatedFiles, outdated...)
+	}
+
+	if err := errs.AsError(); err != nil {
+		return nil, err
+	}
+
+	sort.Strings(outdatedFiles)
+	return outdatedFiles, nil
+}
+
 // CheckStack will verify if a given stack has outdated code and return a list
 // of filenames that are outdated, ordered lexicographically.
 // If the stack has an invalid configuration it will return an error.
-//
-// The provided root must be the project's root directory as an absolute path.
 func CheckStack(projmeta project.Metadata, st *stack.S) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.CheckStack()").
@@ -395,27 +419,13 @@ func CheckStack(projmeta project.Metadata, st *stack.S) ([]string, error) {
 
 	globals := report.Globals
 	stackpath := st.HostPath()
-	var genfilesOnCode []fileInfo
 
-	genfiles, err := genfile.Load(projmeta, st, globals)
+	generated, err := loadGenCodeConfigs(projmeta, st, globals)
 	if err != nil {
 		return nil, err
 	}
 
-	genhcls, err := genhcl.Load(projmeta, st, globals)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, f := range genfiles {
-		genfilesOnCode = append(genfilesOnCode, f)
-	}
-
-	for _, f := range genhcls {
-		genfilesOnCode = append(genfilesOnCode, f)
-	}
-
-	err = validateGeneratedFiles(projmeta.Rootdir(), st.HostPath(), genfilesOnCode)
+	err = validateGeneratedFiles(projmeta.Rootdir(), st.HostPath(), generated)
 	if err != nil {
 		return nil, err
 	}
@@ -432,7 +442,7 @@ func CheckStack(projmeta project.Metadata, st *stack.S) ([]string, error) {
 	outdatedFiles := newStringSet(genfilesOnFs...)
 	err = updateOutdatedFiles(
 		stackpath,
-		genfilesOnCode,
+		generated,
 		outdatedFiles,
 	)
 	if err != nil {
@@ -928,4 +938,36 @@ func loadAsserts(meta project.Metadata, sm stack.Metadata, globals globals.Map) 
 	}
 
 	return asserts, nil
+}
+
+func loadGenCodeConfigs(
+	projmeta project.Metadata,
+	st *stack.S,
+	globals globals.Map,
+) ([]fileInfo, error) {
+	var genfilesConfigs []fileInfo
+
+	genfiles, err := genfile.Load(projmeta, st, globals)
+	if err != nil {
+		return nil, err
+	}
+
+	genhcls, err := genhcl.Load(projmeta, st, globals)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, f := range genfiles {
+		genfilesConfigs = append(genfilesConfigs, f)
+	}
+
+	for _, f := range genhcls {
+		genfilesConfigs = append(genfilesConfigs, f)
+	}
+
+	sort.Slice(genfilesConfigs, func(i, j int) bool {
+		return genfilesConfigs[i].Label() < genfilesConfigs[j].Label()
+	})
+
+	return genfilesConfigs, nil
 }
