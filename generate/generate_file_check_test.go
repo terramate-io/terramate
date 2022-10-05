@@ -24,7 +24,77 @@ import (
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
-func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
+func TestCheckStackForGenFileWithChildStacks(t *testing.T) {
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		"s:/stack",
+		"s:/stack/dir/child",
+	})
+
+	assertEqualStringList(t, s.CheckStack("stack"), []string{})
+	assertEqualStringList(t, s.CheckStack("stack/dir/child"), []string{})
+
+	stackEntry := s.DirEntry("stack")
+	stackEntry.CreateConfig(
+		Doc(
+			GenerateFile(
+				Labels("test.tf"),
+				Str("content", "test"),
+			),
+			GenerateFile(
+				Labels("dir/test.tf"),
+				Str("content", "test"),
+			),
+		).String())
+
+	assertEqualStringList(t, s.CheckStack("stack"), []string{
+		"dir/test.tf",
+		"test.tf",
+	})
+	assertEqualStringList(t, s.CheckStack("stack/dir/child"), []string{
+		"dir/test.tf",
+		"test.tf",
+	})
+
+	childEntry := s.DirEntry("stack/dir/child")
+	childEntry.CreateConfig(
+		Doc(
+			GenerateFile(
+				Labels("another.tf"),
+				Str("content", "test"),
+			),
+			GenerateFile(
+				Labels("another/test.tf"),
+				Str("content", "test"),
+			),
+		).String())
+
+	assertEqualStringList(t, s.CheckStack("stack"), []string{
+		"dir/test.tf",
+		"test.tf",
+	})
+	assertEqualStringList(t, s.CheckStack("stack/dir/child"), []string{
+		"another.tf",
+		"another/test.tf",
+		"dir/test.tf",
+		"test.tf",
+	})
+
+	s.Generate()
+
+	assertEqualStringList(t, s.CheckStack("stack"), []string{})
+	assertEqualStringList(t, s.CheckStack("stack/dir/child"), []string{})
+
+	// Removing configs don't make generated code outdated since there is
+	// no way to detect that generated files with generate_file came from Terramate.
+	stackEntry.DeleteConfig()
+	childEntry.DeleteConfig()
+
+	assertEqualStringList(t, s.CheckStack("stack"), []string{})
+	assertEqualStringList(t, s.CheckStack("stack/dir/child"), []string{})
+}
+
+func TestCheckStackForGenFile(t *testing.T) {
 	s := sandbox.New(t)
 
 	stackEntry := s.CreateStack("stacks/stack")
