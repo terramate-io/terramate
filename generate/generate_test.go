@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -42,6 +43,7 @@ type (
 	}
 	testcase struct {
 		name       string
+		skipOn     string
 		layout     []string
 		configs    []hclconfig
 		workingDir string
@@ -70,6 +72,17 @@ func TestGenerateSubDirsOnLabels(t *testing.T) {
 				{
 					path: "/stacks",
 					add: GenerateHCL(
+						Labels("file.hcl"),
+						Content(
+							Block("block",
+								Str("data", "data"),
+							),
+						),
+					),
+				},
+				{
+					path: "/stacks",
+					add: GenerateHCL(
 						Labels("dir/file.hcl"),
 						Content(
 							Block("block",
@@ -90,6 +103,11 @@ func TestGenerateSubDirsOnLabels(t *testing.T) {
 				{
 					stack: "/stacks/stack",
 					files: map[string]fmt.Stringer{
+						"file.hcl": Doc(
+							Block("block",
+								Str("data", "data"),
+							),
+						),
 						"dir/file.hcl": Doc(
 							Block("block",
 								Str("data", "data"),
@@ -106,6 +124,7 @@ func TestGenerateSubDirsOnLabels(t *testing.T) {
 						Created: []string{
 							"dir/file.hcl",
 							"dir/sub/file.txt",
+							"file.hcl",
 						},
 					},
 				},
@@ -228,7 +247,8 @@ func TestGenerateSubDirsOnLabels(t *testing.T) {
 			},
 		},
 		{
-			name: "if path is symlink fails",
+			name:   "if path is symlink fails",
+			skipOn: "windows",
 			layout: []string{
 				"s:stacks/stack",
 				"d:somedir",
@@ -654,6 +674,12 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Helper()
+
+			if tcase.skipOn == runtime.GOOS {
+				t.Skipf("skipping on GOOS %q", tcase.skipOn)
+				return
+			}
+
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
 
