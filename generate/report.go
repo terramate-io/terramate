@@ -64,12 +64,6 @@ func (r Report) HasFailures() bool {
 	return r.BootstrapErr != nil || len(r.Failures) > 0
 }
 
-// GeneratedFiles returns the set of all files created or changed on this report.
-// Each file is represented by its absolute path on the host filesystem.
-func (r Report) GeneratedFiles() map[string]struct{} {
-	return nil
-}
-
 func (r Report) String() string {
 	if r.empty() {
 		return "Nothing to do, generated code is up to date"
