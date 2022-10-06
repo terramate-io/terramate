@@ -4,6 +4,11 @@ coverage.txt
 .terraform.lock.hcl
 /cmd/terramate/terramate
 
+# Profiling artifacts
+cpu.prof
+mem.prof
+*.test
+
 .vscode/
 
 dist/
