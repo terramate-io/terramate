@@ -1340,7 +1340,7 @@ func TestRunFailIfOrphanedGenCodeIsDetected(t *testing.T) {
 	orphanEntry.RemoveFile("config.tm")
 	orphanEntry.DeleteStackConfig()
 
-	git.CommitAll("generated code")
+	git.CommitAll("deleted stack")
 
 	assertRunResult(t, tmcli.run(
 		"run",
