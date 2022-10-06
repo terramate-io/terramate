@@ -393,8 +393,8 @@ func Check(rootdir string) ([]string, error) {
 		// We want results relative to root
 		stackRelPath := stack.Path().String()[1:]
 		for _, file := range outdated {
-			file = path.Join(stackRelPath, file)
-			outdatedFiles = append(outdatedFiles, file)
+			outdatedFiles = append(outdatedFiles,
+				path.Join(stackRelPath, file))
 		}
 	}
 
