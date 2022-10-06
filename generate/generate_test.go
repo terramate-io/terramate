@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -42,6 +43,7 @@ type (
 	}
 	testcase struct {
 		name       string
+		skipOn     string
 		layout     []string
 		configs    []hclconfig
 		workingDir string
@@ -245,7 +247,8 @@ func TestGenerateSubDirsOnLabels(t *testing.T) {
 			},
 		},
 		{
-			name: "if path is symlink fails",
+			name:   "if path is symlink fails",
+			skipOn: "windows",
 			layout: []string{
 				"s:stacks/stack",
 				"d:somedir",
@@ -671,6 +674,12 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Helper()
+
+			if tcase.skipOn == runtime.GOOS {
+				t.Skipf("skipping on GOOS %q", tcase.skipOn)
+				return
+			}
+
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
 
