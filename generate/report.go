@@ -153,11 +153,11 @@ func (r *Report) sort() {
 }
 
 func (r *Report) sortDirs() {
-	sort.Slice(r.Successes, func(x, y int) bool {
-		return r.Successes[x].Dir < r.Successes[y].Dir
+	sort.Slice(r.Successes, func(i, j int) bool {
+		return r.Successes[i].Dir < r.Successes[j].Dir
 	})
-	sort.Slice(r.Failures, func(x, y int) bool {
-		return r.Failures[x].Dir < r.Failures[y].Dir
+	sort.Slice(r.Failures, func(i, j int) bool {
+		return r.Failures[i].Dir < r.Failures[j].Dir
 	})
 }
 
