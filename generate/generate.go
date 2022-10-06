@@ -312,8 +312,9 @@ func ListGenFiles(rootdir, dir string) ([]string, error) {
 					continue
 				}
 
-				logger.Trace().Msg("not a stack, will check for generated files")
+				logger.Trace().Msg("not a stack, adding as pending")
 				// We want to keep relative paths to initial dir like:
+				// - name
 				// - dir/name
 				// - dir/sub/name
 				// - dir/sub/etc/name
@@ -347,7 +348,7 @@ func ListGenFiles(rootdir, dir string) ([]string, error) {
 		}
 	}
 
-	logger.Trace().Msg("Done listing stack generated files")
+	logger.Trace().Msg("listed generated files with success")
 	return genfiles, nil
 }
 
