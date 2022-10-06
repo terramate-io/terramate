@@ -7,8 +7,9 @@ File generation is done using `generate_file`
 blocks in [Terramate configuration files](../config-overview.md).
 
 The block **must** have a single label, that will be used to determine the
-path of the generated file. Inside the block, the **`content`** attribute defines
-the string that will be written on the file.
+path of the generated file (for more details check [here](overview.md#labels)).
+Inside the block, the **`content`** attribute defines the string that will be
+written on the file.
 
 The value of the **`content`** attribute may include:
 
