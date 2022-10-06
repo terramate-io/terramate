@@ -70,6 +70,17 @@ func TestGenerateSubDirsOnLabels(t *testing.T) {
 				{
 					path: "/stacks",
 					add: GenerateHCL(
+						Labels("file.hcl"),
+						Content(
+							Block("block",
+								Str("data", "data"),
+							),
+						),
+					),
+				},
+				{
+					path: "/stacks",
+					add: GenerateHCL(
 						Labels("dir/file.hcl"),
 						Content(
 							Block("block",
@@ -90,6 +101,11 @@ func TestGenerateSubDirsOnLabels(t *testing.T) {
 				{
 					stack: "/stacks/stack",
 					files: map[string]fmt.Stringer{
+						"file.hcl": Doc(
+							Block("block",
+								Str("data", "data"),
+							),
+						),
 						"dir/file.hcl": Doc(
 							Block("block",
 								Str("data", "data"),
@@ -106,6 +122,7 @@ func TestGenerateSubDirsOnLabels(t *testing.T) {
 						Created: []string{
 							"dir/file.hcl",
 							"dir/sub/file.txt",
+							"file.hcl",
 						},
 					},
 				},
