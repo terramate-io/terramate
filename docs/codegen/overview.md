@@ -24,6 +24,7 @@ the generated code will be saved. The labels must follow these constraints:
 * It is a relative path in the form `dir/filename` or just `filename`
 * It is always defined with `/` independent on the OS you are working on
 * It does not contain `../` (code can only be generated inside the stack)
+* It does not start with `./`
 * It is not a symbolic link
 * It is not a stack
 * It is unique on the whole hierarchy of a stack
