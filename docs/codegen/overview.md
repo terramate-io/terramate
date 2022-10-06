@@ -26,6 +26,7 @@ the generated code will be saved. The labels must follow these constraints:
 * It does not contain `../` (code can only be generated inside the stack)
 * It is not a symbolic link
 * It is not a stack
+* It is unique on the whole hierarchy of a stack
 
 # Assertions
 
