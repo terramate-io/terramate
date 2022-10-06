@@ -143,7 +143,9 @@ func Do(rootdir string, workingDir string) Report {
 			return r
 		}
 
-		removedFiles, err = removeStackGeneratedFiles(projmeta, stack, generated)
+		removedFiles, err = removeStackGeneratedFiles(
+			projmeta.Rootdir(), stack, generated)
+
 		if err != nil {
 			return failureReport(
 				report,
@@ -408,7 +410,6 @@ func Check(rootdir string) ([]string, error) {
 	}
 
 	outdatedFiles = append(outdatedFiles, orphanedFiles...)
-
 	sort.Strings(outdatedFiles)
 	return outdatedFiles, nil
 }
@@ -671,16 +672,20 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 		logger.Trace().Msg("Calling stack callback.")
 
 		stackReport := fn(projmeta, st, globalsReport.Globals)
-
 		report.addDirReport(st.Path(), stackReport)
 	}
 
 	return report
 }
 
-func removeStackGeneratedFiles(pm project.Metadata, stack *stack.S, genfiles []fileInfo) (map[string]string, error) {
+func removeStackGeneratedFiles(
+	rootdir string,
+	stack *stack.S,
+	genfiles []fileInfo,
+) (map[string]string, error) {
 	logger := log.With().
 		Str("action", "generate.removeStackGeneratedFiles()").
+		Str("root", rootdir).
 		Stringer("stack", stack).
 		Logger()
 
@@ -688,7 +693,7 @@ func removeStackGeneratedFiles(pm project.Metadata, stack *stack.S, genfiles []f
 
 	removedFiles := map[string]string{}
 
-	files, err := ListGenFiles(pm.Rootdir(), stack.HostPath())
+	files, err := ListGenFiles(rootdir, stack.HostPath())
 	if err != nil {
 		return nil, err
 	}
