@@ -17,6 +17,7 @@ package cli
 import (
 	"fmt"
 
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/git"
 	"github.com/mineiros-io/terramate/hcl"
@@ -27,7 +28,7 @@ type project struct {
 	root    string
 	wd      string
 	isRepo  bool
-	rootcfg hcl.Config
+	cfg     config.Tree
 	baseRef string
 
 	git struct {
@@ -39,7 +40,7 @@ type project struct {
 }
 
 func (p project) gitcfg() *hcl.GitConfig {
-	return p.rootcfg.Terramate.Config.Git
+	return p.cfg.Root.Terramate.Config.Git
 }
 
 func (p *project) localDefaultBranchCommit() string {
@@ -143,26 +144,26 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 
 	logger.Debug().Msg("Set defaults.")
 
-	if p.rootcfg.Terramate == nil {
+	if p.cfg.Root.Terramate == nil {
 		// if config has no terramate block we create one with default
 		// configurations.
-		p.rootcfg.Terramate = &hcl.Terramate{}
+		p.cfg.Root.Terramate = &hcl.Terramate{}
 	}
 
-	cfg := &p.rootcfg
-	if cfg.Terramate.Config == nil {
-		p.rootcfg.Terramate.Config = &hcl.RootConfig{}
+	cfg := &p.cfg
+	if cfg.Root.Terramate.Config == nil {
+		p.cfg.Root.Terramate.Config = &hcl.RootConfig{}
 	}
 	// Now some defaults are defined on the NewGitConfig but others here.
 	// To define all defaults here we would need boolean pointers to
 	// check if the config is defined or not, the zero value for booleans
 	// is valid (simpler with strings). Maybe we could move all defaults
 	// to NewGitConfig.
-	if cfg.Terramate.Config.Git == nil {
-		cfg.Terramate.Config.Git = hcl.NewGitConfig()
+	if cfg.Root.Terramate.Config.Git == nil {
+		cfg.Root.Terramate.Config.Git = hcl.NewGitConfig()
 	}
 
-	gitOpt := cfg.Terramate.Config.Git
+	gitOpt := cfg.Root.Terramate.Config.Git
 
 	if gitOpt.DefaultBranchBaseRef == "" {
 		gitOpt.DefaultBranchBaseRef = defaultBranchBaseRef

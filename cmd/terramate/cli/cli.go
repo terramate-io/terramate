@@ -552,10 +552,10 @@ func (c *cli) vendorDir() prj.Path {
 
 	logger.Trace().Msg("no .terramate config, checking root")
 
-	if hasVendorDirConfig(c.prj.rootcfg) {
+	if hasVendorDirConfig(c.prj.cfg.Root) {
 		logger.Trace().Msg("using root config")
 
-		return checkVendorDir(c.prj.rootcfg.Vendor.Dir)
+		return checkVendorDir(c.prj.cfg.Root.Vendor.Dir)
 	}
 
 	logger.Trace().Msg("no configuration provided, fallback to default")
@@ -612,8 +612,7 @@ func (c *cli) checkGitUntracked() bool {
 		}
 	}
 
-	cfg := c.prj.rootcfg
-
+	cfg := c.prj.cfg.Root
 	if cfg.Terramate != nil &&
 		cfg.Terramate.Config != nil &&
 		cfg.Terramate.Config.Git != nil {
@@ -634,8 +633,7 @@ func (c *cli) checkGitUncommited() bool {
 		}
 	}
 
-	cfg := c.prj.rootcfg
-
+	cfg := c.prj.cfg.Root
 	if cfg.Terramate != nil &&
 		cfg.Terramate.Config != nil &&
 		cfg.Terramate.Config.Git != nil {
@@ -1166,7 +1164,7 @@ func (c *cli) checkGenCode() bool {
 		}
 	}
 
-	cfg := c.prj.rootcfg
+	cfg := c.prj.cfg.Root
 
 	if cfg.Terramate != nil &&
 		cfg.Terramate.Config != nil &&
@@ -1376,7 +1374,7 @@ func (c *cli) checkGitRemote() bool {
 		}
 	}
 
-	cfg := c.prj.rootcfg
+	cfg := c.prj.cfg.Root
 
 	if cfg.Terramate != nil &&
 		cfg.Terramate.Config != nil &&
@@ -1576,7 +1574,7 @@ func (c cli) checkVersion() {
 
 	logger.Trace().Msg("checking if terramate version satisfies project constraint")
 
-	rootcfg := c.prj.rootcfg
+	rootcfg := c.prj.cfg.Root
 
 	if rootcfg.Terramate == nil {
 		logger.Debug().Msg("project root has no config, skipping version check")
@@ -1625,7 +1623,7 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 	logger.Trace().Msg("Create new git wrapper.")
 
-	rootcfg, rootCfgPath, rootfound, err := config.TryLoadRootConfig(wd)
+	rootcfg, rootCfgPath, rootfound, err := config.TryLoadConfig(wd)
 	if err != nil {
 		return project{}, false, err
 	}
@@ -1667,13 +1665,13 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 			logger.Trace().Msg("Load root config.")
 
-			cfg, err := hcl.ParseDir(rootdir, rootdir)
+			cfg, err := config.LoadTree(rootdir, rootdir)
 			if err != nil {
 				return project{}, false, err
 			}
 
 			prj.isRepo = true
-			prj.rootcfg = cfg
+			prj.cfg = cfg
 			prj.root = rootdir
 			prj.git.wrapper = gw
 
@@ -1686,7 +1684,7 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 	}
 
 	prj.root = rootCfgPath
-	prj.rootcfg = rootcfg
+	prj.cfg = rootcfg
 	return prj, true, nil
 
 }
