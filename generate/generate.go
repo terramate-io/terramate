@@ -468,7 +468,7 @@ func CheckStack(projmeta project.Metadata, st *stack.S) ([]string, error) {
 	return outdated, nil
 }
 
-type fileInfo interface {
+type genCodeCfg interface {
 	Label() string
 	Origin() project.Path
 	Header() string
@@ -478,7 +478,7 @@ type fileInfo interface {
 
 func updateOutdatedFiles(
 	stackpath string,
-	generated []fileInfo,
+	generated []genCodeCfg,
 	outdatedFiles *stringSet,
 ) error {
 	logger := log.With().
@@ -533,7 +533,7 @@ func updateOutdatedFiles(
 	return nil
 }
 
-func writeGeneratedCode(target string, genfile fileInfo) error {
+func writeGeneratedCode(target string, genfile genCodeCfg) error {
 	logger := log.With().
 		Str("action", "writeGeneratedCode()").
 		Str("file", target).
@@ -681,7 +681,7 @@ func forEachStack(root, workingDir string, fn forEachStackFunc) Report {
 func removeStackGeneratedFiles(
 	rootdir string,
 	stack *stack.S,
-	genfiles []fileInfo,
+	genfiles []genCodeCfg,
 ) (map[string]string, error) {
 	logger := log.With().
 		Str("action", "generate.removeStackGeneratedFiles()").
@@ -751,7 +751,7 @@ func hasGenHCLHeader(code string) bool {
 	return false
 }
 
-func checkGeneratedFilesPaths(rootdir string, stackpath string, generated []fileInfo) error {
+func checkGeneratedFilesPaths(rootdir string, stackpath string, generated []genCodeCfg) error {
 	logger := log.With().
 		Str("action", "generate.checkGeneratedFilesPaths()").
 		Logger()
@@ -761,35 +761,33 @@ func checkGeneratedFilesPaths(rootdir string, stackpath string, generated []file
 	errs := errors.L()
 
 	for _, file := range generated {
-		relFilename := file.Label()
-		if !strings.Contains(relFilename, "/") {
+		relpath := file.Label()
+		if !strings.Contains(relpath, "/") {
 			continue
 		}
 
-		abspath := filepath.Join(stackpath, relFilename)
-
 		switch {
-		case strings.HasPrefix(relFilename, "/"):
+		case strings.HasPrefix(relpath, "/"):
 			errs.Append(errors.E(ErrInvalidGenBlockLabel,
 				"%s: %s: starts with /",
 				file.Origin(), file.Label()))
 			continue
-		case strings.HasPrefix(relFilename, "./"):
+		case strings.HasPrefix(relpath, "./"):
 			errs.Append(errors.E(ErrInvalidGenBlockLabel,
 				"%s: %s: starts with ./",
 				file.Origin(), file.Label()))
 			continue
-		case strings.Contains(relFilename, "../"):
+		case strings.Contains(relpath, "../"):
 			errs.Append(errors.E(ErrInvalidGenBlockLabel,
 				"%s: %s: contains ../",
 				file.Origin(), file.Label()))
 			continue
 		}
 
+		abspath := filepath.Join(stackpath, relpath)
 		destdir := filepath.Dir(abspath)
 
-		// We need to check that destdir, or any of its parents,
-		// are not a symlink or a stack.
+		// We need to check that destdir, or any of its parents, is not a symlink or a stack.
 		for strings.HasPrefix(destdir, stackpath) && destdir != stackpath {
 			info, err := os.Lstat(destdir)
 			if err != nil {
@@ -860,14 +858,14 @@ func (ss *stringSet) slice() []string {
 	return res
 }
 
-func validateGeneratedFiles(rootdir string, stackpath string, generated []fileInfo) error {
+func validateGeneratedFiles(rootdir string, stackpath string, generated []genCodeCfg) error {
 	logger := log.With().
 		Str("action", "generate.validateGeneratedFiles()").
 		Logger()
 
 	logger.Trace().Msg("validating generated files.")
 
-	genset := map[string]fileInfo{}
+	genset := map[string]genCodeCfg{}
 	for _, file := range generated {
 		if other, ok := genset[file.Label()]; ok && file.Condition() {
 			return errors.E(ErrConflictingConfig,
@@ -962,8 +960,8 @@ func loadGenCodeConfigs(
 	projmeta project.Metadata,
 	st *stack.S,
 	globals globals.Map,
-) ([]fileInfo, error) {
-	var genfilesConfigs []fileInfo
+) ([]genCodeCfg, error) {
+	var genfilesConfigs []genCodeCfg
 
 	genfiles, err := genfile.Load(projmeta, st, globals)
 	if err != nil {
