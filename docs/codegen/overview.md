@@ -16,6 +16,17 @@ Some features are available to all code generation strategies, like:
 * [Functions](../functions.md)
 * [Assertions](#assertions)
 
+# Labels
+
+All code generation blocks use labels to identify the block and define where
+the generated code will be saved. The labels must follow these constraints:
+
+* It is a relative path in the form `dir/filename` or just `filename`
+* It is always defined with `/` independent on the OS you are working on
+* It does not contain `../` (code can only be generated inside the stack)
+* It is not a symbolic link
+* It is not a stack
+
 # Assertions
 
 Assertions can be used in order to fail code generation for one or more stacks
