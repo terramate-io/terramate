@@ -277,10 +277,9 @@ func ListGenFiles(rootdir, dir string) ([]string, error) {
 	genfiles := []string{}
 
 	for len(pendingSubDirs) > 0 {
-
 		relSubdir := pendingSubDirs[0]
-		absSubdir := filepath.Join(dir, relSubdir)
 		pendingSubDirs = pendingSubDirs[1:]
+		absSubdir := filepath.Join(dir, relSubdir)
 		entries, err := os.ReadDir(absSubdir)
 
 		if err != nil {

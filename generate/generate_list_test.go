@@ -26,8 +26,6 @@ import (
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
-// TODO(KATCIPIS): test ignoring dot files/dir
-
 func TestGeneratedFilesListing(t *testing.T) {
 	t.Parallel()
 
