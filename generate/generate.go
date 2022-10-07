@@ -100,7 +100,6 @@ func Do(cfg *config.Tree, workingDir string) Report {
 		for _, assert := range asserts {
 			if !assert.Assertion {
 				assertRange := assert.Range
-
 				assertRange.Filename = project.PrjAbsPath(cfg.Rootdir(), assert.Range.Filename).String()
 				if assert.Warning {
 					logger.Warn().
