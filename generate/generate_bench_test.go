@@ -16,11 +16,14 @@ package generate_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/test/sandbox"
+
+	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
 func BenchmarkGenerate(b *testing.B) {
@@ -73,10 +76,11 @@ func (bm benchmark) String() string {
 func (bm benchmark) run(b *testing.B) {
 	s := sandbox.New(b)
 	createStacks(s, bm.stacks)
+	createAsserts(s, bm.asserts)
+
 	globals := createGlobals(s, bm.globals)
 	createGenHCLs(s, globals, bm.genhcl)
 	createGenFiles(s, globals, bm.genfiles)
-	createAsserts(s, globals, bm.asserts)
 
 	b.ResetTimer()
 
@@ -95,17 +99,76 @@ func (bm benchmark) run(b *testing.B) {
 }
 
 func createStacks(s sandbox.S, stacks int) {
+	for i := 0; i < stacks; i++ {
+		s.CreateStack(fmt.Sprintf("stacks/stack-%d", i))
+	}
 }
 
 func createGlobals(s sandbox.S, globals int) []string {
-	return nil
+	builder := Globals()
+	globalsNames := make([]string, globals)
+
+	for i := 0; i < globals; i++ {
+		name := fmt.Sprintf("val%d", i)
+		globalsNames[i] = name
+		builder.AddNumberInt(name, int64(i))
+	}
+
+	s.RootEntry().CreateFile("globals.tm", builder.String())
+
+	return globalsNames
 }
 
 func createGenHCLs(s sandbox.S, globals []string, genhcls int) {
+	for i := 0; i < genhcls; i++ {
+		genhclDoc := GenerateHCL()
+		genhclDoc.AddLabel(fmt.Sprintf("gen/%d.hcl", i))
+
+		content := Content()
+		for j, global := range globals {
+			content.AddExpr(
+				fmt.Sprintf("val%d%d", i, j),
+				"global."+global)
+		}
+
+		genhclDoc.AddBlock(content)
+
+		s.RootEntry().CreateFile(
+			fmt.Sprintf("genhcl%d.tm", i),
+			genhclDoc.String(),
+		)
+	}
 }
 
 func createGenFiles(s sandbox.S, globals []string, genfiles int) {
+	for i := 0; i < genfiles; i++ {
+		genfileDoc := GenerateFile()
+		genfileDoc.AddLabel(fmt.Sprintf("gen/%d.txt", i))
+
+		content := make([]string, len(globals))
+
+		for j, global := range globals {
+			content[j] = fmt.Sprintf("val%d%d=${global.%s}", i, j, global)
+		}
+
+		genfileDoc.AddString("content", strings.Join(content, ","))
+
+		s.RootEntry().CreateFile(
+			fmt.Sprintf("genfile%d.tm", i),
+			genfileDoc.String(),
+		)
+	}
 }
 
-func createAsserts(s sandbox.S, globals []string, asserts int) {
+func createAsserts(s sandbox.S, asserts int) {
+	for i := 0; i < asserts; i++ {
+		assertDoc := Assert()
+		assertDoc.AddBoolean("assertion", true)
+		assertDoc.AddString("message", fmt.Sprintf("assert %d", i))
+
+		s.RootEntry().CreateFile(
+			fmt.Sprintf("assert%d.tm", i),
+			assertDoc.String(),
+		)
+	}
 }
