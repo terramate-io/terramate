@@ -17,6 +17,10 @@ package generate_test
 import (
 	"fmt"
 	"testing"
+
+	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
 func BenchmarkGenerate(b *testing.B) {
@@ -67,4 +71,41 @@ func (bm benchmark) String() string {
 }
 
 func (bm benchmark) run(b *testing.B) {
+	s := sandbox.New(b)
+	createStacks(s, bm.stacks)
+	globals := createGlobals(s, bm.globals)
+	createGenHCLs(s, globals, bm.genhcl)
+	createGenFiles(s, globals, bm.genfiles)
+	createAsserts(s, globals, bm.asserts)
+
+	b.ResetTimer()
+
+	report := generate.Do(s.RootDir(), s.RootDir())
+
+	b.StopTimer()
+
+	assert.EqualInts(b, bm.stacks, len(report.Successes))
+	assert.EqualInts(b, 0, len(report.Failures))
+
+	for _, success := range report.Successes {
+		assert.EqualInts(b, bm.genhcl+bm.genfiles, len(success.Created))
+		assert.EqualInts(b, 0, len(success.Changed))
+		assert.EqualInts(b, 0, len(success.Deleted))
+	}
+}
+
+func createStacks(s sandbox.S, stacks int) {
+}
+
+func createGlobals(s sandbox.S, globals int) []string {
+	return nil
+}
+
+func createGenHCLs(s sandbox.S, globals []string, genhcls int) {
+}
+
+func createGenFiles(s sandbox.S, globals []string, genfiles int) {
+}
+
+func createAsserts(s sandbox.S, globals []string, asserts int) {
 }
