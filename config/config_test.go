@@ -66,7 +66,7 @@ func TestConfigLookup(t *testing.T) {
 	node, found = cfg.Lookup("/stacks/child/non-stack/stack")
 	assert.IsTrue(t, found && node.IsStack() && !node.IsEmptyConfig())
 
-	_, found = cfg.Lookup("/non-existant")
+	_, found = cfg.Lookup("/non-existent")
 	assert.IsTrue(t, !found)
 
 	stacks := cfg.Stacks()

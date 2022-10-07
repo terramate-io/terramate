@@ -229,7 +229,9 @@ func validateWatchPaths(rootdir string, stackpath string, paths []string) (proje
 	return projectPaths, nil
 }
 
-func TreeListToStackList(trees []*config.Tree) (List, error) {
+// TreeListToStackList converts a config.List into a stack.List.
+// TODO(i4k): improve this naming.
+func TreeListToStackList(trees config.List) (List, error) {
 	var stacks List
 	for _, tree := range trees {
 		s, err := New(tree.RootDir(), tree.Root)

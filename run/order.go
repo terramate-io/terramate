@@ -22,6 +22,7 @@ import (
 	"sort"
 
 	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/run/dag"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
@@ -182,13 +183,19 @@ func BuildDAG(
 	beforePaths := removeWrongPaths("before", getDescendants(*s))
 
 	afterStacks, err := stack.TreeListToStackList(cfg.StacksByRelPaths(s.Path(), afterPaths...))
+	if err != nil {
+		return err
+	}
 	beforeStacks, err := stack.TreeListToStackList(cfg.StacksByRelPaths(s.Path(), beforePaths...))
+	if err != nil {
+		return err
+	}
 
 	logger.Debug().Msg("Add new node to DAG.")
 
 	err = d.AddNode(dag.ID(s.Path()), s, toids(beforeStacks), toids(afterStacks))
 	if err != nil {
-		return fmt.Errorf("stack %q: failed to build DAG: %w", s, err)
+		return errors.E("stack %q: failed to build DAG: %w", s, err)
 	}
 
 	stacks := stack.List{}

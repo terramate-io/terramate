@@ -270,6 +270,9 @@ func (s S) RootDir() string {
 	return s.rootdir
 }
 
+// Config returns the configuration tree for the sandbox.
+// It memoizes the parsing output, then multiple calls will parse
+// the configuration once.
 func (s *S) Config() *config.Tree {
 	s.t.Helper()
 	if s.cfg != nil {

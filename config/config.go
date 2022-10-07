@@ -51,11 +51,13 @@ type Tree struct {
 	rootdir string
 }
 
+// List of config trees.
 type List []*Tree
 
 // TryLoadConfig try to load the Terramate configuration tree. It looks for the
 // the config in fromdir and all parent directories until / is reached.
-// If the configuration is found, it returns configpath != "" and found as true.
+// If the configuration is found, it returns the whole configuration tree,
+// configpath != "" and found as true.
 func TryLoadConfig(fromdir string) (tree *Tree, configpath string, found bool, err error) {
 	for {
 		logger := log.With().
@@ -87,6 +89,8 @@ func TryLoadConfig(fromdir string) (tree *Tree, configpath string, found bool, e
 	return nil, "", false, nil
 }
 
+// LoadTree loads the whole hierarchical configuration from cfgdir downwards
+// using rootdir as project root.
 func LoadTree(rootdir string, cfgdir string) (*Tree, error) {
 	return loadTree(rootdir, cfgdir, nil)
 }
@@ -221,6 +225,7 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error)
 	return tree, nil
 }
 
+// IsEmptyConfig tells if the configuration is empty.
 func (tree *Tree) IsEmptyConfig() bool {
 	return tree.Root.IsEmpty()
 }
@@ -231,6 +236,7 @@ func IsStack(cfg *Tree, dir string) bool {
 	return ok && node.IsStack()
 }
 
+// NewTree creates a new tree node.
 func NewTree(cfgdir string) *Tree {
 	return &Tree{
 		rootdir:  cfgdir,
