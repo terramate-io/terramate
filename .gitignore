@@ -9,6 +9,11 @@ cpu.prof
 mem.prof
 *.test
 
+# Go Workspaces artifacts
+/go.work
+
+# VSCode artifacts
 .vscode/
 
+# Go releaser artifacts
 dist/
