@@ -33,21 +33,21 @@ func BenchmarkGenerate(b *testing.B) {
 			asserts:  10,
 			genhcl:   10,
 			genfiles: 5,
-			globals:  50,
+			globals:  100,
 		},
 		{
 			stacks:   100,
 			asserts:  10,
 			genhcl:   10,
 			genfiles: 5,
-			globals:  50,
+			globals:  100,
 		},
 		{
 			stacks:   1000,
 			asserts:  10,
 			genhcl:   10,
 			genfiles: 5,
-			globals:  50,
+			globals:  100,
 		},
 	}
 
