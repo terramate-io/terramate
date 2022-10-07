@@ -147,6 +147,20 @@ func (r Report) empty() bool {
 		len(r.Successes) == 0
 }
 
+func (r *Report) sort() {
+	r.sortDirs()
+	r.sortFilenames()
+}
+
+func (r *Report) sortDirs() {
+	sort.Slice(r.Successes, func(i, j int) bool {
+		return r.Successes[i].Dir < r.Successes[j].Dir
+	})
+	sort.Slice(r.Failures, func(i, j int) bool {
+		return r.Failures[i].Dir < r.Failures[j].Dir
+	})
+}
+
 func (r *Report) sortFilenames() {
 	for _, success := range r.Successes {
 		success.sortFilenames()
