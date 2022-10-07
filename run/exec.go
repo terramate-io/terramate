@@ -58,7 +58,7 @@ func Exec(
 
 	logger.Trace().Msg("loading stacks run environment variables")
 
-	projmeta := stack.NewProjectMetadata(cfg.Rootdir(), stacks)
+	projmeta := stack.NewProjectMetadata(cfg.RootDir(), stacks)
 
 	for _, stack := range stacks {
 		env, err := LoadEnv(cfg, projmeta, stack)

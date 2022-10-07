@@ -91,14 +91,17 @@ func LoadTree(rootdir string, cfgdir string) (*Tree, error) {
 	return loadTree(rootdir, cfgdir, nil)
 }
 
-func (tree *Tree) Rootdir() string {
+// RootDir is the configuration rootdir.
+func (tree *Tree) RootDir() string {
 	return tree.rootdir
 }
 
+// IsStack tells if the tree is a stack.
 func (tree *Tree) IsStack() bool {
 	return tree.Root.Stack != nil
 }
 
+// Stacks returns the stack nodes from the tree.
 func (tree *Tree) Stacks() []*Tree {
 	var stacks List
 	if tree.IsStack() {
@@ -113,6 +116,7 @@ func (tree *Tree) Stacks() []*Tree {
 	return stacks
 }
 
+// Lookup a node from the tree.
 func (tree *Tree) Lookup(path project.Path) (*Tree, bool) {
 	pathstr := path.String()
 	if len(pathstr) == 0 || pathstr[0] != '/' {
@@ -135,9 +139,10 @@ func (tree *Tree) Lookup(path project.Path) (*Tree, bool) {
 	return cfg, true
 }
 
-func (tree *Tree) StacksByRelPaths(base project.Path, paths ...string) List {
+// StacksByRelPaths returns the stacks from the provided relative paths.
+func (tree *Tree) StacksByRelPaths(base project.Path, relpaths ...string) List {
 	var stacks List
-	for _, p := range paths {
+	for _, p := range relpaths {
 		pathstr := path.Join(base.String(), p)
 		node, ok := tree.Lookup(project.NewPath(pathstr))
 		if !ok {
@@ -149,9 +154,10 @@ func (tree *Tree) StacksByRelPaths(base project.Path, paths ...string) List {
 	return stacks
 }
 
+// Sort the tree list.
 func (l List) Sort() {
 	sort.Slice(l, func(i, j int) bool {
-		return l[i].Rootdir() < l[j].Rootdir()
+		return l[i].RootDir() < l[j].RootDir()
 	})
 }
 
@@ -221,7 +227,7 @@ func (tree *Tree) IsEmptyConfig() bool {
 
 // IsStack returns true if the given directory is a stack, false otherwise.
 func IsStack(cfg *Tree, dir string) bool {
-	node, ok := cfg.Lookup(project.PrjAbsPath(cfg.Rootdir(), dir))
+	node, ok := cfg.Lookup(project.PrjAbsPath(cfg.RootDir(), dir))
 	return ok && node.IsStack()
 }
 

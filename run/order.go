@@ -35,7 +35,7 @@ func Sort(cfg *config.Tree, stacks stack.List) (stack.List, string, error) {
 
 	logger := log.With().
 		Str("action", "run.Sort()").
-		Str("root", cfg.Rootdir()).
+		Str("root", cfg.RootDir()).
 		Logger()
 
 	logger.Trace().Msg("Computes implicit hierarchical order.")
@@ -143,7 +143,7 @@ func BuildDAG(
 ) error {
 	logger := log.With().
 		Str("action", "BuildDAG()").
-		Str("path", cfg.Rootdir()).
+		Str("path", cfg.RootDir()).
 		Stringer("stack", s.Path()).
 		Logger()
 
@@ -158,7 +158,7 @@ func BuildDAG(
 		for _, pathstr := range paths {
 			var abspath string
 			if path.IsAbs(pathstr) {
-				abspath = filepath.Join(cfg.Rootdir(), filepath.FromSlash(pathstr))
+				abspath = filepath.Join(cfg.RootDir(), filepath.FromSlash(pathstr))
 			} else {
 				abspath = filepath.Join(s.HostPath(), filepath.FromSlash(pathstr))
 			}
@@ -200,7 +200,7 @@ func BuildDAG(
 	for _, s := range stacks {
 		logger = log.With().
 			Str("action", "BuildDAG()").
-			Str("path", cfg.Rootdir()).
+			Str("path", cfg.RootDir()).
 			Stringer("stack", s.Path()).
 			Logger()
 

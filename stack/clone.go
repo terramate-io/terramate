@@ -43,7 +43,7 @@ const (
 // - If cloned stack has an ID it will be adjusted to a generated UUID.
 // - If cloned stack has no ID the cloned stack also won't have an ID.
 func Clone(cfg *config.Tree, destdir, srcdir string) error {
-	rootdir := cfg.Rootdir()
+	rootdir := cfg.RootDir()
 	logger := log.With().
 		Str("action", "stack.Clone()").
 		Str("rootdir", rootdir).

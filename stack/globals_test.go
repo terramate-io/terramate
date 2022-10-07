@@ -1544,6 +1544,7 @@ func TestLoadGlobals(t *testing.T) {
 			cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
 			if err != nil {
 				errtest.AssertKind(t, err, tcase.wantErr)
+				return
 			}
 
 			stackEntries, err := terramate.ListStacks(cfg)

@@ -93,11 +93,11 @@ func (m *Manager) List() (*StacksReport, error) {
 		Stacks: entries,
 	}
 
-	logger.Trace().Str("repo", m.cfg.Rootdir()).
+	logger.Trace().Str("repo", m.cfg.RootDir()).
 		Msg("Create git wrapper for repo.")
 
 	g, err := git.WithConfig(git.Config{
-		WorkingDir: m.cfg.Rootdir(),
+		WorkingDir: m.cfg.RootDir(),
 	})
 	if err != nil {
 		return nil, errors.E(errList, err)
@@ -129,7 +129,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 	logger.Trace().Msg("Create git wrapper on project root.")
 
 	g, err := git.WithConfig(git.Config{
-		WorkingDir: m.cfg.Rootdir(),
+		WorkingDir: m.cfg.RootDir(),
 	})
 
 	if err != nil {
@@ -139,7 +139,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 	logger.Trace().Msg("Check if path is git repo.")
 
 	if !g.IsRepository() {
-		return nil, errors.E(errListChanged, "the path \"%s\" is not a git repository", m.cfg.Rootdir())
+		return nil, errors.E(errListChanged, "the path \"%s\" is not a git repository", m.cfg.RootDir())
 	}
 
 	checks, err := checkRepoIsClean(g)
@@ -149,7 +149,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 
 	logger.Debug().Msg("List changed files.")
 
-	changedFiles, err := listChangedFiles(m.cfg.Rootdir(), m.gitBaseRef)
+	changedFiles, err := listChangedFiles(m.cfg.RootDir(), m.gitBaseRef)
 	if err != nil {
 		return nil, errors.E(errListChanged, err)
 	}
@@ -165,9 +165,9 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 
 		logger.Trace().Msg("Get dir name.")
 
-		dirname := filepath.Dir(filepath.Join(m.cfg.Rootdir(), path))
+		dirname := filepath.Dir(filepath.Join(m.cfg.RootDir(), path))
 
-		if _, ok := stackSet[project.PrjAbsPath(m.cfg.Rootdir(), dirname)]; ok {
+		if _, ok := stackSet[project.PrjAbsPath(m.cfg.RootDir(), dirname)]; ok {
 			continue
 		}
 
@@ -175,7 +175,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 			Str("path", dirname).
 			Msg("Try load changed.")
 
-		cfgpath := project.PrjAbsPath(m.cfg.Rootdir(), dirname)
+		cfgpath := project.PrjAbsPath(m.cfg.RootDir(), dirname)
 		stackTree, found := m.cfg.Lookup(cfgpath)
 		if !found || !stackTree.IsStack() {
 			logger.Debug().
@@ -195,7 +195,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 			}
 		}
 
-		s, err := stack.New(m.cfg.Rootdir(), stackTree.Root)
+		s, err := stack.New(m.cfg.RootDir(), stackTree.Root)
 		if err != nil {
 			return nil, errors.E(errListChanged, err)
 		}

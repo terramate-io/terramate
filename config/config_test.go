@@ -71,13 +71,13 @@ func TestConfigLookup(t *testing.T) {
 
 	stacks := cfg.Stacks()
 	assert.EqualInts(t, 3, len(stacks))
-	assert.EqualStrings(t, "/stacks", project.PrjAbsPath(s.RootDir(), stacks[0].Rootdir()).String())
-	assert.EqualStrings(t, "/stacks/child", project.PrjAbsPath(s.RootDir(), stacks[1].Rootdir()).String())
-	assert.EqualStrings(t, "/stacks/child/non-stack/stack", project.PrjAbsPath(s.RootDir(), stacks[2].Rootdir()).String())
+	assert.EqualStrings(t, "/stacks", project.PrjAbsPath(s.RootDir(), stacks[0].RootDir()).String())
+	assert.EqualStrings(t, "/stacks/child", project.PrjAbsPath(s.RootDir(), stacks[1].RootDir()).String())
+	assert.EqualStrings(t, "/stacks/child/non-stack/stack", project.PrjAbsPath(s.RootDir(), stacks[2].RootDir()).String())
 }
 
 func isStack(cfg *config.Tree, dir string) bool {
-	return config.IsStack(cfg, filepath.Join(cfg.Rootdir(), dir))
+	return config.IsStack(cfg, filepath.Join(cfg.RootDir(), dir))
 }
 
 func init() {
