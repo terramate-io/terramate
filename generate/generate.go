@@ -798,14 +798,7 @@ func checkGeneratedFilesPaths(cfg *config.Tree, stackpath string, generated []ge
 				break
 			}
 
-			isStack := config.IsStack(cfg, destdir)
-			if err != nil {
-				errs.Append(errors.E(ErrInvalidGenBlockLabel, err,
-					"%s: %s: checking if dest dir is a child stack",
-					file.Origin(), file.Label()))
-				break
-			}
-			if isStack {
+			if config.IsStack(cfg, destdir) {
 				errs.Append(errors.E(ErrInvalidGenBlockLabel,
 					"%s: %s: generates code inside another stack %s",
 					file.Origin(), file.Label(),
