@@ -108,6 +108,13 @@ func MkdirAll(t *testing.T, path string) {
 	assert.NoError(t, os.MkdirAll(path, 0700), "failed to create temp directory")
 }
 
+// Symlink calls [os.Symlink] failing the test if there is an error.
+func Symlink(t *testing.T, oldname, newname string) {
+	t.Helper()
+
+	assert.NoError(t, os.Symlink(oldname, newname), "failed to create symlink")
+}
+
 // Getwd gets the current working dir of the process
 func Getwd(t *testing.T) string {
 	t.Helper()

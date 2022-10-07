@@ -830,93 +830,6 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 		},
-		{
-			// TODO(katcipis): define a proper behavior where
-			// directories are allowed but in a constrained fashion.
-			// This is a quick fix to avoid creating files on arbitrary
-			// places around the file system.
-			name: "generate HCL with dir separators on label name fails",
-			layout: []string{
-				"s:stacks/stack-1",
-				"s:stacks/stack-2",
-				"s:stacks/stack-3",
-				"s:stacks/stack-4",
-			},
-			configs: []hclconfig{
-				{
-					path: "/stacks/stack-1",
-					add: Doc(
-						GenerateHCL(
-							Labels("/name.tf"),
-							Content(
-								Block("something"),
-							),
-						),
-					),
-				},
-				{
-					path: "/stacks/stack-2",
-					add: Doc(
-						GenerateHCL(
-							Labels("./name.tf"),
-							Content(
-								Block("something"),
-							),
-						),
-					),
-				},
-				{
-					path: "/stacks/stack-3",
-					add: Doc(
-						GenerateHCL(
-							Labels("./dir/name.tf"),
-							Content(
-								Block("something"),
-							),
-						),
-					),
-				},
-				{
-					path: "/stacks/stack-4",
-					add: Doc(
-						GenerateHCL(
-							Labels("dir/name.tf"),
-							Content(
-								Block("something"),
-							),
-						),
-					),
-				},
-			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
-					{
-						Result: generate.Result{
-							Dir: "/stacks/stack-1",
-						},
-						Error: errors.E(generate.ErrInvalidFilePath),
-					},
-					{
-						Result: generate.Result{
-							Dir: "/stacks/stack-2",
-						},
-						Error: errors.E(generate.ErrInvalidFilePath),
-					},
-					{
-						Result: generate.Result{
-							Dir: "/stacks/stack-3",
-						},
-						Error: errors.E(generate.ErrInvalidFilePath),
-					},
-					{
-						Result: generate.Result{
-							Dir: "/stacks/stack-4",
-						},
-						Error: errors.E(generate.ErrInvalidFilePath),
-					},
-				},
-			},
-		},
 	})
 }
 
@@ -1099,15 +1012,15 @@ func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
 				Created: []string{"file1.tf", "file2.tf"},
 			},
 			{
+				Dir:     "/stack-2",
+				Created: []string{"file1.tf", "file2.tf"},
+			},
+			{
 				Dir:     "/stack/child",
 				Created: []string{"file1.tf", "file2.tf"},
 			},
 			{
 				Dir:     "/stack/child/grand",
-				Created: []string{"file1.tf", "file2.tf"},
-			},
-			{
-				Dir:     "/stack-2",
 				Created: []string{"file1.tf", "file2.tf"},
 			},
 		},
@@ -1124,8 +1037,8 @@ func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
 				Deleted: []string{"file1.tf", "file2.tf"},
 			},
 			{
-				Dir:     "/stack/child/grand",
-				Deleted: []string{"file1.tf", "file2.tf"},
+				Dir:     "/stack/child",
+				Deleted: []string{"grand/file1.tf", "grand/file2.tf"},
 			},
 		},
 	})

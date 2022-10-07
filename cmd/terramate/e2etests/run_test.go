@@ -1308,6 +1308,50 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 	})
 }
 
+func TestRunFailIfOrphanedGenCodeIsDetected(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.New(t)
+	s.CreateStack("stack")
+	orphanEntry := s.CreateStack("orphan")
+	orphanEntry.CreateFile("config.tm", GenerateHCL(
+		Labels("test.tf"),
+		Content(
+			Str("test", "test"),
+		),
+	).String())
+
+	tmcli := newCLI(t, s.RootDir())
+	assertRunResult(t, tmcli.run("generate"), runExpected{
+		IgnoreStdout: true,
+	})
+
+	git := s.Git()
+	git.CommitAll("generated code")
+
+	assertRunResult(t, tmcli.run(
+		"run",
+		testHelperBin,
+		"env",
+	), runExpected{
+		IgnoreStdout: true,
+	})
+
+	orphanEntry.RemoveFile("config.tm")
+	orphanEntry.DeleteStackConfig()
+
+	git.CommitAll("deleted stack")
+
+	assertRunResult(t, tmcli.run(
+		"run",
+		testHelperBin,
+		"env",
+	), runExpected{
+		Status:      defaultErrExitStatus,
+		StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
+	})
+}
+
 func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 	t.Parallel()
 
@@ -1331,16 +1375,16 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 	).String()
 	stack.CreateFile(generateFile, generateFileBody)
 
-	git.CommitAll("generating some code commit")
+	git.CommitAll("generated code")
 
 	tmcli := newCLI(t, s.RootDir())
-	cat := test.LookPath(t, "cat")
 
 	// check with --changed
 	assertRunResult(t, tmcli.run(
 		"run",
 		"--changed",
-		cat,
+		testHelperBin,
+		"cat",
 		generateFile,
 	), runExpected{
 		Status:      defaultErrExitStatus,
@@ -1350,7 +1394,8 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 	// check without --changed
 	assertRunResult(t, tmcli.run(
 		"run",
-		cat,
+		testHelperBin,
+		"cat",
 		generateFile,
 	), runExpected{
 		Status:      defaultErrExitStatus,
@@ -1364,7 +1409,8 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 			"run",
 			"--changed",
 			"--disable-check-gen-code",
-			cat,
+			testHelperBin,
+			"cat",
 			generateFile,
 		), runExpected{
 			Stdout: generateFileBody,
@@ -1373,7 +1419,8 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 		assertRunResult(t, tmcli.run(
 			"run",
 			"--disable-check-gen-code",
-			cat,
+			testHelperBin,
+			"cat",
 			generateFile,
 		), runExpected{
 			Stdout: generateFileBody,
@@ -1386,10 +1433,10 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 			"TM_DISABLE_CHECK_GEN_CODE=true",
 		}, os.Environ()...)
 
-		assertRunResult(t, tmcli.run("run", "--changed", cat, generateFile), runExpected{
+		assertRunResult(t, tmcli.run("run", "--changed", testHelperBin, "cat", generateFile), runExpected{
 			Stdout: generateFileBody,
 		})
-		assertRunResult(t, tmcli.run("run", cat, generateFile), runExpected{
+		assertRunResult(t, tmcli.run("run", testHelperBin, "cat", generateFile), runExpected{
 			Stdout: generateFileBody,
 		})
 	})
@@ -1410,14 +1457,13 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 		git.Add(rootConfig)
 		git.Commit("commit root config")
 
-		assertRunResult(t, tmcli.run("run", "--changed", cat, generateFile), runExpected{
+		assertRunResult(t, tmcli.run("run", "--changed", testHelperBin, "cat", generateFile), runExpected{
 			Stdout: generateFileBody,
 		})
-		assertRunResult(t, tmcli.run("run", cat, generateFile), runExpected{
+		assertRunResult(t, tmcli.run("run", testHelperBin, "cat", generateFile), runExpected{
 			Stdout: generateFileBody,
 		})
 	})
-
 }
 
 func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
