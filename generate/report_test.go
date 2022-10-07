@@ -329,7 +329,7 @@ func assertEqualReports(t *testing.T, got, want generate.Report) {
 
 	if diff := cmp.Diff(got.Successes, want.Successes); diff != "" {
 		t.Errorf("success results differs: got(-) want(+)")
-		t.Fatal(diff)
+		t.Error(diff)
 	}
 
 	assert.EqualInts(t,

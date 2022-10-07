@@ -82,7 +82,7 @@ type cliSpec struct {
 	Chdir         string   `short:"C" optional:"true" predictor:"file" help:"Sets working directory"`
 	GitChangeBase string   `short:"B" optional:"true" help:"Git base ref for computing changes"`
 	Changed       bool     `short:"c" optional:"true" help:"Filter by changed infrastructure"`
-	LogLevel      string   `optional:"true" default:"warn" enum:"trace,debug,info,warn,error,fatal" help:"Log level to use: 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
+	LogLevel      string   `optional:"true" default:"warn" enum:"disabled,trace,debug,info,warn,error,fatal" help:"Log level to use: 'disabled', 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
 	LogFmt        string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'"`
 
 	DisableCheckGitUntracked   bool `optional:"true" default:"false" help:"Disable git check for untracked files"`
@@ -1346,34 +1346,19 @@ func (c *cli) checkOutdatedGeneratedCode(stacks stack.List) {
 		return
 	}
 
-	logger.Trace().Msg("Checking if any stack has outdated code.")
-	projmeta := stack.NewProjectMetadata(c.root(), stacks)
+	logger.Trace().Msg("checking if any stack has outdated code")
 
-	hasOutdated := false
-	for _, stack := range stacks {
-		logger := logger.With().
-			Stringer("stack", stack).
-			Logger()
+	outdatedFiles, err := generate.Check(c.root())
 
-		logger.Trace().Msg("checking stack for outdated code")
+	fatalerr(logger, "failed to check outdated code on project", err)
 
-		outdated, err := generate.CheckStack(projmeta, stack)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("checking stack for outdated code")
-		}
-
-		if len(outdated) > 0 {
-			hasOutdated = true
-		}
-
-		for _, filename := range outdated {
-			logger.Error().
-				Str("filename", filename).
-				Msg("outdated code found")
-		}
+	for _, outdated := range outdatedFiles {
+		logger.Error().
+			Str("filename", outdated).
+			Msg("outdated code found")
 	}
 
-	if hasOutdated {
+	if len(outdatedFiles) > 0 {
 		logger.Fatal().
 			Err(errors.E(ErrOutdatedGenCodeDetected)).
 			Msg("please run: 'terramate generate' to update generated code")
@@ -1416,13 +1401,9 @@ func (c *cli) runOnStacks() {
 		logger.Fatal().Msgf("run expects a cmd")
 	}
 
-	allStackEntries, err := terramate.ListStacks(c.root())
+	allstacks, err := stack.LoadAll(c.root())
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to list all stacks")
-	}
-	allstacks := make(stack.List, len(allStackEntries))
-	for i, e := range allStackEntries {
-		allstacks[i] = e.Stack
 	}
 
 	c.checkOutdatedGeneratedCode(allstacks)
@@ -1727,4 +1708,23 @@ func configureLogging(logLevel string, logFmt string, output io.Writer) {
 	} else { // default: console mode using color
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: output, NoColor: false, TimeFormat: time.RFC3339})
 	}
+}
+
+func fatalerr(logger zerolog.Logger, msg string, err error) {
+	if err == nil {
+		return
+	}
+
+	var list *errors.List
+
+	if errors.As(err, &list) {
+		errs := list.Errors()
+		for _, err := range errs {
+			log.Err(err).Send()
+		}
+	} else {
+		log.Err(err).Send()
+	}
+
+	log.Fatal().Msg(msg)
 }
