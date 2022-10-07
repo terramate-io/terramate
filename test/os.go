@@ -109,7 +109,7 @@ func MkdirAll(t testing.TB, path string) {
 }
 
 // Symlink calls [os.Symlink] failing the test if there is an error.
-func Symlink(t *testing.T, oldname, newname string) {
+func Symlink(t testing.TB, oldname, newname string) {
 	t.Helper()
 
 	assert.NoError(t, os.Symlink(oldname, newname), "failed to create symlink")
