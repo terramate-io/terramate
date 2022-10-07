@@ -18,6 +18,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
@@ -49,6 +50,8 @@ type Tree struct {
 
 	rootdir string
 }
+
+type List []*Tree
 
 // TryLoadConfig try to load the Terramate configuration tree. It looks for the
 // the config in fromdir and all parent directories until / is reached.
@@ -97,13 +100,15 @@ func (tree *Tree) IsStack() bool {
 }
 
 func (tree *Tree) Stacks() []*Tree {
-	var stacks []*Tree
+	var stacks List
 	if tree.IsStack() {
 		stacks = append(stacks, tree)
 	}
 	for _, children := range tree.Children {
 		stacks = append(stacks, children.Stacks()...)
 	}
+
+	stacks.Sort()
 
 	return stacks
 }
@@ -118,6 +123,9 @@ func (tree *Tree) Lookup(path project.Path) (*Tree, bool) {
 	cfg := tree
 	parts = parts[1:] // ignore root cfg
 	for i := 0; i < len(parts); i++ {
+		if parts[i] == "" {
+			continue
+		}
 		node, found := cfg.Children[parts[i]]
 		if !found {
 			return nil, false
@@ -127,8 +135,8 @@ func (tree *Tree) Lookup(path project.Path) (*Tree, bool) {
 	return cfg, true
 }
 
-func (tree *Tree) StacksByRelPaths(base project.Path, paths ...string) []*Tree {
-	var stacks []*Tree
+func (tree *Tree) StacksByRelPaths(base project.Path, paths ...string) List {
+	var stacks List
 	for _, p := range paths {
 		pathstr := path.Join(base.String(), p)
 		node, ok := tree.Lookup(project.NewPath(pathstr))
@@ -137,7 +145,14 @@ func (tree *Tree) StacksByRelPaths(base project.Path, paths ...string) []*Tree {
 		}
 		stacks = append(stacks, node.Stacks()...)
 	}
+	stacks.Sort()
 	return stacks
+}
+
+func (l List) Sort() {
+	sort.Slice(l, func(i, j int) bool {
+		return l[i].Rootdir() < l[j].Rootdir()
+	})
 }
 
 func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error) {

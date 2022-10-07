@@ -868,7 +868,7 @@ func (c *cli) printRunEnv() {
 	projmeta := c.newProjectMetadata(report)
 
 	for _, stackEntry := range c.filterStacksByWorkingDir(report.Stacks) {
-		envVars, err := run.LoadEnv(projmeta, stackEntry.Stack)
+		envVars, err := run.LoadEnv(c.cfg(), projmeta, stackEntry.Stack)
 		if err != nil {
 			log.Fatal().Err(err).Msg("loading stack run environment")
 		}
@@ -1471,7 +1471,7 @@ func (c *cli) runOnStacks() {
 	logger.Info().Msg("Running on selected stacks")
 
 	err = run.Exec(
-		c.root(),
+		c.cfg(),
 		orderedStacks,
 		c.parsedArgs.Run.Command,
 		c.stdin,

@@ -212,11 +212,7 @@ func (s S) GenerateAt(path string) generate.Report {
 	t := s.t
 	t.Helper()
 
-	node, ok := s.Config().Lookup(project.NewPath(string(project.PrjAbsPath(s.RootDir(), path))))
-	if !ok {
-		panic("node not found") // todo(i4k)
-	}
-	report := generate.Do(node, path)
+	report := generate.Do(s.Config(), path)
 	for _, failure := range report.Failures {
 		t.Errorf("Generate unexpected failure: %v", failure)
 	}

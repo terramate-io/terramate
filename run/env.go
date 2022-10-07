@@ -17,8 +17,8 @@ package run
 import (
 	"os"
 
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
@@ -26,9 +26,6 @@ import (
 )
 
 const (
-	// ErrParsingCfg indicates that an error happened while parsing configuration.
-	ErrParsingCfg errors.Kind = "parsing terramate.config.run.env configuration"
-
 	// ErrLoadingGlobals indicates that an error happened while loading globals.
 	ErrLoadingGlobals errors.Kind = "loading globals to evaluate terramate.config.run.env configuration"
 
@@ -49,23 +46,16 @@ type EnvVars []string
 // LoadEnv will load environment variables to be exported when running any command
 // inside the given stack. The order of the env vars is guaranteed to be the same
 // and is ordered lexicographically.
-func LoadEnv(projmeta project.Metadata, st *stack.S) (EnvVars, error) {
+func LoadEnv(cfg *config.Tree, projmeta project.Metadata, st *stack.S) (EnvVars, error) {
 	logger := log.With().
 		Str("action", "run.Env()").
-		Str("root", projmeta.Rootdir()).
+		Str("root", cfg.Rootdir()).
 		Stringer("stack", st).
 		Logger()
 
-	logger.Trace().Msg("parsing configuration")
-
-	cfg, err := hcl.ParseDir(projmeta.Rootdir(), projmeta.Rootdir())
-	if err != nil {
-		return nil, errors.E(ErrParsingCfg, err)
-	}
-
 	logger.Trace().Msg("checking if we have run env config")
 
-	if !cfg.HasRunEnv() {
+	if !cfg.Root.HasRunEnv() {
 		logger.Trace().Msg("no run env config found, nothing to do")
 		return nil, nil
 	}
@@ -82,7 +72,7 @@ func LoadEnv(projmeta project.Metadata, st *stack.S) (EnvVars, error) {
 	evalctx.SetEnv(os.Environ())
 	envVars := EnvVars{}
 
-	attrs := cfg.Terramate.Config.Run.Env.Attributes.SortedList()
+	attrs := cfg.Root.Terramate.Config.Run.Env.Attributes.SortedList()
 
 	for _, attr := range attrs {
 		logger = logger.With().

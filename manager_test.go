@@ -154,6 +154,7 @@ func TestListChangedStacks(t *testing.T) {
 
 			repo := tc.repobuilder(t)
 			cfg, err := config.LoadTree(repo.Dir, repo.Dir)
+			assert.NoError(t, err)
 			m := terramate.NewManager(cfg, tc.baseRef)
 
 			report, err := m.ListChanged()
