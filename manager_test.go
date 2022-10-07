@@ -202,6 +202,7 @@ func TestListChangedStackReason(t *testing.T) {
 func assertStacks(
 	t *testing.T, want []string, got []terramate.Entry, wantReason bool,
 ) {
+	t.Helper()
 	assert.EqualInts(t, len(want), len(got), "wrong number of stacks: %+v", got)
 
 	for i := 0; i < len(want); i++ {

@@ -35,7 +35,7 @@ const (
 // NewGitWrapper tests the creation of a git wrapper and returns it if success.
 // The env is the list of environment variables to be passed to git but if nil
 // is provided then the complete os.Environ() is used.
-func NewGitWrapper(t *testing.T, wd string, env []string) *git.Git {
+func NewGitWrapper(t testing.TB, wd string, env []string) *git.Git {
 	t.Helper()
 
 	gw, err := git.WithConfig(git.Config{
@@ -53,7 +53,7 @@ func NewGitWrapper(t *testing.T, wd string, env []string) *git.Git {
 
 // EmptyRepo creates and initializes a git repository and checks for errors.
 // If bare is provided, the repository is for revisions (ie: for pushs)
-func EmptyRepo(t *testing.T, bare bool) string {
+func EmptyRepo(t testing.TB, bare bool) string {
 	t.Helper()
 
 	gw := NewGitWrapper(t, "", []string{})
@@ -71,7 +71,7 @@ func EmptyRepo(t *testing.T, bare bool) string {
 // to the local "bare" repository and push a initial main commit onto
 // origin/main. The working git repository is returned and the other is
 // automatically cleaned up when the test function finishes.
-func NewRepo(t *testing.T) string {
+func NewRepo(t testing.TB) string {
 	t.Helper()
 
 	repoDir := EmptyRepo(t, false)

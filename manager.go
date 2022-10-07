@@ -177,7 +177,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 
 		cfgpath := project.PrjAbsPath(m.cfg.Rootdir(), dirname)
 		stackTree, found := m.cfg.Lookup(cfgpath)
-		if !found {
+		if !found || !stackTree.IsStack() {
 			logger.Debug().
 				Str("path", dirname).
 				Msg("Lookup parent stack.")
@@ -186,11 +186,11 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 			for checkdir.String() != "/" {
 				checkdir = checkdir.Dir()
 				stackTree, found = m.cfg.Lookup(checkdir)
-				if !found {
+				if !found || !stackTree.IsStack() {
 					continue
 				}
 			}
-			if !found {
+			if !found || !stackTree.IsStack() {
 				continue
 			}
 		}
