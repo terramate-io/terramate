@@ -6,9 +6,12 @@ Terramate supports the generation of arbitrary text files referencing
 File generation is done using `generate_file`
 blocks in [Terramate configuration files](../config-overview.md).
 
-The block **must** have a single label, that will be used to determine the
-name of the generated file. Inside the block, the **`content`** attribute defines
-the string that will be written on the file.
+Each `generate_file` block requires a single label that is the path
+where the generated file will be saved.
+For more details about how code generation use labels check the [Labels Overview](overview.md#labels)) docs.
+
+Inside the block, the **`content`** attribute defines the string that will be
+written on the file.
 
 The value of the **`content`** attribute may include:
 

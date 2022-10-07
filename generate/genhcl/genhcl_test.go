@@ -1747,7 +1747,7 @@ func (tcase testcase) run(t *testing.T) {
 			assertHCLEquals(t, gotcode, wantcode)
 			assert.EqualStrings(t,
 				res.name,
-				gothcl.Name(),
+				gothcl.Label(),
 				"wrong name for generated code",
 			)
 			assert.EqualStrings(t,

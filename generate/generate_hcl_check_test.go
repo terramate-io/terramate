@@ -23,7 +23,102 @@ import (
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
-func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
+func TestCheckStackForGenHCLWithChildStacks(t *testing.T) {
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		"s:/stack",
+		"s:/stack/dir/child",
+	})
+
+	assertEqualStringList(t, s.CheckStack("stack"), []string{})
+	assertEqualStringList(t, s.CheckStack("stack/dir/child"), []string{})
+
+	stackEntry := s.DirEntry("stack")
+	stackEntry.CreateConfig(
+		Doc(
+			GenerateHCL(
+				Labels("test.tf"),
+				Content(
+					Terraform(
+						Str("required_version", "1.10"),
+					),
+				),
+			),
+			GenerateHCL(
+				Labels("dir/test.tf"),
+				Content(
+					Str("data", "data"),
+				),
+			),
+		).String())
+
+	assertEqualStringList(t, s.CheckStack("stack"), []string{
+		"dir/test.tf",
+		"test.tf",
+	})
+	assertEqualStringList(t, s.CheckStack("stack/dir/child"), []string{
+		"dir/test.tf",
+		"test.tf",
+	})
+
+	childEntry := s.DirEntry("stack/dir/child")
+	childEntry.CreateConfig(
+		Doc(
+			GenerateHCL(
+				Labels("another.tf"),
+				Content(
+					Terraform(
+						Str("required_version", "1.10"),
+					),
+				),
+			),
+			GenerateHCL(
+				Labels("another/test.tf"),
+				Content(
+					Str("data", "data"),
+				),
+			),
+		).String())
+
+	assertEqualStringList(t, s.CheckStack("stack"), []string{
+		"dir/test.tf",
+		"test.tf",
+	})
+	assertEqualStringList(t, s.CheckStack("stack/dir/child"), []string{
+		"another.tf",
+		"another/test.tf",
+		"dir/test.tf",
+		"test.tf",
+	})
+
+	s.Generate()
+
+	assertEqualStringList(t, s.CheckStack("stack"), []string{})
+	assertEqualStringList(t, s.CheckStack("stack/dir/child"), []string{})
+
+	// Removing configs makes all generated files outdated.
+	// Then the outdated files are removed by generate.
+	stackEntry.DeleteConfig()
+	childEntry.DeleteConfig()
+
+	assertEqualStringList(t, s.CheckStack("stack"), []string{
+		"dir/test.tf",
+		"test.tf",
+	})
+	assertEqualStringList(t, s.CheckStack("stack/dir/child"), []string{
+		"another.tf",
+		"another/test.tf",
+		"dir/test.tf",
+		"test.tf",
+	})
+
+	s.Generate()
+
+	assertEqualStringList(t, s.CheckStack("stack"), []string{})
+	assertEqualStringList(t, s.CheckStack("stack/dir/child"), []string{})
+}
+
+func TestCheckStackForGenHCL(t *testing.T) {
 	s := sandbox.New(t)
 
 	stackEntry := s.CreateStack("stacks/stack")
@@ -40,16 +135,30 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 	// Checking detection when there is no config generated yet
 	assertOutdatedFiles([]string{})
 	stackEntry.CreateConfig(
-		GenerateHCL(
-			Labels("test.tf"),
-			Content(
-				Terraform(
-					Str("required_version", "1.10"),
+		Doc(
+			GenerateHCL(
+				Labels("test.tf"),
+				Content(
+					Terraform(
+						Str("required_version", "1.10"),
+					),
+				),
+			),
+			GenerateHCL(
+				Labels("dir/test.tf"),
+				Content(
+					Str("data", "data"),
+				),
+			),
+			GenerateHCL(
+				Labels("dir/sub/test.tf"),
+				Content(
+					Str("data", "data"),
 				),
 			),
 		).String())
 
-	assertOutdatedFiles([]string{"test.tf"})
+	assertOutdatedFiles([]string{"dir/sub/test.tf", "dir/test.tf", "test.tf"})
 
 	s.Generate()
 
@@ -57,32 +166,62 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 
 	// Now checking when we have code + it gets outdated.
 	stackEntry.CreateConfig(
-		GenerateHCL(
-			Labels("test.tf"),
-			Content(
-				Terraform(
-					Str("required_version", "1.11"),
+		Doc(
+			GenerateHCL(
+				Labels("test.tf"),
+				Content(
+					Terraform(
+						Str("required_version", "1.11"),
+					),
+				),
+			),
+			GenerateHCL(
+				Labels("dir/test.tf"),
+				Content(
+					Str("data", "data"),
+				),
+			),
+			GenerateHCL(
+				Labels("dir/sub/test.tf"),
+				Content(
+					Str("data", "new data"),
 				),
 			),
 		).String())
 
-	assertOutdatedFiles([]string{"test.tf"})
+	assertOutdatedFiles([]string{"dir/sub/test.tf", "test.tf"})
 
 	s.Generate()
 
 	// Changing generated filenames will trigger detection,
 	// with new + old filenames.
 	stackEntry.CreateConfig(
-		GenerateHCL(
-			Labels("testnew.tf"),
-			Content(
-				Terraform(
-					Str("required_version", "1.11"),
+		Doc(
+			GenerateHCL(
+				Labels("testnew.tf"),
+				Content(
+					Terraform(
+						Str("required_version", "1.11"),
+					),
+				),
+			),
+			GenerateHCL(
+				Labels("dir/test.tf"),
+				Content(
+					Str("data", "data"),
+				),
+			),
+			GenerateHCL(
+				Labels("dir/sub/test.tf"),
+				Content(
+					Str("data", "new data"),
 				),
 			),
 		).String())
 
 	assertOutdatedFiles([]string{"test.tf", "testnew.tf"})
+
+	s.Generate()
 
 	// Adding new filename to generation trigger detection
 	stackEntry.CreateConfig(
@@ -96,6 +235,18 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 				),
 			),
 			GenerateHCL(
+				Labels("dir/test.tf"),
+				Content(
+					Str("data", "data"),
+				),
+			),
+			GenerateHCL(
+				Labels("dir/sub/test.tf"),
+				Content(
+					Str("data", "new data"),
+				),
+			),
+			GenerateHCL(
 				Labels("another.tf"),
 				Content(
 					Backend(
@@ -105,7 +256,7 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 			),
 		).String())
 
-	assertOutdatedFiles([]string{"another.tf", "test.tf", "testnew.tf"})
+	assertOutdatedFiles([]string{"another.tf"})
 
 	s.Generate()
 
@@ -114,7 +265,12 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedHCL(t *testing.T) {
 	// Detects configurations that have been removed.
 	stackEntry.DeleteConfig()
 
-	assertOutdatedFiles([]string{"another.tf", "testnew.tf"})
+	assertOutdatedFiles([]string{
+		"another.tf",
+		"dir/sub/test.tf",
+		"dir/test.tf",
+		"testnew.tf",
+	})
 
 	s.Generate()
 
