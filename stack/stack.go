@@ -16,13 +16,13 @@ package stack
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
@@ -229,11 +229,16 @@ func validateWatchPaths(rootdir string, stackpath string, paths []string) (proje
 	return projectPaths, nil
 }
 
-// LookupParent checks parent stack of given dir.
-// Returns false, nil if the given dir has no parent stack.
-func LookupParent(root, dir string) (*S, bool, error) {
-	l := NewLoader(root)
-	return l.lookupParentStack(dir)
+func TreeListToStackList(trees []*config.Tree) (List, error) {
+	var stacks List
+	for _, tree := range trees {
+		s, err := New(tree.Rootdir(), tree.Root)
+		if err != nil {
+			return List{}, err
+		}
+		stacks = append(stacks, s)
+	}
+	return stacks, nil
 }
 
 // NewProjectMetadata creates project metadata from a given rootdir and a list of stacks.
@@ -246,79 +251,56 @@ func NewProjectMetadata(rootdir string, stacks List) project.Metadata {
 }
 
 // LoadAll loads all stacks inside the given rootdir.
-func LoadAll(rootdir string) (List, error) {
+func LoadAll(cfg *config.Tree) (List, error) {
 	logger := log.With().
 		Str("action", "stack.LoadAll()").
-		Str("root", rootdir).
+		Str("root", cfg.Rootdir()).
 		Logger()
 
 	stacks := List{}
 	stacksIDs := map[string]*S{}
 
-	logger.Trace().Msg("Walk project root directory.")
-	err := filepath.Walk(rootdir,
-		func(path string, info fs.FileInfo, err error) error {
-			if err != nil {
-				return err
+	for _, stackNode := range cfg.Stacks() {
+		stack, err := New(cfg.Rootdir(), stackNode.Root)
+		if err != nil {
+			return List{}, err
+		}
+
+		logger := logger.With().
+			Stringer("stack", stack).
+			Logger()
+
+		logger.Debug().Msg("Found stack")
+		stacks = append(stacks, stack)
+
+		if id, ok := stack.ID(); ok {
+			logger.Trace().Msg("stack has ID, checking for duplicate")
+			if otherStack, ok := stacksIDs[id]; ok {
+				return List{}, errors.E(ErrDuplicatedID,
+					"stack %q and %q have same ID %q",
+					stack.Path(),
+					otherStack.Path(),
+					id,
+				)
 			}
-
-			if !info.IsDir() {
-				return nil
-			}
-
-			if info.IsDir() && info.Name() == ".git" {
-				return filepath.SkipDir
-			}
-
-			if strings.HasPrefix(info.Name(), ".") {
-				return filepath.SkipDir
-			}
-
-			logger.Trace().Str("stack", path).Msg("Try load stack")
-			stack, found, err := TryLoad(rootdir, path)
-			if err != nil {
-				return err
-			}
-
-			if !found {
-				return nil
-			}
-
-			logger := logger.With().
-				Stringer("stack", stack).
-				Logger()
-
-			logger.Debug().Msg("Found stack")
-			stacks = append(stacks, stack)
-
-			if id, ok := stack.ID(); ok {
-				logger.Trace().Msg("stack has ID, checking for duplicate")
-				if otherStack, ok := stacksIDs[id]; ok {
-					return errors.E(ErrDuplicatedID,
-						"stack %q and %q have same ID %q",
-						stack.Path(),
-						otherStack.Path(),
-						id,
-					)
-				}
-				stacksIDs[id] = stack
-			}
-
-			return nil
-		},
-	)
-
-	if err != nil {
-		return nil, errors.E("listing stacks", err)
+			stacksIDs[id] = stack
+		}
 	}
 
 	return stacks, nil
 }
 
 // Load a single stack from dir.
-func Load(root, dir string) (*S, error) {
-	l := NewLoader(root)
-	return l.Load(dir)
+func Load(cfg *config.Tree, dir string) (*S, error) {
+	path := project.PrjAbsPath(cfg.Rootdir(), dir)
+	node, ok := cfg.Lookup(path)
+	if !ok {
+		return nil, errors.E("config not found at %s", path)
+	}
+	if !node.IsStack() {
+		return nil, errors.E("config at %s is not a stack")
+	}
+	return New(cfg.Rootdir(), node.Root)
 }
 
 // TryLoad tries to load a single stack from dir. It sets found as true in case

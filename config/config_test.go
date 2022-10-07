@@ -20,6 +20,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
 )
@@ -32,18 +33,51 @@ func TestIsStack(t *testing.T) {
 		"d:/stack/subdir",
 	})
 
-	assert.IsTrue(t, !isStack(t, s.RootDir(), "/dir"))
-	assert.IsTrue(t, isStack(t, s.RootDir(), "/stack"))
-	assert.IsTrue(t, !isStack(t, s.RootDir(), "/stack/subdir"))
+	cfg := s.Config()
+	assert.IsTrue(t, !isStack(cfg, "/dir"))
+	assert.IsTrue(t, isStack(cfg, "/stack"))
+	assert.IsTrue(t, !isStack(cfg, "/stack/subdir"))
 }
 
-func isStack(t *testing.T, rootdir, dir string) bool {
-	t.Helper()
+func TestConfigLookup(t *testing.T) {
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		"d:/dir",
+		"s:/stacks",
+		"s:/stacks/child",
+		"s:/stacks/child/non-stack/stack",
+	})
 
-	res, err := config.IsStack(rootdir, filepath.Join(rootdir, dir))
-	assert.NoError(t, err)
+	cfg := s.Config()
+	node, found := cfg.Lookup("/dir")
+	assert.IsTrue(t, found)
+	assert.IsTrue(t, node.IsEmptyConfig())
 
-	return res
+	node, found = cfg.Lookup("/stacks")
+	assert.IsTrue(t, found && node.IsStack() && !node.IsEmptyConfig())
+
+	node, found = cfg.Lookup("/stacks/child")
+	assert.IsTrue(t, found && node.IsStack() && !node.IsEmptyConfig())
+
+	node, found = cfg.Lookup("/stacks/child/non-stack")
+	assert.IsTrue(t, found)
+	assert.IsTrue(t, node.IsEmptyConfig())
+
+	node, found = cfg.Lookup("/stacks/child/non-stack/stack")
+	assert.IsTrue(t, found && node.IsStack() && !node.IsEmptyConfig())
+
+	_, found = cfg.Lookup("/non-existant")
+	assert.IsTrue(t, !found)
+
+	stacks := cfg.Stacks()
+	assert.EqualInts(t, 3, len(stacks))
+	assert.EqualStrings(t, "/stacks", project.PrjAbsPath(s.RootDir(), stacks[0].Rootdir()).String())
+	assert.EqualStrings(t, "/stacks/child", project.PrjAbsPath(s.RootDir(), stacks[1].Rootdir()).String())
+	assert.EqualStrings(t, "/stacks/child/non-stack/stack", project.PrjAbsPath(s.RootDir(), stacks[2].Rootdir()).String())
+}
+
+func isStack(cfg *config.Tree, dir string) bool {
+	return config.IsStack(cfg, filepath.Join(cfg.Rootdir(), dir))
 }
 
 func init() {

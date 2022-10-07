@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/git"
 	"github.com/mineiros-io/terramate/project"
@@ -36,10 +37,8 @@ import (
 type (
 	// Manager is the terramate stacks manager.
 	Manager struct {
-		root       string // root is the project's root directory
-		gitBaseRef string // gitBaseRef is the git ref where we compare changes.
-
-		stackLoader stack.Loader
+		cfg        *config.Tree // whole config
+		gitBaseRef string       // gitBaseRef is the git ref where we compare changes.
 	}
 
 	// StacksReport is the report of project's stacks and the result of its
@@ -69,11 +68,10 @@ const errListChanged errors.Kind = "listing changed stacks error"
 
 // NewManager creates a new stack manager. The rootdir is the project's
 // directory and gitBaseRef is the git reference to compare against for changes.
-func NewManager(rootdir string, gitBaseRef string) *Manager {
+func NewManager(cfg *config.Tree, gitBaseRef string) *Manager {
 	return &Manager{
-		root:        rootdir,
-		gitBaseRef:  gitBaseRef,
-		stackLoader: stack.NewLoader(rootdir),
+		cfg:        cfg,
+		gitBaseRef: gitBaseRef,
 	}
 }
 
@@ -86,7 +84,7 @@ func (m *Manager) List() (*StacksReport, error) {
 
 	logger.Debug().Msg("List stacks.")
 
-	entries, err := ListStacks(m.root)
+	entries, err := ListStacks(m.cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -95,10 +93,11 @@ func (m *Manager) List() (*StacksReport, error) {
 		Stacks: entries,
 	}
 
-	logger.Trace().Str("repo", m.root).Msg("Create git wrapper for repo.")
+	logger.Trace().Str("repo", m.cfg.Rootdir()).
+		Msg("Create git wrapper for repo.")
 
 	g, err := git.WithConfig(git.Config{
-		WorkingDir: m.root,
+		WorkingDir: m.cfg.Rootdir(),
 	})
 	if err != nil {
 		return nil, errors.E(errList, err)
@@ -130,7 +129,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 	logger.Trace().Msg("Create git wrapper on project root.")
 
 	g, err := git.WithConfig(git.Config{
-		WorkingDir: m.root,
+		WorkingDir: m.cfg.Rootdir(),
 	})
 
 	if err != nil {
@@ -140,7 +139,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 	logger.Trace().Msg("Check if path is git repo.")
 
 	if !g.IsRepository() {
-		return nil, errors.E(errListChanged, "the path \"%s\" is not a git repository", m.root)
+		return nil, errors.E(errListChanged, "the path \"%s\" is not a git repository", m.cfg.Rootdir())
 	}
 
 	checks, err := checkRepoIsClean(g)
@@ -150,48 +149,55 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 
 	logger.Debug().Msg("List changed files.")
 
-	changedFiles, err := listChangedFiles(m.root, m.gitBaseRef)
+	changedFiles, err := listChangedFiles(m.cfg.Rootdir(), m.gitBaseRef)
 	if err != nil {
 		return nil, errors.E(errListChanged, err)
 	}
 
 	stackSet := map[project.Path]Entry{}
 
-	logger.Trace().
-		Msg("Range over files.")
+	logger.Trace().Msg("Range over files.")
+
 	for _, path := range changedFiles {
 		if strings.HasPrefix(path, ".") {
 			continue
 		}
 
-		logger.Trace().
-			Msg("Get dir name.")
-		dirname := filepath.Dir(filepath.Join(m.root, path))
+		logger.Trace().Msg("Get dir name.")
 
-		if _, ok := stackSet[project.PrjAbsPath(m.root, dirname)]; ok {
+		dirname := filepath.Dir(filepath.Join(m.cfg.Rootdir(), path))
+
+		if _, ok := stackSet[project.PrjAbsPath(m.cfg.Rootdir(), dirname)]; ok {
 			continue
 		}
 
 		logger.Debug().
 			Str("path", dirname).
 			Msg("Try load changed.")
-		s, found, err := m.stackLoader.TryLoadChanged(m.root, dirname)
-		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return nil, errors.E(errListChanged, err)
-		}
 
+		cfgpath := project.PrjAbsPath(m.cfg.Rootdir(), dirname)
+		stackTree, found := m.cfg.Lookup(cfgpath)
 		if !found {
 			logger.Debug().
 				Str("path", dirname).
 				Msg("Lookup parent stack.")
-			s, found, err = stack.LookupParent(m.root, dirname)
-			if err != nil {
-				return nil, errors.E(errListChanged, err)
-			}
 
+			checkdir := cfgpath
+			for checkdir.String() != "/" {
+				checkdir = checkdir.Dir()
+				stackTree, found = m.cfg.Lookup(checkdir)
+				if !found {
+					continue
+				}
+			}
 			if !found {
 				continue
 			}
+		}
+
+		s, err := stack.New(m.cfg.Rootdir(), stackTree.Root)
+		if err != nil {
+			return nil, errors.E(errListChanged, err)
 		}
 
 		stackSet[s.Path()] = Entry{
@@ -202,7 +208,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 
 	logger.Debug().Msg("Get list of all stacks.")
 
-	allstacks, err := ListStacks(m.root)
+	allstacks, err := ListStacks(m.cfg)
 	if err != nil {
 		return nil, errors.E(errListChanged, "searching for stacks", err)
 	}
@@ -327,9 +333,8 @@ func (m *Manager) AddWantedOf(scopeStacks stack.List) (stack.List, error) {
 		Logger()
 
 	wantsDag := dag.New()
-	loader := stack.NewLoader(m.root)
 
-	allstacks, err := stack.LoadAll(m.root)
+	allstacks, err := stack.LoadAll(m.cfg)
 	if err != nil {
 		return nil, errors.E(err, "loading all stacks")
 	}
@@ -337,17 +342,14 @@ func (m *Manager) AddWantedOf(scopeStacks stack.List) (stack.List, error) {
 	visited := dag.Visited{}
 	sort.Sort(allstacks)
 	for _, s := range allstacks {
-		loader.Set(s.Path(), s)
-
 		logger.Trace().
 			Stringer("stack", s.Path()).
 			Msg("Building dag")
 
 		err := run.BuildDAG(
 			wantsDag,
-			m.root,
+			m.cfg,
 			s,
-			loader,
 			stack.S.WantedBy,
 			stack.S.Wants,
 			visited,

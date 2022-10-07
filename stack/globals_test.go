@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
@@ -1540,13 +1541,15 @@ func TestLoadGlobals(t *testing.T) {
 
 			wantGlobals := tcase.want
 
-			stackEntries, err := terramate.ListStacks(s.RootDir())
+			cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
 			if err != nil {
 				errtest.AssertKind(t, err, tcase.wantErr)
 			}
 
-			var stacks stack.List
+			stackEntries, err := terramate.ListStacks(cfg)
+			assert.NoError(t, err)
 
+			var stacks stack.List
 			for _, entry := range stackEntries {
 				st := entry.Stack
 				stacks = append(stacks, st)
@@ -1736,7 +1739,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 				test.AppendFile(t, path, config.DefaultFilename, c.body)
 			}
 
-			stacks, err := stack.LoadAll(s.RootDir())
+			stacks, err := stack.LoadAll(s.Config())
 			// TODO(i4k): this better not be tested here.
 			if errors.IsKind(tcase.want, hcl.ErrHCLSyntax) {
 				errtest.AssertKind(t, err, tcase.want)

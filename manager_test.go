@@ -22,6 +22,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 )
@@ -152,7 +153,8 @@ func TestListChangedStacks(t *testing.T) {
 			}
 
 			repo := tc.repobuilder(t)
-			m := terramate.NewManager(repo.Dir, tc.baseRef)
+			cfg, err := config.LoadTree(repo.Dir, repo.Dir)
+			m := terramate.NewManager(cfg, tc.baseRef)
 
 			report, err := m.ListChanged()
 			assert.EqualErrs(t, tc.want.err, err, "ListChanged() error")
@@ -172,7 +174,7 @@ func TestListChangedStacks(t *testing.T) {
 func TestListChangedStackReason(t *testing.T) {
 	repo := singleNotMergedCommitBranch(t)
 
-	m := newManager(repo.Dir)
+	m := newManager(t, repo.Dir)
 	report, err := m.ListChanged()
 	assert.NoError(t, err, "unexpected error")
 
@@ -183,7 +185,7 @@ func TestListChangedStackReason(t *testing.T) {
 
 	repo = singleStackDependentModuleChangedRepo(t)
 
-	m = newManager(repo.Dir)
+	m = newManager(t, repo.Dir)
 	report, err = m.ListChanged()
 	assert.NoError(t, err, "unexpected error")
 
@@ -539,6 +541,8 @@ module "module2" {
 	return repo
 }
 
-func newManager(basedir string) *terramate.Manager {
-	return terramate.NewManager(basedir, defaultBranch)
+func newManager(t *testing.T, basedir string) *terramate.Manager {
+	cfg, err := config.LoadTree(basedir, basedir)
+	assert.NoError(t, err)
+	return terramate.NewManager(cfg, defaultBranch)
 }

@@ -648,7 +648,7 @@ func (c Config) AbsDir() string { return c.absdir }
 
 // IsEmpty returns true if the config is empty, false otherwise.
 func (c Config) IsEmpty() bool {
-	return c.Stack == nil && c.Terramate == nil
+	return c.Stack == nil && c.Terramate == nil && c.Vendor == nil && len(c.Asserts) == 0
 }
 
 // Save the configuration file using filename inside config directory.

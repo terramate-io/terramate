@@ -16,10 +16,13 @@ package config
 
 import (
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
 )
 
@@ -39,7 +42,7 @@ type Tree struct {
 	Root hcl.Config
 
 	// Children is a map of configuration dir names to tree nodes.
-	Children map[string]Tree
+	Children map[string]*Tree
 
 	// Parent is the parent node or nil if none.
 	Parent *Tree
@@ -50,7 +53,7 @@ type Tree struct {
 // TryLoadConfig try to load the Terramate configuration tree. It looks for the
 // the config in fromdir and all parent directories until / is reached.
 // If the configuration is found, it returns configpath != "" and found as true.
-func TryLoadConfig(fromdir string) (tree Tree, configpath string, found bool, err error) {
+func TryLoadConfig(fromdir string) (tree *Tree, configpath string, found bool, err error) {
 	for {
 		logger := log.With().
 			Str("action", "config.TryLoadConfig()").
@@ -65,7 +68,7 @@ func TryLoadConfig(fromdir string) (tree Tree, configpath string, found bool, er
 			// As we are looking for the rootdir, we should ignore ErrImport
 			// errors.
 			if !errors.IsKind(err, hcl.ErrImport) {
-				return Tree{}, "", false, err
+				return nil, "", false, err
 			}
 		} else if cfg.Terramate != nil && cfg.Terramate.Config != nil {
 			tree, err := loadTree(fromdir, fromdir, &cfg)
@@ -78,42 +81,92 @@ func TryLoadConfig(fromdir string) (tree Tree, configpath string, found bool, er
 		}
 		fromdir = parent
 	}
-	return Tree{}, "", false, nil
+	return nil, "", false, nil
 }
 
-func LoadTree(rootdir string, cfgdir string) (Tree, error) {
+func LoadTree(rootdir string, cfgdir string) (*Tree, error) {
 	return loadTree(rootdir, cfgdir, nil)
 }
 
-func (tree Tree) Rootdir() string { return tree.rootdir }
+func (tree *Tree) Rootdir() string {
+	return tree.rootdir
+}
 
-func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (Tree, error) {
+func (tree *Tree) IsStack() bool {
+	return tree.Root.Stack != nil
+}
+
+func (tree *Tree) Stacks() []*Tree {
+	var stacks []*Tree
+	if tree.IsStack() {
+		stacks = append(stacks, tree)
+	}
+	for _, children := range tree.Children {
+		stacks = append(stacks, children.Stacks()...)
+	}
+
+	return stacks
+}
+
+func (tree *Tree) Lookup(path project.Path) (*Tree, bool) {
+	pathstr := path.String()
+	if len(pathstr) == 0 || pathstr[0] != '/' {
+		return nil, false
+	}
+
+	parts := strings.Split(pathstr, "/")
+	cfg := tree
+	parts = parts[1:] // ignore root cfg
+	for i := 0; i < len(parts); i++ {
+		node, found := cfg.Children[parts[i]]
+		if !found {
+			return nil, false
+		}
+		cfg = node
+	}
+	return cfg, true
+}
+
+func (tree *Tree) StacksByRelPaths(base project.Path, paths ...string) []*Tree {
+	var stacks []*Tree
+	for _, p := range paths {
+		pathstr := path.Join(base.String(), p)
+		node, ok := tree.Lookup(project.NewPath(pathstr))
+		if !ok {
+			continue
+		}
+		stacks = append(stacks, node.Stacks()...)
+	}
+	return stacks
+}
+
+func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error) {
 	logger := log.With().
 		Str("action", "config.LoadTree()").
 		Str("dir", rootdir).
 		Logger()
 
-	tree := newTree(cfgdir)
+	tree := NewTree(cfgdir)
 	if rootcfg != nil {
 		tree.Root = *rootcfg
 	} else {
 		cfg, err := hcl.ParseDir(rootdir, cfgdir)
 		if err != nil {
-			return Tree{}, err
+			return nil, err
 		}
 		tree.Root = cfg
 	}
 
 	f, err := os.Open(cfgdir)
 	if err != nil {
-		return Tree{}, errors.E(err, "failed to open rootdir directory")
+		return nil, errors.E(err, "failed to open rootdir directory")
 	}
 
 	logger.Trace().Msg("reading directory file names")
 
 	names, err := f.Readdirnames(0)
 	if err != nil {
-		return Tree{}, errors.E(err, "failed to read files in %s", rootdir)
+		return nil, errors.E(err, "failed to read files in %s", rootdir)
 	}
 	for _, name := range names {
 		logger = logger.With().
@@ -127,7 +180,7 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (Tree, error) 
 		fname := filepath.Join(cfgdir, name)
 		st, err := os.Lstat(fname)
 		if err != nil {
-			return Tree{}, errors.E(err, "failed to stat %s", fname)
+			return nil, errors.E(err, "failed to stat %s", fname)
 		}
 		if !st.IsDir() {
 			logger.Trace().Msg("ignoring non-directory file")
@@ -138,35 +191,29 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (Tree, error) 
 
 		node, err := LoadTree(rootdir, fname)
 		if err != nil {
-			return Tree{}, errors.E(err, "failed to load config from %s", fname)
+			return nil, errors.E(err, "failed to load config from %s", fname)
 		}
 
-		node.Parent = &tree
+		node.Parent = tree
 		tree.Children[name] = node
 	}
 	return tree, nil
 }
 
-// IsStack returns true if the given directory is a stack, false otherwise.
-func IsStack(rootdir, dir string) (bool, error) {
-	logger := log.With().
-		Str("action", "config.IsStack()").
-		Str("rootdir", rootdir).
-		Str("dir", rootdir).
-		Logger()
-
-	cfg, err := hcl.ParseDir(rootdir, dir)
-	if err != nil {
-		logger.Trace().Err(err).Msg("unable to parse config, not a stack")
-		return false, err
-	}
-	return cfg.Stack != nil, nil
+func (tree *Tree) IsEmptyConfig() bool {
+	return tree.Root.IsEmpty()
 }
 
-func newTree(cfgdir string) Tree {
-	return Tree{
+// IsStack returns true if the given directory is a stack, false otherwise.
+func IsStack(cfg *Tree, dir string) bool {
+	node, ok := cfg.Lookup(project.PrjAbsPath(cfg.Rootdir(), dir))
+	return ok && node.IsStack()
+}
+
+func NewTree(cfgdir string) *Tree {
+	return &Tree{
 		rootdir:  cfgdir,
-		Children: make(map[string]Tree),
+		Children: make(map[string]*Tree),
 	}
 }
 

@@ -127,7 +127,7 @@ func TestCheckStackForGenHCL(t *testing.T) {
 	assertOutdatedFiles := func(want []string) {
 		t.Helper()
 
-		got, err := generate.CheckStack(s.LoadProjectMetadata(), stack)
+		got, err := generate.CheckStack(s.Config(), s.LoadProjectMetadata(), stack)
 		assert.NoError(t, err)
 		assertEqualStringList(t, got, want)
 	}
@@ -286,7 +286,7 @@ func TestCheckOutdatedDetectsEmptyGenerateHCLBlocks(t *testing.T) {
 	assertOutdatedFiles := func(want []string) {
 		t.Helper()
 
-		got, err := generate.CheckStack(s.LoadProjectMetadata(), stack)
+		got, err := generate.CheckStack(s.Config(), s.LoadProjectMetadata(), stack)
 		assert.NoError(t, err)
 		assertEqualStringList(t, got, want)
 	}
@@ -336,7 +336,7 @@ func TestCheckOutdatedIgnoresWhenGenHCLConditionIsFalse(t *testing.T) {
 	assertOutdatedFiles := func(want []string) {
 		t.Helper()
 
-		got, err := generate.CheckStack(s.LoadProjectMetadata(), stack)
+		got, err := generate.CheckStack(s.Config(), s.LoadProjectMetadata(), stack)
 		assert.NoError(t, err)
 		assertEqualStringList(t, got, want)
 	}

@@ -582,7 +582,7 @@ func (c *cli) cloneStack() {
 	srcdir := filepath.Join(c.wd(), srcstack)
 	destdir := filepath.Join(c.wd(), deststack)
 
-	if err := stack.Clone(c.root(), destdir, srcdir); err != nil {
+	if err := stack.Clone(c.cfg(), destdir, srcdir); err != nil {
 		logger.Fatal().Err(err).Msg("cloning stack")
 	}
 
@@ -593,7 +593,7 @@ func (c *cli) cloneStack() {
 }
 
 func (c *cli) generate(workdir string) {
-	report := generate.Do(c.root(), workdir)
+	report := generate.Do(&c.prj.cfg, workdir)
 	c.log(report.String())
 
 	if report.HasFailures() {
@@ -806,7 +806,7 @@ func (c *cli) printStacks() {
 	logger.Trace().
 		Str("workingDir", c.wd()).
 		Msg("Create a new stack manager.")
-	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+	mgr := terramate.NewManager(c.cfg(), c.prj.baseRef)
 
 	logger.Trace().
 		Str("workingDir", c.wd()).
@@ -857,7 +857,7 @@ func (c *cli) printRunEnv() {
 		Str("workingDir", c.wd()).
 		Logger()
 
-	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+	mgr := terramate.NewManager(c.cfg(), c.prj.baseRef)
 	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		logger.Fatal().
@@ -905,7 +905,7 @@ func (c *cli) generateGraph() {
 			Msg("-label expects the values \"stack.name\" or \"stack.dir\"")
 	}
 
-	entries, err := terramate.ListStacks(c.root())
+	entries, err := terramate.ListStacks(c.cfg())
 	if err != nil {
 		logger.Fatal().
 			Err(err).
@@ -914,7 +914,6 @@ func (c *cli) generateGraph() {
 
 	logger.Debug().Msg("Create new graph.")
 
-	loader := stack.NewLoader(c.root())
 	dotGraph := dot.NewGraph(dot.Directed)
 	graph := dag.New()
 
@@ -926,9 +925,8 @@ func (c *cli) generateGraph() {
 
 		if err := run.BuildDAG(
 			graph,
-			c.root(),
+			c.cfg(),
 			e.Stack,
-			loader,
 			stack.S.Before,
 			stack.S.After,
 			visited,
@@ -1044,7 +1042,7 @@ func (c *cli) printRunOrder() {
 	}
 
 	logger.Debug().Msg("Get run order.")
-	orderedStacks, reason, err := run.Sort(c.root(), stacks)
+	orderedStacks, reason, err := run.Sort(c.cfg(), stacks)
 	if err != nil {
 		if errors.IsKind(err, dag.ErrCycleDetected) {
 			log.Fatal().
@@ -1071,7 +1069,7 @@ func (c *cli) printStacksGlobals() {
 	logger.Trace().
 		Msg("Create new terramate manager.")
 
-	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+	mgr := terramate.NewManager(c.cfg(), c.prj.baseRef)
 	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		logger.Fatal().
@@ -1111,7 +1109,7 @@ func (c *cli) printMetadata() {
 	logger.Trace().
 		Msg("Create new terramate manager.")
 
-	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+	mgr := terramate.NewManager(c.cfg(), c.prj.baseRef)
 	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		logger.Fatal().
@@ -1310,14 +1308,14 @@ func (c *cli) setupEvalContext() *eval.Context {
 		logger.Fatal().Err(err).Send()
 	}
 
-	allstacks, err := stack.LoadAll(c.root())
+	allstacks, err := stack.LoadAll(c.cfg())
 	if err != nil {
 		logger.Fatal().Err(err).Msg("listing all stacks")
 	}
 
 	projmeta := stack.NewProjectMetadata(c.root(), allstacks)
-	if isStack, _ := config.IsStack(c.root(), c.wd()); isStack {
-		st, err := stack.Load(c.root(), c.wd())
+	if config.IsStack(c.cfg(), c.wd()) {
+		st, err := stack.Load(c.cfg(), c.wd())
 		if err != nil {
 			logger.Fatal().Err(err).Msg("loading stack config")
 		}
@@ -1346,7 +1344,7 @@ func (c *cli) checkOutdatedGeneratedCode(stacks stack.List) {
 
 	logger.Trace().Msg("checking if any stack has outdated code")
 
-	outdatedFiles, err := generate.Check(c.root())
+	outdatedFiles, err := generate.Check(c.cfg())
 
 	fatalerr(logger, "failed to check outdated code on project", err)
 
@@ -1399,7 +1397,7 @@ func (c *cli) runOnStacks() {
 		logger.Fatal().Msgf("run expects a cmd")
 	}
 
-	allstacks, err := stack.LoadAll(c.root())
+	allstacks, err := stack.LoadAll(c.cfg())
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to list all stacks")
 	}
@@ -1434,7 +1432,7 @@ func (c *cli) runOnStacks() {
 
 	logger.Trace().Msg("Get order of stacks to run command on.")
 
-	orderedStacks, reason, err := run.Sort(c.root(), stacks)
+	orderedStacks, reason, err := run.Sort(c.cfg(), stacks)
 	if err != nil {
 		if errors.IsKind(err, dag.ErrCycleDetected) {
 			logger.Fatal().
@@ -1498,8 +1496,9 @@ func (c *cli) runOnStacks() {
 	}
 }
 
-func (c *cli) wd() string   { return c.prj.wd }
-func (c *cli) root() string { return c.prj.root }
+func (c *cli) wd() string        { return c.prj.wd }
+func (c *cli) root() string      { return c.prj.root }
+func (c *cli) cfg() *config.Tree { return &c.prj.cfg }
 
 func (c *cli) log(format string, args ...interface{}) {
 	fmt.Fprintln(c.stdout, fmt.Sprintf(format, args...))
@@ -1517,7 +1516,7 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (stack.List, error) {
 
 	logger.Trace().Msg("Create new terramate manager.")
 
-	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
+	mgr := terramate.NewManager(c.cfg(), c.prj.baseRef)
 
 	logger.Trace().Msg("Get list of stacks.")
 
@@ -1671,7 +1670,7 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 			}
 
 			prj.isRepo = true
-			prj.cfg = cfg
+			prj.cfg = *cfg
 			prj.root = rootdir
 			prj.git.wrapper = gw
 
@@ -1684,7 +1683,7 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 	}
 
 	prj.root = rootCfgPath
-	prj.cfg = rootcfg
+	prj.cfg = *rootcfg
 	return prj, true, nil
 
 }

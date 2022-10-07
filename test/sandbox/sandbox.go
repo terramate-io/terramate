@@ -49,6 +49,7 @@ type S struct {
 	t       *testing.T
 	git     *Git
 	rootdir string
+	cfg     *config.Tree
 }
 
 // DirEntry represents a directory and can be used to create files inside the
@@ -183,7 +184,7 @@ func (s S) BuildTree(layout []string) {
 func (s S) CheckStack(relpath string) []string {
 	s.t.Helper()
 
-	res, err := generate.CheckStack(s.LoadProjectMetadata(), s.LoadStack(relpath))
+	res, err := generate.CheckStack(s.Config(), s.LoadProjectMetadata(), s.LoadStack(relpath))
 	assert.NoError(s.t, err, "generate.CheckStack failed for stack %s", relpath)
 	return res
 }
@@ -211,7 +212,11 @@ func (s S) GenerateAt(path string) generate.Report {
 	t := s.t
 	t.Helper()
 
-	report := generate.Do(path, path)
+	node, ok := s.Config().Lookup(project.NewPath(path))
+	if !ok {
+		panic("node not found") // todo(i4k)
+	}
+	report := generate.Do(node, path)
 	for _, failure := range report.Failures {
 		t.Errorf("Generate unexpected failure: %v", failure)
 	}
@@ -222,7 +227,7 @@ func (s S) GenerateAt(path string) generate.Report {
 func (s S) LoadStack(relpath string) *stack.S {
 	s.t.Helper()
 
-	st, err := stack.Load(s.rootdir, filepath.Join(s.rootdir, relpath))
+	st, err := stack.Load(s.Config(), filepath.Join(s.rootdir, relpath))
 	assert.NoError(s.t, err)
 
 	return st
@@ -232,7 +237,7 @@ func (s S) LoadStack(relpath string) *stack.S {
 func (s S) LoadStacks() stack.List {
 	s.t.Helper()
 
-	entries, err := terramate.ListStacks(s.rootdir)
+	entries, err := terramate.ListStacks(s.Config())
 	assert.NoError(s.t, err)
 
 	var stacks stack.List
@@ -267,6 +272,17 @@ func (s S) LoadStackGlobals(projmeta project.Metadata, sm stack.Metadata) global
 // removed when the test finishes.
 func (s S) RootDir() string {
 	return s.rootdir
+}
+
+func (s *S) Config() *config.Tree {
+	s.t.Helper()
+	if s.cfg != nil {
+		return s.cfg
+	}
+	cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+	assert.NoError(s.t, err)
+	s.cfg = cfg
+	return cfg
 }
 
 // RootEntry returns a DirEntry for the root directory of the test env.
@@ -371,7 +387,8 @@ func (de DirEntry) CreateFile(name, body string, args ...interface{}) FileEntry 
 func (de DirEntry) ListGenFiles() []string {
 	de.t.Helper()
 
-	files, err := generate.ListGenFiles(de.rootpath, de.abspath)
+	cfg := config.NewTree(de.rootpath)
+	files, err := generate.ListGenFiles(cfg, de.abspath)
 	assert.NoError(de.t, err, "listing dir generated files")
 	return files
 }
@@ -509,7 +526,8 @@ func (se StackEntry) ReadFile(filename string) string {
 func (se StackEntry) Load() *stack.S {
 	se.t.Helper()
 
-	loadedStack, err := stack.Load(se.rootpath, se.Path())
+	cfg := config.NewTree(se.rootpath)
+	loadedStack, err := stack.Load(cfg, se.Path())
 	assert.NoError(se.t, err)
 	return loadedStack
 }
