@@ -46,7 +46,7 @@ import (
 // S is a full sandbox with its own base dir that is an initialized git repo for
 // test purposes.
 type S struct {
-	t       *testing.T
+	t       testing.TB
 	git     *Git
 	rootdir string
 }
@@ -54,7 +54,7 @@ type S struct {
 // DirEntry represents a directory and can be used to create files inside the
 // directory.
 type DirEntry struct {
-	t        *testing.T
+	t        testing.TB
 	rootpath string
 	abspath  string
 	relpath  string
@@ -71,7 +71,7 @@ type StackEntry struct {
 // (io.Reader/io.Writer).
 // It has limited usefulness but it is easier to work with for testing.
 type FileEntry struct {
-	t        *testing.T
+	t        testing.TB
 	hostpath string
 	rootpath string
 }
@@ -79,10 +79,10 @@ type FileEntry struct {
 // New creates a new complete test sandbox.
 // The git repository is set up with sane defaults.
 //
-// It is a programming error to use a test env created with a *testing.T other
+// It is a programming error to use a test env created with a testing.TB other
 // than the one of the test using the test env, for a new test/sub-test always
 // create a new test env for it.
-func New(t *testing.T) S {
+func New(t testing.TB) S {
 	s := NoGit(t)
 
 	s.git = NewGit(t, s.RootDir())
@@ -92,7 +92,7 @@ func New(t *testing.T) S {
 
 // NewWithGitConfig creates a new sandbox using the cfg configuration for the
 // git repository.
-func NewWithGitConfig(t *testing.T, cfg GitConfig) S {
+func NewWithGitConfig(t testing.TB, cfg GitConfig) S {
 	s := NoGit(t)
 
 	cfg.repoDir = s.RootDir()
@@ -104,10 +104,10 @@ func NewWithGitConfig(t *testing.T, cfg GitConfig) S {
 
 // NoGit creates a new test sandbox with no git repository.
 //
-// It is a programming error to use a test env created with a *testing.T other
+// It is a programming error to use a test env created with a testing.TB other
 // than the one of the test using the test env, for a new test/sub-test always
 // create a new test env for it.
-func NoGit(t *testing.T) S {
+func NoGit(t testing.TB) S {
 	t.Helper()
 
 	// here we create some stacks outside the root directory of the
@@ -492,7 +492,7 @@ func (se StackEntry) RelPath() string {
 	return se.DirEntry.relpath
 }
 
-func newDirEntry(t *testing.T, rootdir string, relpath string) DirEntry {
+func newDirEntry(t testing.TB, rootdir string, relpath string) DirEntry {
 	t.Helper()
 
 	abspath := filepath.Join(rootdir, relpath)
@@ -506,11 +506,11 @@ func newDirEntry(t *testing.T, rootdir string, relpath string) DirEntry {
 	}
 }
 
-func newStackEntry(t *testing.T, rootdir string, relpath string) StackEntry {
+func newStackEntry(t testing.TB, rootdir string, relpath string) StackEntry {
 	return StackEntry{DirEntry: newDirEntry(t, rootdir, relpath)}
 }
 
-func parseListSpec(t *testing.T, name, value string) []string {
+func parseListSpec(t testing.TB, name, value string) []string {
 	if !strings.HasPrefix(value, "[") ||
 		!strings.HasSuffix(value, "]") {
 		t.Fatalf("malformed %q value: %q", name, value)
@@ -537,7 +537,7 @@ func parseListSpec(t *testing.T, name, value string) []string {
 	return list
 }
 
-func buildTree(t *testing.T, rootdir string, layout []string) {
+func buildTree(t testing.TB, rootdir string, layout []string) {
 	t.Helper()
 
 	parsePathData := func(spec string) (string, string) {
