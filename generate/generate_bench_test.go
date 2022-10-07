@@ -33,21 +33,21 @@ func BenchmarkGenerate(b *testing.B) {
 			asserts:  10,
 			genhcl:   10,
 			genfiles: 5,
-			globals:  100,
+			globals:  50,
 		},
 		{
 			stacks:   100,
 			asserts:  10,
 			genhcl:   10,
 			genfiles: 5,
-			globals:  100,
+			globals:  50,
 		},
 		{
 			stacks:   1000,
 			asserts:  10,
 			genhcl:   10,
 			genfiles: 5,
-			globals:  100,
+			globals:  50,
 		},
 	}
 
@@ -73,20 +73,25 @@ func (bm benchmark) String() string {
 		bm.stacks, bm.asserts, bm.genhcl, bm.genfiles, bm.globals)
 }
 
-func (bm benchmark) run(b *testing.B) {
+func (bm benchmark) setup(b *testing.B) sandbox.S {
+	b.StopTimer()
+	defer b.StartTimer()
+
 	s := sandbox.New(b)
 	createStacks(s, bm.stacks)
 	createAsserts(s, bm.asserts)
 
 	globals := createGlobals(s, bm.globals)
+	createGlobals(s, bm.globals)
 	createGenHCLs(s, globals, bm.genhcl)
 	createGenFiles(s, globals, bm.genfiles)
 
-	b.ResetTimer()
+	return s
+}
 
-	report := generate.Do(s.RootDir(), s.RootDir())
-
+func (bm benchmark) assert(b *testing.B, report generate.Report) {
 	b.StopTimer()
+	defer b.StartTimer()
 
 	assert.EqualInts(b, bm.stacks, len(report.Successes))
 	assert.EqualInts(b, 0, len(report.Failures))
@@ -96,6 +101,12 @@ func (bm benchmark) run(b *testing.B) {
 		assert.EqualInts(b, 0, len(success.Changed))
 		assert.EqualInts(b, 0, len(success.Deleted))
 	}
+}
+
+func (bm benchmark) run(b *testing.B) {
+	s := bm.setup(b)
+	report := generate.Do(s.RootDir(), s.RootDir())
+	bm.assert(b, report)
 }
 
 func createStacks(s sandbox.S, stacks int) {
