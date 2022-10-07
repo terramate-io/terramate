@@ -589,6 +589,7 @@ func (c *cli) cloneStack() {
 	c.log("Cloned stack %s to %s with success", srcstack, deststack)
 	c.log("Generating code on the new cloned stack")
 
+	c.reloadcfg()
 	c.generate(destdir)
 }
 
@@ -704,7 +705,6 @@ func (c *cli) createStack() {
 
 	stackID := c.parsedArgs.Create.ID
 	if stackID == "" {
-
 		logger.Trace().Msg("no ID provided, generating one")
 
 		id, err := uuid.NewRandom()
@@ -740,6 +740,8 @@ func (c *cli) createStack() {
 
 	c.log("Created stack %s with success", c.parsedArgs.Create.Path)
 	c.log("Generating code on the stack")
+
+	c.reloadcfg()
 	c.generate(stackDir)
 }
 
@@ -1499,6 +1501,22 @@ func (c *cli) runOnStacks() {
 func (c *cli) wd() string        { return c.prj.wd }
 func (c *cli) root() string      { return c.prj.root }
 func (c *cli) cfg() *config.Tree { return &c.prj.cfg }
+
+func (c *cli) reloadcfg() {
+	logger := log.With().
+		Str("action", "cli.reloadcfg()").
+		Logger()
+
+	log.Debug().Msg("reloading configuration.")
+
+	cfg, err := config.LoadTree(c.root(), c.root())
+	if err != nil {
+		logger.Fatal().
+			Err(err).
+			Send()
+	}
+	c.prj.cfg = *cfg
+}
 
 func (c *cli) log(format string, args ...interface{}) {
 	fmt.Fprintln(c.stdout, fmt.Sprintf(format, args...))

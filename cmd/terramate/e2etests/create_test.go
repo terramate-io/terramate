@@ -89,6 +89,8 @@ func TestCreateStack(t *testing.T) {
 
 		got := s.LoadStack(stackPath)
 
+		t.Logf("stack: %s", got)
+
 		gotID, _ := got.ID()
 		assert.EqualStrings(t, stackID, gotID)
 		assert.EqualStrings(t, stackName, got.Name(), "checking stack name")

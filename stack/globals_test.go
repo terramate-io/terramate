@@ -1543,7 +1543,7 @@ func TestLoadGlobals(t *testing.T) {
 
 			cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
 			if err != nil {
-				errtest.AssertKind(t, err, tcase.wantErr)
+				errtest.Assert(t, err, tcase.wantErr)
 				return
 			}
 
@@ -1740,11 +1740,18 @@ func TestLoadGlobalsErrors(t *testing.T) {
 				test.AppendFile(t, path, config.DefaultFilename, c.body)
 			}
 
-			stacks, err := stack.LoadAll(s.Config())
+			cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
 			// TODO(i4k): this better not be tested here.
 			if errors.IsKind(tcase.want, hcl.ErrHCLSyntax) {
-				errtest.AssertKind(t, err, tcase.want)
+				errtest.Assert(t, err, tcase.want)
 			}
+
+			if err != nil {
+				return
+			}
+
+			stacks, err := stack.LoadAll(cfg)
+			assert.NoError(t, err)
 			projmeta := stack.NewProjectMetadata(s.RootDir(), stacks)
 
 			for _, st := range stacks {

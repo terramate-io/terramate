@@ -15,6 +15,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -116,7 +117,6 @@ func (tree *Tree) Stacks() []*Tree {
 	}
 
 	stacks.Sort()
-
 	return stacks
 }
 
@@ -147,10 +147,15 @@ func (tree *Tree) Lookup(path project.Path) (*Tree, bool) {
 func (tree *Tree) StacksByRelPaths(base project.Path, relpaths ...string) List {
 	var stacks List
 	for _, p := range relpaths {
-		pathstr := path.Join(base.String(), p)
+		var pathstr string
+		if path.IsAbs(p) {
+			pathstr = p
+		} else {
+			pathstr = path.Join(base.String(), p)
+		}
 		node, ok := tree.Lookup(project.NewPath(pathstr))
 		if !ok {
-			continue
+			panic(fmt.Errorf("path %s not found", pathstr))
 		}
 		stacks = append(stacks, node.Stacks()...)
 	}

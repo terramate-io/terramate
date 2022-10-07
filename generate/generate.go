@@ -281,7 +281,6 @@ func ListGenFiles(cfg *config.Tree, dir string) ([]string, error) {
 		pendingSubDirs = pendingSubDirs[1:]
 		absSubdir := filepath.Join(dir, relSubdir)
 		entries, err := os.ReadDir(absSubdir)
-
 		if err != nil {
 			return nil, errors.E(err)
 		}

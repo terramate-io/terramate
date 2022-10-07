@@ -186,8 +186,8 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 			for checkdir.String() != "/" {
 				checkdir = checkdir.Dir()
 				stackTree, found = m.cfg.Lookup(checkdir)
-				if !found || !stackTree.IsStack() {
-					continue
+				if found && stackTree.IsStack() {
+					break
 				}
 			}
 			if !found || !stackTree.IsStack() {
@@ -333,7 +333,6 @@ func (m *Manager) AddWantedOf(scopeStacks stack.List) (stack.List, error) {
 		Logger()
 
 	wantsDag := dag.New()
-
 	allstacks, err := stack.LoadAll(m.cfg)
 	if err != nil {
 		return nil, errors.E(err, "loading all stacks")
