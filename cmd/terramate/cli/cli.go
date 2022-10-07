@@ -593,7 +593,7 @@ func (c *cli) cloneStack() {
 }
 
 func (c *cli) generate(workdir string) {
-	report := generate.Do(&c.prj.cfg, workdir)
+	report := generate.Do(c.cfg(), workdir)
 	c.log(report.String())
 
 	if report.HasFailures() {
