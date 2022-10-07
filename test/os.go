@@ -24,7 +24,7 @@ import (
 )
 
 // TempDir creates a temporary directory.
-func TempDir(t *testing.T, base string) string {
+func TempDir(t testing.TB, base string) string {
 	t.Helper()
 
 	if base == "" {
@@ -37,7 +37,7 @@ func TempDir(t *testing.T, base string) string {
 }
 
 // ReadDir calls os.Readir asserting the success of the operation.
-func ReadDir(t *testing.T, dir string) []os.DirEntry {
+func ReadDir(t testing.TB, dir string) []os.DirEntry {
 	t.Helper()
 
 	entries, err := os.ReadDir(dir)
@@ -47,7 +47,7 @@ func ReadDir(t *testing.T, dir string) []os.DirEntry {
 
 // WriteFile writes content to a filename inside dir directory.
 // If dir is empty string then the file is created inside a temporary directory.
-func WriteFile(t *testing.T, dir string, filename string, content string) string {
+func WriteFile(t testing.TB, dir string, filename string, content string) string {
 	t.Helper()
 
 	if dir == "" {
@@ -66,7 +66,7 @@ func WriteFile(t *testing.T, dir string, filename string, content string) string
 // AppendFile appends content to a filename inside dir directory.
 // If file exists, appends on the end of it by adding a newline,
 //if file doesn't exists it will be created.
-func AppendFile(t *testing.T, dir string, filename string, content string) {
+func AppendFile(t testing.TB, dir string, filename string, content string) {
 	t.Helper()
 
 	oldContent, err := os.ReadFile(filepath.Join(dir, filename))
@@ -79,7 +79,7 @@ func AppendFile(t *testing.T, dir string, filename string, content string) {
 }
 
 // ReadFile reads the content of fname from dir directory.
-func ReadFile(t *testing.T, dir, fname string) []byte {
+func ReadFile(t testing.TB, dir, fname string) []byte {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join(dir, fname))
 	assert.NoError(t, err, "reading file")
@@ -88,35 +88,35 @@ func ReadFile(t *testing.T, dir, fname string) []byte {
 
 // RemoveFile removes the file fname from dir directory.
 // If the files doesn't exists, it succeeds.
-func RemoveFile(t *testing.T, dir, fname string) {
+func RemoveFile(t testing.TB, dir, fname string) {
 	t.Helper()
 	err := os.Remove(filepath.Join(dir, fname))
 	assert.NoError(t, err)
 }
 
 // Mkdir creates a directory inside base.
-func Mkdir(t *testing.T, base string, name string) string {
+func Mkdir(t testing.TB, base string, name string) string {
 	path := filepath.Join(base, name)
 	assert.NoError(t, os.Mkdir(path, 0700), "creating dir")
 	return path
 }
 
 // MkdirAll creates a temporary directory with default test permission bits.
-func MkdirAll(t *testing.T, path string) {
+func MkdirAll(t testing.TB, path string) {
 	t.Helper()
 
 	assert.NoError(t, os.MkdirAll(path, 0700), "failed to create temp directory")
 }
 
 // Symlink calls [os.Symlink] failing the test if there is an error.
-func Symlink(t *testing.T, oldname, newname string) {
+func Symlink(t testing.TB, oldname, newname string) {
 	t.Helper()
 
 	assert.NoError(t, os.Symlink(oldname, newname), "failed to create symlink")
 }
 
 // Getwd gets the current working dir of the process
-func Getwd(t *testing.T) string {
+func Getwd(t testing.TB) string {
 	t.Helper()
 
 	wd, err := os.Getwd()
@@ -126,7 +126,7 @@ func Getwd(t *testing.T) string {
 
 // RelPath does the same as filepath.Rel but failing the test
 // if an error is found.
-func RelPath(t *testing.T, basepath, targetpath string) string {
+func RelPath(t testing.TB, basepath, targetpath string) string {
 	t.Helper()
 
 	rel, err := filepath.Rel(basepath, targetpath)
@@ -135,14 +135,14 @@ func RelPath(t *testing.T, basepath, targetpath string) string {
 }
 
 // RemoveAll removes the directory and any of its children files and directories.
-func RemoveAll(t *testing.T, path string) {
+func RemoveAll(t testing.TB, path string) {
 	t.Helper()
 
 	assert.NoError(t, os.RemoveAll(path), "failed to remove directory %q", path)
 }
 
 // NonExistingDir returns a non-existing directory.
-func NonExistingDir(t *testing.T) string {
+func NonExistingDir(t testing.TB) string {
 	t.Helper()
 
 	tmp := t.TempDir()
@@ -155,7 +155,7 @@ func NonExistingDir(t *testing.T) string {
 
 // CanonPath returns a canonical absolute path for the given path.
 // Fails the test if any error is found.
-func CanonPath(t *testing.T, path string) string {
+func CanonPath(t testing.TB, path string) string {
 	t.Helper()
 
 	p, err := filepath.EvalSymlinks(path)

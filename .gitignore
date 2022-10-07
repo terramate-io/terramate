@@ -4,6 +4,9 @@ coverage.txt
 .terraform.lock.hcl
 /cmd/terramate/terramate
 
+# Go Workspaces support
+/go.work
+
 .vscode/
 
 dist/
