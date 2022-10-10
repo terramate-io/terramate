@@ -17,7 +17,6 @@ package eval
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -155,7 +154,7 @@ func TokensForExpression(expr hhcl.Expression) (hclwrite.Tokens, error) {
 		exprdata = []byte(fnameBytes[len(injectedTokensPrefix()):])
 	} else {
 		var err error
-		exprdata, err = ioutil.ReadFile(string(fnameBytes))
+		exprdata, err = os.ReadFile(string(fnameBytes))
 		if err != nil {
 			return nil, errors.E(err, "reading expression from file")
 		}
