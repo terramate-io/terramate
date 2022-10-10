@@ -14,7 +14,8 @@
 
 // Package errors implements the Terramate standard error type.
 // It's heavily influenced by Rob Pike `errors` package in the Upspin project:
-// 	https://commandcenter.blogspot.com/2017/12/error-handling-in-upspin.html
+//
+//	https://commandcenter.blogspot.com/2017/12/error-handling-in-upspin.html
 package errors
 
 import (
@@ -70,41 +71,41 @@ const separator = ": "
 //
 // The supported types are:
 //
-// 	errors.Kind
-//		The kind of error (eg.: HCLSyntax, TerramateSchema, etc).
-//	hcl.Range
-//		The file range where the error originated.
-//	errors.StackMeta
-//		The stack that originated the error.
-//	hcl.Diagnostics
-//		The underlying hcl error that triggered this one.
-//		Only the first hcl.Diagnostic will be used.
-//		If hcl.Range is not set, the diagnostic subject range is pulled.
-//		If the string Description is not set, the diagnostic detail field is
-//		pulled.
-//	hcl.Diagnostic
-//		Same behavior as hcl.Diagnostics but for a single diagnostic.
-//	string
-//		The error description. It supports formatting using the Go's fmt verbs
-//		as long as the arguments are not one of the defined types.
+//		errors.Kind
+//			The kind of error (eg.: HCLSyntax, TerramateSchema, etc).
+//		hcl.Range
+//			The file range where the error originated.
+//		errors.StackMeta
+//			The stack that originated the error.
+//		hcl.Diagnostics
+//			The underlying hcl error that triggered this one.
+//			Only the first hcl.Diagnostic will be used.
+//			If hcl.Range is not set, the diagnostic subject range is pulled.
+//			If the string Description is not set, the diagnostic detail field is
+//			pulled.
+//		hcl.Diagnostic
+//			Same behavior as hcl.Diagnostics but for a single diagnostic.
+//		string
+//			The error description. It supports formatting using the Go's fmt verbs
+//			as long as the arguments are not one of the defined types.
 //
-//  The underlying error types are:
+//	 The underlying error types are:
 //
-//  *List
-//		The underlying error list wrapped by this one.
-// 		This error wraps all of its individual errors so they carry all the
-//		context to print them individually.
-//	hcl.Diagnostics
-//		The underlying list of hcl errors wrapped by this one.
-//		This type is converted to a *List containing only the hcl.DiagError values.
-//	hcl.Diagnostic
-//		The underlying hcl error wrapped by this one.
-//		It's ignored if its type is not hcl.DiagError.
-//		If hcl.Range is not already set, the diagnostic subject range is pulled.
-//		If the string Description is not set, the diagnostic detail field is
-//		pulled.
-//	error
-//		The underlying error that triggered this one.
+//	 *List
+//			The underlying error list wrapped by this one.
+//			This error wraps all of its individual errors so they carry all the
+//			context to print them individually.
+//		hcl.Diagnostics
+//			The underlying list of hcl errors wrapped by this one.
+//			This type is converted to a *List containing only the hcl.DiagError values.
+//		hcl.Diagnostic
+//			The underlying hcl error wrapped by this one.
+//			It's ignored if its type is not hcl.DiagError.
+//			If hcl.Range is not already set, the diagnostic subject range is pulled.
+//			If the string Description is not set, the diagnostic detail field is
+//			pulled.
+//		error
+//			The underlying error that triggered this one.
 //
 // If the error is printed, only those items that have been
 // set to non-zero values will appear in the result. For the `hcl.Range` type,
