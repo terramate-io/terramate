@@ -26,6 +26,8 @@ import (
 )
 
 func TestFormatRecursively(t *testing.T) {
+	t.Parallel()
+
 	const unformattedHCL = `
 globals {
 name = "name"
@@ -72,7 +74,11 @@ name = "name"
 		"stacks/stack-2/globals.tm",
 	}
 	filesListOutput := func(files []string) string {
-		return strings.Join(files, "\n") + "\n"
+		portablewantedFiles := make([]string, len(files))
+		for i, f := range files {
+			portablewantedFiles[i] = filepath.FromSlash(f)
+		}
+		return strings.Join(portablewantedFiles, "\n") + "\n"
 	}
 	wantedFilesStr := filesListOutput(wantedFiles)
 

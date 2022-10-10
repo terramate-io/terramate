@@ -25,6 +25,8 @@ import (
 )
 
 func TestCloneStack(t *testing.T) {
+	t.Parallel()
+
 	const (
 		srcStack         = "stack"
 		destStack        = "cloned-stack"
@@ -103,6 +105,6 @@ generate_hcl "test2.hcl" {
 	genHCL := string(clonedStackEntry.ReadFile("test.hcl"))
 	genHCL2 := string(clonedStackEntry.ReadFile("test2.hcl"))
 
-	test.AssertGenHCLEquals(t, genHCL, `a = "literal"`)
-	test.AssertGenHCLEquals(t, genHCL2, `b = null`)
+	test.AssertGenCodeEquals(t, genHCL, `a = "literal"`)
+	test.AssertGenCodeEquals(t, genHCL2, `b = null`)
 }

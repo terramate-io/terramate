@@ -18,18 +18,26 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	hhcl "github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/globals"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/modvendor"
+
 	prj "github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/run"
 	"github.com/mineiros-io/terramate/run/dag"
 	"github.com/mineiros-io/terramate/tf"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/json"
 
 	"github.com/alecthomas/kong"
 	"github.com/emicklei/dot"
@@ -74,7 +82,7 @@ type cliSpec struct {
 	Chdir         string   `short:"C" optional:"true" predictor:"file" help:"Sets working directory"`
 	GitChangeBase string   `short:"B" optional:"true" help:"Git base ref for computing changes"`
 	Changed       bool     `short:"c" optional:"true" help:"Filter by changed infrastructure"`
-	LogLevel      string   `optional:"true" default:"warn" enum:"trace,debug,info,warn,error,fatal" help:"Log level to use: 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
+	LogLevel      string   `optional:"true" default:"warn" enum:"disabled,trace,debug,info,warn,error,fatal" help:"Log level to use: 'disabled', 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
 	LogFmt        string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'"`
 
 	DisableCheckGitUntracked   bool `optional:"true" default:"false" help:"Disable git check for untracked files"`
@@ -142,6 +150,20 @@ type cliSpec struct {
 				Reference string `arg:"" name:"ref" help:"Reference of the Terraform module to vendor"`
 			} `cmd:"" help:"Downloads a Terraform module and stores it on the project vendor dir"`
 		} `cmd:"" help:"Manages vendored Terraform modules"`
+
+		Eval struct {
+			AsJSON bool     `help:"Outputs the result as a JSON value"`
+			Exprs  []string `arg:"" help:"expressions to be evaluated" name:"expr" passthrough:""`
+		} `cmd:"" help:"Eval expression"`
+
+		PartialEval struct {
+			Exprs []string `arg:"" help:"expressions to be partially evaluated" name:"expr" passthrough:""`
+		} `cmd:"" help:"Partial evaluate the expressions"`
+
+		GetConfigValue struct {
+			AsJSON bool     `help:"Outputs the result as a JSON value"`
+			Vars   []string `arg:"" help:"variable to be retrieved" name:"var" passthrough:""`
+		} `cmd:"" help:"Get configuration value"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
 
@@ -374,15 +396,32 @@ func (c *cli) run() {
 	case "experimental vendor download <source> <ref>":
 		c.vendorDownload()
 	case "experimental globals":
+		c.setupGit()
 		c.printStacksGlobals()
 	case "experimental metadata":
+		c.setupGit()
 		c.printMetadata()
 	case "experimental run-graph":
+		c.setupGit()
 		c.generateGraph()
 	case "experimental run-order":
+		c.setupGit()
 		c.printRunOrder()
 	case "experimental run-env":
+		c.setupGit()
 		c.printRunEnv()
+	case "experimental eval":
+		log.Fatal().Msg("no expression specified")
+	case "experimental eval <expr>":
+		c.eval()
+	case "experimental partial-eval":
+		log.Fatal().Msg("no expression specified")
+	case "experimental partial-eval <expr>":
+		c.partialEval()
+	case "experimental get-config-value":
+		log.Fatal().Msg("no variable specified")
+	case "experimental get-config-value <var>":
+		c.getConfigValue()
 	default:
 		logger.Fatal().Msg("unexpected command sequence")
 	}
@@ -467,7 +506,7 @@ func (c *cli) vendorDownload() {
 	c.log(report.String())
 }
 
-func (c *cli) vendorDir() string {
+func (c *cli) vendorDir() prj.Path {
 	logger := log.With().
 		Str("workingDir", c.wd()).
 		Str("rootdir", c.root()).
@@ -479,7 +518,18 @@ func (c *cli) vendorDir() string {
 	if c.parsedArgs.Experimental.Vendor.Download.Dir != "" {
 		logger.Trace().Msg("using CLI config")
 
-		return c.parsedArgs.Experimental.Vendor.Download.Dir
+		dir := c.parsedArgs.Experimental.Vendor.Download.Dir
+		if !path.IsAbs(dir) {
+			dir = path.Join(string(prj.PrjAbsPath(c.root(), c.wd())), dir)
+		}
+		return prj.NewPath(dir)
+	}
+
+	checkVendorDir := func(dir string) prj.Path {
+		if !path.IsAbs(dir) {
+			logger.Fatal().Msgf("vendorDir %q defined is not an absolute path", dir)
+		}
+		return prj.NewPath(dir)
 	}
 
 	dotTerramate := filepath.Join(c.root(), ".terramate")
@@ -496,7 +546,7 @@ func (c *cli) vendorDir() string {
 		if hasVendorDirConfig(cfg) {
 			logger.Trace().Msg("using .terramate config")
 
-			return cfg.Vendor.Dir
+			return checkVendorDir(cfg.Vendor.Dir)
 		}
 	}
 
@@ -505,7 +555,7 @@ func (c *cli) vendorDir() string {
 	if hasVendorDirConfig(c.prj.rootcfg) {
 		logger.Trace().Msg("using root config")
 
-		return c.prj.rootcfg.Vendor.Dir
+		return checkVendorDir(c.prj.rootcfg.Vendor.Dir)
 	}
 
 	logger.Trace().Msg("no configuration provided, fallback to default")
@@ -778,7 +828,7 @@ func (c *cli) printStacks() {
 
 	for _, entry := range report.Stacks {
 		stack := entry.Stack
-		stackRepr, ok := c.friendlyFmtDir(stack.Path())
+		stackRepr, ok := c.friendlyFmtDir(stack.Path().String())
 		if !ok {
 			continue
 		}
@@ -851,7 +901,7 @@ func (c *cli) generateGraph() {
 	case "stack.dir":
 		logger.Debug().Msg("Set label stack directory.")
 
-		getLabel = func(s *stack.S) string { return s.Path() }
+		getLabel = func(s *stack.S) string { return s.Path().String() }
 	default:
 		logger.Fatal().
 			Msg("-label expects the values \"stack.name\" or \"stack.dir\"")
@@ -1035,15 +1085,15 @@ func (c *cli) printStacksGlobals() {
 
 	for _, stackEntry := range c.filterStacksByWorkingDir(report.Stacks) {
 		meta := stack.Metadata(stackEntry.Stack)
-		globals, err := stack.LoadGlobals(projmeta, meta)
-		if err != nil {
+		report := stack.LoadStackGlobals(projmeta, meta)
+		if err := report.AsError(); err != nil {
 			log.Fatal().
 				Err(err).
-				Str("stack", meta.Path()).
+				Stringer("stack", meta.Path()).
 				Msg("listing stacks globals: loading stack")
 		}
 
-		globalsStrRepr := globals.String()
+		globalsStrRepr := report.Globals.String()
 		if globalsStrRepr == "" {
 			continue
 		}
@@ -1083,7 +1133,7 @@ func (c *cli) printMetadata() {
 
 	// TODO(katcipis): we need to print other project metadata too.
 	c.log("\nproject metadata:")
-	c.log("\tterramate.stacks.list=%v", projmeta.Stacks)
+	c.log("\tterramate.stacks.list=%v", projmeta.Stacks())
 
 	for _, stackEntry := range stackEntries {
 		stackMeta := stack.Metadata(stackEntry.Stack)
@@ -1127,6 +1177,161 @@ func (c *cli) checkGenCode() bool {
 	return true
 }
 
+func (c *cli) eval() {
+	logger := log.With().
+		Str("action", "cli.eval()").
+		Logger()
+
+	ctx := c.setupEvalContext()
+	for _, exprStr := range c.parsedArgs.Experimental.Eval.Exprs {
+		expr, err := eval.ParseExpressionBytes([]byte(exprStr))
+		if err != nil {
+			logger.Fatal().Err(err).Send()
+		}
+
+		val, err := ctx.Eval(expr)
+		if err != nil {
+			logger.Fatal().Err(err).
+				Str("expr", exprStr).
+				Msg("evaluating expression")
+		}
+
+		var out []byte
+		if c.parsedArgs.Experimental.Eval.AsJSON {
+			out, err = json.Marshal(val, val.Type())
+			if err != nil {
+				logger.Fatal().
+					Str("expr", exprStr).
+					Err(err).
+					Msgf("converting value %s to json", val.GoString())
+			}
+		} else {
+			tokens, err := eval.TokensForValue(val)
+			if err != nil {
+				logger.Fatal().
+					Str("expr", exprStr).
+					Err(err).
+					Msgf("serializing value %s", val.GoString())
+			}
+
+			out = hclwrite.Format(tokens.Bytes())
+		}
+
+		c.log(string(out))
+	}
+}
+
+func (c *cli) partialEval() {
+	logger := log.With().
+		Str("action", "cli.partialEval()").
+		Logger()
+
+	ctx := c.setupEvalContext()
+	for _, exprStr := range c.parsedArgs.Experimental.PartialEval.Exprs {
+		expr, err := eval.ParseExpressionBytes([]byte(exprStr))
+		if err != nil {
+			logger.Fatal().Err(err).Send()
+		}
+
+		tokens, err := ctx.PartialEval(expr)
+		if err != nil {
+			logger.Fatal().Err(err).
+				Str("expr", exprStr).
+				Msg("partially evaluating expression")
+		}
+
+		c.log(string(hclwrite.Format(tokens.Bytes())))
+	}
+}
+
+func (c *cli) getConfigValue() {
+	logger := log.With().
+		Str("action", "cli.getConfigValue()").
+		Logger()
+
+	ctx := c.setupEvalContext()
+	for _, exprStr := range c.parsedArgs.Experimental.GetConfigValue.Vars {
+		expr, err := eval.ParseExpressionBytes([]byte(exprStr))
+		if err != nil {
+			logger.Fatal().Err(err).Send()
+		}
+
+		iteratorTraversal, diags := hhcl.AbsTraversalForExpr(expr)
+		if diags.HasErrors() {
+			logger.Fatal().Err(errors.E(diags)).Msg("expected a variable accessor")
+		}
+
+		varns := iteratorTraversal.RootName()
+		if varns != "terramate" && varns != "global" {
+			logger.Fatal().Msgf("only terramate and global variables are supported")
+		}
+
+		val, err := ctx.Eval(expr)
+		if err != nil {
+			logger.Fatal().Err(err).
+				Str("expr", exprStr).
+				Msg("evaluating expression")
+		}
+
+		var out []byte
+		if c.parsedArgs.Experimental.GetConfigValue.AsJSON {
+			out, err = json.Marshal(val, val.Type())
+			if err != nil {
+				logger.Fatal().
+					Str("expr", exprStr).
+					Err(err).
+					Msgf("converting value %s to json", val.GoString())
+			}
+		} else {
+			if val.Type() == cty.String {
+				out = []byte(val.AsString())
+			} else {
+				tokens, err := eval.TokensForValue(val)
+				if err != nil {
+					logger.Fatal().
+						Str("expr", exprStr).
+						Err(err).
+						Msgf("serializing value %s", val.GoString())
+				}
+
+				out = []byte(hclwrite.Format(tokens.Bytes()))
+			}
+		}
+
+		c.log(string(out))
+	}
+}
+
+func (c *cli) setupEvalContext() *eval.Context {
+	logger := log.With().
+		Str("action", "cli.setupEvalContext()").
+		Logger()
+
+	ctx, err := eval.NewContext(c.wd())
+	if err != nil {
+		logger.Fatal().Err(err).Send()
+	}
+
+	allstacks, err := stack.LoadAll(c.root())
+	if err != nil {
+		logger.Fatal().Err(err).Msg("listing all stacks")
+	}
+
+	projmeta := stack.NewProjectMetadata(c.root(), allstacks)
+	if isStack, _ := config.IsStack(c.root(), c.wd()); isStack {
+		st, err := stack.Load(c.root(), c.wd())
+		if err != nil {
+			logger.Fatal().Err(err).Msg("loading stack config")
+		}
+		ctx.SetNamespace("terramate", stack.MetadataToCtyValues(projmeta, st))
+	} else {
+		ctx.SetNamespace("terramate", projmeta.ToCtyMap())
+	}
+
+	globals.Load(c.root(), prj.PrjAbsPath(c.root(), c.wd()), ctx)
+	return ctx
+}
+
 func envVarIsSet(val string) bool {
 	return val != "0" && val != "false"
 }
@@ -1141,34 +1346,19 @@ func (c *cli) checkOutdatedGeneratedCode(stacks stack.List) {
 		return
 	}
 
-	logger.Trace().Msg("Checking if any stack has outdated code.")
-	projmeta := stack.NewProjectMetadata(c.root(), stacks)
+	logger.Trace().Msg("checking if any stack has outdated code")
 
-	hasOutdated := false
-	for _, stack := range stacks {
-		logger := logger.With().
-			Stringer("stack", stack).
-			Logger()
+	outdatedFiles, err := generate.Check(c.root())
 
-		logger.Trace().Msg("checking stack for outdated code")
+	fatalerr(logger, "failed to check outdated code on project", err)
 
-		outdated, err := generate.CheckStack(projmeta, stack)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("checking stack for outdated code")
-		}
-
-		if len(outdated) > 0 {
-			hasOutdated = true
-		}
-
-		for _, filename := range outdated {
-			logger.Error().
-				Str("filename", filename).
-				Msg("outdated code found")
-		}
+	for _, outdated := range outdatedFiles {
+		logger.Error().
+			Str("filename", outdated).
+			Msg("outdated code found")
 	}
 
-	if hasOutdated {
+	if len(outdatedFiles) > 0 {
 		logger.Fatal().
 			Err(errors.E(ErrOutdatedGenCodeDetected)).
 			Msg("please run: 'terramate generate' to update generated code")
@@ -1211,13 +1401,9 @@ func (c *cli) runOnStacks() {
 		logger.Fatal().Msgf("run expects a cmd")
 	}
 
-	allStackEntries, err := terramate.ListStacks(c.root())
+	allstacks, err := stack.LoadAll(c.root())
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to list all stacks")
-	}
-	allstacks := make(stack.List, len(allStackEntries))
-	for i, e := range allStackEntries {
-		allstacks[i] = e.Stack
 	}
 
 	c.checkOutdatedGeneratedCode(allstacks)
@@ -1276,7 +1462,7 @@ func (c *cli) runOnStacks() {
 			c.log("The stacks will be executed using order below:")
 
 			for i, s := range orderedStacks {
-				stackdir, _ := c.friendlyFmtDir(s.Path())
+				stackdir, _ := c.friendlyFmtDir(s.Path().String())
 				c.log("\t%d. %s (%s)", i, s.Name(), stackdir)
 			}
 		} else {
@@ -1299,7 +1485,6 @@ func (c *cli) runOnStacks() {
 	)
 
 	if err != nil {
-
 		logger.Warn().Msg("one or more commands failed")
 
 		var errs *errors.List
@@ -1367,15 +1552,15 @@ func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Ent
 		Str("workingDir", c.wd()).
 		Logger()
 
-	logger.Trace().
-		Msg("Get relative working directory.")
+	logger.Trace().Msg("Get relative working directory.")
+
 	relwd := prj.PrjAbsPath(c.root(), c.wd())
 
-	logger.Trace().
-		Msg("Get filtered stacks.")
+	logger.Trace().Msg("Get filtered stacks.")
+
 	filtered := []terramate.Entry{}
 	for _, e := range stacks {
-		if strings.HasPrefix(e.Stack.Path(), relwd) {
+		if e.Stack.Path().HasPrefix(relwd.String()) {
 			filtered = append(filtered, e)
 		}
 	}
@@ -1523,4 +1708,23 @@ func configureLogging(logLevel string, logFmt string, output io.Writer) {
 	} else { // default: console mode using color
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: output, NoColor: false, TimeFormat: time.RFC3339})
 	}
+}
+
+func fatalerr(logger zerolog.Logger, msg string, err error) {
+	if err == nil {
+		return
+	}
+
+	var list *errors.List
+
+	if errors.As(err, &list) {
+		errs := list.Errors()
+		for _, err := range errs {
+			log.Err(err).Send()
+		}
+	} else {
+		log.Err(err).Send()
+	}
+
+	log.Fatal().Msg(msg)
 }

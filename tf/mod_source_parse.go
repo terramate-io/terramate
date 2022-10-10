@@ -16,7 +16,7 @@ package tf
 
 import (
 	"net/url"
-	"path/filepath"
+	"path"
 	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
@@ -30,6 +30,9 @@ type Source struct {
 	// Path is the path of the source URL. It includes the domain of the URL on it.
 	// Eg. github.com/mineiros-io/example
 	Path string
+
+	// PathScheme is the scheme of the path part.
+	PathScheme string
 
 	// Subdir is the subdir component of the source path, if any, as defined
 	// here: https://www.terraform.io/language/modules/sources#modules-in-package-sub-directories
@@ -70,13 +73,14 @@ func ParseSource(modsource string) (Source, error) {
 		u.Scheme = "https"
 		u.Path = strings.TrimSuffix(u.Path, ".git")
 
-		path := filepath.Join(u.Host, u.Path)
+		path := path.Join(u.Host, u.Path)
 		return Source{
-			Raw:    modsource,
-			URL:    u.String() + ".git",
-			Path:   path,
-			Subdir: subdir,
-			Ref:    ref,
+			Raw:        modsource,
+			URL:        u.String() + ".git",
+			Path:       path,
+			PathScheme: u.Scheme,
+			Subdir:     subdir,
+			Ref:        ref,
 		}, nil
 
 	case strings.HasPrefix(modsource, "git@"):
@@ -98,16 +102,17 @@ func ParseSource(modsource string) (Source, error) {
 
 		ref := u.Query().Get("ref")
 		u.RawQuery = ""
-		path, subdir := parseSubdir(u.Opaque)
-		u.Opaque = path
-		path = strings.TrimSuffix(filepath.Join(u.Scheme, u.Opaque), ".git")
+		pathstr, subdir := parseSubdir(u.Opaque)
+		u.Opaque = pathstr
+		pathstr = strings.TrimSuffix(path.Join(u.Scheme, u.Opaque), ".git")
 
 		return Source{
-			Raw:    modsource,
-			URL:    "git@" + u.String(),
-			Path:   path,
-			Subdir: subdir,
-			Ref:    ref,
+			Raw:        modsource,
+			URL:        "git@" + u.String(),
+			Path:       pathstr,
+			PathScheme: "git",
+			Subdir:     subdir,
+			Ref:        ref,
 		}, nil
 
 	case strings.HasPrefix(modsource, "git::"):
@@ -127,10 +132,10 @@ func ParseSource(modsource string) (Source, error) {
 		}
 
 		subdir := parseURLSubdir(u)
-		// We don't want : on the path. So we replace the possible :
+		// We don't want : on the pathstr. So we replace the possible :
 		// that can exist on the host.
-		path := filepath.Join(strings.Replace(u.Host, ":", "-", -1), u.Path)
-		path = strings.TrimSuffix(path, ".git")
+		pathstr := path.Join(strings.Replace(u.Host, ":", "-", -1), u.Path)
+		pathstr = strings.TrimSuffix(pathstr, ".git")
 
 		if err != nil {
 			return Source{}, err
@@ -138,11 +143,12 @@ func ParseSource(modsource string) (Source, error) {
 		ref := u.Query().Get("ref")
 		u.RawQuery = ""
 		return Source{
-			Raw:    modsource,
-			URL:    u.String(),
-			Path:   path,
-			Subdir: subdir,
-			Ref:    ref,
+			Raw:        modsource,
+			URL:        u.String(),
+			Path:       pathstr,
+			PathScheme: u.Scheme,
+			Subdir:     subdir,
+			Ref:        ref,
 		}, nil
 
 	default:

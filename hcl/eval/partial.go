@@ -807,7 +807,7 @@ func (e *engine) evalTmFuncall() error {
 		expr = append(expr, part.Bytes...)
 	}
 
-	exprParsed, err := parseExpressionBytes(expr)
+	exprParsed, err := ParseExpressionBytes(expr)
 	if err != nil {
 		return errors.E(err, "evaluating expression: %s", expr)
 	}
@@ -888,7 +888,7 @@ func (e *engine) evalVar() error {
 		expr = append(expr, part.Bytes...)
 	}
 
-	exprParsed, err := parseExpressionBytes(expr)
+	exprParsed, err := ParseExpressionBytes(expr)
 	if err != nil {
 		return err
 	}

@@ -27,6 +27,8 @@ import (
 )
 
 func TestVersionCheck(t *testing.T) {
+	t.Parallel()
+
 	checkedCmds := []string{
 		"experimental metadata",
 		"experimental globals",
@@ -94,6 +96,8 @@ func TestVersionCheck(t *testing.T) {
 }
 
 func TestProvidesCorrectVersion(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 	cli := newCLI(t, s.RootDir())
 	want := tm.Version() + "\n"
@@ -109,6 +113,8 @@ func TestProvidesCorrectVersion(t *testing.T) {
 }
 
 func TestTerramateHasValidSemver(t *testing.T) {
+	t.Parallel()
+
 	_, err := tfversion.NewSemver(tm.Version())
 	assert.NoError(t, err, "terramate VERSION file has invalid version")
 }

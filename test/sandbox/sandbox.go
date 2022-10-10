@@ -26,6 +26,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -35,6 +36,7 @@ import (
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
@@ -44,7 +46,7 @@ import (
 // S is a full sandbox with its own base dir that is an initialized git repo for
 // test purposes.
 type S struct {
-	t       *testing.T
+	t       testing.TB
 	git     *Git
 	rootdir string
 }
@@ -52,7 +54,7 @@ type S struct {
 // DirEntry represents a directory and can be used to create files inside the
 // directory.
 type DirEntry struct {
-	t        *testing.T
+	t        testing.TB
 	rootpath string
 	abspath  string
 	relpath  string
@@ -69,7 +71,7 @@ type StackEntry struct {
 // (io.Reader/io.Writer).
 // It has limited usefulness but it is easier to work with for testing.
 type FileEntry struct {
-	t        *testing.T
+	t        testing.TB
 	hostpath string
 	rootpath string
 }
@@ -77,10 +79,10 @@ type FileEntry struct {
 // New creates a new complete test sandbox.
 // The git repository is set up with sane defaults.
 //
-// It is a programming error to use a test env created with a *testing.T other
+// It is a programming error to use a test env created with a testing.TB other
 // than the one of the test using the test env, for a new test/sub-test always
 // create a new test env for it.
-func New(t *testing.T) S {
+func New(t testing.TB) S {
 	s := NoGit(t)
 
 	s.git = NewGit(t, s.RootDir())
@@ -90,7 +92,7 @@ func New(t *testing.T) S {
 
 // NewWithGitConfig creates a new sandbox using the cfg configuration for the
 // git repository.
-func NewWithGitConfig(t *testing.T, cfg GitConfig) S {
+func NewWithGitConfig(t testing.TB, cfg GitConfig) S {
 	s := NoGit(t)
 
 	cfg.repoDir = s.RootDir()
@@ -102,10 +104,10 @@ func NewWithGitConfig(t *testing.T, cfg GitConfig) S {
 
 // NoGit creates a new test sandbox with no git repository.
 //
-// It is a programming error to use a test env created with a *testing.T other
+// It is a programming error to use a test env created with a testing.TB other
 // than the one of the test using the test env, for a new test/sub-test always
 // create a new test env for it.
-func NoGit(t *testing.T) S {
+func NoGit(t testing.TB) S {
 	t.Helper()
 
 	// here we create some stacks outside the root directory of the
@@ -126,31 +128,64 @@ func NoGit(t *testing.T) S {
 	}
 }
 
-// BuildTree builds a tree layout based on the layout specification, defined
-// below:
+// BuildTree builds a tree layout based on the layout specification.
 // Each string in the slice represents a filesystem operation, and each
 // operation has the format below:
-//   <kind>:<relative path>[:data]
+//
+//	<kind>:<relative path>[:param]
+//
 // Where kind is one of the below:
-//   "d" for directory creation.
-//   "g" for local git directory creation.
-//   "s" for initialized stacks.
-//   "f" for file creation.
-//   "t" for terramate block.
-// The data field is required only for operation "f" and "s":
-//   For "f" data is the content of the file to be created.
-//   For "s" data is a key value pair of the form:
-//     <attr1>=<val1>[;<attr2>=<val2>]
+//
+//	"d" for directory creation.
+//	"g" for local git directory creation.
+//	"s" for initialized stacks.
+//	"f" for file creation.
+//	"l" for symbolic link creation.
+//	"t" for terramate block.
+//
+// And [:param] is optional and it depends on the command.
+//
+// For the operations "f" and "s" [:param] is defined as:
+//
+//	For "f" it is the content of the file to be created.
+//	For "s" it is a key value pair of the form:
+//	  <attr1>=<val1>[;<attr2>=<val2>]
+//
 // Where attrN is a string attribute of the terramate block of the stack.
 // TODO(i4k): document empty data field.
 //
 // Example:
-//   s:name-of-the-stack:id=stack-id;after=["other-stack"]
+//
+//	s:name-of-the-stack:id=stack-id;after=["other-stack"]
+//
+// For the operation "l" the [:param] is the link name, while <relative path>
+// is the target of the symbolic link:
+//
+//	l:<target>:<link name>
+//
+// So this:
+//
+//	l:dir/file:dir/link
+//
+// Is equivalent to:
+//
+//	ln -s dir/file dir/link
 //
 // This is an internal mini-lang used to simplify testcases, so it expects well
 // formed layout specification.
 func (s S) BuildTree(layout []string) {
+	s.t.Helper()
+
 	buildTree(s.t, s.RootDir(), layout)
+}
+
+// CheckStack will check a stack for outdated code generation.
+func (s S) CheckStack(relpath string) []string {
+	s.t.Helper()
+
+	res, err := generate.CheckStack(s.LoadProjectMetadata(), s.LoadStack(relpath))
+	assert.NoError(s.t, err, "generate.CheckStack failed for stack %s", relpath)
+	return res
 }
 
 // IsGit tells if the sandbox is a git repository.
@@ -217,12 +252,12 @@ func (s S) LoadProjectMetadata() project.Metadata {
 
 // LoadStackGlobals loads globals for specific stack on the sandbox.
 // Fails the caller test if an error is found.
-func (s S) LoadStackGlobals(projmeta project.Metadata, sm stack.Metadata) stack.Globals {
+func (s S) LoadStackGlobals(projmeta project.Metadata, sm stack.Metadata) globals.Map {
 	s.t.Helper()
 
-	g, err := stack.LoadGlobals(projmeta, sm)
-	assert.NoError(s.t, err)
-	return g
+	report := stack.LoadStackGlobals(projmeta, sm)
+	assert.NoError(s.t, report.AsError())
+	return report.Globals
 }
 
 // RootDir returns the root directory of the test env. All dirs/files created
@@ -279,15 +314,20 @@ func (s S) StackEntry(relpath string) StackEntry {
 
 // DirEntry gets the dir entry for relpath.
 // The dir must exist and must be a relative path to the sandbox root dir.
+// The relpath must be a forward-slashed path.
 func (s S) DirEntry(relpath string) DirEntry {
 	t := s.t
 	t.Helper()
 
-	if filepath.IsAbs(relpath) {
+	if strings.Contains(relpath, `\`) {
+		panic("relpath requires a forward-slashed path")
+	}
+
+	if path.IsAbs(relpath) {
 		t.Fatalf("DirEntry() needs a relative path but given %q", relpath)
 	}
 
-	abspath := filepath.Join(s.rootdir, relpath)
+	abspath := filepath.Join(s.rootdir, filepath.FromSlash(relpath))
 	stat, err := os.Stat(abspath)
 	if err != nil {
 		t.Fatalf("DirEntry(): dir must exist: %v", err)
@@ -331,7 +371,7 @@ func (de DirEntry) CreateFile(name, body string, args ...interface{}) FileEntry 
 func (de DirEntry) ListGenFiles() []string {
 	de.t.Helper()
 
-	files, err := generate.ListGenFiles(de.abspath)
+	files, err := generate.ListGenFiles(de.rootpath, de.abspath)
 	assert.NoError(de.t, err, "listing dir generated files")
 	return files
 }
@@ -391,9 +431,16 @@ func (de DirEntry) Path() string {
 	return de.abspath
 }
 
-// RelPath returns the relative path of the directory entry.
+// RelPath returns the relative path of the directory entry
+// using the host path separator.
 func (de DirEntry) RelPath() string {
-	return de.relpath
+	return filepath.FromSlash(de.relpath)
+}
+
+// Git returns a Git wrapper for the dir.
+func (de DirEntry) Git() *Git {
+	git := NewGit(de.t, de.abspath)
+	return git
 }
 
 // Write writes the given text body on the file, replacing its contents.
@@ -411,6 +458,13 @@ func (fe FileEntry) Write(body string, args ...interface{}) {
 	}
 }
 
+// Chmod changes the file mod, like os.Chmod.
+func (fe FileEntry) Chmod(mode os.FileMode) {
+	fe.t.Helper()
+
+	test.Chmod(fe.t, fe.hostpath, mode)
+}
+
 // HostPath returns the absolute path of the file.
 func (fe FileEntry) HostPath() string {
 	return fe.hostpath
@@ -418,7 +472,7 @@ func (fe FileEntry) HostPath() string {
 
 // Path returns the absolute project path of the file.
 func (fe FileEntry) Path() string {
-	return project.PrjAbsPath(fe.rootpath, fe.hostpath)
+	return project.PrjAbsPath(fe.rootpath, fe.hostpath).String()
 }
 
 // ModSource returns the relative import path for the module with the given
@@ -427,7 +481,7 @@ func (fe FileEntry) Path() string {
 func (se StackEntry) ModSource(mod DirEntry) string {
 	relpath, err := filepath.Rel(se.abspath, mod.abspath)
 	assert.NoError(se.t, err)
-	return relpath
+	return filepath.ToSlash(relpath)
 }
 
 // WriteConfig will create a terramate configuration file on the stack
@@ -471,7 +525,7 @@ func (se StackEntry) RelPath() string {
 	return se.DirEntry.relpath
 }
 
-func newDirEntry(t *testing.T, rootdir string, relpath string) DirEntry {
+func newDirEntry(t testing.TB, rootdir string, relpath string) DirEntry {
 	t.Helper()
 
 	abspath := filepath.Join(rootdir, relpath)
@@ -485,11 +539,11 @@ func newDirEntry(t *testing.T, rootdir string, relpath string) DirEntry {
 	}
 }
 
-func newStackEntry(t *testing.T, rootdir string, relpath string) StackEntry {
+func newStackEntry(t testing.TB, rootdir string, relpath string) StackEntry {
 	return StackEntry{DirEntry: newDirEntry(t, rootdir, relpath)}
 }
 
-func parseListSpec(t *testing.T, name, value string) []string {
+func parseListSpec(t testing.TB, name, value string) []string {
 	if !strings.HasPrefix(value, "[") ||
 		!strings.HasSuffix(value, "]") {
 		t.Fatalf("malformed %q value: %q", name, value)
@@ -516,7 +570,7 @@ func parseListSpec(t *testing.T, name, value string) []string {
 	return list
 }
 
-func buildTree(t *testing.T, rootdir string, layout []string) {
+func buildTree(t testing.TB, rootdir string, layout []string) {
 	t.Helper()
 
 	parsePathData := func(spec string) (string, string) {
@@ -537,7 +591,7 @@ func buildTree(t *testing.T, rootdir string, layout []string) {
 	gentmfile := func(relpath, data string) {
 		attrs := strings.Split(data, ";")
 
-		cfgdir := filepath.Join(rootdir, relpath)
+		cfgdir := filepath.Join(rootdir, filepath.FromSlash(relpath))
 		test.MkdirAll(t, cfgdir)
 		cfg, err := hcl.NewConfig(cfgdir)
 		assert.NoError(t, err)
@@ -582,6 +636,10 @@ func buildTree(t *testing.T, rootdir string, layout []string) {
 		switch specKind {
 		case "d:":
 			test.MkdirAll(t, filepath.Join(rootdir, spec[2:]))
+		case "l:":
+			target := filepath.Join(rootdir, path)
+			linkName := filepath.Join(rootdir, data)
+			test.Symlink(t, target, linkName)
 		case "g:":
 			repodir := filepath.Join(rootdir, spec[2:])
 			test.MkdirAll(t, repodir)

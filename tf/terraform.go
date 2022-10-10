@@ -118,7 +118,10 @@ func findStringAttr(block *hclsyntax.Block, attrName string) (string, bool, erro
 		Logger()
 
 	logger.Trace().Msg("Range over attributes.")
-	for _, attr := range ast.SortRawAttributes(block.Body.Attributes) {
+
+	attrs := ast.AsHCLAttributes(block.Body.Attributes)
+
+	for _, attr := range ast.SortRawAttributes(attrs) {
 		if attrName != attr.Name {
 			continue
 		}

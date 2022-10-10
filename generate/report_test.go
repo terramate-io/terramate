@@ -15,11 +15,11 @@
 package generate_test
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
 	errtest "github.com/mineiros-io/terramate/test/errors"
 )
@@ -40,7 +40,7 @@ func TestReportRepresentation(t *testing.T) {
 		{
 			name: "with bootstrap err",
 			report: generate.Report{
-				BootstrapErr: errors.New("such fail, much terrible"),
+				BootstrapErr: errors.E("such fail, much terrible"),
 			},
 			want: `Fatal failure preparing for code generation.
 Error details: such fail, much terrible`,
@@ -48,7 +48,7 @@ Error details: such fail, much terrible`,
 		{
 			name: "with bootstrap err results are ignored (should have none)",
 			report: generate.Report{
-				BootstrapErr: errors.New("ignore"),
+				BootstrapErr: errors.E("ignore"),
 				Successes: []generate.Result{
 					{
 						Dir:     "/test",
@@ -57,7 +57,7 @@ Error details: such fail, much terrible`,
 				},
 				Failures: []generate.FailureResult{
 					{
-						Error: errors.New("ignored"),
+						Error: errors.E("ignored"),
 					},
 				},
 			},
@@ -119,7 +119,7 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 						Result: generate.Result{
 							Dir: "/test",
 						},
-						Error: errors.New("full error"),
+						Error: errors.E("full error"),
 					},
 					{
 						Result: generate.Result{
@@ -128,7 +128,7 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 							Changed: []string{"changed.tf", "changed2.tf"},
 							Deleted: []string{"removed1.tf", "removed2.tf"},
 						},
-						Error: errors.New("partial error"),
+						Error: errors.E("partial error"),
 					},
 				},
 			},
@@ -172,13 +172,13 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 						Result: generate.Result{
 							Dir: "/failed",
 						},
-						Error: errors.New("error"),
+						Error: errors.E("error"),
 					},
 					{
 						Result: generate.Result{
 							Dir: "/failed2",
 						},
-						Error: errors.New("error"),
+						Error: errors.E("error"),
 					},
 				},
 			},
@@ -207,6 +207,48 @@ Failures:
 Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
 		},
 		{
+			name: "error result is a list",
+			report: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/empty",
+						},
+						Error: errors.L(),
+					},
+					{
+						Result: generate.Result{
+							Dir: "/failed",
+						},
+						Error: errors.L(errors.E("error")),
+					},
+					{
+						Result: generate.Result{
+							Dir: "/failed2",
+						},
+						Error: errors.L(
+							errors.E("error1"),
+							errors.E("error2"),
+						),
+					},
+				},
+			},
+			want: `Code generation report
+
+Failures:
+
+- /empty
+
+- /failed
+	error: error
+
+- /failed2
+	error: error1
+	error: error2
+
+Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
+		},
+		{
 			name: "cleanup error result",
 			report: generate.Report{
 				Successes: []generate.Result{
@@ -217,7 +259,7 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 						Deleted: []string{"removed.tf"},
 					},
 				},
-				CleanupErr: errors.New("cleanup error"),
+				CleanupErr: errors.E("cleanup error"),
 			},
 			want: `Code generation report
 
@@ -287,7 +329,7 @@ func assertEqualReports(t *testing.T, got, want generate.Report) {
 
 	if diff := cmp.Diff(got.Successes, want.Successes); diff != "" {
 		t.Errorf("success results differs: got(-) want(+)")
-		t.Fatal(diff)
+		t.Error(diff)
 	}
 
 	assert.EqualInts(t,

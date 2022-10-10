@@ -16,6 +16,7 @@ package genhcl_test
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -25,6 +26,8 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genhcl"
+	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
@@ -1454,6 +1457,217 @@ func TestGenerateHCL(t *testing.T) {
 			},
 			wantErr: errors.E(genhcl.ErrParsing),
 		},
+		{
+			name:  "generate HCL on stack with lets block",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("test"),
+						Lets(
+							Bool("some_bool", true),
+							Number("some_number", 777),
+							Str("some_string", "string"),
+						),
+						Content(
+							Block("testblock",
+								Expr("bool", "let.some_bool"),
+								Expr("number", "let.some_number"),
+								Expr("string", "let.some_string"),
+								Expr("obj", `{
+									string = let.some_string
+									number = let.some_number
+									bool = let.some_bool
+								}`),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body: Block("testblock",
+							Bool("bool", true),
+							Number("number", 777),
+							EvalExpr(t, "obj", `{
+								string = "string"
+								number = 777
+								bool   = true
+							}`),
+							Str("string", "string"),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "generate HCL on stack with lets referencing globals",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Str("some_string", "string"),
+						Number("some_number", 777),
+						Bool("some_bool", true),
+					),
+				},
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("test"),
+						Lets(
+							Expr("some_bool", `global.some_bool`),
+							Expr("some_number", `global.some_number`),
+							Expr("some_string", `global.some_string`),
+						),
+						Content(
+							Block("testblock",
+								Expr("bool", "let.some_bool"),
+								Expr("number", "let.some_number"),
+								Expr("string", "let.some_string"),
+								Expr("obj", `{
+									string = let.some_string
+									number = let.some_number
+									bool = let.some_bool
+								}`),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body: Block("testblock",
+							Bool("bool", true),
+							Number("number", 777),
+							EvalExpr(t, "obj", `{
+								string = "string"
+								number = 777
+								bool   = true
+							}`),
+							Str("string", "string"),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "generate HCL on stack with multiple lets block",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("test"),
+						Lets(
+							Bool("some_bool", true),
+						),
+						Lets(
+							Number("some_number", 777),
+						),
+						Lets(
+							Str("some_string", "string"),
+						),
+						Content(
+							Block("testblock",
+								Expr("bool", "let.some_bool"),
+								Expr("number", "let.some_number"),
+								Expr("string", "let.some_string"),
+								Expr("obj", `{
+									string = let.some_string
+									number = let.some_number
+									bool = let.some_bool
+								}`),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test",
+					hcl: genHCL{
+						origin:    defaultCfg("/stack"),
+						condition: true,
+						body: Block("testblock",
+							Bool("bool", true),
+							Number("number", 777),
+							EvalExpr(t, "obj", `{
+								string = "string"
+								number = 777
+								bool   = true
+							}`),
+							Str("string", "string"),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "generate HCL with duplicated lets block",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("test"),
+						Lets(
+							Bool("some_bool", true),
+						),
+						Lets(
+							Bool("some_bool", false),
+						),
+						Content(
+							Block("testblock",
+								Expr("bool", "let.some_bool"),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(lets.ErrRedefined),
+		},
+		{
+			name:  "lets are scoped",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						GenerateHCL(
+							Labels("test"),
+							Lets(
+								Bool("some_bool", true),
+							),
+							Content(
+								Block("testblock",
+									Expr("bool", "let.some_bool"),
+								),
+							),
+						),
+						GenerateHCL(
+							Labels("test2"),
+							Content(
+								Block("testblock",
+									Expr("bool", "let.some_bool"),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(eval.ErrPartial),
+		},
 	}
 
 	for _, tcase := range tcases {
@@ -1533,12 +1747,12 @@ func (tcase testcase) run(t *testing.T) {
 			assertHCLEquals(t, gotcode, wantcode)
 			assert.EqualStrings(t,
 				res.name,
-				gothcl.Name(),
+				gothcl.Label(),
 				"wrong name for generated code",
 			)
 			assert.EqualStrings(t,
 				res.hcl.origin,
-				gothcl.Origin(),
+				gothcl.Origin().String(),
 				"wrong origin config path for generated code",
 			)
 
@@ -1563,7 +1777,7 @@ func assertHCLEquals(t *testing.T, got string, want string) {
 }
 
 func defaultCfg(dir string) string {
-	return filepath.Join(dir, config.DefaultFilename)
+	return path.Join(dir, config.DefaultFilename)
 }
 
 func init() {

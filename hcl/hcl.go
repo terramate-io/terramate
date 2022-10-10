@@ -17,6 +17,7 @@ package hcl
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -54,9 +55,18 @@ type Config struct {
 	Terramate *Terramate
 	Stack     *Stack
 	Vendor    *VendorConfig
+	Asserts   []AssertConfig
 
 	// absdir is the absolute path to the configuration directory.
 	absdir string
+}
+
+// AssertConfig represents Terramate assert configuration block.
+type AssertConfig struct {
+	Origin    string
+	Warning   hcl.Expression
+	Assertion hcl.Expression
+	Message   hcl.Expression
 }
 
 // RunConfig represents Terramate run configuration.
@@ -175,10 +185,12 @@ type GenHCLBlock struct {
 	Origin string
 	// Label of the block.
 	Label string
-	// Content block.
-	Content *hclsyntax.Block
+	// Lets is a block of local variables.
+	Lets hclsyntax.Blocks
 	// Condition attribute of the block, if any.
 	Condition *hclsyntax.Attribute
+	// Content block.
+	Content *hclsyntax.Block
 }
 
 // GenFileBlock represents a parsed generate_file block
@@ -187,10 +199,12 @@ type GenFileBlock struct {
 	Origin string
 	// Label of the block
 	Label string
-	// Content attribute of the block
-	Content *hclsyntax.Attribute
+	// Lets is a block of local variables.
+	Lets hclsyntax.Blocks
 	// Condition attribute of the block, if any.
 	Condition *hclsyntax.Attribute
+	// Content attribute of the block
+	Content *hclsyntax.Attribute
 }
 
 // Evaluator represents a Terramate evaluator
@@ -473,7 +487,7 @@ func (p *TerramateParser) mergeConfig() error {
 	for _, origin := range p.sortedParsedFilenames() {
 		body := bodies[origin]
 
-		errs.Append(p.Config.mergeAttrs(ast.NewAttributes(origin, body.Attributes)))
+		errs.Append(p.Config.mergeAttrs(ast.NewAttributes(origin, ast.AsHCLAttributes(body.Attributes))))
 		errs.Append(p.Config.mergeBlocks(ast.NewBlocks(origin, body.Blocks)))
 	}
 	return errs.AsError()
@@ -519,9 +533,9 @@ func (p *TerramateParser) handleImport(importBlock *ast.Block) error {
 	}
 
 	src := srcVal.AsString()
-	srcBase := filepath.Base(src)
-	srcDir := filepath.Dir(src)
-	if filepath.IsAbs(srcDir) { // project-path
+	srcBase := path.Base(src)
+	srcDir := path.Dir(src)
+	if path.IsAbs(srcDir) { // project-path
 		srcDir = filepath.Join(p.rootdir, srcDir)
 	} else {
 		srcDir = filepath.Join(p.dir, srcDir)
@@ -708,10 +722,33 @@ func ParseGenerateHCLBlocks(root, dir string) ([]GenHCLBlock, error) {
 
 	var genhclBlocks []GenHCLBlock
 	for _, block := range blocks {
+		var (
+			lets    hclsyntax.Blocks
+			content *hclsyntax.Block
+		)
+
+		for _, b := range block.Body.Blocks {
+			switch b.Type {
+			case "lets":
+				lets = append(lets, b)
+			case "content":
+				if content != nil {
+					return nil, errors.E(b.Range(),
+						"multiple generate_hcl.content blocks defined",
+					)
+				}
+				content = b
+			default:
+				// already validated but sanity checks...
+				panic("unreachable")
+			}
+		}
+
 		genhclBlocks = append(genhclBlocks, GenHCLBlock{
 			Origin:    block.Origin,
 			Label:     block.Labels[0],
-			Content:   block.Body.Blocks[0],
+			Lets:      lets,
+			Content:   content,
 			Condition: block.Body.Attributes["condition"],
 		})
 	}
@@ -731,9 +768,18 @@ func ParseGenerateFileBlocks(root, dir string) ([]GenFileBlock, error) {
 
 	var genfileBlocks []GenFileBlock
 	for _, block := range blocks {
+		for _, subBlock := range block.Body.Blocks {
+			if len(subBlock.Body.Blocks) > 0 {
+				return nil, errors.E(
+					subBlock.Body.Blocks[0].Range(), "lets does not support blocks",
+				)
+			}
+		}
+
 		genfileBlocks = append(genfileBlocks, GenFileBlock{
 			Origin:    block.Origin,
 			Label:     block.Labels[0],
+			Lets:      block.Body.Blocks,
 			Content:   block.Body.Attributes["content"],
 			Condition: block.Body.Attributes["condition"],
 		})
@@ -783,11 +829,7 @@ func validateGenerateHCLBlock(block *ast.Block) error {
 	// Schema check passes if no block is present, so check for amount of blocks
 	if len(block.Body.Blocks) == 0 {
 		errs.Append(errors.E(ErrTerramateSchema, block.Body.Range(),
-			"generate_hcl must have one 'content' block"))
-	} else if len(block.Body.Blocks) != 1 {
-		errs.Append(errors.E(ErrTerramateSchema, block.Body.Range(),
-			"generate_hcl must have one block of type 'content', found %d blocks",
-			len(block.Body.Blocks)))
+			"generate_hcl must have at least one 'content' block"))
 	}
 
 	schema := &hcl.BodySchema{
@@ -802,12 +844,26 @@ func validateGenerateHCLBlock(block *ast.Block) error {
 				Type:       "content",
 				LabelNames: []string{},
 			},
+			{
+				Type:       "lets",
+				LabelNames: []string{},
+			},
 		},
 	}
 
 	_, diags := block.Body.Content(schema)
 	if diags.HasErrors() {
 		errs.Append(errors.E(ErrTerramateSchema, diags))
+	}
+	err := errs.AsError()
+	if err != nil {
+		return err
+	}
+
+	for _, b := range block.Blocks {
+		if b.Type == "lets" {
+			errs.Append(checkHasSubBlocks(b))
+		}
 	}
 	return errs.AsError()
 }
@@ -834,11 +890,27 @@ func validateGenerateFileBlock(block *ast.Block) error {
 				Required: false,
 			},
 		},
+		Blocks: []hcl.BlockHeaderSchema{
+			{
+				Type:       "lets",
+				LabelNames: []string{},
+			},
+		},
 	}
 
 	_, diags := block.Body.Content(schema)
 	if diags.HasErrors() {
 		errs.Append(errors.E(ErrTerramateSchema, diags))
+	}
+	err := errs.AsError()
+	if err != nil {
+		return err
+	}
+
+	for _, b := range block.Blocks {
+		if b.Type == "lets" {
+			errs.Append(checkHasSubBlocks(b))
+		}
 	}
 	return errs.AsError()
 }
@@ -953,7 +1025,8 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 
 	logger.Debug().Msg("Get stack attributes.")
 
-	for _, attr := range ast.SortRawAttributes(stackblock.Body.Attributes) {
+	attrs := ast.AsHCLAttributes(stackblock.Body.Attributes)
+	for _, attr := range ast.SortRawAttributes(attrs) {
 		logger.Trace().Msg("Get attribute value.")
 
 		attrVal, err := evalctx.Eval(attr.Expr)
@@ -1104,6 +1177,47 @@ checkBlocks:
 	}
 
 	return errs.AsError()
+}
+
+func parseAssertConfig(assert *ast.Block) (AssertConfig, error) {
+	cfg := AssertConfig{}
+	errs := errors.L()
+
+	cfg.Origin = assert.Origin
+
+	errs.Append(checkNoLabels(assert))
+	errs.Append(checkHasSubBlocks(assert))
+
+	for _, attr := range assert.Attributes {
+		switch attr.Name {
+		case "assertion":
+			cfg.Assertion = attr.Expr
+		case "message":
+			cfg.Message = attr.Expr
+		case "warning":
+			cfg.Warning = attr.Expr
+		default:
+			errs.Append(errors.E(ErrTerramateSchema, attr.NameRange,
+				"unrecognized attribute %s.%s", assert.Type, attr.Name,
+			))
+		}
+	}
+
+	if cfg.Assertion == nil {
+		errs.Append(errors.E(ErrTerramateSchema, assert.Range(),
+			"assert.assertion is required"))
+	}
+
+	if cfg.Message == nil {
+		errs.Append(errors.E(ErrTerramateSchema, assert.Range(),
+			"assert.message is required"))
+	}
+
+	if err := errs.AsError(); err != nil {
+		return AssertConfig{}, err
+	}
+
+	return cfg, nil
 }
 
 func parseVendorConfig(cfg *VendorConfig, vendor *ast.Block) error {
@@ -1442,6 +1556,15 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 			foundstack = true
 			stackblock = block
+		case "assert":
+			logger.Trace().Msg("found assert block")
+			assertCfg, err := parseAssertConfig(block)
+			if err != nil {
+				errs.Append(err)
+				continue
+			}
+			config.Asserts = append(config.Asserts, assertCfg)
+
 		case "vendor":
 			logger.Trace().Msg("found vendor block")
 
@@ -1738,10 +1861,10 @@ func isTerramateFile(filename string) bool {
 	return strings.HasSuffix(filename, ".tm") || strings.HasSuffix(filename, ".tm.hcl")
 }
 
-func hclAttrErr(attr *hclsyntax.Attribute, msg string, args ...interface{}) error {
+func hclAttrErr(attr *hcl.Attribute, msg string, args ...interface{}) error {
 	return errors.E(ErrTerramateSchema, attr.Expr.Range(), fmt.Sprintf(msg, args...))
 }
 
 func attrErr(attr ast.Attribute, msg string, args ...interface{}) error {
-	return hclAttrErr(attr.Attribute, msg, args...)
+	return errors.E(ErrTerramateSchema, attr.Expr.Range(), fmt.Sprintf(msg, args...))
 }

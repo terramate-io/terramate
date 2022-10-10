@@ -22,9 +22,9 @@ Anything you can do in Terraform can be generated using a `generate_hcl`
 block. References to Terramate globals and metadata are evaluated, but any
 other reference is just transported to the generated code (partial evaluation).
 
-Each `generate_hcl` block requires a single label.
-This label is the filename of the generated code, multiple `generate_hcl` blocks
-with the same label/filename will result in an error.
+Each `generate_hcl` block requires a single label that is the path
+where the generated file will be saved.
+For more details about how code generation use labels check the [Labels Overview](overview.md#labels)) docs.
 
 Inside the `generate_hcl` block a `content` block is required.
 All code inside `content` is going to be used to generate the final HCL code.
@@ -216,6 +216,34 @@ block {
   attr2 = not_evaluated.attr
 }
 ```
+
+The `for_each` attribute is optional. If it is not defined then only a single block
+will be generated and no iterator will be available on block generation.
+
+The `tm_dynamic` block also supports an optional `condition` attribute that must
+evaluate to a boolean. When not defined it is assumed to be true. If the `condition`
+is false the `tm_dynamic` block is ignored, including any of its nested `tm_dynamic`
+blocks. No other attribute of the `tm_dynamic` block is evaluated if the `condition`
+is false, so it is safe to use it like this:
+
+```hcl
+generate_hcl "file.tf" {
+  content {
+    tm_dynamic "block" {
+      for_each = global.values
+      condition = tm_can(global.values)
+      iterator = value
+
+      attributes = {
+        attr = "index: ${value.key}, value: ${value.value}"
+        attr2 = not_evaluated.attr
+      }
+    }
+  }
+}
+```
+
+And if `global.values` is undefined the block is just ignored.
 
 ## Hierarchical Code Generation
 

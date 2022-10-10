@@ -24,7 +24,77 @@ import (
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
-func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
+func TestCheckStackForGenFileWithChildStacks(t *testing.T) {
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		"s:/stack",
+		"s:/stack/dir/child",
+	})
+
+	assertEqualStringList(t, s.CheckStack("stack"), []string{})
+	assertEqualStringList(t, s.CheckStack("stack/dir/child"), []string{})
+
+	stackEntry := s.DirEntry("stack")
+	stackEntry.CreateConfig(
+		Doc(
+			GenerateFile(
+				Labels("test.tf"),
+				Str("content", "test"),
+			),
+			GenerateFile(
+				Labels("dir/test.tf"),
+				Str("content", "test"),
+			),
+		).String())
+
+	assertEqualStringList(t, s.CheckStack("stack"), []string{
+		"dir/test.tf",
+		"test.tf",
+	})
+	assertEqualStringList(t, s.CheckStack("stack/dir/child"), []string{
+		"dir/test.tf",
+		"test.tf",
+	})
+
+	childEntry := s.DirEntry("stack/dir/child")
+	childEntry.CreateConfig(
+		Doc(
+			GenerateFile(
+				Labels("another.tf"),
+				Str("content", "test"),
+			),
+			GenerateFile(
+				Labels("another/test.tf"),
+				Str("content", "test"),
+			),
+		).String())
+
+	assertEqualStringList(t, s.CheckStack("stack"), []string{
+		"dir/test.tf",
+		"test.tf",
+	})
+	assertEqualStringList(t, s.CheckStack("stack/dir/child"), []string{
+		"another.tf",
+		"another/test.tf",
+		"dir/test.tf",
+		"test.tf",
+	})
+
+	s.Generate()
+
+	assertEqualStringList(t, s.CheckStack("stack"), []string{})
+	assertEqualStringList(t, s.CheckStack("stack/dir/child"), []string{})
+
+	// Removing configs don't make generated code outdated since there is
+	// no way to detect that generated files with generate_file came from Terramate.
+	stackEntry.DeleteConfig()
+	childEntry.DeleteConfig()
+
+	assertEqualStringList(t, s.CheckStack("stack"), []string{})
+	assertEqualStringList(t, s.CheckStack("stack/dir/child"), []string{})
+}
+
+func TestCheckStackForGenFile(t *testing.T) {
 	s := sandbox.New(t)
 
 	stackEntry := s.CreateStack("stacks/stack")
@@ -40,12 +110,18 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
 
 	// Checking detection when there is no config generated yet
 	stackEntry.CreateConfig(
-		GenerateFile(
-			Labels("test.txt"),
-			Str("content", "test"),
+		Doc(
+			GenerateFile(
+				Labels("test.txt"),
+				Str("content", "test"),
+			),
+			GenerateFile(
+				Labels("dir/test.txt"),
+				Str("content", "test"),
+			),
 		).String(),
 	)
-	assertOutdatedFiles([]string{"test.txt"})
+	assertOutdatedFiles([]string{"dir/test.txt", "test.txt"})
 
 	s.Generate()
 
@@ -53,13 +129,19 @@ func TestCheckReturnsOutdatedStackFilenamesForGeneratedFile(t *testing.T) {
 
 	// Now checking when we have code + it gets outdated.
 	stackEntry.CreateConfig(
-		GenerateFile(
-			Labels("test.txt"),
-			Str("content", "changed"),
+		Doc(
+			GenerateFile(
+				Labels("test.txt"),
+				Str("content", "changed"),
+			),
+			GenerateFile(
+				Labels("dir/test.txt"),
+				Str("content", "changed"),
+			),
 		).String(),
 	)
 
-	assertOutdatedFiles([]string{"test.txt"})
+	assertOutdatedFiles([]string{"dir/test.txt", "test.txt"})
 
 	s.Generate()
 

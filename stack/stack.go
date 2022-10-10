@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -35,7 +36,7 @@ type (
 		hostpath string
 
 		// path is the absolute path of the stack relative to project's root.
-		path string
+		path project.Path
 
 		// relPathToRoot is the relative path from the stack to root.
 		relPathToRoot string
@@ -64,7 +65,7 @@ type (
 		wantedBy []string
 
 		// watch is the list of files to be watched for changes.
-		watch []string
+		watch []project.Path
 
 		// changed tells if this is a changed stack.
 		changed bool
@@ -79,7 +80,7 @@ type (
 		// HostPath is the absolute path of the stack on the host file system.
 		HostPath() string
 		// Path is the absolute path of the stack (relative to project root).
-		Path() string
+		Path() project.Path
 		// RelPath is the relative path of the from root.
 		RelPath() string
 		// PathBase is the basename of the stack path.
@@ -134,7 +135,7 @@ func New(root string, cfg hcl.Config) (*S, error) {
 		watch:         watchFiles,
 		hostpath:      cfg.AbsDir(),
 		path:          project.PrjAbsPath(root, cfg.AbsDir()),
-		relPathToRoot: rel,
+		relPathToRoot: filepath.ToSlash(rel),
 	}, nil
 }
 
@@ -148,7 +149,7 @@ func (s *S) Name() string {
 	if s.name != "" {
 		return s.name
 	}
-	return s.Path()
+	return s.Path().String()
 }
 
 // Desc is the description of the stack.
@@ -173,7 +174,7 @@ func (s S) Wants() []string { return s.wants }
 func (s S) WantedBy() []string { return s.wantedBy }
 
 // Watch returns the list of watched files.
-func (s *S) Watch() []string { return s.watch }
+func (s *S) Watch() []project.Path { return s.watch }
 
 // IsChanged tells if the stack is marked as changed.
 func (s *S) IsChanged() bool { return s.changed }
@@ -182,16 +183,16 @@ func (s *S) IsChanged() bool { return s.changed }
 func (s *S) SetChanged(b bool) { s.changed = b }
 
 // String representation of the stack.
-func (s *S) String() string { return s.Path() }
+func (s *S) String() string { return s.Path().String() }
 
 // Path returns the project's absolute path of stack.
-func (s *S) Path() string { return s.path }
+func (s *S) Path() project.Path { return s.path }
 
 // PathBase returns the base name of the stack path.
-func (s *S) PathBase() string { return filepath.Base(s.path) }
+func (s *S) PathBase() string { return filepath.Base(s.path.String()) }
 
 // RelPath returns the project's relative path of stack.
-func (s *S) RelPath() string { return s.path[1:] }
+func (s *S) RelPath() string { return s.path.String()[1:] }
 
 // RelPathToRoot returns the relative path from the stack to root.
 func (s *S) RelPathToRoot() string { return s.relPathToRoot }
@@ -199,28 +200,28 @@ func (s *S) RelPathToRoot() string { return s.relPathToRoot }
 // HostPath returns the file system absolute path of stack.
 func (s *S) HostPath() string { return s.hostpath }
 
-func validateWatchPaths(rootdir string, stackpath string, paths []string) ([]string, error) {
-	var projectPaths []string
-	for _, path := range paths {
+func validateWatchPaths(rootdir string, stackpath string, paths []string) (project.Paths, error) {
+	var projectPaths project.Paths
+	for _, pathstr := range paths {
 		var abspath string
-		if filepath.IsAbs(path) {
-			abspath = filepath.Join(rootdir, path)
+		if path.IsAbs(pathstr) {
+			abspath = filepath.Join(rootdir, filepath.FromSlash(pathstr))
 		} else {
-			abspath = filepath.Join(stackpath, path)
+			abspath = filepath.Join(stackpath, filepath.FromSlash(pathstr))
 		}
 		if !strings.HasPrefix(abspath, rootdir) {
-			return nil, errors.E("path %q is outside project root", path)
+			return nil, errors.E("path %s is outside project root", pathstr)
 		}
 		st, err := os.Stat(abspath)
 		if err == nil {
 			if st.IsDir() {
 				return nil, errors.E("stack.watch must be a list of regular files "+
-					"but directory %q was provided", path)
+					"but directory %q was provided", pathstr)
 			}
 
 			if !st.Mode().IsRegular() {
 				return nil, errors.E("stack.watch must be a list of regular files "+
-					"but file %q has mode %s", path, st.Mode())
+					"but file %q has mode %s", pathstr, st.Mode())
 			}
 		}
 		projectPaths = append(projectPaths, project.PrjAbsPath(rootdir, abspath))
@@ -237,14 +238,11 @@ func LookupParent(root, dir string) (*S, bool, error) {
 
 // NewProjectMetadata creates project metadata from a given rootdir and a list of stacks.
 func NewProjectMetadata(rootdir string, stacks List) project.Metadata {
-	stackPaths := make([]string, len(stacks))
+	stackPaths := make(project.Paths, len(stacks))
 	for i, st := range stacks {
 		stackPaths[i] = st.Path()
 	}
-	return project.Metadata{
-		Rootdir: rootdir,
-		Stacks:  stackPaths,
-	}
+	return project.NewMetadata(rootdir, stackPaths)
 }
 
 // LoadAll loads all stacks inside the given rootdir.
@@ -332,14 +330,14 @@ func TryLoad(root, absdir string) (stack *S, found bool, err error) {
 		Logger()
 
 	if !strings.HasPrefix(absdir, root) {
-		return nil, false, errors.E(fmt.Sprintf("directory %q is not inside project root %q",
+		return nil, false, errors.E(fmt.Sprintf("directory %s is not inside project root %s",
 			absdir, root))
 	}
 
 	logger.Debug().Msg("Parsing configuration.")
 	cfg, err := hcl.ParseDir(root, absdir)
 	if err != nil {
-		return nil, false, errors.E(err, "failed to parse directory %q", absdir)
+		return nil, false, errors.E(err, "failed to parse directory %s", absdir)
 	}
 
 	if cfg.Stack == nil {
@@ -367,6 +365,15 @@ func Reverse(stacks List) {
 		i++
 		j--
 	}
+}
+
+// Paths returns the project paths from the stack list.
+func (l List) Paths() project.Paths {
+	paths := make(project.Paths, len(l))
+	for i, s := range l {
+		paths[i] = s.Path()
+	}
+	return paths
 }
 
 func (l List) Len() int           { return len(l) }

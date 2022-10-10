@@ -22,13 +22,15 @@ import (
 )
 
 func TestOrderGraphAfter(t *testing.T) {
+	t.Parallel()
+
 	type testcase struct {
 		name   string
 		layout []string
 		want   runExpected
 	}
 
-	for _, tc := range []testcase{
+	for _, tcase := range []testcase{
 		{
 			name: "one stack, no order",
 			layout: []string{
@@ -327,13 +329,53 @@ func TestOrderGraphAfter(t *testing.T) {
 			},
 		},
 	} {
+		tc := tcase
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 			cli := newCLI(t, s.RootDir())
 			assertRunResult(t, cli.stacksRunGraph(), tc.want)
 		})
 	}
+}
+
+func TestExperimentalRunOrderNotChangedStackIgnored(t *testing.T) {
+	t.Parallel()
+
+	const (
+		mainTfFileName = "main.tf"
+		mainTfContents = "# change is the eternal truth of the universe"
+	)
+
+	s := sandbox.New(t)
+
+	// stack must run after stack2 but stack2 didn't change.
+	s.BuildTree([]string{
+		`s:stack:after=["/stack2"]`,
+		"s:stack2",
+	})
+
+	stack := s.DirEntry("stack")
+	stackMainTf := stack.CreateFile(mainTfFileName, "# some code")
+
+	git := s.Git()
+	git.CommitAll("first commit")
+	git.Push("main")
+	git.CheckoutNew("change-stack")
+
+	stackMainTf.Write(mainTfContents)
+	git.CommitAll("stack changed")
+
+	cli := newCLI(t, s.RootDir())
+
+	wantList := stack.RelPath() + "\n"
+	assertRunResult(t, cli.listChangedStacks(), runExpected{Stdout: wantList})
+	assertRunResult(t, cli.run("--changed", "experimental", "run-order"),
+		runExpected{
+			Stdout: wantList,
+		})
 }
 
 // remove tabs and newlines

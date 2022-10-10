@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package genfile implements generate_file code generation.
 package genfile
 
 import (
@@ -20,8 +21,11 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
@@ -50,15 +54,15 @@ const (
 
 // File represents generated file from a single generate_file block.
 type File struct {
-	name      string
-	origin    string
+	label     string
+	origin    project.Path
 	body      string
 	condition bool
 }
 
-// Name of the file.
-func (f File) Name() string {
-	return f.name
+// Label of the original generate_file block.
+func (f File) Label() string {
+	return f.label
 }
 
 // Body returns the file body.
@@ -68,7 +72,7 @@ func (f File) Body() string {
 
 // Origin returns the path, relative to the project root,
 // of the configuration that originated the file.
-func (f File) Origin() string {
+func (f File) Origin() project.Path {
 	return f.origin
 }
 
@@ -86,7 +90,7 @@ func (f File) Header() string {
 
 func (f File) String() string {
 	return fmt.Sprintf("generate_file %q (condition %t) (body %q) (origin %q)",
-		f.Name(), f.Condition(), f.Body(), f.Origin())
+		f.Label(), f.Condition(), f.Body(), f.Origin())
 }
 
 // Load loads and parses from the file system all generate_file blocks for
@@ -101,7 +105,7 @@ func (f File) String() string {
 // generate_file blocks.
 //
 // The rootdir MUST be an absolute path.
-func Load(projmeta project.Metadata, sm stack.Metadata, globals stack.Globals) ([]File, error) {
+func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]File, error) {
 	logger := log.With().
 		Str("action", "genfile.Load()").
 		Str("path", sm.HostPath()).
@@ -109,12 +113,10 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals stack.Globals) (
 
 	logger.Trace().Msg("loading generate_file blocks")
 
-	genFileBlocks, err := loadGenFileBlocks(projmeta.Rootdir, sm.HostPath())
+	genFileBlocks, err := loadGenFileBlocks(projmeta.Rootdir(), sm.HostPath())
 	if err != nil {
 		return nil, errors.E("loading generate_file", err)
 	}
-
-	evalctx := stack.NewEvalCtx(projmeta, sm, globals)
 
 	logger.Trace().Msg("generating files")
 
@@ -126,8 +128,14 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals stack.Globals) (
 
 		logger := logger.With().
 			Str("block", name).
-			Str("origin", origin).
+			Stringer("origin", origin).
 			Logger()
+
+		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
+		err := lets.Load(genFileBlock.lets, evalctx.Context)
+		if err != nil {
+			return nil, err
+		}
 
 		logger.Trace().Msg("evaluating condition")
 
@@ -152,7 +160,7 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals stack.Globals) (
 			logger.Trace().Msg("condition=false, content wont be evaluated")
 
 			files = append(files, File{
-				name:      name,
+				label:     name,
 				origin:    genFileBlock.origin,
 				condition: condition,
 			})
@@ -176,7 +184,7 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals stack.Globals) (
 		}
 
 		files = append(files, File{
-			name:      name,
+			label:     name,
 			origin:    genFileBlock.origin,
 			body:      value.AsString(),
 			condition: condition,
@@ -194,7 +202,8 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals stack.Globals) (
 
 type genFileBlock struct {
 	label  string
-	origin string
+	origin project.Path
+	lets   hclsyntax.Blocks
 	block  hcl.GenFileBlock
 }
 
@@ -231,6 +240,7 @@ func loadGenFileBlocks(rootdir string, cfgdir string) ([]genFileBlock, error) {
 			label:  block.Label,
 			origin: origin,
 			block:  block,
+			lets:   block.Lets,
 		})
 
 		logger.Trace().Msg("loaded generate_file block.")

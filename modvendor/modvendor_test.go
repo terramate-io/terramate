@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -30,23 +29,28 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/modvendor"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/mineiros-io/terramate/tf"
 	"github.com/rs/zerolog"
+	"go.lsp.dev/uri"
 
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
 // vendorPathSpec describes paths inside a vendor directory when its
 // directory is not yet know. It's format is just:
-//   <module source>#<vendor relative path>
+//
+//	<module source>#<vendor relative path>
+//
 // Where the module source can use the "text/template" (dot) variable to be
 // substituted at a later time when the final vendor directory is computed.
 //
 // Example:
-//   git::file://{{.}}/module-test?ref=main#main.tf
+//
+//	git::file://{{.}}/module-test?ref=main#main.tf
 type vendorPathSpec string
 
 type testcase struct {
@@ -95,7 +99,7 @@ func TestModVendor(t *testing.T) {
 			layout: []string{
 				"g:module-test",
 			},
-			source: "git::file://{{.}}/module-test?ref=main",
+			source: "git::{{.}}/module-test?ref=main",
 			configs: []hclconfig{
 				{
 					repo: "module-test",
@@ -107,7 +111,7 @@ func TestModVendor(t *testing.T) {
 				},
 			},
 			wantVendored: []string{
-				"git::file://{{.}}/module-test?ref=main",
+				"git::{{.}}/module-test?ref=main",
 			},
 		},
 		{
@@ -115,7 +119,7 @@ func TestModVendor(t *testing.T) {
 			layout: []string{
 				"g:module-test",
 			},
-			source: "git::file://{{.}}/module-test?ref=main",
+			source: "git::{{.}}/module-test?ref=main",
 			configs: []hclconfig{
 				{
 					repo: "module-test",
@@ -124,7 +128,7 @@ func TestModVendor(t *testing.T) {
 				},
 			},
 			wantVendored: []string{
-				"git::file://{{.}}/module-test?ref=main",
+				"git::{{.}}/module-test?ref=main",
 			},
 			wantError: errors.E(hcl.ErrHCLSyntax),
 		},
@@ -133,7 +137,7 @@ func TestModVendor(t *testing.T) {
 			layout: []string{
 				"g:module-test",
 			},
-			source: "git::file://{{.}}/module-test?ref=main",
+			source: "git::{{.}}/module-test?ref=main",
 			configs: []hclconfig{
 				{
 					repo: "module-test",
@@ -145,7 +149,7 @@ func TestModVendor(t *testing.T) {
 				},
 			},
 			wantVendored: []string{
-				"git::file://{{.}}/module-test?ref=main",
+				"git::{{.}}/module-test?ref=main",
 			},
 			wantIgnored: []wantIgnoredVendor{
 				{
@@ -156,10 +160,10 @@ func TestModVendor(t *testing.T) {
 		},
 		{
 			name:   "module not found",
-			source: "git::file://{{.}}/module-that-does-not-exists?ref=main",
+			source: "git::{{.}}/module-that-does-not-exists?ref=main",
 			wantIgnored: []wantIgnoredVendor{
 				{
-					RawSource:     "git::file://{{.}}/module-that-does-not-exists?ref=main",
+					RawSource:     "git::{{.}}/module-that-does-not-exists?ref=main",
 					ReasonPattern: "failed to vendor",
 				},
 			},
@@ -170,26 +174,26 @@ func TestModVendor(t *testing.T) {
 				"g:module-test",
 				"g:another-module",
 			},
-			source: "git::file://{{.}}/module-test?ref=main",
+			source: "git::{{.}}/module-test?ref=main",
 			configs: []hclconfig{
 				{
 					repo: "module-test",
 					path: "module-test/main.tf",
 					data: Module(
 						Labels("test"),
-						Str("source", "git::file://{{.}}/another-module?ref=main"),
+						Str("source", "git::{{.}}/another-module?ref=main"),
 					),
 				},
 			},
 			wantFiles: map[vendorPathSpec]fmt.Stringer{
-				"git::file://{{.}}/module-test?ref=main#main.tf": Module(
+				"git::{{.}}/module-test?ref=main#main.tf": Module(
 					Labels("test"),
 					Str("source", "{{index . 1}}"),
 				),
 			},
 			wantVendored: []string{
-				"git::file://{{.}}/module-test?ref=main",
-				"git::file://{{.}}/another-module?ref=main",
+				"git::{{.}}/module-test?ref=main",
+				"git::{{.}}/another-module?ref=main",
 			},
 		},
 		{
@@ -198,26 +202,26 @@ func TestModVendor(t *testing.T) {
 				"g:module-test",
 				"g:another-module",
 			},
-			source: "git::file://{{.}}/module-test?ref=main",
+			source: "git::{{.}}/module-test?ref=main",
 			configs: []hclconfig{
 				{
 					repo: "module-test",
 					path: "module-test/main.tf",
 					data: Module(
 						Labels("test"),
-						Str("source", "git::file://{{.}}/another-module//sub/dir?ref=main"),
+						Str("source", "git::{{.}}/another-module//sub/dir?ref=main"),
 					),
 				},
 			},
 			wantFiles: map[vendorPathSpec]fmt.Stringer{
-				"git::file://{{.}}/module-test?ref=main#main.tf": Module(
+				"git::{{.}}/module-test?ref=main#main.tf": Module(
 					Labels("test"),
 					Str("source", "{{index . 1}}/sub/dir"),
 				),
 			},
 			wantVendored: []string{
-				"git::file://{{.}}/module-test?ref=main",
-				"git::file://{{.}}/another-module//sub/dir?ref=main",
+				"git::{{.}}/module-test?ref=main",
+				"git::{{.}}/another-module//sub/dir?ref=main",
 			},
 		},
 		{
@@ -226,7 +230,7 @@ func TestModVendor(t *testing.T) {
 				"g:module-test",
 				"g:another-module",
 			},
-			source: "git::file://{{.}}/module-test?ref=main",
+			source: "git::{{.}}/module-test?ref=main",
 			configs: []hclconfig{
 				{
 					repo: "module-test",
@@ -234,21 +238,21 @@ func TestModVendor(t *testing.T) {
 					data: Doc(
 						Module(
 							Labels("nosubdir"),
-							Str("source", "git::file://{{.}}/another-module?ref=main"),
+							Str("source", "git::{{.}}/another-module?ref=main"),
 						),
 						Module(
 							Labels("subdir1"),
-							Str("source", "git::file://{{.}}/another-module//sub/dir?ref=main"),
+							Str("source", "git::{{.}}/another-module//sub/dir?ref=main"),
 						),
 						Module(
 							Labels("subdir2"),
-							Str("source", "git::file://{{.}}/another-module//sub?ref=main"),
+							Str("source", "git::{{.}}/another-module//sub?ref=main"),
 						),
 					),
 				},
 			},
 			wantFiles: map[vendorPathSpec]fmt.Stringer{
-				"git::file://{{.}}/module-test?ref=main#main.tf": Doc(
+				"git::{{.}}/module-test?ref=main#main.tf": Doc(
 					Module(
 						Labels("nosubdir"),
 						Str("source", "{{index . 1}}"),
@@ -264,8 +268,8 @@ func TestModVendor(t *testing.T) {
 				),
 			},
 			wantVendored: []string{
-				"git::file://{{.}}/module-test?ref=main",
-				"git::file://{{.}}/another-module?ref=main",
+				"git::{{.}}/module-test?ref=main",
+				"git::{{.}}/another-module?ref=main",
 			},
 		},
 		{
@@ -274,14 +278,14 @@ func TestModVendor(t *testing.T) {
 				"g:module-test",
 				"g:another-module",
 			},
-			source: "git::file://{{.}}/module-test?ref=main",
+			source: "git::{{.}}/module-test?ref=main",
 			configs: []hclconfig{
 				{
 					repo: "module-test",
 					path: "module-test/main.tf",
 					data: Module(
 						Labels("test"),
-						Str("source", "git::file://{{.}}/another-module?ref=main"),
+						Str("source", "git::{{.}}/another-module?ref=main"),
 					),
 				},
 				{
@@ -294,14 +298,14 @@ func TestModVendor(t *testing.T) {
 				},
 			},
 			wantFiles: map[vendorPathSpec]fmt.Stringer{
-				"git::file://{{.}}/module-test?ref=main#main.tf": Module(
+				"git::{{.}}/module-test?ref=main#main.tf": Module(
 					Labels("test"),
 					Str("source", "{{index . 1}}"),
 				),
 			},
 			wantVendored: []string{
-				"git::file://{{.}}/module-test?ref=main",
-				"git::file://{{.}}/another-module?ref=main",
+				"git::{{.}}/module-test?ref=main",
+				"git::{{.}}/another-module?ref=main",
 			},
 			wantIgnored: []wantIgnoredVendor{
 				{
@@ -315,7 +319,7 @@ func TestModVendor(t *testing.T) {
 			layout: []string{
 				"g:module-test",
 			},
-			source: "git::file://{{.}}/module-test?ref=main",
+			source: "git::{{.}}/module-test?ref=main",
 			configs: []hclconfig{
 				{
 					repo: "module-test",
@@ -327,7 +331,7 @@ func TestModVendor(t *testing.T) {
 				},
 			},
 			wantVendored: []string{
-				"git::file://{{.}}/module-test?ref=main",
+				"git::{{.}}/module-test?ref=main",
 			},
 		},
 		{
@@ -336,7 +340,7 @@ func TestModVendor(t *testing.T) {
 				"g:module-test",
 				"g:another-module",
 			},
-			source: "git::file://{{.}}/module-test?ref=main",
+			source: "git::{{.}}/module-test?ref=main",
 			configs: []hclconfig{
 				{
 					repo: "module-test",
@@ -344,25 +348,25 @@ func TestModVendor(t *testing.T) {
 					data: Doc(
 						Module(
 							Labels("test"),
-							Str("source", "git::file://{{.}}/another-module?ref=main"),
+							Str("source", "git::{{.}}/another-module?ref=main"),
 						),
 						Module(
 							Labels("test"),
-							Str("source", "git::file://{{.}}/another-module?ref=main"),
+							Str("source", "git::{{.}}/another-module?ref=main"),
 						),
 						Module(
 							Labels("test"),
-							Str("source", "git::file://{{.}}/another-module?ref=main"),
+							Str("source", "git::{{.}}/another-module?ref=main"),
 						),
 						Module(
 							Labels("test"),
-							Str("source", "git::file://{{.}}/another-module?ref=main"),
+							Str("source", "git::{{.}}/another-module?ref=main"),
 						),
 					),
 				},
 			},
 			wantFiles: map[vendorPathSpec]fmt.Stringer{
-				"git::file://{{.}}/module-test?ref=main#main.tf": Doc(
+				"git::{{.}}/module-test?ref=main#main.tf": Doc(
 					Module(
 						Labels("test"),
 						Str("source", "{{index . 1}}"),
@@ -382,8 +386,8 @@ func TestModVendor(t *testing.T) {
 				),
 			},
 			wantVendored: []string{
-				"git::file://{{.}}/module-test?ref=main",
-				"git::file://{{.}}/another-module?ref=main",
+				"git::{{.}}/module-test?ref=main",
+				"git::{{.}}/another-module?ref=main",
 			},
 		},
 		{
@@ -393,7 +397,7 @@ func TestModVendor(t *testing.T) {
 				"g:another-module",
 			},
 			vendordir: "/strange/path",
-			source:    "git::file://{{.}}/module-test?ref=main",
+			source:    "git::{{.}}/module-test?ref=main",
 			configs: []hclconfig{
 				{
 					repo: "module-test",
@@ -401,25 +405,25 @@ func TestModVendor(t *testing.T) {
 					data: Doc(
 						Module(
 							Labels("test"),
-							Str("source", "git::file://{{.}}/another-module?ref=main"),
+							Str("source", "git::{{.}}/another-module?ref=main"),
 						),
 						Module(
 							Labels("test"),
-							Str("source", "git::file://{{.}}/another-module?ref=main"),
+							Str("source", "git::{{.}}/another-module?ref=main"),
 						),
 						Module(
 							Labels("test"),
-							Str("source", "git::file://{{.}}/another-module?ref=main"),
+							Str("source", "git::{{.}}/another-module?ref=main"),
 						),
 						Module(
 							Labels("test"),
-							Str("source", "git::file://{{.}}/another-module?ref=main"),
+							Str("source", "git::{{.}}/another-module?ref=main"),
 						),
 					),
 				},
 			},
 			wantFiles: map[vendorPathSpec]fmt.Stringer{
-				"git::file://{{.}}/module-test?ref=main#main.tf": Doc(
+				"git::{{.}}/module-test?ref=main#main.tf": Doc(
 					Module(
 						Labels("test"),
 						Str("source", "{{index . 1}}"),
@@ -439,8 +443,8 @@ func TestModVendor(t *testing.T) {
 				),
 			},
 			wantVendored: []string{
-				"git::file://{{.}}/module-test?ref=main",
-				"git::file://{{.}}/another-module?ref=main",
+				"git::{{.}}/module-test?ref=main",
+				"git::{{.}}/another-module?ref=main",
 			},
 		},
 		{
@@ -449,7 +453,7 @@ func TestModVendor(t *testing.T) {
 				"g:module-test",
 				"g:another-module",
 			},
-			source: "git::file://{{.}}/module-test?ref=main",
+			source: "git::{{.}}/module-test?ref=main",
 			configs: []hclconfig{
 				{
 					repo: "module-test",
@@ -457,7 +461,7 @@ func TestModVendor(t *testing.T) {
 					data: Doc(
 						Module(
 							Labels("test"),
-							Str("source", "git::file://{{.}}/another-module?ref=main"),
+							Str("source", "git::{{.}}/another-module?ref=main"),
 						),
 					),
 				},
@@ -467,26 +471,26 @@ func TestModVendor(t *testing.T) {
 					data: Doc(
 						Module(
 							Labels("test"),
-							Str("source", "git::file://{{.}}/another-module?ref=main"),
+							Str("source", "git::{{.}}/another-module?ref=main"),
 							Str("other", "value"),
 						),
 						Module(
 							Labels("test2"),
-							Str("source", "git::file://{{.}}/another-module?ref=main"),
+							Str("source", "git::{{.}}/another-module?ref=main"),
 						),
 					),
 				},
 			},
 			wantVendored: []string{
-				"git::file://{{.}}/module-test?ref=main",
-				"git::file://{{.}}/another-module?ref=main",
+				"git::{{.}}/module-test?ref=main",
+				"git::{{.}}/another-module?ref=main",
 			},
 			wantFiles: map[vendorPathSpec]fmt.Stringer{
-				"git::file://{{.}}/module-test?ref=main#1.tf": Module(
+				"git::{{.}}/module-test?ref=main#1.tf": Module(
 					Labels("test"),
 					Str("source", "{{index . 1}}"),
 				),
-				"git::file://{{.}}/module-test?ref=main#2.tf": Doc(
+				"git::{{.}}/module-test?ref=main#2.tf": Doc(
 					Module(
 						Labels("test"),
 						Str("source", "{{index . 1}}"),
@@ -507,7 +511,7 @@ func TestModVendor(t *testing.T) {
 				"g:best-module",
 				"g:cool-module",
 			},
-			source: "git::file://{{.}}/my-module?ref=main",
+			source: "git::{{.}}/my-module?ref=main",
 			configs: []hclconfig{
 				{
 					repo: "my-module",
@@ -515,7 +519,7 @@ func TestModVendor(t *testing.T) {
 					data: Doc(
 						Module(
 							Labels("test"),
-							Str("source", "git::file://{{.}}/awesome-module?ref=main"),
+							Str("source", "git::{{.}}/awesome-module?ref=main"),
 						),
 					),
 				},
@@ -525,12 +529,12 @@ func TestModVendor(t *testing.T) {
 					data: Doc(
 						Module(
 							Labels("test"),
-							Str("source", "git::file://{{.}}/best-module?ref=main"),
+							Str("source", "git::{{.}}/best-module?ref=main"),
 							Str("other", "value"),
 						),
 						Module(
 							Labels("test2"),
-							Str("source", "git::file://{{.}}/awesome-module?ref=main"),
+							Str("source", "git::{{.}}/awesome-module?ref=main"),
 						),
 					),
 				},
@@ -540,23 +544,23 @@ func TestModVendor(t *testing.T) {
 					data: Doc(
 						Module(
 							Labels("test"),
-							Str("source", "git::file://{{.}}/cool-module?ref=main"),
+							Str("source", "git::{{.}}/cool-module?ref=main"),
 						),
 					),
 				},
 			},
 			wantVendored: []string{
-				"git::file://{{.}}/my-module?ref=main",
-				"git::file://{{.}}/awesome-module?ref=main",
-				"git::file://{{.}}/cool-module?ref=main",
-				"git::file://{{.}}/best-module?ref=main",
+				"git::{{.}}/my-module?ref=main",
+				"git::{{.}}/awesome-module?ref=main",
+				"git::{{.}}/cool-module?ref=main",
+				"git::{{.}}/best-module?ref=main",
 			},
 			wantFiles: map[vendorPathSpec]fmt.Stringer{
-				"git::file://{{.}}/my-module?ref=main#main.tf": Module(
+				"git::{{.}}/my-module?ref=main#main.tf": Module(
 					Labels("test"),
 					Str("source", "{{index . 1}}"),
 				),
-				"git::file://{{.}}/my-module?ref=main#other.tf": Doc(
+				"git::{{.}}/my-module?ref=main#other.tf": Doc(
 					Module(
 						Labels("test"),
 						Str("source", "{{index . 3}}"),
@@ -567,7 +571,7 @@ func TestModVendor(t *testing.T) {
 						Str("source", "{{index . 1}}"),
 					),
 				),
-				"git::file://{{.}}/awesome-module?ref=main#main.tf": Doc(
+				"git::{{.}}/awesome-module?ref=main#main.tf": Doc(
 					Module(
 						Labels("test"),
 						Str("source", "{{index . 2}}"),
@@ -584,7 +588,7 @@ func TestModVendor(t *testing.T) {
 				"g:cool-module",
 				"g:forgotten-module",
 			},
-			source: "git::file://{{.}}/my-module?ref=main",
+			source: "git::{{.}}/my-module?ref=main",
 			configs: []hclconfig{
 				{
 					repo: "my-module",
@@ -592,7 +596,7 @@ func TestModVendor(t *testing.T) {
 					data: Doc(
 						Module(
 							Labels("test"),
-							Str("source", "git::file://{{.}}/awesome-module?ref=main"),
+							Str("source", "git::{{.}}/awesome-module?ref=main"),
 						),
 					),
 				},
@@ -602,12 +606,12 @@ func TestModVendor(t *testing.T) {
 					data: Doc(
 						Module(
 							Labels("test"),
-							Str("source", "git::file://{{.}}/best-module?ref=main"),
+							Str("source", "git::{{.}}/best-module?ref=main"),
 							Str("other", "value"),
 						),
 						Module(
 							Labels("test2"),
-							Str("source", "git::file://{{.}}/awesome-module?ref=main"),
+							Str("source", "git::{{.}}/awesome-module?ref=main"),
 						),
 					),
 				},
@@ -617,7 +621,7 @@ func TestModVendor(t *testing.T) {
 					data: Doc(
 						Module(
 							Labels("test"),
-							Str("source", "git::file://{{.}}/cool-module?ref=main"),
+							Str("source", "git::{{.}}/cool-module?ref=main"),
 						),
 					),
 				},
@@ -627,24 +631,24 @@ func TestModVendor(t *testing.T) {
 					data: Doc(
 						Module(
 							Labels("test"),
-							Str("source", "git::file://{{.}}/forgotten-module?ref=main"),
+							Str("source", "git::{{.}}/forgotten-module?ref=main"),
 						),
 					),
 				},
 			},
 			wantVendored: []string{
-				"git::file://{{.}}/my-module?ref=main",
-				"git::file://{{.}}/awesome-module?ref=main",
-				"git::file://{{.}}/cool-module?ref=main",
-				"git::file://{{.}}/best-module?ref=main",
-				"git::file://{{.}}/forgotten-module?ref=main",
+				"git::{{.}}/my-module?ref=main",
+				"git::{{.}}/awesome-module?ref=main",
+				"git::{{.}}/cool-module?ref=main",
+				"git::{{.}}/best-module?ref=main",
+				"git::{{.}}/forgotten-module?ref=main",
 			},
 			wantFiles: map[vendorPathSpec]fmt.Stringer{
-				"git::file://{{.}}/my-module?ref=main#main.tf": Module(
+				"git::{{.}}/my-module?ref=main#main.tf": Module(
 					Labels("test"),
 					Str("source", "{{index . 1}}"),
 				),
-				"git::file://{{.}}/my-module?ref=main#other.tf": Doc(
+				"git::{{.}}/my-module?ref=main#other.tf": Doc(
 					Module(
 						Labels("test"),
 						Str("source", "{{index . 3}}"),
@@ -655,13 +659,13 @@ func TestModVendor(t *testing.T) {
 						Str("source", "{{index . 1}}"),
 					),
 				),
-				"git::file://{{.}}/awesome-module?ref=main#main.tf": Doc(
+				"git::{{.}}/awesome-module?ref=main#main.tf": Doc(
 					Module(
 						Labels("test"),
 						Str("source", "{{index . 2}}"),
 					),
 				),
-				"git::file://{{.}}/cool-module?ref=main#main.tf": Doc(
+				"git::{{.}}/cool-module?ref=main#main.tf": Doc(
 					Module(
 						Labels("test"),
 						Str("source", "{{index . 4}}"),
@@ -677,7 +681,7 @@ func TestModVendor(t *testing.T) {
 				"g:best-module",
 				"g:cool-module",
 			},
-			source: "git::file://{{.}}/my-module?ref=main",
+			source: "git::{{.}}/my-module?ref=main",
 			configs: []hclconfig{
 				{
 					repo: "my-module",
@@ -685,7 +689,7 @@ func TestModVendor(t *testing.T) {
 					data: Doc(
 						Module(
 							Labels("test"),
-							Str("source", "git::file://{{.}}/awesome-module?ref=main"),
+							Str("source", "git::{{.}}/awesome-module?ref=main"),
 						),
 					),
 				},
@@ -695,12 +699,12 @@ func TestModVendor(t *testing.T) {
 					data: Doc(
 						Module(
 							Labels("test"),
-							Str("source", "git::file://{{.}}/best-module?ref=main"),
+							Str("source", "git::{{.}}/best-module?ref=main"),
 							Str("other", "value"),
 						),
 						Module(
 							Labels("test2"),
-							Str("source", "git::file://{{.}}/awesome-module?ref=main"),
+							Str("source", "git::{{.}}/awesome-module?ref=main"),
 						),
 					),
 				},
@@ -710,7 +714,7 @@ func TestModVendor(t *testing.T) {
 					data: Doc(
 						Module(
 							Labels("test"),
-							Str("source", "git::file://{{.}}/cool-module?ref=main"),
+							Str("source", "git::{{.}}/cool-module?ref=main"),
 						),
 					),
 				},
@@ -720,23 +724,23 @@ func TestModVendor(t *testing.T) {
 					data: Doc(
 						Module(
 							Labels("test"),
-							Str("source", "git::file://{{.}}/my-module?ref=main"),
+							Str("source", "git::{{.}}/my-module?ref=main"),
 						),
 					),
 				},
 			},
 			wantVendored: []string{
-				"git::file://{{.}}/my-module?ref=main",
-				"git::file://{{.}}/awesome-module?ref=main",
-				"git::file://{{.}}/cool-module?ref=main",
-				"git::file://{{.}}/best-module?ref=main",
+				"git::{{.}}/my-module?ref=main",
+				"git::{{.}}/awesome-module?ref=main",
+				"git::{{.}}/cool-module?ref=main",
+				"git::{{.}}/best-module?ref=main",
 			},
 			wantFiles: map[vendorPathSpec]fmt.Stringer{
-				"git::file://{{.}}/my-module?ref=main#main.tf": Module(
+				"git::{{.}}/my-module?ref=main#main.tf": Module(
 					Labels("test"),
 					Str("source", "{{index . 1}}"),
 				),
-				"git::file://{{.}}/my-module?ref=main#other.tf": Doc(
+				"git::{{.}}/my-module?ref=main#other.tf": Doc(
 					Module(
 						Labels("test"),
 						Str("source", "{{index . 3}}"),
@@ -747,13 +751,13 @@ func TestModVendor(t *testing.T) {
 						Str("source", "{{index . 1}}"),
 					),
 				),
-				"git::file://{{.}}/awesome-module?ref=main#main.tf": Doc(
+				"git::{{.}}/awesome-module?ref=main#main.tf": Doc(
 					Module(
 						Labels("test"),
 						Str("source", "{{index . 2}}"),
 					),
 				),
-				"git::file://{{.}}/cool-module?ref=main#main.tf": Doc(
+				"git::{{.}}/cool-module?ref=main#main.tf": Doc(
 					Module(
 						Labels("test"),
 						Str("source", "{{index . 0}}"),
@@ -773,26 +777,28 @@ func TestModVendor(t *testing.T) {
 			}
 
 			modulesDir := s.RootDir()
+			uriModulesDir := uri.File(modulesDir)
 			for _, cfg := range tc.configs {
 				test.WriteFile(t, s.RootDir(), cfg.path,
-					applyConfigTemplate(t, cfg.data.String(), modulesDir))
+					applyConfigTemplate(t, cfg.data.String(), uriModulesDir))
 
 				git := sandbox.NewGit(t, filepath.Join(modulesDir, cfg.repo))
 				git.CommitAll("files updated")
 			}
-			source := applyConfigTemplate(t, tc.source, modulesDir)
+			source := applyConfigTemplate(t, tc.source, uriModulesDir)
 			modsrc, err := tf.ParseSource(source)
 			assert.NoError(t, err)
 			rootdir := t.TempDir()
-			got := modvendor.Vendor(rootdir, tc.vendordir, modsrc)
+			vendorDir := project.NewPath(tc.vendordir)
+			got := modvendor.Vendor(rootdir, vendorDir, modsrc)
 			want := applyReportTemplate(t, wantReport{
 				Vendored: tc.wantVendored,
 				Ignored:  tc.wantIgnored,
 				Error:    tc.wantError,
-			}, modulesDir, tc.vendordir)
+			}, string(uriModulesDir), vendorDir)
 
 			assertVendorReport(t, want, got)
-			checkWantedFiles(t, tc, modulesDir, rootdir, tc.vendordir)
+			checkWantedFiles(t, tc, uriModulesDir, rootdir, vendorDir)
 		})
 	}
 }
@@ -807,19 +813,19 @@ func applyConfigTemplate(t *testing.T, input string, value interface{}) string {
 	return buf.String()
 }
 
-func applyReportTemplate(t *testing.T, r wantReport, value string, vendordir string) modvendor.Report {
+func applyReportTemplate(t *testing.T, r wantReport, value string, vendordir project.Path) modvendor.Report {
 	t.Helper()
 	out := modvendor.Report{
-		Vendored: make(map[string]modvendor.Vendored),
+		Vendored: make(map[project.Path]modvendor.Vendored),
 		Error:    r.Error,
 	}
 	for _, vendored := range r.Vendored {
 		rawSource := applyConfigTemplate(t, vendored, value)
 		modsrc, err := tf.ParseSource(rawSource)
 		assert.NoError(t, err)
-		out.Vendored[modvendor.Dir(vendordir, modsrc)] = modvendor.Vendored{
+		out.Vendored[modvendor.TargetDir(vendordir, modsrc)] = modvendor.Vendored{
 			Source: modsrc,
-			Dir:    modvendor.Dir(vendordir, modsrc),
+			Dir:    modvendor.TargetDir(vendordir, modsrc),
 		}
 	}
 	for _, ignored := range r.Ignored {
@@ -836,9 +842,9 @@ func applyReportTemplate(t *testing.T, r wantReport, value string, vendordir str
 func evaluateWantedFiles(
 	t *testing.T,
 	wantFiles map[vendorPathSpec]fmt.Stringer,
-	modulesDir string,
+	uriModulesDir uri.URI,
 	rootdir string,
-	vendordir string,
+	vendordir project.Path,
 ) map[string]fmt.Stringer {
 	t.Helper()
 	evaluated := map[string]fmt.Stringer{}
@@ -848,7 +854,7 @@ func evaluateWantedFiles(
 		source := pathSpecParts[0]
 		path := pathSpecParts[1]
 
-		modsrc, err := tf.ParseSource(applyConfigTemplate(t, source, modulesDir))
+		modsrc, err := tf.ParseSource(applyConfigTemplate(t, source, uriModulesDir))
 		assert.NoError(t, err)
 		absVendorDir := modvendor.AbsVendorDir(rootdir, vendordir, modsrc)
 		evaluatedPath := filepath.Join(absVendorDir, path)
@@ -860,23 +866,23 @@ func evaluateWantedFiles(
 func checkWantedFiles(
 	t *testing.T,
 	tc testcase,
-	modulesDir string,
+	uriModulesDir uri.URI,
 	rootdir string,
-	vendordir string,
+	vendordir project.Path,
 ) {
 	t.Helper()
 
-	wantFiles := evaluateWantedFiles(t, tc.wantFiles, modulesDir, rootdir, vendordir)
-	vendorDir := filepath.Join(rootdir, tc.vendordir)
+	wantFiles := evaluateWantedFiles(t, tc.wantFiles, uriModulesDir, rootdir, vendordir)
+	absVendorDir := filepath.Join(rootdir, tc.vendordir)
 
-	if _, err := os.Stat(vendorDir); err != nil {
+	if _, err := os.Stat(absVendorDir); err != nil {
 		if os.IsNotExist(err) {
 			return
 		}
 		assert.Error(t, err)
 	}
 
-	err := filepath.Walk(vendorDir, func(path string, _ fs.FileInfo, err error) error {
+	err := filepath.Walk(absVendorDir, func(path string, _ fs.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -889,25 +895,25 @@ func checkWantedFiles(
 		if ok {
 			// file must be rewritten
 			relVendoredPaths := computeRelativePaths(
-				t, filepath.Dir(path), tc.wantVendored, modulesDir, rootdir, tc.vendordir,
+				t, filepath.Dir(path), tc.wantVendored, uriModulesDir, rootdir, vendordir,
 			)
 			want := applyConfigTemplate(t, expectedStringTemplate.String(), relVendoredPaths)
 			got := string(test.ReadFile(t, filepath.Dir(path), filepath.Base(path)))
 			assert.EqualStrings(t, want, got, "file %q mismatch", path)
 		} else {
 			// check the vendored file is the same as the one in the module dir.
-			originalPath := strings.TrimPrefix(path, vendorDir)
-			pathEnd := strings.TrimPrefix(originalPath, modulesDir)
-			originalPath = strings.TrimSuffix(originalPath, pathEnd)
+			originalPath := modvendor.SourceDir(path, rootdir, vendordir)
+			pathEnd := filepath.ToSlash(strings.TrimPrefix(originalPath, uriModulesDir.Filename()))
+
+			originalPath = strings.TrimSuffix(filepath.ToSlash(originalPath), pathEnd)
 			pathParts := strings.Split(pathEnd, "/")
 			moduleName := pathParts[1]
 
 			originalPath = filepath.Join(originalPath, moduleName, strings.Join(pathParts[3:], "/"))
-
-			originalBytes, err := ioutil.ReadFile(originalPath)
+			originalBytes, err := os.ReadFile(originalPath)
 			assert.NoError(t, err)
 
-			gotBytes, err := ioutil.ReadFile(path)
+			gotBytes, err := os.ReadFile(path)
 			assert.NoError(t, err)
 			assert.EqualStrings(t, string(originalBytes), string(gotBytes),
 				"files %q and %q mismatch", originalPath, path)
@@ -921,21 +927,21 @@ func computeRelativePaths(
 	t *testing.T,
 	relativeToDir string,
 	wantVendored []string,
-	modulesDir string,
+	uriModulesDir uri.URI,
 	rootdir string,
-	vendordir string,
+	vendordir project.Path,
 ) []string {
 	t.Helper()
 	// TODO(i4k): assumes files are always at the root of the module.
 	relVendoredPaths := []string{}
 	for _, vendored := range wantVendored {
-		rawSource := applyConfigTemplate(t, vendored, modulesDir)
+		rawSource := applyConfigTemplate(t, vendored, uriModulesDir)
 		modsrc, err := tf.ParseSource(rawSource)
 		assert.NoError(t, err)
 		relPath, err := filepath.Rel(relativeToDir,
 			modvendor.AbsVendorDir(rootdir, vendordir, modsrc))
 		assert.NoError(t, err)
-		relVendoredPaths = append(relVendoredPaths, relPath)
+		relVendoredPaths = append(relVendoredPaths, filepath.ToSlash(relPath))
 	}
 	return relVendoredPaths
 }
@@ -959,24 +965,24 @@ func TestModVendorWithCommitIDRef(t *testing.T) {
 	// So the initial clone gets the repo pointing at main as "default"
 	repogit.Checkout("main")
 
-	gitURL := "file://" + repoSandbox.RootDir()
+	gitURI := uri.File(repoSandbox.RootDir())
 	rootdir := t.TempDir()
 
-	source, err := tf.ParseSource(fmt.Sprintf("git::%s?ref=%s", gitURL, ref))
+	source, err := tf.ParseSource(fmt.Sprintf("git::%s?ref=%s", gitURI, ref))
 	assert.NoError(t, err)
 
 	const vendordir = "/dir/reftest/vendor"
 	got := modvendor.Vendor(rootdir, vendordir, source)
 	assertVendorReport(t, modvendor.Report{
-		Vendored: map[string]modvendor.Vendored{
-			modvendor.Dir(vendordir, source): {
+		Vendored: map[project.Path]modvendor.Vendored{
+			modvendor.TargetDir(vendordir, source): {
 				Source: source,
-				Dir:    modvendor.Dir(vendordir, source),
+				Dir:    modvendor.TargetDir(vendordir, source),
 			},
 		},
 	}, got)
 
-	cloneDir := modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[modvendor.Dir(vendordir, source)].Source)
+	cloneDir := modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[modvendor.TargetDir(vendordir, source)].Source)
 	gotContent := test.ReadFile(t, cloneDir, filename)
 	assert.EqualStrings(t, content, string(gotContent))
 	assertNoGitDir(t, cloneDir)
@@ -996,26 +1002,26 @@ func TestModVendorWithRef(t *testing.T) {
 	repogit := repoSandbox.Git()
 	repogit.CommitAll("add file")
 
-	gitURL := "file://" + repoSandbox.RootDir()
+	gitURI := uri.File(repoSandbox.RootDir())
 	rootdir := t.TempDir()
 
-	source := newSource(t, gitURL, ref)
+	source := newSource(t, gitURI, ref)
 
 	const vendordir = "/vendor"
 	got := modvendor.Vendor(rootdir, vendordir, source)
-	vendoredAt := modvendor.Dir(vendordir, source)
+	vendoredAt := modvendor.TargetDir(vendordir, source)
 	assertVendorReport(t, modvendor.Report{
-		Vendored: map[string]modvendor.Vendored{
+		Vendored: map[project.Path]modvendor.Vendored{
 			vendoredAt: {
 				Source: source,
-				Dir:    modvendor.Dir(vendordir, source),
+				Dir:    modvendor.TargetDir(vendordir, source),
 			},
 		},
 	}, got)
 
 	cloneDir := got.Vendored[vendoredAt].Dir
-	wantCloneDir := modvendor.Dir(vendordir, source)
-	assert.EqualStrings(t, wantCloneDir, cloneDir)
+	wantCloneDir := modvendor.TargetDir(vendordir, source)
+	assert.EqualStrings(t, wantCloneDir.String(), cloneDir.String())
 
 	absCloneDir := modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[vendoredAt].Source)
 	gotContent := test.ReadFile(t, absCloneDir, filename)
@@ -1036,15 +1042,15 @@ func TestModVendorWithRef(t *testing.T) {
 	repogit.Checkout(ref)
 
 	source = tf.Source{
-		URL:  gitURL,
+		URL:  string(gitURI),
 		Ref:  newRef,
 		Path: path,
 	}
 	got = modvendor.Vendor(rootdir, vendordir, source)
 
-	wantCloneDir = modvendor.Dir(vendordir, source)
+	wantCloneDir = modvendor.TargetDir(vendordir, source)
 	newCloneDir := got.Vendored[wantCloneDir].Dir
-	assert.EqualStrings(t, wantCloneDir, newCloneDir)
+	assert.EqualStrings(t, wantCloneDir.String(), newCloneDir.String())
 
 	absCloneDir = modvendor.AbsVendorDir(rootdir, vendordir, got.Vendored[wantCloneDir].Source)
 	assertNoGitDir(t, absCloneDir)
@@ -1064,10 +1070,10 @@ func TestModVendorDoesNothingIfRefExists(t *testing.T) {
 	g := s.Git()
 	g.CommitAll("add file")
 
-	gitURL := "file://" + s.RootDir()
+	gitURI := uri.File(s.RootDir())
 	rootdir := t.TempDir()
 
-	source, err := tf.ParseSource(fmt.Sprintf("git::%s?ref=main", gitURL))
+	source, err := tf.ParseSource(fmt.Sprintf("git::%s?ref=main", gitURI))
 	assert.NoError(t, err)
 
 	const vendordir = "/vendor/fun"
@@ -1092,10 +1098,10 @@ func TestModVendorDoesNothingIfRefExists(t *testing.T) {
 
 func TestModVendorNoRefFails(t *testing.T) {
 	s := sandbox.New(t)
-	gitURL := "file://" + s.RootDir()
+	gitURI := uri.File(s.RootDir())
 	rootdir := t.TempDir()
 
-	source, err := tf.ParseSource(fmt.Sprintf("git::%s", gitURL))
+	source, err := tf.ParseSource(fmt.Sprintf("git::%s", gitURI))
 	assert.NoError(t, err)
 	report := modvendor.Vendor(rootdir, "/vendor", source)
 
@@ -1115,11 +1121,11 @@ func TestModVendorVendorDirIsRelativeFails(t *testing.T) {
 	)
 
 	s := sandbox.New(t)
-	gitURL := "file://" + s.RootDir()
+	gitURI := uri.File(s.RootDir())
 	rootdir := t.TempDir()
 
 	report := modvendor.Vendor(rootdir, "../test", tf.Source{
-		URL:  gitURL,
+		URL:  string(gitURI),
 		Path: path,
 		Ref:  "main",
 	})
@@ -1179,10 +1185,10 @@ func assertVendorReport(t *testing.T, want, got modvendor.Report) {
 	errtest.Assert(t, got.Error, want.Error)
 }
 
-func newSource(t *testing.T, url, ref string) tf.Source {
+func newSource(t *testing.T, uri uri.URI, ref string) tf.Source {
 	t.Helper()
 
-	source, err := tf.ParseSource(fmt.Sprintf("git::%s?ref=%s", url, ref))
+	source, err := tf.ParseSource(fmt.Sprintf("git::%s?ref=%s", uri, ref))
 	assert.NoError(t, err)
 	return source
 }

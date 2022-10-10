@@ -38,6 +38,8 @@ type selectionTestcase struct {
 }
 
 func TestCLIRunOrder(t *testing.T) {
+	t.Parallel()
+
 	type testcase struct {
 		name       string
 		layout     []string
@@ -640,6 +642,8 @@ func TestCLIRunOrder(t *testing.T) {
 }
 
 func TestRunWants(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range []selectionTestcase{
 		{
 			/* this works but gives a warning */
@@ -769,11 +773,14 @@ func TestRunWants(t *testing.T) {
 			},
 		},
 		{
-			name: `	stack-a wants (stack-b, stack-c)
+			/*
+				stack-a wants (stack-b, stack-c)
 					stack-b wants (stack-d, stack-e)
 					stack-e wants (stack-a, stack-z)
 					(from inside stack-b) - recursive, *circular*
-					must pull all stacks`,
+					must pull all stacks`
+			*/
+			name: `must pull all stacks - recursive and circular`,
 			layout: []string{
 				`s:stack-a:wants=["/stack-b", "/stack-c"]`,
 				`s:stack-b:wants=["/stack-d", "/stack-e"]`,
@@ -795,10 +802,13 @@ func TestRunWants(t *testing.T) {
 			},
 		},
 		{
-			name: `wants+order - stack-a after stack-b / stack-d before stack-a
-	* stack-a wants (stack-b, stack-c)
-	* stack-b wants (stack-d, stack-e)
-	* stack-e wants (stack-a, stack-z) (from inside stack-b) - recursive, *circular*`,
+			/*
+				  	wants+order - stack-a after stack-b / stack-d before stack-a
+					stack-a wants (stack-b, stack-c)
+					stack-b wants (stack-d, stack-e)
+					stack-e wants (stack-a, stack-z) (from inside stack-b) - recursive, *circular*`
+			*/
+			name: `wants+ordering - recursive+circular`,
 			layout: []string{
 				`s:stack-a:wants=["/stack-b", "/stack-c"];after=["/stack-b"]`,
 				`s:stack-b:wants=["/stack-d", "/stack-e"]`,
@@ -825,6 +835,8 @@ func TestRunWants(t *testing.T) {
 }
 
 func TestRunWantedBy(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range []selectionTestcase{
 		{
 			name: "stack wantedBy other-stack",
@@ -944,6 +956,8 @@ func TestRunWantedBy(t *testing.T) {
 
 func testRunSelection(t *testing.T, tc selectionTestcase) {
 	t.Run(tc.name, func(t *testing.T) {
+		t.Parallel()
+
 		sandboxes := []sandbox.S{
 			sandbox.New(t),
 			sandbox.NoGit(t),
@@ -962,12 +976,13 @@ func testRunSelection(t *testing.T, tc selectionTestcase) {
 				git.CommitAll("everything")
 			}
 
-			// TODO(i4k): not portable
-			assertRunResult(t, cli.run("run", "sh", "-c", "pwd | xargs basename"), tc.want)
+			assertRunResult(t, cli.run("run", testHelperBin, "pwd-basename"), tc.want)
 		}
 	})
 }
 func TestRunOrderNotChangedStackIgnored(t *testing.T) {
+	t.Parallel()
+
 	const (
 		mainTfFileName = "main.tf"
 		mainTfContents = "# change is the eternal truth of the universe"
@@ -1025,6 +1040,8 @@ func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 }
 
 func TestRunReverseExecution(t *testing.T) {
+	t.Parallel()
+
 	const testfile = "testfile"
 
 	s := sandbox.New(t)
@@ -1079,6 +1096,8 @@ func TestRunReverseExecution(t *testing.T) {
 }
 
 func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDir(t *testing.T) {
+	t.Parallel()
+
 	const testfile = "testfile"
 
 	s := sandbox.New(t)
@@ -1095,20 +1114,22 @@ func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDir(t *testing.T) {
 	git := s.Git()
 	git.CommitAll("first commit")
 
-	cat := test.LookPath(t, "cat")
 	assertRun := func(wd string, want string) {
+		t.Helper()
 		cli := newCLI(t, filepath.Join(s.RootDir(), wd))
 
 		assertRunResult(t, cli.run(
 			"run",
-			cat,
+			testHelperBin,
+			"cat",
 			testfile,
 		), runExpected{Stdout: want})
 
 		assertRunResult(t, cli.run(
 			"run",
 			"--changed",
-			cat,
+			testHelperBin,
+			"cat",
 			testfile,
 		), runExpected{Stdout: want})
 	}
@@ -1120,6 +1141,8 @@ func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDir(t *testing.T) {
 }
 
 func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
+	t.Parallel()
+
 	const (
 		mainTfFileName = "main.tf"
 		mainTfContents = "# change is the eternal truth of the universe"
@@ -1169,6 +1192,8 @@ func TestRunOrderAllChangedStacksExecuted(t *testing.T) {
 }
 
 func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
+	t.Parallel()
+
 	const (
 		mainTfFileName = "main.tf"
 		mainTfContents = "# some code"
@@ -1283,7 +1308,53 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 	})
 }
 
+func TestRunFailIfOrphanedGenCodeIsDetected(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.New(t)
+	s.CreateStack("stack")
+	orphanEntry := s.CreateStack("orphan")
+	orphanEntry.CreateFile("config.tm", GenerateHCL(
+		Labels("test.tf"),
+		Content(
+			Str("test", "test"),
+		),
+	).String())
+
+	tmcli := newCLI(t, s.RootDir())
+	assertRunResult(t, tmcli.run("generate"), runExpected{
+		IgnoreStdout: true,
+	})
+
+	git := s.Git()
+	git.CommitAll("generated code")
+
+	assertRunResult(t, tmcli.run(
+		"run",
+		testHelperBin,
+		"env",
+	), runExpected{
+		IgnoreStdout: true,
+	})
+
+	orphanEntry.RemoveFile("config.tm")
+	orphanEntry.DeleteStackConfig()
+
+	git.CommitAll("deleted stack")
+
+	assertRunResult(t, tmcli.run(
+		"run",
+		testHelperBin,
+		"env",
+	), runExpected{
+		Status:      defaultErrExitStatus,
+		StderrRegex: string(cli.ErrOutdatedGenCodeDetected),
+	})
+}
+
 func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
+	t.Parallel()
+
 	const generateFile = "generate.tm.hcl"
 
 	s := sandbox.New(t)
@@ -1304,16 +1375,16 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 	).String()
 	stack.CreateFile(generateFile, generateFileBody)
 
-	git.CommitAll("generating some code commit")
+	git.CommitAll("generated code")
 
 	tmcli := newCLI(t, s.RootDir())
-	cat := test.LookPath(t, "cat")
 
 	// check with --changed
 	assertRunResult(t, tmcli.run(
 		"run",
 		"--changed",
-		cat,
+		testHelperBin,
+		"cat",
 		generateFile,
 	), runExpected{
 		Status:      defaultErrExitStatus,
@@ -1323,7 +1394,8 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 	// check without --changed
 	assertRunResult(t, tmcli.run(
 		"run",
-		cat,
+		testHelperBin,
+		"cat",
 		generateFile,
 	), runExpected{
 		Status:      defaultErrExitStatus,
@@ -1337,7 +1409,8 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 			"run",
 			"--changed",
 			"--disable-check-gen-code",
-			cat,
+			testHelperBin,
+			"cat",
 			generateFile,
 		), runExpected{
 			Stdout: generateFileBody,
@@ -1346,7 +1419,8 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 		assertRunResult(t, tmcli.run(
 			"run",
 			"--disable-check-gen-code",
-			cat,
+			testHelperBin,
+			"cat",
 			generateFile,
 		), runExpected{
 			Stdout: generateFileBody,
@@ -1359,10 +1433,10 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 			"TM_DISABLE_CHECK_GEN_CODE=true",
 		}, os.Environ()...)
 
-		assertRunResult(t, tmcli.run("run", "--changed", cat, generateFile), runExpected{
+		assertRunResult(t, tmcli.run("run", "--changed", testHelperBin, "cat", generateFile), runExpected{
 			Stdout: generateFileBody,
 		})
-		assertRunResult(t, tmcli.run("run", cat, generateFile), runExpected{
+		assertRunResult(t, tmcli.run("run", testHelperBin, "cat", generateFile), runExpected{
 			Stdout: generateFileBody,
 		})
 	})
@@ -1383,17 +1457,18 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 		git.Add(rootConfig)
 		git.Commit("commit root config")
 
-		assertRunResult(t, tmcli.run("run", "--changed", cat, generateFile), runExpected{
+		assertRunResult(t, tmcli.run("run", "--changed", testHelperBin, "cat", generateFile), runExpected{
 			Stdout: generateFileBody,
 		})
-		assertRunResult(t, tmcli.run("run", cat, generateFile), runExpected{
+		assertRunResult(t, tmcli.run("run", testHelperBin, "cat", generateFile), runExpected{
 			Stdout: generateFileBody,
 		})
 	})
-
 }
 
 func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
+	t.Parallel()
+
 	const (
 		mainTfFileName        = "main.tf"
 		mainTfInitialContents = "# some code"
@@ -1520,6 +1595,8 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 }
 
 func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
+	t.Parallel()
+
 	const (
 		testFilename   = "test.txt"
 		contentsStack1 = "stack-1 file"
@@ -1575,6 +1652,8 @@ func TestRunFailIfStackGeneratedCodeIsOutdated(t *testing.T) {
 }
 
 func TestRunLogsUserCommand(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack")
@@ -1585,12 +1664,14 @@ func TestRunLogsUserCommand(t *testing.T) {
 	git.Push("main")
 
 	cli := newCLIWithLogLevel(t, s.RootDir(), "info")
-	assertRunResult(t, cli.run("run", "cat", testfile.HostPath()), runExpected{
-		StderrRegex: `cmd="cat /`,
+	assertRunResult(t, cli.run("run", testHelperBin, "cat", testfile.HostPath()), runExpected{
+		StderrRegex: `cmd=`,
 	})
 }
 
 func TestRunContinueOnError(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	s.BuildTree([]string{
@@ -1621,6 +1702,8 @@ func TestRunContinueOnError(t *testing.T) {
 }
 
 func TestRunNoRecursive(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	s.BuildTree([]string{
@@ -1672,6 +1755,8 @@ func TestRunNoRecursive(t *testing.T) {
 }
 
 func TestRunDisableGitCheckRemote(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack")
@@ -1735,6 +1820,8 @@ func TestRunDisableGitCheckRemote(t *testing.T) {
 }
 
 func TestRunWorksWithDisabledCheckRemote(t *testing.T) {
+	t.Parallel()
+
 	const rootConfig = "terramate.tm.hcl"
 
 	s := sandbox.New(t)
@@ -1787,6 +1874,8 @@ func TestRunWorksWithDisabledCheckRemote(t *testing.T) {
 }
 
 func TestRunFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack-1")
@@ -1818,6 +1907,8 @@ func TestRunFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
 }
 
 func TestRunWithoutGitRemoteCheckWorksWithoutNetworking(t *testing.T) {
+	t.Parallel()
+
 	// Regression test to guarantee that all git checks
 	// are disabled and no git operation will be performed on this case.
 	// So running terramate run --disable-check-git-remote will
@@ -1860,6 +1951,8 @@ func TestRunWithoutGitRemoteCheckWorksWithoutNetworking(t *testing.T) {
 	})
 }
 func TestRunWitCustomizedEnv(t *testing.T) {
+	t.Parallel()
+
 	run := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("run", builders...)
 	}

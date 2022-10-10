@@ -22,6 +22,8 @@ import (
 )
 
 func TestCliMetadata(t *testing.T) {
+	t.Parallel()
+
 	type testcase struct {
 		name   string
 		layout []string
@@ -29,7 +31,7 @@ func TestCliMetadata(t *testing.T) {
 		want   runExpected
 	}
 
-	for _, tc := range []testcase{
+	for _, tcase := range []testcase{
 		{
 			name: "no stacks",
 		},
@@ -183,7 +185,10 @@ stack "/somedir/stack4":
 			},
 		},
 	} {
+		tc := tcase
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
 

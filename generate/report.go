@@ -19,13 +19,15 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 )
 
 // Result represents code generation result
 type Result struct {
 	// Dir is the absolute path of the dir relative to the project root.
-	Dir string
+	Dir project.Path
 	// Created contains filenames of all created files inside the stack
 	Created []string
 	// Changed contains filenames of all changed files inside the stack
@@ -82,7 +84,7 @@ func (r Report) String() string {
 	newline := func() {
 		addLine("")
 	}
-	addStack := func(stack string) {
+	addStack := func(stack project.Path) {
 		addLine("- %s", stack)
 	}
 	addResultChangeset := func(res Result) {
@@ -114,7 +116,13 @@ func (r Report) String() string {
 		newline()
 		for _, failure := range r.Failures {
 			addStack(failure.Dir)
-			addLine("\terror: %s", failure.Error)
+			if list, ok := failure.Error.(*errors.List); ok {
+				for _, err := range list.Errors() {
+					addLine("\terror: %s", err)
+				}
+			} else {
+				addLine("\terror: %s", failure.Error)
+			}
 			addResultChangeset(failure.Result)
 			newline()
 		}
@@ -139,6 +147,20 @@ func (r Report) empty() bool {
 		len(r.Successes) == 0
 }
 
+func (r *Report) sort() {
+	r.sortDirs()
+	r.sortFilenames()
+}
+
+func (r *Report) sortDirs() {
+	sort.Slice(r.Successes, func(i, j int) bool {
+		return r.Successes[i].Dir < r.Successes[j].Dir
+	})
+	sort.Slice(r.Failures, func(i, j int) bool {
+		return r.Failures[i].Dir < r.Failures[j].Dir
+	})
+}
+
 func (r *Report) sortFilenames() {
 	for _, success := range r.Successes {
 		success.sortFilenames()
@@ -157,7 +179,7 @@ func (r *Report) addFailure(s *stack.S, err error) {
 	})
 }
 
-func (r *Report) addDirReport(path string, sr dirReport) {
+func (r *Report) addDirReport(path project.Path, sr dirReport) {
 	if sr.empty() {
 		return
 	}

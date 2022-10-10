@@ -17,7 +17,9 @@ package generate_test
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -44,7 +46,7 @@ func TestGenerateHCL(t *testing.T) {
 		return EvalExpr(t, name, expr)
 	}
 
-	testCodeGeneration(t, test.AssertGenHCLEquals, []testcase{
+	testCodeGeneration(t, []testcase{
 		{
 			name: "no generated HCL",
 			layout: []string{
@@ -828,93 +830,6 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 		},
-		{
-			// TODO(katcipis): define a proper behavior where
-			// directories are allowed but in a constrained fashion.
-			// This is a quick fix to avoid creating files on arbitrary
-			// places around the file system.
-			name: "generate HCL with dir separators on label name fails",
-			layout: []string{
-				"s:stacks/stack-1",
-				"s:stacks/stack-2",
-				"s:stacks/stack-3",
-				"s:stacks/stack-4",
-			},
-			configs: []hclconfig{
-				{
-					path: "/stacks/stack-1",
-					add: Doc(
-						GenerateHCL(
-							Labels("/name.tf"),
-							Content(
-								Block("something"),
-							),
-						),
-					),
-				},
-				{
-					path: "/stacks/stack-2",
-					add: Doc(
-						GenerateHCL(
-							Labels("./name.tf"),
-							Content(
-								Block("something"),
-							),
-						),
-					),
-				},
-				{
-					path: "/stacks/stack-3",
-					add: Doc(
-						GenerateHCL(
-							Labels("./dir/name.tf"),
-							Content(
-								Block("something"),
-							),
-						),
-					),
-				},
-				{
-					path: "/stacks/stack-4",
-					add: Doc(
-						GenerateHCL(
-							Labels("dir/name.tf"),
-							Content(
-								Block("something"),
-							),
-						),
-					),
-				},
-			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
-					{
-						Result: generate.Result{
-							Dir: "/stacks/stack-1",
-						},
-						Error: errors.E(generate.ErrInvalidFilePath),
-					},
-					{
-						Result: generate.Result{
-							Dir: "/stacks/stack-2",
-						},
-						Error: errors.E(generate.ErrInvalidFilePath),
-					},
-					{
-						Result: generate.Result{
-							Dir: "/stacks/stack-3",
-						},
-						Error: errors.E(generate.ErrInvalidFilePath),
-					},
-					{
-						Result: generate.Result{
-							Dir: "/stacks/stack-4",
-						},
-						Error: errors.E(generate.ErrInvalidFilePath),
-					},
-				},
-			},
-		},
 	})
 }
 
@@ -981,7 +896,7 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 	})
 
 	got := stack.ReadFile(genFilename)
-	test.AssertGenHCLEquals(t, got, firstWant.String())
+	test.AssertGenCodeEquals(t, got, firstWant.String())
 
 	secondConfig := GenerateHCL(
 		Labels(genFilename),
@@ -1008,7 +923,7 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 	})
 
 	got = stack.ReadFile(genFilename)
-	test.AssertGenHCLEquals(t, got, secondWant.String())
+	test.AssertGenCodeEquals(t, got, secondWant.String())
 	assertEqualReports(t, s.Generate(), generate.Report{})
 }
 
@@ -1048,7 +963,7 @@ func TestGeneratedHCLHeaders(t *testing.T) {
 	s.Generate()
 
 	stackGen := stackEntry.ReadFile(stackFilename)
-	stackHeader := fmt.Sprintf(traceHeaderTemplate, filepath.Join("/stack", config.DefaultFilename))
+	stackHeader := fmt.Sprintf(traceHeaderTemplate, path.Join("/stack", config.DefaultFilename))
 	if !strings.Contains(stackGen, stackHeader) {
 		t.Errorf("wanted header %q\n\ngenerated file:\n%s\n", stackHeader, stackGen)
 	}
@@ -1097,15 +1012,15 @@ func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
 				Created: []string{"file1.tf", "file2.tf"},
 			},
 			{
+				Dir:     "/stack-2",
+				Created: []string{"file1.tf", "file2.tf"},
+			},
+			{
 				Dir:     "/stack/child",
 				Created: []string{"file1.tf", "file2.tf"},
 			},
 			{
 				Dir:     "/stack/child/grand",
-				Created: []string{"file1.tf", "file2.tf"},
-			},
-			{
-				Dir:     "/stack-2",
 				Created: []string{"file1.tf", "file2.tf"},
 			},
 		},
@@ -1122,8 +1037,8 @@ func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
 				Deleted: []string{"file1.tf", "file2.tf"},
 			},
 			{
-				Dir:     "/stack/child/grand",
-				Deleted: []string{"file1.tf", "file2.tf"},
+				Dir:     "/stack/child",
+				Deleted: []string{"grand/file1.tf", "grand/file2.tf"},
 			},
 		},
 	})
@@ -1285,6 +1200,10 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 }
 
 func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("skipped on windows because it requires privileges")
+	}
+
 	s := sandbox.NoGit(t)
 	rootEntry := s.RootEntry().CreateDir("root")
 	stackEntry := s.CreateStack("root/stack")
@@ -1332,6 +1251,16 @@ func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
 	})
 }
 
+func TestGenerateHCLCleanupOldFilesIgnoreDotDirs(t *testing.T) {
+	s := sandbox.NoGit(t)
+
+	// Creates a file with a generated header inside dot dirs.
+	test.WriteFile(t, filepath.Join(s.RootDir(), ".terramate"), "test.tf", genhcl.Header)
+	test.WriteFile(t, filepath.Join(s.RootDir(), ".another"), "test.tf", genhcl.Header)
+
+	assertEqualReports(t, s.Generate(), generate.Report{})
+}
+
 func TestGenerateHCLTerramateRootMetadata(t *testing.T) {
 	// We need to know the sandbox abspath to test terramate.root properly
 	const generatedFile = "file.hcl"
@@ -1361,10 +1290,14 @@ func TestGenerateHCLTerramateRootMetadata(t *testing.T) {
 	})
 
 	want := Doc(
-		Str("terramate_root_path_abs", s.RootDir()),
+		Str("terramate_root_path_abs", escapeBackslash(s.RootDir())),
 		Str("terramate_root_path_basename", filepath.Base(s.RootDir())),
 	).String()
 	got := stackEntry.ReadFile(generatedFile)
 
-	test.AssertGenHCLEquals(t, got, want)
+	test.AssertGenCodeEquals(t, got, want)
+}
+
+func escapeBackslash(s string) string {
+	return strings.ReplaceAll(s, `\`, `\\`)
 }

@@ -20,7 +20,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
@@ -29,16 +28,7 @@ import (
 )
 
 func TestGenerateFile(t *testing.T) {
-	checkGenFiles := func(t *testing.T, got string, want string) {
-		t.Helper()
-		if diff := cmp.Diff(want, got); diff != "" {
-			t.Error("generated file doesn't match expectation")
-			t.Errorf("want:\n%q", want)
-			t.Errorf("got:\n%q", got)
-			t.Fatalf("diff:\n%s", diff)
-		}
-	}
-	testCodeGeneration(t, checkGenFiles, []testcase{
+	testCodeGeneration(t, []testcase{
 		{
 			name: "empty generate_file content generates empty file",
 			layout: []string{
@@ -262,77 +252,6 @@ func TestGenerateFile(t *testing.T) {
 					{
 						Dir:     "/stacks/stack-2",
 						Created: []string{"file1.txt", "file2.txt"},
-					},
-				},
-			},
-		},
-		{
-			// TODO(katcipis): define a proper behavior where
-			// directories are allowed but in a constrained fashion.
-			// This is a quick fix to avoid creating files on arbitrary
-			// places around the file system.
-			name: "generate file with dir separators on label name fails",
-			layout: []string{
-				"s:stacks/stack-1",
-				"s:stacks/stack-2",
-				"s:stacks/stack-3",
-				"s:stacks/stack-4",
-			},
-			configs: []hclconfig{
-				{
-					path: "/stacks/stack-1",
-					add: GenerateFile(
-						Labels("/name"),
-						Str("content", "something"),
-					),
-				},
-				{
-					path: "/stacks/stack-2",
-					add: GenerateFile(
-						Labels("./name"),
-						Str("content", "something"),
-					),
-				},
-				{
-					path: "/stacks/stack-3",
-					add: GenerateFile(
-						Labels("./dir/name"),
-						Str("content", "something"),
-					),
-				},
-				{
-					path: "/stacks/stack-4",
-					add: GenerateFile(
-						Labels("dir/name"),
-						Str("content", "something"),
-					),
-				},
-			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
-					{
-						Result: generate.Result{
-							Dir: "/stacks/stack-1",
-						},
-						Error: errors.E(generate.ErrInvalidFilePath),
-					},
-					{
-						Result: generate.Result{
-							Dir: "/stacks/stack-2",
-						},
-						Error: errors.E(generate.ErrInvalidFilePath),
-					},
-					{
-						Result: generate.Result{
-							Dir: "/stacks/stack-3",
-						},
-						Error: errors.E(generate.ErrInvalidFilePath),
-					},
-					{
-						Result: generate.Result{
-							Dir: "/stacks/stack-4",
-						},
-						Error: errors.E(generate.ErrInvalidFilePath),
 					},
 				},
 			},

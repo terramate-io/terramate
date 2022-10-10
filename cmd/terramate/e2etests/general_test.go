@@ -26,6 +26,8 @@ import (
 )
 
 func TestBug25(t *testing.T) {
+	t.Parallel()
+
 	// bug: https://github.com/mineiros-io/terramate/issues/25
 
 	const (
@@ -72,6 +74,8 @@ source = "%s"
 }
 
 func TestBugModuleMultipleFilesSameDir(t *testing.T) {
+	t.Parallel()
+
 	const (
 		modname1 = "1"
 		modname2 = "2"
@@ -131,6 +135,8 @@ module "mod1" {
 }
 
 func TestListAndRunChangedStack(t *testing.T) {
+	t.Parallel()
+
 	const (
 		mainTfFileName = "main.tf"
 		mainTfContents = "# change is the eternal truth of the universe"
@@ -154,13 +160,13 @@ func TestListAndRunChangedStack(t *testing.T) {
 	wantList := stack.RelPath() + "\n"
 	assertRunResult(t, cli.listChangedStacks(), runExpected{Stdout: wantList})
 
-	cat := test.LookPath(t, "cat")
 	wantRun := mainTfContents
 
 	assertRunResult(t, cli.run(
 		"run",
 		"--changed",
-		cat,
+		testHelperBin,
+		"cat",
 		mainTfFileName,
 	), runExpected{
 		Stdout: wantRun,
@@ -192,11 +198,11 @@ func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
 	wantList := stack.Path() + "\n"
 	assertRunResult(t, cli.listChangedStacks(), runExpected{Stdout: wantList})
 
-	cat := test.LookPath(t, "cat")
 	wantRun := fmt.Sprintf(
-		"Running on changed stacks:\n[%s] running %s %s\n%s\n",
+		"Running on changed stacks:\n[%s] running %s %s %s\n%s\n",
 		stack.Path(),
-		cat,
+		testHelperBin,
+		"cat",
 		mainTfFileName,
 		mainTfContents,
 	)
@@ -204,12 +210,15 @@ func TestListAndRunChangedStackInAbsolutePath(t *testing.T) {
 	assertRunResult(t, cli.run(
 		"run",
 		"--changed",
-		cat,
+		testHelperBin,
+		"cat",
 		mainTfFileName,
 	), runExpected{Stdout: wantRun})
 }
 
 func TestDefaultBaseRefInOtherThanMain(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack-1")
@@ -234,6 +243,8 @@ func TestDefaultBaseRefInOtherThanMain(t *testing.T) {
 }
 
 func TestDefaultBaseRefInMain(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack-1")
@@ -254,6 +265,8 @@ func TestDefaultBaseRefInMain(t *testing.T) {
 }
 
 func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack-1")
@@ -274,6 +287,8 @@ func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
 }
 
 func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stack := s.CreateStack("stack-1")
@@ -297,17 +312,18 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 
 	assertRunResult(t, ts.listChangedStacks(), wantRes)
 
-	cat := test.LookPath(t, "cat")
-
 	assertRunResult(t, ts.run(
 		"run",
 		"--changed",
-		cat,
+		testHelperBin,
+		"cat",
 		mainTfFile.HostPath(),
 	), wantRes)
 }
 
 func TestMainAfterOriginMainMustUseDefaultBaseRef(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 	ts := newCLI(t, s.RootDir())
 
@@ -339,6 +355,8 @@ func TestMainAfterOriginMainMustUseDefaultBaseRef(t *testing.T) {
 }
 
 func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
+	t.Parallel()
+
 	rootdir := t.TempDir()
 	assertFails := func(stderrRegex string) {
 		t.Helper()
@@ -351,11 +369,11 @@ func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
 
 		assertRunResult(t, ts.listChangedStacks(), wantRes)
 
-		cat := test.LookPath(t, "cat")
 		assertRunResult(t, ts.run(
 			"run",
 			"--changed",
-			cat,
+			testHelperBin,
+			"cat",
 			"whatever",
 		), wantRes)
 	}
@@ -379,12 +397,16 @@ func TestFailsOnChangeDetectionIfRepoDoesntHaveOriginMain(t *testing.T) {
 }
 
 func TestNoArgsProvidesBasicHelp(t *testing.T) {
+	t.Parallel()
+
 	cli := newCLI(t, "")
 	help := cli.run("--help")
 	assertRunResult(t, cli.run(), runExpected{Stdout: help.Stdout})
 }
 
 func TestFailsIfDefaultRemoteDoesntHaveDefaultBranch(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.NewWithGitConfig(t, sandbox.GitConfig{
 		LocalBranchName:         "main",
 		DefaultRemoteName:       "origin",
@@ -414,6 +436,8 @@ terramate {
 }
 
 func TestLoadGitRootConfig(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.NewWithGitConfig(t, sandbox.GitConfig{
 		DefaultRemoteName:       "mineiros",
 		DefaultRemoteBranchName: "default",
@@ -437,6 +461,8 @@ terramate {
 }
 
 func TestCommandsNotRequiringGitSafeguards(t *testing.T) {
+	t.Parallel()
+
 	// Regression test to guarantee that all git checks
 	// are disabled and no git operation will be performed for certain commands.
 	// Some people like to get some coding done on airplanes :-)
@@ -468,6 +494,8 @@ func TestCommandsNotRequiringGitSafeguards(t *testing.T) {
 }
 
 func TestE2ETerramateLogsWarningIfRootConfigIsNotAtProjectRoot(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 	s.BuildTree([]string{
 		"s:stacks/stack",
@@ -485,6 +513,8 @@ func TestE2ETerramateLogsWarningIfRootConfigIsNotAtProjectRoot(t *testing.T) {
 }
 
 func TestBug515(t *testing.T) {
+	t.Parallel()
+
 	// bug: https://github.com/mineiros-io/terramate/issues/515
 
 	s := sandbox.New(t)

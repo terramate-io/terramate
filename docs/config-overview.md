@@ -172,6 +172,17 @@ and has the following schema:
 | wants            | list(string)   | The list of `wanted` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs |
 | watch            | list(string)   | The list of `watch` files. See [change detection](change-detection.md) for details |
 
+# assert block schema
+
+The `assert` block has no labels, **does not** support [merging](#config-merging),
+can be defined multiple times and has the following schema:
+
+| name             |      type      | description |
+|------------------|----------------|-------------|
+| assertion        | boolean        | If true assertion passed, fails otherwise |
+| warning          | boolean        | True if the assertion is a warning |
+| message          | string         | Message to show if assertion fails |
+
 # globals block schema
 
 The `globals` block has no labels, supports [merging](#config-merging), accepts 
@@ -185,6 +196,7 @@ The `generate_file` block requires one label, **do not** support [merging](#conf
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
+| [lets](#lets-block-schema) | block* | lets variables |
 | condition        | bool           | The condition for generation |
 | content          | string         | The content to be generated |
 
@@ -197,10 +209,16 @@ The `generate_hcl` block requires one label, **do not** support [merging](#confi
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
+| [lets](#lets-block-schema) | block* | lets variables |
 | condition        | bool           | The condition for generation |
-| [content](#generate_hclcontent-block-schema) | block         | The content to be generated |
+| [content](#generate_hclcontent-block-schema) | block | The content to be generated |
 
 For detailed documentation about this block, see the [HCL Code Generation](https://github.com/mineiros-io/terramate/blob/main/docs/codegen/generate-hcl.md) docs.
+
+## lets block schema
+
+The `lets` block has no labels, supports [merging](#config-merging) of blocks
+in the same level, accepts **any** attribute and **disallow** child blocks.
 
 ## generate_hcl.content block schema
 

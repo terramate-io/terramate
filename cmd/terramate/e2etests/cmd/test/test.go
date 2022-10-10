@@ -22,6 +22,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 )
 
 func main() {
@@ -34,6 +35,10 @@ func main() {
 		hang()
 	case "env":
 		env()
+	case "cat":
+		cat(os.Args[2])
+	case "pwd-basename":
+		pwdBasename()
 	default:
 		log.Fatalf("unknown command %s", os.Args[1])
 	}
@@ -59,4 +64,23 @@ func env() {
 	for _, env := range os.Environ() {
 		fmt.Println(env)
 	}
+}
+
+// cat the file contents to stdout.
+func cat(fname string) {
+	bytes, err := os.ReadFile(fname)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%s", string(bytes))
+}
+
+// pwdBasename prints the basename of current directory.
+func pwdBasename() {
+	cwd, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	base := filepath.Base(cwd)
+	fmt.Println(base)
 }

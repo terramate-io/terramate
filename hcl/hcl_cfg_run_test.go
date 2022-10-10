@@ -28,7 +28,7 @@ import (
 )
 
 func TestHCLParserConfigRun(t *testing.T) {
-	runEnvCfg := func(hcldoc string) hcl.Config {
+	runEnvCfg := func(rawattributes string) hcl.Config {
 		// Comparing attributes/expressions with hcl/hclsyntax is hard
 		// Using reflect.DeepEqual is tricky since it compares unexported attrs
 		// and can lead to hard to debug failures since some internal fields may
@@ -42,19 +42,19 @@ func TestHCLParserConfigRun(t *testing.T) {
 		// hence all this x_x.
 		tmpdir := t.TempDir()
 		filepath := filepath.Join(tmpdir, "test_file.hcl")
-		assert.NoError(t, os.WriteFile(filepath, []byte(hcldoc), 0700))
+		assert.NoError(t, os.WriteFile(filepath, []byte(rawattributes), 0700))
 
 		parser := hclparse.NewParser()
 		res, diags := parser.ParseHCLFile(filepath)
 		if diags.HasErrors() {
-			t.Fatalf("test case provided invalid hcl, error: %v hcl:\n%s", diags, hcldoc)
+			t.Fatalf("test case provided invalid hcl, error: %v hcl:\n%s", diags, rawattributes)
 		}
 
 		body := res.Body.(*hclsyntax.Body)
 		attrs := make(ast.Attributes)
 
 		for name, attr := range body.Attributes {
-			attrs[name] = ast.NewAttribute(filepath, attr)
+			attrs[name] = ast.NewAttribute(filepath, attr.AsHCLAttribute())
 		}
 
 		return hcl.Config{

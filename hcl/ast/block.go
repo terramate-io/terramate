@@ -33,7 +33,7 @@ type Blocks []*Block
 func NewBlock(origin string, block *hclsyntax.Block) *Block {
 	attrs := make(Attributes)
 	for name, val := range block.Body.Attributes {
-		attrs[name] = NewAttribute(origin, val)
+		attrs[name] = NewAttribute(origin, val.AsHCLAttribute())
 	}
 	var blocks Blocks
 	for _, block := range block.Body.Blocks {
