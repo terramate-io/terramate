@@ -17,7 +17,6 @@ package modvendor
 import (
 	"fmt"
 	iofs "io/fs"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -462,7 +461,7 @@ func patchFiles(rootdir string, files []string, sources *sourcesInfo) error {
 		st, err := os.Stat(fname)
 		errs.Append(err)
 		if err == nil {
-			errs.Append(ioutil.WriteFile(fname, parsedFile.Bytes(), st.Mode()))
+			errs.Append(os.WriteFile(fname, parsedFile.Bytes(), st.Mode()))
 		}
 	}
 	return errs.AsError()
