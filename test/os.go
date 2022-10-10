@@ -65,7 +65,7 @@ func WriteFile(t testing.TB, dir string, filename string, content string) string
 
 // AppendFile appends content to a filename inside dir directory.
 // If file exists, appends on the end of it by adding a newline,
-//if file doesn't exists it will be created.
+// if file doesn't exists it will be created.
 func AppendFile(t testing.TB, dir string, filename string, content string) {
 	t.Helper()
 
