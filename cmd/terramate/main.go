@@ -16,6 +16,7 @@
 // execution orchestration and code generation as a way to share data across
 // different stacks.
 // For details on how to use it just run:
+//
 //	terramate --help
 package main
 

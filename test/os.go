@@ -15,7 +15,6 @@
 package test
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -31,7 +30,7 @@ func TempDir(t testing.TB, base string) string {
 		t.Fatalf("use t.TempDir() for temporary directories inside tmp")
 	}
 
-	dir, err := ioutil.TempDir(base, "terramate-test")
+	dir, err := os.MkdirTemp(base, "terramate-test")
 	assert.NoError(t, err, "creating temp directory")
 	return CanonPath(t, dir)
 }
@@ -57,7 +56,7 @@ func WriteFile(t testing.TB, dir string, filename string, content string) string
 	path := filepath.Join(dir, filename)
 	pathdir := filepath.Dir(path)
 	MkdirAll(t, pathdir)
-	err := ioutil.WriteFile(path, []byte(content), 0700)
+	err := os.WriteFile(path, []byte(content), 0700)
 	assert.NoError(t, err, "writing test file %s", path)
 
 	return path
@@ -65,7 +64,7 @@ func WriteFile(t testing.TB, dir string, filename string, content string) string
 
 // AppendFile appends content to a filename inside dir directory.
 // If file exists, appends on the end of it by adding a newline,
-//if file doesn't exists it will be created.
+// if file doesn't exists it will be created.
 func AppendFile(t testing.TB, dir string, filename string, content string) {
 	t.Helper()
 

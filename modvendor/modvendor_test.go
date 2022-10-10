@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -911,10 +910,10 @@ func checkWantedFiles(
 			moduleName := pathParts[1]
 
 			originalPath = filepath.Join(originalPath, moduleName, strings.Join(pathParts[3:], "/"))
-			originalBytes, err := ioutil.ReadFile(originalPath)
+			originalBytes, err := os.ReadFile(originalPath)
 			assert.NoError(t, err)
 
-			gotBytes, err := ioutil.ReadFile(path)
+			gotBytes, err := os.ReadFile(path)
 			assert.NoError(t, err)
 			assert.EqualStrings(t, string(originalBytes), string(gotBytes),
 				"files %q and %q mismatch", originalPath, path)
