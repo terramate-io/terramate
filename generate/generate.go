@@ -252,8 +252,8 @@ func Do(rootdir string, workingDir string) Report {
 // and all its subdirs that are not stacks. The returned paths are relative to
 // the given dir, like:
 //
-//	- filename.hcl
-//	- dir/filename.hcl
+//   - filename.hcl
+//   - dir/filename.hcl
 //
 // The filenames are ordered lexicographically. They always use slash (/) as a
 // dir separator (independent on the OS).
