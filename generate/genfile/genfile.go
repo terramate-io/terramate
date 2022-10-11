@@ -17,11 +17,10 @@ package genfile
 
 import (
 	"fmt"
-	"path/filepath"
 	"sort"
-	"strings"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
@@ -105,7 +104,7 @@ func (f File) String() string {
 // generate_file blocks.
 //
 // The rootdir MUST be an absolute path.
-func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]File, error) {
+func Load(cfg *config.Tree, projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]File, error) {
 	logger := log.With().
 		Str("action", "genfile.Load()").
 		Str("path", sm.HostPath()).
@@ -113,7 +112,7 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]
 
 	logger.Trace().Msg("loading generate_file blocks")
 
-	genFileBlocks, err := loadGenFileBlocks(projmeta.Rootdir(), sm.HostPath())
+	genFileBlocks, err := loadGenFileBlocks(cfg, sm.Path())
 	if err != nil {
 		return nil, errors.E("loading generate_file", err)
 	}
@@ -211,47 +210,42 @@ type genFileBlock struct {
 // The returned map maps the name of the block (its label)
 // to the original block and the path (relative to project root) of the config
 // from where it was parsed.
-func loadGenFileBlocks(rootdir string, cfgdir string) ([]genFileBlock, error) {
+func loadGenFileBlocks(tree *config.Tree, cfgdir project.Path) ([]genFileBlock, error) {
 	logger := log.With().
 		Str("action", "genfile.loadGenFileBlocks()").
-		Str("root", rootdir).
-		Str("configDir", cfgdir).
+		Str("root", tree.RootDir()).
+		Stringer("configDir", cfgdir).
 		Logger()
 
-	logger.Trace().Msg("Parsing generate_hcl blocks.")
+	logger.Trace().Msg("Loading generate_hcl blocks.")
 
-	if !strings.HasPrefix(cfgdir, rootdir) {
-		logger.Trace().Msg("config dir outside root, nothing to do")
-		return nil, nil
-	}
-
-	blocks, err := hcl.ParseGenerateFileBlocks(rootdir, cfgdir)
-	if err != nil {
-		return nil, errors.E(err, "cfgdir %q", cfgdir)
-	}
-
-	logger.Trace().Msg("Parsed generate_file blocks.")
 	res := []genFileBlock{}
+	cfg, ok := tree.Lookup(cfgdir)
+	if ok && !cfg.IsEmptyConfig() {
+		blocks := cfg.Root.Generate.Files
 
-	for _, block := range blocks {
-		origin := project.PrjAbsPath(rootdir, block.Origin)
+		logger.Trace().Msg("Parsed generate_file blocks.")
 
-		res = append(res, genFileBlock{
-			label:  block.Label,
-			origin: origin,
-			block:  block,
-			lets:   block.Lets,
-		})
+		for _, block := range blocks {
+			origin := project.PrjAbsPath(tree.RootDir(), block.Origin)
 
-		logger.Trace().Msg("loaded generate_file block.")
+			res = append(res, genFileBlock{
+				label:  block.Label,
+				origin: origin,
+				block:  block,
+				lets:   block.Lets,
+			})
+
+			logger.Trace().Msg("loaded generate_file block.")
+		}
 	}
 
-	parentCfgDir := filepath.Dir(cfgdir)
+	parentCfgDir := cfgdir.Dir()
 	if parentCfgDir == cfgdir {
 		return res, nil
 	}
 
-	parentRes, err := loadGenFileBlocks(rootdir, parentCfgDir)
+	parentRes, err := loadGenFileBlocks(tree, parentCfgDir)
 	if err != nil {
 		return nil, err
 	}

@@ -119,7 +119,7 @@ func Do(cfg *config.Tree, workingDir string) Report {
 			return report
 		}
 
-		generated, err := loadGenCodeConfigs(projmeta, stack, globals)
+		generated, err := loadGenCodeConfigs(cfg, projmeta, stack, globals)
 		if err != nil {
 			report.err = err
 			return report
@@ -417,7 +417,7 @@ func CheckStack(cfg *config.Tree, projmeta project.Metadata, st *stack.S) ([]str
 
 	logger.Trace().Msg("Loading globals for stack.")
 
-	report := stack.LoadStackGlobals(projmeta, st)
+	report := stack.LoadStackGlobals(cfg, projmeta, st)
 	if err := report.AsError(); err != nil {
 		return nil, errors.E(err, "checking for outdated code")
 	}
@@ -425,7 +425,7 @@ func CheckStack(cfg *config.Tree, projmeta project.Metadata, st *stack.S) ([]str
 	globals := report.Globals
 	stackpath := st.HostPath()
 
-	generated, err := loadGenCodeConfigs(projmeta, st, globals)
+	generated, err := loadGenCodeConfigs(cfg, projmeta, st, globals)
 	if err != nil {
 		return nil, err
 	}
@@ -654,7 +654,7 @@ func forEachStack(cfg *config.Tree, workingDir string, fn forEachStackFunc) Repo
 
 		logger.Trace().Msg("Load stack globals.")
 
-		globalsReport := stack.LoadStackGlobals(projmeta, st)
+		globalsReport := stack.LoadStackGlobals(cfg, projmeta, st)
 		if err := globalsReport.AsError(); err != nil {
 			report.addFailure(st, errors.E(ErrLoadingGlobals, err))
 			continue
@@ -940,18 +940,19 @@ func loadAsserts(meta project.Metadata, sm stack.Metadata, globals globals.Map) 
 }
 
 func loadGenCodeConfigs(
+	cfg *config.Tree,
 	projmeta project.Metadata,
 	st *stack.S,
 	globals globals.Map,
 ) ([]genCodeCfg, error) {
 	var genfilesConfigs []genCodeCfg
 
-	genfiles, err := genfile.Load(projmeta, st, globals)
+	genfiles, err := genfile.Load(cfg, projmeta, st, globals)
 	if err != nil {
 		return nil, err
 	}
 
-	genhcls, err := genhcl.Load(projmeta, st, globals)
+	genhcls, err := genhcl.Load(cfg, projmeta, st, globals)
 	if err != nil {
 		return nil, err
 	}

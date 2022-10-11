@@ -1555,7 +1555,7 @@ func TestLoadGlobals(t *testing.T) {
 				st := entry.Stack
 				stacks = append(stacks, st)
 
-				gotReport := stack.LoadStackGlobals(projmeta, st)
+				gotReport := stack.LoadStackGlobals(s.Config(), projmeta, st)
 				errtest.Assert(t, gotReport.AsError(), tcase.wantErr)
 				if tcase.wantErr != nil {
 					continue
@@ -1755,7 +1755,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 			projmeta := stack.NewProjectMetadata(s.RootDir(), stacks)
 
 			for _, st := range stacks {
-				report := stack.LoadStackGlobals(projmeta, st)
+				report := stack.LoadStackGlobals(s.Config(), projmeta, st)
 				errtest.Assert(t, report.AsError(), tcase.want)
 			}
 		})

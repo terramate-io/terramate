@@ -1078,6 +1078,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		).String(),
 	)
 
+	s.ReloadConfig()
 	report := s.Generate()
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
@@ -1105,6 +1106,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		).String(),
 	)
 
+	s.ReloadConfig()
 	report = s.Generate()
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
@@ -1130,6 +1132,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		).String(),
 	)
 
+	s.ReloadConfig()
 	report = s.Generate()
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
@@ -1164,6 +1167,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		).String(),
 	)
 
+	s.ReloadConfig()
 	assertEqualReports(t, s.Generate(), generate.Report{
 		Successes: []generate.Result{
 			{
@@ -1190,6 +1194,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		).String(),
 	)
 
+	s.ReloadConfig()
 	assertEqualReports(t, s.Generate(), generate.Report{
 		Successes: []generate.Result{
 			{

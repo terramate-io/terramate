@@ -19,6 +19,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/test/hclwrite"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -124,17 +125,29 @@ func TestCheckStackForGenHCL(t *testing.T) {
 	stackEntry := s.CreateStack("stacks/stack")
 	stack := stackEntry.Load(s.Config())
 
+	changedStacks := false
+
 	assertOutdatedFiles := func(want []string) {
 		t.Helper()
+
+		if changedStacks {
+			s.ReloadConfig()
+			changedStacks = false
+		}
 
 		got, err := generate.CheckStack(s.Config(), s.LoadProjectMetadata(), stack)
 		assert.NoError(t, err)
 		assertEqualStringList(t, got, want)
 	}
 
+	createConfig := func(doc *hclwrite.Block) {
+		stackEntry.CreateConfig(doc.String())
+		changedStacks = true
+	}
+
 	// Checking detection when there is no config generated yet
 	assertOutdatedFiles([]string{})
-	stackEntry.CreateConfig(
+	createConfig(
 		Doc(
 			GenerateHCL(
 				Labels("test.tf"),
@@ -156,7 +169,7 @@ func TestCheckStackForGenHCL(t *testing.T) {
 					Str("data", "data"),
 				),
 			),
-		).String())
+		))
 
 	assertOutdatedFiles([]string{"dir/sub/test.tf", "dir/test.tf", "test.tf"})
 
@@ -165,7 +178,7 @@ func TestCheckStackForGenHCL(t *testing.T) {
 	assertOutdatedFiles([]string{})
 
 	// Now checking when we have code + it gets outdated.
-	stackEntry.CreateConfig(
+	createConfig(
 		Doc(
 			GenerateHCL(
 				Labels("test.tf"),
@@ -187,7 +200,7 @@ func TestCheckStackForGenHCL(t *testing.T) {
 					Str("data", "new data"),
 				),
 			),
-		).String())
+		))
 
 	assertOutdatedFiles([]string{"dir/sub/test.tf", "test.tf"})
 
@@ -195,7 +208,7 @@ func TestCheckStackForGenHCL(t *testing.T) {
 
 	// Changing generated filenames will trigger detection,
 	// with new + old filenames.
-	stackEntry.CreateConfig(
+	createConfig(
 		Doc(
 			GenerateHCL(
 				Labels("testnew.tf"),
@@ -217,14 +230,14 @@ func TestCheckStackForGenHCL(t *testing.T) {
 					Str("data", "new data"),
 				),
 			),
-		).String())
+		))
 
 	assertOutdatedFiles([]string{"test.tf", "testnew.tf"})
 
 	s.Generate()
 
 	// Adding new filename to generation trigger detection
-	stackEntry.CreateConfig(
+	createConfig(
 		Doc(
 			GenerateHCL(
 				Labels("testnew.tf"),
@@ -254,7 +267,7 @@ func TestCheckStackForGenHCL(t *testing.T) {
 					),
 				),
 			),
-		).String())
+		))
 
 	assertOutdatedFiles([]string{"another.tf"})
 
@@ -264,6 +277,7 @@ func TestCheckStackForGenHCL(t *testing.T) {
 
 	// Detects configurations that have been removed.
 	stackEntry.DeleteConfig()
+	changedStacks = true
 
 	assertOutdatedFiles([]string{
 		"another.tf",
@@ -283,42 +297,56 @@ func TestCheckOutdatedDetectsEmptyGenerateHCLBlocks(t *testing.T) {
 	stackEntry := s.CreateStack("stacks/stack")
 	stack := stackEntry.Load(s.Config())
 
+	changedStack := false
 	assertOutdatedFiles := func(want []string) {
 		t.Helper()
+
+		if changedStack {
+			s.ReloadConfig()
+			changedStack = false
+		}
 
 		got, err := generate.CheckStack(s.Config(), s.LoadProjectMetadata(), stack)
 		assert.NoError(t, err)
 		assertEqualStringList(t, got, want)
 	}
 
-	stackEntry.CreateConfig(
+	createConfig := func(doc *hclwrite.Block) {
+		stackEntry.CreateConfig(doc.String())
+		changedStack = true
+	}
+
+	createConfig(
 		GenerateHCL(
 			Labels("test.tf"),
 			Content(),
-		).String())
+		),
+	)
 
 	assertOutdatedFiles([]string{"test.tf"})
 	s.Generate()
 	assertOutdatedFiles([]string{})
 
 	// Check having generated code and switch to no code
-	stackEntry.CreateConfig(
+	createConfig(
 		GenerateHCL(
 			Labels("test.tf"),
 			Content(
 				Str("test", "test"),
 			),
-		).String())
+		),
+	)
 
 	assertOutdatedFiles([]string{"test.tf"})
 	s.Generate()
 	assertOutdatedFiles([]string{})
 
-	stackEntry.CreateConfig(
+	createConfig(
 		GenerateHCL(
 			Labels("test.tf"),
 			Content(),
-		).String())
+		),
+	)
 
 	assertOutdatedFiles([]string{"test.tf"})
 	s.Generate()
@@ -333,8 +361,15 @@ func TestCheckOutdatedIgnoresWhenGenHCLConditionIsFalse(t *testing.T) {
 	stackEntry := s.CreateStack("stacks/stack")
 	stack := stackEntry.Load(s.Config())
 
+	changedStacks := false
+
 	assertOutdatedFiles := func(want []string) {
 		t.Helper()
+
+		if changedStacks {
+			s.ReloadConfig()
+			changedStacks = false
+		}
 
 		got, err := generate.CheckStack(s.Config(), s.LoadProjectMetadata(), stack)
 		assert.NoError(t, err)
@@ -350,6 +385,8 @@ func TestCheckOutdatedIgnoresWhenGenHCLConditionIsFalse(t *testing.T) {
 					Block("whatever"),
 				),
 			).String())
+
+		changedStacks = true
 	}
 
 	// Checking detection when the condition is false

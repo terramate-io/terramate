@@ -121,6 +121,7 @@ func TestCheckStackForGenFile(t *testing.T) {
 			),
 		).String(),
 	)
+	s.ReloadConfig()
 	assertOutdatedFiles([]string{"dir/test.txt", "test.txt"})
 
 	s.Generate()
@@ -141,6 +142,7 @@ func TestCheckStackForGenFile(t *testing.T) {
 		).String(),
 	)
 
+	s.ReloadConfig()
 	assertOutdatedFiles([]string{"dir/test.txt", "test.txt"})
 
 	s.Generate()
@@ -154,6 +156,7 @@ func TestCheckStackForGenFile(t *testing.T) {
 		).String(),
 	)
 
+	s.ReloadConfig()
 	assertOutdatedFiles([]string{"testnew.txt"})
 
 	// Adding new filename to generation trigger detection
@@ -169,16 +172,19 @@ func TestCheckStackForGenFile(t *testing.T) {
 			),
 		).String())
 
+	s.ReloadConfig()
 	assertOutdatedFiles([]string{"another.txt", "testnew.txt"})
 
 	s.Generate()
 
+	s.ReloadConfig()
 	assertOutdatedFiles([]string{})
 
 	// Removed configurations will not be detected by default since there
 	// is no way to track the files for now.
 	stackEntry.DeleteConfig()
 
+	s.ReloadConfig()
 	assertOutdatedFiles([]string{})
 }
 
@@ -204,7 +210,10 @@ func TestCheckOutdatedDetectsEmptyGenerateFileContent(t *testing.T) {
 		).String(),
 	)
 
+	s.ReloadConfig()
 	assertOutdatedFiles([]string{"test.txt"})
+
+	s.ReloadConfig()
 	s.Generate()
 	assertOutdatedFiles([]string{})
 
@@ -216,6 +225,7 @@ func TestCheckOutdatedDetectsEmptyGenerateFileContent(t *testing.T) {
 		).String(),
 	)
 
+	s.ReloadConfig()
 	assertOutdatedFiles([]string{"test.txt"})
 	s.Generate()
 	assertOutdatedFiles([]string{})
@@ -227,6 +237,7 @@ func TestCheckOutdatedDetectsEmptyGenerateFileContent(t *testing.T) {
 		).String(),
 	)
 
+	s.ReloadConfig()
 	assertOutdatedFiles([]string{"test.txt"})
 	s.Generate()
 	assertOutdatedFiles([]string{})
@@ -256,6 +267,7 @@ func TestCheckOutdatedIgnoresWhenGenFileConditionIsFalse(t *testing.T) {
 				Str("content", "some content"),
 			).String(),
 		)
+		s.ReloadConfig()
 	}
 
 	// Checking detection when the config has condition = false

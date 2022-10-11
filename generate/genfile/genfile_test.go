@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/hcl"
@@ -997,8 +998,16 @@ stack_id=stack-id
 				test.AppendFile(t, s.RootDir(), cfg.path, cfg.add.String())
 			}
 
-			globals := s.LoadStackGlobals(projmeta, stack)
-			got, err := genfile.Load(projmeta, stack, globals)
+			cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+			if errors.IsAnyKind(tcase.wantErr, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
+				errtest.Assert(t, err, tcase.wantErr)
+				return
+			} else {
+				assert.NoError(t, err)
+			}
+
+			globals := s.LoadStackGlobals(cfg, projmeta, stack)
+			got, err := genfile.Load(cfg, projmeta, stack, globals)
 			errtest.Assert(t, err, tcase.wantErr)
 
 			if len(got) != len(tcase.want) {

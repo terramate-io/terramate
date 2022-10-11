@@ -24,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genhcl"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
@@ -1537,7 +1538,7 @@ func TestPartialEval(t *testing.T) {
 			if tcase.globals == nil {
 				tcase.globals = Globals()
 			}
-			cfg := Doc(
+			hclcfg := Doc(
 				tcase.globals,
 				GenerateHCL(
 					Labels(genname),
@@ -1547,14 +1548,20 @@ func TestPartialEval(t *testing.T) {
 				),
 			)
 
-			t.Logf("input: %s", cfg.String())
-			test.AppendFile(t, path, config.DefaultFilename, cfg.String())
+			t.Logf("input: %s", hclcfg.String())
+			test.AppendFile(t, path, config.DefaultFilename, hclcfg.String())
 
 			projmeta := s.LoadProjectMetadata()
-			globals := s.LoadStackGlobals(projmeta, stack)
-			got, err := genhcl.Load(projmeta, stack, globals)
+			cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+			if errors.IsAnyKind(err, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
+				errtest.Assert(t, err, tcase.wantErr)
+				return
+			} else {
+				assert.NoError(t, err)
+			}
+			globals := s.LoadStackGlobals(cfg, projmeta, stack)
+			got, err := genhcl.Load(cfg, projmeta, stack, globals)
 			errtest.Assert(t, err, tcase.wantErr)
-
 			if err != nil {
 				return
 			}
