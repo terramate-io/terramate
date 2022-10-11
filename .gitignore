@@ -4,9 +4,16 @@ coverage.txt
 .terraform.lock.hcl
 /cmd/terramate/terramate
 
-# Go Workspaces support
+# Profiling artifacts
+cpu.prof
+mem.prof
+*.test
+
+# Go Workspaces artifacts
 /go.work
 
+# VSCode artifacts
 .vscode/
 
+# Go releaser artifacts
 dist/

@@ -48,6 +48,18 @@ test/fuzz/eval:
 test/fuzz/fmt:
 	go test ./hcl -fuzz=FuzzFormatMultiline
 
+## runs all benchmarks on the given 'pkg', or a specific benchmark inside 'pkg'
+.PHONY: bench
+bench: name?=.
+bench: pkg?=.
+bench:
+	go test -bench=$(name) -benchmem -memprofile=mem.prof -cpuprofile cpu.prof $(pkg)
+
+## cleanup artifacts produced by the benchmarking process
+bench/cleanup:
+	rm -f *.prof
+	rm -f *.test
+
 ## executes a dry run of the release process
 .PHONY: release/dry-run
 release/dry-run: 
