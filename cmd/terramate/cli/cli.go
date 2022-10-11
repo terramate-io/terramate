@@ -1137,7 +1137,7 @@ func (c *cli) printMetadata() {
 
 	// TODO(katcipis): we need to print other project metadata too.
 	c.log("\nproject metadata:")
-	c.log("\tterramate.stacks.all=%v", projmeta.Stacks())
+	c.log("\tterramate.stacks.list=%v", projmeta.Stacks())
 
 	for _, stackEntry := range stackEntries {
 		stackMeta := stack.Metadata(stackEntry.Stack)

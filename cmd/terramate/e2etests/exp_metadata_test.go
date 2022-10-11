@@ -44,7 +44,7 @@ func TestCliMetadata(t *testing.T) {
 				Stdout: `Available metadata:
 
 project metadata:
-	terramate.stacks.all=[/stack]
+	terramate.stacks.list=[/stack]
 
 stack "/stack":
 	terramate.stack.name="stack"
@@ -65,7 +65,7 @@ stack "/stack":
 				Stdout: `Available metadata:
 
 project metadata:
-	terramate.stacks.all=[/stack]
+	terramate.stacks.list=[/stack]
 
 stack "/stack":
 	terramate.stack.id="unique-id"
@@ -90,7 +90,7 @@ stack "/stack":
 				Stdout: `Available metadata:
 
 project metadata:
-	terramate.stacks.all=[/somedir/stack3 /somedir/stack4 /stack1 /stack2]
+	terramate.stacks.list=[/somedir/stack3 /somedir/stack4 /stack1 /stack2]
 
 stack "/somedir/stack3":
 	terramate.stack.name="stack3"
@@ -139,7 +139,7 @@ stack "/stack2":
 				Stdout: `Available metadata:
 
 project metadata:
-	terramate.stacks.all=[/somedir/stack3 /somedir/stack4 /stack1 /stack2]
+	terramate.stacks.list=[/somedir/stack3 /somedir/stack4 /stack1 /stack2]
 
 stack "/stack1":
 	terramate.stack.name="stack1"
@@ -164,7 +164,7 @@ stack "/stack1":
 				Stdout: `Available metadata:
 
 project metadata:
-	terramate.stacks.all=[/somedir/stack3 /somedir/stack4 /stack1 /stack2]
+	terramate.stacks.list=[/somedir/stack3 /somedir/stack4 /stack1 /stack2]
 
 stack "/somedir/stack3":
 	terramate.stack.name="stack3"
