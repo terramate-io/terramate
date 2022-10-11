@@ -349,7 +349,9 @@ func (m *Manager) AddWantedOf(scopeStacks stack.List) (stack.List, error) {
 			wantsDag,
 			m.cfg,
 			s,
+			"wanted_by",
 			stack.S.WantedBy,
+			"wants",
 			stack.S.Wants,
 			visited,
 		)
@@ -395,6 +397,7 @@ func (m *Manager) AddWantedOf(scopeStacks stack.List) (stack.List, error) {
 		id := pending[0]
 		node, _ := wantsDag.Node(id)
 		s := node.(*stack.S)
+
 		addStack(s)
 		pending = pending[1:]
 

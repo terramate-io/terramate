@@ -98,7 +98,7 @@ func TestCheckStackForGenFile(t *testing.T) {
 	s := sandbox.New(t)
 
 	stackEntry := s.CreateStack("stacks/stack")
-	stack := stackEntry.Load()
+	stack := stackEntry.Load(s.Config())
 
 	assertOutdatedFiles := func(want []string) {
 		t.Helper()
@@ -186,7 +186,7 @@ func TestCheckOutdatedDetectsEmptyGenerateFileContent(t *testing.T) {
 	s := sandbox.New(t)
 
 	stackEntry := s.CreateStack("stacks/stack")
-	stack := stackEntry.Load()
+	stack := stackEntry.Load(s.Config())
 
 	assertOutdatedFiles := func(want []string) {
 		t.Helper()
@@ -238,7 +238,7 @@ func TestCheckOutdatedIgnoresWhenGenFileConditionIsFalse(t *testing.T) {
 	s := sandbox.New(t)
 
 	stackEntry := s.CreateStack("stacks/stack")
-	stack := stackEntry.Load()
+	stack := stackEntry.Load(s.Config())
 
 	assertOutdatedFiles := func(want []string) {
 		t.Helper()

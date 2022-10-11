@@ -1532,7 +1532,7 @@ func TestPartialEval(t *testing.T) {
 
 			s := sandbox.New(t)
 			stackEntry := s.CreateStack(stackname)
-			stack := stackEntry.Load()
+			stack := stackEntry.Load(s.Config())
 			path := filepath.Join(s.RootDir(), stackname)
 			if tcase.globals == nil {
 				tcase.globals = Globals()

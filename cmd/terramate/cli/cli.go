@@ -929,7 +929,9 @@ func (c *cli) generateGraph() {
 			graph,
 			c.cfg(),
 			e.Stack,
+			"before",
 			stack.S.Before,
+			"after",
 			stack.S.After,
 			visited,
 		); err != nil {

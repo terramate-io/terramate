@@ -122,7 +122,7 @@ func TestCheckStackForGenHCL(t *testing.T) {
 	s := sandbox.New(t)
 
 	stackEntry := s.CreateStack("stacks/stack")
-	stack := stackEntry.Load()
+	stack := stackEntry.Load(s.Config())
 
 	assertOutdatedFiles := func(want []string) {
 		t.Helper()
@@ -281,7 +281,7 @@ func TestCheckOutdatedDetectsEmptyGenerateHCLBlocks(t *testing.T) {
 	s := sandbox.New(t)
 
 	stackEntry := s.CreateStack("stacks/stack")
-	stack := stackEntry.Load()
+	stack := stackEntry.Load(s.Config())
 
 	assertOutdatedFiles := func(want []string) {
 		t.Helper()
@@ -331,7 +331,7 @@ func TestCheckOutdatedIgnoresWhenGenHCLConditionIsFalse(t *testing.T) {
 	s := sandbox.New(t)
 
 	stackEntry := s.CreateStack("stacks/stack")
-	stack := stackEntry.Load()
+	stack := stackEntry.Load(s.Config())
 
 	assertOutdatedFiles := func(want []string) {
 		t.Helper()

@@ -15,7 +15,6 @@
 package config
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -115,8 +114,7 @@ func (tree *Tree) Stacks() []*Tree {
 	for _, children := range tree.Children {
 		stacks = append(stacks, children.Stacks()...)
 	}
-
-	stacks.Sort()
+	sort.Sort(stacks)
 	return stacks
 }
 
@@ -143,32 +141,67 @@ func (tree *Tree) Lookup(path project.Path) (*Tree, bool) {
 	return cfg, true
 }
 
-// StacksByRelPaths returns the stacks from the provided relative paths.
-func (tree *Tree) StacksByRelPaths(base project.Path, relpaths ...string) List {
-	var stacks List
-	for _, p := range relpaths {
-		var pathstr string
-		if path.IsAbs(p) {
-			pathstr = p
-		} else {
-			pathstr = path.Join(base.String(), p)
+// StacksByPaths returns the stacks from the provided relative paths.
+func (tree *Tree) StacksByPaths(base project.Path, relpaths ...string) List {
+	logger := log.With().
+		Str("action", "tree.StacksByPath").
+		Str("basedir", base.String()).
+		Strs("paths", relpaths).
+		Logger()
+
+	logger.Trace().Msg("lookup paths")
+
+	normalizePaths := func(paths []string) []project.Path {
+		pathmap := map[string]struct{}{}
+		var normalized []project.Path
+		for _, p := range paths {
+			var pathstr string
+			if path.IsAbs(p) {
+				pathstr = p
+			} else {
+				pathstr = path.Join(base.String(), p)
+			}
+			if _, ok := pathmap[pathstr]; !ok {
+				pathmap[pathstr] = struct{}{}
+				normalized = append(normalized, project.NewPath(pathstr))
+			}
 		}
-		node, ok := tree.Lookup(project.NewPath(pathstr))
+		return normalized
+	}
+
+	var stacks List
+	for _, path := range normalizePaths(relpaths) {
+		node, ok := tree.Lookup(path)
 		if !ok {
-			panic(fmt.Errorf("path %s not found", pathstr))
+			logger.Warn().Msgf("path %s not found in configuration", path.String())
+			continue
 		}
 		stacks = append(stacks, node.Stacks()...)
 	}
-	stacks.Sort()
+
+	sort.Sort(stacks)
+
+	logger.Trace().Msgf("found %d stacks out of %d paths", len(stacks), len(relpaths))
+
 	return stacks
 }
 
-// Sort the tree list.
-func (l List) Sort() {
-	sort.Slice(l, func(i, j int) bool {
-		return l[i].RootDir() < l[j].RootDir()
-	})
+func (l List) String() string {
+	out := "["
+	for _, s := range l {
+		out += s.RootDir() + ", "
+	}
+	out += "]"
+	return out
 }
+
+func (l List) Len() int { return len(l) }
+
+func (l List) Less(i, j int) bool {
+	return l[i].rootdir < l[j].rootdir
+}
+
+func (l List) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
 
 func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error) {
 	logger := log.With().

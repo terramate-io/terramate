@@ -76,7 +76,9 @@ func Sort(cfg *config.Tree, stacks stack.List) (stack.List, string, error) {
 			d,
 			cfg,
 			s,
+			"before",
 			stack.S.Before,
+			"after",
 			stack.S.After,
 			visited,
 		)
@@ -138,7 +140,9 @@ func BuildDAG(
 	d *dag.DAG,
 	cfg *config.Tree,
 	s *stack.S,
+	descendantsName string,
 	getDescendants func(stack.S) []string,
+	ancestorsName string,
 	getAncestors func(stack.S) []string,
 	visited dag.Visited,
 ) error {
@@ -179,34 +183,36 @@ func BuildDAG(
 		return cleanpaths
 	}
 
-	afterPaths := removeWrongPaths("after", getAncestors(*s))
-	beforePaths := removeWrongPaths("before", getDescendants(*s))
+	ancestorPaths := removeWrongPaths(ancestorsName, getAncestors(*s))
+	descendantPaths := removeWrongPaths(descendantsName, getDescendants(*s))
 
-	afterStacks, err := stack.TreeListToStackList(cfg.StacksByRelPaths(s.Path(), afterPaths...))
+	ancestorStacks, err := stack.TreeListToStackList(cfg.RootDir(), cfg.StacksByPaths(s.Path(), ancestorPaths...))
 	if err != nil {
-		return err
+		return errors.E(err, "stack %q: failed to load the \"%s\" stacks",
+			s, ancestorsName)
 	}
-	beforeStacks, err := stack.TreeListToStackList(cfg.StacksByRelPaths(s.Path(), beforePaths...))
+	descendantStacks, err := stack.TreeListToStackList(cfg.RootDir(), cfg.StacksByPaths(s.Path(), descendantPaths...))
 	if err != nil {
-		return err
+		return errors.E(err, "stack %q: failed to load the \"%s\" stacks",
+			s, descendantsName)
 	}
 
 	logger.Debug().Msg("Add new node to DAG.")
 
-	err = d.AddNode(dag.ID(s.Path()), s, toids(beforeStacks), toids(afterStacks))
+	err = d.AddNode(dag.ID(s.Path()), s, toids(descendantStacks), toids(ancestorStacks))
 	if err != nil {
 		return errors.E("stack %q: failed to build DAG: %w", s, err)
 	}
 
 	stacks := stack.List{}
-	stacks = append(stacks, afterStacks...)
-	stacks = append(stacks, beforeStacks...)
+	stacks = append(stacks, ancestorStacks...)
+	stacks = append(stacks, descendantStacks...)
 
 	logger.Trace().Msg("Range over stacks.")
 
 	for _, s := range stacks {
 		logger = log.With().
-			Str("action", "BuildDAG()").
+			Str("action", "run.BuildDAG()").
 			Str("path", cfg.RootDir()).
 			Stringer("stack", s.Path()).
 			Logger()
@@ -217,9 +223,10 @@ func BuildDAG(
 
 		logger.Trace().Msg("Build DAG.")
 
-		err = BuildDAG(d, cfg, s, getDescendants, getAncestors, visited)
+		err = BuildDAG(d, cfg, s, descendantsName, getDescendants,
+			ancestorsName, getAncestors, visited)
 		if err != nil {
-			return fmt.Errorf("stack %q: failed to build DAG: %w", s, err)
+			return errors.E(err, "stack %q: failed to build DAG", s)
 		}
 	}
 	return nil

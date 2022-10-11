@@ -76,6 +76,186 @@ func TestConfigLookup(t *testing.T) {
 	assert.EqualStrings(t, "/stacks/child/non-stack/stack", project.PrjAbsPath(s.RootDir(), stacks[2].RootDir()).String())
 }
 
+func TestConfigStacksByPaths(t *testing.T) {
+	type testcase struct {
+		name     string
+		layout   []string
+		basedir  string
+		want     []string
+		relpaths []string
+	}
+
+	for _, tc := range []testcase{
+		{
+			name:    "no stacks, no relpaths",
+			layout:  []string{},
+			basedir: "/",
+		},
+		{
+			name:    "no stacks, absolute path",
+			layout:  []string{},
+			basedir: "/",
+			relpaths: []string{
+				"/",
+			},
+		},
+		{
+			name:    "no stacks, rel path",
+			layout:  []string{},
+			basedir: "/",
+			relpaths: []string{
+				"/",
+			},
+		},
+		{
+			name: "single stack, no matching path",
+			layout: []string{
+				"s:stack",
+				"d:some/place",
+			},
+			basedir: "/some/place",
+			relpaths: []string{
+				"/test",
+				"../../test",
+			},
+		},
+		{
+			name: "single stack, 1 matching absolute path",
+			layout: []string{
+				"s:stack",
+				"d:some/place",
+			},
+			basedir: "/some/place",
+			relpaths: []string{
+				"/test",
+				"../../test",
+				"/stack",
+			},
+			want: []string{
+				"/stack",
+			},
+		},
+		{
+			name: "single stack, 1 matching relpath",
+			layout: []string{
+				"s:stack",
+				"d:some/place",
+			},
+			basedir: "/some/place",
+			relpaths: []string{
+				"/test",
+				"../../test",
+				"../../stack",
+			},
+			want: []string{
+				"/stack",
+			},
+		},
+		{
+			name: "single stack, multiple match returns once",
+			layout: []string{
+				"s:stack",
+				"d:some/place",
+			},
+			basedir: "/some/place",
+			relpaths: []string{
+				"../../stack",
+				"../../stack",
+			},
+			want: []string{
+				"/stack",
+			},
+		},
+		{
+			name: "single stack, 1 matching relpath",
+			layout: []string{
+				"s:stack",
+				"d:some/place",
+			},
+			basedir: "/some/place",
+			relpaths: []string{
+				"/test",
+				"../../test",
+				"../../stack",
+			},
+			want: []string{
+				"/stack",
+			},
+		},
+		{
+			name: "matching path returns all child stacks",
+			layout: []string{
+				"s:a",
+				"s:a/lot",
+				"s:a/lot/of",
+				"s:a/lot/of/stacks",
+				"d:a/lot/of/stacks/with-non-stack-dir",
+				"s:a/lot/of/stacks/with-non-stack-dir/and",
+				"s:a/lot/of/stacks/with-non-stack-dir/more",
+				"s:a/lot/of/stacks/with-non-stack-dir/stacks",
+				"d:b/is/not/stack",
+				"s:b/is/not/stack/but-this-is-a-stack",
+			},
+			basedir: "/a/lot/of/stacks/with-non-stack-dir/and",
+			relpaths: []string{
+				"/",
+			},
+			want: []string{
+				"/a",
+				"/a/lot",
+				"/a/lot/of",
+				"/a/lot/of/stacks",
+				"/a/lot/of/stacks/with-non-stack-dir/and",
+				"/a/lot/of/stacks/with-non-stack-dir/more",
+				"/a/lot/of/stacks/with-non-stack-dir/stacks",
+				"/b/is/not/stack/but-this-is-a-stack",
+			},
+		},
+		{
+			name: "matching path returns all child stacks",
+			layout: []string{
+				"s:a",
+				"s:a/lot",
+				"s:a/lot/of",
+				"s:a/lot/of/stacks",
+				"d:a/lot/of/stacks/with-non-stack-dir",
+				"s:a/lot/of/stacks/with-non-stack-dir/and",
+				"s:a/lot/of/stacks/with-non-stack-dir/more",
+				"s:a/lot/of/stacks/with-non-stack-dir/stacks",
+				"d:b/is/not/stack",
+				"s:b/is/not/stack/but-this-is-a-stack",
+			},
+			basedir: "/a/lot/of/stacks/with-non-stack-dir/and",
+			relpaths: []string{
+				"/",
+			},
+			want: []string{
+				"/a",
+				"/a/lot",
+				"/a/lot/of",
+				"/a/lot/of/stacks",
+				"/a/lot/of/stacks/with-non-stack-dir/and",
+				"/a/lot/of/stacks/with-non-stack-dir/more",
+				"/a/lot/of/stacks/with-non-stack-dir/stacks",
+				"/b/is/not/stack/but-this-is-a-stack",
+			},
+		},
+	} {
+		s := sandbox.New(t)
+		s.BuildTree(tc.layout)
+		cfg := s.Config()
+		got := cfg.StacksByPaths(project.NewPath(tc.basedir), tc.relpaths...)
+		assert.EqualInts(t, len(tc.want), len(got))
+		var stacks []string
+		for _, node := range got {
+			stacks = append(stacks, project.PrjAbsPath(cfg.RootDir(), node.RootDir()).String())
+		}
+		for i, want := range tc.want {
+			assert.EqualStrings(t, want, stacks[i])
+		}
+	}
+}
+
 func isStack(cfg *config.Tree, dir string) bool {
 	return config.IsStack(cfg, filepath.Join(cfg.RootDir(), dir))
 }

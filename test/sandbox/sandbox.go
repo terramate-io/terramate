@@ -522,10 +522,8 @@ func (se StackEntry) ReadFile(filename string) string {
 }
 
 // Load loads the terramate stack instance for this stack dir entry.
-func (se StackEntry) Load() *stack.S {
+func (se StackEntry) Load(cfg *config.Tree) *stack.S {
 	se.t.Helper()
-
-	cfg := config.NewTree(se.rootpath)
 	loadedStack, err := stack.Load(cfg, se.Path())
 	assert.NoError(se.t, err)
 	return loadedStack
