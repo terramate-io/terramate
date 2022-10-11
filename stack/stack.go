@@ -234,7 +234,7 @@ func validateWatchPaths(rootdir string, stackpath string, paths []string) (proje
 func TreeListToStackList(root string, trees config.List) (List, error) {
 	var stacks List
 	for _, tree := range trees {
-		s, err := New(root, tree.Root)
+		s, err := New(root, tree.Node)
 		if err != nil {
 			return List{}, err
 		}
@@ -263,7 +263,7 @@ func LoadAll(cfg *config.Tree) (List, error) {
 	stacksIDs := map[string]*S{}
 
 	for _, stackNode := range cfg.Stacks() {
-		stack, err := New(cfg.RootDir(), stackNode.Root)
+		stack, err := New(cfg.RootDir(), stackNode.Node)
 		if err != nil {
 			return List{}, err
 		}
@@ -302,7 +302,7 @@ func Load(cfg *config.Tree, dir string) (*S, error) {
 	if !node.IsStack() {
 		return nil, errors.E("config at %s is not a stack")
 	}
-	return New(cfg.RootDir(), node.Root)
+	return New(cfg.RootDir(), node.Node)
 }
 
 // TryLoad tries to load a single stack from dir. It sets found as true in case

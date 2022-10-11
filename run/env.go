@@ -55,7 +55,7 @@ func LoadEnv(cfg *config.Tree, projmeta project.Metadata, st *stack.S) (EnvVars,
 
 	logger.Trace().Msg("checking if we have run env config")
 
-	if !cfg.Root.HasRunEnv() {
+	if !cfg.Node.HasRunEnv() {
 		logger.Trace().Msg("no run env config found, nothing to do")
 		return nil, nil
 	}
@@ -72,7 +72,7 @@ func LoadEnv(cfg *config.Tree, projmeta project.Metadata, st *stack.S) (EnvVars,
 	evalctx.SetEnv(os.Environ())
 	envVars := EnvVars{}
 
-	attrs := cfg.Root.Terramate.Config.Run.Env.Attributes.SortedList()
+	attrs := cfg.Node.Terramate.Config.Run.Env.Attributes.SortedList()
 
 	for _, attr := range attrs {
 		logger = logger.With().

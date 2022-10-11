@@ -195,7 +195,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 			}
 		}
 
-		s, err := stack.New(m.cfg.RootDir(), stackTree.Root)
+		s, err := stack.New(m.cfg.RootDir(), stackTree.Node)
 		if err != nil {
 			return nil, errors.E(errListChanged, err)
 		}

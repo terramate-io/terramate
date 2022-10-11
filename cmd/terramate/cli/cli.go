@@ -552,10 +552,10 @@ func (c *cli) vendorDir() prj.Path {
 
 	logger.Trace().Msg("no .terramate config, checking root")
 
-	if hasVendorDirConfig(c.prj.cfg.Root) {
+	if hasVendorDirConfig(c.prj.cfg.Node) {
 		logger.Trace().Msg("using root config")
 
-		return checkVendorDir(c.prj.cfg.Root.Vendor.Dir)
+		return checkVendorDir(c.prj.cfg.Node.Vendor.Dir)
 	}
 
 	logger.Trace().Msg("no configuration provided, fallback to default")
@@ -613,7 +613,7 @@ func (c *cli) checkGitUntracked() bool {
 		}
 	}
 
-	cfg := c.prj.cfg.Root
+	cfg := c.prj.cfg.Node
 	if cfg.Terramate != nil &&
 		cfg.Terramate.Config != nil &&
 		cfg.Terramate.Config.Git != nil {
@@ -634,7 +634,7 @@ func (c *cli) checkGitUncommited() bool {
 		}
 	}
 
-	cfg := c.prj.cfg.Root
+	cfg := c.prj.cfg.Node
 	if cfg.Terramate != nil &&
 		cfg.Terramate.Config != nil &&
 		cfg.Terramate.Config.Git != nil {
@@ -1166,7 +1166,7 @@ func (c *cli) checkGenCode() bool {
 		}
 	}
 
-	cfg := c.prj.cfg.Root
+	cfg := c.prj.cfg.Node
 
 	if cfg.Terramate != nil &&
 		cfg.Terramate.Config != nil &&
@@ -1376,7 +1376,7 @@ func (c *cli) checkGitRemote() bool {
 		}
 	}
 
-	cfg := c.prj.cfg.Root
+	cfg := c.prj.cfg.Node
 
 	if cfg.Terramate != nil &&
 		cfg.Terramate.Config != nil &&
@@ -1593,7 +1593,7 @@ func (c cli) checkVersion() {
 
 	logger.Trace().Msg("checking if terramate version satisfies project constraint")
 
-	rootcfg := c.prj.cfg.Root
+	rootcfg := c.prj.cfg.Node
 
 	if rootcfg.Terramate == nil {
 		logger.Debug().Msg("project root has no config, skipping version check")

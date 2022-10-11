@@ -39,8 +39,8 @@ const (
 
 // Tree is the config tree.
 type Tree struct {
-	// Root is the configuration of this tree node.
-	Root hcl.Config
+	// Node is the configuration of this tree node.
+	Node hcl.Config
 
 	// Children is a map of configuration dir names to tree nodes.
 	Children map[string]*Tree
@@ -48,7 +48,7 @@ type Tree struct {
 	// Parent is the parent node or nil if none.
 	Parent *Tree
 
-	rootdir string
+	dir string
 }
 
 // List of config trees.
@@ -95,14 +95,22 @@ func LoadTree(rootdir string, cfgdir string) (*Tree, error) {
 	return loadTree(rootdir, cfgdir, nil)
 }
 
+// Dir is the configuration directory.
+func (tree *Tree) Dir() string {
+	return tree.dir
+}
+
 // RootDir is the configuration rootdir.
 func (tree *Tree) RootDir() string {
-	return tree.rootdir
+	if tree.Parent != nil {
+		return tree.Parent.RootDir()
+	}
+	return tree.dir
 }
 
 // IsStack tells if the tree is a stack.
 func (tree *Tree) IsStack() bool {
-	return tree.Root.Stack != nil
+	return tree.Node.Stack != nil
 }
 
 // Stacks returns the stack nodes from the tree.
@@ -198,7 +206,7 @@ func (l List) String() string {
 func (l List) Len() int { return len(l) }
 
 func (l List) Less(i, j int) bool {
-	return l[i].rootdir < l[j].rootdir
+	return l[i].dir < l[j].dir
 }
 
 func (l List) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
@@ -211,13 +219,13 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error)
 
 	tree := NewTree(cfgdir)
 	if rootcfg != nil {
-		tree.Root = *rootcfg
+		tree.Node = *rootcfg
 	} else {
 		cfg, err := hcl.ParseDir(rootdir, cfgdir)
 		if err != nil {
 			return nil, err
 		}
-		tree.Root = cfg
+		tree.Node = cfg
 	}
 
 	f, err := os.Open(cfgdir)
@@ -265,7 +273,7 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error)
 
 // IsEmptyConfig tells if the configuration is empty.
 func (tree *Tree) IsEmptyConfig() bool {
-	return tree.Root.IsEmpty()
+	return tree.Node.IsEmpty()
 }
 
 // IsStack returns true if the given directory is a stack, false otherwise.
@@ -277,7 +285,7 @@ func IsStack(cfg *Tree, dir string) bool {
 // NewTree creates a new tree node.
 func NewTree(cfgdir string) *Tree {
 	return &Tree{
-		rootdir:  cfgdir,
+		dir:      cfgdir,
 		Children: make(map[string]*Tree),
 	}
 }

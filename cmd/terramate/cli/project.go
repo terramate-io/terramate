@@ -40,7 +40,7 @@ type project struct {
 }
 
 func (p project) gitcfg() *hcl.GitConfig {
-	return p.cfg.Root.Terramate.Config.Git
+	return p.cfg.Node.Terramate.Config.Git
 }
 
 func (p *project) localDefaultBranchCommit() string {
@@ -144,26 +144,26 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 
 	logger.Debug().Msg("Set defaults.")
 
-	if p.cfg.Root.Terramate == nil {
+	if p.cfg.Node.Terramate == nil {
 		// if config has no terramate block we create one with default
 		// configurations.
-		p.cfg.Root.Terramate = &hcl.Terramate{}
+		p.cfg.Node.Terramate = &hcl.Terramate{}
 	}
 
 	cfg := &p.cfg
-	if cfg.Root.Terramate.Config == nil {
-		p.cfg.Root.Terramate.Config = &hcl.RootConfig{}
+	if cfg.Node.Terramate.Config == nil {
+		p.cfg.Node.Terramate.Config = &hcl.RootConfig{}
 	}
 	// Now some defaults are defined on the NewGitConfig but others here.
 	// To define all defaults here we would need boolean pointers to
 	// check if the config is defined or not, the zero value for booleans
 	// is valid (simpler with strings). Maybe we could move all defaults
 	// to NewGitConfig.
-	if cfg.Root.Terramate.Config.Git == nil {
-		cfg.Root.Terramate.Config.Git = hcl.NewGitConfig()
+	if cfg.Node.Terramate.Config.Git == nil {
+		cfg.Node.Terramate.Config.Git = hcl.NewGitConfig()
 	}
 
-	gitOpt := cfg.Root.Terramate.Config.Git
+	gitOpt := cfg.Node.Terramate.Config.Git
 
 	if gitOpt.DefaultBranchBaseRef == "" {
 		gitOpt.DefaultBranchBaseRef = defaultBranchBaseRef

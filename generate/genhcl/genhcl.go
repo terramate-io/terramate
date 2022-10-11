@@ -259,7 +259,7 @@ func loadGenHCLBlocks(tree *config.Tree, cfgdir project.Path) ([]loadedHCL, erro
 	res := []loadedHCL{}
 	cfg, ok := tree.Lookup(cfgdir)
 	if ok && !cfg.IsEmptyConfig() {
-		blocks := cfg.Root.Generate.HCLs
+		blocks := cfg.Node.Generate.HCLs
 
 		logger.Trace().Msg("Parsed generate_hcl blocks.")
 

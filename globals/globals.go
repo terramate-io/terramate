@@ -56,16 +56,16 @@ type (
 )
 
 // Load loads all the globals from the cfgdir.
-func Load(cfg *config.Tree, cfgdir project.Path, ctx *eval.Context) EvalReport {
+func Load(tree *config.Tree, cfgdir project.Path, ctx *eval.Context) EvalReport {
 	logger := log.With().
 		Str("action", "globals.Load()").
-		Str("root", cfg.RootDir()).
+		Str("root", tree.RootDir()).
 		Stringer("cfgdir", cfgdir).
 		Logger()
 
 	logger.Trace().Msg("loading expressions")
 
-	exprs, err := LoadExprs(cfg, cfgdir)
+	exprs, err := LoadExprs(tree, cfgdir)
 	if err != nil {
 		report := NewEvalReport()
 		report.BootstrapErr = err
@@ -94,7 +94,7 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
 		return exprs, nil
 	}
 
-	globalsBlock := cfg.Root.Globals
+	globalsBlock := cfg.Node.Globals
 	if globalsBlock != nil {
 		logger.Trace().Msg("Range over attributes.")
 
@@ -108,7 +108,7 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
 		}
 	}
 
-	importedGlobals, ok := cfg.Root.Imported.MergedBlocks["globals"]
+	importedGlobals, ok := cfg.Node.Imported.MergedBlocks["globals"]
 	if ok {
 		logger.Trace().Msg("Range over imported globals")
 

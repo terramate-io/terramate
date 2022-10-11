@@ -222,7 +222,7 @@ func loadGenFileBlocks(tree *config.Tree, cfgdir project.Path) ([]genFileBlock, 
 	res := []genFileBlock{}
 	cfg, ok := tree.Lookup(cfgdir)
 	if ok && !cfg.IsEmptyConfig() {
-		blocks := cfg.Root.Generate.Files
+		blocks := cfg.Node.Generate.Files
 
 		logger.Trace().Msg("Parsed generate_file blocks.")
 
