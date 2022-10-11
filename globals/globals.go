@@ -15,9 +15,8 @@
 package globals
 
 import (
-	"path/filepath"
-
 	hhcl "github.com/hashicorp/hcl/v2"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
@@ -57,16 +56,16 @@ type (
 )
 
 // Load loads all the globals from the cfgdir.
-func Load(rootdir string, cfgdir project.Path, ctx *eval.Context) EvalReport {
+func Load(cfg *config.Tree, cfgdir project.Path, ctx *eval.Context) EvalReport {
 	logger := log.With().
 		Str("action", "globals.Load()").
-		Str("root", rootdir).
+		Str("root", cfg.RootDir()).
 		Stringer("cfgdir", cfgdir).
 		Logger()
 
 	logger.Trace().Msg("loading expressions")
 
-	exprs, err := LoadExprs(rootdir, cfgdir)
+	exprs, err := LoadExprs(cfg, cfgdir)
 	if err != nil {
 		report := NewEvalReport()
 		report.BootstrapErr = err
@@ -81,46 +80,35 @@ func Load(rootdir string, cfgdir project.Path, ctx *eval.Context) EvalReport {
 // reaches rootdir, loading globals expressions and merging them appropriately.
 // More specific globals (closer or at the dir) have precedence over less
 // specific globals (closer or at the root dir).
-func LoadExprs(rootdir string, cfgdir project.Path) (Exprs, error) {
+func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
 	logger := log.With().
 		Str("action", "globals.LoadExprs()").
-		Str("root", rootdir).
+		Str("root", tree.RootDir()).
 		Stringer("cfgdir", cfgdir).
 		Logger()
 
-	logger.Debug().Msg("Parse globals blocks.")
-
-	absdir := filepath.Join(rootdir, cfgdir.String())
-	p, err := hcl.NewTerramateParser(rootdir, absdir)
-	if err != nil {
-		return nil, err
-	}
-	err = p.AddDir(absdir)
-	if err != nil {
-		return nil, errors.E("adding dir to parser", err)
-	}
-
-	err = p.Parse()
-	if err != nil {
-		return nil, errors.E("parsing config", err)
-	}
-
 	exprs := make(Exprs)
-	globalsBlock, ok := p.Config.MergedBlocks["globals"]
-	if ok {
+
+	cfg, ok := tree.Lookup(cfgdir)
+	if !ok {
+		return exprs, nil
+	}
+
+	globalsBlock := cfg.Root.Globals
+	if globalsBlock != nil {
 		logger.Trace().Msg("Range over attributes.")
 
 		for _, attr := range globalsBlock.Attributes {
 			logger.Trace().Msg("Add attribute to globals.")
 
 			exprs[attr.Name] = Expr{
-				Origin:     project.PrjAbsPath(rootdir, attr.Origin),
+				Origin:     project.PrjAbsPath(tree.RootDir(), attr.Origin),
 				Expression: attr.Expr,
 			}
 		}
 	}
 
-	importedGlobals, ok := p.Imported.MergedBlocks["globals"]
+	importedGlobals, ok := cfg.Root.Imported.MergedBlocks["globals"]
 	if ok {
 		logger.Trace().Msg("Range over imported globals")
 
@@ -129,7 +117,7 @@ func LoadExprs(rootdir string, cfgdir project.Path) (Exprs, error) {
 			logger.Trace().Msg("Add imported attribute to globals.")
 
 			importedExprs[attr.Name] = Expr{
-				Origin:     project.PrjAbsPath(rootdir, attr.Origin),
+				Origin:     project.PrjAbsPath(tree.RootDir(), attr.Origin),
 				Expression: attr.Expr,
 			}
 		}
@@ -144,7 +132,7 @@ func LoadExprs(rootdir string, cfgdir project.Path) (Exprs, error) {
 
 	logger.Trace().Msg("Loading stack globals from parent dir.")
 
-	parentGlobals, err := LoadExprs(rootdir, parentcfg)
+	parentGlobals, err := LoadExprs(tree, parentcfg)
 	if err != nil {
 		return nil, err
 	}
