@@ -57,7 +57,7 @@ func TestGeneratedFilesListing(t *testing.T) {
 			layout: []string{
 				"f:file.tf:whatever",
 				"f:file.hcl:dont care",
-				"f:another.tm.hcl:terramate is awesome",
+				"f:another.tm.hcl:terramate {}",
 			},
 		},
 		{
