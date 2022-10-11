@@ -28,10 +28,10 @@ func TestLoggingChangeChannel(t *testing.T) {
 	assertRunResult(t, cli.listStacks(), runExpected{
 		StderrRegex: "TRC",
 	})
-	assertRunResult(t, cli.listStacks("--log-channel", "stderr"), runExpected{
+	assertRunResult(t, cli.listStacks("--log-destination", "stderr"), runExpected{
 		StderrRegex: "TRC",
 	})
-	assertRunResult(t, cli.listStacks("--log-channel", "stdout"), runExpected{
+	assertRunResult(t, cli.listStacks("--log-destination", "stdout"), runExpected{
 		StdoutRegex: "TRC",
 	})
 }
