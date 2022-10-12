@@ -38,7 +38,8 @@ const (
 )
 
 // Tree is the configuration tree.
-// Each directory in the project becomes a tree node
+// The tree maps the filesystem directories, which means each directory in the
+// project has a tree instance even if it's empty (ie no .tm files in it).
 type Tree struct {
 	// Node is the configuration of this tree node.
 	Node hcl.Config
@@ -112,7 +113,7 @@ func (tree *Tree) RootDir() string {
 // Root returns the root of the configuration tree.
 func (tree *Tree) Root() *Tree {
 	if tree.Parent != nil {
-		return tree.Parent
+		return tree.Parent.Root()
 	}
 	return tree
 }
