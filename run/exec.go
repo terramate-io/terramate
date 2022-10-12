@@ -92,11 +92,11 @@ func Exec(
 		cmd.Stdout = stdout
 		cmd.Stderr = stderr
 
-		logger := logger.With().
+		logger := log.With().
 			Stringer("stack", stack).
 			Logger()
 
-		logger.Info().Msg("Running")
+		logger.Info().Msg("running")
 
 		if err := cmd.Start(); err != nil {
 			errs.Append(errors.E(stack, err, "running %s", cmd))
@@ -140,7 +140,7 @@ func Exec(
 		}
 
 		if interruptions > 0 {
-			logger.Trace().Msg("interrupting execution of further stacks")
+			logger.Info().Msg("interrupting execution of further stacks")
 			return errs.AsError()
 		}
 	}
