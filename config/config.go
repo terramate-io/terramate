@@ -37,7 +37,8 @@ const (
 	ErrSchema errors.Kind = "config has an invalid schema"
 )
 
-// Tree is the config tree.
+// Tree is the configuration tree.
+// Each directory in the project becomes a tree node
 type Tree struct {
 	// Node is the configuration of this tree node.
 	Node hcl.Config
@@ -95,12 +96,12 @@ func LoadTree(rootdir string, cfgdir string) (*Tree, error) {
 	return loadTree(rootdir, cfgdir, nil)
 }
 
-// Dir is the configuration directory.
+// Dir is the node directory.
 func (tree *Tree) Dir() string {
 	return tree.dir
 }
 
-// RootDir is the configuration rootdir.
+// RootDir returns the tree root directory..
 func (tree *Tree) RootDir() string {
 	if tree.Parent != nil {
 		return tree.Parent.RootDir()
@@ -108,34 +109,49 @@ func (tree *Tree) RootDir() string {
 	return tree.dir
 }
 
-// IsStack tells if the tree is a stack.
+// Root returns the root of the configuration tree.
+func (tree *Tree) Root() *Tree {
+	if tree.Parent != nil {
+		return tree.Parent
+	}
+	return tree
+}
+
+// IsStack tells if the node is a stack.
 func (tree *Tree) IsStack() bool {
 	return tree.Node.Stack != nil
 }
 
 // Stacks returns the stack nodes from the tree.
-func (tree *Tree) Stacks() []*Tree {
+// The search algorithm is a Deep-First-Search (DFS).
+func (tree *Tree) Stacks() List {
+	stacks := tree.stacks()
+	sort.Sort(stacks)
+	return stacks
+}
+
+func (tree *Tree) stacks() List {
 	var stacks List
 	if tree.IsStack() {
 		stacks = append(stacks, tree)
 	}
 	for _, children := range tree.Children {
-		stacks = append(stacks, children.Stacks()...)
+		stacks = append(stacks, children.stacks()...)
 	}
-	sort.Sort(stacks)
 	return stacks
 }
 
-// Lookup a node from the tree.
-func (tree *Tree) Lookup(path project.Path) (*Tree, bool) {
-	pathstr := path.String()
+// Lookup a node from the tree using a filesystem query path.
+// The abspath is relative to the current tree node.
+func (tree *Tree) Lookup(abspath project.Path) (*Tree, bool) {
+	pathstr := abspath.String()
 	if len(pathstr) == 0 || pathstr[0] != '/' {
 		return nil, false
 	}
 
 	parts := strings.Split(pathstr, "/")
 	cfg := tree
-	parts = parts[1:] // ignore root cfg
+	parts = parts[1:] // ignore root/current cfg
 	for i := 0; i < len(parts); i++ {
 		if parts[i] == "" {
 			continue
@@ -184,7 +200,7 @@ func (tree *Tree) StacksByPaths(base project.Path, relpaths ...string) List {
 			logger.Warn().Msgf("path %s not found in configuration", path.String())
 			continue
 		}
-		stacks = append(stacks, node.Stacks()...)
+		stacks = append(stacks, node.stacks()...)
 	}
 
 	sort.Sort(stacks)
@@ -194,26 +210,13 @@ func (tree *Tree) StacksByPaths(base project.Path, relpaths ...string) List {
 	return stacks
 }
 
-func (l List) String() string {
-	out := "["
-	for _, s := range l {
-		out += s.RootDir() + ", "
-	}
-	out += "]"
-	return out
-}
-
-func (l List) Len() int { return len(l) }
-
-func (l List) Less(i, j int) bool {
-	return l[i].dir < l[j].dir
-}
-
-func (l List) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+func (l List) Len() int           { return len(l) }
+func (l List) Less(i, j int) bool { return l[i].dir < l[j].dir }
+func (l List) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
 
 func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error) {
 	logger := log.With().
-		Str("action", "config.LoadTree()").
+		Str("action", "config.loadTree()").
 		Str("dir", rootdir).
 		Logger()
 
