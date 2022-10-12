@@ -253,8 +253,11 @@ func singleNotChangedStack(t *testing.T) repository {
 
 	g := test.NewGitWrapper(t, repo, []string{})
 
+	cfg, err := config.LoadTree(repo, repo)
+	assert.NoError(t, err)
+
 	// make it a stack
-	assert.NoError(t, stack.Create(repo, stack.CreateCfg{Dir: repo}), "terramate init failed")
+	assert.NoError(t, stack.Create(cfg, stack.CreateCfg{Dir: repo}), "terramate init failed")
 	assert.NoError(t, g.Add(stack.DefaultFilename), "add terramate file failed")
 	assert.NoError(t, g.Commit("terramate message"), "terramate commit failed")
 
@@ -370,7 +373,9 @@ func multipleStacksOneChangedRepo(t *testing.T) repository {
 	otherStack := filepath.Join(repo.Dir, "not-changed-stack")
 	test.MkdirAll(t, otherStack)
 
-	assert.NoError(t, stack.Create(repo.Dir, stack.CreateCfg{Dir: otherStack}), "terramate init failed")
+	cfg, err := config.LoadTree(repo.Dir, repo.Dir)
+	assert.NoError(t, err)
+	assert.NoError(t, stack.Create(cfg, stack.CreateCfg{Dir: otherStack}), "terramate init failed")
 
 	assert.NoError(t, g.Add(filepath.Join(otherStack, stack.DefaultFilename)),
 		"git add otherstack failed")
@@ -385,7 +390,9 @@ func multipleStacksOneChangedRepo(t *testing.T) repository {
 	otherStack = filepath.Join(repo.Dir, "changed-stack")
 	test.MkdirAll(t, otherStack)
 
-	assert.NoError(t, stack.Create(repo.Dir, stack.CreateCfg{Dir: otherStack}), "terramate init failed")
+	cfg, err = config.LoadTree(repo.Dir, repo.Dir)
+	assert.NoError(t, err)
+	assert.NoError(t, stack.Create(cfg, stack.CreateCfg{Dir: otherStack}), "terramate init failed")
 
 	assert.NoError(t, g.Add(filepath.Join(otherStack, stack.DefaultFilename)),
 		"git add otherstack failed")
@@ -399,11 +406,14 @@ func multipleChangedStacksRepo(t *testing.T) repository {
 
 	g := test.NewGitWrapper(t, repo.Dir, []string{})
 
+	cfg, err := config.LoadTree(repo.Dir, repo.Dir)
+	assert.NoError(t, err)
+
 	for i := 0; i < 3; i++ {
 		otherStack := filepath.Join(repo.Dir, "changed-stack-"+fmt.Sprint(i))
 		test.MkdirAll(t, otherStack)
 
-		assert.NoError(t, stack.Create(repo.Dir, stack.CreateCfg{Dir: otherStack}), "terramate init failed")
+		assert.NoError(t, stack.Create(cfg, stack.CreateCfg{Dir: otherStack}), "terramate init failed")
 
 		assert.NoError(t, g.Add(filepath.Join(otherStack, stack.DefaultFilename)),
 			"git add otherstack failed")
@@ -422,7 +432,9 @@ func singleStackSingleModuleChangedRepo(t *testing.T) repository {
 	repo.modules = append(repo.modules, module1, module2)
 
 	st := test.Mkdir(t, repo.Dir, "stack")
-	assert.NoError(t, stack.Create(repo.Dir, stack.CreateCfg{Dir: st}))
+	cfg, err := config.LoadTree(repo.Dir, repo.Dir)
+	assert.NoError(t, err)
+	assert.NoError(t, stack.Create(cfg, stack.CreateCfg{Dir: st}))
 
 	g := test.NewGitWrapper(t, repo.Dir, []string{})
 
@@ -448,7 +460,9 @@ func multipleStackOneChangedModule(t *testing.T) repository {
 	otherStack := filepath.Join(repo.Dir, "stack1")
 	test.MkdirAll(t, otherStack)
 
-	assert.NoError(t, stack.Create(repo.Dir, stack.CreateCfg{Dir: otherStack}), "terramate init failed")
+	cfg, err := config.LoadTree(repo.Dir, repo.Dir)
+	assert.NoError(t, err)
+	assert.NoError(t, stack.Create(cfg, stack.CreateCfg{Dir: otherStack}), "terramate init failed")
 
 	assert.NoError(t, g.Add(filepath.Join(otherStack, stack.DefaultFilename)),
 		"git add otherstack failed")
@@ -457,7 +471,8 @@ func multipleStackOneChangedModule(t *testing.T) repository {
 	otherStack = filepath.Join(repo.Dir, "stack2")
 	test.MkdirAll(t, otherStack)
 
-	assert.NoError(t, stack.Create(repo.Dir, stack.CreateCfg{Dir: otherStack}), "terramate init failed")
+	assert.NoError(t, err)
+	assert.NoError(t, stack.Create(cfg, stack.CreateCfg{Dir: otherStack}), "terramate init failed")
 
 	assert.NoError(t, g.Add(filepath.Join(otherStack, stack.DefaultFilename)),
 		"git add otherstack failed")
@@ -501,7 +516,9 @@ func singleStackDependentModuleChangedRepo(t *testing.T) repository {
 	repo.modules = append(repo.modules, module1, module2)
 
 	st := test.Mkdir(t, repo.Dir, "stack")
-	assert.NoError(t, stack.Create(repo.Dir, stack.CreateCfg{Dir: st}))
+	cfg, err := config.LoadTree(repo.Dir, repo.Dir)
+	assert.NoError(t, err)
+	assert.NoError(t, stack.Create(cfg, stack.CreateCfg{Dir: st}))
 
 	g := test.NewGitWrapper(t, repo.Dir, []string{})
 
