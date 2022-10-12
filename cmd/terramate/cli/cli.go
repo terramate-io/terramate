@@ -233,9 +233,7 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 	)
 
 	if err != nil {
-		logger.Fatal().
-			Err(err).
-			Msg("failed to create cli parser")
+		log.Fatal().Msgf("creating cli parser: %s", err)
 	}
 
 	kongplete.Complete(parser,
@@ -258,9 +256,7 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 	}
 
 	if err != nil {
-		logger.Fatal().
-			Err(err).
-			Msgf("failed to parse cli args: %v", args)
+		log.Fatal().Msgf("parsing cli args %v: %s", args, err)
 	}
 
 	configureLogging(parsedArgs.LogLevel, parsedArgs.LogFmt,
@@ -281,18 +277,14 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 
 		err := parsedArgs.InstallCompletions.Run(ctx)
 		if err != nil {
-			log.Fatal().
-				Err(err).
-				Msg("installing shell completions.")
+			log.Fatal().Msgf("installing shell completions: %s", err)
 		}
 		return &cli{exit: true}
 	}
 
 	wd, err := os.Getwd()
 	if err != nil {
-		log.Fatal().
-			Err(err).
-			Msg("Getwd() failed")
+		log.Fatal().Msgf("getting workdir: %s", err)
 	}
 
 	logger = logger.With().
@@ -305,53 +297,40 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 			Msg("Changing working directory")
 		err = os.Chdir(parsedArgs.Chdir)
 		if err != nil {
-			logger.Fatal().
-				Str("dir", parsedArgs.Chdir).
-				Err(err).
-				Msg("Changing working directory failed")
+			log.Fatal().Msgf("changing working dir to %s: %s", parsedArgs.Chdir, err)
 		}
 
 		wd, err = os.Getwd()
 		if err != nil {
-			log.Fatal().
-				Err(err).
-				Msg("Getwd() failed")
+			log.Fatal().Msgf("getting workdir: %s", err)
 		}
 	}
 
 	wd, err = filepath.EvalSymlinks(wd)
 	if err != nil {
-		log.Fatal().
-			Err(err).
-			Msg("EvalSymlinks() failed")
+		log.Fatal().Msgf("evaluating symlinks on working dir: %s", wd)
 	}
 
 	logger.Trace().Msg("Running in directory")
 
 	prj, foundRoot, err := lookupProject(wd)
 	if err != nil {
-		logger.Fatal().
-			Err(err).
-			Msg("failed to lookup project root")
+		log.Fatal().Msgf("looking up project root: %s", err)
 	}
 
 	if !foundRoot {
-		logger.Fatal().
-			Msg("project root not found")
+		log.Fatal().Msg("project root not found")
 	}
 
 	logger.Trace().Msg("Set defaults from parsed command line arguments.")
 
 	err = prj.setDefaults(&parsedArgs)
 	if err != nil {
-		logger.Fatal().
-			Err(err).
-			Msg("setting configuration")
+		log.Fatal().Msgf("setting configuration: %s", err)
 	}
 
 	if parsedArgs.Changed && !prj.isRepo {
-		logger.Fatal().
-			Msg("flag --changed provided but no git repository found")
+		log.Fatal().Msg("flag --changed provided but no git repository found")
 	}
 
 	return &cli{
@@ -427,7 +406,7 @@ func (c *cli) run() {
 	case "experimental get-config-value <var>":
 		c.getConfigValue()
 	default:
-		logger.Fatal().Msg("unexpected command sequence")
+		log.Fatal().Msg("unexpected command sequence")
 	}
 }
 
@@ -441,9 +420,7 @@ func (c *cli) setupGit() {
 		logger.Trace().Msg("Check git default remote.")
 
 		if err := c.prj.checkDefaultRemote(); err != nil {
-			log.Fatal().
-				Err(err).
-				Msg("Checking git default remote.")
+			log.Fatal().Msgf("checking git default remote: %s", err)
 		}
 
 		if c.parsedArgs.GitChangeBase != "" {
@@ -466,9 +443,7 @@ func (c *cli) checkGitLocalBranchIsUpdated() {
 	logger.Trace().Msg("check git default branch is updated")
 
 	if err := c.prj.checkLocalDefaultIsUpdated(); err != nil {
-		log.Fatal().
-			Err(err).
-			Msg("checking git default branch was updated.")
+		log.Fatal().Msgf("checking git default branch is updated: %s", err)
 	}
 }
 
@@ -488,10 +463,10 @@ func (c *cli) vendorDownload() {
 
 	parsedSource, err := tf.ParseSource(source)
 	if err != nil {
-		logger.Fatal().Err(err).Msg("parsing module source")
+		log.Fatal().Msgf("parsing module source %s: %s", source, err)
 	}
 	if parsedSource.Ref != "" {
-		logger.Fatal().Msg("module source should not contain a reference")
+		log.Fatal().Msgf("module source %s should not contain a reference", source)
 	}
 	parsedSource.Ref = ref
 
@@ -531,7 +506,7 @@ func (c *cli) vendorDir() prj.Path {
 
 	checkVendorDir := func(dir string) prj.Path {
 		if !path.IsAbs(dir) {
-			logger.Fatal().Msgf("vendorDir %q defined is not an absolute path", dir)
+			log.Fatal().Msgf("vendorDir %s defined is not an absolute path", dir)
 		}
 		return prj.NewPath(dir)
 	}
@@ -544,7 +519,7 @@ func (c *cli) vendorDir() prj.Path {
 
 		cfg, err := hcl.ParseDir(c.root(), filepath.Join(c.root(), ".terramate"))
 		if err != nil {
-			logger.Fatal().Err(err).Msg("parsing vendor dir configuration on .terramate")
+			log.Fatal().Msgf("parsing vendor dir configuration on .terramate: %s", err)
 		}
 
 		if hasVendorDirConfig(cfg) {
@@ -587,7 +562,7 @@ func (c *cli) cloneStack() {
 	destdir := filepath.Join(c.wd(), deststack)
 
 	if err := stack.Clone(c.root(), destdir, srcdir); err != nil {
-		logger.Fatal().Err(err).Msg("cloning stack")
+		log.Fatal().Msgf("cloning %s to %s: %s", srcstack, deststack, err)
 	}
 
 	c.log("Cloned stack %s to %s with success", srcstack, deststack)
@@ -715,7 +690,7 @@ func (c *cli) createStack() {
 
 		id, err := uuid.NewRandom()
 		if err != nil {
-			logger.Fatal().Err(err)
+			log.Fatal().Msgf("creating stack UUID: %s", err)
 		}
 		stackID = id.String()
 	}
@@ -741,7 +716,7 @@ func (c *cli) createStack() {
 	})
 
 	if err != nil {
-		logger.Fatal().Err(err).Msg("creating stack")
+		log.Fatal().Msgf("creating stack: %s", err)
 	}
 
 	c.log("Created stack %s with success", c.parsedArgs.Create.Path)
@@ -758,7 +733,7 @@ func (c *cli) format() {
 	logger.Trace().Msg("formatting all files recursively")
 	results, err := hcl.FormatTree(c.wd())
 	if err != nil {
-		logger.Fatal().Err(err).Msg("formatting files")
+		log.Fatal().Msgf("formatting files: %s", err)
 	}
 
 	logger.Trace().Msg("listing formatted files")
@@ -791,7 +766,7 @@ func (c *cli) format() {
 	}
 
 	if err := errs.AsError(); err != nil {
-		logger.Fatal().Err(err).Msg("saving files")
+		log.Fatal().Msgf("saving files: %s", err)
 	}
 }
 
@@ -805,8 +780,7 @@ func (c *cli) printStacks() {
 	}
 
 	if c.parsedArgs.List.Why && !c.parsedArgs.Changed {
-		logger.Fatal().
-			Msg("the --why flag must be used together with --changed")
+		log.Fatal().Msg("the --why flag must be used together with --changed")
 	}
 
 	logger.Trace().
@@ -819,9 +793,7 @@ func (c *cli) printStacks() {
 		Msg("Get stack list.")
 	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
-		logger.Fatal().
-			Err(err).
-			Msg("listing stacks")
+		log.Fatal().Msgf("listing stacks: %s", err)
 	}
 
 	c.gitSafeguards(report.Checks, false)
@@ -858,17 +830,10 @@ func (c *cli) newProjectMetadata(report *terramate.StacksReport) prj.Metadata {
 }
 
 func (c *cli) printRunEnv() {
-	logger := log.With().
-		Str("action", "cli.printRunEnv()").
-		Str("workingDir", c.wd()).
-		Logger()
-
 	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
 	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
-		logger.Fatal().
-			Err(err).
-			Msg("listing stacks")
+		log.Fatal().Msgf("listing stacks: %s", err)
 	}
 
 	projmeta := c.newProjectMetadata(report)
@@ -876,7 +841,7 @@ func (c *cli) printRunEnv() {
 	for _, stackEntry := range c.filterStacksByWorkingDir(report.Stacks) {
 		envVars, err := run.LoadEnv(projmeta, stackEntry.Stack)
 		if err != nil {
-			log.Fatal().Err(err).Msg("loading stack run environment")
+			log.Fatal().Msgf("loading stack run environment: %s", err)
 		}
 
 		c.log("\nstack %q:", stackEntry.Stack.Path())
@@ -1724,10 +1689,10 @@ func fatalerr(logger zerolog.Logger, msg string, err error) {
 	if errors.As(err, &list) {
 		errs := list.Errors()
 		for _, err := range errs {
-			log.Err(err).Send()
+			log.Error().Msg(err.Error())
 		}
 	} else {
-		log.Err(err).Send()
+		log.Error().Msg(err.Error())
 	}
 
 	log.Fatal().Msg(msg)
