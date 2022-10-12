@@ -102,7 +102,7 @@ func Do(rootdir string, workingDir string) Report {
 				assertRange := assert.Range
 				assertRange.Filename = filepath.ToSlash(strings.TrimPrefix(assert.Range.Filename, rootdir))
 				if assert.Warning {
-					logger.Warn().
+					log.Warn().
 						Stringer("origin", assertRange).
 						Str("msg", assert.Message).
 						Msg("assertion failed")
