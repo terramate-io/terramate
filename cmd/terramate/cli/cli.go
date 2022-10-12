@@ -1489,18 +1489,7 @@ func (c *cli) runOnStacks() {
 	)
 
 	if err != nil {
-		logger.Warn().Msg("one or more commands failed")
-
-		var errs *errors.List
-		if errors.As(err, &errs) {
-			for _, err := range errs.Errors() {
-				logger.Warn().Err(err).Send()
-			}
-		} else {
-			logger.Warn().Err(err).Send()
-		}
-
-		os.Exit(1)
+		fatalerr(log.Logger, "one or more commands failed", err)
 	}
 }
 
@@ -1662,11 +1651,11 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 			rootdir := filepath.Dir(gitabs)
 
 			if rootfound && strings.HasPrefix(rootCfgPath, rootdir) && rootCfgPath != rootdir {
-				logger.Warn().
+				log.Warn().
 					Str("rootConfig", rootCfgPath).
 					Str("projectRoot", rootdir).
 					Err(errors.E(ErrRootCfgInvalidDir)).
-					Msg("the config will be ignored")
+					Msg("ignoring root config")
 			}
 
 			logger.Trace().Msg("Load root config.")
