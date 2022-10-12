@@ -69,10 +69,6 @@ func Exec(
 		return errs.AsError()
 	}
 
-	logger = logger.With().
-		Strs("stacks", stacks.Paths().Strings()).
-		Logger()
-
 	logger.Trace().Msg("loaded stacks run environment variables, running commands")
 
 	signals := make(chan os.Signal, signalsBuffer)
