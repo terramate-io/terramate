@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/fs"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -44,6 +45,7 @@ const (
 // - If cloned stack has no ID the cloned stack also won't have an ID.
 func Clone(cfg *config.Tree, destdir, srcdir string) error {
 	rootdir := cfg.RootDir()
+
 	logger := log.With().
 		Str("action", "stack.Clone()").
 		Str("rootdir", rootdir).
@@ -82,7 +84,12 @@ func Clone(cfg *config.Tree, destdir, srcdir string) error {
 	}
 
 	logger.Trace().Msg("stack has ID, updating ID of the cloned stack")
-	return updateStackID(destdir)
+	err = updateStackID(destdir)
+	if err != nil {
+		return err
+	}
+
+	return cfg.LoadSubTree(project.PrjAbsPath(rootdir, destdir))
 }
 
 func filterDotFiles(path string, entry os.DirEntry) bool {

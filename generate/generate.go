@@ -920,19 +920,19 @@ func loadAsserts(tree *config.Tree, meta project.Metadata, sm stack.Metadata, gl
 }
 
 func loadGenCodeConfigs(
-	cfg *config.Tree,
+	tree *config.Tree,
 	projmeta project.Metadata,
 	st *stack.S,
 	globals globals.Map,
 ) ([]genCodeCfg, error) {
 	var genfilesConfigs []genCodeCfg
 
-	genfiles, err := genfile.Load(cfg, projmeta, st, globals)
+	genfiles, err := genfile.Load(tree, projmeta, st, globals)
 	if err != nil {
 		return nil, err
 	}
 
-	genhcls, err := genhcl.Load(cfg, projmeta, st, globals)
+	genhcls, err := genhcl.Load(tree, projmeta, st, globals)
 	if err != nil {
 		return nil, err
 	}

@@ -589,7 +589,6 @@ func (c *cli) cloneStack() {
 	c.log("Cloned stack %s to %s with success", srcstack, deststack)
 	c.log("Generating code on the new cloned stack")
 
-	c.reloadcfg()
 	c.generate(destdir)
 }
 
@@ -724,7 +723,7 @@ func (c *cli) createStack() {
 		stackDescription = stackName
 	}
 
-	err := stack.Create(c.root(), stack.CreateCfg{
+	err := stack.Create(c.cfg(), stack.CreateCfg{
 		Dir:         stackDir,
 		ID:          stackID,
 		Name:        stackName,
@@ -741,7 +740,6 @@ func (c *cli) createStack() {
 	c.log("Created stack %s with success", c.parsedArgs.Create.Path)
 	c.log("Generating code on the stack")
 
-	c.reloadcfg()
 	c.generate(stackDir)
 }
 

@@ -248,10 +248,10 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error)
 			logger.Trace().Msg("ignoring dot file")
 			continue
 		}
-		fname := filepath.Join(cfgdir, name)
-		st, err := os.Lstat(fname)
+		dir := filepath.Join(cfgdir, name)
+		st, err := os.Lstat(dir)
 		if err != nil {
-			return nil, errors.E(err, "failed to stat %s", fname)
+			return nil, errors.E(err, "failed to stat %s", dir)
 		}
 		if !st.IsDir() {
 			logger.Trace().Msg("ignoring non-directory file")
@@ -260,15 +260,57 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error)
 
 		logger.Trace().Msg("loading children tree")
 
-		node, err := LoadTree(rootdir, fname)
+		node, err := LoadTree(rootdir, dir)
 		if err != nil {
-			return nil, errors.E(err, "failed to load config from %s", fname)
+			return nil, errors.E(err, "failed to load config from %s", dir)
 		}
 
 		node.Parent = tree
 		tree.Children[name] = node
 	}
 	return tree, nil
+}
+
+// LoadSubTree loads a subtree into the current tree. The destdir
+func (tree *Tree) LoadSubTree(cfgdir project.Path) error {
+	var parent project.Path
+
+	var parentNode *Tree
+	parent = cfgdir.Dir()
+	for parent != "/" {
+		var found bool
+		parentNode, found = tree.Lookup(parent)
+		if found {
+			break
+		}
+		parent = parent.Dir()
+	}
+
+	if parentNode == nil {
+		parentNode = tree
+	}
+
+	rootdir := tree.RootDir()
+
+	relpath := strings.TrimPrefix(cfgdir.String(), parent.String())
+	relpath = strings.TrimPrefix(relpath, "/")
+	components := strings.Split(relpath, "/")
+	nextComponent := components[0]
+	subtreeDir := filepath.Join(rootdir, parent.String(), nextComponent)
+
+	node, err := LoadTree(rootdir, subtreeDir)
+	if err != nil {
+		return errors.E(err, "failed to load config from %s", subtreeDir)
+	}
+
+	if node.Dir() == rootdir {
+		// root configuration reloaded
+		*tree = *node
+	} else {
+		node.Parent = parentNode
+		parentNode.Children[nextComponent] = node
+	}
+	return nil
 }
 
 // IsEmptyConfig tells if the configuration is empty.

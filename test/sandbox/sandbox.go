@@ -116,10 +116,12 @@ func NoGit(t testing.TB) S {
 	// directories.
 
 	outerDir := t.TempDir()
-	buildTree(t, outerDir, []string{
+
+	buildTree(t, config.NewTree(outerDir), []string{
 		"s:this-stack-must-never-be-visible",
 		"s:other-hidden-stack",
 	})
+
 	rootdir := filepath.Join(outerDir, "sandbox")
 	test.MkdirAll(t, rootdir)
 
@@ -177,7 +179,7 @@ func NoGit(t testing.TB) S {
 func (s S) BuildTree(layout []string) {
 	s.t.Helper()
 
-	buildTree(s.t, s.RootDir(), layout)
+	buildTree(s.t, s.Config(), layout)
 }
 
 // CheckStack will check a stack for outdated code generation.
@@ -328,7 +330,7 @@ func (s S) CreateStack(relpath string) StackEntry {
 	}
 
 	st := newStackEntry(t, s.RootDir(), relpath)
-	assert.NoError(t, stack.Create(s.RootDir(), stack.CreateCfg{Dir: st.Path()}))
+	assert.NoError(t, stack.Create(s.Config(), stack.CreateCfg{Dir: st.Path()}))
 	return st
 }
 
@@ -595,9 +597,10 @@ func parseListSpec(t testing.TB, name, value string) []string {
 	return list
 }
 
-func buildTree(t testing.TB, rootdir string, layout []string) {
+func buildTree(t testing.TB, tree *config.Tree, layout []string) {
 	t.Helper()
 
+	rootdir := tree.RootDir()
 	parsePathData := func(spec string) (string, string) {
 		tmp := spec[2:]
 		if len(tmp) == 0 {
@@ -675,7 +678,7 @@ func buildTree(t testing.TB, rootdir string, layout []string) {
 				abspath := filepath.Join(rootdir, path)
 				test.MkdirAll(t, abspath)
 				assert.NoError(t, stack.Create(
-					rootdir,
+					tree,
 					stack.CreateCfg{Dir: abspath}),
 				)
 				continue
