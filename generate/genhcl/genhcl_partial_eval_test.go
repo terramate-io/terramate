@@ -1556,9 +1556,10 @@ func TestPartialEval(t *testing.T) {
 			if errors.IsAnyKind(err, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
 				errtest.Assert(t, err, tcase.wantErr)
 				return
-			} else {
-				assert.NoError(t, err)
 			}
+
+			assert.NoError(t, err)
+
 			globals := s.LoadStackGlobals(cfg, projmeta, stack)
 			got, err := genhcl.Load(cfg, projmeta, stack, globals)
 			errtest.Assert(t, err, tcase.wantErr)

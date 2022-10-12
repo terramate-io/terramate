@@ -1002,9 +1002,9 @@ stack_id=stack-id
 			if errors.IsAnyKind(tcase.wantErr, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
 				errtest.Assert(t, err, tcase.wantErr)
 				return
-			} else {
-				assert.NoError(t, err)
 			}
+
+			assert.NoError(t, err)
 
 			globals := s.LoadStackGlobals(cfg, projmeta, stack)
 			got, err := genfile.Load(cfg, projmeta, stack, globals)
