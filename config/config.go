@@ -152,7 +152,7 @@ func (tree *Tree) Lookup(abspath project.Path) (*Tree, bool) {
 
 	parts := strings.Split(pathstr, "/")
 	cfg := tree
-	parts = parts[1:] // ignore root/current cfg
+	parts = parts[1:] // skip root/current cfg
 	for i := 0; i < len(parts); i++ {
 		if parts[i] == "" {
 			continue
