@@ -72,18 +72,20 @@ const (
 const (
 	defaultLogLevel = "warn"
 	defaultLogFmt   = "console"
+	defaultLogDest  = "stderr"
 )
 
 const defaultVendorDir = "/modules"
 
 type cliSpec struct {
-	Version       struct{} `cmd:"" help:"Terramate version"`
-	VersionFlag   bool     `name:"version" help:"Terramate version"`
-	Chdir         string   `short:"C" optional:"true" predictor:"file" help:"Sets working directory"`
-	GitChangeBase string   `short:"B" optional:"true" help:"Git base ref for computing changes"`
-	Changed       bool     `short:"c" optional:"true" help:"Filter by changed infrastructure"`
-	LogLevel      string   `optional:"true" default:"warn" enum:"disabled,trace,debug,info,warn,error,fatal" help:"Log level to use: 'disabled', 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
-	LogFmt        string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'"`
+	Version        struct{} `cmd:"" help:"Terramate version"`
+	VersionFlag    bool     `name:"version" help:"Terramate version"`
+	Chdir          string   `short:"C" optional:"true" predictor:"file" help:"Sets working directory"`
+	GitChangeBase  string   `short:"B" optional:"true" help:"Git base ref for computing changes"`
+	Changed        bool     `short:"c" optional:"true" help:"Filter by changed infrastructure"`
+	LogLevel       string   `optional:"true" default:"warn" enum:"disabled,trace,debug,info,warn,error,fatal" help:"Log level to use: 'disabled', 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
+	LogFmt         string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'"`
+	LogDestination string   `optional:"true" default:"stderr" enum:"stderr,stdout" help:"Destination of log messages"`
 
 	DisableCheckGitUntracked   bool `optional:"true" default:"false" help:"Disable git check for untracked files"`
 	DisableCheckGitUncommitted bool `optional:"true" default:"false" help:"Disable git check for uncommitted files"`
@@ -185,7 +187,8 @@ func Exec(
 	stdout io.Writer,
 	stderr io.Writer,
 ) {
-	configureLogging(defaultLogLevel, defaultLogFmt, stderr)
+	configureLogging(defaultLogLevel, defaultLogFmt, defaultLogDest,
+		stdout, stderr)
 	c := newCLI(args, stdin, stdout, stderr)
 	c.run()
 }
@@ -260,7 +263,8 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 			Msgf("failed to parse cli args: %v", args)
 	}
 
-	configureLogging(parsedArgs.LogLevel, parsedArgs.LogFmt, stderr)
+	configureLogging(parsedArgs.LogLevel, parsedArgs.LogFmt,
+		parsedArgs.LogDestination, stdout, stderr)
 	// If we don't re-create the logger after configuring we get some
 	// log entries with a mix of default fmt and selected fmt.
 	logger = log.With().
@@ -1688,21 +1692,32 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 }
 
-func configureLogging(logLevel string, logFmt string, output io.Writer) {
-	zloglevel, err := zerolog.ParseLevel(logLevel)
+func configureLogging(logLevel, logFmt, logdest string, stdout, stderr io.Writer) {
+	var output io.Writer
 
+	switch logdest {
+	case "stdout":
+		output = stdout
+	case "stderr":
+		output = stderr
+	default:
+		log.Fatal().Msgf("unknown log destination %q", logdest)
+	}
+
+	zloglevel, err := zerolog.ParseLevel(logLevel)
 	if err != nil {
 		zloglevel = zerolog.FatalLevel
 	}
 
 	zerolog.SetGlobalLevel(zloglevel)
 
-	if logFmt == "json" {
+	switch logFmt {
+	case "json":
 		zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 		log.Logger = log.Output(output)
-	} else if logFmt == "text" { // no color
+	case "text": // no color
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: output, NoColor: true, TimeFormat: time.RFC3339})
-	} else { // default: console mode using color
+	default: // default: console mode using color
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: output, NoColor: false, TimeFormat: time.RFC3339})
 	}
 }
