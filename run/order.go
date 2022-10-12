@@ -147,7 +147,7 @@ func BuildDAG(
 	visited dag.Visited,
 ) error {
 	logger := log.With().
-		Str("action", "BuildDAG()").
+		Str("action", "run.BuildDAG()").
 		Str("path", cfg.RootDir()).
 		Stringer("stack", s.Path()).
 		Logger()
@@ -169,12 +169,12 @@ func BuildDAG(
 			}
 			st, err := os.Stat(abspath)
 			if err != nil {
-				logger.Warn().
+				log.Warn().
 					Err(err).
-					Msgf("failed to stat %s path %s - ignoring", fieldname, abspath)
+					Msgf("building dag: failed to stat %s path %s - ignoring", fieldname, abspath)
 			} else if !st.IsDir() {
-				logger.Warn().
-					Msgf("stack.%s path %s is not a directory - ignoring",
+				log.Warn().
+					Msgf("building dag: stack.%s path %s is not a directory - ignoring",
 						fieldname, pathstr)
 			} else {
 				cleanpaths = append(cleanpaths, pathstr)

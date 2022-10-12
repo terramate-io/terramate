@@ -647,37 +647,37 @@ func (c *cli) checkGitUncommited() bool {
 	return true
 }
 
-func (c *cli) gitSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
-	logger := log.With().
-		Str("action", "gitSafeguards()").
-		Logger()
+func debugFiles(files []string, msg string) {
+	for _, file := range files {
+		log.Debug().
+			Str("file", file).
+			Msg(msg)
+	}
+}
 
+func (c *cli) gitSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
 	if c.parsedArgs.Run.DryRun {
 		return
 	}
 
-	if c.checkGitUntracked() && len(checks.UntrackedFiles) > 0 {
-		if shouldAbort {
-			logger.Fatal().
-				Strs("files", checks.UntrackedFiles).
-				Msg("repository has untracked files")
-		} else {
-			logger.Warn().
-				Strs("files", checks.UntrackedFiles).
-				Msg("repository has untracked files")
-		}
+	debugFiles(checks.UntrackedFiles, "untracked file")
+	debugFiles(checks.UncommittedFiles, "uncommitted file")
 
+	if c.checkGitUntracked() && len(checks.UntrackedFiles) > 0 {
+		const msg = "repository has untracked files"
+		if shouldAbort {
+			log.Fatal().Msg(msg)
+		} else {
+			log.Warn().Msg(msg)
+		}
 	}
 
 	if c.checkGitUncommited() && len(checks.UncommittedFiles) > 0 {
+		const msg = "repository has uncommitted files"
 		if shouldAbort {
-			logger.Fatal().
-				Strs("files", checks.UncommittedFiles).
-				Msg("repository has uncommitted files")
+			log.Fatal().Msg(msg)
 		} else {
-			logger.Warn().
-				Strs("files", checks.UncommittedFiles).
-				Msg("repository has uncommitted files")
+			log.Warn().Msg(msg)
 		}
 	}
 }
@@ -1487,18 +1487,7 @@ func (c *cli) runOnStacks() {
 	)
 
 	if err != nil {
-		logger.Warn().Msg("one or more commands failed")
-
-		var errs *errors.List
-		if errors.As(err, &errs) {
-			for _, err := range errs.Errors() {
-				logger.Warn().Err(err).Send()
-			}
-		} else {
-			logger.Warn().Err(err).Send()
-		}
-
-		os.Exit(1)
+		fatalerr(log.Logger, "one or more commands failed", err)
 	}
 }
 
@@ -1661,11 +1650,11 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 			rootdir := filepath.Dir(gitabs)
 
 			if rootfound && strings.HasPrefix(rootCfgPath, rootdir) && rootCfgPath != rootdir {
-				logger.Warn().
+				log.Warn().
 					Str("rootConfig", rootCfgPath).
 					Str("projectRoot", rootdir).
 					Err(errors.E(ErrRootCfgInvalidDir)).
-					Msg("the config will be ignored")
+					Msg("ignoring root config")
 			}
 
 			logger.Trace().Msg("Load root config.")

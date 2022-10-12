@@ -101,7 +101,7 @@ func Do(cfg *config.Tree, workingDir string) Report {
 				assertRange := assert.Range
 				assertRange.Filename = project.PrjAbsPath(cfg.RootDir(), assert.Range.Filename).String()
 				if assert.Warning {
-					logger.Warn().
+					log.Warn().
 						Stringer("origin", assertRange).
 						Str("msg", assert.Message).
 						Msg("assertion failed")
