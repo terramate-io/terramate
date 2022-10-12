@@ -665,19 +665,22 @@ func (c *cli) gitSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
 	debugFiles(checks.UntrackedFiles, "untracked file")
 	debugFiles(checks.UncommittedFiles, "uncommitted file")
 
-	var logger *zerolog.Event
-	if shouldAbort {
-		logger = log.Fatal()
-	} else {
-		logger = log.Warn()
-	}
-
 	if c.checkGitUntracked() && len(checks.UntrackedFiles) > 0 {
-		logger.Msg("repository has untracked files")
+		const msg = "repository has untracked files"
+		if shouldAbort {
+			log.Fatal().Msg(msg)
+		} else {
+			log.Warn().Msg(msg)
+		}
 	}
 
 	if c.checkGitUncommited() && len(checks.UncommittedFiles) > 0 {
-		logger.Msg("repository has uncommitted files")
+		const msg = "repository has uncommitted files"
+		if shouldAbort {
+			log.Fatal().Msg(msg)
+		} else {
+			log.Warn().Msg(msg)
+		}
 	}
 }
 
