@@ -1502,22 +1502,6 @@ func (c *cli) wd() string        { return c.prj.wd }
 func (c *cli) root() string      { return c.prj.root }
 func (c *cli) cfg() *config.Tree { return &c.prj.cfg }
 
-func (c *cli) reloadcfg() {
-	logger := log.With().
-		Str("action", "cli.reloadcfg()").
-		Logger()
-
-	log.Debug().Msg("reloading configuration.")
-
-	cfg, err := config.LoadTree(c.root(), c.root())
-	if err != nil {
-		logger.Fatal().
-			Err(err).
-			Send()
-	}
-	c.prj.cfg = *cfg
-}
-
 func (c *cli) log(format string, args ...interface{}) {
 	fmt.Fprintln(c.stdout, fmt.Sprintf(format, args...))
 }
