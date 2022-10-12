@@ -27,6 +27,7 @@ import (
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/errors/errlog"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl/eval"
@@ -1319,7 +1320,7 @@ func (c *cli) checkOutdatedGeneratedCode(stacks stack.List) {
 
 	outdatedFiles, err := generate.Check(c.root())
 
-	fatalerr(logger, "failed to check outdated code on project", err)
+	errlog.Fatal(logger, "failed to check outdated code on project", err)
 
 	for _, outdated := range outdatedFiles {
 		logger.Error().
@@ -1454,7 +1455,7 @@ func (c *cli) runOnStacks() {
 	)
 
 	if err != nil {
-		fatalerr(log.Logger, "one or more commands failed", err)
+		errlog.Fatal(log.Logger, "one or more commands failed", err)
 	}
 }
 
@@ -1677,23 +1678,4 @@ func configureLogging(logLevel, logFmt, logdest string, stdout, stderr io.Writer
 	default: // default: console mode using color
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: output, NoColor: false, TimeFormat: time.RFC3339})
 	}
-}
-
-func fatalerr(logger zerolog.Logger, msg string, err error) {
-	if err == nil {
-		return
-	}
-
-	var list *errors.List
-
-	if errors.As(err, &list) {
-		errs := list.Errors()
-		for _, err := range errs {
-			log.Error().Msg(err.Error())
-		}
-	} else {
-		log.Error().Msg(err.Error())
-	}
-
-	log.Fatal().Msg(msg)
 }
