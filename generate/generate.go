@@ -28,7 +28,6 @@ import (
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/globals"
-	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
@@ -89,7 +88,7 @@ func Do(cfg *config.Tree, workingDir string) Report {
 
 		logger.Trace().Msg("loading asserts for stack")
 
-		asserts, err := loadAsserts(projmeta, stack, globals)
+		asserts, err := loadAsserts(cfg, projmeta, stack, globals)
 		if err != nil {
 			report.err = err
 			return report
@@ -876,60 +875,41 @@ func validateGeneratedFiles(cfg *config.Tree, stackpath string, generated []genC
 	return nil
 }
 
-func loadAsserts(meta project.Metadata, sm stack.Metadata, globals globals.Map) ([]config.Assert, error) {
-	// This is the third place (other than genhcl and genfile) that we navigate
-	// the whole tree and parse configs. This should be refactored soon to
-	// navigate a previously loaded structure already in memory, so different
-	// features can be implemented in isolation from each other but without having
-	// to re-parse/walk the entire project over and over again.
-
+func loadAsserts(tree *config.Tree, meta project.Metadata, sm stack.Metadata, globals globals.Map) ([]config.Assert, error) {
 	logger := log.With().
 		Str("action", "generate.loadAsserts").
-		Str("rootdir", meta.Rootdir()).
+		Str("rootdir", tree.RootDir()).
 		Str("stack", sm.Path().String()).
 		Logger()
 
-	curdir := sm.HostPath()
+	curdir := sm.Path()
 	asserts := []config.Assert{}
 	errs := errors.L()
 
-	for strings.HasPrefix(curdir, meta.Rootdir()) {
+	for {
 		logger = logger.With().
-			Str("curdir", curdir).
+			Stringer("curdir", curdir).
 			Logger()
-
-		logger.Trace().Msg("parsing config")
-
-		parser, err := hcl.NewTerramateParser(meta.Rootdir(), curdir)
-		if err != nil {
-			return nil, errors.E(err, "load asserts: creating parser")
-		}
-
-		if err := parser.AddDir(curdir); err != nil {
-			return nil, errors.E(err, "load asserts: adding dir to parser")
-		}
-
-		cfg, err := parser.ParseConfig()
-		if err != nil {
-			return nil, errors.E(err, "load asserts: parsing assert blocks")
-		}
 
 		evalctx := stack.NewEvalCtx(meta, sm, globals)
 
-		for _, assertCfg := range cfg.Asserts {
-			assert, err := config.EvalAssert(evalctx.Context, assertCfg)
-			if err != nil {
-				errs.Append(err)
-			} else {
-				asserts = append(asserts, assert)
+		cfg, ok := tree.Lookup(curdir)
+		if ok {
+			for _, assertCfg := range cfg.Node.Asserts {
+				assert, err := config.EvalAssert(evalctx.Context, assertCfg)
+				if err != nil {
+					errs.Append(err)
+				} else {
+					asserts = append(asserts, assert)
+				}
 			}
 		}
 
-		if curdir == meta.Rootdir() {
+		if p := curdir.Dir(); p != curdir {
+			curdir = p
+		} else {
 			break
 		}
-
-		curdir = filepath.Dir(curdir)
 	}
 
 	if err := errs.AsError(); err != nil {
