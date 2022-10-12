@@ -649,37 +649,37 @@ func (c *cli) checkGitUncommited() bool {
 	return true
 }
 
-func (c *cli) gitSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
-	logger := log.With().
-		Str("action", "gitSafeguards()").
-		Logger()
+func debugFiles(files []string, msg string) {
+	for _, file := range files {
+		log.Debug().
+			Str("file", file).
+			Msg(msg)
+	}
+}
 
+func (c *cli) gitSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
 	if c.parsedArgs.Run.DryRun {
 		return
 	}
 
-	if c.checkGitUntracked() && len(checks.UntrackedFiles) > 0 {
-		if shouldAbort {
-			logger.Fatal().
-				Strs("files", checks.UntrackedFiles).
-				Msg("repository has untracked files")
-		} else {
-			logger.Warn().
-				Strs("files", checks.UntrackedFiles).
-				Msg("repository has untracked files")
-		}
+	debugFiles(checks.UntrackedFiles, "untracked file")
+	debugFiles(checks.UncommittedFiles, "uncommitted file")
 
+	if c.checkGitUntracked() && len(checks.UntrackedFiles) > 0 {
+		const msg = "repository has untracked files"
+		if shouldAbort {
+			log.Fatal().Msg(msg)
+		} else {
+			log.Warn().Msg(msg)
+		}
 	}
 
 	if c.checkGitUncommited() && len(checks.UncommittedFiles) > 0 {
+		const msg = "repository has uncommitted files"
 		if shouldAbort {
-			logger.Fatal().
-				Strs("files", checks.UncommittedFiles).
-				Msg("repository has uncommitted files")
+			log.Fatal().Msg(msg)
 		} else {
-			logger.Warn().
-				Strs("files", checks.UncommittedFiles).
-				Msg("repository has uncommitted files")
+			log.Warn().Msg(msg)
 		}
 	}
 }
