@@ -186,12 +186,12 @@ func BuildDAG(
 	ancestorPaths := removeWrongPaths(ancestorsName, getAncestors(*s))
 	descendantPaths := removeWrongPaths(descendantsName, getDescendants(*s))
 
-	ancestorStacks, err := stack.TreeListToStackList(cfg.RootDir(), cfg.StacksByPaths(s.Path(), ancestorPaths...))
+	ancestorStacks, err := stack.StacksFromTrees(cfg.RootDir(), cfg.StacksByPaths(s.Path(), ancestorPaths...))
 	if err != nil {
 		return errors.E(err, "stack %q: failed to load the \"%s\" stacks",
 			s, ancestorsName)
 	}
-	descendantStacks, err := stack.TreeListToStackList(cfg.RootDir(), cfg.StacksByPaths(s.Path(), descendantPaths...))
+	descendantStacks, err := stack.StacksFromTrees(cfg.RootDir(), cfg.StacksByPaths(s.Path(), descendantPaths...))
 	if err != nil {
 		return errors.E(err, "stack %q: failed to load the \"%s\" stacks",
 			s, descendantsName)
