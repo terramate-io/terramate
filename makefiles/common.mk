@@ -52,8 +52,9 @@ test/fuzz/fmt:
 .PHONY: bench
 bench: name?=.
 bench: pkg?=.
+bench: time=1s
 bench:
-	go test -bench=$(name) -benchmem -memprofile=mem.prof -cpuprofile cpu.prof $(pkg)
+	go test -bench=$(name) -benchtime=$(time) -benchmem -memprofile=mem.prof -cpuprofile cpu.prof $(pkg)
 
 ## cleanup artifacts produced by the benchmarking process
 bench/cleanup:
