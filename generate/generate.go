@@ -199,50 +199,7 @@ func Do(cfg *config.Tree, workingDir string) Report {
 		return report
 	})
 
-	orphanedGenFiles, err := ListGenFiles(cfg, cfg.RootDir())
-	if err != nil {
-		report.CleanupErr = err
-		return report
-	}
-
-	deletedFiles := map[project.Path][]string{}
-	deleteFailures := map[project.Path]*errors.List{}
-
-	for _, genfile := range orphanedGenFiles {
-		genfileAbspath := filepath.Join(cfg.RootDir(), genfile)
-		dir := project.NewPath("/" + filepath.ToSlash(filepath.Dir(genfile)))
-		if err := os.Remove(genfileAbspath); err != nil {
-			if deleteFailures[dir] == nil {
-				deleteFailures[dir] = errors.L()
-			}
-			deleteFailures[dir].Append(err)
-			continue
-		}
-		deletedFiles[dir] = append(deletedFiles[dir], filepath.Base(genfile))
-	}
-
-	for failedDir, errs := range deleteFailures {
-		delFiles := deletedFiles[failedDir]
-		delete(deletedFiles, failedDir)
-
-		report.Failures = append(report.Failures, FailureResult{
-			Result: Result{
-				Dir:     failedDir,
-				Deleted: delFiles,
-			},
-			Error: errs,
-		})
-	}
-
-	for dir, deletedFiles := range deletedFiles {
-		report.Successes = append(report.Successes, Result{
-			Dir:     dir,
-			Deleted: deletedFiles,
-		})
-	}
-
-	report.sort()
-	return report
+	return cleanupOrphaned(cfg, report)
 }
 
 // ListGenFiles will list the path of all generated code inside the given dir
@@ -950,4 +907,51 @@ func loadGenCodeConfigs(
 	})
 
 	return genfilesConfigs, nil
+}
+
+func cleanupOrphaned(cfg *config.Tree, report Report) Report {
+	orphanedGenFiles, err := ListGenFiles(cfg, cfg.RootDir())
+	if err != nil {
+		report.CleanupErr = err
+		return report
+	}
+
+	deletedFiles := map[project.Path][]string{}
+	deleteFailures := map[project.Path]*errors.List{}
+
+	for _, genfile := range orphanedGenFiles {
+		genfileAbspath := filepath.Join(cfg.RootDir(), genfile)
+		dir := project.NewPath("/" + filepath.ToSlash(filepath.Dir(genfile)))
+		if err := os.Remove(genfileAbspath); err != nil {
+			if deleteFailures[dir] == nil {
+				deleteFailures[dir] = errors.L()
+			}
+			deleteFailures[dir].Append(err)
+			continue
+		}
+		deletedFiles[dir] = append(deletedFiles[dir], filepath.Base(genfile))
+	}
+
+	for failedDir, errs := range deleteFailures {
+		delFiles := deletedFiles[failedDir]
+		delete(deletedFiles, failedDir)
+
+		report.Failures = append(report.Failures, FailureResult{
+			Result: Result{
+				Dir:     failedDir,
+				Deleted: delFiles,
+			},
+			Error: errs,
+		})
+	}
+
+	for dir, deletedFiles := range deletedFiles {
+		report.Successes = append(report.Successes, Result{
+			Dir:     dir,
+			Deleted: deletedFiles,
+		})
+	}
+
+	report.sort()
+	return report
 }
