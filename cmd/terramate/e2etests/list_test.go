@@ -201,6 +201,6 @@ func TestListNoSuchFile(t *testing.T) {
 
 	assertRunResult(t, cli.listStacks(), runExpected{
 		Status:      1,
-		StderrRegex: "no such file or directory",
+		StderrRegex: "changing working dir",
 	})
 }
