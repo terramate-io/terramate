@@ -26,6 +26,18 @@ import (
 // Fatal logs the error as a Fatal if the error is not nil.
 // If the error is nil this is a no-op.
 func Fatal(logger zerolog.Logger, msg string, err error) {
+	logerrs(logger, zerolog.FatalLevel, zerolog.ErrorLevel, msg, err)
+}
+
+// Warn logs the error as a warning if the error is not nil.
+// If the error is nil this is a no-op.
+func Warn(logger zerolog.Logger, msg string, err error) {
+	logerrs(logger, zerolog.WarnLevel, zerolog.WarnLevel, msg, err)
+}
+
+func logerrs(logger zerolog.Logger, level, childlevel zerolog.Level,
+	msg string, err error) {
+
 	if err == nil {
 		return
 	}
@@ -35,12 +47,13 @@ func Fatal(logger zerolog.Logger, msg string, err error) {
 	if errors.As(err, &list) {
 		errs := list.Errors()
 		for _, err := range errs {
-			logerr(logger, zerolog.ErrorLevel, "", err)
+			logerr(logger, childlevel, "", err)
 		}
-		logger.Fatal().Msg(msg)
+		logger.WithLevel(level).Msg(msg)
+		return
 	}
 
-	logerr(logger, zerolog.FatalLevel, msg, err)
+	logerr(logger, level, msg, err)
 }
 
 func logerr(
