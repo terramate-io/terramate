@@ -34,7 +34,6 @@ func Fatal(logger zerolog.Logger, msg string, err error) {
 }
 
 // Warn logs the error as a warning if the error is not nil.
-// If the error is nil this is a no-op.
 func Warn(logger zerolog.Logger, msg string, err error) {
 	logerrs(logger, zerolog.WarnLevel, zerolog.WarnLevel, msg, err)
 }
@@ -64,7 +63,14 @@ func logerr(
 ) {
 	var tmerr *errors.Error
 	if !errors.As(err, &tmerr) {
-		logger.WithLevel(level).Msgf("%s: %s", msg, err)
+		msgparts := []string{}
+		if msg != "" {
+			msgparts = append(msgparts, msg)
+		}
+		if err != nil {
+			msgparts = append(msgparts, err.Error())
+		}
+		logger.WithLevel(level).Msg(strings.Join(msgparts, ": "))
 		return
 	}
 

@@ -316,7 +316,7 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 
 	prj, foundRoot, err := lookupProject(wd)
 	if err != nil {
-		log.Fatal().Msgf("looking up project root: %s", err)
+		errlog.Fatal(log.Logger, "looking up project root", err)
 	}
 
 	if !foundRoot {
@@ -327,7 +327,7 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 
 	err = prj.setDefaults(&parsedArgs)
 	if err != nil {
-		log.Fatal().Msgf("setting configuration: %s", err)
+		errlog.Fatal(log.Logger, "setting configuration", err)
 	}
 
 	if parsedArgs.Changed && !prj.isRepo {
@@ -421,7 +421,7 @@ func (c *cli) setupGit() {
 		logger.Trace().Msg("Check git default remote.")
 
 		if err := c.prj.checkDefaultRemote(); err != nil {
-			log.Fatal().Msgf("checking git default remote: %s", err)
+			errlog.Fatal(log.Logger, "checking git default remote", err)
 		}
 
 		if c.parsedArgs.GitChangeBase != "" {
@@ -444,7 +444,7 @@ func (c *cli) checkGitLocalBranchIsUpdated() {
 	logger.Trace().Msg("check git default branch is updated")
 
 	if err := c.prj.checkLocalDefaultIsUpdated(); err != nil {
-		log.Fatal().Msgf("checking git default branch is updated: %s", err)
+		errlog.Fatal(log.Logger, "checking git default branch is updated", err)
 	}
 }
 
