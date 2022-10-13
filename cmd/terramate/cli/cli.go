@@ -53,6 +53,8 @@ import (
 )
 
 const (
+	// ErrOutdatedLocalRev indicates the local revision is outdated.
+	ErrOutdatedLocalRev errors.Kind = "outdated local revision"
 	// ErrOutdatedGenCodeDetected indicates outdated generated code detected.
 	ErrOutdatedGenCodeDetected errors.Kind = "outdated generated code detected"
 	// ErrRootCfgInvalidDir indicates that a root configuration was found outside root
