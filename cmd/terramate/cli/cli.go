@@ -234,7 +234,7 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 	)
 
 	if err != nil {
-		log.Fatal().Msgf("creating cli parser: %s", err)
+		fatal(err, "creating cli parser")
 	}
 
 	kongplete.Complete(parser,
@@ -251,13 +251,12 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 	// since no subcommand was provided (which is odd..but happens).
 	// So we check if the flag for version is present before checking the error.
 	if parsedArgs.VersionFlag {
-		logger.Debug().Msg("Get terramate version using --version.")
 		fmt.Println(terramate.Version())
 		return &cli{exit: true}
 	}
 
 	if err != nil {
-		log.Fatal().Msgf("parsing cli args %v: %s", args, err)
+		fatal(err, "parsing cli args %v", args)
 	}
 
 	configureLogging(parsedArgs.LogLevel, parsedArgs.LogFmt,
@@ -278,14 +277,14 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 
 		err := parsedArgs.InstallCompletions.Run(ctx)
 		if err != nil {
-			log.Fatal().Msgf("installing shell completions: %s", err)
+			fatal(err, "installing shell completions")
 		}
 		return &cli{exit: true}
 	}
 
 	wd, err := os.Getwd()
 	if err != nil {
-		log.Fatal().Msgf("getting workdir: %s", err)
+		fatal(err, "getting workdir")
 	}
 
 	logger = logger.With().
@@ -298,12 +297,12 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 			Msg("Changing working directory")
 		err = os.Chdir(parsedArgs.Chdir)
 		if err != nil {
-			log.Fatal().Msgf("changing working dir to %s: %s", parsedArgs.Chdir, err)
+			fatal(err, "changing working dir to %s", parsedArgs.Chdir)
 		}
 
 		wd, err = os.Getwd()
 		if err != nil {
-			log.Fatal().Msgf("getting workdir: %s", err)
+			fatal(err, "getting workdir: %s")
 		}
 	}
 
@@ -316,7 +315,7 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 
 	prj, foundRoot, err := lookupProject(wd)
 	if err != nil {
-		errlog.Fatal(log.Logger, err, "looking up project root")
+		fatal(err, "looking up project root")
 	}
 
 	if !foundRoot {
@@ -327,7 +326,7 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 
 	err = prj.setDefaults(&parsedArgs)
 	if err != nil {
-		errlog.Fatal(log.Logger, err, "setting configuration")
+		fatal(err, "setting configuration")
 	}
 
 	if parsedArgs.Changed && !prj.isRepo {
@@ -421,7 +420,7 @@ func (c *cli) setupGit() {
 		logger.Trace().Msg("Check git default remote.")
 
 		if err := c.prj.checkDefaultRemote(); err != nil {
-			errlog.Fatal(log.Logger, err, "checking git default remote")
+			fatal(err, "checking git default remote")
 		}
 
 		if c.parsedArgs.GitChangeBase != "" {
@@ -444,7 +443,7 @@ func (c *cli) checkGitLocalBranchIsUpdated() {
 	logger.Trace().Msg("check git default branch is updated")
 
 	if err := c.prj.checkLocalDefaultIsUpdated(); err != nil {
-		errlog.Fatal(log.Logger, err, "checking git default branch is updated")
+		fatal(err, "checking git default branch is updated")
 	}
 }
 
@@ -520,7 +519,7 @@ func (c *cli) vendorDir() prj.Path {
 
 		cfg, err := hcl.ParseDir(c.root(), filepath.Join(c.root(), ".terramate"))
 		if err != nil {
-			errlog.Fatal(log.Logger, err, "parsing vendor dir configuration on .terramate")
+			fatal(err, "parsing vendor dir configuration on .terramate")
 		}
 
 		if hasVendorDirConfig(cfg) {
@@ -563,7 +562,7 @@ func (c *cli) cloneStack() {
 	destdir := filepath.Join(c.wd(), deststack)
 
 	if err := stack.Clone(c.root(), destdir, srcdir); err != nil {
-		errlog.Fatal(log.Logger, err, "cloning %s to %s", srcstack, deststack)
+		fatal(err, "cloning %s to %s", srcstack, deststack)
 	}
 
 	c.log("Cloned stack %s to %s with success", srcstack, deststack)
@@ -691,7 +690,7 @@ func (c *cli) createStack() {
 
 		id, err := uuid.NewRandom()
 		if err != nil {
-			log.Fatal().Msgf("creating stack UUID: %s", err)
+			fatal(err, "creating stack UUID")
 		}
 		stackID = id.String()
 	}
@@ -717,7 +716,7 @@ func (c *cli) createStack() {
 	})
 
 	if err != nil {
-		log.Fatal().Msgf("creating stack: %s", err)
+		fatal(err, "creating stack")
 	}
 
 	c.log("Created stack %s with success", c.parsedArgs.Create.Path)
@@ -734,7 +733,7 @@ func (c *cli) format() {
 	logger.Trace().Msg("formatting all files recursively")
 	results, err := hcl.FormatTree(c.wd())
 	if err != nil {
-		log.Fatal().Msgf("formatting files: %s", err)
+		fatal(err, "formatting files")
 	}
 
 	logger.Trace().Msg("listing formatted files")
@@ -767,7 +766,7 @@ func (c *cli) format() {
 	}
 
 	if err := errs.AsError(); err != nil {
-		log.Fatal().Msgf("saving files: %s", err)
+		fatal(err, "saving files formatted files")
 	}
 }
 
@@ -794,7 +793,7 @@ func (c *cli) printStacks() {
 		Msg("Get stack list.")
 	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
-		log.Fatal().Msgf("listing stacks: %s", err)
+		fatal(err, "listing stacks")
 	}
 
 	c.gitSafeguards(report.Checks, false)
@@ -834,7 +833,7 @@ func (c *cli) printRunEnv() {
 	mgr := terramate.NewManager(c.root(), c.prj.baseRef)
 	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
-		log.Fatal().Msgf("listing stacks: %s", err)
+		fatal(err, "listing stacks")
 	}
 
 	projmeta := c.newProjectMetadata(report)
@@ -842,7 +841,7 @@ func (c *cli) printRunEnv() {
 	for _, stackEntry := range c.filterStacksByWorkingDir(report.Stacks) {
 		envVars, err := run.LoadEnv(projmeta, stackEntry.Stack)
 		if err != nil {
-			log.Fatal().Msgf("loading stack run environment: %s", err)
+			fatal(err, "loading stack run environment")
 		}
 
 		c.log("\nstack %q:", stackEntry.Stack.Path())
@@ -879,9 +878,7 @@ func (c *cli) generateGraph() {
 
 	entries, err := terramate.ListStacks(c.root())
 	if err != nil {
-		logger.Fatal().
-			Err(err).
-			Msg("listing stacks.")
+		fatal(err, "listing stacks to build graph")
 	}
 
 	logger.Debug().Msg("Create new graph.")
@@ -905,9 +902,7 @@ func (c *cli) generateGraph() {
 			stack.S.After,
 			visited,
 		); err != nil {
-			log.Fatal().
-				Err(err).
-				Msg("failed to build order tree")
+			fatal(err, "building order tree")
 		}
 	}
 
@@ -927,25 +922,23 @@ func (c *cli) generateGraph() {
 	outFile := c.parsedArgs.Experimental.RunGraph.Outfile
 	var out io.Writer
 	if outFile == "" {
-		logger.Trace().
-			Msg("Set output to stdout.")
+		logger.Trace().Msg("set output to stdout")
+
 		out = c.stdout
 	} else {
-		logger.Trace().
-			Msg("Set output to file.")
+		logger.Trace().Msg("set output to file")
+
 		f, err := os.Create(outFile)
 		if err != nil {
-			log.Fatal().
+			logger := log.With().
 				Str("path", outFile).
-				Err(err).
-				Msg("opening file")
+				Logger()
+			errlog.Fatal(logger, err, "opening file")
 		}
 
 		defer func() {
 			if err := f.Close(); err != nil {
-				log.Fatal().
-					Err(err).
-					Msg("closing output graph file")
+				fatal(err, "closing output graph file")
 			}
 		}()
 
@@ -956,10 +949,11 @@ func (c *cli) generateGraph() {
 		Msg("Write graph to output.")
 	_, err = out.Write([]byte(dotGraph.String()))
 	if err != nil {
-		log.Fatal().
+		logger := log.With().
 			Str("path", outFile).
-			Err(err).
-			Msg("writing output")
+			Logger()
+
+		errlog.Fatal(logger, err, "writing output")
 	}
 }
 
@@ -1457,7 +1451,7 @@ func (c *cli) runOnStacks() {
 	)
 
 	if err != nil {
-		errlog.Fatal(log.Logger, err, "one or more commands failed")
+		fatal(err, "one or more commands failed")
 	}
 }
 
@@ -1680,4 +1674,8 @@ func configureLogging(logLevel, logFmt, logdest string, stdout, stderr io.Writer
 	default: // default: console mode using color
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: output, NoColor: false, TimeFormat: time.RFC3339})
 	}
+}
+
+func fatal(err error, args ...any) {
+	errlog.Fatal(log.Logger, err, args...)
 }

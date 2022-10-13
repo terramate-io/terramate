@@ -23,7 +23,6 @@ import (
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 // Fatal logs the error as a Fatal if the error is not nil.
@@ -108,8 +107,7 @@ func msgfmt(args []any) string {
 	}
 	msgfmt, ok := args[0].(string)
 	if !ok {
-		log.Error().Msg("invalid call to errlog.Fatal or errlog.Warn, message is not a string")
-		return ""
+		panic("terramate internal error: invalid call to errlog.Fatal or errlog.Warn, message is not a string")
 	}
 	return fmt.Sprintf(msgfmt, args[1:]...)
 }
