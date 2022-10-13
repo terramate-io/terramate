@@ -170,7 +170,7 @@ func (tree *Tree) Lookup(abspath project.Path) (*Tree, bool) {
 func (tree *Tree) StacksByPaths(base project.Path, relpaths ...string) List {
 	logger := log.With().
 		Str("action", "tree.StacksByPath").
-		Str("basedir", base.String()).
+		Stringer("basedir", base).
 		Strs("paths", relpaths).
 		Logger()
 
