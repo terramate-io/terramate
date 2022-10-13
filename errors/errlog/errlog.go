@@ -17,6 +17,8 @@
 package errlog
 
 import (
+	"strings"
+
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/rs/zerolog"
 )
@@ -30,15 +32,52 @@ func Fatal(logger zerolog.Logger, msg string, err error) {
 
 	var list *errors.List
 
-	// TODO(katcipis): improve how individual errors.E are logged.
 	if errors.As(err, &list) {
 		errs := list.Errors()
 		for _, err := range errs {
-			logger.Error().Msg(err.Error())
+			logerr(logger, zerolog.ErrorLevel, "", err)
 		}
-	} else {
-		logger.Error().Msg(err.Error())
+		logger.Fatal().Msg(msg)
 	}
 
-	logger.Fatal().Msg(msg)
+	logerr(logger, zerolog.FatalLevel, msg, err)
+}
+
+func logerr(
+	logger zerolog.Logger,
+	level zerolog.Level,
+	msg string,
+	err error,
+) {
+	var tmerr *errors.Error
+	if !errors.As(err, &tmerr) {
+		logger.WithLevel(level).Msgf("%s: %s", msg, err)
+		return
+	}
+
+	ctx := logger.With()
+	if !tmerr.FileRange.Empty() {
+		ctx.Stringer("file", tmerr.FileRange)
+	}
+	if tmerr.Stack != nil {
+		ctx.Str("stack", tmerr.Stack.Path())
+	}
+
+	msgparts := []string{}
+
+	if msg != "" {
+		msgparts = append(msgparts, msg)
+	}
+	if tmerr.Kind != "" {
+		msgparts = append(msgparts, string(tmerr.Kind))
+	}
+	if tmerr.Description != "" {
+		msgparts = append(msgparts, tmerr.Description)
+	}
+	if tmerr.Err != nil {
+		msgparts = append(msgparts, tmerr.Err.Error())
+	}
+
+	logger = ctx.Logger()
+	logger.WithLevel(level).Msg(strings.Join(msgparts, ": "))
 }
