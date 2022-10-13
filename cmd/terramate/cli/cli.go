@@ -1320,7 +1320,9 @@ func (c *cli) checkOutdatedGeneratedCode(stacks stack.List) {
 
 	outdatedFiles, err := generate.Check(c.root())
 
-	errlog.Fatal(logger, "failed to check outdated code on project", err)
+	if err != nil {
+		errlog.Fatal(logger, "failed to check outdated code on project", err)
+	}
 
 	for _, outdated := range outdatedFiles {
 		logger.Error().
