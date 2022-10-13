@@ -1135,7 +1135,7 @@ func (c *cli) eval() {
 
 		val, err := ctx.Eval(expr)
 		if err != nil {
-			fatal(err, "evaluating expression: %s", exprStr)
+			fatal(err, "eval %q", exprStr)
 		}
 
 		var out []byte
@@ -1167,7 +1167,7 @@ func (c *cli) partialEval() {
 
 		tokens, err := ctx.PartialEval(expr)
 		if err != nil {
-			fatal(err, "partially evaluating expression: %s", exprStr)
+			fatal(err, "partial eval %q", exprStr)
 		}
 
 		c.log(string(hclwrite.Format(tokens.Bytes())))
