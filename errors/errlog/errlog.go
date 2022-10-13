@@ -17,6 +17,7 @@
 package errlog
 
 import (
+	"os"
 	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
@@ -26,21 +27,29 @@ import (
 // Fatal logs the error as a Fatal if the error is not nil.
 // If the error is nil this is a no-op.
 func Fatal(logger zerolog.Logger, msg string, err error) {
+	if err == nil {
+		return
+	}
+
 	logerrs(logger, zerolog.FatalLevel, zerolog.ErrorLevel, msg, err)
+	// zerolog does not call os.Exit if you pass the fatal level
+	// with WithLevel, it only aborts when calling the Fatal() method.
+	// So we need to ensure the exit 1 here.
+	os.Exit(1)
 }
 
 // Warn logs the error as a warning if the error is not nil.
 // If the error is nil this is a no-op.
 func Warn(logger zerolog.Logger, msg string, err error) {
+	if err == nil {
+		return
+	}
+
 	logerrs(logger, zerolog.WarnLevel, zerolog.WarnLevel, msg, err)
 }
 
 func logerrs(logger zerolog.Logger, level, childlevel zerolog.Level,
 	msg string, err error) {
-
-	if err == nil {
-		return
-	}
 
 	var list *errors.List
 
