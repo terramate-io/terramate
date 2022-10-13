@@ -17,16 +17,18 @@
 package errlog
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 // Fatal logs the error as a Fatal if the error is not nil.
-func Fatal(logger zerolog.Logger, msg string, err error) {
-	logerrs(logger, zerolog.FatalLevel, zerolog.ErrorLevel, msg, err)
+func Fatal(logger zerolog.Logger, err error, args ...any) {
+	logerrs(logger, zerolog.FatalLevel, zerolog.ErrorLevel, err, args)
 	// zerolog does not call os.Exit if you pass the fatal level
 	// with WithLevel, it only aborts when calling the Fatal() method.
 	// So we need to ensure the exit 1 here.
@@ -34,34 +36,33 @@ func Fatal(logger zerolog.Logger, msg string, err error) {
 }
 
 // Warn logs the error as a warning if the error is not nil.
-func Warn(logger zerolog.Logger, msg string, err error) {
-	logerrs(logger, zerolog.WarnLevel, zerolog.WarnLevel, msg, err)
+func Warn(logger zerolog.Logger, err error, args ...any) {
+	logerrs(logger, zerolog.WarnLevel, zerolog.WarnLevel, err, args)
 }
 
-func logerrs(logger zerolog.Logger, level, childlevel zerolog.Level,
-	msg string, err error) {
-
+func logerrs(logger zerolog.Logger, level, childlevel zerolog.Level, err error, args []any) {
 	var list *errors.List
 
 	if errors.As(err, &list) {
 		errs := list.Errors()
 		for _, err := range errs {
-			logerr(logger, childlevel, "", err)
+			logerr(logger, childlevel, err, nil)
 		}
-		logger.WithLevel(level).Msg(msg)
+		logger.WithLevel(level).Msg(msgfmt(args))
 		return
 	}
 
-	logerr(logger, level, msg, err)
+	logerr(logger, level, err, args)
 }
 
 func logerr(
 	logger zerolog.Logger,
 	level zerolog.Level,
-	msg string,
 	err error,
+	args []any,
 ) {
 	var tmerr *errors.Error
+	msg := msgfmt(args)
 	if !errors.As(err, &tmerr) {
 		msgparts := []string{}
 		if msg != "" {
@@ -99,4 +100,16 @@ func logerr(
 
 	logger = ctx.Logger()
 	logger.WithLevel(level).Msg(strings.Join(msgparts, ": "))
+}
+
+func msgfmt(args []any) string {
+	if len(args) == 0 {
+		return ""
+	}
+	msgfmt, ok := args[0].(string)
+	if !ok {
+		log.Error().Msg("invalid call to errlog.Fatal or errlog.Warn, message is not a string")
+		return ""
+	}
+	return fmt.Sprintf(msgfmt, args[1:]...)
 }

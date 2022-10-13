@@ -316,7 +316,7 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 
 	prj, foundRoot, err := lookupProject(wd)
 	if err != nil {
-		errlog.Fatal(log.Logger, "looking up project root", err)
+		errlog.Fatal(log.Logger, err, "looking up project root")
 	}
 
 	if !foundRoot {
@@ -327,7 +327,7 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 
 	err = prj.setDefaults(&parsedArgs)
 	if err != nil {
-		errlog.Fatal(log.Logger, "setting configuration", err)
+		errlog.Fatal(log.Logger, err, "setting configuration")
 	}
 
 	if parsedArgs.Changed && !prj.isRepo {
@@ -421,7 +421,7 @@ func (c *cli) setupGit() {
 		logger.Trace().Msg("Check git default remote.")
 
 		if err := c.prj.checkDefaultRemote(); err != nil {
-			errlog.Fatal(log.Logger, "checking git default remote", err)
+			errlog.Fatal(log.Logger, err, "checking git default remote")
 		}
 
 		if c.parsedArgs.GitChangeBase != "" {
@@ -444,7 +444,7 @@ func (c *cli) checkGitLocalBranchIsUpdated() {
 	logger.Trace().Msg("check git default branch is updated")
 
 	if err := c.prj.checkLocalDefaultIsUpdated(); err != nil {
-		errlog.Fatal(log.Logger, "checking git default branch is updated", err)
+		errlog.Fatal(log.Logger, err, "checking git default branch is updated")
 	}
 }
 
@@ -520,7 +520,7 @@ func (c *cli) vendorDir() prj.Path {
 
 		cfg, err := hcl.ParseDir(c.root(), filepath.Join(c.root(), ".terramate"))
 		if err != nil {
-			log.Fatal().Msgf("parsing vendor dir configuration on .terramate: %s", err)
+			errlog.Fatal(log.Logger, err, "parsing vendor dir configuration on .terramate")
 		}
 
 		if hasVendorDirConfig(cfg) {
@@ -563,7 +563,7 @@ func (c *cli) cloneStack() {
 	destdir := filepath.Join(c.wd(), deststack)
 
 	if err := stack.Clone(c.root(), destdir, srcdir); err != nil {
-		log.Fatal().Msgf("cloning %s to %s: %s", srcstack, deststack, err)
+		errlog.Fatal(log.Logger, err, "cloning %s to %s", srcstack, deststack)
 	}
 
 	c.log("Cloned stack %s to %s with success", srcstack, deststack)
@@ -1321,7 +1321,7 @@ func (c *cli) checkOutdatedGeneratedCode(stacks stack.List) {
 	outdatedFiles, err := generate.Check(c.root())
 
 	if err != nil {
-		errlog.Fatal(logger, "failed to check outdated code on project", err)
+		errlog.Fatal(logger, err, "failed to check outdated code on project")
 	}
 
 	for _, outdated := range outdatedFiles {
@@ -1457,7 +1457,7 @@ func (c *cli) runOnStacks() {
 	)
 
 	if err != nil {
-		errlog.Fatal(log.Logger, "one or more commands failed", err)
+		errlog.Fatal(log.Logger, err, "one or more commands failed")
 	}
 }
 
