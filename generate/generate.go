@@ -82,7 +82,7 @@ func Do(rootdir string, workingDir string) Report {
 		logger := log.With().
 			Str("action", "generate.Do()").
 			Str("rootdir", rootdir).
-			Str("stackpath", stackpath).
+			Stringer("stack", stack.Path()).
 			Logger()
 
 		report := dirReport{}
@@ -98,6 +98,10 @@ func Do(rootdir string, workingDir string) Report {
 		logger.Trace().Msg("checking stack asserts")
 		errs := errors.L()
 		for _, assert := range asserts {
+			log.Info().
+				Stringer("stack", stack.Path()).
+				Msgf("checking assertion: %s", assert.Message)
+
 			if !assert.Assertion {
 				assertRange := assert.Range
 				assertRange.Filename = filepath.ToSlash(strings.TrimPrefix(assert.Range.Filename, rootdir))
@@ -105,6 +109,7 @@ func Do(rootdir string, workingDir string) Report {
 					log.Warn().
 						Stringer("origin", assertRange).
 						Str("msg", assert.Message).
+						Stringer("stack", stack.Path()).
 						Msg("assertion failed")
 				} else {
 					msg := fmt.Sprintf("%s: %s", assertRange, assert.Message)
@@ -185,10 +190,18 @@ func Do(rootdir string, workingDir string) Report {
 			// Change detection + remove entries that got re-generated
 			removedFileBody, ok := removedFiles[filename]
 			if !ok {
+				log.Info().
+					Stringer("stack", stack.Path()).
+					Msgf("created file: %s", filename)
+
 				report.addCreatedFile(filename)
 			} else {
 				body := file.Header() + file.Body()
 				if body != removedFileBody {
+					log.Info().
+						Stringer("stack", stack.Path()).
+						Msgf("changed file: %s", filename)
+
 					report.addChangedFile(filename)
 				}
 				delete(removedFiles, filename)
@@ -197,6 +210,9 @@ func Do(rootdir string, workingDir string) Report {
 		}
 
 		for filename := range removedFiles {
+			log.Info().
+				Stringer("stack", stack.Path()).
+				Msgf("deleted file: %s", filename)
 			report.addDeletedFile(filename)
 		}
 		return report
@@ -965,7 +981,14 @@ func cleanupOrphaned(rootdir string, report Report) Report {
 			deleteFailures[dir].Append(err)
 			continue
 		}
-		deletedFiles[dir] = append(deletedFiles[dir], filepath.Base(genfile))
+
+		filename := filepath.Base(genfile)
+
+		log.Info().
+			Stringer("dir", dir).
+			Msgf("deleted orphaned file: %s", filename)
+
+		deletedFiles[dir] = append(deletedFiles[dir], filename)
 	}
 
 	for failedDir, errs := range deleteFailures {
