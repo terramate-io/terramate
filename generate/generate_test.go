@@ -61,6 +61,71 @@ func (s stringer) String() string {
 	return string(s)
 }
 
+func TestGenerateIgnore(t *testing.T) {
+	testCodeGeneration(t, []testcase{
+		{
+			name: "dir with skip file",
+			layout: []string{
+				"s:stacks/stack",
+				"s:stacks/stack-2",
+				"f:stacks/stack-2/" + config.SkipFilename,
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: GenerateHCL(
+						Labels("file.hcl"),
+						Content(
+							Block("block",
+								Str("data", "data"),
+							),
+						),
+					),
+				},
+				{
+					path: "/stacks",
+					add: GenerateHCL(
+						Labels("dir/file.hcl"),
+						Content(
+							Block("block",
+								Str("data", "data"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stacks/stack",
+					files: map[string]fmt.Stringer{
+						"file.hcl": Doc(
+							Block("block",
+								Str("data", "data"),
+							),
+						),
+						"dir/file.hcl": Doc(
+							Block("block",
+								Str("data", "data"),
+							),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir: "/stacks/stack",
+						Created: []string{
+							"dir/file.hcl",
+							"file.hcl",
+						},
+					},
+				},
+			},
+		},
+	})
+}
+
 func TestGenerateSubDirsOnLabels(t *testing.T) {
 	testCodeGeneration(t, []testcase{
 		{
