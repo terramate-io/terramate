@@ -259,8 +259,8 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error)
 			Str("filename", name).
 			Logger()
 
-		if ignoreFilename(name) {
-			logger.Trace().Msg("ignoring dot file")
+		if Skip(name) {
+			logger.Trace().Msg("skipping file")
 			continue
 		}
 		dir := filepath.Join(cfgdir, name)
@@ -347,11 +347,13 @@ func NewTree(cfgdir string) *Tree {
 	}
 }
 
+// Skip returns true if the given file/dir name should be ignored by Terramate.
+func Skip(name string) bool {
+	// assumes filename length > 0
+	return name[0] == '.'
+}
+
 func parentDir(dir string) (string, bool) {
 	parent := filepath.Dir(dir)
 	return parent, parent != dir
-}
-
-func ignoreFilename(name string) bool {
-	return name[0] == '.' // assumes filename length > 0
 }
