@@ -221,6 +221,25 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error)
 		Str("dir", rootdir).
 		Logger()
 
+	f, err := os.Open(cfgdir)
+	if err != nil {
+		return nil, errors.E(err, "failed to open cfg directory")
+	}
+
+	logger.Trace().Msg("reading directory file names")
+
+	names, err := f.Readdirnames(0)
+	if err != nil {
+		return nil, errors.E(err, "failed to read files in %s", cfgdir)
+	}
+
+	for _, name := range names {
+		if name == ".tmskip" {
+			logger.Debug().Msg("skip file found: skipping whole subtree")
+			return NewTree(cfgdir), nil
+		}
+	}
+
 	tree := NewTree(cfgdir)
 	if rootcfg != nil {
 		tree.Node = *rootcfg
@@ -232,17 +251,6 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error)
 		tree.Node = cfg
 	}
 
-	f, err := os.Open(cfgdir)
-	if err != nil {
-		return nil, errors.E(err, "failed to open rootdir directory")
-	}
-
-	logger.Trace().Msg("reading directory file names")
-
-	names, err := f.Readdirnames(0)
-	if err != nil {
-		return nil, errors.E(err, "failed to read files in %s", rootdir)
-	}
 	for _, name := range names {
 		logger = logger.With().
 			Str("filename", name).

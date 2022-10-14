@@ -256,6 +256,35 @@ func TestConfigStacksByPaths(t *testing.T) {
 	}
 }
 
+func TestConfigSkipdir(t *testing.T) {
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		"s:/stack",
+		"s:/stack-2",
+		"f:/stack/.tmskip",
+		"f:/stack/ignored.tm:not valid hcl but wont be parsed",
+		"f:/stack/subdir/ignored.tm:not valid hcl but wont be parsed",
+	})
+
+	cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+	assert.NoError(t, err)
+
+	node, found := cfg.Lookup("/stack-2")
+	assert.IsTrue(t, found)
+	assert.IsTrue(t, !node.IsEmptyConfig())
+	assert.IsTrue(t, node.IsStack())
+
+	// When we find a tmskip the node is created but empty, no parsing is done
+	node, found = cfg.Lookup("/stack")
+	assert.IsTrue(t, found)
+	assert.IsTrue(t, node.IsEmptyConfig())
+	assert.IsTrue(t, !node.IsStack())
+
+	// subdirs are not processed and can't be found
+	_, found = cfg.Lookup("/stack/subdir")
+	assert.IsTrue(t, !found)
+}
+
 func isStack(cfg *config.Tree, dir string) bool {
 	return config.IsStack(cfg, filepath.Join(cfg.RootDir(), dir))
 }
