@@ -85,7 +85,7 @@ func (bm benchmark) setup(b *testing.B) sandbox.S {
 	createGlobals(s, bm.globals)
 	createGenHCLs(s, globals, bm.genhcl)
 	createGenFiles(s, globals, bm.genfiles)
-
+	s.Config() // caches config for later use.
 	return s
 }
 
@@ -105,7 +105,7 @@ func (bm benchmark) assert(b *testing.B, report generate.Report) {
 
 func (bm benchmark) run(b *testing.B) {
 	s := bm.setup(b)
-	report := generate.Do(s.RootDir(), s.RootDir())
+	report := generate.Do(s.Config(), s.RootDir())
 	bm.assert(b, report)
 }
 

@@ -15,6 +15,7 @@
 package stack
 
 import (
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
@@ -30,7 +31,7 @@ import (
 //
 // Metadata for the stack is used on the evaluation of globals.
 // The rootdir MUST be an absolute path.
-func LoadStackGlobals(projmeta project.Metadata, stackmeta Metadata) globals.EvalReport {
+func LoadStackGlobals(cfg *config.Tree, projmeta project.Metadata, stackmeta Metadata) globals.EvalReport {
 	logger := log.With().
 		Str("action", "stack.LoadStackGlobals()").
 		Stringer("stack", stackmeta.Path()).
@@ -46,5 +47,5 @@ func LoadStackGlobals(projmeta project.Metadata, stackmeta Metadata) globals.Eva
 	}
 
 	ctx.SetNamespace("terramate", MetadataToCtyValues(projmeta, stackmeta))
-	return globals.Load(projmeta.Rootdir(), stackmeta.Path(), ctx)
+	return globals.Load(cfg, stackmeta.Path(), ctx)
 }

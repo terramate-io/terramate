@@ -654,7 +654,7 @@ func TestCheckDetectsFilesOutsideStacks(t *testing.T) {
 		genfile("orphans/dir/dir/g.hcl"),
 	})
 
-	outdated, err := generate.Check(s.RootDir())
+	outdated, err := generate.Check(s.Config())
 	assert.NoError(t, err)
 
 	assertEqualStringList(t, outdated, []string{
@@ -705,7 +705,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 			}
 
 			workingDir := filepath.Join(s.RootDir(), tcase.workingDir)
-			report := generate.Do(s.RootDir(), workingDir)
+			report := generate.Do(s.Config(), workingDir)
 			assertEqualReports(t, report, tcase.wantReport)
 
 			assertGeneratedFiles(t)
@@ -713,7 +713,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 			// piggyback on the tests to validate that regeneration doesn't
 			// delete files or fail and has identical results.
 			t.Run("regenerate", func(t *testing.T) {
-				report := generate.Do(s.RootDir(), workingDir)
+				report := generate.Do(s.Config(), workingDir)
 				// since we just generated everything, report should only contain
 				// the same failures as previous code generation.
 				assertEqualReports(t, report, generate.Report{

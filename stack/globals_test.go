@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
@@ -1540,18 +1541,21 @@ func TestLoadGlobals(t *testing.T) {
 
 			wantGlobals := tcase.want
 
-			stackEntries, err := terramate.ListStacks(s.RootDir())
+			cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
 			if err != nil {
-				errtest.AssertKind(t, err, tcase.wantErr)
+				errtest.Assert(t, err, tcase.wantErr)
+				return
 			}
 
-			var stacks stack.List
+			stackEntries, err := terramate.ListStacks(cfg)
+			assert.NoError(t, err)
 
+			var stacks stack.List
 			for _, entry := range stackEntries {
 				st := entry.Stack
 				stacks = append(stacks, st)
 
-				gotReport := stack.LoadStackGlobals(projmeta, st)
+				gotReport := stack.LoadStackGlobals(s.Config(), projmeta, st)
 				errtest.Assert(t, gotReport.AsError(), tcase.wantErr)
 				if tcase.wantErr != nil {
 					continue
@@ -1736,15 +1740,22 @@ func TestLoadGlobalsErrors(t *testing.T) {
 				test.AppendFile(t, path, config.DefaultFilename, c.body)
 			}
 
-			stacks, err := stack.LoadAll(s.RootDir())
+			cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
 			// TODO(i4k): this better not be tested here.
 			if errors.IsKind(tcase.want, hcl.ErrHCLSyntax) {
-				errtest.AssertKind(t, err, tcase.want)
+				errtest.Assert(t, err, tcase.want)
 			}
+
+			if err != nil {
+				return
+			}
+
+			stacks, err := stack.LoadAll(cfg)
+			assert.NoError(t, err)
 			projmeta := stack.NewProjectMetadata(s.RootDir(), stacks)
 
 			for _, st := range stacks {
-				report := stack.LoadStackGlobals(projmeta, st)
+				report := stack.LoadStackGlobals(s.Config(), projmeta, st)
 				errtest.Assert(t, report.AsError(), tcase.want)
 			}
 		})
