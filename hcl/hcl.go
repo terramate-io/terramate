@@ -54,8 +54,15 @@ const (
 type Config struct {
 	Terramate *Terramate
 	Stack     *Stack
+	Globals   *ast.MergedBlock
 	Vendor    *VendorConfig
 	Asserts   []AssertConfig
+	Generate  struct {
+		Files []GenFileBlock
+		HCLs  []GenHCLBlock
+	}
+
+	Imported RawConfig
 
 	// absdir is the absolute path to the configuration directory.
 	absdir string
@@ -631,7 +638,8 @@ func NewConfig(dir string) (Config, error) {
 	}
 
 	return Config{
-		absdir: dir,
+		absdir:   dir,
+		Imported: NewRawConfig(),
 	}, nil
 }
 
@@ -648,7 +656,9 @@ func (c Config) AbsDir() string { return c.absdir }
 
 // IsEmpty returns true if the config is empty, false otherwise.
 func (c Config) IsEmpty() bool {
-	return c.Stack == nil && c.Terramate == nil
+	return c.Stack == nil && c.Terramate == nil &&
+		c.Vendor == nil && len(c.Asserts) == 0 &&
+		len(c.Generate.Files) == 0 && len(c.Generate.HCLs) == 0
 }
 
 // Save the configuration file using filename inside config directory.
@@ -702,90 +712,68 @@ func ParseDir(root string, dir string) (Config, error) {
 	return p.ParseConfig()
 }
 
-// ParseGenerateHCLBlocks parses all Terramate files on the given dir, returning
-// only generate_hcl blocks (other blocks are discarded).
+// parseGenerateHCLBlock the generate_hcl block.
 // generate_hcl blocks are validated, so the caller can expect valid blocks only or an error.
-func ParseGenerateHCLBlocks(root, dir string) ([]GenHCLBlock, error) {
-	logger := log.With().
-		Str("action", "hcl.ParseGenerateHCLBlocks").
-		Str("configdir", dir).
-		Logger()
+func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
+	var (
+		lets    hclsyntax.Blocks
+		content *hclsyntax.Block
+	)
 
-	logger.Trace().Msg("loading config")
-
-	blocks, err := parseUnmergedBlocks(root, dir, "generate_hcl", func(block *ast.Block) error {
-		return validateGenerateHCLBlock(block)
-	})
+	err := validateGenerateHCLBlock(block)
 	if err != nil {
-		return nil, err
+		return GenHCLBlock{}, err
 	}
 
-	var genhclBlocks []GenHCLBlock
-	for _, block := range blocks {
-		var (
-			lets    hclsyntax.Blocks
-			content *hclsyntax.Block
-		)
-
-		for _, b := range block.Body.Blocks {
-			switch b.Type {
-			case "lets":
-				lets = append(lets, b)
-			case "content":
-				if content != nil {
-					return nil, errors.E(b.Range(),
-						"multiple generate_hcl.content blocks defined",
-					)
-				}
-				content = b
-			default:
-				// already validated but sanity checks...
-				panic("unreachable")
-			}
-		}
-
-		genhclBlocks = append(genhclBlocks, GenHCLBlock{
-			Origin:    block.Origin,
-			Label:     block.Labels[0],
-			Lets:      lets,
-			Content:   content,
-			Condition: block.Body.Attributes["condition"],
-		})
-	}
-
-	return genhclBlocks, nil
-}
-
-// ParseGenerateFileBlocks parses all Terramate files on the given dir, returning
-// parsed generate_file blocks.
-func ParseGenerateFileBlocks(root, dir string) ([]GenFileBlock, error) {
-	blocks, err := parseUnmergedBlocks(root, dir, "generate_file", func(block *ast.Block) error {
-		return validateGenerateFileBlock(block)
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	var genfileBlocks []GenFileBlock
-	for _, block := range blocks {
-		for _, subBlock := range block.Body.Blocks {
-			if len(subBlock.Body.Blocks) > 0 {
-				return nil, errors.E(
-					subBlock.Body.Blocks[0].Range(), "lets does not support blocks",
+	for _, b := range block.Body.Blocks {
+		switch b.Type {
+		case "lets":
+			lets = append(lets, b)
+		case "content":
+			if content != nil {
+				return GenHCLBlock{}, errors.E(b.Range(),
+					"multiple generate_hcl.content blocks defined",
 				)
 			}
+			content = b
+		default:
+			// already validated but sanity checks...
+			panic("unreachable")
 		}
-
-		genfileBlocks = append(genfileBlocks, GenFileBlock{
-			Origin:    block.Origin,
-			Label:     block.Labels[0],
-			Lets:      block.Body.Blocks,
-			Content:   block.Body.Attributes["content"],
-			Condition: block.Body.Attributes["condition"],
-		})
 	}
 
-	return genfileBlocks, nil
+	return GenHCLBlock{
+		Origin:    block.Origin,
+		Label:     block.Labels[0],
+		Lets:      lets,
+		Content:   content,
+		Condition: block.Body.Attributes["condition"],
+	}, nil
+}
+
+// parseGenerateFileBlock parses all Terramate files on the given dir, returning
+// parsed generate_file blocks.
+func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
+	err := validateGenerateFileBlock(block)
+	if err != nil {
+		return GenFileBlock{}, err
+	}
+
+	for _, subBlock := range block.Body.Blocks {
+		if len(subBlock.Body.Blocks) > 0 {
+			return GenFileBlock{}, errors.E(ErrTerramateSchema,
+				subBlock.Body.Blocks[0].Range(), "lets does not support blocks",
+			)
+		}
+	}
+
+	return GenFileBlock{
+		Origin:    block.Origin,
+		Label:     block.Labels[0],
+		Lets:      block.Body.Blocks,
+		Content:   block.Body.Attributes["content"],
+		Condition: block.Body.Attributes["condition"],
+	}, nil
 }
 
 func validateImportBlock(block *ast.Block) error {
@@ -1579,11 +1567,21 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 
 		case "generate_hcl":
 			logger.Trace().Msg("Found \"generate_hcl\" block")
-			errs.Append(validateGenerateHCLBlock(block))
+
+			genhcl, err := parseGenerateHCLBlock(block)
+			errs.Append(err)
+			if err == nil {
+				config.Generate.HCLs = append(config.Generate.HCLs, genhcl)
+			}
 
 		case "generate_file":
 			logger.Trace().Msg("Found \"generate_file\" block")
-			errs.Append(validateGenerateFileBlock(block))
+
+			genfile, err := parseGenerateFileBlock(block)
+			errs.Append(err)
+			if err == nil {
+				config.Generate.Files = append(config.Generate.Files, genfile)
+			}
 		}
 	}
 
@@ -1615,7 +1613,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 	if ok {
 		errs.AppendWrap(ErrTerramateSchema, globalsBlock.ValidateSubBlocks())
 
-		// value ignored in the main parser.
+		config.Globals = globalsBlock
 	}
 
 	if foundstack {
@@ -1633,6 +1631,8 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 	if err := errs.AsError(); err != nil {
 		return Config{}, err
 	}
+
+	config.Imported = p.Imported
 
 	return config, nil
 }
@@ -1730,49 +1730,6 @@ func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
 		return Terramate{}, err
 	}
 	return tm, nil
-}
-
-type blockValidator func(*ast.Block) error
-
-func parseUnmergedBlocks(root, dir, blocktype string, validate blockValidator) (ast.Blocks, error) {
-	logger := log.With().
-		Str("action", "hcl.parseBlocks").
-		Str("configdir", dir).
-		Str("blocktype", blocktype).
-		Logger()
-
-	logger.Trace().Msg("loading config")
-
-	parser, err := NewTerramateParser(root, dir)
-	if err != nil {
-		return nil, err
-	}
-	err = parser.AddDir(dir)
-	if err != nil {
-		return nil, errors.E("adding files to parser", err)
-	}
-
-	err = parser.Parse()
-	if err != nil {
-		return nil, err
-	}
-
-	logger.Trace().Msg("Validating and filtering blocks")
-
-	var blocks ast.Blocks
-	blocks = append(blocks,
-		parser.Imported.filterUnmergedBlocksByType(blocktype)...)
-	blocks = append(blocks,
-		parser.Config.filterUnmergedBlocksByType(blocktype)...)
-	for _, block := range blocks {
-		if err := validate(block); err != nil {
-			return nil, errors.E(err, "validation failed")
-		}
-	}
-
-	logger.Trace().Msg("validated blocks")
-
-	return blocks, nil
 }
 
 func listTerramateFiles(dir string) ([]string, error) {

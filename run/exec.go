@@ -21,6 +21,7 @@ import (
 	"os/signal"
 	"strings"
 
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
@@ -37,7 +38,7 @@ import (
 // If continue on error is false it will return as soon as it finds an error,
 // returning a list with a single error inside.
 func Exec(
-	rootdir string,
+	cfg *config.Tree,
 	stacks stack.List,
 	cmd []string,
 	stdin io.Reader,
@@ -57,10 +58,10 @@ func Exec(
 
 	logger.Trace().Msg("loading stacks run environment variables")
 
-	projmeta := stack.NewProjectMetadata(rootdir, stacks)
+	projmeta := stack.NewProjectMetadata(cfg.RootDir(), stacks)
 
 	for _, stack := range stacks {
-		env, err := LoadEnv(projmeta, stack)
+		env, err := LoadEnv(cfg, projmeta, stack)
 		errs.Append(err)
 		stackEnvs[stack.Path()] = env
 	}

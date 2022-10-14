@@ -57,7 +57,7 @@ func TestGeneratedFilesListing(t *testing.T) {
 			layout: []string{
 				"f:file.tf:whatever",
 				"f:file.hcl:dont care",
-				"f:another.tm.hcl:terramate is awesome",
+				"f:another.tm.hcl:terramate {}",
 			},
 		},
 		{
@@ -178,8 +178,7 @@ func TestGeneratedFilesListing(t *testing.T) {
 				listdir = s.RootDir()
 			}
 
-			got, err := generate.ListGenFiles(s.RootDir(), listdir)
-
+			got, err := generate.ListGenFiles(s.Config(), listdir)
 			assert.NoError(t, err)
 			assertEqualStringList(t, got, tcase.want)
 		})

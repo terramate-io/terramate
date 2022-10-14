@@ -855,7 +855,7 @@ func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
 		fmt.Sprintf("f:stack/%s:%s", genFilename, manualTfCode),
 	})
 
-	report := generate.Do(s.RootDir(), s.RootDir())
+	report := generate.Do(s.Config(), s.RootDir())
 	assert.EqualInts(t, 0, len(report.Successes), "want no success")
 	assert.EqualInts(t, 1, len(report.Failures), "want single failure")
 	assertReportHasError(t, report, errors.E(generate.ErrManualCodeExists))
@@ -1029,6 +1029,7 @@ func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
 	stackEntry.DeleteStackConfig()
 	grandChildStack.DeleteStackConfig()
 
+	s.ReloadConfig()
 	report = s.Generate()
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
@@ -1043,11 +1044,13 @@ func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
 		},
 	})
 
-	assertEqualStringList(t, stackEntry.ListGenFiles(), []string{})
-	assertEqualStringList(t, grandChildStack.ListGenFiles(), []string{})
+	assertEqualStringList(t, stackEntry.ListGenFiles(s.Config()), []string{})
+	assertEqualStringList(t, grandChildStack.ListGenFiles(s.Config()), []string{})
 
-	assertEqualStringList(t, childStack.ListGenFiles(), []string{"file1.tf", "file2.tf"})
-	assertEqualStringList(t, stack2Entry.ListGenFiles(), []string{"file1.tf", "file2.tf"})
+	assertEqualStringList(t, childStack.ListGenFiles(s.Config()),
+		[]string{"file1.tf", "file2.tf"})
+	assertEqualStringList(t, stack2Entry.ListGenFiles(s.Config()),
+		[]string{"file1.tf", "file2.tf"})
 }
 
 func TestGenerateHCLCleanupOldFiles(t *testing.T) {
@@ -1075,6 +1078,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		).String(),
 	)
 
+	s.ReloadConfig()
 	report := s.Generate()
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
@@ -1085,7 +1089,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		},
 	})
 
-	got := stackEntry.ListGenFiles()
+	got := stackEntry.ListGenFiles(s.Config())
 	assertEqualStringList(t, got, []string{"file1.tf", "file2.tf"})
 
 	// Lets change one of the files, but delete the other
@@ -1102,6 +1106,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		).String(),
 	)
 
+	s.ReloadConfig()
 	report = s.Generate()
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
@@ -1113,7 +1118,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		},
 	})
 
-	got = stackEntry.ListGenFiles()
+	got = stackEntry.ListGenFiles(s.Config())
 	assertEqualStringList(t, got, []string{"file1.tf"})
 
 	// condition = false gets deleted
@@ -1127,6 +1132,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		).String(),
 	)
 
+	s.ReloadConfig()
 	report = s.Generate()
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
@@ -1161,6 +1167,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		).String(),
 	)
 
+	s.ReloadConfig()
 	assertEqualReports(t, s.Generate(), generate.Report{
 		Successes: []generate.Result{
 			{
@@ -1169,7 +1176,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 			},
 		},
 	})
-	got = stackEntry.ListGenFiles()
+	got = stackEntry.ListGenFiles(s.Config())
 	assertEqualStringList(t, got, []string{"file2.tf"})
 
 	// Block changed to condition = false will be deleted
@@ -1187,6 +1194,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 		).String(),
 	)
 
+	s.ReloadConfig()
 	assertEqualReports(t, s.Generate(), generate.Report{
 		Successes: []generate.Result{
 			{
@@ -1195,7 +1203,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 			},
 		},
 	})
-	got = stackEntry.ListGenFiles()
+	got = stackEntry.ListGenFiles(s.Config())
 	assertEqualStringList(t, got, []string{})
 }
 
@@ -1240,7 +1248,9 @@ func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
 	// It should never return in the report.
 	test.WriteFile(t, targEntry.Path(), "test.tf", genhcl.Header)
 
-	report := s.GenerateAt(rootEntry.Path())
+	cfg, err := config.LoadTree(rootEntry.Path(), rootEntry.Path())
+	assert.NoError(t, err)
+	report := s.GenerateAt(cfg, rootEntry.Path())
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{

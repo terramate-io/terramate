@@ -20,8 +20,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
 )
 
@@ -74,12 +76,13 @@ const (
 //
 // If the stack already exists it will return an error and no changes will be
 // made to the stack.
-func Create(rootdir string, cfg CreateCfg) (err error) {
+func Create(tree *config.Tree, cfg CreateCfg) (err error) {
 	logger := log.With().
 		Str("action", "stack.Create()").
 		Stringer("cfg", cfg).
 		Logger()
 
+	rootdir := tree.RootDir()
 	if !strings.HasPrefix(cfg.Dir, rootdir) {
 		return errors.E(ErrInvalidStackDir, "stack %q must be inside project root %q", cfg.Dir, rootdir)
 	}
@@ -143,35 +146,42 @@ func Create(rootdir string, cfg CreateCfg) (err error) {
 
 	logger.Trace().Msg("creating stack file")
 
-	stackFile, err := os.Create(filepath.Join(cfg.Dir, DefaultFilename))
-	if err != nil {
-		return errors.E(err, "opening stack file")
-	}
-
-	defer func() {
-		errClose := stackFile.Close()
-		if errClose != nil {
-			if err != nil {
-				err = errors.L(err, errClose)
-			} else {
-				err = errClose
-			}
+	err = func() error {
+		stackFile, err := os.Create(filepath.Join(cfg.Dir, DefaultFilename))
+		if err != nil {
+			return errors.E(err, "opening stack file")
 		}
+
+		defer func() {
+			errClose := stackFile.Close()
+			if errClose != nil {
+				if err != nil {
+					err = errors.L(err, errClose)
+				} else {
+					err = errClose
+				}
+			}
+		}()
+
+		if err := hcl.PrintConfig(stackFile, tmCfg); err != nil {
+			return errors.E(err, "writing stack config to stack file")
+		}
+
+		if len(cfg.Imports) > 0 {
+			fmt.Fprint(stackFile, "\n")
+		}
+
+		if err := hcl.PrintImports(stackFile, cfg.Imports); err != nil {
+			return errors.E(err, "writing stack imports to stack file")
+		}
+		return nil
 	}()
 
-	if err := hcl.PrintConfig(stackFile, tmCfg); err != nil {
-		return errors.E(err, "writing stack config to stack file")
+	if err != nil {
+		return err
 	}
 
-	if len(cfg.Imports) > 0 {
-		fmt.Fprint(stackFile, "\n")
-	}
-
-	if err := hcl.PrintImports(stackFile, cfg.Imports); err != nil {
-		return errors.E(err, "writing stack imports to stack file")
-	}
-
-	return nil
+	return tree.LoadSubTree(project.PrjAbsPath(rootdir, cfg.Dir))
 }
 
 func (cfg CreateCfg) String() string {
