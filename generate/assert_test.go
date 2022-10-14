@@ -25,6 +25,8 @@ import (
 )
 
 func TestGenerateAssert(t *testing.T) {
+	t.Parallel()
+
 	testCodeGeneration(t, []testcase{
 		{
 			name: "no generate blocks with success assertion",

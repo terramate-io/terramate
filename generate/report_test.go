@@ -25,6 +25,8 @@ import (
 )
 
 func TestReportRepresentation(t *testing.T) {
+	t.Parallel()
+
 	type testcase struct {
 		name   string
 		report generate.Report
@@ -277,8 +279,11 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 		},
 	}
 
-	for _, tcase := range tcases {
+	for _, tc := range tcases {
+		tcase := tc
 		t.Run(tcase.name, func(t *testing.T) {
+			t.Parallel()
+
 			got := tcase.report.String()
 			if diff := cmp.Diff(got, tcase.want); diff != "" {
 				t.Errorf("got:\n%s\n", got)

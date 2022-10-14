@@ -62,6 +62,8 @@ func (s stringer) String() string {
 }
 
 func TestGenerateSubDirsOnLabels(t *testing.T) {
+	t.Parallel()
+
 	testCodeGeneration(t, []testcase{
 		{
 			name: "subdirs with no relative walk are allowed",
@@ -401,6 +403,8 @@ func TestGenerateSubDirsOnLabels(t *testing.T) {
 }
 
 func TestGenerateCleanup(t *testing.T) {
+	t.Parallel()
+
 	testCodeGeneration(t, []testcase{
 		{
 			name: "deletes generated files outside stacks",
@@ -498,6 +502,8 @@ func TestGenerateCleanup(t *testing.T) {
 }
 
 func TestGenerateCleanupFailsToReadFiles(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 	dir := s.RootEntry().CreateDir("dir")
 	file := dir.CreateFile("file.hcl", genhcl.Header)
@@ -512,6 +518,8 @@ func TestGenerateCleanupFailsToReadFiles(t *testing.T) {
 }
 
 func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
+	t.Parallel()
+
 	testCodeGeneration(t, []testcase{
 		{
 			name: "stack with different generate blocks but same label",
@@ -640,6 +648,8 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 }
 
 func TestCheckDetectsFilesOutsideStacks(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 	s.BuildTree([]string{
 		"s:stack-1",
@@ -671,9 +681,12 @@ func TestCheckDetectsFilesOutsideStacks(t *testing.T) {
 func testCodeGeneration(t *testing.T, tcases []testcase) {
 	t.Helper()
 
-	for _, tcase := range tcases {
+	for _, tc := range tcases {
+		tcase := tc
+
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Helper()
+			t.Parallel()
 
 			if tcase.skipOn == runtime.GOOS {
 				t.Skipf("skipping on GOOS %q", tcase.skipOn)
