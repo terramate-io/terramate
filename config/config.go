@@ -30,6 +30,9 @@ import (
 const (
 	// DefaultFilename is the name of the default Terramate configuration file.
 	DefaultFilename = "terramate.tm.hcl"
+
+	// SkipFilename is the name of Terramate skip file.
+	SkipFilename = ".tmskip"
 )
 
 const (
@@ -234,7 +237,7 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error)
 	}
 
 	for _, name := range names {
-		if name == ".tmskip" {
+		if name == SkipFilename {
 			logger.Debug().Msg("skip file found: skipping whole subtree")
 			return NewTree(cfgdir), nil
 		}

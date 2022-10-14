@@ -261,7 +261,7 @@ func TestConfigSkipdir(t *testing.T) {
 	s.BuildTree([]string{
 		"s:/stack",
 		"s:/stack-2",
-		"f:/stack/.tmskip",
+		"f:/stack/" + config.SkipFilename,
 		"f:/stack/ignored.tm:not valid hcl but wont be parsed",
 		"f:/stack/subdir/ignored.tm:not valid hcl but wont be parsed",
 	})
