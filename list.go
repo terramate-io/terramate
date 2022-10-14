@@ -15,13 +15,14 @@
 package terramate
 
 import (
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/stack"
 )
 
 // ListStacks walks the project's root directory looking for terraform stacks.
 // It returns a lexicographic sorted list of stack directories.
-func ListStacks(rootdir string) ([]Entry, error) {
-	stacks, err := stack.LoadAll(rootdir)
+func ListStacks(cfg *config.Tree) ([]Entry, error) {
+	stacks, err := stack.LoadAll(cfg)
 	if err != nil {
 		return nil, err
 	}

@@ -19,8 +19,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/run"
+	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errorstest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/mineiros-io/terramate/test/hclwrite"
@@ -36,8 +40,9 @@ func TestLoadRunEnv(t *testing.T) {
 			add  fmt.Stringer
 		}
 		result struct {
-			env run.EnvVars
-			err error
+			env    run.EnvVars
+			enverr error
+			cfgerr error
 		}
 		testcase struct {
 			name    string
@@ -152,7 +157,7 @@ func TestLoadRunEnv(t *testing.T) {
 			},
 			want: map[string]result{
 				"stack": {
-					err: errors.E(run.ErrParsingCfg),
+					cfgerr: errors.E(hcl.ErrTerramateSchema),
 				},
 			},
 		},
@@ -177,7 +182,7 @@ func TestLoadRunEnv(t *testing.T) {
 			},
 			want: map[string]result{
 				"stack": {
-					err: errors.E(run.ErrLoadingGlobals),
+					enverr: errors.E(run.ErrLoadingGlobals),
 				},
 			},
 		},
@@ -196,7 +201,7 @@ func TestLoadRunEnv(t *testing.T) {
 			},
 			want: map[string]result{
 				"stack": {
-					err: errors.E(run.ErrEval),
+					enverr: errors.E(run.ErrEval),
 				},
 			},
 		},
@@ -215,14 +220,13 @@ func TestLoadRunEnv(t *testing.T) {
 			},
 			want: map[string]result{
 				"stack": {
-					err: errors.E(run.ErrInvalidEnvVarType),
+					enverr: errors.E(run.ErrInvalidEnvVarType),
 				},
 			},
 		},
 	}
 
 	for _, tcase := range tcases {
-
 		t.Run(tcase.name, func(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
@@ -239,10 +243,17 @@ func TestLoadRunEnv(t *testing.T) {
 			}
 
 			for stackRelPath, wantres := range tcase.want {
-				stack := s.LoadStack(stackRelPath)
-				gotvars, err := run.LoadEnv(projmeta, stack)
+				cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+				if wantres.cfgerr != nil {
+					errorstest.Assert(t, err, wantres.cfgerr)
+					return
+				}
 
-				errorstest.Assert(t, err, wantres.err)
+				stack, err := stack.Load(cfg, filepath.Join(s.RootDir(), stackRelPath))
+				assert.NoError(t, err)
+
+				gotvars, err := run.LoadEnv(cfg, projmeta, stack)
+				errorstest.Assert(t, err, wantres.enverr)
 				test.AssertDiff(t, gotvars, wantres.env)
 			}
 		})

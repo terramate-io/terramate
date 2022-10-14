@@ -19,7 +19,6 @@ import (
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/ast"
-	"github.com/rs/zerolog/log"
 )
 
 // RawConfig is the configuration (attributes and blocks) without schema
@@ -134,24 +133,6 @@ func (cfg *RawConfig) mergeAttrs(other ast.Attributes) error {
 		cfg.MergedAttributes[attr.Name] = attr
 	}
 	return errs.AsError()
-}
-
-func (cfg RawConfig) filterUnmergedBlocksByType(blocktype string) ast.Blocks {
-	logger := log.With().
-		Str("action", "RawConfig.filterUnmergedBlocksByType()").
-		Logger()
-
-	logger.Trace().Msg("Range over blocks.")
-
-	var filtered ast.Blocks
-	for _, block := range cfg.UnmergedBlocks {
-		if block.Type != blocktype {
-			continue
-		}
-		filtered = append(filtered, block)
-	}
-
-	return filtered
 }
 
 func sameDir(file1, file2 string) bool {
