@@ -17,13 +17,12 @@ package genhcl
 
 import (
 	"fmt"
-	"path/filepath"
 	"sort"
-	"strings"
 
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
@@ -129,7 +128,7 @@ func (h HCL) String() string {
 // generate_hcl blocks.
 //
 // The rootdir MUST be an absolute path.
-func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]HCL, error) {
+func Load(tree *config.Tree, projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]HCL, error) {
 	logger := log.With().
 		Str("action", "genhcl.Load()").
 		Str("path", sm.HostPath()).
@@ -137,7 +136,7 @@ func Load(projmeta project.Metadata, sm stack.Metadata, globals globals.Map) ([]
 
 	logger.Trace().Msg("loading generate_hcl blocks.")
 
-	loadedHCLs, err := loadGenHCLBlocks(projmeta.Rootdir(), sm.HostPath())
+	loadedHCLs, err := loadGenHCLBlocks(tree, sm.Path())
 	if err != nil {
 		return nil, errors.E("loading generate_hcl", err)
 	}
@@ -248,49 +247,44 @@ type dynBlockAttributes struct {
 // The returned map maps the name of the block (its label)
 // to the original block and the path (relative to project root) of the config
 // from where it was parsed.
-func loadGenHCLBlocks(rootdir string, cfgdir string) ([]loadedHCL, error) {
+func loadGenHCLBlocks(tree *config.Tree, cfgdir project.Path) ([]loadedHCL, error) {
 	logger := log.With().
 		Str("action", "genhcl.loadGenHCLBlocks()").
-		Str("root", rootdir).
-		Str("configDir", cfgdir).
+		Str("root", tree.RootDir()).
+		Stringer("configDir", cfgdir).
 		Logger()
 
 	logger.Trace().Msg("Parsing generate_hcl blocks.")
 
-	if !strings.HasPrefix(cfgdir, rootdir) {
-		logger.Trace().Msg("config dir outside root, nothing to do")
-		return nil, nil
-	}
-
-	blocks, err := hcl.ParseGenerateHCLBlocks(rootdir, cfgdir)
-	if err != nil {
-		return nil, errors.E(ErrParsing, err, "cfgdir %q", cfgdir)
-	}
-
-	logger.Trace().Msg("Parsed generate_hcl blocks.")
 	res := []loadedHCL{}
+	cfg, ok := tree.Lookup(cfgdir)
+	if ok && !cfg.IsEmptyConfig() {
+		blocks := cfg.Node.Generate.HCLs
 
-	for _, genhclBlock := range blocks {
-		name := genhclBlock.Label
-		origin := project.PrjAbsPath(rootdir, genhclBlock.Origin)
+		logger.Trace().Msg("Parsed generate_hcl blocks.")
 
-		res = append(res, loadedHCL{
-			name:      name,
-			origin:    origin,
-			lets:      genhclBlock.Lets,
-			block:     genhclBlock.Content,
-			condition: genhclBlock.Condition,
-		})
+		for _, genhclBlock := range blocks {
+			name := genhclBlock.Label
+			origin := project.PrjAbsPath(tree.RootDir(), genhclBlock.Origin)
 
-		logger.Trace().Msg("loaded generate_hcl block.")
+			res = append(res, loadedHCL{
+				name:      name,
+				origin:    origin,
+				lets:      genhclBlock.Lets,
+				block:     genhclBlock.Content,
+				condition: genhclBlock.Condition,
+			})
+
+			logger.Trace().Msg("loaded generate_hcl block.")
+		}
 	}
 
-	parentCfgDir := filepath.Dir(cfgdir)
+	parentCfgDir := cfgdir.Dir()
 	if parentCfgDir == cfgdir {
 		return res, nil
 	}
 
-	parentRes, err := loadGenHCLBlocks(rootdir, parentCfgDir)
+	parentRes, err := loadGenHCLBlocks(tree, parentCfgDir)
 	if err != nil {
 		return nil, err
 	}

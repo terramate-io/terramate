@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -30,7 +31,9 @@ func TestLoadAllFailsIfStacksIDIsNotUnique(t *testing.T) {
 		"s:stacks/stack-1:id=id",
 		"s:stacks/stack-2:id=id",
 	})
-	_, err := stack.LoadAll(s.RootDir())
+	cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+	assert.NoError(t, err)
+	_, err = stack.LoadAll(cfg)
 	assert.IsError(t, err, errors.E(stack.ErrDuplicatedID))
 }
 

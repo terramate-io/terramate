@@ -421,6 +421,16 @@ func IsKind(err error, k Kind) bool {
 	return Is(err, E(k))
 }
 
+// IsAnyKind returns true if err is of any of the provided kinds.
+func IsAnyKind(err error, kinds ...Kind) bool {
+	for _, k := range kinds {
+		if IsKind(err, k) {
+			return true
+		}
+	}
+	return false
+}
+
 // Is is just an alias to Go stdlib errors.Is
 func Is(err, target error) bool {
 	return errors.Is(err, target)

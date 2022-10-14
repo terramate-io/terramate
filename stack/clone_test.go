@@ -98,7 +98,7 @@ func TestStackClone(t *testing.T) {
 
 			srcdir := filepath.Join(s.RootDir(), tc.src)
 			destdir := filepath.Join(s.RootDir(), tc.dest)
-			err := stack.Clone(s.RootDir(), destdir, srcdir)
+			err := stack.Clone(s.Config(), destdir, srcdir)
 			assert.IsError(t, err, tc.wantErr)
 
 			if tc.wantErr != nil {
@@ -114,7 +114,7 @@ func TestStackCloneSrcDirMustBeInsideRootdir(t *testing.T) {
 	s := sandbox.New(t)
 	srcdir := t.TempDir()
 	destdir := filepath.Join(s.RootDir(), "new-stack")
-	err := stack.Clone(s.RootDir(), destdir, srcdir)
+	err := stack.Clone(s.Config(), destdir, srcdir)
 	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
 }
 
@@ -122,7 +122,7 @@ func TestStackCloneTargetDirMustBeInsideRootdir(t *testing.T) {
 	s := sandbox.New(t)
 	srcdir := filepath.Join(s.RootDir(), "src-stack")
 	destdir := t.TempDir()
-	err := stack.Clone(s.RootDir(), destdir, srcdir)
+	err := stack.Clone(s.Config(), destdir, srcdir)
 	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
 }
 
@@ -135,7 +135,7 @@ func TestStackCloneIgnoresDotDirsAndFiles(t *testing.T) {
 	})
 	srcdir := filepath.Join(s.RootDir(), "stack")
 	destdir := filepath.Join(s.RootDir(), "cloned-stack")
-	err := stack.Clone(s.RootDir(), destdir, srcdir)
+	err := stack.Clone(s.Config(), destdir, srcdir)
 	assert.NoError(t, err)
 
 	entries := test.ReadDir(t, destdir)
@@ -192,7 +192,7 @@ generate_hcl "test2.hcl" {
 	srcdir := filepath.Join(s.RootDir(), "stack")
 	destdir := filepath.Join(s.RootDir(), "cloned-stack")
 
-	err := stack.Clone(s.RootDir(), destdir, srcdir)
+	err := stack.Clone(s.Config(), destdir, srcdir)
 	assert.NoError(t, err)
 
 	cfg := test.ParseTerramateConfig(t, destdir)
