@@ -100,7 +100,8 @@ func Do(rootdir string, workingDir string) Report {
 		for _, assert := range asserts {
 			log.Info().
 				Stringer("stack", stack.Path()).
-				Msgf("checking assertion: %s", assert.Message)
+				Str("msg", assert.Message).
+				Msg("checking assertion")
 
 			if !assert.Assertion {
 				assertRange := assert.Range
@@ -192,7 +193,8 @@ func Do(rootdir string, workingDir string) Report {
 			if !ok {
 				log.Info().
 					Stringer("stack", stack.Path()).
-					Msgf("created file: %s", filename)
+					Str("file", filename).
+					Msg("created file")
 
 				report.addCreatedFile(filename)
 			} else {
@@ -200,7 +202,8 @@ func Do(rootdir string, workingDir string) Report {
 				if body != removedFileBody {
 					log.Info().
 						Stringer("stack", stack.Path()).
-						Msgf("changed file: %s", filename)
+						Str("file", filename).
+						Msg("changed file")
 
 					report.addChangedFile(filename)
 				}
@@ -212,7 +215,8 @@ func Do(rootdir string, workingDir string) Report {
 		for filename := range removedFiles {
 			log.Info().
 				Stringer("stack", stack.Path()).
-				Msgf("deleted file: %s", filename)
+				Str("file", filename).
+				Msg("deleted file")
 			report.addDeletedFile(filename)
 		}
 		return report
@@ -986,7 +990,8 @@ func cleanupOrphaned(rootdir string, report Report) Report {
 
 		log.Info().
 			Stringer("dir", dir).
-			Msgf("deleted orphaned file: %s", filename)
+			Str("file", filename).
+			Msg("deleted orphaned file")
 
 		deletedFiles[dir] = append(deletedFiles[dir], filename)
 	}
