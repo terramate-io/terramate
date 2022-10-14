@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/stack"
@@ -219,7 +220,14 @@ func TestStackCreation(t *testing.T) {
 
 			stackPath := tc.create.Dir
 			tc.create.Dir = filepath.Join(s.RootDir(), stackPath)
-			err := stack.Create(s.RootDir(), tc.create)
+			cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+			if errors.IsAnyKind(tc.want.err, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
+				assert.IsError(t, err, tc.want.err)
+				return
+			}
+
+			assert.NoError(t, err)
+			err = stack.Create(cfg, tc.create)
 			assert.IsError(t, err, tc.want.err)
 
 			if tc.want.err != nil {
@@ -260,10 +268,11 @@ func buildImportedFiles(t *testing.T, rootdir string, imports []string) {
 func TestStackCreationFailsOnRelativePath(t *testing.T) {
 	s := sandbox.New(t)
 
-	err := stack.Create(s.RootDir(), stack.CreateCfg{Dir: "./relative"})
+	cfg := s.Config()
+	err := stack.Create(cfg, stack.CreateCfg{Dir: "./relative"})
 	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
 
-	err = stack.Create(s.RootDir(), stack.CreateCfg{Dir: "relative"})
+	err = stack.Create(cfg, stack.CreateCfg{Dir: "relative"})
 	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
 }
 
@@ -271,6 +280,6 @@ func TestStackCreationFailsOnPathOutsideProjectRoot(t *testing.T) {
 	s := sandbox.New(t)
 	someOtherDir := t.TempDir()
 
-	err := stack.Create(s.RootDir(), stack.CreateCfg{Dir: someOtherDir})
+	err := stack.Create(s.Config(), stack.CreateCfg{Dir: someOtherDir})
 	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
 }

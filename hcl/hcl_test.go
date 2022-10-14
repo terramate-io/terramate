@@ -896,8 +896,6 @@ func TestHCLParserTerramateBlocksMerging(t *testing.T) {
 }
 
 func testParser(t *testing.T, tc testcase) {
-	t.Helper()
-
 	t.Run(tc.name, func(t *testing.T) {
 		t.Helper()
 

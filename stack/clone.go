@@ -21,9 +21,11 @@ import (
 	"github.com/google/uuid"
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/fs"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -41,7 +43,9 @@ const (
 // - All files and directories are copied  (except dotfiles/dirs)
 // - If cloned stack has an ID it will be adjusted to a generated UUID.
 // - If cloned stack has no ID the cloned stack also won't have an ID.
-func Clone(rootdir, destdir, srcdir string) error {
+func Clone(cfg *config.Tree, destdir, srcdir string) error {
+	rootdir := cfg.RootDir()
+
 	logger := log.With().
 		Str("action", "stack.Clone()").
 		Str("rootdir", rootdir).
@@ -63,7 +67,7 @@ func Clone(rootdir, destdir, srcdir string) error {
 		return errors.E(ErrCloneDestDirExists, destdir)
 	}
 
-	srcStack, err := Load(rootdir, srcdir)
+	srcStack, err := Load(cfg, srcdir)
 	if err != nil {
 		return errors.E(ErrInvalidStackDir, err, "src dir %q must be a valid stack", srcdir)
 	}
@@ -80,7 +84,12 @@ func Clone(rootdir, destdir, srcdir string) error {
 	}
 
 	logger.Trace().Msg("stack has ID, updating ID of the cloned stack")
-	return updateStackID(destdir)
+	err = updateStackID(destdir)
+	if err != nil {
+		return err
+	}
+
+	return cfg.LoadSubTree(project.PrjAbsPath(rootdir, destdir))
 }
 
 func filterDotFiles(path string, entry os.DirEntry) bool {

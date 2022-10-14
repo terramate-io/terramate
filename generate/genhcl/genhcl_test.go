@@ -26,6 +26,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genhcl"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/stack"
@@ -1123,7 +1124,7 @@ func TestGenerateHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrParsing),
+			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
 			name:  "generate_hcl with non-content block inside fails",
@@ -1139,7 +1140,7 @@ func TestGenerateHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrParsing),
+			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
 			name:  "generate_hcl with other blocks than content fails",
@@ -1158,7 +1159,7 @@ func TestGenerateHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrParsing),
+			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
 			name:  "generate_hcl.content block is required",
@@ -1171,7 +1172,7 @@ func TestGenerateHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrParsing),
+			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
 			name:  "generate_hcl.content block with label fails",
@@ -1187,7 +1188,7 @@ func TestGenerateHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrParsing),
+			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
 			name:  "block with two labels on stack fails",
@@ -1205,7 +1206,7 @@ func TestGenerateHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrParsing),
+			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
 			name:  "block with empty label on stack fails",
@@ -1223,7 +1224,7 @@ func TestGenerateHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrParsing),
+			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
 			name:  "blocks with same label on same config is allowed",
@@ -1434,7 +1435,7 @@ func TestGenerateHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrParsing),
+			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
 			name:  "attributes on generate_hcl block fails",
@@ -1455,7 +1456,7 @@ func TestGenerateHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrParsing),
+			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
 			name:  "generate HCL on stack with lets block",
@@ -1716,8 +1717,16 @@ func (tcase testcase) run(t *testing.T) {
 			test.AppendFile(t, path, filename, cfg.add.String())
 		}
 
-		globals := s.LoadStackGlobals(projmeta, stack)
-		got, err := genhcl.Load(projmeta, stack, globals)
+		cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+		if errors.IsAnyKind(tcase.wantErr, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
+			errtest.Assert(t, err, tcase.wantErr)
+			return
+		}
+
+		assert.NoError(t, err)
+
+		globals := s.LoadStackGlobals(cfg, projmeta, stack)
+		got, err := genhcl.Load(cfg, projmeta, stack, globals)
 		errtest.Assert(t, err, tcase.wantErr)
 
 		if len(got) != len(tcase.want) {
