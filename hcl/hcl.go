@@ -54,7 +54,7 @@ const (
 type Config struct {
 	Terramate *Terramate
 	Stack     *Stack
-	Globals   *ast.MergedBlock
+	Globals   ast.MergedLabelBlocks
 	Vendor    *VendorConfig
 	Asserts   []AssertConfig
 	Generate  struct {
@@ -1609,12 +1609,16 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 		}
 	}
 
-	globalsBlock, ok := rawconfig.MergedBlocks["globals"]
-	if ok {
-		errs.AppendWrap(ErrTerramateSchema, globalsBlock.ValidateSubBlocks())
+	globals := ast.MergedLabelBlocks{}
+	for labelType, mergedBlock := range rawconfig.MergedLabelBlocks {
+		if labelType.Type == "globals" {
+			globals[labelType] = mergedBlock
 
-		config.Globals = globalsBlock
+			errs.AppendWrap(ErrTerramateSchema, mergedBlock.ValidateSubBlocks())
+		}
 	}
+
+	config.Globals = globals
 
 	if foundstack {
 		logger.Debug().Msg("Parsing stack cfg.")

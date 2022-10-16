@@ -15,10 +15,14 @@
 package globals
 
 import (
+	"sort"
+	"strings"
+
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
@@ -53,114 +57,115 @@ type (
 
 	// Map is an evaluated globals map.
 	Map map[string]Value
-)
 
-// Load loads all the globals from the cfgdir.
-func Load(tree *config.Tree, cfgdir project.Path, ctx *eval.Context) EvalReport {
-	logger := log.With().
-		Str("action", "globals.Load()").
-		Str("root", tree.RootDir()).
-		Stringer("cfgdir", cfgdir).
-		Logger()
-
-	logger.Trace().Msg("loading expressions")
-
-	exprs, err := LoadExprs(tree, cfgdir)
-	if err != nil {
-		report := NewEvalReport()
-		report.BootstrapErr = err
-		return report
+	loader struct {
+		ctx           *eval.Context
+		tree          *config.Tree
+		dir           project.Path
+		loaded        Map
+		pendingBlocks []*ast.MergedBlock
+		pendingAttrs  []pendingAttr
+		globalsTree   *objtree
 	}
 
-	return exprs.Eval(ctx)
+	pendingAttr struct {
+		path string
+		attr ast.Attribute
+	}
+)
+
+func newLoader(ctx *eval.Context, tree *config.Tree, cfgdir project.Path) *loader {
+	_, ok := ctx.GetNamespace("globals")
+	if !ok {
+		ctx.SetNamespace("global", map[string]cty.Value{})
+	}
+	globalsTree := newobjtree()
+	globalVals, _ := ctx.Globals()
+	globalsTree.set(globalVals.AsValueMap())
+	return &loader{
+		ctx:         ctx,
+		tree:        tree,
+		dir:         cfgdir,
+		globalsTree: globalsTree,
+	}
 }
 
-// LoadExprs loads from the file system all globals expressions defined for
-// the given directory. It will navigate the file system from dir until it
+// Load loads and evaluates all globals expressions defined for
+// the given directory path. It will navigate the config tree from dir until it
 // reaches rootdir, loading globals expressions and merging them appropriately.
 // More specific globals (closer or at the dir) have precedence over less
 // specific globals (closer or at the root dir).
-func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
-	logger := log.With().
-		Str("action", "globals.LoadExprs()").
-		Str("root", tree.RootDir()).
-		Stringer("cfgdir", cfgdir).
-		Logger()
-
-	exprs := make(Exprs)
-
-	cfg, ok := tree.Lookup(cfgdir)
-	if !ok {
-		return exprs, nil
-	}
-
-	globalsBlock := cfg.Node.Globals
-	if globalsBlock != nil {
-		logger.Trace().Msg("Range over attributes.")
-
-		for _, attr := range globalsBlock.Attributes {
-			logger.Trace().Msg("Add attribute to globals.")
-
-			exprs[attr.Name] = Expr{
-				Origin:     project.PrjAbsPath(tree.RootDir(), attr.Origin),
-				Expression: attr.Expr,
-			}
-		}
-	}
-
-	importedGlobals, ok := cfg.Node.Imported.MergedBlocks["globals"]
-	if ok {
-		logger.Trace().Msg("Range over imported globals")
-
-		importedExprs := make(Exprs)
-		for _, attr := range importedGlobals.Attributes {
-			logger.Trace().Msg("Add imported attribute to globals.")
-
-			importedExprs[attr.Name] = Expr{
-				Origin:     project.PrjAbsPath(tree.RootDir(), attr.Origin),
-				Expression: attr.Expr,
-			}
-		}
-
-		exprs.merge(importedExprs)
-	}
-
-	parentcfg, ok := parentDir(cfgdir)
-	if !ok {
-		return exprs, nil
-	}
-
-	logger.Trace().Msg("Loading stack globals from parent dir.")
-
-	parentGlobals, err := LoadExprs(tree, parentcfg)
+func Load(tree *config.Tree, cfgdir project.Path, ctx *eval.Context) (EvalReport, error) {
+	loader := newLoader(ctx, tree, cfgdir)
+	err := loader.loadall()
 	if err != nil {
-		return nil, err
+		return EvalReport{}, err
 	}
 
-	logger.Trace().Msg("Merging globals with parent.")
-
-	exprs.merge(parentGlobals)
-	return exprs, nil
+	// todo
+	return NewEvalReport(), nil
 }
 
-// Eval evaluates all global expressions and returns an EvalReport..
-func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
-	logger := log.With().
-		Str("action", "Exprs.Eval()").
-		Logger()
+func (loader *loader) loadall() error {
+	tree := loader.tree
+	cfgdir := loader.dir
 
-	logger.Trace().Msg("Create new evaluation context.")
+	for {
+		logger := log.With().
+			Str("action", "loader.load()").
+			Stringer("cfgdir", cfgdir).
+			Logger()
 
-	report := NewEvalReport()
-	globals := report.Globals
-	pendingExprsErrs := map[string]*errors.List{}
-	pendingExprs := make(Exprs)
+		logger.Trace().Msg("lookup config")
 
-	copyexprs(pendingExprs, globalExprs)
-	removeUnset(pendingExprs)
+		var ok bool
+		cfg, ok := tree.Lookup(cfgdir)
+		if !ok {
+			return errors.E("configuration path %s not found", cfgdir.String())
+		}
 
-	if !ctx.HasNamespace("global") {
-		ctx.SetNamespace("global", map[string]cty.Value{})
+		err := loader.load(cfg)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (loader *loader) load(cfg *config.Tree) error {
+	globalsLabelledBlocks := cfg.Node.Globals
+	var globalsBlocks []*ast.MergedBlock
+	for _, globalBlock := range globalsLabelledBlocks {
+		globalsBlocks = append(globalsBlocks, globalBlock)
+	}
+
+	sort.Slice(globalsBlocks, func(i, j int) bool {
+		return globalsBlocks[i].Labels < globalsBlocks[j].Labels
+	})
+
+	ctx := loader.ctx
+	errs := errors.L()
+	globals := loader.globalsTree
+	for _, globalBlock := range globalsBlocks {
+		for _, attr := range globalBlock.Attributes.SortedList() {
+			if _, ok := globals.has(globalBlock.Labels + "." + attr.Name); ok {
+				// attr already set by higher scope
+				continue
+			}
+			if eval.DependsOnUnknowns(attr.Expr, ctx.Raw()) {
+				loader.pendingAttrs = append(loader.pendingAttrs, pendingAttr{
+					path: globalBlock.Labels,
+					attr: attr,
+				})
+				continue
+			}
+			val, err := ctx.Eval(attr.Expr)
+			if err != nil {
+				return errors.E(attr.Range, err)
+			}
+			loader.setGlobal(globalBlock.Labels+"."+attr.Name, val)
+		}
 	}
 
 	for len(pendingExprs) > 0 {
@@ -250,6 +255,113 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 	}
 
 	return report
+
+	logger.Trace().Msg("loading expressions")
+
+	exprs := make(Exprs)
+
+	cfg, ok := tree.Lookup(cfgdir)
+	if !ok {
+		return exprs, nil
+	}
+
+	globalsBlock := cfg.Node.Globals
+	if len(globalsBlock) > 0 {
+		logger.Trace().Msg("Range over attributes.")
+
+		for _, attr := range globalsBlock.Attributes {
+			logger.Trace().Msg("Add attribute to globals.")
+
+			exprs[attr.Name] = Expr{
+				Origin:     project.PrjAbsPath(tree.RootDir(), attr.Origin),
+				Expression: attr.Expr,
+			}
+		}
+	}
+
+	importedGlobals, ok := cfg.Node.Imported.MergedBlocks["globals"]
+	if ok {
+		logger.Trace().Msg("Range over imported globals")
+
+		importedExprs := make(Exprs)
+		for _, attr := range importedGlobals.Attributes {
+			logger.Trace().Msg("Add imported attribute to globals.")
+
+			importedExprs[attr.Name] = Expr{
+				Origin:     project.PrjAbsPath(tree.RootDir(), attr.Origin),
+				Expression: attr.Expr,
+			}
+		}
+
+		exprs.merge(importedExprs)
+	}
+
+	parentcfg, ok := parentDir(cfgdir)
+	if !ok {
+		return exprs, nil
+	}
+
+	logger.Trace().Msg("Loading stack globals from parent dir.")
+
+	parentGlobals, err := LoadExprs(tree, parentcfg)
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Trace().Msg("Merging globals with parent.")
+
+	exprs.merge(parentGlobals)
+	return exprs, nil
+}
+
+func (loader *loader) setGlobal(path string, val cty.Value) error {
+	return loader.globalsTree.setAt(path, val)
+}
+
+type objtree struct {
+	value    cty.Value // not object values
+	children map[string]*objtree
+}
+
+func newobjtree() *objtree {
+	return &objtree{
+		children: make(map[string]*objtree),
+	}
+}
+
+func (obj *objtree) set(m map[string]cty.Value) {
+	for k, v := range m {
+		subobj := newobjtree()
+		if v.Type().IsObjectType() {
+			subobj.set(v.AsValueMap())
+		} else {
+			subobj.value = v
+		}
+		obj.children[k] = subobj
+	}
+}
+
+func (obj *objtree) setAt(path string, val cty.Value) error {
+	pathParts := strings.Split(path, ".")
+	for len(pathParts) > 1 {
+		subtree, ok := obj.children[pathParts[0]]
+		if !ok {
+			subtree = newobjtree()
+			obj.children[pathParts[0]] = subtree
+		}
+		if !subtree.value.IsNull() && !subtree.value.Type().IsObjectType() {
+			return errors.E("cannot extend value of type %s", subtree.value.Type().FriendlyName())
+		}
+		obj = subtree
+		pathParts = pathParts[1:]
+	}
+
+	obj.children[pathParts[0]]
+	return nil
+}
+
+func (obj *object) Set(path string, value cty.Value) {
+
 }
 
 func (globalExprs Exprs) merge(other Exprs) {

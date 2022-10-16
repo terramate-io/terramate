@@ -17,6 +17,7 @@ package ast
 import (
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
 )
@@ -24,7 +25,10 @@ import (
 // MergedBlock represents a block that spans multiple files.
 type MergedBlock struct {
 	// Type is the block type (or name).
-	Type string
+	Type BlockType
+
+	// Labels is the comma-separated list of labels
+	Labels string
 
 	// Attributes are the block's attributes.
 	Attributes Attributes
@@ -39,29 +43,51 @@ type MergedBlock struct {
 	RawBlocks map[string]Blocks
 }
 
+// BlockType represents a block type.
+type BlockType string
+
+// LabelBlockType represents a labelled block type.
+type LabelBlockType struct {
+	Type   BlockType // Type of the block
+	Labels string    // Labels are comma separated.
+}
+
 // MergedBlocks maps the block name to the MergedBlock.
 type MergedBlocks map[string]*MergedBlock
 
+// MergedLabelBlocks maps the block labels/types to the MergedBlock.
+type MergedLabelBlocks map[LabelBlockType]*MergedBlock
+
 // NewMergedBlock creates a new MergedBlock of type typ.
-func NewMergedBlock(typ string) *MergedBlock {
+func NewMergedBlock(typ string, labels []string) *MergedBlock {
 	return &MergedBlock{
-		Type:       typ,
+		Type:       BlockType(typ),
+		Labels:     strings.Join(labels, "."),
 		Attributes: make(Attributes),
 		Blocks:     make(map[string]*MergedBlock),
 		RawBlocks:  make(map[string]Blocks),
 	}
 }
 
+// NewLabelBlockType returns a new LabelBlockType.
+func NewLabelBlockType(typ string, labels []string) LabelBlockType {
+	return LabelBlockType{
+		Type:   BlockType(typ),
+		Labels: strings.Join(labels, "."),
+	}
+}
+
 // MergeBlock recursively merges the other block into this one.
 func (mb *MergedBlock) MergeBlock(other *Block) error {
-	errs := errors.L()
-
-	// Currently all merged blocks do not support labels.
-	// This should not be handled here if changed in the future.
-	if len(other.Labels) > 0 {
-		errs.Append(errors.E(other.LabelRanges, "block type %q does not support labels"))
+	otherLabels := strings.Join(other.Labels, ".")
+	if mb.Labels != otherLabels {
+		return errors.E(other.LabelRanges,
+			"cannot merge blocks of type %q with different set of labels (%s != %s)",
+			mb.Labels, otherLabels,
+		)
 	}
 
+	errs := errors.L()
 	errs.Append(mb.mergeAttrs(other.Attributes))
 	errs.Append(mb.mergeBlocks(other.Blocks))
 	err := errs.AsError()
@@ -95,7 +121,7 @@ func (mb *MergedBlock) mergeBlocks(other Blocks) error {
 		if old, ok := mb.Blocks[newblock.Type]; ok {
 			err = old.MergeBlock(newblock)
 		} else {
-			b := NewMergedBlock(newblock.Type)
+			b := NewMergedBlock(newblock.Type, newblock.Labels)
 			err = b.MergeBlock(newblock)
 			if err == nil {
 				mb.Blocks[newblock.Type] = b

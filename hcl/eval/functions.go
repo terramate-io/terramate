@@ -134,7 +134,7 @@ func evalTernaryBranch(arg cty.Value) (cty.Value, error) {
 		return cty.NilVal, errors.E(err, "parsing partial evaluated bytes")
 	}
 
-	if dependsOnUnknowns(exprParsed, closure.EvalContext) {
+	if DependsOnUnknowns(exprParsed, closure.EvalContext) {
 		return customdecode.ExpressionVal(exprParsed), nil
 	}
 
@@ -154,9 +154,9 @@ func hclExpr(arg cty.Value) (cty.Value, error) {
 	return customdecode.ExpressionVal(exprParsed), nil
 }
 
-// dependsOnUnknowns returns true if any of the variables that the given
+// DependsOnUnknowns returns true if any of the variables that the given
 // expression might access are unknown values or contain unknown values.
-func dependsOnUnknowns(expr hcl.Expression, ctx *hcl.EvalContext) bool {
+func DependsOnUnknowns(expr hcl.Expression, ctx *hcl.EvalContext) bool {
 	for _, traversal := range expr.Variables() {
 		val, diags := traversal.TraverseAbs(ctx)
 		if diags.HasErrors() {
