@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -107,6 +108,32 @@ func TestGeneratedFilesListing(t *testing.T) {
 				"f:manual2.tf:data",
 			},
 			want: []string{"gen.tf", "gen2.tf"},
+		},
+		{
+			name: "on root ignores generated files inside dir with .tmskip",
+			layout: []string{
+				genfile("genfiles/1.tf"),
+				genfile("genfiles/2.tf"),
+				genfile("genfiles/" + config.SkipFilename),
+				genfile("genfiles/subdir/1.tf"),
+				genfile("genfiles2/1.tf"),
+			},
+			want: []string{
+				"genfiles2/1.tf",
+			},
+		},
+		{
+			name: "on stack ignores generated files inside dir with .tmskip",
+			dir:  "stack",
+			layout: []string{
+				"s:stack",
+				genfile("stack/1.tf"),
+				genfile("stack/dir/" + config.SkipFilename),
+				genfile("stack/dir/1.tf"),
+			},
+			want: []string{
+				"1.tf",
+			},
 		},
 		{
 			name: "on root lists all generated files except inside stacks",
