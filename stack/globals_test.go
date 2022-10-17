@@ -1049,6 +1049,34 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "extending global reference with successful tm_try on stack",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Expr("team", `tm_try({ members = ["aaa"] }, {})`),
+						),
+						Globals(
+							Labels("team"),
+							Expr("members_ref", "global.team.members"),
+							Expr("members_try", `tm_try(global.team.members, [])`),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "team", `{
+						members = ["aaa"]
+						members_ref = ["aaa"]
+						members_try = ["aaa"]
+					}`),
+				),
+			},
+		},
+		{
 			name:   "undefined references to globals on tm_try",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{

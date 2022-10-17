@@ -189,7 +189,6 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 				switch attr := namespace[1].(type) {
 				case hhcl.TraverseAttr:
-					// TODO(i4k): review this
 					if _, isPending := pendingExprs[mcty.DotPath(attr.Name)]; isPending {
 						continue pendingExpression
 					}
