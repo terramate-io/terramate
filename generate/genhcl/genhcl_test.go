@@ -38,6 +38,8 @@ import (
 )
 
 func TestGenerateHCL(t *testing.T) {
+	t.Parallel()
+
 	tcases := []testcase{
 		{
 			name:  "no generation",
@@ -1702,6 +1704,8 @@ type (
 
 func (tcase testcase) run(t *testing.T) {
 	t.Run(tcase.name, func(t *testing.T) {
+		t.Parallel()
+
 		s := sandbox.New(t)
 		s.BuildTree([]string{"s:" + tcase.stack})
 		stacks := s.LoadStacks()

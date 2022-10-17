@@ -24,6 +24,8 @@ import (
 )
 
 func TestGenerateHCLDynamic(t *testing.T) {
+	t.Parallel()
+
 	tcases := []testcase{
 		{
 			name:  "tm_dynamic with empty content block",
