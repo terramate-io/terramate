@@ -252,6 +252,7 @@ func ListGenFiles(cfg *config.Tree, dir string) ([]string, error) {
 	pendingSubDirs := []string{""}
 	genfiles := []string{}
 
+processSubdirs:
 	for len(pendingSubDirs) > 0 {
 		relSubdir := pendingSubDirs[0]
 		pendingSubDirs = pendingSubDirs[1:]
@@ -261,14 +262,26 @@ func ListGenFiles(cfg *config.Tree, dir string) ([]string, error) {
 			return nil, errors.E(err)
 		}
 
+		logger = logger.With().
+			Str("dir", relSubdir).
+			Logger()
+
+		// We need to skip all other files/dirs if we find a config.SkipFilename
+		for _, entry := range entries {
+			if entry.Name() == config.SkipFilename {
+				logger.Trace().Msg("found skip file: ignoring dir and all its contents")
+				continue processSubdirs
+			}
+		}
+
 		for _, entry := range entries {
 			logger := logger.With().
 				Str("entry", entry.Name()).
 				Str("dir", absSubdir).
 				Logger()
 
-			if strings.HasPrefix(entry.Name(), ".") {
-				logger.Trace().Msg("ignoring dot file/dir")
+			if config.Skip(entry.Name()) {
+				logger.Trace().Msg("ignoring file/dir")
 				continue
 			}
 

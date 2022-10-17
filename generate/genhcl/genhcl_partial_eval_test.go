@@ -34,6 +34,7 @@ import (
 )
 
 func TestPartialEval(t *testing.T) {
+	t.Parallel()
 	// These tests simplify the overall setup/description and focus only
 	// on how code will be partially evaluated.
 	// No support for multiple config files or generating multiple
@@ -1526,8 +1527,12 @@ func TestPartialEval(t *testing.T) {
 		},
 	}
 
-	for _, tcase := range tcases {
+	for _, tc := range tcases {
+		tcase := tc
+
 		t.Run(tcase.name, func(t *testing.T) {
+			t.Parallel()
+
 			const genname = "test"
 			const stackname = "stack"
 

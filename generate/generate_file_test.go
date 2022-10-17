@@ -28,6 +28,8 @@ import (
 )
 
 func TestGenerateFile(t *testing.T) {
+	t.Parallel()
+
 	testCodeGeneration(t, []testcase{
 		{
 			name: "empty generate_file content generates empty file",
@@ -260,6 +262,8 @@ func TestGenerateFile(t *testing.T) {
 }
 
 func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
+	t.Parallel()
+
 	const filename = "file.txt"
 
 	s := sandbox.New(t)
@@ -327,6 +331,8 @@ func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
 }
 
 func TestGenerateFileTerramateRootMetadata(t *testing.T) {
+	t.Parallel()
+
 	// We need to know the sandbox abspath to test terramate.root properly
 	const generatedFile = "file.hcl"
 
