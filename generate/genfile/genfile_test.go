@@ -33,6 +33,8 @@ import (
 )
 
 func TestLoadGenerateFiles(t *testing.T) {
+	t.Parallel()
+
 	type (
 		hclconfig struct {
 			path string
@@ -988,6 +990,8 @@ stack_id=stack-id
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
+			t.Parallel()
+
 			s := sandbox.New(t)
 			s.BuildTree([]string{"s:" + tcase.stack})
 			stacks := s.LoadStacks()

@@ -35,6 +35,8 @@ import (
 )
 
 func TestGenerateHCL(t *testing.T) {
+	t.Parallel()
+
 	provider := func(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 		return hclwrite.BuildBlock("provider", builders...)
 	}
@@ -834,6 +836,8 @@ func TestGenerateHCL(t *testing.T) {
 }
 
 func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
+	t.Parallel()
+
 	const (
 		genFilename  = "test.tf"
 		manualTfCode = "some manual stuff, doesn't matter"
@@ -866,6 +870,8 @@ func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
 }
 
 func TestGenerateHCLOverwriting(t *testing.T) {
+	t.Parallel()
+
 	const genFilename = "test.tf"
 
 	firstConfig := GenerateHCL(
@@ -928,6 +934,8 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 }
 
 func TestGeneratedHCLHeaders(t *testing.T) {
+	t.Parallel()
+
 	const (
 		rootFilename        = "root.tf"
 		stackFilename       = "stack.tf"
@@ -976,6 +984,8 @@ func TestGeneratedHCLHeaders(t *testing.T) {
 }
 
 func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 	stackEntry := s.CreateStack("stack")
 	childStack := s.CreateStack("stack/child")
@@ -1054,6 +1064,8 @@ func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
 }
 
 func TestGenerateHCLCleanupOldFiles(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 	stackEntry := s.CreateStack("stack")
 	rootEntry := s.DirEntry(".")
@@ -1211,6 +1223,7 @@ func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("skipped on windows because it requires privileges")
 	}
+	t.Parallel()
 
 	s := sandbox.NoGit(t)
 	rootEntry := s.RootEntry().CreateDir("root")
@@ -1262,6 +1275,8 @@ func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
 }
 
 func TestGenerateHCLCleanupOldFilesIgnoreDotDirs(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.NoGit(t)
 
 	// Creates a file with a generated header inside dot dirs.
@@ -1272,6 +1287,8 @@ func TestGenerateHCLCleanupOldFilesIgnoreDotDirs(t *testing.T) {
 }
 
 func TestGenerateHCLTerramateRootMetadata(t *testing.T) {
+	t.Parallel()
+
 	// We need to know the sandbox abspath to test terramate.root properly
 	const generatedFile = "file.hcl"
 
