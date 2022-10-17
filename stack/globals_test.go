@@ -652,7 +652,7 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
-			name: "extending non-existant objects",
+			name: "extending non-existent objects",
 			layout: []string{
 				"s:stack",
 			},

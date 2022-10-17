@@ -28,19 +28,34 @@ import (
 const ErrCannotExtendObject errors.Kind = "cannot extend object"
 
 type (
-	// Object is a object value supporting set at arbitrary paths.
+	// Object is a object value supporting set at arbitrary paths using a
+	// dot notation.
+	//
+	// Eg.:
+	//   obj := cty.NewObject()
+	//   obj.Set("val", cty.NewObject())
+	//
+	// The snippet above creates the object below:
+	//   {
+	//       val = {}
+	//   }
+	//
+	// Then values can be set inside obj.val by doing:
+	//
+	//   obj.SetAt("val.test", 1)
 	Object struct {
 		// Keys is a map of key names to values.
 		Keys map[string]interface{}
 	}
 
-	// Value is an evaluated global.
+	// Value is a Hashicorp cty.Value wrapper.
 	Value struct {
 		Origin project.Path
 
 		val cty.Value
 	}
 
+	// DotPath represents a path inside the object using a dot-notation.
 	DotPath string
 )
 
@@ -51,7 +66,7 @@ func NewObject() *Object {
 	}
 }
 
-// Set a key value.
+// Set a key value into object.
 func (obj *Object) Set(key string, value interface{}) {
 	if vvalue, ok := value.(Value); ok {
 		if vvalue.Raw().Type().IsObjectType() {
@@ -63,6 +78,7 @@ func (obj *Object) Set(key string, value interface{}) {
 	obj.Keys[key] = value
 }
 
+// GetKeyPath retrieves the value at path.
 func (obj *Object) GetKeyPath(path DotPath) (interface{}, bool) {
 	parts := strings.Split(string(path), ".")
 	key := parts[0]
@@ -83,6 +99,7 @@ func (obj *Object) GetKeyPath(path DotPath) (interface{}, bool) {
 	return subobj.GetKeyPath(next)
 }
 
+// SetFrom sets the object from the values map.
 func (obj *Object) SetFrom(values map[string]cty.Value) {
 	for k, v := range values {
 		if v.Type().IsObjectType() {
@@ -119,6 +136,7 @@ func (obj *Object) SetAt(path DotPath, value interface{}) error {
 	return nil
 }
 
+// AsValueMap returns a map of string to Hashicorp cty.Value.
 func (obj *Object) AsValueMap() map[string]cty.Value {
 	vmap := map[string]cty.Value{}
 	for k, v := range obj.Keys {
@@ -137,10 +155,12 @@ func (obj *Object) AsValueMap() map[string]cty.Value {
 	return vmap
 }
 
+// String representation of the object.
 func (obj *Object) String() string {
 	return hcl.FormatAttributes(obj.AsValueMap())
 }
 
+// NewValue creates a new cty.Value wrapper.
 func NewValue(val cty.Value, origin project.Path) Value {
 	return Value{
 		val:    val,
@@ -148,6 +168,7 @@ func NewValue(val cty.Value, origin project.Path) Value {
 	}
 }
 
+// Raw returns the original cty.Value value.
 func (v Value) Raw() cty.Value {
 	return v.val
 }

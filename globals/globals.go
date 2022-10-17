@@ -89,7 +89,7 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
 		return exprs, nil
 	}
 
-	globalsBlocks := cfg.Node.Globals.SortedList()
+	globalsBlocks := cfg.Node.Globals.AsList()
 	for _, block := range globalsBlocks {
 		logger.Trace().Msg("Range over attributes.")
 

@@ -68,13 +68,6 @@ func NewContextFrom(ctx *hhcl.EvalContext) *Context {
 	}
 }
 
-func (c *Context) Raw() *hhcl.EvalContext { return c.hclctx }
-
-func (c *Context) Globals() (cty.Value, bool) {
-	val, ok := c.hclctx.Variables["global"]
-	return val, ok
-}
-
 // SetNamespace will set the given values inside the given namespace on the
 // evaluation context.
 func (c *Context) SetNamespace(name string, vals map[string]cty.Value) {

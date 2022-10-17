@@ -193,15 +193,12 @@ func (mergedBlocks MergedLabelBlocks) AsBlocks() Blocks {
 	return all
 }
 
-// All returns a list of merged blocks sorted by its label strings.
-func (lb MergedLabelBlocks) SortedList() []*MergedBlock {
+// AsList returns a list of merged blocks sorted by its label strings.
+func (mergedBlocks MergedLabelBlocks) AsList() []*MergedBlock {
 	allblocks := []*MergedBlock{}
-	for _, mb := range lb {
+	for _, mb := range mergedBlocks {
 		allblocks = append(allblocks, mb)
 	}
-	sort.Slice(allblocks, func(i, j int) bool {
-		return allblocks[i].Labels < allblocks[j].Labels
-	})
 	return allblocks
 }
 

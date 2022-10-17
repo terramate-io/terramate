@@ -115,7 +115,7 @@ func TestCtyObjectSetAt(t *testing.T) {
 			},
 		},
 		{
-			name: "set at a non-existant child object",
+			name: "set at a non-existent child object",
 			obj:  cty.NewObject(),
 			path: "key.test",
 			val:  "child value",
@@ -130,7 +130,7 @@ func TestCtyObjectSetAt(t *testing.T) {
 			},
 		},
 		{
-			name: "set at a non-existant deep child object",
+			name: "set at a non-existent deep child object",
 			obj:  cty.NewObject(),
 			path: "a.b.c.d.test",
 			val:  "value",
