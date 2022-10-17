@@ -36,8 +36,8 @@ import (
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate"
-	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
+	mcty "github.com/mineiros-io/terramate/hcl/cty"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
@@ -259,7 +259,7 @@ func (s S) LoadStackGlobals(
 	cfg *config.Tree,
 	projmeta project.Metadata,
 	sm stack.Metadata,
-) globals.Map {
+) *mcty.Object {
 	s.t.Helper()
 
 	report := stack.LoadStackGlobals(cfg, projmeta, sm)

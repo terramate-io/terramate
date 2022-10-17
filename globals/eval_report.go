@@ -16,28 +16,20 @@ package globals
 
 import (
 	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl/ast"
-	"github.com/mineiros-io/terramate/project"
+	mcty "github.com/mineiros-io/terramate/hcl/cty"
 )
 
 type (
 	// EvalReport is the report for the evaluation globals.
 	EvalReport struct {
 		// Globals are the evaluated globals.
-		Globals Map
+		Globals *mcty.Object
 
 		// BootstrapErr is for the case of errors happening before the evaluation.
 		BootstrapErr error
 
 		// Errors is a map of errors for each global.
-		Errors map[string]EvalError // map of global name to its EvalError.
-
-		Pending map[string]PendingEval
-	}
-
-	PendingEval struct {
-		Origin project.Path
-		Attr   ast.Attribute
+		Errors map[DotPath]EvalError // map of global dotpath to its EvalError.
 	}
 
 	// EvalError carries the error and the expression which resulted in it.
@@ -50,9 +42,8 @@ type (
 // NewEvalReport creates a new globals evaluation report.
 func NewEvalReport() EvalReport {
 	return EvalReport{
-		Globals: make(Map),
-		Pending: make(map[string]PendingEval),
-		Errors:  make(map[string]EvalError),
+		Globals: mcty.NewObject(),
+		Errors:  make(map[DotPath]EvalError),
 	}
 }
 

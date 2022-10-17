@@ -170,7 +170,7 @@ func (tree *Tree) Lookup(abspath project.Path) (*Tree, bool) {
 func (tree *Tree) StacksByPaths(base project.Path, relpaths ...string) List {
 	logger := log.With().
 		Str("action", "tree.StacksByPath").
-		Str("basedir", base.String()).
+		Stringer("basedir", base).
 		Strs("paths", relpaths).
 		Logger()
 
@@ -275,7 +275,7 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error)
 	return tree, nil
 }
 
-// LoadSubTree loads a subtree into the current tree. The destdir
+// LoadSubTree loads a subtree located at cfgdir into the current tree.
 func (tree *Tree) LoadSubTree(cfgdir project.Path) error {
 	var parent project.Path
 

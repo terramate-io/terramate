@@ -24,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/cty"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
@@ -533,6 +534,408 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name: "single stack extending local globals",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							EvalExpr(t, "obj", `{}`),
+						),
+						Globals(
+							Labels("obj"),
+							Number("number", 1),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "obj", `{ number = 1 }`),
+				),
+			},
+		},
+		{
+			name: "stack extending local globals - order does not matter",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Labels("obj"),
+							Number("number", 1),
+						),
+						Globals(
+							EvalExpr(t, "obj", `{}`),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "obj", `{ number = 1 }`),
+				),
+			},
+		},
+		{
+			name: "single stack extending nested local global",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							EvalExpr(t, "a", `{test = 1}`),
+						),
+						Globals(
+							Labels("a"),
+							EvalExpr(t, "b", `{test = 1}`),
+						),
+						Globals(
+							Labels("a", "b"),
+							EvalExpr(t, "c", `{test = 1}`),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "a", `{
+						test = 1
+						b = {
+							test = 1
+							c = {
+								test = 1
+							}
+						}
+					}`),
+				),
+			},
+		},
+		{
+			name: "extending funcall resulted object",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Expr("a", `tm_merge({test1 = 1}, {test2 = 1})`),
+						),
+						Globals(
+							Labels("a"),
+							EvalExpr(t, "b", `{test = 1}`),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "a", `{
+						test1 = 1
+						test2 = 1
+						b = {
+							test = 1
+						}
+					}`),
+				),
+			},
+		},
+		{
+			name: "extending non-existant objects",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Labels("a", "b", "c", "d"),
+							Number("number", 1),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "a", `{
+						b = {
+							c = {
+								d = {
+									number = 1
+								}
+							}
+						}
+					}`),
+				),
+			},
+		},
+		{
+			name: "extending globals from parent scope",
+			layout: []string{
+				"s:stacks/stack-a",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: Doc(
+						Globals(
+							EvalExpr(t, "obj", `{}`),
+						),
+						Globals(
+							Labels("obj"),
+							Number("number", 1),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack-a",
+					add: Doc(
+						Globals(
+							Labels("obj"),
+							Number("another_number", 2),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-a": Globals(
+					EvalExpr(t, "obj", `{
+						number = 1
+						another_number = 2
+					}`),
+				),
+			},
+		},
+		{
+			name: "parent scope extending globals from stacks - lazy extend",
+			layout: []string{
+				"s:stacks/stack-a",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: Doc(
+						Globals(
+							Labels("obj"),
+							Number("number", 1),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack-a",
+					add: Doc(
+						Globals(
+							EvalExpr(t, "obj", `{
+								name = "stack"
+							}`),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-a": Globals(
+					EvalExpr(t, "obj", `{
+						number = 1
+						name = "stack"
+					}`),
+				),
+			},
+		},
+		{
+			name: "extending with a conflict - fails",
+			layout: []string{
+				"s:stacks/stack-a",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack-a",
+					add: Doc(
+						Globals(
+							Labels("obj"),
+							Number("number", 1),
+						),
+						Globals(
+							Labels("obj"),
+							Number("number", 10),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name: "child scope can redefine same key paths",
+			layout: []string{
+				"s:stacks/stack-a",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: Doc(
+						Globals(
+							Labels("obj"),
+							Number("number", 1),
+							Str("string", "test"),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack-a",
+					add: Doc(
+						Globals(
+							Labels("obj"),
+							Number("number", 100),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-a": Globals(
+					EvalExpr(t, "obj", `{
+						number = 100
+						string = "test"
+					}`),
+				),
+			},
+		},
+		{
+			name: "extending list fails",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							EvalExpr(t, "lst", `[]`),
+						),
+						Globals(
+							Labels("lst"),
+							EvalExpr(t, "values", `[1, 2]`),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(cty.ErrCannotExtendObject),
+		},
+		{
+			name: "extending non-objects fails",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Number("number", 1),
+						),
+						Globals(
+							Labels("number"),
+							Str("string", "value"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(cty.ErrCannotExtendObject),
+		},
+		{
+			name: "extending nested literal object",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							EvalExpr(t, "a", `{
+								b = {
+
+								}
+							}`),
+						),
+						Globals(
+							Labels("a", "b"),
+							Number("number", 1),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "a", `{
+						b = {
+							number = 1
+						}
+					}`),
+				),
+			},
+		},
+		{
+			name: "nested literal object with a conflict",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							EvalExpr(t, "a", `{
+								b = {
+									number = 1
+								}
+							}`),
+						),
+						Globals(
+							Labels("a", "b"),
+							Number("number", 100),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name: "funcall object with a conflict",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Expr("a", `tm_merge({
+								b = {
+									number = 1
+								}
+							}, {a = 1})`),
+						),
+						Globals(
+							Labels("a", "b"),
+							Number("number", 100),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
 			name: "globals hierarchically defined with different filenames",
 			layout: []string{
 				"s:stacks/stack-1",
@@ -980,20 +1383,6 @@ func TestLoadGlobals(t *testing.T) {
 					add: Globals(
 						Str("test", "hallo"),
 						Block("notallowed"),
-					),
-				},
-			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
-		},
-		{
-			name:   "globals cant have labels",
-			layout: []string{"s:stack"},
-			configs: []hclconfig{
-				{
-					path: "/",
-					add: Globals(
-						Labels("no"),
-						Str("test", "hallo"),
 					),
 				},
 			},
@@ -1576,7 +1965,7 @@ func TestLoadGlobals(t *testing.T) {
 				}
 
 				got := gotReport.Globals
-				gotAttrs := got.Attributes()
+				gotAttrs := got.AsValueMap()
 				wantAttrs := want.AttributesValues()
 
 				if len(gotAttrs) != len(wantAttrs) {

@@ -44,8 +44,9 @@ type RawConfig struct {
 // NewRawConfig returns a new RawConfig object.
 func NewRawConfig() RawConfig {
 	return RawConfig{
-		MergedAttributes: make(ast.Attributes),
-		MergedBlocks:     make(ast.MergedBlocks),
+		MergedAttributes:  make(ast.Attributes),
+		MergedBlocks:      make(ast.MergedBlocks),
+		MergedLabelBlocks: make(ast.MergedLabelBlocks),
 	}
 }
 
@@ -74,6 +75,7 @@ func (cfg *RawConfig) Merge(other RawConfig) error {
 	errs := errors.L()
 	errs.Append(cfg.mergeAttrs(other.MergedAttributes))
 	errs.Append(cfg.mergeBlocks(other.MergedBlocks.AsBlocks()))
+	errs.Append(cfg.mergeBlocks(other.MergedLabelBlocks.AsBlocks()))
 	errs.Append(cfg.mergeBlocks(other.UnmergedBlocks))
 	return errs.AsError()
 }
@@ -109,7 +111,7 @@ func (cfg *RawConfig) mergeBlock(block *ast.Block) error {
 	}
 
 	if other, ok := cfg.MergedBlocks[block.Type]; ok {
-		err := other.MergeBlock(block)
+		err := other.MergeBlock(block, false)
 		if err != nil {
 			return errors.E(ErrTerramateSchema, err)
 		}
@@ -117,7 +119,7 @@ func (cfg *RawConfig) mergeBlock(block *ast.Block) error {
 	}
 
 	merged := ast.NewMergedBlock(block.Type, nil)
-	err := merged.MergeBlock(block)
+	err := merged.MergeBlock(block, false)
 	if err != nil {
 		return errors.E(ErrTerramateSchema, err)
 	}
@@ -128,7 +130,7 @@ func (cfg *RawConfig) mergeBlock(block *ast.Block) error {
 func (cfg *RawConfig) mergeLabelledBlock(block *ast.Block) error {
 	labelBlock := ast.NewLabelBlockType(block.Type, block.Labels)
 	if other, ok := cfg.MergedLabelBlocks[labelBlock]; ok {
-		err := other.MergeBlock(block)
+		err := other.MergeBlock(block, true)
 		if err != nil {
 			return errors.E(ErrTerramateSchema, err)
 		}
@@ -136,7 +138,7 @@ func (cfg *RawConfig) mergeLabelledBlock(block *ast.Block) error {
 	}
 
 	merged := ast.NewMergedBlock(block.Type, block.Labels)
-	err := merged.MergeBlock(block)
+	err := merged.MergeBlock(block, true)
 	if err != nil {
 		return errors.E(ErrTerramateSchema, err)
 	}

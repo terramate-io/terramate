@@ -78,18 +78,22 @@ func NewLabelBlockType(typ string, labels []string) LabelBlockType {
 }
 
 // MergeBlock recursively merges the other block into this one.
-func (mb *MergedBlock) MergeBlock(other *Block) error {
-	otherLabels := strings.Join(other.Labels, ".")
-	if mb.Labels != otherLabels {
-		return errors.E(other.LabelRanges,
-			"cannot merge blocks of type %q with different set of labels (%s != %s)",
-			mb.Labels, otherLabels,
-		)
+func (mb *MergedBlock) MergeBlock(other *Block, isLabelled bool) error {
+	errs := errors.L()
+	if !isLabelled && len(other.Labels) > 0 {
+		errs.Append(errors.E(other.LabelRanges, "block type %q does not support labels"))
+	} else {
+		otherLabels := strings.Join(other.Labels, ".")
+		if mb.Labels != otherLabels {
+			errs.Append(errors.E(other.LabelRanges,
+				"cannot merge blocks of type %q with different set of labels (%s != %s)",
+				mb.Labels, otherLabels,
+			))
+		}
 	}
 
-	errs := errors.L()
 	errs.Append(mb.mergeAttrs(other.Attributes))
-	errs.Append(mb.mergeBlocks(other.Blocks))
+	errs.Append(mb.mergeBlocks(other.Blocks, isLabelled))
 	err := errs.AsError()
 	if err == nil {
 		mb.RawOrigins = append(mb.RawOrigins, other)
@@ -114,15 +118,15 @@ func (mb *MergedBlock) mergeAttrs(other Attributes) error {
 	return errs.AsError()
 }
 
-func (mb *MergedBlock) mergeBlocks(other Blocks) error {
+func (mb *MergedBlock) mergeBlocks(other Blocks, isLabelled bool) error {
 	errs := errors.L()
 	for _, newblock := range other {
 		var err error
 		if old, ok := mb.Blocks[newblock.Type]; ok {
-			err = old.MergeBlock(newblock)
+			err = old.MergeBlock(newblock, isLabelled)
 		} else {
 			b := NewMergedBlock(newblock.Type, newblock.Labels)
-			err = b.MergeBlock(newblock)
+			err = b.MergeBlock(newblock, isLabelled)
 			if err == nil {
 				mb.Blocks[newblock.Type] = b
 			}
@@ -178,6 +182,27 @@ func (mergedBlocks MergedBlocks) AsBlocks() Blocks {
 		all = append(all, m.RawOrigins...)
 	}
 	return all
+}
+
+// AsBlocks returns a Block list from a MergedBlocks.
+func (mergedBlocks MergedLabelBlocks) AsBlocks() Blocks {
+	var all Blocks
+	for _, m := range mergedBlocks {
+		all = append(all, m.RawOrigins...)
+	}
+	return all
+}
+
+// All returns a list of merged blocks sorted by its label strings.
+func (lb MergedLabelBlocks) SortedList() []*MergedBlock {
+	allblocks := []*MergedBlock{}
+	for _, mb := range lb {
+		allblocks = append(allblocks, mb)
+	}
+	sort.Slice(allblocks, func(i, j int) bool {
+		return allblocks[i].Labels < allblocks[j].Labels
+	})
+	return allblocks
 }
 
 func sameDir(file1, file2 string) bool {
