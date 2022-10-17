@@ -27,7 +27,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/generate/genhcl"
-	mcty "github.com/mineiros-io/terramate/hcl/cty"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
@@ -75,7 +75,7 @@ func Do(cfg *config.Tree, workingDir string) Report {
 	report := forEachStack(cfg, workingDir, func(
 		projmeta project.Metadata,
 		stack *stack.S,
-		globals *mcty.Object,
+		globals *eval.Object,
 	) dirReport {
 		stackpath := stack.HostPath()
 		logger := log.With().
@@ -610,7 +610,7 @@ func readFile(path string) (string, bool, error) {
 	return string(data), true, nil
 }
 
-type forEachStackFunc func(project.Metadata, *stack.S, *mcty.Object) dirReport
+type forEachStackFunc func(project.Metadata, *stack.S, *eval.Object) dirReport
 
 func forEachStack(cfg *config.Tree, workingDir string, fn forEachStackFunc) Report {
 	logger := log.With().
@@ -865,7 +865,7 @@ func validateGeneratedFiles(cfg *config.Tree, stackpath string, generated []genC
 	return nil
 }
 
-func loadAsserts(tree *config.Tree, meta project.Metadata, sm stack.Metadata, globals *mcty.Object) ([]config.Assert, error) {
+func loadAsserts(tree *config.Tree, meta project.Metadata, sm stack.Metadata, globals *eval.Object) ([]config.Assert, error) {
 	logger := log.With().
 		Str("action", "generate.loadAsserts").
 		Str("rootdir", tree.RootDir()).
@@ -913,7 +913,7 @@ func loadGenCodeConfigs(
 	tree *config.Tree,
 	projmeta project.Metadata,
 	st *stack.S,
-	globals *mcty.Object,
+	globals *eval.Object,
 ) ([]genCodeCfg, error) {
 	var genfilesConfigs []genCodeCfg
 

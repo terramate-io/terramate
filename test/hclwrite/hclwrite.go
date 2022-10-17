@@ -29,13 +29,13 @@
 package hclwrite
 
 import (
-	"fmt"
+	stdfmt "fmt"
 	"strings"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/zclconf/go-cty/cty"
 
 	hhcl "github.com/hashicorp/hcl/v2"
@@ -55,7 +55,7 @@ type Block struct {
 
 // AddLabel adds a label to the block.
 func (b *Block) AddLabel(name string) {
-	b.labels = append(b.labels, fmt.Sprintf("%q", name))
+	b.labels = append(b.labels, stdfmt.Sprintf("%q", name))
 }
 
 // AddExpr adds an expression to the block. The expressions are kept as is on the
@@ -74,7 +74,7 @@ func (b *Block) AddNumberInt(name string, v int64) {
 // AddString adds string on block.
 func (b *Block) AddString(name string, v string) {
 	b.ctyvalues[name] = cty.StringVal(v)
-	b.addAttr(name, fmt.Sprintf(`"%s"`, v))
+	b.addAttr(name, stdfmt.Sprintf(`"%s"`, v))
 }
 
 // AddBoolean adds boolean on block.
@@ -231,9 +231,9 @@ func NumberInt(name string, val int64) BlockBuilder {
 
 // Format formats the given HCL code.
 func Format(code string) string {
-	formatted, err := hcl.FormatMultiline(code, "gen.hcl")
+	formatted, err := fmt.FormatMultiline(code, "gen.hcl")
 	if err != nil {
-		panic(fmt.Errorf("invalid code:\n%s\ncan't be formatted: %v", code, err))
+		panic(stdfmt.Errorf("invalid code:\n%s\ncan't be formatted: %v", code, err))
 	}
 	return strings.Trim(formatted, "\n ")
 }
@@ -244,7 +244,7 @@ func (builder BlockBuilderFunc) Build(b *Block) {
 }
 
 func (b *Block) addAttr(name string, val interface{}) {
-	b.contents = append(b.contents, fmt.Sprintf("%s=%v", name, val))
+	b.contents = append(b.contents, stdfmt.Sprintf("%s=%v", name, val))
 }
 
 func newBlock(name string) *Block {

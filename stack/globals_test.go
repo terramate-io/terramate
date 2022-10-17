@@ -24,7 +24,8 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/cty"
+	"github.com/mineiros-io/terramate/hcl/eval"
+
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
@@ -829,7 +830,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(cty.ErrCannotExtendObject),
+			wantErr: errors.E(eval.ErrCannotExtendObject),
 		},
 		{
 			name: "extending non-objects fails",
@@ -850,7 +851,7 @@ func TestLoadGlobals(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(cty.ErrCannotExtendObject),
+			wantErr: errors.E(eval.ErrCannotExtendObject),
 		},
 		{
 			name: "extending nested literal object",

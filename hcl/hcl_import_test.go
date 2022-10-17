@@ -19,6 +19,7 @@ import (
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
+	. "github.com/mineiros-io/terramate/test/hclutils"
 )
 
 func TestHCLImport(t *testing.T) {
@@ -36,7 +37,7 @@ func TestHCLImport(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(1, 8, 7), end(1, 19, 18))),
+						Mkrange("cfg.tm", Start(1, 8, 7), End(1, 19, 18))),
 				},
 			},
 		},
@@ -53,7 +54,7 @@ func TestHCLImport(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(1, 8, 7), end(1, 8, 7))),
+						Mkrange("cfg.tm", Start(1, 8, 7), End(1, 8, 7))),
 				},
 			},
 		},
@@ -71,7 +72,7 @@ func TestHCLImport(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrImport,
-						mkrange("stack/cfg.tm", start(2, 16, 24), end(2, 42, 50))),
+						Mkrange("stack/cfg.tm", Start(2, 16, 24), End(2, 42, 50))),
 				},
 			},
 		},
@@ -88,7 +89,7 @@ func TestHCLImport(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrImport,
-						mkrange("cfg.tm", start(2, 16, 24), end(2, 24, 32))),
+						Mkrange("cfg.tm", Start(2, 16, 24), End(2, 24, 32))),
 				},
 			},
 		},
@@ -105,7 +106,7 @@ func TestHCLImport(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrImport,
-						mkrange("cfg.tm", start(2, 16, 24), end(2, 26, 34))),
+						Mkrange("cfg.tm", Start(2, 16, 24), End(2, 26, 34))),
 				},
 			},
 		},
@@ -129,7 +130,7 @@ func TestHCLImport(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrImport,
-						mkrange("other/cfg.tm", start(2, 16, 24), end(2, 31, 39))),
+						Mkrange("other/cfg.tm", Start(2, 16, 24), End(2, 31, 39))),
 				},
 			},
 		},
@@ -152,7 +153,7 @@ func TestHCLImport(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrImport,
-						mkrange("stack/cfg.tm", start(2, 16, 24), end(2, 25, 33))),
+						Mkrange("stack/cfg.tm", Start(2, 16, 24), End(2, 25, 33))),
 				},
 			},
 		},
@@ -180,7 +181,7 @@ func TestHCLImport(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrImport,
-						mkrange("stack/cfg.tm", start(7, 17, 92), end(7, 32, 107))),
+						Mkrange("stack/cfg.tm", Start(7, 17, 92), End(7, 32, 107))),
 				},
 			},
 		},
@@ -212,7 +213,7 @@ func TestHCLImport(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrImport,
-						mkrange("other/cfg.tm", start(6, 16, 84), end(6, 32, 100))),
+						Mkrange("other/cfg.tm", Start(6, 16, 84), End(6, 32, 100))),
 				},
 			},
 		},
@@ -298,7 +299,7 @@ func TestHCLImport(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrImport,
-						mkrange("project/stack/cfg.tm", start(2, 16, 24), end(2, 38, 46))),
+						Mkrange("project/stack/cfg.tm", Start(2, 16, 24), End(2, 38, 46))),
 				},
 			},
 		},
@@ -322,7 +323,7 @@ func TestHCLImport(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("stack/cfg.tm", start(4, 6, 57), end(4, 7, 58))),
+						Mkrange("stack/cfg.tm", Start(4, 6, 57), End(4, 7, 58))),
 				},
 			},
 		},
@@ -344,7 +345,7 @@ func TestHCLImport(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrImport,
-						mkrange("stack/cfg.tm", start(2, 16, 24), end(2, 31, 39))),
+						Mkrange("stack/cfg.tm", Start(2, 16, 24), End(2, 31, 39))),
 				},
 			},
 		},

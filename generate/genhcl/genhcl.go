@@ -16,7 +16,7 @@
 package genhcl
 
 import (
-	"fmt"
+	stdmt "fmt"
 	"sort"
 
 	hhcl "github.com/hashicorp/hcl/v2"
@@ -26,7 +26,8 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/ast"
-	mcty "github.com/mineiros-io/terramate/hcl/cty"
+	"github.com/mineiros-io/terramate/hcl/fmt"
+
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/project"
@@ -88,7 +89,7 @@ func (h HCL) Label() string {
 
 // Header returns the header of the generated HCL file.
 func (h HCL) Header() string {
-	return fmt.Sprintf(
+	return stdmt.Sprintf(
 		"%s\n// TERRAMATE: originated from generate_hcl block on %s\n\n",
 		Header,
 		h.origin,
@@ -113,7 +114,7 @@ func (h HCL) Condition() bool {
 }
 
 func (h HCL) String() string {
-	return fmt.Sprintf("Generating file %q (condition %t) (body %q) (origin %q)",
+	return stdmt.Sprintf("Generating file %q (condition %t) (body %q) (origin %q)",
 		h.Label(), h.Condition(), h.Body(), h.Origin())
 }
 
@@ -132,7 +133,7 @@ func Load(
 	tree *config.Tree,
 	projmeta project.Metadata,
 	sm stack.Metadata,
-	globals *mcty.Object,
+	globals *eval.Object,
 ) ([]HCL, error) {
 	logger := log.With().
 		Str("action", "genhcl.Load()").
@@ -201,7 +202,7 @@ func Load(
 		}
 
 		// TODO(i4k): filename in line below must be an absolute host path.
-		formatted, err := hcl.FormatMultiline(string(gen.Bytes()), loadedHCL.origin.String())
+		formatted, err := fmt.FormatMultiline(string(gen.Bytes()), loadedHCL.origin.String())
 		if err != nil {
 			// genhcl must always generate valid code that is formatable
 			// this is a severe internal error
@@ -674,9 +675,9 @@ func getContentBlock(blocks hclsyntax.Blocks) (*hclsyntax.Block, error) {
 }
 
 func attrErr(attr *hclsyntax.Attribute, msg string, args ...interface{}) error {
-	return errors.E(ErrParsing, attr.Expr.Range(), fmt.Sprintf(msg, args...))
+	return errors.E(ErrParsing, attr.Expr.Range(), stdmt.Sprintf(msg, args...))
 }
 
 func wrapAttrErr(err error, attr *hclsyntax.Attribute, msg string, args ...interface{}) error {
-	return errors.E(ErrParsing, err, attr.Expr.Range(), fmt.Sprintf(msg, args...))
+	return errors.E(ErrParsing, err, attr.Expr.Range(), stdmt.Sprintf(msg, args...))
 }

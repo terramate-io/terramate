@@ -15,13 +15,13 @@
 package e2etest
 
 import (
-	"fmt"
+	stdfmt "fmt"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -35,7 +35,7 @@ name = "name"
 	test = true
 	}
 	`
-	formattedHCL, err := hcl.Format(unformattedHCL, "")
+	formattedHCL, err := fmt.Format(unformattedHCL, "")
 	assert.NoError(t, err)
 
 	s := sandbox.New(t)
@@ -49,7 +49,7 @@ name = "name"
 		assertRunResult(t, cli.run("fmt"), runExpected{})
 	})
 
-	sprintf := fmt.Sprintf
+	sprintf := stdfmt.Sprintf
 	writeUnformattedFiles := func() {
 		s.BuildTree([]string{
 			sprintf("f:globals.tm:%s", unformattedHCL),

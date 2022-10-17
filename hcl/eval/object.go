@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cty
+package eval
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -149,7 +148,7 @@ func (obj *Object) AsValueMap() map[string]cty.Value {
 		case cty.Value:
 			vmap[k] = vv
 		default:
-			panic(fmt.Errorf("%T %v", vv, vv))
+			panic("unreachable")
 		}
 	}
 	return vmap
@@ -157,7 +156,7 @@ func (obj *Object) AsValueMap() map[string]cty.Value {
 
 // String representation of the object.
 func (obj *Object) String() string {
-	return hcl.FormatAttributes(obj.AsValueMap())
+	return fmt.FormatAttributes(obj.AsValueMap())
 }
 
 // NewValue creates a new cty.Value wrapper.

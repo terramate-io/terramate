@@ -15,7 +15,7 @@
 package cli
 
 import (
-	"fmt"
+	stdfmt "fmt"
 	"io"
 	"os"
 	"path"
@@ -31,6 +31,7 @@ import (
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/modvendor"
 
 	prj "github.com/mineiros-io/terramate/project"
@@ -249,7 +250,7 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 	// since no subcommand was provided (which is odd..but happens).
 	// So we check if the flag for version is present before checking the error.
 	if parsedArgs.VersionFlag {
-		fmt.Println(terramate.Version())
+		stdfmt.Println(terramate.Version())
 		return &cli{exit: true}
 	}
 
@@ -268,7 +269,7 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 	switch ctx.Command() {
 	case "version":
 		logger.Debug().Msg("Get terramate version with version subcommand.")
-		fmt.Println(terramate.Version())
+		stdfmt.Println(terramate.Version())
 		return &cli{exit: true}
 	case "install-completions":
 		logger.Debug().Msg("Handle `install-completions` command.")
@@ -670,9 +671,9 @@ func (c *cli) createStack() {
 	logger := log.With().
 		Str("workingDir", c.wd()).
 		Str("action", "cli.createStack()").
-		Str("imports", fmt.Sprint(c.parsedArgs.Create.Import)).
-		Str("after", fmt.Sprint(c.parsedArgs.Create.After)).
-		Str("before", fmt.Sprint(c.parsedArgs.Create.Before)).
+		Str("imports", stdfmt.Sprint(c.parsedArgs.Create.Import)).
+		Str("after", stdfmt.Sprint(c.parsedArgs.Create.After)).
+		Str("before", stdfmt.Sprint(c.parsedArgs.Create.Before)).
 		Logger()
 
 	logger.Trace().Msg("creating stack")
@@ -727,7 +728,7 @@ func (c *cli) format() {
 		Logger()
 
 	logger.Trace().Msg("formatting all files recursively")
-	results, err := hcl.FormatTree(c.wd())
+	results, err := fmt.FormatTree(c.wd())
 	if err != nil {
 		fatal(err, "formatting files")
 	}
@@ -1399,7 +1400,7 @@ func (c *cli) root() string      { return c.prj.root }
 func (c *cli) cfg() *config.Tree { return &c.prj.cfg }
 
 func (c *cli) log(format string, args ...interface{}) {
-	fmt.Fprintln(c.stdout, fmt.Sprintf(format, args...))
+	stdfmt.Fprintln(c.stdout, stdfmt.Sprintf(format, args...))
 }
 
 func (c *cli) friendlyFmtDir(dir string) (string, bool) {
@@ -1435,7 +1436,7 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (stack.List, error) {
 
 	stacks, err = mgr.AddWantedOf(stacks)
 	if err != nil {
-		return nil, fmt.Errorf("adding wanted stacks: %w", err)
+		return nil, stdfmt.Errorf("adding wanted stacks: %w", err)
 	}
 
 	return stacks, nil
@@ -1502,7 +1503,7 @@ func newGit(basedir string, checkrepo bool) (*git.Git, error) {
 	}
 
 	if checkrepo && !g.IsRepository() {
-		return nil, fmt.Errorf("dir %q is not a git repository", basedir)
+		return nil, stdfmt.Errorf("dir %q is not a git repository", basedir)
 	}
 
 	return g, nil
@@ -1539,14 +1540,14 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 			}
 
 			if err != nil {
-				return project{}, false, fmt.Errorf("getting absolute path of %q: %w", gitdir, err)
+				return project{}, false, stdfmt.Errorf("getting absolute path of %q: %w", gitdir, err)
 			}
 
 			logger.Trace().Msg("Evaluate symbolic links.")
 
 			gitabs, err = filepath.EvalSymlinks(gitabs)
 			if err != nil {
-				return project{}, false, fmt.Errorf("failed evaluating symlinks of %q: %w",
+				return project{}, false, stdfmt.Errorf("failed evaluating symlinks of %q: %w",
 					gitabs, err)
 			}
 

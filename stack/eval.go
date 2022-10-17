@@ -17,7 +17,6 @@ package stack
 import (
 	"strings"
 
-	mcty "github.com/mineiros-io/terramate/hcl/cty"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
@@ -30,7 +29,7 @@ type EvalCtx struct {
 }
 
 // NewEvalCtx creates a new stack evaluation context.
-func NewEvalCtx(projmeta project.Metadata, sm Metadata, globals *mcty.Object) *EvalCtx {
+func NewEvalCtx(projmeta project.Metadata, sm Metadata, globals *eval.Object) *EvalCtx {
 	evalctx, err := eval.NewContext(sm.HostPath())
 	if err != nil {
 		panic(err)
@@ -44,7 +43,7 @@ func NewEvalCtx(projmeta project.Metadata, sm Metadata, globals *mcty.Object) *E
 }
 
 // SetGlobals sets the given globals on the stack evaluation context.
-func (e *EvalCtx) SetGlobals(g *mcty.Object) {
+func (e *EvalCtx) SetGlobals(g *eval.Object) {
 	e.SetNamespace("global", g.AsValueMap())
 }
 

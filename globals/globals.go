@@ -21,7 +21,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
-	mcty "github.com/mineiros-io/terramate/hcl/cty"
+
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
@@ -40,14 +40,14 @@ type (
 		// Origin is the filename where this expression can be found.
 		Origin project.Path
 
-		DotPath mcty.DotPath
+		DotPath eval.DotPath
 
 		hhcl.Expression
 	}
 
 	// Exprs is the map of unevaluated global expressions visible in a
 	// directory.
-	Exprs map[mcty.DotPath]Expr
+	Exprs map[eval.DotPath]Expr
 )
 
 // Load loads all the globals from the cfgdir.
@@ -133,7 +133,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 	report := NewEvalReport()
 	globals := report.Globals
-	pendingExprsErrs := map[mcty.DotPath]*errors.List{}
+	pendingExprsErrs := map[eval.DotPath]*errors.List{}
 	pendingExprs := make(Exprs)
 
 	removeUnset(globalExprs)
@@ -148,7 +148,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 		logger.Trace().Msg("evaluating pending expressions")
 
-		sortedKeys := []mcty.DotPath{}
+		sortedKeys := []eval.DotPath{}
 		for accessor := range pendingExprs {
 			sortedKeys = append(sortedKeys, accessor)
 		}
@@ -189,7 +189,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 				switch attr := namespace[1].(type) {
 				case hhcl.TraverseAttr:
-					if _, isPending := pendingExprs[mcty.DotPath(attr.Name)]; isPending {
+					if _, isPending := pendingExprs[eval.DotPath(attr.Name)]; isPending {
 						continue pendingExpression
 					}
 				default:
@@ -220,7 +220,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 				continue
 			}
 
-			err = globals.SetAt(accessor, mcty.NewValue(val, expr.Origin))
+			err = globals.SetAt(accessor, eval.NewValue(val, expr.Origin))
 			if err != nil {
 				pendingExprsErrs[accessor].Append(err)
 				continue
@@ -290,9 +290,9 @@ func copyexprs(dst, src Exprs) {
 	}
 }
 
-func dotpath(basepath string, name string) mcty.DotPath {
+func dotpath(basepath string, name string) eval.DotPath {
 	if basepath != "" {
-		return mcty.DotPath(basepath + "." + name)
+		return eval.DotPath(basepath + "." + name)
 	}
-	return mcty.DotPath(name)
+	return eval.DotPath(name)
 }

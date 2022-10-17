@@ -23,7 +23,8 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
-	mcty "github.com/mineiros-io/terramate/hcl/cty"
+	"github.com/mineiros-io/terramate/hcl/eval"
+
 	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
@@ -104,7 +105,7 @@ func (f File) String() string {
 // generate_file blocks.
 //
 // The rootdir MUST be an absolute path.
-func Load(cfg *config.Tree, projmeta project.Metadata, sm stack.Metadata, globals *mcty.Object) ([]File, error) {
+func Load(cfg *config.Tree, projmeta project.Metadata, sm stack.Metadata, globals *eval.Object) ([]File, error) {
 	logger := log.With().
 		Str("action", "genfile.Load()").
 		Str("path", sm.HostPath()).

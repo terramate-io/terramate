@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/ast"
+	. "github.com/mineiros-io/terramate/test/hclutils"
 )
 
 func TestHCLParserConfigRun(t *testing.T) {
@@ -546,7 +547,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 			},
 			want: want{
 				errs: []error{errors.E(hcl.ErrTerramateSchema,
-					mkrange("cfg.tm", start(9, 15, 147), end(9, 21, 153)))},
+					Mkrange("cfg.tm", Start(9, 15, 147), End(9, 21, 153)))},
 			},
 		},
 		{
@@ -598,10 +599,10 @@ func TestHCLParserConfigRun(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg2.tm", start(6, 15, 84), end(6, 21, 90)),
+						Mkrange("cfg2.tm", Start(6, 15, 84), End(6, 21, 90)),
 					),
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg3.tm", start(6, 15, 84), end(6, 21, 90)),
+						Mkrange("cfg3.tm", Start(6, 15, 84), End(6, 21, 90)),
 					),
 				},
 			},
@@ -637,7 +638,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg2.tm", start(5, 13, 64), end(5, 27, 78)),
+						Mkrange("cfg2.tm", Start(5, 13, 64), End(5, 27, 78)),
 					),
 				},
 			},
@@ -661,7 +662,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(5, 30, 81), end(5, 45, 96)),
+						Mkrange("cfg.tm", Start(5, 30, 81), End(5, 45, 96)),
 					),
 				},
 			},

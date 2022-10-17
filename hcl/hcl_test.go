@@ -19,12 +19,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
+	. "github.com/mineiros-io/terramate/test/hclutils"
 	"github.com/rs/zerolog"
 )
 
@@ -62,9 +62,9 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(1, 1, 0), end(1, 10, 9))),
+						Mkrange("cfg.tm", Start(1, 1, 0), End(1, 10, 9))),
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(2, 1, 13), end(2, 15, 27))),
+						Mkrange("cfg.tm", Start(2, 1, 13), End(2, 15, 27))),
 				},
 			},
 		},
@@ -82,7 +82,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(3, 7, 25), end(3, 16, 34))),
+						Mkrange("cfg.tm", Start(3, 7, 25), End(3, 16, 34))),
 				},
 			},
 		},
@@ -104,9 +104,9 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrHCLSyntax,
-						mkrange("bug.tm", start(1, 1, 0), end(1, 4, 3))),
+						Mkrange("bug.tm", Start(1, 1, 0), End(1, 4, 3))),
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(3, 7, 25), end(3, 16, 34))),
+						Mkrange("cfg.tm", Start(3, 7, 25), End(3, 16, 34))),
 				},
 			},
 		},
@@ -129,9 +129,9 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrHCLSyntax,
-						mkrange("bug.tm", start(1, 1, 0), end(1, 4, 3))),
+						Mkrange("bug.tm", Start(1, 1, 0), End(1, 4, 3))),
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(3, 17, 32), end(3, 29, 44))),
+						Mkrange("cfg.tm", Start(3, 17, 32), End(3, 29, 44))),
 				},
 			},
 		},
@@ -150,7 +150,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(3, 8, 25), end(3, 17, 34))),
+						Mkrange("cfg.tm", Start(3, 8, 25), End(3, 17, 34))),
 				},
 			},
 		},
@@ -169,9 +169,9 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(2, 8, 18), end(2, 17, 27))),
+						Mkrange("cfg.tm", Start(2, 8, 18), End(2, 17, 27))),
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(3, 8, 38), end(3, 13, 43))),
+						Mkrange("cfg.tm", Start(3, 8, 38), End(3, 13, 43))),
 				},
 			},
 		},
@@ -211,7 +211,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(3, 27, 45), end(3, 28, 46))),
+						Mkrange("cfg.tm", Start(3, 27, 45), End(3, 28, 46))),
 				},
 			},
 		},
@@ -230,9 +230,9 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(3, 30, 48), end(3, 34, 52))),
+						Mkrange("cfg.tm", Start(3, 30, 48), End(3, 34, 52))),
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(3, 27, 45), end(3, 44, 62))),
+						Mkrange("cfg.tm", Start(3, 27, 45), End(3, 44, 62))),
 				},
 			},
 		},
@@ -252,9 +252,9 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(3, 8, 26), end(3, 15, 33))),
+						Mkrange("cfg.tm", Start(3, 8, 26), End(3, 15, 33))),
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(4, 8, 45), end(4, 15, 52))),
+						Mkrange("cfg.tm", Start(4, 8, 45), End(4, 15, 52))),
 				},
 			},
 		},
@@ -358,7 +358,7 @@ func TestHCLParserRootConfig(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(5, 9, 54), end(5, 13, 58))),
+						Mkrange("cfg.tm", Start(5, 9, 54), End(5, 13, 58))),
 				},
 			},
 		},
@@ -529,11 +529,11 @@ func TestHCLParserRootConfig(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(5, 30, 78), end(5, 34, 82))),
+						Mkrange("cfg.tm", Start(5, 30, 78), End(5, 34, 82))),
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(6, 30, 112), end(6, 33, 115))),
+						Mkrange("cfg.tm", Start(6, 30, 112), End(6, 33, 115))),
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg.tm", start(7, 30, 145), end(7, 32, 147))),
+						Mkrange("cfg.tm", Start(7, 30, 145), End(7, 32, 147))),
 				},
 			},
 		},
@@ -555,9 +555,9 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrHCLSyntax,
-						mkrange("file.tm", start(2, 1, 4), end(2, 2, 5))),
+						Mkrange("file.tm", Start(2, 1, 4), End(2, 2, 5))),
 					errors.E(hcl.ErrHCLSyntax,
-						mkrange("file.tm", start(3, 1, 8), end(3, 2, 9))),
+						Mkrange("file.tm", Start(3, 1, 8), End(3, 2, 9))),
 				},
 			},
 		},
@@ -576,13 +576,13 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrHCLSyntax,
-						mkrange("file1.tm", start(2, 1, 4), end(2, 2, 5))),
+						Mkrange("file1.tm", Start(2, 1, 4), End(2, 2, 5))),
 					errors.E(hcl.ErrHCLSyntax,
-						mkrange("file1.tm", start(3, 1, 8), end(3, 2, 9))),
+						Mkrange("file1.tm", Start(3, 1, 8), End(3, 2, 9))),
 					errors.E(hcl.ErrHCLSyntax,
-						mkrange("file2.tm", start(2, 1, 4), end(2, 2, 5))),
+						Mkrange("file2.tm", Start(2, 1, 4), End(2, 2, 5))),
 					errors.E(hcl.ErrHCLSyntax,
-						mkrange("file2.tm", start(3, 1, 8), end(3, 2, 9))),
+						Mkrange("file2.tm", Start(3, 1, 8), End(3, 2, 9))),
 				},
 			},
 		},
@@ -601,7 +601,7 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("stack2.tm", start(1, 1, 0), end(1, 6, 5))),
+						Mkrange("stack2.tm", Start(1, 1, 0), End(1, 6, 5))),
 				},
 			},
 		},
@@ -684,9 +684,9 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg1.tm", start(9, 6, 108), end(9, 10, 112))),
+						Mkrange("cfg1.tm", Start(9, 6, 108), End(9, 10, 112))),
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("cfg2.tm", start(4, 9, 48), end(4, 23, 62))),
+						Mkrange("cfg2.tm", Start(4, 9, 48), End(4, 23, 62))),
 				},
 			},
 		},
@@ -909,8 +909,8 @@ func testParser(t *testing.T, tc testcase) {
 			filename := filepath.Base(path)
 			test.WriteFile(t, dir, filename, inputConfigFile.body)
 		}
-		fixupFiledirOnErrorsFileRanges(configsDir, tc.want.errs)
-		fixupFiledirOnConfig(configsDir, tc.want.config)
+		FixupFiledirOnErrorsFileRanges(configsDir, tc.want.errs)
+		FixupFiledirOnConfig(configsDir, tc.want.config)
 
 		if tc.parsedir == "" {
 			tc.parsedir = configsDir
@@ -1053,39 +1053,6 @@ func TestHCLParseProvidesAllParsedBodies(t *testing.T) {
 	assert.EqualStrings(t, "generate_file", blocks[2].Type)
 	assert.EqualStrings(t, "globals", blocks[3].Type)
 }
-
-// some helpers to easy build file ranges.
-func mkrange(fname string, start, end hhcl.Pos) hhcl.Range {
-	return hhcl.Range{
-		Filename: fname,
-		Start:    start,
-		End:      end,
-	}
-}
-
-func start(line, column, char int) hhcl.Pos {
-	return hhcl.Pos{
-		Line:   line,
-		Column: column,
-		Byte:   char,
-	}
-}
-
-func fixupFiledirOnErrorsFileRanges(dir string, errs []error) {
-	for _, err := range errs {
-		if e, ok := err.(*errors.Error); ok {
-			e.FileRange.Filename = filepath.Join(dir, e.FileRange.Filename)
-		}
-	}
-}
-
-func fixupFiledirOnConfig(dir string, cfg hcl.Config) {
-	for i := range cfg.Asserts {
-		cfg.Asserts[i].Origin = filepath.Join(dir, cfg.Asserts[i].Origin)
-	}
-}
-
-var end = start
 
 func init() {
 	zerolog.SetGlobalLevel(zerolog.Disabled)
