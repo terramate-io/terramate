@@ -97,6 +97,17 @@ terramate {
 }
 ```
 
+# Skipping Directories
+
+If you want to have a directory that is not hidden but want Terramate to ignore the
+directory contents all you have to do is create an empty file called `.tmskip` inside
+the directory. After the file is created the directory will be ignored by
+all Terramate features, its contents will not be parsed even if it contains
+Terramate files.
+
+You can still import code that is located inside such a directory.
+
+
 # Terramate Configuration Schema
 
 The terramate configuration is defined by the following top-level blocks:

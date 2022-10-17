@@ -199,9 +199,8 @@ func TestListNoSuchFile(t *testing.T) {
 	notExists := test.NonExistingDir(t)
 	cli := newCLI(t, notExists)
 
-	// errors from the manager are not logged in stderr
 	assertRunResult(t, cli.listStacks(), runExpected{
 		Status:      1,
-		StderrRegex: "Changing working directory failed error",
+		StderrRegex: "changing working dir",
 	})
 }

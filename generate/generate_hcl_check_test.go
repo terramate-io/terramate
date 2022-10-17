@@ -25,6 +25,8 @@ import (
 )
 
 func TestCheckStackForGenHCLWithChildStacks(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 	s.BuildTree([]string{
 		"s:/stack",
@@ -120,6 +122,8 @@ func TestCheckStackForGenHCLWithChildStacks(t *testing.T) {
 }
 
 func TestCheckStackForGenHCL(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stackEntry := s.CreateStack("stacks/stack")
@@ -292,6 +296,8 @@ func TestCheckStackForGenHCL(t *testing.T) {
 }
 
 func TestCheckOutdatedDetectsEmptyGenerateHCLBlocks(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stackEntry := s.CreateStack("stacks/stack")
@@ -354,6 +360,8 @@ func TestCheckOutdatedDetectsEmptyGenerateHCLBlocks(t *testing.T) {
 }
 
 func TestCheckOutdatedIgnoresWhenGenHCLConditionIsFalse(t *testing.T) {
+	t.Parallel()
+
 	const filename = "test.tf"
 
 	s := sandbox.New(t)
