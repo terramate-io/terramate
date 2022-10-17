@@ -1381,8 +1381,6 @@ func (c *cli) runOnStacks() {
 		return
 	}
 
-	logger.Info().Msg("Running on selected stacks")
-
 	err = run.Exec(
 		c.cfg(),
 		orderedStacks,
