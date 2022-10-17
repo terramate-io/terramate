@@ -25,6 +25,8 @@ import (
 )
 
 func TestCheckStackForGenFileWithChildStacks(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 	s.BuildTree([]string{
 		"s:/stack",
@@ -95,6 +97,8 @@ func TestCheckStackForGenFileWithChildStacks(t *testing.T) {
 }
 
 func TestCheckStackForGenFile(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stackEntry := s.CreateStack("stacks/stack")
@@ -189,6 +193,8 @@ func TestCheckStackForGenFile(t *testing.T) {
 }
 
 func TestCheckOutdatedDetectsEmptyGenerateFileContent(t *testing.T) {
+	t.Parallel()
+
 	s := sandbox.New(t)
 
 	stackEntry := s.CreateStack("stacks/stack")
@@ -244,6 +250,8 @@ func TestCheckOutdatedDetectsEmptyGenerateFileContent(t *testing.T) {
 }
 
 func TestCheckOutdatedIgnoresWhenGenFileConditionIsFalse(t *testing.T) {
+	t.Parallel()
+
 	const filename = "test.txt"
 
 	s := sandbox.New(t)

@@ -70,10 +70,6 @@ func Exec(
 		return errs.AsError()
 	}
 
-	logger = logger.With().
-		Strs("stacks", stacks.Paths().Strings()).
-		Logger()
-
 	logger.Trace().Msg("loaded stacks run environment variables, running commands")
 
 	signals := make(chan os.Signal, signalsBuffer)
@@ -86,6 +82,11 @@ func Exec(
 	results := startCmdRunner(cmds)
 
 	for _, stack := range stacks {
+		logger := log.With().
+			Str("cmd", strings.Join(cmd, " ")).
+			Stringer("stack", stack).
+			Logger()
+
 		cmd := exec.Command(cmd[0], cmd[1:]...)
 		cmd.Dir = stack.HostPath()
 		cmd.Env = append(os.Environ(), stackEnvs[stack.Path()]...)
@@ -93,11 +94,7 @@ func Exec(
 		cmd.Stdout = stdout
 		cmd.Stderr = stderr
 
-		logger := logger.With().
-			Stringer("stack", stack).
-			Logger()
-
-		logger.Info().Msg("Running")
+		logger.Info().Msg("running")
 
 		if err := cmd.Start(); err != nil {
 			errs.Append(errors.E(stack, err, "running %s", cmd))
@@ -141,7 +138,7 @@ func Exec(
 		}
 
 		if interruptions > 0 {
-			logger.Trace().Msg("interrupting execution of further stacks")
+			logger.Info().Msg("interrupting execution of further stacks")
 			return errs.AsError()
 		}
 	}

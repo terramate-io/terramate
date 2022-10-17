@@ -71,6 +71,9 @@ func TestRunSendsSigkillIfCmdIgnoresInterruptionSignals(t *testing.T) {
 
 		select {
 		case err := <-errs:
+			t.Logf("terramate err: %v", err)
+			t.Logf("terramate stdout:\n%s\n", cmd.stdout.String())
+			t.Logf("terramate stderr:\n%s\n", cmd.stderr.String())
 			assert.Error(t, err)
 			return
 		case <-sendctx.Done():
