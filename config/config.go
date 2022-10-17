@@ -30,6 +30,9 @@ import (
 const (
 	// DefaultFilename is the name of the default Terramate configuration file.
 	DefaultFilename = "terramate.tm.hcl"
+
+	// SkipFilename is the name of Terramate skip file.
+	SkipFilename = ".tmskip"
 )
 
 const (
@@ -221,6 +224,25 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error)
 		Str("dir", rootdir).
 		Logger()
 
+	f, err := os.Open(cfgdir)
+	if err != nil {
+		return nil, errors.E(err, "failed to open cfg directory")
+	}
+
+	logger.Trace().Msg("reading directory file names")
+
+	names, err := f.Readdirnames(0)
+	if err != nil {
+		return nil, errors.E(err, "failed to read files in %s", cfgdir)
+	}
+
+	for _, name := range names {
+		if name == SkipFilename {
+			logger.Debug().Msg("skip file found: skipping whole subtree")
+			return NewTree(cfgdir), nil
+		}
+	}
+
 	tree := NewTree(cfgdir)
 	if rootcfg != nil {
 		tree.Node = *rootcfg
@@ -232,24 +254,13 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error)
 		tree.Node = cfg
 	}
 
-	f, err := os.Open(cfgdir)
-	if err != nil {
-		return nil, errors.E(err, "failed to open rootdir directory")
-	}
-
-	logger.Trace().Msg("reading directory file names")
-
-	names, err := f.Readdirnames(0)
-	if err != nil {
-		return nil, errors.E(err, "failed to read files in %s", rootdir)
-	}
 	for _, name := range names {
 		logger = logger.With().
 			Str("filename", name).
 			Logger()
 
-		if ignoreFilename(name) {
-			logger.Trace().Msg("ignoring dot file")
+		if Skip(name) {
+			logger.Trace().Msg("skipping file")
 			continue
 		}
 		dir := filepath.Join(cfgdir, name)
@@ -336,11 +347,13 @@ func NewTree(cfgdir string) *Tree {
 	}
 }
 
+// Skip returns true if the given file/dir name should be ignored by Terramate.
+func Skip(name string) bool {
+	// assumes filename length > 0
+	return name[0] == '.'
+}
+
 func parentDir(dir string) (string, bool) {
 	parent := filepath.Dir(dir)
 	return parent, parent != dir
-}
-
-func ignoreFilename(name string) bool {
-	return name[0] == '.' // assumes filename length > 0
 }
