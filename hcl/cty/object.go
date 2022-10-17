@@ -1,3 +1,17 @@
+// Copyright 2022 Mineiros GmbH
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package cty
 
 import (
@@ -26,6 +40,8 @@ type (
 
 		val cty.Value
 	}
+
+	DotPath string
 )
 
 // NewObject creates a new object.
@@ -47,10 +63,10 @@ func (obj *Object) Set(key string, value interface{}) {
 	obj.Keys[key] = value
 }
 
-func (obj *Object) GetKeyPath(path string) (interface{}, bool) {
-	parts := strings.Split(path, ".")
+func (obj *Object) GetKeyPath(path DotPath) (interface{}, bool) {
+	parts := strings.Split(string(path), ".")
 	key := parts[0]
-	next := strings.Join(parts[1:], ".")
+	next := DotPath(strings.Join(parts[1:], "."))
 
 	v, ok := obj.Keys[key]
 	if !ok {
@@ -80,8 +96,8 @@ func (obj *Object) SetFrom(values map[string]cty.Value) {
 }
 
 // SetAt sets a value at the specified path key.
-func (obj *Object) SetAt(path string, value interface{}) error {
-	pathParts := strings.Split(path, ".")
+func (obj *Object) SetAt(path DotPath, value interface{}) error {
+	pathParts := strings.Split(string(path), ".")
 	for len(pathParts) > 1 {
 		key := pathParts[0]
 		subobj, ok := obj.Keys[key]

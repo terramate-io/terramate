@@ -12,5 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package globals provides functions for loading globals.
-package globals
+// Package cty provides helper functions and types for dealing with complex
+// cty tasks.
+package cty

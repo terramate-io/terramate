@@ -1,3 +1,17 @@
+// Copyright 2022 Mineiros GmbH
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package cty_test
 
 import (
@@ -155,7 +169,7 @@ func TestCtyObjectSetAt(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			err := tc.obj.SetAt(tc.path, tc.val)
+			err := tc.obj.SetAt(cty.DotPath(tc.path), tc.val)
 			errtest.Assert(t, err, tc.wantErr)
 			if err == nil {
 				if diff := cmp.Diff(tc.obj, tc.want); diff != "" {

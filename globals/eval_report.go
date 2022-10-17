@@ -29,7 +29,7 @@ type (
 		BootstrapErr error
 
 		// Errors is a map of errors for each global.
-		Errors map[DotPath]EvalError // map of global dotpath to its EvalError.
+		Errors map[mcty.DotPath]EvalError // map of global dotpath to its EvalError.
 	}
 
 	// EvalError carries the error and the expression which resulted in it.
@@ -43,7 +43,7 @@ type (
 func NewEvalReport() EvalReport {
 	return EvalReport{
 		Globals: mcty.NewObject(),
-		Errors:  make(map[DotPath]EvalError),
+		Errors:  make(map[mcty.DotPath]EvalError),
 	}
 }
 

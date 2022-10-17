@@ -35,21 +35,19 @@ const (
 )
 
 type (
-	DotPath string
-
 	// Expr is an unevaluated global expression.
 	Expr struct {
 		// Origin is the filename where this expression can be found.
 		Origin project.Path
 
-		DotPath DotPath
+		DotPath mcty.DotPath
 
 		hhcl.Expression
 	}
 
 	// Exprs is the map of unevaluated global expressions visible in a
 	// directory.
-	Exprs map[DotPath]Expr
+	Exprs map[mcty.DotPath]Expr
 )
 
 // Load loads all the globals from the cfgdir.
@@ -135,11 +133,11 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 	report := NewEvalReport()
 	globals := report.Globals
-	pendingExprsErrs := map[DotPath]*errors.List{}
+	pendingExprsErrs := map[mcty.DotPath]*errors.List{}
 	pendingExprs := make(Exprs)
 
+	removeUnset(globalExprs)
 	copyexprs(pendingExprs, globalExprs)
-	removeUnset(pendingExprs)
 
 	if !ctx.HasNamespace("global") {
 		ctx.SetNamespace("global", map[string]cty.Value{})
@@ -150,7 +148,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 		logger.Trace().Msg("evaluating pending expressions")
 
-		sortedKeys := []DotPath{}
+		sortedKeys := []mcty.DotPath{}
 		for accessor := range pendingExprs {
 			sortedKeys = append(sortedKeys, accessor)
 		}
@@ -192,7 +190,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 				switch attr := namespace[1].(type) {
 				case hhcl.TraverseAttr:
 					// TODO(i4k): review this
-					if _, isPending := pendingExprs[DotPath(attr.Name)]; isPending {
+					if _, isPending := pendingExprs[mcty.DotPath(attr.Name)]; isPending {
 						continue pendingExpression
 					}
 				default:
@@ -207,7 +205,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 			// This catches a schema error that cannot be detected at the parser.
 			// When a nested object is defined either by literal or funcalls,
 			// it can't be detected at the parser.
-			if _, ok := globals.GetKeyPath(string(accessor)); ok {
+			if _, ok := globals.GetKeyPath(accessor); ok {
 				pendingExprsErrs[accessor].Append(
 					errors.E(hcl.ErrTerramateSchema, expr.Range(),
 						"global.%s attribute redefined",
@@ -223,7 +221,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 				continue
 			}
 
-			err = globals.SetAt(string(accessor), mcty.NewValue(val, expr.Origin))
+			err = globals.SetAt(accessor, mcty.NewValue(val, expr.Origin))
 			if err != nil {
 				pendingExprsErrs[accessor].Append(err)
 				continue
@@ -293,9 +291,9 @@ func copyexprs(dst, src Exprs) {
 	}
 }
 
-func dotpath(basepath string, name string) DotPath {
+func dotpath(basepath string, name string) mcty.DotPath {
 	if basepath != "" {
-		return DotPath(basepath + "." + name)
+		return mcty.DotPath(basepath + "." + name)
 	}
-	return DotPath(name)
+	return mcty.DotPath(name)
 }
