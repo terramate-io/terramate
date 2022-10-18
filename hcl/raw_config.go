@@ -32,6 +32,10 @@ type RawConfig struct {
 	// This will be available after calling Parse or ParseConfig
 	MergedBlocks ast.MergedBlocks
 
+	// MergedLabelBlocks are the labelled merged blocks.
+	// This will be available after calling Parse or ParseConfig
+	MergedLabelBlocks ast.MergedLabelBlocks
+
 	// UnmergedBlocks are the unmerged blocks from all files.
 	// This will be available after calling Parse or ParseConfig
 	UnmergedBlocks ast.Blocks
@@ -40,8 +44,9 @@ type RawConfig struct {
 // NewRawConfig returns a new RawConfig object.
 func NewRawConfig() RawConfig {
 	return RawConfig{
-		MergedAttributes: make(ast.Attributes),
-		MergedBlocks:     make(ast.MergedBlocks),
+		MergedAttributes:  make(ast.Attributes),
+		MergedBlocks:      make(ast.MergedBlocks),
+		MergedLabelBlocks: make(ast.MergedLabelBlocks),
 	}
 }
 
@@ -55,7 +60,7 @@ func (cfg RawConfig) Copy() RawConfig {
 func (cfg *RawConfig) mergeHandlers() map[string]mergeHandler {
 	return map[string]mergeHandler{
 		"terramate":     cfg.mergeBlock,
-		"globals":       cfg.mergeBlock,
+		"globals":       cfg.mergeLabelledBlock,
 		"stack":         cfg.addBlock,
 		"vendor":        cfg.addBlock,
 		"generate_file": cfg.addBlock,
@@ -70,6 +75,7 @@ func (cfg *RawConfig) Merge(other RawConfig) error {
 	errs := errors.L()
 	errs.Append(cfg.mergeAttrs(other.MergedAttributes))
 	errs.Append(cfg.mergeBlocks(other.MergedBlocks.AsBlocks()))
+	errs.Append(cfg.mergeBlocks(other.MergedLabelBlocks.AsBlocks()))
 	errs.Append(cfg.mergeBlocks(other.UnmergedBlocks))
 	return errs.AsError()
 }
@@ -100,20 +106,43 @@ func (cfg *RawConfig) addBlock(block *ast.Block) error {
 }
 
 func (cfg *RawConfig) mergeBlock(block *ast.Block) error {
+	if len(block.Labels) > 0 {
+		return errors.E("block type %q does not support labels", block.Type)
+	}
+
 	if other, ok := cfg.MergedBlocks[block.Type]; ok {
-		err := other.MergeBlock(block)
+		err := other.MergeBlock(block, false)
 		if err != nil {
 			return errors.E(ErrTerramateSchema, err)
 		}
 		return nil
 	}
 
-	merged := ast.NewMergedBlock(block.Type)
-	cfg.MergedBlocks[block.Type] = merged
-	err := merged.MergeBlock(block)
+	merged := ast.NewMergedBlock(block.Type, nil)
+	err := merged.MergeBlock(block, false)
 	if err != nil {
 		return errors.E(ErrTerramateSchema, err)
 	}
+	cfg.MergedBlocks[block.Type] = merged
+	return nil
+}
+
+func (cfg *RawConfig) mergeLabelledBlock(block *ast.Block) error {
+	labelBlock := ast.NewLabelBlockType(block.Type, block.Labels)
+	if other, ok := cfg.MergedLabelBlocks[labelBlock]; ok {
+		err := other.MergeBlock(block, true)
+		if err != nil {
+			return errors.E(ErrTerramateSchema, err)
+		}
+		return nil
+	}
+
+	merged := ast.NewMergedBlock(block.Type, block.Labels)
+	err := merged.MergeBlock(block, true)
+	if err != nil {
+		return errors.E(ErrTerramateSchema, err)
+	}
+	cfg.MergedLabelBlocks[labelBlock] = merged
 	return nil
 }
 
