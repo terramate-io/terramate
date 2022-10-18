@@ -277,7 +277,7 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error)
 
 		node, err := LoadTree(rootdir, dir)
 		if err != nil {
-			return nil, errors.E(err, "failed to load config from %s", dir)
+			return nil, errors.E(err, "loading from %s", dir)
 		}
 
 		node.Parent = tree
