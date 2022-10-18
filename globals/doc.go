@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package globals provides parsing and evaluation of globals.
+// Package globals provides functions for loading globals.
 package globals

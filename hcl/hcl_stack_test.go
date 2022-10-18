@@ -21,6 +21,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
+	. "github.com/mineiros-io/terramate/test/hclutils"
 )
 
 func TestHCLParserStackID(t *testing.T) {
@@ -242,7 +243,7 @@ func TestHCLParserStack(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("stack.tm", start(6, 15, 85), end(6, 16, 85)),
+						Mkrange("stack.tm", Start(6, 15, 85), End(6, 16, 85)),
 					),
 				},
 			},
@@ -262,7 +263,7 @@ func TestHCLParserStack(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("stack.tm", start(3, 15, 29), end(3, 47, 61)),
+						Mkrange("stack.tm", Start(3, 15, 29), End(3, 47, 61)),
 					),
 				},
 			},
@@ -282,7 +283,7 @@ func TestHCLParserStack(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("stack.tm", start(3, 13, 27), end(3, 14, 28)),
+						Mkrange("stack.tm", Start(3, 13, 27), End(3, 14, 28)),
 					),
 				},
 			},
@@ -305,7 +306,7 @@ func TestHCLParserStack(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("stack.tm", start(6, 18, 87), end(6, 22, 91))),
+						Mkrange("stack.tm", Start(6, 18, 87), End(6, 22, 91))),
 				},
 			},
 		},

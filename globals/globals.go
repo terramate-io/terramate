@@ -15,10 +15,13 @@
 package globals
 
 import (
+	"sort"
+
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
+
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
@@ -37,22 +40,14 @@ type (
 		// Origin is the filename where this expression can be found.
 		Origin project.Path
 
+		DotPath eval.DotPath
+
 		hhcl.Expression
 	}
 
 	// Exprs is the map of unevaluated global expressions visible in a
 	// directory.
-	Exprs map[string]Expr
-
-	// Value is an evaluated global.
-	Value struct {
-		Origin project.Path
-
-		cty.Value
-	}
-
-	// Map is an evaluated globals map.
-	Map map[string]Value
+	Exprs map[eval.DotPath]Expr
 )
 
 // Load loads all the globals from the cfgdir.
@@ -94,35 +89,20 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
 		return exprs, nil
 	}
 
-	globalsBlock := cfg.Node.Globals
-	if globalsBlock != nil {
+	globalsBlocks := cfg.Node.Globals.AsList()
+	for _, block := range globalsBlocks {
 		logger.Trace().Msg("Range over attributes.")
 
-		for _, attr := range globalsBlock.Attributes {
+		for _, attr := range block.Attributes.SortedList() {
 			logger.Trace().Msg("Add attribute to globals.")
 
-			exprs[attr.Name] = Expr{
+			acessor := dotpath(block.Labels, attr.Name)
+			exprs[acessor] = Expr{
 				Origin:     project.PrjAbsPath(tree.RootDir(), attr.Origin),
+				DotPath:    acessor,
 				Expression: attr.Expr,
 			}
 		}
-	}
-
-	importedGlobals, ok := cfg.Node.Imported.MergedBlocks["globals"]
-	if ok {
-		logger.Trace().Msg("Range over imported globals")
-
-		importedExprs := make(Exprs)
-		for _, attr := range importedGlobals.Attributes {
-			logger.Trace().Msg("Add imported attribute to globals.")
-
-			importedExprs[attr.Name] = Expr{
-				Origin:     project.PrjAbsPath(tree.RootDir(), attr.Origin),
-				Expression: attr.Expr,
-			}
-		}
-
-		exprs.merge(importedExprs)
 	}
 
 	parentcfg, ok := parentDir(cfgdir)
@@ -143,7 +123,7 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
 	return exprs, nil
 }
 
-// Eval evaluates all global expressions and returns an EvalReport..
+// Eval evaluates all global expressions and returns an EvalReport.
 func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 	logger := log.With().
 		Str("action", "Exprs.Eval()").
@@ -153,11 +133,11 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 	report := NewEvalReport()
 	globals := report.Globals
-	pendingExprsErrs := map[string]*errors.List{}
+	pendingExprsErrs := map[eval.DotPath]*errors.List{}
 	pendingExprs := make(Exprs)
 
+	removeUnset(globalExprs)
 	copyexprs(pendingExprs, globalExprs)
-	removeUnset(pendingExprs)
 
 	if !ctx.HasNamespace("global") {
 		ctx.SetNamespace("global", map[string]cty.Value{})
@@ -168,22 +148,33 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 		logger.Trace().Msg("evaluating pending expressions")
 
+		sortedKeys := []eval.DotPath{}
+		for accessor := range pendingExprs {
+			sortedKeys = append(sortedKeys, accessor)
+		}
+
+		sort.Slice(sortedKeys, func(i, j int) bool {
+			return sortedKeys[i] < sortedKeys[j]
+		})
+
 	pendingExpression:
-		for name, expr := range pendingExprs {
+		for _, accessor := range sortedKeys {
+			expr := pendingExprs[accessor]
+
 			logger := logger.With().
 				Stringer("origin", expr.Origin).
-				Str("global", name).
+				Str("global", string(accessor)).
 				Logger()
 
 			vars := expr.Variables()
 
-			pendingExprsErrs[name] = errors.L()
+			pendingExprsErrs[accessor] = errors.L()
 
 			logger.Trace().Msg("checking var access inside expression")
 
 			for _, namespace := range vars {
 				if !ctx.HasNamespace(namespace.RootName()) {
-					pendingExprsErrs[name].Append(errors.E(
+					pendingExprsErrs[accessor].Append(errors.E(
 						ErrEval,
 						namespace.SourceRange(),
 						"unknown variable namespace: %s", namespace.RootName(),
@@ -198,7 +189,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 				switch attr := namespace[1].(type) {
 				case hhcl.TraverseAttr:
-					if _, isPending := pendingExprs[attr.Name]; isPending {
+					if _, isPending := pendingExprs[eval.DotPath(attr.Name)]; isPending {
 						continue pendingExpression
 					}
 				default:
@@ -206,7 +197,18 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 				}
 			}
 
-			if err := pendingExprsErrs[name].AsError(); err != nil {
+			if err := pendingExprsErrs[accessor].AsError(); err != nil {
+				continue
+			}
+
+			// This catches a schema error that cannot be detected at the parser.
+			// When a nested object is defined either by literal or funcalls,
+			// it can't be detected at the parser.
+			if _, ok := globals.GetKeyPath(accessor); ok {
+				pendingExprsErrs[accessor].Append(
+					errors.E(hcl.ErrTerramateSchema, expr.Range(),
+						"global.%s attribute redefined",
+						accessor))
 				continue
 			}
 
@@ -214,23 +216,24 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 			val, err := ctx.Eval(expr)
 			if err != nil {
-				pendingExprsErrs[name].Append(err)
+				pendingExprsErrs[accessor].Append(err)
 				continue
 			}
 
-			globals[name] = Value{
-				Origin: expr.Origin,
-				Value:  val,
+			err = globals.SetAt(accessor, eval.NewValue(val, expr.Origin))
+			if err != nil {
+				pendingExprsErrs[accessor].Append(err)
+				continue
 			}
 
 			amountEvaluated++
 
-			delete(pendingExprs, name)
-			delete(pendingExprsErrs, name)
+			delete(pendingExprs, accessor)
+			delete(pendingExprsErrs, accessor)
 
 			logger.Trace().Msg("updating globals eval context with evaluated attribute")
 
-			ctx.SetNamespace("global", globals.Attributes())
+			ctx.SetNamespace("global", globals.AsValueMap())
 		}
 
 		if amountEvaluated == 0 {
@@ -260,21 +263,7 @@ func (globalExprs Exprs) merge(other Exprs) {
 	}
 }
 
-// String provides a string representation of the evaluated globals.
-func (globals Map) String() string {
-	return hcl.FormatAttributes(globals.Attributes())
-}
-
-// Attributes returns all the global attributes, the key in the map
-// is the attribute name with its corresponding value mapped
-func (globals Map) Attributes() map[string]cty.Value {
-	attrcopy := map[string]cty.Value{}
-	for k, v := range globals {
-		attrcopy[k] = v.Value
-	}
-	return attrcopy
-}
-
+// TODO(i4k): review this
 func removeUnset(exprs Exprs) {
 	for name, expr := range exprs {
 		traversal, diags := hhcl.AbsTraversalForExpr(expr.Expression)
@@ -299,4 +288,11 @@ func copyexprs(dst, src Exprs) {
 	for k, v := range src {
 		dst[k] = v
 	}
+}
+
+func dotpath(basepath string, name string) eval.DotPath {
+	if basepath != "" {
+		return eval.DotPath(basepath + "." + name)
+	}
+	return eval.DotPath(name)
 }
