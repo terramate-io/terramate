@@ -62,7 +62,7 @@ type MergedLabelBlocks map[LabelBlockType]*MergedBlock
 func NewMergedBlock(typ string, labels []string) *MergedBlock {
 	return &MergedBlock{
 		Type:       BlockType(typ),
-		Labels:     strings.Join(labels, "."),
+		Labels:     newLabels(labels),
 		Attributes: make(Attributes),
 		Blocks:     make(map[string]*MergedBlock),
 		RawBlocks:  make(map[string]Blocks),
@@ -73,7 +73,7 @@ func NewMergedBlock(typ string, labels []string) *MergedBlock {
 func NewLabelBlockType(typ string, labels []string) LabelBlockType {
 	return LabelBlockType{
 		Type:   BlockType(typ),
-		Labels: strings.Join(labels, "."),
+		Labels: newLabels(labels),
 	}
 }
 
@@ -83,7 +83,7 @@ func (mb *MergedBlock) MergeBlock(other *Block, isLabelled bool) error {
 	if !isLabelled && len(other.Labels) > 0 {
 		errs.Append(errors.E(other.LabelRanges, "block type %q does not support labels"))
 	} else {
-		otherLabels := strings.Join(other.Labels, ".")
+		otherLabels := newLabels(other.Labels)
 		if mb.Labels != otherLabels {
 			errs.Append(errors.E(other.LabelRanges,
 				"cannot merge blocks of type %q with different set of labels (%s != %s)",
@@ -204,4 +204,8 @@ func (mergedBlocks MergedLabelBlocks) AsList() []*MergedBlock {
 
 func sameDir(file1, file2 string) bool {
 	return filepath.Dir(file1) == filepath.Dir(file2)
+}
+
+func newLabels(labels []string) string {
+	return strings.Join(labels, ".")
 }
