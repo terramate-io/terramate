@@ -76,10 +76,10 @@ func logerr(
 
 	ctx := logger.With()
 	if !tmerr.FileRange.Empty() {
-		ctx.Stringer("file", tmerr.FileRange)
+		ctx = ctx.Stringer("file", tmerr.FileRange)
 	}
 	if tmerr.Stack != nil {
-		ctx.Str("stack", tmerr.Stack.Path())
+		ctx = ctx.Str("stack", tmerr.Stack.Path())
 	}
 
 	msgparts := []string{}
