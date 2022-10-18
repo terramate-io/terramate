@@ -30,7 +30,7 @@ import (
 )
 
 // ErrEval indicates a failure during the evaluation process
-const ErrEval errors.Kind = "failed to evaluate expression"
+const ErrEval errors.Kind = "eval expression"
 
 // Context is used to evaluate HCL code.
 type Context struct {
