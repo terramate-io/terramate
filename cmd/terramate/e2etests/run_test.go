@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -2044,7 +2045,14 @@ func listStacks(stacks ...string) string {
 }
 
 func testEnviron() []string {
-	return []string{
+	env := []string{
 		"PATH=" + os.Getenv("PATH"),
 	}
+	if runtime.GOOS == "windows" {
+		// https://pkg.go.dev/os/exec
+		// As a special case on Windows, SYSTEMROOT is always added if
+		// missing and not explicitly set to the empty string.
+		env = append(env, "SYSTEMROOT="+os.Getenv("SYSTEMROOT"))
+	}
+	return env
 }
