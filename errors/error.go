@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"syscall"
 
 	"github.com/hashicorp/hcl/v2"
 )
@@ -462,9 +463,16 @@ func equalStack(s1, s2 StackMeta) bool {
 		s1.Path() == s2.Path()
 }
 
+// cleanFilename will clean the given filename returning a placehold if
+// it is not a valid unix/win path. This is necessary since we use some
+// hacks on partial evaluation like adding a Filename on expressions that
+// is not a valid path but that includes information required by terramate
+// embedded on them, like the expression raw bytes.
 func cleanFilename(fname string) string {
-	if strings.HasSuffix(fname, ".tm") || strings.HasSuffix(fname, ".tm.hcl") {
-		return fname
+	// One of the few restrictions for paths to be valid is to not
+	// have any zeroes in the middle of the string.
+	if _, err := syscall.BytePtrFromString(fname); err != nil {
+		return "<generated-code>"
 	}
-	return "<generated-code>"
+	return fname
 }

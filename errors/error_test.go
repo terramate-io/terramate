@@ -460,30 +460,40 @@ func TestErrorIs(t *testing.T) {
 	}
 }
 
-func TestRangeRepresentationDependsOnFilenameSuffix(t *testing.T) {
-	t.Run("suffix .tm has filename", func(t *testing.T) {
+func TestErrorRangeRepresentation(t *testing.T) {
+	t.Run("valid abspath", func(t *testing.T) {
 		filerange := hcl.Range{
-			Filename: "test.tm",
+			Filename: "/test/test.tm",
 			Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},
 			End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},
 		}
 		err := E(filerange)
-		assert.EqualStrings(t, "test.tm:1,5-10", err.Error())
+		assert.EqualStrings(t, "/test/test.tm:1,5-10", err.Error())
 	})
 
-	t.Run("suffix .tm.hcl has filename", func(t *testing.T) {
+	t.Run("valid relpath", func(t *testing.T) {
 		filerange := hcl.Range{
-			Filename: "test.tm.hcl",
+			Filename: "name/test.tm.hcl",
 			Start:    hcl.Pos{Line: 2, Column: 5, Byte: 3},
 			End:      hcl.Pos{Line: 2, Column: 10, Byte: 13},
 		}
 		err := E(filerange)
-		assert.EqualStrings(t, "test.tm.hcl:2,5-10", err.Error())
+		assert.EqualStrings(t, "name/test.tm.hcl:2,5-10", err.Error())
 	})
 
-	t.Run("suffix .hcl has generated code as filename", func(t *testing.T) {
+	t.Run("valid abspath with any suffix", func(t *testing.T) {
 		filerange := hcl.Range{
-			Filename: "something.hcl",
+			Filename: "/test/test.tf",
+			Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},
+			End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},
+		}
+		err := E(filerange)
+		assert.EqualStrings(t, "/test/test.tf:1,5-10", err.Error())
+	})
+
+	t.Run("invalid path containing zeroes", func(t *testing.T) {
+		filerange := hcl.Range{
+			Filename: string([]byte{'a', 0, 'b'}),
 			Start:    hcl.Pos{Line: 2, Column: 5, Byte: 3},
 			End:      hcl.Pos{Line: 2, Column: 10, Byte: 13},
 		}
