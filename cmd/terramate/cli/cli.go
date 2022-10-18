@@ -1436,9 +1436,8 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (stack.List, error) {
 
 	stacks, err = mgr.AddWantedOf(stacks)
 	if err != nil {
-		return nil, stdfmt.Errorf("adding wanted stacks: %w", err)
+		return nil, errors.E(err, "adding wanted stacks")
 	}
-
 	return stacks, nil
 }
 
@@ -1503,7 +1502,7 @@ func newGit(basedir string, checkrepo bool) (*git.Git, error) {
 	}
 
 	if checkrepo && !g.IsRepository() {
-		return nil, stdfmt.Errorf("dir %q is not a git repository", basedir)
+		return nil, errors.E("dir %q is not a git repository", basedir)
 	}
 
 	return g, nil
@@ -1540,19 +1539,17 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 			}
 
 			if err != nil {
-				return project{}, false, stdfmt.Errorf("getting absolute path of %q: %w", gitdir, err)
+				return project{}, false, errors.E(err, "getting absolute path of %q", gitdir)
 			}
 
 			logger.Trace().Msg("Evaluate symbolic links.")
 
 			gitabs, err = filepath.EvalSymlinks(gitabs)
 			if err != nil {
-				return project{}, false, stdfmt.Errorf("failed evaluating symlinks of %q: %w",
-					gitabs, err)
+				return project{}, false, errors.E(err, "failed evaluating symlinks of %q", gitabs)
 			}
 
 			rootdir := filepath.Dir(gitabs)
-
 			if rootfound && strings.HasPrefix(rootCfgPath, rootdir) && rootCfgPath != rootdir {
 				log.Warn().
 					Str("rootConfig", rootCfgPath).
