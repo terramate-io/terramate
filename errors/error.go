@@ -71,22 +71,22 @@ const separator = ": "
 //
 // The supported types are:
 //
-//   - errors.Kind
+//   - [errors.Kind]
 //     The kind of error (eg.: HCLSyntax, TerramateSchema, etc).
 //
-//   - hcl.Range
+//   - [hcl.Range]
 //     The file range where the error originated.
 //
-//   - errors.StackMeta
+//   - [errors.StackMeta]
 //     The stack that originated the error.
 //
-//   - hcl.Diagnostics
+//   - [hcl.Diagnostics]
 //     The underlying hcl error that triggered this one.
 //     Only the first hcl.Diagnostic will be used.
 //     If hcl.Range is not set, the diagnostic subject range is pulled.
 //     If the string Description is not set, the diagnostic detail field is pulled.
 //
-//   - hcl.Diagnostic
+//   - [hcl.Diagnostic]
 //     Same behavior as hcl.Diagnostics but for a single diagnostic.
 //
 //   - string
@@ -95,16 +95,19 @@ const separator = ": "
 //
 // The underlying error types are:
 //
-//   - *List
+//   - [*errors.List]
 //     The underlying error list wrapped by this one.
 //     This error wraps all of its individual errors so they carry all the
-//     context to print them individually.
+//     context to print them individually but keeping the wrapped error as
+//     as an [*errors.List].
+//     If the list length is 1 the underlying error will be the single error
+//     inside the list, so the wrapped error will not be a [*errors.List].
 //
-//   - hcl.Diagnostics
+//   - [hcl.Diagnostics]
 //     The underlying list of hcl errors wrapped by this one.
 //     This type is converted to a *List containing only the hcl.DiagError values.
 //
-//   - hcl.Diagnostic
+//   - [hcl.Diagnostic]
 //     The underlying hcl error wrapped by this one.
 //     It's ignored if its type is not hcl.DiagError.
 //     If hcl.Range is not already set, the diagnostic subject range is pulled.
@@ -120,15 +123,14 @@ const separator = ": "
 // When the underlying error is a single error, then the fields below are
 // promoted from the underlying error when absent:
 //
-// - errors.Kind
-// - errors.StackMeta
-// - hcl.Range
+// - [errors.Kind]
+// - [errors.StackMeta]
+// - [hcl.Range]
 //
 // Minimization:
 //
 // In order to avoid duplicated messages, if the underlying error is an *Error,
-// we erase the fields present in it if already set with same value in this
-// error.
+// we erase the fields present in it if already set with same value in this error.
 func E(args ...interface{}) *Error {
 	if len(args) == 0 {
 		panic("called with no args")
