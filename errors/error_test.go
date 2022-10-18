@@ -460,6 +460,38 @@ func TestErrorIs(t *testing.T) {
 	}
 }
 
+func TestRangeRepresentationDependsOnFilenameSuffix(t *testing.T) {
+	t.Run("suffix .tm has filename", func(t *testing.T) {
+		filerange := hcl.Range{
+			Filename: "test.tm",
+			Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},
+			End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},
+		}
+		err := E(filerange)
+		assert.EqualStrings(t, "test.tm:1,5-10", err.Error())
+	})
+
+	t.Run("suffix .tm.hcl has filename", func(t *testing.T) {
+		filerange := hcl.Range{
+			Filename: "test.tm.hcl",
+			Start:    hcl.Pos{Line: 2, Column: 5, Byte: 3},
+			End:      hcl.Pos{Line: 2, Column: 10, Byte: 13},
+		}
+		err := E(filerange)
+		assert.EqualStrings(t, "test.tm.hcl:2,5-10", err.Error())
+	})
+
+	t.Run("suffix .hcl has generated code as filename", func(t *testing.T) {
+		filerange := hcl.Range{
+			Filename: "something.hcl",
+			Start:    hcl.Pos{Line: 2, Column: 5, Byte: 3},
+			End:      hcl.Pos{Line: 2, Column: 10, Byte: 13},
+		}
+		err := E(filerange)
+		assert.EqualStrings(t, "<generated-code>:2,5-10", err.Error())
+	})
+}
+
 func TestDetailedRepresentation(t *testing.T) {
 	stack := stackmeta{
 		name: "stack",
