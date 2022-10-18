@@ -49,7 +49,7 @@ type BlockType string
 // LabelBlockType represents a labelled block type.
 type LabelBlockType struct {
 	Type   BlockType // Type of the block
-	Labels string    // Labels are comma separated.
+	Labels string    // Labels are dot separated.
 }
 
 // MergedBlocks maps the block name to the MergedBlock.
