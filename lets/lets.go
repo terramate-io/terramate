@@ -132,7 +132,7 @@ func (letExprs Exprs) Eval(ctx *eval.Context) error {
 
 			val, err := ctx.Eval(expr)
 			if err != nil {
-				pendingExprsErrs[name].Append(errors.E(err, "let.%s", name))
+				pendingExprsErrs[name].Append(errors.E(ErrEval, err, "let.%s", name))
 				continue
 			}
 

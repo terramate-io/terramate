@@ -208,7 +208,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 			val, err := ctx.Eval(expr)
 			if err != nil {
-				pendingExprsErrs[accessor].Append(errors.E(err, "global.%s", accessor))
+				pendingExprsErrs[accessor].Append(errors.E(ErrEval, err, "global.%s", accessor))
 				continue
 			}
 
