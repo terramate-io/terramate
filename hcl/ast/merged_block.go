@@ -17,6 +17,7 @@ package ast
 import (
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
 )
@@ -24,7 +25,10 @@ import (
 // MergedBlock represents a block that spans multiple files.
 type MergedBlock struct {
 	// Type is the block type (or name).
-	Type string
+	Type BlockType
+
+	// Labels is the comma-separated list of labels
+	Labels string
 
 	// Attributes are the block's attributes.
 	Attributes Attributes
@@ -39,31 +43,57 @@ type MergedBlock struct {
 	RawBlocks map[string]Blocks
 }
 
+// BlockType represents a block type.
+type BlockType string
+
+// LabelBlockType represents a labelled block type.
+type LabelBlockType struct {
+	Type   BlockType // Type of the block
+	Labels string    // Labels are dot separated.
+}
+
 // MergedBlocks maps the block name to the MergedBlock.
 type MergedBlocks map[string]*MergedBlock
 
+// MergedLabelBlocks maps the block labels/types to the MergedBlock.
+type MergedLabelBlocks map[LabelBlockType]*MergedBlock
+
 // NewMergedBlock creates a new MergedBlock of type typ.
-func NewMergedBlock(typ string) *MergedBlock {
+func NewMergedBlock(typ string, labels []string) *MergedBlock {
 	return &MergedBlock{
-		Type:       typ,
+		Type:       BlockType(typ),
+		Labels:     newLabels(labels),
 		Attributes: make(Attributes),
 		Blocks:     make(map[string]*MergedBlock),
 		RawBlocks:  make(map[string]Blocks),
 	}
 }
 
-// MergeBlock recursively merges the other block into this one.
-func (mb *MergedBlock) MergeBlock(other *Block) error {
-	errs := errors.L()
+// NewLabelBlockType returns a new LabelBlockType.
+func NewLabelBlockType(typ string, labels []string) LabelBlockType {
+	return LabelBlockType{
+		Type:   BlockType(typ),
+		Labels: newLabels(labels),
+	}
+}
 
-	// Currently all merged blocks do not support labels.
-	// This should not be handled here if changed in the future.
-	if len(other.Labels) > 0 {
+// MergeBlock recursively merges the other block into this one.
+func (mb *MergedBlock) MergeBlock(other *Block, isLabelled bool) error {
+	errs := errors.L()
+	if !isLabelled && len(other.Labels) > 0 {
 		errs.Append(errors.E(other.LabelRanges, "block type %q does not support labels"))
+	} else {
+		otherLabels := newLabels(other.Labels)
+		if mb.Labels != otherLabels {
+			errs.Append(errors.E(other.LabelRanges,
+				"cannot merge blocks of type %q with different set of labels (%s != %s)",
+				mb.Labels, otherLabels,
+			))
+		}
 	}
 
 	errs.Append(mb.mergeAttrs(other.Attributes))
-	errs.Append(mb.mergeBlocks(other.Blocks))
+	errs.Append(mb.mergeBlocks(other.Blocks, isLabelled))
 	err := errs.AsError()
 	if err == nil {
 		mb.RawOrigins = append(mb.RawOrigins, other)
@@ -88,15 +118,15 @@ func (mb *MergedBlock) mergeAttrs(other Attributes) error {
 	return errs.AsError()
 }
 
-func (mb *MergedBlock) mergeBlocks(other Blocks) error {
+func (mb *MergedBlock) mergeBlocks(other Blocks, isLabelled bool) error {
 	errs := errors.L()
 	for _, newblock := range other {
 		var err error
 		if old, ok := mb.Blocks[newblock.Type]; ok {
-			err = old.MergeBlock(newblock)
+			err = old.MergeBlock(newblock, isLabelled)
 		} else {
-			b := NewMergedBlock(newblock.Type)
-			err = b.MergeBlock(newblock)
+			b := NewMergedBlock(newblock.Type, newblock.Labels)
+			err = b.MergeBlock(newblock, isLabelled)
 			if err == nil {
 				mb.Blocks[newblock.Type] = b
 			}
@@ -154,6 +184,28 @@ func (mergedBlocks MergedBlocks) AsBlocks() Blocks {
 	return all
 }
 
+// AsBlocks returns a Block list from a MergedBlocks.
+func (mergedBlocks MergedLabelBlocks) AsBlocks() Blocks {
+	var all Blocks
+	for _, m := range mergedBlocks {
+		all = append(all, m.RawOrigins...)
+	}
+	return all
+}
+
+// AsList returns a list of merged blocks sorted by its label strings.
+func (mergedBlocks MergedLabelBlocks) AsList() []*MergedBlock {
+	allblocks := []*MergedBlock{}
+	for _, mb := range mergedBlocks {
+		allblocks = append(allblocks, mb)
+	}
+	return allblocks
+}
+
 func sameDir(file1, file2 string) bool {
 	return filepath.Dir(file1) == filepath.Dir(file2)
+}
+
+func newLabels(labels []string) string {
+	return strings.Join(labels, ".")
 }

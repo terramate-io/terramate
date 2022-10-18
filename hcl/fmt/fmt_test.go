@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package hcl_test
+package fmt_test
 
 import (
 	"os"
@@ -23,7 +23,10 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/test"
+
+	. "github.com/mineiros-io/terramate/test/hclutils"
 
 	errtest "github.com/mineiros-io/terramate/test/errors"
 )
@@ -1243,11 +1246,11 @@ var = [
 			`,
 			wantErrs: []error{
 				errors.E(hcl.ErrHCLSyntax),
-				errors.E(mkrange(filename, start(2, 17, 17), end(3, 1, 18))),
-				errors.E(mkrange(filename, start(3, 17, 34), end(4, 1, 35))),
-				errors.E(mkrange(filename, start(4, 15, 49), end(5, 1, 50))),
-				errors.E(mkrange(filename, start(5, 15, 64), end(6, 1, 65))),
-				errors.E(mkrange(filename, start(2, 16, 16), end(2, 17, 17))),
+				errors.E(Mkrange(filename, Start(2, 17, 17), End(3, 1, 18))),
+				errors.E(Mkrange(filename, Start(3, 17, 34), End(4, 1, 35))),
+				errors.E(Mkrange(filename, Start(4, 15, 49), End(5, 1, 50))),
+				errors.E(Mkrange(filename, Start(5, 15, 64), End(6, 1, 65))),
+				errors.E(Mkrange(filename, Start(2, 16, 16), End(2, 17, 17))),
 			},
 		},
 	}
@@ -1256,9 +1259,9 @@ var = [
 		t.Run(tcase.name, func(t *testing.T) {
 			tempdir := t.TempDir()
 
-			got, err := hcl.FormatMultiline(tcase.input, filepath.Join(tempdir, filename))
+			got, err := fmt.FormatMultiline(tcase.input, filepath.Join(tempdir, filename))
 
-			fixupFiledirOnErrorsFileRanges(tempdir, tcase.wantErrs)
+			FixupFiledirOnErrorsFileRanges(tempdir, tcase.wantErrs)
 			errtest.AssertErrorList(t, err, tcase.wantErrs)
 
 			if diff := cmp.Diff(got, tcase.want); diff != "" {
@@ -1272,7 +1275,7 @@ var = [
 				return
 			}
 
-			got2, err := hcl.FormatMultiline(got, "formatted.hcl")
+			got2, err := fmt.FormatMultiline(got, "formatted.hcl")
 			assert.NoError(t, err)
 			assert.EqualStrings(t, got, got2, "reformatting should produce identical results")
 		})
@@ -1327,19 +1330,19 @@ d = []
 				obj    = {
 			`,
 			wantErrs: []error{
-				errors.E(hcl.ErrHCLSyntax),
-				errors.E(mkrange(filename, start(2, 17, 17), end(3, 1, 18))),
-				errors.E(mkrange(filename, start(3, 17, 34), end(4, 1, 35))),
-				errors.E(mkrange(filename, start(4, 15, 49), end(5, 1, 50))),
-				errors.E(mkrange(filename, start(5, 15, 64), end(6, 1, 65))),
-				errors.E(mkrange(filename, start(2, 16, 16), end(2, 17, 17))),
+				errors.E(fmt.ErrHCLSyntax),
+				errors.E(Mkrange(filename, Start(2, 17, 17), End(3, 1, 18))),
+				errors.E(Mkrange(filename, Start(3, 17, 34), End(4, 1, 35))),
+				errors.E(Mkrange(filename, Start(4, 15, 49), End(5, 1, 50))),
+				errors.E(Mkrange(filename, Start(5, 15, 64), End(6, 1, 65))),
+				errors.E(Mkrange(filename, Start(2, 16, 16), End(2, 17, 17))),
 			},
 		},
 	}
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			got, err := hcl.Format(tcase.input, filename)
+			got, err := fmt.Format(tcase.input, filename)
 			errtest.AssertErrorList(t, err, tcase.wantErrs)
 			assert.EqualStrings(t, tcase.want, got)
 
@@ -1347,7 +1350,7 @@ d = []
 				return
 			}
 
-			got2, err := hcl.Format(got, "formatted.hcl")
+			got2, err := fmt.Format(got, "formatted.hcl")
 			assert.NoError(t, err)
 			assert.EqualStrings(t, got, got2, "reformatting should produce identical results")
 		})
@@ -1373,7 +1376,7 @@ d = []
 			test.WriteFile(t, rootdir, filename, tcase.input)
 			test.WriteFile(t, subdir, filename, tcase.input)
 
-			got, err := hcl.FormatTree(rootdir)
+			got, err := fmt.FormatTree(rootdir)
 
 			// Since we have identical files we expect the same
 			// set of errors for each filepath to be present.
@@ -1414,7 +1417,7 @@ d = []
 					assertFileContains(t, res.Path(), res.Formatted())
 				}
 
-				got, err := hcl.FormatTree(rootdir)
+				got, err := fmt.FormatTree(rootdir)
 				assert.NoError(t, err)
 
 				if len(got) > 0 {
@@ -1427,7 +1430,7 @@ d = []
 
 func TestFormatTreeReturnsEmptyResultsForEmptyDir(t *testing.T) {
 	tmpdir := t.TempDir()
-	got, err := hcl.FormatTree(tmpdir)
+	got, err := fmt.FormatTree(tmpdir)
 	assert.NoError(t, err)
 	assert.EqualInts(t, 0, len(got), "want no results, got: %v", got)
 }
@@ -1440,7 +1443,7 @@ func TestFormatTreeFailsOnNonAccessibleSubdir(t *testing.T) {
 	test.Chmod(t, filepath.Join(tmpdir, subdir), 0)
 	defer test.Chmod(t, filepath.Join(tmpdir, subdir), 0755)
 
-	_, err := hcl.FormatTree(tmpdir)
+	_, err := fmt.FormatTree(tmpdir)
 	assert.Error(t, err)
 }
 
@@ -1456,13 +1459,13 @@ func TestFormatTreeFailsOnNonAccessibleFile(t *testing.T) {
 	test.Chmod(t, filepath.Join(tmpdir, filename), 0)
 	defer test.Chmod(t, filepath.Join(tmpdir, filename), 0755)
 
-	_, err := hcl.FormatTree(tmpdir)
+	_, err := fmt.FormatTree(tmpdir)
 	assert.Error(t, err)
 }
 
 func TestFormatTreeFailsOnNonExistentDir(t *testing.T) {
 	tmpdir := t.TempDir()
-	_, err := hcl.FormatTree(filepath.Join(tmpdir, "non-existent"))
+	_, err := fmt.FormatTree(filepath.Join(tmpdir, "non-existent"))
 	assert.Error(t, err)
 }
 
@@ -1488,7 +1491,7 @@ a = 1
 	test.WriteFile(t, subdir, "file.tm", unformattedCode)
 	test.WriteFile(t, subdir, "file.tm.hcl", unformattedCode)
 
-	got, err := hcl.FormatTree(tmpdir)
+	got, err := fmt.FormatTree(tmpdir)
 	assert.NoError(t, err)
 	assert.EqualInts(t, 0, len(got), "want no results, got: %v", got)
 }

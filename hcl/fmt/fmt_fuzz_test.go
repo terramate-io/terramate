@@ -14,17 +14,16 @@
 
 //go:build go1.18 && linux
 
-package hcl_test
+package fmt_test
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/rs/zerolog"
 )
 
@@ -75,14 +74,14 @@ func FuzzFormatMultiline(f *testing.F) {
 
 		const testattr = "attr"
 
-		cfg := fmt.Sprintf("%s = %s", testattr, str)
+		cfg := testattr + " = " + str
 
 		// WHY: When we try to format "attr = 0.0 .0" it will format to
 		// attr = 0.0.0 which then is NOT valid HCL =P.
 		// Since hashicorp's hcl.Format is the one doing this we filter
 		// out hcl.Format mistakes here to focus on our own mistakes
 		// on hcl.FormatMultiline.
-		defaultFmt, err := hcl.Format(cfg, "default-fmt.hcl")
+		defaultFmt, err := fmt.Format(cfg, "default-fmt.hcl")
 		if err != nil || !isValidHCL(defaultFmt) {
 			return
 		}
@@ -117,7 +116,7 @@ func isValidHCL(code string) bool {
 func formatMultiline(t *testing.T, code string) string {
 	t.Helper()
 
-	got, err := hcl.FormatMultiline(code, "fuzz.hcl")
+	got, err := fmt.FormatMultiline(code, "fuzz.hcl")
 	assert.NoError(t, err)
 
 	return got

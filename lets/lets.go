@@ -19,8 +19,8 @@ import (
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -176,7 +176,7 @@ func (letExprs Exprs) Eval(ctx *eval.Context) error {
 
 // String provides a string representation of the evaluated lets.
 func (lets Map) String() string {
-	return hcl.FormatAttributes(lets.Attributes())
+	return fmt.FormatAttributes(lets.Attributes())
 }
 
 // Attributes returns all the lets attributes, the key in the map

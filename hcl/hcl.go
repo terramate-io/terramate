@@ -28,6 +28,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/fs"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/rs/zerolog/log"
@@ -54,7 +55,7 @@ const (
 type Config struct {
 	Terramate *Terramate
 	Stack     *Stack
-	Globals   *ast.MergedBlock
+	Globals   ast.MergedLabelBlocks
 	Vendor    *VendorConfig
 	Asserts   []AssertConfig
 	Generate  struct {
@@ -361,7 +362,7 @@ func (p *TerramateParser) AddDir(dir string) error {
 		Str("dir", dir).
 		Logger()
 
-	tmFiles, err := listTerramateFiles(dir)
+	tmFiles, err := fs.ListTerramateFiles(dir)
 	if err != nil {
 		return errors.E(err, "adding directory to terramate parser")
 	}
@@ -1609,12 +1610,16 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 		}
 	}
 
-	globalsBlock, ok := rawconfig.MergedBlocks["globals"]
-	if ok {
-		errs.AppendWrap(ErrTerramateSchema, globalsBlock.ValidateSubBlocks())
+	globals := ast.MergedLabelBlocks{}
+	for labelType, mergedBlock := range rawconfig.MergedLabelBlocks {
+		if labelType.Type == "globals" {
+			globals[labelType] = mergedBlock
 
-		config.Globals = globalsBlock
+			errs.AppendWrap(ErrTerramateSchema, mergedBlock.ValidateSubBlocks())
+		}
 	}
+
+	config.Globals = globals
 
 	if foundstack {
 		logger.Debug().Msg("Parsing stack cfg.")
@@ -1730,92 +1735,6 @@ func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
 		return Terramate{}, err
 	}
 	return tm, nil
-}
-
-func listTerramateFiles(dir string) ([]string, error) {
-	logger := log.With().
-		Str("action", "listTerramateFiles()").
-		Str("dir", dir).
-		Logger()
-
-	logger.Trace().Msg("listing files")
-
-	dirEntries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, errors.E(err, "reading dir to list Terramate files")
-	}
-
-	logger.Trace().Msg("looking for Terramate files")
-
-	files := []string{}
-
-	for _, dirEntry := range dirEntries {
-		logger := logger.With().
-			Str("entryName", dirEntry.Name()).
-			Logger()
-
-		if strings.HasPrefix(dirEntry.Name(), ".") {
-			logger.Trace().Msg("ignoring dotfile")
-			continue
-		}
-
-		if dirEntry.IsDir() {
-			logger.Trace().Msg("ignoring dir")
-			continue
-		}
-
-		filename := dirEntry.Name()
-		if isTerramateFile(filename) {
-			logger.Trace().Msg("Found Terramate file")
-			files = append(files, filename)
-		}
-	}
-
-	return files, nil
-}
-
-// listTerramateDirs lists Terramate dirs, which are any dirs
-// except ones starting with ".".
-func listTerramateDirs(dir string) ([]string, error) {
-	logger := log.With().
-		Str("action", "listTerramateDirs()").
-		Str("dir", dir).
-		Logger()
-
-	logger.Trace().Msg("listing dirs")
-
-	dirEntries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, errors.E(err, "reading dir to list Terramate dirs")
-	}
-
-	logger.Trace().Msg("looking for Terramate directories")
-
-	dirs := []string{}
-
-	for _, dirEntry := range dirEntries {
-		logger := logger.With().
-			Str("entryName", dirEntry.Name()).
-			Logger()
-
-		if !dirEntry.IsDir() {
-			logger.Trace().Msg("ignoring non-dir")
-			continue
-		}
-
-		if strings.HasPrefix(dirEntry.Name(), ".") {
-			logger.Trace().Msg("ignoring dotdir")
-			continue
-		}
-
-		dirs = append(dirs, dirEntry.Name())
-	}
-
-	return dirs, nil
-}
-
-func isTerramateFile(filename string) bool {
-	return strings.HasSuffix(filename, ".tm") || strings.HasSuffix(filename, ".tm.hcl")
 }
 
 func hclAttrErr(attr *hcl.Attribute, msg string, args ...interface{}) error {
