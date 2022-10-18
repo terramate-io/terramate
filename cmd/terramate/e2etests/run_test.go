@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -1260,7 +1261,7 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		cli := newCLI(t, s.RootDir())
 		cli.env = append([]string{
 			"TM_DISABLE_CHECK_GIT_UNTRACKED=true",
-		}, os.Environ()...)
+		}, testEnviron()...)
 		assertRun(t, cli.run(
 			"run",
 			"--changed",
@@ -1431,7 +1432,7 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 		tmcli := newCLI(t, s.RootDir())
 		tmcli.env = append([]string{
 			"TM_DISABLE_CHECK_GEN_CODE=true",
-		}, os.Environ()...)
+		}, testEnviron()...)
 
 		assertRunResult(t, tmcli.run("run", "--changed", testHelperBin, "cat", generateFile), runExpected{
 			Stdout: generateFileBody,
@@ -1559,7 +1560,7 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 		cli := newCLI(t, s.RootDir())
 		cli.env = append([]string{
 			"TM_DISABLE_CHECK_GIT_UNCOMMITTED=true",
-		}, os.Environ()...)
+		}, testEnviron()...)
 
 		assertRunResult(t, cli.run("run", cat, mainTfFileName), runExpected{
 			Stdout: mainTfAlteredContents,
@@ -1789,7 +1790,7 @@ func TestRunDisableGitCheckRemote(t *testing.T) {
 		ts := newCLI(t, s.RootDir())
 		ts.env = append([]string{
 			"TM_DISABLE_CHECK_GIT_REMOTE=true",
-		}, os.Environ()...)
+		}, testEnviron()...)
 
 		assertRunResult(t, ts.run("run", cat, someFile.HostPath()), runExpected{
 			Stdout: fileContents,
@@ -1994,7 +1995,7 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 	git.Add(".")
 	git.CommitAll("first commit")
 
-	hostenv := os.Environ()
+	hostenv := testEnviron()
 	clienv := append(hostenv,
 		"TERRAMATE_OVERRIDDEN=oldValue",
 		fmt.Sprintf("TERRAMATE_TEST=%s", exportedTerramateTest),
@@ -2041,4 +2042,17 @@ stack "/stack":
 
 func listStacks(stacks ...string) string {
 	return strings.Join(stacks, "\n") + "\n"
+}
+
+func testEnviron() []string {
+	env := []string{
+		"PATH=" + os.Getenv("PATH"),
+	}
+	if runtime.GOOS == "windows" {
+		// https://pkg.go.dev/os/exec
+		// As a special case on Windows, SYSTEMROOT is always added if
+		// missing and not explicitly set to the empty string.
+		env = append(env, "SYSTEMROOT="+os.Getenv("SYSTEMROOT"))
+	}
+	return env
 }
