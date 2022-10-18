@@ -20,6 +20,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
+	. "github.com/mineiros-io/terramate/test/hclutils"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
@@ -156,7 +157,7 @@ func TestHCLParserAssert(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("assert.tm", start(1, 1, 0), end(3, 2, 37)),
+						Mkrange("assert.tm", Start(1, 1, 0), End(3, 2, 37)),
 					),
 				},
 			},
@@ -174,7 +175,7 @@ func TestHCLParserAssert(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("assert.tm", start(1, 1, 0), end(3, 2, 29)),
+						Mkrange("assert.tm", Start(1, 1, 0), End(3, 2, 29)),
 					),
 				},
 			},
@@ -194,7 +195,7 @@ func TestHCLParserAssert(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("assert.tm", start(4, 3, 61), end(4, 12, 70)),
+						Mkrange("assert.tm", Start(4, 3, 61), End(4, 12, 70)),
 					),
 				},
 			},
@@ -214,7 +215,7 @@ func TestHCLParserAssert(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("assert.tm", start(1, 8, 7), end(1, 14, 13)),
+						Mkrange("assert.tm", Start(1, 8, 7), End(1, 14, 13)),
 					),
 				},
 			},
@@ -234,7 +235,7 @@ func TestHCLParserAssert(t *testing.T) {
 			want: want{
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema,
-						mkrange("assert.tm", start(4, 3, 61), end(4, 9, 67)),
+						Mkrange("assert.tm", Start(4, 3, 61), End(4, 9, 67)),
 					),
 				},
 			},
