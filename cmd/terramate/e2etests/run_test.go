@@ -1260,7 +1260,7 @@ func TestRunFailIfGitSafeguardUntracked(t *testing.T) {
 		cli := newCLI(t, s.RootDir())
 		cli.env = append([]string{
 			"TM_DISABLE_CHECK_GIT_UNTRACKED=true",
-		}, os.Environ()...)
+		}, testEnviron()...)
 		assertRun(t, cli.run(
 			"run",
 			"--changed",
@@ -1431,7 +1431,7 @@ func TestRunFailIfGeneratedCodeIsOutdated(t *testing.T) {
 		tmcli := newCLI(t, s.RootDir())
 		tmcli.env = append([]string{
 			"TM_DISABLE_CHECK_GEN_CODE=true",
-		}, os.Environ()...)
+		}, testEnviron()...)
 
 		assertRunResult(t, tmcli.run("run", "--changed", testHelperBin, "cat", generateFile), runExpected{
 			Stdout: generateFileBody,
@@ -1559,7 +1559,7 @@ func TestRunFailIfGitSafeguardUncommitted(t *testing.T) {
 		cli := newCLI(t, s.RootDir())
 		cli.env = append([]string{
 			"TM_DISABLE_CHECK_GIT_UNCOMMITTED=true",
-		}, os.Environ()...)
+		}, testEnviron()...)
 
 		assertRunResult(t, cli.run("run", cat, mainTfFileName), runExpected{
 			Stdout: mainTfAlteredContents,
@@ -1789,7 +1789,7 @@ func TestRunDisableGitCheckRemote(t *testing.T) {
 		ts := newCLI(t, s.RootDir())
 		ts.env = append([]string{
 			"TM_DISABLE_CHECK_GIT_REMOTE=true",
-		}, os.Environ()...)
+		}, testEnviron()...)
 
 		assertRunResult(t, ts.run("run", cat, someFile.HostPath()), runExpected{
 			Stdout: fileContents,
@@ -1994,7 +1994,7 @@ func TestRunWitCustomizedEnv(t *testing.T) {
 	git.Add(".")
 	git.CommitAll("first commit")
 
-	hostenv := os.Environ()
+	hostenv := testEnviron()
 	clienv := append(hostenv,
 		"TERRAMATE_OVERRIDDEN=oldValue",
 		fmt.Sprintf("TERRAMATE_TEST=%s", exportedTerramateTest),
@@ -2041,4 +2041,10 @@ stack "/stack":
 
 func listStacks(stacks ...string) string {
 	return strings.Join(stacks, "\n") + "\n"
+}
+
+func testEnviron() []string {
+	return []string{
+		"PATH=" + os.Getenv("PATH"),
+	}
 }
