@@ -21,7 +21,6 @@ package errors
 import (
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -464,7 +463,7 @@ func equalStack(s1, s2 StackMeta) bool {
 }
 
 func cleanFilename(fname string) string {
-	if ext := filepath.Ext(fname); ext == ".tm" || ext == ".tm.hcl" {
+	if strings.HasSuffix(fname, ".tm") || strings.HasSuffix(fname, ".tm.hcl") {
 		return fname
 	}
 	return "<generated-code>"
