@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package hcl_test
+package fmt_test
 
 import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -84,7 +84,7 @@ func TestFormatAttributes(t *testing.T) {
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			got := hcl.FormatAttributes(tcase.attributes)
+			got := fmt.FormatAttributes(tcase.attributes)
 			assert.EqualStrings(t, tcase.want, got)
 		})
 	}

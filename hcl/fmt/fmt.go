@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package hcl
+// Package fmt contains functions for formatting hcl config.
+package fmt
 
 import (
 	"fmt"
@@ -23,8 +24,13 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/fs"
+
 	"github.com/rs/zerolog/log"
 )
+
+// ErrHCLSyntax is the error kind for syntax errors.
+const ErrHCLSyntax errors.Kind = "HCL syntax error"
 
 // FormatResult represents the result of a formatting operation.
 type FormatResult struct {
@@ -75,7 +81,7 @@ func FormatTree(dir string) ([]FormatResult, error) {
 
 	logger.Trace().Msg("listing terramate files")
 
-	files, err := listTerramateFiles(dir)
+	files, err := fs.ListTerramateFiles(dir)
 	if err != nil {
 		return nil, errors.E(errFormatTree, err)
 	}
@@ -119,7 +125,7 @@ func FormatTree(dir string) ([]FormatResult, error) {
 		})
 	}
 
-	dirs, err := listTerramateDirs(dir)
+	dirs, err := fs.ListTerramateDirs(dir)
 	if err != nil {
 		errs.Append(err)
 		return nil, errors.E(errFormatTree, errs)
