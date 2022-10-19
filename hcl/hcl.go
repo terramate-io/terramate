@@ -58,15 +58,19 @@ type Config struct {
 	Globals   ast.MergedLabelBlocks
 	Vendor    *VendorConfig
 	Asserts   []AssertConfig
-	Generate  struct {
-		Files []GenFileBlock
-		HCLs  []GenHCLBlock
-	}
+	Generate  GenerateConfig
 
 	Imported RawConfig
 
 	// absdir is the absolute path to the configuration directory.
 	absdir string
+}
+
+// GenerateConfig includes code generation related configurations, like
+// generate_file and generate_hcl.
+type GenerateConfig struct {
+	Files []GenFileBlock
+	HCLs  []GenHCLBlock
 }
 
 // AssertConfig represents Terramate assert configuration block.
@@ -199,6 +203,8 @@ type GenHCLBlock struct {
 	Condition *hclsyntax.Attribute
 	// Content block.
 	Content *hclsyntax.Block
+	// Asserts represents all assert blocks
+	Asserts []AssertConfig
 }
 
 // GenFileBlock represents a parsed generate_file block
@@ -213,6 +219,8 @@ type GenFileBlock struct {
 	Condition *hclsyntax.Attribute
 	// Content attribute of the block
 	Content *hclsyntax.Attribute
+	// Asserts represents all assert blocks
+	Asserts []AssertConfig
 }
 
 // Evaluator represents a Terramate evaluator
@@ -719,6 +727,7 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 	var (
 		lets    hclsyntax.Blocks
 		content *hclsyntax.Block
+		asserts []AssertConfig
 	)
 
 	err := validateGenerateHCLBlock(block)
@@ -726,20 +735,28 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 		return GenHCLBlock{}, err
 	}
 
-	for _, b := range block.Body.Blocks {
-		switch b.Type {
+	for _, subBlock := range block.Blocks {
+		switch subBlock.Type {
 		case "lets":
-			lets = append(lets, b)
+			lets = append(lets, subBlock.Block)
+		case "assert":
+			// TODO(KATCIPIS): error handling tests
+			assertCfg, _ := parseAssertConfig(subBlock)
+			//if err != nil {
+			//errs.Append(err)
+			//continue
+			//}
+			asserts = append(asserts, assertCfg)
 		case "content":
 			if content != nil {
-				return GenHCLBlock{}, errors.E(b.Range(),
+				return GenHCLBlock{}, errors.E(subBlock.Range(),
 					"multiple generate_hcl.content blocks defined",
 				)
 			}
-			content = b
+			content = subBlock.Block
 		default:
 			// already validated but sanity checks...
-			panic("unreachable")
+			panic(errors.E("terramate internal error: unexpected block type %s", subBlock.Type))
 		}
 	}
 
@@ -747,6 +764,7 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 		Origin:    block.Origin,
 		Label:     block.Labels[0],
 		Lets:      lets,
+		Asserts:   asserts,
 		Content:   content,
 		Condition: block.Body.Attributes["condition"],
 	}, nil
@@ -760,18 +778,34 @@ func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
 		return GenFileBlock{}, err
 	}
 
-	for _, subBlock := range block.Body.Blocks {
-		if len(subBlock.Body.Blocks) > 0 {
-			return GenFileBlock{}, errors.E(ErrTerramateSchema,
-				subBlock.Body.Blocks[0].Range(), "lets does not support blocks",
-			)
+	var (
+		lets    hclsyntax.Blocks
+		asserts []AssertConfig
+	)
+
+	for _, subBlock := range block.Blocks {
+		switch subBlock.Type {
+		case "lets":
+			lets = append(lets, subBlock.Block)
+		case "assert":
+			// TODO(KATCIPIS): error handling tests
+			assertCfg, _ := parseAssertConfig(subBlock)
+			//if err != nil {
+			//errs.Append(err)
+			//continue
+			//}
+			asserts = append(asserts, assertCfg)
+		default:
+			// already validated but sanity checks...
+			panic(errors.E("terramate internal error: unexpected block type %s", subBlock.Type))
 		}
 	}
 
 	return GenFileBlock{
 		Origin:    block.Origin,
 		Label:     block.Labels[0],
-		Lets:      block.Body.Blocks,
+		Lets:      lets,
+		Asserts:   asserts,
 		Content:   block.Body.Attributes["content"],
 		Condition: block.Body.Attributes["condition"],
 	}, nil
@@ -837,6 +871,10 @@ func validateGenerateHCLBlock(block *ast.Block) error {
 				Type:       "lets",
 				LabelNames: []string{},
 			},
+			{
+				Type:       "assert",
+				LabelNames: []string{},
+			},
 		},
 	}
 
@@ -882,6 +920,10 @@ func validateGenerateFileBlock(block *ast.Block) error {
 		Blocks: []hcl.BlockHeaderSchema{
 			{
 				Type:       "lets",
+				LabelNames: []string{},
+			},
+			{
+				Type:       "assert",
 				LabelNames: []string{},
 			},
 		},

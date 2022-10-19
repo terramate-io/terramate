@@ -73,8 +73,10 @@ func AssertTerramateConfig(t *testing.T, got, want hcl.Config) {
 
 	assertTerramateBlock(t, got.Terramate, want.Terramate)
 	assertStackBlock(t, got.Stack, want.Stack)
-	assertAssertsBlock(t, got.Asserts, want.Asserts)
-	AssertDiff(t, got.Vendor, want.Vendor, "checking vendor config")
+	assertAssertsBlock(t, got.Asserts, want.Asserts, "terramate asserts")
+	AssertDiff(t, got.Vendor, want.Vendor, "terramate vendor")
+	assertGenHCLBlocks(t, got.Generate.HCLs, want.Generate.HCLs)
+	assertGenFileBlocks(t, got.Generate.Files, want.Generate.Files)
 }
 
 // AssertDiff will compare the two values and fail if they are not the same
@@ -102,25 +104,25 @@ func NewExpr(t *testing.T, expr string) hhcl.Expression {
 	return res
 }
 
-func assertAssertsBlock(t *testing.T, got, want []hcl.AssertConfig) {
+func assertAssertsBlock(t *testing.T, got, want []hcl.AssertConfig, ctx string) {
 	t.Helper()
 
 	if len(got) != len(want) {
-		t.Fatalf("got %d assert blocks, want %d", len(got), len(want))
+		t.Fatalf("%s: got %d assert blocks, want %d", ctx, len(got), len(want))
 	}
 
 	for i, g := range got {
 		w := want[i]
-		assert.EqualStrings(t, w.Origin, g.Origin, "origin mismatch")
+		assert.EqualStrings(t, w.Origin, g.Origin, "%s: origin mismatch", ctx)
 		assert.EqualStrings(t,
 			exprAsStr(t, w.Assertion), exprAsStr(t, g.Assertion),
-			"assertion expr mismatch")
+			"%s: assertion expr mismatch", ctx)
 		assert.EqualStrings(t,
 			exprAsStr(t, w.Message), exprAsStr(t, g.Message),
-			"message expr mismatch")
+			"%s: message expr mismatch", ctx)
 		assert.EqualStrings(t,
 			exprAsStr(t, w.Warning), exprAsStr(t, g.Warning),
-			"warning expr mismatch")
+			"%s: warning expr mismatch", ctx)
 	}
 }
 
@@ -186,6 +188,34 @@ func assertTerramateConfigBlock(t *testing.T, got, want *hcl.RootConfig) {
 	}
 
 	assertTerramateRunBlock(t, got.Run, want.Run)
+}
+
+func assertGenHCLBlocks(t *testing.T, got, want []hcl.GenHCLBlock) {
+	t.Helper()
+
+	// We don't have a good way to compare all contents for now
+	assert.EqualInts(t, len(want), len(got), "genhcl blocks differ in len")
+
+	for i, gotBlock := range got {
+		wantBlock := want[i]
+		assert.EqualStrings(t, wantBlock.Origin, gotBlock.Origin, "genhcl origin differs")
+		assert.EqualStrings(t, wantBlock.Label, gotBlock.Label, "genhcl label differs")
+		assertAssertsBlock(t, gotBlock.Asserts, wantBlock.Asserts, "genhcl asserts")
+	}
+}
+
+func assertGenFileBlocks(t *testing.T, got, want []hcl.GenFileBlock) {
+	t.Helper()
+
+	// We don't have a good way to compare all contents for now
+	assert.EqualInts(t, len(want), len(got), "genfile blocks differ in len")
+
+	for i, gotBlock := range got {
+		wantBlock := want[i]
+		assert.EqualStrings(t, wantBlock.Origin, gotBlock.Origin, "genfile origin differs")
+		assert.EqualStrings(t, wantBlock.Label, gotBlock.Label, "genfile label differs")
+		assertAssertsBlock(t, gotBlock.Asserts, wantBlock.Asserts, "genfile asserts")
+	}
 }
 
 func assertTerramateRunBlock(t *testing.T, got, want *hcl.RunConfig) {
