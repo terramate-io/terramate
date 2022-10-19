@@ -193,6 +193,17 @@ func Load(
 			continue
 		}
 
+		asserts := make([]config.Assert, len(hclBlock.Asserts))
+
+		for i, assertCfg := range hclBlock.Asserts {
+			assert, _ := config.EvalAssert(evalctx.Context, assertCfg)
+			// TODO(katcipis): test error handling
+			//if err != nil {
+			//return nil, err
+			//}
+			asserts[i] = assert
+		}
+
 		gen := hclwrite.NewEmptyFile()
 		if err := copyBody(gen.Body(), hclBlock.Content.Body, evalctx); err != nil {
 			return nil, errors.E(ErrContentEval, sm, err,
@@ -211,6 +222,7 @@ func Load(
 			origin:    origin,
 			body:      formatted,
 			condition: condition,
+			asserts:   asserts,
 		})
 	}
 

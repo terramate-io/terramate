@@ -24,7 +24,6 @@ import (
 
 func TestGenerateHCLAssert(t *testing.T) {
 	t.Parallel()
-	t.Skip()
 
 	tcases := []testcase{
 		{
@@ -51,12 +50,12 @@ func TestGenerateHCLAssert(t *testing.T) {
 							Str("message", "let.a != global.a"),
 						),
 						Assert(
-							Expr("assertion", `terramate.stack.path == "/stack"`),
+							Expr("assertion", `terramate.stack.path.absolute == "/stack"`),
 							Str("message", "wrong stack metadata"),
 							Bool("warning", true),
 						),
 						Content(
-							Str("a", "lets.a"),
+							Expr("a", "let.a"),
 						),
 					),
 				},
@@ -72,12 +71,12 @@ func TestGenerateHCLAssert(t *testing.T) {
 						),
 						asserts: []config.Assert{
 							{
-								Range:     Mkrange("/stack/generate.tm", Start(1, 1, 0), End(3, 2, 37)),
+								Range:     Mkrange("/stack/generate.tm", Start(7, 17, 87), End(7, 34, 104)),
 								Assertion: true,
 								Message:   "let.a != global.a",
 							},
 							{
-								Range:     Mkrange("/stack/generate.tm", Start(1, 1, 0), End(3, 2, 37)),
+								Range:     Mkrange("/stack/generate.tm", Start(11, 17, 172), End(11, 58, 213)),
 								Assertion: true,
 								Message:   "wrong stack metadata",
 								Warning:   true,

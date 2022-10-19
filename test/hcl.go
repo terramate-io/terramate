@@ -24,6 +24,7 @@ import (
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
@@ -102,6 +103,27 @@ func NewExpr(t *testing.T, expr string) hhcl.Expression {
 	res, err := eval.ParseExpressionBytes([]byte(expr))
 	assert.NoError(t, err)
 	return res
+}
+
+// AssertConfigEquals asserts that two [config.Assert] are equal.
+func AssertConfigEquals(t *testing.T, got, want []config.Assert) {
+	t.Helper()
+
+	if len(got) != len(want) {
+		t.Fatalf("got %d assert blocks, want %d", len(got), len(want))
+	}
+
+	for i, g := range got {
+		w := want[i]
+		if g.Assertion != w.Assertion {
+			t.Errorf("got.Assertion[%d]=%t, want=%t", i, g.Assertion, w.Assertion)
+		}
+		if g.Warning != w.Warning {
+			t.Errorf("got.Warning[%d]=%t, want=%t", i, g.Warning, w.Warning)
+		}
+		AssertDiff(t, g.Range, w.Range, "range mismatch")
+		assert.EqualStrings(t, w.Message, g.Message, "message mismatch")
+	}
 }
 
 func assertAssertsBlock(t *testing.T, got, want []hcl.AssertConfig, ctx string) {
