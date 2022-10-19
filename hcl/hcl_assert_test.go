@@ -484,84 +484,164 @@ func TestHCLParserAssertInsideGenerate(t *testing.T) {
 				},
 			},
 		},
-		//{
-		//name: "message is obligatory",
-		//input: []cfgfile{
-		//{
-		//filename: "assert.tm",
-		//body: Assert(
-		//Expr("assertion", "true"),
-		//).String(),
-		//},
-		//},
-		//want: want{
-		//errs: []error{
-		//errors.E(hcl.ErrTerramateSchema,
-		//Mkrange("assert.tm", Start(1, 1, 0), End(3, 2, 29)),
-		//),
-		//},
-		//},
-		//},
-		//{
-		//name: "sub block fails",
-		//input: []cfgfile{
-		//{
-		//filename: "assert.tm",
-		//body: Assert(
-		//Expr("assertion", "1 == 1"),
-		//Expr("message", "global.message"),
-		//Block("something"),
-		//).String(),
-		//},
-		//},
-		//want: want{
-		//errs: []error{
-		//errors.E(hcl.ErrTerramateSchema,
-		//Mkrange("assert.tm", Start(4, 3, 61), End(4, 12, 70)),
-		//),
-		//},
-		//},
-		//},
-		//{
-		//name: "label fails",
-		//input: []cfgfile{
-		//{
-		//filename: "assert.tm",
-		//body: Assert(
-		//Labels("ohno"),
-		//Expr("assertion", "1 == 1"),
-		//Expr("message", "global.message"),
-		//).String(),
-		//},
-		//},
-		//want: want{
-		//errs: []error{
-		//errors.E(hcl.ErrTerramateSchema,
-		//Mkrange("assert.tm", Start(1, 8, 7), End(1, 14, 13)),
-		//),
-		//},
-		//},
-		//},
-		//{
-		//name: "unknown attribute fails",
-		//input: []cfgfile{
-		//{
-		//filename: "assert.tm",
-		//body: Assert(
-		//Expr("assertion", "1 == 1"),
-		//Expr("message", "global.message"),
-		//Expr("oopsie", "unknown"),
-		//).String(),
-		//},
-		//},
-		//want: want{
-		//errs: []error{
-		//errors.E(hcl.ErrTerramateSchema,
-		//Mkrange("assert.tm", Start(4, 3, 61), End(4, 9, 67)),
-		//),
-		//},
-		//},
-		//},
+		{
+			name: "message is obligatory",
+			input: []cfgfile{
+				{
+					filename: "assert_genfile.tm",
+					body: GenerateFile(
+						Labels("file.txt"),
+						Str("content", "terramate is awesome"),
+						Assert(
+							Expr("assertion", "global.data"),
+						),
+					).String(),
+				},
+				{
+					filename: "assert_genhcl.tm",
+					body: GenerateHCL(
+						Labels("file.hcl"),
+						Content(),
+						Assert(
+							Expr("assertion", "global.data"),
+						),
+					).String(),
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("assert_genfile.tm", Start(3, 3, 64), End(5, 4, 104)),
+					),
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("assert_genhcl.tm", Start(4, 3, 44), End(6, 4, 84)),
+					),
+				},
+			},
+		},
+		{
+			name: "sub block fails",
+			input: []cfgfile{
+				{
+					filename: "assert_genfile.tm",
+					body: GenerateFile(
+						Labels("file.txt"),
+						Str("content", "terramate is awesome"),
+						Assert(
+							Expr("assertion", "global.data"),
+							Expr("message", "global.msg"),
+							Assert(
+								Expr("assertion", "global.data"),
+								Expr("message", "global.msg"),
+							),
+						),
+					).String(),
+				},
+				{
+					filename: "assert_genhcl.tm",
+					body: GenerateHCL(
+						Labels("file.hcl"),
+						Content(),
+						Assert(
+							Expr("assertion", "global.data"),
+							Expr("message", "global.msg"),
+							Assert(
+								Expr("assertion", "global.data"),
+								Expr("message", "global.msg"),
+							),
+						),
+					).String(),
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("assert_genfile.tm", Start(6, 5, 132), End(6, 11, 138)),
+					),
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("assert_genhcl.tm", Start(7, 5, 112), End(7, 11, 118)),
+					),
+				},
+			},
+		},
+		{
+			name: "label fails",
+			input: []cfgfile{
+				{
+					filename: "assert_genfile.tm",
+					body: GenerateFile(
+						Labels("file.txt"),
+						Str("content", "terramate is awesome"),
+						Assert(
+							Labels("ohno"),
+							Expr("assertion", "global.data"),
+							Expr("message", "global.msg"),
+						),
+					).String(),
+				},
+				{
+					filename: "assert_genhcl.tm",
+					body: GenerateHCL(
+						Labels("file.hcl"),
+						Content(),
+						Assert(
+							Labels("ohno"),
+							Expr("assertion", "global.data"),
+							Expr("message", "global.msg"),
+						),
+					).String(),
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("assert_genfile.tm", Start(3, 10, 71), End(3, 16, 77)),
+					),
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("assert_genhcl.tm", Start(4, 10, 51), End(4, 16, 57)),
+					),
+				},
+			},
+		},
+		{
+			name: "unknown attribute fails",
+			input: []cfgfile{
+				{
+					filename: "assert_genfile.tm",
+					body: GenerateFile(
+						Labels("file.txt"),
+						Str("content", "terramate is awesome"),
+						Assert(
+							Expr("assertion", "global.data"),
+							Expr("message", "global.msg"),
+							Expr("was", "global.msg"),
+						),
+					).String(),
+				},
+				{
+					filename: "assert_genhcl.tm",
+					body: GenerateHCL(
+						Labels("file.hcl"),
+						Content(),
+						Assert(
+							Expr("assertion", "global.data"),
+							Expr("message", "global.msg"),
+							Expr("was", "global.msg"),
+						),
+					).String(),
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("assert_genfile.tm", Start(6, 5, 132), End(6, 8, 135)),
+					),
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("assert_genhcl.tm", Start(7, 5, 112), End(7, 8, 115)),
+					),
+				},
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
