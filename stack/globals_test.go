@@ -683,6 +683,67 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name: "inheriting labelled globals without attributes",
+			layout: []string{
+				"s:stacks/stack-a",
+				"s:stacks/stack-b",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: Doc(
+						Globals(
+							Labels("obj"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-a": Globals(
+					EvalExpr(t, "obj", `{
+					}`),
+				),
+				"/stacks/stack-b": Globals(
+					EvalExpr(t, "obj", `{
+					}`),
+				),
+			},
+		},
+		{
+			name: "empty labelled globals do not overwrite existing ones",
+			layout: []string{
+				"s:stacks/stack-a",
+				"s:stacks/stack-b",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: Doc(
+						Globals(
+							Labels("obj"),
+							Number("a", 1),
+						),
+
+						Globals(
+							Labels("obj"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-a": Globals(
+					EvalExpr(t, "obj", `{
+						a = 1
+					}`),
+				),
+				"/stacks/stack-b": Globals(
+					EvalExpr(t, "obj", `{
+						a = 1
+					}`),
+				),
+			},
+		},
+		{
 			name: "extending globals from parent scope",
 			layout: []string{
 				"s:stacks/stack-a",

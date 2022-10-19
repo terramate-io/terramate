@@ -91,6 +91,19 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
 
 	globalsBlocks := cfg.Node.Globals.AsList()
 	for _, block := range globalsBlocks {
+		if block.Labels != "" && len(block.Attributes.SortedList()) == 0 {
+			expr, _ := eval.ParseExpressionBytes([]byte(`{}`))
+			label := eval.DotPath(block.Labels)
+			exprs[label] = Expr{
+				Origin: project.PrjAbsPath(
+					tree.RootDir(),
+					block.RawOrigins[0].Origin,
+				),
+				DotPath:    label,
+				Expression: expr,
+			}
+		}
+
 		logger.Trace().Msg("Range over attributes.")
 
 		for _, attr := range block.Attributes.SortedList() {
@@ -166,13 +179,10 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 				Str("global", string(accessor)).
 				Logger()
 
-			vars := expr.Variables()
-
-			pendingExprsErrs[accessor] = errors.L()
-
 			logger.Trace().Msg("checking var access inside expression")
 
-			for _, namespace := range vars {
+			pendingExprsErrs[accessor] = errors.L()
+			for _, namespace := range expr.Variables() {
 				if !ctx.HasNamespace(namespace.RootName()) {
 					pendingExprsErrs[accessor].Append(errors.E(
 						ErrEval,
