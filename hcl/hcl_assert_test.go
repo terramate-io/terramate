@@ -449,59 +449,41 @@ func TestHCLParserAssertInsideGenerate(t *testing.T) {
 				},
 			},
 		},
-		//{
-		//name: "multiple asserts on multiple files",
-		//input: []cfgfile{
-		//{
-		//filename: "assert.tm",
-		//body: Assert(
-		//Expr("assertion", "1 == 1"),
-		//Expr("message", "global.message"),
-		//).String(),
-		//},
-		//{
-		//filename: "assert2.tm",
-		//body: Assert(
-		//Expr("assertion", "666 == 1"),
-		//Expr("message", "global.another"),
-		//).String(),
-		//},
-		//},
-		//want: want{
-		//config: hcl.Config{
-		//Asserts: []hcl.AssertConfig{
-		//{
-		//Origin:    "assert.tm",
-		//Assertion: expr(t, "1 == 1"),
-		//Message:   expr(t, "global.message"),
-		//},
-		//{
-		//Origin:    "assert2.tm",
-		//Assertion: expr(t, "666 == 1"),
-		//Message:   expr(t, "global.another"),
-		//},
-		//},
-		//},
-		//},
-		//},
-		//{
-		//name: "assertion is obligatory",
-		//input: []cfgfile{
-		//{
-		//filename: "assert.tm",
-		//body: Assert(
-		//Expr("message", "global.message"),
-		//).String(),
-		//},
-		//},
-		//want: want{
-		//errs: []error{
-		//errors.E(hcl.ErrTerramateSchema,
-		//Mkrange("assert.tm", Start(1, 1, 0), End(3, 2, 37)),
-		//),
-		//},
-		//},
-		//},
+		{
+			name: "assertion is obligatory",
+			input: []cfgfile{
+				{
+					filename: "assert_genfile.tm",
+					body: GenerateFile(
+						Labels("file.txt"),
+						Str("content", "terramate is awesome"),
+						Assert(
+							Expr("message", "global.message"),
+						),
+					).String(),
+				},
+				{
+					filename: "assert_genhcl.tm",
+					body: GenerateHCL(
+						Labels("file.hcl"),
+						Content(),
+						Assert(
+							Expr("message", "global.message"),
+						),
+					).String(),
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("assert_genfile.tm", Start(3, 3, 64), End(5, 4, 105)),
+					),
+					errors.E(hcl.ErrTerramateSchema,
+						Mkrange("assert_genhcl.tm", Start(4, 3, 44), End(6, 4, 85)),
+					),
+				},
+			},
+		},
 		//{
 		//name: "message is obligatory",
 		//input: []cfgfile{

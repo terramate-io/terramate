@@ -735,29 +735,36 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 		return GenHCLBlock{}, err
 	}
 
+	errs := errors.L()
+
 	for _, subBlock := range block.Blocks {
 		switch subBlock.Type {
 		case "lets":
 			lets = append(lets, subBlock.Block)
 		case "assert":
 			// TODO(KATCIPIS): error handling tests
-			assertCfg, _ := parseAssertConfig(subBlock)
-			//if err != nil {
-			//errs.Append(err)
-			//continue
-			//}
+			assertCfg, err := parseAssertConfig(subBlock)
+			if err != nil {
+				errs.Append(err)
+				continue
+			}
 			asserts = append(asserts, assertCfg)
 		case "content":
 			if content != nil {
-				return GenHCLBlock{}, errors.E(subBlock.Range(),
+				errs.Append(errors.E(subBlock.Range(),
 					"multiple generate_hcl.content blocks defined",
-				)
+				))
+				continue
 			}
 			content = subBlock.Block
 		default:
 			// already validated but sanity checks...
 			panic(errors.E("terramate internal error: unexpected block type %s", subBlock.Type))
 		}
+	}
+
+	if err := errs.AsError(); err != nil {
+		return GenHCLBlock{}, err
 	}
 
 	return GenHCLBlock{
@@ -783,22 +790,27 @@ func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
 		asserts []AssertConfig
 	)
 
+	errs := errors.L()
+
 	for _, subBlock := range block.Blocks {
 		switch subBlock.Type {
 		case "lets":
 			lets = append(lets, subBlock.Block)
 		case "assert":
-			// TODO(KATCIPIS): error handling tests
-			assertCfg, _ := parseAssertConfig(subBlock)
-			//if err != nil {
-			//errs.Append(err)
-			//continue
-			//}
+			assertCfg, err := parseAssertConfig(subBlock)
+			if err != nil {
+				errs.Append(err)
+				continue
+			}
 			asserts = append(asserts, assertCfg)
 		default:
 			// already validated but sanity checks...
 			panic(errors.E("terramate internal error: unexpected block type %s", subBlock.Type))
 		}
+	}
+
+	if err := errs.AsError(); err != nil {
+		return GenFileBlock{}, err
 	}
 
 	return GenFileBlock{
