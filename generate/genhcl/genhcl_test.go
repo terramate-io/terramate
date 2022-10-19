@@ -1688,6 +1688,7 @@ type (
 		body      fmt.Stringer
 		origin    string
 		condition bool
+		asserts   []config.Assert
 	}
 	result struct {
 		name string
@@ -1744,27 +1745,29 @@ func (tcase testcase) run(t *testing.T) {
 				len(got), len(tcase.want))
 		}
 
-		for i, res := range tcase.want {
+		for i, want := range tcase.want {
 			gothcl := got[i]
 
 			gotCondition := gothcl.Condition()
-			wantCondition := res.hcl.condition
+			wantCondition := want.hcl.condition
 
 			if gotCondition != wantCondition {
 				t.Fatalf("got condition %t != want %t", gotCondition, wantCondition)
 			}
 
+			test.AssertDiff(t, gothcl.Asserts(), want.hcl.asserts, "assert cfgs differ")
+
 			gotcode := gothcl.Body()
-			wantcode := res.hcl.body.String()
+			wantcode := want.hcl.body.String()
 
 			assertHCLEquals(t, gotcode, wantcode)
 			assert.EqualStrings(t,
-				res.name,
+				want.name,
 				gothcl.Label(),
 				"wrong name for generated code",
 			)
 			assert.EqualStrings(t,
-				res.hcl.origin,
+				want.hcl.origin,
 				gothcl.Origin().String(),
 				"wrong origin config path for generated code",
 			)

@@ -44,6 +44,7 @@ type HCL struct {
 	origin    project.Path
 	body      string
 	condition bool
+	asserts   []config.Assert
 }
 
 const (
@@ -85,6 +86,13 @@ const (
 // Label of the original generate_hcl block.
 func (h HCL) Label() string {
 	return h.label
+}
+
+// Asserts returns all (if any) of the evaluated assert configs of the
+// generate_hcl block. If [HCL.Condition] returns false then assert configs
+// will always be empty since they are not evaluated at all in that case.
+func (h HCL) Asserts() []config.Assert {
+	return h.asserts
 }
 
 // Header returns the header of the generated HCL file.
