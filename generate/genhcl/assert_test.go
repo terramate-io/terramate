@@ -18,12 +18,12 @@ import (
 	"testing"
 
 	"github.com/mineiros-io/terramate/config"
+	. "github.com/mineiros-io/terramate/test/hclutils"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
 func TestGenerateHCLAssert(t *testing.T) {
 	t.Parallel()
-
 	t.Skip()
 
 	tcases := []testcase{
@@ -53,6 +53,7 @@ func TestGenerateHCLAssert(t *testing.T) {
 						Assert(
 							Expr("assertion", `terramate.stack.path == "/stack"`),
 							Str("message", "wrong stack metadata"),
+							Bool("warning", true),
 						),
 						Content(
 							Str("a", "lets.a"),
@@ -71,12 +72,15 @@ func TestGenerateHCLAssert(t *testing.T) {
 						),
 						asserts: []config.Assert{
 							{
+								Range:     Mkrange("/stack/generate.tm", Start(1, 1, 0), End(3, 2, 37)),
 								Assertion: true,
 								Message:   "let.a != global.a",
 							},
 							{
+								Range:     Mkrange("/stack/generate.tm", Start(1, 1, 0), End(3, 2, 37)),
 								Assertion: true,
 								Message:   "wrong stack metadata",
+								Warning:   true,
 							},
 						},
 					},

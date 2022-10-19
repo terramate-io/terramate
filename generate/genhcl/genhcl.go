@@ -150,7 +150,7 @@ func Load(
 
 	logger.Trace().Msg("loading generate_hcl blocks.")
 
-	loadedHCLs, err := loadGenHCLBlocks(tree, sm.Path())
+	hclBlocks, err := loadGenHCLBlocks(tree, sm.Path())
 	if err != nil {
 		return nil, errors.E("loading generate_hcl", err)
 	}
@@ -158,23 +158,18 @@ func Load(
 	logger.Trace().Msg("generating HCL code.")
 
 	var hcls []HCL
-	for _, loadedHCL := range loadedHCLs {
-		name := loadedHCL.name
-
-		logger := logger.With().
-			Str("block", name).
-			Logger()
-
+	for _, hclBlock := range hclBlocks {
+		name := hclBlock.Label
+		origin := project.PrjAbsPath(tree.RootDir(), hclBlock.Origin)
 		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
-		err := lets.Load(loadedHCL.lets, evalctx.Context)
+		err := lets.Load(hclBlock.Lets, evalctx.Context)
 		if err != nil {
 			return nil, err
 		}
 
 		condition := true
-		if loadedHCL.condition != nil {
-			logger.Trace().Msg("has condition attribute, evaluating it")
-			value, err := evalctx.Eval(loadedHCL.condition.Expr)
+		if hclBlock.Condition != nil {
+			value, err := evalctx.Eval(hclBlock.Condition.Expr)
 			if err != nil {
 				return nil, errors.E(ErrConditionEval, err)
 			}
@@ -189,45 +184,31 @@ func Load(
 		}
 
 		if !condition {
-			logger.Trace().Msg("condition=false, block wont be evaluated")
-
 			hcls = append(hcls, HCL{
 				label:     name,
-				origin:    loadedHCL.origin,
+				origin:    origin,
 				condition: condition,
 			})
 
 			continue
 		}
 
-		logger.Trace().Msg("evaluating block")
-
 		gen := hclwrite.NewEmptyFile()
-		if err := copyBody(gen.Body(), loadedHCL.block.Body, evalctx); err != nil {
+		if err := copyBody(gen.Body(), hclBlock.Content.Body, evalctx); err != nil {
 			return nil, errors.E(ErrContentEval, sm, err,
 				"generate_hcl %q", name,
 			)
 		}
 
-		// TODO(i4k): filename in line below must be an absolute host path.
-		formatted, err := fmt.FormatMultiline(string(gen.Bytes()), loadedHCL.origin.String())
+		formatted, err := fmt.FormatMultiline(string(gen.Bytes()), hclBlock.Origin)
 		if err != nil {
-			// genhcl must always generate valid code that is formatable
-			// this is a severe internal error
-			logger.Error().
-				Err(err).
-				Stringer("origin", loadedHCL.origin).
-				Str("code", string(gen.Bytes())).
-				Str("label", name).
-				Msg("internal error formatting generated code")
-
 			panic(errors.E(sm, err,
-				"internal error: formatting generated code for generate_hcl %q", name,
+				"internal error: formatting generated code for generate_hcl %q:%s", name, string(gen.Bytes()),
 			))
 		}
 		hcls = append(hcls, HCL{
 			label:     name,
-			origin:    loadedHCL.origin,
+			origin:    origin,
 			body:      formatted,
 			condition: condition,
 		})
@@ -239,14 +220,6 @@ func Load(
 
 	logger.Trace().Msg("evaluated all blocks with success")
 	return hcls, nil
-}
-
-type loadedHCL struct {
-	name      string
-	origin    project.Path
-	lets      hclsyntax.Blocks
-	block     *hclsyntax.Block
-	condition *hclsyntax.Attribute
 }
 
 type dynBlockAttributes struct {
@@ -261,36 +234,11 @@ type dynBlockAttributes struct {
 // The returned map maps the name of the block (its label)
 // to the original block and the path (relative to project root) of the config
 // from where it was parsed.
-func loadGenHCLBlocks(tree *config.Tree, cfgdir project.Path) ([]loadedHCL, error) {
-	logger := log.With().
-		Str("action", "genhcl.loadGenHCLBlocks()").
-		Str("root", tree.RootDir()).
-		Stringer("configDir", cfgdir).
-		Logger()
-
-	logger.Trace().Msg("Parsing generate_hcl blocks.")
-
-	res := []loadedHCL{}
+func loadGenHCLBlocks(tree *config.Tree, cfgdir project.Path) ([]hcl.GenHCLBlock, error) {
+	res := []hcl.GenHCLBlock{}
 	cfg, ok := tree.Lookup(cfgdir)
 	if ok && !cfg.IsEmptyConfig() {
-		blocks := cfg.Node.Generate.HCLs
-
-		logger.Trace().Msg("Parsed generate_hcl blocks.")
-
-		for _, genhclBlock := range blocks {
-			name := genhclBlock.Label
-			origin := project.PrjAbsPath(tree.RootDir(), genhclBlock.Origin)
-
-			res = append(res, loadedHCL{
-				name:      name,
-				origin:    origin,
-				lets:      genhclBlock.Lets,
-				block:     genhclBlock.Content,
-				condition: genhclBlock.Condition,
-			})
-
-			logger.Trace().Msg("loaded generate_hcl block.")
-		}
+		res = append(res, cfg.Node.Generate.HCLs...)
 	}
 
 	parentCfgDir := cfgdir.Dir()
@@ -305,7 +253,6 @@ func loadGenHCLBlocks(tree *config.Tree, cfgdir project.Path) ([]loadedHCL, erro
 
 	res = append(res, parentRes...)
 
-	logger.Trace().Msg("loaded generate_hcl blocks with success.")
 	return res, nil
 }
 

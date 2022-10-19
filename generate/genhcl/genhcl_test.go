@@ -1755,6 +1755,7 @@ func (tcase testcase) run(t *testing.T) {
 				t.Fatalf("got condition %t != want %t", gotCondition, wantCondition)
 			}
 
+			test.FixupRangeOnAssert(s.RootDir(), want.hcl.asserts)
 			test.AssertDiff(t, gothcl.Asserts(), want.hcl.asserts, "assert cfgs differ")
 
 			gotcode := gothcl.Body()
