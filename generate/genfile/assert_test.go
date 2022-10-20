@@ -18,6 +18,8 @@ import (
 	"testing"
 
 	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	. "github.com/mineiros-io/terramate/test/hclutils"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
@@ -168,27 +170,24 @@ func TestGenerateFileAssert(t *testing.T) {
 				},
 			},
 		},
-		//{
-		//name:  "evaluation failure",
-		//stack: "/stack",
-		//configs: []hclconfig{
-		//{
-		//path:     "/stack",
-		//filename: "fail.tm",
-		//add: GenerateHCL(
-		//Labels("asserts.hcl"),
-		//Assert(
-		//Expr("assertion", "let.a == global.a"),
-		//Str("message", "let.a != global.a"),
-		//),
-		//Content(
-		//Str("a", "data"),
-		//),
-		//),
-		//},
-		//},
-		//wantErr: errors.L(errors.E(eval.ErrEval), errors.E(eval.ErrEval)),
-		//},
+		{
+			name:  "evaluation failure",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/fail.tm",
+					add: GenerateFile(
+						Labels("asserts.hcl"),
+						Assert(
+							Expr("assertion", "let.a == global.a"),
+							Str("message", "let.a != global.a"),
+						),
+						Str("content", "data"),
+					),
+				},
+			},
+			wantErr: errors.L(errors.E(eval.ErrEval), errors.E(eval.ErrEval)),
+		},
 	}
 
 	for _, tcase := range tcases {

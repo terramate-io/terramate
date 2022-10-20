@@ -159,24 +159,24 @@ func Load(
 		}
 
 		asserts := make([]config.Assert, len(genFileBlock.Asserts))
-		//assertsErrs := errors.L()
+		assertsErrs := errors.L()
 		assertFailed := false
 
 		for i, assertCfg := range genFileBlock.Asserts {
-			assert, _ := config.EvalAssert(evalctx.Context, assertCfg)
-			//if err != nil {
-			//assertsErrs.Append(err)
-			//continue
-			//}
+			assert, err := config.EvalAssert(evalctx.Context, assertCfg)
+			if err != nil {
+				assertsErrs.Append(err)
+				continue
+			}
 			asserts[i] = assert
 			if !assert.Assertion && !assert.Warning {
 				assertFailed = true
 			}
 		}
 
-		//if err := assertsErrs.AsError(); err != nil {
-		//return nil, err
-		//}
+		if err := assertsErrs.AsError(); err != nil {
+			return nil, err
+		}
 
 		if assertFailed {
 			files = append(files, File{
