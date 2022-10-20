@@ -194,14 +194,19 @@ func Load(
 		}
 
 		asserts := make([]config.Assert, len(hclBlock.Asserts))
+		assertsErrs := errors.L()
 
 		for i, assertCfg := range hclBlock.Asserts {
-			assert, _ := config.EvalAssert(evalctx.Context, assertCfg)
-			// TODO(katcipis): test error handling
-			//if err != nil {
-			//return nil, err
-			//}
+			assert, err := config.EvalAssert(evalctx.Context, assertCfg)
+			if err != nil {
+				assertsErrs.Append(err)
+				continue
+			}
 			asserts[i] = assert
+		}
+
+		if err := assertsErrs.AsError(); err != nil {
+			return nil, err
 		}
 
 		gen := hclwrite.NewEmptyFile()
