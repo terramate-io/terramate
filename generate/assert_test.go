@@ -362,5 +362,155 @@ func TestGenerateAssertInsideGenerateBlocks(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "all blocks ignored if a single block fails assertion",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						GenerateHCL(
+							Labels("test.hcl"),
+							Content(
+								Str("stacks", "test"),
+							),
+						),
+						GenerateFile(
+							Labels("test.txt"),
+							Str("content", "test"),
+						),
+						GenerateHCL(
+							Labels("test2.hcl"),
+							Content(
+								Str("stacks", "test"),
+							),
+							Assert(
+								Bool("assertion", false),
+								Str("message", "msg"),
+							),
+						),
+						GenerateFile(
+							Labels("test2.txt"),
+							Str("content", "test"),
+							Assert(
+								Bool("assertion", false),
+								Str("message", "msg"),
+							),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/stack",
+						},
+						Error: errors.L(
+							errors.E(generate.ErrAssertion),
+							errors.E(generate.ErrAssertion),
+						),
+					},
+				},
+			},
+		},
+		{
+			name: "generates code when failed assertion is a warning",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						GenerateHCL(
+							Labels("test.hcl"),
+							Content(
+								Str("stack", "test"),
+							),
+							Assert(
+								Bool("assertion", false),
+								Str("message", "msg"),
+								Bool("warning", true),
+							),
+						),
+						GenerateFile(
+							Labels("test.txt"),
+							Str("content", "test"),
+							Assert(
+								Bool("assertion", false),
+								Str("message", "msg"),
+								Bool("warning", true),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stack",
+					files: map[string]fmt.Stringer{
+						"test.hcl": Doc(
+							Str("stack", "test"),
+						),
+						"test.txt": stringer("test"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/stack",
+						Created: []string{"test.hcl", "test.txt"},
+					},
+				},
+			},
+		},
+		{
+			name: "failed assertion message contents",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						GenerateHCL(
+							Labels("test.hcl"),
+							Content(
+								Str("stack", "test"),
+							),
+							Assert(
+								Bool("assertion", false),
+								Str("message", "msg"),
+							),
+						),
+						GenerateFile(
+							Labels("test.txt"),
+							Str("content", "test"),
+							Assert(
+								Bool("assertion", false),
+								Str("message", "msg2"),
+							),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/stack",
+						},
+						Error: errors.L(
+							errors.E(generate.ErrAssertion, "/stack/terramate.tm.hcl:7,17-22: msg"),
+							errors.E(generate.ErrAssertion, "/stack/terramate.tm.hcl:14,17-22: msg2"),
+						),
+					},
+				},
+			},
+		},
 	})
 }

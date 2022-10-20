@@ -93,13 +93,18 @@ func Do(cfg *config.Tree, workingDir string) Report {
 			return report
 		}
 
+		generated, err := loadGenCodeConfigs(cfg, projmeta, stack, globals)
+		if err != nil {
+			report.err = err
+			return report
+		}
+
+		for _, gen := range generated {
+			asserts = append(asserts, gen.Asserts()...)
+		}
+
 		errs := errors.L()
 		for _, assert := range asserts {
-			log.Info().
-				Stringer("stack", stack.Path()).
-				Str("msg", assert.Message).
-				Msg("checking assertion")
-
 			if !assert.Assertion {
 				assertRange := assert.Range
 				assertRange.Filename = project.PrjAbsPath(cfg.RootDir(), assert.Range.Filename).String()
@@ -121,12 +126,6 @@ func Do(cfg *config.Tree, workingDir string) Report {
 		}
 
 		if err := errs.AsError(); err != nil {
-			report.err = err
-			return report
-		}
-
-		generated, err := loadGenCodeConfigs(cfg, projmeta, stack, globals)
-		if err != nil {
 			report.err = err
 			return report
 		}
@@ -419,6 +418,7 @@ type genCodeCfg interface {
 	Header() string
 	Body() string
 	Condition() bool
+	Asserts() []config.Assert
 }
 
 func updateOutdatedFiles(
