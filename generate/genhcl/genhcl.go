@@ -16,7 +16,7 @@
 package genhcl
 
 import (
-	stdmt "fmt"
+	stdfmt "fmt"
 	"sort"
 
 	hhcl "github.com/hashicorp/hcl/v2"
@@ -97,7 +97,7 @@ func (h HCL) Asserts() []config.Assert {
 
 // Header returns the header of the generated HCL file.
 func (h HCL) Header() string {
-	return stdmt.Sprintf(
+	return stdfmt.Sprintf(
 		"%s\n// TERRAMATE: originated from generate_hcl block on %s\n\n",
 		Header,
 		h.origin,
@@ -122,7 +122,7 @@ func (h HCL) Condition() bool {
 }
 
 func (h HCL) String() string {
-	return stdmt.Sprintf("Generating file %q (condition %t) (body %q) (origin %q)",
+	return stdfmt.Sprintf("Generating file %q (condition %t) (body %q) (origin %q)",
 		h.Label(), h.Condition(), h.Body(), h.Origin())
 }
 
@@ -195,6 +195,7 @@ func Load(
 
 		asserts := make([]config.Assert, len(hclBlock.Asserts))
 		assertsErrs := errors.L()
+		assertFailed := false
 
 		for i, assertCfg := range hclBlock.Asserts {
 			assert, err := config.EvalAssert(evalctx.Context, assertCfg)
@@ -203,10 +204,24 @@ func Load(
 				continue
 			}
 			asserts[i] = assert
+			if !assert.Assertion {
+				// TODO(Katcipis): check warning
+				assertFailed = true
+			}
 		}
 
 		if err := assertsErrs.AsError(); err != nil {
 			return nil, err
+		}
+
+		if assertFailed {
+			hcls = append(hcls, HCL{
+				label:     name,
+				origin:    origin,
+				condition: condition,
+				asserts:   asserts,
+			})
+			continue
 		}
 
 		gen := hclwrite.NewEmptyFile()
@@ -231,8 +246,8 @@ func Load(
 		})
 	}
 
-	sort.Slice(hcls, func(i, j int) bool {
-		return hcls[i].String() < hcls[j].String()
+	sort.SliceStable(hcls, func(i, j int) bool {
+		return hcls[i].Label() < hcls[j].Label()
 	})
 
 	logger.Trace().Msg("evaluated all blocks with success")
@@ -647,9 +662,9 @@ func getContentBlock(blocks hclsyntax.Blocks) (*hclsyntax.Block, error) {
 }
 
 func attrErr(attr *hclsyntax.Attribute, msg string, args ...interface{}) error {
-	return errors.E(ErrParsing, attr.Expr.Range(), stdmt.Sprintf(msg, args...))
+	return errors.E(ErrParsing, attr.Expr.Range(), stdfmt.Sprintf(msg, args...))
 }
 
 func wrapAttrErr(err error, attr *hclsyntax.Attribute, msg string, args ...interface{}) error {
-	return errors.E(ErrParsing, err, attr.Expr.Range(), stdmt.Sprintf(msg, args...))
+	return errors.E(ErrParsing, err, attr.Expr.Range(), stdfmt.Sprintf(msg, args...))
 }

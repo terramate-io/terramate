@@ -1042,20 +1042,20 @@ func TestGenerateHCL(t *testing.T) {
 				{
 					name: "repeated",
 					hcl: genHCL{
-						origin:    defaultCfg("/stacks"),
+						origin:    defaultCfg("/stacks/stack"),
 						condition: true,
 						body: Block("block",
-							Str("data", "parent data"),
+							Str("data", "stack data"),
 						),
 					},
 				},
 				{
 					name: "repeated",
 					hcl: genHCL{
-						origin:    defaultCfg("/stacks/stack"),
+						origin:    defaultCfg("/stacks"),
 						condition: true,
 						body: Block("block",
-							Str("data", "stack data"),
+							Str("data", "parent data"),
 						),
 					},
 				},

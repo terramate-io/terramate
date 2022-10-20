@@ -89,6 +89,63 @@ func TestGenerateHCLAssert(t *testing.T) {
 			},
 		},
 		{
+			name:  "if one assertion fails generated code will be empty",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "globals.tm",
+					add: Globals(
+						Str("a", "value"),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "generate.tm",
+					add: GenerateHCL(
+						Labels("asserts.hcl"),
+						Lets(
+							Expr("a", "global.a"),
+						),
+						Assert(
+							Expr("assertion", "let.a == global.a"),
+							Str("message", "let.a != global.a"),
+						),
+						Assert(
+							Expr("assertion", `true == false`),
+							Str("message", "such wrong"),
+						),
+						Content(
+							Str("a", "generating code is fun"),
+							Expr("b", "global.this.will.explode"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "asserts.hcl",
+					hcl: genHCL{
+						origin:    "/stack/generate.tm",
+						condition: true,
+						body:      Doc(),
+						asserts: []config.Assert{
+							{
+								Range:     Mkrange("/stack/generate.tm", Start(7, 17, 87), End(7, 34, 104)),
+								Assertion: true,
+								Message:   "let.a != global.a",
+							},
+							{
+								Range:     Mkrange("/stack/generate.tm", Start(11, 17, 172), End(11, 30, 185)),
+								Assertion: false,
+								Message:   "such wrong",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name:  "evaluation failure",
 			stack: "/stack",
 			configs: []hclconfig{
