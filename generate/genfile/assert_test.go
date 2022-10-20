@@ -25,8 +25,6 @@ import (
 func TestGenerateFileAssert(t *testing.T) {
 	t.Parallel()
 
-	t.Skip()
-
 	tcases := []testcase{
 		{
 			name:  "multiple assert configs accessing metadata/globals/lets",
@@ -67,12 +65,12 @@ func TestGenerateFileAssert(t *testing.T) {
 						body:      "value",
 						asserts: []config.Assert{
 							{
-								Range:     Mkrange("/stack/generate.tm", Start(7, 17, 87), End(7, 34, 104)),
+								Range:     Mkrange("/stack/generate.tm", Start(7, 17, 88), End(7, 34, 105)),
 								Assertion: true,
 								Message:   "let.a != global.a",
 							},
 							{
-								Range:     Mkrange("/stack/generate.tm", Start(11, 17, 172), End(11, 58, 213)),
+								Range:     Mkrange("/stack/generate.tm", Start(11, 17, 173), End(11, 58, 214)),
 								Assertion: true,
 								Message:   "wrong stack metadata",
 								Warning:   true,

@@ -158,21 +158,22 @@ func Load(
 			continue
 		}
 
-		//asserts := make([]config.Assert, len(genFileBlock.Asserts))
+		asserts := make([]config.Assert, len(genFileBlock.Asserts))
 		//assertsErrs := errors.L()
 		//assertFailed := false
 
-		//for _, assertCfg := range genFileBlock.Asserts {
-		//assert, err := config.EvalAssert(evalctx.Context, assertCfg)
-		////if err != nil {
-		////assertsErrs.Append(err)
-		////continue
-		////}
-		//asserts[i] = assert
-		//if !assert.Assertion && !assert.Warning {
-		//assertFailed = true
-		//}
-		//}
+		// TODO(katcipis): error/assertion handling
+		for i, assertCfg := range genFileBlock.Asserts {
+			assert, _ := config.EvalAssert(evalctx.Context, assertCfg)
+			//if err != nil {
+			//assertsErrs.Append(err)
+			//continue
+			//}
+			asserts[i] = assert
+			//if !assert.Assertion && !assert.Warning {
+			//assertFailed = true
+			//}
+		}
 
 		//if err := assertsErrs.AsError(); err != nil {
 		//return nil, err
@@ -206,6 +207,7 @@ func Load(
 			origin:    origin,
 			body:      value.AsString(),
 			condition: condition,
+			asserts:   asserts,
 		})
 	}
 
