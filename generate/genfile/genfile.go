@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
@@ -28,7 +27,6 @@ import (
 	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
-	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -113,44 +111,31 @@ func (f File) String() string {
 // generate_file blocks.
 //
 // The rootdir MUST be an absolute path.
-func Load(cfg *config.Tree, projmeta project.Metadata, sm stack.Metadata, globals *eval.Object) ([]File, error) {
-	logger := log.With().
-		Str("action", "genfile.Load()").
-		Str("path", sm.HostPath()).
-		Logger()
-
-	logger.Trace().Msg("loading generate_file blocks")
-
+func Load(
+	cfg *config.Tree,
+	projmeta project.Metadata,
+	sm stack.Metadata,
+	globals *eval.Object,
+) ([]File, error) {
 	genFileBlocks, err := loadGenFileBlocks(cfg, sm.Path())
 	if err != nil {
 		return nil, errors.E("loading generate_file", err)
 	}
 
-	logger.Trace().Msg("generating files")
-
 	var files []File
 
 	for _, genFileBlock := range genFileBlocks {
-		name := genFileBlock.label
-		origin := genFileBlock.origin
-
-		logger := logger.With().
-			Str("block", name).
-			Stringer("origin", origin).
-			Logger()
-
+		name := genFileBlock.Label
+		origin := project.PrjAbsPath(cfg.RootDir(), genFileBlock.Origin)
 		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
-		err := lets.Load(genFileBlock.lets, evalctx.Context)
+		err := lets.Load(genFileBlock.Lets, evalctx.Context)
 		if err != nil {
 			return nil, err
 		}
 
-		logger.Trace().Msg("evaluating condition")
-
 		condition := true
-		if genFileBlock.block.Condition != nil {
-			logger.Trace().Msg("has condition attribute, evaluating it")
-			value, err := evalctx.Eval(genFileBlock.block.Condition.Expr)
+		if genFileBlock.Condition != nil {
+			value, err := evalctx.Eval(genFileBlock.Condition.Expr)
 			if err != nil {
 				return nil, errors.E(ErrConditionEval, err)
 			}
@@ -165,20 +150,45 @@ func Load(cfg *config.Tree, projmeta project.Metadata, sm stack.Metadata, global
 		}
 
 		if !condition {
-			logger.Trace().Msg("condition=false, content wont be evaluated")
-
 			files = append(files, File{
 				label:     name,
-				origin:    genFileBlock.origin,
+				origin:    origin,
 				condition: condition,
 			})
-
 			continue
 		}
 
-		logger.Trace().Msg("evaluating contents")
+		//asserts := make([]config.Assert, len(genFileBlock.Asserts))
+		//assertsErrs := errors.L()
+		//assertFailed := false
 
-		value, err := evalctx.Eval(genFileBlock.block.Content.Expr)
+		//for _, assertCfg := range genFileBlock.Asserts {
+		//assert, err := config.EvalAssert(evalctx.Context, assertCfg)
+		////if err != nil {
+		////assertsErrs.Append(err)
+		////continue
+		////}
+		//asserts[i] = assert
+		//if !assert.Assertion && !assert.Warning {
+		//assertFailed = true
+		//}
+		//}
+
+		//if err := assertsErrs.AsError(); err != nil {
+		//return nil, err
+		//}
+
+		//if assertFailed {
+		//hcls = append(hcls, HCL{
+		//label:     name,
+		//origin:    origin,
+		//condition: condition,
+		//asserts:   asserts,
+		//})
+		//continue
+		//}
+
+		value, err := evalctx.Eval(genFileBlock.Content.Expr)
 		if err != nil {
 			return nil, errors.E(ErrContentEval, err)
 		}
@@ -193,7 +203,7 @@ func Load(cfg *config.Tree, projmeta project.Metadata, sm stack.Metadata, global
 
 		files = append(files, File{
 			label:     name,
-			origin:    genFileBlock.origin,
+			origin:    origin,
 			body:      value.AsString(),
 			condition: condition,
 		})
@@ -203,50 +213,18 @@ func Load(cfg *config.Tree, projmeta project.Metadata, sm stack.Metadata, global
 		return files[i].String() < files[j].String()
 	})
 
-	logger.Trace().Msg("evaluated all blocks with success.")
-
 	return files, nil
-}
-
-type genFileBlock struct {
-	label  string
-	origin project.Path
-	lets   hclsyntax.Blocks
-	block  hcl.GenFileBlock
 }
 
 // loadGenFileBlocks will load all generate_file blocks.
 // The returned map maps the name of the block (its label)
 // to the original block and the path (relative to project root) of the config
 // from where it was parsed.
-func loadGenFileBlocks(tree *config.Tree, cfgdir project.Path) ([]genFileBlock, error) {
-	logger := log.With().
-		Str("action", "genfile.loadGenFileBlocks()").
-		Str("root", tree.RootDir()).
-		Stringer("configDir", cfgdir).
-		Logger()
-
-	logger.Trace().Msg("Loading generate_hcl blocks.")
-
-	res := []genFileBlock{}
+func loadGenFileBlocks(tree *config.Tree, cfgdir project.Path) ([]hcl.GenFileBlock, error) {
+	res := []hcl.GenFileBlock{}
 	cfg, ok := tree.Lookup(cfgdir)
 	if ok && !cfg.IsEmptyConfig() {
-		blocks := cfg.Node.Generate.Files
-
-		logger.Trace().Msg("Parsed generate_file blocks.")
-
-		for _, block := range blocks {
-			origin := project.PrjAbsPath(tree.RootDir(), block.Origin)
-
-			res = append(res, genFileBlock{
-				label:  block.Label,
-				origin: origin,
-				block:  block,
-				lets:   block.Lets,
-			})
-
-			logger.Trace().Msg("loaded generate_file block.")
-		}
+		res = append(res, cfg.Node.Generate.Files...)
 	}
 
 	parentCfgDir := cfgdir.Dir()
@@ -260,7 +238,5 @@ func loadGenFileBlocks(tree *config.Tree, cfgdir project.Path) ([]genFileBlock, 
 	}
 
 	res = append(res, parentRes...)
-
-	logger.Trace().Msg("loaded generate_file blocks with success.")
 	return res, nil
 }
