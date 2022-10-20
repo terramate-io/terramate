@@ -40,6 +40,8 @@ type (
 		// Origin is the filename where this expression can be found.
 		Origin project.Path
 
+		Inherited bool
+
 		DotPath eval.DotPath
 
 		hhcl.Expression
@@ -60,7 +62,7 @@ func Load(tree *config.Tree, cfgdir project.Path, ctx *eval.Context) EvalReport 
 
 	logger.Trace().Msg("loading expressions")
 
-	exprs, err := LoadExprs(tree, cfgdir)
+	exprs, err := LoadExprs(tree, cfgdir, false)
 	if err != nil {
 		report := NewEvalReport()
 		report.BootstrapErr = err
@@ -75,9 +77,10 @@ func Load(tree *config.Tree, cfgdir project.Path, ctx *eval.Context) EvalReport 
 // reaches rootdir, loading globals expressions and merging them appropriately.
 // More specific globals (closer or at the dir) have precedence over less
 // specific globals (closer or at the root dir).
-func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
+func LoadExprs(tree *config.Tree, cfgdir project.Path, inherited bool) (Exprs, error) {
 	logger := log.With().
 		Str("action", "globals.LoadExprs()").
+		Bool("inherited", inherited).
 		Str("root", tree.RootDir()).
 		Stringer("cfgdir", cfgdir).
 		Logger()
@@ -99,6 +102,7 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
 					tree.RootDir(),
 					block.RawOrigins[0].Origin,
 				),
+				Inherited:  inherited,
 				DotPath:    label,
 				Expression: expr,
 			}
@@ -111,6 +115,7 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
 
 			acessor := dotpath(block.Labels, attr.Name)
 			exprs[acessor] = Expr{
+				Inherited:  inherited,
 				Origin:     project.PrjAbsPath(tree.RootDir(), attr.Origin),
 				DotPath:    acessor,
 				Expression: attr.Expr,
@@ -125,7 +130,7 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
 
 	logger.Trace().Msg("Loading stack globals from parent dir.")
 
-	parentGlobals, err := LoadExprs(tree, parentcfg)
+	parentGlobals, err := LoadExprs(tree, parentcfg, true)
 	if err != nil {
 		return nil, err
 	}
@@ -168,6 +173,10 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 		sort.Slice(sortedKeys, func(i, j int) bool {
 			return sortedKeys[i] < sortedKeys[j]
+		})
+
+		sort.Slice(sortedKeys, func(i, j int) bool {
+			return pendingExprs[sortedKeys[i]].Inherited
 		})
 
 	pendingExpression:
@@ -219,6 +228,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 					errors.E(hcl.ErrTerramateSchema, expr.Range(),
 						"global.%s attribute redefined",
 						accessor))
+
 				continue
 			}
 
@@ -273,7 +283,6 @@ func (globalExprs Exprs) merge(other Exprs) {
 	}
 }
 
-// TODO(i4k): review this
 func removeUnset(exprs Exprs) {
 	for name, expr := range exprs {
 		traversal, diags := hhcl.AbsTraversalForExpr(expr.Expression)

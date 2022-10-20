@@ -710,7 +710,7 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
-			name: "empty labelled globals do not overwrite existing ones",
+			name: "empty labeled globals do not overwrite existing ones",
 			layout: []string{
 				"s:stacks/stack-a",
 				"s:stacks/stack-b",
@@ -734,6 +734,47 @@ func TestLoadGlobals(t *testing.T) {
 				"/stacks/stack-a": Globals(
 					EvalExpr(t, "obj", `{
 						a = 1
+					}`),
+				),
+				"/stacks/stack-b": Globals(
+					EvalExpr(t, "obj", `{
+						a = 1
+					}`),
+				),
+			},
+		},
+		{
+			name: "child scopes can overwrite extended globals",
+			layout: []string{
+				"s:stacks/stack-a",
+				"s:stacks/stack-b",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: Doc(
+						Globals(
+							Labels("obj"),
+							Number("a", 1),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack-a",
+					add: Doc(
+						Globals(
+							Expr("obj", `{
+									b = 2
+								}
+							`),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-a": Globals(
+					EvalExpr(t, "obj", `{
+						b = 2
 					}`),
 				),
 				"/stacks/stack-b": Globals(
@@ -2033,6 +2074,8 @@ func TestLoadGlobals(t *testing.T) {
 			for _, entry := range stackEntries {
 				st := entry.Stack
 				stacks = append(stacks, st)
+
+				t.Logf("loading globals for stack: %s", st.Path())
 
 				gotReport := stack.LoadStackGlobals(s.Config(), projmeta, st)
 				errtest.Assert(t, gotReport.AsError(), tcase.wantErr)
