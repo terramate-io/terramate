@@ -470,7 +470,7 @@ func equalStack(s1, s2 StackMeta) bool {
 // embedded on them, like the expression raw bytes.
 func cleanFilename(fname string) string {
 	// One of the few restrictions for paths to be valid is to not
-	// have any zeroes in the middle of the string.
+	// have any NUL bytes in the middle of the string.
 	if _, err := syscall.BytePtrFromString(fname); err != nil {
 		return "<generated-code>"
 	}
