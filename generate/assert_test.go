@@ -307,3 +307,60 @@ func TestGenerateAssert(t *testing.T) {
 		},
 	})
 }
+
+func TestGenerateAssertInsideGenerateBlocks(t *testing.T) {
+	t.Parallel()
+
+	testCodeGeneration(t, []testcase{
+		{
+			name: "success assertion",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						GenerateHCL(
+							Labels("test.hcl"),
+							Content(
+								Str("stack", "test"),
+							),
+							Assert(
+								Bool("assertion", true),
+								Str("message", "msg"),
+							),
+						),
+						GenerateFile(
+							Labels("test.txt"),
+							Str("content", "test"),
+							Assert(
+								Bool("assertion", true),
+								Str("message", "msg"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stack",
+					files: map[string]fmt.Stringer{
+						"test.hcl": Doc(
+							Str("stack", "test"),
+						),
+						"test.txt": stringer("test"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/stack",
+						Created: []string{"test.hcl", "test.txt"},
+					},
+				},
+			},
+		},
+	})
+}
