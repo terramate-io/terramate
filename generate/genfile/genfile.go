@@ -58,6 +58,7 @@ type File struct {
 	origin    project.Path
 	body      string
 	condition bool
+	asserts   []config.Assert
 }
 
 // Label of the original generate_file block.
@@ -80,6 +81,13 @@ func (f File) Origin() project.Path {
 // condition attribute for the generated code.
 func (f File) Condition() bool {
 	return f.condition
+}
+
+// Asserts returns all (if any) of the evaluated assert configs of the
+// generate_file block. If [File.Condition] returns false then assert configs
+// will always be empty since they are not evaluated at all in that case.
+func (f File) Asserts() []config.Assert {
+	return f.asserts
 }
 
 // Header returns the header of this file.
