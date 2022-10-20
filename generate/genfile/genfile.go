@@ -160,9 +160,8 @@ func Load(
 
 		asserts := make([]config.Assert, len(genFileBlock.Asserts))
 		//assertsErrs := errors.L()
-		//assertFailed := false
+		assertFailed := false
 
-		// TODO(katcipis): error/assertion handling
 		for i, assertCfg := range genFileBlock.Asserts {
 			assert, _ := config.EvalAssert(evalctx.Context, assertCfg)
 			//if err != nil {
@@ -171,23 +170,24 @@ func Load(
 			//}
 			asserts[i] = assert
 			//if !assert.Assertion && !assert.Warning {
-			//assertFailed = true
-			//}
+			if !assert.Assertion {
+				assertFailed = true
+			}
 		}
 
 		//if err := assertsErrs.AsError(); err != nil {
 		//return nil, err
 		//}
 
-		//if assertFailed {
-		//hcls = append(hcls, HCL{
-		//label:     name,
-		//origin:    origin,
-		//condition: condition,
-		//asserts:   asserts,
-		//})
-		//continue
-		//}
+		if assertFailed {
+			files = append(files, File{
+				label:     name,
+				origin:    origin,
+				condition: condition,
+				asserts:   asserts,
+			})
+			continue
+		}
 
 		value, err := evalctx.Eval(genFileBlock.Content.Expr)
 		if err != nil {
