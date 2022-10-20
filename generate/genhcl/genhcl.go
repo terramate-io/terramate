@@ -204,8 +204,7 @@ func Load(
 				continue
 			}
 			asserts[i] = assert
-			if !assert.Assertion {
-				// TODO(Katcipis): check warning
+			if !assert.Assertion && !assert.Warning {
 				assertFailed = true
 			}
 		}
