@@ -169,8 +169,7 @@ func Load(
 			//continue
 			//}
 			asserts[i] = assert
-			//if !assert.Assertion && !assert.Warning {
-			if !assert.Assertion {
+			if !assert.Assertion && !assert.Warning {
 				assertFailed = true
 			}
 		}

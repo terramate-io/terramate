@@ -123,56 +123,51 @@ func TestGenerateFileAssert(t *testing.T) {
 				},
 			},
 		},
-		//{
-		//name:  "if one assertion fails with warning code is generated",
-		//stack: "/stack",
-		//configs: []hclconfig{
-		//{
-		//path:     "/stack",
-		//filename: "generate.tm",
-		//add: GenerateHCL(
-		//Labels("asserts.hcl"),
-		//Assert(
-		//Expr("assertion", "true"),
-		//Str("message", "always true"),
-		//),
-		//Assert(
-		//Expr("assertion", `true == false`),
-		//Str("message", "such wrong"),
-		//Bool("warning", true),
-		//),
-		//Content(
-		//Str("a", "generating code is fun"),
-		//),
-		//),
-		//},
-		//},
-		//want: []result{
-		//{
-		//name: "asserts.hcl",
-		//hcl: genHCL{
-		//origin:    "/stack/generate.tm",
-		//condition: true,
-		//body: Doc(
-		//Str("a", "generating code is fun"),
-		//),
-		//asserts: []config.Assert{
-		//{
-		//Range:     Mkrange("/stack/generate.tm", Start(4, 17, 57), End(4, 21, 61)),
-		//Assertion: true,
-		//Message:   "always true",
-		//},
-		//{
-		//Range:     Mkrange("/stack/generate.tm", Start(8, 17, 123), End(8, 30, 136)),
-		//Assertion: false,
-		//Message:   "such wrong",
-		//Warning:   true,
-		//},
-		//},
-		//},
-		//},
-		//},
-		//},
+		{
+			name:  "if one assertion fails with warning code is generated",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/generate.tm",
+					add: GenerateFile(
+						Labels("asserts.hcl"),
+						Assert(
+							Expr("assertion", "true"),
+							Str("message", "always true"),
+						),
+						Assert(
+							Expr("assertion", `true == false`),
+							Str("message", "such wrong"),
+							Bool("warning", true),
+						),
+						Str("content", "generating code is fun"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "asserts.hcl",
+					file: genFile{
+						origin:    "/stack/generate.tm",
+						condition: true,
+						body:      "generating code is fun",
+						asserts: []config.Assert{
+							{
+								Range:     Mkrange("/stack/generate.tm", Start(4, 17, 58), End(4, 21, 62)),
+								Assertion: true,
+								Message:   "always true",
+							},
+							{
+								Range:     Mkrange("/stack/generate.tm", Start(8, 17, 124), End(8, 30, 137)),
+								Assertion: false,
+								Message:   "such wrong",
+								Warning:   true,
+							},
+						},
+					},
+				},
+			},
+		},
 		//{
 		//name:  "evaluation failure",
 		//stack: "/stack",
