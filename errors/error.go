@@ -463,7 +463,7 @@ func equalStack(s1, s2 StackMeta) bool {
 		s1.Path() == s2.Path()
 }
 
-// cleanFilename will clean the given filename returning a placehold if
+// cleanFilename will clean the given filename returning a placeholder if
 // it is not a valid unix/win path. This is necessary since we use some
 // hacks on partial evaluation like adding a Filename on expressions that
 // is not a valid path but that includes information required by terramate
