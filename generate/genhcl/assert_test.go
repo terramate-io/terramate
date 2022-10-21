@@ -136,6 +136,38 @@ func TestGenerateHCLAssert(t *testing.T) {
 			},
 		},
 		{
+			name:  "if condition is false asserts are not evaluated",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "generate.tm",
+					add: GenerateHCL(
+						Labels("asserts.hcl"),
+						Bool("condition", false),
+						Assert(
+							Expr("assertion", `global.explosions`),
+							Str("message", "let.such.undefined"),
+						),
+						Content(
+							Str("a", "generating code is fun"),
+							Expr("b", "global.this.will.explode"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "asserts.hcl",
+					hcl: genHCL{
+						origin:    "/stack/generate.tm",
+						condition: false,
+						body:      Doc(),
+					},
+				},
+			},
+		},
+		{
 			name:  "if one assertion fails with warning code is generated",
 			stack: "/stack",
 			configs: []hclconfig{
