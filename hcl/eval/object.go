@@ -43,15 +43,21 @@ type (
 	//
 	//   obj.SetAt("val.test", 1)
 	Object struct {
+		origin project.Path
 		// Keys is a map of key names to values.
-		Keys map[string]interface{}
+		Keys map[string]Value
 	}
 
-	// Value is a Hashicorp cty.Value wrapper.
-	Value struct {
-		Origin project.Path
+	// Value is an evaluated value.
+	Value interface {
+		Origin() project.Path
+		IsObject() bool
+	}
 
-		val cty.Value
+	// CtyValue is a wrapper for a raw cty value.
+	CtyValue struct {
+		origin project.Path
+		cty.Value
 	}
 
 	// DotPath represents a path inside the object using a dot-notation.
@@ -59,26 +65,20 @@ type (
 )
 
 // NewObject creates a new object.
-func NewObject() *Object {
+func NewObject(origin project.Path) *Object {
 	return &Object{
-		Keys: make(map[string]interface{}),
+		origin: origin,
+		Keys:   make(map[string]Value),
 	}
 }
 
 // Set a key value into object.
-func (obj *Object) Set(key string, value interface{}) {
-	if vvalue, ok := value.(Value); ok {
-		if vvalue.Raw().Type().IsObjectType() {
-			newobj := NewObject()
-			newobj.SetFrom(vvalue.Raw().AsValueMap())
-			value = newobj
-		}
-	}
+func (obj *Object) Set(key string, value Value) {
 	obj.Keys[key] = value
 }
 
 // GetKeyPath retrieves the value at path.
-func (obj *Object) GetKeyPath(path DotPath) (interface{}, bool) {
+func (obj *Object) GetKeyPath(path DotPath) (Value, bool) {
 	parts := strings.Split(string(path), ".")
 	key := parts[0]
 	next := DotPath(strings.Join(parts[1:], "."))
@@ -90,44 +90,60 @@ func (obj *Object) GetKeyPath(path DotPath) (interface{}, bool) {
 	if next == "" {
 		return v, true
 	}
-	subobj, ok := v.(*Object)
-	if !ok {
+	if !v.IsObject() {
 		return nil, false
 	}
 
-	return subobj.GetKeyPath(next)
+	return v.(*Object).GetKeyPath(next)
 }
 
-// SetFrom sets the object from the values map.
-func (obj *Object) SetFrom(values map[string]cty.Value) {
+// Origin of the object.
+func (obj *Object) Origin() project.Path { return obj.origin }
+
+// IsObject returns true for [Object] values.
+func (obj *Object) IsObject() bool { return true }
+
+// SetFrom sets the object keys and values from the map.
+func (obj *Object) SetFrom(values map[string]Value) *Object {
+	for k, v := range values {
+		if _, ok := obj.Keys[k]; ok {
+			panic(errors.E("SetFrom failed: object has key %s", k))
+		}
+		obj.Set(k, v)
+	}
+	return obj
+}
+
+// SetFromCtyValues sets the object from the values map.
+func (obj *Object) SetFromCtyValues(values map[string]cty.Value, origin project.Path) *Object {
 	for k, v := range values {
 		if v.Type().IsObjectType() {
-			subtree := NewObject()
-			subtree.SetFrom(v.AsValueMap())
+			subtree := NewObject(origin)
+			subtree.SetFromCtyValues(v.AsValueMap(), origin)
 			obj.Set(k, subtree)
 		} else {
-			obj.Set(k, v)
+			obj.Set(k, NewCtyValue(v, origin))
 		}
 	}
+	return obj
 }
 
 // SetAt sets a value at the specified path key.
-func (obj *Object) SetAt(path DotPath, value interface{}) error {
+func (obj *Object) SetAt(path DotPath, value Value) error {
 	pathParts := strings.Split(string(path), ".")
 	for len(pathParts) > 1 {
 		key := pathParts[0]
 		subobj, ok := obj.Keys[key]
 		if !ok {
-			subobj = NewObject()
-			obj.Keys[key] = subobj
+			subobj = NewObject(value.Origin())
+			obj.Set(key, subobj)
 		}
-		v, ok := subobj.(*Object)
-		if !ok {
+		if !subobj.IsObject() {
 			return errors.E(ErrCannotExtendObject,
-				"path %s contains non-object parts in the path (%s is %T)",
-				path, key, subobj)
+				"path part %s (from %s) contains non-object parts in the path (%s is %T)",
+				key, path, key, subobj)
 		}
-		obj = v
+		obj = subobj.(*Object)
 		pathParts = pathParts[1:]
 	}
 
@@ -143,10 +159,9 @@ func (obj *Object) AsValueMap() map[string]cty.Value {
 		case *Object:
 			subvmap := vv.AsValueMap()
 			vmap[k] = cty.ObjectVal(subvmap)
-		case Value:
-			vmap[k] = vv.Raw()
-		case cty.Value:
-			vmap[k] = vv
+		case CtyValue:
+			val, _ := vv.Raw().Unmark()
+			vmap[k] = val
 		default:
 			panic("unreachable")
 		}
@@ -159,15 +174,33 @@ func (obj *Object) String() string {
 	return fmt.FormatAttributes(obj.AsValueMap())
 }
 
-// NewValue creates a new cty.Value wrapper.
-func NewValue(val cty.Value, origin project.Path) Value {
-	return Value{
-		val:    val,
-		Origin: origin,
+// NewCtyValue creates a new cty.Value wrapper.
+func NewCtyValue(val cty.Value, origin project.Path) CtyValue {
+	val = val.Mark(origin)
+	return CtyValue{
+		origin: origin,
+		Value:  val,
 	}
 }
 
+// NewValue returns a new object Value from a cty.Value.
+// Note: this is not a wrapper as it returns an [Object] if val is a cty.Object.
+func NewValue(val cty.Value, origin project.Path) Value {
+	if val.Type().IsObjectType() {
+		obj := NewObject(origin)
+		obj.SetFromCtyValues(val.AsValueMap(), origin)
+		return obj
+	}
+	return NewCtyValue(val, origin)
+}
+
+// Origin of the CtyValue val.
+func (v CtyValue) Origin() project.Path { return v.origin }
+
+// IsObject returns false for CtyValue values.
+func (v CtyValue) IsObject() bool { return false }
+
 // Raw returns the original cty.Value value.
-func (v Value) Raw() cty.Value {
-	return v.val
+func (v CtyValue) Raw() cty.Value {
+	return v.Value
 }

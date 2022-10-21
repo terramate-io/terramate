@@ -822,7 +822,7 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
-			name: "parent scope extending globals from stacks - lazy extend",
+			name: "parent cannot extend globals from stacks - fails",
 			layout: []string{
 				"s:stacks/stack-a",
 			},
@@ -850,7 +850,6 @@ func TestLoadGlobals(t *testing.T) {
 			want: map[string]*hclwrite.Block{
 				"/stacks/stack-a": Globals(
 					EvalExpr(t, "obj", `{
-						number = 1
 						name = "stack"
 					}`),
 				),

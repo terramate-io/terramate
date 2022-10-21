@@ -30,7 +30,7 @@ import (
 
 // Errors returned when parsing and evaluating globals.
 const (
-	ErrEval      errors.Kind = "global eval failed"
+	ErrEval      errors.Kind = "global eval"
 	ErrRedefined errors.Kind = "global redefined"
 )
 
@@ -171,12 +171,14 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 			sortedKeys = append(sortedKeys, accessor)
 		}
 
-		sort.Slice(sortedKeys, func(i, j int) bool {
-			return sortedKeys[i] < sortedKeys[j]
-		})
+		sort.SliceStable(sortedKeys, func(i, j int) bool {
+			expr1, expr2 := pendingExprs[sortedKeys[i]], pendingExprs[sortedKeys[j]]
+			origin1, origin2 := expr1.Origin.Dir(), expr2.Origin.Dir()
 
-		sort.Slice(sortedKeys, func(i, j int) bool {
-			return pendingExprs[sortedKeys[i]].Inherited
+			if origin1 == origin2 {
+				return len(sortedKeys[i]) < len(sortedKeys[j])
+			}
+			return len(origin1) < len(origin2)
 		})
 
 	pendingExpression:
@@ -223,11 +225,12 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 			// This catches a schema error that cannot be detected at the parser.
 			// When a nested object is defined either by literal or funcalls,
 			// it can't be detected at the parser.
-			if _, ok := globals.GetKeyPath(accessor); ok {
+			if v, ok := globals.GetKeyPath(accessor); ok &&
+				v.Origin().Dir().String() == expr.Origin.Dir().String() {
 				pendingExprsErrs[accessor].Append(
 					errors.E(hcl.ErrTerramateSchema, expr.Range(),
-						"global.%s attribute redefined",
-						accessor))
+						"global.%s attribute redefined (at %s and %s)",
+						accessor, v.Origin(), expr.Origin))
 
 				continue
 			}
@@ -236,7 +239,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 			val, err := ctx.Eval(expr)
 			if err != nil {
-				pendingExprsErrs[accessor].Append(err)
+				pendingExprsErrs[accessor].Append(errors.E(ErrEval, err, "global.%s", accessor))
 				continue
 			}
 
