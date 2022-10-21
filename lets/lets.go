@@ -27,7 +27,7 @@ import (
 
 // Errors returned when parsing and evaluating lets.
 const (
-	ErrEval      errors.Kind = "lets eval failed"
+	ErrEval      errors.Kind = "lets eval"
 	ErrRedefined errors.Kind = "lets redefined"
 )
 
@@ -57,12 +57,6 @@ type (
 
 // Load loads all the lets from the hcl blocks.
 func Load(letblocks hclsyntax.Blocks, ctx *eval.Context) error {
-	logger := log.With().
-		Str("action", "lets.Load()").
-		Logger()
-
-	logger.Trace().Msg("loading expressions")
-
 	exprs, err := loadExprs(letblocks)
 	if err != nil {
 		return err
@@ -138,7 +132,7 @@ func (letExprs Exprs) Eval(ctx *eval.Context) error {
 
 			val, err := ctx.Eval(expr)
 			if err != nil {
-				pendingExprsErrs[name].Append(err)
+				pendingExprsErrs[name].Append(errors.E(ErrEval, err, "let.%s", name))
 				continue
 			}
 
