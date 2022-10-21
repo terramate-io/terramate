@@ -147,7 +147,7 @@ func TestGenerateHCLAssert(t *testing.T) {
 						Bool("condition", false),
 						Assert(
 							Expr("assertion", `global.explosions`),
-							Str("message", "let.such.undefined"),
+							Expr("message", "let.such.undefined"),
 						),
 						Content(
 							Str("a", "generating code is fun"),

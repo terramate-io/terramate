@@ -126,6 +126,34 @@ func TestGenerateFileAssert(t *testing.T) {
 			},
 		},
 		{
+			name:  "if condition is false asserts are not evaluated",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/generate.tm",
+					add: GenerateFile(
+						Labels("asserts.hcl"),
+						Bool("condition", false),
+						Assert(
+							Expr("assertion", `global.explosions`),
+							Expr("message", "let.such.undefined"),
+						),
+						Expr("content", "global.this.will.explode"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "asserts.hcl",
+					file: genFile{
+						origin:    "/stack/generate.tm",
+						condition: false,
+						body:      "",
+					},
+				},
+			},
+		},
+		{
 			name:  "if one assertion fails with warning code is generated",
 			stack: "/stack",
 			configs: []hclconfig{
