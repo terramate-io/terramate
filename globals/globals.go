@@ -30,7 +30,7 @@ import (
 
 // Errors returned when parsing and evaluating globals.
 const (
-	ErrEval      errors.Kind = "global eval failed"
+	ErrEval      errors.Kind = "global eval"
 	ErrRedefined errors.Kind = "global redefined"
 )
 
@@ -52,14 +52,6 @@ type (
 
 // Load loads all the globals from the cfgdir.
 func Load(tree *config.Tree, cfgdir project.Path, ctx *eval.Context) EvalReport {
-	logger := log.With().
-		Str("action", "globals.Load()").
-		Str("root", tree.RootDir()).
-		Stringer("cfgdir", cfgdir).
-		Logger()
-
-	logger.Trace().Msg("loading expressions")
-
 	exprs, err := LoadExprs(tree, cfgdir)
 	if err != nil {
 		report := NewEvalReport()
@@ -216,7 +208,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 			val, err := ctx.Eval(expr)
 			if err != nil {
-				pendingExprsErrs[accessor].Append(err)
+				pendingExprsErrs[accessor].Append(errors.E(ErrEval, err, "global.%s", accessor))
 				continue
 			}
 
