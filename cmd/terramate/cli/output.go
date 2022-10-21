@@ -25,6 +25,9 @@ type output struct {
 	stderr io.Writer
 }
 
+// newOutput creates a new output with the given level.
+// Any output messages with a level bigger than the given
+// level will be ignored.
 func newOutput(level int, stdout, stderr io.Writer) output {
 	return output{
 		level:  level,
