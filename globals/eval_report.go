@@ -16,6 +16,7 @@ package globals
 
 import (
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/project"
 
 	"github.com/mineiros-io/terramate/hcl/eval"
 )
@@ -43,7 +44,7 @@ type (
 // NewEvalReport creates a new globals evaluation report.
 func NewEvalReport() EvalReport {
 	return EvalReport{
-		Globals: eval.NewObject(),
+		Globals: eval.NewObject(project.NewPath("/")),
 		Errors:  make(map[eval.DotPath]EvalError),
 	}
 }
