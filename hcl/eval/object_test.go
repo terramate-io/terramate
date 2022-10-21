@@ -18,154 +18,134 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/project"
 
 	errtest "github.com/mineiros-io/terramate/test/errors"
 )
+
+type strValue string
+
+func (s strValue) IsObject() bool       { return false }
+func (s strValue) Origin() project.Path { return project.NewPath("/") }
 
 func TestCtyObjectSetAt(t *testing.T) {
 	type testcase struct {
 		name    string
 		obj     *eval.Object
-		val     interface{}
+		val     eval.Value
 		path    string
 		want    *eval.Object
 		wantErr error
 	}
 
+	newobj := func(sets ...map[string]eval.Value) *eval.Object {
+		obj := eval.NewObject(project.NewPath("/"))
+		for _, set := range sets {
+			obj.SetFrom(set)
+		}
+		return obj
+	}
+
 	for _, tc := range []testcase{
 		{
 			name: "set at root, empty object",
-			obj:  eval.NewObject(),
+			obj:  newobj(),
 			path: "key",
-			val:  "value",
-			want: &eval.Object{
-				Keys: map[string]interface{}{
-					"key": "value",
-				},
-			},
+			val:  strValue("value"),
+			want: newobj(map[string]eval.Value{
+				"key": strValue("value"),
+			}),
 		},
 		{
 			name: "set at root, override value",
-			obj: &eval.Object{
-				Keys: map[string]interface{}{
-					"key": "old value",
-				},
-			},
+			obj: newobj(map[string]eval.Value{
+				"key": strValue("old value"),
+			}),
 			path: "key",
-			val:  "new value",
-			want: &eval.Object{
-				Keys: map[string]interface{}{
-					"key": "new value",
+			val:  strValue("new value"),
+			want: newobj().SetFrom(
+				map[string]eval.Value{
+					"key": strValue("new value"),
 				},
-			},
+			),
 		},
 		{
 			name: "set at root, new value",
-			obj: &eval.Object{
-				Keys: map[string]interface{}{
-					"key": "value",
-				},
+			obj: newobj(map[string]eval.Value{
+				"key": strValue("value"),
 			},
+			),
 			path: "other-key",
-			val:  "other value",
-			want: &eval.Object{
-				Keys: map[string]interface{}{
-					"key":       "value",
-					"other-key": "other value",
-				},
-			},
+			val:  strValue("other value"),
+			want: newobj(map[string]eval.Value{
+				"key":       strValue("value"),
+				"other-key": strValue("other value"),
+			}),
 		},
 		{
 			name: "set at an existing child object",
-			obj: &eval.Object{
-				Keys: map[string]interface{}{
-					"key": eval.NewObject(),
-				},
-			},
+			obj: newobj(map[string]eval.Value{
+				"key": newobj(),
+			}),
 			path: "key.test",
-			val:  "child value",
-			want: &eval.Object{
-				Keys: map[string]interface{}{
-					"key": &eval.Object{
-						Keys: map[string]interface{}{
-							"test": "child value",
-						},
-					},
-				},
-			},
+			val:  strValue("child value"),
+			want: newobj(map[string]eval.Value{
+				"key": newobj(map[string]eval.Value{
+					"test": strValue("child value"),
+				}),
+			}),
 		},
 		{
 			name: "set at an existing child object",
-			obj: &eval.Object{
-				Keys: map[string]interface{}{
-					"key": eval.NewObject(),
-				},
-			},
+			obj: newobj(map[string]eval.Value{
+				"key": newobj(),
+			}),
 			path: "key.test",
-			val:  "child value",
-			want: &eval.Object{
-				Keys: map[string]interface{}{
-					"key": &eval.Object{
-						Keys: map[string]interface{}{
-							"test": "child value",
-						},
-					},
-				},
-			},
+			val:  strValue("child value"),
+			want: newobj(map[string]eval.Value{
+				"key": newobj(map[string]eval.Value{
+					"test": strValue("child value"),
+				}),
+			}),
 		},
 		{
 			name: "set at a non-existent child object",
-			obj:  eval.NewObject(),
+			obj:  newobj(),
 			path: "key.test",
-			val:  "child value",
-			want: &eval.Object{
-				Keys: map[string]interface{}{
-					"key": &eval.Object{
-						Keys: map[string]interface{}{
-							"test": "child value",
-						},
-					},
-				},
-			},
+			val:  strValue("child value"),
+			want: newobj(map[string]eval.Value{
+				"key": newobj(map[string]eval.Value{
+					"test": strValue("child value"),
+				}),
+			}),
 		},
 		{
 			name: "set at a non-existent deep child object",
-			obj:  eval.NewObject(),
+			obj:  newobj(),
 			path: "a.b.c.d.test",
-			val:  "value",
-			want: &eval.Object{
-				Keys: map[string]interface{}{
-					"a": &eval.Object{
-						Keys: map[string]interface{}{
-							"b": &eval.Object{
-								Keys: map[string]interface{}{
-									"c": &eval.Object{
-										Keys: map[string]interface{}{
-											"d": &eval.Object{
-												Keys: map[string]interface{}{
-													"test": "value",
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
+			val:  strValue("value"),
+			want: newobj(map[string]eval.Value{
+				"a": newobj(map[string]eval.Value{
+					"b": newobj(map[string]eval.Value{
+						"c": newobj(map[string]eval.Value{
+							"d": newobj(map[string]eval.Value{
+								"test": strValue("value"),
+							}),
+						}),
+					}),
+				}),
+			}),
 		},
 		{
 			name: "set at a non-object child - fails",
-			obj: &eval.Object{
-				Keys: map[string]interface{}{
-					"key": 1,
-				},
-			},
+			obj: newobj(map[string]eval.Value{
+				"key": strValue("1"),
+			}),
 			path:    "key.test",
-			val:     "child value",
+			val:     strValue("child value"),
 			wantErr: errors.E(eval.ErrCannotExtendObject),
 		},
 	} {
@@ -173,7 +153,7 @@ func TestCtyObjectSetAt(t *testing.T) {
 			err := tc.obj.SetAt(eval.DotPath(tc.path), tc.val)
 			errtest.Assert(t, err, tc.wantErr)
 			if err == nil {
-				if diff := cmp.Diff(tc.obj, tc.want); diff != "" {
+				if diff := cmp.Diff(tc.obj, tc.want, cmpopts.IgnoreUnexported(eval.Object{})); diff != "" {
 					t.Fatalf("-(got) +(want):\n%s", diff)
 				}
 			}
