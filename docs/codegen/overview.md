@@ -51,7 +51,7 @@ assert {
 
 When the **assertion** is false on the context of a stack, code generation for
 that stack will fail and the reported error will be the one provided on the
-**message** field.
+**message** field. The stack won't be touched, no files will be changed/created/deleted.
 
 Optionally the **warning** field can be defined and if it is evaluated to true
 then an false **assertion** will **not** generate an error. Code will be generated,
@@ -61,3 +61,7 @@ The **assert** block has hierarchical behavior, any assert blocks defined in a
 directory will be applied to all stacks inside this directory. For example, an
 **assert** block defined on the root of a project will be applied to all stacks
 in the project.
+
+Assert blocks can also be defined inside `generate_hcl` and `generate_file` blocks.
+When inside one of those blocks it has the same semantics as describe above, with
+the exception that it will have access to locally scoped data like the `let` namespace.
