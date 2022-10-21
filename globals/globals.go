@@ -40,8 +40,8 @@ type (
 		// Origin is the filename where this expression can be found.
 		Origin project.Path
 
-		Inherited bool
-
+		// DotPath denotes the target accessor path which the expression must
+		// be assigned into.
 		DotPath eval.DotPath
 
 		hhcl.Expression
@@ -62,7 +62,7 @@ func Load(tree *config.Tree, cfgdir project.Path, ctx *eval.Context) EvalReport 
 
 	logger.Trace().Msg("loading expressions")
 
-	exprs, err := LoadExprs(tree, cfgdir, false)
+	exprs, err := LoadExprs(tree, cfgdir)
 	if err != nil {
 		report := NewEvalReport()
 		report.BootstrapErr = err
@@ -77,10 +77,9 @@ func Load(tree *config.Tree, cfgdir project.Path, ctx *eval.Context) EvalReport 
 // reaches rootdir, loading globals expressions and merging them appropriately.
 // More specific globals (closer or at the dir) have precedence over less
 // specific globals (closer or at the root dir).
-func LoadExprs(tree *config.Tree, cfgdir project.Path, inherited bool) (Exprs, error) {
+func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
 	logger := log.With().
 		Str("action", "globals.LoadExprs()").
-		Bool("inherited", inherited).
 		Str("root", tree.RootDir()).
 		Stringer("cfgdir", cfgdir).
 		Logger()
@@ -94,7 +93,8 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path, inherited bool) (Exprs, e
 
 	globalsBlocks := cfg.Node.Globals.AsList()
 	for _, block := range globalsBlocks {
-		if block.Labels != "" && len(block.Attributes.SortedList()) == 0 {
+		attrs := block.Attributes.SortedList()
+		if block.Labels != "" && len(attrs) == 0 {
 			expr, _ := eval.ParseExpressionBytes([]byte(`{}`))
 			label := eval.DotPath(block.Labels)
 			exprs[label] = Expr{
@@ -102,7 +102,6 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path, inherited bool) (Exprs, e
 					tree.RootDir(),
 					block.RawOrigins[0].Origin,
 				),
-				Inherited:  inherited,
 				DotPath:    label,
 				Expression: expr,
 			}
@@ -110,12 +109,11 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path, inherited bool) (Exprs, e
 
 		logger.Trace().Msg("Range over attributes.")
 
-		for _, attr := range block.Attributes.SortedList() {
+		for _, attr := range attrs {
 			logger.Trace().Msg("Add attribute to globals.")
 
 			acessor := dotpath(block.Labels, attr.Name)
 			exprs[acessor] = Expr{
-				Inherited:  inherited,
 				Origin:     project.PrjAbsPath(tree.RootDir(), attr.Origin),
 				DotPath:    acessor,
 				Expression: attr.Expr,
@@ -130,7 +128,7 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path, inherited bool) (Exprs, e
 
 	logger.Trace().Msg("Loading stack globals from parent dir.")
 
-	parentGlobals, err := LoadExprs(tree, parentcfg, true)
+	parentGlobals, err := LoadExprs(tree, parentcfg)
 	if err != nil {
 		return nil, err
 	}

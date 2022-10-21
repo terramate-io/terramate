@@ -27,12 +27,12 @@ import (
 const ErrCannotExtendObject errors.Kind = "cannot extend object"
 
 type (
-	// Object is a object value supporting set at arbitrary paths using a
-	// dot notation.
+	// Object is an object container for cty.Value values supporting set at
+	// arbitrary accessor paths using a dot notation.
 	//
 	// Eg.:
-	//   obj := cty.NewObject()
-	//   obj.Set("val", cty.NewObject())
+	//   obj := eval.NewObject(origin)
+	//   obj.Set("val", eval.NewObject())
 	//
 	// The snippet above creates the object below:
 	//   {
@@ -41,7 +41,15 @@ type (
 	//
 	// Then values can be set inside obj.val by doing:
 	//
-	//   obj.SetAt("val.test", 1)
+	//   obj.SetAt("val.test", eval.NewValue(cty.StringVal("test"), origin))
+	//
+	// Of which creates the object below:
+	//
+	//   {
+	//       val = {
+	//           test = "test"
+	//       }
+	//   }
 	Object struct {
 		origin project.Path
 		// Keys is a map of key names to values.
@@ -50,7 +58,10 @@ type (
 
 	// Value is an evaluated value.
 	Value interface {
+		// Origin of the value.
 		Origin() project.Path
+
+		// IsObject tells if the value is an object.
 		IsObject() bool
 	}
 
@@ -64,7 +75,7 @@ type (
 	DotPath string
 )
 
-// NewObject creates a new object.
+// NewObject creates a new object with origin.
 func NewObject(origin project.Path) *Object {
 	return &Object{
 		origin: origin,
@@ -160,8 +171,7 @@ func (obj *Object) AsValueMap() map[string]cty.Value {
 			subvmap := vv.AsValueMap()
 			vmap[k] = cty.ObjectVal(subvmap)
 		case CtyValue:
-			val, _ := vv.Raw().Unmark()
-			vmap[k] = val
+			vmap[k] = vv.Raw()
 		default:
 			panic("unreachable")
 		}
@@ -175,6 +185,8 @@ func (obj *Object) String() string {
 }
 
 // NewCtyValue creates a new cty.Value wrapper.
+// Note: The cty.Value val is marked with the origin path and must be unmarked
+// before use with any hashicorp API otherwise it panics.
 func NewCtyValue(val cty.Value, origin project.Path) CtyValue {
 	val = val.Mark(origin)
 	return CtyValue{
@@ -200,7 +212,8 @@ func (v CtyValue) Origin() project.Path { return v.origin }
 // IsObject returns false for CtyValue values.
 func (v CtyValue) IsObject() bool { return false }
 
-// Raw returns the original cty.Value value.
+// Raw returns the original cty.Value value (unmarked).
 func (v CtyValue) Raw() cty.Value {
-	return v.Value
+	val, _ := v.Value.Unmark()
+	return val
 }
