@@ -742,7 +742,6 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 		case "lets":
 			lets = append(lets, subBlock.Block)
 		case "assert":
-			// TODO(KATCIPIS): error handling tests
 			assertCfg, err := parseAssertConfig(subBlock)
 			if err != nil {
 				errs.Append(err)
