@@ -16,7 +16,7 @@
 package genhcl
 
 import (
-	stdmt "fmt"
+	stdfmt "fmt"
 	"sort"
 
 	hhcl "github.com/hashicorp/hcl/v2"
@@ -89,7 +89,7 @@ func (h HCL) Label() string {
 
 // Header returns the header of the generated HCL file.
 func (h HCL) Header() string {
-	return stdmt.Sprintf(
+	return stdfmt.Sprintf(
 		"%s\n// TERRAMATE: originated from generate_hcl block on %s\n\n",
 		Header,
 		h.origin,
@@ -114,7 +114,7 @@ func (h HCL) Condition() bool {
 }
 
 func (h HCL) String() string {
-	return stdmt.Sprintf("Generating file %q (condition %t) (body %q) (origin %q)",
+	return stdfmt.Sprintf("Generating file %q (condition %t) (body %q) (origin %q)",
 		h.Label(), h.Condition(), h.Body(), h.Origin())
 }
 
@@ -254,20 +254,10 @@ type dynBlockAttributes struct {
 // to the original block and the path (relative to project root) of the config
 // from where it was parsed.
 func loadGenHCLBlocks(tree *config.Tree, cfgdir project.Path) ([]loadedHCL, error) {
-	logger := log.With().
-		Str("action", "genhcl.loadGenHCLBlocks()").
-		Str("root", tree.RootDir()).
-		Stringer("configDir", cfgdir).
-		Logger()
-
-	logger.Trace().Msg("Parsing generate_hcl blocks.")
-
 	res := []loadedHCL{}
 	cfg, ok := tree.Lookup(cfgdir)
 	if ok && !cfg.IsEmptyConfig() {
 		blocks := cfg.Node.Generate.HCLs
-
-		logger.Trace().Msg("Parsed generate_hcl blocks.")
 
 		for _, genhclBlock := range blocks {
 			name := genhclBlock.Label
@@ -280,8 +270,6 @@ func loadGenHCLBlocks(tree *config.Tree, cfgdir project.Path) ([]loadedHCL, erro
 				block:     genhclBlock.Content,
 				condition: genhclBlock.Condition,
 			})
-
-			logger.Trace().Msg("loaded generate_hcl block.")
 		}
 	}
 
@@ -297,7 +285,6 @@ func loadGenHCLBlocks(tree *config.Tree, cfgdir project.Path) ([]loadedHCL, erro
 
 	res = append(res, parentRes...)
 
-	logger.Trace().Msg("loaded generate_hcl blocks with success.")
 	return res, nil
 }
 
@@ -675,9 +662,9 @@ func getContentBlock(blocks hclsyntax.Blocks) (*hclsyntax.Block, error) {
 }
 
 func attrErr(attr *hclsyntax.Attribute, msg string, args ...interface{}) error {
-	return errors.E(ErrParsing, attr.Expr.Range(), stdmt.Sprintf(msg, args...))
+	return errors.E(ErrParsing, attr.Expr.Range(), stdfmt.Sprintf(msg, args...))
 }
 
 func wrapAttrErr(err error, attr *hclsyntax.Attribute, msg string, args ...interface{}) error {
-	return errors.E(ErrParsing, err, attr.Expr.Range(), stdmt.Sprintf(msg, args...))
+	return errors.E(ErrParsing, err, attr.Expr.Range(), stdfmt.Sprintf(msg, args...))
 }
