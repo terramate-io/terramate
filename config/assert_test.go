@@ -220,6 +220,9 @@ func (e nsvalues) asCtyMap() map[string]cty.Value {
 }
 
 func equalAsserts(a config.Assert, o config.Assert) bool {
+	// Since expression are built inside the test itself here
+	// They don't have a proper Filename on their Ranges so checking
+	// The range on these tests would be tricky to check properly.
 	return a.Message == o.Message &&
 		a.Warning == o.Warning &&
 		a.Assertion == o.Assertion

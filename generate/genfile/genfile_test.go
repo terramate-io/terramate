@@ -35,29 +35,6 @@ import (
 func TestLoadGenerateFiles(t *testing.T) {
 	t.Parallel()
 
-	type (
-		hclconfig struct {
-			path string
-			add  fmt.Stringer
-		}
-		genFile struct {
-			body   string
-			origin string
-		}
-		result struct {
-			name      string
-			condition bool
-			file      genFile
-		}
-		testcase struct {
-			name    string
-			stack   string
-			configs []hclconfig
-			want    []result
-			wantErr error
-		}
-	)
-
 	tcases := []testcase{
 		{
 			name:  "no generation",
@@ -90,11 +67,11 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 			want: []result{
 				{
-					name:      "empty",
-					condition: true,
+					name: "empty",
 					file: genFile{
-						origin: "/stack/empty.tm",
-						body:   "",
+						origin:    "/stack/empty.tm",
+						body:      "",
+						condition: true,
 					},
 				},
 			},
@@ -113,11 +90,11 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 			want: []result{
 				{
-					name:      "test",
-					condition: true,
+					name: "test",
 					file: genFile{
-						origin: "/stack/test.tm",
-						body:   "test",
+						origin:    "/stack/test.tm",
+						body:      "test",
+						condition: true,
 					},
 				},
 			},
@@ -146,10 +123,10 @@ EOT`,
 			},
 			want: []result{
 				{
-					name:      "test",
-					condition: true,
+					name: "test",
 					file: genFile{
-						origin: "/stack/test.tm",
+						condition: true,
+						origin:    "/stack/test.tm",
 						body: `
 stacks_list=["/stack"]
 stack_path_abs=/stack
@@ -181,10 +158,10 @@ EOT`,
 			},
 			want: []result{
 				{
-					name:      "test",
-					condition: true,
+					name: "test",
 					file: genFile{
-						origin: "/stack/test.tm",
+						condition: true,
+						origin:    "/stack/test.tm",
 						body: `
 stack_id=stack-id
 `,
@@ -212,11 +189,11 @@ stack_id=stack-id
 			},
 			want: []result{
 				{
-					name:      "test",
-					condition: true,
+					name: "test",
 					file: genFile{
-						origin: "/stack/test.tm",
-						body:   "global-data-/stack",
+						condition: true,
+						origin:    "/stack/test.tm",
+						body:      "global-data-/stack",
 					},
 				},
 			},
@@ -236,11 +213,11 @@ stack_id=stack-id
 			},
 			want: []result{
 				{
-					name:      "test",
-					condition: false,
+					name: "test",
 					file: genFile{
-						origin: "/stack/test.tm",
-						body:   "",
+						condition: false,
+						origin:    "/stack/test.tm",
+						body:      "",
 					},
 				},
 			},
@@ -267,19 +244,19 @@ stack_id=stack-id
 			},
 			want: []result{
 				{
-					name:      "test",
-					condition: false,
+					name: "test",
 					file: genFile{
-						origin: "/stack/test.tm",
-						body:   "",
+						condition: false,
+						origin:    "/stack/test.tm",
+						body:      "",
 					},
 				},
 				{
-					name:      "test2",
-					condition: true,
+					name: "test2",
 					file: genFile{
-						origin: "/stack/test.tm",
-						body:   "data",
+						condition: true,
+						origin:    "/stack/test.tm",
+						body:      "data",
 					},
 				},
 			},
@@ -305,11 +282,11 @@ stack_id=stack-id
 			},
 			want: []result{
 				{
-					name:      "test",
-					condition: false,
+					name: "test",
 					file: genFile{
-						origin: "/stack/test.tm",
-						body:   "",
+						condition: false,
+						origin:    "/stack/test.tm",
+						body:      "",
 					},
 				},
 			},
@@ -329,11 +306,11 @@ stack_id=stack-id
 			},
 			want: []result{
 				{
-					name:      "test",
-					condition: false,
+					name: "test",
 					file: genFile{
-						origin: "/stack/test.tm",
-						body:   "",
+						condition: false,
+						origin:    "/stack/test.tm",
+						body:      "",
 					},
 				},
 			},
@@ -359,11 +336,11 @@ stack_id=stack-id
 			},
 			want: []result{
 				{
-					name:      "test",
-					condition: true,
+					name: "test",
 					file: genFile{
-						origin: "/stack/test.tm",
-						body:   "data",
+						condition: true,
+						origin:    "/stack/test.tm",
+						body:      "data",
 					},
 				},
 			},
@@ -398,27 +375,27 @@ stack_id=stack-id
 			},
 			want: []result{
 				{
-					name:      "test1",
-					condition: true,
+					name: "test1",
 					file: genFile{
-						origin: "/stack/test.tm",
-						body:   "global-data",
+						condition: true,
+						origin:    "/stack/test.tm",
+						body:      "global-data",
 					},
 				},
 				{
-					name:      "test2",
-					condition: true,
+					name: "test2",
 					file: genFile{
-						origin: "/stack/test.tm",
-						body:   "/stack",
+						condition: true,
+						origin:    "/stack/test.tm",
+						body:      "/stack",
 					},
 				},
 				{
-					name:      "test3",
-					condition: true,
+					name: "test3",
 					file: genFile{
-						origin: "/stack/test.tm",
-						body:   "terramate!",
+						condition: true,
+						origin:    "/stack/test.tm",
+						body:      "terramate!",
 					},
 				},
 			},
@@ -450,19 +427,19 @@ stack_id=stack-id
 			},
 			want: []result{
 				{
-					name:      "test.json",
-					condition: true,
+					name: "test.json",
 					file: genFile{
-						origin: "/stack/json.tm",
-						body:   `{"field":"global-data"}`,
+						condition: true,
+						origin:    "/stack/json.tm",
+						body:      `{"field":"global-data"}`,
 					},
 				},
 				{
-					name:      "test.yml",
-					condition: true,
+					name: "test.yml",
 					file: genFile{
-						origin: "/stack/yaml.tm",
-						body:   "\"field\": \"/stack\"\n",
+						condition: true,
+						origin:    "/stack/yaml.tm",
+						body:      "\"field\": \"/stack\"\n",
 					},
 				},
 			},
@@ -501,27 +478,27 @@ stack_id=stack-id
 			},
 			want: []result{
 				{
-					name:      "root",
-					condition: true,
+					name: "root",
 					file: genFile{
-						origin: "/root.tm",
-						body:   "root-global-data-/stacks/stack",
+						condition: true,
+						origin:    "/root.tm",
+						body:      "root-global-data-/stacks/stack",
 					},
 				},
 				{
-					name:      "stack",
-					condition: true,
+					name: "stack",
 					file: genFile{
-						origin: "/stacks/stack/stack.tm",
-						body:   "stack-global-data-/stacks/stack",
+						condition: true,
+						origin:    "/stacks/stack/stack.tm",
+						body:      "stack-global-data-/stacks/stack",
 					},
 				},
 				{
-					name:      "stacks",
-					condition: true,
+					name: "stacks",
 					file: genFile{
-						origin: "/stacks/stacks.tm",
-						body:   "stacks-global-data-/stacks/stack",
+						condition: true,
+						origin:    "/stacks/stacks.tm",
+						body:      "stacks-global-data-/stacks/stack",
 					},
 				},
 			},
@@ -560,19 +537,19 @@ stack_id=stack-id
 			},
 			want: []result{
 				{
-					name:      "test.yml",
-					condition: true,
+					name: "test.yml",
 					file: genFile{
-						origin: "/stack/test.tm",
-						body:   "test",
+						condition: true,
+						origin:    "/stack/test.tm",
+						body:      "test",
 					},
 				},
 				{
-					name:      "test.yml",
-					condition: true,
+					name: "test.yml",
 					file: genFile{
-						origin: "/stack/test.tm",
-						body:   "test2",
+						condition: true,
+						origin:    "/stack/test.tm",
+						body:      "test2",
 					},
 				},
 			},
@@ -600,18 +577,18 @@ stack_id=stack-id
 			},
 			want: []result{
 				{
-					name:      "test",
-					condition: false,
+					name: "test",
 					file: genFile{
-						origin: "/stack/test.tm",
+						condition: false,
+						origin:    "/stack/test.tm",
 					},
 				},
 				{
-					name:      "test",
-					condition: true,
+					name: "test",
 					file: genFile{
-						origin: "/stack/test.tm",
-						body:   "test",
+						condition: true,
+						origin:    "/stack/test.tm",
+						body:      "test",
 					},
 				},
 			},
@@ -641,19 +618,19 @@ stack_id=stack-id
 			},
 			want: []result{
 				{
-					name:      "test.yml",
-					condition: true,
+					name: "test.yml",
 					file: genFile{
-						origin: "/stack/test.tm",
-						body:   "test",
+						condition: true,
+						origin:    "/stack/test.tm",
+						body:      "test",
 					},
 				},
 				{
-					name:      "test.yml",
-					condition: true,
+					name: "test.yml",
 					file: genFile{
-						origin: "/stack/test2.tm",
-						body:   "test2",
+						condition: true,
+						origin:    "/stack/test2.tm",
+						body:      "test2",
 					},
 				},
 			},
@@ -683,19 +660,19 @@ stack_id=stack-id
 			},
 			want: []result{
 				{
-					name:      "test.yml",
-					condition: true,
+					name: "test.yml",
 					file: genFile{
-						origin: "/test.tm",
-						body:   "root",
+						condition: true,
+						origin:    "/test.tm",
+						body:      "root",
 					},
 				},
 				{
-					name:      "test.yml",
-					condition: true,
+					name: "test.yml",
 					file: genFile{
-						origin: "/stack/test.tm",
-						body:   "test",
+						condition: true,
+						origin:    "/stack/test.tm",
+						body:      "test",
 					},
 				},
 			},
@@ -846,11 +823,11 @@ stack_id=stack-id
 			},
 			want: []result{
 				{
-					name:      "test",
-					condition: true,
+					name: "test",
 					file: genFile{
-						origin: "/stack/test.tm",
-						body:   "let string",
+						condition: true,
+						origin:    "/stack/test.tm",
+						body:      "let string",
 					},
 				},
 			},
@@ -875,11 +852,11 @@ stack_id=stack-id
 			},
 			want: []result{
 				{
-					name:      "test",
-					condition: true,
+					name: "test",
 					file: genFile{
-						origin: "/stack/test.tm",
-						body:   "hello world lets feature",
+						condition: true,
+						origin:    "/stack/test.tm",
+						body:      "hello world lets feature",
 					},
 				},
 			},
@@ -901,11 +878,11 @@ stack_id=stack-id
 			},
 			want: []result{
 				{
-					name:      "test",
-					condition: true,
+					name: "test",
 					file: genFile{
-						origin: "/stack/test.tm",
-						body:   "let-data-/stack",
+						condition: true,
+						origin:    "/stack/test.tm",
+						body:      "let-data-/stack",
 					},
 				},
 			},
@@ -934,11 +911,11 @@ stack_id=stack-id
 			},
 			want: []result{
 				{
-					name:      "test",
-					condition: true,
+					name: "test",
 					file: genFile{
-						origin: "/stack/test.tm",
-						body:   "global string-/stack",
+						condition: true,
+						origin:    "/stack/test.tm",
+						body:      "global string-/stack",
 					},
 				},
 			},
@@ -989,69 +966,100 @@ stack_id=stack-id
 	}
 
 	for _, tcase := range tcases {
-		t.Run(tcase.name, func(t *testing.T) {
-			t.Parallel()
-
-			s := sandbox.New(t)
-			s.BuildTree([]string{"s:" + tcase.stack})
-			stacks := s.LoadStacks()
-			projmeta := stack.NewProjectMetadata(s.RootDir(), stacks)
-			stack := s.LoadStacks()[0]
-
-			for _, cfg := range tcase.configs {
-				test.AppendFile(t, s.RootDir(), cfg.path, cfg.add.String())
-			}
-
-			cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
-			if errors.IsAnyKind(tcase.wantErr, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
-				errtest.Assert(t, err, tcase.wantErr)
-				return
-			}
-
-			assert.NoError(t, err)
-
-			globals := s.LoadStackGlobals(cfg, projmeta, stack)
-			got, err := genfile.Load(cfg, projmeta, stack, globals)
-			errtest.Assert(t, err, tcase.wantErr)
-
-			if len(got) != len(tcase.want) {
-				for i, file := range got {
-					t.Logf("got[%d] = %+v", i, file)
-				}
-				for i, file := range tcase.want {
-					t.Logf("want[%d] = %+v", i, file)
-				}
-				t.Fatalf("length of got and want mismatch: got %d but want %d",
-					len(got), len(tcase.want))
-			}
-
-			for i, want := range tcase.want {
-				gotFile := got[i]
-				gotBody := gotFile.Body()
-				wantBody := want.file.body
-
-				if gotFile.Condition() != want.condition {
-					t.Fatalf("got condition %t != wanted %t", gotFile.Condition(), want.condition)
-				}
-
-				assert.EqualStrings(t,
-					want.name,
-					gotFile.Label(),
-					"wrong name config path for generated code",
-				)
-
-				assert.EqualStrings(t,
-					want.file.origin,
-					gotFile.Origin().String(),
-					"wrong origin config path for generated code",
-				)
-
-				assert.EqualStrings(t, wantBody, gotBody,
-					"generated file body differs",
-				)
-			}
-		})
+		testGenfile(t, tcase)
 	}
+}
+
+type (
+	hclconfig struct {
+		path string
+		add  fmt.Stringer
+	}
+	genFile struct {
+		body      string
+		origin    string
+		condition bool
+		asserts   []config.Assert
+	}
+	result struct {
+		name string
+		file genFile
+	}
+	testcase struct {
+		name    string
+		stack   string
+		configs []hclconfig
+		want    []result
+		wantErr error
+	}
+)
+
+func testGenfile(t *testing.T, tcase testcase) {
+	t.Run(tcase.name, func(t *testing.T) {
+		t.Parallel()
+
+		s := sandbox.New(t)
+		s.BuildTree([]string{"s:" + tcase.stack})
+		stacks := s.LoadStacks()
+		projmeta := stack.NewProjectMetadata(s.RootDir(), stacks)
+		stack := s.LoadStacks()[0]
+
+		for _, cfg := range tcase.configs {
+			test.AppendFile(t, s.RootDir(), cfg.path, cfg.add.String())
+		}
+
+		cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+		if errors.IsAnyKind(tcase.wantErr, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
+			errtest.Assert(t, err, tcase.wantErr)
+			return
+		}
+
+		assert.NoError(t, err)
+
+		globals := s.LoadStackGlobals(cfg, projmeta, stack)
+		got, err := genfile.Load(cfg, projmeta, stack, globals)
+		errtest.Assert(t, err, tcase.wantErr)
+
+		if len(got) != len(tcase.want) {
+			for i, file := range got {
+				t.Logf("got[%d] = %+v", i, file)
+			}
+			for i, file := range tcase.want {
+				t.Logf("want[%d] = %+v", i, file)
+			}
+			t.Fatalf("length of got and want mismatch: got %d but want %d",
+				len(got), len(tcase.want))
+		}
+
+		for i, want := range tcase.want {
+			gotfile := got[i]
+			gotbody := gotfile.Body()
+			wantbody := want.file.body
+
+			if gotfile.Condition() != want.file.condition {
+				t.Fatalf("got condition %t != wanted %t", gotfile.Condition(), want.file.condition)
+			}
+
+			test.FixupRangeOnAssert(s.RootDir(), want.file.asserts)
+			test.AssertConfigEquals(t, gotfile.Asserts(), want.file.asserts)
+
+			assert.EqualStrings(t,
+				want.name,
+				gotfile.Label(),
+				"wrong name config path for generated code",
+			)
+
+			assert.EqualStrings(t,
+				want.file.origin,
+				gotfile.Origin().String(),
+				"wrong origin config path for generated code",
+			)
+
+			assert.EqualStrings(t, wantbody, gotbody,
+				"generated file body differs",
+			)
+		}
+	})
 }
 
 func init() {

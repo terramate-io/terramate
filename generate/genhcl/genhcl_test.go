@@ -1042,20 +1042,20 @@ func TestGenerateHCL(t *testing.T) {
 				{
 					name: "repeated",
 					hcl: genHCL{
-						origin:    defaultCfg("/stacks"),
+						origin:    defaultCfg("/stacks/stack"),
 						condition: true,
 						body: Block("block",
-							Str("data", "parent data"),
+							Str("data", "stack data"),
 						),
 					},
 				},
 				{
 					name: "repeated",
 					hcl: genHCL{
-						origin:    defaultCfg("/stacks/stack"),
+						origin:    defaultCfg("/stacks"),
 						condition: true,
 						body: Block("block",
-							Str("data", "stack data"),
+							Str("data", "parent data"),
 						),
 					},
 				},
@@ -1688,6 +1688,7 @@ type (
 		body      fmt.Stringer
 		origin    string
 		condition bool
+		asserts   []config.Assert
 	}
 	result struct {
 		name string
@@ -1744,27 +1745,30 @@ func (tcase testcase) run(t *testing.T) {
 				len(got), len(tcase.want))
 		}
 
-		for i, res := range tcase.want {
+		for i, want := range tcase.want {
 			gothcl := got[i]
 
 			gotCondition := gothcl.Condition()
-			wantCondition := res.hcl.condition
+			wantCondition := want.hcl.condition
 
 			if gotCondition != wantCondition {
 				t.Fatalf("got condition %t != want %t", gotCondition, wantCondition)
 			}
 
+			test.FixupRangeOnAssert(s.RootDir(), want.hcl.asserts)
+			test.AssertConfigEquals(t, gothcl.Asserts(), want.hcl.asserts)
+
 			gotcode := gothcl.Body()
-			wantcode := res.hcl.body.String()
+			wantcode := want.hcl.body.String()
 
 			assertHCLEquals(t, gotcode, wantcode)
 			assert.EqualStrings(t,
-				res.name,
+				want.name,
 				gothcl.Label(),
 				"wrong name for generated code",
 			)
 			assert.EqualStrings(t,
-				res.hcl.origin,
+				want.hcl.origin,
 				gothcl.Origin().String(),
 				"wrong origin config path for generated code",
 			)
