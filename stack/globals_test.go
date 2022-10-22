@@ -822,40 +822,6 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
-			name: "parent cannot extend globals from stacks - fails",
-			layout: []string{
-				"s:stacks/stack-a",
-			},
-			configs: []hclconfig{
-				{
-					path: "/stacks",
-					add: Doc(
-						Globals(
-							Labels("obj"),
-							Number("number", 1),
-						),
-					),
-				},
-				{
-					path: "/stacks/stack-a",
-					add: Doc(
-						Globals(
-							EvalExpr(t, "obj", `{
-								name = "stack"
-							}`),
-						),
-					),
-				},
-			},
-			want: map[string]*hclwrite.Block{
-				"/stacks/stack-a": Globals(
-					EvalExpr(t, "obj", `{
-						name = "stack"
-					}`),
-				),
-			},
-		},
-		{
 			name: "extending with a conflict - fails",
 			layout: []string{
 				"s:stacks/stack-a",
