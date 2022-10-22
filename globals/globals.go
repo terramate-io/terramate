@@ -227,8 +227,8 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 				v.Origin().Dir().String() == expr.Origin.Dir().String() {
 				pendingExprsErrs[accessor].Append(
 					errors.E(hcl.ErrTerramateSchema, expr.Range(),
-						"global.%s attribute redefined (at %s and %s)",
-						accessor, v.Origin(), expr.Origin))
+						"global.%s attribute redefined: previously defined at %s",
+						accessor, v.Origin().String()))
 
 				continue
 			}
