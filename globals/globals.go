@@ -152,7 +152,6 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 	pendingExprsErrs := map[eval.DotPath]*errors.List{}
 	pendingExprs := make(Exprs)
 
-	removeUnset(globalExprs)
 	copyexprs(pendingExprs, globalExprs)
 
 	if !ctx.HasNamespace("global") {
@@ -189,6 +188,20 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 				Logger()
 
 			logger.Trace().Msg("checking var access inside expression")
+
+			traversal, diags := hhcl.AbsTraversalForExpr(expr.Expression)
+			if !diags.HasErrors() && len(traversal) == 1 && traversal.RootName() == "unset" {
+				if _, ok := globals.GetKeyPath(accessor); ok {
+					err := globals.DeleteAt(accessor)
+					if err != nil {
+						panic(errors.E(err, "terramate internal error"))
+					}
+				}
+				amountEvaluated++
+
+				delete(pendingExprs, accessor)
+				delete(pendingExprsErrs, accessor)
+			}
 
 			pendingExprsErrs[accessor] = errors.L()
 			for _, namespace := range expr.Variables() {
@@ -280,21 +293,6 @@ func (globalExprs Exprs) merge(other Exprs) {
 	for k, v := range other {
 		if _, ok := globalExprs[k]; !ok {
 			globalExprs[k] = v
-		}
-	}
-}
-
-func removeUnset(exprs Exprs) {
-	for name, expr := range exprs {
-		traversal, diags := hhcl.AbsTraversalForExpr(expr.Expression)
-		if diags.HasErrors() {
-			continue
-		}
-		if len(traversal) != 1 {
-			continue
-		}
-		if traversal.RootName() == "unset" {
-			delete(exprs, name)
 		}
 	}
 }
