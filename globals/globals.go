@@ -197,8 +197,8 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 						panic(errors.E(err, "terramate internal error"))
 					}
 				}
-				amountEvaluated++
 
+				amountEvaluated++
 				delete(pendingExprs, accessor)
 				delete(pendingExprsErrs, accessor)
 			}
