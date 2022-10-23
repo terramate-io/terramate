@@ -15,12 +15,12 @@
 package project
 
 import (
+	"fmt"
 	"path"
 	"path/filepath"
 	"sort"
 	"strings"
 
-	"github.com/mineiros-io/terramate/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -41,7 +41,7 @@ type Paths []Path
 // It panics if a relative path is provided.
 func NewPath(p string) Path {
 	if !path.IsAbs(p) {
-		panic(errors.E("project path must be absolute but got %s", p))
+		panic(fmt.Errorf("project path must be absolute but got %s", p))
 	}
 	return Path(path.Clean(p))
 }
