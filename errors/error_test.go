@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/project"
 )
 
 var E = errors.E
@@ -531,9 +532,9 @@ func fmt(format string, args ...interface{}) string {
 type stackmeta struct {
 	name string
 	desc string
-	path string
+	path project.Path
 }
 
-func (s stackmeta) Name() string { return s.name }
-func (s stackmeta) Path() string { return s.path }
-func (s stackmeta) Desc() string { return s.desc }
+func (s stackmeta) Name() string       { return s.name }
+func (s stackmeta) Path() project.Path { return s.path }
+func (s stackmeta) Desc() string       { return s.desc }

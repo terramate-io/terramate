@@ -25,6 +25,7 @@ import (
 	"syscall"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/mineiros-io/terramate/project"
 )
 
 // Error is the default Terramate error type.
@@ -50,12 +51,13 @@ type Error struct {
 type (
 	// Kind defines the kind of an error.
 	Kind string
+
 	// StackMeta has the metadata of the stack which originated the error.
 	// Same interface as stack.Metadata.
 	StackMeta interface {
 		Name() string
 		Desc() string
-		Path() string
+		Path() project.Path
 	}
 )
 
