@@ -103,6 +103,9 @@ const (
 	ErrInvalidWatch errors.Kind = "invalid stack.watch attribute"
 )
 
+// ensure we get a compiler error if stack doesn't implement errors.StackMeta.
+var _ errors.StackMeta = &S{}
+
 // New creates a new stack from configuration cfg.
 func New(root string, cfg hcl.Config) (*S, error) {
 	name := cfg.Stack.Name
