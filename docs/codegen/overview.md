@@ -14,6 +14,7 @@ Some features are available to all code generation strategies, like:
 * [Globals](../sharing-data.md#globals)
 * [Metadata](../sharing-data.md#metadata)
 * [Functions](../functions.md)
+* [Lets](#lets)
 * [Assertions](#assertions)
 
 # Labels
@@ -29,6 +30,29 @@ the generated code will be saved. The labels must follow these constraints:
 * It is not a stack
 * It is unique on the whole hierarchy of a stack
 
+# Lets
+
+The `lets` block can be used to define local scoped variables inside the
+generate blocks. Each `generate_*` block has its own `lets` scope that
+has access to **globals** and **terramate** namespaces. The symbols defined
+in the block are discarded after the block is executed. 
+
+The syntax for defining variables is the same as **globals** with the
+exception that `lets` does not support labels in the block.
+
+After the block is evaluated, it's values are available in the `let`
+namespace. 
+
+```hcl
+generate_file "sum.txt" {
+  lets {
+    sum = tm_sum(tm_concat(global.a, global.b))
+  }
+
+  content = tm_format("the sum is %d", let.sum)
+}
+```
+
 # Assertions
 
 Assertions can be used in order to fail code generation for one or more stacks
@@ -40,7 +64,7 @@ It has the following field:
 * **message** : Obligatory, must evaluate to string
 * **warning** : Optional (default=false), must evaluate to boolean
 
-All fields can contain expressions accessing **globals** and **metadata**.
+All fields can contain expressions accessing **globals**, **lets** and **metadata**.
 
 ```hcl
 assert {
