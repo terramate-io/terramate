@@ -19,7 +19,7 @@ import "github.com/hashicorp/hcl/v2/hclsyntax"
 // Block is a wrapper to the hclsyntax.Block but with the file origin.
 // The hclsyntax.Block.Attributes are converted to hcl.Attributes.
 type Block struct {
-	Origin     string
+	Range      Range
 	Attributes Attributes
 	Blocks     []*Block
 
@@ -30,17 +30,17 @@ type Block struct {
 type Blocks []*Block
 
 // NewBlock creates a new block wrapper.
-func NewBlock(origin string, block *hclsyntax.Block) *Block {
+func NewBlock(rootdir string, block *hclsyntax.Block) *Block {
 	attrs := make(Attributes)
 	for name, val := range block.Body.Attributes {
-		attrs[name] = NewAttribute(origin, val.AsHCLAttribute())
+		attrs[name] = NewAttribute(rootdir, val.AsHCLAttribute())
 	}
 	var blocks Blocks
 	for _, block := range block.Body.Blocks {
-		blocks = append(blocks, NewBlock(origin, block))
+		blocks = append(blocks, NewBlock(rootdir, block))
 	}
 	return &Block{
-		Origin:     origin,
+		Range:      NewRange(rootdir, block.Range()),
 		Attributes: attrs,
 		Blocks:     blocks,
 		Block:      block,

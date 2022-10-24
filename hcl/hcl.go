@@ -75,7 +75,7 @@ type GenerateConfig struct {
 
 // AssertConfig represents Terramate assert configuration block.
 type AssertConfig struct {
-	Origin    string
+	Range     ast.Range
 	Warning   hcl.Expression
 	Assertion hcl.Expression
 	Message   hcl.Expression
@@ -193,8 +193,8 @@ type Stack struct {
 
 // GenHCLBlock represents a parsed generate_hcl block.
 type GenHCLBlock struct {
-	// Origin is the filename where this block is defined.
-	Origin string
+	// Range is the range of the entire block definition.
+	Range ast.Range
 	// Label of the block.
 	Label string
 	// Lets is a block of local variables.
@@ -209,8 +209,8 @@ type GenHCLBlock struct {
 
 // GenFileBlock represents a parsed generate_file block
 type GenFileBlock struct {
-	// Origin is the filename where this block is defined.
-	Origin string
+	// Range is the range of the entire block definition.
+	Range ast.Range
 	// Label of the block
 	Label string
 	// Lets is a block of local variables.
@@ -750,7 +750,7 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 			asserts = append(asserts, assertCfg)
 		case "content":
 			if content != nil {
-				errs.Append(errors.E(subBlock.Range(),
+				errs.Append(errors.E(subBlock.Range,
 					"multiple generate_hcl.content blocks defined",
 				))
 				continue
@@ -767,7 +767,7 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 	}
 
 	return GenHCLBlock{
-		Origin:    block.Origin,
+		Range:     block.Range,
 		Label:     block.Labels[0],
 		Lets:      lets,
 		Asserts:   asserts,
@@ -813,7 +813,7 @@ func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
 	}
 
 	return GenFileBlock{
-		Origin:    block.Origin,
+		Range:     block.Range,
 		Label:     block.Labels[0],
 		Lets:      lets,
 		Asserts:   asserts,
@@ -1225,7 +1225,7 @@ func parseAssertConfig(assert *ast.Block) (AssertConfig, error) {
 	cfg := AssertConfig{}
 	errs := errors.L()
 
-	cfg.Origin = assert.Origin
+	cfg.Range = assert.Range
 
 	errs.Append(checkNoLabels(assert))
 	errs.Append(checkHasSubBlocks(assert))
@@ -1246,12 +1246,12 @@ func parseAssertConfig(assert *ast.Block) (AssertConfig, error) {
 	}
 
 	if cfg.Assertion == nil {
-		errs.Append(errors.E(ErrTerramateSchema, assert.Range(),
+		errs.Append(errors.E(ErrTerramateSchema, assert.Range,
 			"assert.assertion is required"))
 	}
 
 	if cfg.Message == nil {
-		errs.Append(errors.E(ErrTerramateSchema, assert.Range(),
+		errs.Append(errors.E(ErrTerramateSchema, assert.Range,
 			"assert.message is required"))
 	}
 
@@ -1707,7 +1707,7 @@ func (p *TerramateParser) checkConfigSanity(cfg Config) error {
 	tmblock := rawconfig.MergedBlocks["terramate"]
 	if tmblock != nil && p.dir != p.rootdir {
 		for _, raworigin := range tmblock.RawOrigins {
-			if filepath.Dir(raworigin.Origin) != p.dir {
+			if filepath.Dir(raworigin.Range.HostPath()) != p.dir {
 				errs.Append(
 					errors.E(ErrUnexpectedTerramate, raworigin.TypeRange,
 						"imported from directory %q", p.dir),

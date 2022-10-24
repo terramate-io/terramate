@@ -23,7 +23,7 @@ import (
 
 // Attribute represents a parsed attribute.
 type Attribute struct {
-	Origin string
+	Range Range
 	*hhcl.Attribute
 }
 
@@ -31,9 +31,9 @@ type Attribute struct {
 type Attributes map[string]Attribute
 
 // NewAttribute creates a new attribute given a parsed attribute and its origin.
-func NewAttribute(origin string, val *hhcl.Attribute) Attribute {
+func NewAttribute(rootdir string, val *hhcl.Attribute) Attribute {
 	return Attribute{
-		Origin:    origin,
+		Range:     NewRange(rootdir, val.Range),
 		Attribute: val,
 	}
 }

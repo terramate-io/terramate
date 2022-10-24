@@ -908,7 +908,7 @@ func testParser(t *testing.T, tc testcase) {
 			test.WriteFile(t, dir, filename, inputConfigFile.body)
 		}
 		FixupFiledirOnErrorsFileRanges(configsDir, tc.want.errs)
-		FixupFiledirOnConfig(configsDir, tc.want.config)
+		FixRangesOnConfig(configsDir, tc.want.config)
 
 		if tc.parsedir == "" {
 			tc.parsedir = configsDir
