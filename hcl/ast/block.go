@@ -48,10 +48,10 @@ func NewBlock(rootdir string, block *hclsyntax.Block) *Block {
 }
 
 // NewBlocks creates a Block slice from the raw hclsyntax.Block.
-func NewBlocks(origin string, rawblocks hclsyntax.Blocks) Blocks {
+func NewBlocks(rootdir string, rawblocks hclsyntax.Blocks) Blocks {
 	var blocks Blocks
 	for _, rawblock := range rawblocks {
-		blocks = append(blocks, NewBlock(origin, rawblock))
+		blocks = append(blocks, NewBlock(rootdir, rawblock))
 	}
 	return blocks
 }

@@ -30,7 +30,8 @@ type Attribute struct {
 // Attributes represents multiple parsed attributes.
 type Attributes map[string]Attribute
 
-// NewAttribute creates a new attribute given a parsed attribute and its origin.
+// NewAttribute creates a new attribute given a parsed attribute and the rootdir
+// of the project.
 func NewAttribute(rootdir string, val *hhcl.Attribute) Attribute {
 	return Attribute{
 		Range:     NewRange(rootdir, val.Range),
@@ -49,10 +50,10 @@ func (a Attributes) SortedList() AttributeSlice {
 }
 
 // NewAttributes creates a map of Attributes from the raw hcl.Attributes.
-func NewAttributes(origin string, rawAttrs hhcl.Attributes) Attributes {
+func NewAttributes(rootdir string, rawAttrs hhcl.Attributes) Attributes {
 	attrs := make(Attributes)
 	for _, rawAttr := range rawAttrs {
-		attrs[rawAttr.Name] = NewAttribute(origin, rawAttr)
+		attrs[rawAttr.Name] = NewAttribute(rootdir, rawAttr)
 	}
 	return attrs
 }

@@ -503,8 +503,8 @@ func (p *TerramateParser) mergeConfig() error {
 	for _, origin := range p.sortedParsedFilenames() {
 		body := bodies[origin]
 
-		errs.Append(p.Config.mergeAttrs(ast.NewAttributes(origin, ast.AsHCLAttributes(body.Attributes))))
-		errs.Append(p.Config.mergeBlocks(ast.NewBlocks(origin, body.Blocks)))
+		errs.Append(p.Config.mergeAttrs(ast.NewAttributes(p.rootdir, ast.AsHCLAttributes(body.Attributes))))
+		errs.Append(p.Config.mergeBlocks(ast.NewBlocks(p.rootdir, body.Blocks)))
 	}
 	return errs.AsError()
 }

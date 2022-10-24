@@ -85,6 +85,12 @@ func newRange(rootdir string, old ast.Range) ast.Range {
 	// When defining test cases there is no way to know the final
 	// absolute paths since sandboxes are dynamic/temporary.
 	// So we use relative paths as host paths and make them absolute here.
+	var zero ast.Range
+	if old == zero {
+		// ast.Range is a zero value ast.Range, nothing to do
+		// avoid panics since the paths are not valid (empty strings).
+		return old
+	}
 	filename := filepath.Join(rootdir, old.HostPath())
 	return ast.NewRange(rootdir, Mkrange(filename,
 		Start(old.Start().Line(), old.Start().Column(), old.Start().Byte()),
