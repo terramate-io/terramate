@@ -160,7 +160,7 @@ func Load(
 	var hcls []HCL
 	for _, hclBlock := range hclBlocks {
 		name := hclBlock.Label
-		origin := project.PrjAbsPath(tree.RootDir(), hclBlock.Origin)
+		origin := hclBlock.Range.Path()
 		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
 		err := lets.Load(hclBlock.Lets, evalctx.Context)
 		if err != nil {
@@ -230,7 +230,7 @@ func Load(
 			)
 		}
 
-		formatted, err := fmt.FormatMultiline(string(gen.Bytes()), hclBlock.Origin)
+		formatted, err := fmt.FormatMultiline(string(gen.Bytes()), hclBlock.Range.HostPath())
 		if err != nil {
 			panic(errors.E(sm, err,
 				"internal error: formatting generated code for generate_hcl %q:%s", name, string(gen.Bytes()),

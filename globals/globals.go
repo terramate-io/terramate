@@ -90,7 +90,7 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
 
 			acessor := dotpath(block.Labels, attr.Name)
 			exprs[acessor] = Expr{
-				Origin:     project.PrjAbsPath(tree.RootDir(), attr.Origin),
+				Origin:     attr.Range.Path(),
 				DotPath:    acessor,
 				Expression: attr.Expr,
 			}

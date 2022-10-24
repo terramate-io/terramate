@@ -126,7 +126,7 @@ func Load(
 
 	for _, genFileBlock := range genFileBlocks {
 		name := genFileBlock.Label
-		origin := project.PrjAbsPath(cfg.RootDir(), genFileBlock.Origin)
+		origin := genFileBlock.Range.Path()
 		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
 		err := lets.Load(genFileBlock.Lets, evalctx.Context)
 		if err != nil {
