@@ -25,8 +25,10 @@ import (
 )
 
 func TestRangeFromHCLRange(t *testing.T) {
-	rootdir := "/host/path/root"
-	path := "/dir/sub/assert.tm"
+	// We create a dir to simulate how the path will look
+	// like in different OS's, like Windows.
+	rootdir := t.TempDir()
+	path := filepath.Join("dir", "sub", "assert.tm")
 	start := Start(1, 1, 0)
 	end := End(3, 2, 37)
 	hclrange := Mkrange(filepath.Join(rootdir, path), start, end)
@@ -42,7 +44,7 @@ func TestRangeFromHCLRange(t *testing.T) {
 	assert.EqualInts(t, hclrange.End.Column, tmrange.End().Column())
 	assert.EqualInts(t, hclrange.End.Byte, tmrange.End().Byte())
 
-	wantPath := project.NewPath(path)
+	wantPath := project.NewPath("/" + filepath.ToSlash(path))
 	if tmrange.Path() != wantPath {
 		t.Fatalf("range.Path() = %q; want = %q", tmrange.Path(), wantPath)
 	}
