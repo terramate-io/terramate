@@ -162,6 +162,28 @@ func (obj *Object) SetAt(path DotPath, value Value) error {
 	return nil
 }
 
+// DeleteAt deletes the value at the specified path.
+func (obj *Object) DeleteAt(path DotPath) error {
+	pathParts := strings.Split(string(path), ".")
+	for len(pathParts) > 1 {
+		key := pathParts[0]
+		subobj, ok := obj.Keys[key]
+		if !ok {
+			return nil
+		}
+		if !subobj.IsObject() {
+			return errors.E(ErrCannotExtendObject,
+				"path part %s (from %s) contains non-object parts in the path (%s is %T)",
+				key, path, key, subobj)
+		}
+		obj = subobj.(*Object)
+		pathParts = pathParts[1:]
+	}
+
+	delete(obj.Keys, pathParts[0])
+	return nil
+}
+
 // AsValueMap returns a map of string to Hashicorp cty.Value.
 func (obj *Object) AsValueMap() map[string]cty.Value {
 	vmap := map[string]cty.Value{}

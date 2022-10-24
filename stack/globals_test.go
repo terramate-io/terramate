@@ -1956,6 +1956,32 @@ func TestLoadGlobals(t *testing.T) {
 			wantErr: errors.E(globals.ErrEval),
 		},
 		{
+			name:   "unset on extended global",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Globals(
+						Expr("a", `{
+							a = "must be unset"
+						}`),
+					),
+				},
+				{
+					path: "/stack",
+					add: Globals(
+						Labels("a"),
+						Expr("a", "unset"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "a", `{}`),
+				),
+			},
+		},
+		{
 			name:   "global with tm_ternary returning literals",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
