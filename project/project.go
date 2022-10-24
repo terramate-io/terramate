@@ -41,7 +41,7 @@ type Paths []Path
 // It panics if a relative path is provided.
 func NewPath(p string) Path {
 	if !path.IsAbs(p) {
-		panic(fmt.Errorf("project path must be absolute but got %s", p))
+		panic(fmt.Errorf("project path must be absolute but got %q", p))
 	}
 	return Path(path.Clean(p))
 }

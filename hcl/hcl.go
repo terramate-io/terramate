@@ -482,7 +482,7 @@ func (p *TerramateParser) Imports() (ast.Blocks, error) {
 			if rawBlock.Type != "import" {
 				continue
 			}
-			importBlock := ast.NewBlock(origin, rawBlock)
+			importBlock := ast.NewBlock(p.rootdir, rawBlock)
 			err := validateImportBlock(importBlock)
 			errs.Append(err)
 			if err == nil {
