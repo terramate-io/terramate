@@ -34,23 +34,32 @@ const (
 	ErrRedefined errors.Kind = "global redefined"
 )
 
+const maxLabels = 256
+
 type (
 	// Expr is an unevaluated global expression.
 	Expr struct {
 		// Origin is the filename where this expression can be found.
 		Origin project.Path
 
-		// DotPath denotes the target accessor path which the expression must
+		// LabelPath denotes the target accessor path which the expression must
 		// be assigned into.
-		DotPath eval.DotPath
+		LabelPath eval.ObjectPath
 
 		hhcl.Expression
 	}
 
+	GlobalPath struct {
+		path     [maxLabels]string
+		numPaths int
+	}
+
 	// Exprs is the map of unevaluated global expressions visible in a
 	// directory.
-	Exprs map[eval.DotPath]Expr
+	Exprs map[GlobalPath]Expr
 )
+
+func (a GlobalPath) Path() []string { return a.path[:a.numPaths] }
 
 // Load loads all the globals from the cfgdir.
 func Load(tree *config.Tree, cfgdir project.Path, ctx *eval.Context) EvalReport {
@@ -94,15 +103,15 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
 	globalsBlocks := cfg.Node.Globals.AsList()
 	for _, block := range globalsBlocks {
 		attrs := block.Attributes.SortedList()
-		if block.Labels != "" && len(attrs) == 0 {
+		if len(block.Labels) > 0 && len(attrs) == 0 {
 			expr, _ := eval.ParseExpressionBytes([]byte(`{}`))
-			label := eval.DotPath(block.Labels)
-			exprs[label] = Expr{
+			key := newGlobalPath(block.Labels, "")
+			exprs[key] = Expr{
 				Origin: project.PrjAbsPath(
 					tree.RootDir(),
 					block.RawOrigins[0].Origin,
 				),
-				DotPath:    label,
+				LabelPath:  key.Path(),
 				Expression: expr,
 			}
 		}
@@ -112,10 +121,10 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
 		for _, attr := range attrs {
 			logger.Trace().Msg("Add attribute to globals.")
 
-			acessor := dotpath(block.Labels, attr.Name)
-			exprs[acessor] = Expr{
+			key := newGlobalPath(block.Labels, attr.Name)
+			exprs[key] = Expr{
 				Origin:     project.PrjAbsPath(tree.RootDir(), attr.Origin),
-				DotPath:    acessor,
+				LabelPath:  key.Path(),
 				Expression: attr.Expr,
 			}
 		}
@@ -149,7 +158,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 	report := NewEvalReport()
 	globals := report.Globals
-	pendingExprsErrs := map[eval.DotPath]*errors.List{}
+	pendingExprsErrs := map[GlobalPath]*errors.List{}
 	pendingExprs := make(Exprs)
 
 	copyexprs(pendingExprs, globalExprs)
@@ -163,9 +172,9 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 		logger.Trace().Msg("evaluating pending expressions")
 
-		sortedKeys := []eval.DotPath{}
-		for accessor := range pendingExprs {
-			sortedKeys = append(sortedKeys, accessor)
+		sortedKeys := []GlobalPath{}
+		for key := range pendingExprs {
+			sortedKeys = append(sortedKeys, key)
 		}
 
 		sort.SliceStable(sortedKeys, func(i, j int) bool {
@@ -173,7 +182,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 			origin1, origin2 := expr1.Origin.Dir(), expr2.Origin.Dir()
 
 			if origin1 == origin2 {
-				return len(sortedKeys[i]) < len(sortedKeys[j])
+				return len(sortedKeys[i].Path()) < len(sortedKeys[j].Path())
 			}
 			return len(origin1) < len(origin2)
 		})
@@ -184,15 +193,15 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 			logger := logger.With().
 				Stringer("origin", expr.Origin).
-				Str("global", string(accessor)).
+				Strs("global", accessor.Path()).
 				Logger()
 
 			logger.Trace().Msg("checking var access inside expression")
 
 			traversal, diags := hhcl.AbsTraversalForExpr(expr.Expression)
 			if !diags.HasErrors() && len(traversal) == 1 && traversal.RootName() == "unset" {
-				if _, ok := globals.GetKeyPath(accessor); ok {
-					err := globals.DeleteAt(accessor)
+				if _, ok := globals.GetKeyPath(accessor.Path()); ok {
+					err := globals.DeleteAt(accessor.Path())
 					if err != nil {
 						panic(errors.E(err, "terramate internal error"))
 					}
@@ -221,7 +230,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 				switch attr := namespace[1].(type) {
 				case hhcl.TraverseAttr:
-					if _, isPending := pendingExprs[eval.DotPath(attr.Name)]; isPending {
+					if _, isPending := pendingExprs[newGlobalPath([]string{}, attr.Name)]; isPending {
 						continue pendingExpression
 					}
 				default:
@@ -236,7 +245,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 			// This catches a schema error that cannot be detected at the parser.
 			// When a nested object is defined either by literal or funcalls,
 			// it can't be detected at the parser.
-			if v, ok := globals.GetKeyPath(accessor); ok &&
+			if v, ok := globals.GetKeyPath(accessor.Path()); ok &&
 				v.Origin().Dir().String() == expr.Origin.Dir().String() {
 				pendingExprsErrs[accessor].Append(
 					errors.E(hcl.ErrTerramateSchema, expr.Range(),
@@ -254,7 +263,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 				continue
 			}
 
-			err = globals.SetAt(accessor, eval.NewValue(val, expr.Origin))
+			err = globals.SetAt(accessor.Path(), eval.NewValue(val, expr.Origin))
 			if err != nil {
 				pendingExprsErrs[accessor].Append(err)
 				continue
@@ -275,12 +284,12 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 		}
 	}
 
-	for name, expr := range pendingExprs {
-		err := pendingExprsErrs[name].AsError()
+	for accessor, expr := range pendingExprs {
+		err := pendingExprsErrs[accessor].AsError()
 		if err == nil {
-			err = errors.E(expr.Range(), "undefined global %s", name)
+			err = errors.E(expr.Range(), "undefined global %v", accessor.Path())
 		}
-		report.Errors[name] = EvalError{
+		report.Errors[accessor] = EvalError{
 			Expr: expr,
 			Err:  errors.E(ErrEval, err),
 		}
@@ -308,9 +317,13 @@ func copyexprs(dst, src Exprs) {
 	}
 }
 
-func dotpath(basepath string, name string) eval.DotPath {
-	if basepath != "" {
-		return eval.DotPath(basepath + "." + name)
+func newGlobalPath(basepath []string, name string) GlobalPath {
+	accessor := GlobalPath{}
+	accessor.numPaths = len(basepath)
+	copy(accessor.path[:], basepath)
+	if name != "" {
+		accessor.path[len(basepath)] = name
+		accessor.numPaths++
 	}
-	return eval.DotPath(name)
+	return accessor
 }

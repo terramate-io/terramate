@@ -15,8 +15,6 @@
 package eval
 
 import (
-	"strings"
-
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/project"
@@ -71,8 +69,8 @@ type (
 		cty.Value
 	}
 
-	// DotPath represents a path inside the object using a dot-notation.
-	DotPath string
+	// ObjectPath represents a path inside the object using a dot-notation.
+	ObjectPath []string
 )
 
 // NewObject creates a new object with origin.
@@ -89,16 +87,15 @@ func (obj *Object) Set(key string, value Value) {
 }
 
 // GetKeyPath retrieves the value at path.
-func (obj *Object) GetKeyPath(path DotPath) (Value, bool) {
-	parts := strings.Split(string(path), ".")
+func (obj *Object) GetKeyPath(parts ObjectPath) (Value, bool) {
 	key := parts[0]
-	next := DotPath(strings.Join(parts[1:], "."))
+	next := parts[1:]
 
 	v, ok := obj.Keys[key]
 	if !ok {
 		return nil, false
 	}
-	if next == "" {
+	if len(next) == 0 {
 		return v, true
 	}
 	if !v.IsObject() {
@@ -140,8 +137,7 @@ func (obj *Object) SetFromCtyValues(values map[string]cty.Value, origin project.
 }
 
 // SetAt sets a value at the specified path key.
-func (obj *Object) SetAt(path DotPath, value Value) error {
-	pathParts := strings.Split(string(path), ".")
+func (obj *Object) SetAt(pathParts ObjectPath, value Value) error {
 	for len(pathParts) > 1 {
 		key := pathParts[0]
 		subobj, ok := obj.Keys[key]
@@ -151,8 +147,8 @@ func (obj *Object) SetAt(path DotPath, value Value) error {
 		}
 		if !subobj.IsObject() {
 			return errors.E(ErrCannotExtendObject,
-				"path part %s (from %s) contains non-object parts in the path (%s is %T)",
-				key, path, key, subobj)
+				"path part %s (from %s) contains non-object parts in the path (%v is %T)",
+				key, pathParts, key, subobj)
 		}
 		obj = subobj.(*Object)
 		pathParts = pathParts[1:]
@@ -163,8 +159,7 @@ func (obj *Object) SetAt(path DotPath, value Value) error {
 }
 
 // DeleteAt deletes the value at the specified path.
-func (obj *Object) DeleteAt(path DotPath) error {
-	pathParts := strings.Split(string(path), ".")
+func (obj *Object) DeleteAt(pathParts ObjectPath) error {
 	for len(pathParts) > 1 {
 		key := pathParts[0]
 		subobj, ok := obj.Keys[key]
@@ -173,8 +168,8 @@ func (obj *Object) DeleteAt(path DotPath) error {
 		}
 		if !subobj.IsObject() {
 			return errors.E(ErrCannotExtendObject,
-				"path part %s (from %s) contains non-object parts in the path (%s is %T)",
-				key, path, key, subobj)
+				"path part %s (from %v) contains non-object parts in the path (%s is %T)",
+				key, pathParts, key, subobj)
 		}
 		obj = subobj.(*Object)
 		pathParts = pathParts[1:]

@@ -60,7 +60,7 @@ func (cfg RawConfig) Copy() RawConfig {
 func (cfg *RawConfig) mergeHandlers() map[string]mergeHandler {
 	return map[string]mergeHandler{
 		"terramate":     cfg.mergeBlock,
-		"globals":       cfg.mergeLabelledBlock,
+		"globals":       cfg.mergeLabeledBlock,
 		"stack":         cfg.addBlock,
 		"vendor":        cfg.addBlock,
 		"generate_file": cfg.addBlock,
@@ -127,7 +127,7 @@ func (cfg *RawConfig) mergeBlock(block *ast.Block) error {
 	return nil
 }
 
-func (cfg *RawConfig) mergeLabelledBlock(block *ast.Block) error {
+func (cfg *RawConfig) mergeLabeledBlock(block *ast.Block) error {
 	labelBlock := ast.NewLabelBlockType(block.Type, block.Labels)
 	if other, ok := cfg.MergedLabelBlocks[labelBlock]; ok {
 		err := other.MergeBlock(block, true)
