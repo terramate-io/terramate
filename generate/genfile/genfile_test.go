@@ -71,7 +71,6 @@ func TestLoadGenerateFiles(t *testing.T) {
 				{
 					name: "empty",
 					file: genFile{
-						origin:    "/stack/empty.tm",
 						body:      "",
 						condition: true,
 					},
@@ -94,7 +93,6 @@ func TestLoadGenerateFiles(t *testing.T) {
 				{
 					name: "test",
 					file: genFile{
-						origin:    "/stack/test.tm",
 						body:      "test",
 						condition: true,
 					},
@@ -128,7 +126,6 @@ EOT`,
 					name: "test",
 					file: genFile{
 						condition: true,
-						origin:    "/stack/test.tm",
 						body: `
 stacks_list=["/stack"]
 stack_path_abs=/stack
@@ -163,7 +160,6 @@ EOT`,
 					name: "test",
 					file: genFile{
 						condition: true,
-						origin:    "/stack/test.tm",
 						body: `
 stack_id=stack-id
 `,
@@ -194,7 +190,6 @@ stack_id=stack-id
 					name: "test",
 					file: genFile{
 						condition: true,
-						origin:    "/stack/test.tm",
 						body:      "global-data-/stack",
 					},
 				},
@@ -218,7 +213,6 @@ stack_id=stack-id
 					name: "test",
 					file: genFile{
 						condition: false,
-						origin:    "/stack/test.tm",
 						body:      "",
 					},
 				},
@@ -249,7 +243,6 @@ stack_id=stack-id
 					name: "test",
 					file: genFile{
 						condition: false,
-						origin:    "/stack/test.tm",
 						body:      "",
 					},
 				},
@@ -257,7 +250,6 @@ stack_id=stack-id
 					name: "test2",
 					file: genFile{
 						condition: true,
-						origin:    "/stack/test.tm",
 						body:      "data",
 					},
 				},
@@ -287,7 +279,6 @@ stack_id=stack-id
 					name: "test",
 					file: genFile{
 						condition: false,
-						origin:    "/stack/test.tm",
 						body:      "",
 					},
 				},
@@ -311,7 +302,6 @@ stack_id=stack-id
 					name: "test",
 					file: genFile{
 						condition: false,
-						origin:    "/stack/test.tm",
 						body:      "",
 					},
 				},
@@ -341,7 +331,6 @@ stack_id=stack-id
 					name: "test",
 					file: genFile{
 						condition: true,
-						origin:    "/stack/test.tm",
 						body:      "data",
 					},
 				},
@@ -380,7 +369,6 @@ stack_id=stack-id
 					name: "test1",
 					file: genFile{
 						condition: true,
-						origin:    "/stack/test.tm",
 						body:      "global-data",
 					},
 				},
@@ -388,7 +376,6 @@ stack_id=stack-id
 					name: "test2",
 					file: genFile{
 						condition: true,
-						origin:    "/stack/test.tm",
 						body:      "/stack",
 					},
 				},
@@ -396,7 +383,6 @@ stack_id=stack-id
 					name: "test3",
 					file: genFile{
 						condition: true,
-						origin:    "/stack/test.tm",
 						body:      "terramate!",
 					},
 				},
@@ -432,7 +418,6 @@ stack_id=stack-id
 					name: "test.json",
 					file: genFile{
 						condition: true,
-						origin:    "/stack/json.tm",
 						body:      `{"field":"global-data"}`,
 					},
 				},
@@ -440,7 +425,6 @@ stack_id=stack-id
 					name: "test.yml",
 					file: genFile{
 						condition: true,
-						origin:    "/stack/yaml.tm",
 						body:      "\"field\": \"/stack\"\n",
 					},
 				},
@@ -483,7 +467,6 @@ stack_id=stack-id
 					name: "root",
 					file: genFile{
 						condition: true,
-						origin:    "/root.tm",
 						body:      "root-global-data-/stacks/stack",
 					},
 				},
@@ -491,7 +474,6 @@ stack_id=stack-id
 					name: "stack",
 					file: genFile{
 						condition: true,
-						origin:    "/stacks/stack/stack.tm",
 						body:      "stack-global-data-/stacks/stack",
 					},
 				},
@@ -499,7 +481,6 @@ stack_id=stack-id
 					name: "stacks",
 					file: genFile{
 						condition: true,
-						origin:    "/stacks/stacks.tm",
 						body:      "stacks-global-data-/stacks/stack",
 					},
 				},
@@ -542,7 +523,6 @@ stack_id=stack-id
 					name: "test.yml",
 					file: genFile{
 						condition: true,
-						origin:    "/stack/test.tm",
 						body:      "test",
 					},
 				},
@@ -550,7 +530,6 @@ stack_id=stack-id
 					name: "test.yml",
 					file: genFile{
 						condition: true,
-						origin:    "/stack/test.tm",
 						body:      "test2",
 					},
 				},
@@ -582,14 +561,12 @@ stack_id=stack-id
 					name: "test",
 					file: genFile{
 						condition: false,
-						origin:    "/stack/test.tm",
 					},
 				},
 				{
 					name: "test",
 					file: genFile{
 						condition: true,
-						origin:    "/stack/test.tm",
 						body:      "test",
 					},
 				},
@@ -623,7 +600,6 @@ stack_id=stack-id
 					name: "test.yml",
 					file: genFile{
 						condition: true,
-						origin:    "/stack/test.tm",
 						body:      "test",
 					},
 				},
@@ -631,7 +607,6 @@ stack_id=stack-id
 					name: "test.yml",
 					file: genFile{
 						condition: true,
-						origin:    "/stack/test2.tm",
 						body:      "test2",
 					},
 				},
@@ -665,7 +640,6 @@ stack_id=stack-id
 					name: "test.yml",
 					file: genFile{
 						condition: true,
-						origin:    "/test.tm",
 						body:      "root",
 					},
 				},
@@ -673,7 +647,6 @@ stack_id=stack-id
 					name: "test.yml",
 					file: genFile{
 						condition: true,
-						origin:    "/stack/test.tm",
 						body:      "test",
 					},
 				},
@@ -828,7 +801,6 @@ stack_id=stack-id
 					name: "test",
 					file: genFile{
 						condition: true,
-						origin:    "/stack/test.tm",
 						body:      "let string",
 					},
 				},
@@ -857,7 +829,6 @@ stack_id=stack-id
 					name: "test",
 					file: genFile{
 						condition: true,
-						origin:    "/stack/test.tm",
 						body:      "hello world lets feature",
 					},
 				},
@@ -883,7 +854,6 @@ stack_id=stack-id
 					name: "test",
 					file: genFile{
 						condition: true,
-						origin:    "/stack/test.tm",
 						body:      "let-data-/stack",
 					},
 				},
@@ -916,7 +886,6 @@ stack_id=stack-id
 					name: "test",
 					file: genFile{
 						condition: true,
-						origin:    "/stack/test.tm",
 						body:      "global string-/stack",
 					},
 				},
@@ -979,7 +948,6 @@ type (
 	}
 	genFile struct {
 		body      string
-		origin    string
 		condition bool
 		asserts   []config.Assert
 	}

@@ -49,7 +49,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					name: "tm_dynamic_test.tf",
 					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
 						condition: true,
 						body: Doc(
 							Block("my_block"),
@@ -85,7 +84,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					name: "tm_dynamic_test.tf",
 					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
 						condition: true,
 						body: Doc(
 							Block("my_block",
@@ -136,7 +134,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					name: "tm_dynamic_test.tf",
 					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
 						condition: true,
 						body: Doc(
 							Block("my_block",
@@ -187,7 +184,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					name: "tm_dynamic_test.tf",
 					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
 						condition: true,
 						body: Doc(
 							Block("my_block",
@@ -237,7 +233,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					name: "tm_dynamic_test.tf",
 					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
 						condition: true,
 						body: Doc(
 							Block("duplicated_labels",
@@ -275,7 +270,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					name: "tm_dynamic_test.tf",
 					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
 						condition: true,
 						body: Doc(
 							Block("my_block",
@@ -325,7 +319,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					name: "tm_dynamic_test.tf",
 					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
 						condition: true,
 						body: Doc(
 							Block("my_block",
@@ -375,7 +368,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					name: "tm_dynamic_test.tf",
 					hcl: genHCL{
-						origin:    "/stack/condition.tm",
 						condition: true,
 						body: Doc(
 							Str("data", "data"),
@@ -419,7 +411,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					name: "tm_dynamic_test.tf",
 					hcl: genHCL{
-						origin:    "/stack/condition.tm",
 						condition: true,
 						body: Doc(
 							Str("data", "data"),
@@ -455,7 +446,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					name: "tm_dynamic_test.tf",
 					hcl: genHCL{
-						origin:    "/stack/condition.tm",
 						condition: true,
 						body: Doc(
 							Str("data", "data"),
@@ -537,7 +527,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					name: "tm_dynamic_test.tf",
 					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
 						condition: true,
 						body: Doc(
 							Block("my_block",
@@ -571,7 +560,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					name: "tm_dynamic_test.tf",
 					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
 						condition: true,
 						body: Doc(
 							Block("attributes",
@@ -604,7 +592,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					name: "empty.tf",
 					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
 						condition: true,
 						body: Doc(
 							Block("empty"),
@@ -641,7 +628,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					name: "tm_dynamic_test.tf",
 					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
 						condition: true,
 						body: Doc(
 							Block("attributes",
@@ -699,7 +685,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					name: "test.tf",
 					hcl: genHCL{
-						origin:    "/stack/gen.tm",
 						condition: true,
 						body: Doc(
 							Block("test",
@@ -738,7 +723,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					name: "tm_dynamic_attributes_order.tf",
 					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
 						condition: true,
 						body: Doc(
 							Block("attributes_order",
@@ -794,7 +778,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					name: "tm_dynamic.tf",
 					hcl: genHCL{
-						origin:    "/stack/generate.tm",
 						condition: true,
 						body: Doc(
 							Block("references",
@@ -846,7 +829,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					name: "tm_dynamic.tf",
 					hcl: genHCL{
-						origin:    "/stack/generate.tm",
 						condition: true,
 						body: Doc(
 							Block("references",
@@ -893,7 +875,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					name: "tm_dynamic_test.tf",
 					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
 						condition: true,
 						body: Doc(
 							Block("parent",
@@ -980,7 +961,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					name: "tm_dynamic_test.tf",
 					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
 						condition: true,
 						body: Doc(
 							Block("my_block",
@@ -1061,7 +1041,6 @@ func TestGenerateHCLDynamic(t *testing.T) {
 				{
 					name: "tm_dynamic_test.tf",
 					hcl: genHCL{
-						origin:    defaultCfg("/stack"),
 						condition: true,
 						body: Doc(
 							Block("my_block",
