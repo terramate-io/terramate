@@ -37,6 +37,8 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// TODO(KATCIPIS): Add tests to check range behavior. Not tested in general.
+
 func TestGenerateHCL(t *testing.T) {
 	t.Parallel()
 
@@ -1767,12 +1769,6 @@ func (tcase testcase) run(t *testing.T) {
 				gothcl.Label(),
 				"wrong name for generated code",
 			)
-			assert.EqualStrings(t,
-				want.hcl.origin,
-				gothcl.Origin().String(),
-				"wrong origin config path for generated code",
-			)
-
 		}
 	})
 }

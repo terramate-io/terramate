@@ -32,6 +32,8 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// TODO(KATCIPIS): Add tests to check range behavior. Not tested in general.
+
 func TestLoadGenerateFiles(t *testing.T) {
 	t.Parallel()
 
@@ -1047,12 +1049,6 @@ func testGenfile(t *testing.T, tcase testcase) {
 				want.name,
 				gotfile.Label(),
 				"wrong name config path for generated code",
-			)
-
-			assert.EqualStrings(t,
-				want.file.origin,
-				gotfile.Origin().String(),
-				"wrong origin config path for generated code",
 			)
 
 			assert.EqualStrings(t, wantbody, gotbody,

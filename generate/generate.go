@@ -27,6 +27,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/generate/genhcl"
+	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
@@ -414,7 +415,7 @@ func CheckStack(cfg *config.Tree, projmeta project.Metadata, st *stack.S) ([]str
 
 type genCodeCfg interface {
 	Label() string
-	Origin() project.Path
+	Range() ast.Range
 	Header() string
 	Body() string
 	Condition() bool
@@ -713,18 +714,21 @@ func checkGeneratedFilesPaths(cfg *config.Tree, stackpath string, generated []ge
 		switch {
 		case strings.HasPrefix(relpath, "/"):
 			errs.Append(errors.E(ErrInvalidGenBlockLabel,
-				"%s: %s: starts with /",
-				file.Origin(), file.Label()))
+				file.Range(),
+				"%s: starts with /",
+				file.Label()))
 			continue
 		case strings.HasPrefix(relpath, "./"):
 			errs.Append(errors.E(ErrInvalidGenBlockLabel,
-				"%s: %s: starts with ./",
-				file.Origin(), file.Label()))
+				file.Range(),
+				"%s: starts with ./",
+				file.Label()))
 			continue
 		case strings.Contains(relpath, "../"):
 			errs.Append(errors.E(ErrInvalidGenBlockLabel,
-				"%s: %s: contains ../",
-				file.Origin(), file.Label()))
+				file.Range(),
+				"%s: contains ../",
+				file.Label()))
 			continue
 		}
 
@@ -740,21 +744,24 @@ func checkGeneratedFilesPaths(cfg *config.Tree, stackpath string, generated []ge
 					continue
 				}
 				errs.Append(errors.E(ErrInvalidGenBlockLabel, err,
-					"%s: %s: checking if dest dir is a symlink",
-					file.Origin(), file.Label()))
+					file.Range(),
+					"%s: checking if dest dir is a symlink",
+					file.Label()))
 				break
 			}
 			if (info.Mode() & fs.ModeSymlink) == fs.ModeSymlink {
 				errs.Append(errors.E(ErrInvalidGenBlockLabel, err,
-					"%s: %s: generates code inside a symlink",
-					file.Origin(), file.Label()))
+					file.Range(),
+					"%s: generates code inside a symlink",
+					file.Label()))
 				break
 			}
 
 			if config.IsStack(cfg, destdir) {
 				errs.Append(errors.E(ErrInvalidGenBlockLabel,
-					"%s: %s: generates code inside another stack %s",
-					file.Origin(), file.Label(),
+					file.Range(),
+					"%s: generates code inside another stack %s",
+					file.Label(),
 					project.PrjAbsPath(cfg.RootDir(), destdir)))
 				break
 			}
@@ -808,8 +815,8 @@ func validateGeneratedFiles(cfg *config.Tree, stackpath string, generated []genC
 			return errors.E(ErrConflictingConfig,
 				"configs from %q and %q generate a file with same name %q have "+
 					"`condition = true`",
-				file.Origin(),
-				other.Origin(),
+				file.Range().Path(),
+				other.Range().Path(),
 				file.Label(),
 			)
 		}

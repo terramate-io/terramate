@@ -40,11 +40,11 @@ import (
 // Is contains parsed and evaluated code on it and information
 // about the origin of the generated code.
 type HCL struct {
-	label     string
-	origin    project.Path
-	body      string
-	condition bool
-	asserts   []config.Assert
+	label       string
+	originRange ast.Range
+	body        string
+	condition   bool
+	asserts     []config.Assert
 }
 
 const (
@@ -100,7 +100,7 @@ func (h HCL) Header() string {
 	return stdfmt.Sprintf(
 		"%s\n// TERRAMATE: originated from generate_hcl block on %s\n\n",
 		Header,
-		h.origin,
+		h.originRange.Path(),
 	)
 }
 
@@ -110,10 +110,9 @@ func (h HCL) Body() string {
 	return string(h.body)
 }
 
-// Origin returns the path, relative to the project root,
-// of the configuration that originated the code.
-func (h HCL) Origin() project.Path {
-	return h.origin
+// Range returns the range information of the generate_file block.
+func (h HCL) Range() ast.Range {
+	return h.originRange
 }
 
 // Condition returns the evaluated condition attribute for the generated code.
@@ -123,7 +122,7 @@ func (h HCL) Condition() bool {
 
 func (h HCL) String() string {
 	return stdfmt.Sprintf("Generating file %q (condition %t) (body %q) (origin %q)",
-		h.Label(), h.Condition(), h.Body(), h.Origin())
+		h.Label(), h.Condition(), h.Body(), h.Range().HostPath())
 }
 
 // Load loads from the file system all generate_hcl for
@@ -160,7 +159,6 @@ func Load(
 	var hcls []HCL
 	for _, hclBlock := range hclBlocks {
 		name := hclBlock.Label
-		origin := hclBlock.Range.Path()
 		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
 		err := lets.Load(hclBlock.Lets, evalctx.Context)
 		if err != nil {
@@ -185,9 +183,9 @@ func Load(
 
 		if !condition {
 			hcls = append(hcls, HCL{
-				label:     name,
-				origin:    origin,
-				condition: condition,
+				label:       name,
+				originRange: hclBlock.Range,
+				condition:   condition,
 			})
 
 			continue
@@ -215,10 +213,10 @@ func Load(
 
 		if assertFailed {
 			hcls = append(hcls, HCL{
-				label:     name,
-				origin:    origin,
-				condition: condition,
-				asserts:   asserts,
+				label:       name,
+				originRange: hclBlock.Range,
+				condition:   condition,
+				asserts:     asserts,
 			})
 			continue
 		}
@@ -237,11 +235,11 @@ func Load(
 			))
 		}
 		hcls = append(hcls, HCL{
-			label:     name,
-			origin:    origin,
-			body:      formatted,
-			condition: condition,
-			asserts:   asserts,
+			label:       name,
+			originRange: hclBlock.Range,
+			body:        formatted,
+			condition:   condition,
+			asserts:     asserts,
 		})
 	}
 
