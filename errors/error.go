@@ -28,8 +28,6 @@ import (
 	"github.com/mineiros-io/terramate/project"
 )
 
-// TODO(KATCIPIS): add support to our own range type on constructor
-
 // Error is the default Terramate error type.
 // At least one of the error fields must be set.
 // See E() for its usage.
@@ -80,6 +78,10 @@ const separator = ": "
 //
 //   - [hcl.Range]
 //     The file range where the error originated.
+//
+//   - [ast.Range]
+//     The file range where the error originated, with extra Terramate specific info.
+//     Currently it will be converted to an hcl.Range.
 //
 //   - [errors.StackMeta]
 //     The stack that originated the error.
