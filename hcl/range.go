@@ -14,7 +14,12 @@
 
 package hcl
 
-import "github.com/hashicorp/hcl/v2"
+import (
+	"strings"
+
+	"github.com/hashicorp/hcl/v2"
+	"github.com/mineiros-io/terramate/project"
+)
 
 // Pos represents a single position in a source file, by addressing the
 // start byte of a unicode character encoded in UTF-8.
@@ -29,7 +34,8 @@ type Pos struct {
 
 // Range represents a span of characters between two positions in a source file.
 type Range struct {
-	filename   string
+	hostpath   string
+	path       project.Path
 	start, end Pos
 }
 
@@ -37,7 +43,8 @@ type Range struct {
 // The filename on the given [hcl.Range] must be absolute and inside rootdir.
 func NewRange(rootdir string, r hcl.Range) Range {
 	return Range{
-		filename: r.Filename,
+		path:     project.NewPath(strings.TrimPrefix(r.Filename, rootdir)),
+		hostpath: r.Filename,
 		start:    NewPos(r.Start),
 		end:      NewPos(r.End),
 	}
@@ -52,10 +59,16 @@ func NewPos(p hcl.Pos) Pos {
 	}
 }
 
-// Filename is the name of the file into which this range's positions point.
+// HostPath is the name of the file into which this range's positions point.
 // It is always an absolute path on the host filesystem.
-func (r Range) Filename() string {
-	return r.filename
+func (r Range) HostPath() string {
+	return r.hostpath
+}
+
+// Path is the name of the file into which this range's positions point.
+// It is always an absolute path relative to the project root.
+func (r Range) Path() project.Path {
+	return r.path
 }
 
 // Start represents the start of the bounds of this range, it is inclusive.

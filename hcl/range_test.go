@@ -20,6 +20,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/project"
 	. "github.com/mineiros-io/terramate/test/hclutils"
 )
 
@@ -32,7 +33,7 @@ func TestRangeFromHCLRange(t *testing.T) {
 	hclrange := Mkrange(filepath.Join(rootdir, path), start, end)
 	tmrange := hcl.NewRange(rootdir, hclrange)
 
-	assert.EqualStrings(t, hclrange.Filename, tmrange.Filename())
+	assert.EqualStrings(t, hclrange.Filename, tmrange.HostPath())
 
 	assert.EqualInts(t, hclrange.Start.Line, tmrange.Start().Line())
 	assert.EqualInts(t, hclrange.Start.Column, tmrange.Start().Column())
@@ -41,4 +42,9 @@ func TestRangeFromHCLRange(t *testing.T) {
 	assert.EqualInts(t, hclrange.End.Line, tmrange.End().Line())
 	assert.EqualInts(t, hclrange.End.Column, tmrange.End().Column())
 	assert.EqualInts(t, hclrange.End.Byte, tmrange.End().Byte())
+
+	wantPath := project.NewPath(path)
+	if tmrange.Path() != wantPath {
+		t.Fatalf("range.Path() = %q; want = %q", tmrange.Path(), wantPath)
+	}
 }
