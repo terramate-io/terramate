@@ -15,6 +15,7 @@
 package ast
 
 import (
+	"path/filepath"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -40,10 +41,12 @@ type Range struct {
 }
 
 // NewRange creates a new Range from the given [hcl.Range] and the rootdir.
-// The filename on the given [hcl.Range] must be absolute and inside rootdir.
+// This function assumes that the filename on the given [hcl.Range] is
+// absolute and inside rootdir.
 func NewRange(rootdir string, r hcl.Range) Range {
 	return Range{
-		path:     project.NewPath(strings.TrimPrefix(r.Filename, rootdir)),
+		path: project.NewPath(filepath.ToSlash(
+			strings.TrimPrefix(r.Filename, rootdir))),
 		hostpath: r.Filename,
 		start:    NewPos(r.Start),
 		end:      NewPos(r.End),
