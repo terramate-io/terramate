@@ -49,6 +49,8 @@ type (
 	}
 
 	// GlobalPathKey represents a global object accessor to be used as map key.
+	// The reason is that slices cannot be used as map key because the equality
+	// operator is not defined, then this type implements a fixed size struct.
 	GlobalPathKey struct {
 		path     [project.MaxGlobalLabels]string
 		numPaths int
