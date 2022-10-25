@@ -31,7 +31,7 @@ type (
 		BootstrapErr error
 
 		// Errors is a map of errors for each global.
-		Errors map[GlobalPath]EvalError // map of global dotpath to its EvalError.
+		Errors map[GlobalPath]EvalError // map of GlobalPath to its EvalError.
 	}
 
 	// EvalError carries the error and the expression which resulted in it.
