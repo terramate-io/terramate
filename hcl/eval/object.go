@@ -27,12 +27,12 @@ import (
 const ErrCannotExtendObject errors.Kind = "cannot extend object"
 
 type (
-	// Object is a object value supporting set at arbitrary paths using a
-	// dot notation.
+	// Object is an object container for cty.Value values supporting set at
+	// arbitrary accessor paths using a dot notation.
 	//
 	// Eg.:
-	//   obj := cty.NewObject()
-	//   obj.Set("val", cty.NewObject())
+	//   obj := eval.NewObject(origin)
+	//   obj.Set("val", eval.NewObject())
 	//
 	// The snippet above creates the object below:
 	//   {
@@ -41,7 +41,15 @@ type (
 	//
 	// Then values can be set inside obj.val by doing:
 	//
-	//   obj.SetAt("val.test", 1)
+	//   obj.SetAt("val.test", eval.NewValue(cty.StringVal("test"), origin))
+	//
+	// Of which creates the object below:
+	//
+	//   {
+	//       val = {
+	//           test = "test"
+	//       }
+	//   }
 	Object struct {
 		origin project.Path
 		// Keys is a map of key names to values.
@@ -50,7 +58,10 @@ type (
 
 	// Value is an evaluated value.
 	Value interface {
+		// Origin of the value.
 		Origin() project.Path
+
+		// IsObject tells if the value is an object.
 		IsObject() bool
 	}
 
@@ -64,7 +75,7 @@ type (
 	DotPath string
 )
 
-// NewObject creates a new object.
+// NewObject creates a new object with origin.
 func NewObject(origin project.Path) *Object {
 	return &Object{
 		origin: origin,
@@ -78,7 +89,7 @@ func (obj *Object) Set(key string, value Value) {
 }
 
 // GetKeyPath retrieves the value at path.
-func (obj *Object) GetKeyPath(path DotPath) (interface{}, bool) {
+func (obj *Object) GetKeyPath(path DotPath) (Value, bool) {
 	parts := strings.Split(string(path), ".")
 	key := parts[0]
 	next := DotPath(strings.Join(parts[1:], "."))
@@ -115,21 +126,11 @@ func (obj *Object) SetFrom(values map[string]Value) *Object {
 }
 
 // SetFromCtyValues sets the object from the values map.
-func (obj *Object) SetFromCtyValues(values map[string]cty.Value) *Object {
+func (obj *Object) SetFromCtyValues(values map[string]cty.Value, origin project.Path) *Object {
 	for k, v := range values {
-		_, marks := v.Unmark()
-		var origin project.Path
-		for mark := range marks {
-			switch v := mark.(type) {
-			case project.Path:
-				origin = v
-			default:
-				panic("unreachable")
-			}
-		}
 		if v.Type().IsObjectType() {
 			subtree := NewObject(origin)
-			subtree.SetFromCtyValues(v.AsValueMap())
+			subtree.SetFromCtyValues(v.AsValueMap(), origin)
 			obj.Set(k, subtree)
 		} else {
 			obj.Set(k, NewCtyValue(v, origin))
@@ -161,6 +162,28 @@ func (obj *Object) SetAt(path DotPath, value Value) error {
 	return nil
 }
 
+// DeleteAt deletes the value at the specified path.
+func (obj *Object) DeleteAt(path DotPath) error {
+	pathParts := strings.Split(string(path), ".")
+	for len(pathParts) > 1 {
+		key := pathParts[0]
+		subobj, ok := obj.Keys[key]
+		if !ok {
+			return nil
+		}
+		if !subobj.IsObject() {
+			return errors.E(ErrCannotExtendObject,
+				"path part %s (from %s) contains non-object parts in the path (%s is %T)",
+				key, path, key, subobj)
+		}
+		obj = subobj.(*Object)
+		pathParts = pathParts[1:]
+	}
+
+	delete(obj.Keys, pathParts[0])
+	return nil
+}
+
 // AsValueMap returns a map of string to Hashicorp cty.Value.
 func (obj *Object) AsValueMap() map[string]cty.Value {
 	vmap := map[string]cty.Value{}
@@ -184,7 +207,10 @@ func (obj *Object) String() string {
 }
 
 // NewCtyValue creates a new cty.Value wrapper.
+// Note: The cty.Value val is marked with the origin path and must be unmarked
+// before use with any hashicorp API otherwise it panics.
 func NewCtyValue(val cty.Value, origin project.Path) CtyValue {
+	val = val.Mark(origin)
 	return CtyValue{
 		origin: origin,
 		Value:  val,
@@ -196,7 +222,7 @@ func NewCtyValue(val cty.Value, origin project.Path) CtyValue {
 func NewValue(val cty.Value, origin project.Path) Value {
 	if val.Type().IsObjectType() {
 		obj := NewObject(origin)
-		obj.SetFromCtyValues(val.AsValueMap())
+		obj.SetFromCtyValues(val.AsValueMap(), origin)
 		return obj
 	}
 	return NewCtyValue(val, origin)
@@ -208,7 +234,8 @@ func (v CtyValue) Origin() project.Path { return v.origin }
 // IsObject returns false for CtyValue values.
 func (v CtyValue) IsObject() bool { return false }
 
-// Raw returns the original cty.Value value.
+// Raw returns the original cty.Value value (unmarked).
 func (v CtyValue) Raw() cty.Value {
-	return v.Value
+	val, _ := v.Value.Unmark()
+	return val
 }
