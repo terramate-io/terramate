@@ -683,7 +683,7 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
-			name: "inheriting labelled globals without attributes",
+			name: "inheriting labeled globals without attributes",
 			layout: []string{
 				"s:stacks/stack-a",
 				"s:stacks/stack-b",
@@ -842,6 +842,50 @@ func TestLoadGlobals(t *testing.T) {
 				},
 			},
 			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name: "extending non-existent global with a non-identifier first label - fails",
+			layout: []string{
+				"s:stacks/stack-a",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack-a",
+					add: Doc(
+						Globals(
+							Labels("-this-is-not.a.*valid%identifier"),
+							Number("number", 1),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name: "internal global keys can be extended with non-identifier label",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Labels("obj", ".this.is.*not*a/valid/identifier$"),
+							Str("string", "test"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "obj", `{
+						".this.is.*not*a/valid/identifier$" = {
+							string = "test"
+						}
+					}`),
+				),
+			},
 		},
 		{
 			name: "child scope can redefine same key paths",
