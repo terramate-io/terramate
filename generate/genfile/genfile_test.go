@@ -1010,7 +1010,7 @@ func testGenfile(t *testing.T, tcase testcase) {
 				t.Fatalf("got condition %t != wanted %t", gotfile.Condition(), want.file.condition)
 			}
 
-			test.FixupRangeOnAssert(s.RootDir(), want.file.asserts)
+			test.FixupRangeOnAsserts(s.RootDir(), want.file.asserts)
 			test.AssertConfigEquals(t, gotfile.Asserts(), want.file.asserts)
 
 			assert.EqualStrings(t,

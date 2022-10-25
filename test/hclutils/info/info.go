@@ -46,29 +46,26 @@ func Range(fname string, start, end hhcl.Pos) info.Range {
 // path, so host absolute paths must be updated here.
 func FixRangesOnConfig(dir string, cfg hcl.Config) {
 	for i := range cfg.Asserts {
-		cfg.Asserts[i].Range = newRange(dir, cfg.Asserts[i].Range)
+		cfg.Asserts[i].Range = FixRange(dir, cfg.Asserts[i].Range)
 	}
 	for i := range cfg.Generate.Files {
-		cfg.Generate.Files[i].Range = newRange(dir,
+		cfg.Generate.Files[i].Range = FixRange(dir,
 			cfg.Generate.Files[i].Range)
 
 		fixRangeOnAsserts(dir, cfg.Generate.Files[i].Asserts)
 	}
 	for i := range cfg.Generate.HCLs {
-		cfg.Generate.HCLs[i].Range = newRange(dir,
+		cfg.Generate.HCLs[i].Range = FixRange(dir,
 			cfg.Generate.HCLs[i].Range)
 
 		fixRangeOnAsserts(dir, cfg.Generate.HCLs[i].Asserts)
 	}
 }
 
-func fixRangeOnAsserts(dir string, asserts []hcl.AssertConfig) {
-	for i := range asserts {
-		asserts[i].Range = newRange(dir, asserts[i].Range)
-	}
-}
-
-func newRange(rootdir string, old info.Range) info.Range {
+// FixRange fix the given range.
+// This is necessary since on tests we don't know the sandbox project
+// path, so host absolute paths must be updated here.
+func FixRange(rootdir string, old info.Range) info.Range {
 	// When defining test cases there is no way to know the final
 	// absolute paths since sandboxes are dynamic/temporary.
 	// So we use relative paths as host paths and make them absolute here.
@@ -88,4 +85,10 @@ func newRange(rootdir string, old info.Range) info.Range {
 			old.End().Line(),
 			old.End().Column(),
 			old.End().Byte())))
+}
+
+func fixRangeOnAsserts(dir string, asserts []hcl.AssertConfig) {
+	for i := range asserts {
+		asserts[i].Range = FixRange(dir, asserts[i].Range)
+	}
 }

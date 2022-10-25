@@ -139,6 +139,24 @@ func AssertEqualPos(t *testing.T, got, want info.Pos, fmtargs ...any) {
 	assert.EqualInts(t, want.Byte(), got.Byte(), msg("byte mismatch"))
 }
 
+// AssertEqualRanges checks if two ranges are equal.
+// If the wanted range is zero value of the type no check will be performed since
+// this communicates that the caller is not interested on validating the range.
+func AssertEqualRanges(t *testing.T, got, want info.Range, fmtargs ...any) {
+	t.Helper()
+
+	if isZeroRange(want) {
+		return
+	}
+
+	msg := prefixer(fmtargs...)
+
+	assert.EqualStrings(t, want.HostPath(), got.HostPath(), msg("host path mismatch"))
+	AssertEqualPaths(t, got.Path(), want.Path(), msg("path mismatch"))
+	AssertEqualPos(t, got.Start(), want.Start(), msg("start pos mismatch"))
+	AssertEqualPos(t, got.End(), want.End(), msg("end pos mismatch"))
+}
+
 // AssertEqualPaths checks if two paths are equal.
 func AssertEqualPaths(t *testing.T, got, want project.Path, fmtargs ...any) {
 	t.Helper()
@@ -161,7 +179,7 @@ func assertAssertsBlock(t *testing.T, got, want []hcl.AssertConfig, ctx string) 
 	for i, g := range got {
 		w := want[i]
 		newctx := fmt.Sprintf("%s: assert %d", ctx, i)
-		assertEqualRanges(t, g.Range, w.Range, "%s: range mismatch", newctx)
+		AssertEqualRanges(t, g.Range, w.Range, "%s: range mismatch", newctx)
 		assert.EqualStrings(t,
 			exprAsStr(t, w.Assertion), exprAsStr(t, g.Assertion),
 			"%s: assertion expr mismatch", newctx)
@@ -246,7 +264,7 @@ func assertGenHCLBlocks(t *testing.T, got, want []hcl.GenHCLBlock) {
 
 	for i, gotBlock := range got {
 		wantBlock := want[i]
-		assertEqualRanges(t, gotBlock.Range, wantBlock.Range, "genhcl range differs")
+		AssertEqualRanges(t, gotBlock.Range, wantBlock.Range, "genhcl range differs")
 		assert.EqualStrings(t, wantBlock.Label, gotBlock.Label, "genhcl label differs")
 		assertAssertsBlock(t, gotBlock.Asserts, wantBlock.Asserts, "genhcl asserts")
 	}
@@ -260,7 +278,7 @@ func assertGenFileBlocks(t *testing.T, got, want []hcl.GenFileBlock) {
 
 	for i, gotBlock := range got {
 		wantBlock := want[i]
-		assertEqualRanges(t, gotBlock.Range, wantBlock.Range, "genfile range differs")
+		AssertEqualRanges(t, gotBlock.Range, wantBlock.Range, "genfile range differs")
 		assert.EqualStrings(t, wantBlock.Label, gotBlock.Label, "genfile label differs")
 		assertAssertsBlock(t, gotBlock.Asserts, wantBlock.Asserts, "genfile asserts")
 	}
@@ -395,24 +413,6 @@ func prefixer(fmtargs ...any) func(string) string {
 		}
 		return s
 	}
-}
-
-// assertEqualRanges checks if two ranges are equal.
-// If the wanted range is zero value of the type no check will be performed since
-// this communicates that the caller is not interested on validating the range.
-func assertEqualRanges(t *testing.T, got, want info.Range, fmtargs ...any) {
-	t.Helper()
-
-	if isZeroRange(want) {
-		return
-	}
-
-	msg := prefixer(fmtargs...)
-
-	assert.EqualStrings(t, want.HostPath(), got.HostPath(), msg("host path mismatch"))
-	AssertEqualPaths(t, got.Path(), want.Path(), msg("path mismatch"))
-	AssertEqualPos(t, got.Start(), want.Start(), msg("start pos mismatch"))
-	AssertEqualPos(t, got.End(), want.End(), msg("end pos mismatch"))
 }
 
 func isZeroRange(r info.Range) bool {

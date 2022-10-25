@@ -27,16 +27,16 @@ import (
 	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
+	infotest "github.com/mineiros-io/terramate/test/hclutils/info"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
 )
-
-// TODO(KATCIPIS): Add tests to check range behavior. Not tested in general.
 
 func TestGenerateHCL(t *testing.T) {
 	t.Parallel()
@@ -1647,6 +1647,7 @@ type (
 	}
 	genHCL struct {
 		body      fmt.Stringer
+		origin    info.Range
 		condition bool
 		asserts   []config.Assert
 	}
@@ -1715,7 +1716,10 @@ func (tcase testcase) run(t *testing.T) {
 				t.Fatalf("got condition %t != want %t", gotCondition, wantCondition)
 			}
 
-			test.FixupRangeOnAssert(s.RootDir(), want.hcl.asserts)
+			want.hcl.origin = infotest.FixRange(s.RootDir(), want.hcl.origin)
+
+			test.AssertEqualRanges(t, gothcl.Range(), want.hcl.origin, "block range")
+			test.FixupRangeOnAsserts(s.RootDir(), want.hcl.asserts)
 			test.AssertConfigEquals(t, gothcl.Asserts(), want.hcl.asserts)
 
 			gotcode := gothcl.Body()

@@ -20,11 +20,10 @@ import (
 	"github.com/mineiros-io/terramate/config"
 )
 
-// FixupRangeOnAssert fixes the range on all the given asserts.
+// FixupRangeOnAsserts fixes the range on all the given asserts.
 // It assumes the asserts where created with relative paths and will
 // join the relative path with the given dir to provide a final absolute path.
-// It won't change the given slice.
-func FixupRangeOnAssert(dir string, asserts []config.Assert) {
+func FixupRangeOnAsserts(dir string, asserts []config.Assert) {
 	for i := range asserts {
 		asserts[i].Range.Filename = filepath.Join(dir, asserts[i].Range.Filename)
 	}
