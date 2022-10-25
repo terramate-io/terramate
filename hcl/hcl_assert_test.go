@@ -285,6 +285,7 @@ func TestHCLParserAssert(t *testing.T) {
 }
 
 func TestHCLParserAssertInsideGenerate(t *testing.T) {
+	// TODO(KATCIPIS): Test assert blocks range
 	expr := test.NewExpr
 	tcases := []testcase{
 		{
