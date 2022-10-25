@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
 	. "github.com/mineiros-io/terramate/test/hclutils"
+	"github.com/mineiros-io/terramate/test/hclutils/info"
 	"github.com/rs/zerolog"
 )
 
@@ -908,7 +909,7 @@ func testParser(t *testing.T, tc testcase) {
 			test.WriteFile(t, dir, filename, inputConfigFile.body)
 		}
 		FixupFiledirOnErrorsFileRanges(configsDir, tc.want.errs)
-		FixRangesOnConfig(configsDir, tc.want.config)
+		info.FixRangesOnConfig(configsDir, tc.want.config)
 
 		if tc.parsedir == "" {
 			tc.parsedir = configsDir

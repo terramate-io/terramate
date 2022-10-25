@@ -24,8 +24,6 @@ import (
 )
 
 func TestHCLParserAssert(t *testing.T) {
-	t.Skip("TODO(KATCIPIS): SUPPORT ast.Range on errors")
-
 	expr := test.NewExpr
 	tcases := []testcase{
 		{
@@ -243,8 +241,6 @@ func TestHCLParserAssert(t *testing.T) {
 }
 
 func TestHCLParserAssertInsideGenerate(t *testing.T) {
-	t.Skip("TODO(KATCIPIS): SUPPORT ast.Range on errors")
-
 	expr := test.NewExpr
 	tcases := []testcase{
 		{
