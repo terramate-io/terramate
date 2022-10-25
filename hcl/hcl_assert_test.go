@@ -512,17 +512,22 @@ func TestHCLParserAssertInsideGenerate(t *testing.T) {
 						Files: []hcl.GenFileBlock{
 							{
 								Label: "file.txt",
-								Range: Range(
-									"assert_genfile.tm",
-									Start(1, 1, 0),
-									End(11, 2, 200),
-								),
 								Asserts: []hcl.AssertConfig{
 									{
+										Range: Range(
+											"assert_genfile.tm",
+											Start(3, 3, 64),
+											End(6, 4, 130),
+										),
 										Assertion: expr(t, "1 == 1"),
 										Message:   expr(t, "global.message"),
 									},
 									{
+										Range: Range(
+											"assert_genfile.tm",
+											Start(7, 3, 133),
+											End(10, 4, 198),
+										),
 										Assertion: expr(t, "1 == 666"),
 										Message:   expr(t, "global.file"),
 									},
@@ -532,17 +537,22 @@ func TestHCLParserAssertInsideGenerate(t *testing.T) {
 						HCLs: []hcl.GenHCLBlock{
 							{
 								Label: "file.hcl",
-								Range: Range(
-									"assert_genhcl.tm",
-									Start(1, 1, 0),
-									End(12, 2, 179),
-								),
 								Asserts: []hcl.AssertConfig{
 									{
+										Range: Range(
+											"assert_genhcl.tm",
+											Start(4, 3, 44),
+											End(7, 4, 110),
+										),
 										Assertion: expr(t, "1 == 1"),
 										Message:   expr(t, "global.message"),
 									},
 									{
+										Range: Range(
+											"assert_genhcl.tm",
+											Start(8, 3, 113),
+											End(11, 4, 177),
+										),
 										Assertion: expr(t, "2 == 666"),
 										Message:   expr(t, "global.hcl"),
 									},
