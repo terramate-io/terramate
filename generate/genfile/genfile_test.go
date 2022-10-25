@@ -23,16 +23,16 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
+	infotest "github.com/mineiros-io/terramate/test/hclutils/info"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
 )
-
-// TODO(KATCIPIS): Add tests to check range behavior. Not tested in general.
 
 func TestLoadGenerateFiles(t *testing.T) {
 	t.Parallel()
@@ -947,6 +947,7 @@ type (
 		add  fmt.Stringer
 	}
 	genFile struct {
+		origin    info.Range
 		body      string
 		condition bool
 		asserts   []config.Assert
@@ -1009,6 +1010,10 @@ func testGenfile(t *testing.T, tcase testcase) {
 			if gotfile.Condition() != want.file.condition {
 				t.Fatalf("got condition %t != wanted %t", gotfile.Condition(), want.file.condition)
 			}
+
+			want.file.origin = infotest.FixRange(s.RootDir(), want.file.origin)
+
+			test.AssertEqualRanges(t, gotfile.Range(), want.file.origin, "block range")
 
 			test.FixupRangeOnAsserts(s.RootDir(), want.file.asserts)
 			test.AssertConfigEquals(t, gotfile.Asserts(), want.file.asserts)
