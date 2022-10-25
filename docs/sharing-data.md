@@ -13,7 +13,7 @@ generation, you can check it into more details [here](codegen/overview.md).
 
 # Globals
 
-Globals provide a way to define data that can be re-used
+Globals provide a way to define data that can be reused
 across stacks with a clear hierarchical/merge semantic.
 
 Defining globals is fairly straightforward, you just need to
@@ -23,10 +23,56 @@ add a **globals** block to your [Terramate configuration file](config-overview.m
 globals {
   env = "staging"
   values = [ 1, 2, 3 ]
+  obj = {
+    value = "string"
+  }
 }
 ```
 
-And you can reference them on [code generation](codegen/overview.md):
+The **globals** block also supports setting attributes inside an
+existent object. For the globals defined in the above example, the block
+below will set additional properties of the `global.obj` variable:
+
+```
+globals obj {
+  number = 10
+}
+```
+
+This will make the `global.obj` look like:
+
+```hcl
+{
+  value = "string"
+  number = 10
+}
+```
+
+In the same way, multiple labels can be provided, and Terramate will
+automatically create the object keys as needed to fulfill the user
+intent. Example:
+
+```
+globals "obj" "child" "grandchild" {
+  list = []
+}
+```
+
+This will make the `global.obj` look like:
+
+```hcl
+{
+  value = "string"
+  number = 10
+  child = {
+    grandchild = {
+      list = []
+    }
+  }
+}
+```
+
+The **globals** can be referenced on the [code generation](codegen/overview.md):
 
 ```hcl
 generate_hcl "backend.tf" {
