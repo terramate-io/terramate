@@ -98,10 +98,7 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
 			expr, _ := eval.ParseExpressionBytes([]byte(`{}`))
 			label := eval.DotPath(block.Labels)
 			exprs[label] = Expr{
-				Origin: project.PrjAbsPath(
-					tree.RootDir(),
-					block.RawOrigins[0].Origin,
-				),
+				Origin:     block.RawOrigins[0].Range.Path(),
 				DotPath:    label,
 				Expression: expr,
 			}
