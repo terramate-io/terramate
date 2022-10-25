@@ -285,7 +285,6 @@ func TestHCLParserAssert(t *testing.T) {
 }
 
 func TestHCLParserAssertInsideGenerate(t *testing.T) {
-	// TODO(KATCIPIS): Test assert blocks range
 	expr := test.NewExpr
 	tcases := []testcase{
 		{
@@ -457,6 +456,87 @@ func TestHCLParserAssertInsideGenerate(t *testing.T) {
 						HCLs: []hcl.GenHCLBlock{
 							{
 								Label: "file.hcl",
+								Asserts: []hcl.AssertConfig{
+									{
+										Assertion: expr(t, "1 == 1"),
+										Message:   expr(t, "global.message"),
+									},
+									{
+										Assertion: expr(t, "2 == 666"),
+										Message:   expr(t, "global.hcl"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "multiple asserts blocks with range",
+			input: []cfgfile{
+				{
+					filename: "assert_genfile.tm",
+					body: GenerateFile(
+						Labels("file.txt"),
+						Str("content", "terramate is awesome"),
+						Assert(
+							Expr("assertion", "1 == 1"),
+							Expr("message", "global.message"),
+						),
+						Assert(
+							Expr("assertion", "1 == 666"),
+							Expr("message", "global.file"),
+						),
+					).String(),
+				},
+				{
+					filename: "assert_genhcl.tm",
+					body: GenerateHCL(
+						Labels("file.hcl"),
+						Content(),
+						Assert(
+							Expr("assertion", "1 == 1"),
+							Expr("message", "global.message"),
+						),
+						Assert(
+							Expr("assertion", "2 == 666"),
+							Expr("message", "global.hcl"),
+						),
+					).String(),
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Generate: hcl.GenerateConfig{
+						Files: []hcl.GenFileBlock{
+							{
+								Label: "file.txt",
+								Range: Range(
+									"assert_genfile.tm",
+									Start(1, 1, 0),
+									End(11, 2, 200),
+								),
+								Asserts: []hcl.AssertConfig{
+									{
+										Assertion: expr(t, "1 == 1"),
+										Message:   expr(t, "global.message"),
+									},
+									{
+										Assertion: expr(t, "1 == 666"),
+										Message:   expr(t, "global.file"),
+									},
+								},
+							},
+						},
+						HCLs: []hcl.GenHCLBlock{
+							{
+								Label: "file.hcl",
+								Range: Range(
+									"assert_genhcl.tm",
+									Start(1, 1, 0),
+									End(12, 2, 179),
+								),
 								Asserts: []hcl.AssertConfig{
 									{
 										Assertion: expr(t, "1 == 1"),
