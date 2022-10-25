@@ -20,6 +20,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	. "github.com/mineiros-io/terramate/test/hclutils"
+	. "github.com/mineiros-io/terramate/test/hclutils/info"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
@@ -130,6 +131,49 @@ func TestHCLParserAssert(t *testing.T) {
 							Message:   expr(t, "global.message"),
 						},
 						{
+							Assertion: expr(t, "666 == 1"),
+							Message:   expr(t, "global.another"),
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "multiple asserts on multiple files have proper range",
+			input: []cfgfile{
+				{
+					filename: "assert.tm",
+					body: Assert(
+						Expr("assertion", "1 == 1"),
+						Expr("message", "global.message"),
+					).String(),
+				},
+				{
+					filename: "assert2.tm",
+					body: Assert(
+						Expr("assertion", "666 == 1"),
+						Expr("message", "global.another"),
+					).String(),
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Asserts: []hcl.AssertConfig{
+						{
+							Range: Range(
+								"assert.tm",
+								Start(1, 1, 0),
+								End(4, 2, 60),
+							),
+							Assertion: expr(t, "1 == 1"),
+							Message:   expr(t, "global.message"),
+						},
+						{
+							Range: Range(
+								"assert2.tm",
+								Start(1, 1, 0),
+								End(4, 2, 62),
+							),
 							Assertion: expr(t, "666 == 1"),
 							Message:   expr(t, "global.another"),
 						},

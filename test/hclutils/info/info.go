@@ -16,6 +16,7 @@
 package info
 
 import (
+	"os"
 	"path/filepath"
 
 	hhcl "github.com/hashicorp/hcl/v2"
@@ -30,20 +31,15 @@ import (
 // will have to be fixed with [FixRangesOnConfig] before being
 // compared to actual results.
 func Range(fname string, start, end hhcl.Pos) info.Range {
+	if !filepath.IsAbs(fname) {
+		fname = string(os.PathSeparator) + fname
+	}
 	return info.NewRange("/", hhcl.Range{
 		Filename: fname,
 		Start:    start,
 		End:      end,
 	})
 }
-
-// Start pos of a range.
-func Start(line, column, char int) hhcl.Pos {
-	return hclutils.Start(line, column, char)
-}
-
-// End pos of a range.
-func End(line, column, char int) hhcl.Pos { return Start(line, column, char) }
 
 // FixRangesOnConfig fix the ranges on the given HCL config.
 // This is necessary since on tests we don't know the sandbox project
@@ -84,6 +80,12 @@ func newRange(rootdir string, old info.Range) info.Range {
 	}
 	filename := filepath.Join(rootdir, old.HostPath())
 	return info.NewRange(rootdir, hclutils.Mkrange(filename,
-		Start(old.Start().Line(), old.Start().Column(), old.Start().Byte()),
-		End(old.End().Line(), old.End().Column(), old.End().Byte())))
+		hclutils.Start(
+			old.Start().Line(),
+			old.Start().Column(),
+			old.Start().Byte()),
+		hclutils.End(
+			old.End().Line(),
+			old.End().Column(),
+			old.End().Byte())))
 }

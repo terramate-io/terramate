@@ -15,6 +15,7 @@
 package info_test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -35,6 +36,7 @@ func TestRangeFromHCLRange(t *testing.T) {
 	tmrange := info.NewRange(rootdir, hclrange)
 
 	assert.EqualStrings(t, hclrange.Filename, tmrange.HostPath())
+	assertRangePath(t, tmrange, path)
 
 	assert.EqualInts(t, hclrange.Start.Line, tmrange.Start().Line())
 	assert.EqualInts(t, hclrange.Start.Column, tmrange.Start().Column())
@@ -43,6 +45,34 @@ func TestRangeFromHCLRange(t *testing.T) {
 	assert.EqualInts(t, hclrange.End.Line, tmrange.End().Line())
 	assert.EqualInts(t, hclrange.End.Column, tmrange.End().Column())
 	assert.EqualInts(t, hclrange.End.Byte, tmrange.End().Byte())
+}
+
+func TestRangeWithFileOnRootdir(t *testing.T) {
+	rootdir := t.TempDir()
+	path := "assert.tm"
+	start := Start(0, 0, 0)
+	end := End(0, 0, 0)
+	hclrange := Mkrange(filepath.Join(rootdir, path), start, end)
+	tmrange := info.NewRange(rootdir, hclrange)
+
+	assert.EqualStrings(t, hclrange.Filename, tmrange.HostPath())
+	assertRangePath(t, tmrange, path)
+}
+
+func TestRangeOnRootWithFileOnRootdir(t *testing.T) {
+	rootdir := string(os.PathSeparator)
+	path := "assert.tm"
+	start := Start(0, 0, 0)
+	end := End(0, 0, 0)
+	hclrange := Mkrange(filepath.Join(rootdir, path), start, end)
+	tmrange := info.NewRange(rootdir, hclrange)
+
+	assert.EqualStrings(t, hclrange.Filename, tmrange.HostPath())
+	assertRangePath(t, tmrange, path)
+}
+
+func assertRangePath(t *testing.T, tmrange info.Range, path string) {
+	t.Helper()
 
 	wantPath := project.NewPath("/" + filepath.ToSlash(path))
 	if tmrange.Path() != wantPath {

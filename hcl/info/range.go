@@ -15,9 +15,6 @@
 package info
 
 import (
-	"path/filepath"
-	"strings"
-
 	"github.com/hashicorp/hcl/v2"
 	"github.com/mineiros-io/terramate/project"
 )
@@ -45,8 +42,7 @@ type Range struct {
 // absolute and inside rootdir.
 func NewRange(rootdir string, r hcl.Range) Range {
 	return Range{
-		path: project.NewPath(filepath.ToSlash(
-			strings.TrimPrefix(r.Filename, rootdir))),
+		path:     project.PrjAbsPath(rootdir, r.Filename),
 		hostpath: r.Filename,
 		start:    NewPos(r.Start),
 		end:      NewPos(r.End),

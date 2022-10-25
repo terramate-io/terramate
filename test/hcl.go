@@ -160,16 +160,17 @@ func assertAssertsBlock(t *testing.T, got, want []hcl.AssertConfig, ctx string) 
 
 	for i, g := range got {
 		w := want[i]
-		assertEqualRanges(t, g.Range, w.Range, "%s: range mismatch", ctx)
+		newctx := fmt.Sprintf("%s: assert %d", ctx, i)
+		assertEqualRanges(t, g.Range, w.Range, "%s: range mismatch", newctx)
 		assert.EqualStrings(t,
 			exprAsStr(t, w.Assertion), exprAsStr(t, g.Assertion),
-			"%s: assertion expr mismatch", ctx)
+			"%s: assertion expr mismatch", newctx)
 		assert.EqualStrings(t,
 			exprAsStr(t, w.Message), exprAsStr(t, g.Message),
-			"%s: message expr mismatch", ctx)
+			"%s: message expr mismatch", newctx)
 		assert.EqualStrings(t,
 			exprAsStr(t, w.Warning), exprAsStr(t, g.Warning),
-			"%s: warning expr mismatch", ctx)
+			"%s: warning expr mismatch", newctx)
 	}
 }
 
@@ -409,9 +410,9 @@ func assertEqualRanges(t *testing.T, got, want info.Range, fmtargs ...any) {
 	msg := prefixer(fmtargs...)
 
 	assert.EqualStrings(t, want.HostPath(), got.HostPath(), msg("host path mismatch"))
-	AssertEqualPaths(t, want.Path(), got.Path(), msg("host path mismatch"))
-	AssertEqualPos(t, want.Start(), got.Start(), msg("start pos mismatch"))
-	AssertEqualPos(t, want.End(), got.End(), msg("end pos mismatch"))
+	AssertEqualPaths(t, got.Path(), want.Path(), msg("path mismatch"))
+	AssertEqualPos(t, got.Start(), want.Start(), msg("start pos mismatch"))
+	AssertEqualPos(t, got.End(), want.End(), msg("end pos mismatch"))
 }
 
 func isZeroRange(r info.Range) bool {
