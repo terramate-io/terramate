@@ -48,17 +48,19 @@ type (
 		hhcl.Expression
 	}
 
-	GlobalPath struct {
+	// GlobalPathKey represents a global object accessor to be used as map key.
+	GlobalPathKey struct {
 		path     [project.MaxGlobalLabels]string
 		numPaths int
 	}
 
 	// Exprs is the map of unevaluated global expressions visible in a
 	// directory.
-	Exprs map[GlobalPath]Expr
+	Exprs map[GlobalPathKey]Expr
 )
 
-func (a GlobalPath) Path() []string { return a.path[:a.numPaths] }
+// Path returns the global accessor path (labels + attribute name).
+func (a GlobalPathKey) Path() []string { return a.path[:a.numPaths] }
 
 // Load loads all the globals from the cfgdir.
 func Load(tree *config.Tree, cfgdir project.Path, ctx *eval.Context) EvalReport {
@@ -165,7 +167,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 	report := NewEvalReport()
 	globals := report.Globals
-	pendingExprsErrs := map[GlobalPath]*errors.List{}
+	pendingExprsErrs := map[GlobalPathKey]*errors.List{}
 	pendingExprs := make(Exprs)
 
 	copyexprs(pendingExprs, globalExprs)
@@ -179,7 +181,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 		logger.Trace().Msg("evaluating pending expressions")
 
-		sortedKeys := []GlobalPath{}
+		sortedKeys := []GlobalPathKey{}
 		for key := range pendingExprs {
 			sortedKeys = append(sortedKeys, key)
 		}
@@ -324,8 +326,8 @@ func copyexprs(dst, src Exprs) {
 	}
 }
 
-func newGlobalPath(basepath []string, name string) GlobalPath {
-	accessor := GlobalPath{}
+func newGlobalPath(basepath []string, name string) GlobalPathKey {
+	accessor := GlobalPathKey{}
 	accessor.numPaths = len(basepath)
 	copy(accessor.path[:], basepath)
 	if name != "" {

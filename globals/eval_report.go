@@ -31,7 +31,7 @@ type (
 		BootstrapErr error
 
 		// Errors is a map of errors for each global.
-		Errors map[GlobalPath]EvalError // map of GlobalPath to its EvalError.
+		Errors map[GlobalPathKey]EvalError // map of GlobalPath to its EvalError.
 	}
 
 	// EvalError carries the error and the expression which resulted in it.
@@ -45,7 +45,7 @@ type (
 func NewEvalReport() EvalReport {
 	return EvalReport{
 		Globals: eval.NewObject(project.NewPath("/")),
-		Errors:  make(map[GlobalPath]EvalError),
+		Errors:  make(map[GlobalPathKey]EvalError),
 	}
 }
 
