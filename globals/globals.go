@@ -40,6 +40,8 @@ type (
 		// Origin is the filename where this expression can be found.
 		Origin project.Path
 
+		// DotPath denotes the target accessor path which the expression must
+		// be assigned into.
 		DotPath eval.DotPath
 
 		hhcl.Expression
@@ -52,6 +54,14 @@ type (
 
 // Load loads all the globals from the cfgdir.
 func Load(tree *config.Tree, cfgdir project.Path, ctx *eval.Context) EvalReport {
+	logger := log.With().
+		Str("action", "globals.Load()").
+		Str("root", tree.RootDir()).
+		Stringer("cfgdir", cfgdir).
+		Logger()
+
+	logger.Trace().Msg("loading expressions")
+
 	exprs, err := LoadExprs(tree, cfgdir)
 	if err != nil {
 		report := NewEvalReport()
@@ -83,9 +93,23 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
 
 	globalsBlocks := cfg.Node.Globals.AsList()
 	for _, block := range globalsBlocks {
+		attrs := block.Attributes.SortedList()
+		if block.Labels != "" && len(attrs) == 0 {
+			expr, _ := eval.ParseExpressionBytes([]byte(`{}`))
+			label := eval.DotPath(block.Labels)
+			exprs[label] = Expr{
+				Origin: project.PrjAbsPath(
+					tree.RootDir(),
+					block.RawOrigins[0].Origin,
+				),
+				DotPath:    label,
+				Expression: expr,
+			}
+		}
+
 		logger.Trace().Msg("Range over attributes.")
 
-		for _, attr := range block.Attributes.SortedList() {
+		for _, attr := range attrs {
 			logger.Trace().Msg("Add attribute to globals.")
 
 			acessor := dotpath(block.Labels, attr.Name)
@@ -128,7 +152,6 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 	pendingExprsErrs := map[eval.DotPath]*errors.List{}
 	pendingExprs := make(Exprs)
 
-	removeUnset(globalExprs)
 	copyexprs(pendingExprs, globalExprs)
 
 	if !ctx.HasNamespace("global") {
@@ -145,8 +168,14 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 			sortedKeys = append(sortedKeys, accessor)
 		}
 
-		sort.Slice(sortedKeys, func(i, j int) bool {
-			return sortedKeys[i] < sortedKeys[j]
+		sort.SliceStable(sortedKeys, func(i, j int) bool {
+			expr1, expr2 := pendingExprs[sortedKeys[i]], pendingExprs[sortedKeys[j]]
+			origin1, origin2 := expr1.Origin.Dir(), expr2.Origin.Dir()
+
+			if origin1 == origin2 {
+				return len(sortedKeys[i]) < len(sortedKeys[j])
+			}
+			return len(origin1) < len(origin2)
 		})
 
 	pendingExpression:
@@ -158,13 +187,24 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 				Str("global", string(accessor)).
 				Logger()
 
-			vars := expr.Variables()
-
-			pendingExprsErrs[accessor] = errors.L()
-
 			logger.Trace().Msg("checking var access inside expression")
 
-			for _, namespace := range vars {
+			traversal, diags := hhcl.AbsTraversalForExpr(expr.Expression)
+			if !diags.HasErrors() && len(traversal) == 1 && traversal.RootName() == "unset" {
+				if _, ok := globals.GetKeyPath(accessor); ok {
+					err := globals.DeleteAt(accessor)
+					if err != nil {
+						panic(errors.E(err, "terramate internal error"))
+					}
+				}
+
+				amountEvaluated++
+				delete(pendingExprs, accessor)
+				delete(pendingExprsErrs, accessor)
+			}
+
+			pendingExprsErrs[accessor] = errors.L()
+			for _, namespace := range expr.Variables() {
 				if !ctx.HasNamespace(namespace.RootName()) {
 					pendingExprsErrs[accessor].Append(errors.E(
 						ErrEval,
@@ -196,11 +236,13 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 			// This catches a schema error that cannot be detected at the parser.
 			// When a nested object is defined either by literal or funcalls,
 			// it can't be detected at the parser.
-			if _, ok := globals.GetKeyPath(accessor); ok {
+			if v, ok := globals.GetKeyPath(accessor); ok &&
+				v.Origin().Dir().String() == expr.Origin.Dir().String() {
 				pendingExprsErrs[accessor].Append(
 					errors.E(hcl.ErrTerramateSchema, expr.Range(),
-						"global.%s attribute redefined",
-						accessor))
+						"global.%s attribute redefined: previously defined at %s",
+						accessor, v.Origin().String()))
+
 				continue
 			}
 
@@ -251,22 +293,6 @@ func (globalExprs Exprs) merge(other Exprs) {
 	for k, v := range other {
 		if _, ok := globalExprs[k]; !ok {
 			globalExprs[k] = v
-		}
-	}
-}
-
-// TODO(i4k): review this
-func removeUnset(exprs Exprs) {
-	for name, expr := range exprs {
-		traversal, diags := hhcl.AbsTraversalForExpr(expr.Expression)
-		if diags.HasErrors() {
-			continue
-		}
-		if len(traversal) != 1 {
-			continue
-		}
-		if traversal.RootName() == "unset" {
-			delete(exprs, name)
 		}
 	}
 }

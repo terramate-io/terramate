@@ -683,6 +683,108 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name: "inheriting labelled globals without attributes",
+			layout: []string{
+				"s:stacks/stack-a",
+				"s:stacks/stack-b",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: Doc(
+						Globals(
+							Labels("obj"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-a": Globals(
+					EvalExpr(t, "obj", `{
+					}`),
+				),
+				"/stacks/stack-b": Globals(
+					EvalExpr(t, "obj", `{
+					}`),
+				),
+			},
+		},
+		{
+			name: "empty labeled globals do not overwrite existing ones",
+			layout: []string{
+				"s:stacks/stack-a",
+				"s:stacks/stack-b",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: Doc(
+						Globals(
+							Labels("obj"),
+							Number("a", 1),
+						),
+
+						Globals(
+							Labels("obj"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-a": Globals(
+					EvalExpr(t, "obj", `{
+						a = 1
+					}`),
+				),
+				"/stacks/stack-b": Globals(
+					EvalExpr(t, "obj", `{
+						a = 1
+					}`),
+				),
+			},
+		},
+		{
+			name: "child scopes can overwrite extended globals",
+			layout: []string{
+				"s:stacks/stack-a",
+				"s:stacks/stack-b",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: Doc(
+						Globals(
+							Labels("obj"),
+							Number("a", 1),
+						),
+					),
+				},
+				{
+					path: "/stacks/stack-a",
+					add: Doc(
+						Globals(
+							Expr("obj", `{
+									b = 2
+								}
+							`),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-a": Globals(
+					EvalExpr(t, "obj", `{
+						b = 2
+					}`),
+				),
+				"/stacks/stack-b": Globals(
+					EvalExpr(t, "obj", `{
+						a = 1
+					}`),
+				),
+			},
+		},
+		{
 			name: "extending globals from parent scope",
 			layout: []string{
 				"s:stacks/stack-a",
@@ -715,41 +817,6 @@ func TestLoadGlobals(t *testing.T) {
 					EvalExpr(t, "obj", `{
 						number = 1
 						another_number = 2
-					}`),
-				),
-			},
-		},
-		{
-			name: "parent scope extending globals from stacks - lazy extend",
-			layout: []string{
-				"s:stacks/stack-a",
-			},
-			configs: []hclconfig{
-				{
-					path: "/stacks",
-					add: Doc(
-						Globals(
-							Labels("obj"),
-							Number("number", 1),
-						),
-					),
-				},
-				{
-					path: "/stacks/stack-a",
-					add: Doc(
-						Globals(
-							EvalExpr(t, "obj", `{
-								name = "stack"
-							}`),
-						),
-					),
-				},
-			},
-			want: map[string]*hclwrite.Block{
-				"/stacks/stack-a": Globals(
-					EvalExpr(t, "obj", `{
-						number = 1
-						name = "stack"
 					}`),
 				),
 			},
@@ -1889,6 +1956,32 @@ func TestLoadGlobals(t *testing.T) {
 			wantErr: errors.E(globals.ErrEval),
 		},
 		{
+			name:   "unset on extended global",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Globals(
+						Expr("a", `{
+							a = "must be unset"
+						}`),
+					),
+				},
+				{
+					path: "/stack",
+					add: Globals(
+						Labels("a"),
+						Expr("a", "unset"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "a", `{}`),
+				),
+			},
+		},
+		{
 			name:   "global with tm_ternary returning literals",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
@@ -1972,6 +2065,8 @@ func TestLoadGlobals(t *testing.T) {
 			for _, entry := range stackEntries {
 				st := entry.Stack
 				stacks = append(stacks, st)
+
+				t.Logf("loading globals for stack: %s", st.Path())
 
 				gotReport := stack.LoadStackGlobals(s.Config(), projmeta, st)
 				errtest.Assert(t, gotReport.AsError(), tcase.wantErr)
