@@ -17,9 +17,9 @@ package ast
 import (
 	"path/filepath"
 	"sort"
-	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/project"
 )
 
 // MergedBlock represents a block that spans multiple files.
@@ -28,7 +28,7 @@ type MergedBlock struct {
 	Type BlockType
 
 	// Labels is the comma-separated list of labels
-	Labels string
+	Labels []string
 
 	// Attributes are the block's attributes.
 	Attributes Attributes
@@ -48,8 +48,9 @@ type BlockType string
 
 // LabelBlockType represents a labelled block type.
 type LabelBlockType struct {
-	Type   BlockType // Type of the block
-	Labels string    // Labels are dot separated.
+	Type      BlockType                       // Type of the block
+	Labels    [project.MaxGlobalLabels]string // Labels are the block labels.
+	NumLabels int                             // NumLabels is the number of defined labels.
 }
 
 // MergedBlocks maps the block name to the MergedBlock.
@@ -62,7 +63,7 @@ type MergedLabelBlocks map[LabelBlockType]*MergedBlock
 func NewMergedBlock(typ string, labels []string) *MergedBlock {
 	return &MergedBlock{
 		Type:       BlockType(typ),
-		Labels:     newLabels(labels),
+		Labels:     labels,
 		Attributes: make(Attributes),
 		Blocks:     make(map[string]*MergedBlock),
 		RawBlocks:  make(map[string]Blocks),
@@ -70,11 +71,18 @@ func NewMergedBlock(typ string, labels []string) *MergedBlock {
 }
 
 // NewLabelBlockType returns a new LabelBlockType.
-func NewLabelBlockType(typ string, labels []string) LabelBlockType {
-	return LabelBlockType{
-		Type:   BlockType(typ),
-		Labels: newLabels(labels),
+func NewLabelBlockType(typ string, labels []string) (LabelBlockType, error) {
+	if len(labels) > project.MaxGlobalLabels {
+		return LabelBlockType{}, errors.E(
+			"maximum number of global labels is %d but got %d",
+			project.MaxGlobalLabels, len(labels),
+		)
 	}
+	return LabelBlockType{
+		Type:      BlockType(typ),
+		Labels:    newLabels(labels),
+		NumLabels: len(labels),
+	}, nil
 }
 
 // MergeBlock recursively merges the other block into this one.
@@ -83,11 +91,10 @@ func (mb *MergedBlock) MergeBlock(other *Block, isLabelled bool) error {
 	if !isLabelled && len(other.Labels) > 0 {
 		errs.Append(errors.E(other.LabelRanges, "block type %q does not support labels"))
 	} else {
-		otherLabels := newLabels(other.Labels)
-		if mb.Labels != otherLabels {
+		if !sameLabels(mb.Labels, other.Labels) {
 			errs.Append(errors.E(other.LabelRanges,
 				"cannot merge blocks of type %q with different set of labels (%s != %s)",
-				mb.Labels, otherLabels,
+				mb.Labels, other.Labels,
 			))
 		}
 	}
@@ -206,6 +213,20 @@ func sameDir(file1, file2 string) bool {
 	return filepath.Dir(file1) == filepath.Dir(file2)
 }
 
-func newLabels(labels []string) string {
-	return strings.Join(labels, ".")
+func newLabels(labels []string) [project.MaxGlobalLabels]string {
+	var arrlabels [project.MaxGlobalLabels]string
+	copy(arrlabels[:], labels)
+	return arrlabels
+}
+
+func sameLabels(lb1, lb2 []string) bool {
+	if len(lb1) != len(lb2) {
+		return false
+	}
+	for i, l := range lb1 {
+		if l != lb2[i] {
+			return false
+		}
+	}
+	return true
 }

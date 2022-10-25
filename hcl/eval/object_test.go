@@ -36,7 +36,7 @@ func TestCtyObjectSetAt(t *testing.T) {
 		name    string
 		obj     *eval.Object
 		val     eval.Value
-		path    string
+		path    eval.ObjectPath
 		want    *eval.Object
 		wantErr error
 	}
@@ -53,7 +53,7 @@ func TestCtyObjectSetAt(t *testing.T) {
 		{
 			name: "set at root, empty object",
 			obj:  newobj(),
-			path: "key",
+			path: eval.ObjectPath{"key"},
 			val:  strValue("value"),
 			want: newobj(map[string]eval.Value{
 				"key": strValue("value"),
@@ -64,7 +64,7 @@ func TestCtyObjectSetAt(t *testing.T) {
 			obj: newobj(map[string]eval.Value{
 				"key": strValue("old value"),
 			}),
-			path: "key",
+			path: eval.ObjectPath{"key"},
 			val:  strValue("new value"),
 			want: newobj().SetFrom(
 				map[string]eval.Value{
@@ -78,7 +78,7 @@ func TestCtyObjectSetAt(t *testing.T) {
 				"key": strValue("value"),
 			},
 			),
-			path: "other-key",
+			path: eval.ObjectPath{"other-key"},
 			val:  strValue("other value"),
 			want: newobj(map[string]eval.Value{
 				"key":       strValue("value"),
@@ -90,7 +90,7 @@ func TestCtyObjectSetAt(t *testing.T) {
 			obj: newobj(map[string]eval.Value{
 				"key": newobj(),
 			}),
-			path: "key.test",
+			path: eval.ObjectPath{"key", "test"},
 			val:  strValue("child value"),
 			want: newobj(map[string]eval.Value{
 				"key": newobj(map[string]eval.Value{
@@ -103,7 +103,7 @@ func TestCtyObjectSetAt(t *testing.T) {
 			obj: newobj(map[string]eval.Value{
 				"key": newobj(),
 			}),
-			path: "key.test",
+			path: eval.ObjectPath{"key", "test"},
 			val:  strValue("child value"),
 			want: newobj(map[string]eval.Value{
 				"key": newobj(map[string]eval.Value{
@@ -114,7 +114,7 @@ func TestCtyObjectSetAt(t *testing.T) {
 		{
 			name: "set at a non-existent child object",
 			obj:  newobj(),
-			path: "key.test",
+			path: eval.ObjectPath{"key", "test"},
 			val:  strValue("child value"),
 			want: newobj(map[string]eval.Value{
 				"key": newobj(map[string]eval.Value{
@@ -125,7 +125,7 @@ func TestCtyObjectSetAt(t *testing.T) {
 		{
 			name: "set at a non-existent deep child object",
 			obj:  newobj(),
-			path: "a.b.c.d.test",
+			path: eval.ObjectPath{"a", "b", "c", "d", "test"},
 			val:  strValue("value"),
 			want: newobj(map[string]eval.Value{
 				"a": newobj(map[string]eval.Value{
@@ -144,13 +144,13 @@ func TestCtyObjectSetAt(t *testing.T) {
 			obj: newobj(map[string]eval.Value{
 				"key": strValue("1"),
 			}),
-			path:    "key.test",
+			path:    eval.ObjectPath{"key", "test"},
 			val:     strValue("child value"),
 			wantErr: errors.E(eval.ErrCannotExtendObject),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			err := tc.obj.SetAt(eval.DotPath(tc.path), tc.val)
+			err := tc.obj.SetAt(tc.path, tc.val)
 			errtest.Assert(t, err, tc.wantErr)
 			if err == nil {
 				if diff := cmp.Diff(tc.obj, tc.want, cmpopts.IgnoreUnexported(eval.Object{})); diff != "" {
