@@ -369,15 +369,10 @@ func TestCheckOutdatedIgnoresWhenGenHCLConditionIsFalse(t *testing.T) {
 	stackEntry := s.CreateStack("stacks/stack")
 	stack := stackEntry.Load(s.Config())
 
-	changedStacks := false
-
 	assertOutdatedFiles := func(want []string) {
 		t.Helper()
 
-		if changedStacks {
-			s.ReloadConfig()
-			changedStacks = false
-		}
+		s.ReloadConfig()
 
 		got, err := generate.CheckStack(s.Config(), s.LoadProjectMetadata(), stack)
 		assert.NoError(t, err)
@@ -393,8 +388,6 @@ func TestCheckOutdatedIgnoresWhenGenHCLConditionIsFalse(t *testing.T) {
 					Block("whatever"),
 				),
 			).String())
-
-		changedStacks = true
 	}
 
 	// Checking detection when the condition is false
@@ -411,6 +404,90 @@ func TestCheckOutdatedIgnoresWhenGenHCLConditionIsFalse(t *testing.T) {
 
 	// Checking the condition back to false triggers detection
 	createConfig(filename, false)
+	assertOutdatedFiles([]string{filename})
+
+	s.Generate()
+
+	assertOutdatedFiles([]string{})
+
+	// Testing with multiple blocks, second block true
+	stackEntry.DeleteConfig()
+	s.Generate()
+
+	stackEntry.CreateConfig(
+		Doc(
+			GenerateHCL(
+				Labels(filename),
+				Bool("condition", false),
+				Content(
+					Block("testing1"),
+				),
+			),
+			GenerateHCL(
+				Labels(filename),
+				Bool("condition", true),
+				Content(
+					Block("testing2"),
+				),
+			),
+		).String())
+
+	assertOutdatedFiles([]string{filename})
+
+	s.Generate()
+
+	assertOutdatedFiles([]string{})
+
+	// Testing with multiple blocks, first block true
+	stackEntry.DeleteConfig()
+	s.Generate()
+
+	stackEntry.CreateConfig(
+		Doc(
+			GenerateHCL(
+				Labels(filename),
+				Bool("condition", true),
+				Content(
+					Block("code1"),
+				),
+			),
+			GenerateHCL(
+				Labels(filename),
+				Bool("condition", false),
+				Content(
+					Block("code2"),
+				),
+			),
+		).String())
+
+	assertOutdatedFiles([]string{filename})
+
+	s.Generate()
+
+	assertOutdatedFiles([]string{})
+
+	// Testing with multiple files
+	stackEntry.DeleteConfig()
+	s.Generate()
+
+	stackEntry.CreateFile("enabled.tm",
+		GenerateHCL(
+			Labels(filename),
+			Bool("condition", true),
+			Content(
+				Block("code3"),
+			),
+		).String())
+
+	stackEntry.CreateFile("disabled.tm",
+		GenerateHCL(
+			Labels(filename),
+			Bool("condition", false),
+			Content(
+				Block("code4"),
+			),
+		).String())
+
 	assertOutdatedFiles([]string{filename})
 
 	s.Generate()

@@ -434,6 +434,9 @@ func updateOutdatedFiles(
 
 	logger.Trace().Msg("Checking for outdated generated code on stack.")
 
+	// So we can properly check blocks with false/true in any order
+	blocksCondTrue := map[string]struct{}{}
+
 	for _, genfile := range generated {
 		filename := genfile.Label()
 		targetpath := filepath.Join(stackpath, filename)
@@ -448,8 +451,15 @@ func updateOutdatedFiles(
 		if err != nil {
 			return err
 		}
+
+		if genfile.Condition() {
+			blocksCondTrue[filename] = struct{}{}
+		}
+
+		_, prevBlockCondTrue := blocksCondTrue[filename]
+
 		if !codeFound {
-			if !genfile.Condition() {
+			if !genfile.Condition() && !prevBlockCondTrue {
 				logger.Trace().Msg("Not outdated since file not found and condition is false")
 				outdatedFiles.remove(filename)
 				continue
@@ -461,6 +471,10 @@ func updateOutdatedFiles(
 		}
 
 		if !genfile.Condition() {
+			if prevBlockCondTrue {
+				logger.Trace().Msg("ignoring block since previous one had condition=true")
+				continue
+			}
 			logger.Trace().Msg("outdated since file exists but condition for generation is false")
 			outdatedFiles.add(filename)
 			continue
