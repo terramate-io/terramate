@@ -16,12 +16,13 @@ package ast
 
 import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/mineiros-io/terramate/hcl/info"
 )
 
 // Block is a wrapper to the hclsyntax.Block but with the file origin.
 // The hclsyntax.Block.Attributes are converted to hcl.Attributes.
 type Block struct {
-	Range      Range
+	Range      info.Range
 	Attributes Attributes
 	Blocks     []*Block
 
@@ -42,7 +43,7 @@ func NewBlock(rootdir string, block *hclsyntax.Block) *Block {
 		blocks = append(blocks, NewBlock(rootdir, block))
 	}
 	return &Block{
-		Range:      NewRange(rootdir, block.Range()),
+		Range:      info.NewRange(rootdir, block.Range()),
 		Attributes: attrs,
 		Blocks:     blocks,
 		Block:      block,

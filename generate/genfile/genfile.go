@@ -22,8 +22,8 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/hcl/info"
 
 	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/project"
@@ -54,7 +54,7 @@ const (
 // File represents generated file from a single generate_file block.
 type File struct {
 	label       string
-	originRange ast.Range
+	originRange info.Range
 	body        string
 	condition   bool
 	asserts     []config.Assert
@@ -71,7 +71,7 @@ func (f File) Body() string {
 }
 
 // Range returns the range information of the generate_file block.
-func (f File) Range() ast.Range {
+func (f File) Range() info.Range {
 	return f.originRange
 }
 

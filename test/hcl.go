@@ -28,6 +28,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
 )
 
@@ -128,7 +129,7 @@ func AssertConfigEquals(t *testing.T, got, want []config.Assert) {
 }
 
 // AssertEqualPos checks if two ast.Pos are equal.
-func AssertEqualPos(t *testing.T, got, want ast.Pos, fmtargs ...any) {
+func AssertEqualPos(t *testing.T, got, want info.Pos, fmtargs ...any) {
 	t.Helper()
 
 	msg := prefixer(fmtargs...)
@@ -313,7 +314,7 @@ func hclFromAttributes(t *testing.T, attrs ast.Attributes) string {
 	attrList := attrs.SortedList()
 
 	filesRead := map[string][]byte{}
-	readFileRange := func(frange ast.Range) []byte {
+	readFileRange := func(frange info.Range) []byte {
 		t.Helper()
 
 		filename := frange.HostPath()
@@ -398,7 +399,7 @@ func prefixer(fmtargs ...any) func(string) string {
 // assertEqualRanges checks if two ranges are equal.
 // If the wanted range is zero value of the type no check will be performed since
 // this communicates that the caller is not interested on validating the range.
-func assertEqualRanges(t *testing.T, got, want ast.Range, fmtargs ...any) {
+func assertEqualRanges(t *testing.T, got, want info.Range, fmtargs ...any) {
 	t.Helper()
 
 	if isZeroRange(want) {
@@ -413,7 +414,7 @@ func assertEqualRanges(t *testing.T, got, want ast.Range, fmtargs ...any) {
 	AssertEqualPos(t, want.End(), got.End(), msg("end pos mismatch"))
 }
 
-func isZeroRange(r ast.Range) bool {
-	var zero ast.Range
+func isZeroRange(r info.Range) bool {
+	var zero info.Range
 	return zero == r
 }

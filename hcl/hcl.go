@@ -31,6 +31,7 @@ import (
 	"github.com/mineiros-io/terramate/fs"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -75,7 +76,7 @@ type GenerateConfig struct {
 
 // AssertConfig represents Terramate assert configuration block.
 type AssertConfig struct {
-	Range     ast.Range
+	Range     info.Range
 	Warning   hcl.Expression
 	Assertion hcl.Expression
 	Message   hcl.Expression
@@ -194,7 +195,7 @@ type Stack struct {
 // GenHCLBlock represents a parsed generate_hcl block.
 type GenHCLBlock struct {
 	// Range is the range of the entire block definition.
-	Range ast.Range
+	Range info.Range
 	// Label of the block.
 	Label string
 	// Lets is a block of local variables.
@@ -210,7 +211,7 @@ type GenHCLBlock struct {
 // GenFileBlock represents a parsed generate_file block
 type GenFileBlock struct {
 	// Range is the range of the entire block definition.
-	Range ast.Range
+	Range info.Range
 	// Label of the block
 	Label string
 	// Lets is a block of local variables.

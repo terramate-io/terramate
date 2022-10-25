@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ast_test
+package info_test
 
 import (
 	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate/hcl/ast"
+	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
 	. "github.com/mineiros-io/terramate/test/hclutils"
 )
@@ -32,7 +32,7 @@ func TestRangeFromHCLRange(t *testing.T) {
 	start := Start(1, 1, 0)
 	end := End(3, 2, 37)
 	hclrange := Mkrange(filepath.Join(rootdir, path), start, end)
-	tmrange := ast.NewRange(rootdir, hclrange)
+	tmrange := info.NewRange(rootdir, hclrange)
 
 	assert.EqualStrings(t, hclrange.Filename, tmrange.HostPath())
 

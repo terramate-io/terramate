@@ -23,7 +23,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl/ast"
+	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
 )
 
@@ -128,19 +128,18 @@ func TestErrorString(t *testing.T) {
 			want: fmt("test.tm:1,5-10: %s: failed to parse config: unexpected attribute name",
 				tmSchemaError),
 		},
-		// TODO(KATCIPIS)
-		//{
-		//name: "the file range can be an ast.Range",
-		//err: E("failed to parse config",
-		//E(tmSchemaError, ast.NewRange("/root", hcl.Range{
-		//Filename: "/root/test.tm",
-		//Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},
-		//End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},
-		//}), "unexpected attribute name"),
-		//),
-		//want: fmt("/root/test.tm:1,5-10: %s: failed to parse config: unexpected attribute name",
-		//tmSchemaError),
-		//},
+		{
+			name: "the file range can be an info.Range",
+			err: E("failed to parse config",
+				E(tmSchemaError, info.NewRange("/root", hcl.Range{
+					Filename: "/root/test.tm",
+					Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},
+					End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},
+				}), "unexpected attribute name"),
+			),
+			want: fmt("/root/test.tm:1,5-10: %s: failed to parse config: unexpected attribute name",
+				tmSchemaError),
+		},
 		{
 			name: "nested errors",
 			err:  E("1", E("2", E("3"))),
@@ -516,10 +515,8 @@ func TestErrorRangeRepresentation(t *testing.T) {
 		assert.EqualStrings(t, "<generated-code>:2,5-10", err.Error())
 	})
 
-	t.Run("from ast.Range", func(t *testing.T) {
-		t.Skip("TODO(KATCIPIS)")
-
-		filerange := ast.NewRange("/root", hcl.Range{
+	t.Run("from info.Range", func(t *testing.T) {
+		filerange := info.NewRange("/root", hcl.Range{
 			Filename: "/root/test.tm",
 			Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},
 			End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},

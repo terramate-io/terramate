@@ -25,6 +25,7 @@ import (
 	"syscall"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
 )
 
@@ -79,7 +80,7 @@ const separator = ": "
 //   - [hcl.Range]
 //     The file range where the error originated.
 //
-//   - [ast.Range]
+//   - [info.Range]
 //     The file range where the error originated, with extra Terramate specific info.
 //     Currently it will be converted to an hcl.Range.
 //
@@ -160,6 +161,22 @@ func E(args ...interface{}) *Error {
 			e.Kind = arg
 		case hcl.Range:
 			e.FileRange = arg
+		case info.Range:
+			start := arg.Start()
+			end := arg.End()
+			e.FileRange = hcl.Range{
+				Filename: arg.HostPath(),
+				Start: hcl.Pos{
+					Line:   start.Line(),
+					Column: start.Column(),
+					Byte:   start.Byte(),
+				},
+				End: hcl.Pos{
+					Line:   end.Line(),
+					Column: end.Column(),
+					Byte:   end.Byte(),
+				},
+			}
 		case StackMeta:
 			e.Stack = arg
 		case hcl.Diagnostics:

@@ -27,6 +27,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/fmt"
+	"github.com/mineiros-io/terramate/hcl/info"
 
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/lets"
@@ -41,7 +42,7 @@ import (
 // about the origin of the generated code.
 type HCL struct {
 	label       string
-	originRange ast.Range
+	originRange info.Range
 	body        string
 	condition   bool
 	asserts     []config.Assert
@@ -111,7 +112,7 @@ func (h HCL) Body() string {
 }
 
 // Range returns the range information of the generate_file block.
-func (h HCL) Range() ast.Range {
+func (h HCL) Range() info.Range {
 	return h.originRange
 }
 

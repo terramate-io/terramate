@@ -21,7 +21,7 @@ import (
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/hcl/ast"
+	"github.com/mineiros-io/terramate/hcl/info"
 )
 
 // FixupFiledirOnErrorsFileRanges fix the filename in the ranges of the error list.
@@ -81,18 +81,18 @@ func Start(line, column, char int) hhcl.Pos {
 // End pos of a range.
 func End(line, column, char int) hhcl.Pos { return Start(line, column, char) }
 
-func newRange(rootdir string, old ast.Range) ast.Range {
+func newRange(rootdir string, old info.Range) info.Range {
 	// When defining test cases there is no way to know the final
 	// absolute paths since sandboxes are dynamic/temporary.
 	// So we use relative paths as host paths and make them absolute here.
-	var zero ast.Range
+	var zero info.Range
 	if old == zero {
 		// ast.Range is a zero value ast.Range, nothing to do
 		// avoid panics since the paths are not valid (empty strings).
 		return old
 	}
 	filename := filepath.Join(rootdir, old.HostPath())
-	return ast.NewRange(rootdir, Mkrange(filename,
+	return info.NewRange(rootdir, Mkrange(filename,
 		Start(old.Start().Line(), old.Start().Column(), old.Start().Byte()),
 		End(old.End().Line(), old.End().Column(), old.End().Byte())))
 }

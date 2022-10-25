@@ -19,11 +19,12 @@ import (
 
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/mineiros-io/terramate/hcl/info"
 )
 
 // Attribute represents a parsed attribute.
 type Attribute struct {
-	Range Range
+	Range info.Range
 	*hhcl.Attribute
 }
 
@@ -34,7 +35,7 @@ type Attributes map[string]Attribute
 // of the project.
 func NewAttribute(rootdir string, val *hhcl.Attribute) Attribute {
 	return Attribute{
-		Range:     NewRange(rootdir, val.Range),
+		Range:     info.NewRange(rootdir, val.Range),
 		Attribute: val,
 	}
 }
