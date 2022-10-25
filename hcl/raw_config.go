@@ -128,7 +128,10 @@ func (cfg *RawConfig) mergeBlock(block *ast.Block) error {
 }
 
 func (cfg *RawConfig) mergeLabeledBlock(block *ast.Block) error {
-	labelBlock := ast.NewLabelBlockType(block.Type, block.Labels)
+	labelBlock, err := ast.NewLabelBlockType(block.Type, block.Labels)
+	if err != nil {
+		return errors.E(err, ErrTerramateSchema)
+	}
 	if other, ok := cfg.MergedLabelBlocks[labelBlock]; ok {
 		err := other.MergeBlock(block, true)
 		if err != nil {
@@ -138,7 +141,7 @@ func (cfg *RawConfig) mergeLabeledBlock(block *ast.Block) error {
 	}
 
 	merged := ast.NewMergedBlock(block.Type, block.Labels)
-	err := merged.MergeBlock(block, true)
+	err = merged.MergeBlock(block, true)
 	if err != nil {
 		return errors.E(ErrTerramateSchema, err)
 	}

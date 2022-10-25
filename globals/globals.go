@@ -18,6 +18,7 @@ import (
 	"sort"
 
 	hhcl "github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
@@ -34,8 +35,6 @@ const (
 	ErrRedefined errors.Kind = "global redefined"
 )
 
-const maxLabels = 256
-
 type (
 	// Expr is an unevaluated global expression.
 	Expr struct {
@@ -50,7 +49,7 @@ type (
 	}
 
 	GlobalPath struct {
-		path     [maxLabels]string
+		path     [project.MaxGlobalLabels]string
 		numPaths int
 	}
 
@@ -102,6 +101,14 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
 
 	globalsBlocks := cfg.Node.Globals.AsList()
 	for _, block := range globalsBlocks {
+		if len(block.Labels) > 0 && !hclsyntax.ValidIdentifier(block.Labels[0]) {
+			return nil, errors.E(
+				hcl.ErrTerramateSchema,
+				"first global label must be a valid identifier but got %s",
+				block.Labels[0],
+			)
+		}
+
 		attrs := block.Attributes.SortedList()
 		if len(block.Labels) > 0 && len(attrs) == 0 {
 			expr, _ := eval.ParseExpressionBytes([]byte(`{}`))

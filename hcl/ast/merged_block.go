@@ -19,9 +19,8 @@ import (
 	"sort"
 
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/project"
 )
-
-const MaxLabels = 256
 
 // MergedBlock represents a block that spans multiple files.
 type MergedBlock struct {
@@ -49,9 +48,9 @@ type BlockType string
 
 // LabelBlockType represents a labelled block type.
 type LabelBlockType struct {
-	Type      BlockType         // Type of the block
-	Labels    [MaxLabels]string // Labels are the block labels.
-	NumLabels int               // NumLabels is the number of defined labels.
+	Type      BlockType                       // Type of the block
+	Labels    [project.MaxGlobalLabels]string // Labels are the block labels.
+	NumLabels int                             // NumLabels is the number of defined labels.
 }
 
 // MergedBlocks maps the block name to the MergedBlock.
@@ -72,12 +71,18 @@ func NewMergedBlock(typ string, labels []string) *MergedBlock {
 }
 
 // NewLabelBlockType returns a new LabelBlockType.
-func NewLabelBlockType(typ string, labels []string) LabelBlockType {
+func NewLabelBlockType(typ string, labels []string) (LabelBlockType, error) {
+	if len(labels) > project.MaxGlobalLabels {
+		return LabelBlockType{}, errors.E(
+			"maximum number of global labels is %d but got %d",
+			project.MaxGlobalLabels, len(labels),
+		)
+	}
 	return LabelBlockType{
 		Type:      BlockType(typ),
 		Labels:    newLabels(labels),
 		NumLabels: len(labels),
-	}
+	}, nil
 }
 
 // MergeBlock recursively merges the other block into this one.
@@ -208,8 +213,8 @@ func sameDir(file1, file2 string) bool {
 	return filepath.Dir(file1) == filepath.Dir(file2)
 }
 
-func newLabels(labels []string) [MaxLabels]string {
-	var arrlabels [MaxLabels]string
+func newLabels(labels []string) [project.MaxGlobalLabels]string {
+	var arrlabels [project.MaxGlobalLabels]string
 	copy(arrlabels[:], labels)
 	return arrlabels
 }
