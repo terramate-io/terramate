@@ -298,39 +298,21 @@ processSubdirs:
 	return genfiles, nil
 }
 
-// Check will verify if the given project located at rootdir has outdated code
+// DetectOutdated will verify if the given config has outdated code
 // and return a list of filenames that are outdated, ordered lexicographically.
-// If any directory on the project has an invalid Terramate configuration inside
-// it will return an error.
-//
-// The provided root must be the project's root directory as an absolute path.
-func Check(cfg *config.Tree) ([]string, error) {
-	logger := log.With().
-		Str("action", "generate.Check").
-		Str("rootdir", cfg.RootDir()).
-		Logger()
-
-	logger.Trace().Msg("loading all stacks")
-
+func DetectOutdated(cfg *config.Tree) ([]string, error) {
 	stacks, err := stack.LoadAll(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	logger.Trace().Msg("Checking if any stack has outdated code.")
 	projmeta := stack.NewProjectMetadata(cfg.RootDir(), stacks)
 
 	outdatedFiles := []string{}
 	errs := errors.L()
 
 	for _, stack := range stacks {
-		logger := logger.With().
-			Stringer("stack", stack).
-			Logger()
-
-		logger.Trace().Msg("checking stack for outdated code")
-
-		outdated, err := CheckStack(cfg, projmeta, stack)
+		outdated, err := checkStack(cfg, projmeta, stack)
 		if err != nil {
 			errs.Append(err)
 			continue
@@ -358,18 +340,10 @@ func Check(cfg *config.Tree) ([]string, error) {
 	return outdatedFiles, nil
 }
 
-// CheckStack will verify if a given stack has outdated code and return a list
+// checkStack will verify if a given stack has outdated code and return a list
 // of filenames that are outdated, ordered lexicographically.
 // If the stack has an invalid configuration it will return an error.
-func CheckStack(cfg *config.Tree, projmeta project.Metadata, st *stack.S) ([]string, error) {
-	logger := log.With().
-		Str("action", "generate.CheckStack()").
-		Str("root", projmeta.Rootdir()).
-		Stringer("stack", st).
-		Logger()
-
-	logger.Trace().Msg("Loading globals for stack.")
-
+func checkStack(cfg *config.Tree, projmeta project.Metadata, st *stack.S) ([]string, error) {
 	report := stack.LoadStackGlobals(cfg, projmeta, st)
 	if err := report.AsError(); err != nil {
 		return nil, errors.E(err, "checking for outdated code")
@@ -387,8 +361,6 @@ func CheckStack(cfg *config.Tree, projmeta project.Metadata, st *stack.S) ([]str
 	if err != nil {
 		return nil, err
 	}
-
-	logger.Trace().Msg("Listing current generated files.")
 
 	genfilesOnFs, err := ListGenFiles(cfg, st.HostPath())
 	if err != nil {
