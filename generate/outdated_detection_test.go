@@ -78,7 +78,7 @@ func TestOutdatedDetection(t *testing.T) {
 			},
 		},
 		{
-			name: "generate blocks with no code generated one stack",
+			name: "generate blocks with no code generated and one stack",
 			steps: []step{
 				{
 					layout: []string{
@@ -108,6 +108,120 @@ func TestOutdatedDetection(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "generate blocks with no code generated and multiple stacks",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack-1",
+						"s:stack-2",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Str("content", "tm is awesome"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
+						"stack-1/test.txt",
+						"stack-2/test.hcl",
+						"stack-2/test.txt",
+					},
+				},
+			},
+		},
+		{
+			name: "generate blocks content changed",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack-1",
+						"s:stack-2",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Str("content", "tm is awesome"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
+						"stack-1/test.txt",
+						"stack-2/test.hcl",
+						"stack-2/test.txt",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Str("content", "changed"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.txt",
+						"stack-2/test.txt",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Str("content", "changed"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Content(
+										Str("content", "changed"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
+						"stack-2/test.hcl",
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tcases {
@@ -127,6 +241,7 @@ func TestOutdatedDetection(t *testing.T) {
 				}
 
 				s.ReloadConfig()
+
 				got, err := generate.DetectOutdated(s.Config())
 
 				assert.IsError(t, err, step.wantErr)
@@ -135,6 +250,11 @@ func TestOutdatedDetection(t *testing.T) {
 				}
 
 				assertEqualStringList(t, got, step.want)
+
+				s.Generate()
+				got, err = generate.DetectOutdated(s.Config())
+				assert.NoError(t, err)
+				assertEqualStringList(t, got, []string{})
 			}
 		})
 	}
