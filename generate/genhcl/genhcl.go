@@ -41,11 +41,11 @@ import (
 // Is contains parsed and evaluated code on it and information
 // about the origin of the generated code.
 type HCL struct {
-	label       string
-	originRange info.Range
-	body        string
-	condition   bool
-	asserts     []config.Assert
+	label     string
+	origin    info.Range
+	body      string
+	condition bool
+	asserts   []config.Assert
 }
 
 const (
@@ -101,7 +101,7 @@ func (h HCL) Header() string {
 	return stdfmt.Sprintf(
 		"%s\n// TERRAMATE: originated from generate_hcl block on %s\n\n",
 		Header,
-		h.originRange.Path(),
+		h.origin.Path(),
 	)
 }
 
@@ -113,7 +113,7 @@ func (h HCL) Body() string {
 
 // Range returns the range information of the generate_file block.
 func (h HCL) Range() info.Range {
-	return h.originRange
+	return h.origin
 }
 
 // Condition returns the evaluated condition attribute for the generated code.
@@ -184,9 +184,9 @@ func Load(
 
 		if !condition {
 			hcls = append(hcls, HCL{
-				label:       name,
-				originRange: hclBlock.Range,
-				condition:   condition,
+				label:     name,
+				origin:    hclBlock.Range,
+				condition: condition,
 			})
 
 			continue
@@ -214,10 +214,10 @@ func Load(
 
 		if assertFailed {
 			hcls = append(hcls, HCL{
-				label:       name,
-				originRange: hclBlock.Range,
-				condition:   condition,
-				asserts:     asserts,
+				label:     name,
+				origin:    hclBlock.Range,
+				condition: condition,
+				asserts:   asserts,
 			})
 			continue
 		}
@@ -236,11 +236,11 @@ func Load(
 			))
 		}
 		hcls = append(hcls, HCL{
-			label:       name,
-			originRange: hclBlock.Range,
-			body:        formatted,
-			condition:   condition,
-			asserts:     asserts,
+			label:     name,
+			origin:    hclBlock.Range,
+			body:      formatted,
+			condition: condition,
+			asserts:   asserts,
 		})
 	}
 

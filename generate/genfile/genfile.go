@@ -53,11 +53,11 @@ const (
 
 // File represents generated file from a single generate_file block.
 type File struct {
-	label       string
-	originRange info.Range
-	body        string
-	condition   bool
-	asserts     []config.Assert
+	label     string
+	origin    info.Range
+	body      string
+	condition bool
+	asserts   []config.Assert
 }
 
 // Label of the original generate_file block.
@@ -72,7 +72,7 @@ func (f File) Body() string {
 
 // Range returns the range information of the generate_file block.
 func (f File) Range() info.Range {
-	return f.originRange
+	return f.origin
 }
 
 // Condition returns the result of the evaluation of the
@@ -150,9 +150,9 @@ func Load(
 
 		if !condition {
 			files = append(files, File{
-				label:       name,
-				originRange: genFileBlock.Range,
-				condition:   condition,
+				label:     name,
+				origin:    genFileBlock.Range,
+				condition: condition,
 			})
 			continue
 		}
@@ -179,10 +179,10 @@ func Load(
 
 		if assertFailed {
 			files = append(files, File{
-				label:       name,
-				originRange: genFileBlock.Range,
-				condition:   condition,
-				asserts:     asserts,
+				label:     name,
+				origin:    genFileBlock.Range,
+				condition: condition,
+				asserts:   asserts,
 			})
 			continue
 		}
@@ -201,11 +201,11 @@ func Load(
 		}
 
 		files = append(files, File{
-			label:       name,
-			originRange: genFileBlock.Range,
-			body:        value.AsString(),
-			condition:   condition,
-			asserts:     asserts,
+			label:     name,
+			origin:    genFileBlock.Range,
+			body:      value.AsString(),
+			condition: condition,
+			asserts:   asserts,
 		})
 	}
 
