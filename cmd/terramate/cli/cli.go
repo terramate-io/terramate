@@ -26,6 +26,7 @@ import (
 	"github.com/google/uuid"
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/mineiros-io/terramate/cmd/terramate/cli/out"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/errors/errlog"
 	"github.com/mineiros-io/terramate/generate"
@@ -201,7 +202,7 @@ type cli struct {
 	stdin      io.Reader
 	stdout     io.Writer
 	stderr     io.Writer
-	output     output
+	output     out.O
 	exit       bool
 	prj        project
 }
@@ -345,7 +346,7 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 		stdin:      stdin,
 		stdout:     stdout,
 		stderr:     stderr,
-		output:     newOutput(verbose, stdout, stderr),
+		output:     out.New(verbose, stdout, stderr),
 		parsedArgs: &parsedArgs,
 		ctx:        ctx,
 		prj:        prj,
@@ -1394,7 +1395,7 @@ func (c *cli) root() string      { return c.prj.root }
 func (c *cli) cfg() *config.Tree { return &c.prj.cfg }
 
 func (c *cli) println(format string, args ...interface{}) {
-	c.output.msg(0, format, args...)
+	c.output.Msg(0, format, args...)
 }
 
 func (c *cli) friendlyFmtDir(dir string) (string, bool) {

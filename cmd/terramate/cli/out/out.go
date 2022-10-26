@@ -12,31 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cli
+// Package out provides output functionality, including verboseness level
+// and normal/error messages support.
+package out
 
 import (
 	"fmt"
 	"io"
 )
 
-type output struct {
+// O represents an output instance
+type O struct {
 	level  int
 	stdout io.Writer
 	stderr io.Writer
 }
 
-// newOutput creates a new output with the given level.
+// New creates a new output with the given level.
 // Any output messages with a level bigger than the given
 // level will be ignored.
-func newOutput(level int, stdout, stderr io.Writer) output {
-	return output{
+func New(level int, stdout, stderr io.Writer) O {
+	return O{
 		level:  level,
 		stdout: stdout,
 		stderr: stderr,
 	}
 }
 
-func (o output) msg(level int, format string, args ...interface{}) {
+// Msg send a message to the output with the given verboseness
+func (o O) Msg(level int, format string, args ...interface{}) {
 	if level > o.level {
 		return
 	}
