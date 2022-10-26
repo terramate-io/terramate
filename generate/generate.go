@@ -344,6 +344,11 @@ func DetectOutdated(cfg *config.Tree) ([]string, error) {
 // of filenames that are outdated, ordered lexicographically.
 // If the stack has an invalid configuration it will return an error.
 func stackOutdated(cfg *config.Tree, projmeta project.Metadata, st *stack.S) ([]string, error) {
+	logger := log.With().
+		Str("action", "generate.stackOutdated").
+		Stringer("stack", st).
+		Logger()
+
 	report := stack.LoadStackGlobals(cfg, projmeta, st)
 	if err := report.AsError(); err != nil {
 		return nil, errors.E(err, "checking for outdated code")
@@ -366,6 +371,8 @@ func stackOutdated(cfg *config.Tree, projmeta project.Metadata, st *stack.S) ([]
 	if err != nil {
 		return nil, errors.E(err, "checking for outdated code")
 	}
+
+	logger.Debug().Msgf("generated files detected on fs: %v", genfilesOnFs)
 
 	// We start with the assumption that all gen files on the stack
 	// are outdated and then update the outdated files set as we go.
@@ -398,10 +405,19 @@ func updateOutdatedFiles(
 	generated []genCodeCfg,
 	outdatedFiles *stringSet,
 ) error {
+	logger := log.With().
+		Str("action", "generate.updateOutdatedFiles").
+		Str("stack", stackpath).
+		Logger()
+
 	// So we can properly check blocks with condition false/true in any order
 	blocksCondTrue := map[string]struct{}{}
 
 	for _, genfile := range generated {
+		logger = logger.With().
+			Str("label", genfile.Label()).
+			Logger()
+
 		filename := genfile.Label()
 		targetpath := filepath.Join(stackpath, filename)
 
@@ -418,9 +434,13 @@ func updateOutdatedFiles(
 
 		if !codeFound {
 			if !genfile.Condition() && !prevBlockCondTrue {
+				logger.Debug().Msg("not outdated: condition = false")
+
 				outdatedFiles.remove(filename)
 				continue
 			}
+
+			logger.Debug().Msg("outdated: condition = true and no code on fs")
 
 			outdatedFiles.add(filename)
 			continue
@@ -428,16 +448,23 @@ func updateOutdatedFiles(
 
 		if !genfile.Condition() {
 			if prevBlockCondTrue {
+				logger.Debug().Msg("condition = false but other block was true, ignoring")
 				continue
 			}
+			logger.Debug().Msg("outdated: condition = false but code exist on fs")
+
 			outdatedFiles.add(filename)
 			continue
 		}
 
 		generatedCode := genfile.Header() + genfile.Body()
 		if generatedCode != currentCode {
+			logger.Debug().Msg("outdated: code on fs differs from generated from config")
+
 			outdatedFiles.add(filename)
 		} else {
+			logger.Debug().Msg("not outdated: code on fs and generated from config equals")
+
 			outdatedFiles.remove(filename)
 		}
 	}
