@@ -26,9 +26,6 @@ import (
 )
 
 // Tests Inside stacks
-// - Has generate but code is not generated yet
-// - Has generate but code is outdated
-// - Has no generate but code is present
 // - Blocks with same label but different conditions (true, false, false) (false, true, false) (false, false, true)
 // - Block with condition false and old code is present
 // - Block with condition false and no code is present
@@ -222,6 +219,149 @@ func TestOutdatedDetection(t *testing.T) {
 				},
 			},
 		},
+		{
+			// TODO(KATCIPIS): when we remove the origin from gen code header
+			// this behavior will change.
+			name: "moving generate blocks to different files is detected on generate_hcl",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack-1",
+						"s:stack-2",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Str("content", "tm is awesome"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
+						"stack-1/test.txt",
+						"stack-2/test.hcl",
+						"stack-2/test.txt",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(),
+						},
+						{
+							path: "generate_file.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Str("content", "tm is awesome"),
+								),
+							),
+						},
+						{
+							path: "generate_hcl.tm",
+							body: Doc(
+								GenerateHCL(
+									Labels("test.hcl"),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
+						"stack-2/test.hcl",
+					},
+				},
+			},
+		},
+		{
+			name: "generate_file is not detected when deleted",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack-1",
+						"s:stack-2",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Str("content", "tm is awesome"),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.txt",
+						"stack-2/test.txt",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(),
+						},
+					},
+					want: []string{},
+				},
+			},
+		},
+		{
+			name: "generate_hcl is deleted when deleted",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack-1",
+						"s:stack-2",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateHCL(
+									Labels("test.hcl"),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
+						"stack-2/test.hcl",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
+						"stack-2/test.hcl",
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tcases {
@@ -232,7 +372,9 @@ func TestOutdatedDetection(t *testing.T) {
 
 			s := sandbox.New(t)
 
-			for _, step := range tcase.steps {
+			for i, step := range tcase.steps {
+				t.Logf("step %d", i)
+
 				s.BuildTree(step.layout)
 				root := s.RootEntry()
 
