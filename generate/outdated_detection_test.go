@@ -21,6 +21,8 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/test/sandbox"
+
+	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
 // Tests Inside stacks
@@ -72,6 +74,37 @@ func TestOutdatedDetection(t *testing.T) {
 						"f:dir2/file",
 					},
 					want: []string{},
+				},
+			},
+		},
+		{
+			name: "generate blocks with no code generated one stack",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Str("content", "tm is awesome"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack/test.hcl",
+						"stack/test.txt",
+					},
 				},
 			},
 		},
