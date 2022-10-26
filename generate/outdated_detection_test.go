@@ -25,11 +25,6 @@ import (
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
-// Tests Inside stacks
-// - Blocks with same label but different conditions (true, false, false) (false, true, false) (false, false, true)
-// - Block with condition false and old code is present
-// - Block with condition false and no code is present
-
 // Tests Outside Stacks
 // - Generated files outside stacks are detected
 
@@ -323,7 +318,7 @@ func TestOutdatedDetection(t *testing.T) {
 			},
 		},
 		{
-			name: "generate_hcl is deleted when deleted",
+			name: "generate_hcl is detected when deleted",
 			steps: []step{
 				{
 					layout: []string{
@@ -359,6 +354,349 @@ func TestOutdatedDetection(t *testing.T) {
 						"stack-1/test.hcl",
 						"stack-2/test.hcl",
 					},
+				},
+			},
+		},
+		{
+			name: "generate blocks shifting condition",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack-1",
+						"s:stack-2",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Bool("condition", true),
+									Str("content", "tm is awesome"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Bool("condition", true),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
+						"stack-1/test.txt",
+						"stack-2/test.hcl",
+						"stack-2/test.txt",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Bool("condition", false),
+									Str("content", "tm is awesome"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Bool("condition", true),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.txt",
+						"stack-2/test.txt",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Bool("condition", false),
+									Str("content", "tm is awesome"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Bool("condition", false),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
+						"stack-2/test.hcl",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Bool("condition", true),
+									Str("content", "tm is awesome"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Bool("condition", true),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
+						"stack-1/test.txt",
+						"stack-2/test.hcl",
+						"stack-2/test.txt",
+					},
+				},
+			},
+		},
+		{
+			name: "multiple generate blocks with same label",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack-1",
+						"s:stack-2",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Bool("condition", true),
+									Str("content", "code1"),
+								),
+								GenerateFile(
+									Labels("test.txt"),
+									Bool("condition", false),
+									Str("content", "code2"),
+								),
+								GenerateFile(
+									Labels("test.txt"),
+									Bool("condition", false),
+									Str("content", "code3"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Bool("condition", true),
+									Content(
+										Str("content", "code1"),
+									),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Bool("condition", false),
+									Content(
+										Str("content", "code2"),
+									),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Bool("condition", false),
+									Content(
+										Str("content", "code3"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
+						"stack-1/test.txt",
+						"stack-2/test.hcl",
+						"stack-2/test.txt",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Bool("condition", false),
+									Str("content", "code1"),
+								),
+								GenerateFile(
+									Labels("test.txt"),
+									Bool("condition", true),
+									Str("content", "code2"),
+								),
+								GenerateFile(
+									Labels("test.txt"),
+									Bool("condition", false),
+									Str("content", "code3"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Bool("condition", false),
+									Content(
+										Str("content", "code1"),
+									),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Bool("condition", false),
+									Content(
+										Str("content", "code2"),
+									),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Bool("condition", true),
+									Content(
+										Str("content", "code3"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
+						"stack-1/test.txt",
+						"stack-2/test.hcl",
+						"stack-2/test.txt",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Bool("condition", false),
+									Str("content", "code1"),
+								),
+								GenerateFile(
+									Labels("test.txt"),
+									Bool("condition", false),
+									Str("content", "code2"),
+								),
+								GenerateFile(
+									Labels("test.txt"),
+									Bool("condition", true),
+									Str("content", "code3"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Bool("condition", false),
+									Content(
+										Str("content", "code1"),
+									),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Bool("condition", true),
+									Content(
+										Str("content", "code2"),
+									),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Bool("condition", false),
+									Content(
+										Str("content", "code3"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
+						"stack-1/test.txt",
+						"stack-2/test.hcl",
+						"stack-2/test.txt",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Bool("condition", true),
+									Str("content", "code3"),
+								),
+								GenerateFile(
+									Labels("test.txt"),
+									Bool("condition", false),
+									Str("content", "code1"),
+								),
+								GenerateFile(
+									Labels("test.txt"),
+									Bool("condition", false),
+									Str("content", "code2"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Bool("condition", false),
+									Content(
+										Str("content", "code1"),
+									),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Bool("condition", false),
+									Content(
+										Str("content", "code3"),
+									),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Bool("condition", true),
+									Content(
+										Str("content", "code2"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{},
+				},
+				{
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Bool("condition", true),
+									Str("content", "code3"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Bool("condition", true),
+									Content(
+										Str("content", "code2"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{},
 				},
 			},
 		},
