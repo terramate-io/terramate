@@ -398,7 +398,7 @@ func updateOutdatedFiles(
 	generated []genCodeCfg,
 	outdatedFiles *stringSet,
 ) error {
-	// So we can properly check blocks with false/true in any order
+	// So we can properly check blocks with condition false/true in any order
 	blocksCondTrue := map[string]struct{}{}
 
 	for _, genfile := range generated {

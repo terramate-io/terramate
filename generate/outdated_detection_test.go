@@ -20,13 +20,11 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test/sandbox"
 
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
-
-// Tests Outside Stacks
-// - Generated files outside stacks are detected
 
 func TestOutdatedDetection(t *testing.T) {
 	type (
@@ -209,6 +207,51 @@ func TestOutdatedDetection(t *testing.T) {
 					},
 					want: []string{
 						"stack-1/test.hcl",
+						"stack-2/test.hcl",
+					},
+				},
+			},
+		},
+		{
+			name: "generate_hcl is detected on ex stack",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack-1",
+						"s:stack-2",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Str("content", "tm is awesome"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
+						"stack-1/test.txt",
+						"stack-2/test.hcl",
+						"stack-2/test.txt",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "stack-2/" + stack.DefaultFilename,
+							body: Doc(),
+						},
+					},
+					want: []string{
 						"stack-2/test.hcl",
 					},
 				},
