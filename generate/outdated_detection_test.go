@@ -14,8 +14,16 @@
 
 package generate_test
 
+import (
+	"fmt"
+	"testing"
+
+	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/test/sandbox"
+)
+
 // Tests Inside stacks
-// - Empty project
 // - Has generate but code is not generated yet
 // - Has generate but code is outdated
 // - Has no generate but code is present
@@ -25,3 +33,76 @@ package generate_test
 
 // Tests Outside Stacks
 // - Generated files outside stacks are detected
+
+func TestOutdatedDetection(t *testing.T) {
+	type (
+		file struct {
+			path string
+			body fmt.Stringer
+		}
+		step struct {
+			layout  []string
+			files   []file
+			want    []string
+			wantErr error
+		}
+		testcase struct {
+			name  string
+			steps []step
+		}
+	)
+	t.Parallel()
+
+	tcases := []testcase{
+		{
+			name: "empty project",
+			steps: []step{
+				{
+					want: []string{},
+				},
+			},
+		},
+		{
+			name: "project with no stacks",
+			steps: []step{
+				{
+					layout: []string{
+						"d:emptydir",
+						"f:dir/file",
+						"f:dir2/file",
+					},
+					want: []string{},
+				},
+			},
+		},
+	}
+
+	for _, tc := range tcases {
+		tcase := tc
+
+		t.Run(tcase.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := sandbox.New(t)
+
+			for _, step := range tcase.steps {
+				s.BuildTree(step.layout)
+				root := s.RootEntry()
+
+				for _, file := range step.files {
+					root.CreateFile(file.path, file.body.String())
+				}
+
+				s.ReloadConfig()
+				got, err := generate.DetectOutdated(s.Config())
+
+				assert.IsError(t, err, step.wantErr)
+				if err != nil {
+					continue
+				}
+
+				assertEqualStringList(t, got, step.want)
+			}
+		})
+	}
+}

@@ -312,7 +312,7 @@ func DetectOutdated(cfg *config.Tree) ([]string, error) {
 	errs := errors.L()
 
 	for _, stack := range stacks {
-		outdated, err := checkStack(cfg, projmeta, stack)
+		outdated, err := stackOutdated(cfg, projmeta, stack)
 		if err != nil {
 			errs.Append(err)
 			continue
@@ -340,10 +340,10 @@ func DetectOutdated(cfg *config.Tree) ([]string, error) {
 	return outdatedFiles, nil
 }
 
-// checkStack will verify if a given stack has outdated code and return a list
+// stackOutdated will verify if a given stack has outdated code and return a list
 // of filenames that are outdated, ordered lexicographically.
 // If the stack has an invalid configuration it will return an error.
-func checkStack(cfg *config.Tree, projmeta project.Metadata, st *stack.S) ([]string, error) {
+func stackOutdated(cfg *config.Tree, projmeta project.Metadata, st *stack.S) ([]string, error) {
 	report := stack.LoadStackGlobals(cfg, projmeta, st)
 	if err := report.AsError(); err != nil {
 		return nil, errors.E(err, "checking for outdated code")
