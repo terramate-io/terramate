@@ -23,26 +23,43 @@ import (
 
 // O represents an output instance
 type O struct {
-	level  int
-	stdout io.Writer
-	stderr io.Writer
+	verboseness int
+	stdout      io.Writer
+	stderr      io.Writer
 }
 
-// New creates a new output with the given level.
-// Any output messages with a level bigger than the given
-// level will be ignored.
-func New(level int, stdout, stderr io.Writer) O {
+// Define different verboseness levels.
+const (
+	V int = iota
+	VV
+	VVV
+	VVVV
+)
+
+// New creates a new output with the given verboseness.
+// Any output messages with a verboseness bigger than the given
+// verboseness will be ignored.
+func New(verboseness int, stdout, stderr io.Writer) O {
 	return O{
-		level:  level,
-		stdout: stdout,
-		stderr: stderr,
+		verboseness: verboseness,
+		stdout:      stdout,
+		stderr:      stderr,
 	}
 }
 
 // Msg send a message to the output with the given verboseness
-func (o O) Msg(level int, format string, args ...interface{}) {
-	if level > o.level {
+func (o O) Msg(verboseness int, format string, args ...interface{}) {
+	o.write(verboseness, o.stdout, format, args...)
+}
+
+// Err send a message to the error output with the given verboseness
+func (o O) Err(verboseness int, format string, args ...interface{}) {
+	o.write(verboseness, o.stderr, format, args...)
+}
+
+func (o O) write(verboseness int, w io.Writer, format string, args ...interface{}) {
+	if verboseness > o.verboseness {
 		return
 	}
-	fmt.Fprintln(o.stdout, fmt.Sprintf(format, args...))
+	fmt.Fprintln(w, fmt.Sprintf(format, args...))
 }
