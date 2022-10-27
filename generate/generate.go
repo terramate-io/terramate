@@ -72,16 +72,21 @@ type GenFile interface {
 	Asserts() []config.Assert
 }
 
-// LoadedFiles represents all generated files of a specific directory.
-type LoadedFiles struct {
-	Dir   string
+// LoadResult represents all generated files of a specific directory.
+type LoadResult struct {
+	// Dir is from where the generated files were loaded, or where a failure occured
+	// if Err is not nil.
+	Dir string
+	// Files is the generated files for this directory.
 	Files []GenFile
+	// Err will be non-nil if loading generated files for a specific dir failed
+	Err error
 }
 
 // Load will load all the generated files inside the given tree.
-func Load(cfg *config.Tree) ([]LoadedFiles, error) {
+func Load(cfg *config.Tree) []LoadResult {
 	// TODO(KATCIPIS)
-	return nil, nil
+	return nil
 }
 
 // Do will walk all the stacks inside the given working dir
