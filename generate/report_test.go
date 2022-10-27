@@ -24,27 +24,28 @@ import (
 	errtest "github.com/mineiros-io/terramate/test/errors"
 )
 
-func TestReportRepresentation(t *testing.T) {
+func TestReportFull(t *testing.T) {
 	t.Parallel()
 
 	type testcase struct {
-		name   string
-		report generate.Report
-		want   string
+		name        string
+		report      generate.Report
+		wantFull    string
+		wantMinimal string
 	}
 
 	tcases := []testcase{
 		{
-			name:   "empty report",
-			report: generate.Report{},
-			want:   "Nothing to do, generated code is up to date",
+			name:     "empty report",
+			report:   generate.Report{},
+			wantFull: "Nothing to do, generated code is up to date",
 		},
 		{
 			name: "with bootstrap err",
 			report: generate.Report{
 				BootstrapErr: errors.E("such fail, much terrible"),
 			},
-			want: `Fatal failure preparing for code generation.
+			wantFull: `Fatal failure preparing for code generation.
 Error details: such fail, much terrible`,
 		},
 		{
@@ -63,7 +64,7 @@ Error details: such fail, much terrible`,
 					},
 				},
 			},
-			want: `Fatal failure preparing for code generation.
+			wantFull: `Fatal failure preparing for code generation.
 Error details: ignore`,
 		},
 		{
@@ -90,7 +91,7 @@ Error details: ignore`,
 					},
 				},
 			},
-			want: `Code generation report
+			wantFull: `Code generation report
 
 Successes:
 
@@ -134,7 +135,7 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 					},
 				},
 			},
-			want: `Code generation report
+			wantFull: `Code generation report
 
 Failures:
 
@@ -184,7 +185,7 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 					},
 				},
 			},
-			want: `Code generation report
+			wantFull: `Code generation report
 
 Successes:
 
@@ -235,7 +236,7 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 					},
 				},
 			},
-			want: `Code generation report
+			wantFull: `Code generation report
 
 Failures:
 
@@ -263,7 +264,7 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 				},
 				CleanupErr: errors.E("cleanup error"),
 			},
-			want: `Code generation report
+			wantFull: `Code generation report
 
 Successes:
 
@@ -285,9 +286,9 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 			t.Parallel()
 
 			got := tcase.report.Full()
-			if diff := cmp.Diff(got, tcase.want); diff != "" {
+			if diff := cmp.Diff(got, tcase.wantFull); diff != "" {
 				t.Errorf("got:\n%s\n", got)
-				t.Errorf("want:\n%s\n", tcase.want)
+				t.Errorf("want:\n%s\n", tcase.wantFull)
 				t.Error("diff: got(-), want(+)")
 				t.Fatal(diff)
 			}

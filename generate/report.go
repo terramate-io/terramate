@@ -142,6 +142,12 @@ func (r Report) Full() string {
 	return strings.Join(report, "\n")
 }
 
+// Minimal provides a minimal report of the generated code.
+// It only lists created/deleted/changed files in a per file manner.
+func (r Report) Minimal() string {
+	return ""
+}
+
 func (r Report) empty() bool {
 	return r.BootstrapErr == nil &&
 		len(r.Failures) == 0 &&
