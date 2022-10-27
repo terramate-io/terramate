@@ -21,7 +21,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/info"
 )
 
-func TestInfo(t *testing.T) {
+func TestLoad(t *testing.T) {
 	type (
 		file struct {
 			path string
