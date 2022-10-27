@@ -118,10 +118,7 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
 			expr, _ := eval.ParseExpressionBytes([]byte(`{}`))
 			key := newGlobalPath(block.Labels, "")
 			exprs[key] = Expr{
-				Origin: project.PrjAbsPath(
-					tree.RootDir(),
-					block.RawOrigins[0].Origin,
-				),
+				Origin:     block.RawOrigins[0].Range.Path(),
 				LabelPath:  key.Path(),
 				Expression: expr,
 			}
@@ -134,7 +131,7 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
 
 			key := newGlobalPath(block.Labels, attr.Name)
 			exprs[key] = Expr{
-				Origin:     project.PrjAbsPath(tree.RootDir(), attr.Origin),
+				Origin:     attr.Range.Path(),
 				LabelPath:  key.Path(),
 				Expression: attr.Expr,
 			}

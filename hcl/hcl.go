@@ -31,6 +31,7 @@ import (
 	"github.com/mineiros-io/terramate/fs"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -75,7 +76,7 @@ type GenerateConfig struct {
 
 // AssertConfig represents Terramate assert configuration block.
 type AssertConfig struct {
-	Origin    string
+	Range     info.Range
 	Warning   hcl.Expression
 	Assertion hcl.Expression
 	Message   hcl.Expression
@@ -193,8 +194,8 @@ type Stack struct {
 
 // GenHCLBlock represents a parsed generate_hcl block.
 type GenHCLBlock struct {
-	// Origin is the filename where this block is defined.
-	Origin string
+	// Range is the range of the entire block definition.
+	Range info.Range
 	// Label of the block.
 	Label string
 	// Lets is a block of local variables.
@@ -209,8 +210,8 @@ type GenHCLBlock struct {
 
 // GenFileBlock represents a parsed generate_file block
 type GenFileBlock struct {
-	// Origin is the filename where this block is defined.
-	Origin string
+	// Range is the range of the entire block definition.
+	Range info.Range
 	// Label of the block
 	Label string
 	// Lets is a block of local variables.
@@ -482,7 +483,7 @@ func (p *TerramateParser) Imports() (ast.Blocks, error) {
 			if rawBlock.Type != "import" {
 				continue
 			}
-			importBlock := ast.NewBlock(origin, rawBlock)
+			importBlock := ast.NewBlock(p.rootdir, rawBlock)
 			err := validateImportBlock(importBlock)
 			errs.Append(err)
 			if err == nil {
@@ -503,8 +504,8 @@ func (p *TerramateParser) mergeConfig() error {
 	for _, origin := range p.sortedParsedFilenames() {
 		body := bodies[origin]
 
-		errs.Append(p.Config.mergeAttrs(ast.NewAttributes(origin, ast.AsHCLAttributes(body.Attributes))))
-		errs.Append(p.Config.mergeBlocks(ast.NewBlocks(origin, body.Blocks)))
+		errs.Append(p.Config.mergeAttrs(ast.NewAttributes(p.rootdir, ast.AsHCLAttributes(body.Attributes))))
+		errs.Append(p.Config.mergeBlocks(ast.NewBlocks(p.rootdir, body.Blocks)))
 	}
 	return errs.AsError()
 }
@@ -750,7 +751,7 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 			asserts = append(asserts, assertCfg)
 		case "content":
 			if content != nil {
-				errs.Append(errors.E(subBlock.Range(),
+				errs.Append(errors.E(subBlock.Range,
 					"multiple generate_hcl.content blocks defined",
 				))
 				continue
@@ -767,7 +768,7 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 	}
 
 	return GenHCLBlock{
-		Origin:    block.Origin,
+		Range:     block.Range,
 		Label:     block.Labels[0],
 		Lets:      lets,
 		Asserts:   asserts,
@@ -813,7 +814,7 @@ func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
 	}
 
 	return GenFileBlock{
-		Origin:    block.Origin,
+		Range:     block.Range,
 		Label:     block.Labels[0],
 		Lets:      lets,
 		Asserts:   asserts,
@@ -1225,7 +1226,7 @@ func parseAssertConfig(assert *ast.Block) (AssertConfig, error) {
 	cfg := AssertConfig{}
 	errs := errors.L()
 
-	cfg.Origin = assert.Origin
+	cfg.Range = assert.Range
 
 	errs.Append(checkNoLabels(assert))
 	errs.Append(checkHasSubBlocks(assert))
@@ -1246,12 +1247,12 @@ func parseAssertConfig(assert *ast.Block) (AssertConfig, error) {
 	}
 
 	if cfg.Assertion == nil {
-		errs.Append(errors.E(ErrTerramateSchema, assert.Range(),
+		errs.Append(errors.E(ErrTerramateSchema, assert.Range,
 			"assert.assertion is required"))
 	}
 
 	if cfg.Message == nil {
-		errs.Append(errors.E(ErrTerramateSchema, assert.Range(),
+		errs.Append(errors.E(ErrTerramateSchema, assert.Range,
 			"assert.message is required"))
 	}
 
@@ -1707,7 +1708,7 @@ func (p *TerramateParser) checkConfigSanity(cfg Config) error {
 	tmblock := rawconfig.MergedBlocks["terramate"]
 	if tmblock != nil && p.dir != p.rootdir {
 		for _, raworigin := range tmblock.RawOrigins {
-			if filepath.Dir(raworigin.Origin) != p.dir {
+			if filepath.Dir(raworigin.Range.HostPath()) != p.dir {
 				errs.Append(
 					errors.E(ErrUnexpectedTerramate, raworigin.TypeRange,
 						"imported from directory %q", p.dir),

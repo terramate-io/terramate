@@ -23,6 +23,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/hcl/info"
 
 	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/project"
@@ -53,7 +54,7 @@ const (
 // File represents generated file from a single generate_file block.
 type File struct {
 	label     string
-	origin    project.Path
+	origin    info.Range
 	body      string
 	condition bool
 	asserts   []config.Assert
@@ -69,9 +70,8 @@ func (f File) Body() string {
 	return f.body
 }
 
-// Origin returns the path, relative to the project root,
-// of the configuration that originated the file.
-func (f File) Origin() project.Path {
+// Range returns the range information of the generate_file block.
+func (f File) Range() info.Range {
 	return f.origin
 }
 
@@ -96,7 +96,7 @@ func (f File) Header() string {
 
 func (f File) String() string {
 	return fmt.Sprintf("generate_file %q (condition %t) (body %q) (origin %q)",
-		f.Label(), f.Condition(), f.Body(), f.Origin())
+		f.Label(), f.Condition(), f.Body(), f.Range().Path())
 }
 
 // Load loads and parses from the file system all generate_file blocks for
@@ -126,7 +126,6 @@ func Load(
 
 	for _, genFileBlock := range genFileBlocks {
 		name := genFileBlock.Label
-		origin := project.PrjAbsPath(cfg.RootDir(), genFileBlock.Origin)
 		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
 		err := lets.Load(genFileBlock.Lets, evalctx.Context)
 		if err != nil {
@@ -152,7 +151,7 @@ func Load(
 		if !condition {
 			files = append(files, File{
 				label:     name,
-				origin:    origin,
+				origin:    genFileBlock.Range,
 				condition: condition,
 			})
 			continue
@@ -181,7 +180,7 @@ func Load(
 		if assertFailed {
 			files = append(files, File{
 				label:     name,
-				origin:    origin,
+				origin:    genFileBlock.Range,
 				condition: condition,
 				asserts:   asserts,
 			})
@@ -203,7 +202,7 @@ func Load(
 
 		files = append(files, File{
 			label:     name,
-			origin:    origin,
+			origin:    genFileBlock.Range,
 			body:      value.AsString(),
 			condition: condition,
 			asserts:   asserts,

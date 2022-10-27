@@ -153,12 +153,12 @@ func (cfg *RawConfig) mergeAttrs(other ast.Attributes) error {
 	errs := errors.L()
 	for _, attr := range other.SortedList() {
 		if attrVal, ok := cfg.MergedAttributes[attr.Name]; ok &&
-			sameDir(attrVal.Origin, attr.Origin) {
+			sameDir(attrVal.Range.HostPath(), attr.Range.HostPath()) {
 			errs.Append(errors.E(ErrTerramateSchema,
 				attr.NameRange,
 				"attribute %q redeclared in file %q (first defined in %q)",
 				attr.Name,
-				attr.Origin, attrVal.Origin))
+				attr.Range.Path(), attrVal.Range.Path()))
 			continue
 		}
 

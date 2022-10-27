@@ -20,7 +20,6 @@ import (
 
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl"
 )
 
 // FixupFiledirOnErrorsFileRanges fix the filename in the ranges of the error list.
@@ -29,34 +28,6 @@ func FixupFiledirOnErrorsFileRanges(dir string, errs []error) {
 		if e, ok := err.(*errors.Error); ok {
 			e.FileRange.Filename = filepath.Join(dir, e.FileRange.Filename)
 		}
-	}
-}
-
-// FixupFiledirOnConfig fix up the filename on the config origins.
-func FixupFiledirOnConfig(dir string, cfg hcl.Config) {
-	// When defining test cases there is no way to know the final
-	// origin paths since sandboxes are dynamic/temporary.
-	// So we use relative paths and make them absolute here.
-	for i := range cfg.Asserts {
-		cfg.Asserts[i].Origin = filepath.Join(dir, cfg.Asserts[i].Origin)
-	}
-	for i := range cfg.Generate.Files {
-		cfg.Generate.Files[i].Origin = filepath.Join(dir,
-			cfg.Generate.Files[i].Origin)
-
-		fixupOriginOnAssert(dir, cfg.Generate.Files[i].Asserts)
-	}
-	for i := range cfg.Generate.HCLs {
-		cfg.Generate.HCLs[i].Origin = filepath.Join(dir,
-			cfg.Generate.HCLs[i].Origin)
-
-		fixupOriginOnAssert(dir, cfg.Generate.HCLs[i].Asserts)
-	}
-}
-
-func fixupOriginOnAssert(dir string, asserts []hcl.AssertConfig) {
-	for i := range asserts {
-		asserts[i].Origin = filepath.Join(dir, asserts[i].Origin)
 	}
 }
 
