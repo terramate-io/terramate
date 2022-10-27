@@ -145,7 +145,52 @@ func (r Report) Full() string {
 // Minimal provides a minimal report of the generated code.
 // It only lists created/deleted/changed files in a per file manner.
 func (r Report) Minimal() string {
-	return ""
+	if r.empty() {
+		return ""
+	}
+	if r.BootstrapErr != nil {
+		return fmt.Sprintf(
+			"Fatal failure preparing for code generation.\nError details: %v",
+			r.BootstrapErr,
+		)
+	}
+	report := []string{}
+	addLine := func(msg string, args ...interface{}) {
+		report = append(report, fmt.Sprintf(msg, args...))
+	}
+	addResult := func(res Result) {
+		for _, c := range res.Created {
+			addLine("Created %s/%s", res.Dir, c)
+		}
+		for _, c := range res.Changed {
+			addLine("Changed %s/%s", res.Dir, c)
+		}
+		for _, c := range res.Deleted {
+			addLine("Deleted %s/%s", res.Dir, c)
+		}
+	}
+
+	for _, success := range r.Successes {
+		addResult(success)
+	}
+
+	for _, failure := range r.Failures {
+		if list, ok := failure.Error.(*errors.List); ok {
+			for _, err := range list.Errors() {
+				addLine("Error on %s: %v", failure.Dir, err)
+			}
+		} else {
+			addLine("Error on %s: %v", failure.Dir, failure.Error)
+		}
+		addResult(failure.Result)
+	}
+
+	if r.CleanupErr != nil {
+		addLine("Fatal failure while cleaning up generated code outside stacks:")
+		addLine("\terror: %s", r.CleanupErr)
+	}
+
+	return strings.Join(report, "\n")
 }
 
 func (r Report) empty() bool {

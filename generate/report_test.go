@@ -36,9 +36,10 @@ func TestReportFull(t *testing.T) {
 
 	tcases := []testcase{
 		{
-			name:     "empty report",
-			report:   generate.Report{},
-			wantFull: "Nothing to do, generated code is up to date",
+			name:        "empty report",
+			report:      generate.Report{},
+			wantFull:    "Nothing to do, generated code is up to date",
+			wantMinimal: "",
 		},
 		{
 			name: "with bootstrap err",
@@ -46,6 +47,8 @@ func TestReportFull(t *testing.T) {
 				BootstrapErr: errors.E("such fail, much terrible"),
 			},
 			wantFull: `Fatal failure preparing for code generation.
+Error details: such fail, much terrible`,
+			wantMinimal: `Fatal failure preparing for code generation.
 Error details: such fail, much terrible`,
 		},
 		{
@@ -65,6 +68,8 @@ Error details: such fail, much terrible`,
 				},
 			},
 			wantFull: `Fatal failure preparing for code generation.
+Error details: ignore`,
+			wantMinimal: `Fatal failure preparing for code generation.
 Error details: ignore`,
 		},
 		{
@@ -113,6 +118,15 @@ Successes:
 	[-] removed2.tf
 
 Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
+			wantMinimal: `Created /test/test
+Changed /test2/test
+Deleted /test3/test
+Created /test4/created1.tf
+Created /test4/created2.tf
+Changed /test4/changed.tf
+Changed /test4/changed2.tf
+Deleted /test4/removed1.tf
+Deleted /test4/removed2.tf`,
 		},
 		{
 			name: "failure results",
@@ -152,6 +166,14 @@ Failures:
 	[-] removed2.tf
 
 Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
+			wantMinimal: `Error on /test: full error
+Error on /test2: partial error
+Created /test2/created1.tf
+Created /test2/created2.tf
+Changed /test2/changed.tf
+Changed /test2/changed2.tf
+Deleted /test2/removed1.tf
+Deleted /test2/removed2.tf`,
 		},
 		{
 			name: "partial result",
@@ -208,6 +230,14 @@ Failures:
 	error: error
 
 Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
+			wantMinimal: `Created /success/created.tf
+Changed /success/changed.tf
+Deleted /success/removed.tf
+Created /success2/created.tf
+Changed /success2/changed.tf
+Deleted /success2/removed.tf
+Error on /failed: error
+Error on /failed2: error`,
 		},
 		{
 			name: "error result is a list",
@@ -250,6 +280,9 @@ Failures:
 	error: error2
 
 Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
+			wantMinimal: `Error on /failed: error
+Error on /failed2: error1
+Error on /failed2: error2`,
 		},
 		{
 			name: "cleanup error result",
@@ -277,6 +310,11 @@ Fatal failure while cleaning up generated code outside stacks:
 	error: cleanup error
 
 Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
+			wantMinimal: `Created /success/created.tf
+Changed /success/changed.tf
+Deleted /success/removed.tf
+Fatal failure while cleaning up generated code outside stacks:
+	error: cleanup error`,
 		},
 	}
 
@@ -287,8 +325,18 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 
 			got := tcase.report.Full()
 			if diff := cmp.Diff(got, tcase.wantFull); diff != "" {
+				t.Error("full report failed")
 				t.Errorf("got:\n%s\n", got)
 				t.Errorf("want:\n%s\n", tcase.wantFull)
+				t.Error("diff: got(-), want(+)")
+				t.Fatal(diff)
+			}
+
+			got = tcase.report.Minimal()
+			if diff := cmp.Diff(got, tcase.wantMinimal); diff != "" {
+				t.Error("minimal report failed")
+				t.Errorf("got:\n%s\n", got)
+				t.Errorf("want:\n%s\n", tcase.wantMinimal)
 				t.Error("diff: got(-), want(+)")
 				t.Fatal(diff)
 			}
