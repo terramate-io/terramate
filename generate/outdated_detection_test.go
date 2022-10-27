@@ -777,6 +777,77 @@ func TestOutdatedDetection(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "detection on substacks",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack-1",
+						"s:stack-1/child",
+						"s:stack-2",
+						"s:stack-2/dir/child",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								Globals(
+									Bool("condition", true),
+								),
+								GenerateFile(
+									Labels("test.txt"),
+									Expr("condition", "global.condition"),
+									Str("content", "code"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Expr("condition", "global.condition"),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/child/test.hcl",
+						"stack-1/child/test.txt",
+						"stack-1/test.hcl",
+						"stack-1/test.txt",
+						"stack-2/dir/child/test.hcl",
+						"stack-2/dir/child/test.txt",
+						"stack-2/test.hcl",
+						"stack-2/test.txt",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "stack-1/child/config.tm",
+							body: Doc(
+								Globals(
+									Bool("condition", false),
+								),
+							),
+						},
+						{
+							path: "stack-2/dir/child/config.tm",
+							body: Doc(
+								Globals(
+									Bool("condition", false),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/child/test.hcl",
+						"stack-1/child/test.txt",
+						"stack-2/dir/child/test.hcl",
+						"stack-2/dir/child/test.txt",
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tcases {
