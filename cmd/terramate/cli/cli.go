@@ -26,6 +26,7 @@ import (
 	"github.com/google/uuid"
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/mineiros-io/terramate/cmd/terramate/cli/out"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/errors/errlog"
 	"github.com/mineiros-io/terramate/generate"
@@ -86,7 +87,8 @@ type cliSpec struct {
 	LogLevel       string   `optional:"true" default:"warn" enum:"disabled,trace,debug,info,warn,error,fatal" help:"Log level to use: 'disabled', 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
 	LogFmt         string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'"`
 	LogDestination string   `optional:"true" default:"stderr" enum:"stderr,stdout" help:"Destination of log messages"`
-	Quiet          bool     `optional:"false" help:"Disable stdout output"`
+	Quiet          bool     `optional:"false" help:"Disable output"`
+	Verbose        int      `short:"v" optional:"true" default:"0" type:"counter" help:"Increase verboseness of output"`
 
 	DisableCheckGitUntracked   bool `optional:"true" default:"false" help:"Disable git check for untracked files"`
 	DisableCheckGitUncommitted bool `optional:"true" default:"false" help:"Disable git check for uncommitted files"`
@@ -200,6 +202,7 @@ type cli struct {
 	stdin      io.Reader
 	stdout     io.Writer
 	stderr     io.Writer
+	output     out.O
 	exit       bool
 	prj        project
 }
@@ -333,10 +336,17 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 		log.Fatal().Msg("flag --changed provided but no git repository found")
 	}
 
+	verbose := parsedArgs.Verbose
+
+	if parsedArgs.Quiet {
+		verbose = -1
+	}
+
 	return &cli{
 		stdin:      stdin,
 		stdout:     stdout,
 		stderr:     stderr,
+		output:     out.New(verbose, stdout, stderr),
 		parsedArgs: &parsedArgs,
 		ctx:        ctx,
 		prj:        prj,
@@ -482,7 +492,7 @@ func (c *cli) vendorDownload() {
 		}
 	}
 
-	c.println(report.String())
+	c.output.Msg(out.V, report.String())
 }
 
 func (c *cli) vendorDir() prj.Path {
@@ -565,15 +575,15 @@ func (c *cli) cloneStack() {
 		fatal(err, "cloning %s to %s", srcstack, deststack)
 	}
 
-	c.println("Cloned stack %s to %s with success", srcstack, deststack)
-	c.println("Generating code on the new cloned stack")
+	c.output.Msg(out.V, "Cloned stack %s to %s with success", srcstack, deststack)
+	c.output.Msg(out.V, "Generating code on the new cloned stack")
 
 	c.generate(destdir)
 }
 
 func (c *cli) generate(workdir string) {
 	report := generate.Do(c.cfg(), workdir)
-	c.println(report.String())
+	c.output.Msg(out.V, report.String())
 
 	if report.HasFailures() {
 		os.Exit(1)
@@ -716,8 +726,8 @@ func (c *cli) createStack() {
 		fatal(err, "creating stack")
 	}
 
-	c.println("Created stack %s with success", c.parsedArgs.Create.Path)
-	c.println("Generating code on the stack")
+	c.output.Msg(out.V, "Created stack %s with success", c.parsedArgs.Create.Path)
+	c.output.Msg(out.V, "Generating code on the stack")
 
 	c.generate(stackDir)
 }
@@ -737,7 +747,7 @@ func (c *cli) format() {
 	logger.Trace().Msg("listing formatted files")
 	for _, res := range results {
 		path := strings.TrimPrefix(res.Path(), c.wd()+string(filepath.Separator))
-		c.println(path)
+		c.output.Msg(out.V, path)
 	}
 
 	if c.parsedArgs.Fmt.Check {
@@ -796,9 +806,9 @@ func (c *cli) printStacks() {
 		}
 
 		if c.parsedArgs.List.Why {
-			c.println("%s - %s", stackRepr, entry.Reason)
+			c.output.Msg(out.V, "%s - %s", stackRepr, entry.Reason)
 		} else {
-			c.println(stackRepr)
+			c.output.Msg(out.V, stackRepr)
 		}
 	}
 }
@@ -826,10 +836,10 @@ func (c *cli) printRunEnv() {
 			fatal(err, "loading stack run environment")
 		}
 
-		c.println("\nstack %q:", stackEntry.Stack.Path())
+		c.output.Msg(out.V, "\nstack %q:", stackEntry.Stack.Path())
 
 		for _, envVar := range envVars {
-			c.println("\t%s", envVar)
+			c.output.Msg(out.V, "\t%s", envVar)
 		}
 	}
 }
@@ -994,7 +1004,7 @@ func (c *cli) printRunOrder() {
 	}
 
 	for _, s := range orderedStacks {
-		c.println(s.Name())
+		c.output.Msg(out.V, s.Name())
 	}
 }
 
@@ -1030,9 +1040,9 @@ func (c *cli) printStacksGlobals() {
 			continue
 		}
 
-		c.println("\nstack %q:", meta.Path())
+		c.output.Msg(out.V, "\nstack %q:", meta.Path())
 		for _, line := range strings.Split(globalsStrRepr, "\n") {
-			c.println("\t%s", line)
+			c.output.Msg(out.V, "\t%s", line)
 		}
 	}
 }
@@ -1059,11 +1069,11 @@ func (c *cli) printMetadata() {
 
 	projmeta := c.newProjectMetadata(report)
 
-	c.println("Available metadata:")
+	c.output.Msg(out.V, "Available metadata:")
 
 	// TODO(katcipis): we need to print other project metadata too.
-	c.println("\nproject metadata:")
-	c.println("\tterramate.stacks.list=%v", projmeta.Stacks())
+	c.output.Msg(out.V, "\nproject metadata:")
+	c.output.Msg(out.V, "\tterramate.stacks.list=%v", projmeta.Stacks())
 
 	for _, stackEntry := range stackEntries {
 		stackMeta := stack.Metadata(stackEntry.Stack)
@@ -1072,16 +1082,16 @@ func (c *cli) printMetadata() {
 			Stringer("stack", stackEntry.Stack).
 			Msg("Print metadata for individual stack.")
 
-		c.println("\nstack %q:", stackMeta.Path())
+		c.output.Msg(out.V, "\nstack %q:", stackMeta.Path())
 		if id, ok := stackMeta.ID(); ok {
-			c.println("\tterramate.stack.id=%q", id)
+			c.output.Msg(out.V, "\tterramate.stack.id=%q", id)
 		}
-		c.println("\tterramate.stack.name=%q", stackMeta.Name())
-		c.println("\tterramate.stack.description=%q", stackMeta.Desc())
-		c.println("\tterramate.stack.path.absolute=%q", stackMeta.Path())
-		c.println("\tterramate.stack.path.basename=%q", stackMeta.PathBase())
-		c.println("\tterramate.stack.path.relative=%q", stackMeta.RelPath())
-		c.println("\tterramate.stack.path.to_root=%q", stackMeta.RelPathToRoot())
+		c.output.Msg(out.V, "\tterramate.stack.name=%q", stackMeta.Name())
+		c.output.Msg(out.V, "\tterramate.stack.description=%q", stackMeta.Desc())
+		c.output.Msg(out.V, "\tterramate.stack.path.absolute=%q", stackMeta.Path())
+		c.output.Msg(out.V, "\tterramate.stack.path.basename=%q", stackMeta.PathBase())
+		c.output.Msg(out.V, "\tterramate.stack.path.relative=%q", stackMeta.RelPath())
+		c.output.Msg(out.V, "\tterramate.stack.path.to_root=%q", stackMeta.RelPathToRoot())
 	}
 }
 
@@ -1120,9 +1130,9 @@ func (c *cli) eval() {
 			fatal(err, "eval %q", exprStr)
 		}
 
-		var out []byte
+		var o []byte
 		if c.parsedArgs.Experimental.Eval.AsJSON {
-			out, err = json.Marshal(val, val.Type())
+			o, err = json.Marshal(val, val.Type())
 			if err != nil {
 				fatal(err, "converting value %s to json", val.GoString())
 			}
@@ -1132,10 +1142,10 @@ func (c *cli) eval() {
 				fatal(err, "serializing value %s", val.GoString())
 			}
 
-			out = hclwrite.Format(tokens.Bytes())
+			o = hclwrite.Format(tokens.Bytes())
 		}
 
-		c.println(string(out))
+		c.output.Msg(out.V, string(o))
 	}
 }
 
@@ -1152,7 +1162,7 @@ func (c *cli) partialEval() {
 			fatal(err, "partial eval %q", exprStr)
 		}
 
-		c.println(string(hclwrite.Format(tokens.Bytes())))
+		c.output.Msg(out.V, string(hclwrite.Format(tokens.Bytes())))
 	}
 }
 
@@ -1183,26 +1193,26 @@ func (c *cli) getConfigValue() {
 			fatal(err, "evaluating expression: %s", exprStr)
 		}
 
-		var out []byte
+		var o []byte
 		if c.parsedArgs.Experimental.GetConfigValue.AsJSON {
-			out, err = json.Marshal(val, val.Type())
+			o, err = json.Marshal(val, val.Type())
 			if err != nil {
 				fatal(err, "converting value %s to json", val.GoString())
 			}
 		} else {
 			if val.Type() == cty.String {
-				out = []byte(val.AsString())
+				o = []byte(val.AsString())
 			} else {
 				tokens, err := eval.TokensForValue(val)
 				if err != nil {
 					fatal(err, "serializing value %s", val.GoString())
 				}
 
-				out = []byte(hclwrite.Format(tokens.Bytes()))
+				o = []byte(hclwrite.Format(tokens.Bytes()))
 			}
 		}
 
-		c.println(string(out))
+		c.output.Msg(out.V, string(o))
 	}
 }
 
@@ -1352,14 +1362,14 @@ func (c *cli) runOnStacks() {
 		logger.Trace().
 			Msg("Do a dry run - get order without actually running command.")
 		if len(orderedStacks) > 0 {
-			c.println("The stacks will be executed using order below:")
+			c.output.Msg(out.V, "The stacks will be executed using order below:")
 
 			for i, s := range orderedStacks {
 				stackdir, _ := c.friendlyFmtDir(s.Path().String())
-				c.println("\t%d. %s (%s)", i, s.Name(), stackdir)
+				c.output.Msg(out.V, "\t%d. %s (%s)", i, s.Name(), stackdir)
 			}
 		} else {
-			c.println("No stacks will be executed.")
+			c.output.Msg(out.V, "No stacks will be executed.")
 		}
 
 		return
@@ -1383,13 +1393,6 @@ func (c *cli) runOnStacks() {
 func (c *cli) wd() string        { return c.prj.wd }
 func (c *cli) root() string      { return c.prj.root }
 func (c *cli) cfg() *config.Tree { return &c.prj.cfg }
-
-func (c *cli) println(format string, args ...interface{}) {
-	if c.parsedArgs.Quiet {
-		return
-	}
-	stdfmt.Fprintln(c.stdout, stdfmt.Sprintf(format, args...))
-}
 
 func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.root(), c.wd(), dir)
