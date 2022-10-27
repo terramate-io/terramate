@@ -583,7 +583,7 @@ func (c *cli) cloneStack() {
 
 func (c *cli) generate(workdir string) {
 	report := generate.Do(c.cfg(), workdir)
-	c.output.Msg(out.V, report.String())
+	c.output.Msg(out.V, report.Full())
 
 	if report.HasFailures() {
 		os.Exit(1)

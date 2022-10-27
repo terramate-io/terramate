@@ -64,7 +64,8 @@ func (r Report) HasFailures() bool {
 	return r.BootstrapErr != nil || len(r.Failures) > 0
 }
 
-func (r Report) String() string {
+// Full provides a full report of the generated code, including information per stack.
+func (r Report) Full() string {
 	if r.empty() {
 		return "Nothing to do, generated code is up to date"
 	}

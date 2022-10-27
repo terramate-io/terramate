@@ -284,7 +284,7 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := tcase.report.String()
+			got := tcase.report.Full()
 			if diff := cmp.Diff(got, tcase.want); diff != "" {
 				t.Errorf("got:\n%s\n", got)
 				t.Errorf("want:\n%s\n", tcase.want)
