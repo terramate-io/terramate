@@ -59,7 +59,7 @@ func LoadRootContext(
 			context = val.AsString()
 		}
 
-		// only handle stack context here.
+		// only handle root context here.
 		if context != "root" {
 			continue
 		}
