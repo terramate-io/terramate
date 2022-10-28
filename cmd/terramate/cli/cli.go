@@ -1021,7 +1021,35 @@ func (c *cli) printRunOrder() {
 }
 
 func (c *cli) generateDebug() {
-	// TODO(KATCIPIS)
+	cfg := c.cfg()
+	results, err := generate.Load(cfg)
+	if err != nil {
+		fatal(err, "retrieving generate debug information")
+	}
+
+	for _, res := range results {
+		if res.Err != nil {
+			errmsg := stdfmt.Sprintf("generate debug error on dir %s: %v", res.Dir, res.Err)
+			log.Error().Msg(errmsg)
+			c.output.Err(out.V, errmsg)
+			continue
+		}
+		if len(res.Files) == 0 {
+			continue
+		}
+
+		files := make([]generate.GenFile, 0, len(res.Files))
+		for _, f := range res.Files {
+			if f.Condition() {
+				files = append(files, f)
+			}
+		}
+
+		c.output.Msg(out.V, "Generated files for %s:", res.Dir)
+		for _, file := range files {
+			c.output.Msg(out.V, "\t- %s origin: %v", file.Label(), file.Range())
+		}
+	}
 }
 
 func (c *cli) printStacksGlobals() {
