@@ -109,6 +109,53 @@ Generated files for /stack-2:
 `,
 			},
 		},
+		{
+			name: "stacks with codegen on stack",
+			layout: []string{
+				"s:stack-1",
+				"s:stack-1/dir/child",
+				"s:stack-2",
+			},
+			wd: "stack-1",
+			configs: []file{
+				{
+					path: "config.tm",
+					body: Doc(
+						GenerateFile(
+							Labels("file.txt"),
+							Bool("condition", false),
+							Str("content", "data"),
+						),
+						GenerateFile(
+							Labels("file.txt"),
+							Bool("condition", true),
+							Str("content", "data"),
+						),
+					),
+				},
+				{
+					path: "stack-1/config.tm",
+					body: Doc(
+						GenerateHCL(
+							Labels("file.hcl"),
+							Bool("condition", true),
+							Content(
+								Str("content", "data"),
+							),
+						),
+					),
+				},
+			},
+			want: runExpected{
+				Stdout: `Generated files for /stack-1:
+	- file.hcl origin: /stack-1/config.tm:1,1-6,2
+	- file.txt origin: /config.tm:5,1-8,2
+Generated files for /stack-1/dir/child:
+	- file.hcl origin: /stack-1/config.tm:1,1-6,2
+	- file.txt origin: /config.tm:5,1-8,2
+`,
+			},
+		},
 	}
 
 	for _, tcase := range testcases {

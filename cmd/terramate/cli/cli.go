@@ -1021,13 +1021,29 @@ func (c *cli) printRunOrder() {
 }
 
 func (c *cli) generateDebug() {
-	cfg := c.cfg()
-	results, err := generate.Load(cfg)
+	// TODO(KATCIPIS): improve Load to work properly with subtrees
+	//cfg, ok := c.cfg().Lookup(prj.PrjAbsPath(c.root(), c.wd()))
+	//if !ok {
+	//return
+	//}
+	results, err := generate.Load(c.cfg())
 	if err != nil {
 		fatal(err, "retrieving generate debug information")
 	}
 
+	// TODO(KATCIPIS): this should not be necessary
+	// We can improve this after generate.Load is improved.
+	wd := filepath.ToSlash(c.wd())
+	root := filepath.ToSlash(c.root())
+
 	for _, res := range results {
+		// TODO(KATCIPIS): this should not be necessary
+		// We can improve this after generate.Load is improved.
+		abspath := filepath.Join(root, string(res.Dir))
+		if !strings.HasPrefix(abspath, wd) {
+			continue
+		}
+
 		if res.Err != nil {
 			errmsg := stdfmt.Sprintf("generate debug error on dir %s: %v", res.Dir, res.Err)
 			log.Error().Msg(errmsg)
