@@ -23,6 +23,8 @@ import (
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test"
+	. "github.com/mineiros-io/terramate/test/hclutils"
+	. "github.com/mineiros-io/terramate/test/hclutils/info"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -87,6 +89,78 @@ func TestLoad(t *testing.T) {
 				},
 				{
 					dir: "/stack-2",
+				},
+			},
+		},
+		{
+			name: "generate blocks range information",
+			layout: []string{
+				"s:stack-1",
+				"s:stack-2",
+			},
+			configs: []file{
+				{
+					path: "config.tm",
+					body: Doc(
+						GenerateHCL(
+							Labels("test.hcl"),
+							Content(
+								Str("stacks", "test"),
+							),
+						),
+						GenerateFile(
+							Labels("test.txt"),
+							Str("content", "test"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					dir: "/stack-1",
+					files: []genfile{
+						{
+							label:     "test.hcl",
+							condition: true,
+							blockRange: Range(
+								"/config.tm",
+								Start(1, 1, 0),
+								End(5, 2, 63),
+							),
+						},
+						{
+							label:     "test.txt",
+							condition: true,
+							blockRange: Range(
+								"/config.tm",
+								Start(6, 1, 64),
+								End(8, 2, 111),
+							),
+						},
+					},
+				},
+				{
+					dir: "/stack-2",
+					files: []genfile{
+						{
+							label:     "test.hcl",
+							condition: true,
+							blockRange: Range(
+								"/config.tm",
+								Start(1, 1, 0),
+								End(5, 2, 63),
+							),
+						},
+						{
+							label:     "test.txt",
+							condition: true,
+							blockRange: Range(
+								"/config.tm",
+								Start(6, 1, 64),
+								End(8, 2, 111),
+							),
+						},
+					},
 				},
 			},
 		},
@@ -297,7 +371,9 @@ func TestLoad(t *testing.T) {
 					assert.EqualStrings(t, wantFile.label, gotFile.Label(), "label mismatch")
 					assert.IsTrue(t, wantFile.condition == gotFile.Condition(),
 						"want condition %t != %t", wantFile.condition, gotFile.Condition())
-					test.AssertEqualRanges(t, gotFile.Range(), wantFile.blockRange)
+
+					wantRange := FixRange(s.RootDir(), wantFile.blockRange)
+					test.AssertEqualRanges(t, gotFile.Range(), wantRange)
 				}
 			}
 		})
