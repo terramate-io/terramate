@@ -24,27 +24,31 @@ import (
 	errtest "github.com/mineiros-io/terramate/test/errors"
 )
 
-func TestReportRepresentation(t *testing.T) {
+func TestReportFull(t *testing.T) {
 	t.Parallel()
 
 	type testcase struct {
-		name   string
-		report generate.Report
-		want   string
+		name        string
+		report      generate.Report
+		wantFull    string
+		wantMinimal string
 	}
 
 	tcases := []testcase{
 		{
-			name:   "empty report",
-			report: generate.Report{},
-			want:   "Nothing to do, generated code is up to date",
+			name:        "empty report",
+			report:      generate.Report{},
+			wantFull:    "Nothing to do, generated code is up to date",
+			wantMinimal: "",
 		},
 		{
 			name: "with bootstrap err",
 			report: generate.Report{
 				BootstrapErr: errors.E("such fail, much terrible"),
 			},
-			want: `Fatal failure preparing for code generation.
+			wantFull: `Fatal failure preparing for code generation.
+Error details: such fail, much terrible`,
+			wantMinimal: `Fatal failure preparing for code generation.
 Error details: such fail, much terrible`,
 		},
 		{
@@ -63,7 +67,9 @@ Error details: such fail, much terrible`,
 					},
 				},
 			},
-			want: `Fatal failure preparing for code generation.
+			wantFull: `Fatal failure preparing for code generation.
+Error details: ignore`,
+			wantMinimal: `Fatal failure preparing for code generation.
 Error details: ignore`,
 		},
 		{
@@ -90,7 +96,7 @@ Error details: ignore`,
 					},
 				},
 			},
-			want: `Code generation report
+			wantFull: `Code generation report
 
 Successes:
 
@@ -112,6 +118,15 @@ Successes:
 	[-] removed2.tf
 
 Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
+			wantMinimal: `Created file /test/test
+Changed file /test2/test
+Deleted file /test3/test
+Created file /test4/created1.tf
+Created file /test4/created2.tf
+Changed file /test4/changed.tf
+Changed file /test4/changed2.tf
+Deleted file /test4/removed1.tf
+Deleted file /test4/removed2.tf`,
 		},
 		{
 			name: "failure results",
@@ -134,7 +149,7 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 					},
 				},
 			},
-			want: `Code generation report
+			wantFull: `Code generation report
 
 Failures:
 
@@ -151,6 +166,14 @@ Failures:
 	[-] removed2.tf
 
 Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
+			wantMinimal: `Error on /test: full error
+Error on /test2: partial error
+Created file /test2/created1.tf
+Created file /test2/created2.tf
+Changed file /test2/changed.tf
+Changed file /test2/changed2.tf
+Deleted file /test2/removed1.tf
+Deleted file /test2/removed2.tf`,
 		},
 		{
 			name: "partial result",
@@ -184,7 +207,7 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 					},
 				},
 			},
-			want: `Code generation report
+			wantFull: `Code generation report
 
 Successes:
 
@@ -207,6 +230,14 @@ Failures:
 	error: error
 
 Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
+			wantMinimal: `Created file /success/created.tf
+Changed file /success/changed.tf
+Deleted file /success/removed.tf
+Created file /success2/created.tf
+Changed file /success2/changed.tf
+Deleted file /success2/removed.tf
+Error on /failed: error
+Error on /failed2: error`,
 		},
 		{
 			name: "error result is a list",
@@ -235,7 +266,7 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 					},
 				},
 			},
-			want: `Code generation report
+			wantFull: `Code generation report
 
 Failures:
 
@@ -249,6 +280,9 @@ Failures:
 	error: error2
 
 Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
+			wantMinimal: `Error on /failed: error
+Error on /failed2: error1
+Error on /failed2: error2`,
 		},
 		{
 			name: "cleanup error result",
@@ -263,7 +297,7 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 				},
 				CleanupErr: errors.E("cleanup error"),
 			},
-			want: `Code generation report
+			wantFull: `Code generation report
 
 Successes:
 
@@ -276,6 +310,11 @@ Fatal failure while cleaning up generated code outside stacks:
 	error: cleanup error
 
 Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
+			wantMinimal: `Created file /success/created.tf
+Changed file /success/changed.tf
+Deleted file /success/removed.tf
+Fatal failure while cleaning up generated code outside stacks:
+	error: cleanup error`,
 		},
 	}
 
@@ -284,10 +323,20 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := tcase.report.String()
-			if diff := cmp.Diff(got, tcase.want); diff != "" {
+			got := tcase.report.Full()
+			if diff := cmp.Diff(got, tcase.wantFull); diff != "" {
+				t.Error("full report failed")
 				t.Errorf("got:\n%s\n", got)
-				t.Errorf("want:\n%s\n", tcase.want)
+				t.Errorf("want:\n%s\n", tcase.wantFull)
+				t.Error("diff: got(-), want(+)")
+				t.Fatal(diff)
+			}
+
+			got = tcase.report.Minimal()
+			if diff := cmp.Diff(got, tcase.wantMinimal); diff != "" {
+				t.Error("minimal report failed")
+				t.Errorf("got:\n%s\n", got)
+				t.Errorf("want:\n%s\n", tcase.wantMinimal)
 				t.Error("diff: got(-), want(+)")
 				t.Fatal(diff)
 			}

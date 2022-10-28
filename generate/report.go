@@ -64,7 +64,8 @@ func (r Report) HasFailures() bool {
 	return r.BootstrapErr != nil || len(r.Failures) > 0
 }
 
-func (r Report) String() string {
+// Full provides a full report of the generated code, including information per stack.
+func (r Report) Full() string {
 	if r.empty() {
 		return "Nothing to do, generated code is up to date"
 	}
@@ -136,6 +137,57 @@ func (r Report) String() string {
 
 	if needsHint {
 		addLine("Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.")
+	}
+
+	return strings.Join(report, "\n")
+}
+
+// Minimal provides a minimal report of the generated code.
+// It only lists created/deleted/changed files in a per file manner.
+func (r Report) Minimal() string {
+	if r.empty() {
+		return ""
+	}
+	if r.BootstrapErr != nil {
+		return fmt.Sprintf(
+			"Fatal failure preparing for code generation.\nError details: %v",
+			r.BootstrapErr,
+		)
+	}
+	report := []string{}
+	addLine := func(msg string, args ...interface{}) {
+		report = append(report, fmt.Sprintf(msg, args...))
+	}
+	addResult := func(res Result) {
+		for _, c := range res.Created {
+			addLine("Created file %s/%s", res.Dir, c)
+		}
+		for _, c := range res.Changed {
+			addLine("Changed file %s/%s", res.Dir, c)
+		}
+		for _, c := range res.Deleted {
+			addLine("Deleted file %s/%s", res.Dir, c)
+		}
+	}
+
+	for _, success := range r.Successes {
+		addResult(success)
+	}
+
+	for _, failure := range r.Failures {
+		if list, ok := failure.Error.(*errors.List); ok {
+			for _, err := range list.Errors() {
+				addLine("Error on %s: %v", failure.Dir, err)
+			}
+		} else {
+			addLine("Error on %s: %v", failure.Dir, failure.Error)
+		}
+		addResult(failure.Result)
+	}
+
+	if r.CleanupErr != nil {
+		addLine("Fatal failure while cleaning up generated code outside stacks:")
+		addLine("\terror: %s", r.CleanupErr)
 	}
 
 	return strings.Join(report, "\n")
