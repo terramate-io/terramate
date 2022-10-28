@@ -90,8 +90,10 @@ type LoadResult struct {
 // a non-nil error. In this case the error is not specific to generating code for a
 // specific dir.
 func Load(cfg *config.Tree) ([]LoadResult, error) {
-	// TODO(katcipis): handle stack loading error
-	stacks, _ := stack.LoadAll(cfg)
+	stacks, err := stack.LoadAll(cfg)
+	if err != nil {
+		return nil, err
+	}
 	projmeta := stack.NewProjectMetadata(cfg.RootDir(), stacks)
 	results := make([]LoadResult, len(stacks))
 

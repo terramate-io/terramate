@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
+	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	. "github.com/mineiros-io/terramate/test/hclutils"
 	. "github.com/mineiros-io/terramate/test/hclutils/info"
@@ -324,6 +325,14 @@ func TestLoad(t *testing.T) {
 					},
 				},
 			},
+		},
+		{
+			name: "partial result failing to list stacks",
+			layout: []string{
+				"s:stack-1:id=duplicated",
+				"s:stack-2:id=duplicated",
+			},
+			wantErr: errors.E(stack.ErrDuplicatedID),
 		},
 		{
 			name: "partial result failing to load globals",
