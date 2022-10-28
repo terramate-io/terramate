@@ -41,8 +41,8 @@ func TestHCLParserConfigRun(t *testing.T) {
 		// We generate the code from the expressions in order to compare it but for that
 		// we need an origin file/data to get the tokens for each expression,
 		// hence all this x_x.
-		tmpdir := t.TempDir()
-		filepath := filepath.Join(tmpdir, "test_file.hcl")
+		rootdir := t.TempDir()
+		filepath := filepath.Join(rootdir, "test_file.hcl")
 		assert.NoError(t, os.WriteFile(filepath, []byte(rawattributes), 0700))
 
 		parser := hclparse.NewParser()
@@ -55,7 +55,7 @@ func TestHCLParserConfigRun(t *testing.T) {
 		attrs := make(ast.Attributes)
 
 		for name, attr := range body.Attributes {
-			attrs[name] = ast.NewAttribute(filepath, attr.AsHCLAttribute())
+			attrs[name] = ast.NewAttribute(rootdir, attr.AsHCLAttribute())
 		}
 
 		return hcl.Config{

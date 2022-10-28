@@ -27,6 +27,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/fmt"
+	"github.com/mineiros-io/terramate/hcl/info"
 
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/lets"
@@ -41,7 +42,7 @@ import (
 // about the origin of the generated code.
 type HCL struct {
 	label     string
-	origin    project.Path
+	origin    info.Range
 	body      string
 	condition bool
 	asserts   []config.Assert
@@ -100,7 +101,7 @@ func (h HCL) Header() string {
 	return stdfmt.Sprintf(
 		"%s\n// TERRAMATE: originated from generate_hcl block on %s\n\n",
 		Header,
-		h.origin,
+		h.origin.Path(),
 	)
 }
 
@@ -110,9 +111,8 @@ func (h HCL) Body() string {
 	return string(h.body)
 }
 
-// Origin returns the path, relative to the project root,
-// of the configuration that originated the code.
-func (h HCL) Origin() project.Path {
+// Range returns the range information of the generate_file block.
+func (h HCL) Range() info.Range {
 	return h.origin
 }
 
@@ -123,7 +123,7 @@ func (h HCL) Condition() bool {
 
 func (h HCL) String() string {
 	return stdfmt.Sprintf("Generating file %q (condition %t) (body %q) (origin %q)",
-		h.Label(), h.Condition(), h.Body(), h.Origin())
+		h.Label(), h.Condition(), h.Body(), h.Range().HostPath())
 }
 
 // Load loads from the file system all generate_hcl for
@@ -160,7 +160,6 @@ func Load(
 	var hcls []HCL
 	for _, hclBlock := range hclBlocks {
 		name := hclBlock.Label
-		origin := project.PrjAbsPath(tree.RootDir(), hclBlock.Origin)
 		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
 		err := lets.Load(hclBlock.Lets, evalctx.Context)
 		if err != nil {
@@ -186,7 +185,7 @@ func Load(
 		if !condition {
 			hcls = append(hcls, HCL{
 				label:     name,
-				origin:    origin,
+				origin:    hclBlock.Range,
 				condition: condition,
 			})
 
@@ -216,7 +215,7 @@ func Load(
 		if assertFailed {
 			hcls = append(hcls, HCL{
 				label:     name,
-				origin:    origin,
+				origin:    hclBlock.Range,
 				condition: condition,
 				asserts:   asserts,
 			})
@@ -230,7 +229,7 @@ func Load(
 			)
 		}
 
-		formatted, err := fmt.FormatMultiline(string(gen.Bytes()), hclBlock.Origin)
+		formatted, err := fmt.FormatMultiline(string(gen.Bytes()), hclBlock.Range.HostPath())
 		if err != nil {
 			panic(errors.E(sm, err,
 				"internal error: formatting generated code for generate_hcl %q:%s", name, string(gen.Bytes()),
@@ -238,7 +237,7 @@ func Load(
 		}
 		hcls = append(hcls, HCL{
 			label:     name,
-			origin:    origin,
+			origin:    hclBlock.Range,
 			body:      formatted,
 			condition: condition,
 			asserts:   asserts,

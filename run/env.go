@@ -83,8 +83,7 @@ func LoadEnv(cfg *config.Tree, projmeta project.Metadata, st *stack.S) (EnvVars,
 
 		val, err := evalctx.Eval(attr.Expr)
 		if err != nil {
-			return nil, errors.E(ErrEval, attr.NameRange,
-				err, "attribute origin %s", attr.Origin)
+			return nil, errors.E(ErrEval, err)
 		}
 
 		logger.Trace().Msg("checking evaluated value type")
@@ -92,10 +91,9 @@ func LoadEnv(cfg *config.Tree, projmeta project.Metadata, st *stack.S) (EnvVars,
 		if val.Type() != cty.String {
 			return nil, errors.E(
 				ErrInvalidEnvVarType,
-				attr.NameRange,
-				"attr has type %s but must be string, attribute origin %s",
+				attr.Range,
+				"attr has type %s but must be string",
 				val.Type().FriendlyName(),
-				attr.Origin,
 			)
 		}
 		envVars = append(envVars, attr.Name+"="+val.AsString())

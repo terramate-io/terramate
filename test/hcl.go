@@ -28,6 +28,8 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/hcl/info"
+	"github.com/mineiros-io/terramate/project"
 )
 
 // ParseTerramateConfig parses the Terramate configuration found
@@ -126,6 +128,47 @@ func AssertConfigEquals(t *testing.T, got, want []config.Assert) {
 	}
 }
 
+// AssertEqualPos checks if two ast.Pos are equal.
+func AssertEqualPos(t *testing.T, got, want info.Pos, fmtargs ...any) {
+	t.Helper()
+
+	msg := prefixer(fmtargs...)
+
+	assert.EqualInts(t, want.Line(), got.Line(), msg("line mismatch"))
+	assert.EqualInts(t, want.Column(), got.Column(), msg("column mismatch"))
+	assert.EqualInts(t, want.Byte(), got.Byte(), msg("byte mismatch"))
+}
+
+// AssertEqualRanges checks if two ranges are equal.
+// If the wanted range is zero value of the type no check will be performed since
+// this communicates that the caller is not interested on validating the range.
+func AssertEqualRanges(t *testing.T, got, want info.Range, fmtargs ...any) {
+	t.Helper()
+
+	if isZeroRange(want) {
+		return
+	}
+
+	msg := prefixer(fmtargs...)
+
+	assert.EqualStrings(t, want.HostPath(), got.HostPath(), msg("host path mismatch"))
+	AssertEqualPaths(t, got.Path(), want.Path(), msg("path mismatch"))
+	AssertEqualPos(t, got.Start(), want.Start(), msg("start pos mismatch"))
+	AssertEqualPos(t, got.End(), want.End(), msg("end pos mismatch"))
+}
+
+// AssertEqualPaths checks if two paths are equal.
+func AssertEqualPaths(t *testing.T, got, want project.Path, fmtargs ...any) {
+	t.Helper()
+
+	if len(fmtargs) > 0 {
+		assert.EqualStrings(t, want.String(), got.String(),
+			fmt.Sprintf(fmtargs[0].(string), fmtargs[1:]...))
+	} else {
+		assert.EqualStrings(t, want.String(), got.String())
+	}
+}
+
 func assertAssertsBlock(t *testing.T, got, want []hcl.AssertConfig, ctx string) {
 	t.Helper()
 
@@ -135,16 +178,17 @@ func assertAssertsBlock(t *testing.T, got, want []hcl.AssertConfig, ctx string) 
 
 	for i, g := range got {
 		w := want[i]
-		assert.EqualStrings(t, w.Origin, g.Origin, "%s: origin mismatch", ctx)
+		newctx := fmt.Sprintf("%s: assert %d", ctx, i)
+		AssertEqualRanges(t, g.Range, w.Range, "%s: range mismatch", newctx)
 		assert.EqualStrings(t,
 			exprAsStr(t, w.Assertion), exprAsStr(t, g.Assertion),
-			"%s: assertion expr mismatch", ctx)
+			"%s: assertion expr mismatch", newctx)
 		assert.EqualStrings(t,
 			exprAsStr(t, w.Message), exprAsStr(t, g.Message),
-			"%s: message expr mismatch", ctx)
+			"%s: message expr mismatch", newctx)
 		assert.EqualStrings(t,
 			exprAsStr(t, w.Warning), exprAsStr(t, g.Warning),
-			"%s: warning expr mismatch", ctx)
+			"%s: warning expr mismatch", newctx)
 	}
 }
 
@@ -220,7 +264,7 @@ func assertGenHCLBlocks(t *testing.T, got, want []hcl.GenHCLBlock) {
 
 	for i, gotBlock := range got {
 		wantBlock := want[i]
-		assert.EqualStrings(t, wantBlock.Origin, gotBlock.Origin, "genhcl origin differs")
+		AssertEqualRanges(t, gotBlock.Range, wantBlock.Range, "genhcl range differs")
 		assert.EqualStrings(t, wantBlock.Label, gotBlock.Label, "genhcl label differs")
 		assertAssertsBlock(t, gotBlock.Asserts, wantBlock.Asserts, "genhcl asserts")
 	}
@@ -234,7 +278,7 @@ func assertGenFileBlocks(t *testing.T, got, want []hcl.GenFileBlock) {
 
 	for i, gotBlock := range got {
 		wantBlock := want[i]
-		assert.EqualStrings(t, wantBlock.Origin, gotBlock.Origin, "genfile origin differs")
+		AssertEqualRanges(t, gotBlock.Range, wantBlock.Range, "genfile range differs")
 		assert.EqualStrings(t, wantBlock.Label, gotBlock.Label, "genfile label differs")
 		assertAssertsBlock(t, gotBlock.Asserts, wantBlock.Asserts, "genfile asserts")
 	}
@@ -289,22 +333,24 @@ func hclFromAttributes(t *testing.T, attrs ast.Attributes) string {
 	attrList := attrs.SortedList()
 
 	filesRead := map[string][]byte{}
-	readFileRange := func(filename string, frange hhcl.Range) []byte {
+	readFileRange := func(frange info.Range) []byte {
 		t.Helper()
 
+		filename := frange.HostPath()
+
 		if file, ok := filesRead[filename]; ok {
-			return file[frange.Start.Byte:frange.End.Byte]
+			return file[frange.Start().Byte():frange.End().Byte()]
 		}
 
 		file, err := os.ReadFile(filename)
 		assert.NoError(t, err, "reading origin file")
 
 		filesRead[filename] = file
-		return file[frange.Start.Byte:frange.End.Byte]
+		return file[frange.Start().Byte():frange.End().Byte()]
 	}
 
 	for _, attr := range attrList {
-		tokens, err := eval.TokensForExpressionBytes(readFileRange(attr.Origin, attr.Range))
+		tokens, err := eval.TokensForExpressionBytes(readFileRange(attr.Range))
 		assert.NoError(t, err)
 		body.SetAttributeRaw(attr.Name, tokens)
 	}
@@ -350,4 +396,26 @@ func removeTerramateHCLHeader(code string) string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+// prefixer ass the given fmtargs as a prefix of any string passed
+// to the returned function, if any. If fmtargs is empty then no prefix is added.
+func prefixer(fmtargs ...any) func(string) string {
+	prefix := ""
+
+	if len(fmtargs) > 0 {
+		prefix = fmt.Sprintf(fmtargs[0].(string), fmtargs[1:]...)
+	}
+
+	return func(s string) string {
+		if prefix != "" {
+			return fmt.Sprintf("%s: %s", prefix, s)
+		}
+		return s
+	}
+}
+
+func isZeroRange(r info.Range) bool {
+	var zero info.Range
+	return zero == r
 }

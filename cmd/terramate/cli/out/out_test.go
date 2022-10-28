@@ -12,19 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package test
+package out_test
 
 import (
-	"path/filepath"
+	"bytes"
+	"testing"
 
-	"github.com/mineiros-io/terramate/config"
+	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/cmd/terramate/cli/out"
 )
 
-// FixupRangeOnAsserts fixes the range on all the given asserts.
-// It assumes the asserts where created with relative paths and will
-// join the relative path with the given dir to provide a final absolute path.
-func FixupRangeOnAsserts(dir string, asserts []config.Assert) {
-	for i := range asserts {
-		asserts[i].Range.Filename = filepath.Join(dir, asserts[i].Range.Filename)
-	}
+func TestOutput(t *testing.T) {
+	stdout := bytes.Buffer{}
+	stderr := bytes.Buffer{}
+	o := out.New(out.V, &stdout, &stderr)
+
+	o.Msg(out.V, "message1")
+	o.Msg(out.V, "message%d", 2)
+	o.Msg(out.VV, "message3")
+	o.Msg(out.VVV, "message4")
+
+	o.Err(out.V, "err1")
+	o.Err(out.V, "err%d", 2)
+	o.Err(out.VV, "err3")
+	o.Err(out.VVV, "err4")
+
+	assert.EqualStrings(t, "message1\nmessage2\n", stdout.String())
+	assert.EqualStrings(t, "err1\nerr2\n", stderr.String())
 }

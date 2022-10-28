@@ -62,7 +62,6 @@ func TestGenerateFileAssert(t *testing.T) {
 				{
 					name: "asserts.hcl",
 					file: genFile{
-						origin:    "/stack/generate.tm",
 						condition: true,
 						body:      "value",
 						asserts: []config.Assert{
@@ -106,7 +105,6 @@ func TestGenerateFileAssert(t *testing.T) {
 				{
 					name: "asserts.hcl",
 					file: genFile{
-						origin:    "/stack/generate.tm",
 						condition: true,
 						body:      "",
 						asserts: []config.Assert{
@@ -146,7 +144,6 @@ func TestGenerateFileAssert(t *testing.T) {
 				{
 					name: "asserts.hcl",
 					file: genFile{
-						origin:    "/stack/generate.tm",
 						condition: false,
 						body:      "",
 					},
@@ -178,7 +175,6 @@ func TestGenerateFileAssert(t *testing.T) {
 				{
 					name: "asserts.hcl",
 					file: genFile{
-						origin:    "/stack/generate.tm",
 						condition: true,
 						body:      "generating code is fun",
 						asserts: []config.Assert{
