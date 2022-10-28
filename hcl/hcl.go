@@ -218,6 +218,8 @@ type GenFileBlock struct {
 	Lets hclsyntax.Blocks
 	// Condition attribute of the block, if any.
 	Condition *hclsyntax.Attribute
+	// Context of the generate file (stack or root).
+	Context *hclsyntax.Attribute
 	// Content attribute of the block
 	Content *hclsyntax.Attribute
 	// Asserts represents all assert blocks
@@ -820,6 +822,7 @@ func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
 		Asserts:   asserts,
 		Content:   block.Body.Attributes["content"],
 		Condition: block.Body.Attributes["condition"],
+		Context:   block.Body.Attributes["context"],
 	}, nil
 }
 
@@ -926,6 +929,10 @@ func validateGenerateFileBlock(block *ast.Block) error {
 			},
 			{
 				Name:     "condition",
+				Required: false,
+			},
+			{
+				Name:     "context",
 				Required: false,
 			},
 		},

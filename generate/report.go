@@ -21,7 +21,6 @@ import (
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/stack"
 )
 
 // Result represents code generation result
@@ -222,10 +221,10 @@ func (r *Report) sortFilenames() {
 	}
 }
 
-func (r *Report) addFailure(s *stack.S, err error) {
+func (r *Report) addFailure(path project.Path, err error) {
 	r.Failures = append(r.Failures, FailureResult{
 		Result: Result{
-			Dir: s.Path(),
+			Dir: path,
 		},
 		Error: err,
 	})
@@ -287,4 +286,25 @@ func (s dirReport) empty() bool {
 		len(s.changed) == 0 &&
 		len(s.deleted) == 0 &&
 		s.err == nil
+}
+
+func joinResults[T any](results ...[]T) []T {
+	all := []T{}
+	for _, r := range results {
+		all = append(all, r...)
+	}
+	if len(all) > 0 {
+		return all
+	}
+	return nil
+}
+
+func mergeReports(r1, r2 Report) Report {
+	merged := Report{}
+	merged.BootstrapErr = errors.L(r1.BootstrapErr, r2.BootstrapErr).AsError()
+	merged.CleanupErr = errors.L(r1.CleanupErr, r2.CleanupErr).AsError()
+
+	merged.Successes = joinResults(r1.Successes, r2.Successes)
+	merged.Failures = joinResults(r1.Failures, r2.Failures)
+	return merged
 }

@@ -145,6 +145,28 @@ func (tree *Tree) stacks() List {
 	return stacks
 }
 
+// DownwardGenerateFiles returns all generate_file blocks downward from current
+// node.
+func (tree *Tree) DownwardGenerateFiles() []hcl.GenFileBlock {
+	result := []hcl.GenFileBlock{}
+	result = append(result, tree.Node.Generate.Files...)
+	for _, children := range tree.Children {
+		result = append(result, children.DownwardGenerateFiles()...)
+	}
+	return result
+}
+
+// UpwardGenerateFiles returns all generate_file blocks upward from current
+// node.
+func (tree *Tree) UpwardGenerateFiles() []hcl.GenFileBlock {
+	result := []hcl.GenFileBlock{}
+	result = append(result, tree.Node.Generate.Files...)
+	if tree.Parent != nil {
+		result = append(result, tree.Parent.UpwardGenerateFiles()...)
+	}
+	return result
+}
+
 // Lookup a node from the tree using a filesystem query path.
 // The abspath is relative to the current tree node.
 func (tree *Tree) Lookup(abspath project.Path) (*Tree, bool) {

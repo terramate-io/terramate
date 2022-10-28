@@ -57,6 +57,8 @@ type File struct {
 	origin    info.Range
 	body      string
 	condition bool
+	scope     string
+	context   string
 	asserts   []config.Assert
 }
 
@@ -68,6 +70,11 @@ func (f File) Label() string {
 // Body returns the file body.
 func (f File) Body() string {
 	return f.body
+}
+
+// Scope returns the file's scope.
+func (f File) Scope() string {
+	return f.scope
 }
 
 // Range returns the range information of the generate_file block.
@@ -99,9 +106,9 @@ func (f File) String() string {
 		f.Label(), f.Condition(), f.Body(), f.Range().Path())
 }
 
-// Load loads and parses from the file system all generate_file blocks for
-// a given stack. It will navigate the file system from the stack dir until
-// it reaches rootdir, loading generate_file blocks found on Terramate
+// LoadStackContext loads and parses from the file system all generate_file
+// blocks for a given stack. It will navigate the file system from the stack dir
+// until it reaches rootdir, loading generate_file blocks found on Terramate
 // configuration files.
 //
 // All generate_file blocks must have unique labels, even ones at different
@@ -111,22 +118,44 @@ func (f File) String() string {
 // generate_file blocks.
 //
 // The rootdir MUST be an absolute path.
-func Load(
+func LoadStackContext(
 	cfg *config.Tree,
 	projmeta project.Metadata,
 	sm stack.Metadata,
 	globals *eval.Object,
 ) ([]File, error) {
-	genFileBlocks, err := loadGenFileBlocks(cfg, sm.Path())
-	if err != nil {
-		return nil, errors.E("loading generate_file", err)
-	}
+	genFileBlocks := loadScopedGenFileBlocks(cfg, sm.Path())
 
 	var files []File
 
 	for _, genFileBlock := range genFileBlocks {
 		name := genFileBlock.Label
 		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
+
+		context := "stack"
+		if genFileBlock.Context != nil {
+			val, err := evalctx.Eval(genFileBlock.Context.Expr)
+			if err != nil {
+				return nil, errors.E(
+					genFileBlock.Range,
+					err,
+					"failed to evaluate genfile context",
+				)
+			}
+			if val.Type() != cty.String {
+				return nil, errors.E(
+					"generate_file.context must be a string but given %s",
+					val.Type().FriendlyName(),
+				)
+			}
+			context = val.AsString()
+		}
+
+		// only handle stack context here.
+		if context != "stack" {
+			continue
+		}
+
 		err := lets.Load(genFileBlock.Lets, evalctx.Context)
 		if err != nil {
 			return nil, err
@@ -153,6 +182,7 @@ func Load(
 				label:     name,
 				origin:    genFileBlock.Range,
 				condition: condition,
+				context:   context,
 			})
 			continue
 		}
@@ -216,27 +246,15 @@ func Load(
 	return files, nil
 }
 
-// loadGenFileBlocks will load all generate_file blocks.
+// loadScopedGenFileBlocks will load all generate_file blocks.
 // The returned map maps the name of the block (its label)
 // to the original block and the path (relative to project root) of the config
 // from where it was parsed.
-func loadGenFileBlocks(tree *config.Tree, cfgdir project.Path) ([]hcl.GenFileBlock, error) {
+func loadScopedGenFileBlocks(tree *config.Tree, cfgdir project.Path) []hcl.GenFileBlock {
 	res := []hcl.GenFileBlock{}
 	cfg, ok := tree.Lookup(cfgdir)
-	if ok && !cfg.IsEmptyConfig() {
-		res = append(res, cfg.Node.Generate.Files...)
+	if ok {
+		res = append(res, cfg.UpwardGenerateFiles()...)
 	}
-
-	parentCfgDir := cfgdir.Dir()
-	if parentCfgDir == cfgdir {
-		return res, nil
-	}
-
-	parentRes, err := loadGenFileBlocks(tree, parentCfgDir)
-	if err != nil {
-		return nil, err
-	}
-
-	res = append(res, parentRes...)
-	return res, nil
+	return res
 }
