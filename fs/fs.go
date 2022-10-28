@@ -74,6 +74,7 @@ func FilterTerramateFiles(
 	return tmnames, nil
 }
 
+// FilterDirs filter directories from names which are of interest of Terramate.
 func FilterDirs(
 	basedir string, names []string, inspect ...func(name string),
 ) ([]string, error) {
