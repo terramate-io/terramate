@@ -726,10 +726,14 @@ func (c *cli) createStack() {
 		fatal(err, "creating stack")
 	}
 
-	c.output.Msg(out.V, "Created stack %s with success", c.parsedArgs.Create.Path)
-	c.output.Msg(out.V, "Generating code on the stack")
+	c.output.Msg(out.V, "Created stack %s", c.parsedArgs.Create.Path)
 
-	c.generate(stackDir)
+	report := generate.Do(c.cfg(), stackDir)
+	c.output.Msg(out.VV, report.Minimal())
+
+	if report.HasFailures() {
+		os.Exit(1)
+	}
 }
 
 func (c *cli) format() {
