@@ -136,6 +136,11 @@ type cliSpec struct {
 		Globals struct {
 		} `cmd:"" help:"List globals for all stacks"`
 
+		Generate struct {
+			Debug struct {
+			} `cmd:"" help:"Shows generate debug information"`
+		} `cmd:"" help:"Experimental generate commands"`
+
 		RunGraph struct {
 			Outfile string `short:"o" predictor:"file" default:"" help:"Output .dot file"`
 			Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\""`
@@ -391,6 +396,9 @@ func (c *cli) run() {
 	case "experimental globals":
 		c.setupGit()
 		c.printStacksGlobals()
+	case "experimental generate debug":
+		c.setupGit()
+		c.generateDebug()
 	case "experimental metadata":
 		c.setupGit()
 		c.printMetadata()
@@ -1010,6 +1018,10 @@ func (c *cli) printRunOrder() {
 	for _, s := range orderedStacks {
 		c.output.Msg(out.V, s.Name())
 	}
+}
+
+func (c *cli) generateDebug() {
+	// TODO(KATCIPIS)
 }
 
 func (c *cli) printStacksGlobals() {
