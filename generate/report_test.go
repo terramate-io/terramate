@@ -118,15 +118,15 @@ Successes:
 	[-] removed2.tf
 
 Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
-			wantMinimal: `Created /test/test
-Changed /test2/test
-Deleted /test3/test
-Created /test4/created1.tf
-Created /test4/created2.tf
-Changed /test4/changed.tf
-Changed /test4/changed2.tf
-Deleted /test4/removed1.tf
-Deleted /test4/removed2.tf`,
+			wantMinimal: `Created file /test/test
+Changed file /test2/test
+Deleted file /test3/test
+Created file /test4/created1.tf
+Created file /test4/created2.tf
+Changed file /test4/changed.tf
+Changed file /test4/changed2.tf
+Deleted file /test4/removed1.tf
+Deleted file /test4/removed2.tf`,
 		},
 		{
 			name: "failure results",
@@ -168,12 +168,12 @@ Failures:
 Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
 			wantMinimal: `Error on /test: full error
 Error on /test2: partial error
-Created /test2/created1.tf
-Created /test2/created2.tf
-Changed /test2/changed.tf
-Changed /test2/changed2.tf
-Deleted /test2/removed1.tf
-Deleted /test2/removed2.tf`,
+Created file /test2/created1.tf
+Created file /test2/created2.tf
+Changed file /test2/changed.tf
+Changed file /test2/changed2.tf
+Deleted file /test2/removed1.tf
+Deleted file /test2/removed2.tf`,
 		},
 		{
 			name: "partial result",
@@ -230,12 +230,12 @@ Failures:
 	error: error
 
 Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
-			wantMinimal: `Created /success/created.tf
-Changed /success/changed.tf
-Deleted /success/removed.tf
-Created /success2/created.tf
-Changed /success2/changed.tf
-Deleted /success2/removed.tf
+			wantMinimal: `Created file /success/created.tf
+Changed file /success/changed.tf
+Deleted file /success/removed.tf
+Created file /success2/created.tf
+Changed file /success2/changed.tf
+Deleted file /success2/removed.tf
 Error on /failed: error
 Error on /failed2: error`,
 		},
@@ -310,9 +310,9 @@ Fatal failure while cleaning up generated code outside stacks:
 	error: cleanup error
 
 Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.`,
-			wantMinimal: `Created /success/created.tf
-Changed /success/changed.tf
-Deleted /success/removed.tf
+			wantMinimal: `Created file /success/created.tf
+Changed file /success/changed.tf
+Deleted file /success/removed.tf
 Fatal failure while cleaning up generated code outside stacks:
 	error: cleanup error`,
 		},

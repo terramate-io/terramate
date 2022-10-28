@@ -160,13 +160,13 @@ func (r Report) Minimal() string {
 	}
 	addResult := func(res Result) {
 		for _, c := range res.Created {
-			addLine("Created %s/%s", res.Dir, c)
+			addLine("Created file %s/%s", res.Dir, c)
 		}
 		for _, c := range res.Changed {
-			addLine("Changed %s/%s", res.Dir, c)
+			addLine("Changed file %s/%s", res.Dir, c)
 		}
 		for _, c := range res.Deleted {
-			addLine("Deleted %s/%s", res.Dir, c)
+			addLine("Deleted file %s/%s", res.Dir, c)
 		}
 	}
 
