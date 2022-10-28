@@ -96,20 +96,22 @@ func Load(cfg *config.Tree) ([]LoadResult, error) {
 	results := make([]LoadResult, len(stacks))
 
 	for i, st := range stacks {
+		res := LoadResult{Dir: st.Path()}
 		loadres := stack.LoadStackGlobals(cfg, projmeta, st)
-		// TODO(KATCIPIS): handle error
-		//if err := globalsReport.AsError(); err != nil {
-		//continue
-		//}
-
-		generated, _ := loadStackCodeCfgs(cfg, projmeta, st, loadres.Globals)
-		// TODO(KATCIPIS): handle error
-		//if err != nil {
-		//}
-		results[i] = LoadResult{
-			Dir:   st.Path(),
-			Files: generated,
+		if err := loadres.AsError(); err != nil {
+			res.Err = err
+			results[i] = res
+			continue
 		}
+
+		generated, err := loadStackCodeCfgs(cfg, projmeta, st, loadres.Globals)
+		if err != nil {
+			res.Err = err
+			results[i] = res
+			continue
+		}
+		res.Files = generated
+		results[i] = res
 	}
 	return results, nil
 }

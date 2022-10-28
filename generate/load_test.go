@@ -19,7 +19,10 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/globals"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test"
@@ -319,6 +322,160 @@ func TestLoad(t *testing.T) {
 							condition: true,
 						},
 					},
+				},
+			},
+		},
+		{
+			name: "partial result failing to load globals",
+			layout: []string{
+				"s:stack-1",
+				"s:stack-2",
+				"s:stack-3",
+			},
+			configs: []file{
+				{
+					path: "config.tm",
+					body: Doc(
+						GenerateHCL(
+							Labels("test.hcl"),
+							Content(
+								Str("stacks", "test"),
+							),
+						),
+						GenerateFile(
+							Labels("test.txt"),
+							Str("content", "test"),
+						),
+					),
+				},
+				{
+					path: "stack-1/config.tm",
+					body: Doc(
+						Globals(
+							Expr("a", "global.undefined"),
+						),
+					),
+				},
+				{
+					path: "stack-2/config.tm",
+					body: Doc(
+						Globals(
+							Expr("a", "global.undefined"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					dir: "/stack-1",
+					err: errors.E(globals.ErrEval),
+				},
+				{
+					dir: "/stack-2",
+					err: errors.E(globals.ErrEval),
+				},
+				{
+					dir: "/stack-3",
+					files: []genfile{
+						{
+							label:     "test.hcl",
+							condition: true,
+							blockRange: Range(
+								"/config.tm",
+								Start(1, 1, 0),
+								End(5, 2, 63),
+							),
+						},
+						{
+							label:     "test.txt",
+							condition: true,
+							blockRange: Range(
+								"/config.tm",
+								Start(6, 1, 64),
+								End(8, 2, 111),
+							),
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "partial result failing to generate code",
+			layout: []string{
+				"s:stack-1",
+				"s:stack-2",
+				"s:stack-3",
+			},
+			configs: []file{
+				{
+					path: "config.tm",
+					body: Doc(
+						GenerateHCL(
+							Labels("test.hcl"),
+							Content(
+								Str("stacks", "test"),
+							),
+						),
+						GenerateFile(
+							Labels("test.txt"),
+							Str("content", "test"),
+						),
+					),
+				},
+				{
+					path: "stack-2/config.tm",
+					body: Doc(
+						GenerateHCL(
+							Labels("test.hcl"),
+							Content(
+								Expr("stacks", "global.undefined"),
+							),
+						),
+					),
+				},
+				{
+					path: "stack-3/config.tm",
+					body: Doc(
+						GenerateHCL(
+							Labels("test.hcl"),
+							Content(
+								Expr("stacks", "global.undefined"),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					dir: "/stack-1",
+					files: []genfile{
+						{
+							label:     "test.hcl",
+							condition: true,
+							blockRange: Range(
+								"/config.tm",
+								Start(1, 1, 0),
+								End(5, 2, 63),
+							),
+						},
+						{
+							label:     "test.txt",
+							condition: true,
+							blockRange: Range(
+								"/config.tm",
+								Start(6, 1, 64),
+								End(8, 2, 111),
+							),
+						},
+					},
+				},
+				{
+					dir: "/stack-2",
+					err: errors.E(eval.ErrPartial),
+				},
+				{
+					dir: "/stack-3",
+					err: errors.E(eval.ErrPartial),
 				},
 			},
 		},
