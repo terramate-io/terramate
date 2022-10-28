@@ -1262,7 +1262,7 @@ func (c *cli) checkOutdatedGeneratedCode(stacks stack.List) {
 
 	logger.Trace().Msg("checking if any stack has outdated code")
 
-	outdatedFiles, err := generate.Check(c.cfg())
+	outdatedFiles, err := generate.DetectOutdated(c.cfg())
 
 	if err != nil {
 		fatal(err, "failed to check outdated code on project")
