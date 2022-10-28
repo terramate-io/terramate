@@ -64,6 +64,13 @@ type (
 // Path returns the global accessor path (labels + attribute name).
 func (a GlobalPathKey) Path() []string { return a.path[:a.numPaths] }
 
+func (a GlobalPathKey) rootname() string {
+	if a.numPaths == 0 {
+		return ""
+	}
+	return a.path[0]
+}
+
 // Load loads all the globals from the cfgdir.
 func Load(tree *config.Tree, cfgdir project.Path, ctx *eval.Context) EvalReport {
 	logger := log.With().
@@ -258,7 +265,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 				pendingExprsErrs[accessor].Append(
 					errors.E(hcl.ErrTerramateSchema, expr.Range(),
 						"global.%s attribute redefined: previously defined at %s",
-						accessor, v.Origin().String()))
+						accessor.rootname(), v.Origin().String()))
 
 				continue
 			}
@@ -267,7 +274,8 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 			val, err := ctx.Eval(expr)
 			if err != nil {
-				pendingExprsErrs[accessor].Append(errors.E(ErrEval, err, "global.%s", accessor))
+				pendingExprsErrs[accessor].Append(errors.E(
+					ErrEval, err, "global.%s", accessor.rootname()))
 				continue
 			}
 
@@ -295,7 +303,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 	for accessor, expr := range pendingExprs {
 		err := pendingExprsErrs[accessor].AsError()
 		if err == nil {
-			err = errors.E(expr.Range(), "undefined global %v", accessor.Path())
+			err = errors.E(expr.Range(), "undefined global.%s", accessor.rootname())
 		}
 		report.Errors[accessor] = EvalError{
 			Expr: expr,
