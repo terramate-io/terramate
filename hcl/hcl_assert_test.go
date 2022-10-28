@@ -6,8 +6,7 @@
 //
 //      http://www.apache.org/licenses/LICENSE-2.0
 //
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
+// Unless required by applicable law or agreed to in writing, software // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
@@ -21,6 +20,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	. "github.com/mineiros-io/terramate/test/hclutils"
+	. "github.com/mineiros-io/terramate/test/hclutils/info"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
@@ -42,7 +42,6 @@ func TestHCLParserAssert(t *testing.T) {
 				config: hcl.Config{
 					Asserts: []hcl.AssertConfig{
 						{
-							Origin:    "assert.tm",
 							Assertion: expr(t, "1 == 1"),
 							Message:   expr(t, "global.message"),
 						},
@@ -66,7 +65,6 @@ func TestHCLParserAssert(t *testing.T) {
 				config: hcl.Config{
 					Asserts: []hcl.AssertConfig{
 						{
-							Origin:    "assert.tm",
 							Assertion: expr(t, "1 == 1"),
 							Message:   expr(t, "global.message"),
 							Warning:   expr(t, "true"),
@@ -96,12 +94,10 @@ func TestHCLParserAssert(t *testing.T) {
 				config: hcl.Config{
 					Asserts: []hcl.AssertConfig{
 						{
-							Origin:    "assert.tm",
 							Assertion: expr(t, "1 == 1"),
 							Message:   expr(t, "global.message"),
 						},
 						{
-							Origin:    "assert.tm",
 							Assertion: expr(t, "666 == 1"),
 							Message:   expr(t, "global.another"),
 						},
@@ -131,12 +127,53 @@ func TestHCLParserAssert(t *testing.T) {
 				config: hcl.Config{
 					Asserts: []hcl.AssertConfig{
 						{
-							Origin:    "assert.tm",
 							Assertion: expr(t, "1 == 1"),
 							Message:   expr(t, "global.message"),
 						},
 						{
-							Origin:    "assert2.tm",
+							Assertion: expr(t, "666 == 1"),
+							Message:   expr(t, "global.another"),
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "multiple asserts on multiple files have proper range",
+			input: []cfgfile{
+				{
+					filename: "assert.tm",
+					body: Assert(
+						Expr("assertion", "1 == 1"),
+						Expr("message", "global.message"),
+					).String(),
+				},
+				{
+					filename: "assert2.tm",
+					body: Assert(
+						Expr("assertion", "666 == 1"),
+						Expr("message", "global.another"),
+					).String(),
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Asserts: []hcl.AssertConfig{
+						{
+							Range: Range(
+								"assert.tm",
+								Start(1, 1, 0),
+								End(4, 2, 60),
+							),
+							Assertion: expr(t, "1 == 1"),
+							Message:   expr(t, "global.message"),
+						},
+						{
+							Range: Range(
+								"assert2.tm",
+								Start(1, 1, 0),
+								End(4, 2, 62),
+							),
 							Assertion: expr(t, "666 == 1"),
 							Message:   expr(t, "global.another"),
 						},
@@ -281,11 +318,9 @@ func TestHCLParserAssertInsideGenerate(t *testing.T) {
 					Generate: hcl.GenerateConfig{
 						Files: []hcl.GenFileBlock{
 							{
-								Origin: "assert_genfile.tm",
-								Label:  "file.txt",
+								Label: "file.txt",
 								Asserts: []hcl.AssertConfig{
 									{
-										Origin:    "assert_genfile.tm",
 										Assertion: expr(t, "1 == 1"),
 										Message:   expr(t, "global.message"),
 									},
@@ -294,11 +329,9 @@ func TestHCLParserAssertInsideGenerate(t *testing.T) {
 						},
 						HCLs: []hcl.GenHCLBlock{
 							{
-								Origin: "assert_genhcl.tm",
-								Label:  "file.hcl",
+								Label: "file.hcl",
 								Asserts: []hcl.AssertConfig{
 									{
-										Origin:    "assert_genhcl.tm",
 										Assertion: expr(t, "1 == 1"),
 										Message:   expr(t, "global.message"),
 									},
@@ -342,11 +375,9 @@ func TestHCLParserAssertInsideGenerate(t *testing.T) {
 					Generate: hcl.GenerateConfig{
 						Files: []hcl.GenFileBlock{
 							{
-								Origin: "assert_genfile.tm",
-								Label:  "file.txt",
+								Label: "file.txt",
 								Asserts: []hcl.AssertConfig{
 									{
-										Origin:    "assert_genfile.tm",
 										Assertion: expr(t, "1 == 1"),
 										Message:   expr(t, "global.message"),
 										Warning:   expr(t, "true"),
@@ -356,11 +387,9 @@ func TestHCLParserAssertInsideGenerate(t *testing.T) {
 						},
 						HCLs: []hcl.GenHCLBlock{
 							{
-								Origin: "assert_genhcl.tm",
-								Label:  "file.hcl",
+								Label: "file.hcl",
 								Asserts: []hcl.AssertConfig{
 									{
-										Origin:    "assert_genhcl.tm",
 										Assertion: expr(t, "1 == 1"),
 										Message:   expr(t, "global.message"),
 										Warning:   expr(t, "true"),
@@ -411,16 +440,13 @@ func TestHCLParserAssertInsideGenerate(t *testing.T) {
 					Generate: hcl.GenerateConfig{
 						Files: []hcl.GenFileBlock{
 							{
-								Origin: "assert_genfile.tm",
-								Label:  "file.txt",
+								Label: "file.txt",
 								Asserts: []hcl.AssertConfig{
 									{
-										Origin:    "assert_genfile.tm",
 										Assertion: expr(t, "1 == 1"),
 										Message:   expr(t, "global.message"),
 									},
 									{
-										Origin:    "assert_genfile.tm",
 										Assertion: expr(t, "1 == 666"),
 										Message:   expr(t, "global.file"),
 									},
@@ -429,16 +455,104 @@ func TestHCLParserAssertInsideGenerate(t *testing.T) {
 						},
 						HCLs: []hcl.GenHCLBlock{
 							{
-								Origin: "assert_genhcl.tm",
-								Label:  "file.hcl",
+								Label: "file.hcl",
 								Asserts: []hcl.AssertConfig{
 									{
-										Origin:    "assert_genhcl.tm",
 										Assertion: expr(t, "1 == 1"),
 										Message:   expr(t, "global.message"),
 									},
 									{
-										Origin:    "assert_genhcl.tm",
+										Assertion: expr(t, "2 == 666"),
+										Message:   expr(t, "global.hcl"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "multiple asserts blocks with range",
+			input: []cfgfile{
+				{
+					filename: "assert_genfile.tm",
+					body: GenerateFile(
+						Labels("file.txt"),
+						Str("content", "terramate is awesome"),
+						Assert(
+							Expr("assertion", "1 == 1"),
+							Expr("message", "global.message"),
+						),
+						Assert(
+							Expr("assertion", "1 == 666"),
+							Expr("message", "global.file"),
+						),
+					).String(),
+				},
+				{
+					filename: "assert_genhcl.tm",
+					body: GenerateHCL(
+						Labels("file.hcl"),
+						Content(),
+						Assert(
+							Expr("assertion", "1 == 1"),
+							Expr("message", "global.message"),
+						),
+						Assert(
+							Expr("assertion", "2 == 666"),
+							Expr("message", "global.hcl"),
+						),
+					).String(),
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Generate: hcl.GenerateConfig{
+						Files: []hcl.GenFileBlock{
+							{
+								Label: "file.txt",
+								Asserts: []hcl.AssertConfig{
+									{
+										Range: Range(
+											"assert_genfile.tm",
+											Start(3, 3, 64),
+											End(6, 4, 130),
+										),
+										Assertion: expr(t, "1 == 1"),
+										Message:   expr(t, "global.message"),
+									},
+									{
+										Range: Range(
+											"assert_genfile.tm",
+											Start(7, 3, 133),
+											End(10, 4, 198),
+										),
+										Assertion: expr(t, "1 == 666"),
+										Message:   expr(t, "global.file"),
+									},
+								},
+							},
+						},
+						HCLs: []hcl.GenHCLBlock{
+							{
+								Label: "file.hcl",
+								Asserts: []hcl.AssertConfig{
+									{
+										Range: Range(
+											"assert_genhcl.tm",
+											Start(4, 3, 44),
+											End(7, 4, 110),
+										),
+										Assertion: expr(t, "1 == 1"),
+										Message:   expr(t, "global.message"),
+									},
+									{
+										Range: Range(
+											"assert_genhcl.tm",
+											Start(8, 3, 113),
+											End(11, 4, 177),
+										),
 										Assertion: expr(t, "2 == 666"),
 										Message:   expr(t, "global.hcl"),
 									},

@@ -45,7 +45,7 @@ const MaxGlobalLabels = 256
 // It panics if a relative path is provided.
 func NewPath(p string) Path {
 	if !path.IsAbs(p) {
-		panic(fmt.Errorf("project path must be absolute but got %s", p))
+		panic(fmt.Errorf("project path must be absolute but got %q", p))
 	}
 	return Path(path.Clean(p))
 }
@@ -127,17 +127,14 @@ func (m Metadata) ToCtyMap() map[string]cty.Value {
 // PrjAbsPath converts the file system absolute path absdir into an absolute
 // project path on the form /path/on/project relative to the given root.
 func PrjAbsPath(root, abspath string) Path {
-	log.Trace().
-		Str("action", "PrjAbsPath()").
-		Str("path", abspath).
-		Str("root", root).
-		Msg("Trim path to get relative dir.")
-
 	d := filepath.ToSlash(strings.TrimPrefix(abspath, root))
 	if d == "" {
 		d = "/"
 	}
-
+	if d[0] != '/' {
+		// handle root=/ abspath=/file
+		d = "/" + d
+	}
 	return NewPath(d)
 }
 
