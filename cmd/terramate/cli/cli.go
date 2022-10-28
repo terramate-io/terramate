@@ -1477,9 +1477,6 @@ func (c cli) checkVersion() {
 }
 
 func newGit(basedir string, checkrepo bool) (*git.Git, error) {
-	log.Debug().
-		Str("action", "newGit()").
-		Msg("Create new git wrapper providing config.")
 	g, err := git.WithConfig(git.Config{
 		WorkingDir: basedir,
 		Env:        os.Environ(),
@@ -1501,75 +1498,26 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 		wd: wd,
 	}
 
-	logger := log.With().
-		Str("action", "lookupProject()").
-		Str("workingDir", wd).
-		Logger()
-
-	logger.Trace().Msg("Create new git wrapper.")
-
-	rootcfg, rootCfgPath, rootfound, err := config.TryLoadConfig(wd)
+	rootcfg, rootCfgPath, found, gitfound, err := config.TryLoadConfig(wd)
 	if err != nil {
 		return project{}, false, err
 	}
 
-	gw, err := newGit(wd, false)
-	if err == nil {
-		logger.Trace().Msg("Get root of git repo.")
-
-		gitdir, err := gw.Root()
-		if err == nil {
-			logger.Trace().Msg("Get absolute path of git directory.")
-
-			gitabs := gitdir
-			if !filepath.IsAbs(gitabs) {
-				gitabs = filepath.Join(wd, gitdir)
-			}
-
-			if err != nil {
-				return project{}, false, errors.E(err, "getting absolute path of %q", gitdir)
-			}
-
-			logger.Trace().Msg("Evaluate symbolic links.")
-
-			gitabs, err = filepath.EvalSymlinks(gitabs)
-			if err != nil {
-				return project{}, false, errors.E(err, "failed evaluating symlinks of %q", gitabs)
-			}
-
-			rootdir := filepath.Dir(gitabs)
-			if rootfound && strings.HasPrefix(rootCfgPath, rootdir) && rootCfgPath != rootdir {
-				log.Warn().
-					Str("rootConfig", rootCfgPath).
-					Str("projectRoot", rootdir).
-					Err(errors.E(ErrRootCfgInvalidDir)).
-					Msg("ignoring root config")
-			}
-
-			logger.Trace().Msg("Load root config.")
-
-			cfg, err := config.LoadTree(rootdir, rootdir)
-			if err != nil {
-				return project{}, false, err
-			}
-
-			prj.isRepo = true
-			prj.cfg = *cfg
-			prj.root = rootdir
-			prj.git.wrapper = gw
-
-			return prj, true, nil
-		}
-	}
-
-	if !rootfound {
+	if !found {
 		return project{}, false, nil
 	}
 
-	prj.root = rootCfgPath
 	prj.cfg = *rootcfg
-	return prj, true, nil
+	prj.root = rootCfgPath
 
+	gw, err := newGit(wd, !gitfound)
+	if err != nil && gitfound {
+		return project{}, false, err
+	}
+	prj.isRepo = err == nil
+	prj.git.wrapper = gw
+
+	return prj, true, nil
 }
 
 func configureLogging(logLevel, logFmt, logdest string, stdout, stderr io.Writer) {

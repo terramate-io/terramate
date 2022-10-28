@@ -16,96 +16,112 @@ package fs
 
 import (
 	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
-	"github.com/rs/zerolog/log"
 )
 
 // ListTerramateFiles returns a list of terramate related files from the
-// directory dir.
-func ListTerramateFiles(dir string) ([]string, error) {
-	logger := log.With().
-		Str("action", "fs.listTerramateFiles()").
-		Str("dir", dir).
-		Logger()
-
-	logger.Trace().Msg("listing files")
-
-	dirEntries, err := os.ReadDir(dir)
+// directory dir. Optionally you can provide a list of inspect funcs which,
+// if provided, gets executed for each name in the directory.
+func ListTerramateFiles(dir string, inspect ...func(name string)) ([]string, error) {
+	names, err := readdir(dir)
 	if err != nil {
-		return nil, errors.E(err, "reading dir to list Terramate files")
+		return nil, errors.E(err, "reading directory file names")
 	}
-
-	logger.Trace().Msg("looking for Terramate files")
-
-	files := []string{}
-
-	for _, dirEntry := range dirEntries {
-		logger := logger.With().
-			Str("entryName", dirEntry.Name()).
-			Logger()
-
-		if strings.HasPrefix(dirEntry.Name(), ".") {
-			logger.Trace().Msg("ignoring dotfile")
-			continue
-		}
-
-		if dirEntry.IsDir() {
-			logger.Trace().Msg("ignoring dir")
-			continue
-		}
-
-		filename := dirEntry.Name()
-		if isTerramateFile(filename) {
-			logger.Trace().Msg("Found Terramate file")
-			files = append(files, filename)
-		}
-	}
-
-	return files, nil
+	return FilterTerramateFiles(dir, names, inspect...)
 }
 
 // ListTerramateDirs lists Terramate dirs, which are any dirs
-// except ones starting with ".".
-func ListTerramateDirs(dir string) ([]string, error) {
-	logger := log.With().
-		Str("action", "fs.ListTerramateDirs()").
-		Str("dir", dir).
-		Logger()
-
-	logger.Trace().Msg("listing dirs")
-
-	dirEntries, err := os.ReadDir(dir)
+// except ones starting with ".". Optionally you can provide a list of
+// inspectFuncs which, if provided, gets executed for each name in the directory.
+func ListTerramateDirs(dir string, inspect ...func(name string)) ([]string, error) {
+	names, err := readdir(dir)
 	if err != nil {
-		return nil, errors.E(err, "reading dir to list Terramate dirs")
+		return nil, errors.E(err, "reading directory file names")
 	}
+	return FilterDirs(dir, names, inspect...)
+}
 
-	logger.Trace().Msg("looking for Terramate directories")
-
-	dirs := []string{}
-
-	for _, dirEntry := range dirEntries {
-		logger := logger.With().
-			Str("entryName", dirEntry.Name()).
-			Logger()
-
-		if !dirEntry.IsDir() {
-			logger.Trace().Msg("ignoring non-dir")
+// FilterTerramateFiles filter the names list and returns only the Terramate
+// file names. Optionally you can provide a list of inspect funcs which,
+// if provided, gets executed for each name in the directory.
+func FilterTerramateFiles(
+	basedir string, names []string, inspect ...func(name string),
+) ([]string, error) {
+	var tmnames []string
+	for _, name := range names {
+		for _, cb := range inspect {
+			cb(name)
+		}
+		if Skip(name) {
 			continue
 		}
-
-		if strings.HasPrefix(dirEntry.Name(), ".") {
-			logger.Trace().Msg("ignoring dotdir")
+		dir := filepath.Join(basedir, name)
+		st, err := os.Lstat(dir)
+		if err != nil {
+			return nil, err
+		}
+		if st.IsDir() {
 			continue
 		}
+		if st.Mode().IsRegular() && isTerramateFile(name) {
+			tmnames = append(tmnames, name)
+		}
+	}
+	return tmnames, nil
+}
 
-		dirs = append(dirs, dirEntry.Name())
+func FilterDirs(
+	basedir string, names []string, inspect ...func(name string),
+) ([]string, error) {
+	var tmdirs []string
+	for _, name := range names {
+		for _, cb := range inspect {
+			cb(name)
+		}
+		if Skip(name) {
+			continue
+		}
+		dir := filepath.Join(basedir, name)
+		st, err := os.Lstat(dir)
+		if err != nil {
+			return nil, err
+		}
+		if !st.IsDir() {
+			continue
+		}
+		tmdirs = append(tmdirs, name)
+	}
+	return tmdirs, nil
+}
+
+func readdir(dir string) (names []string, err error) {
+	f, err := os.Open(dir)
+	if err != nil {
+		return nil, errors.E(err, "failed to open cfg directory")
 	}
 
-	return dirs, nil
+	defer func() {
+		errs := errors.L(err, f.Close())
+		err = errs.AsError()
+	}()
+
+	names, err = f.Readdirnames(0)
+	if err == nil {
+		sort.Strings(names)
+	}
+	return names, err
 }
 
 func isTerramateFile(filename string) bool {
 	return strings.HasSuffix(filename, ".tm") || strings.HasSuffix(filename, ".tm.hcl")
+}
+
+// Skip returns true if the given file/dir name should be ignored by Terramate.
+func Skip(name string) bool {
+	// assumes filename length > 0
+	return name[0] == '.'
 }

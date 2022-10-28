@@ -104,6 +104,14 @@ func TestListChangedStacks(t *testing.T) {
 			},
 		},
 		{
+			name:        "multiple stacks: one changed, one unrelated change",
+			repobuilder: multipleStacksOneChangedRepoAndOneUnrelatedChange,
+			want: listTestResult{
+				list:    []string{"/changed-stack", "/not-changed-stack"},
+				changed: []string{"/changed-stack"},
+			},
+		},
+		{
 			name:        "multiple stacks: multiple changed",
 			repobuilder: multipleChangedStacksRepo,
 			want: listTestResult{
@@ -398,6 +406,57 @@ func multipleStacksOneChangedRepo(t *testing.T) repository {
 		"git add otherstack failed")
 	assert.NoError(t, g.Commit("other stack message"), "commit failed")
 
+	return repo
+}
+
+func multipleStacksOneChangedRepoAndOneUnrelatedChange(t *testing.T) repository {
+	repo := singleMergeCommitRepoNoStack(t)
+
+	projectDir := filepath.Join(repo.Dir, "project")
+	test.WriteRootConfig(t, projectDir)
+
+	g := test.NewGitWrapper(t, repo.Dir, []string{})
+
+	assert.NoError(t, g.Checkout("testbranch", true), "create branch failed")
+
+	// unrelated dir, outside project root
+	unrelatedDir := filepath.Join(repo.Dir, "unrelated-dir")
+	test.WriteFile(t, unrelatedDir, "main.tf", `# comment`)
+
+	otherStack := filepath.Join(projectDir, "not-changed-stack")
+	test.MkdirAll(t, otherStack)
+
+	cfg, err := config.LoadTree(projectDir, projectDir)
+	assert.NoError(t, err)
+	assert.NoError(t, stack.Create(cfg, stack.CreateCfg{Dir: otherStack}), "terramate init failed")
+
+	assert.NoError(t, g.Add(filepath.Join(otherStack, stack.DefaultFilename)),
+		"git add otherstack failed")
+	assert.NoError(t, g.Commit("other stack message"), "commit failed")
+
+	addMergeCommit(t, repo.Dir, "testbranch")
+	assert.NoError(t, g.DeleteBranch("testbranch"), "delete temp branch")
+
+	// not merged changes
+	assert.NoError(t, g.Checkout("testbranch2", true), "create branch testbranch2 failed")
+
+	otherStack = filepath.Join(projectDir, "changed-stack")
+	test.MkdirAll(t, otherStack)
+
+	cfg, err = config.LoadTree(projectDir, projectDir)
+	assert.NoError(t, err)
+	assert.NoError(t, stack.Create(cfg, stack.CreateCfg{Dir: otherStack}), "terramate init failed")
+
+	assert.NoError(t, g.Add(filepath.Join(otherStack, stack.DefaultFilename)),
+		"git add otherstack failed")
+	assert.NoError(t, g.Commit("other stack message"), "commit failed")
+
+	unrelatedFile := test.WriteFile(t, unrelatedDir, "main.tf", "# changed")
+	assert.NoError(t, g.Add(unrelatedFile),
+		"git add unrelated file failed")
+	assert.NoError(t, g.Commit("change unrelated file"), "commit failed")
+
+	repo.Dir = projectDir
 	return repo
 }
 

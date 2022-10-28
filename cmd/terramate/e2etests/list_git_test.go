@@ -39,6 +39,28 @@ func TestE2EListWithGit(t *testing.T) {
 	}
 }
 
+func TestE2EListWithGitAndRootConfigInSubDir(t *testing.T) {
+	t.Parallel()
+
+	for _, tcase := range listTestcases() {
+		tc := tcase
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			const projectPath = "project"
+
+			s := sandbox.New(t)
+			s.BuildTreeAt(projectPath, tc.layout)
+
+			rootdir := filepath.Join(s.RootDir(), projectPath)
+			test.WriteRootConfig(t, rootdir)
+
+			cli := newCLI(t, rootdir)
+			assertRunResult(t, cli.listStacks(), tc.want)
+		})
+	}
+}
+
 func TestListDetectChangesInSubDirOfStack(t *testing.T) {
 	t.Parallel()
 
@@ -63,6 +85,29 @@ func TestListDetectChangesInSubDirOfStack(t *testing.T) {
 		Stdout: stack.RelPath() + "\n",
 	}
 	assertRunResult(t, cli.listChangedStacks(), want)
+}
+
+func TestListIgnoreChangesOutsideOfProjectRoot(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack")
+	projectdir := stack.CreateDir("project")
+	test.WriteRootConfig(t, projectdir.Path())
+
+	cli := newCLI(t, projectdir.Path())
+
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+	git.CheckoutNew("change-the-outside-stack")
+
+	stack.CreateFile("main.tf", "# changed")
+	git.Add(stack.Path())
+	git.Commit("stack changed")
+
+	assertRun(t, cli.listChangedStacks())
 }
 
 func TestListDetectChangesInSubDirOfStackWithOtherConfigs(t *testing.T) {

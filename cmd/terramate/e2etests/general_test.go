@@ -493,22 +493,20 @@ func TestCommandsNotRequiringGitSafeguards(t *testing.T) {
 	}
 }
 
-func TestE2ETerramateLogsWarningIfRootConfigIsNotAtProjectRoot(t *testing.T) {
+func TestE2ETerramateRootConfigIsNotAtRepoRoot(t *testing.T) {
 	t.Parallel()
 
 	s := sandbox.New(t)
 	s.BuildTree([]string{
-		"s:stacks/stack",
+		"s:project/stack",
 	})
 
-	stacksDir := filepath.Join(s.RootDir(), "stacks")
-	test.WriteRootConfig(t, stacksDir)
+	projectDir := filepath.Join(s.RootDir(), "project")
+	test.WriteRootConfig(t, projectDir)
 
-	tmcli := newCLI(t, stacksDir)
-	tmcli.loglevel = "warn"
+	tmcli := newCLI(t, projectDir)
 	assertRunResult(t, tmcli.listStacks(), runExpected{
-		Stdout:      "stack\n",
-		StderrRegex: string(cli.ErrRootCfgInvalidDir),
+		Stdout: "stack\n",
 	})
 }
 

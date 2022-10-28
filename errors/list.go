@@ -42,9 +42,7 @@ type List struct {
 // the error list, each  will become an error.Error.
 func L(errs ...error) *List {
 	e := &List{}
-	for _, err := range errs {
-		e.Append(err)
-	}
+	e.Append(errs...)
 	return e
 }
 

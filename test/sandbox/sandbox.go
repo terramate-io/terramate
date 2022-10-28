@@ -35,6 +35,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
@@ -117,7 +118,7 @@ func NoGit(t testing.TB) S {
 
 	outerDir := t.TempDir()
 
-	buildTree(t, config.NewTree(outerDir), []string{
+	buildTree(t, config.NewTree(outerDir), outerDir, []string{
 		"s:this-stack-must-never-be-visible",
 		"s:other-hidden-stack",
 	})
@@ -179,7 +180,19 @@ func NoGit(t testing.TB) S {
 func (s S) BuildTree(layout []string) {
 	s.t.Helper()
 
-	buildTree(s.t, s.Config(), layout)
+	buildTree(s.t, s.Config(), s.RootDir(), layout)
+}
+
+// BuildTreeAt works the same as [BuildTree] but builds the filesystem layout
+// at basedir instead of at the sandbox [RootDir].
+// The basedir must be a relative path to the sandbox RootDir().
+func (s S) BuildTreeAt(basedir string, layout []string) {
+	s.t.Helper()
+
+	if filepath.IsAbs(basedir) {
+		panic(errors.E("BuildTreeAt expects a relative path but given %s", basedir))
+	}
+	buildTree(s.t, s.Config(), filepath.Join(s.RootDir(), basedir), layout)
 }
 
 // CheckStack will check a stack for outdated code generation.
@@ -597,10 +610,9 @@ func parseListSpec(t testing.TB, name, value string) []string {
 	return list
 }
 
-func buildTree(t testing.TB, tree *config.Tree, layout []string) {
+func buildTree(t testing.TB, tree *config.Tree, basedir string, layout []string) {
 	t.Helper()
 
-	rootdir := tree.RootDir()
 	parsePathData := func(spec string) (string, string) {
 		tmp := spec[2:]
 		if len(tmp) == 0 {
@@ -619,7 +631,7 @@ func buildTree(t testing.TB, tree *config.Tree, layout []string) {
 	gentmfile := func(relpath, data string) {
 		attrs := strings.Split(data, ";")
 
-		cfgdir := filepath.Join(rootdir, filepath.FromSlash(relpath))
+		cfgdir := filepath.Join(basedir, filepath.FromSlash(relpath))
 		test.MkdirAll(t, cfgdir)
 		cfg, err := hcl.NewConfig(cfgdir)
 		assert.NoError(t, err)
@@ -663,19 +675,19 @@ func buildTree(t testing.TB, tree *config.Tree, layout []string) {
 		specKind := string(spec[0:2])
 		switch specKind {
 		case "d:":
-			test.MkdirAll(t, filepath.Join(rootdir, spec[2:]))
+			test.MkdirAll(t, filepath.Join(basedir, spec[2:]))
 		case "l:":
-			target := filepath.Join(rootdir, path)
-			linkName := filepath.Join(rootdir, data)
+			target := filepath.Join(basedir, path)
+			linkName := filepath.Join(basedir, data)
 			test.Symlink(t, target, linkName)
 		case "g:":
-			repodir := filepath.Join(rootdir, spec[2:])
+			repodir := filepath.Join(basedir, spec[2:])
 			test.MkdirAll(t, repodir)
 			git := NewGit(t, repodir)
 			git.Init()
 		case "s:":
 			if data == "" {
-				abspath := filepath.Join(rootdir, path)
+				abspath := filepath.Join(basedir, path)
 				test.MkdirAll(t, abspath)
 				assert.NoError(t, stack.Create(
 					tree,
@@ -686,7 +698,7 @@ func buildTree(t testing.TB, tree *config.Tree, layout []string) {
 
 			gentmfile(path, data)
 		case "f:":
-			test.WriteFile(t, rootdir, path, data)
+			test.WriteFile(t, basedir, path, data)
 		default:
 			t.Fatalf("unknown spec kind: %q", specKind)
 		}

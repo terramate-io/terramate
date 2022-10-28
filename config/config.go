@@ -15,13 +15,13 @@
 package config
 
 import (
-	"os"
 	"path"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/fs"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
@@ -63,26 +63,45 @@ type List []*Tree
 // the config in fromdir and all parent directories until / is reached.
 // If the configuration is found, it returns the whole configuration tree,
 // configpath != "" and found as true.
-func TryLoadConfig(fromdir string) (tree *Tree, configpath string, found bool, err error) {
+func TryLoadConfig(fromdir string) (
+	tree *Tree, configpath string, found bool, isgit bool, err error,
+) {
 	for {
-		logger := log.With().
-			Str("action", "config.TryLoadConfig()").
-			Str("path", fromdir).
-			Logger()
+		p, err := hcl.NewTerramateParser(fromdir, fromdir)
+		if err != nil {
+			return nil, "", false, false, err
+		}
 
-		logger.Trace().Msg("Parse Terramate config.")
+		isgitroot := false
+		names, err := fs.ListTerramateFiles(fromdir, func(name string) {
+			if name == ".git" {
+				isgitroot = true
+			}
+		})
 
-		cfg, err := hcl.ParseDir(fromdir, fromdir)
+		if err != nil {
+			return nil, "", false, false, err
+		}
+
+		for _, name := range names {
+			dir := filepath.Join(fromdir, name)
+			err = p.AddFile(dir)
+			if err != nil {
+				return nil, "", false, false, err
+			}
+		}
+
+		cfg, err := p.ParseConfig()
 		if err != nil {
 			// the imports only works for the correct rootdir.
 			// As we are looking for the rootdir, we should ignore ErrImport
 			// errors.
 			if !errors.IsKind(err, hcl.ErrImport) {
-				return nil, "", false, err
+				return nil, "", false, false, err
 			}
-		} else if cfg.Terramate != nil && cfg.Terramate.Config != nil {
+		} else if isgitroot || (cfg.Terramate != nil && cfg.Terramate.Config != nil) {
 			tree, err := loadTree(fromdir, fromdir, &cfg)
-			return tree, fromdir, true, err
+			return tree, fromdir, true, isgitroot, err
 		}
 
 		parent, ok := parentDir(fromdir)
@@ -91,7 +110,7 @@ func TryLoadConfig(fromdir string) (tree *Tree, configpath string, found bool, e
 		}
 		fromdir = parent
 	}
-	return nil, "", false, nil
+	return nil, "", false, false, nil
 }
 
 // LoadTree loads the whole hierarchical configuration from cfgdir downwards
@@ -219,31 +238,22 @@ func (l List) Less(i, j int) bool { return l[i].dir < l[j].dir }
 func (l List) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
 
 func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error) {
-	logger := log.With().
-		Str("action", "config.loadTree()").
-		Str("dir", rootdir).
-		Logger()
-
-	f, err := os.Open(cfgdir)
-	if err != nil {
-		return nil, errors.E(err, "failed to open cfg directory")
-	}
-
-	logger.Trace().Msg("reading directory file names")
-
-	names, err := f.Readdirnames(0)
-	if err != nil {
-		return nil, errors.E(err, "failed to read files in %s", cfgdir)
-	}
-
-	for _, name := range names {
-		if name == SkipFilename {
-			logger.Debug().Msg("skip file found: skipping whole subtree")
-			return NewTree(cfgdir), nil
+	var skipdir bool
+	names, err := fs.ListTerramateDirs(cfgdir, func(name string) {
+		if !skipdir {
+			skipdir = name == SkipFilename
 		}
+	})
+
+	if err != nil {
+		return nil, err
 	}
 
 	tree := NewTree(cfgdir)
+	if skipdir {
+		return tree, nil
+	}
+
 	if rootcfg != nil {
 		tree.Node = *rootcfg
 	} else {
@@ -255,26 +265,7 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error)
 	}
 
 	for _, name := range names {
-		logger = logger.With().
-			Str("filename", name).
-			Logger()
-
-		if Skip(name) {
-			logger.Trace().Msg("skipping file")
-			continue
-		}
 		dir := filepath.Join(cfgdir, name)
-		st, err := os.Lstat(dir)
-		if err != nil {
-			return nil, errors.E(err, "failed to stat %s", dir)
-		}
-		if !st.IsDir() {
-			logger.Trace().Msg("ignoring non-directory file")
-			continue
-		}
-
-		logger.Trace().Msg("loading children tree")
-
 		node, err := LoadTree(rootdir, dir)
 		if err != nil {
 			return nil, errors.E(err, "loading from %s", dir)
@@ -345,12 +336,6 @@ func NewTree(cfgdir string) *Tree {
 		dir:      cfgdir,
 		Children: make(map[string]*Tree),
 	}
-}
-
-// Skip returns true if the given file/dir name should be ignored by Terramate.
-func Skip(name string) bool {
-	// assumes filename length > 0
-	return name[0] == '.'
 }
 
 func parentDir(dir string) (string, bool) {

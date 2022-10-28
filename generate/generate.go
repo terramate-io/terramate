@@ -25,6 +25,7 @@ import (
 
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
+	tmfs "github.com/mineiros-io/terramate/fs"
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
@@ -258,7 +259,7 @@ processSubdirs:
 		}
 
 		for _, entry := range entries {
-			if config.Skip(entry.Name()) {
+			if tmfs.Skip(entry.Name()) {
 				continue
 			}
 
