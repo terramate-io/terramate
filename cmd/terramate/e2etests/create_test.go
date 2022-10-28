@@ -84,7 +84,7 @@ func TestCreateStack(t *testing.T) {
 		t.Logf("stderr: %s", res.Stderr)
 
 		assertRunResult(t, res, runExpected{
-			StdoutRegex: fmt.Sprintf("Created stack %s with success\n", stackPath),
+			Stdout: fmt.Sprintf("Created stack %s\n", stackPath),
 		})
 
 		got := s.LoadStack(stackPath)

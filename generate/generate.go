@@ -357,39 +357,21 @@ processSubdirs:
 	return genfiles, nil
 }
 
-// Check will verify if the given project located at rootdir has outdated code
+// DetectOutdated will verify if the given config has outdated code
 // and return a list of filenames that are outdated, ordered lexicographically.
-// If any directory on the project has an invalid Terramate configuration inside
-// it will return an error.
-//
-// The provided root must be the project's root directory as an absolute path.
-func Check(cfg *config.Tree) ([]string, error) {
-	logger := log.With().
-		Str("action", "generate.Check").
-		Str("rootdir", cfg.RootDir()).
-		Logger()
-
-	logger.Trace().Msg("loading all stacks")
-
+func DetectOutdated(cfg *config.Tree) ([]string, error) {
 	stacks, err := stack.LoadAll(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	logger.Trace().Msg("Checking if any stack has outdated code.")
 	projmeta := stack.NewProjectMetadata(cfg.RootDir(), stacks)
 
 	outdatedFiles := []string{}
 	errs := errors.L()
 
 	for _, stack := range stacks {
-		logger := logger.With().
-			Stringer("stack", stack).
-			Logger()
-
-		logger.Trace().Msg("checking stack for outdated code")
-
-		outdated, err := CheckStack(cfg, projmeta, stack)
+		outdated, err := stackOutdated(cfg, projmeta, stack)
 		if err != nil {
 			errs.Append(err)
 			continue
@@ -417,17 +399,14 @@ func Check(cfg *config.Tree) ([]string, error) {
 	return outdatedFiles, nil
 }
 
-// CheckStack will verify if a given stack has outdated code and return a list
+// stackOutdated will verify if a given stack has outdated code and return a list
 // of filenames that are outdated, ordered lexicographically.
 // If the stack has an invalid configuration it will return an error.
-func CheckStack(cfg *config.Tree, projmeta project.Metadata, st *stack.S) ([]string, error) {
+func stackOutdated(cfg *config.Tree, projmeta project.Metadata, st *stack.S) ([]string, error) {
 	logger := log.With().
-		Str("action", "generate.CheckStack()").
-		Str("root", projmeta.Rootdir()).
+		Str("action", "generate.stackOutdated").
 		Stringer("stack", st).
 		Logger()
-
-	logger.Trace().Msg("Loading globals for stack.")
 
 	report := stack.LoadStackGlobals(cfg, projmeta, st)
 	if err := report.AsError(); err != nil {
@@ -447,12 +426,12 @@ func CheckStack(cfg *config.Tree, projmeta project.Metadata, st *stack.S) ([]str
 		return nil, err
 	}
 
-	logger.Trace().Msg("Listing current generated files.")
-
 	genfilesOnFs, err := ListGenFiles(cfg, st.HostPath())
 	if err != nil {
 		return nil, errors.E(err, "checking for outdated code")
 	}
+
+	logger.Debug().Msgf("generated files detected on fs: %v", genfilesOnFs)
 
 	// We start with the assumption that all gen files on the stack
 	// are outdated and then update the outdated files set as we go.
@@ -477,24 +456,20 @@ func updateOutdatedFiles(
 	outdatedFiles *stringSet,
 ) error {
 	logger := log.With().
-		Str("action", "generate.updateOutdatedFiles()").
-		Str("stackpath", stackpath).
+		Str("action", "generate.updateOutdatedFiles").
+		Str("stack", stackpath).
 		Logger()
 
-	logger.Trace().Msg("Checking for outdated generated code on stack.")
-
-	// So we can properly check blocks with false/true in any order
+	// So we can properly check blocks with condition false/true in any order
 	blocksCondTrue := map[string]struct{}{}
 
 	for _, genfile := range generated {
-		filename := genfile.Label()
-		targetpath := filepath.Join(stackpath, filename)
-		logger := logger.With().
-			Str("blockName", filename).
-			Str("targetpath", targetpath).
+		logger = logger.With().
+			Str("label", genfile.Label()).
 			Logger()
 
-		logger.Trace().Msg("Checking if code is updated.")
+		filename := genfile.Label()
+		targetpath := filepath.Join(stackpath, filename)
 
 		currentCode, codeFound, err := readFile(targetpath)
 		if err != nil {
@@ -509,32 +484,37 @@ func updateOutdatedFiles(
 
 		if !codeFound {
 			if !genfile.Condition() && !prevBlockCondTrue {
-				logger.Trace().Msg("Not outdated since file not found and condition is false")
+				logger.Debug().Msg("not outdated: condition = false")
+
 				outdatedFiles.remove(filename)
 				continue
 			}
 
-			logger.Trace().Msg("outdated since file not found and condition for generation is true")
+			logger.Debug().Msg("outdated: condition = true and no code on fs")
+
 			outdatedFiles.add(filename)
 			continue
 		}
 
 		if !genfile.Condition() {
 			if prevBlockCondTrue {
-				logger.Trace().Msg("ignoring block since previous one had condition=true")
+				logger.Debug().Msg("condition = false but other block was true, ignoring")
 				continue
 			}
-			logger.Trace().Msg("outdated since file exists but condition for generation is false")
+			logger.Debug().Msg("outdated: condition = false but code exist on fs")
+
 			outdatedFiles.add(filename)
 			continue
 		}
 
 		generatedCode := genfile.Header() + genfile.Body()
 		if generatedCode != currentCode {
-			logger.Trace().Msg("Generated code doesn't match file, is outdated")
+			logger.Debug().Msg("outdated: code on fs differs from generated from config")
+
 			outdatedFiles.add(filename)
 		} else {
-			logger.Trace().Msg("Generated code matches file, it is updated")
+			logger.Debug().Msg("not outdated: code on fs and generated from config equals")
+
 			outdatedFiles.remove(filename)
 		}
 	}

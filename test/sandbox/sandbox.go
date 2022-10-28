@@ -182,15 +182,6 @@ func (s S) BuildTree(layout []string) {
 	buildTree(s.t, s.Config(), layout)
 }
 
-// CheckStack will check a stack for outdated code generation.
-func (s S) CheckStack(relpath string) []string {
-	s.t.Helper()
-
-	res, err := generate.CheckStack(s.Config(), s.LoadProjectMetadata(), s.LoadStack(relpath))
-	assert.NoError(s.t, err, "generate.CheckStack failed for stack %s", relpath)
-	return res
-}
-
 // IsGit tells if the sandbox is a git repository.
 func (s S) IsGit() bool { return s.git != nil }
 

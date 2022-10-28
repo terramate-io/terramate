@@ -583,7 +583,7 @@ func (c *cli) cloneStack() {
 
 func (c *cli) generate(workdir string) {
 	report := generate.Do(c.cfg(), workdir)
-	c.output.Msg(out.V, report.String())
+	c.output.Msg(out.V, report.Full())
 
 	if report.HasFailures() {
 		os.Exit(1)
@@ -726,10 +726,14 @@ func (c *cli) createStack() {
 		fatal(err, "creating stack")
 	}
 
-	c.output.Msg(out.V, "Created stack %s with success", c.parsedArgs.Create.Path)
-	c.output.Msg(out.V, "Generating code on the stack")
+	c.output.Msg(out.V, "Created stack %s", c.parsedArgs.Create.Path)
 
-	c.generate(stackDir)
+	report := generate.Do(c.cfg(), stackDir)
+	c.output.Msg(out.VV, report.Minimal())
+
+	if report.HasFailures() {
+		os.Exit(1)
+	}
 }
 
 func (c *cli) format() {
@@ -1258,7 +1262,7 @@ func (c *cli) checkOutdatedGeneratedCode(stacks stack.List) {
 
 	logger.Trace().Msg("checking if any stack has outdated code")
 
-	outdatedFiles, err := generate.Check(c.cfg())
+	outdatedFiles, err := generate.DetectOutdated(c.cfg())
 
 	if err != nil {
 		fatal(err, "failed to check outdated code on project")
