@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
 )
 
@@ -125,6 +126,18 @@ func TestErrorString(t *testing.T) {
 				}, "unexpected attribute name"),
 			),
 			want: fmt("test.tm:1,5-10: %s: failed to parse config: unexpected attribute name",
+				tmSchemaError),
+		},
+		{
+			name: "the file range can be an info.Range",
+			err: E("failed to parse config",
+				E(tmSchemaError, info.NewRange("/root", hcl.Range{
+					Filename: "/root/test.tm",
+					Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},
+					End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},
+				}), "unexpected attribute name"),
+			),
+			want: fmt("/root/test.tm:1,5-10: %s: failed to parse config: unexpected attribute name",
 				tmSchemaError),
 		},
 		{
@@ -500,6 +513,16 @@ func TestErrorRangeRepresentation(t *testing.T) {
 		}
 		err := E(filerange)
 		assert.EqualStrings(t, "<generated-code>:2,5-10", err.Error())
+	})
+
+	t.Run("from info.Range", func(t *testing.T) {
+		filerange := info.NewRange("/root", hcl.Range{
+			Filename: "/root/test.tm",
+			Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},
+			End:      hcl.Pos{Line: 1, Column: 10, Byte: 13},
+		})
+		err := E(filerange)
+		assert.EqualStrings(t, "/root/test.tm:1,5-10", err.Error())
 	})
 }
 

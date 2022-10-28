@@ -66,7 +66,6 @@ func TestGenerateHCLAssert(t *testing.T) {
 				{
 					name: "asserts.hcl",
 					hcl: genHCL{
-						origin:    "/stack/generate.tm",
 						condition: true,
 						body: Doc(
 							Str("a", "value"),
@@ -116,7 +115,6 @@ func TestGenerateHCLAssert(t *testing.T) {
 				{
 					name: "asserts.hcl",
 					hcl: genHCL{
-						origin:    "/stack/generate.tm",
 						condition: true,
 						body:      Doc(),
 						asserts: []config.Assert{
@@ -160,7 +158,6 @@ func TestGenerateHCLAssert(t *testing.T) {
 				{
 					name: "asserts.hcl",
 					hcl: genHCL{
-						origin:    "/stack/generate.tm",
 						condition: false,
 						body:      Doc(),
 					},
@@ -195,7 +192,6 @@ func TestGenerateHCLAssert(t *testing.T) {
 				{
 					name: "asserts.hcl",
 					hcl: genHCL{
-						origin:    "/stack/generate.tm",
 						condition: true,
 						body: Doc(
 							Str("a", "generating code is fun"),
