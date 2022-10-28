@@ -95,8 +95,8 @@ func TestLoad(t *testing.T) {
 			layout: []string{
 				"s:stack-1",
 				"s:stack-1/child",
-				//"s:stack-2",
-				//"s:stack-2/dir/child",
+				"s:stack-2",
+				"s:stack-2/dir/child",
 			},
 			configs: []file{
 				{
@@ -137,17 +137,17 @@ func TestLoad(t *testing.T) {
 						),
 					),
 				},
-				//{
-				//path: "stack-2/dir/child/config.tm",
-				//body: Doc(
-				//GenerateHCL(
-				//Labels("stack-2-child.hcl"),
-				//Content(
-				//Str("stacks", "test"),
-				//),
-				//),
-				//),
-				//},
+				{
+					path: "stack-2/dir/child/config.tm",
+					body: Doc(
+						GenerateHCL(
+							Labels("stack-2-child.hcl"),
+							Content(
+								Str("stacks", "test"),
+							),
+						),
+					),
+				},
 			},
 			want: []result{
 				{
@@ -180,6 +180,52 @@ func TestLoad(t *testing.T) {
 					files: []genfile{
 						{
 							label:     "stack-1.hcl",
+							condition: true,
+						},
+						{
+							label:     "test.hcl",
+							condition: true,
+						},
+						{
+							label:     "test.hcl",
+							condition: false,
+						},
+						{
+							label:     "test.txt",
+							condition: false,
+						},
+						{
+							label:     "test.txt",
+							condition: true,
+						},
+					},
+				},
+				{
+					dir: "/stack-2",
+					files: []genfile{
+						{
+							label:     "test.hcl",
+							condition: true,
+						},
+						{
+							label:     "test.hcl",
+							condition: false,
+						},
+						{
+							label:     "test.txt",
+							condition: false,
+						},
+						{
+							label:     "test.txt",
+							condition: true,
+						},
+					},
+				},
+				{
+					dir: "/stack-2/dir/child",
+					files: []genfile{
+						{
+							label:     "stack-2-child.hcl",
 							condition: true,
 						},
 						{
