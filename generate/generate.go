@@ -74,9 +74,9 @@ type GenFile interface {
 
 // LoadResult represents all generated files of a specific directory.
 type LoadResult struct {
-	// Dir is from where the generated files were loaded, or where a failure occured
+	// Dir is from where the generated files were loaded, or where a failure occurred
 	// if Err is not nil.
-	Dir string
+	Dir project.Path
 	// Files is the generated files for this directory.
 	Files []GenFile
 	// Err will be non-nil if loading generated files for a specific dir failed
@@ -84,9 +84,34 @@ type LoadResult struct {
 }
 
 // Load will load all the generated files inside the given tree.
-func Load(cfg *config.Tree) []LoadResult {
-	// TODO(KATCIPIS)
-	return nil
+// Each directory will be represented by a single [LoadResult] inside the returned slice.
+// Errors generating code for specific dirs will be found inside each [LoadResult].
+// If a critical error that fails the loading of all results happens it returns
+// a non-nil error. In this case the error is not specific to generating code for a
+// specific dir.
+func Load(cfg *config.Tree) ([]LoadResult, error) {
+	// TODO(katcipis): handle stack loading error
+	stacks, _ := stack.LoadAll(cfg)
+	projmeta := stack.NewProjectMetadata(cfg.RootDir(), stacks)
+	results := make([]LoadResult, len(stacks))
+
+	for i, st := range stacks {
+		loadres := stack.LoadStackGlobals(cfg, projmeta, st)
+		// TODO(KATCIPIS): handle error
+		//if err := globalsReport.AsError(); err != nil {
+		//continue
+		//}
+
+		generated, _ := loadStackCodeCfgs(cfg, projmeta, st, loadres.Globals)
+		// TODO(KATCIPIS): handle error
+		//if err != nil {
+		//}
+		results[i] = LoadResult{
+			Dir:   st.Path(),
+			Files: generated,
+		}
+	}
+	return results, nil
 }
 
 // Do will walk all the stacks inside the given working dir
