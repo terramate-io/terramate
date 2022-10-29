@@ -105,7 +105,11 @@ func (tree *Tree) Dir() string {
 	return tree.dir
 }
 
-// RootDir returns the tree root directory..
+func (tree *Tree) ProjDir() project.Path {
+	return project.PrjAbsPath(tree.RootDir(), tree.Dir())
+}
+
+// RootDir returns the tree root directory.
 func (tree *Tree) RootDir() string {
 	if tree.Parent != nil {
 		return tree.Parent.RootDir()
