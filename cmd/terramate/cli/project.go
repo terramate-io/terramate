@@ -231,10 +231,6 @@ func (p *project) checkLocalDefaultIsUpdated() error {
 		Str("workingDir", p.wd).
 		Logger()
 
-	if !p.isDefaultBranch() {
-		return nil
-	}
-
 	logger.Trace().Msg("Fetch remote reference.")
 
 	gitcfg := p.gitcfg()

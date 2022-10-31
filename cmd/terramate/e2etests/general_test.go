@@ -286,7 +286,7 @@ func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
 	)
 }
 
-func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
+func TestFailsOnRunIfRemoteMainIsOutdated(t *testing.T) {
 	t.Parallel()
 
 	s := sandbox.New(t)
@@ -312,13 +312,30 @@ func TestFailsOnChangeDetectionIfCurrentBranchIsMainAndItIsOutdated(t *testing.T
 
 	assertRunResult(t, ts.listChangedStacks(), wantRes)
 
-	assertRunResult(t, ts.run(
-		"run",
-		"--changed",
-		testHelperBin,
-		"cat",
-		mainTfFile.HostPath(),
-	), wantRes)
+	testrun := func() {
+		assertRunResult(t, ts.run(
+			"run",
+			testHelperBin,
+			"cat",
+			mainTfFile.HostPath(),
+		), wantRes)
+
+		assertRunResult(t, ts.run(
+			"run",
+			"--changed",
+			testHelperBin,
+			"cat",
+			mainTfFile.HostPath(),
+		), wantRes)
+	}
+
+	testrun()
+
+	git.CheckoutNew("branch")
+	stack.CreateFile("tempfile2", "any content")
+	git.CommitAll("add tempfile2")
+
+	testrun()
 }
 
 func TestMainAfterOriginMainMustUseDefaultBaseRef(t *testing.T) {
