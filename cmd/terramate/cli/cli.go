@@ -722,7 +722,7 @@ func (c *cli) createStack() {
 		Imports:     c.parsedArgs.Create.Import,
 	})
 
-	stackPath := strings.TrimPrefix(stackDir, c.root())
+	stackPath := filepath.ToSlash(strings.TrimPrefix(stackDir, c.root()))
 
 	if err != nil {
 		logger := log.With().
