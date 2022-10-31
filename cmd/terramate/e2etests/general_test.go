@@ -332,8 +332,17 @@ func TestFailsOnRunIfRemoteMainIsOutdated(t *testing.T) {
 	testrun()
 
 	git.CheckoutNew("branch")
+
+	// we create two commits so we can also test from a DETACHED HEAD.
 	stack.CreateFile("tempfile2", "any content")
 	git.CommitAll("add tempfile2")
+
+	stack.CreateFile("tempfile3", "any content")
+	git.CommitAll("add tempfile3")
+
+	testrun()
+
+	git.Checkout("HEAD^1")
 
 	testrun()
 }
