@@ -20,6 +20,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -109,6 +110,9 @@ func Do(cfg *config.Tree, workingDir string) Report {
 func ListGenFiles(cfg *config.Tree, dir string) ([]string, error) {
 	pendingSubDirs := []string{""}
 	genfiles := []string{}
+
+	_, f, line, ok := runtime.Caller(1)
+	fmt.Printf("list %s: %s %d %t\n", dir, f, line, ok)
 
 processSubdirs:
 	for len(pendingSubDirs) > 0 {
@@ -784,7 +788,7 @@ func removeStackGeneratedFiles(
 
 	logger.Trace().Msg("listing generated files")
 
-	hostpath := project.PrjAbsPath(cfg.RootDir(), dir.String()).String()
+	hostpath := filepath.Join(cfg.RootDir(), filepath.FromSlash(dir.String()))
 	removedFiles := map[string]string{}
 	files, err := ListGenFiles(cfg, hostpath)
 	if err != nil {
@@ -1026,12 +1030,6 @@ func validateRootGeneratedFiles(cfg *config.Tree, generated []genCodeCfg) error 
 
 	genset := map[string]genCodeCfg{}
 	for _, file := range generated {
-		if !path.IsAbs(file.Label()) {
-			return errors.E(
-				"generate_file with context=root requires an absolute path in label but got %s",
-				file.Label(),
-			)
-		}
 		if other, ok := genset[file.Label()]; ok && file.Condition() {
 			return errors.E(ErrConflictingConfig,
 				"configs from %q and %q generate a file with same name %q have "+
