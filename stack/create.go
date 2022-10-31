@@ -39,7 +39,7 @@ const (
 
 	// ErrStackDefaultCfgFound indicates that the dir already has a default
 	// stack configuration.
-	ErrStackDefaultCfgFound errors.Kind = "dir has default stack cfg"
+	ErrStackDefaultCfgFound errors.Kind = "default cfg file already exists"
 )
 
 // DefaultFilename is the default file name for created stacks.
@@ -107,7 +107,7 @@ func Create(tree *config.Tree, cfg CreateCfg) (err error) {
 	if err == nil {
 		// Even if there is no stack inside the file, we can't overwrite
 		// the user file anyway.
-		return errors.E(ErrStackDefaultCfgFound, "%q exists", DefaultFilename)
+		return errors.E(ErrStackDefaultCfgFound)
 	}
 
 	// We could have a stack definition somewhere else.
@@ -117,7 +117,7 @@ func Create(tree *config.Tree, cfg CreateCfg) (err error) {
 	}
 
 	if parsedCfg.Stack != nil {
-		return errors.E(ErrStackAlreadyExists, "name %q", parsedCfg.Stack.Name)
+		return errors.E(ErrStackAlreadyExists)
 	}
 
 	stackCfg := hcl.Stack{

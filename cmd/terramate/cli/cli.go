@@ -722,10 +722,20 @@ func (c *cli) createStack() {
 		Imports:     c.parsedArgs.Create.Import,
 	})
 
-	stackPath := c.parsedArgs.Create.Path
+	stackPath := strings.TrimPrefix(stackDir, c.root())
 
 	if err != nil {
-		fatal(err, "creating stack %s", stackPath)
+		logger := log.With().
+			Str("stack", stackPath).
+			Logger()
+
+		if errors.IsKind(err, stack.ErrStackDefaultCfgFound) {
+			logger = logger.With().
+				Str("file", stack.DefaultFilename).
+				Logger()
+		}
+
+		errlog.Fatal(logger, err, "can't create stack")
 	}
 
 	log.Info().Msgf("created stack %s", stackPath)

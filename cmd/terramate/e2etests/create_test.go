@@ -83,8 +83,13 @@ func TestCreateStack(t *testing.T) {
 		t.Logf("stdout: %s", res.Stdout)
 		t.Logf("stderr: %s", res.Stderr)
 
+		want := fmt.Sprintf("Created stack %s\n", stackPath)
+		if stackPath[0] != '/' {
+			want = fmt.Sprintf("Created stack /%s\n", stackPath)
+		}
+
 		assertRunResult(t, res, runExpected{
-			Stdout: fmt.Sprintf("Created stack %s\n", stackPath),
+			Stdout: want,
 		})
 
 		got := s.LoadStack(stackPath)
