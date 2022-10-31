@@ -722,11 +722,14 @@ func (c *cli) createStack() {
 		Imports:     c.parsedArgs.Create.Import,
 	})
 
+	stackPath := c.parsedArgs.Create.Path
+
 	if err != nil {
-		fatal(err, "creating stack")
+		fatal(err, "creating stack %s", stackPath)
 	}
 
-	c.output.Msg(out.V, "Created stack %s", c.parsedArgs.Create.Path)
+	log.Info().Msgf("created stack %s", stackPath)
+	c.output.Msg(out.V, "Created stack %s", stackPath)
 
 	report := generate.Do(c.cfg(), stackDir)
 	c.output.Msg(out.VV, report.Minimal())
