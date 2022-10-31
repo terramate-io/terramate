@@ -226,17 +226,6 @@ func (p project) checkDefaultRemote() error {
 }
 
 func (p *project) checkLocalDefaultIsUpdated() error {
-	logger := log.With().
-		Str("action", "checkLocalDefaultIsUpdated()").
-		Str("workingDir", p.wd).
-		Logger()
-
-	if !p.isDefaultBranch() {
-		return nil
-	}
-
-	logger.Trace().Msg("Fetch remote reference.")
-
 	gitcfg := p.gitcfg()
 	mergeBaseCommitID, err := p.git.wrapper.MergeBase(p.headCommit(), p.remoteDefaultCommit())
 	if err != nil {
