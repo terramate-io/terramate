@@ -1039,7 +1039,7 @@ func (c *cli) generateDebug() {
 	for _, res := range results {
 		// TODO(KATCIPIS): this should not be necessary
 		// We can improve this after generate.Load is improved.
-		abspath := filepath.Join(root, string(res.Dir))
+		abspath := path.Join(root, string(res.Dir))
 		if !strings.HasPrefix(abspath, wd) {
 			continue
 		}
