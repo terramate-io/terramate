@@ -1021,29 +1021,31 @@ func (c *cli) printRunOrder() {
 }
 
 func (c *cli) generateDebug() {
-	// TODO(KATCIPIS): improve Load to work properly with subtrees
-	//cfg, ok := c.cfg().Lookup(prj.PrjAbsPath(c.root(), c.wd()))
-	//if !ok {
-	//return
-	//}
-	results, err := generate.Load(c.cfg())
+	// TODO(KATCIPIS): When we introduce config defined on root context
+	// we need to know blocks that have root context, since they should
+	// not be filtered by stack selection.
+	stacks, err := c.computeSelectedStacks(false)
 	if err != nil {
-		fatal(err, "retrieving generate debug information")
+		fatal(err, "generate debug: selecting stacks")
 	}
 
-	// TODO(KATCIPIS): this should not be necessary
-	// We can improve this after generate.Load is improved.
-	wd := filepath.ToSlash(c.wd())
-	root := filepath.ToSlash(c.root())
+	selectedStacks := map[prj.Path]struct{}{}
+	for _, stack := range stacks {
+		log.Debug().Msgf("selected stack: %s", stack.Path())
+
+		selectedStacks[stack.Path()] = struct{}{}
+	}
+
+	results, err := generate.Load(c.cfg())
+	if err != nil {
+		fatal(err, "generate debug: loading generated code")
+	}
 
 	for _, res := range results {
-		// TODO(KATCIPIS): this should not be necessary
-		// We can improve this after generate.Load is improved.
-		abspath := path.Join(root, string(res.Dir))
-		if !strings.HasPrefix(abspath, wd) {
+		if _, ok := selectedStacks[res.Dir]; !ok {
+			log.Debug().Msgf("discarding dir %s since it is not a selected stack", res.Dir)
 			continue
 		}
-
 		if res.Err != nil {
 			errmsg := stdfmt.Sprintf("generate debug error on dir %s: %v", res.Dir, res.Err)
 			log.Error().Msg(errmsg)

@@ -201,6 +201,7 @@ func TestGenerateDebugWithChanged(t *testing.T) {
 
 	g := s.Git()
 	g.CommitAll("root configs")
+	g.Push("main")
 
 	g.CheckoutNew("change-stack-1")
 
