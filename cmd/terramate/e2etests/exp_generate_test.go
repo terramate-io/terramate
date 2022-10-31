@@ -53,7 +53,7 @@ func TestGenerateDebug(t *testing.T) {
 			want: runExpected{},
 		},
 		{
-			name: "stacks with codegen on root",
+			name: "stacks with codegen with root as working dir",
 			layout: []string{
 				"s:stack-1",
 				"s:stack-2",
@@ -110,7 +110,7 @@ Generated files for /stack-2:
 			},
 		},
 		{
-			name: "stacks with codegen on stack",
+			name: "stacks with codegen with stack as working dir",
 			layout: []string{
 				"s:stack-1",
 				"s:stack-1/dir/child",
@@ -128,7 +128,6 @@ Generated files for /stack-2:
 						),
 						GenerateFile(
 							Labels("file.txt"),
-							Bool("condition", true),
 							Str("content", "data"),
 						),
 					),
@@ -138,7 +137,6 @@ Generated files for /stack-2:
 					body: Doc(
 						GenerateHCL(
 							Labels("file.hcl"),
-							Bool("condition", true),
 							Content(
 								Str("content", "data"),
 							),
@@ -148,11 +146,11 @@ Generated files for /stack-2:
 			},
 			want: runExpected{
 				Stdout: `Generated files for /stack-1:
-	- file.hcl origin: /stack-1/config.tm:1,1-6,2
-	- file.txt origin: /config.tm:5,1-8,2
+	- file.hcl origin: /stack-1/config.tm:1,1-5,2
+	- file.txt origin: /config.tm:5,1-7,2
 Generated files for /stack-1/dir/child:
-	- file.hcl origin: /stack-1/config.tm:1,1-6,2
-	- file.txt origin: /config.tm:5,1-8,2
+	- file.hcl origin: /stack-1/config.tm:1,1-5,2
+	- file.txt origin: /config.tm:5,1-7,2
 `,
 			},
 		},
@@ -175,4 +173,60 @@ Generated files for /stack-1/dir/child:
 			assertRunResult(t, ts.run("experimental", "generate", "debug"), tc.want)
 		})
 	}
+}
+
+func TestGenerateDebugWithChanged(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		"s:stack-1",
+		"s:stack-2",
+		"d:no-stack",
+	})
+	root := s.RootEntry()
+
+	root.CreateFile("config.tm", Doc(
+		GenerateFile(
+			Labels("file.txt"),
+			Str("content", "data"),
+		),
+		GenerateHCL(
+			Labels("file.hcl"),
+			Content(
+				Str("content", "data"),
+			),
+		),
+	).String())
+
+	g := s.Git()
+	g.CommitAll("root configs")
+
+	g.CheckoutNew("change-stack-1")
+
+	stack1 := s.DirEntry("stack-1")
+	stack1.CreateFile("change.txt", "changed stack")
+
+	g.CommitAll("changed stack-1")
+
+	want := `Generated files for /stack-1:
+	- file.hcl origin: /config.tm:4,1-8,2
+	- file.txt origin: /config.tm:1,1-3,2
+`
+
+	ts := newCLI(t, s.RootDir())
+	assertRunResult(t, ts.run("experimental", "generate", "debug", "--changed"), runExpected{
+		Stdout: want,
+	})
+
+	ts = newCLI(t, filepath.Join(s.RootDir(), "stack-1"))
+	assertRunResult(t, ts.run("experimental", "generate", "debug", "--changed"), runExpected{
+		Stdout: want,
+	})
+
+	ts = newCLI(t, filepath.Join(s.RootDir(), "stack-2"))
+	assertRunResult(t, ts.run("experimental", "generate", "debug", "--changed"), runExpected{})
+
+	ts = newCLI(t, filepath.Join(s.RootDir(), "no-stack"))
+	assertRunResult(t, ts.run("experimental", "generate", "debug", "--changed"), runExpected{})
 }
