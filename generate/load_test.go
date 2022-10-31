@@ -101,6 +101,7 @@ func TestLoad(t *testing.T) {
 			layout: []string{
 				"s:stack-1",
 				"s:stack-2",
+				"d:modules",
 			},
 			configs: []file{
 				{
@@ -114,6 +115,24 @@ func TestLoad(t *testing.T) {
 						),
 						GenerateFile(
 							Labels("test.txt"),
+							Str("content", "test"),
+						),
+						Import(
+							Str("source", "modules/imported.tm"),
+						),
+					),
+				},
+				{
+					path: "modules/imported.tm",
+					body: Doc(
+						GenerateHCL(
+							Labels("test2.hcl"),
+							Content(
+								Str("stacks", "test"),
+							),
+						),
+						GenerateFile(
+							Labels("test2.txt"),
 							Str("content", "test"),
 						),
 					),
@@ -141,6 +160,24 @@ func TestLoad(t *testing.T) {
 								End(8, 2, 111),
 							),
 						},
+						{
+							label:     "test2.hcl",
+							condition: true,
+							blockRange: Range(
+								"/modules/imported.tm",
+								Start(1, 1, 0),
+								End(5, 2, 64),
+							),
+						},
+						{
+							label:     "test2.txt",
+							condition: true,
+							blockRange: Range(
+								"/modules/imported.tm",
+								Start(6, 1, 65),
+								End(8, 2, 113),
+							),
+						},
 					},
 				},
 				{
@@ -162,6 +199,24 @@ func TestLoad(t *testing.T) {
 								"/config.tm",
 								Start(6, 1, 64),
 								End(8, 2, 111),
+							),
+						},
+						{
+							label:     "test2.hcl",
+							condition: true,
+							blockRange: Range(
+								"/modules/imported.tm",
+								Start(1, 1, 0),
+								End(5, 2, 64),
+							),
+						},
+						{
+							label:     "test2.txt",
+							condition: true,
+							blockRange: Range(
+								"/modules/imported.tm",
+								Start(6, 1, 65),
+								End(8, 2, 113),
 							),
 						},
 					},
