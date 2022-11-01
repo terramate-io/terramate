@@ -156,16 +156,18 @@ You can also check our [live example](https://github.com/mineiros-io/terramate-e
 
 ## Versioning
 
-Terramate is currently in a `v0.<MAJOR>.<MINOR|PATCH>` versioning scheme
-applying the same concepts of [Semantic Versioning](https://semver.org/) but
-in a slightly different way.
+Terramate follows the principles of [Semantic Versioning (SemVer)].
 
-Both `MINOR` and `PATCH` are managed together. So a change from v0.1.0 to
-v0.1.1 means that no backward incompatible changes were made and you may
-have fixes and new features.
+Given a version number `MAJOR.MINOR.PATCH`, we increment the:
 
-A change from v0.1.1 to v0.2.0 indicates that backwards compatibility
-is not guaranteed between the releases (a `MAJOR` change).
+1. `MAJOR` version when we make incompatible changes,
+2. `MINOR` version when we add functionality in a backwards compatible manner, and
+3. `PATCH` version when we make backwards compatible bug fixes.
+
+### Backwards compatibility in `0.0.z` and `0.y.z` version
+
+- Backwards compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased. (Initial development)
+- Backwards compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased. (Pre-release)
 
 ## Star History
 
