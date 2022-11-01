@@ -154,6 +154,19 @@ In a setup with no VCS change detection features will not be available.
 
 You can also check our [live example](https://github.com/mineiros-io/terramate-example-code-generation).
 
+## Versioning
+
+Terramate is currently in a `v0.<MAJOR>.<MINOR|PATCH>` versioning scheme
+applying the same concepts of [Semantic Versioning](https://semver.org/) but
+in a slightly different way.
+
+Both `MINOR` and `PATCH` are managed together. So a change from v0.1.0 to
+v0.1.1 means that no backward incompatible changes were made and you may
+have fixes and new features.
+
+A change from v0.1.1 to v0.2.0 indicates that backwards compatibility
+is not guaranteed between the releases (a `MAJOR` change).
+
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=mineiros-io/terramate&type=Timeline)](https://star-history.com/#mineiros-io/terramate&Timeline)
