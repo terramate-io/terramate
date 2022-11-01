@@ -133,6 +133,21 @@ func TestCreateStackDefaults(t *testing.T) {
 	test.AssertStackImports(t, s.RootDir(), got.HostPath(), []string{})
 }
 
+func TestCreateStackIgnoreExisting(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.New(t)
+	cli := newCLI(t, s.RootDir())
+	assertRunResult(t, cli.run("create", "stack"), runExpected{
+		IgnoreStdout: true,
+	})
+	assertRunResult(t, cli.run("create", "stack"), runExpected{
+		Status:       1,
+		IgnoreStderr: true,
+	})
+	assertRun(t, cli.run("create", "stack", "--ignore-existing"))
+}
+
 func newStackID(t *testing.T) string {
 	t.Helper()
 

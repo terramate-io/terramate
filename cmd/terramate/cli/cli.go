@@ -94,13 +94,14 @@ type cliSpec struct {
 	DisableCheckGitUncommitted bool `optional:"true" default:"false" help:"Disable git check for uncommitted files"`
 
 	Create struct {
-		Path        string   `arg:"" name:"path" predictor:"file" help:"Path of the new stack relative to the working dir"`
-		ID          string   `help:"ID of the stack, defaults to UUID"`
-		Name        string   `help:"Name of the stack, defaults to stack dir base name"`
-		Description string   `help:"Description of the stack, defaults to the stack name"`
-		Import      []string `help:"Add import block for the given path on the stack"`
-		After       []string `help:"Add a stack as after"`
-		Before      []string `help:"Add a stack as before"`
+		Path           string   `arg:"" name:"path" predictor:"file" help:"Path of the new stack relative to the working dir"`
+		ID             string   `help:"ID of the stack, defaults to UUID"`
+		Name           string   `help:"Name of the stack, defaults to stack dir base name"`
+		Description    string   `help:"Description of the stack, defaults to the stack name"`
+		Import         []string `help:"Add import block for the given path on the stack"`
+		After          []string `help:"Add a stack as after"`
+		Before         []string `help:"Add a stack as before"`
+		IgnoreExisting bool     `help:"If the stack already exists do nothing and don't fail"`
 	} `cmd:"" help:"Creates a stack on the project"`
 
 	Fmt struct {
@@ -723,6 +724,9 @@ func (c *cli) createStack() {
 	})
 
 	if err != nil {
+		if c.parsedArgs.Create.IgnoreExisting {
+			return
+		}
 		fatal(err, "creating stack")
 	}
 
