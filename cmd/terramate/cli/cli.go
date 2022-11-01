@@ -724,7 +724,8 @@ func (c *cli) createStack() {
 	})
 
 	if err != nil {
-		if c.parsedArgs.Create.IgnoreExisting {
+		if c.parsedArgs.Create.IgnoreExisting &&
+			errors.IsKind(err, stack.ErrStackAlreadyExists) {
 			return
 		}
 		fatal(err, "creating stack")
