@@ -154,6 +154,21 @@ In a setup with no VCS change detection features will not be available.
 
 You can also check our [live example](https://github.com/mineiros-io/terramate-example-code-generation).
 
+## Versioning
+
+Terramate follows the principles of [Semantic Versioning (SemVer)].
+
+Given a version number `MAJOR.MINOR.PATCH`, we increment the:
+
+1. `MAJOR` version when we make incompatible changes,
+2. `MINOR` version when we add functionality in a backwards compatible manner, and
+3. `PATCH` version when we make backwards compatible bug fixes.
+
+### Backwards compatibility in `0.0.z` and `0.y.z` version
+
+- Backwards compatibility in versions `0.0.z` is **not guaranteed** when `z` is increased. (Initial development)
+- Backwards compatibility in versions `0.y.z` is **not guaranteed** when `y` is increased. (Pre-release)
+
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=mineiros-io/terramate&type=Timeline)](https://star-history.com/#mineiros-io/terramate&Timeline)
