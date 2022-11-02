@@ -246,39 +246,6 @@ func TestSafeguardWithDisabledCheckRemoteFromConfig(t *testing.T) {
 		cat, someFile.HostPath()))
 }
 
-func TestSafeguardFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
-	t.Parallel()
-
-	s := sandbox.New(t)
-
-	stack := s.CreateStack("stack-1")
-	mainTfFile := stack.CreateFile("main.tf", "# no code")
-
-	ts := newCLI(t, s.RootDir())
-
-	git := s.Git()
-
-	git.Add(".")
-	git.Commit("all")
-
-	setupLocalMainBranchBehindOriginMain(git, func() {
-		stack.CreateFile("tempfile", "any content")
-	})
-
-	wantRes := runExpected{
-		Status:      1,
-		StderrRegex: string(cli.ErrCurrentHeadIsOutOfSync),
-	}
-
-	cat := test.LookPath(t, "cat")
-	// terramate run should also check if local default branch is updated with remote
-	assertRunResult(t, ts.run(
-		"run",
-		cat,
-		mainTfFile.HostPath(),
-	), wantRes)
-}
-
 func TestSafeguardRunWithGitRemoteCheckDisabledWorksWithoutNetworking(t *testing.T) {
 	t.Parallel()
 
