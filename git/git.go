@@ -646,7 +646,6 @@ func (git *Git) Checkout(rev string, create bool) error {
 }
 
 // Merge branch into current branch using the non fast-forward strategy.
-// For doing a fast-forwarded merge see FFMerge().
 // Beware: Merge is a porcelain method.
 func (git *Git) Merge(branch string) error {
 	if !git.config.AllowPorcelain {
@@ -689,23 +688,6 @@ func (git *Git) Pull(remote, branch string) error {
 		Str("reference", fmt.Sprintf("from `%s` to `%s`", remote, branch)).
 		Msg("Git pull.")
 	_, err := git.exec("pull", remote, branch)
-	return err
-}
-
-// FFMerge branch into current branch using the fast-forward strategy.
-// For doing a non fast-forwarded merge see Merge().
-// Beware: FFMerge is a porcelain method.
-func (git *Git) FFMerge(branch string) error {
-	if !git.config.AllowPorcelain {
-		return fmt.Errorf("FFMerge: %w", ErrDenyPorcelain)
-	}
-
-	log.Debug().
-		Str("action", "FFMerge()").
-		Str("workingDir", git.config.WorkingDir).
-		Str("reference", branch).
-		Msg("Fast forward merge branch.")
-	_, err := git.exec("merge", "--ff", branch)
 	return err
 }
 
