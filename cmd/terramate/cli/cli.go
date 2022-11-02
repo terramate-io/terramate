@@ -56,8 +56,8 @@ import (
 )
 
 const (
-	// ErrOutdatedLocalRev indicates the local revision is outdated.
-	ErrOutdatedLocalRev errors.Kind = "outdated local revision"
+	// ErrCurrentHeadIsOutOfSync indicates the local HEAD revision is outdated.
+	ErrCurrentHeadIsOutOfSync errors.Kind = "current HEAD is out of sync"
 	// ErrOutdatedGenCodeDetected indicates outdated generated code detected.
 	ErrOutdatedGenCodeDetected errors.Kind = "outdated generated code detected"
 	// ErrRootCfgInvalidDir indicates that a root configuration was found outside root
@@ -450,22 +450,6 @@ func (c *cli) setupGit() {
 	}
 }
 
-func (c *cli) checkGitLocalBranchIsUpdated() {
-	logger := log.With().
-		Str("action", "checkGit()").
-		Logger()
-
-	if !c.prj.isRepo {
-		return
-	}
-
-	logger.Trace().Msg("check git default branch is updated")
-
-	if err := c.prj.checkLocalDefaultIsUpdated(); err != nil {
-		fatal(err, "checking git default branch is updated")
-	}
-}
-
 func (c *cli) vendorDownload() {
 	source := c.parsedArgs.Experimental.Vendor.Download.Source
 	ref := c.parsedArgs.Experimental.Vendor.Download.Reference
@@ -649,7 +633,7 @@ func debugFiles(files []string, msg string) {
 	}
 }
 
-func (c *cli) gitSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
+func (c *cli) gitFileSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
 	if c.parsedArgs.Run.DryRun {
 		return
 	}
@@ -673,6 +657,22 @@ func (c *cli) gitSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
 		} else {
 			log.Warn().Msg(msg)
 		}
+	}
+}
+
+func (c *cli) gitRemoteSafeguard() {
+	logger := log.With().
+		Str("action", "checkGit()").
+		Logger()
+
+	if !c.prj.isRepo || !c.gitSafeguardRemoteEnabled() {
+		return
+	}
+
+	logger.Trace().Msg("check git default branch is updated")
+
+	if err := c.prj.checkLocalDefaultIsUpdated(); err != nil {
+		fatal(err, "checking git default branch is updated")
 	}
 }
 
@@ -812,10 +812,6 @@ func (c *cli) format() {
 }
 
 func (c *cli) printStacks() {
-	if c.parsedArgs.Changed {
-		c.checkGitLocalBranchIsUpdated()
-	}
-
 	if c.parsedArgs.List.Why && !c.parsedArgs.Changed {
 		log.Fatal().Msg("the --why flag must be used together with --changed")
 	}
@@ -826,7 +822,7 @@ func (c *cli) printStacks() {
 		fatal(err, "listing stacks")
 	}
 
-	c.gitSafeguards(report.Checks, false)
+	c.gitFileSafeguards(report.Checks, false)
 
 	for _, entry := range report.Stacks {
 		stack := entry.Stack
@@ -1360,7 +1356,7 @@ func (c *cli) checkOutdatedGeneratedCode(stacks stack.List) {
 	}
 }
 
-func (c *cli) checkGitRemote() bool {
+func (c *cli) gitSafeguardRemoteEnabled() bool {
 	if c.parsedArgs.Run.DisableCheckGitRemote {
 		return false
 	}
@@ -1388,9 +1384,7 @@ func (c *cli) runOnStacks() {
 		Str("workingDir", c.wd()).
 		Logger()
 
-	if c.checkGitRemote() {
-		c.checkGitLocalBranchIsUpdated()
-	}
+	c.gitRemoteSafeguard()
 
 	if len(c.parsedArgs.Run.Command) == 0 {
 		logger.Fatal().Msgf("run expects a cmd")
@@ -1498,7 +1492,7 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (stack.List, error) {
 		return nil, err
 	}
 
-	c.gitSafeguards(report.Checks, ensureCleanRepo)
+	c.gitFileSafeguards(report.Checks, ensureCleanRepo)
 
 	logger.Trace().Msg("Filter stacks by working directory.")
 

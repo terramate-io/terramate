@@ -285,67 +285,6 @@ func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
 	)
 }
 
-func TestFailsOnRunIfRemoteMainIsOutdated(t *testing.T) {
-	t.Parallel()
-
-	s := sandbox.New(t)
-
-	stack := s.CreateStack("stack-1")
-	mainTfFile := stack.CreateFile("main.tf", "# no code")
-
-	ts := newCLI(t, s.RootDir())
-
-	git := s.Git()
-
-	git.Add(".")
-	git.Commit("all")
-
-	setupLocalMainBranchBehindOriginMain(git, func() {
-		stack.CreateFile("tempfile", "any content")
-	})
-
-	wantRes := runExpected{
-		Status:      1,
-		StderrRegex: string(cli.ErrOutdatedLocalRev),
-	}
-
-	assertRunResult(t, ts.listChangedStacks(), wantRes)
-
-	testrun := func() {
-		assertRunResult(t, ts.run(
-			"run",
-			testHelperBin,
-			"cat",
-			mainTfFile.HostPath(),
-		), wantRes)
-
-		assertRunResult(t, ts.run(
-			"run",
-			"--changed",
-			testHelperBin,
-			"cat",
-			mainTfFile.HostPath(),
-		), wantRes)
-	}
-
-	testrun()
-
-	git.CheckoutNew("branch")
-
-	// we create two commits so we can also test from a DETACHED HEAD.
-	stack.CreateFile("tempfile2", "any content")
-	git.CommitAll("add tempfile2")
-
-	stack.CreateFile("tempfile3", "any content")
-	git.CommitAll("add tempfile3")
-
-	testrun()
-
-	git.Checkout("HEAD^1")
-
-	testrun()
-}
-
 func TestMainAfterOriginMainMustUseDefaultBaseRef(t *testing.T) {
 	t.Parallel()
 

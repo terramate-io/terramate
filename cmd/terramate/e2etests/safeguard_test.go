@@ -56,6 +56,65 @@ func TestSafeguardNotRequiredInSomeCommands(t *testing.T) {
 	}
 }
 
+func TestSafeguardFailsOnRunIfRemoteMainIsOutdated(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.New(t)
+
+	stack := s.CreateStack("stack-1")
+	mainTfFile := stack.CreateFile("main.tf", "# no code")
+
+	ts := newCLI(t, s.RootDir())
+
+	git := s.Git()
+
+	git.Add(".")
+	git.Commit("all")
+
+	setupLocalMainBranchBehindOriginMain(git, func() {
+		stack.CreateFile("tempfile", "any content")
+	})
+
+	testrun := func() {
+		wantRes := runExpected{
+			Status:      1,
+			StderrRegex: string(cli.ErrCurrentHeadIsOutOfSync),
+		}
+
+		assertRunResult(t, ts.run(
+			"run",
+			testHelperBin,
+			"cat",
+			mainTfFile.HostPath(),
+		), wantRes)
+
+		assertRunResult(t, ts.run(
+			"run",
+			"--changed",
+			testHelperBin,
+			"cat",
+			mainTfFile.HostPath(),
+		), wantRes)
+	}
+
+	testrun()
+
+	git.CheckoutNew("branch")
+
+	// we create two commits so we can also test from a DETACHED HEAD.
+	stack.CreateFile("tempfile2", "any content")
+	git.CommitAll("add tempfile2")
+
+	stack.CreateFile("tempfile3", "any content")
+	git.CommitAll("add tempfile3")
+
+	testrun()
+
+	git.Checkout("HEAD^1")
+
+	testrun()
+}
+
 func TestSafeguardDisableGitCheckRemoteFromArgs(t *testing.T) {
 	t.Parallel()
 
@@ -86,7 +145,7 @@ func TestSafeguardDisableGitCheckRemoteFromArgs(t *testing.T) {
 		),
 			runExpected{
 				Status:      1,
-				StderrRegex: "outdated local revision",
+				StderrRegex: string(cli.ErrCurrentHeadIsOutOfSync),
 			})
 	})
 
@@ -208,7 +267,7 @@ func TestSafeguardFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
 
 	wantRes := runExpected{
 		Status:      1,
-		StderrRegex: string(cli.ErrOutdatedLocalRev),
+		StderrRegex: string(cli.ErrCurrentHeadIsOutOfSync),
 	}
 
 	cat := test.LookPath(t, "cat")
@@ -220,7 +279,7 @@ func TestSafeguardFailsIfCurrentBranchIsMainAndItIsOutdated(t *testing.T) {
 	), wantRes)
 }
 
-func TestSafeguardRunWithoutGitRemoteCheckWorksWithoutNetworking(t *testing.T) {
+func TestSafeguardRunWithGitRemoteCheckDisabledWorksWithoutNetworking(t *testing.T) {
 	t.Parallel()
 
 	// Regression test to guarantee that all git checks

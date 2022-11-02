@@ -60,7 +60,7 @@ func TestLocalDefaultIsOutdated(t *testing.T) {
 	}
 
 	assert.NoError(t, prj.setDefaults(&cliSpec{}))
-	assert.IsError(t, prj.checkLocalDefaultIsUpdated(), errors.E(ErrOutdatedLocalRev))
+	assert.IsError(t, prj.checkLocalDefaultIsUpdated(), errors.E(ErrCurrentHeadIsOutOfSync))
 }
 
 func init() {
