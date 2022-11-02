@@ -39,7 +39,7 @@ const (
 
 	// ErrStackDefaultCfgFound indicates that the dir already has a default
 	// stack configuration.
-	ErrStackDefaultCfgFound errors.Kind = "default cfg file already exists"
+	ErrStackDefaultCfgFound errors.Kind = "default configuration file for stack already exists"
 )
 
 // DefaultFilename is the default file name for created stacks.
