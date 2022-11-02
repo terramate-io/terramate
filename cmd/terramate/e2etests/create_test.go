@@ -138,6 +138,52 @@ func TestCreateStackDefaults(t *testing.T) {
 	test.AssertStackImports(t, s.RootDir(), got.HostPath(), []string{})
 }
 
+func TestCreateStackIgnoreExistingOnDefaultStackCfgFound(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.New(t)
+	cli := newCLI(t, s.RootDir())
+	assertRunResult(t, cli.run("create", "stack"), runExpected{
+		IgnoreStdout: true,
+	})
+	assertRunResult(t, cli.run("create", "stack"), runExpected{
+		Status:       1,
+		IgnoreStderr: true,
+	})
+	assertRun(t, cli.run("create", "stack", "--ignore-existing"))
+}
+
+func TestCreateStackIgnoreExistingOnStackFound(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		"f:stack/non_default_cfg.tm:stack{\n}",
+	})
+	cli := newCLI(t, s.RootDir())
+	assertRunResult(t, cli.run("create", "stack"), runExpected{
+		Status:       1,
+		IgnoreStderr: true,
+	})
+	assertRun(t, cli.run("create", "stack", "--ignore-existing"))
+}
+
+func TestCreateStackIgnoreExistingFatalOnOtherErrors(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.New(t)
+	root := s.RootEntry()
+	root.CreateDir("stack")
+	// Here we fail stack creating with an access error
+	root.Chmod("stack", 0444)
+	cli := newCLI(t, s.RootDir())
+
+	assertRunResult(t, cli.run("create", "stack", "--ignore-existing"), runExpected{
+		Status:       1,
+		IgnoreStderr: true,
+	})
+}
+
 func newStackID(t *testing.T) string {
 	t.Helper()
 

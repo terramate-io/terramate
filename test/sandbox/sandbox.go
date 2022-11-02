@@ -25,6 +25,7 @@ package sandbox
 import (
 	"bytes"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -428,6 +429,12 @@ func (de DirEntry) DeleteConfig() {
 // must be relative to the stack directory.
 func (de DirEntry) CreateDir(relpath string) DirEntry {
 	return newDirEntry(de.t, de.abspath, relpath)
+}
+
+// Chmod does the same as [test.Chmod] for the given file/dir inside
+// this DirEntry.
+func (de DirEntry) Chmod(relpath string, mode fs.FileMode) {
+	test.Chmod(de.t, filepath.Join(de.abspath, relpath), mode)
 }
 
 // ReadFile will read a file inside this dir entry with the given name.
