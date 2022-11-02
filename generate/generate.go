@@ -56,6 +56,68 @@ const (
 	ErrAssertion errors.Kind = "assertion failed"
 )
 
+// GenFile represents a generated file loaded from a Terramate configuration.
+type GenFile interface {
+	// Header is the header of the generated file, if any.
+	Header() string
+	// Body is the body of the generated file, if any.
+	Body() string
+	// Label is the label of the origin generate block that generated this file.
+	Label() string
+	// Range is the range of the origin generate block that generated this file.
+	Range() info.Range
+	// Condition is true if the origin generate block had a true condition, false otherwise.
+	Condition() bool
+	// Asserts is the origin generate block assert blocks.
+	Asserts() []config.Assert
+}
+
+// LoadResult represents all generated files of a specific directory.
+type LoadResult struct {
+	// Dir is from where the generated files were loaded, or where a failure occurred
+	// if Err is not nil.
+	Dir project.Path
+	// Files is the generated files for this directory.
+	Files []GenFile
+	// Err will be non-nil if loading generated files for a specific dir failed
+	Err error
+}
+
+// Load will load all the generated files inside the given tree.
+// Each directory will be represented by a single [LoadResult] inside the returned slice.
+// Errors generating code for specific dirs will be found inside each [LoadResult].
+// If a critical error that fails the loading of all results happens it returns
+// a non-nil error. In this case the error is not specific to generating code for a
+// specific dir.
+func Load(cfg *config.Tree) ([]LoadResult, error) {
+	stacks, err := stack.LoadAll(cfg)
+	if err != nil {
+		return nil, err
+	}
+	projmeta := stack.NewProjectMetadata(cfg.RootDir(), stacks)
+	results := make([]LoadResult, len(stacks))
+
+	for i, st := range stacks {
+		res := LoadResult{Dir: st.Path()}
+		loadres := stack.LoadStackGlobals(cfg, projmeta, st)
+		if err := loadres.AsError(); err != nil {
+			res.Err = err
+			results[i] = res
+			continue
+		}
+
+		generated, err := loadStackCodeCfgs(cfg, projmeta, st, loadres.Globals)
+		if err != nil {
+			res.Err = err
+			results[i] = res
+			continue
+		}
+		res.Files = generated
+		results[i] = res
+	}
+	return results, nil
+}
+
 // Do will walk all the stacks inside the given working dir
 // generating code for any stack it finds as it goes along.
 //
@@ -94,7 +156,7 @@ func Do(cfg *config.Tree, workingDir string) Report {
 			return report
 		}
 
-		generated, err := loadGenCodeConfigs(cfg, projmeta, stack, globals)
+		generated, err := loadStackCodeCfgs(cfg, projmeta, stack, globals)
 		if err != nil {
 			report.err = err
 			return report
@@ -358,7 +420,7 @@ func stackOutdated(cfg *config.Tree, projmeta project.Metadata, st *stack.S) ([]
 	globals := report.Globals
 	stackpath := st.HostPath()
 
-	generated, err := loadGenCodeConfigs(cfg, projmeta, st, globals)
+	generated, err := loadStackCodeCfgs(cfg, projmeta, st, globals)
 	if err != nil {
 		return nil, err
 	}
@@ -392,18 +454,9 @@ func stackOutdated(cfg *config.Tree, projmeta project.Metadata, st *stack.S) ([]
 	return outdated, nil
 }
 
-type genCodeCfg interface {
-	Label() string
-	Range() info.Range
-	Header() string
-	Body() string
-	Condition() bool
-	Asserts() []config.Assert
-}
-
 func updateOutdatedFiles(
 	stackpath string,
-	generated []genCodeCfg,
+	generated []GenFile,
 	outdatedFiles *stringSet,
 ) error {
 	logger := log.With().
@@ -473,7 +526,7 @@ func updateOutdatedFiles(
 	return nil
 }
 
-func writeGeneratedCode(target string, genfile genCodeCfg) error {
+func writeGeneratedCode(target string, genfile GenFile) error {
 	logger := log.With().
 		Str("action", "writeGeneratedCode()").
 		Str("file", target).
@@ -621,7 +674,7 @@ func forEachStack(cfg *config.Tree, workingDir string, fn forEachStackFunc) Repo
 func removeStackGeneratedFiles(
 	cfg *config.Tree,
 	stack *stack.S,
-	genfiles []genCodeCfg,
+	genfiles []GenFile,
 ) (map[string]string, error) {
 	logger := log.With().
 		Str("action", "generate.removeStackGeneratedFiles()").
@@ -690,7 +743,7 @@ func hasGenHCLHeader(code string) bool {
 	return false
 }
 
-func checkGeneratedFilesPaths(cfg *config.Tree, stackpath string, generated []genCodeCfg) error {
+func checkGeneratedFilesPaths(cfg *config.Tree, stackpath string, generated []GenFile) error {
 	logger := log.With().
 		Str("action", "generate.checkGeneratedFilesPaths()").
 		Logger()
@@ -796,14 +849,14 @@ func (ss *stringSet) slice() []string {
 	return res
 }
 
-func validateGeneratedFiles(cfg *config.Tree, stackpath string, generated []genCodeCfg) error {
+func validateGeneratedFiles(cfg *config.Tree, stackpath string, generated []GenFile) error {
 	logger := log.With().
 		Str("action", "generate.validateGeneratedFiles()").
 		Logger()
 
 	logger.Trace().Msg("validating generated files.")
 
-	genset := map[string]genCodeCfg{}
+	genset := map[string]GenFile{}
 	for _, file := range generated {
 		if other, ok := genset[file.Label()]; ok && file.Condition() {
 			return errors.E(ErrConflictingConfig,
@@ -875,13 +928,13 @@ func loadAsserts(tree *config.Tree, meta project.Metadata, sm stack.Metadata, gl
 	return asserts, nil
 }
 
-func loadGenCodeConfigs(
+func loadStackCodeCfgs(
 	tree *config.Tree,
 	projmeta project.Metadata,
 	st *stack.S,
 	globals *eval.Object,
-) ([]genCodeCfg, error) {
-	var genfilesConfigs []genCodeCfg
+) ([]GenFile, error) {
+	var genfilesConfigs []GenFile
 
 	genfiles, err := genfile.Load(tree, projmeta, st, globals)
 	if err != nil {
