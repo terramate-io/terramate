@@ -229,20 +229,23 @@ func (p *project) checkLocalDefaultIsUpdated() error {
 	gitcfg := p.gitcfg()
 	mergeBaseCommitID, err := p.git.wrapper.MergeBase(p.headCommit(), p.remoteDefaultCommit())
 	if err != nil {
-		return fmt.Errorf(
-			"the reference %s/%s is not reachable from HEAD: %w",
+		return errors.E(
+			ErrOutdatedLocalRev,
+			"%s/%s ref is not reachable: HEAD ref %q can't reach %q",
 			gitcfg.DefaultRemote,
 			gitcfg.DefaultBranch,
-			err,
-		)
+			p.headCommit(),
+			p.remoteDefaultCommit())
 	}
 
 	if mergeBaseCommitID != p.remoteDefaultCommit() {
 		return errors.E(
 			ErrOutdatedLocalRev,
-			"remote %s/%s != HEAD",
+			"remote %s/%s (%s) != HEAD (%s)",
 			gitcfg.DefaultRemote,
 			gitcfg.DefaultBranch,
+			p.headCommit(),
+			p.remoteDefaultCommit(),
 		)
 	}
 
