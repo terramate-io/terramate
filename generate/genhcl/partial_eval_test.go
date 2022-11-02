@@ -1565,8 +1565,8 @@ func TestPartialEval(t *testing.T) {
 
 			assert.NoError(t, err)
 
-			globals := s.LoadStackGlobals(cfg, projmeta, stack)
-			got, err := genhcl.Load(cfg, projmeta, stack, globals)
+			ctx, _ := s.LoadStackGlobals(cfg, projmeta, stack)
+			got, err := genhcl.Load(cfg, ctx)
 			errtest.Assert(t, err, tcase.wantErr)
 			if err != nil {
 				return

@@ -1683,7 +1683,7 @@ func (tcase testcase) run(t *testing.T) {
 			test.AppendFile(t, path, filename, cfg.add.String())
 		}
 
-		cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+		rootcfg, err := config.LoadTree(s.RootDir(), s.RootDir())
 		if errors.IsAnyKind(tcase.wantErr, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
 			errtest.Assert(t, err, tcase.wantErr)
 			return
@@ -1691,8 +1691,10 @@ func (tcase testcase) run(t *testing.T) {
 
 		assert.NoError(t, err)
 
-		globals := s.LoadStackGlobals(cfg, projmeta, stack)
-		got, err := genhcl.Load(cfg, projmeta, stack, globals)
+		ctx, _ := s.LoadStackGlobals(rootcfg, projmeta, stack)
+
+		cfg, _ := rootcfg.Lookup(stack.Path())
+		got, err := genhcl.Load(cfg, ctx)
 		errtest.Assert(t, err, tcase.wantErr)
 
 		if len(got) != len(tcase.want) {

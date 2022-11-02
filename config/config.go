@@ -138,6 +138,13 @@ func (tree *Tree) Stacks() List {
 	return stacks
 }
 
+// Dirs returns all directories containing Terramate configuration.
+func (tree *Tree) Dirs() List {
+	dirs := tree.dirs()
+	sort.Sort(dirs)
+	return dirs
+}
+
 func (tree *Tree) stacks() List {
 	var stacks List
 	if tree.IsStack() {
@@ -147,6 +154,17 @@ func (tree *Tree) stacks() List {
 		stacks = append(stacks, children.stacks()...)
 	}
 	return stacks
+}
+
+func (tree *Tree) dirs() List {
+	var dirs List
+	if !tree.IsEmptyConfig() {
+		dirs = append(dirs, tree)
+	}
+	for _, children := range tree.Children {
+		dirs = append(dirs, children.dirs()...)
+	}
+	return dirs
 }
 
 // DownwardGenerateFiles returns all generate_file blocks downward from current
@@ -167,6 +185,15 @@ func (tree *Tree) UpwardGenerateFiles() []hcl.GenFileBlock {
 	result = append(result, tree.Node.Generate.Files...)
 	if tree.Parent != nil {
 		result = append(result, tree.Parent.UpwardGenerateFiles()...)
+	}
+	return result
+}
+
+func (tree *Tree) UpwardAssertions() []hcl.AssertConfig {
+	result := []hcl.AssertConfig{}
+	result = append(result, tree.Node.Asserts...)
+	if tree.Parent != nil {
+		result = append(result, tree.Parent.UpwardAssertions()...)
 	}
 	return result
 }
@@ -360,8 +387,11 @@ func (tree *Tree) IsEmptyConfig() bool {
 }
 
 // IsStack returns true if the given directory is a stack, false otherwise.
-func IsStack(cfg *Tree, dir string) bool {
-	node, ok := cfg.Lookup(project.PrjAbsPath(cfg.RootDir(), dir))
+func IsStack(root *Tree, dir string) bool {
+	if root.Parent != nil {
+		panic("expect a root config")
+	}
+	node, ok := root.Lookup(project.PrjAbsPath(root.RootDir(), dir))
 	return ok && node.IsStack()
 }
 

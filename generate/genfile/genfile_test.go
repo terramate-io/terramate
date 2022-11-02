@@ -987,8 +987,8 @@ func testGenfile(t *testing.T, tcase testcase) {
 
 		assert.NoError(t, err)
 
-		globals := s.LoadStackGlobals(cfg, projmeta, stack)
-		got, err := genfile.LoadStackContext(cfg, projmeta, stack, globals)
+		ctx, _ := s.LoadStackGlobals(cfg, projmeta, stack)
+		got, err := genfile.LoadStackContext(cfg, ctx)
 		errtest.Assert(t, err, tcase.wantErr)
 
 		if len(got) != len(tcase.want) {

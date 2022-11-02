@@ -136,6 +136,11 @@ type cliSpec struct {
 		Globals struct {
 		} `cmd:"" help:"List globals for all stacks"`
 
+		Generate struct {
+			Debug struct {
+			} `cmd:"" help:"Shows generate debug information"`
+		} `cmd:"" help:"Experimental generate commands"`
+
 		RunGraph struct {
 			Outfile string `short:"o" predictor:"file" default:"" help:"Output .dot file"`
 			Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\""`
@@ -391,6 +396,9 @@ func (c *cli) run() {
 	case "experimental globals":
 		c.setupGit()
 		c.printStacksGlobals()
+	case "experimental generate debug":
+		c.setupGit()
+		c.generateDebug()
 	case "experimental metadata":
 		c.setupGit()
 		c.printMetadata()
@@ -722,11 +730,24 @@ func (c *cli) createStack() {
 		Imports:     c.parsedArgs.Create.Import,
 	})
 
+	stackPath := filepath.ToSlash(strings.TrimPrefix(stackDir, c.root()))
+
 	if err != nil {
-		fatal(err, "creating stack")
+		logger := log.With().
+			Str("stack", stackPath).
+			Logger()
+
+		if errors.IsKind(err, stack.ErrStackDefaultCfgFound) {
+			logger = logger.With().
+				Str("file", stack.DefaultFilename).
+				Logger()
+		}
+
+		errlog.Fatal(logger, err, "can't create stack")
 	}
 
-	c.output.Msg(out.V, "Created stack %s", c.parsedArgs.Create.Path)
+	log.Info().Msgf("created stack %s", stackPath)
+	c.output.Msg(out.V, "Created stack %s", stackPath)
 
 	report := generate.Do(c.cfg(), stackDir)
 	c.output.Msg(out.VV, report.Minimal())
@@ -1012,6 +1033,56 @@ func (c *cli) printRunOrder() {
 	}
 }
 
+func (c *cli) generateDebug() {
+	// TODO(KATCIPIS): When we introduce config defined on root context
+	// we need to know blocks that have root context, since they should
+	// not be filtered by stack selection.
+	stacks, err := c.computeSelectedStacks(false)
+	if err != nil {
+		fatal(err, "generate debug: selecting stacks")
+	}
+
+	selectedStacks := map[prj.Path]struct{}{}
+	for _, stack := range stacks {
+		log.Debug().Msgf("selected stack: %s", stack.Path())
+
+		selectedStacks[stack.Path()] = struct{}{}
+	}
+
+	results, err := generate.Load(c.cfg())
+	if err != nil {
+		fatal(err, "generate debug: loading generated code")
+	}
+
+	for _, res := range results {
+		if _, ok := selectedStacks[res.Dir]; !ok {
+			log.Debug().Msgf("discarding dir %s since it is not a selected stack", res.Dir)
+			continue
+		}
+		if res.Err != nil {
+			errmsg := stdfmt.Sprintf("generate debug error on dir %s: %v", res.Dir, res.Err)
+			log.Error().Msg(errmsg)
+			c.output.Err(out.V, errmsg)
+			continue
+		}
+		if len(res.Files) == 0 {
+			continue
+		}
+
+		files := make([]generate.GenFile, 0, len(res.Files))
+		for _, f := range res.Files {
+			if f.Condition() {
+				files = append(files, f)
+			}
+		}
+
+		c.output.Msg(out.V, "Generated files for %s:", res.Dir)
+		for _, file := range files {
+			c.output.Msg(out.V, "\t- %s origin: %v", file.Label(), file.Range())
+		}
+	}
+}
+
 func (c *cli) printStacksGlobals() {
 	logger := log.With().
 		Str("action", "printStacksGlobals()").
@@ -1030,7 +1101,7 @@ func (c *cli) printStacksGlobals() {
 
 	for _, stackEntry := range c.filterStacksByWorkingDir(report.Stacks) {
 		meta := stack.Metadata(stackEntry.Stack)
-		report := stack.LoadStackGlobals(c.cfg(), projmeta, meta)
+		_, report := stack.LoadStackGlobals(c.cfg(), projmeta, meta)
 		if err := report.AsError(); err != nil {
 			logger := log.With().
 				Stringer("stack", meta.Path()).
@@ -1276,6 +1347,7 @@ func (c *cli) checkOutdatedGeneratedCode(stacks stack.List) {
 
 	if len(outdatedFiles) > 0 {
 		logger.Fatal().
+			Strs("outdatedFiles", outdatedFiles).
 			Err(errors.E(ErrOutdatedGenCodeDetected)).
 			Msg("please run: 'terramate generate' to update generated code")
 	}

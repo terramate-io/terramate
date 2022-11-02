@@ -62,7 +62,7 @@ func LoadEnv(cfg *config.Tree, projmeta project.Metadata, st *stack.S) (EnvVars,
 
 	logger.Trace().Msg("loading globals")
 
-	globalsReport := stack.LoadStackGlobals(cfg, projmeta, st)
+	_, globalsReport := stack.LoadStackGlobals(cfg, projmeta, st)
 	if err := globalsReport.AsError(); err != nil {
 		return nil, errors.E(ErrLoadingGlobals, err)
 	}

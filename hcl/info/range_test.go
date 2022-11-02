@@ -47,6 +47,23 @@ func TestRangeFromHCLRange(t *testing.T) {
 	assert.EqualInts(t, hclrange.End.Byte, tmrange.End().Byte())
 }
 
+func TestRangeStrRepr(t *testing.T) {
+	rootdir := t.TempDir()
+	tmrange := info.NewRange(rootdir, Mkrange(
+		filepath.Join(rootdir, "dir", "assert.tm"),
+		Start(1, 1, 0),
+		End(3, 2, 37),
+	))
+	assert.EqualStrings(t, "/dir/assert.tm:1,1-3,2", tmrange.String())
+
+	tmrange = info.NewRange(rootdir, Mkrange(
+		filepath.Join(rootdir, "assert.tm"),
+		Start(1, 1, 0),
+		End(1, 2, 37),
+	))
+	assert.EqualStrings(t, "/assert.tm:1,1-2", tmrange.String())
+}
+
 func TestRangeWithFileOnRootdir(t *testing.T) {
 	rootdir := t.TempDir()
 	path := "assert.tm"

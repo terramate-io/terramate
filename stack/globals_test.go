@@ -2112,7 +2112,7 @@ func TestLoadGlobals(t *testing.T) {
 
 				t.Logf("loading globals for stack: %s", st.Path())
 
-				gotReport := stack.LoadStackGlobals(s.Config(), projmeta, st)
+				_, gotReport := stack.LoadStackGlobals(s.Config(), projmeta, st)
 				errtest.Assert(t, gotReport.AsError(), tcase.wantErr)
 				if tcase.wantErr != nil {
 					continue
@@ -2312,7 +2312,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 			projmeta := stack.NewProjectMetadata(s.RootDir(), stacks)
 
 			for _, st := range stacks {
-				report := stack.LoadStackGlobals(s.Config(), projmeta, st)
+				_, report := stack.LoadStackGlobals(s.Config(), projmeta, st)
 				errtest.Assert(t, report.AsError(), tcase.want)
 			}
 		})

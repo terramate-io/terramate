@@ -250,12 +250,12 @@ func (s S) LoadStackGlobals(
 	cfg *config.Tree,
 	projmeta project.Metadata,
 	sm stack.Metadata,
-) *eval.Object {
+) (*eval.Context, *eval.Object) {
 	s.t.Helper()
 
-	report := stack.LoadStackGlobals(cfg, projmeta, sm)
+	ctx, report := stack.LoadStackGlobals(cfg, projmeta, sm)
 	assert.NoError(s.t, report.AsError())
-	return report.Globals
+	return ctx, report.Globals
 }
 
 // RootDir returns the root directory of the test env. All dirs/files created

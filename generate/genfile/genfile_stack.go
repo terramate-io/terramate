@@ -21,13 +21,10 @@ import (
 
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
 
 	"github.com/mineiros-io/terramate/lets"
-	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/stack"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -88,6 +85,11 @@ func (f File) Condition() bool {
 	return f.condition
 }
 
+// Context returns the result of the evaluation of the context attribute.
+func (f File) Context() string {
+	return f.context
+}
+
 // Asserts returns all (if any) of the evaluated assert configs of the
 // generate_file block. If [File.Condition] returns false then assert configs
 // will always be empty since they are not evaluated at all in that case.
@@ -102,8 +104,8 @@ func (f File) Header() string {
 }
 
 func (f File) String() string {
-	return fmt.Sprintf("generate_file %q (condition %t) (body %q) (origin %q)",
-		f.Label(), f.Condition(), f.Body(), f.Range().Path())
+	return fmt.Sprintf("generate_file %q (condition %t) (context %s) (body %q) (origin %q)",
+		f.Label(), f.Condition(), f.Context(), f.Body(), f.Range().Path())
 }
 
 // LoadStackContext loads and parses from the file system all generate_file
@@ -120,17 +122,14 @@ func (f File) String() string {
 // The rootdir MUST be an absolute path.
 func LoadStackContext(
 	cfg *config.Tree,
-	projmeta project.Metadata,
-	sm stack.Metadata,
-	globals *eval.Object,
+	evalctx *eval.Context,
 ) ([]File, error) {
-	genFileBlocks := loadScopedGenFileBlocks(cfg, sm.Path())
+	genFileBlocks := cfg.UpwardGenerateFiles()
 
 	var files []File
 
 	for _, genFileBlock := range genFileBlocks {
 		name := genFileBlock.Label
-		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
 
 		context := "stack"
 		if genFileBlock.Context != nil {
@@ -156,7 +155,7 @@ func LoadStackContext(
 			continue
 		}
 
-		err := lets.Load(genFileBlock.Lets, evalctx.Context)
+		err := lets.Load(genFileBlock.Lets, evalctx)
 		if err != nil {
 			return nil, err
 		}
@@ -192,7 +191,7 @@ func LoadStackContext(
 		assertFailed := false
 
 		for i, assertCfg := range genFileBlock.Asserts {
-			assert, err := config.EvalAssert(evalctx.Context, assertCfg)
+			assert, err := config.EvalAssert(evalctx, assertCfg)
 			if err != nil {
 				assertsErrs.Append(err)
 				continue
@@ -244,17 +243,4 @@ func LoadStackContext(
 	})
 
 	return files, nil
-}
-
-// loadScopedGenFileBlocks will load all generate_file blocks.
-// The returned map maps the name of the block (its label)
-// to the original block and the path (relative to project root) of the config
-// from where it was parsed.
-func loadScopedGenFileBlocks(tree *config.Tree, cfgdir project.Path) []hcl.GenFileBlock {
-	res := []hcl.GenFileBlock{}
-	cfg, ok := tree.Lookup(cfgdir)
-	if ok {
-		res = append(res, cfg.UpwardGenerateFiles()...)
-	}
-	return res
 }
