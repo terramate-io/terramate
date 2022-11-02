@@ -734,15 +734,16 @@ func (c *cli) createStack() {
 	stackPath := filepath.ToSlash(strings.TrimPrefix(stackDir, c.root()))
 
 	if err != nil {
-		if c.parsedArgs.Create.IgnoreExisting &&
-			(errors.IsKind(err, stack.ErrStackAlreadyExists) ||
-				errors.IsKind(err, stack.ErrStackDefaultCfgFound)) {
-			return
-		}
-
 		logger := log.With().
 			Str("stack", stackPath).
 			Logger()
+
+		if c.parsedArgs.Create.IgnoreExisting &&
+			(errors.IsKind(err, stack.ErrStackAlreadyExists) ||
+				errors.IsKind(err, stack.ErrStackDefaultCfgFound)) {
+			logger.Debug().Msg("stack already exists, ignoring")
+			return
+		}
 
 		if errors.IsKind(err, stack.ErrStackDefaultCfgFound) {
 			logger = logger.With().
