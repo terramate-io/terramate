@@ -730,11 +730,24 @@ func (c *cli) createStack() {
 		Imports:     c.parsedArgs.Create.Import,
 	})
 
+	stackPath := filepath.ToSlash(strings.TrimPrefix(stackDir, c.root()))
+
 	if err != nil {
-		fatal(err, "creating stack")
+		logger := log.With().
+			Str("stack", stackPath).
+			Logger()
+
+		if errors.IsKind(err, stack.ErrStackDefaultCfgFound) {
+			logger = logger.With().
+				Str("file", stack.DefaultFilename).
+				Logger()
+		}
+
+		errlog.Fatal(logger, err, "can't create stack")
 	}
 
-	c.output.Msg(out.V, "Created stack %s", c.parsedArgs.Create.Path)
+	log.Info().Msgf("created stack %s", stackPath)
+	c.output.Msg(out.V, "Created stack %s", stackPath)
 
 	report := generate.Do(c.cfg(), stackDir)
 	c.output.Msg(out.VV, report.Minimal())

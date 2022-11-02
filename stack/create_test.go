@@ -200,7 +200,7 @@ func TestStackCreation(t *testing.T) {
 		},
 		{
 			name:   "fails if stack already exists",
-			layout: []string{"s:stack"},
+			layout: []string{"f:stack/config.tm:stack{\n}"},
 			create: stack.CreateCfg{Dir: "stack"},
 			want:   want{err: errors.E(stack.ErrStackAlreadyExists)},
 		},
@@ -208,7 +208,7 @@ func TestStackCreation(t *testing.T) {
 			name:   "fails if there is a stack.tm.hcl file on dir",
 			layout: []string{"f:stack/stack.tm.hcl"},
 			create: stack.CreateCfg{Dir: "stack"},
-			want:   want{err: errors.E(stack.ErrStackAlreadyExists)},
+			want:   want{err: errors.E(stack.ErrStackDefaultCfgFound)},
 		},
 	}
 
