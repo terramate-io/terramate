@@ -1384,7 +1384,7 @@ func (c *cli) runOnStacks() {
 		Str("workingDir", c.wd()).
 		Logger()
 
-	c.gitRemoteSafeguard()
+	c.gitSafeguardDefaultBranchIsReachable()
 
 	if len(c.parsedArgs.Run.Command) == 0 {
 		logger.Fatal().Msgf("run expects a cmd")
