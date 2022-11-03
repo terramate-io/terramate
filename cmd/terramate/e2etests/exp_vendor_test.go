@@ -102,7 +102,7 @@ func TestVendorModule(t *testing.T) {
 	})
 }
 
-func TestVendorModuleRecursive1DependencyIsPatched(t *testing.T) {
+func TestVendorModuleRecursiveDependencyIsPatched(t *testing.T) {
 	t.Parallel()
 
 	s := sandbox.NoGit(t)

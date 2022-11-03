@@ -286,9 +286,9 @@ func TestVendorEvents(t *testing.T) {
 				module := applyConfigTemplate(t, w.module, reposURI)
 				modsrc := test.ParseSource(t, module)
 
-				// WHY: target dir cant be easily defined on tests declaratively
+				// Target dir cant be easily defined on tests declaratively
 				// because on Windows they are manipulated differently.
-
+				// So we define it here, inferred from the desired module source.
 				wantEvents[i] = modvendor.ProgressEvent{
 					Message:   w.message,
 					TargetDir: modvendor.TargetDir(vendorDir, modsrc),
