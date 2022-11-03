@@ -504,7 +504,7 @@ func (c *cli) vendorDownload() {
 
 	logger.Trace().Msg("vendoring")
 
-	report := modvendor.Vendor(c.root(), c.vendorDir(), parsedSource, nil)
+	report := modvendor.Vendor(c.root(), c.vendorDir(), parsedSource, eventsStream)
 
 	logger.Trace().Msg("finished vendoring, waiting for all vendor events to be handled")
 
