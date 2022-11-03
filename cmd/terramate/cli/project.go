@@ -241,11 +241,11 @@ func (p *project) checkRemoteDefaultBranchIsReachable() error {
 	if mergeBaseCommitID != p.remoteDefaultCommit() {
 		return errors.E(
 			ErrCurrentHeadIsOutOfSync,
-			"remote(%s/%s) commit %s is different than HEAD commit %s",
+			"remote(%s/%s) commit %s is different than common ancestor commit %s",
 			gitcfg.DefaultRemote,
 			gitcfg.DefaultBranch,
-			p.headCommit(),
 			p.remoteDefaultCommit(),
+			mergeBaseCommitID,
 		)
 	}
 
