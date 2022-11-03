@@ -23,7 +23,7 @@ import (
 // ProgressEvent represents a vendor progress event.
 type ProgressEvent struct {
 	Message   string
-	VendorDir project.Path
+	TargetDir project.Path
 	Module    tf.Source
 }
 

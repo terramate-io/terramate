@@ -380,7 +380,7 @@ func downloadVendor(
 
 	events.Send(ProgressEvent{
 		Message:   "downloading",
-		VendorDir: TargetDir(vendorDir, modsrc),
+		TargetDir: TargetDir(vendorDir, modsrc),
 		Module:    modsrc,
 	})
 

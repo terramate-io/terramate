@@ -24,6 +24,8 @@ import (
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"go.lsp.dev/uri"
+
+	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
 func TestVendorEvents(t *testing.T) {
@@ -40,7 +42,8 @@ func TestVendorEvents(t *testing.T) {
 	// URI before parsing it during test execution (can't be done
 	// ahead of time).
 	type progressEvent struct {
-		vendorDir string
+		message   string
+		targetDir string
 		module    string
 	}
 	type testcase struct {
@@ -52,13 +55,16 @@ func TestVendorEvents(t *testing.T) {
 
 	t.Parallel()
 
+	const progressMessage = "downloading"
+
 	tcases := []testcase{
 		{
 			name:   "unknown source produce event",
 			source: "git::{{.}}/unknown?ref=branch",
 			want: []progressEvent{
 				{
-					vendorDir: "/modules/{{.}}/unknown/branch",
+					message:   progressMessage,
+					targetDir: "/modules/{{.}}/unknown/branch",
 					module:    "git::{{.}}/unknown?ref=branch",
 				},
 			},
@@ -73,7 +79,119 @@ func TestVendorEvents(t *testing.T) {
 			source: "git::{{.}}/test?ref=main",
 			want: []progressEvent{
 				{
-					vendorDir: "/modules/{{.}}/test/main",
+					message:   progressMessage,
+					targetDir: "/modules/{{.}}/test/main",
+					module:    "git::{{.}}/test?ref=main",
+				},
+			},
+		},
+		{
+			name: "source with transitive deps",
+			repositories: []repository{
+				{
+					name: "test",
+				},
+				{
+					name: "test2",
+					files: []file{
+						{
+							path: "config.tf",
+							body: Module(
+								Labels("test"),
+								Str("source", "git::{{.}}/test?ref=main"),
+							),
+						},
+					},
+				},
+				{
+					name: "test3",
+					files: []file{
+						{
+							path: "config.tf",
+							body: Module(
+								Labels("test2"),
+								Str("source", "git::{{.}}/test2?ref=main"),
+							),
+						},
+					},
+				},
+			},
+			source: "git::{{.}}/test3?ref=main",
+			want: []progressEvent{
+				{
+					message:   progressMessage,
+					targetDir: "/modules/{{.}}/test3/main",
+					module:    "git::{{.}}/test3?ref=main",
+				},
+				{
+					message:   progressMessage,
+					targetDir: "/modules/{{.}}/test2/main",
+					module:    "git::{{.}}/test2?ref=main",
+				},
+				{
+					message:   progressMessage,
+					targetDir: "/modules/{{.}}/test/main",
+					module:    "git::{{.}}/test?ref=main",
+				},
+			},
+		},
+		{
+			name: "transitive deps with unknown repos",
+			repositories: []repository{
+				{
+					name: "test",
+				},
+				{
+					name: "test2",
+					files: []file{
+						{
+							path: "config.tf",
+							body: Doc(
+								Module(
+									Labels("unknown"),
+									Str("source", "git::{{.}}/unknown?ref=unknown"),
+								),
+								Module(
+									Labels("test"),
+									Str("source", "git::{{.}}/test?ref=main"),
+								),
+							),
+						},
+					},
+				},
+				{
+					name: "test3",
+					files: []file{
+						{
+							path: "config.tf",
+							body: Module(
+								Labels("test2"),
+								Str("source", "git::{{.}}/test2?ref=main"),
+							),
+						},
+					},
+				},
+			},
+			source: "git::{{.}}/test3?ref=main",
+			want: []progressEvent{
+				{
+					message:   progressMessage,
+					targetDir: "/modules/{{.}}/test3/main",
+					module:    "git::{{.}}/test3?ref=main",
+				},
+				{
+					message:   progressMessage,
+					targetDir: "/modules/{{.}}/test2/main",
+					module:    "git::{{.}}/test2?ref=main",
+				},
+				{
+					message:   progressMessage,
+					targetDir: "/modules/{{.}}/unknown/unknown",
+					module:    "git::{{.}}/unknown?ref=unknown",
+				},
+				{
+					message:   progressMessage,
+					targetDir: "/modules/{{.}}/test/main",
 					module:    "git::{{.}}/test?ref=main",
 				},
 			},
@@ -119,12 +237,12 @@ func TestVendorEvents(t *testing.T) {
 				// git URL/path, but that is now know before execution
 				// since repositories are created dynamically.
 				module := applyConfigTemplate(t, w.module, reposURI)
-				targetDir := applyConfigTemplate(t, w.vendorDir, reposURI.Filename())
+				targetDir := applyConfigTemplate(t, w.targetDir, reposURI.Filename())
 				targetDir = filepath.ToSlash(targetDir)
 
 				wantEvents[i] = modvendor.ProgressEvent{
-					Message:   "downloading",
-					VendorDir: project.NewPath(targetDir),
+					Message:   w.message,
+					TargetDir: project.NewPath(targetDir),
 					Module:    test.ParseSource(t, module),
 				}
 			}
