@@ -228,7 +228,7 @@ func assertRunResult(t *testing.T, got runResult, want runExpected) {
 			}
 		} else {
 			if wantStdout != stdout {
-				t.Errorf("stdout mismatch: got %q != want %q", stdout, wantStdout)
+				t.Errorf("stdout mismatch: got:\n%s\nwant:\n%s", stdout, wantStdout)
 			}
 		}
 	}
