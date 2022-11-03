@@ -24,7 +24,7 @@ import (
 	"go.lsp.dev/uri"
 )
 
-func TestSafeguardNotRequiredInSomeCommands(t *testing.T) {
+func TestSafeguardCheckRemoteNotRequiredInSomeCommands(t *testing.T) {
 	t.Parallel()
 
 	// Regression test to guarantee that all git checks
@@ -61,7 +61,7 @@ func TestSafeguardNotRequiredInSomeCommands(t *testing.T) {
 	}
 }
 
-func TestSafeguardFailsOnRunIfRemoteMainIsOutdated(t *testing.T) {
+func TestSafeguardCheckRemoteFailsOnRunIfRemoteMainIsOutdated(t *testing.T) {
 	t.Parallel()
 
 	s := sandbox.New(t)
@@ -118,7 +118,7 @@ func TestSafeguardFailsOnRunIfRemoteMainIsOutdated(t *testing.T) {
 	testrun()
 }
 
-func TestSafeguardDisableGitCheckRemote(t *testing.T) {
+func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 	t.Parallel()
 
 	fileContents := "# whatever"
@@ -258,7 +258,7 @@ func TestSafeguardDisableGitCheckRemote(t *testing.T) {
 		})
 }
 
-func TestSafeguardRunWithGitRemoteCheckDisabledWorksWithoutNetworking(t *testing.T) {
+func TestSafeguardCheckRemoteDisabledWorksWithoutNetworking(t *testing.T) {
 	t.Parallel()
 
 	// Regression test to guarantee that all git checks
@@ -301,7 +301,7 @@ func TestSafeguardRunWithGitRemoteCheckDisabledWorksWithoutNetworking(t *testing
 	})
 }
 
-func TestSafeguardCheckRemoteDisjointBranches(t *testing.T) {
+func TestSafeguardCheckRemoteDisjointBranchesAreUnreachable(t *testing.T) {
 	t.Parallel()
 	s := sandbox.New(t)
 
