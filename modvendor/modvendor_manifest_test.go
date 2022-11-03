@@ -319,7 +319,7 @@ func TestVendorManifest(t *testing.T) {
 			source := newSource(t, gitURI, "main")
 
 			const vendordir = "/vendor"
-			got := modvendor.Vendor(rootdir, vendordir, source)
+			got := modvendor.Vendor(rootdir, vendordir, source, nil)
 			assert.NoError(t, got.Error)
 
 			clonedir := modvendor.AbsVendorDir(rootdir, vendordir, source)
@@ -350,7 +350,7 @@ func testInvalidManifestFails(t *testing.T, configpath string) {
 	gitURL := uri.File(repoSandbox.RootDir())
 	source := newSource(t, gitURL, "main")
 
-	got := modvendor.Vendor(t.TempDir(), "/vendor", source)
+	got := modvendor.Vendor(t.TempDir(), "/vendor", source, nil)
 
 	assert.EqualInts(t, 0, len(got.Vendored), "vendored should be empty")
 	assert.EqualInts(t, 1, len(got.Ignored), "should have single ignored")

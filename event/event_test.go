@@ -37,3 +37,10 @@ func TestEventStream(t *testing.T) {
 		want++
 	}
 }
+
+func TestEventStreamZeroValueWontBlock(t *testing.T) {
+	var stream event.Stream[string]
+
+	assert.IsTrue(t, !stream.Send("ok"))
+	assert.IsTrue(t, !stream.Send("ok2"))
+}

@@ -790,7 +790,7 @@ func TestModVendor(t *testing.T) {
 			assert.NoError(t, err)
 			rootdir := t.TempDir()
 			vendorDir := project.NewPath(tc.vendordir)
-			got := modvendor.Vendor(rootdir, vendorDir, modsrc)
+			got := modvendor.Vendor(rootdir, vendorDir, modsrc, nil)
 			want := applyReportTemplate(t, wantReport{
 				Vendored: tc.wantVendored,
 				Ignored:  tc.wantIgnored,
@@ -972,7 +972,7 @@ func TestModVendorWithCommitIDRef(t *testing.T) {
 	assert.NoError(t, err)
 
 	const vendordir = "/dir/reftest/vendor"
-	got := modvendor.Vendor(rootdir, vendordir, source)
+	got := modvendor.Vendor(rootdir, vendordir, source, nil)
 	assertVendorReport(t, modvendor.Report{
 		Vendored: map[project.Path]modvendor.Vendored{
 			modvendor.TargetDir(vendordir, source): {
@@ -1008,7 +1008,7 @@ func TestModVendorWithRef(t *testing.T) {
 	source := newSource(t, gitURI, ref)
 
 	const vendordir = "/vendor"
-	got := modvendor.Vendor(rootdir, vendordir, source)
+	got := modvendor.Vendor(rootdir, vendordir, source, nil)
 	vendoredAt := modvendor.TargetDir(vendordir, source)
 	assertVendorReport(t, modvendor.Report{
 		Vendored: map[project.Path]modvendor.Vendored{
@@ -1046,7 +1046,7 @@ func TestModVendorWithRef(t *testing.T) {
 		Ref:  newRef,
 		Path: path,
 	}
-	got = modvendor.Vendor(rootdir, vendordir, source)
+	got = modvendor.Vendor(rootdir, vendordir, source, nil)
 
 	wantCloneDir = modvendor.TargetDir(vendordir, source)
 	newCloneDir := got.Vendored[wantCloneDir].Dir
@@ -1079,7 +1079,7 @@ func TestModVendorDoesNothingIfRefExists(t *testing.T) {
 	const vendordir = "/vendor/fun"
 	clonedir := modvendor.AbsVendorDir(rootdir, vendordir, source)
 	test.MkdirAll(t, clonedir)
-	got := modvendor.Vendor(rootdir, vendordir, source)
+	got := modvendor.Vendor(rootdir, vendordir, source, nil)
 	want := modvendor.Report{
 		Ignored: []modvendor.IgnoredVendor{
 			{
@@ -1103,7 +1103,7 @@ func TestModVendorNoRefFails(t *testing.T) {
 
 	source, err := tf.ParseSource(fmt.Sprintf("git::%s", gitURI))
 	assert.NoError(t, err)
-	report := modvendor.Vendor(rootdir, "/vendor", source)
+	report := modvendor.Vendor(rootdir, "/vendor", source, nil)
 
 	assertVendorReport(t, modvendor.Report{
 		Ignored: []modvendor.IgnoredVendor{
@@ -1128,7 +1128,7 @@ func TestModVendorVendorDirIsRelativeFails(t *testing.T) {
 		URL:  string(gitURI),
 		Path: path,
 		Ref:  "main",
-	})
+	}, nil)
 
 	assert.Error(t, report.Error)
 }

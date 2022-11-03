@@ -481,7 +481,8 @@ func (c *cli) vendorDownload() {
 	parsedSource.Ref = ref
 
 	logger.Trace().Msgf("module path is: %s", parsedSource.Path)
-	report := modvendor.Vendor(c.root(), c.vendorDir(), parsedSource)
+	// TODO(KATCIPIS): use event stream here to get progress info
+	report := modvendor.Vendor(c.root(), c.vendorDir(), parsedSource, nil)
 	if report.Error != nil {
 		if errs, ok := report.Error.(*errors.List); ok {
 			for _, err := range errs.Errors() {
