@@ -660,7 +660,7 @@ func (c *cli) gitFileSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
 	}
 }
 
-func (c *cli) gitRemoteSafeguard() {
+func (c *cli) gitSafeguardDefaultBranchIsReachable() {
 	logger := log.With().
 		Str("action", "checkGit()").
 		Logger()
