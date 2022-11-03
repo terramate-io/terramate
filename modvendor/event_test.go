@@ -49,6 +49,7 @@ func TestVendorEvents(t *testing.T) {
 	type testcase struct {
 		name         string
 		source       string
+		vendorDir    string
 		repositories []repository
 		want         []progressEvent
 	}
@@ -59,12 +60,13 @@ func TestVendorEvents(t *testing.T) {
 
 	tcases := []testcase{
 		{
-			name:   "unknown source produce event",
-			source: "git::{{.}}/unknown?ref=branch",
+			name:      "unknown source produce event",
+			source:    "git::{{.}}/unknown?ref=branch",
+			vendorDir: "/vendor",
 			want: []progressEvent{
 				{
 					message:   progressMessage,
-					targetDir: "/modules/{{.}}/unknown/branch",
+					targetDir: "/vendor/{{.}}/unknown/branch",
 					module:    "git::{{.}}/unknown?ref=branch",
 				},
 			},
@@ -76,7 +78,8 @@ func TestVendorEvents(t *testing.T) {
 					name: "test",
 				},
 			},
-			source: "git::{{.}}/test?ref=main",
+			source:    "git::{{.}}/test?ref=main",
+			vendorDir: "/modules",
 			want: []progressEvent{
 				{
 					message:   progressMessage,
@@ -116,21 +119,22 @@ func TestVendorEvents(t *testing.T) {
 					},
 				},
 			},
-			source: "git::{{.}}/test3?ref=main",
+			source:    "git::{{.}}/test3?ref=main",
+			vendorDir: "/any",
 			want: []progressEvent{
 				{
 					message:   progressMessage,
-					targetDir: "/modules/{{.}}/test3/main",
+					targetDir: "/any/{{.}}/test3/main",
 					module:    "git::{{.}}/test3?ref=main",
 				},
 				{
 					message:   progressMessage,
-					targetDir: "/modules/{{.}}/test2/main",
+					targetDir: "/any/{{.}}/test2/main",
 					module:    "git::{{.}}/test2?ref=main",
 				},
 				{
 					message:   progressMessage,
-					targetDir: "/modules/{{.}}/test/main",
+					targetDir: "/any/{{.}}/test/main",
 					module:    "git::{{.}}/test?ref=main",
 				},
 			},
@@ -172,7 +176,8 @@ func TestVendorEvents(t *testing.T) {
 					},
 				},
 			},
-			source: "git::{{.}}/test3?ref=main",
+			source:    "git::{{.}}/test3?ref=main",
+			vendorDir: "/modules",
 			want: []progressEvent{
 				{
 					message:   progressMessage,
@@ -251,7 +256,7 @@ func TestVendorEvents(t *testing.T) {
 			modsrc := test.ParseSource(t, source)
 
 			s := sandbox.New(t)
-			vendorDir := project.NewPath("/modules")
+			vendorDir := project.NewPath(tcase.vendorDir)
 
 			eventsHandled := make(chan struct{})
 			eventsStream := modvendor.NewEventStream()
