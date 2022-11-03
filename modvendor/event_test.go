@@ -136,6 +136,31 @@ func TestVendorEvents(t *testing.T) {
 			},
 		},
 		{
+			name: "multiple subdirs and same repo generates single event",
+			repositories: []repository{
+				{
+					name: "test",
+					files: []file{
+						{
+							path: "subdir/config.tf",
+							body: Module(
+								Labels("test"),
+								Str("source", "git::{{.}}/test//subdir2?ref=main"),
+							),
+						},
+					},
+				},
+			},
+			source:    "git::{{.}}/test//subdir?ref=main",
+			vendorDir: "/modules",
+			want: []progressEvent{
+				{
+					message: progressMessage,
+					module:  "git::{{.}}/test//subdir?ref=main",
+				},
+			},
+		},
+		{
 			name: "source with transitive deps",
 			repositories: []repository{
 				{
