@@ -378,11 +378,18 @@ func downloadVendor(
 		return "", err
 	}
 
-	events.Send(ProgressEvent{
+	event := ProgressEvent{
 		Message:   "downloading",
 		TargetDir: TargetDir(vendorDir, modsrc),
 		Module:    modsrc,
-	})
+	}
+	if !events.Send(event) {
+		log.Debug().
+			Str("message", event.Message).
+			Stringer("targetDir", event.TargetDir).
+			Str("module", event.Module.Raw).
+			Msg("dropped progress event, event handler is not fast enough or absent")
+	}
 
 	logger.Trace().Msg("cloning to workdir")
 

@@ -36,6 +36,6 @@ func NewEventStream() EventStream {
 }
 
 // Send send a progress event.
-func (e EventStream) Send(pe ProgressEvent) {
-	event.Stream[ProgressEvent](e).Send(pe)
+func (e EventStream) Send(pe ProgressEvent) bool {
+	return event.Stream[ProgressEvent](e).Send(pe)
 }

@@ -496,7 +496,7 @@ func (c *cli) vendorDownload() {
 				event.Message, event.Module.Raw, event.TargetDir)
 			log.Info().
 				Str("module", event.Module.Raw).
-				Str("vendorDir", event.TargetDir.String()).
+				Stringer("vendorDir", event.TargetDir).
 				Msg(event.Message)
 		}
 		close(eventsHandled)
