@@ -21,6 +21,7 @@ import (
 	"github.com/mineiros-io/terramate/cmd/terramate/cli"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
+	"go.lsp.dev/uri"
 )
 
 func TestSafeguardNotRequiredInSomeCommands(t *testing.T) {
@@ -271,7 +272,6 @@ func TestSafeguardRunWithGitRemoteCheckDisabledWorksWithoutNetworking(t *testing
 	)
 
 	s := sandbox.New(t)
-
 	stack := s.CreateStack("stack-1")
 	stackFile := stack.CreateFile("main.tf", fileContents)
 
@@ -298,5 +298,35 @@ func TestSafeguardRunWithGitRemoteCheckDisabledWorksWithoutNetworking(t *testing
 		stackFile.HostPath(),
 	), runExpected{
 		Stdout: fileContents,
+	})
+}
+
+func TestSafeguardCheckRemoteDisjointBranches(t *testing.T) {
+	t.Parallel()
+	s := sandbox.New(t)
+
+	const (
+		fileContents = "body"
+	)
+
+	stack := s.CreateStack("stack-1")
+	stackFile := stack.CreateFile("main.tf", fileContents)
+
+	git := s.Git()
+	git.CommitAll("first commit")
+
+	bare := sandbox.New(t)
+	git.SetRemoteURL("origin", string(uri.File(bare.Git().RemoteBareGit())))
+
+	tm := newCLI(t, s.RootDir())
+
+	cat := test.LookPath(t, "cat")
+	assertRunResult(t, tm.run(
+		"run",
+		cat,
+		stackFile.HostPath(),
+	), runExpected{
+		Status:      1,
+		StderrRegex: string(cli.ErrCurrentHeadIsOutOfSync),
 	})
 }
