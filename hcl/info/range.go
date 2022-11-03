@@ -15,6 +15,8 @@
 package info
 
 import (
+	"fmt"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/mineiros-io/terramate/project"
 )
@@ -78,6 +80,24 @@ func (r Range) Start() Pos {
 // End represents the end of the bounds of this range, it is exclusive.
 func (r Range) End() Pos {
 	return r.end
+}
+
+func (r Range) String() string {
+	if r.start.line == r.end.line {
+		return fmt.Sprintf(
+			"%s:%d,%d-%d",
+			r.path,
+			r.start.line, r.start.column,
+			r.end.column,
+		)
+	}
+
+	return fmt.Sprintf(
+		"%s:%d,%d-%d,%d",
+		r.path,
+		r.start.line, r.start.column,
+		r.end.line, r.end.column,
+	)
 }
 
 // Line is the source code line where this position points. Lines are
