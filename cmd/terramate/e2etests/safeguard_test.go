@@ -115,7 +115,7 @@ func TestSafeguardFailsOnRunIfRemoteMainIsOutdated(t *testing.T) {
 	testrun()
 }
 
-func TestSafeguardDisableGitCheckRemoteFromArgs(t *testing.T) {
+func TestSafeguardDisableGitCheckRemote(t *testing.T) {
 	t.Parallel()
 
 	s := sandbox.New(t)
