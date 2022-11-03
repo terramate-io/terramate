@@ -42,9 +42,8 @@ func TestVendorEvents(t *testing.T) {
 	// URI before parsing it during test execution (can't be done
 	// ahead of time).
 	type progressEvent struct {
-		message   string
-		targetDir string
-		module    string
+		message string
+		module  string
 	}
 	type testcase struct {
 		name         string
@@ -65,9 +64,8 @@ func TestVendorEvents(t *testing.T) {
 			vendorDir: "/vendor",
 			want: []progressEvent{
 				{
-					message:   progressMessage,
-					targetDir: "/vendor/{{.}}/unknown/branch",
-					module:    "git::{{.}}/unknown?ref=branch",
+					message: progressMessage,
+					module:  "git::{{.}}/unknown?ref=branch",
 				},
 			},
 		},
@@ -82,9 +80,58 @@ func TestVendorEvents(t *testing.T) {
 			vendorDir: "/modules",
 			want: []progressEvent{
 				{
-					message:   progressMessage,
-					targetDir: "/modules/{{.}}/test/main",
-					module:    "git::{{.}}/test?ref=main",
+					message: progressMessage,
+					module:  "git::{{.}}/test?ref=main",
+				},
+			},
+		},
+		{
+			name: "source with ignored deps",
+			repositories: []repository{
+				{
+					name: "ignore",
+					files: []file{
+						{
+							path: "config.tf",
+							body: Module(
+								Labels("test"),
+								Str("source", "https://example.com/my-module"),
+							),
+						},
+					},
+				},
+			},
+			source:    "git::{{.}}/ignore?ref=main",
+			vendorDir: "/modules",
+			want: []progressEvent{
+				{
+					message: progressMessage,
+					module:  "git::{{.}}/ignore?ref=main",
+				},
+			},
+		},
+		{
+			name: "source with subdir",
+			repositories: []repository{
+				{
+					name: "test",
+					files: []file{
+						{
+							path: "subdir/config.tf",
+							body: Module(
+								Labels("test"),
+								Str("source", "https://example.com/my-module"),
+							),
+						},
+					},
+				},
+			},
+			source:    "git::{{.}}/test//subdir?ref=main",
+			vendorDir: "/modules",
+			want: []progressEvent{
+				{
+					message: progressMessage,
+					module:  "git::{{.}}/test//subdir?ref=main",
 				},
 			},
 		},
@@ -123,19 +170,16 @@ func TestVendorEvents(t *testing.T) {
 			vendorDir: "/any",
 			want: []progressEvent{
 				{
-					message:   progressMessage,
-					targetDir: "/any/{{.}}/test3/main",
-					module:    "git::{{.}}/test3?ref=main",
+					message: progressMessage,
+					module:  "git::{{.}}/test3?ref=main",
 				},
 				{
-					message:   progressMessage,
-					targetDir: "/any/{{.}}/test2/main",
-					module:    "git::{{.}}/test2?ref=main",
+					message: progressMessage,
+					module:  "git::{{.}}/test2?ref=main",
 				},
 				{
-					message:   progressMessage,
-					targetDir: "/any/{{.}}/test/main",
-					module:    "git::{{.}}/test?ref=main",
+					message: progressMessage,
+					module:  "git::{{.}}/test?ref=main",
 				},
 			},
 		},
@@ -180,24 +224,20 @@ func TestVendorEvents(t *testing.T) {
 			vendorDir: "/modules",
 			want: []progressEvent{
 				{
-					message:   progressMessage,
-					targetDir: "/modules/{{.}}/test3/main",
-					module:    "git::{{.}}/test3?ref=main",
+					message: progressMessage,
+					module:  "git::{{.}}/test3?ref=main",
 				},
 				{
-					message:   progressMessage,
-					targetDir: "/modules/{{.}}/test2/main",
-					module:    "git::{{.}}/test2?ref=main",
+					message: progressMessage,
+					module:  "git::{{.}}/test2?ref=main",
 				},
 				{
-					message:   progressMessage,
-					targetDir: "/modules/{{.}}/unknown/unknown",
-					module:    "git::{{.}}/unknown?ref=unknown",
+					message: progressMessage,
+					module:  "git::{{.}}/unknown?ref=unknown",
 				},
 				{
-					message:   progressMessage,
-					targetDir: "/modules/{{.}}/test/main",
-					module:    "git::{{.}}/test?ref=main",
+					message: progressMessage,
+					module:  "git::{{.}}/test?ref=main",
 				},
 			},
 		},
@@ -236,27 +276,29 @@ func TestVendorEvents(t *testing.T) {
 				}
 			}
 
+			vendorDir := project.NewPath(tcase.vendorDir)
 			wantEvents := make([]modvendor.ProgressEvent, len(tcase.want))
+
 			for i, w := range tcase.want {
 				// We need to fix the wanted events with the proper
 				// git URL/path, but that is now know before execution
 				// since repositories are created dynamically.
 				module := applyConfigTemplate(t, w.module, reposURI)
-				targetDir := applyConfigTemplate(t, w.targetDir, reposURI.Filename())
-				targetDir = filepath.ToSlash(targetDir)
+				modsrc := test.ParseSource(t, module)
+
+				// WHY: target dir cant be easily defined on tests declaratively
+				// because on Windows they are manipulated differently.
 
 				wantEvents[i] = modvendor.ProgressEvent{
 					Message:   w.message,
-					TargetDir: project.NewPath(targetDir),
-					Module:    test.ParseSource(t, module),
+					TargetDir: modvendor.TargetDir(vendorDir, modsrc),
+					Module:    modsrc,
 				}
 			}
 
+			s := sandbox.New(t)
 			source := applyConfigTemplate(t, tcase.source, reposURI)
 			modsrc := test.ParseSource(t, source)
-
-			s := sandbox.New(t)
-			vendorDir := project.NewPath(tcase.vendorDir)
 
 			eventsHandled := make(chan struct{})
 			eventsStream := modvendor.NewEventStream()
