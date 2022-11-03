@@ -671,7 +671,7 @@ func (c *cli) gitRemoteSafeguard() {
 
 	logger.Trace().Msg("check git default branch is updated")
 
-	if err := c.prj.checkLocalDefaultIsUpdated(); err != nil {
+	if err := c.prj.checkRemoteDefaultBranchIsReachable(); err != nil {
 		fatal(err, "checking git default branch is updated")
 	}
 }

@@ -225,7 +225,7 @@ func (p project) checkDefaultRemote() error {
 	)
 }
 
-func (p *project) checkLocalDefaultIsUpdated() error {
+func (p *project) checkRemoteDefaultBranchIsReachable() error {
 	gitcfg := p.gitcfg()
 	mergeBaseCommitID, err := p.git.wrapper.MergeBase(p.headCommit(), p.remoteDefaultCommit())
 	if err != nil {
