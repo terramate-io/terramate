@@ -71,9 +71,7 @@ func TestSafeguardFailsOnRunIfRemoteMainIsOutdated(t *testing.T) {
 	ts := newCLI(t, s.RootDir())
 
 	git := s.Git()
-
-	git.Add(".")
-	git.Commit("all")
+	git.CommitAll("all")
 
 	setupLocalMainBranchBehindOriginMain(git, func() {
 		stack.CreateFile("tempfile", "any content")
@@ -278,7 +276,6 @@ func TestSafeguardRunWithGitRemoteCheckDisabledWorksWithoutNetworking(t *testing
 	stackFile := stack.CreateFile("main.tf", fileContents)
 
 	git := s.Git()
-	git.Add(".")
 	git.CommitAll("first commit")
 
 	git.SetRemoteURL("origin", nonExistentGit)
