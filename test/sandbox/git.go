@@ -36,10 +36,10 @@ type GitConfig struct {
 // Git is a git wrapper that makes testing easy by handling
 // errors automatically, failing the caller test.
 type Git struct {
-	t       testing.TB
-	g       *git.Git
-	cfg     GitConfig
-	baregit string
+	t        testing.TB
+	g        *git.Git
+	cfg      GitConfig
+	bareRepo string
 }
 
 // NewGit creates a new git wrapper using sandbox defaults.
@@ -82,14 +82,14 @@ func (git *Git) Init() {
 	git.configureDefaultRemote()
 }
 
-// RemoteBareGit returns the path for the bare remote repository of this
+// BareRepoAbsPath returns the path for the bare remote repository of this
 // repository.
-func (git *Git) RemoteBareGit() string {
+func (git *Git) BareRepoAbsPath() string {
 	git.t.Helper()
-	if git.baregit == "" {
+	if git.bareRepo == "" {
 		git.t.Fatal("baregit not initialized")
 	}
-	return git.baregit
+	return git.bareRepo
 }
 
 func (git *Git) configureDefaultRemote() {
@@ -113,13 +113,13 @@ func (git *Git) initRemoteRepo(branchName string) string {
 	t := git.t
 	t.Helper()
 
-	git.baregit = t.TempDir()
-	baregit := test.NewGitWrapper(t, git.baregit, []string{})
+	git.bareRepo = t.TempDir()
+	baregit := test.NewGitWrapper(t, git.bareRepo, []string{})
 
-	err := baregit.Init(git.baregit, branchName, true)
-	assert.NoError(t, err, "Git.Init(%v, %v, true)", git.baregit, branchName)
+	err := baregit.Init(git.bareRepo, branchName, true)
+	assert.NoError(t, err, "Git.Init(%v, %v, true)", git.bareRepo, branchName)
 
-	return git.baregit
+	return git.bareRepo
 }
 
 // InitLocalRepo will do the git initialization of a local repository,

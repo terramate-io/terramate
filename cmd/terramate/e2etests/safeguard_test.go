@@ -316,7 +316,7 @@ func TestSafeguardCheckRemoteDisjointBranches(t *testing.T) {
 	git.CommitAll("first commit")
 
 	bare := sandbox.New(t)
-	git.SetRemoteURL("origin", string(uri.File(bare.Git().RemoteBareGit())))
+	git.SetRemoteURL("origin", string(uri.File(bare.Git().BareRepoAbsPath())))
 
 	tm := newCLI(t, s.RootDir())
 
