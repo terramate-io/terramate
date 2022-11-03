@@ -231,17 +231,17 @@ func (p *project) checkRemoteDefaultBranchIsReachable() error {
 	if err != nil {
 		return errors.E(
 			ErrCurrentHeadIsOutOfSync,
-			"%s/%s ref is not reachable: HEAD ref %q can't reach %q",
+			"HEAD commit %s can not reach remote(%s/%s) commit %s",
+			p.headCommit(),
 			gitcfg.DefaultRemote,
 			gitcfg.DefaultBranch,
-			p.headCommit(),
 			p.remoteDefaultCommit())
 	}
 
 	if mergeBaseCommitID != p.remoteDefaultCommit() {
 		return errors.E(
 			ErrCurrentHeadIsOutOfSync,
-			"remote %s/%s (%s) != HEAD (%s)",
+			"remote(%s/%s) commit %s is different than HEAD commit %s",
 			gitcfg.DefaultRemote,
 			gitcfg.DefaultBranch,
 			p.headCommit(),

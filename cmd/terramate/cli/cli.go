@@ -672,10 +672,7 @@ func (c *cli) gitSafeguardDefaultBranchIsReachable() {
 	logger.Trace().Msg("check git default branch is reachable")
 
 	if err := c.prj.checkRemoteDefaultBranchIsReachable(); err != nil {
-		fatal(err, "checking if %s/%s is reachable",
-			c.prj.gitcfg().DefaultRemote,
-			c.prj.gitcfg().DefaultBranch,
-		)
+		fatal(err)
 	}
 }
 
