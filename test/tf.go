@@ -12,24 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package event implements a simple event stream.
-package event
+package test
 
-// Stream is a stream of events.
-type Stream[T any] chan T
+import (
+	"testing"
 
-// NewStream creates a new stream.
-func NewStream[T any](buffsize int) Stream[T] {
-	return Stream[T](make(chan T, buffsize))
-}
+	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/tf"
+)
 
-// Send event on this event stream. Returns true if stream is not full,
-// false if the stream is full.
-func (s Stream[T]) Send(event T) bool {
-	select {
-	case s <- event:
-		return true
-	default:
-		return false
-	}
+// ParseSource calls [tf.ParseSource] failing the test if it fails.
+func ParseSource(t *testing.T, source string) tf.Source {
+	t.Helper()
+
+	modsrc, err := tf.ParseSource(source)
+	assert.NoError(t, err)
+	return modsrc
 }

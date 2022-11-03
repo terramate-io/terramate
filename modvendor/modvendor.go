@@ -378,6 +378,12 @@ func downloadVendor(
 		return "", err
 	}
 
+	events.Send(ProgressEvent{
+		Message:   "downloading",
+		VendorDir: TargetDir(vendorDir, modsrc),
+		Module:    modsrc,
+	})
+
 	logger.Trace().Msg("cloning to workdir")
 
 	if err := g.Clone(modsrc.URL, clonedRepoDir); err != nil {

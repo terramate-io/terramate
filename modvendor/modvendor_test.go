@@ -786,8 +786,7 @@ func TestModVendor(t *testing.T) {
 				git.CommitAll("files updated")
 			}
 			source := applyConfigTemplate(t, tc.source, uriModulesDir)
-			modsrc, err := tf.ParseSource(source)
-			assert.NoError(t, err)
+			modsrc := test.ParseSource(t, source)
 			rootdir := t.TempDir()
 			vendorDir := project.NewPath(tc.vendordir)
 			got := modvendor.Vendor(rootdir, vendorDir, modsrc, nil)

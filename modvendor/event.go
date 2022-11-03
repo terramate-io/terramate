@@ -14,10 +14,17 @@
 
 package modvendor
 
-import "github.com/mineiros-io/terramate/event"
+import (
+	"github.com/mineiros-io/terramate/event"
+	"github.com/mineiros-io/terramate/project"
+	"github.com/mineiros-io/terramate/tf"
+)
 
 // ProgressEvent represents a vendor progress event.
 type ProgressEvent struct {
+	Message   string
+	VendorDir project.Path
+	Module    tf.Source
 }
 
 // EventStream is a stream of vendor related events.
@@ -26,4 +33,9 @@ type EventStream event.Stream[ProgressEvent]
 // NewEventStream creates a new event stream.
 func NewEventStream() EventStream {
 	return EventStream(event.NewStream[ProgressEvent](100))
+}
+
+// Send send a progress event.
+func (e EventStream) Send(pe ProgressEvent) {
+	event.Stream[ProgressEvent](e).Send(pe)
 }

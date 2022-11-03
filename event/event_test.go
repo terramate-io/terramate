@@ -29,7 +29,7 @@ func TestEventStream(t *testing.T) {
 	assert.IsTrue(t, stream.Send(3))
 	assert.IsTrue(t, !stream.Send(4))
 
-	stream.Close()
+	close(stream)
 
 	want := 1
 	for event := range stream {
