@@ -22,8 +22,7 @@ Besides orchestration the `stack` block also define attributes that are
 used to describe the `stack`.
 
 Only [Terramate Functions](functions.md) are available when defining
-the `stack` block. Globals and Metadata won't be available since that
-would make stack definitions circular.
+the `stack` block.
 
 ## stack.id (string)(optional)
 
