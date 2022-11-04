@@ -337,10 +337,8 @@ func downloadVendor(rootdir string, vendorDir project.Path, modsrc tf.Source) (s
 
 	// Same strategy used on the Go toolchain:
 	// - https://github.com/golang/go/blob/2ebe77a2fda1ee9ff6fd9a3e08933ad1ebaea039/src/cmd/go/internal/get/get.go#L129
-	env := os.Environ()
-	if os.Getenv("GIT_TERMINAL_PROMPT") == "" {
-		env = append(env, "GIT_TERMINAL_PROMPT=0")
-	}
+
+	env := append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 	g, err := git.WithConfig(git.Config{
 		WorkingDir:     clonedRepoDir,
 		AllowPorcelain: true,
