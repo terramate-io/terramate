@@ -19,7 +19,7 @@ import (
 	"github.com/mineiros-io/terramate/stack"
 )
 
-// ListStacks walks the project's root directory looking for terraform stacks.
+// ListStacks walks the project's tree downwards looking for terraform stacks.
 // It returns a lexicographic sorted list of stack directories.
 func ListStacks(cfg *config.Tree) ([]Entry, error) {
 	stacks, err := stack.LoadAll(cfg)

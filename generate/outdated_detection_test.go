@@ -28,6 +28,8 @@ import (
 )
 
 func TestOutdatedDetection(t *testing.T) {
+	t.Parallel()
+
 	type (
 		file struct {
 			path string
@@ -44,7 +46,6 @@ func TestOutdatedDetection(t *testing.T) {
 			steps []step
 		}
 	)
-	t.Parallel()
 
 	tcases := []testcase{
 		{
@@ -880,6 +881,9 @@ func TestOutdatedDetection(t *testing.T) {
 				assertEqualStringList(t, got, step.want)
 
 				s.Generate()
+
+				s.ReloadConfig()
+
 				got, err = generate.DetectOutdated(s.Config())
 				assert.NoError(t, err)
 				assertEqualStringList(t, got, []string{})

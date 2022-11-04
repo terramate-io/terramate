@@ -590,7 +590,7 @@ func (c *cli) cloneStack() {
 }
 
 func (c *cli) generate(workdir string) {
-	report := generate.Do(c.cfg(), workdir)
+	report := generate.Do(c.cfg().Tree, workdir)
 	c.output.Msg(out.V, report.Full())
 
 	if report.HasFailures() {
@@ -749,7 +749,7 @@ func (c *cli) createStack() {
 	log.Info().Msgf("created stack %s", stackPath)
 	c.output.Msg(out.V, "Created stack %s", stackPath)
 
-	report := generate.Do(c.cfg(), stackDir)
+	report := generate.Do(c.cfg().Tree, stackDir)
 	c.output.Msg(out.VV, report.Minimal())
 
 	if report.HasFailures() {
@@ -893,7 +893,7 @@ func (c *cli) generateGraph() {
 			Msg("-label expects the values \"stack.name\" or \"stack.dir\"")
 	}
 
-	entries, err := terramate.ListStacks(c.cfg())
+	entries, err := terramate.ListStacks(c.cfg().Tree)
 	if err != nil {
 		fatal(err, "listing stacks to build graph")
 	}
@@ -1297,7 +1297,7 @@ func (c *cli) setupEvalContext() *eval.Context {
 		fatal(err)
 	}
 
-	allstacks, err := stack.LoadAll(c.cfg())
+	allstacks, err := stack.LoadAll(c.cfg().Tree)
 	if err != nil {
 		fatal(err, "setup eval context: listing all stacks")
 	}
@@ -1389,7 +1389,7 @@ func (c *cli) runOnStacks() {
 		logger.Fatal().Msgf("run expects a cmd")
 	}
 
-	allstacks, err := stack.LoadAll(c.cfg())
+	allstacks, err := stack.LoadAll(c.cfg().Tree)
 	if err != nil {
 		fatal(err, "failed to list stacks")
 	}
@@ -1468,7 +1468,7 @@ func (c *cli) runOnStacks() {
 
 func (c *cli) wd() string        { return c.prj.wd }
 func (c *cli) root() string      { return c.prj.root }
-func (c *cli) cfg() *config.Tree { return &c.prj.cfg }
+func (c *cli) cfg() *config.Root { return &c.prj.cfg }
 
 func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.root(), c.wd(), dir)
@@ -1627,7 +1627,7 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 			logger.Trace().Msg("Load root config.")
 
-			cfg, err := config.LoadTree(rootdir, rootdir)
+			cfg, err := config.LoadRoot(rootdir)
 			if err != nil {
 				return project{}, false, err
 			}

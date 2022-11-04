@@ -859,7 +859,7 @@ func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
 		fmt.Sprintf("f:stack/%s:%s", genFilename, manualTfCode),
 	})
 
-	report := generate.Do(s.Config(), s.RootDir())
+	report := generate.Do(s.Config().Tree, s.RootDir())
 	assert.EqualInts(t, 0, len(report.Successes), "want no success")
 	assert.EqualInts(t, 1, len(report.Failures), "want single failure")
 	assertReportHasError(t, report, errors.E(generate.ErrManualCodeExists))
@@ -1261,9 +1261,9 @@ func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
 	// It should never return in the report.
 	test.WriteFile(t, targEntry.Path(), "test.tf", genhcl.Header)
 
-	cfg, err := config.LoadTree(rootEntry.Path(), rootEntry.Path())
+	root, err := config.LoadRoot(rootEntry.Path())
 	assert.NoError(t, err)
-	report := s.GenerateAt(cfg, rootEntry.Path())
+	report := s.GenerateAt(root.Tree, rootEntry.Path())
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{

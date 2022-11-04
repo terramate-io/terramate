@@ -80,13 +80,13 @@ const (
 //
 // If the stack already exists it will return an error and no changes will be
 // made to the stack.
-func Create(tree *config.Tree, cfg CreateCfg) (err error) {
+func Create(root *config.Root, cfg CreateCfg) (err error) {
 	logger := log.With().
 		Str("action", "stack.Create()").
 		Stringer("cfg", cfg).
 		Logger()
 
-	rootdir := tree.RootDir()
+	rootdir := root.RootDir()
 	if !strings.HasPrefix(cfg.Dir, rootdir) {
 		return errors.E(ErrInvalidStackDir, "stack %q must be inside project root %q", cfg.Dir, rootdir)
 	}
@@ -185,7 +185,7 @@ func Create(tree *config.Tree, cfg CreateCfg) (err error) {
 		return err
 	}
 
-	return tree.LoadSubTree(project.PrjAbsPath(rootdir, cfg.Dir))
+	return root.LoadSubTree(project.PrjAbsPath(rootdir, cfg.Dir))
 }
 
 func (cfg CreateCfg) String() string {

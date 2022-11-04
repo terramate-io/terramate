@@ -38,7 +38,7 @@ import (
 // If continue on error is false it will return as soon as it finds an error,
 // returning a list with a single error inside.
 func Exec(
-	cfg *config.Tree,
+	root *config.Root,
 	stacks stack.List,
 	cmd []string,
 	stdin io.Reader,
@@ -58,10 +58,10 @@ func Exec(
 
 	logger.Trace().Msg("loading stacks run environment variables")
 
-	projmeta := stack.NewProjectMetadata(cfg.RootDir(), stacks)
+	projmeta := stack.NewProjectMetadata(root.RootDir(), stacks)
 
 	for _, stack := range stacks {
-		env, err := LoadEnv(cfg, projmeta, stack)
+		env, err := LoadEnv(root, projmeta, stack)
 		errs.Append(err)
 		stackEnvs[stack.Path()] = env
 	}

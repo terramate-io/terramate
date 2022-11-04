@@ -243,7 +243,7 @@ func TestLoadRunEnv(t *testing.T) {
 			}
 
 			for stackRelPath, wantres := range tcase.want {
-				cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+				cfg, err := config.LoadRoot(s.RootDir())
 				if wantres.cfgerr != nil {
 					errorstest.Assert(t, err, wantres.cfgerr)
 					return

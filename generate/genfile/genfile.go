@@ -108,7 +108,7 @@ func (f File) String() string {
 		f.Label(), f.Condition(), f.Context(), f.Body(), f.Range().Path())
 }
 
-// LoadStackContext loads and parses from the file system all generate_file
+// Load loads and parses from the file system all generate_file
 // blocks for a given stack. It will navigate the file system from the stack dir
 // until it reaches rootdir, loading generate_file blocks found on Terramate
 // configuration files.
@@ -120,18 +120,20 @@ func (f File) String() string {
 // generate_file blocks.
 //
 // The rootdir MUST be an absolute path.
-func LoadStackContext(
+func Load(
 	cfg *config.Tree,
-	evalctx *eval.Context,
+	filterContext string,
+	globalctx *eval.Context,
 ) ([]File, error) {
 	genFileBlocks := cfg.UpwardGenerateFiles()
 
 	var files []File
-
 	for _, genFileBlock := range genFileBlocks {
+		evalctx := globalctx.Copy()
+
 		name := genFileBlock.Label
 
-		context := "stack"
+		genfileContext := "stack"
 		if genFileBlock.Context != nil {
 			val, err := evalctx.Eval(genFileBlock.Context.Expr)
 			if err != nil {
@@ -147,11 +149,10 @@ func LoadStackContext(
 					val.Type().FriendlyName(),
 				)
 			}
-			context = val.AsString()
+			genfileContext = val.AsString()
 		}
 
-		// only handle stack context here.
-		if context != "stack" {
+		if genfileContext != filterContext {
 			continue
 		}
 
@@ -181,7 +182,7 @@ func LoadStackContext(
 				label:     name,
 				origin:    genFileBlock.Range,
 				condition: condition,
-				context:   context,
+				context:   genfileContext,
 			})
 			continue
 		}
@@ -212,6 +213,7 @@ func LoadStackContext(
 				origin:    genFileBlock.Range,
 				condition: condition,
 				asserts:   asserts,
+				context:   genfileContext,
 			})
 			continue
 		}
@@ -234,6 +236,7 @@ func LoadStackContext(
 			origin:    genFileBlock.Range,
 			body:      value.AsString(),
 			condition: condition,
+			context:   genfileContext,
 			asserts:   asserts,
 		})
 	}

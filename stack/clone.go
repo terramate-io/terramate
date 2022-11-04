@@ -43,7 +43,7 @@ const (
 // - All files and directories are copied  (except dotfiles/dirs)
 // - If cloned stack has an ID it will be adjusted to a generated UUID.
 // - If cloned stack has no ID the cloned stack also won't have an ID.
-func Clone(cfg *config.Tree, destdir, srcdir string) error {
+func Clone(cfg *config.Root, destdir, srcdir string) error {
 	rootdir := cfg.RootDir()
 
 	logger := log.With().

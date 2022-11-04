@@ -25,6 +25,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 
 	hhcl "github.com/hashicorp/hcl/v2"
 )
@@ -113,6 +114,23 @@ func (c *Context) PartialEval(expr hhcl.Expression) (hclwrite.Tokens, error) {
 
 	engine := newPartialEvalEngine(tokens, c)
 	return engine.Eval()
+}
+
+func (c *Context) Copy() *Context {
+	funcs := make(map[string]function.Function)
+	vars := make(map[string]cty.Value)
+
+	for k, v := range c.hclctx.Functions {
+		funcs[k] = v
+	}
+	for k, v := range c.hclctx.Variables {
+		vars[k] = v
+	}
+	hclctx := &hhcl.EvalContext{
+		Functions: funcs,
+		Variables: vars,
+	}
+	return NewContextFrom(hclctx)
 }
 
 // TokensForValue returns the tokens for the provided value.

@@ -121,14 +121,18 @@ func (h HCL) Condition() bool {
 	return h.condition
 }
 
+func (h HCL) Context() string {
+	return "stack"
+}
+
 func (h HCL) String() string {
 	return stdfmt.Sprintf("Generating file %q (condition %t) (body %q) (origin %q)",
 		h.Label(), h.Condition(), h.Body(), h.Range().HostPath())
 }
 
-// Load loads from the file system all generate_hcl for
-// a given stack. It will navigate the file system from the stack dir until
-// it reaches rootdir, loading generate_hcl and merging them appropriately.
+// Load loads from the file system all generate_hcl for a given stack.
+// It will navigate the root configuration tree from the stack until it reaches
+// the project /, loading generate_hcl and merging them appropriately.
 //
 // All generate_file blocks must have unique labels, even ones at different
 // directories. Any conflicts will be reported as an error.
@@ -139,7 +143,7 @@ func (h HCL) String() string {
 // The rootdir MUST be an absolute path.
 func Load(
 	cfg *config.Tree,
-	evalctx *eval.Context,
+	globalctx *eval.Context,
 ) ([]HCL, error) {
 	logger := log.With().
 		Str("action", "genhcl.Load()").
@@ -157,6 +161,8 @@ func Load(
 
 	var hcls []HCL
 	for _, hclBlock := range hclBlocks {
+		evalctx := globalctx.Copy()
+
 		name := hclBlock.Label
 		err := lets.Load(hclBlock.Lets, evalctx)
 		if err != nil {
@@ -265,7 +271,7 @@ type dynBlockAttributes struct {
 // The returned map maps the name of the block (its label)
 // to the original block and the path (relative to project root) of the config
 // from where it was parsed.
-func loadGenHCLBlocks(tree *config.Tree, cfgdir project.Path) ([]hcl.GenHCLBlock, error) {
+func loadGenHCLBlocks(tree *config.Root, cfgdir project.Path) ([]hcl.GenHCLBlock, error) {
 	res := []hcl.GenHCLBlock{}
 	cfg, ok := tree.Lookup(cfgdir)
 	if ok && !cfg.IsEmptyConfig() {

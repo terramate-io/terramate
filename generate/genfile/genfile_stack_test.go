@@ -23,8 +23,10 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/lets"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
@@ -34,17 +36,19 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func TestLoadGenerateFiles(t *testing.T) {
+func TestLoadGenerateFilesForStackContext(t *testing.T) {
 	t.Parallel()
 
 	tcases := []testcase{
 		{
-			name:  "no generation",
-			stack: "/stack",
+			name:   "no generation",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 		},
 		{
-			name:  "dotfile is ignored",
-			stack: "/stack",
+			name:   "dotfile is ignored",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/.test.tm",
@@ -56,8 +60,9 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 		},
 		{
-			name:  "empty content attribute generates empty body",
-			stack: "/stack",
+			name:   "empty content attribute generates empty body",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/empty.tm",
@@ -78,8 +83,9 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 		},
 		{
-			name:  "simple plain string",
-			stack: "/stack",
+			name:   "simple plain string",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
@@ -100,8 +106,9 @@ func TestLoadGenerateFiles(t *testing.T) {
 			},
 		},
 		{
-			name:  "all metadata available by default",
-			stack: "/stack",
+			name:   "all metadata available by default",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
@@ -141,8 +148,9 @@ stack_description=
 			},
 		},
 		{
-			name:  "stack.id metadata available",
-			stack: "/stack:id=stack-id",
+			name:   "stack.id metadata available",
+			layout: []string{"s:stack:id=stack-id"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
@@ -168,8 +176,9 @@ stack_id=stack-id
 			},
 		},
 		{
-			name:  "using globals and metadata with interpolation",
-			stack: "/stack",
+			name:   "using globals and metadata with interpolation",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/globals.tm",
@@ -196,8 +205,9 @@ stack_id=stack-id
 			},
 		},
 		{
-			name:  "condition set to false",
-			stack: "/stack",
+			name:   "condition set to false",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
@@ -219,8 +229,9 @@ stack_id=stack-id
 			},
 		},
 		{
-			name:  "mixed conditions on different blocks",
-			stack: "/stack",
+			name:   "mixed conditions on different blocks",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
@@ -256,8 +267,9 @@ stack_id=stack-id
 			},
 		},
 		{
-			name:  "condition evaluated from global",
-			stack: "/stack",
+			name:   "condition evaluated from global",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/globals.tm",
@@ -285,8 +297,9 @@ stack_id=stack-id
 			},
 		},
 		{
-			name:  "condition evaluated using try",
-			stack: "/stack",
+			name:   "condition evaluated using try",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
@@ -308,8 +321,9 @@ stack_id=stack-id
 			},
 		},
 		{
-			name:  "condition evaluated using functions",
-			stack: "/stack",
+			name:   "condition evaluated using functions",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/globals.tm",
@@ -337,8 +351,9 @@ stack_id=stack-id
 			},
 		},
 		{
-			name:  "multiple generate_file blocks on same file",
-			stack: "/stack",
+			name:   "multiple generate_file blocks on same file",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/globals.tm",
@@ -389,8 +404,9 @@ stack_id=stack-id
 			},
 		},
 		{
-			name:  "using globals and metadata with functions",
-			stack: "/stack",
+			name:   "using globals and metadata with functions",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/globals.tm",
@@ -431,8 +447,9 @@ stack_id=stack-id
 			},
 		},
 		{
-			name:  "hierarchical load",
-			stack: "/stacks/stack",
+			name:   "hierarchical load",
+			layout: []string{"s:stacks/stack"},
+			dir:    "/stacks/stack",
 			configs: []hclconfig{
 				{
 					path: "/root.tm",
@@ -487,8 +504,9 @@ stack_id=stack-id
 			},
 		},
 		{
-			name:  "content must be string",
-			stack: "/stack",
+			name:   "content must be string",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
@@ -501,8 +519,9 @@ stack_id=stack-id
 			wantErr: errors.E(genfile.ErrInvalidContentType),
 		},
 		{
-			name:  "blocks with same label are allowed",
-			stack: "/stack",
+			name:   "blocks with same label are allowed",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
@@ -536,8 +555,9 @@ stack_id=stack-id
 			},
 		},
 		{
-			name:  "same labels but different condition",
-			stack: "/stack",
+			name:   "same labels but different condition",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
@@ -573,8 +593,9 @@ stack_id=stack-id
 			},
 		},
 		{
-			name:  "conflicting blocks on same dir",
-			stack: "/stack",
+			name:   "conflicting blocks on same dir",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
@@ -613,8 +634,9 @@ stack_id=stack-id
 			},
 		},
 		{
-			name:  "conflicting blocks on different dirs",
-			stack: "/stack",
+			name:   "conflicting blocks on different dirs",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/test.tm",
@@ -653,8 +675,9 @@ stack_id=stack-id
 			},
 		},
 		{
-			name:  "generate_file missing label",
-			stack: "/stack",
+			name:   "generate_file missing label",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/test.tm",
@@ -668,8 +691,9 @@ stack_id=stack-id
 			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
-			name:  "generate_file with two labels",
-			stack: "/stack",
+			name:   "generate_file with two labels",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/test.tm",
@@ -684,8 +708,9 @@ stack_id=stack-id
 			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
-			name:  "generate_file with empty label",
-			stack: "/stack",
+			name:   "generate_file with empty label",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/test.tm",
@@ -700,8 +725,9 @@ stack_id=stack-id
 			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
-			name:  "generate_file missing content attribute",
-			stack: "/stack",
+			name:   "generate_file missing content attribute",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/test.tm",
@@ -715,8 +741,9 @@ stack_id=stack-id
 			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
-			name:  "generate_file with unknown attribute",
-			stack: "/stack",
+			name:   "generate_file with unknown attribute",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/test.tm",
@@ -732,8 +759,9 @@ stack_id=stack-id
 			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
-			name:  "generate_file fails to evaluate content",
-			stack: "/stack",
+			name:   "generate_file fails to evaluate content",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/test.tm",
@@ -748,8 +776,9 @@ stack_id=stack-id
 			wantErr: errors.E(genfile.ErrContentEval),
 		},
 		{
-			name:  "generate_file fails to evaluate condition",
-			stack: "/stack",
+			name:   "generate_file fails to evaluate condition",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/test.tm",
@@ -765,8 +794,9 @@ stack_id=stack-id
 			wantErr: errors.E(genfile.ErrConditionEval),
 		},
 		{
-			name:  "generate_file fails condition dont evaluate to boolean",
-			stack: "/stack",
+			name:   "generate_file fails condition dont evaluate to boolean",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/test.tm",
@@ -782,8 +812,9 @@ stack_id=stack-id
 			wantErr: errors.E(genfile.ErrInvalidConditionType),
 		},
 		{
-			name:  "generate_file with lets",
-			stack: "/stack",
+			name:   "generate_file with lets",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
@@ -807,8 +838,9 @@ stack_id=stack-id
 			},
 		},
 		{
-			name:  "generate_file with multiple lets",
-			stack: "/stack",
+			name:   "generate_file with multiple lets",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
@@ -835,8 +867,9 @@ stack_id=stack-id
 			},
 		},
 		{
-			name:  "using lets and metadata with interpolation",
-			stack: "/stack",
+			name:   "using lets and metadata with interpolation",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
@@ -860,8 +893,9 @@ stack_id=stack-id
 			},
 		},
 		{
-			name:  "using lets, globals and metadata with interpolation",
-			stack: "/stack",
+			name:   "using lets, globals and metadata with interpolation",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/globals.tm",
@@ -892,8 +926,9 @@ stack_id=stack-id
 			},
 		},
 		{
-			name:  "generate_file with duplicated lets attrs",
-			stack: "/stack",
+			name:   "generate_file with duplicated lets attrs",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
@@ -912,8 +947,9 @@ stack_id=stack-id
 			wantErr: errors.E(lets.ErrRedefined),
 		},
 		{
-			name:  "lets are scoped",
-			stack: "/stack",
+			name:   "lets are scoped",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/test.tm",
@@ -958,7 +994,8 @@ type (
 	}
 	testcase struct {
 		name    string
-		stack   string
+		layout  []string
+		dir     string
 		configs []hclconfig
 		want    []result
 		wantErr error
@@ -970,25 +1007,46 @@ func testGenfile(t *testing.T, tcase testcase) {
 		t.Parallel()
 
 		s := sandbox.New(t)
-		s.BuildTree([]string{"s:" + tcase.stack})
-		stacks := s.LoadStacks()
-		projmeta := stack.NewProjectMetadata(s.RootDir(), stacks)
-		stack := s.LoadStacks()[0]
+		if len(tcase.layout) == 0 {
+			t.Fatal("layouts must not be empty")
+		}
+		s.BuildTree(tcase.layout)
 
 		for _, cfg := range tcase.configs {
 			test.AppendFile(t, s.RootDir(), cfg.path, cfg.add.String())
 		}
 
-		cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+		root, err := config.LoadRoot(s.RootDir())
 		if errors.IsAnyKind(tcase.wantErr, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
 			errtest.Assert(t, err, tcase.wantErr)
 			return
 		}
 
-		assert.NoError(t, err)
+		dircfg, ok := root.Lookup(project.Path(tcase.dir))
+		if !ok {
+			t.Fatalf("invalid tcase: the %s directory is not defined in the tcase.layouts",
+				tcase.dir)
+		}
 
-		ctx, _ := s.LoadStackGlobals(cfg, projmeta, stack)
-		got, err := genfile.LoadStackContext(cfg, ctx)
+		stacks := s.LoadStacksFromRoot(root)
+		projmeta := stack.NewProjectMetadata(s.RootDir(), stacks)
+
+		var context string
+		var ctx *eval.Context
+		if dircfg.IsStack() {
+			context = "stack"
+			stack, err := stack.New(s.RootDir(), dircfg.Node)
+			assert.NoError(t, err)
+
+			ctx, _ = s.LoadStackGlobals(root, projmeta, stack)
+		} else {
+			context = "root"
+			ctx, err = eval.NewContext(dircfg.Dir())
+			assert.NoError(t, err)
+
+			ctx.SetNamespace("terramate", projmeta.ToCtyMap())
+		}
+		got, err := genfile.Load(dircfg, context, ctx)
 		errtest.Assert(t, err, tcase.wantErr)
 
 		if len(got) != len(tcase.want) {
@@ -1009,6 +1067,11 @@ func testGenfile(t *testing.T, tcase testcase) {
 
 			if gotfile.Condition() != want.file.condition {
 				t.Fatalf("got condition %t != wanted %t", gotfile.Condition(), want.file.condition)
+			}
+
+			if gotfile.Context() != context {
+				t.Fatalf("got unexpected context %s but expected %s",
+					gotfile.Context(), context)
 			}
 
 			want.file.origin = infotest.FixRange(s.RootDir(), want.file.origin)

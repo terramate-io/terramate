@@ -32,7 +32,7 @@ import (
 // Metadata for the stack is used on the evaluation of globals.
 // The rootdir MUST be an absolute path.
 func LoadStackGlobals(
-	root *config.Tree,
+	root *config.Root,
 	projmeta project.Metadata,
 	stackmeta Metadata,
 ) (*eval.Context, globals.EvalReport) {

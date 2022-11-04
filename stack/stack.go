@@ -295,7 +295,7 @@ func LoadAll(cfg *config.Tree) (List, error) {
 }
 
 // Load a single stack from dir.
-func Load(cfg *config.Tree, dir string) (*S, error) {
+func Load(cfg *config.Root, dir string) (*S, error) {
 	path := project.PrjAbsPath(cfg.RootDir(), dir)
 	node, ok := cfg.Lookup(path)
 	if !ok {

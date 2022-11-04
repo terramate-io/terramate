@@ -713,13 +713,10 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 }
 
 func testCodeGeneration(t *testing.T, tcases []testcase) {
-	t.Helper()
-
 	for _, tc := range tcases {
 		tcase := tc
 
 		t.Run(tcase.name, func(t *testing.T) {
-			t.Helper()
 			t.Parallel()
 
 			if tcase.skipOn == runtime.GOOS {
@@ -752,7 +749,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 			}
 
 			workingDir := filepath.Join(s.RootDir(), tcase.workingDir)
-			report := generate.Do(s.Config(), workingDir)
+			report := generate.Do(s.Config().Tree, workingDir)
 			assertEqualReports(t, report, tcase.wantReport)
 
 			assertGeneratedFiles(t)
@@ -760,7 +757,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 			// piggyback on the tests to validate that regeneration doesn't
 			// delete files or fail and has identical results.
 			t.Run("regenerate", func(t *testing.T) {
-				report := generate.Do(s.Config(), workingDir)
+				report := generate.Do(s.Config().Tree, workingDir)
 				// since we just generated everything, report should only contain
 				// the same failures as previous code generation.
 				assertEqualReports(t, report, generate.Report{

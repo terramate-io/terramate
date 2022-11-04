@@ -105,7 +105,7 @@ func (bm benchmark) assert(b *testing.B, report generate.Report) {
 
 func (bm benchmark) run(b *testing.B) {
 	s := bm.setup(b)
-	report := generate.Do(s.Config(), s.RootDir())
+	report := generate.Do(s.Config().Tree, s.RootDir())
 	bm.assert(b, report)
 }
 

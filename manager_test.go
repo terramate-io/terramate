@@ -153,7 +153,7 @@ func TestListChangedStacks(t *testing.T) {
 			}
 
 			repo := tc.repobuilder(t)
-			cfg, err := config.LoadTree(repo.Dir, repo.Dir)
+			cfg, err := config.LoadRoot(repo.Dir)
 			assert.NoError(t, err)
 			m := terramate.NewManager(cfg, tc.baseRef)
 
@@ -253,7 +253,7 @@ func singleNotChangedStack(t *testing.T) repository {
 
 	g := test.NewGitWrapper(t, repo, []string{})
 
-	cfg, err := config.LoadTree(repo, repo)
+	cfg, err := config.LoadRoot(repo)
 	assert.NoError(t, err)
 
 	// make it a stack
@@ -373,7 +373,7 @@ func multipleStacksOneChangedRepo(t *testing.T) repository {
 	otherStack := filepath.Join(repo.Dir, "not-changed-stack")
 	test.MkdirAll(t, otherStack)
 
-	cfg, err := config.LoadTree(repo.Dir, repo.Dir)
+	cfg, err := config.LoadRoot(repo.Dir)
 	assert.NoError(t, err)
 	assert.NoError(t, stack.Create(cfg, stack.CreateCfg{Dir: otherStack}), "terramate init failed")
 
@@ -390,7 +390,7 @@ func multipleStacksOneChangedRepo(t *testing.T) repository {
 	otherStack = filepath.Join(repo.Dir, "changed-stack")
 	test.MkdirAll(t, otherStack)
 
-	cfg, err = config.LoadTree(repo.Dir, repo.Dir)
+	cfg, err = config.LoadRoot(repo.Dir)
 	assert.NoError(t, err)
 	assert.NoError(t, stack.Create(cfg, stack.CreateCfg{Dir: otherStack}), "terramate init failed")
 
@@ -406,7 +406,7 @@ func multipleChangedStacksRepo(t *testing.T) repository {
 
 	g := test.NewGitWrapper(t, repo.Dir, []string{})
 
-	cfg, err := config.LoadTree(repo.Dir, repo.Dir)
+	cfg, err := config.LoadRoot(repo.Dir)
 	assert.NoError(t, err)
 
 	for i := 0; i < 3; i++ {
@@ -432,7 +432,7 @@ func singleStackSingleModuleChangedRepo(t *testing.T) repository {
 	repo.modules = append(repo.modules, module1, module2)
 
 	st := test.Mkdir(t, repo.Dir, "stack")
-	cfg, err := config.LoadTree(repo.Dir, repo.Dir)
+	cfg, err := config.LoadRoot(repo.Dir)
 	assert.NoError(t, err)
 	assert.NoError(t, stack.Create(cfg, stack.CreateCfg{Dir: st}))
 
@@ -460,7 +460,7 @@ func multipleStackOneChangedModule(t *testing.T) repository {
 	otherStack := filepath.Join(repo.Dir, "stack1")
 	test.MkdirAll(t, otherStack)
 
-	cfg, err := config.LoadTree(repo.Dir, repo.Dir)
+	cfg, err := config.LoadRoot(repo.Dir)
 	assert.NoError(t, err)
 	assert.NoError(t, stack.Create(cfg, stack.CreateCfg{Dir: otherStack}), "terramate init failed")
 
@@ -516,7 +516,7 @@ func singleStackDependentModuleChangedRepo(t *testing.T) repository {
 	repo.modules = append(repo.modules, module1, module2)
 
 	st := test.Mkdir(t, repo.Dir, "stack")
-	cfg, err := config.LoadTree(repo.Dir, repo.Dir)
+	cfg, err := config.LoadRoot(repo.Dir)
 	assert.NoError(t, err)
 	assert.NoError(t, stack.Create(cfg, stack.CreateCfg{Dir: st}))
 
@@ -561,7 +561,7 @@ module "module2" {
 }
 
 func newManager(t *testing.T, basedir string) *terramate.Manager {
-	cfg, err := config.LoadTree(basedir, basedir)
+	cfg, err := config.LoadRoot(basedir)
 	assert.NoError(t, err)
 	return terramate.NewManager(cfg, defaultBranch)
 }

@@ -389,7 +389,7 @@ func assertEqualReports(t *testing.T, got, want generate.Report) {
 	assert.EqualInts(t,
 		len(want.Failures),
 		len(got.Failures),
-		"unmatching failures: want:\n%s\ngot:\n%s\n", want, got)
+		"unmatching failures: want:\n%s\ngot:\n%s\n", want.Full(), got.Full())
 
 	for i, gotFailure := range got.Failures {
 		wantFailure := want.Failures[i]

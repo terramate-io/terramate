@@ -28,7 +28,7 @@ type project struct {
 	root    string
 	wd      string
 	isRepo  bool
-	cfg     config.Tree
+	cfg     config.Root
 	baseRef string
 
 	git struct {

@@ -2096,13 +2096,13 @@ func TestLoadGlobals(t *testing.T) {
 
 			wantGlobals := tcase.want
 
-			cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+			root, err := config.LoadRoot(s.RootDir())
 			if err != nil {
 				errtest.Assert(t, err, tcase.wantErr)
 				return
 			}
 
-			stackEntries, err := terramate.ListStacks(cfg)
+			stackEntries, err := terramate.ListStacks(root.Tree)
 			assert.NoError(t, err)
 
 			var stacks stack.List
@@ -2297,7 +2297,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 				test.AppendFile(t, path, config.DefaultFilename, c.body)
 			}
 
-			cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+			root, err := config.LoadRoot(s.RootDir())
 			// TODO(i4k): this better not be tested here.
 			if errors.IsKind(tcase.want, hcl.ErrHCLSyntax) {
 				errtest.Assert(t, err, tcase.want)
@@ -2307,7 +2307,7 @@ func TestLoadGlobalsErrors(t *testing.T) {
 				return
 			}
 
-			stacks, err := stack.LoadAll(cfg)
+			stacks, err := stack.LoadAll(root.Tree)
 			assert.NoError(t, err)
 			projmeta := stack.NewProjectMetadata(s.RootDir(), stacks)
 

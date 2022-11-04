@@ -72,7 +72,7 @@ func (a GlobalPathKey) rootname() string {
 }
 
 // Load loads all the globals from the cfgdir.
-func Load(tree *config.Tree, cfgdir project.Path, ctx *eval.Context) EvalReport {
+func Load(tree *config.Root, cfgdir project.Path, ctx *eval.Context) EvalReport {
 	logger := log.With().
 		Str("action", "globals.Load()").
 		Str("root", tree.RootDir()).
@@ -92,17 +92,12 @@ func Load(tree *config.Tree, cfgdir project.Path, ctx *eval.Context) EvalReport 
 }
 
 // LoadExprs loads from the file system all globals expressions defined for
-// the given directory. It will navigate the file system from dir until it
-// reaches rootdir, loading globals expressions and merging them appropriately.
+// the given directory. It will navigate upwards the configuration root tree
+// from dir until it reaches /, loading globals expressions and merging them
+// appropriately.
 // More specific globals (closer or at the dir) have precedence over less
 // specific globals (closer or at the root dir).
-func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
-	logger := log.With().
-		Str("action", "globals.LoadExprs()").
-		Str("root", tree.RootDir()).
-		Stringer("cfgdir", cfgdir).
-		Logger()
-
+func LoadExprs(tree *config.Root, cfgdir project.Path) (Exprs, error) {
 	exprs := make(Exprs)
 
 	cfg, ok := tree.Lookup(cfgdir)
@@ -131,11 +126,7 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
 			}
 		}
 
-		logger.Trace().Msg("Range over attributes.")
-
 		for _, attr := range attrs {
-			logger.Trace().Msg("Add attribute to globals.")
-
 			key := newGlobalPath(block.Labels, attr.Name)
 			exprs[key] = Expr{
 				Origin:     attr.Range.Path(),
@@ -150,14 +141,10 @@ func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
 		return exprs, nil
 	}
 
-	logger.Trace().Msg("Loading stack globals from parent dir.")
-
 	parentGlobals, err := LoadExprs(tree, parentcfg)
 	if err != nil {
 		return nil, err
 	}
-
-	logger.Trace().Msg("Merging globals with parent.")
 
 	exprs.merge(parentGlobals)
 	return exprs, nil

@@ -31,9 +31,9 @@ func TestLoadAllFailsIfStacksIDIsNotUnique(t *testing.T) {
 		"s:stacks/stack-1:id=id",
 		"s:stacks/stack-2:id=id",
 	})
-	cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+	root, err := config.LoadRoot(s.RootDir())
 	assert.NoError(t, err)
-	_, err = stack.LoadAll(cfg)
+	_, err = stack.LoadAll(root.Tree)
 	assert.IsError(t, err, errors.E(stack.ErrDuplicatedID))
 }
 

@@ -27,8 +27,9 @@ func TestGenerateFileRange(t *testing.T) {
 
 	tcases := []testcase{
 		{
-			name:  "multiple blocks",
-			stack: "/stack",
+			name:   "multiple blocks",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/generate.tm",
@@ -72,8 +73,9 @@ func TestGenerateFileRange(t *testing.T) {
 			},
 		},
 		{
-			name:  "multiple files",
-			stack: "/stack",
+			name:   "multiple files",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/generate.tm",

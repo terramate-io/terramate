@@ -29,8 +29,9 @@ func TestGenerateFileAssert(t *testing.T) {
 
 	tcases := []testcase{
 		{
-			name:  "multiple assert configs accessing metadata/globals/lets",
-			stack: "/stack",
+			name:   "multiple assert configs accessing metadata/globals/lets",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/globals.tm",
@@ -82,8 +83,9 @@ func TestGenerateFileAssert(t *testing.T) {
 			},
 		},
 		{
-			name:  "if one assertion fails generated code will be empty",
-			stack: "/stack",
+			name:   "if one assertion fails generated code will be empty",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/generate.tm",
@@ -124,8 +126,9 @@ func TestGenerateFileAssert(t *testing.T) {
 			},
 		},
 		{
-			name:  "if condition is false asserts are not evaluated",
-			stack: "/stack",
+			name:   "if condition is false asserts are not evaluated",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/generate.tm",
@@ -151,8 +154,9 @@ func TestGenerateFileAssert(t *testing.T) {
 			},
 		},
 		{
-			name:  "if one assertion fails with warning code is generated",
-			stack: "/stack",
+			name:   "if one assertion fails with warning code is generated",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/generate.tm",
@@ -195,8 +199,9 @@ func TestGenerateFileAssert(t *testing.T) {
 			},
 		},
 		{
-			name:  "evaluation failure",
-			stack: "/stack",
+			name:   "evaluation failure",
+			layout: []string{"s:stack"},
+			dir:    "/stack",
 			configs: []hclconfig{
 				{
 					path: "/stack/fail.tm",

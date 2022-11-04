@@ -71,7 +71,7 @@ func TestLoadFailsWithInvalidConfig(t *testing.T) {
 			stackEntry := s.CreateStack("stack")
 			stackEntry.CreateConfig(invalidConfig.String() + "\n" + Stack().String())
 
-			_, err := config.LoadTree(s.RootDir(), stackEntry.Path())
+			_, err := config.LoadRoot(s.RootDir())
 			assert.IsError(t, err, errors.E(hcl.ErrTerramateSchema))
 		})
 	}

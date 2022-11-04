@@ -266,7 +266,7 @@ func TestConfigSkipdir(t *testing.T) {
 		"f:/stack/subdir/ignored.tm:not valid hcl but wont be parsed",
 	})
 
-	cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+	cfg, err := config.LoadRoot(s.RootDir())
 	assert.NoError(t, err)
 
 	node, found := cfg.Lookup("/stack-2")
@@ -285,8 +285,8 @@ func TestConfigSkipdir(t *testing.T) {
 	assert.IsTrue(t, !found)
 }
 
-func isStack(cfg *config.Tree, dir string) bool {
-	return config.IsStack(cfg, filepath.Join(cfg.RootDir(), dir))
+func isStack(root *config.Root, dir string) bool {
+	return config.IsStack(root, filepath.Join(root.RootDir(), dir))
 }
 
 func init() {

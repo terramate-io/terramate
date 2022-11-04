@@ -46,23 +46,23 @@ type EnvVars []string
 // LoadEnv will load environment variables to be exported when running any command
 // inside the given stack. The order of the env vars is guaranteed to be the same
 // and is ordered lexicographically.
-func LoadEnv(cfg *config.Tree, projmeta project.Metadata, st *stack.S) (EnvVars, error) {
+func LoadEnv(root *config.Root, projmeta project.Metadata, st *stack.S) (EnvVars, error) {
 	logger := log.With().
 		Str("action", "run.Env()").
-		Str("root", cfg.RootDir()).
+		Str("root", root.RootDir()).
 		Stringer("stack", st).
 		Logger()
 
 	logger.Trace().Msg("checking if we have run env config")
 
-	if !cfg.Node.HasRunEnv() {
+	if !root.Node.HasRunEnv() {
 		logger.Trace().Msg("no run env config found, nothing to do")
 		return nil, nil
 	}
 
 	logger.Trace().Msg("loading globals")
 
-	_, globalsReport := stack.LoadStackGlobals(cfg, projmeta, st)
+	_, globalsReport := stack.LoadStackGlobals(root, projmeta, st)
 	if err := globalsReport.AsError(); err != nil {
 		return nil, errors.E(ErrLoadingGlobals, err)
 	}
@@ -72,7 +72,7 @@ func LoadEnv(cfg *config.Tree, projmeta project.Metadata, st *stack.S) (EnvVars,
 	evalctx.SetEnv(os.Environ())
 	envVars := EnvVars{}
 
-	attrs := cfg.Node.Terramate.Config.Run.Env.Attributes.SortedList()
+	attrs := root.Node.Terramate.Config.Run.Env.Attributes.SortedList()
 
 	for _, attr := range attrs {
 		logger = logger.With().

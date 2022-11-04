@@ -27,7 +27,44 @@ import (
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
-func TestGenerateFile(t *testing.T) {
+func TestGenerateFileRootContext(t *testing.T) {
+	t.Parallel()
+
+	testCodeGeneration(t, []testcase{
+		{
+			name:   "empty generate_file content generates empty file",
+			layout: []string{},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: GenerateFile(
+						Labels("/empty"),
+						Str("context", "root"),
+						Str("content", ""),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/",
+					files: map[string]fmt.Stringer{
+						"/empty": stringer(""),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/",
+						Created: []string{"/empty"},
+					},
+				},
+			},
+		},
+	})
+}
+
+func TestGenerateFileStackContext(t *testing.T) {
 	t.Parallel()
 
 	testCodeGeneration(t, []testcase{

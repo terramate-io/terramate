@@ -56,6 +56,13 @@ type Tree struct {
 	dir string
 }
 
+// Root represents the root configuration.
+// It's an alias to Tree just to catch misuses for APIs that require the root
+// tree.
+type Root struct {
+	*Tree
+}
+
 // List of config trees.
 type List []*Tree
 
@@ -63,7 +70,7 @@ type List []*Tree
 // the config in fromdir and all parent directories until / is reached.
 // If the configuration is found, it returns the whole configuration tree,
 // configpath != "" and found as true.
-func TryLoadConfig(fromdir string) (tree *Tree, configpath string, found bool, err error) {
+func TryLoadConfig(fromdir string) (root *Root, configpath string, found bool, err error) {
 	for {
 		logger := log.With().
 			Str("action", "config.TryLoadConfig()").
@@ -82,7 +89,7 @@ func TryLoadConfig(fromdir string) (tree *Tree, configpath string, found bool, e
 			}
 		} else if cfg.Terramate != nil && cfg.Terramate.Config != nil {
 			tree, err := loadTree(fromdir, fromdir, &cfg)
-			return tree, fromdir, true, err
+			return &Root{tree}, fromdir, true, err
 		}
 
 		parent, ok := parentDir(fromdir)
@@ -94,10 +101,10 @@ func TryLoadConfig(fromdir string) (tree *Tree, configpath string, found bool, e
 	return nil, "", false, nil
 }
 
-// LoadTree loads the whole hierarchical configuration from cfgdir downwards
-// using rootdir as project root.
-func LoadTree(rootdir string, cfgdir string) (*Tree, error) {
-	return loadTree(rootdir, cfgdir, nil)
+// LoadRoot loads the root configuration.
+func LoadRoot(rootdir string) (*Root, error) {
+	tree, err := loadTree(rootdir, rootdir, nil)
+	return &Root{tree}, err
 }
 
 // Dir is the node directory.
@@ -118,11 +125,11 @@ func (tree *Tree) RootDir() string {
 }
 
 // Root returns the root of the configuration tree.
-func (tree *Tree) Root() *Tree {
+func (tree *Tree) Root() *Root {
 	if tree.Parent != nil {
 		return tree.Parent.Root()
 	}
-	return tree
+	return &Root{tree}
 }
 
 // IsStack tells if the node is a stack.
@@ -328,7 +335,7 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error)
 
 		logger.Trace().Msg("loading children tree")
 
-		node, err := LoadTree(rootdir, dir)
+		node, err := loadTree(rootdir, dir, nil)
 		if err != nil {
 			return nil, errors.E(err, "loading from %s", dir)
 		}
@@ -366,7 +373,7 @@ func (tree *Tree) LoadSubTree(cfgdir project.Path) error {
 	nextComponent := components[0]
 	subtreeDir := filepath.Join(rootdir, parent.String(), nextComponent)
 
-	node, err := LoadTree(rootdir, subtreeDir)
+	node, err := loadTree(rootdir, subtreeDir, nil)
 	if err != nil {
 		return errors.E(err, "failed to load config from %s", subtreeDir)
 	}
@@ -387,7 +394,7 @@ func (tree *Tree) IsEmptyConfig() bool {
 }
 
 // IsStack returns true if the given directory is a stack, false otherwise.
-func IsStack(root *Tree, dir string) bool {
+func IsStack(root *Root, dir string) bool {
 	if root.Parent != nil {
 		panic("expect a root config")
 	}
