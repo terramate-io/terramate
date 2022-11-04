@@ -21,6 +21,10 @@ Stack configurations related to orchestration can be found [here](orchestration.
 Besides orchestration the `stack` block also define attributes that are
 used to describe the `stack`.
 
+Only [Terramate Functions](functions.md) are available when defining
+the `stack` block. Globals and Metadata won't be available since that
+would make stack definitions circular.
+
 ## stack.id (string)(optional)
 
 The stack ID **must** be a string composed of alphanumeric chars + `-` + `_`.
