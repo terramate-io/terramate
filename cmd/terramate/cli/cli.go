@@ -462,8 +462,6 @@ func (c *cli) vendorDownload() {
 		Str("ref", ref).
 		Logger()
 
-	logger.Trace().Msg("parsing source")
-
 	parsedSource, err := tf.ParseSource(source)
 	if err != nil {
 		log.Fatal().Msgf("parsing module source %s: %s", source, err)
@@ -473,8 +471,32 @@ func (c *cli) vendorDownload() {
 	}
 	parsedSource.Ref = ref
 
-	logger.Trace().Msgf("module path is: %s", parsedSource.Path)
-	report := modvendor.Vendor(c.root(), c.vendorDir(), parsedSource)
+	eventsHandled := make(chan struct{})
+	eventsStream := modvendor.NewEventStream()
+
+	go func() {
+		for event := range eventsStream {
+			c.output.Msg(out.V, "vendor: %s %s at %s",
+				event.Message, event.Module.Raw, event.TargetDir)
+			log.Info().
+				Str("module", event.Module.Raw).
+				Stringer("vendorDir", event.TargetDir).
+				Msg(event.Message)
+		}
+		close(eventsHandled)
+	}()
+
+	logger.Debug().Msg("vendoring")
+
+	report := modvendor.Vendor(c.root(), c.vendorDir(), parsedSource, eventsStream)
+
+	logger.Debug().Msg("finished vendoring, waiting for all vendor events to be handled")
+
+	close(eventsStream)
+	<-eventsHandled
+
+	logger.Debug().Msg("vendor events handled, creating final report")
+
 	if report.Error != nil {
 		if errs, ok := report.Error.(*errors.List); ok {
 			for _, err := range errs.Errors() {
@@ -758,11 +780,14 @@ func (c *cli) createStack() {
 	c.output.Msg(out.V, "Created stack %s", stackPath)
 
 	report := generate.Do(c.cfg(), stackDir)
-	c.output.Msg(out.VV, report.Minimal())
 
 	if report.HasFailures() {
+		c.output.Msg(out.V, "Code generation failed")
+		c.output.Msg(out.V, report.Minimal())
 		os.Exit(1)
 	}
+
+	c.output.Msg(out.VV, report.Minimal())
 }
 
 func (c *cli) format() {
