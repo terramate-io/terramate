@@ -780,11 +780,14 @@ func (c *cli) createStack() {
 	c.output.Msg(out.V, "Created stack %s", stackPath)
 
 	report := generate.Do(c.cfg(), stackDir)
-	c.output.Msg(out.VV, report.Minimal())
 
 	if report.HasFailures() {
+		c.output.Msg(out.V, "Code generation failed")
+		c.output.Msg(out.V, report.Minimal())
 		os.Exit(1)
 	}
+
+	c.output.Msg(out.VV, report.Minimal())
 }
 
 func (c *cli) format() {
