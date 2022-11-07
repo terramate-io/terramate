@@ -32,7 +32,8 @@ type EventStream event.Stream[ProgressEvent]
 
 // NewEventStream creates a new event stream.
 func NewEventStream() EventStream {
-	return EventStream(event.NewStream[ProgressEvent](100))
+	const streamBufferSize = 100
+	return EventStream(event.NewStream[ProgressEvent](streamBufferSize))
 }
 
 // Send send a progress event.
