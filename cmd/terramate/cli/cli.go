@@ -502,16 +502,16 @@ func (c *cli) vendorDownload() {
 		close(eventsHandled)
 	}()
 
-	logger.Trace().Msg("vendoring")
+	logger.Debug().Msg("vendoring")
 
 	report := modvendor.Vendor(c.root(), c.vendorDir(), parsedSource, eventsStream)
 
-	logger.Trace().Msg("finished vendoring, waiting for all vendor events to be handled")
+	logger.Debug().Msg("finished vendoring, waiting for all vendor events to be handled")
 
 	close(eventsStream)
 	<-eventsHandled
 
-	logger.Trace().Msg("vendor events handled, creating final report")
+	logger.Debug().Msg("vendor events handled, creating final report")
 
 	if report.Error != nil {
 		if errs, ok := report.Error.(*errors.List); ok {
