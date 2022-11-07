@@ -273,11 +273,11 @@ func TestVendorEvents(t *testing.T) {
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Parallel()
 
-			repositoresSbx := sandbox.NoGit(t)
-			reposURI := uri.File(repositoresSbx.RootDir())
+			repositories := sandbox.NoGit(t)
+			reposURI := uri.File(repositories.RootDir())
 
 			for _, repo := range tcase.repositories {
-				repositoriesRoot := repositoresSbx.RootDir()
+				repositoriesRoot := repositories.RootDir()
 				repoRoot := filepath.Join(repositoriesRoot, repo.name)
 
 				test.MkdirAll(t, repoRoot)
