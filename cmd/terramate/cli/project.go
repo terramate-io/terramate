@@ -21,6 +21,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/git"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -235,10 +236,8 @@ func (p *project) checkRemoteDefaultBranchIsReachable() error {
 		Str(remoteDesc, p.remoteDefaultCommit()).
 		Logger()
 
-	handleError := func(debugErrCtx error) error {
-		debugErr := fmt.Errorf("%s: %v", ErrCurrentHeadIsOutOfDate, debugErrCtx)
-
-		logger.Debug().Msg(debugErr.Error())
+	handleError := func(logger zerolog.Logger, debugErrCtx error) error {
+		logger.Debug().Msgf("%s: %v", ErrCurrentHeadIsOutOfDate, debugErrCtx)
 		return errors.E(
 			ErrCurrentHeadIsOutOfDate,
 			"Please merge the latest changes from %s into this branch",
@@ -248,15 +247,15 @@ func (p *project) checkRemoteDefaultBranchIsReachable() error {
 
 	mergeBaseCommitID, err := p.git.wrapper.MergeBase(p.headCommit(), p.remoteDefaultCommit())
 	if err != nil {
-		return handleError(err)
+		return handleError(logger, err)
 	}
 
-	if mergeBaseCommitID != p.remoteDefaultCommit() {
-		logger = logger.With().
-			Str("merge-base", mergeBaseCommitID).
-			Logger()
+	logger = logger.With().
+		Str("merge_base", mergeBaseCommitID).
+		Logger()
 
-		return handleError(
+	if mergeBaseCommitID != p.remoteDefaultCommit() {
+		return handleError(logger,
 			errors.E("The %s is not the merge-base of current HEAD", remoteDesc),
 		)
 	}
