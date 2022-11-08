@@ -23,6 +23,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/generate/genfile"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -437,6 +438,130 @@ EOT`,
 					{
 						Dir:     "/stacks/stack",
 						Created: []string{"root", "stack", "stacks"},
+					},
+				},
+			},
+		},
+		{
+			name:   "content must be string",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: GenerateFile(
+						Labels("test.yml"),
+						Expr("content", "5"),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/stack",
+						},
+						Error: errors.E(genfile.ErrInvalidContentType),
+					},
+				},
+			},
+		},
+		{
+			name:   "blocks with same label are disallowed",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: Doc(
+						GenerateFile(
+							Labels("test.yml"),
+							Str("content", "test"),
+						),
+						GenerateFile(
+							Labels("test.yml"),
+							Str("content", "test2"),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/stack",
+						},
+						Error: errors.E(generate.ErrConflictingConfig),
+					},
+				},
+			},
+		},
+		{
+			name:   "same labels but different condition",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Str("content", "test"),
+						Bool("condition", true),
+					),
+				},
+				{
+					path: "/stack/test.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Str("content", "test"),
+						Bool("condition", false),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stack",
+					files: map[string]fmt.Stringer{
+						"test": stringer("test"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/stack",
+						Created: []string{"test"},
+					},
+				},
+			},
+		},
+		{
+			name:   "conflicting blocks on same dir",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: Doc(
+						GenerateFile(
+							Labels("test.yml"),
+							Str("content", "test"),
+						),
+					),
+				},
+				{
+					path: "/stack/test2.tm",
+					add: Doc(
+						GenerateFile(
+							Labels("test.yml"),
+							Str("content", "test2"),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/stack",
+						},
+						Error: errors.E(generate.ErrConflictingConfig),
 					},
 				},
 			},

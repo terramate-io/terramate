@@ -64,7 +64,7 @@ func TestGeneratedFilesListing(t *testing.T) {
 		{
 			name: "single generated file on root",
 			layout: []string{
-				genfile("generated.tf"),
+				genFile("generated.tf"),
 			},
 			want: []string{"generated.tf"},
 		},
@@ -78,16 +78,16 @@ func TestGeneratedFilesListing(t *testing.T) {
 		{
 			name: "single generated file contents after header newline dont matter",
 			layout: []string{
-				genfile("generated.tf", "data"),
+				genFile("generated.tf", "data"),
 			},
 			want: []string{"generated.tf"},
 		},
 		{
 			name: "multiple generated files",
 			layout: []string{
-				genfile("generated1.tf"),
-				genfile("generated2.hcl"),
-				genfile("somename"),
+				genFile("generated1.tf"),
+				genFile("generated2.hcl"),
+				genFile("somename"),
 			},
 			want: []string{"generated1.tf", "generated2.hcl", "somename"},
 		},
@@ -95,16 +95,16 @@ func TestGeneratedFilesListing(t *testing.T) {
 			name: "multiple generated files mixed versions",
 			layout: []string{
 				"f:old.tf:" + genhcl.HeaderV0,
-				genfile("current.hcl"),
+				genFile("current.hcl"),
 			},
 			want: []string{"current.hcl", "old.tf"},
 		},
 		{
 			name: "gen and manual files mixed",
 			layout: []string{
-				genfile("gen.tf"),
+				genFile("gen.tf"),
 				"f:manual.tf:some terraform stuff",
-				genfile("gen2.tf"),
+				genFile("gen2.tf"),
 				"f:manual2.tf:data",
 			},
 			want: []string{"gen.tf", "gen2.tf"},
@@ -112,11 +112,11 @@ func TestGeneratedFilesListing(t *testing.T) {
 		{
 			name: "on root ignores generated files inside dir with .tmskip",
 			layout: []string{
-				genfile("genfiles/1.tf"),
-				genfile("genfiles/2.tf"),
-				genfile("genfiles/" + config.SkipFilename),
-				genfile("genfiles/subdir/1.tf"),
-				genfile("genfiles2/1.tf"),
+				genFile("genfiles/1.tf"),
+				genFile("genfiles/2.tf"),
+				genFile("genfiles/" + config.SkipFilename),
+				genFile("genfiles/subdir/1.tf"),
+				genFile("genfiles2/1.tf"),
 			},
 			want: []string{
 				"genfiles2/1.tf",
@@ -127,9 +127,9 @@ func TestGeneratedFilesListing(t *testing.T) {
 			dir:  "stack",
 			layout: []string{
 				"s:stack",
-				genfile("stack/1.tf"),
-				genfile("stack/dir/" + config.SkipFilename),
-				genfile("stack/dir/1.tf"),
+				genFile("stack/1.tf"),
+				genFile("stack/dir/" + config.SkipFilename),
+				genFile("stack/dir/1.tf"),
 			},
 			want: []string{
 				"1.tf",
@@ -138,16 +138,16 @@ func TestGeneratedFilesListing(t *testing.T) {
 		{
 			name: "on root lists all generated files except inside stacks",
 			layout: []string{
-				genfile("genfiles/1.tf"),
-				genfile("genfiles/2.tf"),
-				genfile("genfiles2/1.tf"),
-				genfile("dir/sub/genfiles/1.tf"),
+				genFile("genfiles/1.tf"),
+				genFile("genfiles/2.tf"),
+				genFile("genfiles2/1.tf"),
+				genFile("dir/sub/genfiles/1.tf"),
 				"s:stack-1",
-				genfile("stack-1/1.tf"),
+				genFile("stack-1/1.tf"),
 				"s:stack-2",
-				genfile("stack-2/1.tf"),
+				genFile("stack-2/1.tf"),
 				"s:stack-1/substack",
-				genfile("stack-1/substack/1.tf"),
+				genFile("stack-1/substack/1.tf"),
 			},
 			want: []string{
 				"genfiles/1.tf",
@@ -161,14 +161,14 @@ func TestGeneratedFilesListing(t *testing.T) {
 			dir:  "stack",
 			layout: []string{
 				"s:stack",
-				genfile("stack/1.tf"),
-				genfile("stack/2.tf"),
-				genfile("stack/subdir/1.tf"),
-				genfile("stack/subdir2/1.tf"),
-				genfile("stack/sub/dir/1.tf"),
+				genFile("stack/1.tf"),
+				genFile("stack/2.tf"),
+				genFile("stack/subdir/1.tf"),
+				genFile("stack/subdir2/1.tf"),
+				genFile("stack/sub/dir/1.tf"),
 				"s:stack/child",
-				genfile("stack/child/1.tf"),
-				genfile("stack/child/dir/1.tf"),
+				genFile("stack/child/1.tf"),
+				genFile("stack/child/dir/1.tf"),
 			},
 			want: []string{
 				"1.tf",
@@ -181,9 +181,9 @@ func TestGeneratedFilesListing(t *testing.T) {
 		{
 			name: "ignores dot dirs and files",
 			layout: []string{
-				genfile(".name.tf"),
-				genfile(".dir/1.tf"),
-				genfile(".dir/2.tf"),
+				genFile(".name.tf"),
+				genFile(".dir/1.tf"),
+				genFile(".dir/2.tf"),
 			},
 			want: []string{},
 		},
@@ -212,6 +212,6 @@ func TestGeneratedFilesListing(t *testing.T) {
 	}
 }
 
-func genfile(path string, body ...string) string {
+func genFile(path string, body ...string) string {
 	return fmt.Sprintf("f:%s:%s\n%s", path, genhcl.Header, strings.Join(body, ""))
 }

@@ -475,11 +475,11 @@ func TestGenerateCleanup(t *testing.T) {
 		{
 			name: "deletes generated files outside stacks",
 			layout: []string{
-				genfile("dir/a.hcl"),
-				genfile("dir/subdir/b.hcl"),
-				genfile("dir/subdir/again/c.hcl"),
-				genfile("another/d.hcl"),
-				genfile("root.hcl"),
+				genFile("dir/a.hcl"),
+				genFile("dir/subdir/b.hcl"),
+				genFile("dir/subdir/again/c.hcl"),
+				genFile("another/d.hcl"),
+				genFile("root.hcl"),
 			},
 			wantReport: generate.Report{
 				Successes: []generate.Result{
@@ -515,15 +515,15 @@ func TestGenerateCleanup(t *testing.T) {
 				"s:stacks/stack-2",
 				"s:stacks/stack-1/stack-1-a",
 				"s:stacks/stack-1/stack-1-b",
-				genfile("dir/orphan.hcl"),
-				genfile("stacks/stack-1/a.hcl"),
-				genfile("stacks/stack-1/subdir/b.hcl"),
-				genfile("stacks/stack-1/subdir/dir/c.hcl"),
-				genfile("stacks/stack-1/stack-1-a/e.hcl"),
-				genfile("stacks/stack-1/stack-1-a/subdir/f.hcl"),
-				genfile("stacks/stack-1/stack-1-a/subdir/dir/g.hcl"),
-				genfile("stacks/stack-1/stack-1-b/h.hcl"),
-				genfile("stacks/stack-2/d.hcl"),
+				genFile("dir/orphan.hcl"),
+				genFile("stacks/stack-1/a.hcl"),
+				genFile("stacks/stack-1/subdir/b.hcl"),
+				genFile("stacks/stack-1/subdir/dir/c.hcl"),
+				genFile("stacks/stack-1/stack-1-a/e.hcl"),
+				genFile("stacks/stack-1/stack-1-a/subdir/f.hcl"),
+				genFile("stacks/stack-1/stack-1-a/subdir/dir/g.hcl"),
+				genFile("stacks/stack-1/stack-1-b/h.hcl"),
+				genFile("stacks/stack-2/d.hcl"),
 			},
 			wantReport: generate.Report{
 				Successes: []generate.Result{
@@ -734,8 +734,8 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 			var configPaths []string
 			for _, cfg := range tcase.configs {
 				path := filepath.Join(s.RootDir(), cfg.path)
-				_, err := os.Lstat(path)
-				if err == nil {
+				st, err := os.Lstat(path)
+				if err == nil && st.IsDir() {
 					path = filepath.Join(path, config.DefaultFilename)
 				}
 				test.AppendFile(t, filepath.Dir(path), filepath.Base(path), cfg.add.String())
