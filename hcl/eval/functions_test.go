@@ -15,23 +15,80 @@
 package eval_test
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/test"
 )
 
-func TestAddTmVendorFailsOnNoRelPathFromBasedirToVendorDir(t *testing.T) {
+func TestNewExtContextFailsOnNoRelPathFromBasedirToVendorDir(t *testing.T) {
 	basedir := t.TempDir()
 	vendordir := "vendor"
 
-	ctx, err := eval.NewExtContext(basedir)
-	assert.NoError(t, err)
+	_, err := eval.NewExtContext(basedir, vendordir, nil)
+	assert.Error(t, err)
+}
 
-	defer func() {
-		if err := recover(); err == nil {
-			t.Fatal("expected ctx.SetTmVendor to panic")
-		}
-	}()
-	ctx.SetTmVendor(vendordir)
+func TestContextDontHaveTmVendor(t *testing.T) {
+}
+
+func TestTmVendor(t *testing.T) {
+	type testcase struct {
+		name      string
+		expr      string
+		vendorDir string
+		want      string
+		events    []eval.TmVendorEvent
+		wantErr   bool
+	}
+
+	tcases := []testcase{
+		{
+			name:      "valid github source",
+			vendorDir: "vendor",
+			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=main")`,
+			want:      "../vendor/github.com/mineiros-io/terramate/main",
+			events: []eval.TmVendorEvent{
+				{
+					Source: "github.com/mineiros-io/terramate?ref=main",
+				},
+			},
+		},
+	}
+
+	for _, tcase := range tcases {
+		t.Run(tcase.name, func(t *testing.T) {
+			basedir := t.TempDir()
+			vendordir := filepath.Join(basedir, tcase.vendorDir)
+			events := make(chan eval.TmVendorEvent)
+
+			ctx, err := eval.NewExtContext(basedir, vendordir, events)
+			assert.NoError(t, err)
+
+			gotEvents := []eval.TmVendorEvent{}
+			done := make(chan struct{})
+			go func() {
+				for event := range events {
+					gotEvents = append(gotEvents, event)
+				}
+				close(done)
+			}()
+
+			val, err := ctx.Eval(test.NewExpr(t, tcase.expr))
+			if tcase.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			assert.EqualStrings(t, tcase.want, val.AsString())
+
+			close(events)
+			<-done
+
+			test.AssertDiff(t, gotEvents, tcase.events)
+		})
+	}
 }

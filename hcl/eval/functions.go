@@ -25,6 +25,13 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 )
 
+// TmVendorEvent represents the event that is dispatched every time a tm_vendor
+// function is called.
+type TmVendorEvent struct {
+	// Source it the tm_vendor source argument
+	Source string
+}
+
 func newTmFunctions(basedir string) map[string]function.Function {
 	scope := &tflang.Scope{BaseDir: basedir}
 	tffuncs := scope.Functions()

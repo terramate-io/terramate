@@ -38,14 +38,6 @@ type Context struct {
 	hclctx *hhcl.EvalContext
 }
 
-// ExtContext represents an extendable context and is used to evaluate HCL code.
-// It provides basic Terramate functions
-// and the possibility to extend the context with extended functions like tm_vendor.
-type ExtContext struct {
-	Context
-	basedir string
-}
-
 // NewContext creates a new HCL evaluation context.
 // The basedir is the base directory used by any interpolation functions that
 // accept filesystem paths as arguments.
@@ -70,6 +62,20 @@ func NewContext(basedir string) (*Context, error) {
 	return &Context{
 		hclctx: hclctx,
 	}, nil
+}
+
+// NewExtContext creates a new HCL evaluation context that includes extended/experimental
+// functions like tm_vendor.
+// It has the same invariants as NewContext, only adds extra functionality.
+func NewExtContext(basedir, vendordir string, stream chan<- TmVendorEvent) (*Context, error) {
+	ctx, err := NewContext(basedir)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := filepath.Rel(basedir, vendordir); err != nil {
+		return nil, errors.E(err, "base dir must have a relative path to vendor dir")
+	}
+	return ctx, nil
 }
 
 // SetNamespace will set the given values inside the given namespace on the
@@ -117,30 +123,6 @@ func (c *Context) PartialEval(expr hhcl.Expression) (hclwrite.Tokens, error) {
 
 	engine := newPartialEvalEngine(tokens, c)
 	return engine.Eval()
-}
-
-// NewExtContext creates a new HCL evaluation context that allows
-// Terramate functions to be extended.
-// It has the same invariants as NewContext/Context, only adding extra functionality.
-func NewExtContext(basedir string) (*ExtContext, error) {
-	ctx, err := NewContext(basedir)
-	if err != nil {
-		return nil, err
-	}
-	return &ExtContext{
-		Context: *ctx,
-		basedir: basedir,
-	}, nil
-}
-
-// SetTmVendor will set the tm_vendor function on this context.
-// It is a programming error to call this method with a vendorDir that can't
-// have a relative path calculated to the context basedir.
-func (ec *ExtContext) SetTmVendor(vendordir string) {
-	if _, err := filepath.Rel(ec.basedir, vendordir); err != nil {
-		// TODO(KATCIPIS): use new internal error
-		panic(errors.E(err, "base dir must have a relative path to vendor dir"))
-	}
 }
 
 // TokensForValue returns the tokens for the provided value.
