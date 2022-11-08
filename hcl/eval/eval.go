@@ -68,6 +68,13 @@ func NewContextFrom(ctx *hhcl.EvalContext) *Context {
 	}
 }
 
+// SetTmVendor will set the tm_vendor function on this context.
+// It is a programming error to call this method with a vendorDir that can't
+// have a relative path calculated to the context basedir.
+func (c *Context) SetTmVendor(vendordir string) {
+	// TODO(KATCIPS): setting tm vendor
+}
+
 // SetNamespace will set the given values inside the given namespace on the
 // evaluation context.
 func (c *Context) SetNamespace(name string, vals map[string]cty.Value) {
