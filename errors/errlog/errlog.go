@@ -107,7 +107,7 @@ func msgfmt(args []any) string {
 	}
 	msgfmt, ok := args[0].(string)
 	if !ok {
-		panic("terramate internal error: invalid call to errlog.Fatal or errlog.Warn, message is not a string")
+		panic(errors.E(errors.ErrInternal, "invalid call to errlog.Fatal or errlog.Warn, message is not a string"))
 	}
 	return fmt.Sprintf(msgfmt, args[1:]...)
 }

@@ -218,7 +218,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 				if _, ok := globals.GetKeyPath(accessor.Path()); ok {
 					err := globals.DeleteAt(accessor.Path())
 					if err != nil {
-						panic(errors.E(err, "terramate internal error"))
+						panic(errors.E(errors.ErrInternal, err))
 					}
 				}
 
