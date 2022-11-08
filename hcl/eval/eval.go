@@ -32,8 +32,7 @@ import (
 // ErrEval indicates a failure during the evaluation process
 const ErrEval errors.Kind = "eval expression"
 
-// Context is used to evaluate HCL code. It provides basic Terramate functions
-// and the possibility to extend the context with extended functions like tm_vendor.
+// Context is used to evaluate HCL code.
 type Context struct {
 	hclctx *hhcl.EvalContext
 }
