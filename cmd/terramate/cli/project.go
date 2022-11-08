@@ -236,16 +236,14 @@ func (p *project) checkRemoteDefaultBranchIsReachable() error {
 		Logger()
 
 	handleError := func(debugErrCtx error) error {
-		fatalErr := errors.E(
+		debugErr := fmt.Errorf("%v: %v", ErrCurrentHeadIsOutOfDate, debugErrCtx)
+
+		logger.Debug().Err(debugErr).Send()
+		return errors.E(
 			ErrCurrentHeadIsOutOfDate,
 			"Please merge the latest changes from %s into this branch",
 			remoteDesc,
 		)
-
-		debugErr := fmt.Errorf("%v: %v", fatalErr, debugErrCtx)
-
-		logger.Debug().Err(debugErr).Send()
-		return fatalErr
 	}
 
 	mergeBaseCommitID, err := p.git.wrapper.MergeBase(p.headCommit(), p.remoteDefaultCommit())
@@ -254,6 +252,10 @@ func (p *project) checkRemoteDefaultBranchIsReachable() error {
 	}
 
 	if mergeBaseCommitID != p.remoteDefaultCommit() {
+		logger = logger.With().
+			Str("merge-base", mergeBaseCommitID).
+			Logger()
+
 		return handleError(
 			errors.E("The %s is not the merge-base of current HEAD", remoteDesc),
 		)
