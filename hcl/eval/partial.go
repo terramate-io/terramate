@@ -18,11 +18,9 @@ import (
 	"fmt"
 	"strings"
 
-	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // Errors returned when doing partial evaluation.
@@ -77,19 +75,10 @@ rewriting the token stream with the primitive values, and keeping everything
 else untouched.
 */
 
-// evalctx represents the basic operations required by the partial eval engine.
-// This interface is required since we may have different types as evaluation contexts.
-// Some evaluation contexts allow adding extensions functions, like tm_vendor, others
-// do not allow that (eg. if the context is retrieved from a customdecode.ExpressionClosureFromVal(arg))
-type evalctx interface {
-	Eval(hhcl.Expression) (cty.Value, error)
-	HasNamespace(name string) bool
-}
-
 type engine struct {
 	tokens hclwrite.Tokens
 	pos    int
-	ctx    evalctx
+	ctx    *Context
 
 	// evalstack is a stack of evaluated nodes.
 	// The engine walks through the token list evaluating them as needed into a
@@ -110,7 +99,7 @@ type node struct {
 	hasAcessor bool
 }
 
-func newPartialEvalEngine(tokens hclwrite.Tokens, ctx evalctx) *engine {
+func newPartialEvalEngine(tokens hclwrite.Tokens, ctx *Context) *engine {
 	// we copy the token bytes because the original slice is not safe to
 	// be modified.
 	newtokens := copytokens(tokens)
