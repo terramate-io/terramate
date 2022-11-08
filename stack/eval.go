@@ -17,6 +17,7 @@ package stack
 import (
 	"strings"
 
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
@@ -29,8 +30,8 @@ type EvalCtx struct {
 }
 
 // NewEvalCtx creates a new stack evaluation context.
-func NewEvalCtx(projmeta project.Metadata, sm Metadata, globals *eval.Object) *EvalCtx {
-	evalctx, err := eval.NewContext(sm.HostPath())
+func NewEvalCtx(scope *config.Tree, projmeta project.Metadata, sm Metadata, globals *eval.Object) *EvalCtx {
+	evalctx, err := eval.NewContext(scope.RootDir(), scope.ProjDir())
 	if err != nil {
 		panic(err)
 	}

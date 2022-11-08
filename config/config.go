@@ -137,12 +137,58 @@ func (tree *Tree) IsStack() bool {
 	return tree.Node.Stack != nil
 }
 
+// IsInsideStack tells if the node is inside a stack.
+func (tree *Tree) IsInsideStack() bool {
+	if tree.IsStack() {
+		return true
+	}
+	if tree.Parent != nil {
+		return tree.Parent.IsInsideStack()
+	}
+	return false
+}
+
+// FilterDownward filter the downward nodes using the filter func.
+func (tree *Tree) FilterDownward(filter func(node *Tree) bool) List {
+	var result List
+	if filter(tree) {
+		result = append(result, tree)
+	}
+	for _, children := range tree.Children {
+		result = append(result, children.FilterDownward(filter)...)
+	}
+	return result
+}
+
+// FilterUpward filter the upward nodes using the filter func.
+func (tree *Tree) FilterUpward(filter func(node *Tree) bool) List {
+	var result List
+	if filter(tree) {
+		result = append(result, tree)
+	}
+	if tree.Parent != nil {
+		result = append(result, tree.Parent.FilterUpward(filter)...)
+	}
+	return result
+}
+
 // Stacks returns the stack nodes from the tree.
 // The search algorithm is a Deep-First-Search (DFS).
 func (tree *Tree) Stacks() List {
-	stacks := tree.stacks()
+	stacks := tree.FilterDownward((*Tree).IsStack)
 	sort.Sort(stacks)
 	return stacks
+}
+
+// StackPaths returns the list of stack project paths.
+func (tree *Tree) StackPaths() project.Paths {
+	stacks := tree.Stacks()
+	paths := make(project.Paths, len(stacks))
+	for i, s := range stacks {
+		paths[i] = s.ProjDir()
+	}
+	paths.Sort()
+	return paths
 }
 
 // Dirs returns all directories containing Terramate configuration.
@@ -150,17 +196,6 @@ func (tree *Tree) Dirs() List {
 	dirs := tree.dirs()
 	sort.Sort(dirs)
 	return dirs
-}
-
-func (tree *Tree) stacks() List {
-	var stacks List
-	if tree.IsStack() {
-		stacks = append(stacks, tree)
-	}
-	for _, children := range tree.Children {
-		stacks = append(stacks, children.stacks()...)
-	}
-	return stacks
 }
 
 func (tree *Tree) dirs() List {
@@ -174,10 +209,28 @@ func (tree *Tree) dirs() List {
 	return dirs
 }
 
+func (tree *Tree) DownwardGenerateBlocks() []hcl.GenerateConfig {
+	var result []hcl.GenerateConfig
+	result = append(result, tree.Node.Generate)
+	for _, children := range tree.Children {
+		result = append(result, children.DownwardGenerateBlocks()...)
+	}
+	return result
+}
+
+func (tree *Tree) UpwardGenerateBlocks() []hcl.GenerateConfig {
+	var result []hcl.GenerateConfig
+	result = append(result, tree.Node.Generate)
+	for _, children := range tree.Children {
+		result = append(result, children.UpwardGenerateBlocks()...)
+	}
+	return result
+}
+
 // DownwardGenerateFiles returns all generate_file blocks downward from current
 // node.
-func (tree *Tree) DownwardGenerateFiles() []hcl.GenFileBlock {
-	result := []hcl.GenFileBlock{}
+func (tree *Tree) DownwardGenerateFiles() []hcl.GenerateBlock[hcl.GenFileContent] {
+	var result []hcl.GenerateBlock[hcl.GenFileContent]
 	result = append(result, tree.Node.Generate.Files...)
 	for _, children := range tree.Children {
 		result = append(result, children.DownwardGenerateFiles()...)
@@ -187,8 +240,8 @@ func (tree *Tree) DownwardGenerateFiles() []hcl.GenFileBlock {
 
 // UpwardGenerateFiles returns all generate_file blocks upward from current
 // node.
-func (tree *Tree) UpwardGenerateFiles() []hcl.GenFileBlock {
-	result := []hcl.GenFileBlock{}
+func (tree *Tree) UpwardGenerateFiles() []hcl.GenerateBlock[hcl.GenFileContent] {
+	result := []hcl.GenerateBlock[hcl.GenFileContent]{}
 	result = append(result, tree.Node.Generate.Files...)
 	if tree.Parent != nil {
 		result = append(result, tree.Parent.UpwardGenerateFiles()...)
@@ -264,7 +317,7 @@ func (tree *Tree) StacksByPaths(base project.Path, relpaths ...string) List {
 			logger.Warn().Msgf("path %s not found in configuration", path.String())
 			continue
 		}
-		stacks = append(stacks, node.stacks()...)
+		stacks = append(stacks, node.Stacks()...)
 	}
 
 	sort.Sort(stacks)

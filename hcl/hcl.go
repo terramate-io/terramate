@@ -15,7 +15,7 @@
 package hcl
 
 import (
-	"fmt"
+	stdfmt "fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -30,18 +30,23 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/fs"
 	"github.com/mineiros-io/terramate/hcl/ast"
+	"github.com/mineiros-io/terramate/hcl/ast/rewrite"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/hcl/info"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
 
 // Errors returned during the HCL parsing.
 const (
-	ErrHCLSyntax           errors.Kind = "HCL syntax error"
-	ErrTerramateSchema     errors.Kind = "terramate schema error"
-	ErrImport              errors.Kind = "import error"
-	ErrUnexpectedTerramate errors.Kind = "`terramate` block is only allowed at the project root directory"
+	ErrHCLSyntax                 errors.Kind = "HCL syntax error"
+	ErrTerramateSchema           errors.Kind = "terramate schema error"
+	ErrImport                    errors.Kind = "import error"
+	ErrUnexpectedTerramate       errors.Kind = "`terramate` block is only allowed at the project root directory"
+	ErrInvalidGenFileContentType errors.Kind = "invalid generate_file content type"
+	ErrEvalGenerateContent       errors.Kind = "evaluating generate block content"
 )
 
 const (
@@ -67,11 +72,9 @@ type Config struct {
 	absdir string
 }
 
-// GenerateConfig includes code generation related configurations, like
-// generate_file and generate_hcl.
 type GenerateConfig struct {
-	Files []GenFileBlock
-	HCLs  []GenHCLBlock
+	Files []GenerateBlock[GenFileContent]
+	HCLs  []GenerateBlock[GenHCLContent]
 }
 
 // AssertConfig represents Terramate assert configuration block.
@@ -192,8 +195,19 @@ type Stack struct {
 	Watch []string
 }
 
-// GenHCLBlock represents a parsed generate_hcl block.
-type GenHCLBlock struct {
+type GenFileContent ast.Attribute
+type GenHCLContent ast.Block
+type GenerateContent interface {
+	GenFileContent | GenHCLContent
+
+	Header() string
+	Body(evaluator eval.Evaluator) (string, error)
+}
+
+type GenerateBlock[T GenerateContent] struct {
+	// Content of the block.
+	Content T
+
 	// Range is the range of the entire block definition.
 	Range info.Range
 	// Label of the block.
@@ -202,46 +216,10 @@ type GenHCLBlock struct {
 	Lets hclsyntax.Blocks
 	// Condition attribute of the block, if any.
 	Condition *hclsyntax.Attribute
-	// Content block.
-	Content *hclsyntax.Block
+	// Context of the generate block.
+	Context string
 	// Asserts represents all assert blocks
 	Asserts []AssertConfig
-}
-
-// GenFileBlock represents a parsed generate_file block
-type GenFileBlock struct {
-	// Range is the range of the entire block definition.
-	Range info.Range
-	// Label of the block
-	Label string
-	// Lets is a block of local variables.
-	Lets hclsyntax.Blocks
-	// Condition attribute of the block, if any.
-	Condition *hclsyntax.Attribute
-	// Context of the generate file (stack or root).
-	Context *hclsyntax.Attribute
-	// Content attribute of the block
-	Content *hclsyntax.Attribute
-	// Asserts represents all assert blocks
-	Asserts []AssertConfig
-}
-
-// Evaluator represents a Terramate evaluator
-type Evaluator interface {
-	// Eval evaluates the given expression returning a value.
-	Eval(hcl.Expression) (cty.Value, error)
-
-	// PartialEval partially evaluates the given expression returning the
-	// tokens that form the result of the partial evaluation. Any unknown
-	// namespace access are ignored and left as is, while known namespaces
-	// are substituted by its value.
-	PartialEval(hcl.Expression) (hclwrite.Tokens, error)
-
-	// SetNamespace adds a new namespace, replacing any with the same name.
-	SetNamespace(name string, values map[string]cty.Value)
-
-	// DeleteNamespace deletes a namespace.
-	DeleteNamespace(name string)
 }
 
 // TerramateParser is an HCL parser tailored for Terramate configuration schema.
@@ -328,7 +306,8 @@ func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
 		return nil, errors.E("directory %q is not inside root %q", dir, rootdir)
 	}
 
-	evalctx, err := eval.NewContext(dir)
+	scopedir := project.PrjAbsPath(rootdir, dir)
+	evalctx, err := eval.NewContext(rootdir, scopedir)
 	if err != nil {
 		return nil, errors.E(err, "failed to initialize the evaluation context")
 	}
@@ -726,16 +705,16 @@ func ParseDir(root string, dir string) (Config, error) {
 
 // parseGenerateHCLBlock the generate_hcl block.
 // generate_hcl blocks are validated, so the caller can expect valid blocks only or an error.
-func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
+func parseGenerateHCLBlock(block *ast.Block) (GenerateBlock[GenHCLContent], error) {
 	var (
 		lets    hclsyntax.Blocks
-		content *hclsyntax.Block
+		content *ast.Block
 		asserts []AssertConfig
 	)
 
 	err := validateGenerateHCLBlock(block)
 	if err != nil {
-		return GenHCLBlock{}, err
+		return GenerateBlock[GenHCLContent]{}, err
 	}
 
 	errs := errors.L()
@@ -758,7 +737,7 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 				))
 				continue
 			}
-			content = subBlock.Block
+			content = subBlock
 		default:
 			// already validated but sanity checks...
 			panic(errors.E("terramate internal error: unexpected block type %s", subBlock.Type))
@@ -766,25 +745,26 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 	}
 
 	if err := errs.AsError(); err != nil {
-		return GenHCLBlock{}, err
+		return GenerateBlock[GenHCLContent]{}, err
 	}
 
-	return GenHCLBlock{
+	return GenerateBlock[GenHCLContent]{
+		Content:   GenHCLContent(*content),
+		Condition: block.Body.Attributes["condition"],
 		Range:     block.Range,
 		Label:     block.Labels[0],
 		Lets:      lets,
 		Asserts:   asserts,
-		Content:   content,
-		Condition: block.Body.Attributes["condition"],
+		Context:   "stack",
 	}, nil
 }
 
 // parseGenerateFileBlock parses all Terramate files on the given dir, returning
 // parsed generate_file blocks.
-func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
+func parseGenerateFileBlock(block *ast.Block) (GenerateBlock[GenFileContent], error) {
 	err := validateGenerateFileBlock(block)
 	if err != nil {
-		return GenFileBlock{}, err
+		return GenerateBlock[GenFileContent]{}, err
 	}
 
 	var (
@@ -811,18 +791,28 @@ func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
 		}
 	}
 
-	if err := errs.AsError(); err != nil {
-		return GenFileBlock{}, err
+	context := "stack"
+	if contextAttr, ok := block.Body.Attributes["context"]; ok {
+		context = hcl.ExprAsKeyword(contextAttr.Expr)
+		if context != "stack" && context != "root" {
+			errs.Append(errors.E(contextAttr.Expr.Range(),
+				"generate_file.context supported values are \"stack\" and \"root\""+
+					" but given %q", context))
+		}
 	}
 
-	return GenFileBlock{
+	if err := errs.AsError(); err != nil {
+		return GenerateBlock[GenFileContent]{}, err
+	}
+
+	return GenerateBlock[GenFileContent]{
+		Content:   GenFileContent(block.Attributes["content"]),
 		Range:     block.Range,
 		Label:     block.Labels[0],
 		Lets:      lets,
 		Asserts:   asserts,
-		Content:   block.Body.Attributes["content"],
 		Condition: block.Body.Attributes["condition"],
-		Context:   block.Body.Attributes["context"],
+		Context:   context,
 	}, nil
 }
 
@@ -1020,43 +1010,6 @@ func assignSet(name string, target *[]string, val cty.Value) error {
 
 	*target = elems
 	return nil
-}
-
-// ValueAsStringList will convert the given cty.Value to a string list.
-func ValueAsStringList(val cty.Value) ([]string, error) {
-	if val.IsNull() {
-		return nil, nil
-	}
-
-	// as the parser is schemaless it only creates tuples (lists of arbitrary types).
-	// we have to check the elements themselves.
-	if !val.Type().IsTupleType() && !val.Type().IsListType() {
-		return nil, errors.E("value must be a set(string), got %q",
-			val.Type().FriendlyName())
-	}
-
-	errs := errors.L()
-	var elems []string
-	iterator := val.ElementIterator()
-	index := -1
-	for iterator.Next() {
-		index++
-		_, elem := iterator.Element()
-
-		if elem.Type() != cty.String {
-			errs.Append(errors.E("value must be a set(string) but val[%d] = %q",
-				index, elem.Type().FriendlyName()))
-			continue
-		}
-
-		elems = append(elems, elem.AsString())
-	}
-
-	if err := errs.AsError(); err != nil {
-		return nil, err
-	}
-
-	return elems, nil
 }
 
 func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) error {
@@ -1799,9 +1752,57 @@ func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
 }
 
 func hclAttrErr(attr *hcl.Attribute, msg string, args ...interface{}) error {
-	return errors.E(ErrTerramateSchema, attr.Expr.Range(), fmt.Sprintf(msg, args...))
+	return errors.E(ErrTerramateSchema, attr.Expr.Range(), stdfmt.Sprintf(msg, args...))
 }
 
 func attrErr(attr ast.Attribute, msg string, args ...interface{}) error {
-	return errors.E(ErrTerramateSchema, attr.Expr.Range(), fmt.Sprintf(msg, args...))
+	return errors.E(ErrTerramateSchema, attr.Expr.Range(), stdfmt.Sprintf(msg, args...))
+}
+
+const (
+	// Header is the current header string used by generate_hcl code generation.
+	Header = "// TERRAMATE: GENERATED AUTOMATICALLY DO NOT EDIT"
+
+	// HeaderV0 is the deprecated header string used by generate_hcl code generation.
+	HeaderV0 = "// GENERATED BY TERRAMATE: DO NOT EDIT"
+)
+
+func (file GenFileContent) Header() string { return "" }
+
+func (file GenFileContent) Body(evaluator eval.Evaluator) (string, error) {
+	attr := ast.Attribute(file)
+	val, err := evaluator.Eval(attr.Expr)
+	if err != nil {
+		return "", errors.E(err, ErrEvalGenerateContent)
+	}
+	if val.Type() != cty.String {
+		return "", errors.E(
+			ErrInvalidGenFileContentType,
+			"content has type %s but must be string",
+			val.Type().FriendlyName(),
+		)
+	}
+	return val.AsString(), nil
+}
+
+func (file GenHCLContent) Header() string {
+	return stdfmt.Sprintf(
+		"%s\n// TERRAMATE: originated from generate_hcl block on %s\n\n",
+		Header,
+		file.Range.Path(),
+	)
+}
+func (file GenHCLContent) Body(evaluator eval.Evaluator) (string, error) {
+	gen := hclwrite.NewEmptyFile()
+	if err := rewrite.CopyBody(gen.Body(), file.Block.Body, evaluator); err != nil {
+		return "", errors.E(err, ErrEvalGenerateContent)
+	}
+
+	formatted, err := fmt.FormatMultiline(string(gen.Bytes()), file.Range.HostPath())
+	if err != nil {
+		panic(errors.E(err, file.Range,
+			"internal error: formatting generated code for generate_hcl:%s", string(gen.Bytes()),
+		))
+	}
+	return formatted, nil
 }

@@ -591,12 +591,23 @@ func (c *cli) cloneStack() {
 }
 
 func (c *cli) generate(workdir string) {
-	report := generate.Do(c.cfg().Tree, workdir)
-	c.output.Msg(out.V, report.Full())
-
-	if report.HasFailures() {
+	scope, ok := c.cfg().Lookup(prj.PrjAbsPath(c.root(), workdir))
+	if !ok {
+		c.output.Msg(out.V, "failed to get config for working dir")
 		os.Exit(1)
 	}
+	_, err := generate.DoPlan(scope)
+	if err != nil {
+		c.output.Msg(out.V, "generate failed: %v", err)
+		os.Exit(1)
+	}
+
+	//report := generate.Do(c.cfg().Tree, workdir)
+	//c.output.Msg(out.V, report.Full())
+
+	//if report.HasFailures() {
+	//		os.Exit(1)
+	//}
 }
 
 func (c *cli) checkGitUntracked() bool {
@@ -1407,14 +1418,15 @@ func (c *cli) runOnStacks() {
 	var stacks stack.List
 
 	if c.parsedArgs.Run.NoRecursive {
-		st, found, err := stack.TryLoad(c.root(), c.wd())
-		if err != nil {
-			fatal(err, "loading stack in current directory")
-		}
-
-		if !found {
+		cfgpath := prj.PrjAbsPath(c.root(), c.wd())
+		cfg, ok := c.cfg().Lookup(cfgpath)
+		if !ok || !cfg.IsStack() {
 			logger.Fatal().
 				Msg("--no-recursive provided but no stack found in the current directory")
+		}
+		st, err := stack.New(cfg)
+		if err != nil {
+			fatal(err, "computing current stack")
 		}
 
 		stacks = append(stacks, st)

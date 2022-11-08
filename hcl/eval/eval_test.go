@@ -25,6 +25,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/zclconf/go-cty/cty"
@@ -88,7 +89,7 @@ func TestEvalTmFuncall(t *testing.T) {
 			if basedir == "" {
 				basedir = root(t)
 			}
-			ctx, err := eval.NewContext(basedir)
+			ctx, err := eval.NewContext(basedir, project.NewPath("/"))
 			assert.NoError(t, err)
 
 			const attrname = "value"
@@ -123,16 +124,16 @@ func TestEvalTmAbspathMustPanicIfRelativeBaseDir(t *testing.T) {
 			t.Fatal("eval.NewContext() did not panic with relative basedir")
 		}
 	}()
-	_, _ = eval.NewContext("relative")
+	_, _ = eval.NewContext("relative", project.NewPath("/"))
 }
 
 func TestEvalTmAbspathFailIfBasedirIsNonExistent(t *testing.T) {
-	_, err := eval.NewContext(filepath.Join(t.TempDir(), "non-existent"))
+	_, err := eval.NewContext(t.TempDir(), project.NewPath("/non-existent"))
 	assert.Error(t, err, "must have failed for non-existent basedir")
 }
 
 func TestEvalTmAbspathFailIfBasedirIsNotADirectory(t *testing.T) {
 	path := test.WriteFile(t, t.TempDir(), "somefile.txt", ``)
-	_, err := eval.NewContext(path)
+	_, err := eval.NewContext(filepath.Dir(path), project.NewPath("/somefile.txt"))
 	assert.Error(t, err, "must have failed because basedir is not a directory")
 }

@@ -29,6 +29,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -115,7 +116,7 @@ func FuzzPartialEval(f *testing.F) {
 			return
 		}
 
-		ctx, err := NewContext("/")
+		ctx, err := NewContext(t.TempDir(), project.NewPath("/"))
 		assert.NoError(t, err)
 		ctx.SetNamespace("globals", globals)
 		ctx.SetNamespace("terramate", terramate)

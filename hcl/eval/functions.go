@@ -21,12 +21,13 @@ import (
 	"github.com/hashicorp/hcl/v2/ext/customdecode"
 	tflang "github.com/hashicorp/terraform/lang"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 )
 
-func newTmFunctions(basedir string) map[string]function.Function {
-	scope := &tflang.Scope{BaseDir: basedir}
+func newTmFunctions(rootdir string, scopedir project.Path) map[string]function.Function {
+	scope := &tflang.Scope{BaseDir: project.AbsPath(rootdir, scopedir.String())}
 	tffuncs := scope.Functions()
 
 	tmfuncs := map[string]function.Function{}
@@ -35,10 +36,14 @@ func newTmFunctions(basedir string) map[string]function.Function {
 	}
 
 	// fix terraform broken abspath()
-	tmfuncs["tm_abspath"] = tmAbspath(basedir)
+	tmfuncs["tm_abspath"] = tmAbspath(scope.BaseDir)
 
 	// sane ternary
-	tmfuncs["tm_ternary"] = tmTernary()
+	ternary := tmTernary{
+		rootdir:  rootdir,
+		scopedir: scopedir,
+	}
+	tmfuncs["tm_ternary"] = ternary.New()
 	tmfuncs["tm_hcl_expression"] = tmHCLExpression()
 	return tmfuncs
 }
@@ -84,7 +89,12 @@ func tmHCLExpression() function.Function {
 	})
 }
 
-func tmTernary() function.Function {
+type tmTernary struct {
+	rootdir  string
+	scopedir project.Path
+}
+
+func (ternary *tmTernary) New() function.Function {
 	return function.New(&function.Spec{
 		Params: []function.Parameter{
 			{
@@ -101,29 +111,29 @@ func tmTernary() function.Function {
 			},
 		},
 		Type: func(args []cty.Value) (cty.Type, error) {
-			v, err := ternary(args[0], args[1], args[2])
+			v, err := ternary.do(args[0], args[1], args[2])
 			if err != nil {
 				return cty.NilType, err
 			}
 			return v.Type(), nil
 		},
 		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
-			return ternary(args[0], args[1], args[2])
+			return ternary.do(args[0], args[1], args[2])
 		},
 	})
 }
 
-func ternary(cond cty.Value, val1, val2 cty.Value) (cty.Value, error) {
+func (ternary *tmTernary) do(cond cty.Value, val1, val2 cty.Value) (cty.Value, error) {
 	if cond.True() {
-		return evalTernaryBranch(val1)
+		return ternary.evalBranch(val1)
 	}
-	return evalTernaryBranch(val2)
+	return ternary.evalBranch(val2)
 }
 
-func evalTernaryBranch(arg cty.Value) (cty.Value, error) {
+func (ternary *tmTernary) evalBranch(arg cty.Value) (cty.Value, error) {
 	closure := customdecode.ExpressionClosureFromVal(arg)
 
-	ctx := NewContextFrom(closure.EvalContext)
+	ctx := NewContextFrom(closure.EvalContext, ternary.rootdir, ternary.scopedir)
 	newtokens, err := ctx.PartialEval(closure.Expression)
 	if err != nil {
 		return cty.NilVal, errors.E(err, "evaluating tm_ternary branch")

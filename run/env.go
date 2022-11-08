@@ -62,12 +62,13 @@ func LoadEnv(root *config.Root, projmeta project.Metadata, st *stack.S) (EnvVars
 
 	logger.Trace().Msg("loading globals")
 
-	_, globalsReport := stack.LoadStackGlobals(root, projmeta, st)
+	scope, _ := root.Lookup(st.Path())
+	_, globalsReport := stack.LoadStackGlobals(scope, projmeta, st)
 	if err := globalsReport.AsError(); err != nil {
 		return nil, errors.E(ErrLoadingGlobals, err)
 	}
 
-	evalctx := stack.NewEvalCtx(projmeta, st, globalsReport.Globals)
+	evalctx := stack.NewEvalCtx(scope, projmeta, st, globalsReport.Globals)
 
 	evalctx.SetEnv(os.Environ())
 	envVars := EnvVars{}

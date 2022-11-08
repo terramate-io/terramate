@@ -32,7 +32,7 @@ import (
 // Metadata for the stack is used on the evaluation of globals.
 // The rootdir MUST be an absolute path.
 func LoadStackGlobals(
-	root *config.Root,
+	scope *config.Tree,
 	projmeta project.Metadata,
 	stackmeta Metadata,
 ) (*eval.Context, globals.EvalReport) {
@@ -41,9 +41,13 @@ func LoadStackGlobals(
 		Stringer("stack", stackmeta.Path()).
 		Logger()
 
+	if !scope.IsStack() {
+		panic("expects a stack")
+	}
+
 	logger.Debug().Msg("Creating stack context.")
 
-	ctx, err := eval.NewContext(stackmeta.HostPath())
+	ctx, err := eval.NewContext(scope.RootDir(), scope.ProjDir())
 	if err != nil {
 		return nil, globals.EvalReport{
 			BootstrapErr: err,
@@ -51,5 +55,5 @@ func LoadStackGlobals(
 	}
 
 	ctx.SetNamespace("terramate", MetadataToCtyValues(projmeta, stackmeta))
-	return ctx, globals.Load(root, stackmeta.Path(), ctx)
+	return ctx, globals.Load(scope.Root(), stackmeta.Path(), ctx)
 }

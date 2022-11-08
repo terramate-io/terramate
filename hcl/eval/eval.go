@@ -20,10 +20,12 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/customdecode"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 
@@ -35,38 +37,65 @@ const ErrEval errors.Kind = "eval expression"
 
 // Context is used to evaluate HCL code.
 type Context struct {
-	hclctx *hhcl.EvalContext
+	rootdir  string
+	ScopeDir project.Path
+	hclctx   *hhcl.EvalContext
+}
+
+// Evaluator represents a Terramate evaluator
+type Evaluator interface {
+	// Eval evaluates the given expression returning a value.
+	Eval(hcl.Expression) (cty.Value, error)
+
+	// PartialEval partially evaluates the given expression returning the
+	// tokens that form the result of the partial evaluation. Any unknown
+	// namespace access are ignored and left as is, while known namespaces
+	// are substituted by its value.
+	PartialEval(hcl.Expression) (hclwrite.Tokens, error)
+
+	// SetNamespace adds a new namespace, replacing any with the same name.
+	SetNamespace(name string, values map[string]cty.Value)
+
+	// DeleteNamespace deletes a namespace.
+	DeleteNamespace(name string)
 }
 
 // NewContext creates a new HCL evaluation context.
-// The basedir is the base directory used by any interpolation functions that
+// The scopedir is the base directory used by any interpolation functions that
 // accept filesystem paths as arguments.
 // The basedir must be an absolute path to a directory.
-func NewContext(basedir string) (*Context, error) {
+func NewContext(rootdir string, scopedir project.Path) (*Context, error) {
+	basedir := filepath.Join(rootdir, filepath.FromSlash(scopedir.String()))
 	if !filepath.IsAbs(basedir) {
-		panic(fmt.Errorf("context created with relative path: %q", basedir))
+		panic(fmt.Errorf("context created with relative path: %q", scopedir))
 	}
 
 	st, err := os.Stat(basedir)
 	if err != nil {
-		return nil, errors.E(err, "failed to stat context basedir %q", basedir)
+		return nil, errors.E(err, "failed to stat context basedir %q", scopedir)
 	}
 	if !st.IsDir() {
-		return nil, errors.E("context basedir (%s) must be a directory", basedir)
+		return nil, errors.E("context basedir (%s) must be a directory", scopedir)
 	}
 
 	hclctx := &hhcl.EvalContext{
-		Functions: newTmFunctions(basedir),
+		Functions: newTmFunctions(rootdir, scopedir),
 		Variables: map[string]cty.Value{},
 	}
-	return NewContextFrom(hclctx), nil
+	return NewContextFrom(hclctx, rootdir, scopedir), nil
 }
 
 // NewContextFrom creates a new Context from an hcl.Context.
-func NewContextFrom(ctx *hhcl.EvalContext) *Context {
+func NewContextFrom(ctx *hhcl.EvalContext, rootdir string, scopedir project.Path) *Context {
 	return &Context{
-		hclctx: ctx,
+		rootdir:  rootdir,
+		ScopeDir: scopedir,
+		hclctx:   ctx,
 	}
+}
+
+func (c *Context) Dir() string {
+	return filepath.Join(c.rootdir, filepath.FromSlash(c.ScopeDir.String()))
 }
 
 // SetNamespace will set the given values inside the given namespace on the
@@ -130,7 +159,7 @@ func (c *Context) Copy() *Context {
 		Functions: funcs,
 		Variables: vars,
 	}
-	return NewContextFrom(hclctx)
+	return NewContextFrom(hclctx, c.rootdir, c.ScopeDir)
 }
 
 // TokensForValue returns the tokens for the provided value.
@@ -219,6 +248,43 @@ func TokensForExpressionBytes(exprBytes []byte) (hclwrite.Tokens, error) {
 		return nil, errors.E(diags, "failed to scan expression")
 	}
 	return toWriteTokens(tokens), nil
+}
+
+// ValueAsStringList will convert the given cty.Value to a string list.
+func ValueAsStringList(val cty.Value) ([]string, error) {
+	if val.IsNull() {
+		return nil, nil
+	}
+
+	// as the parser is schemaless it only creates tuples (lists of arbitrary types).
+	// we have to check the elements themselves.
+	if !val.Type().IsTupleType() && !val.Type().IsListType() {
+		return nil, errors.E("value must be a set(string), got %q",
+			val.Type().FriendlyName())
+	}
+
+	errs := errors.L()
+	var elems []string
+	iterator := val.ElementIterator()
+	index := -1
+	for iterator.Next() {
+		index++
+		_, elem := iterator.Element()
+
+		if elem.Type() != cty.String {
+			errs.Append(errors.E("value must be a set(string) but val[%d] = %q",
+				index, elem.Type().FriendlyName()))
+			continue
+		}
+
+		elems = append(elems, elem.AsString())
+	}
+
+	if err := errs.AsError(); err != nil {
+		return nil, err
+	}
+
+	return elems, nil
 }
 
 func toWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {

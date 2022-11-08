@@ -15,7 +15,6 @@
 package stack
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -107,37 +106,44 @@ const (
 var _ errors.StackMeta = &S{}
 
 // New creates a new stack from configuration cfg.
-func New(root string, cfg hcl.Config) (*S, error) {
-	name := cfg.Stack.Name
-	if name == "" {
-		name = filepath.Base(cfg.AbsDir())
+// Note: it's a programming error to call New on a configuration that's not a
+// stack.
+func New(cfg *config.Tree) (*S, error) {
+	if !cfg.IsStack() {
+		panic("called stack.New() with a configuration that's not a valid stack")
 	}
 
-	rel, err := filepath.Rel(cfg.AbsDir(), root)
+	stackcfg := cfg.Node.Stack
+	name := stackcfg.Name
+	if name == "" {
+		name = filepath.Base(cfg.Dir())
+	}
+
+	rel, err := filepath.Rel(cfg.Dir(), cfg.RootDir())
 	if err != nil {
 		// This is an invariant on Terramate, stacks must always be
 		// inside the root dir.
 		panic(errors.E(
 			"No relative path from stack %q to root %q",
-			cfg.AbsDir(), root, err))
+			cfg.Dir(), cfg.RootDir(), err))
 	}
 
-	watchFiles, err := validateWatchPaths(root, cfg.AbsDir(), cfg.Stack.Watch)
+	watchFiles, err := validateWatchPaths(cfg.RootDir(), cfg.Dir(), stackcfg.Watch)
 	if err != nil {
 		return nil, errors.E(err, ErrInvalidWatch)
 	}
 
 	return &S{
 		name:          name,
-		id:            cfg.Stack.ID,
-		desc:          cfg.Stack.Description,
-		after:         cfg.Stack.After,
-		before:        cfg.Stack.Before,
-		wants:         cfg.Stack.Wants,
-		wantedBy:      cfg.Stack.WantedBy,
+		id:            stackcfg.ID,
+		desc:          stackcfg.Description,
+		after:         stackcfg.After,
+		before:        stackcfg.Before,
+		wants:         stackcfg.Wants,
+		wantedBy:      stackcfg.WantedBy,
 		watch:         watchFiles,
-		hostpath:      cfg.AbsDir(),
-		path:          project.PrjAbsPath(root, cfg.AbsDir()),
+		hostpath:      cfg.Dir(),
+		path:          cfg.ProjDir(),
 		relPathToRoot: filepath.ToSlash(rel),
 	}, nil
 }
@@ -236,7 +242,7 @@ func validateWatchPaths(rootdir string, stackpath string, paths []string) (proje
 func StacksFromTrees(root string, trees config.List) (List, error) {
 	var stacks List
 	for _, tree := range trees {
-		s, err := New(root, tree.Node)
+		s, err := New(tree)
 		if err != nil {
 			return List{}, err
 		}
@@ -265,7 +271,7 @@ func LoadAll(cfg *config.Tree) (List, error) {
 	stacksIDs := map[string]*S{}
 
 	for _, stackNode := range cfg.Stacks() {
-		stack, err := New(cfg.RootDir(), stackNode.Node)
+		stack, err := New(stackNode)
 		if err != nil {
 			return List{}, err
 		}
@@ -304,39 +310,10 @@ func Load(cfg *config.Root, dir string) (*S, error) {
 	if !node.IsStack() {
 		return nil, errors.E("config at %s is not a stack")
 	}
-	return New(cfg.RootDir(), node.Node)
+	return New(node)
 }
 
 // TryLoad tries to load a single stack from dir. It sets found as true in case
-// the stack was successfully loaded.
-func TryLoad(root, absdir string) (stack *S, found bool, err error) {
-	logger := log.With().
-		Str("action", "TryLoad()").
-		Str("dir", absdir).
-		Logger()
-
-	if !strings.HasPrefix(absdir, root) {
-		return nil, false, errors.E(fmt.Sprintf("directory %s is not inside project root %s",
-			absdir, root))
-	}
-
-	logger.Debug().Msg("Parsing configuration.")
-	cfg, err := hcl.ParseDir(root, absdir)
-	if err != nil {
-		return nil, false, errors.E(err, "failed to parse directory %s", absdir)
-	}
-
-	if cfg.Stack == nil {
-		return nil, false, nil
-	}
-
-	logger.Debug().Msg("Create a new stack")
-	s, err := New(root, cfg)
-	if err != nil {
-		return nil, true, err
-	}
-	return s, true, nil
-}
 
 // Sort sorts the given stacks.
 func Sort(stacks []*S) {
