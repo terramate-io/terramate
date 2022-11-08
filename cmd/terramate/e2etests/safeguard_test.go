@@ -202,7 +202,7 @@ func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 			),
 				runExpected{
 					Status:      1,
-					StderrRegex: string(cli.ErrCurrentHeadIsOutOfSync),
+					StderrRegex: string(cli.ErrCurrentHeadIsOutOfDate),
 				})
 		})
 
@@ -327,6 +327,6 @@ func TestSafeguardCheckRemoteDisjointBranchesAreUnreachable(t *testing.T) {
 		stackFile.HostPath(),
 	), runExpected{
 		Status:      1,
-		StderrRegex: string(cli.ErrCurrentHeadIsOutOfSync),
+		StderrRegex: string(cli.ErrCurrentHeadIsOutOfDate),
 	})
 }
