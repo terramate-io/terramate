@@ -56,8 +56,8 @@ import (
 )
 
 const (
-	// ErrCurrentHeadIsOutOfSync indicates the local HEAD revision is outdated.
-	ErrCurrentHeadIsOutOfSync errors.Kind = "current HEAD is out of sync"
+	// ErrCurrentHeadIsOutOfDate indicates the local HEAD revision is outdated.
+	ErrCurrentHeadIsOutOfDate errors.Kind = "current HEAD is out-of-date with the remote base branch"
 	// ErrOutdatedGenCodeDetected indicates outdated generated code detected.
 	ErrOutdatedGenCodeDetected errors.Kind = "outdated generated code detected"
 	// ErrRootCfgInvalidDir indicates that a root configuration was found outside root
@@ -462,8 +462,6 @@ func (c *cli) vendorDownload() {
 		Str("ref", ref).
 		Logger()
 
-	logger.Trace().Msg("parsing source")
-
 	parsedSource, err := tf.ParseSource(source)
 	if err != nil {
 		log.Fatal().Msgf("parsing module source %s: %s", source, err)
@@ -473,8 +471,32 @@ func (c *cli) vendorDownload() {
 	}
 	parsedSource.Ref = ref
 
-	logger.Trace().Msgf("module path is: %s", parsedSource.Path)
-	report := modvendor.Vendor(c.root(), c.vendorDir(), parsedSource)
+	eventsHandled := make(chan struct{})
+	eventsStream := modvendor.NewEventStream()
+
+	go func() {
+		for event := range eventsStream {
+			c.output.Msg(out.V, "vendor: %s %s at %s",
+				event.Message, event.Module.Raw, event.TargetDir)
+			log.Info().
+				Str("module", event.Module.Raw).
+				Stringer("vendorDir", event.TargetDir).
+				Msg(event.Message)
+		}
+		close(eventsHandled)
+	}()
+
+	logger.Debug().Msg("vendoring")
+
+	report := modvendor.Vendor(c.root(), c.vendorDir(), parsedSource, eventsStream)
+
+	logger.Debug().Msg("finished vendoring, waiting for all vendor events to be handled")
+
+	close(eventsStream)
+	<-eventsHandled
+
+	logger.Debug().Msg("vendor events handled, creating final report")
+
 	if report.Error != nil {
 		if errs, ok := report.Error.(*errors.List); ok {
 			for _, err := range errs.Errors() {
@@ -758,11 +780,14 @@ func (c *cli) createStack() {
 	c.output.Msg(out.V, "Created stack %s", stackPath)
 
 	report := generate.Do(c.cfg(), stackDir)
-	c.output.Msg(out.VV, report.Minimal())
 
 	if report.HasFailures() {
+		c.output.Msg(out.V, "Code generation failed")
+		c.output.Msg(out.V, report.Minimal())
 		os.Exit(1)
 	}
+
+	c.output.Msg(out.VV, report.Minimal())
 }
 
 func (c *cli) format() {
@@ -1069,9 +1094,6 @@ func (c *cli) generateDebug() {
 			c.output.Err(out.V, errmsg)
 			continue
 		}
-		if len(res.Files) == 0 {
-			continue
-		}
 
 		files := make([]generate.GenFile, 0, len(res.Files))
 		for _, f := range res.Files {
@@ -1080,9 +1102,9 @@ func (c *cli) generateDebug() {
 			}
 		}
 
-		c.output.Msg(out.V, "Generated files for %s:", res.Dir)
 		for _, file := range files {
-			c.output.Msg(out.V, "\t- %s origin: %v", file.Label(), file.Range())
+			filepath := path.Join(res.Dir.String(), file.Label())
+			c.output.Msg(out.V, "%s origin: %v", filepath, file.Range())
 		}
 	}
 }

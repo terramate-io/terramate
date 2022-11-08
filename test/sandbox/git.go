@@ -44,6 +44,8 @@ type Git struct {
 
 // NewGit creates a new git wrapper using sandbox defaults.
 func NewGit(t testing.TB, repodir string) *Git {
+	t.Helper()
+
 	cfg := defaultGitConfig()
 	cfg.repoDir = repodir
 

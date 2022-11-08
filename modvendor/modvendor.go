@@ -65,21 +65,37 @@ type modinfo struct {
 // module.source declaration for those dependencies will be rewritten to
 // reference them inside the vendor directory.
 //
+// An [EventStream] instance may be passed if the caller is interested on
+// live events from what is happening inside the vendoring process. Passing
+// a nil EventStream ignores all events.
+// It is the caller responsibility to close the [EventStream] after the Vendor
+// call returns.
+//
 // It returns a report of everything vendored and ignored (with a reason).
-func Vendor(rootdir string, vendorDir project.Path, modsrc tf.Source) Report {
+func Vendor(
+	rootdir string,
+	vendorDir project.Path,
+	modsrc tf.Source,
+	events EventStream,
+) Report {
 	report := NewReport(vendorDir)
 	if !path.IsAbs(vendorDir.String()) {
 		report.Error = errors.E("vendor dir %q must be absolute path", vendorDir)
 		return report
 	}
-	return vendor(rootdir, vendorDir, modsrc, report, nil)
+	return vendor(rootdir, vendorDir, modsrc, report, nil, events)
 }
 
 // VendorAll will vendor all dependencies of the tfdir into rootdir.
 // It will scan all .tf files in the directory and vendor each module declaration
 // containing the supported remote source URLs.
-func VendorAll(rootdir string, vendorDir project.Path, tfdir string) Report {
-	return vendorAll(rootdir, vendorDir, tfdir, NewReport(vendorDir))
+func VendorAll(
+	rootdir string,
+	vendorDir project.Path,
+	tfdir string,
+	events EventStream,
+) Report {
+	return vendorAll(rootdir, vendorDir, tfdir, NewReport(vendorDir), events)
 }
 
 // TargetDir returns the directory for the vendored module source, relative to project
@@ -101,13 +117,20 @@ func AbsVendorDir(rootdir string, vendorDir project.Path, modsrc tf.Source) stri
 	return filepath.Join(rootdir, filepath.FromSlash(TargetDir(vendorDir, modsrc).String()))
 }
 
-func vendor(rootdir string, vendorDir project.Path, modsrc tf.Source, report Report, info *modinfo) Report {
+func vendor(
+	rootdir string,
+	vendorDir project.Path,
+	modsrc tf.Source,
+	report Report,
+	info *modinfo,
+	events EventStream,
+) Report {
 	logger := log.With().
 		Str("action", "modvendor.vendor()").
 		Str("module.source", modsrc.Raw).
 		Logger()
 
-	moddir, err := downloadVendor(rootdir, vendorDir, modsrc)
+	moddir, err := downloadVendor(rootdir, vendorDir, modsrc, events)
 	if err != nil {
 		if errors.IsKind(err, ErrAlreadyVendored) {
 			// it's not an error in the case it's an indirect vendoring
@@ -131,7 +154,7 @@ func vendor(rootdir string, vendorDir project.Path, modsrc tf.Source, report Rep
 	logger.Trace().Msg("successfully downloaded")
 
 	report.addVendored(modsrc)
-	return vendorAll(rootdir, vendorDir, moddir, report)
+	return vendorAll(rootdir, vendorDir, moddir, report, events)
 }
 
 // sourcesInfo represents information about module sources. It retains
@@ -172,7 +195,13 @@ func (s *sourcesInfo) delete(source string) {
 	}
 }
 
-func vendorAll(rootdir string, vendorDir project.Path, tfdir string, report Report) Report {
+func vendorAll(
+	rootdir string,
+	vendorDir project.Path,
+	tfdir string,
+	report Report,
+	events EventStream,
+) Report {
 	logger := log.With().
 		Str("action", "modvendor.vendorAll()").
 		Str("dir", tfdir).
@@ -250,7 +279,7 @@ func vendorAll(rootdir string, vendorDir project.Path, tfdir string, report Repo
 			continue
 		}
 
-		report = vendor(rootdir, vendorDir, modsrc, report, info)
+		report = vendor(rootdir, vendorDir, modsrc, report, info, events)
 		if v, ok := report.Vendored[TargetDir(vendorDir, modsrc)]; ok {
 			info.vendoredAt = TargetDir(vendorDir, modsrc)
 			info.subdir = v.Source.Subdir
@@ -274,7 +303,12 @@ func vendorAll(rootdir string, vendorDir project.Path, tfdir string, report Repo
 // be returned, vendored projects are never updated.
 // This function is not recursive, so dependencies won't have their dependencies
 // vendored. See Vendor() for a recursive vendoring function.
-func downloadVendor(rootdir string, vendorDir project.Path, modsrc tf.Source) (string, error) {
+func downloadVendor(
+	rootdir string,
+	vendorDir project.Path,
+	modsrc tf.Source,
+	events EventStream,
+) (string, error) {
 	logger := log.With().
 		Str("action", "modvendor.downloadVendor()").
 		Str("rootdir", rootdir).
@@ -335,13 +369,30 @@ func downloadVendor(rootdir string, vendorDir project.Path, modsrc tf.Source) (s
 
 	logger.Trace().Msg("setting up git wrapper")
 
+	// Same strategy used on the Go toolchain:
+	// - https://github.com/golang/go/blob/2ebe77a2fda1ee9ff6fd9a3e08933ad1ebaea039/src/cmd/go/internal/get/get.go#L129
+
+	env := append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 	g, err := git.WithConfig(git.Config{
 		WorkingDir:     clonedRepoDir,
 		AllowPorcelain: true,
-		Env:            os.Environ(),
+		Env:            env,
 	})
 	if err != nil {
 		return "", err
+	}
+
+	event := ProgressEvent{
+		Message:   "downloading",
+		TargetDir: TargetDir(vendorDir, modsrc),
+		Module:    modsrc,
+	}
+	if !events.Send(event) {
+		log.Debug().
+			Str("message", event.Message).
+			Stringer("targetDir", event.TargetDir).
+			Str("module", event.Module.Raw).
+			Msg("dropped progress event, event handler is not fast enough or absent")
 	}
 
 	logger.Trace().Msg("cloning to workdir")
