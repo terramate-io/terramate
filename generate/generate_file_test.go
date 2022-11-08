@@ -206,6 +206,78 @@ EOT`,
 			},
 		},
 		{
+			name:   "using globals and metadata with interpolation",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack/globals.tm",
+					add: Globals(
+						Str("data", "global-data"),
+					),
+				},
+				{
+					path: "/stack/test.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Str("content", "${global.data}-${terramate.stack.path.absolute}"),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stack",
+					files: map[string]fmt.Stringer{
+						"test": stringer("global-data-/stack"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/stack",
+						Created: []string{"test"},
+					},
+				},
+			},
+		},
+		{
+			name:   "mixed conditions on different blocks",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: Doc(
+						GenerateFile(
+							Labels("test"),
+							Bool("condition", false),
+							Str("content", "data"),
+						),
+						GenerateFile(
+							Labels("test2"),
+							Bool("condition", true),
+							Str("content", "data"),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stack",
+					files: map[string]fmt.Stringer{
+						"test2": stringer("data"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/stack",
+						Created: []string{"test2"},
+					},
+				},
+			},
+		},
+		{
 			name: "generate_file with false condition generates nothing",
 			layout: []string{
 				"s:stacks/stack-1",
