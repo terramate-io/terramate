@@ -227,23 +227,34 @@ func (p project) checkDefaultRemote() error {
 
 func (p *project) checkRemoteDefaultBranchIsReachable() error {
 	gitcfg := p.gitcfg()
+
+	remoteDesc := fmt.Sprintf("remote(%s/%s)", gitcfg.DefaultRemote, gitcfg.DefaultBranch)
+
+	logger := log.With().
+		Str("HEAD", p.headCommit()).
+		Str(remoteDesc, p.remoteDefaultCommit()).
+		Logger()
+
+	handleError := func(err error) error {
+		fatalErr := errors.E(
+			ErrCurrentHeadIsOutOfDate,
+			"Please merge the latest changes from %s into this branch",
+			remoteDesc,
+		)
+
+		debugErr := fmt.Errorf("%v: %v", fatalErr, err)
+
+		logger.Debug().Err(debugErr).Send()
+		return fatalErr
+	}
+
 	mergeBaseCommitID, err := p.git.wrapper.MergeBase(p.headCommit(), p.remoteDefaultCommit())
 	if err != nil {
-		return errors.E(
-			ErrCurrentHeadIsOutOfDate,
-			"Please merge the latest changes from %s/%s into this branch",
-			gitcfg.DefaultRemote,
-			gitcfg.DefaultBranch,
-		)
+		return handleError(err)
 	}
 
 	if mergeBaseCommitID != p.remoteDefaultCommit() {
-		return errors.E(
-			ErrCurrentHeadIsOutOfDate,
-			"Please merge the latest changes from %s/%s into this branch",
-			gitcfg.DefaultRemote,
-			gitcfg.DefaultBranch,
-		)
+		return handleError(err)
 	}
 
 	return nil
