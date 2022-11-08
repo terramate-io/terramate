@@ -32,6 +32,27 @@ func TestGenerateFile(t *testing.T) {
 
 	testCodeGeneration(t, []testcase{
 		{
+			name: "no generate_file",
+			layout: []string{
+				"s:stack",
+			},
+		},
+		{
+			name: "dotfile is ignored",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack/.test.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Str("content", "test"),
+					),
+				},
+			},
+		},
+		{
 			name: "empty generate_file content generates empty file",
 			layout: []string{
 				"s:stacks/stack-1",
@@ -69,6 +90,37 @@ func TestGenerateFile(t *testing.T) {
 					{
 						Dir:     "/stacks/stack-2",
 						Created: []string{"empty"},
+					},
+				},
+			},
+		},
+		{
+			name: "simple plain string",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Str("content", "test"),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stack",
+					files: map[string]fmt.Stringer{
+						"test": stringer(`test`),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/stack",
+						Created: []string{"test"},
 					},
 				},
 			},

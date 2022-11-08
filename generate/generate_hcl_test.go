@@ -370,8 +370,10 @@ func TestGenerateHCL(t *testing.T) {
 			},
 		},
 		{
+			// TODO(i4k): fix this test
 			name: "generate HCL for all stacks importing common",
 			layout: []string{
+				"d:common",
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
 			},

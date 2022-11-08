@@ -17,6 +17,7 @@ package generate_test
 import (
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -730,9 +731,15 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
 
+			var configPaths []string
 			for _, cfg := range tcase.configs {
 				path := filepath.Join(s.RootDir(), cfg.path)
-				test.AppendFile(t, path, config.DefaultFilename, cfg.add.String())
+				_, err := os.Lstat(path)
+				if err == nil {
+					path = filepath.Join(path, config.DefaultFilename)
+				}
+				test.AppendFile(t, filepath.Dir(path), filepath.Base(path), cfg.add.String())
+				configPaths = append(configPaths, path)
 			}
 
 			assertGeneratedFiles := func(t *testing.T) {
@@ -806,14 +813,18 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 			}
 
 			err := filepath.WalkDir(s.RootDir(), func(path string, d fs.DirEntry, err error) error {
-				t.Helper()
-
 				assert.NoError(t, err, "checking for unwanted generated files")
 				if d.IsDir() {
 					if d.Name() == ".git" {
 						return filepath.SkipDir
 					}
 					return nil
+				}
+
+				for _, configPath := range configPaths {
+					if configPath == path {
+						return nil
+					}
 				}
 
 				// sandbox creates README.md inside test dirs
@@ -827,7 +838,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 					return nil
 				}
 
-				t.Errorf("unwanted file %q", path)
+				t.Errorf("unwanted file %q (%+v)", path, configPaths)
 				return nil
 			})
 

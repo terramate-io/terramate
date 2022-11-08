@@ -39,23 +39,6 @@ func TestLoadGenerateFiles(t *testing.T) {
 
 	tcases := []testcase{
 		{
-			name:  "no generation",
-			stack: "/stack",
-		},
-		{
-			name:  "dotfile is ignored",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack/.test.tm",
-					add: GenerateFile(
-						Labels("test"),
-						Str("content", "test"),
-					),
-				},
-			},
-		},
-		{
 			name:  "empty content attribute generates empty body",
 			stack: "/stack",
 			configs: []hclconfig{
