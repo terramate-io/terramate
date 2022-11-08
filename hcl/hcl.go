@@ -759,7 +759,7 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 			content = subBlock.Block
 		default:
 			// already validated but sanity checks...
-			panic(errors.E("terramate internal error: unexpected block type %s", subBlock.Type))
+			panic(errors.E(errors.ErrInternal, "unexpected block type %s", subBlock.Type))
 		}
 	}
 
@@ -805,7 +805,7 @@ func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
 			asserts = append(asserts, assertCfg)
 		default:
 			// already validated but sanity checks...
-			panic(errors.E("terramate internal error: unexpected block type %s", subBlock.Type))
+			panic(errors.E(errors.ErrInternal, "unexpected block type %s", subBlock.Type))
 		}
 	}
 
