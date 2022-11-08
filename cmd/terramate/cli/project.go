@@ -244,7 +244,7 @@ func (p *project) checkRemoteDefaultBranchIsReachable() error {
 
 	mergeBaseCommitID, err := p.git.wrapper.MergeBase(p.headCommit(), p.remoteDefaultCommit())
 	if err != nil {
-		logger.Debug().Msgf("%s: %v", ErrCurrentHeadIsOutOfDate, err)
+		logger.Debug().Msgf(err.Error())
 		return outOfDateErr
 	}
 
@@ -254,8 +254,7 @@ func (p *project) checkRemoteDefaultBranchIsReachable() error {
 
 	if mergeBaseCommitID != p.remoteDefaultCommit() {
 		logger.Debug().Msgf(
-			"%s: The %s is not the merge-base of current HEAD",
-			ErrCurrentHeadIsOutOfDate, remoteDesc,
+			"The %s is not the merge-base of current HEAD", remoteDesc,
 		)
 		return outOfDateErr
 	}
