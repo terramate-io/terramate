@@ -278,6 +278,76 @@ EOT`,
 			},
 		},
 		{
+			name:   "condition evaluated from global",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack/globals.tm",
+					add: Globals(
+						Bool("condition", false),
+					),
+				},
+				{
+					path: "/stack/test.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Expr("condition", "global.condition"),
+						Str("content", "cond=${global.condition}"),
+					),
+				},
+			},
+		},
+		{
+			name:   "condition evaluated using try",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Expr("condition", "tm_try(global.condition, false)"),
+						Str("content", "whatever"),
+					),
+				},
+			},
+		},
+		{
+			name:   "condition evaluated using functions",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack/globals.tm",
+					add: Globals(
+						EvalExpr(t, "list", "[1]"),
+					),
+				},
+				{
+					path: "/stack/test.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Expr("condition", "tm_length(global.list) > 0"),
+						Str("content", "data"),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stack",
+					files: map[string]fmt.Stringer{
+						"test": stringer("data"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/stack",
+						Created: []string{"test"},
+					},
+				},
+			},
+		},
+		{
 			name: "generate_file with false condition generates nothing",
 			layout: []string{
 				"s:stacks/stack-1",
@@ -291,6 +361,53 @@ EOT`,
 						Bool("condition", false),
 						Str("content", "content"),
 					),
+				},
+			},
+		},
+		{
+			name:   "multiple generate_file blocks on same file",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack/globals.tm",
+					add: Globals(
+						Str("data", "global-data"),
+					),
+				},
+				{
+					path: "/stack/test.tm",
+					add: Doc(
+						GenerateFile(
+							Labels("test1"),
+							Expr("content", "global.data"),
+						),
+						GenerateFile(
+							Labels("test2"),
+							Expr("content", "terramate.path"),
+						),
+						GenerateFile(
+							Labels("test3"),
+							Str("content", "terramate!"),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stack",
+					files: map[string]fmt.Stringer{
+						"test1": stringer("global-data"),
+						"test2": stringer("/stack"),
+						"test3": stringer("terramate!"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/stack",
+						Created: []string{"test1", "test2", "test3"},
+					},
 				},
 			},
 		},
