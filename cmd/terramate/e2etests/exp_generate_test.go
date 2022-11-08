@@ -100,12 +100,10 @@ func TestGenerateDebug(t *testing.T) {
 				},
 			},
 			want: runExpected{
-				Stdout: `Generated files for /stack-1:
-	- file.hcl origin: /stack-1/config.tm:1,1-6,2
-	- file.txt origin: /config.tm:5,1-8,2
-Generated files for /stack-2:
-	- file.hcl origin: /stack-2/config.tm:1,1-6,2
-	- file.txt origin: /config.tm:5,1-8,2
+				Stdout: `/stack-1/file.hcl origin: /stack-1/config.tm:1,1-6,2
+/stack-1/file.txt origin: /config.tm:5,1-8,2
+/stack-2/file.hcl origin: /stack-2/config.tm:1,1-6,2
+/stack-2/file.txt origin: /config.tm:5,1-8,2
 `,
 			},
 		},
@@ -145,12 +143,10 @@ Generated files for /stack-2:
 				},
 			},
 			want: runExpected{
-				Stdout: `Generated files for /stack-1:
-	- file.hcl origin: /stack-1/config.tm:1,1-5,2
-	- file.txt origin: /config.tm:5,1-7,2
-Generated files for /stack-1/dir/child:
-	- file.hcl origin: /stack-1/config.tm:1,1-5,2
-	- file.txt origin: /config.tm:5,1-7,2
+				Stdout: `/stack-1/file.hcl origin: /stack-1/config.tm:1,1-5,2
+/stack-1/file.txt origin: /config.tm:5,1-7,2
+/stack-1/dir/child/file.hcl origin: /stack-1/config.tm:1,1-5,2
+/stack-1/dir/child/file.txt origin: /config.tm:5,1-7,2
 `,
 			},
 		},
@@ -210,11 +206,9 @@ func TestGenerateDebugWithChanged(t *testing.T) {
 
 	g.CommitAll("changed stack-1")
 
-	want := `Generated files for /stack-1:
-	- file.hcl origin: /config.tm:4,1-8,2
-	- file.txt origin: /config.tm:1,1-3,2
+	want := `/stack-1/file.hcl origin: /config.tm:4,1-8,2
+/stack-1/file.txt origin: /config.tm:1,1-3,2
 `
-
 	ts := newCLI(t, s.RootDir())
 	assertRunResult(t, ts.run("experimental", "generate", "debug", "--changed"), runExpected{
 		Stdout: want,
