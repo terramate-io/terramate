@@ -391,6 +391,57 @@ EOT`,
 			},
 		},
 		{
+			name:   "hierarchical load",
+			layout: []string{"s:stacks/stack"},
+			configs: []hclconfig{
+				{
+					path: "/root.tm",
+					add: GenerateFile(
+						Labels("root"),
+						Str("content", "root-${global.data}-${terramate.path}"),
+					),
+				},
+				{
+					path: "/stacks/globals.tm",
+					add: Globals(
+						Str("data", "global-data"),
+					),
+				},
+				{
+					path: "/stacks/stacks.tm",
+					add: GenerateFile(
+						Labels("stacks"),
+						Str("content", "stacks-${global.data}-${terramate.path}"),
+					),
+				},
+				{
+					path: "/stacks/stack/stack.tm",
+					add: GenerateFile(
+						Labels("stack"),
+						Str("content", "stack-${global.data}-${terramate.path}"),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stacks/stack",
+					files: map[string]fmt.Stringer{
+						"root":   stringer("root-global-data-/stacks/stack"),
+						"stacks": stringer("stacks-global-data-/stacks/stack"),
+						"stack":  stringer("stack-global-data-/stacks/stack"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/stacks/stack",
+						Created: []string{"root", "stack", "stacks"},
+					},
+				},
+			},
+		},
+		{
 			name: "generate_file with false condition generates nothing",
 			layout: []string{
 				"s:stacks/stack-1",
