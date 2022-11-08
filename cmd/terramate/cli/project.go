@@ -244,7 +244,7 @@ func (p *project) checkRemoteDefaultBranchIsReachable() error {
 
 	mergeBaseCommitID, err := p.git.wrapper.MergeBase(p.headCommit(), p.remoteDefaultCommit())
 	if err != nil {
-		logger.Debug().Msgf(err.Error())
+		logger.Debug().Msg(err.Error())
 		return outOfDateErr
 	}
 
