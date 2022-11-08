@@ -22,20 +22,16 @@ import (
 )
 
 func TestAddTmVendorFailsOnNoRelPathFromBasedirToVendorDir(t *testing.T) {
-	t.Skip("TODO")
-
-	basedir := "/tm/test"
+	basedir := t.TempDir()
 	vendordir := "vendor"
 
-	ctx, err := eval.NewContext(basedir)
+	ctx, err := eval.NewExtContext(basedir)
 	assert.NoError(t, err)
 
-	panicked := func() (panicked bool) {
-		defer func() {
-			panicked = recover() != nil
-		}()
-		ctx.SetTmVendor(vendordir)
-		return
+	defer func() {
+		if err := recover(); err == nil {
+			t.Fatal("expected ctx.SetTmVendor to panic")
+		}
 	}()
-	assert.IsTrue(t, panicked, "wanted a panic, got none")
+	ctx.SetTmVendor(vendordir)
 }

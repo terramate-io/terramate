@@ -32,9 +32,18 @@ import (
 // ErrEval indicates a failure during the evaluation process
 const ErrEval errors.Kind = "eval expression"
 
-// Context is used to evaluate HCL code.
+// Context is used to evaluate HCL code. It provides basic Terramate functions
+// and the possibility to extend the context with extended functions like tm_vendor.
 type Context struct {
 	hclctx *hhcl.EvalContext
+}
+
+// ExtContext represents an extendable context and is used to evaluate HCL code.
+// It provides basic Terramate functions
+// and the possibility to extend the context with extended functions like tm_vendor.
+type ExtContext struct {
+	Context
+	basedir string
 }
 
 // NewContext creates a new HCL evaluation context.
@@ -58,21 +67,9 @@ func NewContext(basedir string) (*Context, error) {
 		Functions: newTmFunctions(basedir),
 		Variables: map[string]cty.Value{},
 	}
-	return NewContextFrom(hclctx), nil
-}
-
-// NewContextFrom creates a new Context from an hcl.Context.
-func NewContextFrom(ctx *hhcl.EvalContext) *Context {
 	return &Context{
-		hclctx: ctx,
-	}
-}
-
-// SetTmVendor will set the tm_vendor function on this context.
-// It is a programming error to call this method with a vendorDir that can't
-// have a relative path calculated to the context basedir.
-func (c *Context) SetTmVendor(vendordir string) {
-	// TODO(KATCIPS): setting tm vendor
+		hclctx: hclctx,
+	}, nil
 }
 
 // SetNamespace will set the given values inside the given namespace on the
@@ -120,6 +117,30 @@ func (c *Context) PartialEval(expr hhcl.Expression) (hclwrite.Tokens, error) {
 
 	engine := newPartialEvalEngine(tokens, c)
 	return engine.Eval()
+}
+
+// NewExtContext creates a new HCL evaluation context that allows
+// Terramate functions to be extended.
+// It has the same invariants as NewContext/Context, only adding extra functionality.
+func NewExtContext(basedir string) (*ExtContext, error) {
+	ctx, err := NewContext(basedir)
+	if err != nil {
+		return nil, err
+	}
+	return &ExtContext{
+		Context: *ctx,
+		basedir: basedir,
+	}, nil
+}
+
+// SetTmVendor will set the tm_vendor function on this context.
+// It is a programming error to call this method with a vendorDir that can't
+// have a relative path calculated to the context basedir.
+func (ec *ExtContext) SetTmVendor(vendordir string) {
+	if _, err := filepath.Rel(ec.basedir, vendordir); err != nil {
+		// TODO(KATCIPIS): use new internal error
+		panic(errors.E(err, "base dir must have a relative path to vendor dir"))
+	}
 }
 
 // TokensForValue returns the tokens for the provided value.
@@ -226,4 +247,13 @@ func injectedTokensPrefix() []byte {
 		[]byte("<generated-hcl>"),
 		0,
 	)
+}
+
+func newContextFrom(ctx *hhcl.EvalContext) *Context {
+	// When creating directly from hcl context we wont have
+	// a basedir, some functionality will not be available on the
+	// Context like setting a tm_vendor function.
+	return &Context{
+		hclctx: ctx,
+	}
 }

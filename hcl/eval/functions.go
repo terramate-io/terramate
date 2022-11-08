@@ -123,7 +123,7 @@ func ternary(cond cty.Value, val1, val2 cty.Value) (cty.Value, error) {
 func evalTernaryBranch(arg cty.Value) (cty.Value, error) {
 	closure := customdecode.ExpressionClosureFromVal(arg)
 
-	ctx := NewContextFrom(closure.EvalContext)
+	ctx := newContextFrom(closure.EvalContext)
 	newtokens, err := ctx.PartialEval(closure.Expression)
 	if err != nil {
 		return cty.NilVal, errors.E(err, "evaluating tm_ternary branch")
