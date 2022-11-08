@@ -230,22 +230,19 @@ func (p *project) checkRemoteDefaultBranchIsReachable() error {
 	mergeBaseCommitID, err := p.git.wrapper.MergeBase(p.headCommit(), p.remoteDefaultCommit())
 	if err != nil {
 		return errors.E(
-			ErrCurrentHeadIsOutOfSync,
-			"HEAD commit %s can not reach remote(%s/%s) commit %s",
-			p.headCommit(),
+			ErrCurrentHeadIsOutOfDate,
+			"Please merge the latest changes from %s/%s into this branch",
 			gitcfg.DefaultRemote,
 			gitcfg.DefaultBranch,
-			p.remoteDefaultCommit())
+		)
 	}
 
 	if mergeBaseCommitID != p.remoteDefaultCommit() {
 		return errors.E(
-			ErrCurrentHeadIsOutOfSync,
-			"remote(%s/%s) commit %s is different than common ancestor commit %s",
+			ErrCurrentHeadIsOutOfDate,
+			"Please merge the latest changes from %s/%s into this branch",
 			gitcfg.DefaultRemote,
 			gitcfg.DefaultBranch,
-			p.remoteDefaultCommit(),
-			mergeBaseCommitID,
 		)
 	}
 

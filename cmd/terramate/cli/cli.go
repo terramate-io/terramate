@@ -56,8 +56,8 @@ import (
 )
 
 const (
-	// ErrCurrentHeadIsOutOfSync indicates the local HEAD revision is outdated.
-	ErrCurrentHeadIsOutOfSync errors.Kind = "current HEAD is out of sync"
+	// ErrCurrentHeadIsOutOfDate indicates the local HEAD revision is outdated.
+	ErrCurrentHeadIsOutOfDate errors.Kind = "current HEAD is out-of-date with the remote base branch"
 	// ErrOutdatedGenCodeDetected indicates outdated generated code detected.
 	ErrOutdatedGenCodeDetected errors.Kind = "outdated generated code detected"
 	// ErrRootCfgInvalidDir indicates that a root configuration was found outside root

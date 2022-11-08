@@ -78,7 +78,7 @@ func TestSafeguardFailsOnRunIfRemoteMainIsOutdated(t *testing.T) {
 	testrun := func() {
 		wantRes := runExpected{
 			Status:      1,
-			StderrRegex: string(cli.ErrCurrentHeadIsOutOfSync),
+			StderrRegex: string(cli.ErrCurrentHeadIsOutOfDate),
 		}
 
 		assertRunResult(t, ts.run(
@@ -145,7 +145,7 @@ func TestSafeguardDisableGitCheckRemote(t *testing.T) {
 		),
 			runExpected{
 				Status:      1,
-				StderrRegex: string(cli.ErrCurrentHeadIsOutOfSync),
+				StderrRegex: string(cli.ErrCurrentHeadIsOutOfDate),
 			})
 	})
 
