@@ -126,6 +126,86 @@ func TestGenerateFile(t *testing.T) {
 			},
 		},
 		{
+			name:   "all metadata available by default",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Expr("content", `<<EOT
+stacks_list=${tm_jsonencode(terramate.stacks.list)}
+stack_path_abs=${terramate.stack.path.absolute}
+stack_path_rel=${terramate.stack.path.relative}
+stack_path_to_root=${terramate.stack.path.to_root}
+stack_path_basename=${terramate.stack.path.basename}
+stack_id=${tm_try(terramate.stack.id, "no-id")}
+stack_name=${terramate.stack.name}
+stack_description=${terramate.stack.description}
+EOT`,
+						)),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stack",
+					files: map[string]fmt.Stringer{
+						"test": stringer(`stacks_list=["/stack"]
+stack_path_abs=/stack
+stack_path_rel=stack
+stack_path_to_root=..
+stack_path_basename=stack
+stack_id=no-id
+stack_name=stack
+stack_description=`),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/stack",
+						Created: []string{"test"},
+					},
+				},
+			},
+		},
+		{
+			name: "stack.id metadata available",
+			layout: []string{
+				"s:stack:id=stack-id",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Expr("content", `<<EOT
+
+stack_id=${terramate.stack.id}
+EOT`,
+						)),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stack",
+					files: map[string]fmt.Stringer{
+						"test": stringer(
+							`stack_id=stack-id`),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/stack",
+						Created: []string{"test"},
+					},
+				},
+			},
+		},
+		{
 			name: "generate_file with false condition generates nothing",
 			layout: []string{
 				"s:stacks/stack-1",
