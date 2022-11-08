@@ -348,6 +348,49 @@ EOT`,
 			},
 		},
 		{
+			name:   "using globals and metadata with functions",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack/globals.tm",
+					add: Globals(
+						Str("data", "global-data"),
+					),
+				},
+				{
+					path: "/stack/json.tm",
+					add: GenerateFile(
+						Labels("test.json"),
+						Expr("content", "tm_jsonencode({field = global.data})"),
+					),
+				},
+				{
+					path: "/stack/yaml.tm",
+					add: GenerateFile(
+						Labels("test.yml"),
+						Expr("content", "tm_yamlencode({field = terramate.stack.path.absolute})"),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stack",
+					files: map[string]fmt.Stringer{
+						"test.json": stringer(`{"field":"global-data"}`),
+						"test.yml":  stringer(`"field": "/stack"`),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/stack",
+						Created: []string{"test.json", "test.yml"},
+					},
+				},
+			},
+		},
+		{
 			name: "generate_file with false condition generates nothing",
 			layout: []string{
 				"s:stacks/stack-1",
