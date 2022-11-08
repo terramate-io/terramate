@@ -120,7 +120,6 @@ func DoPlan(scope *config.Tree) (*Plan, error) {
 	genfiles = genfiles.FilterBy(func(f GenerateFile) bool {
 		return f.Condition()
 	})
-
 	plan.GenerateFiles = genfiles
 	err = plan.validate()
 	if err != nil {
