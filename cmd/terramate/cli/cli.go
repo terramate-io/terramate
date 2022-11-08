@@ -1098,9 +1098,6 @@ func (c *cli) generateDebug() {
 			c.output.Err(out.V, errmsg)
 			continue
 		}
-		if len(res.Files) == 0 {
-			continue
-		}
 
 		files := make([]generate.GenFile, 0, len(res.Files))
 		for _, f := range res.Files {
@@ -1109,9 +1106,9 @@ func (c *cli) generateDebug() {
 			}
 		}
 
-		c.output.Msg(out.V, "Generated files for %s:", res.Dir)
 		for _, file := range files {
-			c.output.Msg(out.V, "\t- %s origin: %v", file.Label(), file.Range())
+			filepath := path.Join(res.Dir.String(), file.Label())
+			c.output.Msg(out.V, "%s origin: %v", filepath, file.Range())
 		}
 	}
 }
