@@ -236,9 +236,9 @@ func (p *project) checkRemoteDefaultBranchIsReachable() error {
 		Logger()
 
 	handleError := func(debugErrCtx error) error {
-		debugErr := fmt.Errorf("%v: %v", ErrCurrentHeadIsOutOfDate, debugErrCtx)
+		debugErr := fmt.Errorf("%s: %v", ErrCurrentHeadIsOutOfDate, debugErrCtx)
 
-		logger.Debug().Err(debugErr).Send()
+		logger.Debug().Msg(debugErr.Error())
 		return errors.E(
 			ErrCurrentHeadIsOutOfDate,
 			"Please merge the latest changes from %s into this branch",
