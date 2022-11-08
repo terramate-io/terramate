@@ -72,6 +72,8 @@ type Config struct {
 	absdir string
 }
 
+// GenerateConfig includes code generation related configurations, like
+// generate_file and generate_hcl.
 type GenerateConfig struct {
 	Files []GenerateBlock[GenFileContent]
 	HCLs  []GenerateBlock[GenHCLContent]
