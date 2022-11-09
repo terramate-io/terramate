@@ -35,22 +35,67 @@ func TestTmVendor(t *testing.T) {
 		vendorDir string
 		targetDir string
 		want      string
-		events    []eval.TmVendorEvent
+		wantEvent eval.TmVendorEvent
 		wantErr   bool
 	}
 
 	tcases := []testcase{
 		{
-			name:      "valid github source",
+			name:      "simple target dir",
 			vendorDir: "/vendor",
 			targetDir: "/dir",
 			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=main")`,
 			want:      "../vendor/github.com/mineiros-io/terramate/main",
-			events: []eval.TmVendorEvent{
-				{
-					Source: "github.com/mineiros-io/terramate?ref=main",
-				},
+			wantEvent: eval.TmVendorEvent{
+				Source: "github.com/mineiros-io/terramate?ref=main",
 			},
+		},
+		{
+			name:      "nested target dir",
+			vendorDir: "/modules",
+			targetDir: "/dir/subdir/again",
+			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=v1")`,
+			want:      "../../../modules/github.com/mineiros-io/terramate/v1",
+			wantEvent: eval.TmVendorEvent{
+				Source: "github.com/mineiros-io/terramate?ref=v1",
+			},
+		},
+		{
+			name:      "nested vendor dir",
+			vendorDir: "/vendor/dir/nested",
+			targetDir: "/dir",
+			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=main")`,
+			want:      "../vendor/dir/nested/github.com/mineiros-io/terramate/main",
+			wantEvent: eval.TmVendorEvent{
+				Source: "github.com/mineiros-io/terramate?ref=main",
+			},
+		},
+		{
+			name:      "target is on root",
+			vendorDir: "/modules",
+			targetDir: "/",
+			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=main")`,
+			want:      "modules/github.com/mineiros-io/terramate/main",
+			wantEvent: eval.TmVendorEvent{
+				Source: "github.com/mineiros-io/terramate?ref=main",
+			},
+		},
+		{
+			name:      "vendor and target are on root",
+			vendorDir: "/",
+			targetDir: "/",
+			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=main")`,
+			want:      "github.com/mineiros-io/terramate/main",
+			wantEvent: eval.TmVendorEvent{
+				Source: "github.com/mineiros-io/terramate?ref=main",
+			},
+		},
+		{
+			name:      "fails on invalid module src",
+			vendorDir: "/modules",
+			targetDir: "/dir",
+			expr:      `tm_vendor("not a valid module src")`,
+			wantErr:   true,
 		},
 	}
 
@@ -76,18 +121,21 @@ func TestTmVendor(t *testing.T) {
 			}()
 
 			val, err := ctx.Eval(test.NewExpr(t, tcase.expr))
-			if tcase.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			assert.EqualStrings(t, tcase.want, val.AsString())
 
 			close(events)
 			<-done
 
-			test.AssertDiff(t, gotEvents, tcase.events)
+			if tcase.wantErr {
+				assert.Error(t, err)
+				assert.EqualInts(t, 0, len(gotEvents), "expected no events on error")
+				return
+			}
+
+			assert.NoError(t, err)
+
+			assert.EqualStrings(t, tcase.want, val.AsString())
+			assert.EqualInts(t, 1, len(gotEvents), "expected single event")
+			test.AssertDiff(t, gotEvents[0], tcase.wantEvent)
 		})
 	}
 }

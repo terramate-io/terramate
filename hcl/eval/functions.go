@@ -91,13 +91,20 @@ func tmVendor(
 		},
 		Type: function.StaticReturnType(cty.String),
 		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
-			// TODO(KATCIPIS): test error handling
 			// Param spec already enforce modsrc to be string.
 			source := args[0].AsString()
-			modsrc, _ := tf.ParseSource(args[0].AsString())
+			modsrc, err := tf.ParseSource(args[0].AsString())
+			if err != nil {
+				return cty.NilVal, errors.E(err, "tm_vendor: invalid module source")
+			}
 			target := modvendor.TargetDir(vendordir, modsrc)
 			base := project.PrjAbsPath(rootdir, basedir)
-			v, _ := filepath.Rel(base.String(), target.String())
+			v, err := filepath.Rel(base.String(), target.String())
+			if err != nil {
+				panic(errors.E(
+					errors.ErrInternal, err,
+					"tm_vendor: target dir cant be relative to basedir"))
+			}
 			stream <- TmVendorEvent{
 				Source: source,
 			}
