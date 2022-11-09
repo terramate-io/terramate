@@ -249,9 +249,9 @@ func (p *project) checkRemoteDefaultBranchIsReachable() error {
 	}
 
 	if mergeBaseCommitID != p.remoteDefaultCommit() {
-		logger.Debug().Msgf(
-			"The %s is not the merge-base of current HEAD", remoteDesc,
-		)
+		logger.Debug().
+		  Str("merge_base_hash", mergeBaseCommitID).
+		  Msg("The default branch is not equal to the common merge-base of HEAD")
 		return outOfDateErr
 	}
 
