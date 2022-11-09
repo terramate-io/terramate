@@ -689,6 +689,7 @@ func (c *cli) gitSafeguardDefaultBranchIsReachable() {
 		Logger()
 
 	if !c.prj.isRepo || !c.gitSafeguardRemoteEnabled() {
+		logger.Debug().Msg("Safeguard default-branch-is-reachable is disabled.")
 		return
 	}
 
