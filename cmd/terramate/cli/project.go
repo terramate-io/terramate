@@ -248,10 +248,6 @@ func (p *project) checkRemoteDefaultBranchIsReachable() error {
 		return outOfDateErr
 	}
 
-	logger = logger.With().
-		Str("merge_base", mergeBaseCommitID).
-		Logger()
-
 	if mergeBaseCommitID != p.remoteDefaultCommit() {
 		logger.Debug().Msgf(
 			"The %s is not the merge-base of current HEAD", remoteDesc,
