@@ -100,12 +100,15 @@ func tmVendor(
 			}
 			targetPath := modvendor.TargetDir(vendordir, modsrc)
 			basePath := project.PrjAbsPath(rootdir, basedir)
-			v, err := filepath.Rel(basePath.String(), targetPath.String())
+			result, err := filepath.Rel(basePath.String(), targetPath.String())
 			if err != nil {
 				panic(errors.E(
 					errors.ErrInternal, err,
 					"tm_vendor: target dir cant be relative to basedir"))
 			}
+
+			// Because Windows
+			result = filepath.ToSlash(result)
 
 			logger := log.With().
 				Str("action", "tm_vendor").
@@ -119,7 +122,8 @@ func tmVendor(
 			}
 
 			log.Debug().Msg("event sent")
-			return cty.StringVal(v), nil
+
+			return cty.StringVal(result), nil
 		},
 	})
 }
