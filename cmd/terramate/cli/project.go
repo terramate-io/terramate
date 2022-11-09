@@ -238,8 +238,7 @@ func (p *project) checkRemoteDefaultBranchIsReachable() error {
 
 	outOfDateErr := errors.E(
 		ErrCurrentHeadIsOutOfDate,
-		"Please merge the latest changes from %s into this branch",
-		remoteDesc,
+		"Please update the current branch with the latest changes from the default branch.",
 	)
 
 	mergeBaseCommitID, err := p.git.wrapper.MergeBase(p.headCommit(), p.remoteDefaultCommit())
