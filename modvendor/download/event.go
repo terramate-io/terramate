@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package modvendor
+package download
 
 import (
 	"github.com/mineiros-io/terramate/event"

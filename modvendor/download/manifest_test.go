@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package modvendor_test
+package download_test
 
 import (
 	"fmt"
@@ -25,6 +25,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/modvendor"
+	"github.com/mineiros-io/terramate/modvendor/download"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"go.lsp.dev/uri"
@@ -319,7 +320,7 @@ func TestVendorManifest(t *testing.T) {
 			source := newSource(t, gitURI, "main")
 
 			const vendordir = "/vendor"
-			got := modvendor.Vendor(rootdir, vendordir, source, nil)
+			got := download.Vendor(rootdir, vendordir, source, nil)
 			assert.NoError(t, got.Error)
 
 			clonedir := modvendor.AbsVendorDir(rootdir, vendordir, source)
@@ -350,7 +351,7 @@ func testInvalidManifestFails(t *testing.T, configpath string) {
 	gitURL := uri.File(repoSandbox.RootDir())
 	source := newSource(t, gitURL, "main")
 
-	got := modvendor.Vendor(t.TempDir(), "/vendor", source, nil)
+	got := download.Vendor(t.TempDir(), "/vendor", source, nil)
 
 	assert.EqualInts(t, 0, len(got.Vendored), "vendored should be empty")
 	assert.EqualInts(t, 1, len(got.Ignored), "should have single ignored")

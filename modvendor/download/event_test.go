@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package modvendor_test
+package download_test
 
 import (
 	"fmt"
@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/mineiros-io/terramate/modvendor"
+	"github.com/mineiros-io/terramate/modvendor/download"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -302,7 +303,7 @@ func TestVendorEvents(t *testing.T) {
 			}
 
 			vendorDir := project.NewPath(tcase.vendorDir)
-			wantEvents := make([]modvendor.ProgressEvent, len(tcase.want))
+			wantEvents := make([]download.ProgressEvent, len(tcase.want))
 
 			for i, w := range tcase.want {
 				// We need to fix the wanted events with the proper
@@ -314,7 +315,7 @@ func TestVendorEvents(t *testing.T) {
 				// Target dir cant be easily defined on tests declaratively
 				// because on Windows they are manipulated differently.
 				// So we define it here, inferred from the desired module source.
-				wantEvents[i] = modvendor.ProgressEvent{
+				wantEvents[i] = download.ProgressEvent{
 					Message:   w.message,
 					TargetDir: modvendor.TargetDir(vendorDir, modsrc),
 					Module:    modsrc,
@@ -326,8 +327,8 @@ func TestVendorEvents(t *testing.T) {
 			modsrc := test.ParseSource(t, source)
 
 			eventsHandled := make(chan struct{})
-			eventsStream := modvendor.NewEventStream()
-			gotEvents := []modvendor.ProgressEvent{}
+			eventsStream := download.NewEventStream()
+			gotEvents := []download.ProgressEvent{}
 
 			go func() {
 				for event := range eventsStream {
@@ -336,7 +337,7 @@ func TestVendorEvents(t *testing.T) {
 				close(eventsHandled)
 			}()
 
-			modvendor.Vendor(s.RootDir(), vendorDir, modsrc, eventsStream)
+			download.Vendor(s.RootDir(), vendorDir, modsrc, eventsStream)
 			close(eventsStream)
 			<-eventsHandled
 
