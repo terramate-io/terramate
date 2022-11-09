@@ -618,6 +618,150 @@ EOT`,
 			},
 		},
 		{
+			name:   "generate_file fails to evaluate content",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/test.tm",
+					add: Doc(
+						GenerateFile(
+							Labels("name"),
+							Expr("content", "global.unknown"),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/stack",
+						},
+						Error: errors.E(genfile.ErrContentEval),
+					},
+				},
+			},
+		},
+		{
+			name:   "generate_file fails to evaluate condition",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/test.tm",
+					add: Doc(
+						GenerateFile(
+							Labels("name"),
+							Expr("condition", "global.undefined"),
+							Str("content", "data"),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/stack",
+						},
+						Error: errors.E(genfile.ErrConditionEval),
+					},
+				},
+			},
+		},
+		{
+			name:   "generate_file fails condition dont evaluate to boolean",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/test.tm",
+					add: Doc(
+						GenerateFile(
+							Labels("name"),
+							Str("condition", "not boolean"),
+							Str("content", "data"),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/stack",
+						},
+						Error: errors.E(genfile.ErrInvalidConditionType),
+					},
+				},
+			},
+		},
+		{
+			name:   "generate_file with lets",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Lets(
+							Str("string", "let string"),
+						),
+						Expr("content", `let.string`),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stack",
+					files: map[string]fmt.Stringer{
+						"test": stringer("let string"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/stack",
+						Created: []string{"test"},
+					},
+				},
+			},
+		},
+		{
+			name:   "generate_file with multiple lets",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Lets(
+							Expr("list1", `["hello", "world"]`),
+						),
+						Lets(
+							Expr("list2", `["lets", "feature"]`),
+						),
+						Expr("content", `tm_join(" ", tm_concat(let.list1, let.list2))`),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stack",
+					files: map[string]fmt.Stringer{
+						"test": stringer("hello world lets feature"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/stack",
+						Created: []string{"test"},
+					},
+				},
+			},
+		},
+		{
 			name:   "multiple generate_file blocks on same file",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
