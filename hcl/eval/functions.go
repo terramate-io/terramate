@@ -93,7 +93,7 @@ func tmVendor(
 		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
 			// Param spec already enforce modsrc to be string.
 			source := args[0].AsString()
-			modsrc, err := tf.ParseSource(args[0].AsString())
+			modsrc, err := tf.ParseSource(source)
 			if err != nil {
 				return cty.NilVal, errors.E(err, "tm_vendor: invalid module source")
 			}
