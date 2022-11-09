@@ -607,6 +607,85 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 			},
 		},
 		{
+			name: "generate_file without label - fails",
+			input: []cfgfile{
+				{
+					filename: "file.tm",
+					body:     `generate_file { content = "" }`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "generate_file with multiple labels - fails",
+			input: []cfgfile{
+				{
+					filename: "file.tm",
+					body: `generate_file "a" "b" {
+						content = "" 
+					}`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "generate_file with empty label - fails",
+			input: []cfgfile{
+				{
+					filename: "file.tm",
+					body: `generate_file "" {
+						content = "" 
+					}`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "generate_file with missing content - fails",
+			input: []cfgfile{
+				{
+					filename: "file.tm",
+					body: `generate_file "a.txt" {
+						
+					}`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "generate_file with unknown attribute - fails",
+			input: []cfgfile{
+				{
+					filename: "file.tm",
+					body: `generate_file "a.txt" {
+						unknown = "data"
+						content = "test"
+					}`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
 			name: "generate_file with lets with child blocks - fails",
 			input: []cfgfile{
 				{

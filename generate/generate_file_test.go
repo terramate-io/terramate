@@ -567,6 +567,40 @@ EOT`,
 			},
 		},
 		{
+			name:   "conflicting blocks on different dirs",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/test.tm",
+					add: Doc(
+						GenerateFile(
+							Labels("test.yml"),
+							Str("content", "root"),
+						),
+					),
+				},
+				{
+					path: "/stack/test.tm",
+					add: Doc(
+						GenerateFile(
+							Labels("test.yml"),
+							Str("content", "test"),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/stack",
+						},
+						Error: errors.E(generate.ErrConflictingConfig),
+					},
+				},
+			},
+		},
+		{
 			name: "generate_file with false condition generates nothing",
 			layout: []string{
 				"s:stacks/stack-1",
