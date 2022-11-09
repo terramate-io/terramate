@@ -21,6 +21,9 @@ import (
 	"github.com/hashicorp/hcl/v2/ext/customdecode"
 	tflang "github.com/hashicorp/terraform/lang"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/modvendor"
+	"github.com/mineiros-io/terramate/project"
+	"github.com/mineiros-io/terramate/tf"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 )
@@ -70,6 +73,31 @@ func tmAbspath(basedir string) function.Function {
 			}
 
 			return cty.StringVal(filepath.Clean(abspath)), nil
+		},
+	})
+}
+
+func tmVendor(
+	rootdir, basedir string,
+	vendordir project.Path,
+	stream chan<- TmVendorEvent,
+) function.Function {
+	return function.New(&function.Spec{
+		Params: []function.Parameter{
+			{
+				Name: "modsrc",
+				Type: cty.String,
+			},
+		},
+		Type: function.StaticReturnType(cty.String),
+		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+			// TODO(KATCIPIS): test error handling
+			// Param spec already enforce modsrc to be string.
+			modsrc, _ := tf.ParseSource(args[0].AsString())
+			target := modvendor.TargetDir(vendordir, modsrc)
+			base := project.PrjAbsPath(rootdir, basedir)
+			v, _ := filepath.Rel(base.String(), target.String())
+			return cty.StringVal(v), nil
 		},
 	})
 }

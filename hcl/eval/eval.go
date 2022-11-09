@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
 
 	hhcl "github.com/hashicorp/hcl/v2"
@@ -66,14 +67,17 @@ func NewContext(basedir string) (*Context, error) {
 // NewExtContext creates a new HCL evaluation context that includes extended/experimental
 // functions like tm_vendor.
 // It has the same invariants as NewContext, only adds extra functionality.
-func NewExtContext(basedir, vendordir string, stream chan<- TmVendorEvent) (*Context, error) {
+func NewExtContext(
+	rootdir string,
+	basedir string,
+	vendordir project.Path,
+	stream chan<- TmVendorEvent,
+) (*Context, error) {
 	ctx, err := NewContext(basedir)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := filepath.Rel(basedir, vendordir); err != nil {
-		return nil, errors.E(err, "base dir must have a relative path to vendor dir")
-	}
+	ctx.hclctx.Functions["tm_vendor"] = tmVendor(rootdir, basedir, vendordir, stream)
 	return ctx, nil
 }
 

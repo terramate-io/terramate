@@ -15,79 +15,79 @@
 package eval_test
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/project"
+	"github.com/mineiros-io/terramate/test"
 )
-
-func TestNewExtContextFailsOnNoRelPathFromBasedirToVendorDir(t *testing.T) {
-	basedir := t.TempDir()
-	vendordir := "vendor"
-
-	_, err := eval.NewExtContext(basedir, vendordir, nil)
-	assert.Error(t, err)
-}
 
 func TestContextDontHaveTmVendor(t *testing.T) {
 	// TODO(KATCIPIS)
 }
 
 func TestTmVendor(t *testing.T) {
-	//type testcase struct {
-	//name      string
-	//expr      string
-	//vendorDir string
-	//want      string
-	//events    []eval.TmVendorEvent
-	//wantErr   bool
-	//}
+	type testcase struct {
+		name      string
+		expr      string
+		vendorDir string
+		targetDir string
+		want      string
+		events    []eval.TmVendorEvent
+		wantErr   bool
+	}
 
-	//tcases := []testcase{
-	//{
-	//name:      "valid github source",
-	//vendorDir: "vendor",
-	//expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=main")`,
-	//want:      "../vendor/github.com/mineiros-io/terramate/main",
-	//events: []eval.TmVendorEvent{
-	//{
-	//Source: "github.com/mineiros-io/terramate?ref=main",
-	//},
-	//},
-	//},
-	//}
+	tcases := []testcase{
+		{
+			name:      "valid github source",
+			vendorDir: "/vendor",
+			targetDir: "/dir",
+			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=main")`,
+			want:      "../vendor/github.com/mineiros-io/terramate/main",
+			events: []eval.TmVendorEvent{
+				{
+					Source: "github.com/mineiros-io/terramate?ref=main",
+				},
+			},
+		},
+	}
 
-	//for _, tcase := range tcases {
-	//t.Run(tcase.name, func(t *testing.T) {
-	//basedir := t.TempDir()
-	//vendordir := filepath.Join(basedir, tcase.vendorDir)
-	//events := make(chan eval.TmVendorEvent)
+	for _, tcase := range tcases {
+		t.Run(tcase.name, func(t *testing.T) {
+			rootdir := t.TempDir()
+			events := make(chan eval.TmVendorEvent)
+			vendordir := project.NewPath(tcase.vendorDir)
+			basedir := filepath.Join(rootdir, tcase.targetDir)
 
-	//ctx, err := eval.NewExtContext(basedir, vendordir, events)
-	//assert.NoError(t, err)
+			test.MkdirAll(t, basedir)
 
-	//gotEvents := []eval.TmVendorEvent{}
-	//done := make(chan struct{})
-	//go func() {
-	//for event := range events {
-	//gotEvents = append(gotEvents, event)
-	//}
-	//close(done)
-	//}()
+			ctx, err := eval.NewExtContext(rootdir, basedir, vendordir, events)
+			assert.NoError(t, err)
 
-	//val, err := ctx.Eval(test.NewExpr(t, tcase.expr))
-	//if tcase.wantErr {
-	//assert.Error(t, err)
-	//} else {
-	//assert.NoError(t, err)
-	//}
+			gotEvents := []eval.TmVendorEvent{}
+			done := make(chan struct{})
+			go func() {
+				for event := range events {
+					gotEvents = append(gotEvents, event)
+				}
+				close(done)
+			}()
 
-	//assert.EqualStrings(t, tcase.want, val.AsString())
+			val, err := ctx.Eval(test.NewExpr(t, tcase.expr))
+			if tcase.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 
-	//close(events)
-	//<-done
+			assert.EqualStrings(t, tcase.want, val.AsString())
 
-	//test.AssertDiff(t, gotEvents, tcase.events)
-	//})
-	//}
+			close(events)
+			<-done
+
+			test.AssertDiff(t, gotEvents, tcase.events)
+		})
+	}
 }
