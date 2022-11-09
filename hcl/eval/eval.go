@@ -239,9 +239,6 @@ func injectedTokensPrefix() []byte {
 }
 
 func newContextFrom(ctx *hhcl.EvalContext) *Context {
-	// When creating directly from hcl context we wont have
-	// a basedir, some functionality will not be available on the
-	// Context like setting a tm_vendor function.
 	return &Context{
 		hclctx: ctx,
 	}
