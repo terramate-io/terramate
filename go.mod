@@ -11,7 +11,7 @@ require (
 	github.com/hashicorp/hcl/v2 v2.14.1
 	github.com/hashicorp/terraform v0.15.3
 	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
-	github.com/madlambda/spells v0.4.1
+	github.com/madlambda/spells v0.4.2
 	github.com/posener/complete v1.2.3
 	github.com/willabides/kongplete v0.2.0
 	github.com/zclconf/go-cty v1.8.3
