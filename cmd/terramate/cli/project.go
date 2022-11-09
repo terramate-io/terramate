@@ -244,14 +244,14 @@ func (p *project) checkRemoteDefaultBranchIsReachable() error {
 	mergeBaseCommitID, err := p.git.wrapper.MergeBase(p.headCommit(), p.remoteDefaultCommit())
 	if err != nil {
 		logger.Debug().
-		  Msg("A common merge-base can not be determined between HEAD and default branch")
+			Msg("A common merge-base can not be determined between HEAD and default branch")
 		return outOfDateErr
 	}
 
 	if mergeBaseCommitID != p.remoteDefaultCommit() {
 		logger.Debug().
-		  Str("merge_base_hash", mergeBaseCommitID).
-		  Msg("The default branch is not equal to the common merge-base of HEAD")
+			Str("merge_base_hash", mergeBaseCommitID).
+			Msg("The default branch is not equal to the common merge-base of HEAD")
 		return outOfDateErr
 	}
 
