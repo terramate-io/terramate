@@ -93,10 +93,14 @@ func tmVendor(
 		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
 			// TODO(KATCIPIS): test error handling
 			// Param spec already enforce modsrc to be string.
+			source := args[0].AsString()
 			modsrc, _ := tf.ParseSource(args[0].AsString())
 			target := modvendor.TargetDir(vendordir, modsrc)
 			base := project.PrjAbsPath(rootdir, basedir)
 			v, _ := filepath.Rel(base.String(), target.String())
+			stream <- TmVendorEvent{
+				Source: source,
+			}
 			return cty.StringVal(v), nil
 		},
 	})
