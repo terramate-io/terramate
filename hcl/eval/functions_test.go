@@ -24,10 +24,6 @@ import (
 	"github.com/mineiros-io/terramate/test"
 )
 
-func TestContextDontHaveTmVendor(t *testing.T) {
-	// TODO(KATCIPIS)
-}
-
 func TestTmVendor(t *testing.T) {
 	type testcase struct {
 		name      string
