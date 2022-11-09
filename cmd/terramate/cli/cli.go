@@ -684,7 +684,8 @@ func (c *cli) gitFileSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
 
 func (c *cli) gitSafeguardDefaultBranchIsReachable() {
 	logger := log.With().
-		Str("action", "checkGit()").
+        Bool("is_repository", c.prj.isRepo).
+	    Bool("is_enabled", c.gitSafeguardRemoteEnabled).
 		Logger()
 
 	if !c.prj.isRepo || !c.gitSafeguardRemoteEnabled() {
