@@ -66,7 +66,11 @@ func NewContext(basedir string) (*Context, error) {
 
 // NewExtContext creates a new HCL evaluation context that includes extended/experimental
 // functions like tm_vendor.
-// It has the same invariants as NewContext, only adds extra functionality.
+// It has the same invariants as NewExtContext, only adds extra functionality.
+// - rootdir : The project root dir as an absolute path on the host.
+// - basedir : The basedir as an absolute path on the host, the same as defined on [NewContext].
+// - vendordir: Where modules are vendored inside the project.
+// - stream: event stream, one event is produced per function call if there are no errors.
 func NewExtContext(
 	rootdir string,
 	basedir string,
