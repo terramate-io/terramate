@@ -231,7 +231,7 @@ func (p *project) checkRemoteDefaultBranchIsReachable() error {
 	remoteDesc := fmt.Sprintf("remote(%s/%s)", gitcfg.DefaultRemote, gitcfg.DefaultBranch)
 
 	logger := log.With().
-		Str("HEAD", p.headCommit()).
+		Str("head_hash", p.headCommit()).
 		Str("default_branch", remoteDesc).
 		Str("default_hash", p.remoteDefaultCommit()).
 		Logger()
