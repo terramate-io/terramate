@@ -24,127 +24,13 @@ import (
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/info"
-	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
 	infotest "github.com/mineiros-io/terramate/test/hclutils/info"
-	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
 )
-
-func TestLoadGenerateFiles(t *testing.T) {
-	t.Parallel()
-
-	tcases := []testcase{
-
-		{
-			name:  "using lets and metadata with interpolation",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack/test.tm",
-					add: GenerateFile(
-						Labels("test"),
-						Lets(
-							Str("data", "let-data"),
-						),
-						Str("content", "${let.data}-${terramate.stack.path.absolute}"),
-					),
-				},
-			},
-			want: []result{
-				{
-					name: "test",
-					file: genFile{
-						condition: true,
-						body:      "let-data-/stack",
-					},
-				},
-			},
-		},
-		{
-			name:  "using lets, globals and metadata with interpolation",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/globals.tm",
-					add: Globals(
-						Str("string", "global string"),
-					),
-				},
-				{
-					path: "/stack/test.tm",
-					add: GenerateFile(
-						Labels("test"),
-						Lets(
-							Expr("string", `global.string`),
-							Expr("path", `terramate.stack.path.absolute`),
-						),
-						Str("content", "${let.string}-${let.path}"),
-					),
-				},
-			},
-			want: []result{
-				{
-					name: "test",
-					file: genFile{
-						condition: true,
-						body:      "global string-/stack",
-					},
-				},
-			},
-		},
-		{
-			name:  "generate_file with duplicated lets attrs",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack/test.tm",
-					add: GenerateFile(
-						Labels("test"),
-						Lets(
-							Str("string", "let string"),
-						),
-						Lets(
-							Str("string", "dup"),
-						),
-						Expr("content", `let.string`),
-					),
-				},
-			},
-			wantErr: errors.E(lets.ErrRedefined),
-		},
-		{
-			name:  "lets are scoped",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack/test.tm",
-					add: Doc(
-						GenerateFile(
-							Labels("test"),
-							Lets(
-								Str("some_str", "test"),
-							),
-							Expr("content", `let.some_str`),
-						),
-						GenerateFile(
-							Labels("test2"),
-							Expr("content", `let.some_str`),
-						),
-					),
-				},
-			},
-			wantErr: errors.E(genfile.ErrContentEval),
-		},
-	}
-
-	for _, tcase := range tcases {
-		testGenfile(t, tcase)
-	}
-}
 
 type (
 	hclconfig struct {

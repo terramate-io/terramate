@@ -24,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/generate/genfile"
+	"github.com/mineiros-io/terramate/lets"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -757,6 +758,138 @@ EOT`,
 					{
 						Dir:     "/stack",
 						Created: []string{"test"},
+					},
+				},
+			},
+		},
+		{
+			name:   "using lets and metadata with interpolation",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Lets(
+							Str("data", "let-data"),
+						),
+						Str("content", "${let.data}-${terramate.stack.path.absolute}"),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stack",
+					files: map[string]fmt.Stringer{
+						"test": stringer("let-data-/stack"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/stack",
+						Created: []string{"test"},
+					},
+				},
+			},
+		},
+		{
+			name:   "using lets, globals and metadata with interpolation",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/globals.tm",
+					add: Globals(
+						Str("string", "global string"),
+					),
+				},
+				{
+					path: "/stack/test.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Lets(
+							Expr("string", `global.string`),
+							Expr("path", `terramate.stack.path.absolute`),
+						),
+						Str("content", "${let.string}-${let.path}"),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/stack",
+					files: map[string]fmt.Stringer{
+						"test": stringer("global string-/stack"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/stack",
+						Created: []string{"test"},
+					},
+				},
+			},
+		},
+		{
+			name:   "generate_file with duplicated lets attrs",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Lets(
+							Str("string", "let string"),
+						),
+						Lets(
+							Str("string", "dup"),
+						),
+						Expr("content", `let.string`),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/stack",
+						},
+						Error: errors.E(lets.ErrRedefined),
+					},
+				},
+			},
+		},
+		{
+			name:   "lets are scoped",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack/test.tm",
+					add: Doc(
+						GenerateFile(
+							Labels("test"),
+							Lets(
+								Str("some_str", "test"),
+							),
+							Expr("content", `let.some_str`),
+						),
+						GenerateFile(
+							Labels("test2"),
+							Expr("content", `let.some_str`),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/stack",
+						},
+						Error: errors.E(genfile.ErrContentEval),
 					},
 				},
 			},
