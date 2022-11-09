@@ -106,22 +106,23 @@ func tmVendor(
 					errors.ErrInternal, err,
 					"tm_vendor: target dir cant be relative to basedir"))
 			}
-
 			// Because Windows
 			result = filepath.ToSlash(result)
 
-			logger := log.With().
-				Str("action", "tm_vendor").
-				Str("source", source).
-				Logger()
+			if stream != nil {
+				logger := log.With().
+					Str("action", "tm_vendor").
+					Str("source", source).
+					Logger()
 
-			logger.Debug().Msg("calculated path with success, sending event")
+				logger.Debug().Msg("calculated path with success, sending event")
 
-			stream <- TmVendorEvent{
-				Source: source,
+				stream <- TmVendorEvent{
+					Source: source,
+				}
+
+				log.Debug().Msg("event sent")
 			}
-
-			log.Debug().Msg("event sent")
 
 			return cty.StringVal(result), nil
 		},

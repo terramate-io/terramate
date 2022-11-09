@@ -153,6 +153,17 @@ func TestTmVendor(t *testing.T) {
 			assert.EqualStrings(t, tcase.want, val.AsString())
 			assert.EqualInts(t, 1, len(gotEvents), "expected single event")
 			test.AssertDiff(t, gotEvents[0], tcase.wantEvent)
+
+			// piggyback on the current tests to validate that
+			// it also works with a nil channel (no interest on events).
+			t.Run("works with nil events channel", func(t *testing.T) {
+				ctx, err := eval.NewExtContext(rootdir, basedir, vendordir, nil)
+				assert.NoError(t, err)
+
+				val, err := ctx.Eval(test.NewExpr(t, tcase.expr))
+				assert.NoError(t, err)
+				assert.EqualStrings(t, tcase.want, val.AsString())
+			})
 		})
 	}
 }
