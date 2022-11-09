@@ -24,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/tf"
+	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 )
@@ -97,17 +98,27 @@ func tmVendor(
 			if err != nil {
 				return cty.NilVal, errors.E(err, "tm_vendor: invalid module source")
 			}
-			target := modvendor.TargetDir(vendordir, modsrc)
-			base := project.PrjAbsPath(rootdir, basedir)
-			v, err := filepath.Rel(base.String(), target.String())
+			targetPath := modvendor.TargetDir(vendordir, modsrc)
+			basePath := project.PrjAbsPath(rootdir, basedir)
+			v, err := filepath.Rel(basePath.String(), targetPath.String())
 			if err != nil {
 				panic(errors.E(
 					errors.ErrInternal, err,
 					"tm_vendor: target dir cant be relative to basedir"))
 			}
+
+			logger := log.With().
+				Str("action", "tm_vendor").
+				Str("source", source).
+				Logger()
+
+			logger.Debug().Msg("calculated path with success, sending event")
+
 			stream <- TmVendorEvent{
 				Source: source,
 			}
+
+			log.Debug().Msg("event sent")
 			return cty.StringVal(v), nil
 		},
 	})
