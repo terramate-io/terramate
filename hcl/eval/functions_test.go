@@ -97,6 +97,27 @@ func TestTmVendor(t *testing.T) {
 			expr:      `tm_vendor("not a valid module src")`,
 			wantErr:   true,
 		},
+		{
+			name:      "fails on parameter missing",
+			vendorDir: "/modules",
+			targetDir: "/dir",
+			expr:      `tm_vendor()`,
+			wantErr:   true,
+		},
+		{
+			name:      "fails on parameter with wrong type",
+			vendorDir: "/modules",
+			targetDir: "/dir",
+			expr:      `tm_vendor([])`,
+			wantErr:   true,
+		},
+		{
+			name:      "fails on extra parameter",
+			vendorDir: "/modules",
+			targetDir: "/dir",
+			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=main", "")`,
+			wantErr:   true,
+		},
 	}
 
 	for _, tcase := range tcases {
