@@ -684,18 +684,22 @@ func (c *cli) gitFileSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
 
 func (c *cli) gitSafeguardDefaultBranchIsReachable() {
 	logger := log.With().
-		Str("action", "checkGit()").
+		Bool("is_repository", c.prj.isRepo).
+		Bool("is_enabled", c.gitSafeguardRemoteEnabled()).
 		Logger()
 
 	if !c.prj.isRepo || !c.gitSafeguardRemoteEnabled() {
+		logger.Debug().Msg("Safeguard default-branch-is-reachable is disabled.")
 		return
 	}
 
-	logger.Trace().Msg("check git default remote branch is reachable")
-
 	if err := c.prj.checkRemoteDefaultBranchIsReachable(); err != nil {
+		logger.Trace().Bool("is_reachable", false).Err(err).
+			Msg("Safeguard default-branch-is-reachable failed.")
 		fatal(err)
 	}
+	logger.Trace().Bool("is_reachable", true).
+		Msg("Safeguard default-branch-is-reachable passed.")
 }
 
 func (c *cli) listStacks(mgr *terramate.Manager, isChanged bool) (*terramate.StacksReport, error) {

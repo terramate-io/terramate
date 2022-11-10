@@ -29,6 +29,12 @@ import (
 	"github.com/mineiros-io/terramate/project"
 )
 
+const (
+	// ErrInternal indicates that an unrecoverable internal error
+	// happened. This error kind is intended to be used when panicking.
+	ErrInternal Kind = "terramate internal error"
+)
+
 // Error is the default Terramate error type.
 // At least one of the error fields must be set.
 // See E() for its usage.
