@@ -17,7 +17,6 @@ package genfile
 
 import (
 	"fmt"
-	"path"
 	"sort"
 
 	"github.com/mineiros-io/terramate/config"
@@ -126,10 +125,10 @@ func Load(
 	var files []File
 
 	for _, genFileBlock := range genFileBlocks {
-		if path.IsAbs(genFileBlock.Label) {
-			// context=root
+		if genFileBlock.Context != "stack" {
 			continue
 		}
+
 		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
 		file, err := Eval(genFileBlock, evalctx.Context)
 		if err != nil {

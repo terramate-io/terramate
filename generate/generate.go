@@ -310,9 +310,20 @@ func doDirGeneration(cfg *config.Tree, evalctx *eval.Context) Report {
 	if len(blocks) == 0 {
 		return report
 	}
+
 	for _, block := range blocks {
-		if block.Label[0] != '/' {
+		if block.Context != "root" {
 			continue
+		}
+
+		if block.Label[0] != '/' {
+			targetDir := path.Dir(block.Label)
+			report.addFailure(project.NewPath(targetDir), errors.E(
+				ErrInvalidGenBlockLabel,
+				"generate_file.context=root requires an absolute path but given %s",
+				block.Label))
+
+			return report
 		}
 
 		targetDir := project.NewPath(path.Dir(block.Label))
@@ -325,6 +336,7 @@ func doDirGeneration(cfg *config.Tree, evalctx *eval.Context) Report {
 		}
 		files = append(files, file)
 	}
+
 	/*
 		var asserts []config.Assert
 		for _, file := range files {

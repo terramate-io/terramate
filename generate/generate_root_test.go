@@ -18,6 +18,7 @@ func TestGenerateRootContext(t *testing.T) {
 					path: "/dir/file.tm",
 					add: GenerateFile(
 						Labels("/other/empty.txt"),
+						Expr("context", "root"),
 						Str("content", ""),
 					),
 				},
