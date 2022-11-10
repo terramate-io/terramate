@@ -64,29 +64,18 @@ func NewContext(basedir string) (*Context, error) {
 	}, nil
 }
 
-// NewExtContext creates a new HCL evaluation context that includes extended/experimental
-// functions like tm_vendor.
-// It has the same invariants as NewExtContext, only adds extra functionality.
-//   - rootdir : The project root dir as an absolute path on the host.
-//   - basedir : The basedir as an absolute path on the host, the same as defined on [NewContext].
-//     It will be used as the basedir of all Terramate functions, except tm_vendor.
-//   - targetdir: The target dir that tm_vendor will use to define the relative paths
-//     of vendored dependencies.
-//   - vendordir: Where modules are vendored inside the project.
-//   - stream: event stream, one event is produced per function call if there are no errors.
-func NewExtContext(
-	rootdir string,
-	basedir string,
+// SetTmVendor sets the tm_vendor function on this evaluation context.
+// The targetdir defines what tm_vendor will use to define the relative paths
+// of vendored dependencies.
+// The vendordir defines where modules are vendored inside the project.
+// The stream defines the event stream for tm_vendor, one event is produced
+// per successful function call.
+func (c *Context) SetTmVendor(
 	targetdir project.Path,
 	vendordir project.Path,
 	stream chan<- TmVendorEvent,
-) (*Context, error) {
-	ctx, err := NewContext(basedir)
-	if err != nil {
-		return nil, err
-	}
-	ctx.hclctx.Functions["tm_vendor"] = tmVendor(targetdir, vendordir, stream)
-	return ctx, nil
+) {
+	c.hclctx.Functions["tm_vendor"] = tmVendor(targetdir, vendordir, stream)
 }
 
 // SetNamespace will set the given values inside the given namespace on the

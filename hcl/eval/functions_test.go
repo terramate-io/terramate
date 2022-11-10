@@ -122,8 +122,10 @@ func TestTmVendor(t *testing.T) {
 			vendordir := project.NewPath(tcase.vendorDir)
 			targetdir := project.NewPath(tcase.targetDir)
 
-			ctx, err := eval.NewExtContext(rootdir, rootdir, targetdir, vendordir, events)
+			ctx, err := eval.NewContext(rootdir)
 			assert.NoError(t, err)
+
+			ctx.SetTmVendor(targetdir, vendordir, events)
 
 			gotEvents := []eval.TmVendorEvent{}
 			done := make(chan struct{})
@@ -154,8 +156,10 @@ func TestTmVendor(t *testing.T) {
 			// piggyback on the current tests to validate that
 			// it also works with a nil channel (no interest on events).
 			t.Run("works with nil events channel", func(t *testing.T) {
-				ctx, err := eval.NewExtContext(rootdir, rootdir, targetdir, vendordir, nil)
+				ctx, err := eval.NewContext(rootdir)
 				assert.NoError(t, err)
+
+				ctx.SetTmVendor(targetdir, vendordir, nil)
 
 				val, err := ctx.Eval(test.NewExpr(t, tcase.expr))
 				assert.NoError(t, err)
