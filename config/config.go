@@ -105,6 +105,10 @@ func (tree *Tree) Dir() string {
 	return tree.dir
 }
 
+func (tree *Tree) ProjDir() project.Path {
+	return project.PrjAbsPath(tree.RootDir(), tree.dir)
+}
+
 // RootDir returns the tree root directory..
 func (tree *Tree) RootDir() string {
 	if tree.Parent != nil {
@@ -167,6 +171,18 @@ func (tree *Tree) Lookup(abspath project.Path) (*Tree, bool) {
 		cfg = node
 	}
 	return cfg, true
+}
+
+// Dirs returns all the configuration directories that have configurations.
+func (tree *Tree) Dirs() List {
+	var result List
+	if !tree.IsEmptyConfig() {
+		result = append(result, tree)
+	}
+	for _, children := range tree.Children {
+		result = append(result, children.Dirs()...)
+	}
+	return result
 }
 
 // StacksByPaths returns the stacks from the provided relative paths.

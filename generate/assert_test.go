@@ -221,7 +221,7 @@ func TestGenerateAssert(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack-1",
+					dir: "/stacks/stack-1",
 					files: map[string]fmt.Stringer{
 						"test.hcl": Doc(
 							Str("stacks", "test"),
@@ -230,7 +230,7 @@ func TestGenerateAssert(t *testing.T) {
 					},
 				},
 				{
-					stack: "/stacks/stack-2",
+					dir: "/stacks/stack-2",
 					files: map[string]fmt.Stringer{
 						"test.hcl": Doc(
 							Str("stacks", "test"),
@@ -344,7 +344,7 @@ func TestGenerateAssertInsideGenerateBlocks(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stack",
+					dir: "/stack",
 					files: map[string]fmt.Stringer{
 						"test.hcl": Doc(
 							Str("stack", "test"),
@@ -450,7 +450,7 @@ func TestGenerateAssertInsideGenerateBlocks(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stack",
+					dir: "/stack",
 					files: map[string]fmt.Stringer{
 						"test.hcl": Doc(
 							Str("stack", "test"),

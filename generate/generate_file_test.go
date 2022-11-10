@@ -48,13 +48,13 @@ func TestGenerateFile(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack-1",
+					dir: "/stacks/stack-1",
 					files: map[string]fmt.Stringer{
 						"empty": stringer(""),
 					},
 				},
 				{
-					stack: "/stacks/stack-2",
+					dir: "/stacks/stack-2",
 					files: map[string]fmt.Stringer{
 						"empty": stringer(""),
 					},
@@ -109,13 +109,13 @@ func TestGenerateFile(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack-1",
+					dir: "/stacks/stack-1",
 					files: map[string]fmt.Stringer{
 						"stacks.txt": stringer(`["/stacks/stack-1","/stacks/stack-2"]`),
 					},
 				},
 				{
-					stack: "/stacks/stack-2",
+					dir: "/stacks/stack-2",
 					files: map[string]fmt.Stringer{
 						"stacks.txt": stringer(`["/stacks/stack-1","/stacks/stack-2"]`),
 					},
@@ -154,7 +154,7 @@ func TestGenerateFile(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack-1",
+					dir: "/stacks/stack-1",
 					files: map[string]fmt.Stringer{
 						"stacks.txt": stringer(`["/stacks/stack-1","/stacks/stack-2"]`),
 					},
@@ -192,14 +192,14 @@ func TestGenerateFile(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack-1",
+					dir: "/stacks/stack-1",
 					files: map[string]fmt.Stringer{
 						"file1.txt": stringer("/stacks/stack-1"),
 						"file2.txt": stringer("stack-1"),
 					},
 				},
 				{
-					stack: "/stacks/stack-2",
+					dir: "/stacks/stack-2",
 					files: map[string]fmt.Stringer{
 						"file1.txt": stringer("/stacks/stack-2"),
 						"file2.txt": stringer("stack-2"),
@@ -242,7 +242,7 @@ func TestGenerateFile(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack-2",
+					dir: "/stacks/stack-2",
 					files: map[string]fmt.Stringer{
 						"file1.txt": stringer("/stacks/stack-2"),
 						"file2.txt": stringer("stack-2"),

@@ -38,7 +38,7 @@ type (
 	stringer string
 
 	generatedFile struct {
-		stack string
+		dir   string
 		files map[string]fmt.Stringer
 	}
 	testcase struct {
@@ -96,7 +96,7 @@ func TestGenerateIgnore(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack",
+					dir: "/stacks/stack",
 					files: map[string]fmt.Stringer{
 						"file.hcl": Doc(
 							Block("block",
@@ -168,7 +168,7 @@ func TestGenerateSubDirsOnLabels(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack",
+					dir: "/stacks/stack",
 					files: map[string]fmt.Stringer{
 						"file.hcl": Doc(
 							Block("block",
@@ -223,7 +223,7 @@ func TestGenerateSubDirsOnLabels(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack/child-stack",
+					dir: "/stacks/stack/child-stack",
 					files: map[string]fmt.Stringer{
 						"child-stack/name.tf": Doc(
 							Block("something"),
@@ -281,7 +281,7 @@ func TestGenerateSubDirsOnLabels(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack/child-stack",
+					dir: "/stacks/stack/child-stack",
 					files: map[string]fmt.Stringer{
 						"child-stack/dir/name.tf": Doc(
 							Block("something"),
@@ -650,7 +650,7 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack",
+					dir: "/stacks/stack",
 					files: map[string]fmt.Stringer{
 						"repeated": stringer("test"),
 					},
@@ -694,7 +694,7 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stack",
+					dir: "/stack",
 					files: map[string]fmt.Stringer{
 						"repeated": stringer("test"),
 					},
@@ -739,7 +739,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 				t.Helper()
 
 				for _, wantDesc := range tcase.want {
-					stackRelPath := wantDesc.stack[1:]
+					stackRelPath := wantDesc.dir[1:]
 					stack := s.StackEntry(stackRelPath)
 
 					for name, wantFiles := range wantDesc.files {
@@ -774,7 +774,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 			// So we should have only basic terramate configs left
 			// There is potential to extract this for other code generation tests.
 			for _, wantDesc := range tcase.want {
-				stackRelPath := wantDesc.stack[1:]
+				stackRelPath := wantDesc.dir[1:]
 				stack := s.StackEntry(stackRelPath)
 				for name := range wantDesc.files {
 					stack.RemoveFile(name)

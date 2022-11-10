@@ -73,13 +73,13 @@ func TestGenerateHCL(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack-1",
+					dir: "/stacks/stack-1",
 					files: map[string]fmt.Stringer{
 						"empty": Doc(),
 					},
 				},
 				{
-					stack: "/stacks/stack-2",
+					dir: "/stacks/stack-2",
 					files: map[string]fmt.Stringer{
 						"empty": Doc(),
 					},
@@ -140,7 +140,7 @@ func TestGenerateHCL(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack-1",
+					dir: "/stacks/stack-1",
 					files: map[string]fmt.Stringer{
 						"stacks.hcl": Doc(
 							attr("stacks", `["/stacks/stack-1", "/stacks/stack-2"]`),
@@ -148,7 +148,7 @@ func TestGenerateHCL(t *testing.T) {
 					},
 				},
 				{
-					stack: "/stacks/stack-2",
+					dir: "/stacks/stack-2",
 					files: map[string]fmt.Stringer{
 						"stacks.hcl": Doc(
 							attr("stacks", `["/stacks/stack-1", "/stacks/stack-2"]`),
@@ -191,7 +191,7 @@ func TestGenerateHCL(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack-1",
+					dir: "/stacks/stack-1",
 					files: map[string]fmt.Stringer{
 						"stacks.hcl": Doc(
 							attr("stacks", `["/stacks/stack-1", "/stacks/stack-2"]`),
@@ -290,7 +290,7 @@ func TestGenerateHCL(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack-1",
+					dir: "/stacks/stack-1",
 					files: map[string]fmt.Stringer{
 						"backend.tf": Backend(
 							Labels("test"),
@@ -323,7 +323,7 @@ func TestGenerateHCL(t *testing.T) {
 					},
 				},
 				{
-					stack: "/stacks/stack-2",
+					dir: "/stacks/stack-2",
 					files: map[string]fmt.Stringer{
 						"backend.tf": Backend(
 							Labels("test"),
@@ -461,7 +461,7 @@ func TestGenerateHCL(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack-1",
+					dir: "/stacks/stack-1",
 					files: map[string]fmt.Stringer{
 						"backend.tf": Backend(
 							Labels("test"),
@@ -494,7 +494,7 @@ func TestGenerateHCL(t *testing.T) {
 					},
 				},
 				{
-					stack: "/stacks/stack-2",
+					dir: "/stacks/stack-2",
 					files: map[string]fmt.Stringer{
 						"backend.tf": Backend(
 							Labels("test"),
@@ -565,7 +565,7 @@ func TestGenerateHCL(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack-1",
+					dir: "/stacks/stack-1",
 					files: map[string]fmt.Stringer{
 						"traversal.tf": Doc(
 							Block("traversal",
@@ -577,7 +577,7 @@ func TestGenerateHCL(t *testing.T) {
 					},
 				},
 				{
-					stack: "/stacks/stack-2",
+					dir: "/stacks/stack-2",
 					files: map[string]fmt.Stringer{
 						"traversal.tf": Doc(
 							Block("traversal",
@@ -721,7 +721,7 @@ func TestGenerateHCL(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack",
+					dir: "/stacks/stack",
 					files: map[string]fmt.Stringer{
 						"repeated": Block("block",
 							Str("data", "stack data"),
