@@ -318,7 +318,7 @@ func doDirGeneration(cfg *config.Tree, evalctx *eval.Context) Report {
 
 		if block.Label[0] != '/' {
 			targetDir := path.Dir(block.Label)
-			report.addFailure(project.NewPath(targetDir), errors.E(
+			report.addFailure(project.NewPath("/"+targetDir), errors.E(
 				ErrInvalidGenBlockLabel,
 				"generate_file.context=root requires an absolute path but given %s",
 				block.Label))

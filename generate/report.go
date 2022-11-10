@@ -235,20 +235,44 @@ func (r *Report) addDirReport(path project.Path, sr dirReport) {
 		return
 	}
 
-	res := Result{
-		Dir:     path,
-		Created: sr.created,
-		Changed: sr.changed,
-		Deleted: sr.deleted,
-	}
+	// TODO(i4k): redesign report.
 
 	if sr.isSuccess() {
-		r.Successes = append(r.Successes, res)
+		for i, other := range r.Successes {
+			if other.Dir == path {
+				other.Created = append(other.Created, sr.created...)
+				other.Changed = append(other.Changed, sr.changed...)
+				other.Deleted = append(other.Deleted, sr.deleted...)
+				r.Successes[i] = other
+				return
+			}
+		}
+		r.Successes = append(r.Successes, Result{
+			Dir:     path,
+			Created: sr.created,
+			Changed: sr.changed,
+			Deleted: sr.deleted,
+		})
 		return
 	}
+
+	for i, other := range r.Failures {
+		if other.Dir == path {
+			other.Created = append(other.Created, sr.created...)
+			other.Changed = append(other.Changed, sr.changed...)
+			other.Deleted = append(other.Deleted, sr.deleted...)
+			r.Failures[i] = other
+			return
+		}
+	}
 	r.Failures = append(r.Failures, FailureResult{
-		Result: res,
-		Error:  sr.err,
+		Result: Result{
+			Dir:     path,
+			Created: sr.created,
+			Changed: sr.changed,
+			Deleted: sr.deleted,
+		},
+		Error: sr.err,
 	})
 }
 
