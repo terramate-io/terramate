@@ -15,7 +15,6 @@
 package eval_test
 
 import (
-	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -121,11 +120,9 @@ func TestTmVendor(t *testing.T) {
 			rootdir := t.TempDir()
 			events := make(chan eval.TmVendorEvent)
 			vendordir := project.NewPath(tcase.vendorDir)
-			basedir := filepath.Join(rootdir, tcase.targetDir)
+			targetdir := project.NewPath(tcase.targetDir)
 
-			test.MkdirAll(t, basedir)
-
-			ctx, err := eval.NewExtContext(rootdir, basedir, vendordir, events)
+			ctx, err := eval.NewExtContext(rootdir, rootdir, targetdir, vendordir, events)
 			assert.NoError(t, err)
 
 			gotEvents := []eval.TmVendorEvent{}
@@ -157,7 +154,7 @@ func TestTmVendor(t *testing.T) {
 			// piggyback on the current tests to validate that
 			// it also works with a nil channel (no interest on events).
 			t.Run("works with nil events channel", func(t *testing.T) {
-				ctx, err := eval.NewExtContext(rootdir, basedir, vendordir, nil)
+				ctx, err := eval.NewExtContext(rootdir, rootdir, targetdir, vendordir, nil)
 				assert.NoError(t, err)
 
 				val, err := ctx.Eval(test.NewExpr(t, tcase.expr))

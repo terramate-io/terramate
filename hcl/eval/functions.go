@@ -78,11 +78,7 @@ func tmAbspath(basedir string) function.Function {
 	})
 }
 
-func tmVendor(
-	rootdir, basedir string,
-	vendordir project.Path,
-	stream chan<- TmVendorEvent,
-) function.Function {
+func tmVendor(basedir, vendordir project.Path, stream chan<- TmVendorEvent) function.Function {
 	return function.New(&function.Spec{
 		Params: []function.Parameter{
 			{
@@ -99,8 +95,7 @@ func tmVendor(
 				return cty.NilVal, errors.E(err, "tm_vendor: invalid module source")
 			}
 			targetPath := modvendor.TargetDir(vendordir, modsrc)
-			basePath := project.PrjAbsPath(rootdir, basedir)
-			result, err := filepath.Rel(basePath.String(), targetPath.String())
+			result, err := filepath.Rel(basedir.String(), targetPath.String())
 			if err != nil {
 				panic(errors.E(
 					errors.ErrInternal, err,
