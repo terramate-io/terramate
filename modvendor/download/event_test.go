@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/modvendor/download"
 	"github.com/mineiros-io/terramate/project"
@@ -303,7 +304,7 @@ func TestVendorEvents(t *testing.T) {
 			}
 
 			vendorDir := project.NewPath(tcase.vendorDir)
-			wantEvents := make([]download.ProgressEvent, len(tcase.want))
+			wantEvents := make([]event.VendorProgressEvent, len(tcase.want))
 
 			for i, w := range tcase.want {
 				// We need to fix the wanted events with the proper
@@ -315,7 +316,7 @@ func TestVendorEvents(t *testing.T) {
 				// Target dir cant be easily defined on tests declaratively
 				// because on Windows they are manipulated differently.
 				// So we define it here, inferred from the desired module source.
-				wantEvents[i] = download.ProgressEvent{
+				wantEvents[i] = event.VendorProgressEvent{
 					Message:   w.message,
 					TargetDir: modvendor.TargetDir(vendorDir, modsrc),
 					Module:    modsrc,
@@ -328,7 +329,7 @@ func TestVendorEvents(t *testing.T) {
 
 			eventsHandled := make(chan struct{})
 			eventsStream := download.NewEventStream()
-			gotEvents := []download.ProgressEvent{}
+			gotEvents := []event.VendorProgressEvent{}
 
 			go func() {
 				for event := range eventsStream {

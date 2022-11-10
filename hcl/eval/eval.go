@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
 
@@ -73,7 +74,7 @@ func NewContext(basedir string) (*Context, error) {
 func (c *Context) SetTmVendor(
 	targetdir project.Path,
 	vendordir project.Path,
-	stream chan<- TmVendorEvent,
+	stream chan<- event.TmVendorEvent,
 ) {
 	c.hclctx.Functions["tm_vendor"] = tmVendor(targetdir, vendordir, stream)
 }

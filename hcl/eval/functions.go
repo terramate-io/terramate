@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/hcl/v2/ext/customdecode"
 	tflang "github.com/hashicorp/terraform/lang"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/tf"
@@ -28,13 +29,6 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 )
-
-// TmVendorEvent represents the event that is dispatched every time a tm_vendor
-// function is called.
-type TmVendorEvent struct {
-	// Source it the tm_vendor source argument
-	Source string
-}
 
 func newTmFunctions(basedir string) map[string]function.Function {
 	scope := &tflang.Scope{BaseDir: basedir}
@@ -78,7 +72,7 @@ func tmAbspath(basedir string) function.Function {
 	})
 }
 
-func tmVendor(basedir, vendordir project.Path, stream chan<- TmVendorEvent) function.Function {
+func tmVendor(basedir, vendordir project.Path, stream chan<- event.TmVendorEvent) function.Function {
 	return function.New(&function.Spec{
 		Params: []function.Parameter{
 			{
@@ -112,7 +106,7 @@ func tmVendor(basedir, vendordir project.Path, stream chan<- TmVendorEvent) func
 
 				logger.Debug().Msg("calculated path with success, sending event")
 
-				stream <- TmVendorEvent{
+				stream <- event.TmVendorEvent{
 					Source: source,
 				}
 

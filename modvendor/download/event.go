@@ -16,27 +16,18 @@ package download
 
 import (
 	"github.com/mineiros-io/terramate/event"
-	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/tf"
 )
 
-// ProgressEvent represents a vendor progress event.
-type ProgressEvent struct {
-	Message   string
-	TargetDir project.Path
-	Module    tf.Source
-}
-
 // EventStream is a stream of vendor related events.
-type EventStream event.Stream[ProgressEvent]
+type EventStream event.Stream[event.VendorProgressEvent]
 
 // NewEventStream creates a new event stream.
 func NewEventStream() EventStream {
 	const streamBufferSize = 100
-	return EventStream(event.NewStream[ProgressEvent](streamBufferSize))
+	return EventStream(event.NewStream[event.VendorProgressEvent](streamBufferSize))
 }
 
 // Send send a progress event.
-func (e EventStream) Send(pe ProgressEvent) bool {
-	return event.Stream[ProgressEvent](e).Send(pe)
+func (e EventStream) Send(pe event.VendorProgressEvent) bool {
+	return event.Stream[event.VendorProgressEvent](e).Send(pe)
 }

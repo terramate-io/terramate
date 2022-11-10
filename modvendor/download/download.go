@@ -26,6 +26,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/fs"
 	"github.com/mineiros-io/terramate/git"
 	"github.com/mineiros-io/terramate/modvendor"
@@ -365,7 +366,7 @@ func downloadVendor(
 		return "", err
 	}
 
-	event := ProgressEvent{
+	event := event.VendorProgressEvent{
 		Message:   "downloading",
 		TargetDir: modvendor.TargetDir(vendorDir, modsrc),
 		Module:    modsrc,
