@@ -390,6 +390,14 @@ func DetectOutdated(cfg *config.Tree) ([]string, error) {
 		}
 	}
 
+	// If the root of the project is a stack then there is no
+	// need to check orphaned files. All files are owned by
+	// the parent stack or its children.
+	if cfg.IsStack() {
+		sort.Strings(outdatedFiles)
+		return outdatedFiles, nil
+	}
+
 	orphanedFiles, err := ListGenFiles(cfg, cfg.RootDir())
 	if err != nil {
 		errs.Append(err)

@@ -259,6 +259,62 @@ func TestOutdatedDetection(t *testing.T) {
 			},
 		},
 		{
+			name: "detecting outdated code on root",
+			steps: []step{
+				{
+					layout: []string{
+						"s:/",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Str("content", "tm is awesome"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"test.hcl",
+						"test.txt",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Bool("condition", false),
+									Str("content", "tm is awesome"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Bool("condition", false),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"test.hcl",
+						"test.txt",
+					},
+				},
+			},
+		},
+		{
 			// TODO(KATCIPIS): when we remove the origin from gen code header
 			// this behavior will change.
 			name: "moving generate blocks to different files is detected on generate_hcl",
@@ -879,9 +935,12 @@ func TestOutdatedDetection(t *testing.T) {
 
 				assertEqualStringList(t, got, step.want)
 
+				t.Log("checking that after generate outdated detection should always return empty")
+
 				s.Generate()
 				got, err = generate.DetectOutdated(s.Config())
 				assert.NoError(t, err)
+
 				assertEqualStringList(t, got, []string{})
 			}
 		})
