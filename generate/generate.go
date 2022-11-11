@@ -207,9 +207,13 @@ func doStackGeneration(
 		return report
 	}
 
-	_, err = checkFileConflict(generated)
-	if err != nil {
-		report.err = err
+	errsmap := checkFileConflict(generated)
+	if len(errsmap) > 0 {
+		errs := errors.L()
+		for _, err := range errsmap {
+			errs.Append(err)
+		}
+		report.err = errs.AsError()
 		return report
 	}
 
@@ -337,14 +341,18 @@ func doDirGeneration(cfg *config.Tree, evalctx *eval.Context) Report {
 		files = append(files, file)
 	}
 
-	offended, err := checkFileConflict(files)
-	if err != nil {
-		targetDir := path.Dir(offended.Label())
-		report.addFailure(project.NewPath(targetDir), err)
-		return report
+	errsmap := checkFileConflict(files)
+	if len(errsmap) > 0 {
+		if len(errsmap) > 0 {
+			for file, err := range errsmap {
+				targetDir := path.Dir(file)
+				report.addFailure(project.NewPath(targetDir), err)
+			}
+			return report
+		}
 	}
 
-	errsmap := validateRootGeneratedFiles(cfg, files)
+	errsmap = validateRootGeneratedFiles(cfg, files)
 	if len(errsmap) > 0 {
 		for file, err := range errsmap {
 			targetDir := path.Dir(file)
@@ -1170,17 +1178,19 @@ func (ss *stringSet) slice() []string {
 	return res
 }
 
-func checkFileConflict(generated []GenFile) (GenFile, error) {
+func checkFileConflict(generated []GenFile) map[string]error {
 	genset := map[string]GenFile{}
+	errsmap := map[string]error{}
 	for _, file := range generated {
 		if other, ok := genset[file.Label()]; ok && file.Condition() {
-			return file, errors.E(ErrConflictingConfig,
+			errsmap[file.Label()] = errors.E(ErrConflictingConfig,
 				"configs from %q and %q generate a file with same name %q have "+
 					"`condition = true`",
 				file.Range().Path(),
 				other.Range().Path(),
 				file.Label(),
 			)
+			continue
 		}
 
 		if !file.Condition() {
@@ -1189,7 +1199,7 @@ func checkFileConflict(generated []GenFile) (GenFile, error) {
 
 		genset[file.Label()] = file
 	}
-	return nil, nil
+	return errsmap
 }
 
 func loadAsserts(tree *config.Tree, meta project.Metadata, sm stack.Metadata, globals *eval.Object) ([]config.Assert, error) {
