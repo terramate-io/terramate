@@ -94,6 +94,8 @@ type wantReport struct {
 }
 
 func TestDownloadVendor(t *testing.T) {
+	t.Parallel()
+
 	tcases := []testcase{
 		{
 			name: "module with no remote deps",
@@ -768,37 +770,54 @@ func TestDownloadVendor(t *testing.T) {
 		},
 	}
 
+	type fixture struct {
+		rootdir       string
+		vendorDir     project.Path
+		modsrc        tf.Source
+		uriModulesDir uri.URI
+	}
+
+	setup := func(t *testing.T, tc testcase) fixture {
+		s := sandbox.New(t)
+		s.BuildTree(tc.layout)
+
+		if tc.vendordir == "" {
+			tc.vendordir = "/vendor"
+		}
+
+		modulesDir := s.RootDir()
+		uriModulesDir := uri.File(modulesDir)
+		for _, cfg := range tc.configs {
+			test.WriteFile(t, s.RootDir(), cfg.path,
+				applyConfigTemplate(t, cfg.data.String(), uriModulesDir))
+
+			git := sandbox.NewGit(t, filepath.Join(modulesDir, cfg.repo))
+			git.CommitAll("files updated")
+		}
+		source := applyConfigTemplate(t, tc.source, uriModulesDir)
+		return fixture{
+			modsrc:        test.ParseSource(t, source),
+			rootdir:       t.TempDir(),
+			vendorDir:     project.NewPath(tc.vendordir),
+			uriModulesDir: uriModulesDir,
+		}
+	}
+
 	for _, tc := range tcases {
-		t.Run(tc.name, func(t *testing.T) {
-			s := sandbox.New(t)
-			s.BuildTree(tc.layout)
+		tcase := tc
+		t.Run(tcase.name, func(t *testing.T) {
+			t.Parallel()
 
-			if tc.vendordir == "" {
-				tc.vendordir = "/vendor"
-			}
-
-			modulesDir := s.RootDir()
-			uriModulesDir := uri.File(modulesDir)
-			for _, cfg := range tc.configs {
-				test.WriteFile(t, s.RootDir(), cfg.path,
-					applyConfigTemplate(t, cfg.data.String(), uriModulesDir))
-
-				git := sandbox.NewGit(t, filepath.Join(modulesDir, cfg.repo))
-				git.CommitAll("files updated")
-			}
-			source := applyConfigTemplate(t, tc.source, uriModulesDir)
-			modsrc := test.ParseSource(t, source)
-			rootdir := t.TempDir()
-			vendorDir := project.NewPath(tc.vendordir)
-			got := download.Vendor(rootdir, vendorDir, modsrc, nil)
+			f := setup(t, tcase)
+			got := download.Vendor(f.rootdir, f.vendorDir, f.modsrc, nil)
 			want := applyReportTemplate(t, wantReport{
-				Vendored: tc.wantVendored,
-				Ignored:  tc.wantIgnored,
-				Error:    tc.wantError,
-			}, string(uriModulesDir), vendorDir)
+				Vendored: tcase.wantVendored,
+				Ignored:  tcase.wantIgnored,
+				Error:    tcase.wantError,
+			}, string(f.uriModulesDir), f.vendorDir)
 
 			assertVendorReport(t, want, got)
-			checkWantedFiles(t, tc, uriModulesDir, rootdir, vendorDir)
+			checkWantedFiles(t, tcase, f.uriModulesDir, f.rootdir, f.vendorDir)
 		})
 	}
 }
