@@ -69,6 +69,7 @@ func TestGenerateIgnore(t *testing.T) {
 				"s:stacks/stack",
 				"s:stacks/stack-2",
 				"f:stacks/stack-2/" + config.SkipFilename,
+				"f:not-a-stack/" + config.SkipFilename,
 			},
 			configs: []hclconfig{
 				{
@@ -91,6 +92,14 @@ func TestGenerateIgnore(t *testing.T) {
 								Str("data", "data"),
 							),
 						),
+					),
+				},
+				{
+					path: "/not-a-stack",
+					add: GenerateFile(
+						Labels("/target/file.hcl"),
+						Expr("context", "root"),
+						Str("content", "data"),
 					),
 				},
 			},

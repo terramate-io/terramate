@@ -282,5 +282,37 @@ func TestGenerateRootContext(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "generate.context=root inside a subdir of stack generating elsewhere",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack/subdir/dir/file.tm",
+					add: GenerateFile(
+						Labels("/target/empty.txt"),
+						Expr("context", "root"),
+						Str("content", ""),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/target",
+					files: map[string]fmt.Stringer{
+						"empty.txt": stringer(""),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/target",
+						Created: []string{"empty.txt"},
+					},
+				},
+			},
+		},
 	})
 }
