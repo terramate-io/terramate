@@ -244,10 +244,6 @@ func doStackGeneration(
 	logger.Debug().Msg("saving generated files")
 
 	for _, file := range generated {
-		if !file.Condition() {
-			continue
-		}
-
 		filename := file.Label()
 		path := filepath.Join(stackpath, filename)
 		logger := logger.With().
