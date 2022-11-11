@@ -823,7 +823,6 @@ func TestDownloadVendor(t *testing.T) {
 
 		// Now we check that the same behavior is delivered via the vendor requests handler.
 		t.Run(tcase.name+"/handling as event", func(t *testing.T) {
-			t.Skip()
 			t.Parallel()
 
 			f := setup(t, tcase)

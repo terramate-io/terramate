@@ -113,9 +113,20 @@ func HandleVendorRequests(
 		logger.Debug().Msg("starting vendor request handler")
 
 		for vendorRequest := range vendorRequests {
-			logger.Debug().Msgf("got vendor request: %+v", vendorRequest)
-			//report := Vendor(rootdir, vendorRequest.VendorDir, vendorRequest.Source, progressEvents)
-			logger.Debug().Msgf("vendor request handled: %+v", vendorRequest)
+			logger = logger.With().
+				Str("modsrc", vendorRequest.Source.Raw).
+				Stringer("vendorDir", vendorRequest.VendorDir).
+				Logger()
+
+			logger.Debug().Msgf("handling vendor request")
+
+			report := Vendor(rootdir, vendorRequest.VendorDir, vendorRequest.Source, progressEvents)
+
+			logger.Debug().Msgf("handled vendor request, sending report")
+
+			reportsStream <- report
+
+			logger.Debug().Msgf("report sent")
 		}
 
 		logger.Debug().Msg("stopping vendor request handler")
