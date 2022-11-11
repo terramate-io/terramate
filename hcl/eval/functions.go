@@ -107,7 +107,8 @@ func tmVendor(basedir, vendordir project.Path, stream chan<- event.VendorRequest
 				logger.Debug().Msg("calculated path with success, sending event")
 
 				stream <- event.VendorRequest{
-					Source: source,
+					Source:    source,
+					VendorDir: vendordir,
 				}
 
 				log.Debug().Msg("event sent")

@@ -26,6 +26,8 @@ type (
 	VendorRequest struct {
 		// Source is the source of the module.
 		Source string
+		// VendorDir is where the source is supposed to be vendored.
+		VendorDir project.Path
 	}
 
 	// VendorProgress represents a vendor progress event.

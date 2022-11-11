@@ -43,7 +43,8 @@ func TestTmVendor(t *testing.T) {
 			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=main")`,
 			want:      "../vendor/github.com/mineiros-io/terramate/main",
 			wantEvent: event.VendorRequest{
-				Source: "github.com/mineiros-io/terramate?ref=main",
+				Source:    "github.com/mineiros-io/terramate?ref=main",
+				VendorDir: project.NewPath("/vendor"),
 			},
 		},
 		{
@@ -53,7 +54,8 @@ func TestTmVendor(t *testing.T) {
 			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=v1")`,
 			want:      "../../../modules/github.com/mineiros-io/terramate/v1",
 			wantEvent: event.VendorRequest{
-				Source: "github.com/mineiros-io/terramate?ref=v1",
+				Source:    "github.com/mineiros-io/terramate?ref=v1",
+				VendorDir: project.NewPath("/modules"),
 			},
 		},
 		{
@@ -63,7 +65,8 @@ func TestTmVendor(t *testing.T) {
 			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=main")`,
 			want:      "../vendor/dir/nested/github.com/mineiros-io/terramate/main",
 			wantEvent: event.VendorRequest{
-				Source: "github.com/mineiros-io/terramate?ref=main",
+				Source:    "github.com/mineiros-io/terramate?ref=main",
+				VendorDir: project.NewPath("/vendor/dir/nested"),
 			},
 		},
 		{
@@ -73,7 +76,8 @@ func TestTmVendor(t *testing.T) {
 			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=main")`,
 			want:      "modules/github.com/mineiros-io/terramate/main",
 			wantEvent: event.VendorRequest{
-				Source: "github.com/mineiros-io/terramate?ref=main",
+				Source:    "github.com/mineiros-io/terramate?ref=main",
+				VendorDir: project.NewPath("/modules"),
 			},
 		},
 		{
@@ -83,7 +87,8 @@ func TestTmVendor(t *testing.T) {
 			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=main")`,
 			want:      "github.com/mineiros-io/terramate/main",
 			wantEvent: event.VendorRequest{
-				Source: "github.com/mineiros-io/terramate?ref=main",
+				Source:    "github.com/mineiros-io/terramate?ref=main",
+				VendorDir: project.NewPath("/"),
 			},
 		},
 		{
