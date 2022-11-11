@@ -22,15 +22,15 @@ import (
 )
 
 type (
-	// TmVendorEvent represents the event that is dispatched when a tm_vendor
+	// TmVendorCall represents the event that is dispatched when a tm_vendor
 	// function is called.
-	TmVendorEvent struct {
+	TmVendorCall struct {
 		// Source it the tm_vendor source argument
 		Source string
 	}
 
-	// VendorProgressEvent represents a vendor progress event.
-	VendorProgressEvent struct {
+	// VendorProgress represents a vendor progress event.
+	VendorProgress struct {
 		Message   string
 		TargetDir project.Path
 		Module    tf.Source

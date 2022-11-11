@@ -74,7 +74,7 @@ func NewContext(basedir string) (*Context, error) {
 func (c *Context) SetTmVendor(
 	targetdir project.Path,
 	vendordir project.Path,
-	stream chan<- event.TmVendorEvent,
+	stream chan<- event.TmVendorCall,
 ) {
 	c.hclctx.Functions["tm_vendor"] = tmVendor(targetdir, vendordir, stream)
 }

@@ -304,7 +304,7 @@ func TestVendorEvents(t *testing.T) {
 			}
 
 			vendorDir := project.NewPath(tcase.vendorDir)
-			wantEvents := make([]event.VendorProgressEvent, len(tcase.want))
+			wantEvents := make([]event.VendorProgress, len(tcase.want))
 
 			for i, w := range tcase.want {
 				// We need to fix the wanted events with the proper
@@ -316,7 +316,7 @@ func TestVendorEvents(t *testing.T) {
 				// Target dir cant be easily defined on tests declaratively
 				// because on Windows they are manipulated differently.
 				// So we define it here, inferred from the desired module source.
-				wantEvents[i] = event.VendorProgressEvent{
+				wantEvents[i] = event.VendorProgress{
 					Message:   w.message,
 					TargetDir: modvendor.TargetDir(vendorDir, modsrc),
 					Module:    modsrc,
@@ -329,7 +329,7 @@ func TestVendorEvents(t *testing.T) {
 
 			eventsHandled := make(chan struct{})
 			eventsStream := download.NewEventStream()
-			gotEvents := []event.VendorProgressEvent{}
+			gotEvents := []event.VendorProgress{}
 
 			go func() {
 				for event := range eventsStream {

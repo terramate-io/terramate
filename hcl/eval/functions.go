@@ -72,7 +72,7 @@ func tmAbspath(basedir string) function.Function {
 	})
 }
 
-func tmVendor(basedir, vendordir project.Path, stream chan<- event.TmVendorEvent) function.Function {
+func tmVendor(basedir, vendordir project.Path, stream chan<- event.TmVendorCall) function.Function {
 	return function.New(&function.Spec{
 		Params: []function.Parameter{
 			{
@@ -106,7 +106,7 @@ func tmVendor(basedir, vendordir project.Path, stream chan<- event.TmVendorEvent
 
 				logger.Debug().Msg("calculated path with success, sending event")
 
-				stream <- event.TmVendorEvent{
+				stream <- event.TmVendorCall{
 					Source: source,
 				}
 

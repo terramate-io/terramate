@@ -19,15 +19,15 @@ import (
 )
 
 // EventStream is a stream of vendor related events.
-type EventStream event.Stream[event.VendorProgressEvent]
+type EventStream event.Stream[event.VendorProgress]
 
 // NewEventStream creates a new event stream.
 func NewEventStream() EventStream {
 	const streamBufferSize = 100
-	return EventStream(event.NewStream[event.VendorProgressEvent](streamBufferSize))
+	return EventStream(event.NewStream[event.VendorProgress](streamBufferSize))
 }
 
 // Send send a progress event.
-func (e EventStream) Send(pe event.VendorProgressEvent) bool {
-	return event.Stream[event.VendorProgressEvent](e).Send(pe)
+func (e EventStream) Send(pe event.VendorProgress) bool {
+	return event.Stream[event.VendorProgress](e).Send(pe)
 }

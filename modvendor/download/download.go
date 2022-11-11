@@ -366,7 +366,7 @@ func downloadVendor(
 		return "", err
 	}
 
-	event := event.VendorProgressEvent{
+	event := event.VendorProgress{
 		Message:   "downloading",
 		TargetDir: modvendor.TargetDir(vendorDir, modsrc),
 		Module:    modsrc,
