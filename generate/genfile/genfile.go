@@ -52,8 +52,11 @@ const (
 )
 
 const (
+	// StackContext is the stack context name.
 	StackContext = "stack"
-	RootContext  = "root"
+
+	// RootContext is the root context name.
+	RootContext = "root"
 )
 
 // File represents generated file from a single generate_file block.
@@ -149,16 +152,17 @@ func Load(
 	return files, nil
 }
 
-func Eval(genFileBlock hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
-	name := genFileBlock.Label
-	err := lets.Load(genFileBlock.Lets, evalctx)
+// Eval the generate_file block.
+func Eval(block hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
+	name := block.Label
+	err := lets.Load(block.Lets, evalctx)
 	if err != nil {
 		return File{}, err
 	}
 
 	condition := true
-	if genFileBlock.Condition != nil {
-		value, err := evalctx.Eval(genFileBlock.Condition.Expr)
+	if block.Condition != nil {
+		value, err := evalctx.Eval(block.Condition.Expr)
 		if err != nil {
 			return File{}, errors.E(ErrConditionEval, err)
 		}
@@ -175,16 +179,16 @@ func Eval(genFileBlock hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
 	if !condition {
 		return File{
 			label:     name,
-			origin:    genFileBlock.Range,
+			origin:    block.Range,
 			condition: condition,
 		}, nil
 	}
 
-	asserts := make([]config.Assert, len(genFileBlock.Asserts))
+	asserts := make([]config.Assert, len(block.Asserts))
 	assertsErrs := errors.L()
 	assertFailed := false
 
-	for i, assertCfg := range genFileBlock.Asserts {
+	for i, assertCfg := range block.Asserts {
 		assert, err := config.EvalAssert(evalctx, assertCfg)
 		if err != nil {
 			assertsErrs.Append(err)
@@ -203,13 +207,13 @@ func Eval(genFileBlock hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
 	if assertFailed {
 		return File{
 			label:     name,
-			origin:    genFileBlock.Range,
+			origin:    block.Range,
 			condition: condition,
 			asserts:   asserts,
 		}, nil
 	}
 
-	value, err := evalctx.Eval(genFileBlock.Content.Expr)
+	value, err := evalctx.Eval(block.Content.Expr)
 	if err != nil {
 		return File{}, errors.E(ErrContentEval, err)
 	}
@@ -224,7 +228,7 @@ func Eval(genFileBlock hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
 
 	return File{
 		label:     name,
-		origin:    genFileBlock.Range,
+		origin:    block.Range,
 		body:      value.AsString(),
 		condition: condition,
 		asserts:   asserts,
