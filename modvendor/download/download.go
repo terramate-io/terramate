@@ -187,7 +187,7 @@ func vendorAll(
 	events EventStream,
 ) Report {
 	logger := log.With().
-		Str("action", "modvendor.vendorAll()").
+		Str("action", "download.vendorAll()").
 		Str("dir", tfdir).
 		Logger()
 
