@@ -365,6 +365,10 @@ processSubdirs:
 // DetectOutdated will verify if the given config has outdated code
 // and return a list of filenames that are outdated, ordered lexicographically.
 func DetectOutdated(cfg *config.Tree) ([]string, error) {
+	logger := log.With().
+		Str("action", "generate.DetectOutdated()").
+		Logger()
+
 	stacks, err := stack.LoadAll(cfg)
 	if err != nil {
 		return nil, err
@@ -374,6 +378,8 @@ func DetectOutdated(cfg *config.Tree) ([]string, error) {
 
 	outdatedFiles := []string{}
 	errs := errors.L()
+
+	logger.Debug().Msg("checking outdated code inside stacks")
 
 	for _, stack := range stacks {
 		outdated, err := stackOutdated(cfg, projmeta, stack)
@@ -394,9 +400,13 @@ func DetectOutdated(cfg *config.Tree) ([]string, error) {
 	// need to check orphaned files. All files are owned by
 	// the parent stack or its children.
 	if cfg.IsStack() {
+		logger.Debug().Msg("project root is stack, no need to check for orphaned files")
+
 		sort.Strings(outdatedFiles)
 		return outdatedFiles, nil
 	}
+
+	logger.Debug().Msg("checking for orphaned files")
 
 	orphanedFiles, err := ListGenFiles(cfg, cfg.RootDir())
 	if err != nil {
