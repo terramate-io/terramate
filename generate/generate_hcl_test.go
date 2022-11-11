@@ -170,6 +170,43 @@ func TestGenerateHCL(t *testing.T) {
 			},
 		},
 		{
+			name: "generate HCL with stack on root",
+			layout: []string{
+				"s:/",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Content(
+								Expr("stacks", "terramate.stacks.list"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							attr("stacks", `["/"]`),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/",
+						Created: []string{"root.hcl"},
+					},
+				},
+			},
+		},
+		{
 			name: "generate HCL with terramate.stacks.list with workdir on stack",
 			layout: []string{
 				"s:stacks/stack-1",

@@ -135,6 +135,39 @@ func TestGenerateFile(t *testing.T) {
 			},
 		},
 		{
+			name: "generate_file with stack on root",
+			layout: []string{
+				"s:/",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateFile(
+							Labels("root.txt"),
+							Expr("content", `"${tm_jsonencode(terramate.stacks.list)}"`),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/",
+					files: map[string]fmt.Stringer{
+						"root.txt": stringer(`["/"]`),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/",
+						Created: []string{"root.txt"},
+					},
+				},
+			},
+		},
+		{
 			name: "terramate.stacks.list with stack workdir",
 			layout: []string{
 				"s:stacks/stack-1",
