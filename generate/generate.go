@@ -357,10 +357,21 @@ func doDirGeneration(cfg *config.Tree, evalctx *eval.Context) Report {
 		return report
 	}
 
-	offended, removedFiles, err := removeRootGeneratedFiles(cfg, files)
-	if err != nil {
-		targetDir := path.Dir(offended.Label())
-		report.addFailure(project.NewPath(targetDir), err)
+	errsmap := validateRootGeneratedFiles(cfg, files)
+	if len(errsmap) > 0 {
+		for file, err := range errsmap {
+			targetDir := path.Dir(file)
+			report.addFailure(project.NewPath(targetDir), err)
+		}
+		return report
+	}
+
+	removedFiles, errsmap := removeRootGeneratedFiles(cfg, files)
+	if len(errsmap) > 0 {
+		for file, err := range errsmap {
+			targetDir := path.Dir(file)
+			report.addFailure(project.NewPath(targetDir), err)
+		}
 		return report
 	}
 
@@ -949,12 +960,13 @@ func removeStackGeneratedFiles(
 func removeRootGeneratedFiles(
 	cfg *config.Tree,
 	genfiles []GenFile,
-) (GenFile, map[string]string, error) {
+) (map[string]string, map[string]error) {
 	logger := log.With().
 		Str("action", "generate.removeRootGeneratedFiles()").
 		Str("root", cfg.RootDir()).
 		Logger()
 
+	errs := make(map[string]error)
 	removedFiles := map[string]string{}
 
 	logger.Trace().Msg("deleting all Terramate generated files (context=root)")
@@ -973,19 +985,21 @@ func removeRootGeneratedFiles(
 				logger.Trace().Msg("ignoring file since it doesn't exist")
 				continue
 			}
-			return file, nil, errors.E(err, "reading gen file before removal")
+			errs[file.Label()] = errors.E(err, "reading gen file before removal")
+			continue
 		}
 
 		logger.Trace().Msg("removing file")
 
 		if err := os.Remove(path); err != nil {
-			return nil, nil, errors.E(err, "removing gen file")
+			errs[file.Label()] = errors.E(err, "removing gen file")
+			continue
 		}
 
 		removedFiles[file.Label()] = string(body)
 	}
 
-	return nil, removedFiles, nil
+	return removedFiles, errs
 }
 
 func hasGenHCLHeader(code string) bool {
@@ -1075,20 +1089,21 @@ func validateStackGeneratedFiles(cfg *config.Tree, stackpath string, generated [
 	return errs.AsError()
 }
 
-func validateRootGeneratedFiles(cfg *config.Tree, generated []GenFile) error {
+func validateRootGeneratedFiles(cfg *config.Tree, generated []GenFile) map[string]error {
 	logger := log.With().
-		Str("action", "generate.validateStackGeneratedFiles()").
+		Str("action", "generate.validateRootGeneratedFiles()").
 		Logger()
 
 	logger.Trace().Msg("Checking for invalid paths on root generated files.")
 
-	errs := errors.L()
+	errs := map[string]error{}
 	for _, file := range generated {
 		target := file.Label()
 		if !path.IsAbs(target) {
-			errs.Append(errors.E(
+			errs[file.Label()] = errors.E(
 				ErrInvalidGenBlockLabel, file.Range(),
-				"%s: is not an absolute path", target))
+				"%s: is not an absolute path", target,
+			)
 			continue
 		}
 
@@ -1104,33 +1119,38 @@ func validateRootGeneratedFiles(cfg *config.Tree, generated []GenFile) error {
 					destdir = filepath.Dir(destdir)
 					continue
 				}
-				errs.Append(errors.E(ErrInvalidGenBlockLabel, err,
+				errs[file.Label()] = errors.E(
+					ErrInvalidGenBlockLabel, err,
 					file.Range(),
 					"%s: checking if dest dir is a symlink",
-					file.Label()))
+					file.Label(),
+				)
 				break
 			}
 			if (info.Mode() & fs.ModeSymlink) == fs.ModeSymlink {
-				errs.Append(errors.E(ErrInvalidGenBlockLabel, err,
+				errs[file.Label()] = errors.E(
+					ErrInvalidGenBlockLabel, err,
 					file.Range(),
 					"%s: generates code inside a symlink",
-					file.Label()))
+					file.Label(),
+				)
 				break
 			}
 
 			if config.IsStack(cfg, destdir) {
-				errs.Append(errors.E(ErrInvalidGenBlockLabel,
+				errs[file.Label()] = errors.E(ErrInvalidGenBlockLabel,
 					file.Range(),
 					"%s: generate_file.context=root generates inside a stack %s",
 					file.Label(),
-					project.PrjAbsPath(cfg.RootDir(), destdir)))
+					project.PrjAbsPath(cfg.RootDir(), destdir),
+				)
 				break
 			}
 			destdir = filepath.Dir(destdir)
 		}
 	}
 
-	return errs.AsError()
+	return errs
 }
 
 type stringSet struct {
