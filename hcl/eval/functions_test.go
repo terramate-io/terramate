@@ -31,7 +31,7 @@ func TestTmVendor(t *testing.T) {
 		vendorDir string
 		targetDir string
 		want      string
-		wantEvent event.TmVendorCall
+		wantEvent event.VendorRequest
 		wantErr   bool
 	}
 
@@ -42,7 +42,7 @@ func TestTmVendor(t *testing.T) {
 			targetDir: "/dir",
 			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=main")`,
 			want:      "../vendor/github.com/mineiros-io/terramate/main",
-			wantEvent: event.TmVendorCall{
+			wantEvent: event.VendorRequest{
 				Source: "github.com/mineiros-io/terramate?ref=main",
 			},
 		},
@@ -52,7 +52,7 @@ func TestTmVendor(t *testing.T) {
 			targetDir: "/dir/subdir/again",
 			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=v1")`,
 			want:      "../../../modules/github.com/mineiros-io/terramate/v1",
-			wantEvent: event.TmVendorCall{
+			wantEvent: event.VendorRequest{
 				Source: "github.com/mineiros-io/terramate?ref=v1",
 			},
 		},
@@ -62,7 +62,7 @@ func TestTmVendor(t *testing.T) {
 			targetDir: "/dir",
 			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=main")`,
 			want:      "../vendor/dir/nested/github.com/mineiros-io/terramate/main",
-			wantEvent: event.TmVendorCall{
+			wantEvent: event.VendorRequest{
 				Source: "github.com/mineiros-io/terramate?ref=main",
 			},
 		},
@@ -72,7 +72,7 @@ func TestTmVendor(t *testing.T) {
 			targetDir: "/",
 			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=main")`,
 			want:      "modules/github.com/mineiros-io/terramate/main",
-			wantEvent: event.TmVendorCall{
+			wantEvent: event.VendorRequest{
 				Source: "github.com/mineiros-io/terramate?ref=main",
 			},
 		},
@@ -82,7 +82,7 @@ func TestTmVendor(t *testing.T) {
 			targetDir: "/",
 			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=main")`,
 			want:      "github.com/mineiros-io/terramate/main",
-			wantEvent: event.TmVendorCall{
+			wantEvent: event.VendorRequest{
 				Source: "github.com/mineiros-io/terramate?ref=main",
 			},
 		},
@@ -119,7 +119,7 @@ func TestTmVendor(t *testing.T) {
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
 			rootdir := t.TempDir()
-			events := make(chan event.TmVendorCall)
+			events := make(chan event.VendorRequest)
 			vendordir := project.NewPath(tcase.vendorDir)
 			targetdir := project.NewPath(tcase.targetDir)
 
@@ -128,7 +128,7 @@ func TestTmVendor(t *testing.T) {
 
 			ctx.SetTmVendor(targetdir, vendordir, events)
 
-			gotEvents := []event.TmVendorCall{}
+			gotEvents := []event.VendorRequest{}
 			done := make(chan struct{})
 			go func() {
 				for event := range events {

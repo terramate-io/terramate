@@ -27,6 +27,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/modvendor/download"
@@ -818,6 +819,34 @@ func TestDownloadVendor(t *testing.T) {
 
 			assertVendorReport(t, want, got)
 			checkWantedFiles(t, tcase, f.uriModulesDir, f.rootdir, f.vendorDir)
+		})
+
+		t.Run(tcase.name+"/handling as event", func(t *testing.T) {
+			t.Skip()
+			t.Parallel()
+
+			f := setup(t, tcase)
+
+			events := make(chan event.VendorRequest)
+			reports := download.HandleVendorRequests(events, nil)
+			events <- event.VendorRequest{
+				Source: tcase.source,
+			}
+
+			got := <-reports
+			want := applyReportTemplate(t, wantReport{
+				Vendored: tcase.wantVendored,
+				Ignored:  tcase.wantIgnored,
+				Error:    tcase.wantError,
+			}, string(f.uriModulesDir), f.vendorDir)
+
+			assertVendorReport(t, want, got)
+			checkWantedFiles(t, tcase, f.uriModulesDir, f.rootdir, f.vendorDir)
+
+			close(events)
+			if v, ok := <-reports; ok {
+				t.Fatalf("unexpected report %v", v)
+			}
 		})
 	}
 }

@@ -22,10 +22,9 @@ import (
 )
 
 type (
-	// TmVendorCall represents the event that is dispatched when a tm_vendor
-	// function is called.
-	TmVendorCall struct {
-		// Source it the tm_vendor source argument
+	// VendorRequest represents an event indicating that a request to vendor was made.
+	VendorRequest struct {
+		// Source is the source of the module.
 		Source string
 	}
 
