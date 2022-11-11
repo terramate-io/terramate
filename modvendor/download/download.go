@@ -433,7 +433,7 @@ func downloadVendor(
 
 func patchFiles(rootdir string, files []string, sources *sourcesInfo) error {
 	logger := log.With().
-		Str("action", "modvendor.patchFiles").
+		Str("action", "download.patchFiles").
 		Logger()
 
 	logger.Trace().Msg("patching vendored files")
