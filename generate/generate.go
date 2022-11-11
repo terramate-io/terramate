@@ -295,7 +295,8 @@ func Do(cfg *config.Tree, workingDir string) Report {
 //
 // When called with a dir that is not a stack this function will provide a list
 // of all orphaned generated files inside this dir, since it won't search inside any stacks.
-// So calling with dir == rootdir will provide all orphaned files inside a project.
+// So calling with dir == rootdir will provide all orphaned files inside a project if
+// the root of the project is not a stack.
 //
 // When called with a dir that is a stack this function will list all generated
 // files that are owned by the stack, since it won't search inside any child stacks.
@@ -962,6 +963,12 @@ func loadStackCodeCfgs(
 }
 
 func cleanupOrphaned(cfg *config.Tree, report Report) Report {
+	// If the root of the tree is a stack then there is nothing to do
+	// since there can't be any orphans (the root parent stack owns
+	// the entire project).
+	if cfg.IsStack() {
+		return report
+	}
 	orphanedGenFiles, err := ListGenFiles(cfg, cfg.RootDir())
 	if err != nil {
 		report.CleanupErr = err

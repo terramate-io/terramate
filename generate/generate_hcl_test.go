@@ -207,6 +207,69 @@ func TestGenerateHCL(t *testing.T) {
 			},
 		},
 		{
+			name: "generate HCL with stack on root and substacks",
+			layout: []string{
+				"s:/",
+				"s:/stack-1",
+				"s:/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateHCL(
+							Labels("root.hcl"),
+							Content(
+								Expr("stacks", "terramate.stacks.list"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							attr("stacks", `["/", "/stack-1", "/stack-2"]`),
+						),
+					},
+				},
+				{
+					stack: "/stack-1",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							attr("stacks", `["/", "/stack-1", "/stack-2"]`),
+						),
+					},
+				},
+				{
+					stack: "/stack-2",
+					files: map[string]fmt.Stringer{
+						"root.hcl": Doc(
+							attr("stacks", `["/", "/stack-1", "/stack-2"]`),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/",
+						Created: []string{"root.hcl"},
+					},
+					{
+						Dir:     "/stack-1",
+						Created: []string{"root.hcl"},
+					},
+					{
+						Dir:     "/stack-2",
+						Created: []string{"root.hcl"},
+					},
+				},
+			},
+		},
+		{
 			name: "generate HCL with terramate.stacks.list with workdir on stack",
 			layout: []string{
 				"s:stacks/stack-1",
