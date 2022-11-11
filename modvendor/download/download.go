@@ -110,7 +110,7 @@ func vendor(
 	events EventStream,
 ) Report {
 	logger := log.With().
-		Str("action", "modvendor.vendor()").
+		Str("action", "download.vendor()").
 		Str("module.source", modsrc.Raw).
 		Logger()
 
@@ -187,7 +187,7 @@ func vendorAll(
 	events EventStream,
 ) Report {
 	logger := log.With().
-		Str("action", "modvendor.vendorAll()").
+		Str("action", "download.vendorAll()").
 		Str("dir", tfdir).
 		Logger()
 
@@ -294,7 +294,7 @@ func downloadVendor(
 	events EventStream,
 ) (string, error) {
 	logger := log.With().
-		Str("action", "modvendor.downloadVendor()").
+		Str("action", "download.downloadVendor()").
 		Str("rootdir", rootdir).
 		Stringer("vendordir", vendorDir).
 		Str("url", modsrc.URL).
@@ -433,7 +433,7 @@ func downloadVendor(
 
 func patchFiles(rootdir string, files []string, sources *sourcesInfo) error {
 	logger := log.With().
-		Str("action", "modvendor.patchFiles").
+		Str("action", "download.patchFiles").
 		Logger()
 
 	logger.Trace().Msg("patching vendored files")
