@@ -110,7 +110,7 @@ func vendor(
 	events EventStream,
 ) Report {
 	logger := log.With().
-		Str("action", "modvendor.vendor()").
+		Str("action", "download.vendor()").
 		Str("module.source", modsrc.Raw).
 		Logger()
 
