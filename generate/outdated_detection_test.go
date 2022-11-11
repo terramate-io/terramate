@@ -315,6 +315,72 @@ func TestOutdatedDetection(t *testing.T) {
 			},
 		},
 		{
+			name: "detecting outdated code on root with sub-stacks",
+			steps: []step{
+				{
+					layout: []string{
+						"s:/",
+						"s:/stack-1",
+						"s:/stack-2",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Str("content", "tm is awesome"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
+						"stack-1/test.txt",
+						"stack-2/test.hcl",
+						"stack-2/test.txt",
+						"test.hcl",
+						"test.txt",
+					},
+				},
+				{
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Bool("condition", false),
+									Str("content", "tm is awesome"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Bool("condition", false),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
+						"stack-1/test.txt",
+						"stack-2/test.hcl",
+						"stack-2/test.txt",
+						"test.hcl",
+						"test.txt",
+					},
+				},
+			},
+		},
+		{
 			// TODO(KATCIPIS): when we remove the origin from gen code header
 			// this behavior will change.
 			name: "moving generate blocks to different files is detected on generate_hcl",
