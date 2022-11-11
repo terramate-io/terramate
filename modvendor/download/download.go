@@ -294,7 +294,7 @@ func downloadVendor(
 	events EventStream,
 ) (string, error) {
 	logger := log.With().
-		Str("action", "modvendor.downloadVendor()").
+		Str("action", "download.downloadVendor()").
 		Str("rootdir", rootdir).
 		Stringer("vendordir", vendorDir).
 		Str("url", modsrc.URL).
