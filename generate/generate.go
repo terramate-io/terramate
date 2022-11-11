@@ -971,12 +971,19 @@ func loadStackCodeCfgs(
 }
 
 func cleanupOrphaned(cfg *config.Tree, report Report) Report {
+	logger := log.With().
+		Str("action", "generate.cleanupOrphaned()").
+		Logger()
 	// If the root of the tree is a stack then there is nothing to do
 	// since there can't be any orphans (the root parent stack owns
 	// the entire project).
 	if cfg.IsStack() {
+		logger.Debug().Msg("project root is a stack, nothing to do")
 		return report
 	}
+
+	logger.Debug().Msg("listing orphaned generated files")
+
 	orphanedGenFiles, err := ListGenFiles(cfg, cfg.RootDir())
 	if err != nil {
 		report.CleanupErr = err
