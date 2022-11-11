@@ -89,23 +89,39 @@ func Vendor(
 	return vendor(rootdir, vendorDir, modsrc, report, nil, events)
 }
 
-// HandleVendorRequests creates a goroutine that will handle all vendor requests
-// sent on vendorRequests, calling [Vendor] for each event and sending the report
+// HandleVendorRequests starts a goroutine that will handle all vendor requests
+// sent on vendorRequests, calling [Vendor] for each event and sending one report
 // result for each event on the returned Report channel.
 //
-// It will block waiting for events on vendorRequests forever until the channel is closed.
+// It will read events from vendorRequests until it is closed.
 // If progressEvents is nil it will not send any progress events, like [Vendor].
 //
-// When vendorRequests is closed it will close the returned [Report] channel.
+// When vendorRequests is closed it will close the returned [Report] channel,
+// indicating that no more processing will be done.
 func HandleVendorRequests(
+	rootdir string,
 	vendorRequests <-chan event.VendorRequest,
 	progressEvents ProgressEventStream,
 ) <-chan Report {
 	reportsStream := make(chan Report)
-	//go func() {
-	//for vendorRequest := range vendorRequests {
-	//}
-	//}
+	go func() {
+		logger := log.With().
+			Str("action", "download.HandleVendorRequests()").
+			Str("rootdir", rootdir).
+			Logger()
+
+		logger.Debug().Msg("starting vendor request handler")
+
+		for vendorRequest := range vendorRequests {
+			logger.Debug().Msgf("got vendor request: %+v", vendorRequest)
+			//report := Vendor(rootdir, vendorRequest.VendorDir, vendorRequest.Source, progressEvents)
+			logger.Debug().Msgf("vendor request handled: %+v", vendorRequest)
+		}
+
+		logger.Debug().Msg("stopping vendor request handler")
+
+		close(reportsStream)
+	}()
 	return reportsStream
 }
 

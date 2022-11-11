@@ -821,6 +821,7 @@ func TestDownloadVendor(t *testing.T) {
 			checkWantedFiles(t, tcase, f.uriModulesDir, f.rootdir, f.vendorDir)
 		})
 
+		// Now we check that the same behavior is delivered via the vendor requests handler.
 		t.Run(tcase.name+"/handling as event", func(t *testing.T) {
 			t.Skip()
 			t.Parallel()
@@ -828,10 +829,12 @@ func TestDownloadVendor(t *testing.T) {
 			f := setup(t, tcase)
 
 			events := make(chan event.VendorRequest)
-			reports := download.HandleVendorRequests(events, nil)
+			reports := download.HandleVendorRequests(f.rootdir, events, nil)
 			events <- event.VendorRequest{
-				Source: tcase.source,
+				VendorDir: f.vendorDir,
+				Source:    f.modsrc,
 			}
+			close(events)
 
 			got := <-reports
 			want := applyReportTemplate(t, wantReport{
@@ -843,7 +846,6 @@ func TestDownloadVendor(t *testing.T) {
 			assertVendorReport(t, want, got)
 			checkWantedFiles(t, tcase, f.uriModulesDir, f.rootdir, f.vendorDir)
 
-			close(events)
 			if v, ok := <-reports; ok {
 				t.Fatalf("unexpected report %v", v)
 			}

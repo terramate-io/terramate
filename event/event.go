@@ -25,7 +25,7 @@ type (
 	// VendorRequest represents an event indicating that a request to vendor was made.
 	VendorRequest struct {
 		// Source is the source of the module.
-		Source string
+		Source tf.Source
 		// VendorDir is where the source is supposed to be vendored.
 		VendorDir project.Path
 	}
