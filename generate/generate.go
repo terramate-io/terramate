@@ -127,7 +127,7 @@ func Load(cfg *config.Tree) ([]LoadResult, error) {
 
 		var generated []GenFile
 		for _, block := range dircfg.Node.Generate.Files {
-			if !path.IsAbs(block.Label) {
+			if block.Context != genfile.RootContext {
 				continue
 			}
 
@@ -312,7 +312,7 @@ func doDirGeneration(cfg *config.Tree, evalctx *eval.Context) Report {
 	}
 
 	for _, block := range blocks {
-		if block.Context != "root" {
+		if block.Context != genfile.RootContext {
 			continue
 		}
 
@@ -336,19 +336,6 @@ func doDirGeneration(cfg *config.Tree, evalctx *eval.Context) Report {
 		}
 		files = append(files, file)
 	}
-
-	/*
-		var asserts []config.Assert
-		for _, file := range files {
-			asserts = append(asserts, file.Asserts()...)
-		}
-
-		err := handleAsserts(cfg.RootDir(), cfg.Dir(), asserts)
-		if err != nil {
-			report.err = err
-			return report
-		}
-	*/
 
 	offended, err := checkFileConflict(files)
 	if err != nil {

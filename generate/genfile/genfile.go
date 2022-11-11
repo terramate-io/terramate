@@ -51,6 +51,11 @@ const (
 	ErrLabelConflict errors.Kind = "label conflict detected"
 )
 
+const (
+	StackContext = "stack"
+	RootContext  = "root"
+)
+
 // File represents generated file from a single generate_file block.
 type File struct {
 	label     string
@@ -125,7 +130,7 @@ func Load(
 	var files []File
 
 	for _, genFileBlock := range genFileBlocks {
-		if genFileBlock.Context != "stack" {
+		if genFileBlock.Context != StackContext {
 			continue
 		}
 
