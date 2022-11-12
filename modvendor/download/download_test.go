@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package modvendor_test
+package download_test
 
 import (
 	"bytes"
@@ -29,6 +29,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/modvendor"
+	"github.com/mineiros-io/terramate/modvendor/download"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
@@ -92,7 +93,7 @@ type wantReport struct {
 	Error    error
 }
 
-func TestModVendor(t *testing.T) {
+func TestDownloadVendor(t *testing.T) {
 	tcases := []testcase{
 		{
 			name: "module with no remote deps",
@@ -789,7 +790,7 @@ func TestModVendor(t *testing.T) {
 			modsrc := test.ParseSource(t, source)
 			rootdir := t.TempDir()
 			vendorDir := project.NewPath(tc.vendordir)
-			got := modvendor.Vendor(rootdir, vendorDir, modsrc, nil)
+			got := download.Vendor(rootdir, vendorDir, modsrc, nil)
 			want := applyReportTemplate(t, wantReport{
 				Vendored: tc.wantVendored,
 				Ignored:  tc.wantIgnored,
@@ -812,17 +813,17 @@ func applyConfigTemplate(t *testing.T, input string, value interface{}) string {
 	return buf.String()
 }
 
-func applyReportTemplate(t *testing.T, r wantReport, value string, vendordir project.Path) modvendor.Report {
+func applyReportTemplate(t *testing.T, r wantReport, value string, vendordir project.Path) download.Report {
 	t.Helper()
-	out := modvendor.Report{
-		Vendored: make(map[project.Path]modvendor.Vendored),
+	out := download.Report{
+		Vendored: make(map[project.Path]download.Vendored),
 		Error:    r.Error,
 	}
 	for _, vendored := range r.Vendored {
 		rawSource := applyConfigTemplate(t, vendored, value)
 		modsrc, err := tf.ParseSource(rawSource)
 		assert.NoError(t, err)
-		out.Vendored[modvendor.TargetDir(vendordir, modsrc)] = modvendor.Vendored{
+		out.Vendored[modvendor.TargetDir(vendordir, modsrc)] = download.Vendored{
 			Source: modsrc,
 			Dir:    modvendor.TargetDir(vendordir, modsrc),
 		}
@@ -830,7 +831,7 @@ func applyReportTemplate(t *testing.T, r wantReport, value string, vendordir pro
 	for _, ignored := range r.Ignored {
 		rawSource := applyConfigTemplate(t, ignored.RawSource, value)
 		reason := applyConfigTemplate(t, ignored.ReasonPattern, value)
-		out.Ignored = append(out.Ignored, modvendor.IgnoredVendor{
+		out.Ignored = append(out.Ignored, download.IgnoredVendor{
 			RawSource: rawSource,
 			Reason:    reason,
 		})
@@ -971,9 +972,9 @@ func TestModVendorWithCommitIDRef(t *testing.T) {
 	assert.NoError(t, err)
 
 	const vendordir = "/dir/reftest/vendor"
-	got := modvendor.Vendor(rootdir, vendordir, source, nil)
-	assertVendorReport(t, modvendor.Report{
-		Vendored: map[project.Path]modvendor.Vendored{
+	got := download.Vendor(rootdir, vendordir, source, nil)
+	assertVendorReport(t, download.Report{
+		Vendored: map[project.Path]download.Vendored{
 			modvendor.TargetDir(vendordir, source): {
 				Source: source,
 				Dir:    modvendor.TargetDir(vendordir, source),
@@ -1007,10 +1008,10 @@ func TestModVendorWithRef(t *testing.T) {
 	source := newSource(t, gitURI, ref)
 
 	const vendordir = "/vendor"
-	got := modvendor.Vendor(rootdir, vendordir, source, nil)
+	got := download.Vendor(rootdir, vendordir, source, nil)
 	vendoredAt := modvendor.TargetDir(vendordir, source)
-	assertVendorReport(t, modvendor.Report{
-		Vendored: map[project.Path]modvendor.Vendored{
+	assertVendorReport(t, download.Report{
+		Vendored: map[project.Path]download.Vendored{
 			vendoredAt: {
 				Source: source,
 				Dir:    modvendor.TargetDir(vendordir, source),
@@ -1045,7 +1046,7 @@ func TestModVendorWithRef(t *testing.T) {
 		Ref:  newRef,
 		Path: path,
 	}
-	got = modvendor.Vendor(rootdir, vendordir, source, nil)
+	got = download.Vendor(rootdir, vendordir, source, nil)
 
 	wantCloneDir = modvendor.TargetDir(vendordir, source)
 	newCloneDir := got.Vendored[wantCloneDir].Dir
@@ -1078,12 +1079,12 @@ func TestModVendorDoesNothingIfRefExists(t *testing.T) {
 	const vendordir = "/vendor/fun"
 	clonedir := modvendor.AbsVendorDir(rootdir, vendordir, source)
 	test.MkdirAll(t, clonedir)
-	got := modvendor.Vendor(rootdir, vendordir, source, nil)
-	want := modvendor.Report{
-		Ignored: []modvendor.IgnoredVendor{
+	got := download.Vendor(rootdir, vendordir, source, nil)
+	want := download.Report{
+		Ignored: []download.IgnoredVendor{
 			{
 				RawSource: source.Raw,
-				Reason:    string(modvendor.ErrAlreadyVendored),
+				Reason:    string(download.ErrAlreadyVendored),
 			},
 		},
 	}
@@ -1102,10 +1103,10 @@ func TestModVendorNoRefFails(t *testing.T) {
 
 	source, err := tf.ParseSource(fmt.Sprintf("git::%s", gitURI))
 	assert.NoError(t, err)
-	report := modvendor.Vendor(rootdir, "/vendor", source, nil)
+	report := download.Vendor(rootdir, "/vendor", source, nil)
 
-	assertVendorReport(t, modvendor.Report{
-		Ignored: []modvendor.IgnoredVendor{
+	assertVendorReport(t, download.Report{
+		Ignored: []download.IgnoredVendor{
 			{
 				RawSource: source.Raw,
 				Reason:    "reference must be non-empty",
@@ -1123,7 +1124,7 @@ func TestModVendorVendorDirIsRelativeFails(t *testing.T) {
 	gitURI := uri.File(s.RootDir())
 	rootdir := t.TempDir()
 
-	report := modvendor.Vendor(rootdir, "../test", tf.Source{
+	report := download.Vendor(rootdir, "../test", tf.Source{
 		URL:  string(gitURI),
 		Path: path,
 		Ref:  "main",
@@ -1143,7 +1144,7 @@ func assertNoGitDir(t *testing.T, dir string) {
 	}
 }
 
-func assertVendorReport(t *testing.T, want, got modvendor.Report) {
+func assertVendorReport(t *testing.T, want, got download.Report) {
 	t.Helper()
 
 	assert.EqualInts(t, len(want.Vendored), len(got.Vendored),

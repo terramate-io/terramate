@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package modvendor
+package download
 
 import (
 	"fmt"
 	"strings"
 
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/tf"
 )
@@ -109,7 +110,7 @@ func (r Report) Verbose() string {
 }
 
 func (r *Report) addVendored(source tf.Source) {
-	dir := TargetDir(r.vendorDir, source)
+	dir := modvendor.TargetDir(r.vendorDir, source)
 	r.Vendored[dir] = Vendored{
 		Source: source,
 		Dir:    dir,
