@@ -597,7 +597,9 @@ func (c *cli) cloneStack() {
 }
 
 func (c *cli) generate(workdir string) {
-	report := generate.Do(c.cfg(), workdir)
+	// TODO(KATCIPIS): pass proper vendor request channel
+	// Add vendor request handler + progress event handling.
+	report := generate.Do(c.cfg(), workdir, c.vendorDir(), nil)
 	c.output.Msg(out.V, report.Full())
 
 	if report.HasFailures() {
@@ -783,7 +785,9 @@ func (c *cli) createStack() {
 	log.Info().Msgf("created stack %s", stackPath)
 	c.output.Msg(out.V, "Created stack %s", stackPath)
 
-	report := generate.Do(c.cfg(), stackDir)
+	// TODO(KATCIPIS): pass proper vendor request channel and handle events
+	// Avoid duplication from c.generate()
+	report := generate.Do(c.cfg(), stackDir, c.vendorDir(), nil)
 
 	if report.HasFailures() {
 		c.output.Msg(out.V, "Code generation failed")

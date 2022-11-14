@@ -206,7 +206,7 @@ func (s S) GenerateAt(cfg *config.Tree, path string) generate.Report {
 	t := s.t
 	t.Helper()
 
-	report := generate.Do(cfg, path)
+	report := generate.Do(cfg, path, project.NewPath("/modules"), nil)
 	for _, failure := range report.Failures {
 		t.Errorf("Generate unexpected failure: %v", failure)
 	}

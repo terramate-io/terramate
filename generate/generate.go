@@ -25,6 +25,7 @@ import (
 
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
@@ -122,19 +123,25 @@ func Load(cfg *config.Tree) ([]LoadResult, error) {
 // generating code for any stack it finds as it goes along.
 //
 // Code is generated based on configuration files spread around the entire
-// project until it reaches the given root. So even though a configuration
+// project until it reaches the given [config.Tree] root. So even though a configuration
 // file may be outside the given working dir it may be used on code generation
 // if it is in a dir that is a parent of a stack found inside the working dir.
 //
-// The provided root must be the project's root directory as an absolute path.
-// The provided working dir must be an absolute path that is a child of the
-// provided root (or the same as root, indicating that working dir is the project root).
+// The given vendorDir is used when calculating the vendor path using tm_vendor
+// on the generate blocks. The vendorRequests channel will be used on tm_vendor
+// calls to communicate each vendor request. If the caller is not interested on
+// [event.VendorRequest] events just pass a nil channel.
 //
 // It will return a report including details of which stacks succeed and failed
 // on code generation, any failure found is added to the report but does not abort
 // the overall code generation process, so partial results can be obtained and the
 // report needs to be inspected to check.
-func Do(cfg *config.Tree, workingDir string) Report {
+func Do(
+	cfg *config.Tree,
+	workingDir string,
+	vendorDir project.Path,
+	vendorRequests chan<- event.VendorRequest,
+) Report {
 	report := forEachStack(cfg, workingDir, func(
 		projmeta project.Metadata,
 		stack *stack.S,
