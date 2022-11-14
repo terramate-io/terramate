@@ -33,7 +33,7 @@ import (
 	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/fmt"
-	"github.com/mineiros-io/terramate/modvendor"
+	"github.com/mineiros-io/terramate/modvendor/download"
 
 	prj "github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/run"
@@ -472,7 +472,7 @@ func (c *cli) vendorDownload() {
 	parsedSource.Ref = ref
 
 	eventsHandled := make(chan struct{})
-	eventsStream := modvendor.NewEventStream()
+	eventsStream := download.NewEventStream()
 
 	go func() {
 		for event := range eventsStream {
@@ -488,7 +488,7 @@ func (c *cli) vendorDownload() {
 
 	logger.Debug().Msg("vendoring")
 
-	report := modvendor.Vendor(c.root(), c.vendorDir(), parsedSource, eventsStream)
+	report := download.Vendor(c.root(), c.vendorDir(), parsedSource, eventsStream)
 
 	logger.Debug().Msg("finished vendoring, waiting for all vendor events to be handled")
 

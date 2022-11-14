@@ -135,6 +135,94 @@ func TestGenerateFile(t *testing.T) {
 			},
 		},
 		{
+			name: "generate_file with stack on root",
+			layout: []string{
+				"s:/",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateFile(
+							Labels("root.txt"),
+							Expr("content", `"${tm_jsonencode(terramate.stacks.list)}"`),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/",
+					files: map[string]fmt.Stringer{
+						"root.txt": stringer(`["/"]`),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/",
+						Created: []string{"root.txt"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate_file with stack on root and substacks",
+			layout: []string{
+				"s:/",
+				"s:/stack-1",
+				"s:/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateFile(
+							Labels("root.txt"),
+							Expr("content", `"${tm_jsonencode(terramate.stacks.list)}"`),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/",
+					files: map[string]fmt.Stringer{
+						"root.txt": stringer(`["/","/stack-1","/stack-2"]`),
+					},
+				},
+				{
+					stack: "/stack-1",
+					files: map[string]fmt.Stringer{
+						"root.txt": stringer(`["/","/stack-1","/stack-2"]`),
+					},
+				},
+				{
+					stack: "/stack-2",
+					files: map[string]fmt.Stringer{
+						"root.txt": stringer(`["/","/stack-1","/stack-2"]`),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/",
+						Created: []string{"root.txt"},
+					},
+					{
+						Dir:     "/stack-1",
+						Created: []string{"root.txt"},
+					},
+					{
+						Dir:     "/stack-2",
+						Created: []string{"root.txt"},
+					},
+				},
+			},
+		},
+		{
 			name: "terramate.stacks.list with stack workdir",
 			layout: []string{
 				"s:stacks/stack-1",

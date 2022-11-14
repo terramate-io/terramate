@@ -24,6 +24,8 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/event"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
 
 	hhcl "github.com/hashicorp/hcl/v2"
@@ -58,14 +60,23 @@ func NewContext(basedir string) (*Context, error) {
 		Functions: newTmFunctions(basedir),
 		Variables: map[string]cty.Value{},
 	}
-	return NewContextFrom(hclctx), nil
+	return &Context{
+		hclctx: hclctx,
+	}, nil
 }
 
-// NewContextFrom creates a new Context from an hcl.Context.
-func NewContextFrom(ctx *hhcl.EvalContext) *Context {
-	return &Context{
-		hclctx: ctx,
-	}
+// SetTmVendor sets the tm_vendor function on this evaluation context.
+// The targetdir defines what tm_vendor will use to define the relative paths
+// of vendored dependencies.
+// The vendordir defines where modules are vendored inside the project.
+// The stream defines the event stream for tm_vendor, one event is produced
+// per successful function call.
+func (c *Context) SetTmVendor(
+	targetdir project.Path,
+	vendordir project.Path,
+	stream chan<- event.TmVendorCall,
+) {
+	c.hclctx.Functions["tm_vendor"] = tmVendor(targetdir, vendordir, stream)
 }
 
 // SetNamespace will set the given values inside the given namespace on the
@@ -219,4 +230,10 @@ func injectedTokensPrefix() []byte {
 		[]byte("<generated-hcl>"),
 		0,
 	)
+}
+
+func newContextFrom(ctx *hhcl.EvalContext) *Context {
+	return &Context{
+		hclctx: ctx,
+	}
 }
