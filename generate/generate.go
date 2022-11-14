@@ -825,11 +825,11 @@ func forEachDir(cfg *config.Tree, fn forEachRootFunc) Report {
 	report := Report{}
 	projmeta := project.NewMetadata(root.RootDir(), stackpaths)
 	evalctx, err := eval.NewContext(cfg.Dir())
-	evalctx.SetNamespace("terramate", projmeta.ToCtyMap())
 	if err != nil {
 		report.BootstrapErr = err
 		return report
 	}
+	evalctx.SetNamespace("terramate", projmeta.ToCtyMap())
 
 	for _, cfg := range cfg.Root().Dirs() {
 		if cfg.IsStack() {
