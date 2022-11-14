@@ -304,11 +304,6 @@ func doStackGeneration(
 }
 
 func doDirGeneration(cfg *config.Tree, evalctx *eval.Context) Report {
-	logger := log.With().
-		Str("action", "generate.doDirGeneration()").
-		Str("dir", cfg.Dir()).
-		Logger()
-
 	report := Report{}
 	var files []GenFile
 	blocks := cfg.Node.Generate.Files
@@ -362,109 +357,7 @@ func doDirGeneration(cfg *config.Tree, evalctx *eval.Context) Report {
 		return report
 	}
 
-	errs := make(map[string]error)
-	diskFiles := map[string]string{}
-	createFiles := map[string]GenFile{}
-	deleteFiles := map[string]bool{}
-
-	for _, file := range files {
-		if file.Condition() {
-			createFiles[file.Label()] = file
-		}
-	}
-
-	for _, file := range files {
-		if _, ok := createFiles[file.Label()]; !ok && !deleteFiles[file.Label()] {
-			deleteFiles[file.Label()] = true
-			filename := filepath.Join(cfg.RootDir(), file.Label())
-			_, err := os.Lstat(filename)
-			if err == nil {
-				err := os.Remove(filename)
-				if err != nil {
-					report.addFailure(project.NewPath(path.Dir(file.Label())),
-						errors.E(err, "deleting file"))
-					return report
-				}
-
-				dirReport := dirReport{}
-				filename := filepath.Base(file.Label())
-				dir := path.Dir(file.Label())
-				dirReport.addDeletedFile(filename)
-				report.addDirReport(project.NewPath(dir), dirReport)
-			}
-		}
-	}
-
-	logger.Trace().Msg("reading all Terramate generated files (context=root)")
-
-	for filename := range createFiles {
-		logger := logger.With().
-			Str("filename", filename).
-			Logger()
-
-		logger.Trace().Msg("reading file")
-
-		path := filepath.Join(cfg.RootDir(), filename)
-		body, err := os.ReadFile(path)
-		if err != nil {
-			if os.IsNotExist(err) {
-				logger.Trace().Msg("ignoring file since it doesn't exist")
-				continue
-			}
-			errs[filename] = errors.E(err, "reading generated file")
-			continue
-		}
-
-		diskFiles[filename] = string(body)
-	}
-
-	logger.Debug().Msg("saving generated files")
-
-	for _, file := range files {
-		dirReport := dirReport{}
-		target := filepath.Join(cfg.RootDir(), file.Label())
-		basedir := project.NewPath(path.Dir(file.Label()))
-		filename := filepath.Base(file.Label())
-		logger := logger.With().
-			Str("filename", target).
-			Logger()
-
-		if !file.Condition() {
-			logger.Debug().Msg("condition is false, ignoring file")
-			continue
-		}
-
-		err := writeGeneratedCode(target, file)
-		if err != nil {
-			dirReport.err = errors.E(err, "saving file %q", file.Label())
-			report.addDirReport(basedir, dirReport)
-			continue
-		}
-
-		// Change detection + remove entries that got re-generated
-		diskFileBody, ok := diskFiles[file.Label()]
-		if !ok {
-			log.Info().
-				Str("file", filename).
-				Msg("created file")
-
-			dirReport.addCreatedFile(filename)
-		} else {
-			body := file.Header() + file.Body()
-			if body != diskFileBody {
-				log.Info().
-					Str("file", filename).
-					Msg("changed file")
-
-				dirReport.addChangedFile(filename)
-			}
-			delete(diskFiles, filename)
-		}
-
-		report.addDirReport(basedir, dirReport)
-	}
-
-	logger.Debug().Msg("finished generating files")
+	generateRootFiles(cfg, files, &report)
 	return report
 }
 
@@ -1003,6 +896,97 @@ func removeStackGeneratedFiles(
 	}
 
 	return removedFiles, nil
+}
+
+func generateRootFiles(
+	cfg *config.Tree,
+	genfiles []GenFile,
+	report *Report,
+) {
+	diskFiles := map[string]string{}       // files already on disk
+	mustExistFiles := map[string]GenFile{} // files that must be present on disk
+	mustDeleteFiles := map[string]bool{}   // files to be deleted
+
+	// this computes the files that must be present on disk after generate
+	// returns. They should not be touched if they already exist on disk and
+	// have the same content.
+	for _, file := range genfiles {
+		if file.Condition() {
+			mustExistFiles[file.Label()] = file
+		}
+	}
+
+	// this computes the files that must be deleted if they are present on disk
+	for _, file := range genfiles {
+		if _, ok := mustExistFiles[file.Label()]; !ok {
+			mustDeleteFiles[file.Label()] = true
+		}
+	}
+
+	// reads the content of all existent files that must exist (if they are present).
+	for filename := range mustExistFiles {
+		abspath := filepath.Join(cfg.RootDir(), filename)
+		dir := path.Dir(filename)
+		body, err := os.ReadFile(abspath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			dirReport := dirReport{}
+			dirReport.err = errors.E(err, "reading generated file")
+			report.addDirReport(project.NewPath(dir), dirReport)
+			return
+		}
+
+		diskFiles[filename] = string(body)
+	}
+
+	// this deletes the files that exist but have condition=false.
+	for filename, mustDelete := range mustDeleteFiles {
+		if mustDelete {
+			abspath := filepath.Join(cfg.RootDir(), filename)
+			_, err := os.Lstat(abspath)
+			if err == nil {
+				dirReport := dirReport{}
+				dir := path.Dir(filename)
+
+				err := os.Remove(abspath)
+				if err != nil {
+					dirReport.err = errors.E(err, "deleting file")
+				} else {
+					dirReport.addDeletedFile(path.Base(filename))
+				}
+				report.addDirReport(project.NewPath(dir), dirReport)
+			}
+		}
+	}
+
+	// this writes the files that must exist (if needed).
+	for filename, genfile := range mustExistFiles {
+		target := filepath.Join(cfg.RootDir(), filename)
+		dir := path.Dir(filename)
+		baseFile := path.Base(filename)
+		body := genfile.Header() + genfile.Body()
+
+		dirReport := dirReport{}
+		diskContent, ok := diskFiles[filename]
+		if !ok || body != diskContent {
+			err := writeGeneratedCode(target, genfile)
+			if err != nil {
+				dirReport.err = errors.E(err, "saving file %s", filename)
+				report.addDirReport(project.NewPath(dir), dirReport)
+				continue
+			}
+		}
+
+		if !ok {
+			dirReport.addCreatedFile(baseFile)
+		} else if body != diskContent {
+			dirReport.addChangedFile(filename)
+		}
+
+		report.addDirReport(project.NewPath(dir), dirReport)
+	}
 }
 
 func hasGenHCLHeader(code string) bool {
