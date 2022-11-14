@@ -174,14 +174,14 @@ func (tree *Tree) Lookup(abspath project.Path) (*Tree, bool) {
 	return cfg, true
 }
 
-// Dirs returns all the configuration directories that have configurations.
-func (tree *Tree) Dirs() List {
-	var result List
-	if !tree.IsEmptyConfig() {
-		result = append(result, tree)
+// AsList returns a list with this node and all its children.
+func (tree *Tree) AsList() List {
+	result := []*Tree{
+		tree,
 	}
+
 	for _, children := range tree.Children {
-		result = append(result, children.Dirs()...)
+		result = append(result, children.AsList()...)
 	}
 	return result
 }

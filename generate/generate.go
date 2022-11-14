@@ -116,8 +116,8 @@ func Load(cfg *config.Tree) ([]LoadResult, error) {
 		results[i] = res
 	}
 
-	for _, dircfg := range cfg.Root().Dirs() {
-		if dircfg.IsStack() {
+	for _, dircfg := range cfg.Root().AsList() {
+		if dircfg.IsEmptyConfig() || dircfg.IsStack() {
 			continue
 		}
 		res := LoadResult{Dir: dircfg.ProjDir()}
@@ -854,8 +854,8 @@ func forEachDir(cfg *config.Tree, fn forEachRootFunc) Report {
 	}
 	evalctx.SetNamespace("terramate", projmeta.ToCtyMap())
 
-	for _, cfg := range cfg.Root().Dirs() {
-		if cfg.IsStack() {
+	for _, cfg := range cfg.Root().AsList() {
+		if cfg.IsEmptyConfig() || cfg.IsStack() {
 			continue
 		}
 		dirReport := fn(cfg, evalctx)

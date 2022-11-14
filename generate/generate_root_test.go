@@ -328,5 +328,44 @@ func TestGenerateRootContext(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "two generate_file with same labels and different condition",
+			configs: []hclconfig{
+				{
+					path: "/source/file.tm",
+					add: GenerateFile(
+						Labels("/target/file.txt"),
+						Expr("context", "root"),
+						Bool("condition", false),
+						Str("content", "content 1"),
+					),
+				},
+				{
+					path: "/source/file.tm",
+					add: GenerateFile(
+						Labels("/target/file.txt"),
+						Expr("context", "root"),
+						Bool("condition", true),
+						Str("content", "content 2"),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/target",
+					files: map[string]fmt.Stringer{
+						"file.txt": stringer("content 2"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/target",
+						Created: []string{"file.txt"},
+					},
+				},
+			},
+		},
 	})
 }
