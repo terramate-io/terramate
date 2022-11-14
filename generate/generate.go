@@ -139,10 +139,9 @@ func Load(cfg *config.Tree) ([]LoadResult, error) {
 			}
 
 			generated = append(generated, file)
-			
+			res.Files = generated
+			results = append(results, res)
 		}
-		res.Files = generated
-		results = append(results, res)
 	}
 	return results, nil
 }
