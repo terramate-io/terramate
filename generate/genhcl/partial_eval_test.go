@@ -26,6 +26,7 @@ import (
 	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/mineiros-io/terramate/test/hclwrite"
@@ -1566,7 +1567,8 @@ func TestPartialEval(t *testing.T) {
 			assert.NoError(t, err)
 
 			globals := s.LoadStackGlobals(cfg, projmeta, stack)
-			got, err := genhcl.Load(cfg, projmeta, stack, globals)
+			vendorDir := project.NewPath("/modules")
+			got, err := genhcl.Load(cfg, projmeta, stack, globals, vendorDir, nil)
 			errtest.Assert(t, err, tcase.wantErr)
 			if err != nil {
 				return

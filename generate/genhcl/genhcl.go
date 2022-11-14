@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/fmt"
@@ -142,11 +143,15 @@ func Load(
 	projmeta project.Metadata,
 	sm stack.Metadata,
 	globals *eval.Object,
+	vendorDir project.Path,
+	vendorRequests chan<- event.VendorRequest,
 ) ([]HCL, error) {
 	logger := log.With().
 		Str("action", "genhcl.Load()").
 		Str("path", sm.HostPath()).
 		Logger()
+
+	// TODO(KATCIPIS): SET TM_VENDOR CONTEXT
 
 	logger.Trace().Msg("loading generate_hcl blocks.")
 

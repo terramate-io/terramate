@@ -21,11 +21,14 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test/sandbox"
 
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
+
+// TODO(KATCIPIS): outdated detection when vendor dir changes
 
 func TestOutdatedDetection(t *testing.T) {
 	type (
@@ -34,10 +37,11 @@ func TestOutdatedDetection(t *testing.T) {
 			body fmt.Stringer
 		}
 		step struct {
-			layout  []string
-			files   []file
-			want    []string
-			wantErr error
+			layout    []string
+			vendorDir string
+			files     []file
+			want      []string
+			wantErr   error
 		}
 		testcase struct {
 			name  string
@@ -992,7 +996,12 @@ func TestOutdatedDetection(t *testing.T) {
 
 				s.ReloadConfig()
 
-				got, err := generate.DetectOutdated(s.Config())
+				vendorDir := project.NewPath("/modules")
+				if step.vendorDir != "" {
+					vendorDir = project.NewPath(step.vendorDir)
+				}
+
+				got, err := generate.DetectOutdated(s.Config(), vendorDir)
 
 				assert.IsError(t, err, step.wantErr)
 				if err != nil {
@@ -1004,7 +1013,7 @@ func TestOutdatedDetection(t *testing.T) {
 				t.Log("checking that after generate outdated detection should always return empty")
 
 				s.Generate()
-				got, err = generate.DetectOutdated(s.Config())
+				got, err = generate.DetectOutdated(s.Config(), vendorDir)
 				assert.NoError(t, err)
 
 				assertEqualStringList(t, got, []string{})

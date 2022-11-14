@@ -24,6 +24,7 @@ import (
 
 func TestGenerateVendor(t *testing.T) {
 	t.Parallel()
+	t.Skip()
 
 	testCodeGeneration(t, []testcase{
 		{

@@ -21,6 +21,7 @@ import (
 
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
@@ -116,7 +117,11 @@ func Load(
 	projmeta project.Metadata,
 	sm stack.Metadata,
 	globals *eval.Object,
+	vendorDir project.Path,
+	vendorRequests chan<- event.VendorRequest,
 ) ([]File, error) {
+	// TODO(KATCIPIS): SET TM_VENDOR CONTEXT
+
 	genFileBlocks, err := loadGenFileBlocks(cfg, sm.Path())
 	if err != nil {
 		return nil, errors.E("loading generate_file", err)

@@ -111,7 +111,9 @@ func Load(cfg *config.Tree, vendorDir project.Path) ([]LoadResult, error) {
 			continue
 		}
 
-		generated, err := loadStackCodeCfgs(cfg, projmeta, st, loadres.Globals)
+		// We are not interested on vendor request events on Load.
+		generated, err := loadStackCodeCfgs(cfg, projmeta, st,
+			loadres.Globals, vendorDir, nil)
 		if err != nil {
 			res.Err = err
 			results[i] = res
@@ -168,7 +170,8 @@ func Do(
 			return report
 		}
 
-		generated, err := loadStackCodeCfgs(cfg, projmeta, stack, globals)
+		// TODO(KATCIPIS): Test event stream integration
+		generated, err := loadStackCodeCfgs(cfg, projmeta, stack, globals, vendorDir, nil)
 		if err != nil {
 			report.err = err
 			return report
@@ -376,7 +379,9 @@ processSubdirs:
 
 // DetectOutdated will verify if the given config has outdated code
 // and return a list of filenames that are outdated, ordered lexicographically.
-func DetectOutdated(cfg *config.Tree) ([]string, error) {
+// The given vendorDir is used when calculating the vendor path using tm_vendor
+// on the generate blocks.
+func DetectOutdated(cfg *config.Tree, vendorDir project.Path) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.DetectOutdated()").
 		Logger()
@@ -394,7 +399,7 @@ func DetectOutdated(cfg *config.Tree) ([]string, error) {
 	logger.Debug().Msg("checking outdated code inside stacks")
 
 	for _, stack := range stacks {
-		outdated, err := stackOutdated(cfg, projmeta, stack)
+		outdated, err := stackOutdated(cfg, projmeta, stack, vendorDir)
 		if err != nil {
 			errs.Append(err)
 			continue
@@ -437,7 +442,12 @@ func DetectOutdated(cfg *config.Tree) ([]string, error) {
 // stackOutdated will verify if a given stack has outdated code and return a list
 // of filenames that are outdated, ordered lexicographically.
 // If the stack has an invalid configuration it will return an error.
-func stackOutdated(cfg *config.Tree, projmeta project.Metadata, st *stack.S) ([]string, error) {
+func stackOutdated(
+	cfg *config.Tree,
+	projmeta project.Metadata,
+	st *stack.S,
+	vendorDir project.Path,
+) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.stackOutdated").
 		Stringer("stack", st).
@@ -451,7 +461,7 @@ func stackOutdated(cfg *config.Tree, projmeta project.Metadata, st *stack.S) ([]
 	globals := report.Globals
 	stackpath := st.HostPath()
 
-	generated, err := loadStackCodeCfgs(cfg, projmeta, st, globals)
+	generated, err := loadStackCodeCfgs(cfg, projmeta, st, globals, vendorDir, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -964,15 +974,19 @@ func loadStackCodeCfgs(
 	projmeta project.Metadata,
 	st *stack.S,
 	globals *eval.Object,
+	vendorDir project.Path,
+	vendorRequests chan<- event.VendorRequest,
 ) ([]GenFile, error) {
 	var genfilesConfigs []GenFile
 
-	genfiles, err := genfile.Load(tree, projmeta, st, globals)
+	genfiles, err := genfile.Load(tree, projmeta, st, globals,
+		vendorDir, vendorRequests)
 	if err != nil {
 		return nil, err
 	}
 
-	genhcls, err := genhcl.Load(tree, projmeta, st, globals)
+	genhcls, err := genhcl.Load(tree, projmeta, st, globals,
+		vendorDir, vendorRequests)
 	if err != nil {
 		return nil, err
 	}
