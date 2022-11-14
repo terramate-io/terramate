@@ -225,25 +225,34 @@ func (p project) checkDefaultRemote() error {
 	)
 }
 
-func (p *project) checkLocalDefaultIsUpdated() error {
+func (p *project) checkRemoteDefaultBranchIsReachable() error {
 	gitcfg := p.gitcfg()
+
+	remoteDesc := fmt.Sprintf("remote(%s/%s)", gitcfg.DefaultRemote, gitcfg.DefaultBranch)
+
+	logger := log.With().
+		Str("head_hash", p.headCommit()).
+		Str("default_branch", remoteDesc).
+		Str("default_hash", p.remoteDefaultCommit()).
+		Logger()
+
+	outOfDateErr := errors.E(
+		ErrCurrentHeadIsOutOfDate,
+		"Please update the current branch with the latest changes from the default branch.",
+	)
+
 	mergeBaseCommitID, err := p.git.wrapper.MergeBase(p.headCommit(), p.remoteDefaultCommit())
 	if err != nil {
-		return fmt.Errorf(
-			"the reference %s/%s is not reachable from HEAD: %w",
-			gitcfg.DefaultRemote,
-			gitcfg.DefaultBranch,
-			err,
-		)
+		logger.Debug().
+			Msg("A common merge-base can not be determined between HEAD and default branch")
+		return outOfDateErr
 	}
 
 	if mergeBaseCommitID != p.remoteDefaultCommit() {
-		return errors.E(
-			ErrOutdatedLocalRev,
-			"remote %s/%s != HEAD",
-			gitcfg.DefaultRemote,
-			gitcfg.DefaultBranch,
-		)
+		logger.Debug().
+			Str("merge_base_hash", mergeBaseCommitID).
+			Msg("The default branch is not equal to the common merge-base of HEAD")
+		return outOfDateErr
 	}
 
 	return nil

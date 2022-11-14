@@ -17,7 +17,6 @@ package e2etest
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/mineiros-io/terramate/cmd/terramate/cli"
@@ -286,67 +285,6 @@ func TestBaseRefFlagPrecedenceOverDefault(t *testing.T) {
 	)
 }
 
-func TestFailsOnRunIfRemoteMainIsOutdated(t *testing.T) {
-	t.Parallel()
-
-	s := sandbox.New(t)
-
-	stack := s.CreateStack("stack-1")
-	mainTfFile := stack.CreateFile("main.tf", "# no code")
-
-	ts := newCLI(t, s.RootDir())
-
-	git := s.Git()
-
-	git.Add(".")
-	git.Commit("all")
-
-	setupLocalMainBranchBehindOriginMain(git, func() {
-		stack.CreateFile("tempfile", "any content")
-	})
-
-	wantRes := runExpected{
-		Status:      1,
-		StderrRegex: string(cli.ErrOutdatedLocalRev),
-	}
-
-	assertRunResult(t, ts.listChangedStacks(), wantRes)
-
-	testrun := func() {
-		assertRunResult(t, ts.run(
-			"run",
-			testHelperBin,
-			"cat",
-			mainTfFile.HostPath(),
-		), wantRes)
-
-		assertRunResult(t, ts.run(
-			"run",
-			"--changed",
-			testHelperBin,
-			"cat",
-			mainTfFile.HostPath(),
-		), wantRes)
-	}
-
-	testrun()
-
-	git.CheckoutNew("branch")
-
-	// we create two commits so we can also test from a DETACHED HEAD.
-	stack.CreateFile("tempfile2", "any content")
-	git.CommitAll("add tempfile2")
-
-	stack.CreateFile("tempfile3", "any content")
-	git.CommitAll("add tempfile3")
-
-	testrun()
-
-	git.Checkout("HEAD^1")
-
-	testrun()
-}
-
 func TestMainAfterOriginMainMustUseDefaultBaseRef(t *testing.T) {
 	t.Parallel()
 
@@ -484,39 +422,6 @@ terramate {
 `)
 
 	assertRun(t, cli.listChangedStacks())
-}
-
-func TestCommandsNotRequiringGitSafeguards(t *testing.T) {
-	t.Parallel()
-
-	// Regression test to guarantee that all git checks
-	// are disabled and no git operation will be performed for certain commands.
-	// Some people like to get some coding done on airplanes :-)
-	s := sandbox.New(t)
-	git := s.Git()
-	git.SetRemoteURL("origin", "http://non-existant/terramate.git")
-
-	s.CreateStack("stack")
-
-	cli := newCLI(t, s.RootDir())
-
-	cmds := []string{
-		"experimental metadata",
-		"experimental globals",
-		"experimental run-order",
-		"experimental run-graph",
-		"create stack-2",
-		"generate",
-		"list",
-	}
-	for _, cmd := range cmds {
-		t.Run(cmd, func(t *testing.T) {
-			args := strings.Split(cmd, " ")
-			assertRunResult(t, cli.run(args...), runExpected{
-				IgnoreStdout: true,
-			})
-		})
-	}
 }
 
 func TestE2ETerramateLogsWarningIfRootConfigIsNotAtProjectRoot(t *testing.T) {

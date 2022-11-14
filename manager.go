@@ -579,15 +579,15 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 		return nil, err
 	}
 
-	logger.Trace().
-		Msg("Get commit id of git base ref.")
+	logger.Trace().Msg("Get commit id of git base ref.")
+
 	baseRef, err := g.RevParse(gitBaseRef)
 	if err != nil {
 		return nil, errors.E(err, "getting revision %q", gitBaseRef)
 	}
 
-	logger.Trace().
-		Msg("Get commit id of HEAD.")
+	logger.Trace().Msg("Get commit id of HEAD.")
+
 	headRef, err := g.RevParse("HEAD")
 	if err != nil {
 		return nil, errors.E(err, "getting HEAD revision")
@@ -595,19 +595,6 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 
 	if baseRef == headRef {
 		return []string{}, nil
-	}
-
-	logger.Trace().
-		Msg("Find common commit ancestor of HEAd and base ref.")
-	mergeBaseRef, err := g.MergeBase("HEAD", baseRef)
-	if err != nil {
-		return nil, errors.E(err, "getting merge-base HEAD main")
-	}
-
-	if baseRef != mergeBaseRef {
-		return nil, errors.E(
-			"main branch is not reachable: main ref %q can't reach %q",
-			baseRef, mergeBaseRef)
 	}
 
 	return g.DiffNames(baseRef, headRef)
