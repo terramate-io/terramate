@@ -17,7 +17,6 @@ package generate_test
 import (
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -1031,56 +1030,6 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 	got = stack.ReadFile(genFilename)
 	test.AssertGenCodeEquals(t, got, secondWant.String())
 	assertEqualReports(t, s.Generate(), generate.Report{})
-}
-
-func TestGeneratedHCLHeaders(t *testing.T) {
-	t.Parallel()
-
-	const (
-		rootFilename        = "root.tf"
-		stackFilename       = "stack.tf"
-		traceHeaderTemplate = "TERRAMATE: originated from generate_hcl block on %s"
-	)
-
-	s := sandbox.New(t)
-	stackEntry := s.CreateStack("stack")
-	rootEntry := s.DirEntry(".")
-
-	rootEntry.CreateConfig(
-		GenerateHCL(
-			Labels(rootFilename),
-			Content(
-				Block("root",
-					Str("attr", "root"),
-				),
-			),
-		).String(),
-	)
-
-	stackEntry.CreateConfig(
-		GenerateHCL(
-			Labels(stackFilename),
-			Content(
-				Block("stack",
-					Str("attr", "stack"),
-				),
-			),
-		).String(),
-	)
-
-	s.Generate()
-
-	stackGen := stackEntry.ReadFile(stackFilename)
-	stackHeader := fmt.Sprintf(traceHeaderTemplate, path.Join("/stack", config.DefaultFilename))
-	if !strings.Contains(stackGen, stackHeader) {
-		t.Errorf("wanted header %q\n\ngenerated file:\n%s\n", stackHeader, stackGen)
-	}
-
-	rootGen := stackEntry.ReadFile(rootFilename)
-	rootHeader := fmt.Sprintf(traceHeaderTemplate, "/"+config.DefaultFilename)
-	if !strings.Contains(rootGen, rootHeader) {
-		t.Errorf("wanted header %q\n\ngenerated file:\n%s\n", rootHeader, rootGen)
-	}
 }
 
 func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
