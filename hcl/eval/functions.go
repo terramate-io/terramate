@@ -21,6 +21,11 @@ import (
 	"github.com/hashicorp/hcl/v2/ext/customdecode"
 	tflang "github.com/hashicorp/terraform/lang"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/event"
+	"github.com/mineiros-io/terramate/modvendor"
+	"github.com/mineiros-io/terramate/project"
+	"github.com/mineiros-io/terramate/tf"
+	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 )
@@ -63,6 +68,52 @@ func tmAbspath(basedir string) function.Function {
 			}
 
 			return cty.StringVal(filepath.Clean(abspath)), nil
+		},
+	})
+}
+
+func tmVendor(basedir, vendordir project.Path, stream chan<- event.TmVendorCall) function.Function {
+	return function.New(&function.Spec{
+		Params: []function.Parameter{
+			{
+				Name: "modsrc",
+				Type: cty.String,
+			},
+		},
+		Type: function.StaticReturnType(cty.String),
+		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+			// Param spec already enforce modsrc to be string.
+			source := args[0].AsString()
+			modsrc, err := tf.ParseSource(source)
+			if err != nil {
+				return cty.NilVal, errors.E(err, "tm_vendor: invalid module source")
+			}
+			targetPath := modvendor.TargetDir(vendordir, modsrc)
+			result, err := filepath.Rel(basedir.String(), targetPath.String())
+			if err != nil {
+				panic(errors.E(
+					errors.ErrInternal, err,
+					"tm_vendor: target dir cant be relative to basedir"))
+			}
+			// Because Windows
+			result = filepath.ToSlash(result)
+
+			if stream != nil {
+				logger := log.With().
+					Str("action", "tm_vendor").
+					Str("source", source).
+					Logger()
+
+				logger.Debug().Msg("calculated path with success, sending event")
+
+				stream <- event.TmVendorCall{
+					Source: source,
+				}
+
+				log.Debug().Msg("event sent")
+			}
+
+			return cty.StringVal(result), nil
 		},
 	})
 }
@@ -123,7 +174,7 @@ func ternary(cond cty.Value, val1, val2 cty.Value) (cty.Value, error) {
 func evalTernaryBranch(arg cty.Value) (cty.Value, error) {
 	closure := customdecode.ExpressionClosureFromVal(arg)
 
-	ctx := NewContextFrom(closure.EvalContext)
+	ctx := newContextFrom(closure.EvalContext)
 	newtokens, err := ctx.PartialEval(closure.Expression)
 	if err != nil {
 		return cty.NilVal, errors.E(err, "evaluating tm_ternary branch")

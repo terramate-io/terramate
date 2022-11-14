@@ -12,5 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package modvendor provides Terraform module vendoring support.
-package modvendor
+package download
+
+import (
+	"github.com/mineiros-io/terramate/event"
+)
+
+// EventStream is a stream of vendor related events.
+type EventStream event.Stream[event.VendorProgress]
+
+// NewEventStream creates a new event stream.
+func NewEventStream() EventStream {
+	const streamBufferSize = 100
+	return EventStream(event.NewStream[event.VendorProgress](streamBufferSize))
+}
+
+// Send send a progress event.
+func (e EventStream) Send(pe event.VendorProgress) bool {
+	return event.Stream[event.VendorProgress](e).Send(pe)
+}

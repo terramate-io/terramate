@@ -474,7 +474,8 @@ func handleAsserts(rootdir string, dir string, asserts []config.Assert) error {
 //
 // When called with a dir that is not a stack this function will provide a list
 // of all orphaned generated files inside this dir, since it won't search inside any stacks.
-// So calling with dir == rootdir will provide all orphaned files inside a project.
+// So calling with dir == rootdir will provide all orphaned files inside a project if
+// the root of the project is not a stack.
 //
 // When called with a dir that is a stack this function will list all generated
 // files that are owned by the stack, since it won't search inside any child stacks.
@@ -543,6 +544,10 @@ processSubdirs:
 // DetectOutdated will verify if the given config has outdated code
 // and return a list of filenames that are outdated, ordered lexicographically.
 func DetectOutdated(cfg *config.Tree) ([]string, error) {
+	logger := log.With().
+		Str("action", "generate.DetectOutdated()").
+		Logger()
+
 	stacks, err := stack.LoadAll(cfg)
 	if err != nil {
 		return nil, err
@@ -552,6 +557,8 @@ func DetectOutdated(cfg *config.Tree) ([]string, error) {
 
 	outdatedFiles := []string{}
 	errs := errors.L()
+
+	logger.Debug().Msg("checking outdated code inside stacks")
 
 	for _, stack := range stacks {
 		outdated, err := stackOutdated(cfg, projmeta, stack)
@@ -567,6 +574,18 @@ func DetectOutdated(cfg *config.Tree) ([]string, error) {
 				path.Join(stackRelPath, file))
 		}
 	}
+
+	// If the root of the project is a stack then there is no
+	// need to check orphaned files. All files are owned by
+	// the parent stack or its children.
+	if cfg.IsStack() {
+		logger.Debug().Msg("project root is stack, no need to check for orphaned files")
+
+		sort.Strings(outdatedFiles)
+		return outdatedFiles, nil
+	}
+
+	logger.Debug().Msg("checking for orphaned files")
 
 	orphanedFiles, err := ListGenFiles(cfg, cfg.RootDir())
 	if err != nil {
@@ -1277,6 +1296,19 @@ func loadStackCodeCfgs(
 }
 
 func cleanupOrphaned(cfg *config.Tree, report Report) Report {
+	logger := log.With().
+		Str("action", "generate.cleanupOrphaned()").
+		Logger()
+	// If the root of the tree is a stack then there is nothing to do
+	// since there can't be any orphans (the root parent stack owns
+	// the entire project).
+	if cfg.IsStack() {
+		logger.Debug().Msg("project root is a stack, nothing to do")
+		return report
+	}
+
+	logger.Debug().Msg("listing orphaned generated files")
+
 	orphanedGenFiles, err := ListGenFiles(cfg, cfg.RootDir())
 	if err != nil {
 		report.CleanupErr = err
