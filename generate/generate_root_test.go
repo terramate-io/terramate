@@ -361,7 +361,7 @@ func TestGenerateRootContext(t *testing.T) {
 			},
 		},
 		{
-			name: "two generate_file with different condition",
+			name: "two generate_file with different condition (first is false)",
 			configs: []hclconfig{
 				{
 					path: "/source/file.tm",
@@ -395,6 +395,78 @@ func TestGenerateRootContext(t *testing.T) {
 					{
 						Dir:     "/target",
 						Created: []string{"file.txt"},
+					},
+				},
+			},
+		},
+		{
+			name: "two generate_file with different condition (first is true)",
+			configs: []hclconfig{
+				{
+					path: "/source/file.tm",
+					add: GenerateFile(
+						Labels("/target/file.txt"),
+						Expr("context", "root"),
+						Bool("condition", true),
+						Str("content", "content 1"),
+					),
+				},
+				{
+					path: "/source/file.tm",
+					add: GenerateFile(
+						Labels("/target/file.txt"),
+						Expr("context", "root"),
+						Bool("condition", false),
+						Str("content", "content 2"),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/target",
+					files: map[string]fmt.Stringer{
+						"file.txt": stringer("content 1"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/target",
+						Created: []string{"file.txt"},
+					},
+				},
+			},
+		},
+		{
+			name: "multiple generate_file with same label and condition=true",
+			configs: []hclconfig{
+				{
+					path: "/source/file.tm",
+					add: GenerateFile(
+						Labels("/target/file.txt"),
+						Expr("context", "root"),
+						Bool("condition", true),
+						Str("content", "content 1"),
+					),
+				},
+				{
+					path: "/source/file.tm",
+					add: GenerateFile(
+						Labels("/target/file.txt"),
+						Expr("context", "root"),
+						Bool("condition", true),
+						Str("content", "content 2"),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/target",
+						},
+						Error: errors.E(generate.ErrConflictingConfig),
 					},
 				},
 			},

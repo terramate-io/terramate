@@ -362,7 +362,7 @@ func doDirGeneration(cfg *config.Tree, evalctx *eval.Context) Report {
 		return report
 	}
 
-	removedFiles, errsmap := removeRootGeneratedFiles(cfg, files)
+	diskFiles, errsmap := readAlreadyGeneratedFiles(cfg, files)
 	if len(errsmap) > 0 {
 		for file, err := range errsmap {
 			targetDir := path.Dir(file)
@@ -395,7 +395,7 @@ func doDirGeneration(cfg *config.Tree, evalctx *eval.Context) Report {
 		}
 
 		// Change detection + remove entries that got re-generated
-		removedFileBody, ok := removedFiles[file.Label()]
+		diskFileBody, ok := diskFiles[file.Label()]
 		if !ok {
 			log.Info().
 				Str("file", filename).
@@ -404,14 +404,14 @@ func doDirGeneration(cfg *config.Tree, evalctx *eval.Context) Report {
 			dirReport.addCreatedFile(filename)
 		} else {
 			body := file.Header() + file.Body()
-			if body != removedFileBody {
+			if body != diskFileBody {
 				log.Info().
 					Str("file", filename).
 					Msg("changed file")
 
 				dirReport.addChangedFile(filename)
 			}
-			delete(removedFiles, filename)
+			delete(diskFiles, filename)
 		}
 
 		report.addDirReport(basedir, dirReport)
@@ -958,26 +958,26 @@ func removeStackGeneratedFiles(
 	return removedFiles, nil
 }
 
-func removeRootGeneratedFiles(
+func readAlreadyGeneratedFiles(
 	cfg *config.Tree,
 	genfiles []GenFile,
 ) (map[string]string, map[string]error) {
 	logger := log.With().
-		Str("action", "generate.removeRootGeneratedFiles()").
+		Str("action", "generate.readAlreadyGeneratedFiles()").
 		Str("root", cfg.RootDir()).
 		Logger()
 
 	errs := make(map[string]error)
-	removedFiles := map[string]string{}
+	diskFiles := map[string]string{}
 
-	logger.Trace().Msg("deleting all Terramate generated files (context=root)")
+	logger.Trace().Msg("reading all Terramate generated files (context=root)")
 
 	for _, file := range genfiles {
 		logger := logger.With().
 			Str("filename", file.Label()).
 			Logger()
 
-		logger.Trace().Msg("reading current file before removal")
+		logger.Trace().Msg("reading file")
 
 		path := filepath.Join(cfg.RootDir(), file.Label())
 		body, err := os.ReadFile(path)
@@ -986,21 +986,14 @@ func removeRootGeneratedFiles(
 				logger.Trace().Msg("ignoring file since it doesn't exist")
 				continue
 			}
-			errs[file.Label()] = errors.E(err, "reading gen file before removal")
+			errs[file.Label()] = errors.E(err, "reading generated file")
 			continue
 		}
 
-		logger.Trace().Msg("removing file")
-
-		if err := os.Remove(path); err != nil {
-			errs[file.Label()] = errors.E(err, "removing gen file")
-			continue
-		}
-
-		removedFiles[file.Label()] = string(body)
+		diskFiles[file.Label()] = string(body)
 	}
 
-	return removedFiles, errs
+	return diskFiles, errs
 }
 
 func hasGenHCLHeader(code string) bool {
