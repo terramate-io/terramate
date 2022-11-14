@@ -117,6 +117,9 @@ func Load(cfg *config.Tree) ([]LoadResult, error) {
 	}
 
 	for _, dircfg := range cfg.Root().Dirs() {
+		if dircfg.IsStack() {
+			continue
+		}
 		res := LoadResult{Dir: dircfg.ProjDir()}
 		evalctx, err := eval.NewContext(dircfg.Dir())
 		if err != nil {
@@ -139,6 +142,8 @@ func Load(cfg *config.Tree) ([]LoadResult, error) {
 			}
 
 			generated = append(generated, file)
+		}
+		if len(generated) > 0 {
 			res.Files = generated
 			results = append(results, res)
 		}
