@@ -87,10 +87,14 @@ type LoadResult struct {
 // Load will load all the generated files inside the given tree.
 // Each directory will be represented by a single [LoadResult] inside the returned slice.
 // Errors generating code for specific dirs will be found inside each [LoadResult].
+//
+// The given vendorDir is used when calculating the vendor path using tm_vendor
+// on the generate blocks.
+//
 // If a critical error that fails the loading of all results happens it returns
 // a non-nil error. In this case the error is not specific to generating code for a
 // specific dir.
-func Load(cfg *config.Tree) ([]LoadResult, error) {
+func Load(cfg *config.Tree, vendorDir project.Path) ([]LoadResult, error) {
 	stacks, err := stack.LoadAll(cfg)
 	if err != nil {
 		return nil, err
@@ -151,6 +155,7 @@ func Do(
 		logger := log.With().
 			Str("action", "generate.Do()").
 			Stringer("stack", stack.Path()).
+			Stringer("vendorDir", vendorDir).
 			Logger()
 
 		report := dirReport{}

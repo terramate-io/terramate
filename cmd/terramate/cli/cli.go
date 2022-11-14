@@ -1086,7 +1086,7 @@ func (c *cli) generateDebug() {
 		selectedStacks[stack.Path()] = struct{}{}
 	}
 
-	results, err := generate.Load(c.cfg())
+	results, err := generate.Load(c.cfg(), c.vendorDir())
 	if err != nil {
 		fatal(err, "generate debug: loading generated code")
 	}

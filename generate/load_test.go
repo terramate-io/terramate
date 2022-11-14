@@ -555,7 +555,7 @@ func TestLoad(t *testing.T) {
 				root.CreateFile(cfg.path, cfg.body.String())
 			}
 
-			got, err := generate.Load(s.Config())
+			got, err := generate.Load(s.Config(), project.NewPath("/modules"))
 			assert.IsError(t, err, tcase.wantErr)
 			if tcase.wantErr != nil {
 				return
