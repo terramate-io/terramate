@@ -33,7 +33,7 @@ func TestGenerateRootContext(t *testing.T) {
 			name: "empty generates empty file",
 			configs: []hclconfig{
 				{
-					path: "/source/file.tm",
+					path: "/source",
 					add: GenerateFile(
 						Labels("/target/empty.txt"),
 						Expr("context", "root"),
@@ -62,7 +62,7 @@ func TestGenerateRootContext(t *testing.T) {
 			name: "generate_file with false condition generates nothing",
 			configs: []hclconfig{
 				{
-					path: "/source/file.tm",
+					path: "/source",
 					add: GenerateFile(
 						Labels("/target/file.txt"),
 						Expr("context", "root"),
@@ -174,7 +174,7 @@ func TestGenerateRootContext(t *testing.T) {
 			name: "generate_file.context=stack is ignored if not parent of any stack",
 			configs: []hclconfig{
 				{
-					path: "/source/file.tm",
+					path: "/source",
 					add: GenerateFile(
 						Labels("/target/file.txt"),
 						Expr("context", "root"),
@@ -183,7 +183,7 @@ func TestGenerateRootContext(t *testing.T) {
 					),
 				},
 				{
-					path: "/source/file.tm",
+					path: "/source",
 					add: GenerateFile(
 						Labels("file.txt"),
 						Expr("context", "stack"),
@@ -335,7 +335,7 @@ func TestGenerateRootContext(t *testing.T) {
 			name: "N generate_file with condition=false",
 			configs: []hclconfig{
 				{
-					path: "/source/file.tm",
+					path: "/source",
 					add: GenerateFile(
 						Labels("/target/file.txt"),
 						Expr("context", "root"),
@@ -344,7 +344,7 @@ func TestGenerateRootContext(t *testing.T) {
 					),
 				},
 				{
-					path: "/source/file.tm",
+					path: "/source",
 					add: GenerateFile(
 						Labels("/target/file.txt"),
 						Expr("context", "root"),
@@ -353,7 +353,7 @@ func TestGenerateRootContext(t *testing.T) {
 					),
 				},
 				{
-					path: "/source/file.tm",
+					path: "/source",
 					add: GenerateFile(
 						Labels("/target/file.txt"),
 						Expr("context", "root"),
@@ -367,7 +367,7 @@ func TestGenerateRootContext(t *testing.T) {
 			name: "two generate_file with different condition (first is false)",
 			configs: []hclconfig{
 				{
-					path: "/source/file.tm",
+					path: "/source",
 					add: GenerateFile(
 						Labels("/target/file.txt"),
 						Expr("context", "root"),
@@ -376,7 +376,7 @@ func TestGenerateRootContext(t *testing.T) {
 					),
 				},
 				{
-					path: "/source/file.tm",
+					path: "/source",
 					add: GenerateFile(
 						Labels("/target/file.txt"),
 						Expr("context", "root"),
@@ -406,7 +406,7 @@ func TestGenerateRootContext(t *testing.T) {
 			name: "two generate_file with different condition (first is true)",
 			configs: []hclconfig{
 				{
-					path: "/source/file.tm",
+					path: "/source",
 					add: GenerateFile(
 						Labels("/target/file.txt"),
 						Expr("context", "root"),
@@ -415,7 +415,7 @@ func TestGenerateRootContext(t *testing.T) {
 					),
 				},
 				{
-					path: "/source/file.tm",
+					path: "/source",
 					add: GenerateFile(
 						Labels("/target/file.txt"),
 						Expr("context", "root"),
@@ -445,7 +445,7 @@ func TestGenerateRootContext(t *testing.T) {
 			name: "multiple generate_file with same label and condition=true",
 			configs: []hclconfig{
 				{
-					path: "/source/file.tm",
+					path: "/source",
 					add: GenerateFile(
 						Labels("/target/file.txt"),
 						Expr("context", "root"),
@@ -454,7 +454,7 @@ func TestGenerateRootContext(t *testing.T) {
 					),
 				},
 				{
-					path: "/source/file.tm",
+					path: "/source",
 					add: GenerateFile(
 						Labels("/target/file.txt"),
 						Expr("context", "root"),
@@ -470,6 +470,95 @@ func TestGenerateRootContext(t *testing.T) {
 							Dir: "/target",
 						},
 						Error: errors.E(generate.ErrConflictingConfig),
+					},
+				},
+			},
+		},
+		{
+			name: "multiple generate blocks with interleaving conditional blocks",
+			layout: []string{
+				"d:source",
+			},
+			configs: []hclconfig{
+				{
+					path: "/source",
+					add: GenerateFile(
+						Labels("/target/file.txt"),
+						Expr("context", "root"),
+						Bool("condition", true),
+						Str("content", "content 1"),
+					),
+				},
+				{
+					path: "/source",
+					add: GenerateFile(
+						Labels("/target/file.txt"),
+						Expr("context", "root"),
+						Bool("condition", false),
+						Str("content", "content 2"),
+					),
+				},
+				{
+					path: "/source",
+					add: GenerateFile(
+						Labels("/target/file.txt"),
+						Expr("context", "root"),
+						Bool("condition", false),
+						Str("content", "content 3"),
+					),
+				},
+				{
+					path: "/source",
+					add: GenerateFile(
+						Labels("/target/file2.txt"),
+						Expr("context", "root"),
+						Bool("condition", true),
+						Str("content", "content 4"),
+					),
+				},
+				{
+					path: "/source",
+					add: GenerateFile(
+						Labels("/target/file.txt"),
+						Expr("context", "root"),
+						Bool("condition", false),
+						Str("content", "content 5"),
+					),
+				},
+				{
+					path: "/source",
+					add: GenerateFile(
+						Labels("/target/file.txt"),
+						Expr("context", "root"),
+						Bool("condition", false),
+						Str("content", "content 6"),
+					),
+				},
+				{
+					path: "/source",
+					add: GenerateFile(
+						Labels("/target/file3.txt"),
+						Expr("context", "root"),
+						Bool("condition", true),
+						Str("content", "content 7"),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/target",
+					files: map[string]fmt.Stringer{
+						"file.txt":  stringer("content 1"),
+						"file2.txt": stringer("content 4"),
+						"file3.txt": stringer("content 7"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/target",
+						Created: []string{"file.txt", "file2.txt", "file3.txt"},
 					},
 				},
 			},

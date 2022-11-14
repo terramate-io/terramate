@@ -135,7 +135,7 @@ func TestGenerateIgnore(t *testing.T) {
 	})
 }
 
-func TestGenerateSubDirsOnLabels(t *testing.T) {
+func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 	t.Parallel()
 
 	testCodeGeneration(t, []testcase{
@@ -729,7 +729,6 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Helper()
-			t.Parallel()
 
 			if tcase.skipOn == runtime.GOOS {
 				t.Skipf("skipping on GOOS %q", tcase.skipOn)

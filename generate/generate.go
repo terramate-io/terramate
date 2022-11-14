@@ -923,10 +923,10 @@ func generateRootFiles(
 		}
 	}
 
-	// reads the content of all existent files that must exist (if they are present).
-	for filename := range mustExistFiles {
-		abspath := filepath.Join(cfg.RootDir(), filename)
-		dir := path.Dir(filename)
+	// reads the content of must-exist files (if they are present).
+	for label := range mustExistFiles {
+		abspath := filepath.Join(cfg.RootDir(), label)
+		dir := path.Dir(label)
 		body, err := os.ReadFile(abspath)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -938,7 +938,7 @@ func generateRootFiles(
 			return
 		}
 
-		diskFiles[filename] = string(body)
+		diskFiles[label] = string(body)
 	}
 
 	// this deletes the files that exist but have condition=false.
@@ -962,30 +962,30 @@ func generateRootFiles(
 	}
 
 	// this writes the files that must exist (if needed).
-	for filename, genfile := range mustExistFiles {
-		target := filepath.Join(cfg.RootDir(), filename)
-		dir := path.Dir(filename)
-		baseFile := path.Base(filename)
+	for label, genfile := range mustExistFiles {
+		abspath := filepath.Join(cfg.RootDir(), label)
+		filename := path.Base(label)
+		dir := project.NewPath(path.Dir(label))
 		body := genfile.Header() + genfile.Body()
 
 		dirReport := dirReport{}
-		diskContent, ok := diskFiles[filename]
-		if !ok || body != diskContent {
-			err := writeGeneratedCode(target, genfile)
+		diskContent, existOnDisk := diskFiles[label]
+		if !existOnDisk || body != diskContent {
+			err := writeGeneratedCode(abspath, genfile)
 			if err != nil {
-				dirReport.err = errors.E(err, "saving file %s", filename)
-				report.addDirReport(project.NewPath(dir), dirReport)
+				dirReport.err = errors.E(err, "saving file %s", label)
+				report.addDirReport(dir, dirReport)
 				continue
 			}
 		}
 
-		if !ok {
-			dirReport.addCreatedFile(baseFile)
+		if !existOnDisk {
+			dirReport.addCreatedFile(filename)
 		} else if body != diskContent {
-			dirReport.addChangedFile(filename)
+			dirReport.addChangedFile(label)
 		}
 
-		report.addDirReport(project.NewPath(dir), dirReport)
+		report.addDirReport(dir, dirReport)
 	}
 }
 
