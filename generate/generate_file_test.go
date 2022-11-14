@@ -152,7 +152,7 @@ func TestGenerateFile(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/",
+					dir: "/",
 					files: map[string]fmt.Stringer{
 						"root.txt": stringer(`["/"]`),
 					},
@@ -187,19 +187,19 @@ func TestGenerateFile(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/",
+					dir: "/",
 					files: map[string]fmt.Stringer{
 						"root.txt": stringer(`["/","/stack-1","/stack-2"]`),
 					},
 				},
 				{
-					stack: "/stack-1",
+					dir: "/stack-1",
 					files: map[string]fmt.Stringer{
 						"root.txt": stringer(`["/","/stack-1","/stack-2"]`),
 					},
 				},
 				{
-					stack: "/stack-2",
+					dir: "/stack-2",
 					files: map[string]fmt.Stringer{
 						"root.txt": stringer(`["/","/stack-1","/stack-2"]`),
 					},
