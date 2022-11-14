@@ -16,10 +16,13 @@ package generate_test
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/mineiros-io/terramate/errors"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
+	"github.com/mineiros-io/terramate/test/sandbox"
 
 	"github.com/mineiros-io/terramate/generate"
 )
@@ -472,4 +475,73 @@ func TestGenerateRootContext(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestGenerateFileWithRootContextRemoveFilesWhenConditionIsFalse(t *testing.T) {
+	t.Parallel()
+
+	const filename = "file.txt"
+
+	s := sandbox.New(t)
+
+	assertFileExist := func(file string) {
+		t.Helper()
+
+		path := filepath.Join(s.RootDir(), file)
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("want file %q to exist, instead got: %v", path, err)
+		}
+	}
+	assertFileDontExist := func(file string) {
+		t.Helper()
+
+		path := filepath.Join(s.RootDir(), file)
+		_, err := os.Stat(path)
+
+		if errors.Is(err, os.ErrNotExist) {
+			return
+		}
+
+		t.Fatalf("want file %q to not exist, instead got: %v", path, err)
+	}
+
+	createConfig := func(filename string, condition bool) {
+		s.RootEntry().CreateConfig(
+			GenerateFile(
+				Labels("/"+filename),
+				Expr("context", "root"),
+				Bool("condition", condition),
+				Str("content", "some content"),
+			).String(),
+		)
+	}
+
+	createConfig(filename, false)
+	report := s.Generate()
+	assertEqualReports(t, report, generate.Report{})
+	assertFileDontExist(filename)
+
+	createConfig(filename, true)
+	report = s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				Dir:     "/",
+				Created: []string{filename},
+			},
+		},
+	})
+	assertFileExist(filename)
+
+	createConfig(filename, false)
+	report = s.Generate()
+	assertEqualReports(t, report, generate.Report{
+		Successes: []generate.Result{
+			{
+				Dir:     "/",
+				Deleted: []string{filename},
+			},
+		},
+	})
+	assertFileDontExist(filename)
 }

@@ -362,13 +362,60 @@ func doDirGeneration(cfg *config.Tree, evalctx *eval.Context) Report {
 		return report
 	}
 
-	diskFiles, errsmap := readAlreadyGeneratedFiles(cfg, files)
-	if len(errsmap) > 0 {
-		for file, err := range errsmap {
-			targetDir := path.Dir(file)
-			report.addFailure(project.NewPath(targetDir), err)
+	errs := make(map[string]error)
+	diskFiles := map[string]string{}
+	createFiles := map[string]GenFile{}
+	deleteFiles := map[string]bool{}
+
+	for _, file := range files {
+		if file.Condition() {
+			createFiles[file.Label()] = file
 		}
-		return report
+	}
+
+	for _, file := range files {
+		if _, ok := createFiles[file.Label()]; !ok && !deleteFiles[file.Label()] {
+			deleteFiles[file.Label()] = true
+			filename := filepath.Join(cfg.RootDir(), file.Label())
+			_, err := os.Lstat(filename)
+			if err == nil {
+				err := os.Remove(filename)
+				if err != nil {
+					report.addFailure(project.NewPath(path.Dir(file.Label())),
+						errors.E(err, "deleting file"))
+					return report
+				}
+
+				dirReport := dirReport{}
+				filename := filepath.Base(file.Label())
+				dir := path.Dir(file.Label())
+				dirReport.addDeletedFile(filename)
+				report.addDirReport(project.NewPath(dir), dirReport)
+			}
+		}
+	}
+
+	logger.Trace().Msg("reading all Terramate generated files (context=root)")
+
+	for filename := range createFiles {
+		logger := logger.With().
+			Str("filename", filename).
+			Logger()
+
+		logger.Trace().Msg("reading file")
+
+		path := filepath.Join(cfg.RootDir(), filename)
+		body, err := os.ReadFile(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				logger.Trace().Msg("ignoring file since it doesn't exist")
+				continue
+			}
+			errs[filename] = errors.E(err, "reading generated file")
+			continue
+		}
+
+		diskFiles[filename] = string(body)
 	}
 
 	logger.Debug().Msg("saving generated files")
@@ -956,44 +1003,6 @@ func removeStackGeneratedFiles(
 	}
 
 	return removedFiles, nil
-}
-
-func readAlreadyGeneratedFiles(
-	cfg *config.Tree,
-	genfiles []GenFile,
-) (map[string]string, map[string]error) {
-	logger := log.With().
-		Str("action", "generate.readAlreadyGeneratedFiles()").
-		Str("root", cfg.RootDir()).
-		Logger()
-
-	errs := make(map[string]error)
-	diskFiles := map[string]string{}
-
-	logger.Trace().Msg("reading all Terramate generated files (context=root)")
-
-	for _, file := range genfiles {
-		logger := logger.With().
-			Str("filename", file.Label()).
-			Logger()
-
-		logger.Trace().Msg("reading file")
-
-		path := filepath.Join(cfg.RootDir(), file.Label())
-		body, err := os.ReadFile(path)
-		if err != nil {
-			if os.IsNotExist(err) {
-				logger.Trace().Msg("ignoring file since it doesn't exist")
-				continue
-			}
-			errs[file.Label()] = errors.E(err, "reading generated file")
-			continue
-		}
-
-		diskFiles[file.Label()] = string(body)
-	}
-
-	return diskFiles, errs
 }
 
 func hasGenHCLHeader(code string) bool {
