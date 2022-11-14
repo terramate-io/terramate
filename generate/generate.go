@@ -383,20 +383,6 @@ func doDirGeneration(cfg *config.Tree, evalctx *eval.Context) Report {
 			Logger()
 
 		if !file.Condition() {
-			for target := range removedFiles {
-				if path.Dir(target) == basedir.String() {
-					log.Info().
-						Str("file", target).
-						Msg("deleted file")
-					dirReport.addDeletedFile(path.Base(target))
-
-					delete(removedFiles, target)
-				}
-			}
-			continue
-		}
-
-		if !file.Condition() {
 			logger.Debug().Msg("condition is false, ignoring file")
 			continue
 		}
