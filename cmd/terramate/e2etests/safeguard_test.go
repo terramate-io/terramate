@@ -21,9 +21,10 @@ import (
 	"github.com/mineiros-io/terramate/cmd/terramate/cli"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
+	"go.lsp.dev/uri"
 )
 
-func TestSafeguardNotRequiredInSomeCommands(t *testing.T) {
+func TestSafeguardCheckRemoteNotRequiredInSomeCommands(t *testing.T) {
 	t.Parallel()
 
 	// Regression test to guarantee that all git checks
@@ -42,6 +43,10 @@ func TestSafeguardNotRequiredInSomeCommands(t *testing.T) {
 		"experimental globals",
 		"experimental run-order",
 		"experimental run-graph",
+		"experimental eval 1+1",
+		"experimental partial-eval 1+1",
+		"experimental get-config-value global",
+		"experimental generate debug",
 		"create stack-2",
 		"generate",
 		"list",
@@ -56,7 +61,7 @@ func TestSafeguardNotRequiredInSomeCommands(t *testing.T) {
 	}
 }
 
-func TestSafeguardFailsOnRunIfRemoteMainIsOutdated(t *testing.T) {
+func TestSafeguardCheckRemoteFailsOnRunIfRemoteMainIsOutdated(t *testing.T) {
 	t.Parallel()
 
 	s := sandbox.New(t)
@@ -67,9 +72,7 @@ func TestSafeguardFailsOnRunIfRemoteMainIsOutdated(t *testing.T) {
 	ts := newCLI(t, s.RootDir())
 
 	git := s.Git()
-
-	git.Add(".")
-	git.Commit("all")
+	git.CommitAll("all")
 
 	setupLocalMainBranchBehindOriginMain(git, func() {
 		stack.CreateFile("tempfile", "any content")
@@ -115,33 +118,36 @@ func TestSafeguardFailsOnRunIfRemoteMainIsOutdated(t *testing.T) {
 	testrun()
 }
 
-func TestSafeguardDisableGitCheckRemote(t *testing.T) {
+func TestSafeguardCheckRemoteDisabled(t *testing.T) {
 	t.Parallel()
 
-	s := sandbox.New(t)
-
-	stack := s.CreateStack("stack")
 	fileContents := "# whatever"
-	someFile := stack.CreateFile("main.tf", fileContents)
 
-	tmcli := newCLI(t, s.RootDir())
+	setup := func(t *testing.T) (tmcli, sandbox.FileEntry, sandbox.S) {
+		t.Helper()
+		s := sandbox.New(t)
 
-	git := s.Git()
+		stack := s.CreateStack("stack")
+		someFile := stack.CreateFile("main.tf", fileContents)
 
-	git.Add(".")
-	git.Commit("all")
+		git := s.Git()
+		git.CommitAll("all")
 
-	setupLocalMainBranchBehindOriginMain(git, func() {
-		stack.CreateFile("some-new-file", "testing")
-	})
+		setupLocalMainBranchBehindOriginMain(git, func() {
+			stack.CreateFile("some-new-file", "testing")
+		})
+
+		return newCLI(t, s.RootDir()), someFile, s
+	}
 
 	cat := test.LookPath(t, "cat")
 
-	t.Run("check remote is not reachable", func(t *testing.T) {
+	t.Run("make sure setup() makes origin/main unreachable", func(t *testing.T) {
+		tmcli, file, _ := setup(t)
 		assertRunResult(t, tmcli.run(
 			"run",
 			cat,
-			someFile.HostPath(),
+			file.HostPath(),
 		),
 			runExpected{
 				Status:      1,
@@ -149,30 +155,63 @@ func TestSafeguardDisableGitCheckRemote(t *testing.T) {
 			})
 	})
 
-	t.Run("disable check using cmd args", func(t *testing.T) {
+	t.Run("disable check_remote safeguard using --disable-check-git-remote", func(t *testing.T) {
+		tmcli, file, _ := setup(t)
 		assertRunResult(t, tmcli.run(
 			"run",
 			"--disable-check-git-remote",
 			cat,
-			someFile.HostPath(),
+			file.HostPath(),
 		), runExpected{Stdout: fileContents})
 	})
 
-	t.Run("disable check using env vars", func(t *testing.T) {
-		ts := newCLI(t, s.RootDir())
-		ts.env = append([]string{
+	t.Run("disable check_remote safeguard using env vars", func(t *testing.T) {
+		tmcli, file, _ := setup(t)
+		tmcli.env = append([]string{
 			"TM_DISABLE_CHECK_GIT_REMOTE=true",
 		}, testEnviron()...)
 
-		assertRunResult(t, ts.run("run", cat, someFile.HostPath()), runExpected{
+		assertRunResult(t, tmcli.run("run", cat, file.HostPath()), runExpected{
 			Stdout: fileContents,
 		})
 	})
 
-	t.Run("disable check using hcl config", func(t *testing.T) {
-		const rootConfig = "terramate.tm.hcl"
+	t.Run("make sure terramate.config.git.check_remote=true still checks",
+		func(t *testing.T) {
+			tmcli, file, s := setup(t)
 
-		s.RootEntry().CreateFile(rootConfig, `
+			const rootConfig = "terramate.tm.hcl"
+			s.RootEntry().CreateFile(rootConfig, `
+			terramate {
+			  config {
+			    git {
+			      check_remote = true
+			    }
+			  }
+			}
+		`)
+
+			git := s.Git()
+			git.Add(rootConfig)
+			git.Commit("commit root config")
+
+			assertRunResult(t, tmcli.run(
+				"run",
+				cat,
+				file.HostPath(),
+			),
+				runExpected{
+					Status:      1,
+					StderrRegex: string(cli.ErrCurrentHeadIsOutOfDate),
+				})
+		})
+
+	t.Run("disable check_remote safeguard using terramate.config.git.check_remote",
+		func(t *testing.T) {
+			tmcli, file, s := setup(t)
+
+			const rootConfig = "terramate.tm.hcl"
+			s.RootEntry().CreateFile(rootConfig, `
 			terramate {
 			  config {
 			    git {
@@ -181,72 +220,45 @@ func TestSafeguardDisableGitCheckRemote(t *testing.T) {
 			  }
 			}
 		`)
-		defer s.RootEntry().RemoveFile(rootConfig)
 
-		git.Add(rootConfig)
-		git.Commit("commit root config")
+			git := s.Git()
+			git.Add(rootConfig)
+			git.Commit("commit root config")
 
-		assertRunResult(t, tmcli.run("run", cat, someFile.HostPath()), runExpected{
-			Stdout: fileContents,
+			assertRunResult(t, tmcli.run("run", cat, file.HostPath()), runExpected{
+				Stdout: fileContents,
+			})
 		})
-	})
-}
 
-func TestSafeguardWithDisabledCheckRemoteFromConfig(t *testing.T) {
-	t.Parallel()
+	t.Run("make sure --disable-git-check-remote has precedence over config file",
+		func(t *testing.T) {
+			tmcli, file, s := setup(t)
 
-	const rootConfig = "terramate.tm.hcl"
-
-	s := sandbox.New(t)
-
-	stack := s.CreateStack("stack")
-	fileContents := "# whatever"
-	someFile := stack.CreateFile("main.tf", fileContents)
-
-	cat := test.LookPath(t, "cat")
-
-	s.RootEntry().CreateFile(rootConfig, `
+			const rootConfig = "terramate.tm.hcl"
+			s.RootEntry().CreateFile(rootConfig, `
 			terramate {
 			  config {
 			    git {
-			      check_remote = false
+			      check_remote = true
 			    }
 			  }
 			}
 		`)
 
-	git := s.Git()
+			git := s.Git()
+			git.Add(rootConfig)
+			git.Commit("commit root config")
 
-	git.Add(".")
-	git.Commit("all")
-
-	tmcli := newCLI(t, s.RootDir())
-	assertRunResult(t, tmcli.run("run",
-		cat, someFile.HostPath()), runExpected{
-		Stdout: fileContents,
-	})
-	assertRunResult(t, tmcli.run("run", "--changed",
-		cat, someFile.HostPath()), runExpected{
-		Stdout: fileContents,
-	})
-
-	git.Push("main")
-	assertRunResult(t, tmcli.run("run",
-		cat, someFile.HostPath()), runExpected{
-		Stdout: fileContents,
-	})
-	// baseref=HEAD^
-	assertRunResult(t, tmcli.run("run", "--changed",
-		cat, someFile.HostPath()), runExpected{
-		Stdout: fileContents,
-	})
-
-	git.CheckoutNew("test")
-	assertRun(t, tmcli.run("run", "--changed",
-		cat, someFile.HostPath()))
+			assertRunResult(t, tmcli.run(
+				"run",
+				"--disable-check-git-remote",
+				cat,
+				file.HostPath(),
+			), runExpected{Stdout: fileContents})
+		})
 }
 
-func TestSafeguardRunWithGitRemoteCheckDisabledWorksWithoutNetworking(t *testing.T) {
+func TestSafeguardCheckRemoteDisabledWorksWithoutNetworking(t *testing.T) {
 	t.Parallel()
 
 	// Regression test to guarantee that all git checks
@@ -260,12 +272,10 @@ func TestSafeguardRunWithGitRemoteCheckDisabledWorksWithoutNetworking(t *testing
 	)
 
 	s := sandbox.New(t)
-
 	stack := s.CreateStack("stack-1")
 	stackFile := stack.CreateFile("main.tf", fileContents)
 
 	git := s.Git()
-	git.Add(".")
 	git.CommitAll("first commit")
 
 	git.SetRemoteURL("origin", nonExistentGit)
@@ -288,5 +298,35 @@ func TestSafeguardRunWithGitRemoteCheckDisabledWorksWithoutNetworking(t *testing
 		stackFile.HostPath(),
 	), runExpected{
 		Stdout: fileContents,
+	})
+}
+
+func TestSafeguardCheckRemoteDisjointBranchesAreUnreachable(t *testing.T) {
+	t.Parallel()
+	s := sandbox.New(t)
+
+	const (
+		fileContents = "body"
+	)
+
+	stack := s.CreateStack("stack-1")
+	stackFile := stack.CreateFile("main.tf", fileContents)
+
+	git := s.Git()
+	git.CommitAll("first commit")
+
+	bare := sandbox.New(t)
+	git.SetRemoteURL("origin", string(uri.File(bare.Git().BareRepoAbsPath())))
+
+	tm := newCLI(t, s.RootDir())
+
+	cat := test.LookPath(t, "cat")
+	assertRunResult(t, tm.run(
+		"run",
+		cat,
+		stackFile.HostPath(),
+	), runExpected{
+		Status:      1,
+		StderrRegex: string(cli.ErrCurrentHeadIsOutOfDate),
 	})
 }
