@@ -17,6 +17,8 @@ package genhcl
 
 import (
 	stdfmt "fmt"
+	"path"
+	"path/filepath"
 	"sort"
 
 	hhcl "github.com/hashicorp/hcl/v2"
@@ -147,8 +149,6 @@ func Load(
 		Str("path", sm.HostPath()).
 		Logger()
 
-	// TODO(KATCIPIS): SET TM_VENDOR CONTEXT
-
 	logger.Trace().Msg("loading generate_hcl blocks.")
 
 	hclBlocks, err := loadGenHCLBlocks(tree, sm.Path())
@@ -166,6 +166,11 @@ func Load(
 		if err != nil {
 			return nil, err
 		}
+
+		vendorTargetDir := project.NewPath(path.Join(
+			sm.Path().String(),
+			filepath.Dir(name)))
+		evalctx.SetTmVendor(vendorTargetDir, vendorDir, vendorRequests)
 
 		condition := true
 		if hclBlock.Condition != nil {

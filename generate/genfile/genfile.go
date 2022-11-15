@@ -17,6 +17,8 @@ package genfile
 
 import (
 	"fmt"
+	"path"
+	"path/filepath"
 	"sort"
 
 	"github.com/mineiros-io/terramate/config"
@@ -120,8 +122,6 @@ func Load(
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]File, error) {
-	// TODO(KATCIPIS): SET TM_VENDOR CONTEXT
-
 	genFileBlocks, err := loadGenFileBlocks(cfg, sm.Path())
 	if err != nil {
 		return nil, errors.E("loading generate_file", err)
@@ -136,6 +136,11 @@ func Load(
 		if err != nil {
 			return nil, err
 		}
+
+		vendorTargetDir := project.NewPath(path.Join(
+			sm.Path().String(),
+			filepath.Dir(name)))
+		evalctx.SetTmVendor(vendorTargetDir, vendorDir, vendorRequests)
 
 		condition := true
 		if genFileBlock.Condition != nil {
