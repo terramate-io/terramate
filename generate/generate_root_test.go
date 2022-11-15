@@ -561,7 +561,7 @@ func TestGenerateRootContext(t *testing.T) {
 			},
 		},
 		{
-			name: "child directories deleting parent files",
+			name: "child and parent directories with same label and different condition",
 			configs: []hclconfig{
 				{
 					path: "/",
@@ -595,6 +595,39 @@ func TestGenerateRootContext(t *testing.T) {
 					{
 						Dir:     "/target",
 						Created: []string{"file.txt"},
+					},
+				},
+			},
+		},
+		{
+			name: "child and parent directories with same label and same condition - fails",
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: GenerateFile(
+						Labels("/target/file.txt"),
+						Expr("context", "root"),
+						Bool("condition", true),
+						Str("content", "content 1"),
+					),
+				},
+				{
+					path: "/child",
+					add: GenerateFile(
+						Labels("/target/file.txt"),
+						Expr("context", "root"),
+						Bool("condition", true),
+						Str("content", "content 2"),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/target",
+						},
+						Error: errors.E(generate.ErrConflictingConfig),
 					},
 				},
 			},
