@@ -28,8 +28,6 @@ import (
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
-// TODO(KATCIPIS): outdated detection when vendor dir changes
-
 func TestOutdatedDetection(t *testing.T) {
 	type (
 		file struct {
@@ -104,7 +102,7 @@ func TestOutdatedDetection(t *testing.T) {
 			},
 		},
 		{
-			name: "generate blocks with no code generated and multiple stacks",
+			name: "multiple stacks generating code",
 			steps: []step{
 				{
 					layout: []string{
@@ -380,6 +378,64 @@ func TestOutdatedDetection(t *testing.T) {
 						"stack-2/test.txt",
 						"test.hcl",
 						"test.txt",
+					},
+				},
+			},
+		},
+		{
+			name: "changing vendorDir changes all generate blocks calling tm_vendor",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack-1",
+						"s:stack-2",
+					},
+					vendorDir: "/vendor",
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("vendor.txt"),
+									Expr("content", `tm_vendor("github.com/mineiros-io/terramate?ref=v1")`),
+								),
+								GenerateFile(
+									Labels("file.txt"),
+									Str("content", "something"),
+								),
+								GenerateHCL(
+									Labels("vendor.hcl"),
+									Content(
+										Expr("content", `tm_vendor("github.com/mineiros-io/terramate?ref=v1")`),
+									),
+								),
+								GenerateHCL(
+									Labels("file.hcl"),
+									Content(
+										Str("content", "something"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/file.hcl",
+						"stack-1/file.txt",
+						"stack-1/vendor.hcl",
+						"stack-1/vendor.txt",
+						"stack-2/file.hcl",
+						"stack-2/file.txt",
+						"stack-2/vendor.hcl",
+						"stack-2/vendor.txt",
+					},
+				},
+				{
+					vendorDir: "/modules",
+					want: []string{
+						"stack-1/vendor.hcl",
+						"stack-1/vendor.txt",
+						"stack-2/vendor.hcl",
+						"stack-2/vendor.txt",
 					},
 				},
 			},
