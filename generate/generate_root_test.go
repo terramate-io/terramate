@@ -476,9 +476,6 @@ func TestGenerateRootContext(t *testing.T) {
 		},
 		{
 			name: "multiple generate blocks with interleaving conditional blocks",
-			layout: []string{
-				"d:source",
-			},
 			configs: []hclconfig{
 				{
 					path: "/source",
@@ -559,6 +556,37 @@ func TestGenerateRootContext(t *testing.T) {
 					{
 						Dir:     "/target",
 						Created: []string{"file.txt", "file2.txt", "file3.txt"},
+					},
+				},
+			},
+		},
+		{
+			name: "child directories deleting parent files",
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: GenerateFile(
+						Labels("/target/file.txt"),
+						Expr("context", "root"),
+						Bool("condition", true),
+						Str("content", "content 1"),
+					),
+				},
+				{
+					path: "/child",
+					add: GenerateFile(
+						Labels("/target/file.txt"),
+						Expr("context", "root"),
+						Bool("condition", false),
+						Str("content", "content 2"),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/target",
+						Created: []string{"file.txt"},
 					},
 				},
 			},
