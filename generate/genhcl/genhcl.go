@@ -99,11 +99,7 @@ func (h HCL) Asserts() []config.Assert {
 
 // Header returns the header of the generated HCL file.
 func (h HCL) Header() string {
-	return stdfmt.Sprintf(
-		"%s\n// TERRAMATE: originated from generate_hcl block on %s\n\n",
-		Header,
-		h.origin.Path(),
-	)
+	return Header + "\n\n"
 }
 
 // Body returns a string representation of the HCL code

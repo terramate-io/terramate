@@ -385,9 +385,7 @@ func TestOutdatedDetection(t *testing.T) {
 			},
 		},
 		{
-			// TODO(KATCIPIS): when we remove the origin from gen code header
-			// this behavior will change.
-			name: "moving generate blocks to different files is detected on generate_hcl",
+			name: "moving generate blocks to different files is not detected on generate_hcl",
 			steps: []step{
 				{
 					layout: []string{
@@ -445,10 +443,7 @@ func TestOutdatedDetection(t *testing.T) {
 							),
 						},
 					},
-					want: []string{
-						"stack-1/test.hcl",
-						"stack-2/test.hcl",
-					},
+					want: []string{},
 				},
 			},
 		},
