@@ -169,8 +169,8 @@ func Load(cfg *config.Tree) ([]LoadResult, error) {
 // report needs to be inspected to check.
 func Do(cfg *config.Tree, workingDir string) Report {
 	stackReport := forEachStack(cfg, workingDir, doStackGeneration)
-	dirReport := forEachDir(cfg, doDirGeneration)
-	report := mergeReports(stackReport, dirReport)
+	rootReport := doRootGeneration(cfg, workingDir)
+	report := mergeReports(stackReport, rootReport)
 	return cleanupOrphaned(cfg, report)
 }
 
@@ -303,38 +303,57 @@ func doStackGeneration(
 	return report
 }
 
-func doDirGeneration(cfg *config.Tree, evalctx *eval.Context) Report {
+func doRootGeneration(cfg *config.Tree, workingDir string) Report {
+	root := cfg.Root()
+	stackConfigs := root.Stacks()
+	var stackpaths []project.Path
+	for _, stack := range stackConfigs {
+		stackpaths = append(stackpaths, stack.ProjDir())
+	}
+
 	report := Report{}
-	var files []GenFile
-	blocks := cfg.Node.Generate.Files
-	if len(blocks) == 0 {
+	projmeta := project.NewMetadata(root.RootDir(), stackpaths)
+	evalctx, err := eval.NewContext(cfg.Dir())
+	if err != nil {
+		report.BootstrapErr = err
 		return report
 	}
 
-	for _, block := range blocks {
-		if block.Context != genfile.RootContext {
+	evalctx.SetNamespace("terramate", projmeta.ToCtyMap())
+
+	var files []GenFile
+	for _, cfg := range cfg.Root().AsList() {
+		if cfg.IsEmptyConfig() || cfg.IsStack() {
 			continue
 		}
 
-		if block.Label[0] != '/' {
-			targetDir := path.Dir(block.Label)
-			report.addFailure(project.NewPath("/"+targetDir), errors.E(
-				ErrInvalidGenBlockLabel,
-				"generate_file.context=root requires an absolute path but given %s",
-				block.Label))
-
-			return report
+		blocks := cfg.Node.Generate.Files
+		if len(blocks) == 0 {
+			continue
 		}
 
-		targetDir := project.NewPath(path.Dir(block.Label))
+		for _, block := range blocks {
+			if block.Context != genfile.RootContext {
+				continue
+			}
 
-		// root generate
-		file, err := genfile.Eval(block, evalctx)
-		if err != nil {
-			report.addFailure(targetDir, err)
-			return report
+			targetDir := project.NewPath(path.Dir(block.Label))
+			if block.Label[0] != '/' {
+				report.addFailure(project.NewPath("/"+targetDir.String()), errors.E(
+					ErrInvalidGenBlockLabel,
+					"generate_file.context=root requires an absolute path but given %s",
+					block.Label))
+
+				return report
+			}
+
+			file, err := genfile.Eval(block, evalctx)
+			if err != nil {
+				report.addFailure(targetDir, err)
+				return report
+			}
+			files = append(files, file)
 		}
-		files = append(files, file)
 	}
 
 	errsmap := checkFileConflict(files)
@@ -757,39 +776,6 @@ type forEachStackFunc func(
 	*stack.S,
 	*eval.Object,
 ) dirReport
-
-type forEachRootFunc func(
-	*config.Tree,
-	*eval.Context,
-) Report
-
-func forEachDir(cfg *config.Tree, fn forEachRootFunc) Report {
-	root := cfg.Root()
-	stackConfigs := root.Stacks()
-	var stackpaths []project.Path
-	for _, stack := range stackConfigs {
-		stackpaths = append(stackpaths, stack.ProjDir())
-	}
-
-	report := Report{}
-	projmeta := project.NewMetadata(root.RootDir(), stackpaths)
-	evalctx, err := eval.NewContext(cfg.Dir())
-	if err != nil {
-		report.BootstrapErr = err
-		return report
-	}
-	evalctx.SetNamespace("terramate", projmeta.ToCtyMap())
-
-	for _, cfg := range cfg.Root().AsList() {
-		if cfg.IsEmptyConfig() || cfg.IsStack() {
-			continue
-		}
-		dirReport := fn(cfg, evalctx)
-		report = mergeReports(report, dirReport)
-	}
-
-	return report
-}
 
 func forEachStack(cfg *config.Tree, workingDir string, fn forEachStackFunc) Report {
 	logger := log.With().

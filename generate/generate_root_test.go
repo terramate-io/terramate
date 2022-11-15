@@ -582,6 +582,14 @@ func TestGenerateRootContext(t *testing.T) {
 					),
 				},
 			},
+			want: []generatedFile{
+				{
+					dir: "/target",
+					files: map[string]fmt.Stringer{
+						"file.txt": stringer("content 1"),
+					},
+				},
+			},
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
