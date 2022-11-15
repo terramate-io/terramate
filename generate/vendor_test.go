@@ -18,8 +18,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/project"
+	"github.com/mineiros-io/terramate/test"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
+	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/mineiros-io/terramate/tf"
 )
 
 func TestGenerateVendor(t *testing.T) {
@@ -112,4 +117,86 @@ func TestGenerateVendor(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestGenerateVendorRequestEvents(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.New(t)
+	s.BuildTree([]string{"s:stack"})
+	rootentry := s.RootEntry()
+
+	rootentry.CreateFile("config.tm", Doc(
+		GenerateHCL(
+			Labels("file.hcl"),
+			Content(
+				Expr("vendor", `tm_vendor("github.com/mineiros-io/terramate?ref=v1")`),
+			),
+		),
+		GenerateFile(
+			Labels("file.txt"),
+			Expr("content", `tm_vendor("github.com/mineiros-io/terramate?ref=v2")`),
+		),
+		GenerateHCL(
+			Labels("dir/file.hcl"),
+			Content(
+				Expr("vendor", `tm_vendor("github.com/mineiros-io/terramate?ref=v3")`),
+			),
+		),
+		GenerateFile(
+			Labels("dir/file.txt"),
+			Expr("content", `tm_vendor("github.com/mineiros-io/terramate?ref=v4")`),
+		),
+	).String())
+
+	src := func(source string) tf.Source {
+		return test.ParseSource(t, source)
+	}
+
+	vendorDir := project.NewPath("/vendor")
+	events := make(chan event.VendorRequest)
+	gotEvents := []event.VendorRequest{}
+	eventReceiverDone := make(chan struct{})
+
+	go func() {
+		for event := range events {
+			gotEvents = append(gotEvents, event)
+		}
+		close(eventReceiverDone)
+	}()
+
+	t.Log("generating code")
+
+	report := generate.Do(s.Config(), s.RootDir(), vendorDir, events)
+
+	t.Logf("generation report: %s", report.Full())
+
+	close(events)
+
+	t.Log("waiting to receive all events")
+
+	<-eventReceiverDone
+
+	t.Log("received all events")
+
+	wantEvents := []event.VendorRequest{
+		{
+			Source:    src("github.com/mineiros-io/terramate?ref=v1"),
+			VendorDir: vendorDir,
+		},
+		{
+			Source:    src("github.com/mineiros-io/terramate?ref=v2"),
+			VendorDir: vendorDir,
+		},
+		{
+			Source:    src("github.com/mineiros-io/terramate?ref=v3"),
+			VendorDir: vendorDir,
+		},
+		{
+			Source:    src("github.com/mineiros-io/terramate?ref=v4"),
+			VendorDir: vendorDir,
+		},
+	}
+
+	test.AssertEqualSets(t, gotEvents, wantEvents)
 }

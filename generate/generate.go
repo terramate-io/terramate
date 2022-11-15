@@ -170,8 +170,7 @@ func Do(
 			return report
 		}
 
-		// TODO(KATCIPIS): Test event stream integration
-		generated, err := loadStackCodeCfgs(cfg, projmeta, stack, globals, vendorDir, nil)
+		generated, err := loadStackCodeCfgs(cfg, projmeta, stack, globals, vendorDir, vendorRequests)
 		if err != nil {
 			report.err = err
 			return report
