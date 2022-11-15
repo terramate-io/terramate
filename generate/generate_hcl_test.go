@@ -1313,7 +1313,7 @@ func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
 
 	cfg, err := config.LoadTree(rootEntry.Path(), rootEntry.Path())
 	assert.NoError(t, err)
-	report := s.GenerateAt(cfg, rootEntry.Path())
+	report := s.GenerateAt(cfg, rootEntry.Path(), project.NewPath("/modules"))
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
