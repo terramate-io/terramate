@@ -62,6 +62,7 @@ const (
 // File represents generated file from a single generate_file block.
 type File struct {
 	label     string
+	context   string
 	origin    info.Range
 	body      string
 	condition bool
@@ -87,6 +88,11 @@ func (f File) Range() info.Range {
 // condition attribute for the generated code.
 func (f File) Condition() bool {
 	return f.condition
+}
+
+// Context of the generate_file block.
+func (f File) Context() string {
+	return f.context
 }
 
 // Asserts returns all (if any) of the evaluated assert configs of the
@@ -181,6 +187,7 @@ func Eval(block hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
 			label:     name,
 			origin:    block.Range,
 			condition: condition,
+			context:   block.Context,
 		}, nil
 	}
 
@@ -209,6 +216,7 @@ func Eval(block hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
 			label:     name,
 			origin:    block.Range,
 			condition: condition,
+			context:   block.Context,
 			asserts:   asserts,
 		}, nil
 	}
@@ -231,6 +239,7 @@ func Eval(block hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
 		origin:    block.Range,
 		body:      value.AsString(),
 		condition: condition,
+		context:   block.Context,
 		asserts:   asserts,
 	}, nil
 }

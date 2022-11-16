@@ -32,6 +32,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -65,6 +66,8 @@ type GenFile interface {
 	Body() string
 	// Label is the label of the origin generate block that generated this file.
 	Label() string
+	// Context is the context of the generate block.
+	Context() string
 	// Range is the range of the origin generate block that generated this file.
 	Range() info.Range
 	// Condition is true if the origin generate block had a true condition, false otherwise.
@@ -346,7 +349,13 @@ func doRootGeneration(cfg *config.Tree, workingDir string) Report {
 		}
 
 		for _, block := range blocks {
+			logger = logger.With().
+				Str("generate_file.label", block.Label).
+				Str("generate_file.context", block.Context).
+				Logger()
+
 			if block.Context != genfile.RootContext {
+				logger.Debug().Msg("ignoring block")
 				continue
 			}
 
@@ -357,14 +366,21 @@ func doRootGeneration(cfg *config.Tree, workingDir string) Report {
 				return report
 			}
 
+			logger.Debug().Msg("block validated successfully")
+
 			file, err := genfile.Eval(block, evalctx)
 			if err != nil {
 				report.addFailure(targetDir, err)
 				return report
 			}
+
+			logger.Debug().Msg("block evaluated successfully")
+
 			files = append(files, file)
 		}
 	}
+
+	logger.Debug().Msg("checking generate_file.context=root conflicts")
 
 	errsmap := checkFileConflict(files)
 	if len(errsmap) > 0 {
@@ -376,6 +392,8 @@ func doRootGeneration(cfg *config.Tree, workingDir string) Report {
 			return report
 		}
 	}
+
+	logger.Debug().Msg("no conflicts found")
 
 	generateRootFiles(cfg, files, &report)
 	return report
@@ -890,6 +908,10 @@ func generateRootFiles(
 	genfiles []GenFile,
 	report *Report,
 ) {
+	logger := log.With().
+		Str("action", "generate.generateRootFiles()").
+		Logger()
+
 	diskFiles := map[string]string{}       // files already on disk
 	mustExistFiles := map[string]GenFile{} // files that must be present on disk
 	mustDeleteFiles := map[string]bool{}   // files to be deleted
@@ -899,6 +921,9 @@ func generateRootFiles(
 	// have the same content.
 	for _, file := range genfiles {
 		if file.Condition() {
+			logger := genFileLogger(logger, file)
+			logger.Debug().Msg("file must be generated (if needed)")
+
 			mustExistFiles[file.Label()] = file
 		}
 	}
@@ -906,17 +931,26 @@ func generateRootFiles(
 	// this computes the files that must be deleted if they are present on disk
 	for _, file := range genfiles {
 		if _, ok := mustExistFiles[file.Label()]; !ok {
+			logger := genFileLogger(logger, file)
+			logger.Debug().Msg("file must be deleted (if needed)")
+
 			mustDeleteFiles[file.Label()] = true
 		}
 	}
 
 	// reads the content of must-exist files (if they are present).
 	for label := range mustExistFiles {
+		logger := logger.With().Str("file", label).Logger()
+
+		logger.Debug().Msg("reading the content of the file on disk")
+
 		abspath := filepath.Join(cfg.RootDir(), label)
 		dir := path.Dir(label)
 		body, err := os.ReadFile(abspath)
 		if err != nil {
 			if os.IsNotExist(err) {
+				logger.Debug().Msg("file do not exists")
+
 				continue
 			}
 			dirReport := dirReport{}
@@ -925,31 +959,43 @@ func generateRootFiles(
 			return
 		}
 
+		logger.Debug().Msg("file content read successfully")
+
 		diskFiles[label] = string(body)
 	}
 
 	// this deletes the files that exist but have condition=false.
-	for filename, mustDelete := range mustDeleteFiles {
+	for label, mustDelete := range mustDeleteFiles {
+		logger := logger.With().Str("file", label).Logger()
+
 		if mustDelete {
-			abspath := filepath.Join(cfg.RootDir(), filename)
+			abspath := filepath.Join(cfg.RootDir(), label)
 			_, err := os.Lstat(abspath)
 			if err == nil {
+				logger.Debug().Msg("deleting file")
+
 				dirReport := dirReport{}
-				dir := path.Dir(filename)
+				dir := path.Dir(label)
 
 				err := os.Remove(abspath)
 				if err != nil {
 					dirReport.err = errors.E(err, "deleting file")
 				} else {
-					dirReport.addDeletedFile(path.Base(filename))
+					dirReport.addDeletedFile(path.Base(label))
 				}
 				report.addDirReport(project.NewPath(dir), dirReport)
+
+				logger.Debug().Msg("deleted successfully")
 			}
 		}
 	}
 
 	// this writes the files that must exist (if needed).
 	for label, genfile := range mustExistFiles {
+		logger := genFileLogger(logger, genfile)
+
+		logger.Debug().Msg("generating file (if needed)")
+
 		abspath := filepath.Join(cfg.RootDir(), label)
 		filename := path.Base(label)
 		dir := project.NewPath(path.Dir(label))
@@ -958,22 +1004,46 @@ func generateRootFiles(
 		dirReport := dirReport{}
 		diskContent, existOnDisk := diskFiles[label]
 		if !existOnDisk || body != diskContent {
+			logger.Debug().
+				Bool("existOnDisk", existOnDisk).
+				Bool("fileChanged", body != diskContent).
+				Msg("writing file")
+
 			err := writeGeneratedCode(abspath, genfile)
 			if err != nil {
 				dirReport.err = errors.E(err, "saving file %s", label)
 				report.addDirReport(dir, dirReport)
 				continue
 			}
+
+			logger.Debug().Msg("successfully written")
 		}
 
 		if !existOnDisk {
 			dirReport.addCreatedFile(filename)
 		} else if body != diskContent {
 			dirReport.addChangedFile(label)
+		} else {
+			logger.Debug().Msg("nothing to do, file on disk is up to date.")
 		}
 
 		report.addDirReport(dir, dirReport)
 	}
+}
+
+func genFileLogger(logger zerolog.Logger, genfile GenFile) zerolog.Logger {
+	return genBlockLogger(logger, "generate_file", genfile.Label(), genfile.Context())
+}
+
+func genFileBlockLogger(logger zerolog.Logger, block hcl.GenFileBlock) zerolog.Logger {
+	return genBlockLogger(logger, "generate_file", block.Label, block.Context)
+}
+
+func genBlockLogger(logger zerolog.Logger, blockname, label, context string) zerolog.Logger {
+	return logger.With().
+		Str(fmt.Sprintf("%s.label", blockname), label).
+		Str(fmt.Sprintf("%s.context", blockname), context).
+		Logger()
 }
 
 func hasGenHCLHeader(code string) bool {
