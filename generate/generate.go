@@ -349,10 +349,7 @@ func doRootGeneration(cfg *config.Tree, workingDir string) Report {
 		}
 
 		for _, block := range blocks {
-			logger = logger.With().
-				Str("generate_file.label", block.Label).
-				Str("generate_file.context", block.Context).
-				Logger()
+			logger := genFileBlockLogger(logger, block)
 
 			if block.Context != genfile.RootContext {
 				logger.Debug().Msg("ignoring block")
