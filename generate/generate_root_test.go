@@ -700,6 +700,69 @@ func TestGenerateRootContext(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:       "working dir filters the generated blocks by label dir",
+			workingDir: "/target/dir",
+			configs: []hclconfig{
+				{
+					path: "/source",
+					add: GenerateFile(
+						Labels("/target/dir/file.txt"),
+						Expr("context", "root"),
+						Str("content", "dir/file.txt"),
+					),
+				},
+				{
+					path: "/source",
+					add: GenerateFile(
+						Labels("/target/other/file.txt"),
+						Expr("context", "root"),
+						Str("content", "other/file.txt"),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/target/dir",
+					files: map[string]fmt.Stringer{
+						"file.txt": stringer("dir/file.txt"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/target/dir",
+						Created: []string{"file.txt"},
+					},
+				},
+			},
+		},
+		{
+			name: "working dir filtering out all blocks",
+			layout: []string{
+				"d:empty",
+			},
+			workingDir: "/empty",
+			configs: []hclconfig{
+				{
+					path: "/source",
+					add: GenerateFile(
+						Labels("/target/dir/file.txt"),
+						Expr("context", "root"),
+						Str("content", "dir/file.txt"),
+					),
+				},
+				{
+					path: "/source",
+					add: GenerateFile(
+						Labels("/target/other/file.txt"),
+						Expr("context", "root"),
+						Str("content", "other/file.txt"),
+					),
+				},
+			},
+		},
 	})
 }
 
