@@ -570,7 +570,8 @@ func TestLoadGlobals(t *testing.T) {
 					add: Doc(
 						Globals(
 							Labels("obj"),
-							EvalExpr(t, "iam", `[1, 2, 3]`),
+							Expr("a", `[1, 2, 3]`),
+							Number("b", 1),
 						),
 						Globals(
 							Labels("obj"),
@@ -580,7 +581,10 @@ func TestLoadGlobals(t *testing.T) {
 			},
 			want: map[string]*hclwrite.Block{
 				"/stack": Globals(
-					EvalExpr(t, "obj", `{ iam = [1, 2, 3] }`),
+					EvalExpr(t, "obj", `{
+						a = [1, 2, 3]
+						b = 1
+					}`),
 				),
 			},
 		},
