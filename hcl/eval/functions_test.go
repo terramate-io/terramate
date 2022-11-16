@@ -22,6 +22,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test"
+	"github.com/mineiros-io/terramate/tf"
 )
 
 func TestTmVendor(t *testing.T) {
@@ -31,8 +32,12 @@ func TestTmVendor(t *testing.T) {
 		vendorDir string
 		targetDir string
 		want      string
-		wantEvent event.TmVendorCall
+		wantEvent event.VendorRequest
 		wantErr   bool
+	}
+
+	src := func(source string) tf.Source {
+		return test.ParseSource(t, source)
 	}
 
 	tcases := []testcase{
@@ -42,8 +47,9 @@ func TestTmVendor(t *testing.T) {
 			targetDir: "/dir",
 			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=main")`,
 			want:      "../vendor/github.com/mineiros-io/terramate/main",
-			wantEvent: event.TmVendorCall{
-				Source: "github.com/mineiros-io/terramate?ref=main",
+			wantEvent: event.VendorRequest{
+				Source:    src("github.com/mineiros-io/terramate?ref=main"),
+				VendorDir: project.NewPath("/vendor"),
 			},
 		},
 		{
@@ -52,8 +58,9 @@ func TestTmVendor(t *testing.T) {
 			targetDir: "/dir/subdir/again",
 			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=v1")`,
 			want:      "../../../modules/github.com/mineiros-io/terramate/v1",
-			wantEvent: event.TmVendorCall{
-				Source: "github.com/mineiros-io/terramate?ref=v1",
+			wantEvent: event.VendorRequest{
+				Source:    src("github.com/mineiros-io/terramate?ref=v1"),
+				VendorDir: project.NewPath("/modules"),
 			},
 		},
 		{
@@ -62,8 +69,9 @@ func TestTmVendor(t *testing.T) {
 			targetDir: "/dir",
 			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=main")`,
 			want:      "../vendor/dir/nested/github.com/mineiros-io/terramate/main",
-			wantEvent: event.TmVendorCall{
-				Source: "github.com/mineiros-io/terramate?ref=main",
+			wantEvent: event.VendorRequest{
+				Source:    src("github.com/mineiros-io/terramate?ref=main"),
+				VendorDir: project.NewPath("/vendor/dir/nested"),
 			},
 		},
 		{
@@ -72,8 +80,9 @@ func TestTmVendor(t *testing.T) {
 			targetDir: "/",
 			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=main")`,
 			want:      "modules/github.com/mineiros-io/terramate/main",
-			wantEvent: event.TmVendorCall{
-				Source: "github.com/mineiros-io/terramate?ref=main",
+			wantEvent: event.VendorRequest{
+				Source:    src("github.com/mineiros-io/terramate?ref=main"),
+				VendorDir: project.NewPath("/modules"),
 			},
 		},
 		{
@@ -82,8 +91,9 @@ func TestTmVendor(t *testing.T) {
 			targetDir: "/",
 			expr:      `tm_vendor("github.com/mineiros-io/terramate?ref=main")`,
 			want:      "github.com/mineiros-io/terramate/main",
-			wantEvent: event.TmVendorCall{
-				Source: "github.com/mineiros-io/terramate?ref=main",
+			wantEvent: event.VendorRequest{
+				Source:    src("github.com/mineiros-io/terramate?ref=main"),
+				VendorDir: project.NewPath("/"),
 			},
 		},
 		{
@@ -119,7 +129,7 @@ func TestTmVendor(t *testing.T) {
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
 			rootdir := t.TempDir()
-			events := make(chan event.TmVendorCall)
+			events := make(chan event.VendorRequest)
 			vendordir := project.NewPath(tcase.vendorDir)
 			targetdir := project.NewPath(tcase.targetDir)
 
@@ -128,7 +138,7 @@ func TestTmVendor(t *testing.T) {
 
 			ctx.SetTmVendor(targetdir, vendordir, events)
 
-			gotEvents := []event.TmVendorCall{}
+			gotEvents := []event.VendorRequest{}
 			done := make(chan struct{})
 			go func() {
 				for event := range events {

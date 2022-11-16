@@ -79,7 +79,7 @@ func Vendor(
 	rootdir string,
 	vendorDir project.Path,
 	modsrc tf.Source,
-	events EventStream,
+	events ProgressEventStream,
 ) Report {
 	report := NewReport(vendorDir)
 	if !path.IsAbs(vendorDir.String()) {
@@ -89,6 +89,53 @@ func Vendor(
 	return vendor(rootdir, vendorDir, modsrc, report, nil, events)
 }
 
+// HandleVendorRequests starts a goroutine that will handle all vendor requests
+// sent on vendorRequests, calling [Vendor] for each event and sending one report
+// result for each event on the returned Report channel.
+//
+// It will read events from vendorRequests until it is closed.
+// If progressEvents is nil it will not send any progress events, like [Vendor].
+//
+// When vendorRequests is closed it will close the returned [Report] channel,
+// indicating that no more processing will be done.
+func HandleVendorRequests(
+	rootdir string,
+	vendorRequests <-chan event.VendorRequest,
+	progressEvents ProgressEventStream,
+) <-chan Report {
+	reportsStream := make(chan Report)
+	go func() {
+		logger := log.With().
+			Str("action", "download.HandleVendorRequests()").
+			Str("rootdir", rootdir).
+			Logger()
+
+		logger.Debug().Msg("starting vendor request handler")
+
+		for vendorRequest := range vendorRequests {
+			logger = logger.With().
+				Str("modsrc", vendorRequest.Source.Raw).
+				Stringer("vendorDir", vendorRequest.VendorDir).
+				Logger()
+
+			logger.Debug().Msgf("handling vendor request")
+
+			report := Vendor(rootdir, vendorRequest.VendorDir, vendorRequest.Source, progressEvents)
+
+			logger.Debug().Msgf("handled vendor request, sending report")
+
+			reportsStream <- report
+
+			logger.Debug().Msgf("report sent")
+		}
+
+		logger.Debug().Msg("stopping vendor request handler")
+
+		close(reportsStream)
+	}()
+	return reportsStream
+}
+
 // VendorAll will vendor all dependencies of the tfdir into rootdir.
 // It will scan all .tf files in the directory and vendor each module declaration
 // containing the supported remote source URLs.
@@ -96,7 +143,7 @@ func VendorAll(
 	rootdir string,
 	vendorDir project.Path,
 	tfdir string,
-	events EventStream,
+	events ProgressEventStream,
 ) Report {
 	return vendorAll(rootdir, vendorDir, tfdir, NewReport(vendorDir), events)
 }
@@ -107,7 +154,7 @@ func vendor(
 	modsrc tf.Source,
 	report Report,
 	info *modinfo,
-	events EventStream,
+	events ProgressEventStream,
 ) Report {
 	logger := log.With().
 		Str("action", "download.vendor()").
@@ -184,7 +231,7 @@ func vendorAll(
 	vendorDir project.Path,
 	tfdir string,
 	report Report,
-	events EventStream,
+	events ProgressEventStream,
 ) Report {
 	logger := log.With().
 		Str("action", "download.vendorAll()").
@@ -291,7 +338,7 @@ func downloadVendor(
 	rootdir string,
 	vendorDir project.Path,
 	modsrc tf.Source,
-	events EventStream,
+	events ProgressEventStream,
 ) (string, error) {
 	logger := log.With().
 		Str("action", "download.downloadVendor()").

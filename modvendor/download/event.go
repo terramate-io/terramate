@@ -18,16 +18,16 @@ import (
 	"github.com/mineiros-io/terramate/event"
 )
 
-// EventStream is a stream of vendor related events.
-type EventStream event.Stream[event.VendorProgress]
+// ProgressEventStream is a stream of vendor related events.
+type ProgressEventStream event.Stream[event.VendorProgress]
 
 // NewEventStream creates a new event stream.
-func NewEventStream() EventStream {
+func NewEventStream() ProgressEventStream {
 	const streamBufferSize = 100
-	return EventStream(event.NewStream[event.VendorProgress](streamBufferSize))
+	return ProgressEventStream(event.NewStream[event.VendorProgress](streamBufferSize))
 }
 
 // Send send a progress event.
-func (e EventStream) Send(pe event.VendorProgress) bool {
+func (e ProgressEventStream) Send(pe event.VendorProgress) bool {
 	return event.Stream[event.VendorProgress](e).Send(pe)
 }
