@@ -116,6 +116,91 @@ func TestGenerateVendor(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "tm_vendor on root stack",
+			layout: []string{
+				"s:/",
+				"s:substack",
+			},
+			vendorDir: "/vendor",
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateHCL(
+							Labels("file.hcl"),
+							Content(
+								Expr("vendor", `tm_vendor("github.com/mineiros-io/terramate?ref=v1")`),
+							),
+						),
+						GenerateFile(
+							Labels("file.txt"),
+							Expr("content", `tm_vendor("github.com/mineiros-io/terramate?ref=v2")`),
+						),
+						GenerateHCL(
+							Labels("dir/file.hcl"),
+							Content(
+								Expr("vendor", `tm_vendor("github.com/mineiros-io/terramate?ref=v3")`),
+							),
+						),
+						GenerateFile(
+							Labels("dir/file.txt"),
+							Expr("content", `tm_vendor("github.com/mineiros-io/terramate?ref=v4")`),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					stack: "/",
+					files: map[string]fmt.Stringer{
+						"dir/file.hcl": Doc(
+							Str("vendor", "../vendor/github.com/mineiros-io/terramate/v3"),
+						),
+						"dir/file.txt": stringer("../vendor/github.com/mineiros-io/terramate/v4"),
+						"file.hcl": Doc(
+							Str("vendor", "vendor/github.com/mineiros-io/terramate/v1"),
+						),
+						"file.txt": stringer("vendor/github.com/mineiros-io/terramate/v2"),
+					},
+				},
+				{
+					stack: "/substack",
+					files: map[string]fmt.Stringer{
+						"dir/file.hcl": Doc(
+							Str("vendor", "../../vendor/github.com/mineiros-io/terramate/v3"),
+						),
+						"dir/file.txt": stringer("../../vendor/github.com/mineiros-io/terramate/v4"),
+						"file.hcl": Doc(
+							Str("vendor", "../vendor/github.com/mineiros-io/terramate/v1"),
+						),
+						"file.txt": stringer("../vendor/github.com/mineiros-io/terramate/v2"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir: "/",
+						Created: []string{
+							"dir/file.hcl",
+							"dir/file.txt",
+							"file.hcl",
+							"file.txt",
+						},
+					},
+					{
+						Dir: "/substack",
+						Created: []string{
+							"dir/file.hcl",
+							"dir/file.txt",
+							"file.hcl",
+							"file.txt",
+						},
+					},
+				},
+			},
+		},
 	})
 }
 

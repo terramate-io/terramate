@@ -170,7 +170,8 @@ func Do(
 			return report
 		}
 
-		generated, err := loadStackCodeCfgs(cfg, projmeta, stack, globals, vendorDir, vendorRequests)
+		generated, err := loadStackCodeCfgs(cfg, projmeta, stack,
+			globals, vendorDir, vendorRequests)
 		if err != nil {
 			report.err = err
 			return report
