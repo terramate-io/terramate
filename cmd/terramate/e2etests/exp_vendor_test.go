@@ -38,6 +38,8 @@ func TestVendorModule(t *testing.T) {
 		content  = "test"
 	)
 
+	// TODO(KATCIPIS): add tm_vendor tests here
+
 	repoSandbox := sandbox.New(t)
 	repoSandbox.RootEntry().CreateFile(filename, content)
 
@@ -48,57 +50,73 @@ func TestVendorModule(t *testing.T) {
 	modsrc, err := tf.ParseSource(gitSource + "?ref=main")
 	assert.NoError(t, err)
 
-	s := sandbox.New(t)
-
 	// Check default config and then different configuration precedences
-	checkVendoredFiles := func(t *testing.T, res runResult, vendordir project.Path) {
+	checkVendoredFiles := func(t *testing.T, rootdir string, res runResult, vendordir project.Path) {
 		t.Helper()
 
 		assertRunResult(t, res, runExpected{IgnoreStdout: true})
 
-		clonedir := modvendor.AbsVendorDir(s.RootDir(), vendordir, modsrc)
+		clonedir := modvendor.AbsVendorDir(rootdir, vendordir, modsrc)
 
 		got := test.ReadFile(t, clonedir, filename)
 		assert.EqualStrings(t, content, string(got))
 	}
 
 	t.Run("default configuration", func(t *testing.T) {
+		s := sandbox.New(t)
 		tmcli := newCLI(t, s.RootDir())
 		res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
-		checkVendoredFiles(t, res, project.NewPath("/modules"))
+		checkVendoredFiles(t, s.RootDir(), res, project.NewPath("/modules"))
 	})
 
 	t.Run("root configuration", func(t *testing.T) {
+		s := sandbox.New(t)
 		rootcfg := "/from/root/cfg"
 		s.RootEntry().CreateFile("vendor.tm", vendorHCLConfig(rootcfg))
 		tmcli := newCLI(t, s.RootDir())
 		res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
-		checkVendoredFiles(t, res, project.NewPath(rootcfg))
+		checkVendoredFiles(t, s.RootDir(), res, project.NewPath(rootcfg))
 	})
 
 	t.Run(".terramate configuration", func(t *testing.T) {
+		s := sandbox.New(t)
+
+		rootcfg := "/from/root/cfg"
+		s.RootEntry().CreateFile("vendor.tm", vendorHCLConfig(rootcfg))
+
 		dotTerramateCfg := "/from/dottm/cfg"
 		dotTerramateDir := s.RootEntry().CreateDir(".terramate")
-
 		dotTerramateDir.CreateFile("vendor.tm", vendorHCLConfig(dotTerramateCfg))
+
 		tmcli := newCLI(t, s.RootDir())
 		res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
-		checkVendoredFiles(t, res, project.NewPath(dotTerramateCfg))
+		checkVendoredFiles(t, s.RootDir(), res, project.NewPath(dotTerramateCfg))
 	})
 
 	t.Run("CLI configuration", func(t *testing.T) {
+		s := sandbox.New(t)
+
+		rootcfg := "/from/root/cfg"
+		s.RootEntry().CreateFile("vendor.tm", vendorHCLConfig(rootcfg))
+
+		dotTerramateCfg := "/from/dottm/cfg"
+		dotTerramateDir := s.RootEntry().CreateDir(".terramate")
+		dotTerramateDir.CreateFile("vendor.tm", vendorHCLConfig(dotTerramateCfg))
+
 		cliCfg := "/from/cli/cfg"
 		tmcli := newCLI(t, s.RootDir())
 		res := tmcli.run("experimental", "vendor", "download", "--dir", cliCfg, gitSource, "main")
-		checkVendoredFiles(t, res, project.NewPath(cliCfg))
+		checkVendoredFiles(t, s.RootDir(), res, project.NewPath(cliCfg))
 	})
 
 	t.Run("CLI configuration with subdir", func(t *testing.T) {
+		s := sandbox.New(t)
+
 		cliCfg := "/with/subdir"
 		gitSource := gitSource + "//subdir"
 		tmcli := newCLI(t, s.RootDir())
 		res := tmcli.run("experimental", "vendor", "download", "--dir", cliCfg, gitSource, "main")
-		checkVendoredFiles(t, res, project.NewPath(cliCfg))
+		checkVendoredFiles(t, s.RootDir(), res, project.NewPath(cliCfg))
 	})
 }
 
