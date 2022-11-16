@@ -38,8 +38,6 @@ func TestVendorModule(t *testing.T) {
 		content  = "test"
 	)
 
-	// TODO(KATCIPIS): add tm_vendor tests here
-
 	repoSandbox := sandbox.New(t)
 	repoSandbox.RootEntry().CreateFile(filename, content)
 
@@ -52,8 +50,6 @@ func TestVendorModule(t *testing.T) {
 
 	// Check default config and then different configuration precedences
 	checkVendoredFiles := func(t *testing.T, rootdir string, res runResult, vendordir project.Path) {
-		t.Helper()
-
 		assertRunResult(t, res, runExpected{IgnoreStdout: true})
 
 		clonedir := modvendor.AbsVendorDir(rootdir, vendordir, modsrc)
@@ -62,10 +58,34 @@ func TestVendorModule(t *testing.T) {
 		assert.EqualStrings(t, content, string(got))
 	}
 
+	tmVendorCallExpr := func() string {
+		return fmt.Sprintf(`tm_vendor("%s?ref=main")`, gitSource)
+	}
+
+	tmVendorGenBlock := func() string {
+		return GenerateHCL(
+			Labels("file.hcl"),
+			Content(
+				Expr("vendor", tmVendorCallExpr()),
+			),
+		).String()
+	}
+
 	t.Run("default configuration", func(t *testing.T) {
 		s := sandbox.New(t)
 		tmcli := newCLI(t, s.RootDir())
 		res := tmcli.run("experimental", "vendor", "download", gitSource, "main")
+		checkVendoredFiles(t, s.RootDir(), res, project.NewPath("/modules"))
+
+	})
+
+	t.Run("default configuration using tm_vendor and generate", func(t *testing.T) {
+		s := sandbox.New(t)
+		tmcli := newCLI(t, s.RootDir())
+		rootentry := s.RootEntry()
+		rootentry.CreateFile("config.tm", tmVendorGenBlock())
+
+		res := tmcli.run("generate")
 		checkVendoredFiles(t, s.RootDir(), res, project.NewPath("/modules"))
 	})
 
