@@ -291,14 +291,14 @@ func (tree *Tree) LoadSubTree(cfgdir project.Path) error {
 	var parent project.Path
 
 	var parentNode *Tree
-	parent = cfgdir.ParentDir()
+	parent = cfgdir.Dir()
 	for parent != "/" {
 		var found bool
 		parentNode, found = tree.Lookup(parent)
 		if found {
 			break
 		}
-		parent = parent.ParentDir()
+		parent = parent.Dir()
 	}
 
 	if parentNode == nil {

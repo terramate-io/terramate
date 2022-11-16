@@ -933,7 +933,7 @@ func loadAsserts(tree *config.Tree, meta project.Metadata, sm stack.Metadata, gl
 			}
 		}
 
-		if p := curdir.ParentDir(); p != curdir {
+		if p := curdir.Dir(); p != curdir {
 			curdir = p
 		} else {
 			break

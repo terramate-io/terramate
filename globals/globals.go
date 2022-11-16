@@ -195,7 +195,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 		sort.SliceStable(sortedKeys, func(i, j int) bool {
 			expr1, expr2 := pendingExprs[sortedKeys[i]], pendingExprs[sortedKeys[j]]
-			origin1, origin2 := expr1.Origin.ParentDir(), expr2.Origin.ParentDir()
+			origin1, origin2 := expr1.Origin.Dir(), expr2.Origin.Dir()
 
 			if origin1 == origin2 {
 				return len(sortedKeys[i].Path()) < len(sortedKeys[j].Path())
@@ -264,7 +264,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 			oldValue, hasOldValue := globals.GetKeyPath(accessor.Path())
 			if hasOldValue &&
 				accessor.isattr &&
-				oldValue.Origin().ParentDir().String() == expr.Origin.ParentDir().String() {
+				oldValue.Origin().Dir().String() == expr.Origin.Dir().String() {
 				pendingExprsErrs[accessor].Append(
 					errors.E(hcl.ErrTerramateSchema, expr.Range(),
 						"global.%s attribute redefined: previously defined at %s",
@@ -343,7 +343,7 @@ func (globalExprs Exprs) merge(other Exprs) {
 }
 
 func parentDir(dir project.Path) (project.Path, bool) {
-	parent := dir.ParentDir()
+	parent := dir.Dir()
 	return parent, parent != dir
 }
 

@@ -184,7 +184,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 
 			checkdir := cfgpath
 			for checkdir.String() != "/" {
-				checkdir = checkdir.ParentDir()
+				checkdir = checkdir.Dir()
 				stackTree, found = m.cfg.Lookup(checkdir)
 				if found && stackTree.IsStack() {
 					break

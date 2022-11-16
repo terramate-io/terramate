@@ -50,8 +50,8 @@ func NewPath(p string) Path {
 	return Path(path.Clean(p))
 }
 
-// ParentDir returns the path's directory.
-func (p Path) ParentDir() Path { return Path(path.Dir(p.String())) }
+// Dir returns the path's directory.
+func (p Path) Dir() Path { return Path(path.Dir(p.String())) }
 
 // HasPrefix tests whether p begins with s prefix.
 func (p Path) HasPrefix(s string) bool {
