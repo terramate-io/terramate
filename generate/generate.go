@@ -402,7 +402,7 @@ func doRootGeneration(cfg *config.Tree, workingDir string) Report {
 func filterGenFilesByTargetDir(files []GenFile, dir project.Path) []GenFile {
 	logger := log.With().
 		Str("action", "generate.filterGenFilesByTargetDir()").
-		Stringer("workingDir", dir).
+		Stringer("targetDir", dir).
 		Logger()
 
 	var res []GenFile
