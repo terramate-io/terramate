@@ -312,11 +312,7 @@ func (s dirReport) empty() bool {
 		s.err == nil
 }
 
-type result interface {
-	Result | FailureResult
-}
-
-func joinResults[T result](results ...[]T) []T {
+func joinResults[T any](results ...[]T) []T {
 	var all []T
 	for _, r := range results {
 		all = append(all, r...)
