@@ -932,9 +932,9 @@ func generateRootFiles(
 		Str("action", "generate.generateRootFiles()").
 		Logger()
 
-	diskFiles := map[string]string{}       // files already on disk
-	mustExistFiles := map[string]GenFile{} // files that must be present on disk
-	mustDeleteFiles := map[string]bool{}   // files to be deleted
+	diskFiles := map[string]string{}         // files already on disk
+	mustExistFiles := map[string]GenFile{}   // files that must be present on disk
+	mustDeleteFiles := map[string]struct{}{} // files to be deleted
 
 	// this computes the files that must be present on disk after generate
 	// returns. They should not be touched if they already exist on disk and
@@ -954,7 +954,7 @@ func generateRootFiles(
 			logger := genFileLogger(logger, file)
 			logger.Debug().Msg("file must be deleted (if needed)")
 
-			mustDeleteFiles[file.Label()] = true
+			mustDeleteFiles[file.Label()] = struct{}{}
 		}
 	}
 
@@ -985,28 +985,26 @@ func generateRootFiles(
 	}
 
 	// this deletes the files that exist but have condition=false.
-	for label, mustDelete := range mustDeleteFiles {
+	for label := range mustDeleteFiles {
 		logger := logger.With().Str("file", label).Logger()
 
-		if mustDelete {
-			abspath := filepath.Join(cfg.RootDir(), label)
-			_, err := os.Lstat(abspath)
-			if err == nil {
-				logger.Debug().Msg("deleting file")
+		abspath := filepath.Join(cfg.RootDir(), label)
+		_, err := os.Lstat(abspath)
+		if err == nil {
+			logger.Debug().Msg("deleting file")
 
-				dirReport := dirReport{}
-				dir := path.Dir(label)
+			dirReport := dirReport{}
+			dir := path.Dir(label)
 
-				err := os.Remove(abspath)
-				if err != nil {
-					dirReport.err = errors.E(err, "deleting file")
-				} else {
-					dirReport.addDeletedFile(path.Base(label))
-				}
-				report.addDirReport(project.NewPath(dir), dirReport)
-
-				logger.Debug().Msg("deleted successfully")
+			err := os.Remove(abspath)
+			if err != nil {
+				dirReport.err = errors.E(err, "deleting file")
+			} else {
+				dirReport.addDeletedFile(path.Base(label))
 			}
+			report.addDirReport(project.NewPath(dir), dirReport)
+
+			logger.Debug().Msg("deleted successfully")
 		}
 	}
 
