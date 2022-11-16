@@ -108,6 +108,37 @@ func TestGenerateRootContext(t *testing.T) {
 			},
 		},
 		{
+			name: "generate.context=root with no stacks and accessing stacks.list",
+			configs: []hclconfig{
+				{
+					path: "/source",
+					add: Doc(
+						GenerateFile(
+							Labels("/stacks.txt"),
+							Expr("context", "root"),
+							Expr("content", `"${tm_jsonencode(terramate.stacks.list)}"`),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/",
+					files: map[string]fmt.Stringer{
+						"stacks.txt": stringer(`[]`),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/",
+						Created: []string{"stacks.txt"},
+					},
+				},
+			},
+		},
+		{
 			name: "generate files for all directories",
 			configs: []hclconfig{
 				{

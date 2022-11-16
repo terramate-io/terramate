@@ -27,6 +27,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/generate/genhcl"
+	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
@@ -304,6 +305,11 @@ func doStackGeneration(
 }
 
 func doRootGeneration(cfg *config.Tree, workingDir string) Report {
+	logger := log.With().
+		Str("action", "generate.doRootGeneration").
+		Str("workingDir", workingDir).
+		Logger()
+
 	root := cfg.Root()
 	stackConfigs := root.Stacks()
 	var stackpaths []project.Path
@@ -323,7 +329,14 @@ func doRootGeneration(cfg *config.Tree, workingDir string) Report {
 
 	var files []GenFile
 	for _, cfg := range cfg.Root().AsList() {
+		logger = logger.With().
+			Stringer("configDir", cfg.ProjDir()).
+			Bool("isEmpty", cfg.IsEmptyConfig()).
+			Bool("isStack", cfg.IsStack()).
+			Logger()
+
 		if cfg.IsEmptyConfig() || cfg.IsStack() {
+			logger.Debug().Msg("ignoring directory")
 			continue
 		}
 
@@ -338,12 +351,9 @@ func doRootGeneration(cfg *config.Tree, workingDir string) Report {
 			}
 
 			targetDir := project.NewPath(path.Dir(block.Label))
-			if block.Label[0] != '/' {
-				report.addFailure(project.NewPath("/"+targetDir.String()), errors.E(
-					ErrInvalidGenBlockLabel,
-					"generate_file.context=root requires an absolute path but given %s",
-					block.Label))
-
+			err = validateRootGenerateBlock(cfg, block)
+			if err != nil {
+				report.addFailure(targetDir, err)
 				return report
 			}
 
@@ -365,15 +375,6 @@ func doRootGeneration(cfg *config.Tree, workingDir string) Report {
 			}
 			return report
 		}
-	}
-
-	errsmap = validateRootGeneratedFiles(cfg, files)
-	if len(errsmap) > 0 {
-		for file, err := range errsmap {
-			targetDir := path.Dir(file)
-			report.addFailure(project.NewPath(targetDir), err)
-		}
-		return report
 	}
 
 	generateRootFiles(cfg, files, &report)
@@ -1062,68 +1063,55 @@ func validateStackGeneratedFiles(cfg *config.Tree, stackpath string, generated [
 	return errs.AsError()
 }
 
-func validateRootGeneratedFiles(cfg *config.Tree, generated []GenFile) map[string]error {
-	logger := log.With().
-		Str("action", "generate.validateRootGeneratedFiles()").
-		Logger()
-
-	logger.Trace().Msg("Checking for invalid paths on root generated files.")
-
-	errs := map[string]error{}
-	for _, file := range generated {
-		target := file.Label()
-		if !path.IsAbs(target) {
-			errs[file.Label()] = errors.E(
-				ErrInvalidGenBlockLabel, file.Range(),
-				"%s: is not an absolute path", target,
-			)
-			continue
-		}
-
-		abspath := filepath.Join(cfg.RootDir(), filepath.FromSlash(target))
-		abspath = filepath.Clean(abspath)
-		destdir := filepath.Dir(abspath)
-
-		// We need to check that destdir, or any of its parents, is not a symlink or a stack.
-		for strings.HasPrefix(destdir, cfg.RootDir()) && destdir != cfg.RootDir() {
-			info, err := os.Lstat(destdir)
-			if err != nil {
-				if errors.Is(err, fs.ErrNotExist) {
-					destdir = filepath.Dir(destdir)
-					continue
-				}
-				errs[file.Label()] = errors.E(
-					ErrInvalidGenBlockLabel, err,
-					file.Range(),
-					"%s: checking if dest dir is a symlink",
-					file.Label(),
-				)
-				break
-			}
-			if (info.Mode() & fs.ModeSymlink) == fs.ModeSymlink {
-				errs[file.Label()] = errors.E(
-					ErrInvalidGenBlockLabel, err,
-					file.Range(),
-					"%s: generates code inside a symlink",
-					file.Label(),
-				)
-				break
-			}
-
-			if config.IsStack(cfg, destdir) {
-				errs[file.Label()] = errors.E(ErrInvalidGenBlockLabel,
-					file.Range(),
-					"%s: generate_file.context=root generates inside a stack %s",
-					file.Label(),
-					project.PrjAbsPath(cfg.RootDir(), destdir),
-				)
-				break
-			}
-			destdir = filepath.Dir(destdir)
-		}
+func validateRootGenerateBlock(cfg *config.Tree, block hcl.GenFileBlock) error {
+	target := block.Label
+	if !path.IsAbs(target) {
+		return errors.E(
+			ErrInvalidGenBlockLabel, block.Range,
+			"%s: is not an absolute path", target,
+		)
 	}
 
-	return errs
+	abspath := filepath.Join(cfg.RootDir(), filepath.FromSlash(target))
+	abspath = filepath.Clean(abspath)
+	destdir := filepath.Dir(abspath)
+
+	// We need to check that destdir, or any of its parents, is not a symlink or a stack.
+	for strings.HasPrefix(destdir, cfg.RootDir()) && destdir != cfg.RootDir() {
+		info, err := os.Lstat(destdir)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				destdir = filepath.Dir(destdir)
+				continue
+			}
+			return errors.E(
+				ErrInvalidGenBlockLabel, err,
+				block.Range,
+				"%s: checking if dest dir is a symlink",
+				target,
+			)
+		}
+		if (info.Mode() & fs.ModeSymlink) == fs.ModeSymlink {
+			return errors.E(
+				ErrInvalidGenBlockLabel, err,
+				block.Range,
+				"%s: generates code inside a symlink",
+				target,
+			)
+		}
+
+		if config.IsStack(cfg.Root(), destdir) {
+			return errors.E(ErrInvalidGenBlockLabel,
+				block.Range,
+				"%s: generate_file.context=root generates inside a stack %s",
+				target,
+				project.PrjAbsPath(cfg.RootDir(), destdir),
+			)
+		}
+		destdir = filepath.Dir(destdir)
+	}
+
+	return nil
 }
 
 type stringSet struct {
