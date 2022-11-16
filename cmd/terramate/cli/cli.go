@@ -29,6 +29,7 @@ import (
 	"github.com/mineiros-io/terramate/cmd/terramate/cli/out"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/errors/errlog"
+	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl/eval"
@@ -471,20 +472,8 @@ func (c *cli) vendorDownload() {
 	}
 	parsedSource.Ref = ref
 
-	eventsHandled := make(chan struct{})
 	eventsStream := download.NewEventStream()
-
-	go func() {
-		for event := range eventsStream {
-			c.output.Msg(out.V, "vendor: %s %s at %s",
-				event.Message, event.Module.Raw, event.TargetDir)
-			log.Info().
-				Str("module", event.Module.Raw).
-				Stringer("vendorDir", event.TargetDir).
-				Msg(event.Message)
-		}
-		close(eventsHandled)
-	}()
+	eventsHandled := c.handleVendorProgressEvents(eventsStream)
 
 	logger.Debug().Msg("vendoring")
 
@@ -508,6 +497,24 @@ func (c *cli) vendorDownload() {
 	}
 
 	c.output.Msg(out.V, report.String())
+}
+
+func (c *cli) handleVendorProgressEvents(eventsStream download.ProgressEventStream) <-chan struct{} {
+	eventsHandled := make(chan struct{})
+
+	go func() {
+		for event := range eventsStream {
+			c.output.Msg(out.V, "vendor: %s %s at %s",
+				event.Message, event.Module.Raw, event.TargetDir)
+			log.Info().
+				Str("module", event.Module.Raw).
+				Stringer("vendorDir", event.TargetDir).
+				Msg(event.Message)
+		}
+		close(eventsHandled)
+	}()
+
+	return eventsHandled
 }
 
 func (c *cli) vendorDir() prj.Path {
@@ -597,9 +604,39 @@ func (c *cli) cloneStack() {
 }
 
 func (c *cli) generate(workdir string) {
-	// TODO(KATCIPIS): pass proper vendor request channel
-	// Add vendor request handler + progress event handling.
-	report := generate.Do(c.cfg(), workdir, c.vendorDir(), nil)
+	vendorProgressEvents := download.NewEventStream()
+	progressHandlerDone := c.handleVendorProgressEvents(vendorProgressEvents)
+
+	vendorRequestEvents := make(chan event.VendorRequest)
+	vendorReports := download.HandleVendorRequests(
+		c.prj.root,
+		vendorRequestEvents,
+		vendorProgressEvents,
+	)
+
+	// TODO(KATCIPIS): we need proper report handling/merging
+	go func() {
+		for report := range vendorReports {
+			// TODO use report
+			stdfmt.Println("TODO HANDLE REPORT", report)
+		}
+	}()
+
+	log.Debug().Msg("generating code")
+
+	report := generate.Do(c.cfg(), workdir, c.vendorDir(), vendorRequestEvents)
+
+	log.Debug().Msg("stopping vendor request handler")
+
+	close(vendorRequestEvents)
+
+	log.Debug().Msg("stopping vendor progress handler")
+
+	close(vendorProgressEvents)
+	<-progressHandlerDone
+
+	log.Debug().Msg("all handlers stopped, generating final report")
+
 	c.output.Msg(out.V, report.Full())
 
 	if report.HasFailures() {

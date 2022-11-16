@@ -62,11 +62,17 @@ func TestVendorModule(t *testing.T) {
 		return fmt.Sprintf(`tm_vendor("%s?ref=main")`, gitSource)
 	}
 
-	tmVendorGenBlock := func() string {
-		return GenerateHCL(
-			Labels("file.hcl"),
-			Content(
-				Expr("vendor", tmVendorCallExpr()),
+	tmVendorGenBlocks := func() string {
+		return Doc(
+			GenerateHCL(
+				Labels("file.hcl"),
+				Content(
+					Expr("vendor", tmVendorCallExpr()),
+				),
+			),
+			GenerateFile(
+				Labels("file.txt"),
+				Expr("content", tmVendorCallExpr()),
 			),
 		).String()
 	}
@@ -80,7 +86,8 @@ func TestVendorModule(t *testing.T) {
 
 		t.Run("using tm_vendor and generate", func(t *testing.T) {
 			s := sandbox.New(t)
-			s.RootEntry().CreateFile("config.tm", tmVendorGenBlock())
+			s.CreateStack("stack")
+			s.RootEntry().CreateFile("config.tm", tmVendorGenBlocks())
 
 			tmcli := newCLI(t, s.RootDir())
 			res := tmcli.run("generate")
@@ -106,7 +113,8 @@ func TestVendorModule(t *testing.T) {
 		t.Run("using tm_vendor and generate", func(t *testing.T) {
 			s := setup()
 
-			s.RootEntry().CreateFile("config.tm", tmVendorGenBlock())
+			s.CreateStack("stack")
+			s.RootEntry().CreateFile("config.tm", tmVendorGenBlocks())
 
 			tmcli := newCLI(t, s.RootDir())
 			res := tmcli.run("generate")
@@ -137,7 +145,8 @@ func TestVendorModule(t *testing.T) {
 		t.Run("using tm_vendor and generate", func(t *testing.T) {
 			s := setup()
 
-			s.RootEntry().CreateFile("config.tm", tmVendorGenBlock())
+			s.CreateStack("stack")
+			s.RootEntry().CreateFile("config.tm", tmVendorGenBlocks())
 
 			tmcli := newCLI(t, s.RootDir())
 			res := tmcli.run("generate")
