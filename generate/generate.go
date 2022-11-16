@@ -923,11 +923,7 @@ func removeStackGeneratedFiles(
 	return removedFiles, nil
 }
 
-func generateRootFiles(
-	cfg *config.Tree,
-	genfiles []GenFile,
-	report *Report,
-) {
+func generateRootFiles(cfg *config.Tree, genfiles []GenFile, report *Report) {
 	logger := log.With().
 		Str("action", "generate.generateRootFiles()").
 		Logger()
