@@ -663,6 +663,43 @@ func TestGenerateRootContext(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "conflicts are checked independently of workingDir",
+			layout: []string{
+				"d:deep/down/dir",
+			},
+			workingDir: "/deep/down/dir",
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: GenerateFile(
+						Labels("/target/file.txt"),
+						Expr("context", "root"),
+						Bool("condition", true),
+						Str("content", "content 1"),
+					),
+				},
+				{
+					path: "/child",
+					add: GenerateFile(
+						Labels("/target/file.txt"),
+						Expr("context", "root"),
+						Bool("condition", true),
+						Str("content", "content 2"),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/target",
+						},
+						Error: errors.E(generate.ErrConflictingConfig),
+					},
+				},
+			},
+		},
 	})
 }
 

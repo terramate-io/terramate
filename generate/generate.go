@@ -392,8 +392,31 @@ func doRootGeneration(cfg *config.Tree, workingDir string) Report {
 
 	logger.Debug().Msg("no conflicts found")
 
+	wd := project.PrjAbsPath(cfg.RootDir(), workingDir)
+	files = filterGenFilesByTargetDir(files, wd)
+
 	generateRootFiles(cfg, files, &report)
 	return report
+}
+
+func filterGenFilesByTargetDir(files []GenFile, dir project.Path) []GenFile {
+	logger := log.With().
+		Str("action", "generate.filterGenFilesByTargetDir()").
+		Stringer("workingDir", dir).
+		Logger()
+
+	var res []GenFile
+	for _, file := range files {
+		logger := genFileLogger(logger, file)
+		targetDir := path.Dir(file.Label())
+		if strings.HasPrefix(targetDir, dir.String()) {
+			logger.Debug().Msg("block selected to be generated")
+			res = append(res, file)
+		} else {
+			logger.Debug().Msg("block ignored")
+		}
+	}
+	return res
 }
 
 func handleAsserts(rootdir string, dir string, asserts []config.Assert) error {
