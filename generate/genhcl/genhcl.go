@@ -267,7 +267,7 @@ func loadGenHCLBlocks(tree *config.Tree, cfgdir project.Path) ([]hcl.GenHCLBlock
 		res = append(res, cfg.Node.Generate.HCLs...)
 	}
 
-	parentCfgDir := cfgdir.Dir()
+	parentCfgDir := cfgdir.ParentDir()
 	if parentCfgDir == cfgdir {
 		return res, nil
 	}

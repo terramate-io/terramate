@@ -53,6 +53,7 @@ type (
 	// operator is not defined, then this type implements a fixed size struct.
 	GlobalPathKey struct {
 		path     [project.MaxGlobalLabels]string
+		isattr   bool
 		numPaths int
 	}
 
@@ -194,7 +195,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 		sort.SliceStable(sortedKeys, func(i, j int) bool {
 			expr1, expr2 := pendingExprs[sortedKeys[i]], pendingExprs[sortedKeys[j]]
-			origin1, origin2 := expr1.Origin.Dir(), expr2.Origin.Dir()
+			origin1, origin2 := expr1.Origin.ParentDir(), expr2.Origin.ParentDir()
 
 			if origin1 == origin2 {
 				return len(sortedKeys[i].Path()) < len(sortedKeys[j].Path())
@@ -260,12 +261,14 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 			// This catches a schema error that cannot be detected at the parser.
 			// When a nested object is defined either by literal or funcalls,
 			// it can't be detected at the parser.
-			if v, ok := globals.GetKeyPath(accessor.Path()); ok &&
-				v.Origin().Dir().String() == expr.Origin.Dir().String() {
+			oldValue, hasOldValue := globals.GetKeyPath(accessor.Path())
+			if hasOldValue &&
+				accessor.isattr &&
+				oldValue.Origin().ParentDir().String() == expr.Origin.ParentDir().String() {
 				pendingExprsErrs[accessor].Append(
 					errors.E(hcl.ErrTerramateSchema, expr.Range(),
 						"global.%s attribute redefined: previously defined at %s",
-						accessor.rootname(), v.Origin().String()))
+						accessor.rootname(), oldValue.Origin().String()))
 
 				continue
 			}
@@ -276,6 +279,23 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 			if err != nil {
 				pendingExprsErrs[accessor].Append(errors.E(
 					ErrEval, err, "global.%s", accessor.rootname()))
+				continue
+			}
+
+			if hasOldValue && oldValue.IsObject() && !accessor.isattr {
+				// all the `attr = expr` inside global blocks become an entry
+				// in the globalExprs map but we have the special case that
+				// an empty globals block with labels must implicitly create
+				// the label defined object...
+				// then as it does not define any expression, an implicit
+				// expression for an empty object block is added to the map.
+				// This special entry sets the key accessor.isattr = false
+				// which means this expression doesn't come from an attribute.
+
+				// this if only happens if there's already an old value set
+				// in this path and it's an object already. Then the mocked
+				// value can be ignored.
+
 				continue
 			}
 
@@ -323,7 +343,7 @@ func (globalExprs Exprs) merge(other Exprs) {
 }
 
 func parentDir(dir project.Path) (project.Path, bool) {
-	parent := dir.Dir()
+	parent := dir.ParentDir()
 	return parent, parent != dir
 }
 
@@ -340,6 +360,7 @@ func newGlobalPath(basepath []string, name string) GlobalPathKey {
 	if name != "" {
 		accessor.path[len(basepath)] = name
 		accessor.numPaths++
+		accessor.isattr = true
 	}
 	return accessor
 }

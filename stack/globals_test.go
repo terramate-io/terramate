@@ -560,6 +560,62 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name: "extending globals with empty block",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Labels("obj"),
+							EvalExpr(t, "iam", `[1, 2, 3]`),
+						),
+						Globals(
+							Labels("obj"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "obj", `{ iam = [1, 2, 3] }`),
+				),
+			},
+		},
+		{
+			name: "extending globals multiple times with empty block",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Labels("obj"),
+						),
+						Globals(
+							Labels("obj"),
+							EvalExpr(t, "iam", `[1, 2, 3]`),
+						),
+						Globals(
+							Labels("obj"),
+						),
+						Globals(
+							Labels("obj"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "obj", `{ iam = [1, 2, 3] }`),
+				),
+			},
+		},
+		{
 			name: "stack extending local globals - order does not matter",
 			layout: []string{
 				"s:stack",

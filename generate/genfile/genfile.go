@@ -227,7 +227,7 @@ func loadGenFileBlocks(tree *config.Tree, cfgdir project.Path) ([]hcl.GenFileBlo
 		res = append(res, cfg.Node.Generate.Files...)
 	}
 
-	parentCfgDir := cfgdir.Dir()
+	parentCfgDir := cfgdir.ParentDir()
 	if parentCfgDir == cfgdir {
 		return res, nil
 	}
