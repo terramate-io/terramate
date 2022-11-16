@@ -614,13 +614,7 @@ func (c *cli) generate(workdir string) {
 		vendorProgressEvents,
 	)
 
-	// TODO(KATCIPIS): we need proper report handling/merging
-	go func() {
-		for report := range vendorReports {
-			// TODO use report
-			stdfmt.Println("TODO HANDLE REPORT", report)
-		}
-	}()
+	mergedVendorReport := download.MergeVendorReports(vendorReports)
 
 	log.Debug().Msg("generating code")
 
@@ -629,6 +623,11 @@ func (c *cli) generate(workdir string) {
 	log.Debug().Msg("stopping vendor request handler")
 
 	close(vendorRequestEvents)
+
+	log.Debug().Msg("waiting for vendor report merging")
+
+	// TODO(KATCIPIS): present the report
+	<-mergedVendorReport
 
 	log.Debug().Msg("stopping vendor progress handler")
 

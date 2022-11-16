@@ -136,6 +136,22 @@ func HandleVendorRequests(
 	return reportsStream
 }
 
+// MergeVendorReports will read all reports from the given reports channel, merge them
+// and send the merged result on the returned channel and then close it.
+// The returned channel always produce a single final report after the given
+// reports channel is closed.
+func MergeVendorReports(reports <-chan Report) <-chan Report {
+	mergedReport := make(chan Report)
+	go func() {
+		for report := range reports {
+			// TODO(KATCIPIS): IMPLEMENT PROPER MERGING
+			fmt.Println("TODO HANDLE REPORT", report)
+		}
+		close(mergedReport)
+	}()
+	return mergedReport
+}
+
 // VendorAll will vendor all dependencies of the tfdir into rootdir.
 // It will scan all .tf files in the directory and vendor each module declaration
 // containing the supported remote source URLs.
