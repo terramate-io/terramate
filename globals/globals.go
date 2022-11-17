@@ -292,7 +292,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 				// This special entry sets the key accessor.isattr = false
 				// which means this expression doesn't come from an attribute.
 
-				// this if happens for the general case, which we must set the
+				// this `if` happens for the general case, which we must set the
 				// actual value and then ignores the case where it has a fake
 				// expression when extending an existing object.
 
