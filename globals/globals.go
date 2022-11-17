@@ -278,11 +278,11 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 			val, err := ctx.Eval(expr)
 			if err != nil {
 				pendingExprsErrs[accessor].Append(errors.E(
-					ErrEval, err, "global.%s", accessor.rootname()))
+					ErrEval, err, "global.%s (%t)", accessor.rootname(), accessor.isattr))
 				continue
 			}
 
-			if hasOldValue && oldValue.IsObject() && !accessor.isattr {
+			if !hasOldValue || !oldValue.IsObject() || accessor.isattr {
 				// all the `attr = expr` inside global blocks become an entry
 				// in the globalExprs map but we have the special case that
 				// an empty globals block with labels must implicitly create
@@ -292,17 +292,15 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 				// This special entry sets the key accessor.isattr = false
 				// which means this expression doesn't come from an attribute.
 
-				// this if only happens if there's already an old value set
-				// in this path and it's an object already. Then the mocked
-				// value can be ignored.
+				// this if happens for the general case, which we must set the
+				// actual value and then ignores the case where it has a fake
+				// expression when extending an existing object.
 
-				continue
-			}
-
-			err = globals.SetAt(accessor.Path(), eval.NewValue(val, expr.Origin))
-			if err != nil {
-				pendingExprsErrs[accessor].Append(err)
-				continue
+				err = globals.SetAt(accessor.Path(), eval.NewValue(val, expr.Origin))
+				if err != nil {
+					pendingExprsErrs[accessor].Append(errors.E(err, "setting global"))
+					continue
+				}
 			}
 
 			amountEvaluated++

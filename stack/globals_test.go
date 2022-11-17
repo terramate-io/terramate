@@ -589,6 +589,36 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name: "extending globals with empty block in child directory",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Labels("obj"),
+						Expr("a", `[1, 2, 3]`),
+						Number("b", 1),
+					),
+				},
+				{
+					path: "/stack",
+					add: Globals(
+						Labels("obj"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "obj", `{
+						a = [1, 2, 3]
+						b = 1
+					}`),
+				),
+			},
+		},
+		{
 			name: "extending globals multiple times with empty block",
 			layout: []string{
 				"s:stack",
@@ -619,6 +649,7 @@ func TestLoadGlobals(t *testing.T) {
 				),
 			},
 		},
+
 		{
 			name: "stack extending local globals - order does not matter",
 			layout: []string{
