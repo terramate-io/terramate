@@ -95,6 +95,13 @@ func TestGenerate(t *testing.T) {
 			tmcli := newCLI(t, s.RootDir())
 			res := tmcli.run("generate")
 			assertRunResult(t, res, tcase.want.run)
+
+			for _, wantFile := range tcase.want.files {
+				t.Logf("checking if wanted file %q was created", wantFile.path)
+
+				gotFile := test.ReadFile(t, s.RootDir(), wantFile.path.String())
+				test.AssertGenCodeEquals(t, string(gotFile), wantFile.body.String())
+			}
 		})
 	}
 }
