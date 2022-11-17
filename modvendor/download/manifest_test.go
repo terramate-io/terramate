@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/modvendor/download"
@@ -355,9 +356,7 @@ func testInvalidManifestFails(t *testing.T, configpath string) {
 
 	assert.EqualInts(t, 0, len(got.Vendored), "vendored should be empty")
 	assert.EqualInts(t, 1, len(got.Ignored), "should have single ignored")
-	if !strings.Contains(got.Ignored[0].Reason, string(hcl.ErrHCLSyntax)) {
-		t.Fatalf("unexpected ignored reason: %s", got.Ignored[0].Reason)
-	}
+	assert.IsError(t, got.Ignored[0].Reason, errors.E(hcl.ErrHCLSyntax))
 }
 
 func listFiles(t *testing.T, dir string) []string {

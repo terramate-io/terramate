@@ -35,7 +35,7 @@ type Vendored struct {
 // IgnoredVendor describes an ignored dependency.
 type IgnoredVendor struct {
 	RawSource string
-	Reason    string
+	Reason    error
 }
 
 // Report with the result of the vendor related functions.
@@ -117,9 +117,9 @@ func (r *Report) addVendored(source tf.Source) {
 	}
 }
 
-func (r *Report) addIgnored(rawSource string, reason string) {
+func (r *Report) addIgnored(rawSource string, err error) {
 	r.Ignored = append(r.Ignored, IgnoredVendor{
 		RawSource: rawSource,
-		Reason:    reason,
+		Reason:    err,
 	})
 }
