@@ -118,7 +118,7 @@ func (r *Report) merge(other Report) {
 		r.Vendored[k] = v
 	}
 
-	r.Ignored = append(other.Ignored)
+	r.Ignored = append(r.Ignored, other.Ignored...)
 }
 
 func (r *Report) addVendored(source tf.Source) {

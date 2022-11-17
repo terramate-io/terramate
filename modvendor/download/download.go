@@ -152,11 +152,34 @@ func HandleVendorRequests(
 func MergeVendorReports(reports <-chan Report) <-chan Report {
 	mergedReport := make(chan Report)
 	go func() {
-		for range reports {
-			// TODO(KATCIPIS): IMPLEMENT PROPER MERGING
-			// fmt.Println("TODO HANDLE REPORT", report)
+		logger := log.With().
+			Str("action", "download.MergeVendorReports").
+			Logger()
+
+		var finalReport *Report
+
+		logger.Debug().Msg("starting to merge vendor reports")
+
+		for report := range reports {
+			logger.Debug().Msg("got vendor report, merging")
+
+			if finalReport == nil {
+				finalReport = &report
+				continue
+			}
+
+			finalReport.merge(report)
 		}
+
+		logger.Debug().Msg("finished merging vendor reports, sending final report")
+
+		if finalReport != nil {
+			mergedReport <- *finalReport
+		}
+
 		close(mergedReport)
+
+		logger.Debug().Msg("sent final report, finished")
 	}()
 	return mergedReport
 }
