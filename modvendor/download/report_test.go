@@ -97,6 +97,48 @@ func TestMergeVendorReportsNReports(t *testing.T) {
 	assertReportsIsClosed(t, merged)
 }
 
+func TestRemoveIgnoredFromReportByErrKind(t *testing.T) {
+	got := download.NewReport(project.NewPath("/test"))
+	got.Ignored = []download.IgnoredVendor{
+		{
+			RawSource: "some test source",
+			Reason:    errors.E(download.ErrAlreadyVendored, "some error"),
+		},
+		{
+			RawSource: "some test source",
+			Reason:    errors.E(download.ErrUnsupportedModSrc, "some error"),
+		},
+		{
+			RawSource: "some test source",
+			Reason:    errors.E(download.ErrAlreadyVendored, "some error"),
+		},
+		{
+			RawSource: "some test source",
+			Reason:    errors.E(download.ErrModRefEmpty, "some error"),
+		},
+		{
+			RawSource: "some test source",
+			Reason:    errors.E(download.ErrAlreadyVendored, "some error"),
+		},
+	}
+
+	got.RemoveIgnoredByKind(download.ErrAlreadyVendored)
+
+	want := download.NewReport(project.NewPath("/test"))
+	want.Ignored = []download.IgnoredVendor{
+		{
+			RawSource: "some test source",
+			Reason:    errors.E(download.ErrUnsupportedModSrc, "some error"),
+		},
+		{
+			RawSource: "some test source",
+			Reason:    errors.E(download.ErrModRefEmpty, "some error"),
+		},
+	}
+
+	assertVendorReport(t, want, got)
+}
+
 func assertReportsIsClosed(t *testing.T, r <-chan download.Report) {
 	t.Helper()
 

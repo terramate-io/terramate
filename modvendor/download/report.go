@@ -109,6 +109,25 @@ func (r Report) Verbose() string {
 	return strings.Join(report, "\n")
 }
 
+// RemoveIgnoredByKind removes all ignored from this report that have errors
+// with the given kind.
+func (r *Report) RemoveIgnoredByKind(kind errors.Kind) {
+	ignored := []IgnoredVendor{}
+	for _, v := range r.Ignored {
+		if !errors.IsKind(v.Reason, kind) {
+			ignored = append(ignored, v)
+		}
+	}
+	r.Ignored = ignored
+}
+
+// IsEmpty returns true if the report is empty (nothing to report).
+func (r Report) IsEmpty() bool {
+	return len(r.Vendored) == 0 &&
+		len(r.Ignored) == 0 &&
+		r.Error == nil
+}
+
 func (r *Report) merge(other Report) {
 	if other.Error != nil {
 		if r.Error == nil {
@@ -123,13 +142,6 @@ func (r *Report) merge(other Report) {
 	}
 
 	r.Ignored = append(r.Ignored, other.Ignored...)
-}
-
-// IsEmpty returns true if the report is empty (nothing to report).
-func (r Report) IsEmpty() bool {
-	return len(r.Vendored) == 0 &&
-		len(r.Ignored) == 0 &&
-		r.Error == nil
 }
 
 func (r *Report) addVendored(source tf.Source) {
