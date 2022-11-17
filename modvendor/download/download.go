@@ -156,15 +156,15 @@ func MergeVendorReports(reports <-chan Report) <-chan Report {
 			Str("action", "download.MergeVendorReports").
 			Logger()
 
-		var finalReport *Report
+		var finalReport Report
 
 		logger.Debug().Msg("starting to merge vendor reports")
 
 		for report := range reports {
 			logger.Debug().Msg("got vendor report, merging")
 
-			if finalReport == nil {
-				finalReport = &report
+			if finalReport.isEmpty() {
+				finalReport = report
 				continue
 			}
 
@@ -173,8 +173,8 @@ func MergeVendorReports(reports <-chan Report) <-chan Report {
 
 		logger.Debug().Msg("finished merging vendor reports, sending final report")
 
-		if finalReport != nil {
-			mergedReport <- *finalReport
+		if !finalReport.isEmpty() {
+			mergedReport <- finalReport
 		}
 
 		close(mergedReport)

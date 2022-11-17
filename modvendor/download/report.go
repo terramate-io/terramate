@@ -111,7 +111,11 @@ func (r Report) Verbose() string {
 
 func (r *Report) merge(other Report) {
 	if other.Error != nil {
-		r.Error = other.Error
+		if r.Error == nil {
+			r.Error = other.Error
+		} else {
+			r.Error = errors.L(r.Error, other.Error)
+		}
 	}
 
 	for k, v := range other.Vendored {
@@ -119,6 +123,12 @@ func (r *Report) merge(other Report) {
 	}
 
 	r.Ignored = append(r.Ignored, other.Ignored...)
+}
+
+func (r Report) isEmpty() bool {
+	return len(r.Vendored) == 0 &&
+		len(r.Ignored) == 0 &&
+		r.Error == nil
 }
 
 func (r *Report) addVendored(source tf.Source) {
