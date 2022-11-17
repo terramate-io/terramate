@@ -829,9 +829,8 @@ func (c *cli) createStack() {
 	log.Info().Msgf("created stack %s", stackPath)
 	c.output.Msg(out.V, "Created stack %s", stackPath)
 
-	// TODO(KATCIPIS): pass proper vendor request channel and handle events
-	// Avoid duplication from c.generate()
-	report := generate.Do(c.cfg(), stackDir, c.vendorDir(), nil)
+	// TODO(KATCIPIS): handle vendorReport
+	report, _ := c.gencode(stackDir)
 
 	if report.HasFailures() {
 		c.output.Msg(out.V, "Code generation failed")
