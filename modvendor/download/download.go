@@ -143,9 +143,9 @@ func HandleVendorRequests(
 func MergeVendorReports(reports <-chan Report) <-chan Report {
 	mergedReport := make(chan Report)
 	go func() {
-		for report := range reports {
+		for range reports {
 			// TODO(KATCIPIS): IMPLEMENT PROPER MERGING
-			fmt.Println("TODO HANDLE REPORT", report)
+			// fmt.Println("TODO HANDLE REPORT", report)
 		}
 		close(mergedReport)
 	}()

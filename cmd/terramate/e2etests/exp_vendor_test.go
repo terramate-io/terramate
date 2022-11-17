@@ -38,15 +38,8 @@ func TestVendorModule(t *testing.T) {
 		content  = "test"
 	)
 
-	repoSandbox := sandbox.New(t)
-	repoSandbox.RootEntry().CreateFile(filename, content)
-
-	repoGit := repoSandbox.Git()
-	repoGit.CommitAll("add file")
-
-	gitSource := newLocalSource(repoSandbox.RootDir())
-	modsrc, err := tf.ParseSource(gitSource + "?ref=main")
-	assert.NoError(t, err)
+	gitSource := newGitSource(t, filename, content)
+	modsrc := test.ParseSource(t, gitSource+"?ref=main")
 
 	// Check default config and then different configuration precedences
 	checkVendoredFiles := func(t *testing.T, rootdir string, res runResult, vendordir project.Path) {
@@ -348,4 +341,14 @@ func vendorHCLConfig(dir string) string {
 		  dir = %q
 		}
 	`, dir)
+}
+
+func newGitSource(t *testing.T, filename, content string) string {
+	repoSandbox := sandbox.New(t)
+	repoSandbox.RootEntry().CreateFile(filename, content)
+
+	repoGit := repoSandbox.Git()
+	repoGit.CommitAll("add file")
+
+	return newLocalSource(repoSandbox.RootDir())
 }

@@ -18,9 +18,12 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
+
+	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
 // Most of the code generation behavior is tested
@@ -51,7 +54,22 @@ func TestGenerate(t *testing.T) {
 		}
 	)
 
-	const noCodegenMsg = "Nothing to do, generated code is up to date\n"
+	const (
+		noCodegenMsg = "Nothing to do, generated code is up to date\n"
+		filename     = "test.txt"
+		content      = "generate-tests"
+	)
+
+	p := project.NewPath
+	gitSource := newGitSource(t, filename, content)
+	gitSource += "?ref=main"
+	modsrc := test.ParseSource(t, gitSource)
+	defaultVendor := project.NewPath("/modules")
+	vendorTargetDir := modvendor.TargetDir(defaultVendor, modsrc)
+
+	tmVendorCallExpr := func() string {
+		return fmt.Sprintf(`tm_vendor("%s")`, gitSource)
+	}
 
 	tcases := []testcase{
 		{
@@ -71,6 +89,106 @@ func TestGenerate(t *testing.T) {
 			want: want{
 				run: runExpected{
 					Stdout: noCodegenMsg,
+				},
+			},
+		},
+		{
+			name: "generate file and hcl",
+			layout: []string{
+				"s:stack",
+			},
+			files: []file{
+				{
+					path: p("/config.tm"),
+					body: Doc(
+						GenerateHCL(
+							Labels("file.hcl"),
+							Content(
+								Str("a", "hi"),
+							),
+						),
+						GenerateFile(
+							Labels("file.txt"),
+							Str("content", "hi"),
+						),
+					),
+				},
+			},
+			want: want{
+				run: runExpected{
+					Stdout: `Code generation report
+
+Successes:
+
+- /stack
+	[+] file.hcl
+	[+] file.txt
+
+Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.
+`,
+				},
+				files: []file{
+					{
+						path: p("/stack/file.hcl"),
+						body: Doc(
+							Str("a", "hi"),
+						),
+					},
+					{
+						path: p("/stack/file.txt"),
+						body: str("hi"),
+					},
+				},
+			},
+		},
+		{
+			name: "generate file and hcl with tm_vendor",
+			layout: []string{
+				"s:stack",
+			},
+			files: []file{
+				{
+					path: p("/config.tm"),
+					body: Doc(
+						GenerateHCL(
+							Labels("file.hcl"),
+							Content(
+								Expr("vendor", tmVendorCallExpr()),
+							),
+						),
+						GenerateFile(
+							Labels("file.txt"),
+							Expr("content", tmVendorCallExpr()),
+						),
+					),
+				},
+			},
+			want: want{
+				run: runExpected{
+					// TODO(KATCIPIS): add vendor report here.
+					Stdout: fmt.Sprintf(`vendor: downloading %s at %s
+Code generation report
+
+Successes:
+
+- /stack
+	[+] file.hcl
+	[+] file.txt
+
+Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.
+`, gitSource, vendorTargetDir),
+				},
+				files: []file{
+					{
+						path: p("/stack/file.hcl"),
+						body: Doc(
+							Str("vendor", ".."+vendorTargetDir.String()),
+						),
+					},
+					{
+						path: p("/stack/file.txt"),
+						body: str(".." + vendorTargetDir.String()),
+					},
 				},
 			},
 		},
@@ -104,4 +222,10 @@ func TestGenerate(t *testing.T) {
 			}
 		})
 	}
+}
+
+type str string
+
+func (s str) String() string {
+	return string(s)
 }
