@@ -604,6 +604,19 @@ func (c *cli) cloneStack() {
 }
 
 func (c *cli) generate(workdir string) {
+	// TODO(KATCIPIS): present the report
+	report, _ := c.gencode(workdir)
+
+	c.output.Msg(out.V, report.Full())
+
+	if report.HasFailures() {
+		os.Exit(1)
+	}
+}
+
+// gencode will generate code for the whole project providing automatic
+// vendoring of all tm_vendor calls.
+func (c *cli) gencode(workdir string) (generate.Report, download.Report) {
 	vendorProgressEvents := download.NewEventStream()
 	progressHandlerDone := c.handleVendorProgressEvents(vendorProgressEvents)
 
@@ -626,8 +639,7 @@ func (c *cli) generate(workdir string) {
 
 	log.Debug().Msg("waiting for vendor report merging")
 
-	// TODO(KATCIPIS): present the report
-	<-mergedVendorReport
+	vendorReport := <-mergedVendorReport
 
 	log.Debug().Msg("stopping vendor progress handler")
 
@@ -636,11 +648,7 @@ func (c *cli) generate(workdir string) {
 
 	log.Debug().Msg("all handlers stopped, generating final report")
 
-	c.output.Msg(out.V, report.Full())
-
-	if report.HasFailures() {
-		os.Exit(1)
-	}
+	return report, vendorReport
 }
 
 func (c *cli) checkGitUntracked() bool {
