@@ -163,7 +163,7 @@ func MergeVendorReports(reports <-chan Report) <-chan Report {
 		for report := range reports {
 			logger.Debug().Msg("got vendor report, merging")
 
-			if finalReport.isEmpty() {
+			if finalReport.IsEmpty() {
 				finalReport = report
 				continue
 			}
@@ -173,7 +173,7 @@ func MergeVendorReports(reports <-chan Report) <-chan Report {
 
 		logger.Debug().Msg("finished merging vendor reports, sending final report")
 
-		if !finalReport.isEmpty() {
+		if !finalReport.IsEmpty() {
 			mergedReport <- finalReport
 		}
 

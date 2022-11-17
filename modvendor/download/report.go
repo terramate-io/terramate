@@ -125,7 +125,8 @@ func (r *Report) merge(other Report) {
 	r.Ignored = append(r.Ignored, other.Ignored...)
 }
 
-func (r Report) isEmpty() bool {
+// IsEmpty returns true if the report is empty (nothing to report).
+func (r Report) IsEmpty() bool {
 	return len(r.Vendored) == 0 &&
 		len(r.Ignored) == 0 &&
 		r.Error == nil
