@@ -200,7 +200,6 @@ func vendor(
 			errmsg += fmt.Sprintf(" found in %s", info.origin)
 		}
 
-		fmt.Println("KMLO", errmsg)
 		report.addIgnored(modsrc.Raw, errors.E(ErrDownloadMod, err, errmsg))
 		return report
 	}

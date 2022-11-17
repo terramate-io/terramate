@@ -109,6 +109,18 @@ func (r Report) Verbose() string {
 	return strings.Join(report, "\n")
 }
 
+func (r *Report) merge(other Report) {
+	if other.Error != nil {
+		r.Error = other.Error
+	}
+
+	for k, v := range other.Vendored {
+		r.Vendored[k] = v
+	}
+
+	r.Ignored = append(other.Ignored)
+}
+
 func (r *Report) addVendored(source tf.Source) {
 	dir := modvendor.TargetDir(r.vendorDir, source)
 	r.Vendored[dir] = Vendored{
