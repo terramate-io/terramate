@@ -105,6 +105,11 @@ func (tree *Tree) Dir() string {
 	return tree.dir
 }
 
+// ProjDir returns the directory as a project dir.
+func (tree *Tree) ProjDir() project.Path {
+	return project.PrjAbsPath(tree.RootDir(), tree.dir)
+}
+
 // RootDir returns the tree root directory..
 func (tree *Tree) RootDir() string {
 	if tree.Parent != nil {
@@ -167,6 +172,18 @@ func (tree *Tree) Lookup(abspath project.Path) (*Tree, bool) {
 		cfg = node
 	}
 	return cfg, true
+}
+
+// AsList returns a list with this node and all its children.
+func (tree *Tree) AsList() List {
+	result := []*Tree{
+		tree,
+	}
+
+	for _, children := range tree.Children {
+		result = append(result, children.AsList()...)
+	}
+	return result
 }
 
 // StacksByPaths returns the stacks from the provided relative paths.

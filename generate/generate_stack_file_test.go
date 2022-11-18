@@ -48,13 +48,13 @@ func TestGenerateFile(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack-1",
+					dir: "/stacks/stack-1",
 					files: map[string]fmt.Stringer{
 						"empty": stringer(""),
 					},
 				},
 				{
-					stack: "/stacks/stack-2",
+					dir: "/stacks/stack-2",
 					files: map[string]fmt.Stringer{
 						"empty": stringer(""),
 					},
@@ -109,13 +109,13 @@ func TestGenerateFile(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack-1",
+					dir: "/stacks/stack-1",
 					files: map[string]fmt.Stringer{
 						"stacks.txt": stringer(`["/stacks/stack-1","/stacks/stack-2"]`),
 					},
 				},
 				{
-					stack: "/stacks/stack-2",
+					dir: "/stacks/stack-2",
 					files: map[string]fmt.Stringer{
 						"stacks.txt": stringer(`["/stacks/stack-1","/stacks/stack-2"]`),
 					},
@@ -152,7 +152,7 @@ func TestGenerateFile(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/",
+					dir: "/",
 					files: map[string]fmt.Stringer{
 						"root.txt": stringer(`["/"]`),
 					},
@@ -187,19 +187,19 @@ func TestGenerateFile(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/",
+					dir: "/",
 					files: map[string]fmt.Stringer{
 						"root.txt": stringer(`["/","/stack-1","/stack-2"]`),
 					},
 				},
 				{
-					stack: "/stack-1",
+					dir: "/stack-1",
 					files: map[string]fmt.Stringer{
 						"root.txt": stringer(`["/","/stack-1","/stack-2"]`),
 					},
 				},
 				{
-					stack: "/stack-2",
+					dir: "/stack-2",
 					files: map[string]fmt.Stringer{
 						"root.txt": stringer(`["/","/stack-1","/stack-2"]`),
 					},
@@ -242,7 +242,7 @@ func TestGenerateFile(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack-1",
+					dir: "/stacks/stack-1",
 					files: map[string]fmt.Stringer{
 						"stacks.txt": stringer(`["/stacks/stack-1","/stacks/stack-2"]`),
 					},
@@ -280,14 +280,14 @@ func TestGenerateFile(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack-1",
+					dir: "/stacks/stack-1",
 					files: map[string]fmt.Stringer{
 						"file1.txt": stringer("/stacks/stack-1"),
 						"file2.txt": stringer("stack-1"),
 					},
 				},
 				{
-					stack: "/stacks/stack-2",
+					dir: "/stacks/stack-2",
 					files: map[string]fmt.Stringer{
 						"file1.txt": stringer("/stacks/stack-2"),
 						"file2.txt": stringer("stack-2"),
@@ -330,7 +330,48 @@ func TestGenerateFile(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack-2",
+					dir: "/stacks/stack-2",
+					files: map[string]fmt.Stringer{
+						"file1.txt": stringer("/stacks/stack-2"),
+						"file2.txt": stringer("stack-2"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/stacks/stack-2",
+						Created: []string{"file1.txt", "file2.txt"},
+					},
+				},
+			},
+		},
+		{
+			name: "generate files using explicit context=stack attribute",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks/stack-2",
+					add: Doc(
+						GenerateFile(
+							Labels("file1.txt"),
+							Expr("content", "terramate.path"),
+							Expr("context", "stack"),
+						),
+						GenerateFile(
+							Labels("file2.txt"),
+							Expr("content", "terramate.name"),
+							Expr("context", "stack"),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stacks/stack-2",
 					files: map[string]fmt.Stringer{
 						"file1.txt": stringer("/stacks/stack-2"),
 						"file2.txt": stringer("stack-2"),

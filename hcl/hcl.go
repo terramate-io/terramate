@@ -220,6 +220,8 @@ type GenFileBlock struct {
 	Condition *hclsyntax.Attribute
 	// Content attribute of the block
 	Content *hclsyntax.Attribute
+	// Context of the generation (stack by default).
+	Context string
 	// Asserts represents all assert blocks
 	Asserts []AssertConfig
 }
@@ -809,6 +811,16 @@ func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
 		}
 	}
 
+	context := "stack"
+	if contextAttr, ok := block.Body.Attributes["context"]; ok {
+		context = hcl.ExprAsKeyword(contextAttr.Expr)
+		if context != "stack" && context != "root" {
+			errs.Append(errors.E(contextAttr.Expr.Range(),
+				"generate_file.context supported values are \"stack\" and \"root\""+
+					" but given %q", context))
+		}
+	}
+
 	if err := errs.AsError(); err != nil {
 		return GenFileBlock{}, err
 	}
@@ -820,6 +832,7 @@ func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
 		Asserts:   asserts,
 		Content:   block.Body.Attributes["content"],
 		Condition: block.Body.Attributes["condition"],
+		Context:   context,
 	}, nil
 }
 
@@ -926,6 +939,10 @@ func validateGenerateFileBlock(block *ast.Block) error {
 			},
 			{
 				Name:     "condition",
+				Required: false,
+			},
+			{
+				Name:     "context",
 				Required: false,
 			},
 		},
