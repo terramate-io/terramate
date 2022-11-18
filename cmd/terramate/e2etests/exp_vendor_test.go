@@ -70,8 +70,6 @@ func TestVendorModule(t *testing.T) {
 		).String()
 	}
 
-	// TODO(KATCIPIS): test create/clone also vendors things
-
 	t.Run("default configuration", func(t *testing.T) {
 		defaultVendor := project.NewPath("/modules")
 		s := sandbox.New(t)

@@ -165,7 +165,6 @@ Hint: '+', '~' and '-' means the file was created, changed and deleted, respecti
 			},
 			want: want{
 				run: runExpected{
-					// TODO(KATCIPIS): add vendor report here.
 					Stdout: fmt.Sprintf(`vendor: downloading %s at %s
 Code generation report
 

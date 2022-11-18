@@ -614,6 +614,7 @@ func (c *cli) generate(workdir string) {
 		c.output.Msg(out.V, vendorReport.String())
 	}
 
+	// TODO(KATCIPIS): what if vendorReport has errors/ignored ? exit 1 ?
 	if report.HasFailures() {
 		os.Exit(1)
 	}
@@ -1228,7 +1229,6 @@ func (c *cli) printMetadata() {
 
 	c.output.Msg(out.V, "Available metadata:")
 
-	// TODO(katcipis): we need to print other project metadata too.
 	c.output.Msg(out.V, "\nproject metadata:")
 	c.output.Msg(out.V, "\tterramate.stacks.list=%v", projmeta.Stacks())
 
