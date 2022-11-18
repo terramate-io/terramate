@@ -21,7 +21,6 @@ import (
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/stack"
 )
 
 // Result represents code generation result
@@ -222,10 +221,10 @@ func (r *Report) sortFilenames() {
 	}
 }
 
-func (r *Report) addFailure(s *stack.S, err error) {
+func (r *Report) addFailure(dir project.Path, err error) {
 	r.Failures = append(r.Failures, FailureResult{
 		Result: Result{
-			Dir: s.Path(),
+			Dir: dir,
 		},
 		Error: err,
 	})
@@ -236,20 +235,44 @@ func (r *Report) addDirReport(path project.Path, sr dirReport) {
 		return
 	}
 
-	res := Result{
-		Dir:     path,
-		Created: sr.created,
-		Changed: sr.changed,
-		Deleted: sr.deleted,
-	}
+	// TODO(i4k): redesign report.
 
 	if sr.isSuccess() {
-		r.Successes = append(r.Successes, res)
+		for i, other := range r.Successes {
+			if other.Dir == path {
+				other.Created = append(other.Created, sr.created...)
+				other.Changed = append(other.Changed, sr.changed...)
+				other.Deleted = append(other.Deleted, sr.deleted...)
+				r.Successes[i] = other
+				return
+			}
+		}
+		r.Successes = append(r.Successes, Result{
+			Dir:     path,
+			Created: sr.created,
+			Changed: sr.changed,
+			Deleted: sr.deleted,
+		})
 		return
 	}
+
+	for i, other := range r.Failures {
+		if other.Dir == path {
+			other.Created = append(other.Created, sr.created...)
+			other.Changed = append(other.Changed, sr.changed...)
+			other.Deleted = append(other.Deleted, sr.deleted...)
+			r.Failures[i] = other
+			return
+		}
+	}
 	r.Failures = append(r.Failures, FailureResult{
-		Result: res,
-		Error:  sr.err,
+		Result: Result{
+			Dir:     path,
+			Created: sr.created,
+			Changed: sr.changed,
+			Deleted: sr.deleted,
+		},
+		Error: sr.err,
 	})
 }
 
@@ -287,4 +310,22 @@ func (s dirReport) empty() bool {
 		len(s.changed) == 0 &&
 		len(s.deleted) == 0 &&
 		s.err == nil
+}
+
+func joinResults[T any](results ...[]T) []T {
+	var all []T
+	for _, r := range results {
+		all = append(all, r...)
+	}
+	return all
+}
+
+func mergeReports(r1, r2 Report) Report {
+	merged := Report{}
+	merged.BootstrapErr = errors.L(r1.BootstrapErr, r2.BootstrapErr).AsError()
+	merged.CleanupErr = errors.L(r1.CleanupErr, r2.CleanupErr).AsError()
+
+	merged.Successes = joinResults(r1.Successes, r2.Successes)
+	merged.Failures = joinResults(r1.Failures, r2.Failures)
+	return merged
 }
