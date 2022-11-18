@@ -176,7 +176,12 @@ Successes:
 	[+] file.txt
 
 Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.
-`, gitSource, vendorTargetDir),
+Vendor report:
+
+[+] %s
+    ref: %s
+    dir: %s
+`, gitSource, vendorTargetDir, modsrc.URL, modsrc.Ref, vendorTargetDir),
 				},
 				files: []file{
 					{

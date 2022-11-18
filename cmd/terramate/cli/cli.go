@@ -604,19 +604,24 @@ func (c *cli) cloneStack() {
 }
 
 func (c *cli) generate(workdir string) {
-	// TODO(KATCIPIS): present the report
-	report, _ := c.gencode(workdir)
+	report, vendorReport := c.gencodeWithVendor(workdir)
 
 	c.output.Msg(out.V, report.Full())
+
+	vendorReport.RemoveIgnoredByKind(download.ErrAlreadyVendored)
+
+	if !vendorReport.IsEmpty() {
+		c.output.Msg(out.V, vendorReport.String())
+	}
 
 	if report.HasFailures() {
 		os.Exit(1)
 	}
 }
 
-// gencode will generate code for the whole project providing automatic
+// gencodeWithVendor will generate code for the whole project providing automatic
 // vendoring of all tm_vendor calls.
-func (c *cli) gencode(workdir string) (generate.Report, download.Report) {
+func (c *cli) gencodeWithVendor(workdir string) (generate.Report, download.Report) {
 	vendorProgressEvents := download.NewEventStream()
 	progressHandlerDone := c.handleVendorProgressEvents(vendorProgressEvents)
 
@@ -830,7 +835,7 @@ func (c *cli) createStack() {
 	c.output.Msg(out.V, "Created stack %s", stackPath)
 
 	// TODO(KATCIPIS): handle vendorReport
-	report, _ := c.gencode(stackDir)
+	report, _ := c.gencodeWithVendor(stackDir)
 
 	if report.HasFailures() {
 		c.output.Msg(out.V, "Code generation failed")
