@@ -155,22 +155,29 @@ func Load(cfg *config.Tree) ([]LoadResult, error) {
 	return results, nil
 }
 
-// Do will walk all the stacks inside the given working dir
-// generating code for any stack it finds as it goes along.
+// Do will generate code for the entire configuration, respecting the workingDir
+// for generate blocks with context=stack (the default).
 //
-// Code is generated based on configuration files spread around the entire
-// project until it reaches the given root. So even though a configuration
-// file may be outside the given working dir it may be used on code generation
-// if it is in a dir that is a parent of a stack found inside the working dir.
+// There generation mechanism depend on the generate_* block context attribute:
 //
-// The provided root must be the project's root directory as an absolute path.
-// The provided working dir must be an absolute path that is a child of the
-// provided root (or the same as root, indicating that working dir is the project root).
+// - context=stack
 //
-// It will return a report including details of which stacks succeed and failed
-// on code generation, any failure found is added to the report but does not abort
-// the overall code generation process, so partial results can be obtained and the
-// report needs to be inspected to check.
+// In this case, for each stack inside workingDir, its blocks are loaded using a
+// "Stack Evaluation Context" from the stack directory, checked for conflicts
+// and generated. A Stack Evaluation Context contains the Project Metadata,
+// Stack Metadata and the Globals hierarchically loaded for the stack.
+//
+// - context=root
+//
+// In this case, all of the generate_file blocks with context=root from the
+// project are loaded, checked for conflicts, evaluated using a "Root Evaluation
+// Context" and generated. A Root Evaluation Context contains just the Project
+// Metadata.
+//
+// It will return a report including details of which directories succeed and
+// failed on code generation, any failure found is added to the report but does
+// not abort the overall code generation process, so partial results can be
+// obtained and the report needs to be inspected to check.
 func Do(cfg *config.Tree, workingDir string) Report {
 	stackReport := forEachStack(cfg, workingDir, doStackGeneration)
 	rootReport := doRootGeneration(cfg, workingDir)
