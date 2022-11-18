@@ -66,10 +66,10 @@ func TestExpEval(t *testing.T) {
 			},
 		},
 		{
-			name: "simple funcalls",
+			name: "simple funcalls returning unquoted string",
 			expr: `tm_upper("a")`,
 			wantEval: runExpected{
-				Stdout: addnl(`"A"`),
+				Stdout: addnl(`A`),
 			},
 			wantPartial: runExpected{
 				Stdout: addnl(`"A"`),
@@ -79,7 +79,7 @@ func TestExpEval(t *testing.T) {
 			name: "nested funcalls",
 			expr: `tm_upper(tm_lower("A"))`,
 			wantEval: runExpected{
-				Stdout: addnl(`"A"`),
+				Stdout: addnl(`A`),
 			},
 			wantPartial: runExpected{
 				Stdout: addnl(`"A"`),
@@ -145,7 +145,7 @@ func TestExpEval(t *testing.T) {
 			},
 			expr: `global.val`,
 			wantEval: runExpected{
-				Stdout: addnl(`"global string"`),
+				Stdout: addnl(`global string`),
 			},
 			wantPartial: runExpected{
 				Stdout: addnl(`"global string"`),
@@ -188,7 +188,7 @@ func TestExpEval(t *testing.T) {
 			},
 			expr: `"stack path: ${terramate.stack.path.absolute}"`,
 			wantEval: runExpected{
-				Stdout: addnl(`"stack path: /stack"`),
+				Stdout: addnl(`stack path: /stack`),
 			},
 			wantPartial: runExpected{
 				Stdout: addnl(`"stack path: /stack"`),

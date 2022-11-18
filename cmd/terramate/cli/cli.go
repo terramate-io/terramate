@@ -1235,22 +1235,7 @@ func (c *cli) eval() {
 			fatal(err, "eval %q", exprStr)
 		}
 
-		var o []byte
-		if c.parsedArgs.Experimental.Eval.AsJSON {
-			o, err = json.Marshal(val, val.Type())
-			if err != nil {
-				fatal(err, "converting value %s to json", val.GoString())
-			}
-		} else {
-			tokens, err := eval.TokensForValue(val)
-			if err != nil {
-				fatal(err, "serializing value %s", val.GoString())
-			}
-
-			o = hclwrite.Format(tokens.Bytes())
-		}
-
-		c.output.Msg(out.V, string(o))
+		c.outputEvalResult(val, c.parsedArgs.Experimental.Eval.AsJSON)
 	}
 }
 
@@ -1298,27 +1283,32 @@ func (c *cli) getConfigValue() {
 			fatal(err, "evaluating expression: %s", exprStr)
 		}
 
-		var o []byte
-		if c.parsedArgs.Experimental.GetConfigValue.AsJSON {
-			o, err = json.Marshal(val, val.Type())
-			if err != nil {
-				fatal(err, "converting value %s to json", val.GoString())
-			}
-		} else {
-			if val.Type() == cty.String {
-				o = []byte(val.AsString())
-			} else {
-				tokens, err := eval.TokensForValue(val)
-				if err != nil {
-					fatal(err, "serializing value %s", val.GoString())
-				}
-
-				o = []byte(hclwrite.Format(tokens.Bytes()))
-			}
-		}
-
-		c.output.Msg(out.V, string(o))
+		c.outputEvalResult(val, c.parsedArgs.Experimental.GetConfigValue.AsJSON)
 	}
+}
+
+func (c *cli) outputEvalResult(val cty.Value, asJSON bool) {
+	var data []byte
+	if asJSON {
+		var err error
+		data, err = json.Marshal(val, val.Type())
+		if err != nil {
+			fatal(err, "converting value %s to json", val.GoString())
+		}
+	} else {
+		if val.Type() == cty.String {
+			data = []byte(val.AsString())
+		} else {
+			tokens, err := eval.TokensForValue(val)
+			if err != nil {
+				fatal(err, "serializing value %s", val.GoString())
+			}
+
+			data = []byte(hclwrite.Format(tokens.Bytes()))
+		}
+	}
+
+	c.output.Msg(out.V, string(data))
 }
 
 func (c *cli) setupEvalContext() *eval.Context {
