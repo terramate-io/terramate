@@ -120,6 +120,11 @@ func (h HCL) Condition() bool {
 	return h.condition
 }
 
+// Context of the generate_hcl block.
+func (h HCL) Context() string {
+	return "stack"
+}
+
 func (h HCL) String() string {
 	return stdfmt.Sprintf("Generating file %q (condition %t) (body %q) (origin %q)",
 		h.Label(), h.Condition(), h.Body(), h.Range().HostPath())

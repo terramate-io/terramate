@@ -54,9 +54,18 @@ const (
 	ErrLabelConflict errors.Kind = "label conflict detected"
 )
 
+const (
+	// StackContext is the stack context name.
+	StackContext = "stack"
+
+	// RootContext is the root context name.
+	RootContext = "root"
+)
+
 // File represents generated file from a single generate_file block.
 type File struct {
 	label     string
+	context   string
 	origin    info.Range
 	body      string
 	condition bool
@@ -82,6 +91,11 @@ func (f File) Range() info.Range {
 // condition attribute for the generated code.
 func (f File) Condition() bool {
 	return f.condition
+}
+
+// Context of the generate_file block.
+func (f File) Context() string {
+	return f.context
 }
 
 // Asserts returns all (if any) of the evaluated assert configs of the
@@ -130,93 +144,22 @@ func Load(
 	var files []File
 
 	for _, genFileBlock := range genFileBlocks {
-		name := genFileBlock.Label
-		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
-		err := lets.Load(genFileBlock.Lets, evalctx.Context)
-		if err != nil {
-			return nil, err
+		if genFileBlock.Context != StackContext {
+			continue
 		}
 
+		name := genFileBlock.Label
+		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
 		vendorTargetDir := project.NewPath(path.Join(
 			sm.Path().String(),
 			filepath.Dir(name)))
 		evalctx.SetTmVendor(vendorTargetDir, vendorDir, vendorRequests)
 
-		condition := true
-		if genFileBlock.Condition != nil {
-			value, err := evalctx.Eval(genFileBlock.Condition.Expr)
-			if err != nil {
-				return nil, errors.E(ErrConditionEval, err)
-			}
-			if value.Type() != cty.Bool {
-				return nil, errors.E(
-					ErrInvalidConditionType,
-					"condition has type %s but must be boolean",
-					value.Type().FriendlyName(),
-				)
-			}
-			condition = value.True()
-		}
-
-		if !condition {
-			files = append(files, File{
-				label:     name,
-				origin:    genFileBlock.Range,
-				condition: condition,
-			})
-			continue
-		}
-
-		asserts := make([]config.Assert, len(genFileBlock.Asserts))
-		assertsErrs := errors.L()
-		assertFailed := false
-
-		for i, assertCfg := range genFileBlock.Asserts {
-			assert, err := config.EvalAssert(evalctx.Context, assertCfg)
-			if err != nil {
-				assertsErrs.Append(err)
-				continue
-			}
-			asserts[i] = assert
-			if !assert.Assertion && !assert.Warning {
-				assertFailed = true
-			}
-		}
-
-		if err := assertsErrs.AsError(); err != nil {
+		file, err := Eval(genFileBlock, evalctx.Context)
+		if err != nil {
 			return nil, err
 		}
-
-		if assertFailed {
-			files = append(files, File{
-				label:     name,
-				origin:    genFileBlock.Range,
-				condition: condition,
-				asserts:   asserts,
-			})
-			continue
-		}
-
-		value, err := evalctx.Eval(genFileBlock.Content.Expr)
-		if err != nil {
-			return nil, errors.E(ErrContentEval, err)
-		}
-
-		if value.Type() != cty.String {
-			return nil, errors.E(
-				ErrInvalidContentType,
-				"content has type %s but must be string",
-				value.Type().FriendlyName(),
-			)
-		}
-
-		files = append(files, File{
-			label:     name,
-			origin:    genFileBlock.Range,
-			body:      value.AsString(),
-			condition: condition,
-			asserts:   asserts,
-		})
+		files = append(files, file)
 	}
 
 	sort.Slice(files, func(i, j int) bool {
@@ -224,6 +167,92 @@ func Load(
 	})
 
 	return files, nil
+}
+
+// Eval the generate_file block.
+func Eval(block hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
+	name := block.Label
+	err := lets.Load(block.Lets, evalctx)
+	if err != nil {
+		return File{}, err
+	}
+
+	condition := true
+	if block.Condition != nil {
+		value, err := evalctx.Eval(block.Condition.Expr)
+		if err != nil {
+			return File{}, errors.E(ErrConditionEval, err)
+		}
+		if value.Type() != cty.Bool {
+			return File{}, errors.E(
+				ErrInvalidConditionType,
+				"condition has type %s but must be boolean",
+				value.Type().FriendlyName(),
+			)
+		}
+		condition = value.True()
+	}
+
+	if !condition {
+		return File{
+			label:     name,
+			origin:    block.Range,
+			condition: condition,
+			context:   block.Context,
+		}, nil
+	}
+
+	asserts := make([]config.Assert, len(block.Asserts))
+	assertsErrs := errors.L()
+	assertFailed := false
+
+	for i, assertCfg := range block.Asserts {
+		assert, err := config.EvalAssert(evalctx, assertCfg)
+		if err != nil {
+			assertsErrs.Append(err)
+			continue
+		}
+		asserts[i] = assert
+		if !assert.Assertion && !assert.Warning {
+			assertFailed = true
+		}
+	}
+
+	if err := assertsErrs.AsError(); err != nil {
+		return File{}, err
+	}
+
+	if assertFailed {
+		return File{
+			label:     name,
+			origin:    block.Range,
+			condition: condition,
+			context:   block.Context,
+			asserts:   asserts,
+		}, nil
+	}
+
+	value, err := evalctx.Eval(block.Content.Expr)
+	if err != nil {
+		return File{}, errors.E(ErrContentEval, err)
+	}
+
+	if value.Type() != cty.String {
+		return File{}, errors.E(
+			ErrInvalidContentType,
+			"content has type %s but must be string",
+			value.Type().FriendlyName(),
+		)
+	}
+
+	return File{
+		label:     name,
+		origin:    block.Range,
+		body:      value.AsString(),
+		condition: condition,
+		context:   block.Context,
+		asserts:   asserts,
+	}, nil
 }
 
 // loadGenFileBlocks will load all generate_file blocks.

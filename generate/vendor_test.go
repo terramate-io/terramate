@@ -67,7 +67,7 @@ func TestGenerateVendor(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/stacks/stack",
+					dir: "/stacks/stack",
 					files: map[string]fmt.Stringer{
 						"dir/file.hcl": Doc(
 							Str("vendor", "../../../vendor/github.com/mineiros-io/terramate/v3"),
@@ -80,7 +80,7 @@ func TestGenerateVendor(t *testing.T) {
 					},
 				},
 				{
-					stack: "/stacks/stack/substack",
+					dir: "/stacks/stack/substack",
 					files: map[string]fmt.Stringer{
 						"dir/file.hcl": Doc(
 							Str("vendor", "../../../../vendor/github.com/mineiros-io/terramate/v3"),
@@ -152,7 +152,7 @@ func TestGenerateVendor(t *testing.T) {
 			},
 			want: []generatedFile{
 				{
-					stack: "/",
+					dir: "/",
 					files: map[string]fmt.Stringer{
 						"dir/file.hcl": Doc(
 							Str("vendor", "../vendor/github.com/mineiros-io/terramate/v3"),
@@ -165,7 +165,7 @@ func TestGenerateVendor(t *testing.T) {
 					},
 				},
 				{
-					stack: "/substack",
+					dir: "/substack",
 					files: map[string]fmt.Stringer{
 						"dir/file.hcl": Doc(
 							Str("vendor", "../../vendor/github.com/mineiros-io/terramate/v3"),
