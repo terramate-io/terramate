@@ -23,12 +23,11 @@ func AssertEqualSets[T comparable](t *testing.T, got, want []T) {
 		t.Fatalf("got: %+v; want: %+v", got, want)
 	}
 
-loop:
 	for _, w := range want {
-		for j, g := range got {
+		for i, g := range got {
 			if g == w {
-				got = append(got[:j], got[j+1:]...)
-				continue loop
+				got = append(got[:i], got[i+1:]...)
+				break
 			}
 		}
 	}
