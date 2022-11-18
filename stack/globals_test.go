@@ -1035,6 +1035,50 @@ func TestLoadGlobals(t *testing.T) {
 			wantErr: errors.E(eval.ErrCannotExtendObject),
 		},
 		{
+			name: "extending parent list fails",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Expr("lst", `[]`),
+					),
+				},
+				{
+					path: "/stack",
+					add: Globals(
+						Labels("lst"),
+						Expr("other", `[]`),
+					),
+				},
+			},
+			wantErr: errors.E(eval.ErrCannotExtendObject),
+		},
+		{
+			name: "extending list from object fails",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Labels("test"),
+							Expr("lst", `[1, 2, 3]`),
+						),
+						Globals(
+							Labels("test", "lst"),
+							Expr("values", `[1, 2]`),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(eval.ErrCannotExtendObject),
+		},
+		{
 			name: "extending non-objects fails",
 			layout: []string{
 				"s:stack",
