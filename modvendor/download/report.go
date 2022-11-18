@@ -112,13 +112,7 @@ func (r Report) Verbose() string {
 // RemoveIgnoredByKind removes all ignored from this report that have errors
 // with the given kind.
 func (r *Report) RemoveIgnoredByKind(kind errors.Kind) {
-	ignored := []IgnoredVendor{}
-	for _, v := range r.Ignored {
-		if !errors.IsKind(v.Reason, kind) {
-			ignored = append(ignored, v)
-		}
-	}
-	r.Ignored = ignored
+	r.Ignored = r.filterByKind(kind)
 }
 
 // IsEmpty returns true if the report is empty (nothing to report).
@@ -126,6 +120,23 @@ func (r Report) IsEmpty() bool {
 	return len(r.Vendored) == 0 &&
 		len(r.Ignored) == 0 &&
 		r.Error == nil
+}
+
+// HasFailures returns true if any vendor attempt failed.
+// It will exclude all [ErrAlreadyVendored] since those indicate
+// that the module exists on the vendor dir.
+func (r Report) HasFailures() bool {
+	return len(r.filterByKind(ErrAlreadyVendored)) > 0
+}
+
+func (r *Report) filterByKind(kind errors.Kind) []IgnoredVendor {
+	ignored := []IgnoredVendor{}
+	for _, v := range r.Ignored {
+		if !errors.IsKind(v.Reason, kind) {
+			ignored = append(ignored, v)
+		}
+	}
+	return ignored
 }
 
 func (r *Report) merge(other Report) {

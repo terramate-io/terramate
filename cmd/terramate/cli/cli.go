@@ -614,8 +614,7 @@ func (c *cli) generate(workdir string) {
 		c.output.Msg(out.V, vendorReport.String())
 	}
 
-	// TODO(KATCIPIS): what if vendorReport has errors/ignored ? exit 1 ?
-	if report.HasFailures() {
+	if report.HasFailures() || vendorReport.HasFailures() {
 		os.Exit(1)
 	}
 }

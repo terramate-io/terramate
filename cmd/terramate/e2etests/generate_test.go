@@ -196,6 +196,38 @@ Vendor report:
 				},
 			},
 		},
+		{
+			name: "generate works but vendoring fails will exit with 1",
+			layout: []string{
+				"s:stack",
+			},
+			files: []file{
+				{
+					path: p("/config.tm"),
+					body: Doc(
+						GenerateHCL(
+							Labels("file.hcl"),
+							Content(
+								Expr("vendor", `tm_vendor("github.com/mineiros-io/unknown/will/fail?ref=fail")`),
+							),
+						),
+						GenerateFile(
+							Labels("file.txt"),
+							Expr("content", `tm_vendor("github.com/mineiros-io/unknown/will/fail?ref=fail")`),
+						),
+					),
+				},
+			},
+			want: want{
+				// We are not interested on checking the specific output
+				// or the generated files in this case, just ensuring
+				// the correct status code.
+				run: runExpected{
+					Status:       1,
+					IgnoreStdout: true,
+				},
+			},
+		},
 	}
 
 	for _, tc := range tcases {
