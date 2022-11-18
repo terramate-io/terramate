@@ -141,11 +141,7 @@ func (r *Report) filterByKind(kind errors.Kind) []IgnoredVendor {
 
 func (r *Report) merge(other Report) {
 	if other.Error != nil {
-		if r.Error == nil {
-			r.Error = other.Error
-		} else {
-			r.Error = errors.L(r.Error, other.Error)
-		}
+		r.Error = errors.L(r.Error, other.Error)
 	}
 
 	for k, v := range other.Vendored {
