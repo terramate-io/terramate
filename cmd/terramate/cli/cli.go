@@ -646,7 +646,7 @@ func (c *cli) gencodeWithVendor(workdir string) (generate.Report, download.Repor
 
 	vendorReport := <-mergedVendorReport
 
-	log.Debug().Msg("stopping vendor progress handler")
+	log.Debug().Msg("waiting for all progress events")
 
 	close(vendorProgressEvents)
 	<-progressHandlerDone
