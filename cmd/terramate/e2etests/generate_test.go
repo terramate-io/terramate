@@ -228,9 +228,11 @@ Vendor report:
 			if tcase.want.run.Status == 0 {
 				// On success if we re-generate it should also work and always
 				// give a "nothing to do" message
-				res := tmcli.run("generate")
-				assertRunResult(t, res, runExpected{
-					Stdout: noCodegenMsg,
+				t.Run("regenerate", func(t *testing.T) {
+					res := tmcli.run("generate")
+					assertRunResult(t, res, runExpected{
+						Stdout: noCodegenMsg,
+					})
 				})
 			}
 		})
