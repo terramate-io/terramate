@@ -834,16 +834,23 @@ func (c *cli) createStack() {
 	log.Info().Msgf("created stack %s", stackPath)
 	c.output.Msg(out.V, "Created stack %s", stackPath)
 
-	// TODO(KATCIPIS): handle vendorReport
-	report, _ := c.gencodeWithVendor(stackDir)
+	report, vendorReport := c.gencodeWithVendor(stackDir)
 
 	if report.HasFailures() {
 		c.output.Msg(out.V, "Code generation failed")
 		c.output.Msg(out.V, report.Minimal())
+	}
+
+	if vendorReport.HasFailures() {
+		c.output.Msg(out.V, vendorReport.String())
+	}
+
+	if report.HasFailures() || vendorReport.HasFailures() {
 		os.Exit(1)
 	}
 
 	c.output.Msg(out.VV, report.Minimal())
+	c.output.Msg(out.VV, vendorReport.String())
 }
 
 func (c *cli) format() {
