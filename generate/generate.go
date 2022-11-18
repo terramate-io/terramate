@@ -172,7 +172,7 @@ func Load(cfg *config.Tree) ([]LoadResult, error) {
 // In this case, all of the generate_file blocks with context=root from the
 // project are loaded, checked for conflicts, evaluated using a "Root Evaluation
 // Context" and generated. A Root Evaluation Context contains just the Project
-// Metadata.
+// Metadata. Note: workingDir is ignored for context=root blocks.
 //
 // It will return a report including details of which directories succeed and
 // failed on code generation, any failure found is added to the report but does
@@ -180,7 +180,7 @@ func Load(cfg *config.Tree) ([]LoadResult, error) {
 // obtained and the report needs to be inspected to check.
 func Do(cfg *config.Tree, workingDir string) Report {
 	stackReport := forEachStack(cfg, workingDir, doStackGeneration)
-	rootReport := doRootGeneration(cfg, workingDir)
+	rootReport := doRootGeneration(cfg)
 	report := mergeReports(stackReport, rootReport)
 	return cleanupOrphaned(cfg, report)
 }
@@ -314,10 +314,9 @@ func doStackGeneration(
 	return report
 }
 
-func doRootGeneration(cfg *config.Tree, workingDir string) Report {
+func doRootGeneration(cfg *config.Tree) Report {
 	logger := log.With().
 		Str("action", "generate.doRootGeneration").
-		Str("workingDir", workingDir).
 		Logger()
 
 	root := cfg.Root()
@@ -399,31 +398,8 @@ func doRootGeneration(cfg *config.Tree, workingDir string) Report {
 
 	logger.Debug().Msg("no conflicts found")
 
-	wd := project.PrjAbsPath(cfg.RootDir(), workingDir)
-	files = filterGenFilesByTargetDir(files, wd)
-
 	generateRootFiles(cfg, files, &report)
 	return report
-}
-
-func filterGenFilesByTargetDir(files []GenFile, dir project.Path) []GenFile {
-	logger := log.With().
-		Str("action", "generate.filterGenFilesByTargetDir()").
-		Stringer("targetDir", dir).
-		Logger()
-
-	var res []GenFile
-	for _, file := range files {
-		logger := genFileLogger(logger, file)
-		targetDir := path.Dir(file.Label())
-		if strings.HasPrefix(targetDir, dir.String()) {
-			logger.Debug().Msg("block selected to be generated")
-			res = append(res, file)
-		} else {
-			logger.Debug().Msg("block ignored")
-		}
-	}
-	return res
 }
 
 func handleAsserts(rootdir string, dir string, asserts []config.Assert) error {
