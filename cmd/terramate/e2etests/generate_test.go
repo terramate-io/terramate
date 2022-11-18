@@ -224,6 +224,15 @@ Vendor report:
 				gotFile := test.ReadFile(t, s.RootDir(), wantFile.path.String())
 				test.AssertGenCodeEquals(t, string(gotFile), wantFile.body.String())
 			}
+
+			if tcase.want.run.Status == 0 {
+				// On success if we re-generate it should also work and always
+				// give a "nothing to do" message
+				res := tmcli.run("generate")
+				assertRunResult(t, res, runExpected{
+					Stdout: noCodegenMsg,
+				})
+			}
 		})
 	}
 }
