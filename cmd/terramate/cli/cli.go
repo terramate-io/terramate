@@ -389,7 +389,7 @@ func (c *cli) run() {
 		c.setupGit()
 		c.runOnStacks()
 	case "generate":
-		c.generate(c.wd())
+		c.generate()
 	case "experimental clone <srcdir> <destdir>":
 		c.cloneStack()
 	case "experimental vendor download <source> <ref>":
@@ -593,11 +593,11 @@ func (c *cli) cloneStack() {
 	c.output.Msg(out.V, "Cloned stack %s to %s with success", srcstack, deststack)
 	c.output.Msg(out.V, "Generating code on the new cloned stack")
 
-	c.generate(destdir)
+	c.generate()
 }
 
-func (c *cli) generate(workdir string) {
-	report := generate.Do(c.cfg(), workdir)
+func (c *cli) generate() {
+	report := generate.Do(c.cfg())
 	c.output.Msg(out.V, report.Full())
 
 	if report.HasFailures() {
@@ -783,7 +783,7 @@ func (c *cli) createStack() {
 	log.Info().Msgf("created stack %s", stackPath)
 	c.output.Msg(out.V, "Created stack %s", stackPath)
 
-	report := generate.Do(c.cfg(), stackDir)
+	report := generate.Do(c.cfg())
 
 	if report.HasFailures() {
 		c.output.Msg(out.V, "Code generation failed")

@@ -87,18 +87,20 @@ type LoadResult struct {
 	Err error
 }
 
-// Load will load all the generated files inside the given tree.
-// Each directory will be represented by a single [LoadResult] inside the returned slice.
-// Errors generating code for specific dirs will be found inside each [LoadResult].
+// Load will load all the generated files from the root tree.
+// Each directory will be represented by a single [LoadResult] inside the
+// returned slice. Errors generating code for specific dirs will be found inside
+// each [LoadResult].
 // If a critical error that fails the loading of all results happens it returns
-// a non-nil error. In this case the error is not specific to generating code for a
-// specific dir.
+// a non-nil error. In this case the error is not specific to generating code
+// for a specific dir.
 func Load(cfg *config.Tree) ([]LoadResult, error) {
-	stacks, err := stack.LoadAll(cfg)
+	root := cfg.Root()
+	stacks, err := stack.LoadAll(root)
 	if err != nil {
 		return nil, err
 	}
-	projmeta := stack.NewProjectMetadata(cfg.RootDir(), stacks)
+	projmeta := stack.NewProjectMetadata(root.RootDir(), stacks)
 	results := make([]LoadResult, len(stacks))
 
 	for i, st := range stacks {
@@ -110,7 +112,7 @@ func Load(cfg *config.Tree) ([]LoadResult, error) {
 			continue
 		}
 
-		generated, err := loadStackCodeCfgs(cfg, projmeta, st, loadres.Globals)
+		generated, err := loadStackCodeCfgs(root, projmeta, st, loadres.Globals)
 		if err != nil {
 			res.Err = err
 			results[i] = res
@@ -120,7 +122,7 @@ func Load(cfg *config.Tree) ([]LoadResult, error) {
 		results[i] = res
 	}
 
-	for _, dircfg := range cfg.Root().AsList() {
+	for _, dircfg := range root.AsList() {
 		if dircfg.IsEmptyConfig() || dircfg.IsStack() {
 			continue
 		}
@@ -155,14 +157,13 @@ func Load(cfg *config.Tree) ([]LoadResult, error) {
 	return results, nil
 }
 
-// Do will generate code for the entire configuration, respecting the workingDir
-// for generate blocks with context=stack (the default).
+// Do will generate code for the entire configuration.
 //
 // There generation mechanism depend on the generate_* block context attribute:
 //
 // - context=stack
 //
-// In this case, for each stack inside workingDir, its blocks are loaded using a
+// In this case, for each stack in the project, its blocks are loaded using a
 // "Stack Evaluation Context" from the stack directory, checked for conflicts
 // and generated. A Stack Evaluation Context contains the Project Metadata,
 // Stack Metadata and the Globals hierarchically loaded for the stack.
@@ -172,17 +173,18 @@ func Load(cfg *config.Tree) ([]LoadResult, error) {
 // In this case, all of the generate_file blocks with context=root from the
 // project are loaded, checked for conflicts, evaluated using a "Root Evaluation
 // Context" and generated. A Root Evaluation Context contains just the Project
-// Metadata. Note: workingDir is ignored for context=root blocks.
+// Metadata.
 //
 // It will return a report including details of which directories succeed and
 // failed on code generation, any failure found is added to the report but does
 // not abort the overall code generation process, so partial results can be
 // obtained and the report needs to be inspected to check.
-func Do(cfg *config.Tree, workingDir string) Report {
-	stackReport := forEachStack(cfg, workingDir, doStackGeneration)
-	rootReport := doRootGeneration(cfg)
+func Do(cfg *config.Tree) Report {
+	root := cfg.Root()
+	stackReport := forEachStack(root, doStackGeneration)
+	rootReport := doRootGeneration(root)
 	report := mergeReports(stackReport, rootReport)
-	return cleanupOrphaned(cfg, report)
+	return cleanupOrphaned(root, report)
 }
 
 func doStackGeneration(
@@ -799,38 +801,32 @@ type forEachStackFunc func(
 	*eval.Object,
 ) dirReport
 
-func forEachStack(cfg *config.Tree, workingDir string, fn forEachStackFunc) Report {
+func forEachStack(root *config.Tree, fn forEachStackFunc) Report {
 	logger := log.With().
 		Str("action", "generate.forEachStack()").
-		Str("root", cfg.RootDir()).
-		Str("workingDir", workingDir).
+		Str("root", root.RootDir()).
 		Logger()
 
 	report := Report{}
 
 	logger.Trace().Msg("List stacks.")
 
-	stacks, err := stack.LoadAll(cfg)
+	stacks, err := stack.LoadAll(root)
 	if err != nil {
 		report.BootstrapErr = err
 		return report
 	}
 
-	projmeta := stack.NewProjectMetadata(cfg.RootDir(), stacks)
+	projmeta := stack.NewProjectMetadata(root.RootDir(), stacks)
 
 	for _, st := range stacks {
 		logger := logger.With().
 			Stringer("stack", st).
 			Logger()
 
-		if !strings.HasPrefix(st.HostPath(), workingDir) {
-			logger.Trace().Msg("discarding stack outside working dir")
-			continue
-		}
-
 		logger.Trace().Msg("Load stack globals.")
 
-		globalsReport := stack.LoadStackGlobals(cfg, projmeta, st)
+		globalsReport := stack.LoadStackGlobals(root, projmeta, st)
 		if err := globalsReport.AsError(); err != nil {
 			report.addFailure(st.Path(), errors.E(ErrLoadingGlobals, err))
 			continue
@@ -838,7 +834,7 @@ func forEachStack(cfg *config.Tree, workingDir string, fn forEachStackFunc) Repo
 
 		logger.Trace().Msg("Calling stack callback.")
 
-		stackReport := fn(cfg, projmeta, st, globalsReport.Globals)
+		stackReport := fn(root, projmeta, st, globalsReport.Globals)
 		report.addDirReport(st.Path(), stackReport)
 	}
 

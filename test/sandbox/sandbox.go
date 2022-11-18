@@ -198,15 +198,15 @@ func (s S) Git() *Git {
 
 // Generate generates code for all stacks on the sandbox
 func (s S) Generate() generate.Report {
-	return s.GenerateAt(s.Config(), s.RootDir())
+	return s.GenerateWith(s.Config())
 }
 
-// GenerateAt generates code for all stacks inside the provided path.
-func (s S) GenerateAt(cfg *config.Tree, path string) generate.Report {
+// GenerateWith is like Generate but uses the cfg as config.
+func (s S) GenerateWith(cfg *config.Tree) generate.Report {
 	t := s.t
 	t.Helper()
 
-	report := generate.Do(cfg, path)
+	report := generate.Do(cfg)
 	for _, failure := range report.Failures {
 		t.Errorf("Generate unexpected failure: %v", failure)
 	}
