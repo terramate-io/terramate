@@ -362,7 +362,7 @@ func doRootGeneration(root *config.Root) Report {
 			}
 
 			targetDir := project.NewPath(path.Dir(block.Label))
-			err = validateRootGenerateBlock(cfg, block)
+			err = validateRootGenerateBlock(root, block)
 			if err != nil {
 				report.addFailure(targetDir, err)
 				return report
@@ -1123,7 +1123,7 @@ func validateStackGeneratedFiles(root *config.Root, stackpath string, generated 
 	return errs.AsError()
 }
 
-func validateRootGenerateBlock(cfg *config.Tree, block hcl.GenFileBlock) error {
+func validateRootGenerateBlock(root *config.Root, block hcl.GenFileBlock) error {
 	target := block.Label
 	if !path.IsAbs(target) {
 		return errors.E(
@@ -1132,12 +1132,12 @@ func validateRootGenerateBlock(cfg *config.Tree, block hcl.GenFileBlock) error {
 		)
 	}
 
-	abspath := filepath.Join(cfg.RootDir(), filepath.FromSlash(target))
+	abspath := filepath.Join(root.Dir(), filepath.FromSlash(target))
 	abspath = filepath.Clean(abspath)
 	destdir := filepath.Dir(abspath)
 
 	// We need to check that destdir, or any of its parents, is not a symlink or a stack.
-	for strings.HasPrefix(destdir, cfg.RootDir()) && destdir != cfg.RootDir() {
+	for strings.HasPrefix(destdir, root.Dir()) && destdir != root.Dir() {
 		info, err := os.Lstat(destdir)
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
@@ -1160,12 +1160,12 @@ func validateRootGenerateBlock(cfg *config.Tree, block hcl.GenFileBlock) error {
 			)
 		}
 
-		if config.IsStack(cfg.Root(), destdir) {
+		if config.IsStack(root, destdir) {
 			return errors.E(ErrInvalidGenBlockLabel,
 				block.Range,
 				"%s: generate_file.context=root generates inside a stack %s",
 				target,
-				project.PrjAbsPath(cfg.RootDir(), destdir),
+				project.PrjAbsPath(root.Dir(), destdir),
 			)
 		}
 		destdir = filepath.Dir(destdir)
