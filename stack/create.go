@@ -111,12 +111,8 @@ func Create(root *config.Root, cfg CreateCfg) (err error) {
 	}
 
 	// We could have a stack definition somewhere else.
-	parsedCfg, err := hcl.ParseDir(rootdir, cfg.Dir)
-	if err != nil {
-		return errors.E(err, "invalid config creating stack dir %s", cfg.Dir)
-	}
-
-	if parsedCfg.Stack != nil {
+	targetNode, ok := root.Lookup(project.PrjAbsPath(rootdir, cfg.Dir))
+	if ok && targetNode.IsStack() {
 		return errors.E(ErrStackAlreadyExists)
 	}
 
