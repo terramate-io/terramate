@@ -128,6 +128,7 @@ func LoadTree(rootdir string, cfgdir string) (*Tree, error) {
 	return loadTree(rootdir, cfgdir, nil)
 }
 
+// LoadRoot loads the root configuration tree.
 func LoadRoot(rootdir string) (*Root, error) {
 	cfgtree, err := LoadTree(rootdir, rootdir)
 	if err != nil {
