@@ -139,7 +139,7 @@ func (h HCL) String() string {
 //
 // The rootdir MUST be an absolute path.
 func Load(
-	tree *config.Tree,
+	root *config.Root,
 	projmeta project.Metadata,
 	sm stack.Metadata,
 	globals *eval.Object,
@@ -151,7 +151,7 @@ func Load(
 
 	logger.Trace().Msg("loading generate_hcl blocks.")
 
-	hclBlocks, err := loadGenHCLBlocks(tree, sm.Path())
+	hclBlocks, err := loadGenHCLBlocks(root, sm.Path())
 	if err != nil {
 		return nil, errors.E("loading generate_hcl", err)
 	}
@@ -265,9 +265,9 @@ type dynBlockAttributes struct {
 // The returned map maps the name of the block (its label)
 // to the original block and the path (relative to project root) of the config
 // from where it was parsed.
-func loadGenHCLBlocks(tree *config.Tree, cfgdir project.Path) ([]hcl.GenHCLBlock, error) {
+func loadGenHCLBlocks(root *config.Root, cfgdir project.Path) ([]hcl.GenHCLBlock, error) {
 	res := []hcl.GenHCLBlock{}
-	cfg, ok := tree.Lookup(cfgdir)
+	cfg, ok := root.Lookup(cfgdir)
 	if ok && !cfg.IsEmptyConfig() {
 		res = append(res, cfg.Node.Generate.HCLs...)
 	}
@@ -277,7 +277,7 @@ func loadGenHCLBlocks(tree *config.Tree, cfgdir project.Path) ([]hcl.GenHCLBlock
 		return res, nil
 	}
 
-	parentRes, err := loadGenHCLBlocks(tree, parentCfgDir)
+	parentRes, err := loadGenHCLBlocks(root, parentCfgDir)
 	if err != nil {
 		return nil, err
 	}

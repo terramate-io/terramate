@@ -48,28 +48,28 @@ func TestConfigLookup(t *testing.T) {
 		"s:/stacks/child/non-stack/stack",
 	})
 
-	cfg := s.Config()
-	node, found := cfg.Lookup("/dir")
+	root := s.Config()
+	node, found := root.Lookup("/dir")
 	assert.IsTrue(t, found)
 	assert.IsTrue(t, node.IsEmptyConfig())
 
-	node, found = cfg.Lookup("/stacks")
+	node, found = root.Lookup("/stacks")
 	assert.IsTrue(t, found && node.IsStack() && !node.IsEmptyConfig())
 
-	node, found = cfg.Lookup("/stacks/child")
+	node, found = root.Lookup("/stacks/child")
 	assert.IsTrue(t, found && node.IsStack() && !node.IsEmptyConfig())
 
-	node, found = cfg.Lookup("/stacks/child/non-stack")
+	node, found = root.Lookup("/stacks/child/non-stack")
 	assert.IsTrue(t, found)
 	assert.IsTrue(t, node.IsEmptyConfig())
 
-	node, found = cfg.Lookup("/stacks/child/non-stack/stack")
+	node, found = root.Lookup("/stacks/child/non-stack/stack")
 	assert.IsTrue(t, found && node.IsStack() && !node.IsEmptyConfig())
 
-	_, found = cfg.Lookup("/non-existent")
+	_, found = root.Lookup("/non-existent")
 	assert.IsTrue(t, !found)
 
-	stacks := cfg.Stacks()
+	stacks := root.Tree().Stacks()
 	assert.EqualInts(t, 3, len(stacks))
 	assert.EqualStrings(t, "/stacks", project.PrjAbsPath(s.RootDir(), stacks[0].Dir()).String())
 	assert.EqualStrings(t, "/stacks/child", project.PrjAbsPath(s.RootDir(), stacks[1].Dir()).String())
@@ -243,12 +243,12 @@ func TestConfigStacksByPaths(t *testing.T) {
 	} {
 		s := sandbox.New(t)
 		s.BuildTree(tc.layout)
-		cfg := s.Config()
-		got := cfg.StacksByPaths(project.NewPath(tc.basedir), tc.relpaths...)
+		root := s.Config()
+		got := root.Tree().StacksByPaths(project.NewPath(tc.basedir), tc.relpaths...)
 		assert.EqualInts(t, len(tc.want), len(got))
 		var stacks []string
 		for _, node := range got {
-			stacks = append(stacks, project.PrjAbsPath(cfg.RootDir(), node.Dir()).String())
+			stacks = append(stacks, project.PrjAbsPath(root.Dir(), node.Dir()).String())
 		}
 		for i, want := range tc.want {
 			assert.EqualStrings(t, want, stacks[i])
@@ -285,8 +285,8 @@ func TestConfigSkipdir(t *testing.T) {
 	assert.IsTrue(t, !found)
 }
 
-func isStack(cfg *config.Tree, dir string) bool {
-	return config.IsStack(cfg, filepath.Join(cfg.RootDir(), dir))
+func isStack(root *config.Root, dir string) bool {
+	return config.IsStack(root, filepath.Join(root.Dir(), dir))
 }
 
 func init() {

@@ -126,12 +126,12 @@ func (f File) String() string {
 //
 // The rootdir MUST be an absolute path.
 func Load(
-	cfg *config.Tree,
+	root *config.Root,
 	projmeta project.Metadata,
 	sm stack.Metadata,
 	globals *eval.Object,
 ) ([]File, error) {
-	genFileBlocks, err := loadGenFileBlocks(cfg, sm.Path())
+	genFileBlocks, err := loadGenFileBlocks(root, sm.Path())
 	if err != nil {
 		return nil, errors.E("loading generate_file", err)
 	}
@@ -248,7 +248,7 @@ func Eval(block hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
 // The returned map maps the name of the block (its label)
 // to the original block and the path (relative to project root) of the config
 // from where it was parsed.
-func loadGenFileBlocks(tree *config.Tree, cfgdir project.Path) ([]hcl.GenFileBlock, error) {
+func loadGenFileBlocks(tree *config.Root, cfgdir project.Path) ([]hcl.GenFileBlock, error) {
 	res := []hcl.GenFileBlock{}
 	cfg, ok := tree.Lookup(cfgdir)
 	if ok && !cfg.IsEmptyConfig() {

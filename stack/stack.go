@@ -295,16 +295,16 @@ func LoadAll(cfg *config.Tree) (List, error) {
 }
 
 // Load a single stack from dir.
-func Load(cfg *config.Tree, dir string) (*S, error) {
-	path := project.PrjAbsPath(cfg.RootDir(), dir)
-	node, ok := cfg.Lookup(path)
+func Load(root *config.Root, dir string) (*S, error) {
+	path := project.PrjAbsPath(root.Dir(), dir)
+	node, ok := root.Lookup(path)
 	if !ok {
 		return nil, errors.E("config not found at %s", path)
 	}
 	if !node.IsStack() {
 		return nil, errors.E("config at %s is not a stack")
 	}
-	return New(cfg.RootDir(), node.Node)
+	return New(root.Dir(), node.Node)
 }
 
 // TryLoad tries to load a single stack from dir. It sets found as true in case

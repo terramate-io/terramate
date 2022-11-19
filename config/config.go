@@ -40,6 +40,13 @@ const (
 	ErrSchema errors.Kind = "config has an invalid schema"
 )
 
+// Root is the root configuration tree.
+// This type is just for ensure better type checking for the cases where a
+// configuration for the root directory is expected and not from anywhere else.
+type Root struct {
+	tree Tree
+}
+
 // Tree is the configuration tree.
 // The tree maps the filesystem directories, which means each directory in the
 // project has a tree instance even if it's empty (ie no .tm files in it).
@@ -63,7 +70,7 @@ type List []*Tree
 // the config in fromdir and all parent directories until / is reached.
 // If the configuration is found, it returns the whole configuration tree,
 // configpath != "" and found as true.
-func TryLoadConfig(fromdir string) (tree *Tree, configpath string, found bool, err error) {
+func TryLoadConfig(fromdir string) (tree *Root, configpath string, found bool, err error) {
 	for {
 		logger := log.With().
 			Str("action", "config.TryLoadConfig()").
@@ -82,7 +89,10 @@ func TryLoadConfig(fromdir string) (tree *Tree, configpath string, found bool, e
 			}
 		} else if cfg.Terramate != nil && cfg.Terramate.Config != nil {
 			tree, err := loadTree(fromdir, fromdir, &cfg)
-			return tree, fromdir, true, err
+			if err != nil {
+				return nil, fromdir, true, err
+			}
+			return NewRoot(tree), fromdir, true, err
 		}
 
 		parent, ok := parentDir(fromdir)
@@ -94,10 +104,36 @@ func TryLoadConfig(fromdir string) (tree *Tree, configpath string, found bool, e
 	return nil, "", false, nil
 }
 
+// NewRoot creates a new [Root] tree for the cfg tree.
+func NewRoot(tree *Tree) *Root {
+	return &Root{
+		tree: *tree,
+	}
+}
+
+// Tree returns the root configuration tree.
+func (root *Root) Tree() *Tree { return &root.tree }
+
+// Dir returns the root directory.
+func (root *Root) Dir() string { return root.tree.RootDir() }
+
+// Lookup a node from the root using a filesystem query path.
+func (root *Root) Lookup(path project.Path) (*Tree, bool) {
+	return root.tree.Lookup(path)
+}
+
 // LoadTree loads the whole hierarchical configuration from cfgdir downwards
 // using rootdir as project root.
 func LoadTree(rootdir string, cfgdir string) (*Tree, error) {
 	return loadTree(rootdir, cfgdir, nil)
+}
+
+func LoadRoot(rootdir string) (*Root, error) {
+	cfgtree, err := LoadTree(rootdir, rootdir)
+	if err != nil {
+		return nil, err
+	}
+	return NewRoot(cfgtree), nil
 }
 
 // Dir is the node directory.
@@ -119,11 +155,11 @@ func (tree *Tree) RootDir() string {
 }
 
 // Root returns the root of the configuration tree.
-func (tree *Tree) Root() *Tree {
+func (tree *Tree) Root() *Root {
 	if tree.Parent != nil {
 		return tree.Parent.Root()
 	}
-	return tree
+	return NewRoot(tree)
 }
 
 // IsStack tells if the node is a stack.
@@ -351,8 +387,8 @@ func (tree *Tree) IsEmptyConfig() bool {
 }
 
 // IsStack returns true if the given directory is a stack, false otherwise.
-func IsStack(cfg *Tree, dir string) bool {
-	node, ok := cfg.Lookup(project.PrjAbsPath(cfg.RootDir(), dir))
+func IsStack(root *Root, dir string) bool {
+	node, ok := root.Lookup(project.PrjAbsPath(root.Dir(), dir))
 	return ok && node.IsStack()
 }
 

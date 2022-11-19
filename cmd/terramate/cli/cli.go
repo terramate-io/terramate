@@ -556,10 +556,11 @@ func (c *cli) vendorDir() prj.Path {
 
 	logger.Trace().Msg("no .terramate config, checking root")
 
-	if hasVendorDirConfig(c.prj.cfg.Node) {
+	hclcfg := c.prj.rootcfg.Tree().Node
+	if hasVendorDirConfig(hclcfg) {
 		logger.Trace().Msg("using root config")
 
-		return checkVendorDir(c.prj.cfg.Node.Vendor.Dir)
+		return checkVendorDir(hclcfg.Vendor.Dir)
 	}
 
 	logger.Trace().Msg("no configuration provided, fallback to default")
@@ -616,7 +617,7 @@ func (c *cli) checkGitUntracked() bool {
 		}
 	}
 
-	cfg := c.prj.cfg.Node
+	cfg := c.prj.rootcfg.Tree().Node
 	if cfg.Terramate != nil &&
 		cfg.Terramate.Config != nil &&
 		cfg.Terramate.Config.Git != nil {
@@ -637,7 +638,7 @@ func (c *cli) checkGitUncommited() bool {
 		}
 	}
 
-	cfg := c.prj.cfg.Node
+	cfg := c.prj.rootcfg.Tree().Node
 	if cfg.Terramate != nil &&
 		cfg.Terramate.Config != nil &&
 		cfg.Terramate.Config.Git != nil {
@@ -926,7 +927,7 @@ func (c *cli) generateGraph() {
 			Msg("-label expects the values \"stack.name\" or \"stack.dir\"")
 	}
 
-	entries, err := terramate.ListStacks(c.cfg())
+	entries, err := terramate.ListStacks(c.cfg().Tree())
 	if err != nil {
 		fatal(err, "listing stacks to build graph")
 	}
@@ -1211,8 +1212,7 @@ func (c *cli) checkGenCode() bool {
 		}
 	}
 
-	cfg := c.prj.cfg.Node
-
+	cfg := c.prj.rootcfg.Tree().Node
 	if cfg.Terramate != nil &&
 		cfg.Terramate.Config != nil &&
 		cfg.Terramate.Config.Run != nil {
@@ -1327,7 +1327,7 @@ func (c *cli) setupEvalContext() *eval.Context {
 		fatal(err)
 	}
 
-	allstacks, err := stack.LoadAll(c.cfg())
+	allstacks, err := stack.LoadAll(c.cfg().Tree())
 	if err != nil {
 		fatal(err, "setup eval context: listing all stacks")
 	}
@@ -1393,8 +1393,7 @@ func (c *cli) gitSafeguardRemoteEnabled() bool {
 		}
 	}
 
-	cfg := c.prj.cfg.Node
-
+	cfg := c.prj.rootcfg.Tree().Node
 	if cfg.Terramate != nil &&
 		cfg.Terramate.Config != nil &&
 		cfg.Terramate.Config.Git != nil {
@@ -1416,7 +1415,7 @@ func (c *cli) runOnStacks() {
 		logger.Fatal().Msgf("run expects a cmd")
 	}
 
-	allstacks, err := stack.LoadAll(c.cfg())
+	allstacks, err := stack.LoadAll(c.cfg().Tree())
 	if err != nil {
 		fatal(err, "failed to list stacks")
 	}
@@ -1495,7 +1494,7 @@ func (c *cli) runOnStacks() {
 
 func (c *cli) wd() string        { return c.prj.wd }
 func (c *cli) root() string      { return c.prj.root }
-func (c *cli) cfg() *config.Tree { return &c.prj.cfg }
+func (c *cli) cfg() *config.Root { return &c.prj.rootcfg }
 
 func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.root(), c.wd(), dir)
@@ -1565,8 +1564,7 @@ func (c cli) checkVersion() {
 
 	logger.Trace().Msg("checking if terramate version satisfies project constraint")
 
-	rootcfg := c.prj.cfg.Node
-
+	rootcfg := c.prj.rootcfg.Tree().Node
 	if rootcfg.Terramate == nil {
 		logger.Debug().Msg("project root has no config, skipping version check")
 		return
@@ -1654,13 +1652,13 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 			logger.Trace().Msg("Load root config.")
 
-			cfg, err := config.LoadTree(rootdir, rootdir)
+			cfg, err := config.LoadRoot(rootdir)
 			if err != nil {
 				return project{}, false, err
 			}
 
 			prj.isRepo = true
-			prj.cfg = *cfg
+			prj.rootcfg = *cfg
 			prj.root = rootdir
 			prj.git.wrapper = gw
 
@@ -1673,7 +1671,7 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 	}
 
 	prj.root = rootCfgPath
-	prj.cfg = *rootcfg
+	prj.rootcfg = *rootcfg
 	return prj, true, nil
 
 }
