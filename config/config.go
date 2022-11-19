@@ -111,6 +111,15 @@ func NewRoot(tree *Tree) *Root {
 	}
 }
 
+// LoadRoot loads the root configuration tree.
+func LoadRoot(rootdir string) (*Root, error) {
+	cfgtree, err := LoadTree(rootdir, rootdir)
+	if err != nil {
+		return nil, err
+	}
+	return NewRoot(cfgtree), nil
+}
+
 // Tree returns the root configuration tree.
 func (root *Root) Tree() *Tree { return &root.tree }
 
@@ -119,22 +128,100 @@ func (root *Root) Dir() string { return root.tree.RootDir() }
 
 // Lookup a node from the root using a filesystem query path.
 func (root *Root) Lookup(path project.Path) (*Tree, bool) {
-	return root.tree.Lookup(path)
+	return root.tree.lookup(path)
+}
+
+// StacksByPaths returns the stacks from the provided relative paths.
+func (root *Root) StacksByPaths(base project.Path, relpaths ...string) List {
+	logger := log.With().
+		Str("action", "tree.StacksByPath").
+		Stringer("basedir", base).
+		Strs("paths", relpaths).
+		Logger()
+
+	logger.Trace().Msg("lookup paths")
+
+	normalizePaths := func(paths []string) []project.Path {
+		pathmap := map[string]struct{}{}
+		var normalized []project.Path
+		for _, p := range paths {
+			var pathstr string
+			if path.IsAbs(p) {
+				pathstr = p
+			} else {
+				pathstr = path.Join(base.String(), p)
+			}
+			if _, ok := pathmap[pathstr]; !ok {
+				pathmap[pathstr] = struct{}{}
+				normalized = append(normalized, project.NewPath(pathstr))
+			}
+		}
+		return normalized
+	}
+
+	var stacks List
+	for _, path := range normalizePaths(relpaths) {
+		node, ok := root.Lookup(path)
+		if !ok {
+			logger.Warn().Msgf("path %s not found in configuration", path.String())
+			continue
+		}
+		stacks = append(stacks, node.stacks()...)
+	}
+
+	sort.Sort(stacks)
+
+	logger.Trace().Msgf("found %d stacks out of %d paths", len(stacks), len(relpaths))
+
+	return stacks
+}
+
+// LoadSubTree loads a subtree located at cfgdir into the current tree.
+func (root *Root) LoadSubTree(cfgdir project.Path) error {
+	var parent project.Path
+
+	var parentNode *Tree
+	parent = cfgdir.Dir()
+	for parent != "/" {
+		var found bool
+		parentNode, found = root.Lookup(parent)
+		if found {
+			break
+		}
+		parent = parent.Dir()
+	}
+
+	if parentNode == nil {
+		parentNode = root.Tree()
+	}
+
+	rootdir := root.Dir()
+
+	relpath := strings.TrimPrefix(cfgdir.String(), parent.String())
+	relpath = strings.TrimPrefix(relpath, "/")
+	components := strings.Split(relpath, "/")
+	nextComponent := components[0]
+	subtreeDir := filepath.Join(rootdir, parent.String(), nextComponent)
+
+	node, err := LoadTree(rootdir, subtreeDir)
+	if err != nil {
+		return errors.E(err, "failed to load config from %s", subtreeDir)
+	}
+
+	if node.Dir() == rootdir {
+		// root configuration reloaded
+		*root = *NewRoot(node)
+	} else {
+		node.Parent = parentNode
+		parentNode.Children[nextComponent] = node
+	}
+	return nil
 }
 
 // LoadTree loads the whole hierarchical configuration from cfgdir downwards
 // using rootdir as project root.
 func LoadTree(rootdir string, cfgdir string) (*Tree, error) {
 	return loadTree(rootdir, cfgdir, nil)
-}
-
-// LoadRoot loads the root configuration tree.
-func LoadRoot(rootdir string) (*Root, error) {
-	cfgtree, err := LoadTree(rootdir, rootdir)
-	if err != nil {
-		return nil, err
-	}
-	return NewRoot(cfgtree), nil
 }
 
 // Dir is the node directory.
@@ -189,7 +276,7 @@ func (tree *Tree) stacks() List {
 
 // Lookup a node from the tree using a filesystem query path.
 // The abspath is relative to the current tree node.
-func (tree *Tree) Lookup(abspath project.Path) (*Tree, bool) {
+func (tree *Tree) lookup(abspath project.Path) (*Tree, bool) {
 	pathstr := abspath.String()
 	if len(pathstr) == 0 || pathstr[0] != '/' {
 		return nil, false
@@ -221,51 +308,6 @@ func (tree *Tree) AsList() List {
 		result = append(result, children.AsList()...)
 	}
 	return result
-}
-
-// StacksByPaths returns the stacks from the provided relative paths.
-func (tree *Tree) StacksByPaths(base project.Path, relpaths ...string) List {
-	logger := log.With().
-		Str("action", "tree.StacksByPath").
-		Stringer("basedir", base).
-		Strs("paths", relpaths).
-		Logger()
-
-	logger.Trace().Msg("lookup paths")
-
-	normalizePaths := func(paths []string) []project.Path {
-		pathmap := map[string]struct{}{}
-		var normalized []project.Path
-		for _, p := range paths {
-			var pathstr string
-			if path.IsAbs(p) {
-				pathstr = p
-			} else {
-				pathstr = path.Join(base.String(), p)
-			}
-			if _, ok := pathmap[pathstr]; !ok {
-				pathmap[pathstr] = struct{}{}
-				normalized = append(normalized, project.NewPath(pathstr))
-			}
-		}
-		return normalized
-	}
-
-	var stacks List
-	for _, path := range normalizePaths(relpaths) {
-		node, ok := tree.Lookup(path)
-		if !ok {
-			logger.Warn().Msgf("path %s not found in configuration", path.String())
-			continue
-		}
-		stacks = append(stacks, node.stacks()...)
-	}
-
-	sort.Sort(stacks)
-
-	logger.Trace().Msgf("found %d stacks out of %d paths", len(stacks), len(relpaths))
-
-	return stacks
 }
 
 func (l List) Len() int           { return len(l) }
@@ -338,48 +380,6 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error)
 		tree.Children[name] = node
 	}
 	return tree, nil
-}
-
-// LoadSubTree loads a subtree located at cfgdir into the current tree.
-func (tree *Tree) LoadSubTree(cfgdir project.Path) error {
-	var parent project.Path
-
-	var parentNode *Tree
-	parent = cfgdir.Dir()
-	for parent != "/" {
-		var found bool
-		parentNode, found = tree.Lookup(parent)
-		if found {
-			break
-		}
-		parent = parent.Dir()
-	}
-
-	if parentNode == nil {
-		parentNode = tree
-	}
-
-	rootdir := tree.RootDir()
-
-	relpath := strings.TrimPrefix(cfgdir.String(), parent.String())
-	relpath = strings.TrimPrefix(relpath, "/")
-	components := strings.Split(relpath, "/")
-	nextComponent := components[0]
-	subtreeDir := filepath.Join(rootdir, parent.String(), nextComponent)
-
-	node, err := LoadTree(rootdir, subtreeDir)
-	if err != nil {
-		return errors.E(err, "failed to load config from %s", subtreeDir)
-	}
-
-	if node.Dir() == rootdir {
-		// root configuration reloaded
-		*tree = *node
-	} else {
-		node.Parent = parentNode
-		parentNode.Children[nextComponent] = node
-	}
-	return nil
 }
 
 // IsEmptyConfig tells if the configuration is empty.

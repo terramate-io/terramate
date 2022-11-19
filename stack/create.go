@@ -185,7 +185,7 @@ func Create(root *config.Root, cfg CreateCfg) (err error) {
 		return err
 	}
 
-	return root.Tree().LoadSubTree(project.PrjAbsPath(rootdir, cfg.Dir))
+	return root.LoadSubTree(project.PrjAbsPath(rootdir, cfg.Dir))
 }
 
 func (cfg CreateCfg) String() string {

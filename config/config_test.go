@@ -244,7 +244,7 @@ func TestConfigStacksByPaths(t *testing.T) {
 		s := sandbox.New(t)
 		s.BuildTree(tc.layout)
 		root := s.Config()
-		got := root.Tree().StacksByPaths(project.NewPath(tc.basedir), tc.relpaths...)
+		got := root.StacksByPaths(project.NewPath(tc.basedir), tc.relpaths...)
 		assert.EqualInts(t, len(tc.want), len(got))
 		var stacks []string
 		for _, node := range got {
@@ -266,22 +266,22 @@ func TestConfigSkipdir(t *testing.T) {
 		"f:/stack/subdir/ignored.tm:not valid hcl but wont be parsed",
 	})
 
-	cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+	root, err := config.LoadRoot(s.RootDir())
 	assert.NoError(t, err)
 
-	node, found := cfg.Lookup("/stack-2")
+	node, found := root.Lookup("/stack-2")
 	assert.IsTrue(t, found)
 	assert.IsTrue(t, !node.IsEmptyConfig())
 	assert.IsTrue(t, node.IsStack())
 
 	// When we find a tmskip the node is created but empty, no parsing is done
-	node, found = cfg.Lookup("/stack")
+	node, found = root.Lookup("/stack")
 	assert.IsTrue(t, found)
 	assert.IsTrue(t, node.IsEmptyConfig())
 	assert.IsTrue(t, !node.IsStack())
 
 	// subdirs are not processed and can't be found
-	_, found = cfg.Lookup("/stack/subdir")
+	_, found = root.Lookup("/stack/subdir")
 	assert.IsTrue(t, !found)
 }
 

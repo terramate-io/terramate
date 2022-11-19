@@ -89,7 +89,7 @@ func Clone(root *config.Root, destdir, srcdir string) error {
 		return err
 	}
 
-	return root.Tree().LoadSubTree(project.PrjAbsPath(rootdir, destdir))
+	return root.LoadSubTree(project.PrjAbsPath(rootdir, destdir))
 }
 
 func filterDotFiles(path string, entry os.DirEntry) bool {
