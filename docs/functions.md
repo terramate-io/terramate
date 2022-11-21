@@ -86,7 +86,10 @@ specific contexts.
 Receives a [Terraform module source](https://developer.hashicorp.com/terraform/language/modules/sources)
 as a parameter and returns the local path of the given module source after it is
 vendored. This function can only be used inside `generate_hcl` and
-`generate_file` blocks, it will work directly inside generated content
+`generate_file` blocks. In the case of `generate_file` blocks it can only be
+used when the context of the block is `stack`, it won't work with a `root` context.
+
+The function will work directly inside generated content
 and also inside the `lets` block. The local path will be relative to the target directory
 where code is being generated, which is determined by the `generate` block label.
 
