@@ -201,6 +201,58 @@ func TestGenerateVendor(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "tm_vendor inside lets block",
+			layout: []string{
+				"s:stack",
+			},
+			vendorDir: "/vendor",
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Doc(
+						GenerateHCL(
+							Labels("file.hcl"),
+							Lets(
+								Expr("source", `tm_vendor("github.com/mineiros-io/terramate?ref=v1")`),
+							),
+							Content(
+								Expr("vendor", `let.source`),
+							),
+						),
+						GenerateFile(
+							Labels("file.txt"),
+							Lets(
+								Expr("source", `tm_vendor("github.com/mineiros-io/terramate?ref=v2")`),
+							),
+							Expr("content", `let.source`),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stack",
+					files: map[string]fmt.Stringer{
+						"file.hcl": Doc(
+							Str("vendor", "../vendor/github.com/mineiros-io/terramate/v1"),
+						),
+						"file.txt": stringer("../vendor/github.com/mineiros-io/terramate/v2"),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir: "/stack",
+						Created: []string{
+							"file.hcl",
+							"file.txt",
+						},
+					},
+				},
+			},
+		},
 	})
 }
 
