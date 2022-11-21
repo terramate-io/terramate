@@ -638,7 +638,7 @@ func (c *cli) gencodeWithVendor(workdir string) (generate.Report, download.Repor
 
 	report := generate.Do(c.cfg(), workdir, c.vendorDir(), vendorRequestEvents)
 
-	log.Debug().Msg("stopping vendor request handler")
+	log.Debug().Msg("code generation finished, waiting for vendor requests to be handled")
 
 	close(vendorRequestEvents)
 
