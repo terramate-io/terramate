@@ -53,6 +53,7 @@ type (
 	// operator is not defined, then this type implements a fixed size struct.
 	GlobalPathKey struct {
 		path     [project.MaxGlobalLabels]string
+		isattr   bool
 		numPaths int
 	}
 
@@ -260,12 +261,14 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 			// This catches a schema error that cannot be detected at the parser.
 			// When a nested object is defined either by literal or funcalls,
 			// it can't be detected at the parser.
-			if v, ok := globals.GetKeyPath(accessor.Path()); ok &&
-				v.Origin().Dir().String() == expr.Origin.Dir().String() {
+			oldValue, hasOldValue := globals.GetKeyPath(accessor.Path())
+			if hasOldValue &&
+				accessor.isattr &&
+				oldValue.Origin().Dir().String() == expr.Origin.Dir().String() {
 				pendingExprsErrs[accessor].Append(
 					errors.E(hcl.ErrTerramateSchema, expr.Range(),
 						"global.%s attribute redefined: previously defined at %s",
-						accessor.rootname(), v.Origin().String()))
+						accessor.rootname(), oldValue.Origin().String()))
 
 				continue
 			}
@@ -275,14 +278,29 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 			val, err := ctx.Eval(expr)
 			if err != nil {
 				pendingExprsErrs[accessor].Append(errors.E(
-					ErrEval, err, "global.%s", accessor.rootname()))
+					ErrEval, err, "global.%s (%t)", accessor.rootname(), accessor.isattr))
 				continue
 			}
 
-			err = globals.SetAt(accessor.Path(), eval.NewValue(val, expr.Origin))
-			if err != nil {
-				pendingExprsErrs[accessor].Append(err)
-				continue
+			if !hasOldValue || !oldValue.IsObject() || accessor.isattr {
+				// all the `attr = expr` inside global blocks become an entry
+				// in the globalExprs map but we have the special case that
+				// an empty globals block with labels must implicitly create
+				// the label defined object...
+				// then as it does not define any expression, an implicit
+				// expression for an empty object block is added to the map.
+				// This special entry sets the key accessor.isattr = false
+				// which means this expression doesn't come from an attribute.
+
+				// this `if` happens for the general case, which we must set the
+				// actual value and then ignores the case where it has a fake
+				// expression when extending an existing object.
+
+				err = globals.SetAt(accessor.Path(), eval.NewValue(val, expr.Origin))
+				if err != nil {
+					pendingExprsErrs[accessor].Append(errors.E(err, "setting global"))
+					continue
+				}
 			}
 
 			amountEvaluated++
@@ -340,6 +358,7 @@ func newGlobalPath(basepath []string, name string) GlobalPathKey {
 	if name != "" {
 		accessor.path[len(basepath)] = name
 		accessor.numPaths++
+		accessor.isattr = true
 	}
 	return accessor
 }
