@@ -114,9 +114,6 @@ func (obj *Object) IsObject() bool { return true }
 // SetFrom sets the object keys and values from the map.
 func (obj *Object) SetFrom(values map[string]Value) *Object {
 	for k, v := range values {
-		if _, ok := obj.Keys[k]; ok {
-			panic(errors.E("SetFrom failed: object has key %s", k))
-		}
 		obj.Set(k, v)
 	}
 	return obj
