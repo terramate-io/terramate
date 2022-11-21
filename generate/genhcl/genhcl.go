@@ -174,7 +174,7 @@ func Load(
 
 		vendorTargetDir := project.NewPath(path.Join(
 			sm.Path().String(),
-			filepath.Dir(name)))
+			path.Dir(name)))
 		evalctx.SetTmVendor(vendorTargetDir, vendorDir, vendorRequests)
 
 		condition := true
