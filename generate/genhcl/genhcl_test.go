@@ -29,6 +29,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/lets"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
@@ -1692,7 +1693,8 @@ func (tcase testcase) run(t *testing.T) {
 		assert.NoError(t, err)
 
 		globals := s.LoadStackGlobals(cfg, projmeta, stack)
-		got, err := genhcl.Load(cfg, projmeta, stack, globals)
+		vendorDir := project.NewPath("/modules")
+		got, err := genhcl.Load(cfg, projmeta, stack, globals, vendorDir, nil)
 		errtest.Assert(t, err, tcase.wantErr)
 
 		if len(got) != len(tcase.want) {

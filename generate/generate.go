@@ -25,6 +25,7 @@ import (
 
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/hcl"
@@ -90,10 +91,14 @@ type LoadResult struct {
 // Load will load all the generated files inside the given tree.
 // Each directory will be represented by a single [LoadResult] inside the returned slice.
 // Errors generating code for specific dirs will be found inside each [LoadResult].
+//
+// The given vendorDir is used when calculating the vendor path using tm_vendor
+// on the generate blocks.
+//
 // If a critical error that fails the loading of all results happens it returns
 // a non-nil error. In this case the error is not specific to generating code for a
 // specific dir.
-func Load(cfg *config.Tree) ([]LoadResult, error) {
+func Load(cfg *config.Tree, vendorDir project.Path) ([]LoadResult, error) {
 	stacks, err := stack.LoadAll(cfg)
 	if err != nil {
 		return nil, err
@@ -110,7 +115,7 @@ func Load(cfg *config.Tree) ([]LoadResult, error) {
 			continue
 		}
 
-		generated, err := loadStackCodeCfgs(cfg, projmeta, st, loadres.Globals)
+		generated, err := loadStackCodeCfgs(cfg, projmeta, st, loadres.Globals, vendorDir, nil)
 		if err != nil {
 			res.Err = err
 			results[i] = res
@@ -174,12 +179,23 @@ func Load(cfg *config.Tree) ([]LoadResult, error) {
 // Context" and generated. A Root Evaluation Context contains just the Project
 // Metadata. Note: workingDir is ignored for context=root blocks.
 //
+// The given vendorDir is used when calculating the vendor path using tm_vendor
+// on the generate blocks. The vendorRequests channel will be used on tm_vendor
+// calls to communicate each vendor request. If the caller is not interested on
+// [event.VendorRequest] events just pass a nil channel.
+//
 // It will return a report including details of which directories succeed and
 // failed on code generation, any failure found is added to the report but does
 // not abort the overall code generation process, so partial results can be
 // obtained and the report needs to be inspected to check.
-func Do(cfg *config.Tree, workingDir string) Report {
-	stackReport := forEachStack(cfg, workingDir, doStackGeneration)
+func Do(
+	cfg *config.Tree,
+	workingDir string,
+	vendorDir project.Path,
+	vendorRequests chan<- event.VendorRequest,
+) Report {
+	stackReport := forEachStack(cfg, workingDir, vendorDir,
+		vendorRequests, doStackGeneration)
 	rootReport := doRootGeneration(cfg)
 	report := mergeReports(stackReport, rootReport)
 	return cleanupOrphaned(cfg, report)
@@ -190,6 +206,8 @@ func doStackGeneration(
 	projmeta project.Metadata,
 	stack *stack.S,
 	globals *eval.Object,
+	vendorDir project.Path,
+	vendorRequests chan<- event.VendorRequest,
 ) dirReport {
 	stackpath := stack.HostPath()
 	logger := log.With().
@@ -207,7 +225,7 @@ func doStackGeneration(
 		return report
 	}
 
-	generated, err := loadStackCodeCfgs(cfg, projmeta, stack, globals)
+	generated, err := loadStackCodeCfgs(cfg, projmeta, stack, globals, vendorDir, vendorRequests)
 	if err != nil {
 		report.err = err
 		return report
@@ -514,7 +532,7 @@ processSubdirs:
 
 // DetectOutdated will verify if the given config has outdated code
 // and return a list of filenames that are outdated, ordered lexicographically.
-func DetectOutdated(cfg *config.Tree) ([]string, error) {
+func DetectOutdated(cfg *config.Tree, vendorDir project.Path) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.DetectOutdated()").
 		Logger()
@@ -532,7 +550,7 @@ func DetectOutdated(cfg *config.Tree) ([]string, error) {
 	logger.Debug().Msg("checking outdated code inside stacks")
 
 	for _, stack := range stacks {
-		outdated, err := stackOutdated(cfg, projmeta, stack)
+		outdated, err := stackOutdated(cfg, projmeta, stack, vendorDir)
 		if err != nil {
 			errs.Append(err)
 			continue
@@ -575,7 +593,12 @@ func DetectOutdated(cfg *config.Tree) ([]string, error) {
 // stackOutdated will verify if a given stack has outdated code and return a list
 // of filenames that are outdated, ordered lexicographically.
 // If the stack has an invalid configuration it will return an error.
-func stackOutdated(cfg *config.Tree, projmeta project.Metadata, st *stack.S) ([]string, error) {
+func stackOutdated(
+	cfg *config.Tree,
+	projmeta project.Metadata,
+	st *stack.S,
+	vendorDir project.Path,
+) ([]string, error) {
 	logger := log.With().
 		Str("action", "generate.stackOutdated").
 		Stringer("stack", st).
@@ -589,7 +612,7 @@ func stackOutdated(cfg *config.Tree, projmeta project.Metadata, st *stack.S) ([]
 	globals := report.Globals
 	stackpath := st.HostPath()
 
-	generated, err := loadStackCodeCfgs(cfg, projmeta, st, globals)
+	generated, err := loadStackCodeCfgs(cfg, projmeta, st, globals, vendorDir, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -797,9 +820,17 @@ type forEachStackFunc func(
 	project.Metadata,
 	*stack.S,
 	*eval.Object,
+	project.Path,
+	chan<- event.VendorRequest,
 ) dirReport
 
-func forEachStack(cfg *config.Tree, workingDir string, fn forEachStackFunc) Report {
+func forEachStack(
+	cfg *config.Tree,
+	workingDir string,
+	vendorDir project.Path,
+	vendorRequests chan<- event.VendorRequest,
+	fn forEachStackFunc,
+) Report {
 	logger := log.With().
 		Str("action", "generate.forEachStack()").
 		Str("root", cfg.RootDir()).
@@ -838,7 +869,7 @@ func forEachStack(cfg *config.Tree, workingDir string, fn forEachStackFunc) Repo
 
 		logger.Trace().Msg("Calling stack callback.")
 
-		stackReport := fn(cfg, projmeta, st, globalsReport.Globals)
+		stackReport := fn(cfg, projmeta, st, globalsReport.Globals, vendorDir, vendorRequests)
 		report.addDirReport(st.Path(), stackReport)
 	}
 
@@ -1284,15 +1315,17 @@ func loadStackCodeCfgs(
 	projmeta project.Metadata,
 	st *stack.S,
 	globals *eval.Object,
+	vendorDir project.Path,
+	vendorRequests chan<- event.VendorRequest,
 ) ([]GenFile, error) {
 	var genfilesConfigs []GenFile
 
-	genfiles, err := genfile.Load(tree, projmeta, st, globals)
+	genfiles, err := genfile.Load(tree, projmeta, st, globals, vendorDir, vendorRequests)
 	if err != nil {
 		return nil, err
 	}
 
-	genhcls, err := genhcl.Load(tree, projmeta, st, globals)
+	genhcls, err := genhcl.Load(tree, projmeta, st, globals, vendorDir, vendorRequests)
 	if err != nil {
 		return nil, err
 	}

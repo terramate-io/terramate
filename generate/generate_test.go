@@ -27,6 +27,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/generate/genhcl"
+	"github.com/mineiros-io/terramate/project"
 	stackpkg "github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
@@ -47,6 +48,7 @@ type (
 		layout     []string
 		configs    []hclconfig
 		workingDir string
+		vendorDir  string
 		want       []generatedFile
 		wantReport generate.Report
 	}
@@ -760,7 +762,11 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 			}
 
 			workingDir := filepath.Join(s.RootDir(), tcase.workingDir)
-			report := generate.Do(s.Config(), workingDir)
+			vendorDir := project.NewPath("/modules")
+			if tcase.vendorDir != "" {
+				vendorDir = project.NewPath(tcase.vendorDir)
+			}
+			report := generate.Do(s.Config(), workingDir, vendorDir, nil)
 			assertEqualReports(t, report, tcase.wantReport)
 
 			assertGeneratedFiles(t)
@@ -768,7 +774,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 			// piggyback on the tests to validate that regeneration doesn't
 			// delete files or fail and has identical results.
 			t.Run("regenerate", func(t *testing.T) {
-				report := generate.Do(s.Config(), workingDir)
+				report := generate.Do(s.Config(), workingDir, vendorDir, nil)
 				// since we just generated everything, report should only contain
 				// the same failures as previous code generation.
 				assertEqualReports(t, report, generate.Report{

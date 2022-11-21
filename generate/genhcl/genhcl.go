@@ -17,6 +17,7 @@ package genhcl
 
 import (
 	stdfmt "fmt"
+	"path"
 	"sort"
 
 	hhcl "github.com/hashicorp/hcl/v2"
@@ -24,6 +25,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/fmt"
@@ -143,6 +145,8 @@ func Load(
 	projmeta project.Metadata,
 	sm stack.Metadata,
 	globals *eval.Object,
+	vendorDir project.Path,
+	vendorRequests chan<- event.VendorRequest,
 ) ([]HCL, error) {
 	logger := log.With().
 		Str("action", "genhcl.Load()").
@@ -166,6 +170,11 @@ func Load(
 		if err != nil {
 			return nil, err
 		}
+
+		vendorTargetDir := project.NewPath(path.Join(
+			sm.Path().String(),
+			path.Dir(name)))
+		evalctx.SetTmVendor(vendorTargetDir, vendorDir, vendorRequests)
 
 		condition := true
 		if hclBlock.Condition != nil {

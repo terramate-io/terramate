@@ -29,6 +29,7 @@ import (
 	"github.com/mineiros-io/terramate/cmd/terramate/cli/out"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/errors/errlog"
+	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl/eval"
@@ -471,20 +472,8 @@ func (c *cli) vendorDownload() {
 	}
 	parsedSource.Ref = ref
 
-	eventsHandled := make(chan struct{})
 	eventsStream := download.NewEventStream()
-
-	go func() {
-		for event := range eventsStream {
-			c.output.Msg(out.V, "vendor: %s %s at %s",
-				event.Message, event.Module.Raw, event.TargetDir)
-			log.Info().
-				Str("module", event.Module.Raw).
-				Stringer("vendorDir", event.TargetDir).
-				Msg(event.Message)
-		}
-		close(eventsHandled)
-	}()
+	eventsHandled := c.handleVendorProgressEvents(eventsStream)
 
 	logger.Debug().Msg("vendoring")
 
@@ -508,6 +497,24 @@ func (c *cli) vendorDownload() {
 	}
 
 	c.output.Msg(out.V, report.String())
+}
+
+func (c *cli) handleVendorProgressEvents(eventsStream download.ProgressEventStream) <-chan struct{} {
+	eventsHandled := make(chan struct{})
+
+	go func() {
+		for event := range eventsStream {
+			c.output.Msg(out.V, "vendor: %s %s at %s",
+				event.Message, event.Module.Raw, event.TargetDir)
+			log.Info().
+				Str("module", event.Module.Raw).
+				Stringer("vendorDir", event.TargetDir).
+				Msg(event.Message)
+		}
+		close(eventsHandled)
+	}()
+
+	return eventsHandled
 }
 
 func (c *cli) vendorDir() prj.Path {
@@ -597,12 +604,56 @@ func (c *cli) cloneStack() {
 }
 
 func (c *cli) generate(workdir string) {
-	report := generate.Do(c.cfg(), workdir)
+	report, vendorReport := c.gencodeWithVendor(workdir)
+
 	c.output.Msg(out.V, report.Full())
 
-	if report.HasFailures() {
+	vendorReport.RemoveIgnoredByKind(download.ErrAlreadyVendored)
+
+	if !vendorReport.IsEmpty() {
+		c.output.Msg(out.V, vendorReport.String())
+	}
+
+	if report.HasFailures() || vendorReport.HasFailures() {
 		os.Exit(1)
 	}
+}
+
+// gencodeWithVendor will generate code for the whole project providing automatic
+// vendoring of all tm_vendor calls.
+func (c *cli) gencodeWithVendor(workdir string) (generate.Report, download.Report) {
+	vendorProgressEvents := download.NewEventStream()
+	progressHandlerDone := c.handleVendorProgressEvents(vendorProgressEvents)
+
+	vendorRequestEvents := make(chan event.VendorRequest)
+	vendorReports := download.HandleVendorRequests(
+		c.prj.root,
+		vendorRequestEvents,
+		vendorProgressEvents,
+	)
+
+	mergedVendorReport := download.MergeVendorReports(vendorReports)
+
+	log.Debug().Msg("generating code")
+
+	report := generate.Do(c.cfg(), workdir, c.vendorDir(), vendorRequestEvents)
+
+	log.Debug().Msg("code generation finished, waiting for vendor requests to be handled")
+
+	close(vendorRequestEvents)
+
+	log.Debug().Msg("waiting for vendor report merging")
+
+	vendorReport := <-mergedVendorReport
+
+	log.Debug().Msg("waiting for all progress events")
+
+	close(vendorProgressEvents)
+	<-progressHandlerDone
+
+	log.Debug().Msg("all handlers stopped, generating final report")
+
+	return report, vendorReport
 }
 
 func (c *cli) checkGitUntracked() bool {
@@ -783,15 +834,23 @@ func (c *cli) createStack() {
 	log.Info().Msgf("created stack %s", stackPath)
 	c.output.Msg(out.V, "Created stack %s", stackPath)
 
-	report := generate.Do(c.cfg(), stackDir)
+	report, vendorReport := c.gencodeWithVendor(stackDir)
 
 	if report.HasFailures() {
 		c.output.Msg(out.V, "Code generation failed")
 		c.output.Msg(out.V, report.Minimal())
+	}
+
+	if vendorReport.HasFailures() {
+		c.output.Msg(out.V, vendorReport.String())
+	}
+
+	if report.HasFailures() || vendorReport.HasFailures() {
 		os.Exit(1)
 	}
 
 	c.output.Msg(out.VV, report.Minimal())
+	c.output.Msg(out.VV, vendorReport.String())
 }
 
 func (c *cli) format() {
@@ -1082,7 +1141,7 @@ func (c *cli) generateDebug() {
 		selectedStacks[stack.Path()] = struct{}{}
 	}
 
-	results, err := generate.Load(c.cfg())
+	results, err := generate.Load(c.cfg(), c.vendorDir())
 	if err != nil {
 		fatal(err, "generate debug: loading generated code")
 	}
@@ -1176,7 +1235,6 @@ func (c *cli) printMetadata() {
 
 	c.output.Msg(out.V, "Available metadata:")
 
-	// TODO(katcipis): we need to print other project metadata too.
 	c.output.Msg(out.V, "\nproject metadata:")
 	c.output.Msg(out.V, "\tterramate.stacks.list=%v", projmeta.Stacks())
 
@@ -1363,7 +1421,7 @@ func (c *cli) checkOutdatedGeneratedCode(stacks stack.List) {
 
 	logger.Trace().Msg("checking if any stack has outdated code")
 
-	outdatedFiles, err := generate.DetectOutdated(c.cfg())
+	outdatedFiles, err := generate.DetectOutdated(c.cfg(), c.vendorDir())
 
 	if err != nil {
 		fatal(err, "failed to check outdated code on project")

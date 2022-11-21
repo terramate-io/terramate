@@ -42,6 +42,15 @@ import (
 const (
 	// ErrAlreadyVendored indicates that a module is already vendored.
 	ErrAlreadyVendored errors.Kind = "module is already vendored"
+
+	// ErrUnsupportedModSrc indicates that the module source is not supported.
+	ErrUnsupportedModSrc errors.Kind = "unsupported module source"
+
+	// ErrDownloadMod indicates that an error occurred while trying to download a module.
+	ErrDownloadMod errors.Kind = "downloading module"
+
+	// ErrModRefEmpty indicates that a module source had no reference on it.
+	ErrModRefEmpty errors.Kind = "module ref is empty"
 )
 
 type modinfo struct {
@@ -136,6 +145,45 @@ func HandleVendorRequests(
 	return reportsStream
 }
 
+// MergeVendorReports will read all reports from the given reports channel, merge them
+// and send the merged result on the returned channel and then close it.
+// The returned channel always produce a single final report after the given
+// reports channel is closed.
+func MergeVendorReports(reports <-chan Report) <-chan Report {
+	mergedReport := make(chan Report)
+	go func() {
+		logger := log.With().
+			Str("action", "download.MergeVendorReports").
+			Logger()
+
+		var finalReport Report
+
+		logger.Debug().Msg("starting to merge vendor reports")
+
+		for report := range reports {
+			logger.Debug().Msg("got vendor report, merging")
+
+			if finalReport.IsEmpty() {
+				finalReport = report
+				continue
+			}
+
+			finalReport.merge(report)
+		}
+
+		logger.Debug().Msg("finished merging vendor reports, sending final report")
+
+		if !finalReport.IsEmpty() {
+			mergedReport <- finalReport
+		}
+
+		close(mergedReport)
+
+		logger.Debug().Msg("sent final report, finished")
+	}()
+	return mergedReport
+}
+
 // VendorAll will vendor all dependencies of the tfdir into rootdir.
 // It will scan all .tf files in the directory and vendor each module declaration
 // containing the supported remote source URLs.
@@ -164,21 +212,18 @@ func vendor(
 	moddir, err := downloadVendor(rootdir, vendorDir, modsrc, events)
 	if err != nil {
 		if errors.IsKind(err, ErrAlreadyVendored) {
-			// it's not an error in the case it's an indirect vendoring
-			if info == nil {
-				report.addIgnored(modsrc.Raw, string(ErrAlreadyVendored))
-			}
+			report.addIgnored(modsrc.Raw, err)
 			return report
 		}
 
-		reason := errors.E(err, "failed to vendor %q with ref %q",
-			modsrc.URL, modsrc.Ref).Error()
+		errmsg := fmt.Sprintf("vendoring %q with ref %q",
+			modsrc.URL, modsrc.Ref)
 
 		if info != nil {
-			reason += fmt.Sprintf(" found in %s", info.origin)
+			errmsg += fmt.Sprintf(" found in %s", info.origin)
 		}
 
-		report.addIgnored(modsrc.Raw, reason)
+		report.addIgnored(modsrc.Raw, errors.E(ErrDownloadMod, err, errmsg))
 		return report
 	}
 
@@ -295,7 +340,7 @@ func vendorAll(
 
 		modsrc, err := tf.ParseSource(source)
 		if err != nil {
-			report.addIgnored(source, err.Error())
+			report.addIgnored(source, err)
 			sources.delete(source)
 			continue
 		}
@@ -350,9 +395,7 @@ func downloadVendor(
 		Logger()
 
 	if modsrc.Ref == "" {
-		// TODO(katcipis): handle default references.
-		// for now always explicit is fine.
-		return "", errors.E("src %v reference must be non-empty", modsrc)
+		return "", errors.E(ErrModRefEmpty, "ref: %v", modsrc)
 	}
 
 	modVendorDir := modvendor.AbsVendorDir(rootdir, vendorDir, modsrc)

@@ -21,6 +21,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test/sandbox"
 
@@ -34,10 +35,11 @@ func TestOutdatedDetection(t *testing.T) {
 			body fmt.Stringer
 		}
 		step struct {
-			layout  []string
-			files   []file
-			want    []string
-			wantErr error
+			layout    []string
+			vendorDir string
+			files     []file
+			want      []string
+			wantErr   error
 		}
 		testcase struct {
 			name  string
@@ -100,7 +102,7 @@ func TestOutdatedDetection(t *testing.T) {
 			},
 		},
 		{
-			name: "generate blocks with no code generated and multiple stacks",
+			name: "multiple stacks generating code",
 			steps: []step{
 				{
 					layout: []string{
@@ -376,6 +378,64 @@ func TestOutdatedDetection(t *testing.T) {
 						"stack-2/test.txt",
 						"test.hcl",
 						"test.txt",
+					},
+				},
+			},
+		},
+		{
+			name: "changing vendorDir changes all generate blocks calling tm_vendor",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack-1",
+						"s:stack-2",
+					},
+					vendorDir: "/vendor",
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("vendor.txt"),
+									Expr("content", `tm_vendor("github.com/mineiros-io/terramate?ref=v1")`),
+								),
+								GenerateFile(
+									Labels("file.txt"),
+									Str("content", "something"),
+								),
+								GenerateHCL(
+									Labels("vendor.hcl"),
+									Content(
+										Expr("content", `tm_vendor("github.com/mineiros-io/terramate?ref=v1")`),
+									),
+								),
+								GenerateHCL(
+									Labels("file.hcl"),
+									Content(
+										Str("content", "something"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/file.hcl",
+						"stack-1/file.txt",
+						"stack-1/vendor.hcl",
+						"stack-1/vendor.txt",
+						"stack-2/file.hcl",
+						"stack-2/file.txt",
+						"stack-2/vendor.hcl",
+						"stack-2/vendor.txt",
+					},
+				},
+				{
+					vendorDir: "/modules",
+					want: []string{
+						"stack-1/vendor.hcl",
+						"stack-1/vendor.txt",
+						"stack-2/vendor.hcl",
+						"stack-2/vendor.txt",
 					},
 				},
 			},
@@ -987,7 +1047,12 @@ func TestOutdatedDetection(t *testing.T) {
 
 				s.ReloadConfig()
 
-				got, err := generate.DetectOutdated(s.Config())
+				vendorDir := project.NewPath("/modules")
+				if step.vendorDir != "" {
+					vendorDir = project.NewPath(step.vendorDir)
+				}
+
+				got, err := generate.DetectOutdated(s.Config(), vendorDir)
 
 				assert.IsError(t, err, step.wantErr)
 				if err != nil {
@@ -998,8 +1063,8 @@ func TestOutdatedDetection(t *testing.T) {
 
 				t.Log("checking that after generate outdated detection should always return empty")
 
-				s.Generate()
-				got, err = generate.DetectOutdated(s.Config())
+				s.GenerateAt(s.Config(), s.RootDir(), vendorDir)
+				got, err = generate.DetectOutdated(s.Config(), vendorDir)
 				assert.NoError(t, err)
 
 				assertEqualStringList(t, got, []string{})

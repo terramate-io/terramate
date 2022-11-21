@@ -20,7 +20,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 	"text/template"
@@ -84,8 +83,8 @@ type hclconfig struct {
 }
 
 type wantIgnoredVendor struct {
-	RawSource     string
-	ReasonPattern string
+	RawSource string
+	Error     error
 }
 
 type wantReport struct {
@@ -157,8 +156,8 @@ func TestDownloadVendor(t *testing.T) {
 			},
 			wantIgnored: []wantIgnoredVendor{
 				{
-					RawSource:     "https://example.com/my-module",
-					ReasonPattern: "unsupported module source",
+					RawSource: "https://example.com/my-module",
+					Error:     errors.E(download.ErrUnsupportedModSrc),
 				},
 			},
 		},
@@ -167,8 +166,8 @@ func TestDownloadVendor(t *testing.T) {
 			source: "git::{{.}}/module-that-does-not-exists?ref=main",
 			wantIgnored: []wantIgnoredVendor{
 				{
-					RawSource:     "git::{{.}}/module-that-does-not-exists?ref=main",
-					ReasonPattern: "failed to vendor",
+					RawSource: "git::{{.}}/module-that-does-not-exists?ref=main",
+					Error:     errors.E(download.ErrDownloadMod),
 				},
 			},
 		},
@@ -313,8 +312,8 @@ func TestDownloadVendor(t *testing.T) {
 			},
 			wantIgnored: []wantIgnoredVendor{
 				{
-					RawSource:     "git::",
-					ReasonPattern: string(tf.ErrInvalidModSrc),
+					RawSource: "git::",
+					Error:     errors.E(tf.ErrInvalidModSrc),
 				},
 			},
 		},
@@ -879,10 +878,9 @@ func applyReportTemplate(t *testing.T, r wantReport, value string, vendordir pro
 	}
 	for _, ignored := range r.Ignored {
 		rawSource := applyConfigTemplate(t, ignored.RawSource, value)
-		reason := applyConfigTemplate(t, ignored.ReasonPattern, value)
 		out.Ignored = append(out.Ignored, download.IgnoredVendor{
 			RawSource: rawSource,
-			Reason:    reason,
+			Reason:    ignored.Error,
 		})
 	}
 	return out
@@ -1133,7 +1131,7 @@ func TestModVendorDoesNothingIfRefExists(t *testing.T) {
 		Ignored: []download.IgnoredVendor{
 			{
 				RawSource: source.Raw,
-				Reason:    string(download.ErrAlreadyVendored),
+				Reason:    errors.E(download.ErrAlreadyVendored),
 			},
 		},
 	}
@@ -1158,7 +1156,7 @@ func TestModVendorNoRefFails(t *testing.T) {
 		Ignored: []download.IgnoredVendor{
 			{
 				RawSource: source.Raw,
-				Reason:    "reference must be non-empty",
+				Reason:    errors.E(download.ErrModRefEmpty),
 			},
 		},
 	}, report)
@@ -1221,14 +1219,7 @@ func assertVendorReport(t *testing.T, want, got download.Report) {
 			t.Errorf("want.RawSource %v is different than %v",
 				wantIgnored.RawSource, got.Ignored[i].RawSource)
 		}
-		if wantIgnored.Reason != "" {
-			if ok, _ := regexp.MatchString(wantIgnored.Reason, got.Ignored[i].Reason); !ok {
-				t.Errorf("want.Reason %v is different than %v",
-					wantIgnored.Reason, got.Ignored[i].Reason)
-			}
-		} else if got.Ignored[i].Reason != "" {
-			t.Errorf("unexpected reason %q", got.Ignored[i].Reason)
-		}
+		assert.IsError(t, got.Ignored[i].Reason, wantIgnored.Reason)
 	}
 
 	errtest.Assert(t, got.Error, want.Error)
