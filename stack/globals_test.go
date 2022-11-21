@@ -560,6 +560,97 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name: "extending globals with empty block",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Labels("obj"),
+							Expr("a", `[1, 2, 3]`),
+							Number("b", 1),
+						),
+						Globals(
+							Labels("obj"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "obj", `{
+						a = [1, 2, 3]
+						b = 1
+					}`),
+				),
+			},
+		},
+		{
+			name: "extending globals with empty block in child directory",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Labels("obj"),
+						Expr("a", `[1, 2, 3]`),
+						Number("b", 1),
+					),
+				},
+				{
+					path: "/stack",
+					add: Globals(
+						Labels("obj"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "obj", `{
+						a = [1, 2, 3]
+						b = 1
+					}`),
+				),
+			},
+		},
+		{
+			name: "extending globals multiple times with empty block",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Labels("obj"),
+						),
+						Globals(
+							Labels("obj"),
+							EvalExpr(t, "iam", `[1, 2, 3]`),
+						),
+						Globals(
+							Labels("obj"),
+						),
+						Globals(
+							Labels("obj"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "obj", `{ iam = [1, 2, 3] }`),
+				),
+			},
+		},
+
+		{
 			name: "stack extending local globals - order does not matter",
 			layout: []string{
 				"s:stack",
@@ -937,6 +1028,50 @@ func TestLoadGlobals(t *testing.T) {
 						Globals(
 							Labels("lst"),
 							EvalExpr(t, "values", `[1, 2]`),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(eval.ErrCannotExtendObject),
+		},
+		{
+			name: "extending parent list fails",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Expr("lst", `[]`),
+					),
+				},
+				{
+					path: "/stack",
+					add: Globals(
+						Labels("lst"),
+						Expr("other", `[]`),
+					),
+				},
+			},
+			wantErr: errors.E(eval.ErrCannotExtendObject),
+		},
+		{
+			name: "extending list from object fails",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Labels("test"),
+							Expr("lst", `[1, 2, 3]`),
+						),
+						Globals(
+							Labels("test", "lst"),
+							Expr("values", `[1, 2]`),
 						),
 					),
 				},
