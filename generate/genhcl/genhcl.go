@@ -166,15 +166,16 @@ func Load(
 	for _, hclBlock := range hclBlocks {
 		name := hclBlock.Label
 		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
-		err := lets.Load(hclBlock.Lets, evalctx.Context)
-		if err != nil {
-			return nil, err
-		}
 
 		vendorTargetDir := project.NewPath(path.Join(
 			sm.Path().String(),
 			path.Dir(name)))
 		evalctx.SetTmVendor(vendorTargetDir, vendorDir, vendorRequests)
+
+		err := lets.Load(hclBlock.Lets, evalctx.Context)
+		if err != nil {
+			return nil, err
+		}
 
 		condition := true
 		if hclBlock.Condition != nil {
