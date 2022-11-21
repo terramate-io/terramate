@@ -18,7 +18,6 @@ package genfile
 import (
 	"fmt"
 	"path"
-	"path/filepath"
 	"sort"
 
 	"github.com/mineiros-io/terramate/config"

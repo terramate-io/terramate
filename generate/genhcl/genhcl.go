@@ -18,7 +18,6 @@ package genhcl
 import (
 	stdfmt "fmt"
 	"path"
-	"path/filepath"
 	"sort"
 
 	hhcl "github.com/hashicorp/hcl/v2"
