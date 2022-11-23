@@ -24,8 +24,8 @@ For `context=root` it has access to:
 - Terramate function calls `tm_*(...)`
 - Expressions using string interpolation `"${}"`
 
-and for `context=stack` (the default), it has access to everything defined above
-for `root` plus the features below:
+and for `context=stack` (the default), it has access to everything that `root`
+have plus the features below:
 
 - Terramate Global references `global.*`
 - Terramate Stack Metadata references `terramate.stack.*`
