@@ -355,7 +355,7 @@ func doRootGeneration(cfg *config.Tree) Report {
 	evalctx.SetNamespace("terramate", projmeta.ToCtyMap())
 
 	var files []GenFile
-	for _, cfg := range cfg.Root().AsList() {
+	for _, cfg := range root.AsList() {
 		logger = logger.With().
 			Stringer("configDir", cfg.ProjDir()).
 			Bool("isEmpty", cfg.IsEmptyConfig()).
@@ -1173,6 +1173,12 @@ func validateRootGenerateBlock(cfg *config.Tree, block hcl.GenFileBlock) error {
 	abspath := filepath.Join(cfg.RootDir(), filepath.FromSlash(target))
 	abspath = filepath.Clean(abspath)
 	destdir := filepath.Dir(abspath)
+
+	if !strings.HasPrefix(destdir, cfg.RootDir()) {
+		return errors.E(ErrInvalidGenBlockLabel,
+			"label path computes to %s which is not inside rootdir %s",
+			abspath, cfg.RootDir())
+	}
 
 	// We need to check that destdir, or any of its parents, is not a symlink or a stack.
 	for strings.HasPrefix(destdir, cfg.RootDir()) && destdir != cfg.RootDir() {
