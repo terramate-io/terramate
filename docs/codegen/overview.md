@@ -57,7 +57,7 @@ For `stack` context, the labels must follow the constraints below:
 * It does not start with `./`
 * It is not a symbolic link
 * It is not a stack
-* It is unique on the whole hierarchy of a stack
+* It is unique on the whole hierarchy of a stack for all blocks with condition=true.
 
 For `root` context, the constraints are:
 

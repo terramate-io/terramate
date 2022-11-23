@@ -21,7 +21,7 @@ depending on the `context` defined.
 For `context=root` it has access to:
 
 - Terramate Project Metadata references `terramate.root.*` and `terramate.stacks.*`
-- Terramate function calls `tm_*(...)`
+- [Terramate function](../functions.md#terramate-functions) calls `tm_*(...)`
 - Expressions using string interpolation `"${}"`
 
 and for `context=stack` (the default), it has access to everything defined above
