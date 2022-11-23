@@ -94,11 +94,10 @@ generate_file "sum.txt" {
 
 # Assertions
 
-Assertions can be only used when the [generation context](#generation-context) is
-of type `stack` and can be used to fail code generation for one or more stacks
-if some pre-condition is not met, helping to catch mistakes in your configuration.
+Assertions can be used in order to fail code generation for one or more stacks if some pre-condition is not met, helping to catch mistakes in your configuration.
 
-It has the following field:
+Assertions can be only used when the [generation context](#generation-context)
+is of type `stack` and it has the following fields:
 
 * **assertion** : Obligatory, must evaluate to boolean
 * **message** : Obligatory, must evaluate to string
