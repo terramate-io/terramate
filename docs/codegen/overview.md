@@ -13,7 +13,7 @@ Currently, we support:
 
 # Generation Context
 
-The Terramate code generation supports two execution context:
+Code generation supports two execution contexts:
 
 - stack: generates code relative to the stack where it's defined.
 - root: generates code outside of stacks.
