@@ -32,7 +32,7 @@ But the `root` context gives access to:
 * [Functions](../functions.md)
 * [Lets](#lets)
 
-If not specified otherwise, the default generation context is `stack`.
+If not specified the default generation context is `stack`.
 For the `generate_hcl` there's no way to change the `context` and it's always
 of type `stack` but the `generate_file` has a `context` attribute which you can explicit change it to `root`. Example:
 
