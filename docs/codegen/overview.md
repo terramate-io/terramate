@@ -33,8 +33,9 @@ But the `root` context gives access to:
 * [Lets](#lets)
 
 If not specified the default generation context is `stack`.
-For the `generate_hcl` there's no way to change the `context` and it's always
-of type `stack` but the `generate_file` has a `context` attribute which you can explicit change it to `root`. Example:
+The `generate_hcl` block doesn't support changing the `context`, it will always be
+of type `stack`. The `generate_file` block supports the `context` attribute which you can explicit change to `root`.
+Example:
 
 ```hcl
 generate_file "/file.txt" {
