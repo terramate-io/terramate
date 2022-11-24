@@ -1445,6 +1445,19 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "tm_hcl_expression is not available on globals",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Globals(
+						Expr("data", `tm_hcl_expression("test")`),
+					),
+				},
+			},
+			wantErr: errors.E(globals.ErrEval),
+		},
+		{
 			name:   "global interpolating multiple lists fails",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
