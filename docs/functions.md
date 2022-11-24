@@ -57,10 +57,7 @@ dynamic data.
 
 Since this function produces an expression, not a final evaluated value,
 it is only allowed to be used on contexts where partial evaluation is
-allowed, which currently are:
-
-* `generate_hcl.content` block
-* `generate_file.content` attribute
+allowed, which currently is only the `generate_hcl.content` block.
 
 To use `tm_hcl_expression`, lets say we have a global named data defined like this:
 
