@@ -55,7 +55,14 @@ contents as an expression. It is particularly useful to circumvent some
 limitations on HCL and Terraform when building complex expressions from
 dynamic data.
 
-For example, given a global named data defined like this:
+Since this function produces an expression, not a final evaluated value,
+it is only allowed to be used on contexts where partial evaluation is
+allowed, which currently are:
+
+* `generate_hcl.content` block
+* `generate_file.content` attribute
+
+To use `tm_hcl_expression`, lets say we have a global named data defined like this:
 
 ```
 globals {
@@ -67,13 +74,17 @@ You can use this global to build a complex expression when generation code,
 like this:
 
 ```hcl
-tm_hcl_expression("data.google_active_folder._parent_id.id.${global.data}")
+generate_hcl "test.hcl" {
+    content {
+        expr = tm_hcl_expression("data.google_active_folder._parent_id.id.${global.data}")
+    }
+}
 ```
 
-Which will produce the expression:
+Which will generate:
 
 ```hcl
-data.google_active_folder._parent_id.id.data
+expr = data.google_active_folder._parent_id.id.data
 ```
 
 ## Experimental Functions
