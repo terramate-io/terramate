@@ -27,6 +27,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/generate/genhcl"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
@@ -919,7 +920,7 @@ func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
 		fmt.Sprintf("f:stack/%s:%s", genFilename, manualTfCode),
 	})
 
-	report := generate.Do(s.Config())
+	report := generate.Do(s.Config(), project.NewPath("/modules"), nil)
 	assert.EqualInts(t, 0, len(report.Successes), "want no success")
 	assert.EqualInts(t, 1, len(report.Failures), "want single failure")
 	assertReportHasError(t, report, errors.E(generate.ErrManualCodeExists))
@@ -1273,7 +1274,7 @@ func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
 
 	cfg, err := config.LoadTree(rootEntry.Path(), rootEntry.Path())
 	assert.NoError(t, err)
-	report := s.GenerateWith(cfg)
+	report := s.GenerateWith(cfg, project.NewPath("/modules"))
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{

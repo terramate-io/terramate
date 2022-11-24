@@ -17,10 +17,12 @@ package genfile
 
 import (
 	"fmt"
+	"path"
 	"sort"
 
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
@@ -130,6 +132,8 @@ func Load(
 	projmeta project.Metadata,
 	sm stack.Metadata,
 	globals *eval.Object,
+	vendorDir project.Path,
+	vendorRequests chan<- event.VendorRequest,
 ) ([]File, error) {
 	genFileBlocks, err := loadGenFileBlocks(cfg, sm.Path())
 	if err != nil {
@@ -143,7 +147,13 @@ func Load(
 			continue
 		}
 
+		name := genFileBlock.Label
 		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
+		vendorTargetDir := project.NewPath(path.Join(
+			sm.Path().String(),
+			path.Dir(name)))
+		evalctx.SetTmVendor(vendorTargetDir, vendorDir, vendorRequests)
+
 		file, err := Eval(genFileBlock, evalctx.Context)
 		if err != nil {
 			return nil, err
