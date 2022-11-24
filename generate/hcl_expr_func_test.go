@@ -29,7 +29,7 @@ func TestHCLExpressionFunc(t *testing.T) {
 	// In the future tests could be moved here.
 	testCodeGeneration(t, []testcase{
 		{
-			name: "not available on lets block",
+			name: "not available on generate_hcl lets block",
 			layout: []string{
 				"s:stack",
 			},
@@ -46,6 +46,29 @@ func TestHCLExpressionFunc(t *testing.T) {
 								Expr("value", `let.expr`),
 							),
 						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/stack",
+						},
+						Error: errors.E(eval.ErrEval),
+					},
+				},
+			},
+		},
+		{
+			name: "not available on generate_file lets block",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
 						GenerateFile(
 							Labels("test.txt"),
 							Lets(
@@ -62,10 +85,7 @@ func TestHCLExpressionFunc(t *testing.T) {
 						Result: generate.Result{
 							Dir: "/stack",
 						},
-						Error: errors.L(
-							errors.E(eval.ErrEval),
-							errors.E(eval.ErrEval),
-						),
+						Error: errors.E(eval.ErrEval),
 					},
 				},
 			},

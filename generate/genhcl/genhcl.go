@@ -170,7 +170,7 @@ func Load(
 		vendorTargetDir := project.NewPath(path.Join(
 			sm.Path().String(),
 			path.Dir(name)))
-		evalctx.SetTmVendor(vendorTargetDir, vendorDir, vendorRequests)
+		evalctx.AddTmVendor(vendorTargetDir, vendorDir, vendorRequests)
 
 		err := lets.Load(hclBlock.Lets, evalctx.Context)
 		if err != nil {
@@ -232,6 +232,8 @@ func Load(
 			})
 			continue
 		}
+
+		evalctx.AddTmHCLExpression()
 
 		gen := hclwrite.NewEmptyFile()
 		if err := copyBody(gen.Body(), hclBlock.Content.Body, evalctx); err != nil {

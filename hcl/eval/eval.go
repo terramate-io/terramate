@@ -57,7 +57,7 @@ func NewContext(basedir string) (*Context, error) {
 	}
 
 	hclctx := &hhcl.EvalContext{
-		Functions: newTmFunctions(basedir),
+		Functions: newDefaultFunctions(basedir),
 		Variables: map[string]cty.Value{},
 	}
 	return &Context{
@@ -65,18 +65,23 @@ func NewContext(basedir string) (*Context, error) {
 	}, nil
 }
 
-// SetTmVendor sets the tm_vendor function on this evaluation context.
+// AddTmVendor adds the tm_vendor function on this evaluation context.
 // The targetdir defines what tm_vendor will use to define the relative paths
 // of vendored dependencies.
 // The vendordir defines where modules are vendored inside the project.
 // The stream defines the event stream for tm_vendor, one event is produced
 // per successful function call.
-func (c *Context) SetTmVendor(
+func (c *Context) AddTmVendor(
 	targetdir project.Path,
 	vendordir project.Path,
 	stream chan<- event.VendorRequest,
 ) {
 	c.hclctx.Functions["tm_vendor"] = tmVendor(targetdir, vendordir, stream)
+}
+
+// AddTmHCLExpression adds the tm_hcl_expression function on this evaluation context.
+func (c *Context) AddTmHCLExpression() {
+	c.hclctx.Functions["tm_hcl_expression"] = tmHCLExpression()
 }
 
 // SetNamespace will set the given values inside the given namespace on the
