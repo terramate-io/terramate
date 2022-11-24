@@ -29,7 +29,7 @@ func TestHCLExpressionFunc(t *testing.T) {
 	// In the future tests could be moved here.
 	testCodeGeneration(t, []testcase{
 		{
-			name: "tm_hcl_expression is not available",
+			name: "not available on lets block",
 			layout: []string{
 				"s:stack",
 			},
