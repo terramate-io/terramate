@@ -15,7 +15,6 @@
 package stack
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -309,29 +308,17 @@ func Load(root *config.Root, dir string) (*S, error) {
 
 // TryLoad tries to load a single stack from dir. It sets found as true in case
 // the stack was successfully loaded.
-func TryLoad(root, absdir string) (stack *S, found bool, err error) {
-	logger := log.With().
-		Str("action", "TryLoad()").
-		Str("dir", absdir).
-		Logger()
-
-	if !strings.HasPrefix(absdir, root) {
-		return nil, false, errors.E(fmt.Sprintf("directory %s is not inside project root %s",
-			absdir, root))
-	}
-
-	logger.Debug().Msg("Parsing configuration.")
-	cfg, err := hcl.ParseDir(root, absdir)
-	if err != nil {
-		return nil, false, errors.E(err, "failed to parse directory %s", absdir)
-	}
-
-	if cfg.Stack == nil {
+func TryLoad(root *config.Root, cfgdir project.Path) (stack *S, found bool, err error) {
+	tree, ok := root.Lookup(cfgdir)
+	if !ok {
 		return nil, false, nil
 	}
 
-	logger.Debug().Msg("Create a new stack")
-	s, err := New(root, cfg)
+	if !tree.IsStack() {
+		return nil, false, nil
+	}
+
+	s, err := New(root.Dir(), tree.Node)
 	if err != nil {
 		return nil, true, err
 	}

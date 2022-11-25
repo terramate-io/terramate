@@ -1472,7 +1472,7 @@ func (c *cli) runOnStacks() {
 	var stacks stack.List
 
 	if c.parsedArgs.Run.NoRecursive {
-		st, found, err := stack.TryLoad(c.rootdir(), c.wd())
+		st, found, err := stack.TryLoad(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 		if err != nil {
 			fatal(err, "loading stack in current directory")
 		}
