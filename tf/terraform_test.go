@@ -48,25 +48,24 @@ type (
 func TestHCLParserModules(t *testing.T) {
 	for _, tc := range []testcase{
 		{
-			name: "module must have 1 label",
+			name: "module without label is ignored",
 			input: cfgfile{
 				filename: "main.tf",
 				body:     `module {}`,
 			},
-			want: want{
-				errs: []error{errors.E(tf.ErrTerraformSchema,
-					mkrange("main.tf", start(1, 8, 7), end(1, 9, 8)))},
+		},
+		{
+			name: "module with N labels is ignored",
+			input: cfgfile{
+				filename: "main.tf",
+				body:     `module "label" "again" {}`,
 			},
 		},
 		{
-			name: "module must have a source attribute",
+			name: "module without source attribute is ignored",
 			input: cfgfile{
 				filename: "main.tf",
 				body:     `module "test" {}`,
-			},
-			want: want{
-				errs: []error{errors.E(tf.ErrTerraformSchema,
-					mkrange("main.tf", start(1, 15, 14), end(1, 17, 16)))},
 			},
 		},
 		{
@@ -144,7 +143,7 @@ module "bleh" {
 			},
 		},
 		{
-			name: "fails if source is not a string",
+			name: "ignored if source is not a string",
 			input: cfgfile{
 				filename: "main.tf",
 				body: `
@@ -153,24 +152,16 @@ module "test" {
 }
 `,
 			},
-			want: want{
-				errs: []error{errors.E(tf.ErrTerraformSchema,
-					mkrange("main.tf", start(3, 11, 27), end(3, 13, 29)))},
-			},
 		},
 		{
-			name: "variable interpolation in the source string - fails",
+			name: "ignore if there is variable interpolation in the source string",
 			input: cfgfile{
 				filename: "main.tf",
 				body:     "module \"test\" {\nsource = \"${var.test}\"\n}\n",
 			},
-			want: want{
-				errs: []error{errors.E(tf.ErrTerraformSchema,
-					mkrange("main.tf", start(2, 13, 28), end(2, 16, 31)))},
-			},
 		},
 		{
-			name: "multiple schema errors on same file get reported",
+			name: "multiple ignored module definitions",
 			input: cfgfile{
 				filename: "main.tf",
 				body: `
@@ -188,18 +179,6 @@ module "test" {
 
 				module "test3" {}
 			`,
-			},
-			want: want{
-				errs: []error{
-					errors.E(tf.ErrTerraformSchema,
-						mkrange("main.tf", start(3, 15, 35), end(3, 17, 37))),
-					errors.E(tf.ErrTerraformSchema,
-						mkrange("main.tf", start(7, 18, 83), end(7, 21, 86))),
-					errors.E(tf.ErrTerraformSchema,
-						mkrange("main.tf", start(10, 12, 112), end(10, 13, 113))),
-					errors.E(tf.ErrTerraformSchema,
-						mkrange("main.tf", start(14, 20, 161), end(14, 22, 163))),
-				},
 			},
 		},
 		{
@@ -222,17 +201,6 @@ module "test" {
 					errors.E(mkrange("main.tf", start(5, 15, 64), end(6, 1, 65))),
 					errors.E(mkrange("main.tf", start(2, 16, 16), end(2, 17, 17))),
 				},
-			},
-		},
-		{
-			name: "variable interpolation in the source string - fails",
-			input: cfgfile{
-				filename: "main.tf",
-				body:     "module \"test\" {\nsource = \"${var.test}\"\n}\n",
-			},
-			want: want{
-				errs: []error{errors.E(tf.ErrTerraformSchema,
-					mkrange("main.tf", start(2, 13, 28), end(2, 16, 31)))},
 			},
 		},
 	} {

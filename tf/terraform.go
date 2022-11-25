@@ -17,7 +17,6 @@ package tf
 import (
 	"os"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mineiros-io/terramate/errors"
@@ -32,11 +31,8 @@ type Module struct {
 	Source string // Source is the module source path (eg.: directory, git path, etc).
 }
 
-// Errors returned during the terraform parsing.
-const (
-	ErrHCLSyntax       errors.Kind = "HCL syntax error"
-	ErrTerraformSchema errors.Kind = "terraform schema error"
-)
+// ErrHCLSyntax represents a HCL syntax error
+const ErrHCLSyntax errors.Kind = "HCL syntax error"
 
 // IsLocal tells if module source is a local directory.
 func (m Module) IsLocal() bool {
@@ -86,21 +82,27 @@ func ParseModules(path string) ([]Module, error) {
 		if len(block.Labels) == 1 {
 			moduleName = block.Labels[0]
 		} else {
-			errs.Append(errors.E(ErrTerraformSchema, block.OpenBraceRange,
-				"\"module\" block must have 1 label"))
+			logger.Debug().Msgf("ignoring module block with %d labels", len(block.Labels))
+
+			continue
 		}
+		logger = logger.With().
+			Str("module", moduleName).
+			Logger()
 
 		logger.Trace().Msg("Get source attribute.")
 		source, ok, err := findStringAttr(block, "source")
 		if err != nil {
-			errs.Append(errors.E(ErrTerraformSchema, err,
-				"looking for module.%q.source attribute", moduleName))
+			logger.Debug().
+				Err(err).
+				Msg("ignoring module block without source")
+
+			continue
 		}
 		if !ok {
-			errs.Append(errors.E(ErrTerraformSchema,
-				hcl.RangeBetween(block.OpenBraceRange, block.CloseBraceRange),
-				"module must have a \"source\" attribute",
-			))
+			logger.Debug().Msg("ignoring module block without source")
+
+			continue
 		}
 		modules = append(modules, Module{Source: source})
 	}
