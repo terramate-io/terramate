@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test"
@@ -269,6 +270,42 @@ Vendor report:
 			}
 		})
 	}
+}
+
+func TestGenerateIgnoresWorkingDirectory(t *testing.T) {
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		"s:stacks/stack-1",
+		"s:stacks/stack-2",
+	})
+
+	s.RootEntry().CreateFile(
+		config.DefaultFilename,
+		Doc(
+			GenerateFile(
+				Labels("stack.name.txt"),
+				Expr("content", "terramate.stack.name"),
+			),
+			GenerateHCL(
+				Labels("stack.hcl"),
+				Content(
+					Expr("name", "terramate.stack.name"),
+					Expr("path", "terramate.stack.path"),
+				),
+			),
+			GenerateFile(
+				Labels("root.stacks.txt"),
+				Expr("context", "root"),
+				Expr("content", "terramate.stacks.list"),
+			),
+		).String(),
+	)
+
+	tmcli := newCLI(t, s.RootDir())
+	res := tmcli.run("generate")
+	assertRunResult(t, res, runExpected{
+		Stdout: "",
+	})
 }
 
 type str string
