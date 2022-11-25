@@ -220,14 +220,14 @@ func TestStackCreation(t *testing.T) {
 
 			stackPath := tc.create.Dir
 			tc.create.Dir = filepath.Join(s.RootDir(), stackPath)
-			cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+			root, err := config.LoadRoot(s.RootDir())
 			if errors.IsAnyKind(tc.want.err, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
 				assert.IsError(t, err, tc.want.err)
 				return
 			}
 
 			assert.NoError(t, err)
-			err = stack.Create(cfg, tc.create)
+			err = stack.Create(root, tc.create)
 			assert.IsError(t, err, tc.want.err)
 
 			if tc.want.err != nil {

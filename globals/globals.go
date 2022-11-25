@@ -73,10 +73,10 @@ func (a GlobalPathKey) rootname() string {
 }
 
 // Load loads all the globals from the cfgdir.
-func Load(tree *config.Tree, cfgdir project.Path, ctx *eval.Context) EvalReport {
+func Load(tree *config.Root, cfgdir project.Path, ctx *eval.Context) EvalReport {
 	logger := log.With().
 		Str("action", "globals.Load()").
-		Str("root", tree.RootDir()).
+		Str("root", tree.Dir()).
 		Stringer("cfgdir", cfgdir).
 		Logger()
 
@@ -97,10 +97,10 @@ func Load(tree *config.Tree, cfgdir project.Path, ctx *eval.Context) EvalReport 
 // reaches rootdir, loading globals expressions and merging them appropriately.
 // More specific globals (closer or at the dir) have precedence over less
 // specific globals (closer or at the root dir).
-func LoadExprs(tree *config.Tree, cfgdir project.Path) (Exprs, error) {
+func LoadExprs(tree *config.Root, cfgdir project.Path) (Exprs, error) {
 	logger := log.With().
 		Str("action", "globals.LoadExprs()").
-		Str("root", tree.RootDir()).
+		Str("root", tree.Dir()).
 		Stringer("cfgdir", cfgdir).
 		Logger()
 

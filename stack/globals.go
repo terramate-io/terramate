@@ -22,16 +22,16 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// LoadStackGlobals loads from the file system all globals defined for
-// a given stack. It will navigate the file system from the stack dir until
-// it reaches rootdir, loading globals and merging them appropriately.
+// LoadStackGlobals loads from the config tree all globals defined for a given
+// stack. It will navigate the configuration tree from the stack dir until
+// it reaches root, loading globals and merging them appropriately.
 //
 // More specific globals (closer or at the stack) have precedence over
 // less specific globals (closer or at the root dir).
 //
 // Metadata for the stack is used on the evaluation of globals.
 // The rootdir MUST be an absolute path.
-func LoadStackGlobals(cfg *config.Tree, projmeta project.Metadata, stackmeta Metadata) globals.EvalReport {
+func LoadStackGlobals(root *config.Root, projmeta project.Metadata, stackmeta Metadata) globals.EvalReport {
 	logger := log.With().
 		Str("action", "stack.LoadStackGlobals()").
 		Stringer("stack", stackmeta.Path()).
@@ -47,5 +47,5 @@ func LoadStackGlobals(cfg *config.Tree, projmeta project.Metadata, stackmeta Met
 	}
 
 	ctx.SetNamespace("terramate", MetadataToCtyValues(projmeta, stackmeta))
-	return globals.Load(cfg, stackmeta.Path(), ctx)
+	return globals.Load(root, stackmeta.Path(), ctx)
 }

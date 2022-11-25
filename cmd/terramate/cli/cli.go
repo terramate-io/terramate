@@ -457,7 +457,7 @@ func (c *cli) vendorDownload() {
 
 	logger := log.With().
 		Str("workingDir", c.wd()).
-		Str("rootdir", c.root()).
+		Str("rootdir", c.rootdir()).
 		Str("action", "cli.vendor()").
 		Str("source", source).
 		Str("ref", ref).
@@ -477,7 +477,7 @@ func (c *cli) vendorDownload() {
 
 	logger.Debug().Msg("vendoring")
 
-	report := download.Vendor(c.root(), c.vendorDir(), parsedSource, eventsStream)
+	report := download.Vendor(c.rootdir(), c.vendorDir(), parsedSource, eventsStream)
 
 	logger.Debug().Msg("finished vendoring, waiting for all vendor events to be handled")
 
@@ -520,7 +520,7 @@ func (c *cli) handleVendorProgressEvents(eventsStream download.ProgressEventStre
 func (c *cli) vendorDir() prj.Path {
 	logger := log.With().
 		Str("workingDir", c.wd()).
-		Str("rootdir", c.root()).
+		Str("rootdir", c.rootdir()).
 		Str("action", "cli.vendorDir()").
 		Logger()
 
@@ -531,7 +531,7 @@ func (c *cli) vendorDir() prj.Path {
 
 		dir := c.parsedArgs.Experimental.Vendor.Download.Dir
 		if !path.IsAbs(dir) {
-			dir = path.Join(string(prj.PrjAbsPath(c.root(), c.wd())), dir)
+			dir = path.Join(string(prj.PrjAbsPath(c.rootdir(), c.wd())), dir)
 		}
 		return prj.NewPath(dir)
 	}
@@ -543,13 +543,13 @@ func (c *cli) vendorDir() prj.Path {
 		return prj.NewPath(dir)
 	}
 
-	dotTerramate := filepath.Join(c.root(), ".terramate")
+	dotTerramate := filepath.Join(c.rootdir(), ".terramate")
 	dotTerramateInfo, err := os.Stat(dotTerramate)
 
 	if err == nil && dotTerramateInfo.IsDir() {
 		logger.Trace().Msg("no CLI config, checking .terramate")
 
-		cfg, err := hcl.ParseDir(c.root(), filepath.Join(c.root(), ".terramate"))
+		cfg, err := hcl.ParseDir(c.rootdir(), filepath.Join(c.rootdir(), ".terramate"))
 		if err != nil {
 			fatal(err, "parsing vendor dir configuration on .terramate")
 		}
@@ -563,10 +563,11 @@ func (c *cli) vendorDir() prj.Path {
 
 	logger.Trace().Msg("no .terramate config, checking root")
 
-	if hasVendorDirConfig(c.prj.cfg.Node) {
+	hclcfg := c.rootNode()
+	if hasVendorDirConfig(hclcfg) {
 		logger.Trace().Msg("using root config")
 
-		return checkVendorDir(c.prj.cfg.Node.Vendor.Dir)
+		return checkVendorDir(hclcfg.Vendor.Dir)
 	}
 
 	logger.Trace().Msg("no configuration provided, fallback to default")
@@ -627,7 +628,7 @@ func (c *cli) gencodeWithVendor() (generate.Report, download.Report) {
 
 	vendorRequestEvents := make(chan event.VendorRequest)
 	vendorReports := download.HandleVendorRequests(
-		c.prj.root,
+		c.prj.rootdir,
 		vendorRequestEvents,
 		vendorProgressEvents,
 	)
@@ -667,7 +668,7 @@ func (c *cli) checkGitUntracked() bool {
 		}
 	}
 
-	cfg := c.prj.cfg.Node
+	cfg := c.rootNode()
 	if cfg.Terramate != nil &&
 		cfg.Terramate.Config != nil &&
 		cfg.Terramate.Config.Git != nil {
@@ -688,7 +689,7 @@ func (c *cli) checkGitUncommited() bool {
 		}
 	}
 
-	cfg := c.prj.cfg.Node
+	cfg := c.rootNode()
 	if cfg.Terramate != nil &&
 		cfg.Terramate.Config != nil &&
 		cfg.Terramate.Config.Git != nil {
@@ -808,7 +809,7 @@ func (c *cli) createStack() {
 		Imports:     c.parsedArgs.Create.Import,
 	})
 
-	stackPath := filepath.ToSlash(strings.TrimPrefix(stackDir, c.root()))
+	stackPath := filepath.ToSlash(strings.TrimPrefix(stackDir, c.rootdir()))
 
 	if err != nil {
 		logger := log.With().
@@ -934,7 +935,7 @@ func (c *cli) newProjectMetadata(report *terramate.StacksReport) prj.Metadata {
 	for i, stackEntry := range report.Stacks {
 		stacks[i] = stackEntry.Stack
 	}
-	return stack.NewProjectMetadata(c.root(), stacks)
+	return stack.NewProjectMetadata(c.rootdir(), stacks)
 }
 
 func (c *cli) printRunEnv() {
@@ -984,7 +985,7 @@ func (c *cli) generateGraph() {
 			Msg("-label expects the values \"stack.name\" or \"stack.dir\"")
 	}
 
-	entries, err := terramate.ListStacks(c.cfg())
+	entries, err := terramate.ListStacks(c.cfg().Tree())
 	if err != nil {
 		fatal(err, "listing stacks to build graph")
 	}
@@ -1268,8 +1269,7 @@ func (c *cli) checkGenCode() bool {
 		}
 	}
 
-	cfg := c.prj.cfg.Node
-
+	cfg := c.rootNode()
 	if cfg.Terramate != nil &&
 		cfg.Terramate.Config != nil &&
 		cfg.Terramate.Config.Run != nil {
@@ -1384,12 +1384,12 @@ func (c *cli) setupEvalContext() *eval.Context {
 		fatal(err)
 	}
 
-	allstacks, err := stack.LoadAll(c.cfg())
+	allstacks, err := stack.LoadAll(c.cfg().Tree())
 	if err != nil {
 		fatal(err, "setup eval context: listing all stacks")
 	}
 
-	projmeta := stack.NewProjectMetadata(c.root(), allstacks)
+	projmeta := stack.NewProjectMetadata(c.rootdir(), allstacks)
 	if config.IsStack(c.cfg(), c.wd()) {
 		st, err := stack.Load(c.cfg(), c.wd())
 		if err != nil {
@@ -1400,7 +1400,7 @@ func (c *cli) setupEvalContext() *eval.Context {
 		ctx.SetNamespace("terramate", projmeta.ToCtyMap())
 	}
 
-	globals.Load(c.cfg(), prj.PrjAbsPath(c.root(), c.wd()), ctx)
+	globals.Load(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()), ctx)
 	return ctx
 }
 
@@ -1450,8 +1450,7 @@ func (c *cli) gitSafeguardRemoteEnabled() bool {
 		}
 	}
 
-	cfg := c.prj.cfg.Node
-
+	cfg := c.rootNode()
 	if cfg.Terramate != nil &&
 		cfg.Terramate.Config != nil &&
 		cfg.Terramate.Config.Git != nil {
@@ -1473,7 +1472,7 @@ func (c *cli) runOnStacks() {
 		logger.Fatal().Msgf("run expects a cmd")
 	}
 
-	allstacks, err := stack.LoadAll(c.cfg())
+	allstacks, err := stack.LoadAll(c.cfg().Tree())
 	if err != nil {
 		fatal(err, "failed to list stacks")
 	}
@@ -1483,7 +1482,7 @@ func (c *cli) runOnStacks() {
 	var stacks stack.List
 
 	if c.parsedArgs.Run.NoRecursive {
-		st, found, err := stack.TryLoad(c.root(), c.wd())
+		st, found, err := stack.TryLoad(c.rootdir(), c.wd())
 		if err != nil {
 			fatal(err, "loading stack in current directory")
 		}
@@ -1550,12 +1549,13 @@ func (c *cli) runOnStacks() {
 	}
 }
 
-func (c *cli) wd() string        { return c.prj.wd }
-func (c *cli) root() string      { return c.prj.root }
-func (c *cli) cfg() *config.Tree { return &c.prj.cfg }
+func (c *cli) wd() string           { return c.prj.wd }
+func (c *cli) rootdir() string      { return c.prj.rootdir }
+func (c *cli) cfg() *config.Root    { return &c.prj.root }
+func (c *cli) rootNode() hcl.Config { return c.prj.root.Tree().Node }
 
 func (c *cli) friendlyFmtDir(dir string) (string, bool) {
-	return prj.FriendlyFmtDir(c.root(), c.wd(), dir)
+	return prj.FriendlyFmtDir(c.rootdir(), c.wd(), dir)
 }
 
 func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (stack.List, error) {
@@ -1600,7 +1600,7 @@ func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Ent
 
 	logger.Trace().Msg("Get relative working directory.")
 
-	relwd := prj.PrjAbsPath(c.root(), c.wd())
+	relwd := prj.PrjAbsPath(c.rootdir(), c.wd())
 
 	logger.Trace().Msg("Get filtered stacks.")
 
@@ -1617,13 +1617,12 @@ func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Ent
 func (c cli) checkVersion() {
 	logger := log.With().
 		Str("action", "cli.checkVersion()").
-		Str("root", c.root()).
+		Str("root", c.rootdir()).
 		Logger()
 
 	logger.Trace().Msg("checking if terramate version satisfies project constraint")
 
-	rootcfg := c.prj.cfg.Node
-
+	rootcfg := c.rootNode()
 	if rootcfg.Terramate == nil {
 		logger.Debug().Msg("project root has no config, skipping version check")
 		return
@@ -1711,14 +1710,14 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 
 			logger.Trace().Msg("Load root config.")
 
-			cfg, err := config.LoadTree(rootdir, rootdir)
+			cfg, err := config.LoadRoot(rootdir)
 			if err != nil {
 				return project{}, false, err
 			}
 
 			prj.isRepo = true
-			prj.cfg = *cfg
-			prj.root = rootdir
+			prj.root = *cfg
+			prj.rootdir = rootdir
 			prj.git.wrapper = gw
 
 			return prj, true, nil
@@ -1729,8 +1728,8 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 		return project{}, false, nil
 	}
 
-	prj.root = rootCfgPath
-	prj.cfg = *rootcfg
+	prj.rootdir = rootCfgPath
+	prj.root = *rootcfg
 	return prj, true, nil
 
 }
