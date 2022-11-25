@@ -136,7 +136,7 @@ func TestTmVendor(t *testing.T) {
 			ctx, err := eval.NewContext(rootdir)
 			assert.NoError(t, err)
 
-			ctx.SetTmVendor(targetdir, vendordir, events)
+			ctx.AddTmVendor(targetdir, vendordir, events)
 
 			gotEvents := []event.VendorRequest{}
 			done := make(chan struct{})
@@ -170,7 +170,7 @@ func TestTmVendor(t *testing.T) {
 				ctx, err := eval.NewContext(rootdir)
 				assert.NoError(t, err)
 
-				ctx.SetTmVendor(targetdir, vendordir, nil)
+				ctx.AddTmVendor(targetdir, vendordir, nil)
 
 				val, err := ctx.Eval(test.NewExpr(t, tcase.expr))
 				assert.NoError(t, err)

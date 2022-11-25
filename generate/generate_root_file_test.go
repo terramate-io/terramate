@@ -108,6 +108,31 @@ func TestGenerateRootContext(t *testing.T) {
 			},
 		},
 		{
+			name: "generate.context=root fails when generating outside rootdir",
+			configs: []hclconfig{
+				{
+					path: "/source",
+					add: Doc(
+						GenerateFile(
+							Labels("/test/../../stacks.txt"),
+							Expr("context", "root"),
+							Expr("content", `"${tm_jsonencode(terramate.stacks.list)}"`),
+						),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/",
+						},
+						Error: errors.E(generate.ErrInvalidGenBlockLabel),
+					},
+				},
+			},
+		},
+		{
 			name: "generate.context=root with no stacks and accessing stacks.list",
 			configs: []hclconfig{
 				{
@@ -292,6 +317,29 @@ func TestGenerateRootContext(t *testing.T) {
 					{
 						Result: generate.Result{
 							Dir: "/stack",
+						},
+						Error: errors.E(generate.ErrInvalidGenBlockLabel),
+					},
+				},
+			},
+		},
+		{
+			name: "generate.context=root must have absolute path in label",
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: GenerateFile(
+						Labels("file.txt"),
+						Str("content", "test"),
+						Expr("context", "root"),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/",
 						},
 						Error: errors.E(generate.ErrInvalidGenBlockLabel),
 					},

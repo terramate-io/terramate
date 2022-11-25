@@ -198,15 +198,15 @@ func (s S) Git() *Git {
 
 // Generate generates code for all stacks on the sandbox
 func (s S) Generate() generate.Report {
-	return s.GenerateWith(s.Config())
+	return s.GenerateWith(s.Config(), project.NewPath("/modules"))
 }
 
-// GenerateWith is like Generate but uses the root as root config.
-func (s S) GenerateWith(root *config.Root) generate.Report {
+// GenerateWith generates code for all stacks inside the provided path.
+func (s S) GenerateWith(root *config.Root, vendorDir project.Path) generate.Report {
 	t := s.t
 	t.Helper()
 
-	report := generate.Do(root)
+	report := generate.Do(root, vendorDir, nil)
 	for _, failure := range report.Failures {
 		t.Errorf("Generate unexpected failure: %v", failure)
 	}
