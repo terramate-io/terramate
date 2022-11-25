@@ -324,6 +324,29 @@ func TestGenerateRootContext(t *testing.T) {
 			},
 		},
 		{
+			name: "generate.context=root must have absolute path in label",
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: GenerateFile(
+						Labels("file.txt"),
+						Str("content", "test"),
+						Expr("context", "root"),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/",
+						},
+						Error: errors.E(generate.ErrInvalidGenBlockLabel),
+					},
+				},
+			},
+		},
+		{
 			name: "generate.context=root inside stack generating elsewhere",
 			layout: []string{
 				"s:stack",

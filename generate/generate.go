@@ -380,7 +380,10 @@ func doRootGeneration(cfg *config.Tree) Report {
 				continue
 			}
 
-			targetDir := project.NewPath(path.Dir(block.Label))
+			// TODO(i4k): generate report must be redesigned for context=root
+			// Here we use path.Clean("/"+path.Dir(label)) to ensure the
+			// report.Dir is always absolute.
+			targetDir := project.NewPath(path.Clean("/" + path.Dir(block.Label)))
 			err = validateRootGenerateBlock(cfg, block)
 			if err != nil {
 				report.addFailure(targetDir, err)
