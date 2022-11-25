@@ -1063,7 +1063,7 @@ func TestOutdatedDetection(t *testing.T) {
 
 				t.Log("checking that after generate outdated detection should always return empty")
 
-				s.GenerateAt(s.Config(), s.RootDir(), vendorDir)
+				s.GenerateWith(s.Config(), vendorDir)
 				got, err = generate.DetectOutdated(s.Config(), vendorDir)
 				assert.NoError(t, err)
 

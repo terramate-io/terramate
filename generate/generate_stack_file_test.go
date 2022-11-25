@@ -91,7 +91,7 @@ func TestGenerateFile(t *testing.T) {
 			},
 		},
 		{
-			name: "terramate.stacks.list with root workdir",
+			name: "terramate.stacks.list",
 			layout: []string{
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
@@ -218,41 +218,6 @@ func TestGenerateFile(t *testing.T) {
 					{
 						Dir:     "/stack-2",
 						Created: []string{"root.txt"},
-					},
-				},
-			},
-		},
-		{
-			name: "terramate.stacks.list with stack workdir",
-			layout: []string{
-				"s:stacks/stack-1",
-				"s:stacks/stack-2",
-			},
-			workingDir: "stacks/stack-1",
-			configs: []hclconfig{
-				{
-					path: "/stacks",
-					add: Doc(
-						GenerateFile(
-							Labels("stacks.txt"),
-							Expr("content", `"${tm_jsonencode(terramate.stacks.list)}"`),
-						),
-					),
-				},
-			},
-			want: []generatedFile{
-				{
-					dir: "/stacks/stack-1",
-					files: map[string]fmt.Stringer{
-						"stacks.txt": stringer(`["/stacks/stack-1","/stacks/stack-2"]`),
-					},
-				},
-			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
-					{
-						Dir:     "/stacks/stack-1",
-						Created: []string{"stacks.txt"},
 					},
 				},
 			},

@@ -390,7 +390,7 @@ func (c *cli) run() {
 		c.setupGit()
 		c.runOnStacks()
 	case "generate":
-		c.generate(c.wd())
+		c.generate()
 	case "experimental clone <srcdir> <destdir>":
 		c.cloneStack()
 	case "experimental vendor download <source> <ref>":
@@ -600,11 +600,11 @@ func (c *cli) cloneStack() {
 	c.output.Msg(out.V, "Cloned stack %s to %s with success", srcstack, deststack)
 	c.output.Msg(out.V, "Generating code on the new cloned stack")
 
-	c.generate(destdir)
+	c.generate()
 }
 
-func (c *cli) generate(workdir string) {
-	report, vendorReport := c.gencodeWithVendor(workdir)
+func (c *cli) generate() {
+	report, vendorReport := c.gencodeWithVendor()
 
 	c.output.Msg(out.V, report.Full())
 
@@ -621,7 +621,7 @@ func (c *cli) generate(workdir string) {
 
 // gencodeWithVendor will generate code for the whole project providing automatic
 // vendoring of all tm_vendor calls.
-func (c *cli) gencodeWithVendor(workdir string) (generate.Report, download.Report) {
+func (c *cli) gencodeWithVendor() (generate.Report, download.Report) {
 	vendorProgressEvents := download.NewEventStream()
 	progressHandlerDone := c.handleVendorProgressEvents(vendorProgressEvents)
 
@@ -636,7 +636,7 @@ func (c *cli) gencodeWithVendor(workdir string) (generate.Report, download.Repor
 
 	log.Debug().Msg("generating code")
 
-	report := generate.Do(c.cfg(), workdir, c.vendorDir(), vendorRequestEvents)
+	report := generate.Do(c.cfg(), c.vendorDir(), vendorRequestEvents)
 
 	log.Debug().Msg("code generation finished, waiting for vendor requests to be handled")
 
@@ -834,8 +834,7 @@ func (c *cli) createStack() {
 	log.Info().Msgf("created stack %s", stackPath)
 	c.output.Msg(out.V, "Created stack %s", stackPath)
 
-	report, vendorReport := c.gencodeWithVendor(stackDir)
-
+	report, vendorReport := c.gencodeWithVendor()
 	if report.HasFailures() {
 		c.output.Msg(out.V, "Code generation failed")
 		c.output.Msg(out.V, report.Minimal())

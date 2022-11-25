@@ -16,8 +16,11 @@ package e2etest
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 
+	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test"
@@ -269,6 +272,76 @@ Vendor report:
 			}
 		})
 	}
+}
+
+func TestGenerateIgnoresWorkingDirectory(t *testing.T) {
+	wantStdout := generate.Report{
+		Successes: []generate.Result{
+			{
+				Dir: "/",
+				Created: []string{
+					"root.stacks.txt",
+				},
+			},
+			{
+				Dir: "/stacks/stack-1",
+				Created: []string{
+					"stack.hcl", "stack.name.txt",
+				},
+			},
+			{
+				Dir: "/stacks/stack-2",
+				Created: []string{
+					"stack.hcl", "stack.name.txt",
+				},
+			},
+		},
+	}.Full() + "\n"
+
+	configStr := Doc(
+		GenerateFile(
+			Labels("stack.name.txt"),
+			Expr("content", "terramate.stack.name"),
+		),
+		GenerateHCL(
+			Labels("stack.hcl"),
+			Content(
+				Expr("name", "terramate.stack.name"),
+				Expr("path", "terramate.stack.path"),
+			),
+		),
+		GenerateFile(
+			Labels("/root.stacks.txt"),
+			Expr("context", "root"),
+			Str("content", "stack terramate.stacks.list[0]"),
+		),
+	).String()
+
+	runFromDir := func(t *testing.T, wd string) {
+		t.Run(fmt.Sprintf("terramate -C %s generate", wd), func(t *testing.T) {
+			s := sandbox.New(t)
+			s.BuildTree([]string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			})
+
+			s.RootEntry().CreateFile(
+				config.DefaultFilename,
+				configStr,
+			)
+
+			tmcli := newCLI(t, filepath.Join(s.RootDir(), wd))
+			res := tmcli.run("generate")
+			expected := runExpected{
+				Stdout: wantStdout,
+			}
+			assertRunResult(t, res, expected)
+		})
+	}
+
+	runFromDir(t, "/")
+	runFromDir(t, "/stacks")
+	runFromDir(t, "/stacks/stack-1")
 }
 
 type str string
