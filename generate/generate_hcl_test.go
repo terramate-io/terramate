@@ -120,7 +120,7 @@ func TestGenerateHCL(t *testing.T) {
 			},
 		},
 		{
-			name: "generate HCL with terramate.stacks.list with workdir on root",
+			name: "generate HCL with terramate.stacks.list",
 			layout: []string{
 				"s:stacks/stack-1",
 				"s:stacks/stack-2",
@@ -265,45 +265,6 @@ func TestGenerateHCL(t *testing.T) {
 					{
 						Dir:     "/stack-2",
 						Created: []string{"root.hcl"},
-					},
-				},
-			},
-		},
-		{
-			name: "generate HCL with terramate.stacks.list with workdir on stack",
-			layout: []string{
-				"s:stacks/stack-1",
-				"s:stacks/stack-2",
-			},
-			workingDir: "stacks/stack-1",
-			configs: []hclconfig{
-				{
-					path: "/stacks",
-					add: Doc(
-						GenerateHCL(
-							Labels("stacks.hcl"),
-							Content(
-								Expr("stacks", "terramate.stacks.list"),
-							),
-						),
-					),
-				},
-			},
-			want: []generatedFile{
-				{
-					dir: "/stacks/stack-1",
-					files: map[string]fmt.Stringer{
-						"stacks.hcl": Doc(
-							attr("stacks", `["/stacks/stack-1", "/stacks/stack-2"]`),
-						),
-					},
-				},
-			},
-			wantReport: generate.Report{
-				Successes: []generate.Result{
-					{
-						Dir:     "/stacks/stack-1",
-						Created: []string{"stacks.hcl"},
 					},
 				},
 			},
@@ -959,7 +920,7 @@ func TestWontOverwriteManuallyDefinedTerraform(t *testing.T) {
 		fmt.Sprintf("f:stack/%s:%s", genFilename, manualTfCode),
 	})
 
-	report := generate.Do(s.Config(), s.RootDir(), project.NewPath("/modules"), nil)
+	report := generate.Do(s.Config(), project.NewPath("/modules"), nil)
 	assert.EqualInts(t, 0, len(report.Successes), "want no success")
 	assert.EqualInts(t, 1, len(report.Failures), "want single failure")
 	assertReportHasError(t, report, errors.E(generate.ErrManualCodeExists))
@@ -1313,7 +1274,7 @@ func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
 
 	cfg, err := config.LoadTree(rootEntry.Path(), rootEntry.Path())
 	assert.NoError(t, err)
-	report := s.GenerateAt(cfg, rootEntry.Path(), project.NewPath("/modules"))
+	report := s.GenerateWith(cfg, project.NewPath("/modules"))
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{

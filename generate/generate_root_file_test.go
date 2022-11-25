@@ -324,6 +324,29 @@ func TestGenerateRootContext(t *testing.T) {
 			},
 		},
 		{
+			name: "generate.context=root must have absolute path in label",
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: GenerateFile(
+						Labels("file.txt"),
+						Str("content", "test"),
+						Expr("context", "root"),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: "/",
+						},
+						Error: errors.E(generate.ErrInvalidGenBlockLabel),
+					},
+				},
+			},
+		},
+		{
 			name: "generate.context=root inside stack generating elsewhere",
 			layout: []string{
 				"s:stack",
@@ -657,43 +680,6 @@ func TestGenerateRootContext(t *testing.T) {
 		},
 		{
 			name: "child and parent directories with same label and same condition - fails",
-			configs: []hclconfig{
-				{
-					path: "/",
-					add: GenerateFile(
-						Labels("/target/file.txt"),
-						Expr("context", "root"),
-						Bool("condition", true),
-						Str("content", "content 1"),
-					),
-				},
-				{
-					path: "/child",
-					add: GenerateFile(
-						Labels("/target/file.txt"),
-						Expr("context", "root"),
-						Bool("condition", true),
-						Str("content", "content 2"),
-					),
-				},
-			},
-			wantReport: generate.Report{
-				Failures: []generate.FailureResult{
-					{
-						Result: generate.Result{
-							Dir: "/target",
-						},
-						Error: errors.E(generate.ErrConflictingConfig),
-					},
-				},
-			},
-		},
-		{
-			name: "conflicts are checked independently of workingDir",
-			layout: []string{
-				"d:deep/down/dir",
-			},
-			workingDir: "/deep/down/dir",
 			configs: []hclconfig{
 				{
 					path: "/",

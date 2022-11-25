@@ -22,6 +22,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/madlambda/spells/assert"
 )
 
@@ -227,8 +228,8 @@ func assertRunResult(t *testing.T, got runResult, want runExpected) {
 				)
 			}
 		} else {
-			if wantStdout != stdout {
-				t.Errorf("stdout mismatch: got:\n%s\nwant:\n%s", stdout, wantStdout)
+			if diff := cmp.Diff(wantStdout, stdout); diff != "" {
+				t.Errorf("stdout mismatch: %s", diff)
 			}
 		}
 	}
