@@ -17,6 +17,7 @@ package genhcl
 
 import (
 	stdfmt "fmt"
+	"path"
 	"sort"
 
 	hhcl "github.com/hashicorp/hcl/v2"
@@ -24,6 +25,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/fmt"
@@ -143,6 +145,8 @@ func Load(
 	projmeta project.Metadata,
 	sm stack.Metadata,
 	globals *eval.Object,
+	vendorDir project.Path,
+	vendorRequests chan<- event.VendorRequest,
 ) ([]HCL, error) {
 	logger := log.With().
 		Str("action", "genhcl.Load()").
@@ -162,6 +166,12 @@ func Load(
 	for _, hclBlock := range hclBlocks {
 		name := hclBlock.Label
 		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
+
+		vendorTargetDir := project.NewPath(path.Join(
+			sm.Path().String(),
+			path.Dir(name)))
+		evalctx.AddTmVendor(vendorTargetDir, vendorDir, vendorRequests)
+
 		err := lets.Load(hclBlock.Lets, evalctx.Context)
 		if err != nil {
 			return nil, err
@@ -222,6 +232,8 @@ func Load(
 			})
 			continue
 		}
+
+		evalctx.AddTmHCLExpression()
 
 		gen := hclwrite.NewEmptyFile()
 		if err := copyBody(gen.Body(), hclBlock.Content.Body, evalctx); err != nil {

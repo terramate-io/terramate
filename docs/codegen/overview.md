@@ -4,31 +4,70 @@ Code generation is the main way you can glue [Terramate data](../sharing-data.md
 to other tools, like Terraform.
 
 Different code generation strategies will be provided in the future to support
-each integration scenario in the best way possible. Currently, we support:
+each integration scenario in the best way possible. 
 
-* [HCL generation](./generate-hcl.md)
-* [File generation](./generate-file.md)
+Currently, we support:
 
-Some features are available to all code generation strategies, like:
+* [HCL generation](./generate-hcl.md) with stack [context](#generation-context).
+* [File generation](./generate-file.md) with `root` and `stack` [context](#generation-context).
+
+# Generation Context
+
+Code generation supports two execution contexts:
+
+- stack: generates code relative to the stack where it's defined.
+- root: generates code outside of stacks.
+
+The `stack` context gives access to all code generation features, like:
 
 * [Globals](../sharing-data.md#globals)
-* [Metadata](../sharing-data.md#metadata)
+* [All Metadata](../sharing-data.md#metadata)
 * [Functions](../functions.md)
 * [Lets](#lets)
 * [Assertions](#assertions)
 
+But the `root` context gives access to:
+
+* [Project Metadata](../sharing-data.md#project-metadata)
+* [Functions](../functions.md)
+* [Lets](#lets)
+
+If not specified the default generation context is `stack`.
+The `generate_hcl` block doesn't support changing the `context`, it will always be
+of type `stack`. The `generate_file` block supports the `context` attribute which you can explicit change to `root`.
+Example:
+
+```hcl
+generate_file "/file.txt" {
+    context = root
+    content = "something"
+}
+```
+
 # Labels
 
 All code generation blocks use labels to identify the block and define where
-the generated code will be saved. The labels must follow these constraints:
+the generated code will be saved but they have different constraints depending
+on the [generation context](#generation-context).
 
-* It is a relative path in the form `dir/filename` or just `filename`
+For `stack` context, the labels must follow the constraints below:
+
+* It is a relative path in the form `<dir>/<filename>` or just `<filename>`
 * It is always defined with `/` independent on the OS you are working on
 * It does not contain `../` (code can only be generated inside the stack)
 * It does not start with `./`
 * It is not a symbolic link
 * It is not a stack
-* It is unique on the whole hierarchy of a stack
+* It is unique on the whole hierarchy of a stack for all blocks with condition=true.
+
+For `root` context, the constraints are:
+
+* It is an absolute path in the form `/<dir>/<filename>` or just `/<filename>`.
+* It is always defined with `/` independent on the OS you are working on
+* It does not contain `../` (code can only be generated inside the project root)
+* It is not a symbolic link
+* It is not a stack
+* It is unique on the whole hierarchy for all blocks with condition=true.
 
 # Lets
 
@@ -55,10 +94,11 @@ generate_file "sum.txt" {
 
 # Assertions
 
-Assertions can be used in order to fail code generation for one or more stacks
+Assertions can be used in order to fail code generation for one or more stacks 
 if some pre-condition is not met, helping to catch mistakes in your configuration.
 
-It has the following field:
+Assertions can be only used when the [generation context](#generation-context)
+is of type `stack` and it has the following fields:
 
 * **assertion** : Obligatory, must evaluate to boolean
 * **message** : Obligatory, must evaluate to string

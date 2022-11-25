@@ -55,7 +55,11 @@ contents as an expression. It is particularly useful to circumvent some
 limitations on HCL and Terraform when building complex expressions from
 dynamic data.
 
-For example, given a global named data defined like this:
+Since this function produces an expression, not a final evaluated value,
+it is only allowed to be used on contexts where partial evaluation is
+allowed, which currently is only the `generate_hcl.content` block.
+
+To use `tm_hcl_expression`, lets say we have a global named data defined like this:
 
 ```
 globals {
@@ -67,11 +71,60 @@ You can use this global to build a complex expression when generation code,
 like this:
 
 ```hcl
-tm_hcl_expression("data.google_active_folder._parent_id.id.${global.data}")
+generate_hcl "test.hcl" {
+    content {
+        expr = tm_hcl_expression("data.google_active_folder._parent_id.id.${global.data}")
+    }
+}
 ```
 
-Which will produce the expression:
+Which will generate:
 
 ```hcl
-data.google_active_folder._parent_id.id.data
+expr = data.google_active_folder._parent_id.id.data
 ```
+
+## Experimental Functions
+
+These functions are experimental and some of them may only be available on
+specific contexts.
+
+### `tm_vendor(string) -> string`
+
+Receives a [Terraform module source](https://developer.hashicorp.com/terraform/language/modules/sources)
+as a parameter and returns the local path of the given module source after it is
+vendored. This function can only be used inside `generate_hcl` and
+`generate_file` blocks. In the case of `generate_file` blocks it can only be
+used when the context of the block is `stack`, it won't work with a `root` context.
+
+The function will work directly inside generated content
+and also inside the `lets` block. The local path will be relative to the target directory
+where code is being generated, which is determined by the `generate` block label.
+
+For example:
+
+```hcl
+generate_hcl "file.hcl" {
+  content {
+    module "test" {
+      source = tm_vendor("github.com/mineiros-io/terraform-google-service-account?ref=v0.1.0")
+    }
+  }
+}
+```
+
+Will generate a local source relative to the stack directory, since the file is generated
+directly inside a stack. But this:
+
+```hcl
+generate_hcl "dir/file.hcl" {
+  content {
+    module "test" {
+      source = tm_vendor("github.com/mineiros-io/terraform-google-service-account?ref=v0.1.0")
+    }
+  }
+}
+```
+
+Will generate a local source relative to `<stack-dir>/dir`, since the file is generated
+inside a sub-directory of the stack.

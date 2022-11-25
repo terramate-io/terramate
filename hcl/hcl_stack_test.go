@@ -21,6 +21,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	. "github.com/mineiros-io/terramate/test/hclutils"
 )
 
@@ -161,6 +162,42 @@ func TestHCLParserStack(t *testing.T) {
 				errs: []error{
 					errors.E(hcl.ErrTerramateSchema),
 					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
+			name: "tm_vendor is not available on stack block",
+			input: []cfgfile{
+				{
+					filename: "stack.tm",
+					body: `
+						stack{
+						  name = tm_vendor("github.com/mineiros-io/terramate?ref=v2")
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(eval.ErrEval),
+				},
+			},
+		},
+		{
+			name: "tm_hcl_expression is not available on stack block",
+			input: []cfgfile{
+				{
+					filename: "stack.tm",
+					body: `
+						stack{
+						  name = tm_hcl_expression("ref")
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(eval.ErrEval),
 				},
 			},
 		},
