@@ -243,16 +243,16 @@ func TestLoadRunEnv(t *testing.T) {
 			}
 
 			for stackRelPath, wantres := range tcase.want {
-				cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+				root, err := config.LoadRoot(s.RootDir())
 				if wantres.cfgerr != nil {
 					errorstest.Assert(t, err, wantres.cfgerr)
 					return
 				}
 
-				stack, err := stack.Load(cfg, filepath.Join(s.RootDir(), stackRelPath))
+				stack, err := stack.Load(root, filepath.Join(s.RootDir(), stackRelPath))
 				assert.NoError(t, err)
 
-				gotvars, err := run.LoadEnv(cfg, projmeta, stack)
+				gotvars, err := run.LoadEnv(root, projmeta, stack)
 				errorstest.Assert(t, err, wantres.enverr)
 				test.AssertDiff(t, gotvars, wantres.env)
 			}

@@ -980,7 +980,7 @@ func testGenfile(t *testing.T, tcase testcase) {
 			test.AppendFile(t, s.RootDir(), cfg.path, cfg.add.String())
 		}
 
-		cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+		root, err := config.LoadRoot(s.RootDir())
 		if errors.IsAnyKind(tcase.wantErr, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
 			errtest.Assert(t, err, tcase.wantErr)
 			return
@@ -988,9 +988,9 @@ func testGenfile(t *testing.T, tcase testcase) {
 
 		assert.NoError(t, err)
 
-		globals := s.LoadStackGlobals(cfg, projmeta, stack)
+		globals := s.LoadStackGlobals(root, projmeta, stack)
 		vendorDir := project.NewPath("/modules")
-		got, err := genfile.Load(cfg, projmeta, stack, globals, vendorDir, nil)
+		got, err := genfile.Load(root, projmeta, stack, globals, vendorDir, nil)
 		errtest.Assert(t, err, tcase.wantErr)
 
 		if len(got) != len(tcase.want) {

@@ -1272,9 +1272,9 @@ func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
 	// It should never return in the report.
 	test.WriteFile(t, targEntry.Path(), "test.tf", genhcl.Header)
 
-	cfg, err := config.LoadTree(rootEntry.Path(), rootEntry.Path())
+	root, err := config.LoadRoot(rootEntry.Path())
 	assert.NoError(t, err)
-	report := s.GenerateWith(cfg, project.NewPath("/modules"))
+	report := s.GenerateWith(root, project.NewPath("/modules"))
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
