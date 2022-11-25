@@ -54,6 +54,8 @@ func TestLoadGlobals(t *testing.T) {
 		}
 	)
 
+	t.Parallel()
+
 	tcases := []testcase{
 		{
 			name:   "no stacks no globals",
@@ -1445,6 +1447,32 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "tm_hcl_expression is not available on globals",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Globals(
+						Expr("data", `tm_hcl_expression("test")`),
+					),
+				},
+			},
+			wantErr: errors.E(globals.ErrEval),
+		},
+		{
+			name:   "tm_vendor is not available on globals",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Globals(
+						Expr("data", `tm_vendor("github.com/mineiros-io/terramate?ref=test")`),
+					),
+				},
+			},
+			wantErr: errors.E(globals.ErrEval),
+		},
+		{
 			name:   "global interpolating multiple lists fails",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
@@ -2422,8 +2450,11 @@ func TestLoadGlobalsErrors(t *testing.T) {
 		},
 	}
 
-	for _, tcase := range tcases {
+	for _, tc := range tcases {
+		tcase := tc
 		t.Run(tcase.name, func(t *testing.T) {
+			t.Parallel()
+
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
 

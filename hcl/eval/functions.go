@@ -30,7 +30,7 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 )
 
-func newTmFunctions(basedir string) map[string]function.Function {
+func newDefaultFunctions(basedir string) map[string]function.Function {
 	scope := &tflang.Scope{BaseDir: basedir}
 	tffuncs := scope.Functions()
 
@@ -44,7 +44,6 @@ func newTmFunctions(basedir string) map[string]function.Function {
 
 	// sane ternary
 	tmfuncs["tm_ternary"] = tmTernary()
-	tmfuncs["tm_hcl_expression"] = tmHCLExpression()
 	return tmfuncs
 }
 

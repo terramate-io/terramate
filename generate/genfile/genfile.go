@@ -152,7 +152,7 @@ func Load(
 		vendorTargetDir := project.NewPath(path.Join(
 			sm.Path().String(),
 			path.Dir(name)))
-		evalctx.SetTmVendor(vendorTargetDir, vendorDir, vendorRequests)
+		evalctx.AddTmVendor(vendorTargetDir, vendorDir, vendorRequests)
 
 		file, err := Eval(genFileBlock, evalctx.Context)
 		if err != nil {
