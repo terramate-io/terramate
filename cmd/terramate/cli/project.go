@@ -25,10 +25,10 @@ import (
 )
 
 type project struct {
-	root    string
+	rootdir string
 	wd      string
 	isRepo  bool
-	rootcfg config.Root
+	root    config.Root
 	baseRef string
 
 	git struct {
@@ -40,7 +40,7 @@ type project struct {
 }
 
 func (p project) gitcfg() *hcl.GitConfig {
-	return p.rootcfg.Tree().Node.Terramate.Config.Git
+	return p.root.Tree().Node.Terramate.Config.Git
 }
 
 func (p *project) localDefaultBranchCommit() string {
@@ -144,7 +144,7 @@ func (p *project) setDefaults(parsedArgs *cliSpec) error {
 
 	logger.Debug().Msg("Set defaults.")
 
-	cfg := &p.rootcfg.Tree().Node
+	cfg := &p.root.Tree().Node
 	if cfg.Terramate == nil {
 		// if config has no terramate block we create one with default
 		// configurations.
