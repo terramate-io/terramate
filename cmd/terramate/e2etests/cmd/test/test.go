@@ -37,8 +37,8 @@ func main() {
 		env()
 	case "cat":
 		cat(os.Args[2])
-	case "pwd-basename":
-		pwdBasename()
+	case "stack-abs-path":
+		stackAbsPath(os.Args[2])
 	default:
 		log.Fatalf("unknown command %s", os.Args[1])
 	}
@@ -75,12 +75,14 @@ func cat(fname string) {
 	fmt.Printf("%s", string(bytes))
 }
 
-// pwdBasename prints the basename of current directory.
-func pwdBasename() {
+func stackAbsPath(base string) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		panic(err)
 	}
-	base := filepath.Base(cwd)
-	fmt.Println(base)
+	rel, err := filepath.Rel(base, cwd)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("/" + rel)
 }

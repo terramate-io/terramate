@@ -374,7 +374,7 @@ func TestExperimentalRunOrderNotChangedStackIgnored(t *testing.T) {
 	assertRunResult(t, cli.listChangedStacks(), runExpected{Stdout: wantList})
 	assertRunResult(t, cli.run("--changed", "experimental", "run-order"),
 		runExpected{
-			Stdout: wantList,
+			Stdout: "/" + wantList,
 		})
 }
 
