@@ -84,5 +84,5 @@ func stackAbsPath(base string) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("/" + rel)
+	fmt.Println("/" + filepath.ToSlash(rel))
 }
