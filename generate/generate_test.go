@@ -53,8 +53,9 @@ type (
 	}
 
 	hclconfig struct {
-		path string
-		add  fmt.Stringer
+		path     string
+		filename string
+		add      fmt.Stringer
 	}
 )
 
@@ -741,7 +742,11 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 
 			for _, cfg := range tcase.configs {
 				path := filepath.Join(s.RootDir(), cfg.path)
-				test.AppendFile(t, path, config.DefaultFilename, cfg.add.String())
+				filename := cfg.filename
+				if filename == "" {
+					filename = config.DefaultFilename
+				}
+				test.AppendFile(t, path, filename, cfg.add.String())
 			}
 
 			assertGeneratedFiles := func(t *testing.T) {

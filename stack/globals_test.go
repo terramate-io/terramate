@@ -557,8 +557,13 @@ func TestLoadGlobals(t *testing.T) {
 				{
 					path:     "/",
 					filename: "config.tm",
-					add: Import(
-						Str("source", "/modules/config.tm"),
+					add: Doc(
+						Import(
+							Str("source", "/modules/config.tm"),
+						),
+						Globals(
+							Str("data", "parent"),
+						),
 					),
 				},
 				{
@@ -573,6 +578,7 @@ func TestLoadGlobals(t *testing.T) {
 			},
 			want: map[string]*hclwrite.Block{
 				"/stacks/stack-1": Globals(
+					Str("data", "parent"),
 					EvalExpr(t, "label", `{
 					  obj = {
 					    data = 666,
@@ -581,6 +587,7 @@ func TestLoadGlobals(t *testing.T) {
 					}`),
 				),
 				"/stacks/stack-2": Globals(
+					Str("data", "parent"),
 					EvalExpr(t, "label", `{
 					  obj = {
 					    data = 666,
