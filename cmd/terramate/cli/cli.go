@@ -496,7 +496,7 @@ func (c *cli) vendorDownload() {
 		}
 	}
 
-	c.output.Msg(out.V, report.String())
+	c.output.MsgStdOut(report.String())
 }
 
 func (c *cli) handleVendorProgressEvents(eventsStream download.ProgressEventStream) <-chan struct{} {
@@ -504,7 +504,7 @@ func (c *cli) handleVendorProgressEvents(eventsStream download.ProgressEventStre
 
 	go func() {
 		for event := range eventsStream {
-			c.output.Msg(out.V, "vendor: %s %s at %s",
+			c.output.MsgStdOut("vendor: %s %s at %s",
 				event.Message, event.Module.Raw, event.TargetDir)
 			log.Info().
 				Str("module", event.Module.Raw).
@@ -598,8 +598,8 @@ func (c *cli) cloneStack() {
 		fatal(err, "cloning %s to %s", srcstack, deststack)
 	}
 
-	c.output.Msg(out.V, "Cloned stack %s to %s with success", srcstack, deststack)
-	c.output.Msg(out.V, "Generating code on the new cloned stack")
+	c.output.MsgStdOut("Cloned stack %s to %s with success", srcstack, deststack)
+	c.output.MsgStdOut("Generating code on the new cloned stack")
 
 	c.generate()
 }
@@ -607,12 +607,12 @@ func (c *cli) cloneStack() {
 func (c *cli) generate() {
 	report, vendorReport := c.gencodeWithVendor()
 
-	c.output.Msg(out.V, report.Full())
+	c.output.MsgStdOut(report.Full())
 
 	vendorReport.RemoveIgnoredByKind(download.ErrAlreadyVendored)
 
 	if !vendorReport.IsEmpty() {
-		c.output.Msg(out.V, vendorReport.String())
+		c.output.MsgStdOut(vendorReport.String())
 	}
 
 	if report.HasFailures() || vendorReport.HasFailures() {
@@ -833,24 +833,24 @@ func (c *cli) createStack() {
 	}
 
 	log.Info().Msgf("created stack %s", stackPath)
-	c.output.Msg(out.V, "Created stack %s", stackPath)
+	c.output.MsgStdOut("Created stack %s", stackPath)
 
 	report, vendorReport := c.gencodeWithVendor()
 	if report.HasFailures() {
-		c.output.Msg(out.V, "Code generation failed")
-		c.output.Msg(out.V, report.Minimal())
+		c.output.MsgStdOut("Code generation failed")
+		c.output.MsgStdOut(report.Minimal())
 	}
 
 	if vendorReport.HasFailures() {
-		c.output.Msg(out.V, vendorReport.String())
+		c.output.MsgStdOut(vendorReport.String())
 	}
 
 	if report.HasFailures() || vendorReport.HasFailures() {
 		os.Exit(1)
 	}
 
-	c.output.Msg(out.VV, report.Minimal())
-	c.output.Msg(out.VV, vendorReport.String())
+	c.output.MsgStdOutV(report.Minimal())
+	c.output.MsgStdOutV(vendorReport.String())
 }
 
 func (c *cli) format() {
@@ -868,7 +868,7 @@ func (c *cli) format() {
 	logger.Trace().Msg("listing formatted files")
 	for _, res := range results {
 		path := strings.TrimPrefix(res.Path(), c.wd()+string(filepath.Separator))
-		c.output.Msg(out.V, path)
+		c.output.MsgStdOut(path)
 	}
 
 	if c.parsedArgs.Fmt.Check {
@@ -923,9 +923,9 @@ func (c *cli) printStacks() {
 		}
 
 		if c.parsedArgs.List.Why {
-			c.output.Msg(out.V, "%s - %s", stackRepr, entry.Reason)
+			c.output.MsgStdOut("%s - %s", stackRepr, entry.Reason)
 		} else {
-			c.output.Msg(out.V, stackRepr)
+			c.output.MsgStdOut(stackRepr)
 		}
 	}
 }
@@ -953,10 +953,10 @@ func (c *cli) printRunEnv() {
 			fatal(err, "loading stack run environment")
 		}
 
-		c.output.Msg(out.V, "\nstack %q:", stackEntry.Stack.Path())
+		c.output.MsgStdOut("\nstack %q:", stackEntry.Stack.Path())
 
 		for _, envVar := range envVars {
-			c.output.Msg(out.V, "\t%s", envVar)
+			c.output.MsgStdOut("\t%s", envVar)
 		}
 	}
 }
@@ -1121,7 +1121,7 @@ func (c *cli) printRunOrder() {
 	}
 
 	for _, s := range orderedStacks {
-		c.output.Msg(out.V, s.Path().String())
+		c.output.MsgStdOut(s.Path().String())
 	}
 }
 
@@ -1154,7 +1154,7 @@ func (c *cli) generateDebug() {
 		if res.Err != nil {
 			errmsg := stdfmt.Sprintf("generate debug error on dir %s: %v", res.Dir, res.Err)
 			log.Error().Msg(errmsg)
-			c.output.Err(out.V, errmsg)
+			c.output.MsgStdErr(errmsg)
 			continue
 		}
 
@@ -1167,7 +1167,7 @@ func (c *cli) generateDebug() {
 
 		for _, file := range files {
 			filepath := path.Join(res.Dir.String(), file.Label())
-			c.output.Msg(out.V, "%s origin: %v", filepath, file.Range())
+			c.output.MsgStdOut("%s origin: %v", filepath, file.Range())
 		}
 	}
 }
@@ -1204,9 +1204,9 @@ func (c *cli) printStacksGlobals() {
 			continue
 		}
 
-		c.output.Msg(out.V, "\nstack %q:", meta.Path())
+		c.output.MsgStdOut("\nstack %q:", meta.Path())
 		for _, line := range strings.Split(globalsStrRepr, "\n") {
-			c.output.Msg(out.V, "\t%s", line)
+			c.output.MsgStdOut("\t%s", line)
 		}
 	}
 }
@@ -1233,10 +1233,10 @@ func (c *cli) printMetadata() {
 
 	projmeta := c.newProjectMetadata(report)
 
-	c.output.Msg(out.V, "Available metadata:")
+	c.output.MsgStdOut("Available metadata:")
 
-	c.output.Msg(out.V, "\nproject metadata:")
-	c.output.Msg(out.V, "\tterramate.stacks.list=%v", projmeta.Stacks())
+	c.output.MsgStdOut("\nproject metadata:")
+	c.output.MsgStdOut("\tterramate.stacks.list=%v", projmeta.Stacks())
 
 	for _, stackEntry := range stackEntries {
 		stackMeta := stack.Metadata(stackEntry.Stack)
@@ -1245,16 +1245,16 @@ func (c *cli) printMetadata() {
 			Stringer("stack", stackEntry.Stack).
 			Msg("Print metadata for individual stack.")
 
-		c.output.Msg(out.V, "\nstack %q:", stackMeta.Path())
+		c.output.MsgStdOut("\nstack %q:", stackMeta.Path())
 		if id, ok := stackMeta.ID(); ok {
-			c.output.Msg(out.V, "\tterramate.stack.id=%q", id)
+			c.output.MsgStdOut("\tterramate.stack.id=%q", id)
 		}
-		c.output.Msg(out.V, "\tterramate.stack.name=%q", stackMeta.Name())
-		c.output.Msg(out.V, "\tterramate.stack.description=%q", stackMeta.Desc())
-		c.output.Msg(out.V, "\tterramate.stack.path.absolute=%q", stackMeta.Path())
-		c.output.Msg(out.V, "\tterramate.stack.path.basename=%q", stackMeta.PathBase())
-		c.output.Msg(out.V, "\tterramate.stack.path.relative=%q", stackMeta.RelPath())
-		c.output.Msg(out.V, "\tterramate.stack.path.to_root=%q", stackMeta.RelPathToRoot())
+		c.output.MsgStdOut("\tterramate.stack.name=%q", stackMeta.Name())
+		c.output.MsgStdOut("\tterramate.stack.description=%q", stackMeta.Desc())
+		c.output.MsgStdOut("\tterramate.stack.path.absolute=%q", stackMeta.Path())
+		c.output.MsgStdOut("\tterramate.stack.path.basename=%q", stackMeta.PathBase())
+		c.output.MsgStdOut("\tterramate.stack.path.relative=%q", stackMeta.RelPath())
+		c.output.MsgStdOut("\tterramate.stack.path.to_root=%q", stackMeta.RelPathToRoot())
 	}
 }
 
@@ -1309,7 +1309,7 @@ func (c *cli) partialEval() {
 			fatal(err, "partial eval %q", exprStr)
 		}
 
-		c.output.Msg(out.V, string(hclwrite.Format(tokens.Bytes())))
+		c.output.MsgStdOut(string(hclwrite.Format(tokens.Bytes())))
 	}
 }
 
@@ -1365,7 +1365,7 @@ func (c *cli) outputEvalResult(val cty.Value, asJSON bool) {
 		}
 	}
 
-	c.output.Msg(out.V, string(data))
+	c.output.MsgStdOut(string(data))
 }
 
 func (c *cli) setupEvalContext() *eval.Context {
@@ -1511,14 +1511,14 @@ func (c *cli) runOnStacks() {
 		logger.Trace().
 			Msg("Do a dry run - get order without actually running command.")
 		if len(orderedStacks) > 0 {
-			c.output.Msg(out.V, "The stacks will be executed using order below:")
+			c.output.MsgStdOut("The stacks will be executed using order below:")
 
 			for i, s := range orderedStacks {
 				stackdir, _ := c.friendlyFmtDir(s.Path().String())
-				c.output.Msg(out.V, "\t%d. %s (%s)", i, s.Name(), stackdir)
+				c.output.MsgStdOut("\t%d. %s (%s)", i, s.Name(), stackdir)
 			}
 		} else {
-			c.output.Msg(out.V, "No stacks will be executed.")
+			c.output.MsgStdOut("No stacks will be executed.")
 		}
 
 		return
