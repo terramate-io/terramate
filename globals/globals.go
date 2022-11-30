@@ -48,7 +48,7 @@ type (
 		hhcl.Expression
 	}
 
-	// GlobalPathKey represents a global object accessor to be used as map key.
+	// GlobalPathKey represents a global object accessors to be used as map key.
 	// The reason is that slices cannot be used as map key because the equality
 	// operator is not defined, then this type implements a fixed size struct.
 	GlobalPathKey struct {
@@ -193,6 +193,10 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 			sortedKeys = append(sortedKeys, key)
 		}
 
+		// FIXME(KATCIPIS): ordering by smaller origin path will not work
+		// when the origin is an imported path, the imported path may
+		// be longer and yet be outside the stack hierarchy and it was
+		// imported on a parent.
 		sort.SliceStable(sortedKeys, func(i, j int) bool {
 			expr1, expr2 := pendingExprs[sortedKeys[i]], pendingExprs[sortedKeys[j]]
 			origin1, origin2 := expr1.Origin.Dir(), expr2.Origin.Dir()
@@ -295,12 +299,15 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 				// this `if` happens for the general case, which we must set the
 				// actual value and then ignores the case where it has a fake
 				// expression when extending an existing object.
+				logger.Trace().Msg("setting global")
 
 				err = globals.SetAt(accessor.Path(), eval.NewValue(val, expr.Origin))
 				if err != nil {
 					pendingExprsErrs[accessor].Append(errors.E(err, "setting global"))
 					continue
 				}
+			} else {
+				logger.Trace().Msg("ignoring implicitly created empty global")
 			}
 
 			amountEvaluated++
