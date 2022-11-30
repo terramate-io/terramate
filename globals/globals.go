@@ -56,10 +56,6 @@ type (
 		isattr   bool
 		numPaths int
 	}
-
-	// Exprs is the map of unevaluated global expressions visible in a
-	// directory.
-	Exprs map[GlobalPathKey]Expr
 )
 
 // Path returns the global accessor path (labels + attribute name).
@@ -82,33 +78,40 @@ func Load(tree *config.Root, cfgdir project.Path, ctx *eval.Context) EvalReport 
 
 	logger.Trace().Msg("loading expressions")
 
-	exprs, err := LoadExprs(tree, cfgdir)
+	exprs, err := loadExprs(tree, cfgdir)
 	if err != nil {
 		report := NewEvalReport()
 		report.BootstrapErr = err
 		return report
 	}
 
-	return exprs.Eval(ctx)
+	return exprs.eval(ctx)
 }
 
-// LoadExprs loads from the file system all globals expressions defined for
+// exprSet represents a set of globals.
+type exprSet map[GlobalPathKey]Expr
+
+// loadedExprs contains all loaded global expressions from multiple configuration
+// directories. Each configuration dir path is mapped to its loaded global expressions.
+type loadedExprs map[project.Path]exprSet
+
+// loadExprs loads from the file system all globals expressions defined for
 // the given directory. It will navigate the file system from dir until it
 // reaches rootdir, loading globals expressions and merging them appropriately.
 // More specific globals (closer or at the dir) have precedence over less
 // specific globals (closer or at the root dir).
-func LoadExprs(tree *config.Root, cfgdir project.Path) (Exprs, error) {
+func loadExprs(tree *config.Root, cfgdir project.Path) (loadedExprs, error) {
 	logger := log.With().
-		Str("action", "globals.LoadExprs()").
+		Str("action", "globals.loadExprs()").
 		Str("root", tree.Dir()).
 		Stringer("cfgdir", cfgdir).
 		Logger()
 
-	exprs := make(Exprs)
+	exprs := make(exprSet)
 
 	cfg, ok := tree.Lookup(cfgdir)
 	if !ok {
-		return exprs, nil
+		return loadedExprs{}, nil
 	}
 
 	globalsBlocks := cfg.Node.Globals.AsList()
@@ -146,26 +149,71 @@ func LoadExprs(tree *config.Root, cfgdir project.Path) (Exprs, error) {
 		}
 	}
 
+	globals := loadedExprs{
+		cfgdir: exprs,
+	}
+
 	parentcfg, ok := parentDir(cfgdir)
 	if !ok {
-		return exprs, nil
+		return globals, nil
 	}
 
 	logger.Trace().Msg("Loading stack globals from parent dir.")
 
-	parentGlobals, err := LoadExprs(tree, parentcfg)
+	parentGlobals, err := loadExprs(tree, parentcfg)
 	if err != nil {
 		return nil, err
 	}
 
 	logger.Trace().Msg("Merging globals with parent.")
 
-	exprs.merge(parentGlobals)
-	return exprs, nil
+	globals.merge(parentGlobals)
+	return globals, nil
 }
 
-// Eval evaluates all global expressions and returns an EvalReport.
-func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
+// Returns a sorted loaded exprs, sorting it by config dir path.
+// The loaded expressions are sorted by the config dir path
+// from smaller (root) to more specific (stack). Eg:
+// - /
+// - /dir
+// - /dir/stack
+func (le loadedExprs) sort() []exprSet {
+	cfgdirs := []project.Path{}
+	for cfgdir := range le {
+		cfgdirs = append(cfgdirs, cfgdir)
+	}
+
+	sort.SliceStable(cfgdirs, func(i, j int) bool {
+		return len(cfgdirs[i]) < len(cfgdirs[j])
+	})
+
+	res := []exprSet{}
+	for _, cfgdir := range cfgdirs {
+		res = append(res, le[cfgdir])
+	}
+	return res
+}
+
+// Returns the expressions access path sorted from the smallest to
+// the biggest path.
+// - global.a
+// - global.a.b
+// - global.a.b.c
+func (es exprSet) sort() []GlobalPathKey {
+	res := []GlobalPathKey{}
+	for globalPath := range es {
+		res = append(res, globalPath)
+	}
+
+	sort.SliceStable(res, func(i, j int) bool {
+		return len(res[i].Path()) < len(res[j].Path())
+	})
+
+	return res
+}
+
+// eval evaluates all global expressions and returns an EvalReport.
+func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 	logger := log.With().
 		Str("action", "Exprs.Eval()").
 		Logger()
@@ -175,9 +223,31 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 	report := NewEvalReport()
 	globals := report.Globals
 	pendingExprsErrs := map[GlobalPathKey]*errors.List{}
-	pendingExprs := make(Exprs)
 
-	copyexprs(pendingExprs, globalExprs)
+	sortedLoadedExprs := le.sort()
+	pendingExprs := exprSet{}
+
+	// Here we will override values, but since
+	// we ordered by config dir the more specific global expressions
+	// will override the parent ones.
+	for _, exprs := range sortedLoadedExprs {
+		for k, v := range exprs {
+			pendingExprs[k] = v
+		}
+	}
+
+	// Here we will sort each set of globals from each dir independently
+	// So the final iteration order is parent first then child, and
+	// for each given config dir it is ordered by the length of the global path.
+	// So we guarantee that independent of the expression accessors length we always
+	// process parent expressions first, then the child ones, until reaching the stack.
+	sortedGlobalsPaths := []GlobalPathKey{}
+	for _, expressions := range sortedLoadedExprs {
+		// for now we are allowing repeated access paths for different
+		// directories, should not affect results since pendingExprs already
+		// has the correct expression anyway.
+		sortedGlobalsPaths = append(sortedGlobalsPaths, expressions.sort()...)
+	}
 
 	if !ctx.HasNamespace("global") {
 		ctx.SetNamespace("global", map[string]cty.Value{})
@@ -188,39 +258,13 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 
 		logger.Trace().Msg("evaluating pending expressions")
 
-		sortedKeys := []GlobalPathKey{}
-		for key := range pendingExprs {
-			sortedKeys = append(sortedKeys, key)
-		}
-
-		// FIXME(KATCIPIS): ordering by smaller origin path will not work
-		// when the origin is an imported path, the imported path may
-		// be longer and yet be outside the stack hierarchy and it was
-		// imported on a parent.
-		// This code also doesn't sort the same slice in the same
-		// way independent of order, depending on the order that the slice
-		// is built when iterating the pendingExprs map the sorting will produce
-		// a different result. Just imagine one slice with:
-		// - [origin1, origin2, origin1, origin2]
-		// and a slice with:
-		// - [origin1, origin1, origin2, origin2]
-		// Depending on the order each is compared the criteria for sorting
-		// is different, which results in a different final order.
-		// We are currently observing random behavior in a bug because of this.
-		sort.SliceStable(sortedKeys, func(i, j int) bool {
-			expr1, expr2 := pendingExprs[sortedKeys[i]], pendingExprs[sortedKeys[j]]
-			origin1, origin2 := expr1.Origin.Dir(), expr2.Origin.Dir()
-
-			if origin1 == origin2 {
-				return len(sortedKeys[i].Path()) < len(sortedKeys[j].Path())
-			}
-
-			return len(origin1) < len(origin2)
-		})
-
 	pendingExpression:
-		for _, accessor := range sortedKeys {
-			expr := pendingExprs[accessor]
+		for _, accessor := range sortedGlobalsPaths {
+			expr, ok := pendingExprs[accessor]
+			if !ok {
+				// Ignoring already evaluated expression
+				continue
+			}
 
 			logger := logger.With().
 				Stringer("origin", expr.Origin).
@@ -350,10 +394,10 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 	return report
 }
 
-func (globalExprs Exprs) merge(other Exprs) {
+func (le loadedExprs) merge(other loadedExprs) {
 	for k, v := range other {
-		if _, ok := globalExprs[k]; !ok {
-			globalExprs[k] = v
+		if _, ok := le[k]; !ok {
+			le[k] = v
 		}
 	}
 }
@@ -361,12 +405,6 @@ func (globalExprs Exprs) merge(other Exprs) {
 func parentDir(dir project.Path) (project.Path, bool) {
 	parent := dir.Dir()
 	return parent, parent != dir
-}
-
-func copyexprs(dst, src Exprs) {
-	for k, v := range src {
-		dst[k] = v
-	}
 }
 
 func newGlobalPath(basepath []string, name string) GlobalPathKey {

@@ -740,12 +740,15 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
 
+			configurationFiles := map[string]struct{}{}
+
 			for _, cfg := range tcase.configs {
 				path := filepath.Join(s.RootDir(), cfg.path)
 				filename := cfg.filename
 				if filename == "" {
 					filename = config.DefaultFilename
 				}
+				configurationFiles[filepath.Join(path, filename)] = struct{}{}
 				test.AppendFile(t, path, filename, cfg.add.String())
 			}
 
@@ -822,6 +825,11 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 				return false
 			}
 
+			createdByConfig := func(path string) bool {
+				_, ok := configurationFiles[path]
+				return ok
+			}
+
 			err := filepath.WalkDir(s.RootDir(), func(path string, d fs.DirEntry, err error) error {
 				t.Helper()
 
@@ -840,7 +848,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 					return nil
 				}
 
-				if createdBySandbox(path) {
+				if createdBySandbox(path) || createdByConfig(path) {
 					return nil
 				}
 
