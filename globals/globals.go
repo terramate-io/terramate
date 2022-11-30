@@ -197,6 +197,16 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 		// when the origin is an imported path, the imported path may
 		// be longer and yet be outside the stack hierarchy and it was
 		// imported on a parent.
+		// This code also doesn't sort the same slice in the same
+		// way independent of order, depending on the order that the slice
+		// is built when iterating the pendingExprs map the sorting will produce
+		// a different result. Just imagine one slice with:
+		// - [origin1, origin2, origin1, origin2]
+		// and a slice with:
+		// - [origin1, origin1, origin2, origin2]
+		// Depending on the order each is compared the criteria for sorting
+		// is different, which results in a different final order.
+		// We are currently observing random behavior in a bug because of this.
 		sort.SliceStable(sortedKeys, func(i, j int) bool {
 			expr1, expr2 := pendingExprs[sortedKeys[i]], pendingExprs[sortedKeys[j]]
 			origin1, origin2 := expr1.Origin.Dir(), expr2.Origin.Dir()
@@ -204,6 +214,7 @@ func (globalExprs Exprs) Eval(ctx *eval.Context) EvalReport {
 			if origin1 == origin2 {
 				return len(sortedKeys[i].Path()) < len(sortedKeys[j].Path())
 			}
+
 			return len(origin1) < len(origin2)
 		})
 
