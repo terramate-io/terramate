@@ -398,6 +398,8 @@ func (le loadedExprs) merge(other loadedExprs) {
 	for k, v := range other {
 		if _, ok := le[k]; !ok {
 			le[k] = v
+		} else {
+			panic(errors.E(errors.ErrInternal, "cant merge duplicated configuration %q", k))
 		}
 	}
 }
