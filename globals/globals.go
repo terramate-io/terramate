@@ -88,12 +88,23 @@ func Load(tree *config.Root, cfgdir project.Path, ctx *eval.Context) EvalReport 
 	return exprs.eval(ctx)
 }
 
-// exprSet represents a set of globals.
-type exprSet map[GlobalPathKey]Expr
+// exprSet represents a set of globals loaded from a dir.
+// The origin is the path of the dir from where all expressions were loaded.
+type exprSet struct {
+	origin      project.Path
+	expressions map[GlobalPathKey]Expr
+}
 
 // loadedExprs contains all loaded global expressions from multiple configuration
 // directories. Each configuration dir path is mapped to its loaded global expressions.
 type loadedExprs map[project.Path]exprSet
+
+func newExprSet(origin project.Path) exprSet {
+	return exprSet{
+		origin:      origin,
+		expressions: map[GlobalPathKey]Expr{},
+	}
+}
 
 // loadExprs loads from the file system all globals expressions defined for
 // the given directory. It will navigate the file system from dir until it
@@ -107,7 +118,7 @@ func loadExprs(tree *config.Root, cfgdir project.Path) (loadedExprs, error) {
 		Stringer("cfgdir", cfgdir).
 		Logger()
 
-	exprs := make(exprSet)
+	exprs := newExprSet(cfgdir)
 
 	cfg, ok := tree.Lookup(cfgdir)
 	if !ok {
@@ -128,7 +139,7 @@ func loadExprs(tree *config.Root, cfgdir project.Path) (loadedExprs, error) {
 		if len(block.Labels) > 0 && len(attrs) == 0 {
 			expr, _ := eval.ParseExpressionBytes([]byte(`{}`))
 			key := newGlobalPath(block.Labels, "")
-			exprs[key] = Expr{
+			exprs.expressions[key] = Expr{
 				Origin:     block.RawOrigins[0].Range.Path(),
 				LabelPath:  key.Path(),
 				Expression: expr,
@@ -141,7 +152,7 @@ func loadExprs(tree *config.Root, cfgdir project.Path) (loadedExprs, error) {
 			logger.Trace().Msg("Add attribute to globals.")
 
 			key := newGlobalPath(block.Labels, attr.Name)
-			exprs[key] = Expr{
+			exprs.expressions[key] = Expr{
 				Origin:     attr.Range.Path(),
 				LabelPath:  key.Path(),
 				Expression: attr.Expr,
@@ -201,7 +212,7 @@ func (le loadedExprs) sort() []exprSet {
 // - global.a.b.c
 func (es exprSet) sort() []GlobalPathKey {
 	res := []GlobalPathKey{}
-	for globalPath := range es {
+	for globalPath := range es.expressions {
 		res = append(res, globalPath)
 	}
 
@@ -225,13 +236,13 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 	pendingExprsErrs := map[GlobalPathKey]*errors.List{}
 
 	sortedLoadedExprs := le.sort()
-	pendingExprs := exprSet{}
+	pendingExprs := map[GlobalPathKey]Expr{}
 
 	// Here we will override values, but since
 	// we ordered by config dir the more specific global expressions
 	// will override the parent ones.
 	for _, exprs := range sortedLoadedExprs {
-		for k, v := range exprs {
+		for k, v := range exprs.expressions {
 			pendingExprs[k] = v
 		}
 	}
@@ -241,12 +252,19 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 	// for each given config dir it is ordered by the length of the global path.
 	// So we guarantee that independent of the expression accessors length we always
 	// process parent expressions first, then the child ones, until reaching the stack.
-	sortedGlobalsPaths := []GlobalPathKey{}
-	for _, expressions := range sortedLoadedExprs {
+	type globalAccessors struct {
+		origin    project.Path
+		accessors []GlobalPathKey
+	}
+	sortedGlobalAccessors := []globalAccessors{}
+	for _, exprset := range sortedLoadedExprs {
 		// for now we are allowing repeated access paths for different
 		// directories, should not affect results since pendingExprs already
 		// has the correct expression anyway.
-		sortedGlobalsPaths = append(sortedGlobalsPaths, expressions.sort()...)
+		sortedGlobalAccessors = append(sortedGlobalAccessors, globalAccessors{
+			origin:    exprset.origin,
+			accessors: exprset.sort(),
+		})
 	}
 
 	if !ctx.HasNamespace("global") {
@@ -258,121 +276,124 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 
 		logger.Trace().Msg("evaluating pending expressions")
 
-	pendingExpression:
-		for _, accessor := range sortedGlobalsPaths {
-			expr, ok := pendingExprs[accessor]
-			if !ok {
-				// Ignoring already evaluated expression
-				continue
-			}
+		for _, sortedGlobals := range sortedGlobalAccessors {
 
-			logger := logger.With().
-				Stringer("origin", expr.Origin).
-				Strs("global", accessor.Path()).
-				Logger()
+		pendingExpression:
+			for _, accessor := range sortedGlobals.accessors {
+				expr, ok := pendingExprs[accessor]
+				if !ok {
+					// Ignoring already evaluated expression
+					continue
+				}
 
-			logger.Trace().Msg("checking var access inside expression")
+				logger := logger.With().
+					Stringer("origin", sortedGlobals.origin).
+					Strs("global", accessor.Path()).
+					Logger()
 
-			traversal, diags := hhcl.AbsTraversalForExpr(expr.Expression)
-			if !diags.HasErrors() && len(traversal) == 1 && traversal.RootName() == "unset" {
-				if _, ok := globals.GetKeyPath(accessor.Path()); ok {
-					err := globals.DeleteAt(accessor.Path())
-					if err != nil {
-						panic(errors.E(errors.ErrInternal, err))
+				logger.Trace().Msg("checking var access inside expression")
+
+				traversal, diags := hhcl.AbsTraversalForExpr(expr.Expression)
+				if !diags.HasErrors() && len(traversal) == 1 && traversal.RootName() == "unset" {
+					if _, ok := globals.GetKeyPath(accessor.Path()); ok {
+						err := globals.DeleteAt(accessor.Path())
+						if err != nil {
+							panic(errors.E(errors.ErrInternal, err))
+						}
 					}
+
+					amountEvaluated++
+					delete(pendingExprs, accessor)
+					delete(pendingExprsErrs, accessor)
+				}
+
+				pendingExprsErrs[accessor] = errors.L()
+				for _, namespace := range expr.Variables() {
+					if !ctx.HasNamespace(namespace.RootName()) {
+						pendingExprsErrs[accessor].Append(errors.E(
+							ErrEval,
+							namespace.SourceRange(),
+							"unknown variable namespace: %s", namespace.RootName(),
+						))
+
+						continue
+					}
+
+					if namespace.RootName() != "global" {
+						continue
+					}
+
+					switch attr := namespace[1].(type) {
+					case hhcl.TraverseAttr:
+						if _, isPending := pendingExprs[newGlobalPath([]string{}, attr.Name)]; isPending {
+							continue pendingExpression
+						}
+					default:
+						panic("unexpected type of traversal - this is a BUG")
+					}
+				}
+
+				if err := pendingExprsErrs[accessor].AsError(); err != nil {
+					continue
+				}
+
+				// This catches a schema error that cannot be detected at the parser.
+				// When a nested object is defined either by literal or funcalls,
+				// it can't be detected at the parser.
+				oldValue, hasOldValue := globals.GetKeyPath(accessor.Path())
+				if hasOldValue &&
+					accessor.isattr &&
+					oldValue.Origin().Dir().String() == expr.Origin.Dir().String() {
+					pendingExprsErrs[accessor].Append(
+						errors.E(hcl.ErrTerramateSchema, expr.Range(),
+							"global.%s attribute redefined: previously defined at %s",
+							accessor.rootname(), oldValue.Origin().String()))
+
+					continue
+				}
+
+				logger.Trace().Msg("evaluating expression")
+
+				val, err := ctx.Eval(expr)
+				if err != nil {
+					pendingExprsErrs[accessor].Append(errors.E(
+						ErrEval, err, "global.%s (%t)", accessor.rootname(), accessor.isattr))
+					continue
+				}
+
+				if !hasOldValue || !oldValue.IsObject() || accessor.isattr {
+					// all the `attr = expr` inside global blocks become an entry
+					// in the globalExprs map but we have the special case that
+					// an empty globals block with labels must implicitly create
+					// the label defined object...
+					// then as it does not define any expression, an implicit
+					// expression for an empty object block is added to the map.
+					// This special entry sets the key accessor.isattr = false
+					// which means this expression doesn't come from an attribute.
+
+					// this `if` happens for the general case, which we must set the
+					// actual value and then ignores the case where it has a fake
+					// expression when extending an existing object.
+					logger.Trace().Msg("setting global")
+
+					err = globals.SetAt(accessor.Path(), eval.NewValue(val, expr.Origin))
+					if err != nil {
+						pendingExprsErrs[accessor].Append(errors.E(err, "setting global"))
+						continue
+					}
+				} else {
+					logger.Trace().Msg("ignoring implicitly created empty global")
 				}
 
 				amountEvaluated++
+
 				delete(pendingExprs, accessor)
 				delete(pendingExprsErrs, accessor)
+
+				logger.Trace().Msg("updating globals eval context with evaluated attribute")
+
+				ctx.SetNamespace("global", globals.AsValueMap())
 			}
-
-			pendingExprsErrs[accessor] = errors.L()
-			for _, namespace := range expr.Variables() {
-				if !ctx.HasNamespace(namespace.RootName()) {
-					pendingExprsErrs[accessor].Append(errors.E(
-						ErrEval,
-						namespace.SourceRange(),
-						"unknown variable namespace: %s", namespace.RootName(),
-					))
-
-					continue
-				}
-
-				if namespace.RootName() != "global" {
-					continue
-				}
-
-				switch attr := namespace[1].(type) {
-				case hhcl.TraverseAttr:
-					if _, isPending := pendingExprs[newGlobalPath([]string{}, attr.Name)]; isPending {
-						continue pendingExpression
-					}
-				default:
-					panic("unexpected type of traversal - this is a BUG")
-				}
-			}
-
-			if err := pendingExprsErrs[accessor].AsError(); err != nil {
-				continue
-			}
-
-			// This catches a schema error that cannot be detected at the parser.
-			// When a nested object is defined either by literal or funcalls,
-			// it can't be detected at the parser.
-			oldValue, hasOldValue := globals.GetKeyPath(accessor.Path())
-			if hasOldValue &&
-				accessor.isattr &&
-				oldValue.Origin().Dir().String() == expr.Origin.Dir().String() {
-				pendingExprsErrs[accessor].Append(
-					errors.E(hcl.ErrTerramateSchema, expr.Range(),
-						"global.%s attribute redefined: previously defined at %s",
-						accessor.rootname(), oldValue.Origin().String()))
-
-				continue
-			}
-
-			logger.Trace().Msg("evaluating expression")
-
-			val, err := ctx.Eval(expr)
-			if err != nil {
-				pendingExprsErrs[accessor].Append(errors.E(
-					ErrEval, err, "global.%s (%t)", accessor.rootname(), accessor.isattr))
-				continue
-			}
-
-			if !hasOldValue || !oldValue.IsObject() || accessor.isattr {
-				// all the `attr = expr` inside global blocks become an entry
-				// in the globalExprs map but we have the special case that
-				// an empty globals block with labels must implicitly create
-				// the label defined object...
-				// then as it does not define any expression, an implicit
-				// expression for an empty object block is added to the map.
-				// This special entry sets the key accessor.isattr = false
-				// which means this expression doesn't come from an attribute.
-
-				// this `if` happens for the general case, which we must set the
-				// actual value and then ignores the case where it has a fake
-				// expression when extending an existing object.
-				logger.Trace().Msg("setting global")
-
-				err = globals.SetAt(accessor.Path(), eval.NewValue(val, expr.Origin))
-				if err != nil {
-					pendingExprsErrs[accessor].Append(errors.E(err, "setting global"))
-					continue
-				}
-			} else {
-				logger.Trace().Msg("ignoring implicitly created empty global")
-			}
-
-			amountEvaluated++
-
-			delete(pendingExprs, accessor)
-			delete(pendingExprsErrs, accessor)
-
-			logger.Trace().Msg("updating globals eval context with evaluated attribute")
-
-			ctx.SetNamespace("global", globals.AsValueMap())
 		}
 
 		if amountEvaluated == 0 {
