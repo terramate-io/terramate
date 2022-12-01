@@ -214,11 +214,11 @@ func TestGenerateHCL(t *testing.T) {
 						Labels("gclz_config", "terraform", "providers"),
 						Expr("google", `{
 							enabled = true
-    						source  = "hashicorp/google"
-    						version = tm_try(global.gclz_terraform_google_provider_version, "4.33.0")
-    						config = {
-      							project = tm_try(global.gclz_terraform_google_provider_project, global.gclz_project_id)
-    						}
+							source  = "hashicorp/google"
+							version = tm_try(global.gclz_terraform_google_provider_version, "4.33.0")
+							config = {
+								project = tm_try(global.gclz_terraform_google_provider_project, global.gclz_project_id)
+							}
 						}`),
 					),
 				},
