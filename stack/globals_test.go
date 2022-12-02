@@ -2240,6 +2240,24 @@ func TestLoadGlobals(t *testing.T) {
 			},
 			wantErr: errors.E(globals.ErrEval),
 		},
+		{
+			name:   "tm_try with only root traversal",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Globals(
+						Expr("val", `tm_try(global, "default")`),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					Str("a", "test"),
+					EvalExpr(t, "val", `{}`),
+				),
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
