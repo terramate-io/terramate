@@ -2253,7 +2253,6 @@ func TestLoadGlobals(t *testing.T) {
 			},
 			want: map[string]*hclwrite.Block{
 				"/stack": Globals(
-					Str("a", "test"),
 					EvalExpr(t, "val", `{}`),
 				),
 			},
