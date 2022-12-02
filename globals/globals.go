@@ -25,7 +25,6 @@ import (
 
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -268,50 +267,6 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 		})
 	}
 
-	parentHasObjectBeingExtended := func(
-		logger zerolog.Logger,
-		accessor GlobalPathKey,
-		hierarchicalLevel int,
-	) bool {
-		if hierarchicalLevel == 0 {
-			logger.Trace().Msg("on root level, no need to check parents")
-			return false
-		}
-		childAccPath := accessor.Path()
-		if len(childAccPath) <= 1 {
-			logger.Trace().Msg("acessor <= 1, no need to check parents")
-			return false
-		}
-
-		// TODO(KATCIPIS): still not working 100%
-		//for i := hierarchicalLevel - 1; i >= 0; i-- {
-		//parentGlobalAccessors := sortedGlobalAccessors[i]
-
-		//searchParent:
-		//for _, parentAccessor := range parentGlobalAccessors.accessors {
-		//parentAccPath := parentAccessor.Path()
-		//// More specific definitions (bigger) on the parent
-		//// are overrided by the child definition.
-		//if len(parentAccPath) > len(childAccPath) {
-		//continue
-		//}
-
-		//for i, parentPathElem := range parentAccPath {
-		//childPathElem := childAccPath[i]
-		//if childPathElem != parentPathElem {
-		//continue searchParent
-		//}
-		//}
-
-		//logger.Trace().
-		//Stringer("parent", parentGlobalAccessors.origin).
-		//Msg("parent has object being extended by child")
-		//return true
-		//}
-		//}
-		return false
-	}
-
 	if !ctx.HasNamespace("global") {
 		ctx.SetNamespace("global", map[string]cty.Value{})
 	}
@@ -321,7 +276,7 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 
 		logger.Trace().Msg("evaluating pending expressions")
 
-		for hierarchicalLevel, sortedGlobals := range sortedGlobalAccessors {
+		for _, sortedGlobals := range sortedGlobalAccessors {
 
 		pendingExpression:
 			for _, accessor := range sortedGlobals.accessors {
@@ -388,7 +343,7 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 				oldValue, hasOldValue := globals.GetKeyPath(accessor.Path())
 				if hasOldValue &&
 					accessor.isattr &&
-					oldValue.Origin().Dir().String() == expr.Origin.Dir().String() {
+					oldValue.Origin().String() == sortedGlobals.origin.String() {
 					pendingExprsErrs[accessor].Append(
 						errors.E(hcl.ErrTerramateSchema, expr.Range(),
 							"global.%s attribute redefined: previously defined at %s",
@@ -399,11 +354,6 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 
 				// This is to avoid setting a label defined extension on the child
 				// and later overwriting that with an object definition on the parent
-
-				if parentHasObjectBeingExtended(logger, accessor, hierarchicalLevel) {
-					logger.Debug().Msg("parent defines object being extended, delaying eval")
-					continue
-				}
 
 				logger.Trace().Msg("evaluating expression")
 
@@ -429,7 +379,7 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 					// expression when extending an existing object.
 					logger.Trace().Msg("setting global")
 
-					err = globals.SetAt(accessor.Path(), eval.NewValue(val, expr.Origin))
+					err = globals.SetAt(accessor.Path(), eval.NewValue(val, sortedGlobals.origin))
 					if err != nil {
 						pendingExprsErrs[accessor].Append(errors.E(err, "setting global"))
 						continue

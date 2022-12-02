@@ -15,6 +15,8 @@
 package eval
 
 import (
+	"strings"
+
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/project"
@@ -149,6 +151,23 @@ func (obj *Object) SetAt(path ObjectPath, value Value) error {
 		}
 		obj = subobj.(*Object)
 		path = path[1:]
+	}
+
+	old, ok := obj.GetKeyPath(path)
+	if ok {
+		// TODO(i4k): document this properly.
+		if !strings.HasPrefix(value.Origin().String(), old.Origin().String()) {
+			if old.IsObject() && value.IsObject() {
+				oldv := old.(*Object)
+				for k, v := range value.(*Object).Keys {
+					err := oldv.SetAt([]string{k}, v)
+					if err != nil {
+						return err
+					}
+				}
+			}
+			return nil
+		}
 	}
 
 	obj.Set(path[0], value)
