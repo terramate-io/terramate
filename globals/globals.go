@@ -319,7 +319,7 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 						continue
 					}
 
-					if namespace.RootName() != "global" {
+					if namespace.RootName() != "global" || len(namespace) == 1 {
 						continue
 					}
 
