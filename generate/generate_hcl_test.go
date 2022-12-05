@@ -320,7 +320,7 @@ func TestGenerateHCL(t *testing.T) {
 			},
 		},
 		{
-			name: "bug - reproducing iac-gcloud -- test tm_try 2",
+			name: "bug - reproducing iac-gcloud -- test tm_try with more indirection",
 			layout: []string{
 				"s:stacks/stack-1",
 			},
