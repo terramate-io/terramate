@@ -55,7 +55,9 @@ func TestCLIRunOrder(t *testing.T) {
 				"s:stack-a",
 			},
 			want: runExpected{
-				Stdout: listStacks("stack-a"),
+				Stdout: listStacks(
+					"/stack-a",
+				),
 			},
 		},
 		{
@@ -64,7 +66,9 @@ func TestCLIRunOrder(t *testing.T) {
 				"s:stack:after=[]",
 			},
 			want: runExpected{
-				Stdout: listStacks(`stack`),
+				Stdout: listStacks(
+					`/stack`,
+				),
 			},
 		},
 		{
@@ -73,7 +77,9 @@ func TestCLIRunOrder(t *testing.T) {
 				fmt.Sprintf("s:stack:after=[%q]", test.NonExistingDir(t)),
 			},
 			want: runExpected{
-				Stdout: listStacks(`stack`),
+				Stdout: listStacks(
+					`/stack`,
+				),
 			},
 		},
 		{
@@ -82,7 +88,9 @@ func TestCLIRunOrder(t *testing.T) {
 				fmt.Sprintf("s:stack:after=[%q]", test.WriteFile(t, "", "test.txt", `bleh`)),
 			},
 			want: runExpected{
-				Stdout: listStacks(`stack`),
+				Stdout: listStacks(
+					`/stack`,
+				),
 			},
 		},
 		{
@@ -96,7 +104,14 @@ func TestCLIRunOrder(t *testing.T) {
 				"s:boom",
 			},
 			want: runExpected{
-				Stdout: listStacks("1", "2", "3", "batatinha", "boom", "frita"),
+				Stdout: listStacks(
+					"/1",
+					"/2",
+					"/3",
+					"/batatinha",
+					"/boom",
+					"/frita",
+				),
 			},
 		},
 		{
@@ -111,12 +126,12 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 			want: runExpected{
 				Stdout: listStacks(
-					"stacks",
-					"A",
-					"AA",
-					"AAA",
-					"B",
-					"BA",
+					"/stacks",
+					"/stacks/A",
+					"/stacks/A/AA",
+					"/stacks/A/AA/AAA",
+					"/stacks/B",
+					"/stacks/B/BA",
 				),
 			},
 		},
@@ -127,7 +142,10 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-b:after=["../stack-a"]`,
 			},
 			want: runExpected{
-				Stdout: listStacks("stack-a", "stack-b"),
+				Stdout: listStacks(
+					"/stack-a",
+					"/stack-b",
+				),
 			},
 		},
 		{
@@ -137,7 +155,10 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-b:after=["/stack-a"]`,
 			},
 			want: runExpected{
-				Stdout: listStacks("stack-a", "stack-b"),
+				Stdout: listStacks(
+					"/stack-a",
+					"/stack-b",
+				),
 			},
 		},
 		{
@@ -148,7 +169,11 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-c:after=["../stack-b"]`,
 			},
 			want: runExpected{
-				Stdout: listStacks("stack-a", "stack-b", "stack-c"),
+				Stdout: listStacks(
+					"/stack-a",
+					"/stack-b",
+					"/stack-c",
+				),
 			},
 		},
 		{
@@ -159,7 +184,11 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-c:after=["/stack-b"]`,
 			},
 			want: runExpected{
-				Stdout: listStacks("stack-a", "stack-b", "stack-c"),
+				Stdout: listStacks(
+					"/stack-a",
+					"/stack-b",
+					"/stack-c",
+				),
 			},
 		},
 		{
@@ -170,7 +199,11 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-a:after=["../stack-b"]`,
 			},
 			want: runExpected{
-				Stdout: listStacks("stack-c", "stack-b", "stack-a"),
+				Stdout: listStacks(
+					"/stack-c",
+					"/stack-b",
+					"/stack-a",
+				),
 			},
 		},
 		{
@@ -181,7 +214,11 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-a:after=["/stack-b"]`,
 			},
 			want: runExpected{
-				Stdout: listStacks("stack-c", "stack-b", "stack-a"),
+				Stdout: listStacks(
+					"/stack-c",
+					"/stack-b",
+					"/stack-a",
+				),
 			},
 		},
 		{
@@ -191,7 +228,10 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-b`,
 			},
 			want: runExpected{
-				Stdout: listStacks("stack-b", "stack-a"),
+				Stdout: listStacks(
+					"/stack-b",
+					"/stack-a",
+				),
 			},
 		},
 		{
@@ -203,7 +243,12 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack-d`,
 			},
 			want: runExpected{
-				Stdout: listStacks("stack-b", "stack-c", "stack-d", "stack-a"),
+				Stdout: listStacks(
+					"/stack-b",
+					"/stack-c",
+					"/stack-d",
+					"/stack-a",
+				),
 			},
 		},
 		{
@@ -216,10 +261,10 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 			want: runExpected{
 				Stdout: listStacks(
-					"stack-b",
-					"stack-c",
-					"stack-d",
-					"stack-a",
+					"/stack-b",
+					"/stack-c",
+					"/stack-d",
+					"/stack-a",
 				),
 			},
 		},
@@ -234,11 +279,11 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 			want: runExpected{
 				Stdout: listStacks(
-					"stack-a",
-					"stack-b",
-					"stack-c",
-					"stack-z",
-					"stack-d",
+					"/stack-a",
+					"/stack-b",
+					"/stack-c",
+					"/stack-z",
+					"/stack-d",
 				),
 			},
 		},
@@ -253,11 +298,11 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 			want: runExpected{
 				Stdout: listStacks(
-					"stack-a",
-					"stack-b",
-					"stack-c",
-					"stack-z",
-					"stack-d",
+					"/stack-a",
+					"/stack-b",
+					"/stack-c",
+					"/stack-z",
+					"/stack-d",
 				),
 			},
 		},
@@ -271,10 +316,10 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 			want: runExpected{
 				Stdout: listStacks(
-					"stack-a",
-					"stack-b",
-					"stack-c",
-					"stack-d",
+					"/stack-a",
+					"/stack-b",
+					"/stack-c",
+					"/stack-d",
 				),
 			},
 		},
@@ -289,11 +334,11 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 			want: runExpected{
 				Stdout: listStacks(
-					"stack-a",
-					"stack-b",
-					"stack-c",
-					"stack-d",
-					"stack-z",
+					"/stack-a",
+					"/stack-b",
+					"/stack-c",
+					"/stack-d",
+					"/stack-z",
 				),
 			},
 		},
@@ -309,12 +354,12 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 			want: runExpected{
 				Stdout: listStacks(
-					"stack-a",
-					"stack-b",
-					"stack-c",
-					"stack-d",
-					"stack-g",
-					"stack-z",
+					"/stack-a",
+					"/stack-b",
+					"/stack-c",
+					"/stack-d",
+					"/stack-g",
+					"/stack-z",
 				),
 			},
 		},
@@ -331,13 +376,13 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 			want: runExpected{
 				Stdout: listStacks(
-					"stack-d",
-					"stack-f",
-					"stack-b",
-					"stack-g",
-					"stack-h",
-					"stack-c",
-					"stack-a",
+					"/stack-d",
+					"/stack-f",
+					"/stack-b",
+					"/stack-g",
+					"/stack-h",
+					"/stack-c",
+					"/stack-a",
 				),
 			},
 		},
@@ -352,11 +397,11 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 			want: runExpected{
 				Stdout: listStacks(
-					"stack-b",
-					"stack-c",
-					"stack-a",
-					"stack-d",
-					"stack-z",
+					"/stack-b",
+					"/stack-c",
+					"/stack-a",
+					"/stack-d",
+					"/stack-z",
 				),
 			},
 		},
@@ -373,13 +418,13 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 			want: runExpected{
 				Stdout: listStacks(
-					"stack-x",
-					"stack-y",
-					"stack-a",
-					"stack-b",
-					"stack-c",
-					"stack-d",
-					"stack-z",
+					"/stack-x",
+					"/stack-y",
+					"/stack-a",
+					"/stack-b",
+					"/stack-c",
+					"/stack-d",
+					"/stack-z",
 				),
 			},
 		},
@@ -457,11 +502,11 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 			want: runExpected{
 				Stdout: listStacks(
-					"stack-b",
-					"stack-c",
-					"stack-a",
-					"stack-d",
-					"stack-z",
+					"/stack-b",
+					"/stack-c",
+					"/stack-a",
+					"/stack-d",
+					"/stack-z",
 				),
 			},
 		},
@@ -474,29 +519,40 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 			workingDir: "stacks",
 			want: runExpected{
-				Stdout: listStacks("stack-b", "stack-a"),
+				Stdout: listStacks(
+					"/stacks/stack-b",
+					"/stacks/stack-a",
+				),
 			},
 		},
 		{
 			name: "stack-b after stack-a after parent (implicit)",
 			layout: []string{
-				`s:parent`,
-				`s:parent/stack-a`,
 				`s:parent/stack-b:after=["/parent/stack-a"]`,
+				`s:parent/stack-a`,
+				`s:parent`,
 			},
 			want: runExpected{
-				Stdout: listStacks("parent", "stack-a", "stack-b"),
+				Stdout: listStacks(
+					"/parent",
+					"/parent/stack-a",
+					"/parent/stack-b",
+				),
 			},
 		},
 		{
 			name: "grand parent before parent before child (implicit)",
 			layout: []string{
-				`s:grand-parent`,
-				`s:grand-parent/parent`,
 				`s:grand-parent/parent/child`,
+				`s:grand-parent/parent`,
+				`s:grand-parent`,
 			},
 			want: runExpected{
-				Stdout: listStacks("grand-parent", "parent", "child"),
+				Stdout: listStacks(
+					"/grand-parent",
+					"/grand-parent/parent",
+					"/grand-parent/parent/child",
+				),
 			},
 		},
 		{
@@ -542,33 +598,50 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack:after=["/dir"]`,
 			},
 			want: runExpected{
-				Stdout: listStacks("s1", "s2", "s3", "stack"),
+				Stdout: listStacks(
+					"/dir/s1",
+					"/dir/s2",
+					"/dir/s3",
+					"/stack",
+				),
 			},
 		},
 		{
 			name: "after stack containing sub-stacks",
 			layout: []string{
-				`s:parent`,
-				`s:parent/s1`,
-				`s:parent/s2`,
-				`s:parent/s3`,
 				`s:stack:after=["/parent"]`,
+				`s:parent/s3`,
+				`s:parent/s2`,
+				`s:parent/s1`,
+				`s:parent`,
 			},
 			want: runExpected{
-				Stdout: listStacks("parent", "s1", "s2", "s3", "stack"),
+				Stdout: listStacks(
+					"/parent",
+					"/parent/s1",
+					"/parent/s2",
+					"/parent/s3",
+					"/stack",
+				),
 			},
 		},
 		{
 			name: "after sub-stack of parent",
 			layout: []string{
-				`s:parent`,
-				`s:parent/s1`,
-				`s:parent/s2`,
-				`s:parent/s3`,
 				`s:stack:after=["/parent/s2"]`,
+				`s:parent/s3`,
+				`s:parent/s2`,
+				`s:parent/s1`,
+				`s:parent`,
 			},
 			want: runExpected{
-				Stdout: listStacks("parent", "s1", "s2", "s3", "stack"),
+				Stdout: listStacks(
+					"/parent",
+					"/parent/s1",
+					"/parent/s2",
+					"/parent/s3",
+					"/stack",
+				),
 			},
 		},
 		{
@@ -581,7 +654,12 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack:before=["/dir"]`,
 			},
 			want: runExpected{
-				Stdout: listStacks("stack", "s1", "s2", "s3"),
+				Stdout: listStacks(
+					"/stack",
+					"/dir/s1",
+					"/dir/s2",
+					"/dir/s3",
+				),
 			},
 		},
 		{
@@ -592,7 +670,10 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:A-stack:after=["/dir"]`,
 			},
 			want: runExpected{
-				Stdout: listStacks("Z-stack", "A-stack"),
+				Stdout: listStacks(
+					"/dir/A/B/C/D/Z-stack",
+					"/A-stack",
+				),
 			},
 		},
 		{
@@ -604,7 +685,10 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack2`,
 			},
 			want: runExpected{
-				Stdout: listStacks("stack", "stack2"),
+				Stdout: listStacks(
+					"/stack",
+					"/stack2",
+				),
 			},
 		},
 		{
@@ -616,7 +700,10 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack2`,
 			},
 			want: runExpected{
-				Stdout: listStacks("stack", "stack2"),
+				Stdout: listStacks(
+					"/stack",
+					"/stack2",
+				),
 			},
 		},
 	} {
@@ -653,7 +740,9 @@ func TestRunWants(t *testing.T) {
 				`s:stack-a:wants=["/stack-a"]`,
 			},
 			want: runExpected{
-				Stdout: listStacks("stack-a"),
+				Stdout: listStacks(
+					"/stack-a",
+				),
 			},
 		},
 		{
@@ -663,7 +752,10 @@ func TestRunWants(t *testing.T) {
 				`s:stack-b`,
 			},
 			want: runExpected{
-				Stdout: listStacks("stack-a", "stack-b"),
+				Stdout: listStacks(
+					"/stack-a",
+					"/stack-b",
+				),
 			},
 		},
 		{
@@ -673,7 +765,10 @@ func TestRunWants(t *testing.T) {
 				`s:stack-a`,
 			},
 			want: runExpected{
-				Stdout: listStacks("stack-a", "stack-b"),
+				Stdout: listStacks(
+					"/stack-a",
+					"/stack-b",
+				),
 			},
 		},
 		{
@@ -684,7 +779,10 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-a",
 			want: runExpected{
-				Stdout: listStacks("stack-a", "stack-b"),
+				Stdout: listStacks(
+					"/stack-a",
+					"/stack-b",
+				),
 			},
 		},
 		{
@@ -695,7 +793,9 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: runExpected{
-				Stdout: listStacks("stack-b"),
+				Stdout: listStacks(
+					"/stack-b",
+				),
 			},
 		},
 		{
@@ -706,7 +806,10 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: runExpected{
-				Stdout: listStacks("stack-a", "stack-b"),
+				Stdout: listStacks(
+					"/stack-a",
+					"/stack-b",
+				),
 			},
 		},
 		{
@@ -718,7 +821,11 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: runExpected{
-				Stdout: listStacks("stack-a", "stack-b", "stack-c"),
+				Stdout: listStacks(
+					"/stack-a",
+					"/stack-b",
+					"/stack-c",
+				),
 			},
 		},
 		{
@@ -730,7 +837,11 @@ func TestRunWants(t *testing.T) {
 			},
 			wd: "/stack-b",
 			want: runExpected{
-				Stdout: listStacks("stack-a", "stack-b", "stack-c"),
+				Stdout: listStacks(
+					"/stack-a",
+					"/stack-b",
+					"/stack-c",
+				),
 			},
 		},
 		{
@@ -746,11 +857,11 @@ func TestRunWants(t *testing.T) {
 			wd: "/stack-a",
 			want: runExpected{
 				Stdout: listStacks(
-					"stack-a",
-					"stack-b",
-					"stack-c",
-					"stack-d",
-					"stack-e",
+					"/stack-a",
+					"/stack-b",
+					"/stack-c",
+					"/stack-d",
+					"/stack-e",
 				),
 			},
 		},
@@ -767,9 +878,9 @@ func TestRunWants(t *testing.T) {
 			wd: "/stack-b",
 			want: runExpected{
 				Stdout: listStacks(
-					"stack-b",
-					"stack-d",
-					"stack-e",
+					"/stack-b",
+					"/stack-d",
+					"/stack-e",
 				),
 			},
 		},
@@ -793,12 +904,12 @@ func TestRunWants(t *testing.T) {
 			wd: "/stack-b",
 			want: runExpected{
 				Stdout: listStacks(
-					"stack-a",
-					"stack-b",
-					"stack-c",
-					"stack-d",
-					"stack-e",
-					"stack-z",
+					"/stack-a",
+					"/stack-b",
+					"/stack-c",
+					"/stack-d",
+					"/stack-e",
+					"/stack-z",
 				),
 			},
 		},
@@ -821,12 +932,12 @@ func TestRunWants(t *testing.T) {
 			wd: "/stack-b",
 			want: runExpected{
 				Stdout: listStacks(
-					"stack-b",
-					"stack-d",
-					"stack-a",
-					"stack-c",
-					"stack-e",
-					"stack-z",
+					"/stack-b",
+					"/stack-d",
+					"/stack-a",
+					"/stack-c",
+					"/stack-e",
+					"/stack-z",
 				),
 			},
 		},
@@ -847,7 +958,10 @@ func TestRunWantedBy(t *testing.T) {
 			},
 			wd: "/other-stack",
 			want: runExpected{
-				Stdout: listStacks("other-stack", "stack"),
+				Stdout: listStacks(
+					"/other-stack",
+					"/stack",
+				),
 			},
 		},
 		{
@@ -859,7 +973,10 @@ func TestRunWantedBy(t *testing.T) {
 			},
 			wd: "/stack2",
 			want: runExpected{
-				Stdout: listStacks("stack1", "stack2"),
+				Stdout: listStacks(
+					"/stack1",
+					"/stack2",
+				),
 			},
 		},
 		{
@@ -871,7 +988,11 @@ func TestRunWantedBy(t *testing.T) {
 			},
 			wd: "/stack2",
 			want: runExpected{
-				Stdout: listStacks("stack1", "stack2", "stack3"),
+				Stdout: listStacks(
+					"/stack1",
+					"/stack2",
+					"/stack3",
+				),
 			},
 		},
 		{
@@ -884,7 +1005,12 @@ func TestRunWantedBy(t *testing.T) {
 			},
 			wd: "/stack2",
 			want: runExpected{
-				Stdout: listStacks("stack1", "stack2", "stack3", "stack4"),
+				Stdout: listStacks(
+					"/stack1",
+					"/stack2",
+					"/stack3",
+					"/stack4",
+				),
 			},
 		},
 		{
@@ -895,7 +1021,10 @@ func TestRunWantedBy(t *testing.T) {
 			},
 			wd: "/stack1",
 			want: runExpected{
-				Stdout: listStacks("stack1", "stack2"),
+				Stdout: listStacks(
+					"/stack1",
+					"/stack2",
+				),
 			},
 		},
 		{
@@ -908,7 +1037,10 @@ func TestRunWantedBy(t *testing.T) {
 			},
 			wd: "/all/test/1",
 			want: runExpected{
-				Stdout: listStacks("1", "stack"),
+				Stdout: listStacks(
+					"/all/test/1",
+					"/stack",
+				),
 			},
 		},
 		{
@@ -921,7 +1053,10 @@ func TestRunWantedBy(t *testing.T) {
 			},
 			wd: "/all/2",
 			want: runExpected{
-				Stdout: listStacks("2", "stack"),
+				Stdout: listStacks(
+					"/all/2",
+					"/stack",
+				),
 			},
 		},
 		{
@@ -934,7 +1069,12 @@ func TestRunWantedBy(t *testing.T) {
 			},
 			wd: "/all",
 			want: runExpected{
-				Stdout: listStacks("1", "2", "stack1", "stack2"),
+				Stdout: listStacks(
+					"/all/1",
+					"/all/2",
+					"/stack1",
+					"/stack2",
+				),
 			},
 		},
 		{
@@ -947,7 +1087,12 @@ func TestRunWantedBy(t *testing.T) {
 			},
 			wd: "/all/1",
 			want: runExpected{
-				Stdout: listStacks("1", "2", "stack1", "stack2"),
+				Stdout: listStacks(
+					"/all/1",
+					"/all/2",
+					"/stack1",
+					"/stack2",
+				),
 			},
 		},
 	} {
@@ -977,7 +1122,7 @@ func testRunSelection(t *testing.T, tc selectionTestcase) {
 				git.CommitAll("everything")
 			}
 
-			assertRunResult(t, cli.run("run", testHelperBin, "pwd-basename"), tc.want)
+			assertRunResult(t, cli.run("run", testHelperBin, "stack-abs-path", s.RootDir()), tc.want)
 		}
 	})
 }

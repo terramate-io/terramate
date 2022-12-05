@@ -1121,7 +1121,7 @@ func (c *cli) printRunOrder() {
 	}
 
 	for _, s := range orderedStacks {
-		c.output.Msg(out.V, s.Name())
+		c.output.Msg(out.V, s.Path().String())
 	}
 }
 
