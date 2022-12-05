@@ -343,11 +343,11 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 				oldValue, hasOldValue := globals.GetKeyPath(accessor.Path())
 				if hasOldValue &&
 					accessor.isattr &&
-					oldValue.Origin().String() == sortedGlobals.origin.String() {
+					oldValue.ConfigOrigin().String() == sortedGlobals.origin.String() {
 					pendingExprsErrs[accessor].Append(
 						errors.E(hcl.ErrTerramateSchema, expr.Range(),
 							"global.%s attribute redefined: previously defined at %s",
-							accessor.rootname(), oldValue.Origin().String()))
+							accessor.rootname(), oldValue.ConfigOrigin().String()))
 
 					continue
 				}
