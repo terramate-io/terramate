@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
@@ -808,6 +809,9 @@ type forEachStackFunc func(
 	chan<- event.VendorRequest,
 ) dirReport
 
+// forEachStack loads all stacks and metadata and globals for each stack concurrently
+// calling the given forEachStackFunc. forEachStackFunc must be ready to deal with
+// concurrent calls, enabling stacks to be processed concurrently.
 func forEachStack(
 	root *config.Root,
 	vendorDir project.Path,
@@ -831,25 +835,93 @@ func forEachStack(
 
 	projmeta := stack.NewProjectMetadata(root.Dir(), stacks)
 
-	for _, st := range stacks {
-		logger := logger.With().
-			Stringer("stack", st).
-			Logger()
+	// Could be extracted as a parameter in the future
+	const concurrency = 100
+	sem := make(chan struct{}, concurrency)
 
-		logger.Trace().Msg("Load stack globals.")
+	type stackResult struct {
+		stack  *stack.S
+		report dirReport
+		err    error
+	}
+	stackResults := make(chan stackResult)
+	wg := sync.WaitGroup{}
+	wg.Add(len(stacks))
 
-		globalsReport := stack.LoadStackGlobals(root, projmeta, st)
-		if err := globalsReport.AsError(); err != nil {
-			report.addFailure(st.Path(), errors.E(ErrLoadingGlobals, err))
-			continue
-		}
+	go func() {
+		// we can only close stackResult to signal that processing
+		// finished when all stacks have been processed
+		logger.Debug().Msg("waiting for stacks processing to finish")
 
-		logger.Trace().Msg("Calling stack callback.")
+		wg.Wait()
+		close(stackResults)
 
-		stackReport := fn(root, projmeta, st, globalsReport.Globals, vendorDir, vendorRequests)
-		report.addDirReport(st.Path(), stackReport)
+		logger.Debug().Msg("stacks processing finished")
+	}()
+
+	for _, s := range stacks {
+		st := s
+
+		go func() {
+			logger := logger.With().
+				Stringer("stack", st).
+				Logger()
+
+			logger.Trace().Msg("acquiring semaphore")
+
+			sem <- struct{}{}
+
+			logger.Trace().Msg("acquired semaphore, starting stack loading goroutine")
+
+			defer func() {
+				logger.Trace().Msg("releasing semaphore")
+
+				<-sem
+
+				logger.Trace().Msg("released semaphore")
+
+				wg.Done()
+			}()
+
+			logger.Trace().Msg("loading stack globals")
+
+			globalsReport := stack.LoadStackGlobals(root, projmeta, st)
+			if err := globalsReport.AsError(); err != nil {
+				stackResults <- stackResult{
+					stack: st,
+					err:   errors.E(ErrLoadingGlobals, err),
+				}
+				return
+			}
+
+			logger.Trace().Msg("calling stack callback")
+
+			report := fn(root, projmeta, st, globalsReport.Globals, vendorDir, vendorRequests)
+
+			logger.Debug().Msg("sending stack result")
+
+			stackResults <- stackResult{
+				stack:  st,
+				report: report,
+			}
+
+			logger.Debug().Msg("stack result sent")
+		}()
 	}
 
+	logger.Debug().Msg("aggregating stack results")
+
+	for res := range stackResults {
+		logger.Debug().
+			Stringer("stack", res.stack).
+			Msg("got stack results")
+
+		report.addDirReport(res.stack.Path(), res.report)
+	}
+
+	logger.Debug().Msg("finished aggregating stack results")
+
+	report.sort()
 	return report
 }
 
