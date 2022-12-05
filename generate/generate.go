@@ -217,23 +217,7 @@ func doStackGeneration(
 
 	logger.Debug().Msg("generating files")
 
-	asserts, err := loadAsserts(root, projmeta, stack, globals)
-	if err != nil {
-		report.err = err
-		return report
-	}
-
 	generated, err := loadStackCodeCfgs(root, projmeta, stack, globals, vendorDir, vendorRequests)
-	if err != nil {
-		report.err = err
-		return report
-	}
-
-	for _, gen := range generated {
-		asserts = append(asserts, gen.Asserts()...)
-	}
-
-	err = handleAsserts(root.Dir(), stack.HostPath(), asserts)
 	if err != nil {
 		report.err = err
 		return report
@@ -1317,6 +1301,11 @@ func loadStackCodeCfgs(
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]GenFile, error) {
+	asserts, err := loadAsserts(root, projmeta, st, globals)
+	if err != nil {
+		return nil, err
+	}
+
 	var genfilesConfigs []GenFile
 
 	genfiles, err := genfile.Load(root, projmeta, st, globals, vendorDir, vendorRequests)
@@ -1340,6 +1329,15 @@ func loadStackCodeCfgs(
 	sort.Slice(genfilesConfigs, func(i, j int) bool {
 		return genfilesConfigs[i].Label() < genfilesConfigs[j].Label()
 	})
+
+	for _, gen := range genfilesConfigs {
+		asserts = append(asserts, gen.Asserts()...)
+	}
+
+	err = handleAsserts(root.Dir(), st.HostPath(), asserts)
+	if err != nil {
+		return nil, err
+	}
 
 	return genfilesConfigs, nil
 }
