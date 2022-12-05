@@ -191,7 +191,7 @@ func (obj *Object) SetAt(path ObjectPath, value Value) error {
 		//       b = 1
 		//   }
 		//
-		// Then later the postponed parent global.a evaluation succeds and we
+		// Then later the postponed parent global.a evaluation succeeds and we
 		// have the value below to be merged in globals object:
 		//
 		//   {
