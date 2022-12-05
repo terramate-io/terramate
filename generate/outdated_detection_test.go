@@ -20,6 +20,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
@@ -118,6 +119,197 @@ func TestOutdatedDetection(t *testing.T) {
 									Str("content", "tm is awesome"),
 								),
 								GenerateHCL(
+									Labels("test.hcl"),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
+						"stack-1/test.txt",
+						"stack-2/test.hcl",
+						"stack-2/test.txt",
+					},
+				},
+			},
+		},
+		{
+			name: "failing assertions outside generate blocks",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack-1",
+						"s:stack-2",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								Assert(
+									Bool("assertion", false),
+									Str("message", "msg"),
+								),
+								GenerateFile(
+									Labels("test.txt"),
+									Str("content", "tm is awesome"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					wantErr: errors.L(
+						errors.E(generate.ErrAssertion),
+						errors.E(generate.ErrAssertion),
+					),
+				},
+			},
+		},
+		{
+			name: "failing assertion inside generate_hcl block",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack-1",
+						"s:stack-2",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Labels("test.txt"),
+									Str("content", "tm is awesome"),
+								),
+								GenerateHCL(
+									Assert(
+										Bool("assertion", false),
+										Str("message", "msg"),
+									),
+									Labels("test.hcl"),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					wantErr: errors.L(
+						errors.E(generate.ErrAssertion),
+						errors.E(generate.ErrAssertion),
+					),
+				},
+			},
+		},
+		{
+			name: "failing assertion inside generate_file block",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack-1",
+						"s:stack-2",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Assert(
+										Bool("assertion", false),
+										Str("message", "msg"),
+									),
+									Labels("test.txt"),
+									Str("content", "tm is awesome"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					wantErr: errors.L(
+						errors.E(generate.ErrAssertion),
+						errors.E(generate.ErrAssertion),
+					),
+				},
+			},
+		},
+		{
+			name: "warning assertions outside generate blocks",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack-1",
+						"s:stack-2",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								Assert(
+									Bool("assertion", false),
+									Bool("warning", true),
+									Str("message", "msg"),
+								),
+								GenerateFile(
+									Labels("test.txt"),
+									Str("content", "tm is awesome"),
+								),
+								GenerateHCL(
+									Labels("test.hcl"),
+									Content(
+										Str("content", "tm is awesome"),
+									),
+								),
+							),
+						},
+					},
+					want: []string{
+						"stack-1/test.hcl",
+						"stack-1/test.txt",
+						"stack-2/test.hcl",
+						"stack-2/test.txt",
+					},
+				},
+			},
+		},
+		{
+			name: "warning assertions inside generate blocks",
+			steps: []step{
+				{
+					layout: []string{
+						"s:stack-1",
+						"s:stack-2",
+					},
+					files: []file{
+						{
+							path: "config.tm",
+							body: Doc(
+								GenerateFile(
+									Assert(
+										Bool("assertion", false),
+										Bool("warning", true),
+										Str("message", "msg"),
+									),
+									Labels("test.txt"),
+									Str("content", "tm is awesome"),
+								),
+								GenerateHCL(
+									Assert(
+										Bool("assertion", false),
+										Bool("warning", true),
+										Str("message", "msg"),
+									),
 									Labels("test.hcl"),
 									Content(
 										Str("content", "tm is awesome"),
