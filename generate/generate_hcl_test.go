@@ -99,6 +99,318 @@ func TestGenerateHCL(t *testing.T) {
 			},
 		},
 		{
+			// This is a regression test for a severe bug on extension
+			name: "multiple stacks extending imported globals on parent",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/module",
+					filename: "config.tm",
+					add: Globals(
+						Labels("gclz_config", "terraform", "providers"),
+						EvalExpr(t, "google", `{
+							enabled = true
+							source  = "hashicorp/google"
+						}`),
+					),
+				},
+				{
+					path:     "/",
+					filename: "config.tm",
+					add: Import(
+						Str("source", "/module/config.tm"),
+					),
+				},
+				{
+					path:     "/stacks",
+					filename: "config.tm",
+					add: Doc(
+						Globals(
+							Labels("gclz_config", "terraform", "providers", "google"),
+							Bool("enabled", false),
+							Number("xxx", 666),
+						),
+						Globals(
+							Bool("test", true),
+						),
+
+						GenerateHCL(
+							Labels("file.hcl"),
+							Content(
+								Expr("gclz_config", "global.gclz_config"),
+								Expr("test", "global.test"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stacks/stack-1",
+					files: map[string]fmt.Stringer{
+						"file.hcl": Doc(
+							EvalExpr(t, "gclz_config", `{
+								terraform = {
+								  providers = {
+								    google = {
+								      enabled = false
+								      source  = "hashicorp/google"
+								      xxx     = 666
+								    }
+								  }
+								}
+							}`),
+							Bool("test", true),
+						),
+					},
+				},
+				{
+					dir: "/stacks/stack-2",
+					files: map[string]fmt.Stringer{
+						"file.hcl": Doc(
+							EvalExpr(t, "gclz_config", `{
+								terraform = {
+								  providers = {
+								    google = {
+								      enabled = false
+								      source  = "hashicorp/google"
+								      xxx     = 666
+								    }
+								  }
+								}
+							}`),
+							Bool("test", true),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/stacks/stack-1",
+						Created: []string{"file.hcl"},
+					},
+					{
+						Dir:     "/stacks/stack-2",
+						Created: []string{"file.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "bug - reproducing iac-gcloud -- test tm_try",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/module",
+					filename: "config.tm",
+					add: Globals(
+						Labels("gclz_config", "terraform", "providers"),
+						Expr("google", `{
+							enabled = true
+							source  = "hashicorp/google"
+							version = tm_try(global.gclz_terraform_google_provider_version, "4.33.0")
+							config = {
+								project = tm_try(global.gclz_terraform_google_provider_project, global.gclz_project_id)
+							}
+						}`),
+					),
+				},
+				{
+					path:     "/",
+					filename: "config.tm",
+					add: Doc(
+						Import(
+							Str("source", "/module/config.tm"),
+						),
+					),
+				},
+				{
+					path:     "/stacks",
+					filename: "config.tm",
+					add: Doc(
+						Globals(
+							Str("gclz_terraform_google_provider_version", "4.33.0"),
+							Expr("gclz_project_id", `tm_try(global.lala, "test")`),
+						),
+						Globals(
+							Labels("gclz_config", "terraform", "providers", "google"),
+							Bool("enabled", false),
+							Number("xxx", 666),
+						),
+						Globals(
+							Bool("test", true),
+						),
+
+						GenerateHCL(
+							Labels("file.hcl"),
+							Content(
+								Expr("gclz_config", "global.gclz_config"),
+								Expr("test", "global.test"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stacks/stack-1",
+					files: map[string]fmt.Stringer{
+						"file.hcl": Doc(
+							EvalExpr(t, "gclz_config", `{
+								terraform = {
+								  providers = {
+								    google = {
+										config = {
+											project = "test"
+										}
+										enabled = false
+										source  = "hashicorp/google"
+										version = "4.33.0"
+								      	xxx     = 666
+								    }
+								  }
+								}
+							}`),
+							Bool("test", true),
+						),
+					},
+				},
+				{
+					dir: "/stacks/stack-2",
+					files: map[string]fmt.Stringer{
+						"file.hcl": Doc(
+							EvalExpr(t, "gclz_config", `{
+								terraform = {
+								  providers = {
+								    google = {
+										config = {
+											project = "test"
+										}
+										enabled = false
+										source  = "hashicorp/google"
+										version = "4.33.0"
+								      	xxx     = 666
+								    }
+								  }
+								}
+							}`),
+							Bool("test", true),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/stacks/stack-1",
+						Created: []string{"file.hcl"},
+					},
+					{
+						Dir:     "/stacks/stack-2",
+						Created: []string{"file.hcl"},
+					},
+				},
+			},
+		},
+		{
+			name: "bug - reproducing iac-gcloud -- test tm_try with more indirection",
+			layout: []string{
+				"s:stacks/stack-1",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/module",
+					filename: "config.tm",
+					add: Globals(
+						Labels("gclz_config", "terraform", "providers"),
+						Expr("google", `{
+							enabled = true
+							source  = "hashicorp/google"
+							version = tm_try(global.gclz_terraform_google_provider_version, "4.33.0")
+							config = {
+								project = tm_try(global.gclz_terraform_google_provider_project, global.gclz_project_id)
+							}
+						}`),
+					),
+				},
+				{
+					path:     "/",
+					filename: "config.tm",
+					add: Doc(
+						Import(
+							Str("source", "/module/config.tm"),
+						),
+					),
+				},
+				{
+					path:     "/stacks",
+					filename: "config.tm",
+					add: Doc(
+						Globals(
+							Str("gclz_terraform_google_provider_version", "4.33.0"),
+							Expr("gclz_project_id", `tm_try(global.lala, "test")`),
+						),
+						Globals(
+							Labels("gclz_config", "terraform", "providers", "google"),
+							Bool("enabled", false),
+							Expr("xxx", "global.gclz_project_id"),
+						),
+						Globals(
+							Bool("test", true),
+						),
+
+						GenerateHCL(
+							Labels("file.hcl"),
+							Content(
+								Expr("gclz_config", "global.gclz_config"),
+								Expr("test", "global.test"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stacks/stack-1",
+					files: map[string]fmt.Stringer{
+						"file.hcl": Doc(
+							EvalExpr(t, "gclz_config", `{
+								terraform = {
+								  providers = {
+								    google = {
+										config = {
+											project = "test"
+										}
+										enabled = false
+										source  = "hashicorp/google"
+										version = "4.33.0"
+								      	xxx     = "test"
+								    }
+								  }
+								}
+							}`),
+							Bool("test", true),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     "/stacks/stack-1",
+						Created: []string{"file.hcl"},
+					},
+				},
+			},
+		},
+		{
 			name: "generate_hcl with false condition generates nothing",
 			layout: []string{
 				"s:stacks/stack-1",
