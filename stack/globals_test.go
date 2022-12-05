@@ -537,6 +537,67 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			// This is a regression test for a severe bug on extension
+			name: "multiple stacks extending imported globals on parent",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/modules",
+					filename: "config.tm",
+					add: Globals(
+						Labels("label"),
+						EvalExpr(t, "obj", `{
+							data = 1,
+						}`),
+					),
+				},
+				{
+					path:     "/",
+					filename: "config.tm",
+					add: Doc(
+						Import(
+							Str("source", "/modules/config.tm"),
+						),
+						Globals(
+							Str("data", "parent"),
+						),
+					),
+				},
+				{
+					path:     "/stacks",
+					filename: "config.tm",
+					add: Globals(
+						Labels("label", "obj"),
+						Number("ext_data", 777),
+						Number("data", 666),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-1": Globals(
+					Str("data", "parent"),
+					EvalExpr(t, "label", `{
+					  obj = {
+					    data = 666,
+					    ext_data = 777,
+					  }
+					}`),
+				),
+				"/stacks/stack-2": Globals(
+					Str("data", "parent"),
+					EvalExpr(t, "label", `{
+					  obj = {
+					    data = 666,
+					    ext_data = 777,
+					  }
+					}`),
+				),
+			},
+		},
+		{
 			name: "single stack extending local globals",
 			layout: []string{
 				"s:stack",
