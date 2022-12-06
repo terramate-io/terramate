@@ -1686,7 +1686,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 		if labelType.Type == "globals" {
 			globals[labelType] = mergedBlock
 
-			errs.AppendWrap(ErrTerramateSchema, mergedBlock.ValidateSubBlocks())
+			errs.AppendWrap(ErrTerramateSchema, validateGlobals(mergedBlock))
 		}
 	}
 
@@ -1742,6 +1742,50 @@ func (p *TerramateParser) checkConfigSanity(cfg Config) error {
 	}
 	for _, err := range errs.Errors() {
 		logger.Warn().Err(err).Send()
+	}
+	return nil
+}
+
+func validateGlobals(block *ast.MergedBlock) error {
+	errs := errors.L()
+	errs.Append(block.ValidateSubBlocks("map"))
+	for _, raw := range block.RawOrigins {
+		if raw.Type != "globals" || len(raw.Blocks) == 0 {
+			continue
+		}
+
+		for _, subBlock := range raw.Blocks {
+			errs.Append(validateMap(subBlock))
+		}
+	}
+	return errs.AsError()
+}
+
+func validateMap(block *ast.Block) error {
+	if block.Type != "map" {
+		return errors.E(block.TypeRange, "unrecognized block type %s", block.Type)
+	}
+	if len(block.Labels) == 0 {
+		return errors.E("map block requires a label")
+	}
+	_, ok := block.Attributes["for_each"]
+	if !ok {
+		return errors.E(block.Range, "map.for_each attribute is required")
+	}
+	_, ok = block.Attributes["key"]
+	if !ok {
+		return errors.E(block.Range, "map.key is required")
+	}
+	_, ok = block.Attributes["value"]
+	if !ok {
+		return errors.E(block.Range, "map.value is required")
+	}
+
+	for _, subBlock := range block.Blocks {
+		err := validateMap(subBlock)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

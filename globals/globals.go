@@ -22,6 +22,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/mapexpr"
 
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
@@ -143,6 +144,24 @@ func loadExprs(tree *config.Root, cfgdir project.Path) (loadedExprs, error) {
 				Origin:     block.RawOrigins[0].Range.Path(),
 				LabelPath:  key.Path(),
 				Expression: expr,
+			}
+		}
+
+		for _, varsBlock := range block.Blocks {
+			varName := varsBlock.Labels[0]
+			if _, ok := block.Attributes[varName]; ok {
+				return loadedExprs{}, errors.E(
+					ErrRedefined,
+					"map label %s conflicts with global.%s attribute", varName, varName)
+			}
+
+			logger.Trace().Msgf("Add map.%s to globals", varName)
+
+			key := newGlobalPath(block.Labels, varName)
+			exprs.expressions[key] = Expr{
+				Origin:     varsBlock.RawOrigins[0].Range.Path(),
+				LabelPath:  key.Path(),
+				Expression: mapexpr.NewMapExpr(varsBlock),
 			}
 		}
 

@@ -2318,6 +2318,131 @@ func TestLoadGlobals(t *testing.T) {
 				),
 			},
 		},
+		{
+			name:   "globals.map missing the label",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:   "globals.map missing the for_each attribute",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:   "globals.map missing the key attribute",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("for_each", "[]"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:   "globals.map label conflicts with attribute",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Str("name", "test"),
+						Map(
+							Labels("name"),
+							Expr("for_each", "[]"),
+							Str("key", "a"),
+							Str("value", "a"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(globals.ErrRedefined),
+		},
+		{
+			name:   "globals.map missing the value attribute",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("for_each", "[]"),
+							Expr("key", "element.new.test"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:   "globals.map validation is recursive",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("for_each", "[]"),
+							Expr("key", "element.new.key"),
+							Expr("value", "element.new.value"),
+							Map(),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:   "globals.map is recursive",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("for_each", "[]"),
+							Expr("key", "element.new.key"),
+							Expr("value", "element.new.value"),
+							Map(
+								Labels("var"),
+								Expr("for_each", "[]"),
+								Expr("key", "element.new.key"),
+								Expr("value", "element.new.value"),
+							),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(),
+			},
+		},
 	}
 
 	for _, tcase := range tcases {

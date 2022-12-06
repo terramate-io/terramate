@@ -132,6 +132,11 @@ func Globals(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return Block("globals", builders...)
 }
 
+// Map is a helper for a "map" block.
+func Map(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return Block("map", builders...)
+}
+
 // Stack is a helper for a "stack" block.
 func Stack(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return Block("stack", builders...)
