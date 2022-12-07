@@ -116,7 +116,7 @@ func (obj *Object) GetKeyPath(path ObjectPath) (Value, bool) {
 	return v.(*Object).GetKeyPath(next)
 }
 
-// Origin is the [Origin] of the object value.
+// Info provides extra information for the object value.
 func (obj *Object) Info() Info { return obj.origin }
 
 // IsObject returns true for [Object] values.
