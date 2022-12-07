@@ -21,6 +21,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/project"
@@ -39,9 +41,70 @@ type Info struct {
 
 const triggersDir = ".tmtriggers"
 
-// Parse will parse the body of a trigger file.
-func Parse(body string) (Info, error) {
-	return Info{}, nil
+// Parse will parse the given trigger file.
+func Parse(path string) (Info, error) {
+	parser := hclparse.NewParser()
+	parsed, diags := parser.ParseHCLFile(path)
+	if diags.HasErrors() {
+		return Info{}, errors.E(diags, "parsing trigger file")
+	}
+	rootContent, diags := parsed.Body.Content(&hcl.BodySchema{
+		Blocks: []hcl.BlockHeaderSchema{
+			{
+				Type: "trigger",
+			},
+		},
+	})
+	if diags.HasErrors() {
+		return Info{}, errors.E(diags, "checking root schema")
+	}
+
+	triggerBlock := rootContent.Blocks[0]
+	triggerContent, diags := triggerBlock.Body.Content(&hcl.BodySchema{
+		Attributes: []hcl.AttributeSchema{
+			{
+				Name:     "ctime",
+				Required: true,
+			},
+			{
+				Name:     "reason",
+				Required: true,
+			},
+		},
+	})
+	if diags.HasErrors() {
+		return Info{}, errors.E(diags, "checking trigger schema")
+	}
+
+	errs := errors.L()
+	info := Info{}
+
+	for _, attribute := range triggerContent.Attributes {
+		val, err := attribute.Expr.Value(nil)
+		if err != nil {
+			errs.Append(errors.E(err, "trigger: failure evaluating %q", attribute.Name))
+			continue
+		}
+
+		switch attribute.Name {
+		case "ctime":
+			if val.Type() != cty.Number {
+				errs.Append(errors.E(err, "trigger: %s must be a number", attribute.Name))
+				continue
+			}
+			// TODO: HOW TO GET NUMBER ?
+			//info.Ctime = val.???
+		case "reason":
+			if val.Type() != cty.String {
+				errs.Append(errors.E(err, "trigger: %s must be a string", attribute.Name))
+				continue
+			}
+			info.Reason = val.AsString()
+		default:
+			errs.Append(errors.E("trigger: has unknown attribute %q", attribute.Name))
+		}
+	}
+	return info, nil
 }
 
 // Dir will return the triggers directory for the project rooted at rootdir.
