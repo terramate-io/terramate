@@ -41,8 +41,8 @@ type Info struct {
 
 const triggersDir = ".tmtriggers"
 
-// Parse will parse the given trigger file.
-func Parse(path string) (Info, error) {
+// ParseFile will parse the given trigger file.
+func ParseFile(path string) (Info, error) {
 	parser := hclparse.NewParser()
 	parsed, diags := parser.ParseHCLFile(path)
 	if diags.HasErrors() {

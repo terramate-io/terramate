@@ -37,7 +37,7 @@ func testTrigger(t *testing.T, path project.Path, reason string) {
 	}
 
 	triggerFile := filepath.Join(triggerDir, entries[0].Name())
-	triggerInfo, err := trigger.Parse(triggerFile)
+	triggerInfo, err := trigger.ParseFile(triggerFile)
 
 	assert.NoError(t, err)
 	assert.EqualStrings(t, reason, triggerInfo.Reason)
