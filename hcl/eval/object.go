@@ -15,6 +15,8 @@
 package eval
 
 import (
+	"strings"
+
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/project"
@@ -49,15 +51,18 @@ type (
 	//       }
 	//   }
 	Object struct {
-		origin project.Path
+		configdir project.Path
 		// Keys is a map of key names to values.
 		Keys map[string]Value
 	}
 
 	// Value is an evaluated value.
 	Value interface {
-		// Origin of the value.
-		Origin() project.Path
+		// ConfigOrigin is the origin of the configuration value.
+		// It's not the file where it's defined but the directory that instantiates
+		// it. As the value could be imported, in this case the ConfigOrigin is
+		// the importing directory.
+		ConfigOrigin() project.Path
 
 		// IsObject tells if the value is an object.
 		IsObject() bool
@@ -65,7 +70,7 @@ type (
 
 	// CtyValue is a wrapper for a raw cty value.
 	CtyValue struct {
-		origin project.Path
+		configdir project.Path
 		cty.Value
 	}
 
@@ -73,11 +78,11 @@ type (
 	ObjectPath []string
 )
 
-// NewObject creates a new object with origin.
-func NewObject(origin project.Path) *Object {
+// NewObject creates a new object for configdir directory.
+func NewObject(configdir project.Path) *Object {
 	return &Object{
-		origin: origin,
-		Keys:   make(map[string]Value),
+		configdir: configdir,
+		Keys:      make(map[string]Value),
 	}
 }
 
@@ -105,8 +110,9 @@ func (obj *Object) GetKeyPath(path ObjectPath) (Value, bool) {
 	return v.(*Object).GetKeyPath(next)
 }
 
-// Origin of the object.
-func (obj *Object) Origin() project.Path { return obj.origin }
+// ConfigOrigin is the configuration directory which the root of the object comes
+// from.
+func (obj *Object) ConfigOrigin() project.Path { return obj.configdir }
 
 // IsObject returns true for [Object] values.
 func (obj *Object) IsObject() bool { return true }
@@ -139,7 +145,7 @@ func (obj *Object) SetAt(path ObjectPath, value Value) error {
 		key := path[0]
 		subobj, ok := obj.Keys[key]
 		if !ok {
-			subobj = NewObject(value.Origin())
+			subobj = NewObject(value.ConfigOrigin())
 			obj.Set(key, subobj)
 		}
 		if !subobj.IsObject() {
@@ -149,6 +155,70 @@ func (obj *Object) SetAt(path ObjectPath, value Value) error {
 		}
 		obj = subobj.(*Object)
 		path = path[1:]
+	}
+
+	old, ok := obj.GetKeyPath(path)
+	if ok {
+		// When a parent global depend on child globals or stack metadata,
+		// they are set in the globals object after all dependencies were evaluated,
+		// which means the child globals can be set before the parent ones,
+		// breaking the parent -> child hierarchical order.
+		// Have a look in the example below:
+		//   # parent/file.tm
+		//   globals {
+		//       a = {
+		//           b = global.b
+		//       }
+		//   }
+		//
+		//   # parent/child/file.tm
+		//   globals a {
+		//       c = 1
+		//   }
+		//
+		//   globals {
+		//       b = 1
+		//   }
+		//
+		// In this case, the parent global.a evaluation is postponed to happen
+		// after global.b is evaluated. When the child globals are evaluated,
+		// they set the temporary globals object as:
+		//
+		//   {
+		//       a = {
+		//           c = 1
+		//       }
+		//       b = 1
+		//   }
+		//
+		// Then later the postponed parent global.a evaluation succeeds and we
+		// have the value below to be merged in globals object:
+		//
+		//   {
+		//       a = {
+		//           b = 1
+		//       }
+		//   }
+		//
+		// But we cannot overwrite the globals.a because it comes from the child
+		// (that must overwrite parent scopes), so the solution is to look for
+		// where's the definition of each value and overwrite the values if they
+		// come from a child scope or ignore new values that comes from the parent
+		// but conflicts with definitions in the child.
+		if !strings.HasPrefix(value.ConfigOrigin().String(), old.ConfigOrigin().String()) {
+			// old is from a child scope, we must recursively merge the objects
+			// or ignore the value as it was overwriten by the child scope.
+			if old.IsObject() && value.IsObject() {
+				oldv := old.(*Object)
+				for k, v := range value.(*Object).Keys {
+					err := oldv.SetAt([]string{k}, v)
+					if err != nil {
+						return err
+					}
+				}
+			}
+			return nil
+		}
 	}
 
 	obj.Set(path[0], value)
@@ -204,8 +274,8 @@ func (obj *Object) String() string {
 func NewCtyValue(val cty.Value, origin project.Path) CtyValue {
 	val = val.Mark(origin)
 	return CtyValue{
-		origin: origin,
-		Value:  val,
+		configdir: origin,
+		Value:     val,
 	}
 }
 
@@ -220,8 +290,8 @@ func NewValue(val cty.Value, origin project.Path) Value {
 	return NewCtyValue(val, origin)
 }
 
-// Origin of the CtyValue val.
-func (v CtyValue) Origin() project.Path { return v.origin }
+// ConfigOrigin is the configuration directory which defines the value.
+func (v CtyValue) ConfigOrigin() project.Path { return v.configdir }
 
 // IsObject returns false for CtyValue values.
 func (v CtyValue) IsObject() bool { return false }

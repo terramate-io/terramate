@@ -28,8 +28,8 @@ import (
 
 type strValue string
 
-func (s strValue) IsObject() bool       { return false }
-func (s strValue) Origin() project.Path { return project.NewPath("/") }
+func (s strValue) IsObject() bool             { return false }
+func (s strValue) ConfigOrigin() project.Path { return project.NewPath("/") }
 
 func TestCtyObjectSetAt(t *testing.T) {
 	type testcase struct {
