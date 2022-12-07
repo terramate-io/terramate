@@ -103,6 +103,7 @@ type cliSpec struct {
 		After          []string `help:"Add a stack as after"`
 		Before         []string `help:"Add a stack as before"`
 		IgnoreExisting bool     `help:"If the stack already exists do nothing and don't fail"`
+		NoGenerate     bool     `help:"Disable code generation for the newly created stack"`
 	} `cmd:"" help:"Creates a stack on the project"`
 
 	Fmt struct {
@@ -834,6 +835,11 @@ func (c *cli) createStack() {
 
 	log.Info().Msgf("created stack %s", stackPath)
 	c.output.Msg(out.V, "Created stack %s", stackPath)
+
+	if c.parsedArgs.Create.NoGenerate {
+		log.Debug().Msg("code generation on stack creation disabled")
+		return
+	}
 
 	report, vendorReport := c.gencodeWithVendor()
 	if report.HasFailures() {
