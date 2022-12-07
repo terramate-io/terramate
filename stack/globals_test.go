@@ -2318,6 +2318,48 @@ func TestLoadGlobals(t *testing.T) {
 				),
 			},
 		},
+		{
+			name: "regression test for a bug which incorrectly returned ErrRedefined errors",
+			layout: []string{
+				"s:stack",
+				"d:modules",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/modules",
+					filename: "imported.tm",
+					add: Doc(
+						Globals(
+							Labels("hello"),
+							Expr("world", `{
+								a = 1
+							}`),
+						),
+					),
+				},
+				{
+					path: "/",
+					add: Doc(
+						Import(
+							Str("source", `/modules/imported.tm`),
+						),
+						Globals(
+							Labels("hello", "world"),
+							Number("a", 2),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "hello", `{
+							world = {
+								a = 2
+							}
+						}`),
+				),
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
