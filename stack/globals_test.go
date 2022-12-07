@@ -2319,7 +2319,7 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
-			name: "redefined bug",
+			name: "regression test for a bug which incorrectly returned ErrRedefined errors",
 			layout: []string{
 				"s:stack",
 				"d:modules",
