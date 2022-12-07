@@ -2318,6 +2318,52 @@ func TestLoadGlobals(t *testing.T) {
 				),
 			},
 		},
+		{
+			name: "redefined bug",
+			layout: []string{
+				"s:stack",
+				"d:modules",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/modules",
+					filename: "file.tm",
+					add: Doc(
+						Globals(
+							Labels("hello", "world"),
+							Expr("config", `{
+								a = 1
+								b = 2	
+							}`),
+						),
+					),
+				},
+				{
+					path: "/",
+					add: Doc(
+						Import(
+							Str("source", `/modules/file.tm`),
+						),
+						Globals(
+							Labels("hello", "world", "config"),
+							Number("b", 3),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "hello", `{
+							world = {
+								config = {
+									a = 1
+									b = 3
+								}
+							}
+						}`),
+				),
+			},
+		},
 	}
 
 	for _, tcase := range tcases {
@@ -2560,5 +2606,22 @@ func TestLoadGlobalsErrors(t *testing.T) {
 				errtest.Assert(t, report.AsError(), tcase.want)
 			}
 		})
+	}
+}
+
+func TestLoadIacGCloud(t *testing.T) {
+	const root = "/home/i4k/src/mineiros/iac-gcloud"
+	cfg, err := config.LoadTree(root, root)
+	assert.NoError(t, err)
+
+	stacks, err := stack.LoadAll(cfg)
+	assert.NoError(t, err)
+	projmeta := stack.NewProjectMetadata(root, stacks)
+
+	for _, st := range stacks {
+		report := stack.LoadStackGlobals(cfg.Root(), projmeta, st)
+		//errl := report.AsError().(*errors.List)
+		//assert.NoError(t, report.AsError(), errl.Detailed())
+		t.Logf("globals: %s", report.Globals)
 	}
 }

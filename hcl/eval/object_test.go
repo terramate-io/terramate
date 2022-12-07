@@ -28,8 +28,12 @@ import (
 
 type strValue string
 
-func (s strValue) IsObject() bool             { return false }
-func (s strValue) ConfigOrigin() project.Path { return project.NewPath("/") }
+func (s strValue) IsObject() bool { return false }
+func (s strValue) Origin() eval.Origin {
+	return eval.Origin{
+		ConfigFrom: project.NewPath("/"),
+	}
+}
 
 func TestCtyObjectSetAt(t *testing.T) {
 	type testcase struct {
@@ -41,8 +45,13 @@ func TestCtyObjectSetAt(t *testing.T) {
 		wantErr error
 	}
 
+	defaultOrigin := eval.Origin{
+		DefinedAt:  "/file.tm",
+		ConfigFrom: "/",
+	}
+
 	newobj := func(sets ...map[string]eval.Value) *eval.Object {
-		obj := eval.NewObject(project.NewPath("/"))
+		obj := eval.NewObject(defaultOrigin)
 		for _, set := range sets {
 			obj.SetFrom(set)
 		}

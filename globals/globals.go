@@ -16,6 +16,7 @@ package globals
 
 import (
 	"sort"
+	"strings"
 
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -66,6 +67,10 @@ func (a GlobalPathKey) rootname() string {
 		return ""
 	}
 	return a.path[0]
+}
+
+func (a GlobalPathKey) name() string {
+	return strings.Join(a.path[:a.numPaths], ".")
 }
 
 // Load loads all the globals from the cfgdir.
@@ -343,11 +348,11 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 				oldValue, hasOldValue := globals.GetKeyPath(accessor.Path())
 				if hasOldValue &&
 					accessor.isattr &&
-					oldValue.ConfigOrigin().String() == sortedGlobals.origin.String() {
+					oldValue.Origin().DefinedAt.Dir().String() == expr.Origin.Dir().String() {
 					pendingExprsErrs[accessor].Append(
 						errors.E(hcl.ErrTerramateSchema, expr.Range(),
 							"global.%s attribute redefined: previously defined at %s",
-							accessor.rootname(), oldValue.ConfigOrigin().String()))
+							accessor.name(), oldValue.Origin().DefinedAt.String()))
 
 					continue
 				}
@@ -379,7 +384,14 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 					// expression when extending an existing object.
 					logger.Trace().Msg("setting global")
 
-					err = globals.SetAt(accessor.Path(), eval.NewValue(val, sortedGlobals.origin))
+					err = globals.SetAt(
+						accessor.Path(),
+						eval.NewValue(val,
+							eval.Origin{
+								DefinedAt:  expr.Origin,
+								ConfigFrom: sortedGlobals.origin,
+							},
+						))
 					if err != nil {
 						pendingExprsErrs[accessor].Append(errors.E(err, "setting global"))
 						continue
