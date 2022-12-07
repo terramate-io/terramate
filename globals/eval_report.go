@@ -44,7 +44,7 @@ type (
 // NewEvalReport creates a new globals evaluation report.
 func NewEvalReport() EvalReport {
 	return EvalReport{
-		Globals: eval.NewObject(eval.Origin{
+		Globals: eval.NewObject(eval.Info{
 			DefinedAt: project.NewPath("/"),
 		}),
 		Errors: make(map[GlobalPathKey]EvalError),

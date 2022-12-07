@@ -51,15 +51,15 @@ type (
 	//       }
 	//   }
 	Object struct {
-		origin Origin
+		origin Info
 		// Keys is a map of key names to values.
 		Keys map[string]Value
 	}
 
 	// Value is an evaluated value.
 	Value interface {
-		// Origin is the origin of the configuration value.
-		Origin() Origin
+		// Info provides extra information for the value.
+		Info() Info
 
 		// IsObject tells if the value is an object.
 		IsObject() bool
@@ -67,16 +67,16 @@ type (
 
 	// CtyValue is a wrapper for a raw cty value.
 	CtyValue struct {
-		origin Origin
+		origin Info
 		cty.Value
 	}
 
-	// Origin of a configuration value.
-	Origin struct {
-		// ConfigFrom defines where the value is being instantiated.
-		ConfigFrom project.Path
+	// Info provides extra information for the configuration value.
+	Info struct {
+		// Dir defines the directory from there the value is being instantiated.
+		Dir project.Path
 
-		// DefinedAt defines where the value is defined.
+		// DefinedAt defines the source file where the value is defined.
 		DefinedAt project.Path
 	}
 
@@ -85,7 +85,7 @@ type (
 )
 
 // NewObject creates a new object for configdir directory.
-func NewObject(origin Origin) *Object {
+func NewObject(origin Info) *Object {
 	return &Object{
 		origin: origin,
 		Keys:   make(map[string]Value),
@@ -117,7 +117,7 @@ func (obj *Object) GetKeyPath(path ObjectPath) (Value, bool) {
 }
 
 // Origin is the [Origin] of the object value.
-func (obj *Object) Origin() Origin { return obj.origin }
+func (obj *Object) Info() Info { return obj.origin }
 
 // IsObject returns true for [Object] values.
 func (obj *Object) IsObject() bool { return true }
@@ -131,7 +131,7 @@ func (obj *Object) SetFrom(values map[string]Value) *Object {
 }
 
 // SetFromCtyValues sets the object from the values map.
-func (obj *Object) SetFromCtyValues(values map[string]cty.Value, origin Origin) *Object {
+func (obj *Object) SetFromCtyValues(values map[string]cty.Value, origin Info) *Object {
 	for k, v := range values {
 		if v.Type().IsObjectType() {
 			subtree := NewObject(origin)
@@ -150,7 +150,7 @@ func (obj *Object) SetAt(path ObjectPath, value Value) error {
 		key := path[0]
 		subobj, ok := obj.Keys[key]
 		if !ok {
-			subobj = NewObject(value.Origin())
+			subobj = NewObject(value.Info())
 			obj.Set(key, subobj)
 		}
 		if !subobj.IsObject() {
@@ -210,7 +210,7 @@ func (obj *Object) SetAt(path ObjectPath, value Value) error {
 		// where's the definition of each value and overwrite the values if they
 		// come from a child scope or ignore new values that comes from the parent
 		// but conflicts with definitions in the child.
-		if !strings.HasPrefix(value.Origin().ConfigFrom.String(), old.Origin().ConfigFrom.String()) {
+		if !strings.HasPrefix(value.Info().Dir.String(), old.Info().Dir.String()) {
 			// old is from a child scope, we must recursively merge the objects
 			// or ignore the value as it was overwriten by the child scope.
 			if old.IsObject() && value.IsObject() {
@@ -276,7 +276,7 @@ func (obj *Object) String() string {
 // NewCtyValue creates a new cty.Value wrapper.
 // Note: The cty.Value val is marked with the origin path and must be unmarked
 // before use with any hashicorp API otherwise it panics.
-func NewCtyValue(val cty.Value, origin Origin) CtyValue {
+func NewCtyValue(val cty.Value, origin Info) CtyValue {
 	val = val.Mark(origin)
 	return CtyValue{
 		origin: origin,
@@ -286,7 +286,7 @@ func NewCtyValue(val cty.Value, origin Origin) CtyValue {
 
 // NewValue returns a new object Value from a cty.Value.
 // Note: this is not a wrapper as it returns an [Object] if val is a cty.Object.
-func NewValue(val cty.Value, origin Origin) Value {
+func NewValue(val cty.Value, origin Info) Value {
 	if val.Type().IsObjectType() {
 		obj := NewObject(origin)
 		obj.SetFromCtyValues(val.AsValueMap(), origin)
@@ -295,8 +295,8 @@ func NewValue(val cty.Value, origin Origin) Value {
 	return NewCtyValue(val, origin)
 }
 
-// Origin is the configuration directory which defines the value.
-func (v CtyValue) Origin() Origin { return v.origin }
+// Info provides extra information for the value.
+func (v CtyValue) Info() Info { return v.origin }
 
 // IsObject returns false for CtyValue values.
 func (v CtyValue) IsObject() bool { return false }
