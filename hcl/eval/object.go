@@ -73,10 +73,13 @@ type (
 
 	// Info provides extra information for the configuration value.
 	Info struct {
-		// Dir defines the directory from there the value is being instantiated.
+		// Dir defines the directory from there the value is being instantiated,
+		// which means it's the scope directory (not the file where it's defined).
+		// For values that comes from imports, the Dir will be the directory
+		// which imports the value.
 		Dir project.Path
 
-		// DefinedAt defines the source file where the value is defined.
+		// DefinedAt provides the source file where the value is defined.
 		DefinedAt project.Path
 	}
 
