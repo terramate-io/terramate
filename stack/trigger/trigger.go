@@ -15,33 +15,74 @@
 // Package trigger provides functionality that help manipulate stacks triggers.
 package trigger
 
-import "github.com/mineiros-io/terramate/project"
+import (
+	"os"
+	"path/filepath"
+	"time"
 
-// Raw represents the raw contents of a trigger.
-type Raw struct {
-	filename string
-	body     string
+	"github.com/google/uuid"
+	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/project"
+	"github.com/rs/zerolog/log"
+	"github.com/zclconf/go-cty/cty"
+)
+
+// Info represents the parsed contents of a trigger
+// for triggers created by Terramate.
+type Info struct {
+	// Ctime is unix timestamp of when the trigger was created.
+	Ctime int64
+	// Reason is the reason why the trigger was created, if any.
+	Reason string
 }
 
-// Triggers represents all triggers of a given project.
-// It also provides a way to create new triggers.
-type Triggers struct {
-	triggers map[project.Path][]Raw
+const triggersDir = ".tmtriggers"
+
+// Parse will parse the body of a trigger file.
+func Parse(body string) (Info, error) {
+	return Info{}, nil
 }
 
-// Load will load all stack triggers for the project rooted at rootdir.
-func Load(rootdir string) *Triggers {
-	return &Triggers{
-		triggers: map[project.Path][]Raw{},
+// Dir will return the triggers directory for the project rooted at rootdir.
+// Both rootdir and the returned value are host absolute paths.
+func Dir(rootdir string) string {
+	return filepath.Join(rootdir, triggersDir)
+}
+
+// Create creates a trigger for a stack with the given path and the given reason
+// inside the project rootdir.
+func Create(rootdir string, path project.Path, reason string) error {
+
+	id, err := uuid.NewRandom()
+	if err != nil {
+		return errors.E(err, "creating trigger UUID")
 	}
-}
+	triggerID := id.String()
+	triggerDir := filepath.Join(rootdir, triggersDir, path.String())
 
-// Create creates a trigger for a stack with the given path and the given reason.
-func (t *Triggers) Create(path project.Path, reason string) error {
+	if err := os.MkdirAll(triggerDir, 0775); err != nil {
+		return errors.E(err, "creating trigger dir")
+	}
+
+	ctime := time.Now().Unix()
+
+	gen := hclwrite.NewEmptyFile()
+	triggerBody := gen.Body().AppendNewBlock("trigger", nil).Body()
+	triggerBody.SetAttributeValue("ctime", cty.NumberIntVal(ctime))
+	triggerBody.SetAttributeValue("reason", cty.StringVal(reason))
+
+	triggerPath := filepath.Join(triggerDir, triggerID+".tm.hcl")
+
+	if err := os.WriteFile(triggerPath, gen.Bytes(), 0666); err != nil {
+		return errors.E(err, "creating trigger file")
+	}
+
+	log.Debug().
+		Str("action", "trigger.Create").
+		Int64("ctime", ctime).
+		Str("reason", reason).
+		Msg("trigger file created")
+
 	return nil
-}
-
-// Has returns true if there is a trigger for a stack with the given path.
-func (t *Triggers) Has(path project.Path) (bool, error) {
-	return false, nil
 }
