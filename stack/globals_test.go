@@ -2327,13 +2327,12 @@ func TestLoadGlobals(t *testing.T) {
 			configs: []hclconfig{
 				{
 					path:     "/modules",
-					filename: "file.tm",
+					filename: "imported.tm",
 					add: Doc(
 						Globals(
-							Labels("hello", "world"),
-							Expr("config", `{
+							Labels("hello"),
+							Expr("world", `{
 								a = 1
-								b = 2	
 							}`),
 						),
 					),
@@ -2342,11 +2341,11 @@ func TestLoadGlobals(t *testing.T) {
 					path: "/",
 					add: Doc(
 						Import(
-							Str("source", `/modules/file.tm`),
+							Str("source", `/modules/imported.tm`),
 						),
 						Globals(
-							Labels("hello", "world", "config"),
-							Number("b", 3),
+							Labels("hello", "world"),
+							Number("a", 2),
 						),
 					),
 				},
@@ -2355,10 +2354,7 @@ func TestLoadGlobals(t *testing.T) {
 				"/stack": Globals(
 					EvalExpr(t, "hello", `{
 							world = {
-								config = {
-									a = 1
-									b = 3
-								}
+								a = 2
 							}
 						}`),
 				),
@@ -2606,22 +2602,5 @@ func TestLoadGlobalsErrors(t *testing.T) {
 				errtest.Assert(t, report.AsError(), tcase.want)
 			}
 		})
-	}
-}
-
-func TestLoadIacGCloud(t *testing.T) {
-	const root = "/home/i4k/src/mineiros/iac-gcloud"
-	cfg, err := config.LoadTree(root, root)
-	assert.NoError(t, err)
-
-	stacks, err := stack.LoadAll(cfg)
-	assert.NoError(t, err)
-	projmeta := stack.NewProjectMetadata(root, stacks)
-
-	for _, st := range stacks {
-		report := stack.LoadStackGlobals(cfg.Root(), projmeta, st)
-		//errl := report.AsError().(*errors.List)
-		//assert.NoError(t, report.AsError(), errl.Detailed())
-		t.Logf("globals: %s", report.Globals)
 	}
 }
