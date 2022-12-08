@@ -380,7 +380,7 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 					continue
 				}
 
-				if !hasOldValue || !oldValue.IsObject() || accessor.isattr {
+				if hasOldValue && oldValue.IsObject() && !accessor.isattr {
 					// all the `attr = expr` inside global blocks become an entry
 					// in the globalExprs map but we have the special case that
 					// an empty globals block with labels must implicitly create
@@ -390,9 +390,11 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 					// This special entry sets the key accessor.isattr = false
 					// which means this expression doesn't come from an attribute.
 
-					// this `if` happens for the general case, which we must set the
-					// actual value and then ignores the case where it has a fake
-					// expression when extending an existing object.
+					// this `if` happens for the general case, which we must not
+					// set the fake expression when extending an existing object.
+
+					logger.Trace().Msg("ignoring implicitly created empty global")
+				} else {
 					logger.Trace().Msg("setting global")
 
 					err = globals.SetAt(
@@ -407,8 +409,6 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 						pendingExprsErrs[accessor].Append(errors.E(err, "setting global"))
 						continue
 					}
-				} else {
-					logger.Trace().Msg("ignoring implicitly created empty global")
 				}
 
 				amountEvaluated++
