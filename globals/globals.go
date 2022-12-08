@@ -476,11 +476,13 @@ func setGlobal(globals *eval.Object, accessor GlobalPathKey, newVal eval.Value) 
 		// if newVal comes from a parent dir, keep old keys and add the new ones.
 
 		err = globals.MergeNewKeys(accessor.Path(), newVal)
+
 	case strings.HasPrefix(newVal.Info().Dir.String(), oldVal.Info().Dir.String()):
 
 		// if oldVal comes from a parent dir, then overwrites with newVal.
 
 		err = globals.SetAt(accessor.Path(), newVal)
+
 	default:
 		panic("unexpected")
 	}
