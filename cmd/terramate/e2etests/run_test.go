@@ -1241,6 +1241,63 @@ func TestRunReverseExecution(t *testing.T) {
 	assertRunOrder("stack-3", "stack-2", "stack-1")
 }
 
+func TestRunChangedDetectsTriggeredStack(t *testing.T) {
+	t.Parallel()
+
+	const testfile = "testfile"
+
+	s := sandbox.New(t)
+
+	s.BuildTree([]string{
+		"s:stack-1",
+		"s:stack-2",
+		fmt.Sprintf("f:stack-1/%s:stack-1\n", testfile),
+		fmt.Sprintf("f:stack-2/%s:stack-2\n", testfile),
+	})
+
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+
+	git.CheckoutNew("trigger-the-stack")
+
+	cli := newCLI(t, s.RootDir())
+
+	assertRunResult(t, cli.run(
+		"run",
+		"--changed",
+		testHelperBin,
+		"cat",
+		testfile,
+	), runExpected{Stdout: ""})
+
+	assertRunResult(t, cli.triggerStack("/stacks/stack-1"), runExpected{
+		IgnoreStdout: true,
+	})
+	git.CommitAll("commit the trigger file for stack-1")
+
+	assertRunResult(t, cli.run(
+		"run",
+		"--changed",
+		testHelperBin,
+		"cat",
+		testfile,
+	), runExpected{Stdout: listStacks("stack-1")})
+
+	assertRunResult(t, cli.triggerStack("/stacks/stack-2"), runExpected{
+		IgnoreStdout: true,
+	})
+	git.CommitAll("commit the trigger file for stack-2")
+
+	assertRunResult(t, cli.run(
+		"run",
+		"--changed",
+		testHelperBin,
+		"cat",
+		testfile,
+	), runExpected{Stdout: listStacks("stack-1", "stack-2")})
+}
+
 func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDir(t *testing.T) {
 	t.Parallel()
 

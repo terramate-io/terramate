@@ -595,13 +595,12 @@ func (c *cli) triggerStack() {
 	}
 	logger := log.With().
 		Str("stack", stack).
-		Str("reason", reason).
 		Logger()
 
 	logger.Debug().Msg("creating stack trigger")
 
 	if !path.IsAbs(stack) {
-		logger.Fatal().Msg("stack must be a Unix absolute path, like /a/b")
+		logger.Fatal().Msg("stack must be a Unix absolute path, like /stack")
 	}
 
 	stackPath := prj.NewPath(stack)
