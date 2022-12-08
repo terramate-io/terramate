@@ -609,6 +609,8 @@ func (c *cli) triggerStack() {
 	if err := trigger.Create(c.rootdir(), stackPath, reason); err != nil {
 		errlog.Fatal(logger, err)
 	}
+
+	c.output.Msg(out.V, "Created trigger for stack %q", stackPath)
 }
 
 func (c *cli) cloneStack() {
