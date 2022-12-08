@@ -398,29 +398,6 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 				} else {
 					logger.Trace().Msg("setting global")
 
-					//fmt.Printf("set %v = %s (defined at %s)\n", accessor.Path(), val.GoString(), expr.Origin.String())
-
-					// lower scope == children directory
-
-					// case 1:
-					// old is not set
-
-					// case 2:
-					// old already set by lower scope
-					// higher scope merges/ignores
-
-					// case 3:
-					// old already set by higher scope
-					// lower scope merges/overwrites
-
-					// case 4.1:
-					// old comes from an import
-					// merges/overwrites
-
-					// case 4.1:
-					// old comes from same dir
-					// merges/fails
-
 					err := setGlobal(globals, accessor, eval.NewValue(val,
 						eval.Info{
 							DefinedAt: expr.Origin,
