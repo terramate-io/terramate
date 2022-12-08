@@ -92,8 +92,8 @@ func ParseFile(path string) (Info, error) {
 				errs.Append(errors.E(err, "trigger: %s must be a number", attribute.Name))
 				continue
 			}
-			// TODO: HOW TO GET NUMBER ?
-			//info.Ctime = val.???
+			v, _ := val.AsBigFloat().Int64()
+			info.Ctime = v
 		case "reason":
 			if val.Type() != cty.String {
 				errs.Append(errors.E(err, "trigger: %s must be a string", attribute.Name))

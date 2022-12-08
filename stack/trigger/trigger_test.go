@@ -1,6 +1,7 @@
 package trigger_test
 
 import (
+	"math"
 	"path/filepath"
 	"testing"
 
@@ -41,9 +42,9 @@ func testTrigger(t *testing.T, path project.Path, reason string) {
 
 	assert.NoError(t, err)
 	assert.EqualStrings(t, reason, triggerInfo.Reason)
-	// TODO: PARSE CTIME
-	//assert.IsTrue(t, triggerInfo.Ctime > 0)
-	//assert.IsTrue(t, triggerInfo.Ctime < math.MaxInt64)
+
+	assert.IsTrue(t, triggerInfo.Ctime > 0)
+	assert.IsTrue(t, triggerInfo.Ctime < math.MaxInt64)
 }
 
 func init() {

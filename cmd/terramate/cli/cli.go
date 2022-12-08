@@ -35,6 +35,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/modvendor/download"
+	"github.com/mineiros-io/terramate/stack/trigger"
 
 	prj "github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/run"
@@ -132,6 +133,11 @@ type cliSpec struct {
 			SrcDir  string `arg:"" name:"srcdir" predictor:"file" help:"Path of the stack being cloned"`
 			DestDir string `arg:"" name:"destdir" predictor:"file" help:"Path of the new stack"`
 		} `cmd:"" help:"Clones a stack"`
+
+		Trigger struct {
+			Stack  string `arg:"" name:"stack" predictor:"file" help:"Path of the stack being triggered"`
+			Reason string `default:"" name:"reason" help:"Reason for the stack being triggered"`
+		} `cmd:"" help:"Triggers a stack"`
 
 		Metadata struct{} `cmd:"" help:"Shows metadata available on the project"`
 
@@ -393,6 +399,8 @@ func (c *cli) run() {
 		c.generate()
 	case "experimental clone <srcdir> <destdir>":
 		c.cloneStack()
+	case "experimental trigger <stack>":
+		c.triggerStack()
 	case "experimental vendor download <source> <ref>":
 		c.vendorDownload()
 	case "experimental globals":
@@ -577,6 +585,30 @@ func (c *cli) vendorDir() prj.Path {
 
 func hasVendorDirConfig(cfg hcl.Config) bool {
 	return cfg.Vendor != nil && cfg.Vendor.Dir != ""
+}
+
+func (c *cli) triggerStack() {
+	stack := c.parsedArgs.Experimental.Trigger.Stack
+	reason := c.parsedArgs.Experimental.Trigger.Reason
+	if reason == "" {
+		reason = "manually created through terramate CLI"
+	}
+	logger := log.With().
+		Str("stack", stack).
+		Str("reason", reason).
+		Logger()
+
+	logger.Debug().Msg("creating stack trigger")
+
+	if !path.IsAbs(stack) {
+		logger.Fatal().Msg("stack must be a Unix absolute path, like /a/b")
+	}
+
+	stackPath := prj.NewPath(stack)
+
+	if err := trigger.Create(c.rootdir(), stackPath, reason); err != nil {
+		errlog.Fatal(logger, err)
+	}
 }
 
 func (c *cli) cloneStack() {
