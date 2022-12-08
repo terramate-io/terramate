@@ -26,6 +26,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
@@ -41,7 +42,7 @@ type (
 	// Expr is an unevaluated global expression.
 	Expr struct {
 		// Origin is the filename where this expression can be found.
-		Origin project.Path
+		Origin info.Range
 
 		// LabelPath denotes the target accessor path which the expression must
 		// be assigned into.
@@ -146,7 +147,7 @@ func loadExprs(tree *config.Root, cfgdir project.Path) (loadedExprs, error) {
 			expr, _ := eval.ParseExpressionBytes([]byte(`{}`))
 			key := newGlobalPath(block.Labels, "")
 			exprs.expressions[key] = Expr{
-				Origin:     block.RawOrigins[0].Range.Path(),
+				Origin:     block.RawOrigins[0].Range,
 				LabelPath:  key.Path(),
 				Expression: expr,
 			}
@@ -159,7 +160,7 @@ func loadExprs(tree *config.Root, cfgdir project.Path) (loadedExprs, error) {
 
 			key := newGlobalPath(block.Labels, attr.Name)
 			exprs.expressions[key] = Expr{
-				Origin:     attr.Range.Path(),
+				Origin:     attr.Range,
 				LabelPath:  key.Path(),
 				Expression: attr.Expr,
 			}
@@ -360,7 +361,7 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 				oldValue, hasOldValue := globals.GetKeyPath(accessor.Path())
 				if hasOldValue &&
 					accessor.isattr &&
-					oldValue.Info().DefinedAt.Dir().String() == expr.Origin.Dir().String() {
+					oldValue.Info().DefinedAt.Dir().String() == expr.Origin.Path().Dir().String() {
 					pendingExprsErrs[accessor].Append(
 						errors.E(hcl.ErrTerramateSchema, expr.Range(),
 							"global.%s attribute redefined: previously defined at %s",
@@ -400,7 +401,7 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 
 					err := setGlobal(globals, accessor, eval.NewValue(val,
 						eval.Info{
-							DefinedAt: expr.Origin,
+							DefinedAt: expr.Origin.Path(),
 							Dir:       sortedGlobals.origin,
 						},
 					))
