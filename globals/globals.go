@@ -15,6 +15,7 @@
 package globals
 
 import (
+	"path"
 	"sort"
 	"strings"
 
@@ -397,14 +398,36 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 				} else {
 					logger.Trace().Msg("setting global")
 
-					err = globals.SetAt(
-						accessor.Path(),
-						eval.NewValue(val,
-							eval.Info{
-								DefinedAt: expr.Origin,
-								Dir:       sortedGlobals.origin,
-							},
-						))
+					//fmt.Printf("set %v = %s (defined at %s)\n", accessor.Path(), val.GoString(), expr.Origin.String())
+
+					// lower scope == children directory
+
+					// case 1:
+					// old is not set
+
+					// case 2:
+					// old already set by lower scope
+					// higher scope merges/ignores
+
+					// case 3:
+					// old already set by higher scope
+					// lower scope merges/overwrites
+
+					// case 4.1:
+					// old comes from an import
+					// merges/overwrites
+
+					// case 4.1:
+					// old comes from same dir
+					// merges/fails
+
+					err := setGlobal(globals, accessor, eval.NewValue(val,
+						eval.Info{
+							DefinedAt: expr.Origin,
+							Dir:       sortedGlobals.origin,
+						},
+					))
+
 					if err != nil {
 						pendingExprsErrs[accessor].Append(errors.E(err, "setting global"))
 						continue
@@ -439,6 +462,52 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 	}
 
 	return report
+}
+
+// setGlobal sets the global accordingly to the hierarchical rules.
+func setGlobal(globals *eval.Object, accessor GlobalPathKey, newVal eval.Value) error {
+	var err error
+
+	oldVal, hasOldVal := globals.GetKeyPath(accessor.Path())
+
+	switch {
+	case !hasOldVal:
+		err = globals.SetAt(accessor.Path(), newVal)
+	case (oldVal.Info().Dir == newVal.Info().Dir &&
+		oldVal.Info().DefinedAt.Dir() != newVal.Info().DefinedAt):
+
+		// if oldVal and newVal are instantiated at same place but comes from
+		// different source dirs (ie: one of them is imported).
+
+		if len(oldVal.Info().DefinedAt.Dir()) < len(newVal.Info().DefinedAt.Dir()) {
+			// newVal is imported and oldVal has precedence.
+			err = globals.MergeNewKeys(accessor.Path(), newVal)
+		} else {
+			// oldVal is imported and newVal has precedence.
+			err = globals.MergeOverwrite(accessor.Path(), newVal)
+		}
+
+	case (oldVal.Info().Dir == newVal.Info().Dir &&
+		oldVal.Info().DefinedAt.Dir() == newVal.Info().DefinedAt):
+
+		// both values are instantiated at same dir
+
+		err = globals.MergeFailsIfKeyExists(accessor.Path(), newVal)
+
+	case strings.HasPrefix(path.Join(oldVal.Info().Dir.String(), "/"), newVal.Info().Dir.String()):
+
+		// if newVal comes from a parent dir, keep old keys and add the new ones.
+
+		err = globals.MergeNewKeys(accessor.Path(), newVal)
+	case strings.HasPrefix(newVal.Info().Dir.String(), oldVal.Info().Dir.String()):
+
+		// if oldVal comes from a parent dir, then overwrites with newVal.
+
+		err = globals.SetAt(accessor.Path(), newVal)
+	default:
+		panic("unexpected")
+	}
+	return err
 }
 
 func (le loadedExprs) merge(other loadedExprs) {
