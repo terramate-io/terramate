@@ -328,13 +328,24 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 						continue
 					}
 
-					switch attr := namespace[1].(type) {
-					case hhcl.TraverseAttr:
-						if _, isPending := pendingExprs[newGlobalPath([]string{}, attr.Name)]; isPending {
+					var varPaths []string
+
+					for _, ns := range namespace[1:] {
+						switch attr := ns.(type) {
+						case hhcl.TraverseAttr:
+							varPaths = append(varPaths, attr.Name)
+						default:
+							panic("unexpected type of traversal - this is a BUG")
+						}
+					}
+
+					for len := len(varPaths); len >= 1; len-- {
+						base := varPaths[:len-1]
+						attr := varPaths[len-1]
+
+						if _, isPending := pendingExprs[newGlobalPath(base, attr)]; isPending {
 							continue pendingExpression
 						}
-					default:
-						panic("unexpected type of traversal - this is a BUG")
 					}
 				}
 

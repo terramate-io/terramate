@@ -598,6 +598,68 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name: "extending global with pending set object",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/modules",
+					filename: "config.tm",
+					add: Globals(
+						Labels("label"),
+						Bool("enabled", true),
+						Str("source", "hashicorp/google"),
+						Expr("obj", `{
+							data1 = tm_try(global.pending, 667)
+							data2 = tm_try(global.not_pending, 668)
+						}`),
+					),
+				},
+				{
+					path:     "/",
+					filename: "config.tm",
+					add: Doc(
+						Globals(
+							Labels("label", "obj"),
+							Number("data1", 3),
+						),
+						Import(
+							Str("source", "/modules/config.tm"),
+						),
+						Globals(
+							Number("pending", 666),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-1": Globals(
+					Number("pending", 666),
+					EvalExpr(t, "label", `{
+					  enabled = true
+  					  source  = "hashicorp/google"
+					  obj = {
+					    data1 = 3
+						data2 = 668
+					  }
+					}`),
+				),
+				"/stacks/stack-2": Globals(
+					Number("pending", 666),
+					EvalExpr(t, "label", `{
+						enabled = true
+  					    source  = "hashicorp/google"
+						obj = {
+						  data1 = 3
+						  data2 = 668
+						}
+					  }`),
+				),
+			},
+		},
+		{
 			name: "single stack extending local globals",
 			layout: []string{
 				"s:stack",
