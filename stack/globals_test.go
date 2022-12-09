@@ -679,9 +679,9 @@ func TestLoadGlobals(t *testing.T) {
 							Bool("enabled", true),
 							Str("source", "hashicorp/google"),
 							Expr("obj", `{
-							data1 = tm_try(global.pending, 667)
-							data2 = tm_try(global.not_pending, 668)
-						}`),
+									data1 = tm_try(global.pending, 667)
+									data2 = tm_try(global.not_pending, 668)
+								}`),
 						),
 						Globals(
 							Labels("label", "obj"),
@@ -725,15 +725,15 @@ func TestLoadGlobals(t *testing.T) {
 					Str("c", "test"),
 					Number("d", 1),
 					EvalExpr(t, "label", `{
-					  enabled = true
-  					  source  = "hashicorp/google"
-					  obj = {
-					    data1 = 3
-						data2 = 668
-						enabled = true
-  					  source  = "hashicorp/google"
-					  }
-					}`),
+							  enabled = true
+		  					  source  = "hashicorp/google"
+							  obj = {
+							    data1 = 3
+								data2 = 668
+								enabled = true
+		  					  source  = "hashicorp/google"
+							  }
+							}`),
 				),
 				"/stacks/stack-2": Globals(
 					Str("a", "test"),
@@ -741,15 +741,15 @@ func TestLoadGlobals(t *testing.T) {
 					Str("c", "test"),
 					Number("d", 1),
 					EvalExpr(t, "label", `{
-						enabled = true
-  					    source  = "hashicorp/google"
-						obj = {
-						  data1 = 3
-						  data2 = 668
-						  enabled = true
-  					  	  source  = "hashicorp/google"
-						}
-					  }`),
+								enabled = true
+		  					    source  = "hashicorp/google"
+								obj = {
+								  data1 = 3
+								  data2 = 668
+								  enabled = true
+		  					  	  source  = "hashicorp/google"
+								}
+							  }`),
 				),
 			},
 		},
