@@ -44,6 +44,9 @@ type (
 		// Origin is the filename where this expression can be found.
 		Origin info.Range
 
+		// ConfigDir is the directory which loaded this expression.
+		ConfigDir project.Path
+
 		// LabelPath denotes the target accessor path which the expression must
 		// be assigned into.
 		LabelPath eval.ObjectPath
@@ -148,6 +151,7 @@ func loadExprs(tree *config.Root, cfgdir project.Path) (loadedExprs, error) {
 			key := newGlobalPath(block.Labels, "")
 			exprs.expressions[key] = Expr{
 				Origin:     block.RawOrigins[0].Range,
+				ConfigDir:  cfgdir,
 				LabelPath:  key.Path(),
 				Expression: expr,
 			}
@@ -161,6 +165,7 @@ func loadExprs(tree *config.Root, cfgdir project.Path) (loadedExprs, error) {
 			key := newGlobalPath(block.Labels, attr.Name)
 			exprs.expressions[key] = Expr{
 				Origin:     attr.Range,
+				ConfigDir:  cfgdir,
 				LabelPath:  key.Path(),
 				Expression: attr.Expr,
 			}
@@ -351,6 +356,22 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 					}
 				}
 
+				if len(accessor.Path()) > 1 {
+					for size := accessor.numPaths; size >= 1; size-- {
+						base := accessor.path[0 : size-1]
+						attr := accessor.path[size-1]
+						v, isPending := pendingExprs[newGlobalPath(base, attr)]
+						if isPending &&
+							// is not this global path
+							!isSameObjectPath(v.LabelPath, accessor.Path()) &&
+							// dependent comes from higher level
+							strings.HasPrefix(sortedGlobals.origin.String(), v.ConfigDir.String()+"/") {
+							continue pendingExpression
+						}
+
+					}
+				}
+
 				if err := pendingExprsErrs[accessor].AsError(); err != nil {
 					continue
 				}
@@ -440,6 +461,18 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 	}
 
 	return report
+}
+
+func isSameObjectPath(a, b eval.ObjectPath) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if b[i] != v {
+			return false
+		}
+	}
+	return true
 }
 
 // setGlobal sets the global accordingly to the hierarchical rules.
