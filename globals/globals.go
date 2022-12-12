@@ -362,15 +362,12 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 						attr := accessor.path[size-1]
 						p := newGlobalPath(base, attr)
 						v, isPending := pendingExprs[p]
-						check := isPending &&
+
+						if isPending &&
 							// is not this global path
 							!isSameObjectPath(v.LabelPath, accessor.Path()) &&
 							// dependent comes from higher level
-							strings.HasPrefix(sortedGlobals.origin.String(), v.ConfigDir.String())
-
-						//fmt.Printf("checking %v for %s (is_pending: %t) (same: %t) (dependent_is_higher: %t)  (check: %t)\n", accessor.Path(), p.Path(), isPending, isSameObjectPath(v.LabelPath, accessor.Path()), strings.HasPrefix(sortedGlobals.origin.String(), v.ConfigDir.String()), check)
-						if check {
-							//fmt.Printf("postponing %v because %s is pending\n", accessor.Path(), p.Path())
+							strings.HasPrefix(sortedGlobals.origin.String(), v.ConfigDir.String()) {
 							continue pendingExpression
 						}
 
