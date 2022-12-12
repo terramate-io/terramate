@@ -366,7 +366,7 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 						if isPending &&
 							// is not this global path
 							!isSameObjectPath(v.LabelPath, accessor.Path()) &&
-							// dependent comes from higher level
+							// dependent comes from same or higher level
 							strings.HasPrefix(sortedGlobals.origin.String(), v.ConfigDir.String()) {
 							continue pendingExpression
 						}
