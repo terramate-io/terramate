@@ -356,12 +356,24 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 					}
 				}
 
+				// also checks if any part of the accessor is pending.
+				// Example:
+				//   globals a {
+				//       val = tm_try(global.pending, 1)
+				//   }
+				//
+				//   globals a b {
+				//       c = 1
+				//   }
+				//
+				// The first global block would evaluate before but as it has
+				// pending variables, then we need to postpone the second block
+				// as well.
 				if len(accessor.Path()) > 1 {
 					for size := accessor.numPaths; size >= 1; size-- {
 						base := accessor.path[0 : size-1]
 						attr := accessor.path[size-1]
-						p := newGlobalPath(base, attr)
-						v, isPending := pendingExprs[p]
+						v, isPending := pendingExprs[newGlobalPath(base, attr)]
 
 						if isPending &&
 							// is not this global path
