@@ -1309,7 +1309,7 @@ func TestRunChangedDetectsTriggeredStack(t *testing.T) {
 		testfile,
 	), runExpected{Stdout: ""})
 
-	assertRunResult(t, cli.triggerStack("/stacks/stack-1"), runExpected{
+	assertRunResult(t, cli.triggerStack("/stack-1"), runExpected{
 		IgnoreStdout: true,
 	})
 	git.CommitAll("commit the trigger file for stack-1")
@@ -1322,7 +1322,7 @@ func TestRunChangedDetectsTriggeredStack(t *testing.T) {
 		testfile,
 	), runExpected{Stdout: listStacks("stack-1")})
 
-	assertRunResult(t, cli.triggerStack("/stacks/stack-2"), runExpected{
+	assertRunResult(t, cli.triggerStack("/stack-2"), runExpected{
 		IgnoreStdout: true,
 	})
 	git.CommitAll("commit the trigger file for stack-2")

@@ -17,7 +17,9 @@ package trigger
 
 import (
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -40,6 +42,21 @@ type Info struct {
 }
 
 const triggersDir = ".tmtriggers"
+
+// StackPath accepts a trigger file path and returns the path of the stack
+// that is triggered by the given file. If the given file is not a stack trigger
+// at all it will return false.
+func StackPath(triggerFile project.Path) (project.Path, bool) {
+	const triggersPrefix = "/" + triggersDir
+
+	if !strings.HasPrefix(triggerFile.String(), triggersPrefix) {
+		return project.Path("/"), false
+	}
+
+	stackPath := strings.TrimPrefix(triggerFile.String(), triggersPrefix)
+	stackPath = path.Dir(stackPath)
+	return project.Path(stackPath), true
+}
 
 // ParseFile will parse the given trigger file.
 func ParseFile(path string) (Info, error) {

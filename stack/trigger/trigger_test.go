@@ -59,6 +59,11 @@ func testTrigger(t *testing.T, path project.Path, reason string) {
 
 	assert.IsTrue(t, triggerInfo.Ctime > 0)
 	assert.IsTrue(t, triggerInfo.Ctime < math.MaxInt64)
+
+	gotPath, ok := trigger.StackPath(project.PrjAbsPath(rootdir, triggerFile))
+
+	assert.IsTrue(t, ok)
+	assert.EqualStrings(t, path.String(), gotPath.String())
 }
 
 func init() {
