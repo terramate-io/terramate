@@ -176,13 +176,18 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 		}
 
 		if isTriggerFile {
-			// TODO(KATCIPIS): Ignore deleted change.
-			// we need the nature of the change here.
 			logger = logger.With().
 				Stringer("trigger", triggeredStack).
 				Logger()
 
 			logger.Debug().Msg("trigger file change detected")
+
+			if _, err := os.Stat(abspath); err != nil {
+				if errors.Is(err, fs.ErrNotExist) {
+					logger.Debug().Msg("ignoring deleted trigger file")
+					continue
+				}
+			}
 
 			cfg, found := m.root.Lookup(triggeredStack)
 			if !found || !cfg.IsStack() {

@@ -1336,6 +1336,52 @@ func TestRunChangedDetectsTriggeredStack(t *testing.T) {
 	), runExpected{Stdout: listStacks("stack-1", "stack-2")})
 }
 
+func TestRunChangedDetectionIgnoresDeletedTrigger(t *testing.T) {
+	t.Parallel()
+
+	const testfile = "testfile"
+
+	s := sandbox.New(t)
+
+	s.BuildTree([]string{
+		"s:stack",
+		fmt.Sprintf("f:stack/%s:stack\n", testfile),
+	})
+
+	cli := newCLI(t, s.RootDir())
+
+	assertRunResult(t, cli.triggerStack("/stack"), runExpected{
+		IgnoreStdout: true,
+	})
+
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+
+	git.CheckoutNew("delete-stack-trigger")
+
+	assertNoChanges := func() {
+		t.Helper()
+
+		assertRunResult(t, cli.run(
+			"run",
+			"--changed",
+			testHelperBin,
+			"cat",
+			testfile,
+		), runExpected{Stdout: ""})
+	}
+
+	assertNoChanges()
+
+	triggerDir := trigger.Dir(s.RootDir())
+	test.RemoveAll(t, triggerDir)
+
+	git.CommitAll("removed trigger")
+
+	assertNoChanges()
+}
+
 func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDir(t *testing.T) {
 	t.Parallel()
 
