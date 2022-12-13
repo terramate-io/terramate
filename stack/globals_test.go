@@ -406,6 +406,67 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "import merge with pending variable",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path:     "/modules",
+					filename: "file.tm",
+					add: Doc(
+						Globals(
+							Labels("obj"),
+							Expr("a", `{
+							b = 1
+							c = global.pending
+						}`),
+						),
+						Import(
+							Str("source", "/modules/nested/file.tm"),
+						),
+					),
+				},
+				{
+					path:     "/modules/nested",
+					filename: "file.tm",
+					add: Globals(
+						Labels("obj", "a"),
+						Number("nested", 1),
+						Expr("nested2", "global.other_pending"),
+					),
+				},
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Labels("obj", "a"),
+							Number("b", 2),
+						),
+						Globals(
+							Number("pending", 1),
+							Number("other_pending", 2),
+						),
+						Import(
+							Str("source", "/modules/file.tm"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					Number("pending", 1),
+					Number("other_pending", 2),
+					EvalExpr(t, "obj", `{
+						a = {
+							b = 2
+							c = 1
+							nested = 1
+							nested2 = 2
+						}
+					}`),
+				),
+			},
+		},
+		{
 			name:   "stack with globals referencing globals on multiple files",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{

@@ -509,20 +509,7 @@ func setGlobal(globals *eval.Object, accessor GlobalPathKey, newVal eval.Value) 
 	oldDefinedDir := oldVal.Info().DefinedAt.Dir()
 
 	if oldConfigDir == newConfigDir && oldDefinedDir != newDefinedDir {
-		// if oldVal and newVal are instantiated at same place but comes from
-		// different source dirs (ie: one of them is imported).
-
-		var err error
-		if len(oldDefinedDir) < len(newDefinedDir) {
-			// TODO(i4k): fix this!
-			// newVal is imported and oldVal has precedence.
-			err = globals.MergeNewKeys(accessor.Path(), newVal)
-		} else {
-			// oldVal is imported and newVal has precedence.
-			err = globals.MergeOverwrite(accessor.Path(), newVal)
-		}
-
-		return err
+		return globals.MergeOverwrite(accessor.Path(), newVal)
 	}
 
 	if newConfigDir.HasPrefix(oldConfigDir.String()) {
