@@ -237,6 +237,7 @@ func injectedTokensPrefix() []byte {
 	)
 }
 
+// NewContextFrom creates a new evaluator from the hashicorp EvalContext.
 func NewContextFrom(ctx *hhcl.EvalContext) *Context {
 	return &Context{
 		hclctx: ctx,
