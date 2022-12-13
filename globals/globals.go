@@ -508,22 +508,18 @@ func setGlobal(globals *eval.Object, accessor GlobalPathKey, newVal eval.Value) 
 	newDefinedDir := newVal.Info().DefinedAt.Dir()
 	oldDefinedDir := oldVal.Info().DefinedAt.Dir()
 
-	if oldConfigDir == newConfigDir && oldDefinedDir != newDefinedDir {
-		return globals.MergeOverwrite(accessor.Path(), newVal)
+	if !newConfigDir.HasPrefix(oldConfigDir.String()) {
+		panic(errors.E(errors.ErrInternal,
+			"unexpected globals behavior: new value from dir %s and defined at %s: "+
+				"old value from dir %s and defined at %s",
+			newConfigDir, newDefinedDir,
+			oldConfigDir, oldDefinedDir))
 	}
 
-	if newConfigDir.HasPrefix(oldConfigDir.String()) {
+	// newval comes from lower layer.
 
-		// if oldVal comes from a parent dir, then overwrites with newVal.
+	return globals.SetAt(accessor.Path(), newVal)
 
-		return globals.SetAt(accessor.Path(), newVal)
-	}
-
-	panic(errors.E(errors.ErrInternal,
-		"unexpected globals case: new value from dir %s and defined at %s: "+
-			"old value from dir %s and defined at %s",
-		newConfigDir, newDefinedDir,
-		oldConfigDir, oldDefinedDir))
 }
 
 func (le loadedExprs) merge(other loadedExprs) {
