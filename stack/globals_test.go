@@ -368,6 +368,25 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "global referencing traverse-index",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Globals(
+						Expr("a", "global.b[0]"),
+						Expr("b", "[1]"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					Number("a", 1),
+					EvalExpr(t, "b", "[1]"),
+				),
+			},
+		},
+		{
 			name:   "stack with globals referencing globals on multiple files",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
