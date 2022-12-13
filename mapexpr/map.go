@@ -26,7 +26,6 @@ type Attributes struct {
 }
 
 func NewMapExpr(block *ast.MergedBlock) (*MapExpr, error) {
-	var children []*MapExpr
 	foundValueBlock := false
 	var valueBlock *ast.Block
 	for _, subBlock := range block.Blocks {
@@ -68,7 +67,6 @@ func NewMapExpr(block *ast.MergedBlock) (*MapExpr, error) {
 			ValueBlock: valueBlock,
 			Iterator:   iterator,
 		},
-		Children: children,
 	}, nil
 }
 
@@ -120,7 +118,7 @@ func (m *MapExpr) Value(ctx *hhcl.EvalContext) (cty.Value, hhcl.Diagnostics) {
 
 		keyVal, err := evaluator.Eval(m.Attrs.Key)
 		if err != nil {
-			mapErr = err
+			mapErr = errors.E(err, "failed to evaluate the map.key")
 			return true
 		}
 
@@ -169,9 +167,10 @@ func (m *MapExpr) Value(ctx *hhcl.EvalContext) (cty.Value, hhcl.Diagnostics) {
 	if mapErr != nil {
 		return cty.NilVal, hhcl.Diagnostics{
 			&hhcl.Diagnostic{
-				Summary: "failed to evaluate map block",
-				Detail:  mapErr.Error(),
-				Subject: m.Range().Ptr(),
+				Severity: hhcl.DiagError,
+				Summary:  "failed to evaluate map block",
+				Detail:   mapErr.Error(),
+				Subject:  m.Range().Ptr(),
 			},
 		}
 	}

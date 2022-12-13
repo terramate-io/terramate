@@ -2859,7 +2859,7 @@ func TestLoadGlobals(t *testing.T) {
 			wantErr: errors.E(globals.ErrRedefined),
 		},
 		{
-			name:   "globals.map missing the value attribute",
+			name:   "globals.map missing the value attribute or block",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
 				{
@@ -2869,6 +2869,27 @@ func TestLoadGlobals(t *testing.T) {
 							Labels("var"),
 							Expr("for_each", "[]"),
 							Expr("key", "element.new.test"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:   "globals.map conflicting value attribute and block - fails",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("for_each", "[]"),
+							Expr("key", "element.new.test"),
+							Str("value", "value"),
+							Value(
+								Str("a", "b"),
+							),
 						),
 					),
 				},
@@ -2895,6 +2916,66 @@ func TestLoadGlobals(t *testing.T) {
 			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
+			name:   "invalid globals.map key",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("for_each", `["a", "b", "c"]`),
+							Expr("key", "something"), // keyword, not a string
+							Str("value", "else"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(globals.ErrEval),
+		},
+		{
+			name:   "invalid globals.map value",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("for_each", `["a", "b", "c"]`),
+							Str("key", "something"),
+							Expr("value", "else"), // keyword, not a string
+						),
+					),
+				},
+			},
+			wantErr: errors.E(globals.ErrEval),
+		},
+		{
+			name:   "simple globals.map without using element",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("for_each", `["a", "b", "c"]`),
+							Str("key", "something"),
+							Str("value", "else"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "var", `{
+						something = "else"
+					}`),
+				),
+			},
+		},
+		{
 			name:   "simple globals.map ",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
@@ -2906,6 +2987,33 @@ func TestLoadGlobals(t *testing.T) {
 							Expr("for_each", `["a", "b", "c"]`),
 							Expr("key", "element.new"),
 							Expr("value", "element.new"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "var", `{
+						a = "a"
+						b = "b"
+						c = "c"
+					}`),
+				),
+			},
+		},
+		{
+			name:   "simple globals.map with different iterator",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("iterator", "el"),
+							Expr("for_each", `["a", "b", "c"]`),
+							Expr("key", "el.new"),
+							Expr("value", "el.new"),
 						),
 					),
 				},
