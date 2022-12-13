@@ -15,6 +15,7 @@
 package globals
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -340,8 +341,11 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 						switch attr := ns.(type) {
 						case hhcl.TraverseAttr:
 							varPaths = append(varPaths, attr.Name)
+						case hhcl.TraverseIndex, hhcl.TraverseSplat:
+							break
+
 						default:
-							panic("unexpected type of traversal - this is a BUG")
+							panic(fmt.Sprintf("unexpected type of traversal - this is a BUG: %T", attr))
 						}
 					}
 
