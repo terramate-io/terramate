@@ -530,8 +530,6 @@ func setGlobal(globals *eval.Object, accessor GlobalPathKey, newVal eval.Value) 
 			"old value from dir %s and defined at %s",
 		newConfigDir, newDefinedDir,
 		oldConfigDir, oldDefinedDir))
-
-	return nil
 }
 
 func (le loadedExprs) merge(other loadedExprs) {
