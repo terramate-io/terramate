@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
@@ -40,7 +41,10 @@ type (
 	// Expr is an unevaluated global expression.
 	Expr struct {
 		// Origin is the filename where this expression can be found.
-		Origin project.Path
+		Origin info.Range
+
+		// ConfigDir is the directory which loaded this expression.
+		ConfigDir project.Path
 
 		// LabelPath denotes the target accessor path which the expression must
 		// be assigned into.
@@ -145,7 +149,8 @@ func loadExprs(tree *config.Root, cfgdir project.Path) (loadedExprs, error) {
 			expr, _ := eval.ParseExpressionBytes([]byte(`{}`))
 			key := newGlobalPath(block.Labels, "")
 			exprs.expressions[key] = Expr{
-				Origin:     block.RawOrigins[0].Range.Path(),
+				Origin:     block.RawOrigins[0].Range,
+				ConfigDir:  cfgdir,
 				LabelPath:  key.Path(),
 				Expression: expr,
 			}
@@ -158,7 +163,8 @@ func loadExprs(tree *config.Root, cfgdir project.Path) (loadedExprs, error) {
 
 			key := newGlobalPath(block.Labels, attr.Name)
 			exprs.expressions[key] = Expr{
-				Origin:     attr.Range.Path(),
+				Origin:     attr.Range,
+				ConfigDir:  cfgdir,
 				LabelPath:  key.Path(),
 				Expression: attr.Expr,
 			}
@@ -328,13 +334,61 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 						continue
 					}
 
-					switch attr := namespace[1].(type) {
-					case hhcl.TraverseAttr:
-						if _, isPending := pendingExprs[newGlobalPath([]string{}, attr.Name)]; isPending {
+					var varPaths []string
+
+					for _, ns := range namespace[1:] {
+						switch attr := ns.(type) {
+						case hhcl.TraverseAttr:
+							varPaths = append(varPaths, attr.Name)
+						case hhcl.TraverseIndex, hhcl.TraverseSplat:
+							break
+
+						default:
+							panic(errors.E(
+								errors.ErrInternal,
+								"unexpected type of traversal - this is a BUG: %T",
+								attr,
+							))
+						}
+					}
+
+					for len := len(varPaths); len >= 1; len-- {
+						base := varPaths[:len-1]
+						attr := varPaths[len-1]
+
+						if _, isPending := pendingExprs[newGlobalPath(base, attr)]; isPending {
 							continue pendingExpression
 						}
-					default:
-						panic("unexpected type of traversal - this is a BUG")
+					}
+				}
+
+				// also checks if any part of the accessor is pending.
+				// Example:
+				//   globals a {
+				//       val = tm_try(global.pending, 1)
+				//   }
+				//
+				//   globals a b {
+				//       c = 1
+				//   }
+				//
+				// The first global block would evaluate before but as it has
+				// pending variables, then we need to postpone the second block
+				// as well.
+				if len(accessor.Path()) > 1 {
+					for size := accessor.numPaths; size >= 1; size-- {
+						base := accessor.path[0 : size-1]
+						attr := accessor.path[size-1]
+						v, isPending := pendingExprs[newGlobalPath(base, attr)]
+
+						if isPending &&
+							// is not this global path
+							!isSameObjectPath(v.LabelPath, accessor.Path()) &&
+							// dependent comes from same or higher level
+							strings.HasPrefix(sortedGlobals.origin.String(), v.ConfigDir.String()) {
+							continue pendingExpression
+						}
+
 					}
 				}
 
@@ -348,7 +402,7 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 				oldValue, hasOldValue := globals.GetKeyPath(accessor.Path())
 				if hasOldValue &&
 					accessor.isattr &&
-					oldValue.Info().DefinedAt.Dir().String() == expr.Origin.Dir().String() {
+					oldValue.Info().DefinedAt.Dir().String() == expr.Origin.Path().Dir().String() {
 					pendingExprsErrs[accessor].Append(
 						errors.E(hcl.ErrTerramateSchema, expr.Range(),
 							"global.%s attribute redefined: previously defined at %s",
@@ -369,7 +423,7 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 					continue
 				}
 
-				if !hasOldValue || !oldValue.IsObject() || accessor.isattr {
+				if hasOldValue && oldValue.IsObject() && !accessor.isattr {
 					// all the `attr = expr` inside global blocks become an entry
 					// in the globalExprs map but we have the special case that
 					// an empty globals block with labels must implicitly create
@@ -379,25 +433,24 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 					// This special entry sets the key accessor.isattr = false
 					// which means this expression doesn't come from an attribute.
 
-					// this `if` happens for the general case, which we must set the
-					// actual value and then ignores the case where it has a fake
-					// expression when extending an existing object.
+					// this `if` happens for the general case, which we must not
+					// set the fake expression when extending an existing object.
+
+					logger.Trace().Msg("ignoring implicitly created empty global")
+				} else {
 					logger.Trace().Msg("setting global")
 
-					err = globals.SetAt(
-						accessor.Path(),
-						eval.NewValue(val,
-							eval.Info{
-								DefinedAt: expr.Origin,
-								Dir:       sortedGlobals.origin,
-							},
-						))
+					err := setGlobal(globals, accessor, eval.NewValue(val,
+						eval.Info{
+							DefinedAt: expr.Origin.Path(),
+							Dir:       sortedGlobals.origin,
+						},
+					))
+
 					if err != nil {
 						pendingExprsErrs[accessor].Append(errors.E(err, "setting global"))
 						continue
 					}
-				} else {
-					logger.Trace().Msg("ignoring implicitly created empty global")
 				}
 
 				amountEvaluated++
@@ -430,12 +483,54 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 	return report
 }
 
+func isSameObjectPath(a, b eval.ObjectPath) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if b[i] != v {
+			return false
+		}
+	}
+	return true
+}
+
+// setGlobal sets the global accordingly to the hierarchical rules.
+func setGlobal(globals *eval.Object, accessor GlobalPathKey, newVal eval.Value) error {
+	oldVal, hasOldVal := globals.GetKeyPath(accessor.Path())
+	if !hasOldVal {
+		return globals.SetAt(accessor.Path(), newVal)
+	}
+
+	newConfigDir := newVal.Info().Dir
+	oldConfigDir := oldVal.Info().Dir
+
+	newDefinedDir := newVal.Info().DefinedAt.Dir()
+	oldDefinedDir := oldVal.Info().DefinedAt.Dir()
+
+	if !newConfigDir.HasPrefix(oldConfigDir.String()) {
+		panic(errors.E(errors.ErrInternal,
+			"unexpected globals behavior: new value from dir %s and defined at %s: "+
+				"old value from dir %s and defined at %s",
+			newConfigDir, newDefinedDir,
+			oldConfigDir, oldDefinedDir))
+	}
+
+	// newval comes from lower layer.
+
+	return globals.SetAt(accessor.Path(), newVal)
+
+}
+
 func (le loadedExprs) merge(other loadedExprs) {
 	for k, v := range other {
 		if _, ok := le[k]; !ok {
 			le[k] = v
 		} else {
-			panic(errors.E(errors.ErrInternal, "cant merge duplicated configuration %q", k))
+			panic(errors.E(
+				errors.ErrInternal,
+				"cant merge duplicated configuration %q",
+				k))
 		}
 	}
 }

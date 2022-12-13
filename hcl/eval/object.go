@@ -15,8 +15,6 @@
 package eval
 
 import (
-	"strings"
-
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/project"
@@ -149,88 +147,132 @@ func (obj *Object) SetFromCtyValues(values map[string]cty.Value, origin Info) *O
 
 // SetAt sets a value at the specified path key.
 func (obj *Object) SetAt(path ObjectPath, value Value) error {
+	target, key, err := computeTargetFrom(obj, path, value.Info())
+	if err != nil {
+		return err
+	}
+
+	target.Set(key, value)
+	return nil
+}
+
+// MergeFailsIfKeyExists merge the value into obj but fails if any key in value exists in
+// obj.
+func (obj *Object) MergeFailsIfKeyExists(path ObjectPath, value Value) error {
+	target, key, err := computeTargetFrom(obj, path, value.Info())
+	if err != nil {
+		return err
+	}
+
+	old, ok := target.GetKeyPath([]string{key})
+	if !ok {
+		target.Set(key, value)
+		return nil
+	}
+
+	if old.IsObject() != value.IsObject() {
+		return errors.E("failed to merge object and value for key path %v", key)
+	}
+	if !value.IsObject() {
+		return errors.E("cannot overwrite key path %v", key)
+	}
+	valObj := value.(*Object)
+	oldObj := old.(*Object)
+	for k, v := range valObj.Keys {
+		_, ok := oldObj.GetKeyPath([]string{k})
+		if ok {
+			return errors.E("cannot overwrite")
+		}
+		err := oldObj.SetAt([]string{k}, v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// MergeOverwrite merges value into obj by overwriting each key.
+func (obj *Object) MergeOverwrite(path ObjectPath, value Value) error {
+	target, key, err := computeTargetFrom(obj, path, value.Info())
+	if err != nil {
+		return err
+	}
+
+	old, ok := target.GetKeyPath([]string{key})
+	if !ok {
+		target.Set(key, value)
+		return nil
+	}
+
+	if old.IsObject() != value.IsObject() {
+		target.Set(key, value)
+		return nil
+	}
+	if !old.IsObject() {
+		target.Set(key, value)
+		return nil
+	}
+	valObj := value.(*Object)
+	oldObj := old.(*Object)
+	for k, v := range valObj.Keys {
+		err := oldObj.SetAt([]string{k}, v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// MergeNewKeys merge the keys from value that doesn't exist in obj.
+func (obj *Object) MergeNewKeys(path ObjectPath, value Value) error {
+	target, key, err := computeTargetFrom(obj, path, value.Info())
+	if err != nil {
+		return err
+	}
+
+	old, ok := target.GetKeyPath([]string{key})
+	if !ok {
+		target.Set(key, value)
+		return nil
+	}
+
+	if old.IsObject() != value.IsObject() {
+		return errors.E("failed to merge object and value")
+	}
+	if !value.IsObject() {
+		return errors.E("cannot overwrite")
+	}
+	valObj := value.(*Object)
+	oldObj := old.(*Object)
+	for k, v := range valObj.Keys {
+		_, ok := oldObj.GetKeyPath([]string{k})
+		if !ok {
+			err := oldObj.SetAt([]string{k}, v)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func computeTargetFrom(obj *Object, path ObjectPath, info Info) (*Object, string, error) {
 	for len(path) > 1 {
 		key := path[0]
 		subobj, ok := obj.Keys[key]
 		if !ok {
-			subobj = NewObject(value.Info())
+			subobj = NewObject(info)
 			obj.Set(key, subobj)
 		}
 		if !subobj.IsObject() {
-			return errors.E(ErrCannotExtendObject,
+			return nil, "", errors.E(ErrCannotExtendObject,
 				"path part %s (from %s) contains non-object parts in the path (%v is %T)",
 				key, path, key, subobj)
 		}
 		obj = subobj.(*Object)
 		path = path[1:]
 	}
-
-	old, ok := obj.GetKeyPath(path)
-	if ok {
-		// When a parent global depend on child globals or stack metadata,
-		// they are set in the globals object after all dependencies were evaluated,
-		// which means the child globals can be set before the parent ones,
-		// breaking the parent -> child hierarchical order.
-		// Have a look in the example below:
-		//   # parent/file.tm
-		//   globals {
-		//       a = {
-		//           b = global.b
-		//       }
-		//   }
-		//
-		//   # parent/child/file.tm
-		//   globals a {
-		//       c = 1
-		//   }
-		//
-		//   globals {
-		//       b = 1
-		//   }
-		//
-		// In this case, the parent global.a evaluation is postponed to happen
-		// after global.b is evaluated. When the child globals are evaluated,
-		// they set the temporary globals object as:
-		//
-		//   {
-		//       a = {
-		//           c = 1
-		//       }
-		//       b = 1
-		//   }
-		//
-		// Then later the postponed parent global.a evaluation succeeds and we
-		// have the value below to be merged in globals object:
-		//
-		//   {
-		//       a = {
-		//           b = 1
-		//       }
-		//   }
-		//
-		// But we cannot overwrite the globals.a because it comes from the child
-		// (that must overwrite parent scopes), so the solution is to look for
-		// where's the definition of each value and overwrite the values if they
-		// come from a child scope or ignore new values that comes from the parent
-		// but conflicts with definitions in the child.
-		if !strings.HasPrefix(value.Info().Dir.String(), old.Info().Dir.String()) {
-			// old is from a child scope, we must recursively merge the objects
-			// or ignore the value as it was overwriten by the child scope.
-			if old.IsObject() && value.IsObject() {
-				oldv := old.(*Object)
-				for k, v := range value.(*Object).Keys {
-					err := oldv.SetAt([]string{k}, v)
-					if err != nil {
-						return err
-					}
-				}
-			}
-			return nil
-		}
-	}
-
-	obj.Set(path[0], value)
-	return nil
+	return obj, path[0], nil
 }
 
 // DeleteAt deletes the value at the specified path.
