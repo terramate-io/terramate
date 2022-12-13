@@ -15,7 +15,6 @@
 package globals
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 
@@ -345,7 +344,11 @@ func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
 							break
 
 						default:
-							panic(fmt.Sprintf("unexpected type of traversal - this is a BUG: %T", attr))
+							panic(errors.E(
+								errors.ErrInternal,
+								"unexpected type of traversal - this is a BUG: %T",
+								attr,
+							))
 						}
 					}
 
