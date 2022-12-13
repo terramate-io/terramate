@@ -1776,16 +1776,32 @@ func validateMap(block *ast.Block) error {
 	if !ok {
 		return errors.E(block.Range, "map.key is required")
 	}
-	_, ok = block.Attributes["value"]
-	if !ok {
-		return errors.E(block.Range, "map.value is required")
+	_, hasValueAttr := block.Attributes["value"]
+	hasValueBlock := false
+	for _, subBlock := range block.Blocks {
+		if hasValueBlock {
+			return errors.E(subBlock.Range, "multiple map.value block declared")
+		}
+		if subBlock.Type != "value" {
+			return errors.E(
+				subBlock.Range,
+				"unrecognized block %s inside map block", subBlock.Type,
+			)
+		}
+		for _, valueSubBlock := range subBlock.Blocks {
+			err := validateMap(valueSubBlock)
+			if err != nil {
+				return err
+			}
+		}
+		hasValueBlock = true
 	}
 
-	for _, subBlock := range block.Blocks {
-		err := validateMap(subBlock)
-		if err != nil {
-			return err
-		}
+	if hasValueAttr && hasValueBlock {
+		return errors.E(block.Range, "value attribute conflicts with value block")
+	}
+	if !hasValueAttr && !hasValueBlock {
+		return errors.E(block.Range, "either a value attribute or a value block is required")
 	}
 	return nil
 }

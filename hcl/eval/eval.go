@@ -237,7 +237,7 @@ func injectedTokensPrefix() []byte {
 	)
 }
 
-func newContextFrom(ctx *hhcl.EvalContext) *Context {
+func NewContextFrom(ctx *hhcl.EvalContext) *Context {
 	return &Context{
 		hclctx: ctx,
 	}

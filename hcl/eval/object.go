@@ -15,8 +15,6 @@
 package eval
 
 import (
-	"strings"
-
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/project"
@@ -51,18 +49,15 @@ type (
 	//       }
 	//   }
 	Object struct {
-		configdir project.Path
+		origin Info
 		// Keys is a map of key names to values.
 		Keys map[string]Value
 	}
 
 	// Value is an evaluated value.
 	Value interface {
-		// ConfigOrigin is the origin of the configuration value.
-		// It's not the file where it's defined but the directory that instantiates
-		// it. As the value could be imported, in this case the ConfigOrigin is
-		// the importing directory.
-		ConfigOrigin() project.Path
+		// Info provides extra information for the value.
+		Info() Info
 
 		// IsObject tells if the value is an object.
 		IsObject() bool
@@ -70,8 +65,20 @@ type (
 
 	// CtyValue is a wrapper for a raw cty value.
 	CtyValue struct {
-		configdir project.Path
+		origin Info
 		cty.Value
+	}
+
+	// Info provides extra information for the configuration value.
+	Info struct {
+		// Dir defines the directory from there the value is being instantiated,
+		// which means it's the scope directory (not the file where it's defined).
+		// For values that comes from imports, the Dir will be the directory
+		// which imports the value.
+		Dir project.Path
+
+		// DefinedAt provides the source file where the value is defined.
+		DefinedAt project.Path
 	}
 
 	// ObjectPath represents a path inside the object.
@@ -79,10 +86,10 @@ type (
 )
 
 // NewObject creates a new object for configdir directory.
-func NewObject(configdir project.Path) *Object {
+func NewObject(origin Info) *Object {
 	return &Object{
-		configdir: configdir,
-		Keys:      make(map[string]Value),
+		origin: origin,
+		Keys:   make(map[string]Value),
 	}
 }
 
@@ -110,9 +117,8 @@ func (obj *Object) GetKeyPath(path ObjectPath) (Value, bool) {
 	return v.(*Object).GetKeyPath(next)
 }
 
-// ConfigOrigin is the configuration directory which the root of the object comes
-// from.
-func (obj *Object) ConfigOrigin() project.Path { return obj.configdir }
+// Info provides extra information for the object value.
+func (obj *Object) Info() Info { return obj.origin }
 
 // IsObject returns true for [Object] values.
 func (obj *Object) IsObject() bool { return true }
@@ -126,7 +132,7 @@ func (obj *Object) SetFrom(values map[string]Value) *Object {
 }
 
 // SetFromCtyValues sets the object from the values map.
-func (obj *Object) SetFromCtyValues(values map[string]cty.Value, origin project.Path) *Object {
+func (obj *Object) SetFromCtyValues(values map[string]cty.Value, origin Info) *Object {
 	for k, v := range values {
 		if v.Type().IsObjectType() {
 			subtree := NewObject(origin)
@@ -141,88 +147,132 @@ func (obj *Object) SetFromCtyValues(values map[string]cty.Value, origin project.
 
 // SetAt sets a value at the specified path key.
 func (obj *Object) SetAt(path ObjectPath, value Value) error {
+	target, key, err := computeTargetFrom(obj, path, value.Info())
+	if err != nil {
+		return err
+	}
+
+	target.Set(key, value)
+	return nil
+}
+
+// MergeFailsIfKeyExists merge the value into obj but fails if any key in value exists in
+// obj.
+func (obj *Object) MergeFailsIfKeyExists(path ObjectPath, value Value) error {
+	target, key, err := computeTargetFrom(obj, path, value.Info())
+	if err != nil {
+		return err
+	}
+
+	old, ok := target.GetKeyPath([]string{key})
+	if !ok {
+		target.Set(key, value)
+		return nil
+	}
+
+	if old.IsObject() != value.IsObject() {
+		return errors.E("failed to merge object and value for key path %v", key)
+	}
+	if !value.IsObject() {
+		return errors.E("cannot overwrite key path %v", key)
+	}
+	valObj := value.(*Object)
+	oldObj := old.(*Object)
+	for k, v := range valObj.Keys {
+		_, ok := oldObj.GetKeyPath([]string{k})
+		if ok {
+			return errors.E("cannot overwrite")
+		}
+		err := oldObj.SetAt([]string{k}, v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// MergeOverwrite merges value into obj by overwriting each key.
+func (obj *Object) MergeOverwrite(path ObjectPath, value Value) error {
+	target, key, err := computeTargetFrom(obj, path, value.Info())
+	if err != nil {
+		return err
+	}
+
+	old, ok := target.GetKeyPath([]string{key})
+	if !ok {
+		target.Set(key, value)
+		return nil
+	}
+
+	if old.IsObject() != value.IsObject() {
+		target.Set(key, value)
+		return nil
+	}
+	if !old.IsObject() {
+		target.Set(key, value)
+		return nil
+	}
+	valObj := value.(*Object)
+	oldObj := old.(*Object)
+	for k, v := range valObj.Keys {
+		err := oldObj.SetAt([]string{k}, v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// MergeNewKeys merge the keys from value that doesn't exist in obj.
+func (obj *Object) MergeNewKeys(path ObjectPath, value Value) error {
+	target, key, err := computeTargetFrom(obj, path, value.Info())
+	if err != nil {
+		return err
+	}
+
+	old, ok := target.GetKeyPath([]string{key})
+	if !ok {
+		target.Set(key, value)
+		return nil
+	}
+
+	if old.IsObject() != value.IsObject() {
+		return errors.E("failed to merge object and value")
+	}
+	if !value.IsObject() {
+		return errors.E("cannot overwrite")
+	}
+	valObj := value.(*Object)
+	oldObj := old.(*Object)
+	for k, v := range valObj.Keys {
+		_, ok := oldObj.GetKeyPath([]string{k})
+		if !ok {
+			err := oldObj.SetAt([]string{k}, v)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func computeTargetFrom(obj *Object, path ObjectPath, info Info) (*Object, string, error) {
 	for len(path) > 1 {
 		key := path[0]
 		subobj, ok := obj.Keys[key]
 		if !ok {
-			subobj = NewObject(value.ConfigOrigin())
+			subobj = NewObject(info)
 			obj.Set(key, subobj)
 		}
 		if !subobj.IsObject() {
-			return errors.E(ErrCannotExtendObject,
+			return nil, "", errors.E(ErrCannotExtendObject,
 				"path part %s (from %s) contains non-object parts in the path (%v is %T)",
 				key, path, key, subobj)
 		}
 		obj = subobj.(*Object)
 		path = path[1:]
 	}
-
-	old, ok := obj.GetKeyPath(path)
-	if ok {
-		// When a parent global depend on child globals or stack metadata,
-		// they are set in the globals object after all dependencies were evaluated,
-		// which means the child globals can be set before the parent ones,
-		// breaking the parent -> child hierarchical order.
-		// Have a look in the example below:
-		//   # parent/file.tm
-		//   globals {
-		//       a = {
-		//           b = global.b
-		//       }
-		//   }
-		//
-		//   # parent/child/file.tm
-		//   globals a {
-		//       c = 1
-		//   }
-		//
-		//   globals {
-		//       b = 1
-		//   }
-		//
-		// In this case, the parent global.a evaluation is postponed to happen
-		// after global.b is evaluated. When the child globals are evaluated,
-		// they set the temporary globals object as:
-		//
-		//   {
-		//       a = {
-		//           c = 1
-		//       }
-		//       b = 1
-		//   }
-		//
-		// Then later the postponed parent global.a evaluation succeeds and we
-		// have the value below to be merged in globals object:
-		//
-		//   {
-		//       a = {
-		//           b = 1
-		//       }
-		//   }
-		//
-		// But we cannot overwrite the globals.a because it comes from the child
-		// (that must overwrite parent scopes), so the solution is to look for
-		// where's the definition of each value and overwrite the values if they
-		// come from a child scope or ignore new values that comes from the parent
-		// but conflicts with definitions in the child.
-		if !strings.HasPrefix(value.ConfigOrigin().String(), old.ConfigOrigin().String()) {
-			// old is from a child scope, we must recursively merge the objects
-			// or ignore the value as it was overwriten by the child scope.
-			if old.IsObject() && value.IsObject() {
-				oldv := old.(*Object)
-				for k, v := range value.(*Object).Keys {
-					err := oldv.SetAt([]string{k}, v)
-					if err != nil {
-						return err
-					}
-				}
-			}
-			return nil
-		}
-	}
-
-	obj.Set(path[0], value)
-	return nil
+	return obj, path[0], nil
 }
 
 // DeleteAt deletes the value at the specified path.
@@ -271,17 +321,17 @@ func (obj *Object) String() string {
 // NewCtyValue creates a new cty.Value wrapper.
 // Note: The cty.Value val is marked with the origin path and must be unmarked
 // before use with any hashicorp API otherwise it panics.
-func NewCtyValue(val cty.Value, origin project.Path) CtyValue {
+func NewCtyValue(val cty.Value, origin Info) CtyValue {
 	val = val.Mark(origin)
 	return CtyValue{
-		configdir: origin,
-		Value:     val,
+		origin: origin,
+		Value:  val,
 	}
 }
 
 // NewValue returns a new object Value from a cty.Value.
 // Note: this is not a wrapper as it returns an [Object] if val is a cty.Object.
-func NewValue(val cty.Value, origin project.Path) Value {
+func NewValue(val cty.Value, origin Info) Value {
 	if val.Type().IsObjectType() {
 		obj := NewObject(origin)
 		obj.SetFromCtyValues(val.AsValueMap(), origin)
@@ -290,8 +340,8 @@ func NewValue(val cty.Value, origin project.Path) Value {
 	return NewCtyValue(val, origin)
 }
 
-// ConfigOrigin is the configuration directory which defines the value.
-func (v CtyValue) ConfigOrigin() project.Path { return v.configdir }
+// Info provides extra information for the value.
+func (v CtyValue) Info() Info { return v.origin }
 
 // IsObject returns false for CtyValue values.
 func (v CtyValue) IsObject() bool { return false }
