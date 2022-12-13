@@ -776,6 +776,81 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name: "imports from different cfgdir extending same object",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/modules/a",
+					filename: "file1.tm",
+					add: Doc(
+						Globals(
+							Labels("label"),
+							Expr("obj", `{
+									data1 = tm_try(global.pending, 1)
+									data2 = tm_try(global.not_pending, 2)
+								}`),
+						),
+					),
+				},
+				{
+					path:     "/modules/b",
+					filename: "file2.tm",
+					add: Doc(
+						Globals(
+							Labels("label"),
+							Expr("obj", `{
+									data1 = tm_try(global.pending, 3)
+									data2 = tm_try(global.not_pending, 4)
+								}`),
+						),
+					),
+				},
+				{
+					path:     "/",
+					filename: "config.tm",
+					add: Doc(
+						Import(
+							Str("source", "/modules/a/file1.tm"),
+						),
+					),
+				},
+				{
+					path:     "/stacks/stack-1",
+					filename: "config.tm",
+					add: Doc(
+						Globals(
+							Number("pending", 666),
+						),
+						Import(
+							Str("source", "/modules/b/file2.tm"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-1": Globals(
+					Number("pending", 666),
+					EvalExpr(t, "label", `{
+							  obj = {
+							    data1 = 666
+								data2 = 4
+							  }
+							}`),
+				),
+				"/stacks/stack-2": Globals(
+					EvalExpr(t, "label", `{
+								obj = {
+								  data1 = 1
+								  data2 = 2
+								}
+							  }`),
+				),
+			},
+		},
+		{
 			name: "extending complex global with pending set object without imports",
 			layout: []string{
 				"s:stacks/stack-1",
