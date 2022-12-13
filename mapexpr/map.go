@@ -11,12 +11,14 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+// MapExpr represents a `map` block.
 type MapExpr struct {
 	Origin   info.Range
 	Attrs    Attributes
 	Children []*MapExpr
 }
 
+// Attributes of the MapExpr block.
 type Attributes struct {
 	ForEach    hhcl.Expression
 	Iterator   string
@@ -25,6 +27,7 @@ type Attributes struct {
 	ValueBlock *ast.MergedBlock
 }
 
+// NewMapExpr creates a new MapExpr instance.
 func NewMapExpr(block *ast.MergedBlock) (*MapExpr, error) {
 	foundValueBlock := false
 	var valueBlock *ast.MergedBlock
@@ -70,6 +73,7 @@ func NewMapExpr(block *ast.MergedBlock) (*MapExpr, error) {
 	}, nil
 }
 
+// Range of the map block.
 func (m *MapExpr) Range() hhcl.Range {
 	return hhcl.Range{
 		Filename: m.Origin.HostPath(),
@@ -86,10 +90,12 @@ func (m *MapExpr) Range() hhcl.Range {
 	}
 }
 
+// StartRange of the map block.
 func (m *MapExpr) StartRange() hhcl.Range {
 	return m.Range()
 }
 
+// Value evaluates the map block.
 func (m *MapExpr) Value(ctx *hhcl.EvalContext) (cty.Value, hhcl.Diagnostics) {
 	foreach, diags := m.Attrs.ForEach.Value(ctx)
 	if diags.HasErrors() {
@@ -195,6 +201,8 @@ func (m *MapExpr) Value(ctx *hhcl.EvalContext) (cty.Value, hhcl.Diagnostics) {
 	return cty.ObjectVal(objmap), nil
 }
 
+// Variables returns the variables referenced by the map block.
+// TODO(i4k): implement.
 func (m *MapExpr) Variables() []hhcl.Traversal {
 	return nil
 }
