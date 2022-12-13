@@ -22,18 +22,18 @@ type Attributes struct {
 	Iterator   string
 	Key        hhcl.Expression
 	ValueAttr  hhcl.Expression
-	ValueBlock *ast.Block
+	ValueBlock *ast.MergedBlock
 }
 
 func NewMapExpr(block *ast.MergedBlock) (*MapExpr, error) {
 	foundValueBlock := false
-	var valueBlock *ast.Block
+	var valueBlock *ast.MergedBlock
 	for _, subBlock := range block.Blocks {
 		if foundValueBlock {
 			// the validation for multiple value blocks is done at the parser.
 			break
 		}
-		valueBlock = subBlock.RawOrigins[0]
+		valueBlock = subBlock
 		foundValueBlock = true
 	}
 
@@ -149,6 +149,22 @@ func (m *MapExpr) Value(ctx *hhcl.EvalContext) (cty.Value, hhcl.Diagnostics) {
 				}
 
 				valueMap[attr.Name] = attrVal
+
+				for _, subBlock := range m.Attrs.ValueBlock.Blocks {
+					// only `map` block allowed inside `value` block.
+					subMap, err := NewMapExpr(subBlock)
+					if err != nil {
+						mapErr = errors.E(err, "evaluating nested map block")
+						return true
+					}
+					val, diags := subMap.Value(ctx)
+					if diags.HasErrors() {
+						mapErr = errors.E(diags, "evaluating nested map block")
+						return true
+					}
+
+					valueMap[subBlock.Labels[0]] = val
+				}
 			}
 
 			valVal = cty.ObjectVal(valueMap)

@@ -3091,17 +3091,19 @@ func TestLoadGlobals(t *testing.T) {
 				{
 					path: "/",
 					add: Globals(
+						Expr("lst", `["a", "b", "c"]`),
 						Map(
 							Labels("var"),
-							Expr("for_each", "[]"),
-							Expr("key", "element.new.key"),
+							Expr("for_each", `global.lst`),
+							Expr("key", "element.new"),
 
 							Value(
+								Str("some", "value"),
 								Map(
 									Labels("var"),
-									Expr("for_each", "[]"),
-									Expr("key", "element.new.key"),
-									Expr("value", "element.new.value"),
+									Expr("for_each", "global.lst"),
+									Expr("key", "element.new"),
+									Expr("value", "element.new"),
 								),
 							),
 						),
@@ -3110,7 +3112,33 @@ func TestLoadGlobals(t *testing.T) {
 			},
 			want: map[string]*hclwrite.Block{
 				"/stack": Globals(
-					EvalExpr(t, "var", `{}`),
+					EvalExpr(t, "lst", `["a", "b", "c"]`),
+					EvalExpr(t, "var", `{
+						a = {
+							some = "value"
+							var = {
+								a = "a"
+								b = "b"
+								c = "c"
+							}
+						}
+						b = {
+							some = "value"
+							var = {
+								a = "a"
+								b = "b"
+								c = "c"
+							}
+						}
+						c = {
+							some = "value"
+							var = {
+								a = "a"
+								b = "b"
+								c = "c"
+							}
+						}
+					}`),
 				),
 			},
 		},
