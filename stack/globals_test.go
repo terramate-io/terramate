@@ -137,6 +137,28 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name: "multiple stacks with config on parent dir extended by children",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{path: "/stacks", add: Globals(Expr("parent", "global.a"))},
+				{path: "/stacks/stack-1", add: Globals(Number("a", 1))},
+				{path: "/stacks/stack-2", add: Globals(Number("a", 2))},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-1": Globals(
+					Number("parent", 1),
+					Number("a", 1),
+				),
+				"/stacks/stack-2": Globals(
+					Number("parent", 2),
+					Number("a", 2),
+				),
+			},
+		},
+		{
 			name: "multiple stacks with config on root dir",
 			layout: []string{
 				"s:stacks/stack-1",
@@ -754,6 +776,87 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name: "extending complex global with pending set object without imports",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/",
+					filename: "config.tm",
+					add: Doc(
+						Globals(
+							Str("a", "test"),
+							Number("b", 1),
+						),
+						Globals(
+							Labels("label"),
+							Bool("enabled", true),
+							Str("source", "hashicorp/google"),
+							Expr("obj", `{
+										data1 = tm_try(global.pending, 667)
+										data2 = tm_try(global.not_pending, 668)
+									}`),
+						),
+						Globals(
+							Labels("label", "obj"),
+							Bool("enabled", true),
+							Str("source", "hashicorp/google"),
+						),
+						Globals(
+							Str("c", "test"),
+							Number("d", 1),
+						),
+					),
+				},
+				{
+					path:     "/stacks/stack-1",
+					filename: "config.tm",
+					add: Doc(
+						Globals(
+							Number("pending", 666),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-1": Globals(
+					Number("pending", 666),
+					Str("a", "test"),
+					Number("b", 1),
+					Str("c", "test"),
+					Number("d", 1),
+					EvalExpr(t, "label", `{
+							  enabled = true
+		  					  source  = "hashicorp/google"
+							  obj = {
+							    data1 = 666
+								data2 = 668
+								enabled = true
+		  					  source  = "hashicorp/google"
+							  }
+							}`),
+				),
+				"/stacks/stack-2": Globals(
+					Str("a", "test"),
+					Number("b", 1),
+					Str("c", "test"),
+					Number("d", 1),
+					EvalExpr(t, "label", `{
+								enabled = true
+		  					    source  = "hashicorp/google"
+								obj = {
+								  data1 = 667
+								  data2 = 668
+								  enabled = true
+		  					  	  source  = "hashicorp/google"
+								}
+							  }`),
+				),
+			},
+		},
+		{
 			name: "single stack extending local globals",
 			layout: []string{
 				"s:stack",
@@ -775,6 +878,50 @@ func TestLoadGlobals(t *testing.T) {
 			want: map[string]*hclwrite.Block{
 				"/stack": Globals(
 					EvalExpr(t, "obj", `{ number = 1 }`),
+				),
+			},
+		},
+		{
+			name: "extending globals set on same level",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Expr("obj", `{
+								a = {
+									z = tm_try(global.d, false)
+								}
+							}`),
+						),
+						Globals(
+							Labels("obj", "a"),
+							Expr("b", "{}"),
+						),
+						Globals(
+							Labels("obj", "a", "b"),
+							Number("number", 1),
+						),
+						Globals(
+							Str("d", "test"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "obj", `{
+						a = {
+							b = {
+								number = 1
+							}
+							z = "test"
+						}
+					}`),
+					Str("d", "test"),
 				),
 			},
 		},

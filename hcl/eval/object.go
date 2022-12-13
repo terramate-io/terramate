@@ -171,10 +171,10 @@ func (obj *Object) MergeFailsIfKeyExists(path ObjectPath, value Value) error {
 	}
 
 	if old.IsObject() != value.IsObject() {
-		return errors.E("failed to merge object and value")
+		return errors.E("failed to merge object and value for key path %v", key)
 	}
 	if !value.IsObject() {
-		return errors.E("cannot overwrite")
+		return errors.E("cannot overwrite key path %v", key)
 	}
 	valObj := value.(*Object)
 	oldObj := old.(*Object)

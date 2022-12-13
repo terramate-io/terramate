@@ -15,7 +15,6 @@
 package globals
 
 import (
-	"path"
 	"sort"
 	"strings"
 
@@ -491,20 +490,24 @@ func isSameObjectPath(a, b eval.ObjectPath) bool {
 
 // setGlobal sets the global accordingly to the hierarchical rules.
 func setGlobal(globals *eval.Object, accessor GlobalPathKey, newVal eval.Value) error {
-	var err error
-
 	oldVal, hasOldVal := globals.GetKeyPath(accessor.Path())
+	if !hasOldVal {
+		return globals.SetAt(accessor.Path(), newVal)
+	}
 
-	switch {
-	case !hasOldVal:
-		err = globals.SetAt(accessor.Path(), newVal)
-	case (oldVal.Info().Dir == newVal.Info().Dir &&
-		oldVal.Info().DefinedAt.Dir() != newVal.Info().DefinedAt):
+	newConfigDir := newVal.Info().Dir
+	oldConfigDir := oldVal.Info().Dir
 
+	newDefinedDir := newVal.Info().DefinedAt.Dir()
+	oldDefinedDir := oldVal.Info().DefinedAt.Dir()
+
+	if oldConfigDir == newConfigDir && oldDefinedDir != newDefinedDir {
 		// if oldVal and newVal are instantiated at same place but comes from
 		// different source dirs (ie: one of them is imported).
 
-		if len(oldVal.Info().DefinedAt.Dir()) < len(newVal.Info().DefinedAt.Dir()) {
+		var err error
+		if len(oldDefinedDir) < len(newDefinedDir) {
+			// TODO(i4k): fix this!
 			// newVal is imported and oldVal has precedence.
 			err = globals.MergeNewKeys(accessor.Path(), newVal)
 		} else {
@@ -512,29 +515,23 @@ func setGlobal(globals *eval.Object, accessor GlobalPathKey, newVal eval.Value) 
 			err = globals.MergeOverwrite(accessor.Path(), newVal)
 		}
 
-	case (oldVal.Info().Dir == newVal.Info().Dir &&
-		oldVal.Info().DefinedAt.Dir() == newVal.Info().DefinedAt):
+		return err
+	}
 
-		// both values are instantiated at same dir
-
-		err = globals.MergeFailsIfKeyExists(accessor.Path(), newVal)
-
-	case strings.HasPrefix(path.Join(oldVal.Info().Dir.String(), "/"), newVal.Info().Dir.String()):
-
-		// if newVal comes from a parent dir, keep old keys and add the new ones.
-
-		err = globals.MergeNewKeys(accessor.Path(), newVal)
-
-	case strings.HasPrefix(newVal.Info().Dir.String(), oldVal.Info().Dir.String()):
+	if newConfigDir.HasPrefix(oldConfigDir.String()) {
 
 		// if oldVal comes from a parent dir, then overwrites with newVal.
 
-		err = globals.SetAt(accessor.Path(), newVal)
-
-	default:
-		panic("unexpected")
+		return globals.SetAt(accessor.Path(), newVal)
 	}
-	return err
+
+	panic(errors.E(errors.ErrInternal,
+		"unexpected globals case: new value from dir %s and defined at %s: "+
+			"old value from dir %s and defined at %s",
+		newConfigDir, newDefinedDir,
+		oldConfigDir, oldDefinedDir))
+
+	return nil
 }
 
 func (le loadedExprs) merge(other loadedExprs) {
@@ -542,7 +539,10 @@ func (le loadedExprs) merge(other loadedExprs) {
 		if _, ok := le[k]; !ok {
 			le[k] = v
 		} else {
-			panic(errors.E(errors.ErrInternal, "cant merge duplicated configuration %q", k))
+			panic(errors.E(
+				errors.ErrInternal,
+				"cant merge duplicated configuration %q",
+				k))
 		}
 	}
 }
