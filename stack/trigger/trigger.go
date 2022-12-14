@@ -49,7 +49,7 @@ const triggersDir = ".tmtriggers"
 func StackPath(triggerFile project.Path) (project.Path, bool) {
 	const triggersPrefix = "/" + triggersDir
 
-	if !strings.HasPrefix(triggerFile.String(), triggersPrefix) {
+	if !triggerFile.HasPrefix(triggersPrefix) {
 		return project.Path("/"), false
 	}
 
