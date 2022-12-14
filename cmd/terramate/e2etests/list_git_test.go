@@ -65,32 +65,6 @@ func TestListDetectChangesInSubDirOfStack(t *testing.T) {
 	assertRunResult(t, cli.listChangedStacks(), want)
 }
 
-func TestListDetectAsChangedTriggeredStack(t *testing.T) {
-	t.Parallel()
-
-	s := sandbox.New(t)
-
-	stack := s.CreateStack("stack")
-
-	git := s.Git()
-	git.CommitAll("all")
-	git.Push("main")
-	git.CheckoutNew("trigger-the-stack")
-
-	cli := newCLI(t, s.RootDir())
-
-	assertRunResult(t, cli.triggerStack("/stack"), runExpected{
-		IgnoreStdout: true,
-	})
-
-	git.CommitAll("commit the trigger file")
-
-	want := runExpected{
-		Stdout: stack.RelPath() + "\n",
-	}
-	assertRunResult(t, cli.listChangedStacks(), want)
-}
-
 func TestListDetectChangesInSubDirOfStackWithOtherConfigs(t *testing.T) {
 	t.Parallel()
 
