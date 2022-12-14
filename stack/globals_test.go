@@ -2802,7 +2802,11 @@ func TestLoadGlobals(t *testing.T) {
 				{
 					path: "/",
 					add: Globals(
-						Map(),
+						Map(
+							Expr("for_each", `["a", "b", "c"]`),
+							Str("key", "something"),
+							Str("value", "else"),
+						),
 					),
 				},
 			},
