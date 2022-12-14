@@ -1382,7 +1382,7 @@ func parseRootConfig(cfg *RootConfig, block *ast.MergedBlock) error {
 
 	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("git", "run"))
 
-	gitBlock, ok := block.Blocks["git"]
+	gitBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("git")]
 	if ok {
 		logger.Trace().Msg("Type is 'git'")
 
@@ -1393,7 +1393,7 @@ func parseRootConfig(cfg *RootConfig, block *ast.MergedBlock) error {
 		errs.Append(parseGitConfig(cfg.Git, gitBlock))
 	}
 
-	runBlock, ok := block.Blocks["run"]
+	runBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("run")]
 	if ok {
 		logger.Trace().Msg("Type is 'run'")
 
@@ -1446,7 +1446,7 @@ func parseRunConfig(runCfg *RunConfig, runBlock *ast.MergedBlock) error {
 
 	errs.AppendWrap(ErrTerramateSchema, runBlock.ValidateSubBlocks("env"))
 
-	block, ok := runBlock.Blocks["env"]
+	block, ok := runBlock.Blocks[ast.NewEmptyLabelBlockType("env")]
 	if ok {
 		runCfg.Env = &RunEnv{}
 		errs.Append(parseRunEnv(runCfg.Env, block))
@@ -1686,7 +1686,7 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 		if labelType.Type == "globals" {
 			globals[labelType] = mergedBlock
 
-			errs.AppendWrap(ErrTerramateSchema, mergedBlock.ValidateSubBlocks())
+			errs.AppendWrap(ErrTerramateSchema, validateGlobals(mergedBlock))
 		}
 	}
 
@@ -1746,6 +1746,66 @@ func (p *TerramateParser) checkConfigSanity(cfg Config) error {
 	return nil
 }
 
+func validateGlobals(block *ast.MergedBlock) error {
+	errs := errors.L()
+	errs.Append(block.ValidateSubBlocks("map"))
+	for _, raw := range block.RawOrigins {
+		if raw.Type != "globals" || len(raw.Blocks) == 0 {
+			continue
+		}
+
+		for _, subBlock := range raw.Blocks {
+			errs.Append(validateMap(subBlock))
+		}
+	}
+	return errs.AsError()
+}
+
+func validateMap(block *ast.Block) error {
+	if block.Type != "map" {
+		return errors.E(block.TypeRange, "unrecognized block type %s", block.Type)
+	}
+	if len(block.Labels) == 0 {
+		return errors.E(block.LabelRanges, "map block requires a label")
+	}
+	_, ok := block.Attributes["for_each"]
+	if !ok {
+		return errors.E(block.Range, "map.for_each attribute is required")
+	}
+	_, ok = block.Attributes["key"]
+	if !ok {
+		return errors.E(block.Range, "map.key is required")
+	}
+	_, hasValueAttr := block.Attributes["value"]
+	hasValueBlock := false
+	for _, subBlock := range block.Blocks {
+		if hasValueBlock {
+			return errors.E(subBlock.Range, "multiple map.value block declared")
+		}
+		if subBlock.Type != "value" {
+			return errors.E(
+				subBlock.Range,
+				"unrecognized block %s inside map block", subBlock.Type,
+			)
+		}
+		for _, valueSubBlock := range subBlock.Blocks {
+			err := validateMap(valueSubBlock)
+			if err != nil {
+				return err
+			}
+		}
+		hasValueBlock = true
+	}
+
+	if hasValueAttr && hasValueBlock {
+		return errors.E(block.Range, "value attribute conflicts with value block")
+	}
+	if !hasValueAttr && !hasValueBlock {
+		return errors.E(block.Range, "either a value attribute or a value block is required")
+	}
+	return nil
+}
+
 func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
 	logger := log.With().
 		Str("action", "parseTerramateBlock").
@@ -1788,7 +1848,7 @@ func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
 
 	logger.Trace().Msg("Parse terramate sub blocks")
 
-	configBlock, ok := block.Blocks["config"]
+	configBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("config")]
 	if ok {
 		logger.Trace().Msg("Found config block.")
 

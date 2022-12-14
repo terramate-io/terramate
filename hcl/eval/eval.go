@@ -131,6 +131,23 @@ func (c *Context) PartialEval(expr hhcl.Expression) (hclwrite.Tokens, error) {
 	return engine.Eval()
 }
 
+// Copy the eval context.
+func (c *Context) Copy() *Context {
+	newctx := &hhcl.EvalContext{
+		Variables: map[string]cty.Value{},
+	}
+	newctx.Functions = c.hclctx.Functions
+	for k, v := range c.hclctx.Variables {
+		newctx.Variables[k] = v
+	}
+	return NewContextFrom(newctx)
+}
+
+// Unwrap returns the internal hhcl.EvalContext.
+func (c *Context) Unwrap() *hhcl.EvalContext {
+	return c.hclctx
+}
+
 // TokensForValue returns the tokens for the provided value.
 func TokensForValue(value cty.Value) (hclwrite.Tokens, error) {
 	if value.Type() == customdecode.ExpressionClosureType {
@@ -237,7 +254,8 @@ func injectedTokensPrefix() []byte {
 	)
 }
 
-func newContextFrom(ctx *hhcl.EvalContext) *Context {
+// NewContextFrom creates a new evaluator from the hashicorp EvalContext.
+func NewContextFrom(ctx *hhcl.EvalContext) *Context {
 	return &Context{
 		hclctx: ctx,
 	}

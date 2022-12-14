@@ -2796,6 +2796,762 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "globals.map missing the label",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Expr("for_each", `["a", "b", "c"]`),
+							Str("key", "something"),
+							Str("value", "else"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:   "globals.map missing the for_each attribute",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:   "globals.map missing the key attribute",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("for_each", "[]"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:   "globals.map label conflicts with attribute",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Str("name", "test"),
+						Map(
+							Labels("name"),
+							Expr("for_each", "[]"),
+							Str("key", "a"),
+							Str("value", "a"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(globals.ErrRedefined),
+		},
+		{
+			name:   "globals.map missing the value attribute or block",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("for_each", "[]"),
+							Expr("key", "element.new.test"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:   "globals.map conflicting value attribute and block - fails",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("for_each", "[]"),
+							Expr("key", "element.new.test"),
+							Str("value", "value"),
+							Value(
+								Str("a", "b"),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:   "globals.map validation is recursive",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("for_each", "[]"),
+							Expr("key", "element.new.key"),
+							Expr("value", "element.new.value"),
+							Map(),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:   "invalid globals.map key",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("for_each", `["a", "b", "c"]`),
+							Expr("key", "something"), // keyword, not a string
+							Str("value", "else"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(globals.ErrEval),
+		},
+		{
+			name:   "invalid globals.map value",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("for_each", `["a", "b", "c"]`),
+							Str("key", "something"),
+							Expr("value", "else"), // keyword, not a string
+						),
+					),
+				},
+			},
+			wantErr: errors.E(globals.ErrEval),
+		},
+		{
+			name:   "simple globals.map without using element",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("for_each", `["a", "b", "c"]`),
+							Str("key", "something"),
+							Str("value", "else"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "var", `{
+						something = "else"
+					}`),
+				),
+			},
+		},
+		{
+			name:   "conflicting globals.map name with other globals",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Str("var", "test"),
+						Map(
+							Labels("var"),
+							Expr("for_each", `["a", "b", "c"]`),
+							Expr("key", "element.new"),
+							Expr("value", "element.new"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(globals.ErrRedefined),
+		},
+		{
+			name:   "simple globals.map ",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("for_each", `["a", "b", "c"]`),
+							Expr("key", "element.new"),
+							Expr("value", "element.new"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "var", `{
+						a = "a"
+						b = "b"
+						c = "c"
+					}`),
+				),
+			},
+		},
+		{
+			name:   "multiple globals.map blocks",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("for_each", `["a", "b", "c"]`),
+							Expr("key", "element.new"),
+							Expr("value", "element.new"),
+						),
+						Map(
+							Labels("var2"),
+							Expr("for_each", `["a", "b", "c"]`),
+							Expr("key", "element.new"),
+							Expr("value", "element.new"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "var", `{
+						a = "a"
+						b = "b"
+						c = "c"
+					}`),
+					EvalExpr(t, "var2", `{
+						a = "a"
+						b = "b"
+						c = "c"
+					}`),
+				),
+			},
+		},
+		{
+			name:   "simple globals.map with different iterator",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("iterator", "el"),
+							Expr("for_each", `["a", "b", "c"]`),
+							Expr("key", "el.new"),
+							Expr("value", "el.new"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "var", `{
+						a = "a"
+						b = "b"
+						c = "c"
+					}`),
+				),
+			},
+		},
+		{
+			name:   "using element.old in value attr to count people",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("people_count"),
+							Expr("for_each", `["marius", "tiago", "soeren", "tiago"]`),
+							Expr("key", "element.new"),
+							Expr("value", `{
+								count = tm_try(element.old.count, 0) + 1	
+							}`),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "people_count", `{
+						marius = {count = 1}
+  						tiago  = {count = 2}
+  						soeren = {count = 1}
+					}`),
+				),
+			},
+		},
+		{
+			name:   "using element.old in value block to count people",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("people_count"),
+							Expr("for_each", `["marius", "tiago", "soeren", "tiago"]`),
+							Expr("key", "element.new"),
+							Value(
+								Expr("count", `tm_try(element.old.count, 0) + 1`),
+							),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "people_count", `{
+						marius = {count = 1}
+  						tiago  = {count = 2}
+  						soeren = {count = 1}
+					}`),
+				),
+			},
+		},
+		{
+			name:   "multiple globals.map value blocks - fails",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("people_count"),
+							Expr("for_each", `["marius", "tiago", "soeren", "tiago"]`),
+							Expr("key", "element.new"),
+							Value(
+								Expr("count", `tm_try(element.old.count, 0) + 1`),
+							),
+							Value(
+								Number("num", 1),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+			name:   "globals.map is recursive",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Expr("lst", `["a", "b", "c"]`),
+						Map(
+							Labels("var"),
+							Expr("for_each", `global.lst`),
+							Expr("key", "element.new"),
+
+							Value(
+								Str("some", "value"),
+								Map(
+									Labels("var"),
+									Expr("for_each", "global.lst"),
+									Expr("key", "element.new"),
+									Expr("value", "element.new"),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "lst", `["a", "b", "c"]`),
+					EvalExpr(t, "var", `{
+						a = {
+							some = "value"
+							var = {
+								a = "a"
+								b = "b"
+								c = "c"
+							}
+						}
+						b = {
+							some = "value"
+							var = {
+								a = "a"
+								b = "b"
+								c = "c"
+							}
+						}
+						c = {
+							some = "value"
+							var = {
+								a = "a"
+								b = "b"
+								c = "c"
+							}
+						}
+					}`),
+				),
+			},
+		},
+		{
+			name:   "recursive globals.map with multiple map blocks",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Expr("lst", `["a", "b", "c"]`),
+						Map(
+							Labels("var"),
+							Expr("for_each", `global.lst`),
+							Expr("key", "element.new"),
+
+							Value(
+								Str("some", "value"),
+								Map(
+									Labels("var"),
+									Expr("for_each", "global.lst"),
+									Expr("key", "element.new"),
+									Expr("value", "element.new"),
+								),
+								Map(
+									Labels("var2"),
+									Expr("for_each", "global.lst"),
+									Expr("key", "element.new"),
+									Expr("value", "element.new"),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "lst", `["a", "b", "c"]`),
+					EvalExpr(t, "var", `{
+						a = {
+							some = "value"
+							var = {
+								a = "a"
+								b = "b"
+								c = "c"
+							}
+							var2 = {
+								a = "a"
+								b = "b"
+								c = "c"
+							}
+						}
+						b = {
+							some = "value"
+							var = {
+								a = "a"
+								b = "b"
+								c = "c"
+							}
+							var2 = {
+								a = "a"
+								b = "b"
+								c = "c"
+							}
+						}
+						c = {
+							some = "value"
+							var = {
+								a = "a"
+								b = "b"
+								c = "c"
+							}
+							var2 = {
+								a = "a"
+								b = "b"
+								c = "c"
+							}
+						}
+					}`),
+				),
+			},
+		},
+		{
+			name:   "recursive globals.map reusing element iterator",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Expr("lst", `[
+							{
+								val: "a", 
+								lst: [1, 2, 3]
+							},
+							{
+								val: "b",
+								lst: [4, 5, 6]
+							},
+							{
+								val: "c",
+								lst: [7, 8, 9]
+							}
+						]`),
+						Map(
+							Labels("var"),
+							Expr("for_each", `global.lst`),
+							Expr("key", "element.new.val"),
+
+							Value(
+								Str("some", "value"),
+								Map(
+									Labels("var"),
+									Expr("for_each", "element.new.lst"),
+									Expr("key", "tm_tostring(element.new)"),
+									Expr("value", "element.new"),
+								),
+								Map(
+									Labels("var2"),
+									Expr("for_each", "element.new.lst"),
+									Expr("key", "tm_tostring(element.new)"),
+									Expr("value", "element.new"),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "lst", `[
+						{
+							val: "a", 
+							lst: [1, 2, 3]
+						},
+						{
+							val: "b",
+							lst: [4, 5, 6]
+						},
+						{
+							val: "c",
+							lst: [7, 8, 9]
+						}
+					]`),
+					EvalExpr(t, "var", `{
+						a = {
+							some = "value"
+							var = {
+								"1" = 1
+								"2" = 2
+								"3" = 3
+							}
+							var2 = {
+								"1" = 1
+								"2" = 2
+								"3" = 3
+							}
+						}
+						b = {
+							some = "value"
+							var = {
+								"4" = 4
+								"5" = 5
+								"6" = 6
+							}
+							var2 = {
+								"4" = 4
+								"5" = 5
+								"6" = 6
+							}
+						}
+						c = {
+							some = "value"
+							var = {
+								"7" = 7
+								"8" = 8
+								"9" = 9
+							}
+							var2 = {
+								"7" = 7
+								"8" = 8
+								"9" = 9
+							}
+						}
+					}`),
+				),
+			},
+		},
+		{
+			name:   "recursive globals.map reusing with different nested iterator",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Expr("lst", `[
+							{
+								val: "a", 
+								lst: [1, 2, 3]
+							},
+							{
+								val: "b",
+								lst: [4, 5, 6]
+							},
+							{
+								val: "c",
+								lst: [7, 8, 9]
+							}
+						]`),
+						Map(
+							Labels("var"),
+							Expr("for_each", `global.lst`),
+							Expr("key", "element.new.val"),
+
+							Value(
+								Str("some", "value"),
+								Map(
+									Labels("var"),
+									Expr("for_each", "element.new.lst"),
+									Expr("key", "tm_tostring(el.new)"),
+									Expr("value", "el.new"),
+									Expr("iterator", "el"),
+								),
+								Map(
+									Labels("var2"),
+									Expr("for_each", "element.new.lst"),
+									Expr("key", "tm_tostring(el2.new)"),
+									Expr("value", "el2.new"),
+									Expr("iterator", "el2"),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "lst", `[
+						{
+							val: "a", 
+							lst: [1, 2, 3]
+						},
+						{
+							val: "b",
+							lst: [4, 5, 6]
+						},
+						{
+							val: "c",
+							lst: [7, 8, 9]
+						}
+					]`),
+					EvalExpr(t, "var", `{
+						a = {
+							some = "value"
+							var = {
+								"1" = 1
+								"2" = 2
+								"3" = 3
+							}
+							var2 = {
+								"1" = 1
+								"2" = 2
+								"3" = 3
+							}
+						}
+						b = {
+							some = "value"
+							var = {
+								"4" = 4
+								"5" = 5
+								"6" = 6
+							}
+							var2 = {
+								"4" = 4
+								"5" = 5
+								"6" = 6
+							}
+						}
+						c = {
+							some = "value"
+							var = {
+								"7" = 7
+								"8" = 8
+								"9" = 9
+							}
+							var2 = {
+								"7" = 7
+								"8" = 8
+								"9" = 9
+							}
+						}
+					}`),
+				),
+			},
+		},
+		{
+			name:   "recursive globals.map with conflicting map blocks inside value block",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Expr("lst", `["a", "b", "c"]`),
+						Map(
+							Labels("var"),
+							Expr("for_each", `global.lst`),
+							Expr("key", "element.new"),
+
+							Value(
+								Str("some", "value"),
+								Map(
+									Labels("var"),
+									Expr("for_each", "global.lst"),
+									Expr("key", "element.new"),
+									Expr("value", "element.new"),
+								),
+								Map(
+									Labels("var"),
+									Expr("for_each", "global.lst"),
+									Expr("key", "element.new"),
+									Expr("value", "element.new"),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
+
 			name: "regression test for a bug which incorrectly returned ErrRedefined errors",
 			layout: []string{
 				"s:stack",
