@@ -133,7 +133,6 @@ func Dir(rootdir string) string {
 // Create creates a trigger for a stack with the given path and the given reason
 // inside the project rootdir.
 func Create(rootdir string, path project.Path, reason string) error {
-
 	id, err := uuid.NewRandom()
 	if err != nil {
 		return errors.E(err, "creating trigger UUID")
