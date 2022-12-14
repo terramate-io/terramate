@@ -1382,7 +1382,7 @@ func parseRootConfig(cfg *RootConfig, block *ast.MergedBlock) error {
 
 	errs.AppendWrap(ErrTerramateSchema, block.ValidateSubBlocks("git", "run"))
 
-	gitBlock, ok := block.Blocks["git"]
+	gitBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("git")]
 	if ok {
 		logger.Trace().Msg("Type is 'git'")
 
@@ -1393,7 +1393,7 @@ func parseRootConfig(cfg *RootConfig, block *ast.MergedBlock) error {
 		errs.Append(parseGitConfig(cfg.Git, gitBlock))
 	}
 
-	runBlock, ok := block.Blocks["run"]
+	runBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("run")]
 	if ok {
 		logger.Trace().Msg("Type is 'run'")
 
@@ -1446,7 +1446,7 @@ func parseRunConfig(runCfg *RunConfig, runBlock *ast.MergedBlock) error {
 
 	errs.AppendWrap(ErrTerramateSchema, runBlock.ValidateSubBlocks("env"))
 
-	block, ok := runBlock.Blocks["env"]
+	block, ok := runBlock.Blocks[ast.NewEmptyLabelBlockType("env")]
 	if ok {
 		runCfg.Env = &RunEnv{}
 		errs.Append(parseRunEnv(runCfg.Env, block))
@@ -1848,7 +1848,7 @@ func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
 
 	logger.Trace().Msg("Parse terramate sub blocks")
 
-	configBlock, ok := block.Blocks["config"]
+	configBlock, ok := block.Blocks[ast.NewEmptyLabelBlockType("config")]
 	if ok {
 		logger.Trace().Msg("Found config block.")
 

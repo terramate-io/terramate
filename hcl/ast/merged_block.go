@@ -37,7 +37,7 @@ type MergedBlock struct {
 	RawOrigins Blocks
 
 	// Blocks maps block types to merged blocks.
-	Blocks map[string]*MergedBlock
+	Blocks map[LabelBlockType]*MergedBlock
 
 	// RawBlocks keeps a map of block type to original blocks.
 	RawBlocks map[string]Blocks
@@ -65,7 +65,7 @@ func NewMergedBlock(typ string, labels []string) *MergedBlock {
 		Type:       BlockType(typ),
 		Labels:     labels,
 		Attributes: make(Attributes),
-		Blocks:     make(map[string]*MergedBlock),
+		Blocks:     make(map[LabelBlockType]*MergedBlock),
 		RawBlocks:  make(map[string]Blocks),
 	}
 }
@@ -83,6 +83,12 @@ func NewLabelBlockType(typ string, labels []string) (LabelBlockType, error) {
 		Labels:    newLabels(labels),
 		NumLabels: len(labels),
 	}, nil
+}
+
+// NewEmptyLabelBlockType returns a new LabelBlockType with empty labels.
+func NewEmptyLabelBlockType(typ string) LabelBlockType {
+	lb, _ := NewLabelBlockType(typ, []string{})
+	return lb
 }
 
 // MergeBlock recursively merges the other block into this one.
@@ -129,13 +135,17 @@ func (mb *MergedBlock) mergeBlocks(other Blocks, isLabelled bool) error {
 	errs := errors.L()
 	for _, newblock := range other {
 		var err error
-		if old, ok := mb.Blocks[newblock.Type]; ok {
+		lb, err := NewLabelBlockType(newblock.Type, newblock.Labels)
+		if err != nil {
+			return err
+		}
+		if old, ok := mb.Blocks[lb]; ok {
 			err = old.MergeBlock(newblock, isLabelled)
 		} else {
 			b := NewMergedBlock(newblock.Type, newblock.Labels)
 			err = b.MergeBlock(newblock, isLabelled)
 			if err == nil {
-				mb.Blocks[newblock.Type] = b
+				mb.Blocks[lb] = b
 			}
 		}
 
