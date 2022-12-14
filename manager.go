@@ -30,6 +30,7 @@ import (
 	"github.com/mineiros-io/terramate/run"
 	"github.com/mineiros-io/terramate/run/dag"
 	"github.com/mineiros-io/terramate/stack"
+	"github.com/mineiros-io/terramate/stack/trigger"
 	"github.com/mineiros-io/terramate/tf"
 	"github.com/rs/zerolog/log"
 )
@@ -160,16 +161,53 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 
 	stackSet := map[project.Path]Entry{}
 
-	logger.Trace().Msg("Range over files.")
-
 	for _, path := range changedFiles {
-		if strings.HasPrefix(path, ".") {
+		abspath := filepath.Join(m.root.Dir(), path)
+		projpath := project.PrjAbsPath(m.root.Dir(), abspath)
+		triggeredStack, isTriggerFile := trigger.StackPath(projpath)
+
+		logger = logger.With().
+			Stringer("path", projpath).
+			Logger()
+
+		if strings.HasPrefix(path, ".") && !isTriggerFile {
+			logger.Debug().Msg("ignoring changed file starting with .")
 			continue
 		}
 
-		logger.Trace().Msg("Get dir name.")
+		if isTriggerFile {
+			logger = logger.With().
+				Stringer("trigger", triggeredStack).
+				Logger()
 
-		dirname := filepath.Dir(filepath.Join(m.root.Dir(), path))
+			logger.Debug().Msg("trigger file change detected")
+
+			if _, err := os.Stat(abspath); err != nil {
+				if errors.Is(err, fs.ErrNotExist) {
+					logger.Debug().Msg("ignoring deleted trigger file")
+					continue
+				}
+			}
+
+			cfg, found := m.root.Lookup(triggeredStack)
+			if !found || !cfg.IsStack() {
+				logger.Debug().Msg("trigger path is not a stack, nothing to do")
+				continue
+			}
+
+			s, err := stack.New(m.root.Dir(), cfg.Node)
+			if err != nil {
+				return nil, errors.E(errListChanged, err)
+			}
+
+			stackSet[s.Path()] = Entry{
+				Stack:  s,
+				Reason: "stack has been triggered by: " + projpath.String(),
+			}
+			continue
+		}
+
+		dirname := filepath.Dir(abspath)
 
 		if _, ok := stackSet[project.PrjAbsPath(m.root.Dir(), dirname)]; ok {
 			continue
