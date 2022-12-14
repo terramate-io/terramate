@@ -3141,6 +3141,29 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "multiple globals.map value blocks are merged",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("people_count"),
+							Expr("for_each", `["marius", "tiago", "soeren", "tiago"]`),
+							Expr("key", "element.new"),
+							Value(
+								Expr("count", `tm_try(element.old.count, 0) + 1`),
+							),
+							Value(
+								Number("num", 1),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
 			name:   "globals.map is recursive",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
@@ -3316,6 +3339,113 @@ func TestLoadGlobals(t *testing.T) {
 									Expr("for_each", "element.new.lst"),
 									Expr("key", "tm_tostring(element.new)"),
 									Expr("value", "element.new"),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "lst", `[
+						{
+							val: "a", 
+							lst: [1, 2, 3]
+						},
+						{
+							val: "b",
+							lst: [4, 5, 6]
+						},
+						{
+							val: "c",
+							lst: [7, 8, 9]
+						}
+					]`),
+					EvalExpr(t, "var", `{
+						a = {
+							some = "value"
+							var = {
+								"1" = 1
+								"2" = 2
+								"3" = 3
+							}
+							var2 = {
+								"1" = 1
+								"2" = 2
+								"3" = 3
+							}
+						}
+						b = {
+							some = "value"
+							var = {
+								"4" = 4
+								"5" = 5
+								"6" = 6
+							}
+							var2 = {
+								"4" = 4
+								"5" = 5
+								"6" = 6
+							}
+						}
+						c = {
+							some = "value"
+							var = {
+								"7" = 7
+								"8" = 8
+								"9" = 9
+							}
+							var2 = {
+								"7" = 7
+								"8" = 8
+								"9" = 9
+							}
+						}
+					}`),
+				),
+			},
+		},
+		{
+			name:   "recursive globals.map reusing with different nested iterator",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Expr("lst", `[
+							{
+								val: "a", 
+								lst: [1, 2, 3]
+							},
+							{
+								val: "b",
+								lst: [4, 5, 6]
+							},
+							{
+								val: "c",
+								lst: [7, 8, 9]
+							}
+						]`),
+						Map(
+							Labels("var"),
+							Expr("for_each", `global.lst`),
+							Expr("key", "element.new.val"),
+
+							Value(
+								Str("some", "value"),
+								Map(
+									Labels("var"),
+									Expr("for_each", "element.new.lst"),
+									Expr("key", "tm_tostring(el.new)"),
+									Expr("value", "el.new"),
+									Expr("iterator", "el"),
+								),
+								Map(
+									Labels("var2"),
+									Expr("for_each", "element.new.lst"),
+									Expr("key", "tm_tostring(el2.new)"),
+									Expr("value", "el2.new"),
+									Expr("iterator", "el2"),
 								),
 							),
 						),
