@@ -3278,6 +3278,145 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "recursive globals.map reusing element iterator",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Expr("lst", `[
+							{
+								val: "a", 
+								lst: [1, 2, 3]
+							},
+							{
+								val: "b",
+								lst: [4, 5, 6]
+							},
+							{
+								val: "c",
+								lst: [7, 8, 9]
+							}
+						]`),
+						Map(
+							Labels("var"),
+							Expr("for_each", `global.lst`),
+							Expr("key", "element.new.val"),
+
+							Value(
+								Str("some", "value"),
+								Map(
+									Labels("var"),
+									Expr("for_each", "element.new.lst"),
+									Expr("key", "tm_tostring(element.new)"),
+									Expr("value", "element.new"),
+								),
+								Map(
+									Labels("var2"),
+									Expr("for_each", "element.new.lst"),
+									Expr("key", "tm_tostring(element.new)"),
+									Expr("value", "element.new"),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "lst", `[
+						{
+							val: "a", 
+							lst: [1, 2, 3]
+						},
+						{
+							val: "b",
+							lst: [4, 5, 6]
+						},
+						{
+							val: "c",
+							lst: [7, 8, 9]
+						}
+					]`),
+					EvalExpr(t, "var", `{
+						a = {
+							some = "value"
+							var = {
+								"1" = 1
+								"2" = 2
+								"3" = 3
+							}
+							var2 = {
+								"1" = 1
+								"2" = 2
+								"3" = 3
+							}
+						}
+						b = {
+							some = "value"
+							var = {
+								"4" = 4
+								"5" = 5
+								"6" = 6
+							}
+							var2 = {
+								"4" = 4
+								"5" = 5
+								"6" = 6
+							}
+						}
+						c = {
+							some = "value"
+							var = {
+								"7" = 7
+								"8" = 8
+								"9" = 9
+							}
+							var2 = {
+								"7" = 7
+								"8" = 8
+								"9" = 9
+							}
+						}
+					}`),
+				),
+			},
+		},
+		{
+			name:   "recursive globals.map with conflicting map blocks inside value block",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Expr("lst", `["a", "b", "c"]`),
+						Map(
+							Labels("var"),
+							Expr("for_each", `global.lst`),
+							Expr("key", "element.new"),
+
+							Value(
+								Str("some", "value"),
+								Map(
+									Labels("var"),
+									Expr("for_each", "global.lst"),
+									Expr("key", "element.new"),
+									Expr("value", "element.new"),
+								),
+								Map(
+									Labels("var"),
+									Expr("for_each", "global.lst"),
+									Expr("key", "element.new"),
+									Expr("value", "element.new"),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
 
 			name: "regression test for a bug which incorrectly returned ErrRedefined errors",
 			layout: []string{

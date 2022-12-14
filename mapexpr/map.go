@@ -130,9 +130,9 @@ func (m *MapExpr) Value(ctx *hhcl.EvalContext) (cty.Value, hhcl.Diagnostics) {
 	evaluator := eval.NewContextFrom(ctx)
 
 	var mapErr error
-	foreach.ForEachElement(func(key, value cty.Value) (stop bool) {
+	foreach.ForEachElement(func(key, newElement cty.Value) (stop bool) {
 		evaluator.SetNamespace(m.Attrs.Iterator, map[string]cty.Value{
-			"new": value,
+			"new": newElement,
 			"old": cty.NilVal,
 		})
 
@@ -147,13 +147,13 @@ func (m *MapExpr) Value(ctx *hhcl.EvalContext) (cty.Value, hhcl.Diagnostics) {
 			return true
 		}
 
-		old, ok := objmap[keyVal.AsString()]
+		oldElement, ok := objmap[keyVal.AsString()]
 		if !ok {
-			old = cty.NilVal
+			oldElement = cty.NilVal
 		}
 		evaluator.SetNamespace(m.Attrs.Iterator, map[string]cty.Value{
-			"new": value,
-			"old": old,
+			"new": newElement,
+			"old": oldElement,
 		})
 
 		var valVal cty.Value
@@ -174,16 +174,22 @@ func (m *MapExpr) Value(ctx *hhcl.EvalContext) (cty.Value, hhcl.Diagnostics) {
 					// only `map` block allowed inside `value` block.
 					subMap, err := NewMapExpr(subBlock)
 					if err != nil {
-						mapErr = errors.E(err, "evaluating nested map block")
+						mapErr = errors.E(err, "evaluating nested %q map block", subBlock.Labels[0])
 						return true
 					}
 					val, diags := subMap.Value(ctx)
 					if diags.HasErrors() {
-						mapErr = errors.E(diags, "evaluating nested map block")
+						mapErr = errors.E(diags, "evaluating nested %q map block", subBlock.Labels[0])
 						return true
 					}
 
 					valueMap[subBlock.Labels[0]] = val
+
+					// TODO(i4k): properly shadow the child scope
+					evaluator.SetNamespace(m.Attrs.Iterator, map[string]cty.Value{
+						"new": newElement,
+						"old": oldElement,
+					})
 				}
 			}
 
