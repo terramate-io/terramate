@@ -601,7 +601,7 @@ func (c *cli) triggerStack() {
 	logger.Debug().Msg("creating stack trigger")
 
 	if !path.IsAbs(stack) {
-		logger.Fatal().Msg("stack must be a Unix absolute path, like /stack")
+		logger.Fatal().Msg("stack must be a project absolute path, like /stack")
 	}
 
 	stackPath := prj.NewPath(stack)
