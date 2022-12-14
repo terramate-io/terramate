@@ -25,6 +25,7 @@ import (
 
 	"github.com/mineiros-io/terramate/cmd/terramate/cli"
 	"github.com/mineiros-io/terramate/run/dag"
+	"github.com/mineiros-io/terramate/stack/trigger"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
@@ -1239,6 +1240,146 @@ func TestRunReverseExecution(t *testing.T) {
 	addStack("stack-3")
 	git.CommitAll("commit")
 	assertRunOrder("stack-3", "stack-2", "stack-1")
+}
+
+func TestRunWontDetectAsChangeDeletedTrigger(t *testing.T) {
+	t.Parallel()
+
+	const testfile = "testfile"
+
+	s := sandbox.New(t)
+
+	s.BuildTree([]string{
+		"s:stack-1",
+		"s:stack-2",
+		fmt.Sprintf("f:stack-1/%s:stack-1\n", testfile),
+		fmt.Sprintf("f:stack-2/%s:stack-2\n", testfile),
+	})
+
+	cli := newCLI(t, s.RootDir())
+	assertRunResult(t, cli.triggerStack("/stacks/stack-1"), runExpected{
+		IgnoreStdout: true,
+	})
+
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+
+	git.CheckoutNew("delete-trigger")
+
+	test.RemoveAll(t, trigger.Dir(s.RootDir()))
+	git.CommitAll("removed trigger")
+
+	assertRunResult(t, cli.run(
+		"run",
+		"--changed",
+		testHelperBin,
+		"cat",
+		testfile,
+	), runExpected{Stdout: ""})
+}
+
+func TestRunChangedDetectsTriggeredStack(t *testing.T) {
+	t.Parallel()
+
+	const testfile = "testfile"
+
+	s := sandbox.New(t)
+
+	s.BuildTree([]string{
+		"s:stack-1",
+		"s:stack-2",
+		fmt.Sprintf("f:stack-1/%s:stack-1\n", testfile),
+		fmt.Sprintf("f:stack-2/%s:stack-2\n", testfile),
+	})
+
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+
+	git.CheckoutNew("trigger-the-stack")
+
+	cli := newCLI(t, s.RootDir())
+
+	assertRunResult(t, cli.run(
+		"run",
+		"--changed",
+		testHelperBin,
+		"cat",
+		testfile,
+	), runExpected{Stdout: ""})
+
+	assertRunResult(t, cli.triggerStack("/stack-1"), runExpected{
+		IgnoreStdout: true,
+	})
+	git.CommitAll("commit the trigger file for stack-1")
+
+	assertRunResult(t, cli.run(
+		"run",
+		"--changed",
+		testHelperBin,
+		"cat",
+		testfile,
+	), runExpected{Stdout: listStacks("stack-1")})
+
+	assertRunResult(t, cli.triggerStack("/stack-2"), runExpected{
+		IgnoreStdout: true,
+	})
+	git.CommitAll("commit the trigger file for stack-2")
+
+	assertRunResult(t, cli.run(
+		"run",
+		"--changed",
+		testHelperBin,
+		"cat",
+		testfile,
+	), runExpected{Stdout: listStacks("stack-1", "stack-2")})
+}
+
+func TestRunChangedDetectionIgnoresDeletedTrigger(t *testing.T) {
+	t.Parallel()
+
+	const testfile = "testfile"
+
+	s := sandbox.New(t)
+
+	s.BuildTree([]string{
+		"s:stack",
+		fmt.Sprintf("f:stack/%s:stack\n", testfile),
+	})
+
+	cli := newCLI(t, s.RootDir())
+
+	assertRunResult(t, cli.triggerStack("/stack"), runExpected{
+		IgnoreStdout: true,
+	})
+
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+
+	git.CheckoutNew("delete-stack-trigger")
+
+	assertNoChanges := func() {
+		t.Helper()
+
+		assertRunResult(t, cli.run(
+			"run",
+			"--changed",
+			testHelperBin,
+			"cat",
+			testfile,
+		), runExpected{Stdout: ""})
+	}
+
+	assertNoChanges()
+
+	triggerDir := trigger.Dir(s.RootDir())
+	test.RemoveAll(t, triggerDir)
+
+	git.CommitAll("removed trigger")
+
+	assertNoChanges()
 }
 
 func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDir(t *testing.T) {
