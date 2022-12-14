@@ -1766,7 +1766,7 @@ func validateMap(block *ast.Block) error {
 		return errors.E(block.TypeRange, "unrecognized block type %s", block.Type)
 	}
 	if len(block.Labels) == 0 {
-		return errors.E("map block requires a label")
+		return errors.E(block.LabelRanges, "map block requires a label")
 	}
 	_, ok := block.Attributes["for_each"]
 	if !ok {
