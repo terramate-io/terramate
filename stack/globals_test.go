@@ -3141,7 +3141,7 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
-			name:   "multiple globals.map value blocks are merged",
+			name:   "multiple globals.map value blocks - fails",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
 				{
