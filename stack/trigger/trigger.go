@@ -27,6 +27,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
@@ -96,7 +97,7 @@ func ParseFile(path string) (Info, error) {
 	errs := errors.L()
 	info := Info{}
 
-	for _, attribute := range triggerContent.Attributes {
+	for _, attribute := range ast.SortRawAttributes(triggerContent.Attributes) {
 		val, err := attribute.Expr.Value(nil)
 		if err != nil {
 			errs.Append(errors.E(err, "trigger: failure evaluating %q", attribute.Name))
