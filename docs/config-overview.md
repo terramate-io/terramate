@@ -217,7 +217,7 @@ The `value` block and the `value` attribute **cannot** be used together.
 
 # value block schema
 
-The `value` block does not support labels, accepts **any** attribute and supports any number of [map](#map-block) blocks.
+The `value` block does not support labels. It accepts multiple attributes of any name and value of type `any`. It supports any number of nested [map](#map-block) blocks.
 
 # generate_file block schema
 
