@@ -131,10 +131,11 @@ func (m *MapExpr) Value(ctx *hhcl.EvalContext) (cty.Value, hhcl.Diagnostics) {
 
 	var mapErr error
 	foreach.ForEachElement(func(key, newElement cty.Value) (stop bool) {
-		evaluator.SetNamespace(m.Attrs.Iterator, map[string]cty.Value{
+		iteratorMap := map[string]cty.Value{
 			"new": newElement,
-			"old": cty.NilVal,
-		})
+		}
+
+		evaluator.SetNamespace(m.Attrs.Iterator, iteratorMap)
 
 		keyVal, err := evaluator.Eval(m.Attrs.Key)
 		if err != nil {
@@ -148,13 +149,10 @@ func (m *MapExpr) Value(ctx *hhcl.EvalContext) (cty.Value, hhcl.Diagnostics) {
 		}
 
 		oldElement, ok := objmap[keyVal.AsString()]
-		if !ok {
-			oldElement = cty.NilVal
+		if ok {
+			iteratorMap["old"] = oldElement
+			evaluator.SetNamespace(m.Attrs.Iterator, iteratorMap)
 		}
-		evaluator.SetNamespace(m.Attrs.Iterator, map[string]cty.Value{
-			"new": newElement,
-			"old": oldElement,
-		})
 
 		var valVal cty.Value
 
