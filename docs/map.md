@@ -8,21 +8,23 @@ The following is a very basic example introducing the `map` block inside a `glob
 
 ```hcl
 globals {
-    map obj {
-        for_each = [
-            {name="a", value=5},
-            {name="c", value=0},
-            {name="a", value=15},
-            {name="b", value=5},
-            {name="c", value=20},
-        ]
-        iterator = elem
-        key = elem.new.name
-        value {
-            value = elem.new.value
-            previous = tm_try(elem.old.value, null)
-        }
+  map obj {
+    for_each = [
+      {name="a", value=5},
+      {name="c", value=0},
+      {name="a", value=15},
+      {name="b", value=5},
+      {name="c", value=20},
+    ]
+
+    iterator = elem
+    key      = elem.new.name
+
+    value {
+      value    = elem.new.value
+      previous = tm_try(elem.old.value, null)
     }
+  }
 }
 
 ```
