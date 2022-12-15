@@ -3127,6 +3127,32 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "element.old is undefined on first iteration of a given key",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("people_count"),
+							Expr("for_each", `["marius", "tiago", "soeren", "tiago"]`),
+							Expr("key", "element.new"),
+							Expr("value", `tm_try(element.old, 0) + 1`),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "people_count", `{
+						marius = 1
+  						tiago  = 2
+  						soeren = 1
+					}`),
+				),
+			},
+		},
+		{
 			name:   "using element.old in value attr to count people",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
