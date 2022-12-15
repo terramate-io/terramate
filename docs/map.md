@@ -1,8 +1,8 @@
 # map block
 
-The `map` block can be used to declare complex objects inside 
-[Globals](sharing-data.md) and it's useful when aggregating or merging lists
-of objects that potentially can have duplicated keys.
+The `map` block can be used to create complex maps/objects inside 
+[Globals](sharing-data.md). It can be used to aggregate lists
+of objects into maps that have duplicated keys and need a defined way of deep merging values of the same key.
 
 Let's get started with a very simple (yet useless) example, just to introduce
 the `map` components:
