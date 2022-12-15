@@ -26,7 +26,6 @@ globals {
     }
   }
 }
-
 ```
 
 The code above will result in the `global.obj` defined below:
