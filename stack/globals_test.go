@@ -3089,6 +3089,44 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "globals.map unknowns are postponed in the evaluator",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("iterator", "el"),
+							Expr("for_each", `[global.val1, global.val2, global.val3]`),
+							Expr("key", "el.new"),
+							Expr("value", "el.new"),
+						),
+						Str("val2", "val2"),
+					),
+				},
+				{
+					path: "/",
+					add: Globals(
+						Str("val1", "val1"),
+						Str("val3", "val3"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					Str("val1", "val1"),
+					Str("val2", "val2"),
+					Str("val3", "val3"),
+					EvalExpr(t, "var", `{
+						val1 = "val1"
+						val2 = "val2"
+						val3 = "val3"
+					}`),
+				),
+			},
+		},
+		{
 			name:   "using element.old in value attr to count people",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{

@@ -43,15 +43,24 @@ type Attributes struct {
 
 // NewMapExpr creates a new MapExpr instance.
 func NewMapExpr(block *ast.MergedBlock) (*MapExpr, error) {
-	foundValueBlock := false
+	children := []*MapExpr{}
 	var valueBlock *ast.MergedBlock
 	for _, subBlock := range block.Blocks {
-		if foundValueBlock {
+		if valueBlock != nil {
 			// the validation for multiple value blocks is done at the parser.
-			break
+			panic(errors.E(errors.ErrInternal, "unexpected number of value blocks inside map"))
 		}
+
 		valueBlock = subBlock
-		foundValueBlock = true
+
+		for _, childBlock := range valueBlock.Blocks {
+			// child blocks are `map`.
+			m, err := NewMapExpr(childBlock)
+			if err != nil {
+				return nil, errors.E(err, "creating nested `map` expression")
+			}
+			children = append(children, m)
+		}
 	}
 
 	iterator := "element"
@@ -70,13 +79,14 @@ func NewMapExpr(block *ast.MergedBlock) (*MapExpr, error) {
 	}
 
 	var valueExpr hhcl.Expression
-	if !foundValueBlock {
+	if valueBlock == nil {
 		// already validated, if no value block then a value attr must exist.
 		valueExpr = block.Attributes["value"].Expr
 	}
 
 	return &MapExpr{
-		Origin: block.RawOrigins[0].Range,
+		Origin:   block.RawOrigins[0].Range,
+		Children: children,
 		Attrs: Attributes{
 			ForEach:    block.Attributes["for_each"].Expr,
 			Key:        block.Attributes["key"].Expr,
@@ -216,8 +226,32 @@ func (m *MapExpr) Value(ctx *hhcl.EvalContext) (cty.Value, hhcl.Diagnostics) {
 	return cty.ObjectVal(objmap), nil
 }
 
-// Variables returns the variables referenced by the map block.
-// TODO(i4k): implement.
+// Variables returns the outer variables referenced by the map block.
+// It ignores local scoped variables.
 func (m *MapExpr) Variables() []hhcl.Traversal {
-	return nil
+	allvars := []hhcl.Traversal{}
+
+	appendVars := func(vars []hhcl.Traversal) {
+		for _, v := range vars {
+			if m.Attrs.Iterator != v.RootName() {
+				allvars = append(allvars, v)
+			}
+		}
+	}
+
+	appendVars(m.Attrs.ForEach.Variables())
+	appendVars(m.Attrs.Key.Variables())
+	if m.Attrs.ValueAttr != nil {
+		appendVars(m.Attrs.ValueAttr.Variables())
+	}
+	if m.Attrs.ValueBlock != nil {
+		for _, attr := range m.Attrs.ValueBlock.Attributes.SortedList() {
+			appendVars(attr.Expr.Variables())
+		}
+
+		for _, childMap := range m.Children {
+			appendVars(childMap.Variables())
+		}
+	}
+	return allvars
 }
