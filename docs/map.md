@@ -45,8 +45,6 @@ obj = {
     value    = 20
   }
 }
-
-
 ```
 
 The `map` will iterate over the value in `for_each`, setting the iterator variable (`elem` in this case) with the **new** and **old** value for the
