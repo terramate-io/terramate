@@ -109,21 +109,25 @@ Example:
 
 ```hcl
 globals {
-    map totals {
-        for_each = global.orders
-        key = element.new.name
-        value {
-            total_spent = tm_try(element.old.total_spent, 0) + element.new.price
+  map totals {
+    for_each = global.orders
 
-            map per_product {
-               for_each = [for v in global.orders : v if v.name == element.new.name]
-               key = element.new.product
-               value {
-                   total = tm_try(element.old.total, 0) + element.new.price
-               }
-            }
+    key = element.new.name
+
+    value {
+      total_spent = tm_try(element.old.total_spent, 0) + element.new.price
+
+      map per_product {
+        for_each = [for v in global.orders : v if v.name == element.new.name]
+      
+        key = element.new.product
+
+        value {
+          total = tm_try(element.old.total, 0) + element.new.price
         }
+      }
     }
+  }
 }
 ```
 
