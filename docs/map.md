@@ -87,7 +87,7 @@ globals {
 }
 ```
 
-Which will result in the object below:
+Which will result in the global object below:
 
 ```
 totals = {
