@@ -208,10 +208,10 @@ block, requires 1 label and optionally accepts a [value](#value-block-schema).
 
 | name             |      type      | description |
 |------------------|----------------|-------------|
-| for_each        | list(any)       | The input list |
-| key             | string          | The computed key |
-| value           | any             | The value for the key |
-| [value](#value-block-schema) | block* | value properties |
+| `for_each`        | `list(any)`       | The input list |
+| `key`             | `string`          | The computed key |
+| `value`           | `any`             | The value for the key |
+| [`value`](#value-block-schema) | `block*` | value properties |
 
 The `value` block and the `value` attribute **cannot** be used together.
 
