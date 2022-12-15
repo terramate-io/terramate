@@ -71,8 +71,7 @@ globals {
 }
 ```
 
-Let's say you would like to aggregate those values by `name`, then you can do it
-with the `map` block as defined below:
+Let's aggregate those values by `name`, by using the `map` block as defined below:
 
 ```
 map totals {
