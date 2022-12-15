@@ -47,10 +47,9 @@ obj = {
 }
 ```
 
-The `map` will iterate over the value in `for_each`, setting the iterator variable (`elem` in this case) with the **new** and **old** value for the
-provided `key`. If the `iterator` attribute is not set, then the default
-iterator name is `element`. The `element.new` contains the current iterated
-value and the `element.old` contains the previous value stored for the current
+The `map` will iterate over the values in `for_each`, setting the iterator variable (`elem` in this case, `element` by default) with the `elem.new` and `elem.old` values for the
+provided `key`. The `elem.new` contains the current iterated
+value and the `elem.old` contains the values of the previous iteration of the current
 `key`.
 
 Now it's time for a more useful example.
