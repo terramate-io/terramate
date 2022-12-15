@@ -74,13 +74,17 @@ globals {
 Let's aggregate those values by `name`, by using the `map` block as defined below:
 
 ```
-map totals {
-        for_each = global.orders
-        key = element.new.name
-        value {
-            total_spent = tm_try(element.old.total_spent, 0) + element.new.price
-        }
+globals {
+  map totals {
+    for_each = global.orders
+
+    key = element.new.name
+    
+    value {
+      total_spent = tm_try(element.old.total_spent, 0) + element.new.price
     }
+  }
+}
 ```
 
 Which will result in the object below:
