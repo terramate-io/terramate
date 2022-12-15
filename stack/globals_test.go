@@ -3127,6 +3127,44 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "globals.map unknowns are postponed in the evaluator even when parent depends on child",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("iterator", "el"),
+							Expr("for_each", `[global.val1, global.val2, global.val3]`),
+							Expr("key", "el.new"),
+							Expr("value", "el.new"),
+						),
+						Str("val2", "val2"),
+					),
+				},
+				{
+					path: "/stack",
+					add: Globals(
+						Str("val1", "val1"),
+						Str("val3", "val3"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					Str("val1", "val1"),
+					Str("val2", "val2"),
+					Str("val3", "val3"),
+					EvalExpr(t, "var", `{
+						val1 = "val1"
+						val2 = "val2"
+						val3 = "val3"
+					}`),
+				),
+			},
+		},
+		{
 			name:   "element.old is undefined on first iteration of a given key",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
