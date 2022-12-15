@@ -72,7 +72,8 @@ This will make the `global.obj` look like:
 }
 ```
 
-Additionally, the [map](./map.md) block for building complex global objects.
+Additionally, the [map](./map.md) block is supported inside the `globals` block
+for building complex objects.
 
 The **globals** can be referenced on the [code generation](codegen/overview.md):
 
