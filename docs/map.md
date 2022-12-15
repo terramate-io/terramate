@@ -103,8 +103,7 @@ totals = {
 }
 ```
 
-But you can aggregate even further by using nested `map` blocks and then
-aggregate by `product` for each `name`. 
+Using nested `map` blocks and then aggregate by `product` for each `name` can be achieved using the following: 
 
 Example:
 
