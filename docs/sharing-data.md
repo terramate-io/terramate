@@ -72,6 +72,8 @@ This will make the `global.obj` look like:
 }
 ```
 
+Additionally, the [map](./map.md) block for building complex global objects.
+
 The **globals** can be referenced on the [code generation](codegen/overview.md):
 
 ```hcl

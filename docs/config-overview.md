@@ -196,9 +196,28 @@ can be defined multiple times and has the following schema:
 
 # globals block schema
 
-The `globals` block accepts any number of labels, supports [merging](#config-merging), accepts **any** attribute and **disallow** child blocks.
+The `globals` block accepts any number of labels, supports [merging](#config-merging), accepts **any** attribute and supports any number of 
+[map](#map-block) blocks.
 
 For more information about `globals`, see the [Sharing Data](https://github.com/mineiros-io/terramate/blob/main/docs/sharing-data.md#globals) documentation.
+
+# map block schema
+
+The `map` block can only be used inside the [globals](#globals-block-schema)
+block, requires 1 label and optionally accepts a [value](#value-block-schema).
+
+| name             |      type      | description |
+|------------------|----------------|-------------|
+| for_each        | list(any)       | The input list |
+| key             | string          | The computed key |
+| value           | any             | The value for the key |
+| [value](#value-block-schema) | block* | value properties |
+
+The `value` block and the `value` attribute **cannot** be used together.
+
+# value block schema
+
+The `value` block does not support labels, accepts **any** attribute and supports any number of [map](#map-block) blocks.
 
 # generate_file block schema
 

@@ -1,0 +1,172 @@
+# map block
+
+The `map` block can be used to declare complex objects inside 
+[Globals](sharing-data.md) and it's useful when aggregating or merging lists
+of objects that potentially can have duplicated keys.
+
+Let's get started with a very simple (yet useless) example, just to introduce
+the `map` components:
+
+```hcl
+globals {
+    map obj {
+        for_each = [
+            {name="a", value=5},
+            {name="c", value=0},
+            {name="a", value=15},
+            {name="b", value=5},
+            {name="c", value=20},
+        ]
+        iterator = elem
+        key = elem.new.name
+        value {
+            value = elem.new.value
+            previous = tm_try(elem.old.value, null)
+        }
+    }
+}
+
+```
+
+The code above will result in the `global.obj` defined below:
+
+```hcl
+obj = {
+  a = {
+    previous = 5
+    value    = 15
+  }
+  b = {
+    previous = null
+    value    = 5
+  }
+  c = {
+    previous = 0
+    value    = 20
+  }
+}
+
+
+```
+
+The `map` will iterate over the value in `for_each`, setting the iterator variable (`elem` in this case) with the **new** and **old** value for the
+provided `key`. If the `iterator` attribute is not set, then the default
+iterator name is `element`. The `element.new` contains the current iterated
+value and the `element.old` contains the previous value stored for the current
+`key`.
+
+Now it's time for a more useful example.
+
+Have a look in the `global.orders` list declared below:
+
+```
+globals {
+    orders = [
+        {name = "Morpheus", product = "sunglass", price = 100.5},
+        {name = "Trinity",  product = "cape", price = 82.30},
+        {name = "Trinity",  product = "necklace", price = 25.0},
+        {name = "Trinity",  product = "sunglass", price = 100.5},
+        {name = "Anderson", product = "ollydbg", price = 30},
+        {name = "Morpheus", product = "boot", price = 65},
+        {name = "Anderson", product = "cape", price = 82.30},
+        {name = "Morpheus", product = "sunglass", price = 145.50},
+    ]
+}
+```
+
+Let's say you would like to aggregate those values by `name`, then you can do it
+with the `map` block as defined below:
+
+```
+map totals {
+        for_each = global.orders
+        key = element.new.name
+        value {
+            total_spent = tm_try(element.old.total_spent, 0) + element.new.price
+        }
+    }
+```
+
+Which will result in the object below:
+
+```
+totals = {
+  Anderson = {
+    total_spent = 112.3
+  }
+  Morpheus = {
+    total_spent = 311
+  }
+  Trinity = {
+    total_spent = 207.8
+  }
+}
+```
+
+But you can aggregate even further by using nested `map` blocks and then
+aggregate by `product` for each `name`. 
+
+Example:
+
+```hcl
+globals {
+    map totals {
+        for_each = global.orders
+        key = element.new.name
+        value {
+            total_spent = tm_try(element.old.total_spent, 0) + element.new.price
+
+            map per_product {
+               for_each = [for v in global.orders : v if v.name == element.new.name]
+               key = element.new.product
+               value {
+                   total = tm_try(element.old.total, 0) + element.new.price
+               }
+            }
+        }
+    }
+}
+```
+
+which will result the object below:
+
+```hcl
+obj = {
+  Anderson = {
+    total_spent = 112.3
+    per_product = {
+      cape = {
+        total = 82.3
+      }
+      ollydbg = {
+        total = 30
+      }
+    }
+  }
+  Morpheus = {
+    total_spent = 311
+    per_product = {
+      boot = {
+        total = 65
+      }
+      sunglass = {
+        total = 246
+      }
+    }
+  }
+  Trinity = {
+    total_spent = 207.8
+    per_product = {
+      cape = {
+        total = 82.3
+      }
+      necklace = {
+        total = 25
+      }
+      sunglass = {
+        total = 100.5
+      }
+    }
+  }
+}
+```
