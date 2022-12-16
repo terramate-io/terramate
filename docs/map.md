@@ -112,24 +112,27 @@ globals {
   map totals {
     for_each = global.orders
 
-    key = element.new.name
+    iterator = per_name
+    
+    key = per_name.new.name
 
     value {
-      total_spent = tm_try(element.old.total_spent, 0) + element.new.price
+      total_spent = tm_try(per_name.old.total_spent, 0) + per_name.new.price
 
       map per_product {
-        for_each = [for v in global.orders : v if v.name == element.new.name]
+        for_each = [for v in global.orders : v if v.name == per_name.new.name]
+
+        iterator = per_product
       
-        key = element.new.product
+        key = per_product.new.product
 
         value {
-          total = tm_try(element.old.total, 0) + element.new.price
+          total = tm_try(per_product.old.total, 0) + per_product.new.price
         }
       }
     }
   }
-}
-```
+}```
 
 which will result the object below:
 
