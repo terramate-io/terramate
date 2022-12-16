@@ -136,7 +136,7 @@ func TestTmVendor(t *testing.T) {
 			targetdir := project.NewPath(tcase.targetDir)
 
 			funcs := stdlib.Functions(rootdir)
-			funcs["tm_vendor"] = stdlib.VendorFunc(targetdir, vendordir, events)
+			funcs[stdlib.Name("vendor")] = stdlib.VendorFunc(targetdir, vendordir, events)
 			ctx := eval.NewContext(funcs)
 
 			gotEvents := []event.VendorRequest{}
