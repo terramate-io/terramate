@@ -88,7 +88,7 @@ func TestEvalTmFuncall(t *testing.T) {
 			if basedir == "" {
 				basedir = root(t)
 			}
-			funcs, err := stdlib.NewFunctions(basedir)
+			funcs, err := stdlib.Functions(basedir)
 			assert.NoError(t, err)
 			ctx := eval.NewContext(funcs)
 

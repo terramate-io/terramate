@@ -31,7 +31,8 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 )
 
-func NewFunctions(basedir string) (map[string]function.Function, error) {
+// Functions returns all the Terramate default functions.
+func Functions(basedir string) (map[string]function.Function, error) {
 	if !filepath.IsAbs(basedir) {
 		panic(errors.E(errors.ErrInternal, "context created with relative path: %q", basedir))
 	}
@@ -53,18 +54,19 @@ func NewFunctions(basedir string) (map[string]function.Function, error) {
 	}
 
 	// fix terraform broken abspath()
-	tmfuncs["tm_abspath"] = Abspath(basedir)
+	tmfuncs["tm_abspath"] = AbspathFunc(basedir)
 
 	// sane ternary
-	tmfuncs["tm_ternary"] = Ternary()
+	tmfuncs["tm_ternary"] = TernaryFunc()
 	return tmfuncs, nil
 
 }
 
-func FuncName(name string) string { return "tm_" + name }
+// Name converts the function name into the exported Terramate name.
+func Name(name string) string { return "tm_" + name }
 
-// Abspath returns the `tm_abspath()` hcl function.
-func Abspath(basedir string) function.Function {
+// AbspathFunc returns the `tm_abspath()` hcl function.
+func AbspathFunc(basedir string) function.Function {
 	return function.New(&function.Spec{
 		Params: []function.Parameter{
 			{
@@ -87,13 +89,13 @@ func Abspath(basedir string) function.Function {
 	})
 }
 
-// Vendor returns the `tm_vendor`` function.
+// VendorFunc returns the `tm_vendor`` function.
 // The basedir defines what tm_vendor will use to define the relative paths
 // of vendored dependencies.
 // The vendordir defines where modules are vendored inside the project.
 // The stream defines the event stream for tm_vendor, one event is produced
 // per successful function call.
-func Vendor(basedir, vendordir project.Path, stream chan<- event.VendorRequest) function.Function {
+func VendorFunc(basedir, vendordir project.Path, stream chan<- event.VendorRequest) function.Function {
 	return function.New(&function.Spec{
 		Params: []function.Parameter{
 			{
@@ -140,7 +142,10 @@ func Vendor(basedir, vendordir project.Path, stream chan<- event.VendorRequest) 
 	})
 }
 
-func HCLExpression() function.Function {
+// HCLExpressionFunc returns the tm_hcl_expression function.
+// This function interprets the `expr` argument as a string and returns the
+// parsed expression.
+func HCLExpressionFunc() function.Function {
 	return function.New(&function.Spec{
 		Params: []function.Parameter{
 			{

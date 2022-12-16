@@ -135,10 +135,10 @@ func TestTmVendor(t *testing.T) {
 			vendordir := project.NewPath(tcase.vendorDir)
 			targetdir := project.NewPath(tcase.targetDir)
 
-			funcs, err := stdlib.NewFunctions(rootdir)
+			funcs, err := stdlib.Functions(rootdir)
 			assert.NoError(t, err)
 
-			funcs["tm_vendor"] = stdlib.Vendor(targetdir, vendordir, events)
+			funcs["tm_vendor"] = stdlib.VendorFunc(targetdir, vendordir, events)
 			ctx := eval.NewContext(funcs)
 			assert.NoError(t, err)
 
@@ -171,9 +171,9 @@ func TestTmVendor(t *testing.T) {
 			// piggyback on the current tests to validate that
 			// it also works with a nil channel (no interest on events).
 			t.Run("works with nil events channel", func(t *testing.T) {
-				funcs, err := stdlib.NewFunctions(rootdir)
+				funcs, err := stdlib.Functions(rootdir)
 				assert.NoError(t, err)
-				funcs["tm_vendor"] = stdlib.Vendor(targetdir, vendordir, nil)
+				funcs["tm_vendor"] = stdlib.VendorFunc(targetdir, vendordir, nil)
 				ctx := eval.NewContext(funcs)
 
 				val, err := ctx.Eval(test.NewExpr(t, tcase.expr))
@@ -191,16 +191,16 @@ func TestStdlibNewFunctionsMustPanicIfRelativeBaseDir(t *testing.T) {
 			t.Fatal("eval.NewContext() did not panic with relative basedir")
 		}
 	}()
-	_, _ = stdlib.NewFunctions("relative")
+	_, _ = stdlib.Functions("relative")
 }
 
 func TestStdlibNewFunctionsFailIfBasedirIsNonExistent(t *testing.T) {
-	_, err := stdlib.NewFunctions(filepath.Join(t.TempDir(), "non-existent"))
+	_, err := stdlib.Functions(filepath.Join(t.TempDir(), "non-existent"))
 	assert.Error(t, err, "must have failed for non-existent basedir")
 }
 
 func TestStdlibNewFunctionsFailIfBasedirIsNotADirectory(t *testing.T) {
 	path := test.WriteFile(t, t.TempDir(), "somefile.txt", ``)
-	_, err := stdlib.NewFunctions(path)
+	_, err := stdlib.Functions(path)
 	assert.Error(t, err, "must have failed because basedir is not a directory")
 }

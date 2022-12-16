@@ -183,7 +183,7 @@ func TestAssertConfigEval(t *testing.T) {
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			funcs, err := stdlib.NewFunctions(t.TempDir())
+			funcs, err := stdlib.Functions(t.TempDir())
 			assert.NoError(t, err)
 			hclctx := eval.NewContext(funcs)
 

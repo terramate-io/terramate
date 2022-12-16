@@ -329,7 +329,7 @@ func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
 		return nil, errors.E("directory %q is not inside root %q", dir, rootdir)
 	}
 
-	funcs, err := stdlib.NewFunctions(dir)
+	funcs, err := stdlib.Functions(dir)
 	if err != nil {
 		panic(errors.E(errors.ErrInternal, "failed to instantiate the stdlib"))
 	}

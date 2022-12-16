@@ -131,7 +131,7 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 			continue
 		}
 		res := LoadResult{Dir: dircfg.ProjDir()}
-		funcs, err := stdlib.NewFunctions(dircfg.Dir())
+		funcs, err := stdlib.Functions(dircfg.Dir())
 		if err != nil {
 			res.Err = err
 			results = append(results, res)
@@ -330,7 +330,7 @@ func doRootGeneration(root *config.Root) Report {
 
 	report := Report{}
 	projmeta := project.NewMetadata(root.Dir(), stackpaths)
-	funcs, err := stdlib.NewFunctions(root.Dir())
+	funcs, err := stdlib.Functions(root.Dir())
 	if err != nil {
 		report.BootstrapErr = err
 		return report

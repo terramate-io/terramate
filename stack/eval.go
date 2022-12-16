@@ -32,7 +32,7 @@ type EvalCtx struct {
 
 // NewEvalCtx creates a new stack evaluation context.
 func NewEvalCtx(projmeta project.Metadata, sm Metadata, globals *eval.Object) *EvalCtx {
-	funcs, err := stdlib.NewFunctions(sm.HostPath())
+	funcs, err := stdlib.Functions(sm.HostPath())
 	if err != nil {
 		panic(errors.E(errors.ErrInternal, "failed to instantiate stdlib"))
 	}

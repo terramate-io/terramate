@@ -1409,7 +1409,7 @@ func (c *cli) outputEvalResult(val cty.Value, asJSON bool) {
 }
 
 func (c *cli) setupEvalContext() *eval.Context {
-	funcs, err := stdlib.NewFunctions(c.wd())
+	funcs, err := stdlib.Functions(c.wd())
 	if err != nil {
 		fatal(err)
 	}

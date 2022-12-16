@@ -23,7 +23,10 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 )
 
-func Ternary() function.Function {
+// TernaryFunc is the `tm_ternary` function implementation.
+// The `tm_ternary(cond, expr1, expr2)` will return expr1 if `cond` evaluates
+// to `true` and `expr2` otherwise.
+func TernaryFunc() function.Function {
 	return function.New(&function.Spec{
 		Params: []function.Parameter{
 			{

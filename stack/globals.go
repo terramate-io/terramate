@@ -41,7 +41,7 @@ func LoadStackGlobals(root *config.Root, projmeta project.Metadata, stackmeta Me
 
 	logger.Debug().Msg("Creating stack context.")
 
-	funcs, err := stdlib.NewFunctions(stackmeta.HostPath())
+	funcs, err := stdlib.Functions(stackmeta.HostPath())
 	if err != nil {
 		panic(errors.E(errors.ErrInternal, "failed to instantiate stdlib"))
 	}

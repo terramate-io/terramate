@@ -172,7 +172,10 @@ func Load(
 			sm.Path().String(),
 			path.Dir(name)))
 
-		evalctx.SetFunction("tm_vendor", stdlib.Vendor(vendorTargetDir, vendorDir, vendorRequests))
+		evalctx.SetFunction(
+			stdlib.Name("vendor"),
+			stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests),
+		)
 
 		err := lets.Load(hclBlock.Lets, evalctx.Context)
 		if err != nil {
@@ -235,7 +238,7 @@ func Load(
 			continue
 		}
 
-		evalctx.SetFunction("tm_hcl_expression", stdlib.HCLExpression())
+		evalctx.SetFunction(stdlib.Name("hcl_expression"), stdlib.HCLExpressionFunc())
 
 		gen := hclwrite.NewEmptyFile()
 		if err := copyBody(gen.Body(), hclBlock.Content.Body, evalctx); err != nil {

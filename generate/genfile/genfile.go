@@ -154,7 +154,7 @@ func Load(
 			sm.Path().String(),
 			path.Dir(name)))
 
-		evalctx.SetFunction("tm_vendor", stdlib.Vendor(vendorTargetDir, vendorDir, vendorRequests))
+		evalctx.SetFunction(stdlib.Name("vendor"), stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests))
 
 		file, err := Eval(genFileBlock, evalctx.Context)
 		if err != nil {
