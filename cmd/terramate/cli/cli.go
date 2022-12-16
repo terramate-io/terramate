@@ -36,6 +36,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/modvendor/download"
 	"github.com/mineiros-io/terramate/stack/trigger"
+	"github.com/mineiros-io/terramate/stdlib"
 
 	prj "github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/run"
@@ -1408,11 +1409,11 @@ func (c *cli) outputEvalResult(val cty.Value, asJSON bool) {
 }
 
 func (c *cli) setupEvalContext() *eval.Context {
-	ctx, err := eval.NewContext(c.wd())
+	funcs, err := stdlib.Functions(c.wd())
 	if err != nil {
 		fatal(err)
 	}
-
+	ctx := eval.NewContext(funcs)
 	allstacks, err := stack.LoadAll(c.cfg().Tree())
 	if err != nil {
 		fatal(err, "setup eval context: listing all stacks")

@@ -16,9 +16,11 @@ package stack
 
 import (
 	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
+	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/rs/zerolog/log"
 )
 
@@ -39,13 +41,11 @@ func LoadStackGlobals(root *config.Root, projmeta project.Metadata, stackmeta Me
 
 	logger.Debug().Msg("Creating stack context.")
 
-	ctx, err := eval.NewContext(stackmeta.HostPath())
+	funcs, err := stdlib.Functions(stackmeta.HostPath())
 	if err != nil {
-		return globals.EvalReport{
-			BootstrapErr: err,
-		}
+		panic(errors.E(errors.ErrInternal, "failed to instantiate stdlib"))
 	}
-
+	ctx := eval.NewContext(funcs)
 	ctx.SetNamespace("terramate", MetadataToCtyValues(projmeta, stackmeta))
 	return globals.Load(root, stackmeta.Path(), ctx)
 }

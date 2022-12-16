@@ -12,15 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package eval_test
+package stdlib_test
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
+	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/tf"
 )
@@ -133,10 +135,12 @@ func TestTmVendor(t *testing.T) {
 			vendordir := project.NewPath(tcase.vendorDir)
 			targetdir := project.NewPath(tcase.targetDir)
 
-			ctx, err := eval.NewContext(rootdir)
+			funcs, err := stdlib.Functions(rootdir)
 			assert.NoError(t, err)
 
-			ctx.AddTmVendor(targetdir, vendordir, events)
+			funcs["tm_vendor"] = stdlib.VendorFunc(targetdir, vendordir, events)
+			ctx := eval.NewContext(funcs)
+			assert.NoError(t, err)
 
 			gotEvents := []event.VendorRequest{}
 			done := make(chan struct{})
@@ -167,10 +171,10 @@ func TestTmVendor(t *testing.T) {
 			// piggyback on the current tests to validate that
 			// it also works with a nil channel (no interest on events).
 			t.Run("works with nil events channel", func(t *testing.T) {
-				ctx, err := eval.NewContext(rootdir)
+				funcs, err := stdlib.Functions(rootdir)
 				assert.NoError(t, err)
-
-				ctx.AddTmVendor(targetdir, vendordir, nil)
+				funcs["tm_vendor"] = stdlib.VendorFunc(targetdir, vendordir, nil)
+				ctx := eval.NewContext(funcs)
 
 				val, err := ctx.Eval(test.NewExpr(t, tcase.expr))
 				assert.NoError(t, err)
@@ -178,4 +182,25 @@ func TestTmVendor(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestStdlibNewFunctionsMustPanicIfRelativeBaseDir(t *testing.T) {
+	defer func() {
+		err := recover()
+		if err == nil {
+			t.Fatal("eval.NewContext() did not panic with relative basedir")
+		}
+	}()
+	_, _ = stdlib.Functions("relative")
+}
+
+func TestStdlibNewFunctionsFailIfBasedirIsNonExistent(t *testing.T) {
+	_, err := stdlib.Functions(filepath.Join(t.TempDir(), "non-existent"))
+	assert.Error(t, err, "must have failed for non-existent basedir")
+}
+
+func TestStdlibNewFunctionsFailIfBasedirIsNotADirectory(t *testing.T) {
+	path := test.WriteFile(t, t.TempDir(), "somefile.txt", ``)
+	_, err := stdlib.Functions(path)
+	assert.Error(t, err, "must have failed because basedir is not a directory")
 }

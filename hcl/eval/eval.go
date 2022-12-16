@@ -16,17 +16,14 @@ package eval
 
 import (
 	"bytes"
-	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/hashicorp/hcl/v2/ext/customdecode"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/event"
-	"github.com/mineiros-io/terramate/project"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 
 	hhcl "github.com/hashicorp/hcl/v2"
 )
@@ -43,45 +40,14 @@ type Context struct {
 // The basedir is the base directory used by any interpolation functions that
 // accept filesystem paths as arguments.
 // The basedir must be an absolute path to a directory.
-func NewContext(basedir string) (*Context, error) {
-	if !filepath.IsAbs(basedir) {
-		panic(fmt.Errorf("context created with relative path: %q", basedir))
-	}
-
-	st, err := os.Stat(basedir)
-	if err != nil {
-		return nil, errors.E(err, "failed to stat context basedir %q", basedir)
-	}
-	if !st.IsDir() {
-		return nil, errors.E("context basedir (%s) must be a directory", basedir)
-	}
-
+func NewContext(funcs map[string]function.Function) *Context {
 	hclctx := &hhcl.EvalContext{
-		Functions: newDefaultFunctions(basedir),
+		Functions: funcs,
 		Variables: map[string]cty.Value{},
 	}
 	return &Context{
 		hclctx: hclctx,
-	}, nil
-}
-
-// AddTmVendor adds the tm_vendor function on this evaluation context.
-// The targetdir defines what tm_vendor will use to define the relative paths
-// of vendored dependencies.
-// The vendordir defines where modules are vendored inside the project.
-// The stream defines the event stream for tm_vendor, one event is produced
-// per successful function call.
-func (c *Context) AddTmVendor(
-	targetdir project.Path,
-	vendordir project.Path,
-	stream chan<- event.VendorRequest,
-) {
-	c.hclctx.Functions["tm_vendor"] = tmVendor(targetdir, vendordir, stream)
-}
-
-// AddTmHCLExpression adds the tm_hcl_expression function on this evaluation context.
-func (c *Context) AddTmHCLExpression() {
-	c.hclctx.Functions["tm_hcl_expression"] = tmHCLExpression()
+	}
 }
 
 // SetNamespace will set the given values inside the given namespace on the
@@ -94,6 +60,11 @@ func (c *Context) SetNamespace(name string, vals map[string]cty.Value) {
 func (c *Context) GetNamespace(name string) (cty.Value, bool) {
 	val, ok := c.hclctx.Variables[name]
 	return val, ok
+}
+
+// SetFunction sets the function in the context.
+func (c *Context) SetFunction(name string, fn function.Function) {
+	c.hclctx.Functions[name] = fn
 }
 
 // DeleteNamespace deletes the namespace name from the context.

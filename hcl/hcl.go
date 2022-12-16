@@ -32,6 +32,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
+	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -328,9 +329,9 @@ func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
 		return nil, errors.E("directory %q is not inside root %q", dir, rootdir)
 	}
 
-	evalctx, err := eval.NewContext(dir)
+	funcs, err := stdlib.Functions(dir)
 	if err != nil {
-		return nil, errors.E(err, "failed to initialize the evaluation context")
+		panic(errors.E(errors.ErrInternal, "failed to instantiate the stdlib"))
 	}
 
 	return &TerramateParser{
@@ -341,7 +342,7 @@ func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
 		Config:      NewRawConfig(),
 		Imported:    NewRawConfig(),
 		parsedFiles: make(map[string]parsedFile),
-		evalctx:     evalctx,
+		evalctx:     eval.NewContext(funcs),
 	}, nil
 }
 

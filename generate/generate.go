@@ -33,6 +33,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
+	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -130,12 +131,14 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 			continue
 		}
 		res := LoadResult{Dir: dircfg.ProjDir()}
-		evalctx, err := eval.NewContext(dircfg.Dir())
+		funcs, err := stdlib.Functions(dircfg.Dir())
 		if err != nil {
 			res.Err = err
 			results = append(results, res)
 			continue
 		}
+
+		evalctx := eval.NewContext(funcs)
 
 		var generated []GenFile
 		for _, block := range dircfg.Node.Generate.Files {
@@ -327,12 +330,12 @@ func doRootGeneration(root *config.Root) Report {
 
 	report := Report{}
 	projmeta := project.NewMetadata(root.Dir(), stackpaths)
-	evalctx, err := eval.NewContext(root.Dir())
+	funcs, err := stdlib.Functions(root.Dir())
 	if err != nil {
 		report.BootstrapErr = err
 		return report
 	}
-
+	evalctx := eval.NewContext(funcs)
 	evalctx.SetNamespace("terramate", projmeta.ToCtyMap())
 
 	var files []GenFile
