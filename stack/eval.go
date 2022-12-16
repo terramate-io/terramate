@@ -17,8 +17,10 @@ package stack
 import (
 	"strings"
 
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
+	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -30,7 +32,11 @@ type EvalCtx struct {
 
 // NewEvalCtx creates a new stack evaluation context.
 func NewEvalCtx(projmeta project.Metadata, sm Metadata, globals *eval.Object) *EvalCtx {
-	evalctx, err := eval.NewContext(sm.HostPath())
+	funcs, err := stdlib.NewFunctions(sm.HostPath())
+	if err != nil {
+		panic(errors.E(errors.ErrInternal, "failed to instantiate stdlib"))
+	}
+	evalctx := eval.NewContext(funcs)
 	if err != nil {
 		panic(err)
 	}

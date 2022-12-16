@@ -31,6 +31,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/rs/zerolog"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 )
 
 func FuzzPartialEval(f *testing.F) {
@@ -115,8 +116,7 @@ func FuzzPartialEval(f *testing.F) {
 			return
 		}
 
-		ctx, err := NewContext("/")
-		assert.NoError(t, err)
+		ctx := NewContext(map[string]function.Function{})
 		ctx.SetNamespace("globals", globals)
 		ctx.SetNamespace("terramate", terramate)
 
