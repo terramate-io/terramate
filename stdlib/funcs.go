@@ -89,7 +89,7 @@ func AbspathFunc(basedir string) function.Function {
 	})
 }
 
-// VendorFunc returns the `tm_vendor`` function.
+// VendorFunc returns the `tm_vendor` function.
 // The basedir defines what tm_vendor will use to define the relative paths
 // of vendored dependencies.
 // The vendordir defines where modules are vendored inside the project.
