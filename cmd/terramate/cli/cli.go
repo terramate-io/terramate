@@ -1409,11 +1409,7 @@ func (c *cli) outputEvalResult(val cty.Value, asJSON bool) {
 }
 
 func (c *cli) setupEvalContext() *eval.Context {
-	funcs, err := stdlib.Functions(c.wd())
-	if err != nil {
-		fatal(err)
-	}
-	ctx := eval.NewContext(funcs)
+	ctx := eval.NewContext(stdlib.Functions(c.wd()))
 	allstacks, err := stack.LoadAll(c.cfg().Tree())
 	if err != nil {
 		fatal(err, "setup eval context: listing all stacks")
