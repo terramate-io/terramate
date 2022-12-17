@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package stack_test
+package stackfs_test
 
 import (
 	"fmt"
@@ -22,7 +22,7 @@ import (
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/stack"
+	"github.com/mineiros-io/terramate/stack/stackfs"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -71,13 +71,13 @@ func TestStackClone(t *testing.T) {
 			layout:  []string{"d:/not-stack"},
 			src:     "/not-stack",
 			dest:    "/new-stack",
-			wantErr: errors.E(stack.ErrInvalidStackDir),
+			wantErr: errors.E(stackfs.ErrInvalidStackDir),
 		},
 		{
 			name:    "src dir must exist",
 			src:     "/non-existent-stack",
 			dest:    "/new-stack",
-			wantErr: errors.E(stack.ErrInvalidStackDir),
+			wantErr: errors.E(stackfs.ErrInvalidStackDir),
 		},
 		{
 			name: "dest dir must not exist",
@@ -87,7 +87,7 @@ func TestStackClone(t *testing.T) {
 			},
 			src:     "/stack",
 			dest:    "/cloned-stack",
-			wantErr: errors.E(stack.ErrCloneDestDirExists),
+			wantErr: errors.E(stackfs.ErrCloneDestDirExists),
 		},
 	}
 
@@ -98,7 +98,7 @@ func TestStackClone(t *testing.T) {
 
 			srcdir := filepath.Join(s.RootDir(), tc.src)
 			destdir := filepath.Join(s.RootDir(), tc.dest)
-			err := stack.Clone(s.Config(), destdir, srcdir)
+			err := stackfs.Clone(s.Config(), destdir, srcdir)
 			assert.IsError(t, err, tc.wantErr)
 
 			if tc.wantErr != nil {
@@ -114,16 +114,16 @@ func TestStackCloneSrcDirMustBeInsideRootdir(t *testing.T) {
 	s := sandbox.New(t)
 	srcdir := t.TempDir()
 	destdir := filepath.Join(s.RootDir(), "new-stack")
-	err := stack.Clone(s.Config(), destdir, srcdir)
-	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
+	err := stackfs.Clone(s.Config(), destdir, srcdir)
+	assert.IsError(t, err, errors.E(stackfs.ErrInvalidStackDir))
 }
 
 func TestStackCloneTargetDirMustBeInsideRootdir(t *testing.T) {
 	s := sandbox.New(t)
 	srcdir := filepath.Join(s.RootDir(), "src-stack")
 	destdir := t.TempDir()
-	err := stack.Clone(s.Config(), destdir, srcdir)
-	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
+	err := stackfs.Clone(s.Config(), destdir, srcdir)
+	assert.IsError(t, err, errors.E(stackfs.ErrInvalidStackDir))
 }
 
 func TestStackCloneIgnoresDotDirsAndFiles(t *testing.T) {
@@ -135,12 +135,12 @@ func TestStackCloneIgnoresDotDirsAndFiles(t *testing.T) {
 	})
 	srcdir := filepath.Join(s.RootDir(), "stack")
 	destdir := filepath.Join(s.RootDir(), "cloned-stack")
-	err := stack.Clone(s.Config(), destdir, srcdir)
+	err := stackfs.Clone(s.Config(), destdir, srcdir)
 	assert.NoError(t, err)
 
 	entries := test.ReadDir(t, destdir)
 	assert.EqualInts(t, 1, len(entries), "expected only stack config file to be copied, got: %v", entriesNames(entries))
-	assert.EqualStrings(t, stack.DefaultFilename, entries[0].Name())
+	assert.EqualStrings(t, stackfs.DefaultFilename, entries[0].Name())
 }
 
 func TestStackCloneIfStackHasIDClonedStackHasNewUUID(t *testing.T) {
@@ -192,7 +192,7 @@ generate_hcl "test2.hcl" {
 	srcdir := filepath.Join(s.RootDir(), "stack")
 	destdir := filepath.Join(s.RootDir(), "cloned-stack")
 
-	err := stack.Clone(s.Config(), destdir, srcdir)
+	err := stackfs.Clone(s.Config(), destdir, srcdir)
 	assert.NoError(t, err)
 
 	cfg := test.ParseTerramateConfig(t, destdir)

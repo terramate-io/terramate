@@ -23,7 +23,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/stack"
+	"github.com/mineiros-io/terramate/stack/stackfs"
 	"github.com/mineiros-io/terramate/test/sandbox"
 
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
@@ -442,7 +442,7 @@ func TestOutdatedDetection(t *testing.T) {
 				{
 					files: []file{
 						{
-							path: "stack-2/" + stack.DefaultFilename,
+							path: "stack-2/" + stackfs.DefaultFilename,
 							body: Doc(),
 						},
 					},

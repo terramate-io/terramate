@@ -35,6 +35,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/modvendor/download"
+	"github.com/mineiros-io/terramate/stack/stackfs"
 	"github.com/mineiros-io/terramate/stack/trigger"
 	"github.com/mineiros-io/terramate/stdlib"
 
@@ -629,7 +630,7 @@ func (c *cli) cloneStack() {
 	srcdir := filepath.Join(c.wd(), srcstack)
 	destdir := filepath.Join(c.wd(), deststack)
 
-	if err := stack.Clone(c.cfg(), destdir, srcdir); err != nil {
+	if err := stackfs.Clone(c.cfg(), destdir, srcdir); err != nil {
 		fatal(err, "cloning %s to %s", srcstack, deststack)
 	}
 
@@ -834,7 +835,7 @@ func (c *cli) createStack() {
 		stackDescription = stackName
 	}
 
-	err := stack.Create(c.cfg(), stack.CreateCfg{
+	err := stackfs.Create(c.cfg(), stackfs.CreateCfg{
 		Dir:         stackDir,
 		ID:          stackID,
 		Name:        stackName,
@@ -852,15 +853,15 @@ func (c *cli) createStack() {
 			Logger()
 
 		if c.parsedArgs.Create.IgnoreExisting &&
-			(errors.IsKind(err, stack.ErrStackAlreadyExists) ||
-				errors.IsKind(err, stack.ErrStackDefaultCfgFound)) {
+			(errors.IsKind(err, stackfs.ErrStackAlreadyExists) ||
+				errors.IsKind(err, stackfs.ErrStackDefaultCfgFound)) {
 			logger.Debug().Msg("stack already exists, ignoring")
 			return
 		}
 
-		if errors.IsKind(err, stack.ErrStackDefaultCfgFound) {
+		if errors.IsKind(err, stackfs.ErrStackDefaultCfgFound) {
 			logger = logger.With().
-				Str("file", stack.DefaultFilename).
+				Str("file", stackfs.DefaultFilename).
 				Logger()
 		}
 

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package stack_test
+package stackfs_test
 
 import (
 	"path/filepath"
@@ -22,7 +22,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/stack"
+	"github.com/mineiros-io/terramate/stack/stackfs"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -43,7 +43,7 @@ func TestStackCreation(t *testing.T) {
 	type testcase struct {
 		name   string
 		layout []string
-		create stack.CreateCfg
+		create stackfs.CreateCfg
 		want   want
 	}
 
@@ -56,7 +56,7 @@ func TestStackCreation(t *testing.T) {
 	testcases := []testcase{
 		{
 			name: "default create configuration",
-			create: stack.CreateCfg{
+			create: stackfs.CreateCfg{
 				Dir: "stack",
 			},
 			want: want{
@@ -65,7 +65,7 @@ func TestStackCreation(t *testing.T) {
 		},
 		{
 			name: "creates all dirs no stack path",
-			create: stack.CreateCfg{
+			create: stackfs.CreateCfg{
 				Dir: "dir1/dir2/dir3/stack",
 			},
 			want: want{
@@ -75,7 +75,7 @@ func TestStackCreation(t *testing.T) {
 		{
 			name:   "creates configuration when dir already exists",
 			layout: []string{"d:stack"},
-			create: stack.CreateCfg{
+			create: stackfs.CreateCfg{
 				Dir: "stack",
 			},
 			want: want{
@@ -85,7 +85,7 @@ func TestStackCreation(t *testing.T) {
 		{
 			name:   "creates configuration when dir already exists and has subdirs",
 			layout: []string{"d:stack/subdir"},
-			create: stack.CreateCfg{
+			create: stackfs.CreateCfg{
 				Dir: "stack",
 			},
 			want: want{
@@ -94,7 +94,7 @@ func TestStackCreation(t *testing.T) {
 		},
 		{
 			name: "defining only name",
-			create: stack.CreateCfg{
+			create: stackfs.CreateCfg{
 				Dir:  "another-stack",
 				Name: "The Name Of The Stack",
 			},
@@ -106,7 +106,7 @@ func TestStackCreation(t *testing.T) {
 		},
 		{
 			name: "defining only description",
-			create: stack.CreateCfg{
+			create: stackfs.CreateCfg{
 				Dir:         "cool-stack",
 				Description: "Stack Description",
 			},
@@ -119,7 +119,7 @@ func TestStackCreation(t *testing.T) {
 		},
 		{
 			name: "defining ID/name/description",
-			create: stack.CreateCfg{
+			create: stackfs.CreateCfg{
 				Dir:         "stack",
 				ID:          "stack-id",
 				Name:        "Stack Name",
@@ -135,7 +135,7 @@ func TestStackCreation(t *testing.T) {
 		},
 		{
 			name: "defining single import",
-			create: stack.CreateCfg{
+			create: stackfs.CreateCfg{
 				Dir:     "stack-imports",
 				Imports: []string{"/common/something.tm.hcl"},
 			},
@@ -148,7 +148,7 @@ func TestStackCreation(t *testing.T) {
 		},
 		{
 			name: "defining multiple imports",
-			create: stack.CreateCfg{
+			create: stackfs.CreateCfg{
 				Dir: "stack-imports",
 				Imports: []string{
 					"/common/1.tm.hcl",
@@ -167,7 +167,7 @@ func TestStackCreation(t *testing.T) {
 		},
 		{
 			name: "defining after/before",
-			create: stack.CreateCfg{
+			create: stackfs.CreateCfg{
 				Dir:    "stack-after-before",
 				After:  []string{"stack-1", "stack-2"},
 				Before: []string{"stack-3", "stack-4"},
@@ -182,33 +182,33 @@ func TestStackCreation(t *testing.T) {
 		},
 		{
 			name: "fails on invalid stack ID",
-			create: stack.CreateCfg{
+			create: stackfs.CreateCfg{
 				Dir: "stack",
 				ID:  "not valid ID",
 			},
-			want: want{err: errors.E(stack.ErrInvalidStackID)},
+			want: want{err: errors.E(stackfs.ErrInvalidStackID)},
 		},
 		{
 			name:   "dotdir is not allowed as stack dir",
-			create: stack.CreateCfg{Dir: ".stack"},
-			want:   want{err: errors.E(stack.ErrInvalidStackDir)},
+			create: stackfs.CreateCfg{Dir: ".stack"},
+			want:   want{err: errors.E(stackfs.ErrInvalidStackDir)},
 		},
 		{
 			name:   "dotdir is not allowed as stack dir as subdir",
-			create: stack.CreateCfg{Dir: "/stacks/.stack"},
-			want:   want{err: errors.E(stack.ErrInvalidStackDir)},
+			create: stackfs.CreateCfg{Dir: "/stacks/.stack"},
+			want:   want{err: errors.E(stackfs.ErrInvalidStackDir)},
 		},
 		{
 			name:   "fails if stack already exists",
 			layout: []string{"f:stack/config.tm:stack{\n}"},
-			create: stack.CreateCfg{Dir: "stack"},
-			want:   want{err: errors.E(stack.ErrStackAlreadyExists)},
+			create: stackfs.CreateCfg{Dir: "stack"},
+			want:   want{err: errors.E(stackfs.ErrStackAlreadyExists)},
 		},
 		{
 			name:   "fails if there is a stack.tm.hcl file on dir",
 			layout: []string{"f:stack/stack.tm.hcl"},
-			create: stack.CreateCfg{Dir: "stack"},
-			want:   want{err: errors.E(stack.ErrStackDefaultCfgFound)},
+			create: stackfs.CreateCfg{Dir: "stack"},
+			want:   want{err: errors.E(stackfs.ErrStackDefaultCfgFound)},
 		},
 	}
 
@@ -227,7 +227,7 @@ func TestStackCreation(t *testing.T) {
 			}
 
 			assert.NoError(t, err)
-			err = stack.Create(root, tc.create)
+			err = stackfs.Create(root, tc.create)
 			assert.IsError(t, err, tc.want.err)
 
 			if tc.want.err != nil {
@@ -269,17 +269,17 @@ func TestStackCreationFailsOnRelativePath(t *testing.T) {
 	s := sandbox.New(t)
 
 	cfg := s.Config()
-	err := stack.Create(cfg, stack.CreateCfg{Dir: "./relative"})
-	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
+	err := stackfs.Create(cfg, stackfs.CreateCfg{Dir: "./relative"})
+	assert.IsError(t, err, errors.E(stackfs.ErrInvalidStackDir))
 
-	err = stack.Create(cfg, stack.CreateCfg{Dir: "relative"})
-	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
+	err = stackfs.Create(cfg, stackfs.CreateCfg{Dir: "relative"})
+	assert.IsError(t, err, errors.E(stackfs.ErrInvalidStackDir))
 }
 
 func TestStackCreationFailsOnPathOutsideProjectRoot(t *testing.T) {
 	s := sandbox.New(t)
 	someOtherDir := t.TempDir()
 
-	err := stack.Create(s.Config(), stack.CreateCfg{Dir: someOtherDir})
-	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
+	err := stackfs.Create(s.Config(), stackfs.CreateCfg{Dir: someOtherDir})
+	assert.IsError(t, err, errors.E(stackfs.ErrInvalidStackDir))
 }

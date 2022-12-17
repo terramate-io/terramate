@@ -23,7 +23,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/stack"
+	"github.com/mineiros-io/terramate/stack/stackfs"
 	"github.com/mineiros-io/terramate/test"
 )
 
@@ -257,8 +257,8 @@ func singleNotChangedStack(t *testing.T) repository {
 	assert.NoError(t, err)
 
 	// make it a stack
-	assert.NoError(t, stack.Create(root, stack.CreateCfg{Dir: repo}), "terramate init failed")
-	assert.NoError(t, g.Add(stack.DefaultFilename), "add terramate file failed")
+	assert.NoError(t, stackfs.Create(root, stackfs.CreateCfg{Dir: repo}), "terramate init failed")
+	assert.NoError(t, g.Add(stackfs.DefaultFilename), "add terramate file failed")
 	assert.NoError(t, g.Commit("terramate message"), "terramate commit failed")
 
 	// add a second commit to be able to test gitBaseRef=HEAD^
@@ -375,9 +375,9 @@ func multipleStacksOneChangedRepo(t *testing.T) repository {
 
 	root, err := config.LoadRoot(repo.Dir)
 	assert.NoError(t, err)
-	assert.NoError(t, stack.Create(root, stack.CreateCfg{Dir: otherStack}), "terramate init failed")
+	assert.NoError(t, stackfs.Create(root, stackfs.CreateCfg{Dir: otherStack}), "terramate init failed")
 
-	assert.NoError(t, g.Add(filepath.Join(otherStack, stack.DefaultFilename)),
+	assert.NoError(t, g.Add(filepath.Join(otherStack, stackfs.DefaultFilename)),
 		"git add otherstack failed")
 	assert.NoError(t, g.Commit("other stack message"), "commit failed")
 
@@ -392,9 +392,9 @@ func multipleStacksOneChangedRepo(t *testing.T) repository {
 
 	root, err = config.LoadRoot(repo.Dir)
 	assert.NoError(t, err)
-	assert.NoError(t, stack.Create(root, stack.CreateCfg{Dir: otherStack}), "terramate init failed")
+	assert.NoError(t, stackfs.Create(root, stackfs.CreateCfg{Dir: otherStack}), "terramate init failed")
 
-	assert.NoError(t, g.Add(filepath.Join(otherStack, stack.DefaultFilename)),
+	assert.NoError(t, g.Add(filepath.Join(otherStack, stackfs.DefaultFilename)),
 		"git add otherstack failed")
 	assert.NoError(t, g.Commit("other stack message"), "commit failed")
 
@@ -413,9 +413,9 @@ func multipleChangedStacksRepo(t *testing.T) repository {
 		otherStack := filepath.Join(repo.Dir, "changed-stack-"+fmt.Sprint(i))
 		test.MkdirAll(t, otherStack)
 
-		assert.NoError(t, stack.Create(root, stack.CreateCfg{Dir: otherStack}), "terramate init failed")
+		assert.NoError(t, stackfs.Create(root, stackfs.CreateCfg{Dir: otherStack}), "terramate init failed")
 
-		assert.NoError(t, g.Add(filepath.Join(otherStack, stack.DefaultFilename)),
+		assert.NoError(t, g.Add(filepath.Join(otherStack, stackfs.DefaultFilename)),
 			"git add otherstack failed")
 		assert.NoError(t, g.Commit("other stack message"), "commit failed")
 	}
@@ -434,7 +434,7 @@ func singleStackSingleModuleChangedRepo(t *testing.T) repository {
 	st := test.Mkdir(t, repo.Dir, "stack")
 	root, err := config.LoadRoot(repo.Dir)
 	assert.NoError(t, err)
-	assert.NoError(t, stack.Create(root, stack.CreateCfg{Dir: st}))
+	assert.NoError(t, stackfs.Create(root, stackfs.CreateCfg{Dir: st}))
 
 	g := test.NewGitWrapper(t, repo.Dir, []string{})
 
@@ -462,9 +462,9 @@ func multipleStackOneChangedModule(t *testing.T) repository {
 
 	root, err := config.LoadRoot(repo.Dir)
 	assert.NoError(t, err)
-	assert.NoError(t, stack.Create(root, stack.CreateCfg{Dir: otherStack}), "terramate init failed")
+	assert.NoError(t, stackfs.Create(root, stackfs.CreateCfg{Dir: otherStack}), "terramate init failed")
 
-	assert.NoError(t, g.Add(filepath.Join(otherStack, stack.DefaultFilename)),
+	assert.NoError(t, g.Add(filepath.Join(otherStack, stackfs.DefaultFilename)),
 		"git add otherstack failed")
 	assert.NoError(t, g.Commit("other stack message"), "commit failed")
 
@@ -472,9 +472,9 @@ func multipleStackOneChangedModule(t *testing.T) repository {
 	test.MkdirAll(t, otherStack)
 
 	assert.NoError(t, err)
-	assert.NoError(t, stack.Create(root, stack.CreateCfg{Dir: otherStack}), "terramate init failed")
+	assert.NoError(t, stackfs.Create(root, stackfs.CreateCfg{Dir: otherStack}), "terramate init failed")
 
-	assert.NoError(t, g.Add(filepath.Join(otherStack, stack.DefaultFilename)),
+	assert.NoError(t, g.Add(filepath.Join(otherStack, stackfs.DefaultFilename)),
 		"git add otherstack failed")
 	assert.NoError(t, g.Commit("other stack message"), "commit failed")
 
@@ -518,7 +518,7 @@ func singleStackDependentModuleChangedRepo(t *testing.T) repository {
 	st := test.Mkdir(t, repo.Dir, "stack")
 	root, err := config.LoadRoot(repo.Dir)
 	assert.NoError(t, err)
-	assert.NoError(t, stack.Create(root, stack.CreateCfg{Dir: st}))
+	assert.NoError(t, stackfs.Create(root, stackfs.CreateCfg{Dir: st}))
 
 	g := test.NewGitWrapper(t, repo.Dir, []string{})
 

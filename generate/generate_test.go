@@ -28,7 +28,7 @@ import (
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/generate/genhcl"
 	"github.com/mineiros-io/terramate/project"
-	stackpkg "github.com/mineiros-io/terramate/stack"
+	"github.com/mineiros-io/terramate/stack/stackfs"
 	"github.com/mineiros-io/terramate/test"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -843,7 +843,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 
 				// sandbox creates README.md inside test dirs
 				if d.Name() == config.DefaultFilename ||
-					d.Name() == stackpkg.DefaultFilename ||
+					d.Name() == stackfs.DefaultFilename ||
 					d.Name() == "README.md" {
 					return nil
 				}

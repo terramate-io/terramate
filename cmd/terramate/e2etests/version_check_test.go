@@ -22,7 +22,7 @@ import (
 	tfversion "github.com/hashicorp/go-version"
 	"github.com/madlambda/spells/assert"
 	tm "github.com/mineiros-io/terramate"
-	"github.com/mineiros-io/terramate/stack"
+	"github.com/mineiros-io/terramate/stack/stackfs"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
@@ -36,7 +36,7 @@ func TestVersionCheck(t *testing.T) {
 		"experimental run-graph",
 		"generate",
 		"list",
-		fmt.Sprintf("run cat %s", stack.DefaultFilename),
+		fmt.Sprintf("run cat %s", stackfs.DefaultFilename),
 	}
 	uncheckedCmds := []string{
 		"--help",

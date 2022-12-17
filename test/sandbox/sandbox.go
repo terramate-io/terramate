@@ -42,6 +42,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
+	"github.com/mineiros-io/terramate/stack/stackfs"
 	"github.com/mineiros-io/terramate/test"
 )
 
@@ -323,7 +324,7 @@ func (s S) CreateStack(relpath string) StackEntry {
 	}
 
 	st := newStackEntry(t, s.RootDir(), relpath)
-	assert.NoError(t, stack.Create(s.Config(), stack.CreateCfg{Dir: st.Path()}))
+	assert.NoError(t, stackfs.Create(s.Config(), stackfs.CreateCfg{Dir: st.Path()}))
 	return st
 }
 
@@ -523,7 +524,7 @@ func (se StackEntry) WriteConfig(cfg hcl.Config) {
 func (se StackEntry) DeleteStackConfig() {
 	se.t.Helper()
 
-	test.RemoveFile(se.t, se.abspath, stack.DefaultFilename)
+	test.RemoveFile(se.t, se.abspath, stackfs.DefaultFilename)
 }
 
 // ReadFile will read the given file that must be located inside the stack.
@@ -676,9 +677,9 @@ func buildTree(t testing.TB, root *config.Root, layout []string) {
 			if data == "" {
 				abspath := filepath.Join(rootdir, path)
 				test.MkdirAll(t, abspath)
-				assert.NoError(t, stack.Create(
+				assert.NoError(t, stackfs.Create(
 					root,
-					stack.CreateCfg{Dir: abspath}),
+					stackfs.CreateCfg{Dir: abspath}),
 				)
 				continue
 			}

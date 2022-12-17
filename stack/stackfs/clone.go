@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package stack
+package stackfs
 
 import (
 	"os"
@@ -26,6 +26,7 @@ import (
 	"github.com/mineiros-io/terramate/fs"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
+	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -67,7 +68,7 @@ func Clone(root *config.Root, destdir, srcdir string) error {
 		return errors.E(ErrCloneDestDirExists, destdir)
 	}
 
-	srcStack, err := Load(root, srcdir)
+	srcStack, err := stack.Load(root, srcdir)
 	if err != nil {
 		return errors.E(ErrInvalidStackDir, err, "src dir %q must be a valid stack", srcdir)
 	}
