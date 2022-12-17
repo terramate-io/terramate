@@ -79,6 +79,11 @@ func (a GlobalPathKey) name() string {
 }
 
 // ForDir loads all the globals from the cfgdir.
+// It will navigate the configuration tree up from the dir until it reaches root,
+// loading globals and merging them appropriately.
+//
+// More specific globals (closer or at the current dir) have precedence over
+// less specific globals (closer or at the root dir).
 func ForDir(tree *config.Root, cfgdir project.Path, ctx *eval.Context) EvalReport {
 	logger := log.With().
 		Str("action", "globals.Load()").
