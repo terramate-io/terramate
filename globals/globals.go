@@ -78,8 +78,8 @@ func (a GlobalPathKey) name() string {
 	return strings.Join(a.path[:a.numPaths], ".")
 }
 
-// Load loads all the globals from the cfgdir.
-func Load(tree *config.Root, cfgdir project.Path, ctx *eval.Context) EvalReport {
+// ForDir loads all the globals from the cfgdir.
+func ForDir(tree *config.Root, cfgdir project.Path, ctx *eval.Context) EvalReport {
 	logger := log.With().
 		Str("action", "globals.Load()").
 		Str("root", tree.Dir()).
