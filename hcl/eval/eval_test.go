@@ -21,7 +21,6 @@ import (
 
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/stdlib"
@@ -88,9 +87,7 @@ func TestEvalTmFuncall(t *testing.T) {
 			if basedir == "" {
 				basedir = root(t)
 			}
-			funcs, err := stdlib.Functions(basedir)
-			assert.NoError(t, err)
-			ctx := eval.NewContext(funcs)
+			ctx := eval.NewContext(stdlib.Functions(basedir))
 
 			const attrname = "value"
 

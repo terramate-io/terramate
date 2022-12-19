@@ -135,12 +135,9 @@ func TestTmVendor(t *testing.T) {
 			vendordir := project.NewPath(tcase.vendorDir)
 			targetdir := project.NewPath(tcase.targetDir)
 
-			funcs, err := stdlib.Functions(rootdir)
-			assert.NoError(t, err)
-
-			funcs["tm_vendor"] = stdlib.VendorFunc(targetdir, vendordir, events)
+			funcs := stdlib.Functions(rootdir)
+			funcs[stdlib.Name("vendor")] = stdlib.VendorFunc(targetdir, vendordir, events)
 			ctx := eval.NewContext(funcs)
-			assert.NoError(t, err)
 
 			gotEvents := []event.VendorRequest{}
 			done := make(chan struct{})
@@ -171,8 +168,7 @@ func TestTmVendor(t *testing.T) {
 			// piggyback on the current tests to validate that
 			// it also works with a nil channel (no interest on events).
 			t.Run("works with nil events channel", func(t *testing.T) {
-				funcs, err := stdlib.Functions(rootdir)
-				assert.NoError(t, err)
+				funcs := stdlib.Functions(rootdir)
 				funcs["tm_vendor"] = stdlib.VendorFunc(targetdir, vendordir, nil)
 				ctx := eval.NewContext(funcs)
 
@@ -191,16 +187,28 @@ func TestStdlibNewFunctionsMustPanicIfRelativeBaseDir(t *testing.T) {
 			t.Fatal("eval.NewContext() did not panic with relative basedir")
 		}
 	}()
-	_, _ = stdlib.Functions("relative")
+	_ = stdlib.Functions("relative")
 }
 
-func TestStdlibNewFunctionsFailIfBasedirIsNonExistent(t *testing.T) {
-	_, err := stdlib.Functions(filepath.Join(t.TempDir(), "non-existent"))
-	assert.Error(t, err, "must have failed for non-existent basedir")
+func TestStdlibNewFunctionsMustPanicIfBasedirIsNonExistent(t *testing.T) {
+	defer func() {
+		err := recover()
+		if err == nil {
+			t.Fatal("eval.NewContext() did not panic with non existent basedir")
+		}
+	}()
+
+	stdlib.Functions(filepath.Join(t.TempDir(), "non-existent"))
 }
 
 func TestStdlibNewFunctionsFailIfBasedirIsNotADirectory(t *testing.T) {
+	defer func() {
+		err := recover()
+		if err == nil {
+			t.Fatal("eval.NewContext() did not panic if basedir is not a dir")
+		}
+	}()
+
 	path := test.WriteFile(t, t.TempDir(), "somefile.txt", ``)
-	_, err := stdlib.Functions(path)
-	assert.Error(t, err, "must have failed because basedir is not a directory")
+	_ = stdlib.Functions(path)
 }

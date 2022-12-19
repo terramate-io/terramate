@@ -32,17 +32,18 @@ import (
 )
 
 // Functions returns all the Terramate default functions.
-func Functions(basedir string) (map[string]function.Function, error) {
+// The `basedir` must be an absolute path for an existent directory or it panics.
+func Functions(basedir string) map[string]function.Function {
 	if !filepath.IsAbs(basedir) {
 		panic(errors.E(errors.ErrInternal, "context created with relative path: %q", basedir))
 	}
 
 	st, err := os.Stat(basedir)
 	if err != nil {
-		return nil, errors.E(err, "failed to stat context basedir %q", basedir)
+		panic(errors.E(errors.ErrInternal, err, "failed to stat context basedir %q", basedir))
 	}
 	if !st.IsDir() {
-		return nil, errors.E("context basedir (%s) must be a directory", basedir)
+		panic(errors.E(errors.ErrInternal, "context basedir (%s) must be a directory", basedir))
 	}
 
 	scope := &tflang.Scope{BaseDir: basedir}
@@ -58,7 +59,7 @@ func Functions(basedir string) (map[string]function.Function, error) {
 
 	// sane ternary
 	tmfuncs["tm_ternary"] = TernaryFunc()
-	return tmfuncs, nil
+	return tmfuncs
 
 }
 

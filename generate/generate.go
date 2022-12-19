@@ -131,14 +131,7 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 			continue
 		}
 		res := LoadResult{Dir: dircfg.ProjDir()}
-		funcs, err := stdlib.Functions(dircfg.Dir())
-		if err != nil {
-			res.Err = err
-			results = append(results, res)
-			continue
-		}
-
-		evalctx := eval.NewContext(funcs)
+		evalctx := eval.NewContext(stdlib.Functions(dircfg.Dir()))
 
 		var generated []GenFile
 		for _, block := range dircfg.Node.Generate.Files {
@@ -330,12 +323,7 @@ func doRootGeneration(root *config.Root) Report {
 
 	report := Report{}
 	projmeta := project.NewMetadata(root.Dir(), stackpaths)
-	funcs, err := stdlib.Functions(root.Dir())
-	if err != nil {
-		report.BootstrapErr = err
-		return report
-	}
-	evalctx := eval.NewContext(funcs)
+	evalctx := eval.NewContext(stdlib.Functions(root.Dir()))
 	evalctx.SetNamespace("terramate", projmeta.ToCtyMap())
 
 	var files []GenFile
@@ -368,7 +356,7 @@ func doRootGeneration(root *config.Root) Report {
 			// Here we use path.Clean("/"+path.Dir(label)) to ensure the
 			// report.Dir is always absolute.
 			targetDir := project.NewPath(path.Clean("/" + path.Dir(block.Label)))
-			err = validateRootGenerateBlock(root, block)
+			err := validateRootGenerateBlock(root, block)
 			if err != nil {
 				report.addFailure(targetDir, err)
 				return report

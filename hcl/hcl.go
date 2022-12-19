@@ -321,7 +321,7 @@ type mergeHandler func(block *ast.Block) error
 // parsed files of all sub-parsers for detecting cycles and import duplications.
 // Calling Parse() or MinimalParse() multiple times is an error.
 func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
-	_, err := os.Stat(dir)
+	st, err := os.Stat(dir)
 	if err != nil {
 		return nil, errors.E(err, "failed to stat directory %q", dir)
 	}
@@ -329,9 +329,8 @@ func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
 		return nil, errors.E("directory %q is not inside root %q", dir, rootdir)
 	}
 
-	funcs, err := stdlib.Functions(dir)
-	if err != nil {
-		panic(errors.E(errors.ErrInternal, "failed to instantiate the stdlib"))
+	if !st.IsDir() {
+		return nil, errors.E("%s is not a directory", dir)
 	}
 
 	return &TerramateParser{
@@ -342,7 +341,7 @@ func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
 		Config:      NewRawConfig(),
 		Imported:    NewRawConfig(),
 		parsedFiles: make(map[string]parsedFile),
-		evalctx:     eval.NewContext(funcs),
+		evalctx:     eval.NewContext(stdlib.Functions(dir)),
 	}, nil
 }
 
