@@ -24,7 +24,6 @@ import (
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/info"
-	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
@@ -893,6 +892,36 @@ stack_id=stack-id
 			},
 		},
 		{
+			name:  "lets with map block",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/genfile.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Lets(
+							Map(
+								Labels("var"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Expr("key", "element.new"),
+								Expr("value", "element.new"),
+							),
+						),
+						Str("content", "${let.var.a}-${let.var.b}-${let.var.c}"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test",
+					file: genFile{
+						condition: true,
+						body:      "a-b-c",
+					},
+				},
+			},
+		},
+		{
 			name:  "generate_file with duplicated lets attrs",
 			stack: "/stack",
 			configs: []hclconfig{
@@ -910,7 +939,7 @@ stack_id=stack-id
 					),
 				},
 			},
-			wantErr: errors.E(lets.ErrRedefined),
+			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
 			name:  "lets are scoped",

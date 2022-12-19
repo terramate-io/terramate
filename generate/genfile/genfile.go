@@ -173,9 +173,11 @@ func Load(
 // Eval the generate_file block.
 func Eval(block hcl.GenFileBlock, evalctx *eval.Context) (File, error) {
 	name := block.Label
-	err := lets.Load(block.Lets, evalctx)
-	if err != nil {
-		return File{}, err
+	if block.Lets != nil {
+		err := lets.Load(block.Lets, evalctx)
+		if err != nil {
+			return File{}, err
+		}
 	}
 
 	condition := true

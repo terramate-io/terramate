@@ -177,9 +177,11 @@ func Load(
 			stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests),
 		)
 
-		err := lets.Load(hclBlock.Lets, evalctx.Context)
-		if err != nil {
-			return nil, err
+		if hclBlock.Lets != nil {
+			err := lets.Load(hclBlock.Lets, evalctx.Context)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		condition := true

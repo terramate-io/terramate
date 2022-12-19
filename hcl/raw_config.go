@@ -39,35 +39,42 @@ type RawConfig struct {
 	// UnmergedBlocks are the unmerged blocks from all files.
 	// This will be available after calling Parse or ParseConfig
 	UnmergedBlocks ast.Blocks
+
+	mergeHandlers map[string]mergeHandler
 }
 
-// NewRawConfig returns a new RawConfig object.
-func NewRawConfig() RawConfig {
+type mergeHandler func(r *RawConfig, block *ast.Block) error
+
+// NewTopLevelRawConfig returns a new RawConfig object tailored for the
+// Terramate top-level attributes and blocks.
+func NewTopLevelRawConfig() RawConfig {
+	return NewCustomRawConfig(map[string]mergeHandler{
+		"terramate":     (*RawConfig).mergeBlock,
+		"globals":       (*RawConfig).mergeLabeledBlock,
+		"stack":         (*RawConfig).addBlock,
+		"vendor":        (*RawConfig).addBlock,
+		"generate_file": (*RawConfig).addBlock,
+		"generate_hcl":  (*RawConfig).addBlock,
+		"assert":        (*RawConfig).addBlock,
+		"import":        func(r *RawConfig, b *ast.Block) error { return nil },
+	})
+}
+
+// NewCustomRawConfig returns a new customized RawConfig.
+func NewCustomRawConfig(handlers map[string]mergeHandler) RawConfig {
 	return RawConfig{
 		MergedAttributes:  make(ast.Attributes),
 		MergedBlocks:      make(ast.MergedBlocks),
 		MergedLabelBlocks: make(ast.MergedLabelBlocks),
+		mergeHandlers:     handlers,
 	}
 }
 
 // Copy cfg into a new RawConfig
 func (cfg RawConfig) Copy() RawConfig {
-	n := NewRawConfig()
+	n := NewTopLevelRawConfig()
 	_ = n.Merge(cfg)
 	return n
-}
-
-func (cfg *RawConfig) mergeHandlers() map[string]mergeHandler {
-	return map[string]mergeHandler{
-		"terramate":     cfg.mergeBlock,
-		"globals":       cfg.mergeLabeledBlock,
-		"stack":         cfg.addBlock,
-		"vendor":        cfg.addBlock,
-		"generate_file": cfg.addBlock,
-		"generate_hcl":  cfg.addBlock,
-		"assert":        cfg.addBlock,
-		"import":        func(b *ast.Block) error { return nil },
-	}
 }
 
 // Merge the config with the provided other config.
@@ -81,7 +88,7 @@ func (cfg *RawConfig) Merge(other RawConfig) error {
 }
 
 func (cfg *RawConfig) mergeBlocks(blocks ast.Blocks) error {
-	handlers := cfg.mergeHandlers()
+	handlers := cfg.mergeHandlers
 
 	errs := errors.L()
 	for _, block := range blocks {
@@ -95,7 +102,7 @@ func (cfg *RawConfig) mergeBlocks(blocks ast.Blocks) error {
 			continue
 		}
 
-		errs.Append(handler(block))
+		errs.Append(handler(cfg, block))
 	}
 	return errs.AsError()
 }
