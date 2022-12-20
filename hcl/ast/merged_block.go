@@ -95,7 +95,7 @@ func NewEmptyLabelBlockType(typ string) LabelBlockType {
 func (mb *MergedBlock) MergeBlock(other *Block, isLabelled bool) error {
 	errs := errors.L()
 	if !isLabelled && len(other.Labels) > 0 {
-		errs.Append(errors.E(other.TypeRange, "block type %q does not support labels", other.Type))
+		errs.Append(errors.E(other.LabelRanges(), "block type %q does not support labels", other.Type))
 	} else {
 		if !sameLabels(mb.Labels, other.Labels) {
 			errs.Append(errors.E(other.TypeRange,

@@ -765,23 +765,28 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 		}
 	}
 
-	if err := errs.AsError(); err != nil {
-		return GenHCLBlock{}, err
-	}
-
-	lets := ast.MergedLabelBlocks{}
+	mergedLets := ast.MergedLabelBlocks{}
 	for labelType, mergedBlock := range letsConfig.MergedLabelBlocks {
 		if labelType.Type == "lets" {
-			lets[labelType] = mergedBlock
+			mergedLets[labelType] = mergedBlock
 
 			errs.AppendWrap(ErrTerramateSchema, validateLets(mergedBlock))
 		}
 	}
 
+	if err := errs.AsError(); err != nil {
+		return GenHCLBlock{}, err
+	}
+
+	lets, ok := mergedLets[ast.NewEmptyLabelBlockType("lets")]
+	if !ok {
+		lets = ast.NewMergedBlock("lets", []string{})
+	}
+
 	return GenHCLBlock{
 		Range:     block.Range,
 		Label:     block.Labels[0],
-		Lets:      letsConfig.MergedLabelBlocks[ast.NewEmptyLabelBlockType("lets")],
+		Lets:      lets,
 		Asserts:   asserts,
 		Content:   content,
 		Condition: block.Body.Attributes["condition"],
@@ -798,12 +803,15 @@ func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
 
 	var asserts []AssertConfig
 
+	letsConfig := NewCustomRawConfig(map[string]mergeHandler{
+		"lets": (*RawConfig).mergeLabeledBlock,
+	})
+
 	errs := errors.L()
-	lets := ast.NewMergedBlock("lets", []string{})
 	for _, subBlock := range block.Blocks {
 		switch subBlock.Type {
 		case "lets":
-			errs.AppendWrap(ErrTerramateSchema, lets.MergeBlock(subBlock, false))
+			errs.AppendWrap(ErrTerramateSchema, letsConfig.mergeBlocks(ast.Blocks{subBlock}))
 		case "assert":
 			assertCfg, err := parseAssertConfig(subBlock)
 			if err != nil {
@@ -827,8 +835,22 @@ func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
 		}
 	}
 
+	mergedLets := ast.MergedLabelBlocks{}
+	for labelType, mergedBlock := range letsConfig.MergedLabelBlocks {
+		if labelType.Type == "lets" {
+			mergedLets[labelType] = mergedBlock
+
+			errs.AppendWrap(ErrTerramateSchema, validateLets(mergedBlock))
+		}
+	}
+
 	if err := errs.AsError(); err != nil {
 		return GenFileBlock{}, err
+	}
+
+	lets, ok := mergedLets[ast.NewEmptyLabelBlockType("lets")]
+	if !ok {
+		lets = ast.NewMergedBlock("lets", []string{})
 	}
 
 	return GenFileBlock{
@@ -845,7 +867,7 @@ func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
 func validateImportBlock(block *ast.Block) error {
 	errs := errors.L()
 	if len(block.Labels) != 0 {
-		errs.Append(errors.E(ErrTerramateSchema, block.LabelRanges[0],
+		errs.Append(errors.E(ErrTerramateSchema, block.LabelRanges(),
 			"import must have no labels but got %v",
 			block.Labels,
 		))
@@ -928,7 +950,9 @@ func validateLets(block *ast.MergedBlock) error {
 	}
 	errs := errors.L()
 	for _, subBlock := range block.Blocks {
-		errs.Append(validateMap(subBlock))
+		for _, raw := range subBlock.RawOrigins {
+			errs.Append(validateMap(raw))
+		}
 	}
 	return errs.AsError()
 }
@@ -1192,7 +1216,7 @@ func checkNoLabels(block *ast.Block) error {
 		errs.Append(errors.E(ErrTerramateSchema,
 			"block %s has unexpected label %s",
 			block.Type,
-			block.LabelRanges[i],
+			block.Block.LabelRanges[i],
 			label))
 	}
 
@@ -1764,40 +1788,42 @@ func validateGlobals(block *ast.MergedBlock) error {
 			block.RawOrigins[0].TypeRange, "unexpected block type %q", block.Type)
 	}
 	errs.Append(block.ValidateSubBlocks("map"))
-	for _, subBlock := range block.Blocks {
-		errs.Append(validateMap(subBlock))
+	for _, raw := range block.RawOrigins {
+		for _, subBlock := range raw.Blocks {
+			errs.Append(validateMap(subBlock))
+		}
 	}
 	return errs.AsError()
 }
 
-func validateMap(block *ast.MergedBlock) error {
+func validateMap(block *ast.Block) (err error) {
 	if block.Type != "map" {
-		return errors.E(block.RawOrigins[0].TypeRange,
+		return errors.E(block.TypeRange,
 			"unexpected block type %s", block.Type)
 	}
 	if len(block.Labels) == 0 {
-		return errors.E(block.RawOrigins[0].TypeRange,
+		return errors.E(block.LabelRanges(),
 			"map block requires a label")
 	}
 	_, ok := block.Attributes["for_each"]
 	if !ok {
-		return errors.E(block.RawOrigins[0].TypeRange,
+		return errors.E(block.Block.TypeRange,
 			"map.for_each attribute is required")
 	}
 	_, ok = block.Attributes["key"]
 	if !ok {
-		return errors.E(block.RawOrigins[0].TypeRange, "map.key is required")
+		return errors.E(block.TypeRange, "map.key is required")
 	}
 	_, hasValueAttr := block.Attributes["value"]
 	hasValueBlock := false
 	for _, subBlock := range block.Blocks {
 		if hasValueBlock {
-			return errors.E(block.RawOrigins[0].TypeRange,
+			return errors.E(block.TypeRange,
 				"multiple map.value block declared")
 		}
 		if subBlock.Type != "value" {
 			return errors.E(
-				block.RawOrigins[0].TypeRange,
+				subBlock.TypeRange,
 				"unrecognized block %s inside map block", subBlock.Type,
 			)
 		}
@@ -1811,11 +1837,11 @@ func validateMap(block *ast.MergedBlock) error {
 	}
 
 	if hasValueAttr && hasValueBlock {
-		return errors.E(block.RawOrigins[0].TypeRange,
+		return errors.E(block.TypeRange,
 			"value attribute conflicts with value block")
 	}
 	if !hasValueAttr && !hasValueBlock {
-		return errors.E(block.RawOrigins[0].TypeRange,
+		return errors.E(block.TypeRange,
 			"either a value attribute or a value block is required")
 	}
 	return nil
