@@ -24,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/info"
+	maptest "github.com/mineiros-io/terramate/mapexpr/test"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
@@ -922,33 +923,6 @@ stack_id=stack-id
 			},
 		},
 		{
-			name:  "lets having map with multiple value blocks",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack/genfile.tm",
-					add: GenerateFile(
-						Labels("test"),
-						Lets(
-							Map(
-								Labels("people_count"),
-								Expr("for_each", `["marius", "tiago", "soeren", "tiago"]`),
-								Expr("key", "element.new"),
-								Value(
-									Expr("count", `tm_try(element.old.count, 0) + 1`),
-								),
-								Value(
-									Number("num", 1),
-								),
-							),
-						),
-						Str("content", "${let.people_count.count}"),
-					),
-				},
-			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
-		},
-		{
 			name:  "generate_file with duplicated lets attrs",
 			stack: "/stack",
 			configs: []hclconfig{
@@ -995,6 +969,28 @@ stack_id=stack-id
 
 	for _, tcase := range tcases {
 		testGenfile(t, tcase)
+	}
+}
+
+func TestGenFileLetsMapSchemaErrors(t *testing.T) {
+	for _, maptc := range maptest.SchemaErrorTestcases() {
+		tc := testcase{
+			name:  "genfile with lets and " + maptc.Name,
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/file.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Lets(
+							maptc.Block,
+						),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		}
+		testGenfile(t, tc)
 	}
 }
 

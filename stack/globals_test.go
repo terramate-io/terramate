@@ -26,6 +26,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 
+	maptest "github.com/mineiros-io/terramate/mapexpr/test"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
@@ -36,24 +37,24 @@ import (
 	"github.com/zclconf/go-cty-debug/ctydebug"
 )
 
+type (
+	hclconfig struct {
+		path     string
+		filename string
+		add      *hclwrite.Block
+	}
+	testcase struct {
+		name    string
+		layout  []string
+		configs []hclconfig
+		want    map[string]*hclwrite.Block
+		wantErr error
+	}
+)
+
 // TODO(katcipis): add tests related to tf functions that depend on filesystem
 // (BaseDir parameter passed on Scope when creating eval context).
 func TestLoadGlobals(t *testing.T) {
-	type (
-		hclconfig struct {
-			path     string
-			filename string
-			add      *hclwrite.Block
-		}
-		testcase struct {
-			name    string
-			layout  []string
-			configs []hclconfig
-			want    map[string]*hclwrite.Block
-			wantErr error
-		}
-	)
-
 	t.Parallel()
 
 	tcases := []testcase{
@@ -2796,54 +2797,6 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
-			name:   "globals.map missing the label",
-			layout: []string{"s:stack"},
-			configs: []hclconfig{
-				{
-					path: "/",
-					add: Globals(
-						Map(
-							Expr("for_each", `["a", "b", "c"]`),
-							Str("key", "something"),
-							Str("value", "else"),
-						),
-					),
-				},
-			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
-		},
-		{
-			name:   "globals.map missing the for_each attribute",
-			layout: []string{"s:stack"},
-			configs: []hclconfig{
-				{
-					path: "/",
-					add: Globals(
-						Map(
-							Labels("var"),
-						),
-					),
-				},
-			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
-		},
-		{
-			name:   "globals.map missing the key attribute",
-			layout: []string{"s:stack"},
-			configs: []hclconfig{
-				{
-					path: "/",
-					add: Globals(
-						Map(
-							Labels("var"),
-							Expr("for_each", "[]"),
-						),
-					),
-				},
-			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
-		},
-		{
 			name:   "globals.map label conflicts with attribute",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
@@ -2861,63 +2814,6 @@ func TestLoadGlobals(t *testing.T) {
 				},
 			},
 			wantErr: errors.E(globals.ErrRedefined),
-		},
-		{
-			name:   "globals.map missing the value attribute or block",
-			layout: []string{"s:stack"},
-			configs: []hclconfig{
-				{
-					path: "/",
-					add: Globals(
-						Map(
-							Labels("var"),
-							Expr("for_each", "[]"),
-							Expr("key", "element.new.test"),
-						),
-					),
-				},
-			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
-		},
-		{
-			name:   "globals.map conflicting value attribute and block - fails",
-			layout: []string{"s:stack"},
-			configs: []hclconfig{
-				{
-					path: "/",
-					add: Globals(
-						Map(
-							Labels("var"),
-							Expr("for_each", "[]"),
-							Expr("key", "element.new.test"),
-							Str("value", "value"),
-							Value(
-								Str("a", "b"),
-							),
-						),
-					),
-				},
-			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
-		},
-		{
-			name:   "globals.map validation is recursive",
-			layout: []string{"s:stack"},
-			configs: []hclconfig{
-				{
-					path: "/",
-					add: Globals(
-						Map(
-							Labels("var"),
-							Expr("for_each", "[]"),
-							Expr("key", "element.new.key"),
-							Expr("value", "element.new.value"),
-							Map(),
-						),
-					),
-				},
-			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
 			name:   "invalid globals.map key",
@@ -2948,7 +2844,7 @@ func TestLoadGlobals(t *testing.T) {
 							Labels("var"),
 							Expr("for_each", `["a", "b", "c"]`),
 							Str("key", "something"),
-							Expr("value", "else"), // keyword, not a string
+							Expr("value", "else"), // keyword, not an expression
 						),
 					),
 				},
@@ -3245,29 +3141,6 @@ func TestLoadGlobals(t *testing.T) {
 					}`),
 				),
 			},
-		},
-		{
-			name:   "multiple globals.map value blocks - fails",
-			layout: []string{"s:stack"},
-			configs: []hclconfig{
-				{
-					path: "/",
-					add: Globals(
-						Map(
-							Labels("people_count"),
-							Expr("for_each", `["marius", "tiago", "soeren", "tiago"]`),
-							Expr("key", "element.new"),
-							Value(
-								Expr("count", `tm_try(element.old.count, 0) + 1`),
-							),
-							Value(
-								Number("num", 1),
-							),
-						),
-					),
-				},
-			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
 			name:   "globals.map is recursive",
@@ -3619,6 +3492,7 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			// TODO(i4k): move to mapexpr/test/testcase.go
 			name:   "recursive globals.map with conflicting map blocks inside value block",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
@@ -3698,85 +3572,7 @@ func TestLoadGlobals(t *testing.T) {
 	}
 
 	for _, tcase := range tcases {
-		t.Run(tcase.name, func(t *testing.T) {
-			s := sandbox.New(t)
-			s.BuildTree(tcase.layout)
-			projmeta := s.LoadProjectMetadata()
-
-			for _, globalBlock := range tcase.configs {
-				path := filepath.Join(s.RootDir(), globalBlock.path)
-				filename := config.DefaultFilename
-				if globalBlock.filename != "" {
-					filename = globalBlock.filename
-				}
-				test.AppendFile(t, path, filename, globalBlock.add.String())
-			}
-
-			wantGlobals := tcase.want
-
-			cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
-			if err != nil {
-				errtest.Assert(t, err, tcase.wantErr)
-				return
-			}
-
-			stackEntries, err := terramate.ListStacks(cfg)
-			assert.NoError(t, err)
-
-			var stacks stack.List
-			for _, entry := range stackEntries {
-				st := entry.Stack
-				stacks = append(stacks, st)
-
-				t.Logf("loading globals for stack: %s", st.Path())
-
-				gotReport := globals.ForStack(s.Config(), projmeta, st)
-				errtest.Assert(t, gotReport.AsError(), tcase.wantErr)
-				if tcase.wantErr != nil {
-					continue
-				}
-
-				want, ok := wantGlobals[st.Path().String()]
-				if !ok {
-					want = Globals()
-				}
-				delete(wantGlobals, st.Path().String())
-
-				// Could have one type for globals configs and another type
-				// for wanted evaluated globals, but that would make
-				// globals building more annoying (two sets of functions).
-				if want.HasExpressions() {
-					t.Fatal("wanted globals definition contains expressions, they should be defined only by evaluated values")
-					t.Errorf("wanted globals definition:\n%s\n", want)
-				}
-
-				got := gotReport.Globals
-				gotAttrs := got.AsValueMap()
-				wantAttrs := want.AttributesValues()
-
-				if len(gotAttrs) != len(wantAttrs) {
-					t.Errorf("got %d global attributes; wanted %d", len(gotAttrs), len(wantAttrs))
-				}
-
-				for name, wantVal := range wantAttrs {
-					gotVal, ok := gotAttrs[name]
-					if !ok {
-						t.Errorf("wanted global.%s is missing", name)
-						continue
-					}
-					if diff := ctydebug.DiffValues(wantVal, gotVal); diff != "" {
-						t.Errorf("global.%s doesn't match expectation", name)
-						t.Errorf("want: %s", ctydebug.ValueString(wantVal))
-						t.Errorf("got: %s", ctydebug.ValueString(gotVal))
-						t.Errorf("diff:\n%s", diff)
-					}
-				}
-			}
-
-			if len(wantGlobals) > 0 {
-				t.Fatalf("wanted stack globals: %v that was not found on stacks: %v", wantGlobals, stacks)
-			}
-		})
+		testGlobals(t, tcase)
 	}
 }
 
@@ -3938,4 +3734,108 @@ func TestLoadGlobalsErrors(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGlobalsWithMapSchemaErrors(t *testing.T) {
+	for _, mapcase := range maptest.SchemaErrorTestcases() {
+		tc := testcase{
+			name: "globals with " + mapcase.Name,
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					filename: "global.tm",
+					path:     "/stack",
+					add: Globals(
+						mapcase.Block,
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		}
+		testGlobals(t, tc)
+	}
+}
+
+func testGlobals(t *testing.T, tcase testcase) {
+	t.Run(tcase.name, func(t *testing.T) {
+		s := sandbox.New(t)
+		s.BuildTree(tcase.layout)
+		projmeta := s.LoadProjectMetadata()
+
+		for _, globalBlock := range tcase.configs {
+			path := filepath.Join(s.RootDir(), globalBlock.path)
+			filename := config.DefaultFilename
+			if globalBlock.filename != "" {
+				filename = globalBlock.filename
+			}
+			test.AppendFile(t, path, filename, globalBlock.add.String())
+		}
+
+		wantGlobals := tcase.want
+
+		cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+		if err != nil {
+			errtest.Assert(t, err, tcase.wantErr)
+			return
+		}
+
+		stackEntries, err := terramate.ListStacks(cfg)
+		assert.NoError(t, err)
+
+		var stacks stack.List
+		for _, entry := range stackEntries {
+			st := entry.Stack
+			stacks = append(stacks, st)
+
+			t.Logf("loading globals for stack: %s", st.Path())
+
+			gotReport := globals.ForStack(s.Config(), projmeta, st)
+			errtest.Assert(t, gotReport.AsError(), tcase.wantErr)
+			if tcase.wantErr != nil {
+				continue
+			}
+
+			want, ok := wantGlobals[st.Path().String()]
+			if !ok {
+				want = Globals()
+			}
+			delete(wantGlobals, st.Path().String())
+
+			// Could have one type for globals configs and another type
+			// for wanted evaluated globals, but that would make
+			// globals building more annoying (two sets of functions).
+			if want.HasExpressions() {
+				t.Fatal("wanted globals definition contains expressions, they should be defined only by evaluated values")
+				t.Errorf("wanted globals definition:\n%s\n", want)
+			}
+
+			got := gotReport.Globals
+			gotAttrs := got.AsValueMap()
+			wantAttrs := want.AttributesValues()
+
+			if len(gotAttrs) != len(wantAttrs) {
+				t.Errorf("got %d global attributes; wanted %d", len(gotAttrs), len(wantAttrs))
+			}
+
+			for name, wantVal := range wantAttrs {
+				gotVal, ok := gotAttrs[name]
+				if !ok {
+					t.Errorf("wanted global.%s is missing", name)
+					continue
+				}
+				if diff := ctydebug.DiffValues(wantVal, gotVal); diff != "" {
+					t.Errorf("global.%s doesn't match expectation", name)
+					t.Errorf("want: %s", ctydebug.ValueString(wantVal))
+					t.Errorf("got: %s", ctydebug.ValueString(gotVal))
+					t.Errorf("diff:\n%s", diff)
+				}
+			}
+		}
+
+		if len(wantGlobals) > 0 {
+			t.Fatalf("wanted stack globals: %v that was not found on stacks: %v", wantGlobals, stacks)
+		}
+	})
 }
