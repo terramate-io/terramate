@@ -50,7 +50,7 @@ func TestGenHCLLetsMapSchemaErrors(t *testing.T) {
 	}
 }
 
-func TestGenHCLLetsWithMap(t *testing.T) {
+func TestGenHCLLetsMap(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []testcase{

@@ -26,7 +26,6 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 
-	maptest "github.com/mineiros-io/terramate/mapexpr/test"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
@@ -2797,7 +2796,7 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
-			name:   "globals.map label conflicts with attribute",
+			name:   "globals.map label conflicts with global name",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
 				{
@@ -3698,28 +3697,6 @@ func TestLoadGlobalsErrors(t *testing.T) {
 				errtest.Assert(t, report.AsError(), tcase.want)
 			}
 		})
-	}
-}
-
-func TestGlobalsWithMapSchemaErrors(t *testing.T) {
-	for _, mapcase := range maptest.SchemaErrorTestcases() {
-		tc := testcase{
-			name: "globals with " + mapcase.Name,
-			layout: []string{
-				"s:stack",
-			},
-			configs: []hclconfig{
-				{
-					filename: "global.tm",
-					path:     "/stack",
-					add: Globals(
-						mapcase.Block,
-					),
-				},
-			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
-		}
-		testGlobals(t, tc)
 	}
 }
 
