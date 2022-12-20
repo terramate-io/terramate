@@ -160,7 +160,7 @@ func TestGenHCLLetsMap(t *testing.T) {
 							Map(
 								Labels("var"),
 								Expr("for_each", `["a", "b", "c"]`),
-								Expr("key", "something"), // must be a keyword
+								Expr("key", "something"), // keyword is not valid
 								Str("value", "else"),
 							),
 						),
@@ -171,6 +171,106 @@ func TestGenHCLLetsMap(t *testing.T) {
 				},
 			},
 			wantErr: errors.E(lets.ErrEval),
+		},
+		{
+			name:  "lets with map block with incorrect value",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("test.tf"),
+						Lets(
+							Map(
+								Labels("var"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Expr("value", "something"), // keyword is not valid
+								Str("key", "else"),
+							),
+						),
+						Content(
+							Str("content", "${let.var.a}-${let.var.b}-${let.var.c}"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(lets.ErrEval),
+		},
+		{
+			name:  "lets with map block without using element",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("test.tf"),
+						Lets(
+							Map(
+								Labels("var"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Str("key", "something"),
+								Str("value", "else"),
+							),
+						),
+						Content(
+							Expr("content", "let.var.something"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test.tf",
+					hcl: genHCL{
+						condition: true,
+						body: Doc(
+							Str("content", "else"),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "lets with multiple map blocks",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("test.tf"),
+						Lets(
+							Map(
+								Labels("var1"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Expr("key", "element.new"),
+								Expr("value", "element.new"),
+							),
+							Map(
+								Labels("var2"),
+								Expr("for_each", `["d", "e", "f"]`),
+								Expr("key", "element.new"),
+								Expr("value", "element.new"),
+							),
+						),
+						Content(
+							Str("var1", "${let.var1.a}-${let.var1.b}-${let.var1.c}"),
+							Str("var2", "${let.var2.d}-${let.var2.e}-${let.var2.f}"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test.tf",
+					hcl: genHCL{
+						condition: true,
+						body: Doc(
+							Str("var1", "a-b-c"),
+							Str("var2", "d-e-f"),
+						),
+					},
+				},
+			},
 		},
 	} {
 		tc.run(t)

@@ -147,7 +147,7 @@ func TestGenFileLetsMap(t *testing.T) {
 							Map(
 								Labels("var"),
 								Expr("for_each", `["a", "b", "c"]`),
-								Expr("key", "something"), // must be a keyword
+								Expr("key", "something"), // keyword is not valid
 								Str("value", "else"),
 							),
 						),
@@ -156,6 +156,58 @@ func TestGenFileLetsMap(t *testing.T) {
 				},
 			},
 			wantErr: errors.E(lets.ErrEval),
+		},
+		{
+			name:  "lets with map block with incorrect value",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/genfile.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Lets(
+							Map(
+								Labels("var"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Expr("value", "something"), // keyword is not valid
+								Str("key", "else"),
+							),
+						),
+						Str("content", "${let.var.a}-${let.var.b}-${let.var.c}"),
+					),
+				},
+			},
+			wantErr: errors.E(lets.ErrEval),
+		},
+		{
+			name:  "lets with simple map without using element",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/genfile.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Lets(
+							Map(
+								Labels("var"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Str("key", "something"),
+								Str("value", "else"),
+							),
+						),
+						Expr("content", "let.var.something"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test",
+					file: genFile{
+						condition: true,
+						body:      "else",
+					},
+				},
+			},
 		},
 	} {
 		testGenfile(t, tc)
