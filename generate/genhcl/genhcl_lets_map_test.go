@@ -272,6 +272,44 @@ func TestGenHCLLetsMap(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:  "lets map unknowns are postponed in the evaluator",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("test.tf"),
+						Lets(
+							Str("val3", "val3"),
+							Map(
+								Labels("val"),
+								Expr("iterator", "el"),
+								Expr("for_each", `[let.val1, let.val2, let.val3]`),
+								Expr("key", "el.new"),
+								Expr("value", "el.new"),
+							),
+							Str("val2", "val2"),
+							Str("val1", "val1"),
+						),
+						Content(
+							Str("val", "${let.val.val1}-${let.val.val2}-${let.val.val3}"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test.tf",
+					hcl: genHCL{
+						condition: true,
+						body: Doc(
+							Str("val", "val1-val2-val3"),
+						),
+					},
+				},
+			},
+		},
 	} {
 		tc.run(t)
 	}
