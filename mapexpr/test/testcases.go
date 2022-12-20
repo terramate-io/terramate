@@ -88,13 +88,37 @@ func SchemaErrorTestcases() []Testcase {
 			),
 		},
 		{
-			Name: "map wit unexpected map block",
+			Name: "map with unexpected map block",
 			Block: mapBlock(
 				labels("var"),
 				expr("for_each", "[]"),
 				expr("key", "element.new"),
 				expr("value", "element.new"),
 				mapBlock(),
+			),
+		},
+		{
+			Name: "nested map with conflicting map labels",
+			Block: mapBlock(
+				labels("var"),
+				expr("for_each", `global.lst`),
+				expr("key", "element.new"),
+
+				value(
+					str("some", "value"),
+					mapBlock(
+						labels("same_label"),
+						expr("for_each", "global.lst"),
+						expr("key", "element.new"),
+						expr("value", "element.new"),
+					),
+					mapBlock(
+						labels("same_label"),
+						expr("for_each", "global.lst"),
+						expr("key", "element.new"),
+						expr("value", "element.new"),
+					),
+				),
 			),
 		},
 	}
@@ -104,6 +128,7 @@ var (
 	labels   = hclutils.Labels
 	value    = hclutils.Value
 	expr     = hclutils.Expr
+	str      = hclutils.Str
 	number   = hclutils.Number
 	mapBlock = hclutils.Map
 )

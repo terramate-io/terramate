@@ -3492,41 +3492,6 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
-			// TODO(i4k): move to mapexpr/test/testcase.go
-			name:   "recursive globals.map with conflicting map blocks inside value block",
-			layout: []string{"s:stack"},
-			configs: []hclconfig{
-				{
-					path: "/",
-					add: Globals(
-						Expr("lst", `["a", "b", "c"]`),
-						Map(
-							Labels("var"),
-							Expr("for_each", `global.lst`),
-							Expr("key", "element.new"),
-
-							Value(
-								Str("some", "value"),
-								Map(
-									Labels("var"),
-									Expr("for_each", "global.lst"),
-									Expr("key", "element.new"),
-									Expr("value", "element.new"),
-								),
-								Map(
-									Labels("var"),
-									Expr("for_each", "global.lst"),
-									Expr("key", "element.new"),
-									Expr("value", "element.new"),
-								),
-							),
-						),
-					),
-				},
-			},
-			wantErr: errors.E(hcl.ErrTerramateSchema),
-		},
-		{
 
 			name: "regression test for a bug which incorrectly returned ErrRedefined errors",
 			layout: []string{
