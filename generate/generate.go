@@ -28,6 +28,7 @@ import (
 	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/generate/genhcl"
+	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
@@ -109,7 +110,7 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 
 	for i, st := range stacks {
 		res := LoadResult{Dir: st.Path()}
-		loadres := stack.LoadStackGlobals(root, projmeta, st)
+		loadres := globals.ForStack(root, projmeta, st)
 		if err := loadres.AsError(); err != nil {
 			res.Err = err
 			results[i] = res
@@ -579,7 +580,7 @@ func stackOutdated(
 		Stringer("stack", st).
 		Logger()
 
-	report := stack.LoadStackGlobals(root, projmeta, st)
+	report := globals.ForStack(root, projmeta, st)
 	if err := report.AsError(); err != nil {
 		return nil, errors.E(err, "checking for outdated code")
 	}
@@ -829,7 +830,7 @@ func forEachStack(
 
 		logger.Trace().Msg("Load stack globals.")
 
-		globalsReport := stack.LoadStackGlobals(root, projmeta, st)
+		globalsReport := globals.ForStack(root, projmeta, st)
 		if err := globalsReport.AsError(); err != nil {
 			report.addFailure(st.Path(), errors.E(ErrLoadingGlobals, err))
 			continue

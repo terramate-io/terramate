@@ -37,6 +37,7 @@ import (
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
@@ -254,7 +255,7 @@ func (s S) LoadStackGlobals(
 ) *eval.Object {
 	s.t.Helper()
 
-	report := stack.LoadStackGlobals(root, projmeta, sm)
+	report := globals.ForStack(root, projmeta, sm)
 	assert.NoError(s.t, report.AsError())
 	return report.Globals
 }
