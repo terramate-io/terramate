@@ -209,6 +209,42 @@ func TestGenFileLetsMap(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:  "lets with multiple map blocks",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/genfile.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Lets(
+							Map(
+								Labels("var1"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Expr("key", "element.new"),
+								Expr("value", "element.new"),
+							),
+							Map(
+								Labels("var2"),
+								Expr("for_each", `["d", "e", "f"]`),
+								Expr("key", "element.new"),
+								Expr("value", "element.new"),
+							),
+						),
+						Str("content", "${let.var1.a}-${let.var1.b}-${let.var1.c}-${let.var2.d}-${let.var2.e}-${let.var2.f}"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test",
+					file: genFile{
+						condition: true,
+						body:      "a-b-c-d-e-f",
+					},
+				},
+			},
+		},
 	} {
 		testGenfile(t, tc)
 	}
