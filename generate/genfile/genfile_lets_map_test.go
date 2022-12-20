@@ -75,7 +75,7 @@ func TestGenFileLetsMap(t *testing.T) {
 			wantErr: errors.E(lets.ErrRedefined),
 		},
 		{
-			name:  "lets with map block",
+			name:  "lets with simple map block",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
@@ -134,6 +134,28 @@ func TestGenFileLetsMap(t *testing.T) {
 					},
 				},
 			},
+		},
+		{
+			name:  "lets with map block with incorrect key",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/genfile.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Lets(
+							Map(
+								Labels("var"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Expr("key", "something"), // must be a keyword
+								Str("value", "else"),
+							),
+						),
+						Str("content", "${let.var.a}-${let.var.b}-${let.var.c}"),
+					),
+				},
+			},
+			wantErr: errors.E(lets.ErrEval),
 		},
 	} {
 		testGenfile(t, tc)
