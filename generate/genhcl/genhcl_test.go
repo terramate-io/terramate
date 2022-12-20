@@ -28,6 +28,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
+	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
@@ -1631,6 +1632,65 @@ func TestGenerateHCL(t *testing.T) {
 				},
 			},
 			wantErr: errors.E(eval.ErrPartial),
+		},
+		{
+			name:  "lets with map block",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("test.tf"),
+						Lets(
+							Map(
+								Labels("var"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Expr("key", "element.new"),
+								Expr("value", "element.new"),
+							),
+						),
+						Content(
+							Str("content", "${let.var.a}-${let.var.b}-${let.var.c}"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test.tf",
+					hcl: genHCL{
+						condition: true,
+						body: Doc(
+							Str("content", "a-b-c"),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "lets.map label conflicts with lets name",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("test.tf"),
+						Lets(
+							Str("name", "value"),
+							Map(
+								Labels("name"),
+								Expr("for_each", "[]"),
+								Str("key", "a"),
+								Str("value", "a"),
+							),
+						),
+						Content(
+							Expr("name", "let.name"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(lets.ErrRedefined),
 		},
 	}
 

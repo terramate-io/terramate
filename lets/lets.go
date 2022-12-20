@@ -29,7 +29,8 @@ import (
 
 // Errors returned when parsing and evaluating lets.
 const (
-	ErrEval errors.Kind = "lets eval"
+	ErrEval      errors.Kind = "lets eval"
+	ErrRedefined errors.Kind = "lets redefined"
 )
 
 type (
@@ -216,6 +217,12 @@ func loadExprs(letblock *ast.MergedBlock) (Exprs, error) {
 	}
 
 	for _, mapBlock := range letblock.Blocks {
+		varName := mapBlock.Labels[0]
+		if _, ok := letblock.Attributes[varName]; ok {
+			return nil, errors.E(
+				ErrRedefined,
+				"map label %s conflicts with let.%s attribute", varName, varName)
+		}
 		mapExpr, err := mapexpr.NewMapExpr(mapBlock)
 		if err != nil {
 			return nil, errors.E(ErrEval, err)

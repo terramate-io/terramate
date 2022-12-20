@@ -24,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/info"
+	"github.com/mineiros-io/terramate/lets"
 	maptest "github.com/mineiros-io/terramate/mapexpr/test"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
@@ -893,36 +894,6 @@ stack_id=stack-id
 			},
 		},
 		{
-			name:  "lets with map block",
-			stack: "/stack",
-			configs: []hclconfig{
-				{
-					path: "/stack/genfile.tm",
-					add: GenerateFile(
-						Labels("test"),
-						Lets(
-							Map(
-								Labels("var"),
-								Expr("for_each", `["a", "b", "c"]`),
-								Expr("key", "element.new"),
-								Expr("value", "element.new"),
-							),
-						),
-						Str("content", "${let.var.a}-${let.var.b}-${let.var.c}"),
-					),
-				},
-			},
-			want: []result{
-				{
-					name: "test",
-					file: genFile{
-						condition: true,
-						body:      "a-b-c",
-					},
-				},
-			},
-		},
-		{
 			name:  "generate_file with duplicated lets attrs",
 			stack: "/stack",
 			configs: []hclconfig{
@@ -964,6 +935,59 @@ stack_id=stack-id
 				},
 			},
 			wantErr: errors.E(genfile.ErrContentEval),
+		},
+		{
+			name:  "lets with map block",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/genfile.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Lets(
+							Map(
+								Labels("var"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Expr("key", "element.new"),
+								Expr("value", "element.new"),
+							),
+						),
+						Str("content", "${let.var.a}-${let.var.b}-${let.var.c}"),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test",
+					file: genFile{
+						condition: true,
+						body:      "a-b-c",
+					},
+				},
+			},
+		},
+		{
+			name:  "lets.map label conflicts with lets name",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/genfile.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Lets(
+							Str("name", "value"),
+							Map(
+								Labels("name"),
+								Expr("for_each", "[]"),
+								Str("key", "a"),
+								Str("value", "a"),
+							),
+						),
+						Expr("content", "let.name"),
+					),
+				},
+			},
+			wantErr: errors.E(lets.ErrRedefined),
 		},
 	}
 
