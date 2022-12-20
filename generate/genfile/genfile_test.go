@@ -942,7 +942,7 @@ stack_id=stack-id
 								),
 							),
 						),
-						Str("content", "${let.var.a}-${let.var.b}-${let.var.c}"),
+						Str("content", "${let.people_count"),
 					),
 				},
 			},
