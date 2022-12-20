@@ -937,6 +937,29 @@ stack_id=stack-id
 			wantErr: errors.E(genfile.ErrContentEval),
 		},
 		{
+			name:  "lets.map label conflicts with lets name",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/genfile.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Lets(
+							Str("name", "value"),
+							Map(
+								Labels("name"),
+								Expr("for_each", "[]"),
+								Str("key", "a"),
+								Str("value", "a"),
+							),
+						),
+						Expr("content", "let.name"),
+					),
+				},
+			},
+			wantErr: errors.E(lets.ErrRedefined),
+		},
+		{
 			name:  "lets with map block",
 			stack: "/stack",
 			configs: []hclconfig{
@@ -967,7 +990,7 @@ stack_id=stack-id
 			},
 		},
 		{
-			name:  "lets.map label conflicts with lets name",
+			name:  "lets with map using iterator",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
@@ -975,19 +998,27 @@ stack_id=stack-id
 					add: GenerateFile(
 						Labels("test"),
 						Lets(
-							Str("name", "value"),
 							Map(
-								Labels("name"),
-								Expr("for_each", "[]"),
-								Str("key", "a"),
-								Str("value", "a"),
+								Labels("var"),
+								Expr("iterator", "el"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Expr("key", "el.new"),
+								Expr("value", "el.new"),
 							),
 						),
-						Expr("content", "let.name"),
+						Str("content", "${let.var.a}-${let.var.b}-${let.var.c}"),
 					),
 				},
 			},
-			wantErr: errors.E(lets.ErrRedefined),
+			want: []result{
+				{
+					name: "test",
+					file: genFile{
+						condition: true,
+						body:      "a-b-c",
+					},
+				},
+			},
 		},
 	}
 

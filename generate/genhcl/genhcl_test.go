@@ -29,6 +29,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/lets"
+	maptest "github.com/mineiros-io/terramate/mapexpr/test"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
@@ -1634,6 +1635,31 @@ func TestGenerateHCL(t *testing.T) {
 			wantErr: errors.E(eval.ErrPartial),
 		},
 		{
+			name:  "lets.map label conflicts with lets name",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("test.tf"),
+						Lets(
+							Str("name", "value"),
+							Map(
+								Labels("name"),
+								Expr("for_each", "[]"),
+								Str("key", "a"),
+								Str("value", "a"),
+							),
+						),
+						Content(
+							Expr("name", "let.name"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(lets.ErrRedefined),
+		},
+		{
 			name:  "lets with map block",
 			stack: "/stack",
 			configs: []hclconfig{
@@ -1668,7 +1694,7 @@ func TestGenerateHCL(t *testing.T) {
 			},
 		},
 		{
-			name:  "lets.map label conflicts with lets name",
+			name:  "lets with map block using iterator",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
@@ -1676,13 +1702,52 @@ func TestGenerateHCL(t *testing.T) {
 					add: GenerateHCL(
 						Labels("test.tf"),
 						Lets(
-							Str("name", "value"),
 							Map(
-								Labels("name"),
-								Expr("for_each", "[]"),
-								Str("key", "a"),
-								Str("value", "a"),
+								Labels("var"),
+								Expr("iterator", "el"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Expr("key", "el.new"),
+								Expr("value", "el.new"),
 							),
+						),
+						Content(
+							Str("content", "${let.var.a}-${let.var.b}-${let.var.c}"),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test.tf",
+					hcl: genHCL{
+						condition: true,
+						body: Doc(
+							Str("content", "a-b-c"),
+						),
+					},
+				},
+			},
+		},
+	}
+
+	for _, tcase := range tcases {
+		tcase.run(t)
+	}
+}
+
+func TestGenHCLLetsMapSchemaErrors(t *testing.T) {
+	for _, maptc := range maptest.SchemaErrorTestcases() {
+		tc := testcase{
+			name:  "genhcl with lets and " + maptc.Name,
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateFile(
+						Labels("test.tf"),
+						Lets(
+							Str("name", "value"),
+							maptc.Block,
 						),
 						Content(
 							Expr("name", "let.name"),
@@ -1690,12 +1755,9 @@ func TestGenerateHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(lets.ErrRedefined),
-		},
-	}
-
-	for _, tcase := range tcases {
-		tcase.run(t)
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		}
+		tc.run(t)
 	}
 }
 
