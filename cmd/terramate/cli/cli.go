@@ -1230,7 +1230,7 @@ func (c *cli) printStacksGlobals() {
 
 	for _, stackEntry := range c.filterStacksByWorkingDir(report.Stacks) {
 		meta := stack.Metadata(stackEntry.Stack)
-		report := stack.LoadStackGlobals(c.cfg(), projmeta, meta)
+		report := globals.ForStack(c.cfg(), projmeta, meta)
 		if err := report.AsError(); err != nil {
 			logger := log.With().
 				Stringer("stack", meta.Path()).
@@ -1426,7 +1426,7 @@ func (c *cli) setupEvalContext() *eval.Context {
 		ctx.SetNamespace("terramate", projmeta.ToCtyMap())
 	}
 
-	globals.Load(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()), ctx)
+	globals.ForDir(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()), ctx)
 	return ctx
 }
 

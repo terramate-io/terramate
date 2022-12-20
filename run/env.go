@@ -19,6 +19,7 @@ import (
 
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
@@ -62,7 +63,7 @@ func LoadEnv(root *config.Root, projmeta project.Metadata, st *stack.S) (EnvVars
 
 	logger.Trace().Msg("loading globals")
 
-	globalsReport := stack.LoadStackGlobals(root, projmeta, st)
+	globalsReport := globals.ForStack(root, projmeta, st)
 	if err := globalsReport.AsError(); err != nil {
 		return nil, errors.E(ErrLoadingGlobals, err)
 	}
