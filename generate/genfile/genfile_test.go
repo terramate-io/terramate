@@ -922,6 +922,33 @@ stack_id=stack-id
 			},
 		},
 		{
+			name:  "lets having map with multiple value blocks",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack/genfile.tm",
+					add: GenerateFile(
+						Labels("test"),
+						Lets(
+							Map(
+								Labels("people_count"),
+								Expr("for_each", `["marius", "tiago", "soeren", "tiago"]`),
+								Expr("key", "element.new"),
+								Value(
+									Expr("count", `tm_try(element.old.count, 0) + 1`),
+								),
+								Value(
+									Number("num", 1),
+								),
+							),
+						),
+						Str("content", "${let.var.a}-${let.var.b}-${let.var.c}"),
+					),
+				},
+			},
+			wantErr: errors.E(hcl.ErrTerramateSchema),
+		},
+		{
 			name:  "generate_file with duplicated lets attrs",
 			stack: "/stack",
 			configs: []hclconfig{
