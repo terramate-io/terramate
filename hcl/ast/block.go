@@ -15,6 +15,7 @@
 package ast
 
 import (
+	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mineiros-io/terramate/hcl/info"
 )
@@ -57,4 +58,30 @@ func NewBlocks(rootdir string, rawblocks hclsyntax.Blocks) Blocks {
 		blocks = append(blocks, NewBlock(rootdir, rawblock))
 	}
 	return blocks
+}
+
+// LabelRanges computes a range between the first and last label in the case
+// the block has labels or a range for the empty space between the block name
+// and the open brace.
+func (b *Block) LabelRanges() hcl.Range {
+	switch n := len(b.Block.LabelRanges); n {
+	case 0:
+		return hcl.Range{
+			Filename: b.Range.HostPath(),
+
+			// returns the range for the caret symbol below:
+			// blockname  { ... }
+			//          ^ ^
+			Start: hcl.Pos{
+				Line:   b.Block.TypeRange.Start.Line,
+				Column: b.Block.TypeRange.Start.Column + len(b.Type),
+				Byte:   b.Block.TypeRange.Start.Byte + len(b.Type),
+			},
+			End: b.Block.OpenBraceRange.End,
+		}
+	case 1:
+		return b.Block.LabelRanges[0]
+	default:
+		return hcl.RangeBetween(b.Block.LabelRanges[0], b.Block.LabelRanges[n-1])
+	}
 }

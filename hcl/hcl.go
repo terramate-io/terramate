@@ -200,7 +200,7 @@ type GenHCLBlock struct {
 	// Label of the block.
 	Label string
 	// Lets is a block of local variables.
-	Lets hclsyntax.Blocks
+	Lets *ast.MergedBlock
 	// Condition attribute of the block, if any.
 	Condition *hclsyntax.Attribute
 	// Content block.
@@ -216,7 +216,7 @@ type GenFileBlock struct {
 	// Label of the block
 	Label string
 	// Lets is a block of local variables.
-	Lets hclsyntax.Blocks
+	Lets *ast.MergedBlock
 	// Condition attribute of the block, if any.
 	Condition *hclsyntax.Attribute
 	// Content attribute of the block
@@ -313,8 +313,6 @@ const (
 	external
 )
 
-type mergeHandler func(block *ast.Block) error
-
 // NewTerramateParser creates a Terramate parser for the directory dir inside
 // the root directory.
 // The parser creates sub-parsers for parsing imports but keeps a list of all
@@ -338,8 +336,8 @@ func NewTerramateParser(rootdir string, dir string) (*TerramateParser, error) {
 		dir:         dir,
 		files:       map[string][]byte{},
 		hclparser:   hclparse.NewParser(),
-		Config:      NewRawConfig(),
-		Imported:    NewRawConfig(),
+		Config:      NewTopLevelRawConfig(),
+		Imported:    NewTopLevelRawConfig(),
 		parsedFiles: make(map[string]parsedFile),
 		evalctx:     eval.NewContext(stdlib.Functions(dir)),
 	}, nil
@@ -651,7 +649,7 @@ func NewConfig(dir string) (Config, error) {
 
 	return Config{
 		absdir:   dir,
-		Imported: NewRawConfig(),
+		Imported: NewTopLevelRawConfig(),
 	}, nil
 }
 
@@ -728,7 +726,6 @@ func ParseDir(root string, dir string) (Config, error) {
 // generate_hcl blocks are validated, so the caller can expect valid blocks only or an error.
 func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 	var (
-		lets    hclsyntax.Blocks
 		content *hclsyntax.Block
 		asserts []AssertConfig
 	)
@@ -738,12 +735,15 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 		return GenHCLBlock{}, err
 	}
 
-	errs := errors.L()
+	letsConfig := NewCustomRawConfig(map[string]mergeHandler{
+		"lets": (*RawConfig).mergeLabeledBlock,
+	})
 
+	errs := errors.L()
 	for _, subBlock := range block.Blocks {
 		switch subBlock.Type {
 		case "lets":
-			lets = append(lets, subBlock.Block)
+			errs.AppendWrap(ErrTerramateSchema, letsConfig.mergeBlocks(ast.Blocks{subBlock}))
 		case "assert":
 			assertCfg, err := parseAssertConfig(subBlock)
 			if err != nil {
@@ -765,8 +765,22 @@ func parseGenerateHCLBlock(block *ast.Block) (GenHCLBlock, error) {
 		}
 	}
 
+	mergedLets := ast.MergedLabelBlocks{}
+	for labelType, mergedBlock := range letsConfig.MergedLabelBlocks {
+		if labelType.Type == "lets" {
+			mergedLets[labelType] = mergedBlock
+
+			errs.AppendWrap(ErrTerramateSchema, validateLets(mergedBlock))
+		}
+	}
+
 	if err := errs.AsError(); err != nil {
 		return GenHCLBlock{}, err
+	}
+
+	lets, ok := mergedLets[ast.NewEmptyLabelBlockType("lets")]
+	if !ok {
+		lets = ast.NewMergedBlock("lets", []string{})
 	}
 
 	return GenHCLBlock{
@@ -787,17 +801,17 @@ func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
 		return GenFileBlock{}, err
 	}
 
-	var (
-		lets    hclsyntax.Blocks
-		asserts []AssertConfig
-	)
+	var asserts []AssertConfig
+
+	letsConfig := NewCustomRawConfig(map[string]mergeHandler{
+		"lets": (*RawConfig).mergeLabeledBlock,
+	})
 
 	errs := errors.L()
-
 	for _, subBlock := range block.Blocks {
 		switch subBlock.Type {
 		case "lets":
-			lets = append(lets, subBlock.Block)
+			errs.AppendWrap(ErrTerramateSchema, letsConfig.mergeBlocks(ast.Blocks{subBlock}))
 		case "assert":
 			assertCfg, err := parseAssertConfig(subBlock)
 			if err != nil {
@@ -821,8 +835,22 @@ func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
 		}
 	}
 
+	mergedLets := ast.MergedLabelBlocks{}
+	for labelType, mergedBlock := range letsConfig.MergedLabelBlocks {
+		if labelType.Type == "lets" {
+			mergedLets[labelType] = mergedBlock
+
+			errs.AppendWrap(ErrTerramateSchema, validateLets(mergedBlock))
+		}
+	}
+
 	if err := errs.AsError(); err != nil {
 		return GenFileBlock{}, err
+	}
+
+	lets, ok := mergedLets[ast.NewEmptyLabelBlockType("lets")]
+	if !ok {
+		lets = ast.NewMergedBlock("lets", []string{})
 	}
 
 	return GenFileBlock{
@@ -839,7 +867,7 @@ func parseGenerateFileBlock(block *ast.Block) (GenFileBlock, error) {
 func validateImportBlock(block *ast.Block) error {
 	errs := errors.L()
 	if len(block.Labels) != 0 {
-		errs.Append(errors.E(ErrTerramateSchema, block.LabelRanges[0],
+		errs.Append(errors.E(ErrTerramateSchema, block.LabelRanges(),
 			"import must have no labels but got %v",
 			block.Labels,
 		))
@@ -912,9 +940,18 @@ func validateGenerateHCLBlock(block *ast.Block) error {
 		return err
 	}
 
-	for _, b := range block.Blocks {
-		if b.Type == "lets" {
-			errs.Append(checkHasSubBlocks(b))
+	return errs.AsError()
+}
+
+func validateLets(block *ast.MergedBlock) error {
+	if block.Type != "lets" {
+		return errors.E(block.RawOrigins[0].TypeRange,
+			"unexpected block type %q", block.Type)
+	}
+	errs := errors.L()
+	for _, subBlock := range block.Blocks {
+		for _, raw := range subBlock.RawOrigins {
+			errs.Append(validateMap(raw))
 		}
 	}
 	return errs.AsError()
@@ -965,12 +1002,6 @@ func validateGenerateFileBlock(block *ast.Block) error {
 	err := errs.AsError()
 	if err != nil {
 		return err
-	}
-
-	for _, b := range block.Blocks {
-		if b.Type == "lets" {
-			errs.Append(checkHasSubBlocks(b))
-		}
 	}
 	return errs.AsError()
 }
@@ -1185,7 +1216,7 @@ func checkNoLabels(block *ast.Block) error {
 		errs.Append(errors.E(ErrTerramateSchema,
 			"block %s has unexpected label %s",
 			block.Type,
-			block.LabelRanges[i],
+			block.Block.LabelRanges[i],
 			label))
 	}
 
@@ -1690,6 +1721,10 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 		}
 	}
 
+	if err := errs.AsError(); err != nil {
+		return Config{}, err
+	}
+
 	config.Globals = globals
 
 	if foundstack {
@@ -1748,12 +1783,12 @@ func (p *TerramateParser) checkConfigSanity(cfg Config) error {
 
 func validateGlobals(block *ast.MergedBlock) error {
 	errs := errors.L()
+	if block.Type != "globals" {
+		return errors.E(ErrTerramateSchema,
+			block.RawOrigins[0].TypeRange, "unexpected block type %q", block.Type)
+	}
 	errs.Append(block.ValidateSubBlocks("map"))
 	for _, raw := range block.RawOrigins {
-		if raw.Type != "globals" || len(raw.Blocks) == 0 {
-			continue
-		}
-
 		for _, subBlock := range raw.Blocks {
 			errs.Append(validateMap(subBlock))
 		}
@@ -1761,30 +1796,34 @@ func validateGlobals(block *ast.MergedBlock) error {
 	return errs.AsError()
 }
 
-func validateMap(block *ast.Block) error {
+func validateMap(block *ast.Block) (err error) {
 	if block.Type != "map" {
-		return errors.E(block.TypeRange, "unrecognized block type %s", block.Type)
+		return errors.E(block.TypeRange,
+			"unexpected block type %s", block.Type)
 	}
 	if len(block.Labels) == 0 {
-		return errors.E(block.LabelRanges, "map block requires a label")
+		return errors.E(block.LabelRanges(),
+			"map block requires a label")
 	}
 	_, ok := block.Attributes["for_each"]
 	if !ok {
-		return errors.E(block.Range, "map.for_each attribute is required")
+		return errors.E(block.Block.TypeRange,
+			"map.for_each attribute is required")
 	}
 	_, ok = block.Attributes["key"]
 	if !ok {
-		return errors.E(block.Range, "map.key is required")
+		return errors.E(block.TypeRange, "map.key is required")
 	}
 	_, hasValueAttr := block.Attributes["value"]
 	hasValueBlock := false
 	for _, subBlock := range block.Blocks {
 		if hasValueBlock {
-			return errors.E(subBlock.Range, "multiple map.value block declared")
+			return errors.E(block.TypeRange,
+				"multiple map.value block declared")
 		}
 		if subBlock.Type != "value" {
 			return errors.E(
-				subBlock.Range,
+				subBlock.TypeRange,
 				"unrecognized block %s inside map block", subBlock.Type,
 			)
 		}
@@ -1798,10 +1837,12 @@ func validateMap(block *ast.Block) error {
 	}
 
 	if hasValueAttr && hasValueBlock {
-		return errors.E(block.Range, "value attribute conflicts with value block")
+		return errors.E(block.TypeRange,
+			"value attribute conflicts with value block")
 	}
 	if !hasValueAttr && !hasValueBlock {
-		return errors.E(block.Range, "either a value attribute or a value block is required")
+		return errors.E(block.TypeRange,
+			"either a value attribute or a value block is required")
 	}
 	return nil
 }
