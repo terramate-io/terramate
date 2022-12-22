@@ -25,7 +25,8 @@ jobs:
         uses: snow-actions/tweet@v1.4.0
         with:
           status: |
-            🥳 We just released #Terramate ${{ github.event.release.html_url }} 🚀🚀🚀"
+            🥳 We just released #Terramate ${{ github.event.release.tag_name }}
+            ${{ github.event.release.html_url }} 🚀🚀🚀
         env:
           CONSUMER_API_KEY: ${{ secrets.TWITTER_APP_TERRAMATE_RELEASE_CONSUMER_API_KEY }}
           CONSUMER_API_SECRET_KEY: ${{ secrets.TWITTER_APP_TERRAMATE_RELEASE_CONSUMER_API_KEY_SECRET }}
