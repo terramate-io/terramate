@@ -1,0 +1,17 @@
+name: tweet trigger release
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tweet-trigger-publish-release
+        uses: mugi111/tweet-trigger-release@v1.1
+        with:
+          consumer_key: ${{ secrets.TWITTER_APP_TERRAMATE_RELEASE_CONSUMER_API_KEY }}
+          consumer_secret: ${{ secrets.TWITTER_APP_TERRAMATE_RELEASE_CONSUMER_API_KEY_SECRET }}
+          access_token_key: ${{ secrets.TWITTER_MINEIROS_IO_ACCESS_TOKEN_KEY }}
+          access_token_secret: ${{ secrets.TWITTER_MINEIROS_IO_ACCESS_TOKEN_SECRET }}
+          tweet_body: "🥳 We just released #Terramate `${{ github.event.release.tag_name }}` https://github.com/mineiros-io/terramate/releases/tag/${{ github.event.release.tag_name }} 🚀🚀🚀"
