@@ -207,7 +207,7 @@ func TestErrorString(t *testing.T) {
 			name: "simple message with stack",
 			err: E(syntaxError, "failed to parse config", stackmeta{
 				name: "test",
-				path: "/test",
+				dir:  "/test",
 				desc: "test desc",
 			}),
 			want: fmt("%s: failed to parse config: at stack \"/test\"", syntaxError),
@@ -311,12 +311,12 @@ func TestErrorIs(t *testing.T) {
 	stack := stackmeta{
 		name: "stack",
 		desc: "desc",
-		path: "/stack",
+		dir:  "/stack",
 	}
 	otherStack := stackmeta{
 		name: "otherstack",
 		desc: "other desc",
-		path: "/otherstack",
+		dir:  "/otherstack",
 	}
 	filerange := hcl.Range{
 		Filename: "test.tm",
@@ -530,7 +530,7 @@ func TestDetailedRepresentation(t *testing.T) {
 	stack := stackmeta{
 		name: "stack",
 		desc: "desc",
-		path: "/stack",
+		dir:  "/stack",
 	}
 	filerange := hcl.Range{
 		Filename: "test.tm",
@@ -555,9 +555,12 @@ func fmt(format string, args ...interface{}) string {
 type stackmeta struct {
 	name string
 	desc string
-	path project.Path
+	dir  project.Path
 }
 
-func (s stackmeta) Name() string       { return s.name }
-func (s stackmeta) Path() project.Path { return s.path }
-func (s stackmeta) Desc() string       { return s.desc }
+func (s stackmeta) Name() string      { return s.name }
+func (s stackmeta) Dir() project.Path { return s.dir }
+func (s stackmeta) Desc() string      { return s.desc }
+
+// ensures stackmeta always implements errors.StackMeta
+var _ errors.StackMeta = &stackmeta{}

@@ -26,7 +26,6 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 
-	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
 
@@ -3688,9 +3687,9 @@ func TestLoadGlobalsErrors(t *testing.T) {
 				return
 			}
 
-			stacks, err := stack.LoadAll(cfg)
+			stacks, err := config.LoadAllStacks(cfg)
 			assert.NoError(t, err)
-			projmeta := stack.NewProjectMetadata(s.RootDir(), stacks)
+			projmeta := config.NewProjectMetadata(s.RootDir(), stacks)
 
 			for _, st := range stacks {
 				report := globals.ForStack(s.Config(), projmeta, st)
@@ -3726,12 +3725,12 @@ func testGlobals(t *testing.T, tcase testcase) {
 		stackEntries, err := terramate.ListStacks(cfg)
 		assert.NoError(t, err)
 
-		var stacks stack.List
+		var stacks config.List[*config.Stack]
 		for _, entry := range stackEntries {
 			st := entry.Stack
 			stacks = append(stacks, st)
 
-			t.Logf("loading globals for stack: %s", st.Path())
+			t.Logf("loading globals for stack: %s", st.Dir())
 
 			gotReport := globals.ForStack(s.Config(), projmeta, st)
 			errtest.Assert(t, gotReport.AsError(), tcase.wantErr)
@@ -3739,11 +3738,11 @@ func testGlobals(t *testing.T, tcase testcase) {
 				continue
 			}
 
-			want, ok := wantGlobals[st.Path().String()]
+			want, ok := wantGlobals[st.Dir().String()]
 			if !ok {
 				want = Globals()
 			}
-			delete(wantGlobals, st.Path().String())
+			delete(wantGlobals, st.Dir().String())
 
 			// Could have one type for globals configs and another type
 			// for wanted evaluated globals, but that would make

@@ -101,15 +101,15 @@ type LoadResult struct {
 // a non-nil error. In this case the error is not specific to generating code
 // for a specific dir.
 func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
-	stacks, err := stack.LoadAll(root.Tree())
+	stacks, err := config.LoadAllStacks(root.Tree())
 	if err != nil {
 		return nil, err
 	}
-	projmeta := stack.NewProjectMetadata(root.Dir(), stacks)
+	projmeta := config.NewProjectMetadata(root.Dir(), stacks)
 	results := make([]LoadResult, len(stacks))
 
 	for i, st := range stacks {
-		res := LoadResult{Dir: st.Path()}
+		res := LoadResult{Dir: st.Dir()}
 		loadres := globals.ForStack(root, projmeta, st)
 		if err := loadres.AsError(); err != nil {
 			res.Err = err
@@ -131,8 +131,8 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 		if dircfg.IsEmptyConfig() || dircfg.IsStack() {
 			continue
 		}
-		res := LoadResult{Dir: dircfg.ProjDir()}
-		evalctx := eval.NewContext(stdlib.Functions(dircfg.Dir()))
+		res := LoadResult{Dir: dircfg.Dir()}
+		evalctx := eval.NewContext(stdlib.Functions(dircfg.HostDir()))
 
 		var generated []GenFile
 		for _, block := range dircfg.Node.Generate.Files {
@@ -199,15 +199,15 @@ func Do(
 func doStackGeneration(
 	root *config.Root,
 	projmeta project.Metadata,
-	stack *stack.S,
+	stack *config.Stack,
 	globals *eval.Object,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) dirReport {
-	stackpath := stack.HostPath()
+	stackpath := stack.HostDir()
 	logger := log.With().
 		Str("action", "generate.doStackGeneration()").
-		Stringer("stack", stack.Path()).
+		Stringer("stack", stack.Dir()).
 		Logger()
 
 	report := dirReport{}
@@ -246,7 +246,7 @@ func doStackGeneration(
 		return r
 	}
 
-	removedFiles, err = removeStackGeneratedFiles(root, stack.HostPath(), generated)
+	removedFiles, err = removeStackGeneratedFiles(root, stack.HostDir(), generated)
 	if err != nil {
 		return failureReport(
 			report,
@@ -280,7 +280,7 @@ func doStackGeneration(
 		removedFileBody, ok := removedFiles[filename]
 		if !ok {
 			log.Info().
-				Stringer("stack", stack.Path()).
+				Stringer("stack", stack.Dir()).
 				Str("file", filename).
 				Msg("created file")
 
@@ -289,7 +289,7 @@ func doStackGeneration(
 			body := file.Header() + file.Body()
 			if body != removedFileBody {
 				log.Info().
-					Stringer("stack", stack.Path()).
+					Stringer("stack", stack.Dir()).
 					Str("file", filename).
 					Msg("changed file")
 
@@ -301,7 +301,7 @@ func doStackGeneration(
 
 	for filename := range removedFiles {
 		log.Info().
-			Stringer("stack", stack.Path()).
+			Stringer("stack", stack.Dir()).
 			Str("file", filename).
 			Msg("deleted file")
 		report.addDeletedFile(filename)
@@ -319,7 +319,7 @@ func doRootGeneration(root *config.Root) Report {
 	stackConfigs := root.Tree().Stacks()
 	var stackpaths []project.Path
 	for _, stack := range stackConfigs {
-		stackpaths = append(stackpaths, stack.ProjDir())
+		stackpaths = append(stackpaths, stack.Dir())
 	}
 
 	report := Report{}
@@ -330,7 +330,7 @@ func doRootGeneration(root *config.Root) Report {
 	var files []GenFile
 	for _, cfg := range root.Tree().AsList() {
 		logger = logger.With().
-			Stringer("configDir", cfg.ProjDir()).
+			Stringer("configDir", cfg.Dir()).
 			Bool("isEmpty", cfg.IsEmptyConfig()).
 			Bool("isStack", cfg.IsStack()).
 			Logger()
@@ -513,12 +513,12 @@ func DetectOutdated(root *config.Root, vendorDir project.Path) ([]string, error)
 		Str("action", "generate.DetectOutdated()").
 		Logger()
 
-	stacks, err := stack.LoadAll(root.Tree())
+	stacks, err := config.LoadAllStacks(root.Tree())
 	if err != nil {
 		return nil, err
 	}
 
-	projmeta := stack.NewProjectMetadata(root.Dir(), stacks)
+	projmeta := config.NewProjectMetadata(root.Dir(), stacks)
 
 	outdatedFiles := []string{}
 	errs := errors.L()
@@ -533,7 +533,7 @@ func DetectOutdated(root *config.Root, vendorDir project.Path) ([]string, error)
 		}
 
 		// We want results relative to root
-		stackRelPath := stack.Path().String()[1:]
+		stackRelPath := stack.Dir().String()[1:]
 		for _, file := range outdated {
 			outdatedFiles = append(outdatedFiles,
 				path.Join(stackRelPath, file))
@@ -572,7 +572,7 @@ func DetectOutdated(root *config.Root, vendorDir project.Path) ([]string, error)
 func stackOutdated(
 	root *config.Root,
 	projmeta project.Metadata,
-	st *stack.S,
+	st *config.Stack,
 	vendorDir project.Path,
 ) ([]string, error) {
 	logger := log.With().
@@ -586,19 +586,19 @@ func stackOutdated(
 	}
 
 	globals := report.Globals
-	stackpath := st.HostPath()
+	stackpath := st.HostDir()
 
 	generated, err := loadStackCodeCfgs(root, projmeta, st, globals, vendorDir, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	err = validateStackGeneratedFiles(root, st.HostPath(), generated)
+	err = validateStackGeneratedFiles(root, st.HostDir(), generated)
 	if err != nil {
 		return nil, err
 	}
 
-	genfilesOnFs, err := ListGenFiles(root, st.HostPath())
+	genfilesOnFs, err := ListGenFiles(root, st.HostDir())
 	if err != nil {
 		return nil, errors.E(err, "checking for outdated code")
 	}
@@ -794,7 +794,7 @@ func readFile(path string) (string, bool, error) {
 type forEachStackFunc func(
 	*config.Root,
 	project.Metadata,
-	*stack.S,
+	*config.Stack,
 	*eval.Object,
 	project.Path,
 	chan<- event.VendorRequest,
@@ -815,13 +815,13 @@ func forEachStack(
 
 	logger.Trace().Msg("List stacks.")
 
-	stacks, err := stack.LoadAll(root.Tree())
+	stacks, err := config.LoadAllStacks(root.Tree())
 	if err != nil {
 		report.BootstrapErr = err
 		return report
 	}
 
-	projmeta := stack.NewProjectMetadata(root.Dir(), stacks)
+	projmeta := config.NewProjectMetadata(root.Dir(), stacks)
 
 	for _, st := range stacks {
 		logger := logger.With().
@@ -832,14 +832,14 @@ func forEachStack(
 
 		globalsReport := globals.ForStack(root, projmeta, st)
 		if err := globalsReport.AsError(); err != nil {
-			report.addFailure(st.Path(), errors.E(ErrLoadingGlobals, err))
+			report.addFailure(st.Dir(), errors.E(ErrLoadingGlobals, err))
 			continue
 		}
 
 		logger.Trace().Msg("Calling stack callback.")
 
 		stackReport := fn(root, projmeta, st, globalsReport.Globals, vendorDir, vendorRequests)
-		report.addDirReport(st.Path(), stackReport)
+		report.addDirReport(st.Dir(), stackReport)
 	}
 
 	return report
@@ -1241,14 +1241,14 @@ func checkFileConflict(generated []GenFile) map[string]error {
 	return errsmap
 }
 
-func loadAsserts(root *config.Root, meta project.Metadata, sm stack.Metadata, globals *eval.Object) ([]config.Assert, error) {
+func loadAsserts(root *config.Root, meta project.Metadata, sm config.StackMetadata, globals *eval.Object) ([]config.Assert, error) {
 	logger := log.With().
 		Str("action", "generate.loadAsserts").
 		Str("rootdir", root.Dir()).
-		Str("stack", sm.Path().String()).
+		Str("stack", sm.Dir().String()).
 		Logger()
 
-	curdir := sm.Path()
+	curdir := sm.Dir()
 	asserts := []config.Assert{}
 	errs := errors.L()
 
@@ -1288,7 +1288,7 @@ func loadAsserts(root *config.Root, meta project.Metadata, sm stack.Metadata, gl
 func loadStackCodeCfgs(
 	root *config.Root,
 	projmeta project.Metadata,
-	st *stack.S,
+	st *config.Stack,
 	globals *eval.Object,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
@@ -1326,7 +1326,7 @@ func loadStackCodeCfgs(
 		asserts = append(asserts, gen.Asserts()...)
 	}
 
-	err = handleAsserts(root.Dir(), st.HostPath(), asserts)
+	err = handleAsserts(root.Dir(), st.HostDir(), asserts)
 	if err != nil {
 		return nil, err
 	}

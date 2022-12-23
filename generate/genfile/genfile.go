@@ -131,12 +131,12 @@ func (f File) String() string {
 func Load(
 	root *config.Root,
 	projmeta project.Metadata,
-	sm stack.Metadata,
+	sm config.StackMetadata,
 	globals *eval.Object,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]File, error) {
-	genFileBlocks, err := loadGenFileBlocks(root, sm.Path())
+	genFileBlocks, err := loadGenFileBlocks(root, sm.Dir())
 	if err != nil {
 		return nil, errors.E("loading generate_file", err)
 	}
@@ -151,7 +151,7 @@ func Load(
 		name := genFileBlock.Label
 		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
 		vendorTargetDir := project.NewPath(path.Join(
-			sm.Path().String(),
+			sm.Dir().String(),
 			path.Dir(name)))
 
 		evalctx.SetFunction(stdlib.Name("vendor"), stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests))

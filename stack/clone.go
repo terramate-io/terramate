@@ -67,7 +67,7 @@ func Clone(root *config.Root, destdir, srcdir string) error {
 		return errors.E(ErrCloneDestDirExists, destdir)
 	}
 
-	srcStack, err := Load(root, srcdir)
+	srcStack, err := config.LoadStack(root, srcdir)
 	if err != nil {
 		return errors.E(ErrInvalidStackDir, err, "src dir %q must be a valid stack", srcdir)
 	}

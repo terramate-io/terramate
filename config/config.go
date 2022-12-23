@@ -63,8 +63,15 @@ type Tree struct {
 	dir string
 }
 
-// List of config trees.
-type List []*Tree
+// DirNode represents a node which is represented by a directory.
+// Eg.: stack, config, etc.
+type DirNode interface {
+	Dir() project.Path
+	HostDir() string
+}
+
+// List of directory nodes.
+type List[T DirNode] []T
 
 // TryLoadConfig try to load the Terramate configuration tree. It looks for the
 // the config in fromdir and all parent directories until / is reached.
@@ -132,9 +139,9 @@ func (root *Root) Lookup(path project.Path) (*Tree, bool) {
 }
 
 // StacksByPaths returns the stacks from the provided relative paths.
-func (root *Root) StacksByPaths(base project.Path, relpaths ...string) List {
+func (root *Root) StacksByPaths(base project.Path, relpaths ...string) List[*Tree] {
 	logger := log.With().
-		Str("action", "tree.StacksByPath").
+		Str("action", "root.StacksByPath").
 		Stringer("basedir", base).
 		Strs("paths", relpaths).
 		Logger()
@@ -159,7 +166,7 @@ func (root *Root) StacksByPaths(base project.Path, relpaths ...string) List {
 		return normalized
 	}
 
-	var stacks List
+	var stacks List[*Tree]
 	for _, path := range normalizePaths(relpaths) {
 		node, ok := root.Lookup(path)
 		if !ok {
@@ -208,7 +215,7 @@ func (root *Root) LoadSubTree(cfgdir project.Path) error {
 		return errors.E(err, "failed to load config from %s", subtreeDir)
 	}
 
-	if node.Dir() == rootdir {
+	if node.HostDir() == rootdir {
 		// root configuration reloaded
 		*root = *NewRoot(node)
 	} else {
@@ -224,13 +231,13 @@ func LoadTree(rootdir string, cfgdir string) (*Tree, error) {
 	return loadTree(rootdir, cfgdir, nil)
 }
 
-// Dir is the node directory.
-func (tree *Tree) Dir() string {
+// HostDir is the node absolute directory in the host.
+func (tree *Tree) HostDir() string {
 	return tree.dir
 }
 
-// ProjDir returns the directory as a project dir.
-func (tree *Tree) ProjDir() project.Path {
+// Dir returns the directory as a project dir.
+func (tree *Tree) Dir() project.Path {
 	return project.PrjAbsPath(tree.RootDir(), tree.dir)
 }
 
@@ -257,14 +264,14 @@ func (tree *Tree) IsStack() bool {
 
 // Stacks returns the stack nodes from the tree.
 // The search algorithm is a Deep-First-Search (DFS).
-func (tree *Tree) Stacks() List {
+func (tree *Tree) Stacks() List[*Tree] {
 	stacks := tree.stacks()
 	sort.Sort(stacks)
 	return stacks
 }
 
-func (tree *Tree) stacks() List {
-	var stacks List
+func (tree *Tree) stacks() List[*Tree] {
+	var stacks List[*Tree]
 	if tree.IsStack() {
 		stacks = append(stacks, tree)
 	}
@@ -299,8 +306,8 @@ func (tree *Tree) lookup(abspath project.Path) (*Tree, bool) {
 }
 
 // AsList returns a list with this node and all its children.
-func (tree *Tree) AsList() List {
-	result := []*Tree{
+func (tree *Tree) AsList() List[*Tree] {
+	result := List[*Tree]{
 		tree,
 	}
 
@@ -310,9 +317,9 @@ func (tree *Tree) AsList() List {
 	return result
 }
 
-func (l List) Len() int           { return len(l) }
-func (l List) Less(i, j int) bool { return l[i].dir < l[j].dir }
-func (l List) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
+func (l List[T]) Len() int           { return len(l) }
+func (l List[T]) Less(i, j int) bool { return l[i].Dir() < l[j].Dir() }
+func (l List[T]) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
 
 func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error) {
 	logger := log.With().

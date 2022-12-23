@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/mineiros-io/terramate/stack"
+	"github.com/mineiros-io/terramate/config"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -108,7 +108,7 @@ func TestListWatchFileOutsideProject(t *testing.T) {
 
 	want := runExpected{
 		Status:      1,
-		StderrRegex: string(stack.ErrInvalidWatch),
+		StderrRegex: string(config.ErrStackInvalidWatch),
 	}
 	assertRunResult(t, cli.listChangedStacks(), want)
 }
@@ -229,7 +229,7 @@ func TestListWatchDirectoryFails(t *testing.T) {
 
 	want := runExpected{
 		Status:      1,
-		StderrRegex: string(stack.ErrInvalidWatch),
+		StderrRegex: string(config.ErrStackInvalidWatch),
 	}
 	assertRunResult(t, cli.listChangedStacks(), want)
 }

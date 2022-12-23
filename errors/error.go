@@ -64,7 +64,7 @@ type (
 	StackMeta interface {
 		Name() string
 		Desc() string
-		Path() project.Path
+		Dir() project.Path
 	}
 )
 
@@ -343,10 +343,10 @@ func (e *Error) error(fields []interface{}, verbose bool) string {
 				if verbose {
 					errParts = append(errParts,
 						fmt.Sprintf("at stack (name=%q, path=%q, desc=%q)",
-							v.Name(), v.Path(), v.Desc(),
+							v.Name(), v.Dir(), v.Desc(),
 						))
 				} else {
-					errParts = append(errParts, fmt.Sprintf("at stack %q", v.Path()))
+					errParts = append(errParts, fmt.Sprintf("at stack %q", v.Dir()))
 				}
 			}
 		case error:
@@ -489,7 +489,7 @@ func equalStack(s1, s2 StackMeta) bool {
 
 	return s1.Name() == s2.Name() &&
 		s1.Desc() == s2.Desc() &&
-		s1.Path() == s2.Path()
+		s1.Dir() == s2.Dir()
 }
 
 // cleanFilename will clean the given filename returning a placeholder if

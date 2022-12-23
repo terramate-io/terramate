@@ -16,13 +16,12 @@ package terramate
 
 import (
 	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/stack"
 )
 
 // ListStacks walks the config tree looking for terramate stacks.
 // It returns a lexicographic sorted list of stack directories.
 func ListStacks(cfg *config.Tree) ([]Entry, error) {
-	stacks, err := stack.LoadAll(cfg)
+	stacks, err := config.LoadAllStacks(cfg)
 	if err != nil {
 		return nil, err
 	}

@@ -249,7 +249,7 @@ func TestStackCreation(t *testing.T) {
 			assert.EqualStrings(t, want.name, got.Name(), "checking stack name")
 			assert.EqualStrings(t, want.desc, got.Desc(), "checking stack description")
 
-			test.AssertStackImports(t, s.RootDir(), got.HostPath(), want.imports)
+			test.AssertStackImports(t, s.RootDir(), got.HostDir(), want.imports)
 			test.AssertDiff(t, got.After(), want.after, "created stack has invalid after")
 			test.AssertDiff(t, got.Before(), want.before, "created stack has invalid before")
 		})

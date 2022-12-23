@@ -144,19 +144,19 @@ func (h HCL) String() string {
 func Load(
 	root *config.Root,
 	projmeta project.Metadata,
-	sm stack.Metadata,
+	sm config.StackMetadata,
 	globals *eval.Object,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]HCL, error) {
 	logger := log.With().
 		Str("action", "genhcl.Load()").
-		Str("path", sm.HostPath()).
+		Str("path", sm.HostDir()).
 		Logger()
 
 	logger.Trace().Msg("loading generate_hcl blocks.")
 
-	hclBlocks, err := loadGenHCLBlocks(root, sm.Path())
+	hclBlocks, err := loadGenHCLBlocks(root, sm.Dir())
 	if err != nil {
 		return nil, errors.E("loading generate_hcl", err)
 	}
@@ -169,7 +169,7 @@ func Load(
 		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
 
 		vendorTargetDir := project.NewPath(path.Join(
-			sm.Path().String(),
+			sm.Dir().String(),
 			path.Dir(name)))
 
 		evalctx.SetFunction(
