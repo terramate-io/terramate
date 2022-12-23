@@ -24,7 +24,6 @@ import (
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/info"
-	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
@@ -910,7 +909,7 @@ stack_id=stack-id
 					),
 				},
 			},
-			wantErr: errors.E(lets.ErrRedefined),
+			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
 			name:  "lets are scoped",
