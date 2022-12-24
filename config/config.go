@@ -130,7 +130,7 @@ func LoadRoot(rootdir string) (*Root, error) {
 // Tree returns the root configuration tree.
 func (root *Root) Tree() *Tree { return &root.tree }
 
-// Dir returns the root directory.
+// HostDir returns the root directory.
 func (root *Root) HostDir() string { return root.tree.RootDir() }
 
 // Lookup a node from the root using a filesystem query path.
