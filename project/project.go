@@ -32,7 +32,9 @@ import (
 //	https://pkg.go.dev/path#Clean
 //
 // The project path has / as root.
-type Path string
+type Path struct {
+	path string
+}
 
 // Paths is a list of project paths.
 type Paths []Path
@@ -47,11 +49,17 @@ func NewPath(p string) Path {
 	if !path.IsAbs(p) {
 		panic(fmt.Errorf("project path must be absolute but got %q", p))
 	}
-	return Path(path.Clean(p))
+	return Path{
+		path: path.Clean(p),
+	}
 }
 
 // Dir returns the path's directory.
-func (p Path) Dir() Path { return Path(path.Dir(p.String())) }
+func (p Path) Dir() Path {
+	return Path{
+		path: path.Dir(p.String()),
+	}
+}
 
 // HasPrefix tests whether p begins with s prefix.
 func (p Path) HasPrefix(s string) bool {
@@ -65,7 +73,7 @@ func (p Path) Join(pathstr string) Path {
 }
 
 // String returns the path as a string.
-func (p Path) String() string { return string(p) }
+func (p Path) String() string { return p.path }
 
 // Strings returns a []string from the []Path.
 func (paths Paths) Strings() []string {
@@ -79,7 +87,7 @@ func (paths Paths) Strings() []string {
 // Sort paths in-place.
 func (paths Paths) Sort() {
 	sort.Slice(paths, func(i, j int) bool {
-		return string(paths[i]) < string(paths[j])
+		return string(paths[i].path) < string(paths[j].path)
 	})
 }
 

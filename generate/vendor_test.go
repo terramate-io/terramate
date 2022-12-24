@@ -96,7 +96,7 @@ func TestGenerateVendor(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir: "/stacks/stack",
+						Dir: project.NewPath("/stacks/stack"),
 						Created: []string{
 							"dir/file.hcl",
 							"dir/file.txt",
@@ -105,7 +105,7 @@ func TestGenerateVendor(t *testing.T) {
 						},
 					},
 					{
-						Dir: "/stacks/stack/substack",
+						Dir: project.NewPath("/stacks/stack/substack"),
 						Created: []string{
 							"dir/file.hcl",
 							"dir/file.txt",
@@ -181,7 +181,7 @@ func TestGenerateVendor(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir: "/",
+						Dir: project.NewPath("/"),
 						Created: []string{
 							"dir/file.hcl",
 							"dir/file.txt",
@@ -190,7 +190,7 @@ func TestGenerateVendor(t *testing.T) {
 						},
 					},
 					{
-						Dir: "/substack",
+						Dir: project.NewPath("/substack"),
 						Created: []string{
 							"dir/file.hcl",
 							"dir/file.txt",
@@ -244,7 +244,7 @@ func TestGenerateVendor(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir: "/stack",
+						Dir: project.NewPath("/stack"),
 						Created: []string{
 							"file.hcl",
 							"file.txt",

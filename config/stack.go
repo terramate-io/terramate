@@ -289,16 +289,15 @@ func LoadAllStacks(cfg *Tree) (List[*Stack], error) {
 }
 
 // LoadStack a single stack from dir.
-func LoadStack(root *Root, dir string) (*Stack, error) {
-	path := project.PrjAbsPath(root.Dir(), dir)
-	node, ok := root.Lookup(path)
+func LoadStack(root *Root, dir project.Path) (*Stack, error) {
+	node, ok := root.Lookup(dir)
 	if !ok {
-		return nil, errors.E("config not found at %s", path)
+		return nil, errors.E("config not found at %s", dir)
 	}
 	if !node.IsStack() {
 		return nil, errors.E("config at %s is not a stack")
 	}
-	return NewStack(root.Dir(), node.Node)
+	return NewStack(root.HostDir(), node.Node)
 }
 
 // TryLoadStack tries to load a single stack from dir. It sets found as true in case
@@ -313,7 +312,7 @@ func TryLoadStack(root *Root, cfgdir project.Path) (stack *Stack, found bool, er
 		return nil, false, nil
 	}
 
-	s, err := NewStack(root.Dir(), tree.Node)
+	s, err := NewStack(root.HostDir(), tree.Node)
 	if err != nil {
 		return nil, true, err
 	}

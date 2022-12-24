@@ -105,7 +105,7 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	projmeta := config.NewProjectMetadata(root.Dir(), stacks)
+	projmeta := config.NewProjectMetadata(root.HostDir(), stacks)
 	results := make([]LoadResult, len(stacks))
 
 	for i, st := range stacks {
@@ -323,8 +323,8 @@ func doRootGeneration(root *config.Root) Report {
 	}
 
 	report := Report{}
-	projmeta := project.NewMetadata(root.Dir(), stackpaths)
-	evalctx := eval.NewContext(stdlib.Functions(root.Dir()))
+	projmeta := project.NewMetadata(root.HostDir(), stackpaths)
+	evalctx := eval.NewContext(stdlib.Functions(root.HostDir()))
 	evalctx.SetNamespace("terramate", projmeta.ToCtyMap())
 
 	var files []GenFile
@@ -518,7 +518,7 @@ func DetectOutdated(root *config.Root, vendorDir project.Path) ([]string, error)
 		return nil, err
 	}
 
-	projmeta := config.NewProjectMetadata(root.Dir(), stacks)
+	projmeta := config.NewProjectMetadata(root.HostDir(), stacks)
 
 	outdatedFiles := []string{}
 	errs := errors.L()
@@ -552,7 +552,7 @@ func DetectOutdated(root *config.Root, vendorDir project.Path) ([]string, error)
 
 	logger.Debug().Msg("checking for orphaned files")
 
-	orphanedFiles, err := ListGenFiles(root, root.Dir())
+	orphanedFiles, err := ListGenFiles(root, root.HostDir())
 	if err != nil {
 		errs.Append(err)
 	}
@@ -808,7 +808,7 @@ func forEachStack(
 ) Report {
 	logger := log.With().
 		Str("action", "generate.forEachStack()").
-		Str("root", root.Dir()).
+		Str("root", root.HostDir()).
 		Logger()
 
 	report := Report{}
@@ -821,7 +821,7 @@ func forEachStack(
 		return report
 	}
 
-	projmeta := config.NewProjectMetadata(root.Dir(), stacks)
+	projmeta := config.NewProjectMetadata(root.HostDir(), stacks)
 
 	for _, st := range stacks {
 		logger := logger.With().
@@ -852,7 +852,7 @@ func removeStackGeneratedFiles(
 ) (map[string]string, error) {
 	logger := log.With().
 		Str("action", "generate.removeStackGeneratedFiles()").
-		Str("root", root.Dir()).
+		Str("root", root.HostDir()).
 		Str("dir", dir).
 		Logger()
 
@@ -943,7 +943,7 @@ func generateRootFiles(root *config.Root, genfiles []GenFile, report *Report) {
 
 		logger.Debug().Msg("reading the content of the file on disk")
 
-		abspath := filepath.Join(root.Dir(), label)
+		abspath := filepath.Join(root.HostDir(), label)
 		dir := path.Dir(label)
 		body, err := os.ReadFile(abspath)
 		if err != nil {
@@ -967,7 +967,7 @@ func generateRootFiles(root *config.Root, genfiles []GenFile, report *Report) {
 	for label := range mustDeleteFiles {
 		logger := logger.With().Str("file", label).Logger()
 
-		abspath := filepath.Join(root.Dir(), label)
+		abspath := filepath.Join(root.HostDir(), label)
 		_, err := os.Lstat(abspath)
 		if err == nil {
 			logger.Debug().Msg("deleting file")
@@ -993,7 +993,7 @@ func generateRootFiles(root *config.Root, genfiles []GenFile, report *Report) {
 
 		logger.Debug().Msg("generating file (if needed)")
 
-		abspath := filepath.Join(root.Dir(), label)
+		abspath := filepath.Join(root.HostDir(), label)
 		filename := path.Base(label)
 		dir := project.NewPath(path.Dir(label))
 		body := genfile.Header() + genfile.Body()
@@ -1120,7 +1120,7 @@ func validateStackGeneratedFiles(root *config.Root, stackpath string, generated 
 					file.Range(),
 					"%s: generates code inside another stack %s",
 					file.Label(),
-					project.PrjAbsPath(root.Dir(), destdir)))
+					project.PrjAbsPath(root.HostDir(), destdir)))
 				break
 			}
 			destdir = filepath.Dir(destdir)
@@ -1139,18 +1139,18 @@ func validateRootGenerateBlock(root *config.Root, block hcl.GenFileBlock) error 
 		)
 	}
 
-	abspath := filepath.Join(root.Dir(), filepath.FromSlash(target))
+	abspath := filepath.Join(root.HostDir(), filepath.FromSlash(target))
 	abspath = filepath.Clean(abspath)
 	destdir := filepath.Dir(abspath)
 
-	if !strings.HasPrefix(destdir, root.Dir()) {
+	if !strings.HasPrefix(destdir, root.HostDir()) {
 		return errors.E(ErrInvalidGenBlockLabel,
 			"label path computes to %s which is not inside rootdir %s",
-			abspath, root.Dir())
+			abspath, root.HostDir())
 	}
 
 	// We need to check that destdir, or any of its parents, is not a symlink or a stack.
-	for strings.HasPrefix(destdir, root.Dir()) && destdir != root.Dir() {
+	for strings.HasPrefix(destdir, root.HostDir()) && destdir != root.HostDir() {
 		info, err := os.Lstat(destdir)
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
@@ -1178,7 +1178,7 @@ func validateRootGenerateBlock(root *config.Root, block hcl.GenFileBlock) error 
 				block.Range,
 				"%s: generate_file.context=root generates inside a stack %s",
 				target,
-				project.PrjAbsPath(root.Dir(), destdir),
+				project.PrjAbsPath(root.HostDir(), destdir),
 			)
 		}
 		destdir = filepath.Dir(destdir)
@@ -1244,7 +1244,7 @@ func checkFileConflict(generated []GenFile) map[string]error {
 func loadAsserts(root *config.Root, meta project.Metadata, sm config.StackMetadata, globals *eval.Object) ([]config.Assert, error) {
 	logger := log.With().
 		Str("action", "generate.loadAsserts").
-		Str("rootdir", root.Dir()).
+		Str("rootdir", root.HostDir()).
 		Str("stack", sm.Dir().String()).
 		Logger()
 
@@ -1326,7 +1326,7 @@ func loadStackCodeCfgs(
 		asserts = append(asserts, gen.Asserts()...)
 	}
 
-	err = handleAsserts(root.Dir(), st.HostDir(), asserts)
+	err = handleAsserts(root.HostDir(), st.HostDir(), asserts)
 	if err != nil {
 		return nil, err
 	}
@@ -1348,7 +1348,7 @@ func cleanupOrphaned(root *config.Root, report Report) Report {
 
 	logger.Debug().Msg("listing orphaned generated files")
 
-	orphanedGenFiles, err := ListGenFiles(root, root.Dir())
+	orphanedGenFiles, err := ListGenFiles(root, root.HostDir())
 	if err != nil {
 		report.CleanupErr = err
 		return report
@@ -1358,7 +1358,7 @@ func cleanupOrphaned(root *config.Root, report Report) Report {
 	deleteFailures := map[project.Path]*errors.List{}
 
 	for _, genfile := range orphanedGenFiles {
-		genfileAbspath := filepath.Join(root.Dir(), genfile)
+		genfileAbspath := filepath.Join(root.HostDir(), genfile)
 		dir := project.NewPath("/" + filepath.ToSlash(filepath.Dir(genfile)))
 		if err := os.Remove(genfileAbspath); err != nil {
 			if deleteFailures[dir] == nil {

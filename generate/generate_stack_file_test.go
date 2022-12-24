@@ -23,6 +23,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/project"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -63,11 +64,11 @@ func TestGenerateFile(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir:     "/stacks/stack-1",
+						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"empty"},
 					},
 					{
-						Dir:     "/stacks/stack-2",
+						Dir:     project.NewPath("/stacks/stack-2"),
 						Created: []string{"empty"},
 					},
 				},
@@ -124,11 +125,11 @@ func TestGenerateFile(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir:     "/stacks/stack-1",
+						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"stacks.txt"},
 					},
 					{
-						Dir:     "/stacks/stack-2",
+						Dir:     project.NewPath("/stacks/stack-2"),
 						Created: []string{"stacks.txt"},
 					},
 				},
@@ -161,7 +162,7 @@ func TestGenerateFile(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir:     "/",
+						Dir:     project.NewPath("/"),
 						Created: []string{"root.txt"},
 					},
 				},
@@ -208,15 +209,15 @@ func TestGenerateFile(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir:     "/",
+						Dir:     project.NewPath("/"),
 						Created: []string{"root.txt"},
 					},
 					{
-						Dir:     "/stack-1",
+						Dir:     project.NewPath("/stack-1"),
 						Created: []string{"root.txt"},
 					},
 					{
-						Dir:     "/stack-2",
+						Dir:     project.NewPath("/stack-2"),
 						Created: []string{"root.txt"},
 					},
 				},
@@ -262,11 +263,11 @@ func TestGenerateFile(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir:     "/stacks/stack-1",
+						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"file1.txt", "file2.txt"},
 					},
 					{
-						Dir:     "/stacks/stack-2",
+						Dir:     project.NewPath("/stacks/stack-2"),
 						Created: []string{"file1.txt", "file2.txt"},
 					},
 				},
@@ -305,7 +306,7 @@ func TestGenerateFile(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir:     "/stacks/stack-2",
+						Dir:     project.NewPath("/stacks/stack-2"),
 						Created: []string{"file1.txt", "file2.txt"},
 					},
 				},
@@ -346,7 +347,7 @@ func TestGenerateFile(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir:     "/stacks/stack-2",
+						Dir:     project.NewPath("/stacks/stack-2"),
 						Created: []string{"file1.txt", "file2.txt"},
 					},
 				},
@@ -404,7 +405,7 @@ func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
-				Dir:     "/stack",
+				Dir:     project.NewPath("/stack"),
 				Created: []string{filename},
 			},
 		},
@@ -416,7 +417,7 @@ func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
-				Dir:     "/stack",
+				Dir:     project.NewPath("/stack"),
 				Deleted: []string{filename},
 			},
 		},
@@ -445,7 +446,7 @@ func TestGenerateFileTerramateRootMetadata(t *testing.T) {
 	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
-				Dir:     "/stack",
+				Dir:     project.NewPath("/stack"),
 				Created: []string{generatedFile},
 			},
 		},

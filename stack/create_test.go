@@ -22,6 +22,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -235,7 +236,8 @@ func TestStackCreation(t *testing.T) {
 			}
 
 			want := tc.want.stack
-			got := s.LoadStack(stackPath)
+			dir := project.PrjAbsPath(s.RootDir(), tc.create.Dir)
+			got := s.LoadStack(dir)
 
 			if wantID, ok := want.id.Value(); ok {
 				gotID, _ := got.ID()

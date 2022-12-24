@@ -35,6 +35,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/modvendor/download"
+
 	"github.com/mineiros-io/terramate/stack/trigger"
 	"github.com/mineiros-io/terramate/stdlib"
 
@@ -541,7 +542,7 @@ func (c *cli) vendorDir() prj.Path {
 
 		dir := c.parsedArgs.Experimental.Vendor.Download.Dir
 		if !path.IsAbs(dir) {
-			dir = path.Join(string(prj.PrjAbsPath(c.rootdir(), c.wd())), dir)
+			dir = path.Join(prj.PrjAbsPath(c.rootdir(), c.wd()).String(), dir)
 		}
 		return prj.NewPath(dir)
 	}
@@ -582,7 +583,7 @@ func (c *cli) vendorDir() prj.Path {
 
 	logger.Trace().Msg("no configuration provided, fallback to default")
 
-	return defaultVendorDir
+	return prj.NewPath(defaultVendorDir)
 }
 
 func hasVendorDirConfig(cfg hcl.Config) bool {
@@ -1037,7 +1038,7 @@ func (c *cli) generateGraph() {
 
 	visited := dag.Visited{}
 	for _, e := range c.filterStacksByWorkingDir(entries) {
-		if _, ok := visited[dag.ID(e.Stack.Dir())]; ok {
+		if _, ok := visited[dag.ID(e.Stack.Dir().String())]; ok {
 			continue
 		}
 
@@ -1417,7 +1418,7 @@ func (c *cli) setupEvalContext() *eval.Context {
 
 	projmeta := config.NewProjectMetadata(c.rootdir(), allstacks)
 	if config.IsStack(c.cfg(), c.wd()) {
-		st, err := config.LoadStack(c.cfg(), c.wd())
+		st, err := config.LoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 		if err != nil {
 			fatal(err, "setup eval context: loading stack config")
 		}

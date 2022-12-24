@@ -16,11 +16,13 @@ package e2etest
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -92,7 +94,13 @@ func TestCreateStack(t *testing.T) {
 			Stdout: want,
 		})
 
-		got := s.LoadStack(stackPath)
+		var dir project.Path
+		if path.IsAbs(stackPath) {
+			dir = project.NewPath(stackPath)
+		} else {
+			dir = project.NewPath("/" + stackPath)
+		}
+		got := s.LoadStack(dir)
 
 		gotID, _ := got.ID()
 		assert.EqualStrings(t, stackID, gotID)
@@ -117,7 +125,7 @@ func TestCreateStackDefaults(t *testing.T) {
 	cli := newCLI(t, s.RootDir())
 	cli.run("create", "stack")
 
-	got := s.LoadStack("stack")
+	got := s.LoadStack(project.NewPath("/stack"))
 
 	assert.EqualStrings(t, "stack", got.Name(), "checking stack name")
 	assert.EqualStrings(t, "stack", got.Desc(), "checking stack description")

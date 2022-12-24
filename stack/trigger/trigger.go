@@ -51,12 +51,12 @@ func StackPath(triggerFile project.Path) (project.Path, bool) {
 	const triggersPrefix = "/" + triggersDir
 
 	if !triggerFile.HasPrefix(triggersPrefix) {
-		return project.Path("/"), false
+		return project.NewPath("/"), false
 	}
 
 	stackPath := strings.TrimPrefix(triggerFile.String(), triggersPrefix)
 	stackPath = path.Dir(stackPath)
-	return project.Path(stackPath), true
+	return project.NewPath(stackPath), true
 }
 
 // ParseFile will parse the given trigger file.

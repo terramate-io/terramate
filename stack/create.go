@@ -86,7 +86,7 @@ func Create(root *config.Root, cfg CreateCfg) (err error) {
 		Stringer("cfg", cfg).
 		Logger()
 
-	rootdir := root.Dir()
+	rootdir := root.HostDir()
 	if !strings.HasPrefix(cfg.Dir, rootdir) {
 		return errors.E(ErrInvalidStackDir, "stack %q must be inside project root %q", cfg.Dir, rootdir)
 	}

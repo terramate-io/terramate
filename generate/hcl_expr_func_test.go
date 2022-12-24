@@ -20,6 +20,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/project"
 
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
@@ -53,7 +54,7 @@ func TestHCLExpressionFunc(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							Dir: "/stack",
+							Dir: project.NewPath("/stack"),
 						},
 						Error: errors.E(eval.ErrEval),
 					},
@@ -81,7 +82,7 @@ func TestHCLExpressionFunc(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							Dir: "/stack",
+							Dir: project.NewPath("/stack"),
 						},
 						Error: errors.E(eval.ErrEval),
 					},
@@ -112,7 +113,7 @@ func TestHCLExpressionFunc(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							Dir: "/stack",
+							Dir: project.NewPath("/stack"),
 						},
 						Error: errors.E(eval.ErrEval),
 					},
@@ -140,7 +141,7 @@ func TestHCLExpressionFunc(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							Dir: "/stack",
+							Dir: project.NewPath("/stack"),
 						},
 						Error: errors.E(eval.ErrEval),
 					},
@@ -171,7 +172,7 @@ func TestHCLExpressionFunc(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							Dir: "/stack",
+							Dir: project.NewPath("/stack"),
 						},
 						Error: errors.E(eval.ErrEval),
 					},
@@ -201,7 +202,7 @@ func TestHCLExpressionFunc(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							Dir: "/stack",
+							Dir: project.NewPath("/stack"),
 						},
 						Error: errors.E(eval.ErrEval),
 					},
@@ -227,7 +228,7 @@ func TestHCLExpressionFunc(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							Dir: "/stack",
+							Dir: project.NewPath("/stack"),
 						},
 						Error: errors.E(eval.ErrEval),
 					},
