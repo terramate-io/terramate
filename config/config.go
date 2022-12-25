@@ -67,7 +67,6 @@ type Tree struct {
 // Eg.: stack, config, etc.
 type DirElem interface {
 	Dir() project.Path
-	HostDir() string
 }
 
 // List of directory based elements which implements the sorting interface
