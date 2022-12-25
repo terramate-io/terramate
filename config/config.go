@@ -63,14 +63,15 @@ type Tree struct {
 	dir string
 }
 
-// DirElem represents an element of the list which could represented by a
-// directory. Eg.: stack.
+// DirElem represents a node which is represented by a directory.
+// Eg.: stack, config, etc.
 type DirElem interface {
 	Dir() project.Path
 	HostDir() string
 }
 
-// List of directory nodes.
+// List of directory based elements which implements the sorting interface
+// by the directory path.
 type List[T DirElem] []T
 
 // TryLoadConfig try to load the Terramate configuration tree. It looks for the
