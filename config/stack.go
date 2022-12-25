@@ -178,7 +178,7 @@ func (s *Stack) RelPath() string { return s.dir.String()[1:] }
 func (s *Stack) RelPathToRoot(root *Root) string {
 	// should never fail as abspath is constructed inside rootdir.
 	rel, _ := filepath.Rel(s.HostDir(root), root.HostDir())
-	return rel
+	return filepath.ToSlash(rel)
 }
 
 // HostDir returns the file system absolute path of stack.
