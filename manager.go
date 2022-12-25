@@ -288,7 +288,7 @@ rangeStacks:
 			Stringer("stack", stack).
 			Msg("Apply function to stack.")
 
-		err := m.filesApply(stack.HostDir(), func(file fs.DirEntry) error {
+		err := m.filesApply(stack.HostDir(m.root), func(file fs.DirEntry) error {
 			if path.Ext(file.Name()) != ".tf" {
 				return nil
 			}
@@ -297,7 +297,7 @@ rangeStacks:
 				Stringer("stack", stack).
 				Msg("Get tf file path.")
 
-			tfpath := filepath.Join(stack.HostDir(), file.Name())
+			tfpath := filepath.Join(stack.HostDir(m.root), file.Name())
 
 			logger.Trace().
 				Stringer("stack", stack).
@@ -320,7 +320,7 @@ rangeStacks:
 					Str("configFile", tfpath).
 					Msg("Check if module changed.")
 
-				changed, why, err := m.moduleChanged(mod, stack.HostDir(), make(map[string]bool))
+				changed, why, err := m.moduleChanged(mod, stack.HostDir(m.root), make(map[string]bool))
 				if err != nil {
 					return errors.E(errListChanged, err, "checking module %q", mod.Source)
 				}

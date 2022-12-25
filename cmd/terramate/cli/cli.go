@@ -1295,7 +1295,7 @@ func (c *cli) printMetadata() {
 		c.output.Msg(out.V, "\tterramate.stack.path.absolute=%q", stackMeta.Dir())
 		c.output.Msg(out.V, "\tterramate.stack.path.basename=%q", stackMeta.PathBase())
 		c.output.Msg(out.V, "\tterramate.stack.path.relative=%q", stackMeta.RelPath())
-		c.output.Msg(out.V, "\tterramate.stack.path.to_root=%q", stackMeta.RelPathToRoot())
+		c.output.Msg(out.V, "\tterramate.stack.path.to_root=%q", stackMeta.RelPathToRoot(c.cfg()))
 	}
 }
 
@@ -1422,7 +1422,7 @@ func (c *cli) setupEvalContext() *eval.Context {
 		if err != nil {
 			fatal(err, "setup eval context: loading stack config")
 		}
-		ctx.SetNamespace("terramate", stack.MetadataToCtyValues(projmeta, st))
+		ctx.SetNamespace("terramate", stack.MetadataToCtyValues(c.cfg(), projmeta, st))
 	} else {
 		ctx.SetNamespace("terramate", projmeta.ToCtyMap())
 	}
