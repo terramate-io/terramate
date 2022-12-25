@@ -16,7 +16,6 @@ package e2etest
 
 import (
 	"fmt"
-	"path"
 	"path/filepath"
 	"testing"
 
@@ -94,13 +93,8 @@ func TestCreateStack(t *testing.T) {
 			Stdout: want,
 		})
 
-		var dir project.Path
-		if path.IsAbs(stackPath) {
-			dir = project.NewPath(stackPath)
-		} else {
-			dir = project.NewPath("/" + stackPath)
-		}
-		got := s.LoadStack(dir)
+		absStackPath := filepath.Join(s.RootDir(), filepath.FromSlash(stackPath))
+		got := s.LoadStack(project.PrjAbsPath(s.RootDir(), absStackPath))
 
 		gotID, _ := got.ID()
 		assert.EqualStrings(t, stackID, gotID)
