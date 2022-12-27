@@ -611,7 +611,7 @@ func (c *cli) triggerStack() {
 		errlog.Fatal(logger, err)
 	}
 
-	c.output.Msg(out.V, "Created trigger for stack %q", stackPath)
+	c.output.MsgStdOut("Created trigger for stack %q", stackPath)
 }
 
 func (c *cli) cloneStack() {
