@@ -46,6 +46,38 @@ func TestTriggerWorksWithRelativeStackPath(t *testing.T) {
 	assertRunResult(t, cli.listChangedStacks(), want)
 }
 
+func TestTriggerFailsWithSymlinksInStackPath(t *testing.T) {
+	t.Parallel()
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		"s:dir/stack",
+		"l:dir/stack:dir/link-to-stack",
+		"l:dir:link-to-dir",
+	})
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+	git.CheckoutNew("trigger-the-stack")
+
+	cli := newCLI(t, filepath.Join(s.RootDir(), "dir"))
+	assertRunResult(t, cli.triggerStack("link-to-stack"), runExpected{
+		Status:      1,
+		StderrRegex: "symlinks are disallowed",
+	})
+
+	cli = newCLI(t, s.RootDir())
+	assertRunResult(t, cli.triggerStack("/dir/link-to-stack"), runExpected{
+		Status:      1,
+		StderrRegex: "symlinks are disallowed",
+	})
+
+	cli = newCLI(t, s.RootDir())
+	assertRunResult(t, cli.triggerStack("/link-to-dir/stack"), runExpected{
+		Status:      1,
+		StderrRegex: "symlinks are disallowed",
+	})
+}
+
 func TestTriggerMustNotTriggerStacksOutsideProject(t *testing.T) {
 	t.Parallel()
 

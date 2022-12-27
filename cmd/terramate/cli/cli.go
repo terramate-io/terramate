@@ -608,6 +608,11 @@ func (c *cli) triggerStack() {
 	}
 
 	stack = filepath.Clean(stack)
+
+	if tmp, err := filepath.EvalSymlinks(stack); err != nil || tmp != stack {
+		errlog.Fatal(logger, errors.E("symlinks are disallowed in the stack path"))
+	}
+
 	if !strings.HasPrefix(stack, c.rootdir()) {
 		errlog.Fatal(logger, errors.E("stack %s is outside project", stack))
 	}
