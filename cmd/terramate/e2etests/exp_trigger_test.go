@@ -215,7 +215,7 @@ func TestRunWontDetectAsChangeDeletedTrigger(t *testing.T) {
 	})
 
 	cli := newCLI(t, s.RootDir())
-	assertRunResult(t, cli.triggerStack("/stacks/stack-1"), runExpected{
+	assertRunResult(t, cli.triggerStack("/stack-1"), runExpected{
 		IgnoreStdout: true,
 	})
 

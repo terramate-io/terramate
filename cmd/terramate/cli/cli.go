@@ -613,7 +613,7 @@ func (c *cli) triggerStack() {
 	}
 
 	stackPath := prj.NewPath(string(prj.PrjAbsPath(c.rootdir(), stack)))
-	if err := trigger.Create(c.rootdir(), stackPath, reason); err != nil {
+	if err := trigger.Create(c.cfg(), stackPath, reason); err != nil {
 		errlog.Fatal(logger, err)
 	}
 

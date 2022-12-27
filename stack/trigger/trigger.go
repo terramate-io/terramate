@@ -26,12 +26,15 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
+
+const ErrTrigger errors.Kind = "trigger failed"
 
 // Info represents the parsed contents of a trigger
 // for triggers created by Terramate.
@@ -133,16 +136,20 @@ func Dir(rootdir string) string {
 
 // Create creates a trigger for a stack with the given path and the given reason
 // inside the project rootdir.
-func Create(rootdir string, path project.Path, reason string) error {
+func Create(root *config.Root, path project.Path, reason string) error {
+	tree, ok := root.Lookup(path)
+	if !ok || !tree.IsStack() {
+		return errors.E(ErrTrigger, "path %s is not a stack directory", path)
+	}
 	id, err := uuid.NewRandom()
 	if err != nil {
-		return errors.E(err, "creating trigger UUID")
+		return errors.E(ErrTrigger, err, "creating trigger UUID")
 	}
 	triggerID := id.String()
-	triggerDir := filepath.Join(rootdir, triggersDir, path.String())
+	triggerDir := filepath.Join(root.Dir(), triggersDir, path.String())
 
 	if err := os.MkdirAll(triggerDir, 0775); err != nil {
-		return errors.E(err, "creating trigger dir")
+		return errors.E(ErrTrigger, err, "creating trigger dir")
 	}
 
 	ctime := time.Now().Unix()
@@ -155,7 +162,7 @@ func Create(rootdir string, path project.Path, reason string) error {
 	triggerPath := filepath.Join(triggerDir, triggerID+".tm.hcl")
 
 	if err := os.WriteFile(triggerPath, gen.Bytes(), 0666); err != nil {
-		return errors.E(err, "creating trigger file")
+		return errors.E(ErrTrigger, err, "creating trigger file")
 	}
 
 	log.Debug().
