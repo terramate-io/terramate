@@ -30,6 +30,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/hcl/info"
+	"github.com/mineiros-io/terramate/stdlib"
 
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/lets"
@@ -170,7 +171,11 @@ func Load(
 		vendorTargetDir := project.NewPath(path.Join(
 			sm.Path().String(),
 			path.Dir(name)))
-		evalctx.AddTmVendor(vendorTargetDir, vendorDir, vendorRequests)
+
+		evalctx.SetFunction(
+			stdlib.Name("vendor"),
+			stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests),
+		)
 
 		err := lets.Load(hclBlock.Lets, evalctx.Context)
 		if err != nil {
@@ -233,7 +238,7 @@ func Load(
 			continue
 		}
 
-		evalctx.AddTmHCLExpression()
+		evalctx.SetFunction(stdlib.Name("hcl_expression"), stdlib.HCLExpressionFunc())
 
 		gen := hclwrite.NewEmptyFile()
 		if err := copyBody(gen.Body(), hclBlock.Content.Body, evalctx); err != nil {

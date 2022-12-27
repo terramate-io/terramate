@@ -24,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -182,8 +183,7 @@ func TestAssertConfigEval(t *testing.T) {
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			hclctx, err := eval.NewContext(t.TempDir())
-			assert.NoError(t, err)
+			hclctx := eval.NewContext(stdlib.Functions(t.TempDir()))
 
 			for k, v := range tcase.namespaces {
 				hclctx.SetNamespace(k, v.asCtyMap())

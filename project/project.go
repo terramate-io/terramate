@@ -58,6 +58,12 @@ func (p Path) HasPrefix(s string) bool {
 	return strings.HasPrefix(p.String(), s)
 }
 
+// Join joins the pathstr path into p. See [path.Join] for the underlying
+// implementation.
+func (p Path) Join(pathstr string) Path {
+	return NewPath(path.Join(p.String(), pathstr))
+}
+
 // String returns the path as a string.
 func (p Path) String() string { return string(p) }
 

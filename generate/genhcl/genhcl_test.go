@@ -28,7 +28,6 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
-	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
@@ -1600,7 +1599,7 @@ func TestGenerateHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(lets.ErrRedefined),
+			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
 			name:  "lets are scoped",

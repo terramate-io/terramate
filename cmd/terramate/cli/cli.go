@@ -35,6 +35,8 @@ import (
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/modvendor/download"
+	"github.com/mineiros-io/terramate/stack/trigger"
+	"github.com/mineiros-io/terramate/stdlib"
 
 	prj "github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/run"
@@ -133,6 +135,11 @@ type cliSpec struct {
 			SrcDir  string `arg:"" name:"srcdir" predictor:"file" help:"Path of the stack being cloned"`
 			DestDir string `arg:"" name:"destdir" predictor:"file" help:"Path of the new stack"`
 		} `cmd:"" help:"Clones a stack"`
+
+		Trigger struct {
+			Stack  string `arg:"" name:"stack" predictor:"file" help:"Path of the stack being triggered"`
+			Reason string `default:"" name:"reason" help:"Reason for the stack being triggered"`
+		} `cmd:"" help:"Triggers a stack"`
 
 		Metadata struct{} `cmd:"" help:"Shows metadata available on the project"`
 
@@ -394,6 +401,8 @@ func (c *cli) run() {
 		c.generate()
 	case "experimental clone <srcdir> <destdir>":
 		c.cloneStack()
+	case "experimental trigger <stack>":
+		c.triggerStack()
 	case "experimental vendor download <source> <ref>":
 		c.vendorDownload()
 	case "experimental globals":
@@ -578,6 +587,31 @@ func (c *cli) vendorDir() prj.Path {
 
 func hasVendorDirConfig(cfg hcl.Config) bool {
 	return cfg.Vendor != nil && cfg.Vendor.Dir != ""
+}
+
+func (c *cli) triggerStack() {
+	stack := c.parsedArgs.Experimental.Trigger.Stack
+	reason := c.parsedArgs.Experimental.Trigger.Reason
+	if reason == "" {
+		reason = "manually created through terramate CLI"
+	}
+	logger := log.With().
+		Str("stack", stack).
+		Logger()
+
+	logger.Debug().Msg("creating stack trigger")
+
+	if !path.IsAbs(stack) {
+		logger.Fatal().Msg("stack must be a project absolute path, like /stack")
+	}
+
+	stackPath := prj.NewPath(stack)
+
+	if err := trigger.Create(c.rootdir(), stackPath, reason); err != nil {
+		errlog.Fatal(logger, err)
+	}
+
+	c.output.Msg(out.V, "Created trigger for stack %q", stackPath)
 }
 
 func (c *cli) cloneStack() {
@@ -1196,7 +1230,7 @@ func (c *cli) printStacksGlobals() {
 
 	for _, stackEntry := range c.filterStacksByWorkingDir(report.Stacks) {
 		meta := stack.Metadata(stackEntry.Stack)
-		report := stack.LoadStackGlobals(c.cfg(), projmeta, meta)
+		report := globals.ForStack(c.cfg(), projmeta, meta)
 		if err := report.AsError(); err != nil {
 			logger := log.With().
 				Stringer("stack", meta.Path()).
@@ -1375,11 +1409,7 @@ func (c *cli) outputEvalResult(val cty.Value, asJSON bool) {
 }
 
 func (c *cli) setupEvalContext() *eval.Context {
-	ctx, err := eval.NewContext(c.wd())
-	if err != nil {
-		fatal(err)
-	}
-
+	ctx := eval.NewContext(stdlib.Functions(c.wd()))
 	allstacks, err := stack.LoadAll(c.cfg().Tree())
 	if err != nil {
 		fatal(err, "setup eval context: listing all stacks")
@@ -1396,7 +1426,7 @@ func (c *cli) setupEvalContext() *eval.Context {
 		ctx.SetNamespace("terramate", projmeta.ToCtyMap())
 	}
 
-	globals.Load(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()), ctx)
+	globals.ForDir(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()), ctx)
 	return ctx
 }
 

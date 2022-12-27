@@ -190,6 +190,10 @@ func (tm tmcli) listStacks(args ...string) runResult {
 	return tm.run(append([]string{"list"}, args...)...)
 }
 
+func (tm tmcli) triggerStack(stack string) runResult {
+	return tm.run([]string{"experimental", "trigger", stack}...)
+}
+
 func (tm tmcli) listChangedStacks(args ...string) runResult {
 	return tm.listStacks(append([]string{"--changed"}, args...)...)
 }

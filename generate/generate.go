@@ -28,11 +28,13 @@ import (
 	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/generate/genhcl"
+	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
+	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -108,7 +110,7 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 
 	for i, st := range stacks {
 		res := LoadResult{Dir: st.Path()}
-		loadres := stack.LoadStackGlobals(root, projmeta, st)
+		loadres := globals.ForStack(root, projmeta, st)
 		if err := loadres.AsError(); err != nil {
 			res.Err = err
 			results[i] = res
@@ -130,12 +132,7 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 			continue
 		}
 		res := LoadResult{Dir: dircfg.ProjDir()}
-		evalctx, err := eval.NewContext(dircfg.Dir())
-		if err != nil {
-			res.Err = err
-			results = append(results, res)
-			continue
-		}
+		evalctx := eval.NewContext(stdlib.Functions(dircfg.Dir()))
 
 		var generated []GenFile
 		for _, block := range dircfg.Node.Generate.Files {
@@ -327,12 +324,7 @@ func doRootGeneration(root *config.Root) Report {
 
 	report := Report{}
 	projmeta := project.NewMetadata(root.Dir(), stackpaths)
-	evalctx, err := eval.NewContext(root.Dir())
-	if err != nil {
-		report.BootstrapErr = err
-		return report
-	}
-
+	evalctx := eval.NewContext(stdlib.Functions(root.Dir()))
 	evalctx.SetNamespace("terramate", projmeta.ToCtyMap())
 
 	var files []GenFile
@@ -365,7 +357,7 @@ func doRootGeneration(root *config.Root) Report {
 			// Here we use path.Clean("/"+path.Dir(label)) to ensure the
 			// report.Dir is always absolute.
 			targetDir := project.NewPath(path.Clean("/" + path.Dir(block.Label)))
-			err = validateRootGenerateBlock(root, block)
+			err := validateRootGenerateBlock(root, block)
 			if err != nil {
 				report.addFailure(targetDir, err)
 				return report
@@ -588,7 +580,7 @@ func stackOutdated(
 		Stringer("stack", st).
 		Logger()
 
-	report := stack.LoadStackGlobals(root, projmeta, st)
+	report := globals.ForStack(root, projmeta, st)
 	if err := report.AsError(); err != nil {
 		return nil, errors.E(err, "checking for outdated code")
 	}
@@ -838,7 +830,7 @@ func forEachStack(
 
 		logger.Trace().Msg("Load stack globals.")
 
-		globalsReport := stack.LoadStackGlobals(root, projmeta, st)
+		globalsReport := globals.ForStack(root, projmeta, st)
 		if err := globalsReport.AsError(); err != nil {
 			report.addFailure(st.Path(), errors.E(ErrLoadingGlobals, err))
 			continue

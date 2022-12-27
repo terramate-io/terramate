@@ -26,6 +26,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
+	"github.com/mineiros-io/terramate/stdlib"
 
 	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/project"
@@ -152,7 +153,8 @@ func Load(
 		vendorTargetDir := project.NewPath(path.Join(
 			sm.Path().String(),
 			path.Dir(name)))
-		evalctx.AddTmVendor(vendorTargetDir, vendorDir, vendorRequests)
+
+		evalctx.SetFunction(stdlib.Name("vendor"), stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests))
 
 		file, err := Eval(genFileBlock, evalctx.Context)
 		if err != nil {

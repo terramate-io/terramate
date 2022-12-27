@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package stack_test
+package globals_test
 
 import (
 	"path/filepath"
@@ -36,24 +36,24 @@ import (
 	"github.com/zclconf/go-cty-debug/ctydebug"
 )
 
+type (
+	hclconfig struct {
+		path     string
+		filename string
+		add      *hclwrite.Block
+	}
+	testcase struct {
+		name    string
+		layout  []string
+		configs []hclconfig
+		want    map[string]*hclwrite.Block
+		wantErr error
+	}
+)
+
 // TODO(katcipis): add tests related to tf functions that depend on filesystem
 // (BaseDir parameter passed on Scope when creating eval context).
 func TestLoadGlobals(t *testing.T) {
-	type (
-		hclconfig struct {
-			path     string
-			filename string
-			add      *hclwrite.Block
-		}
-		testcase struct {
-			name    string
-			layout  []string
-			configs []hclconfig
-			want    map[string]*hclwrite.Block
-			wantErr error
-		}
-	)
-
 	t.Parallel()
 
 	tcases := []testcase{
@@ -134,6 +134,28 @@ func TestLoadGlobals(t *testing.T) {
 			want: map[string]*hclwrite.Block{
 				"/stacks/stack-1": Globals(Str("parent", "hi")),
 				"/stacks/stack-2": Globals(Str("parent", "hi")),
+			},
+		},
+		{
+			name: "multiple stacks with config on parent dir extended by children",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{path: "/stacks", add: Globals(Expr("parent", "global.a"))},
+				{path: "/stacks/stack-1", add: Globals(Number("a", 1))},
+				{path: "/stacks/stack-2", add: Globals(Number("a", 2))},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-1": Globals(
+					Number("parent", 1),
+					Number("a", 1),
+				),
+				"/stacks/stack-2": Globals(
+					Number("parent", 2),
+					Number("a", 2),
+				),
 			},
 		},
 		{
@@ -342,6 +364,105 @@ func TestLoadGlobals(t *testing.T) {
 					Str("ref_stack_path", "/stack"),
 					Str("interpolation", "/stack-some-string"),
 					Str("ref_interpolation", "/stack-some-string"),
+				),
+			},
+		},
+		{
+			name:   "global referencing traverse-index",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Globals(
+						Expr("a", "global.b[0]"),
+						Expr("b", "[1]"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					Number("a", 1),
+					EvalExpr(t, "b", "[1]"),
+				),
+			},
+		},
+		{
+			name:   "global referencing traverse-splat",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Globals(
+						Expr("a", "global.b.*"),
+						Expr("b", "{c = 1}"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "a", `[{c = 1}]`),
+					EvalExpr(t, "b", "{c = 1}"),
+				),
+			},
+		},
+		{
+			name:   "import merge with pending variable",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path:     "/modules",
+					filename: "file.tm",
+					add: Doc(
+						Globals(
+							Labels("obj"),
+							Expr("a", `{
+							b = 1
+							c = global.pending
+						}`),
+						),
+						Import(
+							Str("source", "/modules/nested/file.tm"),
+						),
+					),
+				},
+				{
+					path:     "/modules/nested",
+					filename: "file.tm",
+					add: Globals(
+						Labels("obj", "a"),
+						Number("nested", 1),
+						Expr("nested2", "global.other_pending"),
+					),
+				},
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Labels("obj", "a"),
+							Number("b", 2),
+						),
+						Globals(
+							Number("pending", 1),
+							Number("other_pending", 2),
+						),
+						Import(
+							Str("source", "/modules/file.tm"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					Number("pending", 1),
+					Number("other_pending", 2),
+					EvalExpr(t, "obj", `{
+						a = {
+							b = 2
+							c = 1
+							nested = 1
+							nested2 = 2
+						}
+					}`),
 				),
 			},
 		},
@@ -598,6 +719,318 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name: "extending global with pending set object",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/modules",
+					filename: "config.tm",
+					add: Globals(
+						Labels("label"),
+						Bool("enabled", true),
+						Str("source", "hashicorp/google"),
+						Expr("obj", `{
+							data1 = tm_try(global.pending, 667)
+							data2 = tm_try(global.not_pending, 668)
+						}`),
+					),
+				},
+				{
+					path:     "/",
+					filename: "config.tm",
+					add: Doc(
+						Globals(
+							Labels("label", "obj"),
+							Number("data1", 3),
+						),
+						Import(
+							Str("source", "/modules/config.tm"),
+						),
+						Globals(
+							Number("pending", 666),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-1": Globals(
+					Number("pending", 666),
+					EvalExpr(t, "label", `{
+					  enabled = true
+  					  source  = "hashicorp/google"
+					  obj = {
+					    data1 = 3
+						data2 = 668
+					  }
+					}`),
+				),
+				"/stacks/stack-2": Globals(
+					Number("pending", 666),
+					EvalExpr(t, "label", `{
+						enabled = true
+  					    source  = "hashicorp/google"
+						obj = {
+						  data1 = 3
+						  data2 = 668
+						}
+					  }`),
+				),
+			},
+		},
+		{
+			name: "extending complex global with pending set object",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/modules",
+					filename: "config.tm",
+					add: Doc(
+						Globals(
+							Str("a", "test"),
+							Number("b", 1),
+						),
+						Globals(
+							Labels("label"),
+							Bool("enabled", true),
+							Str("source", "hashicorp/google"),
+							Expr("obj", `{
+									data1 = tm_try(global.pending, 667)
+									data2 = tm_try(global.not_pending, 668)
+								}`),
+						),
+						Globals(
+							Labels("label", "obj"),
+							Bool("enabled", true),
+							Str("source", "hashicorp/google"),
+						),
+						Globals(
+							Str("c", "test"),
+							Number("d", 1),
+						),
+					),
+				},
+				{
+					path:     "/",
+					filename: "config.tm",
+					add: Doc(
+						Globals(
+							Labels("label", "obj"),
+							Number("data1", 3),
+						),
+						Import(
+							Str("source", "/modules/config.tm"),
+						),
+					),
+				},
+				{
+					path:     "/stacks/stack-1",
+					filename: "config.tm",
+					add: Doc(
+						Globals(
+							Number("pending", 666),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-1": Globals(
+					Number("pending", 666),
+					Str("a", "test"),
+					Number("b", 1),
+					Str("c", "test"),
+					Number("d", 1),
+					EvalExpr(t, "label", `{
+							  enabled = true
+		  					  source  = "hashicorp/google"
+							  obj = {
+							    data1 = 3
+								data2 = 668
+								enabled = true
+		  					  source  = "hashicorp/google"
+							  }
+							}`),
+				),
+				"/stacks/stack-2": Globals(
+					Str("a", "test"),
+					Number("b", 1),
+					Str("c", "test"),
+					Number("d", 1),
+					EvalExpr(t, "label", `{
+								enabled = true
+		  					    source  = "hashicorp/google"
+								obj = {
+								  data1 = 3
+								  data2 = 668
+								  enabled = true
+		  					  	  source  = "hashicorp/google"
+								}
+							  }`),
+				),
+			},
+		},
+		{
+			name: "imports from different cfgdir extending same object",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/modules/a",
+					filename: "file1.tm",
+					add: Doc(
+						Globals(
+							Labels("label"),
+							Expr("obj", `{
+									data1 = tm_try(global.pending, 1)
+									data2 = tm_try(global.not_pending, 2)
+								}`),
+						),
+					),
+				},
+				{
+					path:     "/modules/b",
+					filename: "file2.tm",
+					add: Doc(
+						Globals(
+							Labels("label"),
+							Expr("obj", `{
+									data1 = tm_try(global.pending, 3)
+									data2 = tm_try(global.not_pending, 4)
+								}`),
+						),
+					),
+				},
+				{
+					path:     "/",
+					filename: "config.tm",
+					add: Doc(
+						Import(
+							Str("source", "/modules/a/file1.tm"),
+						),
+					),
+				},
+				{
+					path:     "/stacks/stack-1",
+					filename: "config.tm",
+					add: Doc(
+						Globals(
+							Number("pending", 666),
+						),
+						Import(
+							Str("source", "/modules/b/file2.tm"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-1": Globals(
+					Number("pending", 666),
+					EvalExpr(t, "label", `{
+							  obj = {
+							    data1 = 666
+								data2 = 4
+							  }
+							}`),
+				),
+				"/stacks/stack-2": Globals(
+					EvalExpr(t, "label", `{
+								obj = {
+								  data1 = 1
+								  data2 = 2
+								}
+							  }`),
+				),
+			},
+		},
+		{
+			name: "extending complex global with pending set object without imports",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path:     "/",
+					filename: "config.tm",
+					add: Doc(
+						Globals(
+							Str("a", "test"),
+							Number("b", 1),
+						),
+						Globals(
+							Labels("label"),
+							Bool("enabled", true),
+							Str("source", "hashicorp/google"),
+							Expr("obj", `{
+										data1 = tm_try(global.pending, 667)
+										data2 = tm_try(global.not_pending, 668)
+									}`),
+						),
+						Globals(
+							Labels("label", "obj"),
+							Bool("enabled", true),
+							Str("source", "hashicorp/google"),
+						),
+						Globals(
+							Str("c", "test"),
+							Number("d", 1),
+						),
+					),
+				},
+				{
+					path:     "/stacks/stack-1",
+					filename: "config.tm",
+					add: Doc(
+						Globals(
+							Number("pending", 666),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stacks/stack-1": Globals(
+					Number("pending", 666),
+					Str("a", "test"),
+					Number("b", 1),
+					Str("c", "test"),
+					Number("d", 1),
+					EvalExpr(t, "label", `{
+							  enabled = true
+		  					  source  = "hashicorp/google"
+							  obj = {
+							    data1 = 666
+								data2 = 668
+								enabled = true
+		  					  source  = "hashicorp/google"
+							  }
+							}`),
+				),
+				"/stacks/stack-2": Globals(
+					Str("a", "test"),
+					Number("b", 1),
+					Str("c", "test"),
+					Number("d", 1),
+					EvalExpr(t, "label", `{
+								enabled = true
+		  					    source  = "hashicorp/google"
+								obj = {
+								  data1 = 667
+								  data2 = 668
+								  enabled = true
+		  					  	  source  = "hashicorp/google"
+								}
+							  }`),
+				),
+			},
+		},
+		{
 			name: "single stack extending local globals",
 			layout: []string{
 				"s:stack",
@@ -619,6 +1052,50 @@ func TestLoadGlobals(t *testing.T) {
 			want: map[string]*hclwrite.Block{
 				"/stack": Globals(
 					EvalExpr(t, "obj", `{ number = 1 }`),
+				),
+			},
+		},
+		{
+			name: "extending globals set on same level",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Expr("obj", `{
+								a = {
+									z = tm_try(global.d, false)
+								}
+							}`),
+						),
+						Globals(
+							Labels("obj", "a"),
+							Expr("b", "{}"),
+						),
+						Globals(
+							Labels("obj", "a", "b"),
+							Number("number", 1),
+						),
+						Globals(
+							Str("d", "test"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "obj", `{
+						a = {
+							b = {
+								number = 1
+							}
+							z = "test"
+						}
+					}`),
+					Str("d", "test"),
 				),
 			},
 		},
@@ -2319,6 +2796,702 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "globals.map label conflicts with global name",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Str("name", "test"),
+						Map(
+							Labels("name"),
+							Expr("for_each", "[]"),
+							Str("key", "a"),
+							Str("value", "a"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(globals.ErrRedefined),
+		},
+		{
+			name:   "invalid globals.map key",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("for_each", `["a", "b", "c"]`),
+							Expr("key", "something"), // keyword, not a string
+							Str("value", "else"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(globals.ErrEval),
+		},
+		{
+			name:   "invalid globals.map value",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("for_each", `["a", "b", "c"]`),
+							Str("key", "something"),
+							Expr("value", "else"), // keyword, not an expression
+						),
+					),
+				},
+			},
+			wantErr: errors.E(globals.ErrEval),
+		},
+		{
+			name:   "simple globals.map without using element",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("for_each", `["a", "b", "c"]`),
+							Str("key", "something"),
+							Str("value", "else"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "var", `{
+						something = "else"
+					}`),
+				),
+			},
+		},
+		{
+			name:   "conflicting globals.map name with other globals",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Str("var", "test"),
+						Map(
+							Labels("var"),
+							Expr("for_each", `["a", "b", "c"]`),
+							Expr("key", "element.new"),
+							Expr("value", "element.new"),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(globals.ErrRedefined),
+		},
+		{
+			name:   "simple globals.map ",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("for_each", `["a", "b", "c"]`),
+							Expr("key", "element.new"),
+							Expr("value", "element.new"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "var", `{
+						a = "a"
+						b = "b"
+						c = "c"
+					}`),
+				),
+			},
+		},
+		{
+			name:   "multiple globals.map blocks",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("for_each", `["a", "b", "c"]`),
+							Expr("key", "element.new"),
+							Expr("value", "element.new"),
+						),
+						Map(
+							Labels("var2"),
+							Expr("for_each", `["a", "b", "c"]`),
+							Expr("key", "element.new"),
+							Expr("value", "element.new"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "var", `{
+						a = "a"
+						b = "b"
+						c = "c"
+					}`),
+					EvalExpr(t, "var2", `{
+						a = "a"
+						b = "b"
+						c = "c"
+					}`),
+				),
+			},
+		},
+		{
+			name:   "simple globals.map with different iterator",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("iterator", "el"),
+							Expr("for_each", `["a", "b", "c"]`),
+							Expr("key", "el.new"),
+							Expr("value", "el.new"),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "var", `{
+						a = "a"
+						b = "b"
+						c = "c"
+					}`),
+				),
+			},
+		},
+		{
+			name:   "globals.map unknowns are postponed in the evaluator",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("iterator", "el"),
+							Expr("for_each", `[global.val1, global.val2, global.val3]`),
+							Expr("key", "el.new"),
+							Expr("value", "el.new"),
+						),
+						Str("val2", "val2"),
+					),
+				},
+				{
+					path: "/",
+					add: Globals(
+						Str("val1", "val1"),
+						Str("val3", "val3"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					Str("val1", "val1"),
+					Str("val2", "val2"),
+					Str("val3", "val3"),
+					EvalExpr(t, "var", `{
+						val1 = "val1"
+						val2 = "val2"
+						val3 = "val3"
+					}`),
+				),
+			},
+		},
+		{
+			name:   "globals.map unknowns are postponed in the evaluator even when parent depends on child",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("var"),
+							Expr("iterator", "el"),
+							Expr("for_each", `[global.val1, global.val2, global.val3]`),
+							Expr("key", "el.new"),
+							Expr("value", "el.new"),
+						),
+						Str("val2", "val2"),
+					),
+				},
+				{
+					path: "/stack",
+					add: Globals(
+						Str("val1", "val1"),
+						Str("val3", "val3"),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					Str("val1", "val1"),
+					Str("val2", "val2"),
+					Str("val3", "val3"),
+					EvalExpr(t, "var", `{
+						val1 = "val1"
+						val2 = "val2"
+						val3 = "val3"
+					}`),
+				),
+			},
+		},
+		{
+			name:   "element.old is undefined on first iteration of a given key",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("people_count"),
+							Expr("for_each", `["marius", "tiago", "soeren", "tiago"]`),
+							Expr("key", "element.new"),
+							Expr("value", `tm_try(element.old, 0) + 1`),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "people_count", `{
+						marius = 1
+  						tiago  = 2
+  						soeren = 1
+					}`),
+				),
+			},
+		},
+		{
+			name:   "using element.old in value attr to count people",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("people_count"),
+							Expr("for_each", `["marius", "tiago", "soeren", "tiago"]`),
+							Expr("key", "element.new"),
+							Expr("value", `{
+								count = tm_try(element.old.count, 0) + 1	
+							}`),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "people_count", `{
+						marius = {count = 1}
+  						tiago  = {count = 2}
+  						soeren = {count = 1}
+					}`),
+				),
+			},
+		},
+		{
+			name:   "using element.old in value block to count people",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Map(
+							Labels("people_count"),
+							Expr("for_each", `["marius", "tiago", "soeren", "tiago"]`),
+							Expr("key", "element.new"),
+							Value(
+								Expr("count", `tm_try(element.old.count, 0) + 1`),
+							),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "people_count", `{
+						marius = {count = 1}
+  						tiago  = {count = 2}
+  						soeren = {count = 1}
+					}`),
+				),
+			},
+		},
+		{
+			name:   "globals.map is recursive",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Expr("lst", `["a", "b", "c"]`),
+						Map(
+							Labels("var"),
+							Expr("for_each", `global.lst`),
+							Expr("key", "element.new"),
+
+							Value(
+								Str("some", "value"),
+								Map(
+									Labels("var"),
+									Expr("for_each", "global.lst"),
+									Expr("key", "element.new"),
+									Expr("value", "element.new"),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "lst", `["a", "b", "c"]`),
+					EvalExpr(t, "var", `{
+						a = {
+							some = "value"
+							var = {
+								a = "a"
+								b = "b"
+								c = "c"
+							}
+						}
+						b = {
+							some = "value"
+							var = {
+								a = "a"
+								b = "b"
+								c = "c"
+							}
+						}
+						c = {
+							some = "value"
+							var = {
+								a = "a"
+								b = "b"
+								c = "c"
+							}
+						}
+					}`),
+				),
+			},
+		},
+		{
+			name:   "recursive globals.map with multiple map blocks",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Expr("lst", `["a", "b", "c"]`),
+						Map(
+							Labels("var"),
+							Expr("for_each", `global.lst`),
+							Expr("key", "element.new"),
+
+							Value(
+								Str("some", "value"),
+								Map(
+									Labels("var"),
+									Expr("for_each", "global.lst"),
+									Expr("key", "element.new"),
+									Expr("value", "element.new"),
+								),
+								Map(
+									Labels("var2"),
+									Expr("for_each", "global.lst"),
+									Expr("key", "element.new"),
+									Expr("value", "element.new"),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "lst", `["a", "b", "c"]`),
+					EvalExpr(t, "var", `{
+						a = {
+							some = "value"
+							var = {
+								a = "a"
+								b = "b"
+								c = "c"
+							}
+							var2 = {
+								a = "a"
+								b = "b"
+								c = "c"
+							}
+						}
+						b = {
+							some = "value"
+							var = {
+								a = "a"
+								b = "b"
+								c = "c"
+							}
+							var2 = {
+								a = "a"
+								b = "b"
+								c = "c"
+							}
+						}
+						c = {
+							some = "value"
+							var = {
+								a = "a"
+								b = "b"
+								c = "c"
+							}
+							var2 = {
+								a = "a"
+								b = "b"
+								c = "c"
+							}
+						}
+					}`),
+				),
+			},
+		},
+		{
+			name:   "recursive globals.map reusing element iterator",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Expr("lst", `[
+							{
+								val: "a", 
+								lst: [1, 2, 3]
+							},
+							{
+								val: "b",
+								lst: [4, 5, 6]
+							},
+							{
+								val: "c",
+								lst: [7, 8, 9]
+							}
+						]`),
+						Map(
+							Labels("var"),
+							Expr("for_each", `global.lst`),
+							Expr("key", "element.new.val"),
+
+							Value(
+								Str("some", "value"),
+								Map(
+									Labels("var"),
+									Expr("for_each", "element.new.lst"),
+									Expr("key", "tm_tostring(element.new)"),
+									Expr("value", "element.new"),
+								),
+								Map(
+									Labels("var2"),
+									Expr("for_each", "element.new.lst"),
+									Expr("key", "tm_tostring(element.new)"),
+									Expr("value", "element.new"),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "lst", `[
+						{
+							val: "a", 
+							lst: [1, 2, 3]
+						},
+						{
+							val: "b",
+							lst: [4, 5, 6]
+						},
+						{
+							val: "c",
+							lst: [7, 8, 9]
+						}
+					]`),
+					EvalExpr(t, "var", `{
+						a = {
+							some = "value"
+							var = {
+								"1" = 1
+								"2" = 2
+								"3" = 3
+							}
+							var2 = {
+								"1" = 1
+								"2" = 2
+								"3" = 3
+							}
+						}
+						b = {
+							some = "value"
+							var = {
+								"4" = 4
+								"5" = 5
+								"6" = 6
+							}
+							var2 = {
+								"4" = 4
+								"5" = 5
+								"6" = 6
+							}
+						}
+						c = {
+							some = "value"
+							var = {
+								"7" = 7
+								"8" = 8
+								"9" = 9
+							}
+							var2 = {
+								"7" = 7
+								"8" = 8
+								"9" = 9
+							}
+						}
+					}`),
+				),
+			},
+		},
+		{
+			name:   "recursive globals.map reusing with different nested iterator",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/",
+					add: Globals(
+						Expr("lst", `[
+							{
+								val: "a", 
+								lst: [1, 2, 3]
+							},
+							{
+								val: "b",
+								lst: [4, 5, 6]
+							},
+							{
+								val: "c",
+								lst: [7, 8, 9]
+							}
+						]`),
+						Map(
+							Labels("var"),
+							Expr("for_each", `global.lst`),
+							Expr("key", "element.new.val"),
+
+							Value(
+								Str("some", "value"),
+								Map(
+									Labels("var"),
+									Expr("for_each", "element.new.lst"),
+									Expr("key", "tm_tostring(el.new)"),
+									Expr("value", "el.new"),
+									Expr("iterator", "el"),
+								),
+								Map(
+									Labels("var2"),
+									Expr("for_each", "element.new.lst"),
+									Expr("key", "tm_tostring(el2.new)"),
+									Expr("value", "el2.new"),
+									Expr("iterator", "el2"),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "lst", `[
+						{
+							val: "a", 
+							lst: [1, 2, 3]
+						},
+						{
+							val: "b",
+							lst: [4, 5, 6]
+						},
+						{
+							val: "c",
+							lst: [7, 8, 9]
+						}
+					]`),
+					EvalExpr(t, "var", `{
+						a = {
+							some = "value"
+							var = {
+								"1" = 1
+								"2" = 2
+								"3" = 3
+							}
+							var2 = {
+								"1" = 1
+								"2" = 2
+								"3" = 3
+							}
+						}
+						b = {
+							some = "value"
+							var = {
+								"4" = 4
+								"5" = 5
+								"6" = 6
+							}
+							var2 = {
+								"4" = 4
+								"5" = 5
+								"6" = 6
+							}
+						}
+						c = {
+							some = "value"
+							var = {
+								"7" = 7
+								"8" = 8
+								"9" = 9
+							}
+							var2 = {
+								"7" = 7
+								"8" = 8
+								"9" = 9
+							}
+						}
+					}`),
+				),
+			},
+		},
+		{
+
 			name: "regression test for a bug which incorrectly returned ErrRedefined errors",
 			layout: []string{
 				"s:stack",
@@ -2363,85 +3536,7 @@ func TestLoadGlobals(t *testing.T) {
 	}
 
 	for _, tcase := range tcases {
-		t.Run(tcase.name, func(t *testing.T) {
-			s := sandbox.New(t)
-			s.BuildTree(tcase.layout)
-			projmeta := s.LoadProjectMetadata()
-
-			for _, globalBlock := range tcase.configs {
-				path := filepath.Join(s.RootDir(), globalBlock.path)
-				filename := config.DefaultFilename
-				if globalBlock.filename != "" {
-					filename = globalBlock.filename
-				}
-				test.AppendFile(t, path, filename, globalBlock.add.String())
-			}
-
-			wantGlobals := tcase.want
-
-			cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
-			if err != nil {
-				errtest.Assert(t, err, tcase.wantErr)
-				return
-			}
-
-			stackEntries, err := terramate.ListStacks(cfg)
-			assert.NoError(t, err)
-
-			var stacks stack.List
-			for _, entry := range stackEntries {
-				st := entry.Stack
-				stacks = append(stacks, st)
-
-				t.Logf("loading globals for stack: %s", st.Path())
-
-				gotReport := stack.LoadStackGlobals(s.Config(), projmeta, st)
-				errtest.Assert(t, gotReport.AsError(), tcase.wantErr)
-				if tcase.wantErr != nil {
-					continue
-				}
-
-				want, ok := wantGlobals[st.Path().String()]
-				if !ok {
-					want = Globals()
-				}
-				delete(wantGlobals, st.Path().String())
-
-				// Could have one type for globals configs and another type
-				// for wanted evaluated globals, but that would make
-				// globals building more annoying (two sets of functions).
-				if want.HasExpressions() {
-					t.Fatal("wanted globals definition contains expressions, they should be defined only by evaluated values")
-					t.Errorf("wanted globals definition:\n%s\n", want)
-				}
-
-				got := gotReport.Globals
-				gotAttrs := got.AsValueMap()
-				wantAttrs := want.AttributesValues()
-
-				if len(gotAttrs) != len(wantAttrs) {
-					t.Errorf("got %d global attributes; wanted %d", len(gotAttrs), len(wantAttrs))
-				}
-
-				for name, wantVal := range wantAttrs {
-					gotVal, ok := gotAttrs[name]
-					if !ok {
-						t.Errorf("wanted global.%s is missing", name)
-						continue
-					}
-					if diff := ctydebug.DiffValues(wantVal, gotVal); diff != "" {
-						t.Errorf("global.%s doesn't match expectation", name)
-						t.Errorf("want: %s", ctydebug.ValueString(wantVal))
-						t.Errorf("got: %s", ctydebug.ValueString(gotVal))
-						t.Errorf("diff:\n%s", diff)
-					}
-				}
-			}
-
-			if len(wantGlobals) > 0 {
-				t.Fatalf("wanted stack globals: %v that was not found on stacks: %v", wantGlobals, stacks)
-			}
-		})
+		testGlobals(t, tcase)
 	}
 }
 
@@ -2598,9 +3693,91 @@ func TestLoadGlobalsErrors(t *testing.T) {
 			projmeta := stack.NewProjectMetadata(s.RootDir(), stacks)
 
 			for _, st := range stacks {
-				report := stack.LoadStackGlobals(s.Config(), projmeta, st)
+				report := globals.ForStack(s.Config(), projmeta, st)
 				errtest.Assert(t, report.AsError(), tcase.want)
 			}
 		})
 	}
+}
+
+func testGlobals(t *testing.T, tcase testcase) {
+	t.Run(tcase.name, func(t *testing.T) {
+		s := sandbox.New(t)
+		s.BuildTree(tcase.layout)
+		projmeta := s.LoadProjectMetadata()
+
+		for _, globalBlock := range tcase.configs {
+			path := filepath.Join(s.RootDir(), globalBlock.path)
+			filename := config.DefaultFilename
+			if globalBlock.filename != "" {
+				filename = globalBlock.filename
+			}
+			test.AppendFile(t, path, filename, globalBlock.add.String())
+		}
+
+		wantGlobals := tcase.want
+
+		cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
+		if err != nil {
+			errtest.Assert(t, err, tcase.wantErr)
+			return
+		}
+
+		stackEntries, err := terramate.ListStacks(cfg)
+		assert.NoError(t, err)
+
+		var stacks stack.List
+		for _, entry := range stackEntries {
+			st := entry.Stack
+			stacks = append(stacks, st)
+
+			t.Logf("loading globals for stack: %s", st.Path())
+
+			gotReport := globals.ForStack(s.Config(), projmeta, st)
+			errtest.Assert(t, gotReport.AsError(), tcase.wantErr)
+			if tcase.wantErr != nil {
+				continue
+			}
+
+			want, ok := wantGlobals[st.Path().String()]
+			if !ok {
+				want = Globals()
+			}
+			delete(wantGlobals, st.Path().String())
+
+			// Could have one type for globals configs and another type
+			// for wanted evaluated globals, but that would make
+			// globals building more annoying (two sets of functions).
+			if want.HasExpressions() {
+				t.Fatal("wanted globals definition contains expressions, they should be defined only by evaluated values")
+				t.Errorf("wanted globals definition:\n%s\n", want)
+			}
+
+			got := gotReport.Globals
+			gotAttrs := got.AsValueMap()
+			wantAttrs := want.AttributesValues()
+
+			if len(gotAttrs) != len(wantAttrs) {
+				t.Errorf("got %d global attributes; wanted %d", len(gotAttrs), len(wantAttrs))
+			}
+
+			for name, wantVal := range wantAttrs {
+				gotVal, ok := gotAttrs[name]
+				if !ok {
+					t.Errorf("wanted global.%s is missing", name)
+					continue
+				}
+				if diff := ctydebug.DiffValues(wantVal, gotVal); diff != "" {
+					t.Errorf("global.%s doesn't match expectation", name)
+					t.Errorf("want: %s", ctydebug.ValueString(wantVal))
+					t.Errorf("got: %s", ctydebug.ValueString(gotVal))
+					t.Errorf("diff:\n%s", diff)
+				}
+			}
+		}
+
+		if len(wantGlobals) > 0 {
+			t.Fatalf("wanted stack globals: %v that was not found on stacks: %v", wantGlobals, stacks)
+		}
+	})
 }
