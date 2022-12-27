@@ -34,6 +34,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+// ErrTrigger indicates an error happened while triggering the stack.
 const ErrTrigger errors.Kind = "trigger failed"
 
 // Info represents the parsed contents of a trigger
