@@ -120,7 +120,7 @@ The terramate configuration is defined by the following top-level blocks:
 - [import](#import-block-schema)
 - [vendor](#vendor-block-schema)
 
-# terramate block schema
+## terramate block schema
 
 For detailed information about this block, see the [Project Configuration](https://github.com/mineiros-io/terramate/blob/main/docs/project-config.md#project-configuration) docs.
 
@@ -168,7 +168,7 @@ attributes. Each attribute **must** evaluate to a string.
 
 More details can be found [here](project-config.md#the-terramateconfigrunenv-block).
 
-# stack block schema
+## stack block schema
 
 The `stack` block has no labels, **does not** support [merging](#config-merging)
 and has the following schema:
@@ -183,7 +183,7 @@ and has the following schema:
 | wants            | list(string)   | The list of `wanted` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs |
 | watch            | list(string)   | The list of `watch` files. See [change detection](change-detection.md) for details |
 
-# assert block schema
+## assert block schema
 
 The `assert` block has no labels, **does not** support [merging](#config-merging),
 can be defined multiple times and has the following schema:
@@ -194,14 +194,14 @@ can be defined multiple times and has the following schema:
 | warning          | boolean        | True if the assertion is a warning |
 | message          | string         | Message to show if assertion fails |
 
-# globals block schema
+## globals block schema
 
 The `globals` block accepts any number of labels, supports [merging](#config-merging), accepts **any** attribute and supports any number of 
 [map](#map-block) blocks.
 
 For more information about `globals`, see the [Sharing Data](https://github.com/mineiros-io/terramate/blob/main/docs/sharing-data.md#globals) documentation.
 
-# map block schema
+## map block schema
 
 The `map` block can only be used inside the [globals](#globals-block-schema)
 block, requires 1 label and optionally accepts a [value](#value-block-schema).
@@ -215,11 +215,11 @@ block, requires 1 label and optionally accepts a [value](#value-block-schema).
 
 The `value` block and the `value` attribute **cannot** be used together.
 
-# value block schema
+## value block schema
 
 The `value` block does not support labels. It accepts multiple attributes of any name and value of type `any`. It supports any number of nested [map](#map-block) blocks.
 
-# generate_file block schema
+## generate_file block schema
 
 The `generate_file` block requires one label, **do not** support [merging](#config-merging) and has the following schema:
 
@@ -232,7 +232,7 @@ The `generate_file` block requires one label, **do not** support [merging](#conf
 
 For detailed documentation about this block, see the [File Code Generation](https://github.com/mineiros-io/terramate/blob/main/docs/codegen/generate-file.md) docs.
 
-# generate_hcl block schema
+## generate_hcl block schema
 
 The `generate_hcl` block requires one label, **do not** support [merging](#config-merging) and has the following schema:
 
@@ -253,7 +253,7 @@ in the same level, accepts **any** attribute and **disallow** child blocks.
 
 The `generate_hcl.content` block has no labels and accepts any valid HCL.
 
-# import block schema
+## import block schema
 
 The `import` block has no labels, **do not** supports [merging](#config-merging)
 and has the following schema:
@@ -264,7 +264,7 @@ and has the following schema:
 | source           | string         | The file path to be imported |
 
 
-# vendor block schema
+## vendor block schema
 
 The `vendor` block has no labels, **do not** support [merging](#config-merging)
 and has the following schema:
@@ -274,7 +274,7 @@ and has the following schema:
 | dir              | string         | Absolute path relative to root where vendored projects will be downloaded |
 | [manifest](#vendormanifest--block-schema) | block | The manifest for which files to vendor |
 
-# vendor.manifest block schema
+## vendor.manifest block schema
 
 The `vendor.manifest` block has no labels, **do not** support [merging](#config-merging)
 and has the following schema:
@@ -283,7 +283,7 @@ and has the following schema:
 |------------------|----------------|-------------|
 | [default](#vendormanifestdefault--block-schema) | block | The default manifest |
 
-# vendor.manifest.default block schema
+## vendor.manifest.default block schema
 
 The `vendor.manifest.default` block has no labels, **do not** support [merging](#config-merging)
 and has the following schema:
