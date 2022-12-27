@@ -607,6 +607,7 @@ func (c *cli) triggerStack() {
 		stack = filepath.Join(c.rootdir(), filepath.FromSlash(stack))
 	}
 
+	stack = filepath.Clean(stack)
 	if !strings.HasPrefix(stack, c.rootdir()) {
 		errlog.Fatal(logger, errors.E("stack %s is outside project", stack))
 	}
