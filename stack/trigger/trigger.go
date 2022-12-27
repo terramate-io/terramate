@@ -16,6 +16,7 @@
 package trigger
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -135,6 +136,14 @@ func Dir(rootdir string) string {
 	return filepath.Join(rootdir, triggersDir)
 }
 
+func triggerFilename() (string, error) {
+	id, err := uuid.NewRandom()
+	if err != nil {
+		return "", errors.E(err, "creating trigger UUID")
+	}
+	return fmt.Sprintf("changed-%s.tm.hcl", id.String()), nil
+}
+
 // Create creates a trigger for a stack with the given path and the given reason
 // inside the project rootdir.
 func Create(root *config.Root, path project.Path, reason string) error {
@@ -142,13 +151,11 @@ func Create(root *config.Root, path project.Path, reason string) error {
 	if !ok || !tree.IsStack() {
 		return errors.E(ErrTrigger, "path %s is not a stack directory", path)
 	}
-	id, err := uuid.NewRandom()
+	filename, err := triggerFilename()
 	if err != nil {
-		return errors.E(ErrTrigger, err, "creating trigger UUID")
+		return errors.E(ErrTrigger, err)
 	}
-	triggerID := id.String()
 	triggerDir := filepath.Join(root.Dir(), triggersDir, path.String())
-
 	if err := os.MkdirAll(triggerDir, 0775); err != nil {
 		return errors.E(ErrTrigger, err, "creating trigger dir")
 	}
@@ -160,7 +167,7 @@ func Create(root *config.Root, path project.Path, reason string) error {
 	triggerBody.SetAttributeValue("ctime", cty.NumberIntVal(ctime))
 	triggerBody.SetAttributeValue("reason", cty.StringVal(reason))
 
-	triggerPath := filepath.Join(triggerDir, triggerID+".tm.hcl")
+	triggerPath := filepath.Join(triggerDir, filename)
 
 	if err := os.WriteFile(triggerPath, gen.Bytes(), 0666); err != nil {
 		return errors.E(ErrTrigger, err, "creating trigger file")
