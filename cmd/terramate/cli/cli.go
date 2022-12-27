@@ -613,7 +613,7 @@ func (c *cli) triggerStack() {
 		errlog.Fatal(logger, errors.E("stack %s is outside project", stack))
 	}
 
-	stackPath := prj.NewPath(string(prj.PrjAbsPath(c.rootdir(), stack)))
+	stackPath := prj.PrjAbsPath(c.rootdir(), stack)
 	if err := trigger.Create(c.rootdir(), stackPath, reason); err != nil {
 		errlog.Fatal(logger, err)
 	}
