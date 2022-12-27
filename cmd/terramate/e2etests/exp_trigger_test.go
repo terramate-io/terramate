@@ -63,10 +63,6 @@ func TestTriggerMustNotTriggerStacksOutsideProject(t *testing.T) {
 	relpath, err := filepath.Rel(project1.RootDir(), project2.RootDir())
 	assert.NoError(t, err)
 
-	t.Logf("project1: %s", project1.RootDir())
-	t.Logf("project2: %s", project2.RootDir())
-	t.Logf("relpath: %s", relpath)
-
 	cli := newCLI(t, project1.RootDir())
 	assertRunResult(t, cli.triggerStack(filepath.Join(relpath, "project2-stack")),
 		runExpected{
