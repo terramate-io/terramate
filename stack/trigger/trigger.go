@@ -117,11 +117,11 @@ func ParseFile(path string) (Info, error) {
 			},
 			{
 				Name:     "type",
-				Required: true,
+				Required: false,
 			},
 			{
 				Name:     "context",
-				Required: true,
+				Required: false,
 			},
 		},
 	})

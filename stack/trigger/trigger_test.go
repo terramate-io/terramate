@@ -155,6 +155,13 @@ func TestTriggerParser(t *testing.T) {
 			),
 		},
 		{
+			name: "valid file (backward compatibility)",
+			body: Trigger(
+				Number("ctime", 1000000),
+				Str("reason", "something"),
+			),
+		},
+		{
 			name: "multiple trigger blocks - fails",
 			body: Doc(
 				Trigger(
