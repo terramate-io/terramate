@@ -172,6 +172,11 @@ func Assert(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
 	return Block("assert", builders...)
 }
 
+// Trigger is a helper for a "trigger" block.
+func Trigger(builders ...hclwrite.BlockBuilder) *hclwrite.Block {
+	return Block("trigger", builders...)
+}
+
 // EvalExpr accepts an expr as the attribute value, similar to Expr,
 // but will evaluate the expr and store the resulting value so
 // it will be available as an attribute value instead of as an
