@@ -60,8 +60,8 @@ changelog:
       - '^chore:'
 
 announce:
-    twitter:
-      enabled: true
-      message_template: |
-        🥳 We just released #Terramate {{.Tag}}
-        {{ .ReleaseURL }} 🚀🚀🚀
+  twitter:
+    enabled: true
+    message_template: |
+      🥳 We just released #Terramate {{.Tag}}
+      {{ .ReleaseURL }} 🚀🚀🚀
