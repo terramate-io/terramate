@@ -65,3 +65,13 @@ announce:
     message_template: |
       🥳 We just released #Terramate {{.Tag}}
       {{ .ReleaseURL }} 🚀🚀🚀
+
+  slack:
+    enabled: true
+    message_template: |
+      🥳 We just released #Terramate {{.Tag}}
+      {{ .ReleaseURL }} 🚀🚀🚀
+
+    channel: '#terramate'
+    username: 'terramate'
+    icon_emoji: ':terramate-logo:'
