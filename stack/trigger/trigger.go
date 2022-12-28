@@ -35,8 +35,13 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-// ErrTrigger indicates an error happened while triggering the stack.
-const ErrTrigger errors.Kind = "trigger failed"
+const (
+	// ErrTrigger indicates an error happened while triggering the stack.
+	ErrTrigger errors.Kind = "trigger failed"
+
+	// ErrParsing indicates an error happened while parsing the trigger file.
+	ErrParsing errors.Kind = "parsing trigger file"
+)
 
 // Info represents the parsed contents of a trigger
 // for triggers created by Terramate.
@@ -69,7 +74,7 @@ func ParseFile(path string) (Info, error) {
 	parser := hclparse.NewParser()
 	parsed, diags := parser.ParseHCLFile(path)
 	if diags.HasErrors() {
-		return Info{}, errors.E(diags, "parsing trigger file")
+		return Info{}, errors.E(ErrParsing, diags)
 	}
 	rootContent, diags := parsed.Body.Content(&hcl.BodySchema{
 		Blocks: []hcl.BlockHeaderSchema{
@@ -79,7 +84,11 @@ func ParseFile(path string) (Info, error) {
 		},
 	})
 	if diags.HasErrors() {
-		return Info{}, errors.E(diags, "checking root schema")
+		return Info{}, errors.E(ErrParsing, diags, "checking trigger block schema")
+	}
+
+	if len(rootContent.Blocks) == 0 {
+		return Info{}, errors.E(ErrParsing, "trigger block not found")
 	}
 
 	triggerBlock := rootContent.Blocks[0]
@@ -95,37 +104,41 @@ func ParseFile(path string) (Info, error) {
 			},
 		},
 	})
+
 	if diags.HasErrors() {
-		return Info{}, errors.E(diags, "checking trigger schema")
+		return Info{}, errors.E(ErrParsing, diags, "checking trigger attributes schema")
 	}
 
 	errs := errors.L()
 	info := Info{}
-
 	for _, attribute := range ast.SortRawAttributes(triggerContent.Attributes) {
 		val, err := attribute.Expr.Value(nil)
 		if err != nil {
-			errs.Append(errors.E(err, "trigger: failure evaluating %q", attribute.Name))
+			errs.Append(errors.E(ErrParsing, "trigger: failure evaluating %q", attribute.Name))
 			continue
 		}
 
 		switch attribute.Name {
 		case "ctime":
 			if val.Type() != cty.Number {
-				errs.Append(errors.E(err, "trigger: %s must be a number", attribute.Name))
+				errs.Append(errors.E(ErrParsing, "trigger: %s must be a number", attribute.Name))
 				continue
 			}
 			v, _ := val.AsBigFloat().Int64()
 			info.Ctime = v
 		case "reason":
 			if val.Type() != cty.String {
-				errs.Append(errors.E(err, "trigger: %s must be a string", attribute.Name))
+				errs.Append(errors.E(ErrParsing, "trigger: %s must be a string", attribute.Name))
 				continue
 			}
 			info.Reason = val.AsString()
 		default:
-			errs.Append(errors.E("trigger: has unknown attribute %q", attribute.Name))
+			errs.Append(errors.E(ErrParsing, "trigger: has unknown attribute %q", attribute.Name))
 		}
+	}
+
+	if err := errs.AsError(); err != nil {
+		return Info{}, err
 	}
 	return info, nil
 }
