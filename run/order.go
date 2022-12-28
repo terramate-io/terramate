@@ -24,14 +24,13 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/run/dag"
-	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 )
 
 // Sort computes the final execution order for the given list of stacks.
 // In the case of multiple possible orders, it returns the lexicographic sorted
 // path.
-func Sort(root *config.Root, stacks stack.List) (stack.List, string, error) {
+func Sort(root *config.Root, stacks config.List[*config.Stack]) (config.List[*config.Stack], string, error) {
 	d := dag.New()
 
 	logger := log.With().
@@ -41,21 +40,21 @@ func Sort(root *config.Root, stacks stack.List) (stack.List, string, error) {
 
 	logger.Trace().Msg("Computes implicit hierarchical order.")
 
-	isParentStack := func(s1, s2 *stack.S) bool {
-		return s1.Path().HasPrefix(s2.Path().String() + "/")
+	isParentStack := func(s1, s2 *config.Stack) bool {
+		return s1.Dir().HasPrefix(s2.Dir().String() + "/")
 	}
 
 	sort.Sort(stacks)
 	for _, stack := range stacks {
 		for _, other := range stacks {
-			if stack.Path() == other.Path() {
+			if stack.Dir() == other.Dir() {
 				continue
 			}
 
 			if isParentStack(stack, other) {
 				logger.Debug().Msgf("stack %q runs before %q since it is its parent", other, stack)
 
-				other.AppendBefore(stack.Path().String())
+				other.AppendBefore(stack.Dir().String())
 			}
 		}
 	}
@@ -64,12 +63,12 @@ func Sort(root *config.Root, stacks stack.List) (stack.List, string, error) {
 
 	visited := dag.Visited{}
 	for _, s := range stacks {
-		if _, ok := visited[dag.ID(s.Path())]; ok {
+		if _, ok := visited[dag.ID(s.Dir())]; ok {
 			continue
 		}
 
 		logger.Debug().
-			Stringer("stack", s.Path()).
+			Stringer("stack", s.Dir()).
 			Msg("Build DAG.")
 
 		err := BuildDAG(
@@ -77,9 +76,9 @@ func Sort(root *config.Root, stacks stack.List) (stack.List, string, error) {
 			root,
 			s,
 			"before",
-			stack.S.Before,
+			config.Stack.Before,
 			"after",
-			stack.S.After,
+			config.Stack.After,
 			visited,
 		)
 
@@ -99,18 +98,18 @@ func Sort(root *config.Root, stacks stack.List) (stack.List, string, error) {
 
 	order := d.Order()
 
-	orderedStacks := make(stack.List, 0, len(order))
+	orderedStacks := make(config.List[*config.Stack], 0, len(order))
 
 	logger.Trace().Msg("Get ordered stacks.")
 
-	isSelectedStack := func(s *stack.S) bool {
+	isSelectedStack := func(s *config.Stack) bool {
 		// Stacks may be added on the DAG from after/before references
 		// but they should not be on the final order if they are not part
 		// of the previously selected stacks passed as a parameter.
 		// This is important for change detection to work on ordering and
 		// also for filtering by working dir.
 		for _, stack := range stacks {
-			if s.Path() == stack.Path() {
+			if s.Dir() == stack.Dir() {
 				return true
 			}
 		}
@@ -122,10 +121,10 @@ func Sort(root *config.Root, stacks stack.List) (stack.List, string, error) {
 		if err != nil {
 			return nil, "", fmt.Errorf("calculating run-order: %w", err)
 		}
-		s := val.(*stack.S)
+		s := val.(*config.Stack)
 		if !isSelectedStack(s) {
 			logger.Trace().
-				Stringer("stack", s.Path()).
+				Stringer("stack", s.Dir()).
 				Msg("ignoring since not part of selected stacks")
 			continue
 		}
@@ -139,24 +138,24 @@ func Sort(root *config.Root, stacks stack.List) (stack.List, string, error) {
 func BuildDAG(
 	d *dag.DAG,
 	root *config.Root,
-	s *stack.S,
+	s *config.Stack,
 	descendantsName string,
-	getDescendants func(stack.S) []string,
+	getDescendants func(config.Stack) []string,
 	ancestorsName string,
-	getAncestors func(stack.S) []string,
+	getAncestors func(config.Stack) []string,
 	visited dag.Visited,
 ) error {
 	logger := log.With().
 		Str("action", "run.BuildDAG()").
 		Str("path", root.Dir()).
-		Stringer("stack", s.Path()).
+		Stringer("stack", s.Dir()).
 		Logger()
 
-	if _, ok := visited[dag.ID(s.Path())]; ok {
+	if _, ok := visited[dag.ID(s.Dir())]; ok {
 		return nil
 	}
 
-	visited[dag.ID(s.Path())] = struct{}{}
+	visited[dag.ID(s.Dir())] = struct{}{}
 
 	removeWrongPaths := func(fieldname string, paths []string) []string {
 		cleanpaths := []string{}
@@ -165,7 +164,7 @@ func BuildDAG(
 			if path.IsAbs(pathstr) {
 				abspath = filepath.Join(root.Dir(), filepath.FromSlash(pathstr))
 			} else {
-				abspath = filepath.Join(s.HostPath(), filepath.FromSlash(pathstr))
+				abspath = filepath.Join(s.HostDir(), filepath.FromSlash(pathstr))
 			}
 			st, err := os.Stat(abspath)
 			if err != nil {
@@ -186,12 +185,12 @@ func BuildDAG(
 	ancestorPaths := removeWrongPaths(ancestorsName, getAncestors(*s))
 	descendantPaths := removeWrongPaths(descendantsName, getDescendants(*s))
 
-	ancestorStacks, err := stack.StacksFromTrees(root.Dir(), root.StacksByPaths(s.Path(), ancestorPaths...))
+	ancestorStacks, err := config.StacksFromTrees(root.Dir(), root.StacksByPaths(s.Dir(), ancestorPaths...))
 	if err != nil {
 		return errors.E(err, "stack %q: failed to load the \"%s\" stacks",
 			s, ancestorsName)
 	}
-	descendantStacks, err := stack.StacksFromTrees(root.Dir(), root.StacksByPaths(s.Path(), descendantPaths...))
+	descendantStacks, err := config.StacksFromTrees(root.Dir(), root.StacksByPaths(s.Dir(), descendantPaths...))
 	if err != nil {
 		return errors.E(err, "stack %q: failed to load the \"%s\" stacks",
 			s, descendantsName)
@@ -199,12 +198,12 @@ func BuildDAG(
 
 	logger.Debug().Msg("Add new node to DAG.")
 
-	err = d.AddNode(dag.ID(s.Path()), s, toids(descendantStacks), toids(ancestorStacks))
+	err = d.AddNode(dag.ID(s.Dir()), s, toids(descendantStacks), toids(ancestorStacks))
 	if err != nil {
 		return errors.E("stack %q: failed to build DAG: %w", s, err)
 	}
 
-	stacks := stack.List{}
+	stacks := config.List[*config.Stack]{}
 	stacks = append(stacks, ancestorStacks...)
 	stacks = append(stacks, descendantStacks...)
 
@@ -214,10 +213,10 @@ func BuildDAG(
 		logger = log.With().
 			Str("action", "run.BuildDAG()").
 			Str("path", root.Dir()).
-			Stringer("stack", s.Path()).
+			Stringer("stack", s.Dir()).
 			Logger()
 
-		if _, ok := visited[dag.ID(s.Path())]; ok {
+		if _, ok := visited[dag.ID(s.Dir())]; ok {
 			continue
 		}
 
@@ -232,10 +231,10 @@ func BuildDAG(
 	return nil
 }
 
-func toids(values stack.List) []dag.ID {
+func toids(values config.List[*config.Stack]) []dag.ID {
 	ids := make([]dag.ID, 0, len(values))
 	for _, v := range values {
-		ids = append(ids, dag.ID(v.Path()))
+		ids = append(ids, dag.ID(v.Dir()))
 	}
 	return ids
 }

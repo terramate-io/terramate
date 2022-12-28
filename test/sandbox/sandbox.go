@@ -215,23 +215,23 @@ func (s S) GenerateWith(root *config.Root, vendorDir project.Path) generate.Repo
 }
 
 // LoadStack load the stack given its relative path.
-func (s S) LoadStack(relpath string) *stack.S {
+func (s S) LoadStack(relpath string) *config.Stack {
 	s.t.Helper()
 
-	st, err := stack.Load(s.Config(), filepath.Join(s.rootdir, relpath))
+	st, err := config.LoadStack(s.Config(), filepath.Join(s.rootdir, relpath))
 	assert.NoError(s.t, err)
 
 	return st
 }
 
 // LoadStacks load all stacks from sandbox rootdir.
-func (s S) LoadStacks() stack.List {
+func (s S) LoadStacks() config.List[*config.Stack] {
 	s.t.Helper()
 
 	entries, err := terramate.ListStacks(s.Config().Tree())
 	assert.NoError(s.t, err)
 
-	var stacks stack.List
+	var stacks config.List[*config.Stack]
 	for _, entry := range entries {
 		stacks = append(stacks, entry.Stack)
 	}
@@ -243,7 +243,7 @@ func (s S) LoadStacks() stack.List {
 func (s S) LoadProjectMetadata() project.Metadata {
 	s.t.Helper()
 
-	return stack.NewProjectMetadata(s.RootDir(), s.LoadStacks())
+	return config.NewProjectMetadata(s.RootDir(), s.LoadStacks())
 }
 
 // LoadStackGlobals loads globals for specific stack on the sandbox.
@@ -251,7 +251,7 @@ func (s S) LoadProjectMetadata() project.Metadata {
 func (s S) LoadStackGlobals(
 	root *config.Root,
 	projmeta project.Metadata,
-	sm stack.Metadata,
+	sm config.StackMetadata,
 ) *eval.Object {
 	s.t.Helper()
 
@@ -533,9 +533,9 @@ func (se StackEntry) ReadFile(filename string) string {
 }
 
 // Load loads the terramate stack instance for this stack dir entry.
-func (se StackEntry) Load(root *config.Root) *stack.S {
+func (se StackEntry) Load(root *config.Root) *config.Stack {
 	se.t.Helper()
-	loadedStack, err := stack.Load(root, se.Path())
+	loadedStack, err := config.LoadStack(root, se.Path())
 	assert.NoError(se.t, err)
 	return loadedStack
 }

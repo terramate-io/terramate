@@ -29,7 +29,6 @@ import (
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
 	infotest "github.com/mineiros-io/terramate/test/hclutils/info"
@@ -1671,7 +1670,7 @@ func (tcase testcase) run(t *testing.T) {
 		s := sandbox.New(t)
 		s.BuildTree([]string{"s:" + tcase.stack})
 		stacks := s.LoadStacks()
-		projmeta := stack.NewProjectMetadata(s.RootDir(), stacks)
+		projmeta := config.NewProjectMetadata(s.RootDir(), stacks)
 		stack := stacks[0]
 
 		for _, cfg := range tcase.configs {

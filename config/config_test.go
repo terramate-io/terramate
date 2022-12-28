@@ -71,9 +71,9 @@ func TestConfigLookup(t *testing.T) {
 
 	stacks := root.Tree().Stacks()
 	assert.EqualInts(t, 3, len(stacks))
-	assert.EqualStrings(t, "/stacks", project.PrjAbsPath(s.RootDir(), stacks[0].Dir()).String())
-	assert.EqualStrings(t, "/stacks/child", project.PrjAbsPath(s.RootDir(), stacks[1].Dir()).String())
-	assert.EqualStrings(t, "/stacks/child/non-stack/stack", project.PrjAbsPath(s.RootDir(), stacks[2].Dir()).String())
+	assert.EqualStrings(t, "/stacks", stacks[0].Dir().String())
+	assert.EqualStrings(t, "/stacks/child", stacks[1].Dir().String())
+	assert.EqualStrings(t, "/stacks/child/non-stack/stack", stacks[2].Dir().String())
 }
 
 func TestConfigStacksByPaths(t *testing.T) {
@@ -248,7 +248,7 @@ func TestConfigStacksByPaths(t *testing.T) {
 		assert.EqualInts(t, len(tc.want), len(got))
 		var stacks []string
 		for _, node := range got {
-			stacks = append(stacks, project.PrjAbsPath(root.Dir(), node.Dir()).String())
+			stacks = append(stacks, node.Dir().String())
 		}
 		for i, want := range tc.want {
 			assert.EqualStrings(t, want, stacks[i])

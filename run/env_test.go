@@ -24,7 +24,6 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/run"
-	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errorstest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/mineiros-io/terramate/test/hclwrite"
@@ -249,7 +248,7 @@ func TestLoadRunEnv(t *testing.T) {
 					return
 				}
 
-				stack, err := stack.Load(root, filepath.Join(s.RootDir(), stackRelPath))
+				stack, err := config.LoadStack(root, filepath.Join(s.RootDir(), stackRelPath))
 				assert.NoError(t, err)
 
 				gotvars, err := run.LoadEnv(root, projmeta, stack)

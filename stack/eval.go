@@ -17,6 +17,7 @@ package stack
 import (
 	"strings"
 
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stdlib"
@@ -30,8 +31,8 @@ type EvalCtx struct {
 }
 
 // NewEvalCtx creates a new stack evaluation context.
-func NewEvalCtx(projmeta project.Metadata, sm Metadata, globals *eval.Object) *EvalCtx {
-	evalctx := eval.NewContext(stdlib.Functions(sm.HostPath()))
+func NewEvalCtx(projmeta project.Metadata, sm config.StackMetadata, globals *eval.Object) *EvalCtx {
+	evalctx := eval.NewContext(stdlib.Functions(sm.HostDir()))
 	evalwrapper := &EvalCtx{
 		Context: evalctx,
 	}
@@ -46,7 +47,7 @@ func (e *EvalCtx) SetGlobals(g *eval.Object) {
 }
 
 // SetMetadata sets the given metadata on the stack evaluation context.
-func (e *EvalCtx) SetMetadata(projmeta project.Metadata, sm Metadata) {
+func (e *EvalCtx) SetMetadata(projmeta project.Metadata, sm config.StackMetadata) {
 	e.SetNamespace("terramate", MetadataToCtyValues(projmeta, sm))
 }
 
@@ -61,7 +62,7 @@ func (e *EvalCtx) SetEnv(environ []string) {
 	e.SetNamespace("env", env)
 }
 
-func stackMetaToCtyMap(m Metadata) map[string]cty.Value {
+func stackMetaToCtyMap(m config.StackMetadata) map[string]cty.Value {
 	logger := log.With().
 		Str("action", "stack.stackMetaToCtyMap()").
 		Logger()
@@ -69,7 +70,7 @@ func stackMetaToCtyMap(m Metadata) map[string]cty.Value {
 	logger.Trace().Msg("creating stack metadata")
 
 	stackpath := cty.ObjectVal(map[string]cty.Value{
-		"absolute": cty.StringVal(m.Path().String()),
+		"absolute": cty.StringVal(m.Dir().String()),
 		"relative": cty.StringVal(m.RelPath()),
 		"basename": cty.StringVal(m.PathBase()),
 		"to_root":  cty.StringVal(m.RelPathToRoot()),
@@ -88,15 +89,15 @@ func stackMetaToCtyMap(m Metadata) map[string]cty.Value {
 	}
 	stack := cty.ObjectVal(stackMapVals)
 	return map[string]cty.Value{
-		"name":        cty.StringVal(m.Name()),          // DEPRECATED
-		"path":        cty.StringVal(m.Path().String()), // DEPRECATED
-		"description": cty.StringVal(m.Desc()),          // DEPRECATED
+		"name":        cty.StringVal(m.Name()),         // DEPRECATED
+		"path":        cty.StringVal(m.Dir().String()), // DEPRECATED
+		"description": cty.StringVal(m.Desc()),         // DEPRECATED
 		"stack":       stack,
 	}
 }
 
 // MetadataToCtyValues converts the metadatas to a map of cty.Values.
-func MetadataToCtyValues(projmeta project.Metadata, sm Metadata) map[string]cty.Value {
+func MetadataToCtyValues(projmeta project.Metadata, sm config.StackMetadata) map[string]cty.Value {
 	projvalues := projmeta.ToCtyMap()
 	stackvalues := stackMetaToCtyMap(sm)
 

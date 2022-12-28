@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package stack
+package config
 
 import (
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
 	"strings"
 
-	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
@@ -29,13 +27,13 @@ import (
 )
 
 type (
-	// S represents a stack
-	S struct {
-		// hostpath is the file system absolute path of the stack.
-		hostpath string
+	// Stack represents an evaluated stack.
+	Stack struct {
+		// hostdir is the file system absolute path of the stack.
+		hostdir string
 
-		// path is the absolute path of the stack relative to project's root.
-		path project.Path
+		// dir is the absolute dir of the stack relative to project's root.
+		dir project.Path
 
 		// relPathToRoot is the relative path from the stack to root.
 		relPathToRoot string
@@ -70,16 +68,16 @@ type (
 		changed bool
 	}
 
-	// Metadata has all metadata loaded per stack
-	Metadata interface {
+	// StackMetadata has all metadata loaded per stack
+	StackMetadata interface {
 		// ID of the stack if it has any. Empty string and false otherwise.
 		ID() (string, bool)
 		// Name of the stack.
 		Name() string
-		// HostPath is the absolute path of the stack on the host file system.
-		HostPath() string
-		// Path is the absolute path of the stack (relative to project root).
-		Path() project.Path
+		// HostDir is the absolute path of the stack on the host file system.
+		HostDir() string
+		// Dir is the absolute path of the stack (relative to project root).
+		Dir() project.Path
 		// RelPath is the relative path of the from root.
 		RelPath() string
 		// PathBase is the basename of the stack path.
@@ -89,24 +87,21 @@ type (
 		// RelPathToRoot is the relative path from the stack to root.
 		RelPathToRoot() string
 	}
-
-	// List of stacks.
-	List []*S
 )
 
 const (
-	// ErrDuplicatedID indicates that two or more stacks have the same ID.
-	ErrDuplicatedID errors.Kind = "duplicated ID found on stacks"
+	// ErrStackDuplicatedID indicates that two or more stacks have the same ID.
+	ErrStackDuplicatedID errors.Kind = "duplicated ID found on stacks"
 
-	// ErrInvalidWatch indicates the stack.watch attribute contains invalid values.
-	ErrInvalidWatch errors.Kind = "invalid stack.watch attribute"
+	// ErrStackInvalidWatch indicates the stack.watch attribute contains invalid values.
+	ErrStackInvalidWatch errors.Kind = "invalid stack.watch attribute"
 )
 
 // ensure we get a compiler error if stack doesn't implement errors.StackMeta.
-var _ errors.StackMeta = &S{}
+var _ errors.StackMeta = &Stack{}
 
-// New creates a new stack from configuration cfg.
-func New(root string, cfg hcl.Config) (*S, error) {
+// NewStack creates a new stack from raw configuration cfg.
+func NewStack(root string, cfg hcl.Config) (*Stack, error) {
 	name := cfg.Stack.Name
 	if name == "" {
 		name = filepath.Base(cfg.AbsDir())
@@ -123,10 +118,10 @@ func New(root string, cfg hcl.Config) (*S, error) {
 
 	watchFiles, err := validateWatchPaths(root, cfg.AbsDir(), cfg.Stack.Watch)
 	if err != nil {
-		return nil, errors.E(err, ErrInvalidWatch)
+		return nil, errors.E(err, ErrStackInvalidWatch)
 	}
 
-	return &S{
+	return &Stack{
 		name:          name,
 		id:            cfg.Stack.ID,
 		desc:          cfg.Stack.Description,
@@ -135,72 +130,72 @@ func New(root string, cfg hcl.Config) (*S, error) {
 		wants:         cfg.Stack.Wants,
 		wantedBy:      cfg.Stack.WantedBy,
 		watch:         watchFiles,
-		hostpath:      cfg.AbsDir(),
-		path:          project.PrjAbsPath(root, cfg.AbsDir()),
+		hostdir:       cfg.AbsDir(),
+		dir:           project.PrjAbsPath(root, cfg.AbsDir()),
 		relPathToRoot: filepath.ToSlash(rel),
 	}, nil
 }
 
 // ID of the stack if it has one, or empty string and false otherwise.
-func (s *S) ID() (string, bool) {
+func (s *Stack) ID() (string, bool) {
 	return s.id.Value()
 }
 
 // Name of the stack.
-func (s *S) Name() string {
+func (s *Stack) Name() string {
 	if s.name != "" {
 		return s.name
 	}
-	return s.Path().String()
+	return s.Dir().String()
 }
 
 // Desc is the description of the stack.
-func (s *S) Desc() string { return s.desc }
+func (s *Stack) Desc() string { return s.desc }
 
 // After specifies the list of stacks that must run before this stack.
-func (s S) After() []string { return s.after }
+func (s Stack) After() []string { return s.after }
 
 // Before specifies the list of stacks that must run after this stack.
-func (s S) Before() []string { return s.before }
+func (s Stack) Before() []string { return s.before }
 
 // AppendBefore appends the path to the list of stacks that must run after this
 // stack.
-func (s *S) AppendBefore(path string) {
+func (s *Stack) AppendBefore(path string) {
 	s.before = append(s.before, path)
 }
 
 // Wants specifies the list of wanted stacks.
-func (s S) Wants() []string { return s.wants }
+func (s Stack) Wants() []string { return s.wants }
 
 // WantedBy specifies the list of stacks that wants this stack.
-func (s S) WantedBy() []string { return s.wantedBy }
+func (s Stack) WantedBy() []string { return s.wantedBy }
 
 // Watch returns the list of watched files.
-func (s *S) Watch() []project.Path { return s.watch }
+func (s *Stack) Watch() []project.Path { return s.watch }
 
 // IsChanged tells if the stack is marked as changed.
-func (s *S) IsChanged() bool { return s.changed }
+func (s *Stack) IsChanged() bool { return s.changed }
 
 // SetChanged sets the changed flag of the stack.
-func (s *S) SetChanged(b bool) { s.changed = b }
+func (s *Stack) SetChanged(b bool) { s.changed = b }
 
 // String representation of the stack.
-func (s *S) String() string { return s.Path().String() }
+func (s *Stack) String() string { return s.Dir().String() }
 
-// Path returns the project's absolute path of stack.
-func (s *S) Path() project.Path { return s.path }
+// Dir is the directory of the stack.
+func (s *Stack) Dir() project.Path { return s.dir }
 
 // PathBase returns the base name of the stack path.
-func (s *S) PathBase() string { return filepath.Base(s.path.String()) }
+func (s *Stack) PathBase() string { return filepath.Base(s.dir.String()) }
 
 // RelPath returns the project's relative path of stack.
-func (s *S) RelPath() string { return s.path.String()[1:] }
+func (s *Stack) RelPath() string { return s.dir.String()[1:] }
 
 // RelPathToRoot returns the relative path from the stack to root.
-func (s *S) RelPathToRoot() string { return s.relPathToRoot }
+func (s *Stack) RelPathToRoot() string { return s.relPathToRoot }
 
-// HostPath returns the file system absolute path of stack.
-func (s *S) HostPath() string { return s.hostpath }
+// HostDir returns the file system absolute path of stack.
+func (s *Stack) HostDir() string { return s.hostdir }
 
 func validateWatchPaths(rootdir string, stackpath string, paths []string) (project.Paths, error) {
 	var projectPaths project.Paths
@@ -231,13 +226,13 @@ func validateWatchPaths(rootdir string, stackpath string, paths []string) (proje
 	return projectPaths, nil
 }
 
-// StacksFromTrees converts a config.List into a stack.List.
-func StacksFromTrees(root string, trees config.List) (List, error) {
-	var stacks List
+// StacksFromTrees converts a List[*Tree] into a List[*Stack].
+func StacksFromTrees(root string, trees List[*Tree]) (List[*Stack], error) {
+	var stacks List[*Stack]
 	for _, tree := range trees {
-		s, err := New(root, tree.Node)
+		s, err := NewStack(root, tree.Node)
 		if err != nil {
-			return List{}, err
+			return List[*Stack]{}, err
 		}
 		stacks = append(stacks, s)
 	}
@@ -245,28 +240,28 @@ func StacksFromTrees(root string, trees config.List) (List, error) {
 }
 
 // NewProjectMetadata creates project metadata from a given rootdir and a list of stacks.
-func NewProjectMetadata(rootdir string, stacks List) project.Metadata {
+func NewProjectMetadata(rootdir string, stacks List[*Stack]) project.Metadata {
 	stackPaths := make(project.Paths, len(stacks))
 	for i, st := range stacks {
-		stackPaths[i] = st.Path()
+		stackPaths[i] = st.Dir()
 	}
 	return project.NewMetadata(rootdir, stackPaths)
 }
 
-// LoadAll loads all stacks inside the given rootdir.
-func LoadAll(cfg *config.Tree) (List, error) {
+// LoadAllStacks loads all stacks inside the given rootdir.
+func LoadAllStacks(cfg *Tree) (List[*Stack], error) {
 	logger := log.With().
 		Str("action", "stack.LoadAll()").
 		Str("root", cfg.RootDir()).
 		Logger()
 
-	stacks := List{}
-	stacksIDs := map[string]*S{}
+	stacks := List[*Stack]{}
+	stacksIDs := map[string]*Stack{}
 
 	for _, stackNode := range cfg.Stacks() {
-		stack, err := New(cfg.RootDir(), stackNode.Node)
+		stack, err := NewStack(cfg.RootDir(), stackNode.Node)
 		if err != nil {
-			return List{}, err
+			return List[*Stack]{}, err
 		}
 
 		logger := logger.With().
@@ -279,10 +274,10 @@ func LoadAll(cfg *config.Tree) (List, error) {
 		if id, ok := stack.ID(); ok {
 			logger.Trace().Msg("stack has ID, checking for duplicate")
 			if otherStack, ok := stacksIDs[id]; ok {
-				return List{}, errors.E(ErrDuplicatedID,
+				return List[*Stack]{}, errors.E(ErrStackDuplicatedID,
 					"stack %q and %q have same ID %q",
-					stack.Path(),
-					otherStack.Path(),
+					stack.Dir(),
+					otherStack.Dir(),
 					id,
 				)
 			}
@@ -293,8 +288,8 @@ func LoadAll(cfg *config.Tree) (List, error) {
 	return stacks, nil
 }
 
-// Load a single stack from dir.
-func Load(root *config.Root, dir string) (*S, error) {
+// LoadStack a single stack from dir.
+func LoadStack(root *Root, dir string) (*Stack, error) {
 	path := project.PrjAbsPath(root.Dir(), dir)
 	node, ok := root.Lookup(path)
 	if !ok {
@@ -303,12 +298,12 @@ func Load(root *config.Root, dir string) (*S, error) {
 	if !node.IsStack() {
 		return nil, errors.E("config at %s is not a stack")
 	}
-	return New(root.Dir(), node.Node)
+	return NewStack(root.Dir(), node.Node)
 }
 
-// TryLoad tries to load a single stack from dir. It sets found as true in case
+// TryLoadStack tries to load a single stack from dir. It sets found as true in case
 // the stack was successfully loaded.
-func TryLoad(root *config.Root, cfgdir project.Path) (stack *S, found bool, err error) {
+func TryLoadStack(root *Root, cfgdir project.Path) (stack *Stack, found bool, err error) {
 	tree, ok := root.Lookup(cfgdir)
 	if !ok {
 		return nil, false, nil
@@ -318,20 +313,15 @@ func TryLoad(root *config.Root, cfgdir project.Path) (stack *S, found bool, err 
 		return nil, false, nil
 	}
 
-	s, err := New(root.Dir(), tree.Node)
+	s, err := NewStack(root.Dir(), tree.Node)
 	if err != nil {
 		return nil, true, err
 	}
 	return s, true, nil
 }
 
-// Sort sorts the given stacks.
-func Sort(stacks []*S) {
-	sort.Sort(List(stacks))
-}
-
-// Reverse reverses the given stacks slice.
-func Reverse(stacks List) {
+// ReverseStacks reverses the given stacks slice.
+func ReverseStacks(stacks List[*Stack]) {
 	i, j := 0, len(stacks)-1
 	for i < j {
 		stacks[i], stacks[j] = stacks[j], stacks[i]
@@ -341,14 +331,10 @@ func Reverse(stacks List) {
 }
 
 // Paths returns the project paths from the stack list.
-func (l List) Paths() project.Paths {
+func (l List[T]) Paths() project.Paths {
 	paths := make(project.Paths, len(l))
 	for i, s := range l {
-		paths[i] = s.Path()
+		paths[i] = s.Dir()
 	}
 	return paths
 }
-
-func (l List) Len() int           { return len(l) }
-func (l List) Less(i, j int) bool { return l[i].Path() < l[j].Path() }
-func (l List) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
