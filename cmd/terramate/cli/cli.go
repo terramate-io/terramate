@@ -542,7 +542,7 @@ func (c *cli) vendorDir() prj.Path {
 
 		dir := c.parsedArgs.Experimental.Vendor.Download.Dir
 		if !path.IsAbs(dir) {
-			dir = path.Join(prj.PrjAbsPath(c.rootdir(), c.wd()).String(), dir)
+			dir = prj.PrjAbsPath(c.rootdir(), c.wd()).Join(dir).String()
 		}
 		return prj.NewPath(dir)
 	}
@@ -609,12 +609,17 @@ func (c *cli) triggerStack() {
 	}
 
 	stack = filepath.Clean(stack)
+
+	if tmp, err := filepath.EvalSymlinks(stack); err != nil || tmp != stack {
+		errlog.Fatal(logger, errors.E("symlinks are disallowed in the stack path"))
+	}
+
 	if !strings.HasPrefix(stack, c.rootdir()) {
 		errlog.Fatal(logger, errors.E("stack %s is outside project", stack))
 	}
 
 	stackPath := prj.PrjAbsPath(c.rootdir(), stack)
-	if err := trigger.Create(c.rootdir(), stackPath, reason); err != nil {
+	if err := trigger.Create(c.cfg(), stackPath, reason); err != nil {
 		errlog.Fatal(logger, err)
 	}
 

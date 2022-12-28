@@ -132,7 +132,8 @@ globals {
       }
     }
   }
-}```
+}
+```
 
 which will result the object below:
 
