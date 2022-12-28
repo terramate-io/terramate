@@ -542,7 +542,7 @@ func (c *cli) vendorDir() prj.Path {
 
 		dir := c.parsedArgs.Experimental.Vendor.Download.Dir
 		if !path.IsAbs(dir) {
-			dir = path.Join(prj.PrjAbsPath(c.rootdir(), c.wd()).String(), dir)
+			dir = prj.PrjAbsPath(c.rootdir(), c.wd()).Join(dir).String()
 		}
 		return prj.NewPath(dir)
 	}
