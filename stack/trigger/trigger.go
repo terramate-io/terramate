@@ -225,7 +225,7 @@ func Create(root *config.Root, path project.Path, reason string) error {
 	triggerBody := gen.Body().AppendNewBlock("trigger", nil).Body()
 	triggerBody.SetAttributeValue("ctime", cty.NumberIntVal(ctime))
 	triggerBody.SetAttributeValue("reason", cty.StringVal(reason))
-	triggerBody.SetAttributeRaw("type", hclwrite.TokensForIdentifier(DefaultContext))
+	triggerBody.SetAttributeRaw("type", hclwrite.TokensForIdentifier(DefaultType))
 	triggerBody.SetAttributeRaw("context", hclwrite.TokensForIdentifier(DefaultContext))
 
 	triggerPath := filepath.Join(triggerDir, filename)
