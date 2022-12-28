@@ -143,11 +143,33 @@ func TestTriggerParser(t *testing.T) {
 			err:  errors.E(trigger.ErrParsing),
 		},
 		{
-			name: "works",
+			name: "valid file",
 			body: Trigger(
 				Number("ctime", 1000000),
 				Str("reason", "something"),
 			),
+		},
+		{
+			name: "multiple trigger blocks - fails",
+			body: Doc(
+				Trigger(
+					Number("ctime", 1000000),
+					Str("reason", "1"),
+				),
+				Trigger(
+					Number("ctime", 2000000),
+					Str("reason", "2"),
+				),
+			),
+			err: errors.E(trigger.ErrParsing),
+		},
+		{
+			name: "unexpected block",
+			body: Block("strange",
+				Number("ctime", 1000000),
+				Str("reason", "something"),
+			),
+			err: errors.E(trigger.ErrParsing),
 		},
 		{
 			name: "invalid attribute",

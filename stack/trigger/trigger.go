@@ -87,8 +87,8 @@ func ParseFile(path string) (Info, error) {
 		return Info{}, errors.E(ErrParsing, diags, "checking trigger block schema")
 	}
 
-	if len(rootContent.Blocks) == 0 {
-		return Info{}, errors.E(ErrParsing, "trigger block not found")
+	if len(rootContent.Blocks) != 1 {
+		return Info{}, errors.E(ErrParsing, "found %d blocks but expected 1")
 	}
 
 	triggerBlock := rootContent.Blocks[0]
