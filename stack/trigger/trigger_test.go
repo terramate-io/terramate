@@ -15,6 +15,7 @@
 package trigger_test
 
 import (
+	"fmt"
 	"math"
 	"path/filepath"
 	"testing"
@@ -26,6 +27,8 @@ import (
 	"github.com/mineiros-io/terramate/stack/trigger"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
+	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
+
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
 )
@@ -122,6 +125,131 @@ func testTrigger(t *testing.T, tc testcase) {
 
 	assert.IsTrue(t, ok)
 	assert.EqualStrings(t, tc.path, gotPath.String())
+}
+
+func TestTriggerParser(t *testing.T) {
+	t.Parallel()
+	type testcase struct {
+		name string
+		body fmt.Stringer
+		err  error
+	}
+	for _, tc := range []testcase{
+		{
+			name: "no config",
+			body: Doc(),
+			err:  errors.E(trigger.ErrParsing),
+		},
+		{
+			name: "missing required attributes",
+			body: Trigger(),
+			err:  errors.E(trigger.ErrParsing),
+		},
+		{
+			name: "valid file",
+			body: Trigger(
+				Number("ctime", 1000000),
+				Str("reason", "something"),
+				Expr("type", "changed"),
+				Expr("context", "stack"),
+			),
+		},
+		{
+			name: "multiple trigger blocks - fails",
+			body: Doc(
+				Trigger(
+					Number("ctime", 1000000),
+					Str("reason", "1"),
+					Expr("type", "changed"),
+					Expr("context", "stack"),
+				),
+				Trigger(
+					Number("ctime", 2000000),
+					Str("reason", "2"),
+					Expr("type", "changed"),
+					Expr("context", "stack"),
+				),
+			),
+			err: errors.E(trigger.ErrParsing),
+		},
+		{
+			name: "unexpected block",
+			body: Block("strange",
+				Number("ctime", 1000000),
+				Str("reason", "something"),
+				Expr("type", "changed"),
+				Expr("context", "stack"),
+			),
+			err: errors.E(trigger.ErrParsing),
+		},
+		{
+			name: "invalid attribute",
+			body: Trigger(
+				Number("ctime", 1000000),
+				Str("reason", "something"),
+				Expr("type", "changed"),
+				Expr("context", "stack"),
+				Str("invalid", "value"),
+			),
+			err: errors.E(trigger.ErrParsing),
+		},
+		{
+			name: "ctime not number",
+			body: Trigger(
+				Str("ctime", "1000000"),
+				Str("reason", "something"),
+				Expr("type", "changed"),
+				Expr("context", "stack"),
+			),
+			err: errors.E(trigger.ErrParsing),
+		},
+		{
+			name: "funcall not supported",
+			body: Trigger(
+				Str("ctime", "1000000"),
+				Expr("reason", `tm_title("something")`),
+				Expr("type", "changed"),
+				Expr("context", "stack"),
+			),
+			err: errors.E(trigger.ErrParsing),
+		},
+		{
+			name: "reason not string",
+			body: Trigger(
+				Str("ctime", "1000000"),
+				Expr("reason", `["wrong"]`),
+				Expr("type", "changed"),
+				Expr("context", "stack"),
+			),
+			err: errors.E(trigger.ErrParsing),
+		},
+		{
+			name: "type not a keyword",
+			body: Trigger(
+				Str("ctime", "1000000"),
+				Expr("reason", `["wrong"]`),
+				Str("type", "changed"),
+				Expr("context", "stack"),
+			),
+			err: errors.E(trigger.ErrParsing),
+		},
+		{
+			name: "context not a keyword",
+			body: Trigger(
+				Str("ctime", "1000000"),
+				Expr("reason", `["wrong"]`),
+				Expr("type", "changed"),
+				Str("context", "stack"),
+			),
+			err: errors.E(trigger.ErrParsing),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			file := test.WriteFile(t, t.TempDir(), "test-trigger.hcl", tc.body.String())
+			_, err := trigger.ParseFile(file)
+			errtest.Assert(t, err, tc.err, "when parsing: %s", tc.body)
+		})
+	}
 }
 
 func init() {
