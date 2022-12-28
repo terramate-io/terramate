@@ -207,7 +207,7 @@ func TestErrorString(t *testing.T) {
 			name: "simple message with stack",
 			err: E(syntaxError, "failed to parse config", stackmeta{
 				name: "test",
-				dir:  "/test",
+				dir:  project.NewPath("/test"),
 				desc: "test desc",
 			}),
 			want: fmt("%s: failed to parse config: at stack \"/test\"", syntaxError),
@@ -311,12 +311,12 @@ func TestErrorIs(t *testing.T) {
 	stack := stackmeta{
 		name: "stack",
 		desc: "desc",
-		dir:  "/stack",
+		dir:  project.NewPath("/stack"),
 	}
 	otherStack := stackmeta{
 		name: "otherstack",
 		desc: "other desc",
-		dir:  "/otherstack",
+		dir:  project.NewPath("/otherstack"),
 	}
 	filerange := hcl.Range{
 		Filename: "test.tm",
@@ -530,7 +530,7 @@ func TestDetailedRepresentation(t *testing.T) {
 	stack := stackmeta{
 		name: "stack",
 		desc: "desc",
-		dir:  "/stack",
+		dir:  project.NewPath("/stack"),
 	}
 	filerange := hcl.Range{
 		Filename: "test.tm",

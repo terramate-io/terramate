@@ -16,6 +16,7 @@ package run_test
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"testing"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/run"
 	"github.com/mineiros-io/terramate/test"
 	errorstest "github.com/mineiros-io/terramate/test/errors"
@@ -248,7 +250,7 @@ func TestLoadRunEnv(t *testing.T) {
 					return
 				}
 
-				stack, err := config.LoadStack(root, filepath.Join(s.RootDir(), stackRelPath))
+				stack, err := config.LoadStack(root, project.NewPath(path.Join("/", stackRelPath)))
 				assert.NoError(t, err)
 
 				gotvars, err := run.LoadEnv(root, projmeta, stack)

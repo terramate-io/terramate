@@ -296,8 +296,7 @@ func TestModVendorRecursiveMustPatchAlreadyVendoredModules(t *testing.T) {
 	modsrcZtest, err := tf.ParseSource(modZ + "?ref=test")
 	assert.NoError(t, err)
 
-	const vendorDir = project.Path("/modules")
-
+	vendorDir := project.NewPath("/modules")
 	modFileA := filepath.Join(
 		modvendor.AbsVendorDir(s.RootDir(), vendorDir, modsrcA),
 		filename,

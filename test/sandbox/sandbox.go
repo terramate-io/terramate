@@ -215,10 +215,10 @@ func (s S) GenerateWith(root *config.Root, vendorDir project.Path) generate.Repo
 }
 
 // LoadStack load the stack given its relative path.
-func (s S) LoadStack(relpath string) *config.Stack {
+func (s S) LoadStack(dir project.Path) *config.Stack {
 	s.t.Helper()
 
-	st, err := config.LoadStack(s.Config(), filepath.Join(s.rootdir, relpath))
+	st, err := config.LoadStack(s.Config(), dir)
 	assert.NoError(s.t, err)
 
 	return st
@@ -535,7 +535,7 @@ func (se StackEntry) ReadFile(filename string) string {
 // Load loads the terramate stack instance for this stack dir entry.
 func (se StackEntry) Load(root *config.Root) *config.Stack {
 	se.t.Helper()
-	loadedStack, err := config.LoadStack(root, se.Path())
+	loadedStack, err := config.LoadStack(root, project.PrjAbsPath(root.HostDir(), se.Path()))
 	assert.NoError(se.t, err)
 	return loadedStack
 }
@@ -599,7 +599,7 @@ func parseListSpec(t testing.TB, name, value string) []string {
 func buildTree(t testing.TB, root *config.Root, layout []string) {
 	t.Helper()
 
-	rootdir := root.Dir()
+	rootdir := root.HostDir()
 	parsePathData := func(spec string) (string, string) {
 		tmp := spec[2:]
 		if len(tmp) == 0 {

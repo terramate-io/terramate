@@ -21,6 +21,7 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/project"
 	errtest "github.com/mineiros-io/terramate/test/errors"
 )
 
@@ -57,7 +58,7 @@ Error details: such fail, much terrible`,
 				BootstrapErr: errors.E("ignore"),
 				Successes: []generate.Result{
 					{
-						Dir:     "/test",
+						Dir:     project.NewPath("/test"),
 						Created: []string{"test"},
 					},
 				},
@@ -77,19 +78,19 @@ Error details: ignore`,
 			report: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir:     "/test",
+						Dir:     project.NewPath("/test"),
 						Created: []string{"test"},
 					},
 					{
-						Dir:     "/test2",
+						Dir:     project.NewPath("/test2"),
 						Changed: []string{"test"},
 					},
 					{
-						Dir:     "/test3",
+						Dir:     project.NewPath("/test3"),
 						Deleted: []string{"test"},
 					},
 					{
-						Dir:     "/test4",
+						Dir:     project.NewPath("/test4"),
 						Created: []string{"created1.tf", "created2.tf"},
 						Changed: []string{"changed.tf", "changed2.tf"},
 						Deleted: []string{"removed1.tf", "removed2.tf"},
@@ -134,13 +135,13 @@ Deleted file /test4/removed2.tf`,
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							Dir: "/test",
+							Dir: project.NewPath("/test"),
 						},
 						Error: errors.E("full error"),
 					},
 					{
 						Result: generate.Result{
-							Dir:     "/test2",
+							Dir:     project.NewPath("/test2"),
 							Created: []string{"created1.tf", "created2.tf"},
 							Changed: []string{"changed.tf", "changed2.tf"},
 							Deleted: []string{"removed1.tf", "removed2.tf"},
@@ -180,13 +181,13 @@ Deleted file /test2/removed2.tf`,
 			report: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir:     "/success",
+						Dir:     project.NewPath("/success"),
 						Created: []string{"created.tf"},
 						Changed: []string{"changed.tf"},
 						Deleted: []string{"removed.tf"},
 					},
 					{
-						Dir:     "/success2",
+						Dir:     project.NewPath("/success2"),
 						Created: []string{"created.tf"},
 						Changed: []string{"changed.tf"},
 						Deleted: []string{"removed.tf"},
@@ -195,13 +196,13 @@ Deleted file /test2/removed2.tf`,
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							Dir: "/failed",
+							Dir: project.NewPath("/failed"),
 						},
 						Error: errors.E("error"),
 					},
 					{
 						Result: generate.Result{
-							Dir: "/failed2",
+							Dir: project.NewPath("/failed2"),
 						},
 						Error: errors.E("error"),
 					},
@@ -245,19 +246,19 @@ Error on /failed2: error`,
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							Dir: "/empty",
+							Dir: project.NewPath("/empty"),
 						},
 						Error: errors.L(),
 					},
 					{
 						Result: generate.Result{
-							Dir: "/failed",
+							Dir: project.NewPath("/failed"),
 						},
 						Error: errors.L(errors.E("error")),
 					},
 					{
 						Result: generate.Result{
-							Dir: "/failed2",
+							Dir: project.NewPath("/failed2"),
 						},
 						Error: errors.L(
 							errors.E("error1"),
@@ -289,7 +290,7 @@ Error on /failed2: error2`,
 			report: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir:     "/success",
+						Dir:     project.NewPath("/success"),
 						Created: []string{"created.tf"},
 						Changed: []string{"changed.tf"},
 						Deleted: []string{"removed.tf"},
@@ -381,7 +382,7 @@ func assertEqualReports(t *testing.T, got, want generate.Report) {
 
 	errtest.Assert(t, got.BootstrapErr, want.BootstrapErr)
 
-	if diff := cmp.Diff(got.Successes, want.Successes); diff != "" {
+	if diff := cmp.Diff(got.Successes, want.Successes, cmp.AllowUnexported(project.Path{})); diff != "" {
 		t.Errorf("success results differs: got(-) want(+)")
 		t.Error(diff)
 	}
@@ -394,7 +395,8 @@ func assertEqualReports(t *testing.T, got, want generate.Report) {
 	for i, gotFailure := range got.Failures {
 		wantFailure := want.Failures[i]
 
-		if diff := cmp.Diff(gotFailure.Result, wantFailure.Result); diff != "" {
+		if diff := cmp.Diff(gotFailure.Result, wantFailure.Result,
+			cmp.AllowUnexported(project.Path{})); diff != "" {
 			t.Errorf("failure result differs: got(-) want(+)")
 			t.Fatal(diff)
 		}

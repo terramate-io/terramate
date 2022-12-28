@@ -44,7 +44,7 @@ const (
 // - If cloned stack has an ID it will be adjusted to a generated UUID.
 // - If cloned stack has no ID the cloned stack also won't have an ID.
 func Clone(root *config.Root, destdir, srcdir string) error {
-	rootdir := root.Dir()
+	rootdir := root.HostDir()
 
 	logger := log.With().
 		Str("action", "stack.Clone()").
@@ -67,7 +67,7 @@ func Clone(root *config.Root, destdir, srcdir string) error {
 		return errors.E(ErrCloneDestDirExists, destdir)
 	}
 
-	srcStack, err := config.LoadStack(root, srcdir)
+	srcStack, err := config.LoadStack(root, project.PrjAbsPath(root.HostDir(), srcdir))
 	if err != nil {
 		return errors.E(ErrInvalidStackDir, err, "src dir %q must be a valid stack", srcdir)
 	}

@@ -61,12 +61,12 @@ func StackPath(triggerFile project.Path) (project.Path, bool) {
 	const triggersPrefix = "/" + triggersDir
 
 	if !triggerFile.HasPrefix(triggersPrefix) {
-		return project.Path("/"), false
+		return project.NewPath("/"), false
 	}
 
 	stackPath := strings.TrimPrefix(triggerFile.String(), triggersPrefix)
 	stackPath = path.Dir(stackPath)
-	return project.Path(stackPath), true
+	return project.NewPath(stackPath), true
 }
 
 // ParseFile will parse the given trigger file.
@@ -168,7 +168,7 @@ func Create(root *config.Root, path project.Path, reason string) error {
 	if err != nil {
 		return errors.E(ErrTrigger, err)
 	}
-	triggerDir := filepath.Join(root.Dir(), triggersDir, path.String())
+	triggerDir := filepath.Join(root.HostDir(), triggersDir, path.String())
 	if err := os.MkdirAll(triggerDir, 0775); err != nil {
 		return errors.E(ErrTrigger, err, "creating trigger dir")
 	}

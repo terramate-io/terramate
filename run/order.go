@@ -35,7 +35,7 @@ func Sort(root *config.Root, stacks config.List[*config.Stack]) (config.List[*co
 
 	logger := log.With().
 		Str("action", "run.Sort()").
-		Str("root", root.Dir()).
+		Str("root", root.HostDir()).
 		Logger()
 
 	logger.Trace().Msg("Computes implicit hierarchical order.")
@@ -63,7 +63,7 @@ func Sort(root *config.Root, stacks config.List[*config.Stack]) (config.List[*co
 
 	visited := dag.Visited{}
 	for _, s := range stacks {
-		if _, ok := visited[dag.ID(s.Dir())]; ok {
+		if _, ok := visited[dag.ID(s.Dir().String())]; ok {
 			continue
 		}
 
@@ -147,22 +147,22 @@ func BuildDAG(
 ) error {
 	logger := log.With().
 		Str("action", "run.BuildDAG()").
-		Str("path", root.Dir()).
+		Str("path", root.HostDir()).
 		Stringer("stack", s.Dir()).
 		Logger()
 
-	if _, ok := visited[dag.ID(s.Dir())]; ok {
+	if _, ok := visited[dag.ID(s.Dir().String())]; ok {
 		return nil
 	}
 
-	visited[dag.ID(s.Dir())] = struct{}{}
+	visited[dag.ID(s.Dir().String())] = struct{}{}
 
 	removeWrongPaths := func(fieldname string, paths []string) []string {
 		cleanpaths := []string{}
 		for _, pathstr := range paths {
 			var abspath string
 			if path.IsAbs(pathstr) {
-				abspath = filepath.Join(root.Dir(), filepath.FromSlash(pathstr))
+				abspath = filepath.Join(root.HostDir(), filepath.FromSlash(pathstr))
 			} else {
 				abspath = filepath.Join(s.HostDir(), filepath.FromSlash(pathstr))
 			}
@@ -185,12 +185,12 @@ func BuildDAG(
 	ancestorPaths := removeWrongPaths(ancestorsName, getAncestors(*s))
 	descendantPaths := removeWrongPaths(descendantsName, getDescendants(*s))
 
-	ancestorStacks, err := config.StacksFromTrees(root.Dir(), root.StacksByPaths(s.Dir(), ancestorPaths...))
+	ancestorStacks, err := config.StacksFromTrees(root.HostDir(), root.StacksByPaths(s.Dir(), ancestorPaths...))
 	if err != nil {
 		return errors.E(err, "stack %q: failed to load the \"%s\" stacks",
 			s, ancestorsName)
 	}
-	descendantStacks, err := config.StacksFromTrees(root.Dir(), root.StacksByPaths(s.Dir(), descendantPaths...))
+	descendantStacks, err := config.StacksFromTrees(root.HostDir(), root.StacksByPaths(s.Dir(), descendantPaths...))
 	if err != nil {
 		return errors.E(err, "stack %q: failed to load the \"%s\" stacks",
 			s, descendantsName)
@@ -198,7 +198,7 @@ func BuildDAG(
 
 	logger.Debug().Msg("Add new node to DAG.")
 
-	err = d.AddNode(dag.ID(s.Dir()), s, toids(descendantStacks), toids(ancestorStacks))
+	err = d.AddNode(dag.ID(s.Dir().String()), s, toids(descendantStacks), toids(ancestorStacks))
 	if err != nil {
 		return errors.E("stack %q: failed to build DAG: %w", s, err)
 	}
@@ -212,11 +212,11 @@ func BuildDAG(
 	for _, s := range stacks {
 		logger = log.With().
 			Str("action", "run.BuildDAG()").
-			Str("path", root.Dir()).
+			Str("path", root.HostDir()).
 			Stringer("stack", s.Dir()).
 			Logger()
 
-		if _, ok := visited[dag.ID(s.Dir())]; ok {
+		if _, ok := visited[dag.ID(s.Dir().String())]; ok {
 			continue
 		}
 
@@ -234,7 +234,7 @@ func BuildDAG(
 func toids(values config.List[*config.Stack]) []dag.ID {
 	ids := make([]dag.ID, 0, len(values))
 	for _, v := range values {
-		ids = append(ids, dag.ID(v.Dir()))
+		ids = append(ids, dag.ID(v.Dir().String()))
 	}
 	return ids
 }

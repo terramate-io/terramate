@@ -93,11 +93,11 @@ func (m *Manager) List() (*StacksReport, error) {
 		Stacks: entries,
 	}
 
-	logger.Trace().Str("repo", m.root.Dir()).
+	logger.Trace().Str("repo", m.root.HostDir()).
 		Msg("Create git wrapper for repo.")
 
 	g, err := git.WithConfig(git.Config{
-		WorkingDir: m.root.Dir(),
+		WorkingDir: m.root.HostDir(),
 	})
 	if err != nil {
 		return nil, errors.E(errList, err)
@@ -129,7 +129,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 	logger.Trace().Msg("Create git wrapper on project root.")
 
 	g, err := git.WithConfig(git.Config{
-		WorkingDir: m.root.Dir(),
+		WorkingDir: m.root.HostDir(),
 	})
 
 	if err != nil {
@@ -142,7 +142,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 		return nil, errors.E(
 			errListChanged,
 			"the path \"%s\" is not a git repository",
-			m.root.Dir(),
+			m.root.HostDir(),
 		)
 	}
 
@@ -153,7 +153,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 
 	logger.Debug().Msg("List changed files.")
 
-	changedFiles, err := listChangedFiles(m.root.Dir(), m.gitBaseRef)
+	changedFiles, err := listChangedFiles(m.root.HostDir(), m.gitBaseRef)
 	if err != nil {
 		return nil, errors.E(errListChanged, err)
 	}
@@ -161,8 +161,8 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 	stackSet := map[project.Path]Entry{}
 
 	for _, path := range changedFiles {
-		abspath := filepath.Join(m.root.Dir(), path)
-		projpath := project.PrjAbsPath(m.root.Dir(), abspath)
+		abspath := filepath.Join(m.root.HostDir(), path)
+		projpath := project.PrjAbsPath(m.root.HostDir(), abspath)
 		triggeredStack, isTriggerFile := trigger.StackPath(projpath)
 
 		logger = logger.With().
@@ -194,7 +194,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 				continue
 			}
 
-			s, err := config.NewStack(m.root.Dir(), cfg.Node)
+			s, err := config.NewStack(m.root.HostDir(), cfg.Node)
 			if err != nil {
 				return nil, errors.E(errListChanged, err)
 			}
@@ -208,7 +208,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 
 		dirname := filepath.Dir(abspath)
 
-		if _, ok := stackSet[project.PrjAbsPath(m.root.Dir(), dirname)]; ok {
+		if _, ok := stackSet[project.PrjAbsPath(m.root.HostDir(), dirname)]; ok {
 			continue
 		}
 
@@ -216,7 +216,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 			Str("path", dirname).
 			Msg("Try load changed.")
 
-		cfgpath := project.PrjAbsPath(m.root.Dir(), dirname)
+		cfgpath := project.PrjAbsPath(m.root.HostDir(), dirname)
 		stackTree, found := m.root.Lookup(cfgpath)
 		if !found || !stackTree.IsStack() {
 			logger.Debug().
@@ -236,7 +236,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 			}
 		}
 
-		s, err := config.NewStack(m.root.Dir(), stackTree.Node)
+		s, err := config.NewStack(m.root.HostDir(), stackTree.Node)
 		if err != nil {
 			return nil, errors.E(errListChanged, err)
 		}
@@ -421,17 +421,17 @@ func (m *Manager) AddWantedOf(scopeStacks config.List[*config.Stack]) (config.Li
 	var selectedStacks config.List[*config.Stack]
 	visited = dag.Visited{}
 	addStack := func(s *config.Stack) {
-		if _, ok := visited[dag.ID(s.Dir())]; ok {
+		if _, ok := visited[dag.ID(s.Dir().String())]; ok {
 			return
 		}
 
-		visited[dag.ID(s.Dir())] = struct{}{}
+		visited[dag.ID(s.Dir().String())] = struct{}{}
 		selectedStacks = append(selectedStacks, s)
 	}
 
 	var pending []dag.ID
 	for _, s := range scopeStacks {
-		pending = append(pending, dag.ID(s.Dir()))
+		pending = append(pending, dag.ID(s.Dir().String()))
 	}
 
 	for len(pending) > 0 {
@@ -649,7 +649,7 @@ func hasChangedWatchedFiles(stack *config.Stack, changedFiles []string) (project
 			}
 		}
 	}
-	return "", false
+	return project.Path{}, false
 }
 
 func checkRepoIsClean(g *git.Git) (RepoChecks, error) {
@@ -681,5 +681,5 @@ func checkRepoIsClean(g *git.Git) (RepoChecks, error) {
 type EntrySlice []Entry
 
 func (x EntrySlice) Len() int           { return len(x) }
-func (x EntrySlice) Less(i, j int) bool { return x[i].Stack.Dir() < x[j].Stack.Dir() }
+func (x EntrySlice) Less(i, j int) bool { return x[i].Stack.Dir().String() < x[j].Stack.Dir().String() }
 func (x EntrySlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }

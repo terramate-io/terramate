@@ -130,8 +130,8 @@ func LoadRoot(rootdir string) (*Root, error) {
 // Tree returns the root configuration tree.
 func (root *Root) Tree() *Tree { return &root.tree }
 
-// Dir returns the root directory.
-func (root *Root) Dir() string { return root.tree.RootDir() }
+// HostDir returns the root directory.
+func (root *Root) HostDir() string { return root.tree.RootDir() }
 
 // Lookup a node from the root using a filesystem query path.
 func (root *Root) Lookup(path project.Path) (*Tree, bool) {
@@ -189,7 +189,7 @@ func (root *Root) LoadSubTree(cfgdir project.Path) error {
 
 	var parentNode *Tree
 	parent = cfgdir.Dir()
-	for parent != "/" {
+	for parent.String() != "/" {
 		var found bool
 		parentNode, found = root.Lookup(parent)
 		if found {
@@ -202,7 +202,7 @@ func (root *Root) LoadSubTree(cfgdir project.Path) error {
 		parentNode = root.Tree()
 	}
 
-	rootdir := root.Dir()
+	rootdir := root.HostDir()
 
 	relpath := strings.TrimPrefix(cfgdir.String(), parent.String())
 	relpath = strings.TrimPrefix(relpath, "/")
@@ -318,7 +318,7 @@ func (tree *Tree) AsList() List[*Tree] {
 }
 
 func (l List[T]) Len() int           { return len(l) }
-func (l List[T]) Less(i, j int) bool { return l[i].Dir() < l[j].Dir() }
+func (l List[T]) Less(i, j int) bool { return l[i].Dir().String() < l[j].Dir().String() }
 func (l List[T]) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
 
 func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error) {
@@ -396,7 +396,7 @@ func (tree *Tree) IsEmptyConfig() bool {
 
 // IsStack returns true if the given directory is a stack, false otherwise.
 func IsStack(root *Root, dir string) bool {
-	node, ok := root.Lookup(project.PrjAbsPath(root.Dir(), dir))
+	node, ok := root.Lookup(project.PrjAbsPath(root.HostDir(), dir))
 	return ok && node.IsStack()
 }
 
