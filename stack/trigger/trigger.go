@@ -124,17 +124,31 @@ func ParseFile(path string) (Info, error) {
 	info := Info{}
 
 	for _, attribute := range ast.SortRawAttributes(triggerContent.Attributes) {
-		if attribute.Name == "context" {
-			// context is a keyword so it must be handled separately.
-			context := hcl.ExprAsKeyword(attribute.Expr)
-			if context != DefaultContext {
-				errs.Append(errors.E(
-					"trigger: invalid trigger.context = %s (available options: %s)",
-					context, DefaultContext,
-				))
-				continue
+		if attribute.Name == "context" || attribute.Name == "type" {
+			// they are keywords so they must be handled separately.
+			keyword := hcl.ExprAsKeyword(attribute.Expr)
+
+			switch attribute.Name {
+			case "context":
+				if keyword != DefaultContext {
+					errs.Append(errors.E(
+						"trigger: invalid trigger.context = %s (available options: %s)",
+						keyword, DefaultContext,
+					))
+					continue
+				}
+				info.Context = keyword
+			case "type":
+				if keyword != DefaultType {
+					errs.Append(errors.E(
+						"trigger: invalid trigger.type = %s (available options: %s)",
+						keyword, DefaultType,
+					))
+					continue
+				}
+				info.Type = keyword
 			}
-			info.Context = context
+
 			continue
 		}
 
@@ -158,12 +172,6 @@ func ParseFile(path string) (Info, error) {
 				continue
 			}
 			info.Reason = val.AsString()
-		case "type":
-			if val.Type() != cty.String {
-				errs.Append(errors.E("trigger: %s must be a string", attribute.Name))
-				continue
-			}
-			info.Type = val.AsString()
 		default:
 			errs.Append(errors.E("trigger: has unknown attribute %q", attribute.Name))
 		}
@@ -217,7 +225,7 @@ func Create(root *config.Root, path project.Path, reason string) error {
 	triggerBody := gen.Body().AppendNewBlock("trigger", nil).Body()
 	triggerBody.SetAttributeValue("ctime", cty.NumberIntVal(ctime))
 	triggerBody.SetAttributeValue("reason", cty.StringVal(reason))
-	triggerBody.SetAttributeValue("type", cty.StringVal(DefaultType))
+	triggerBody.SetAttributeRaw("type", hclwrite.TokensForIdentifier(DefaultContext))
 	triggerBody.SetAttributeRaw("context", hclwrite.TokensForIdentifier(DefaultContext))
 
 	triggerPath := filepath.Join(triggerDir, filename)
