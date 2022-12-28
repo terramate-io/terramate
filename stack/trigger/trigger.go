@@ -52,10 +52,15 @@ type Info struct {
 }
 
 const (
-	triggersDir    = ".tmtriggers"
-	DefaultType    = "changed"
+	// DefaultType is the default trigger type when not specified.
+	DefaultType = "changed"
+
+	// DefaultContext is the default context for the trigger file when not
+	// specified.
 	DefaultContext = "stack"
 )
+
+const triggersDir = ".tmtriggers"
 
 // StackPath accepts a trigger file path and returns the path of the stack
 // that is triggered by the given file. If the given file is not a stack trigger
