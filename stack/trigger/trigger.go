@@ -45,9 +45,17 @@ type Info struct {
 	Ctime int64
 	// Reason is the reason why the trigger was created, if any.
 	Reason string
+	// Type is the trigger type.
+	Type string
+	// Context is the context of the trigger (only `stack` at the moment)
+	Context string
 }
 
-const triggersDir = ".tmtriggers"
+const (
+	triggersDir    = ".tmtriggers"
+	DefaultType    = "changed"
+	DefaultContext = "stack"
+)
 
 // StackPath accepts a trigger file path and returns the path of the stack
 // that is triggered by the given file. If the given file is not a stack trigger
@@ -93,6 +101,14 @@ func ParseFile(path string) (Info, error) {
 				Name:     "reason",
 				Required: true,
 			},
+			{
+				Name:     "type",
+				Required: true,
+			},
+			{
+				Name:     "context",
+				Required: true,
+			},
 		},
 	})
 	if diags.HasErrors() {
@@ -103,6 +119,20 @@ func ParseFile(path string) (Info, error) {
 	info := Info{}
 
 	for _, attribute := range ast.SortRawAttributes(triggerContent.Attributes) {
+		if attribute.Name == "context" {
+			// context is a keyword so it must be handled separately.
+			context := hcl.ExprAsKeyword(attribute.Expr)
+			if context != DefaultContext {
+				errs.Append(errors.E(
+					"trigger: invalid trigger.context = %s (available options: %s)",
+					context, DefaultContext,
+				))
+				continue
+			}
+			info.Context = context
+			continue
+		}
+
 		val, err := attribute.Expr.Value(nil)
 		if err != nil {
 			errs.Append(errors.E(err, "trigger: failure evaluating %q", attribute.Name))
@@ -112,21 +142,37 @@ func ParseFile(path string) (Info, error) {
 		switch attribute.Name {
 		case "ctime":
 			if val.Type() != cty.Number {
-				errs.Append(errors.E(err, "trigger: %s must be a number", attribute.Name))
+				errs.Append(errors.E("trigger: %s must be a number", attribute.Name))
 				continue
 			}
 			v, _ := val.AsBigFloat().Int64()
 			info.Ctime = v
 		case "reason":
 			if val.Type() != cty.String {
-				errs.Append(errors.E(err, "trigger: %s must be a string", attribute.Name))
+				errs.Append(errors.E("trigger: %s must be a string", attribute.Name))
 				continue
 			}
 			info.Reason = val.AsString()
+		case "type":
+			if val.Type() != cty.String {
+				errs.Append(errors.E("trigger: %s must be a string", attribute.Name))
+				continue
+			}
+			info.Type = val.AsString()
 		default:
 			errs.Append(errors.E("trigger: has unknown attribute %q", attribute.Name))
 		}
 	}
+
+	// for backward compatibility (<= v0.2.7)
+	if info.Type == "" {
+		info.Type = DefaultType
+	}
+
+	if info.Context == "" {
+		info.Context = DefaultContext
+	}
+
 	return info, nil
 }
 
@@ -166,6 +212,8 @@ func Create(root *config.Root, path project.Path, reason string) error {
 	triggerBody := gen.Body().AppendNewBlock("trigger", nil).Body()
 	triggerBody.SetAttributeValue("ctime", cty.NumberIntVal(ctime))
 	triggerBody.SetAttributeValue("reason", cty.StringVal(reason))
+	triggerBody.SetAttributeValue("type", cty.StringVal(DefaultType))
+	triggerBody.SetAttributeRaw("context", hclwrite.TokensForIdentifier(DefaultContext))
 
 	triggerPath := filepath.Join(triggerDir, filename)
 

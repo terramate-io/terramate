@@ -115,6 +115,9 @@ func testTrigger(t *testing.T, tc testcase) {
 	assert.IsTrue(t, triggerInfo.Ctime > 0)
 	assert.IsTrue(t, triggerInfo.Ctime < math.MaxInt64)
 
+	assert.EqualStrings(t, trigger.DefaultContext, triggerInfo.Context)
+	assert.EqualStrings(t, trigger.DefaultType, triggerInfo.Type)
+
 	gotPath, ok := trigger.StackPath(project.PrjAbsPath(root.Dir(), triggerFile))
 
 	assert.IsTrue(t, ok)
