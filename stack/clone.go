@@ -78,7 +78,7 @@ func Clone(root *config.Root, destdir, srcdir string) error {
 		return err
 	}
 
-	if _, ok := srcStack.ID(); !ok {
+	if srcStack.ID == "" {
 		logger.Trace().Msg("stack has no ID, nothing else to do")
 		return nil
 	}
@@ -155,7 +155,7 @@ updateStackID:
 		body := block.Body()
 		attrs := body.Attributes()
 		for name := range attrs {
-			if name != hcl.StackIDField {
+			if name != "id" {
 				continue
 			}
 

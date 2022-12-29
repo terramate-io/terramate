@@ -48,9 +48,6 @@ const (
 const (
 	// StackBlockType name of the stack block type
 	StackBlockType = "stack"
-
-	// StackIDField name of the stack id field
-	StackIDField = "id"
 )
 
 // Config represents a Terramate configuration.
@@ -157,15 +154,10 @@ type Terramate struct {
 	Config *RootConfig
 }
 
-// StackID represents the stack ID. Its zero value represents an undefined ID.
-type StackID struct {
-	id *string
-}
-
 // Stack is the parsed "stack" HCL block.
 type Stack struct {
-	// ID of the stack. If the ID is nil it indicates this stack has no ID.
-	ID StackID
+	// ID of the stack. If the ID is empty it indicates this stack has no ID.
+	ID string
 
 	// Name of the stack
 	Name string
@@ -269,23 +261,14 @@ type TerramateParser struct {
 
 var stackIDRegex = regexp.MustCompile("^[a-zA-Z0-9_-]{1,64}$")
 
-// NewStackID creates a new StackID with the given string as its id.
+// ValidateStackID creates a new StackID with the given string as its id.
 // It guarantees that the id passed is a valid StackID value,
 // an error is returned otherwise.
-func NewStackID(id string) (StackID, error) {
+func ValidateStackID(id string) error {
 	if !stackIDRegex.MatchString(id) {
-		return StackID{}, errors.E("Stack ID %q doesn't match %q", id, stackIDRegex)
+		return errors.E("Stack ID %q doesn't match %q", id, stackIDRegex)
 	}
-	return StackID{id: &id}, nil
-}
-
-// Value returns the ID string value and true if this StackID is defined,
-// it returns "" and false otherwise.
-func (s StackID) Value() (string, bool) {
-	if s.id == nil {
-		return "", false
-	}
-	return *s.id, true
+	return nil
 }
 
 // NewGitConfig creates a git configuration with proper default values.
@@ -1133,7 +1116,7 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 			Msg("Setting attribute on configuration.")
 
 		switch attr.Name {
-		case StackIDField:
+		case "id":
 			if attrVal.Type() != cty.String {
 				errs.Append(hclAttrErr(attr,
 					"field stack.id must be a string but is %q",
@@ -1141,14 +1124,13 @@ func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) erro
 				)
 				continue
 			}
-			id, err := NewStackID(attrVal.AsString())
+			id := attrVal.AsString()
+			err := ValidateStackID(id)
 			if err != nil {
-				errs.Append(errors.E(attr.NameRange, err))
+				errs.Append(errors.E(attr.Expr.Range(), err))
 				continue
 			}
-			logger.Trace().
-				Str(StackIDField, attrVal.AsString()).
-				Msg("found valid stack ID definition")
+
 			stack.ID = id
 		case "name":
 			if attrVal.Type() != cty.String {

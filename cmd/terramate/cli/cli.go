@@ -1283,8 +1283,8 @@ func (c *cli) printMetadata() {
 			Msg("Print metadata for individual stack.")
 
 		c.output.MsgStdOut("\nstack %q:", stack.Dir())
-		if id, ok := stack.ID(); ok {
-			c.output.MsgStdOut("\tterramate.stack.id=%q", id)
+		if stack.ID != "" {
+			c.output.MsgStdOut("\tterramate.stack.id=%q", stack.ID)
 		}
 		c.output.MsgStdOut("\tterramate.stack.name=%q", stack.Name())
 		c.output.MsgStdOut("\tterramate.stack.description=%q", stack.Desc())

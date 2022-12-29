@@ -53,11 +53,11 @@ func TestHCLParserStackID(t *testing.T) {
 			}
 			`, id)
 	}
-	newStackID := func(id string) hcl.StackID {
+	newStackID := func(id string) string {
 		t.Helper()
-		v, err := hcl.NewStackID(id)
+		err := hcl.ValidateStackID(id)
 		assert.NoError(t, err)
-		return v
+		return id
 	}
 
 	for _, validID := range validIDs {
