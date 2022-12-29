@@ -1017,7 +1017,7 @@ func (c *cli) generateGraph() {
 	case "stack.name":
 		logger.Debug().Msg("Set label to stack name.")
 
-		getLabel = func(s *config.Stack) string { return s.Name() }
+		getLabel = func(s *config.Stack) string { return s.Name }
 	case "stack.dir":
 		logger.Debug().Msg("Set label stack directory.")
 
@@ -1048,9 +1048,9 @@ func (c *cli) generateGraph() {
 			c.cfg(),
 			e.Stack,
 			"before",
-			config.Stack.Before,
+			func(s config.Stack) []string { return s.Before },
 			"after",
-			config.Stack.After,
+			func(s config.Stack) []string { return s.After },
 			visited,
 		); err != nil {
 			fatal(err, "building order tree")
@@ -1286,8 +1286,8 @@ func (c *cli) printMetadata() {
 		if stack.ID != "" {
 			c.output.MsgStdOut("\tterramate.stack.id=%q", stack.ID)
 		}
-		c.output.MsgStdOut("\tterramate.stack.name=%q", stack.Name())
-		c.output.MsgStdOut("\tterramate.stack.description=%q", stack.Desc())
+		c.output.MsgStdOut("\tterramate.stack.name=%q", stack.Name)
+		c.output.MsgStdOut("\tterramate.stack.description=%q", stack.Description)
 		c.output.MsgStdOut("\tterramate.stack.path.absolute=%q", stack.Dir())
 		c.output.MsgStdOut("\tterramate.stack.path.basename=%q", stack.PathBase())
 		c.output.MsgStdOut("\tterramate.stack.path.relative=%q", stack.RelPath())
@@ -1543,7 +1543,7 @@ func (c *cli) runOnStacks() {
 
 			for i, s := range orderedStacks {
 				stackdir, _ := c.friendlyFmtDir(s.Dir().String())
-				c.output.MsgStdOut("\t%d. %s (%s)", i, s.Name(), stackdir)
+				c.output.MsgStdOut("\t%d. %s (%s)", i, s.Name, stackdir)
 			}
 		} else {
 			c.output.MsgStdOut("No stacks will be executed.")

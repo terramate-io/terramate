@@ -273,7 +273,7 @@ rangeStacks:
 				Stringer("watchfile", changed).
 				Msg("changed.")
 
-			stack.SetChanged(true)
+			stack.IsChanged = true
 			stackSet[stack.Dir()] = Entry{
 				Stack: stack,
 				Reason: fmt.Sprintf(
@@ -331,7 +331,7 @@ rangeStacks:
 						Str("configFile", tfpath).
 						Msg("Module changed.")
 
-					stack.SetChanged(true)
+					stack.IsChanged = true
 					stackSet[stack.Dir()] = Entry{
 						Stack: stack,
 						Reason: fmt.Sprintf(
@@ -391,9 +391,9 @@ func (m *Manager) AddWantedOf(scopeStacks config.List[*config.Stack]) (config.Li
 			m.root,
 			s,
 			"wanted_by",
-			config.Stack.WantedBy,
+			func(s config.Stack) []string { return s.WantedBy },
 			"wants",
-			config.Stack.Wants,
+			func(s config.Stack) []string { return s.Wants },
 			visited,
 		)
 
@@ -642,7 +642,7 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 }
 
 func hasChangedWatchedFiles(stack *config.Stack, changedFiles []string) (project.Path, bool) {
-	for _, watchFile := range stack.Watch() {
+	for _, watchFile := range stack.Watch {
 		for _, file := range changedFiles {
 			if file == watchFile.String()[1:] { // project paths
 				return watchFile, true

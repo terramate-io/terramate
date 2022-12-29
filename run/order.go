@@ -76,9 +76,9 @@ func Sort(root *config.Root, stacks config.List[*config.Stack]) (config.List[*co
 			root,
 			s,
 			"before",
-			config.Stack.Before,
+			func(s config.Stack) []string { return s.Before },
 			"after",
-			config.Stack.After,
+			func(s config.Stack) []string { return s.After },
 			visited,
 		)
 

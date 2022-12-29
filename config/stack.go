@@ -36,31 +36,31 @@ type (
 		// ID of the stack.
 		ID string
 
-		// name of the stack.
-		name string
+		// Name of the stack.
+		Name string
 
-		// desc is the description of the stack.
-		desc string
+		// Description is the description of the stack.
+		Description string
 
-		// after is a list of stack paths that must run before this stack.
-		after []string
+		// After is a list of stack paths that must run before this stack.
+		After []string
 
-		// before is a list of stack paths that must run after this stack.
-		before []string
+		// Before is a list of stack paths that must run after this stack.
+		Before []string
 
-		// wants is the list of stacks that must be selected whenever this stack
+		// Wants is the list of stacks that must be selected whenever this stack
 		// is selected.
-		wants []string
+		Wants []string
 
 		// wantedBy is the list of stacks that must select this stack
 		// whenever they are selected.
-		wantedBy []string
+		WantedBy []string
 
-		// watch is the list of files to be watched for changes.
-		watch []project.Path
+		// Watch is the list of files to be watched for changes.
+		Watch []project.Path
 
-		// changed tells if this is a changed stack.
-		changed bool
+		// IsChanged tells if this is a changed stack.
+		IsChanged bool
 	}
 )
 
@@ -85,55 +85,23 @@ func NewStack(root string, cfg hcl.Config) (*Stack, error) {
 	}
 
 	return &Stack{
-		name:     name,
-		ID:       cfg.Stack.ID,
-		desc:     cfg.Stack.Description,
-		after:    cfg.Stack.After,
-		before:   cfg.Stack.Before,
-		wants:    cfg.Stack.Wants,
-		wantedBy: cfg.Stack.WantedBy,
-		watch:    watchFiles,
-		dir:      project.PrjAbsPath(root, cfg.AbsDir()),
+		Name:        name,
+		ID:          cfg.Stack.ID,
+		Description: cfg.Stack.Description,
+		After:       cfg.Stack.After,
+		Before:      cfg.Stack.Before,
+		Wants:       cfg.Stack.Wants,
+		WantedBy:    cfg.Stack.WantedBy,
+		Watch:       watchFiles,
+		dir:         project.PrjAbsPath(root, cfg.AbsDir()),
 	}, nil
 }
-
-// Name of the stack.
-func (s *Stack) Name() string {
-	if s.name != "" {
-		return s.name
-	}
-	return s.Dir().String()
-}
-
-// Desc is the description of the stack.
-func (s *Stack) Desc() string { return s.desc }
-
-// After specifies the list of stacks that must run before this stack.
-func (s Stack) After() []string { return s.after }
-
-// Before specifies the list of stacks that must run after this stack.
-func (s Stack) Before() []string { return s.before }
 
 // AppendBefore appends the path to the list of stacks that must run after this
 // stack.
 func (s *Stack) AppendBefore(path string) {
-	s.before = append(s.before, path)
+	s.Before = append(s.Before, path)
 }
-
-// Wants specifies the list of wanted stacks.
-func (s Stack) Wants() []string { return s.wants }
-
-// WantedBy specifies the list of stacks that wants this stack.
-func (s Stack) WantedBy() []string { return s.wantedBy }
-
-// Watch returns the list of watched files.
-func (s *Stack) Watch() []project.Path { return s.watch }
-
-// IsChanged tells if the stack is marked as changed.
-func (s *Stack) IsChanged() bool { return s.changed }
-
-// SetChanged sets the changed flag of the stack.
-func (s *Stack) SetChanged(b bool) { s.changed = b }
 
 // String representation of the stack.
 func (s *Stack) String() string { return s.Dir().String() }
@@ -174,8 +142,8 @@ func (s *Stack) RuntimeValues(root *Root) map[string]cty.Value {
 		"to_root":  cty.StringVal(s.RelPathToRoot(root)),
 	})
 	stackMapVals := map[string]cty.Value{
-		"name":        cty.StringVal(s.Name()),
-		"description": cty.StringVal(s.Desc()),
+		"name":        cty.StringVal(s.Name),
+		"description": cty.StringVal(s.Description),
 		"path":        stackpath,
 	}
 	if s.ID != "" {
@@ -187,9 +155,9 @@ func (s *Stack) RuntimeValues(root *Root) map[string]cty.Value {
 	}
 	stack := cty.ObjectVal(stackMapVals)
 	return map[string]cty.Value{
-		"name":        cty.StringVal(s.Name()),         // DEPRECATED
+		"name":        cty.StringVal(s.Name),           // DEPRECATED
 		"path":        cty.StringVal(s.Dir().String()), // DEPRECATED
-		"description": cty.StringVal(s.Desc()),         // DEPRECATED
+		"description": cty.StringVal(s.Description),    // DEPRECATED
 		"stack":       stack,
 	}
 }
