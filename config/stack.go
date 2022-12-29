@@ -24,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
+	"github.com/zclconf/go-cty/cty"
 )
 
 type (
@@ -60,26 +61,6 @@ type (
 
 		// changed tells if this is a changed stack.
 		changed bool
-	}
-
-	// StackMetadata has all metadata loaded per stack
-	StackMetadata interface {
-		// ID of the stack if it has any. Empty string and false otherwise.
-		ID() (string, bool)
-		// Name of the stack.
-		Name() string
-		// HostDir is the absolute path of the stack on the host file system.
-		HostDir(*Root) string
-		// Dir is the absolute path of the stack (relative to project root).
-		Dir() project.Path
-		// RelPath is the relative path of the from root.
-		RelPath() string
-		// PathBase is the basename of the stack path.
-		PathBase() string
-		// Desc is the description of the stack (relative to project root).
-		Desc() string
-		// RelPathToRoot is the relative path from the stack to root.
-		RelPathToRoot(*Root) string
 	}
 )
 
@@ -186,6 +167,41 @@ func (s *Stack) HostDir(root *Root) string {
 	return project.AbsPath(root.HostDir(), s.Dir().String())
 }
 
+// RuntimeValues returns the runtime "terramate" namespace for the stack.
+func (s *Stack) RuntimeValues(root *Root) map[string]cty.Value {
+	logger := log.With().
+		Str("action", "stack.stackMetaToCtyMap()").
+		Logger()
+
+	logger.Trace().Msg("creating stack metadata")
+
+	stackpath := cty.ObjectVal(map[string]cty.Value{
+		"absolute": cty.StringVal(s.Dir().String()),
+		"relative": cty.StringVal(s.RelPath()),
+		"basename": cty.StringVal(s.PathBase()),
+		"to_root":  cty.StringVal(s.RelPathToRoot(root)),
+	})
+	stackMapVals := map[string]cty.Value{
+		"name":        cty.StringVal(s.Name()),
+		"description": cty.StringVal(s.Desc()),
+		"path":        stackpath,
+	}
+	if id, ok := s.ID(); ok {
+		logger.Trace().
+			Str("id", id).
+			Msg("adding stack ID to metadata")
+
+		stackMapVals["id"] = cty.StringVal(id)
+	}
+	stack := cty.ObjectVal(stackMapVals)
+	return map[string]cty.Value{
+		"name":        cty.StringVal(s.Name()),         // DEPRECATED
+		"path":        cty.StringVal(s.Dir().String()), // DEPRECATED
+		"description": cty.StringVal(s.Desc()),         // DEPRECATED
+		"stack":       stack,
+	}
+}
+
 func validateWatchPaths(rootdir string, stackpath string, paths []string) (project.Paths, error) {
 	var projectPaths project.Paths
 	for _, pathstr := range paths {
@@ -226,15 +242,6 @@ func StacksFromTrees(root string, trees List[*Tree]) (List[*Stack], error) {
 		stacks = append(stacks, s)
 	}
 	return stacks, nil
-}
-
-// NewProjectMetadata creates project metadata from a given rootdir and a list of stacks.
-func NewProjectMetadata(rootdir string, stacks List[*Stack]) project.Metadata {
-	stackPaths := make(project.Paths, len(stacks))
-	for i, st := range stacks {
-		stackPaths[i] = st.Dir()
-	}
-	return project.NewMetadata(rootdir, stackPaths)
 }
 
 // LoadAllStacks loads all stacks inside the given rootdir.
@@ -318,7 +325,7 @@ func ReverseStacks(stacks List[*Stack]) {
 	}
 }
 
-// Paths returns the project paths from the stack list.
+// Paths returns the project paths from the list.
 func (l List[T]) Paths() project.Paths {
 	paths := make(project.Paths, len(l))
 	for i, s := range l {

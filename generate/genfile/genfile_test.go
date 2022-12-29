@@ -970,8 +970,6 @@ func testGenfile(t *testing.T, tcase testcase) {
 
 		s := sandbox.New(t)
 		s.BuildTree([]string{"s:" + tcase.stack})
-		stacks := s.LoadStacks()
-		projmeta := config.NewProjectMetadata(s.RootDir(), stacks)
 		stack := s.LoadStacks()[0]
 
 		for _, cfg := range tcase.configs {
@@ -986,9 +984,9 @@ func testGenfile(t *testing.T, tcase testcase) {
 
 		assert.NoError(t, err)
 
-		globals := s.LoadStackGlobals(root, projmeta, stack)
+		globals := s.LoadStackGlobals(root, stack)
 		vendorDir := project.NewPath("/modules")
-		got, err := genfile.Load(root, projmeta, stack, globals, vendorDir, nil)
+		got, err := genfile.Load(root, stack, globals, vendorDir, nil)
 		errtest.Assert(t, err, tcase.wantErr)
 
 		if len(got) != len(tcase.want) {

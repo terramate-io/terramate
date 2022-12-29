@@ -3689,10 +3689,8 @@ func TestLoadGlobalsErrors(t *testing.T) {
 
 			stacks, err := config.LoadAllStacks(cfg)
 			assert.NoError(t, err)
-			projmeta := config.NewProjectMetadata(s.RootDir(), stacks)
-
 			for _, st := range stacks {
-				report := globals.ForStack(s.Config(), projmeta, st)
+				report := globals.ForStack(s.Config(), st)
 				errtest.Assert(t, report.AsError(), tcase.want)
 			}
 		})
@@ -3703,8 +3701,6 @@ func testGlobals(t *testing.T, tcase testcase) {
 	t.Run(tcase.name, func(t *testing.T) {
 		s := sandbox.New(t)
 		s.BuildTree(tcase.layout)
-		projmeta := s.LoadProjectMetadata()
-
 		for _, globalBlock := range tcase.configs {
 			path := filepath.Join(s.RootDir(), globalBlock.path)
 			filename := config.DefaultFilename
@@ -3732,7 +3728,7 @@ func testGlobals(t *testing.T, tcase testcase) {
 
 			t.Logf("loading globals for stack: %s", st.Dir())
 
-			gotReport := globals.ForStack(s.Config(), projmeta, st)
+			gotReport := globals.ForStack(s.Config(), st)
 			errtest.Assert(t, gotReport.AsError(), tcase.wantErr)
 			if tcase.wantErr != nil {
 				continue
