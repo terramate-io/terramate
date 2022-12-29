@@ -93,6 +93,7 @@ func TestCreateStack(t *testing.T) {
 			Stdout: want,
 		})
 
+		s.ReloadConfig()
 		absStackPath := filepath.Join(s.RootDir(), filepath.FromSlash(stackPath))
 		got := s.LoadStack(project.PrjAbsPath(s.RootDir(), absStackPath))
 
@@ -103,7 +104,7 @@ func TestCreateStack(t *testing.T) {
 		test.AssertDiff(t, got.After(), []string{stackAfter1, stackAfter2}, "created stack has invalid after")
 		test.AssertDiff(t, got.Before(), []string{stackBefore1, stackBefore2}, "created stack has invalid before")
 
-		test.AssertStackImports(t, s.RootDir(), got.HostDir(), []string{stackImport1, stackImport2})
+		test.AssertStackImports(t, s.RootDir(), got.HostDir(s.Config()), []string{stackImport1, stackImport2})
 
 		stackEntry := s.StackEntry(stackPath)
 		gotGenCode := stackEntry.ReadFile(genFilename)
@@ -137,7 +138,7 @@ func TestCreateStackDefaults(t *testing.T) {
 	_, err := uuid.Parse(gotID)
 	assert.NoError(t, err, "validating default UUID")
 
-	test.AssertStackImports(t, s.RootDir(), got.HostDir(), []string{})
+	test.AssertStackImports(t, s.RootDir(), got.HostDir(s.Config()), []string{})
 }
 
 func TestCreateStackIgnoreExistingOnDefaultStackCfgFound(t *testing.T) {

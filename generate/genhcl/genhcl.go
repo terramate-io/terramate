@@ -151,7 +151,7 @@ func Load(
 ) ([]HCL, error) {
 	logger := log.With().
 		Str("action", "genhcl.Load()").
-		Str("path", sm.HostDir()).
+		Stringer("path", sm.Dir()).
 		Logger()
 
 	logger.Trace().Msg("loading generate_hcl blocks.")
@@ -166,7 +166,7 @@ func Load(
 	var hcls []HCL
 	for _, hclBlock := range hclBlocks {
 		name := hclBlock.Label
-		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
+		evalctx := stack.NewEvalCtx(root, projmeta, sm, globals)
 
 		vendorTargetDir := project.NewPath(path.Join(
 			sm.Dir().String(),

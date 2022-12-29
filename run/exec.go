@@ -87,7 +87,7 @@ func Exec(
 			Logger()
 
 		cmd := exec.Command(cmd[0], cmd[1:]...)
-		cmd.Dir = stack.HostDir()
+		cmd.Dir = stack.HostDir(root)
 		cmd.Env = append(os.Environ(), stackEnvs[stack.Dir()]...)
 		cmd.Stdin = stdin
 		cmd.Stdout = stdout

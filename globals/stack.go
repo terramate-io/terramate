@@ -24,7 +24,10 @@ import (
 
 // ForStack loads from the config tree all globals defined for a given stack.
 func ForStack(root *config.Root, projmeta project.Metadata, stackmeta config.StackMetadata) EvalReport {
-	ctx := eval.NewContext(stdlib.Functions(stackmeta.HostDir()))
-	ctx.SetNamespace("terramate", stack.MetadataToCtyValues(projmeta, stackmeta))
+	ctx := eval.NewContext(
+		stdlib.Functions(stackmeta.HostDir(root)),
+	)
+	ctx.SetNamespace("terramate", stack.MetadataToCtyValues(root,
+		projmeta, stackmeta))
 	return ForDir(root, stackmeta.Dir(), ctx)
 }
