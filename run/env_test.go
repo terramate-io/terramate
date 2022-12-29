@@ -231,9 +231,6 @@ func TestLoadRunEnv(t *testing.T) {
 		t.Run(tcase.name, func(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
-
-			projmeta := s.LoadProjectMetadata()
-
 			for _, cfg := range tcase.configs {
 				path := filepath.Join(s.RootDir(), cfg.path)
 				test.AppendFile(t, path, "run_env_test_cfg.tm", cfg.add.String())
@@ -253,7 +250,7 @@ func TestLoadRunEnv(t *testing.T) {
 				stack, err := config.LoadStack(root, project.NewPath(path.Join("/", stackRelPath)))
 				assert.NoError(t, err)
 
-				gotvars, err := run.LoadEnv(root, projmeta, stack)
+				gotvars, err := run.LoadEnv(root, stack)
 				errorstest.Assert(t, err, wantres.enverr)
 				test.AssertDiff(t, gotvars, wantres.env)
 			}

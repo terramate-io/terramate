@@ -982,14 +982,6 @@ func (c *cli) printStacks() {
 	}
 }
 
-func (c *cli) newProjectMetadata(report *terramate.StacksReport) prj.Metadata {
-	stacks := make(config.List[*config.Stack], len(report.Stacks))
-	for i, stackEntry := range report.Stacks {
-		stacks[i] = stackEntry.Stack
-	}
-	return config.NewProjectMetadata(c.rootdir(), stacks)
-}
-
 func (c *cli) printRunEnv() {
 	mgr := terramate.NewManager(c.cfg(), c.prj.baseRef)
 	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
@@ -997,10 +989,8 @@ func (c *cli) printRunEnv() {
 		fatal(err, "listing stacks")
 	}
 
-	projmeta := c.newProjectMetadata(report)
-
 	for _, stackEntry := range c.filterStacksByWorkingDir(report.Stacks) {
-		envVars, err := run.LoadEnv(c.cfg(), projmeta, stackEntry.Stack)
+		envVars, err := run.LoadEnv(c.cfg(), stackEntry.Stack)
 		if err != nil {
 			fatal(err, "loading stack run environment")
 		}
@@ -1238,10 +1228,9 @@ func (c *cli) printStacksGlobals() {
 		fatal(err, "listing stacks globals: listing stacks")
 	}
 
-	projmeta := c.newProjectMetadata(report)
 	for _, stackEntry := range c.filterStacksByWorkingDir(report.Stacks) {
 		stack := stackEntry.Stack
-		report := globals.ForStack(c.cfg(), projmeta, stack)
+		report := globals.ForStack(c.cfg(), stack)
 		if err := report.AsError(); err != nil {
 			logger := log.With().
 				Stringer("stack", stack.Dir()).
@@ -1282,12 +1271,9 @@ func (c *cli) printMetadata() {
 		return
 	}
 
-	projmeta := c.newProjectMetadata(report)
-
 	c.output.MsgStdOut("Available metadata:")
-
 	c.output.MsgStdOut("\nproject metadata:")
-	c.output.MsgStdOut("\tterramate.stacks.list=%v", projmeta.Stacks())
+	c.output.MsgStdOut("\tterramate.stacks.list=%v", c.cfg().Stacks())
 
 	for _, stackEntry := range stackEntries {
 		stack := stackEntry.Stack
@@ -1421,20 +1407,14 @@ func (c *cli) outputEvalResult(val cty.Value, asJSON bool) {
 
 func (c *cli) setupEvalContext() *eval.Context {
 	ctx := eval.NewContext(stdlib.Functions(c.wd()))
-	allstacks, err := config.LoadAllStacks(c.cfg().Tree())
-	if err != nil {
-		fatal(err, "setup eval context: listing all stacks")
-	}
-
-	projmeta := config.NewProjectMetadata(c.rootdir(), allstacks)
 	if config.IsStack(c.cfg(), c.wd()) {
 		st, err := config.LoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 		if err != nil {
 			fatal(err, "setup eval context: loading stack config")
 		}
-		ctx.SetNamespace("terramate", st.ToCtyValues(c.cfg(), projmeta))
+		ctx.SetNamespace("terramate", st.MergedRuntimeValues(c.cfg()))
 	} else {
-		ctx.SetNamespace("terramate", projmeta.ToCtyMap())
+		ctx.SetNamespace("terramate", c.cfg().RuntimeValues())
 	}
 
 	globals.ForDir(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()), ctx)

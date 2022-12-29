@@ -167,7 +167,8 @@ func (s *Stack) HostDir(root *Root) string {
 	return project.AbsPath(root.HostDir(), s.Dir().String())
 }
 
-func (m *Stack) stackMetaToCtyMap(root *Root) map[string]cty.Value {
+// RuntimeValues returns the runtime "terramate" namespace for the stack.
+func (s *Stack) RuntimeValues(root *Root) map[string]cty.Value {
 	logger := log.With().
 		Str("action", "stack.stackMetaToCtyMap()").
 		Logger()
@@ -175,17 +176,17 @@ func (m *Stack) stackMetaToCtyMap(root *Root) map[string]cty.Value {
 	logger.Trace().Msg("creating stack metadata")
 
 	stackpath := cty.ObjectVal(map[string]cty.Value{
-		"absolute": cty.StringVal(m.Dir().String()),
-		"relative": cty.StringVal(m.RelPath()),
-		"basename": cty.StringVal(m.PathBase()),
-		"to_root":  cty.StringVal(m.RelPathToRoot(root)),
+		"absolute": cty.StringVal(s.Dir().String()),
+		"relative": cty.StringVal(s.RelPath()),
+		"basename": cty.StringVal(s.PathBase()),
+		"to_root":  cty.StringVal(s.RelPathToRoot(root)),
 	})
 	stackMapVals := map[string]cty.Value{
-		"name":        cty.StringVal(m.Name()),
-		"description": cty.StringVal(m.Desc()),
+		"name":        cty.StringVal(s.Name()),
+		"description": cty.StringVal(s.Desc()),
 		"path":        stackpath,
 	}
-	if id, ok := m.ID(); ok {
+	if id, ok := s.ID(); ok {
 		logger.Trace().
 			Str("id", id).
 			Msg("adding stack ID to metadata")
@@ -194,17 +195,18 @@ func (m *Stack) stackMetaToCtyMap(root *Root) map[string]cty.Value {
 	}
 	stack := cty.ObjectVal(stackMapVals)
 	return map[string]cty.Value{
-		"name":        cty.StringVal(m.Name()),         // DEPRECATED
-		"path":        cty.StringVal(m.Dir().String()), // DEPRECATED
-		"description": cty.StringVal(m.Desc()),         // DEPRECATED
+		"name":        cty.StringVal(s.Name()),         // DEPRECATED
+		"path":        cty.StringVal(s.Dir().String()), // DEPRECATED
+		"description": cty.StringVal(s.Desc()),         // DEPRECATED
 		"stack":       stack,
 	}
 }
 
-// MetadataToCtyValues converts the metadatas to a map of cty.Values.
-func (s *Stack) ToCtyValues(root *Root, projmeta project.Metadata) map[string]cty.Value {
-	projvalues := projmeta.ToCtyMap()
-	stackvalues := s.stackMetaToCtyMap(root)
+// MergedRuntimeValues returns the runtime "terramate" namespace for the stack
+// but merged with the root namespace as a map of cty.Values.
+func (s *Stack) MergedRuntimeValues(root *Root) map[string]cty.Value {
+	projvalues := root.RuntimeValues()
+	stackvalues := s.RuntimeValues(root)
 
 	tmvar := map[string]cty.Value{}
 	for k, v := range projvalues {
@@ -259,15 +261,6 @@ func StacksFromTrees(root string, trees List[*Tree]) (List[*Stack], error) {
 		stacks = append(stacks, s)
 	}
 	return stacks, nil
-}
-
-// NewProjectMetadata creates project metadata from a given rootdir and a list of stacks.
-func NewProjectMetadata(rootdir string, stacks List[*Stack]) project.Metadata {
-	stackPaths := make(project.Paths, len(stacks))
-	for i, st := range stacks {
-		stackPaths[i] = st.Dir()
-	}
-	return project.NewMetadata(rootdir, stackPaths)
 }
 
 // LoadAllStacks loads all stacks inside the given rootdir.
@@ -351,7 +344,7 @@ func ReverseStacks(stacks List[*Stack]) {
 	}
 }
 
-// Paths returns the project paths from the stack list.
+// Paths returns the project paths from the list.
 func (l List[T]) Paths() project.Paths {
 	paths := make(project.Paths, len(l))
 	for i, s := range l {

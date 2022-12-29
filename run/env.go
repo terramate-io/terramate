@@ -20,7 +20,6 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/globals"
-	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
@@ -47,7 +46,7 @@ type EnvVars []string
 // LoadEnv will load environment variables to be exported when running any command
 // inside the given stack. The order of the env vars is guaranteed to be the same
 // and is ordered lexicographically.
-func LoadEnv(root *config.Root, projmeta project.Metadata, st *config.Stack) (EnvVars, error) {
+func LoadEnv(root *config.Root, st *config.Stack) (EnvVars, error) {
 	logger := log.With().
 		Str("action", "run.Env()").
 		Str("root", root.HostDir()).
@@ -63,12 +62,12 @@ func LoadEnv(root *config.Root, projmeta project.Metadata, st *config.Stack) (En
 
 	logger.Trace().Msg("loading globals")
 
-	globalsReport := globals.ForStack(root, projmeta, st)
+	globalsReport := globals.ForStack(root, st)
 	if err := globalsReport.AsError(); err != nil {
 		return nil, errors.E(ErrLoadingGlobals, err)
 	}
 
-	evalctx := stack.NewEvalCtx(root, projmeta, st, globalsReport.Globals)
+	evalctx := stack.NewEvalCtx(root, st, globalsReport.Globals)
 
 	evalctx.SetEnv(os.Environ())
 	envVars := EnvVars{}

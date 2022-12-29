@@ -239,23 +239,15 @@ func (s S) LoadStacks() config.List[*config.Stack] {
 	return stacks
 }
 
-// LoadProjectMetadata loads the project metadata.
-func (s S) LoadProjectMetadata() project.Metadata {
-	s.t.Helper()
-
-	return config.NewProjectMetadata(s.RootDir(), s.LoadStacks())
-}
-
 // LoadStackGlobals loads globals for specific stack on the sandbox.
 // Fails the caller test if an error is found.
 func (s S) LoadStackGlobals(
 	root *config.Root,
-	projmeta project.Metadata,
 	st *config.Stack,
 ) *eval.Object {
 	s.t.Helper()
 
-	report := globals.ForStack(root, projmeta, st)
+	report := globals.ForStack(root, st)
 	assert.NoError(s.t, report.AsError())
 	return report.Globals
 }

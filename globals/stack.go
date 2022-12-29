@@ -17,15 +17,14 @@ package globals
 import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl/eval"
-	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stdlib"
 )
 
 // ForStack loads from the config tree all globals defined for a given stack.
-func ForStack(root *config.Root, projmeta project.Metadata, stack *config.Stack) EvalReport {
+func ForStack(root *config.Root, stack *config.Stack) EvalReport {
 	ctx := eval.NewContext(
 		stdlib.Functions(stack.HostDir(root)),
 	)
-	ctx.SetNamespace("terramate", stack.ToCtyValues(root, projmeta))
+	ctx.SetNamespace("terramate", stack.MergedRuntimeValues(root))
 	return ForDir(root, stack.Dir(), ctx)
 }

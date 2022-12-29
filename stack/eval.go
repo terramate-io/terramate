@@ -19,7 +19,6 @@ import (
 
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl/eval"
-	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -32,13 +31,13 @@ type EvalCtx struct {
 }
 
 // NewEvalCtx creates a new stack evaluation context.
-func NewEvalCtx(root *config.Root, projmeta project.Metadata, st *config.Stack, globals *eval.Object) *EvalCtx {
-	evalctx := eval.NewContext(stdlib.Functions(st.HostDir(root)))
+func NewEvalCtx(root *config.Root, stack *config.Stack, globals *eval.Object) *EvalCtx {
+	evalctx := eval.NewContext(stdlib.Functions(stack.HostDir(root)))
 	evalwrapper := &EvalCtx{
 		Context: evalctx,
 		root:    root,
 	}
-	evalwrapper.SetMetadata(projmeta, st)
+	evalwrapper.SetMetadata(stack)
 	evalwrapper.SetGlobals(globals)
 	return evalwrapper
 }
@@ -49,8 +48,8 @@ func (e *EvalCtx) SetGlobals(g *eval.Object) {
 }
 
 // SetMetadata sets the given metadata on the stack evaluation context.
-func (e *EvalCtx) SetMetadata(projmeta project.Metadata, st *config.Stack) {
-	e.SetNamespace("terramate", st.ToCtyValues(e.root, projmeta))
+func (e *EvalCtx) SetMetadata(st *config.Stack) {
+	e.SetNamespace("terramate", st.MergedRuntimeValues(e.root))
 }
 
 // SetEnv sets the given environment on the env namespace of the evaluation context.

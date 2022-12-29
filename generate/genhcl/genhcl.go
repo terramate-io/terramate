@@ -143,7 +143,6 @@ func (h HCL) String() string {
 // The rootdir MUST be an absolute path.
 func Load(
 	root *config.Root,
-	projmeta project.Metadata,
 	st *config.Stack,
 	globals *eval.Object,
 	vendorDir project.Path,
@@ -166,7 +165,7 @@ func Load(
 	var hcls []HCL
 	for _, hclBlock := range hclBlocks {
 		name := hclBlock.Label
-		evalctx := stack.NewEvalCtx(root, projmeta, st, globals)
+		evalctx := stack.NewEvalCtx(root, st, globals)
 
 		vendorTargetDir := project.NewPath(path.Join(
 			st.Dir().String(),

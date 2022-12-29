@@ -130,7 +130,6 @@ func (f File) String() string {
 // The rootdir MUST be an absolute path.
 func Load(
 	root *config.Root,
-	projmeta project.Metadata,
 	st *config.Stack,
 	globals *eval.Object,
 	vendorDir project.Path,
@@ -149,7 +148,7 @@ func Load(
 		}
 
 		name := genFileBlock.Label
-		evalctx := stack.NewEvalCtx(root, projmeta, st, globals)
+		evalctx := stack.NewEvalCtx(root, st, globals)
 		vendorTargetDir := project.NewPath(path.Join(
 			st.Dir().String(),
 			path.Dir(name)))
