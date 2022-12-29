@@ -150,6 +150,7 @@ func FriendlyFmtDir(root, wd, dir string) (string, bool) {
 	return dir, true
 }
 
+// Merge other runtime values into the current set.
 func (runtime Runtime) Merge(other Runtime) {
 	for k, v := range other {
 		if _, ok := runtime[k]; ok {
