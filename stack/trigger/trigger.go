@@ -50,7 +50,20 @@ type Info struct {
 	Ctime int64
 	// Reason is the reason why the trigger was created, if any.
 	Reason string
+	// Type is the trigger type.
+	Type string
+	// Context is the context of the trigger (only `stack` at the moment)
+	Context string
 }
+
+const (
+	// DefaultType is the default trigger type when not specified.
+	DefaultType = "changed"
+
+	// DefaultContext is the default context for the trigger file when not
+	// specified.
+	DefaultContext = "stack"
+)
 
 const triggersDir = ".tmtriggers"
 
@@ -102,6 +115,14 @@ func ParseFile(path string) (Info, error) {
 				Name:     "reason",
 				Required: true,
 			},
+			{
+				Name:     "type",
+				Required: false,
+			},
+			{
+				Name:     "context",
+				Required: false,
+			},
 		},
 	})
 
@@ -112,6 +133,34 @@ func ParseFile(path string) (Info, error) {
 	errs := errors.L()
 	info := Info{}
 	for _, attribute := range ast.SortRawAttributes(triggerContent.Attributes) {
+		if attribute.Name == "context" || attribute.Name == "type" {
+			// they are keywords so they must be handled separately.
+			keyword := hcl.ExprAsKeyword(attribute.Expr)
+
+			switch attribute.Name {
+			case "context":
+				if keyword != DefaultContext {
+					errs.Append(errors.E(
+						"trigger: invalid trigger.context = %s (available options: %s)",
+						keyword, DefaultContext,
+					))
+					continue
+				}
+				info.Context = keyword
+			case "type":
+				if keyword != DefaultType {
+					errs.Append(errors.E(
+						"trigger: invalid trigger.type = %s (available options: %s)",
+						keyword, DefaultType,
+					))
+					continue
+				}
+				info.Type = keyword
+			}
+
+			continue
+		}
+
 		val, err := attribute.Expr.Value(nil)
 		if err != nil {
 			errs.Append(errors.E(ErrParsing, "trigger: failure evaluating %q", attribute.Name))
@@ -140,6 +189,16 @@ func ParseFile(path string) (Info, error) {
 	if err := errs.AsError(); err != nil {
 		return Info{}, err
 	}
+
+	// for backward compatibility (<= v0.2.7)
+	if info.Type == "" {
+		info.Type = DefaultType
+	}
+
+	if info.Context == "" {
+		info.Context = DefaultContext
+	}
+
 	return info, nil
 }
 
@@ -179,6 +238,8 @@ func Create(root *config.Root, path project.Path, reason string) error {
 	triggerBody := gen.Body().AppendNewBlock("trigger", nil).Body()
 	triggerBody.SetAttributeValue("ctime", cty.NumberIntVal(ctime))
 	triggerBody.SetAttributeValue("reason", cty.StringVal(reason))
+	triggerBody.SetAttributeRaw("type", hclwrite.TokensForIdentifier(DefaultType))
+	triggerBody.SetAttributeRaw("context", hclwrite.TokensForIdentifier(DefaultContext))
 
 	triggerPath := filepath.Join(triggerDir, filename)
 

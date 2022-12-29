@@ -118,6 +118,9 @@ func testTrigger(t *testing.T, tc testcase) {
 	assert.IsTrue(t, triggerInfo.Ctime > 0)
 	assert.IsTrue(t, triggerInfo.Ctime < math.MaxInt64)
 
+	assert.EqualStrings(t, trigger.DefaultContext, triggerInfo.Context)
+	assert.EqualStrings(t, trigger.DefaultType, triggerInfo.Type)
+
 	gotPath, ok := trigger.StackPath(project.PrjAbsPath(root.HostDir(), triggerFile))
 
 	assert.IsTrue(t, ok)
@@ -147,6 +150,15 @@ func TestTriggerParser(t *testing.T) {
 			body: Trigger(
 				Number("ctime", 1000000),
 				Str("reason", "something"),
+				Expr("type", "changed"),
+				Expr("context", "stack"),
+			),
+		},
+		{
+			name: "valid file (backward compatibility)",
+			body: Trigger(
+				Number("ctime", 1000000),
+				Str("reason", "something"),
 			),
 		},
 		{
@@ -155,10 +167,14 @@ func TestTriggerParser(t *testing.T) {
 				Trigger(
 					Number("ctime", 1000000),
 					Str("reason", "1"),
+					Expr("type", "changed"),
+					Expr("context", "stack"),
 				),
 				Trigger(
 					Number("ctime", 2000000),
 					Str("reason", "2"),
+					Expr("type", "changed"),
+					Expr("context", "stack"),
 				),
 			),
 			err: errors.E(trigger.ErrParsing),
@@ -168,6 +184,8 @@ func TestTriggerParser(t *testing.T) {
 			body: Block("strange",
 				Number("ctime", 1000000),
 				Str("reason", "something"),
+				Expr("type", "changed"),
+				Expr("context", "stack"),
 			),
 			err: errors.E(trigger.ErrParsing),
 		},
@@ -176,6 +194,8 @@ func TestTriggerParser(t *testing.T) {
 			body: Trigger(
 				Number("ctime", 1000000),
 				Str("reason", "something"),
+				Expr("type", "changed"),
+				Expr("context", "stack"),
 				Str("invalid", "value"),
 			),
 			err: errors.E(trigger.ErrParsing),
@@ -185,6 +205,8 @@ func TestTriggerParser(t *testing.T) {
 			body: Trigger(
 				Str("ctime", "1000000"),
 				Str("reason", "something"),
+				Expr("type", "changed"),
+				Expr("context", "stack"),
 			),
 			err: errors.E(trigger.ErrParsing),
 		},
@@ -193,6 +215,8 @@ func TestTriggerParser(t *testing.T) {
 			body: Trigger(
 				Str("ctime", "1000000"),
 				Expr("reason", `tm_title("something")`),
+				Expr("type", "changed"),
+				Expr("context", "stack"),
 			),
 			err: errors.E(trigger.ErrParsing),
 		},
@@ -201,13 +225,37 @@ func TestTriggerParser(t *testing.T) {
 			body: Trigger(
 				Str("ctime", "1000000"),
 				Expr("reason", `["wrong"]`),
+				Expr("type", "changed"),
+				Expr("context", "stack"),
+			),
+			err: errors.E(trigger.ErrParsing),
+		},
+		{
+			name: "type not a keyword",
+			body: Trigger(
+				Str("ctime", "1000000"),
+				Expr("reason", `["wrong"]`),
+				Str("type", "changed"),
+				Expr("context", "stack"),
+			),
+			err: errors.E(trigger.ErrParsing),
+		},
+		{
+			name: "context not a keyword",
+			body: Trigger(
+				Str("ctime", "1000000"),
+				Expr("reason", `["wrong"]`),
+				Expr("type", "changed"),
+				Str("context", "stack"),
 			),
 			err: errors.E(trigger.ErrParsing),
 		},
 	} {
-		file := test.WriteFile(t, t.TempDir(), "test-trigger.hcl", tc.body.String())
-		_, err := trigger.ParseFile(file)
-		errtest.Assert(t, err, tc.err, "when parsing: %s", tc.body)
+		t.Run(tc.name, func(t *testing.T) {
+			file := test.WriteFile(t, t.TempDir(), "test-trigger.hcl", tc.body.String())
+			_, err := trigger.ParseFile(file)
+			errtest.Assert(t, err, tc.err, "when parsing: %s", tc.body)
+		})
 	}
 }
 
