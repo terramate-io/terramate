@@ -1018,7 +1018,7 @@ func TestModVendorWithCommitIDRef(t *testing.T) {
 	source, err := tf.ParseSource(fmt.Sprintf("git::%s?ref=%s", gitURI, ref))
 	assert.NoError(t, err)
 
-	const vendordir = "/dir/reftest/vendor"
+	vendordir := project.NewPath("/dir/reftest/vendor")
 	got := download.Vendor(rootdir, vendordir, source, nil)
 	assertVendorReport(t, download.Report{
 		Vendored: map[project.Path]download.Vendored{
@@ -1054,7 +1054,7 @@ func TestModVendorWithRef(t *testing.T) {
 
 	source := newSource(t, gitURI, ref)
 
-	const vendordir = "/vendor"
+	vendordir := project.NewPath("/vendor")
 	got := download.Vendor(rootdir, vendordir, source, nil)
 	vendoredAt := modvendor.TargetDir(vendordir, source)
 	assertVendorReport(t, download.Report{
@@ -1123,7 +1123,7 @@ func TestModVendorDoesNothingIfRefExists(t *testing.T) {
 	source, err := tf.ParseSource(fmt.Sprintf("git::%s?ref=main", gitURI))
 	assert.NoError(t, err)
 
-	const vendordir = "/vendor/fun"
+	vendordir := project.NewPath("/vendor/fun")
 	clonedir := modvendor.AbsVendorDir(rootdir, vendordir, source)
 	test.MkdirAll(t, clonedir)
 	got := download.Vendor(rootdir, vendordir, source, nil)
@@ -1150,7 +1150,7 @@ func TestModVendorNoRefFails(t *testing.T) {
 
 	source, err := tf.ParseSource(fmt.Sprintf("git::%s", gitURI))
 	assert.NoError(t, err)
-	report := download.Vendor(rootdir, "/vendor", source, nil)
+	report := download.Vendor(rootdir, project.NewPath("/vendor"), source, nil)
 
 	assertVendorReport(t, download.Report{
 		Ignored: []download.IgnoredVendor{
@@ -1160,24 +1160,6 @@ func TestModVendorNoRefFails(t *testing.T) {
 			},
 		},
 	}, report)
-}
-
-func TestModVendorVendorDirIsRelativeFails(t *testing.T) {
-	const (
-		path = "github.com/mineiros-io/example"
-	)
-
-	s := sandbox.New(t)
-	gitURI := uri.File(s.RootDir())
-	rootdir := t.TempDir()
-
-	report := download.Vendor(rootdir, "../test", tf.Source{
-		URL:  string(gitURI),
-		Path: path,
-		Ref:  "main",
-	}, nil)
-
-	assert.Error(t, report.Error)
 }
 
 func assertNoGitDir(t *testing.T, dir string) {

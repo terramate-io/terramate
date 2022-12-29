@@ -125,7 +125,7 @@ func TestGenerateIgnore(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir: "/stacks/stack",
+						Dir: project.NewPath("/stacks/stack"),
 						Created: []string{
 							"dir/file.hcl",
 							"file.hcl",
@@ -198,7 +198,7 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir: "/stacks/stack",
+						Dir: project.NewPath("/stacks/stack"),
 						Created: []string{
 							"dir/file.hcl",
 							"dir/sub/file.txt",
@@ -246,7 +246,7 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir: "/stacks/stack/child-stack",
+						Dir: project.NewPath("/stacks/stack/child-stack"),
 						Created: []string{
 							"child-stack/name.tf",
 							"child-stack/name.txt",
@@ -256,7 +256,7 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							Dir: "/stacks/stack",
+							Dir: project.NewPath("/stacks/stack"),
 						},
 						Error: errors.L(
 							errors.E(generate.ErrInvalidGenBlockLabel),
@@ -304,7 +304,7 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir: "/stacks/stack/child-stack",
+						Dir: project.NewPath("/stacks/stack/child-stack"),
 						Created: []string{
 							"child-stack/dir/name.tf",
 							"child-stack/dir/name.txt",
@@ -314,7 +314,7 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							Dir: "/stacks/stack",
+							Dir: project.NewPath("/stacks/stack"),
 						},
 						Error: errors.L(
 							errors.E(generate.ErrInvalidGenBlockLabel),
@@ -353,7 +353,7 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							Dir: "/stacks/stack",
+							Dir: project.NewPath("/stacks/stack"),
 						},
 						Error: errors.L(
 							errors.E(generate.ErrInvalidGenBlockLabel),
@@ -438,7 +438,7 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							Dir: "/stacks/stack-1",
+							Dir: project.NewPath("/stacks/stack-1"),
 						},
 						Error: errors.L(
 							errors.E(generate.ErrInvalidGenBlockLabel),
@@ -447,7 +447,7 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 					},
 					{
 						Result: generate.Result{
-							Dir: "/stacks/stack-2",
+							Dir: project.NewPath("/stacks/stack-2"),
 						},
 						Error: errors.L(
 							errors.E(generate.ErrInvalidGenBlockLabel),
@@ -456,7 +456,7 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 					},
 					{
 						Result: generate.Result{
-							Dir: "/stacks/stack-3",
+							Dir: project.NewPath("/stacks/stack-3"),
 						},
 						Error: errors.L(
 							errors.E(generate.ErrInvalidGenBlockLabel),
@@ -465,7 +465,7 @@ func TestGenerateStackContextSubDirsOnLabels(t *testing.T) {
 					},
 					{
 						Result: generate.Result{
-							Dir: "/stacks/stack-4",
+							Dir: project.NewPath("/stacks/stack-4"),
 						},
 						Error: errors.L(
 							errors.E(generate.ErrInvalidGenBlockLabel),
@@ -494,25 +494,25 @@ func TestGenerateCleanup(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir: "/",
+						Dir: project.NewPath("/"),
 						Deleted: []string{
 							"root.hcl",
 						},
 					},
 					{
-						Dir:     "/another",
+						Dir:     project.NewPath("/another"),
 						Deleted: []string{"d.hcl"},
 					},
 					{
-						Dir:     "/dir",
+						Dir:     project.NewPath("/dir"),
 						Deleted: []string{"a.hcl"},
 					},
 					{
-						Dir:     "/dir/subdir",
+						Dir:     project.NewPath("/dir/subdir"),
 						Deleted: []string{"b.hcl"},
 					},
 					{
-						Dir:     "/dir/subdir/again",
+						Dir:     project.NewPath("/dir/subdir/again"),
 						Deleted: []string{"c.hcl"},
 					},
 				},
@@ -538,13 +538,13 @@ func TestGenerateCleanup(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir: "/dir",
+						Dir: project.NewPath("/dir"),
 						Deleted: []string{
 							"orphan.hcl",
 						},
 					},
 					{
-						Dir: "/stacks/stack-1",
+						Dir: project.NewPath("/stacks/stack-1"),
 						Deleted: []string{
 							"a.hcl",
 							"subdir/b.hcl",
@@ -552,7 +552,7 @@ func TestGenerateCleanup(t *testing.T) {
 						},
 					},
 					{
-						Dir: "/stacks/stack-1/stack-1-a",
+						Dir: project.NewPath("/stacks/stack-1/stack-1-a"),
 						Deleted: []string{
 							"e.hcl",
 							"subdir/dir/g.hcl",
@@ -560,13 +560,13 @@ func TestGenerateCleanup(t *testing.T) {
 						},
 					},
 					{
-						Dir: "/stacks/stack-1/stack-1-b",
+						Dir: project.NewPath("/stacks/stack-1/stack-1-b"),
 						Deleted: []string{
 							"h.hcl",
 						},
 					},
 					{
-						Dir: "/stacks/stack-2",
+						Dir: project.NewPath("/stacks/stack-2"),
 						Deleted: []string{
 							"d.hcl",
 						},
@@ -626,7 +626,7 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							Dir: "/stacks/stack",
+							Dir: project.NewPath("/stacks/stack"),
 						},
 						Error: errors.E(generate.ErrConflictingConfig),
 					},
@@ -670,7 +670,7 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir:     "/stacks/stack",
+						Dir:     project.NewPath("/stacks/stack"),
 						Created: []string{"repeated"},
 					},
 				},
@@ -714,7 +714,7 @@ func TestGenerateConflictsBetweenGenerateTypes(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir:     "/stack",
+						Dir:     project.NewPath("/stack"),
 						Created: []string{"repeated"},
 					},
 				},

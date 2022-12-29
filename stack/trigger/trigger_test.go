@@ -103,7 +103,7 @@ func testTrigger(t *testing.T, tc testcase) {
 	}
 
 	// check created trigger on fs
-	triggerDir := filepath.Join(trigger.Dir(root.Dir()), tc.path)
+	triggerDir := filepath.Join(trigger.Dir(root.HostDir()), tc.path)
 	entries := test.ReadDir(t, triggerDir)
 	if len(entries) != 1 {
 		t.Fatalf("want 1 trigger file, got %d: %+v", len(entries), entries)
@@ -121,7 +121,7 @@ func testTrigger(t *testing.T, tc testcase) {
 	assert.EqualStrings(t, trigger.DefaultContext, triggerInfo.Context)
 	assert.EqualStrings(t, trigger.DefaultType, triggerInfo.Type)
 
-	gotPath, ok := trigger.StackPath(project.PrjAbsPath(root.Dir(), triggerFile))
+	gotPath, ok := trigger.StackPath(project.PrjAbsPath(root.HostDir(), triggerFile))
 
 	assert.IsTrue(t, ok)
 	assert.EqualStrings(t, tc.path, gotPath.String())

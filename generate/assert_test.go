@@ -21,6 +21,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/project"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
@@ -64,13 +65,13 @@ func TestGenerateAssert(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							Dir: "/stacks/stack-1",
+							Dir: project.NewPath("/stacks/stack-1"),
 						},
 						Error: errors.E(eval.ErrEval),
 					},
 					{
 						Result: generate.Result{
-							Dir: "/stacks/stack-2",
+							Dir: project.NewPath("/stacks/stack-2"),
 						},
 						Error: errors.E(eval.ErrEval),
 					},
@@ -96,13 +97,13 @@ func TestGenerateAssert(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							Dir: "/stacks/stack-1",
+							Dir: project.NewPath("/stacks/stack-1"),
 						},
 						Error: errors.E(generate.ErrAssertion),
 					},
 					{
 						Result: generate.Result{
-							Dir: "/stacks/stack-2",
+							Dir: project.NewPath("/stacks/stack-2"),
 						},
 						Error: errors.E(generate.ErrAssertion),
 					},
@@ -143,13 +144,13 @@ func TestGenerateAssert(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							Dir: "/stacks/stack-1",
+							Dir: project.NewPath("/stacks/stack-1"),
 						},
 						Error: errors.E(generate.ErrAssertion),
 					},
 					{
 						Result: generate.Result{
-							Dir: "/stacks/stack-2",
+							Dir: project.NewPath("/stacks/stack-2"),
 						},
 						Error: errors.E(generate.ErrAssertion),
 					},
@@ -175,13 +176,13 @@ func TestGenerateAssert(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							Dir: "/stacks/stack-1",
+							Dir: project.NewPath("/stacks/stack-1"),
 						},
 						Error: errors.E(generate.ErrAssertion, "/stacks/terramate.tm.hcl:3,15-20: msg"),
 					},
 					{
 						Result: generate.Result{
-							Dir: "/stacks/stack-2",
+							Dir: project.NewPath("/stacks/stack-2"),
 						},
 						Error: errors.E(generate.ErrAssertion, "/stacks/terramate.tm.hcl:3,15-20: msg"),
 					},
@@ -242,11 +243,11 @@ func TestGenerateAssert(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir:     "/stacks/stack-1",
+						Dir:     project.NewPath("/stacks/stack-1"),
 						Created: []string{"test.hcl", "test.txt"},
 					},
 					{
-						Dir:     "/stacks/stack-2",
+						Dir:     project.NewPath("/stacks/stack-2"),
 						Created: []string{"test.hcl", "test.txt"},
 					},
 				},
@@ -285,7 +286,7 @@ func TestGenerateAssert(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							Dir: "/stacks/stack-1",
+							Dir: project.NewPath("/stacks/stack-1"),
 						},
 						Error: errors.L(
 							errors.E(generate.ErrAssertion),
@@ -295,7 +296,7 @@ func TestGenerateAssert(t *testing.T) {
 					},
 					{
 						Result: generate.Result{
-							Dir: "/stacks/stack-2",
+							Dir: project.NewPath("/stacks/stack-2"),
 						},
 						Error: errors.L(
 							errors.E(generate.ErrAssertion),
@@ -356,7 +357,7 @@ func TestGenerateAssertInsideGenerateBlocks(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir:     "/stack",
+						Dir:     project.NewPath("/stack"),
 						Created: []string{"test.hcl", "test.txt"},
 					},
 				},
@@ -406,7 +407,7 @@ func TestGenerateAssertInsideGenerateBlocks(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							Dir: "/stack",
+							Dir: project.NewPath("/stack"),
 						},
 						Error: errors.L(
 							errors.E(generate.ErrAssertion),
@@ -462,7 +463,7 @@ func TestGenerateAssertInsideGenerateBlocks(t *testing.T) {
 			wantReport: generate.Report{
 				Successes: []generate.Result{
 					{
-						Dir:     "/stack",
+						Dir:     project.NewPath("/stack"),
 						Created: []string{"test.hcl", "test.txt"},
 					},
 				},
@@ -502,7 +503,7 @@ func TestGenerateAssertInsideGenerateBlocks(t *testing.T) {
 				Failures: []generate.FailureResult{
 					{
 						Result: generate.Result{
-							Dir: "/stack",
+							Dir: project.NewPath("/stack"),
 						},
 						Error: errors.L(
 							errors.E(generate.ErrAssertion, "/stack/terramate.tm.hcl:7,17-22: msg"),

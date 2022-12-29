@@ -84,16 +84,16 @@ func (a GlobalPathKey) name() string {
 //
 // More specific globals (closer or at the current dir) have precedence over
 // less specific globals (closer or at the root dir).
-func ForDir(tree *config.Root, cfgdir project.Path, ctx *eval.Context) EvalReport {
+func ForDir(root *config.Root, cfgdir project.Path, ctx *eval.Context) EvalReport {
 	logger := log.With().
 		Str("action", "globals.Load()").
-		Str("root", tree.Dir()).
+		Str("root", root.HostDir()).
 		Stringer("cfgdir", cfgdir).
 		Logger()
 
 	logger.Trace().Msg("loading expressions")
 
-	exprs, err := loadExprs(tree, cfgdir)
+	exprs, err := loadExprs(root, cfgdir)
 	if err != nil {
 		report := NewEvalReport()
 		report.BootstrapErr = err
@@ -126,16 +126,16 @@ func newExprSet(origin project.Path) exprSet {
 // reaches rootdir, loading globals expressions and merging them appropriately.
 // More specific globals (closer or at the dir) have precedence over less
 // specific globals (closer or at the root dir).
-func loadExprs(tree *config.Root, cfgdir project.Path) (loadedExprs, error) {
+func loadExprs(root *config.Root, cfgdir project.Path) (loadedExprs, error) {
 	logger := log.With().
 		Str("action", "globals.loadExprs()").
-		Str("root", tree.Dir()).
+		Str("root", root.HostDir()).
 		Stringer("cfgdir", cfgdir).
 		Logger()
 
 	exprs := newExprSet(cfgdir)
 
-	cfg, ok := tree.Lookup(cfgdir)
+	cfg, ok := root.Lookup(cfgdir)
 	if !ok {
 		return loadedExprs{}, nil
 	}
@@ -210,7 +210,7 @@ func loadExprs(tree *config.Root, cfgdir project.Path) (loadedExprs, error) {
 
 	logger.Trace().Msg("Loading stack globals from parent dir.")
 
-	parentGlobals, err := loadExprs(tree, parentcfg)
+	parentGlobals, err := loadExprs(root, parentcfg)
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +234,7 @@ func (le loadedExprs) sort() []exprSet {
 	}
 
 	sort.SliceStable(cfgdirs, func(i, j int) bool {
-		return len(cfgdirs[i]) < len(cfgdirs[j])
+		return len(cfgdirs[i].String()) < len(cfgdirs[j].String())
 	})
 
 	res := []exprSet{}

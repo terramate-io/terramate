@@ -50,7 +50,7 @@ type EnvVars []string
 func LoadEnv(root *config.Root, projmeta project.Metadata, st *config.Stack) (EnvVars, error) {
 	logger := log.With().
 		Str("action", "run.Env()").
-		Str("root", root.Dir()).
+		Str("root", root.HostDir()).
 		Stringer("stack", st).
 		Logger()
 

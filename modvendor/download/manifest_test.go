@@ -27,6 +27,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/modvendor/download"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"go.lsp.dev/uri"
@@ -320,7 +321,7 @@ func TestVendorManifest(t *testing.T) {
 			rootdir := t.TempDir()
 			source := newSource(t, gitURI, "main")
 
-			const vendordir = "/vendor"
+			vendordir := project.NewPath("/vendor")
 			got := download.Vendor(rootdir, vendordir, source, nil)
 			assert.NoError(t, got.Error)
 
@@ -352,7 +353,7 @@ func testInvalidManifestFails(t *testing.T, configpath string) {
 	gitURL := uri.File(repoSandbox.RootDir())
 	source := newSource(t, gitURL, "main")
 
-	got := download.Vendor(t.TempDir(), "/vendor", source, nil)
+	got := download.Vendor(t.TempDir(), project.NewPath("/vendor"), source, nil)
 
 	assert.EqualInts(t, 0, len(got.Vendored), "vendored should be empty")
 	assert.EqualInts(t, 1, len(got.Ignored), "should have single ignored")
