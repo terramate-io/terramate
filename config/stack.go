@@ -30,8 +30,8 @@ import (
 type (
 	// Stack represents an evaluated stack.
 	Stack struct {
-		// dir is the absolute dir of the stack relative to project's root.
-		dir project.Path
+		// Dir is project's stack directory.
+		Dir project.Path
 
 		// ID of the stack.
 		ID string
@@ -61,6 +61,10 @@ type (
 
 		// IsChanged tells if this is a changed stack.
 		IsChanged bool
+	}
+
+	SortableStack struct {
+		*Stack
 	}
 )
 
@@ -93,7 +97,7 @@ func NewStack(root string, cfg hcl.Config) (*Stack, error) {
 		Wants:       cfg.Stack.Wants,
 		WantedBy:    cfg.Stack.WantedBy,
 		Watch:       watchFiles,
-		dir:         project.PrjAbsPath(root, cfg.AbsDir()),
+		Dir:         project.PrjAbsPath(root, cfg.AbsDir()),
 	}, nil
 }
 
@@ -104,16 +108,13 @@ func (s *Stack) AppendBefore(path string) {
 }
 
 // String representation of the stack.
-func (s *Stack) String() string { return s.Dir().String() }
-
-// Dir is the directory of the stack.
-func (s *Stack) Dir() project.Path { return s.dir }
+func (s *Stack) String() string { return s.Dir.String() }
 
 // PathBase returns the base name of the stack path.
-func (s *Stack) PathBase() string { return filepath.Base(s.dir.String()) }
+func (s *Stack) PathBase() string { return filepath.Base(s.Dir.String()) }
 
 // RelPath returns the project's relative path of stack.
-func (s *Stack) RelPath() string { return s.dir.String()[1:] }
+func (s *Stack) RelPath() string { return s.Dir.String()[1:] }
 
 // RelPathToRoot returns the relative path from the stack to root.
 func (s *Stack) RelPathToRoot(root *Root) string {
@@ -124,7 +125,7 @@ func (s *Stack) RelPathToRoot(root *Root) string {
 
 // HostDir returns the file system absolute path of stack.
 func (s *Stack) HostDir(root *Root) string {
-	return project.AbsPath(root.HostDir(), s.Dir().String())
+	return project.AbsPath(root.HostDir(), s.Dir.String())
 }
 
 // RuntimeValues returns the runtime "terramate" namespace for the stack.
@@ -136,7 +137,7 @@ func (s *Stack) RuntimeValues(root *Root) map[string]cty.Value {
 	logger.Trace().Msg("creating stack metadata")
 
 	stackpath := cty.ObjectVal(map[string]cty.Value{
-		"absolute": cty.StringVal(s.Dir().String()),
+		"absolute": cty.StringVal(s.Dir.String()),
 		"relative": cty.StringVal(s.RelPath()),
 		"basename": cty.StringVal(s.PathBase()),
 		"to_root":  cty.StringVal(s.RelPathToRoot(root)),
@@ -155,10 +156,17 @@ func (s *Stack) RuntimeValues(root *Root) map[string]cty.Value {
 	}
 	stack := cty.ObjectVal(stackMapVals)
 	return map[string]cty.Value{
-		"name":        cty.StringVal(s.Name),           // DEPRECATED
-		"path":        cty.StringVal(s.Dir().String()), // DEPRECATED
-		"description": cty.StringVal(s.Description),    // DEPRECATED
+		"name":        cty.StringVal(s.Name),         // DEPRECATED
+		"path":        cty.StringVal(s.Dir.String()), // DEPRECATED
+		"description": cty.StringVal(s.Description),  // DEPRECATED
 		"stack":       stack,
+	}
+}
+
+// Sortable returns an implementation of stack which can be sorted by [config.List].
+func (s *Stack) Sortable() *SortableStack {
+	return &SortableStack{
+		Stack: s,
 	}
 }
 
@@ -192,32 +200,32 @@ func validateWatchPaths(rootdir string, stackpath string, paths []string) (proje
 }
 
 // StacksFromTrees converts a List[*Tree] into a List[*Stack].
-func StacksFromTrees(root string, trees List[*Tree]) (List[*Stack], error) {
-	var stacks List[*Stack]
+func StacksFromTrees(root string, trees List[*Tree]) (List[*SortableStack], error) {
+	var stacks List[*SortableStack]
 	for _, tree := range trees {
 		s, err := NewStack(root, tree.Node)
 		if err != nil {
-			return List[*Stack]{}, err
+			return List[*SortableStack]{}, err
 		}
-		stacks = append(stacks, s)
+		stacks = append(stacks, &SortableStack{s})
 	}
 	return stacks, nil
 }
 
 // LoadAllStacks loads all stacks inside the given rootdir.
-func LoadAllStacks(cfg *Tree) (List[*Stack], error) {
+func LoadAllStacks(cfg *Tree) (List[*SortableStack], error) {
 	logger := log.With().
 		Str("action", "stack.LoadAll()").
 		Str("root", cfg.RootDir()).
 		Logger()
 
-	stacks := List[*Stack]{}
+	stacks := List[*SortableStack]{}
 	stacksIDs := map[string]*Stack{}
 
 	for _, stackNode := range cfg.Stacks() {
 		stack, err := NewStack(cfg.RootDir(), stackNode.Node)
 		if err != nil {
-			return List[*Stack]{}, err
+			return List[*SortableStack]{}, err
 		}
 
 		logger := logger.With().
@@ -225,15 +233,15 @@ func LoadAllStacks(cfg *Tree) (List[*Stack], error) {
 			Logger()
 
 		logger.Debug().Msg("Found stack")
-		stacks = append(stacks, stack)
+		stacks = append(stacks, stack.Sortable())
 
 		if stack.ID != "" {
 			logger.Trace().Msg("stack has ID, checking for duplicate")
 			if otherStack, ok := stacksIDs[stack.ID]; ok {
-				return List[*Stack]{}, errors.E(ErrStackDuplicatedID,
+				return List[*SortableStack]{}, errors.E(ErrStackDuplicatedID,
 					"stack %q and %q have same ID %q",
-					stack.Dir(),
-					otherStack.Dir(),
+					stack.Dir,
+					otherStack.Dir,
 					stack.ID,
 				)
 			}
@@ -276,7 +284,7 @@ func TryLoadStack(root *Root, cfgdir project.Path) (stack *Stack, found bool, er
 }
 
 // ReverseStacks reverses the given stacks slice.
-func ReverseStacks(stacks List[*Stack]) {
+func ReverseStacks(stacks List[*SortableStack]) {
 	i, j := 0, len(stacks)-1
 	for i < j {
 		stacks[i], stacks[j] = stacks[j], stacks[i]
@@ -293,3 +301,6 @@ func (l List[T]) Paths() project.Paths {
 	}
 	return paths
 }
+
+// Dir implements the [List] type.
+func (s SortableStack) Dir() project.Path { return s.Stack.Dir }

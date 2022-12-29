@@ -109,14 +109,14 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 
 	for i, st := range stacks {
 		res := LoadResult{Dir: st.Dir()}
-		loadres := globals.ForStack(root, st)
+		loadres := globals.ForStack(root, st.Stack)
 		if err := loadres.AsError(); err != nil {
 			res.Err = err
 			results[i] = res
 			continue
 		}
 
-		generated, err := loadStackCodeCfgs(root, st, loadres.Globals, vendorDir, nil)
+		generated, err := loadStackCodeCfgs(root, st.Stack, loadres.Globals, vendorDir, nil)
 		if err != nil {
 			res.Err = errors.E(err, "while loading configs of stack %s", st.Dir())
 			results[i] = res
@@ -205,7 +205,7 @@ func doStackGeneration(
 	stackpath := stack.HostDir(root)
 	logger := log.With().
 		Str("action", "generate.doStackGeneration()").
-		Stringer("stack", stack.Dir()).
+		Stringer("stack", stack.Dir).
 		Logger()
 
 	report := dirReport{}
@@ -278,7 +278,7 @@ func doStackGeneration(
 		removedFileBody, ok := removedFiles[filename]
 		if !ok {
 			log.Info().
-				Stringer("stack", stack.Dir()).
+				Stringer("stack", stack.Dir).
 				Str("file", filename).
 				Msg("created file")
 
@@ -287,7 +287,7 @@ func doStackGeneration(
 			body := file.Header() + file.Body()
 			if body != removedFileBody {
 				log.Info().
-					Stringer("stack", stack.Dir()).
+					Stringer("stack", stack.Dir).
 					Str("file", filename).
 					Msg("changed file")
 
@@ -299,7 +299,7 @@ func doStackGeneration(
 
 	for filename := range removedFiles {
 		log.Info().
-			Stringer("stack", stack.Dir()).
+			Stringer("stack", stack.Dir).
 			Str("file", filename).
 			Msg("deleted file")
 		report.addDeletedFile(filename)
@@ -515,7 +515,7 @@ func DetectOutdated(root *config.Root, vendorDir project.Path) ([]string, error)
 	logger.Debug().Msg("checking outdated code inside stacks")
 
 	for _, stack := range stacks {
-		outdated, err := stackOutdated(root, stack, vendorDir)
+		outdated, err := stackOutdated(root, stack.Stack, vendorDir)
 		if err != nil {
 			errs.Append(err)
 			continue
@@ -803,23 +803,23 @@ func forEachStack(
 		return report
 	}
 
-	for _, stack := range stacks {
+	for _, elem := range stacks {
 		logger := logger.With().
-			Stringer("stack", stack).
+			Stringer("stack", elem).
 			Logger()
 
 		logger.Trace().Msg("Load stack globals.")
 
-		globalsReport := globals.ForStack(root, stack)
+		globalsReport := globals.ForStack(root, elem.Stack)
 		if err := globalsReport.AsError(); err != nil {
-			report.addFailure(stack.Dir(), errors.E(ErrLoadingGlobals, err))
+			report.addFailure(elem.Dir(), errors.E(ErrLoadingGlobals, err))
 			continue
 		}
 
 		logger.Trace().Msg("Calling stack callback.")
 
-		stackReport := fn(root, stack, globalsReport.Globals, vendorDir, vendorRequests)
-		report.addDirReport(stack.Dir(), stackReport)
+		stackReport := fn(root, elem.Stack, globalsReport.Globals, vendorDir, vendorRequests)
+		report.addDirReport(elem.Dir(), stackReport)
 	}
 
 	return report
@@ -1225,10 +1225,10 @@ func loadAsserts(root *config.Root, st *config.Stack, globals *eval.Object) ([]c
 	logger := log.With().
 		Str("action", "generate.loadAsserts").
 		Str("rootdir", root.HostDir()).
-		Str("stack", st.Dir().String()).
+		Str("stack", st.Dir.String()).
 		Logger()
 
-	curdir := st.Dir()
+	curdir := st.Dir
 	asserts := []config.Assert{}
 	errs := errors.L()
 

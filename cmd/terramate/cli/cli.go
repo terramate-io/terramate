@@ -967,9 +967,9 @@ func (c *cli) printStacks() {
 	for _, entry := range report.Stacks {
 		stack := entry.Stack
 
-		log.Debug().Msgf("printing stack %s", stack.Dir())
+		log.Debug().Msgf("printing stack %s", stack.Dir)
 
-		stackRepr, ok := c.friendlyFmtDir(stack.Dir().String())
+		stackRepr, ok := c.friendlyFmtDir(stack.Dir.String())
 		if !ok {
 			continue
 		}
@@ -995,7 +995,7 @@ func (c *cli) printRunEnv() {
 			fatal(err, "loading stack run environment")
 		}
 
-		c.output.MsgStdOut("\nstack %q:", stackEntry.Stack.Dir())
+		c.output.MsgStdOut("\nstack %q:", stackEntry.Stack.Dir)
 
 		for _, envVar := range envVars {
 			c.output.MsgStdOut("\t%s", envVar)
@@ -1021,7 +1021,7 @@ func (c *cli) generateGraph() {
 	case "stack.dir":
 		logger.Debug().Msg("Set label stack directory.")
 
-		getLabel = func(s *config.Stack) string { return s.Dir().String() }
+		getLabel = func(s *config.Stack) string { return s.Dir.String() }
 	default:
 		logger.Fatal().
 			Msg("-label expects the values \"stack.name\" or \"stack.dir\"")
@@ -1039,7 +1039,7 @@ func (c *cli) generateGraph() {
 
 	visited := dag.Visited{}
 	for _, e := range c.filterStacksByWorkingDir(entries) {
-		if _, ok := visited[dag.ID(e.Stack.Dir().String())]; ok {
+		if _, ok := visited[dag.ID(e.Stack.Dir.String())]; ok {
 			continue
 		}
 
@@ -1233,7 +1233,7 @@ func (c *cli) printStacksGlobals() {
 		report := globals.ForStack(c.cfg(), stack)
 		if err := report.AsError(); err != nil {
 			logger := log.With().
-				Stringer("stack", stack.Dir()).
+				Stringer("stack", stack.Dir).
 				Logger()
 
 			errlog.Fatal(logger, err, "listing stacks globals: loading stack")
@@ -1244,7 +1244,7 @@ func (c *cli) printStacksGlobals() {
 			continue
 		}
 
-		c.output.MsgStdOut("\nstack %q:", stack.Dir())
+		c.output.MsgStdOut("\nstack %q:", stack.Dir)
 		for _, line := range strings.Split(globalsStrRepr, "\n") {
 			c.output.MsgStdOut("\t%s", line)
 		}
@@ -1282,13 +1282,13 @@ func (c *cli) printMetadata() {
 			Stringer("stack", stack).
 			Msg("Print metadata for individual stack.")
 
-		c.output.MsgStdOut("\nstack %q:", stack.Dir())
+		c.output.MsgStdOut("\nstack %q:", stack.Dir)
 		if stack.ID != "" {
 			c.output.MsgStdOut("\tterramate.stack.id=%q", stack.ID)
 		}
 		c.output.MsgStdOut("\tterramate.stack.name=%q", stack.Name)
 		c.output.MsgStdOut("\tterramate.stack.description=%q", stack.Description)
-		c.output.MsgStdOut("\tterramate.stack.path.absolute=%q", stack.Dir())
+		c.output.MsgStdOut("\tterramate.stack.path.absolute=%q", stack.Dir)
 		c.output.MsgStdOut("\tterramate.stack.path.basename=%q", stack.PathBase())
 		c.output.MsgStdOut("\tterramate.stack.path.relative=%q", stack.RelPath())
 		c.output.MsgStdOut("\tterramate.stack.path.to_root=%q", stack.RelPathToRoot(c.cfg()))
@@ -1427,7 +1427,7 @@ func envVarIsSet(val string) bool {
 	return val != "0" && val != "false"
 }
 
-func (c *cli) checkOutdatedGeneratedCode(stacks config.List[*config.Stack]) {
+func (c *cli) checkOutdatedGeneratedCode(stacks config.List[*config.SortableStack]) {
 	logger := log.With().
 		Str("action", "checkOutdatedGeneratedCode()").
 		Logger()
@@ -1498,7 +1498,7 @@ func (c *cli) runOnStacks() {
 
 	c.checkOutdatedGeneratedCode(allstacks)
 
-	var stacks config.List[*config.Stack]
+	var stacks config.List[*config.SortableStack]
 	if c.parsedArgs.Run.NoRecursive {
 		st, found, err := config.TryLoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 		if err != nil {
@@ -1510,7 +1510,7 @@ func (c *cli) runOnStacks() {
 				Msg("--no-recursive provided but no stack found in the current directory")
 		}
 
-		stacks = append(stacks, st)
+		stacks = append(stacks, st.Sortable())
 	} else {
 		var err error
 		stacks, err = c.computeSelectedStacks(true)
@@ -1576,7 +1576,7 @@ func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.rootdir(), c.wd(), dir)
 }
 
-func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (config.List[*config.Stack], error) {
+func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (config.List[*config.SortableStack], error) {
 	logger := log.With().
 		Str("action", "computeSelectedStacks()").
 		Str("workingDir", c.wd()).
@@ -1598,9 +1598,9 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (config.List[*config.S
 	logger.Trace().Msg("Filter stacks by working directory.")
 
 	entries := c.filterStacksByWorkingDir(report.Stacks)
-	stacks := make(config.List[*config.Stack], len(entries))
+	stacks := make(config.List[*config.SortableStack], len(entries))
 	for i, e := range entries {
-		stacks[i] = e.Stack
+		stacks[i] = e.Stack.Sortable()
 	}
 
 	stacks, err = mgr.AddWantedOf(stacks)
@@ -1624,7 +1624,7 @@ func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Ent
 
 	filtered := []terramate.Entry{}
 	for _, e := range stacks {
-		if e.Stack.Dir().HasPrefix(relwd.String()) {
+		if e.Stack.Dir.HasPrefix(relwd.String()) {
 			filtered = append(filtered, e)
 		}
 	}

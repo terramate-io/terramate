@@ -3689,8 +3689,8 @@ func TestLoadGlobalsErrors(t *testing.T) {
 
 			stacks, err := config.LoadAllStacks(cfg)
 			assert.NoError(t, err)
-			for _, st := range stacks {
-				report := globals.ForStack(s.Config(), st)
+			for _, elem := range stacks {
+				report := globals.ForStack(s.Config(), elem.Stack)
 				errtest.Assert(t, report.AsError(), tcase.want)
 			}
 		})
@@ -3721,12 +3721,12 @@ func testGlobals(t *testing.T, tcase testcase) {
 		stackEntries, err := terramate.ListStacks(cfg)
 		assert.NoError(t, err)
 
-		var stacks config.List[*config.Stack]
+		var stacks config.List[*config.SortableStack]
 		for _, entry := range stackEntries {
 			st := entry.Stack
-			stacks = append(stacks, st)
+			stacks = append(stacks, st.Sortable())
 
-			t.Logf("loading globals for stack: %s", st.Dir())
+			t.Logf("loading globals for stack: %s", st.Dir)
 
 			gotReport := globals.ForStack(s.Config(), st)
 			errtest.Assert(t, gotReport.AsError(), tcase.wantErr)
@@ -3734,11 +3734,11 @@ func testGlobals(t *testing.T, tcase testcase) {
 				continue
 			}
 
-			want, ok := wantGlobals[st.Dir().String()]
+			want, ok := wantGlobals[st.Dir.String()]
 			if !ok {
 				want = Globals()
 			}
-			delete(wantGlobals, st.Dir().String())
+			delete(wantGlobals, st.Dir.String())
 
 			// Could have one type for globals configs and another type
 			// for wanted evaluated globals, but that would make

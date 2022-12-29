@@ -199,7 +199,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 				return nil, errors.E(errListChanged, err)
 			}
 
-			stackSet[s.Dir()] = Entry{
+			stackSet[s.Dir] = Entry{
 				Stack:  s,
 				Reason: "stack has been triggered by: " + projpath.String(),
 			}
@@ -241,7 +241,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 			return nil, errors.E(errListChanged, err)
 		}
 
-		stackSet[s.Dir()] = Entry{
+		stackSet[s.Dir] = Entry{
 			Stack:  s,
 			Reason: "stack has unmerged changes",
 		}
@@ -259,7 +259,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 rangeStacks:
 	for _, stackEntry := range allstacks {
 		stack := stackEntry.Stack
-		if _, ok := stackSet[stack.Dir()]; ok {
+		if _, ok := stackSet[stack.Dir]; ok {
 			continue
 		}
 
@@ -274,7 +274,7 @@ rangeStacks:
 				Msg("changed.")
 
 			stack.IsChanged = true
-			stackSet[stack.Dir()] = Entry{
+			stackSet[stack.Dir] = Entry{
 				Stack: stack,
 				Reason: fmt.Sprintf(
 					"stack changed because watched file %q changed",
@@ -332,7 +332,7 @@ rangeStacks:
 						Msg("Module changed.")
 
 					stack.IsChanged = true
-					stackSet[stack.Dir()] = Entry{
+					stackSet[stack.Dir] = Entry{
 						Stack: stack,
 						Reason: fmt.Sprintf(
 							"stack changed because %q changed because %s",
@@ -368,7 +368,7 @@ rangeStacks:
 }
 
 // AddWantedOf returns all wanted stacks from the given stacks.
-func (m *Manager) AddWantedOf(scopeStacks config.List[*config.Stack]) (config.List[*config.Stack], error) {
+func (m *Manager) AddWantedOf(scopeStacks config.List[*config.SortableStack]) (config.List[*config.SortableStack], error) {
 	logger := log.With().
 		Str("action", "manager.AddWantedOf").
 		Logger()
@@ -381,15 +381,15 @@ func (m *Manager) AddWantedOf(scopeStacks config.List[*config.Stack]) (config.Li
 
 	visited := dag.Visited{}
 	sort.Sort(allstacks)
-	for _, s := range allstacks {
+	for _, elem := range allstacks {
 		logger.Trace().
-			Stringer("stack", s.Dir()).
+			Stringer("stack", elem.Dir()).
 			Msg("Building dag")
 
 		err := run.BuildDAG(
 			wantsDag,
 			m.root,
-			s,
+			elem.Stack,
 			"wanted_by",
 			func(s config.Stack) []string { return s.WantedBy },
 			"wants",
@@ -418,15 +418,15 @@ func (m *Manager) AddWantedOf(scopeStacks config.List[*config.Stack]) (config.Li
 		}
 	}
 
-	var selectedStacks config.List[*config.Stack]
+	var selectedStacks config.List[*config.SortableStack]
 	visited = dag.Visited{}
 	addStack := func(s *config.Stack) {
-		if _, ok := visited[dag.ID(s.Dir().String())]; ok {
+		if _, ok := visited[dag.ID(s.Dir.String())]; ok {
 			return
 		}
 
-		visited[dag.ID(s.Dir().String())] = struct{}{}
-		selectedStacks = append(selectedStacks, s)
+		visited[dag.ID(s.Dir.String())] = struct{}{}
+		selectedStacks = append(selectedStacks, s.Sortable())
 	}
 
 	var pending []dag.ID
@@ -681,5 +681,5 @@ func checkRepoIsClean(g *git.Git) (RepoChecks, error) {
 type EntrySlice []Entry
 
 func (x EntrySlice) Len() int           { return len(x) }
-func (x EntrySlice) Less(i, j int) bool { return x[i].Stack.Dir().String() < x[j].Stack.Dir().String() }
+func (x EntrySlice) Less(i, j int) bool { return x[i].Stack.Dir.String() < x[j].Stack.Dir.String() }
 func (x EntrySlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }

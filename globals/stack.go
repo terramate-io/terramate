@@ -28,5 +28,5 @@ func ForStack(root *config.Root, stack *config.Stack) EvalReport {
 	runtime := root.RuntimeValues()
 	runtime.Merge(stack.RuntimeValues(root))
 	ctx.SetNamespace("terramate", runtime)
-	return ForDir(root, stack.Dir(), ctx)
+	return ForDir(root, stack.Dir, ctx)
 }
