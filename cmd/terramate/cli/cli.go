@@ -1407,15 +1407,17 @@ func (c *cli) outputEvalResult(val cty.Value, asJSON bool) {
 
 func (c *cli) setupEvalContext() *eval.Context {
 	ctx := eval.NewContext(stdlib.Functions(c.wd()))
+	runtime := c.cfg().RuntimeValues()
 	if config.IsStack(c.cfg(), c.wd()) {
 		st, err := config.LoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 		if err != nil {
 			fatal(err, "setup eval context: loading stack config")
 		}
-		ctx.SetNamespace("terramate", st.MergedRuntimeValues(c.cfg()))
-	} else {
-		ctx.SetNamespace("terramate", c.cfg().RuntimeValues())
+		runtime.Merge(st.RuntimeValues(c.cfg()))
+
 	}
+
+	ctx.SetNamespace("terramate", runtime)
 
 	globals.ForDir(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()), ctx)
 	return ctx

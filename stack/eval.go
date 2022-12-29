@@ -49,7 +49,9 @@ func (e *EvalCtx) SetGlobals(g *eval.Object) {
 
 // SetMetadata sets the given metadata on the stack evaluation context.
 func (e *EvalCtx) SetMetadata(st *config.Stack) {
-	e.SetNamespace("terramate", st.MergedRuntimeValues(e.root))
+	runtime := e.root.RuntimeValues()
+	runtime.Merge(st.RuntimeValues(e.root))
+	e.SetNamespace("terramate", runtime)
 }
 
 // SetEnv sets the given environment on the env namespace of the evaluation context.

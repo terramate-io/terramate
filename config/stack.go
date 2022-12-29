@@ -202,25 +202,6 @@ func (s *Stack) RuntimeValues(root *Root) map[string]cty.Value {
 	}
 }
 
-// MergedRuntimeValues returns the runtime "terramate" namespace for the stack
-// but merged with the root namespace as a map of cty.Values.
-func (s *Stack) MergedRuntimeValues(root *Root) map[string]cty.Value {
-	projvalues := root.RuntimeValues()
-	stackvalues := s.RuntimeValues(root)
-
-	tmvar := map[string]cty.Value{}
-	for k, v := range projvalues {
-		tmvar[k] = v
-	}
-	for k, v := range stackvalues {
-		if _, ok := tmvar[k]; ok {
-			panic("project metadata and stack metadata conflicts")
-		}
-		tmvar[k] = v
-	}
-	return tmvar
-}
-
 func validateWatchPaths(rootdir string, stackpath string, paths []string) (project.Paths, error) {
 	var projectPaths project.Paths
 	for _, pathstr := range paths {

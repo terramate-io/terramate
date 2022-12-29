@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // Path is a project path.
@@ -37,6 +38,9 @@ type Path struct {
 
 // Paths is a list of project paths.
 type Paths []Path
+
+// Runtime is a map of runtime values exposed in the terramate namespace.
+type Runtime map[string]cty.Value
 
 // MaxGlobalLabels allowed to be used in a globals block.
 // TODO(i4k): get rid of this limit.
@@ -144,4 +148,13 @@ func FriendlyFmtDir(root, wd, dir string) (string, bool) {
 		Msg("Get friendly dir.")
 
 	return dir, true
+}
+
+func (runtime Runtime) Merge(other Runtime) {
+	for k, v := range other {
+		if _, ok := runtime[k]; ok {
+			panic(fmt.Errorf("runtime key %s conflicts", k))
+		}
+		runtime[k] = v
+	}
 }
