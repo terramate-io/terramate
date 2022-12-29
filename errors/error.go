@@ -149,13 +149,8 @@ func E(args ...interface{}) *Error {
 
 	errs := L()
 	for _, arg := range args {
-		if arg == nil {
-			panic("errors.E() called with nil value in argument")
-		}
-		// explicit check for deprecated usage of the API.
-		if reflect.TypeOf(arg).String() == "*config.Stack" {
-			panic("errors.E() does not support type *config.Stack anymore")
-		}
+		checkDeprecatedUsage(arg)
+
 		switch arg := arg.(type) {
 		case Kind:
 			e.Kind = arg
@@ -462,4 +457,19 @@ func cleanFilename(fname string) string {
 		return "<generated-code>"
 	}
 	return fname
+}
+
+func checkDeprecatedUsage(arg interface{}) {
+	// explicit check for deprecated usage of the API.
+	if typeName := reflect.TypeOf(arg).String(); typeName == "*config.Stack" {
+		panic(deprecatedUsageFor(typeName))
+	}
+}
+
+func deprecatedUsageFor(typeName string) string {
+	return fmt.Sprintf(
+		`BUG: Deprecated use of argument type %s in the errors.E() function.
+If this panic was triggered in the Terramate project, then please open an issue
+at https://github.com/mineiros-io/terramate/issues.`,
+		typeName)
 }
