@@ -63,6 +63,7 @@ type (
 		IsChanged bool
 	}
 
+	// SortableStack is a wrapper for the Stack which implements the [DirElem] type.
 	SortableStack struct {
 		*Stack
 	}
@@ -76,8 +77,8 @@ const (
 	ErrStackInvalidWatch errors.Kind = "invalid stack.watch attribute"
 )
 
-// NewStack creates a new stack from raw configuration cfg.
-func NewStack(root string, cfg hcl.Config) (*Stack, error) {
+// NewStackFromHCL creates a new stack from raw configuration cfg.
+func NewStackFromHCL(root string, cfg hcl.Config) (*Stack, error) {
 	name := cfg.Stack.Name
 	if name == "" {
 		name = filepath.Base(cfg.AbsDir())
@@ -203,7 +204,7 @@ func validateWatchPaths(rootdir string, stackpath string, paths []string) (proje
 func StacksFromTrees(root string, trees List[*Tree]) (List[*SortableStack], error) {
 	var stacks List[*SortableStack]
 	for _, tree := range trees {
-		s, err := NewStack(root, tree.Node)
+		s, err := NewStackFromHCL(root, tree.Node)
 		if err != nil {
 			return List[*SortableStack]{}, err
 		}
@@ -223,7 +224,7 @@ func LoadAllStacks(cfg *Tree) (List[*SortableStack], error) {
 	stacksIDs := map[string]*Stack{}
 
 	for _, stackNode := range cfg.Stacks() {
-		stack, err := NewStack(cfg.RootDir(), stackNode.Node)
+		stack, err := NewStackFromHCL(cfg.RootDir(), stackNode.Node)
 		if err != nil {
 			return List[*SortableStack]{}, err
 		}
@@ -261,7 +262,7 @@ func LoadStack(root *Root, dir project.Path) (*Stack, error) {
 	if !node.IsStack() {
 		return nil, errors.E("config at %s is not a stack")
 	}
-	return NewStack(root.HostDir(), node.Node)
+	return NewStackFromHCL(root.HostDir(), node.Node)
 }
 
 // TryLoadStack tries to load a single stack from dir. It sets found as true in case
@@ -276,7 +277,7 @@ func TryLoadStack(root *Root, cfgdir project.Path) (stack *Stack, found bool, er
 		return nil, false, nil
 	}
 
-	s, err := NewStack(root.HostDir(), tree.Node)
+	s, err := NewStackFromHCL(root.HostDir(), tree.Node)
 	if err != nil {
 		return nil, true, err
 	}

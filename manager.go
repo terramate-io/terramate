@@ -194,7 +194,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 				continue
 			}
 
-			s, err := config.NewStack(m.root.HostDir(), cfg.Node)
+			s, err := config.NewStackFromHCL(m.root.HostDir(), cfg.Node)
 			if err != nil {
 				return nil, errors.E(errListChanged, err)
 			}
@@ -236,7 +236,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 			}
 		}
 
-		s, err := config.NewStack(m.root.HostDir(), stackTree.Node)
+		s, err := config.NewStackFromHCL(m.root.HostDir(), stackTree.Node)
 		if err != nil {
 			return nil, errors.E(errListChanged, err)
 		}
