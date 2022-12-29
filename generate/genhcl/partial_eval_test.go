@@ -1557,7 +1557,6 @@ func TestPartialEval(t *testing.T) {
 			t.Logf("input: %s", hclcfg.String())
 			test.AppendFile(t, path, config.DefaultFilename, hclcfg.String())
 
-			projmeta := s.LoadProjectMetadata()
 			root, err := config.LoadRoot(s.RootDir())
 			if errors.IsAnyKind(err, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
 				errtest.Assert(t, err, tcase.wantErr)
@@ -1566,9 +1565,9 @@ func TestPartialEval(t *testing.T) {
 
 			assert.NoError(t, err)
 
-			globals := s.LoadStackGlobals(root, projmeta, stack)
+			globals := s.LoadStackGlobals(root, stack)
 			vendorDir := project.NewPath("/modules")
-			got, err := genhcl.Load(root, projmeta, stack, globals, vendorDir, nil)
+			got, err := genhcl.Load(root, stack, globals, vendorDir, nil)
 			errtest.Assert(t, err, tcase.wantErr)
 			if err != nil {
 				return

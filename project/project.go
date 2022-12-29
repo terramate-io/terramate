@@ -39,6 +39,9 @@ type Path struct {
 // Paths is a list of project paths.
 type Paths []Path
 
+// Runtime is a map of runtime values exposed in the terramate namespace.
+type Runtime map[string]cty.Value
+
 // MaxGlobalLabels allowed to be used in a globals block.
 // TODO(i4k): get rid of this limit.
 const MaxGlobalLabels = 256
@@ -89,53 +92,6 @@ func (paths Paths) Sort() {
 	sort.Slice(paths, func(i, j int) bool {
 		return string(paths[i].path) < string(paths[j].path)
 	})
-}
-
-// Metadata represents project wide metadata.
-type Metadata struct {
-	rootdir string
-	stacks  Paths
-}
-
-// NewMetadata creates a new project metadata.
-func NewMetadata(rootdir string, stackpaths Paths) Metadata {
-	if !filepath.IsAbs(rootdir) {
-		panic("rootdir must be an absolute path")
-	}
-	return Metadata{
-		rootdir: rootdir,
-		stacks:  stackpaths,
-	}
-}
-
-// Rootdir is the root dir of the project
-func (m Metadata) Rootdir() string {
-	return m.rootdir
-}
-
-// Stacks contains the absolute path relative to the project root
-// of all stacks inside the project.
-func (m Metadata) Stacks() Paths { return m.stacks }
-
-// ToCtyMap returns the project metadata as a cty.Value map.
-func (m Metadata) ToCtyMap() map[string]cty.Value {
-	rootfs := cty.ObjectVal(map[string]cty.Value{
-		"absolute": cty.StringVal(m.Rootdir()),
-		"basename": cty.StringVal(filepath.Base(m.Rootdir())),
-	})
-	rootpath := cty.ObjectVal(map[string]cty.Value{
-		"fs": rootfs,
-	})
-	root := cty.ObjectVal(map[string]cty.Value{
-		"path": rootpath,
-	})
-	stacksNs := cty.ObjectVal(map[string]cty.Value{
-		"list": toCtyStringList(m.Stacks().Strings()),
-	})
-	return map[string]cty.Value{
-		"root":   root,
-		"stacks": stacksNs,
-	}
 }
 
 // PrjAbsPath converts the file system absolute path absdir into an absolute
@@ -194,14 +150,12 @@ func FriendlyFmtDir(root, wd, dir string) (string, bool) {
 	return dir, true
 }
 
-func toCtyStringList(list []string) cty.Value {
-	if len(list) == 0 {
-		// cty panics if the list is empty
-		return cty.ListValEmpty(cty.String)
+// Merge other runtime values into the current set.
+func (runtime Runtime) Merge(other Runtime) {
+	for k, v := range other {
+		if _, ok := runtime[k]; ok {
+			panic(fmt.Errorf("runtime key %s conflicts", k))
+		}
+		runtime[k] = v
 	}
-	res := make([]cty.Value, len(list))
-	for i, elem := range list {
-		res[i] = cty.StringVal(elem)
-	}
-	return cty.ListVal(res)
 }

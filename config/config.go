@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
+	"github.com/zclconf/go-cty/cty"
 )
 
 const (
@@ -225,6 +226,32 @@ func (root *Root) LoadSubTree(cfgdir project.Path) error {
 	return nil
 }
 
+// Stacks return the stacks paths.
+func (root *Root) Stacks() project.Paths {
+	return root.tree.Stacks().Paths()
+}
+
+// RuntimeValues returns the runtime terramate namespace for the root as a cty.Value map.
+func (root *Root) RuntimeValues() project.Runtime {
+	rootfs := cty.ObjectVal(map[string]cty.Value{
+		"absolute": cty.StringVal(root.HostDir()),
+		"basename": cty.StringVal(filepath.Base(root.HostDir())),
+	})
+	rootpath := cty.ObjectVal(map[string]cty.Value{
+		"fs": rootfs,
+	})
+	rootNS := cty.ObjectVal(map[string]cty.Value{
+		"path": rootpath,
+	})
+	stacksNs := cty.ObjectVal(map[string]cty.Value{
+		"list": toCtyStringList(root.Stacks().Strings()),
+	})
+	return project.Runtime{
+		"root":   rootNS,
+		"stacks": stacksNs,
+	}
+}
+
 // LoadTree loads the whole hierarchical configuration from cfgdir downwards
 // using rootdir as project root.
 func LoadTree(rootdir string, cfgdir string) (*Tree, error) {
@@ -417,4 +444,16 @@ func Skip(name string) bool {
 func parentDir(dir string) (string, bool) {
 	parent := filepath.Dir(dir)
 	return parent, parent != dir
+}
+
+func toCtyStringList(list []string) cty.Value {
+	if len(list) == 0 {
+		// cty panics if the list is empty
+		return cty.ListValEmpty(cty.String)
+	}
+	res := make([]cty.Value, len(list))
+	for i, elem := range list {
+		res[i] = cty.StringVal(elem)
+	}
+	return cty.ListVal(res)
 }

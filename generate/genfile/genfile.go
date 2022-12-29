@@ -130,13 +130,12 @@ func (f File) String() string {
 // The rootdir MUST be an absolute path.
 func Load(
 	root *config.Root,
-	projmeta project.Metadata,
-	sm config.StackMetadata,
+	st *config.Stack,
 	globals *eval.Object,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]File, error) {
-	genFileBlocks, err := loadGenFileBlocks(root, sm.Dir())
+	genFileBlocks, err := loadGenFileBlocks(root, st.Dir())
 	if err != nil {
 		return nil, errors.E("loading generate_file", err)
 	}
@@ -149,9 +148,9 @@ func Load(
 		}
 
 		name := genFileBlock.Label
-		evalctx := stack.NewEvalCtx(root, projmeta, sm, globals)
+		evalctx := stack.NewEvalCtx(root, st, globals)
 		vendorTargetDir := project.NewPath(path.Join(
-			sm.Dir().String(),
+			st.Dir().String(),
 			path.Dir(name)))
 
 		evalctx.SetFunction(stdlib.Name("vendor"), stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests))
