@@ -39,6 +39,8 @@ import (
 	"github.com/mineiros-io/terramate/stack/trigger"
 	"github.com/mineiros-io/terramate/stdlib"
 
+	stdjson "encoding/json"
+
 	prj "github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/run"
 	"github.com/mineiros-io/terramate/run/dag"
@@ -1282,12 +1284,19 @@ func (c *cli) printMetadata() {
 			Stringer("stack", stack).
 			Msg("Print metadata for individual stack.")
 
+		tags := []string{}
+		if len(stack.Tags) > 0 {
+			tags = stack.Tags
+		}
+		tagsVal, _ := stdjson.Marshal(tags)
+
 		c.output.MsgStdOut("\nstack %q:", stack.Dir)
 		if stack.ID != "" {
 			c.output.MsgStdOut("\tterramate.stack.id=%q", stack.ID)
 		}
 		c.output.MsgStdOut("\tterramate.stack.name=%q", stack.Name)
 		c.output.MsgStdOut("\tterramate.stack.description=%q", stack.Description)
+		c.output.MsgStdOut("\tterramate.stack.tags=%s", string(tagsVal))
 		c.output.MsgStdOut("\tterramate.stack.path.absolute=%q", stack.Dir)
 		c.output.MsgStdOut("\tterramate.stack.path.basename=%q", stack.PathBase())
 		c.output.MsgStdOut("\tterramate.stack.path.relative=%q", stack.RelPath())

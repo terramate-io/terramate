@@ -639,6 +639,8 @@ func buildTree(t testing.TB, root *config.Root, layout []string) {
 				cfg.Stack.Watch = parseListSpec(t, name, value)
 			case "description":
 				cfg.Stack.Description = value
+			case "tags":
+				cfg.Stack.Tags = parseListSpec(t, name, value)
 			default:
 				t.Fatalf("attribute " + parts[0] + " not supported.")
 			}
