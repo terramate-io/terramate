@@ -28,13 +28,16 @@ import (
 // EvalCtx represents the evaluation context of a stack.
 type EvalCtx struct {
 	*eval.Context
+
+	root *config.Root
 }
 
 // NewEvalCtx creates a new stack evaluation context.
-func NewEvalCtx(projmeta project.Metadata, sm config.StackMetadata, globals *eval.Object) *EvalCtx {
-	evalctx := eval.NewContext(stdlib.Functions(sm.HostDir()))
+func NewEvalCtx(root *config.Root, projmeta project.Metadata, sm config.StackMetadata, globals *eval.Object) *EvalCtx {
+	evalctx := eval.NewContext(stdlib.Functions(sm.HostDir(root)))
 	evalwrapper := &EvalCtx{
 		Context: evalctx,
+		root:    root,
 	}
 	evalwrapper.SetMetadata(projmeta, sm)
 	evalwrapper.SetGlobals(globals)
@@ -48,7 +51,7 @@ func (e *EvalCtx) SetGlobals(g *eval.Object) {
 
 // SetMetadata sets the given metadata on the stack evaluation context.
 func (e *EvalCtx) SetMetadata(projmeta project.Metadata, sm config.StackMetadata) {
-	e.SetNamespace("terramate", MetadataToCtyValues(projmeta, sm))
+	e.SetNamespace("terramate", MetadataToCtyValues(e.root, projmeta, sm))
 }
 
 // SetEnv sets the given environment on the env namespace of the evaluation context.
@@ -62,7 +65,7 @@ func (e *EvalCtx) SetEnv(environ []string) {
 	e.SetNamespace("env", env)
 }
 
-func stackMetaToCtyMap(m config.StackMetadata) map[string]cty.Value {
+func stackMetaToCtyMap(root *config.Root, m config.StackMetadata) map[string]cty.Value {
 	logger := log.With().
 		Str("action", "stack.stackMetaToCtyMap()").
 		Logger()
@@ -73,7 +76,7 @@ func stackMetaToCtyMap(m config.StackMetadata) map[string]cty.Value {
 		"absolute": cty.StringVal(m.Dir().String()),
 		"relative": cty.StringVal(m.RelPath()),
 		"basename": cty.StringVal(m.PathBase()),
-		"to_root":  cty.StringVal(m.RelPathToRoot()),
+		"to_root":  cty.StringVal(m.RelPathToRoot(root)),
 	})
 	stackMapVals := map[string]cty.Value{
 		"name":        cty.StringVal(m.Name()),
@@ -97,9 +100,9 @@ func stackMetaToCtyMap(m config.StackMetadata) map[string]cty.Value {
 }
 
 // MetadataToCtyValues converts the metadatas to a map of cty.Values.
-func MetadataToCtyValues(projmeta project.Metadata, sm config.StackMetadata) map[string]cty.Value {
+func MetadataToCtyValues(root *config.Root, projmeta project.Metadata, sm config.StackMetadata) map[string]cty.Value {
 	projvalues := projmeta.ToCtyMap()
-	stackvalues := stackMetaToCtyMap(sm)
+	stackvalues := stackMetaToCtyMap(root, sm)
 
 	tmvar := map[string]cty.Value{}
 	for k, v := range projvalues {

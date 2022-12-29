@@ -149,7 +149,7 @@ func Load(
 		}
 
 		name := genFileBlock.Label
-		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
+		evalctx := stack.NewEvalCtx(root, projmeta, sm, globals)
 		vendorTargetDir := project.NewPath(path.Join(
 			sm.Dir().String(),
 			path.Dir(name)))

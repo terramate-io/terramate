@@ -29,14 +29,8 @@ import (
 type (
 	// Stack represents an evaluated stack.
 	Stack struct {
-		// hostdir is the file system absolute path of the stack.
-		hostdir string
-
 		// dir is the absolute dir of the stack relative to project's root.
 		dir project.Path
-
-		// relPathToRoot is the relative path from the stack to root.
-		relPathToRoot string
 
 		// ID of the stack.
 		id hcl.StackID
@@ -75,7 +69,7 @@ type (
 		// Name of the stack.
 		Name() string
 		// HostDir is the absolute path of the stack on the host file system.
-		HostDir() string
+		HostDir(*Root) string
 		// Dir is the absolute path of the stack (relative to project root).
 		Dir() project.Path
 		// RelPath is the relative path of the from root.
@@ -85,7 +79,7 @@ type (
 		// Desc is the description of the stack (relative to project root).
 		Desc() string
 		// RelPathToRoot is the relative path from the stack to root.
-		RelPathToRoot() string
+		RelPathToRoot(*Root) string
 	}
 )
 
@@ -107,32 +101,21 @@ func NewStack(root string, cfg hcl.Config) (*Stack, error) {
 		name = filepath.Base(cfg.AbsDir())
 	}
 
-	rel, err := filepath.Rel(cfg.AbsDir(), root)
-	if err != nil {
-		// This is an invariant on Terramate, stacks must always be
-		// inside the root dir.
-		panic(errors.E(
-			"No relative path from stack %q to root %q",
-			cfg.AbsDir(), root, err))
-	}
-
 	watchFiles, err := validateWatchPaths(root, cfg.AbsDir(), cfg.Stack.Watch)
 	if err != nil {
 		return nil, errors.E(err, ErrStackInvalidWatch)
 	}
 
 	return &Stack{
-		name:          name,
-		id:            cfg.Stack.ID,
-		desc:          cfg.Stack.Description,
-		after:         cfg.Stack.After,
-		before:        cfg.Stack.Before,
-		wants:         cfg.Stack.Wants,
-		wantedBy:      cfg.Stack.WantedBy,
-		watch:         watchFiles,
-		hostdir:       cfg.AbsDir(),
-		dir:           project.PrjAbsPath(root, cfg.AbsDir()),
-		relPathToRoot: filepath.ToSlash(rel),
+		name:     name,
+		id:       cfg.Stack.ID,
+		desc:     cfg.Stack.Description,
+		after:    cfg.Stack.After,
+		before:   cfg.Stack.Before,
+		wants:    cfg.Stack.Wants,
+		wantedBy: cfg.Stack.WantedBy,
+		watch:    watchFiles,
+		dir:      project.PrjAbsPath(root, cfg.AbsDir()),
 	}, nil
 }
 
@@ -192,10 +175,16 @@ func (s *Stack) PathBase() string { return filepath.Base(s.dir.String()) }
 func (s *Stack) RelPath() string { return s.dir.String()[1:] }
 
 // RelPathToRoot returns the relative path from the stack to root.
-func (s *Stack) RelPathToRoot() string { return s.relPathToRoot }
+func (s *Stack) RelPathToRoot(root *Root) string {
+	// should never fail as abspath is constructed inside rootdir.
+	rel, _ := filepath.Rel(s.HostDir(root), root.HostDir())
+	return filepath.ToSlash(rel)
+}
 
 // HostDir returns the file system absolute path of stack.
-func (s *Stack) HostDir() string { return s.hostdir }
+func (s *Stack) HostDir(root *Root) string {
+	return project.AbsPath(root.HostDir(), s.Dir().String())
+}
 
 func validateWatchPaths(rootdir string, stackpath string, paths []string) (project.Paths, error) {
 	var projectPaths project.Paths

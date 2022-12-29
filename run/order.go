@@ -164,7 +164,7 @@ func BuildDAG(
 			if path.IsAbs(pathstr) {
 				abspath = filepath.Join(root.HostDir(), filepath.FromSlash(pathstr))
 			} else {
-				abspath = filepath.Join(s.HostDir(), filepath.FromSlash(pathstr))
+				abspath = filepath.Join(s.HostDir(root), filepath.FromSlash(pathstr))
 			}
 			st, err := os.Stat(abspath)
 			if err != nil {

@@ -204,7 +204,7 @@ func doStackGeneration(
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) dirReport {
-	stackpath := stack.HostDir()
+	stackpath := stack.HostDir(root)
 	logger := log.With().
 		Str("action", "generate.doStackGeneration()").
 		Stringer("stack", stack.Dir()).
@@ -246,7 +246,7 @@ func doStackGeneration(
 		return r
 	}
 
-	removedFiles, err = removeStackGeneratedFiles(root, stack.HostDir(), generated)
+	removedFiles, err = removeStackGeneratedFiles(root, stack.HostDir(root), generated)
 	if err != nil {
 		return failureReport(
 			report,
@@ -586,19 +586,18 @@ func stackOutdated(
 	}
 
 	globals := report.Globals
-	stackpath := st.HostDir()
-
 	generated, err := loadStackCodeCfgs(root, projmeta, st, globals, vendorDir, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	err = validateStackGeneratedFiles(root, st.HostDir(), generated)
+	stackpath := st.HostDir(root)
+	err = validateStackGeneratedFiles(root, stackpath, generated)
 	if err != nil {
 		return nil, err
 	}
 
-	genfilesOnFs, err := ListGenFiles(root, st.HostDir())
+	genfilesOnFs, err := ListGenFiles(root, stackpath)
 	if err != nil {
 		return nil, errors.E(err, "checking for outdated code")
 	}
@@ -608,11 +607,7 @@ func stackOutdated(
 	// We start with the assumption that all gen files on the stack
 	// are outdated and then update the outdated files set as we go.
 	outdatedFiles := newStringSet(genfilesOnFs...)
-	err = updateOutdatedFiles(
-		stackpath,
-		generated,
-		outdatedFiles,
-	)
+	err = updateOutdatedFiles(stackpath, generated, outdatedFiles)
 	if err != nil {
 		return nil, errors.E(err, "checking for outdated files")
 	}
@@ -1257,7 +1252,7 @@ func loadAsserts(root *config.Root, meta project.Metadata, sm config.StackMetada
 			Stringer("curdir", curdir).
 			Logger()
 
-		evalctx := stack.NewEvalCtx(meta, sm, globals)
+		evalctx := stack.NewEvalCtx(root, meta, sm, globals)
 
 		cfg, ok := root.Lookup(curdir)
 		if ok {
@@ -1326,7 +1321,7 @@ func loadStackCodeCfgs(
 		asserts = append(asserts, gen.Asserts()...)
 	}
 
-	err = handleAsserts(root.HostDir(), st.HostDir(), asserts)
+	err = handleAsserts(root.HostDir(), st.HostDir(root), asserts)
 	if err != nil {
 		return nil, err
 	}
