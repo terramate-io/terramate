@@ -231,8 +231,7 @@ func (root *Root) Stacks() project.Paths {
 	return root.tree.Stacks().Paths()
 }
 
-// RuntimeValues returns the runtime terramate namespace for the root as a
-// cty.Value map.
+// RuntimeValues returns the runtime terramate namespace for the root as a cty.Value map.
 func (root *Root) RuntimeValues() project.Runtime {
 	rootfs := cty.ObjectVal(map[string]cty.Value{
 		"absolute": cty.StringVal(root.HostDir()),
