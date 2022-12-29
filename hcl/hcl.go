@@ -261,9 +261,7 @@ type TerramateParser struct {
 
 var stackIDRegex = regexp.MustCompile("^[a-zA-Z0-9_-]{1,64}$")
 
-// ValidateStackID creates a new StackID with the given string as its id.
-// It guarantees that the id passed is a valid StackID value,
-// an error is returned otherwise.
+// ValidateStackID validates if the given id is a valid stack id.
 func ValidateStackID(id string) error {
 	if !stackIDRegex.MatchString(id) {
 		return errors.E("Stack ID %q doesn't match %q", id, stackIDRegex)

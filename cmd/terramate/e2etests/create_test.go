@@ -132,6 +132,7 @@ func TestCreateStackDefaults(t *testing.T) {
 		t.Fatalf("want no before, got: %v", got.Before())
 	}
 
+	// By default the CLI generates an id with an UUID
 	_, err := uuid.Parse(got.ID)
 	assert.NoError(t, err, "validating default UUID")
 
