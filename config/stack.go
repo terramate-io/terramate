@@ -24,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
+	"github.com/zclconf/go-cty/cty"
 )
 
 type (
@@ -60,26 +61,6 @@ type (
 
 		// changed tells if this is a changed stack.
 		changed bool
-	}
-
-	// StackMetadata has all metadata loaded per stack
-	StackMetadata interface {
-		// ID of the stack if it has any. Empty string and false otherwise.
-		ID() (string, bool)
-		// Name of the stack.
-		Name() string
-		// HostDir is the absolute path of the stack on the host file system.
-		HostDir(*Root) string
-		// Dir is the absolute path of the stack (relative to project root).
-		Dir() project.Path
-		// RelPath is the relative path of the from root.
-		RelPath() string
-		// PathBase is the basename of the stack path.
-		PathBase() string
-		// Desc is the description of the stack (relative to project root).
-		Desc() string
-		// RelPathToRoot is the relative path from the stack to root.
-		RelPathToRoot(*Root) string
 	}
 )
 
@@ -184,6 +165,58 @@ func (s *Stack) RelPathToRoot(root *Root) string {
 // HostDir returns the file system absolute path of stack.
 func (s *Stack) HostDir(root *Root) string {
 	return project.AbsPath(root.HostDir(), s.Dir().String())
+}
+
+func (m *Stack) stackMetaToCtyMap(root *Root) map[string]cty.Value {
+	logger := log.With().
+		Str("action", "stack.stackMetaToCtyMap()").
+		Logger()
+
+	logger.Trace().Msg("creating stack metadata")
+
+	stackpath := cty.ObjectVal(map[string]cty.Value{
+		"absolute": cty.StringVal(m.Dir().String()),
+		"relative": cty.StringVal(m.RelPath()),
+		"basename": cty.StringVal(m.PathBase()),
+		"to_root":  cty.StringVal(m.RelPathToRoot(root)),
+	})
+	stackMapVals := map[string]cty.Value{
+		"name":        cty.StringVal(m.Name()),
+		"description": cty.StringVal(m.Desc()),
+		"path":        stackpath,
+	}
+	if id, ok := m.ID(); ok {
+		logger.Trace().
+			Str("id", id).
+			Msg("adding stack ID to metadata")
+
+		stackMapVals["id"] = cty.StringVal(id)
+	}
+	stack := cty.ObjectVal(stackMapVals)
+	return map[string]cty.Value{
+		"name":        cty.StringVal(m.Name()),         // DEPRECATED
+		"path":        cty.StringVal(m.Dir().String()), // DEPRECATED
+		"description": cty.StringVal(m.Desc()),         // DEPRECATED
+		"stack":       stack,
+	}
+}
+
+// MetadataToCtyValues converts the metadatas to a map of cty.Values.
+func (s *Stack) ToCtyValues(root *Root, projmeta project.Metadata) map[string]cty.Value {
+	projvalues := projmeta.ToCtyMap()
+	stackvalues := s.stackMetaToCtyMap(root)
+
+	tmvar := map[string]cty.Value{}
+	for k, v := range projvalues {
+		tmvar[k] = v
+	}
+	for k, v := range stackvalues {
+		if _, ok := tmvar[k]; ok {
+			panic("project metadata and stack metadata conflicts")
+		}
+		tmvar[k] = v
+	}
+	return tmvar
 }
 
 func validateWatchPaths(rootdir string, stackpath string, paths []string) (project.Paths, error) {

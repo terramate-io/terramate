@@ -251,11 +251,11 @@ func (s S) LoadProjectMetadata() project.Metadata {
 func (s S) LoadStackGlobals(
 	root *config.Root,
 	projmeta project.Metadata,
-	sm config.StackMetadata,
+	st *config.Stack,
 ) *eval.Object {
 	s.t.Helper()
 
-	report := globals.ForStack(root, projmeta, sm)
+	report := globals.ForStack(root, projmeta, st)
 	assert.NoError(s.t, report.AsError())
 	return report.Globals
 }

@@ -1239,13 +1239,12 @@ func (c *cli) printStacksGlobals() {
 	}
 
 	projmeta := c.newProjectMetadata(report)
-
 	for _, stackEntry := range c.filterStacksByWorkingDir(report.Stacks) {
-		meta := config.StackMetadata(stackEntry.Stack)
-		report := globals.ForStack(c.cfg(), projmeta, meta)
+		stack := stackEntry.Stack
+		report := globals.ForStack(c.cfg(), projmeta, stack)
 		if err := report.AsError(); err != nil {
 			logger := log.With().
-				Stringer("stack", meta.Dir()).
+				Stringer("stack", stack.Dir()).
 				Logger()
 
 			errlog.Fatal(logger, err, "listing stacks globals: loading stack")
@@ -1256,7 +1255,7 @@ func (c *cli) printStacksGlobals() {
 			continue
 		}
 
-		c.output.MsgStdOut("\nstack %q:", meta.Dir())
+		c.output.MsgStdOut("\nstack %q:", stack.Dir())
 		for _, line := range strings.Split(globalsStrRepr, "\n") {
 			c.output.MsgStdOut("\t%s", line)
 		}
@@ -1291,22 +1290,22 @@ func (c *cli) printMetadata() {
 	c.output.MsgStdOut("\tterramate.stacks.list=%v", projmeta.Stacks())
 
 	for _, stackEntry := range stackEntries {
-		stackMeta := config.StackMetadata(stackEntry.Stack)
+		stack := stackEntry.Stack
 
 		logger.Debug().
-			Stringer("stack", stackEntry.Stack).
+			Stringer("stack", stack).
 			Msg("Print metadata for individual stack.")
 
-		c.output.MsgStdOut("\nstack %q:", stackMeta.Dir())
-		if id, ok := stackMeta.ID(); ok {
+		c.output.MsgStdOut("\nstack %q:", stack.Dir())
+		if id, ok := stack.ID(); ok {
 			c.output.MsgStdOut("\tterramate.stack.id=%q", id)
 		}
-		c.output.MsgStdOut("\tterramate.stack.name=%q", stackMeta.Name())
-		c.output.MsgStdOut("\tterramate.stack.description=%q", stackMeta.Desc())
-		c.output.MsgStdOut("\tterramate.stack.path.absolute=%q", stackMeta.Dir())
-		c.output.MsgStdOut("\tterramate.stack.path.basename=%q", stackMeta.PathBase())
-		c.output.MsgStdOut("\tterramate.stack.path.relative=%q", stackMeta.RelPath())
-		c.output.MsgStdOut("\tterramate.stack.path.to_root=%q", stackMeta.RelPathToRoot(c.cfg()))
+		c.output.MsgStdOut("\tterramate.stack.name=%q", stack.Name())
+		c.output.MsgStdOut("\tterramate.stack.description=%q", stack.Desc())
+		c.output.MsgStdOut("\tterramate.stack.path.absolute=%q", stack.Dir())
+		c.output.MsgStdOut("\tterramate.stack.path.basename=%q", stack.PathBase())
+		c.output.MsgStdOut("\tterramate.stack.path.relative=%q", stack.RelPath())
+		c.output.MsgStdOut("\tterramate.stack.path.to_root=%q", stack.RelPathToRoot(c.cfg()))
 	}
 }
 
@@ -1433,7 +1432,7 @@ func (c *cli) setupEvalContext() *eval.Context {
 		if err != nil {
 			fatal(err, "setup eval context: loading stack config")
 		}
-		ctx.SetNamespace("terramate", stack.MetadataToCtyValues(c.cfg(), projmeta, st))
+		ctx.SetNamespace("terramate", st.ToCtyValues(c.cfg(), projmeta))
 	} else {
 		ctx.SetNamespace("terramate", projmeta.ToCtyMap())
 	}

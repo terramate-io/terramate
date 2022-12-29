@@ -144,19 +144,19 @@ func (h HCL) String() string {
 func Load(
 	root *config.Root,
 	projmeta project.Metadata,
-	sm config.StackMetadata,
+	st *config.Stack,
 	globals *eval.Object,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]HCL, error) {
 	logger := log.With().
 		Str("action", "genhcl.Load()").
-		Stringer("path", sm.Dir()).
+		Stringer("path", st.Dir()).
 		Logger()
 
 	logger.Trace().Msg("loading generate_hcl blocks.")
 
-	hclBlocks, err := loadGenHCLBlocks(root, sm.Dir())
+	hclBlocks, err := loadGenHCLBlocks(root, st.Dir())
 	if err != nil {
 		return nil, errors.E("loading generate_hcl", err)
 	}
@@ -166,10 +166,10 @@ func Load(
 	var hcls []HCL
 	for _, hclBlock := range hclBlocks {
 		name := hclBlock.Label
-		evalctx := stack.NewEvalCtx(root, projmeta, sm, globals)
+		evalctx := stack.NewEvalCtx(root, projmeta, st, globals)
 
 		vendorTargetDir := project.NewPath(path.Join(
-			sm.Dir().String(),
+			st.Dir().String(),
 			path.Dir(name)))
 
 		evalctx.SetFunction(
@@ -242,14 +242,14 @@ func Load(
 
 		gen := hclwrite.NewEmptyFile()
 		if err := copyBody(gen.Body(), hclBlock.Content.Body, evalctx); err != nil {
-			return nil, errors.E(ErrContentEval, sm, err,
+			return nil, errors.E(ErrContentEval, st, err,
 				"generate_hcl %q", name,
 			)
 		}
 
 		formatted, err := fmt.FormatMultiline(string(gen.Bytes()), hclBlock.Range.HostPath())
 		if err != nil {
-			panic(errors.E(sm, err,
+			panic(errors.E(st, err,
 				"internal error: formatting generated code for generate_hcl %q:%s", name, string(gen.Bytes()),
 			))
 		}

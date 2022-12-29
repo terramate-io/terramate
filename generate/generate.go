@@ -1236,14 +1236,14 @@ func checkFileConflict(generated []GenFile) map[string]error {
 	return errsmap
 }
 
-func loadAsserts(root *config.Root, meta project.Metadata, sm config.StackMetadata, globals *eval.Object) ([]config.Assert, error) {
+func loadAsserts(root *config.Root, meta project.Metadata, st *config.Stack, globals *eval.Object) ([]config.Assert, error) {
 	logger := log.With().
 		Str("action", "generate.loadAsserts").
 		Str("rootdir", root.HostDir()).
-		Str("stack", sm.Dir().String()).
+		Str("stack", st.Dir().String()).
 		Logger()
 
-	curdir := sm.Dir()
+	curdir := st.Dir()
 	asserts := []config.Assert{}
 	errs := errors.L()
 
@@ -1252,8 +1252,7 @@ func loadAsserts(root *config.Root, meta project.Metadata, sm config.StackMetada
 			Stringer("curdir", curdir).
 			Logger()
 
-		evalctx := stack.NewEvalCtx(root, meta, sm, globals)
-
+		evalctx := stack.NewEvalCtx(root, meta, st, globals)
 		cfg, ok := root.Lookup(curdir)
 		if ok {
 			for _, assertCfg := range cfg.Node.Asserts {
