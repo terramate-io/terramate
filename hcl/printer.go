@@ -106,8 +106,8 @@ func PrintConfig(w io.Writer, cfg Config) error {
 			stackBody.SetAttributeValue("watch", cty.SetVal(listToValue(stack.Watch)))
 		}
 
-		if id, ok := stack.ID.Value(); ok {
-			stackBody.SetAttributeValue("id", cty.StringVal(id))
+		if stack.ID != "" {
+			stackBody.SetAttributeValue("id", cty.StringVal(stack.ID))
 		}
 	}
 

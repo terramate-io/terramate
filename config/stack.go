@@ -34,7 +34,7 @@ type (
 		dir project.Path
 
 		// ID of the stack.
-		id hcl.StackID
+		ID string
 
 		// name of the stack.
 		name string
@@ -89,7 +89,7 @@ func NewStack(root string, cfg hcl.Config) (*Stack, error) {
 
 	return &Stack{
 		name:     name,
-		id:       cfg.Stack.ID,
+		ID:       cfg.Stack.ID,
 		desc:     cfg.Stack.Description,
 		after:    cfg.Stack.After,
 		before:   cfg.Stack.Before,
@@ -98,11 +98,6 @@ func NewStack(root string, cfg hcl.Config) (*Stack, error) {
 		watch:    watchFiles,
 		dir:      project.PrjAbsPath(root, cfg.AbsDir()),
 	}, nil
-}
-
-// ID of the stack if it has one, or empty string and false otherwise.
-func (s *Stack) ID() (string, bool) {
-	return s.id.Value()
 }
 
 // Name of the stack.
@@ -186,12 +181,12 @@ func (s *Stack) RuntimeValues(root *Root) map[string]cty.Value {
 		"description": cty.StringVal(s.Desc()),
 		"path":        stackpath,
 	}
-	if id, ok := s.ID(); ok {
+	if s.ID != "" {
 		logger.Trace().
-			Str("id", id).
+			Str("id", s.ID).
 			Msg("adding stack ID to metadata")
 
-		stackMapVals["id"] = cty.StringVal(id)
+		stackMapVals["id"] = cty.StringVal(s.ID)
 	}
 	stack := cty.ObjectVal(stackMapVals)
 	return map[string]cty.Value{
@@ -267,17 +262,17 @@ func LoadAllStacks(cfg *Tree) (List[*Stack], error) {
 		logger.Debug().Msg("Found stack")
 		stacks = append(stacks, stack)
 
-		if id, ok := stack.ID(); ok {
+		if stack.ID != "" {
 			logger.Trace().Msg("stack has ID, checking for duplicate")
-			if otherStack, ok := stacksIDs[id]; ok {
+			if otherStack, ok := stacksIDs[stack.ID]; ok {
 				return List[*Stack]{}, errors.E(ErrStackDuplicatedID,
 					"stack %q and %q have same ID %q",
 					stack.Dir(),
 					otherStack.Dir(),
-					id,
+					stack.ID,
 				)
 			}
-			stacksIDs[id] = stack
+			stacksIDs[stack.ID] = stack
 		}
 	}
 

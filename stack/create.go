@@ -130,11 +130,11 @@ func Create(root *config.Root, cfg CreateCfg) (err error) {
 	}
 
 	if cfg.ID != "" {
-		stackID, err := hcl.NewStackID(cfg.ID)
+		err := hcl.ValidateStackID(cfg.ID)
 		if err != nil {
 			return errors.E(ErrInvalidStackID, err)
 		}
-		stackCfg.ID = stackID
+		stackCfg.ID = cfg.ID
 	}
 
 	tmCfg, err := hcl.NewConfig(cfg.Dir)

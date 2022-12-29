@@ -77,24 +77,20 @@ generate_hcl "test2.hcl" {
 
 	destdir := filepath.Join(s.RootDir(), destStack)
 	cfg := test.ParseTerramateConfig(t, destdir)
-
 	if cfg.Stack == nil {
 		t.Fatalf("cloned stack has no stack block: %v", cfg)
 	}
-
-	clonedStackID, ok := cfg.Stack.ID.Value()
-	if !ok {
+	if cfg.Stack.ID == "" {
 		t.Fatalf("cloned stack has no ID: %v", cfg.Stack)
 	}
-
-	if clonedStackID == stackID {
-		t.Fatalf("want cloned stack to have different ID, got %s == %s", clonedStackID, stackID)
+	if cfg.Stack.ID == stackID {
+		t.Fatalf("want cloned stack to have different ID, got %s == %s", cfg.Stack.ID, stackID)
 	}
 
 	assert.EqualStrings(t, stackName, cfg.Stack.Name)
 	assert.EqualStrings(t, stackDesc, cfg.Stack.Description)
 
-	want := fmt.Sprintf(stackCfgTemplate, clonedStackID, stackName, stackDesc)
+	want := fmt.Sprintf(stackCfgTemplate, cfg.Stack.ID, stackName, stackDesc)
 
 	clonedStackEntry := s.DirEntry(destStack)
 	got := string(clonedStackEntry.ReadFile(stackCfgFilename))

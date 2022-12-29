@@ -97,8 +97,7 @@ func TestCreateStack(t *testing.T) {
 		absStackPath := filepath.Join(s.RootDir(), filepath.FromSlash(stackPath))
 		got := s.LoadStack(project.PrjAbsPath(s.RootDir(), absStackPath))
 
-		gotID, _ := got.ID()
-		assert.EqualStrings(t, stackID, gotID)
+		assert.EqualStrings(t, stackID, got.ID)
 		assert.EqualStrings(t, stackName, got.Name(), "checking stack name")
 		assert.EqualStrings(t, stackDescription, got.Desc(), "checking stack description")
 		test.AssertDiff(t, got.After(), []string{stackAfter1, stackAfter2}, "created stack has invalid after")
@@ -134,8 +133,7 @@ func TestCreateStackDefaults(t *testing.T) {
 	}
 
 	// By default the CLI generates an id with an UUID
-	gotID, _ := got.ID()
-	_, err := uuid.Parse(gotID)
+	_, err := uuid.Parse(got.ID)
 	assert.NoError(t, err, "validating default UUID")
 
 	test.AssertStackImports(t, s.RootDir(), got.HostDir(s.Config()), []string{})
