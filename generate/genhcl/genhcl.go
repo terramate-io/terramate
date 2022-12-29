@@ -241,9 +241,7 @@ func Load(
 
 		gen := hclwrite.NewEmptyFile()
 		if err := copyBody(gen.Body(), hclBlock.Content.Body, evalctx); err != nil {
-			return nil, errors.E(ErrContentEval, st, err,
-				"generate_hcl %q", name,
-			)
+			return nil, errors.E(ErrContentEval, err, "generate_hcl %q", name)
 		}
 
 		formatted, err := fmt.FormatMultiline(string(gen.Bytes()), hclBlock.Range.HostPath())

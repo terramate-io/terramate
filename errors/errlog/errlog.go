@@ -78,12 +78,8 @@ func logerr(
 	if !tmerr.FileRange.Empty() {
 		ctx = ctx.Stringer("file", tmerr.FileRange)
 	}
-	if tmerr.Stack != nil {
-		ctx = ctx.Stringer("stack", tmerr.Stack.Dir())
-	}
 
 	msgparts := []string{}
-
 	if msg != "" {
 		msgparts = append(msgparts, msg)
 	}

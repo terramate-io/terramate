@@ -21,12 +21,12 @@ package errors
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"syscall"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/mineiros-io/terramate/hcl/info"
-	"github.com/mineiros-io/terramate/project"
 )
 
 const (
@@ -48,25 +48,12 @@ type Error struct {
 	// FileRange holds the error source.
 	FileRange hcl.Range
 
-	// Stack which originated the error.
-	Stack StackMeta
-
 	// Err holds the underlying error.
 	Err error
 }
 
-type (
-	// Kind defines the kind of an error.
-	Kind string
-
-	// StackMeta has the metadata of the stack which originated the error.
-	// Same interface as stack.Metadata.
-	StackMeta interface {
-		Name() string
-		Desc() string
-		Dir() project.Path
-	}
-)
+// Kind defines the kind of an error.
+type Kind string
 
 const separator = ": "
 
@@ -162,6 +149,13 @@ func E(args ...interface{}) *Error {
 
 	errs := L()
 	for _, arg := range args {
+		if arg == nil {
+			panic("errors.E() called with nil value in argument")
+		}
+		// explicit check for deprecated usage of the API.
+		if reflect.TypeOf(arg).String() == "*config.Stack" {
+			panic("errors.E() does not support type *config.Stack anymore")
+		}
 		switch arg := arg.(type) {
 		case Kind:
 			e.Kind = arg
@@ -183,8 +177,6 @@ func E(args ...interface{}) *Error {
 					Byte:   end.Byte(),
 				},
 			}
-		case StackMeta:
-			e.Stack = arg
 		case hcl.Diagnostics:
 			errs.Append(arg)
 		case hcl.Diagnostic:
@@ -285,9 +277,6 @@ func E(args ...interface{}) *Error {
 		if prev.FileRange == e.FileRange {
 			prev.FileRange = hcl.Range{}
 		}
-		if equalStack(e.Stack, prev.Stack) {
-			prev.Stack = nil
-		}
 		if prev.Description == e.Description {
 			prev.Description = ""
 		}
@@ -302,7 +291,7 @@ func E(args ...interface{}) *Error {
 // isEmpty tells if all fields of this error are empty.
 // Note that e.Err is the underlying error hence not checked.
 func (e *Error) isEmpty() bool {
-	return e.FileRange == hcl.Range{} && e.Kind == "" && e.Description == "" && e.Stack == nil
+	return e.FileRange == hcl.Range{} && e.Kind == "" && e.Description == ""
 }
 
 func (e *Error) error(fields []interface{}, verbose bool) string {
@@ -338,17 +327,6 @@ func (e *Error) error(fields []interface{}, verbose bool) string {
 			if v != "" {
 				errParts = append(errParts, v)
 			}
-		case StackMeta:
-			if v != nil {
-				if verbose {
-					errParts = append(errParts,
-						fmt.Sprintf("at stack (name=%q, path=%q, desc=%q)",
-							v.Name(), v.Dir(), v.Desc(),
-						))
-				} else {
-					errParts = append(errParts, fmt.Sprintf("at stack %q", v.Dir()))
-				}
-			}
 		case error:
 			if v != nil {
 				errmsg := ""
@@ -375,7 +353,6 @@ func (e *Error) defaultErrorFields() []interface{} {
 		e.FileRange,
 		e.Kind,
 		e.Description,
-		e.Stack,
 		e.Err,
 	}
 }
@@ -409,7 +386,6 @@ func (e *Error) Message() string {
 	return e.error([]interface{}{
 		e.Kind,
 		e.Description,
-		e.Stack,
 		e.Err,
 	}, false)
 }
@@ -432,10 +408,6 @@ func (e *Error) Is(target error) bool {
 	}
 
 	if t.Description != "" && e.Description != t.Description {
-		return false
-	}
-
-	if t.Stack != nil && !equalStack(e.Stack, t.Stack) {
 		return false
 	}
 
@@ -476,20 +448,6 @@ func Is(err, target error) bool {
 // As is just an alias to Go stdlib errors.As
 func As(err error, target interface{}) bool {
 	return errors.As(err, target)
-}
-
-func equalStack(s1, s2 StackMeta) bool {
-	if (s1 == nil) != (s2 == nil) {
-		return false
-	}
-
-	if s1 == nil { // s2 is also nil
-		return true
-	}
-
-	return s1.Name() == s2.Name() &&
-		s1.Desc() == s2.Desc() &&
-		s1.Dir() == s2.Dir()
 }
 
 // cleanFilename will clean the given filename returning a placeholder if
