@@ -118,7 +118,7 @@ func Load(root *config.Root, vendorDir project.Path) ([]LoadResult, error) {
 
 		generated, err := loadStackCodeCfgs(root, st, loadres.Globals, vendorDir, nil)
 		if err != nil {
-			res.Err = err
+			res.Err = errors.E(err, "while loading configs of stack %s", st.Dir())
 			results[i] = res
 			continue
 		}
@@ -1088,7 +1088,7 @@ func validateStackGeneratedFiles(root *config.Root, stackpath string, generated 
 				break
 			}
 			if (info.Mode() & fs.ModeSymlink) == fs.ModeSymlink {
-				errs.Append(errors.E(ErrInvalidGenBlockLabel, err,
+				errs.Append(errors.E(ErrInvalidGenBlockLabel,
 					file.Range(),
 					"%s: generates code inside a symlink",
 					file.Label()))

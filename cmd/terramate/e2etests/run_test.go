@@ -1819,7 +1819,6 @@ func TestRunContinueOnError(t *testing.T) {
 	t.Parallel()
 
 	s := sandbox.New(t)
-
 	s.BuildTree([]string{
 		`s:s1`,
 		`s:s2`,
@@ -1836,8 +1835,8 @@ func TestRunContinueOnError(t *testing.T) {
 
 	cli := newCLI(t, s.RootDir())
 	assertRunResult(t, cli.run("run", "cat", "main.tf"), runExpected{
-		IgnoreStderr: true,
-		Status:       1,
+		StderrRegex: "one or more commands failed",
+		Status:      1,
 	})
 
 	assertRunResult(t, cli.run("run", "--continue-on-error", "cat", "main.tf"), runExpected{

@@ -124,7 +124,7 @@ func Exec(
 			case err := <-results:
 				logger.Trace().Msg("got command result")
 				if err != nil {
-					errs.Append(errors.E(stack, err, "running %s", cmd))
+					errs.Append(errors.E(err, "running %s (at stack %s)", cmd, stack.Dir()))
 					if !continueOnError {
 						return errs.AsError()
 					}
