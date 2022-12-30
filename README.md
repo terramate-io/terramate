@@ -14,7 +14,7 @@ The stack concept is not defined by Hashicorp's Terraform tooling but just a con
 
 Terramate provides ways to keep your Terraform code [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) and allows to define relationships between stacks and supports you to orchestrate Terraform commands in those stacks with minimal effort to get started in a non-intrusive way.
 
-- **Keep you code DRY**: Avoid duplication by easily sharing data across your project.
+- **Keep your code DRY**: Avoid duplication by easily sharing data across your project.
 - **Code Generation**: Generate valid Terraform Code to ensure that you can always enter a stack to run plain Terraform commands.
 - **Stack Change detection**: Only execute commands in stacks that have been changed in the current branch or since the last merge.
 - **Module Change detection**: Enhanced Change Detection allows to identifying stacks that have changes in local modules.
@@ -25,14 +25,14 @@ Terramate provides ways to keep your Terraform code [DRY](https://en.wikipedia.o
 
 For more details on how this is achieved, please consider:
 
-* [Why Stacks ?](docs/why-stacks.md)
-* [Change Detection](docs/change-detection.md)
-* [Config Overview](docs/config-overview.md)
-* [Configuring A Project](docs/project-config.md)
-* [Functions](docs/functions.md)
-* [Sharing Data](docs/sharing-data.md)
-* [Code Generation](docs/codegen/overview.md)
-* [Orchestrating Stacks Execution](docs/orchestration.md)
+- [Why Stacks ?](docs/why-stacks.md)
+- [Change Detection](docs/change-detection.md)
+- [Config Overview](docs/config-overview.md)
+- [Configuring A Project](docs/project-config.md)
+- [Functions](docs/functions.md)
+- [Sharing Data](docs/sharing-data.md)
+- [Code Generation](docs/codegen/overview.md)
+- [Orchestrating Stacks Execution](docs/orchestration.md)
 
 If you're interested to know why we decided to build Terramate please consider our blog post:
 [Introducing Terramate — An Orchestrator and Code Generator for Terraform](https://medium.com/p/5e538c9ee055).
@@ -61,7 +61,6 @@ go install github.com/mineiros-io/terramate/cmd/terramate@latest
 - macOS: You can install Terramate on macOS using
   [Homebrew](https://formulae.brew.sh/formula/terramate): `brew install terramate`
 
-
 #### Using Release Binaries
 
 To install Terramate using a release binary, find the
@@ -74,7 +73,6 @@ and Terramate will still function.
 
 Finally, make sure that the `terramate` binary is available on your PATH.
 This process will differ depending on your operating system.
-
 
 #### Using Docker
 
@@ -90,10 +88,9 @@ Container images tagged with release versions are also provided.
 Click [here](https://github.com/mineiros-io/terramate/pkgs/container/terramate/versions)
 for a list of the available container image tags.
 
-
 #### Auto Completion
 
-Terramate supports autocompletion of commands for *bash*, *zsh* and *fish*. To
+Terramate supports autocompletion of commands for _bash_, _zsh_ and _fish_. To
 install the completion just run the command below and open a new shell session:
 
 ```sh
