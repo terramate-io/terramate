@@ -970,7 +970,7 @@ func testGenfile(t *testing.T, tcase testcase) {
 
 		s := sandbox.New(t)
 		s.BuildTree([]string{"s:" + tcase.stack})
-		stack := s.LoadStacks()[0]
+		stack := s.LoadStacks()[0].Stack
 
 		for _, cfg := range tcase.configs {
 			test.AppendFile(t, s.RootDir(), cfg.path, cfg.add.String())

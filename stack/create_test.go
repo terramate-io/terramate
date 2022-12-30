@@ -245,12 +245,12 @@ func TestStackCreation(t *testing.T) {
 				t.Fatalf("got unwanted ID %q", got.ID)
 			}
 
-			assert.EqualStrings(t, want.name, got.Name(), "checking stack name")
-			assert.EqualStrings(t, want.desc, got.Desc(), "checking stack description")
+			assert.EqualStrings(t, want.name, got.Name, "checking stack name")
+			assert.EqualStrings(t, want.desc, got.Description, "checking stack description")
 
 			test.AssertStackImports(t, s.RootDir(), got.HostDir(root), want.imports)
-			test.AssertDiff(t, got.After(), want.after, "created stack has invalid after")
-			test.AssertDiff(t, got.Before(), want.before, "created stack has invalid before")
+			test.AssertDiff(t, got.After, want.after, "created stack has invalid after")
+			test.AssertDiff(t, got.Before, want.before, "created stack has invalid before")
 		})
 	}
 }

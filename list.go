@@ -27,8 +27,8 @@ func ListStacks(cfg *config.Tree) ([]Entry, error) {
 	}
 
 	entries := make([]Entry, len(stacks))
-	for i, s := range stacks {
-		entries[i] = Entry{Stack: s}
+	for i, elem := range stacks {
+		entries[i] = Entry{Stack: elem.Stack}
 	}
 	return entries, nil
 }

@@ -1670,7 +1670,7 @@ func (tcase testcase) run(t *testing.T) {
 		s := sandbox.New(t)
 		s.BuildTree([]string{"s:" + tcase.stack})
 		stacks := s.LoadStacks()
-		stack := stacks[0]
+		stack := stacks[0].Stack
 
 		for _, cfg := range tcase.configs {
 			filename := cfg.filename
