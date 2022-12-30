@@ -19,7 +19,6 @@ import (
 	"fmt"
 	iofs "io/fs"
 	"os"
-	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -90,12 +89,7 @@ func Vendor(
 	modsrc tf.Source,
 	events ProgressEventStream,
 ) Report {
-	report := NewReport(vendorDir)
-	if !path.IsAbs(vendorDir.String()) {
-		report.Error = errors.E("vendor dir %q must be absolute path", vendorDir)
-		return report
-	}
-	return vendor(rootdir, vendorDir, modsrc, report, nil, events)
+	return vendor(rootdir, vendorDir, modsrc, NewReport(vendorDir), nil, events)
 }
 
 // HandleVendorRequests starts a goroutine that will handle all vendor requests
@@ -565,7 +559,7 @@ func patchFiles(rootdir string, files []string, sources *sourcesInfo) error {
 			sourceString = sourceString[1 : len(sourceString)-1] // unquote
 			// TODO(i4k): improve to support parenthesis.
 
-			if info, ok := sources.set[sourceString]; ok && info.vendoredAt != "" {
+			if info, ok := sources.set[sourceString]; ok && info.vendoredAt.String() != "" {
 				logger.Trace().
 					Str("module.source", sourceString).
 					Msg("found relevant module")

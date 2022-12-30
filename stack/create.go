@@ -86,7 +86,7 @@ func Create(root *config.Root, cfg CreateCfg) (err error) {
 		Stringer("cfg", cfg).
 		Logger()
 
-	rootdir := root.Dir()
+	rootdir := root.HostDir()
 	if !strings.HasPrefix(cfg.Dir, rootdir) {
 		return errors.E(ErrInvalidStackDir, "stack %q must be inside project root %q", cfg.Dir, rootdir)
 	}
@@ -130,11 +130,11 @@ func Create(root *config.Root, cfg CreateCfg) (err error) {
 	}
 
 	if cfg.ID != "" {
-		stackID, err := hcl.NewStackID(cfg.ID)
+		err := hcl.ValidateStackID(cfg.ID)
 		if err != nil {
 			return errors.E(ErrInvalidStackID, err)
 		}
-		stackCfg.ID = stackID
+		stackCfg.ID = cfg.ID
 	}
 
 	tmCfg, err := hcl.NewConfig(cfg.Dir)

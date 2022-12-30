@@ -16,12 +16,92 @@ package e2etest
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/stack/trigger"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
+
+func TestTriggerWorksWithRelativeStackPath(t *testing.T) {
+	t.Parallel()
+
+	s := sandbox.New(t)
+	s.CreateStack("dir/stacks/stack")
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+	git.CheckoutNew("trigger-the-stack")
+
+	// execute terramate from `dir/` directory.
+	cli := newCLI(t, filepath.Join(s.RootDir(), "dir"))
+	assertRunResult(t, cli.triggerStack("stacks/stack"), runExpected{
+		IgnoreStdout: true,
+	})
+
+	git.CommitAll("commit the trigger file")
+	want := runExpected{Stdout: "stacks/stack\n"}
+	assertRunResult(t, cli.listChangedStacks(), want)
+}
+
+func TestTriggerFailsWithSymlinksInStackPath(t *testing.T) {
+	t.Parallel()
+	s := sandbox.New(t)
+	s.BuildTree([]string{
+		"s:dir/stack",
+		"l:dir/stack:dir/link-to-stack",
+		"l:dir:link-to-dir",
+	})
+	git := s.Git()
+	git.CommitAll("all")
+	git.Push("main")
+	git.CheckoutNew("trigger-the-stack")
+
+	cli := newCLI(t, filepath.Join(s.RootDir(), "dir"))
+	assertRunResult(t, cli.triggerStack("link-to-stack"), runExpected{
+		Status:      1,
+		StderrRegex: "symlinks are disallowed",
+	})
+
+	cli = newCLI(t, s.RootDir())
+	assertRunResult(t, cli.triggerStack("/dir/link-to-stack"), runExpected{
+		Status:      1,
+		StderrRegex: "symlinks are disallowed",
+	})
+
+	cli = newCLI(t, s.RootDir())
+	assertRunResult(t, cli.triggerStack("/link-to-dir/stack"), runExpected{
+		Status:      1,
+		StderrRegex: "symlinks are disallowed",
+	})
+}
+
+func TestTriggerMustNotTriggerStacksOutsideProject(t *testing.T) {
+	t.Parallel()
+
+	project1 := sandbox.New(t)
+	project2 := sandbox.New(t)
+
+	project1.CreateStack("project1-stack")
+	project2.CreateStack("project2-stack")
+
+	git1 := project1.Git()
+	git1.CommitAll("all")
+	git1.Push("main")
+	git1.CheckoutNew("trigger-the-stack")
+
+	relpath, err := filepath.Rel(project1.RootDir(), project2.RootDir())
+	assert.NoError(t, err)
+
+	cli := newCLI(t, project1.RootDir())
+	assertRunResult(t, cli.triggerStack(filepath.Join(relpath, "project2-stack")),
+		runExpected{
+			Status:      1,
+			StderrRegex: "outside project",
+		})
+}
 
 func TestListDetectAsChangedTriggeredStack(t *testing.T) {
 	t.Parallel()
@@ -167,7 +247,7 @@ func TestRunWontDetectAsChangeDeletedTrigger(t *testing.T) {
 	})
 
 	cli := newCLI(t, s.RootDir())
-	assertRunResult(t, cli.triggerStack("/stacks/stack-1"), runExpected{
+	assertRunResult(t, cli.triggerStack("/stack-1"), runExpected{
 		IgnoreStdout: true,
 	})
 

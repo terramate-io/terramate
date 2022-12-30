@@ -17,10 +17,12 @@ package lets
 
 import (
 	hhcl "github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/fmt"
+	"github.com/mineiros-io/terramate/hcl/info"
+	"github.com/mineiros-io/terramate/mapexpr"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -34,10 +36,10 @@ const (
 type (
 	// Expr is an unevaluated let expression.
 	Expr struct {
-		// Origin is the filename where this expression can be found.
-		Origin string
+		// Origin contains the information where the expr is defined.
+		Origin info.Range
 
-		hclsyntax.Expression
+		hhcl.Expression
 	}
 
 	// Exprs is the map of unevaluated let expressions visible in a
@@ -46,7 +48,7 @@ type (
 
 	// Value is an evaluated let.
 	Value struct {
-		Origin string
+		Origin info.Range
 
 		cty.Value
 	}
@@ -56,8 +58,8 @@ type (
 )
 
 // Load loads all the lets from the hcl blocks.
-func Load(letblocks hclsyntax.Blocks, ctx *eval.Context) error {
-	exprs, err := loadExprs(letblocks)
+func Load(letblock *ast.MergedBlock, ctx *eval.Context) error {
+	exprs, err := loadExprs(letblock)
 	if err != nil {
 		return err
 	}
@@ -90,11 +92,11 @@ func (letExprs Exprs) Eval(ctx *eval.Context) error {
 	pendingExpression:
 		for name, expr := range pendingExprs {
 			logger := logger.With().
-				Str("origin", expr.Origin).
+				Stringer("origin", expr.Origin.Path()).
 				Str("let", name).
 				Logger()
 
-			vars := hclsyntax.Variables(expr)
+			vars := expr.Variables()
 			pendingExprsErrs[name] = errors.L()
 
 			logger.Trace().Msg("checking var access inside expression")
@@ -204,20 +206,32 @@ func copyexprs(dst, src Exprs) {
 	}
 }
 
-func loadExprs(letblocks hclsyntax.Blocks) (Exprs, error) {
+func loadExprs(letblock *ast.MergedBlock) (Exprs, error) {
 	letExprs := Exprs{}
-	for _, block := range letblocks {
-		for name, attr := range block.Body.Attributes {
-			if _, ok := letExprs[name]; ok {
-				return nil, errors.E(
-					ErrRedefined, "lets.%s already loaded", name,
-				)
-			}
-			letExprs[name] = Expr{
-				Origin:     attr.Range().Filename,
-				Expression: attr.Expr,
-			}
+
+	for _, attr := range letblock.Attributes.SortedList() {
+		letExprs[attr.Name] = Expr{
+			Origin:     attr.Range,
+			Expression: attr.Expr,
 		}
 	}
+
+	for _, mapBlock := range letblock.Blocks {
+		varName := mapBlock.Labels[0]
+		if _, ok := letblock.Attributes[varName]; ok {
+			return nil, errors.E(
+				ErrRedefined,
+				"map label %s conflicts with let.%s attribute", varName, varName)
+		}
+		mapExpr, err := mapexpr.NewMapExpr(mapBlock)
+		if err != nil {
+			return nil, errors.E(ErrEval, err)
+		}
+		letExprs[mapBlock.Labels[0]] = Expr{
+			Origin:     mapBlock.RawOrigins[0].Range,
+			Expression: mapExpr,
+		}
+	}
+
 	return letExprs, nil
 }

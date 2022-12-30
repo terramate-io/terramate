@@ -16,6 +16,7 @@ package run_test
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"testing"
 
@@ -23,8 +24,8 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/run"
-	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errorstest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/mineiros-io/terramate/test/hclwrite"
@@ -230,9 +231,6 @@ func TestLoadRunEnv(t *testing.T) {
 		t.Run(tcase.name, func(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tcase.layout)
-
-			projmeta := s.LoadProjectMetadata()
-
 			for _, cfg := range tcase.configs {
 				path := filepath.Join(s.RootDir(), cfg.path)
 				test.AppendFile(t, path, "run_env_test_cfg.tm", cfg.add.String())
@@ -249,10 +247,10 @@ func TestLoadRunEnv(t *testing.T) {
 					return
 				}
 
-				stack, err := stack.Load(root, filepath.Join(s.RootDir(), stackRelPath))
+				stack, err := config.LoadStack(root, project.NewPath(path.Join("/", stackRelPath)))
 				assert.NoError(t, err)
 
-				gotvars, err := run.LoadEnv(root, projmeta, stack)
+				gotvars, err := run.LoadEnv(root, stack)
 				errorstest.Assert(t, err, wantres.enverr)
 				test.AssertDiff(t, gotvars, wantres.env)
 			}

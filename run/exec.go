@@ -24,7 +24,6 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/stack"
 	"github.com/rs/zerolog/log"
 )
 
@@ -39,7 +38,7 @@ import (
 // returning a list with a single error inside.
 func Exec(
 	root *config.Root,
-	stacks stack.List,
+	stacks config.List[*config.Stack],
 	cmd []string,
 	stdin io.Reader,
 	stdout io.Writer,
@@ -57,13 +56,10 @@ func Exec(
 	stackEnvs := map[project.Path]EnvVars{}
 
 	logger.Trace().Msg("loading stacks run environment variables")
-
-	projmeta := stack.NewProjectMetadata(root.Dir(), stacks)
-
 	for _, stack := range stacks {
-		env, err := LoadEnv(root, projmeta, stack)
+		env, err := LoadEnv(root, stack)
 		errs.Append(err)
-		stackEnvs[stack.Path()] = env
+		stackEnvs[stack.Dir()] = env
 	}
 
 	if errs.AsError() != nil {
@@ -88,8 +84,8 @@ func Exec(
 			Logger()
 
 		cmd := exec.Command(cmd[0], cmd[1:]...)
-		cmd.Dir = stack.HostPath()
-		cmd.Env = append(os.Environ(), stackEnvs[stack.Path()]...)
+		cmd.Dir = stack.HostDir(root)
+		cmd.Env = append(os.Environ(), stackEnvs[stack.Dir()]...)
 		cmd.Stdin = stdin
 		cmd.Stdout = stdout
 		cmd.Stderr = stderr

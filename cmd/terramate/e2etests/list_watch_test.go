@@ -18,7 +18,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/mineiros-io/terramate/stack"
+	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/project"
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -36,7 +37,7 @@ func TestListWatchChangedFile(t *testing.T) {
 		`s:stack:watch=["/external/file.txt", "/external/not-changed.txt"]`,
 	})
 
-	stack := s.LoadStack("stack")
+	stack := s.LoadStack(project.NewPath("/stack"))
 
 	cli := newCLI(t, s.RootDir())
 
@@ -66,7 +67,7 @@ func TestListWatchRelativeChangedFile(t *testing.T) {
 		`s:stack:watch=["../external/file.txt"]`,
 	})
 
-	stack := s.LoadStack("stack")
+	stack := s.LoadStack(project.NewPath("/stack"))
 
 	cli := newCLI(t, s.RootDir())
 
@@ -108,7 +109,7 @@ func TestListWatchFileOutsideProject(t *testing.T) {
 
 	want := runExpected{
 		Status:      1,
-		StderrRegex: string(stack.ErrInvalidWatch),
+		StderrRegex: string(config.ErrStackInvalidWatch),
 	}
 	assertRunResult(t, cli.listChangedStacks(), want)
 }
@@ -149,7 +150,7 @@ func TestListWatchElementsWithFuncalls(t *testing.T) {
 	)
 
 	s.RootEntry().CreateDir("stack").CreateConfig(stackConfig.String())
-	stack := s.LoadStack("stack")
+	stack := s.LoadStack(project.NewPath("/stack"))
 
 	cli := newCLI(t, s.RootDir())
 
@@ -187,7 +188,7 @@ func TestListWatchExprWithFuncalls(t *testing.T) {
 	)
 
 	s.RootEntry().CreateDir("stack").CreateConfig(stackConfig.String())
-	stack := s.LoadStack("stack")
+	stack := s.LoadStack(project.NewPath("/stack"))
 
 	cli := newCLI(t, s.RootDir())
 
@@ -229,7 +230,7 @@ func TestListWatchDirectoryFails(t *testing.T) {
 
 	want := runExpected{
 		Status:      1,
-		StderrRegex: string(stack.ErrInvalidWatch),
+		StderrRegex: string(config.ErrStackInvalidWatch),
 	}
 	assertRunResult(t, cli.listChangedStacks(), want)
 }

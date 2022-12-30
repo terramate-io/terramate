@@ -12,16 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package eval
+package stdlib
 
 import (
+	"os"
 	"path/filepath"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/customdecode"
 	tflang "github.com/hashicorp/terraform/lang"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/event"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/tf"
@@ -30,7 +31,21 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 )
 
-func newDefaultFunctions(basedir string) map[string]function.Function {
+// Functions returns all the Terramate default functions.
+// The `basedir` must be an absolute path for an existent directory or it panics.
+func Functions(basedir string) map[string]function.Function {
+	if !filepath.IsAbs(basedir) {
+		panic(errors.E(errors.ErrInternal, "context created with relative path: %q", basedir))
+	}
+
+	st, err := os.Stat(basedir)
+	if err != nil {
+		panic(errors.E(errors.ErrInternal, err, "failed to stat context basedir %q", basedir))
+	}
+	if !st.IsDir() {
+		panic(errors.E(errors.ErrInternal, "context basedir (%s) must be a directory", basedir))
+	}
+
 	scope := &tflang.Scope{BaseDir: basedir}
 	tffuncs := scope.Functions()
 
@@ -40,15 +55,19 @@ func newDefaultFunctions(basedir string) map[string]function.Function {
 	}
 
 	// fix terraform broken abspath()
-	tmfuncs["tm_abspath"] = tmAbspath(basedir)
+	tmfuncs["tm_abspath"] = AbspathFunc(basedir)
 
 	// sane ternary
-	tmfuncs["tm_ternary"] = tmTernary()
+	tmfuncs["tm_ternary"] = TernaryFunc()
 	return tmfuncs
+
 }
 
-// tmAbspath returns the `tm_abspath()` hcl function.
-func tmAbspath(basedir string) function.Function {
+// Name converts the function name into the exported Terramate name.
+func Name(name string) string { return "tm_" + name }
+
+// AbspathFunc returns the `tm_abspath()` hcl function.
+func AbspathFunc(basedir string) function.Function {
 	return function.New(&function.Spec{
 		Params: []function.Parameter{
 			{
@@ -71,7 +90,13 @@ func tmAbspath(basedir string) function.Function {
 	})
 }
 
-func tmVendor(basedir, vendordir project.Path, stream chan<- event.VendorRequest) function.Function {
+// VendorFunc returns the `tm_vendor` function.
+// The basedir defines what tm_vendor will use to define the relative paths
+// of vendored dependencies.
+// The vendordir defines where modules are vendored inside the project.
+// The stream defines the event stream for tm_vendor, one event is produced
+// per successful function call.
+func VendorFunc(basedir, vendordir project.Path, stream chan<- event.VendorRequest) function.Function {
 	return function.New(&function.Spec{
 		Params: []function.Parameter{
 			{
@@ -118,7 +143,10 @@ func tmVendor(basedir, vendordir project.Path, stream chan<- event.VendorRequest
 	})
 }
 
-func tmHCLExpression() function.Function {
+// HCLExpressionFunc returns the tm_hcl_expression function.
+// This function interprets the `expr` argument as a string and returns the
+// parsed expression.
+func HCLExpressionFunc() function.Function {
 	return function.New(&function.Spec{
 		Params: []function.Parameter{
 			{
@@ -135,87 +163,10 @@ func tmHCLExpression() function.Function {
 	})
 }
 
-func tmTernary() function.Function {
-	return function.New(&function.Spec{
-		Params: []function.Parameter{
-			{
-				Name: "cond",
-				Type: cty.Bool,
-			},
-			{
-				Name: "val1",
-				Type: customdecode.ExpressionClosureType,
-			},
-			{
-				Name: "val2",
-				Type: customdecode.ExpressionClosureType,
-			},
-		},
-		Type: func(args []cty.Value) (cty.Type, error) {
-			v, err := ternary(args[0], args[1], args[2])
-			if err != nil {
-				return cty.NilType, err
-			}
-			return v.Type(), nil
-		},
-		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
-			return ternary(args[0], args[1], args[2])
-		},
-	})
-}
-
-func ternary(cond cty.Value, val1, val2 cty.Value) (cty.Value, error) {
-	if cond.True() {
-		return evalTernaryBranch(val1)
-	}
-	return evalTernaryBranch(val2)
-}
-
-func evalTernaryBranch(arg cty.Value) (cty.Value, error) {
-	closure := customdecode.ExpressionClosureFromVal(arg)
-
-	ctx := NewContextFrom(closure.EvalContext)
-	newtokens, err := ctx.PartialEval(closure.Expression)
-	if err != nil {
-		return cty.NilVal, errors.E(err, "evaluating tm_ternary branch")
-	}
-
-	exprParsed, err := ParseExpressionBytes(newtokens.Bytes())
-	if err != nil {
-		return cty.NilVal, errors.E(err, "parsing partial evaluated bytes")
-	}
-
-	if dependsOnUnknowns(exprParsed, closure.EvalContext) {
-		return customdecode.ExpressionVal(exprParsed), nil
-	}
-
-	v, diags := exprParsed.Value(closure.EvalContext)
-	if diags.HasErrors() {
-		return cty.NilVal, errors.E(diags, "evaluating tm_ternary branch")
-	}
-
-	return v, nil
-}
-
 func hclExpr(arg cty.Value) (cty.Value, error) {
-	exprParsed, err := ParseExpressionBytes([]byte(arg.AsString()))
+	exprParsed, err := eval.ParseExpressionBytes([]byte(arg.AsString()))
 	if err != nil {
 		return cty.NilVal, errors.E(err, "argument is not valid HCL expression")
 	}
 	return customdecode.ExpressionVal(exprParsed), nil
-}
-
-// dependsOnUnknowns returns true if any of the variables that the given
-// expression might access are unknown values or contain unknown values.
-func dependsOnUnknowns(expr hcl.Expression, ctx *hcl.EvalContext) bool {
-	for _, traversal := range expr.Variables() {
-		val, diags := traversal.TraverseAbs(ctx)
-		if diags.HasErrors() {
-			return true
-		}
-		if !val.IsWhollyKnown() {
-			return true
-		}
-	}
-	return false
 }

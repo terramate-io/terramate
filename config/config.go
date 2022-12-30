@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
+	"github.com/zclconf/go-cty/cty"
 )
 
 const (
@@ -63,8 +64,15 @@ type Tree struct {
 	dir string
 }
 
-// List of config trees.
-type List []*Tree
+// DirElem represents a node which is represented by a directory.
+// Eg.: stack, config, etc.
+type DirElem interface {
+	Dir() project.Path
+}
+
+// List of directory based elements which implements the sorting interface
+// by the directory path.
+type List[T DirElem] []T
 
 // TryLoadConfig try to load the Terramate configuration tree. It looks for the
 // the config in fromdir and all parent directories until / is reached.
@@ -123,8 +131,8 @@ func LoadRoot(rootdir string) (*Root, error) {
 // Tree returns the root configuration tree.
 func (root *Root) Tree() *Tree { return &root.tree }
 
-// Dir returns the root directory.
-func (root *Root) Dir() string { return root.tree.RootDir() }
+// HostDir returns the root directory.
+func (root *Root) HostDir() string { return root.tree.RootDir() }
 
 // Lookup a node from the root using a filesystem query path.
 func (root *Root) Lookup(path project.Path) (*Tree, bool) {
@@ -132,9 +140,9 @@ func (root *Root) Lookup(path project.Path) (*Tree, bool) {
 }
 
 // StacksByPaths returns the stacks from the provided relative paths.
-func (root *Root) StacksByPaths(base project.Path, relpaths ...string) List {
+func (root *Root) StacksByPaths(base project.Path, relpaths ...string) List[*Tree] {
 	logger := log.With().
-		Str("action", "tree.StacksByPath").
+		Str("action", "root.StacksByPath").
 		Stringer("basedir", base).
 		Strs("paths", relpaths).
 		Logger()
@@ -159,7 +167,7 @@ func (root *Root) StacksByPaths(base project.Path, relpaths ...string) List {
 		return normalized
 	}
 
-	var stacks List
+	var stacks List[*Tree]
 	for _, path := range normalizePaths(relpaths) {
 		node, ok := root.Lookup(path)
 		if !ok {
@@ -182,7 +190,7 @@ func (root *Root) LoadSubTree(cfgdir project.Path) error {
 
 	var parentNode *Tree
 	parent = cfgdir.Dir()
-	for parent != "/" {
+	for parent.String() != "/" {
 		var found bool
 		parentNode, found = root.Lookup(parent)
 		if found {
@@ -195,7 +203,7 @@ func (root *Root) LoadSubTree(cfgdir project.Path) error {
 		parentNode = root.Tree()
 	}
 
-	rootdir := root.Dir()
+	rootdir := root.HostDir()
 
 	relpath := strings.TrimPrefix(cfgdir.String(), parent.String())
 	relpath = strings.TrimPrefix(relpath, "/")
@@ -208,7 +216,7 @@ func (root *Root) LoadSubTree(cfgdir project.Path) error {
 		return errors.E(err, "failed to load config from %s", subtreeDir)
 	}
 
-	if node.Dir() == rootdir {
+	if node.HostDir() == rootdir {
 		// root configuration reloaded
 		*root = *NewRoot(node)
 	} else {
@@ -218,19 +226,45 @@ func (root *Root) LoadSubTree(cfgdir project.Path) error {
 	return nil
 }
 
+// Stacks return the stacks paths.
+func (root *Root) Stacks() project.Paths {
+	return root.tree.Stacks().Paths()
+}
+
+// RuntimeValues returns the runtime terramate namespace for the root as a cty.Value map.
+func (root *Root) RuntimeValues() project.Runtime {
+	rootfs := cty.ObjectVal(map[string]cty.Value{
+		"absolute": cty.StringVal(root.HostDir()),
+		"basename": cty.StringVal(filepath.Base(root.HostDir())),
+	})
+	rootpath := cty.ObjectVal(map[string]cty.Value{
+		"fs": rootfs,
+	})
+	rootNS := cty.ObjectVal(map[string]cty.Value{
+		"path": rootpath,
+	})
+	stacksNs := cty.ObjectVal(map[string]cty.Value{
+		"list": toCtyStringList(root.Stacks().Strings()),
+	})
+	return project.Runtime{
+		"root":   rootNS,
+		"stacks": stacksNs,
+	}
+}
+
 // LoadTree loads the whole hierarchical configuration from cfgdir downwards
 // using rootdir as project root.
 func LoadTree(rootdir string, cfgdir string) (*Tree, error) {
 	return loadTree(rootdir, cfgdir, nil)
 }
 
-// Dir is the node directory.
-func (tree *Tree) Dir() string {
+// HostDir is the node absolute directory in the host.
+func (tree *Tree) HostDir() string {
 	return tree.dir
 }
 
-// ProjDir returns the directory as a project dir.
-func (tree *Tree) ProjDir() project.Path {
+// Dir returns the directory as a project dir.
+func (tree *Tree) Dir() project.Path {
 	return project.PrjAbsPath(tree.RootDir(), tree.dir)
 }
 
@@ -257,14 +291,14 @@ func (tree *Tree) IsStack() bool {
 
 // Stacks returns the stack nodes from the tree.
 // The search algorithm is a Deep-First-Search (DFS).
-func (tree *Tree) Stacks() List {
+func (tree *Tree) Stacks() List[*Tree] {
 	stacks := tree.stacks()
 	sort.Sort(stacks)
 	return stacks
 }
 
-func (tree *Tree) stacks() List {
-	var stacks List
+func (tree *Tree) stacks() List[*Tree] {
+	var stacks List[*Tree]
 	if tree.IsStack() {
 		stacks = append(stacks, tree)
 	}
@@ -299,8 +333,8 @@ func (tree *Tree) lookup(abspath project.Path) (*Tree, bool) {
 }
 
 // AsList returns a list with this node and all its children.
-func (tree *Tree) AsList() List {
-	result := []*Tree{
+func (tree *Tree) AsList() List[*Tree] {
+	result := List[*Tree]{
 		tree,
 	}
 
@@ -310,9 +344,9 @@ func (tree *Tree) AsList() List {
 	return result
 }
 
-func (l List) Len() int           { return len(l) }
-func (l List) Less(i, j int) bool { return l[i].dir < l[j].dir }
-func (l List) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
+func (l List[T]) Len() int           { return len(l) }
+func (l List[T]) Less(i, j int) bool { return l[i].Dir().String() < l[j].Dir().String() }
+func (l List[T]) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
 
 func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error) {
 	logger := log.With().
@@ -389,7 +423,7 @@ func (tree *Tree) IsEmptyConfig() bool {
 
 // IsStack returns true if the given directory is a stack, false otherwise.
 func IsStack(root *Root, dir string) bool {
-	node, ok := root.Lookup(project.PrjAbsPath(root.Dir(), dir))
+	node, ok := root.Lookup(project.PrjAbsPath(root.HostDir(), dir))
 	return ok && node.IsStack()
 }
 
@@ -410,4 +444,16 @@ func Skip(name string) bool {
 func parentDir(dir string) (string, bool) {
 	parent := filepath.Dir(dir)
 	return parent, parent != dir
+}
+
+func toCtyStringList(list []string) cty.Value {
+	if len(list) == 0 {
+		// cty panics if the list is empty
+		return cty.ListValEmpty(cty.String)
+	}
+	res := make([]cty.Value, len(list))
+	for i, elem := range list {
+		res[i] = cty.StringVal(elem)
+	}
+	return cty.ListVal(res)
 }

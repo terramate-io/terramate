@@ -24,9 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/generate/genfile"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/info"
-	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
 	infotest "github.com/mineiros-io/terramate/test/hclutils/info"
@@ -910,7 +908,7 @@ stack_id=stack-id
 					),
 				},
 			},
-			wantErr: errors.E(lets.ErrRedefined),
+			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
 			name:  "lets are scoped",
@@ -972,8 +970,6 @@ func testGenfile(t *testing.T, tcase testcase) {
 
 		s := sandbox.New(t)
 		s.BuildTree([]string{"s:" + tcase.stack})
-		stacks := s.LoadStacks()
-		projmeta := stack.NewProjectMetadata(s.RootDir(), stacks)
 		stack := s.LoadStacks()[0]
 
 		for _, cfg := range tcase.configs {
@@ -988,9 +984,9 @@ func testGenfile(t *testing.T, tcase testcase) {
 
 		assert.NoError(t, err)
 
-		globals := s.LoadStackGlobals(root, projmeta, stack)
+		globals := s.LoadStackGlobals(root, stack)
 		vendorDir := project.NewPath("/modules")
-		got, err := genfile.Load(root, projmeta, stack, globals, vendorDir, nil)
+		got, err := genfile.Load(root, stack, globals, vendorDir, nil)
 		errtest.Assert(t, err, tcase.wantErr)
 
 		if len(got) != len(tcase.want) {

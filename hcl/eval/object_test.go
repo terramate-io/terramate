@@ -46,8 +46,8 @@ func TestCtyObjectSetAt(t *testing.T) {
 	}
 
 	defaultOrigin := eval.Info{
-		DefinedAt: "/file.tm",
-		Dir:       "/",
+		DefinedAt: project.NewPath("/file.tm"),
+		Dir:       project.NewPath("/"),
 	}
 
 	newobj := func(sets ...map[string]eval.Value) *eval.Object {

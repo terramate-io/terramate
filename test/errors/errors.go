@@ -16,6 +16,7 @@
 package errors
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/mineiros-io/terramate/errors"
@@ -52,10 +53,16 @@ func AssertIsKind(t *testing.T, err error, k errors.Kind) {
 }
 
 // Assert err is (contains, wraps, etc) target.
-func Assert(t *testing.T, err, target error) {
+func Assert(t *testing.T, err, target error, args ...interface{}) {
 	t.Helper()
+	fmtctx := ""
+
+	if len(args) > 0 {
+		fmtctx = fmt.Sprintf(args[0].(string), args[1:]...)
+	}
+
 	if !errors.Is(err, target) {
-		t.Fatalf("error[%s] is not target[%s]", errstr(err), errstr(target))
+		t.Fatalf("error[%s] is not target[%s]%s", errstr(err), errstr(target), fmtctx)
 	}
 }
 

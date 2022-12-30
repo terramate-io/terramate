@@ -12,30 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package stack_test
+package globals
 
 import (
-	"testing"
-
-	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/test/sandbox"
-	"github.com/rs/zerolog"
+	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/stdlib"
 )
 
-func TestLoadAllFailsIfStacksIDIsNotUnique(t *testing.T) {
-	s := sandbox.New(t)
-	s.BuildTree([]string{
-		"s:stacks/stack-1:id=id",
-		"s:stacks/stack-2:id=id",
-	})
-	cfg, err := config.LoadTree(s.RootDir(), s.RootDir())
-	assert.NoError(t, err)
-	_, err = config.LoadAllStacks(cfg)
-	assert.IsError(t, err, errors.E(config.ErrStackDuplicatedID))
-}
-
-func init() {
-	zerolog.SetGlobalLevel(zerolog.Disabled)
+// ForStack loads from the config tree all globals defined for a given stack.
+func ForStack(root *config.Root, stack *config.Stack) EvalReport {
+	ctx := eval.NewContext(
+		stdlib.Functions(stack.HostDir(root)),
+	)
+	runtime := root.RuntimeValues()
+	runtime.Merge(stack.RuntimeValues(root))
+	ctx.SetNamespace("terramate", runtime)
+	return ForDir(root, stack.Dir(), ctx)
 }

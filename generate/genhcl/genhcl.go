@@ -30,6 +30,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/hcl/info"
+	"github.com/mineiros-io/terramate/stdlib"
 
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/lets"
@@ -142,20 +143,19 @@ func (h HCL) String() string {
 // The rootdir MUST be an absolute path.
 func Load(
 	root *config.Root,
-	projmeta project.Metadata,
-	sm stack.Metadata,
+	st *config.Stack,
 	globals *eval.Object,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]HCL, error) {
 	logger := log.With().
 		Str("action", "genhcl.Load()").
-		Str("path", sm.HostPath()).
+		Stringer("path", st.Dir()).
 		Logger()
 
 	logger.Trace().Msg("loading generate_hcl blocks.")
 
-	hclBlocks, err := loadGenHCLBlocks(root, sm.Path())
+	hclBlocks, err := loadGenHCLBlocks(root, st.Dir())
 	if err != nil {
 		return nil, errors.E("loading generate_hcl", err)
 	}
@@ -165,12 +165,16 @@ func Load(
 	var hcls []HCL
 	for _, hclBlock := range hclBlocks {
 		name := hclBlock.Label
-		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
+		evalctx := stack.NewEvalCtx(root, st, globals)
 
 		vendorTargetDir := project.NewPath(path.Join(
-			sm.Path().String(),
+			st.Dir().String(),
 			path.Dir(name)))
-		evalctx.AddTmVendor(vendorTargetDir, vendorDir, vendorRequests)
+
+		evalctx.SetFunction(
+			stdlib.Name("vendor"),
+			stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests),
+		)
 
 		err := lets.Load(hclBlock.Lets, evalctx.Context)
 		if err != nil {
@@ -233,18 +237,18 @@ func Load(
 			continue
 		}
 
-		evalctx.AddTmHCLExpression()
+		evalctx.SetFunction(stdlib.Name("hcl_expression"), stdlib.HCLExpressionFunc())
 
 		gen := hclwrite.NewEmptyFile()
 		if err := copyBody(gen.Body(), hclBlock.Content.Body, evalctx); err != nil {
-			return nil, errors.E(ErrContentEval, sm, err,
+			return nil, errors.E(ErrContentEval, st, err,
 				"generate_hcl %q", name,
 			)
 		}
 
 		formatted, err := fmt.FormatMultiline(string(gen.Bytes()), hclBlock.Range.HostPath())
 		if err != nil {
-			panic(errors.E(sm, err,
+			panic(errors.E(st, err,
 				"internal error: formatting generated code for generate_hcl %q:%s", name, string(gen.Bytes()),
 			))
 		}

@@ -26,6 +26,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
+	"github.com/mineiros-io/terramate/stdlib"
 
 	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/project"
@@ -129,13 +130,12 @@ func (f File) String() string {
 // The rootdir MUST be an absolute path.
 func Load(
 	root *config.Root,
-	projmeta project.Metadata,
-	sm stack.Metadata,
+	st *config.Stack,
 	globals *eval.Object,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]File, error) {
-	genFileBlocks, err := loadGenFileBlocks(root, sm.Path())
+	genFileBlocks, err := loadGenFileBlocks(root, st.Dir())
 	if err != nil {
 		return nil, errors.E("loading generate_file", err)
 	}
@@ -148,11 +148,12 @@ func Load(
 		}
 
 		name := genFileBlock.Label
-		evalctx := stack.NewEvalCtx(projmeta, sm, globals)
+		evalctx := stack.NewEvalCtx(root, st, globals)
 		vendorTargetDir := project.NewPath(path.Join(
-			sm.Path().String(),
+			st.Dir().String(),
 			path.Dir(name)))
-		evalctx.AddTmVendor(vendorTargetDir, vendorDir, vendorRequests)
+
+		evalctx.SetFunction(stdlib.Name("vendor"), stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests))
 
 		file, err := Eval(genFileBlock, evalctx.Context)
 		if err != nil {

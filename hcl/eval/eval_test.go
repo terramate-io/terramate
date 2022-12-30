@@ -16,15 +16,14 @@ package eval_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/zclconf/go-cty/cty"
@@ -88,8 +87,7 @@ func TestEvalTmFuncall(t *testing.T) {
 			if basedir == "" {
 				basedir = root(t)
 			}
-			ctx, err := eval.NewContext(basedir)
-			assert.NoError(t, err)
+			ctx := eval.NewContext(stdlib.Functions(basedir))
 
 			const attrname = "value"
 
@@ -114,25 +112,4 @@ func TestEvalTmFuncall(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestEvalTmAbspathMustPanicIfRelativeBaseDir(t *testing.T) {
-	defer func() {
-		err := recover()
-		if err == nil {
-			t.Fatal("eval.NewContext() did not panic with relative basedir")
-		}
-	}()
-	_, _ = eval.NewContext("relative")
-}
-
-func TestEvalTmAbspathFailIfBasedirIsNonExistent(t *testing.T) {
-	_, err := eval.NewContext(filepath.Join(t.TempDir(), "non-existent"))
-	assert.Error(t, err, "must have failed for non-existent basedir")
-}
-
-func TestEvalTmAbspathFailIfBasedirIsNotADirectory(t *testing.T) {
-	path := test.WriteFile(t, t.TempDir(), "somefile.txt", ``)
-	_, err := eval.NewContext(path)
-	assert.Error(t, err, "must have failed because basedir is not a directory")
 }

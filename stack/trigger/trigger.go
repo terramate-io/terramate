@@ -16,6 +16,7 @@
 package trigger
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -26,11 +27,20 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
+)
+
+const (
+	// ErrTrigger indicates an error happened while triggering the stack.
+	ErrTrigger errors.Kind = "trigger failed"
+
+	// ErrParsing indicates an error happened while parsing the trigger file.
+	ErrParsing errors.Kind = "parsing trigger file"
 )
 
 // Info represents the parsed contents of a trigger
@@ -40,7 +50,20 @@ type Info struct {
 	Ctime int64
 	// Reason is the reason why the trigger was created, if any.
 	Reason string
+	// Type is the trigger type.
+	Type string
+	// Context is the context of the trigger (only `stack` at the moment)
+	Context string
 }
+
+const (
+	// DefaultType is the default trigger type when not specified.
+	DefaultType = "changed"
+
+	// DefaultContext is the default context for the trigger file when not
+	// specified.
+	DefaultContext = "stack"
+)
 
 const triggersDir = ".tmtriggers"
 
@@ -51,12 +74,12 @@ func StackPath(triggerFile project.Path) (project.Path, bool) {
 	const triggersPrefix = "/" + triggersDir
 
 	if !triggerFile.HasPrefix(triggersPrefix) {
-		return project.Path("/"), false
+		return project.NewPath("/"), false
 	}
 
 	stackPath := strings.TrimPrefix(triggerFile.String(), triggersPrefix)
 	stackPath = path.Dir(stackPath)
-	return project.Path(stackPath), true
+	return project.NewPath(stackPath), true
 }
 
 // ParseFile will parse the given trigger file.
@@ -64,7 +87,7 @@ func ParseFile(path string) (Info, error) {
 	parser := hclparse.NewParser()
 	parsed, diags := parser.ParseHCLFile(path)
 	if diags.HasErrors() {
-		return Info{}, errors.E(diags, "parsing trigger file")
+		return Info{}, errors.E(ErrParsing, diags)
 	}
 	rootContent, diags := parsed.Body.Content(&hcl.BodySchema{
 		Blocks: []hcl.BlockHeaderSchema{
@@ -74,7 +97,11 @@ func ParseFile(path string) (Info, error) {
 		},
 	})
 	if diags.HasErrors() {
-		return Info{}, errors.E(diags, "checking root schema")
+		return Info{}, errors.E(ErrParsing, diags, "checking trigger block schema")
+	}
+
+	if len(rootContent.Blocks) != 1 {
+		return Info{}, errors.E(ErrParsing, "found %d blocks but expected 1")
 	}
 
 	triggerBlock := rootContent.Blocks[0]
@@ -88,40 +115,90 @@ func ParseFile(path string) (Info, error) {
 				Name:     "reason",
 				Required: true,
 			},
+			{
+				Name:     "type",
+				Required: false,
+			},
+			{
+				Name:     "context",
+				Required: false,
+			},
 		},
 	})
+
 	if diags.HasErrors() {
-		return Info{}, errors.E(diags, "checking trigger schema")
+		return Info{}, errors.E(ErrParsing, diags, "checking trigger attributes schema")
 	}
 
 	errs := errors.L()
 	info := Info{}
-
 	for _, attribute := range ast.SortRawAttributes(triggerContent.Attributes) {
+		if attribute.Name == "context" || attribute.Name == "type" {
+			// they are keywords so they must be handled separately.
+			keyword := hcl.ExprAsKeyword(attribute.Expr)
+
+			switch attribute.Name {
+			case "context":
+				if keyword != DefaultContext {
+					errs.Append(errors.E(
+						"trigger: invalid trigger.context = %s (available options: %s)",
+						keyword, DefaultContext,
+					))
+					continue
+				}
+				info.Context = keyword
+			case "type":
+				if keyword != DefaultType {
+					errs.Append(errors.E(
+						"trigger: invalid trigger.type = %s (available options: %s)",
+						keyword, DefaultType,
+					))
+					continue
+				}
+				info.Type = keyword
+			}
+
+			continue
+		}
+
 		val, err := attribute.Expr.Value(nil)
 		if err != nil {
-			errs.Append(errors.E(err, "trigger: failure evaluating %q", attribute.Name))
+			errs.Append(errors.E(ErrParsing, "trigger: failure evaluating %q", attribute.Name))
 			continue
 		}
 
 		switch attribute.Name {
 		case "ctime":
 			if val.Type() != cty.Number {
-				errs.Append(errors.E(err, "trigger: %s must be a number", attribute.Name))
+				errs.Append(errors.E(ErrParsing, "trigger: %s must be a number", attribute.Name))
 				continue
 			}
 			v, _ := val.AsBigFloat().Int64()
 			info.Ctime = v
 		case "reason":
 			if val.Type() != cty.String {
-				errs.Append(errors.E(err, "trigger: %s must be a string", attribute.Name))
+				errs.Append(errors.E(ErrParsing, "trigger: %s must be a string", attribute.Name))
 				continue
 			}
 			info.Reason = val.AsString()
 		default:
-			errs.Append(errors.E("trigger: has unknown attribute %q", attribute.Name))
+			errs.Append(errors.E(ErrParsing, "trigger: has unknown attribute %q", attribute.Name))
 		}
 	}
+
+	if err := errs.AsError(); err != nil {
+		return Info{}, err
+	}
+
+	// for backward compatibility (<= v0.2.7)
+	if info.Type == "" {
+		info.Type = DefaultType
+	}
+
+	if info.Context == "" {
+		info.Context = DefaultContext
+	}
+
 	return info, nil
 }
 
@@ -131,18 +208,28 @@ func Dir(rootdir string) string {
 	return filepath.Join(rootdir, triggersDir)
 }
 
-// Create creates a trigger for a stack with the given path and the given reason
-// inside the project rootdir.
-func Create(rootdir string, path project.Path, reason string) error {
+func triggerFilename() (string, error) {
 	id, err := uuid.NewRandom()
 	if err != nil {
-		return errors.E(err, "creating trigger UUID")
+		return "", errors.E(err, "creating trigger UUID")
 	}
-	triggerID := id.String()
-	triggerDir := filepath.Join(rootdir, triggersDir, path.String())
+	return fmt.Sprintf("changed-%s.tm.hcl", id.String()), nil
+}
 
+// Create creates a trigger for a stack with the given path and the given reason
+// inside the project rootdir.
+func Create(root *config.Root, path project.Path, reason string) error {
+	tree, ok := root.Lookup(path)
+	if !ok || !tree.IsStack() {
+		return errors.E(ErrTrigger, "path %s is not a stack directory", path)
+	}
+	filename, err := triggerFilename()
+	if err != nil {
+		return errors.E(ErrTrigger, err)
+	}
+	triggerDir := filepath.Join(root.HostDir(), triggersDir, path.String())
 	if err := os.MkdirAll(triggerDir, 0775); err != nil {
-		return errors.E(err, "creating trigger dir")
+		return errors.E(ErrTrigger, err, "creating trigger dir")
 	}
 
 	ctime := time.Now().Unix()
@@ -151,11 +238,13 @@ func Create(rootdir string, path project.Path, reason string) error {
 	triggerBody := gen.Body().AppendNewBlock("trigger", nil).Body()
 	triggerBody.SetAttributeValue("ctime", cty.NumberIntVal(ctime))
 	triggerBody.SetAttributeValue("reason", cty.StringVal(reason))
+	triggerBody.SetAttributeRaw("type", hclwrite.TokensForIdentifier(DefaultType))
+	triggerBody.SetAttributeRaw("context", hclwrite.TokensForIdentifier(DefaultContext))
 
-	triggerPath := filepath.Join(triggerDir, triggerID+".tm.hcl")
+	triggerPath := filepath.Join(triggerDir, filename)
 
 	if err := os.WriteFile(triggerPath, gen.Bytes(), 0666); err != nil {
-		return errors.E(err, "creating trigger file")
+		return errors.E(ErrTrigger, err, "creating trigger file")
 	}
 
 	log.Debug().

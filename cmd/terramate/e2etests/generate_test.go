@@ -278,19 +278,19 @@ func TestGenerateIgnoresWorkingDirectory(t *testing.T) {
 	wantStdout := generate.Report{
 		Successes: []generate.Result{
 			{
-				Dir: "/",
+				Dir: project.NewPath("/"),
 				Created: []string{
 					"root.stacks.txt",
 				},
 			},
 			{
-				Dir: "/stacks/stack-1",
+				Dir: project.NewPath("/stacks/stack-1"),
 				Created: []string{
 					"stack.hcl", "stack.name.txt",
 				},
 			},
 			{
-				Dir: "/stacks/stack-2",
+				Dir: project.NewPath("/stacks/stack-2"),
 				Created: []string{
 					"stack.hcl", "stack.name.txt",
 				},

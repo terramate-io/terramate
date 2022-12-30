@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
@@ -92,16 +93,17 @@ func TestCreateStack(t *testing.T) {
 			Stdout: want,
 		})
 
-		got := s.LoadStack(stackPath)
+		s.ReloadConfig()
+		absStackPath := filepath.Join(s.RootDir(), filepath.FromSlash(stackPath))
+		got := s.LoadStack(project.PrjAbsPath(s.RootDir(), absStackPath))
 
-		gotID, _ := got.ID()
-		assert.EqualStrings(t, stackID, gotID)
+		assert.EqualStrings(t, stackID, got.ID)
 		assert.EqualStrings(t, stackName, got.Name(), "checking stack name")
 		assert.EqualStrings(t, stackDescription, got.Desc(), "checking stack description")
 		test.AssertDiff(t, got.After(), []string{stackAfter1, stackAfter2}, "created stack has invalid after")
 		test.AssertDiff(t, got.Before(), []string{stackBefore1, stackBefore2}, "created stack has invalid before")
 
-		test.AssertStackImports(t, s.RootDir(), got.HostPath(), []string{stackImport1, stackImport2})
+		test.AssertStackImports(t, s.RootDir(), got.HostDir(s.Config()), []string{stackImport1, stackImport2})
 
 		stackEntry := s.StackEntry(stackPath)
 		gotGenCode := stackEntry.ReadFile(genFilename)
@@ -117,7 +119,7 @@ func TestCreateStackDefaults(t *testing.T) {
 	cli := newCLI(t, s.RootDir())
 	cli.run("create", "stack")
 
-	got := s.LoadStack("stack")
+	got := s.LoadStack(project.NewPath("/stack"))
 
 	assert.EqualStrings(t, "stack", got.Name(), "checking stack name")
 	assert.EqualStrings(t, "stack", got.Desc(), "checking stack description")
@@ -131,11 +133,10 @@ func TestCreateStackDefaults(t *testing.T) {
 	}
 
 	// By default the CLI generates an id with an UUID
-	gotID, _ := got.ID()
-	_, err := uuid.Parse(gotID)
+	_, err := uuid.Parse(got.ID)
 	assert.NoError(t, err, "validating default UUID")
 
-	test.AssertStackImports(t, s.RootDir(), got.HostPath(), []string{})
+	test.AssertStackImports(t, s.RootDir(), got.HostDir(s.Config()), []string{})
 }
 
 func TestCreateStackIgnoreExistingOnDefaultStackCfgFound(t *testing.T) {

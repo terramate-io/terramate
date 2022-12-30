@@ -22,6 +22,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -29,7 +30,7 @@ import (
 
 func TestStackCreation(t *testing.T) {
 	type wantedStack struct {
-		id      hcl.StackID
+		id      string
 		name    string
 		desc    string
 		imports []string
@@ -47,10 +48,10 @@ func TestStackCreation(t *testing.T) {
 		want   want
 	}
 
-	newID := func(id string) hcl.StackID {
-		sid, err := hcl.NewStackID(id)
+	newID := func(id string) string {
+		err := hcl.ValidateStackID(id)
 		assert.NoError(t, err)
-		return sid
+		return id
 	}
 
 	testcases := []testcase{
@@ -235,21 +236,19 @@ func TestStackCreation(t *testing.T) {
 			}
 
 			want := tc.want.stack
-			got := s.LoadStack(stackPath)
+			dir := project.PrjAbsPath(s.RootDir(), tc.create.Dir)
+			got := s.LoadStack(dir)
 
-			if wantID, ok := want.id.Value(); ok {
-				gotID, _ := got.ID()
-				assert.EqualStrings(t, wantID, gotID)
-			} else {
-				gotID, ok := got.ID()
-				if ok {
-					t.Fatalf("got unwanted ID %q", gotID)
-				}
+			if want.id != "" {
+				assert.EqualStrings(t, want.id, got.ID)
+			} else if got.ID != "" {
+				t.Fatalf("got unwanted ID %q", got.ID)
 			}
+
 			assert.EqualStrings(t, want.name, got.Name(), "checking stack name")
 			assert.EqualStrings(t, want.desc, got.Desc(), "checking stack description")
 
-			test.AssertStackImports(t, s.RootDir(), got.HostPath(), want.imports)
+			test.AssertStackImports(t, s.RootDir(), got.HostDir(root), want.imports)
 			test.AssertDiff(t, got.After(), want.after, "created stack has invalid after")
 			test.AssertDiff(t, got.Before(), want.before, "created stack has invalid before")
 		})

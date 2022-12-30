@@ -607,7 +607,7 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 			},
 		},
 		{
-			name: "generate_file with lets with child blocks - fails",
+			name: "generate_file with lets with unexpected child blocks - fails",
 			input: []cfgfile{
 				{
 					filename: "gen.tm",
@@ -631,7 +631,7 @@ func TestHCLParserMultipleErrors(t *testing.T) {
 			},
 		},
 		{
-			name: "generate_hcl with lets with child blocks - fails",
+			name: "generate_hcl with lets with unexpected child blocks - fails",
 			input: []cfgfile{
 				{
 					filename: "gen.tm",

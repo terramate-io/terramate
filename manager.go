@@ -29,7 +29,6 @@ import (
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/run"
 	"github.com/mineiros-io/terramate/run/dag"
-	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/stack/trigger"
 	"github.com/mineiros-io/terramate/tf"
 	"github.com/rs/zerolog/log"
@@ -59,7 +58,7 @@ type (
 
 	// Entry is a stack entry result.
 	Entry struct {
-		Stack  *stack.S
+		Stack  *config.Stack
 		Reason string // Reason why this entry was returned.
 	}
 )
@@ -94,11 +93,11 @@ func (m *Manager) List() (*StacksReport, error) {
 		Stacks: entries,
 	}
 
-	logger.Trace().Str("repo", m.root.Dir()).
+	logger.Trace().Str("repo", m.root.HostDir()).
 		Msg("Create git wrapper for repo.")
 
 	g, err := git.WithConfig(git.Config{
-		WorkingDir: m.root.Dir(),
+		WorkingDir: m.root.HostDir(),
 	})
 	if err != nil {
 		return nil, errors.E(errList, err)
@@ -130,7 +129,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 	logger.Trace().Msg("Create git wrapper on project root.")
 
 	g, err := git.WithConfig(git.Config{
-		WorkingDir: m.root.Dir(),
+		WorkingDir: m.root.HostDir(),
 	})
 
 	if err != nil {
@@ -143,7 +142,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 		return nil, errors.E(
 			errListChanged,
 			"the path \"%s\" is not a git repository",
-			m.root.Dir(),
+			m.root.HostDir(),
 		)
 	}
 
@@ -154,7 +153,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 
 	logger.Debug().Msg("List changed files.")
 
-	changedFiles, err := listChangedFiles(m.root.Dir(), m.gitBaseRef)
+	changedFiles, err := listChangedFiles(m.root.HostDir(), m.gitBaseRef)
 	if err != nil {
 		return nil, errors.E(errListChanged, err)
 	}
@@ -162,8 +161,8 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 	stackSet := map[project.Path]Entry{}
 
 	for _, path := range changedFiles {
-		abspath := filepath.Join(m.root.Dir(), path)
-		projpath := project.PrjAbsPath(m.root.Dir(), abspath)
+		abspath := filepath.Join(m.root.HostDir(), path)
+		projpath := project.PrjAbsPath(m.root.HostDir(), abspath)
 		triggeredStack, isTriggerFile := trigger.StackPath(projpath)
 
 		logger = logger.With().
@@ -195,12 +194,12 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 				continue
 			}
 
-			s, err := stack.New(m.root.Dir(), cfg.Node)
+			s, err := config.NewStack(m.root.HostDir(), cfg.Node)
 			if err != nil {
 				return nil, errors.E(errListChanged, err)
 			}
 
-			stackSet[s.Path()] = Entry{
+			stackSet[s.Dir()] = Entry{
 				Stack:  s,
 				Reason: "stack has been triggered by: " + projpath.String(),
 			}
@@ -209,7 +208,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 
 		dirname := filepath.Dir(abspath)
 
-		if _, ok := stackSet[project.PrjAbsPath(m.root.Dir(), dirname)]; ok {
+		if _, ok := stackSet[project.PrjAbsPath(m.root.HostDir(), dirname)]; ok {
 			continue
 		}
 
@@ -217,7 +216,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 			Str("path", dirname).
 			Msg("Try load changed.")
 
-		cfgpath := project.PrjAbsPath(m.root.Dir(), dirname)
+		cfgpath := project.PrjAbsPath(m.root.HostDir(), dirname)
 		stackTree, found := m.root.Lookup(cfgpath)
 		if !found || !stackTree.IsStack() {
 			logger.Debug().
@@ -237,12 +236,12 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 			}
 		}
 
-		s, err := stack.New(m.root.Dir(), stackTree.Node)
+		s, err := config.NewStack(m.root.HostDir(), stackTree.Node)
 		if err != nil {
 			return nil, errors.E(errListChanged, err)
 		}
 
-		stackSet[s.Path()] = Entry{
+		stackSet[s.Dir()] = Entry{
 			Stack:  s,
 			Reason: "stack has unmerged changes",
 		}
@@ -260,7 +259,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 rangeStacks:
 	for _, stackEntry := range allstacks {
 		stack := stackEntry.Stack
-		if _, ok := stackSet[stack.Path()]; ok {
+		if _, ok := stackSet[stack.Dir()]; ok {
 			continue
 		}
 
@@ -275,7 +274,7 @@ rangeStacks:
 				Msg("changed.")
 
 			stack.SetChanged(true)
-			stackSet[stack.Path()] = Entry{
+			stackSet[stack.Dir()] = Entry{
 				Stack: stack,
 				Reason: fmt.Sprintf(
 					"stack changed because watched file %q changed",
@@ -289,7 +288,7 @@ rangeStacks:
 			Stringer("stack", stack).
 			Msg("Apply function to stack.")
 
-		err := m.filesApply(stack.HostPath(), func(file fs.DirEntry) error {
+		err := m.filesApply(stack.HostDir(m.root), func(file fs.DirEntry) error {
 			if path.Ext(file.Name()) != ".tf" {
 				return nil
 			}
@@ -298,7 +297,7 @@ rangeStacks:
 				Stringer("stack", stack).
 				Msg("Get tf file path.")
 
-			tfpath := filepath.Join(stack.HostPath(), file.Name())
+			tfpath := filepath.Join(stack.HostDir(m.root), file.Name())
 
 			logger.Trace().
 				Stringer("stack", stack).
@@ -321,7 +320,7 @@ rangeStacks:
 					Str("configFile", tfpath).
 					Msg("Check if module changed.")
 
-				changed, why, err := m.moduleChanged(mod, stack.HostPath(), make(map[string]bool))
+				changed, why, err := m.moduleChanged(mod, stack.HostDir(m.root), make(map[string]bool))
 				if err != nil {
 					return errors.E(errListChanged, err, "checking module %q", mod.Source)
 				}
@@ -333,7 +332,7 @@ rangeStacks:
 						Msg("Module changed.")
 
 					stack.SetChanged(true)
-					stackSet[stack.Path()] = Entry{
+					stackSet[stack.Dir()] = Entry{
 						Stack: stack,
 						Reason: fmt.Sprintf(
 							"stack changed because %q changed because %s",
@@ -369,13 +368,13 @@ rangeStacks:
 }
 
 // AddWantedOf returns all wanted stacks from the given stacks.
-func (m *Manager) AddWantedOf(scopeStacks stack.List) (stack.List, error) {
+func (m *Manager) AddWantedOf(scopeStacks config.List[*config.Stack]) (config.List[*config.Stack], error) {
 	logger := log.With().
 		Str("action", "manager.AddWantedOf").
 		Logger()
 
 	wantsDag := dag.New()
-	allstacks, err := stack.LoadAll(m.root.Tree())
+	allstacks, err := config.LoadAllStacks(m.root.Tree())
 	if err != nil {
 		return nil, errors.E(err, "loading all stacks")
 	}
@@ -384,7 +383,7 @@ func (m *Manager) AddWantedOf(scopeStacks stack.List) (stack.List, error) {
 	sort.Sort(allstacks)
 	for _, s := range allstacks {
 		logger.Trace().
-			Stringer("stack", s.Path()).
+			Stringer("stack", s.Dir()).
 			Msg("Building dag")
 
 		err := run.BuildDAG(
@@ -392,9 +391,9 @@ func (m *Manager) AddWantedOf(scopeStacks stack.List) (stack.List, error) {
 			m.root,
 			s,
 			"wanted_by",
-			stack.S.WantedBy,
+			config.Stack.WantedBy,
 			"wants",
-			stack.S.Wants,
+			config.Stack.Wants,
 			visited,
 		)
 
@@ -419,26 +418,26 @@ func (m *Manager) AddWantedOf(scopeStacks stack.List) (stack.List, error) {
 		}
 	}
 
-	var selectedStacks stack.List
+	var selectedStacks config.List[*config.Stack]
 	visited = dag.Visited{}
-	addStack := func(s *stack.S) {
-		if _, ok := visited[dag.ID(s.Path())]; ok {
+	addStack := func(s *config.Stack) {
+		if _, ok := visited[dag.ID(s.Dir().String())]; ok {
 			return
 		}
 
-		visited[dag.ID(s.Path())] = struct{}{}
+		visited[dag.ID(s.Dir().String())] = struct{}{}
 		selectedStacks = append(selectedStacks, s)
 	}
 
 	var pending []dag.ID
 	for _, s := range scopeStacks {
-		pending = append(pending, dag.ID(s.Path()))
+		pending = append(pending, dag.ID(s.Dir().String()))
 	}
 
 	for len(pending) > 0 {
 		id := pending[0]
 		node, _ := wantsDag.Node(id)
-		s := node.(*stack.S)
+		s := node.(*config.Stack)
 
 		addStack(s)
 		pending = pending[1:]
@@ -642,7 +641,7 @@ func listChangedFiles(dir string, gitBaseRef string) ([]string, error) {
 	return g.DiffNames(baseRef, headRef)
 }
 
-func hasChangedWatchedFiles(stack *stack.S, changedFiles []string) (project.Path, bool) {
+func hasChangedWatchedFiles(stack *config.Stack, changedFiles []string) (project.Path, bool) {
 	for _, watchFile := range stack.Watch() {
 		for _, file := range changedFiles {
 			if file == watchFile.String()[1:] { // project paths
@@ -650,7 +649,7 @@ func hasChangedWatchedFiles(stack *stack.S, changedFiles []string) (project.Path
 			}
 		}
 	}
-	return "", false
+	return project.Path{}, false
 }
 
 func checkRepoIsClean(g *git.Git) (RepoChecks, error) {
@@ -682,5 +681,5 @@ func checkRepoIsClean(g *git.Git) (RepoChecks, error) {
 type EntrySlice []Entry
 
 func (x EntrySlice) Len() int           { return len(x) }
-func (x EntrySlice) Less(i, j int) bool { return x[i].Stack.Path() < x[j].Stack.Path() }
+func (x EntrySlice) Less(i, j int) bool { return x[i].Stack.Dir().String() < x[j].Stack.Dir().String() }
 func (x EntrySlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }

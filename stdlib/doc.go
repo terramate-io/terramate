@@ -1,4 +1,4 @@
-// Copyright 2021 Mineiros GmbH
+// Copyright 2022 Mineiros GmbH
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,23 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package terramate
-
-import (
-	"github.com/mineiros-io/terramate/config"
-)
-
-// ListStacks walks the config tree looking for terramate stacks.
-// It returns a lexicographic sorted list of stack directories.
-func ListStacks(cfg *config.Tree) ([]Entry, error) {
-	stacks, err := config.LoadAllStacks(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	entries := make([]Entry, len(stacks))
-	for i, s := range stacks {
-		entries[i] = Entry{Stack: s}
-	}
-	return entries, nil
-}
+// Package stdlib implements the Terramate language functions.
+package stdlib

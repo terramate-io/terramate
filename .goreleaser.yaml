@@ -24,12 +24,12 @@ builds:
       - windows
 archives:
   - 
-    replacements:
-      darwin: darwin
-      linux: linux
-      windows: win
-      386: i386
-      amd64: x86_64
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_
+      {{- .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
 
     format_overrides:
       - goos: windows
@@ -58,3 +58,20 @@ changelog:
       - '^testing:'
       - '^refactor:'
       - '^chore:'
+
+announce:
+  twitter:
+    enabled: true
+    message_template: |
+      🥳 We just released #Terramate {{.Tag}}
+      {{ .ReleaseURL }} 🚀🚀🚀
+
+  slack:
+    enabled: true
+    message_template: |
+      🥳 We just released #Terramate {{.Tag}}
+      {{ .ReleaseURL }} 🚀🚀🚀
+
+    channel: '#terramate'
+    username: 'terramate'
+    icon_emoji: ':terramate-logo:'

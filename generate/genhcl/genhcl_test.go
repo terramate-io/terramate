@@ -28,9 +28,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
-	"github.com/mineiros-io/terramate/lets"
 	"github.com/mineiros-io/terramate/project"
-	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
 	infotest "github.com/mineiros-io/terramate/test/hclutils/info"
@@ -1600,7 +1598,7 @@ func TestGenerateHCL(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(lets.ErrRedefined),
+			wantErr: errors.E(hcl.ErrTerramateSchema),
 		},
 		{
 			name:  "lets are scoped",
@@ -1672,7 +1670,6 @@ func (tcase testcase) run(t *testing.T) {
 		s := sandbox.New(t)
 		s.BuildTree([]string{"s:" + tcase.stack})
 		stacks := s.LoadStacks()
-		projmeta := stack.NewProjectMetadata(s.RootDir(), stacks)
 		stack := stacks[0]
 
 		for _, cfg := range tcase.configs {
@@ -1692,9 +1689,9 @@ func (tcase testcase) run(t *testing.T) {
 
 		assert.NoError(t, err)
 
-		globals := s.LoadStackGlobals(cfg, projmeta, stack)
+		globals := s.LoadStackGlobals(cfg, stack)
 		vendorDir := project.NewPath("/modules")
-		got, err := genhcl.Load(cfg, projmeta, stack, globals, vendorDir, nil)
+		got, err := genhcl.Load(cfg, stack, globals, vendorDir, nil)
 		errtest.Assert(t, err, tcase.wantErr)
 
 		if len(got) != len(tcase.want) {

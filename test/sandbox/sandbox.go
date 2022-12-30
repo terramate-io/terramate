@@ -37,6 +37,7 @@ import (
 	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate"
+	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
@@ -214,23 +215,23 @@ func (s S) GenerateWith(root *config.Root, vendorDir project.Path) generate.Repo
 }
 
 // LoadStack load the stack given its relative path.
-func (s S) LoadStack(relpath string) *stack.S {
+func (s S) LoadStack(dir project.Path) *config.Stack {
 	s.t.Helper()
 
-	st, err := stack.Load(s.Config(), filepath.Join(s.rootdir, relpath))
+	st, err := config.LoadStack(s.Config(), dir)
 	assert.NoError(s.t, err)
 
 	return st
 }
 
 // LoadStacks load all stacks from sandbox rootdir.
-func (s S) LoadStacks() stack.List {
+func (s S) LoadStacks() config.List[*config.Stack] {
 	s.t.Helper()
 
 	entries, err := terramate.ListStacks(s.Config().Tree())
 	assert.NoError(s.t, err)
 
-	var stacks stack.List
+	var stacks config.List[*config.Stack]
 	for _, entry := range entries {
 		stacks = append(stacks, entry.Stack)
 	}
@@ -238,23 +239,15 @@ func (s S) LoadStacks() stack.List {
 	return stacks
 }
 
-// LoadProjectMetadata loads the project metadata.
-func (s S) LoadProjectMetadata() project.Metadata {
-	s.t.Helper()
-
-	return stack.NewProjectMetadata(s.RootDir(), s.LoadStacks())
-}
-
 // LoadStackGlobals loads globals for specific stack on the sandbox.
 // Fails the caller test if an error is found.
 func (s S) LoadStackGlobals(
 	root *config.Root,
-	projmeta project.Metadata,
-	sm stack.Metadata,
+	st *config.Stack,
 ) *eval.Object {
 	s.t.Helper()
 
-	report := stack.LoadStackGlobals(root, projmeta, sm)
+	report := globals.ForStack(root, st)
 	assert.NoError(s.t, report.AsError())
 	return report.Globals
 }
@@ -532,9 +525,9 @@ func (se StackEntry) ReadFile(filename string) string {
 }
 
 // Load loads the terramate stack instance for this stack dir entry.
-func (se StackEntry) Load(root *config.Root) *stack.S {
+func (se StackEntry) Load(root *config.Root) *config.Stack {
 	se.t.Helper()
-	loadedStack, err := stack.Load(root, se.Path())
+	loadedStack, err := config.LoadStack(root, project.PrjAbsPath(root.HostDir(), se.Path()))
 	assert.NoError(se.t, err)
 	return loadedStack
 }
@@ -598,7 +591,7 @@ func parseListSpec(t testing.TB, name, value string) []string {
 func buildTree(t testing.TB, root *config.Root, layout []string) {
 	t.Helper()
 
-	rootdir := root.Dir()
+	rootdir := root.HostDir()
 	parsePathData := func(spec string) (string, string) {
 		tmp := spec[2:]
 		if len(tmp) == 0 {
@@ -631,9 +624,9 @@ func buildTree(t testing.TB, root *config.Root, layout []string) {
 			value := parts[1]
 			switch name {
 			case "id":
-				id, err := hcl.NewStackID(value)
+				err := hcl.ValidateStackID(value)
 				assert.NoError(t, err, "invalid stack ID on stack descriptor")
-				cfg.Stack.ID = id
+				cfg.Stack.ID = value
 			case "after":
 				cfg.Stack.After = parseListSpec(t, name, value)
 			case "before":

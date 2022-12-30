@@ -200,19 +200,18 @@ generate_hcl "test2.hcl" {
 		t.Fatalf("cloned stack has no stack block: %v", cfg)
 	}
 
-	clonedStackID, ok := cfg.Stack.ID.Value()
-	if !ok {
+	if cfg.Stack.ID == "" {
 		t.Fatalf("cloned stack has no ID: %v", cfg.Stack)
 	}
 
-	if clonedStackID == stackID {
-		t.Fatalf("want cloned stack to have different ID, got %s == %s", clonedStackID, stackID)
+	if cfg.Stack.ID == stackID {
+		t.Fatalf("want cloned stack to have different ID, got %s == %s", cfg.Stack.ID, stackID)
 	}
 
 	assert.EqualStrings(t, stackName, cfg.Stack.Name)
 	assert.EqualStrings(t, stackDesc, cfg.Stack.Description)
 
-	want := fmt.Sprintf(stackCfgTemplate, clonedStackID, stackName, stackDesc)
+	want := fmt.Sprintf(stackCfgTemplate, cfg.Stack.ID, stackName, stackDesc)
 
 	clonedStackEntry := s.DirEntry("cloned-stack")
 	got := string(clonedStackEntry.ReadFile(stackCfgFilename))

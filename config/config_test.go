@@ -49,31 +49,31 @@ func TestConfigLookup(t *testing.T) {
 	})
 
 	root := s.Config()
-	node, found := root.Lookup("/dir")
+	node, found := root.Lookup(project.NewPath("/dir"))
 	assert.IsTrue(t, found)
 	assert.IsTrue(t, node.IsEmptyConfig())
 
-	node, found = root.Lookup("/stacks")
+	node, found = root.Lookup(project.NewPath("/stacks"))
 	assert.IsTrue(t, found && node.IsStack() && !node.IsEmptyConfig())
 
-	node, found = root.Lookup("/stacks/child")
+	node, found = root.Lookup(project.NewPath("/stacks/child"))
 	assert.IsTrue(t, found && node.IsStack() && !node.IsEmptyConfig())
 
-	node, found = root.Lookup("/stacks/child/non-stack")
+	node, found = root.Lookup(project.NewPath("/stacks/child/non-stack"))
 	assert.IsTrue(t, found)
 	assert.IsTrue(t, node.IsEmptyConfig())
 
-	node, found = root.Lookup("/stacks/child/non-stack/stack")
+	node, found = root.Lookup(project.NewPath("/stacks/child/non-stack/stack"))
 	assert.IsTrue(t, found && node.IsStack() && !node.IsEmptyConfig())
 
-	_, found = root.Lookup("/non-existent")
+	_, found = root.Lookup(project.NewPath("/non-existent"))
 	assert.IsTrue(t, !found)
 
 	stacks := root.Tree().Stacks()
 	assert.EqualInts(t, 3, len(stacks))
-	assert.EqualStrings(t, "/stacks", project.PrjAbsPath(s.RootDir(), stacks[0].Dir()).String())
-	assert.EqualStrings(t, "/stacks/child", project.PrjAbsPath(s.RootDir(), stacks[1].Dir()).String())
-	assert.EqualStrings(t, "/stacks/child/non-stack/stack", project.PrjAbsPath(s.RootDir(), stacks[2].Dir()).String())
+	assert.EqualStrings(t, "/stacks", stacks[0].Dir().String())
+	assert.EqualStrings(t, "/stacks/child", stacks[1].Dir().String())
+	assert.EqualStrings(t, "/stacks/child/non-stack/stack", stacks[2].Dir().String())
 }
 
 func TestConfigStacksByPaths(t *testing.T) {
@@ -248,7 +248,7 @@ func TestConfigStacksByPaths(t *testing.T) {
 		assert.EqualInts(t, len(tc.want), len(got))
 		var stacks []string
 		for _, node := range got {
-			stacks = append(stacks, project.PrjAbsPath(root.Dir(), node.Dir()).String())
+			stacks = append(stacks, node.Dir().String())
 		}
 		for i, want := range tc.want {
 			assert.EqualStrings(t, want, stacks[i])
@@ -269,24 +269,24 @@ func TestConfigSkipdir(t *testing.T) {
 	root, err := config.LoadRoot(s.RootDir())
 	assert.NoError(t, err)
 
-	node, found := root.Lookup("/stack-2")
+	node, found := root.Lookup(project.NewPath("/stack-2"))
 	assert.IsTrue(t, found)
 	assert.IsTrue(t, !node.IsEmptyConfig())
 	assert.IsTrue(t, node.IsStack())
 
 	// When we find a tmskip the node is created but empty, no parsing is done
-	node, found = root.Lookup("/stack")
+	node, found = root.Lookup(project.NewPath("/stack"))
 	assert.IsTrue(t, found)
 	assert.IsTrue(t, node.IsEmptyConfig())
 	assert.IsTrue(t, !node.IsStack())
 
 	// subdirs are not processed and can't be found
-	_, found = root.Lookup("/stack/subdir")
+	_, found = root.Lookup(project.NewPath("/stack/subdir"))
 	assert.IsTrue(t, !found)
 }
 
 func isStack(root *config.Root, dir string) bool {
-	return config.IsStack(root, filepath.Join(root.Dir(), dir))
+	return config.IsStack(root, filepath.Join(root.HostDir(), dir))
 }
 
 func init() {
