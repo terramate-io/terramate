@@ -30,37 +30,45 @@ import (
 type (
 	// Stack represents an evaluated stack.
 	Stack struct {
-		// dir is the absolute dir of the stack relative to project's root.
-		dir project.Path
+		// Dir is project's stack directory.
+		Dir project.Path
 
 		// ID of the stack.
 		ID string
 
-		// name of the stack.
-		name string
+		// Name of the stack.
+		Name string
 
-		// desc is the description of the stack.
-		desc string
+		// Description is the description of the stack.
+		Description string
 
-		// after is a list of stack paths that must run before this stack.
-		after []string
+		// Tags is the list of tags of the stack.
+		Tags []string
 
-		// before is a list of stack paths that must run after this stack.
-		before []string
+		// After is a list of stack paths that must run before this stack.
+		After []string
 
-		// wants is the list of stacks that must be selected whenever this stack
+		// Before is a list of stack paths that must run after this stack.
+		Before []string
+
+		// Wants is the list of stacks that must be selected whenever this stack
 		// is selected.
-		wants []string
+		Wants []string
 
 		// wantedBy is the list of stacks that must select this stack
 		// whenever they are selected.
-		wantedBy []string
+		WantedBy []string
 
-		// watch is the list of files to be watched for changes.
-		watch []project.Path
+		// Watch is the list of files to be watched for changes.
+		Watch []project.Path
 
-		// changed tells if this is a changed stack.
-		changed bool
+		// IsChanged tells if this is a changed stack.
+		IsChanged bool
+	}
+
+	// SortableStack is a wrapper for the Stack which implements the [DirElem] type.
+	SortableStack struct {
+		*Stack
 	}
 )
 
@@ -72,11 +80,8 @@ const (
 	ErrStackInvalidWatch errors.Kind = "invalid stack.watch attribute"
 )
 
-// ensure we get a compiler error if stack doesn't implement errors.StackMeta.
-var _ errors.StackMeta = &Stack{}
-
-// NewStack creates a new stack from raw configuration cfg.
-func NewStack(root string, cfg hcl.Config) (*Stack, error) {
+// NewStackFromHCL creates a new stack from raw configuration cfg.
+func NewStackFromHCL(root string, cfg hcl.Config) (*Stack, error) {
 	name := cfg.Stack.Name
 	if name == "" {
 		name = filepath.Base(cfg.AbsDir())
@@ -88,67 +93,33 @@ func NewStack(root string, cfg hcl.Config) (*Stack, error) {
 	}
 
 	return &Stack{
-		name:     name,
-		ID:       cfg.Stack.ID,
-		desc:     cfg.Stack.Description,
-		after:    cfg.Stack.After,
-		before:   cfg.Stack.Before,
-		wants:    cfg.Stack.Wants,
-		wantedBy: cfg.Stack.WantedBy,
-		watch:    watchFiles,
-		dir:      project.PrjAbsPath(root, cfg.AbsDir()),
+		Name:        name,
+		ID:          cfg.Stack.ID,
+		Description: cfg.Stack.Description,
+		Tags:        cfg.Stack.Tags,
+		After:       cfg.Stack.After,
+		Before:      cfg.Stack.Before,
+		Wants:       cfg.Stack.Wants,
+		WantedBy:    cfg.Stack.WantedBy,
+		Watch:       watchFiles,
+		Dir:         project.PrjAbsPath(root, cfg.AbsDir()),
 	}, nil
 }
-
-// Name of the stack.
-func (s *Stack) Name() string {
-	if s.name != "" {
-		return s.name
-	}
-	return s.Dir().String()
-}
-
-// Desc is the description of the stack.
-func (s *Stack) Desc() string { return s.desc }
-
-// After specifies the list of stacks that must run before this stack.
-func (s Stack) After() []string { return s.after }
-
-// Before specifies the list of stacks that must run after this stack.
-func (s Stack) Before() []string { return s.before }
 
 // AppendBefore appends the path to the list of stacks that must run after this
 // stack.
 func (s *Stack) AppendBefore(path string) {
-	s.before = append(s.before, path)
+	s.Before = append(s.Before, path)
 }
 
-// Wants specifies the list of wanted stacks.
-func (s Stack) Wants() []string { return s.wants }
-
-// WantedBy specifies the list of stacks that wants this stack.
-func (s Stack) WantedBy() []string { return s.wantedBy }
-
-// Watch returns the list of watched files.
-func (s *Stack) Watch() []project.Path { return s.watch }
-
-// IsChanged tells if the stack is marked as changed.
-func (s *Stack) IsChanged() bool { return s.changed }
-
-// SetChanged sets the changed flag of the stack.
-func (s *Stack) SetChanged(b bool) { s.changed = b }
-
 // String representation of the stack.
-func (s *Stack) String() string { return s.Dir().String() }
-
-// Dir is the directory of the stack.
-func (s *Stack) Dir() project.Path { return s.dir }
+func (s *Stack) String() string { return s.Dir.String() }
 
 // PathBase returns the base name of the stack path.
-func (s *Stack) PathBase() string { return filepath.Base(s.dir.String()) }
+func (s *Stack) PathBase() string { return filepath.Base(s.Dir.String()) }
 
 // RelPath returns the project's relative path of stack.
-func (s *Stack) RelPath() string { return s.dir.String()[1:] }
+func (s *Stack) RelPath() string { return s.Dir.String()[1:] }
 
 // RelPathToRoot returns the relative path from the stack to root.
 func (s *Stack) RelPathToRoot(root *Root) string {
@@ -159,7 +130,7 @@ func (s *Stack) RelPathToRoot(root *Root) string {
 
 // HostDir returns the file system absolute path of stack.
 func (s *Stack) HostDir(root *Root) string {
-	return project.AbsPath(root.HostDir(), s.Dir().String())
+	return project.AbsPath(root.HostDir(), s.Dir.String())
 }
 
 // RuntimeValues returns the runtime "terramate" namespace for the stack.
@@ -171,14 +142,15 @@ func (s *Stack) RuntimeValues(root *Root) map[string]cty.Value {
 	logger.Trace().Msg("creating stack metadata")
 
 	stackpath := cty.ObjectVal(map[string]cty.Value{
-		"absolute": cty.StringVal(s.Dir().String()),
+		"absolute": cty.StringVal(s.Dir.String()),
 		"relative": cty.StringVal(s.RelPath()),
 		"basename": cty.StringVal(s.PathBase()),
 		"to_root":  cty.StringVal(s.RelPathToRoot(root)),
 	})
 	stackMapVals := map[string]cty.Value{
-		"name":        cty.StringVal(s.Name()),
-		"description": cty.StringVal(s.Desc()),
+		"name":        cty.StringVal(s.Name),
+		"description": cty.StringVal(s.Description),
+		"tags":        toCtyStringList(s.Tags),
 		"path":        stackpath,
 	}
 	if s.ID != "" {
@@ -190,10 +162,17 @@ func (s *Stack) RuntimeValues(root *Root) map[string]cty.Value {
 	}
 	stack := cty.ObjectVal(stackMapVals)
 	return map[string]cty.Value{
-		"name":        cty.StringVal(s.Name()),         // DEPRECATED
-		"path":        cty.StringVal(s.Dir().String()), // DEPRECATED
-		"description": cty.StringVal(s.Desc()),         // DEPRECATED
+		"name":        cty.StringVal(s.Name),         // DEPRECATED
+		"path":        cty.StringVal(s.Dir.String()), // DEPRECATED
+		"description": cty.StringVal(s.Description),  // DEPRECATED
 		"stack":       stack,
+	}
+}
+
+// Sortable returns an implementation of stack which can be sorted by [config.List].
+func (s *Stack) Sortable() *SortableStack {
+	return &SortableStack{
+		Stack: s,
 	}
 }
 
@@ -227,32 +206,32 @@ func validateWatchPaths(rootdir string, stackpath string, paths []string) (proje
 }
 
 // StacksFromTrees converts a List[*Tree] into a List[*Stack].
-func StacksFromTrees(root string, trees List[*Tree]) (List[*Stack], error) {
-	var stacks List[*Stack]
+func StacksFromTrees(root string, trees List[*Tree]) (List[*SortableStack], error) {
+	var stacks List[*SortableStack]
 	for _, tree := range trees {
-		s, err := NewStack(root, tree.Node)
+		s, err := NewStackFromHCL(root, tree.Node)
 		if err != nil {
-			return List[*Stack]{}, err
+			return List[*SortableStack]{}, err
 		}
-		stacks = append(stacks, s)
+		stacks = append(stacks, &SortableStack{s})
 	}
 	return stacks, nil
 }
 
 // LoadAllStacks loads all stacks inside the given rootdir.
-func LoadAllStacks(cfg *Tree) (List[*Stack], error) {
+func LoadAllStacks(cfg *Tree) (List[*SortableStack], error) {
 	logger := log.With().
 		Str("action", "stack.LoadAll()").
 		Str("root", cfg.RootDir()).
 		Logger()
 
-	stacks := List[*Stack]{}
+	stacks := List[*SortableStack]{}
 	stacksIDs := map[string]*Stack{}
 
 	for _, stackNode := range cfg.Stacks() {
-		stack, err := NewStack(cfg.RootDir(), stackNode.Node)
+		stack, err := NewStackFromHCL(cfg.RootDir(), stackNode.Node)
 		if err != nil {
-			return List[*Stack]{}, err
+			return List[*SortableStack]{}, err
 		}
 
 		logger := logger.With().
@@ -260,15 +239,15 @@ func LoadAllStacks(cfg *Tree) (List[*Stack], error) {
 			Logger()
 
 		logger.Debug().Msg("Found stack")
-		stacks = append(stacks, stack)
+		stacks = append(stacks, stack.Sortable())
 
 		if stack.ID != "" {
 			logger.Trace().Msg("stack has ID, checking for duplicate")
 			if otherStack, ok := stacksIDs[stack.ID]; ok {
-				return List[*Stack]{}, errors.E(ErrStackDuplicatedID,
+				return List[*SortableStack]{}, errors.E(ErrStackDuplicatedID,
 					"stack %q and %q have same ID %q",
-					stack.Dir(),
-					otherStack.Dir(),
+					stack.Dir,
+					otherStack.Dir,
 					stack.ID,
 				)
 			}
@@ -288,7 +267,7 @@ func LoadStack(root *Root, dir project.Path) (*Stack, error) {
 	if !node.IsStack() {
 		return nil, errors.E("config at %s is not a stack")
 	}
-	return NewStack(root.HostDir(), node.Node)
+	return NewStackFromHCL(root.HostDir(), node.Node)
 }
 
 // TryLoadStack tries to load a single stack from dir. It sets found as true in case
@@ -303,7 +282,7 @@ func TryLoadStack(root *Root, cfgdir project.Path) (stack *Stack, found bool, er
 		return nil, false, nil
 	}
 
-	s, err := NewStack(root.HostDir(), tree.Node)
+	s, err := NewStackFromHCL(root.HostDir(), tree.Node)
 	if err != nil {
 		return nil, true, err
 	}
@@ -311,7 +290,7 @@ func TryLoadStack(root *Root, cfgdir project.Path) (stack *Stack, found bool, er
 }
 
 // ReverseStacks reverses the given stacks slice.
-func ReverseStacks(stacks List[*Stack]) {
+func ReverseStacks(stacks List[*SortableStack]) {
 	i, j := 0, len(stacks)-1
 	for i < j {
 		stacks[i], stacks[j] = stacks[j], stacks[i]
@@ -328,3 +307,6 @@ func (l List[T]) Paths() project.Paths {
 	}
 	return paths
 }
+
+// Dir implements the [List] type.
+func (s SortableStack) Dir() project.Path { return s.Stack.Dir }

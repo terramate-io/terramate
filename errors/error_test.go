@@ -24,7 +24,6 @@ import (
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/info"
-	"github.com/mineiros-io/terramate/project"
 )
 
 var E = errors.E
@@ -204,15 +203,6 @@ func TestErrorString(t *testing.T) {
 			want: "error",
 		},
 		{
-			name: "simple message with stack",
-			err: E(syntaxError, "failed to parse config", stackmeta{
-				name: "test",
-				dir:  project.NewPath("/test"),
-				desc: "test desc",
-			}),
-			want: fmt("%s: failed to parse config: at stack \"/test\"", syntaxError),
-		},
-		{
 			name: "underlying error list with single element",
 			err:  E(syntaxError, errors.L(stderrors.New("err"))),
 			want: fmt("%s: err", syntaxError),
@@ -308,16 +298,6 @@ func TestErrorIs(t *testing.T) {
 		areSame bool
 	}
 
-	stack := stackmeta{
-		name: "stack",
-		desc: "desc",
-		dir:  project.NewPath("/stack"),
-	}
-	otherStack := stackmeta{
-		name: "otherstack",
-		desc: "other desc",
-		dir:  project.NewPath("/otherstack"),
-	}
 	filerange := hcl.Range{
 		Filename: "test.tm",
 		Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},
@@ -368,24 +348,6 @@ func TestErrorIs(t *testing.T) {
 			name:    "same underlying kind (deep nested)",
 			err:     E("error", E(tfSchemaError, E(tmSchemaError, E(syntaxError)))),
 			target:  E(syntaxError),
-			areSame: true,
-		},
-		{
-			name:    "same stack",
-			err:     E("error", stack),
-			target:  E(stack),
-			areSame: true,
-		},
-		{
-			name:    "same underlying stack",
-			err:     E("error", E(stack)),
-			target:  E(stack),
-			areSame: true,
-		},
-		{
-			name:    "same underlying stack (deep nested)",
-			err:     E("error", E(otherStack, E("msg", E(stack)))),
-			target:  E(stack),
 			areSame: true,
 		},
 		{
@@ -527,11 +489,6 @@ func TestErrorRangeRepresentation(t *testing.T) {
 }
 
 func TestDetailedRepresentation(t *testing.T) {
-	stack := stackmeta{
-		name: "stack",
-		desc: "desc",
-		dir:  project.NewPath("/stack"),
-	}
 	filerange := hcl.Range{
 		Filename: "test.tm",
 		Start:    hcl.Pos{Line: 1, Column: 5, Byte: 3},
@@ -539,7 +496,7 @@ func TestDetailedRepresentation(t *testing.T) {
 	}
 
 	var e *errors.Error
-	err := E("error", stack, filerange, errors.L(E("error")))
+	err := E("error", filerange, errors.L(E("error")))
 	errors.As(err, &e)
 
 	if e.Error() == e.Detailed() {
@@ -551,16 +508,3 @@ func TestDetailedRepresentation(t *testing.T) {
 func fmt(format string, args ...interface{}) string {
 	return stdfmt.Sprintf(format, args...)
 }
-
-type stackmeta struct {
-	name string
-	desc string
-	dir  project.Path
-}
-
-func (s stackmeta) Name() string      { return s.name }
-func (s stackmeta) Dir() project.Path { return s.dir }
-func (s stackmeta) Desc() string      { return s.desc }
-
-// ensures stackmeta always implements errors.StackMeta
-var _ errors.StackMeta = &stackmeta{}

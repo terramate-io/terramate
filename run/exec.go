@@ -38,7 +38,7 @@ import (
 // returning a list with a single error inside.
 func Exec(
 	root *config.Root,
-	stacks config.List[*config.Stack],
+	stacks config.List[*config.SortableStack],
 	cmd []string,
 	stdin io.Reader,
 	stdout io.Writer,
@@ -56,10 +56,10 @@ func Exec(
 	stackEnvs := map[project.Path]EnvVars{}
 
 	logger.Trace().Msg("loading stacks run environment variables")
-	for _, stack := range stacks {
-		env, err := LoadEnv(root, stack)
+	for _, elem := range stacks {
+		env, err := LoadEnv(root, elem.Stack)
 		errs.Append(err)
-		stackEnvs[stack.Dir()] = env
+		stackEnvs[elem.Dir()] = env
 	}
 
 	if errs.AsError() != nil {
@@ -124,7 +124,7 @@ func Exec(
 			case err := <-results:
 				logger.Trace().Msg("got command result")
 				if err != nil {
-					errs.Append(errors.E(stack, err, "running %s", cmd))
+					errs.Append(errors.E(err, "running %s (at stack %s)", cmd, stack.Dir()))
 					if !continueOnError {
 						return errs.AsError()
 					}

@@ -259,7 +259,7 @@ func TestLoadGlobals(t *testing.T) {
 			name: "stacks referencing all metadata",
 			layout: []string{
 				"s:stacks/stack-1",
-				"s:stacks/stack-2:id=stack-2-id;description=someDescriptionStack2",
+				`s:stacks/stack-2:id=stack-2-id;description=someDescriptionStack2;tags=["tag1", "tag2", "tag3"]`,
 			},
 			configs: []hclconfig{
 				{
@@ -273,6 +273,7 @@ func TestLoadGlobals(t *testing.T) {
 						Expr("stack_id", `tm_try(terramate.stack.id, "no-id")`),
 						Expr("stack_name", "terramate.stack.name"),
 						Expr("stack_description", "terramate.stack.description"),
+						Expr("stack_tags", "terramate.stack.tags"),
 					),
 				},
 				{
@@ -286,6 +287,7 @@ func TestLoadGlobals(t *testing.T) {
 						Expr("stack_id", "terramate.stack.id"),
 						Expr("stack_name", "terramate.stack.name"),
 						Expr("stack_description", "terramate.stack.description"),
+						Expr("stack_tags", "terramate.stack.tags"),
 					),
 				},
 			},
@@ -299,6 +301,7 @@ func TestLoadGlobals(t *testing.T) {
 					Str("stack_id", "no-id"),
 					Str("stack_name", "stack-1"),
 					Str("stack_description", ""),
+					EvalExpr(t, "stack_tags", "tolist([])"),
 				),
 				"/stacks/stack-2": Globals(
 					EvalExpr(t, "stacks_list", `tolist(["/stacks/stack-1", "/stacks/stack-2"])`),
@@ -309,6 +312,7 @@ func TestLoadGlobals(t *testing.T) {
 					Str("stack_id", "stack-2-id"),
 					Str("stack_name", "stack-2"),
 					Str("stack_description", "someDescriptionStack2"),
+					EvalExpr(t, "stack_tags", `tolist(["tag1", "tag2", "tag3"])`),
 				),
 			},
 		},
@@ -3689,8 +3693,8 @@ func TestLoadGlobalsErrors(t *testing.T) {
 
 			stacks, err := config.LoadAllStacks(cfg)
 			assert.NoError(t, err)
-			for _, st := range stacks {
-				report := globals.ForStack(s.Config(), st)
+			for _, elem := range stacks {
+				report := globals.ForStack(s.Config(), elem.Stack)
 				errtest.Assert(t, report.AsError(), tcase.want)
 			}
 		})
@@ -3721,12 +3725,12 @@ func testGlobals(t *testing.T, tcase testcase) {
 		stackEntries, err := terramate.ListStacks(cfg)
 		assert.NoError(t, err)
 
-		var stacks config.List[*config.Stack]
+		var stacks config.List[*config.SortableStack]
 		for _, entry := range stackEntries {
 			st := entry.Stack
-			stacks = append(stacks, st)
+			stacks = append(stacks, st.Sortable())
 
-			t.Logf("loading globals for stack: %s", st.Dir())
+			t.Logf("loading globals for stack: %s", st.Dir)
 
 			gotReport := globals.ForStack(s.Config(), st)
 			errtest.Assert(t, gotReport.AsError(), tcase.wantErr)
@@ -3734,11 +3738,11 @@ func testGlobals(t *testing.T, tcase testcase) {
 				continue
 			}
 
-			want, ok := wantGlobals[st.Dir().String()]
+			want, ok := wantGlobals[st.Dir.String()]
 			if !ok {
 				want = Globals()
 			}
-			delete(wantGlobals, st.Dir().String())
+			delete(wantGlobals, st.Dir.String())
 
 			// Could have one type for globals configs and another type
 			// for wanted evaluated globals, but that would make

@@ -225,15 +225,15 @@ func (s S) LoadStack(dir project.Path) *config.Stack {
 }
 
 // LoadStacks load all stacks from sandbox rootdir.
-func (s S) LoadStacks() config.List[*config.Stack] {
+func (s S) LoadStacks() config.List[*config.SortableStack] {
 	s.t.Helper()
 
 	entries, err := terramate.ListStacks(s.Config().Tree())
 	assert.NoError(s.t, err)
 
-	var stacks config.List[*config.Stack]
+	var stacks config.List[*config.SortableStack]
 	for _, entry := range entries {
-		stacks = append(stacks, entry.Stack)
+		stacks = append(stacks, entry.Stack.Sortable())
 	}
 
 	return stacks
@@ -639,6 +639,8 @@ func buildTree(t testing.TB, root *config.Root, layout []string) {
 				cfg.Stack.Watch = parseListSpec(t, name, value)
 			case "description":
 				cfg.Stack.Description = value
+			case "tags":
+				cfg.Stack.Tags = parseListSpec(t, name, value)
 			default:
 				t.Fatalf("attribute " + parts[0] + " not supported.")
 			}

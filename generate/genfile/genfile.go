@@ -135,7 +135,7 @@ func Load(
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 ) ([]File, error) {
-	genFileBlocks, err := loadGenFileBlocks(root, st.Dir())
+	genFileBlocks, err := loadGenFileBlocks(root, st.Dir)
 	if err != nil {
 		return nil, errors.E("loading generate_file", err)
 	}
@@ -150,7 +150,7 @@ func Load(
 		name := genFileBlock.Label
 		evalctx := stack.NewEvalCtx(root, st, globals)
 		vendorTargetDir := project.NewPath(path.Join(
-			st.Dir().String(),
+			st.Dir.String(),
 			path.Dir(name)))
 
 		evalctx.SetFunction(stdlib.Name("vendor"), stdlib.VendorFunc(vendorTargetDir, vendorDir, vendorRequests))

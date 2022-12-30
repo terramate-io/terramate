@@ -456,6 +456,24 @@ func TestHCLParserStack(t *testing.T) {
 			},
 		},
 		{
+			name: "'after' referencing terramate.stack.list - fails",
+			input: []cfgfile{
+				{
+					filename: "stack.tm",
+					body: `
+						stack {
+							after = terramate.stacks.list
+						}
+					`,
+				},
+			},
+			want: want{
+				errs: []error{
+					errors.E(hcl.ErrTerramateSchema),
+				},
+			},
+		},
+		{
 			name: "'after' invalid type",
 			input: []cfgfile{
 				{
@@ -531,26 +549,7 @@ func TestHCLParserStack(t *testing.T) {
 			},
 		},
 		{
-			name: "multiple 'before' fields - fails",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						stack {
-							before = []
-							before = []
-						}
-					`,
-				},
-			},
-			want: want{
-				errs: []error{
-					errors.E(hcl.ErrHCLSyntax),
-				},
-			},
-		},
-		{
-			name:      "'before' single entry",
+			name:      "'after' single entry",
 			nonStrict: true,
 			input: []cfgfile{
 				{
@@ -561,7 +560,7 @@ func TestHCLParserStack(t *testing.T) {
 						}
 
 						stack {
-							before = ["something"]
+							after = ["something"]
 						}
 					`,
 				},
@@ -570,13 +569,13 @@ func TestHCLParserStack(t *testing.T) {
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{},
 					Stack: &hcl.Stack{
-						Before: []string{"something"},
+						After: []string{"something"},
 					},
 				},
 			},
 		},
 		{
-			name:      "'before' multiple entries",
+			name:      "'after' multiple entries",
 			nonStrict: true,
 			input: []cfgfile{
 				{
@@ -587,7 +586,7 @@ func TestHCLParserStack(t *testing.T) {
 						}
 
 						stack {
-							before = ["something", "something-else", "test"]
+							after = ["something", "something-else", "test"]
 						}
 					`,
 				},
@@ -596,85 +595,8 @@ func TestHCLParserStack(t *testing.T) {
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{},
 					Stack: &hcl.Stack{
-						Before: []string{"something", "something-else", "test"},
+						After: []string{"something", "something-else", "test"},
 					},
-				},
-			},
-		},
-		{
-			name:      "wanted_by is optional",
-			nonStrict: true,
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						stack {}
-					`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Stack: &hcl.Stack{},
-				},
-			},
-		},
-		{
-			name:      "wanted_by can be empty",
-			nonStrict: true,
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						stack {
-							wanted_by = []
-						}
-					`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Stack: &hcl.Stack{
-						WantedBy: []string{},
-					},
-				},
-			},
-		},
-		{
-			name:      "'wanted_by' single entry",
-			nonStrict: true,
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						stack {
-							wanted_by = ["test"]
-						}
-					`,
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Stack: &hcl.Stack{
-						WantedBy: []string{"test"},
-					},
-				},
-			},
-		},
-		{
-			name: "'wanted_by' duplicated entry",
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body: `
-						stack {
-							wanted_by = ["test", "test"]
-						}
-					`,
-				},
-			},
-			want: want{
-				errs: []error{
-					errors.E(hcl.ErrTerramateSchema),
 				},
 			},
 		},

@@ -150,12 +150,12 @@ func Load(
 ) ([]HCL, error) {
 	logger := log.With().
 		Str("action", "genhcl.Load()").
-		Stringer("path", st.Dir()).
+		Stringer("path", st.Dir).
 		Logger()
 
 	logger.Trace().Msg("loading generate_hcl blocks.")
 
-	hclBlocks, err := loadGenHCLBlocks(root, st.Dir())
+	hclBlocks, err := loadGenHCLBlocks(root, st.Dir)
 	if err != nil {
 		return nil, errors.E("loading generate_hcl", err)
 	}
@@ -168,7 +168,7 @@ func Load(
 		evalctx := stack.NewEvalCtx(root, st, globals)
 
 		vendorTargetDir := project.NewPath(path.Join(
-			st.Dir().String(),
+			st.Dir.String(),
 			path.Dir(name)))
 
 		evalctx.SetFunction(
@@ -241,9 +241,7 @@ func Load(
 
 		gen := hclwrite.NewEmptyFile()
 		if err := copyBody(gen.Body(), hclBlock.Content.Body, evalctx); err != nil {
-			return nil, errors.E(ErrContentEval, st, err,
-				"generate_hcl %q", name,
-			)
+			return nil, errors.E(ErrContentEval, err, "generate_hcl %q", name)
 		}
 
 		formatted, err := fmt.FormatMultiline(string(gen.Bytes()), hclBlock.Range.HostPath())
