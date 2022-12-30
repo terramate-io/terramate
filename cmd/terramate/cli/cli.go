@@ -592,7 +592,7 @@ func (c *cli) triggerStack() {
 	stack := c.parsedArgs.Experimental.Trigger.Stack
 	reason := c.parsedArgs.Experimental.Trigger.Reason
 	if reason == "" {
-		reason = "manually created through terramate CLI"
+		reason = "Created using Terramate CLI without setting specific reason."
 	}
 	logger := log.With().
 		Str("stack", stack).
