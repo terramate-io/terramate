@@ -42,6 +42,9 @@ type (
 		// Description is the description of the stack.
 		Description string
 
+		// Tags is the list of tags of the stack.
+		Tags []string
+
 		// After is a list of stack paths that must run before this stack.
 		After []string
 
@@ -93,6 +96,7 @@ func NewStackFromHCL(root string, cfg hcl.Config) (*Stack, error) {
 		Name:        name,
 		ID:          cfg.Stack.ID,
 		Description: cfg.Stack.Description,
+		Tags:        cfg.Stack.Tags,
 		After:       cfg.Stack.After,
 		Before:      cfg.Stack.Before,
 		Wants:       cfg.Stack.Wants,
@@ -146,6 +150,7 @@ func (s *Stack) RuntimeValues(root *Root) map[string]cty.Value {
 	stackMapVals := map[string]cty.Value{
 		"name":        cty.StringVal(s.Name),
 		"description": cty.StringVal(s.Description),
+		"tags":        toCtyStringList(s.Tags),
 		"path":        stackpath,
 	}
 	if s.ID != "" {

@@ -49,6 +49,7 @@ project metadata:
 stack "/stack":
 	terramate.stack.name="stack"
 	terramate.stack.description=""
+	terramate.stack.tags=[]
 	terramate.stack.path.absolute="/stack"
 	terramate.stack.path.basename="stack"
 	terramate.stack.path.relative="stack"
@@ -71,6 +72,7 @@ stack "/stack":
 	terramate.stack.id="unique-id"
 	terramate.stack.name="stack"
 	terramate.stack.description=""
+	terramate.stack.tags=[]
 	terramate.stack.path.absolute="/stack"
 	terramate.stack.path.basename="stack"
 	terramate.stack.path.relative="stack"
@@ -95,6 +97,7 @@ project metadata:
 stack "/somedir/stack3":
 	terramate.stack.name="stack3"
 	terramate.stack.description=""
+	terramate.stack.tags=[]
 	terramate.stack.path.absolute="/somedir/stack3"
 	terramate.stack.path.basename="stack3"
 	terramate.stack.path.relative="somedir/stack3"
@@ -103,6 +106,7 @@ stack "/somedir/stack3":
 stack "/somedir/stack4":
 	terramate.stack.name="stack4"
 	terramate.stack.description=""
+	terramate.stack.tags=[]
 	terramate.stack.path.absolute="/somedir/stack4"
 	terramate.stack.path.basename="stack4"
 	terramate.stack.path.relative="somedir/stack4"
@@ -111,6 +115,7 @@ stack "/somedir/stack4":
 stack "/stack1":
 	terramate.stack.name="stack1"
 	terramate.stack.description=""
+	terramate.stack.tags=[]
 	terramate.stack.path.absolute="/stack1"
 	terramate.stack.path.basename="stack1"
 	terramate.stack.path.relative="stack1"
@@ -119,6 +124,7 @@ stack "/stack1":
 stack "/stack2":
 	terramate.stack.name="stack2"
 	terramate.stack.description=""
+	terramate.stack.tags=[]
 	terramate.stack.path.absolute="/stack2"
 	terramate.stack.path.basename="stack2"
 	terramate.stack.path.relative="stack2"
@@ -144,6 +150,7 @@ project metadata:
 stack "/stack1":
 	terramate.stack.name="stack1"
 	terramate.stack.description=""
+	terramate.stack.tags=[]
 	terramate.stack.path.absolute="/stack1"
 	terramate.stack.path.basename="stack1"
 	terramate.stack.path.relative="stack1"
@@ -169,6 +176,7 @@ project metadata:
 stack "/somedir/stack3":
 	terramate.stack.name="stack3"
 	terramate.stack.description=""
+	terramate.stack.tags=[]
 	terramate.stack.path.absolute="/somedir/stack3"
 	terramate.stack.path.basename="stack3"
 	terramate.stack.path.relative="somedir/stack3"
@@ -177,10 +185,55 @@ stack "/somedir/stack3":
 stack "/somedir/stack4":
 	terramate.stack.name="stack4"
 	terramate.stack.description=""
+	terramate.stack.tags=[]
 	terramate.stack.path.absolute="/somedir/stack4"
 	terramate.stack.path.basename="stack4"
 	terramate.stack.path.relative="somedir/stack4"
 	terramate.stack.path.to_root="../.."
+`,
+			},
+		},
+		{
+			name: "one stack with empty tags",
+			layout: []string{
+				`s:stack:tags=[]`,
+			},
+			want: runExpected{
+				Stdout: `Available metadata:
+
+project metadata:
+	terramate.stacks.list=[/stack]
+
+stack "/stack":
+	terramate.stack.name="stack"
+	terramate.stack.description=""
+	terramate.stack.tags=[]
+	terramate.stack.path.absolute="/stack"
+	terramate.stack.path.basename="stack"
+	terramate.stack.path.relative="stack"
+	terramate.stack.path.to_root=".."
+`,
+			},
+		},
+		{
+			name: "one stack with tags",
+			layout: []string{
+				`s:stack:tags=["tag1", "tag2"]`,
+			},
+			want: runExpected{
+				Stdout: `Available metadata:
+
+project metadata:
+	terramate.stacks.list=[/stack]
+
+stack "/stack":
+	terramate.stack.name="stack"
+	terramate.stack.description=""
+	terramate.stack.tags=["tag1","tag2"]
+	terramate.stack.path.absolute="/stack"
+	terramate.stack.path.basename="stack"
+	terramate.stack.path.relative="stack"
+	terramate.stack.path.to_root=".."
 `,
 			},
 		},

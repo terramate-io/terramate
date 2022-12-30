@@ -165,6 +165,9 @@ type Stack struct {
 	// Description of the stack
 	Description string
 
+	// Tags is a list of non-duplicated list of tags
+	Tags []string
+
 	// After is a list of non-duplicated stack entries that must run before the
 	// current stack runs.
 	After []string
@@ -615,6 +618,117 @@ func (p *TerramateParser) internalParsedFiles() []string {
 	}
 	sort.Strings(filenames)
 	return filenames
+}
+
+func (p *TerramateParser) parseStack(stackblock *ast.Block) (*Stack, error) {
+	logger := log.With().
+		Str("action", "parseStack()").
+		Logger()
+
+	errs := errors.L()
+	for _, block := range stackblock.Body.Blocks {
+		errs.Append(
+			errors.E(block.TypeRange, "unrecognized block %q", block.Type),
+		)
+	}
+
+	stack := &Stack{}
+
+	logger.Debug().Msg("Get stack attributes.")
+	attrs := ast.AsHCLAttributes(stackblock.Body.Attributes)
+	for _, attr := range ast.SortRawAttributes(attrs) {
+		logger.Trace().Msg("Get attribute value.")
+
+		attrVal, err := p.evalctx.Eval(attr.Expr)
+		if err != nil {
+			errs.Append(
+				errors.E(err, "failed to evaluate %q attribute", attr.Name),
+			)
+			continue
+		}
+
+		logger.Trace().
+			Str("attribute", attr.Name).
+			Msg("Setting attribute on configuration.")
+
+		switch attr.Name {
+		case "id":
+			if attrVal.Type() != cty.String {
+				errs.Append(hclAttrErr(attr,
+					"field stack.id must be a string but is %q",
+					attrVal.Type().FriendlyName()),
+				)
+				continue
+			}
+			id := attrVal.AsString()
+			err := ValidateStackID(id)
+			if err != nil {
+				errs.Append(errors.E(attr.Expr.Range(), err))
+				continue
+			}
+
+			stack.ID = id
+		case "name":
+			if attrVal.Type() != cty.String {
+				errs.Append(hclAttrErr(attr,
+					"field stack.name must be a string but given %q",
+					attrVal.Type().FriendlyName()),
+				)
+				continue
+			}
+			stack.Name = attrVal.AsString()
+
+		case "description":
+			logger.Trace().Msg("parsing stack description.")
+			if attrVal.Type() != cty.String {
+				errs.Append(hclAttrErr(attr,
+					"field stack.\"description\" must be a \"string\" but given %q",
+					attrVal.Type().FriendlyName(),
+				))
+
+				continue
+			}
+			stack.Description = attrVal.AsString()
+
+			// The `tags`, `after`, `before`, `wants`, `wanted_by` and `watch`
+			// have all the same parsing rules.
+			// By the spec, they must be a `set(string)`.
+
+			// In order to speed up the tests, only the `after` attribute is
+			// extensively tested for all error cases.
+			// **So have this in mind if the specification of any of the attributes
+			// below change in the future**.
+
+		case "tags":
+			errs.Append(assignSet(attr.Name, &stack.Tags, attrVal))
+
+		case "after":
+			errs.Append(assignSet(attr.Name, &stack.After, attrVal))
+
+		case "before":
+			errs.Append(assignSet(attr.Name, &stack.Before, attrVal))
+
+		case "wants":
+			errs.Append(assignSet(attr.Name, &stack.Wants, attrVal))
+
+		case "wanted_by":
+			errs.Append(assignSet(attr.Name, &stack.WantedBy, attrVal))
+
+		case "watch":
+			errs.Append(assignSet(attr.Name, &stack.Watch, attrVal))
+
+		default:
+			errs.Append(errors.E(
+				attr.NameRange, "unrecognized attribute stack.%q", attr.Name,
+			))
+		}
+	}
+
+	if err := errs.AsError(); err != nil {
+		return nil, err
+	}
+
+	return stack, nil
 }
 
 // NewConfig creates a new HCL config with dir as config directory path.
@@ -1079,102 +1193,6 @@ func ValueAsStringList(val cty.Value) ([]string, error) {
 	}
 
 	return elems, nil
-}
-
-func parseStack(evalctx *eval.Context, stack *Stack, stackblock *ast.Block) error {
-	logger := log.With().
-		Str("action", "parseStack()").
-		Str("stack", stack.Name).
-		Logger()
-
-	errs := errors.L()
-
-	for _, block := range stackblock.Body.Blocks {
-		errs.Append(
-			errors.E(block.TypeRange, "unrecognized block %q", block.Type),
-		)
-	}
-
-	logger.Debug().Msg("Get stack attributes.")
-
-	attrs := ast.AsHCLAttributes(stackblock.Body.Attributes)
-	for _, attr := range ast.SortRawAttributes(attrs) {
-		logger.Trace().Msg("Get attribute value.")
-
-		attrVal, err := evalctx.Eval(attr.Expr)
-		if err != nil {
-			errs.Append(
-				errors.E(err, "failed to evaluate %q attribute", attr.Name),
-			)
-			continue
-		}
-
-		logger.Trace().
-			Str("attribute", attr.Name).
-			Msg("Setting attribute on configuration.")
-
-		switch attr.Name {
-		case "id":
-			if attrVal.Type() != cty.String {
-				errs.Append(hclAttrErr(attr,
-					"field stack.id must be a string but is %q",
-					attrVal.Type().FriendlyName()),
-				)
-				continue
-			}
-			id := attrVal.AsString()
-			err := ValidateStackID(id)
-			if err != nil {
-				errs.Append(errors.E(attr.Expr.Range(), err))
-				continue
-			}
-
-			stack.ID = id
-		case "name":
-			if attrVal.Type() != cty.String {
-				errs.Append(hclAttrErr(attr,
-					"field stack.name must be a string but given %q",
-					attrVal.Type().FriendlyName()),
-				)
-				continue
-			}
-			stack.Name = attrVal.AsString()
-
-		case "after":
-			errs.Append(assignSet(attr.Name, &stack.After, attrVal))
-
-		case "before":
-			errs.Append(assignSet(attr.Name, &stack.Before, attrVal))
-
-		case "wants":
-			errs.Append(assignSet(attr.Name, &stack.Wants, attrVal))
-
-		case "wanted_by":
-			errs.Append(assignSet(attr.Name, &stack.WantedBy, attrVal))
-
-		case "watch":
-			errs.Append(assignSet(attr.Name, &stack.Watch, attrVal))
-
-		case "description":
-			logger.Trace().Msg("parsing stack description.")
-			if attrVal.Type() != cty.String {
-				errs.Append(hclAttrErr(attr,
-					"field stack.\"description\" must be a \"string\" but given %q",
-					attrVal.Type().FriendlyName(),
-				))
-
-				continue
-			}
-			stack.Description = attrVal.AsString()
-
-		default:
-			errs.Append(errors.E(
-				attr.NameRange, "unrecognized attribute stack.%q", attr.Name,
-			))
-		}
-	}
-
-	return errs.AsError()
 }
 
 func checkNoAttributes(block *ast.Block) error {
@@ -1715,8 +1733,10 @@ func (p *TerramateParser) parseTerramateSchema() (Config, error) {
 				"duplicated stack blocks across configs"))
 		}
 
-		config.Stack = &Stack{}
-		errs.AppendWrap(errKind, parseStack(p.evalctx, config.Stack, stackblock))
+		config.Stack, err = p.parseStack(stackblock)
+		if err != nil {
+			errs.AppendWrap(errKind, err)
+		}
 	}
 
 	if err := errs.AsError(); err != nil {
