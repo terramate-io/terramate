@@ -109,14 +109,15 @@ func parseTagClauses(filters ...string) (TagClause, bool) {
 
 // parseTagClause parses the tag-filter syntax defined below:
 //
-//   EXPR    = TAGNAME [ OP EXPR]
-//   TAGNAME = <string>
-//   OP      = ":" | ","
+//	EXPR    = TAGNAME [ OP EXPR]
+//	TAGNAME = <string>
+//	OP      = ":" | ","
 //
 // Semantically, the `:` operation has precedence over `,`.
 // Examples:
-//   a:b,c 		-> (A&&B)||c
-//   a,b:c,d	-> A||(B&&C)||d
+//
+//	a:b,c 		-> (A&&B)||c
+//	a,b:c,d	-> A||(B&&C)||d
 func parseTagClause(filter string) TagClause {
 	rootNode := TagClause{
 		Op: OR,

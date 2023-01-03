@@ -171,7 +171,7 @@ dir/c
 			},
 		},
 		{
-			name: "multiple stacks matches subset of their tags",
+			name: "all stacks containing the tag `a`",
 			layout: []string{
 				`s:a:tags=["a", "b", "c", "d"]`,
 				`s:b:tags=["a", "b"]`,
@@ -188,7 +188,7 @@ dir/c
 			},
 		},
 		{
-			name: "matching stacks with AND operation",
+			name: "all stacks containing tags `a && b`",
 			layout: []string{
 				`s:a:tags=["a", "b", "c", "d"]`,
 				`s:b:tags=["a", "b"]`,
@@ -204,7 +204,7 @@ b
 			},
 		},
 		{
-			name: "matching stacks with a:b:c operation",
+			name: "all stacks containing the tags `a && b && c`",
 			layout: []string{
 				`s:a:tags=["a", "b", "c", "d"]`,
 				`s:b:tags=["a", "b"]`,
@@ -219,7 +219,7 @@ b
 			},
 		},
 		{
-			name: "matching stacks with a,b",
+			name: "all stacks containing tag `a || b`",
 			layout: []string{
 				`s:a:tags=["a", "b", "c", "d"]`,
 				`s:b:tags=["a", "b"]`,
@@ -236,7 +236,7 @@ dir/c
 			},
 		},
 		{
-			name: "matching stacks with a:b,c:d",
+			name: "all stacks containing tags `a && b || c && d`",
 			layout: []string{
 				`s:a:tags=["a", "b", "c", "d"]`,
 				`s:b:tags=["a", "b"]`,
