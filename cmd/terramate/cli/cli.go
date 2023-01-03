@@ -27,6 +27,7 @@ import (
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/cmd/terramate/cli/out"
+	"github.com/mineiros-io/terramate/config/filter"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/errors/errlog"
 	"github.com/mineiros-io/terramate/event"
@@ -90,6 +91,7 @@ type cliSpec struct {
 	Chdir          string   `short:"C" optional:"true" predictor:"file" help:"Sets working directory"`
 	GitChangeBase  string   `short:"B" optional:"true" help:"Git base ref for computing changes"`
 	Changed        bool     `short:"c" optional:"true" help:"Filter by changed infrastructure"`
+	Tags           []string `short:"c" optional:"true" help:"Filter by tags"`
 	LogLevel       string   `optional:"true" default:"warn" enum:"disabled,trace,debug,info,warn,error,fatal" help:"Log level to use: 'disabled', 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
 	LogFmt         string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'"`
 	LogDestination string   `optional:"true" default:"stderr" enum:"stderr,stdout" help:"Destination of log messages"`
@@ -966,7 +968,9 @@ func (c *cli) printStacks() {
 
 	c.gitFileSafeguards(report.Checks, false)
 
-	for _, entry := range report.Stacks {
+	stacks := c.filterStacks(report.Stacks)
+
+	for _, entry := range stacks {
 		stack := entry.Stack
 
 		log.Debug().Msgf("printing stack %s", stack.Dir)
@@ -991,7 +995,7 @@ func (c *cli) printRunEnv() {
 		fatal(err, "listing stacks")
 	}
 
-	for _, stackEntry := range c.filterStacksByWorkingDir(report.Stacks) {
+	for _, stackEntry := range c.filterStacks(report.Stacks) {
 		envVars, err := run.LoadEnv(c.cfg(), stackEntry.Stack)
 		if err != nil {
 			fatal(err, "loading stack run environment")
@@ -1230,7 +1234,7 @@ func (c *cli) printStacksGlobals() {
 		fatal(err, "listing stacks globals: listing stacks")
 	}
 
-	for _, stackEntry := range c.filterStacksByWorkingDir(report.Stacks) {
+	for _, stackEntry := range c.filterStacks(report.Stacks) {
 		stack := stackEntry.Stack
 		report := globals.ForStack(c.cfg(), stack)
 		if err := report.AsError(); err != nil {
@@ -1267,8 +1271,7 @@ func (c *cli) printMetadata() {
 		fatal(err, "loading metadata: listing stacks")
 	}
 
-	stackEntries := c.filterStacksByWorkingDir(report.Stacks)
-
+	stackEntries := c.filterStacks(report.Stacks)
 	if len(stackEntries) == 0 {
 		return
 	}
@@ -1606,7 +1609,7 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (config.List[*config.S
 
 	logger.Trace().Msg("Filter stacks by working directory.")
 
-	entries := c.filterStacksByWorkingDir(report.Stacks)
+	entries := c.filterStacks(report.Stacks)
 	stacks := make(config.List[*config.SortableStack], len(entries))
 	for i, e := range entries {
 		stacks[i] = e.Stack.Sortable()
@@ -1619,17 +1622,12 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (config.List[*config.S
 	return stacks, nil
 }
 
+func (c *cli) filterStacks(stacks []terramate.Entry) []terramate.Entry {
+	return c.filterStacksByTags(c.filterStacksByWorkingDir(stacks))
+}
+
 func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Entry {
-	logger := log.With().
-		Str("action", "filterStacksByWorkingDir()").
-		Str("workingDir", c.wd()).
-		Logger()
-
-	logger.Trace().Msg("Get relative working directory.")
-
 	relwd := prj.PrjAbsPath(c.rootdir(), c.wd())
-
-	logger.Trace().Msg("Get filtered stacks.")
 
 	filtered := []terramate.Entry{}
 	for _, e := range stacks {
@@ -1638,6 +1636,19 @@ func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Ent
 		}
 	}
 
+	return filtered
+}
+
+func (c *cli) filterStacksByTags(entries []terramate.Entry) []terramate.Entry {
+	if len(c.parsedArgs.Tags) == 0 {
+		return entries
+	}
+	filtered := []terramate.Entry{}
+	for _, entry := range entries {
+		if filter.MatchTags(c.parsedArgs.Tags, entry.Stack.Tags) {
+			filtered = append(filtered, entry)
+		}
+	}
 	return filtered
 }
 

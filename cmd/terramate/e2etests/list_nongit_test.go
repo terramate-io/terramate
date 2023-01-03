@@ -33,7 +33,11 @@ func TestE2EListNonGit(t *testing.T) {
 			test.WriteRootConfig(t, s.RootDir())
 
 			cli := newCLI(t, s.RootDir())
-			assertRunResult(t, cli.listStacks(), tc.want)
+			var args []string
+			for _, filter := range tc.filterTags {
+				args = append(args, "--tags", filter)
+			}
+			assertRunResult(t, cli.listStacks(args...), tc.want)
 		})
 	}
 }

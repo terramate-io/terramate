@@ -24,9 +24,10 @@ import (
 )
 
 type testcase struct {
-	name   string
-	layout []string
-	want   runExpected
+	name       string
+	layout     []string
+	filterTags []string
+	want       runExpected
 }
 
 func listTestcases() []testcase {
@@ -149,6 +150,105 @@ func listTestcases() []testcase {
 3/x/y/z
 x/b
 z/a
+`,
+			},
+		},
+		{
+			name: "multiple stacks filtered by same tag",
+			layout: []string{
+				`s:a:tags=["abc"]`,
+				`s:b:tags=["abc"]`,
+				`s:dir/c:tags=["abc"]`,
+				`s:dir/d`,
+				`s:dir/subdir/e`,
+			},
+			filterTags: []string{"abc"},
+			want: runExpected{
+				Stdout: `a
+b
+dir/c
+`,
+			},
+		},
+		{
+			name: "multiple stacks matches subset of their tags",
+			layout: []string{
+				`s:a:tags=["a", "b", "c", "d"]`,
+				`s:b:tags=["a", "b"]`,
+				`s:dir/c:tags=["a"]`,
+				`s:dir/d`,
+				`s:dir/subdir/e`,
+			},
+			filterTags: []string{"a"},
+			want: runExpected{
+				Stdout: `a
+b
+dir/c
+`,
+			},
+		},
+		{
+			name: "matching stacks with AND operation",
+			layout: []string{
+				`s:a:tags=["a", "b", "c", "d"]`,
+				`s:b:tags=["a", "b"]`,
+				`s:dir/c:tags=["a"]`,
+				`s:dir/d:tags=["c", "d"]`,
+				`s:dir/subdir/e`,
+			},
+			filterTags: []string{"a:b"},
+			want: runExpected{
+				Stdout: `a
+b
+`,
+			},
+		},
+		{
+			name: "matching stacks with a:b:c operation",
+			layout: []string{
+				`s:a:tags=["a", "b", "c", "d"]`,
+				`s:b:tags=["a", "b"]`,
+				`s:dir/c:tags=["a"]`,
+				`s:dir/d:tags=["c", "d"]`,
+				`s:dir/subdir/e`,
+			},
+			filterTags: []string{"a:b:c"},
+			want: runExpected{
+				Stdout: `a
+`,
+			},
+		},
+		{
+			name: "matching stacks with a,b",
+			layout: []string{
+				`s:a:tags=["a", "b", "c", "d"]`,
+				`s:b:tags=["a", "b"]`,
+				`s:dir/c:tags=["a"]`,
+				`s:dir/d:tags=["c", "d"]`,
+				`s:dir/subdir/e`,
+			},
+			filterTags: []string{"a,b"},
+			want: runExpected{
+				Stdout: `a
+b
+dir/c
+`,
+			},
+		},
+		{
+			name: "matching stacks with a:b,c:d",
+			layout: []string{
+				`s:a:tags=["a", "b", "c", "d"]`,
+				`s:b:tags=["a", "b"]`,
+				`s:dir/c:tags=["a"]`,
+				`s:dir/d:tags=["c", "d"]`,
+				`s:dir/subdir/e`,
+			},
+			filterTags: []string{"a:b,c:d"},
+			want: runExpected{
+				Stdout: `a
+b
+dir/d
 `,
 			},
 		},
