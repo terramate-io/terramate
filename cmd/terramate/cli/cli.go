@@ -968,9 +968,7 @@ func (c *cli) printStacks() {
 
 	c.gitFileSafeguards(report.Checks, false)
 
-	stacks := c.filterStacks(report.Stacks)
-
-	for _, entry := range stacks {
+	for _, entry := range c.filterStacks(report.Stacks) {
 		stack := entry.Stack
 
 		log.Debug().Msgf("printing stack %s", stack.Dir)
