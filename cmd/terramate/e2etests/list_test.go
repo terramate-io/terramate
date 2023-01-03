@@ -323,6 +323,23 @@ stack-b
 `,
 			},
 		},
+		{
+			name: "multiple --tags makes an OR clause with all flag values",
+			layout: []string{
+				`s:stack-a:tags=["terra-mate", "terra_mate"]`,
+				`s:stack-b:tags=["terra_mate"]`,
+				`s:no-tag-stack`,
+			},
+			filterTags: []string{
+				"terra-mate",
+				"terra_mate",
+			},
+			want: runExpected{
+				Stdout: `stack-a
+stack-b
+`,
+			},
+		},
 	}
 }
 
