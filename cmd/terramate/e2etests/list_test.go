@@ -15,7 +15,6 @@
 package e2etest
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/mineiros-io/terramate/config"
@@ -70,7 +69,7 @@ func listTestcases() []testcase {
 			name:   "single stack",
 			layout: []string{"s:stack"},
 			want: runExpected{
-				Stdout: "stack\n",
+				Stdout: listStacks("stack"),
 			},
 		},
 		{
@@ -87,7 +86,7 @@ func listTestcases() []testcase {
 				"d:waste/directories",
 			},
 			want: runExpected{
-				Stdout: "there/is/a/very/deep/hidden/stack/here\n",
+				Stdout: listStacks("there/is/a/very/deep/hidden/stack/here"),
 			},
 		},
 		{
@@ -96,7 +95,7 @@ func listTestcases() []testcase {
 				"s:1", "s:2", "s:3",
 			},
 			want: runExpected{
-				Stdout: "1\n2\n3\n",
+				Stdout: listStacks("1", "2", "3"),
 			},
 		},
 		{
@@ -106,7 +105,7 @@ func listTestcases() []testcase {
 				"s:stack/child-stack",
 			},
 			want: runExpected{
-				Stdout: "stack\nstack/child-stack\n",
+				Stdout: listStacks("stack", "stack/child-stack"),
 			},
 		},
 		{
@@ -123,7 +122,7 @@ func listTestcases() []testcase {
 				"s:mineiros.io/departments/engineering/tests/e2e",
 			},
 			want: runExpected{
-				Stdout: strings.Join([]string{
+				Stdout: listStacks(
 					"mineiros.io",
 					"mineiros.io/departments",
 					"mineiros.io/departments/accounting",
@@ -131,7 +130,7 @@ func listTestcases() []testcase {
 					"mineiros.io/departments/engineering/terraform-modules",
 					"mineiros.io/departments/engineering/terramate",
 					"mineiros.io/departments/engineering/tests/e2e",
-				}, "\n") + "\n",
+				),
 			},
 		},
 		{
@@ -146,12 +145,7 @@ func listTestcases() []testcase {
 				"s:3/x/y/z",
 			},
 			want: runExpected{
-				Stdout: `1
-2
-3/x/y/z
-x/b
-z/a
-`,
+				Stdout: listStacks("1", "2", "3/x/y/z", "x/b", "z/a"),
 			},
 		},
 		{
@@ -165,10 +159,7 @@ z/a
 			},
 			filterTags: []string{"abc"},
 			want: runExpected{
-				Stdout: `a
-b
-dir/c
-`,
+				Stdout: listStacks("a", "b", "dir/c"),
 			},
 		},
 		{
@@ -238,10 +229,7 @@ dir/c
 			},
 			filterTags: []string{"a"},
 			want: runExpected{
-				Stdout: `a
-b
-dir/c
-`,
+				Stdout: listStacks("a", "b", "dir/c"),
 			},
 		},
 		{
@@ -255,9 +243,7 @@ dir/c
 			},
 			filterTags: []string{"a:b"},
 			want: runExpected{
-				Stdout: `a
-b
-`,
+				Stdout: listStacks("a", "b"),
 			},
 		},
 		{
@@ -271,8 +257,7 @@ b
 			},
 			filterTags: []string{"a:b:c"},
 			want: runExpected{
-				Stdout: `a
-`,
+				Stdout: listStacks("a"),
 			},
 		},
 		{
@@ -286,10 +271,7 @@ b
 			},
 			filterTags: []string{"a,b"},
 			want: runExpected{
-				Stdout: `a
-b
-dir/c
-`,
+				Stdout: listStacks("a", "b", "dir/c"),
 			},
 		},
 		{
@@ -303,10 +285,7 @@ dir/c
 			},
 			filterTags: []string{"a:b,c:d"},
 			want: runExpected{
-				Stdout: `a
-b
-dir/d
-`,
+				Stdout: listStacks("a", "b", "dir/d"),
 			},
 		},
 		{
@@ -318,9 +297,7 @@ dir/d
 			},
 			filterTags: []string{"terra-mate,terra_mate"},
 			want: runExpected{
-				Stdout: `stack-a
-stack-b
-`,
+				Stdout: listStacks("stack-a", "stack-b"),
 			},
 		},
 		{
@@ -335,9 +312,7 @@ stack-b
 				"terra_mate",
 			},
 			want: runExpected{
-				Stdout: `stack-a
-stack-b
-`,
+				Stdout: listStacks("stack-a", "stack-b"),
 			},
 		},
 	}
