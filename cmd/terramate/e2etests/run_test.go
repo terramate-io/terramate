@@ -32,10 +32,11 @@ import (
 )
 
 type selectionTestcase struct {
-	name   string
-	layout []string
-	wd     string
-	want   runExpected
+	name       string
+	layout     []string
+	wd         string
+	filterTags []string
+	want       runExpected
 }
 
 func TestCLIRunOrder(t *testing.T) {
@@ -44,6 +45,7 @@ func TestCLIRunOrder(t *testing.T) {
 	type testcase struct {
 		name       string
 		layout     []string
+		filterTags []string
 		workingDir string
 		want       runExpected
 	}
@@ -706,6 +708,19 @@ func TestCLIRunOrder(t *testing.T) {
 				),
 			},
 		},
+		{
+			name: "stack-b after stack-a but filtered by tag:prod",
+			layout: []string{
+				`s:stack-a:tags=["dev"]`,
+				`s:stack-b:tags=["prod"];after=["/stack-a"]`,
+			},
+			filterTags: []string{"prod"},
+			want: runExpected{
+				Stdout: listStacks(
+					"/stack-b",
+				),
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			sandboxes := []sandbox.S{
@@ -722,8 +737,13 @@ func TestCLIRunOrder(t *testing.T) {
 					wd = filepath.Join(wd, tc.workingDir)
 				}
 
+				var filterArgs []string
+				for _, filter := range tc.filterTags {
+					filterArgs = append(filterArgs, "--tags", filter)
+				}
+
 				cli := newCLI(t, wd)
-				assertRunResult(t, cli.stacksRunOrder(), tc.want)
+				assertRunResult(t, cli.stacksRunOrder(filterArgs...), tc.want)
 			}
 		})
 	}
@@ -941,6 +961,42 @@ func TestRunWants(t *testing.T) {
 				),
 			},
 		},
+		{
+			name: `stacks are filtered before wants/wanted by are computed`,
+			layout: []string{
+				`s:stack-a:tags=["infra"];wants=["/stack-b", "/stack-c"]`,
+				`s:stack-b:tags=["infra"];wants=["/stack-d", "/stack-e"]`,
+				`s:stack-c`,
+				`s:stack-d:tags=["k8s"]`,
+				`s:stack-e:tags=["k8s"]`,
+			},
+			wd:         "/stack-a",
+			filterTags: []string{"k8s"},
+			want: runExpected{
+				Stdout: "",
+			},
+		},
+		{
+			name: `wants/wantedBy are not filtered`,
+			layout: []string{
+				`s:stack-a:tags=["k8s"];wants=["/stack-b", "/stack-c"]`,
+				`s:stack-b:tags=["k8s"];wants=["/stack-d", "/stack-e"]`,
+				`s:stack-c`,
+				`s:stack-d:tags=["infra"]`,
+				`s:stack-e:tags=["infra"]`,
+			},
+			wd:         "/stack-a",
+			filterTags: []string{"k8s"},
+			want: runExpected{
+				Stdout: listStacks(
+					"/stack-a",
+					"/stack-b",
+					"/stack-c",
+					"/stack-d",
+					"/stack-e",
+				),
+			},
+		},
 	} {
 		testRunSelection(t, tc)
 	}
@@ -1101,20 +1157,26 @@ func TestRunWantedBy(t *testing.T) {
 }
 
 func testRunSelection(t *testing.T, tc selectionTestcase) {
-	t.Run(tc.name, func(t *testing.T) {
-		t.Parallel()
+	sandboxes := []sandbox.S{
+		sandbox.New(t),
+		sandbox.NoGit(t),
+	}
 
-		sandboxes := []sandbox.S{
-			sandbox.New(t),
-			sandbox.NoGit(t),
-		}
-
-		for _, s := range sandboxes {
+	for _, s := range sandboxes {
+		s := s
+		t.Run(tc.name, func(t *testing.T) {
 			s.BuildTree(tc.layout)
 			test.WriteRootConfig(t, s.RootDir())
 
+			var baseArgs []string
+			for _, filter := range tc.filterTags {
+				baseArgs = append(baseArgs, "--tags", filter)
+			}
+
 			cli := newCLI(t, filepath.Join(s.RootDir(), tc.wd))
-			assertRunResult(t, cli.stacksRunOrder(), tc.want)
+
+			runOrderArgs := append(baseArgs, "experimental", "run-order")
+			assertRunResult(t, cli.run(runOrderArgs...), tc.want)
 
 			if s.IsGit() {
 				// required because `terramate run` requires a clean repo.
@@ -1122,9 +1184,10 @@ func testRunSelection(t *testing.T, tc selectionTestcase) {
 				git.CommitAll("everything")
 			}
 
-			assertRunResult(t, cli.run("run", testHelperBin, "stack-abs-path", s.RootDir()), tc.want)
-		}
-	})
+			runArgs := append(baseArgs, "run", testHelperBin, "stack-abs-path", s.RootDir())
+			assertRunResult(t, cli.run(runArgs...), tc.want)
+		})
+	}
 }
 func TestRunOrderNotChangedStackIgnored(t *testing.T) {
 	t.Parallel()
