@@ -79,6 +79,9 @@ const (
 
 	// ErrStackInvalidWatch indicates the stack.watch attribute contains invalid values.
 	ErrStackInvalidWatch errors.Kind = "invalid stack.watch attribute"
+
+	// ErrStackInvalidTag indicates the stack.tags is invalid.
+	ErrStackInvalidTag errors.Kind = "invalid stack.tags entry"
 )
 
 // NewStackFromHCL creates a new stack from raw configuration cfg.
@@ -124,19 +127,22 @@ func (s Stack) validateTags() error {
 			case 0:
 				if !isLowerAlpha(r) {
 					return errors.E(
-						"invalid tag %q: tags must start with lowercase alphabetic character ([a-z])",
+						ErrStackInvalidTag,
+						"%q: tags must start with lowercase alphabetic character ([a-z])",
 						tag)
 				}
 			case len(tag) - 1: // last rune
 				if !isLowerAlnum(r) {
 					return errors.E(
-						"invalid tag %q: tags must end with lowercase alphanumeric ([0-9a-z]+)",
+						ErrStackInvalidTag,
+						"%q: tags must end with lowercase alphanumeric ([0-9a-z]+)",
 						tag)
 				}
 			default:
-				if !isLowerAlnum(r) || r == '-' || r == '_' {
+				if !isLowerAlnum(r) && r != '-' && r != '_' {
 					return errors.E(
-						"invalid tag %q: [a-z_-] are the only permitted characters in tags",
+						ErrStackInvalidTag,
+						"%q: [a-z_-] are the only permitted characters in tags",
 						tag)
 				}
 			}

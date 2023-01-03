@@ -18,6 +18,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -171,6 +172,62 @@ dir/c
 			},
 		},
 		{
+			name:   "invalid stack.tags - starting with number - fails+",
+			layout: []string{`s:stack:tags=["123abc"]`},
+			want: runExpected{
+				StderrRegex: string(config.ErrStackInvalidTag),
+				Status:      1,
+			},
+		},
+		{
+			name:   "invalid stack.tags - starting with uppercase - fails",
+			layout: []string{`s:stack:tags=["Abc"]`},
+			want: runExpected{
+				StderrRegex: string(config.ErrStackInvalidTag),
+				Status:      1,
+			},
+		},
+		{
+			name:   "invalid stack.tags - starting with underscore - fails",
+			layout: []string{`s:stack:tags=["_test"]`},
+			want: runExpected{
+				StderrRegex: string(config.ErrStackInvalidTag),
+				Status:      1,
+			},
+		},
+		{
+			name:   "invalid stack.tags - starting with dash - fails",
+			layout: []string{`s:stack:tags=["-test"]`},
+			want: runExpected{
+				StderrRegex: string(config.ErrStackInvalidTag),
+				Status:      1,
+			},
+		},
+		{
+			name:   "invalid stack.tags - uppercase - fails",
+			layout: []string{`s:stack:tags=["thisIsInvalid"]`},
+			want: runExpected{
+				StderrRegex: string(config.ErrStackInvalidTag),
+				Status:      1,
+			},
+		},
+		{
+			name:   "invalid stack.tags - dash in the end - fails",
+			layout: []string{`s:stack:tags=["invalid-"]`},
+			want: runExpected{
+				StderrRegex: string(config.ErrStackInvalidTag),
+				Status:      1,
+			},
+		},
+		{
+			name:   "invalid stack.tags - underscore in the end - fails",
+			layout: []string{`s:stack:tags=["invalid_"]`},
+			want: runExpected{
+				StderrRegex: string(config.ErrStackInvalidTag),
+				Status:      1,
+			},
+		},
+		{
 			name: "all stacks containing the tag `a`",
 			layout: []string{
 				`s:a:tags=["a", "b", "c", "d"]`,
@@ -249,6 +306,20 @@ dir/c
 				Stdout: `a
 b
 dir/d
+`,
+			},
+		},
+		{
+			name: "filters work with dash and underscore tags",
+			layout: []string{
+				`s:stack-a:tags=["terra-mate", "terra_mate"]`,
+				`s:stack-b:tags=["terra_mate"]`,
+				`s:no-tag-stack`,
+			},
+			filterTags: []string{"terra-mate,terra_mate"},
+			want: runExpected{
+				Stdout: `stack-a
+stack-b
 `,
 			},
 		},
