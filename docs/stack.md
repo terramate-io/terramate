@@ -65,6 +65,15 @@ stack {
 }
 ```
 
+## stack.tags (set(string))(optional)
+
+The tags must be a unique set of strings, where each tag must adhere to the
+following rules:
+
+- It must start with a lowercase ASCII alphabetic character (`[a-z]`).
+- It must end with a lowercase ASCII alphanumeric character (`[0-9a-z]`).
+- It must have only lowercase ASCII alphanumeric, `_` and `-` characters (`[0-9a-z_-]`).
+
 ## stack.watch (list)(optional)
 
 The list of files that must be watched for changes in the
