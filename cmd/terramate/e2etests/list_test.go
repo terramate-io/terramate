@@ -219,6 +219,16 @@ func listTestcases() []testcase {
 			},
 		},
 		{
+			name: "stack.tags with digit in the end - works",
+			layout: []string{
+				`s:stack:tags=["a1", "b100", "c-1", "d_1"]`,
+			},
+			filterTags: []string{"a1"},
+			want: runExpected{
+				Stdout: listStacks("stack"),
+			},
+		},
+		{
 			name: "all stacks containing the tag `a`",
 			layout: []string{
 				`s:a:tags=["a", "b", "c", "d"]`,

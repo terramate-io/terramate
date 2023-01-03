@@ -1348,7 +1348,7 @@ func TestRunReverseExecution(t *testing.T) {
 	assertRunOrder("stack-3", "stack-2", "stack-1")
 }
 
-func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDir(t *testing.T) {
+func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDirAndTagFilter(t *testing.T) {
 	t.Parallel()
 
 	const testfile = "testfile"
@@ -1356,9 +1356,9 @@ func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDir(t *testing.T) {
 	s := sandbox.New(t)
 
 	s.BuildTree([]string{
-		"s:parent-stack",
-		`s:stacks/stack-1:before=["/parent-stack"]`,
-		`s:stacks/stack-2:after=["/parent-stack"]`,
+		`s:parent-stack:tags=[]`,
+		`s:stacks/stack-1:tags=["stack-1"];before=["/parent-stack"]`,
+		`s:stacks/stack-2:tags=["stack-2"];after=["/parent-stack"]`,
 		fmt.Sprintf("f:parent-stack/%s:parent-stack\n", testfile),
 		fmt.Sprintf("f:stacks/stack-1/%s:stack-1\n", testfile),
 		fmt.Sprintf("f:stacks/stack-2/%s:stack-2\n", testfile),
@@ -1367,30 +1367,31 @@ func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDir(t *testing.T) {
 	git := s.Git()
 	git.CommitAll("first commit")
 
-	assertRun := func(wd string, want string) {
-		t.Helper()
+	assertRun := func(wd string, filter string, want string) {
 		cli := newCLI(t, filepath.Join(s.RootDir(), wd))
+		var baseArgs []string
+		if filter != "" {
+			baseArgs = append(baseArgs, "--tags", filter)
+		}
+		runArgs := append(baseArgs, "run", testHelperBin, "cat", testfile)
+		assertRunResult(t, cli.run(runArgs...), runExpected{Stdout: want})
 
-		assertRunResult(t, cli.run(
-			"run",
-			testHelperBin,
-			"cat",
-			testfile,
-		), runExpected{Stdout: want})
-
-		assertRunResult(t, cli.run(
-			"run",
+		runChangedArgs := append(baseArgs, "run",
 			"--changed",
 			testHelperBin,
 			"cat",
 			testfile,
-		), runExpected{Stdout: want})
+		)
+
+		assertRunResult(t, cli.run(runChangedArgs...), runExpected{Stdout: want})
 	}
 
-	assertRun(".", listStacks("stack-1", "parent-stack", "stack-2"))
-	assertRun("stacks", listStacks("stack-1", "stack-2"))
-	assertRun("stacks/stack-1", listStacks("stack-1"))
-	assertRun("stacks/stack-2", listStacks("stack-2"))
+	assertRun(".", "", listStacks("stack-1", "parent-stack", "stack-2"))
+	assertRun(".", "stack-1", listStacks("stack-1"))
+	assertRun("stacks", "stack-1,stack-2", listStacks("stack-1", "stack-2"))
+	assertRun("stacks", "stack-2", listStacks("stack-2"))
+	assertRun("stacks/stack-1", "", listStacks("stack-1"))
+	assertRun("stacks/stack-2", "", listStacks("stack-2"))
 }
 
 func TestRunOrderAllChangedStacksExecuted(t *testing.T) {

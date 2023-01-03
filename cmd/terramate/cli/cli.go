@@ -1437,7 +1437,7 @@ func envVarIsSet(val string) bool {
 	return val != "0" && val != "false"
 }
 
-func (c *cli) checkOutdatedGeneratedCode(stacks config.List[*config.SortableStack]) {
+func (c *cli) checkOutdatedGeneratedCode() {
 	logger := log.With().
 		Str("action", "checkOutdatedGeneratedCode()").
 		Logger()
@@ -1501,12 +1501,7 @@ func (c *cli) runOnStacks() {
 		logger.Fatal().Msgf("run expects a cmd")
 	}
 
-	allstacks, err := config.LoadAllStacks(c.cfg().Tree())
-	if err != nil {
-		fatal(err, "failed to list stacks")
-	}
-
-	c.checkOutdatedGeneratedCode(allstacks)
+	c.checkOutdatedGeneratedCode()
 
 	var stacks config.List[*config.SortableStack]
 	if c.parsedArgs.Run.NoRecursive {
