@@ -91,7 +91,7 @@ type cliSpec struct {
 	Chdir          string   `short:"C" optional:"true" predictor:"file" help:"Sets working directory"`
 	GitChangeBase  string   `short:"B" optional:"true" help:"Git base ref for computing changes"`
 	Changed        bool     `short:"c" optional:"true" help:"Filter by changed infrastructure"`
-	Tags           []string `short:"c" optional:"true" help:"Filter by tags"`
+	Tags           []string `optional:"true" sep:"none" help:"Filter stacks by tags. Use \":\" for logical AND and \",\" for logical OR. Example: --tags app:prod filters stacks containing tag \"app\" AND \"prod\". If multiple --tags are provided, an OR expression is created. Example: \"--tags A --tags B\" is the same as \"--tags A,B\""`
 	LogLevel       string   `optional:"true" default:"warn" enum:"disabled,trace,debug,info,warn,error,fatal" help:"Log level to use: 'disabled', 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
 	LogFmt         string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'"`
 	LogDestination string   `optional:"true" default:"stderr" enum:"stderr,stdout" help:"Destination of log messages"`
