@@ -108,6 +108,7 @@ func parseTagClauses(filters ...string) (TagClause, bool) {
 }
 
 // parseTagClause parses the tag-filter syntax defined below:
+//
 //   EXPR    = TAGNAME [ OP EXPR]
 //   TAGNAME = <string>
 //   OP      = ":" | ","
