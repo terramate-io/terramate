@@ -166,7 +166,7 @@ func TestFilterParserTags(t *testing.T) {
 		},
 	} {
 		t.Run(fmt.Sprintf("filters:%v", tc.filters), func(t *testing.T) {
-			got, isEmpty := parseTagClauses(tc.filters...)
+			got, isEmpty := ParseTagClauses(tc.filters...)
 			if !isEmpty != tc.empty {
 				t.Fatalf("filter emptiness mismatch: %t != %t", !isEmpty, tc.empty)
 			}

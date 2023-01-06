@@ -1638,7 +1638,7 @@ func (c *cli) filterStacksByTags(entries []terramate.Entry) []terramate.Entry {
 	}
 	filtered := []terramate.Entry{}
 	for _, entry := range entries {
-		if filter.MatchTags(c.parsedArgs.Tags, entry.Stack.Tags) {
+		if filter.MatchTagsFrom(c.parsedArgs.Tags, entry.Stack.Tags) {
 			filtered = append(filtered, entry)
 		}
 	}

@@ -46,30 +46,31 @@ const (
 const andSymbol = ":"
 const orSymbol = ","
 
-// MatchTags tells if the filters match the provided tags list.
-func MatchTags(filters []string, tags []string) bool {
-	filter, found := parseTagClauses(filters...)
+// MatchTagsFrom tells if the filters match the provided tags list.
+func MatchTagsFrom(filters []string, tags []string) bool {
+	filter, found := ParseTagClauses(filters...)
 	if !found {
 		return false
 	}
-	return matchTags(filter, tags)
+	return MatchTags(filter, tags)
 }
 
-func matchTags(filter TagClause, tags []string) bool {
+// MatchTags tells if the filter matches the provided tags list.
+func MatchTags(filter TagClause, tags []string) bool {
 	index := tomap(tags)
 	switch filter.Op {
 	case EQ:
 		return index[filter.Tag]
 	case OR:
 		for _, clause := range filter.Children {
-			if matchTags(clause, tags) {
+			if MatchTags(clause, tags) {
 				return true
 			}
 		}
 		return false
 	case AND:
 		for _, clause := range filter.Children {
-			if !matchTags(clause, tags) {
+			if !MatchTags(clause, tags) {
 				return false
 			}
 		}
@@ -87,7 +88,8 @@ func tomap(tags []string) map[string]bool {
 	return m
 }
 
-func parseTagClauses(filters ...string) (TagClause, bool) {
+// ParseTagClauses parses the list of filters provided into a [TagClause] matcher.
+func ParseTagClauses(filters ...string) (TagClause, bool) {
 	var clauses []TagClause
 	for _, filter := range filters {
 		if filter != "" {

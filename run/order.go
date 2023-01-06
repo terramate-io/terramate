@@ -20,6 +20,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
@@ -157,9 +158,19 @@ func BuildDAG(
 
 	visited[dag.ID(s.Dir.String())] = struct{}{}
 
-	removeWrongPaths := func(fieldname string, paths []string) []string {
-		cleanpaths := []string{}
+	computePaths := func(fieldname string, paths []string) []string {
+		uniqPaths := map[string]struct{}{}
 		for _, pathstr := range paths {
+			if strings.HasPrefix(pathstr, "tag:") {
+				stacksPaths := root.StacksByTagsFilters(
+					[]string{strings.TrimPrefix(pathstr, "tag:")},
+				)
+				for _, stackPath := range stacksPaths {
+					uniqPaths[stackPath.String()] = struct{}{}
+				}
+				continue
+			}
+
 			var abspath string
 			if path.IsAbs(pathstr) {
 				abspath = filepath.Join(root.HostDir(), filepath.FromSlash(pathstr))
@@ -176,14 +187,19 @@ func BuildDAG(
 					Msgf("building dag: stack.%s path %s is not a directory - ignoring",
 						fieldname, pathstr)
 			} else {
-				cleanpaths = append(cleanpaths, pathstr)
+				uniqPaths[pathstr] = struct{}{}
 			}
+		}
+
+		var cleanpaths []string
+		for path := range uniqPaths {
+			cleanpaths = append(cleanpaths, path)
 		}
 		return cleanpaths
 	}
 
-	ancestorPaths := removeWrongPaths(ancestorsName, getAncestors(*s))
-	descendantPaths := removeWrongPaths(descendantsName, getDescendants(*s))
+	ancestorPaths := computePaths(ancestorsName, getAncestors(*s))
+	descendantPaths := computePaths(descendantsName, getDescendants(*s))
 
 	ancestorStacks, err := config.StacksFromTrees(root.HostDir(), root.StacksByPaths(s.Dir, ancestorPaths...))
 	if err != nil {
