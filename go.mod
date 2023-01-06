@@ -3,7 +3,7 @@ module github.com/mineiros-io/terramate
 go 1.18
 
 require (
-	github.com/alecthomas/kong v0.2.17
+	github.com/alecthomas/kong v0.7.1
 	github.com/emicklei/dot v0.16.0
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/google/go-cmp v0.5.6
@@ -42,7 +42,6 @@ require (
 	github.com/hashicorp/terraform-svchost v0.0.0-20200729002733-f050f53b9734 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.0 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rs/zerolog v1.28.0
 	github.com/zclconf/go-cty-yaml v1.0.2 // indirect
 	golang.org/x/crypto v0.0.0-20220517005047-85d78b3ac167 // indirect
