@@ -418,6 +418,12 @@ The default value is an empty string.
 Please consider [stack configuration](stack.md) to see how
 you can change the default stack description.
 
+### terramate.stack.tags (list)
+
+The list of stack tags. The default value is an empty list.
+
+Please consider [stack configuration](stack.md) to see how you can change the stack tags.
+
 ## Deprecated
 
 Here is a list of older metadata that still can be used but are in the

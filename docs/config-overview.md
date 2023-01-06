@@ -178,6 +178,7 @@ and has the following schema:
 | id               | string         | The id of the stack |
 | name             | string         | The name of the stack |
 | description      | string         | The description of the stack |
+| tags             | list(string)   | The tags of the stack |
 | before           | list(string)   | The list of `before` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs. |
 | after            | list(string)   | The list of `after` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs |
 | wants            | list(string)   | The list of `wanted` stacks. See [ordering](https://github.com/mineiros-io/terramate/blob/main/docs/orchestration.md#stacks-ordering) docs |
