@@ -737,7 +737,7 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
-			name: "stacks after stacks with tag:k8s:app",
+			name: "stacks ordered by tag multiple tag filters",
 			layout: []string{
 				`s:infra1:tags=["infra", "prod"]`,
 				`s:infra2:tags=["infra", "prod"]`,
