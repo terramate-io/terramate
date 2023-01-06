@@ -422,8 +422,7 @@ you can change the default stack description.
 
 The list of stack tags. The default value is an empty list.
 
-Please consider [stack configuration](stack.md) to see how
-you can change the stack tags.
+Please consider [stack configuration](stack.md) to see how you can change the stack tags.
 
 ## Deprecated
 
