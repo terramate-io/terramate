@@ -15,18 +15,19 @@
 package e2etest
 
 import (
-	"strings"
 	"testing"
 
+	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/sandbox"
 )
 
 type testcase struct {
-	name   string
-	layout []string
-	want   runExpected
+	name       string
+	layout     []string
+	filterTags []string
+	want       runExpected
 }
 
 func listTestcases() []testcase {
@@ -68,7 +69,7 @@ func listTestcases() []testcase {
 			name:   "single stack",
 			layout: []string{"s:stack"},
 			want: runExpected{
-				Stdout: "stack\n",
+				Stdout: listStacks("stack"),
 			},
 		},
 		{
@@ -85,7 +86,7 @@ func listTestcases() []testcase {
 				"d:waste/directories",
 			},
 			want: runExpected{
-				Stdout: "there/is/a/very/deep/hidden/stack/here\n",
+				Stdout: listStacks("there/is/a/very/deep/hidden/stack/here"),
 			},
 		},
 		{
@@ -94,7 +95,7 @@ func listTestcases() []testcase {
 				"s:1", "s:2", "s:3",
 			},
 			want: runExpected{
-				Stdout: "1\n2\n3\n",
+				Stdout: listStacks("1", "2", "3"),
 			},
 		},
 		{
@@ -104,7 +105,7 @@ func listTestcases() []testcase {
 				"s:stack/child-stack",
 			},
 			want: runExpected{
-				Stdout: "stack\nstack/child-stack\n",
+				Stdout: listStacks("stack", "stack/child-stack"),
 			},
 		},
 		{
@@ -121,7 +122,7 @@ func listTestcases() []testcase {
 				"s:mineiros.io/departments/engineering/tests/e2e",
 			},
 			want: runExpected{
-				Stdout: strings.Join([]string{
+				Stdout: listStacks(
 					"mineiros.io",
 					"mineiros.io/departments",
 					"mineiros.io/departments/accounting",
@@ -129,7 +130,7 @@ func listTestcases() []testcase {
 					"mineiros.io/departments/engineering/terraform-modules",
 					"mineiros.io/departments/engineering/terramate",
 					"mineiros.io/departments/engineering/tests/e2e",
-				}, "\n") + "\n",
+				),
 			},
 		},
 		{
@@ -144,12 +145,184 @@ func listTestcases() []testcase {
 				"s:3/x/y/z",
 			},
 			want: runExpected{
-				Stdout: `1
-2
-3/x/y/z
-x/b
-z/a
-`,
+				Stdout: listStacks("1", "2", "3/x/y/z", "x/b", "z/a"),
+			},
+		},
+		{
+			name: "multiple stacks filtered by same tag",
+			layout: []string{
+				`s:a:tags=["abc"]`,
+				`s:b:tags=["abc"]`,
+				`s:dir/c:tags=["abc"]`,
+				`s:dir/d`,
+				`s:dir/subdir/e`,
+			},
+			filterTags: []string{"abc"},
+			want: runExpected{
+				Stdout: listStacks("a", "b", "dir/c"),
+			},
+		},
+		{
+			name:   "invalid stack.tags - starting with number - fails+",
+			layout: []string{`s:stack:tags=["123abc"]`},
+			want: runExpected{
+				StderrRegex: string(config.ErrStackInvalidTag),
+				Status:      1,
+			},
+		},
+		{
+			name:   "invalid stack.tags - starting with uppercase - fails",
+			layout: []string{`s:stack:tags=["Abc"]`},
+			want: runExpected{
+				StderrRegex: string(config.ErrStackInvalidTag),
+				Status:      1,
+			},
+		},
+		{
+			name:   "invalid stack.tags - starting with underscore - fails",
+			layout: []string{`s:stack:tags=["_test"]`},
+			want: runExpected{
+				StderrRegex: string(config.ErrStackInvalidTag),
+				Status:      1,
+			},
+		},
+		{
+			name:   "invalid stack.tags - starting with dash - fails",
+			layout: []string{`s:stack:tags=["-test"]`},
+			want: runExpected{
+				StderrRegex: string(config.ErrStackInvalidTag),
+				Status:      1,
+			},
+		},
+		{
+			name:   "invalid stack.tags - uppercase - fails",
+			layout: []string{`s:stack:tags=["thisIsInvalid"]`},
+			want: runExpected{
+				StderrRegex: string(config.ErrStackInvalidTag),
+				Status:      1,
+			},
+		},
+		{
+			name:   "invalid stack.tags - dash in the end - fails",
+			layout: []string{`s:stack:tags=["invalid-"]`},
+			want: runExpected{
+				StderrRegex: string(config.ErrStackInvalidTag),
+				Status:      1,
+			},
+		},
+		{
+			name:   "invalid stack.tags - underscore in the end - fails",
+			layout: []string{`s:stack:tags=["invalid_"]`},
+			want: runExpected{
+				StderrRegex: string(config.ErrStackInvalidTag),
+				Status:      1,
+			},
+		},
+		{
+			name: "stack.tags with digit in the end - works",
+			layout: []string{
+				`s:stack:tags=["a1", "b100", "c-1", "d_1"]`,
+			},
+			filterTags: []string{"a1"},
+			want: runExpected{
+				Stdout: listStacks("stack"),
+			},
+		},
+		{
+			name: "all stacks containing the tag `a`",
+			layout: []string{
+				`s:a:tags=["a", "b", "c", "d"]`,
+				`s:b:tags=["a", "b"]`,
+				`s:dir/c:tags=["a"]`,
+				`s:dir/d`,
+				`s:dir/subdir/e`,
+			},
+			filterTags: []string{"a"},
+			want: runExpected{
+				Stdout: listStacks("a", "b", "dir/c"),
+			},
+		},
+		{
+			name: "all stacks containing tags `a && b`",
+			layout: []string{
+				`s:a:tags=["a", "b", "c", "d"]`,
+				`s:b:tags=["a", "b"]`,
+				`s:dir/c:tags=["a"]`,
+				`s:dir/d:tags=["c", "d"]`,
+				`s:dir/subdir/e`,
+			},
+			filterTags: []string{"a:b"},
+			want: runExpected{
+				Stdout: listStacks("a", "b"),
+			},
+		},
+		{
+			name: "all stacks containing the tags `a && b && c`",
+			layout: []string{
+				`s:a:tags=["a", "b", "c", "d"]`,
+				`s:b:tags=["a", "b"]`,
+				`s:dir/c:tags=["a"]`,
+				`s:dir/d:tags=["c", "d"]`,
+				`s:dir/subdir/e`,
+			},
+			filterTags: []string{"a:b:c"},
+			want: runExpected{
+				Stdout: listStacks("a"),
+			},
+		},
+		{
+			name: "all stacks containing tag `a || b`",
+			layout: []string{
+				`s:a:tags=["a", "b", "c", "d"]`,
+				`s:b:tags=["a", "b"]`,
+				`s:dir/c:tags=["a"]`,
+				`s:dir/d:tags=["c", "d"]`,
+				`s:dir/subdir/e`,
+			},
+			filterTags: []string{"a,b"},
+			want: runExpected{
+				Stdout: listStacks("a", "b", "dir/c"),
+			},
+		},
+		{
+			name: "all stacks containing tags `a && b || c && d`",
+			layout: []string{
+				`s:a:tags=["a", "b", "c", "d"]`,
+				`s:b:tags=["a", "b"]`,
+				`s:dir/c:tags=["a"]`,
+				`s:dir/d:tags=["c", "d"]`,
+				`s:dir/subdir/e`,
+			},
+			filterTags: []string{"a:b,c:d"},
+			want: runExpected{
+				Stdout: listStacks("a", "b", "dir/d"),
+			},
+		},
+		{
+			name: "filters work with dash and underscore tags",
+			layout: []string{
+				`s:stack-a:tags=["terra-mate", "terra_mate"]`,
+				`s:stack-b:tags=["terra_mate"]`,
+				`s:no-tag-stack`,
+			},
+			filterTags: []string{"terra-mate,terra_mate"},
+			want: runExpected{
+				Stdout: listStacks("stack-a", "stack-b"),
+			},
+		},
+		{
+			name: "multiple --tags makes an OR clause with all flag values",
+			layout: []string{
+				`s:stack-a:tags=["terra-mate", "terra_mate"]`,
+				`s:stack-b:tags=["terra_mate"]`,
+				`s:no-tag-stack`,
+			},
+			filterTags: []string{
+				"terra-mate",
+				"terra_mate",
+			},
+			want: runExpected{
+				Stdout: listStacks("stack-a", "stack-b"),
 			},
 		},
 	}

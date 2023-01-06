@@ -43,6 +43,7 @@ type (
 		Description string
 
 		// Tags is the list of tags of the stack.
+		// A tag
 		Tags []string
 
 		// After is a list of stack paths that must run before this stack.
@@ -78,6 +79,9 @@ const (
 
 	// ErrStackInvalidWatch indicates the stack.watch attribute contains invalid values.
 	ErrStackInvalidWatch errors.Kind = "invalid stack.watch attribute"
+
+	// ErrStackInvalidTag indicates the stack.tags is invalid.
+	ErrStackInvalidTag errors.Kind = "invalid stack.tags entry"
 )
 
 // NewStackFromHCL creates a new stack from raw configuration cfg.
@@ -92,7 +96,7 @@ func NewStackFromHCL(root string, cfg hcl.Config) (*Stack, error) {
 		return nil, errors.E(err, ErrStackInvalidWatch)
 	}
 
-	return &Stack{
+	stack := &Stack{
 		Name:        name,
 		ID:          cfg.Stack.ID,
 		Description: cfg.Stack.Description,
@@ -103,7 +107,59 @@ func NewStackFromHCL(root string, cfg hcl.Config) (*Stack, error) {
 		WantedBy:    cfg.Stack.WantedBy,
 		Watch:       watchFiles,
 		Dir:         project.PrjAbsPath(root, cfg.AbsDir()),
-	}, nil
+	}
+	err = stack.Validate()
+	if err != nil {
+		return nil, err
+	}
+	return stack, nil
+}
+
+// Validate if all stack fields are correct.
+func (s Stack) Validate() error {
+	return s.validateTags()
+}
+
+func (s Stack) validateTags() error {
+	for _, tag := range s.Tags {
+		for i, r := range tag {
+			switch i {
+			case 0:
+				if !isLowerAlpha(r) {
+					return errors.E(
+						ErrStackInvalidTag,
+						"%q: tags must start with lowercase alphabetic character ([a-z])",
+						tag)
+				}
+			case len(tag) - 1: // last rune
+				if !isLowerAlnum(r) {
+					return errors.E(
+						ErrStackInvalidTag,
+						"%q: tags must end with lowercase alphanumeric ([0-9a-z]+)",
+						tag)
+				}
+			default:
+				if !isLowerAlnum(r) && r != '-' && r != '_' {
+					return errors.E(
+						ErrStackInvalidTag,
+						"%q: [a-z_-] are the only permitted characters in tags",
+						tag)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func isDigit(r rune) bool {
+	return r >= '0' && r <= '9'
+}
+
+func isLowerAlpha(r rune) bool {
+	return (r >= 'a' && r <= 'z')
+}
+func isLowerAlnum(r rune) bool {
+	return isLowerAlpha(r) || isDigit(r)
 }
 
 // AppendBefore appends the path to the list of stacks that must run after this
