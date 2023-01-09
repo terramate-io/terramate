@@ -162,6 +162,11 @@ func BuildDAG(
 		uniqPaths := map[string]struct{}{}
 		for _, pathstr := range paths {
 			if strings.HasPrefix(pathstr, "tag:") {
+				if fieldname != "before" && fieldname != "after" {
+					return nil, errors.E(
+						"tag:<query> is not allowed in %q field", fieldname,
+					)
+				}
 				filter := strings.TrimPrefix(pathstr, "tag:")
 				stacksPaths, err := root.StacksByTagsFilters([]string{filter})
 				if err != nil {

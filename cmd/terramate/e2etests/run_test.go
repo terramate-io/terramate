@@ -1061,6 +1061,17 @@ func TestRunWants(t *testing.T) {
 				),
 			},
 		},
+		{
+			name: "stack-a wants with tag:query - fails",
+			layout: []string{
+				`s:stack-a:wants=["tag:prod"]`,
+				`s:stack-b:tags=["prod"]`,
+			},
+			want: runExpected{
+				Status:      1,
+				StderrRegex: "filter is not allowed",
+			},
+		},
 	} {
 		testRunSelection(t, tc)
 	}
@@ -1257,6 +1268,17 @@ func TestRunWantedBy(t *testing.T) {
 				Stdout: listStacks(
 					"/stacks/stack-b",
 				),
+			},
+		},
+		{
+			name: "stack-a wanted_by with tag:query - fails",
+			layout: []string{
+				`s:stack-a:wanted_by=["tag:prod"]`,
+				`s:stack-b:tags=["prod"]`,
+			},
+			want: runExpected{
+				Status:      1,
+				StderrRegex: "filter is not allowed",
 			},
 		},
 	} {

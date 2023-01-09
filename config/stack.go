@@ -83,6 +83,12 @@ const (
 
 	// ErrStackInvalidTag indicates the stack.tags is invalid.
 	ErrStackInvalidTag errors.Kind = "invalid stack.tags entry"
+
+	// ErrStackInvalidWants indicates the stack.wants is invalid.
+	ErrStackInvalidWants errors.Kind = "invalid stack.wants entry"
+
+	// ErrStackInvalidWantedBy indicates the stack.wanted_by is invalid.
+	ErrStackInvalidWantedBy errors.Kind = "invalid stack.wanted_by entry"
 )
 
 // NewStackFromHCL creates a new stack from raw configuration cfg.
@@ -118,7 +124,20 @@ func NewStackFromHCL(root string, cfg hcl.Config) (*Stack, error) {
 
 // Validate if all stack fields are correct.
 func (s Stack) Validate() error {
-	return s.validateTags()
+	err := s.validateTags()
+	if err != nil {
+		return err
+	}
+	err = s.validateTagFilterNotAllowed(s.Wants)
+	if err != nil {
+		return errors.E(ErrStackInvalidWants, err)
+	}
+
+	err = s.validateTagFilterNotAllowed(s.WantedBy)
+	if err != nil {
+		return errors.E(ErrStackInvalidWantedBy, err)
+	}
+	return nil
 }
 
 func (s Stack) validateTags() error {
@@ -126,6 +145,17 @@ func (s Stack) validateTags() error {
 		err := tag.Validate(tagname)
 		if err != nil {
 			return errors.E(ErrStackInvalidTag, err)
+		}
+	}
+	return nil
+}
+
+func (s Stack) validateTagFilterNotAllowed(cfglst ...[]string) error {
+	for _, lst := range cfglst {
+		for _, elem := range lst {
+			if strings.HasPrefix(elem, "tag:") {
+				return errors.E("tag:<query> filter is not allowed")
+			}
 		}
 	}
 	return nil
