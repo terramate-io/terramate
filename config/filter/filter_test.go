@@ -160,6 +160,127 @@ func TestFilterParserTags(t *testing.T) {
 		},
 		{
 			filters: []string{
+				"a,b:c,d:e",
+			},
+			want: TagClause{
+				Op: OR,
+				Children: []TagClause{
+					{
+						Tag: "a",
+					},
+					{
+						Op: AND,
+						Children: []TagClause{
+							{
+								Tag: "b",
+							},
+							{
+								Tag: "c",
+							},
+						},
+					},
+					{
+						Op: AND,
+						Children: []TagClause{
+							{
+								Tag: "d",
+							},
+							{
+								Tag: "e",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			filters: []string{
+				"a,b:c,d:e:f",
+			},
+			want: TagClause{
+				Op: OR,
+				Children: []TagClause{
+					{
+						Tag: "a",
+					},
+					{
+						Op: AND,
+						Children: []TagClause{
+							{
+								Tag: "b",
+							},
+							{
+								Tag: "c",
+							},
+						},
+					},
+					{
+						Op: AND,
+						Children: []TagClause{
+							{
+								Tag: "d",
+							},
+							{
+								Tag: "e",
+							},
+							{
+								Tag: "f",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			filters: []string{
+				"a:b:c:d,e:f:g:h",
+			},
+			want: TagClause{
+				Op: OR,
+				Children: []TagClause{
+					{
+						Op: AND,
+						Children: []TagClause{
+							{
+								Tag: "a",
+							},
+
+							{
+								Tag: "b",
+							},
+
+							{
+								Tag: "c",
+							},
+							{
+								Tag: "d",
+							},
+						},
+					},
+					{
+						Op: AND,
+						Children: []TagClause{
+							{
+								Tag: "e",
+							},
+
+							{
+								Tag: "f",
+							},
+
+							{
+								Tag: "g",
+							},
+							{
+								Tag: "h",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			filters: []string{
 				"",
 			},
 			empty: true,
