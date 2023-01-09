@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mineiros-io/terramate/config/tag"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
@@ -82,6 +83,12 @@ const (
 
 	// ErrStackInvalidTag indicates the stack.tags is invalid.
 	ErrStackInvalidTag errors.Kind = "invalid stack.tags entry"
+
+	// ErrStackInvalidWants indicates the stack.wants is invalid.
+	ErrStackInvalidWants errors.Kind = "invalid stack.wants entry"
+
+	// ErrStackInvalidWantedBy indicates the stack.wanted_by is invalid.
+	ErrStackInvalidWantedBy errors.Kind = "invalid stack.wanted_by entry"
 )
 
 // NewStackFromHCL creates a new stack from raw configuration cfg.
@@ -117,49 +124,32 @@ func NewStackFromHCL(root string, cfg hcl.Config) (*Stack, error) {
 
 // Validate if all stack fields are correct.
 func (s Stack) Validate() error {
-	return s.validateTags()
+	errs := errors.L()
+	errs.Append(s.validateTags())
+	errs.AppendWrap(ErrStackInvalidWants, s.validateTagFilterNotAllowed(s.Wants))
+	errs.AppendWrap(ErrStackInvalidWantedBy, s.validateTagFilterNotAllowed(s.WantedBy))
+	return errs.AsError()
 }
 
 func (s Stack) validateTags() error {
-	for _, tag := range s.Tags {
-		for i, r := range tag {
-			switch i {
-			case 0:
-				if !isLowerAlpha(r) {
-					return errors.E(
-						ErrStackInvalidTag,
-						"%q: tags must start with lowercase alphabetic character ([a-z])",
-						tag)
-				}
-			case len(tag) - 1: // last rune
-				if !isLowerAlnum(r) {
-					return errors.E(
-						ErrStackInvalidTag,
-						"%q: tags must end with lowercase alphanumeric ([0-9a-z]+)",
-						tag)
-				}
-			default:
-				if !isLowerAlnum(r) && r != '-' && r != '_' {
-					return errors.E(
-						ErrStackInvalidTag,
-						"%q: [a-z_-] are the only permitted characters in tags",
-						tag)
-				}
-			}
+	for _, tagname := range s.Tags {
+		err := tag.Validate(tagname)
+		if err != nil {
+			return errors.E(ErrStackInvalidTag, err)
 		}
 	}
 	return nil
 }
 
-func isDigit(r rune) bool {
-	return r >= '0' && r <= '9'
-}
-
-func isLowerAlpha(r rune) bool {
-	return (r >= 'a' && r <= 'z')
-}
-func isLowerAlnum(r rune) bool {
-	return isLowerAlpha(r) || isDigit(r)
+func (s Stack) validateTagFilterNotAllowed(cfglst ...[]string) error {
+	for _, lst := range cfglst {
+		for _, elem := range lst {
+			if strings.HasPrefix(elem, "tag:") {
+				return errors.E("tag:<query> filter is not allowed")
+			}
+		}
+	}
+	return nil
 }
 
 // AppendBefore appends the path to the list of stacks that must run after this

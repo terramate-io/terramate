@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/mineiros-io/terramate/cmd/terramate/cli"
+	"github.com/mineiros-io/terramate/config/tag"
 	"github.com/mineiros-io/terramate/run/dag"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
@@ -694,6 +695,17 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
+			name: "after containing invalid tag filter",
+			layout: []string{
+				`s:stack:after=["tag:_invalid"]`,
+				`s:stack2`,
+			},
+			want: runExpected{
+				StderrRegex: string(tag.ErrInvalidTag),
+				Status:      1,
+			},
+		},
+		{
 			name: "after directory containing no stacks does nothing",
 			layout: []string{
 				`d:dir`,
@@ -718,6 +730,74 @@ func TestCLIRunOrder(t *testing.T) {
 			want: runExpected{
 				Stdout: listStacks(
 					"/stack-b",
+				),
+			},
+		},
+		{
+			name: "stack before unknown tag - ignored",
+			layout: []string{
+				`s:stack1`,
+				`s:stack2`,
+				`s:stack3:before=["tag:unknown"]`,
+			},
+			want: runExpected{
+				Stdout: listStacks(
+					"/stack1",
+					"/stack2",
+					"/stack3",
+				),
+			},
+		},
+		{
+			name: "stack3 before stacks with tag:core",
+			layout: []string{
+				`s:stack1:tags=["core"]`,
+				`s:stack2`,
+				`s:stack3:before=["tag:core"]`,
+			},
+			want: runExpected{
+				Stdout: listStacks(
+					"/stack3",
+					"/stack1",
+					"/stack2",
+				),
+			},
+		},
+		{
+			name: "stack2 before stacks with tag:core or tag:test",
+			layout: []string{
+				`s:stack1:tags=["core"]`,
+				`s:stack2:before=["tag:core", "tag:test"]`,
+				`s:stack3:tags=["test"]`,
+			},
+			want: runExpected{
+				Stdout: listStacks(
+					"/stack2",
+					"/stack1",
+					"/stack3",
+				),
+			},
+		},
+		{
+			name: "stacks ordered by tag multiple tag filters",
+			layout: []string{
+				`s:infra1:tags=["infra", "prod"]`,
+				`s:infra2:tags=["infra", "prod"]`,
+				`s:infra3:tags=["infra", "dev"]`,
+				`s:k8s-infra1:tags=["k8s", "prod"];after=["tag:infra:prod"]`,
+				`s:k8s-infra2:tags=["k8s", "dev"];after=["tag:infra:dev"]`,
+				`s:app1:tags=["app"];after=["tag:k8s:prod"]`,
+				`s:app2:tags=["app", "dev"];after=["tag:k8s:dev"]`,
+			},
+			want: runExpected{
+				Stdout: listStacks(
+					"/infra1",
+					"/infra2",
+					"/k8s-infra1",
+					"/app1",
+					"/infra3",
+					"/k8s-infra2",
+					"/app2",
 				),
 			},
 		},
@@ -997,6 +1077,17 @@ func TestRunWants(t *testing.T) {
 				),
 			},
 		},
+		{
+			name: "stack-a wants with tag:query - fails",
+			layout: []string{
+				`s:stack-a:wants=["tag:prod"]`,
+				`s:stack-b:tags=["prod"]`,
+			},
+			want: runExpected{
+				Status:      1,
+				StderrRegex: "filter is not allowed",
+			},
+		},
 	} {
 		testRunSelection(t, tc)
 	}
@@ -1193,6 +1284,17 @@ func TestRunWantedBy(t *testing.T) {
 				Stdout: listStacks(
 					"/stacks/stack-b",
 				),
+			},
+		},
+		{
+			name: "stack-a wanted_by with tag:query - fails",
+			layout: []string{
+				`s:stack-a:wanted_by=["tag:prod"]`,
+				`s:stack-b:tags=["prod"]`,
+			},
+			want: runExpected{
+				Status:      1,
+				StderrRegex: "filter is not allowed",
 			},
 		},
 	} {

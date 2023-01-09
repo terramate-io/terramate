@@ -138,7 +138,7 @@ func (tm tmcli) newCmd(args ...string) *testCmd {
 
 	loglevel := tm.loglevel
 	if loglevel == "" {
-		loglevel = "fatal"
+		loglevel = "error"
 	}
 
 	if len(args) > 0 { // Avoid failing test when calling terramate with no args

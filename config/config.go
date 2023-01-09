@@ -21,6 +21,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mineiros-io/terramate/config/filter"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
@@ -174,7 +175,7 @@ func (root *Root) StacksByPaths(base project.Path, relpaths ...string) List[*Tre
 			logger.Warn().Msgf("path %s not found in configuration", path.String())
 			continue
 		}
-		stacks = append(stacks, node.stacks()...)
+		stacks = append(stacks, node.stacks((*Tree).IsStack)...)
 	}
 
 	sort.Sort(stacks)
@@ -182,6 +183,20 @@ func (root *Root) StacksByPaths(base project.Path, relpaths ...string) List[*Tre
 	logger.Trace().Msgf("found %d stacks out of %d paths", len(stacks), len(relpaths))
 
 	return stacks
+}
+
+// StacksByTagsFilters returns the paths of all stacks matching the filters.
+func (root *Root) StacksByTagsFilters(filters []string) (project.Paths, error) {
+	clauses, hasFilter, err := filter.ParseTagClauses(filters...)
+	if err != nil {
+		return nil, err
+	}
+	return root.tree.stacks(func(tree *Tree) bool {
+		if !hasFilter || !tree.IsStack() {
+			return false
+		}
+		return filter.MatchTags(clauses, tree.Node.Stack.Tags)
+	}).Paths(), nil
 }
 
 // LoadSubTree loads a subtree located at cfgdir into the current tree.
@@ -292,18 +307,18 @@ func (tree *Tree) IsStack() bool {
 // Stacks returns the stack nodes from the tree.
 // The search algorithm is a Deep-First-Search (DFS).
 func (tree *Tree) Stacks() List[*Tree] {
-	stacks := tree.stacks()
+	stacks := tree.stacks((*Tree).IsStack)
 	sort.Sort(stacks)
 	return stacks
 }
 
-func (tree *Tree) stacks() List[*Tree] {
+func (tree *Tree) stacks(cond func(*Tree) bool) List[*Tree] {
 	var stacks List[*Tree]
-	if tree.IsStack() {
+	if cond(tree) {
 		stacks = append(stacks, tree)
 	}
 	for _, children := range tree.Children {
-		stacks = append(stacks, children.stacks()...)
+		stacks = append(stacks, children.stacks(cond)...)
 	}
 	return stacks
 }
