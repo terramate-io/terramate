@@ -694,6 +694,17 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
+			name: "after containing invalid tag filter",
+			layout: []string{
+				`s:stack:after=["tag:_invalid"]`,
+				`s:stack2`,
+			},
+			want: runExpected{
+				StderrRegex: "failed to plan execution",
+				Status:      1,
+			},
+		},
+		{
 			name: "after directory containing no stacks does nothing",
 			layout: []string{
 				`d:dir`,
