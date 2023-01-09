@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package tag provides helpers for dealing with Terramate tags.
 package tag
 
 import "github.com/mineiros-io/terramate/errors"
 
+// ErrInvalidTag indicates the tag is invalid.
 const ErrInvalidTag errors.Kind = "invalid tag"
 
+// Validate validates if the provided tag name is valid.
 func Validate(tag string) error {
 	for i, r := range tag {
 		switch i {
