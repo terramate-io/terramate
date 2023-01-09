@@ -763,6 +763,21 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
+			name: "stack2 before stacks with tag:core or tag:test",
+			layout: []string{
+				`s:stack1:tags=["core"]`,
+				`s:stack2:before=["tag:core", "tag:test"]`,
+				`s:stack3:tags=["test"]`,
+			},
+			want: runExpected{
+				Stdout: listStacks(
+					"/stack2",
+					"/stack1",
+					"/stack3",
+				),
+			},
+		},
+		{
 			name: "stacks ordered by tag multiple tag filters",
 			layout: []string{
 				`s:infra1:tags=["infra", "prod"]`,
