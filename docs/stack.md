@@ -77,3 +77,17 @@ The tags must be a unique set of strings, where each tag must adhere to the foll
 
 The list of files that must be watched for changes in the
 [change detection](change-detection.md).
+
+## stack.after (set(string))(optional)
+
+The `after` defines the list of stacks which this stack must run after.
+It accepts project absolute paths (like `/other/stack`), paths relative to
+the directory of this stack (eg.: `../other/stack`) or a [Tag Filter](tag-filter.md).
+See [orchestration docs](orchestration.md#stacks-ordering) for details.
+
+## stack.before (set(string))(optional)
+
+The `before` defines the list of stacks which this stack must run before.
+It accepts project absolute paths (like `/other/stack`), paths relative to
+the directory of this stack (eg.: `../other/stack`) or a [Tag Filter](tag-filter.md).
+See [orchestration docs](orchestration.md#stacks-ordering) for details.
