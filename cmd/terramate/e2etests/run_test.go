@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/mineiros-io/terramate/cmd/terramate/cli"
+	"github.com/mineiros-io/terramate/config/tag"
 	"github.com/mineiros-io/terramate/run/dag"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
@@ -700,7 +701,7 @@ func TestCLIRunOrder(t *testing.T) {
 				`s:stack2`,
 			},
 			want: runExpected{
-				StderrRegex: "failed to plan execution",
+				StderrRegex: string(tag.ErrInvalidTag),
 				Status:      1,
 			},
 		},

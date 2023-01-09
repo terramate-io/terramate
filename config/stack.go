@@ -124,20 +124,11 @@ func NewStackFromHCL(root string, cfg hcl.Config) (*Stack, error) {
 
 // Validate if all stack fields are correct.
 func (s Stack) Validate() error {
-	err := s.validateTags()
-	if err != nil {
-		return err
-	}
-	err = s.validateTagFilterNotAllowed(s.Wants)
-	if err != nil {
-		return errors.E(ErrStackInvalidWants, err)
-	}
-
-	err = s.validateTagFilterNotAllowed(s.WantedBy)
-	if err != nil {
-		return errors.E(ErrStackInvalidWantedBy, err)
-	}
-	return nil
+	errs := errors.L()
+	errs.Append(s.validateTags())
+	errs.AppendWrap(ErrStackInvalidWants, s.validateTagFilterNotAllowed(s.Wants))
+	errs.AppendWrap(ErrStackInvalidWantedBy, s.validateTagFilterNotAllowed(s.WantedBy))
+	return errs.AsError()
 }
 
 func (s Stack) validateTags() error {
