@@ -18,14 +18,19 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/mineiros-io/terramate/config/tag"
+	"github.com/mineiros-io/terramate/errors"
+	errtest "github.com/mineiros-io/terramate/test/errors"
+
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestFilterParserTags(t *testing.T) {
 	type testcase struct {
-		filters []string
-		want    TagClause
-		empty   bool
+		filters   []string
+		want      TagClause
+		noClauses bool
+		err       error
 	}
 
 	for _, tc := range []testcase{
@@ -280,16 +285,23 @@ func TestFilterParserTags(t *testing.T) {
 			},
 		},
 		{
-			filters: []string{
-				"",
-			},
-			empty: true,
+			filters:   []string{""},
+			noClauses: true,
+		},
+		{
+			filters: []string{"_invalid"},
+			err:     errors.E(tag.ErrInvalidTag),
+		},
+		{
+			filters: []string{"valid:othervalid,_invalid"},
+			err:     errors.E(tag.ErrInvalidTag),
 		},
 	} {
 		t.Run(fmt.Sprintf("filters:%v", tc.filters), func(t *testing.T) {
-			got, isEmpty := ParseTagClauses(tc.filters...)
-			if !isEmpty != tc.empty {
-				t.Fatalf("filter emptiness mismatch: %t != %t", !isEmpty, tc.empty)
+			got, hasClauses, err := ParseTagClauses(tc.filters...)
+			errtest.Assert(t, err, tc.err)
+			if !hasClauses != tc.noClauses {
+				t.Fatalf("filter emptiness mismatch: %t != %t", !hasClauses, tc.noClauses)
 			}
 			if diff := cmp.Diff(got, tc.want); diff != "" {
 				t.Fatalf("got[-], want[+], diff = %s", diff)

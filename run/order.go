@@ -158,13 +158,15 @@ func BuildDAG(
 
 	visited[dag.ID(s.Dir.String())] = struct{}{}
 
-	computePaths := func(fieldname string, paths []string) []string {
+	computePaths := func(fieldname string, paths []string) ([]string, error) {
 		uniqPaths := map[string]struct{}{}
 		for _, pathstr := range paths {
 			if strings.HasPrefix(pathstr, "tag:") {
-				stacksPaths := root.StacksByTagsFilters(
-					[]string{strings.TrimPrefix(pathstr, "tag:")},
-				)
+				filter := strings.TrimPrefix(pathstr, "tag:")
+				stacksPaths, err := root.StacksByTagsFilters([]string{filter})
+				if err != nil {
+					return nil, errors.E(err, "invalid order entry %q", pathstr)
+				}
 				for _, stackPath := range stacksPaths {
 					uniqPaths[stackPath.String()] = struct{}{}
 				}
@@ -195,11 +197,18 @@ func BuildDAG(
 		for path := range uniqPaths {
 			cleanpaths = append(cleanpaths, path)
 		}
-		return cleanpaths
+		return cleanpaths, nil
 	}
 
-	ancestorPaths := computePaths(ancestorsName, getAncestors(*s))
-	descendantPaths := computePaths(descendantsName, getDescendants(*s))
+	errs := errors.L()
+	ancestorPaths, err := computePaths(ancestorsName, getAncestors(*s))
+	errs.Append(err)
+	descendantPaths, err := computePaths(descendantsName, getDescendants(*s))
+	errs.Append(err)
+
+	if err := errs.AsError(); err != nil {
+		return err
+	}
 
 	ancestorStacks, err := config.StacksFromTrees(root.HostDir(), root.StacksByPaths(s.Dir, ancestorPaths...))
 	if err != nil {

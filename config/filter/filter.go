@@ -18,6 +18,7 @@ package filter
 import (
 	"strings"
 
+	"github.com/mineiros-io/terramate/config/tag"
 	"github.com/mineiros-io/terramate/errors"
 )
 
@@ -47,12 +48,15 @@ const andSymbol = ":"
 const orSymbol = ","
 
 // MatchTagsFrom tells if the filters match the provided tags list.
-func MatchTagsFrom(filters []string, tags []string) bool {
-	filter, found := ParseTagClauses(filters...)
-	if !found {
-		return false
+func MatchTagsFrom(filters []string, tags []string) (bool, error) {
+	filter, found, err := ParseTagClauses(filters...)
+	if err != nil {
+		return false, err
 	}
-	return MatchTags(filter, tags)
+	if !found {
+		return false, nil
+	}
+	return MatchTags(filter, tags), nil
 }
 
 // MatchTags tells if the filter matches the provided tags list.
@@ -89,27 +93,32 @@ func tomap(tags []string) map[string]bool {
 }
 
 // ParseTagClauses parses the list of filters provided into a [TagClause] matcher.
-func ParseTagClauses(filters ...string) (TagClause, bool) {
+// It returns a boolean telling if the clauses are not empty.
+func ParseTagClauses(filters ...string) (TagClause, bool, error) {
 	var clauses []TagClause
 	for _, filter := range filters {
 		if filter != "" {
-			clauses = append(clauses, parseTagClause(filter))
+			clause, err := parseTagClause(filter)
+			if err != nil {
+				return TagClause{}, true, err
+			}
+			clauses = append(clauses, clause)
 		}
 	}
 	if len(clauses) == 0 {
-		return TagClause{}, false
+		return TagClause{}, false, nil
 	}
 	if len(clauses) == 1 {
-		return clauses[0], true
+		return clauses[0], true, nil
 	}
 
 	return TagClause{
 		Op:       OR,
 		Children: clauses,
-	}, true
+	}, true, nil
 }
 
-// parseTagClause parses the tag-filter syntax defined below:
+// parseTagClause parses the tag-filter (simplified) syntax defined below:
 //
 //	EXPR    = TAGNAME [ OP EXPR]
 //	TAGNAME = <string>
@@ -120,7 +129,10 @@ func ParseTagClauses(filters ...string) (TagClause, bool) {
 //
 //	a:b,c 		-> (A&&B)||c
 //	a,b:c,d	-> A||(B&&C)||d
-func parseTagClause(filter string) TagClause {
+//
+// The full spec is defined at the link below:
+// https://github.com/mineiros-io/terramate/blob/main/docs/tag-filter.md#filter-grammar
+func parseTagClause(filter string) (TagClause, error) {
 	rootNode := TagClause{
 		Op: OR,
 	}
@@ -128,16 +140,25 @@ func parseTagClause(filter string) TagClause {
 	for _, orNode := range orBranches {
 		andNodes := strings.Split(orNode, andSymbol)
 		if len(andNodes) == 1 {
+			tagname := andNodes[0]
+			err := tag.Validate(tagname)
+			if err != nil {
+				return TagClause{}, err
+			}
 			rootNode.Children = append(rootNode.Children, TagClause{
 				Op:  EQ,
-				Tag: andNodes[0],
+				Tag: tagname,
 			})
 		} else {
 			branch := TagClause{
 				Op: AND,
 			}
 			for _, leaf := range andNodes {
-				branch.Children = append(branch.Children, parseTagClause(leaf))
+				clause, err := parseTagClause(leaf)
+				if err != nil {
+					return TagClause{}, err
+				}
+				branch.Children = append(branch.Children, clause)
 			}
 			rootNode.Children = append(rootNode.Children, branch)
 		}
@@ -147,5 +168,5 @@ func parseTagClause(filter string) TagClause {
 		// simplify
 		rootNode = rootNode.Children[0]
 	}
-	return rootNode
+	return rootNode, nil
 }

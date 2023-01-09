@@ -186,14 +186,17 @@ func (root *Root) StacksByPaths(base project.Path, relpaths ...string) List[*Tre
 }
 
 // StacksByTagsFilters returns the paths of all stacks matching the filters.
-func (root *Root) StacksByTagsFilters(filters []string) project.Paths {
-	clauses, hasFilter := filter.ParseTagClauses(filters...)
+func (root *Root) StacksByTagsFilters(filters []string) (project.Paths, error) {
+	clauses, hasFilter, err := filter.ParseTagClauses(filters...)
+	if err != nil {
+		return nil, err
+	}
 	return root.tree.stacks(func(tree *Tree) bool {
 		if !hasFilter || !tree.IsStack() {
 			return false
 		}
 		return filter.MatchTags(clauses, tree.Node.Stack.Tags)
-	}).Paths()
+	}).Paths(), nil
 }
 
 // LoadSubTree loads a subtree located at cfgdir into the current tree.

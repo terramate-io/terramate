@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mineiros-io/terramate/config/tag"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/project"
@@ -121,45 +122,13 @@ func (s Stack) Validate() error {
 }
 
 func (s Stack) validateTags() error {
-	for _, tag := range s.Tags {
-		for i, r := range tag {
-			switch i {
-			case 0:
-				if !isLowerAlpha(r) {
-					return errors.E(
-						ErrStackInvalidTag,
-						"%q: tags must start with lowercase alphabetic character ([a-z])",
-						tag)
-				}
-			case len(tag) - 1: // last rune
-				if !isLowerAlnum(r) {
-					return errors.E(
-						ErrStackInvalidTag,
-						"%q: tags must end with lowercase alphanumeric ([0-9a-z]+)",
-						tag)
-				}
-			default:
-				if !isLowerAlnum(r) && r != '-' && r != '_' {
-					return errors.E(
-						ErrStackInvalidTag,
-						"%q: [a-z_-] are the only permitted characters in tags",
-						tag)
-				}
-			}
+	for _, tagname := range s.Tags {
+		err := tag.Validate(tagname)
+		if err != nil {
+			return errors.E(ErrStackInvalidTag, err)
 		}
 	}
 	return nil
-}
-
-func isDigit(r rune) bool {
-	return r >= '0' && r <= '9'
-}
-
-func isLowerAlpha(r rune) bool {
-	return (r >= 'a' && r <= 'z')
-}
-func isLowerAlnum(r rune) bool {
-	return isLowerAlpha(r) || isDigit(r)
 }
 
 // AppendBefore appends the path to the list of stacks that must run after this
