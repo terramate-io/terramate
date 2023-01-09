@@ -722,6 +722,21 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
+			name: "stack before unknown tag - ignored",
+			layout: []string{
+				`s:stack1`,
+				`s:stack2`,
+				`s:stack3:before=["tag:unknown"]`,
+			},
+			want: runExpected{
+				Stdout: listStacks(
+					"/stack1",
+					"/stack2",
+					"/stack3",
+				),
+			},
+		},
+		{
 			name: "stack3 before stacks with tag:core",
 			layout: []string{
 				`s:stack1:tags=["core"]`,
