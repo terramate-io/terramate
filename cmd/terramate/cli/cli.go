@@ -1417,7 +1417,7 @@ func (c *cli) outputEvalResult(val cty.Value, asJSON bool) {
 
 func (c *cli) setupEvalContext() *eval.Context {
 	ctx := eval.NewContext(stdlib.Functions(c.wd()))
-	runtime := c.cfg().RuntimeValues()
+	runtime := c.cfg().Runtime()
 	if config.IsStack(c.cfg(), c.wd()) {
 		st, err := config.LoadStack(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()))
 		if err != nil {

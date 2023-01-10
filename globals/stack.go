@@ -25,7 +25,7 @@ func ForStack(root *config.Root, stack *config.Stack) EvalReport {
 	ctx := eval.NewContext(
 		stdlib.Functions(stack.HostDir(root)),
 	)
-	runtime := root.RuntimeValues()
+	runtime := root.Runtime()
 	runtime.Merge(stack.RuntimeValues(root))
 	ctx.SetNamespace("terramate", runtime)
 	return ForDir(root, stack.Dir, ctx)
