@@ -23,7 +23,7 @@ builds:
       - darwin
       - windows
 archives:
-  - 
+  -
     name_template: >-
       {{ .ProjectName }}_{{ .Version }}_
       {{- .Os }}_
@@ -63,14 +63,14 @@ announce:
   twitter:
     enabled: true
     message_template: |
-      🥳 We just released #Terramate {{.Tag}}
-      {{ .ReleaseURL }} 🚀🚀🚀
+      🥳 We just released #Terramate {{.Tag}} 🚀🚀🚀
+      {{ .ReleaseURL }}
 
   slack:
     enabled: true
     message_template: |
-      🥳 We just released #Terramate {{.Tag}}
-      {{ .ReleaseURL }} 🚀🚀🚀
+      🥳 We just released #Terramate {{.Tag}} 🚀🚀🚀
+      {{ .ReleaseURL }}
 
     channel: '#terramate'
     username: 'terramate'
