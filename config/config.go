@@ -47,6 +47,8 @@ const (
 // configuration for the root directory is expected and not from anywhere else.
 type Root struct {
 	tree Tree
+
+	runtime project.Runtime
 }
 
 // Tree is the configuration tree.
@@ -115,9 +117,11 @@ func TryLoadConfig(fromdir string) (tree *Root, configpath string, found bool, e
 
 // NewRoot creates a new [Root] tree for the cfg tree.
 func NewRoot(tree *Tree) *Root {
-	return &Root{
+	r := &Root{
 		tree: *tree,
 	}
+	r.initRuntime()
+	return r
 }
 
 // LoadRoot loads the root configuration tree.
@@ -246,8 +250,17 @@ func (root *Root) Stacks() project.Paths {
 	return root.tree.Stacks().Paths()
 }
 
-// RuntimeValues returns the runtime terramate namespace for the root as a cty.Value map.
-func (root *Root) RuntimeValues() project.Runtime {
+// Runtime returns a copy the runtime for the root terramate namespace as a
+// cty.Value map.
+func (root *Root) Runtime() project.Runtime {
+	runtime := project.Runtime{}
+	for k, v := range root.runtime {
+		runtime[k] = v
+	}
+	return runtime
+}
+
+func (root *Root) initRuntime() {
 	rootfs := cty.ObjectVal(map[string]cty.Value{
 		"absolute": cty.StringVal(root.HostDir()),
 		"basename": cty.StringVal(filepath.Base(root.HostDir())),
@@ -261,7 +274,7 @@ func (root *Root) RuntimeValues() project.Runtime {
 	stacksNs := cty.ObjectVal(map[string]cty.Value{
 		"list": toCtyStringList(root.Stacks().Strings()),
 	})
-	return project.Runtime{
+	root.runtime = project.Runtime{
 		"root":   rootNS,
 		"stacks": stacksNs,
 	}

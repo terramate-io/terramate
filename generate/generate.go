@@ -316,7 +316,7 @@ func doRootGeneration(root *config.Root) Report {
 
 	report := Report{}
 	evalctx := eval.NewContext(stdlib.Functions(root.HostDir()))
-	evalctx.SetNamespace("terramate", root.RuntimeValues())
+	evalctx.SetNamespace("terramate", root.Runtime())
 
 	var files []GenFile
 	for _, cfg := range root.Tree().AsList() {
