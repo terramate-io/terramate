@@ -93,42 +93,43 @@ func ForDir(root *config.Root, cfgdir project.Path, ctx *eval.Context) EvalRepor
 
 	logger.Trace().Msg("loading expressions")
 
-	exprs, err := loadExprs(root, cfgdir)
+	exprs, err := LoadExprs(root, cfgdir)
 	if err != nil {
 		report := NewEvalReport()
 		report.BootstrapErr = err
 		return report
 	}
 
-	return exprs.eval(ctx)
+	return exprs.Eval(ctx)
 }
 
-// exprSet represents a set of globals loaded from a dir.
+// ExprSet represents a set of globals loaded from a dir.
 // The origin is the path of the dir from where all expressions were loaded.
-type exprSet struct {
+type ExprSet struct {
 	origin      project.Path
 	expressions map[GlobalPathKey]Expr
 }
 
-// loadedExprs contains all loaded global expressions from multiple configuration
-// directories. Each configuration dir path is mapped to its loaded global expressions.
-type loadedExprs map[project.Path]exprSet
+// HierarchicalExprs contains all loaded global expressions from multiple
+// configuration directories (the key). Each configuration dir path is mapped to
+// its global expressions.
+type HierarchicalExprs map[project.Path]*ExprSet
 
-func newExprSet(origin project.Path) exprSet {
-	return exprSet{
+func newExprSet(origin project.Path) *ExprSet {
+	return &ExprSet{
 		origin:      origin,
 		expressions: map[GlobalPathKey]Expr{},
 	}
 }
 
-// loadExprs loads from the file system all globals expressions defined for
+// LoadExprs loads from the file system all globals expressions defined for
 // the given directory. It will navigate the file system from dir until it
 // reaches rootdir, loading globals expressions and merging them appropriately.
 // More specific globals (closer or at the dir) have precedence over less
 // specific globals (closer or at the root dir).
-func loadExprs(root *config.Root, cfgdir project.Path) (loadedExprs, error) {
+func LoadExprs(root *config.Root, cfgdir project.Path) (HierarchicalExprs, error) {
 	logger := log.With().
-		Str("action", "globals.loadExprs()").
+		Str("action", "globals.LoadExprs()").
 		Str("root", root.HostDir()).
 		Stringer("cfgdir", cfgdir).
 		Logger()
@@ -137,7 +138,7 @@ func loadExprs(root *config.Root, cfgdir project.Path) (loadedExprs, error) {
 
 	cfg, ok := root.Lookup(cfgdir)
 	if !ok {
-		return loadedExprs{}, nil
+		return HierarchicalExprs{}, nil
 	}
 
 	globalsBlocks := cfg.Node.Globals.AsList()
@@ -153,7 +154,7 @@ func loadExprs(root *config.Root, cfgdir project.Path) (loadedExprs, error) {
 		attrs := block.Attributes.SortedList()
 		if len(block.Labels) > 0 && len(attrs) == 0 {
 			expr, _ := eval.ParseExpressionBytes([]byte(`{}`))
-			key := newGlobalPath(block.Labels, "")
+			key := NewGlobalExtendPath(block.Labels)
 			exprs.expressions[key] = Expr{
 				Origin:     block.RawOrigins[0].Range,
 				ConfigDir:  cfgdir,
@@ -165,17 +166,17 @@ func loadExprs(root *config.Root, cfgdir project.Path) (loadedExprs, error) {
 		for _, varsBlock := range block.Blocks {
 			varName := varsBlock.Labels[0]
 			if _, ok := block.Attributes[varName]; ok {
-				return loadedExprs{}, errors.E(
+				return HierarchicalExprs{}, errors.E(
 					ErrRedefined,
 					"map label %s conflicts with global.%s attribute", varName, varName)
 			}
 
 			logger.Trace().Msgf("Add map.%s to globals", varName)
 
-			key := newGlobalPath(block.Labels, varName)
+			key := NewGlobalAttrPath(block.Labels, varName)
 			expr, err := mapexpr.NewMapExpr(varsBlock)
 			if err != nil {
-				return loadedExprs{}, errors.E(err, "failed to interpret map block")
+				return HierarchicalExprs{}, errors.E(err, "failed to interpret map block")
 			}
 			exprs.expressions[key] = Expr{
 				Origin:     varsBlock.RawOrigins[0].Range,
@@ -189,7 +190,7 @@ func loadExprs(root *config.Root, cfgdir project.Path) (loadedExprs, error) {
 		for _, attr := range attrs {
 			logger.Trace().Msg("Add attribute to globals.")
 
-			key := newGlobalPath(block.Labels, attr.Name)
+			key := NewGlobalAttrPath(block.Labels, attr.Name)
 			exprs.expressions[key] = Expr{
 				Origin:     attr.Range,
 				ConfigDir:  cfgdir,
@@ -199,7 +200,7 @@ func loadExprs(root *config.Root, cfgdir project.Path) (loadedExprs, error) {
 		}
 	}
 
-	globals := loadedExprs{
+	globals := HierarchicalExprs{
 		cfgdir: exprs,
 	}
 
@@ -210,7 +211,7 @@ func loadExprs(root *config.Root, cfgdir project.Path) (loadedExprs, error) {
 
 	logger.Trace().Msg("Loading stack globals from parent dir.")
 
-	parentGlobals, err := loadExprs(root, parentcfg)
+	parentGlobals, err := LoadExprs(root, parentcfg)
 	if err != nil {
 		return nil, err
 	}
@@ -221,13 +222,34 @@ func loadExprs(root *config.Root, cfgdir project.Path) (loadedExprs, error) {
 	return globals, nil
 }
 
+// SetOverride sets a custom global at the specified directory, using the given
+// global path and expr. The origin is only used for debugging purposes.
+func (le HierarchicalExprs) SetOverride(
+	dir project.Path,
+	path GlobalPathKey,
+	expr hhcl.Expression,
+	origin info.Range,
+) {
+	exprSet, ok := le[dir]
+	if !ok {
+		exprSet = newExprSet(origin.Path())
+		le[dir] = exprSet
+	}
+	exprSet.expressions[path] = Expr{
+		Origin:     origin,
+		ConfigDir:  dir,
+		LabelPath:  path.Path(),
+		Expression: expr,
+	}
+}
+
 // Returns a sorted loaded exprs, sorting it by config dir path.
 // The loaded expressions are sorted by the config dir path
 // from smaller (root) to more specific (stack). Eg:
 // - /
 // - /dir
 // - /dir/stack
-func (le loadedExprs) sort() []exprSet {
+func (le HierarchicalExprs) sort() []*ExprSet {
 	cfgdirs := []project.Path{}
 	for cfgdir := range le {
 		cfgdirs = append(cfgdirs, cfgdir)
@@ -237,7 +259,7 @@ func (le loadedExprs) sort() []exprSet {
 		return len(cfgdirs[i].String()) < len(cfgdirs[j].String())
 	})
 
-	res := []exprSet{}
+	res := []*ExprSet{}
 	for _, cfgdir := range cfgdirs {
 		res = append(res, le[cfgdir])
 	}
@@ -249,7 +271,7 @@ func (le loadedExprs) sort() []exprSet {
 // - global.a
 // - global.a.b
 // - global.a.b.c
-func (es exprSet) sort() []GlobalPathKey {
+func (es ExprSet) sort() []GlobalPathKey {
 	res := []GlobalPathKey{}
 	for globalPath := range es.expressions {
 		res = append(res, globalPath)
@@ -262,10 +284,10 @@ func (es exprSet) sort() []GlobalPathKey {
 	return res
 }
 
-// eval evaluates all global expressions and returns an EvalReport.
-func (le loadedExprs) eval(ctx *eval.Context) EvalReport {
+// Eval evaluates all global expressions and returns an EvalReport.
+func (le HierarchicalExprs) Eval(ctx *eval.Context) EvalReport {
 	logger := log.With().
-		Str("action", "Exprs.Eval()").
+		Str("action", "HierarchicalExprs.Eval()").
 		Logger()
 
 	logger.Trace().Msg("Create new evaluation context.")
@@ -550,7 +572,7 @@ func setGlobal(globals *eval.Object, accessor GlobalPathKey, newVal eval.Value) 
 
 }
 
-func (le loadedExprs) merge(other loadedExprs) {
+func (le HierarchicalExprs) merge(other HierarchicalExprs) {
 	for k, v := range other {
 		if _, ok := le[k]; !ok {
 			le[k] = v
@@ -578,4 +600,14 @@ func newGlobalPath(basepath []string, name string) GlobalPathKey {
 		accessor.isattr = true
 	}
 	return accessor
+}
+
+// NewGlobalAttrPath creates a new global path key for an attribute.
+func NewGlobalAttrPath(basepath []string, name string) GlobalPathKey {
+	return newGlobalPath(basepath, name)
+}
+
+// NewGlobalExtendPath creates a new global path key for extension purposes only.
+func NewGlobalExtendPath(path []string) GlobalPathKey {
+	return newGlobalPath(path, "")
 }
