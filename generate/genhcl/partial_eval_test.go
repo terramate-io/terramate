@@ -1319,6 +1319,24 @@ EOT
 			),
 		},
 		{
+			name: "HEREDOCs partial evaluated with custom name",
+			globals: Globals(
+				Str("value", "test"),
+			),
+			config: Doc(
+				Expr("test", `<<ANYTHING_IS_VALID
+${global.value}
+ANYTHING_IS_VALID
+`),
+			),
+			want: Doc(
+				Expr("test", `<<ANYTHING_IS_VALID
+test
+ANYTHING_IS_VALID
+`),
+			),
+		},
+		{
 			name: "HEREDOCs partial evaluated between tokens",
 			globals: Globals(
 				Str("value", "test"),
