@@ -973,37 +973,6 @@ func (e *engine) evalInterp() error {
 	return nil
 }
 
-/*func (e *engine) evalHeredoc() error {
-	e.newnode()
-	e.assert(hclsyntax.TokenOHeredoc)
-	e.emit()
-
-	for e.hasTokens() &&
-		e.peek().Type != hclsyntax.TokenCHeredoc &&
-		e.peek().Type != hclsyntax.TokenEOF { // TODO(i4k): hack to imitate hashicorp lib
-		tok := e.peek()
-		switch tok.Type {
-		case hclsyntax.TokenStringLit:
-			e.emit()
-		case hclsyntax.TokenTemplateInterp:
-			err := e.evalInterp()
-			if err != nil {
-				return errors.E(ErrInterpolation, err)
-			}
-			e.commit()
-		default:
-			panic(errorf("unexpected token %s (token bytes: %s)", tok.Type, tok.Bytes))
-		}
-	}
-	if !e.hasTokens() {
-		panic(errorf("malformed heredoc: %s", e.tokens[e.pos:]))
-	}
-
-	e.assert(hclsyntax.TokenCHeredoc, hclsyntax.TokenEOF)
-	e.emit()
-	return nil
-}*/
-
 func (e *engine) evalString(begin, end hclsyntax.TokenType) error {
 	stacksize, _ := e.newnode()
 
