@@ -327,20 +327,13 @@ loop:
 	case hclsyntax.TokenEOF:
 		e.emit()
 	case hclsyntax.TokenOHeredoc:
-		e.emit()
-
-		for e.hasTokens() &&
-			e.peek().Type != hclsyntax.TokenCHeredoc &&
-			e.peek().Type != hclsyntax.TokenEOF { // TODO(i4k): hack to imitate hashicorp lib
-			e.emit()
+		err := e.evalString(hclsyntax.TokenOHeredoc, hclsyntax.TokenCHeredoc)
+		if err != nil {
+			return err
 		}
-		if !e.hasTokens() {
-			panic("expect close heredoc")
-		}
-
-		e.emit()
+		e.commit()
 	case hclsyntax.TokenOQuote:
-		err := e.evalString()
+		err := e.evalString(hclsyntax.TokenOQuote, hclsyntax.TokenCQuote)
 		if err != nil {
 			return err
 		}
@@ -980,16 +973,51 @@ func (e *engine) evalInterp() error {
 	return nil
 }
 
-func (e *engine) evalString() error {
+/*func (e *engine) evalHeredoc() error {
+	e.newnode()
+	e.assert(hclsyntax.TokenOHeredoc)
+	e.emit()
+
+	for e.hasTokens() &&
+		e.peek().Type != hclsyntax.TokenCHeredoc &&
+		e.peek().Type != hclsyntax.TokenEOF { // TODO(i4k): hack to imitate hashicorp lib
+		tok := e.peek()
+		switch tok.Type {
+		case hclsyntax.TokenStringLit:
+			e.emit()
+		case hclsyntax.TokenTemplateInterp:
+			err := e.evalInterp()
+			if err != nil {
+				return errors.E(ErrInterpolation, err)
+			}
+			e.commit()
+		default:
+			panic(errorf("unexpected token %s (token bytes: %s)", tok.Type, tok.Bytes))
+		}
+	}
+	if !e.hasTokens() {
+		panic(errorf("malformed heredoc: %s", e.tokens[e.pos:]))
+	}
+
+	e.assert(hclsyntax.TokenCHeredoc, hclsyntax.TokenEOF)
+	e.emit()
+	return nil
+}*/
+
+func (e *engine) evalString(begin, end hclsyntax.TokenType) error {
 	stacksize, _ := e.newnode()
 
-	e.assert(hclsyntax.TokenOQuote)
+	e.assert(begin)
 
+	beginTok := e.peek()
 	e.pos++
-	for e.hasTokens() && e.peek().Type != hclsyntax.TokenCQuote {
+	for e.hasTokens() && e.peek().Type != end {
 		tok := e.peek()
 		switch tok.Type {
 		case hclsyntax.TokenQuotedLit:
+			e.newnode()
+			e.emit()
+		case hclsyntax.TokenStringLit:
 			e.newnode()
 			e.emit()
 		case hclsyntax.TokenTemplateInterp:
@@ -997,6 +1025,9 @@ func (e *engine) evalString() error {
 			if err != nil {
 				return errors.E(ErrInterpolation, err)
 			}
+		case hclsyntax.TokenEOF:
+			// HEREDOC can end with an EOF ...
+			end = hclsyntax.TokenEOF
 		default:
 			panic(errorf("unexpected token %s (token bytes: %s)", tok.Type, tok.Bytes))
 		}
@@ -1006,11 +1037,12 @@ func (e *engine) evalString() error {
 		panic(errorf("malformed quoted string: %s", e.tokens[e.pos:]))
 	}
 
-	e.assert(hclsyntax.TokenCQuote)
+	e.assert(end)
+	endTok := e.peek()
 	e.pos++
 
 	rewritten := &node{}
-	rewritten.push(tokenOQuote())
+	rewritten.push(beginTok)
 
 	// handles the case of a single interpolated object, examples:
 	// - "${a.b}"
@@ -1021,9 +1053,9 @@ func (e *engine) evalString() error {
 		e.commit()
 		tos := e.evalstack.pop()
 		switch tos.evaluated[0].Type {
-		case hclsyntax.TokenQuotedLit, hclsyntax.TokenTemplateInterp:
+		case hclsyntax.TokenQuotedLit, hclsyntax.TokenStringLit, hclsyntax.TokenTemplateInterp:
 			rewritten.pushfrom(tos)
-			rewritten.push(tokenCQuote())
+			rewritten.push(endTok)
 			e.evalstack.push(rewritten)
 		default:
 			e.evalstack.push(tos)
@@ -1060,9 +1092,10 @@ func (e *engine) evalString() error {
 				ErrInterpolation,
 				errorf("serialization of collection value is not supported"),
 			)
-		case hclsyntax.TokenQuotedLit:
+		case hclsyntax.TokenQuotedLit, hclsyntax.TokenStringLit:
+			// TODO(i4k)
 			if len(elem.evaluated) > 1 {
-				panic(errorf("TokenQuotedLit should be a single token but got %d",
+				panic(errorf("TokenQuotedLit/TokenStringLit should be a single token but got %d",
 					len(elem.evaluated)))
 			}
 
@@ -1130,7 +1163,7 @@ func (e *engine) evalString() error {
 		}
 	}
 
-	rewritten.push(tokenCQuote())
+	rewritten.push(endTok)
 	e.evalstack.nodes[stacksize-1] = rewritten
 	e.evalstack.nodes = e.evalstack.nodes[0:stacksize]
 

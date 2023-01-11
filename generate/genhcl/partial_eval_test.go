@@ -1301,6 +1301,42 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
+			name: "HEREDOCs partial evaluated to single token",
+			globals: Globals(
+				Str("value", "test"),
+			),
+			config: Doc(
+				Expr("test", `<<-EOT
+${global.value}
+EOT
+`),
+			),
+			want: Doc(
+				Expr("test", `<<-EOT
+test
+EOT
+`),
+			),
+		},
+		{
+			name: "HEREDOCs partial evaluated between tokens",
+			globals: Globals(
+				Str("value", "test"),
+			),
+			config: Doc(
+				Expr("test", `<<-EOT
+				BEFORE ${global.value} AFTER
+EOT
+`),
+			),
+			want: Doc(
+				Expr("test", `<<-EOT
+				BEFORE test AFTER
+EOT
+`),
+			),
+		},
+		{
 			name: "tm_hcl_expression from string",
 			config: Doc(
 				Expr("a", `tm_hcl_expression("{ a = b }")`),
