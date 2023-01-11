@@ -285,7 +285,7 @@ func (es ExprSet) sort() []GlobalPathKey {
 }
 
 // Eval evaluates all global expressions and returns an EvalReport.
-func (le HierarchicalExprs) Eval(ctx *eval.Context) EvalReport {
+func (dirExprs HierarchicalExprs) Eval(ctx *eval.Context) EvalReport {
 	logger := log.With().
 		Str("action", "HierarchicalExprs.Eval()").
 		Logger()
@@ -296,14 +296,14 @@ func (le HierarchicalExprs) Eval(ctx *eval.Context) EvalReport {
 	globals := report.Globals
 	pendingExprsErrs := map[GlobalPathKey]*errors.List{}
 
-	sortedLoadedExprs := le.sort()
+	sortedLoadedExprs := dirExprs.sort()
 	pendingExprs := map[GlobalPathKey]Expr{}
 
 	// Here we will override values, but since
 	// we ordered by config dir the more specific global expressions
 	// will override the parent ones.
-	for _, exprs := range sortedLoadedExprs {
-		for k, v := range exprs.expressions {
+	for _, xp := range sortedLoadedExprs {
+		for k, v := range xp.expressions {
 			pendingExprs[k] = v
 		}
 	}
@@ -533,6 +533,19 @@ func (le HierarchicalExprs) Eval(ctx *eval.Context) EvalReport {
 	return report
 }
 
+func (exprs HierarchicalExprs) merge(other HierarchicalExprs) {
+	for k, v := range other {
+		if _, ok := exprs[k]; !ok {
+			exprs[k] = v
+		} else {
+			panic(errors.E(
+				errors.ErrInternal,
+				"cant merge duplicated configuration %q",
+				k))
+		}
+	}
+}
+
 func isSameObjectPath(a, b eval.ObjectPath) bool {
 	if len(a) != len(b) {
 		return false
@@ -570,19 +583,6 @@ func setGlobal(globals *eval.Object, accessor GlobalPathKey, newVal eval.Value) 
 
 	return globals.SetAt(accessor.Path(), newVal)
 
-}
-
-func (le HierarchicalExprs) merge(other HierarchicalExprs) {
-	for k, v := range other {
-		if _, ok := le[k]; !ok {
-			le[k] = v
-		} else {
-			panic(errors.E(
-				errors.ErrInternal,
-				"cant merge duplicated configuration %q",
-				k))
-		}
-	}
 }
 
 func parentDir(dir project.Path) (project.Path, bool) {
