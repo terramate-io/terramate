@@ -224,16 +224,16 @@ func LoadExprs(root *config.Root, cfgdir project.Path) (HierarchicalExprs, error
 
 // SetOverride sets a custom global at the specified directory, using the given
 // global path and expr. The origin is only used for debugging purposes.
-func (le HierarchicalExprs) SetOverride(
+func (dirExprs HierarchicalExprs) SetOverride(
 	dir project.Path,
 	path GlobalPathKey,
 	expr hhcl.Expression,
 	origin info.Range,
 ) {
-	exprSet, ok := le[dir]
+	exprSet, ok := dirExprs[dir]
 	if !ok {
 		exprSet = newExprSet(origin.Path())
-		le[dir] = exprSet
+		dirExprs[dir] = exprSet
 	}
 	exprSet.expressions[path] = Expr{
 		Origin:     origin,
@@ -249,9 +249,9 @@ func (le HierarchicalExprs) SetOverride(
 // - /
 // - /dir
 // - /dir/stack
-func (le HierarchicalExprs) sort() []*ExprSet {
+func (dirExprs HierarchicalExprs) sort() []*ExprSet {
 	cfgdirs := []project.Path{}
-	for cfgdir := range le {
+	for cfgdir := range dirExprs {
 		cfgdirs = append(cfgdirs, cfgdir)
 	}
 
@@ -261,7 +261,7 @@ func (le HierarchicalExprs) sort() []*ExprSet {
 
 	res := []*ExprSet{}
 	for _, cfgdir := range cfgdirs {
-		res = append(res, le[cfgdir])
+		res = append(res, dirExprs[cfgdir])
 	}
 	return res
 }
@@ -271,9 +271,9 @@ func (le HierarchicalExprs) sort() []*ExprSet {
 // - global.a
 // - global.a.b
 // - global.a.b.c
-func (es ExprSet) sort() []GlobalPathKey {
+func (dirExprs ExprSet) sort() []GlobalPathKey {
 	res := []GlobalPathKey{}
-	for globalPath := range es.expressions {
+	for globalPath := range dirExprs.expressions {
 		res = append(res, globalPath)
 	}
 
@@ -533,10 +533,10 @@ func (dirExprs HierarchicalExprs) Eval(ctx *eval.Context) EvalReport {
 	return report
 }
 
-func (exprs HierarchicalExprs) merge(other HierarchicalExprs) {
+func (dirExprs HierarchicalExprs) merge(other HierarchicalExprs) {
 	for k, v := range other {
-		if _, ok := exprs[k]; !ok {
-			exprs[k] = v
+		if _, ok := dirExprs[k]; !ok {
+			dirExprs[k] = v
 		} else {
 			panic(errors.E(
 				errors.ErrInternal,
