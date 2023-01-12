@@ -1062,7 +1062,6 @@ func (e *engine) evalString(begin, end hclsyntax.TokenType) error {
 				errorf("serialization of collection value is not supported"),
 			)
 		case hclsyntax.TokenQuotedLit, hclsyntax.TokenStringLit:
-			// TODO(i4k)
 			if len(elem.evaluated) > 1 {
 				panic(errorf("TokenQuotedLit/TokenStringLit should be a single token but got %d",
 					len(elem.evaluated)))
