@@ -334,12 +334,13 @@ func TestGetConfigValue(t *testing.T) {
 			add  *hclwrite.Block
 		}
 		testcase struct {
-			name    string
-			layout  []string
-			wd      string
-			globals []globalsBlock
-			expr    string
-			want    runExpected
+			name            string
+			layout          []string
+			wd              string
+			globals         []globalsBlock
+			overrideGlobals map[string]string
+			expr            string
+			want            runExpected
 		}
 	)
 
@@ -427,6 +428,24 @@ func TestGetConfigValue(t *testing.T) {
 				Stdout: addnl(`hello`),
 			},
 		},
+		{
+			name: "get-config-value with overriden globals",
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add: Globals(
+						Number("val", 1000),
+					),
+				},
+			},
+			overrideGlobals: map[string]string{
+				"val": "1",
+			},
+			expr: `global.val`,
+			want: runExpected{
+				Stdout: addnl("1"),
+			},
+		},
 	}
 
 	for _, tcase := range testcases {
@@ -446,7 +465,14 @@ func TestGetConfigValue(t *testing.T) {
 
 			test.WriteRootConfig(t, s.RootDir())
 			ts := newCLI(t, filepath.Join(s.RootDir(), tc.wd))
-			assertRunResult(t, ts.run("experimental", "get-config-value", tc.expr), tc.want)
+			globalArgs := []string{}
+			for globalName, globalExpr := range tc.overrideGlobals {
+				globalArgs = append(globalArgs, "--global")
+				globalArgs = append(globalArgs, fmt.Sprintf("%s=%s", globalName, globalExpr))
+			}
+			args := append([]string{"experimental", "get-config-value"}, globalArgs...)
+			args = append(args, tc.expr)
+			assertRunResult(t, ts.run(args...), tc.want)
 		})
 	}
 }
