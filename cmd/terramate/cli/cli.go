@@ -179,18 +179,18 @@ type cliSpec struct {
 		} `cmd:"" help:"Manages vendored Terraform modules"`
 
 		Eval struct {
-			Global map[string]string `short:"g" help:"set/override globals. eg.: --global name=value"`
+			Global map[string]string `short:"g" help:"set/override globals. eg.: --global name=<expr>"`
 			AsJSON bool              `help:"Outputs the result as a JSON value"`
 			Exprs  []string          `arg:"" help:"expressions to be evaluated" name:"expr" passthrough:""`
 		} `cmd:"" help:"Eval expression"`
 
 		PartialEval struct {
-			Global map[string]string `short:"g" help:"set/override globals. eg.: --global name=value"`
+			Global map[string]string `short:"g" help:"set/override globals. eg.: --global name=<expr>"`
 			Exprs  []string          `arg:"" help:"expressions to be partially evaluated" name:"expr" passthrough:""`
 		} `cmd:"" help:"Partial evaluate the expressions"`
 
 		GetConfigValue struct {
-			Global map[string]string `short:"g" help:"set/override globals. eg.: --global name=value"`
+			Global map[string]string `short:"g" help:"set/override globals. eg.: --global name=<expr>"`
 			AsJSON bool              `help:"Outputs the result as a JSON value"`
 			Vars   []string          `arg:"" help:"variable to be retrieved" name:"var" passthrough:""`
 		} `cmd:"" help:"Get configuration value"`
