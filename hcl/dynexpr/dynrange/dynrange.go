@@ -17,6 +17,8 @@ package dynrange
 import (
 	"bytes"
 	"fmt"
+
+	"github.com/hashicorp/hcl/v2"
 )
 
 // WrapExprBytes wraps the exprBytes provided in a string suited for a dynamically
@@ -74,6 +76,17 @@ func ReplaceInjectedExpr(content, replace string) string {
 func HideInjectedExpr(content string) string {
 	const dynfilename = "<generated expression>"
 	return ReplaceInjectedExpr(content, dynfilename)
+}
+
+// Fixup cleans the provided range by hiding any injected bytes.
+func Fixup(r hcl.Range) hcl.Range {
+	cleaned := hcl.Range{
+		Start: r.Start,
+		End:   r.End,
+	}
+
+	cleaned.Filename = HideInjectedExpr(r.Filename)
+	return cleaned
 }
 
 func injectedTokensPrefix() []byte {

@@ -35,7 +35,7 @@ import (
 
 // ParseExpressionBytes parses the exprBytes into a hcl.Expression and stores
 // the original tokens inside the expression.Range().Filename. For details
-// about this craziness, see the TokensForExpression() function.
+// about this craziness, see the [eval.TokensForExpression()] function.
 func ParseExpressionBytes(exprBytes []byte) (hcl.Expression, error) {
 	expr, diags := hclsyntax.ParseExpression(
 		exprBytes,

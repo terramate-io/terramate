@@ -156,7 +156,7 @@ func E(args ...interface{}) *Error {
 		case Kind:
 			e.Kind = arg
 		case hcl.Range:
-			e.FileRange = fixupRange(arg)
+			e.FileRange = dynrange.Fixup(arg)
 		case info.Range:
 			start := arg.Start()
 			end := arg.End()
@@ -250,7 +250,7 @@ func E(args ...interface{}) *Error {
 	switch prev := e.Err.(type) {
 	case *hcl.Diagnostic:
 		if prev.Subject != nil && e.FileRange.Empty() {
-			e.FileRange = fixupRange(*prev.Subject)
+			e.FileRange = dynrange.Fixup(*prev.Subject)
 		}
 
 		if e.Description == "" {
@@ -458,16 +458,6 @@ func fixupFilename(fname string) string {
 		return "<generated-code>"
 	}
 	return fname
-}
-
-func fixupRange(r hcl.Range) hcl.Range {
-	cleaned := hcl.Range{
-		Start: r.Start,
-		End:   r.End,
-	}
-
-	cleaned.Filename = dynrange.HideInjectedExpr(r.Filename)
-	return cleaned
 }
 
 func checkDeprecatedUsage(arg interface{}) {
