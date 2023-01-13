@@ -12,6 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package dynrange provides helper functions for dealing with dynamic generated
+// range for expressions.
+// Note: This is package must not import other Terramate packages because it's
+// imported by the "errors" package, which makes this package now the leaf of the
+// import tree of Terramate.
+// This package must be deleted when we remove the need for injection expression
+// bytes in hcl.Expression.
 package dynrange
 
 import (

@@ -429,7 +429,7 @@ func TestGetConfigValue(t *testing.T) {
 			},
 		},
 		{
-			name: "get-config-value with overriden globals",
+			name: "get-config-value with overridden globals",
 			globals: []globalsBlock{
 				{
 					path: "/",
