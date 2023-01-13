@@ -33,6 +33,7 @@ import (
 	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/globals"
+	"github.com/mineiros-io/terramate/hcl/dynexpr"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/hcl/info"
@@ -1333,7 +1334,7 @@ func (c *cli) checkGenCode() bool {
 func (c *cli) eval() {
 	ctx := c.setupEvalContext(c.parsedArgs.Experimental.Eval.Global)
 	for _, exprStr := range c.parsedArgs.Experimental.Eval.Exprs {
-		expr, err := eval.ParseExpressionBytes([]byte(exprStr))
+		expr, err := dynexpr.ParseExpressionBytes([]byte(exprStr))
 		if err != nil {
 			fatal(err)
 		}
@@ -1350,7 +1351,7 @@ func (c *cli) eval() {
 func (c *cli) partialEval() {
 	ctx := c.setupEvalContext(c.parsedArgs.Experimental.PartialEval.Global)
 	for _, exprStr := range c.parsedArgs.Experimental.PartialEval.Exprs {
-		expr, err := eval.ParseExpressionBytes([]byte(exprStr))
+		expr, err := dynexpr.ParseExpressionBytes([]byte(exprStr))
 		if err != nil {
 			fatal(err)
 		}
@@ -1371,7 +1372,7 @@ func (c *cli) getConfigValue() {
 
 	ctx := c.setupEvalContext(c.parsedArgs.Experimental.GetConfigValue.Global)
 	for _, exprStr := range c.parsedArgs.Experimental.GetConfigValue.Vars {
-		expr, err := eval.ParseExpressionBytes([]byte(exprStr))
+		expr, err := dynexpr.ParseExpressionBytes([]byte(exprStr))
 		if err != nil {
 			fatal(err)
 		}
@@ -1439,7 +1440,7 @@ func (c *cli) setupEvalContext(overrideGlobals map[string]string) *eval.Context 
 	}
 
 	for name, exprStr := range overrideGlobals {
-		expr, err := eval.ParseExpressionBytes([]byte(exprStr))
+		expr, err := dynexpr.ParseExpressionBytes([]byte(exprStr))
 		if err != nil {
 			fatal(err, "--global %s=%s is an invalid expresssion", name, exprStr)
 		}
@@ -1458,7 +1459,10 @@ func (c *cli) setupEvalContext(overrideGlobals map[string]string) *eval.Context 
 		)
 	}
 
-	exprs.Eval(ctx)
+	report := exprs.Eval(ctx)
+	if err := report.AsError(); err != nil {
+		fatal(err, "setting up evaluation context")
+	}
 	return ctx
 }
 
