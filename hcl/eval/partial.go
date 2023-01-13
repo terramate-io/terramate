@@ -983,10 +983,7 @@ func (e *engine) evalString(begin, end hclsyntax.TokenType) error {
 	for e.hasTokens() && e.peek().Type != end {
 		tok := e.peek()
 		switch tok.Type {
-		case hclsyntax.TokenQuotedLit:
-			e.newnode()
-			e.emit()
-		case hclsyntax.TokenStringLit:
+		case hclsyntax.TokenQuotedLit, hclsyntax.TokenStringLit:
 			e.newnode()
 			e.emit()
 		case hclsyntax.TokenTemplateInterp:
