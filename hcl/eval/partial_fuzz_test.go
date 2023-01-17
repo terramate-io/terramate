@@ -53,6 +53,9 @@ func FuzzPartialEval(f *testing.F) {
 		`${var.name}`,
 		`{ for k in var.val : k => k }`,
 		`[ for k in var.val : k => k ]`,
+		`<<EOT
+		${local.var}
+EOT`,
 	}
 
 	for _, seed := range seedCorpus {

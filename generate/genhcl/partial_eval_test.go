@@ -1301,6 +1301,154 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
+			name: "HEREDOCs partial evaluated to single token",
+			globals: Globals(
+				Str("value", "test"),
+			),
+			config: Doc(
+				Expr("test", `<<-EOT
+${global.value}
+EOT
+`),
+			),
+			want: Doc(
+				Expr("test", `<<-EOT
+test
+EOT
+`),
+			),
+		},
+		{
+			name: "HEREDOCs partial evaluated with custom name",
+			globals: Globals(
+				Str("value", "test"),
+			),
+			config: Doc(
+				Expr("test", `<<ANYTHING_IS_VALID
+${global.value}
+ANYTHING_IS_VALID
+`),
+			),
+			want: Doc(
+				Expr("test", `<<ANYTHING_IS_VALID
+test
+ANYTHING_IS_VALID
+`),
+			),
+		},
+		{
+			name: "HEREDOCs partial evaluated between tokens",
+			globals: Globals(
+				Str("value", "test"),
+			),
+			config: Doc(
+				Expr("test", `<<-EOT
+				BEFORE ${global.value} AFTER
+EOT
+`),
+			),
+			want: Doc(
+				Expr("test", `<<-EOT
+				BEFORE test AFTER
+EOT
+`),
+			),
+		},
+		{
+			name: "HEREDOCs partial evaluated with tm_ funcall",
+			config: Doc(
+				Expr("test", `<<-EOT
+				BEFORE ${tm_upper("test")} AFTER
+EOT
+`),
+			),
+			want: Doc(
+				Expr("test", `<<-EOT
+				BEFORE TEST AFTER
+EOT
+`),
+			),
+		},
+		{
+			name: "HEREDOCs partial evaluated with partials left",
+			config: Doc(
+				Expr("test", `<<-EOT
+				BEFORE ${local.myvar} AFTER
+EOT
+`),
+			),
+			want: Doc(
+				Expr("test", `<<-EOT
+				BEFORE ${local.myvar} AFTER
+EOT
+`),
+			),
+		},
+		{
+			name: "HEREDOCs partial evaluated with successful eval + partials left",
+			globals: Globals(
+				Number("value", 49),
+			),
+			config: Doc(
+				Expr("test", `<<-EOT
+				BEFORE ${global.value + local.myvar} AFTER
+EOT
+`),
+			),
+			want: Doc(
+				Expr("test", `<<-EOT
+				BEFORE ${49 + local.myvar} AFTER
+EOT
+`),
+			),
+		},
+		{
+			name: "HEREDOCs partial evaluated with recursive interpolation",
+			globals: Globals(
+				Number("value", 49),
+			),
+			config: Doc(
+				Expr("test", `<<-EOT
+				BEFORE ${"number is ${global.value}"} AFTER
+EOT
+`),
+			),
+			want: Doc(
+				Expr("test", `<<-EOT
+				BEFORE ${"number is 49"} AFTER
+EOT
+`),
+			),
+		},
+		{
+			name: "HEREDOCs partial evaluated object - must fail",
+			globals: Globals(
+				Expr("value", `{
+					a = 1
+				}`),
+			),
+			config: Doc(
+				Expr("test", `<<-EOT
+${global.value}
+EOT
+`),
+			),
+			wantErr: errors.E(eval.ErrPartial),
+		},
+		{
+			name: "HEREDOCs partial evaluated list - must fail",
+			globals: Globals(
+				Expr("value", `[]`),
+			),
+			config: Doc(
+				Expr("test", `<<-EOT
+${global.value}
+EOT
+`),
+			),
+			wantErr: errors.E(eval.ErrPartial),
+		},
+		{
 			name: "tm_hcl_expression from string",
 			config: Doc(
 				Expr("a", `tm_hcl_expression("{ a = b }")`),

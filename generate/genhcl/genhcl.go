@@ -246,7 +246,7 @@ func Load(
 
 		formatted, err := fmt.FormatMultiline(string(gen.Bytes()), hclBlock.Range.HostPath())
 		if err != nil {
-			panic(errors.E(st, err,
+			panic(errors.E(err,
 				"internal error: formatting generated code for generate_hcl %q:%s", name, string(gen.Bytes()),
 			))
 		}
