@@ -498,9 +498,9 @@ func TestGenerateHCL(t *testing.T) {
 						condition: true,
 						body: Block("testblock2",
 							EvalExpr(t, "obj", `{
-								string = "string"
-								number = 777
 								bool   = true
+								number = 777
+								string = "string"
 							}`),
 						),
 					},

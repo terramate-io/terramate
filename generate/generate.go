@@ -192,6 +192,9 @@ func Do(
 		vendorRequests, doStackGeneration)
 	rootReport := doRootGeneration(root)
 	report := mergeReports(stackReport, rootReport)
+	defer func() {
+		fmt.Printf("\n")
+	}()
 	return cleanupOrphaned(root, report)
 }
 

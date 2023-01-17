@@ -286,7 +286,7 @@ func E(args ...interface{}) *Error {
 // isEmpty tells if all fields of this error are empty.
 // Note that e.Err is the underlying error hence not checked.
 func (e *Error) isEmpty() bool {
-	return e.FileRange == hcl.Range{} && e.Kind == "" && e.Description == ""
+	return e.FileRange == hcl.Range{} && e.Kind == "" && e.Description == "" && e.Err == nil
 }
 
 func (e *Error) error(fields []interface{}, verbose bool) string {

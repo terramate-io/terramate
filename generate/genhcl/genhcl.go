@@ -315,6 +315,27 @@ func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval hcl.Evaluator) erro
 
 	logger.Trace().Msg("sorting attributes")
 
+	setVal := func(name string, val cty.Value) (err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				err = errors.E(r)
+			}
+		}()
+
+		dest.SetAttributeValue(name, val)
+		return nil
+	}
+
+	isPartialExpr := func(expr hhcl.Expression) bool {
+		vars := expr.Variables()
+		for _, v := range vars {
+			if v.RootName() != "global" || v.RootName() != "terramate" {
+				return true
+			}
+		}
+		return false
+	}
+
 	attrs := ast.SortRawAttributes(ast.AsHCLAttributes(src.Attributes))
 	for _, attr := range attrs {
 		logger := logger.With().
@@ -322,6 +343,31 @@ func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval hcl.Evaluator) erro
 			Logger()
 
 		logger.Trace().Msg("evaluating.")
+
+		if !isPartialExpr(attr.Expr) {
+			val, err := eval.Eval(attr.Expr)
+			if err == nil {
+				err = setVal(attr.Name, val)
+				if err == nil {
+					stdfmt.Printf("+")
+					continue
+				}
+			}
+
+			// even thought we know there's only global or terramate variables
+			// at this point, still the expression can contain unknown function
+			// calls like (upper(), regex(), etc), then it will fail the eval
+			// and we are going to fallback to partialEval in those cases.
+
+			// if the evaluated value contains customdecode.ExpressionVal then
+			// the hashicorp dest.SetAttributeValue() cannot convert it back to
+			// tokens and panics.
+			// So if the set fails for any reason, we fallback to partial-eval
+			// as well.
+		}
+
+		stdfmt.Printf(".")
+
 		tokens, err := eval.PartialEval(attr.Expr)
 		if err != nil {
 			return errors.E(err, attr.Expr.Range())

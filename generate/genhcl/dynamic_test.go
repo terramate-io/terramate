@@ -1477,7 +1477,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(eval.ErrPartial),
+			wantErr: errors.E(eval.ErrEval),
 		},
 		{
 			name:  "tm_dynamic with non-iterable for_each fail",
