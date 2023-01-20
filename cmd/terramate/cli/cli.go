@@ -33,8 +33,10 @@ import (
 	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/globals"
+	"github.com/mineiros-io/terramate/hcl/dynexpr"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/fmt"
+	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/modvendor/download"
 
 	"github.com/mineiros-io/terramate/stack/trigger"
@@ -177,17 +179,20 @@ type cliSpec struct {
 		} `cmd:"" help:"Manages vendored Terraform modules"`
 
 		Eval struct {
-			AsJSON bool     `help:"Outputs the result as a JSON value"`
-			Exprs  []string `arg:"" help:"expressions to be evaluated" name:"expr" passthrough:""`
+			Global map[string]string `short:"g" help:"set/override globals. eg.: --global name=<expr>"`
+			AsJSON bool              `help:"Outputs the result as a JSON value"`
+			Exprs  []string          `arg:"" help:"expressions to be evaluated" name:"expr" passthrough:""`
 		} `cmd:"" help:"Eval expression"`
 
 		PartialEval struct {
-			Exprs []string `arg:"" help:"expressions to be partially evaluated" name:"expr" passthrough:""`
+			Global map[string]string `short:"g" help:"set/override globals. eg.: --global name=<expr>"`
+			Exprs  []string          `arg:"" help:"expressions to be partially evaluated" name:"expr" passthrough:""`
 		} `cmd:"" help:"Partial evaluate the expressions"`
 
 		GetConfigValue struct {
-			AsJSON bool     `help:"Outputs the result as a JSON value"`
-			Vars   []string `arg:"" help:"variable to be retrieved" name:"var" passthrough:""`
+			Global map[string]string `short:"g" help:"set/override globals. eg.: --global name=<expr>"`
+			AsJSON bool              `help:"Outputs the result as a JSON value"`
+			Vars   []string          `arg:"" help:"variable to be retrieved" name:"var" passthrough:""`
 		} `cmd:"" help:"Get configuration value"`
 	} `cmd:"" help:"Experimental features (may change or be removed in the future)"`
 }
@@ -1327,9 +1332,9 @@ func (c *cli) checkGenCode() bool {
 }
 
 func (c *cli) eval() {
-	ctx := c.setupEvalContext()
+	ctx := c.setupEvalContext(c.parsedArgs.Experimental.Eval.Global)
 	for _, exprStr := range c.parsedArgs.Experimental.Eval.Exprs {
-		expr, err := eval.ParseExpressionBytes([]byte(exprStr))
+		expr, err := dynexpr.ParseExpressionBytes([]byte(exprStr))
 		if err != nil {
 			fatal(err)
 		}
@@ -1344,9 +1349,9 @@ func (c *cli) eval() {
 }
 
 func (c *cli) partialEval() {
-	ctx := c.setupEvalContext()
+	ctx := c.setupEvalContext(c.parsedArgs.Experimental.PartialEval.Global)
 	for _, exprStr := range c.parsedArgs.Experimental.PartialEval.Exprs {
-		expr, err := eval.ParseExpressionBytes([]byte(exprStr))
+		expr, err := dynexpr.ParseExpressionBytes([]byte(exprStr))
 		if err != nil {
 			fatal(err)
 		}
@@ -1365,9 +1370,9 @@ func (c *cli) getConfigValue() {
 		Str("action", "cli.getConfigValue()").
 		Logger()
 
-	ctx := c.setupEvalContext()
+	ctx := c.setupEvalContext(c.parsedArgs.Experimental.GetConfigValue.Global)
 	for _, exprStr := range c.parsedArgs.Experimental.GetConfigValue.Vars {
-		expr, err := eval.ParseExpressionBytes([]byte(exprStr))
+		expr, err := dynexpr.ParseExpressionBytes([]byte(exprStr))
 		if err != nil {
 			fatal(err)
 		}
@@ -1415,7 +1420,7 @@ func (c *cli) outputEvalResult(val cty.Value, asJSON bool) {
 	c.output.MsgStdOut(string(data))
 }
 
-func (c *cli) setupEvalContext() *eval.Context {
+func (c *cli) setupEvalContext(overrideGlobals map[string]string) *eval.Context {
 	ctx := eval.NewContext(stdlib.Functions(c.wd()))
 	runtime := c.cfg().Runtime()
 	if config.IsStack(c.cfg(), c.wd()) {
@@ -1424,12 +1429,40 @@ func (c *cli) setupEvalContext() *eval.Context {
 			fatal(err, "setup eval context: loading stack config")
 		}
 		runtime.Merge(st.RuntimeValues(c.cfg()))
-
 	}
 
 	ctx.SetNamespace("terramate", runtime)
 
-	globals.ForDir(c.cfg(), prj.PrjAbsPath(c.rootdir(), c.wd()), ctx)
+	wdPath := prj.PrjAbsPath(c.rootdir(), c.wd())
+	exprs, err := globals.LoadExprs(c.cfg(), wdPath)
+	if err != nil {
+		fatal(err, "loading globals expressions")
+	}
+
+	for name, exprStr := range overrideGlobals {
+		expr, err := dynexpr.ParseExpressionBytes([]byte(exprStr))
+		if err != nil {
+			fatal(err, "--global %s=%s is an invalid expresssion", name, exprStr)
+		}
+		parts := strings.Split(name, ".")
+		length := len(parts)
+		globalPath := globals.NewGlobalAttrPath(parts[0:length-1], parts[length-1])
+		exprs.SetOverride(
+			wdPath,
+			globalPath,
+			expr,
+			info.NewRange(c.rootdir(), hhcl.Range{
+				Filename: "<eval argument>",
+				Start:    hhcl.InitialPos,
+				End:      hhcl.InitialPos,
+			}),
+		)
+	}
+
+	report := exprs.Eval(ctx)
+	if err := report.AsError(); err != nil {
+		fatal(err, "setting up evaluation context")
+	}
 	return ctx
 }
 

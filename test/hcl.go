@@ -27,6 +27,7 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/ast"
+	"github.com/mineiros-io/terramate/hcl/dynexpr"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
@@ -102,7 +103,7 @@ func AssertDiff(t *testing.T, got, want interface{}, msg ...interface{}) {
 func NewExpr(t *testing.T, expr string) hhcl.Expression {
 	t.Helper()
 
-	res, err := eval.ParseExpressionBytes([]byte(expr))
+	res, err := dynexpr.ParseExpressionBytes([]byte(expr))
 	assert.NoError(t, err)
 	return res
 }

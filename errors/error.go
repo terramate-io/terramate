@@ -26,6 +26,7 @@ import (
 	"syscall"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/mineiros-io/terramate/hcl/dynexpr/dynrange"
 	"github.com/mineiros-io/terramate/hcl/info"
 )
 
@@ -155,7 +156,7 @@ func E(args ...interface{}) *Error {
 		case Kind:
 			e.Kind = arg
 		case hcl.Range:
-			e.FileRange = arg
+			e.FileRange = dynrange.Fixup(arg)
 		case info.Range:
 			start := arg.Start()
 			end := arg.End()
@@ -249,7 +250,7 @@ func E(args ...interface{}) *Error {
 	switch prev := e.Err.(type) {
 	case *hcl.Diagnostic:
 		if prev.Subject != nil && e.FileRange.Empty() {
-			e.FileRange = *prev.Subject
+			e.FileRange = dynrange.Fixup(*prev.Subject)
 		}
 
 		if e.Description == "" {
@@ -304,13 +305,13 @@ func (e *Error) error(fields []interface{}, verbose bool) string {
 					errParts = append(errParts,
 						fmt.Sprintf("filename=%q, start line=%d, start col=%d, "+
 							"start byte=%d, end line=%d, end col=%d, end byte=%d",
-							cleanFilename(v.Filename),
+							fixupFilename(v.Filename),
 							v.Start.Line, v.Start.Column, v.Start.Byte,
 							v.End.Line, v.End.Column, v.End.Byte),
 					)
 				} else {
 					copiedRange := v
-					copiedRange.Filename = cleanFilename(copiedRange.Filename)
+					copiedRange.Filename = fixupFilename(copiedRange.Filename)
 					errParts = append(errParts, copiedRange.String())
 				}
 			}
@@ -445,12 +446,12 @@ func As(err error, target interface{}) bool {
 	return errors.As(err, target)
 }
 
-// cleanFilename will clean the given filename returning a placeholder if
+// fixupFilename will clean the given filename returning a placeholder if
 // it is not a valid unix/win path. This is necessary since we use some
 // hacks on partial evaluation like adding a Filename on expressions that
 // is not a valid path but that includes information required by terramate
 // embedded on them, like the expression raw bytes.
-func cleanFilename(fname string) string {
+func fixupFilename(fname string) string {
 	// One of the few restrictions for paths to be valid is to not
 	// have any NUL bytes in the middle of the string.
 	if _, err := syscall.BytePtrFromString(fname); err != nil {

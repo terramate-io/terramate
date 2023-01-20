@@ -15,9 +15,11 @@
 package e2etest
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
+	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
@@ -34,13 +36,14 @@ func TestExpEval(t *testing.T) {
 			add  *hclwrite.Block
 		}
 		testcase struct {
-			name        string
-			layout      []string
-			wd          string
-			globals     []globalsBlock
-			expr        string
-			wantEval    runExpected
-			wantPartial runExpected
+			name            string
+			layout          []string
+			wd              string
+			globals         []globalsBlock
+			overrideGlobals map[string]string
+			expr            string
+			wantEval        runExpected
+			wantPartial     runExpected
 		}
 	)
 
@@ -133,25 +136,6 @@ func TestExpEval(t *testing.T) {
 			},
 		},
 		{
-			name: "partially successfully globals - not a stack, evaluating the defined global",
-			globals: []globalsBlock{
-				{
-					path: "/",
-					add: Globals(
-						Str("val", "global string"),
-						Expr("unknown", "terramate.stack.name"),
-					),
-				},
-			},
-			expr: `global.val`,
-			wantEval: runExpected{
-				Stdout: addnl(`global string`),
-			},
-			wantPartial: runExpected{
-				Stdout: addnl(`"global string"`),
-			},
-		},
-		{
 			name: "partially successfully globals - not a stack, evaluating the undefined global",
 			globals: []globalsBlock{
 				{
@@ -213,6 +197,102 @@ func TestExpEval(t *testing.T) {
 				Stdout: addnl(`unknown.num + 1000`),
 			},
 		},
+		{
+			name: "set-global + eval",
+			overrideGlobals: map[string]string{
+				"value": `tm_upper("value")`,
+			},
+			expr: `global.value`,
+			wantEval: runExpected{
+				Stdout: addnl("VALUE"),
+			},
+			wantPartial: runExpected{
+				Stdout: addnl(`"VALUE"`),
+			},
+		},
+		{
+			name: "setting multiple globals with dependency",
+			overrideGlobals: map[string]string{
+				"leaf": `tm_upper("leaf")`,
+				"mid":  `"mid-${global.leaf}"`,
+				"root": `"root-${global.mid}"`,
+			},
+			expr: `global.root`,
+			wantEval: runExpected{
+				Stdout: addnl("root-mid-LEAF"),
+			},
+			wantPartial: runExpected{
+				Stdout: addnl(`"root-mid-LEAF"`),
+			},
+		},
+		{
+			name: "override defined global",
+			overrideGlobals: map[string]string{
+				"value": `"BBB"`,
+			},
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add: Globals(
+						Str("value", "AAA"),
+					),
+				},
+			},
+			expr: `global.value`,
+			wantEval: runExpected{
+				Stdout: addnl("BBB"),
+			},
+			wantPartial: runExpected{
+				Stdout: addnl(`"BBB"`),
+			},
+		},
+		{
+			name: "override underspecified global",
+			overrideGlobals: map[string]string{
+				"value": `"AAA"`,
+			},
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add: Globals(
+						// this would be a hard fail if the --global is not provided
+						Expr("value", `something.that.does.not.exists`),
+					),
+				},
+			},
+			expr: `global.value`,
+			wantEval: runExpected{
+				Stdout: addnl("AAA"),
+			},
+			wantPartial: runExpected{
+				Stdout: addnl(`"AAA"`),
+			},
+		},
+		{
+			name: "underspecified globals still fail",
+			overrideGlobals: map[string]string{
+				"value": `"AAA"`,
+			},
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add: Globals(
+						// this would be a hard fail if the --global is not provided
+						Expr("value", `something.that.does.not.exists`),
+						Expr("another_value", `something.that.does.not.exists`),
+					),
+				},
+			},
+			expr: `global.value`,
+			wantEval: runExpected{
+				StderrRegex: string(globals.ErrEval),
+				Status:      1,
+			},
+			wantPartial: runExpected{
+				StderrRegex: string(globals.ErrEval),
+				Status:      1,
+			},
+		},
 	}
 
 	for _, tcase := range testcases {
@@ -221,9 +301,7 @@ func TestExpEval(t *testing.T) {
 			t.Parallel()
 
 			s := sandbox.New(t)
-
 			s.BuildTree(tc.layout)
-
 			for _, globalBlock := range tc.globals {
 				path := filepath.Join(s.RootDir(), globalBlock.path)
 				test.AppendFile(t, path, "globals.tm",
@@ -232,8 +310,17 @@ func TestExpEval(t *testing.T) {
 
 			test.WriteRootConfig(t, s.RootDir())
 			ts := newCLI(t, filepath.Join(s.RootDir(), tc.wd))
-			assertRunResult(t, ts.run("experimental", "eval", tc.expr), tc.wantEval)
-			assertRunResult(t, ts.run("experimental", "partial-eval", tc.expr), tc.wantPartial)
+			globalArgs := []string{}
+			for globalName, globalExpr := range tc.overrideGlobals {
+				globalArgs = append(globalArgs, "--global")
+				globalArgs = append(globalArgs, fmt.Sprintf("%s=%s", globalName, globalExpr))
+			}
+			evalArgs := append([]string{"experimental", "eval"}, globalArgs...)
+			partialArgs := append([]string{"experimental", "partial-eval"}, globalArgs...)
+			evalArgs = append(evalArgs, tc.expr)
+			partialArgs = append(partialArgs, tc.expr)
+			assertRunResult(t, ts.run(evalArgs...), tc.wantEval)
+			assertRunResult(t, ts.run(partialArgs...), tc.wantPartial)
 		})
 	}
 }
@@ -247,12 +334,13 @@ func TestGetConfigValue(t *testing.T) {
 			add  *hclwrite.Block
 		}
 		testcase struct {
-			name    string
-			layout  []string
-			wd      string
-			globals []globalsBlock
-			expr    string
-			want    runExpected
+			name            string
+			layout          []string
+			wd              string
+			globals         []globalsBlock
+			overrideGlobals map[string]string
+			expr            string
+			want            runExpected
 		}
 	)
 
@@ -340,6 +428,24 @@ func TestGetConfigValue(t *testing.T) {
 				Stdout: addnl(`hello`),
 			},
 		},
+		{
+			name: "get-config-value with overridden globals",
+			globals: []globalsBlock{
+				{
+					path: "/",
+					add: Globals(
+						Number("val", 1000),
+					),
+				},
+			},
+			overrideGlobals: map[string]string{
+				"val": "1",
+			},
+			expr: `global.val`,
+			want: runExpected{
+				Stdout: addnl("1"),
+			},
+		},
 	}
 
 	for _, tcase := range testcases {
@@ -359,7 +465,14 @@ func TestGetConfigValue(t *testing.T) {
 
 			test.WriteRootConfig(t, s.RootDir())
 			ts := newCLI(t, filepath.Join(s.RootDir(), tc.wd))
-			assertRunResult(t, ts.run("experimental", "get-config-value", tc.expr), tc.want)
+			globalArgs := []string{}
+			for globalName, globalExpr := range tc.overrideGlobals {
+				globalArgs = append(globalArgs, "--global")
+				globalArgs = append(globalArgs, fmt.Sprintf("%s=%s", globalName, globalExpr))
+			}
+			args := append([]string{"experimental", "get-config-value"}, globalArgs...)
+			args = append(args, tc.expr)
+			assertRunResult(t, ts.run(args...), tc.want)
 		})
 	}
 }
