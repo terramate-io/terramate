@@ -740,7 +740,7 @@ func (git *Git) ListUncommitted(dirs ...string) ([]string, error) {
 
 // Root returns the git root directory.
 func (git *Git) Root() (string, error) {
-	return git.exec("rev-parse", "--git-dir")
+	return git.exec("rev-parse", "--show-toplevel")
 }
 
 // IsRepository tell if the git wrapper setup is operating in a valid git
