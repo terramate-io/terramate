@@ -1756,18 +1756,13 @@ func lookupProject(wd string) (prj project, found bool, err error) {
 				gitabs = filepath.Join(wd, gitdir)
 			}
 
-			if err != nil {
-				return project{}, false, errors.E(err, "getting absolute path of %q", gitdir)
-			}
-
 			logger.Trace().Msg("Evaluate symbolic links.")
 
-			gitabs, err = filepath.EvalSymlinks(gitabs)
+			rootdir, err := filepath.EvalSymlinks(gitabs)
 			if err != nil {
 				return project{}, false, errors.E(err, "failed evaluating symlinks of %q", gitabs)
 			}
 
-			rootdir := filepath.Dir(gitabs)
 			if rootfound && strings.HasPrefix(rootCfgPath, rootdir) && rootCfgPath != rootdir {
 				log.Warn().
 					Str("rootConfig", rootCfgPath).
