@@ -15,7 +15,9 @@ func TokensForExpression(expr hclsyntax.Expression) hclwrite.Tokens {
 	case *hclsyntax.TemplateExpr:
 		return templateTokens(e)
 	case *hclsyntax.BinaryOpExpr:
-		return binopTokens(e)
+		return binOpTokens(e)
+	case *hclsyntax.UnaryOpExpr:
+		return unaryOpTokens(e)
 	case *hclsyntax.TupleConsExpr:
 		return tupleTokens(e)
 	case *hclsyntax.ObjectConsExpr:
@@ -51,26 +53,52 @@ func templateTokens(tmpl *hclsyntax.TemplateExpr) hclwrite.Tokens {
 	return tokens
 }
 
-func binopTokens(binop *hclsyntax.BinaryOpExpr) hclwrite.Tokens {
+func binOpTokens(binop *hclsyntax.BinaryOpExpr) hclwrite.Tokens {
 	tokens := hclwrite.Tokens{}
 	tokens = append(tokens, TokensForExpression(binop.LHS)...)
-	var op *hclwrite.Token
+	var op hclwrite.Tokens
 	switch binop.Op {
 	case hclsyntax.OpAdd:
-		op = add()
+		op = append(op, add())
 	case hclsyntax.OpSubtract:
-		op = minus()
+		op = append(op, minus())
 	case hclsyntax.OpDivide:
-		op = slash()
+		op = append(op, slash())
 	case hclsyntax.OpMultiply:
-		op = star()
+		op = append(op, star())
 	case hclsyntax.OpModulo:
-		op = percent()
+		op = append(op, percent())
+	case hclsyntax.OpEqual:
+		op = append(op, assign(), assign())
+	case hclsyntax.OpNotEqual:
+		op = append(op, bang(), assign())
+	case hclsyntax.OpGreaterThan:
+		op = append(op, gtr())
+	case hclsyntax.OpLessThan:
+		op = append(op, lss())
+	case hclsyntax.OpLessThanOrEqual:
+		op = append(op, lss(), assign())
+	case hclsyntax.OpGreaterThanOrEqual:
+		op = append(op, gtr(), assign())
 	default:
 		panic("not supported")
 	}
-	tokens = append(tokens, op)
+	tokens = append(tokens, op...)
 	tokens = append(tokens, TokensForExpression(binop.RHS)...)
+	return tokens
+}
+
+func unaryOpTokens(unary *hclsyntax.UnaryOpExpr) hclwrite.Tokens {
+	tokens := hclwrite.Tokens{}
+	switch unary.Op {
+	case hclsyntax.OpLogicalNot:
+		tokens = append(tokens, bang())
+	case hclsyntax.OpNegate:
+		tokens = append(tokens, minus())
+	default:
+		panic("unsupported unary")
+	}
+	tokens = append(tokens, TokensForExpression(unary.Val)...)
 	return tokens
 }
 
@@ -247,6 +275,27 @@ func assign() *hclwrite.Token {
 	return &hclwrite.Token{
 		Type:  hclsyntax.TokenEqual,
 		Bytes: []byte{'='},
+	}
+}
+
+func gtr() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenGreaterThan,
+		Bytes: []byte{'>'},
+	}
+}
+
+func lss() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenLessThan,
+		Bytes: []byte{'<'},
+	}
+}
+
+func bang() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenBang,
+		Bytes: []byte{'!'},
 	}
 }
 

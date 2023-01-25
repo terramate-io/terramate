@@ -156,6 +156,38 @@ func TestAstExpressionToTokens(t *testing.T) {
 			name: "arithmetic binary operation (%)",
 			expr: `1%1`,
 		},
+		{
+			name: "arithmetic unary operation (-)",
+			expr: `-1`,
+		},
+		{
+			name: "logical binary operation (==)",
+			expr: `1==1`,
+		},
+		{
+			name: "logical binary operation (!=)",
+			expr: `1!=1`,
+		},
+		{
+			name: "logical binary operation (<)",
+			expr: `1<1`,
+		},
+		{
+			name: "logical binary operation (>)",
+			expr: `1>1`,
+		},
+		{
+			name: "logical binary operation (<=)",
+			expr: `1<=1`,
+		},
+		{
+			name: "logical binary operation (>=)",
+			expr: `1>=1`,
+		},
+		{
+			name: "logical operation (!)",
+			expr: `!true`,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			expr, diags := hclsyntax.ParseExpression([]byte(tc.expr), "test.hcl", hcl.InitialPos)
