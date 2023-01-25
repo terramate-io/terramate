@@ -1459,10 +1459,7 @@ func (c *cli) setupEvalContext(overrideGlobals map[string]string) *eval.Context 
 		)
 	}
 
-	report := exprs.Eval(ctx)
-	if err := report.AsError(); err != nil {
-		fatal(err, "setting up evaluation context")
-	}
+	_ = exprs.Eval(ctx)
 	return ctx
 }
 
