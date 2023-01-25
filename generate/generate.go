@@ -276,6 +276,7 @@ func doStackGeneration(
 
 			report.addCreatedFile(filename)
 		} else {
+			delete(allFiles, filename)
 			if body != oldFileBody {
 				log.Info().
 					Stringer("stack", stack.Dir).
@@ -284,7 +285,6 @@ func doStackGeneration(
 
 				report.addChangedFile(filename)
 			}
-			delete(allFiles, filename)
 		}
 	}
 
@@ -293,6 +293,7 @@ func doStackGeneration(
 			Stringer("stack", stack.Dir).
 			Str("file", filename).
 			Msg("deleted file")
+
 		report.addDeletedFile(filename)
 
 		path := filepath.Join(stackpath, filename)
@@ -301,6 +302,7 @@ func doStackGeneration(
 			report.err = errors.E("removing file %s", filename)
 			return report
 		}
+
 		delete(allFiles, filename)
 	}
 
