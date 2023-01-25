@@ -830,14 +830,6 @@ func allStackGeneratedFiles(
 	dir string,
 	genfiles []GenFile,
 ) (map[string]string, error) {
-	logger := log.With().
-		Str("action", "generate.removeStackGeneratedFiles()").
-		Str("root", root.HostDir()).
-		Str("dir", dir).
-		Logger()
-
-	logger.Trace().Msg("listing generated files")
-
 	allFiles := map[string]string{}
 	files, err := ListGenFiles(root, dir)
 	if err != nil {
@@ -855,20 +847,11 @@ func allStackGeneratedFiles(
 		}
 	}
 
-	logger.Trace().Msg("deleting all Terramate generated files")
-
 	for _, filename := range files {
-		logger := logger.With().
-			Str("filename", filename).
-			Logger()
-
-		logger.Trace().Msg("reading current file before removal")
-
 		path := filepath.Join(dir, filename)
 		body, err := os.ReadFile(path)
 		if err != nil {
 			if os.IsNotExist(err) {
-				logger.Trace().Msg("ignoring file since it doesn't exist")
 				continue
 			}
 			return nil, errors.E(err, "reading generated file")
