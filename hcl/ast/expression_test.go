@@ -83,12 +83,63 @@ func TestAstExpressionToTokens(t *testing.T) {
 		},
 		{
 			name: "funcall with literal args",
-			expr: `test(1, 2, 2.5, "test", 1)`,
+			expr: `test(1, 2, 2.5, "test", 1, another_funcall(1, 2, 3))`,
+		},
+		{
+			name: "funcall with complex args",
+			expr: `test({
+				a = 1
+				fn = funcall(1, 2)
+			}, [{}, {
+				a = 2
+				}, 3, [2, 3, 4]], 2.5, "test", 1, {
+				name = "terramate"
+			})`,
+		},
+		{
+			name: "namespace",
+			expr: `abc`,
+		},
+		{
+			name: "traversal",
+			expr: `abc.xyz`,
+		},
+		{
+			name: "namespace with number indexing",
+			expr: `abc[0]`,
+		},
+		{
+			name: "namespace with namespace indexing",
+			expr: `abc[xyz]`,
+		},
+		{
+			name: "namespace with namespace with namespace indexing",
+			expr: `abc[xyz[xpto]]`,
+		},
+		{
+			name: "namespace with indexing traversal",
+			expr: `abc[xyz.xpto]`,
+		},
+		{
+			name: "namespace with indexing traversal with indexing",
+			expr: `abc[xyz.xpto[0]]`,
+		},
+		{
+			name: "simple splat",
+			expr: `abc[*]`,
+		},
+		{
+			name: "splat with attr selection",
+			expr: `abc[*].id`,
+		},
+		{
+			name: "splat with traversal selection",
+			expr: `abc[*].a.b.c.d`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			expr, diags := hclsyntax.ParseExpression([]byte(tc.expr), "test.hcl", hcl.InitialPos)
-			assert.IsTrue(t, !diags.HasErrors())
+			assert.IsTrue(t, !diags.HasErrors(), diags.Error())
 			got := ast.TokensForExpression(expr)
 			fmtWant := string(hclwrite.Format([]byte(tc.expr)))
 			fmtGot := string(hclwrite.Format(got.Bytes()))

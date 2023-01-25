@@ -25,9 +25,17 @@ func TokensForExpression(expr hclsyntax.Expression) hclwrite.Tokens {
 	case *hclsyntax.ObjectConsKeyExpr:
 		return objectKeyTokens(e)
 	case *hclsyntax.ScopeTraversalExpr:
-		return scopeTravTokens(e)
+		return scopeTraversalTokens(e)
 	case *hclsyntax.FunctionCallExpr:
 		return funcallTokens(e)
+	case *hclsyntax.IndexExpr:
+		return indexTokens(e)
+	case *hclsyntax.SplatExpr:
+		return splatTokens(e)
+	case *hclsyntax.AnonSymbolExpr:
+		return anonSplatTokens(e)
+	case *hclsyntax.RelativeTraversalExpr:
+		return relTraversalTokens(e)
 	default:
 		panic(fmt.Sprintf("type %T\n", e))
 	}
@@ -96,24 +104,64 @@ func funcallTokens(fn *hclsyntax.FunctionCallExpr) hclwrite.Tokens {
 	return tokens
 }
 
-func scopeTravTokens(scope *hclsyntax.ScopeTraversalExpr) hclwrite.Tokens {
+func indexTokens(index *hclsyntax.IndexExpr) hclwrite.Tokens {
 	tokens := hclwrite.Tokens{}
-	for i, traversal := range scope.Traversal {
-		var name string
+	tokens = append(tokens, TokensForExpression(index.Collection)...)
+	tokens = append(tokens, obrack())
+	tokens = append(tokens, TokensForExpression(index.Key)...)
+	tokens = append(tokens, cbrack())
+	return tokens
+}
+
+func splatTokens(splat *hclsyntax.SplatExpr) hclwrite.Tokens {
+	tokens := hclwrite.Tokens{}
+	tokens = append(tokens, TokensForExpression(splat.Source)...)
+	tokens = append(tokens, obrack())
+	tokens = append(tokens, star())
+	tokens = append(tokens, cbrack())
+	tokens = append(tokens, TokensForExpression(splat.Each)...)
+
+	return tokens
+}
+
+func anonSplatTokens(anon *hclsyntax.AnonSymbolExpr) hclwrite.Tokens {
+	// this node is solely used during the splat evaluation.
+	return hclwrite.Tokens{}
+}
+
+func scopeTraversalTokens(scope *hclsyntax.ScopeTraversalExpr) hclwrite.Tokens {
+	tokens := hclwrite.Tokens{}
+	tokens = append(tokens, traversalTokens(scope.Traversal)...)
+	return tokens
+}
+
+func traversalTokens(traversals hcl.Traversal) hclwrite.Tokens {
+	tokens := hclwrite.Tokens{}
+	for i, traversal := range traversals {
 		switch t := traversal.(type) {
 		case hcl.TraverseRoot:
-			name = t.Name
+			if i > 0 {
+				panic("malformed hcl")
+			}
+			tokens = append(tokens, ident(t.Name))
 		case hcl.TraverseAttr:
-			name = t.Name
+			tokens = append(tokens, dot(), ident(t.Name))
+		case hcl.TraverseIndex:
+			tokens = append(tokens, obrack())
+			tokens = append(tokens, hclwrite.TokensForValue(t.Key)...)
+			tokens = append(tokens, cbrack())
 		default:
 			panic(fmt.Sprintf("unsupported traversal: %T", t))
 		}
-		tokens = append(tokens, ident(name))
-		if i+1 != len(scope.Traversal) {
-			tokens = append(tokens, dot())
-		}
 	}
+	return tokens
+}
 
+func relTraversalTokens(traversal *hclsyntax.RelativeTraversalExpr) hclwrite.Tokens {
+	tokens := hclwrite.Tokens{}
+	tokens = append(tokens, TokensForExpression(traversal.Source)...)
+	tokens = append(tokens, traversalTokens(traversal.Traversal)...)
+	//panic(traversal)
 	return tokens
 }
 
@@ -142,6 +190,27 @@ func cparen() *hclwrite.Token {
 	return &hclwrite.Token{
 		Type:  hclsyntax.TokenOParen,
 		Bytes: []byte{')'},
+	}
+}
+
+func obrack() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenOBrack,
+		Bytes: []byte{'['},
+	}
+}
+
+func cbrack() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenCBrack,
+		Bytes: []byte{']'},
+	}
+}
+
+func star() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenStar,
+		Bytes: []byte{'*'},
 	}
 }
 
