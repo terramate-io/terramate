@@ -309,37 +309,20 @@ func loadGenHCLBlocks(root *config.Root, cfgdir project.Path) ([]hcl.GenHCLBlock
 //
 // Returns an error if the evaluation fails.
 func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval hcl.Evaluator) error {
-	logger := log.With().
-		Str("action", "genhcl.copyBody()").
-		Logger()
-
-	logger.Trace().Msg("sorting attributes")
-
 	attrs := ast.SortRawAttributes(ast.AsHCLAttributes(src.Attributes))
 	for _, attr := range attrs {
-		logger := logger.With().
-			Str("attrName", attr.Name).
-			Logger()
-
-		logger.Trace().Msg("evaluating.")
 		tokens, err := eval.PartialEval(attr.Expr)
 		if err != nil {
 			return errors.E(err, attr.Expr.Range())
 		}
-
-		logger.Trace().Str("attribute", attr.Name).Msg("Setting evaluated attribute.")
 		dest.SetAttributeRaw(attr.Name, tokens)
 	}
-
-	logger.Trace().Msg("appending blocks")
-
 	for _, block := range src.Blocks {
 		err := appendBlock(dest, block, eval)
 		if err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
