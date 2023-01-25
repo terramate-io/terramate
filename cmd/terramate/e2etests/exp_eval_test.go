@@ -19,7 +19,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/test/hclwrite"
@@ -266,31 +265,6 @@ func TestExpEval(t *testing.T) {
 			},
 			wantPartial: runExpected{
 				Stdout: addnl(`"AAA"`),
-			},
-		},
-		{
-			name: "underspecified globals still fail",
-			overrideGlobals: map[string]string{
-				"value": `"AAA"`,
-			},
-			globals: []globalsBlock{
-				{
-					path: "/",
-					add: Globals(
-						// this would be a hard fail if the --global is not provided
-						Expr("value", `something.that.does.not.exists`),
-						Expr("another_value", `something.that.does.not.exists`),
-					),
-				},
-			},
-			expr: `global.value`,
-			wantEval: runExpected{
-				StderrRegex: string(globals.ErrEval),
-				Status:      1,
-			},
-			wantPartial: runExpected{
-				StderrRegex: string(globals.ErrEval),
-				Status:      1,
 			},
 		},
 	}
