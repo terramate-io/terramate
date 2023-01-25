@@ -255,15 +255,20 @@ func doStackGeneration(
 			continue
 		}
 
-		err := writeGeneratedCode(path, file)
-		if err != nil {
-			report.err = errors.E(err, "saving file %q", filename)
-			return report
-		}
+		body := file.Header() + file.Body()
 
 		// Change detection + remove entries that got re-generated
-		oldFileBody, ok := allFiles[filename]
-		if !ok {
+		oldFileBody, oldExists := allFiles[filename]
+
+		if !oldExists || oldFileBody != body {
+			err := writeGeneratedCode(path, file)
+			if err != nil {
+				report.err = errors.E(err, "saving file %q", filename)
+				return report
+			}
+		}
+
+		if !oldExists {
 			log.Info().
 				Stringer("stack", stack.Dir).
 				Str("file", filename).
@@ -271,7 +276,6 @@ func doStackGeneration(
 
 			report.addCreatedFile(filename)
 		} else {
-			body := file.Header() + file.Body()
 			if body != oldFileBody {
 				log.Info().
 					Stringer("stack", stack.Dir).
@@ -298,10 +302,6 @@ func doStackGeneration(
 			return report
 		}
 		delete(allFiles, filename)
-	}
-
-	if len(allFiles) != 0 {
-		panic(fmt.Sprintf("%+v", allFiles))
 	}
 
 	logger.Debug().Msg("finished generating files")
