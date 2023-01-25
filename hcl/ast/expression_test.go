@@ -157,6 +157,10 @@ func TestAstExpressionToTokens(t *testing.T) {
 			expr: `1%1`,
 		},
 		{
+			name: "arithmetic n-ary operation (+)",
+			expr: `1+1+2+3+5+8+13+21`,
+		},
+		{
 			name: "arithmetic unary operation (-)",
 			expr: `-1`,
 		},
@@ -187,6 +191,35 @@ func TestAstExpressionToTokens(t *testing.T) {
 		{
 			name: "logical operation (!)",
 			expr: `!true`,
+		},
+		{
+			name: "logical operation (&&)",
+			expr: `false && false`,
+		},
+		{
+			name: "logical operation (||)",
+			expr: `false || true`,
+		},
+		{
+			name: "logical operation - n-ary (||)",
+			expr: `a || b || c || d`,
+		},
+		{
+			name: "logical operation - n-ary (&&)",
+			expr: `a && b && c && d`,
+		},
+		{
+			name: "all-in-one",
+			expr: `{
+				a = [{
+						b = c.d+2+test()
+						c = a && b || c && !d
+						d = a+b-c*2/3+!2+test(1, 2, 3)
+					}, ["test", 1, {}],	func({}, [], "", 1, 2)]
+				b = x.y[*].z
+				c = a[0]
+				d = a[b.c[d.e[*].a]]
+			}`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

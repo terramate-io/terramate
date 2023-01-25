@@ -80,6 +80,10 @@ func binOpTokens(binop *hclsyntax.BinaryOpExpr) hclwrite.Tokens {
 		op = append(op, lss(), assign())
 	case hclsyntax.OpGreaterThanOrEqual:
 		op = append(op, gtr(), assign())
+	case hclsyntax.OpLogicalAnd:
+		op = append(op, and(), and())
+	case hclsyntax.OpLogicalOr:
+		op = append(op, pipe(), pipe())
 	default:
 		panic("not supported")
 	}
@@ -296,6 +300,20 @@ func bang() *hclwrite.Token {
 	return &hclwrite.Token{
 		Type:  hclsyntax.TokenBang,
 		Bytes: []byte{'!'},
+	}
+}
+
+func pipe() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenOr,
+		Bytes: []byte{'|'},
+	}
+}
+
+func and() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenAnd,
+		Bytes: []byte{'&'},
 	}
 }
 
