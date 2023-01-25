@@ -251,7 +251,6 @@ func doStackGeneration(
 
 		if !file.Condition() {
 			logger.Debug().Msg("condition is false, ignoring file")
-
 			continue
 		}
 
