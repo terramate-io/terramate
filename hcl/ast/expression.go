@@ -13,11 +13,9 @@ func TokensForExpression(expr hclsyntax.Expression) hclwrite.Tokens {
 	case *hclsyntax.LiteralValueExpr:
 		return literalTokens(e)
 	case *hclsyntax.TemplateExpr:
-		tokens := hclwrite.Tokens{}
-		for _, part := range e.Parts {
-			tokens = append(tokens, TokensForExpression(part)...)
-		}
-		return tokens
+		return templateTokens(e)
+	case *hclsyntax.BinaryOpExpr:
+		return binopTokens(e)
 	case *hclsyntax.TupleConsExpr:
 		return tupleTokens(e)
 	case *hclsyntax.ObjectConsExpr:
@@ -43,6 +41,37 @@ func TokensForExpression(expr hclsyntax.Expression) hclwrite.Tokens {
 
 func literalTokens(expr *hclsyntax.LiteralValueExpr) hclwrite.Tokens {
 	return hclwrite.TokensForValue(expr.Val)
+}
+
+func templateTokens(tmpl *hclsyntax.TemplateExpr) hclwrite.Tokens {
+	tokens := hclwrite.Tokens{}
+	for _, part := range tmpl.Parts {
+		tokens = append(tokens, TokensForExpression(part)...)
+	}
+	return tokens
+}
+
+func binopTokens(binop *hclsyntax.BinaryOpExpr) hclwrite.Tokens {
+	tokens := hclwrite.Tokens{}
+	tokens = append(tokens, TokensForExpression(binop.LHS)...)
+	var op *hclwrite.Token
+	switch binop.Op {
+	case hclsyntax.OpAdd:
+		op = add()
+	case hclsyntax.OpSubtract:
+		op = minus()
+	case hclsyntax.OpDivide:
+		op = slash()
+	case hclsyntax.OpMultiply:
+		op = star()
+	case hclsyntax.OpModulo:
+		op = percent()
+	default:
+		panic("not supported")
+	}
+	tokens = append(tokens, op)
+	tokens = append(tokens, TokensForExpression(binop.RHS)...)
+	return tokens
 }
 
 func tupleTokens(tuple *hclsyntax.TupleConsExpr) hclwrite.Tokens {
@@ -124,15 +153,8 @@ func splatTokens(splat *hclsyntax.SplatExpr) hclwrite.Tokens {
 	return tokens
 }
 
-func anonSplatTokens(anon *hclsyntax.AnonSymbolExpr) hclwrite.Tokens {
-	// this node is solely used during the splat evaluation.
-	return hclwrite.Tokens{}
-}
-
 func scopeTraversalTokens(scope *hclsyntax.ScopeTraversalExpr) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{}
-	tokens = append(tokens, traversalTokens(scope.Traversal)...)
-	return tokens
+	return traversalTokens(scope.Traversal)
 }
 
 func traversalTokens(traversals hcl.Traversal) hclwrite.Tokens {
@@ -214,6 +236,13 @@ func star() *hclwrite.Token {
 	}
 }
 
+func percent() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenPercent,
+		Bytes: []byte{'%'},
+	}
+}
+
 func assign() *hclwrite.Token {
 	return &hclwrite.Token{
 		Type:  hclsyntax.TokenEqual,
@@ -247,4 +276,30 @@ func nl() *hclwrite.Token {
 		Type:  hclsyntax.TokenNewline,
 		Bytes: []byte{'\n'},
 	}
+}
+
+func add() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenPlus,
+		Bytes: []byte{'+'},
+	}
+}
+
+func minus() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenMinus,
+		Bytes: []byte{'-'},
+	}
+}
+
+func slash() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenSlash,
+		Bytes: []byte{'/'},
+	}
+}
+
+func anonSplatTokens(anon *hclsyntax.AnonSymbolExpr) hclwrite.Tokens {
+	// this node is solely used during the splat evaluation.
+	return hclwrite.Tokens{}
 }

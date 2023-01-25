@@ -136,6 +136,26 @@ func TestAstExpressionToTokens(t *testing.T) {
 			name: "splat with traversal selection",
 			expr: `abc[*].a.b.c.d`,
 		},
+		{
+			name: "arithmetic binary operation (+)",
+			expr: `1+1`,
+		},
+		{
+			name: "arithmetic binary operation (-)",
+			expr: `1-1`,
+		},
+		{
+			name: "arithmetic binary operation (/)",
+			expr: `1/1`,
+		},
+		{
+			name: "arithmetic binary operation (*)",
+			expr: `1*1`,
+		},
+		{
+			name: "arithmetic binary operation (%)",
+			expr: `1%1`,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			expr, diags := hclsyntax.ParseExpression([]byte(tc.expr), "test.hcl", hcl.InitialPos)
