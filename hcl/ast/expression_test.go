@@ -209,17 +209,71 @@ func TestAstExpressionToTokens(t *testing.T) {
 			expr: `a && b && c && d`,
 		},
 		{
+			name: "parenthesis operations - unary - digit",
+			expr: `(1)`,
+		},
+		{
+			name: "parenthesis operations - unary - ident",
+			expr: `(a)`,
+		},
+		{
+			name: "parenthesis operations - unary - string",
+			expr: `("test")`,
+		},
+		{
+			name: "n-parenthesis operations - unary - ident",
+			expr: `((a))`,
+		},
+		{
+			name: "parenthesis operations - binary",
+			expr: `(a+1)`,
+		},
+		{
+			name: "basic conditional",
+			expr: `a ? b : c`,
+		},
+		{
+			name: "conditional with nesting",
+			expr: `a ? x ? y : z : c`,
+		},
+		{
+			name: "parenthesis with conditional with nesting",
+			expr: `a ? (x ? y : z) : c`,
+		},
+		{
+			name: "for-expr - list",
+			expr: `[for a in b : c]`,
+		},
+		{
+			name: "for-expr - list with exprs",
+			expr: `[for a in func() : func()]`,
+		},
+		{
+			name: "for-expr - list with cond",
+			expr: `[for a in func() : func() if cond()]`,
+		},
+		{
+			name: "for-expr - object",
+			expr: `{for k,v in c : k => v}`,
+		},
+		{
+			name: "for-expr - object with exprs and cond",
+			expr: `{for k,v in expr() : expr()+test() => expr()+test()+1 if expr()}`,
+		},
+		{
 			name: "all-in-one",
-			expr: `{
+			expr: `[{
 				a = [{
 						b = c.d+2+test()
-						c = a && b || c && !d
+						c = a && b || c && !d || a ? b : c
 						d = a+b-c*2/3+!2+test(1, 2, 3)
+						c = {for k,v in a.b.c : a() => b() if c}
+						d = [for v in a.b.c : a() if b ]
 					}, ["test", 1, {}],	func({}, [], "", 1, 2)]
 				b = x.y[*].z
 				c = a[0]
 				d = a[b.c[d.e[*].a]]
-			}`,
+			}]`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
