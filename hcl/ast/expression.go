@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 )
 
+// TokensForExpression generates valid tokens for the given expression.
 func TokensForExpression(expr hclsyntax.Expression) hclwrite.Tokens {
 	switch e := expr.(type) {
 	case *hclsyntax.LiteralValueExpr:
