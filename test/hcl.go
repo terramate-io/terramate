@@ -203,9 +203,7 @@ func exprAsStr(t *testing.T, expr hhcl.Expression) string {
 		return ""
 	}
 
-	tokens, err := eval.TokensForExpression(expr)
-	assert.NoError(t, err, "getting tokens from expression")
-
+	tokens := ast.TokensForExpression(expr)
 	return string(tokens.Bytes())
 }
 

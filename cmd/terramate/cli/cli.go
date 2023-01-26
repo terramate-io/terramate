@@ -1408,11 +1408,7 @@ func (c *cli) outputEvalResult(val cty.Value, asJSON bool) {
 		if val.Type() == cty.String {
 			data = []byte(val.AsString())
 		} else {
-			tokens, err := eval.TokensForValue(val)
-			if err != nil {
-				fatal(err, "serializing value %s", val.GoString())
-			}
-
+			tokens := eval.TokensForValue(val)
 			data = []byte(hclwrite.Format(tokens.Bytes()))
 		}
 	}

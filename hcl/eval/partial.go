@@ -811,12 +811,7 @@ func (e *engine) evalTmFuncall() error {
 		return errors.E(err, "evaluating expression: %s", expr)
 	}
 
-	evaluated, err := TokensForValue(val)
-	if err != nil {
-		return err
-	}
-
-	e.emitTokens(e.tokens[begin:e.pos], evaluated)
+	e.emitTokens(e.tokens[begin:e.pos], TokensForValue(val))
 	return nil
 }
 
