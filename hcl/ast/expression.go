@@ -238,7 +238,9 @@ func forExprTokens(forExpr *hclsyntax.ForExpr) hclwrite.Tokens {
 		tokens = append(tokens, ident(forExpr.ValVar, 1))
 	}
 	tokens = append(tokens, ident("in", 1))
-	tokens = append(tokens, tokensForExpression(forExpr.CollExpr)...)
+	in := tokensForExpression(forExpr.CollExpr)
+	in[0].SpacesBefore = 1
+	tokens = append(tokens, in...)
 	tokens = append(tokens, colon())
 	if forExpr.KeyExpr != nil {
 		tokens = append(tokens, tokensForExpression(forExpr.KeyExpr)...)
@@ -249,7 +251,9 @@ func forExprTokens(forExpr *hclsyntax.ForExpr) hclwrite.Tokens {
 	}
 	if forExpr.CondExpr != nil {
 		tokens = append(tokens, ident("if", 1))
-		tokens = append(tokens, tokensForExpression(forExpr.CondExpr)...)
+		iftoks := tokensForExpression(forExpr.CondExpr)
+		iftoks[0].SpacesBefore = 1
+		tokens = append(tokens, iftoks...)
 	}
 	tokens = append(tokens, end)
 	return tokens

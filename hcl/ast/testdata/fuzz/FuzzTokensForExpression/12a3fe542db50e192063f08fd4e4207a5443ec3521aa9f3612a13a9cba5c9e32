@@ -1,0 +1,2 @@
+go test fuzz v1
+string("[for A in 0:0]")

@@ -296,7 +296,7 @@ func TestAstExpressionToTokens(t *testing.T) {
 		},
 		{
 			name: "for-expr - object with exprs and cond",
-			expr: `{for k,v in expr() : expr()+test() => expr()+test()+1 if expr()}`,
+			expr: `{for k,v in expr() : expr()+test() => expr()+test()+1 if 0==0}`,
 		},
 		{
 			name: "all-in-one",
