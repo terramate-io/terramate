@@ -18,10 +18,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/hcl/ast"
 )
 
 // Errors returned when doing partial evaluation.
@@ -801,14 +801,14 @@ func (e *engine) evalTmFuncall() error {
 		expr = append(expr, part.Bytes...)
 	}
 
-	exprParsed, diags := hclsyntax.ParseExpression(expr, "gen.hcl", hcl.InitialPos)
-	if diags.HasErrors() {
-		return errors.E(diags, "evaluating expression: %s", expr)
+	exprParsed, err := ast.ParseExpression(string(expr), "<partial-eval>")
+	if err != nil {
+		return errors.E(err, "evaluating expression: %s", string(expr))
 	}
 
 	val, err := e.ctx.Eval(exprParsed)
 	if err != nil {
-		return errors.E(err, "evaluating expression: %s", expr)
+		return errors.E(err, "evaluating expression: %s", string(expr))
 	}
 
 	e.emitTokens(e.tokens[begin:e.pos], TokensForValue(val))
@@ -877,9 +877,9 @@ func (e *engine) evalVar() error {
 		expr = append(expr, part.Bytes...)
 	}
 
-	exprParsed, diags := hclsyntax.ParseExpression(expr, "gen.hcl", hcl.InitialPos)
-	if diags.HasErrors() {
-		return errors.E(diags, "evaluating expression: %s", expr)
+	exprParsed, err := ast.ParseExpression(string(expr), "<partial-eval>")
+	if err != nil {
+		return errors.E(err, "evaluating expression: %s", string(expr))
 	}
 
 	val, err := e.ctx.Eval(exprParsed)

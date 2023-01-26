@@ -17,8 +17,8 @@ package stdlib
 import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/customdecode"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -72,14 +72,13 @@ func evalTernaryBranch(arg cty.Value) (cty.Value, error) {
 		return cty.NilVal, errors.E(err, "evaluating tm_ternary branch")
 	}
 
-	exprParsed, diags := hclsyntax.ParseExpression(
-		newtokens.Bytes(),
+	exprParsed, err := ast.ParseExpression(
+		string(newtokens.Bytes()),
 		closure.Expression.Range().Filename,
-		hcl.InitialPos,
 	)
 
-	if diags.HasErrors() {
-		return cty.NilVal, errors.E(diags, "parsing partial evaluated bytes")
+	if err != nil {
+		return cty.NilVal, errors.E(err, "parsing partial evaluated bytes")
 	}
 
 	if dependsOnUnknowns(exprParsed, closure.EvalContext) {

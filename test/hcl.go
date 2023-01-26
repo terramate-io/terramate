@@ -22,11 +22,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	hhcl "github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
-	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
@@ -104,9 +102,9 @@ func AssertDiff(t *testing.T, got, want interface{}, msg ...interface{}) {
 func NewExpr(t *testing.T, expr string) hhcl.Expression {
 	t.Helper()
 
-	res, diags := hclsyntax.ParseExpression([]byte(expr), "test", hhcl.InitialPos)
-	if diags.HasErrors() {
-		t.Fatalf("error: %v", errors.E(diags))
+	res, err := ast.ParseExpression(expr, "test")
+	if err != nil {
+		t.Fatalf("error: %v", err)
 	}
 	return res
 }

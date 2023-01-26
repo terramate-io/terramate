@@ -415,17 +415,17 @@ func appendDynamicBlock(
 	//
 	// So here we need to convert the parsed attributes to []byte so it can be
 	// converted again to tokens :-).
-	attrsExpr, diags := hclsyntax.ParseExpression(attrsTokens.Bytes(), "", hhcl.InitialPos)
-	if diags.HasErrors() {
+	attrsExpr, err := ast.ParseExpression(string(attrsTokens.Bytes()), "<genhcl>")
+	if err != nil {
 		// Panic here since Terramate generated an invalid expression after
 		// partial evaluation and it is a guaranteed invariant that partial
 		// evaluation only produces valid expressions.
 		log.Error().
-			Err(diags).
+			Err(err).
 			Str("partiallyEvaluated", string(attrsTokens.Bytes())).
 			Msg("partially evaluated `attributes` should be a valid expression")
 		panic(wrapAttrErr(err, attrs.attributes,
-			"internal error: partially evaluated `attributes` produced invalid expression: %v", diags))
+			"internal error: partially evaluated `attributes` produced invalid expression: %v", err))
 	}
 
 	objectExpr, ok := attrsExpr.(*hclsyntax.ObjectConsExpr)

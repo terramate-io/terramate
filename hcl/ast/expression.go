@@ -20,7 +20,17 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/mineiros-io/terramate/errors"
 )
+
+// ParseExpression parses the expression str.
+func ParseExpression(str string, filename string) (hcl.Expression, error) {
+	expr, diags := hclsyntax.ParseExpression([]byte(str), filename, hcl.InitialPos)
+	if diags.HasErrors() {
+		return nil, errors.E(diags, "parsing expression from bytes")
+	}
+	return expr, nil
+}
 
 // TokensForExpression generates valid tokens for the given expression.
 func TokensForExpression(expr hcl.Expression) hclwrite.Tokens {

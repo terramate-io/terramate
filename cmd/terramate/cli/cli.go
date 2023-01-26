@@ -25,7 +25,6 @@ import (
 
 	"github.com/google/uuid"
 	hhcl "github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/cmd/terramate/cli/out"
 	"github.com/mineiros-io/terramate/config/filter"
@@ -34,6 +33,7 @@ import (
 	"github.com/mineiros-io/terramate/event"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/globals"
+	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/hcl/info"
@@ -1334,16 +1334,14 @@ func (c *cli) checkGenCode() bool {
 func (c *cli) eval() {
 	ctx := c.setupEvalContext(c.parsedArgs.Experimental.Eval.Global)
 	for _, exprStr := range c.parsedArgs.Experimental.Eval.Exprs {
-		expr, diags := hclsyntax.ParseExpression([]byte(exprStr), "<cmdline>", hhcl.InitialPos)
-		if diags.HasErrors() {
-			fatal(errors.E(diags))
+		expr, err := ast.ParseExpression(exprStr, "<cmdline>")
+		if err != nil {
+			fatal(err)
 		}
-
 		val, err := ctx.Eval(expr)
 		if err != nil {
 			fatal(err, "eval %q", exprStr)
 		}
-
 		c.outputEvalResult(val, c.parsedArgs.Experimental.Eval.AsJSON)
 	}
 }
@@ -1351,16 +1349,14 @@ func (c *cli) eval() {
 func (c *cli) partialEval() {
 	ctx := c.setupEvalContext(c.parsedArgs.Experimental.PartialEval.Global)
 	for _, exprStr := range c.parsedArgs.Experimental.PartialEval.Exprs {
-		expr, diags := hclsyntax.ParseExpression([]byte(exprStr), "<cmdline>", hhcl.InitialPos)
-		if diags.HasErrors() {
-			fatal(errors.E(diags))
+		expr, err := ast.ParseExpression(exprStr, "<cmdline>")
+		if err != nil {
+			fatal(err)
 		}
-
 		tokens, err := ctx.PartialEval(expr)
 		if err != nil {
 			fatal(err, "partial eval %q", exprStr)
 		}
-
 		c.output.MsgStdOut(string(hclwrite.Format(tokens.Bytes())))
 	}
 }
@@ -1372,9 +1368,9 @@ func (c *cli) getConfigValue() {
 
 	ctx := c.setupEvalContext(c.parsedArgs.Experimental.GetConfigValue.Global)
 	for _, exprStr := range c.parsedArgs.Experimental.GetConfigValue.Vars {
-		expr, diags := hclsyntax.ParseExpression([]byte(exprStr), "<cmdline>", hhcl.InitialPos)
-		if diags.HasErrors() {
-			fatal(errors.E(diags))
+		expr, err := ast.ParseExpression(exprStr, "<cmdline>")
+		if err != nil {
+			fatal(err)
 		}
 
 		iteratorTraversal, diags := hhcl.AbsTraversalForExpr(expr)
@@ -1436,9 +1432,9 @@ func (c *cli) setupEvalContext(overrideGlobals map[string]string) *eval.Context 
 	}
 
 	for name, exprStr := range overrideGlobals {
-		expr, diags := hclsyntax.ParseExpression([]byte(exprStr), "<cmdline>", hhcl.InitialPos)
-		if diags.HasErrors() {
-			fatal(errors.E(diags, "--global %s=%s is an invalid expresssion", name, exprStr))
+		expr, err := ast.ParseExpression(exprStr, "<cmdline>")
+		if err != nil {
+			fatal(errors.E(err, "--global %s=%s is an invalid expresssion", name, exprStr))
 		}
 		parts := strings.Split(name, ".")
 		length := len(parts)
