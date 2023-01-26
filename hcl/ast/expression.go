@@ -23,7 +23,13 @@ import (
 )
 
 // TokensForExpression generates valid tokens for the given expression.
-func TokensForExpression(expr hclsyntax.Expression) hclwrite.Tokens {
+func TokensForExpression(expr hcl.Expression) hclwrite.Tokens {
+	tokens := tokensForExpression(expr)
+	tokens = append(tokens, eof())
+	return tokens
+}
+
+func tokensForExpression(expr hcl.Expression) hclwrite.Tokens {
 	switch e := expr.(type) {
 	case *hclsyntax.LiteralValueExpr:
 		return literalTokens(e)
@@ -79,10 +85,10 @@ func templateTokens(tmpl *hclsyntax.TemplateExpr) hclwrite.Tokens {
 			}
 			tokens = append(tokens, toks...)
 		default:
-			toks := TokensForExpression(part)
-			tokens = append(tokens, tmplSym())
+			toks := tokensForExpression(part)
+			tokens = append(tokens, interpBegin())
 			tokens = append(tokens, toks...)
-			tokens = append(tokens, cbrace())
+			tokens = append(tokens, interpEnd())
 		}
 	}
 	tokens = append(tokens, cquote())
@@ -90,15 +96,15 @@ func templateTokens(tmpl *hclsyntax.TemplateExpr) hclwrite.Tokens {
 }
 
 func templateWrapTokens(tmpl *hclsyntax.TemplateWrapExpr) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{oquote(), tmplSym()}
-	tokens = append(tokens, TokensForExpression(tmpl.Wrapped)...)
-	tokens = append(tokens, cbrace(), cquote())
+	tokens := hclwrite.Tokens{oquote(), interpBegin()}
+	tokens = append(tokens, tokensForExpression(tmpl.Wrapped)...)
+	tokens = append(tokens, interpEnd(), cquote())
 	return tokens
 }
 
 func binOpTokens(binop *hclsyntax.BinaryOpExpr) hclwrite.Tokens {
 	tokens := hclwrite.Tokens{}
-	tokens = append(tokens, TokensForExpression(binop.LHS)...)
+	tokens = append(tokens, tokensForExpression(binop.LHS)...)
 	var op hclwrite.Tokens
 	switch binop.Op {
 	case hclsyntax.OpAdd:
@@ -112,26 +118,26 @@ func binOpTokens(binop *hclsyntax.BinaryOpExpr) hclwrite.Tokens {
 	case hclsyntax.OpModulo:
 		op = append(op, percent())
 	case hclsyntax.OpEqual:
-		op = append(op, assign(), assign())
+		op = append(op, equal())
 	case hclsyntax.OpNotEqual:
-		op = append(op, bang(), assign())
+		op = append(op, nequal())
 	case hclsyntax.OpGreaterThan:
 		op = append(op, gtr())
 	case hclsyntax.OpLessThan:
 		op = append(op, lss())
 	case hclsyntax.OpLessThanOrEqual:
-		op = append(op, lss(), assign())
+		op = append(op, lsseq())
 	case hclsyntax.OpGreaterThanOrEqual:
-		op = append(op, gtr(), assign())
+		op = append(op, gtreq())
 	case hclsyntax.OpLogicalAnd:
-		op = append(op, and(), and())
+		op = append(op, and())
 	case hclsyntax.OpLogicalOr:
-		op = append(op, pipe(), pipe())
+		op = append(op, or())
 	default:
 		panic(fmt.Sprintf("type %T\n", binop.Op))
 	}
 	tokens = append(tokens, op...)
-	tokens = append(tokens, TokensForExpression(binop.RHS)...)
+	tokens = append(tokens, tokensForExpression(binop.RHS)...)
 	return tokens
 }
 
@@ -145,13 +151,13 @@ func unaryOpTokens(unary *hclsyntax.UnaryOpExpr) hclwrite.Tokens {
 	default:
 		panic(fmt.Sprintf("type %T\n", unary.Op))
 	}
-	tokens = append(tokens, TokensForExpression(unary.Val)...)
+	tokens = append(tokens, tokensForExpression(unary.Val)...)
 	return tokens
 }
 
 func parenExprTokens(parenExpr *hclsyntax.ParenthesesExpr) hclwrite.Tokens {
 	tokens := hclwrite.Tokens{oparen()}
-	tokens = append(tokens, TokensForExpression(parenExpr.Expression)...)
+	tokens = append(tokens, tokensForExpression(parenExpr.Expression)...)
 	tokens = append(tokens, cparen())
 	return tokens
 }
@@ -159,7 +165,7 @@ func parenExprTokens(parenExpr *hclsyntax.ParenthesesExpr) hclwrite.Tokens {
 func tupleTokens(tuple *hclsyntax.TupleConsExpr) hclwrite.Tokens {
 	tokens := hclwrite.Tokens{obrack()}
 	for i, expr := range tuple.Exprs {
-		tokens = append(tokens, TokensForExpression(expr)...)
+		tokens = append(tokens, tokensForExpression(expr)...)
 		if i+1 != len(tuple.Exprs) {
 			tokens = append(tokens, comma())
 		}
@@ -174,9 +180,9 @@ func objectTokens(obj *hclsyntax.ObjectConsExpr) hclwrite.Tokens {
 		tokens = append(tokens, nl())
 	}
 	for _, item := range obj.Items {
-		tokens = append(tokens, TokensForExpression(item.KeyExpr)...)
+		tokens = append(tokens, tokensForExpression(item.KeyExpr)...)
 		tokens = append(tokens, assign())
-		tokens = append(tokens, TokensForExpression(item.ValueExpr)...)
+		tokens = append(tokens, tokensForExpression(item.ValueExpr)...)
 		tokens = append(tokens, nl())
 	}
 	tokens = append(tokens, cbrace())
@@ -185,13 +191,13 @@ func objectTokens(obj *hclsyntax.ObjectConsExpr) hclwrite.Tokens {
 
 func objectKeyTokens(key *hclsyntax.ObjectConsKeyExpr) hclwrite.Tokens {
 	// TODO(i4k): review the case for key.ForceNonLiteral = true|false
-	return TokensForExpression(key.Wrapped)
+	return tokensForExpression(key.Wrapped)
 }
 
 func funcallTokens(fn *hclsyntax.FunctionCallExpr) hclwrite.Tokens {
 	tokens := hclwrite.Tokens{ident(fn.Name, 1), oparen()}
 	for i, expr := range fn.Args {
-		tokens = append(tokens, TokensForExpression(expr)...)
+		tokens = append(tokens, tokensForExpression(expr)...)
 		if i+1 != len(fn.Args) {
 			tokens = append(tokens, comma())
 		}
@@ -202,11 +208,11 @@ func funcallTokens(fn *hclsyntax.FunctionCallExpr) hclwrite.Tokens {
 
 func conditionalTokens(cond *hclsyntax.ConditionalExpr) hclwrite.Tokens {
 	tokens := hclwrite.Tokens{}
-	tokens = append(tokens, TokensForExpression(cond.Condition)...)
+	tokens = append(tokens, tokensForExpression(cond.Condition)...)
 	tokens = append(tokens, question())
-	tokens = append(tokens, TokensForExpression(cond.TrueResult)...)
+	tokens = append(tokens, tokensForExpression(cond.TrueResult)...)
 	tokens = append(tokens, colon())
-	tokens = append(tokens, TokensForExpression(cond.FalseResult)...)
+	tokens = append(tokens, tokensForExpression(cond.FalseResult)...)
 	return tokens
 }
 
@@ -228,18 +234,18 @@ func forExprTokens(forExpr *hclsyntax.ForExpr) hclwrite.Tokens {
 		tokens = append(tokens, ident(forExpr.ValVar, 1))
 	}
 	tokens = append(tokens, ident("in", 1))
-	tokens = append(tokens, TokensForExpression(forExpr.CollExpr)...)
+	tokens = append(tokens, tokensForExpression(forExpr.CollExpr)...)
 	tokens = append(tokens, colon())
 	if forExpr.KeyExpr != nil {
-		tokens = append(tokens, TokensForExpression(forExpr.KeyExpr)...)
-		tokens = append(tokens, assign(), gtr())
-		tokens = append(tokens, TokensForExpression(forExpr.ValExpr)...)
+		tokens = append(tokens, tokensForExpression(forExpr.KeyExpr)...)
+		tokens = append(tokens, arrow())
+		tokens = append(tokens, tokensForExpression(forExpr.ValExpr)...)
 	} else {
-		tokens = append(tokens, TokensForExpression(forExpr.ValExpr)...)
+		tokens = append(tokens, tokensForExpression(forExpr.ValExpr)...)
 	}
 	if forExpr.CondExpr != nil {
 		tokens = append(tokens, ident("if", 1))
-		tokens = append(tokens, TokensForExpression(forExpr.CondExpr)...)
+		tokens = append(tokens, tokensForExpression(forExpr.CondExpr)...)
 	}
 	tokens = append(tokens, end)
 	return tokens
@@ -247,20 +253,20 @@ func forExprTokens(forExpr *hclsyntax.ForExpr) hclwrite.Tokens {
 
 func indexTokens(index *hclsyntax.IndexExpr) hclwrite.Tokens {
 	tokens := hclwrite.Tokens{}
-	tokens = append(tokens, TokensForExpression(index.Collection)...)
+	tokens = append(tokens, tokensForExpression(index.Collection)...)
 	tokens = append(tokens, obrack())
-	tokens = append(tokens, TokensForExpression(index.Key)...)
+	tokens = append(tokens, tokensForExpression(index.Key)...)
 	tokens = append(tokens, cbrack())
 	return tokens
 }
 
 func splatTokens(splat *hclsyntax.SplatExpr) hclwrite.Tokens {
 	tokens := hclwrite.Tokens{}
-	tokens = append(tokens, TokensForExpression(splat.Source)...)
+	tokens = append(tokens, tokensForExpression(splat.Source)...)
 	tokens = append(tokens, obrack())
 	tokens = append(tokens, star())
 	tokens = append(tokens, cbrack())
-	tokens = append(tokens, TokensForExpression(splat.Each)...)
+	tokens = append(tokens, tokensForExpression(splat.Each)...)
 
 	return tokens
 }
@@ -293,7 +299,7 @@ func traversalTokens(traversals hcl.Traversal) hclwrite.Tokens {
 
 func relTraversalTokens(traversal *hclsyntax.RelativeTraversalExpr) hclwrite.Tokens {
 	tokens := hclwrite.Tokens{}
-	tokens = append(tokens, TokensForExpression(traversal.Source)...)
+	tokens = append(tokens, tokensForExpression(traversal.Source)...)
 	tokens = append(tokens, traversalTokens(traversal.Traversal)...)
 	return tokens
 }
@@ -321,7 +327,7 @@ func oparen() *hclwrite.Token {
 
 func cparen() *hclwrite.Token {
 	return &hclwrite.Token{
-		Type:  hclsyntax.TokenOParen,
+		Type:  hclsyntax.TokenCParen,
 		Bytes: []byte{')'},
 	}
 }
@@ -347,10 +353,17 @@ func star() *hclwrite.Token {
 	}
 }
 
-func tmplSym() *hclwrite.Token {
+func interpBegin() *hclwrite.Token {
 	return &hclwrite.Token{
 		Type:  hclsyntax.TokenTemplateInterp,
 		Bytes: []byte{'$', '{'},
+	}
+}
+
+func interpEnd() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenTemplateSeqEnd,
+		Bytes: []byte{'}'},
 	}
 }
 
@@ -368,10 +381,38 @@ func assign() *hclwrite.Token {
 	}
 }
 
+func equal() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenEqualOp,
+		Bytes: []byte{'=', '='},
+	}
+}
+
+func nequal() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenNotEqual,
+		Bytes: []byte{'!', '='},
+	}
+}
+
 func gtr() *hclwrite.Token {
 	return &hclwrite.Token{
 		Type:  hclsyntax.TokenGreaterThan,
 		Bytes: []byte{'>'},
+	}
+}
+
+func gtreq() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenGreaterThanEq,
+		Bytes: []byte{'>', '='},
+	}
+}
+
+func arrow() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenFatArrow,
+		Bytes: []byte{'=', '>'},
 	}
 }
 
@@ -382,6 +423,13 @@ func lss() *hclwrite.Token {
 	}
 }
 
+func lsseq() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenLessThanEq,
+		Bytes: []byte{'<', '='},
+	}
+}
+
 func bang() *hclwrite.Token {
 	return &hclwrite.Token{
 		Type:  hclsyntax.TokenBang,
@@ -389,17 +437,17 @@ func bang() *hclwrite.Token {
 	}
 }
 
-func pipe() *hclwrite.Token {
+func or() *hclwrite.Token {
 	return &hclwrite.Token{
 		Type:  hclsyntax.TokenOr,
-		Bytes: []byte{'|'},
+		Bytes: []byte{'|', '|'},
 	}
 }
 
 func and() *hclwrite.Token {
 	return &hclwrite.Token{
 		Type:  hclsyntax.TokenAnd,
-		Bytes: []byte{'&'},
+		Bytes: []byte{'&', '&'},
 	}
 }
 
@@ -479,6 +527,12 @@ func cquote() *hclwrite.Token {
 	return &hclwrite.Token{
 		Type:  hclsyntax.TokenCQuote,
 		Bytes: []byte{'"'},
+	}
+}
+
+func eof() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type: hclsyntax.TokenEOF,
 	}
 }
 
