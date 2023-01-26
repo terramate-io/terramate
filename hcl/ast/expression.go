@@ -231,6 +231,10 @@ func forExprTokens(forExpr *hclsyntax.ForExpr) hclwrite.Tokens {
 	} else {
 		end = cbrack()
 		tokens = append(tokens, obrack(), ident("for", 0))
+		if forExpr.KeyVar != "" {
+			tokens = append(tokens, ident(forExpr.KeyVar, 1))
+			tokens = append(tokens, comma())
+		}
 		tokens = append(tokens, ident(forExpr.ValVar, 1))
 	}
 	tokens = append(tokens, ident("in", 1))

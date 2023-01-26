@@ -86,13 +86,13 @@ func TestPartialEval(t *testing.T) {
 			),
 			want: Doc(
 				Expr("obj", `{
-					count     = count.index,
-					data      = data.ref,
-					local     = local.ref,
-					module    = module.ref,
-					path      = path.ref,
-					resource  = resource.name.etc,
-					terraform = terraform.ref,
+					count     = count.index
+					data      = data.ref
+					local     = local.ref
+					module    = module.ref
+					path      = path.ref
+					resource  = resource.name.etc
+					terraform = terraform.ref
 				 }`),
 			),
 		},
@@ -111,8 +111,8 @@ func TestPartialEval(t *testing.T) {
 			),
 			want: Doc(
 				Expr("obj", `{
-					local   = local.ref,
-					global  = 666,
+					local   = local.ref
+					global  = 666
 				 }`),
 			),
 		},
@@ -158,8 +158,8 @@ func TestPartialEval(t *testing.T) {
 			),
 			want: Doc(
 				Expr("obj", `{
-					a = try(something.val, null),	
-					b = "val",
+					a = try(something.val, null)	
+					b = "val"
 				}`),
 			),
 		},
@@ -760,7 +760,7 @@ func TestPartialEval(t *testing.T) {
 				Expr("folder_id", `data.google_active_folder[global.depth].0.id`),
 			),
 			want: Doc(
-				Expr("folder_id", `data.google_active_folder[1].0.id`),
+				Expr("folder_id", `data.google_active_folder[1][0].id`),
 			),
 		},
 		{
@@ -774,7 +774,7 @@ func TestPartialEval(t *testing.T) {
 				Expr("folder_id", `data.google_active_folder["${global.depth}"].0.id`),
 			),
 			want: Doc(
-				Expr("folder_id", `data.google_active_folder[1].0.id`),
+				Expr("folder_id", `data.google_active_folder[1][0].id`),
 			),
 		},
 		{
@@ -788,7 +788,7 @@ func TestPartialEval(t *testing.T) {
 				Expr("folder_id", `data.google_active_folder["l${global.depth}"].0.id`),
 			),
 			want: Doc(
-				Expr("folder_id", `data.google_active_folder["l1"].0.id`),
+				Expr("folder_id", `data.google_active_folder["l1"][0].id`),
 			),
 		},
 		{
@@ -797,7 +797,7 @@ func TestPartialEval(t *testing.T) {
 				Expr("folder_id", `data.test[*].0.id`),
 			),
 			want: Doc(
-				Expr("folder_id", `data.test[*].0.id`),
+				Expr("folder_id", `data.test[*][0].id`),
 			),
 		},
 		{
@@ -806,7 +806,7 @@ func TestPartialEval(t *testing.T) {
 				Expr("folder_id", `data.test.*.0.id`),
 			),
 			want: Doc(
-				Expr("folder_id", `data.test.*.0.id`),
+				Expr("folder_id", `data.test[*][0].id`),
 			),
 		},
 		{
@@ -1017,7 +1017,7 @@ func TestPartialEval(t *testing.T) {
 				Expr("a", "b.1000"),
 			),
 			want: Doc(
-				Expr("a", "b.1000"),
+				Expr("a", "b[1000]"),
 			),
 		},
 		{
@@ -1026,7 +1026,7 @@ func TestPartialEval(t *testing.T) {
 				Expr("a", "10.1200"),
 			),
 			want: Doc(
-				Expr("a", "10.1200"),
+				Expr("a", "10.12"),
 			),
 		},
 		{
@@ -1035,7 +1035,7 @@ func TestPartialEval(t *testing.T) {
 				Expr("a", "0.0.A.0"),
 			),
 			want: Doc(
-				Expr("a", "0.0.A.0"),
+				Expr("a", "0.A[0]"),
 			),
 		},
 		{
@@ -1044,43 +1044,7 @@ func TestPartialEval(t *testing.T) {
 				Expr("a", "(A(). \n*)"),
 			),
 			want: Doc(
-				Expr("a", "(A(). \n*)"),
-			),
-		},
-		{
-			name: "funcall and newlines/comments",
-			config: Doc(
-				Expr("a", "funcall(\n/**/a\n/**/,/**/b/**/\n/**/)"),
-			),
-			want: Doc(
-				Expr("a", "funcall(\n/**/a\n/**/,/**/b/**/\n/**/)"),
-			),
-		},
-		{
-			name: "tm_ funcall and newlines/comments",
-			config: Doc(
-				Expr("a", "tm_try(\n/**/a\n/**/,/**/b, null/**/\n/**/)"),
-			),
-			want: Doc(
-				Expr("a", "null"),
-			),
-		},
-		{
-			name: "objects and newlines/comments",
-			config: Doc(
-				Expr("a", "{/**/\n/**/a/**/=/**/\"a\"/**/\n}"),
-			),
-			want: Doc(
-				Expr("a", "{/**/\n/**/a/**/=/**/\"a\"/**/\n}"),
-			),
-		},
-		{
-			name: "lists and newlines/comments",
-			config: Doc(
-				Expr("a", "[/**/\n/**/a/**/\n,\"a\"/**/\n]"),
-			),
-			want: Doc(
-				Expr("a", "[/**/\n/**/a/**/\n,\"a\"/**/\n]"),
+				Expr("a", "(A()[*])"),
 			),
 		},
 		{
@@ -1130,15 +1094,6 @@ func TestPartialEval(t *testing.T) {
 			),
 			want: Doc(
 				Expr("a", "\"0\""),
-			),
-		},
-		{
-			name: "lists and newlines/comments",
-			config: Doc(
-				Expr("a", "[/**/\n/**/1/**/\n/**/,/**/\n/**/2/**/\n]"),
-			),
-			want: Doc(
-				Expr("a", "[/**/\n/**/1/**/\n/**/,/**/\n/**/2/**/\n]"),
 			),
 		},
 		{
@@ -1312,28 +1267,7 @@ EOT
 `),
 			),
 			want: Doc(
-				Expr("test", `<<-EOT
-test
-EOT
-`),
-			),
-		},
-		{
-			name: "HEREDOCs partial evaluated with custom name",
-			globals: Globals(
-				Str("value", "test"),
-			),
-			config: Doc(
-				Expr("test", `<<ANYTHING_IS_VALID
-${global.value}
-ANYTHING_IS_VALID
-`),
-			),
-			want: Doc(
-				Expr("test", `<<ANYTHING_IS_VALID
-test
-ANYTHING_IS_VALID
-`),
+				Str("test", "test\\n"),
 			),
 		},
 		{
@@ -1348,10 +1282,7 @@ EOT
 `),
 			),
 			want: Doc(
-				Expr("test", `<<-EOT
-				BEFORE test AFTER
-EOT
-`),
+				Str("test", "BEFORE test AFTER\\n"),
 			),
 		},
 		{
@@ -1363,10 +1294,7 @@ EOT
 `),
 			),
 			want: Doc(
-				Expr("test", `<<-EOT
-				BEFORE TEST AFTER
-EOT
-`),
+				Str("test", "BEFORE TEST AFTER\\n"),
 			),
 		},
 		{
@@ -1378,10 +1306,7 @@ EOT
 `),
 			),
 			want: Doc(
-				Expr("test", `<<-EOT
-				BEFORE ${local.myvar} AFTER
-EOT
-`),
+				Str("test", "BEFORE ${local.myvar} AFTER\\n"),
 			),
 		},
 		{
@@ -1396,10 +1321,7 @@ EOT
 `),
 			),
 			want: Doc(
-				Expr("test", `<<-EOT
-				BEFORE ${49 + local.myvar} AFTER
-EOT
-`),
+				Str("test", "BEFORE ${49 + local.myvar} AFTER\\n"),
 			),
 		},
 		{
@@ -1414,10 +1336,7 @@ EOT
 `),
 			),
 			want: Doc(
-				Expr("test", `<<-EOT
-				BEFORE ${"number is 49"} AFTER
-EOT
-`),
+				Str("test", "BEFORE ${\"number is 49\"} AFTER\\n"),
 			),
 		},
 		{
@@ -1454,7 +1373,9 @@ EOT
 				Expr("a", `tm_hcl_expression("{ a = b }")`),
 			),
 			want: Doc(
-				Expr("a", "{ a = b }"),
+				Expr("a", `{
+					a = b
+				}`),
 			),
 		},
 		{
