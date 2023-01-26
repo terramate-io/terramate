@@ -324,3 +324,112 @@ func TestAstExpressionToTokens(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkTokensForExpression(b *testing.B) {
+	exprStr := `[
+		{
+			a = [{
+					b = c.d+2+test()
+					c = a && b || c && !d || a ? b : c
+					d = a+b-c*2/3+!2+test(1, 2, 3)
+					c = {for k,v in a.b.c : a() => b() if c}
+					d = [for v in a.b.c : a() if b ]
+				}, ["test", 1, {}],	func({}, [], "", 1, 2)]
+			b = x.y[*].z
+			c = a[0]
+			d = a[b.c[d.e[*].a]]
+		},
+		{
+			a = [{
+					b = c.d+2+test()
+					c = a && b || c && !d || a ? b : c
+					d = a+b-c*2/3+!2+test(1, 2, 3)
+					c = {for k,v in a.b.c : a() => b() if c}
+					d = [for v in a.b.c : a() if b ]
+				}, ["test", 1, {}],	func({}, [], "", 1, 2)]
+			b = x.y[*].z
+			c = a[0]
+			d = a[b.c[d.e[*].a]]
+		},
+		{
+			a = [{
+					b = c.d+2+test()
+					c = a && b || c && !d || a ? b : c
+					d = a+b-c*2/3+!2+test(1, 2, 3)
+					c = {for k,v in a.b.c : a() => b() if c}
+					d = [for v in a.b.c : a() if b ]
+				}, ["test", 1, {}],	func({}, [], "", 1, 2)]
+			b = x.y[*].z
+			c = a[0]
+			d = a[b.c[d.e[*].a]]
+		},
+		{
+			a = [{
+					b = c.d+2+test()
+					c = a && b || c && !d || a ? b : c
+					d = a+b-c*2/3+!2+test(1, 2, 3)
+					c = {for k,v in a.b.c : a() => b() if c}
+					d = [for v in a.b.c : a() if b ]
+				}, ["test", 1, {}],	func({}, [], "", 1, 2)]
+			b = x.y[*].z
+			c = a[0]
+			d = a[b.c[d.e[*].a]]
+		},
+		{
+			a = [{
+					b = c.d+2+test()
+					c = a && b || c && !d || a ? b : c
+					d = a+b-c*2/3+!2+test(1, 2, 3)
+					c = {for k,v in a.b.c : a() => b() if c}
+					d = [for v in a.b.c : a() if b ]
+				}, ["test", 1, {}],	func({}, [], "", 1, 2)]
+			b = x.y[*].z
+			c = a[0]
+			d = a[b.c[d.e[*].a]]
+		},
+		{
+			a = [{
+					b = c.d+2+test()
+					c = a && b || c && !d || a ? b : c
+					d = a+b-c*2/3+!2+test(1, 2, 3)
+					c = {for k,v in a.b.c : a() => b() if c}
+					d = [for v in a.b.c : a() if b ]
+				}, ["test", 1, {}],	func({}, [], "", 1, 2)]
+			b = x.y[*].z
+			c = a[0]
+			d = a[b.c[d.e[*].a]]
+		},
+		{
+			a = [{
+					b = c.d+2+test()
+					c = a && b || c && !d || a ? b : c
+					d = a+b-c*2/3+!2+test(1, 2, 3)
+					c = {for k,v in a.b.c : a() => b() if c}
+					d = [for v in a.b.c : a() if b ]
+				}, ["test", 1, {}],	func({}, [], "", 1, 2)]
+			b = x.y[*].z
+			c = a[0]
+			d = a[b.c[d.e[*].a]]
+		},
+		{
+			a = [{
+					b = c.d+2+test()
+					c = a && b || c && !d || a ? b : c
+					d = a+b-c*2/3+!2+test(1, 2, 3)
+					c = {for k,v in a.b.c : a() => b() if c}
+					d = [for v in a.b.c : a() if b ]
+				}, ["test", 1, {}],	func({}, [], "", 1, 2)]
+			b = x.y[*].z
+			c = a[0]
+			d = a[b.c[d.e[*].a]]
+		},
+	]`
+
+	expr, diags := hclsyntax.ParseExpression([]byte(exprStr), "test.hcl", hcl.InitialPos)
+	if diags.HasErrors() {
+		panic(diags.Error())
+	}
+	for n := 0; n < b.N; n++ {
+		ast.TokensForExpression(expr)
+	}
+}
