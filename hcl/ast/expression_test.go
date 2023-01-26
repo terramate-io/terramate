@@ -34,6 +34,18 @@ func TestAstExpressionToTokens(t *testing.T) {
 			expr: `"terramate"`,
 		},
 		{
+			name: "string interpolation",
+			expr: `"some ${interpolation} here"`,
+		},
+		{
+			name: "string interpolation",
+			expr: `"some ${funcall()} here"`,
+		},
+		{
+			name: "utf-8",
+			expr: `"伊亜希"`,
+		},
+		{
 			name: "empty list",
 			expr: `[]`,
 		},
@@ -143,6 +155,14 @@ func TestAstExpressionToTokens(t *testing.T) {
 		{
 			name: "arithmetic binary operation (-)",
 			expr: `1-1`,
+		},
+		{
+			name: "arithmetic binary operation (-) - sticky sign",
+			expr: `A -A`,
+		},
+		{
+			name: "arithmetic binary operation (+) - sticky plus",
+			expr: `A +A`,
 		},
 		{
 			name: "arithmetic binary operation (/)",
@@ -255,6 +275,10 @@ func TestAstExpressionToTokens(t *testing.T) {
 		{
 			name: "for-expr - object",
 			expr: `{for k,v in c : k => v}`,
+		},
+		{
+			name: "for-expr - object",
+			expr: `{for k in c : k => k}`,
 		},
 		{
 			name: "for-expr - object with exprs and cond",
