@@ -1,3 +1,17 @@
+// Copyright 2023 Mineiros GmbH
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package ast
 
 import (
@@ -55,9 +69,7 @@ func literalTokens(expr *hclsyntax.LiteralValueExpr) hclwrite.Tokens {
 }
 
 func templateTokens(tmpl *hclsyntax.TemplateExpr) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{
-		oquote(),
-	}
+	tokens := hclwrite.Tokens{oquote()}
 	for _, part := range tmpl.Parts {
 		switch p := part.(type) {
 		case *hclsyntax.LiteralValueExpr:
@@ -78,9 +90,7 @@ func templateTokens(tmpl *hclsyntax.TemplateExpr) hclwrite.Tokens {
 }
 
 func templateWrapTokens(tmpl *hclsyntax.TemplateWrapExpr) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{
-		oquote(), tmplSym(),
-	}
+	tokens := hclwrite.Tokens{oquote(), tmplSym()}
 	tokens = append(tokens, TokensForExpression(tmpl.Wrapped)...)
 	tokens = append(tokens, cbrace(), cquote())
 	return tokens
@@ -140,38 +150,26 @@ func unaryOpTokens(unary *hclsyntax.UnaryOpExpr) hclwrite.Tokens {
 }
 
 func parenExprTokens(parenExpr *hclsyntax.ParenthesesExpr) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{
-		oparen(),
-	}
+	tokens := hclwrite.Tokens{oparen()}
 	tokens = append(tokens, TokensForExpression(parenExpr.Expression)...)
 	tokens = append(tokens, cparen())
 	return tokens
 }
 
 func tupleTokens(tuple *hclsyntax.TupleConsExpr) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{
-		&hclwrite.Token{
-			Type:  hclsyntax.TokenOBrack,
-			Bytes: []byte{'['},
-		},
-	}
+	tokens := hclwrite.Tokens{obrack()}
 	for i, expr := range tuple.Exprs {
 		tokens = append(tokens, TokensForExpression(expr)...)
 		if i+1 != len(tuple.Exprs) {
 			tokens = append(tokens, comma())
 		}
 	}
-	tokens = append(tokens, &hclwrite.Token{
-		Type:  hclsyntax.TokenCBrack,
-		Bytes: []byte{']'},
-	})
+	tokens = append(tokens, cbrack())
 	return tokens
 }
 
 func objectTokens(obj *hclsyntax.ObjectConsExpr) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{
-		obrace(),
-	}
+	tokens := hclwrite.Tokens{obrace()}
 	if len(obj.Items) > 0 {
 		tokens = append(tokens, nl())
 	}
@@ -191,18 +189,13 @@ func objectKeyTokens(key *hclsyntax.ObjectConsKeyExpr) hclwrite.Tokens {
 }
 
 func funcallTokens(fn *hclsyntax.FunctionCallExpr) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{
-		ident(fn.Name, 1),
-		oparen(),
-	}
-
+	tokens := hclwrite.Tokens{ident(fn.Name, 1), oparen()}
 	for i, expr := range fn.Args {
 		tokens = append(tokens, TokensForExpression(expr)...)
 		if i+1 != len(fn.Args) {
 			tokens = append(tokens, comma())
 		}
 	}
-
 	tokens = append(tokens, cparen())
 	return tokens
 }
