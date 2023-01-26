@@ -460,28 +460,14 @@ func appendDynamicBlock(
 				attrName)
 		}
 
-		exprRange := item.ValueExpr.Range()
-		exprBytes := attrsTokens.Bytes()[exprRange.Start.Byte:exprRange.End.Byte]
-		valExpr, err := eval.TokensForExpressionBytes(exprBytes)
-		if err != nil {
-			// Panic here since Terramate generated an invalid expression after
-			// partial evaluation and it is a guaranteed invariant that partial
-			// evaluation only produces valid expressions.
-			log.Error().
-				Err(err).
-				Str("attribute", attrName).
-				Str("partiallyEvaluated", string(attrsTokens.Bytes())).
-				Msg("partially evaluated `attributes` has invalid value expression inside object")
-			panic(wrapAttrErr(err, attrs.attributes,
-				"internal error: partially evaluated `attributes` has invalid value expressions inside object: %v", err))
-		}
+		valTokens := ast.TokensForExpression(item.ValueExpr)
 
 		logger.Trace().
 			Str("attribute", attrName).
-			Str("value", string(valExpr.Bytes())).
+			Str("value", string(valTokens.Bytes())).
 			Msg("adding attribute on generated block")
 
-		newbody.SetAttributeRaw(attrName, valExpr)
+		newbody.SetAttributeRaw(attrName, valTokens)
 	}
 
 	return nil

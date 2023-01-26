@@ -15,13 +15,11 @@
 package eval
 
 import (
-	"os"
-
 	"github.com/hashicorp/hcl/v2/ext/customdecode"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl/dynexpr/dynrange"
+	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 
@@ -158,17 +156,8 @@ func TokensForValue(value cty.Value) (hclwrite.Tokens, error) {
 //
 // I'm sorry.
 func TokensForExpression(expr hhcl.Expression) (hclwrite.Tokens, error) {
-	exprdata, ok := dynrange.UnwrapExprBytes(expr.Range().Filename)
-	if !ok {
-		var err error
-		exprdata, err = os.ReadFile(expr.Range().Filename)
-		if err != nil {
-			return nil, errors.E(err, "reading expression from file")
-		}
-	}
-	exprRange := expr.Range()
-	exprdata = exprdata[exprRange.Start.Byte:exprRange.End.Byte]
-	return TokensForExpressionBytes(exprdata)
+	tokens := ast.TokensForExpression(expr)
+	return tokens, nil
 }
 
 // TokensForExpressionBytes returns the tokens for the provided expression bytes.

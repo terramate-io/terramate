@@ -18,10 +18,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl/dynexpr"
 )
 
 // Errors returned when doing partial evaluation.
@@ -791,7 +791,7 @@ func (e *engine) evalTmFuncall() error {
 	}
 
 	if matchingParens > 0 || e.peek().Type != hclsyntax.TokenCParen {
-		panic(errorf("malformed funcall: %s", e.tokens.Bytes()))
+		panic(errorf("malformed funcall: %d %s", matchingParens, e.tokens.Bytes()))
 	}
 
 	e.pos++
@@ -801,9 +801,9 @@ func (e *engine) evalTmFuncall() error {
 		expr = append(expr, part.Bytes...)
 	}
 
-	exprParsed, err := dynexpr.ParseExpressionBytes(expr)
-	if err != nil {
-		return errors.E(err, "evaluating expression: %s", expr)
+	exprParsed, diags := hclsyntax.ParseExpression(expr, "gen.hcl", hcl.InitialPos)
+	if diags.HasErrors() {
+		return errors.E(diags, "evaluating expression: %s", expr)
 	}
 
 	val, err := e.ctx.Eval(exprParsed)
@@ -882,9 +882,9 @@ func (e *engine) evalVar() error {
 		expr = append(expr, part.Bytes...)
 	}
 
-	exprParsed, err := dynexpr.ParseExpressionBytes(expr)
-	if err != nil {
-		return err
+	exprParsed, diags := hclsyntax.ParseExpression(expr, "gen.hcl", hcl.InitialPos)
+	if diags.HasErrors() {
+		return errors.E(diags, "evaluating expression: %s", expr)
 	}
 
 	val, err := e.ctx.Eval(exprParsed)

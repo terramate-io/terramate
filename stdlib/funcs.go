@@ -18,11 +18,12 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/customdecode"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	tflang "github.com/hashicorp/terraform/lang"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/event"
-	"github.com/mineiros-io/terramate/hcl/dynexpr"
 	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/tf"
@@ -164,9 +165,9 @@ func HCLExpressionFunc() function.Function {
 }
 
 func hclExpr(arg cty.Value) (cty.Value, error) {
-	exprParsed, err := dynexpr.ParseExpressionBytes([]byte(arg.AsString()))
-	if err != nil {
-		return cty.NilVal, errors.E(err, "argument is not valid HCL expression")
+	exprParsed, diags := hclsyntax.ParseExpression([]byte(arg.AsString()), "gen.hcl", hcl.InitialPos)
+	if diags.HasErrors() {
+		return cty.NilVal, errors.E(diags, "argument is not valid HCL expression")
 	}
 	return customdecode.ExpressionVal(exprParsed), nil
 }
