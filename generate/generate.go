@@ -234,22 +234,10 @@ func doStackGeneration(
 		return report
 	}
 
-	var removedFiles map[string]string
-
-	failureReport := func(r dirReport, err error) dirReport {
-		r.err = err
-		for filename := range removedFiles {
-			r.addDeletedFile(filename)
-		}
-		return r
-	}
-
-	removedFiles, err = removeStackGeneratedFiles(root, stack.HostDir(root), generated)
+	allFiles, err := allStackGeneratedFiles(root, stack.HostDir(root), generated)
 	if err != nil {
-		return failureReport(
-			report,
-			errors.E(err, "removing old generated files"),
-		)
+		report.err = errors.E(err, "listing all generated files")
+		return report
 	}
 
 	logger.Debug().Msg("saving generated files")
@@ -266,17 +254,20 @@ func doStackGeneration(
 			continue
 		}
 
-		err := writeGeneratedCode(path, file)
-		if err != nil {
-			return failureReport(
-				report,
-				errors.E(err, "saving file %q", filename),
-			)
-		}
+		body := file.Header() + file.Body()
 
 		// Change detection + remove entries that got re-generated
-		removedFileBody, ok := removedFiles[filename]
-		if !ok {
+		oldFileBody, oldExists := allFiles[filename]
+
+		if !oldExists || oldFileBody != body {
+			err := writeGeneratedCode(path, file)
+			if err != nil {
+				report.err = errors.E(err, "saving file %q", filename)
+				return report
+			}
+		}
+
+		if !oldExists {
 			log.Info().
 				Stringer("stack", stack.Dir).
 				Str("file", filename).
@@ -284,8 +275,8 @@ func doStackGeneration(
 
 			report.addCreatedFile(filename)
 		} else {
-			body := file.Header() + file.Body()
-			if body != removedFileBody {
+			delete(allFiles, filename)
+			if body != oldFileBody {
 				log.Info().
 					Stringer("stack", stack.Dir).
 					Str("file", filename).
@@ -293,16 +284,25 @@ func doStackGeneration(
 
 				report.addChangedFile(filename)
 			}
-			delete(removedFiles, filename)
 		}
 	}
 
-	for filename := range removedFiles {
+	for filename := range allFiles {
 		log.Info().
 			Stringer("stack", stack.Dir).
 			Str("file", filename).
 			Msg("deleted file")
+
 		report.addDeletedFile(filename)
+
+		path := filepath.Join(stackpath, filename)
+		err = os.Remove(path)
+		if err != nil {
+			report.err = errors.E("removing file %s", filename)
+			return report
+		}
+
+		delete(allFiles, filename)
 	}
 
 	logger.Debug().Msg("finished generating files")
@@ -825,20 +825,12 @@ func forEachStack(
 	return report
 }
 
-func removeStackGeneratedFiles(
+func allStackGeneratedFiles(
 	root *config.Root,
 	dir string,
 	genfiles []GenFile,
 ) (map[string]string, error) {
-	logger := log.With().
-		Str("action", "generate.removeStackGeneratedFiles()").
-		Str("root", root.HostDir()).
-		Str("dir", dir).
-		Logger()
-
-	logger.Trace().Msg("listing generated files")
-
-	removedFiles := map[string]string{}
+	allFiles := map[string]string{}
 	files, err := ListGenFiles(root, dir)
 	if err != nil {
 		return nil, err
@@ -855,35 +847,20 @@ func removeStackGeneratedFiles(
 		}
 	}
 
-	logger.Trace().Msg("deleting all Terramate generated files")
-
 	for _, filename := range files {
-		logger := logger.With().
-			Str("filename", filename).
-			Logger()
-
-		logger.Trace().Msg("reading current file before removal")
-
 		path := filepath.Join(dir, filename)
 		body, err := os.ReadFile(path)
 		if err != nil {
 			if os.IsNotExist(err) {
-				logger.Trace().Msg("ignoring file since it doesn't exist")
 				continue
 			}
-			return nil, errors.E(err, "reading gen file before removal")
+			return nil, errors.E(err, "reading generated file")
 		}
 
-		logger.Trace().Msg("removing file")
-
-		if err := os.Remove(path); err != nil {
-			return nil, errors.E(err, "removing gen file")
-		}
-
-		removedFiles[filename] = string(body)
+		allFiles[filename] = string(body)
 	}
 
-	return removedFiles, nil
+	return allFiles, nil
 }
 
 func generateRootFiles(root *config.Root, genfiles []GenFile, report *Report) {
@@ -1211,11 +1188,9 @@ func checkFileConflict(generated []GenFile) map[string]error {
 			)
 			continue
 		}
-
 		if !file.Condition() {
 			continue
 		}
-
 		genset[file.Label()] = file
 	}
 	return errsmap
