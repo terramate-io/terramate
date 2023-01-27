@@ -88,37 +88,16 @@ func literalTokens(expr *hclsyntax.LiteralValueExpr) hclwrite.Tokens {
 }
 
 func templateTokens(tmpl *hclsyntax.TemplateExpr) hclwrite.Tokens {
-	tokenGroups := []hclwrite.Tokens{}
-	for _, part := range tmpl.Parts {
-		switch p := part.(type) {
-		case *hclsyntax.LiteralValueExpr:
-			tokenGroups = append(tokenGroups, literalTokens(p))
-		default:
-			tokenGroups = append(tokenGroups, tokensForExpression(part))
-		}
-	}
-
 	out := hclwrite.Tokens{oquote()}
 	var useheredoc bool
-	for group, tokens := range tokenGroups {
-		if len(tokens) < 2 {
+	for group, part := range tmpl.Parts {
+		tokens := tokensForExpression(part)
+		if len(tokens) < 2 || (tokens[0].Type != hclsyntax.TokenOQuote ||
+			tokens[len(tokens)-1].Type != hclsyntax.TokenCQuote) {
 			out = append(out, interpBegin())
 			out = append(out, tokens...)
 			out = append(out, interpEnd())
-			if group+1 == len(tokenGroups) && useheredoc {
-				out = append(out, nlString())
-			}
-			continue
-		}
-
-		last := tokens[len(tokens)-1]
-		first := tokens[0]
-		if first.Type != hclsyntax.TokenOQuote ||
-			last.Type != hclsyntax.TokenCQuote {
-			out = append(out, interpBegin())
-			out = append(out, tokens...)
-			out = append(out, interpEnd())
-			if group+1 == len(tokenGroups) && useheredoc {
+			if group+1 == len(tmpl.Parts) && useheredoc {
 				out = append(out, nlString())
 			}
 			continue
@@ -128,7 +107,7 @@ func templateTokens(tmpl *hclsyntax.TemplateExpr) hclwrite.Tokens {
 		for _, tok := range tokens[1 : len(tokens)-1] {
 			if tok.Type != hclsyntax.TokenQuotedLit {
 				out = append(out, tok)
-				if group+1 == len(tokenGroups) && useheredoc {
+				if group+1 == len(tmpl.Parts) && useheredoc {
 					out = append(out, nlString())
 				}
 				continue
@@ -148,10 +127,18 @@ func templateTokens(tmpl *hclsyntax.TemplateExpr) hclwrite.Tokens {
 					}
 
 					pos += pos1
-					if pos+1 < len(tok.Bytes) && tok.Bytes[pos+1] == 'n' {
-						break inner
+					if pos+1 < len(tok.Bytes) {
+						if tok.Bytes[pos+1] == 'n' {
+							break inner
+						}
+						if tok.Bytes[pos+1] == '\\' {
+							pos += 1
+						}
 					}
 					pos += 1
+					if pos >= len(tok.Bytes) {
+						pos = -1
+					}
 				}
 				if pos == -1 {
 					end = len(tok.Bytes)
@@ -159,15 +146,11 @@ func templateTokens(tmpl *hclsyntax.TemplateExpr) hclwrite.Tokens {
 					useheredoc = true
 					end = pos + 2
 				}
-
-				rendered := renderString(string(tok.Bytes[start:end]))
 				strtok := hclwrite.Token{
 					Type:  hclsyntax.TokenStringLit,
-					Bytes: make([]byte, len(rendered)),
+					Bytes: []byte(tok.Bytes[start:end]),
 				}
-				copy(strtok.Bytes, []byte(rendered))
-
-				if useheredoc && (pos == -1 && group+1 == len(tokenGroups)) {
+				if useheredoc && (pos == -1 && group+1 == len(tmpl.Parts)) {
 					strtok.Bytes = append(strtok.Bytes, []byte("\n")...)
 				}
 				out = append(out, &strtok)
@@ -177,6 +160,11 @@ func templateTokens(tmpl *hclsyntax.TemplateExpr) hclwrite.Tokens {
 	}
 	if useheredoc {
 		out[0] = oheredoc()
+		for _, tok := range out[1:] {
+			if tok.Type == hclsyntax.TokenStringLit {
+				tok.Bytes = []byte(renderString(string(tok.Bytes)))
+			}
+		}
 		out = append(out, cheredoc())
 	} else {
 		out = append(out, cquote())
@@ -406,7 +394,7 @@ func relTraversalTokens(traversal *hclsyntax.RelativeTraversalExpr) hclwrite.Tok
 	return tokens
 }
 
-func renderString(in string) string {
+func renderString(str string) string {
 	type replace struct {
 		old string
 		new string
@@ -421,9 +409,9 @@ func renderString(in string) string {
 			new: "\n",
 		},
 	} {
-		in = strings.ReplaceAll(in, r.old, r.new)
+		str = strings.ReplaceAll(str, r.old, r.new)
 	}
-	return in
+	return str
 }
 
 func obrace() *hclwrite.Token {

@@ -50,6 +50,10 @@ func TestAstExpressionToTokens(t *testing.T) {
 			expr: `"terramate"`,
 		},
 		{
+			name: "plain strings with escaped-escaped strings still plain",
+			expr: `"a\tb\\tc\\nd"`,
+		},
+		{
 			name: "string interpolation",
 			expr: `"some ${interpolation} here"`,
 		},
@@ -116,7 +120,7 @@ EOT
 			want: "<<-EOT\n\t${a}\n\ttest\n\t${global.a}\nEOT\n",
 		},
 		{
-			name: "render string escape characters",
+			name: "render escape characters",
 			expr: `"\n${a}${b}\t${b}\n\ntest\n\t${global.a}\n"`,
 			want: "<<-EOT\n\n${a}${b}\t${b}\n\ntest\n\t${global.a}\nEOT\n",
 		},
