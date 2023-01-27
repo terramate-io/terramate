@@ -48,6 +48,11 @@ test/fuzz/eval:
 test/fuzz/fmt:
 	go test ./hcl -fuzz=FuzzFormatMultiline
 
+## start fuzzying to generate some new corpus/find errors on ast.TokensForExpression
+.PHONY: test/fuzz/tokens-for-expr
+test/fuzz/tokens-for-expr:
+	go test ./hcl/ast -fuzz=FuzzTokensForExpression
+
 ## runs all benchmarks on the given 'pkg', or a specific benchmark inside 'pkg'
 .PHONY: bench
 bench: name?=.
