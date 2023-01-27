@@ -15,7 +15,9 @@
 package ast
 
 import (
+	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -35,6 +37,7 @@ func ParseExpression(str string, filename string) (hcl.Expression, error) {
 // TokensForExpression generates valid tokens for the given expression.
 func TokensForExpression(expr hcl.Expression) hclwrite.Tokens {
 	tokens := tokensForExpression(expr)
+	tokens[0].SpacesBefore = 0
 	tokens = append(tokens, eof())
 	return tokens
 }
@@ -85,24 +88,100 @@ func literalTokens(expr *hclsyntax.LiteralValueExpr) hclwrite.Tokens {
 }
 
 func templateTokens(tmpl *hclsyntax.TemplateExpr) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{oquote()}
+	tokenGroups := []hclwrite.Tokens{}
 	for _, part := range tmpl.Parts {
 		switch p := part.(type) {
 		case *hclsyntax.LiteralValueExpr:
-			toks := literalTokens(p)
-			if toks[0].Type == hclsyntax.TokenOQuote {
-				toks = toks[1 : len(toks)-1]
-			}
-			tokens = append(tokens, toks...)
+			tokenGroups = append(tokenGroups, literalTokens(p))
 		default:
-			toks := tokensForExpression(part)
-			tokens = append(tokens, interpBegin())
-			tokens = append(tokens, toks...)
-			tokens = append(tokens, interpEnd())
+			tokenGroups = append(tokenGroups, tokensForExpression(part))
 		}
 	}
-	tokens = append(tokens, cquote())
-	return tokens
+
+	out := hclwrite.Tokens{oquote()}
+	var useheredoc bool
+	for group, tokens := range tokenGroups {
+		if len(tokens) < 2 {
+			out = append(out, interpBegin())
+			out = append(out, tokens...)
+			out = append(out, interpEnd())
+			if group+1 == len(tokenGroups) && useheredoc {
+				out = append(out, nlString())
+			}
+			continue
+		}
+
+		last := tokens[len(tokens)-1]
+		first := tokens[0]
+		if first.Type != hclsyntax.TokenOQuote ||
+			last.Type != hclsyntax.TokenCQuote {
+			out = append(out, interpBegin())
+			out = append(out, tokens...)
+			out = append(out, interpEnd())
+			if group+1 == len(tokenGroups) && useheredoc {
+				out = append(out, nlString())
+			}
+			continue
+		}
+
+		// quoted string
+		for _, tok := range tokens[1 : len(tokens)-1] {
+			if tok.Type != hclsyntax.TokenQuotedLit {
+				out = append(out, tok)
+				if group+1 == len(tokenGroups) && useheredoc {
+					out = append(out, nlString())
+				}
+				continue
+			}
+
+			var start int
+			var end int
+			var pos int
+			for start < len(tok.Bytes) {
+				pos = start
+			inner:
+				for pos >= 0 {
+					pos1 := bytes.IndexByte(tok.Bytes[pos:], '\\')
+					if pos1 < 0 {
+						pos = -1
+						break inner
+					}
+
+					pos += pos1
+					if pos+1 < len(tok.Bytes) && tok.Bytes[pos+1] == 'n' {
+						break inner
+					}
+					pos += 1
+				}
+				if pos == -1 {
+					end = len(tok.Bytes)
+				} else {
+					useheredoc = true
+					end = pos + 2
+				}
+
+				rendered := renderString(string(tok.Bytes[start:end]))
+				strtok := hclwrite.Token{
+					Type:  hclsyntax.TokenStringLit,
+					Bytes: make([]byte, len(rendered)),
+				}
+				copy(strtok.Bytes, []byte(rendered))
+
+				if useheredoc && (pos == -1 && group+1 == len(tokenGroups)) {
+					strtok.Bytes = append(strtok.Bytes, []byte("\n")...)
+				}
+				out = append(out, &strtok)
+				start = end
+			}
+		}
+	}
+	if useheredoc {
+		out[0] = oheredoc()
+		out = append(out, cheredoc())
+	} else {
+		out = append(out, cquote())
+	}
+	return out
 }
 
 func templateWrapTokens(tmpl *hclsyntax.TemplateWrapExpr) hclwrite.Tokens {
@@ -146,8 +225,11 @@ func binOpTokens(binop *hclsyntax.BinaryOpExpr) hclwrite.Tokens {
 	default:
 		panic(fmt.Sprintf("type %T\n", binop.Op))
 	}
+	op[0].SpacesBefore = 1
 	tokens = append(tokens, op...)
-	tokens = append(tokens, tokensForExpression(binop.RHS)...)
+	rhs := tokensForExpression(binop.RHS)
+	rhs[0].SpacesBefore = 1
+	tokens = append(tokens, rhs...)
 	return tokens
 }
 
@@ -191,8 +273,10 @@ func objectTokens(obj *hclsyntax.ObjectConsExpr) hclwrite.Tokens {
 	}
 	for _, item := range obj.Items {
 		tokens = append(tokens, tokensForExpression(item.KeyExpr)...)
-		tokens = append(tokens, assign())
-		tokens = append(tokens, tokensForExpression(item.ValueExpr)...)
+		tokens = append(tokens, assign(1))
+		val := tokensForExpression(item.ValueExpr)
+		val[0].SpacesBefore = 1
+		tokens = append(tokens, val...)
 		tokens = append(tokens, nl())
 	}
 	tokens = append(tokens, cbrace())
@@ -205,7 +289,7 @@ func objectKeyTokens(key *hclsyntax.ObjectConsKeyExpr) hclwrite.Tokens {
 }
 
 func funcallTokens(fn *hclsyntax.FunctionCallExpr) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{ident(fn.Name, 1), oparen()}
+	tokens := hclwrite.Tokens{ident(fn.Name, 0), oparen()}
 	for i, expr := range fn.Args {
 		tokens = append(tokens, tokensForExpression(expr)...)
 		if i+1 != len(fn.Args) {
@@ -301,7 +385,7 @@ func traversalTokens(traversals hcl.Traversal) hclwrite.Tokens {
 			if i > 0 {
 				panic("malformed hcl")
 			}
-			tokens = append(tokens, ident(t.Name, 1))
+			tokens = append(tokens, ident(t.Name, 0))
 		case hcl.TraverseAttr:
 			tokens = append(tokens, dot(), ident(t.Name, 0))
 		case hcl.TraverseIndex:
@@ -320,6 +404,26 @@ func relTraversalTokens(traversal *hclsyntax.RelativeTraversalExpr) hclwrite.Tok
 	tokens = append(tokens, tokensForExpression(traversal.Source)...)
 	tokens = append(tokens, traversalTokens(traversal.Traversal)...)
 	return tokens
+}
+
+func renderString(in string) string {
+	type replace struct {
+		old string
+		new string
+	}
+	for _, r := range []replace{
+		{
+			old: "\\t",
+			new: "\t",
+		},
+		{
+			old: "\\n",
+			new: "\n",
+		},
+	} {
+		in = strings.ReplaceAll(in, r.old, r.new)
+	}
+	return in
 }
 
 func obrace() *hclwrite.Token {
@@ -392,10 +496,11 @@ func percent() *hclwrite.Token {
 	}
 }
 
-func assign() *hclwrite.Token {
+func assign(spaces int) *hclwrite.Token {
 	return &hclwrite.Token{
-		Type:  hclsyntax.TokenEqual,
-		Bytes: []byte{'='},
+		Type:         hclsyntax.TokenEqual,
+		Bytes:        []byte{'='},
+		SpacesBefore: spaces,
 	}
 }
 
@@ -512,6 +617,13 @@ func nl() *hclwrite.Token {
 	}
 }
 
+func nlString() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenQuotedLit,
+		Bytes: []byte("\n"),
+	}
+}
+
 func add() *hclwrite.Token {
 	return &hclwrite.Token{
 		Type:  hclsyntax.TokenPlus,
@@ -521,9 +633,8 @@ func add() *hclwrite.Token {
 
 func minus() *hclwrite.Token {
 	return &hclwrite.Token{
-		Type:         hclsyntax.TokenMinus,
-		Bytes:        []byte{'-'},
-		SpacesBefore: 1,
+		Type:  hclsyntax.TokenMinus,
+		Bytes: []byte{'-'},
 	}
 }
 
@@ -545,6 +656,20 @@ func cquote() *hclwrite.Token {
 	return &hclwrite.Token{
 		Type:  hclsyntax.TokenCQuote,
 		Bytes: []byte{'"'},
+	}
+}
+
+func oheredoc() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenOHeredoc,
+		Bytes: []byte("<<-EOT\n"),
+	}
+}
+
+func cheredoc() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenCHeredoc,
+		Bytes: []byte("EOT\n"),
 	}
 }
 

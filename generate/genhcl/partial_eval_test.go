@@ -1267,7 +1267,10 @@ EOT
 `),
 			),
 			want: Doc(
-				Str("test", "test\\n"),
+				Expr("test", `<<-EOT
+test
+EOT
+`),
 			),
 		},
 		{
@@ -1282,7 +1285,10 @@ EOT
 `),
 			),
 			want: Doc(
-				Str("test", "BEFORE test AFTER\\n"),
+				Expr("test", `<<-EOT
+BEFORE test AFTER
+EOT
+`),
 			),
 		},
 		{
@@ -1294,19 +1300,25 @@ EOT
 `),
 			),
 			want: Doc(
-				Str("test", "BEFORE TEST AFTER\\n"),
+				Expr("test", `<<-EOT
+BEFORE TEST AFTER
+EOT
+`),
 			),
 		},
 		{
 			name: "HEREDOCs partial evaluated with partials left",
 			config: Doc(
 				Expr("test", `<<-EOT
-				BEFORE ${local.myvar} AFTER
+					BEFORE ${local.myvar} AFTER
 EOT
 `),
 			),
 			want: Doc(
-				Str("test", "BEFORE ${local.myvar} AFTER\\n"),
+				Expr("test", `<<-EOT
+BEFORE ${local.myvar} AFTER
+EOT
+`),
 			),
 		},
 		{
@@ -1321,7 +1333,10 @@ EOT
 `),
 			),
 			want: Doc(
-				Str("test", "BEFORE ${49 + local.myvar} AFTER\\n"),
+				Expr("test", `<<-EOT
+BEFORE ${49 + local.myvar} AFTER
+EOT
+`),
 			),
 		},
 		{
@@ -1336,7 +1351,10 @@ EOT
 `),
 			),
 			want: Doc(
-				Str("test", "BEFORE ${\"number is 49\"} AFTER\\n"),
+				Expr("test", `<<-EOT
+BEFORE number is 49 AFTER
+EOT
+`),
 			),
 		},
 		{

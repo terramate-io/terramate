@@ -17,6 +17,7 @@ package ast_test
 import (
 	"testing"
 
+	"github.com/go-test/deep"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
@@ -28,6 +29,7 @@ func TestAstExpressionToTokens(t *testing.T) {
 	type testcase struct {
 		name string
 		expr string
+		want string // if not set, use the input expr
 	}
 
 	for _, tc := range []testcase{
@@ -54,6 +56,69 @@ func TestAstExpressionToTokens(t *testing.T) {
 		{
 			name: "string interpolation",
 			expr: `"some ${funcall()} here"`,
+		},
+		{
+			name: "interp with number",
+			expr: `"0${0}"`,
+		},
+		{
+			name: "empty heredocs",
+			expr: `<<-EOT
+EOT
+`,
+			want: `""`,
+		},
+		{
+			name: "oneline heredocs",
+			expr: `<<-EOT
+
+EOT
+`,
+		},
+		{
+			name: "strings with nl returns heredocs",
+			expr: `"0\n1"`,
+			want: `<<-EOT
+0
+1
+EOT
+`,
+		},
+		{
+			name: "strings with nl in the beginning returns heredocs",
+			expr: `"\n"`,
+			want: `<<-EOT
+
+EOT
+`,
+		},
+		{
+			name: "strings with nl in the end returns heredocs",
+			expr: `"test\n"`,
+			want: `<<-EOT
+test
+EOT
+`,
+		},
+		{
+			name: "strings with nl and interpolations returns heredocs",
+			expr: `"${a}\ntest\n${global.a}"`,
+			want: `<<-EOT
+${a}
+test
+${global.a}
+EOT
+`,
+		},
+		{
+			name: "render string escape characters",
+			expr: `"\t${a}\n\ttest\n\t${global.a}"`,
+			want: "<<-EOT\n\t${a}\n\ttest\n\t${global.a}\nEOT\n",
+		},
+		{
+			name: "render string escape characters",
+			expr: `"\n${a}${b}\t${b}\n\ntest\n\t${global.a}\n"`,
+			want: "<<-EOT\n\n${a}${b}\t${b}\n\ntest\n\t${global.a}\nEOT\n",
 		},
 		{
 			name: "utf-8",
@@ -318,9 +383,16 @@ func TestAstExpressionToTokens(t *testing.T) {
 			expr, diags := hclsyntax.ParseExpression([]byte(tc.expr), "test.hcl", hcl.InitialPos)
 			assert.IsTrue(t, !diags.HasErrors(), diags.Error())
 			got := ast.TokensForExpression(expr)
-			fmtWant := string(hclwrite.Format([]byte(tc.expr)))
+			want := tc.want
+			if want == "" {
+				want = tc.expr
+			}
+			fmtWant := string(hclwrite.Format([]byte(want)))
 			fmtGot := string(hclwrite.Format(got.Bytes()))
 			assert.EqualStrings(t, fmtWant, fmtGot)
+			for _, problem := range deep.Equal(fmtWant, fmtGot) {
+				t.Errorf("problem: %s", problem)
+			}
 		})
 	}
 }

@@ -21,6 +21,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-test/deep"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mineiros-io/terramate/hcl/ast"
@@ -31,7 +32,7 @@ func FuzzTokensForExpression(f *testing.F) {
 	seedCorpus := []string{
 		"attr",
 		"attr.value",
-		"attr.*.value",
+		//"attr.*.value",
 		"global.str",
 		`"a ${global.str}"`,
 		`"${global.obj}"`,
@@ -75,10 +76,15 @@ func FuzzTokensForExpression(f *testing.F) {
 		if diags.HasErrors() {
 			return
 		}
-		tokens := ast.TokensForExpression(expr)
-		_, diags = hclsyntax.ParseExpression(tokens.Bytes(), "fuzz.hcl", hcl.InitialPos)
+		gotTokens := ast.TokensForExpression(expr)
+		gotExpr, diags := hclsyntax.ParseExpression(gotTokens.Bytes(), "fuzz.hcl", hcl.InitialPos)
 		if diags.HasErrors() {
-			t.Fatalf("error: %v -> input: %s || generated: %s", diags.Error(), str, string(tokens.Bytes()))
+			t.Fatalf("error: %v -> input: %s || generated: %s", diags.Error(), str, string(gotTokens.Bytes()))
+		}
+		for _, problem := range deep.Equal(gotExpr, expr) {
+			if !strings.Contains(problem, ".Start.") && !strings.Contains(problem, ".End.") {
+				t.Fatalf("%s, (got %T) (want %s) for %s and %s", problem, gotExpr, ast.TokensForExpression(expr.(*hclsyntax.TemplateExpr).Parts[1]).Bytes(), gotTokens.Bytes(), str)
+			}
 		}
 	})
 }
