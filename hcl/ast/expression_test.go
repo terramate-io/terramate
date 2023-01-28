@@ -112,21 +112,28 @@ EOT
 			want: `"test${1}"`,
 		},
 		{
-			name: "strings with multiline interpolation",
+			name: "strings with multiline HIL interpolation - reformatted",
 			expr: `"test${
 				global.a == "cond" ? "br1" : "br2"
 			}"`,
 			want: `"test${global.a == "cond" ? "br1" : "br2"}"`,
 		},
 		{
-			name: "strings with multiline interpolation",
-			expr: `"test${
-				{ a = 1, b = 2}["a"]
-			}"`,
+			name: "strings with inline HIL interpolation of always-multiline objects are reformatted",
+			expr: `"test${{ a = 1, b = 2}["a"]}"`,
 			want: `"test${ {
 				a = 1
 				b = 2
 			  }["a"]}"`,
+		},
+		{
+			name: "multiline string inside HIL interpolation",
+			expr: `"test${"something\nelse"}"`,
+			want: `"test${<<-EOT
+something
+else
+EOT
+			}"`,
 		},
 		{
 			name: "strings with nl and interpolations returns heredocs",
