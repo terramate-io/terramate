@@ -50,7 +50,7 @@ func TestAstExpressionToTokens(t *testing.T) {
 			expr: `"terramate"`,
 		},
 		{
-			name: "plain strings with escaped-escaped strings still plain",
+			name: "plain strings with escaped strings still plain",
 			expr: `"a\tb\\tc\\nd"`,
 		},
 		{
@@ -103,6 +103,30 @@ EOT
 test
 EOT
 `,
+		},
+		{
+			name: "strings with multiline interpolation",
+			expr: `"test${
+				1
+			}"`,
+			want: `"test${1}"`,
+		},
+		{
+			name: "strings with multiline interpolation",
+			expr: `"test${
+				global.a == "cond" ? "br1" : "br2"
+			}"`,
+			want: `"test${global.a == "cond" ? "br1" : "br2"}"`,
+		},
+		{
+			name: "strings with multiline interpolation",
+			expr: `"test${
+				{ a = 1, b = 2}["a"]
+			}"`,
+			want: `"test${ {
+				a = 1
+				b = 2
+			  }["a"]}"`,
 		},
 		{
 			name: "strings with nl and interpolations returns heredocs",
@@ -393,7 +417,6 @@ EOT
 			}
 			fmtWant := string(hclwrite.Format([]byte(want)))
 			fmtGot := string(hclwrite.Format(got.Bytes()))
-			assert.EqualStrings(t, fmtWant, fmtGot)
 			for _, problem := range deep.Equal(fmtWant, fmtGot) {
 				t.Errorf("problem: %s", problem)
 			}

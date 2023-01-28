@@ -6,6 +6,7 @@ require (
 	github.com/alecthomas/kong v0.7.1
 	github.com/emicklei/dot v0.16.0
 	github.com/go-git/go-git/v5 v5.4.2
+	github.com/go-test/deep v1.1.0
 	github.com/google/go-cmp v0.5.6
 	github.com/hashicorp/go-version v1.3.0
 	github.com/hashicorp/hcl/v2 v2.14.1
@@ -23,7 +24,6 @@ require (
 	github.com/acomagu/bufpipe v1.0.3 // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
 	github.com/go-git/go-billy/v5 v5.3.1 // indirect
-	github.com/go-test/deep v1.1.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
