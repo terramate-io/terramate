@@ -1112,6 +1112,115 @@ func TestGenerateHCL(t *testing.T) {
 			},
 		},
 		{
+			name: "generating embedded control characters as escape characters when plain strings",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("test"),
+						Content(
+							Str("msg", "a\ttabbed\tstring"),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stack",
+					files: map[string]fmt.Stringer{
+						"test": Doc(
+							Str("msg", "a\\ttabbed\\tstring"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/stack"),
+						Created: []string{"test"},
+					},
+				},
+			},
+		},
+		{
+			name: "generating escaped control characters as escape characters when plain strings",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("test"),
+						Content(
+							Expr("msg", `"a\ttabbed\tstring"`),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stack",
+					files: map[string]fmt.Stringer{
+						"test": Doc(
+							Str("msg", "a\\ttabbed\\tstring"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/stack"),
+						Created: []string{"test"},
+					},
+				},
+			},
+		},
+		{
+			name: "generating rendered escape characters inside HEREDOC",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("test"),
+						Content(
+							Expr("msg", `"a\n\ttabbed\tstring"`),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stack",
+					files: map[string]fmt.Stringer{
+						"test": Doc(
+							Expr("msg", `<<-EOT
+a
+	tabbed	string
+EOT
+`),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/stack"),
+						Created: []string{"test"},
+					},
+				},
+			},
+		},
+		{
 			name: "stack with block with same label as parent but multiple true conditions",
 			layout: []string{
 				"s:stacks/stack",
