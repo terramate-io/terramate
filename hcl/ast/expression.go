@@ -132,10 +132,10 @@ func templateTokens(tmpl *hclsyntax.TemplateExpr) hclwrite.Tokens {
 							break inner
 						}
 						if tok.Bytes[pos+1] == '\\' {
-							pos += 1
+							pos++
 						}
 					}
-					pos += 1
+					pos++
 					if pos >= len(tok.Bytes) {
 						pos = -1
 					}
