@@ -37,68 +37,84 @@ func ParseExpression(str string, filename string) (hcl.Expression, error) {
 // TokensForExpression generates valid tokens for the given expression.
 func TokensForExpression(expr hcl.Expression) hclwrite.Tokens {
 	tokens := tokensForExpression(expr)
-	tokens[0].SpacesBefore = 0
 	tokens = append(tokens, eof())
 	return tokens
 }
 
 func tokensForExpression(expr hcl.Expression) hclwrite.Tokens {
+	builder := tokenBuilder{
+		tokens: make(hclwrite.Tokens, 0, 100),
+	}
+	builder.build(expr)
+	return builder.tokens
+}
+
+type tokenBuilder struct {
+	tokens hclwrite.Tokens
+}
+
+func (builder *tokenBuilder) add(tokens ...*hclwrite.Token) {
+	builder.tokens = append(builder.tokens, tokens...)
+}
+
+func (builder *tokenBuilder) build(expr hcl.Expression) {
 	switch e := expr.(type) {
 	case *hclsyntax.LiteralValueExpr:
-		return literalTokens(e)
+		builder.literalTokens(e)
 	case *hclsyntax.TemplateExpr:
-		return templateTokens(e)
+		builder.templateTokens(e)
 	case *hclsyntax.TemplateWrapExpr:
-		return templateWrapTokens(e)
+		builder.templateWrapTokens(e)
 	case *hclsyntax.BinaryOpExpr:
-		return binOpTokens(e)
+		builder.binOpTokens(e)
 	case *hclsyntax.UnaryOpExpr:
-		return unaryOpTokens(e)
+		builder.unaryOpTokens(e)
 	case *hclsyntax.TupleConsExpr:
-		return tupleTokens(e)
+		builder.tupleTokens(e)
 	case *hclsyntax.ParenthesesExpr:
-		return parenExprTokens(e)
+		builder.parenExprTokens(e)
 	case *hclsyntax.ObjectConsExpr:
-		return objectTokens(e)
+		builder.objectTokens(e)
 	case *hclsyntax.ObjectConsKeyExpr:
-		return objectKeyTokens(e)
+		builder.objectKeyTokens(e)
 	case *hclsyntax.ScopeTraversalExpr:
-		return scopeTraversalTokens(e)
+		builder.scopeTraversalTokens(e)
 	case *hclsyntax.ConditionalExpr:
-		return conditionalTokens(e)
+		builder.conditionalTokens(e)
 	case *hclsyntax.FunctionCallExpr:
-		return funcallTokens(e)
+		builder.funcallTokens(e)
 	case *hclsyntax.IndexExpr:
-		return indexTokens(e)
+		builder.indexTokens(e)
 	case *hclsyntax.ForExpr:
-		return forExprTokens(e)
+		builder.forExprTokens(e)
 	case *hclsyntax.SplatExpr:
-		return splatTokens(e)
+		builder.splatTokens(e)
 	case *hclsyntax.AnonSymbolExpr:
-		return anonSplatTokens(e)
+		builder.anonSplatTokens(e)
 	case *hclsyntax.RelativeTraversalExpr:
-		return relTraversalTokens(e)
+		builder.relTraversalTokens(e)
 	default:
-		panic(fmt.Sprintf("type %T\n", e))
+		panic(fmt.Sprintf("type %T not supported\n", e))
 	}
 }
 
-func literalTokens(expr *hclsyntax.LiteralValueExpr) hclwrite.Tokens {
-	return hclwrite.TokensForValue(expr.Val)
+func (builder *tokenBuilder) literalTokens(expr *hclsyntax.LiteralValueExpr) {
+	builder.add(hclwrite.TokensForValue(expr.Val)...)
 }
 
-func templateTokens(tmpl *hclsyntax.TemplateExpr) hclwrite.Tokens {
-	out := hclwrite.Tokens{oquote()}
+func (builder *tokenBuilder) templateTokens(tmpl *hclsyntax.TemplateExpr) {
+	begin := len(builder.tokens)
+	builder.add(oquote())
 	var useheredoc bool
 	for group, part := range tmpl.Parts {
 		tokens := tokensForExpression(part)
 		if len(tokens) < 2 || (tokens[0].Type != hclsyntax.TokenOQuote ||
 			tokens[len(tokens)-1].Type != hclsyntax.TokenCQuote) {
-			out = append(out, interpBegin())
-			out = append(out, tokens...)
-			out = append(out, interpEnd())
+			builder.add(interpBegin())
+			builder.add(tokens...)
+			builder.add(interpEnd())
 			if group+1 == len(tmpl.Parts) && useheredoc {
-				out = append(out, nlString())
+				builder.add(nlString())
 			}
 			continue
 		}
@@ -106,12 +122,17 @@ func templateTokens(tmpl *hclsyntax.TemplateExpr) hclwrite.Tokens {
 		// quoted string
 		for _, tok := range tokens[1 : len(tokens)-1] {
 			if tok.Type != hclsyntax.TokenQuotedLit {
-				out = append(out, tok)
+				builder.add(tok)
 				if group+1 == len(tmpl.Parts) && useheredoc {
-					out = append(out, nlString())
+					builder.add(nlString())
 				}
 				continue
 			}
+
+			// the code below creates multiple TokenStringLit out of a possibly
+			// multiline TokenQuotedLit.
+			// The implementation must take care of correctly processing only
+			// '\', 'n' sequences, ignoring escaped sequences like '\', '\', 'n'.
 
 			var start int
 			var end int
@@ -153,245 +174,227 @@ func templateTokens(tmpl *hclsyntax.TemplateExpr) hclwrite.Tokens {
 				if useheredoc && (pos == -1 && group+1 == len(tmpl.Parts)) {
 					strtok.Bytes = append(strtok.Bytes, []byte("\n")...)
 				}
-				out = append(out, &strtok)
+				builder.add(&strtok)
 				start = end
 			}
 		}
 	}
 	if useheredoc {
-		out[0] = oheredoc()
-		for _, tok := range out[1:] {
+		builder.tokens[begin] = oheredoc()
+		for _, tok := range builder.tokens[begin+1:] {
 			if tok.Type == hclsyntax.TokenStringLit {
 				tok.Bytes = []byte(renderString(string(tok.Bytes)))
 			}
 		}
-		out = append(out, cheredoc())
+		builder.add(cheredoc())
 	} else {
-		out = append(out, cquote())
+		builder.add(cquote())
 	}
-	return out
 }
 
-func templateWrapTokens(tmpl *hclsyntax.TemplateWrapExpr) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{oquote(), interpBegin()}
-	tokens = append(tokens, tokensForExpression(tmpl.Wrapped)...)
-	tokens = append(tokens, interpEnd(), cquote())
-	return tokens
+func (builder *tokenBuilder) templateWrapTokens(tmpl *hclsyntax.TemplateWrapExpr) {
+	builder.add(oquote(), interpBegin())
+	builder.build(tmpl.Wrapped)
+	builder.add(interpEnd(), cquote())
 }
 
-func binOpTokens(binop *hclsyntax.BinaryOpExpr) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{}
-	tokens = append(tokens, tokensForExpression(binop.LHS)...)
-	var op hclwrite.Tokens
+func (builder *tokenBuilder) binOpTokens(binop *hclsyntax.BinaryOpExpr) {
+	builder.build(binop.LHS)
+	var op *hclwrite.Token
 	switch binop.Op {
 	case hclsyntax.OpAdd:
-		op = append(op, add())
+		op = add()
 	case hclsyntax.OpSubtract:
-		op = append(op, minus())
+		op = minus()
 	case hclsyntax.OpDivide:
-		op = append(op, slash())
+		op = slash()
 	case hclsyntax.OpMultiply:
-		op = append(op, star())
+		op = star()
 	case hclsyntax.OpModulo:
-		op = append(op, percent())
+		op = percent()
 	case hclsyntax.OpEqual:
-		op = append(op, equal())
+		op = equal()
 	case hclsyntax.OpNotEqual:
-		op = append(op, nequal())
+		op = nequal()
 	case hclsyntax.OpGreaterThan:
-		op = append(op, gtr())
+		op = gtr()
 	case hclsyntax.OpLessThan:
-		op = append(op, lss())
+		op = lss()
 	case hclsyntax.OpLessThanOrEqual:
-		op = append(op, lsseq())
+		op = lsseq()
 	case hclsyntax.OpGreaterThanOrEqual:
-		op = append(op, gtreq())
+		op = gtreq()
 	case hclsyntax.OpLogicalAnd:
-		op = append(op, and())
+		op = and()
 	case hclsyntax.OpLogicalOr:
-		op = append(op, or())
+		op = or()
 	default:
 		panic(fmt.Sprintf("type %T\n", binop.Op))
 	}
-	op[0].SpacesBefore = 1
-	tokens = append(tokens, op...)
-	rhs := tokensForExpression(binop.RHS)
-	rhs[0].SpacesBefore = 1
-	tokens = append(tokens, rhs...)
-	return tokens
+	op.SpacesBefore = 1
+	builder.add(op)
+	nexttok := len(builder.tokens)
+	builder.build(binop.RHS)
+	builder.tokens[nexttok].SpacesBefore = 1
 }
 
-func unaryOpTokens(unary *hclsyntax.UnaryOpExpr) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{}
+func (builder *tokenBuilder) unaryOpTokens(unary *hclsyntax.UnaryOpExpr) {
 	switch unary.Op {
 	case hclsyntax.OpLogicalNot:
-		tokens = append(tokens, bang())
+		builder.add(bang())
 	case hclsyntax.OpNegate:
-		tokens = append(tokens, minus())
+		builder.add(minus())
 	default:
 		panic(fmt.Sprintf("type %T\n", unary.Op))
 	}
-	tokens = append(tokens, tokensForExpression(unary.Val)...)
-	return tokens
+	builder.build(unary.Val)
 }
 
-func parenExprTokens(parenExpr *hclsyntax.ParenthesesExpr) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{oparen()}
-	tokens = append(tokens, tokensForExpression(parenExpr.Expression)...)
-	tokens = append(tokens, cparen())
-	return tokens
+func (builder *tokenBuilder) parenExprTokens(parenExpr *hclsyntax.ParenthesesExpr) {
+	builder.add(oparen())
+	builder.build(parenExpr.Expression)
+	builder.add(cparen())
 }
 
-func tupleTokens(tuple *hclsyntax.TupleConsExpr) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{obrack()}
+func (builder *tokenBuilder) tupleTokens(tuple *hclsyntax.TupleConsExpr) {
+	builder.add(obrack())
 	for i, expr := range tuple.Exprs {
-		tokens = append(tokens, tokensForExpression(expr)...)
+		builder.build(expr)
 		if i+1 != len(tuple.Exprs) {
-			tokens = append(tokens, comma())
+			builder.add(comma())
 		}
 	}
-	tokens = append(tokens, cbrack())
-	return tokens
+	builder.add(cbrack())
 }
 
-func objectTokens(obj *hclsyntax.ObjectConsExpr) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{obrace()}
+func (builder *tokenBuilder) objectTokens(obj *hclsyntax.ObjectConsExpr) {
+	builder.add(obrace())
 	if len(obj.Items) > 0 {
-		tokens = append(tokens, nl())
+		builder.add(nl())
 	}
 	for _, item := range obj.Items {
-		tokens = append(tokens, tokensForExpression(item.KeyExpr)...)
-		tokens = append(tokens, assign(1))
-		val := tokensForExpression(item.ValueExpr)
-		val[0].SpacesBefore = 1
-		tokens = append(tokens, val...)
-		tokens = append(tokens, nl())
+		builder.build(item.KeyExpr)
+		builder.add(assign(1))
+		nexttok := len(builder.tokens)
+		builder.build(item.ValueExpr)
+		builder.tokens[nexttok].SpacesBefore = 1
+		builder.add(nl())
 	}
-	tokens = append(tokens, cbrace())
-	return tokens
+	builder.add(cbrace())
 }
 
-func objectKeyTokens(key *hclsyntax.ObjectConsKeyExpr) hclwrite.Tokens {
+func (builder *tokenBuilder) objectKeyTokens(key *hclsyntax.ObjectConsKeyExpr) {
 	// TODO(i4k): review the case for key.ForceNonLiteral = true|false
-	return tokensForExpression(key.Wrapped)
+	builder.build(key.Wrapped)
 }
 
-func funcallTokens(fn *hclsyntax.FunctionCallExpr) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{ident(fn.Name, 0), oparen()}
+func (builder *tokenBuilder) funcallTokens(fn *hclsyntax.FunctionCallExpr) {
+	builder.add(ident(fn.Name, 0), oparen())
 	for i, expr := range fn.Args {
-		tokens = append(tokens, tokensForExpression(expr)...)
+		builder.build(expr)
 		if i+1 != len(fn.Args) {
-			tokens = append(tokens, comma())
+			builder.add(comma())
 		}
 	}
-	tokens = append(tokens, cparen())
-	return tokens
+	builder.add(cparen())
 }
 
-func conditionalTokens(cond *hclsyntax.ConditionalExpr) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{}
-	tokens = append(tokens, tokensForExpression(cond.Condition)...)
-	tokens = append(tokens, question())
-	tokens = append(tokens, tokensForExpression(cond.TrueResult)...)
-	tokens = append(tokens, colon())
-	tokens = append(tokens, tokensForExpression(cond.FalseResult)...)
-	return tokens
+func (builder *tokenBuilder) conditionalTokens(cond *hclsyntax.ConditionalExpr) {
+	builder.build(cond.Condition)
+	builder.add(question())
+	builder.build(cond.TrueResult)
+	builder.add(colon())
+	builder.build(cond.FalseResult)
 }
 
-func forExprTokens(forExpr *hclsyntax.ForExpr) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{}
+func (builder *tokenBuilder) forExprTokens(forExpr *hclsyntax.ForExpr) {
 	var end *hclwrite.Token
 	if forExpr.KeyExpr != nil {
 		// it's an object for-expr
 		end = cbrace()
-		tokens = append(tokens, obrace(), ident("for", 0))
+		builder.add(obrace(), ident("for", 0))
 		if forExpr.KeyVar != "" {
-			tokens = append(tokens, ident(forExpr.KeyVar, 1))
-			tokens = append(tokens, comma())
+			builder.add(ident(forExpr.KeyVar, 1))
+			builder.add(comma())
 		}
-		tokens = append(tokens, ident(forExpr.ValVar, 1))
+		builder.add(ident(forExpr.ValVar, 1))
 	} else {
 		end = cbrack()
-		tokens = append(tokens, obrack(), ident("for", 0))
+		builder.add(obrack(), ident("for", 0))
 		if forExpr.KeyVar != "" {
-			tokens = append(tokens, ident(forExpr.KeyVar, 1))
-			tokens = append(tokens, comma())
+			builder.add(ident(forExpr.KeyVar, 1))
+			builder.add(comma())
 		}
-		tokens = append(tokens, ident(forExpr.ValVar, 1))
+		builder.add(ident(forExpr.ValVar, 1))
 	}
-	tokens = append(tokens, ident("in", 1))
+	builder.add(ident("in", 1))
 	in := tokensForExpression(forExpr.CollExpr)
 	in[0].SpacesBefore = 1
-	tokens = append(tokens, in...)
-	tokens = append(tokens, colon())
+	builder.add(in...)
+	builder.add(colon())
 	if forExpr.KeyExpr != nil {
-		tokens = append(tokens, tokensForExpression(forExpr.KeyExpr)...)
-		tokens = append(tokens, arrow())
-		tokens = append(tokens, tokensForExpression(forExpr.ValExpr)...)
+		builder.build(forExpr.KeyExpr)
+		builder.add(arrow())
+		builder.build(forExpr.ValExpr)
 	} else {
-		tokens = append(tokens, tokensForExpression(forExpr.ValExpr)...)
+		builder.build(forExpr.ValExpr)
 	}
 	if forExpr.CondExpr != nil {
-		tokens = append(tokens, ident("if", 1))
-		iftoks := tokensForExpression(forExpr.CondExpr)
-		iftoks[0].SpacesBefore = 1
-		tokens = append(tokens, iftoks...)
+		builder.add(ident("if", 1))
+		nexttok := len(builder.tokens)
+		builder.build(forExpr.CondExpr)
+		builder.tokens[nexttok].SpacesBefore = 1
 	}
-	tokens = append(tokens, end)
-	return tokens
+	builder.add(end)
 }
 
-func indexTokens(index *hclsyntax.IndexExpr) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{}
-	tokens = append(tokens, tokensForExpression(index.Collection)...)
-	tokens = append(tokens, obrack())
-	tokens = append(tokens, tokensForExpression(index.Key)...)
-	tokens = append(tokens, cbrack())
-	return tokens
+func (builder *tokenBuilder) indexTokens(index *hclsyntax.IndexExpr) {
+	builder.build(index.Collection)
+	builder.add(obrack())
+	builder.build(index.Key)
+	builder.add(cbrack())
 }
 
-func splatTokens(splat *hclsyntax.SplatExpr) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{}
-	tokens = append(tokens, tokensForExpression(splat.Source)...)
-	tokens = append(tokens, obrack())
-	tokens = append(tokens, star())
-	tokens = append(tokens, cbrack())
-	tokens = append(tokens, tokensForExpression(splat.Each)...)
-
-	return tokens
+func (builder *tokenBuilder) splatTokens(splat *hclsyntax.SplatExpr) {
+	builder.build(splat.Source)
+	builder.add(obrack())
+	builder.add(star())
+	builder.add(cbrack())
+	builder.build(splat.Each)
 }
 
-func scopeTraversalTokens(scope *hclsyntax.ScopeTraversalExpr) hclwrite.Tokens {
-	return traversalTokens(scope.Traversal)
+func (builder *tokenBuilder) scopeTraversalTokens(scope *hclsyntax.ScopeTraversalExpr) {
+	builder.traversalTokens(scope.Traversal)
 }
 
-func traversalTokens(traversals hcl.Traversal) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{}
+func (builder *tokenBuilder) traversalTokens(traversals hcl.Traversal) {
 	for i, traversal := range traversals {
 		switch t := traversal.(type) {
 		case hcl.TraverseRoot:
 			if i > 0 {
 				panic("malformed hcl")
 			}
-			tokens = append(tokens, ident(t.Name, 0))
+			builder.add(ident(t.Name, 0))
 		case hcl.TraverseAttr:
-			tokens = append(tokens, dot(), ident(t.Name, 0))
+			builder.add(dot(), ident(t.Name, 0))
 		case hcl.TraverseIndex:
-			tokens = append(tokens, obrack())
-			tokens = append(tokens, hclwrite.TokensForValue(t.Key)...)
-			tokens = append(tokens, cbrack())
+			builder.add(obrack())
+			builder.add(hclwrite.TokensForValue(t.Key)...)
+			builder.add(cbrack())
 		default:
 			panic(fmt.Sprintf("type %T\n", t))
 		}
 	}
-	return tokens
 }
 
-func relTraversalTokens(traversal *hclsyntax.RelativeTraversalExpr) hclwrite.Tokens {
-	tokens := hclwrite.Tokens{}
-	tokens = append(tokens, tokensForExpression(traversal.Source)...)
-	tokens = append(tokens, traversalTokens(traversal.Traversal)...)
-	return tokens
+func (builder *tokenBuilder) relTraversalTokens(traversal *hclsyntax.RelativeTraversalExpr) {
+	builder.build(traversal.Source)
+	builder.traversalTokens(traversal.Traversal)
+}
+
+func (builder *tokenBuilder) anonSplatTokens(anon *hclsyntax.AnonSymbolExpr) {
+	// this node is solely used during the splat evaluation.
+	// and should generate nothing?
 }
 
 func renderString(str string) string {
@@ -665,9 +668,4 @@ func eof() *hclwrite.Token {
 	return &hclwrite.Token{
 		Type: hclsyntax.TokenEOF,
 	}
-}
-
-func anonSplatTokens(anon *hclsyntax.AnonSymbolExpr) hclwrite.Tokens {
-	// this node is solely used during the splat evaluation.
-	return hclwrite.Tokens{}
 }
