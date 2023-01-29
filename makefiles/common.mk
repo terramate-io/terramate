@@ -2,6 +2,7 @@ GO_RELEASER_VERSION=v1.14.0
 GOLANGCI_LINT_VERSION ?= v1.49.0
 COVERAGE_REPORT ?= coverage.txt
 RUN_ADD_LICENSE=go run github.com/google/addlicense@v1.0.0 -ignore **/*.yml
+BENCH_CHECK=go run github.com/madlambda/benchcheck/cmd/benchcheck@i4k-add-pkg-opt
 
 ## Format go code
 .PHONY: fmt
@@ -59,7 +60,7 @@ bench: name?=.
 bench: pkg?=.
 bench: time=1s
 bench:
-	@go test -bench=$(name) -benchtime=$(time) -benchmem -memprofile=mem.prof -cpuprofile cpu.prof $(pkg)
+	@go test -bench=$(name) -count=5 -benchtime=$(time) -benchmem -memprofile=mem.prof -cpuprofile cpu.prof $(pkg)
 
 ## benchmark all packages
 .PHONY: bench/all
@@ -69,6 +70,16 @@ bench/all:
 	@for benchfile in $(shell find $(dir) | grep _bench_); do \
 		go test -bench=. -benchtime=$(time) -benchmem -memprofile=$$(basename $$benchfile).mem.prof -cpuprofile $$(basename $$benchfile).cpu.prof $$(dirname $$benchfile); \
 	done
+
+## check benchmark
+.PHONY: bench/check
+bench/check: allocdelta="+10%"
+bench/check: name=github.com/mineiros-io/terramate
+bench/check: pkg=./hcl/ast
+bench/check: old=i4k-add-benchmarks
+bench/check: new?=$(shell git rev-parse HEAD)
+bench/check:
+	$(BENCH_CHECK) -mod $(name) -pkg $(pkg) -old $(old) -new $(new) -check alloc-delta=$(allocdelta)
 
 ## cleanup artifacts produced by the benchmarking process
 bench/cleanup:
