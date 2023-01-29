@@ -28,4 +28,13 @@ jobs:
           go-version: "1.19"
 
       - name: run benchcheck
-        run: make bench/check
+        run: |
+          echo "stats=$(make bench/check)\n" >> $GITHUB_OUTPUT
+        id: benchmark
+
+      - name: Comment PR with execution number
+        uses: thollander/actions-comment-pull-request@v2
+        with:
+          message: |
+            ${{steps.benchmark.outputs.bench}}
+          comment_tag: benchmark
