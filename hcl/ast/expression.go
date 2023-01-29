@@ -105,8 +105,7 @@ func (builder *tokenBuilder) templateTokens(tmpl *hclsyntax.TemplateExpr) {
 	var useheredoc bool
 	for group, part := range tmpl.Parts {
 		tokens := tokensForExpression(part)
-		if len(tokens) < 2 || (tokens[0].Type != hclsyntax.TokenOQuote ||
-			tokens[len(tokens)-1].Type != hclsyntax.TokenCQuote) {
+		if tokens[0].Type != hclsyntax.TokenOQuote {
 			builder.add(interpBegin())
 			builder.add(tokens...)
 			builder.add(interpEnd())
@@ -173,7 +172,7 @@ func (builder *tokenBuilder) templateTokens(tmpl *hclsyntax.TemplateExpr) {
 		builder.tokens[begin] = oheredoc()
 		for _, tok := range builder.tokens[begin+1:] {
 			if tok.Type == hclsyntax.TokenStringLit {
-				tok.Bytes = []byte(renderString(string(tok.Bytes)))
+				tok.Bytes = renderString(tok.Bytes)
 			}
 		}
 		builder.add(cheredoc())
@@ -387,11 +386,12 @@ func (builder *tokenBuilder) anonSplatTokens(anon *hclsyntax.AnonSymbolExpr) {
 	// and should generate nothing?
 }
 
-func renderString(str string) string {
+func renderString(bytes []byte) []byte {
 	type replace struct {
 		old string
 		new string
 	}
+	str := string(bytes)
 	for _, r := range []replace{
 		{
 			old: "\\t",
@@ -404,7 +404,7 @@ func renderString(str string) string {
 	} {
 		str = strings.ReplaceAll(str, r.old, r.new)
 	}
-	return str
+	return []byte(str)
 }
 
 func obrace() *hclwrite.Token {
