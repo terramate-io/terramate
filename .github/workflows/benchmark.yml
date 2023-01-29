@@ -30,9 +30,9 @@ jobs:
       - name: run benchcheck
         id: benchmark
         run: |
-          OUTPUT=$(make bench/check new=$GITHUB_HEAD_REF)
-          echo $OUTPUT
-          echo "result=$OUTPUT" >> $GITHUB_OUTPUT
+          echo "result<<EOF" >> $GITHUB_OUTPUT
+          echo "$(make bench/check new=$GITHUB_HEAD_REF)" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
       
       - uses: marocchino/sticky-pull-request-comment@v2
         with:
