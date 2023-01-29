@@ -80,7 +80,7 @@ bench/check: pkg=./hcl/ast
 bench/check: old=i4k-add-benchmarks
 bench/check: new?=$(shell git rev-parse HEAD)
 bench/check:
-	$(BENCH_CHECK) -mod $(name) -pkg $(pkg) -go-test-flags "-benchmem" \
+	@$(BENCH_CHECK) -mod $(name) -pkg $(pkg) -go-test-flags "-benchmem" \
 		-old $(old) -new $(new) \
 		-check allocs/op=$(allocdelta) \
 		-check time/op=$(timedelta)
