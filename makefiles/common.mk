@@ -85,7 +85,6 @@ bench/check:
 		-check allocs/op=$(allocdelta) \
 		-check time/op=$(timedelta)
 
-
 ## cleanup artifacts produced by the benchmarking process
 bench/cleanup:
 	rm -f *.prof
