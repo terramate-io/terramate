@@ -28,15 +28,15 @@ jobs:
           go-version: "1.19"
 
       - name: run benchcheck
-        run: |
-          echo "stats<<EOF" >> $GITHUB_OUTPUT
-          echo "$(make bench/check)" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
         id: benchmark
-
-      - name: Comment PR with execution number
-        uses: thollander/actions-comment-pull-request@v2
+        run: |
+          OUTPUT=$(make bench/check)
+          echo "result=$OUTPUT" >> $GITHUB_OUTPUT
+      
+      - uses: marocchino/sticky-pull-request-comment@v2
         with:
+          header: benchmark
           message: |
-            _(execution ${{ steps.benchmark.outputs.stats }})
-          comment_tag: benchmark
+            ```
+            ${{ steps.benchmark.outputs.result }}
+            ```
