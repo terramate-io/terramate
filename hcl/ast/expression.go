@@ -42,7 +42,7 @@ func TokensForExpression(expr hcl.Expression) hclwrite.Tokens {
 
 func tokensForExpression(expr hcl.Expression) hclwrite.Tokens {
 	builder := tokenBuilder{
-		tokens: make(hclwrite.Tokens, 0, 100),
+		tokens: make(hclwrite.Tokens, 0, 32),
 	}
 	builder.build(expr)
 	return builder.tokens
@@ -162,7 +162,7 @@ func (builder *tokenBuilder) templateTokens(tmpl *hclsyntax.TemplateExpr) {
 				}
 				strtok := hclwrite.Token{
 					Type:  hclsyntax.TokenStringLit,
-					Bytes: []byte(tok.Bytes[start:end]),
+					Bytes: tok.Bytes[start:end],
 				}
 				if useheredoc && (pos == -1 && group+1 == len(tmpl.Parts)) {
 					strtok.Bytes = append(strtok.Bytes, []byte("\n")...)
