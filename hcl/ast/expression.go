@@ -15,7 +15,6 @@
 package ast
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 
@@ -140,28 +139,22 @@ func (builder *tokenBuilder) templateTokens(tmpl *hclsyntax.TemplateExpr) {
 			for start < len(tok.Bytes) {
 				pos = start
 			inner:
-				for pos >= 0 {
-					pos1 := bytes.IndexByte(tok.Bytes[pos:], '\\')
-					if pos1 < 0 {
-						pos = -1
-						break inner
+				for pos < len(tok.Bytes)-1 {
+					if tok.Bytes[pos] != '\\' {
+						pos++
+						continue
 					}
 
-					pos += pos1
-					if pos+1 < len(tok.Bytes) {
-						if tok.Bytes[pos+1] == 'n' {
-							break inner
-						}
-						if tok.Bytes[pos+1] == '\\' {
-							pos++
-						}
+					if tok.Bytes[pos+1] == 'n' {
+						break inner
+					}
+					if tok.Bytes[pos+1] == '\\' {
+						pos++
 					}
 					pos++
-					if pos >= len(tok.Bytes) {
-						pos = -1
-					}
 				}
-				if pos == -1 {
+				if pos >= len(tok.Bytes)-1 {
+					pos = -1
 					end = len(tok.Bytes)
 				} else {
 					useheredoc = true

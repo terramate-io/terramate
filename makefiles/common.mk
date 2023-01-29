@@ -2,7 +2,7 @@ GO_RELEASER_VERSION=v1.14.0
 GOLANGCI_LINT_VERSION ?= v1.49.0
 COVERAGE_REPORT ?= coverage.txt
 RUN_ADD_LICENSE=go run github.com/google/addlicense@v1.0.0 -ignore **/*.yml
-BENCH_CHECK=go run github.com/madlambda/benchcheck/cmd/benchcheck@62d51c715d464234d2c6844296ff943380d881d9
+BENCH_CHECK=go run github.com/madlambda/benchcheck/cmd/benchcheck@dc26693779b83a0cc79263edf7e903d054295527
 
 ## Format go code
 .PHONY: fmt
