@@ -37,5 +37,6 @@ jobs:
       - name: Comment PR with execution number
         uses: thollander/actions-comment-pull-request@v2
         with:
-          message: ${{join(steps.benchmark.outputs.*, '\n')}}
+          message: |
+            _(execution **${{ github.run_id }}** ${{join(steps.benchmark.outputs.*, '\n')}})
           comment_tag: benchmark
