@@ -38,5 +38,5 @@ jobs:
         uses: thollander/actions-comment-pull-request@v2
         with:
           message: |
-            _(execution **${{ github.run_id }}** ${{join(steps.benchmark.outputs.*, '\n')}})
+            _(execution ${{ steps.benchmark.outputs.stats }})
           comment_tag: benchmark
