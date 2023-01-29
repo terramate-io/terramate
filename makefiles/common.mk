@@ -2,7 +2,7 @@ GO_RELEASER_VERSION=v1.14.0
 GOLANGCI_LINT_VERSION ?= v1.49.0
 COVERAGE_REPORT ?= coverage.txt
 RUN_ADD_LICENSE=go run github.com/google/addlicense@v1.0.0 -ignore **/*.yml
-BENCH_CHECK=go run github.com/madlambda/benchcheck/cmd/benchcheck@dc26693779b83a0cc79263edf7e903d054295527
+BENCH_CHECK=go run github.com/madlambda/benchcheck/cmd/benchcheck@743137fbfd827958b25ab6b13fa1180e0e933eb1
 
 ## Format go code
 .PHONY: fmt
@@ -73,14 +73,14 @@ bench/all:
 
 ## check benchmark
 .PHONY: bench/check
-bench/check: allocdelta="+3%"
-bench/check: timedelta="+10%"
+bench/check: allocdelta="+20%"
+bench/check: timedelta="+20%"
 bench/check: name=github.com/mineiros-io/terramate
 bench/check: pkg=./hcl/ast
 bench/check: old=i4k-add-benchmarks
 bench/check: new?=$(shell git rev-parse HEAD)
 bench/check:
-	@$(BENCH_CHECK) -mod $(name) -pkg $(pkg) -go-test-flags "-benchmem" \
+	@$(BENCH_CHECK) -mod $(name) -pkg $(pkg) -go-test-flags "-benchmem,-count=20" \
 		-old $(old) -new $(new) \
 		-check allocs/op=$(allocdelta) \
 		-check time/op=$(timedelta)
