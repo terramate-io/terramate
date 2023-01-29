@@ -29,7 +29,9 @@ jobs:
 
       - name: run benchcheck
         run: |
-          echo "stats=$(make bench/check)\n" >> $GITHUB_OUTPUT
+          echo "stats<<EOF" >> $GITHUB_OUTPUT
+          echo "$(make bench/check)" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
         id: benchmark
 
       - name: Comment PR with execution number
