@@ -27,15 +27,10 @@ jobs:
         with:
           go-version: "1.19"
 
-      - name: Extract branch name
-        shell: bash
-        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-        id: extract_branch
-
       - name: run benchcheck
         id: benchmark
         run: |
-          OUTPUT=$(make bench/check new=${{ steps.extract_branch.outputs.branch }})
+          OUTPUT=$(make bench/check new=$GITHUB_HEAD_REF)
           echo $OUTPUT
           echo "result=$OUTPUT" >> $GITHUB_OUTPUT
       
