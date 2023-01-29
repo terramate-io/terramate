@@ -41,9 +41,7 @@ func TokensForExpression(expr hcl.Expression) hclwrite.Tokens {
 }
 
 func tokensForExpression(expr hcl.Expression) hclwrite.Tokens {
-	builder := tokenBuilder{
-		tokens: hclwrite.Tokens{},
-	}
+	builder := tokenBuilder{}
 	builder.build(expr)
 	return builder.tokens
 }
