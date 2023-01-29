@@ -136,7 +136,6 @@ func (builder *tokenBuilder) templateTokens(tmpl *hclsyntax.TemplateExpr) {
 			var pos int
 			for start < len(tok.Bytes) {
 				pos = start
-			inner:
 				for pos < len(tok.Bytes)-1 {
 					if tok.Bytes[pos] != '\\' {
 						pos++
@@ -144,7 +143,7 @@ func (builder *tokenBuilder) templateTokens(tmpl *hclsyntax.TemplateExpr) {
 					}
 
 					if tok.Bytes[pos+1] == 'n' {
-						break inner
+						break
 					}
 					if tok.Bytes[pos+1] == '\\' {
 						pos++
