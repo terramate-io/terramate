@@ -61,6 +61,15 @@ bench: time=1s
 bench:
 	@go test -bench=$(name) -benchtime=$(time) -benchmem -memprofile=mem.prof -cpuprofile cpu.prof $(pkg)
 
+## benchmark all packages
+.PHONY: bench/all
+bench/all: time=1s
+bench/all: dir=.
+bench/all:
+	@for benchfile in $(shell find $(dir) | grep _bench_); do \
+		go test -bench=. -benchtime=$(time) -benchmem -memprofile=$$(basename $$benchfile).mem.prof -cpuprofile $$(basename $$benchfile).cpu.prof $$(dirname $$benchfile); \
+	done
+
 ## cleanup artifacts produced by the benchmarking process
 bench/cleanup:
 	rm -f *.prof
