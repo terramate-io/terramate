@@ -15,13 +15,11 @@
 package eval
 
 import (
-	"os"
-
 	"github.com/hashicorp/hcl/v2/ext/customdecode"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl/dynexpr/dynrange"
+	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 
@@ -93,12 +91,7 @@ func (c *Context) Eval(expr hhcl.Expression) (cty.Value, error) {
 // with  no reference to terramate namespaced variables (globals and terramate)
 // and functions (tm_ prefixed functions).
 func (c *Context) PartialEval(expr hhcl.Expression) (hclwrite.Tokens, error) {
-	tokens, err := TokensForExpression(expr)
-	if err != nil {
-		return nil, err
-	}
-
-	engine := newPartialEvalEngine(tokens, c)
+	engine := newPartialEvalEngine(ast.TokensForExpression(expr), c)
 	return engine.Eval()
 }
 
@@ -120,55 +113,14 @@ func (c *Context) Unwrap() *hhcl.EvalContext {
 }
 
 // TokensForValue returns the tokens for the provided value.
-func TokensForValue(value cty.Value) (hclwrite.Tokens, error) {
+func TokensForValue(value cty.Value) hclwrite.Tokens {
 	if value.Type() == customdecode.ExpressionClosureType {
 		closureExpr := value.EncapsulatedValue().(*customdecode.ExpressionClosure)
-		return TokensForExpression(closureExpr.Expression)
+		return ast.TokensForExpression(closureExpr.Expression)
 	} else if value.Type() == customdecode.ExpressionType {
-		return TokensForExpression(customdecode.ExpressionFromVal(value))
+		return ast.TokensForExpression(customdecode.ExpressionFromVal(value))
 	}
-	return hclwrite.TokensForValue(value), nil
-}
-
-// TokensForExpression returns the tokens for the provided expression.
-//
-// Beware: This function has hacks to circumvent limitations in the hashicorp
-// library when it comes to generating unknown values.
-// Because we cannot retrieve the tokens that makes an hcl.Expression, we have
-// to read the file bytes again and slice the expression part using the
-// expr.Range() info. This was the first hack.
-// But this is not enough... as in the case of partial evaluating expressions,
-// we rewrite the token stream and once a hcl.Expression is generated, the
-// tokens are lost forever and returned into the hashicorp evaluator. Then, if
-// it composes with functions like tm_ternary(), we end up with expressions
-// that lack information about its own tokens...
-// So the second hack is: in the case of generated expressions, there's no real
-// file, then we store the original bytes inside the expr.Range().Filename
-// string. The expressions with these injected tokens have the filename of the
-// form:
-//
-//	<generated-hcl><NUL BYTE><tokens>
-//
-// See the ParseExpressionBytes() function for details of how bytes are injected.
-//
-// At this point you should be wondering: What happens if the user creates a
-// a file with this format? The answer depends on the user's operating system,
-// but for most of them, this is impossible because POSIX systems and Windows
-// prohibits NUL bytes in filesystem paths.
-//
-// I'm sorry.
-func TokensForExpression(expr hhcl.Expression) (hclwrite.Tokens, error) {
-	exprdata, ok := dynrange.UnwrapExprBytes(expr.Range().Filename)
-	if !ok {
-		var err error
-		exprdata, err = os.ReadFile(expr.Range().Filename)
-		if err != nil {
-			return nil, errors.E(err, "reading expression from file")
-		}
-	}
-	exprRange := expr.Range()
-	exprdata = exprdata[exprRange.Start.Byte:exprRange.End.Byte]
-	return TokensForExpressionBytes(exprdata)
+	return hclwrite.TokensForValue(value)
 }
 
 // TokensForExpressionBytes returns the tokens for the provided expression bytes.

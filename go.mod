@@ -6,6 +6,7 @@ require (
 	github.com/alecthomas/kong v0.7.1
 	github.com/emicklei/dot v0.16.0
 	github.com/go-git/go-git/v5 v5.4.2
+	github.com/go-test/deep v1.1.0
 	github.com/google/go-cmp v0.5.6
 	github.com/hashicorp/go-version v1.3.0
 	github.com/hashicorp/hcl/v2 v2.14.1

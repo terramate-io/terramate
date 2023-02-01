@@ -26,7 +26,6 @@ import (
 	"syscall"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/mineiros-io/terramate/hcl/dynexpr/dynrange"
 	"github.com/mineiros-io/terramate/hcl/info"
 )
 
@@ -156,7 +155,7 @@ func E(args ...interface{}) *Error {
 		case Kind:
 			e.Kind = arg
 		case hcl.Range:
-			e.FileRange = dynrange.Fixup(arg)
+			e.FileRange = arg
 		case info.Range:
 			start := arg.Start()
 			end := arg.End()
@@ -250,7 +249,7 @@ func E(args ...interface{}) *Error {
 	switch prev := e.Err.(type) {
 	case *hcl.Diagnostic:
 		if prev.Subject != nil && e.FileRange.Empty() {
-			e.FileRange = dynrange.Fixup(*prev.Subject)
+			e.FileRange = *prev.Subject
 		}
 
 		if e.Description == "" {

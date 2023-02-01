@@ -25,7 +25,6 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/mapexpr"
 
-	"github.com/mineiros-io/terramate/hcl/dynexpr"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
@@ -154,7 +153,11 @@ func LoadExprs(root *config.Root, cfgdir project.Path) (HierarchicalExprs, error
 
 		attrs := block.Attributes.SortedList()
 		if len(block.Labels) > 0 && len(attrs) == 0 {
-			expr, _ := dynexpr.ParseExpressionBytes([]byte(`{}`))
+			expr, _ := hclsyntax.ParseExpression(
+				[]byte(`{}`),
+				block.RawOrigins[0].Range.HostPath(),
+				hhcl.InitialPos,
+			)
 			key := NewGlobalExtendPath(block.Labels)
 			exprs.expressions[key] = Expr{
 				Origin:     block.RawOrigins[0].Range,

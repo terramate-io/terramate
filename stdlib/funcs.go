@@ -22,7 +22,7 @@ import (
 	tflang "github.com/hashicorp/terraform/lang"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/event"
-	"github.com/mineiros-io/terramate/hcl/dynexpr"
+	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/modvendor"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/tf"
@@ -164,7 +164,7 @@ func HCLExpressionFunc() function.Function {
 }
 
 func hclExpr(arg cty.Value) (cty.Value, error) {
-	exprParsed, err := dynexpr.ParseExpressionBytes([]byte(arg.AsString()))
+	exprParsed, err := ast.ParseExpression(arg.AsString(), "<tm_ternary>")
 	if err != nil {
 		return cty.NilVal, errors.E(err, "argument is not valid HCL expression")
 	}

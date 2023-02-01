@@ -17,6 +17,7 @@ package ast_test
 import (
 	"testing"
 
+	"github.com/go-test/deep"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
@@ -28,6 +29,7 @@ func TestAstExpressionToTokens(t *testing.T) {
 	type testcase struct {
 		name string
 		expr string
+		want string // if not set, use the input expr
 	}
 
 	for _, tc := range []testcase{
@@ -48,12 +50,110 @@ func TestAstExpressionToTokens(t *testing.T) {
 			expr: `"terramate"`,
 		},
 		{
+			name: "plain strings with escaped strings still plain",
+			expr: `"a\tb\\tc\\nd"`,
+		},
+		{
 			name: "string interpolation",
 			expr: `"some ${interpolation} here"`,
 		},
 		{
 			name: "string interpolation",
 			expr: `"some ${funcall()} here"`,
+		},
+		{
+			name: "interp with number",
+			expr: `"0${0}"`,
+		},
+		{
+			name: "empty heredocs",
+			expr: `<<-EOT
+EOT
+`,
+			want: `""`,
+		},
+		{
+			name: "oneline heredocs",
+			expr: `<<-EOT
+
+EOT
+`,
+		},
+		{
+			name: "strings with nl returns heredocs",
+			expr: `"0\n1"`,
+			want: `<<-EOT
+0
+1
+EOT
+`,
+		},
+		{
+			name: "strings with nl in the beginning returns heredocs",
+			expr: `"\n"`,
+			want: `<<-EOT
+
+EOT
+`,
+		},
+		{
+			name: "strings with nl in the end returns heredocs",
+			expr: `"test\n"`,
+			want: `<<-EOT
+test
+EOT
+`,
+		},
+		{
+			name: "strings with multiline interpolation",
+			expr: `"test${
+				1
+			}"`,
+			want: `"test${1}"`,
+		},
+		{
+			name: "strings with multiline HIL interpolation - reformatted",
+			expr: `"test${
+				global.a == "cond" ? "br1" : "br2"
+			}"`,
+			want: `"test${global.a == "cond" ? "br1" : "br2"}"`,
+		},
+		{
+			name: "strings with inline HIL interpolation of always-multiline objects are reformatted",
+			expr: `"test${{ a = 1, b = 2}["a"]}"`,
+			want: `"test${ {
+				a = 1
+				b = 2
+			  }["a"]}"`,
+		},
+		{
+			name: "multiline string inside HIL interpolation",
+			expr: `"test${"something\nelse"}"`,
+			want: `"test${<<-EOT
+something
+else
+EOT
+			}"`,
+		},
+		{
+			name: "strings with nl and interpolations returns heredocs",
+			expr: `"${a}\ntest\n${global.a}"`,
+			want: `<<-EOT
+${a}
+test
+${global.a}
+EOT
+`,
+		},
+		{
+			name: "render string escape characters",
+			expr: `"\t${a}\n\ttest\n\t${global.a}"`,
+			want: "<<-EOT\n\t${a}\n\ttest\n\t${global.a}\nEOT\n",
+		},
+		{
+			name: "render escape characters",
+			expr: `"\n${a}${b}\t${b}\n\ntest\n\t${global.a}\n"`,
+			want: "<<-EOT\n\n${a}${b}\t${b}\n\ntest\n\t${global.a}\nEOT\n",
 		},
 		{
 			name: "utf-8",
@@ -296,7 +396,7 @@ func TestAstExpressionToTokens(t *testing.T) {
 		},
 		{
 			name: "for-expr - object with exprs and cond",
-			expr: `{for k,v in expr() : expr()+test() => expr()+test()+1 if expr()}`,
+			expr: `{for k,v in expr() : expr()+test() => expr()+test()+1 if 0==0}`,
 		},
 		{
 			name: "all-in-one",
@@ -318,9 +418,124 @@ func TestAstExpressionToTokens(t *testing.T) {
 			expr, diags := hclsyntax.ParseExpression([]byte(tc.expr), "test.hcl", hcl.InitialPos)
 			assert.IsTrue(t, !diags.HasErrors(), diags.Error())
 			got := ast.TokensForExpression(expr)
-			fmtWant := string(hclwrite.Format([]byte(tc.expr)))
+			want := tc.want
+			if want == "" {
+				want = tc.expr
+			}
+			fmtWant := string(hclwrite.Format([]byte(want)))
 			fmtGot := string(hclwrite.Format(got.Bytes()))
-			assert.EqualStrings(t, fmtWant, fmtGot)
+			for _, problem := range deep.Equal(fmtWant, fmtGot) {
+				t.Errorf("problem: %s", problem)
+			}
 		})
+	}
+}
+
+func BenchmarkTokensForExpression(b *testing.B) {
+	exprStr := `[
+		{
+			a = [{
+					b = c.d+2+test()
+					c = a && b || c && !d || a ? b : c
+					d = a+b-c*2/3+!2+test(1, 2, 3)
+					c = {for k,v in a.b.c : a() => b() if c}
+					d = [for v in a.b.c : a() if b ]
+				}, ["test", 1, {}],	func({}, [], "", 1, 2)]
+			b = x.y[*].z
+			c = a[0]
+			d = a[b.c[d.e[*].a]]
+		},
+		{
+			a = [{
+					b = c.d+2+test()
+					c = a && b || c && !d || a ? b : c
+					d = a+b-c*2/3+!2+test(1, 2, 3)
+					c = {for k,v in a.b.c : a() => b() if c}
+					d = [for v in a.b.c : a() if b ]
+				}, ["test", 1, {}],	func({}, [], "", 1, 2)]
+			b = x.y[*].z
+			c = a[0]
+			d = a[b.c[d.e[*].a]]
+		},
+		{
+			a = [{
+					b = c.d+2+test()
+					c = a && b || c && !d || a ? b : c
+					d = a+b-c*2/3+!2+test(1, 2, 3)
+					c = {for k,v in a.b.c : a() => b() if c}
+					d = [for v in a.b.c : a() if b ]
+				}, ["test", 1, {}],	func({}, [], "", 1, 2)]
+			b = x.y[*].z
+			c = a[0]
+			d = a[b.c[d.e[*].a]]
+		},
+		{
+			a = [{
+					b = c.d+2+test()
+					c = a && b || c && !d || a ? b : c
+					d = a+b-c*2/3+!2+test(1, 2, 3)
+					c = {for k,v in a.b.c : a() => b() if c}
+					d = [for v in a.b.c : a() if b ]
+				}, ["test", 1, {}],	func({}, [], "", 1, 2)]
+			b = x.y[*].z
+			c = a[0]
+			d = a[b.c[d.e[*].a]]
+		},
+		{
+			a = [{
+					b = c.d+2+test()
+					c = a && b || c && !d || a ? b : c
+					d = a+b-c*2/3+!2+test(1, 2, 3)
+					c = {for k,v in a.b.c : a() => b() if c}
+					d = [for v in a.b.c : a() if b ]
+				}, ["test", 1, {}],	func({}, [], "", 1, 2)]
+			b = x.y[*].z
+			c = a[0]
+			d = a[b.c[d.e[*].a]]
+		},
+		{
+			a = [{
+					b = c.d+2+test()
+					c = a && b || c && !d || a ? b : c
+					d = a+b-c*2/3+!2+test(1, 2, 3)
+					c = {for k,v in a.b.c : a() => b() if c}
+					d = [for v in a.b.c : a() if b ]
+				}, ["test", 1, {}],	func({}, [], "", 1, 2)]
+			b = x.y[*].z
+			c = a[0]
+			d = a[b.c[d.e[*].a]]
+		},
+		{
+			a = [{
+					b = c.d+2+test()
+					c = a && b || c && !d || a ? b : c
+					d = a+b-c*2/3+!2+test(1, 2, 3)
+					c = {for k,v in a.b.c : a() => b() if c}
+					d = [for v in a.b.c : a() if b ]
+				}, ["test", 1, {}],	func({}, [], "", 1, 2)]
+			b = x.y[*].z
+			c = a[0]
+			d = a[b.c[d.e[*].a]]
+		},
+		{
+			a = [{
+					b = c.d+2+test()
+					c = a && b || c && !d || a ? b : c
+					d = a+b-c*2/3+!2+test(1, 2, 3)
+					c = {for k,v in a.b.c : a() => b() if c}
+					d = [for v in a.b.c : a() if b ]
+				}, ["test", 1, {}],	func({}, [], "", 1, 2)]
+			b = x.y[*].z
+			c = a[0]
+			d = a[b.c[d.e[*].a]]
+		},
+	]`
+
+	expr, diags := hclsyntax.ParseExpression([]byte(exprStr), "test.hcl", hcl.InitialPos)
+	if diags.HasErrors() {
+		panic(diags.Error())
+	}
+	for n := 0; n < b.N; n++ {
+		ast.TokensForExpression(expr)
 	}
 }
