@@ -36,6 +36,7 @@ func ParseExpression(str string, filename string) (hcl.Expression, error) {
 // TokensForExpression generates valid tokens for the given expression.
 func TokensForExpression(expr hcl.Expression) hclwrite.Tokens {
 	tokens := tokensForExpression(expr)
+	tokens[0].SpacesBefore = 0
 	tokens = append(tokens, eof())
 	return tokens
 }
