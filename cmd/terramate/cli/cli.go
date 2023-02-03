@@ -93,7 +93,6 @@ type cliSpec struct {
 	Chdir          string   `short:"C" optional:"true" predictor:"file" help:"Sets working directory"`
 	GitChangeBase  string   `short:"B" optional:"true" help:"Git base ref for computing changes"`
 	Changed        bool     `short:"c" optional:"true" help:"Filter by changed infrastructure"`
-	Tags           []string `optional:"true" sep:"none" help:"Filter stacks by tags. Use \":\" for logical AND and \",\" for logical OR. Example: --tags app:prod filters stacks containing tag \"app\" AND \"prod\". If multiple --tags are provided, an OR expression is created. Example: \"--tags A --tags B\" is the same as \"--tags A,B\""`
 	LogLevel       string   `optional:"true" default:"warn" enum:"disabled,trace,debug,info,warn,error,fatal" help:"Log level to use: 'disabled', 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
 	LogFmt         string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'"`
 	LogDestination string   `optional:"true" default:"stderr" enum:"stderr,stdout" help:"Destination of log messages"`
@@ -111,6 +110,7 @@ type cliSpec struct {
 		Import         []string `help:"Add import block for the given path on the stack"`
 		After          []string `help:"Add a stack as after"`
 		Before         []string `help:"Add a stack as before"`
+		Tags           []string `help:"Tags of the stack"`
 		IgnoreExisting bool     `help:"If the stack already exists do nothing and don't fail"`
 		NoGenerate     bool     `help:"Disable code generation for the newly created stack"`
 	} `cmd:"" help:"Creates a stack on the project"`
@@ -120,7 +120,8 @@ type cliSpec struct {
 	} `cmd:"" help:"Format all files inside dir recursively"`
 
 	List struct {
-		Why bool `help:"Shows the reason why the stack has changed"`
+		Why  bool     `help:"Shows the reason why the stack has changed"`
+		Tags []string `optional:"true" sep:"none" help:"Filter stacks by tags. Use \":\" for logical AND and \",\" for logical OR. Example: --tags app:prod filters stacks containing tag \"app\" AND \"prod\". If multiple --tags are provided, an OR expression is created. Example: \"--tags A --tags B\" is the same as \"--tags A,B\""`
 	} `cmd:"" help:"List stacks"`
 
 	Run struct {
@@ -130,6 +131,7 @@ type cliSpec struct {
 		NoRecursive           bool     `default:"false" help:"Do not recurse into child stacks"`
 		DryRun                bool     `default:"false" help:"Plan the execution but do not execute it"`
 		Reverse               bool     `default:"false" help:"Reverse the order of execution"`
+		Tags                  []string `optional:"true" sep:"none" help:"Filter stacks by tags. Use \":\" for logical AND and \",\" for logical OR. Example: --tags app:prod filters stacks containing tag \"app\" AND \"prod\". If multiple --tags are provided, an OR expression is created. Example: \"--tags A --tags B\" is the same as \"--tags A,B\""`
 		Command               []string `arg:"" name:"cmd" predictor:"file" passthrough:"" help:"Command to execute"`
 	} `cmd:"" help:"Run command in the stacks"`
 
@@ -159,15 +161,18 @@ type cliSpec struct {
 		} `cmd:"" help:"Experimental generate commands"`
 
 		RunGraph struct {
-			Outfile string `short:"o" predictor:"file" default:"" help:"Output .dot file"`
-			Label   string `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\""`
+			Outfile string   `short:"o" predictor:"file" default:"" help:"Output .dot file"`
+			Label   string   `short:"l" default:"stack.name" help:"Label used in graph nodes (it could be either \"stack.name\" or \"stack.dir\""`
+			Tags    []string `optional:"true" sep:"none" help:"Filter stacks by tags. Use \":\" for logical AND and \",\" for logical OR. Example: --tags app:prod filters stacks containing tag \"app\" AND \"prod\". If multiple --tags are provided, an OR expression is created. Example: \"--tags A --tags B\" is the same as \"--tags A,B\""`
 		} `cmd:"" help:"Generate a graph of the execution order"`
 
 		RunOrder struct {
-			Basedir string `arg:"" optional:"true" help:"Base directory to search stacks"`
+			Basedir string   `arg:"" optional:"true" help:"Base directory to search stacks"`
+			Tags    []string `optional:"true" sep:"none" help:"Filter stacks by tags. Use \":\" for logical AND and \",\" for logical OR. Example: --tags app:prod filters stacks containing tag \"app\" AND \"prod\". If multiple --tags are provided, an OR expression is created. Example: \"--tags A --tags B\" is the same as \"--tags A,B\""`
 		} `cmd:"" help:"Show the topological ordering of the stacks"`
 
 		RunEnv struct {
+			Tags []string `optional:"true" sep:"none" help:"Filter stacks by tags. Use \":\" for logical AND and \",\" for logical OR. Example: --tags app:prod filters stacks containing tag \"app\" AND \"prod\". If multiple --tags are provided, an OR expression is created. Example: \"--tags A --tags B\" is the same as \"--tags A,B\""`
 		} `cmd:"" help:"List run environment variables for all stacks"`
 
 		Vendor struct {
@@ -828,6 +833,7 @@ func (c *cli) createStack() {
 		Str("imports", stdfmt.Sprint(c.parsedArgs.Create.Import)).
 		Str("after", stdfmt.Sprint(c.parsedArgs.Create.After)).
 		Str("before", stdfmt.Sprint(c.parsedArgs.Create.Before)).
+		Str("tags", stdfmt.Sprint(c.parsedArgs.Create.Tags)).
 		Logger()
 
 	logger.Trace().Msg("creating stack")
@@ -863,6 +869,7 @@ func (c *cli) createStack() {
 		After:       c.parsedArgs.Create.After,
 		Before:      c.parsedArgs.Create.Before,
 		Imports:     c.parsedArgs.Create.Import,
+		Tags:        c.parsedArgs.Create.Tags,
 	})
 
 	stackPath := filepath.ToSlash(strings.TrimPrefix(stackDir, c.rootdir()))
@@ -973,7 +980,7 @@ func (c *cli) printStacks() {
 
 	c.gitFileSafeguards(report.Checks, false)
 
-	for _, entry := range c.filterStacks(report.Stacks) {
+	for _, entry := range c.filterStacks(report.Stacks, c.parsedArgs.List.Tags) {
 		stack := entry.Stack
 
 		log.Debug().Msgf("printing stack %s", stack.Dir)
@@ -998,7 +1005,7 @@ func (c *cli) printRunEnv() {
 		fatal(err, "listing stacks")
 	}
 
-	for _, stackEntry := range c.filterStacks(report.Stacks) {
+	for _, stackEntry := range c.filterStacks(report.Stacks, c.parsedArgs.Experimental.RunEnv.Tags) {
 		envVars, err := run.LoadEnv(c.cfg(), stackEntry.Stack)
 		if err != nil {
 			fatal(err, "loading stack run environment")
@@ -1047,7 +1054,7 @@ func (c *cli) generateGraph() {
 	graph := dag.New()
 
 	visited := dag.Visited{}
-	for _, e := range c.filterStacksByWorkingDir(entries) {
+	for _, e := range c.filterStacks(entries, c.parsedArgs.Experimental.RunGraph.Tags) {
 		if _, ok := visited[dag.ID(e.Stack.Dir.String())]; ok {
 			continue
 		}
@@ -1156,7 +1163,7 @@ func (c *cli) printRunOrder() {
 		Str("workingDir", c.wd()).
 		Logger()
 
-	stacks, err := c.computeSelectedStacks(false)
+	stacks, err := c.computeSelectedStacks(false, c.parsedArgs.Experimental.RunOrder.Tags)
 	if err != nil {
 		fatal(err, "computing selected stacks")
 	}
@@ -1180,7 +1187,7 @@ func (c *cli) generateDebug() {
 	// TODO(KATCIPIS): When we introduce config defined on root context
 	// we need to know blocks that have root context, since they should
 	// not be filtered by stack selection.
-	stacks, err := c.computeSelectedStacks(false)
+	stacks, err := c.computeSelectedStacks(false, nil)
 	if err != nil {
 		fatal(err, "generate debug: selecting stacks")
 	}
@@ -1237,7 +1244,7 @@ func (c *cli) printStacksGlobals() {
 		fatal(err, "listing stacks globals: listing stacks")
 	}
 
-	for _, stackEntry := range c.filterStacks(report.Stacks) {
+	for _, stackEntry := range c.filterStacks(report.Stacks, nil) {
 		stack := stackEntry.Stack
 		report := globals.ForStack(c.cfg(), stack)
 		if err := report.AsError(); err != nil {
@@ -1274,7 +1281,7 @@ func (c *cli) printMetadata() {
 		fatal(err, "loading metadata: listing stacks")
 	}
 
-	stackEntries := c.filterStacks(report.Stacks)
+	stackEntries := c.filterStacks(report.Stacks, nil)
 	if len(stackEntries) == 0 {
 		return
 	}
@@ -1540,7 +1547,7 @@ func (c *cli) runOnStacks() {
 		stacks = append(stacks, st.Sortable())
 	} else {
 		var err error
-		stacks, err = c.computeSelectedStacks(true)
+		stacks, err = c.computeSelectedStacks(true, c.parsedArgs.Run.Tags)
 		if err != nil {
 			fatal(err, "computing selected stacks")
 		}
@@ -1603,7 +1610,7 @@ func (c *cli) friendlyFmtDir(dir string) (string, bool) {
 	return prj.FriendlyFmtDir(c.rootdir(), c.wd(), dir)
 }
 
-func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (config.List[*config.SortableStack], error) {
+func (c *cli) computeSelectedStacks(ensureCleanRepo bool, filterTags []string) (config.List[*config.SortableStack], error) {
 	logger := log.With().
 		Str("action", "computeSelectedStacks()").
 		Str("workingDir", c.wd()).
@@ -1624,7 +1631,7 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (config.List[*config.S
 
 	logger.Trace().Msg("Filter stacks by working directory.")
 
-	entries := c.filterStacks(report.Stacks)
+	entries := c.filterStacks(report.Stacks, filterTags)
 	stacks := make(config.List[*config.SortableStack], len(entries))
 	for i, e := range entries {
 		stacks[i] = e.Stack.Sortable()
@@ -1637,8 +1644,8 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (config.List[*config.S
 	return stacks, nil
 }
 
-func (c *cli) filterStacks(stacks []terramate.Entry) []terramate.Entry {
-	return c.filterStacksByTags(c.filterStacksByWorkingDir(stacks))
+func (c *cli) filterStacks(stacks []terramate.Entry, filterTags []string) []terramate.Entry {
+	return c.filterStacksByTags(c.filterStacksByWorkingDir(stacks), filterTags)
 }
 
 func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Entry {
@@ -1654,13 +1661,13 @@ func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Ent
 	return filtered
 }
 
-func (c *cli) filterStacksByTags(entries []terramate.Entry) []terramate.Entry {
-	if len(c.parsedArgs.Tags) == 0 {
+func (c *cli) filterStacksByTags(entries []terramate.Entry, filterTags []string) []terramate.Entry {
+	if len(filterTags) == 0 {
 		return entries
 	}
 	filtered := []terramate.Entry{}
 	for _, entry := range entries {
-		matched, err := filter.MatchTagsFrom(c.parsedArgs.Tags, entry.Stack.Tags)
+		matched, err := filter.MatchTagsFrom(filterTags, entry.Stack.Tags)
 		if err != nil {
 			fatal(err)
 		}

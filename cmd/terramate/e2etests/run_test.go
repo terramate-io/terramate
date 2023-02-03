@@ -1314,14 +1314,13 @@ func testRunSelection(t *testing.T, tc selectionTestcase) {
 			s.BuildTree(tc.layout)
 			test.WriteRootConfig(t, s.RootDir())
 
-			var baseArgs []string
-			for _, filter := range tc.filterTags {
-				baseArgs = append(baseArgs, "--tags", filter)
-			}
-
 			cli := newCLI(t, filepath.Join(s.RootDir(), tc.wd))
 
-			runOrderArgs := append(baseArgs, "experimental", "run-order")
+			runOrderArgs := []string{"experimental", "run-order"}
+			if len(tc.filterTags) > 0 {
+				runOrderArgs = append(runOrderArgs, "--tags")
+				runOrderArgs = append(runOrderArgs, tc.filterTags...)
+			}
 			assertRunResult(t, cli.run(runOrderArgs...), tc.want)
 
 			if s.IsGit() {
@@ -1330,7 +1329,12 @@ func testRunSelection(t *testing.T, tc selectionTestcase) {
 				git.CommitAll("everything")
 			}
 
-			runArgs := append(baseArgs, "run", testHelperBin, "stack-abs-path", s.RootDir())
+			runArgs := []string{"run"}
+			if len(tc.filterTags) > 0 {
+				runArgs = append(runArgs, "--tags")
+				runArgs = append(runArgs, tc.filterTags...)
+			}
+			runArgs = append(runArgs, testHelperBin, "stack-abs-path", s.RootDir())
 			assertRunResult(t, cli.run(runArgs...), tc.want)
 		})
 	}
@@ -1471,19 +1475,19 @@ func TestRunIgnoresAfterBeforeStackRefsOutsideWorkingDirAndTagFilter(t *testing.
 
 	assertRun := func(wd string, filter string, want string) {
 		cli := newCLI(t, filepath.Join(s.RootDir(), wd))
-		var baseArgs []string
+		runArgs := []string{"run"}
 		if filter != "" {
-			baseArgs = append(baseArgs, "--tags", filter)
+			runArgs = append(runArgs, "--tags", filter)
 		}
-		runArgs := append(baseArgs, "run", testHelperBin, "cat", testfile)
+		runArgs = append(runArgs, "--", testHelperBin, "cat", testfile)
 		assertRunResult(t, cli.run(runArgs...), runExpected{Stdout: want})
 
-		runChangedArgs := append(baseArgs, "run",
-			"--changed",
-			testHelperBin,
-			"cat",
-			testfile,
-		)
+		runChangedArgs := []string{"run"}
+		if filter != "" {
+			runChangedArgs = append(runChangedArgs, "--tags", filter)
+		}
+		runChangedArgs = append(runChangedArgs,
+			"--changed", "--", testHelperBin, "cat", testfile)
 
 		assertRunResult(t, cli.run(runChangedArgs...), runExpected{Stdout: want})
 	}

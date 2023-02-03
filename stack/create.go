@@ -68,6 +68,9 @@ type CreateCfg struct {
 
 	// Before is the set of before stacks.
 	Before []string
+
+	// Tags is the set of tags of the stack.
+	Tags []string
 }
 
 const (
@@ -110,7 +113,7 @@ func Create(root *config.Root, cfg CreateCfg) (err error) {
 		return errors.E(ErrStackDefaultCfgFound)
 	}
 
-	// We could have a stack definition somewhere else.
+	// We could have a stack definition defined in other file of the dir.
 	targetNode, ok := root.Lookup(project.PrjAbsPath(rootdir, cfg.Dir))
 	if ok && targetNode.IsStack() {
 		return errors.E(ErrStackAlreadyExists)
@@ -119,6 +122,7 @@ func Create(root *config.Root, cfg CreateCfg) (err error) {
 	stackCfg := hcl.Stack{
 		After:  cfg.After,
 		Before: cfg.Before,
+		Tags:   cfg.Tags,
 	}
 
 	if cfg.Name != "" {
@@ -146,39 +150,32 @@ func Create(root *config.Root, cfg CreateCfg) (err error) {
 
 	logger.Trace().Msg("creating stack file")
 
-	err = func() error {
-		stackFile, err := os.Create(filepath.Join(cfg.Dir, DefaultFilename))
-		if err != nil {
-			return errors.E(err, "opening stack file")
-		}
+	stackFile, err := os.Create(filepath.Join(cfg.Dir, DefaultFilename))
+	if err != nil {
+		return errors.E(err, "opening stack file")
+	}
 
-		defer func() {
-			errClose := stackFile.Close()
-			if errClose != nil {
-				if err != nil {
-					err = errors.L(err, errClose)
-				} else {
-					err = errClose
-				}
+	defer func() {
+		errClose := stackFile.Close()
+		if errClose != nil {
+			if err != nil {
+				err = errors.L(err, errClose)
+			} else {
+				err = errClose
 			}
-		}()
-
-		if err := hcl.PrintConfig(stackFile, tmCfg); err != nil {
-			return errors.E(err, "writing stack config to stack file")
 		}
-
-		if len(cfg.Imports) > 0 {
-			fmt.Fprint(stackFile, "\n")
-		}
-
-		if err := hcl.PrintImports(stackFile, cfg.Imports); err != nil {
-			return errors.E(err, "writing stack imports to stack file")
-		}
-		return nil
 	}()
 
-	if err != nil {
-		return err
+	if err := hcl.PrintConfig(stackFile, tmCfg); err != nil {
+		return errors.E(err, "writing stack config to stack file")
+	}
+
+	if len(cfg.Imports) > 0 {
+		stackFile.WriteString("\n")
+	}
+
+	if err := hcl.PrintImports(stackFile, cfg.Imports); err != nil {
+		return errors.E(err, "writing stack imports to stack file")
 	}
 
 	return root.LoadSubTree(project.PrjAbsPath(rootdir, cfg.Dir))
