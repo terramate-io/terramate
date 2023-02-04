@@ -36,6 +36,7 @@ func TestStackCreation(t *testing.T) {
 		imports []string
 		after   []string
 		before  []string
+		tags    []string
 	}
 	type want struct {
 		err   error
@@ -182,6 +183,19 @@ func TestStackCreation(t *testing.T) {
 			},
 		},
 		{
+			name: "defining tags",
+			create: stack.CreateCfg{
+				Dir:  "stack-tags",
+				Tags: []string{"a", "b"},
+			},
+			want: want{
+				stack: wantedStack{
+					name: "stack-tags",
+					tags: []string{"a", "b"},
+				},
+			},
+		},
+		{
 			name: "fails on invalid stack ID",
 			create: stack.CreateCfg{
 				Dir: "stack",
@@ -251,6 +265,7 @@ func TestStackCreation(t *testing.T) {
 			test.AssertStackImports(t, s.RootDir(), got.HostDir(root), want.imports)
 			test.AssertDiff(t, got.After, want.after, "created stack has invalid after")
 			test.AssertDiff(t, got.Before, want.before, "created stack has invalid before")
+			test.AssertDiff(t, got.Tags, want.tags, "create stack has incorrect tags")
 		})
 	}
 }
