@@ -855,14 +855,21 @@ func (c *cli) createStack() {
 		stackDescription = stackName
 	}
 
-	err := stack.Create(c.cfg(), config.Stack{
+	spec := config.Stack{
 		Dir:         prj.PrjAbsPath(c.rootdir(), stackHostDir),
 		ID:          stackID,
 		Name:        stackName,
 		Description: stackDescription,
 		After:       c.parsedArgs.Create.After,
 		Before:      c.parsedArgs.Create.Before,
-	}, c.parsedArgs.Create.Import...)
+		Tags:        c.parsedArgs.Tags,
+	}
+	err := spec.Validate()
+	if err != nil {
+		errlog.Fatal(logger, err, "can't create stack")
+	}
+
+	err = stack.Create(c.cfg(), spec, c.parsedArgs.Create.Import...)
 
 	stackPath := filepath.ToSlash(strings.TrimPrefix(stackHostDir, c.rootdir()))
 
