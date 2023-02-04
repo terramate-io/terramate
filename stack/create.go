@@ -17,13 +17,13 @@ package stack
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
-	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
 )
 
@@ -45,99 +45,61 @@ const (
 // DefaultFilename is the default file name for created stacks.
 const DefaultFilename = "stack.tm.hcl"
 
-// CreateCfg represents stack creation configuration.
-type CreateCfg struct {
-	// Dir is the absolute path of the directory, inside the project root,
-	// where the stack will be created. It must be non-empty.
-	Dir string
-
-	// ID of the stack, defaults to an UUID V4 if empty.
-	ID string
-
-	// Name of the stack, defaults to Dir basename if empty.
-	Name string
-
-	// Description of the stack, defaults to Name if empty.
-	Description string
-
-	// Imports represents a set of import paths.
-	Imports []string
-
-	// After is the set of after stacks.
-	After []string
-
-	// Before is the set of before stacks.
-	Before []string
-}
-
 const (
 	createDirMode = 0755
 )
 
-// Create creates a stack according to the given configuration.
-// Any dirs on the path provided on the configuration that doesn't exist
-// will be created.
+// Create creates the provided stack on the filesystem.
+// The list of import paths provided are generated inside the stack file.
 //
 // If the stack already exists it will return an error and no changes will be
 // made to the stack.
-func Create(root *config.Root, cfg CreateCfg) (err error) {
+func Create(root *config.Root, stack config.Stack, imports ...string) (err error) {
 	logger := log.With().
 		Str("action", "stack.Create()").
-		Stringer("cfg", cfg).
 		Logger()
 
-	rootdir := root.HostDir()
-	if !strings.HasPrefix(cfg.Dir, rootdir) {
-		return errors.E(ErrInvalidStackDir, "stack %q must be inside project root %q", cfg.Dir, rootdir)
+	if strings.HasPrefix(path.Base(stack.Dir.String()), ".") {
+		return errors.E(ErrInvalidStackDir, "dot directories not allowed")
 	}
 
-	if strings.HasPrefix(filepath.Base(cfg.Dir), ".") {
-		return errors.E(ErrInvalidStackDir, "dot directories not allowed")
+	targetNode, ok := root.Lookup(stack.Dir)
+	if ok && targetNode.IsStack() {
+		return errors.E(ErrStackAlreadyExists)
 	}
 
 	logger.Trace().Msg("creating stack dir if absent")
 
-	if err := os.MkdirAll(cfg.Dir, createDirMode); err != nil {
+	hostpath := stack.Dir.HostPath(root.HostDir())
+	if err := os.MkdirAll(hostpath, createDirMode); err != nil {
 		return errors.E(err, "failed to create new stack directories")
 	}
 
 	logger.Trace().Msg("validating create configuration")
 
-	_, err = os.Stat(filepath.Join(cfg.Dir, DefaultFilename))
+	_, err = os.Stat(filepath.Join(hostpath, DefaultFilename))
 	if err == nil {
-		// Even if there is no stack inside the file, we can't overwrite
+		// Even if there is no stack block inside the file, we can't overwrite
 		// the user file anyway.
 		return errors.E(ErrStackDefaultCfgFound)
 	}
 
-	// We could have a stack definition somewhere else.
-	targetNode, ok := root.Lookup(project.PrjAbsPath(rootdir, cfg.Dir))
-	if ok && targetNode.IsStack() {
-		return errors.E(ErrStackAlreadyExists)
-	}
-
 	stackCfg := hcl.Stack{
-		After:  cfg.After,
-		Before: cfg.Before,
+		ID:          stack.ID,
+		Name:        stack.Name,
+		Description: stack.Description,
+		After:       stack.After,
+		Before:      stack.Before,
 	}
 
-	if cfg.Name != "" {
-		stackCfg.Name = cfg.Name
-	}
-
-	if cfg.Description != "" {
-		stackCfg.Description = cfg.Description
-	}
-
-	if cfg.ID != "" {
-		err := hcl.ValidateStackID(cfg.ID)
+	if stack.ID != "" {
+		err := hcl.ValidateStackID(stack.ID)
 		if err != nil {
 			return errors.E(ErrInvalidStackID, err)
 		}
-		stackCfg.ID = cfg.ID
 	}
 
-	tmCfg, err := hcl.NewConfig(cfg.Dir)
+	tmCfg, err := hcl.NewConfig(hostpath)
 	if err != nil {
 		return errors.E(err, "failed to create new stack config")
 	}
@@ -146,45 +108,29 @@ func Create(root *config.Root, cfg CreateCfg) (err error) {
 
 	logger.Trace().Msg("creating stack file")
 
-	err = func() error {
-		stackFile, err := os.Create(filepath.Join(cfg.Dir, DefaultFilename))
-		if err != nil {
-			return errors.E(err, "opening stack file")
-		}
-
-		defer func() {
-			errClose := stackFile.Close()
-			if errClose != nil {
-				if err != nil {
-					err = errors.L(err, errClose)
-				} else {
-					err = errClose
-				}
-			}
-		}()
-
-		if err := hcl.PrintConfig(stackFile, tmCfg); err != nil {
-			return errors.E(err, "writing stack config to stack file")
-		}
-
-		if len(cfg.Imports) > 0 {
-			fmt.Fprint(stackFile, "\n")
-		}
-
-		if err := hcl.PrintImports(stackFile, cfg.Imports); err != nil {
-			return errors.E(err, "writing stack imports to stack file")
-		}
-		return nil
-	}()
-
+	stackFile, err := os.Create(filepath.Join(hostpath, DefaultFilename))
 	if err != nil {
-		return err
+		return errors.E(err, "creating/truncating stack file")
 	}
 
-	return root.LoadSubTree(project.PrjAbsPath(rootdir, cfg.Dir))
-}
+	defer func() {
+		errClose := stackFile.Close()
+		if errClose != nil {
+			err = errors.L(err, errClose)
+		}
+	}()
 
-func (cfg CreateCfg) String() string {
-	return fmt.Sprintf("dir:%s, name:%s, desc:%s, imports:%v",
-		cfg.Dir, cfg.Name, cfg.Description, cfg.Imports)
+	if err := hcl.PrintConfig(stackFile, tmCfg); err != nil {
+		return errors.E(err, "writing stack config to stack file")
+	}
+
+	if len(imports) > 0 {
+		fmt.Fprint(stackFile, "\n")
+	}
+
+	if err := hcl.PrintImports(stackFile, imports); err != nil {
+		return errors.E(err, "writing stack imports to stack file")
+	}
+
+	return root.LoadSubTree(stack.Dir)
 }

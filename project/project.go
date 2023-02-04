@@ -64,6 +64,11 @@ func (p Path) Dir() Path {
 	}
 }
 
+// HostPath computes the absolute host path from the provided rootdir.
+func (p Path) HostPath(rootdir string) string {
+	return filepath.Join(rootdir, filepath.FromSlash(p.path))
+}
+
 // HasPrefix tests whether p begins with s prefix.
 func (p Path) HasPrefix(s string) bool {
 	return strings.HasPrefix(p.String(), s)

@@ -832,7 +832,7 @@ func (c *cli) createStack() {
 
 	logger.Trace().Msg("creating stack")
 
-	stackDir := filepath.Join(c.wd(), c.parsedArgs.Create.Path)
+	stackHostDir := filepath.Join(c.wd(), c.parsedArgs.Create.Path)
 
 	stackID := c.parsedArgs.Create.ID
 	if stackID == "" {
@@ -847,7 +847,7 @@ func (c *cli) createStack() {
 
 	stackName := c.parsedArgs.Create.Name
 	if stackName == "" {
-		stackName = filepath.Base(stackDir)
+		stackName = filepath.Base(stackHostDir)
 	}
 
 	stackDescription := c.parsedArgs.Create.Description
@@ -855,17 +855,16 @@ func (c *cli) createStack() {
 		stackDescription = stackName
 	}
 
-	err := stack.Create(c.cfg(), stack.CreateCfg{
-		Dir:         stackDir,
+	err := stack.Create(c.cfg(), config.Stack{
+		Dir:         prj.PrjAbsPath(c.rootdir(), stackHostDir),
 		ID:          stackID,
 		Name:        stackName,
 		Description: stackDescription,
 		After:       c.parsedArgs.Create.After,
 		Before:      c.parsedArgs.Create.Before,
-		Imports:     c.parsedArgs.Create.Import,
-	})
+	}, c.parsedArgs.Create.Import...)
 
-	stackPath := filepath.ToSlash(strings.TrimPrefix(stackDir, c.rootdir()))
+	stackPath := filepath.ToSlash(strings.TrimPrefix(stackHostDir, c.rootdir()))
 
 	if err != nil {
 		logger := log.With().

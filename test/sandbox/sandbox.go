@@ -315,7 +315,10 @@ func (s S) CreateStack(relpath string) StackEntry {
 	}
 
 	st := newStackEntry(t, s.RootDir(), relpath)
-	assert.NoError(t, stack.Create(s.Config(), stack.CreateCfg{Dir: st.Path()}))
+	assert.NoError(t, stack.Create(
+		s.Config(),
+		config.Stack{Dir: project.PrjAbsPath(s.RootDir(), st.Path())},
+	))
 	return st
 }
 
@@ -669,11 +672,8 @@ func buildTree(t testing.TB, root *config.Root, layout []string) {
 		case "s:":
 			if data == "" {
 				abspath := filepath.Join(rootdir, path)
-				test.MkdirAll(t, abspath)
-				assert.NoError(t, stack.Create(
-					root,
-					stack.CreateCfg{Dir: abspath}),
-				)
+				stackdir := project.PrjAbsPath(rootdir, abspath)
+				assert.NoError(t, stack.Create(root, config.Stack{Dir: stackdir}))
 				continue
 			}
 
