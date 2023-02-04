@@ -36,6 +36,7 @@ func TestStackCreation(t *testing.T) {
 		imports []string
 		after   []string
 		before  []string
+		tags    []string
 	}
 	type want struct {
 		err   error

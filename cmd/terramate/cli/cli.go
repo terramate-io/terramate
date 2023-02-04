@@ -870,12 +870,9 @@ func (c *cli) createStack() {
 	}
 
 	err = stack.Create(c.cfg(), spec, c.parsedArgs.Create.Import...)
-
-	stackPath := filepath.ToSlash(strings.TrimPrefix(stackHostDir, c.rootdir()))
-
 	if err != nil {
 		logger := log.With().
-			Str("stack", stackPath).
+			Stringer("stack", spec.Dir).
 			Logger()
 
 		if c.parsedArgs.Create.IgnoreExisting &&
@@ -894,8 +891,8 @@ func (c *cli) createStack() {
 		errlog.Fatal(logger, err, "can't create stack")
 	}
 
-	log.Info().Msgf("created stack %s", stackPath)
-	c.output.MsgStdOut("Created stack %s", stackPath)
+	log.Info().Msgf("created stack %s", spec.Dir)
+	c.output.MsgStdOut("Created stack %s", spec.Dir)
 
 	if c.parsedArgs.Create.NoGenerate {
 		log.Debug().Msg("code generation on stack creation disabled")
