@@ -29,17 +29,10 @@ import (
 )
 
 func TestStackCreation(t *testing.T) {
-	type wantedStack struct {
-		id      string
-		name    string
-		desc    string
-		imports []string
-		after   []string
-		before  []string
-	}
 	type want struct {
-		err   error
-		stack wantedStack
+		err     error
+		stack   config.Stack
+		imports []string
 	}
 	type testcase struct {
 		name    string
@@ -59,32 +52,24 @@ func TestStackCreation(t *testing.T) {
 		{
 			name:  "default create configuration",
 			stack: config.Stack{Dir: project.NewPath("/stack")},
-			want: want{
-				stack: wantedStack{name: "stack"},
-			},
+			want:  want{stack: config.Stack{Name: "stack"}},
 		},
 		{
 			name:  "creates all dirs no stack path",
 			stack: config.Stack{Dir: project.NewPath("/dir1/dir2/dir3/stack")},
-			want: want{
-				stack: wantedStack{name: "stack"},
-			},
+			want:  want{stack: config.Stack{Name: "stack"}},
 		},
 		{
 			name:   "creates configuration when dir already exists",
 			layout: []string{"d:stack"},
 			stack:  config.Stack{Dir: project.NewPath("/stack")},
-			want: want{
-				stack: wantedStack{name: "stack"},
-			},
+			want:   want{stack: config.Stack{Name: "stack"}},
 		},
 		{
 			name:   "creates configuration when dir already exists and has subdirs",
 			layout: []string{"d:stack/subdir"},
 			stack:  config.Stack{Dir: project.NewPath("/stack")},
-			want: want{
-				stack: wantedStack{name: "stack"},
-			},
+			want:   want{stack: config.Stack{Name: "stack"}},
 		},
 		{
 			name: "defining only name",
@@ -92,11 +77,7 @@ func TestStackCreation(t *testing.T) {
 				Dir:  project.NewPath("/another-stack"),
 				Name: "The Name Of The Stack",
 			},
-			want: want{
-				stack: wantedStack{
-					name: "The Name Of The Stack",
-				},
-			},
+			want: want{stack: config.Stack{Name: "The Name Of The Stack"}},
 		},
 		{
 			name: "defining only description",
@@ -105,9 +86,9 @@ func TestStackCreation(t *testing.T) {
 				Description: "Stack Description",
 			},
 			want: want{
-				stack: wantedStack{
-					name: "cool-stack",
-					desc: "Stack Description",
+				stack: config.Stack{
+					Name:        "cool-stack",
+					Description: "Stack Description",
 				},
 			},
 		},
@@ -120,10 +101,10 @@ func TestStackCreation(t *testing.T) {
 				Description: "Stack Description",
 			},
 			want: want{
-				stack: wantedStack{
-					id:   newID("stack-id"),
-					name: "Stack Name",
-					desc: "Stack Description",
+				stack: config.Stack{
+					ID:          newID("stack-id"),
+					Name:        "Stack Name",
+					Description: "Stack Description",
 				},
 			},
 		},
@@ -132,10 +113,8 @@ func TestStackCreation(t *testing.T) {
 			stack:   config.Stack{Dir: project.NewPath("/stack-imports")},
 			imports: []string{"/common/something.tm.hcl"},
 			want: want{
-				stack: wantedStack{
-					name:    "stack-imports",
-					imports: []string{"/common/something.tm.hcl"},
-				},
+				stack:   config.Stack{Name: "stack-imports"},
+				imports: []string{"/common/something.tm.hcl"},
 			},
 		},
 		{
@@ -146,12 +125,10 @@ func TestStackCreation(t *testing.T) {
 				"/common/2.tm.hcl",
 			},
 			want: want{
-				stack: wantedStack{
-					name: "stack-imports",
-					imports: []string{
-						"/common/1.tm.hcl",
-						"/common/2.tm.hcl",
-					},
+				stack: config.Stack{Name: "stack-imports"},
+				imports: []string{
+					"/common/1.tm.hcl",
+					"/common/2.tm.hcl",
 				},
 			},
 		},
@@ -163,10 +140,10 @@ func TestStackCreation(t *testing.T) {
 				Before: []string{"stack-3", "stack-4"},
 			},
 			want: want{
-				stack: wantedStack{
-					name:   "stack-after-before",
-					after:  []string{"stack-1", "stack-2"},
-					before: []string{"stack-3", "stack-4"},
+				stack: config.Stack{
+					Name:   "stack-after-before",
+					After:  []string{"stack-1", "stack-2"},
+					Before: []string{"stack-3", "stack-4"},
 				},
 			},
 		},
@@ -221,21 +198,16 @@ func TestStackCreation(t *testing.T) {
 				return
 			}
 
-			want := tc.want.stack
+			wantStack := tc.want.stack
 			got := s.LoadStack(tc.stack.Dir)
 
-			if want.id != "" {
-				assert.EqualStrings(t, want.id, got.ID)
-			} else if got.ID != "" {
-				t.Fatalf("got unwanted ID %q", got.ID)
-			}
+			assert.EqualStrings(t, wantStack.ID, got.ID)
+			assert.EqualStrings(t, wantStack.Name, got.Name, "checking stack name")
+			assert.EqualStrings(t, wantStack.Description, got.Description, "checking stack description")
 
-			assert.EqualStrings(t, want.name, got.Name, "checking stack name")
-			assert.EqualStrings(t, want.desc, got.Description, "checking stack description")
-
-			test.AssertStackImports(t, s.RootDir(), got.HostDir(root), want.imports)
-			test.AssertDiff(t, got.After, want.after, "created stack has invalid after")
-			test.AssertDiff(t, got.Before, want.before, "created stack has invalid before")
+			test.AssertStackImports(t, s.RootDir(), got.HostDir(root), tc.want.imports)
+			test.AssertDiff(t, got.After, wantStack.After, "created stack has invalid after")
+			test.AssertDiff(t, got.Before, wantStack.Before, "created stack has invalid before")
 		})
 	}
 }
