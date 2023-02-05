@@ -855,7 +855,7 @@ func (c *cli) createStack() {
 		stackDescription = stackName
 	}
 
-	spec := config.Stack{
+	stackSpec := config.Stack{
 		Dir:         prj.PrjAbsPath(c.rootdir(), stackHostDir),
 		ID:          stackID,
 		Name:        stackName,
@@ -865,10 +865,10 @@ func (c *cli) createStack() {
 		Tags:        c.parsedArgs.Tags,
 	}
 
-	err := stack.Create(c.cfg(), spec, c.parsedArgs.Create.Import...)
+	err := stack.Create(c.cfg(), stackSpec, c.parsedArgs.Create.Import...)
 	if err != nil {
 		logger := log.With().
-			Stringer("stack", spec.Dir).
+			Stringer("stack", stackSpec.Dir).
 			Logger()
 
 		if c.parsedArgs.Create.IgnoreExisting &&
@@ -887,8 +887,8 @@ func (c *cli) createStack() {
 		errlog.Fatal(logger, err, "can't create stack")
 	}
 
-	log.Info().Msgf("created stack %s", spec.Dir)
-	c.output.MsgStdOut("Created stack %s", spec.Dir)
+	log.Info().Msgf("created stack %s", stackSpec.Dir)
+	c.output.MsgStdOut("Created stack %s", stackSpec.Dir)
 
 	if c.parsedArgs.Create.NoGenerate {
 		log.Debug().Msg("code generation on stack creation disabled")
