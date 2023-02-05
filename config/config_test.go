@@ -42,6 +42,7 @@ func TestIsStack(t *testing.T) {
 }
 
 func TestValidStackIDs(t *testing.T) {
+	t.Parallel()
 	validIDs := []string{
 		"_",
 		"-",
