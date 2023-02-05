@@ -627,8 +627,6 @@ func buildTree(t testing.TB, root *config.Root, layout []string) {
 			value := parts[1]
 			switch name {
 			case "id":
-				err := hcl.ValidateStackID(value)
-				assert.NoError(t, err, "invalid stack ID on stack descriptor")
 				cfg.Stack.ID = value
 			case "after":
 				cfg.Stack.After = parseListSpec(t, name, value)

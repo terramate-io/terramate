@@ -15,11 +15,13 @@
 package config_test
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test/sandbox"
 	"github.com/rs/zerolog"
@@ -37,6 +39,51 @@ func TestIsStack(t *testing.T) {
 	assert.IsTrue(t, !isStack(cfg, "/dir"))
 	assert.IsTrue(t, isStack(cfg, "/stack"))
 	assert.IsTrue(t, !isStack(cfg, "/stack/subdir"))
+}
+
+func TestValidStackIDs(t *testing.T) {
+	validIDs := []string{
+		"_",
+		"-",
+		"_id_",
+		"-id-",
+		"_id_again_",
+		"-id-again-",
+		"-id_mixed-",
+		"-id_numbers-0123456789-",
+		"maxsize_id_Test_should_Be_64_bytes_aNd_now_running_out_of_ID-aaa",
+	}
+	invalidIDs := []string{
+		"*not+valid$",
+		"cachaça",
+		"maxsize_id_test_should_be_64_bytes_and_now_running_out_of_id-aaac",
+	}
+
+	for _, validID := range validIDs {
+		t.Run(fmt.Sprintf("valid ID %s", validID), func(t *testing.T) {
+			s := sandbox.New(t)
+			s.BuildTree([]string{
+				"s:stack:id=" + validID,
+			})
+			root, err := config.LoadRoot(s.RootDir())
+			assert.NoError(t, err)
+			stacknode, ok := root.Lookup(project.NewPath("/stack"))
+			assert.IsTrue(t, ok && stacknode.IsStack())
+		})
+	}
+
+	for _, invalidID := range invalidIDs {
+		t.Run(fmt.Sprintf("invalid ID %s", invalidID), func(t *testing.T) {
+			s := sandbox.New(t)
+			s.BuildTree([]string{
+				"s:stack:id=" + invalidID,
+			})
+			root, err := config.LoadRoot(s.RootDir())
+			assert.NoError(t, err)
+			_, err = config.LoadStack(root, project.NewPath("/stack"))
+			assert.IsError(t, err, errors.E(config.ErrStackValidation))
+		})
+	}
 }
 
 func TestConfigLookup(t *testing.T) {

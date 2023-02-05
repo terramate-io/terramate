@@ -15,91 +15,13 @@
 package hcl_test
 
 import (
-	"fmt"
 	"testing"
 
-	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	. "github.com/mineiros-io/terramate/test/hclutils"
 )
-
-func TestHCLParserStackID(t *testing.T) {
-	validIDs := []string{
-		"_",
-		"-",
-		"_id_",
-		"-id-",
-		"_id_again_",
-		"-id-again-",
-		"-id_mixed-",
-		"-id_numbers-0123456789-",
-		"maxsize_id_Test_should_Be_64_bytes_aNd_now_running_out_of_ID-aaa",
-	}
-	invalidIDs := []string{
-		"",
-		"*not+valid$",
-		"cachaça",
-		"maxsize_id_test_should_be_64_bytes_and_now_running_out_of_id-aaac",
-	}
-
-	testcases := []testcase{}
-
-	stackBlock := func(id string) string {
-		return fmt.Sprintf(`
-			stack {
-				id = %q
-			}
-			`, id)
-	}
-	newStackID := func(id string) string {
-		t.Helper()
-		err := hcl.ValidateStackID(id)
-		assert.NoError(t, err)
-		return id
-	}
-
-	for _, validID := range validIDs {
-		testcases = append(testcases, testcase{
-			name: fmt.Sprintf("stack ID %s is valid", validID),
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body:     stackBlock(validID),
-				},
-			},
-			want: want{
-				config: hcl.Config{
-					Stack: &hcl.Stack{
-						ID: newStackID(validID),
-					},
-				},
-			},
-		})
-	}
-
-	for _, invalidID := range invalidIDs {
-		testcases = append(testcases, testcase{
-			name: fmt.Sprintf("stack ID %s is invalid", invalidID),
-			input: []cfgfile{
-				{
-					filename: "stack.tm",
-					body:     stackBlock(invalidID),
-				},
-			},
-			want: want{
-				errs: []error{
-					errors.E(hcl.ErrTerramateSchema),
-				},
-			},
-		})
-	}
-
-	for _, tc := range testcases {
-		testParser(t, tc)
-	}
-}
 
 func TestHCLParserStack(t *testing.T) {
 	for _, tc := range []testcase{
