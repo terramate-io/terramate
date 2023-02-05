@@ -28,9 +28,6 @@ import (
 )
 
 const (
-	// ErrInvalidStackFields indicate some stack fields are invalid
-	ErrInvalidStackFields errors.Kind = "invalid stack fields"
-
 	// ErrInvalidStackDir indicates that the given stack dir is invalid.
 	ErrInvalidStackDir errors.Kind = "invalid stack directory"
 
@@ -61,7 +58,7 @@ func Create(root *config.Root, stack config.Stack, imports ...string) (err error
 
 	err = stack.Validate()
 	if err != nil {
-		return errors.E(err, ErrInvalidStackFields, "validating stack definition")
+		return err
 	}
 
 	if strings.HasPrefix(path.Base(stack.Dir.String()), ".") {
