@@ -31,12 +31,6 @@ const (
 	// ErrInvalidStackDir indicates that the given stack dir is invalid.
 	ErrInvalidStackDir errors.Kind = "invalid stack directory"
 
-	// ErrInvalidStack indicates the stack is invalid.
-	ErrInvalidStack errors.Kind = "invalid stack definition"
-
-	// ErrInvalidStackID indicates that the given stack ID is invalid.
-	ErrInvalidStackID errors.Kind = "invalid stack ID"
-
 	// ErrStackAlreadyExists indicates that the stack already exists and cant be created.
 	ErrStackAlreadyExists errors.Kind = "stack already exists"
 
@@ -64,7 +58,7 @@ func Create(root *config.Root, stack config.Stack, imports ...string) (err error
 
 	err = stack.Validate()
 	if err != nil {
-		return errors.E(err, ErrInvalidStack, "validating stack definition")
+		return err
 	}
 
 	if strings.HasPrefix(path.Base(stack.Dir.String()), ".") {
@@ -99,13 +93,6 @@ func Create(root *config.Root, stack config.Stack, imports ...string) (err error
 		After:       stack.After,
 		Before:      stack.Before,
 		Tags:        stack.Tags,
-	}
-
-	if stack.ID != "" {
-		err := hcl.ValidateStackID(stack.ID)
-		if err != nil {
-			return errors.E(ErrInvalidStackID, err)
-		}
 	}
 
 	tmCfg, err := hcl.NewConfig(hostpath)

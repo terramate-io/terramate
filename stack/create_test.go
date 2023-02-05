@@ -126,8 +126,24 @@ func TestStackCreation(t *testing.T) {
 				Tags: []string{"a", "a"},
 			},
 			want: want{
-				err: errors.E(stack.ErrInvalidStack),
+				err: errors.E(config.ErrStackValidation),
 			},
+		},
+		{
+			name: "defining invalid after",
+			stack: config.Stack{
+				Dir:   project.NewPath("/stack-after"),
+				After: []string{"stack-1", "stack-1"},
+			},
+			want: want{err: errors.E(config.ErrStackValidation)},
+		},
+		{
+			name: "defining invalid before",
+			stack: config.Stack{
+				Dir:    project.NewPath("/stack-after"),
+				Before: []string{"stack-1", "stack-1"},
+			},
+			want: want{err: errors.E(config.ErrStackValidation)},
 		},
 		{
 			name: "fails on invalid stack ID",
@@ -135,7 +151,7 @@ func TestStackCreation(t *testing.T) {
 				Dir: project.NewPath("/stack"),
 				ID:  "not valid ID",
 			},
-			want: want{err: errors.E(stack.ErrInvalidStackID)},
+			want: want{err: errors.E(config.ErrStackValidation)},
 		},
 		{
 			name:  "dotdir is not allowed as stack dir",

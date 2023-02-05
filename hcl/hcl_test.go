@@ -922,7 +922,6 @@ func testParser(t *testing.T, tc testcase) {
 		} else {
 			tc.rootdir = filepath.Join(configsDir, tc.rootdir)
 		}
-
 		got, err := parse(t, tc)
 		errtest.AssertErrorList(t, err, tc.want.errs)
 

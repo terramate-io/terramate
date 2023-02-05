@@ -18,6 +18,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/mineiros-io/terramate/config/tag"
@@ -75,6 +76,9 @@ type (
 )
 
 const (
+	// ErrStackValidation indicates an error when validating the stack fields.
+	ErrStackValidation errors.Kind = "validating stack fields"
+
 	// ErrStackDuplicatedID indicates that two or more stacks have the same ID.
 	ErrStackDuplicatedID errors.Kind = "duplicated ID found on stacks"
 
@@ -115,7 +119,7 @@ func NewStackFromHCL(root string, cfg hcl.Config) (*Stack, error) {
 		Watch:       watchFiles,
 		Dir:         project.PrjAbsPath(root, cfg.AbsDir()),
 	}
-	err = stack.ValidateTags()
+	err = stack.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -124,24 +128,41 @@ func NewStackFromHCL(root string, cfg hcl.Config) (*Stack, error) {
 
 // Validate if all stack fields are correct.
 func (s Stack) Validate() error {
-	return errors.L(s.ValidateSets(), s.ValidateTags()).AsError()
+	errs := errors.L()
+	errs.AppendWrap(ErrStackValidation, s.validateID(), s.ValidateSets(), s.ValidateTags())
+	return errs.AsError()
 }
 
 // ValidateTags validates if tags are correctly used in all stack fields.
 func (s Stack) ValidateTags() error {
 	errs := errors.L()
-	errs.Append(s.validateTags())
+	errs.Append(s.validateTagsField())
 	errs.AppendWrap(ErrStackInvalidWants, s.validateTagFilterNotAllowed(s.Wants))
 	errs.AppendWrap(ErrStackInvalidWantedBy, s.validateTagFilterNotAllowed(s.WantedBy))
 	return errs.AsError()
 }
 
-func (s Stack) validateTags() error {
+func (s Stack) validateTagsField() error {
 	for _, tagname := range s.Tags {
 		err := tag.Validate(tagname)
 		if err != nil {
 			return errors.E(ErrStackInvalidTag, err)
 		}
+	}
+	return nil
+}
+
+const stackIDRegexPattern = "^[a-zA-Z0-9_-]{1,64}$"
+
+var _ = regexp.MustCompile(stackIDRegexPattern)
+
+func (s Stack) validateID() error {
+	if s.ID == "" {
+		return nil
+	}
+	stackIDRegex := regexp.MustCompile(stackIDRegexPattern)
+	if !stackIDRegex.MatchString(s.ID) {
+		return errors.E("stack ID %q doesn't match %q", s.ID, stackIDRegexPattern)
 	}
 	return nil
 }
