@@ -864,12 +864,8 @@ func (c *cli) createStack() {
 		Before:      c.parsedArgs.Create.Before,
 		Tags:        c.parsedArgs.Tags,
 	}
-	err := spec.Validate()
-	if err != nil {
-		errlog.Fatal(logger, err, "can't create stack")
-	}
 
-	err = stack.Create(c.cfg(), spec, c.parsedArgs.Create.Import...)
+	err := stack.Create(c.cfg(), spec, c.parsedArgs.Create.Import...)
 	if err != nil {
 		logger := log.With().
 			Stringer("stack", spec.Dir).

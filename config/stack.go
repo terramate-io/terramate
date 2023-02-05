@@ -115,7 +115,7 @@ func NewStackFromHCL(root string, cfg hcl.Config) (*Stack, error) {
 		Watch:       watchFiles,
 		Dir:         project.PrjAbsPath(root, cfg.AbsDir()),
 	}
-	err = stack.Validate()
+	err = stack.ValidateTags()
 	if err != nil {
 		return nil, err
 	}
@@ -124,6 +124,11 @@ func NewStackFromHCL(root string, cfg hcl.Config) (*Stack, error) {
 
 // Validate if all stack fields are correct.
 func (s Stack) Validate() error {
+	return errors.L(s.ValidateSets(), s.ValidateTags()).AsError()
+}
+
+// ValidateTags validates if tags are correctly used in all stack fields.
+func (s Stack) ValidateTags() error {
 	errs := errors.L()
 	errs.Append(s.validateTags())
 	errs.AppendWrap(ErrStackInvalidWants, s.validateTagFilterNotAllowed(s.Wants))
@@ -141,6 +146,28 @@ func (s Stack) validateTags() error {
 	return nil
 }
 
+// ValidateSets validate all stack set fields.
+func (s Stack) ValidateSets() error {
+	errs := errors.L(
+		validateSet("tags", s.Tags),
+		validateSet("after", s.After),
+		validateSet("before", s.Before),
+		validateSet("wants", s.Wants),
+		validateSet("wanted_by", s.WantedBy),
+	)
+	return errs.AsError()
+}
+
+func validateSet(field string, set []string) error {
+	elems := map[string]struct{}{}
+	for _, s := range set {
+		if _, ok := elems[s]; ok {
+			return errors.E("field %s has duplicate %q element", field, s)
+		}
+		elems[s] = struct{}{}
+	}
+	return nil
+}
 func (s Stack) validateTagFilterNotAllowed(cfglst ...[]string) error {
 	for _, lst := range cfglst {
 		for _, elem := range lst {

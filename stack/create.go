@@ -31,6 +31,9 @@ const (
 	// ErrInvalidStackDir indicates that the given stack dir is invalid.
 	ErrInvalidStackDir errors.Kind = "invalid stack directory"
 
+	// ErrInvalidStack indicates the stack is invalid.
+	ErrInvalidStack errors.Kind = "invalid stack definition"
+
 	// ErrInvalidStackID indicates that the given stack ID is invalid.
 	ErrInvalidStackID errors.Kind = "invalid stack ID"
 
@@ -58,6 +61,11 @@ func Create(root *config.Root, stack config.Stack, imports ...string) (err error
 	logger := log.With().
 		Str("action", "stack.Create()").
 		Logger()
+
+	err = stack.Validate()
+	if err != nil {
+		return errors.E(err, ErrInvalidStack, "validating stack definition")
+	}
 
 	if strings.HasPrefix(path.Base(stack.Dir.String()), ".") {
 		return errors.E(ErrInvalidStackDir, "dot directories not allowed")
