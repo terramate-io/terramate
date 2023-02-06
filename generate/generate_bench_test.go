@@ -16,7 +16,6 @@ package generate_test
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/madlambda/spells/assert"
@@ -120,37 +119,6 @@ func createGenHCLs(dir sandbox.DirEntry, name string, globals []string, genhcls 
 		dir.CreateFile(
 			fmt.Sprintf("genhcl%d.tm", i),
 			genhclDoc.String(),
-		)
-	}
-}
-
-func createGenFiles(dir sandbox.DirEntry, globals []string, genfiles int) {
-	for i := 0; i < genfiles; i++ {
-		genfileDoc := GenerateFile()
-		genfileDoc.AddLabel(fmt.Sprintf("gen/%d.txt", i))
-
-		content := make([]string, len(globals))
-
-		for j, global := range globals {
-			content[j] = fmt.Sprintf("val%d%d=${global.%s}", i, j, global)
-		}
-
-		genfileDoc.AddString("content", strings.Join(content, ","))
-		dir.CreateFile(
-			fmt.Sprintf("genfile%d.tm", i),
-			genfileDoc.String(),
-		)
-	}
-}
-
-func createAsserts(dir sandbox.DirEntry, asserts int) {
-	for i := 0; i < asserts; i++ {
-		assertDoc := Assert()
-		assertDoc.AddBoolean("assertion", true)
-		assertDoc.AddString("message", fmt.Sprintf("assert %d", i))
-		dir.CreateFile(
-			fmt.Sprintf("assert%d.tm", i),
-			assertDoc.String(),
 		)
 	}
 }
