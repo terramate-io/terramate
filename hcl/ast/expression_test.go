@@ -80,27 +80,23 @@ EOT
 `,
 		},
 		{
-			name: "strings with nl returns heredocs",
+			name: "strings not ending with nl returns as plain string",
 			expr: `"0\n1"`,
+			want: `"0\n1"`,
+		},
+		{
+			name: "strings ending with nl returns heredocs",
+			expr: `"a b c\n"`,
 			want: `<<-EOT
-0
-1
+a b c
 EOT
 `,
 		},
 		{
-			name: "strings with nl in the beginning returns heredocs",
+			name: "single nl returns heredocs",
 			expr: `"\n"`,
 			want: `<<-EOT
 
-EOT
-`,
-		},
-		{
-			name: "strings with nl in the end returns heredocs",
-			expr: `"test\n"`,
-			want: `<<-EOT
-test
 EOT
 `,
 		},
@@ -129,15 +125,11 @@ EOT
 		{
 			name: "multiline string inside HIL interpolation",
 			expr: `"test${"something\nelse"}"`,
-			want: `"test${<<-EOT
-something
-else
-EOT
-			}"`,
+			want: `"testsomething\nelse"`,
 		},
 		{
-			name: "strings with nl and interpolations returns heredocs",
-			expr: `"${a}\ntest\n${global.a}"`,
+			name: "strings ending with nl and interpolations returns heredocs",
+			expr: `"${a}\ntest\n${global.a}\n"`,
 			want: `<<-EOT
 ${a}
 test
@@ -146,9 +138,17 @@ EOT
 `,
 		},
 		{
-			name: "render string escape characters",
-			expr: `"\t${a}\n\ttest\n\t${global.a}"`,
+			name: "strings with nl but not ending with nl returns plain string",
+			expr: `"${a}\ntest\n${global.a}"`,
+		},
+		{
+			name: "render string when generating heredoc",
+			expr: `"\t${a}\n\ttest\n\t${global.a}\n"`,
 			want: "<<-EOT\n\t${a}\n\ttest\n\t${global.a}\nEOT\n",
+		},
+		{
+			name: "not render string when plain string",
+			expr: `"\t${a}\n\ttest\n\t${global.a}"`,
 		},
 		{
 			name: "render escape characters",

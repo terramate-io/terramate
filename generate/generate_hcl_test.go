@@ -1192,7 +1192,7 @@ func TestGenerateHCL(t *testing.T) {
 					add: GenerateHCL(
 						Labels("test"),
 						Content(
-							Expr("msg", `"a\n\ttabbed\tstring"`),
+							Expr("msg", `"a\n\ttabbed\tstring\n"`),
 						),
 					),
 				},
