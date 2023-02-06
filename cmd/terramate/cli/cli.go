@@ -832,7 +832,7 @@ func (c *cli) createStack() {
 
 	logger.Trace().Msg("creating stack")
 
-	stackDir := filepath.Join(c.wd(), c.parsedArgs.Create.Path)
+	stackHostDir := filepath.Join(c.wd(), c.parsedArgs.Create.Path)
 
 	stackID := c.parsedArgs.Create.ID
 	if stackID == "" {
@@ -847,7 +847,7 @@ func (c *cli) createStack() {
 
 	stackName := c.parsedArgs.Create.Name
 	if stackName == "" {
-		stackName = filepath.Base(stackDir)
+		stackName = filepath.Base(stackHostDir)
 	}
 
 	stackDescription := c.parsedArgs.Create.Description
@@ -855,21 +855,19 @@ func (c *cli) createStack() {
 		stackDescription = stackName
 	}
 
-	err := stack.Create(c.cfg(), stack.CreateCfg{
-		Dir:         stackDir,
+	stackSpec := config.Stack{
+		Dir:         prj.PrjAbsPath(c.rootdir(), stackHostDir),
 		ID:          stackID,
 		Name:        stackName,
 		Description: stackDescription,
 		After:       c.parsedArgs.Create.After,
 		Before:      c.parsedArgs.Create.Before,
-		Imports:     c.parsedArgs.Create.Import,
-	})
+	}
 
-	stackPath := filepath.ToSlash(strings.TrimPrefix(stackDir, c.rootdir()))
-
+	err := stack.Create(c.cfg(), stackSpec, c.parsedArgs.Create.Import...)
 	if err != nil {
 		logger := log.With().
-			Str("stack", stackPath).
+			Stringer("stack", stackSpec.Dir).
 			Logger()
 
 		if c.parsedArgs.Create.IgnoreExisting &&
@@ -888,8 +886,8 @@ func (c *cli) createStack() {
 		errlog.Fatal(logger, err, "can't create stack")
 	}
 
-	log.Info().Msgf("created stack %s", stackPath)
-	c.output.MsgStdOut("Created stack %s", stackPath)
+	log.Info().Msgf("created stack %s", stackSpec.Dir)
+	c.output.MsgStdOut("Created stack %s", stackSpec.Dir)
 
 	if c.parsedArgs.Create.NoGenerate {
 		log.Debug().Msg("code generation on stack creation disabled")

@@ -15,6 +15,7 @@
 package stack_test
 
 import (
+	"path"
 	"path/filepath"
 	"testing"
 
@@ -29,186 +30,116 @@ import (
 )
 
 func TestStackCreation(t *testing.T) {
-	type wantedStack struct {
-		id      string
-		name    string
-		desc    string
-		imports []string
-		after   []string
-		before  []string
-	}
 	type want struct {
-		err   error
-		stack wantedStack
+		err     error
+		imports []string
 	}
 	type testcase struct {
-		name   string
-		layout []string
-		create stack.CreateCfg
-		want   want
-	}
-
-	newID := func(id string) string {
-		err := hcl.ValidateStackID(id)
-		assert.NoError(t, err)
-		return id
+		name    string
+		layout  []string
+		stack   config.Stack
+		imports []string
+		want    want
 	}
 
 	testcases := []testcase{
 		{
-			name: "default create configuration",
-			create: stack.CreateCfg{
-				Dir: "stack",
-			},
-			want: want{
-				stack: wantedStack{name: "stack"},
-			},
+			name:  "default create configuration",
+			stack: config.Stack{Dir: project.NewPath("/stack")},
 		},
 		{
-			name: "creates all dirs no stack path",
-			create: stack.CreateCfg{
-				Dir: "dir1/dir2/dir3/stack",
-			},
-			want: want{
-				stack: wantedStack{name: "stack"},
-			},
+			name:  "creates all dirs no stack path",
+			stack: config.Stack{Dir: project.NewPath("/dir1/dir2/dir3/stack")},
 		},
 		{
 			name:   "creates configuration when dir already exists",
 			layout: []string{"d:stack"},
-			create: stack.CreateCfg{
-				Dir: "stack",
-			},
-			want: want{
-				stack: wantedStack{name: "stack"},
-			},
+			stack:  config.Stack{Dir: project.NewPath("/stack")},
 		},
 		{
 			name:   "creates configuration when dir already exists and has subdirs",
 			layout: []string{"d:stack/subdir"},
-			create: stack.CreateCfg{
-				Dir: "stack",
-			},
-			want: want{
-				stack: wantedStack{name: "stack"},
-			},
+			stack:  config.Stack{Dir: project.NewPath("/stack")},
 		},
 		{
 			name: "defining only name",
-			create: stack.CreateCfg{
-				Dir:  "another-stack",
+			stack: config.Stack{
+				Dir:  project.NewPath("/another-stack"),
 				Name: "The Name Of The Stack",
-			},
-			want: want{
-				stack: wantedStack{
-					name: "The Name Of The Stack",
-				},
 			},
 		},
 		{
 			name: "defining only description",
-			create: stack.CreateCfg{
-				Dir:         "cool-stack",
+			stack: config.Stack{
+				Dir:         project.NewPath("/cool-stack"),
 				Description: "Stack Description",
-			},
-			want: want{
-				stack: wantedStack{
-					name: "cool-stack",
-					desc: "Stack Description",
-				},
 			},
 		},
 		{
 			name: "defining ID/name/description",
-			create: stack.CreateCfg{
-				Dir:         "stack",
+			stack: config.Stack{
+				Dir:         project.NewPath("/stack"),
 				ID:          "stack-id",
 				Name:        "Stack Name",
 				Description: "Stack Description",
 			},
-			want: want{
-				stack: wantedStack{
-					id:   newID("stack-id"),
-					name: "Stack Name",
-					desc: "Stack Description",
-				},
-			},
 		},
 		{
-			name: "defining single import",
-			create: stack.CreateCfg{
-				Dir:     "stack-imports",
-				Imports: []string{"/common/something.tm.hcl"},
-			},
-			want: want{
-				stack: wantedStack{
-					name:    "stack-imports",
-					imports: []string{"/common/something.tm.hcl"},
-				},
-			},
+			name:    "defining single import",
+			stack:   config.Stack{Dir: project.NewPath("/stack-imports")},
+			imports: []string{"/common/something.tm.hcl"},
+			want:    want{imports: []string{"/common/something.tm.hcl"}},
 		},
 		{
-			name: "defining multiple imports",
-			create: stack.CreateCfg{
-				Dir: "stack-imports",
-				Imports: []string{
+			name:  "defining multiple imports",
+			stack: config.Stack{Dir: project.NewPath("/stack-imports")},
+			imports: []string{
+				"/common/1.tm.hcl",
+				"/common/2.tm.hcl",
+			},
+			want: want{
+				imports: []string{
 					"/common/1.tm.hcl",
 					"/common/2.tm.hcl",
-				},
-			},
-			want: want{
-				stack: wantedStack{
-					name: "stack-imports",
-					imports: []string{
-						"/common/1.tm.hcl",
-						"/common/2.tm.hcl",
-					},
 				},
 			},
 		},
 		{
 			name: "defining after/before",
-			create: stack.CreateCfg{
-				Dir:    "stack-after-before",
+			stack: config.Stack{
+				Dir:    project.NewPath("/stack-after-before"),
 				After:  []string{"stack-1", "stack-2"},
 				Before: []string{"stack-3", "stack-4"},
-			},
-			want: want{
-				stack: wantedStack{
-					name:   "stack-after-before",
-					after:  []string{"stack-1", "stack-2"},
-					before: []string{"stack-3", "stack-4"},
-				},
 			},
 		},
 		{
 			name: "fails on invalid stack ID",
-			create: stack.CreateCfg{
-				Dir: "stack",
+			stack: config.Stack{
+				Dir: project.NewPath("/stack"),
 				ID:  "not valid ID",
 			},
 			want: want{err: errors.E(stack.ErrInvalidStackID)},
 		},
 		{
-			name:   "dotdir is not allowed as stack dir",
-			create: stack.CreateCfg{Dir: ".stack"},
-			want:   want{err: errors.E(stack.ErrInvalidStackDir)},
+			name:  "dotdir is not allowed as stack dir",
+			stack: config.Stack{Dir: project.NewPath("/.stack")},
+			want:  want{err: errors.E(stack.ErrInvalidStackDir)},
 		},
 		{
-			name:   "dotdir is not allowed as stack dir as subdir",
-			create: stack.CreateCfg{Dir: "/stacks/.stack"},
-			want:   want{err: errors.E(stack.ErrInvalidStackDir)},
+			name:  "dotdir is not allowed as stack dir as subdir",
+			stack: config.Stack{Dir: project.NewPath("/stacks/.stack")},
+			want:  want{err: errors.E(stack.ErrInvalidStackDir)},
 		},
 		{
 			name:   "fails if stack already exists",
 			layout: []string{"f:stack/config.tm:stack{\n}"},
-			create: stack.CreateCfg{Dir: "stack"},
+			stack:  config.Stack{Dir: project.NewPath("/stack")},
 			want:   want{err: errors.E(stack.ErrStackAlreadyExists)},
 		},
 		{
 			name:   "fails if there is a stack.tm.hcl file on dir",
 			layout: []string{"f:stack/stack.tm.hcl"},
-			create: stack.CreateCfg{Dir: "stack"},
+			stack:  config.Stack{Dir: project.NewPath("/stack")},
 			want:   want{err: errors.E(stack.ErrStackDefaultCfgFound)},
 		},
 	}
@@ -217,10 +148,8 @@ func TestStackCreation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			s := sandbox.New(t)
 			s.BuildTree(tc.layout)
-			buildImportedFiles(t, s.RootDir(), tc.create.Imports)
+			buildImportedFiles(t, s.RootDir(), tc.imports)
 
-			stackPath := tc.create.Dir
-			tc.create.Dir = filepath.Join(s.RootDir(), stackPath)
 			root, err := config.LoadRoot(s.RootDir())
 			if errors.IsAnyKind(tc.want.err, hcl.ErrHCLSyntax, hcl.ErrTerramateSchema) {
 				assert.IsError(t, err, tc.want.err)
@@ -228,29 +157,19 @@ func TestStackCreation(t *testing.T) {
 			}
 
 			assert.NoError(t, err)
-			err = stack.Create(root, tc.create)
+			err = stack.Create(root, tc.stack, tc.imports...)
 			assert.IsError(t, err, tc.want.err)
-
 			if tc.want.err != nil {
 				return
 			}
 
-			want := tc.want.stack
-			dir := project.PrjAbsPath(s.RootDir(), tc.create.Dir)
-			got := s.LoadStack(dir)
-
-			if want.id != "" {
-				assert.EqualStrings(t, want.id, got.ID)
-			} else if got.ID != "" {
-				t.Fatalf("got unwanted ID %q", got.ID)
+			if tc.stack.Name == "" {
+				tc.stack.Name = path.Base(tc.stack.Dir.String())
 			}
 
-			assert.EqualStrings(t, want.name, got.Name, "checking stack name")
-			assert.EqualStrings(t, want.desc, got.Description, "checking stack description")
-
-			test.AssertStackImports(t, s.RootDir(), got.HostDir(root), want.imports)
-			test.AssertDiff(t, got.After, want.after, "created stack has invalid after")
-			test.AssertDiff(t, got.Before, want.before, "created stack has invalid before")
+			got := s.LoadStack(tc.stack.Dir)
+			test.AssertStackImports(t, s.RootDir(), got.HostDir(root), tc.want.imports)
+			test.AssertDiff(t, *got, tc.stack, "created stack is invalid")
 		})
 	}
 }
@@ -262,23 +181,4 @@ func buildImportedFiles(t *testing.T, rootdir string, imports []string) {
 		abspath := filepath.Join(rootdir, importPath)
 		test.WriteFile(t, filepath.Dir(abspath), filepath.Base(abspath), "")
 	}
-}
-
-func TestStackCreationFailsOnRelativePath(t *testing.T) {
-	s := sandbox.New(t)
-
-	cfg := s.Config()
-	err := stack.Create(cfg, stack.CreateCfg{Dir: "./relative"})
-	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
-
-	err = stack.Create(cfg, stack.CreateCfg{Dir: "relative"})
-	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
-}
-
-func TestStackCreationFailsOnPathOutsideProjectRoot(t *testing.T) {
-	s := sandbox.New(t)
-	someOtherDir := t.TempDir()
-
-	err := stack.Create(s.Config(), stack.CreateCfg{Dir: someOtherDir})
-	assert.IsError(t, err, errors.E(stack.ErrInvalidStackDir))
 }
