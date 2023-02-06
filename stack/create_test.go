@@ -140,7 +140,7 @@ func TestStackCreation(t *testing.T) {
 		{
 			name: "defining invalid before",
 			stack: config.Stack{
-				Dir:    project.NewPath("/stack-after"),
+				Dir:    project.NewPath("/stack-before"),
 				Before: []string{"stack-1", "stack-1"},
 			},
 			want: want{err: errors.E(config.ErrStackValidation)},
