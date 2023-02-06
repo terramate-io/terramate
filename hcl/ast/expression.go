@@ -15,6 +15,7 @@
 package ast
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 
@@ -103,16 +104,12 @@ func (builder *tokenBuilder) literalTokens(expr *hclsyntax.LiteralValueExpr) {
 func (builder *tokenBuilder) templateTokens(tmpl *hclsyntax.TemplateExpr) {
 	begin := len(builder.tokens)
 	builder.add(oquote())
-	var useheredoc bool
-	for group, part := range tmpl.Parts {
+	for _, part := range tmpl.Parts {
 		tokens := tokensForExpression(part)
 		if tokens[0].Type != hclsyntax.TokenOQuote {
 			builder.add(interpBegin())
 			builder.add(tokens...)
 			builder.add(interpEnd())
-			if group+1 == len(tmpl.Parts) && useheredoc {
-				builder.add(nlString())
-			}
 			continue
 		}
 
@@ -120,9 +117,6 @@ func (builder *tokenBuilder) templateTokens(tmpl *hclsyntax.TemplateExpr) {
 		for _, tok := range tokens[1 : len(tokens)-1] {
 			if tok.Type != hclsyntax.TokenQuotedLit {
 				builder.add(tok)
-				if group+1 == len(tmpl.Parts) && useheredoc {
-					builder.add(nlString())
-				}
 				continue
 			}
 
@@ -154,22 +148,20 @@ func (builder *tokenBuilder) templateTokens(tmpl *hclsyntax.TemplateExpr) {
 					pos = -1
 					end = len(tok.Bytes)
 				} else {
-					useheredoc = true
 					end = pos + 2
 				}
 				strtok := hclwrite.Token{
 					Type:  hclsyntax.TokenStringLit,
 					Bytes: tok.Bytes[start:end],
 				}
-				if useheredoc && (pos == -1 && group+1 == len(tmpl.Parts)) {
-					strtok.Bytes = append(strtok.Bytes, []byte("\n")...)
-				}
 				builder.add(&strtok)
 				start = end
 			}
 		}
 	}
-	if useheredoc {
+	last := builder.tokens[len(builder.tokens)-1]
+	if last.Type == hclsyntax.TokenStringLit &&
+		bytes.HasSuffix(last.Bytes, []byte{'\\', 'n'}) {
 		builder.tokens[begin] = oheredoc()
 		for _, tok := range builder.tokens[begin+1:] {
 			if tok.Type == hclsyntax.TokenStringLit {
