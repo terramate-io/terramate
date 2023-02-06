@@ -80,27 +80,23 @@ EOT
 `,
 		},
 		{
-			name: "strings with nl returns heredocs",
+			name: "strings not ending with nl returns as plain string",
 			expr: `"0\n1"`,
+			want: `"0\n1"`,
+		},
+		{
+			name: "strings ending with nl returns heredocs",
+			expr: `"a b c\n"`,
 			want: `<<-EOT
-0
-1
+a b c
 EOT
 `,
 		},
 		{
-			name: "strings with nl in the beginning returns heredocs",
+			name: "single nl returns heredocs",
 			expr: `"\n"`,
 			want: `<<-EOT
 
-EOT
-`,
-		},
-		{
-			name: "strings with nl in the end returns heredocs",
-			expr: `"test\n"`,
-			want: `<<-EOT
-test
 EOT
 `,
 		},
