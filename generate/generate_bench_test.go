@@ -19,7 +19,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -27,60 +26,36 @@ import (
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
-func BenchmarkGenerateFlatStacks_50(b *testing.B) {
-	const nstacks = 50
+func BenchmarkGenerateHCLFlatStacks_nstacks1_nglobals1(b *testing.B) {
 	s := sandbox.New(b)
-	createStacks(s, nstacks)
-
-}
-
-type benchmark struct {
-	stacks   int
-	asserts  int
-	genhcl   int
-	genfiles int
-	globals  int
-}
-
-func (bm benchmark) String() string {
-	return fmt.Sprintf("stacks=%d asserts=%d genhcl=%d genfiles=%d globals=%d",
-		bm.stacks, bm.asserts, bm.genhcl, bm.genfiles, bm.globals)
-}
-
-func (bm benchmark) setup(b *testing.B) sandbox.S {
-	b.StopTimer()
-	defer b.StartTimer()
-
-	s := sandbox.New(b)
-	createStacks(s, bm.stacks)
-	createAsserts(s, bm.asserts)
-
-	globals := createGlobals(s, bm.globals)
-	createGlobals(s, bm.globals)
-	createGenHCLs(s, globals, bm.genhcl)
-	createGenFiles(s, globals, bm.genfiles)
-	s.Config() // caches config for later use.
-	return s
-}
-
-func (bm benchmark) assert(b *testing.B, report generate.Report) {
-	b.StopTimer()
-	defer b.StartTimer()
-
-	assert.EqualInts(b, bm.stacks, len(report.Successes))
-	assert.EqualInts(b, 0, len(report.Failures))
-
-	for _, success := range report.Successes {
-		assert.EqualInts(b, bm.genhcl+bm.genfiles, len(success.Created))
-		assert.EqualInts(b, 0, len(success.Changed))
-		assert.EqualInts(b, 0, len(success.Deleted))
+	setup(b, s, 1, 1)
+	for n := 0; n < b.N; n++ {
+		_ = generate.Do(s.Config(), project.NewPath("/modules"), nil)
 	}
 }
 
-func (bm benchmark) run(b *testing.B) {
-	s := bm.setup(b)
-	report := generate.Do(s.Config(), project.NewPath("/modules"), nil)
-	bm.assert(b, report)
+func BenchmarkGenerateHCLFlatStacks_nstacks50_nglobals1(b *testing.B) {
+	s := sandbox.New(b)
+	setup(b, s, 50, 1)
+	for n := 0; n < b.N; n++ {
+		_ = generate.Do(s.Config(), project.NewPath("/modules"), nil)
+	}
+}
+
+func BenchmarkGenerateHCLFlatStacks_nstacks1_nglobals50(b *testing.B) {
+	s := sandbox.New(b)
+	setup(b, s, 1, 50)
+	for n := 0; n < b.N; n++ {
+		_ = generate.Do(s.Config(), project.NewPath("/modules"), nil)
+	}
+}
+
+func setup(b *testing.B, s sandbox.S, nstacks, nglobals int) {
+	b.StopTimer()
+	createStacks(s, nstacks)
+	globals := createGlobals(s, nglobals, `"${tm_upper("terramate is fun")}! isn't it?"`)
+	createGenHCLs(s, globals, 5)
+	b.StartTimer()
 }
 
 func createStacks(s sandbox.S, stacks int) {

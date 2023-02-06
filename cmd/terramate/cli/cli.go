@@ -678,7 +678,7 @@ func (c *cli) generate() {
 
 // gencodeWithVendor will generate code for the whole project providing automatic
 // vendoring of all tm_vendor calls.
-func (c *cli) gencodeWithVendor() (generate.Report, download.Report) {
+func (c *cli) gencodeWithVendor() (*generate.Report, download.Report) {
 	vendorProgressEvents := download.NewEventStream()
 	progressHandlerDone := c.handleVendorProgressEvents(vendorProgressEvents)
 

@@ -773,7 +773,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 				vendorDir = project.NewPath(tcase.vendorDir)
 			}
 			report := generate.Do(s.Config(), vendorDir, nil)
-			assertEqualReports(t, report, tcase.wantReport)
+			assertEqualReports(t, report, &tcase.wantReport)
 
 			assertGeneratedFiles(t)
 
@@ -783,7 +783,7 @@ func testCodeGeneration(t *testing.T, tcases []testcase) {
 				report := generate.Do(s.Config(), vendorDir, nil)
 				// since we just generated everything, report should only contain
 				// the same failures as previous code generation.
-				assertEqualReports(t, report, generate.Report{
+				assertEqualReports(t, report, &generate.Report{
 					Failures: tcase.wantReport.Failures,
 				})
 				assertGeneratedFiles(t)

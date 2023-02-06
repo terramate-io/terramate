@@ -756,12 +756,12 @@ func TestGenerateFileWithRootContextRemoveFilesWhenConditionIsFalse(t *testing.T
 
 	createConfig(filename, false)
 	report := s.Generate()
-	assertEqualReports(t, report, generate.Report{})
+	assertEqualReports(t, report, &generate.Report{})
 	assertFileDontExist(filename)
 
 	createConfig(filename, true)
 	report = s.Generate()
-	assertEqualReports(t, report, generate.Report{
+	assertEqualReports(t, report, &generate.Report{
 		Successes: []generate.Result{
 			{
 				Dir:     project.NewPath("/"),
@@ -773,7 +773,7 @@ func TestGenerateFileWithRootContextRemoveFilesWhenConditionIsFalse(t *testing.T
 
 	createConfig(filename, false)
 	report = s.Generate()
-	assertEqualReports(t, report, generate.Report{
+	assertEqualReports(t, report, &generate.Report{
 		Successes: []generate.Result{
 			{
 				Dir:     project.NewPath("/"),

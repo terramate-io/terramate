@@ -345,7 +345,7 @@ Fatal failure while cleaning up generated code outside stacks:
 	}
 }
 
-func assertReportHasError(t *testing.T, report generate.Report, err error) {
+func assertReportHasError(t *testing.T, report *generate.Report, err error) {
 	t.Helper()
 	// Most of this assertion behavior is due to making it easier to
 	// refactor the tests to the new report design on code generation.
@@ -374,7 +374,7 @@ func assertReportHasError(t *testing.T, report generate.Report, err error) {
 	t.Fatalf("unable to find match for %v on report:\n%s", err, report)
 }
 
-func assertEqualReports(t *testing.T, got, want generate.Report) {
+func assertEqualReports(t *testing.T, got, want *generate.Report) {
 	t.Helper()
 
 	// WHY: we can't just use cmp.Diff since the errors included on the Report
