@@ -862,6 +862,7 @@ func (c *cli) createStack() {
 		Description: stackDescription,
 		After:       c.parsedArgs.Create.After,
 		Before:      c.parsedArgs.Create.Before,
+		Tags:        c.parsedArgs.Tags,
 	}
 
 	err := stack.Create(c.cfg(), stackSpec, c.parsedArgs.Create.Import...)

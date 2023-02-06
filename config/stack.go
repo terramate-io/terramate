@@ -136,13 +136,13 @@ func (s Stack) Validate() error {
 // ValidateTags validates if tags are correctly used in all stack fields.
 func (s Stack) ValidateTags() error {
 	errs := errors.L()
-	errs.Append(s.validateTags())
+	errs.Append(s.validateTagsField())
 	errs.AppendWrap(ErrStackInvalidWants, s.validateTagFilterNotAllowed(s.Wants))
 	errs.AppendWrap(ErrStackInvalidWantedBy, s.validateTagFilterNotAllowed(s.WantedBy))
 	return errs.AsError()
 }
 
-func (s Stack) validateTags() error {
+func (s Stack) validateTagsField() error {
 	for _, tagname := range s.Tags {
 		err := tag.Validate(tagname)
 		if err != nil {
