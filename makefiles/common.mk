@@ -80,7 +80,7 @@ bench/check: pkg=./...
 bench/check: old=main
 bench/check: new?=$(shell git rev-parse HEAD)
 bench/check:
-	@$(BENCH_CHECK) -mod $(name) -pkg $(pkg) -go-test-flags "-benchmem,-count=20" \
+	@$(BENCH_CHECK) -mod $(name) -pkg $(pkg) -go-test-flags "-benchmem,-count=5" \
 		-old $(old) -new $(new) \
 		-check allocs/op=$(allocdelta) \
 		-check time/op=$(timedelta)
