@@ -19,7 +19,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -260,16 +259,6 @@ type TerramateParser struct {
 	strict bool
 	// if true, calling Parse() or MinimalParse() will fail.
 	parsed bool
-}
-
-var stackIDRegex = regexp.MustCompile("^[a-zA-Z0-9_-]{1,64}$")
-
-// ValidateStackID validates if the given id is a valid stack id.
-func ValidateStackID(id string) error {
-	if !stackIDRegex.MatchString(id) {
-		return errors.E("Stack ID %q doesn't match %q", id, stackIDRegex)
-	}
-	return nil
 }
 
 // NewGitConfig creates a git configuration with proper default values.
@@ -660,14 +649,7 @@ func (p *TerramateParser) parseStack(stackblock *ast.Block) (*Stack, error) {
 				)
 				continue
 			}
-			id := attrVal.AsString()
-			err := ValidateStackID(id)
-			if err != nil {
-				errs.Append(errors.E(attr.Expr.Range(), err))
-				continue
-			}
-
-			stack.ID = id
+			stack.ID = attrVal.AsString()
 		case "name":
 			if attrVal.Type() != cty.String {
 				errs.Append(hclAttrErr(attr,

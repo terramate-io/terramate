@@ -18,6 +18,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/mineiros-io/terramate/config/tag"
@@ -75,6 +76,9 @@ type (
 )
 
 const (
+	// ErrStackValidation indicates an error when validating the stack fields.
+	ErrStackValidation errors.Kind = "validating stack fields"
+
 	// ErrStackDuplicatedID indicates that two or more stacks have the same ID.
 	ErrStackDuplicatedID errors.Kind = "duplicated ID found on stacks"
 
@@ -125,6 +129,13 @@ func NewStackFromHCL(root string, cfg hcl.Config) (*Stack, error) {
 // Validate if all stack fields are correct.
 func (s Stack) Validate() error {
 	errs := errors.L()
+	errs.AppendWrap(ErrStackValidation, s.validateID(), s.ValidateSets(), s.ValidateTags())
+	return errs.AsError()
+}
+
+// ValidateTags validates if tags are correctly used in all stack fields.
+func (s Stack) ValidateTags() error {
+	errs := errors.L()
 	errs.Append(s.validateTags())
 	errs.AppendWrap(ErrStackInvalidWants, s.validateTagFilterNotAllowed(s.Wants))
 	errs.AppendWrap(ErrStackInvalidWantedBy, s.validateTagFilterNotAllowed(s.WantedBy))
@@ -141,6 +152,43 @@ func (s Stack) validateTags() error {
 	return nil
 }
 
+const stackIDRegexPattern = "^[a-zA-Z0-9_-]{1,64}$"
+
+var _ = regexp.MustCompile(stackIDRegexPattern)
+
+func (s Stack) validateID() error {
+	if s.ID == "" {
+		return nil
+	}
+	stackIDRegex := regexp.MustCompile(stackIDRegexPattern)
+	if !stackIDRegex.MatchString(s.ID) {
+		return errors.E("stack ID %q doesn't match %q", s.ID, stackIDRegexPattern)
+	}
+	return nil
+}
+
+// ValidateSets validate all stack set fields.
+func (s Stack) ValidateSets() error {
+	errs := errors.L(
+		validateSet("tags", s.Tags),
+		validateSet("after", s.After),
+		validateSet("before", s.Before),
+		validateSet("wants", s.Wants),
+		validateSet("wanted_by", s.WantedBy),
+	)
+	return errs.AsError()
+}
+
+func validateSet(field string, set []string) error {
+	elems := map[string]struct{}{}
+	for _, s := range set {
+		if _, ok := elems[s]; ok {
+			return errors.E("field %s has duplicate %q element", field, s)
+		}
+		elems[s] = struct{}{}
+	}
+	return nil
+}
 func (s Stack) validateTagFilterNotAllowed(cfglst ...[]string) error {
 	for _, lst := range cfglst {
 		for _, elem := range lst {
