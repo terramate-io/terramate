@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/project"
@@ -57,9 +56,6 @@ type Report struct {
 	// CleanupErr is an error that happened after code generation
 	// was done while trying to cleanup files outside stacks.
 	CleanupErr error
-
-	// TotalElapsed is the total elapsed time of the code generation.
-	TotalElapsed time.Duration
 }
 
 // HasFailures returns true if this report includes any failures.
@@ -324,8 +320,8 @@ func joinResults[T any](results ...[]T) []T {
 	return all
 }
 
-func mergeReports(r1, r2 *Report) *Report {
-	merged := &Report{}
+func mergeReports(r1, r2 Report) Report {
+	merged := Report{}
 	merged.BootstrapErr = errors.L(r1.BootstrapErr, r2.BootstrapErr).AsError()
 	merged.CleanupErr = errors.L(r1.CleanupErr, r2.CleanupErr).AsError()
 

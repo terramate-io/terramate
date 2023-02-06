@@ -397,12 +397,12 @@ func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
 
 	createConfig(filename, false)
 	report := s.Generate()
-	assertEqualReports(t, report, &generate.Report{})
+	assertEqualReports(t, report, generate.Report{})
 	assertFileDontExist(filename)
 
 	createConfig(filename, true)
 	report = s.Generate()
-	assertEqualReports(t, report, &generate.Report{
+	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
 				Dir:     project.NewPath("/stack"),
@@ -414,7 +414,7 @@ func TestGenerateFileRemoveFilesWhenConditionIsFalse(t *testing.T) {
 
 	createConfig(filename, false)
 	report = s.Generate()
-	assertEqualReports(t, report, &generate.Report{
+	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
 				Dir:     project.NewPath("/stack"),
@@ -443,7 +443,7 @@ func TestGenerateFileTerramateRootMetadata(t *testing.T) {
 	)
 
 	report := s.Generate()
-	assertEqualReports(t, report, &generate.Report{
+	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
 				Dir:     project.NewPath("/stack"),

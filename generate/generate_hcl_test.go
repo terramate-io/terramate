@@ -1374,7 +1374,7 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 	rootConfig := rootEntry.CreateConfig(firstConfig.String())
 
 	report := s.Generate()
-	assertEqualReports(t, report, &generate.Report{
+	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
 				Dir:     project.NewPath("/stack"),
@@ -1401,7 +1401,7 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 	rootConfig.Write(secondConfig.String())
 
 	report = s.Generate()
-	assertEqualReports(t, report, &generate.Report{
+	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
 				Dir:     project.NewPath("/stack"),
@@ -1412,7 +1412,7 @@ func TestGenerateHCLOverwriting(t *testing.T) {
 
 	got = stack.ReadFile(genFilename)
 	test.AssertGenCodeEquals(t, got, secondWant.String())
-	assertEqualReports(t, s.Generate(), &generate.Report{})
+	assertEqualReports(t, s.Generate(), generate.Report{})
 }
 
 func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
@@ -1447,7 +1447,7 @@ func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
 	)
 
 	report := s.Generate()
-	assertEqualReports(t, report, &generate.Report{
+	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
 				Dir:     project.NewPath("/stack"),
@@ -1473,7 +1473,7 @@ func TestGenerateHCLCleanupFilesOnDirThatIsNotStack(t *testing.T) {
 
 	s.ReloadConfig()
 	report = s.Generate()
-	assertEqualReports(t, report, &generate.Report{
+	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
 				Dir:     project.NewPath("/stack"),
@@ -1524,7 +1524,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 
 	s.ReloadConfig()
 	report := s.Generate()
-	assertEqualReports(t, report, &generate.Report{
+	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
 				Dir:     project.NewPath("/stack"),
@@ -1552,7 +1552,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 
 	s.ReloadConfig()
 	report = s.Generate()
-	assertEqualReports(t, report, &generate.Report{
+	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
 				Dir:     project.NewPath("/stack"),
@@ -1578,7 +1578,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 
 	s.ReloadConfig()
 	report = s.Generate()
-	assertEqualReports(t, report, &generate.Report{
+	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
 				Dir:     project.NewPath("/stack"),
@@ -1612,7 +1612,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 	)
 
 	s.ReloadConfig()
-	assertEqualReports(t, s.Generate(), &generate.Report{
+	assertEqualReports(t, s.Generate(), generate.Report{
 		Successes: []generate.Result{
 			{
 				Dir:     project.NewPath("/stack"),
@@ -1639,7 +1639,7 @@ func TestGenerateHCLCleanupOldFiles(t *testing.T) {
 	)
 
 	s.ReloadConfig()
-	assertEqualReports(t, s.Generate(), &generate.Report{
+	assertEqualReports(t, s.Generate(), generate.Report{
 		Successes: []generate.Result{
 			{
 				Dir:     project.NewPath("/stack"),
@@ -1696,7 +1696,7 @@ func TestGenerateHCLCleanupOldFilesIgnoreSymlinks(t *testing.T) {
 	root, err := config.LoadRoot(rootEntry.Path())
 	assert.NoError(t, err)
 	report := s.GenerateWith(root, project.NewPath("/modules"))
-	assertEqualReports(t, report, &generate.Report{
+	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
 				Dir:     project.NewPath("/stack"),
@@ -1715,7 +1715,7 @@ func TestGenerateHCLCleanupOldFilesIgnoreDotDirs(t *testing.T) {
 	test.WriteFile(t, filepath.Join(s.RootDir(), ".terramate"), "test.tf", genhcl.Header)
 	test.WriteFile(t, filepath.Join(s.RootDir(), ".another"), "test.tf", genhcl.Header)
 
-	assertEqualReports(t, s.Generate(), &generate.Report{})
+	assertEqualReports(t, s.Generate(), generate.Report{})
 }
 
 func TestGenerateHCLTerramateRootMetadata(t *testing.T) {
@@ -1739,7 +1739,7 @@ func TestGenerateHCLTerramateRootMetadata(t *testing.T) {
 	)
 
 	report := s.Generate()
-	assertEqualReports(t, report, &generate.Report{
+	assertEqualReports(t, report, generate.Report{
 		Successes: []generate.Result{
 			{
 				Dir:     project.NewPath("/stack"),

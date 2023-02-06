@@ -22,7 +22,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
@@ -188,15 +187,12 @@ func Do(
 	root *config.Root,
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
-) *Report {
-	start := time.Now()
+) Report {
 	stackReport := forEachStack(root, vendorDir,
 		vendorRequests, doStackGeneration)
 	rootReport := doRootGeneration(root)
 	report := mergeReports(stackReport, rootReport)
-	cleanupOrphaned(root, report)
-	report.TotalElapsed = time.Since(start)
-	return report
+	return cleanupOrphaned(root, report)
 }
 
 func doStackGeneration(
@@ -313,12 +309,12 @@ func doStackGeneration(
 	return report
 }
 
-func doRootGeneration(root *config.Root) *Report {
+func doRootGeneration(root *config.Root) Report {
 	logger := log.With().
 		Str("action", "generate.doRootGeneration").
 		Logger()
 
-	report := &Report{}
+	report := Report{}
 	evalctx := eval.NewContext(stdlib.Functions(root.HostDir()))
 	evalctx.SetNamespace("terramate", root.Runtime())
 
@@ -387,7 +383,7 @@ func doRootGeneration(root *config.Root) *Report {
 
 	logger.Debug().Msg("no conflicts found")
 
-	generateRootFiles(root, files, report)
+	generateRootFiles(root, files, &report)
 	return report
 }
 
@@ -791,13 +787,13 @@ func forEachStack(
 	vendorDir project.Path,
 	vendorRequests chan<- event.VendorRequest,
 	fn forEachStackFunc,
-) *Report {
+) Report {
 	logger := log.With().
 		Str("action", "generate.forEachStack()").
 		Str("root", root.HostDir()).
 		Logger()
 
-	report := &Report{}
+	report := Report{}
 
 	logger.Trace().Msg("List stacks.")
 
@@ -1291,7 +1287,7 @@ func loadStackCodeCfgs(
 	return genfilesConfigs, nil
 }
 
-func cleanupOrphaned(root *config.Root, report *Report) {
+func cleanupOrphaned(root *config.Root, report Report) Report {
 	logger := log.With().
 		Str("action", "generate.cleanupOrphaned()").
 		Logger()
@@ -1300,7 +1296,7 @@ func cleanupOrphaned(root *config.Root, report *Report) {
 	// the entire project).
 	if root.Tree().IsStack() {
 		logger.Debug().Msg("project root is a stack, nothing to do")
-		return
+		return report
 	}
 
 	logger.Debug().Msg("listing orphaned generated files")
@@ -1308,7 +1304,7 @@ func cleanupOrphaned(root *config.Root, report *Report) {
 	orphanedGenFiles, err := ListGenFiles(root, root.HostDir())
 	if err != nil {
 		report.CleanupErr = err
-		return
+		return report
 	}
 
 	deletedFiles := map[project.Path][]string{}
@@ -1356,4 +1352,5 @@ func cleanupOrphaned(root *config.Root, report *Report) {
 	}
 
 	report.sort()
+	return report
 }

@@ -19,6 +19,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/test/sandbox"
@@ -26,63 +28,86 @@ import (
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
-func BenchmarkGenerateHCLFlatStacks_nstacks1_nglobals1(b *testing.B) {
-	s := sandbox.New(b)
-	setup(b, s, 1, 1)
-	for n := 0; n < b.N; n++ {
-		_ = generate.Do(s.Config(), project.NewPath("/modules"), nil)
-	}
-}
-
-func BenchmarkGenerateHCLFlatStacks_nstacks50_nglobals1(b *testing.B) {
-	s := sandbox.New(b)
-	setup(b, s, 50, 1)
-	for n := 0; n < b.N; n++ {
-		_ = generate.Do(s.Config(), project.NewPath("/modules"), nil)
-	}
-}
-
-func BenchmarkGenerateHCLFlatStacks_nstacks1_nglobals50(b *testing.B) {
-	s := sandbox.New(b)
-	setup(b, s, 1, 50)
-	for n := 0; n < b.N; n++ {
-		_ = generate.Do(s.Config(), project.NewPath("/modules"), nil)
-	}
-}
-
-func setup(b *testing.B, s sandbox.S, nstacks, nglobals int) {
+func BenchmarkGenerateComplex(b *testing.B) {
 	b.StopTimer()
-	createStacks(s, nstacks)
-	globals := createGlobals(s, nglobals, `"${tm_upper("terramate is fun")}! isn't it?"`)
-	createGenHCLs(s, globals, 5)
-	b.StartTimer()
-}
+	s := sandbox.New(b)
 
-func createStacks(s sandbox.S, stacks int) {
-	for i := 0; i < stacks; i++ {
-		s.CreateStack(fmt.Sprintf("stacks/stack-%d", i))
+	tree := []string{
+		"s:root-stack",
+	}
+
+	emptydirs := "a/lot/of/empty/dirs/here/and/there/should/not/impact/perf"
+	stackNames := []rune{'a', 'b', 'c'}
+	for _, r1 := range stackNames {
+		tree = append(tree, fmt.Sprintf("s:root-stack/%s/%c", emptydirs, r1))
+		for _, r2 := range stackNames {
+			tree = append(tree, fmt.Sprintf("s:root-stack/%s/%c/%c", emptydirs, r1, r2))
+			for _, r3 := range stackNames {
+				tree = append(tree, fmt.Sprintf("s:root-stack/%s/%c/%c/%c", emptydirs, r1, r2, r3))
+			}
+		}
+	}
+
+	s.BuildTree(tree)
+
+	const ngenhcls = 5
+	const nglobals = 10
+	const rootExpr = `"terramate is fun"`
+	const stackExpr = `"${tm_upper(global.rootVal)}! isn't it?"`
+	rootGlobals := createGlobals(s.RootEntry(), "rootVal", nglobals, rootExpr)
+	createGenHCLs(s.RootEntry(), "root", rootGlobals, ngenhcls)
+
+	for _, r1 := range stackNames {
+		dir := s.DirEntry(fmt.Sprintf("root-stack/%s/%c", emptydirs, r1))
+		name := string([]rune{r1})
+		globals := createGlobals(dir, name, nglobals, stackExpr)
+		createGenHCLs(dir, name, globals, ngenhcls)
+
+		for _, r2 := range stackNames {
+			dir := s.DirEntry(fmt.Sprintf("root-stack/%s/%c/%c", emptydirs, r1, r2))
+			name := string([]rune{r1, r2})
+			globals := createGlobals(dir, name, nglobals, stackExpr)
+			createGenHCLs(dir, name, globals, ngenhcls)
+			for _, r3 := range stackNames {
+				dir := s.DirEntry(fmt.Sprintf("root-stack/%s/%c/%c/%c", emptydirs, r1, r2, r3))
+				name := string([]rune{r1, r2, r3})
+				globals := createGlobals(dir, name, nglobals, stackExpr)
+				createGenHCLs(dir, name, globals, ngenhcls)
+			}
+		}
+	}
+
+	cfg := s.Config() // configuration reused
+	_, err := terramate.ListStacks(cfg.Tree())
+	assert.NoError(b, err)
+
+	b.StartTimer()
+	for n := 0; n < b.N; n++ {
+		_ = generate.Do(cfg, project.NewPath("/modules"), nil)
 	}
 }
 
-func createGlobals(s sandbox.S, nglobals int, expr string) []string {
+func createGlobals(dir sandbox.DirEntry, namebase string, nglobals int, expr string) []string {
 	builder := Globals()
 	globalsNames := make([]string, nglobals)
 
-	for i := 0; i < nglobals; i++ {
-		name := fmt.Sprintf("val%d", i)
+	globalsNames[0] = namebase
+	builder.AddExpr(namebase, expr)
+
+	for i := 1; i < nglobals; i++ {
+		name := fmt.Sprintf("%s%d", namebase, i)
 		globalsNames[i] = name
-		builder.AddExpr(name, expr)
+		builder.AddExpr(name, fmt.Sprintf("global.%s", namebase))
 	}
 
-	s.RootEntry().CreateFile("globals.tm", builder.String())
-
+	dir.CreateFile("globals.tm", builder.String())
 	return globalsNames
 }
 
-func createGenHCLs(s sandbox.S, globals []string, genhcls int) {
+func createGenHCLs(dir sandbox.DirEntry, name string, globals []string, genhcls int) {
 	for i := 0; i < genhcls; i++ {
 		genhclDoc := GenerateHCL()
-		genhclDoc.AddLabel(fmt.Sprintf("gen/%d.hcl", i))
+		genhclDoc.AddLabel(fmt.Sprintf("gen/%s-%d.hcl", name, i))
 
 		content := Content()
 		for j, global := range globals {
@@ -92,15 +117,14 @@ func createGenHCLs(s sandbox.S, globals []string, genhcls int) {
 		}
 
 		genhclDoc.AddBlock(content)
-
-		s.RootEntry().CreateFile(
+		dir.CreateFile(
 			fmt.Sprintf("genhcl%d.tm", i),
 			genhclDoc.String(),
 		)
 	}
 }
 
-func createGenFiles(s sandbox.S, globals []string, genfiles int) {
+func createGenFiles(dir sandbox.DirEntry, globals []string, genfiles int) {
 	for i := 0; i < genfiles; i++ {
 		genfileDoc := GenerateFile()
 		genfileDoc.AddLabel(fmt.Sprintf("gen/%d.txt", i))
@@ -112,21 +136,19 @@ func createGenFiles(s sandbox.S, globals []string, genfiles int) {
 		}
 
 		genfileDoc.AddString("content", strings.Join(content, ","))
-
-		s.RootEntry().CreateFile(
+		dir.CreateFile(
 			fmt.Sprintf("genfile%d.tm", i),
 			genfileDoc.String(),
 		)
 	}
 }
 
-func createAsserts(s sandbox.S, asserts int) {
+func createAsserts(dir sandbox.DirEntry, asserts int) {
 	for i := 0; i < asserts; i++ {
 		assertDoc := Assert()
 		assertDoc.AddBoolean("assertion", true)
 		assertDoc.AddString("message", fmt.Sprintf("assert %d", i))
-
-		s.RootEntry().CreateFile(
+		dir.CreateFile(
 			fmt.Sprintf("assert%d.tm", i),
 			assertDoc.String(),
 		)
