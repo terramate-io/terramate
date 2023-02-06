@@ -749,6 +749,7 @@ func (c Config) IsEmpty() bool {
 		len(c.Generate.Files) == 0 && len(c.Generate.HCLs) == 0
 }
 
+// HasGlobals tells if the configuration has any globals defined.
 func (c Config) HasGlobals() bool {
 	return len(c.Globals) > 0
 }
