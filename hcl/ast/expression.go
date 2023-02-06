@@ -591,13 +591,6 @@ func nl() *hclwrite.Token {
 	}
 }
 
-func nlString() *hclwrite.Token {
-	return &hclwrite.Token{
-		Type:  hclsyntax.TokenQuotedLit,
-		Bytes: []byte("\n"),
-	}
-}
-
 func add() *hclwrite.Token {
 	return &hclwrite.Token{
 		Type:  hclsyntax.TokenPlus,
