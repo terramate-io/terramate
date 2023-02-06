@@ -27,38 +27,11 @@ import (
 	. "github.com/mineiros-io/terramate/test/hclwrite/hclutils"
 )
 
-func BenchmarkGenerate(b *testing.B) {
-	benchs := []benchmark{
-		{
-			stacks:   10,
-			asserts:  10,
-			genhcl:   10,
-			genfiles: 5,
-			globals:  50,
-		},
-		{
-			stacks:   100,
-			asserts:  10,
-			genhcl:   10,
-			genfiles: 5,
-			globals:  50,
-		},
-		{
-			stacks:   1000,
-			asserts:  10,
-			genhcl:   10,
-			genfiles: 5,
-			globals:  50,
-		},
-	}
+func BenchmarkGenerateFlatStacks_50(b *testing.B) {
+	const nstacks = 50
+	s := sandbox.New(b)
+	createStacks(s, nstacks)
 
-	for _, bench := range benchs {
-		b.Run(bench.String(), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				bench.run(b)
-			}
-		})
-	}
 }
 
 type benchmark struct {
@@ -116,14 +89,14 @@ func createStacks(s sandbox.S, stacks int) {
 	}
 }
 
-func createGlobals(s sandbox.S, globals int) []string {
+func createGlobals(s sandbox.S, nglobals int, expr string) []string {
 	builder := Globals()
-	globalsNames := make([]string, globals)
+	globalsNames := make([]string, nglobals)
 
-	for i := 0; i < globals; i++ {
+	for i := 0; i < nglobals; i++ {
 		name := fmt.Sprintf("val%d", i)
 		globalsNames[i] = name
-		builder.AddNumberInt(name, int64(i))
+		builder.AddExpr(name, expr)
 	}
 
 	s.RootEntry().CreateFile("globals.tm", builder.String())
