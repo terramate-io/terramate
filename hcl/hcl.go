@@ -745,7 +745,12 @@ func (c Config) AbsDir() string { return c.absdir }
 func (c Config) IsEmpty() bool {
 	return c.Stack == nil && c.Terramate == nil &&
 		c.Vendor == nil && len(c.Asserts) == 0 &&
+		len(c.Globals) == 0 &&
 		len(c.Generate.Files) == 0 && len(c.Generate.HCLs) == 0
+}
+
+func (c Config) HasGlobals() bool {
+	return len(c.Globals) > 0
 }
 
 // Save the configuration file using filename inside config directory.
