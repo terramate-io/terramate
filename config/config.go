@@ -449,6 +449,8 @@ func (tree *Tree) IsEmptyConfig() bool {
 	return tree.Node.IsEmpty()
 }
 
+// NonEmptyGlobalsParent returns a parent configuration which has globals defined,
+// if any.
 func (tree *Tree) NonEmptyGlobalsParent() *Tree {
 	parent := tree.Parent
 	for parent != nil && !parent.Node.HasGlobals() {
