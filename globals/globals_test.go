@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/globals"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/rs/zerolog"
 
 	"github.com/mineiros-io/terramate/test"
 	errtest "github.com/mineiros-io/terramate/test/errors"
@@ -3779,4 +3780,8 @@ func testGlobals(t *testing.T, tcase testcase) {
 			t.Fatalf("wanted stack globals: %v that was not found on stacks: %v", wantGlobals, stacks)
 		}
 	})
+}
+
+func init() {
+	zerolog.SetGlobalLevel(zerolog.Disabled)
 }
