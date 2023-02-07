@@ -91,9 +91,14 @@ func ForDir(root *config.Root, cfgdir project.Path, ctx *eval.Context) EvalRepor
 		Stringer("cfgdir", cfgdir).
 		Logger()
 
+	tree, ok := root.Lookup(cfgdir)
+	if !ok {
+		return NewEvalReport()
+	}
+
 	logger.Trace().Msg("loading expressions")
 
-	exprs, err := LoadExprs(root, cfgdir)
+	exprs, err := LoadExprs(tree)
 	if err != nil {
 		report := NewEvalReport()
 		report.BootstrapErr = err
@@ -127,21 +132,15 @@ func newExprSet(origin project.Path) *ExprSet {
 // reaches rootdir, loading globals expressions and merging them appropriately.
 // More specific globals (closer or at the dir) have precedence over less
 // specific globals (closer or at the root dir).
-func LoadExprs(root *config.Root, cfgdir project.Path) (HierarchicalExprs, error) {
+func LoadExprs(tree *config.Tree) (HierarchicalExprs, error) {
 	logger := log.With().
 		Str("action", "globals.LoadExprs()").
-		Str("root", root.HostDir()).
-		Stringer("cfgdir", cfgdir).
+		Stringer("dir", tree.Dir()).
 		Logger()
 
-	exprs := newExprSet(cfgdir)
+	exprs := newExprSet(tree.Dir())
 
-	cfg, ok := root.Lookup(cfgdir)
-	if !ok {
-		return HierarchicalExprs{}, nil
-	}
-
-	globalsBlocks := cfg.Node.Globals.AsList()
+	globalsBlocks := tree.Node.Globals.AsList()
 	for _, block := range globalsBlocks {
 		if len(block.Labels) > 0 && !hclsyntax.ValidIdentifier(block.Labels[0]) {
 			return nil, errors.E(
@@ -161,7 +160,7 @@ func LoadExprs(root *config.Root, cfgdir project.Path) (HierarchicalExprs, error
 			key := NewGlobalExtendPath(block.Labels)
 			exprs.expressions[key] = Expr{
 				Origin:     block.RawOrigins[0].Range,
-				ConfigDir:  cfgdir,
+				ConfigDir:  tree.Dir(),
 				LabelPath:  key.Path(),
 				Expression: expr,
 			}
@@ -197,7 +196,7 @@ func LoadExprs(root *config.Root, cfgdir project.Path) (HierarchicalExprs, error
 			key := NewGlobalAttrPath(block.Labels, attr.Name)
 			exprs.expressions[key] = Expr{
 				Origin:     attr.Range,
-				ConfigDir:  cfgdir,
+				ConfigDir:  tree.Dir(),
 				LabelPath:  key.Path(),
 				Expression: attr.Expr,
 			}
@@ -205,17 +204,17 @@ func LoadExprs(root *config.Root, cfgdir project.Path) (HierarchicalExprs, error
 	}
 
 	globals := HierarchicalExprs{
-		cfgdir: exprs,
+		tree.Dir(): exprs,
 	}
 
-	parentcfg, ok := parentDir(cfgdir)
-	if !ok {
+	parent := tree.NonEmptyGlobalsParent()
+	if parent == nil {
 		return globals, nil
 	}
 
 	logger.Trace().Msg("Loading stack globals from parent dir.")
 
-	parentGlobals, err := LoadExprs(root, parentcfg)
+	parentGlobals, err := LoadExprs(parent)
 	if err != nil {
 		return nil, err
 	}
@@ -587,11 +586,6 @@ func setGlobal(globals *eval.Object, accessor GlobalPathKey, newVal eval.Value) 
 
 	return globals.SetAt(accessor.Path(), newVal)
 
-}
-
-func parentDir(dir project.Path) (project.Path, bool) {
-	parent := dir.Dir()
-	return parent, parent != dir
 }
 
 func newGlobalPath(basepath []string, name string) GlobalPathKey {
