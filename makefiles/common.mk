@@ -76,7 +76,7 @@ bench/all:
 bench/check: allocdelta="+20%"
 bench/check: timedelta="+20%"
 bench/check: name=github.com/mineiros-io/terramate
-bench/check: pkg=./hcl/ast
+bench/check: pkg=./...
 bench/check: old=main
 bench/check: new?=$(shell git rev-parse HEAD)
 bench/check:
