@@ -449,6 +449,15 @@ func (tree *Tree) IsEmptyConfig() bool {
 	return tree.Node.IsEmpty()
 }
 
+// NonEmptyGlobalsParent returns a parent configuration which has globals defined, if any.
+func (tree *Tree) NonEmptyGlobalsParent() *Tree {
+	parent := tree.Parent
+	for parent != nil && !parent.Node.HasGlobals() {
+		parent = parent.Parent
+	}
+	return parent
+}
+
 // IsStack returns true if the given directory is a stack, false otherwise.
 func IsStack(root *Root, dir string) bool {
 	node, ok := root.Lookup(project.PrjAbsPath(root.HostDir(), dir))

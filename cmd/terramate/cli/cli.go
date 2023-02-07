@@ -1425,7 +1425,11 @@ func (c *cli) setupEvalContext(overrideGlobals map[string]string) *eval.Context 
 	ctx.SetNamespace("terramate", runtime)
 
 	wdPath := prj.PrjAbsPath(c.rootdir(), c.wd())
-	exprs, err := globals.LoadExprs(c.cfg(), wdPath)
+	tree, ok := c.cfg().Lookup(wdPath)
+	if !ok {
+		fatal(errors.E("configuration at %s not found", wdPath))
+	}
+	exprs, err := globals.LoadExprs(tree)
 	if err != nil {
 		fatal(err, "loading globals expressions")
 	}
