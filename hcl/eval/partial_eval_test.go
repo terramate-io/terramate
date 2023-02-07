@@ -71,6 +71,22 @@ EOT
 		{
 			expr: `["terramate", "is", "fun"]`,
 		},
+		{
+			expr: `[global.string, "is", "fun"]`,
+			want: `["terramate", "is", "fun"]`,
+		},
+		{
+			expr: `{
+				a = global.string
+				b = "is"
+				c = "fun"
+			}`,
+			want: `{
+				a = "terramate"
+				b = "is"
+				c = "fun"
+			}`,
+		},
 	} {
 		ctx := eval.NewContext(nil)
 		ctx.SetNamespace("global", map[string]cty.Value{
@@ -88,7 +104,7 @@ EOT
 		if tc.want != "" {
 			want = tc.want
 		}
-		assert.EqualStrings(t, want, string(hclwrite.Format(got.Bytes())))
+		assert.EqualStrings(t, string(hclwrite.Format([]byte(want))), string(hclwrite.Format(got.Bytes())))
 	}
 }
 

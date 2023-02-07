@@ -28,7 +28,11 @@ func (c *Context) partialEval(expr hhcl.Expression) (hhcl.Expression, error) {
 	case *hclsyntax.LiteralValueExpr:
 		return expr, nil
 	case *hclsyntax.TupleConsExpr:
-		return expr, nil
+		return c.partialEvalTuple(e)
+	case *hclsyntax.ObjectConsExpr:
+		return c.partialEvalObject(e)
+	case *hclsyntax.ObjectConsKeyExpr:
+		return e, nil
 	case *hclsyntax.TemplateExpr:
 		return c.partialEvalTemplate(e)
 	case *hclsyntax.ScopeTraversalExpr:
@@ -47,6 +51,34 @@ func (c *Context) partialEvalTemplate(tmpl *hclsyntax.TemplateExpr) (*hclsyntax.
 		tmpl.Parts[i] = asSyntax(newexpr)
 	}
 	return tmpl, nil
+}
+
+func (c *Context) partialEvalTuple(tuple *hclsyntax.TupleConsExpr) (hclsyntax.Expression, error) {
+	for i, v := range tuple.Exprs {
+		newexpr, err := c.partialEval(v)
+		if err != nil {
+			return nil, err
+		}
+		tuple.Exprs[i] = asSyntax(newexpr)
+	}
+	return tuple, nil
+}
+
+func (c *Context) partialEvalObject(obj *hclsyntax.ObjectConsExpr) (hclsyntax.Expression, error) {
+	for i, elem := range obj.Items {
+		newkey, err := c.partialEval(elem.KeyExpr)
+		if err != nil {
+			return nil, err
+		}
+		newval, err := c.partialEval(elem.ValueExpr)
+		if err != nil {
+			return nil, err
+		}
+		elem.KeyExpr = asSyntax(newkey)
+		elem.ValueExpr = asSyntax(newval)
+		obj.Items[i] = elem
+	}
+	return obj, nil
 }
 
 func (c *Context) partialEvalScopeTrav(scope *hclsyntax.ScopeTraversalExpr) (hclsyntax.Expression, error) {
@@ -75,6 +107,12 @@ func asSyntax(expr hhcl.Expression) hclsyntax.Expression {
 	case *hclsyntax.TemplateExpr:
 		return v
 	case *hclsyntax.ScopeTraversalExpr:
+		return v
+	case *hclsyntax.TupleConsExpr:
+		return v
+	case *hclsyntax.ObjectConsExpr:
+		return v
+	case *hclsyntax.ObjectConsKeyExpr:
 		return v
 	default:
 		panic(fmt.Sprintf("no conversion for %T", expr))
