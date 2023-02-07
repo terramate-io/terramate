@@ -100,7 +100,12 @@ func BenchmarkPartialEval(b *testing.B) {
 		"string": cty.StringVal("terramate"),
 	})
 	exprStr := `"${global.string} v0.2.${global.number} is a Terraform Orchestration and Code Generation tool"`
-	expr, diags := hclsyntax.ParseExpression([]byte(exprStr), "test.hcl", hcl.InitialPos)
+	exprV1, diags := hclsyntax.ParseExpression([]byte(exprStr), "test.hcl", hcl.InitialPos)
+	if diags.HasErrors() {
+		b.Fatalf(diags.Error())
+	}
+
+	exprV2, diags := hclsyntax.ParseExpression([]byte(exprStr), "test.hcl", hcl.InitialPos)
 	if diags.HasErrors() {
 		b.Fatalf(diags.Error())
 	}
@@ -108,7 +113,7 @@ func BenchmarkPartialEval(b *testing.B) {
 		eval.Experimental = false
 		b.StartTimer()
 		for n := 0; n < b.N; n++ {
-			_, err := ctx.PartialEval(expr)
+			_, err := ctx.PartialEval(exprV1)
 			if err != nil {
 				panic(err)
 			}
@@ -119,7 +124,7 @@ func BenchmarkPartialEval(b *testing.B) {
 		eval.Experimental = true
 		b.StartTimer()
 		for n := 0; n < b.N; n++ {
-			_, err := ctx.PartialEval(expr)
+			_, err := ctx.PartialEval(exprV2)
 			if err != nil {
 				panic(err)
 			}
