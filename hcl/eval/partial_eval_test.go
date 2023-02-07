@@ -36,6 +36,9 @@ func TestPartialEval2(t *testing.T) {
 			expr: `1`,
 		},
 		{
+			expr: `!1`,
+		},
+		{
 			expr: `1.5`,
 		},
 		{
@@ -53,6 +56,14 @@ EOT
 		},
 		{
 			expr: `"test ${unknown.val}"`,
+		},
+		{
+			expr: `global.string`,
+			want: `"terramate"`,
+		},
+		{
+			expr: `!global.number`,
+			want: `!10`,
 		},
 		{
 			expr: `"test ${global.number}"`,
@@ -74,6 +85,10 @@ EOT
 		{
 			expr: `[global.string, "is", "fun"]`,
 			want: `["terramate", "is", "fun"]`,
+		},
+		{
+			expr: `[!global.number]`,
+			want: `[!10]`,
 		},
 		{
 			expr: `{
@@ -127,11 +142,62 @@ EOT
 			expr: `1+global.number`,
 			want: `1+10`,
 		},
+		{
+			expr: `global.string+global.number`,
+			want: `"terramate"+10`,
+		},
+		{
+			expr: `[1+global.number]`,
+			want: `[1+10]`,
+		},
+		{
+			expr: `{
+				a = 1+global.number
+			}`,
+			want: `{
+				a = 1+10
+			}`,
+		},
+		{
+			expr: `funcall()`,
+		},
+		{
+			expr: `funcall(1, 2, data.val, "test", {}, [1, 2])`,
+		},
+		{
+			expr: `funcall(1, 2, global.number, 3)`,
+			want: `funcall(1, 2, 10, 3)`,
+		},
+		{
+			expr: `[for v in val : v if v+1 == data.something]`,
+		},
+		{
+			expr: `{for k, v in val : k => funcall(v) if v+1 == data.something}`,
+		},
+		{
+			expr: `[for v in global.list : v if v+data == otherdata.val]`,
+			want: `[for v in [0, 1, 2, 3] : v if v+data == otherdata.val]`,
+		},
+		{
+			expr: `[for v in global.strings : upper(v)]`,
+			want: `[for v in ["terramate", "is", "fun"] : upper(v)]`,
+		},
 	} {
 		ctx := eval.NewContext(nil)
 		ctx.SetNamespace("global", map[string]cty.Value{
 			"number": cty.NumberIntVal(10),
 			"string": cty.StringVal("terramate"),
+			"list": cty.ListVal([]cty.Value{
+				cty.NumberIntVal(0),
+				cty.NumberIntVal(1),
+				cty.NumberIntVal(2),
+				cty.NumberIntVal(3),
+			}),
+			"strings": cty.ListVal([]cty.Value{
+				cty.StringVal("terramate"),
+				cty.StringVal("is"),
+				cty.StringVal("fun"),
+			}),
 		})
 		expr, diags := hclsyntax.ParseExpression([]byte(tc.expr), "test.hcl", hcl.InitialPos)
 		if diags.HasErrors() {

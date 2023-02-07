@@ -27,12 +27,18 @@ func (c *Context) partialEval(expr hhcl.Expression) (hhcl.Expression, error) {
 	switch e := expr.(type) {
 	case *hclsyntax.LiteralValueExpr:
 		return expr, nil
+	case *hclsyntax.UnaryOpExpr:
+		return c.partialEvalUnaryOp(e)
 	case *hclsyntax.BinaryOpExpr:
 		return c.partialEvalBinOp(e)
 	case *hclsyntax.TupleConsExpr:
 		return c.partialEvalTuple(e)
 	case *hclsyntax.ObjectConsExpr:
 		return c.partialEvalObject(e)
+	case *hclsyntax.FunctionCallExpr:
+		return c.partialEvalFunc(e)
+	case *hclsyntax.ForExpr:
+		return c.partialEvalForExpr(e)
 	case *hclsyntax.ObjectConsKeyExpr:
 		return e, nil
 	case *hclsyntax.TemplateExpr:
@@ -83,6 +89,31 @@ func (c *Context) partialEvalObject(obj *hclsyntax.ObjectConsExpr) (hclsyntax.Ex
 	return obj, nil
 }
 
+func (c *Context) partialEvalFunc(funcall *hclsyntax.FunctionCallExpr) (hhcl.Expression, error) {
+	for i, arg := range funcall.Args {
+		newexpr, err := c.partialEval(arg)
+		if err != nil {
+			return nil, err
+		}
+		funcall.Args[i] = asSyntax(newexpr)
+	}
+	return funcall, nil
+}
+
+func (c *Context) partialEvalForExpr(forExpr *hclsyntax.ForExpr) (hhcl.Expression, error) {
+	newcol, err := c.partialEval(forExpr.CollExpr)
+	if err != nil {
+		return nil, err
+	}
+
+	forExpr.CollExpr = asSyntax(newcol)
+
+	// TODO(i4k): return ErrForExprDisallowEval in the case that Terramate
+	// variables or funcalls are used in the keyExpr, valExpr or condExpr.
+
+	return forExpr, nil
+}
+
 func (c *Context) partialEvalBinOp(binop *hclsyntax.BinaryOpExpr) (hhcl.Expression, error) {
 	lhs, err := c.partialEval(binop.LHS)
 	if err != nil {
@@ -95,6 +126,15 @@ func (c *Context) partialEvalBinOp(binop *hclsyntax.BinaryOpExpr) (hhcl.Expressi
 	binop.LHS = asSyntax(lhs)
 	binop.RHS = asSyntax(rhs)
 	return binop, nil
+}
+
+func (c *Context) partialEvalUnaryOp(unary *hclsyntax.UnaryOpExpr) (hhcl.Expression, error) {
+	val, err := c.partialEval(unary.Val)
+	if err != nil {
+		return nil, err
+	}
+	unary.Val = asSyntax(val)
+	return unary, nil
 }
 
 func (c *Context) partialEvalScopeTrav(scope *hclsyntax.ScopeTraversalExpr) (hclsyntax.Expression, error) {
@@ -130,7 +170,13 @@ func asSyntax(expr hhcl.Expression) hclsyntax.Expression {
 		return v
 	case *hclsyntax.ObjectConsKeyExpr:
 		return v
+	case *hclsyntax.FunctionCallExpr:
+		return v
+	case *hclsyntax.ForExpr:
+		return v
 	case *hclsyntax.BinaryOpExpr:
+		return v
+	case *hclsyntax.UnaryOpExpr:
 		return v
 	default:
 		panic(fmt.Sprintf("no conversion for %T", expr))
