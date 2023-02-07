@@ -431,7 +431,7 @@ func appendDynamicBlock(
 	objectExpr, ok := attrsExpr.(*hclsyntax.ObjectConsExpr)
 	if !ok {
 		return attrErr(attrs.attributes,
-			"tm_dynamic attributes must be an object, got %T instead", objectExpr)
+			"tm_dynamic attributes must be an object, got %T instead", attrsExpr)
 	}
 
 	newbody := newblock.Body()

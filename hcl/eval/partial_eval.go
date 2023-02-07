@@ -16,11 +16,10 @@ package eval
 
 import (
 	"fmt"
+	"strings"
 
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl/ast"
 )
 
 func (c *Context) partialEval(expr hhcl.Expression) (hhcl.Expression, error) {
@@ -31,12 +30,16 @@ func (c *Context) partialEval(expr hhcl.Expression) (hhcl.Expression, error) {
 		return c.partialEvalUnaryOp(e)
 	case *hclsyntax.BinaryOpExpr:
 		return c.partialEvalBinOp(e)
+	case *hclsyntax.ConditionalExpr:
+		return c.partialEvalCondExpr(e)
 	case *hclsyntax.TupleConsExpr:
 		return c.partialEvalTuple(e)
 	case *hclsyntax.ObjectConsExpr:
 		return c.partialEvalObject(e)
 	case *hclsyntax.FunctionCallExpr:
 		return c.partialEvalFunc(e)
+	case *hclsyntax.IndexExpr:
+		return c.partialEvalIndex(e)
 	case *hclsyntax.ForExpr:
 		return c.partialEvalForExpr(e)
 	case *hclsyntax.ObjectConsKeyExpr:
@@ -45,6 +48,8 @@ func (c *Context) partialEval(expr hhcl.Expression) (hhcl.Expression, error) {
 		return c.partialEvalTemplate(e)
 	case *hclsyntax.ScopeTraversalExpr:
 		return c.partialEvalScopeTrav(e)
+	case *hclsyntax.RelativeTraversalExpr:
+		return c.partialEvalRelTrav(e)
 	default:
 		panic(fmt.Sprintf("not implemented %T", expr))
 	}
@@ -90,6 +95,16 @@ func (c *Context) partialEvalObject(obj *hclsyntax.ObjectConsExpr) (hclsyntax.Ex
 }
 
 func (c *Context) partialEvalFunc(funcall *hclsyntax.FunctionCallExpr) (hhcl.Expression, error) {
+	if strings.HasPrefix(funcall.Name, "tm_") {
+		val, err := c.Eval(funcall)
+		if err != nil {
+			return nil, err
+		}
+		return &hclsyntax.LiteralValueExpr{
+			Val:      val,
+			SrcRange: funcall.Range(),
+		}, nil
+	}
 	for i, arg := range funcall.Args {
 		newexpr, err := c.partialEval(arg)
 		if err != nil {
@@ -98,6 +113,20 @@ func (c *Context) partialEvalFunc(funcall *hclsyntax.FunctionCallExpr) (hhcl.Exp
 		funcall.Args[i] = asSyntax(newexpr)
 	}
 	return funcall, nil
+}
+
+func (c *Context) partialEvalIndex(index *hclsyntax.IndexExpr) (hhcl.Expression, error) {
+	newcol, err := c.partialEval(index.Collection)
+	if err != nil {
+		return nil, err
+	}
+	newkey, err := c.partialEval(index.Key)
+	if err != nil {
+		return nil, err
+	}
+	index.Collection = asSyntax(newcol)
+	index.Key = asSyntax(newkey)
+	return index, nil
 }
 
 func (c *Context) partialEvalForExpr(forExpr *hclsyntax.ForExpr) (hhcl.Expression, error) {
@@ -137,23 +166,51 @@ func (c *Context) partialEvalUnaryOp(unary *hclsyntax.UnaryOpExpr) (hhcl.Express
 	return unary, nil
 }
 
+func (c *Context) partialEvalCondExpr(cond *hclsyntax.ConditionalExpr) (hhcl.Expression, error) {
+	newcond, err := c.partialEval(cond.Condition)
+	if err != nil {
+		return nil, err
+	}
+	newtrue, err := c.partialEval(cond.TrueResult)
+	if err != nil {
+		return nil, err
+	}
+	newfalse, err := c.partialEval(cond.FalseResult)
+	if err != nil {
+		return nil, err
+	}
+	cond.Condition = asSyntax(newcond)
+	cond.TrueResult = asSyntax(newtrue)
+	cond.FalseResult = asSyntax(newfalse)
+	return cond, nil
+}
+
 func (c *Context) partialEvalScopeTrav(scope *hclsyntax.ScopeTraversalExpr) (hclsyntax.Expression, error) {
 	ns, ok := scope.Traversal[0].(hhcl.TraverseRoot)
 	if !ok {
 		return scope, nil
 	}
-	if ns.Name != "global" && ns.Name != "terramate" {
+	if !c.HasNamespace(ns.Name) {
 		return scope, nil
 	}
-	val, diags := scope.Value(c.hclctx)
-	if diags.HasErrors() {
-		return nil, errors.E(diags, "evaluating %s", ast.TokensForExpression(scope).Bytes())
+	val, err := c.Eval(scope)
+	if err != nil {
+		return nil, err
 	}
 
 	return &hclsyntax.LiteralValueExpr{
 		Val:      val,
 		SrcRange: scope.SrcRange,
 	}, nil
+}
+
+func (c *Context) partialEvalRelTrav(rel *hclsyntax.RelativeTraversalExpr) (hhcl.Expression, error) {
+	newsrc, err := c.partialEval(rel.Source)
+	if err != nil {
+		return nil, err
+	}
+	rel.Source = asSyntax(newsrc)
+	return rel, nil
 }
 
 func asSyntax(expr hhcl.Expression) hclsyntax.Expression {
@@ -163,6 +220,8 @@ func asSyntax(expr hhcl.Expression) hclsyntax.Expression {
 	case *hclsyntax.TemplateExpr:
 		return v
 	case *hclsyntax.ScopeTraversalExpr:
+		return v
+	case *hclsyntax.RelativeTraversalExpr:
 		return v
 	case *hclsyntax.TupleConsExpr:
 		return v
@@ -177,6 +236,10 @@ func asSyntax(expr hhcl.Expression) hclsyntax.Expression {
 	case *hclsyntax.BinaryOpExpr:
 		return v
 	case *hclsyntax.UnaryOpExpr:
+		return v
+	case *hclsyntax.ConditionalExpr:
+		return v
+	case *hclsyntax.IndexExpr:
 		return v
 	default:
 		panic(fmt.Sprintf("no conversion for %T", expr))

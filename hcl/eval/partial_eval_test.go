@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -182,8 +183,43 @@ EOT
 			expr: `[for v in global.strings : upper(v)]`,
 			want: `[for v in ["terramate", "is", "fun"] : upper(v)]`,
 		},
+		{
+			expr: `global.list[0]`,
+			want: `0`,
+		},
+		{
+			expr: `global.obj.a`,
+			want: `0`,
+		},
+		{
+			expr: `global.obj.b[0]`,
+			want: `"terramate"`,
+		},
+		{
+			expr: `true?[]:{}`,
+		},
+		{
+			expr: `global.number == 10?global.string:global.list`,
+			want: `10 == 10 ? "terramate" : [0, 1, 2, 3]`,
+		},
+		{
+			expr: `[0, 1, 2][0]`,
+		},
+		{
+			expr: `{
+				a = 1
+			}.a`,
+		},
+		{
+			expr: `tm_upper("terramate")`,
+			want: `"TERRAMATE"`,
+		},
+		{
+			expr: `tm_upper(global.string)`,
+			want: `"TERRAMATE"`,
+		},
 	} {
-		ctx := eval.NewContext(nil)
+		ctx := eval.NewContext(stdlib.Functions("/"))
 		ctx.SetNamespace("global", map[string]cty.Value{
 			"number": cty.NumberIntVal(10),
 			"string": cty.StringVal("terramate"),
@@ -197,6 +233,10 @@ EOT
 				cty.StringVal("terramate"),
 				cty.StringVal("is"),
 				cty.StringVal("fun"),
+			}),
+			"obj": cty.ObjectVal(map[string]cty.Value{
+				"a": cty.NumberIntVal(0),
+				"b": cty.ListVal([]cty.Value{cty.StringVal("terramate")}),
 			}),
 		})
 		expr, diags := hclsyntax.ParseExpression([]byte(tc.expr), "test.hcl", hcl.InitialPos)
