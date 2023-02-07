@@ -87,6 +87,46 @@ EOT
 				c = "fun"
 			}`,
 		},
+		{
+			expr: `{
+				a = {
+					a = 1
+					b = 2
+					c = global.number
+					d = global.string
+					e = "test ${global.string} test2"
+				}
+				b = "is"
+				c = "fun"
+			}`,
+			want: `{
+				a = {
+					a = 1
+					b = 2
+					c = 10
+					d = "terramate"
+					e = "test terramate test2"
+				}
+				b = "is"
+				c = "fun"
+			}`,
+		},
+		{
+			expr: `true`,
+		},
+		{
+			expr: `1+1`,
+		},
+		{
+			expr: `1+data.val`,
+		},
+		{
+			expr: `data.val1+1000+data.val2`,
+		},
+		{
+			expr: `1+global.number`,
+			want: `1+10`,
+		},
 	} {
 		ctx := eval.NewContext(nil)
 		ctx.SetNamespace("global", map[string]cty.Value{

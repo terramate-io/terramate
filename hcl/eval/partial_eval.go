@@ -27,6 +27,8 @@ func (c *Context) partialEval(expr hhcl.Expression) (hhcl.Expression, error) {
 	switch e := expr.(type) {
 	case *hclsyntax.LiteralValueExpr:
 		return expr, nil
+	case *hclsyntax.BinaryOpExpr:
+		return c.partialEvalBinOp(e)
 	case *hclsyntax.TupleConsExpr:
 		return c.partialEvalTuple(e)
 	case *hclsyntax.ObjectConsExpr:
@@ -81,6 +83,20 @@ func (c *Context) partialEvalObject(obj *hclsyntax.ObjectConsExpr) (hclsyntax.Ex
 	return obj, nil
 }
 
+func (c *Context) partialEvalBinOp(binop *hclsyntax.BinaryOpExpr) (hhcl.Expression, error) {
+	lhs, err := c.partialEval(binop.LHS)
+	if err != nil {
+		return nil, err
+	}
+	rhs, err := c.partialEval(binop.RHS)
+	if err != nil {
+		return nil, err
+	}
+	binop.LHS = asSyntax(lhs)
+	binop.RHS = asSyntax(rhs)
+	return binop, nil
+}
+
 func (c *Context) partialEvalScopeTrav(scope *hclsyntax.ScopeTraversalExpr) (hclsyntax.Expression, error) {
 	ns, ok := scope.Traversal[0].(hhcl.TraverseRoot)
 	if !ok {
@@ -113,6 +129,8 @@ func asSyntax(expr hhcl.Expression) hclsyntax.Expression {
 	case *hclsyntax.ObjectConsExpr:
 		return v
 	case *hclsyntax.ObjectConsKeyExpr:
+		return v
+	case *hclsyntax.BinaryOpExpr:
 		return v
 	default:
 		panic(fmt.Sprintf("no conversion for %T", expr))
