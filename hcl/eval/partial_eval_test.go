@@ -92,7 +92,7 @@ EOT
 	}
 }
 
-func BenchmarkPartialEval_v1(b *testing.B) {
+func BenchmarkPartialEval(b *testing.B) {
 	b.StopTimer()
 	ctx := eval.NewContext(nil)
 	ctx.SetNamespace("global", map[string]cty.Value{
@@ -104,34 +104,26 @@ func BenchmarkPartialEval_v1(b *testing.B) {
 	if diags.HasErrors() {
 		b.Fatalf(diags.Error())
 	}
-	eval.Experimental = false
-	b.StartTimer()
-	for n := 0; n < b.N; n++ {
-		_, err := ctx.PartialEval(expr)
-		if err != nil {
-			panic(err)
+	b.Run("v1", func(b *testing.B) {
+		eval.Experimental = false
+		b.StartTimer()
+		for n := 0; n < b.N; n++ {
+			_, err := ctx.PartialEval(expr)
+			if err != nil {
+				panic(err)
+			}
 		}
-	}
-}
+	})
 
-func BenchmarkPartialEval_v2(b *testing.B) {
-	b.StopTimer()
-	ctx := eval.NewContext(nil)
-	ctx.SetNamespace("global", map[string]cty.Value{
-		"number": cty.NumberIntVal(11),
-		"string": cty.StringVal("terramate"),
-	})
-	exprStr := `"${global.string} v0.2.${global.number} is a Terraform Orchestration and Code Generation tool"`
-	expr, diags := hclsyntax.ParseExpression([]byte(exprStr), "test.hcl", hcl.InitialPos)
-	if diags.HasErrors() {
-		b.Fatalf(diags.Error())
-	}
-	eval.Experimental = true
-	b.StartTimer()
-	for n := 0; n < b.N; n++ {
-		_, err := ctx.PartialEval(expr)
-		if err != nil {
-			panic(err)
+	b.Run("v2", func(b *testing.B) {
+		eval.Experimental = true
+		b.StartTimer()
+		for n := 0; n < b.N; n++ {
+			_, err := ctx.PartialEval(expr)
+			if err != nil {
+				panic(err)
+			}
 		}
-	}
+	})
+
 }
