@@ -20,9 +20,18 @@ import (
 
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/mineiros-io/terramate/errors"
+	"github.com/zclconf/go-cty/cty"
 )
 
-func (c *Context) partialEval(expr hhcl.Expression) (hhcl.Expression, error) {
+// Errors returned when doing partial evaluation.
+const (
+	ErrPartial             errors.Kind = "partial evaluation failed"
+	ErrInterpolation       errors.Kind = "interpolation failed"
+	ErrForExprDisallowEval errors.Kind = "`for` expression disallow globals/terramate variables"
+)
+
+func (c *Context) partialEval(expr hhcl.Expression) (newexpr hhcl.Expression, err error) {
 	switch e := expr.(type) {
 	case *hclsyntax.LiteralValueExpr:
 		return expr, nil
@@ -40,16 +49,22 @@ func (c *Context) partialEval(expr hhcl.Expression) (hhcl.Expression, error) {
 		return c.partialEvalFunc(e)
 	case *hclsyntax.IndexExpr:
 		return c.partialEvalIndex(e)
+	case *hclsyntax.SplatExpr:
+		return e, nil
 	case *hclsyntax.ForExpr:
 		return c.partialEvalForExpr(e)
 	case *hclsyntax.ObjectConsKeyExpr:
 		return e, nil
 	case *hclsyntax.TemplateExpr:
 		return c.partialEvalTemplate(e)
+	case *hclsyntax.TemplateWrapExpr:
+		return c.partialEvalTmplWrap(e)
 	case *hclsyntax.ScopeTraversalExpr:
 		return c.partialEvalScopeTrav(e)
 	case *hclsyntax.RelativeTraversalExpr:
 		return c.partialEvalRelTrav(e)
+	case *hclsyntax.ParenthesesExpr:
+		return c.partialEvalParenExpr(e)
 	default:
 		panic(fmt.Sprintf("not implemented %T", expr))
 	}
@@ -64,6 +79,22 @@ func (c *Context) partialEvalTemplate(tmpl *hclsyntax.TemplateExpr) (*hclsyntax.
 		tmpl.Parts[i] = asSyntax(newexpr)
 	}
 	return tmpl, nil
+}
+
+func (c *Context) partialEvalTmplWrap(wrap *hclsyntax.TemplateWrapExpr) (hhcl.Expression, error) {
+	newwrap, err := c.partialEval(wrap.Wrapped)
+	if err != nil {
+		return nil, err
+	}
+	if v, ok := newwrap.(*hclsyntax.LiteralValueExpr); ok {
+		if v.Val.Type() == cty.String && strings.Contains(v.Val.AsString(), "${") {
+			panic(v.Val.AsString())
+		}
+		return v, nil
+	}
+
+	wrap.Wrapped = asSyntax(newwrap)
+	return wrap, nil
 }
 
 func (c *Context) partialEvalTuple(tuple *hclsyntax.TupleConsExpr) (hclsyntax.Expression, error) {
@@ -204,6 +235,15 @@ func (c *Context) partialEvalScopeTrav(scope *hclsyntax.ScopeTraversalExpr) (hcl
 	}, nil
 }
 
+func (c *Context) partialEvalParenExpr(paren *hclsyntax.ParenthesesExpr) (hhcl.Expression, error) {
+	newexpr, err := c.partialEval(paren.Expression)
+	if err != nil {
+		return nil, err
+	}
+	paren.Expression = asSyntax(newexpr)
+	return paren, nil
+}
+
 func (c *Context) partialEvalRelTrav(rel *hclsyntax.RelativeTraversalExpr) (hhcl.Expression, error) {
 	newsrc, err := c.partialEval(rel.Source)
 	if err != nil {
@@ -240,6 +280,12 @@ func asSyntax(expr hhcl.Expression) hclsyntax.Expression {
 	case *hclsyntax.ConditionalExpr:
 		return v
 	case *hclsyntax.IndexExpr:
+		return v
+	case *hclsyntax.TemplateWrapExpr:
+		return v
+	case *hclsyntax.SplatExpr:
+		return v
+	case *hclsyntax.ParenthesesExpr:
 		return v
 	default:
 		panic(fmt.Sprintf("no conversion for %T", expr))

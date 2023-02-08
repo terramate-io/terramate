@@ -33,11 +33,6 @@ type Context struct {
 	hclctx *hhcl.EvalContext
 }
 
-// Experimental enables experimental eval implementation
-// TODO(i4k): this should be removed, only used while comparing the implementation
-// performance.
-var Experimental bool
-
 // NewContext creates a new HCL evaluation context.
 // The basedir is the base directory used by any interpolation functions that
 // accept filesystem paths as arguments.
@@ -95,15 +90,11 @@ func (c *Context) Eval(expr hhcl.Expression) (cty.Value, error) {
 // with  no reference to terramate namespaced variables (globals and terramate)
 // and functions (tm_ prefixed functions).
 func (c *Context) PartialEval(expr hhcl.Expression) (hclwrite.Tokens, error) {
-	if Experimental {
-		newexpr, err := c.partialEval(expr)
-		if err != nil {
-			return nil, err
-		}
-		return ast.TokensForExpression(newexpr), nil
+	newexpr, err := c.partialEval(expr)
+	if err != nil {
+		return nil, errors.E(ErrPartial, err)
 	}
-	engine := newPartialEvalEngine(ast.TokensForExpression(expr), c)
-	return engine.Eval()
+	return ast.TokensForExpression(newexpr), nil
 }
 
 // Copy the eval context.

@@ -134,7 +134,6 @@ type cliSpec struct {
 	} `cmd:"" help:"Run command in the stacks"`
 
 	Generate struct {
-		Experimental bool `default:"false" help:"Enable experimental partial eval"`
 	} `cmd:"" help:"Generate terraform code for stacks"`
 
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"Install shell completions"`
@@ -663,8 +662,6 @@ func (c *cli) cloneStack() {
 }
 
 func (c *cli) generate() {
-	eval.Experimental = c.parsedArgs.Generate.Experimental
-
 	report, vendorReport := c.gencodeWithVendor()
 
 	c.output.MsgStdOut(report.Full())

@@ -124,8 +124,7 @@ EOT`,
 		ctx.SetNamespace("terramate", terramate)
 
 		want := toWriteTokens(parsedTokens)
-		engine := newPartialEvalEngine(want, ctx)
-		got, err := engine.Eval()
+		got, err := ctx.PartialEval(attr.Expr)
 
 		if strings.Contains(cfg, "global") ||
 			strings.Contains(cfg, "terramate") ||

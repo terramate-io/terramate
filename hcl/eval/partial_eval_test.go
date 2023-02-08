@@ -244,7 +244,6 @@ EOT
 		if diags.HasErrors() {
 			t.Fatalf(diags.Error())
 		}
-		eval.Experimental = true
 		got, err := ctx.PartialEval(expr)
 		assert.NoError(t, err)
 		want := tc.expr
