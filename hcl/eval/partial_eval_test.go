@@ -15,6 +15,7 @@
 package eval_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
@@ -256,12 +257,19 @@ EOT
 
 func BenchmarkPartialEval(b *testing.B) {
 	b.StopTimer()
-	ctx := eval.NewContext(nil)
+	ctx := eval.NewContext(stdlib.Functions(os.TempDir()))
 	ctx.SetNamespace("global", map[string]cty.Value{
 		"number": cty.NumberIntVal(11),
 		"string": cty.StringVal("terramate"),
 	})
-	exprStr := `"${global.string} v0.2.${global.number} is a Terraform Orchestration and Code Generation tool"`
+	exprStr := `{
+		a = "${global.string} v0.2.${global.number} is a Terraform Orchestration and Code Generation tool"
+		b = [0, 1, global.number, global.string]
+		c = {
+			a = global.number == 11 ? tm_upper(global.string) : tm_title(global.string)
+			b = 10*global.number+global.number / 2+3
+		}
+	}`
 	exprV1, diags := hclsyntax.ParseExpression([]byte(exprStr), "test.hcl", hcl.InitialPos)
 	if diags.HasErrors() {
 		b.Fatalf(diags.Error())
@@ -292,5 +300,4 @@ func BenchmarkPartialEval(b *testing.B) {
 			}
 		}
 	})
-
 }

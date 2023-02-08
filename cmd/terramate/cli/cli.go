@@ -1407,7 +1407,7 @@ func (c *cli) outputEvalResult(val cty.Value, asJSON bool) {
 		if val.Type() == cty.String {
 			data = []byte(val.AsString())
 		} else {
-			tokens := eval.TokensForValue(val)
+			tokens := ast.TokensForValue(val)
 			data = []byte(hclwrite.Format(tokens.Bytes()))
 		}
 	}

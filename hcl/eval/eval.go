@@ -15,7 +15,6 @@
 package eval
 
 import (
-	"github.com/hashicorp/hcl/v2/ext/customdecode"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
@@ -122,17 +121,6 @@ func (c *Context) Copy() *Context {
 // Unwrap returns the internal hhcl.EvalContext.
 func (c *Context) Unwrap() *hhcl.EvalContext {
 	return c.hclctx
-}
-
-// TokensForValue returns the tokens for the provided value.
-func TokensForValue(value cty.Value) hclwrite.Tokens {
-	if value.Type() == customdecode.ExpressionClosureType {
-		closureExpr := value.EncapsulatedValue().(*customdecode.ExpressionClosure)
-		return ast.TokensForExpression(closureExpr.Expression)
-	} else if value.Type() == customdecode.ExpressionType {
-		return ast.TokensForExpression(customdecode.ExpressionFromVal(value))
-	}
-	return hclwrite.TokensForValue(value)
 }
 
 func toWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {

@@ -20,9 +20,11 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/ext/customdecode"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // ParseExpression parses the expression str.
@@ -40,6 +42,17 @@ func TokensForExpression(expr hcl.Expression) hclwrite.Tokens {
 	tokens[0].SpacesBefore = 0
 	tokens = append(tokens, eof())
 	return tokens
+}
+
+// TokensForValue returns the tokens for the provided value.
+func TokensForValue(value cty.Value) hclwrite.Tokens {
+	if value.Type() == customdecode.ExpressionClosureType {
+		closureExpr := value.EncapsulatedValue().(*customdecode.ExpressionClosure)
+		return TokensForExpression(closureExpr.Expression)
+	} else if value.Type() == customdecode.ExpressionType {
+		return TokensForExpression(customdecode.ExpressionFromVal(value))
+	}
+	return hclwrite.TokensForValue(value)
 }
 
 func tokensForExpression(expr hcl.Expression) hclwrite.Tokens {
@@ -98,7 +111,7 @@ func (builder *tokenBuilder) build(expr hcl.Expression) {
 }
 
 func (builder *tokenBuilder) literalTokens(expr *hclsyntax.LiteralValueExpr) {
-	builder.add(hclwrite.TokensForValue(expr.Val)...)
+	builder.add(TokensForValue(expr.Val)...)
 }
 
 func (builder *tokenBuilder) templateTokens(tmpl *hclsyntax.TemplateExpr) {
