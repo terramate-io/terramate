@@ -16,7 +16,6 @@ package test
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 
@@ -27,7 +26,6 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/hcl/ast"
-	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
 )
@@ -329,30 +327,8 @@ func hclFromAttributes(t *testing.T, attrs ast.Attributes) string {
 
 	file := hclwrite.NewEmptyFile()
 	body := file.Body()
-
-	attrList := attrs.SortedList()
-
-	filesRead := map[string][]byte{}
-	readFileRange := func(frange info.Range) []byte {
-		t.Helper()
-
-		filename := frange.HostPath()
-
-		if file, ok := filesRead[filename]; ok {
-			return file[frange.Start().Byte():frange.End().Byte()]
-		}
-
-		file, err := os.ReadFile(filename)
-		assert.NoError(t, err, "reading origin file")
-
-		filesRead[filename] = file
-		return file[frange.Start().Byte():frange.End().Byte()]
-	}
-
-	for _, attr := range attrList {
-		tokens, err := eval.TokensForExpressionBytes(readFileRange(attr.Range))
-		assert.NoError(t, err)
-		body.SetAttributeRaw(attr.Name, tokens)
+	for _, attr := range attrs.SortedList() {
+		body.SetAttributeRaw(attr.Name, ast.TokensForExpression(attr.Expr))
 	}
 
 	return string(file.Bytes())

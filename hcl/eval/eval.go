@@ -123,19 +123,6 @@ func TokensForValue(value cty.Value) hclwrite.Tokens {
 	return hclwrite.TokensForValue(value)
 }
 
-// TokensForExpressionBytes returns the tokens for the provided expression bytes.
-func TokensForExpressionBytes(exprBytes []byte) (hclwrite.Tokens, error) {
-	tokens, diags := hclsyntax.LexExpression(exprBytes, "", hhcl.Pos{
-		Line:   1,
-		Column: 1,
-		Byte:   0,
-	})
-	if diags.HasErrors() {
-		return nil, errors.E(diags, "failed to scan expression")
-	}
-	return toWriteTokens(tokens), nil
-}
-
 func toWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {
 	tokens := make([]*hclwrite.Token, len(in))
 	for i, st := range in {
