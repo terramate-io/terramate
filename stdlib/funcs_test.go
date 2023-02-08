@@ -25,6 +25,7 @@ import (
 	"github.com/mineiros-io/terramate/stdlib"
 	"github.com/mineiros-io/terramate/test"
 	"github.com/mineiros-io/terramate/tf"
+	"github.com/rs/zerolog"
 )
 
 func TestTmVendor(t *testing.T) {
@@ -211,4 +212,8 @@ func TestStdlibNewFunctionsFailIfBasedirIsNotADirectory(t *testing.T) {
 
 	path := test.WriteFile(t, t.TempDir(), "somefile.txt", ``)
 	_ = stdlib.Functions(path)
+}
+
+func init() {
+	zerolog.SetGlobalLevel(zerolog.Disabled)
 }
