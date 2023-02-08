@@ -220,7 +220,7 @@ EOT
 			want: `"TERRAMATE"`,
 		},
 	} {
-		ctx := eval.NewContext(stdlib.Functions("/"))
+		ctx := eval.NewContext(stdlib.Functions(os.TempDir()))
 		ctx.SetNamespace("global", map[string]cty.Value{
 			"number": cty.NumberIntVal(10),
 			"string": cty.StringVal("terramate"),
