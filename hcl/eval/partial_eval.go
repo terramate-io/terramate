@@ -21,6 +21,7 @@ import (
 	hhcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -33,6 +34,9 @@ const (
 
 func (c *Context) partialEval(expr hhcl.Expression) (newexpr hhcl.Expression, err error) {
 	switch e := expr.(type) {
+	case *ast.CloneExpression:
+		cloned := ast.CloneExpr(e.Expression)
+		return c.partialEval(cloned)
 	case *hclsyntax.LiteralValueExpr:
 		return expr, nil
 	case *hclsyntax.UnaryOpExpr:

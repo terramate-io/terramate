@@ -611,8 +611,14 @@ func getDynamicBlockAttrs(block *hclsyntax.Block) (dynBlockAttributes, error) {
 		switch name {
 		case "attributes":
 			dynAttrs.attributes = attr
+			dynAttrs.attributes.Expr = &ast.CloneExpression{
+				Expression: attr.Expr,
+			}
 		case "for_each":
 			dynAttrs.foreach = attr
+			dynAttrs.foreach.Expr = &ast.CloneExpression{
+				Expression: attr.Expr,
+			}
 		case "labels":
 			dynAttrs.labels = attr
 		case "iterator":
