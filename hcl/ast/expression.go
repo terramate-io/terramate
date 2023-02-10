@@ -160,7 +160,7 @@ func (builder *tokenBuilder) templateTokens(tmpl *hclsyntax.TemplateExpr) {
 	}
 	last := builder.tokens[len(builder.tokens)-1]
 	if last.Type == hclsyntax.TokenStringLit &&
-		canBeHeredoc(last.Bytes) {
+		isHeredoc(last.Bytes) {
 		builder.tokens[begin] = oheredoc()
 		for _, tok := range builder.tokens[begin+1:] {
 			if tok.Type == hclsyntax.TokenStringLit {
@@ -378,7 +378,7 @@ func (builder *tokenBuilder) anonSplatTokens(anon *hclsyntax.AnonSymbolExpr) {
 	// and should generate nothing?
 }
 
-func canBeHeredoc(bytes []byte) bool {
+func isHeredoc(bytes []byte) bool {
 	for i, b := range bytes {
 		if i == 0 || bytes[i-1] != '\\' {
 			continue
