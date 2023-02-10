@@ -127,6 +127,35 @@ EOT
 			expr: `"ABC\rDEF"`,
 		},
 		{
+			name: "carriege returns generates plain strings 3",
+			expr: `"\r"`,
+		},
+		{
+			name: "non-printable unicode sequences are kept escaped - NULL",
+			expr: `"test\u0000\n"`,
+		},
+		{
+			name: "non-printable unicode sequences are kept escaped - SHIFT IN",
+			expr: `"test\u000f\n"`,
+		},
+		{
+			name: "non-printable unicode sequences are kept escaped - UNIT SEPARATOR (US) DOWN ARROW",
+			expr: `"test\u001f\n"`,
+		},
+		{
+			name: "printable unicodes are rendered",
+			expr: `"test\u1000\n"`,
+			want: `<<-EOT
+testက
+EOT
+`,
+		},
+		{
+			name: "printable unicodes are rendered when in quoted string",
+			expr: `"test\u1000"`,
+			want: `"testက"`,
+		},
+		{
 			name: "single nl returns heredocs",
 			expr: `"\n"`,
 			want: `<<-EOT
