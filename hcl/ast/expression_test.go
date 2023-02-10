@@ -93,6 +93,14 @@ EOT
 `,
 		},
 		{
+			name: "heredocs have unespaced quotes",
+			expr: `"name=\"val\"\n"`,
+			want: `<<-EOT
+name="val"
+EOT
+`,
+		},
+		{
 			name: "single nl returns heredocs",
 			expr: `"\n"`,
 			want: `<<-EOT

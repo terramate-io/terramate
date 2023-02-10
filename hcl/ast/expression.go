@@ -394,6 +394,10 @@ func renderString(bytes []byte) []byte {
 			old: "\\n",
 			new: "\n",
 		},
+		{
+			old: `\"`,
+			new: `"`,
+		},
 	} {
 		str = strings.ReplaceAll(str, r.old, r.new)
 	}
