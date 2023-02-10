@@ -378,7 +378,20 @@ func (builder *tokenBuilder) anonSplatTokens(anon *hclsyntax.AnonSymbolExpr) {
 	// and should generate nothing?
 }
 
+// isHeredoc checks if the bytes can be represented as a heredoc string.
+// A valid heredoc must end with a newline and should only have printable
+// characters. (\r and \u sequences from the non-printable range).
+// Note: All \uXXXX and \uXXXXXXXX sequences with printable characters should
+// have been rendered already by the HCL library, so at this point we only need
+// to check for `\r` and `\u`.
 func isHeredoc(bytes []byte) bool {
+	last := len(bytes) - 1
+	isHeredoc := len(bytes) > 1 && bytes[last] == 'n' && bytes[last-1] == '\\'
+	if !isHeredoc {
+		return false
+	}
+
+	// checks for non-printable escape sequences
 	for i, b := range bytes {
 		if i == 0 || bytes[i-1] != '\\' {
 			continue
@@ -388,8 +401,7 @@ func isHeredoc(bytes []byte) bool {
 			return false
 		}
 	}
-	last := len(bytes) - 1
-	return len(bytes) > 1 && bytes[last] == 'n' && bytes[last-1] == '\\'
+	return true
 }
 
 func renderString(bytes []byte) []byte {
