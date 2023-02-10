@@ -15,7 +15,6 @@
 package ast
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 
@@ -161,7 +160,7 @@ func (builder *tokenBuilder) templateTokens(tmpl *hclsyntax.TemplateExpr) {
 	}
 	last := builder.tokens[len(builder.tokens)-1]
 	if last.Type == hclsyntax.TokenStringLit &&
-		bytes.HasSuffix(last.Bytes, []byte{'\\', 'n'}) {
+		canBeHeredoc(last.Bytes) {
 		builder.tokens[begin] = oheredoc()
 		for _, tok := range builder.tokens[begin+1:] {
 			if tok.Type == hclsyntax.TokenStringLit {
@@ -379,6 +378,20 @@ func (builder *tokenBuilder) anonSplatTokens(anon *hclsyntax.AnonSymbolExpr) {
 	// and should generate nothing?
 }
 
+func canBeHeredoc(bytes []byte) bool {
+	for i, b := range bytes {
+		if i == 0 || bytes[i-1] != '\\' {
+			continue
+		}
+		switch b {
+		case 'u', 'r':
+			return false
+		}
+	}
+	last := len(bytes) - 1
+	return len(bytes) > 1 && bytes[last] == 'n' && bytes[last-1] == '\\'
+}
+
 func renderString(bytes []byte) []byte {
 	type replace struct {
 		old string
@@ -386,6 +399,10 @@ func renderString(bytes []byte) []byte {
 	}
 	str := string(bytes)
 	for _, r := range []replace{
+		{
+			old: "\\\\",
+			new: "\\",
+		},
 		{
 			old: "\\t",
 			new: "\t",

@@ -101,6 +101,32 @@ EOT
 `,
 		},
 		{
+			name: "heredocs have unescaped backslashes",
+			expr: `"\\\n"`,
+			want: `<<-EOT
+\
+EOT
+`,
+		},
+		{
+			name: "heredocs with mixed escaped symbols",
+			expr: `"\n\\\n\\\n"`,
+			want: `<<-EOT
+
+\
+\
+EOT
+`,
+		},
+		{
+			name: "carriege returns generates plain strings",
+			expr: `"\r\n"`,
+		},
+		{
+			name: "carriege returns generates plain strings 2",
+			expr: `"ABC\rDEF"`,
+		},
+		{
 			name: "single nl returns heredocs",
 			expr: `"\n"`,
 			want: `<<-EOT
