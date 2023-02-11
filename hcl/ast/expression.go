@@ -386,8 +386,23 @@ func (builder *tokenBuilder) anonSplatTokens(anon *hclsyntax.AnonSymbolExpr) {
 // to check for `\r` and `\u`.
 func isHeredoc(bytes []byte) bool {
 	last := len(bytes) - 1
-	isHeredoc := len(bytes) > 1 && bytes[last] == 'n' && bytes[last-1] == '\\'
-	if !isHeredoc {
+	var heredoc bool
+	if len(bytes) > 1 {
+		heredoc = bytes[last] == 'n' && bytes[last-1] == '\\'
+	}
+
+	if heredoc {
+		// `if`s below disambiguate the sequences:
+		//   - \\\n    (must return a heredoc)
+		//   - \\n     (must *NOT* return a heredoc)
+		if len(bytes) > 3 {
+			heredoc = bytes[last-2] != '\\' || bytes[last-3] == '\\'
+		} else if len(bytes) > 2 {
+			heredoc = bytes[last-2] != '\\'
+		}
+	}
+
+	if !heredoc {
 		return false
 	}
 

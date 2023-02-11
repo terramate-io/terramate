@@ -109,6 +109,36 @@ EOT
 `,
 		},
 		{
+			name: "quoted have unescaped backslashes",
+			expr: `"A\\\nB"`,
+			want: `"A\\\nB"`,
+		},
+		{
+			name: "escaped newlines",
+			expr: `"\\n\\n"`,
+		},
+		{
+			name: "escaped \\ followed by newline at the end",
+			expr: `"\\\n"`,
+			want: `<<-EOT
+\
+EOT
+`,
+		},
+		{
+			name: "escaped \\ followed by newline in the middle",
+			expr: `"\\\n\\\n"`,
+			want: `<<-EOT
+\
+\
+EOT
+`,
+		},
+		{
+			name: "escaped newlines",
+			expr: `"\\n\\n"`,
+		},
+		{
 			name: "heredocs with mixed escaped symbols",
 			expr: `"\n\\\n\\\n"`,
 			want: `<<-EOT
