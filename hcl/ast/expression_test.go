@@ -153,6 +153,10 @@ EOT
 			expr: `"\r\n"`,
 		},
 		{
+			name: "escaped newline at the end",
+			expr: `"a\\n"`,
+		},
+		{
 			name: "carriege returns generates plain strings 2",
 			expr: `"ABC\rDEF"`,
 		},
