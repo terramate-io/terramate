@@ -133,8 +133,7 @@ type cliSpec struct {
 		Command               []string `arg:"" name:"cmd" predictor:"file" passthrough:"" help:"Command to execute"`
 	} `cmd:"" help:"Run command in the stacks"`
 
-	Generate struct {
-	} `cmd:"" help:"Generate terraform code for stacks"`
+	Generate struct{} `cmd:"" help:"Generate terraform code for stacks"`
 
 	InstallCompletions kongplete.InstallCompletions `cmd:"" help:"Install shell completions"`
 
