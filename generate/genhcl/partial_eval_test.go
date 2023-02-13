@@ -1034,9 +1034,7 @@ func TestPartialEval(t *testing.T) {
 			config: Doc(
 				Expr("a", "0.0.A.0"),
 			),
-			want: Doc(
-				Expr("a", "0.A[0]"),
-			),
+			wantErr: errors.E(eval.ErrPartial),
 		},
 		{
 			name: "parenthesis and splat with newlines",
@@ -1252,7 +1250,7 @@ func TestPartialEval(t *testing.T) {
 				Str("test", `THIS IS ${tm_upper(global.value) + "test"} !!!`),
 			),
 			want: Doc(
-				Str("test", `THIS IS ${"" + "test"} !!!`),
+				Expr("test", `"THIS IS " + "test !!!"`),
 			),
 		},
 		{
@@ -1383,7 +1381,12 @@ ${global.value}
 EOT
 `),
 			),
-			wantErr: errors.E(eval.ErrPartial),
+			want: Doc(
+				Expr("test", `<<-EOT
+${[]}
+EOT
+`),
+			),
 		},
 		{
 			name: "tm_hcl_expression from string",

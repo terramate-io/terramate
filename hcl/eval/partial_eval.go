@@ -80,7 +80,7 @@ func (c *Context) partialEvalTemplate(tmpl *hclsyntax.TemplateExpr) (*hclsyntax.
 		if err != nil {
 			return nil, err
 		}
-		tmpl.Parts[i] = asSyntax(newexpr)
+		tmpl.Parts[i] = AsSyntax(newexpr)
 	}
 	return tmpl, nil
 }
@@ -97,7 +97,7 @@ func (c *Context) partialEvalTmplWrap(wrap *hclsyntax.TemplateWrapExpr) (hhcl.Ex
 		return v, nil
 	}
 
-	wrap.Wrapped = asSyntax(newwrap)
+	wrap.Wrapped = AsSyntax(newwrap)
 	return wrap, nil
 }
 
@@ -107,7 +107,7 @@ func (c *Context) partialEvalTuple(tuple *hclsyntax.TupleConsExpr) (hclsyntax.Ex
 		if err != nil {
 			return nil, err
 		}
-		tuple.Exprs[i] = asSyntax(newexpr)
+		tuple.Exprs[i] = AsSyntax(newexpr)
 	}
 	return tuple, nil
 }
@@ -122,8 +122,8 @@ func (c *Context) partialEvalObject(obj *hclsyntax.ObjectConsExpr) (hclsyntax.Ex
 		if err != nil {
 			return nil, err
 		}
-		elem.KeyExpr = asSyntax(newkey)
-		elem.ValueExpr = asSyntax(newval)
+		elem.KeyExpr = AsSyntax(newkey)
+		elem.ValueExpr = AsSyntax(newval)
 		obj.Items[i] = elem
 	}
 	return obj, nil
@@ -145,7 +145,7 @@ func (c *Context) partialEvalFunc(funcall *hclsyntax.FunctionCallExpr) (hhcl.Exp
 		if err != nil {
 			return nil, err
 		}
-		funcall.Args[i] = asSyntax(newexpr)
+		funcall.Args[i] = AsSyntax(newexpr)
 	}
 	return funcall, nil
 }
@@ -159,9 +159,30 @@ func (c *Context) partialEvalIndex(index *hclsyntax.IndexExpr) (hhcl.Expression,
 	if err != nil {
 		return nil, err
 	}
-	index.Collection = asSyntax(newcol)
-	index.Key = asSyntax(newkey)
-	return index, nil
+	index.Collection = AsSyntax(newcol)
+	index.Key = AsSyntax(newkey)
+
+	if c.hasUnknownVars(index) {
+		return index, nil
+	}
+
+	val, err := c.Eval(index)
+	if err != nil {
+		return nil, err
+	}
+	return &hclsyntax.LiteralValueExpr{
+		Val:      val,
+		SrcRange: index.SrcRange,
+	}, nil
+}
+
+func (c *Context) hasUnknownVars(expr hclsyntax.Expression) bool {
+	for _, namespace := range expr.Variables() {
+		if !c.HasNamespace(namespace.RootName()) {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Context) partialEvalForExpr(forExpr *hclsyntax.ForExpr) (hhcl.Expression, error) {
@@ -170,7 +191,7 @@ func (c *Context) partialEvalForExpr(forExpr *hclsyntax.ForExpr) (hhcl.Expressio
 		return nil, err
 	}
 
-	forExpr.CollExpr = asSyntax(newcol)
+	forExpr.CollExpr = AsSyntax(newcol)
 
 	// TODO(i4k): return ErrForExprDisallowEval in the case that Terramate
 	// variables or funcalls are used in the keyExpr, valExpr or condExpr.
@@ -187,8 +208,8 @@ func (c *Context) partialEvalBinOp(binop *hclsyntax.BinaryOpExpr) (hhcl.Expressi
 	if err != nil {
 		return nil, err
 	}
-	binop.LHS = asSyntax(lhs)
-	binop.RHS = asSyntax(rhs)
+	binop.LHS = AsSyntax(lhs)
+	binop.RHS = AsSyntax(rhs)
 	return binop, nil
 }
 
@@ -197,7 +218,7 @@ func (c *Context) partialEvalUnaryOp(unary *hclsyntax.UnaryOpExpr) (hhcl.Express
 	if err != nil {
 		return nil, err
 	}
-	unary.Val = asSyntax(val)
+	unary.Val = AsSyntax(val)
 	return unary, nil
 }
 
@@ -214,9 +235,9 @@ func (c *Context) partialEvalCondExpr(cond *hclsyntax.ConditionalExpr) (hhcl.Exp
 	if err != nil {
 		return nil, err
 	}
-	cond.Condition = asSyntax(newcond)
-	cond.TrueResult = asSyntax(newtrue)
-	cond.FalseResult = asSyntax(newfalse)
+	cond.Condition = AsSyntax(newcond)
+	cond.TrueResult = AsSyntax(newtrue)
+	cond.FalseResult = AsSyntax(newfalse)
 	return cond, nil
 }
 
@@ -244,7 +265,7 @@ func (c *Context) partialEvalParenExpr(paren *hclsyntax.ParenthesesExpr) (hhcl.E
 	if err != nil {
 		return nil, err
 	}
-	paren.Expression = asSyntax(newexpr)
+	paren.Expression = AsSyntax(newexpr)
 	return paren, nil
 }
 
@@ -253,45 +274,21 @@ func (c *Context) partialEvalRelTrav(rel *hclsyntax.RelativeTraversalExpr) (hhcl
 	if err != nil {
 		return nil, err
 	}
-	rel.Source = asSyntax(newsrc)
-	return rel, nil
+	rel.Source = AsSyntax(newsrc)
+	if c.hasUnknownVars(rel) {
+		return rel, nil
+	}
+
+	val, err := c.Eval(rel)
+	if err != nil {
+		return nil, err
+	}
+	return &hclsyntax.LiteralValueExpr{
+		Val:      val,
+		SrcRange: rel.SrcRange,
+	}, nil
 }
 
-func asSyntax(expr hhcl.Expression) hclsyntax.Expression {
-	switch v := expr.(type) {
-	case *hclsyntax.LiteralValueExpr:
-		return v
-	case *hclsyntax.TemplateExpr:
-		return v
-	case *hclsyntax.ScopeTraversalExpr:
-		return v
-	case *hclsyntax.RelativeTraversalExpr:
-		return v
-	case *hclsyntax.TupleConsExpr:
-		return v
-	case *hclsyntax.ObjectConsExpr:
-		return v
-	case *hclsyntax.ObjectConsKeyExpr:
-		return v
-	case *hclsyntax.FunctionCallExpr:
-		return v
-	case *hclsyntax.ForExpr:
-		return v
-	case *hclsyntax.BinaryOpExpr:
-		return v
-	case *hclsyntax.UnaryOpExpr:
-		return v
-	case *hclsyntax.ConditionalExpr:
-		return v
-	case *hclsyntax.IndexExpr:
-		return v
-	case *hclsyntax.TemplateWrapExpr:
-		return v
-	case *hclsyntax.SplatExpr:
-		return v
-	case *hclsyntax.ParenthesesExpr:
-		return v
-	default:
-		panic(fmt.Sprintf("no conversion for %T", expr))
-	}
+func AsSyntax(expr hhcl.Expression) hclsyntax.Expression {
+	return expr.(hclsyntax.Expression)
 }

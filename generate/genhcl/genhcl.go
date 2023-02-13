@@ -324,7 +324,9 @@ func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval hcl.Evaluator, copy
 		logger.Trace().Msg("evaluating.")
 		expr := attr.Expr
 		if copy {
-			expr = &ast.CloneExpression{expr.(hclsyntax.Expression)}
+			expr = &ast.CloneExpression{
+				Expression: expr.(hclsyntax.Expression),
+			}
 		}
 		tokens, err := eval.PartialEval(expr)
 		if err != nil {

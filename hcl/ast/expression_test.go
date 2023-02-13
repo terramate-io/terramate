@@ -496,6 +496,13 @@ EOT
 			expr: `{for k,v in expr() : expr()+test() => expr()+test()+1 if 0==0}`,
 		},
 		{
+			name: "obj in string",
+			expr: `"a ${{a = 1}} b"`,
+			want: `"a ${{
+				a = 1
+			}} b"`,
+		},
+		{
 			name: "all-in-one",
 			expr: `[{
 				a = [{
