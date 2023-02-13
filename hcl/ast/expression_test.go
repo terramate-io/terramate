@@ -93,6 +93,103 @@ EOT
 `,
 		},
 		{
+			name: "heredocs have unespaced quotes",
+			expr: `"name=\"val\"\n"`,
+			want: `<<-EOT
+name="val"
+EOT
+`,
+		},
+		{
+			name: "heredocs have unescaped backslashes",
+			expr: `"\\\n"`,
+			want: `<<-EOT
+\
+EOT
+`,
+		},
+		{
+			name: "quoted have unescaped backslashes",
+			expr: `"A\\\nB"`,
+			want: `"A\\\nB"`,
+		},
+		{
+			name: "escaped newlines",
+			expr: `"\\n\\n"`,
+		},
+		{
+			name: "escaped \\ followed by newline at the end",
+			expr: `"\\\n"`,
+			want: `<<-EOT
+\
+EOT
+`,
+		},
+		{
+			name: "escaped \\ followed by newline in the middle",
+			expr: `"\\\n\\\n"`,
+			want: `<<-EOT
+\
+\
+EOT
+`,
+		},
+		{
+			name: "escaped newlines",
+			expr: `"\\n\\n"`,
+		},
+		{
+			name: "heredocs with mixed escaped symbols",
+			expr: `"\n\\\n\\\n"`,
+			want: `<<-EOT
+
+\
+\
+EOT
+`,
+		},
+		{
+			name: "carriege returns generates plain strings",
+			expr: `"\r\n"`,
+		},
+		{
+			name: "escaped newline at the end",
+			expr: `"a\\n"`,
+		},
+		{
+			name: "carriege returns generates plain strings 2",
+			expr: `"ABC\rDEF"`,
+		},
+		{
+			name: "carriege returns generates plain strings 3",
+			expr: `"\r"`,
+		},
+		{
+			name: "non-printable unicode sequences are kept escaped - NULL",
+			expr: `"test\u0000\n"`,
+		},
+		{
+			name: "non-printable unicode sequences are kept escaped - SHIFT IN",
+			expr: `"test\u000f\n"`,
+		},
+		{
+			name: "non-printable unicode sequences are kept escaped - UNIT SEPARATOR (US) DOWN ARROW",
+			expr: `"test\u001f\n"`,
+		},
+		{
+			name: "printable unicodes are rendered",
+			expr: `"test\u1000\n"`,
+			want: `<<-EOT
+testက
+EOT
+`,
+		},
+		{
+			name: "printable unicodes are rendered when in quoted string",
+			expr: `"test\u1000"`,
+			want: `"testက"`,
+		},
+		{
 			name: "single nl returns heredocs",
 			expr: `"\n"`,
 			want: `<<-EOT
