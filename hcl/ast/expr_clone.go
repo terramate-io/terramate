@@ -7,6 +7,10 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 )
 
+type CloneExpression struct {
+	hclsyntax.Expression
+}
+
 func CloneExpr(expr hclsyntax.Expression) hclsyntax.Expression {
 	if expr == nil {
 		// for readability of this function we dont if-else against nil
@@ -14,6 +18,10 @@ func CloneExpr(expr hclsyntax.Expression) hclsyntax.Expression {
 		return expr
 	}
 	switch e := expr.(type) {
+	case *CloneExpression:
+		return &CloneExpression{
+			Expression: CloneExpr(e.Expression),
+		}
 	case *hclsyntax.LiteralValueExpr:
 		return &hclsyntax.LiteralValueExpr{
 			Val:      e.Val,

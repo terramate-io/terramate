@@ -27,10 +27,6 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-type CloneExpression struct {
-	hclsyntax.Expression
-}
-
 // ParseExpression parses the expression str.
 func ParseExpression(str string, filename string) (hcl.Expression, error) {
 	expr, diags := hclsyntax.ParseExpression([]byte(str), filename, hcl.InitialPos)

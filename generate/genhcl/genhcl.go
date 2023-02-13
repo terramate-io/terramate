@@ -240,7 +240,7 @@ func Load(
 		evalctx.SetFunction(stdlib.Name("hcl_expression"), stdlib.HCLExpressionFunc())
 
 		gen := hclwrite.NewEmptyFile()
-		if err := copyBody(gen.Body(), hclBlock.Content.Body, evalctx); err != nil {
+		if err := copyBody(gen.Body(), hclBlock.Content.Body, evalctx, false); err != nil {
 			return nil, errors.E(ErrContentEval, err, "generate_hcl %q", name)
 		}
 
@@ -308,7 +308,7 @@ func loadGenHCLBlocks(root *config.Root, cfgdir project.Path) ([]hcl.GenHCLBlock
 // as is (original expression form, no evaluation).
 //
 // Returns an error if the evaluation fails.
-func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval hcl.Evaluator) error {
+func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval hcl.Evaluator, copy bool) error {
 	logger := log.With().
 		Str("action", "genhcl.copyBody()").
 		Logger()
@@ -322,7 +322,11 @@ func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval hcl.Evaluator) erro
 			Logger()
 
 		logger.Trace().Msg("evaluating.")
-		tokens, err := eval.PartialEval(attr.Expr)
+		expr := attr.Expr
+		if copy {
+			expr = &ast.CloneExpression{expr.(hclsyntax.Expression)}
+		}
+		tokens, err := eval.PartialEval(expr)
 		if err != nil {
 			return errors.E(err, attr.Expr.Range())
 		}
@@ -350,7 +354,7 @@ func appendBlock(target *hclwrite.Body, block *hclsyntax.Block, eval hcl.Evaluat
 
 	targetBlock := target.AppendNewBlock(block.Type, block.Labels)
 	if block.Body != nil {
-		err := copyBody(targetBlock.Body(), block.Body, eval)
+		err := copyBody(targetBlock.Body(), block.Body, eval, false)
 		if err != nil {
 			return err
 		}
@@ -393,7 +397,7 @@ func appendDynamicBlock(
 	if contentBlock != nil {
 		logger.Trace().Msg("using content block to define new block body")
 
-		err := copyBody(newblock.Body(), contentBlock.Body, evaluator)
+		err := copyBody(newblock.Body(), contentBlock.Body, evaluator, true)
 		if err != nil {
 			return err
 		}
