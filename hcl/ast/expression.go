@@ -15,7 +15,6 @@
 package ast
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 
@@ -161,7 +160,7 @@ func (builder *tokenBuilder) templateTokens(tmpl *hclsyntax.TemplateExpr) {
 	}
 	last := builder.tokens[len(builder.tokens)-1]
 	if last.Type == hclsyntax.TokenStringLit &&
-		bytes.HasSuffix(last.Bytes, []byte{'\\', 'n'}) {
+		isHeredoc(last.Bytes) {
 		builder.tokens[begin] = oheredoc()
 		for _, tok := range builder.tokens[begin+1:] {
 			if tok.Type == hclsyntax.TokenStringLit {
@@ -379,6 +378,47 @@ func (builder *tokenBuilder) anonSplatTokens(anon *hclsyntax.AnonSymbolExpr) {
 	// and should generate nothing?
 }
 
+// isHeredoc checks if the bytes can be represented as a heredoc string.
+// A valid heredoc must end with a newline and should only have printable
+// characters. (\r and \u sequences from the non-printable range).
+// Note: All \uXXXX and \uXXXXXXXX sequences with printable characters should
+// have been rendered already by the HCL library, so at this point we only need
+// to check for `\r` and `\u`.
+func isHeredoc(bytes []byte) bool {
+	last := len(bytes) - 1
+	var heredoc bool
+	if len(bytes) > 1 {
+		heredoc = bytes[last] == 'n' && bytes[last-1] == '\\'
+	}
+
+	if heredoc {
+		// `if`s below disambiguate the sequences:
+		//   - \\\n    (must return a heredoc)
+		//   - \\n     (must *NOT* return a heredoc)
+		if len(bytes) > 3 {
+			heredoc = bytes[last-2] != '\\' || bytes[last-3] == '\\'
+		} else if len(bytes) > 2 {
+			heredoc = bytes[last-2] != '\\'
+		}
+	}
+
+	if !heredoc {
+		return false
+	}
+
+	// checks for non-printable escape sequences
+	for i, b := range bytes {
+		if i == 0 || bytes[i-1] != '\\' {
+			continue
+		}
+		switch b {
+		case 'u', 'r':
+			return false
+		}
+	}
+	return true
+}
+
 func renderString(bytes []byte) []byte {
 	type replace struct {
 		old string
@@ -387,12 +427,20 @@ func renderString(bytes []byte) []byte {
 	str := string(bytes)
 	for _, r := range []replace{
 		{
+			old: "\\\\",
+			new: "\\",
+		},
+		{
 			old: "\\t",
 			new: "\t",
 		},
 		{
 			old: "\\n",
 			new: "\n",
+		},
+		{
+			old: `\"`,
+			new: `"`,
 		},
 	} {
 		str = strings.ReplaceAll(str, r.old, r.new)
