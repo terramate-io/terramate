@@ -205,11 +205,17 @@ EOT
 		},
 		{
 			expr: `[0, 1, 2][0]`,
+			want: `0`,
+		},
+		{
+			expr: `[0, 1, 2][1]`,
+			want: `1`,
 		},
 		{
 			expr: `{
 				a = 1
 			}.a`,
+			want: `1`,
 		},
 		{
 			expr: `tm_upper("terramate")`,
