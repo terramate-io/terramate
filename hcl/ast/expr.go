@@ -219,32 +219,32 @@ func (builder *tokenBuilder) binOpTokens(binop *hclsyntax.BinaryOpExpr) {
 	switch binop.Op {
 	case hclsyntax.OpAdd:
 		op = add()
-	case hclsyntax.OpSubtract:
-		op = minus()
 	case hclsyntax.OpDivide:
 		op = slash()
-	case hclsyntax.OpMultiply:
-		op = star()
-	case hclsyntax.OpModulo:
-		op = percent()
 	case hclsyntax.OpEqual:
 		op = equal()
-	case hclsyntax.OpNotEqual:
-		op = nequal()
 	case hclsyntax.OpGreaterThan:
 		op = gtr()
+	case hclsyntax.OpGreaterThanOrEqual:
+		op = gtreq()
 	case hclsyntax.OpLessThan:
 		op = lss()
 	case hclsyntax.OpLessThanOrEqual:
 		op = lsseq()
-	case hclsyntax.OpGreaterThanOrEqual:
-		op = gtreq()
 	case hclsyntax.OpLogicalAnd:
 		op = and()
 	case hclsyntax.OpLogicalOr:
 		op = or()
+	case hclsyntax.OpModulo:
+		op = percent()
+	case hclsyntax.OpMultiply:
+		op = star()
+	case hclsyntax.OpNotEqual:
+		op = nequal()
+	case hclsyntax.OpSubtract:
+		op = minus()
 	default:
-		panic(fmt.Sprintf("type %T\n", binop.Op))
+		panic(fmt.Sprintf("unexpected binary operation %+v\n", binop.Op))
 	}
 	op.SpacesBefore = 1
 	builder.add(op)
@@ -260,7 +260,7 @@ func (builder *tokenBuilder) unaryOpTokens(unary *hclsyntax.UnaryOpExpr) {
 	case hclsyntax.OpNegate:
 		builder.add(minus())
 	default:
-		panic(fmt.Sprintf("type %T\n", unary.Op))
+		panic(fmt.Sprintf("value %+v is unexpected\n", unary.Op))
 	}
 	builder.build(unary.Val)
 }

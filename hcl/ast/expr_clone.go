@@ -5,12 +5,20 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
 )
 
+// CloneExpression is an expression wrapper that
 type CloneExpression struct {
 	hclsyntax.Expression
 }
 
+// Value evaluates the wrapped expression.
+func (clone *CloneExpression) Value(ctx *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
+	return clone.Expression.Value(ctx)
+}
+
+// CloneExpr clones the given expression.
 func CloneExpr(expr hclsyntax.Expression) hclsyntax.Expression {
 	if expr == nil {
 		// for readability of this function we dont if-else against nil
@@ -42,17 +50,15 @@ func CloneExpr(expr hclsyntax.Expression) hclsyntax.Expression {
 			SrcRange: e.SrcRange,
 		}
 	case *hclsyntax.BinaryOpExpr:
-		op := *e.Op
 		return &hclsyntax.BinaryOpExpr{
 			LHS:      CloneExpr(e.LHS),
-			Op:       &op,
+			Op:       e.Op,
 			RHS:      CloneExpr(e.RHS),
 			SrcRange: e.SrcRange,
 		}
 	case *hclsyntax.UnaryOpExpr:
-		op := *e.Op
 		return &hclsyntax.UnaryOpExpr{
-			Op:       &op,
+			Op:       e.Op,
 			Val:      CloneExpr(e.Val),
 			SrcRange: e.SrcRange,
 		}
@@ -133,21 +139,15 @@ func CloneExpr(expr hclsyntax.Expression) hclsyntax.Expression {
 			Group:    e.Group,
 		}
 	case *hclsyntax.SplatExpr:
-		var item *hclsyntax.AnonSymbolExpr
-		if e.Item != nil {
-			tmp := *e.Item
-			item = &tmp
-		}
 		return &hclsyntax.SplatExpr{
 			Source:      CloneExpr(e.Source),
 			Each:        CloneExpr(e.Each),
-			Item:        item,
+			Item:        e.Item,
 			SrcRange:    e.SrcRange,
 			MarkerRange: e.MarkerRange,
 		}
 	case *hclsyntax.AnonSymbolExpr:
-		tmp := *e
-		return &tmp
+		return e
 	case *hclsyntax.RelativeTraversalExpr:
 		traversals := make(hcl.Traversal, len(e.Traversal))
 		copy(traversals, e.Traversal)

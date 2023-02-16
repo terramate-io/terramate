@@ -22,15 +22,18 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/stdlib"
+	errtest "github.com/mineiros-io/terramate/test/errors"
 	"github.com/zclconf/go-cty/cty"
 )
 
 func TestPartialEval2(t *testing.T) {
 	type testcase struct {
-		expr string
-		want string
+		expr    string
+		want    string
+		wantErr error
 	}
 
 	for _, tc := range []testcase{
@@ -177,12 +180,12 @@ EOT
 			expr: `{for k, v in val : k => funcall(v) if v+1 == data.something}`,
 		},
 		{
-			expr: `[for v in global.list : v if v+data == otherdata.val]`,
-			want: `[for v in [0, 1, 2, 3] : v if v+data == otherdata.val]`,
+			expr:    `[for v in global.list : v if v+data == otherdata.val]`,
+			wantErr: errors.E(eval.ErrForExprDisallowEval),
 		},
 		{
-			expr: `[for v in global.strings : upper(v)]`,
-			want: `[for v in ["terramate", "is", "fun"] : upper(v)]`,
+			expr:    `[for v in global.strings : upper(v)]`,
+			wantErr: errors.E(eval.ErrForExprDisallowEval),
 		},
 		{
 			expr: `global.list[0]`,
@@ -251,7 +254,10 @@ EOT
 			t.Fatalf(diags.Error())
 		}
 		got, err := ctx.PartialEval(expr)
-		assert.NoError(t, err)
+		errtest.Assert(t, err, tc.wantErr)
+		if tc.wantErr != nil {
+			return
+		}
 		want := tc.expr
 		if tc.want != "" {
 			want = tc.want

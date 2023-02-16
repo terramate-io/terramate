@@ -25,7 +25,6 @@ import (
 	"github.com/mineiros-io/terramate/hcl"
 	"github.com/mineiros-io/terramate/mapexpr"
 
-	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/project"
@@ -197,7 +196,7 @@ func LoadExprs(tree *config.Tree) (HierarchicalExprs, error) {
 				Origin:     attr.Range,
 				ConfigDir:  tree.Dir(),
 				LabelPath:  key.Path(),
-				Expression: ast.CloneExpr(attr.Expr.(hclsyntax.Expression)),
+				Expression: attr.Expr,
 			}
 		}
 	}

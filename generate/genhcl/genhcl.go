@@ -240,7 +240,7 @@ func Load(
 		evalctx.SetFunction(stdlib.Name("hcl_expression"), stdlib.HCLExpressionFunc())
 
 		gen := hclwrite.NewEmptyFile()
-		if err := copyBody(gen.Body(), hclBlock.Content.Body, evalctx, false); err != nil {
+		if err := copyBody(gen.Body(), hclBlock.Content.Body, evalctx, true); err != nil {
 			return nil, errors.E(ErrContentEval, err, "generate_hcl %q", name)
 		}
 

@@ -80,7 +80,7 @@ func (c *Context) partialEvalTemplate(tmpl *hclsyntax.TemplateExpr) (*hclsyntax.
 		if err != nil {
 			return nil, err
 		}
-		tmpl.Parts[i] = AsSyntax(newexpr)
+		tmpl.Parts[i] = asSyntax(newexpr)
 	}
 	return tmpl, nil
 }
@@ -98,7 +98,7 @@ func (c *Context) partialEvalTmplWrap(wrap *hclsyntax.TemplateWrapExpr) (hhcl.Ex
 		return v, nil
 	}
 
-	wrap.Wrapped = AsSyntax(newwrap)
+	wrap.Wrapped = asSyntax(newwrap)
 	return wrap, nil
 }
 
@@ -108,7 +108,7 @@ func (c *Context) partialEvalTuple(tuple *hclsyntax.TupleConsExpr) (hclsyntax.Ex
 		if err != nil {
 			return nil, err
 		}
-		tuple.Exprs[i] = AsSyntax(newexpr)
+		tuple.Exprs[i] = asSyntax(newexpr)
 	}
 	return tuple, nil
 }
@@ -123,8 +123,8 @@ func (c *Context) partialEvalObject(obj *hclsyntax.ObjectConsExpr) (hclsyntax.Ex
 		if err != nil {
 			return nil, err
 		}
-		elem.KeyExpr = AsSyntax(newkey)
-		elem.ValueExpr = AsSyntax(newval)
+		elem.KeyExpr = asSyntax(newkey)
+		elem.ValueExpr = asSyntax(newval)
 		obj.Items[i] = elem
 	}
 	return obj, nil
@@ -146,7 +146,7 @@ func (c *Context) partialEvalFunc(funcall *hclsyntax.FunctionCallExpr) (hhcl.Exp
 		if err != nil {
 			return nil, err
 		}
-		funcall.Args[i] = AsSyntax(newexpr)
+		funcall.Args[i] = asSyntax(newexpr)
 	}
 	return funcall, nil
 }
@@ -160,8 +160,8 @@ func (c *Context) partialEvalIndex(index *hclsyntax.IndexExpr) (hhcl.Expression,
 	if err != nil {
 		return nil, err
 	}
-	index.Collection = AsSyntax(newcol)
-	index.Key = AsSyntax(newkey)
+	index.Collection = asSyntax(newcol)
+	index.Key = asSyntax(newkey)
 
 	if c.hasUnknownVars(index) {
 		return index, nil
@@ -219,8 +219,8 @@ func (c *Context) partialEvalBinOp(binop *hclsyntax.BinaryOpExpr) (hhcl.Expressi
 	if err != nil {
 		return nil, err
 	}
-	binop.LHS = AsSyntax(lhs)
-	binop.RHS = AsSyntax(rhs)
+	binop.LHS = asSyntax(lhs)
+	binop.RHS = asSyntax(rhs)
 	return binop, nil
 }
 
@@ -229,7 +229,7 @@ func (c *Context) partialEvalUnaryOp(unary *hclsyntax.UnaryOpExpr) (hhcl.Express
 	if err != nil {
 		return nil, err
 	}
-	unary.Val = AsSyntax(val)
+	unary.Val = asSyntax(val)
 	return unary, nil
 }
 
@@ -246,9 +246,9 @@ func (c *Context) partialEvalCondExpr(cond *hclsyntax.ConditionalExpr) (hhcl.Exp
 	if err != nil {
 		return nil, err
 	}
-	cond.Condition = AsSyntax(newcond)
-	cond.TrueResult = AsSyntax(newtrue)
-	cond.FalseResult = AsSyntax(newfalse)
+	cond.Condition = asSyntax(newcond)
+	cond.TrueResult = asSyntax(newtrue)
+	cond.FalseResult = asSyntax(newfalse)
 	return cond, nil
 }
 
@@ -276,7 +276,7 @@ func (c *Context) partialEvalParenExpr(paren *hclsyntax.ParenthesesExpr) (hhcl.E
 	if err != nil {
 		return nil, err
 	}
-	paren.Expression = AsSyntax(newexpr)
+	paren.Expression = asSyntax(newexpr)
 	return paren, nil
 }
 
@@ -285,7 +285,7 @@ func (c *Context) partialEvalRelTrav(rel *hclsyntax.RelativeTraversalExpr) (hhcl
 	if err != nil {
 		return nil, err
 	}
-	rel.Source = AsSyntax(newsrc)
+	rel.Source = asSyntax(newsrc)
 	if c.hasUnknownVars(rel) {
 		return rel, nil
 	}
@@ -300,6 +300,6 @@ func (c *Context) partialEvalRelTrav(rel *hclsyntax.RelativeTraversalExpr) (hhcl
 	}, nil
 }
 
-func AsSyntax(expr hhcl.Expression) hclsyntax.Expression {
+func asSyntax(expr hhcl.Expression) hclsyntax.Expression {
 	return expr.(hclsyntax.Expression)
 }

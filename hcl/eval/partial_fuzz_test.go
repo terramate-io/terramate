@@ -35,6 +35,8 @@ import (
 )
 
 func FuzzPartialEval(f *testing.F) {
+	f.SkipNow()
+
 	seedCorpus := []string{
 		"attr",
 		"attr.value",
@@ -57,7 +59,6 @@ func FuzzPartialEval(f *testing.F) {
 		${local.var}
 EOT`,
 	}
-	f.SkipNow()
 
 	for _, seed := range seedCorpus {
 		f.Add(seed)
