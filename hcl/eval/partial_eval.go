@@ -91,6 +91,7 @@ func (c *Context) partialEvalTmplWrap(wrap *hclsyntax.TemplateWrapExpr) (hhcl.Ex
 		return nil, err
 	}
 	if v, ok := newwrap.(*hclsyntax.LiteralValueExpr); ok {
+		// TODO(fix)
 		if v.Val.Type() == cty.String && strings.Contains(v.Val.AsString(), "${") {
 			panic(v.Val.AsString())
 		}
@@ -185,16 +186,26 @@ func (c *Context) hasUnknownVars(expr hclsyntax.Expression) bool {
 	return false
 }
 
-func (c *Context) partialEvalForExpr(forExpr *hclsyntax.ForExpr) (hhcl.Expression, error) {
-	newcol, err := c.partialEval(forExpr.CollExpr)
-	if err != nil {
-		return nil, err
+func (c *Context) hasTerramateVars(expr hclsyntax.Expression) bool {
+	for _, namespace := range expr.Variables() {
+		if c.HasNamespace(namespace.RootName()) {
+			return true
+		}
 	}
+	return false
+}
 
-	forExpr.CollExpr = AsSyntax(newcol)
-
-	// TODO(i4k): return ErrForExprDisallowEval in the case that Terramate
-	// variables or funcalls are used in the keyExpr, valExpr or condExpr.
+func (c *Context) partialEvalForExpr(forExpr *hclsyntax.ForExpr) (hhcl.Expression, error) {
+	for _, expr := range []hclsyntax.Expression{
+		forExpr.KeyExpr,
+		forExpr.ValExpr,
+		forExpr.CollExpr,
+		forExpr.CondExpr,
+	} {
+		if expr != nil && c.hasTerramateVars(forExpr.CollExpr) {
+			return nil, errors.E(ErrForExprDisallowEval, "evaluating expression: %s", ast.TokensForExpression(forExpr.CollExpr).Bytes())
+		}
+	}
 
 	return forExpr, nil
 }

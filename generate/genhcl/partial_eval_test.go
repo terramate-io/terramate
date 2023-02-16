@@ -374,64 +374,84 @@ func TestPartialEval(t *testing.T) {
 			),
 		},
 		{
-			name: "interpolating multiple objects fails",
+			name: "interpolating multiple objects",
 			globals: Globals(
 				Expr("obj", `{ string = "hello" }`),
 			),
 			config: Doc(
 				Str("a", "${global.obj}-${global.obj}"),
 			),
-			wantErr: errors.E(eval.ErrInterpolation),
+			want: Doc(
+				Str("a", `${{ 
+					string = "hello"
+				 }}-${{ 
+					string = "hello" 
+				}}`),
+			),
 		},
 		{
-			name: "interpolating object with prefix space fails",
+			name: "interpolating object with prefix space",
 			globals: Globals(
 				Expr("obj", `{ string = "hello" }`),
 			),
 			config: Doc(
 				Str("a", " ${global.obj}"),
 			),
-			wantErr: errors.E(eval.ErrInterpolation),
+			want: Doc(
+				Str("a", ` ${{
+					string = "hello"
+				}}`),
+			),
 		},
 		{
-			name: "interpolating object with suffix space fails",
+			name: "interpolating object with suffix space",
 			globals: Globals(
 				Expr("obj", `{ string = "hello" }`),
 			),
 			config: Doc(
 				Str("a", "${global.obj} "),
 			),
-			wantErr: errors.E(eval.ErrInterpolation),
+			want: Doc(
+				Str("a", `${{
+					string = "hello"
+				}} `),
+			),
 		},
 		{
-			name: "interpolating multiple lists fails",
+			name: "interpolating multiple lists",
 			globals: Globals(
 				Expr("list", `["hello"]`),
 			),
 			config: Doc(
 				Str("a", "${global.list}-${global.list}"),
 			),
-			wantErr: errors.E(eval.ErrInterpolation),
+			want: Doc(
+				Str("a", `${["hello"]}-${["hello"]}`),
+			),
 		},
 		{
-			name: "interpolating list with prefix space fails",
+			name: "interpolating list with prefix space",
 			globals: Globals(
 				Expr("list", `["hello"]`),
 			),
 			config: Doc(
 				Str("a", " ${global.list}"),
 			),
-			wantErr: errors.E(eval.ErrInterpolation),
+			want: Doc(
+				Str("a", ` ${["hello"]}`),
+			),
 		},
 		{
-			name: "interpolating list with suffix space fails",
+			name: "interpolating list with suffix space",
 			globals: Globals(
 				Expr("list", `["hello"]`),
 			),
 			config: Doc(
 				Str("a", "${global.list} "),
 			),
-			wantErr: errors.E(eval.ErrInterpolation),
+			want: Doc(
+				Str("a", `${["hello"]} `),
+			),
 		},
 		{
 			// Here we check that a interpolated lists results on the list itself, not a string.
@@ -677,7 +697,13 @@ func TestPartialEval(t *testing.T) {
 			config: Doc(
 				Str("var", "${global.obj.string} ${global.obj.obj2.obj3}"),
 			),
-			wantErr: errors.E(eval.ErrInterpolation),
+			want: Doc(
+				Str("var", `hello ${{
+					bool = false
+					number = 1337
+					string = "hello"
+				}}`),
+			),
 		},
 		{
 			name: "basic list indexing",
@@ -1368,7 +1394,14 @@ ${global.value}
 EOT
 `),
 			),
-			wantErr: errors.E(eval.ErrPartial),
+			want: Doc(
+				Expr("test", `<<-EOT
+${{
+	a = 1
+}}
+EOT
+`),
+			),
 		},
 		{
 			name: "HEREDOCs partial evaluated list - must fail",

@@ -114,14 +114,35 @@ func (builder *tokenBuilder) literalTokens(expr *hclsyntax.LiteralValueExpr) {
 }
 
 func (builder *tokenBuilder) templateTokens(tmpl *hclsyntax.TemplateExpr) {
+	canMergeTemplate := func(tokens hclwrite.Tokens) bool {
+		if len(tokens) > 1 {
+			return false
+		}
+		toktype := tokens[0].Type
+		tokstr := string(tokens[0].Bytes)
+		switch toktype {
+		case hclsyntax.TokenNumberLit, hclsyntax.TokenStringLit:
+			return true
+		case hclsyntax.TokenIdent:
+			if tokstr == "true" || tokstr == "false" {
+				return true
+			}
+		}
+		return false
+	}
 	begin := len(builder.tokens)
 	builder.add(oquote())
 	for _, part := range tmpl.Parts {
 		tokens := tokensForExpression(part)
 		if tokens[0].Type != hclsyntax.TokenOQuote {
-			builder.add(interpBegin())
+			addInterp := !canMergeTemplate(tokens)
+			if addInterp {
+				builder.add(interpBegin())
+			}
 			builder.add(tokens...)
-			builder.add(interpEnd())
+			if addInterp {
+				builder.add(interpEnd())
+			}
 			continue
 		}
 

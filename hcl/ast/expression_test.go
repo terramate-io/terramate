@@ -64,6 +64,7 @@ func TestAstExpressionToTokens(t *testing.T) {
 		{
 			name: "interp with number",
 			expr: `"0${0}"`,
+			want: `"00"`,
 		},
 		{
 			name: "empty heredocs",
@@ -202,7 +203,13 @@ EOT
 			expr: `"test${
 				1
 			}"`,
-			want: `"test${1}"`,
+			want: `"test1"`,
+		},
+		{
+			name: "strings with multiline interpolation",
+			expr: `"test${{
+				a = 1
+			}}"`,
 		},
 		{
 			name: "strings with multiline HIL interpolation - reformatted",

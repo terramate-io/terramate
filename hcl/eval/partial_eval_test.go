@@ -69,7 +69,7 @@ EOT
 		},
 		{
 			expr: `"test ${global.number}"`,
-			want: `"test ${10}"`,
+			want: `"test 10"`,
 		},
 		{
 			expr: `"test ${global.string}"`,
