@@ -356,7 +356,7 @@ func appendBlock(target *hclwrite.Body, block *hclsyntax.Block, eval hcl.Evaluat
 
 	targetBlock := target.AppendNewBlock(block.Type, block.Labels)
 	if block.Body != nil {
-		err := copyBody(targetBlock.Body(), block.Body, eval, false)
+		err := copyBody(targetBlock.Body(), block.Body, eval, true)
 		if err != nil {
 			return err
 		}
