@@ -15,8 +15,6 @@
 package eval
 
 import (
-	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -111,17 +109,6 @@ func (c *Context) Copy() *Context {
 // Unwrap returns the internal hhcl.EvalContext.
 func (c *Context) Unwrap() *hhcl.EvalContext {
 	return c.hclctx
-}
-
-func toWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {
-	tokens := make([]*hclwrite.Token, len(in))
-	for i, st := range in {
-		tokens[i] = &hclwrite.Token{
-			Type:  st.Type,
-			Bytes: st.Bytes,
-		}
-	}
-	return tokens
 }
 
 // NewContextFrom creates a new evaluator from the hashicorp EvalContext.
