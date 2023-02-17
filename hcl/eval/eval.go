@@ -18,7 +18,6 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 
@@ -89,12 +88,12 @@ func (c *Context) Eval(expr hhcl.Expression) (cty.Value, error) {
 // of tokens, leaving all the rest as-is. It returns a modified list of tokens
 // with  no reference to terramate namespaced variables (globals and terramate)
 // and functions (tm_ prefixed functions).
-func (c *Context) PartialEval(expr hhcl.Expression) (hclwrite.Tokens, error) {
+func (c *Context) PartialEval(expr hhcl.Expression) (hhcl.Expression, error) {
 	newexpr, err := c.partialEval(expr)
 	if err != nil {
 		return nil, errors.E(ErrPartial, err)
 	}
-	return ast.TokensForExpression(newexpr), nil
+	return newexpr, nil
 }
 
 // Copy the eval context.

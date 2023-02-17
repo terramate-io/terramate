@@ -18,7 +18,6 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/customdecode"
 	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -67,25 +66,16 @@ func evalTernaryBranch(arg cty.Value) (cty.Value, error) {
 	closure := customdecode.ExpressionClosureFromVal(arg)
 
 	ctx := eval.NewContextFrom(closure.EvalContext)
-	newtokens, err := ctx.PartialEval(closure.Expression)
+	newexpr, err := ctx.PartialEval(closure.Expression)
 	if err != nil {
 		return cty.NilVal, errors.E(err, "evaluating tm_ternary branch")
 	}
 
-	exprParsed, err := ast.ParseExpression(
-		string(newtokens.Bytes()),
-		closure.Expression.Range().Filename,
-	)
-
-	if err != nil {
-		return cty.NilVal, errors.E(err, "parsing partial evaluated bytes")
+	if dependsOnUnknowns(newexpr, closure.EvalContext) {
+		return customdecode.ExpressionVal(newexpr), nil
 	}
 
-	if dependsOnUnknowns(exprParsed, closure.EvalContext) {
-		return customdecode.ExpressionVal(exprParsed), nil
-	}
-
-	v, diags := exprParsed.Value(closure.EvalContext)
+	v, diags := newexpr.Value(closure.EvalContext)
 	if diags.HasErrors() {
 		return cty.NilVal, errors.E(diags, "evaluating tm_ternary branch")
 	}

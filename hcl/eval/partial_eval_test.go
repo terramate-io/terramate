@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/stdlib"
 	errtest "github.com/mineiros-io/terramate/test/errors"
@@ -253,7 +254,7 @@ EOT
 		if diags.HasErrors() {
 			t.Fatalf(diags.Error())
 		}
-		got, err := ctx.PartialEval(expr)
+		gotExpr, err := ctx.PartialEval(expr)
 		errtest.Assert(t, err, tc.wantErr)
 		if tc.wantErr != nil {
 			return
@@ -262,6 +263,7 @@ EOT
 		if tc.want != "" {
 			want = tc.want
 		}
+		got := ast.TokensForExpression(gotExpr)
 		assert.EqualStrings(t, string(hclwrite.Format([]byte(want))), string(hclwrite.Format(got.Bytes())))
 	}
 }

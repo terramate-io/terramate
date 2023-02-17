@@ -29,6 +29,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/madlambda/spells/assert"
+	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/rs/zerolog"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -125,7 +126,7 @@ EOT`,
 		ctx.SetNamespace("globals", globals)
 		ctx.SetNamespace("terramate", terramate)
 
-		got, err := ctx.PartialEval(attr.Expr)
+		gotExpr, err := ctx.PartialEval(attr.Expr)
 
 		if strings.Contains(cfg, "global") ||
 			strings.Contains(cfg, "terramate") ||
@@ -144,6 +145,8 @@ EOT`,
 			return
 		}
 		want := toWriteTokens(parsedTokens)
+
+		got := ast.TokensForExpression(gotExpr)
 
 		// Since we dont fuzz substitution/evaluation the tokens should be the same
 		assert.EqualInts(t, len(want), len(got), "got %s != want %s", tokensStr(got), tokensStr(want))
