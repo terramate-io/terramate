@@ -17,18 +17,13 @@
 package eval
 
 import (
-	"fmt"
 	"math/big"
 	"regexp"
 	"strings"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/hashicorp/hcl/v2/hclwrite"
-	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/rs/zerolog"
 	"github.com/zclconf/go-cty/cty"
@@ -36,8 +31,6 @@ import (
 )
 
 func FuzzPartialEval(f *testing.F) {
-	f.SkipNow()
-
 	seedCorpus := []string{
 		"attr",
 		"attr.value",
@@ -101,74 +94,27 @@ EOT`,
 			return
 		}
 
-		const testattr = "attr"
-
-		cfg := fmt.Sprintf("%s = %s", testattr, str)
-		parser := hclparse.NewParser()
-		file, diags := parser.ParseHCL([]byte(cfg), "fuzz")
+		parsedExpr, diags := hclsyntax.ParseExpression([]byte(str), "fuzz.hcl", hcl.InitialPos)
 		if diags.HasErrors() {
 			return
 		}
-
-		body := file.Body.(*hclsyntax.Body)
-		attr := body.Attributes[testattr]
-		parsedExpr := attr.Expr
-
-		exprRange := parsedExpr.Range()
-		exprBytes := cfg[exprRange.Start.Byte:exprRange.End.Byte]
-
-		_, diags = hclsyntax.LexExpression([]byte(exprBytes), "fuzz", hcl.Pos{})
-		if diags.HasErrors() {
-			return
-		}
-
 		ctx := NewContext(map[string]function.Function{})
-		ctx.SetNamespace("globals", globals)
+		ctx.SetNamespace("global", globals)
 		ctx.SetNamespace("terramate", terramate)
 
-		gotExpr, err := ctx.PartialEval(attr.Expr)
-
-		if strings.Contains(cfg, "global") ||
-			strings.Contains(cfg, "terramate") ||
-			strings.Contains(cfg, "tm_") {
-			// TODO(katcipis): Validate generated code properties when
-			// substitution is in play.
+		gotExpr, err := ctx.PartialEval(parsedExpr)
+		if err != nil {
 			return
 		}
-
-		assert.NoError(t, err)
-
-		// format input for comparison only
-		exprBytes = string(hclwrite.Format([]byte(exprBytes)))
-		parsedTokens, diags := hclsyntax.LexExpression([]byte(exprBytes), "fuzz", hcl.Pos{})
-		if diags.HasErrors() {
-			return
-		}
-		want := toWriteTokens(parsedTokens)
-
-		got := ast.TokensForExpression(gotExpr)
-
-		// Since we dont fuzz substitution/evaluation the tokens should be the same
-		assert.EqualInts(t, len(want), len(got), "got %s != want %s", tokensStr(got), tokensStr(want))
-
-		for i, gotToken := range got {
-			wantToken := want[i]
-			if diff := cmp.Diff(*gotToken, *wantToken); diff != "" {
-				t.Errorf("got: %v", *gotToken)
-				t.Errorf("want: %v", *wantToken)
-				t.Error("diff:")
-				t.Fatal(diff)
+		for _, v := range gotExpr.Variables() {
+			if v.RootName() == "global" || v.RootName() == "terramate" {
+				t.Fatalf(
+					"not all Terramate references replaced: input: %s, output: %s",
+					str, ast.TokensForExpression(gotExpr).Bytes(),
+				)
 			}
 		}
 	})
-}
-
-func tokensStr(t hclwrite.Tokens) string {
-	tokensStrs := make([]string, len(t))
-	for i, token := range t {
-		tokensStrs[i] = fmt.Sprintf("{Type=%q Bytes=%s}", token.Type, token.Bytes)
-	}
-	return "[" + strings.Join(tokensStrs, ",") + "]"
 }
 
 func init() {
