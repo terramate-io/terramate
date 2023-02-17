@@ -223,16 +223,20 @@ func (c *Context) hasTerramateVars(expr hclsyntax.Expression) bool {
 
 func (c *Context) partialEvalObjectKey(key *hclsyntax.ObjectConsKeyExpr) (hhcl.Expression, error) {
 	travExpr, isTraversal := key.Wrapped.(*hclsyntax.ScopeTraversalExpr)
-	if !key.ForceNonLiteral && isTraversal && len(travExpr.Traversal) > 1 {
-		return nil, errors.E(ErrNonLiteralKey, key.Range())
-	}
-	if key.ForceNonLiteral {
-		wrapped, err := c.partialEval(key.Wrapped)
-		if err != nil {
-			return nil, err
+	if isTraversal {
+		if !key.ForceNonLiteral {
+			if len(travExpr.Traversal) > 1 || c.hasTerramateVars(key.Wrapped) {
+				return nil, errors.E(ErrNonLiteralKey, key.Range())
+			}
+			return key, nil
 		}
-		key.Wrapped = asSyntax(wrapped)
+		// can partial evaluate
 	}
+	wrapped, err := c.partialEval(key.Wrapped)
+	if err != nil {
+		return nil, err
+	}
+	key.Wrapped = asSyntax(wrapped)
 	return key, nil
 }
 

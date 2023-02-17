@@ -111,10 +111,12 @@ EOT`,
 			return
 		}
 		for _, v := range gotExpr.Variables() {
-			if v.RootName() == "global" || v.RootName() == "terramate" {
+			exprBytes := ast.TokensForExpression(gotExpr).Bytes()
+			if (v.RootName() == "global" || v.RootName() == "terramate") &&
+				strings.Contains(string(exprBytes), v.RootName()+".") {
 				t.Fatalf(
 					"not all Terramate references replaced: input: %s, output: %s",
-					str, ast.TokensForExpression(gotExpr).Bytes(),
+					str, exprBytes,
 				)
 			}
 		}

@@ -165,6 +165,28 @@ EOT
 			}`,
 		},
 		{
+			expr: `{
+				global.string = 1
+			}`,
+			wantErr: errors.E(eval.ErrNonLiteralKey),
+		},
+		{
+			expr: `{
+				(global.string) = 1
+			}`,
+			want: `{
+				"terramate" = 1
+			}`,
+		},
+		{
+			expr: `{
+				tm_upper(global.string) = 1
+			}`,
+			want: `{
+				"TERRAMATE" = 1
+			}`,
+		},
+		{
 			expr: `funcall()`,
 		},
 		{

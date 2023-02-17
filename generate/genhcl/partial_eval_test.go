@@ -109,12 +109,7 @@ func TestPartialEval(t *testing.T) {
 					global    = global.ref,
 				 }`),
 			),
-			want: Doc(
-				Expr("obj", `{
-					local   = local.ref
-					global  = 666
-				 }`),
-			),
+			wantErr: errors.E(eval.ErrNonLiteralKey),
 		},
 		{
 			name: "mixed references on list",
