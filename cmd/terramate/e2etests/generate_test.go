@@ -96,55 +96,6 @@ func TestGenerate(t *testing.T) {
 			},
 		},
 		{
-			name: "generate file and hcl",
-			layout: []string{
-				"s:stack",
-			},
-			files: []file{
-				{
-					path: p("/config.tm"),
-					body: Doc(
-						GenerateHCL(
-							Labels("file.hcl"),
-							Content(
-								Str("a", "hi"),
-							),
-						),
-						GenerateFile(
-							Labels("file.txt"),
-							Str("content", "hi"),
-						),
-					),
-				},
-			},
-			want: want{
-				run: runExpected{
-					Stdout: `Code generation report
-
-Successes:
-
-- /stack
-	[+] file.hcl
-	[+] file.txt
-
-Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.
-`,
-				},
-				files: []file{
-					{
-						path: p("/stack/file.hcl"),
-						body: Doc(
-							Str("a", "hi"),
-						),
-					},
-					{
-						path: p("/stack/file.txt"),
-						body: str("hi"),
-					},
-				},
-			},
-		},
-		{
 			name: "generate file and hcl with tm_vendor",
 			layout: []string{
 				"s:stack",
@@ -228,6 +179,59 @@ Vendor report:
 				run: runExpected{
 					Status:       1,
 					IgnoreStdout: true,
+				},
+			},
+		},
+		{
+			name: "generate_hcl of different stacks dont persist",
+			layout: []string{
+				"s:stack1",
+				"s:stack2",
+			},
+			files: []file{
+				{
+					path: p("/config.tm"),
+					body: Doc(
+						Globals(
+							Expr("name", "terramate.stack.name"),
+						),
+						GenerateHCL(
+							Labels("file.hcl"),
+							Content(
+								Expr("a", "global.name"),
+							),
+						),
+					),
+				},
+			},
+			want: want{
+				run: runExpected{
+					Stdout: `Code generation report
+
+Successes:
+
+- /stack1
+	[+] file.hcl
+
+- /stack2
+	[+] file.hcl
+
+Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.
+`,
+				},
+				files: []file{
+					{
+						path: p("/stack1/file.hcl"),
+						body: Doc(
+							Str("a", "stack1"),
+						),
+					},
+					{
+						path: p("/stack2/file.hcl"),
+						body: Doc(
+							Str("a", "stack2"),
+						),
+					},
 				},
 			},
 		},

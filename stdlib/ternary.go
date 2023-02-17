@@ -17,7 +17,9 @@ package stdlib
 import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/customdecode"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -66,7 +68,9 @@ func evalTernaryBranch(arg cty.Value) (cty.Value, error) {
 	closure := customdecode.ExpressionClosureFromVal(arg)
 
 	ctx := eval.NewContextFrom(closure.EvalContext)
-	newexpr, err := ctx.PartialEval(closure.Expression)
+	newexpr, err := ctx.PartialEval(&ast.CloneExpression{
+		Expression: closure.Expression.(hclsyntax.Expression),
+	})
 	if err != nil {
 		return cty.NilVal, errors.E(err, "evaluating tm_ternary branch")
 	}
