@@ -54,7 +54,7 @@ func (c *Context) partialEval(expr hhcl.Expression) (newexpr hhcl.Expression, er
 	case *hclsyntax.IndexExpr:
 		return c.partialEvalIndex(e)
 	case *hclsyntax.SplatExpr:
-		return e, nil
+		return c.partialEvalSplat(e)
 	case *hclsyntax.ForExpr:
 		return c.partialEvalForExpr(e)
 	case *hclsyntax.ObjectConsKeyExpr:
@@ -174,6 +174,29 @@ func (c *Context) partialEvalIndex(index *hclsyntax.IndexExpr) (hhcl.Expression,
 	return &hclsyntax.LiteralValueExpr{
 		Val:      val,
 		SrcRange: index.SrcRange,
+	}, nil
+}
+
+func (c *Context) partialEvalSplat(expr *hclsyntax.SplatExpr) (hhcl.Expression, error) {
+	newsrc, err := c.partialEval(expr.Source)
+	if err != nil {
+		return nil, err
+	}
+	expr.Source = asSyntax(newsrc)
+	if c.hasUnknownVars(expr.Source) {
+		return expr, nil
+	}
+	if c.hasUnknownVars(expr.Each) {
+		return expr, nil
+	}
+	val, err := c.Eval(expr)
+	if err != nil {
+		// this can happen in the case of using funcalls not prefixed with tm_
+		return expr, nil
+	}
+	return &hclsyntax.LiteralValueExpr{
+		Val:      val,
+		SrcRange: expr.Range(),
 	}, nil
 }
 
