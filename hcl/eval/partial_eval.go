@@ -30,6 +30,9 @@ const (
 	ErrPartial             errors.Kind = "partial evaluation failed"
 	ErrInterpolation       errors.Kind = "interpolation failed"
 	ErrForExprDisallowEval errors.Kind = "`for` expression disallow globals/terramate variables"
+	ErrNonLiteralKey       errors.Kind = ("If this expression is intended to be a reference, wrap it in" +
+		" parentheses. If it's instead intended as a literal name containing periods, wrap it in quotes " +
+		"to create a string literal.")
 )
 
 func (c *Context) partialEval(expr hhcl.Expression) (newexpr hhcl.Expression, err error) {
@@ -58,7 +61,7 @@ func (c *Context) partialEval(expr hhcl.Expression) (newexpr hhcl.Expression, er
 	case *hclsyntax.ForExpr:
 		return c.partialEvalForExpr(e)
 	case *hclsyntax.ObjectConsKeyExpr:
-		return e, nil
+		return c.partialEvalObjectKey(e)
 	case *hclsyntax.TemplateExpr:
 		return c.partialEvalTemplate(e)
 	case *hclsyntax.TemplateWrapExpr:
@@ -216,6 +219,21 @@ func (c *Context) hasTerramateVars(expr hclsyntax.Expression) bool {
 		}
 	}
 	return false
+}
+
+func (c *Context) partialEvalObjectKey(key *hclsyntax.ObjectConsKeyExpr) (hhcl.Expression, error) {
+	travExpr, isTraversal := key.Wrapped.(*hclsyntax.ScopeTraversalExpr)
+	if !key.ForceNonLiteral && isTraversal && len(travExpr.Traversal) > 1 {
+		return nil, errors.E(ErrNonLiteralKey, key.Range())
+	}
+	if key.ForceNonLiteral {
+		wrapped, err := c.partialEval(key.Wrapped)
+		if err != nil {
+			return nil, err
+		}
+		key.Wrapped = asSyntax(wrapped)
+	}
+	return key, nil
 }
 
 func (c *Context) partialEvalForExpr(forExpr *hclsyntax.ForExpr) (hhcl.Expression, error) {

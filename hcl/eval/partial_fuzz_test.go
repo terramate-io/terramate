@@ -41,6 +41,10 @@ func FuzzPartialEval(f *testing.F) {
 		`"${global.list} fail`,
 		`"domain is ${tm_replace(global.str, "io", "com")}"`,
 		`{}`,
+		`{
+			global.str = 1
+			b = 2
+		}`,
 		`10`,
 		`"test"`,
 		`[1, 2, 3]`,
