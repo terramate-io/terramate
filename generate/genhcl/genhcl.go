@@ -389,17 +389,9 @@ func appendDynamicBlock(
 		}
 	}
 
-	logger := log.With().
-		Str("action", "genhcl.appendDynamicBlock").
-		Str("type", genBlockType).
-		Strs("labels", labels).
-		Logger()
-
 	newblock := destination.AppendBlock(hclwrite.NewBlock(genBlockType, labels))
 
 	if contentBlock != nil {
-		logger.Trace().Msg("using content block to define new block body")
-
 		err := copyBody(newblock.Body(), contentBlock.Body, evaluator)
 		if err != nil {
 			return err
@@ -407,8 +399,6 @@ func appendDynamicBlock(
 
 		return nil
 	}
-
-	logger.Trace().Msg("using attributes to define new block body")
 
 	attrsExpr, err := evaluator.PartialEval(attrs.attributes.Expr)
 	if err != nil {
@@ -430,7 +420,6 @@ func appendDynamicBlock(
 		return attrErr(attrs.attributes,
 			"tm_dynamic attributes must be an object, got %T instead", attrsExpr)
 	}
-
 	return nil
 }
 
@@ -629,11 +618,10 @@ func getDynamicBlockAttrs(block *hclsyntax.Block) (dynBlockAttributes, error) {
 		switch name {
 		case "attributes":
 			dynAttrs.attributes = attr
-			if attr.Expr != nil {
-				dynAttrs.attributes.Expr = &ast.CloneExpression{
-					Expression: attr.Expr,
-				}
+			dynAttrs.attributes.Expr = &ast.CloneExpression{
+				Expression: attr.Expr,
 			}
+
 		case "for_each":
 			dynAttrs.foreach = attr
 			dynAttrs.foreach.Expr = &ast.CloneExpression{

@@ -110,8 +110,10 @@ func CloneExpr(expr hclsyntax.Expression) hclsyntax.Expression {
 			ForceNonLiteral: e.ForceNonLiteral,
 		}
 	case *hclsyntax.ScopeTraversalExpr:
+		traversals := make(hcl.Traversal, len(e.Traversal))
+		copy(traversals, e.Traversal)
 		return &hclsyntax.ScopeTraversalExpr{
-			Traversal: e.Traversal,
+			Traversal: traversals,
 			SrcRange:  e.SrcRange,
 		}
 	case *hclsyntax.ConditionalExpr:
