@@ -152,11 +152,9 @@ func LoadExprs(tree *config.Tree) (HierarchicalExprs, error) {
 
 		attrs := block.Attributes.SortedList()
 		if len(block.Labels) > 0 && len(attrs) == 0 {
-			expr, _ := hclsyntax.ParseExpression(
-				[]byte(`{}`),
-				block.RawOrigins[0].Range.HostPath(),
-				hhcl.InitialPos,
-			)
+			expr := &hclsyntax.ObjectConsExpr{
+				SrcRange: block.RawOrigins[0].Range.ToHCLRange(),
+			}
 			key := NewGlobalExtendPath(block.Labels)
 			exprs.expressions[key] = Expr{
 				Origin:     block.RawOrigins[0].Range,

@@ -761,7 +761,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 								Labels("references"),
 								Expr("for_each", `["test"]`),
 								Expr("attributes", `{
-								  global  = global.data,
+								  "global"  = global.data,
 								  meta    = terramate.stack.path.absolute,
 								  interp  = tm_upper("${global.data} interp"),
 								  partial = local.data,

@@ -127,3 +127,20 @@ func (p Pos) Column() int {
 func (p Pos) Byte() int {
 	return p.byteOffset
 }
+
+// ToHCLRange converts Range to [hcl.Range].
+func (r Range) ToHCLRange() hcl.Range {
+	return hcl.Range{
+		Filename: r.HostPath(),
+		Start: hcl.Pos{
+			Byte:   r.Start().Byte(),
+			Line:   r.Start().Line(),
+			Column: r.Start().Column(),
+		},
+		End: hcl.Pos{
+			Byte:   r.End().Byte(),
+			Line:   r.End().Line(),
+			Column: r.End().Column(),
+		},
+	}
+}

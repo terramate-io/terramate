@@ -19,9 +19,11 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/ext/customdecode"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // ParseExpression parses the expression str.
@@ -39,6 +41,17 @@ func TokensForExpression(expr hcl.Expression) hclwrite.Tokens {
 	tokens[0].SpacesBefore = 0
 	tokens = append(tokens, eof())
 	return tokens
+}
+
+// TokensForValue returns the tokens for the provided value.
+func TokensForValue(value cty.Value) hclwrite.Tokens {
+	if value.Type() == customdecode.ExpressionClosureType {
+		closureExpr := value.EncapsulatedValue().(*customdecode.ExpressionClosure)
+		return TokensForExpression(closureExpr.Expression)
+	} else if value.Type() == customdecode.ExpressionType {
+		return TokensForExpression(customdecode.ExpressionFromVal(value))
+	}
+	return hclwrite.TokensForValue(value)
 }
 
 func tokensForExpression(expr hcl.Expression) hclwrite.Tokens {
@@ -97,18 +110,39 @@ func (builder *tokenBuilder) build(expr hcl.Expression) {
 }
 
 func (builder *tokenBuilder) literalTokens(expr *hclsyntax.LiteralValueExpr) {
-	builder.add(hclwrite.TokensForValue(expr.Val)...)
+	builder.add(TokensForValue(expr.Val)...)
 }
 
 func (builder *tokenBuilder) templateTokens(tmpl *hclsyntax.TemplateExpr) {
+	canMergeTemplate := func(tokens hclwrite.Tokens) bool {
+		if len(tokens) > 1 {
+			return false
+		}
+		toktype := tokens[0].Type
+		tokstr := string(tokens[0].Bytes)
+		switch toktype {
+		case hclsyntax.TokenNumberLit, hclsyntax.TokenStringLit:
+			return true
+		case hclsyntax.TokenIdent:
+			if tokstr == "true" || tokstr == "false" {
+				return true
+			}
+		}
+		return false
+	}
 	begin := len(builder.tokens)
 	builder.add(oquote())
 	for _, part := range tmpl.Parts {
 		tokens := tokensForExpression(part)
 		if tokens[0].Type != hclsyntax.TokenOQuote {
-			builder.add(interpBegin())
+			addInterp := !canMergeTemplate(tokens)
+			if addInterp {
+				builder.add(interpBegin())
+			}
 			builder.add(tokens...)
-			builder.add(interpEnd())
+			if addInterp {
+				builder.add(interpEnd())
+			}
 			continue
 		}
 
@@ -185,32 +219,32 @@ func (builder *tokenBuilder) binOpTokens(binop *hclsyntax.BinaryOpExpr) {
 	switch binop.Op {
 	case hclsyntax.OpAdd:
 		op = add()
-	case hclsyntax.OpSubtract:
-		op = minus()
 	case hclsyntax.OpDivide:
 		op = slash()
-	case hclsyntax.OpMultiply:
-		op = star()
-	case hclsyntax.OpModulo:
-		op = percent()
 	case hclsyntax.OpEqual:
 		op = equal()
-	case hclsyntax.OpNotEqual:
-		op = nequal()
 	case hclsyntax.OpGreaterThan:
 		op = gtr()
+	case hclsyntax.OpGreaterThanOrEqual:
+		op = gtreq()
 	case hclsyntax.OpLessThan:
 		op = lss()
 	case hclsyntax.OpLessThanOrEqual:
 		op = lsseq()
-	case hclsyntax.OpGreaterThanOrEqual:
-		op = gtreq()
 	case hclsyntax.OpLogicalAnd:
 		op = and()
 	case hclsyntax.OpLogicalOr:
 		op = or()
+	case hclsyntax.OpModulo:
+		op = percent()
+	case hclsyntax.OpMultiply:
+		op = star()
+	case hclsyntax.OpNotEqual:
+		op = nequal()
+	case hclsyntax.OpSubtract:
+		op = minus()
 	default:
-		panic(fmt.Sprintf("type %T\n", binop.Op))
+		panic(fmt.Sprintf("unexpected binary operation %+v\n", binop.Op))
 	}
 	op.SpacesBefore = 1
 	builder.add(op)
@@ -226,7 +260,7 @@ func (builder *tokenBuilder) unaryOpTokens(unary *hclsyntax.UnaryOpExpr) {
 	case hclsyntax.OpNegate:
 		builder.add(minus())
 	default:
-		panic(fmt.Sprintf("type %T\n", unary.Op))
+		panic(fmt.Sprintf("value %+v is unexpected\n", unary.Op))
 	}
 	builder.build(unary.Val)
 }

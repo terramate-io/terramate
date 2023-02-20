@@ -1352,11 +1352,11 @@ func (c *cli) partialEval() {
 		if err != nil {
 			fatal(err)
 		}
-		tokens, err := ctx.PartialEval(expr)
+		newexpr, err := ctx.PartialEval(expr)
 		if err != nil {
 			fatal(err, "partial eval %q", exprStr)
 		}
-		c.output.MsgStdOut(string(hclwrite.Format(tokens.Bytes())))
+		c.output.MsgStdOut(string(hclwrite.Format(ast.TokensForExpression(newexpr).Bytes())))
 	}
 }
 
@@ -1403,7 +1403,7 @@ func (c *cli) outputEvalResult(val cty.Value, asJSON bool) {
 		if val.Type() == cty.String {
 			data = []byte(val.AsString())
 		} else {
-			tokens := eval.TokensForValue(val)
+			tokens := ast.TokensForValue(val)
 			data = []byte(hclwrite.Format(tokens.Bytes()))
 		}
 	}
