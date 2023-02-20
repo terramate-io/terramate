@@ -356,10 +356,10 @@ func LoadAllStacks(cfg *Tree) (List[*SortableStack], error) {
 func LoadStack(root *Root, dir project.Path) (*Stack, error) {
 	node, ok := root.Lookup(dir)
 	if !ok {
-		return nil, errors.E("config not found at %s", dir)
+		return nil, errors.E("config not found at %q", dir)
 	}
 	if !node.IsStack() {
-		return nil, errors.E("config at %s is not a stack")
+		return nil, errors.E("config at %q is not a stack", dir)
 	}
 	return NewStackFromHCL(root.HostDir(), node.Node)
 }
