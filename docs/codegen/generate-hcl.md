@@ -213,7 +213,6 @@ block {
 }
 ```
 
-
 The `for_each` attribute is optional. If it is not defined then only a single block
 will be generated and no iterator will be available on block generation.
 
