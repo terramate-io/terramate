@@ -86,6 +86,7 @@ const (
 	// ErrDynamicConditionEval indicates that the condition of a tm_dynamic cant be evaluated.
 	ErrDynamicConditionEval errors.Kind = "evaluating tm_dynamic.condition"
 
+	// ErrDynamicAttrsConflict indicates fields of tm_dynamic conflicts.
 	ErrDynamicAttrsConflict errors.Kind = "tm_dynamic.attributes and tm_dynamic.content have conflicting fields"
 )
 
