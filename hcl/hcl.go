@@ -25,7 +25,6 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/fs"
 	"github.com/mineiros-io/terramate/hcl/ast"
@@ -230,7 +229,7 @@ type Evaluator interface {
 	// tokens that form the result of the partial evaluation. Any unknown
 	// namespace access are ignored and left as is, while known namespaces
 	// are substituted by its value.
-	PartialEval(hcl.Expression) (hclwrite.Tokens, error)
+	PartialEval(hcl.Expression) (hcl.Expression, error)
 
 	// SetNamespace adds a new namespace, replacing any with the same name.
 	SetNamespace(name string, values map[string]cty.Value)

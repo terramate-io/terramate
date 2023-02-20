@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	hhcl "github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/mineiros-io/terramate/hcl/eval"
@@ -88,8 +89,12 @@ func NewMapExpr(block *ast.MergedBlock) (*MapExpr, error) {
 		Origin:   block.RawOrigins[0].Range,
 		Children: children,
 		Attrs: Attributes{
-			ForEach:    block.Attributes["for_each"].Expr,
-			Key:        block.Attributes["key"].Expr,
+			ForEach: &ast.CloneExpression{
+				Expression: block.Attributes["for_each"].Expr.(hclsyntax.Expression),
+			},
+			Key: &ast.CloneExpression{
+				Expression: block.Attributes["key"].Expr.(hclsyntax.Expression),
+			},
 			ValueAttr:  valueExpr,
 			ValueBlock: valueBlock,
 			Iterator:   iterator,

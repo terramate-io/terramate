@@ -15,11 +15,7 @@
 package eval
 
 import (
-	"github.com/hashicorp/hcl/v2/ext/customdecode"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/errors"
-	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 
@@ -90,9 +86,12 @@ func (c *Context) Eval(expr hhcl.Expression) (cty.Value, error) {
 // of tokens, leaving all the rest as-is. It returns a modified list of tokens
 // with  no reference to terramate namespaced variables (globals and terramate)
 // and functions (tm_ prefixed functions).
-func (c *Context) PartialEval(expr hhcl.Expression) (hclwrite.Tokens, error) {
-	engine := newPartialEvalEngine(ast.TokensForExpression(expr), c)
-	return engine.Eval()
+func (c *Context) PartialEval(expr hhcl.Expression) (hhcl.Expression, error) {
+	newexpr, err := c.partialEval(expr)
+	if err != nil {
+		return nil, errors.E(ErrPartial, err)
+	}
+	return newexpr, nil
 }
 
 // Copy the eval context.
@@ -110,28 +109,6 @@ func (c *Context) Copy() *Context {
 // Unwrap returns the internal hhcl.EvalContext.
 func (c *Context) Unwrap() *hhcl.EvalContext {
 	return c.hclctx
-}
-
-// TokensForValue returns the tokens for the provided value.
-func TokensForValue(value cty.Value) hclwrite.Tokens {
-	if value.Type() == customdecode.ExpressionClosureType {
-		closureExpr := value.EncapsulatedValue().(*customdecode.ExpressionClosure)
-		return ast.TokensForExpression(closureExpr.Expression)
-	} else if value.Type() == customdecode.ExpressionType {
-		return ast.TokensForExpression(customdecode.ExpressionFromVal(value))
-	}
-	return hclwrite.TokensForValue(value)
-}
-
-func toWriteTokens(in hclsyntax.Tokens) hclwrite.Tokens {
-	tokens := make([]*hclwrite.Token, len(in))
-	for i, st := range in {
-		tokens[i] = &hclwrite.Token{
-			Type:  st.Type,
-			Bytes: st.Bytes,
-		}
-	}
-	return tokens
 }
 
 // NewContextFrom creates a new evaluator from the hashicorp EvalContext.

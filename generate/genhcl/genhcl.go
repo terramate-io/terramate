@@ -322,13 +322,20 @@ func copyBody(dest *hclwrite.Body, src *hclsyntax.Body, eval hcl.Evaluator) erro
 			Logger()
 
 		logger.Trace().Msg("evaluating.")
-		tokens, err := eval.PartialEval(attr.Expr)
+
+		// a generate_hcl.content block must be partially evaluated multiple
+		// times then the updates nodes should not be persisted.
+		expr := &ast.CloneExpression{
+			Expression: attr.Expr.(hclsyntax.Expression),
+		}
+
+		newexpr, err := eval.PartialEval(expr)
 		if err != nil {
 			return errors.E(err, attr.Expr.Range())
 		}
 
 		logger.Trace().Str("attribute", attr.Name).Msg("Setting evaluated attribute.")
-		dest.SetAttributeRaw(attr.Name, tokens)
+		dest.SetAttributeRaw(attr.Name, ast.TokensForExpression(newexpr))
 	}
 
 	logger.Trace().Msg("appending blocks")
@@ -382,17 +389,9 @@ func appendDynamicBlock(
 		}
 	}
 
-	logger := log.With().
-		Str("action", "genhcl.appendDynamicBlock").
-		Str("type", genBlockType).
-		Strs("labels", labels).
-		Logger()
-
 	newblock := destination.AppendBlock(hclwrite.NewBlock(genBlockType, labels))
 
 	if contentBlock != nil {
-		logger.Trace().Msg("using content block to define new block body")
-
 		err := copyBody(newblock.Body(), contentBlock.Body, evaluator)
 		if err != nil {
 			return err
@@ -401,50 +400,38 @@ func appendDynamicBlock(
 		return nil
 	}
 
-	logger.Trace().Msg("using attributes to define new block body")
-
-	attrsTokens, err := evaluator.PartialEval(attrs.attributes.Expr)
+	attrsExpr, err := evaluator.PartialEval(attrs.attributes.Expr)
 	if err != nil {
 		return errors.E(ErrDynamicAttrsEval, err, attrs.attributes.Range())
 	}
 
-	// Sadly hclsyntax doesn't export an easy way to build an expression from tokens,
-	// even though it would be easy to do so:
-	//
-	// - https://github.com/hashicorp/hcl2/blob/fb75b3253c80b3bc7ca99c4bfa2ad6743841b1af/hcl/hclsyntax/public.go#L41
-	//
-	// So here we need to convert the parsed attributes to []byte so it can be
-	// converted again to tokens :-).
-	attrsExpr, err := ast.ParseExpression(string(attrsTokens.Bytes()), "<genhcl>")
-	if err != nil {
-		// Panic here since Terramate generated an invalid expression after
-		// partial evaluation and it is a guaranteed invariant that partial
-		// evaluation only produces valid expressions.
-		log.Error().
-			Err(err).
-			Str("partiallyEvaluated", string(attrsTokens.Bytes())).
-			Msg("partially evaluated `attributes` should be a valid expression")
-		panic(wrapAttrErr(err, attrs.attributes,
-			"internal error: partially evaluated `attributes` produced invalid expression: %v", err))
-	}
-
-	objectExpr, ok := attrsExpr.(*hclsyntax.ObjectConsExpr)
-	if !ok {
-		return attrErr(attrs.attributes,
-			"tm_dynamic attributes must be an object, got %T instead", objectExpr)
-	}
-
-	newbody := newblock.Body()
-
-	for _, item := range objectExpr.Items {
-		keyVal, err := evaluator.Eval(item.KeyExpr)
+	switch objectExpr := attrsExpr.(type) {
+	case *hclsyntax.LiteralValueExpr:
+		err := setBodyFromLiteralValue(objectExpr, newblock.Body())
 		if err != nil {
-			return errors.E(ErrDynamicAttrsEval, err,
-				attrs.attributes.Range(),
-				"evaluating tm_dynamic.attributes key")
+			return err
 		}
+	case *hclsyntax.ObjectConsExpr:
+		err := setBodyFromObjectCons(objectExpr, newblock.Body(), evaluator)
+		if err != nil {
+			return err
+		}
+	default:
+		return attrErr(attrs.attributes,
+			"tm_dynamic attributes must be an object, got %T instead", attrsExpr)
+	}
+	return nil
+}
+
+func setBodyFromLiteralValue(objectExpr *hclsyntax.LiteralValueExpr, newbody *hclwrite.Body) error {
+	if objectExpr.Val.IsNull() {
+		return errors.E(ErrParsing, objectExpr.Range(), "attributes is null")
+	}
+	objIter := objectExpr.Val.ElementIterator()
+	for objIter.Next() {
+		keyVal, valVal := objIter.Element()
 		if keyVal.Type() != cty.String {
-			return attrErr(attrs.attributes,
+			return errors.E(ErrParsing, objectExpr.Range(),
 				"tm_dynamic.attributes key %q has type %q, must be a string",
 				keyVal.GoString(),
 				keyVal.Type().FriendlyName())
@@ -455,21 +442,41 @@ func appendDynamicBlock(
 		// the attribute is a proper HCL identifier.
 		attrName := keyVal.AsString()
 		if !hclsyntax.ValidIdentifier(attrName) {
-			return attrErr(attrs.attributes,
+			return errors.E(ErrParsing, objectExpr.Range(),
 				"tm_dynamic.attributes key %q is not a valid HCL identifier",
 				attrName)
 		}
-
-		valTokens := ast.TokensForExpression(item.ValueExpr)
-
-		logger.Trace().
-			Str("attribute", attrName).
-			Str("value", string(valTokens.Bytes())).
-			Msg("adding attribute on generated block")
-
-		newbody.SetAttributeRaw(attrName, valTokens)
+		newbody.SetAttributeRaw(attrName, ast.TokensForValue(valVal))
 	}
+	return nil
+}
 
+func setBodyFromObjectCons(objectExpr *hclsyntax.ObjectConsExpr, newbody *hclwrite.Body, evaluator hcl.Evaluator) error {
+	for _, item := range objectExpr.Items {
+		keyVal, err := evaluator.Eval(item.KeyExpr)
+		if err != nil {
+			return errors.E(ErrDynamicAttrsEval, err,
+				item.KeyExpr.Range(),
+				"evaluating tm_dynamic.attributes key")
+		}
+		if keyVal.Type() != cty.String {
+			return errors.E(ErrParsing, item.KeyExpr.Range(),
+				"tm_dynamic.attributes key %q has type %q, must be a string",
+				keyVal.GoString(),
+				keyVal.Type().FriendlyName())
+		}
+
+		// hclwrite lib will accept any arbitrary string as attr name
+		// allowing it to generate invalid HCL code, so here we check if
+		// the attribute is a proper HCL identifier.
+		attrName := keyVal.AsString()
+		if !hclsyntax.ValidIdentifier(attrName) {
+			return errors.E(ErrParsing, item.KeyExpr.Range(),
+				"tm_dynamic.attributes key %q is not a valid HCL identifier",
+				attrName)
+		}
+		newbody.SetAttributeRaw(attrName, ast.TokensForExpression(item.ValueExpr))
+	}
 	return nil
 }
 
@@ -611,8 +618,15 @@ func getDynamicBlockAttrs(block *hclsyntax.Block) (dynBlockAttributes, error) {
 		switch name {
 		case "attributes":
 			dynAttrs.attributes = attr
+			dynAttrs.attributes.Expr = &ast.CloneExpression{
+				Expression: attr.Expr,
+			}
+
 		case "for_each":
 			dynAttrs.foreach = attr
+			dynAttrs.foreach.Expr = &ast.CloneExpression{
+				Expression: attr.Expr,
+			}
 		case "labels":
 			dynAttrs.labels = attr
 		case "iterator":
