@@ -1546,7 +1546,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
-			name:  "content block and attributes fails",
+			name:  "content block and attributes is allowed",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
@@ -1566,7 +1566,51 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrParsing),
+			want: []result{
+				{
+					name: "tm_dynamic_test.tf",
+					hcl: genHCL{
+						condition: true,
+						body: Doc(
+							Block("my_block",
+								Number("b", 666),
+								Str("a", "val"),
+							),
+							Block("my_block",
+								Number("b", 666),
+								Str("a", "val"),
+							),
+							Block("my_block",
+								Number("b", 666),
+								Str("a", "val"),
+							),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "the fields of attributes and attributes of content must not conflict",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Expr("attributes", `{ a : 666 }`),
+								Content(
+									Str("a", "val"),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(genhcl.ErrDynamicAttrsConflict),
 		},
 	}
 
