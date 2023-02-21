@@ -37,6 +37,9 @@ func TestE2EListNonGit(t *testing.T) {
 			for _, filter := range tc.filterTags {
 				args = append(args, "--tags", filter)
 			}
+			for _, filter := range tc.filterNoTags {
+				args = append(args, "--no-tags", filter)
+			}
 			assertRunResult(t, cli.listStacks(args...), tc.want)
 		})
 	}

@@ -28,6 +28,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/cmd/terramate/cli/out"
 	"github.com/mineiros-io/terramate/config/filter"
+	"github.com/mineiros-io/terramate/config/tag"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/errors/errlog"
 	"github.com/mineiros-io/terramate/event"
@@ -1662,7 +1663,7 @@ func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Ent
 }
 
 func (c *cli) filterStacksByTags(entries []terramate.Entry) []terramate.Entry {
-	if len(c.parsedArgs.Tags) == 0 {
+	if c.tags.IsEmpty() {
 		return entries
 	}
 	filtered := []terramate.Entry{}
@@ -1706,26 +1707,48 @@ func (c *cli) setupFilterTags() {
 	if found {
 		c.tags = clauses
 	}
-	clauses, found, err = filter.ParseTagClauses(c.parsedArgs.NoTags...)
-	if err != nil {
-		fatal(err)
+
+	for _, val := range c.parsedArgs.NoTags {
+		err := tag.Validate(val)
+		if err != nil {
+			fatal(err)
+		}
 	}
-	if !found {
+	var noClauses filter.TagClause
+	if len(c.parsedArgs.NoTags) == 0 {
 		return
+	}
+	if len(c.parsedArgs.NoTags) == 1 {
+		noClauses = filter.TagClause{
+			Op:  filter.NEQ,
+			Tag: c.parsedArgs.NoTags[0],
+		}
+	} else {
+		var children []filter.TagClause
+		for _, tagname := range c.parsedArgs.NoTags {
+			children = append(children, filter.TagClause{
+				Op:  filter.NEQ,
+				Tag: tagname,
+			})
+		}
+		noClauses = filter.TagClause{
+			Op:       filter.AND,
+			Children: children,
+		}
 	}
 
 	if c.tags.IsEmpty() {
-		c.tags = clauses
+		c.tags = noClauses
 		return
 	}
 
 	switch c.tags.Op {
 	case filter.AND:
-		c.tags.Children = append(c.tags.Children, clauses)
+		c.tags.Children = append(c.tags.Children, noClauses)
 	default:
 		c.tags = filter.TagClause{
 			Op:       filter.AND,
-			Children: []filter.TagClause{c.tags, clauses},
+			Children: []filter.TagClause{c.tags, noClauses},
 		}
 	}
 }
