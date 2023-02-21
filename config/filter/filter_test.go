@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/config/tag"
 	"github.com/mineiros-io/terramate/errors"
 	errtest "github.com/mineiros-io/terramate/test/errors"
@@ -26,6 +27,8 @@ import (
 )
 
 func TestFilterParserTags(t *testing.T) {
+	t.Parallel()
+
 	type testcase struct {
 		filters   []string
 		want      TagClause
@@ -39,6 +42,16 @@ func TestFilterParserTags(t *testing.T) {
 				"a",
 			},
 			want: TagClause{
+				Op:  EQ,
+				Tag: "a",
+			},
+		},
+		{
+			filters: []string{
+				"~a",
+			},
+			want: TagClause{
+				Op:  NEQ,
 				Tag: "a",
 			},
 		},
@@ -50,9 +63,29 @@ func TestFilterParserTags(t *testing.T) {
 				Op: OR,
 				Children: []TagClause{
 					{
+						Op:  EQ,
 						Tag: "a",
 					},
 					{
+						Op:  EQ,
+						Tag: "b",
+					},
+				},
+			},
+		},
+		{
+			filters: []string{
+				"~a,~b",
+			},
+			want: TagClause{
+				Op: OR,
+				Children: []TagClause{
+					{
+						Op:  NEQ,
+						Tag: "a",
+					},
+					{
+						Op:  NEQ,
 						Tag: "b",
 					},
 				},
@@ -66,15 +99,45 @@ func TestFilterParserTags(t *testing.T) {
 				Op: OR,
 				Children: []TagClause{
 					{
+						Op:  EQ,
 						Tag: "a",
 					},
 					{
 						Op: AND,
 						Children: []TagClause{
 							{
+								Op:  EQ,
 								Tag: "b",
 							},
 							{
+								Op:  EQ,
+								Tag: "c",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			filters: []string{
+				"~a,~b:~c",
+			},
+			want: TagClause{
+				Op: OR,
+				Children: []TagClause{
+					{
+						Op:  NEQ,
+						Tag: "a",
+					},
+					{
+						Op: AND,
+						Children: []TagClause{
+							{
+								Op:  NEQ,
+								Tag: "b",
+							},
+							{
+								Op:  NEQ,
 								Tag: "c",
 							},
 						},
@@ -91,20 +154,56 @@ func TestFilterParserTags(t *testing.T) {
 				Op: OR,
 				Children: []TagClause{
 					{
+						Op:  EQ,
 						Tag: "a",
 					},
 					{
 						Op: AND,
 						Children: []TagClause{
 							{
+								Op:  EQ,
 								Tag: "b",
 							},
 							{
+								Op:  EQ,
 								Tag: "c",
 							},
 						},
 					},
 					{
+						Op:  EQ,
+						Tag: "d",
+					},
+				},
+			},
+		},
+		{
+			filters: []string{
+				"~a,b:c,~d",
+			},
+			want: TagClause{
+
+				Op: OR,
+				Children: []TagClause{
+					{
+						Op:  NEQ,
+						Tag: "a",
+					},
+					{
+						Op: AND,
+						Children: []TagClause{
+							{
+								Op:  EQ,
+								Tag: "b",
+							},
+							{
+								Op:  EQ,
+								Tag: "c",
+							},
+						},
+					},
+					{
+						Op:  NEQ,
 						Tag: "d",
 					},
 				},
@@ -115,19 +214,21 @@ func TestFilterParserTags(t *testing.T) {
 				"a:b:c,d:e:f,g:h:i",
 			},
 			want: TagClause{
-
 				Op: OR,
 				Children: []TagClause{
 					{
 						Op: AND,
 						Children: []TagClause{
 							{
+								Op:  EQ,
 								Tag: "a",
 							},
 							{
+								Op:  EQ,
 								Tag: "b",
 							},
 							{
+								Op:  EQ,
 								Tag: "c",
 							},
 						},
@@ -136,12 +237,15 @@ func TestFilterParserTags(t *testing.T) {
 						Op: AND,
 						Children: []TagClause{
 							{
+								Op:  EQ,
 								Tag: "d",
 							},
 							{
+								Op:  EQ,
 								Tag: "e",
 							},
 							{
+								Op:  EQ,
 								Tag: "f",
 							},
 						},
@@ -150,12 +254,15 @@ func TestFilterParserTags(t *testing.T) {
 						Op: AND,
 						Children: []TagClause{
 							{
+								Op:  EQ,
 								Tag: "g",
 							},
 							{
+								Op:  EQ,
 								Tag: "h",
 							},
 							{
+								Op:  EQ,
 								Tag: "i",
 							},
 						},
@@ -171,15 +278,18 @@ func TestFilterParserTags(t *testing.T) {
 				Op: OR,
 				Children: []TagClause{
 					{
+						Op:  EQ,
 						Tag: "a",
 					},
 					{
 						Op: AND,
 						Children: []TagClause{
 							{
+								Op:  EQ,
 								Tag: "b",
 							},
 							{
+								Op:  EQ,
 								Tag: "c",
 							},
 						},
@@ -188,9 +298,11 @@ func TestFilterParserTags(t *testing.T) {
 						Op: AND,
 						Children: []TagClause{
 							{
+								Op:  EQ,
 								Tag: "d",
 							},
 							{
+								Op:  EQ,
 								Tag: "e",
 							},
 						},
@@ -206,15 +318,18 @@ func TestFilterParserTags(t *testing.T) {
 				Op: OR,
 				Children: []TagClause{
 					{
+						Op:  EQ,
 						Tag: "a",
 					},
 					{
 						Op: AND,
 						Children: []TagClause{
 							{
+								Op:  EQ,
 								Tag: "b",
 							},
 							{
+								Op:  EQ,
 								Tag: "c",
 							},
 						},
@@ -223,12 +338,15 @@ func TestFilterParserTags(t *testing.T) {
 						Op: AND,
 						Children: []TagClause{
 							{
+								Op:  EQ,
 								Tag: "d",
 							},
 							{
+								Op:  EQ,
 								Tag: "e",
 							},
 							{
+								Op:  EQ,
 								Tag: "f",
 							},
 						},
@@ -247,17 +365,19 @@ func TestFilterParserTags(t *testing.T) {
 						Op: AND,
 						Children: []TagClause{
 							{
+								Op:  EQ,
 								Tag: "a",
 							},
-
 							{
+								Op:  EQ,
 								Tag: "b",
 							},
-
 							{
+								Op:  EQ,
 								Tag: "c",
 							},
 							{
+								Op:  EQ,
 								Tag: "d",
 							},
 						},
@@ -266,17 +386,19 @@ func TestFilterParserTags(t *testing.T) {
 						Op: AND,
 						Children: []TagClause{
 							{
+								Op:  EQ,
 								Tag: "e",
 							},
-
 							{
+								Op:  EQ,
 								Tag: "f",
 							},
-
 							{
+								Op:  EQ,
 								Tag: "g",
 							},
 							{
+								Op:  EQ,
 								Tag: "h",
 							},
 						},
@@ -310,6 +432,91 @@ func TestFilterParserTags(t *testing.T) {
 			if diff := cmp.Diff(got, tc.want); diff != "" {
 				t.Fatalf("got[-], want[+], diff = %s", diff)
 			}
+		})
+	}
+}
+
+func TestFilterMatchTags(t *testing.T) {
+	t.Parallel()
+
+	type testcase struct {
+		filters []string
+		target  []string // target tags
+		want    bool
+	}
+
+	for _, tc := range []testcase{
+		{
+			target: []string{"a", "b"},
+			filters: []string{
+				"a",
+			},
+			want: true,
+		},
+		{
+			target: []string{"a", "b"},
+			filters: []string{
+				"~a",
+			},
+			want: false,
+		},
+		{
+			target: []string{"a", "b"},
+			filters: []string{
+				"~a,b",
+			},
+			want: true,
+		},
+		{
+			target: []string{"a", "b"},
+			filters: []string{
+				"a,~b",
+			},
+			want: true,
+		},
+		{
+			target: []string{"a", "b"},
+			filters: []string{
+				"~a,~b",
+			},
+			want: false,
+		},
+		{
+			target: []string{"a", "b"},
+			filters: []string{
+				"~c",
+			},
+			want: true,
+		},
+		{
+			target: []string{"a", "b"},
+			filters: []string{
+				"~c",
+			},
+			want: true,
+		},
+		{
+			target: []string{"a", "b"},
+			filters: []string{
+				"~c:~a",
+			},
+			want: false,
+		},
+		{
+			target: []string{"a", "b"},
+			filters: []string{
+				"a:b:~a",
+			},
+			want: false,
+		},
+	} {
+		name := fmt.Sprintf("test if filters:%v match:%v", tc.filters, tc.target)
+		t.Run(name, func(t *testing.T) {
+			clauses, _, err := ParseTagClauses(tc.filters...)
+			assert.NoError(t, err) // only valid clauses tested here
+			res := MatchTags(clauses, tc.target)
+			assert.IsTrue(t, res == tc.want,
+				"filter %v doesnt match tags %v", tc.filters, tc.target)
 		})
 	}
 }

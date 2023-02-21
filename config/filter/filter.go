@@ -37,15 +37,25 @@ type TagClause struct {
 
 const (
 	// EQ is the equal operation.
-	EQ Operation = iota
+	EQ Operation = iota + 1
+	// NEQ is the not-equal operation.
+	NEQ
 	// AND is the and operation.
 	AND
 	// OR is the or operation.
 	OR
 )
 
-const andSymbol = ":"
-const orSymbol = ","
+const (
+	andSymbol = ":"
+	orSymbol  = ","
+	neqSymbol = '~'
+)
+
+// IsEmpty tells if clause is empty
+func (t TagClause) IsEmpty() bool {
+	return t.Op == 0
+}
 
 // MatchTagsFrom tells if the filters match the provided tags list.
 func MatchTagsFrom(filters []string, tags []string) (bool, error) {
@@ -65,6 +75,8 @@ func MatchTags(filter TagClause, tags []string) bool {
 	switch filter.Op {
 	case EQ:
 		return index[filter.Tag]
+	case NEQ:
+		return !index[filter.Tag]
 	case OR:
 		for _, clause := range filter.Children {
 			if MatchTags(clause, tags) {
@@ -118,19 +130,28 @@ func ParseTagClauses(filters ...string) (TagClause, bool, error) {
 	}, true, nil
 }
 
-// parseTagClause parses the tag-filter (simplified) syntax defined below:
+// parseTagClause parses the internal tag-filter (simplified) syntax defined
+// below:
 //
-//	EXPR    = TAGNAME [ OP EXPR]
+//	EXPR    = [ UNOP ] TAGNAME [ OP EXPR]
 //	TAGNAME = <string>
-//	OP      = ":" | ","
+//	BINOP   = ":" | ","
+//	UNOP    = "~"
 //
 // Semantically, the `:` operation has precedence over `,`.
 // Examples:
 //
-//	a:b,c 		-> (A&&B)||c
-//	a,b:c,d	-> A||(B&&C)||d
+//	a:b,c 		-> (a&&b)||c
+//	a,b:c,d	    -> a||(b&&c)||d
 //
-// The full spec is defined at the link below:
+// Inequality examples:
+//
+//	~a          -> !a
+//	a,~b        -> a||!b
+//	~a:~b       -> !a&&!b
+//
+// This syntax is only used internally by Terramate.
+// For the public syntax, see the spec at the link below:
 // https://github.com/mineiros-io/terramate/blob/main/docs/tag-filter.md#filter-grammar
 func parseTagClause(filter string) (TagClause, error) {
 	rootNode := TagClause{
@@ -140,13 +161,19 @@ func parseTagClause(filter string) (TagClause, error) {
 	for _, orNode := range orBranches {
 		andNodes := strings.Split(orNode, andSymbol)
 		if len(andNodes) == 1 {
+			op := EQ
 			tagname := andNodes[0]
+			if tagname[0] == neqSymbol {
+				tagname = tagname[1:]
+				op = NEQ
+			}
 			err := tag.Validate(tagname)
 			if err != nil {
 				return TagClause{}, err
 			}
+
 			rootNode.Children = append(rootNode.Children, TagClause{
-				Op:  EQ,
+				Op:  op,
 				Tag: tagname,
 			})
 		} else {

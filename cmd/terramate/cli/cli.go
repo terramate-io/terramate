@@ -94,6 +94,7 @@ type cliSpec struct {
 	GitChangeBase  string   `short:"B" optional:"true" help:"Git base ref for computing changes"`
 	Changed        bool     `short:"c" optional:"true" help:"Filter by changed infrastructure"`
 	Tags           []string `optional:"true" sep:"none" help:"Filter stacks by tags. Use \":\" for logical AND and \",\" for logical OR. Example: --tags app:prod filters stacks containing tag \"app\" AND \"prod\". If multiple --tags are provided, an OR expression is created. Example: \"--tags A --tags B\" is the same as \"--tags A,B\""`
+	NoTags         []string `optional:"true" sep:"," help:"Filter stacks that do not have the given tags"`
 	LogLevel       string   `optional:"true" default:"warn" enum:"disabled,trace,debug,info,warn,error,fatal" help:"Log level to use: 'disabled', 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
 	LogFmt         string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'"`
 	LogDestination string   `optional:"true" default:"stderr" enum:"stderr,stdout" help:"Destination of log messages"`
@@ -230,6 +231,8 @@ type cli struct {
 	output     out.O
 	exit       bool
 	prj        project
+
+	tags filter.TagClause
 }
 
 func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
@@ -391,6 +394,7 @@ func (c *cli) run() {
 		Logger()
 
 	c.checkVersion()
+	c.setupFilterTags()
 
 	logger.Debug().Msg("Handle command.")
 
@@ -1663,11 +1667,7 @@ func (c *cli) filterStacksByTags(entries []terramate.Entry) []terramate.Entry {
 	}
 	filtered := []terramate.Entry{}
 	for _, entry := range entries {
-		matched, err := filter.MatchTagsFrom(c.parsedArgs.Tags, entry.Stack.Tags)
-		if err != nil {
-			fatal(err)
-		}
-		if matched {
+		if filter.MatchTags(c.tags, entry.Stack.Tags) {
 			filtered = append(filtered, entry)
 		}
 	}
@@ -1695,6 +1695,38 @@ func (c cli) checkVersion() {
 
 	if err := terramate.CheckVersion(rootcfg.Terramate.RequiredVersion); err != nil {
 		fatal(err)
+	}
+}
+
+func (c *cli) setupFilterTags() {
+	clauses, found, err := filter.ParseTagClauses(c.parsedArgs.Tags...)
+	if err != nil {
+		fatal(err)
+	}
+	if found {
+		c.tags = clauses
+	}
+	clauses, found, err = filter.ParseTagClauses(c.parsedArgs.NoTags...)
+	if err != nil {
+		fatal(err)
+	}
+	if !found {
+		return
+	}
+
+	if c.tags.IsEmpty() {
+		c.tags = clauses
+		return
+	}
+
+	switch c.tags.Op {
+	case filter.AND:
+		c.tags.Children = append(c.tags.Children, clauses)
+	default:
+		c.tags = filter.TagClause{
+			Op:       filter.AND,
+			Children: []filter.TagClause{c.tags, clauses},
+		}
 	}
 }
 
