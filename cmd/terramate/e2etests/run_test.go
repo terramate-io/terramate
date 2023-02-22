@@ -44,12 +44,11 @@ func TestCLIRunOrder(t *testing.T) {
 	t.Parallel()
 
 	type testcase struct {
-		name         string
-		layout       []string
-		filterTags   []string
-		filterNoTags []string
-		workingDir   string
-		want         runExpected
+		name       string
+		layout     []string
+		filterTags []string
+		workingDir string
+		want       runExpected
 	}
 
 	for _, tc := range []testcase{
