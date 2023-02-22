@@ -33,22 +33,24 @@ import (
 )
 
 type selectionTestcase struct {
-	name       string
-	layout     []string
-	wd         string
-	filterTags []string
-	want       runExpected
+	name         string
+	layout       []string
+	wd           string
+	filterTags   []string
+	filterNoTags []string
+	want         runExpected
 }
 
 func TestCLIRunOrder(t *testing.T) {
 	t.Parallel()
 
 	type testcase struct {
-		name       string
-		layout     []string
-		filterTags []string
-		workingDir string
-		want       runExpected
+		name         string
+		layout       []string
+		filterTags   []string
+		filterNoTags []string
+		workingDir   string
+		want         runExpected
 	}
 
 	for _, tc := range []testcase{
@@ -734,6 +736,19 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
+			name: "stack-b after stack-a but filtered by not having tag:dev",
+			layout: []string{
+				`s:stack-a:tags=["dev"]`,
+				`s:stack-b:tags=["prod"];after=["/stack-a"]`,
+			},
+			filterNoTags: []string{"dev"},
+			want: runExpected{
+				Stdout: listStacks(
+					"/stack-b",
+				),
+			},
+		},
+		{
 			name: "stack before unknown tag - ignored",
 			layout: []string{
 				`s:stack1`,
@@ -820,6 +835,9 @@ func TestCLIRunOrder(t *testing.T) {
 				var filterArgs []string
 				for _, filter := range tc.filterTags {
 					filterArgs = append(filterArgs, "--tags", filter)
+				}
+				for _, filter := range tc.filterNoTags {
+					filterArgs = append(filterArgs, "--no-tags", filter)
 				}
 
 				cli := newCLI(t, wd)
@@ -1067,6 +1085,27 @@ func TestRunWants(t *testing.T) {
 			},
 			wd:         "/stack-a",
 			filterTags: []string{"k8s"},
+			want: runExpected{
+				Stdout: listStacks(
+					"/stack-a",
+					"/stack-b",
+					"/stack-c",
+					"/stack-d",
+					"/stack-e",
+				),
+			},
+		},
+		{
+			name: `wants/wantedBy are not filtered by --no-tags`,
+			layout: []string{
+				`s:stack-a:tags=["k8s"];wants=["/stack-b", "/stack-c"]`,
+				`s:stack-b:tags=["k8s"];wants=["/stack-d", "/stack-e"]`,
+				`s:stack-c:tags=["infra", "k8s"]`,
+				`s:stack-d:tags=["infra"]`,
+				`s:stack-e:tags=["infra"]`,
+			},
+			wd:           "/stack-a",
+			filterNoTags: []string{"infra"},
 			want: runExpected{
 				Stdout: listStacks(
 					"/stack-a",
