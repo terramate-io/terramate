@@ -1299,6 +1299,23 @@ func TestRunWantedBy(t *testing.T) {
 			},
 		},
 		{
+			name: "selected wantedBy stacks not filtered by --no-tags",
+			layout: []string{
+				`s:stack:tags=["dev"];wanted_by=["/all"]`,
+				`s:all/test/1:tags=["prod"]`,
+				`s:all/test2/2:tags=["dev"]`,
+				`s:all/something/3:tags=["dev"]`,
+			},
+			wd:           "/all/test/1",
+			filterNoTags: []string{"dev"},
+			want: runExpected{
+				Stdout: listStacks(
+					"/all/test/1",
+					"/stack",
+				),
+			},
+		},
+		{
 			name: "wantedBy computed after stack filtering",
 			layout: []string{
 				`s:stack:tags=["prod"];wanted_by=["/other-stack"]`,
