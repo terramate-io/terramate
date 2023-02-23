@@ -107,6 +107,20 @@ func tomap(tags []string) map[string]bool {
 // ParseTagClauses parses the list of filters provided into a [TagClause] matcher.
 // It returns a boolean telling if the clauses are not empty.
 func ParseTagClauses(filters ...string) (TagClause, bool, error) {
+	for _, filter := range filters {
+		for _, orClause := range strings.Split(filter, ",") {
+			for _, andClause := range strings.Split(orClause, ":") {
+				err := tag.Validate(andClause)
+				if err != nil {
+					return TagClause{}, false, err
+				}
+			}
+		}
+	}
+	return parseInternalTagClauses(filters...)
+}
+
+func parseInternalTagClauses(filters ...string) (TagClause, bool, error) {
 	var clauses []TagClause
 	for _, filter := range filters {
 		if filter != "" {

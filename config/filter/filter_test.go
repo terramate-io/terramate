@@ -424,7 +424,7 @@ func TestFilterParserTags(t *testing.T) {
 		},
 	} {
 		t.Run(fmt.Sprintf("filters:%v", tc.filters), func(t *testing.T) {
-			got, hasClauses, err := ParseTagClauses(tc.filters...)
+			got, hasClauses, err := parseInternalTagClauses(tc.filters...)
 			errtest.Assert(t, err, tc.err)
 			if !hasClauses != tc.noClauses {
 				t.Fatalf("filter emptiness mismatch: %t != %t", !hasClauses, tc.noClauses)
@@ -512,7 +512,7 @@ func TestFilterMatchTags(t *testing.T) {
 	} {
 		name := fmt.Sprintf("test if filters:%v match:%v", tc.filters, tc.target)
 		t.Run(name, func(t *testing.T) {
-			clauses, _, err := ParseTagClauses(tc.filters...)
+			clauses, _, err := parseInternalTagClauses(tc.filters...)
 			assert.NoError(t, err) // only valid clauses tested here
 			res := MatchTags(clauses, tc.target)
 			assert.IsTrue(t, res == tc.want,

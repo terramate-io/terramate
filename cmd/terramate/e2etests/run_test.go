@@ -1328,6 +1328,18 @@ func TestRunWantedBy(t *testing.T) {
 			},
 		},
 		{
+			name: "wantedBy computed after stack filtering by --no-tags",
+			layout: []string{
+				`s:stack:tags=["prod"];wanted_by=["/other-stack"]`,
+				`s:other-stack:tags=["abc"]`,
+			},
+			wd:           "/other-stack",
+			filterNoTags: []string{"abc"},
+			want: runExpected{
+				Stdout: "",
+			},
+		},
+		{
 			name: "wantedBy computed after -C and tag filtering",
 			layout: []string{
 				`s:stacks/stack-a:tags=["dev"];wanted_by=["/other-stack"]`,
@@ -1353,6 +1365,19 @@ func TestRunWantedBy(t *testing.T) {
 				StderrRegex: "filter is not allowed",
 			},
 		},
+		{
+			name: "is not permitted to use internal filter syntax",
+			layout: []string{
+				`s:stack-a:tags=["prod"]`,
+			},
+			filterTags: []string{
+				"~dev",
+			},
+			want: runExpected{
+				Status:      1,
+				StderrRegex: string(tag.ErrInvalidTag),
+			},
+		},
 	} {
 		testRunSelection(t, tc)
 	}
@@ -1373,6 +1398,9 @@ func testRunSelection(t *testing.T, tc selectionTestcase) {
 			var baseArgs []string
 			for _, filter := range tc.filterTags {
 				baseArgs = append(baseArgs, "--tags", filter)
+			}
+			for _, filter := range tc.filterNoTags {
+				baseArgs = append(baseArgs, "--no-tags", filter)
 			}
 
 			cli := newCLI(t, filepath.Join(s.RootDir(), tc.wd))
