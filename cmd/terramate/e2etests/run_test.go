@@ -749,6 +749,20 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
+			name: "combining --tags and --no-tags",
+			layout: []string{
+				`s:stack-a:tags=["a", "b", "c"]`,
+				`s:stack-b:tags=["a", "b"]`,
+			},
+			filterTags:   []string{"a", "b"},
+			filterNoTags: []string{"c"},
+			want: runExpected{
+				Stdout: listStacks(
+					"/stack-b",
+				),
+			},
+		},
+		{
 			name: "stack before unknown tag - ignored",
 			layout: []string{
 				`s:stack1`,
