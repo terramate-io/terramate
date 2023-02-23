@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/madlambda/spells/assert"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/stack"
@@ -200,18 +201,29 @@ generate_hcl "test2.hcl" {
 		t.Fatalf("cloned stack has no stack block: %v", cfg)
 	}
 
-	if cfg.Stack.ID == "" {
+	if cfg.Stack.ID == nil {
 		t.Fatalf("cloned stack has no ID: %v", cfg.Stack)
 	}
 
-	if cfg.Stack.ID == stackID {
-		t.Fatalf("want cloned stack to have different ID, got %s == %s", cfg.Stack.ID, stackID)
+	evalStr := func(expr hcl.Expression) string {
+		val, diags := expr.Value(nil)
+		if diags.HasErrors() {
+			t.Fatalf(diags.Error())
+		}
+		return val.AsString()
 	}
 
-	assert.EqualStrings(t, stackName, cfg.Stack.Name)
-	assert.EqualStrings(t, stackDesc, cfg.Stack.Description)
+	gotID := evalStr(cfg.Stack.ID.Expr)
+	if gotID == stackID {
+		t.Fatalf("want cloned stack to have different ID, got %s == %s", gotID, stackID)
+	}
 
-	want := fmt.Sprintf(stackCfgTemplate, cfg.Stack.ID, stackName, stackDesc)
+	gotName := evalStr(cfg.Stack.Name.Expr)
+	gotDesc := evalStr(cfg.Stack.Description.Expr)
+	assert.EqualStrings(t, stackName, gotName)
+	assert.EqualStrings(t, stackDesc, gotDesc)
+
+	want := fmt.Sprintf(stackCfgTemplate, gotID, stackName, stackDesc)
 
 	clonedStackEntry := s.DirEntry("cloned-stack")
 	got := string(clonedStackEntry.ReadFile(stackCfgFilename))

@@ -1,4 +1,4 @@
-// Copyright 2021 Mineiros GmbH
+// Copyright 2023 Mineiros GmbH
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package hcl
+package config
 
 import (
 	"fmt"
 	"io"
 
 	"github.com/hashicorp/hcl/v2/hclwrite"
+	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -50,7 +51,6 @@ func PrintImports(w io.Writer, imports []string) error {
 func PrintConfig(w io.Writer, cfg Config) error {
 	logger := log.With().
 		Str("action", "PrintConfig()").
-		Str("stack", cfg.Stack.Name).
 		Logger()
 
 	logger.Trace().Msg("Create empty hcl file")
@@ -64,7 +64,7 @@ func PrintConfig(w io.Writer, cfg Config) error {
 		tm := cfg.Terramate
 		tmBlock := rootBody.AppendNewBlock("terramate", nil)
 		tmBody := tmBlock.Body()
-		tmBody.SetAttributeValue("required_version", cty.StringVal(tm.RequiredVersion))
+		tmBody.SetAttributeValue("required_version", cty.SetVal(listToValue(tm.RequiredVersion)))
 	}
 
 	if cfg.Terramate != nil && cfg.Stack != nil {
@@ -120,11 +120,10 @@ func PrintConfig(w io.Writer, cfg Config) error {
 	return err
 }
 
-func listToValue(list []string) []cty.Value {
+func listToValue[T string | project.Path](list []T) []cty.Value {
 	vlist := make([]cty.Value, len(list))
 	for i, val := range list {
-		vlist[i] = cty.StringVal(val)
+		vlist[i] = cty.StringVal(fmt.Sprintf("%s", val))
 	}
-
 	return vlist
 }

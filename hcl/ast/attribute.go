@@ -29,12 +29,12 @@ type Attribute struct {
 }
 
 // Attributes represents multiple parsed attributes.
-type Attributes map[string]Attribute
+type Attributes map[string]*Attribute
 
 // NewAttribute creates a new attribute given a parsed attribute and the rootdir
 // of the project.
-func NewAttribute(rootdir string, val *hhcl.Attribute) Attribute {
-	return Attribute{
+func NewAttribute(rootdir string, val *hhcl.Attribute) *Attribute {
+	return &Attribute{
 		Range:     info.NewRange(rootdir, val.Range),
 		Attribute: val,
 	}
@@ -69,7 +69,7 @@ func AsHCLAttributes(syntaxAttrs hclsyntax.Attributes) hhcl.Attributes {
 }
 
 // AttributeSlice is an sortable Attribute slice.
-type AttributeSlice []Attribute
+type AttributeSlice []*Attribute
 
 // Len returns the size of the attributes slice.
 func (a AttributeSlice) Len() int {

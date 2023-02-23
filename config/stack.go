@@ -24,6 +24,7 @@ import (
 	"github.com/mineiros-io/terramate/config/tag"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
+	"github.com/mineiros-io/terramate/hcl/eval"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
@@ -96,26 +97,45 @@ const (
 )
 
 // NewStackFromHCL creates a new stack from raw configuration cfg.
-func NewStackFromHCL(root string, cfg hcl.Config) (*Stack, error) {
-	name := cfg.Stack.Name
-	if name == "" {
-		name = filepath.Base(cfg.AbsDir())
+func NewStackFromHCL(ctx *eval.Context, root string, cfgdir string, cfg hcl.Stack) (*Stack, error) {
+	errs := errors.L()
+	name, err := ctx.EvalString(cfg.Name, cfgdir)
+	errs.Append(err)
+	id, err := ctx.EvalString(cfg.ID, "")
+	errs.Append(err)
+	desc, err := ctx.EvalString(cfg.Description, "")
+	errs.Append(err)
+	tags, err := ctx.EvalSetOfString(cfg.Tags, []string{})
+	errs.Append(err)
+	after, err := ctx.EvalSetOfString(cfg.After, []string{})
+	errs.Append(err)
+	before, err := ctx.EvalSetOfString(cfg.Before, []string{})
+	errs.Append(err)
+	wants, err := ctx.EvalSetOfString(cfg.Wants, []string{})
+	errs.Append(err)
+	wantedBy, err := ctx.EvalSetOfString(cfg.WantedBy, []string{})
+	errs.Append(err)
+	watch, err := ctx.EvalSetOfString(cfg.Watch, []string{})
+	errs.Append(err)
+
+	if err := errs.AsError(); err != nil {
+		return nil, err
 	}
 
-	watchFiles, err := validateWatchPaths(root, cfg.AbsDir(), cfg.Stack.Watch)
+	watchFiles, err := validateWatchPaths(root, cfgdir, watch)
 	if err != nil {
 		return nil, errors.E(err, ErrStackInvalidWatch)
 	}
 
 	stack := &Stack{
 		Name:        name,
-		ID:          cfg.Stack.ID,
-		Description: cfg.Stack.Description,
-		Tags:        cfg.Stack.Tags,
-		After:       cfg.Stack.After,
-		Before:      cfg.Stack.Before,
-		Wants:       cfg.Stack.Wants,
-		WantedBy:    cfg.Stack.WantedBy,
+		ID:          id,
+		Description: desc,
+		Tags:        tags,
+		After:       after,
+		Before:      before,
+		Wants:       wants,
+		WantedBy:    wantedBy,
 		Watch:       watchFiles,
 		Dir:         project.PrjAbsPath(root, cfg.AbsDir()),
 	}
@@ -270,9 +290,18 @@ func (s *Stack) Sortable() *SortableStack {
 	}
 }
 
-func validateWatchPaths(rootdir string, stackpath string, paths []string) (project.Paths, error) {
+func validateWatchPaths(rootdir string, stackpath string, paths cty.Value) (project.Paths, error) {
 	var projectPaths project.Paths
-	for _, pathstr := range paths {
+	iterator := paths.ElementIterator()
+	for iterator.Next() {
+		_, pathVal := iterator.Element()
+		if !pathVal.Type().Equals(cty.String) {
+			return nil, errors.E(
+				"stack.watch expects a list(string) but %s element found",
+				pathVal.Type().FriendlyName(),
+			)
+		}
+		pathstr := pathVal.AsString()
 		var abspath string
 		if path.IsAbs(pathstr) {
 			abspath = filepath.Join(rootdir, filepath.FromSlash(pathstr))

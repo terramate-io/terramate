@@ -16,6 +16,7 @@ package eval
 
 import (
 	"github.com/mineiros-io/terramate/errors"
+	"github.com/mineiros-io/terramate/hcl/ast"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 
@@ -24,6 +25,11 @@ import (
 
 // ErrEval indicates a failure during the evaluation process
 const ErrEval errors.Kind = "eval expression"
+
+const (
+	ErrInvalidType  errors.Kind = "invalid expression type"
+	ErrIsNotSetType errors.Kind = "expression is not a set type"
+)
 
 // Context is used to evaluate HCL code.
 type Context struct {
@@ -109,6 +115,62 @@ func (c *Context) Copy() *Context {
 // Unwrap returns the internal hhcl.EvalContext.
 func (c *Context) Unwrap() *hhcl.EvalContext {
 	return c.hclctx
+}
+
+func (c *Context) EvalCheck(attr *ast.Attribute, typ cty.Type, def cty.Value) (cty.Value, error) {
+	if attr == nil {
+		return def, nil
+	}
+	val, err := c.Eval(attr.Expr)
+	if err != nil {
+		return cty.NilVal, err
+	}
+	if !val.Type().Equals(typ) {
+		return cty.NilVal, errors.E(
+			ErrInvalidType, attr.Range, "got type %s but expected %s",
+			val.Type().FriendlyName(),
+			typ.FriendlyName(),
+		)
+	}
+	return val, nil
+}
+
+func (c *Context) EvalString(attr *ast.Attribute, def string) (string, error) {
+	val, err := c.EvalCheck(attr, cty.String, cty.StringVal(def))
+	if err != nil {
+		return "", err
+	}
+	return val.AsString(), nil
+}
+
+func (c *Context) EvalSetOfString(attr *ast.Attribute, def []string) ([]string, error) {
+	defval := make([]cty.Value, len(def))
+	for i, defstr := range def {
+		defval[i] = cty.StringVal(defstr)
+	}
+	list, err := c.EvalCheck(attr, cty.List(cty.String), cty.ListVal(defval))
+	if err != nil {
+		return nil, err
+	}
+
+	elemMap := map[string]struct{}{}
+	elems := make([]string, list.LengthInt())
+
+	iterator := list.ElementIterator()
+	for iterator.Next() {
+		index, elem := iterator.Element()
+		elemstr := elem.AsString()
+		if _, ok := elemMap[elemstr]; ok {
+			return nil, errors.E(
+				ErrIsNotSetType,
+				"expected a string(set) but found element %s repeated",
+				elemstr,
+			)
+		}
+		i, _ := index.AsBigFloat().Uint64()
+		elems[i] = elemstr
+	}
+	return elems, nil
 }
 
 // NewContextFrom creates a new evaluator from the hashicorp EvalContext.

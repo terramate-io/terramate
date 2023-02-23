@@ -81,7 +81,7 @@ type AssertConfig struct {
 // RunConfig represents Terramate run configuration.
 type RunConfig struct {
 	// CheckGenCode enables generated code is up-to-date check on run.
-	CheckGenCode bool
+	CheckGenCode *ast.Attribute
 
 	// Env contains environment definitions for run.
 	Env *RunEnv
@@ -96,22 +96,22 @@ type RunEnv struct {
 // GitConfig represents Terramate Git configuration.
 type GitConfig struct {
 	// DefaultBranchBaseRef is the baseRef when in default branch.
-	DefaultBranchBaseRef string
+	DefaultBranchBaseRef *ast.Attribute
 
 	// DefaultBranch is the default branch.
-	DefaultBranch string
+	DefaultBranch *ast.Attribute
 
 	// DefaultRemote is the default remote.
-	DefaultRemote string
+	DefaultRemote *ast.Attribute
 
 	// CheckUntracked enables untracked files checking.
-	CheckUntracked bool
+	CheckUntracked *ast.Attribute
 
 	// CheckUncommitted enables uncommitted files checking.
-	CheckUncommitted bool
+	CheckUncommitted *ast.Attribute
 
 	// CheckRemote enables checking if local default branch is updated with remote.
-	CheckRemote bool
+	CheckRemote *ast.Attribute
 }
 
 // RootConfig represents the root config block of a Terramate configuration.
@@ -123,10 +123,10 @@ type RootConfig struct {
 // ManifestDesc represents a parsed manifest description.
 type ManifestDesc struct {
 	// Files is a list of patterns that specify which files the manifest wants to include.
-	Files []string
+	Files *ast.Attribute
 
 	// Excludes is a list of patterns that specify which files the manifest wants to exclude.
-	Excludes []string
+	Excludes *ast.Attribute
 }
 
 // ManifestConfig represents the manifest config block of a Terramate configuration.
@@ -146,7 +146,7 @@ type VendorConfig struct {
 // Terramate is the parsed "terramate" HCL block.
 type Terramate struct {
 	// RequiredVersion contains the terramate version required by the stack.
-	RequiredVersion string
+	RequiredVersion ast.Attributes
 
 	// Config is the parsed config blocks.
 	Config *RootConfig
@@ -155,35 +155,35 @@ type Terramate struct {
 // Stack is the parsed "stack" HCL block.
 type Stack struct {
 	// ID of the stack. If the ID is empty it indicates this stack has no ID.
-	ID string
+	ID *ast.Attribute
 
 	// Name of the stack
-	Name string
+	Name *ast.Attribute
 
 	// Description of the stack
-	Description string
+	Description *ast.Attribute
 
 	// Tags is a list of non-duplicated list of tags
-	Tags []string
+	Tags *ast.Attribute
 
 	// After is a list of non-duplicated stack entries that must run before the
 	// current stack runs.
-	After []string
+	After *ast.Attribute
 
 	// Before is a list of non-duplicated stack entries that must run after the
 	// current stack runs.
-	Before []string
+	Before *ast.Attribute
 
 	// Wants is a list of non-duplicated stack entries that must be selected
 	// whenever the current stack is selected.
-	Wants []string
+	Wants *ast.Attribute
 
 	// WantedBy is a list of non-duplicated stack entries that must select
 	// this stack whenever they are selected.
-	WantedBy []string
+	WantedBy *ast.Attribute
 
 	// Watch is a list of files to be watched for changes.
-	Watch []string
+	Watch *ast.Attribute
 }
 
 // GenHCLBlock represents a parsed generate_hcl block.
@@ -625,79 +625,29 @@ func (p *TerramateParser) parseStack(stackblock *ast.Block) (*Stack, error) {
 	logger.Debug().Msg("Get stack attributes.")
 	attrs := ast.AsHCLAttributes(stackblock.Body.Attributes)
 	for _, attr := range ast.SortRawAttributes(attrs) {
-		logger.Trace().Msg("Get attribute value.")
-
-		attrVal, err := p.evalctx.Eval(attr.Expr)
-		if err != nil {
-			errs.Append(
-				errors.E(err, "failed to evaluate %q attribute", attr.Name),
-			)
-			continue
-		}
-
 		logger.Trace().
 			Str("attribute", attr.Name).
 			Msg("Setting attribute on configuration.")
 
 		switch attr.Name {
 		case "id":
-			if attrVal.Type() != cty.String {
-				errs.Append(hclAttrErr(attr,
-					"field stack.id must be a string but is %q",
-					attrVal.Type().FriendlyName()),
-				)
-				continue
-			}
-			stack.ID = attrVal.AsString()
+			stack.ID = ast.NewAttribute(p.rootdir, attr)
 		case "name":
-			if attrVal.Type() != cty.String {
-				errs.Append(hclAttrErr(attr,
-					"field stack.name must be a string but given %q",
-					attrVal.Type().FriendlyName()),
-				)
-				continue
-			}
-			stack.Name = attrVal.AsString()
-
+			stack.Name = ast.NewAttribute(p.rootdir, attr)
 		case "description":
-			logger.Trace().Msg("parsing stack description.")
-			if attrVal.Type() != cty.String {
-				errs.Append(hclAttrErr(attr,
-					"field stack.\"description\" must be a \"string\" but given %q",
-					attrVal.Type().FriendlyName(),
-				))
-
-				continue
-			}
-			stack.Description = attrVal.AsString()
-
-			// The `tags`, `after`, `before`, `wants`, `wanted_by` and `watch`
-			// have all the same parsing rules.
-			// By the spec, they must be a `set(string)`.
-
-			// In order to speed up the tests, only the `after` attribute is
-			// extensively tested for all error cases.
-			// **So have this in mind if the specification of any of the attributes
-			// below change in the future**.
-
+			stack.Description = ast.NewAttribute(p.rootdir, attr)
 		case "tags":
-			errs.Append(assignSet(attr.Name, &stack.Tags, attrVal))
-
+			stack.Tags = ast.NewAttribute(p.rootdir, attr)
 		case "after":
-			errs.Append(assignSet(attr.Name, &stack.After, attrVal))
-
+			stack.After = ast.NewAttribute(p.rootdir, attr)
 		case "before":
-			errs.Append(assignSet(attr.Name, &stack.Before, attrVal))
-
+			stack.Before = ast.NewAttribute(p.rootdir, attr)
 		case "wants":
-			errs.Append(assignSet(attr.Name, &stack.Wants, attrVal))
-
+			stack.Wants = ast.NewAttribute(p.rootdir, attr)
 		case "wanted_by":
-			errs.Append(assignSet(attr.Name, &stack.WantedBy, attrVal))
-
+			stack.WantedBy = ast.NewAttribute(p.rootdir, attr)
 		case "watch":
-			errs.Append(assignSet(attr.Name, &stack.Watch, attrVal))
-
+			stack.Watch = ast.NewAttribute(p.rootdir, attr)
 		default:
 			errs.Append(errors.E(
 				attr.NameRange, "unrecognized attribute stack.%q", attr.Name,
@@ -1900,6 +1850,6 @@ func hclAttrErr(attr *hcl.Attribute, msg string, args ...interface{}) error {
 	return errors.E(ErrTerramateSchema, attr.Expr.Range(), fmt.Sprintf(msg, args...))
 }
 
-func attrErr(attr ast.Attribute, msg string, args ...interface{}) error {
+func attrErr(attr *ast.Attribute, msg string, args ...interface{}) error {
 	return errors.E(ErrTerramateSchema, attr.Expr.Range(), fmt.Sprintf(msg, args...))
 }

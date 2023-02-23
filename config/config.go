@@ -55,8 +55,11 @@ type Root struct {
 // The tree maps the filesystem directories, which means each directory in the
 // project has a tree instance even if it's empty (ie no .tm files in it).
 type Tree struct {
-	// Node is the configuration of this tree node.
-	Node hcl.Config
+	// Node is the raw configuration of this tree node.
+	Node struct {
+		Raw    hcl.Config
+		Config Config
+	}
 
 	// Children is a map of configuration dir names to tree nodes.
 	Children map[string]*Tree
@@ -65,6 +68,15 @@ type Tree struct {
 	Parent *Tree
 
 	dir string
+}
+
+type Terramate struct {
+	RequiredVersion []string
+}
+
+type Config struct {
+	Terramate *Terramate
+	Stack     *Stack
 }
 
 // DirElem represents a node which is represented by a directory.
@@ -199,7 +211,7 @@ func (root *Root) StacksByTagsFilters(filters []string) (project.Paths, error) {
 		if !hasFilter || !tree.IsStack() {
 			return false
 		}
-		return filter.MatchTags(clauses, tree.Node.Stack.Tags)
+		return filter.MatchTags(clauses, tree.Node.Config.Stack.Tags)
 	}).Paths(), nil
 }
 
@@ -314,7 +326,7 @@ func (tree *Tree) Root() *Root {
 
 // IsStack tells if the node is a stack.
 func (tree *Tree) IsStack() bool {
-	return tree.Node.Stack != nil
+	return tree.Node.Raw.Stack != nil
 }
 
 // Stacks returns the stack nodes from the tree.
@@ -403,14 +415,21 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error)
 
 	tree := NewTree(cfgdir)
 	if rootcfg != nil {
-		tree.Node = *rootcfg
+		tree.Node.Raw = *rootcfg
 	} else {
 		cfg, err := hcl.ParseDir(rootdir, cfgdir)
 		if err != nil {
 			return nil, err
 		}
-		tree.Node = cfg
+		tree.Node.Raw = cfg
 	}
+
+	cfg, err := Validate(tree.Node.Raw)
+	if err != nil {
+		return nil, errors.E(err, "validating config")
+	}
+
+	tree.Node.Config = cfg
 
 	for _, name := range names {
 		logger = logger.With().
@@ -446,13 +465,13 @@ func loadTree(rootdir string, cfgdir string, rootcfg *hcl.Config) (*Tree, error)
 
 // IsEmptyConfig tells if the configuration is empty.
 func (tree *Tree) IsEmptyConfig() bool {
-	return tree.Node.IsEmpty()
+	return tree.Node.Raw.IsEmpty()
 }
 
 // NonEmptyGlobalsParent returns a parent configuration which has globals defined, if any.
 func (tree *Tree) NonEmptyGlobalsParent() *Tree {
 	parent := tree.Parent
-	for parent != nil && !parent.Node.HasGlobals() {
+	for parent != nil && !parent.Node.Raw.HasGlobals() {
 		parent = parent.Parent
 	}
 	return parent
