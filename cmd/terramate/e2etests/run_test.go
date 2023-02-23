@@ -1378,6 +1378,19 @@ func TestRunWantedBy(t *testing.T) {
 				StderrRegex: string(tag.ErrInvalidTag),
 			},
 		},
+		{
+			name: "is not permitted to use internal filter syntax - advanced case",
+			layout: []string{
+				`s:stack-a:tags=["prod"]`,
+			},
+			filterTags: []string{
+				"prod:~experimental",
+			},
+			want: runExpected{
+				Status:      1,
+				StderrRegex: string(tag.ErrInvalidTag),
+			},
+		},
 	} {
 		testRunSelection(t, tc)
 	}
