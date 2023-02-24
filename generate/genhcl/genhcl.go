@@ -478,6 +478,7 @@ func appendDynamicBlock(
 					ErrDynamicAttrsConflict,
 					attr.Range(),
 					"attribute %s already set by tm_dynamic.attributes",
+					attr.Name,
 				)
 			}
 		}
