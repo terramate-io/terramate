@@ -33,22 +33,24 @@ import (
 )
 
 type selectionTestcase struct {
-	name       string
-	layout     []string
-	wd         string
-	filterTags []string
-	want       runExpected
+	name         string
+	layout       []string
+	wd           string
+	filterTags   []string
+	filterNoTags []string
+	want         runExpected
 }
 
 func TestCLIRunOrder(t *testing.T) {
 	t.Parallel()
 
 	type testcase struct {
-		name       string
-		layout     []string
-		filterTags []string
-		workingDir string
-		want       runExpected
+		name         string
+		layout       []string
+		filterTags   []string
+		filterNoTags []string
+		workingDir   string
+		want         runExpected
 	}
 
 	for _, tc := range []testcase{
@@ -734,6 +736,33 @@ func TestCLIRunOrder(t *testing.T) {
 			},
 		},
 		{
+			name: "stack-b after stack-a but filtered by not having tag:dev",
+			layout: []string{
+				`s:stack-a:tags=["dev"]`,
+				`s:stack-b:tags=["prod"];after=["/stack-a"]`,
+			},
+			filterNoTags: []string{"dev"},
+			want: runExpected{
+				Stdout: listStacks(
+					"/stack-b",
+				),
+			},
+		},
+		{
+			name: "combining --tags and --no-tags",
+			layout: []string{
+				`s:stack-a:tags=["a", "b", "c"]`,
+				`s:stack-b:tags=["a", "b"]`,
+			},
+			filterTags:   []string{"a", "b"},
+			filterNoTags: []string{"c"},
+			want: runExpected{
+				Stdout: listStacks(
+					"/stack-b",
+				),
+			},
+		},
+		{
 			name: "stack before unknown tag - ignored",
 			layout: []string{
 				`s:stack1`,
@@ -820,6 +849,9 @@ func TestCLIRunOrder(t *testing.T) {
 				var filterArgs []string
 				for _, filter := range tc.filterTags {
 					filterArgs = append(filterArgs, "--tags", filter)
+				}
+				for _, filter := range tc.filterNoTags {
+					filterArgs = append(filterArgs, "--no-tags", filter)
 				}
 
 				cli := newCLI(t, wd)
@@ -1078,6 +1110,27 @@ func TestRunWants(t *testing.T) {
 			},
 		},
 		{
+			name: `wants/wantedBy are not filtered by --no-tags`,
+			layout: []string{
+				`s:stack-a:tags=["k8s"];wants=["/stack-b", "/stack-c"]`,
+				`s:stack-b:tags=["k8s"];wants=["/stack-d", "/stack-e"]`,
+				`s:stack-c:tags=["infra", "k8s"]`,
+				`s:stack-d:tags=["infra"]`,
+				`s:stack-e:tags=["infra"]`,
+			},
+			wd:           "/stack-a",
+			filterNoTags: []string{"infra"},
+			want: runExpected{
+				Stdout: listStacks(
+					"/stack-a",
+					"/stack-b",
+					"/stack-c",
+					"/stack-d",
+					"/stack-e",
+				),
+			},
+		},
+		{
 			name: "stack-a wants with tag:query - fails",
 			layout: []string{
 				`s:stack-a:wants=["tag:prod"]`,
@@ -1260,6 +1313,23 @@ func TestRunWantedBy(t *testing.T) {
 			},
 		},
 		{
+			name: "selected wantedBy stacks not filtered by --no-tags",
+			layout: []string{
+				`s:stack:tags=["dev"];wanted_by=["/all"]`,
+				`s:all/test/1:tags=["prod"]`,
+				`s:all/test2/2:tags=["dev"]`,
+				`s:all/something/3:tags=["dev"]`,
+			},
+			wd:           "/all/test/1",
+			filterNoTags: []string{"dev"},
+			want: runExpected{
+				Stdout: listStacks(
+					"/all/test/1",
+					"/stack",
+				),
+			},
+		},
+		{
 			name: "wantedBy computed after stack filtering",
 			layout: []string{
 				`s:stack:tags=["prod"];wanted_by=["/other-stack"]`,
@@ -1267,6 +1337,18 @@ func TestRunWantedBy(t *testing.T) {
 			},
 			wd:         "/other-stack",
 			filterTags: []string{"prod"},
+			want: runExpected{
+				Stdout: "",
+			},
+		},
+		{
+			name: "wantedBy computed after stack filtering by --no-tags",
+			layout: []string{
+				`s:stack:tags=["prod"];wanted_by=["/other-stack"]`,
+				`s:other-stack:tags=["abc"]`,
+			},
+			wd:           "/other-stack",
+			filterNoTags: []string{"abc"},
 			want: runExpected{
 				Stdout: "",
 			},
@@ -1297,6 +1379,32 @@ func TestRunWantedBy(t *testing.T) {
 				StderrRegex: "filter is not allowed",
 			},
 		},
+		{
+			name: "is not permitted to use internal filter syntax",
+			layout: []string{
+				`s:stack-a:tags=["prod"]`,
+			},
+			filterTags: []string{
+				"~dev",
+			},
+			want: runExpected{
+				Status:      1,
+				StderrRegex: string(tag.ErrInvalidTag),
+			},
+		},
+		{
+			name: "is not permitted to use internal filter syntax - advanced case",
+			layout: []string{
+				`s:stack-a:tags=["prod"]`,
+			},
+			filterTags: []string{
+				"prod:~experimental",
+			},
+			want: runExpected{
+				Status:      1,
+				StderrRegex: string(tag.ErrInvalidTag),
+			},
+		},
 	} {
 		testRunSelection(t, tc)
 	}
@@ -1317,6 +1425,9 @@ func testRunSelection(t *testing.T, tc selectionTestcase) {
 			var baseArgs []string
 			for _, filter := range tc.filterTags {
 				baseArgs = append(baseArgs, "--tags", filter)
+			}
+			for _, filter := range tc.filterNoTags {
+				baseArgs = append(baseArgs, "--no-tags", filter)
 			}
 
 			cli := newCLI(t, filepath.Join(s.RootDir(), tc.wd))

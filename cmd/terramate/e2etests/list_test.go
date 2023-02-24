@@ -24,10 +24,11 @@ import (
 )
 
 type testcase struct {
-	name       string
-	layout     []string
-	filterTags []string
-	want       runExpected
+	name         string
+	layout       []string
+	filterTags   []string
+	filterNoTags []string
+	want         runExpected
 }
 
 func listTestcases() []testcase {
@@ -160,6 +161,20 @@ func listTestcases() []testcase {
 			filterTags: []string{"abc"},
 			want: runExpected{
 				Stdout: listStacks("a", "b", "dir/c"),
+			},
+		},
+		{
+			name: "multiple stacks filtered by not having abc tag",
+			layout: []string{
+				`s:a:tags=["abc"]`,
+				`s:b:tags=["abc"]`,
+				`s:dir/c:tags=["abc"]`,
+				`s:dir/d`,
+				`s:dir/subdir/e`,
+			},
+			filterNoTags: []string{"abc"},
+			want: runExpected{
+				Stdout: listStacks("dir/d", "dir/subdir/e"),
 			},
 		},
 		{

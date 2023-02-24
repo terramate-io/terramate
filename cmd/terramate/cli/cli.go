@@ -28,6 +28,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mineiros-io/terramate/cmd/terramate/cli/out"
 	"github.com/mineiros-io/terramate/config/filter"
+	"github.com/mineiros-io/terramate/config/tag"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/errors/errlog"
 	"github.com/mineiros-io/terramate/event"
@@ -94,6 +95,7 @@ type cliSpec struct {
 	GitChangeBase  string   `short:"B" optional:"true" help:"Git base ref for computing changes"`
 	Changed        bool     `short:"c" optional:"true" help:"Filter by changed infrastructure"`
 	Tags           []string `optional:"true" sep:"none" help:"Filter stacks by tags. Use \":\" for logical AND and \",\" for logical OR. Example: --tags app:prod filters stacks containing tag \"app\" AND \"prod\". If multiple --tags are provided, an OR expression is created. Example: \"--tags A --tags B\" is the same as \"--tags A,B\""`
+	NoTags         []string `optional:"true" sep:"," help:"Filter stacks that do not have the given tags"`
 	LogLevel       string   `optional:"true" default:"warn" enum:"disabled,trace,debug,info,warn,error,fatal" help:"Log level to use: 'disabled', 'trace', 'debug', 'info', 'warn', 'error', or 'fatal'"`
 	LogFmt         string   `optional:"true" default:"console" enum:"console,text,json" help:"Log format to use: 'console', 'text', or 'json'"`
 	LogDestination string   `optional:"true" default:"stderr" enum:"stderr,stdout" help:"Destination of log messages"`
@@ -230,6 +232,8 @@ type cli struct {
 	output     out.O
 	exit       bool
 	prj        project
+
+	tags filter.TagClause
 }
 
 func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
@@ -391,6 +395,7 @@ func (c *cli) run() {
 		Logger()
 
 	c.checkVersion()
+	c.setupFilterTags()
 
 	logger.Debug().Msg("Handle command.")
 
@@ -1658,16 +1663,12 @@ func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Ent
 }
 
 func (c *cli) filterStacksByTags(entries []terramate.Entry) []terramate.Entry {
-	if len(c.parsedArgs.Tags) == 0 {
+	if c.tags.IsEmpty() {
 		return entries
 	}
 	filtered := []terramate.Entry{}
 	for _, entry := range entries {
-		matched, err := filter.MatchTagsFrom(c.parsedArgs.Tags, entry.Stack.Tags)
-		if err != nil {
-			fatal(err)
-		}
-		if matched {
+		if filter.MatchTags(c.tags, entry.Stack.Tags) {
 			filtered = append(filtered, entry)
 		}
 	}
@@ -1695,6 +1696,60 @@ func (c cli) checkVersion() {
 
 	if err := terramate.CheckVersion(rootcfg.Terramate.RequiredVersion); err != nil {
 		fatal(err)
+	}
+}
+
+func (c *cli) setupFilterTags() {
+	clauses, found, err := filter.ParseTagClauses(c.parsedArgs.Tags...)
+	if err != nil {
+		fatal(err)
+	}
+	if found {
+		c.tags = clauses
+	}
+
+	for _, val := range c.parsedArgs.NoTags {
+		err := tag.Validate(val)
+		if err != nil {
+			fatal(err)
+		}
+	}
+	var noClauses filter.TagClause
+	if len(c.parsedArgs.NoTags) == 0 {
+		return
+	}
+	if len(c.parsedArgs.NoTags) == 1 {
+		noClauses = filter.TagClause{
+			Op:  filter.NEQ,
+			Tag: c.parsedArgs.NoTags[0],
+		}
+	} else {
+		var children []filter.TagClause
+		for _, tagname := range c.parsedArgs.NoTags {
+			children = append(children, filter.TagClause{
+				Op:  filter.NEQ,
+				Tag: tagname,
+			})
+		}
+		noClauses = filter.TagClause{
+			Op:       filter.AND,
+			Children: children,
+		}
+	}
+
+	if c.tags.IsEmpty() {
+		c.tags = noClauses
+		return
+	}
+
+	switch c.tags.Op {
+	case filter.AND:
+		c.tags.Children = append(c.tags.Children, noClauses)
+	default:
+		c.tags = filter.TagClause{
+			Op:       filter.AND,
+			Children: []filter.TagClause{c.tags, noClauses},
+		}
 	}
 }
 
