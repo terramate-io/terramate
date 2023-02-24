@@ -697,6 +697,85 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			},
 		},
 		{
+			name:  "attributes from tm function also must have valid keys",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "globals.tm",
+					add: Globals(
+						Expr("obj", `{
+						  key = "this string is not valid as a object key"
+						}`),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "gen.tm",
+					add: GenerateHCL(
+						Labels("test.tf"),
+						Content(
+							TmDynamic(
+								Labels("test"),
+								Expr("for_each", `["a"]`),
+								Expr("iterator", "iter"),
+								Expr("attributes", `tm_merge(global.obj, {
+								  (global.obj.key) = 666,
+								})`),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(genhcl.ErrContentEval),
+		},
+		{
+			name:  "attributes from tm function can be set as key",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path:     "/stack",
+					filename: "globals.tm",
+					add: Globals(
+						Expr("obj", `{
+						  key = "this_is_a_valid_key"
+						}`),
+					),
+				},
+				{
+					path:     "/stack",
+					filename: "gen.tm",
+					add: GenerateHCL(
+						Labels("test.tf"),
+						Content(
+							TmDynamic(
+								Labels("test"),
+								Expr("for_each", `["a"]`),
+								Expr("iterator", "iter"),
+								Expr("attributes", `tm_merge(global.obj, {
+								  (global.obj.key) = 666,
+								})`),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "test.tf",
+					hcl: genHCL{
+						condition: true,
+						body: Doc(
+							Block("test",
+								Str("key", "this_is_a_valid_key"),
+								Number("this_is_a_valid_key", 666),
+							),
+						),
+					},
+				},
+			},
+		},
+		{
 			name:  "generated blocks have attributes on same order as attributes object",
 			stack: "/stack",
 			configs: []hclconfig{
@@ -1546,7 +1625,7 @@ func TestGenerateHCLDynamic(t *testing.T) {
 			wantErr: errors.E(genhcl.ErrParsing),
 		},
 		{
-			name:  "content block and attributes fails",
+			name:  "content block and attributes is allowed",
 			stack: "/stack",
 			configs: []hclconfig{
 				{
@@ -1566,7 +1645,95 @@ func TestGenerateHCLDynamic(t *testing.T) {
 					),
 				},
 			},
-			wantErr: errors.E(genhcl.ErrParsing),
+			want: []result{
+				{
+					name: "tm_dynamic_test.tf",
+					hcl: genHCL{
+						condition: true,
+						body: Doc(
+							Block("my_block",
+								Number("b", 666),
+								Str("a", "val"),
+							),
+							Block("my_block",
+								Number("b", 666),
+								Str("a", "val"),
+							),
+							Block("my_block",
+								Number("b", 666),
+								Str("a", "val"),
+							),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "attributes key are evaluated",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Expr("attributes", `{ (my_block.value) : 666 }`),
+								Content(
+									Str("d", "val"),
+								),
+							),
+						),
+					),
+				},
+			},
+			want: []result{
+				{
+					name: "tm_dynamic_test.tf",
+					hcl: genHCL{
+						condition: true,
+						body: Doc(
+							Block("my_block",
+								Number("a", 666),
+								Str("d", "val"),
+							),
+							Block("my_block",
+								Number("b", 666),
+								Str("d", "val"),
+							),
+							Block("my_block",
+								Number("c", 666),
+								Str("d", "val"),
+							),
+						),
+					},
+				},
+			},
+		},
+		{
+			name:  "the fields of attributes and attributes of content must not conflict",
+			stack: "/stack",
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: GenerateHCL(
+						Labels("tm_dynamic_test.tf"),
+						Content(
+							TmDynamic(
+								Labels("my_block"),
+								Expr("for_each", `["a", "b", "c"]`),
+								Expr("attributes", `{ a : 666 }`),
+								Content(
+									Str("a", "val"),
+								),
+							),
+						),
+					),
+				},
+			},
+			wantErr: errors.E(genhcl.ErrDynamicAttrsConflict),
 		},
 	}
 
