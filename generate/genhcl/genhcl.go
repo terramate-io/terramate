@@ -85,6 +85,9 @@ const (
 
 	// ErrDynamicConditionEval indicates that the condition of a tm_dynamic cant be evaluated.
 	ErrDynamicConditionEval errors.Kind = "evaluating tm_dynamic.condition"
+
+	// ErrDynamicAttrsConflict indicates fields of tm_dynamic conflicts.
+	ErrDynamicAttrsConflict errors.Kind = "tm_dynamic.attributes and tm_dynamic.content have conflicting fields"
 )
 
 // Label of the original generate_hcl block.
@@ -391,91 +394,117 @@ func appendDynamicBlock(
 
 	newblock := destination.AppendBlock(hclwrite.NewBlock(genBlockType, labels))
 
+	attributeNames := map[string]struct{}{}
+	if attrs.attributes != nil {
+		attrsExpr, err := evaluator.PartialEval(attrs.attributes.Expr)
+		if err != nil {
+			return errors.E(ErrDynamicAttrsEval, err, attrs.attributes.Range())
+		}
+
+		tmAttrs := []tmAttribute{}
+		switch objectExpr := attrsExpr.(type) {
+		case *hclsyntax.LiteralValueExpr:
+			val := objectExpr.Val
+			if val.IsNull() {
+				return errors.E(ErrParsing, objectExpr.Range(), "attributes is null")
+			}
+			if !val.Type().IsObjectType() {
+				return attrErr(attrs.attributes,
+					"tm_dynamic attributes must be an object, got %s instead", val.Type().FriendlyName())
+			}
+			iter := val.ElementIterator()
+			for iter.Next() {
+				key, val := iter.Element()
+				if key.Type() != cty.String {
+					panic("unreachable")
+				}
+				tmAttrs = append(tmAttrs, tmAttribute{
+					name:   key.AsString(),
+					tokens: ast.TokensForValue(val),
+					info:   objectExpr.Range(),
+				})
+			}
+
+		case *hclsyntax.ObjectConsExpr:
+			for _, item := range objectExpr.Items {
+				keyVal, err := evaluator.Eval(item.KeyExpr)
+				if err != nil {
+					return errors.E(ErrDynamicAttrsEval, err,
+						item.KeyExpr.Range(),
+						"evaluating tm_dynamic.attributes key")
+				}
+				if keyVal.Type() != cty.String {
+					return errors.E(ErrParsing, item.KeyExpr.Range(),
+						"tm_dynamic.attributes key %q has type %q, must be a string",
+						keyVal.GoString(),
+						keyVal.Type().FriendlyName())
+				}
+
+				valExpr, err := evaluator.PartialEval(item.ValueExpr)
+				if err != nil {
+					return errors.E(
+						ErrDynamicAttrsEval,
+						item.ValueExpr.Range(),
+						"failed to evaluate attribute value: %s",
+						ast.TokensForExpression(item.ValueExpr),
+					)
+				}
+				tmAttrs = append(tmAttrs, tmAttribute{
+					name:   keyVal.AsString(),
+					tokens: ast.TokensForExpression(valExpr),
+					info:   item.ValueExpr.Range(),
+				})
+			}
+
+		default:
+			return attrErr(attrs.attributes,
+				"tm_dynamic attributes must be an object, got %T instead", attrsExpr)
+		}
+
+		err = setBodyAttributes(newblock.Body(), tmAttrs)
+		if err != nil {
+			return err
+		}
+
+		for _, attr := range tmAttrs {
+			attributeNames[attr.name] = struct{}{}
+		}
+	}
+
 	if contentBlock != nil {
+		for _, attr := range contentBlock.Body.Attributes {
+			if _, ok := attributeNames[attr.Name]; ok {
+				return errors.E(
+					ErrDynamicAttrsConflict,
+					attr.Range(),
+					"attribute %s already set by tm_dynamic.attributes",
+					attr.Name,
+				)
+			}
+		}
 		err := copyBody(newblock.Body(), contentBlock.Body, evaluator)
 		if err != nil {
 			return err
 		}
-
-		return nil
 	}
 
-	attrsExpr, err := evaluator.PartialEval(attrs.attributes.Expr)
-	if err != nil {
-		return errors.E(ErrDynamicAttrsEval, err, attrs.attributes.Range())
-	}
-
-	switch objectExpr := attrsExpr.(type) {
-	case *hclsyntax.LiteralValueExpr:
-		err := setBodyFromLiteralValue(objectExpr, newblock.Body())
-		if err != nil {
-			return err
-		}
-	case *hclsyntax.ObjectConsExpr:
-		err := setBodyFromObjectCons(objectExpr, newblock.Body(), evaluator)
-		if err != nil {
-			return err
-		}
-	default:
-		return attrErr(attrs.attributes,
-			"tm_dynamic attributes must be an object, got %T instead", attrsExpr)
-	}
 	return nil
 }
 
-func setBodyFromLiteralValue(objectExpr *hclsyntax.LiteralValueExpr, newbody *hclwrite.Body) error {
-	if objectExpr.Val.IsNull() {
-		return errors.E(ErrParsing, objectExpr.Range(), "attributes is null")
-	}
-	objIter := objectExpr.Val.ElementIterator()
-	for objIter.Next() {
-		keyVal, valVal := objIter.Element()
-		if keyVal.Type() != cty.String {
-			return errors.E(ErrParsing, objectExpr.Range(),
-				"tm_dynamic.attributes key %q has type %q, must be a string",
-				keyVal.GoString(),
-				keyVal.Type().FriendlyName())
-		}
-
-		// hclwrite lib will accept any arbitrary string as attr name
-		// allowing it to generate invalid HCL code, so here we check if
-		// the attribute is a proper HCL identifier.
-		attrName := keyVal.AsString()
-		if !hclsyntax.ValidIdentifier(attrName) {
-			return errors.E(ErrParsing, objectExpr.Range(),
-				"tm_dynamic.attributes key %q is not a valid HCL identifier",
-				attrName)
-		}
-		newbody.SetAttributeRaw(attrName, ast.TokensForValue(valVal))
-	}
-	return nil
+type tmAttribute struct {
+	name   string
+	tokens hclwrite.Tokens
+	info   hhcl.Range
 }
 
-func setBodyFromObjectCons(objectExpr *hclsyntax.ObjectConsExpr, newbody *hclwrite.Body, evaluator hcl.Evaluator) error {
-	for _, item := range objectExpr.Items {
-		keyVal, err := evaluator.Eval(item.KeyExpr)
-		if err != nil {
-			return errors.E(ErrDynamicAttrsEval, err,
-				item.KeyExpr.Range(),
-				"evaluating tm_dynamic.attributes key")
-		}
-		if keyVal.Type() != cty.String {
-			return errors.E(ErrParsing, item.KeyExpr.Range(),
-				"tm_dynamic.attributes key %q has type %q, must be a string",
-				keyVal.GoString(),
-				keyVal.Type().FriendlyName())
-		}
-
-		// hclwrite lib will accept any arbitrary string as attr name
-		// allowing it to generate invalid HCL code, so here we check if
-		// the attribute is a proper HCL identifier.
-		attrName := keyVal.AsString()
-		if !hclsyntax.ValidIdentifier(attrName) {
-			return errors.E(ErrParsing, item.KeyExpr.Range(),
+func setBodyAttributes(body *hclwrite.Body, attrs []tmAttribute) error {
+	for _, attr := range attrs {
+		if !hclsyntax.ValidIdentifier(attr.name) {
+			return errors.E(ErrParsing, attr.info,
 				"tm_dynamic.attributes key %q is not a valid HCL identifier",
-				attrName)
+				attr.name)
 		}
-		newbody.SetAttributeRaw(attrName, ast.TokensForExpression(item.ValueExpr))
+		body.SetAttributeRaw(attr.name, attr.tokens)
 	}
 	return nil
 }
@@ -488,7 +517,6 @@ func appendDynamicBlocks(target *hclwrite.Body, dynblock *hclsyntax.Block, evalu
 	logger.Trace().Msg("appending tm_dynamic block")
 
 	errs := errors.L()
-
 	if len(dynblock.Labels) != 1 {
 		errs.Append(errors.E(ErrParsing,
 			dynblock.LabelRanges, "tm_dynamic requires a single label"))
@@ -503,11 +531,6 @@ func appendDynamicBlocks(target *hclwrite.Body, dynblock *hclsyntax.Block, evalu
 	if contentBlock == nil && attrs.attributes == nil {
 		errs.Append(errors.E(ErrParsing, dynblock.Body.Range(),
 			"`content` block or `attributes` obj must be defined"))
-	}
-
-	if contentBlock != nil && attrs.attributes != nil {
-		errs.Append(errors.E(ErrParsing, dynblock.Body.Range(),
-			"`content` block and `attributes` obj are not allowed together"))
 	}
 
 	if err := errs.AsError(); err != nil {

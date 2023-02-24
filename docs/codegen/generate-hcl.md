@@ -123,14 +123,10 @@ The `tm_dynamic` is a special block type that can only be used inside the
 It's similar to [Terraform dynamic blocks](https://www.terraform.io/language/expressions/dynamic-blocks)
 but supports partial evaluation of the expanded code.
 
-There are two ways to define a `tm_dynamic` block. One is using a `content` block that
-will define how to generate the blocks dynamically.
-
-Another one is to define an `attributes` object, where each field inside the object
-will become an attribute inside the dynamically generated blocks.
-
-A `tm_dynamic` block may have only one `content` block **OR** one `attributes` object,
-having both defined is not allowed.
+The generate block's attributes can be provided by a `content` block, an
+`attributes` attribute, or even both if they don't conflict.
+When using the `content` block, additional sub-blocks can be generated and 
+nested `tm_dynamic` blocks can be defined.
 
 Example using the `content` block:
 
