@@ -96,6 +96,55 @@ func TestGenerate(t *testing.T) {
 			},
 		},
 		{
+			name: "generate file and hcl",
+			layout: []string{
+				"s:stack",
+			},
+			files: []file{
+				{
+					path: p("/config.tm"),
+					body: Doc(
+						GenerateHCL(
+							Labels("file.hcl"),
+							Content(
+								Str("a", "hi"),
+							),
+						),
+						GenerateFile(
+							Labels("file.txt"),
+							Str("content", "hi"),
+						),
+					),
+				},
+			},
+			want: want{
+				run: runExpected{
+					Stdout: `Code generation report
+
+Successes:
+
+- /stack
+	[+] file.hcl
+	[+] file.txt
+
+Hint: '+', '~' and '-' means the file was created, changed and deleted, respectively.
+`,
+				},
+				files: []file{
+					{
+						path: p("/stack/file.hcl"),
+						body: Doc(
+							Str("a", "hi"),
+						),
+					},
+					{
+						path: p("/stack/file.txt"),
+						body: str("hi"),
+					},
+				},
+			},
+		},
+		{
 			name: "generate file and hcl with tm_vendor",
 			layout: []string{
 				"s:stack",
