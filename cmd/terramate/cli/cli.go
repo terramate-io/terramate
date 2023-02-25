@@ -1694,7 +1694,10 @@ func (c cli) checkVersion() {
 		return
 	}
 
-	if err := terramate.CheckVersion(rootcfg.Terramate.RequiredVersion, false); err != nil {
+	if err := terramate.CheckVersion(
+		rootcfg.Terramate.RequiredVersion,
+		rootcfg.Terramate.RequiredVersionAllowPreReleases,
+	); err != nil {
 		fatal(err)
 	}
 }

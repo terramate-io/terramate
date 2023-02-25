@@ -279,6 +279,28 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "required_version = 1.0.0-dev, allow_prereleases = true",
+			input: []cfgfile{
+				{
+					filename: "cfg.tm",
+					body: `
+						terramate {
+						       required_version = "> 0.0.0"
+							   required_version_allow_prereleases = true
+						}
+					`,
+				},
+			},
+			want: want{
+				config: hcl.Config{
+					Terramate: &hcl.Terramate{
+						RequiredVersion:                 "> 0.0.0",
+						RequiredVersionAllowPreReleases: true,
+					},
+				},
+			},
+		},
 	} {
 		testParser(t, tc)
 	}
