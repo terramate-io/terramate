@@ -147,7 +147,7 @@ func TestTerramateVersionConstraints(t *testing.T) {
 		},
 		{
 			version:    "1.2.3-zzz",
-			constraint: "> 1.2.3-aaa", // match because aab > aaa
+			constraint: "> 1.2.3-aaa", // match because zzz > aaa
 		},
 		{
 			// matches exactly even if metadata is present
