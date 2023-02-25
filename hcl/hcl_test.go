@@ -286,7 +286,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 					filename: "cfg.tm",
 					body: `
 						terramate {
-						       required_version = "> 0.0.0"
+						       required_version = "> 1.0.0-dev"
 							   required_version_allow_prereleases = true
 						}
 					`,
@@ -295,7 +295,7 @@ func TestHCLParserTerramateBlock(t *testing.T) {
 			want: want{
 				config: hcl.Config{
 					Terramate: &hcl.Terramate{
-						RequiredVersion:                 "> 0.0.0",
+						RequiredVersion:                 "> 1.0.0-dev",
 						RequiredVersionAllowPreReleases: true,
 					},
 				},
