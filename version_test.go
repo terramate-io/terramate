@@ -34,10 +34,17 @@ func TestTerramateVersionConstraints(t *testing.T) {
 	}
 
 	for _, tc := range []testcase{
-		/*{
+		{
 			version:    "0.0.0",
 			constraint: "0.0.0",
-		},*/
+		},
+		{
+			version:     "0.0.0",
+			constraint:  "0.0.0",
+			prereleases: true,
+			// apparentlymart/go-version does not match against the Underspecified version.
+			want: errors.E(terramate.ErrVersion),
+		},
 		{
 			version:    "1.2.3",
 			constraint: "~> 1.2.3",
