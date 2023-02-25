@@ -159,8 +159,8 @@ func TestTerramateVersionConstraints(t *testing.T) {
 			constraint:  "<= 1.2.3",
 			prereleases: true,
 		},
-		// when prerelease=false, then prereleases are not selected if not
-		// present in the constraint and exact.
+		// if prerelease=false, then prereleases are not selected if not present
+		// in the constraint
 		{
 			version:    "1.2.3-dev",
 			constraint: "~> 1",
@@ -232,8 +232,6 @@ func TestTerramateVersionConstraints(t *testing.T) {
 			constraint:  "~> 1.2.2",
 			prereleases: true,
 		},
-		// if prerelease=false, then pre-releases are selected if constraint constains
-		// an exact match for the pre-release.
 		{
 			version:    "1.2.3-aaa",
 			constraint: "~> 1.2.3-aaa", // matches exactly

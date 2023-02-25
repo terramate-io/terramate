@@ -56,17 +56,17 @@ func CheckVersionFor(version string, vconstraint string, allowPrereleases bool) 
 		return errors.E(ErrVersion, "invalid constraint", err)
 	}
 
-	spec, err := constraints.ParseRubyStyleMulti(constraint.String())
-	if err != nil {
-		return errors.E(ErrVersion, "invalid constraint", err)
-	}
-
 	var check func() bool
 
 	if allowPrereleases {
 		semver, err := versions.ParseVersion(version)
 		if err != nil {
 			return errors.E(ErrVersion, "terramate built with invalid version", err)
+		}
+
+		spec, err := constraints.ParseRubyStyleMulti(constraint.String())
+		if err != nil {
+			return errors.E(ErrVersion, "invalid constraint", err)
 		}
 
 		allowed := versions.MeetingConstraintsExact(spec)
