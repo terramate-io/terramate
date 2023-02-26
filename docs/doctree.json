@@ -1,0 +1,162 @@
+[
+    {
+        "title": "Getting Started",
+        "sourceURL": "/README.md",
+        "topics": [
+            {
+                "title": "Getting Started",
+                "anchor": "#getting-started"
+            },
+            {
+                "title": "Versioning",
+                "anchor": "#versioning"
+            },
+            {
+                "title": "Star History",
+                "anchor": "#star-history"
+            }
+        ]
+    },
+    {
+        "title": "Why Stacks",
+        "sourceURL": "/docs/why-stacks.md",
+        "topics": [
+            {
+                "title": "Why use Stacks?",
+                "anchor": "#why-use-stacks-"
+            },
+            {
+                "title": "Isolate code with higher change frequency",
+                "anchor": "#isolate-code-with-higher-change-frequency"
+            },
+            {
+                "title": "Reduce the blast radius",
+                "anchor": "#reduce-the-blast-radius"
+            },
+            {
+                "title": "Reduce execution time",
+                "anchor": "#reduce-execution-time"
+            },
+            {
+                "title": "Ownership",
+                "anchor": "#ownership"
+            },
+            {
+                "title": "Others",
+                "anchor": "#others"
+            }
+        ]
+    },
+    {
+        "title": "Change Detection",
+        "sourceURL": "/docs/change-detection.md",
+        "topics": [
+            {
+                "title": "Change Detection",
+                "anchor": "#change-detection"
+            },
+            {
+                "title": "Module change detection",
+                "anchor": "#module-change-detection"
+            },
+            {
+                "title": "Arbitrary files change detection",
+                "anchor": "#arbitrary-files-change-detection"
+            }
+        ]
+    },
+    {
+        "title": "Configuration Language",
+        "sourceURL": "/docs/config-overview.md",
+        "topics": [
+            {
+                "title": "Terramate Configuration Overview",
+                "anchor": "#terramate-configuration-overview"
+            },
+            {
+                "title": "Config merging",
+                "anchor": "#config-merging"
+            },
+            {
+                "title": "Skipping Directories",
+                "anchor": "#skipping-directories"
+            },
+            {
+                "title": "Terramate Configuration Schema",
+                "anchor": "#terramate-configuration-schema"
+            },
+            {
+                "title": "terramate block schema",
+                "anchor": "#terramate-block-schema"
+            },
+            {
+                "title": "terramate.config block schema",
+                "anchor": "#terramateconfig-block-schema"
+            },
+            {
+                "title": "terramate.config.git block schema",
+                "anchor": "#terramateconfiggit-block-schema"
+            },
+            {
+                "title": "terramate.config.run block schema",
+                "anchor": "#terramateconfigrun-block-schema"
+            },
+            {
+                "title": "terramate.config.run.env block schema",
+                "anchor": "#terramateconfigrun-block-schema"
+            },
+            {
+                "title": "stack block schema",
+                "anchor": "#stack-block-schema"
+            },
+            {
+                "title": "assert block schema",
+                "anchor": "#assert-block-schema"
+            },
+            {
+                "title": "globals block schema",
+                "anchor": "#globals-block-schema"
+            },
+            {
+                "title": "map block schema",
+                "anchor": "#map-block-schema"
+            },
+            {
+                "title": "value block schema",
+                "anchor": "#value-block-schema"
+            },
+            {
+                "title": "generate_file block schema",
+                "anchor": "#generate_file-block-schema"
+            },
+            {
+                "title": "generate_hcl block schema",
+                "anchor": "#generate_hcl-block-schema"
+            },
+            {
+                "title": "lets block schema",
+                "anchor": "#lets-block-schema"
+            },
+            {
+                "title": "generate_hcl.content block schema",
+                "anchor": "#generate_hclcontent-block-schema"
+            },
+            {
+                "title": "import block schema",
+                "anchor": "#import-block-schema"
+            },
+            {
+                "title": "vendor block schema",
+                "anchor": "#vendor-block-schema"
+            },
+            {
+                "title": "vendor.manifest block schema",
+                "anchor": "#vendormanifest-block-schema"
+            },
+            {
+                "title": "vendor.manifest.default block schema",
+                "anchor": "#vendormanifestdefault-block-schema"
+            }
+        ]
+    }
+]
