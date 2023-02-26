@@ -184,5 +184,31 @@
                 "anchor": "#the-terramateconfigrun-block"
             }
         ]
+    },
+    {
+        "title": "Functions",
+        "sourceURL": "/docs/functions.md",
+        "topics": [
+            {
+                "title": "Terramate Functions",
+                "anchor": "#terramate-functions"
+            },
+            {
+                "title": "tm_ternary",
+                "anchor": "#tm_ternaryboolexprexpr---expr"
+            },
+            {
+                "title": "tm_hcl_expression",
+                "anchor": "#tm_hcl_expressionstring---expr"
+            },
+            {
+                "title": "Experimental functions",
+                "anchor": "#experimental-functions"
+            },
+            {
+                "title": "tm_vendor",
+                "anchor": "#tm_vendorstring---string"
+            }
+        ]
     }
 ]
