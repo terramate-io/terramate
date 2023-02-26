@@ -158,5 +158,31 @@
                 "anchor": "#vendormanifestdefault-block-schema"
             }
         ]
+    },
+    {
+        "title": "Project Configuration",
+        "sourceURL": "/docs/project-config.md",
+        "topics": [
+            {
+                "title": "Project Configuration",
+                "anchor": "#project-configuration"
+            },
+            {
+                "title": "The terramate.required_version attribute",
+                "anchor": "#the-terramaterequired_version-attribute"
+            },
+            {
+                "title": "The terramate.config block",
+                "anchor": "#the-terramateconfig-block"
+            },
+            {
+                "title": "The terramate.config.git block",
+                "anchor": "#the-terramateconfiggit-block"
+            },
+            {
+                "title": "The terramate.config.run block",
+                "anchor": "#the-terramateconfigrun-block"
+            }
+        ]
     }
 ]
