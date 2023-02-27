@@ -24,6 +24,7 @@ import (
 	tm "github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/stack"
 	"github.com/mineiros-io/terramate/test/sandbox"
+	"github.com/mineiros-io/terramate/versions"
 )
 
 func TestVersionCheck(t *testing.T) {
@@ -69,7 +70,7 @@ func TestVersionCheck(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			assertRunResult(t, run(t, checkedCmd, invalidVersion), runExpected{
 				Status:      1,
-				StderrRegex: string(tm.ErrVersion),
+				StderrRegex: string(versions.ErrCheck),
 			})
 		})
 	}

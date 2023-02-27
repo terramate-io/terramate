@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package terramate_test
+package versions_test
 
 import (
 	"fmt"
 	"testing"
 
-	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/errors"
 	errtest "github.com/mineiros-io/terramate/test/errors"
+	"github.com/mineiros-io/terramate/versions"
 )
 
 func TestTerramateVersionConstraints(t *testing.T) {
@@ -43,7 +43,7 @@ func TestTerramateVersionConstraints(t *testing.T) {
 			constraint:  "0.0.0",
 			prereleases: true,
 			// apparentlymart/go-version does not match against the Underspecified version.
-			want: errors.E(terramate.ErrVersion),
+			want: errors.E(versions.ErrCheck),
 		},
 		{
 			version:    "1.2.3",
@@ -102,13 +102,13 @@ func TestTerramateVersionConstraints(t *testing.T) {
 		{
 			version:    "1.2.3",
 			constraint: "> 1.2.3",
-			want:       errors.E(terramate.ErrVersion),
+			want:       errors.E(versions.ErrCheck),
 		},
 		{
 			version:     "1.2.3",
 			constraint:  "> 1.2.3",
 			prereleases: true,
-			want:        errors.E(terramate.ErrVersion),
+			want:        errors.E(versions.ErrCheck),
 		},
 		{
 			version:    "1.2.3",
@@ -149,13 +149,13 @@ func TestTerramateVersionConstraints(t *testing.T) {
 		{
 			version:    "1.2.3",
 			constraint: "< 1.2.3",
-			want:       errors.E(terramate.ErrVersion),
+			want:       errors.E(versions.ErrCheck),
 		},
 		{
 			version:     "1.2.3",
 			constraint:  "< 1.2.3",
 			prereleases: true,
-			want:        errors.E(terramate.ErrVersion),
+			want:        errors.E(versions.ErrCheck),
 		},
 		{
 			version:    "1.2.3",
@@ -171,7 +171,7 @@ func TestTerramateVersionConstraints(t *testing.T) {
 		{
 			version:    "1.2.3-dev",
 			constraint: "~> 1",
-			want:       errors.E(terramate.ErrVersion),
+			want:       errors.E(versions.ErrCheck),
 		},
 		{
 			version:     "1.2.3-dev",
@@ -181,7 +181,7 @@ func TestTerramateVersionConstraints(t *testing.T) {
 		{
 			version:    "1.2.3-dev",
 			constraint: ">= 1",
-			want:       errors.E(terramate.ErrVersion),
+			want:       errors.E(versions.ErrCheck),
 		},
 		{
 			version:     "1.2.3-dev",
@@ -191,7 +191,7 @@ func TestTerramateVersionConstraints(t *testing.T) {
 		{
 			version:    "1.2.3-dev",
 			constraint: ">= 1.2",
-			want:       errors.E(terramate.ErrVersion),
+			want:       errors.E(versions.ErrCheck),
 		},
 		{
 			version:     "1.2.3-dev",
@@ -201,18 +201,18 @@ func TestTerramateVersionConstraints(t *testing.T) {
 		{
 			version:    "1.2.3-alpha",
 			constraint: "> 1.2.2, < 1.2.3",
-			want:       errors.E(terramate.ErrVersion),
+			want:       errors.E(versions.ErrCheck),
 		},
 		{
 			version:    "1.2.3-dev",
 			constraint: ">= 1.2.3",
-			want:       errors.E(terramate.ErrVersion),
+			want:       errors.E(versions.ErrCheck),
 		},
 		{
 			version:     "1.2.3-dev",
 			constraint:  ">= 1.2.3",
 			prereleases: true,
-			want:        errors.E(terramate.ErrVersion),
+			want:        errors.E(versions.ErrCheck),
 		},
 		{
 			version:     "1.2.3-dev",
@@ -222,7 +222,7 @@ func TestTerramateVersionConstraints(t *testing.T) {
 		{
 			version:    "1.2.3-dev",
 			constraint: "~> 1.2",
-			want:       errors.E(terramate.ErrVersion),
+			want:       errors.E(versions.ErrCheck),
 		},
 		{
 			version:     "1.2.3-dev",
@@ -232,7 +232,7 @@ func TestTerramateVersionConstraints(t *testing.T) {
 		{
 			version:    "1.2.3-dev",
 			constraint: "~> 1.2.3",
-			want:       errors.E(terramate.ErrVersion),
+			want:       errors.E(versions.ErrCheck),
 		},
 		{
 			version:     "1.2.3-dev",
@@ -251,13 +251,13 @@ func TestTerramateVersionConstraints(t *testing.T) {
 		{
 			version:    "1.2.3-aaa",
 			constraint: "> 1.2.3-aab",
-			want:       errors.E(terramate.ErrVersion),
+			want:       errors.E(versions.ErrCheck),
 		},
 		{
 			version:     "1.2.3-aaa",
 			constraint:  "> 1.2.3-aab",
 			prereleases: true,
-			want:        errors.E(terramate.ErrVersion),
+			want:        errors.E(versions.ErrCheck),
 		},
 		{
 			version:    "1.2.3-aab",
@@ -284,7 +284,7 @@ func TestTerramateVersionConstraints(t *testing.T) {
 		{
 			version:    "1.2.3-zzz",
 			constraint: "> 1, > 1.2.3-aaa", // doesnt match because > 1 never matches pre-releases
-			want:       errors.E(terramate.ErrVersion),
+			want:       errors.E(versions.ErrCheck),
 		},
 		{
 			version:    "1.2.3-zzz",
@@ -324,7 +324,7 @@ func TestTerramateVersionConstraints(t *testing.T) {
 		name := fmt.Sprintf("CheckVersionFor(%q,%q, %t)", tc.version, tc.constraint, tc.prereleases)
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			err := terramate.CheckVersionFor(tc.version, tc.constraint, tc.prereleases)
+			err := versions.Check(tc.version, tc.constraint, tc.prereleases)
 			errtest.Assert(t, err, tc.want, "error mismatch")
 		})
 	}
