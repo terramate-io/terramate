@@ -166,7 +166,12 @@ func HCLExpressionFunc() function.Function {
 	})
 }
 
-// AbspathFunc returns the `tm_abspath()` hcl function.
+// VersionMatch returns the `tm_version_match` function spec, which checks if
+// the provided version matches the constraint.
+// If the third argument is provided, then it uses the flags to customize the
+// version matcher. At the moment, only the propery `allow_prereleases` is
+// supported, which enables matchs against prereleases using default Semver
+// ordering semantics.
 func VersionMatch() function.Function {
 	return function.New(&function.Spec{
 		Params: []function.Parameter{

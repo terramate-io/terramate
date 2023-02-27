@@ -21,6 +21,7 @@ import (
 	"github.com/mineiros-io/terramate/errors"
 )
 
+// ErrCheck indicates the version doesn't match the constraint for any reason.
 const ErrCheck errors.Kind = "version check error"
 
 // Check checks if version matches the provided constraint and fails otherwise.
