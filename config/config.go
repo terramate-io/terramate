@@ -21,6 +21,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config/filter"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/hcl"
@@ -275,8 +276,9 @@ func (root *Root) initRuntime() {
 		"list": toCtyStringList(root.Stacks().Strings()),
 	})
 	root.runtime = project.Runtime{
-		"root":   rootNS,
-		"stacks": stacksNs,
+		"root":    rootNS,
+		"stacks":  stacksNs,
+		"version": cty.StringVal(terramate.Version()),
 	}
 }
 
