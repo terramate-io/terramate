@@ -1884,7 +1884,7 @@ func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
 
 		default:
 			errs.Append(errors.E(errKind, attr.NameRange,
-				"unsupported attribute"))
+				"unsupported attribute %q", attr.Name))
 		}
 	}
 
