@@ -270,7 +270,11 @@ func TestTerramateVersionConstraints(t *testing.T) {
 		},
 		{
 			version:    "1.2.3-alpha",
-			constraint: "< 1.2.3-beta", // match because beta > alpha
+			constraint: "< 1.2.3-beta",
+		},
+		{
+			version:    "1.0.1-beta",
+			constraint: ">= 1.0.1-alpha",
 		},
 		{
 			version:     "1.2.3-alpha",
@@ -299,7 +303,7 @@ func TestTerramateVersionConstraints(t *testing.T) {
 		},
 		{
 			version:    "1.2.3-zzz+aaa",
-			constraint: ">= 1.2.3-zzz+zzz",
+			constraint: ">= 1.2.3-zzz",
 		},
 		{
 			version:     "1.2.3-zzz+aaa",

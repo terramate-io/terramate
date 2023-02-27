@@ -49,13 +49,6 @@ func CheckVersionFor(version string, vconstraint string, allowPrereleases bool) 
 		Bool("allow_prereleases", allowPrereleases).
 		Logger()
 
-	logger.Trace().Msg("parsing version constraint")
-
-	constraint, err := hclversion.NewConstraint(vconstraint)
-	if err != nil {
-		return errors.E(ErrVersion, "invalid constraint", err)
-	}
-
 	var check func() bool
 
 	if allowPrereleases {
@@ -64,7 +57,7 @@ func CheckVersionFor(version string, vconstraint string, allowPrereleases bool) 
 			return errors.E(ErrVersion, "terramate built with invalid version", err)
 		}
 
-		spec, err := constraints.ParseRubyStyleMulti(constraint.String())
+		spec, err := constraints.ParseRubyStyleMulti(vconstraint)
 		if err != nil {
 			return errors.E(ErrVersion, "invalid constraint", err)
 		}
@@ -74,6 +67,13 @@ func CheckVersionFor(version string, vconstraint string, allowPrereleases bool) 
 			return allowed.Has(semver)
 		}
 	} else {
+		logger.Trace().Msg("parsing version constraint")
+
+		constraint, err := hclversion.NewConstraint(vconstraint)
+		if err != nil {
+			return errors.E(ErrVersion, "invalid constraint", err)
+		}
+
 		semver, err := hclversion.NewSemver(version)
 		if err != nil {
 			return errors.E(ErrVersion, "terramate built with invalid version", err)
