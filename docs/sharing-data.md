@@ -295,6 +295,10 @@ information like the path of the stack or its name.
 
 Project metadata is the same independent of stack.
 
+### terramate.version (string)
+
+The Terramate version.
+
 ### terramate.stacks.list (string)
 
 List of all stacks inside the project. Each stack is represented by its
