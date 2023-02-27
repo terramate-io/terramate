@@ -36,7 +36,11 @@ func Version() string {
 
 // CheckVersion checks Terramate version against the given constraint.
 func CheckVersion(vconstraint string) error {
-	version := Version()
+	return CheckVersionFor(Version(), vconstraint)
+}
+
+// CheckVersionFor checks if version matches the provided constraint.
+func CheckVersionFor(version string, vconstraint string) error {
 	logger := log.With().
 		Str("version", version).
 		Str("constraint", vconstraint).
@@ -63,7 +67,7 @@ func CheckVersion(vconstraint string) error {
 			ErrVersion,
 			"version constraint %q not satisfied by terramate version %q",
 			vconstraint,
-			Version(),
+			version,
 		)
 	}
 	return nil
