@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package terramate_test
+package stack_test
 
 import (
 	"fmt"
@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/project"
 	"github.com/mineiros-io/terramate/stack"
@@ -156,7 +155,7 @@ func TestListChangedStacks(t *testing.T) {
 			repo := tc.repobuilder(t)
 			root, err := config.LoadRoot(repo.Dir)
 			assert.NoError(t, err)
-			m := terramate.NewManager(root, tc.baseRef)
+			m := stack.NewManager(root, tc.baseRef)
 
 			report, err := m.ListChanged()
 			assert.EqualErrs(t, tc.want.err, err, "ListChanged() error")
@@ -202,7 +201,7 @@ func TestListChangedStackReason(t *testing.T) {
 }
 
 func assertStacks(
-	t *testing.T, want []string, got []terramate.Entry, wantReason bool,
+	t *testing.T, want []string, got []stack.Entry, wantReason bool,
 ) {
 	t.Helper()
 	assert.EqualInts(t, len(want), len(got), "wrong number of stacks: %+v", got)
@@ -556,10 +555,10 @@ module "module2" {
 	return repo
 }
 
-func newManager(t *testing.T, basedir string) *terramate.Manager {
+func newManager(t *testing.T, basedir string) *stack.Manager {
 	root, err := config.LoadRoot(basedir)
 	assert.NoError(t, err)
-	return terramate.NewManager(root, defaultBranch)
+	return stack.NewManager(root, defaultBranch)
 }
 
 func createStack(t *testing.T, root *config.Root, absdir string) {

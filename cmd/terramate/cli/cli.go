@@ -768,7 +768,7 @@ func debugFiles(files []string, msg string) {
 	}
 }
 
-func (c *cli) gitFileSafeguards(checks terramate.RepoChecks, shouldAbort bool) {
+func (c *cli) gitFileSafeguards(checks stack.RepoChecks, shouldAbort bool) {
 	if c.parsedArgs.Run.DryRun {
 		return
 	}
@@ -815,7 +815,7 @@ func (c *cli) gitSafeguardDefaultBranchIsReachable() {
 		Msg("Safeguard default-branch-is-reachable passed.")
 }
 
-func (c *cli) listStacks(mgr *terramate.Manager, isChanged bool) (*terramate.StacksReport, error) {
+func (c *cli) listStacks(mgr *stack.Manager, isChanged bool) (*stack.Report, error) {
 	if isChanged {
 		log.Trace().
 			Str("action", "listStacks()").
@@ -969,7 +969,7 @@ func (c *cli) printStacks() {
 		log.Fatal().Msg("the --why flag must be used together with --changed")
 	}
 
-	mgr := terramate.NewManager(c.cfg(), c.prj.baseRef)
+	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
 	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		fatal(err, "listing stacks")
@@ -996,7 +996,7 @@ func (c *cli) printStacks() {
 }
 
 func (c *cli) printRunEnv() {
-	mgr := terramate.NewManager(c.cfg(), c.prj.baseRef)
+	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
 	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		fatal(err, "listing stacks")
@@ -1040,7 +1040,7 @@ func (c *cli) generateGraph() {
 			Msg("-label expects the values \"stack.name\" or \"stack.dir\"")
 	}
 
-	entries, err := terramate.ListStacks(c.cfg().Tree())
+	entries, err := stack.List(c.cfg().Tree())
 	if err != nil {
 		fatal(err, "listing stacks to build graph")
 	}
@@ -1235,7 +1235,7 @@ func (c *cli) printStacksGlobals() {
 	logger.Trace().
 		Msg("Create new terramate manager.")
 
-	mgr := terramate.NewManager(c.cfg(), c.prj.baseRef)
+	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
 	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		fatal(err, "listing stacks globals: listing stacks")
@@ -1272,7 +1272,7 @@ func (c *cli) printMetadata() {
 	logger.Trace().
 		Msg("Create new terramate manager.")
 
-	mgr := terramate.NewManager(c.cfg(), c.prj.baseRef)
+	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
 	report, err := c.listStacks(mgr, c.parsedArgs.Changed)
 	if err != nil {
 		fatal(err, "loading metadata: listing stacks")
@@ -1619,7 +1619,7 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (config.List[*config.S
 
 	logger.Trace().Msg("Create new terramate manager.")
 
-	mgr := terramate.NewManager(c.cfg(), c.prj.baseRef)
+	mgr := stack.NewManager(c.cfg(), c.prj.baseRef)
 
 	logger.Trace().Msg("Get list of stacks.")
 
@@ -1645,14 +1645,14 @@ func (c *cli) computeSelectedStacks(ensureCleanRepo bool) (config.List[*config.S
 	return stacks, nil
 }
 
-func (c *cli) filterStacks(stacks []terramate.Entry) []terramate.Entry {
+func (c *cli) filterStacks(stacks []stack.Entry) []stack.Entry {
 	return c.filterStacksByTags(c.filterStacksByWorkingDir(stacks))
 }
 
-func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Entry {
+func (c *cli) filterStacksByWorkingDir(stacks []stack.Entry) []stack.Entry {
 	relwd := prj.PrjAbsPath(c.rootdir(), c.wd())
 
-	filtered := []terramate.Entry{}
+	filtered := []stack.Entry{}
 	for _, e := range stacks {
 		if e.Stack.Dir.HasPrefix(relwd.String()) {
 			filtered = append(filtered, e)
@@ -1662,11 +1662,11 @@ func (c *cli) filterStacksByWorkingDir(stacks []terramate.Entry) []terramate.Ent
 	return filtered
 }
 
-func (c *cli) filterStacksByTags(entries []terramate.Entry) []terramate.Entry {
+func (c *cli) filterStacksByTags(entries []stack.Entry) []stack.Entry {
 	if c.tags.IsEmpty() {
 		return entries
 	}
-	filtered := []terramate.Entry{}
+	filtered := []stack.Entry{}
 	for _, entry := range entries {
 		if filter.MatchTags(c.tags, entry.Stack.Tags) {
 			filtered = append(filtered, entry)

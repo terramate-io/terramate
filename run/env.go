@@ -20,7 +20,9 @@ import (
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/mineiros-io/terramate/globals"
-	"github.com/mineiros-io/terramate/stack"
+	"github.com/mineiros-io/terramate/hcl/eval"
+	"github.com/mineiros-io/terramate/stdlib"
+
 	"github.com/rs/zerolog/log"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -67,9 +69,13 @@ func LoadEnv(root *config.Root, st *config.Stack) (EnvVars, error) {
 		return nil, errors.E(ErrLoadingGlobals, err)
 	}
 
-	evalctx := stack.NewEvalCtx(root, st, globalsReport.Globals)
-
+	evalctx := eval.NewContext(stdlib.Functions(st.HostDir(root)))
+	runtime := root.Runtime()
+	runtime.Merge(st.RuntimeValues(root))
+	evalctx.SetNamespace("terramate", runtime)
+	evalctx.SetNamespace("global", globalsReport.Globals.AsValueMap())
 	evalctx.SetEnv(os.Environ())
+
 	envVars := EnvVars{}
 
 	attrs := root.Tree().Node.Terramate.Config.Run.Env.Attributes.SortedList()

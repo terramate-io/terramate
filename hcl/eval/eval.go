@@ -15,6 +15,8 @@
 package eval
 
 import (
+	"strings"
+
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -59,6 +61,17 @@ func (c *Context) GetNamespace(name string) (cty.Value, bool) {
 // SetFunction sets the function in the context.
 func (c *Context) SetFunction(name string, fn function.Function) {
 	c.hclctx.Functions[name] = fn
+}
+
+// SetEnv sets the given environment on the env namespace of the evaluation context.
+// environ must be on the same format as os.Environ().
+func (c *Context) SetEnv(environ []string) {
+	env := map[string]cty.Value{}
+	for _, v := range environ {
+		parsed := strings.Split(v, "=")
+		env[parsed[0]] = cty.StringVal(parsed[1])
+	}
+	c.SetNamespace("env", env)
 }
 
 // DeleteNamespace deletes the namespace name from the context.

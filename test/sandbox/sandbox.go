@@ -34,7 +34,6 @@ import (
 	"testing"
 
 	"github.com/madlambda/spells/assert"
-	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/generate"
 	"github.com/mineiros-io/terramate/globals"
@@ -228,7 +227,7 @@ func (s S) LoadStack(dir project.Path) *config.Stack {
 func (s S) LoadStacks() config.List[*config.SortableStack] {
 	s.t.Helper()
 
-	entries, err := terramate.ListStacks(s.Config().Tree())
+	entries, err := stack.List(s.Config().Tree())
 	assert.NoError(s.t, err)
 
 	var stacks config.List[*config.SortableStack]

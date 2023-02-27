@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package terramate
+package stack
 
 import (
 	"fmt"
@@ -43,7 +43,7 @@ type (
 
 	// StacksReport is the report of project's stacks and the result of its
 	// default checks.
-	StacksReport struct {
+	Report struct {
 		Stacks []Entry
 
 		// Checks contains the result info of default checks.
@@ -77,19 +77,19 @@ func NewManager(root *config.Root, gitBaseRef string) *Manager {
 
 // List walks the basedir directory looking for terraform stacks.
 // It returns a lexicographic sorted list of stack directories.
-func (m *Manager) List() (*StacksReport, error) {
+func (m *Manager) List() (*Report, error) {
 	logger := log.With().
 		Str("action", "Manager.List()").
 		Logger()
 
 	logger.Debug().Msg("List stacks.")
 
-	entries, err := ListStacks(m.root.Tree())
+	entries, err := List(m.root.Tree())
 	if err != nil {
 		return nil, err
 	}
 
-	report := &StacksReport{
+	report := &Report{
 		Stacks: entries,
 	}
 
@@ -121,7 +121,7 @@ func (m *Manager) List() (*StacksReport, error) {
 // system in place and that you are working on a branch that is not main.
 // It's an error to call this method in a directory that's not
 // inside a repository or a repository with no commits in it.
-func (m *Manager) ListChanged() (*StacksReport, error) {
+func (m *Manager) ListChanged() (*Report, error) {
 	logger := log.With().
 		Str("action", "ListChanged()").
 		Logger()
@@ -249,7 +249,7 @@ func (m *Manager) ListChanged() (*StacksReport, error) {
 
 	logger.Debug().Msg("Get list of all stacks.")
 
-	allstacks, err := ListStacks(m.root.Tree())
+	allstacks, err := List(m.root.Tree())
 	if err != nil {
 		return nil, errors.E(errListChanged, "searching for stacks", err)
 	}
@@ -361,7 +361,7 @@ rangeStacks:
 
 	sort.Sort(EntrySlice(changedStacks))
 
-	return &StacksReport{
+	return &Report{
 		Checks: checks,
 		Stacks: changedStacks,
 	}, nil
