@@ -41,8 +41,7 @@ type (
 		gitBaseRef string       // gitBaseRef is the git ref where we compare changes.
 	}
 
-	// StacksReport is the report of project's stacks and the result of its
-	// default checks.
+	// Report is the report of project's stacks and the result of its default checks.
 	Report struct {
 		Stacks []Entry
 
