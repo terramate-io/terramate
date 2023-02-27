@@ -39,6 +39,7 @@ import (
 	"github.com/mineiros-io/terramate/hcl/fmt"
 	"github.com/mineiros-io/terramate/hcl/info"
 	"github.com/mineiros-io/terramate/modvendor/download"
+	"github.com/mineiros-io/terramate/versions"
 
 	"github.com/mineiros-io/terramate/stack/trigger"
 	"github.com/mineiros-io/terramate/stdlib"
@@ -54,7 +55,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/emicklei/dot"
-	"github.com/mineiros-io/terramate"
+
 	"github.com/mineiros-io/terramate/config"
 	"github.com/mineiros-io/terramate/git"
 	"github.com/mineiros-io/terramate/hcl"
@@ -212,6 +213,7 @@ type cliSpec struct {
 // Each Exec call is completely isolated from each other (no shared state) as
 // far as the parameters are not shared between the run calls.
 func Exec(
+	version string,
 	args []string,
 	stdin io.Reader,
 	stdout io.Writer,
@@ -219,11 +221,12 @@ func Exec(
 ) {
 	configureLogging(defaultLogLevel, defaultLogFmt, defaultLogDest,
 		stdout, stderr)
-	c := newCLI(args, stdin, stdout, stderr)
+	c := newCLI(version, args, stdin, stdout, stderr)
 	c.run()
 }
 
 type cli struct {
+	version    string
 	ctx        *kong.Context
 	parsedArgs *cliSpec
 	stdin      io.Reader
@@ -236,7 +239,7 @@ type cli struct {
 	tags filter.TagClause
 }
 
-func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
+func newCLI(version string, args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 	if len(args) == 0 {
 		// WHY: avoid default kong error, print help
 		args = []string{"--help"}
@@ -283,7 +286,7 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 	// since no subcommand was provided (which is odd..but happens).
 	// So we check if the flag for version is present before checking the error.
 	if parsedArgs.VersionFlag {
-		stdfmt.Println(terramate.Version())
+		stdfmt.Println(version)
 		return &cli{exit: true}
 	}
 
@@ -302,7 +305,7 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 	switch ctx.Command() {
 	case "version":
 		logger.Debug().Msg("Get terramate version with version subcommand.")
-		stdfmt.Println(terramate.Version())
+		stdfmt.Println(version)
 		return &cli{exit: true}
 	case "install-completions":
 		logger.Debug().Msg("Handle `install-completions` command.")
@@ -372,6 +375,7 @@ func newCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) *cli {
 	}
 
 	return &cli{
+		version:    version,
 		stdin:      stdin,
 		stdout:     stdout,
 		stderr:     stderr,
@@ -1694,7 +1698,8 @@ func (c cli) checkVersion() {
 		return
 	}
 
-	if err := terramate.CheckVersion(
+	if err := versions.Check(
+		c.version,
 		rootcfg.Terramate.RequiredVersion,
 		rootcfg.Terramate.RequiredVersionAllowPreReleases,
 	); err != nil {

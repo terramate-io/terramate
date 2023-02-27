@@ -23,9 +23,10 @@ package main
 import (
 	"os"
 
+	"github.com/mineiros-io/terramate"
 	"github.com/mineiros-io/terramate/cmd/terramate/cli"
 )
 
 func main() {
-	cli.Exec(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
+	cli.Exec(terramate.Version(), os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
 }
