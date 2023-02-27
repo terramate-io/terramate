@@ -12,8 +12,10 @@ Required version is defined by the attribute `terramate.required_version` attrib
 where `required_version` accepts a version constraint string that specifies which
 versions of Terramate can be used inside a Terramate project.
 
-The `terramate.required_version_allow_prereleases` attribute controls if **prereleases** should be matched according to [Semantic Versioning](https://semver.org/) precedence ordering. It's **false** by default and if set to `true`, then
-Terramate will also accept prereleases if they match the provided constraint.
+The `terramate.required_version_allow_prereleases` attribute controls if **prereleases** should be matched according to 
+[Semantic Versioning](https://semver.org/) precedence ordering. It's **false** by
+default and if set to `true`, then Terramate will also accept prereleases if they
+match the provided constraint.
 _It's not usually recommended to change it unless you know what you are doing._ 
 _When dealing with infrastructure code you must be extra cautious about experimental releases as they could lead to dangerous changes._
 
