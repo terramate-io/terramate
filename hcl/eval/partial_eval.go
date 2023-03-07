@@ -226,6 +226,7 @@ func (c *Context) partialEvalObjectKey(key *hclsyntax.ObjectConsKeyExpr) (hhcl.E
 
 	if scope, ok := key.Wrapped.(*hclsyntax.ScopeTraversalExpr); ok {
 		wrapped, err = c.partialEvalScopeTrav(scope, scopeTraversalOption{
+			// This is needed for back-compatibility with old partial evaluator.
 			allowRootEval: false,
 		})
 	} else {
