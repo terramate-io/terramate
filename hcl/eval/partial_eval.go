@@ -30,9 +30,6 @@ const (
 	ErrPartial             errors.Kind = "partial evaluation failed"
 	ErrInterpolation       errors.Kind = "interpolation failed"
 	ErrForExprDisallowEval errors.Kind = "`for` expression disallow globals/terramate variables"
-	ErrNonLiteralKey       errors.Kind = ("If this expression is intended to be a reference, wrap it in" +
-		" parentheses. If it's instead intended as a literal name containing periods, wrap it in quotes " +
-		"to create a string literal.")
 )
 
 func (c *Context) partialEval(expr hhcl.Expression) (newexpr hhcl.Expression, err error) {
