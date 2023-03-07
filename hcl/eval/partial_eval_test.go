@@ -184,6 +184,30 @@ EOT
 		},
 		{
 			expr: `{
+				global = 1
+			}`,
+			want: `{
+				global = 1	
+			}`,
+		},
+		{
+			expr: `{
+				(global) = 1
+			}`,
+			want: `{
+				(global) = 1	
+			}`,
+		},
+		{
+			expr: `{
+				(iter) = 1
+			}`,
+			want: `{
+				(iter) = 1	
+			}`,
+		},
+		{
+			expr: `{
 				(global.string) = 1
 			}`,
 			want: `{

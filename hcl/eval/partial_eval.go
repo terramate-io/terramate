@@ -224,12 +224,20 @@ func (c *Context) partialEvalObjectKey(key *hclsyntax.ObjectConsKeyExpr) (hhcl.E
 		err     error
 	)
 
-	if scope, ok := key.Wrapped.(*hclsyntax.ScopeTraversalExpr); ok {
-		wrapped, err = c.partialEvalScopeTrav(scope, scopeTraversalOption{
-			// This is needed for back-compatibility with old partial evaluator.
-			allowRootEval: false,
+	switch vexpr := key.Wrapped.(type) {
+	case *hclsyntax.ScopeTraversalExpr:
+		wrapped, err = c.partialEvalScopeTrav(vexpr, partialEvalOption{
+			// back-compatibility with old partial evaluator.
+			// global = 1
+			forbidRootEval: true,
 		})
-	} else {
+	case *hclsyntax.ParenthesesExpr:
+		wrapped, err = c.partialEvalParenExpr(vexpr, partialEvalOption{
+			// back-compatibility with old partial evaluator.
+			// (global) = 1
+			forbidRootEval: true,
+		})
+	default:
 		wrapped, err = c.partialEval(key.Wrapped)
 	}
 
@@ -298,14 +306,13 @@ func (c *Context) partialEvalCondExpr(cond *hclsyntax.ConditionalExpr) (hhcl.Exp
 	return cond, nil
 }
 
-type scopeTraversalOption struct {
-	allowRootEval bool
+type partialEvalOption struct {
+	// if set to true, then root traversals like `global` or `iter` will not evaluate.
+	forbidRootEval bool
 }
 
-func (c *Context) partialEvalScopeTrav(scope *hclsyntax.ScopeTraversalExpr, opts ...scopeTraversalOption) (hclsyntax.Expression, error) {
-	if len(opts) > 1 {
-		panic(errors.E(errors.ErrInternal, "only 1 option allowed in scope traversal"))
-	}
+func (c *Context) partialEvalScopeTrav(scope *hclsyntax.ScopeTraversalExpr, opts ...partialEvalOption) (hclsyntax.Expression, error) {
+	assertPartialExprOpt(opts)
 	ns, ok := scope.Traversal[0].(hhcl.TraverseRoot)
 	if !ok {
 		return scope, nil
@@ -313,11 +320,11 @@ func (c *Context) partialEvalScopeTrav(scope *hclsyntax.ScopeTraversalExpr, opts
 	if !c.HasNamespace(ns.Name) {
 		return scope, nil
 	}
-	allowRootEval := true
+	forbidRootEval := false
 	if len(opts) == 1 {
-		allowRootEval = opts[0].allowRootEval
+		forbidRootEval = opts[0].forbidRootEval
 	}
-	if len(scope.Traversal) == 1 && !allowRootEval {
+	if len(scope.Traversal) == 1 && forbidRootEval {
 		return scope, nil
 	}
 
@@ -332,11 +339,28 @@ func (c *Context) partialEvalScopeTrav(scope *hclsyntax.ScopeTraversalExpr, opts
 	}, nil
 }
 
-func (c *Context) partialEvalParenExpr(paren *hclsyntax.ParenthesesExpr) (hhcl.Expression, error) {
-	newexpr, err := c.partialEval(paren.Expression)
+func (c *Context) partialEvalParenExpr(paren *hclsyntax.ParenthesesExpr, opts ...partialEvalOption) (hhcl.Expression, error) {
+	assertPartialExprOpt(opts)
+	forbidRootEval := false
+	if len(opts) == 1 {
+		forbidRootEval = opts[0].forbidRootEval
+	}
+
+	var (
+		newexpr hhcl.Expression
+		err     error
+	)
+
+	if scope, ok := paren.Expression.(*hclsyntax.ScopeTraversalExpr); ok && forbidRootEval {
+		newexpr, err = c.partialEvalScopeTrav(scope, opts...)
+	} else {
+		newexpr, err = c.partialEval(paren.Expression)
+	}
+
 	if err != nil {
 		return nil, err
 	}
+
 	paren.Expression = asSyntax(newexpr)
 	return paren, nil
 }
@@ -363,4 +387,10 @@ func (c *Context) partialEvalRelTrav(rel *hclsyntax.RelativeTraversalExpr) (hhcl
 
 func asSyntax(expr hhcl.Expression) hclsyntax.Expression {
 	return expr.(hclsyntax.Expression)
+}
+
+func assertPartialExprOpt(opts []partialEvalOption) {
+	if len(opts) > 1 {
+		panic(errors.E(errors.ErrInternal, "only 1 option object allowed in partialEvalOption"))
+	}
 }
