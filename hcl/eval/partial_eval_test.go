@@ -191,6 +191,30 @@ EOT
 			}`,
 		},
 		{
+			expr: `{
+				(tm_upper(global.string)) = 1
+			}`,
+			want: `{
+				("TERRAMATE") = 1
+			}`,
+		},
+		{
+			expr: `{
+				upper(global.string) = 1
+			}`,
+			want: `{
+				upper("terramate") = 1
+			}`,
+		},
+		{
+			expr: `{
+				upper("a") = 1
+			}`,
+			want: `{
+				upper("a") = 1
+			}`,
+		},
+		{
 			expr: `funcall()`,
 		},
 		{
