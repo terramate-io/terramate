@@ -222,20 +222,23 @@ func (c *Context) hasTerramateVars(expr hclsyntax.Expression) bool {
 }
 
 func (c *Context) partialEvalObjectKey(key *hclsyntax.ObjectConsKeyExpr) (hhcl.Expression, error) {
-	travExpr, isTraversal := key.Wrapped.(*hclsyntax.ScopeTraversalExpr)
-	if isTraversal {
-		if !key.ForceNonLiteral {
-			if len(travExpr.Traversal) > 1 || c.hasTerramateVars(key.Wrapped) {
-				return nil, errors.E(ErrNonLiteralKey, key.Range())
-			}
-			return key, nil
-		}
-		// can partial evaluate
+	var (
+		wrapped hhcl.Expression
+		err     error
+	)
+
+	if scope, ok := key.Wrapped.(*hclsyntax.ScopeTraversalExpr); ok {
+		wrapped, err = c.partialEvalScopeTrav(scope, scopeTraversalOption{
+			allowRootEval: false,
+		})
+	} else {
+		wrapped, err = c.partialEval(key.Wrapped)
 	}
-	wrapped, err := c.partialEval(key.Wrapped)
+
 	if err != nil {
 		return nil, err
 	}
+
 	key.Wrapped = asSyntax(wrapped)
 	return key, nil
 }
@@ -297,7 +300,14 @@ func (c *Context) partialEvalCondExpr(cond *hclsyntax.ConditionalExpr) (hhcl.Exp
 	return cond, nil
 }
 
-func (c *Context) partialEvalScopeTrav(scope *hclsyntax.ScopeTraversalExpr) (hclsyntax.Expression, error) {
+type scopeTraversalOption struct {
+	allowRootEval bool
+}
+
+func (c *Context) partialEvalScopeTrav(scope *hclsyntax.ScopeTraversalExpr, opts ...scopeTraversalOption) (hclsyntax.Expression, error) {
+	if len(opts) > 1 {
+		panic(errors.E(errors.ErrInternal, "only 1 option allowed in scope traversal"))
+	}
 	ns, ok := scope.Traversal[0].(hhcl.TraverseRoot)
 	if !ok {
 		return scope, nil
@@ -305,6 +315,14 @@ func (c *Context) partialEvalScopeTrav(scope *hclsyntax.ScopeTraversalExpr) (hcl
 	if !c.HasNamespace(ns.Name) {
 		return scope, nil
 	}
+	allowRootEval := true
+	if len(opts) == 1 {
+		allowRootEval = opts[0].allowRootEval
+	}
+	if len(scope.Traversal) == 1 && !allowRootEval {
+		return scope, nil
+	}
+
 	val, err := c.Eval(scope)
 	if err != nil {
 		return nil, err

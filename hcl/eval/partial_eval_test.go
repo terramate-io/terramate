@@ -30,7 +30,9 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-func TestPartialEval2(t *testing.T) {
+func TestPartialEval(t *testing.T) {
+	t.Parallel()
+
 	type testcase struct {
 		expr    string
 		want    string
@@ -168,14 +170,16 @@ EOT
 			expr: `{
 				global.string = 1
 			}`,
-			wantErr: errors.E(eval.ErrNonLiteralKey),
+			want: `{
+				"terramate" = 1	
+			}`,
 		},
 		{
 			expr: `{
 				(global.string) = 1
 			}`,
 			want: `{
-				"terramate" = 1
+				("terramate") = 1
 			}`,
 		},
 		{
@@ -252,40 +256,43 @@ EOT
 			want: `"TERRAMATE"`,
 		},
 	} {
-		ctx := eval.NewContext(stdlib.Functions(os.TempDir()))
-		ctx.SetNamespace("global", map[string]cty.Value{
-			"number": cty.NumberIntVal(10),
-			"string": cty.StringVal("terramate"),
-			"list": cty.ListVal([]cty.Value{
-				cty.NumberIntVal(0),
-				cty.NumberIntVal(1),
-				cty.NumberIntVal(2),
-				cty.NumberIntVal(3),
-			}),
-			"strings": cty.ListVal([]cty.Value{
-				cty.StringVal("terramate"),
-				cty.StringVal("is"),
-				cty.StringVal("fun"),
-			}),
-			"obj": cty.ObjectVal(map[string]cty.Value{
-				"a": cty.NumberIntVal(0),
-				"b": cty.ListVal([]cty.Value{cty.StringVal("terramate")}),
-			}),
+		tc := tc
+		t.Run(tc.expr, func(t *testing.T) {
+			ctx := eval.NewContext(stdlib.Functions(os.TempDir()))
+			ctx.SetNamespace("global", map[string]cty.Value{
+				"number": cty.NumberIntVal(10),
+				"string": cty.StringVal("terramate"),
+				"list": cty.ListVal([]cty.Value{
+					cty.NumberIntVal(0),
+					cty.NumberIntVal(1),
+					cty.NumberIntVal(2),
+					cty.NumberIntVal(3),
+				}),
+				"strings": cty.ListVal([]cty.Value{
+					cty.StringVal("terramate"),
+					cty.StringVal("is"),
+					cty.StringVal("fun"),
+				}),
+				"obj": cty.ObjectVal(map[string]cty.Value{
+					"a": cty.NumberIntVal(0),
+					"b": cty.ListVal([]cty.Value{cty.StringVal("terramate")}),
+				}),
+			})
+			expr, diags := hclsyntax.ParseExpression([]byte(tc.expr), "test.hcl", hcl.InitialPos)
+			if diags.HasErrors() {
+				t.Fatalf(diags.Error())
+			}
+			gotExpr, err := ctx.PartialEval(expr)
+			errtest.Assert(t, err, tc.wantErr)
+			if tc.wantErr != nil {
+				return
+			}
+			want := tc.expr
+			if tc.want != "" {
+				want = tc.want
+			}
+			got := ast.TokensForExpression(gotExpr)
+			assert.EqualStrings(t, string(hclwrite.Format([]byte(want))), string(hclwrite.Format(got.Bytes())))
 		})
-		expr, diags := hclsyntax.ParseExpression([]byte(tc.expr), "test.hcl", hcl.InitialPos)
-		if diags.HasErrors() {
-			t.Fatalf(diags.Error())
-		}
-		gotExpr, err := ctx.PartialEval(expr)
-		errtest.Assert(t, err, tc.wantErr)
-		if tc.wantErr != nil {
-			return
-		}
-		want := tc.expr
-		if tc.want != "" {
-			want = tc.want
-		}
-		got := ast.TokensForExpression(gotExpr)
-		assert.EqualStrings(t, string(hclwrite.Format([]byte(want))), string(hclwrite.Format(got.Bytes())))
 	}
 }
