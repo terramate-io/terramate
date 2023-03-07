@@ -207,6 +207,19 @@ EOT
 			}`,
 		},
 		{
+			expr: `global`,
+			want: `{
+				list   = [0, 1, 2, 3]
+				number = 10
+				obj = {
+				  a = 0
+				  b = ["terramate"]
+				}
+				string  = "terramate"
+				strings = ["terramate", "is", "fun"]
+			}`,
+		},
+		{
 			expr: `{
 				(global.string) = 1
 			}`,
