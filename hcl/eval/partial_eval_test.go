@@ -176,6 +176,14 @@ EOT
 		},
 		{
 			expr: `{
+				global.obj.b[0] = 1
+			}`,
+			want: `{
+				"terramate" = 1	
+			}`,
+		},
+		{
+			expr: `{
 				(global.string) = 1
 			}`,
 			want: `{
@@ -212,6 +220,22 @@ EOT
 			}`,
 			want: `{
 				upper("a") = 1
+			}`,
+		},
+		{
+			expr: `{
+				(upper("a")) = 1
+			}`,
+			want: `{
+				(upper("a")) = 1
+			}`,
+		},
+		{
+			expr: `{
+				a.b.c = 1
+			}`,
+			want: `{
+				a.b.c = 1
 			}`,
 		},
 		{
