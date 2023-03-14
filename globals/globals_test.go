@@ -3184,6 +3184,93 @@ func TestLoadGlobals(t *testing.T) {
 			},
 		},
 		{
+			name:   "indexing references are postponed until all other globals with base prefix are evaluated - case 3",
+			layout: []string{"s:stack"},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						Globals(
+							Labels("a", "b", "c"),
+							Expr("providers", `{}`),
+							Expr("_available_providers", `{
+								aws = {
+								  source  = "hashicorp/aws"
+								  version = "~> 4.14"
+								}
+								vault = {
+								  source  = "hashicorp/vault"
+								  version = "~> 3.10"
+								}
+								postgresql = {
+								  source  = "cyrilgdn/postgresql"
+								  version = "~> 1.18.0"
+								}
+								mysql = {
+								  source  = "petoju/mysql"
+								  version = "~> 3.0.29"
+								}
+							  }`),
+						),
+						Globals(
+							Labels("a", "b", "c"),
+							Expr("required_providers", `{for k, v in global.a.b.c._available_providers : k => v if tm_try(global.a.b.c.providers[k], false)}`),
+						),
+						Globals(
+							Labels("a", "b", "c", "providers"),
+							Bool("aws", true),
+						),
+						Globals(
+							Labels("a", "b", "c", "providers"),
+							Bool("mysql", true),
+						),
+					),
+				},
+			},
+			want: map[string]*hclwrite.Block{
+				"/stack": Globals(
+					EvalExpr(t, "a", `{
+						b = {
+							c = {
+								_available_providers = {
+									aws = {
+										source  = "hashicorp/aws"
+										version = "~> 4.14"
+									}
+									vault = {
+										source  = "hashicorp/vault"
+										version = "~> 3.10"
+									}
+									postgresql = {
+										source  = "cyrilgdn/postgresql"
+										version = "~> 1.18.0"
+									}
+									mysql = {
+										source  = "petoju/mysql"
+										version = "~> 3.0.29"
+									}
+								}
+								providers = {
+									aws = true
+									mysql = true
+								}
+								required_providers = {
+									aws = {
+									  source  = "hashicorp/aws"
+									  version = "~> 4.14"
+									}
+									mysql = {
+									  source  = "petoju/mysql"
+									  version = "~> 3.0.29"
+									}
+								  }
+							}
+						}
+					}`),
+				),
+			},
+		},
+		{
 			name:   "globals.map unknowns are postponed in the evaluator even when parent depends on child",
 			layout: []string{"s:stack"},
 			configs: []hclconfig{
