@@ -403,11 +403,23 @@ func (dirExprs HierarchicalExprs) Eval(ctx *eval.Context) EvalReport {
 						}
 					}
 
-					for len := len(varPaths); len >= 1; len-- {
-						base := varPaths[:len-1]
-						attr := varPaths[len-1]
+					min := func(a, b int) int {
+						if a < b {
+							return a
+						}
+						return b
+					}
 
-						if _, isPending := pendingExprs[newGlobalPath(base, attr)]; isPending {
+					for accessPath := range pendingExprs {
+						found := true
+						accessPathPaths := accessPath.Path()
+						for i := min(len(accessPathPaths), len(varPaths)) - 1; i >= 0; i-- {
+							if accessPathPaths[i] != varPaths[i] {
+								found = false
+								break
+							}
+						}
+						if found {
 							continue pendingExpression
 						}
 					}
