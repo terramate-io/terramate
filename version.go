@@ -18,6 +18,8 @@ import (
 	_ "embed"
 	"strings"
 
+	"github.com/apparentlymart/go-versions/versions"
+	"github.com/apparentlymart/go-versions/versions/constraints"
 	hclversion "github.com/hashicorp/go-version"
 	"github.com/mineiros-io/terramate/errors"
 	"github.com/rs/zerolog/log"
@@ -35,34 +37,56 @@ func Version() string {
 }
 
 // CheckVersion checks Terramate version against the given constraint.
-func CheckVersion(vconstraint string) error {
-	return CheckVersionFor(Version(), vconstraint)
+func CheckVersion(vconstraint string, allowPrereleases bool) error {
+	return CheckVersionFor(Version(), vconstraint, allowPrereleases)
 }
 
 // CheckVersionFor checks if version matches the provided constraint.
-func CheckVersionFor(version string, vconstraint string) error {
+func CheckVersionFor(version string, vconstraint string, allowPrereleases bool) error {
 	logger := log.With().
 		Str("version", version).
 		Str("constraint", vconstraint).
+		Bool("allow_prereleases", allowPrereleases).
 		Logger()
 
-	logger.Trace().Msg("parsing version constraint")
+	var check func() bool
 
-	constraint, err := hclversion.NewConstraint(vconstraint)
-	if err != nil {
-		return errors.E(ErrVersion, "invalid constraint", err)
-	}
+	if allowPrereleases {
+		semver, err := versions.ParseVersion(version)
+		if err != nil {
+			return errors.E(ErrVersion, "terramate built with invalid version", err)
+		}
 
-	logger.Trace().Msg("parsing terramate version")
+		spec, err := constraints.ParseRubyStyleMulti(vconstraint)
+		if err != nil {
+			return errors.E(ErrVersion, "invalid constraint", err)
+		}
 
-	semver, err := hclversion.NewSemver(version)
-	if err != nil {
-		return errors.E(ErrVersion, "terramate built with invalid version", err)
+		allowed := versions.MeetingConstraintsExact(spec)
+		check = func() bool {
+			return allowed.Has(semver)
+		}
+	} else {
+		logger.Trace().Msg("parsing version constraint")
+
+		constraint, err := hclversion.NewConstraint(vconstraint)
+		if err != nil {
+			return errors.E(ErrVersion, "invalid constraint", err)
+		}
+
+		semver, err := hclversion.NewSemver(version)
+		if err != nil {
+			return errors.E(ErrVersion, "terramate built with invalid version", err)
+		}
+
+		check = func() bool {
+			return constraint.Check(semver)
+		}
 	}
 
 	logger.Trace().Msg("checking version constraint")
 
-	if !constraint.Check(semver) {
+	if !check() {
 		return errors.E(
 			ErrVersion,
 			"version constraint %q not satisfied by terramate version %q",

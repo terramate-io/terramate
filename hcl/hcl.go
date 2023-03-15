@@ -148,6 +148,9 @@ type Terramate struct {
 	// RequiredVersion contains the terramate version required by the stack.
 	RequiredVersion string
 
+	// RequiredVersionAllowPreReleases allows pre-release to be matched if true.
+	RequiredVersionAllowPreReleases bool
+
 	// Config is the parsed config blocks.
 	Config *RootConfig
 }
@@ -772,13 +775,6 @@ func (c Config) Save(filename string) (err error) {
 	}()
 
 	return PrintConfig(f, c)
-}
-
-// NewTerramate creates a new TerramateBlock with reqversion.
-func NewTerramate(reqversion string) *Terramate {
-	return &Terramate{
-		RequiredVersion: reqversion,
-	}
 }
 
 // ParseDir will parse Terramate configuration from a given directory,
@@ -1845,6 +1841,7 @@ func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
 
 	errKind := ErrTerramateSchema
 	errs := errors.L()
+	var foundReqVersion, foundAllowPrereleases bool
 	for _, attr := range block.Attributes.SortedList() {
 		value, diags := attr.Expr.Value(nil)
 		if diags.HasErrors() {
@@ -1860,15 +1857,34 @@ func parseTerramateBlock(block *ast.MergedBlock) (Terramate, error) {
 
 				continue
 			}
-			if tm.RequiredVersion != "" {
+			if foundReqVersion {
 				errs.Append(errors.E(errKind, attr.NameRange,
 					"duplicated attribute"))
 			}
+			foundReqVersion = true
 			tm.RequiredVersion = value.AsString()
+
+		case "required_version_allow_prereleases":
+			logger.Trace().Msg("Parsing  attribute 'required_version_allow_prereleases'.")
+
+			if value.Type() != cty.Bool {
+				errs.Append(errors.E(errKind, attr.Expr.Range(),
+					"attribute is not a bool"))
+
+				continue
+			}
+
+			if foundAllowPrereleases {
+				errs.Append(errors.E(errKind, attr.NameRange,
+					"duplicated attribute"))
+			}
+
+			foundAllowPrereleases = true
+			tm.RequiredVersionAllowPreReleases = value.True()
 
 		default:
 			errs.Append(errors.E(errKind, attr.NameRange,
-				"unsupported attribute"))
+				"unsupported attribute %q", attr.Name))
 		}
 	}
 
