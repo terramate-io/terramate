@@ -111,6 +111,38 @@ func TestGenerateAssert(t *testing.T) {
 			},
 		},
 		{
+			name: "failed assertion using tm_version_match()",
+			layout: []string{
+				"s:stacks/stack-1",
+				"s:stacks/stack-2",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stacks",
+					add: Assert(
+						Expr("assertion", `tm_version_match(terramate.version, "< 0.2")`),
+						Str("message", "msg"),
+					),
+				},
+			},
+			wantReport: generate.Report{
+				Failures: []generate.FailureResult{
+					{
+						Result: generate.Result{
+							Dir: project.NewPath("/stacks/stack-1"),
+						},
+						Error: errors.E(generate.ErrAssertion),
+					},
+					{
+						Result: generate.Result{
+							Dir: project.NewPath("/stacks/stack-2"),
+						},
+						Error: errors.E(generate.ErrAssertion),
+					},
+				},
+			},
+		},
+		{
 			name: "generate blocks ignored on failed assertion",
 			layout: []string{
 				"s:stacks/stack-1",
@@ -359,6 +391,47 @@ func TestGenerateAssertInsideGenerateBlocks(t *testing.T) {
 					{
 						Dir:     project.NewPath("/stack"),
 						Created: []string{"test.hcl", "test.txt"},
+					},
+				},
+			},
+		},
+		{
+			name: "success assertion using tm_version_match()",
+			layout: []string{
+				"s:stack",
+			},
+			configs: []hclconfig{
+				{
+					path: "/stack",
+					add: Doc(
+						GenerateHCL(
+							Labels("test.hcl"),
+							Content(
+								Str("stack", "test"),
+							),
+							Assert(
+								Expr("assertion", `tm_version_match(terramate.version, ">= 0.2", {allow_prereleases = true})`),
+								Str("message", "msg"),
+							),
+						),
+					),
+				},
+			},
+			want: []generatedFile{
+				{
+					dir: "/stack",
+					files: map[string]fmt.Stringer{
+						"test.hcl": Doc(
+							Str("stack", "test"),
+						),
+					},
+				},
+			},
+			wantReport: generate.Report{
+				Successes: []generate.Result{
+					{
+						Dir:     project.NewPath("/stack"),
+						Created: []string{"test.hcl"},
 					},
 				},
 			},
