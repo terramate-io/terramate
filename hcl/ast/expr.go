@@ -311,6 +311,9 @@ func (builder *tokenBuilder) funcallTokens(fn *hclsyntax.FunctionCallExpr) {
 			builder.add(comma())
 		}
 	}
+	if fn.ExpandFinal {
+		builder.add(ellipsis())
+	}
 	builder.add(cparen())
 }
 
@@ -353,6 +356,9 @@ func (builder *tokenBuilder) forExprTokens(forExpr *hclsyntax.ForExpr) {
 		builder.build(forExpr.ValExpr)
 	} else {
 		builder.build(forExpr.ValExpr)
+	}
+	if forExpr.Group {
+		builder.add(ellipsis())
 	}
 	if forExpr.CondExpr != nil {
 		builder.add(ident("if", 1))
@@ -507,6 +513,13 @@ func cparen() *hclwrite.Token {
 	return &hclwrite.Token{
 		Type:  hclsyntax.TokenCParen,
 		Bytes: []byte{')'},
+	}
+}
+
+func ellipsis() *hclwrite.Token {
+	return &hclwrite.Token{
+		Type:  hclsyntax.TokenEllipsis,
+		Bytes: []byte("..."),
 	}
 }
 

@@ -109,7 +109,76 @@ func TestPartialEval(t *testing.T) {
 					global    = global.ref,
 				 }`),
 			),
-			wantErr: errors.E(eval.ErrNonLiteralKey),
+			want: Doc(
+				Expr("obj", `{
+					local = local.ref
+					global = 666	
+				}`),
+			),
+		},
+		{
+			name: "global references in object keys without parenthesis",
+			globals: Doc(
+				Globals(
+					Str("key", "key"),
+					Str("value", "value"),
+				),
+			),
+			config: Doc(
+				Expr("obj", `{
+					global.key    = global.value,
+				 }`),
+			),
+			want: Doc(
+				Expr("obj", `{
+					"key" = "value"	
+				}`),
+			),
+		},
+		{
+			name: "tm funcalls in object keys without parenthesis",
+			globals: Doc(
+				Globals(
+					Str("key", "key"),
+					Str("value", "value"),
+				),
+			),
+			config: Doc(
+				Expr("obj", `{
+					tm_upper(global.key)    = global.value,
+				 }`),
+			),
+			want: Doc(
+				Expr("obj", `{
+					"KEY" = "value"	
+				}`),
+			),
+		},
+		{
+			name: "unknown namespace in object key without parenthesis",
+			config: Doc(
+				Expr("obj", `{
+					aws.vpc = "something"
+				 }`),
+			),
+			want: Doc(
+				Expr("obj", `{
+					aws.vpc = "something"	
+				}`),
+			),
+		},
+		{
+			name: "unknown funcall in object key without parenthesis",
+			config: Doc(
+				Expr("obj", `{
+					anyfunc(local.a) = "something"
+				 }`),
+			),
+			want: Doc(
+				Expr("obj", `{
+					anyfunc(local.a) = "something"
+				}`),
+			),
 		},
 		{
 			name: "mixed references on list",
