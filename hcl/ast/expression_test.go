@@ -507,6 +507,10 @@ EOT
 			expr: `{for k in c : k => k}`,
 		},
 		{
+			name: "for-expr - object with ellipsis",
+			expr: `{for i, v in ["a", "a", "b"]: v => i...}`,
+		},
+		{
 			name: "for-expr - object with exprs and cond",
 			expr: `{for k,v in expr() : expr()+test() => expr()+test()+1 if 0==0}`,
 		},

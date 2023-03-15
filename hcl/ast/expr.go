@@ -357,6 +357,9 @@ func (builder *tokenBuilder) forExprTokens(forExpr *hclsyntax.ForExpr) {
 	} else {
 		builder.build(forExpr.ValExpr)
 	}
+	if forExpr.Group {
+		builder.add(ellipsis())
+	}
 	if forExpr.CondExpr != nil {
 		builder.add(ident("if", 1))
 		nexttok := len(builder.tokens)
