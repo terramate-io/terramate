@@ -327,6 +327,14 @@ EOT
 			})`,
 		},
 		{
+			name: "funcall with ellipsis",
+			expr: `test([]...)`,
+		},
+		{
+			name: "funcall with ellipsis after args",
+			expr: `test(2, 3, 4, [1, 2, 3]...)`,
+		},
+		{
 			name: "namespace",
 			expr: `abc`,
 		},
@@ -497,6 +505,10 @@ EOT
 		{
 			name: "for-expr - object",
 			expr: `{for k in c : k => k}`,
+		},
+		{
+			name: "for-expr - object with ellipsis",
+			expr: `{for i, v in ["a", "a", "b"]: v => i...}`,
 		},
 		{
 			name: "for-expr - object with exprs and cond",

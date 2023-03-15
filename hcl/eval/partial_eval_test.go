@@ -30,7 +30,9 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-func TestPartialEval2(t *testing.T) {
+func TestPartialEval(t *testing.T) {
+	t.Parallel()
+
 	type testcase struct {
 		expr    string
 		want    string
@@ -168,14 +170,61 @@ EOT
 			expr: `{
 				global.string = 1
 			}`,
-			wantErr: errors.E(eval.ErrNonLiteralKey),
+			want: `{
+				"terramate" = 1	
+			}`,
+		},
+		{
+			expr: `{
+				global.obj.b[0] = 1
+			}`,
+			want: `{
+				"terramate" = 1	
+			}`,
+		},
+		{
+			expr: `{
+				global = 1
+			}`,
+			want: `{
+				global = 1	
+			}`,
+		},
+		{
+			expr: `{
+				(global) = 1
+			}`,
+			want: `{
+				(global) = 1	
+			}`,
+		},
+		{
+			expr: `{
+				(iter) = 1
+			}`,
+			want: `{
+				(iter) = 1	
+			}`,
+		},
+		{
+			expr: `global`,
+			want: `{
+				list   = [0, 1, 2, 3]
+				number = 10
+				obj = {
+				  a = 0
+				  b = ["terramate"]
+				}
+				string  = "terramate"
+				strings = ["terramate", "is", "fun"]
+			}`,
 		},
 		{
 			expr: `{
 				(global.string) = 1
 			}`,
 			want: `{
-				"terramate" = 1
+				("terramate") = 1
 			}`,
 		},
 		{
@@ -184,6 +233,46 @@ EOT
 			}`,
 			want: `{
 				"TERRAMATE" = 1
+			}`,
+		},
+		{
+			expr: `{
+				(tm_upper(global.string)) = 1
+			}`,
+			want: `{
+				("TERRAMATE") = 1
+			}`,
+		},
+		{
+			expr: `{
+				upper(global.string) = 1
+			}`,
+			want: `{
+				upper("terramate") = 1
+			}`,
+		},
+		{
+			expr: `{
+				upper("a") = 1
+			}`,
+			want: `{
+				upper("a") = 1
+			}`,
+		},
+		{
+			expr: `{
+				(upper("a")) = 1
+			}`,
+			want: `{
+				(upper("a")) = 1
+			}`,
+		},
+		{
+			expr: `{
+				a.b.c = 1
+			}`,
+			want: `{
+				a.b.c = 1
 			}`,
 		},
 		{
@@ -252,40 +341,43 @@ EOT
 			want: `"TERRAMATE"`,
 		},
 	} {
-		ctx := eval.NewContext(stdlib.Functions(os.TempDir()))
-		ctx.SetNamespace("global", map[string]cty.Value{
-			"number": cty.NumberIntVal(10),
-			"string": cty.StringVal("terramate"),
-			"list": cty.ListVal([]cty.Value{
-				cty.NumberIntVal(0),
-				cty.NumberIntVal(1),
-				cty.NumberIntVal(2),
-				cty.NumberIntVal(3),
-			}),
-			"strings": cty.ListVal([]cty.Value{
-				cty.StringVal("terramate"),
-				cty.StringVal("is"),
-				cty.StringVal("fun"),
-			}),
-			"obj": cty.ObjectVal(map[string]cty.Value{
-				"a": cty.NumberIntVal(0),
-				"b": cty.ListVal([]cty.Value{cty.StringVal("terramate")}),
-			}),
+		tc := tc
+		t.Run(tc.expr, func(t *testing.T) {
+			ctx := eval.NewContext(stdlib.Functions(os.TempDir()))
+			ctx.SetNamespace("global", map[string]cty.Value{
+				"number": cty.NumberIntVal(10),
+				"string": cty.StringVal("terramate"),
+				"list": cty.ListVal([]cty.Value{
+					cty.NumberIntVal(0),
+					cty.NumberIntVal(1),
+					cty.NumberIntVal(2),
+					cty.NumberIntVal(3),
+				}),
+				"strings": cty.ListVal([]cty.Value{
+					cty.StringVal("terramate"),
+					cty.StringVal("is"),
+					cty.StringVal("fun"),
+				}),
+				"obj": cty.ObjectVal(map[string]cty.Value{
+					"a": cty.NumberIntVal(0),
+					"b": cty.ListVal([]cty.Value{cty.StringVal("terramate")}),
+				}),
+			})
+			expr, diags := hclsyntax.ParseExpression([]byte(tc.expr), "test.hcl", hcl.InitialPos)
+			if diags.HasErrors() {
+				t.Fatalf(diags.Error())
+			}
+			gotExpr, err := ctx.PartialEval(expr)
+			errtest.Assert(t, err, tc.wantErr)
+			if tc.wantErr != nil {
+				return
+			}
+			want := tc.expr
+			if tc.want != "" {
+				want = tc.want
+			}
+			got := ast.TokensForExpression(gotExpr)
+			assert.EqualStrings(t, string(hclwrite.Format([]byte(want))), string(hclwrite.Format(got.Bytes())))
 		})
-		expr, diags := hclsyntax.ParseExpression([]byte(tc.expr), "test.hcl", hcl.InitialPos)
-		if diags.HasErrors() {
-			t.Fatalf(diags.Error())
-		}
-		gotExpr, err := ctx.PartialEval(expr)
-		errtest.Assert(t, err, tc.wantErr)
-		if tc.wantErr != nil {
-			return
-		}
-		want := tc.expr
-		if tc.want != "" {
-			want = tc.want
-		}
-		got := ast.TokensForExpression(gotExpr)
-		assert.EqualStrings(t, string(hclwrite.Format([]byte(want))), string(hclwrite.Format(got.Bytes())))
 	}
 }
