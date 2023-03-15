@@ -1,0 +1,475 @@
+[
+    {
+        "title": "Getting Started",
+        "sourceURL": "/README.md",
+        "topics": [
+            {
+                "title": "Getting Started",
+                "anchor": "#getting-started"
+            },
+            {
+                "title": "Versioning",
+                "anchor": "#versioning"
+            },
+            {
+                "title": "Star History",
+                "anchor": "#star-history"
+            }
+        ]
+    },
+    {
+        "title": "Stacks",
+        "children": [
+            {
+                "title": "Overview",
+                "sourceURL": "/docs/why-stacks.md",
+                "topics": [
+                    {
+                        "title": "Why use Stacks?",
+                        "anchor": "#why-use-stacks-"
+                    },
+                    {
+                        "title": "Isolate code with higher change frequency",
+                        "anchor": "#isolate-code-with-higher-change-frequency"
+                    },
+                    {
+                        "title": "Reduce the blast radius",
+                        "anchor": "#reduce-the-blast-radius"
+                    },
+                    {
+                        "title": "Reduce execution time",
+                        "anchor": "#reduce-execution-time"
+                    },
+                    {
+                        "title": "Ownership",
+                        "anchor": "#ownership"
+                    },
+                    {
+                        "title": "Others",
+                        "anchor": "#others"
+                    }
+                ]
+            },
+            {
+                "title": "Stack",
+                "sourceURL": "/docs/stack.md",
+                "topics": [
+                    {
+                        "title": "Stack",
+                        "anchor": "#stack"
+                    },
+                    {
+                        "title": "stack.id",
+                        "anchor": "#stackid-stringoptional"
+                    },
+                    {
+                        "title": "stack.name",
+                        "anchor": "#stackname-stringoptional"
+                    },
+                    {
+                        "title": "stack.description",
+                        "anchor": "#stackdescription-stringoptional"
+                    },
+                    {
+                        "title": "stack.tags",
+                        "anchor": "#stacktags-setstringoptional"
+                    },
+                    {
+                        "title": "stack.watch",
+                        "anchor": "#stackwatch-listoptional"
+                    },
+                    {
+                        "title": "stack.after",
+                        "anchor": "#stackafter-setstringoptional"
+                    },
+                    {
+                        "title": "stack.before",
+                        "anchor": "#stackbefore-setstringoptional"
+                    }
+                ]
+            },
+            {
+                "title": "Tag Filter",
+                "sourceURL": "/docs/tag-filter.md",
+                "topics": [
+                    {
+                        "title": "Tag Filter",
+                        "anchor": "#tag-filter"
+                    },
+                    {
+                        "title": "Grammar",
+                        "anchor": "#filter-grammar"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "title": "Change Detection",
+        "sourceURL": "/docs/change-detection.md",
+        "topics": [
+            {
+                "title": "Change Detection",
+                "anchor": "#change-detection"
+            },
+            {
+                "title": "Module change detection",
+                "anchor": "#module-change-detection"
+            },
+            {
+                "title": "Arbitrary files change detection",
+                "anchor": "#arbitrary-files-change-detection"
+            }
+        ]
+    },
+    {
+        "title": "Configuration Language",
+        "sourceURL": "/docs/config-overview.md",
+        "topics": [
+            {
+                "title": "Terramate Configuration Overview",
+                "anchor": "#terramate-configuration-overview"
+            },
+            {
+                "title": "Config merging",
+                "anchor": "#config-merging"
+            },
+            {
+                "title": "Skipping Directories",
+                "anchor": "#skipping-directories"
+            },
+            {
+                "title": "Terramate Configuration Schema",
+                "anchor": "#terramate-configuration-schema"
+            },
+            {
+                "title": "terramate block schema",
+                "anchor": "#terramate-block-schema"
+            },
+            {
+                "title": "terramate.config block schema",
+                "anchor": "#terramateconfig-block-schema"
+            },
+            {
+                "title": "terramate.config.git block schema",
+                "anchor": "#terramateconfiggit-block-schema"
+            },
+            {
+                "title": "terramate.config.run block schema",
+                "anchor": "#terramateconfigrun-block-schema"
+            },
+            {
+                "title": "terramate.config.run.env block schema",
+                "anchor": "#terramateconfigrun-block-schema"
+            },
+            {
+                "title": "stack block schema",
+                "anchor": "#stack-block-schema"
+            },
+            {
+                "title": "assert block schema",
+                "anchor": "#assert-block-schema"
+            },
+            {
+                "title": "globals block schema",
+                "anchor": "#globals-block-schema"
+            },
+            {
+                "title": "map block schema",
+                "anchor": "#map-block-schema"
+            },
+            {
+                "title": "value block schema",
+                "anchor": "#value-block-schema"
+            },
+            {
+                "title": "generate_file block schema",
+                "anchor": "#generate_file-block-schema"
+            },
+            {
+                "title": "generate_hcl block schema",
+                "anchor": "#generate_hcl-block-schema"
+            },
+            {
+                "title": "lets block schema",
+                "anchor": "#lets-block-schema"
+            },
+            {
+                "title": "generate_hcl.content block schema",
+                "anchor": "#generate_hclcontent-block-schema"
+            },
+            {
+                "title": "import block schema",
+                "anchor": "#import-block-schema"
+            },
+            {
+                "title": "vendor block schema",
+                "anchor": "#vendor-block-schema"
+            },
+            {
+                "title": "vendor.manifest block schema",
+                "anchor": "#vendormanifest-block-schema"
+            },
+            {
+                "title": "vendor.manifest.default block schema",
+                "anchor": "#vendormanifestdefault-block-schema"
+            }
+        ]
+    },
+    {
+        "title": "Project Configuration",
+        "sourceURL": "/docs/project-config.md",
+        "topics": [
+            {
+                "title": "Project Configuration",
+                "anchor": "#project-configuration"
+            },
+            {
+                "title": "The terramate.required_version attribute",
+                "anchor": "#the-terramaterequired_version-attribute"
+            },
+            {
+                "title": "The terramate.config block",
+                "anchor": "#the-terramateconfig-block"
+            },
+            {
+                "title": "The terramate.config.git block",
+                "anchor": "#the-terramateconfiggit-block"
+            },
+            {
+                "title": "The terramate.config.run block",
+                "anchor": "#the-terramateconfigrun-block"
+            }
+        ]
+    },
+    {
+        "title": "Hierarchical Variables",
+        "children": [
+            {
+                "title": "Sharing Data",
+                "sourceURL": "/docs/sharing-data.md",
+                "topics": [
+                    {
+                        "title": "Sharing Data",
+                        "anchor": "#sharing-data"
+                    },
+                    {
+                        "title": "Globals",
+                        "anchor": "#globals"
+                    },
+                    {
+                        "title": "Lazy Evaluation",
+                        "anchor": "#lazy-evaluation"
+                    },
+                    {
+                        "title": "Metadata",
+                        "anchor": "#metadata"
+                    },
+                    {
+                        "title": "Project metadata",
+                        "anchor": "#project-metadata"
+                    },
+                    {
+                        "title": "terramate.stacks.list",
+                        "anchor": "#terramatestackslist-string"
+                    },
+                    {
+                        "title": "terramate.root.path.fs.absolute",
+                        "anchor": "#terramaterootpathfsabsolute-string"
+                    },
+                    {
+                        "title": "terramate.root.path.fs.basename",
+                        "anchor": "#terramaterootpathfsbasename-string"
+                    },
+                    {
+                        "title": "Stack Metadata",
+                        "anchor": "#stack-metadata"
+                    },
+                    {
+                        "title": "terramate.stack.path.absolute",
+                        "anchor": "#terramatestackpathabsolute-string"
+                    },
+                    {
+                        "title": "terramate.stack.path.relative",
+                        "anchor": "#terramatestackpathrelative-string"
+                    },
+                    {
+                        "title": "terramate.stack.path.basename",
+                        "anchor": "#terramatestackpathbasename-string"
+                    },
+                    {
+                        "title": "terramate.stack.path.to_root",
+                        "anchor": "#terramatestackpathto_root-string"
+                    },
+                    {
+                        "title": "terramate.stack.id",
+                        "anchor": "#terramatestackid-string"
+                    },
+                    {
+                        "title": "terramate.stack.name",
+                        "anchor": "#terramatestackname-string"
+                    },
+                    {
+                        "title": "terramate.stack.description",
+                        "anchor": "#terramatestackdescription-string"
+                    },
+                    {
+                        "title": "terramate.stack.tags",
+                        "anchor": "#terramatestacktags-list"
+                    },
+                    {
+                        "title": "Deprecated",
+                        "anchor": "#deprecated"
+                    },
+                    {
+                        "title": "terramate.path",
+                        "anchor": "#terramatepath-string"
+                    },
+                    {
+                        "title": "terramate.name",
+                        "anchor": "#terramatename-string"
+                    },
+                    {
+                        "title": "terramate.description",
+                        "anchor": "#terramatename-string"
+                    }
+                ]
+            },
+            {
+                "title": "Map block",
+                "sourceURL": "/docs/map.md",
+                "topics": [
+                    {
+                        "title": "map block",
+                        "anchor": "#map-block"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "title": "Functions",
+        "sourceURL": "/docs/functions.md",
+        "topics": [
+            {
+                "title": "Terramate Functions",
+                "anchor": "#terramate-functions"
+            },
+            {
+                "title": "tm_ternary",
+                "anchor": "#tm_ternaryboolexprexpr---expr"
+            },
+            {
+                "title": "tm_hcl_expression",
+                "anchor": "#tm_hcl_expressionstring---expr"
+            },
+            {
+                "title": "Experimental functions",
+                "anchor": "#experimental-functions"
+            },
+            {
+                "title": "tm_vendor",
+                "anchor": "#tm_vendorstring---string"
+            }
+        ]
+    },
+    {
+        "title": "Code Generation",
+        "children": [
+            {
+                "title": "Overview",
+                "sourceURL": "/docs/codegen/overview.md",
+                "topics": [
+                    {
+                        "title": "Code Generation",
+                        "anchor": "#code-generation"
+                    },
+                    {
+                        "title": "Generation Context",
+                        "anchor": "#generation-context"
+                    },
+                    {
+                        "title": "Labels",
+                        "anchor": "#labels"
+                    },
+                    {
+                        "title": "Lets block",
+                        "anchor": "#lets"
+                    },
+                    {
+                        "title": "Assertios",
+                        "anchor": "#assertions"
+                    }
+                ]
+            },
+            {
+                "title": "HCL Code Generation",
+                "sourceURL": "/docs/codegen/generate-hcl.md",
+                "topics": [
+                    {
+                        "title": "HCL Code Generation",
+                        "anchor": "#hcl-code-generation"
+                    },
+                    {
+                        "title": "tm_dynamic block",
+                        "anchor": "#tm_dynamic-block"
+                    },
+                    {
+                        "title": "Hierarchical code generation",
+                        "anchor": "#hierarchical-code-generation"
+                    },
+                    {
+                        "title": "Conditional code generation",
+                        "anchor": "#conditional-code-generation"
+                    },
+                    {
+                        "title": "Partial Evaluation",
+                        "anchor": "#partial-evaluation"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "title": "Stack Execution Orchestration",
+        "sourceURL": "/docs/orchestration.md",
+        "topics": [
+            {
+                "title": "Stack Execution Orchestration",
+                "anchor": "#stacks-execution-orchestration"
+            },
+            {
+                "title": "Stacks selection",
+                "anchor": "#stacks-selection"
+            },
+            {
+                "title": "Stacks ordering",
+                "anchor": "#stacks-ordering"
+            },
+            {
+                "title": "Filesystem Hierarchical Order",
+                "anchor": "#filesystem-hierarchical-order"
+            },
+            {
+                "title": "Explicit Order of Execution",
+                "anchor": "#explicit-order-of-execution"
+            },
+            {
+                "title": "Change Detection and Ordering",
+                "anchor": "#change-detection-and-ordering"
+            },
+            {
+                "title": "Stack Execution Environment",
+                "anchor": "#stack-execution-environment"
+            },
+            {
+                "title": "Failure Modes",
+                "anchor": "#failure-modes"
+            },
+            {
+                "title": "What About Cycles/Conflicts ?",
+                "anchor": "#what-about-cyclesconflicts-"
+            }
+        ]
+    }
+]
