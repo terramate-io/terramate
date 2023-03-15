@@ -327,6 +327,14 @@ EOT
 			})`,
 		},
 		{
+			name: "funcall with ellipsis",
+			expr: `test([]...)`,
+		},
+		{
+			name: "funcall with ellipsis after args",
+			expr: `test(2, 3, 4, [1, 2, 3]...)`,
+		},
+		{
 			name: "namespace",
 			expr: `abc`,
 		},
