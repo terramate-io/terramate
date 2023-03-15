@@ -84,6 +84,23 @@ Which will generate:
 expr = data.google_active_folder._parent_id.id.data
 ```
 
+## `tm_version_match(version:string, constraint:string, ...optional_arg:object)`
+
+This function returns `true` if `version` satisfies the `constraint` string.
+By default **prereleases** are never matched if they're not explicitly provided
+in the constraint.
+
+The third parameter is an optional object of type below:
+
+```hcl
+{
+  allow_prereleases: bool,
+}
+```
+
+If `opt.allow_prereleases` is set to `true` then **prereleases** will be matched
+accordingly to [Semantic Versioning](https://semver.org/) precedence rules.
+
 ## Experimental Functions
 
 These functions are experimental and some of them may only be available on
