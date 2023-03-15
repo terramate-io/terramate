@@ -327,6 +327,10 @@ EOT
 			})`,
 		},
 		{
+			name: "funcall with ellipsis",
+			expr: `test([]...)`,
+		},
+		{
 			name: "namespace",
 			expr: `abc`,
 		},
